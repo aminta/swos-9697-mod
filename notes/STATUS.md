@@ -461,3 +461,30 @@ Ancora da provare dalla sessione 12: holder -> scambio CONMEBOL; trofeo Libertad
 
 ## NEXT SESSION (15)
 - Playtest results of sessions 13-14 first (fix if needed). Then the language port (roadmap SESSION 15).
+
+## ROADMAP 2 — more continents (decided 2026-10-01 with Davide; not started)
+Original 96/97 data (ENGLISH.EXE competitionsTable obj2+0x8B1C + TEAM files):
+- Continental CLUB cups exist only for Europe (CC, CWC, UEFA). Africa/N.America/Asia/Oceania tables = WCQ + nations cup only.
+  Unused string '.AFRICAN CLUBS CUP' = the developers' abandoned African club cup (we reused its space for SA names).
+- Club leagues outside Europe/SA: Algeria 16, South Africa 16, Ghana 8 (Africa); Japan 28 (+2 cups), Taiwan 12, India 6 (Asia);
+  Mexico 40, USA 18, El Salvador 46 (N/C America); Australia 51, New Zealand 30 (Oceania). Team files WITHOUT a league:
+  Costa Rica (TEAM.047, 12 clubs), South Korea (1), Malaysia (1), Tanzania (1).
+- Real 1996-97 club competitions missing: CAF Champions' Cup (-> CAF Champions League 1997, groups), African Cup Winners' Cup,
+  CAF Cup; Asian Club Championship, Asian Cup Winners' Cup; CONCACAF Champions' Cup; UEFA Intertoto, UEFA Super Cup.
+  Oceania: no club cup in 1996-97 (1987, then 1999) -> nothing to add. Strong African/Asian clubs are in countries SWOS lacks
+  (Egypt, Morocco, Tunisia, Nigeria, Cameroon; South Korea, China, Saudi Arabia, Iran, UAE).
+Constraints found:
+- Global team numbers < 2000: ~300 free (runs 238-301 64, 483-513 31, 884-934 51, 995-1043 49, 1171-1204 34, 1924-1999 76;
+  1730-1849 hosts our saved SA block). Enough for ~15 new 16-team leagues. someLeaguesTable (2000 B) is ALSO our only known
+  persistence space: the 'S2' block leaves ~17 free bytes in 1730..1849 -> new cup lists (32 B each) need another place
+  (other free global numbers compete with new leagues; or find free bytes elsewhere in the .CAR).
+- String pool full. obj2 vsize 0xC5FC0 vs physical 0xC5000 (only ~4 KB BSS at the end) -> adding data pages after it
+  (zero page + new page, like obj1's add_object_page) should give room for names without touching game variables.
+- Real 1996-97 squads for African/Asian clubs: sources much poorer than for Serie C (expect partly reconstructed squads).
+- Tool to consider: LubosKolouch/swos-editor (TEAM.* / .CAR editor).
+Feasibility: (a) new continental club cups among EXISTING countries (CONCACAF, Africa, Asia) = high, same machinery as the
+SA cups; (b) Costa Rica league = high (clubs exist); (c) NEW countries (Egypt, Morocco, Korea...) = plausible but unknowns:
+per-country tables sized to 86 entries (names, flags, nationality maps, world-view lists), team-file numbering, strings.
+Plan: S1 analysis (obj2 data page, how a country is registered, persistence budget) -> go/no-go for new countries;
+Africa (new leagues + CAF cups) -> CONCACAF (Costa Rica + Champions' Cup) -> Asia -> Europe (Intertoto, Super Cup, CL 97-98).
+

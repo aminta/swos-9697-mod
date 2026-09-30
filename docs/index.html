@@ -1,0 +1,496 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Manuale tecnico SWOS ITA Mod</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=IBM+Plex+Sans:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: manuale tecnico, indice fisso a sinistra su desktop, colonna unica su telefono.
+   Palette: verde prato SWOS (accento), carta fredda, rosso cartellino per gli avvisi. */
+:root{
+  --bg:#f5f7f4; --panel:#ffffff; --fg:#1b2420; --muted:#56635c; --line:#d5ddd7;
+  --accent:#1e7a45; --accent-soft:#e2f1e8; --warn:#b3261e; --warn-soft:#fbe9e7; --code-bg:#eef2ef;
+  --f-display:"Barlow Condensed","Arial Narrow",Arial,sans-serif;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#121815; --panel:#18201c; --fg:#e3ebe6; --muted:#9aaba1; --line:#2c3831;
+  --accent:#5cc08a; --accent-soft:#1d3327; --warn:#ff8a80; --warn-soft:#3a1f1d; --code-bg:#1d2622; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#121815; --panel:#18201c; --fg:#e3ebe6; --muted:#9aaba1; --line:#2c3831;
+  --accent:#5cc08a; --accent-soft:#1d3327; --warn:#ff8a80; --warn-soft:#3a1f1d; --code-bg:#1d2622; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font:15px/1.6 var(--f-body);margin:0}
+.wrap{display:grid;grid-template-columns:250px minmax(0,1fr);gap:40px;max-width:1240px;margin:0 auto;padding-inline:24px;padding-block:32px 80px}
+nav.toc{position:sticky;top:calc(env(safe-area-inset-top,0px) + 16px);align-self:start;max-height:calc(100vh - 32px);overflow:auto;font-size:13.5px;border-right:1px solid var(--line);padding-right:16px}
+nav.toc b{font-family:var(--f-display);font-size:15px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:8px}
+nav.toc ol{list-style:none;margin:0;padding:0;display:grid;gap:2px;counter-reset:t}
+nav.toc a{color:var(--fg);text-decoration:none;display:block;padding:3px 6px;border-radius:4px}
+nav.toc a:hover,nav.toc a:focus-visible{background:var(--accent-soft);color:var(--accent);outline:none}
+main{min-width:0;max-width:880px}
+header.top{border-bottom:3px solid var(--accent);padding-bottom:18px;margin-bottom:8px}
+.eyebrow{font-family:var(--f-mono);font-size:12px;letter-spacing:.06em;color:var(--muted);text-transform:uppercase}
+h1{font-family:var(--f-display);font-weight:700;font-size:clamp(34px,5vw,50px);line-height:1.02;margin:6px 0 10px;text-wrap:balance;letter-spacing:.01em}
+h2{font-family:var(--f-display);font-weight:700;font-size:30px;line-height:1.1;margin:52px 0 12px;text-wrap:balance;padding-top:8px;border-top:1px solid var(--line)}
+h2 .n{color:var(--accent);margin-right:10px;font-variant-numeric:tabular-nums}
+h3{font-family:var(--f-display);font-weight:600;font-size:21px;margin:30px 0 8px;letter-spacing:.01em}
+p,li{max-width:72ch}
+a{color:var(--accent)}
+code,kbd{font-family:var(--f-mono);font-size:.86em;background:var(--code-bg);padding:1px 5px;border-radius:3px;word-break:break-word}
+pre{font-family:var(--f-mono);font-size:12.8px;line-height:1.55;background:var(--code-bg);border:1px solid var(--line);border-radius:6px;padding:14px 16px;overflow-x:auto;margin:14px 0}
+pre code{background:none;padding:0;font-size:inherit;word-break:normal}
+.tbl{overflow-x:auto;margin:14px 0;border:1px solid var(--line);border-radius:6px;background:var(--panel)}
+table{border-collapse:collapse;width:100%;font-size:13.5px}
+th,td{text-align:left;vertical-align:top;padding:7px 10px;border-bottom:1px solid var(--line)}
+th{font-family:var(--f-display);font-weight:600;font-size:14.5px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);background:var(--code-bg)}
+tr:last-child td{border-bottom:0}
+td.m,td code{font-family:var(--f-mono);font-size:12.5px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.rule{border-left:4px solid var(--warn);background:var(--warn-soft);padding:10px 14px;border-radius:0 6px 6px 0;margin:14px 0}
+.rule b{color:var(--warn)}
+.note{border-left:4px solid var(--accent);background:var(--accent-soft);padding:10px 14px;border-radius:0 6px 6px 0;margin:14px 0}
+.pill{display:inline-block;font-family:var(--f-mono);font-size:11.5px;padding:1px 7px;border-radius:999px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.pill.ok{border-color:var(--accent);color:var(--accent)}
+.pill.todo{border-color:var(--warn);color:var(--warn)}
+.meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--muted)}
+.meta span b{color:var(--fg);font-weight:600}
+dl.kv{display:grid;grid-template-columns:max-content minmax(0,1fr);gap:4px 16px;margin:12px 0}
+dl.kv dt{font-family:var(--f-mono);font-size:12.5px;color:var(--accent)}
+dl.kv dd{margin:0}
+pre.mermaid{background:var(--panel);text-align:center}
+@media (max-width:860px){
+  .wrap{grid-template-columns:minmax(0,1fr);padding-inline:16px;gap:16px}
+  nav.toc{position:static;max-height:none;border-right:0;border-bottom:1px solid var(--line);padding:0 0 12px}
+  nav.toc ol{grid-template-columns:1fr 1fr}
+  dl.kv{grid-template-columns:minmax(0,1fr)}
+  dl.kv dd{margin-bottom:8px}
+}
+@media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
+html{scroll-behavior:smooth}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+<nav class="toc" aria-label="Indice">
+  <b>Indice</b>
+  <ol>
+    <li><a href="#panoramica">1 · Panoramica</a></li>
+    <li><a href="#build">2 · Ambiente e build</a></li>
+    <li><a href="#regole">3 · Regole d'oro</a></li>
+    <li><a href="#le">4 · Formato LE e fixup</a></li>
+    <li><a href="#tools">5 · Gli strumenti</a></li>
+    <li><a href="#memoria">6 · Mappa della memoria</a></li>
+    <li><a href="#italia">7 · Italia a 4 divisioni</a></li>
+    <li><a href="#rose">8 · Squadre e rose C1/C2</a></li>
+    <li><a href="#contest">9 · Struttura delle competizioni</a></li>
+    <li><a href="#mondo">10 · Tabelle continentali e vista mondo</a></li>
+    <li><a href="#slot">11 · Carriera: i 5 slot</a></li>
+    <li><a href="#inizio">12 · Inizio stagione</a></li>
+    <li><a href="#load">13 · Caricamento salvataggio</a></li>
+    <li><a href="#fine">14 · Fine stagione</a></li>
+    <li><a href="#persist">15 · Persistenza nel salvataggio</a></li>
+    <li><a href="#trofei">16 · Trofei e reputazione</a></li>
+    <li><a href="#hook">17 · Tabella degli agganci</a></li>
+    <li><a href="#verifica">18 · Verifica senza giocare</a></li>
+    <li><a href="#limiti">19 · Limiti e questioni aperte</a></li>
+    <li><a href="#storia">20 · Storico e prossimi passi</a></li>
+  </ol>
+</nav>
+
+<main>
+<header class="top">
+  <div class="eyebrow">Sensible World of Soccer 96/97 · DOS · ITALIAN.EXE · <a class="lang" href="en.html">English version</a></div>
+  <h1>Manuale tecnico SWOS ITA Mod</h1>
+  <p>Documentazione per chi vuole capire, ampliare o portare su altri eseguibili le patch del mod: Serie C1 e C2, coppe sudamericane (Libertadores, Supercopa, CONMEBOL), Coppa Intercontinentale in carriera, rose reali 1996-97. Tutto quello che segue è stato ricavato dal disassemblato e verificato con build e partite di prova.</p>
+  <div class="meta">
+    <span>Stato al <b>30/09/2026</b> (sessioni 1–14)</span>
+    <span>Build exe <b><code>cb6c817f…</code></b></span>
+    <span>TEAM.020 <b><code>ded1b97b…</code></b></span>
+    <span>Exe originale <b><code>60cdb6b1…</code></b></span>
+  </div>
+</header>
+
+<!-- 1 -->
+<h2 id="panoramica"><span class="n">1</span>Panoramica</h2>
+<p>Il mod non tocca mai i file originali. Uno script Python legge <code>orig/ITALIAN.EXE</code> e <code>orig/DATA/TEAM.020</code>, applica tutte le modifiche in modo deterministico e scrive i file installati in <code>c/SWOS/</code>. Ogni indirizzo che serve viene cercato nell'eseguibile per <em>firma</em> (sequenze di byte uniche) e verificato con <code>assert</code>: se una firma non si trova o non è unica, il build si ferma invece di produrre un exe sbagliato.</p>
+<div class="tbl"><table>
+<thead><tr><th>Area</th><th>Cosa fa</th><th>Dove</th><th>Stato</th></tr></thead>
+<tbody>
+<tr><td>Italia a 4 divisioni</td><td>Serie A 18, B 20, C1 18, C2 18; 4 promozioni e 4 retrocessioni fra livelli adiacenti; risolto il blocco di fine stagione del 1997</td><td><code>patch.py</code></td><td><span class="pill ok">provato</span></td></tr>
+<tr><td>Squadre C1/C2</td><td>36 club reali 1996-97 con rose, allenatori e forza calibrata</td><td><code>c1c2.py</code>, <code>c1c2_rosters.py</code></td><td><span class="pill ok">provato</span></td></tr>
+<tr><td>Coppe sudamericane</td><td>Libertadores (gironi + eliminazione), Supercopa, CONMEBOL: menu, vista mondo, carriera, qualificate dalle classifiche, regole della detentrice</td><td><code>sacups.py</code></td><td><span class="pill ok">provato</span></td></tr>
+<tr><td>Doppia partecipazione</td><td>Club sudamericani: Supercopa nello slot 1 (quello della coppa nazionale, libero in Sudamerica) + coppa continentale nello slot 3</td><td><code>sacups.py</code></td><td><span class="pill ok">provato</span></td></tr>
+<tr><td>Persistenza</td><td>Liste delle coppe sudamericane e finaliste dell'Intercontinentale salvate con la carriera</td><td><code>sacups.py</code>, <code>salists.py</code></td><td><span class="pill ok">provato</span></td></tr>
+<tr><td>Intercontinentale</td><td>Finale secca a dicembre fra vincitrice Coppa Campioni e vincitrice Libertadores; finaliste aggiornate a fine stagione; slot 2 oppure slot 4</td><td><code>sacups.py</code></td><td><span class="pill ok">slot 2, fine stagione</span> <span class="pill todo">slot 4</span></td></tr>
+</tbody></table></div>
+
+<!-- 2 -->
+<h2 id="build"><span class="n">2</span>Ambiente e build</h2>
+<h3>Cartelle</h3>
+<pre><code>~/swos-mod/
+  orig/            ITALIAN.EXE, ENGLISH.EXE, DATA/TEAM.020, swos9697ita.iso   (MAI modificare)
+  c/SWOS/          gioco installato per DOSBox-X: ITALIAN.EXE, DATA/TEAM.020, salvataggi *.CAR
+  tools/           tutto il codice del mod (Python + sorgenti nasm dentro sacups.py)
+  ref/swos.asm     disassemblato IDA completo (etichette = VA dell'exe INGLESE), da github.com/zlatkok/swos-port
+  ref/symbols.txt, ref/docs/SWOS/*.txt   formati di file e note (teams.txt, career.txt, ...)
+  notes/STATUS.md  registro dettagliato di ogni sessione (fonte primaria)
+  notes/addrmap.json  mappa di delta ENGLISH → ITALIAN per oggetto
+  docs/            questo manuale (src/ = sorgenti nelle due lingue, tools/mkdocs.py genera le pagine)</code></pre>
+<h3>Comandi</h3>
+<pre><code>cd ~/swos-mod/tools && python3 patch.py      # scrive c/SWOS/ITALIAN.EXE e c/SWOS/DATA/TEAM.020
+python3 tools/salists.py c/SWOS/SALVA.CAR     # decodifica le liste SA / Intercontinentale di un salvataggio
+ndisasm -b32 -o 0xA1000 file.bin              # disassemblatore (Homebrew), nasm per assemblare</code></pre>
+<p>Dipendenze: Python 3, <code>nasm</code> e <code>ndisasm</code> nel <code>PATH</code>. Il gioco gira in DOSBox-X con il CD montato dall'ISO originale. Il build è deterministico: stessi input, stesso md5 (il generatore casuale ha seme fisso 1997).</p>
+<p>Ordine del build in <code>patch.py</code>:</p>
+<ol>
+<li><code>patch_teams</code>: ricostruisce TEAM.020 (Serie A e B originali + 36 club C1/C2) e restituisce la tabella di rimappatura degli indici.</li>
+<li><code>patch_exe</code>: aggiunge una pagina da 4 KB all'oggetto 1 (<code>add_object_page</code>), prepara il pool di stringhe, rimappa i club italiani nelle liste delle coppe europee, applica la patch Italia (<code>patch_italy</code>), poi tutto <code>sacups.patch</code> (coppe, tabelle, carriera, fine stagione), imposta vsize e flag dell'oggetto 1, salva ricostruendo le tabelle dei fixup.</li>
+</ol>
+
+<!-- 3 -->
+<h2 id="regole"><span class="n">3</span>Regole d'oro</h2>
+<p>Ognuna di queste regole viene da un bug reale incontrato durante lo sviluppo.</p>
+<div class="rule"><b>Puntatori fra oggetti solo tramite fixup.</b> L'oggetto 1 (codice) e l'oggetto 2 (dati) non vengono caricati alla stessa distanza che hanno nel file. Ogni indirizzo assoluto scritto nel codice o nei dati deve avere un fixup LE che punti all'oggetto e all'offset giusti. Mai memorizzare un offset relativo all'oggetto 2 che punti a dati dell'oggetto 1.</div>
+<div class="rule"><b>Le stringhe dei nomi stanno nell'oggetto 2.</b> I nomi di leghe e coppe sono offset relativi a <code>STR_BASE</code> = obj2+0x16F8 (non "aChairmanScenes" come dice il disassemblato inglese). Un nome messo nell'oggetto 1 appare come spazzatura. Per i nomi nuovi c'è <code>strpool.py</code>, che oggi è praticamente pieno.</div>
+<div class="rule"><b>Rispettare i checksum del gioco.</b> A fine stagione <code>cseg_9487A</code> verifica che la somma dei 2000 byte di <code>leaguesTableCopy</code> sia 0 modulo 256; se non lo è, il gioco si blocca (<code>int 3; jmp $</code>). Qualsiasi dato parcheggiato in tabelle del gioco deve portarsi dietro un byte di bilanciamento.</div>
+<div class="rule"><b>Niente istruzioni di stringa (<code>movs</code>, <code>rep</code>).</b> Il registro ES non è garantito uguale a DS nei punti in cui entriamo. Tutte le copie nel codice aggiunto sono cicli byte per byte attraverso DS.</div>
+<div class="rule"><b>I "registri" D0–D7 e A0–A6 sono variabili in memoria.</b> Il gioco è una traduzione automatica di codice 68000 (Amiga). Le routine ricevono parametri in queste variabili (<code>D0</code> = obj2+0x315B7 …). I registri x86 non vengono preservati fra chiamate del gioco.</div>
+<div class="rule"><b>Cercare per firma, mai indirizzi fissi.</b> Tutte le posizioni sono trovate con pattern di byte e confermate con <code>assert</code>. Questo rende possibile il port sugli altri eseguibili (inglese, francese, tedesco) e protegge da errori silenziosi.</div>
+<div class="rule"><b>Mai eliminare squadre che si bloccano.</b> Una squadra o un salvataggio che causa un blocco va conservato e analizzato: è la prova del bug.</div>
+
+<!-- 4 -->
+<h2 id="le"><span class="n">4</span>Formato LE e fixup</h2>
+<p><code>ITALIAN.EXE</code> è un eseguibile DOS/4GW in formato LE (Linear Executable) con due oggetti principali:</p>
+<div class="tbl"><table>
+<thead><tr><th>Oggetto</th><th>Contenuto</th><th>Base di link</th><th>Note</th></tr></thead>
+<tbody>
+<tr><td>obj1</td><td>codice</td><td class="m">0x10000</td><td>vsize originale 0xA09C9 → 0xA1000 (sessione 2) → 0xA2000 (pagina aggiunta). Reso scrivibile (flag 0x2) perché il codice di fine stagione riscrive le liste delle coppe che stanno nella nuova pagina.</td></tr>
+<tr><td>obj2</td><td>dati</td><td class="m">0xC0000</td><td>tutte le variabili del gioco, i buffer di carriera, le tabelle delle competizioni, le stringhe</td></tr>
+</tbody></table></div>
+<p>Gli indirizzi nel disassemblato (<code>cseg_8B2D3</code>, <code>dseg_D8CAA</code>) sono VA dell'exe <strong>inglese</strong>. Per l'italiano: offset nell'oggetto = VA − base, poi si applica il delta di <code>notes/addrmap.json</code> (11 tratti per obj1, 16 per obj2). In pratica, per ogni routine ci si fida della firma trovata nell'exe italiano; la mappa serve solo per orientarsi.</p>
+<h3>Fixup</h3>
+<p>Ogni indirizzo assoluto nel file ha un record di fixup interno (oggetto sorgente, offset nella pagina, oggetto destinazione, offset destinazione). Quando si sovrascrive un'istruzione che conteneva un indirizzo, il suo fixup va <strong>rimosso</strong> (<code>p.remove</code>), altrimenti il loader corrompe i byte nuovi. Quando si aggiunge un indirizzo, va <strong>aggiunto</strong> il fixup (<code>p.add_ptr</code>). <code>lepatch.save</code> ricostruisce la tabella dei fixup; se cresce oltre lo spazio disponibile sposta in avanti le pagine dati (finora di 0x800 byte) e aggiorna gli offset dell'header.</p>
+<h3>Pagina aggiunta</h3>
+<p><code>add_object_page(data, 1)</code> aggiunge una pagina fisica da 4 KB in fondo al file, la inserisce nella mappa delle pagine subito dopo quelle dell'oggetto 1, aggiunge una voce vuota nella tabella delle pagine dei fixup, sposta di +4/+8 gli offset delle tabelle dell'header e incrementa <code>page_idx</code> dell'oggetto 2. Tutto il codice e i dati delle coppe sudamericane vivono in questa pagina, da obj1+0xA1000. Oggi è occupata fino a circa obj1+0xA1932 (circa 1,7 KB liberi). Lo spazio lasciato libero nella vecchia cavità 0xA0A18–0xA1000 (circa 1,5 KB) è di nuovo disponibile.</p>
+
+<!-- 5 -->
+<h2 id="tools"><span class="n">5</span>Gli strumenti</h2>
+<dl class="kv">
+<dt>le.py</dt><dd>Parser LE in sola lettura: oggetti, mappa pagina → file, <code>obj_bytes(n)</code>, <code>fixups()</code> che restituisce (obj sorgente, offset, tipo, obj destinazione, offset destinazione, …). Usato per tutte le verifiche.</dd>
+<dt>lepatch.py</dt><dd>Classe <code>LEPatch</code>: <code>put/get</code> per oggetto e offset, <code>target(obj, off)</code> legge dove punta un fixup, <code>add_ptr</code>, <code>remove</code>, <code>retarget</code>, <code>set_vsize</code>, <code>add_flags</code>, <code>save</code> (ricostruzione fixup + spostamento pagine dati). Funzione <code>add_object_page</code>. Andata e ritorno senza modifiche = file identico.</dd>
+<dt>nasmcave.py</dt><dd>Assembla sorgenti nasm (scritti come stringhe dentro <code>sacups.py</code>) a un indirizzo della cavità. I simboli arrivano come <code>{nome: (oggetto, offset)}</code>. Il sorgente viene assemblato <strong>tre volte</strong>: normale, con obj1 spostato di 0x01000000 e con obj2 spostato. Ogni dword che cambia è un riferimento assoluto e riceve il fixup verso l'oggetto giusto; i salti relativi dentro obj1 non cambiano e non ne hanno bisogno. <code>labels()</code> legge il file map di nasm per gli indirizzi delle etichette.</dd>
+<dt>strpool.py</dt><dd>Spazio per nuove stringhe nell'oggetto 2: le stringhe mai referenziate <code>.COPPA AFRICANA CLUB******</code> e <code>COPPA SUDAMERICANA*****</code>, più il riempimento con asterischi della seconda <code>COPPA EUFA</code> e di <code>ERRORE DISCO</code> (il testo resta intatto). Contiene COPA LIBERTADORES, SUPERCOPA, COPA CONMEBOL, SERIE C1, SERIE C2 e un nome accorciato per COPPA INTERCONTINENTALE. <strong>Pieno</strong>: resta 1 byte.</dd>
+<dt>sacups.py</dt><dd>Il cuore del mod: strutture delle coppe sudamericane e dell'Intercontinentale, tabelle continentali, sorgenti nasm <code>CAREER_ASM</code> (inizio stagione e caricamento) e <code>QUALIFY_ASM</code> (fine stagione), ricerca di tutte le firme e installazione degli agganci.</dd>
+<dt>patch.py</dt><dd>Punto d'ingresso del build: Italia (base dei numeri globali, struttura a 4 divisioni), TEAM.020, rimappatura dei club italiani nelle coppe europee.</dd>
+<dt>c1c2.py / c1c2_rosters.py</dt><dd>Club di C1/C2 (maglie, divisione), rose reali 1996-97 con allenatori, obiettivi di forza, costruzione dei record squadra (<a href="#rose">sezione 8</a>).</dd>
+<dt>salists.py</dt><dd>Legge un <code>.CAR</code> e stampa il blocco salvato: formato (SA o S2), somma di controllo, liste Libertadores/Supercopa/CONMEBOL, coppia dell'Intercontinentale.</dd>
+<dt>addrmap.py</dt><dd>Genera <code>notes/addrmap.json</code> confrontando ENGLISH.EXE e ITALIAN.EXE a finestre mascherate (i byte dei fixup esclusi).</dd>
+<dt>asmbytes.py</dt><dd>Estrae i byte <code>db</code> di un'etichetta dati da <code>ref/swos.asm</code>, utile per cercare le stesse tabelle nell'exe italiano.</dd>
+<dt>mkdocs.py</dt><dd>Genera <code>docs/index.html</code> (italiano) e <code>docs/en.html</code> (inglese) per GitHub Pages dai sorgenti in <code>docs/src/</code>.</dd>
+</dl>
+
+<!-- 6 -->
+<h2 id="memoria"><span class="n">6</span>Mappa della memoria (exe italiano)</h2>
+<p>Offset relativi all'oggetto. Tra parentesi il nome nel disassemblato inglese. Tutti trovati per firma nel build.</p>
+<h3>Oggetto 2: dati</h3>
+<div class="tbl"><table>
+<thead><tr><th>Offset</th><th>Nome</th><th>Significato</th></tr></thead>
+<tbody>
+<tr><td>0x16F8</td><td>STR_BASE</td><td>base degli offset dei nomi di leghe e coppe</td></tr>
+<tr><td>0x71C8</td><td>dseg_C707E</td><td>lista delle competizioni internazionali (45 voci) → spostata in obj1</td></tr>
+<tr><td>0x8032</td><td>italyTable</td><td>struttura lega Italia originale (42 B) → sostituita da una in obj1</td></tr>
+<tr><td>0x8C66</td><td>competitionsTable</td><td>256 puntatori per nazione/continente</td></tr>
+<tr><td>0x9122</td><td>southAmericaTable</td><td>tabella del Sudamerica → spostata in obj1</td></tr>
+<tr><td>0x96D6</td><td>careerFileBuffer</td><td>inizio del salvataggio carriera (offset 0 del .CAR)</td></tr>
+<tr><td>0x16E20</td><td>selTeamNumber</td><td>squadra del giocatore (byte basso = file, alto = indice)</td></tr>
+<tr><td>0x16E26</td><td>dseg_D6CDC</td><td>divisione del giocatore</td></tr>
+<tr><td>0x17FB2</td><td>someLeaguesTable</td><td>2000 byte, uno per numero globale di squadra (promozioni/retrocessioni); offset 0xE8DC nel .CAR</td></tr>
+<tr><td>0x18DF4</td><td>dseg_D8CAA</td><td>puntatori ai contest dei 5 slot (+4 per slot, <a href="#slot">sezione 11</a>)</td></tr>
+<tr><td>0x18E08</td><td>dseg_D8CBE</td><td>tipo di coppa europea del giocatore (trofeo, reputazione, premio)</td></tr>
+<tr><td>0x18E0A</td><td>dseg_D8CC0</td><td>tabella posizioni dei play-off (slot 4)</td></tr>
+<tr><td>0x18E54 / 0x199A6 / 0x1A22C / 0x19DE9</td><td>buffer slot 1 / 2 / 3 / 4</td><td>0x443 byte ciascuno</td></tr>
+<tr><td>0x1F640</td><td>competitionFileBuffer</td><td>buffer slot 0 (il campionato)</td></tr>
+<tr><td>0x1F67D</td><td>dseg_DF533</td><td>regole sostituzioni del campionato (3 word: 5, 2, 8)</td></tr>
+<tr><td>0x20A79</td><td>dseg_E092F</td><td>quale coppa è nello slot 3 (0 CC, 1 CWC, 2 UEFA; il mod aggiunge 3 Lib, 4 Sup, 5 CON; −1 nessuna)</td></tr>
+<tr><td>0x315B7 …</td><td>D0 D1 D2 … D7 A0 … A4</td><td>pseudo-registri: D0 0x315B7, D1 0x315BB, D2 0x315BF, D7 0x315D3, A0 0x315D7, A1 0x315DB, A2 0x315DF, A3 0x315E3, A4 0x315E7</td></tr>
+<tr><td>0x4EFF3</td><td>DIY_competitionStart</td><td>contest "di lavoro": le routine copiano qui uno slot, lo elaborano e lo ricopiano</td></tr>
+<tr><td>0x5953C</td><td>leaguesTableCopy</td><td>copia di someLeaguesTable usata a fine stagione (checksum!)</td></tr>
+<tr><td>0xC058B</td><td>dseg_18070F</td><td>vincitore della Coppa Campioni (detentore); il mod lo usa anche per la Libertadores</td></tr>
+</tbody></table></div>
+<h3>Oggetto 1: codice (routine del gioco usate dal mod)</h3>
+<div class="tbl"><table>
+<thead><tr><th>Offset</th><th>Routine</th><th>Ruolo</th></tr></thead>
+<tbody>
+<tr><td>0x7B127</td><td>cseg_8B2D3</td><td>carica un contest in uno slot (D0 = slot, A0 = contest, D1, D2)</td></tr>
+<tr><td>0x7D4B5</td><td>cseg_8D661</td><td>il club del giocatore è nella lista di questa coppa?</td></tr>
+<tr><td>0x7D917</td><td>cseg_8DAC3</td><td>slot 4: play-off della divisione, con squadre segnaposto</td></tr>
+<tr><td>0x7EB02</td><td>cseg_8ECAE</td><td>fine campionato: squadre vere nei play-off</td></tr>
+<tr><td>0x82BA9</td><td>cseg_92D55</td><td>fine Coppa Campioni: vincitore → dseg_18070F</td></tr>
+<tr><td>0x2915F</td><td>GetCurrentSeasonPointer</td><td>record della stagione (nomi delle competizioni a +1Ah, +1Eh…)</td></tr>
+<tr><td>VA 0x91345</td><td>assert 80 squadre</td><td>quello che bloccava il gioco nel 1997</td></tr>
+<tr><td>0xA09D0</td><td>(nuovo)</td><td>struttura lega Italia a 4 divisioni (70 B)</td></tr>
+<tr><td>0xA1000–0xA1932</td><td>(nuovo)</td><td>pagina aggiunta: coppe SA, Intercontinentale, tabelle, codice carriera e fine stagione</td></tr>
+</tbody></table></div>
+
+<!-- 7 -->
+<h2 id="italia"><span class="n">7</span>Italia a 4 divisioni</h2>
+<h3>Il blocco di fine stagione del 1997</h3>
+<p>Ogni squadra ha un <em>numero globale</em> (0–1999) usato come indice in <code>someLeaguesTable</code>. L'Italia partiva da 424 con solo 51 numeri: aggiungere squadre sconfinava nella Lettonia (475). Le squadre in più collidevano, e a fine stagione l'assert <code>cseg_91428</code> (80 squadre nelle liste europee, contatori 16/32/32) finiva in <code>int 3; jmp $</code>. Nel 1997 il mod originale inseriva byte fra la struttura dell'Italia e quella della Lettonia: circa 50 strutture di leghe raggiunte da puntatori fissi venivano lette sfasate e il gioco si bloccava.</p>
+<p>La soluzione: la base dell'Italia passa a <strong>1850</strong> (numeri 1794–1999 liberi) nella tabella <code>teamsCountryNumbers</code>, e la nuova struttura della lega va nella cavità di obj1, con il fixup di <code>italyTable</code> reindirizzato (e allargato da 16 a 32 bit).</p>
+<h3>Struttura di una lega</h3>
+<pre><code>header 10 byte: [num, type, country, start, end, nameOff, 0, 0, 0, nDiv]
+02 03 35
+per divisione 6 byte: [squadre, promosse dirette, squadre play-off promozione, retrocesse, play-off retrocessione, offset dati play-off]
+00
+per divisione 2 dword: offset dei nomi (da STR_BASE)</code></pre>
+<p>Il mod usa <code>DIVISIONS</code> in <code>patch.py</code>: A (18, 0, 0, 4), B (20, 4, 0, 4), C1 (18, 4, 0, 4), C2 (18, 4, 0, 0). L'Inghilterra ha già 4 divisioni con lo stesso formato: il motore gestisce 4 livelli senza modifiche al codice.</p>
+<div class="note">Il byte "offset dati play-off" (+12h dal record di divisione, visto dal codice) è quello che decide se lo slot 4 ospita i play-off. Nel mod è sempre 0: nessuna divisione italiana ha play-off.</div>
+
+<!-- 8 -->
+<h2 id="rose"><span class="n">8</span>Squadre e rose C1/C2</h2>
+<h3>TEAM.020</h3>
+<p>Il file inizia con un word big-endian (numero squadre) seguito da record da 684 byte. Nel record: +1 ordinale, +2 numero globale (big-endian), +5 nome (17 B), +25 divisione (0 A, 1 B, 2 C1, 3 C2; 4 era "non-league"), +26 prima maglia (5 B), +31 seconda maglia, +36 allenatore (23 B), +60 ordine dei 16 giocatori in formazione, +76 16 giocatori da 38 byte.</p>
+<div class="tbl"><table>
+<thead><tr><th>Byte giocatore</th><th>Contenuto</th></tr></thead>
+<tbody>
+<tr><td>+0</td><td>nazionalità (18 Italia, 13 Germania, 68 Argentina, 109 Gabon…)</td></tr>
+<tr><td>+2</td><td>numero di maglia</td></tr>
+<tr><td>+3</td><td>nome (23 B, terminato da zero: massimo 22 caratteri)</td></tr>
+<tr><td>+26</td><td>bit 5–7 ruolo (0 G, 1 RB, 2 LB, 3 D, 4 RW, 5 LW, 6 M, 7 A), bit 3–4 carnagione (00 chiara, 10 scura, 01 rossa)</td></tr>
+<tr><td>+28…+31</td><td>7 abilità a nibble: passaggio, tiro, colpo di testa, contrasto, controllo, velocità, finalizzazione. Il bit 3 del nibble segna un'abilità <em>principale</em>; il valore reale è <code>v &amp; 7</code></td></tr>
+<tr><td>+32</td><td>prezzo (indice 0–49: 25K … 15M+). Il portiere non ha abilità: il prezzo è la sua bravura</td></tr>
+</tbody></table></div>
+<p>Il file finale ha 74 squadre (A 18, B 20, C1 18, C2 18), ordinate alfabeticamente, e rimane sotto il limite di circa 93 squadre per nazione (<code>teamFileBuffer</code> da 64014 B). Poiché l'ordine cambia rispetto all'originale, <code>remap_italian_cup_teams</code> corregge gli indici dei club italiani nelle liste delle coppe europee (per nome).</p>
+<h3>Come si costruisce un club (<code>c1c2.real_team</code>)</h3>
+<ol>
+<li>Rosa reale dalla pagina it.wikipedia "&lt;club&gt; 1996-1997" (sezione rosa), divisa in P/D/C/A. I titolari noti vanno per primi; gli altri seguono l'ordine della pagina.</li>
+<li>Si sceglie come <em>modello</em> uno dei 13 club non-league originali con un mix di ruoli compatibile (G/D/M/A contati sulle 16 posizioni), a caso fra i migliori.</li>
+<li>Ogni posizione del modello riceve il prossimo nome del ruolo corrispondente; se il ruolo è esaurito si prende da un ruolo vicino. Per i club che esistevano già, un ruolo mancante (per esempio il secondo portiere) si riempie con un giocatore originale SWOS di quel club.</li>
+<li>Abilità e prezzi del modello si spostano di passi interi verso un <strong>obiettivo di prezzo medio</strong> ricavato dalla classifica reale (1 passo di abilità = 2 unità di prezzo, limite −3…+2). C1: 15.5–19; C2: 12–15; la Serie B originale ha media 17.9.</li>
+<li>I nomi già presenti nel file (trasferimenti a metà stagione) vanno in fondo alla lista del ruolo, per evitare doppioni. Nomi oltre 22 caratteri: iniziale del nome (<code>M. DAL COMPARE</code>).</li>
+</ol>
+<div class="note">Per cambiare una rosa basta modificare <code>c1c2_rosters.py</code> (l'ordine decide chi entra nei 16) e rilanciare il build. Per cambiare la forza di un club: <code>TARGET</code>.</div>
+
+<!-- 9 -->
+<h2 id="contest"><span class="n">9</span>Struttura delle competizioni</h2>
+<pre><code>[0]  id contest          [1] tipo: 1 eliminazione diretta, 2 gironi + eliminazione
+[2]  nazione (FF = qualsiasi)
+[3],[4] mesi: 8 × mese contato da gennaio del primo anno della stagione (≥ 12 = anno dopo)
+[5]  nomi a +5+[5]: due dword, offset da STR_BASE (stringhe nell'oggetto 2!)
+[7]  lista squadre a +7+[7]: coppie di byte (numero file TEAM, indice)
+[8]  1 = lista fissa
+tipo 1: [10] numero squadre, [14..] un byte per turno (0x94 andata e ritorno, 0x14 finale secca), poi 00
+tipo 2: [15] numero squadre, gironi da 4</code></pre>
+<div class="tbl"><table>
+<thead><tr><th>Id</th><th>Competizione</th><th>Formato</th><th>Mesi</th></tr></thead>
+<tbody>
+<tr><td class="m">0x6C</td><td>COPA LIBERTADORES</td><td>clone della Coppa Campioni: 16 squadre, 4 gironi da 4, poi eliminazione</td><td>come le coppe europee (settembre–maggio)</td></tr>
+<tr><td class="m">0x6D</td><td>SUPERCOPA</td><td>16 squadre, andata e ritorno, finale secca (clone della Coppa delle Coppe)</td><td>idem</td></tr>
+<tr><td class="m">0x6E</td><td>COPA CONMEBOL</td><td>idem</td><td>idem</td></tr>
+<tr><td class="m">0x6F</td><td>COPPA INTERCONTINENTALE</td><td>tipo 1, 2 squadre, un turno 0x14 (finale secca); default Juventus – River Plate (Tokyo, novembre 1996)</td><td>0x58–0x60: dicembre, finestra fino a gennaio</td></tr>
+</tbody></table></div>
+<p>Id liberi: 0x70–0x7B (le leghe usano 0x24–0x6B, 0x7C le personalizzate, 0x7D–0xB1 le coppe). Le squadre sudamericane vengono da TEAM.043 (ARG), 045 (BOL), 046 (BRA), 048 (CHI), 049 (COL), 050 (ECU), 064 (PAR), 065 (PER), 071 (URU), 077 (VEN).</p>
+
+<!-- 10 -->
+<h2 id="mondo"><span class="n">10</span>Tabelle continentali e vista mondo</h2>
+<p><code>ViewWorldMenu → ChooseCompetitionMenu → SelectTeamsFinalMenu</code>: ogni puntatore nella voce del continente di <code>competitionsTable</code> diventa un pulsante. Le coppe europee non hanno un trattamento speciale, quindi basta aggiungere puntatori.</p>
+<p>Scegliendo una competizione, <code>cseg_3AA17</code> controlla se è uno dei 4 slot del giocatore (stato reale). Altrimenti <code>cseg_3ABB2</code> la <strong>rigenera al volo</strong>: seme casuale = id del contest &lt;&lt; 8 | stagione, poi simula fino alla data corrente. Le competizioni in cui il giocatore non c'è non hanno stato persistente: per mostrarle basta che esistano struttura e lista squadre.</p>
+<ul>
+<li><strong>Tabella Sudamerica</strong> spostata da obj2+0x9122 a obj1+0xA10E4: qualificazioni mondiali, Copa América, Libertadores, Supercopa, CONMEBOL, Intercontinentale.</li>
+<li><strong>Tabella Europa</strong> spostata anch'essa in obj1: 252, Coppa Campioni, Coppe, UEFA, Intercontinentale, −1, 43 nazioni. Cinque pulsanti verdi ci stanno.</li>
+<li><strong>Lista internazionale</strong> (<code>dseg_C707E</code>, obj2+0x71C8) spostata a obj1+0xA1154 con le 4 coppe aggiunte: per questi contest il campo DIY 0x3B vale 0 (simulazione, <code>CalculateViewResult</code>).</li>
+</ul>
+
+<!-- 11 -->
+<h2 id="slot"><span class="n">11</span>Carriera: i 5 slot</h2>
+<p>In carriera ogni squadra ha 5 slot di competizione. Per ogni slot il gioco tiene un puntatore al contest (<code>dseg_D8CAA + 4 × slot</code>, 0 = vuoto) e un buffer da 0x443 byte con la competizione in corso. Il calendario scorre gli slot e gioca le partite della settimana.</p>
+<div class="tbl"><table>
+<thead><tr><th>Slot</th><th>Puntatore</th><th>Buffer</th><th>Uso originale</th><th>Uso nel mod</th></tr></thead>
+<tbody>
+<tr><td>0</td><td class="m">0x18DF4</td><td class="m">0x1F640</td><td>campionato</td><td>invariato</td></tr>
+<tr><td>1</td><td class="m">0x18DF8</td><td class="m">0x18E54</td><td>coppa nazionale</td><td>Supercopa per i club sudamericani (nessuna coppa nazionale in Sudamerica)</td></tr>
+<tr><td>2</td><td class="m">0x18DFC</td><td class="m">0x199A6</td><td>coppa di lega, oppure amichevoli e tournée</td><td>Intercontinentale se lo slot è libero (Italia, tutti i paesi sudamericani)</td></tr>
+<tr><td>3</td><td class="m">0x18E00</td><td class="m">0x1A22C</td><td>coppa europea</td><td>anche Libertadores / Supercopa / CONMEBOL</td></tr>
+<tr><td>4</td><td class="m">0x18E04</td><td class="m">0x19DE9</td><td>play-off della divisione</td><td>Intercontinentale per i paesi con coppa di lega, se la divisione non ha play-off</td></tr>
+</tbody></table></div>
+<h3>Intestazione del buffer</h3>
+<p>+0 tipo (word), +27h puntatore al nome, +2Bh numero dello slot (word), +2Dh id del contest, +3Dh/+3Fh/+41h regole sostituzioni (5 in panchina, 2 cambi, 8).</p>
+<h3><code>cseg_8B2D3</code> (carica un contest in uno slot)</h3>
+<ul>
+<li>Scrive il puntatore in <code>D8CAA[slot]</code> e <code>+2Bh = slot</code>, poi controlla il tipo: slot 1 e 2 accettano solo coppe di tipo 1 (eliminazione), slot 4 solo tipo 1, slot 0 niente tipo 1. Un tipo sbagliato manda in <code>int 3</code>.</li>
+<li>Slot ≠ 4: prende le squadre dalla lista del contest (D2 = 0) o dalle squadre selezionate (D2 ≠ 0), costruisce il tabellone e <strong>calcola le date</strong> (<code>cseg_8B71C</code> + <code>cseg_8B8B8</code>).</li>
+<li>Slot 4: riempie la lista con <code>careerTeam</code> ripetuto (segnaposto) e <strong>non calcola le date</strong>. A fine campionato <code>cseg_8ECAE</code> legge da <code>D8CC0</code> quali posizioni di classifica vanno ai play-off, sostituisce i segnaposto (<code>cseg_32E15</code>), calcola le date, copia le regole sostituzioni del campionato e imposta <code>D6B62 = 1</code> ("durante i play-off non puoi essere esonerato").</li>
+</ul>
+<div class="note">Un sesto slot è stato valutato e scartato: i puntatori degli slot sono seguiti subito da altre variabili, ci sono circa 250 riferimenti in circa 100 routine, e cambierebbe il formato del salvataggio.</div>
+
+<!-- 12 -->
+<h2 id="inizio"><span class="n">12</span>Inizio stagione</h2>
+<p><code>ContinueCareerNextSeason</code> (e <code>InitCareer</code>) chiamano <code>InitializeNewSeason</code>: slot 0, 1, 2 dalla tabella della nazione, poi la catena delle coppe europee (<code>cseg_8D661</code> con D7 = 0, 1, 2 su Coppa Campioni, Coppe, UEFA), infine <code>call cseg_8DAC3</code> (slot 4, play-off).</p>
+<pre class="mermaid">
+flowchart TD
+  A[InitializeNewSeason: slot 0, 1, 2] --> B{Club in una coppa europea?}
+  B -- sì --> F[euro_found: int_step, poi E092F = D7]
+  B -- no --> I[init_sa]
+  I --> I1{Blocco salvato 'S2' o 'SA'?}
+  I1 -- no, carriera nuova --> I2[DEFAULTS in liste + INTLIST, lists_out]
+  I1 -- sì --> I3
+  I2 --> I3{Slot 1 vuoto e club nella Supercopa?}
+  I3 -- sì --> I4[Supercopa nello slot 1]
+  I3 -- no --> I5
+  I4 --> I5[int_step: Intercontinentale nello slot 2 se libero e club finalista]
+  I5 --> I6[Slot 3: Libertadores, Supercopa se non già in slot 1, CONMEBOL; D8CBE = D7 - 3]
+  F --> D[call cseg_8DAC3 dirottata su int4_step]
+  I6 --> D
+  D --> D1[cseg_8DAC3: play-off in slot 4 se la divisione li ha]
+  D1 --> D2{Slot 4 vuoto, club finalista, Intercontinentale non in slot 2?}
+  D2 -- sì --> D3[Intercontinentale nello slot 4 con lo scambio dei buffer]
+  D2 -- no --> Z[fine]
+  D3 --> Z
+</pre>
+<h3>Intercontinentale nello slot 4: lo scambio dei buffer</h3>
+<p>Caricare la coppa direttamente nello slot 4 darebbe una partita "tua squadra contro tua squadra" senza date. <code>int4_step</code> invece:</p>
+<ol>
+<li>chiama il vero <code>cseg_8DAC3</code>; se lo slot 4 è occupato (play-off) si ferma;</li>
+<li>azzera l'id del buffer 4 (così un vecchio buffer non viene ripristinato al caricamento);</li>
+<li>copia il buffer dello slot 2 (coppa di lega) nel buffer 4;</li>
+<li>chiama <code>cseg_8B2D3</code> con slot 2: l'Intercontinentale viene costruita completa, con le finaliste e le date;</li>
+<li>scambia i due buffer da 0x443 byte: Intercontinentale nello slot 4, coppa di lega di nuovo intatta nello slot 2;</li>
+<li><code>+2Bh = 4</code>, regole sostituzioni dal campionato (come fa il gioco per i play-off), ripristina il puntatore dello slot 2, <code>D8CBA = INT</code>.</li>
+</ol>
+<p>L'aggancio <code>playoffs</code> all'ingresso di <code>cseg_8ECAE</code> esce subito quando lo slot 4 contiene l'Intercontinentale: altrimenti a fine campionato il gioco la ricostruirebbe leggendo una tabella dei play-off inesistente.</p>
+
+<!-- 13 -->
+<h2 id="load"><span class="n">13</span>Caricamento di un salvataggio</h2>
+<p><code>ProcessCareerFile</code> ricostruisce i puntatori degli slot dalla tabella della nazione (slot 0–2), dal record della divisione (slot 4) e da <code>E092F</code> (slot 3). I buffer degli slot sono nel salvataggio, i puntatori no: il mod li ripristina guardando l'id nei buffer.</p>
+<ul>
+<li><code>load_slot1</code>: legge il blocco salvato (<a href="#persist">sezione 15</a>) nelle liste; se lo slot 1 è vuoto e il buffer 1 ha id 0x6D → Supercopa; se lo slot 2 è vuoto e il buffer 2 ha id 0x6F → Intercontinentale; se lo slot 4 è vuoto e il buffer 4 ha id 0x6F → Intercontinentale.</li>
+<li><code>load_slot3</code>: estende la mappatura di <code>E092F</code>: 3 → Libertadores, 4 → Supercopa, 5 → CONMEBOL.</li>
+</ul>
+
+<!-- 14 -->
+<h2 id="fine"><span class="n">14</span>Fine stagione</h2>
+<p><code>cseg_91428</code>: combinazione delle liste, per la nazione del giocatore e poi per ogni nazione europea simula o legge la classifica (<code>cseg_9153F</code>), promozioni, coppe; <code>cseg_92D55 / 9307A / 9339D</code> chiudono Coppa Campioni, Coppe e UEFA; <code>cseg_93974</code> aggiunge le qualificate; assert finale 80 squadre (16/32/32); <code>cseg_92BBF</code> riammette i detentori.</p>
+<p>Il mod dirotta la chiamata a <code>cseg_92D55</code> (obj1+0x812C4) su <code>sa_qualify</code>:</p>
+<ol>
+<li><code>[A4] = Libertadores</code> e <code>call cseg_92D55 + 10</code> (salta la prima istruzione che imposterebbe la Coppa Campioni): chiude la Libertadores (giocata dal giocatore o simulata con <code>cseg_3ADAE</code>) e scrive la vincitrice in <code>dseg_18070F</code> → <code>LIBWIN</code>.</li>
+<li>Per ogni nazione sudamericana: simula la massima divisione con <code>cseg_915ED</code> (la stessa simulazione della vista mondo, così le classifiche coincidono). Per la divisione del giocatore legge invece lo slot 0. Dal DIY: +6Dh offset delle righe in ordine di classifica (righe da 12h byte), +12Dh numero squadra per riga.</li>
+<li>Scrive le qualificate: Libertadores = campioni dei 10 paesi + seconde di ARG, BRA, URU, PAR, COL, CHI (4 gironi misti, <code>LIB_Q</code>); CONMEBOL = piazzamenti successivi (<code>CON_Q</code>, 8 coppie). Supercopa: lista fissa di ex campioni.</li>
+<li>Regole della detentrice (reali 1997): se <code>LIBWIN</code> non è già in Libertadores prende il posto della seconda del suo paese (altrimenti CHI2), e la squadra esclusa prende il suo posto in CONMEBOL; se non è in Supercopa, ne prende l'ultimo posto.</li>
+<li><code>call cseg_92D55</code> vero: chiude la Coppa Campioni. Entrambi i rami finiscono in <code>cseg_92F1C</code>, che scrive sempre il vincitore in <code>dseg_18070F</code>.</li>
+<li><code>INTLIST[0] = [dseg_18070F]</code>, <code>INTLIST[1] = LIBWIN</code> (ciascuno saltato se 0FFFFh), poi <code>lists_out</code> e <code>ret</code>.</li>
+</ol>
+<pre class="mermaid">
+flowchart LR
+  S[cseg_91428 fine stagione] --> Q[sa_qualify]
+  Q --> L[Fine Libertadores: LIBWIN]
+  L --> C[Classifiche SA → liste Lib e CON]
+  C --> H[Regole detentrice]
+  H --> E[cseg_92D55 vero: vincitrice CC]
+  E --> N[INTLIST = CC, LIBWIN]
+  N --> O[lists_out: blocco salvato + checksum]
+  O --> R[ritorno a cseg_91428]
+</pre>
+
+<!-- 15 -->
+<h2 id="persist"><span class="n">15</span>Persistenza nel salvataggio</h2>
+<p>Il salvataggio contiene <code>someLeaguesTable</code> (2000 byte, uno per numero globale). I numeri 1730–1849 non appartengono a nessuna squadra: il mod ci parcheggia i suoi dati dal numero 1740 (obj2+0x1867E), con una copia speculare in <code>leaguesTableCopy</code> (obj2+0x59C08), perché a fine stagione il gioco copia una tabella sull'altra (<code>cseg_8CC0A</code> e <code>cseg_8CC4E</code>). <code>InitCareer</code> azzera la tabella: una tabella a zero significa carriera nuova.</p>
+<div class="tbl"><table>
+<thead><tr><th>Offset</th><th>Formato S2 (attuale)</th><th>Formato SA (sessione 12)</th></tr></thead>
+<tbody>
+<tr><td>+0</td><td>marcatore <code>'S2'</code> (word 0x3253)</td><td>marcatore <code>'SA'</code> (0x4153)</td></tr>
+<tr><td>+2</td><td>Libertadores: 16 × (file, indice)</td><td>idem</td></tr>
+<tr><td>+34</td><td>Supercopa</td><td>idem</td></tr>
+<tr><td>+66</td><td>CONMEBOL</td><td>idem</td></tr>
+<tr><td>+98</td><td>Intercontinentale: 2 × (file, indice)</td><td>byte di bilanciamento</td></tr>
+<tr><td>+102</td><td>byte di bilanciamento</td><td>—</td></tr>
+</tbody></table></div>
+<p>Il byte di bilanciamento vale <code>−(somma dei byte precedenti del blocco) mod 256</code>, così la somma dell'intero blocco è 0 e quella della tabella resta 0 per il controllo di <code>cseg_9487A</code>. Lettura: <code>'S2'</code> tutto dal salvataggio; <code>'SA'</code> le tre liste più la coppia di default Juventus – River; nessun marcatore → valori del 1997 (<code>DEFAULTS</code>, 100 byte). Il primo fine stagione di una carriera 'SA' la riscrive in 'S2'.</p>
+<pre><code># verifica in Python
+blk = save[SAVED:SAVED + 103]
+assert blk[:2] == b'S2' and sum(blk) % 256 == 0</code></pre>
+
+<!-- 16 -->
+<h2 id="trofei"><span class="n">16</span>Trofei e reputazione</h2>
+<p>I bit dei trofei si costruiscono in <code>cseg_39392</code> dai flag D6C64 (Coppa Campioni, bit 2, reputazione +100), D6C68 (UEFA, bit 3, +50) e D6C66 (Coppe, bit 4, +50). <code>cseg_3D7CB</code> sceglie il flag da <code>dseg_D8CBE</code>, <code>cseg_5DEB9</code> il premio. Il mod imposta <code>D8CBE = D7 − 3</code> quando entra una coppa sudamericana:</p>
+<ul>
+<li>Libertadores conta come Coppa Campioni;</li>
+<li>Supercopa nello slot 3 conta come Coppa delle Coppe;</li>
+<li>CONMEBOL conta come UEFA;</li>
+<li>Supercopa nello slot 1 conta come coppa nazionale.</li>
+</ul>
+<p>Il riepilogo della stagione (<code>ManagementRecordMenu</code>) mostra già il nome corretto ("COPA LIBERTADORES - WINNERS"). Nomi e bit dedicati (i bit 10–15 sono liberi) richiederebbero nuove stringhe, ma il pool è pieno.</p>
+
+<!-- 17 -->
+<h2 id="hook"><span class="n">17</span>Tabella degli agganci</h2>
+<p>Ogni aggancio sovrascrive istruzioni originali con un <code>jmp</code> o cambia il bersaglio di una <code>call</code>; i fixup delle istruzioni sovrascritte vengono rimossi.</p>
+<div class="tbl"><table>
+<thead><tr><th>Sito (obj1)</th><th>Byte</th><th>Originale</th><th>Diventa</th></tr></thead>
+<tbody>
+<tr><td class="m">0x7D307</td><td>11</td><td><code>mov [E092F],-1; jmp done</code> (nessuna coppa europea)</td><td><code>jmp init_sa</code></td></tr>
+<tr><td class="m">0x7D312</td><td>12</td><td><code>mov ax,[D7]; mov [E092F],ax</code> (coppa europea trovata)</td><td><code>jmp euro_found</code></td></tr>
+<tr><td class="m">0x7D31E</td><td>rel32</td><td><code>call cseg_8DAC3</code></td><td><code>call int4_step</code></td></tr>
+<tr><td class="m">0x237C1</td><td>10</td><td><code>cmp [E092F],-1; jz out</code> (ProcessCareerFile)</td><td><code>jmp load_slot1</code></td></tr>
+<tr><td class="m">0x237FD</td><td>12</td><td><code>cmp [E092F],2; jz map; jmp out</code></td><td><code>jmp load_slot3</code></td></tr>
+<tr><td class="m">0x7EB02</td><td>13</td><td><code>cmp dword [D8CBA],0; jz out</code> (cseg_8ECAE)</td><td><code>jmp playoffs</code></td></tr>
+<tr><td class="m">0x812C4</td><td>rel32</td><td><code>call cseg_92D55</code> (fine stagione)</td><td><code>call sa_qualify</code></td></tr>
+</tbody></table></div>
+<p>Modifiche ai dati: base Italia nella tabella dei numeri globali; fixup di <code>italyTable</code> reindirizzato alla nuova struttura; tabelle Sudamerica, Europa e lista internazionale reindirizzate in obj1; nomi nuovi nel pool di stringhe; indici dei club italiani nelle liste europee; vsize e flag dell'oggetto 1.</p>
+<div class="note">Gli indirizzi delle etichette nella pagina aggiunta (<code>init_sa</code>, <code>sa_qualify</code>…) cambiano quando il codice cresce: l'output di <code>patch.py</code> ne stampa i principali, e <code>nasmcave.labels()</code> li restituisce tutti.</div>
+
+<!-- 18 -->
+<h2 id="verifica"><span class="n">18</span>Verifica senza giocare</h2>
+<p>Prima di consegnare una build per le prove, questi controlli vengono fatti ogni volta:</p>
+<ol>
+<li>Il build passa tutti gli <code>assert</code> (firme uniche, bersagli attesi).</li>
+<li>Rilettura con <code>le.py</code>: le tabelle dei fixup si analizzano senza errori.</li>
+<li><code>ndisasm</code> del codice generato e di ogni sito di aggancio: ogni salto va all'etichetta giusta.</li>
+<li>Ogni operando assoluto ha un fixup verso l'oggetto e l'offset corretti (lo script annota ogni riga del disassemblato con i fixup).</li>
+<li>Confronto con la build precedente: i byte cambiano solo nei punti voluti; i fixup cambiati fuori dalla pagina aggiunta devono essere solo quelli attesi.</li>
+<li>Per i dati salvati: emulazione in Python della somma di controllo su una copia di un salvataggio vero.</li>
+</ol>
+<p>Se un controllo fallisce e non si risolve, si rimette la build precedente (<code>ITALIAN_S12.EXE</code> è l'ultima provata a fondo).</p>
+
+<!-- 19 -->
+<h2 id="limiti"><span class="n">19</span>Limiti e questioni aperte</h2>
+<ul>
+<li><strong>Gironi di C1/C2.</strong> Nel 1996-97 la C1 aveva 2 gironi e la C2 3. Il mod usa un girone unico per serie. L'intera realtà (128 squadre) non entra nel limite di circa 93 squadre per nazione. La C1 su due gironi entrerebbe (92), ma servono promozioni e retrocessioni fra divisioni parallele, verifiche sul limite delle 80 squadre di carriera e sui numeri globali: stima 2–3 sessioni.</li>
+<li><strong>Intercontinentale nello slot 4.</strong> Una finalista in una divisione con play-off resta senza Intercontinentale. La routine <code>cseg_8BF89</code> (chiamata da <code>cseg_8B2D3</code>) non è stata analizzata: se tiene dati legati al numero di slot, lo scambio dei buffer potrebbe lasciarli incoerenti. Nel riepilogo stagionale l'Intercontinentale nello slot 4 non ha nome.</li>
+<li><strong>Stringhe.</strong> Il pool nell'oggetto 2 è pieno: nomi nuovi richiedono altro spazio (altre stringhe inutilizzate, oppure una pagina dati aggiunta all'oggetto 2 con la stessa tecnica usata per l'oggetto 1).</li>
+<li><strong>Trofei dedicati.</strong> Le coppe sudamericane usano i trofei delle coppe europee dello stesso rango.</li>
+<li><strong>Salvataggi vecchi.</strong> Tengono in cache i dati delle squadre di quando sono stati creati: le rose nuove si vedono solo in una carriera nuova.</li>
+<li><strong>Doppioni.</strong> Restano 5 nomi ripetuti (trasferimenti a metà stagione o omonimi). I dati SWOS originali ne avevano 61.</li>
+<li><strong>Panchina inglese (dopo la 1.0).</strong> Nella formazione prima della partita le squadre inglesi mostrano 14 giocatori (11 + 3 in panchina). Succede anche con il gioco originale, e <code>TEAM.008</code> ha 16 giocatori per club: è una regola del gioco. Da capire da dove venga il numero di riserve (regole a +3Dh…41h del buffer, valori 5/2/8 impostati da <code>InitCareer</code>) per portarlo a 5.</li>
+</ul>
+
+<!-- 20 -->
+<h2 id="storia"><span class="n">20</span>Storico e prossimi passi</h2>
+<div class="tbl"><table>
+<thead><tr><th>Sessione</th><th>Contenuto</th><th>Prova</th></tr></thead>
+<tbody>
+<tr><td>1–2</td><td>Strumenti LE; causa del blocco del 1997; Italia a 4 divisioni con base 1850</td><td><span class="pill ok">passata</span></td></tr>
+<tr><td>5</td><td>Club reali C1/C2 1996-97</td><td><span class="pill ok">passata</span></td></tr>
+<tr><td>9</td><td>Coppe sudamericane nei menu e nella vista mondo; pool di stringhe</td><td><span class="pill ok">passata</span></td></tr>
+<tr><td>10</td><td>Club sudamericani nelle coppe in carriera; qualificate dalle classifiche; detentrice</td><td><span class="pill ok">passata</span></td></tr>
+<tr><td>11</td><td>Supercopa nello slot 1; pagina aggiunta all'oggetto 1</td><td><span class="pill ok">passata</span></td></tr>
+<tr><td>12</td><td>Persistenza delle liste con checksum; scambio CONMEBOL; trofei; Intercontinentale nei menu e nello slot 2</td><td><span class="pill ok">persistenza, slot 2, CONMEBOL</span> <span class="pill todo">trofei</span></td></tr>
+<tr><td>13</td><td>Finaliste dell'Intercontinentale a fine stagione; formato S2; Intercontinentale nello slot 4</td><td><span class="pill ok">fine stagione, S2</span> <span class="pill todo">slot 4</span></td></tr>
+<tr><td>14</td><td>Rose reali 1996-97 e forza calibrata per tutti i 36 club di C1/C2</td><td><span class="pill ok">passata</span></td></tr>
+</tbody></table></div>
+<h3>Roadmap</h3>
+<ol>
+<li><strong>Prove delle sessioni 12–14</strong> e correzioni.</li>
+<li><strong>Port</strong> su ENGLISH/FRENCH/GERMAN.EXE dello stesso CD. Da rendere generici: <code>STR_BASE</code>, gli offset degli pseudo-registri scritti nelle espressioni regolari di <code>sacups.py</code>, le stringhe sorgente del pool (testi italiani), i nomi visualizzati, gli indirizzi degli slot (tutti trovati per firma: da ricontrollare uno per uno).</li>
+<li><strong>Patcher</strong> in un unico file HTML/JS che distribuisce solo differenze: l'utente sceglie i propri file originali, il patcher controlla gli md5, applica le differenze e scarica i file modificati; README in italiano e inglese; per disinstallare si tengono gli originali.</li>
+<li><strong>Dopo la 1.0:</strong> panchina da 5 per le squadre inglesi; prova dell'Intercontinentale nello slot 4; C1 su due gironi, dopo una sessione di sola analisi.</li>
+</ol>
+<p class="eyebrow" style="margin-top:36px">Crediti: disassemblato e documentazione dei formati da swos-port (zlatkok). Mod: Davide Lorigliola, con Claude.</p>
+</main>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true,theme:matchMedia("(prefers-color-scheme: dark)").matches?"dark":"default"});</script>
+</body>
+</html>

@@ -1,0 +1,433 @@
+# SWOS 96/97 ITA mod — status
+
+## Decisions (2026-09-29)
+- Target: patch original DOS ITALIAN.EXE (md5 60cdb6b1e7418f206fee7a7b4b0ae911)
+- C1 and C2: single 18-team divisions (no parallel gironi)
+- Euro cups: 1997-98 format (CL 6 groups of 4) — details in session 6
+
+## Session 1 — tooling (done)
+- tools/le.py: LE parser (objects, page->file mapping, internal fixups). obj1 code @0x10000, obj2 data @0xC0000
+- tools/addrmap.py -> notes/addrmap.json: ENGLISH->ITALIAN piecewise deltas (obj1 11 runs, obj2 16 runs)
+- swos-port swos/swos.asm labels == ENGLISH.EXE VAs (verified: cseg_914F1 = assert)
+- 80-team assert: ENG va 0x914F1 -> ITA va 0x91345 (verified by signature)
+- DOSBox-X: dosbox-swos.conf, game installed in c/SWOS, CD = orig/swos9697ita.iso. Boots, intro FMV plays.
+  ("Packed file is corrupt" warning in log is harmless so far)
+
+## Next: session 2 — reproduce + understand
+1. Fast path to end of season (edit career save near season end, or test patch that auto-resolves user matches)
+2. DOSBox-X debugger breakpoint at 0x91345 / ContinueCareerNextSeason
+3. Add minimal C1 (league table in exe + teams in TEAM.020), trigger the freeze, read how the 80 teams are collected (cseg_92BBF, RestoreSelectedTeams, dseg_180784/86/88)
+
+## Session 2 — findings (2026-09-29)
+- Italy league struct (ITA obj2+0x8032, 42 B): hdr10 [num,type,country,start,end,nameOff,0,0,0,nDiv] + 02 03 35 + 6 B/div
+  [teams, promDirect, promPlayoffTeams, relegated, relPlayoff, playoffData] + 00 + 2 name dwords/div (offset from aChairmanScenes = obj2+0x183a).
+  England has 4 divisions with same format -> 4 levels supported.
+- teamsCountryNumbers (ITA obj2+0xb28b0): Italy base 424 (file 0x1F72D8 = A8 01), only 51 slots (Latvia starts at 475).
+  someLeaguesTable[2000] stores per-global-team promotion/relegation deltas (SetLeagueNumbers) -> >51 Italian teams collide with Latvia
+  -> likely the 1997 freeze (FatalError = int 3; jmp $). Free global numbers ~1794..1999.
+- tools/patch.py: Italy base 1850; 4-div struct (A18/B20/C1 18/C2 18, 4 up/4 down) in obj1 slack @0xa09d0, obj1 vsize->0xa1000,
+  italyTable fixup widened 16->32 bit (fixup table grows 2 B into 505 B padding). TEAM.020 -> 74 teams (13 non-league -> C1 + placeholders).
+- Patched exe boots. PENDING: user playtest of career season end (results-only mode).
+- 2026-09-29 PLAYTEST 1 (user, Serie A team, results-only): career season 1 end OK, no freeze. 4 leagues visible.
+  CARRIERA.CAR: first 80 records = next-season euro teams (count 80 ok). someLeaguesTable @ save off 59352 (no Italian entries:
+  player's nation kept as full records in save cache, 45/74 present). Moves verified: A<->B 4/4, B<->C1 4/4, C1->C2 seen.
+  NEXT: user plays 2 more seasons + short career from a C2 team. Optional proof: rebuild with ITALY_BASE=884 to reproduce old freeze.
+- PLAYTEST 2 (user): career from a C2 team, 2 seasons, no freeze (CARR2.CAR). Italian league moves of the player's nation are
+  NOT in someLeaguesTable (0 entries 1850-1923 in both saves); save caches only some team records -> league layout of the
+  player's nation lives elsewhere in the save (not yet decoded). Career fix considered working (sessions 2-4 goal met).
+- 1997 method (user recollection): inserted bytes between Italy and Latvia league structs. ~50 nation league structs follow Italy
+  (latvian_league ... ghana_league) and are reached via fixed fixup pointers -> all read shifted by N -> garbage leagues,
+  only processed at season end (world-wide promotions) -> FatalError. Plus global-number overlap. Zero runs at obj2+0x8d44.
+  Optional repro: "1997-style" exe (+28 after Italy, -28 at 0x8d44).
+
+## Idea: Copa Libertadores in career (discussed 2026-09-29)
+- Unused string aSouthAmericanCup 'SOUTH AMERICAN CUP*****' (no xref). argentinaTable = league only. Club cups only in europeTable
+  (euroCup 16, cupWinnersCup 32, uefaCup 32) + country list bytes; continental_cups = national-team cups.
+- Level 1 (recommended, ~3-4 sessions): SA career swaps the 3 euro slots -> Libertadores/Supercopa/CONMEBOL, SA country list, SA TMD.
+- Level 2 (~6+ sessions, high risk): both continents + Intercontinental Cup.
+- Order: after sessions 6-7 (euro cups), as sessions 9-11.
+- DECISION 2026-09-29: ADD (not replace) Libertadores, Supercopa, Copa CONMEBOL to whole game + career.
+  European career: SA cups simulated round by round, viewable in competitions menu (option b) -> enables real Intercontinental.
+  Plan: 9-10 SA cups in preset comps (+TMD files, cup loader, southAmericaTable relocation, tmd buffer 80->160 via obj1 BSS growth);
+  11-13 career integration; 14 Libertadores 1997 real format (groups); 15-16 Intercontinental (optional).
+
+## Session 5 — C1/C2 data (2026-09-29)
+- tools/c1c2.py: real 1996-97 clubs (it.wikipedia standings). C1 = 10 existing (Acireale, Ancona, Ascoli, Avellino, Como, Fidelis Andria,
+  Modena, Monza, Pistoiese, SPAL) + Treviso, Brescello, Carpi, Saronno, Prato, Nocerina, Casarano, Juve Stabia.
+  C2 = Pisa, Taranto, Ternana + Lumezzane, Lecco, Livorno, Battipagliese, Turris, Benevento, Catanzaro, Triestina, Rimini, Frosinone,
+  Sandona, Pro Patria, Catania, Pro Sesto, Cittadella. Kits approximate. New clubs: random Italian player/coach names (seed 1997),
+  skills/positions copied from non-league templates. TEAM.020 sorted alphabetically (old test saves now incompatible).
+- Real rosters: deferred (user: "per ora non preoccupiamoci delle rose").
+
+## Session 9 — SA cups: analysis started (2026-09-29). User skips 6-8 for now: wants to play SA career seasons first.
+- Career season = 5 contest slots (InitNewSeason, arrayOfPointers): competitionFileBuffer, dseg_D8D0A, dseg_D985C, dseg_DA0E2,
+  dseg_D9C9F. Slots 0-2 from country table (league, then after -2: cup, league cup) via cseg_8B2D3(D0=slot).
+- InitializeNewSeason: checks player's membership in euroCupCopy / cupWinnersCupCopy / uefaCupCopy via cseg_8D661 (D7=0/1/2);
+  cseg_8D661 reads team list at cup+7+[cup+7], count by cup type ([+1]==1 -> [+0Ah], 2 -> [+0Fh], else [+0Dh]).
+- Qualification engine (end of season) = cluster cseg_92BBF..cseg_9423A: cseg_92D55 (euroCup), cseg_9307A (CWC), cseg_9339D (UEFA),
+  cseg_936C0 (combine), cseg_93B30/93B9C/93BB5/93C19/93C3C/93C5F (add to lists, counters dseg_180784/86/88 = 16/32/32),
+  cseg_91428 = final assert (80 total). Also InitCareer, ProcessCareerFile, __init_80x87 (europeTable), LoadSomeEuroCup
+  (eurocup.tmd/uefacup.tmd/eurocwc.tmd -> tmdFileBuffer, SetTeamGlobalNumbers).
+- OPEN QUESTIONS for next session: (1) are euro cups the player is NOT in simulated round by round, or only resolved at season end?
+  (2) how qualifiers are picked from foreign leagues (standings are not played); (3) where slot 3/4 get the player's euro cup;
+  (4) career menu "view competitions" source list.
+- Design sketch: SA cups = clone of euro path keyed on continent (southAmericaTable relocated w/ club cups + country list),
+  new TMDs from TEAM.043/045/046/048/049/050/064/065/071/077 (ARG BOL BRA CHI COL ECU PAR PER URU VEN, ~200 clubs),
+  second 80-team buffer in obj1 BSS (grow vsize), trophy bits 10-15 free, name string aSouthAmericanCup unused.
+- USER ANSWER (gameplay): (1) euro cups the player is NOT in ARE simulated round by round. (2)-(4) re-asked in player terms:
+  foreign league tables visible? foreign qualifiers = strongest clubs or random? which competitions appear in career competitions menu
+  (all 3 euro cups even if not qualified?).
+- USER ANSWERS cont.: (2) foreign league tables ARE viewable anytime; foreign cup qualifiers look standings-based, not random.
+  (3/4) career competitions menu (Maltese club in Champions Cup): "Malta prima divisione, Malta coppa, Coppa campioni europea"
+  = only player's own contests. "Visualizza mondo" shows, at any time, league + national cup + continental cups of EVERY nation
+  -> whole world is tracked (find how: likely per-country simulation/generation on view; SA cups must show in world view under
+  South America / continental, and in player's list when qualified).
+- WORLD VIEW (user screenshots, career "Visualizza mondo"): EUROPA = 3 green cup buttons on top (COPPA CAMPIONI EUROPEA,
+  COPPA D. COPPE EUROPEA, COPPA EUFA) + 3-col grid of 43 countries + ESCI. SUDAMERICA = 11 countries (ARG BOL BRA CHI COL ECU PAR
+  PER SUR URU VEN) in grid, NO cup buttons, empty space on top. Goal: 3 green buttons (LIBERTADORES, SUPERCOPA, CONMEBOL) there.
+  Menu likely built from europeTable club-cup entries + country byte list -> check if southAmericaTable entries would render the same.
+- Hex-editor-only analysis: zero runs reachable with 16-bit fixup (obj2 0x6a16, 0x8df8, 606 B each) are unused slots of
+  country-indexed tables (0x8df8 is INSIDE competitionsTable @0x8c66, 256 dword entries) -> not safely free.
+  italyTable fixup record file 0x9c4ea = 07 00 ae 02 02 32 80 (src page off 0x2ae, obj2, target 0x8032).
+
+## Session 9 (cont.) — SA cups step 1 implemented (2026-09-29, untested in game)
+- Disassembly now kept locally: ref/swos.asm, ref/symbols.txt, ref/docs (was only in /tmp). tools/asmbytes.py dumps db bytes of a label.
+- WORLD VIEW MECHANISM: ViewWorldMenu -> ChooseCompetitionMenu -> SelectTeamsFinalMenu(showCupsAndOther=1): every pointer in the
+  continent's competitionsTable entry becomes a button (euro club cups not special-cased; national cups filtered in career).
+  Selecting one -> cseg_3AA17: looks up careerContests (static struct -> copy + size); if it is one of the player's 4 slots shows live
+  state, else cseg_3ABB2 REGENERATES it on the fly: Randomize2(seed = contest id<<8 | seasonPlaying), InitTeams, simulate to date.
+  => contests the player is not in have NO persistent state; SA cups need no save data to be viewable.
+- Contest struct: [0] id [1] type (1 knockout, 2 groups+KO) [2] country FF [3][4] months [5] names @+5+[5] (2 dwords, string VA -
+  (obj2+0x16F8)) [7] team list @+7+[7] [8] 1=fixed list; type1: [10] teams, [14..] 1 byte/round (0x94 2 legs, 0x14 final) then 00.
+  type2 (euroCup): [15] teams, groups of 4. Team list = (TEAM file number, index) byte pairs.
+- Free contest ids: 0x6C..0x7B (used: leagues 0x24-0x6B, customs 0x7C, cups 0x7D-0xB1).
+- dseg_C707E (ITA obj2+0x71C8, 45 entries, 3 code refs) = international contests -> DIY field 0x3B = 0 (sim flag, CalculateViewResult).
+- tools/lepatch.py: rebuilds LE fixup tables (retarget/add_ptr, grows section and moves data pages if needed). Round-trip identical;
+  Italy patch through it identical to the playtested exe. Fixup padding left ~16 B (next additions will move data pages: supported).
+- tools/sacups.py: COPA LIBERTADORES (0x6C, euroCup clone, 16 teams 4 groups), SUPERCOPA (0x6D) and COPA CONMEBOL (0x6E) (16-team
+  two-leg knockouts), 1997 entrants from TEAM.043-077; new South America table in obj1 cave (WCQ, Copa America, 3 cups);
+  intl list relocated + 3 cups. Cave used to obj1+0xA0C00 (of 0xA1000).
+- BUG FIXED: TEAM.020 re-sort (session 5) broke Italian clubs in preset euro cups (Juventus->Cosenza...); patch.py now remaps by name.
+- NEXT: playtest (preset competition -> Sudamerica -> 3 cups; career world view Sudamerica; a match; euro cups still OK).
+  Then career: careerContests entries? (not needed for viewing), yearly qualifiers from SA league standings instead of fixed lists.
+- PLAYTEST 3 (user): Sudamerica preset shows 3 new buttons, Libertadores opens with the 16 right teams, BUT names garbage:
+  name offsets are relative to obj2+0x16F8 (same base for leagues; "chairman 0x183a" was wrong for ITA) and obj1/obj2 are NOT
+  loaded at file distance -> strings in obj1 cave break (SERIE C1/C2 too, since session 2). FIX: tools/strpool.py puts new names
+  in obj2: unused '.COPPA AFRICANA CLUB' (27 B) + 'COPPA SUDAMERICANA' (24 B) + '*' padding of 2nd 'COPPA EUFA' (14 B). Pool now FULL.
+  Rule: never store obj2-relative offsets to obj1 data; pointers across objects only via fixups.
+- PLAYTEST 4 (user): all OK — SA cup names, euro cups (Juve/Milan), COPPA EUFA name, career world view, SERIE C1/C2 names.
+  Career with RIVER PLATE: "Visual. competiz." lists only ARGENTINA PRIMA DIVISIONE -> expected: player's slots only know the
+  3 euro cups (InitializeNewSeason/cseg_8D661 on euroCupCopy/cupWinnersCupCopy/uefaCupCopy). River is in the fixed Libertadores
+  list, so the world view simulates River in the Libertadores while the player is not in it. NEXT (sessions 10-11): player's
+  SA cup slot (membership check + slot fill for SA cups), then yearly qualifiers from SA standings.
+
+## Session 10 — player's club enters SA cups (2026-09-29, untested)
+- Every season: ContinueCareerNextSeason -> InitializeNewSeason (also from InitCareer). Euro cup entry = chain of cseg_8D661(A0=cup copy,
+  D7=0/1/2): scans team list words vs selTeamNumber (lo=file, hi=index); hit -> cseg_8B2D3(D0=3) loads cup into slot 3,
+  dseg_D8CBE = dseg_E092F = D7. ProcessCareerFile (load save) maps E092F 0/1/2 -> dseg_D8CB6 (slot-3 contest ptr); other values -> none.
+  D8CBE users: cseg_3D7CB trophy flags (0 CC, 2 UEFA, else CWC), cseg_5DEB9 bonus (1 CWC, 2 UEFA, else CC formula).
+- ITA addresses: A0 obj2+0x315D7, D7 obj2+0x315D3, E092F obj2+0x20A79, cseg_8D661 obj1+0x7D4B5, hooks obj1+0x7D307 (11 B) and
+  obj1+0x237FD (12 B). Disassembler: ndisasm (/opt/homebrew/bin), hand-assembled via sacups.Asm; lepatch.remove() drops fixups of
+  overwritten instructions.
+- sacups.career_hooks: InitializeNewSeason tries Libertadores/Supercopa/CONMEBOL with D7=3/4/5; ProcessCareerFile maps E092F 3..5.
+  KNOWN: SA cup win sets the CWC trophy flag (fix with trophies); bonus = Champions Cup formula. Fixups grew past padding:
+  data pages moved +0x200 (first time; LE re-parses fine).
+- TEST: new career RIVER PLATE -> competitions should list COPA LIBERTADORES; play/sim a group match; save + reload career, cup still there.
+- PLAYTEST 5 (user): WORKS. River Plate career: COPA LIBERTADORES in competitions, group draw by game, played River 2-1 Barcelona,
+  survives save/reload ("river" save). World view CONMEBOL simulated fine.
+- Lanus career -> COPA CONMEBOL entered (slot value 5 verified).
+
+## Session 10 (cont.) — step 2a: SA qualifiers from standings (untested)
+- Season end (cseg_91428): cseg_936C0; national stuff; cseg_92D55/9307A/9339D (build euro cup lists from last season's TMD
+  results?); careerFileBuffer=0; player's country cseg_9153F + cseg_93974; then every country in dseg_C943A (Europe) the same;
+  assert careerFileBuffer==80 (CN_EUROPE marker) and counters 16/32/32; cseg_92BBF.
+  cseg_9153F(country): league -> cseg_91D4D (per division: player's live one via cseg_8B6B0 copy slot0->DIY + table menu, others
+  cseg_915ED = cseg_3ABB2 world-view simulation of the whole season); div 0 -> cseg_927A2 top 9 team numbers -> dseg_180715 (+ team
+  data -> dseg_1807C2); cseg_93FD8/9221F/9228D promotions. Cup (91857), league cup (91AD0). cseg_93974 adds qualifiers to TMD buffer.
+- DIY_competitionStart (ITA obj2+0x4EFF3) = working contest; league layout: +31h teams, +6Dh row offsets in finishing order (rows 12h B),
+  +12Dh team number per row. Slot 0 competitionFileBuffer (obj2+0x1F640) same layout (cseg_8B71C copies 0x733 B).
+  ITA vars: A1 315DB A2 315DF A3 315E3 A4 315E7 D0 315B7 D1 315BB D2 315BF; dseg_D8CAA obj2+0x18DF4, dseg_D6CDC obj2+0x16E26.
+- sacups.qualify_hook: call cseg_92D55 @obj1+0x812C4 -> sa_qualify (nasm, tools/nasmcave.py finds fixups by triple assembly):
+  per SA country simulate top division via cseg_915ED (player's own top division: read slot 0), write ranks into Libertadores
+  (champions of 10 countries + runners-up ARG BRA URU PAR COL CHI, 4 mixed groups) and CONMEBOL (next places, 8 pairs) lists.
+  Supercopa list fixed. obj1 flagged writable (0x2047). Cave used to obj1+0xA0DD2 (0x22E left).
+- NOT persisted: after loading a save the lists are the 1997 defaults again until next season end (only world view of cups the
+  player is not in is affected; entry is decided right after season end in the same session). Step 2b = persistence.
+- TEST: career (e.g. River, results only) to season end, no freeze; new season Libertadores = ARG champion etc.; world view
+  Libertadores/CONMEBOL show new clubs; also a European career season end still OK.
+- PLAYTEST 6 (user): step 2a test 1 PASSED (River season end, no freeze, next-season SA cups from standings). European season end: pending.
+- Euro rules confirmed in code: cup winners stored (18070F/711/713) and auto-entered in the same cup next season (cseg_92BBF ->
+  cseg_92C4D bumps a random qualified team to keep 16/32/32; cleared by cseg_93BCE if already qualified via league);
+  per country cseg_93974: CC = champion, CWC = national cup winner skipping champion/CC holder (finalist steps in), UEFA = next ranks.
+  User wants: Libertadores holder auto-entry (proposed: replaces own country's runner-up slot, else CHI2); open: new Libertadores
+  winner into Supercopa (drop last), CONMEBOL holder rule.
+- PLAYTEST 7 (user): step 2a test 2 PASSED (Italian career season end OK). User: follow real 1997 rules (Lib holder auto-entry, new Lib champion -> Supercopa, no CONMEBOL holder rule).
+- Step 2a+: Libertadores holder rule (real 1997: holder defends title AND plays Supercopa as former champion). sa_qualify prologue:
+  [A4]=Libertadores, call cseg_92D55+10 (skips "mov [A4], euroCupCopy"): finishes the cup (player's slot 3 if he plays it,
+  else cseg_3ADAE simulation) and cseg_92F1C writes the winner to dseg_18070F (ITA obj2+0xC058B; the real cseg_92D55 overwrites it
+  right after). After the standings: winner not in new Libertadores list -> replaces its country's runner-up slot (BRA/ARG/PAR/CHI/
+  URU/COL), else CHI2 (group G3 has no BOL/ECU/PER/VEN); winner not in Supercopa -> takes Supercopa last slot (rotating 16th place).
+  No CONMEBOL holder rule (real). Code 248 B, cave to obj1+0xA0E5A.
+- PLAYTEST 8 (user): Bolivar (Bolivian champion) won the Libertadores -> next season in BOTH Libertadores (BOL1) and Supercopa (last slot), no freeze.
+  Holder-replaces-runner-up path NOT yet exercised (Bolivar qualified via league).
+- Discussed 6th career slot: not worth it (slot ptrs D8CAA..D8CBA followed by D8CBE, arrayOfPointers followed by slot-1 buffer,
+  ~250 refs in ~100 procs, save format). SA clubs have empty slots 1/2 -> use slot 1 for Supercopa (double participation).
+
+## NEXT SESSION (11)
+1. Double participation Libertadores (slot 3) + Supercopa (slot 1) for SA clubs: InitializeNewSeason slot-1 fill when country has
+   no cup; ProcessCareerFile restore of slot-1 ptr (dseg_D8CAE) on load; end-of-season with no country cup; trophy/bonus.
+2. Step 2b: persist SA cup lists (Lib/Sup/CON, 96 B) across save/load (hook SaveCareerFile/LoadCareerFile trailer, or free bytes).
+3. Trophies for SA cups (bits 10-15 free), then Intercontinental.
+
+## Session 11 — double participation: Supercopa in slot 1 (2026-09-30, untested)
+- Slot buffers ITA obj2: s0 0x1F640, s1 0x18E54, s2 0x199A6, s3 0x1A22C, s4 0x19DE9; careerFileBuffer 0x96D6 (= save offset 0).
+  Slot buffer header: +0 type word, +2Bh slot index, +2Dh contest id (verified in RIVER/BOLIVAR/CARRIERA saves), +27h name ptr.
+  Slot contest ptrs dseg_D8CAA..: ITA 0x18DF4 + 4*slot. selTeamNumber obj2+0x16E20. cseg_8B2D3 obj1+0x7B127 (slots 1/2 accept only
+  type-1 knockout cups), GetCurrentSeasonPointer obj1+0x2915F, season info cup name at +1Ah (slot 1).
+- career_hooks rewritten in nasm (CAREER_ASM): InitializeNewSeason: if slot 1 empty (no national cup) and club in Supercopa list
+  -> Supercopa loaded in slot 1 exactly like a national cup; slot-1 id byte cleared first so stale saves don't restore it.
+  Then slot 3: Libertadores, Supercopa (only if not in slot 1), CONMEBOL. ProcessCareerFile: new hook at obj1+0x237C1 restores
+  dseg_D8CAE = Supercopa when slot-1 buffer id == 0x6D, plus the slot-3 mapping hook. nasmcave.labels() reads nasm map files.
+- obj1 cave almost FULL: used to 0xA0F32 of 0xA1000. Next code needs a new home (e.g. add an obj1 page, or reclaim dead code).
+- KNOWN: Supercopa win in slot 1 counts as national cup trophy/bonus (fix with trophies).
+- TEST: new career RIVER PLATE -> competitions: league + COPA LIBERTADORES + SUPERCOPA; fixtures of both in calendar; save+reload
+  keeps both; BOCA JUNIORS -> league + SUPERCOPA only. Old saves (BOLIVAR.CAR: Supercopa in slot 3) still load.
+- PLAYTEST 9 (user): ALL PASSED. River: ARGENTINA PRIMA DIVISIONE + SUPERCOPA (slot 1) + COPA LIBERTADORES (slot 3); Boca: Supercopa only;
+  save/reload OK; old BOLIVAR.CAR loads. "CAPO CANNONIERI NAZIONALE" entry = original menu item (viewCompetitionsMenu has a fixed
+  TOP GOAL SCORERS button -> TopGoalScorersMenu, shown once there are scorers), not a contest.
+- CODE SPACE: lepatch.add_object_page(data, 1) adds a 4 KB page to obj1: physical page N+1 appended at file end (old last page
+  zero-padded to 4 KB, last_page=0x1000), page map entry inserted after obj1's pages, empty fixup-page entry, header table
+  offsets +4/+8, obj2 page_idx+1. obj1 vsize 0xA2000. All SA code/data now in the new page from obj1+0xA1000 (used to 0xA151A,
+  ~2.7 KB free); old cave 0xA0A18-0xA1000 free again (~1.5 KB). obj diff vs original = only intended patches (checked).
+- PLAYTEST 10 (user): new obj1 page build ALL PASSED: boot, preset SA cups, River career (league+Supercopa+Libertadores), save/reload,
+  season end: ALIANZA LIMA won the Libertadores -> next season in Libertadores AND Supercopa; River mid-table -> Supercopa only
+  (slot 1, former champion). Session 11 DONE.
+
+## NEXT SESSION (12)
+1. Step 2b persistence: SA cup lists (Lib/Sup/CON 3x32 B) + LIBWIN across save/load (sidecar file next to .CAR written/read
+   by hooks in SaveCareerFile/LoadCareerFile, or free bytes inside the saved range).
+2. Trophies for SA cups (bits 10-15 free; today: Lib/CON win -> CWC flag, Supercopa in slot 1 -> national cup flag) + bonuses.
+3. Then Intercontinental (Libertadores winner vs Champions Cup winner), or back to euro cups 1997-98 format (sessions 6-8).
+
+## Session 12 — step 2b: SA lists persisted with the career (untested)
+- someLeaguesTable ITA obj2+0x17FB2 (save offset 0xE8DC, verified in saves: +/-1 deltas at real teams), leaguesTableCopy obj2+0x5953C.
+  Season end: cseg_8CC0A copies some->copy, promotions edit the copy, InitializeNewSeason cseg_8CC4E copies copy->some.
+  InitCareer zeroes someLeaguesTable (new career). Global numbers 1730..1849 belong to no team file.
+- someLeaguesTable[1740..1837] = 'SA' (0x4153) + Libertadores/Supercopa/CONMEBOL lists (3x32 B), mirrored in leaguesTableCopy.
+  lists_out (season end, new career) writes both; load_slot1 (every load) restores lists from it, or the 1997 DEFAULTS when no
+  marker (old saves); init_sa: no marker (new career) -> DEFAULTS + write. LIBWIN not persisted (recomputed at season end).
+- PLAYTEST 11 (user): FREEZE at season end right after the Argentine division table. CAUSE: cseg_9487A (end of cseg_9153F per country)
+  asserts sum of leaguesTableCopy[0..1999] (bytes, mod 256) == 0 and the player's country file slice == 0 -> our block broke it.
+  FIX: balance byte at someLeaguesTable[1838] = -(sum of the 98 bytes), mirrored in the copy (99 bytes). Also dropped rep movsb
+  (byte copies through DS only). Build md5 22ec217f. Lesson: any data parked in game tables must respect the game's checksums.
+- PLAYTEST 12 (user): PERSISTENCE WORKS. River season end passed (checksum fix), RIVSA.CAR holds 'SA' lists (table sum 0),
+  after full DOSBox restart + load the world view shows the saved lists (not 1997). tools/salists.py decodes a save.
+  Holder rule exercised: ALIANZA LIMA (holder, 2nd in Peru) took the CHI2 Libertadores slot + Supercopa last slot.
+  OPEN: Alianza also in CONMEBOL (as PER2) -> fix: holder's CONMEBOL entry goes to the team it displaced in the Libertadores.
+
+## Session 12 (cont.) — holder/CONMEBOL fix + trophies (untested, build md5 8e6aeeb4)
+- Holder re-entered in the Libertadores: the club it displaces takes the holder's CONMEBOL place (no club in both).
+- Trophies: season record (ManagementRecordMenu) already names the slot contests + result (COPA LIBERTADORES - WINNERS).
+  Trophy bits built in cseg_39392 from flags D6C64 (CC, bit 2, rep +100), D6C68 (UEFA, bit 3, +50), D6C66 (CWC, bit 4, +50);
+  cseg_3D7CB picks the flag from dseg_D8CBE (ITA obj2+0x18E08), cseg_5DEB9 the prize. init_sa now sets D8CBE = D7-3 on an SA hit:
+  Libertadores counts as Champions Cup, Supercopa (slot 3 only) as CWC, CONMEBOL as UEFA. Supercopa in slot 1 = national cup win.
+  Real SA trophy names/bits would need strings (obj2 pool full) + display work: not done.
+- TEST: River season end with the holder case; winning Libertadores -> reputation like CC.
+- Intercontinental step A (untested): COPPA INTERCONTINENTALE id 0x6F, type-1 knockout 2 teams, one round 0x14 (single match),
+  default Juventus - River Plate (Tokyo Nov 1996). In SA world view/preset table + intl list. Name from strpool: 'ERRORE DISCO'
+  + 26 stars truncated (25 B free, 1 left). NEXT: season end -> [CC winner (dseg_18070F after cseg_92D55), Lib winner];
+  persistence (+4 B in saved block); career entry (slot for CC/Lib winner next season: SA club slot 1/2, euro club slot 2?);
+  also show it under EUROPA (europeTable relocation).
+- Europe table relocated too (obj1+0xA110C: 252, EC, CC, CWC, UEFA, Intercontinental, -1, 43 countries); build md5 4c22ce5c.
+- PLAYTEST 13 (user): Intercontinental OK in preset Europa + Sudamerica (5 green buttons fit), plays as single final Juventus - River,
+  world view OK. Career entry was missing (expected).
+- Intercontinental step B (untested, md5 4497736e): career entry in SLOT 2 (league-cup slot, free for Italy and all SA countries):
+  init_sa loads it when dseg_D8CB2 (obj2+0x18DFC) == 0 and the club is one of the two finalists; slot-2 buf obj2+0x199A6
+  (+2Dh id cleared each season), season info name at +1Eh; load_slot1 restores D8CB2 when slot-2 id == 0x6F.
+  NOT YET: finalists update at season end (CC winner dseg_18070F after cseg_92D55 + LIBWIN) + persistence (+4 B);
+  countries with a league cup (England, Scotland, ...) have no free slot 2.
+- Contest months: [3]/[4] = 8*month from January of the season's first year (>=12 next year): euro 0x40-0x20 Sep-May, Copa America 0x88-0x90 Jun-Jul next year. Intercontinental set 0x58-0x60 (December, window to January). md5 in next line.
+5c219bfd17abbcad37ca6218f2b61560
+- FIX: Juventus did not get the Intercontinental: init_sa only runs on the 'no cup' branch. int_step is now a subroutine, also called from a new hook on the 'found' branch (obj1+0x7D312, 12 B, both fixups removed) -> euro_found. md5 b399ba01. River test (slot 2) PASSED before the fix.
+- PLAYTEST 14 (user): Intercontinental in career PASSED for Juventus (slot 2 via euro_found) and River; match falls in December.
+
+## NEXT SESSION (13)
+1. Intercontinental finalists at season end: sa_qualify calls cseg_92D55 itself (instead of jmp), then INTLIST = [dseg_18070F CC
+   winner, LIBWIN]; persist the 4 bytes (extend saved block 1740.. to 1843 + balance byte; lists_in/out + DEFAULTS).
+2. Test pending from session 12: holder -> CONMEBOL swap; trophy mapping (Lib = CC rep/prize).
+3. Clubs of league-cup countries (ENG, SCO, ...) have no free slot 2 for the Intercontinental: pick another slot (4?) or skip.
+
+## ROADMAP after session 13 (decided 2026-09-30 by Davide)
+- SESSION 14 (NEW, requested by Davide 2026-09-30, BEFORE the language port): real Serie C1/C2 1996-97 data.
+  Check that C1/C2 clubs are the real 1996-97 ones (tools/c1c2.py: 18+18 picked from the real standings; reality was C1 2x18 =
+  36 clubs, C2 3x18 = 54, we keep single 18-team divisions), then REAL player names (1996-97 rosters, sources: it.wikipedia club
+  season pages, almanacs) and skill values coherent with the level (below Serie B, C1 > C2; calibrate on existing Serie B / old
+  non-league records). Update tools/c1c2.py (today random Italian names, skills copied from non-league templates).
+- SESSION 15: port all work to the other language exes (ENGLISH/FRENCH/GERMAN.EXE, same CD). Known ITA-specific bits to generalize:
+  STR_BASE 0x16F8, hardcoded pseudo-register offsets in sacups regexes (A0 315D7, A1 315DB, D0 315B7...), strpool source strings
+  (Italian texts '.COPPA AFRICANA CLUB', 'COPPA SUDAMERICANA', 'COPPA EUFA', 'ERRORE DISCO'), cup/league display names per language,
+  someLeaguesTable/slot/buffer addresses (all found by signature -> check each), notes/addrmap.json (ENG<->ITA deltas).
+- SESSION 16: release a patch users apply to their own original copy, runnable on current Windows / Linux / macOS. DECIDED (Davide 2026-09-30): single-file HTML/JS patcher.
+  Distribute only differences (no copyrighted game files). Idea: single self-contained HTML/JS patcher (runs in any browser,
+  no install): user selects original ITALIAN.EXE (+ DATA/TEAM.020 ...), md5 check of inputs, applies binary diffs, downloads the
+  patched files; alternative/extra: BPS/xdelta patches + plain Python script. Include README (ITA/ENG), credits, uninstall = keep originals.
+
+## Session 13 — NON ESEGUITA (2026-09-30, run schedulato)
+Avvio con finestra 5h Pro già al 91% (soglia stop 85%, extra usage disabilitato, reset ~01:00 UTC).
+Nessuna modifica: build, tools e salvataggi intatti. Il piano "NEXT SESSION (13)" resta valido così com'è
+(task A–E: backup ITALIAN_S12.EXE, finaliste Intercontinentale a fine stagione via CSEG_92D55 + INTLIST,
+blocco salvato 'S2' con INTLIST e byte di bilanciamento a +102, salists.py per entrambi i formati).
+Da rilanciare quando la finestra è libera.
+
+## Session 13 — Intercontinental finalists at season end + persisted (untested, build md5 0dacb95cf1ff1a201940f0b93026c56c)
+- Backup of the last playtested build: c/SWOS/ITALIAN_S12.EXE (md5 b399ba01557e5462c129a13d2b1bf267). Restore it over
+  ITALIAN.EXE if the new build misbehaves (S12 cannot read 'S2' blocks: it falls back to the 1997 lists, no crash expected).
+- sa_qualify tail (obj1+0xA16FA): `call CSEG_92D55` (obj1+0x82BA9, real CC end; both branches end in cseg_92F1C which always
+  writes dseg_18070F = obj2+0xC058B), then INTLIST[0] = HOLDER, INTLIST[1] = LIBWIN (each skipped if 0FFFFh), `call lists_out`,
+  `ret` (back to obj1+0x812C9). INTLIST = Intercontinental struct + 24 = obj1+0xA10DD (default 14 20 2B 21 = Juventus - River).
+- Saved block (someLeaguesTable[1740..1842], obj2+0x1867E; mirror leaguesTableCopy obj2+0x59C08): marker 'S2' (0x3253) + 96 B
+  lists + 4 B INTLIST + balance byte at +102 (sum of the 103 bytes = 0), mirror 103 B. lists_in (obj1+0xA14EA) now also reads the
+  4 bytes after the lists into INTLIST (entry int_in obj1+0xA1506); lists_out (obj1+0xA1514) writes them, marker S2.
+  load_slot1 (obj1+0xA135F): 'S2' -> all from save; 'SA' (session-12 saves) -> saved lists + DEFAULT pair (DEFAULTS+96 =
+  obj1+0xA15F1); else DEFAULTS (100 B at obj1+0xA1591). init_sa (obj1+0xA121C): 'S2' or 'SA' = existing career, 0 = new.
+- Static checks done: build asserts; ndisasm of sa_qualify tail, lists_in/out, init_sa, load_slot1 and all hooks (0x237C1 ->
+  load_slot1, 0x237FD -> load_slot3, 0x7D307 -> init_sa, 0x7D312 -> euro_found, 0x812C4 -> sa_qualify); every absolute operand
+  has a fixup to the right obj/offset; obj2 identical to S12, obj1 differs only in the cave page and the 3 hook rel32s; 9 more
+  fixups, none outside the cave. salists.py decodes both formats (RIVSA.CAR = 'SA', sum 0, prints default pair). Checksum
+  emulated on a copy of RIVSA.CAR converted to 'S2' (scratch only): block sum 0, whole 2000-byte table sum 0; 1843..1849 = 0.
+- UNTESTED in game. Note: a season-12 'SA' career that reaches season end is rewritten as 'S2' (old balance byte position
+  becomes INTLIST data, new balance at +102).
+
+### Findings (read-only, not implemented): slot 4 for the Intercontinental of league-cup countries
+- Slot table dseg_D8CAA: 0 league, 1 D8CAE national cup, 2 D8CB2 league cup, 3 D8CB6 euro cup, 4 D8CBA (+ D8CC0), buffer of
+  slot 4 = dseg_D9C9F (ProcessCareerFile pointer list). ProcessCareerFile reloads D8CBA/D8CC0 on every load from the player's
+  league record: byte [league + div*6 + 12h] = offset of a (contest ptr, D8CC0) pair; 0 = none -> slot 4 free for that division.
+- cseg_8B2D3 with D0=4: accepts only type-1 contests ([A0+1]==1; Intercontinental IS type 1, OK), then fills dseg_10F0F6 with
+  careerTeam x [A0+0Ah] (tour/friendly logic: every entry = the player's club). So an Intercontinental in slot 4 would need its
+  team list rewritten AFTER cseg_8B2D3 (int_step already writes the slot buffer; same trick as slot 2), and load_slot1 would have
+  to restore D8CBA (reset by ProcessCareerFile from the league record) when the slot-4 buffer id == INT_ID, like slot 2.
+- Slot 2 is also used for friendlyCopy/tourCopy (cseg_37A50 compares D8CB2 with them): slot 2 is not only the league cup.
+- Risk: divisions whose record has a tour (e.g. some English/Scottish divisions) would lose it or clash; displays (cseg_3760C
+  menu) must be checked for slot 4 with a knockout contest. Estimate: ~1 session incl. playtest. Alternative: skip for those clubs.
+
+### TEST LIST per Davide (sessione 13)
+1. Carica una carriera nuova con Juventus o River: al primo dicembre l'Intercontinentale c'è ancora (Juventus - River, default).
+2. Carica RIVSA.CAR (formato vecchio 'SA'): le liste SA sono quelle salvate, l'Intercontinentale resta Juventus - River.
+3. Porta una carriera (River o Juventus) a FINE STAGIONE: nessun blocco dopo le classifiche (checksum). All'inizio della nuova
+   stagione, vista mondo/Coppa Intercontinentale = vincitrice Coppa Campioni + vincitrice Libertadores della stagione appena
+   finita. Se la tua squadra è una delle due, deve avere l'Intercontinentale in slot 2 a dicembre; se non lo è, non deve averla.
+4. Salva (es. INT13.CAR), esci da DOSBox, riavvia, ricarica: finaliste ancora quelle nuove.
+   Controllo: `python3 tools/salists.py c/SWOS/INT13.CAR` -> "format S2, block sum mod 256 = 0" + riga INTERCONTINENTALE.
+5. Slot 4 (club di paesi con coppa di lega, es. Inghilterra): una squadra inglese finalista (vincitrice Coppa Campioni) deve
+   avere a dicembre l'Intercontinentale E la coppa di lega; salva/ricarica prima di dicembre; a fine campionato nessun blocco.
+6. Se qualcosa si rompe: `cp c/SWOS/ITALIAN_S12.EXE c/SWOS/ITALIAN.EXE` (build sessione 12).
+Ancora da provare dalla sessione 12: holder -> scambio CONMEBOL; trofeo Libertadores = reputazione/premio Coppa Campioni.
+
+### Session 13 (cont., Davide awake: "procedi col punto E") — Intercontinental in SLOT 4 (untested, md5 cb6c817fbaa54d5e0096fa7d1df3f0f1)
+- Correction to the findings: slot 4 = the DIVISION PLAY-OFFS (not friendlies/tours). cseg_8DAC3 (end of InitializeNewSeason)
+  builds them with placeholder teams (careerTeam x n, cseg_8B2D3 D0=4 skips scheduling); at the league's end cseg_8ECAE takes the
+  real teams from the standings (D8CC0 table) and schedules (cseg_32E15, 8B71C, 27436, 8B8B8, 8B7EA), sets D6B62 = 1 (only
+  "no sacking during play-offs") and slot4+3Dh..41h = league's DF533.. (= substitution rules 5/2/8, InitCareer).
+- int4_step (obj1+0xA1506) replaces `call cseg_8DAC3` at obj1+0x7D31E (DONE, reached by both init paths): calls cseg_8DAC3; if
+  D8CBA (obj2+0x18E04) == 0 (division without play-offs): clear slot4 id (+2Dh); if not already in slot 2 and the club is in
+  INTLIST: park slot-2 buffer (league cup, obj2+0x199A6) in slot-4 buffer (obj2+0x19DE9 = slot2 + 0x443), build the Intercontinental
+  as slot 2 (cseg_8B2D3 D0=2, full scheduling), swap the two 0x443-byte buffers, slot4+2Bh = 4, slot4+3Dh..41h = league subs
+  (ITA obj2+0x1F67D = ENG DF533), restore D8CB2, D8CBA = INT.
+- playoffs (obj1+0xA15E9) replaces cseg_8ECAE's `cmp dword [D8CBA],0; jz out` (obj1+0x7EB02, 13 B, fixup removed): also skips
+  when D8CBA == INT (else at the league's end it would rebuild our finished cup from the play-off table).
+- load_slot1: D8CBA == 0 and slot4 id == INT_ID -> D8CBA = INT (ProcessCareerFile reloads D8CBA from the league record).
+- Static checks: build asserts (slot4 == slot2+0x443, cseg_8ECAE tail pattern, ret at jz target), ndisasm of all new code and
+  hooks, fixups OK, obj2 identical to S12, only fixup change outside the cave = removed 0x7EB04.
+- Limits: clubs in a division WITH play-offs still get no Intercontinental; the season record (SeasonInformations) gets no
+  name for slot 4 (the game never writes one for play-offs). Unknown: cseg_8BF89 (called by cseg_8B2D3) might keep slot-specific
+  state; menus/fixture lists never saw a knockout "cup" in slot 4 before December.
+- EXTRA TESTS (slot 4): an English (or Scottish) club that won the Champions Cup / is a finalist: e.g. start a career with an
+  English top-division club, win the CC (or edit nothing: play until the CC final), season end -> next season Intercontinental in
+  December alongside the league cup (both must be playable); league cup unaffected; save/reload in between; at the league's end no
+  freeze and no play-off rebuild. Also a Juventus/River career must still use slot 2 (unchanged).
+
+## Session 14 — real Serie C1/C2 1996-97 squads (2026-09-30, TEAM.020 md5 4dccfc83c4e931233411d9edd1a06097, exe unchanged cb6c817f)
+- Clubs checked against it.wikipedia Serie C1/C2 1996-1997 final standings: all 36 are real 1996-97 C1/C2 clubs (C1: 10 existing +
+  Treviso, Brescello, Carpi, Saronno, Prato [girone A 1-4, 6], Nocerina, Casarano, Juve Stabia [girone B 5-7]; C2: Pisa, Taranto,
+  Ternana existing + Lumezzane, Lecco, Livorno, Battipagliese, Turris [promoted], Benevento, Catanzaro, Triestina, Rimini, Frosinone,
+  Sandona, Pro Patria, Catania, Pro Sesto, Cittadella).
+- tools/c1c2_rosters.py: real squads + coaches of the 23 new clubs from it.wikipedia "<club> 1996-1997" pages (rosa); Triestina's
+  2nd keeper Paolo Bianchet from unionetriestina.it (wiki lists him as defender). Known regulars first. Foreigners: Aubameyang,
+  Nzamba (GAB, black face), Vollmar (GER), Donato (ARG). Names: uppercase ASCII, > 22 chars -> initial (M. DAL COMPARE).
+- c1c2.real_team: template = a non-league club whose role mix (G/D/M/A classes of the 16 positions) fits the roster (random among
+  best fits), real names by role in list order (borrow a neighbour role if short), then skills (v&7, flag bit 3 kept) and prices
+  shifted by whole steps (1 skill step = 2 price units, clamp -3..+2) towards TARGET avg price from the standings: C1 new 17-19
+  (result 16.7-19.0, existing C1 14.3-20.2), C2 new 12.5-15 (result 12.8-15.0; existing Pisa 17.2, Taranto 14.8, Ternana 14.4).
+  Goalkeepers have no skills in SWOS (price only). Names already in TEAM.020 go last in their role (mid-season transfers);
+  6 unavoidable repeats left (5 keepers: Vinti, Monguzzi, Ambrosio, Locatelli, Cornacchia; Palmieri = homonym). The original
+  SWOS data already has 61 repeated names.
+- The 13 existing clubs keep SWOS's original squads (untouched). Old career saves keep their cached team data: start a NEW career
+  to see the new squads.
+- TEST: new career (any club) -> world view / Serie C1 and C2 team lists: real names (e.g. CASARANO: FABRIZIO MICCOLI,
+  LUMEZZANE: SIMONE INZAGHI, PRO SESTO: CRISTIAN BROCCHI, TRIESTINA: PIERRE AUBAMEYANG black face);
+  (14b: Oddo, Liverani, Rocchi, Bazzani now included; existing clubs updated too, see below);
+  simulate a C1 and a C2 season: new C2 clubs should be weaker than C1 ones, no crash in squad/transfer menus.
+
+### Session 14b (same day, Davide: Oddo/Liverani/Rocchi/Bazzani in, existing clubs too) — TEAM.020 md5 ded1b97bd1cc24bbeed7994bfa483d5c
+- Oddo (Prato), Liverani (Nocerina), Rocchi (Pro Patria), Bazzani (Sandona) moved first in their role -> in the 16.
+- The 13 existing C1/C2 clubs (Acireale, Ancona, Ascoli, Avellino, Como, Fidelis Andria, Modena, Monza, Pistoiese, SPAL, Pisa,
+  Taranto, Ternana) now also get their real 1996-97 squads + coaches (c1c2_rosters.EXISTING, it.wikipedia season pages; Ascoli
+  ordered by appearances) through the same real_team path; their own kits kept; a role the source lacks is filled with the club's
+  original SWOS player (Modena: FERRO TONTINI, SPAL: MASSIMO BATTARA as 2nd keeper). Strength targets from the standings
+  (Fidelis Andria 19 ... SPAL 15.5; Ternana 15, Pisa 13.5, Taranto 12). Results within +-1: C1 avg ~17.8, C2 ~13.9.
+  Monza's Oddo (loan) kept at Prato only. Repeated names: 5 (orig 61). E.g. COMO: GIANLUCA ZAMBROTTA, MONZA: CHRISTIAN ABBIATI,
+  PISTOIESE: LEGROTTAGLIE, PIOLI, ZENONI x2.
+- Reminder: 1996-97 reality was C1 2 gironi x 18, C2 3 gironi x 18; the mod keeps single 18-team C1/C2 (session 1 decision).
+
+### Docs (2026-09-30)
+- Technical manual for developers, Italian + English, kept in sync: docs/src/manual.it.html / manual.en.html (artifacts IT
+  https://claude.ai/artifact/58v5iQpxMECsUzG2VHxkjN, EN https://claude.ai/artifact/2GdFS8VJho8AEDk3SryDxG).
+  `python3 tools/mkdocs.py` -> docs/index.html (IT) + docs/en.html (EN) for GitHub Pages (asserts same structure in both).
+  RULE: every session that changes the mod updates BOTH manuals, reruns mkdocs.py and republishes both artifacts.
+
+### PLAYTEST 15 (user, 2026-09-30 evening) — sessions 13-14
+- ALL PASSED: (1) boot + preset SA cups / Europe cups; (2) new career, real C1/C2 squads OK; (3) River/Juve season end: no freeze,
+  INT13.CAR = format S2, sum 0, Intercontinental AC MILAN - GREMIO (CC winner - Libertadores winner), holder Gremio in Lib (BRA2)
+  and Supercopa, no club in both Lib and CONMEBOL; reload after full DOSBox restart keeps it; (4) other Italian club season end OK;
+  (5) RIVSA.CAR (old 'SA') loads.
+- NOT YET: Intercontinental in slot 4 (English CC winner) -> experimental in 1.0; trophy mapping (Lib = CC reputation/prize).
+- Seen: English clubs show 14 players in the pre-match line-up. Same with the ORIGINAL exe + TEAM.020 (checked by Davide, orig
+  files swapped in and back): original game behaviour, TEAM.008 has 16 players per club. Mod build restored (ITALIAN_S14.EXE /
+  TEAM020_S14.BIN = copies of the release candidate cb6c817f / ded1b97b).
+
+## Session 15 — port to ENGLISH / FRENCH / GERMAN (2026-09-30 evening, static checks only)
+- `python3 tools/patch.py [it|en|fr|de]` (LANGS in patch.py). ITA output unchanged (cb6c817f). Generalized: pseudo registers from
+  signatures (sacups.regs: InitializeNewSeason tail + ProcessCareerFile slot-3 test; D0..D7, A0..A6 consecutive dwords),
+  STR_BASE from the Italy league struct (patch_italy -> sacups.STR_BASE, 0x16F8 in all 4), obj1 cave = align16(vsize).
+- String pool per language (strpool.SOURCES): EN '.AFRICAN CLUBS CUP', 'SOUTH AMERICAN CUP', padding of 2nd 'EUFA CUP',
+  'DISK ERROR', 'EURO CW CUP'; DE '.AFRIKAVEREINSPOKAL', 'SUEDAMERIKAMEISTERSCHAFT', 2nd 'EUFA-CUP', INT name = the game's own
+  'WELTPOKAL' (pool.reuse); FR has no '*' padding: 'COUPE D'AFRIQUE DES CLUBS', 'COUPE SUD-AMERICAINE' + 4 freed duplicates
+  (2nd name dword of COPA AMERICA / COUPE D'ASIE / COUPE D'OCEANIE / COUPE EUFA contests retargeted to the 1st copy, strpool.DUPLICATES).
+  INT names: EN 'INTERCONTINENTAL CUP', FR 'COUPE INTERCONTINENTALE', DE 'WELTPOKAL'.
+- Checks per language: all signature addresses == ENGLISH disassembly labels (EN); same 7 hook sites -> same labels
+  (0xA135F, 0xA13FC, 0xA121C, 0xA1457, 0xA1506, 0xA15E9, 0xA1716) in all 4; cave code identical except address operands;
+  12 fixups changed outside the cave in every language; obj2 diffs = names, Italian club remap, Italy base (+ FR 4 name dwords).
+- md5: ENGLISH d094c39d, FRENCH 1b7e87d9, GERMAN 69071a3d. Originals saved in orig/ (FRENCH/GERMAN copied from c/SWOS).
+  DOSBox configs: dosbox-swos-en.conf / -fr / -de. tools/salists.py finds the saved block in any language (same save offset).
+- PLAYTEST EN (user): Juventus career to season end: ENTEST.CAR format S2, sum 0, Intercontinental MANCHESTER UTD - CRUZEIRO.
+  Reload of ENTEST after a full DOSBox restart: Intercontinental still MANCHESTER UTD - CRUZEIRO (PASSED).
+
+- PLAYTEST FR + DE (user): all OK (menus/names incl. the 4 French freed duplicates, career to season end).
+
+## Session 16 — release patcher 1.0 (2026-09-30 evening)
+- tools/mkpatcher.py -> release/swos-9697-mod-patcher.html (73 KB, self-contained, offline, IT/EN UI). Delta format SWD1:
+  COPY(offset,len) from the user's original (>= 16-byte matches) / INSERT(new bytes); per exe ~6.1 KB (5.7 KB inserted), TEAM.020
+  18 KB. md5 checked on input (original) and output (patched); unknown or already patched files refused.
+- Verified in Node with the page's own JS: md5 == node crypto, all 5 originals recognised, outputs = cb6c817f / d094c39d /
+  1b7e87d9 / 69071a3d / ded1b97b; a patched exe is not accepted as original. Template: tools/patcher_template.html.
+- Credits: Davide Lorigliola (with Claude); swos-port for disassembly/docs.
+- TODO before publishing: EN manual with ENGLISH.EXE addresses (Davide: IT manual for ITALIAN.EXE, EN manual for ENGLISH.EXE);
+  GitHub repo (sources + docs + release, no game files) and GitHub Pages on docs/.
+
+## BACKLOG after 1.0 (Davide 2026-09-30)
+- English line-up shows only 14 players (11 + 3 bench) also in the original game: find where the bench size comes from
+  (per-country/league rule; slot +3Dh..41h substitution words, DF533 5/2/8 set in InitCareer) and offer 16 (5 on the bench).
+- Intercontinental in slot 4 playtest (English CC winner); C1 with two groups (analysis first).
+
+## NEXT SESSION (15)
+- Playtest results of sessions 13-14 first (fix if needed). Then the language port (roadmap SESSION 15).

@@ -1,0 +1,15 @@
+# game files and anything derived from them: never published
+orig/
+c/
+ref/
+*.CAR
+*.EXE
+*.exe
+*.iso
+TEAM.0*
+# local environment
+dosbox-swos*.conf
+notes/dosbox.log
+__pycache__/
+*.tmp
+.DS_Store

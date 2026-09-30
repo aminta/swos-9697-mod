@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SWOS 96/97 Mod {{VERSION}} Patcher</title>
+<style>
+/* Self-contained: no network access needed. Palette: SWOS pitch green, cool paper, card red for errors. */
+:root{
+  --bg:#f4f7f4; --panel:#ffffff; --fg:#18221d; --muted:#56635c; --line:#d3dcd6;
+  --accent:#1e7a45; --accent-soft:#e1f1e7; --bad:#b3261e; --bad-soft:#fbe9e7;
+  --mono:ui-monospace,Menlo,Consolas,"Liberation Mono",monospace;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#111814; --panel:#18211c; --fg:#e2ebe5; --muted:#9aaba1; --line:#2b3730;
+  --accent:#5cc08a; --accent-soft:#1c3226; --bad:#ff8a80; --bad-soft:#3a1f1d; color-scheme:dark}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.55 var(--sans)}
+.wrap{max-width:860px;margin:0 auto;padding-inline:20px;padding-block:28px 64px;display:grid;gap:22px}
+header{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:10px;border-bottom:3px solid var(--accent);padding-bottom:14px}
+h1{margin:0;font-size:clamp(24px,4vw,32px);letter-spacing:.01em}
+h2{margin:0 0 8px;font-size:18px}
+.sub{color:var(--muted);font-size:13px}
+.lang button{font:inherit;font-size:13px;border:1px solid var(--line);background:var(--panel);color:var(--fg);padding:4px 10px;border-radius:999px;cursor:pointer}
+.lang button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff}
+section{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:18px 20px}
+ol,ul{margin:6px 0 0;padding-left:22px}
+li{margin:3px 0}
+code{font-family:var(--mono);font-size:.88em;background:var(--accent-soft);padding:1px 5px;border-radius:3px}
+.drop{border:2px dashed var(--line);border-radius:8px;padding:26px 16px;text-align:center;cursor:pointer;transition:border-color .15s}
+.drop.over,.drop:focus-visible{border-color:var(--accent);outline:none}
+.drop b{display:block;font-size:16px;margin-bottom:4px}
+table{border-collapse:collapse;width:100%;font-size:14px}
+.tbl{overflow-x:auto;margin-top:12px}
+th,td{text-align:left;padding:8px 8px;border-bottom:1px solid var(--line);vertical-align:middle}
+th{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+td.m{font-family:var(--mono);font-size:12.5px}
+.st{font-size:13px;font-weight:600}
+.st.ok{color:var(--accent)} .st.bad{color:var(--bad)} .st.wait{color:var(--muted)}
+button.dl{font:inherit;font-size:13px;font-weight:600;border:0;border-radius:6px;padding:6px 12px;background:var(--accent);color:#fff;cursor:pointer}
+button.dl[disabled]{opacity:.4;cursor:default}
+button.dl:focus-visible,.lang button:focus-visible{outline:2px solid var(--fg);outline-offset:2px}
+.msg{margin-top:10px;padding:10px 12px;border-radius:6px;background:var(--bad-soft);color:var(--bad);font-size:14px}
+.note{border-left:4px solid var(--accent);background:var(--accent-soft);padding:10px 14px;border-radius:0 6px 6px 0}
+footer{color:var(--muted);font-size:12.5px}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div>
+    <h1>SWOS 96/97 Mod {{VERSION}}</h1>
+    <div class="sub" data-it="Serie C1 e C2 · coppe sudamericane · Coppa Intercontinentale · rose reali 1996-97" data-en="Serie C1 and C2 · South American cups · Intercontinental Cup · real 1996-97 squads"></div>
+  </div>
+  <div class="lang" role="group" aria-label="Lingua / Language">
+    <button id="b-it" type="button" aria-pressed="true">Italiano</button>
+    <button id="b-en" type="button" aria-pressed="false">English</button>
+  </div>
+</header>
+
+<section>
+  <h2 data-it="Cosa fa" data-en="What it does"></h2>
+  <p data-it="Questa pagina modifica i file originali di Sensible World of Soccer 96/97 (versione DOS su CD) che hai già. Funziona tutto nel browser, anche senza internet: i tuoi file non vengono inviati da nessuna parte. La patch contiene solo le differenze, nessun file del gioco." data-en="This page modifies the original Sensible World of Soccer 96/97 files (DOS CD version) that you already own. Everything runs in your browser, even offline: your files are not sent anywhere. The patch contains only differences, no game files."></p>
+  <ul>
+    <li data-it="Italia a 4 divisioni: Serie A, B, C1 e C2 (18 squadre ciascuna, club reali 1996-97 con rose e allenatori veri). Risolto il blocco di fine stagione." data-en="Italy with 4 divisions: Serie A, B, C1 and C2 (18 clubs each, real 1996-97 clubs with real squads and coaches). The end-of-season freeze is fixed."></li>
+    <li data-it="Copa Libertadores, Supercopa e Copa CONMEBOL: nei menu, nella vista mondo e in carriera, con qualificate prese dalle classifiche sudamericane." data-en="Copa Libertadores, Supercopa and Copa CONMEBOL: in menus, world view and career mode, with qualifiers taken from the South American standings."></li>
+    <li data-it="Coppa Intercontinentale a dicembre fra la vincitrice della Coppa Campioni e quella della Libertadores, aggiornata ogni stagione e salvata con la carriera." data-en="Intercontinental Cup in December between the Champions Cup winner and the Libertadores winner, updated every season and saved with the career."></li>
+  </ul>
+</section>
+
+<section>
+  <h2 data-it="1 · Scegli i file originali" data-en="1 · Pick the original files"></h2>
+  <p data-it="Dalla cartella del gioco (per esempio C:\SWOS) prendi l'eseguibile della tua lingua e DATA\TEAM.020. Puoi selezionarli insieme o trascinarli qui. Fai prima una copia di sicurezza della cartella." data-en="From the game folder (for example C:\SWOS) take your language's executable and DATA\TEAM.020. You can select them together or drag them here. Back up the folder first."></p>
+  <div class="drop" id="drop" tabindex="0" role="button" aria-controls="files">
+    <b data-it="Trascina qui i file, oppure fai clic per sceglierli" data-en="Drop the files here, or click to choose them"></b>
+    <span class="sub">ITALIAN.EXE · ENGLISH.EXE · FRENCH.EXE · GERMAN.EXE · TEAM.020</span>
+  </div>
+  <input type="file" id="files" multiple hidden>
+  <div class="tbl">
+    <table>
+      <thead><tr><th data-it="File" data-en="File"></th><th data-it="Stato" data-en="Status"></th><th></th></tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </div>
+  <div id="msg" class="msg" hidden></div>
+</section>
+
+<section>
+  <h2 data-it="2 · Installa" data-en="2 · Install"></h2>
+  <ol>
+    <li data-it="Scarica i file modificati con i pulsanti qui sopra." data-en="Download the patched files with the buttons above."></li>
+    <li data-it="Copia l'eseguibile nella cartella del gioco e TEAM.020 nella sottocartella DATA, sovrascrivendo gli originali (di cui hai la copia)." data-en="Copy the executable into the game folder and TEAM.020 into the DATA subfolder, replacing the originals (which you backed up)."></li>
+    <li data-it="Avvia il gioco come sempre (per esempio in DOSBox o DOSBox-X). Inizia una carriera nuova: i salvataggi vecchi conservano le squadre di quando sono stati creati." data-en="Start the game as usual (for example in DOSBox or DOSBox-X). Start a new career: old saves keep the teams from when they were created."></li>
+    <li data-it="Per disinstallare, rimetti i file originali." data-en="To uninstall, put the original files back."></li>
+  </ol>
+</section>
+
+<section>
+  <h2 data-it="Note sulla versione" data-en="Release notes"></h2>
+  <ul>
+    <li data-it="Italiano: provato a fondo in carriera (più stagioni, salvataggi, fine stagione)." data-en="Italian: tested in depth in career mode (several seasons, saves, season end)."></li>
+    <li data-it="Inglese, francese e tedesco: stesso codice, provati in carriera fino a fine stagione (inglese anche con salvataggio e ricaricamento). Segnalazioni dal campo benvenute." data-en="English, French and German: same code, tested in career mode to season end (English also with save and reload). Field reports are welcome."></li>
+    <li data-it="Sperimentale: l'Intercontinentale per i club di paesi con coppa di lega (per esempio inglesi) usa lo slot dei play-off e non è ancora stato provato in gioco." data-en="Experimental: the Intercontinental Cup for clubs from countries with a league cup (for example English clubs) uses the play-off slot and has not been tested in game yet."></li>
+    <li data-it="Nel 1996-97 la C1 aveva 2 gironi e la C2 3: il mod usa un girone unico da 18 squadre per ciascuna." data-en="In 1996-97 C1 had 2 groups and C2 had 3: the mod uses a single 18-team group for each."></li>
+    <li data-it="La panchina di 3 riserve delle squadre inglesi è del gioco originale." data-en="The 3-man bench of English clubs comes from the original game."></li>
+  </ul>
+  <p class="note" data-it="Il file viene controllato prima e dopo la modifica: se il tuo originale è diverso da quello atteso (altra edizione o file già modificato), la pagina si rifiuta di procedere invece di creare un gioco rotto." data-en="Every file is checked before and after patching: if your original differs from the expected one (another edition or an already modified file), the page refuses to go on instead of producing a broken game."></p>
+</section>
+
+<footer data-it="Mod di Davide Lorigliola con Claude. Disassemblato e documentazione dei formati: progetto swos-port. Sensible World of Soccer © Sensible Software / Codemasters: serve una copia originale del gioco." data-en="Mod by Davide Lorigliola with Claude. Disassembly and file format documentation: the swos-port project. Sensible World of Soccer © Sensible Software / Codemasters: an original copy of the game is required."></footer>
+</div>
+
+<script>
+const PATCHES = /*PATCHES*/null;
+
+// ---- MD5 (RFC 1321) on Uint8Array ----
+function md5(bytes) {
+  const K = new Uint32Array(64), S = [7,12,17,22,5,9,14,20,4,11,16,23,6,10,15,21];
+  for (let i = 0; i < 64; i++) K[i] = Math.floor(Math.abs(Math.sin(i + 1)) * 2 ** 32) >>> 0;
+  const n = bytes.length, total = ((n + 8) >> 6) + 1, W = new Uint32Array(total * 16);
+  for (let i = 0; i < n; i++) W[i >> 2] |= bytes[i] << ((i & 3) * 8);
+  W[n >> 2] |= 0x80 << ((n & 3) * 8);
+  W[total * 16 - 2] = (n * 8) >>> 0; W[total * 16 - 1] = Math.floor(n / 0x20000000);
+  let a0 = 0x67452301, b0 = 0xefcdab89, c0 = 0x98badcfe, d0 = 0x10325476;
+  for (let o = 0; o < W.length; o += 16) {
+    let a = a0, b = b0, c = c0, d = d0;
+    for (let i = 0; i < 64; i++) {
+      let f, g;
+      if (i < 16) { f = (b & c) | (~b & d); g = i; }
+      else if (i < 32) { f = (d & b) | (~d & c); g = (5 * i + 1) & 15; }
+      else if (i < 48) { f = b ^ c ^ d; g = (3 * i + 5) & 15; }
+      else { f = c ^ (b | ~d); g = (7 * i) & 15; }
+      const s = S[(i >> 4) * 4 + (i & 3)];
+      const t = d; d = c; c = b;
+      const x = (a + f + K[i] + W[o + g]) | 0;
+      b = (b + ((x << s) | (x >>> (32 - s)))) | 0; a = t;
+    }
+    a0 = (a0 + a) | 0; b0 = (b0 + b) | 0; c0 = (c0 + c) | 0; d0 = (d0 + d) | 0;
+  }
+  return [a0, b0, c0, d0].map(v => [0, 8, 16, 24].map(k => ((v >>> k) & 255).toString(16).padStart(2, '0')).join('')).join('');
+}
+
+// ---- delta decoder (format SWD1, see tools/mkpatcher.py) ----
+function applyDelta(src, b64, outSize) {
+  const ops = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+  if (String.fromCharCode(...ops.subarray(0, 4)) !== 'SWD1') throw new Error('bad patch data');
+  const out = new Uint8Array(outSize);
+  let p = 4, q = 0, last = 0;
+  const rd = () => { let n = 0, mul = 1, b; do { b = ops[p++]; n += (b & 127) * mul; mul *= 128; } while (b & 128); return n; };
+  while (p < ops.length) {
+    const v = rd(), len = Math.floor(v / 2);
+    if (v & 1) { out.set(ops.subarray(p, p + len), q); p += len; }
+    else { const z = rd(); const at = last + (z & 1 ? -(z + 1) / 2 : z / 2); out.set(src.subarray(at, at + len), q); last = at + len; }
+    q += len;
+  }
+  if (q !== outSize) throw new Error('size mismatch');
+  return out;
+}
+
+// ---- UI ----
+let lang = 'it';
+const T = {
+  it: { wait: 'Controllo…', ok: 'Pronto', bad: 'File non riconosciuto', fail: 'Errore nella modifica', dl: 'Scarica', none: 'Nessun file ancora.',
+        unknown: n => `${n}: non corrisponde a nessun originale atteso (edizione diversa o file già modificato). Non è stato modificato.` },
+  en: { wait: 'Checking…', ok: 'Ready', bad: 'File not recognised', fail: 'Patching error', dl: 'Download', none: 'No files yet.',
+        unknown: n => `${n}: does not match any expected original (different edition or already modified file). It was not patched.` },
+};
+const results = [];
+function setLang(l) {
+  lang = l; document.documentElement.lang = l;
+  document.querySelectorAll('[data-it]').forEach(el => { el.textContent = el.dataset[l]; });
+  document.getElementById('b-it').setAttribute('aria-pressed', l === 'it');
+  document.getElementById('b-en').setAttribute('aria-pressed', l === 'en');
+  try { localStorage.setItem('swos-patcher-lang', l); } catch (e) {}
+  render();
+}
+function render() {
+  const rows = document.getElementById('rows');
+  rows.innerHTML = '';
+  if (!results.length) { rows.innerHTML = `<tr><td colspan="3" class="sub">${T[lang].none}</td></tr>`; return; }
+  for (const r of results) {
+    const tr = document.createElement('tr');
+    const st = r.state === 'ok' ? T[lang].ok : r.state === 'bad' ? T[lang].bad : r.state === 'fail' ? T[lang].fail : T[lang].wait;
+    tr.innerHTML = `<td class="m"></td><td><span class="st ${r.state === 'ok' ? 'ok' : r.state === 'wait' ? 'wait' : 'bad'}">${st}</span></td><td></td>`;
+    tr.children[0].textContent = r.patch ? r.patch.target.replace('/', '\\') : r.name;
+    if (r.state === 'ok') {
+      const b = document.createElement('button');
+      b.className = 'dl'; b.type = 'button'; b.textContent = `${T[lang].dl} ${r.patch.target.split('/').pop()}`;
+      b.onclick = () => download(r.out, r.patch.target.split('/').pop());
+      tr.children[2].appendChild(b);
+    }
+    rows.appendChild(tr);
+  }
+}
+function download(bytes, name) {
+  const url = URL.createObjectURL(new Blob([bytes], { type: 'application/octet-stream' }));
+  const a = document.createElement('a'); a.href = url; a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+}
+async function handle(files) {
+  const msg = document.getElementById('msg'); msg.hidden = true; msg.textContent = '';
+  for (const f of files) {
+    const r = { name: f.name, state: 'wait' }; results.push(r); render();
+    const src = new Uint8Array(await f.arrayBuffer());
+    const sum = md5(src);
+    const patch = PATCHES.find(p => p.md5 === sum && p.size === src.length);
+    if (!patch) {
+      r.state = 'bad';
+      msg.hidden = false; msg.textContent += (msg.textContent ? ' ' : '') + T[lang].unknown(f.name);
+      render(); continue;
+    }
+    r.patch = patch;
+    try {
+      const out = applyDelta(src, patch.delta, patch.out_size);
+      if (md5(out) !== patch.out_md5) throw new Error('md5');
+      r.out = out; r.state = 'ok';
+    } catch (e) { r.state = 'fail'; }
+    render();
+  }
+}
+const drop = document.getElementById('drop'), input = document.getElementById('files');
+drop.onclick = () => input.click();
+drop.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); input.click(); } };
+input.onchange = () => { handle([...input.files]); input.value = ''; };
+drop.ondragover = e => { e.preventDefault(); drop.classList.add('over'); };
+drop.ondragleave = () => drop.classList.remove('over');
+drop.ondrop = e => { e.preventDefault(); drop.classList.remove('over'); handle([...e.dataTransfer.files]); };
+document.getElementById('b-it').onclick = () => setLang('it');
+document.getElementById('b-en').onclick = () => setLang('en');
+let saved = null; try { saved = localStorage.getItem('swos-patcher-lang'); } catch (e) {}
+setLang(saved === 'it' || saved === 'en' ? saved : (navigator.language || '').startsWith('it') ? 'it' : 'en');
+</script>
+</body>
+</html>

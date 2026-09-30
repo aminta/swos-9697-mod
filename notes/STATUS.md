@@ -431,6 +431,10 @@ Ancora da provare dalla sessione 12: holder -> scambio CONMEBOL; trofeo Libertad
 - EN manual now uses ENGLISH.EXE addresses (offset = disassembly VA - base; 145 ITA->ENG pairs from the cave fixups confirmed it).
   README and release notes: English first, then Italian. GitHub Pages: index.html = EN manual, it.html = IT, en.html = redirect.
 
+- ANNOUNCED (Davide's ok): SWOS United forum, section PC, topic
+  https://sensiblesoccer.de/forum/pc/27756-swos-96-97-mod-1-0-serie-c1-c2-libertadores-intercontinental-cup
+  (posted from Davide's account in the built-in browser, subscribed to replies; text in release/forum-announcement.bbcode).
+
 ## BACKLOG after 1.0 (Davide 2026-09-30)
 - English line-up shows only 14 players (11 + 3 bench) also in the original game: find where the bench size comes from
   (per-country/league rule; slot +3Dh..41h substitution words, DF533 5/2/8 set in InitCareer) and offer 16 (5 on the bench).

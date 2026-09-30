@@ -445,6 +445,10 @@ Ancora da provare dalla sessione 12: holder -> scambio CONMEBOL; trofeo Libertad
   Originals in orig/gog/ (git-ignored). Mod built on them = CD mod except those 2 bytes. md5 GOG mod: ITA 40344702,
   ENG 85f16703, FRA add5e74a, GER 1387feeb. mkpatcher.FILES has the 4 GOG entries (VERSION 1.0.1); Node test: 9/9 files OK.
 
+- Announced 1.0.1: Facebook group "Sensible World of Soccer" (official SWOS United group, facebook.com/groups/125891707442035,
+  post by Davide Lorigliola, text release/announcements/5-facebook-group-swos-united-en.txt; link preview shows the forum's
+  "429 Too Many Requests"); forum reply on GOG support (topic 27756, post #147326).
+
 ## BACKLOG after 1.0 (Davide 2026-09-30)
 - (done in 1.0.1) GOG version support.
 - English line-up shows only 14 players (11 + 3 bench) also in the original game: find where the bench size comes from

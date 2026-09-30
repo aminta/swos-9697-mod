@@ -439,8 +439,14 @@ Ancora da provare dalla sessione 12: holder -> scambio CONMEBOL; trofeo Libertad
   (SwosIt Facebook IT, SWOS United Discord/Facebook EN, GOG/VOGONS/Reddit EN): Davide posts them (not logged in / blocked in the
   built-in browser). GOG sells SWOS 96/97: its exes may differ from the CD (no-CD patch?) -> patcher would refuse them.
 
+## 1.0.1 — GOG version support (2026-09-30 night)
+- GOG installer (gog_sensible_world_of_soccer_96_97_2.0.0.1.sh, a zip after a shell stub) holds the same files as the CD:
+  TEAM.020 identical, each exe differs by 2 bytes (contest 0x8F, country 15 = Hungary, months 00 20 -> 40 28: GOG's date fix).
+  Originals in orig/gog/ (git-ignored). Mod built on them = CD mod except those 2 bytes. md5 GOG mod: ITA 40344702,
+  ENG 85f16703, FRA add5e74a, GER 1387feeb. mkpatcher.FILES has the 4 GOG entries (VERSION 1.0.1); Node test: 9/9 files OK.
+
 ## BACKLOG after 1.0 (Davide 2026-09-30)
-- GOG version support: get md5 / exes of the GOG release, add its originals to the patcher (and check signatures).
+- (done in 1.0.1) GOG version support.
 - English line-up shows only 14 players (11 + 3 bench) also in the original game: find where the bench size comes from
   (per-country/league rule; slot +3Dh..41h substitution words, DF533 5/2/8 set in InitCareer) and offer 16 (5 on the bench).
 - Intercontinental in slot 4 playtest (English CC winner); C1 with two groups (analysis first).

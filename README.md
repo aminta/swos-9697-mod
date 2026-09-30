@@ -16,7 +16,7 @@ This patch is dedicated to the memory of Steve Smith, an extraordinary compiler 
 
 ### The patch
 
-Patch for **Sensible World of Soccer 96/97** (DOS CD version): ITALIAN.EXE, ENGLISH.EXE, FRENCH.EXE, GERMAN.EXE.
+Patch for **Sensible World of Soccer 96/97** (DOS, CD or GOG version): ITALIAN.EXE, ENGLISH.EXE, FRENCH.EXE, GERMAN.EXE.
 
 - **Italy with 4 divisions:** Serie A, B, C1 and C2 (18 clubs each), with the real 1996-97 clubs, real squads and coaches. Fixes the end-of-season freeze that plagued the 1997 mods.
 - **South American cups:** Copa Libertadores, Supercopa and Copa CONMEBOL in menus, world view and career mode, with qualifiers from the South American standings and the holder rules.
@@ -27,7 +27,7 @@ Patch for **Sensible World of Soccer 96/97** (DOS CD version): ITALIAN.EXE, ENGL
 2. Drop your language's executable and `DATA\TEAM.020` from the game folder, then download the patched files.
 3. Copy them into the game folder (TEAM.020 into `DATA`) after backing it up. Start a new career.
 
-The patcher ships only differences and checks every file before and after patching: an original copy of the game is required. It was built on the original CD executables: if you own the GOG version and the patcher refuses your files, please open an issue (GOG support is planned for 1.1).
+The patcher ships only differences and checks every file before and after patching: an original copy of the game is required. It works with both the original CD and the GOG version (from 1.0.1).
 
 ### For developers
 - Technical manual: [English](https://aminta.github.io/swos-9697-mod/) (ENGLISH.EXE addresses) · [Italian](https://aminta.github.io/swos-9697-mod/it.html) (ITALIAN.EXE addresses)
@@ -49,7 +49,7 @@ Questa patch è dedicata alla memoria di Steve Smith, straordinario compilatore 
 
 ### La patch
 
-Patch per **Sensible World of Soccer 96/97** (versione DOS su CD): ITALIAN.EXE, ENGLISH.EXE, FRENCH.EXE, GERMAN.EXE.
+Patch per **Sensible World of Soccer 96/97** (versione DOS, CD o GOG): ITALIAN.EXE, ENGLISH.EXE, FRENCH.EXE, GERMAN.EXE.
 
 - **Italia a 4 divisioni:** Serie A, B, C1 e C2 (18 squadre ciascuna), con i club reali 1996-97, rose vere e allenatori. Risolto il blocco di fine stagione che affliggeva i mod del 1997.
 - **Coppe sudamericane:** Copa Libertadores, Supercopa e Copa CONMEBOL nei menu, nella vista mondo e in carriera, con le qualificate prese dalle classifiche sudamericane e le regole della detentrice.
@@ -60,7 +60,7 @@ Patch per **Sensible World of Soccer 96/97** (versione DOS su CD): ITALIAN.EXE, 
 2. Trascina l'exe della tua lingua e `DATA\TEAM.020` dalla cartella del gioco, poi scarica i file modificati.
 3. Copiali nella cartella del gioco (TEAM.020 in `DATA`), dopo aver fatto una copia di sicurezza. Inizia una carriera nuova.
 
-Il patcher contiene solo differenze e controlla i file prima e dopo la modifica: serve una copia originale del gioco. È costruito sugli exe del CD originale: se hai la versione GOG e il patcher rifiuta i file, apri una issue (il supporto GOG è previsto per la 1.1).
+Il patcher contiene solo differenze e controlla i file prima e dopo la modifica: serve una copia originale del gioco. Funziona sia con il CD originale sia con la versione GOG (dalla 1.0.1).
 
 ### Per sviluppatori
 - Manuale tecnico: [italiano](https://aminta.github.io/swos-9697-mod/it.html) (indirizzi di ITALIAN.EXE) · [inglese](https://aminta.github.io/swos-9697-mod/) (indirizzi di ENGLISH.EXE)

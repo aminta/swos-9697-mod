@@ -435,7 +435,12 @@ Ancora da provare dalla sessione 12: holder -> scambio CONMEBOL; trofeo Libertad
   https://sensiblesoccer.de/forum/pc/27756-swos-96-97-mod-1-0-serie-c1-c2-libertadores-intercontinental-cup
   (posted from Davide's account in the built-in browser, subscribed to replies; text in release/forum-announcement.bbcode).
 
+- Thank-you issue to Zlatko: https://github.com/zlatkok/swos-port/issues/4 . Announcement texts in release/announcements/
+  (SwosIt Facebook IT, SWOS United Discord/Facebook EN, GOG/VOGONS/Reddit EN): Davide posts them (not logged in / blocked in the
+  built-in browser). GOG sells SWOS 96/97: its exes may differ from the CD (no-CD patch?) -> patcher would refuse them.
+
 ## BACKLOG after 1.0 (Davide 2026-09-30)
+- GOG version support: get md5 / exes of the GOG release, add its originals to the patcher (and check signatures).
 - English line-up shows only 14 players (11 + 3 bench) also in the original game: find where the bench size comes from
   (per-country/league rule; slot +3Dh..41h substitution words, DF533 5/2/8 set in InitCareer) and offer 16 (5 on the bench).
 - Intercontinental in slot 4 playtest (English CC winner); C1 with two groups (analysis first).

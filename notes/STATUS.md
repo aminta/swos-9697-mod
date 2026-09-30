@@ -452,6 +452,8 @@ Ancora da provare dalla sessione 12: holder -> scambio CONMEBOL; trofeo Libertad
   browser, Reddit blocked -> manual. VOGONS: posted by Davide (Release Announcements, text 3b-vogons-en.bbcode). Reddit: posted by Davide on r/retrogaming and
   r/dosgaming, both removed by Reddit's filters -> modmail sent to both asking approval (2026-10-01).
 - Personal email to Zlatko (zlatko.karakas@gmail.com, public on his GitHub) sent by Davide (text 6-zlatko-email-en.txt).
+- Ali Erdinc Koroglu (Swos Working Group admin, swos.erdinc.info): Davide found a likely LinkedIn profile and sent a connection
+  request with a note (7-ali-linkedin-note-en.txt); full message ready for after he accepts (8-ali-linkedin-message-en.txt).
 
 ## BACKLOG after 1.0 (Davide 2026-09-30)
 - (done in 1.0.1) GOG version support.

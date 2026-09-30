@@ -449,7 +449,7 @@ Ancora da provare dalla sessione 12: holder -> scambio CONMEBOL; trofeo Libertad
   post by Davide Lorigliola, text release/announcements/5-facebook-group-swos-united-en.txt; link preview shows the forum's
   "429 Too Many Requests" -> preview removed by editing the post); forum reply on GOG support (topic 27756, post #147326).
 - SWOS United Discord (discord.gg/jFsBSSw): posted by Davide (text 2-swos-united-discord-en.txt). VOGONS: 403 for the extension/built-in
-  browser, Reddit blocked -> manual. Still to post by hand: VOGONS, Reddit (3-gog-vogons-reddit-en.md).
+  browser, Reddit blocked -> manual. VOGONS: posted by Davide (Release Announcements, text 3b-vogons-en.bbcode). Still to post by hand: Reddit (3-gog-vogons-reddit-en.md).
 
 ## BACKLOG after 1.0 (Davide 2026-09-30)
 - (done in 1.0.1) GOG version support.

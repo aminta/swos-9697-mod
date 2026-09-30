@@ -4,14 +4,14 @@ docs/src/manual.it.html and manual.en.html are the sources (artifact-style pages
 <html>/<head>). They must stay in sync: same sections, tables and lists in both languages. This script wraps
 each one in a full HTML document, points the language links at the sibling page instead of the claude.ai
 artifacts, and adds mermaid.js (the artifact viewer renders mermaid blocks natively, GitHub Pages does not).
-Output: docs/index.html (Italian), docs/en.html (English).
+Output: docs/index.html (English), docs/it.html (Italian), docs/en.html (redirect to index.html, old link).
 """
 import os
 import re
 
 ROOT = os.path.join(os.path.dirname(__file__), '..', 'docs')
-PAGES = {'it': ('index.html', 'https://claude.ai/artifact/58v5iQpxMECsUzG2VHxkjN'),
-         'en': ('en.html', 'https://claude.ai/artifact/2GdFS8VJho8AEDk3SryDxG')}
+PAGES = {'it': ('it.html', 'https://claude.ai/artifact/58v5iQpxMECsUzG2VHxkjN'),
+         'en': ('index.html', 'https://claude.ai/artifact/2GdFS8VJho8AEDk3SryDxG')}
 MERMAID = ('<script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>\n'
            '<script>mermaid.initialize({startOnLoad:true,theme:matchMedia("(prefers-color-scheme: dark)").matches'
            '?"dark":"default"});</script>\n')
@@ -36,6 +36,9 @@ def build():
         assert 'claude.ai/artifact' not in page
         open(os.path.join(ROOT, out), 'w', encoding='utf-8').write(page)
         print(f'docs/{out}: {len(page)} bytes')
+    open(os.path.join(ROOT, 'en.html'), 'w', encoding='utf-8').write(
+        '<!doctype html>\n<meta charset="utf-8">\n<meta http-equiv="refresh" content="0; url=index.html">\n'
+        '<link rel="canonical" href="index.html">\n<a href="index.html">SWOS ITA Mod Technical Manual</a>\n')
 
 
 if __name__ == '__main__':

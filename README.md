@@ -30,7 +30,7 @@ Patch for **Sensible World of Soccer 96/97** (DOS CD version): ITALIAN.EXE, ENGL
 The patcher ships only differences and checks every file before and after patching: an original copy of the game is required.
 
 ### For developers
-- Technical manual: [English](https://aminta.github.io/swos-9697-mod/en.html) (ENGLISH.EXE addresses) · [Italian](https://aminta.github.io/swos-9697-mod/) (ITALIAN.EXE addresses)
+- Technical manual: [English](https://aminta.github.io/swos-9697-mod/) (ENGLISH.EXE addresses) · [Italian](https://aminta.github.io/swos-9697-mod/it.html) (ITALIAN.EXE addresses)
 - Build: put the original executables and `DATA/TEAM.020` in `orig/`, then `cd tools && python3 patch.py it|en|fr|de` (needs `nasm`). Patcher: `python3 tools/mkpatcher.py`.
 - The reference disassembly comes from [swos-port](https://github.com/zlatkok/swos-port) (`swos/swos.asm`, in `ref/`).
 - Detailed log of every session: [`notes/STATUS.md`](notes/STATUS.md).
@@ -63,7 +63,7 @@ Patch per **Sensible World of Soccer 96/97** (versione DOS su CD): ITALIAN.EXE, 
 Il patcher contiene solo differenze e controlla i file prima e dopo la modifica: serve una copia originale del gioco.
 
 ### Per sviluppatori
-- Manuale tecnico: [italiano](https://aminta.github.io/swos-9697-mod/) (indirizzi di ITALIAN.EXE) · [inglese](https://aminta.github.io/swos-9697-mod/en.html) (indirizzi di ENGLISH.EXE)
+- Manuale tecnico: [italiano](https://aminta.github.io/swos-9697-mod/it.html) (indirizzi di ITALIAN.EXE) · [inglese](https://aminta.github.io/swos-9697-mod/) (indirizzi di ENGLISH.EXE)
 - Build: metti gli exe e `DATA/TEAM.020` originali in `orig/`, poi `cd tools && python3 patch.py it|en|fr|de` (serve `nasm`). Patcher: `python3 tools/mkpatcher.py`.
 - Il disassemblato di riferimento viene da [swos-port](https://github.com/zlatkok/swos-port) (`swos/swos.asm`, in `ref/`).
 - Registro dettagliato di ogni sessione: [`notes/STATUS.md`](notes/STATUS.md).

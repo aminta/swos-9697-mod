@@ -1,39 +1,6 @@
 # SWOS 96/97 Mod
 
-**[Italiano](#italiano) · [English](#english)**
-
-## Italiano
-
-### Premessa
-
-Tanto tempo fa - anno 2004 - in una galassia lontana lontana, dove Internet stava appena separandosi dal suono del modem, l'intelligenza artificiale era un argomento da romanzi di fantascienza e i videogiochi si vendevano in eleganti scatole di cartone nei negozi, il sottoscritto - insieme ad Ali Erdinc Koroglu, Jan Wickberg, Martin Binet, Zlatko Karakas, Ross Mayhew e Steve Smith - fondò lo Swos Working Group (https://web.archive.org/web/20040831085727/http://swos.erdinc.info/) in onore del nostro videogioco preferito di sempre: l'edizione 1996-1997 di Sensible World of Soccer. Eravamo animati da un sogno: rendere ancora più bello quel gioco aggiungendo alcune competizioni la cui mancanza avvertivamo particolarmente amara. La serie C italiana (divisa in C1 e C2), in cui giocavano atleti che sarebbero poi diventati campioni a livello internazionale come Simone Inzaghi e Gianluca Zambrotta, e le coppe sudamericane, su tutte la mitica Copa Libertadores di cui, in un'epoca nella quale il calcio in tv era ancora una novità e non così abbondante, sentivamo il fascino delle cose esotiche e lontane. Ci sarebbe piaciuto giocare queste competizioni particolarmente in modalità carriera, quella preferita in assoluto dai giocatori di Swos: anche perché, nella modalità stagione e competizioni predefinite, eravamo già riusciti ad aggiungerle in una nuova edizione di Swos che si sarebbe dovuta chiamare Swos 2024. Il lavoro fu fatto con il reverse engineering e l'hex editing, ricordo l'emozione nello scoprire le routine di aggiunta delle competizioni ma anche l'amara frustrazione di non riuscire a farle funzionare in modalità carriera, che puntualmente si bloccava. Oggi, anno di grazia 2026, ho voluto chiudere il conto con questa storia personale che durante questi due decenni non mi aveva mai abbandonato, che era il rimpianto di essere arrivati vicino a un sogno e di non esserci mai riusciti. Del resto, mi dicevo per tentare di consolarmi, io alla fine sono diventato uno sviluppatore web e mobile, quello del reverse engineering su un codice x86 del 1996 era stato già un miracolo e per lo più nessuno dei tantissimi modder moderni era riuscito a compiere l'impresa.
-
-Oggi, grazie alla AI, che ha cambiato per sempre il concetto stesso di programmazione, l'impresa è compiuta: potete ora scaricare la patch che aggiunge, in tutte le lingue del gioco, la serie C1 e C2 al campionato italiano, con le rose originali dell'epoca, ma soprattutto aggiunge per il Sud America la Coppa Libertadores, la Conmebol e la Supercopa, con le regole di ammissione di allora. E, come ciliegina sulla torta, non poteva mancare la Coppa Intercontinentale. Quello che mi interessa, però, non è solo il risultato, ma anche la spiegazione di come attraverso la AI ci si è arrivati. Quindi qui pubblichiamo, in inglese e in italiano, la documentazione completa del metodo seguito per creare le patch, che mi ha finalmente svelato cosa non avevamo capito nel lontano 2004 e spero possa ispirare altri sviluppatori e amanti del videogioco più bello del mondo a espanderne ulteriormente la modalità carriera. Un grazie immenso al lavoro di Zlatko Karakas, di cui dopo tanti anni di assenza ho trovato il fondamentale lavoro di disassemblaggio dell'exe originale (https://github.com/zlatkok/swos-port).
-
-Questa patch è dedicata alla memoria di Steve Smith, straordinario compilatore di rose aggiornate per Swos, che ci ha lasciati troppo presto. E a tutti quelli che sperano di vedere, prima o poi, realizzato un sogno che può essere lungo anche 22 anni…
-
-— Davide Lorigliola
-
-### La patch
-
-Patch per **Sensible World of Soccer 96/97** (versione DOS su CD): ITALIAN.EXE, ENGLISH.EXE, FRENCH.EXE, GERMAN.EXE.
-
-- **Italia a 4 divisioni:** Serie A, B, C1 e C2 (18 squadre ciascuna), con i club reali 1996-97, rose vere e allenatori. Risolto il blocco di fine stagione che affliggeva i mod del 1997.
-- **Coppe sudamericane:** Copa Libertadores, Supercopa e Copa CONMEBOL nei menu, nella vista mondo e in carriera, con le qualificate prese dalle classifiche sudamericane e le regole della detentrice.
-- **Coppa Intercontinentale:** a dicembre fra la vincitrice della Coppa Campioni e quella della Libertadores, aggiornata ogni stagione e salvata con la carriera.
-
-### Installazione
-1. Scarica `swos-9697-mod-patcher.html` dalla pagina [Releases](../../releases) e aprilo nel browser (funziona anche offline).
-2. Trascina l'exe della tua lingua e `DATA\TEAM.020` dalla cartella del gioco, poi scarica i file modificati.
-3. Copiali nella cartella del gioco (TEAM.020 in `DATA`), dopo aver fatto una copia di sicurezza. Inizia una carriera nuova.
-
-Il patcher contiene solo differenze e controlla i file prima e dopo la modifica: serve una copia originale del gioco.
-
-### Per sviluppatori
-- Manuale tecnico: [italiano](https://aminta.github.io/swos-9697-mod/) (indirizzi di ITALIAN.EXE) · [inglese](https://aminta.github.io/swos-9697-mod/en.html) (indirizzi di ENGLISH.EXE)
-- Build: metti gli exe e `DATA/TEAM.020` originali in `orig/`, poi `cd tools && python3 patch.py it|en|fr|de` (serve `nasm`). Patcher: `python3 tools/mkpatcher.py`.
-- Il disassemblato di riferimento viene da [swos-port](https://github.com/zlatkok/swos-port) (`swos/swos.asm`, in `ref/`).
-- Registro dettagliato di ogni sessione: [`notes/STATUS.md`](notes/STATUS.md).
+**[English](#english) · [Italiano](#italiano)**
 
 ## English
 
@@ -67,6 +34,39 @@ The patcher ships only differences and checks every file before and after patchi
 - Build: put the original executables and `DATA/TEAM.020` in `orig/`, then `cd tools && python3 patch.py it|en|fr|de` (needs `nasm`). Patcher: `python3 tools/mkpatcher.py`.
 - The reference disassembly comes from [swos-port](https://github.com/zlatkok/swos-port) (`swos/swos.asm`, in `ref/`).
 - Detailed log of every session: [`notes/STATUS.md`](notes/STATUS.md).
+
+## Italiano
+
+### Premessa
+
+Tanto tempo fa - anno 2004 - in una galassia lontana lontana, dove Internet stava appena separandosi dal suono del modem, l'intelligenza artificiale era un argomento da romanzi di fantascienza e i videogiochi si vendevano in eleganti scatole di cartone nei negozi, il sottoscritto - insieme ad Ali Erdinc Koroglu, Jan Wickberg, Martin Binet, Zlatko Karakas, Ross Mayhew e Steve Smith - fondò lo Swos Working Group (https://web.archive.org/web/20040831085727/http://swos.erdinc.info/) in onore del nostro videogioco preferito di sempre: l'edizione 1996-1997 di Sensible World of Soccer. Eravamo animati da un sogno: rendere ancora più bello quel gioco aggiungendo alcune competizioni la cui mancanza avvertivamo particolarmente amara. La serie C italiana (divisa in C1 e C2), in cui giocavano atleti che sarebbero poi diventati campioni a livello internazionale come Simone Inzaghi e Gianluca Zambrotta, e le coppe sudamericane, su tutte la mitica Copa Libertadores di cui, in un'epoca nella quale il calcio in tv era ancora una novità e non così abbondante, sentivamo il fascino delle cose esotiche e lontane. Ci sarebbe piaciuto giocare queste competizioni particolarmente in modalità carriera, quella preferita in assoluto dai giocatori di Swos: anche perché, nella modalità stagione e competizioni predefinite, eravamo già riusciti ad aggiungerle in una nuova edizione di Swos che si sarebbe dovuta chiamare Swos 2024. Il lavoro fu fatto con il reverse engineering e l'hex editing, ricordo l'emozione nello scoprire le routine di aggiunta delle competizioni ma anche l'amara frustrazione di non riuscire a farle funzionare in modalità carriera, che puntualmente si bloccava. Oggi, anno di grazia 2026, ho voluto chiudere il conto con questa storia personale che durante questi due decenni non mi aveva mai abbandonato, che era il rimpianto di essere arrivati vicino a un sogno e di non esserci mai riusciti. Del resto, mi dicevo per tentare di consolarmi, io alla fine sono diventato uno sviluppatore web e mobile, quello del reverse engineering su un codice x86 del 1996 era stato già un miracolo e per lo più nessuno dei tantissimi modder moderni era riuscito a compiere l'impresa.
+
+Oggi, grazie alla AI, che ha cambiato per sempre il concetto stesso di programmazione, l'impresa è compiuta: potete ora scaricare la patch che aggiunge, in tutte le lingue del gioco, la serie C1 e C2 al campionato italiano, con le rose originali dell'epoca, ma soprattutto aggiunge per il Sud America la Coppa Libertadores, la Conmebol e la Supercopa, con le regole di ammissione di allora. E, come ciliegina sulla torta, non poteva mancare la Coppa Intercontinentale. Quello che mi interessa, però, non è solo il risultato, ma anche la spiegazione di come attraverso la AI ci si è arrivati. Quindi qui pubblichiamo, in inglese e in italiano, la documentazione completa del metodo seguito per creare le patch, che mi ha finalmente svelato cosa non avevamo capito nel lontano 2004 e spero possa ispirare altri sviluppatori e amanti del videogioco più bello del mondo a espanderne ulteriormente la modalità carriera. Un grazie immenso al lavoro di Zlatko Karakas, di cui dopo tanti anni di assenza ho trovato il fondamentale lavoro di disassemblaggio dell'exe originale (https://github.com/zlatkok/swos-port).
+
+Questa patch è dedicata alla memoria di Steve Smith, straordinario compilatore di rose aggiornate per Swos, che ci ha lasciati troppo presto. E a tutti quelli che sperano di vedere, prima o poi, realizzato un sogno che può essere lungo anche 22 anni…
+
+— Davide Lorigliola
+
+### La patch
+
+Patch per **Sensible World of Soccer 96/97** (versione DOS su CD): ITALIAN.EXE, ENGLISH.EXE, FRENCH.EXE, GERMAN.EXE.
+
+- **Italia a 4 divisioni:** Serie A, B, C1 e C2 (18 squadre ciascuna), con i club reali 1996-97, rose vere e allenatori. Risolto il blocco di fine stagione che affliggeva i mod del 1997.
+- **Coppe sudamericane:** Copa Libertadores, Supercopa e Copa CONMEBOL nei menu, nella vista mondo e in carriera, con le qualificate prese dalle classifiche sudamericane e le regole della detentrice.
+- **Coppa Intercontinentale:** a dicembre fra la vincitrice della Coppa Campioni e quella della Libertadores, aggiornata ogni stagione e salvata con la carriera.
+
+### Installazione
+1. Scarica `swos-9697-mod-patcher.html` dalla pagina [Releases](../../releases) e aprilo nel browser (funziona anche offline).
+2. Trascina l'exe della tua lingua e `DATA\TEAM.020` dalla cartella del gioco, poi scarica i file modificati.
+3. Copiali nella cartella del gioco (TEAM.020 in `DATA`), dopo aver fatto una copia di sicurezza. Inizia una carriera nuova.
+
+Il patcher contiene solo differenze e controlla i file prima e dopo la modifica: serve una copia originale del gioco.
+
+### Per sviluppatori
+- Manuale tecnico: [italiano](https://aminta.github.io/swos-9697-mod/) (indirizzi di ITALIAN.EXE) · [inglese](https://aminta.github.io/swos-9697-mod/en.html) (indirizzi di ENGLISH.EXE)
+- Build: metti gli exe e `DATA/TEAM.020` originali in `orig/`, poi `cd tools && python3 patch.py it|en|fr|de` (serve `nasm`). Patcher: `python3 tools/mkpatcher.py`.
+- Il disassemblato di riferimento viene da [swos-port](https://github.com/zlatkok/swos-port) (`swos/swos.asm`, in `ref/`).
+- Registro dettagliato di ogni sessione: [`notes/STATUS.md`](notes/STATUS.md).
 
 ---
 Mod by Davide Lorigliola, with Claude. Sensible World of Soccer © Sensible Software / Codemasters. Squad data from it.wikipedia 1996-97 club season pages.

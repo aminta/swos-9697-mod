@@ -79,7 +79,7 @@ html{scroll-behavior:smooth}
     <li><a href="#regole">3 · Golden rules</a></li>
     <li><a href="#le">4 · LE format and fixups</a></li>
     <li><a href="#tools">5 · The tools</a></li>
-    <li><a href="#memoria">6 · Memory map</a></li>
+    <li><a href="#memoria">6 · Memory map (ENGLISH.EXE)</a></li>
     <li><a href="#italia">7 · Italy with 4 divisions</a></li>
     <li><a href="#rose">8 · C1/C2 teams and squads</a></li>
     <li><a href="#contest">9 · Contest structure</a></li>
@@ -99,14 +99,14 @@ html{scroll-behavior:smooth}
 
 <main>
 <header class="top">
-  <div class="eyebrow">Sensible World of Soccer 96/97 · DOS · ITALIAN.EXE · <a class="lang" href="https://claude.ai/artifact/58v5iQpxMECsUzG2VHxkjN">Versione italiana</a></div>
+  <div class="eyebrow">Sensible World of Soccer 96/97 · DOS · ENGLISH.EXE · <a class="lang" href="https://claude.ai/artifact/58v5iQpxMECsUzG2VHxkjN">Versione italiana</a></div>
   <h1>SWOS ITA Mod Technical Manual</h1>
   <p>Documentation for anyone who wants to understand, extend or port the mod's patches: Serie C1 and C2, South American club cups (Libertadores, Supercopa, CONMEBOL), the Intercontinental Cup in career mode, real 1996-97 squads. Everything below was worked out from the disassembly and checked with builds and test games.</p>
   <div class="meta">
     <span>State as of <b>2026-09-30</b> (sessions 1–14)</span>
-    <span>Exe build <b><code>cb6c817f…</code></b></span>
+    <span>ENGLISH.EXE build <b><code>d094c39d…</code></b></span>
     <span>TEAM.020 <b><code>ded1b97b…</code></b></span>
-    <span>Original exe <b><code>60cdb6b1…</code></b></span>
+    <span>Original ENGLISH.EXE <b><code>aa21cd1c…</code></b></span>
   </div>
 </header>
 
@@ -162,24 +162,24 @@ ndisasm -b32 -o 0xA1000 file.bin              # disassembler (Homebrew); nasm to
 <div class="rule"><b>Name strings live in object 2.</b> League and cup names are offsets relative to <code>STR_BASE</code> = obj2+0x16F8 (not "aChairmanScenes" as the English disassembly suggests). A name placed in object 1 shows up as garbage. New names go through <code>strpool.py</code>, which is almost full today.</div>
 <div class="rule"><b>Respect the game's checksums.</b> At season end <code>cseg_9487A</code> checks that the 2000 bytes of <code>leaguesTableCopy</code> add up to 0 modulo 256; if not, the game freezes (<code>int 3; jmp $</code>). Any data parked in game tables must carry a balance byte.</div>
 <div class="rule"><b>No string instructions (<code>movs</code>, <code>rep</code>).</b> ES is not guaranteed to equal DS where we enter. All copies in added code are byte loops through DS.</div>
-<div class="rule"><b>"Registers" D0–D7 and A0–A6 are memory variables.</b> The game is a machine translation of 68000 (Amiga) code. Routines take parameters in these variables (<code>D0</code> = obj2+0x315B7 …). x86 registers are not preserved across game calls.</div>
+<div class="rule"><b>"Registers" D0–D7 and A0–A6 are memory variables.</b> The game is a machine translation of 68000 (Amiga) code. Routines take parameters in these variables (<code>D0</code> = obj2+0x3146D …). x86 registers are not preserved across game calls.</div>
 <div class="rule"><b>Search by signature, never fixed addresses.</b> Every location is found with byte patterns and confirmed with <code>assert</code>. This makes porting to the other executables (English, French, German) possible and guards against silent errors.</div>
 <div class="rule"><b>Never drop teams that freeze.</b> A team or save that causes a freeze must be kept and analysed: it is the proof of the bug.</div>
 
 <!-- 4 -->
 <h2 id="le"><span class="n">4</span>LE format and fixups</h2>
-<p><code>ITALIAN.EXE</code> is a DOS/4GW executable in LE (Linear Executable) format with two main objects:</p>
+<p>Each language executable (<code>ENGLISH.EXE</code>, <code>ITALIAN.EXE</code>, <code>FRENCH.EXE</code>, <code>GERMAN.EXE</code>) is a DOS/4GW program in LE (Linear Executable) format with two main objects. Values below are for ENGLISH.EXE:</p>
 <div class="tbl"><table>
 <thead><tr><th>Object</th><th>Content</th><th>Link base</th><th>Notes</th></tr></thead>
 <tbody>
-<tr><td>obj1</td><td>code</td><td class="m">0x10000</td><td>original vsize 0xA09C9 → 0xA1000 (session 2) → 0xA2000 (added page). Made writable (flag 0x2) because the season-end code rewrites the cup lists stored in the new page.</td></tr>
+<tr><td>obj1</td><td>code</td><td class="m">0x10000</td><td>original vsize 0xA0B79 → 0xA1000 (session 2) → 0xA2000 (added page). Made writable (flag 0x2) because the season-end code rewrites the cup lists stored in the new page.</td></tr>
 <tr><td>obj2</td><td>data</td><td class="m">0xC0000</td><td>all game variables, career buffers, competition tables, strings</td></tr>
 </tbody></table></div>
-<p>Addresses in the disassembly (<code>cseg_8B2D3</code>, <code>dseg_D8CAA</code>) are <strong>English</strong> exe VAs. For the Italian one: object offset = VA − base, then apply the delta from <code>notes/addrmap.json</code> (11 runs for obj1, 16 for obj2). In practice every routine is trusted from the signature found in the Italian exe; the map is only for orientation.</p>
+<p>Addresses in the disassembly (<code>cseg_8B2D3</code>, <code>dseg_D8CAA</code>) are ENGLISH.EXE virtual addresses: object offset = VA − base. The other languages are shifted by small deltas (<code>notes/addrmap.json</code> maps ENGLISH → ITALIAN); the build never relies on them and finds every location by signature.</p>
 <h3>Fixups</h3>
 <p>Every absolute address in the file has an internal fixup record (source object, offset in page, target object, target offset). When an instruction holding an address is overwritten, its fixup must be <strong>removed</strong> (<code>p.remove</code>), or the loader corrupts the new bytes. When an address is added, the fixup must be <strong>added</strong> (<code>p.add_ptr</code>). <code>lepatch.save</code> rebuilds the fixup table; if it grows past the available room it moves the data pages forward (0x800 bytes so far) and updates the header offsets.</p>
 <h3>Added page</h3>
-<p><code>add_object_page(data, 1)</code> appends a 4 KB physical page at the end of the file, inserts it into the page map right after object 1's pages, adds an empty entry to the fixup page table, shifts the header table offsets by +4/+8 and increments object 2's <code>page_idx</code>. All South American cup code and data live in this page, from obj1+0xA1000. Today it is used up to about obj1+0xA1932 (about 1.7 KB free). The space freed in the old cave 0xA0A18–0xA1000 (about 1.5 KB) is available again.</p>
+<p><code>add_object_page(data, 1)</code> appends a 4 KB physical page at the end of the file, inserts it into the page map right after object 1's pages, adds an empty entry to the fixup page table, shifts the header table offsets by +4/+8 and increments object 2's <code>page_idx</code>. All South American cup code and data live in this page, from obj1+0xA1000. Today it is used up to about obj1+0xA1932 (about 1.7 KB free). The rest of the old cave after the Italy league structure, 0xA0BC6–0xA1000 (about 1 KB), is still free.</p>
 
 <!-- 5 -->
 <h2 id="tools"><span class="n">5</span>The tools</h2>
@@ -193,50 +193,50 @@ ndisasm -b32 -o 0xA1000 file.bin              # disassembler (Homebrew); nasm to
 <dt>c1c2.py / c1c2_rosters.py</dt><dd>C1/C2 clubs (kits, division), real 1996-97 squads with coaches, strength targets, team record construction (<a href="#rose">section 8</a>).</dd>
 <dt>salists.py</dt><dd>Reads a <code>.CAR</code> and prints the saved block: format (SA or S2), checksum, Libertadores/Supercopa/CONMEBOL lists, Intercontinental pair.</dd>
 <dt>addrmap.py</dt><dd>Builds <code>notes/addrmap.json</code> by comparing ENGLISH.EXE and ITALIAN.EXE in masked windows (fixup bytes excluded).</dd>
-<dt>asmbytes.py</dt><dd>Extracts the <code>db</code> bytes of a data label from <code>ref/swos.asm</code>, handy to find the same tables in the Italian exe.</dd>
+<dt>asmbytes.py</dt><dd>Extracts the <code>db</code> bytes of a data label from <code>ref/swos.asm</code>, handy to find the same tables in the other language executables.</dd>
 <dt>mkdocs.py</dt><dd>Builds <code>docs/index.html</code> (Italian) and <code>docs/en.html</code> (English) for GitHub Pages from the sources in <code>docs/src/</code>.</dd>
 </dl>
 
 <!-- 6 -->
-<h2 id="memoria"><span class="n">6</span>Memory map (Italian exe)</h2>
-<p>Offsets relative to the object. The English disassembly name in brackets. All found by signature in the build.</p>
+<h2 id="memoria"><span class="n">6</span>Memory map (ENGLISH.EXE)</h2>
+<p>Offsets relative to the object, in ENGLISH.EXE. In this executable every offset is exactly the disassembly address minus the object base (obj1 0x10000, obj2 0xC0000): <code>dseg_D8CAA</code> is obj2+0x18CAA. ITALIAN, FRENCH and GERMAN have the same layout at other offsets; the build finds all of them by signature (the Italian values are in the Italian manual).</p>
 <h3>Object 2: data</h3>
 <div class="tbl"><table>
 <thead><tr><th>Offset</th><th>Name</th><th>Meaning</th></tr></thead>
 <tbody>
 <tr><td>0x16F8</td><td>STR_BASE</td><td>base of league and cup name offsets</td></tr>
-<tr><td>0x71C8</td><td>dseg_C707E</td><td>list of international contests (45 entries) → moved to obj1</td></tr>
-<tr><td>0x8032</td><td>italyTable</td><td>original Italy league structure (42 B) → replaced by one in obj1</td></tr>
-<tr><td>0x8C66</td><td>competitionsTable</td><td>256 pointers per nation/continent</td></tr>
-<tr><td>0x9122</td><td>southAmericaTable</td><td>South America table → moved to obj1</td></tr>
-<tr><td>0x96D6</td><td>careerFileBuffer</td><td>start of the career save (offset 0 of the .CAR)</td></tr>
-<tr><td>0x16E20</td><td>selTeamNumber</td><td>player's team (low byte = file, high = index)</td></tr>
-<tr><td>0x16E26</td><td>dseg_D6CDC</td><td>player's division</td></tr>
-<tr><td>0x17FB2</td><td>someLeaguesTable</td><td>2000 bytes, one per global team number (promotions/relegations); offset 0xE8DC in the .CAR</td></tr>
-<tr><td>0x18DF4</td><td>dseg_D8CAA</td><td>contest pointers of the 5 slots (+4 per slot, <a href="#slot">section 11</a>)</td></tr>
-<tr><td>0x18E08</td><td>dseg_D8CBE</td><td>player's European cup kind (trophy, reputation, prize)</td></tr>
-<tr><td>0x18E0A</td><td>dseg_D8CC0</td><td>play-off positions table (slot 4)</td></tr>
-<tr><td>0x18E54 / 0x199A6 / 0x1A22C / 0x19DE9</td><td>slot 1 / 2 / 3 / 4 buffers</td><td>0x443 bytes each</td></tr>
-<tr><td>0x1F640</td><td>competitionFileBuffer</td><td>slot 0 buffer (the league)</td></tr>
-<tr><td>0x1F67D</td><td>dseg_DF533</td><td>league substitution rules (3 words: 5, 2, 8)</td></tr>
-<tr><td>0x20A79</td><td>dseg_E092F</td><td>which cup is in slot 3 (0 CC, 1 CWC, 2 UEFA; the mod adds 3 Lib, 4 Sup, 5 CON; −1 none)</td></tr>
-<tr><td>0x315B7 …</td><td>D0 D1 D2 … D7 A0 … A4</td><td>pseudo-registers: D0 0x315B7, D1 0x315BB, D2 0x315BF, D7 0x315D3, A0 0x315D7, A1 0x315DB, A2 0x315DF, A3 0x315E3, A4 0x315E7</td></tr>
-<tr><td>0x4EFF3</td><td>DIY_competitionStart</td><td>"working" contest: routines copy a slot here, process it and copy it back</td></tr>
-<tr><td>0x5953C</td><td>leaguesTableCopy</td><td>copy of someLeaguesTable used at season end (checksum!)</td></tr>
-<tr><td>0xC058B</td><td>dseg_18070F</td><td>Champions Cup winner (holder); the mod also uses it for the Libertadores</td></tr>
+<tr><td>0x707E</td><td>dseg_C707E</td><td>list of international contests (45 entries) → moved to obj1</td></tr>
+<tr><td>0x7EE8</td><td>italyTable</td><td>original Italy league structure (42 B) → replaced by one in obj1</td></tr>
+<tr><td>0x8B1C</td><td>competitionsTable</td><td>256 pointers per nation/continent</td></tr>
+<tr><td>0x8FD8</td><td>southAmericaTable</td><td>South America table → moved to obj1</td></tr>
+<tr><td>0x958C</td><td>careerFileBuffer</td><td>start of the career save (offset 0 of the .CAR)</td></tr>
+<tr><td>0x16CD6</td><td>selTeamNumber</td><td>player's team (low byte = file, high = index)</td></tr>
+<tr><td>0x16CDC</td><td>dseg_D6CDC</td><td>player's division</td></tr>
+<tr><td>0x17E68</td><td>someLeaguesTable</td><td>2000 bytes, one per global team number (promotions/relegations); offset 0xE8DC in the .CAR</td></tr>
+<tr><td>0x18CAA</td><td>dseg_D8CAA</td><td>contest pointers of the 5 slots (+4 per slot, <a href="#slot">section 11</a>)</td></tr>
+<tr><td>0x18CBE</td><td>dseg_D8CBE</td><td>player's European cup kind (trophy, reputation, prize)</td></tr>
+<tr><td>0x18CC0</td><td>dseg_D8CC0</td><td>play-off positions table (slot 4)</td></tr>
+<tr><td>0x18D0A / 0x1985C / 0x1A0E2 / 0x19C9F</td><td>slot 1 / 2 / 3 / 4 buffers</td><td>0x443 bytes each</td></tr>
+<tr><td>0x1F4F6</td><td>competitionFileBuffer</td><td>slot 0 buffer (the league)</td></tr>
+<tr><td>0x1F533</td><td>dseg_DF533</td><td>league substitution rules (3 words: 5, 2, 8)</td></tr>
+<tr><td>0x2092F</td><td>dseg_E092F</td><td>which cup is in slot 3 (0 CC, 1 CWC, 2 UEFA; the mod adds 3 Lib, 4 Sup, 5 CON; −1 none)</td></tr>
+<tr><td>0x3146D …</td><td>D0 D1 D2 … D7 A0 … A4</td><td>pseudo-registers: D0 0x3146D, D1 0x31471, D2 0x31475, D7 0x31489, A0 0x3148D, A1 0x31491, A2 0x31495, A3 0x31499, A4 0x3149D</td></tr>
+<tr><td>0x4EEA9</td><td>DIY_competitionStart</td><td>"working" contest: routines copy a slot here, process it and copy it back</td></tr>
+<tr><td>0x593F2</td><td>leaguesTableCopy</td><td>copy of someLeaguesTable used at season end (checksum!)</td></tr>
+<tr><td>0xC070F</td><td>dseg_18070F</td><td>Champions Cup winner (holder); the mod also uses it for the Libertadores</td></tr>
 </tbody></table></div>
 <h3>Object 1: code (game routines used by the mod)</h3>
 <div class="tbl"><table>
 <thead><tr><th>Offset</th><th>Routine</th><th>Role</th></tr></thead>
 <tbody>
-<tr><td>0x7B127</td><td>cseg_8B2D3</td><td>loads a contest into a slot (D0 = slot, A0 = contest, D1, D2)</td></tr>
-<tr><td>0x7D4B5</td><td>cseg_8D661</td><td>is the player's club in this cup's list?</td></tr>
-<tr><td>0x7D917</td><td>cseg_8DAC3</td><td>slot 4: the division's play-offs, with placeholder teams</td></tr>
-<tr><td>0x7EB02</td><td>cseg_8ECAE</td><td>league end: real teams into the play-offs</td></tr>
-<tr><td>0x82BA9</td><td>cseg_92D55</td><td>Champions Cup end: winner → dseg_18070F</td></tr>
-<tr><td>0x2915F</td><td>GetCurrentSeasonPointer</td><td>season record (competition names at +1Ah, +1Eh…)</td></tr>
-<tr><td>VA 0x91345</td><td>80-team assert</td><td>the one that froze the game in 1997</td></tr>
-<tr><td>0xA09D0</td><td>(new)</td><td>Italy 4-division league structure (70 B)</td></tr>
+<tr><td>0x7B2D3</td><td>cseg_8B2D3</td><td>loads a contest into a slot (D0 = slot, A0 = contest, D1, D2)</td></tr>
+<tr><td>0x7D661</td><td>cseg_8D661</td><td>is the player's club in this cup's list?</td></tr>
+<tr><td>0x7DAC3</td><td>cseg_8DAC3</td><td>slot 4: the division's play-offs, with placeholder teams</td></tr>
+<tr><td>0x7ECAE</td><td>cseg_8ECAE</td><td>league end: real teams into the play-offs</td></tr>
+<tr><td>0x82D55</td><td>cseg_92D55</td><td>Champions Cup end: winner → dseg_18070F</td></tr>
+<tr><td>0x2930B</td><td>GetCurrentSeasonPointer</td><td>season record (competition names at +1Ah, +1Eh…)</td></tr>
+<tr><td>VA 0x914F1</td><td>80-team assert</td><td>the one that froze the game in 1997</td></tr>
+<tr><td>0xA0B80</td><td>(new)</td><td>Italy 4-division league structure (70 B)</td></tr>
 <tr><td>0xA1000–0xA1932</td><td>(new)</td><td>added page: SA cups, Intercontinental, tables, career and season-end code</td></tr>
 </tbody></table></div>
 
@@ -304,9 +304,9 @@ type 2: [15] team count, groups of 4</code></pre>
 <p><code>ViewWorldMenu → ChooseCompetitionMenu → SelectTeamsFinalMenu</code>: every pointer in the continent's <code>competitionsTable</code> entry becomes a button. The European cups get no special treatment, so adding pointers is enough.</p>
 <p>When a competition is picked, <code>cseg_3AA17</code> checks whether it is one of the player's 4 slots (real state). Otherwise <code>cseg_3ABB2</code> <strong>regenerates it on the fly</strong>: random seed = contest id &lt;&lt; 8 | season, then it simulates up to the current date. Competitions the player is not in have no persistent state: to show them, a structure and a team list are all that is needed.</p>
 <ul>
-<li><strong>South America table</strong> moved from obj2+0x9122 to obj1+0xA10E4: World Cup qualifiers, Copa América, Libertadores, Supercopa, CONMEBOL, Intercontinental.</li>
+<li><strong>South America table</strong> moved from obj2+0x8FD8 to obj1+0xA10E4: World Cup qualifiers, Copa América, Libertadores, Supercopa, CONMEBOL, Intercontinental.</li>
 <li><strong>Europe table</strong> also moved to obj1: 252, Champions Cup, Cup Winners' Cup, UEFA, Intercontinental, −1, 43 nations. Five green buttons fit.</li>
-<li><strong>International list</strong> (<code>dseg_C707E</code>, obj2+0x71C8) moved to obj1+0xA1154 with the 4 added cups: for these contests the DIY field 0x3B is 0 (simulation, <code>CalculateViewResult</code>).</li>
+<li><strong>International list</strong> (<code>dseg_C707E</code>, obj2+0x707E) moved to obj1+0xA1154 with the 4 added cups: for these contests the DIY field 0x3B is 0 (simulation, <code>CalculateViewResult</code>).</li>
 </ul>
 
 <!-- 11 -->
@@ -315,11 +315,11 @@ type 2: [15] team count, groups of 4</code></pre>
 <div class="tbl"><table>
 <thead><tr><th>Slot</th><th>Pointer</th><th>Buffer</th><th>Original use</th><th>Use in the mod</th></tr></thead>
 <tbody>
-<tr><td>0</td><td class="m">0x18DF4</td><td class="m">0x1F640</td><td>league</td><td>unchanged</td></tr>
-<tr><td>1</td><td class="m">0x18DF8</td><td class="m">0x18E54</td><td>national cup</td><td>Supercopa for South American clubs (no national cup in South America)</td></tr>
-<tr><td>2</td><td class="m">0x18DFC</td><td class="m">0x199A6</td><td>league cup, or friendlies and tours</td><td>Intercontinental when the slot is free (Italy, all South American countries)</td></tr>
-<tr><td>3</td><td class="m">0x18E00</td><td class="m">0x1A22C</td><td>European cup</td><td>also Libertadores / Supercopa / CONMEBOL</td></tr>
-<tr><td>4</td><td class="m">0x18E04</td><td class="m">0x19DE9</td><td>division play-offs</td><td>Intercontinental for countries with a league cup, when the division has no play-offs</td></tr>
+<tr><td>0</td><td class="m">0x18CAA</td><td class="m">0x1F4F6</td><td>league</td><td>unchanged</td></tr>
+<tr><td>1</td><td class="m">0x18CAE</td><td class="m">0x18D0A</td><td>national cup</td><td>Supercopa for South American clubs (no national cup in South America)</td></tr>
+<tr><td>2</td><td class="m">0x18CB2</td><td class="m">0x1985C</td><td>league cup, or friendlies and tours</td><td>Intercontinental when the slot is free (Italy, all South American countries)</td></tr>
+<tr><td>3</td><td class="m">0x18CB6</td><td class="m">0x1A0E2</td><td>European cup</td><td>also Libertadores / Supercopa / CONMEBOL</td></tr>
+<tr><td>4</td><td class="m">0x18CBA</td><td class="m">0x19C9F</td><td>division play-offs</td><td>Intercontinental for countries with a league cup, when the division has no play-offs</td></tr>
 </tbody></table></div>
 <h3>Buffer header</h3>
 <p>+0 type (word), +27h name pointer, +2Bh slot number (word), +2Dh contest id, +3Dh/+3Fh/+41h substitution rules (5 on the bench, 2 changes, 8).</p>
@@ -378,7 +378,7 @@ flowchart TD
 <!-- 14 -->
 <h2 id="fine"><span class="n">14</span>Season end</h2>
 <p><code>cseg_91428</code>: combines the lists; for the player's nation and then every European nation it simulates or reads the standings (<code>cseg_9153F</code>), promotions, cups; <code>cseg_92D55 / 9307A / 9339D</code> close the Champions Cup, Cup Winners' Cup and UEFA; <code>cseg_93974</code> adds the qualifiers; final 80-team assert (16/32/32); <code>cseg_92BBF</code> re-admits the holders.</p>
-<p>The mod redirects the call to <code>cseg_92D55</code> (obj1+0x812C4) to <code>sa_qualify</code>:</p>
+<p>The mod redirects the call to <code>cseg_92D55</code> (obj1+0x81470) to <code>sa_qualify</code>:</p>
 <ol>
 <li><code>[A4] = Libertadores</code> and <code>call cseg_92D55 + 10</code> (skips the first instruction, which would select the Champions Cup): closes the Libertadores (played by the player or simulated with <code>cseg_3ADAE</code>) and writes the winner into <code>dseg_18070F</code> → <code>LIBWIN</code>.</li>
 <li>For each South American nation: simulates the top division with <code>cseg_915ED</code> (the same simulation as the world view, so the standings match). For the player's own division it reads slot 0 instead. From the DIY: +6Dh row offsets in finishing order (rows of 12h bytes), +12Dh team number per row.</li>
@@ -401,7 +401,7 @@ flowchart LR
 
 <!-- 15 -->
 <h2 id="persist"><span class="n">15</span>Persistence in the save</h2>
-<p>The save holds <code>someLeaguesTable</code> (2000 bytes, one per global number). Numbers 1730–1849 belong to no team: the mod parks its data from number 1740 (obj2+0x1867E), mirrored in <code>leaguesTableCopy</code> (obj2+0x59C08), because at season end the game copies one table onto the other (<code>cseg_8CC0A</code> and <code>cseg_8CC4E</code>). <code>InitCareer</code> clears the table: an all-zero table means a new career.</p>
+<p>The save holds <code>someLeaguesTable</code> (2000 bytes, one per global number). Numbers 1730–1849 belong to no team: the mod parks its data from number 1740 (obj2+0x18534), mirrored in <code>leaguesTableCopy</code> (obj2+0x59ABE), because at season end the game copies one table onto the other (<code>cseg_8CC0A</code> and <code>cseg_8CC4E</code>). <code>InitCareer</code> clears the table: an all-zero table means a new career.</p>
 <div class="tbl"><table>
 <thead><tr><th>Offset</th><th>S2 format (current)</th><th>SA format (session 12)</th></tr></thead>
 <tbody>
@@ -434,13 +434,13 @@ assert blk[:2] == b'S2' and sum(blk) % 256 == 0</code></pre>
 <div class="tbl"><table>
 <thead><tr><th>Site (obj1)</th><th>Bytes</th><th>Original</th><th>Becomes</th></tr></thead>
 <tbody>
-<tr><td class="m">0x7D307</td><td>11</td><td><code>mov [E092F],-1; jmp done</code> (no European cup)</td><td><code>jmp init_sa</code></td></tr>
-<tr><td class="m">0x7D312</td><td>12</td><td><code>mov ax,[D7]; mov [E092F],ax</code> (European cup found)</td><td><code>jmp euro_found</code></td></tr>
-<tr><td class="m">0x7D31E</td><td>rel32</td><td><code>call cseg_8DAC3</code></td><td><code>call int4_step</code></td></tr>
-<tr><td class="m">0x237C1</td><td>10</td><td><code>cmp [E092F],-1; jz out</code> (ProcessCareerFile)</td><td><code>jmp load_slot1</code></td></tr>
-<tr><td class="m">0x237FD</td><td>12</td><td><code>cmp [E092F],2; jz map; jmp out</code></td><td><code>jmp load_slot3</code></td></tr>
-<tr><td class="m">0x7EB02</td><td>13</td><td><code>cmp dword [D8CBA],0; jz out</code> (cseg_8ECAE)</td><td><code>jmp playoffs</code></td></tr>
-<tr><td class="m">0x812C4</td><td>rel32</td><td><code>call cseg_92D55</code> (season end)</td><td><code>call sa_qualify</code></td></tr>
+<tr><td class="m">0x7D4B3</td><td>11</td><td><code>mov [E092F],-1; jmp done</code> (no European cup)</td><td><code>jmp init_sa</code></td></tr>
+<tr><td class="m">0x7D4BE</td><td>12</td><td><code>mov ax,[D7]; mov [E092F],ax</code> (European cup found)</td><td><code>jmp euro_found</code></td></tr>
+<tr><td class="m">0x7D4CA</td><td>rel32</td><td><code>call cseg_8DAC3</code></td><td><code>call int4_step</code></td></tr>
+<tr><td class="m">0x2396D</td><td>10</td><td><code>cmp [E092F],-1; jz out</code> (ProcessCareerFile)</td><td><code>jmp load_slot1</code></td></tr>
+<tr><td class="m">0x239A9</td><td>12</td><td><code>cmp [E092F],2; jz map; jmp out</code></td><td><code>jmp load_slot3</code></td></tr>
+<tr><td class="m">0x7ECAE</td><td>13</td><td><code>cmp dword [D8CBA],0; jz out</code> (cseg_8ECAE)</td><td><code>jmp playoffs</code></td></tr>
+<tr><td class="m">0x81470</td><td>rel32</td><td><code>call cseg_92D55</code> (season end)</td><td><code>call sa_qualify</code></td></tr>
 </tbody></table></div>
 <p>Data changes: Italy's base in the global number table; <code>italyTable</code> fixup retargeted to the new structure; South America, Europe and international list tables retargeted into obj1; new names in the string pool; indexes of Italian clubs in the European lists; object 1 vsize and flags.</p>
 <div class="note">Label addresses in the added page (<code>init_sa</code>, <code>sa_qualify</code>…) change when the code grows: <code>patch.py</code> prints the main ones, and <code>nasmcave.labels()</code> returns them all.</div>

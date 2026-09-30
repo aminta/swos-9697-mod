@@ -428,7 +428,8 @@ Ancora da provare dalla sessione 12: holder -> scambio CONMEBOL; trofeo Libertad
   ref/, saves, DOSBox confs ignored), GitHub Pages https://aminta.github.io/swos-9697-mod/ (docs/), release v1.0 with
   swos-9697-mod-patcher.html. Foreword by Davide (docs/src/foreword.it.md + English translation foreword.en.md) at the top of
   README, release notes, both manuals and the patcher.
-- OPEN: README says the EN manual uses ENGLISH.EXE addresses -> still ITALIAN.EXE addresses: update the EN manual tables.
+- EN manual now uses ENGLISH.EXE addresses (offset = disassembly VA - base; 145 ITA->ENG pairs from the cave fixups confirmed it).
+  README and release notes: English first, then Italian.
 
 ## BACKLOG after 1.0 (Davide 2026-09-30)
 - English line-up shows only 14 players (11 + 3 bench) also in the original game: find where the bench size comes from

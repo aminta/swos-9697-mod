@@ -95,8 +95,8 @@ NATIONAL_CUPS = {
 }
 
 
-def gen_name(rng, nat, used, maxlen=22):
-    first, last = ([w.replace('_', ' ') for w in s.split()] for s in NAMES[nat])   # '_' joins two-word surnames
+def gen_name(rng, nat, used, maxlen=22, names=None):
+    first, last = ([w.replace('_', ' ') for w in s.split()] for s in (names or NAMES)[nat])   # '_' joins two words
     while True:
         n = f'{rng.choice(first)} {rng.choice(last)}'
         if len(n) <= maxlen and n not in used:
@@ -104,10 +104,10 @@ def gen_name(rng, nat, used, maxlen=22):
             return n
 
 
-def build(src_dir):
-    """{file number: TEAM.0nn bytes} for all new countries."""
+def build(src_dir, countries=None, names=None):
+    """{file number: TEAM.0nn bytes} for all new countries (asia.py passes its own tables)."""
     out = {}
-    for fileno, (_, _, nat, tmpl, base, (top, bottom), clubs) in COUNTRIES.items():
+    for fileno, (_, _, nat, tmpl, base, (top, bottom), clubs) in (countries or COUNTRIES).items():
         rng = random.Random(1997 * 1000 + fileno)
         d = open(f'{src_dir}/TEAM.{tmpl:03d}', 'rb').read()
         templates = [d[2 + i * TEAM_SIZE:2 + (i + 1) * TEAM_SIZE] for i in range(struct.unpack('>H', d[:2])[0])]
@@ -124,27 +124,28 @@ def build(src_dir):
             r[25] = 0
             r[26:31] = bytes(kit)
             r[31:36] = bytes((0, 1, 1, 1, 1)) if kit[1] != 1 else bytes((0, 2, 2, 2, 2))   # away: white, or black
-            r[36:59] = gen_name(rng, nat, used).encode().ljust(23, b'\0')
+            r[36:59] = gen_name(rng, nat, used, names=names).encode().ljust(23, b'\0')
             avg = sum(t[76 + k * 38 + 32] for k in range(16)) / 16
             step = max(-3, min(3, round((target - avg) / 2)))
             for k in range(16):
                 p = 76 + k * 38
                 r[p] = nat
-                r[p + 3:p + 26] = gen_name(rng, nat, used).encode().ljust(23, b'\0')
+                r[p + 3:p + 26] = gen_name(rng, nat, used, names=names).encode().ljust(23, b'\0')
                 level_player(r, p, step)
             recs.append(bytes(r))
         out[fileno] = struct.pack('>H', len(recs)) + b''.join(recs)
     return out
 
 
-def countries_config():
-    """Entries for countries.COUNTRIES (registration in the exe)."""
+def countries_config(countries=None, cups=None, continent='africa', months=None):
+    """Entries for countries.COUNTRIES (registration in the exe). months(fileno, tmpl) -> (start, end) bytes."""
     cfg = {}
-    for fileno, (names, adj, _, tmpl, base, _, clubs) in COUNTRIES.items():
-        cfg[fileno] = dict(continent='africa', name={**{k: v.encode() for k, v in names.items()}},
+    months = months or (lambda fileno, tmpl: (0x40 if tmpl == 42 else 0x38, 0x28))
+    for fileno, (names, adj, _, tmpl, base, _, clubs) in (countries or COUNTRIES).items():
+        cfg[fileno] = dict(continent=continent, name={**{k: v.encode() for k, v in names.items()}},
                            adj={'en': adj.encode(), **{k: v.encode() for k, v in names.items() if k != 'en'}},
                            base=base,
-                           league=dict(start=0x40 if tmpl == 42 else 0x38, end=0x28, games=2,
+                           league=dict(start=months(fileno, tmpl)[0], end=months(fileno, tmpl)[1], games=2,
                                        divisions=[(len(clubs), 0, 0, 0, 0, 0)], names=None,
-                                       cup=NATIONAL_CUPS[fileno]))
+                                       cup=(cups or NATIONAL_CUPS)[fileno]))
     return cfg

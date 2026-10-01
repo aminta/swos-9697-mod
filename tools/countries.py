@@ -31,7 +31,9 @@ COUNTRIES = {
 }
 
 import africa                                       # noqa: E402  Egypt, Morocco, Tunisia, Nigeria, Cameroon
+import asia                                         # noqa: E402  South Korea, China, Saudi Arabia
 COUNTRIES.update(africa.countries_config())
+COUNTRIES.update(asia.countries_config())
 
 
 class Obj2Area:
@@ -90,7 +92,7 @@ def patch(p, lang, area, cave, extra=None):
 
         lg = c['league']
         named = bool(lg.get('names'))
-        cid = next(ids)
+        cid = lg['id'] if 'id' in lg else next(ids)
         hdr = bytes((cid, 0, n, lg['start'], lg['end'], 9 + 6 * len(lg['divisions']) if named else 0, 0, 0, 0, len(lg['divisions']),
                      lg['games'], 3, 0x35))
         body = hdr + b''.join(bytes(dv) for dv in lg['divisions']) + b'\0'

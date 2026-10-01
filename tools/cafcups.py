@@ -13,11 +13,12 @@ shows the 1997 lists until the season end recomputes them).
 """
 import struct
 
+import asia
 import sacups
 
-CAFCL_ID, CAFCWC_ID, CAFCUP_ID, CCC_ID = 0x76, 0x77, 0x78, 0x79
+CAFCL_ID, CAFCWC_ID, CAFCUP_ID, CCC_ID, ACC_ID, ACWC_ID = 0x76, 0x77, 0x78, 0x79, 0x7a, 0x7b
 NAMES = {CAFCL_ID: b'CAF CHAMPIONS LEAGUE', CAFCWC_ID: b'CAF CUP WINNERS CUP', CAFCUP_ID: b'CAF CUP',
-         CCC_ID: b'CONCACAF CHAMPIONS CUP'}
+         CCC_ID: b'CONCACAF CHAMPIONS CUP', ACC_ID: b'ASIAN CLUB CHAMPIONSHIP', ACWC_ID: b'ASIAN CUP WINNERS CUP'}
 ALG, SAF, GHA, EGY, MAR, TUN, NGA, CMR = 42, 69, 79, 52, 53, 54, 56, 58
 MEX, USA, SLV, CRC = 60, 73, 51, 47
 
@@ -57,6 +58,8 @@ CUPS = [
     (CAFCWC_ID, CUP_WINNERS_CUP, False, (3, 4), 'africa', 1),   # no readable national cup winners: ranks 3-4
     (CAFCUP_ID, CAF_CUP, False, (5, 6), 'africa', 2),
     (CCC_ID, CONCACAF, False, (1, 2, 3, 4), 'north_america', 0),
+    (ACC_ID, asia.CLUB_CHAMPIONSHIP, False, (1, 2, 3), 'asia', 0),        # 1.2: Japan, Korea, China, Saudi 1-3,
+    (ACWC_ID, asia.CUP_WINNERS_CUP, False, (4, 5, 6), 'asia', 1),        # Taiwan, India 1-2; next ranks for the CWC
 ]
 
 

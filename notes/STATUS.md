@@ -701,3 +701,17 @@ league (12 exists already: Taiwan).
 - PLAYTEST session 22 (Davide): PASSED. RIVERN (from RIVER, 1.0 without block): defaults, C3; EGY2N (S2 + C1): SA lists + INT
   (JUVENTUS - SAO PAULO) from S2, CAF from C1, CONCACAF default; NEXACAN (S2 + C2): all migrated. All: 230 B 'C3' trailer,
   someLeaguesTable[1740..1842] zero, 'S3' 53 33 7A at 1847, table sum 0.
+
+## Session 23 — Asia (2026-10-01, static checks only, UNTESTED in game)
+- Country numbers 86..99 checked: every "national team" test in the code is 80 <= n <= 85 (28 sites listed), tables are 256 entries
+  -> 86+ are club countries. Assigned: South Korea 61, China 63, Saudi Arabia 86 (Guatemala 87, Honduras 88 next).
+- tools/asia.py (reuses africa.build/countries_config, now parameterised): KOR 10 clubs (1997 K-League), CHN 12 (1997 Jia-A),
+  KSA 12 (1996-97), RSSSF allfirst97/allfirst9697. Generated squads (templates: J-League TEAM.055 for KOR/CHN, Algeria for KSA),
+  nationalities KOR 127, CHN 139, KSA 131. Bases 1730/1740/1752. Leagues ids 0xB7-0xB9 (first league ids after the cups range),
+  national cups 0xBA-0xBC (8 teams). Season months: KOR/CHN as Japan (0x10/0x50), KSA 0x40/0x28.
+- cafcups.CUPS + ASIAN CLUB CHAMPIONSHIP 0x7A (Japan/Korea/China/Saudi ranks 1-3, Taiwan/India 1-2) and ASIAN CUP WINNERS CUP 0x7B
+  (next ranks); Asia continent table [WCQ, Asian Cup, ACC, ACWC] + [75, 55, 67, 61, 63, 86]. QTABLE 28 countries.
+- trailer 'C4' (294 B, 10 items); old trailers table: C3 (8 items), C2 (CAF+CONCACAF), C1 (CAF). mkpatcher VERSION 1.2 + TEAM.061/063/086.
+- Builds IT EN FR DE = 059dcfc0 1d7b74c4 bd6c7a93 7c00cc18 ; TEAM.061/063/086 = dba8059d d61bbc3d 810a88f0 
+- Free global numbers now: 1764-1846, 1960-1999, 470-474.
+- TEST: Asia menu (3 new countries, 2 cups; names fit?); career with a Korean/Saudi club; save (+294 B 'C4') / reload; load NEXACAN (C3).

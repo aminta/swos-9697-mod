@@ -20,7 +20,7 @@ import os
 import struct
 
 ROOT = os.path.join(os.path.dirname(__file__), '..')
-VERSION = '1.1'
+VERSION = '1.2'
 BLOCK = 16
 FILES = [  # (id, original path, patched path, file name in the game folder)
     ('ITALIAN.EXE', 'orig/ITALIAN.EXE', 'c/SWOS/ITALIAN.EXE', 'ITALIAN.EXE'),
@@ -34,6 +34,9 @@ FILES = [  # (id, original path, patched path, file name in the game folder)
     ('TEAM.054', None, 'c/SWOS/DATA/TEAM.054', 'DATA/TEAM.054'),
     ('TEAM.056', None, 'c/SWOS/DATA/TEAM.056', 'DATA/TEAM.056'),
     ('TEAM.058', None, 'c/SWOS/DATA/TEAM.058', 'DATA/TEAM.058'),
+    ('TEAM.061', None, 'c/SWOS/DATA/TEAM.061', 'DATA/TEAM.061'),
+    ('TEAM.063', None, 'c/SWOS/DATA/TEAM.063', 'DATA/TEAM.063'),
+    ('TEAM.086', None, 'c/SWOS/DATA/TEAM.086', 'DATA/TEAM.086'),
     # GOG release (2013): same files, 2 bytes changed in each exe (a national cup's months); TEAM.020 identical.
     # Originals in orig/gog/, built with patch.patch_exe(orig/gog/X, c/gog/X, ...)
     ('ITALIAN.EXE (GOG)', 'orig/gog/ITALIAN.EXE', 'c/gog/ITALIAN.EXE', 'ITALIAN.EXE'),

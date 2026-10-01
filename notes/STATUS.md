@@ -671,3 +671,4 @@ league (12 exists already: Taiwan).
   DE 33866252; 2 bytes from the CD builds). Node test of the page's own JS: 14/14 outputs OK.
 - Manuals IT+EN: new chapter 19 (New countries and African cups), overview rows, limits, history 15-20, roadmap; mkdocs OK.
 - README + release notes: new countries, CAF cups, invented players explained + invitation to send real squads.
+- Announced 1.1 (Davide, 2026-10-01): forum reply text + short Facebook/Discord version prepared in session (posted by Davide).

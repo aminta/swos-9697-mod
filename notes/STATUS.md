@@ -869,3 +869,9 @@ World Cup 1982, European Cup 1988-89, Serie A 1986-87 (alt. Euro 88). Disassembl
 - PLAYTEST session 26b (Davide, 2026-10-01): all OK (CLASSICS/WC 1982 in preset; absent from season/career/friendly/DIY).
 - Decided: third historic tournament = Mitropa Cup (1930s). Order: WC 1982 real squads -> European Cup 1959-60 -> Mitropa 1930s.
   Squads: ask Davide for the SWOS 2020 community files (location/format) first.
+- SWOS 2020 historic data (search 2026-10-01): DLCs for every World Cup WC1950..WC2018 and Euro EC1960..EC2020 exist, installed
+  through the in-app DLC Manager of SWOS 2020 (Windows app, v7.7, 94 MB, sensiblesoccer.de/swos-2020). No club/Mitropa DLC seen.
+  No local copy (old CrossOver bottles 'Swos 2020' deleted; installer swos2020_4.0_setup.exe no longer in Downloads).
+  Plan: with Davide's ok download SWOS 2020, install in CrossOver, fetch the WC1982 DLC (and others), compare their team format
+  with TEAM.xxx (SWOS 2020 derives from the 96/97 DOS exe -> probably same 684-byte records), convert into TEAM.089.
+  European Cup 1959-60 and Mitropa 1930s: probably by hand (Wikipedia/RSSSF + c1c2-style calibration).

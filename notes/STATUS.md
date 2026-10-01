@@ -1150,3 +1150,15 @@ Keep this list updated as new tournaments are added (European Cup 1959-60 next).
 - HISTORIC TOURNAMENTS DONE (World Cup 1982, Mitropa Cup 1934, FA Cup 1871-72): all playtests passed. Handed over to the
   Libertadores session for the 2.0 release notes / patcher (release only with Davide's ok). European Cup 1959-60 parked
   (research in session 26e). Debug config dosbox-swos-debug.conf (core=normal, git-ignored) kept for future crashes.
+
+## Release 2.0 (2026-10-02, Davide's ok)
+- Contents: Copa Libertadores 1997 1:1 (session 27), classic tourneys World Cup 1982 / Mitropa 1934 / FA Cup 1871-72
+  (sessions 26b-26j), short cup names in the career calendar. Builds IT EN FR DE = 9a2c4f15 608cc88a 3a3480e2 255e4d60,
+  GOG c547c312 aa3cee26 ebc0a26e 661f698e (c/gog; 1.3 GOG backed up in c/REL13/gog), TEAM.089 47b28c41, TEAM.090 9817384a,
+  TEAM.091 bdfbff16. Reproducible from HEAD (scratch rebuild = c/SWOS byte for byte).
+- Patcher 2.0 (TEAM.089-091 added, notes): Python round trip asserted for every file, JS applyDelta checked with node
+  (IT exe, TEAM.020, TEAM.089-091, IT GOG -> expected md5).
+- Docs: manuals IT/EN chapter 20 'Classic tourneys' (limits 21, history 22), golden rule on fixups of overwritten
+  addresses, overview + history rows 26-27; README features/install/credits; artifacts republished (EN v10, IT v9).
+- Release notes release/notes-2.0.md (EN, IT), announcements in release/announcements/2.0/ (forum EN BBCode, forum IT,
+  Facebook IT/EN) to be posted by Davide.

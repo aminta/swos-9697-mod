@@ -589,3 +589,22 @@ league (12 exists already: Taiwan).
   to season end: no freeze with the longer season-end list; (4) one non-Italian language quick check of the name.
 - Pending after the playtest: manuals IT+EN (docs/src, mkdocs.py, 2 artifacts), patcher 1.1 (mkpatcher), then session 19 (save trailer
   + Egypt).
+
+## Session 19a — five new African countries (2026-10-01, static checks only, UNTESTED in game)
+- tools/africa.py: Egypt (TEAM.052, 16 clubs, 1996-97), Morocco (053, 16, 1996-97), Tunisia (054, 14, 1996-97), Nigeria (056, 18, 1997),
+  Cameroon (058, 18, 1997). Clubs + final order from RSSSF allfirst9697 / allfirst97 / kam97 and Wikipedia (fetched 2026-10-01).
+  Squads and coaches GENERATED from common local names (real 1996-97 rosters not available) on positions/faces/skills of template
+  clubs (Algeria TEAM.042 for EGY/MAR/TUN, white faces; Ghana TEAM.079 for NGA/CMR, black faces), skill step from a target price
+  falling linearly with the final position (EGY 17->10, MAR 16->10, TUN 16->9.5, NGA 14->9, CMR 13.5->8.5; step capped +-3, so the top
+  clubs reach ~15). Nationalities EGY 105, MAR 115, TUN 91, NIG 107, CMR 94. Kits approximate. Deterministic (seeded) -> same files
+  for every language: TEAM.052 3b0307de, 053 a012d036, 054 e3dee409, 056 a4dc1905, 058 81df476a.
+- Global bases (teamsCountryNumbers, plain words): 424 / 440 / 456 / 1924 / 1942. patch.write_new_teams checks every new global
+  number against all original team files (game formula base[byte0] + byte1, NOT the stored word, which is stale), Italy 1850..1923 and
+  the S2 block 1740..1842. Still free: 470-474, 1960-1999, 1730-1739, 1843-1849.
+- countries.py: 'base' support; Africa continent table rebuilt in the cave: [42, 79, 69, 52, 53, 54, 56, 58]; season-end list 71
+  countries; league ids 0x71..0x75 (unnamed single divisions like Algeria; season bytes 0x40/0x28 North Africa, 0x38/0x28 NGA/CMR).
+  German names without umlauts (AGYPTEN), as the game does (OSTERREICH).
+- Builds in c/SWOS: ITALIAN f7db32d2, ENGLISH 6929efc6, FRENCH 2d9e6a1f, GERMAN 04722bee, TEAM.020 ded1b97b + the 5 new TEAM files.
+  The patcher must ship the new TEAM files whole (they contain only our data) -> mkpatcher change pending.
+- PLAYTEST (added to session 18 list): Africa menu shows 8 countries; each new league (names, 14/16/18 clubs, kits); a career with
+  an Egyptian club to season end + save/reload; season end of any career with 71 countries in the list.

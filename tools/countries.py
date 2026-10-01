@@ -29,6 +29,9 @@ COUNTRIES = {
                          names=[(b'PRIMERA DIVISION', b'PRIMERA')])),
 }
 
+import africa                                       # noqa: E402  Egypt, Morocco, Tunisia, Nigeria, Cameroon
+COUNTRIES.update(africa.countries_config())
+
 
 class Obj2Area:
     """Bump allocator in the obj2 pages added by lepatch.add_object_page (strings, records)."""
@@ -71,11 +74,13 @@ def patch(p, lang, area, cave):
     ids = iter(FREE_IDS)
     new = []
     for n, c in sorted(COUNTRIES.items()):
-        name = c['name'].get(lang, c['name']['*'])
-        adj = c['adj'].get(lang, c['adj']['*'])
+        name = c['name'][lang] if lang in c['name'] else c['name']['*']
+        adj = c['adj'][lang] if lang in c['adj'] else c['adj']['*']
         assert ct + 4 * n not in fx2 and comp + 4 * n not in fx2, f'country {n} exists'
         rec = area.add(bytes((CONTINENT[c['continent']],)) + name + b'\0' + adj + b'\0')
         p.add_ptr(2, ct + 4 * n, 2, rec)
+        if 'base' in c:                             # global team numbers: base + ordinal, must be free and < 2000
+            p.put(2, tcn + 2 * n, struct.pack('<H', c['base']))
 
         lg = c['league']
         named = bool(lg.get('names'))
@@ -128,7 +133,7 @@ def patch(p, lang, area, cave):
     p.retarget(1, sel_ref, 1, sel_new)
 
     for n, cont, cid, teams in new:
-        base = struct.unpack_from('<H', d2, tcn + 2 * n)[0]
+        base = COUNTRIES[n].get('base', struct.unpack_from('<H', d2, tcn + 2 * n)[0])
         print(f'exe: country {n} ({cont}) registered: league id {cid:#x}, {teams} teams, global base {base}')
     print(f'exe: countriesTable obj2+{ct:#x}, season-end list obj2+{sel:#x} -> obj1+{sel_new:#x} ({len(lst)} countries)')
     return at

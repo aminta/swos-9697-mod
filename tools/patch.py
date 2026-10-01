@@ -183,10 +183,41 @@ def patch_teams(src, dst):
     new_idx = {r[5:22]: i for i, r in enumerate(out)}
     return {i: new_idx[r[5:22]] for i, r in enumerate(recs) if r[5:22] in new_idx}
 
+def write_new_teams(src_dir, dst_dir):
+    """Team files of the new countries (africa.py); checks their global numbers against every other team file."""
+    import africa, glob
+    files = africa.build(src_dir)
+    taken = {}
+    tcn = {n: c['base'] for n, c in countries.COUNTRIES.items() if 'base' in c}
+    d2 = LE(os.path.join(ROOT, 'orig/ENGLISH.EXE')).obj_bytes(2)
+    bases = struct.unpack_from('<256H', d2, d2.find(struct.pack('<6H', 0, 16, 26, 44, 60, 72)))
+    for f in sorted(glob.glob(os.path.join(src_dir, 'TEAM.0[0-8][0-9]'))):
+        n = int(f[-3:])
+        if n in files or n == 20:
+            continue
+        d = open(f, 'rb').read()
+        for i in range(struct.unpack('>H', d[:2])[0]):   # the game recomputes it: base[team byte 0] + team byte 1
+            r = d[2 + i * TEAM_SIZE:]
+            taken[bases[r[0]] + r[1]] = n
+    italy = struct.unpack('>H', open(os.path.join(dst_dir, 'TEAM.020'), 'rb').read(2))[0]   # written by patch_teams
+    for g in range(ITALY_BASE, ITALY_BASE + italy):
+        taken[g] = 20
+    for g in range(1740, 1843):                    # saved SA/Intercontinental block (sacups, someLeaguesTable)
+        taken[g] = 'S2'
+    for n, data in files.items():
+        k = struct.unpack('>H', data[:2])[0]
+        for g in range(tcn[n], tcn[n] + k):
+            assert g < 2000 and g not in taken, (n, g, taken.get(g))
+            taken[g] = n
+        open(os.path.join(dst_dir, 'TEAM.%03d' % n), 'wb').write(data)
+        print(f'TEAM.{n:03d}: {k} teams, global numbers {tcn[n]}..{tcn[n] + k - 1}')
+
+
 if __name__ == '__main__':
     import sys
     lang = sys.argv[1] if len(sys.argv) > 1 else 'it'
     exe = LANGS[lang]['exe']
     swos = os.path.join(ROOT, 'c/SWOS')
     remap = patch_teams(os.path.join(ROOT, 'orig/DATA/TEAM.020'), os.path.join(swos, 'DATA/TEAM.020'))
+    write_new_teams(os.path.join(ROOT, 'orig/DATA'), os.path.join(swos, 'DATA'))
     patch_exe(os.path.join(ROOT, 'orig', exe), os.path.join(swos, exe), remap, lang)

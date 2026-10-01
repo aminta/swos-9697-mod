@@ -765,3 +765,68 @@ league (12 exists already: Taiwan).
 - TEST: preset Sudamerica -> Libertadores: 5 groups of 4, then round of 16; River career to season end (new lists: 20,
   champions + runners-up); save (+302 B 'C5') / reload; load OLIMPIA.CAR / ASIA1.CAR (C4: group 5 = GUARANI, ORIENTE,
   CERRO PORTENO, VELEZ for OLIMPIA).
+
+## Session 26 — tornei storici: analisi (2026-10-01, analysis only, no code, builds untouched)
+Goal (Davide): historic tournaments with real squads, playable ONLY in preset competitions and season, never in career:
+World Cup 1982, European Cup 1988-89, Serie A 1986-87 (alt. Euro 88). Disassembly line numbers = ref/swos.asm.
+
+### How the team/competition menus are built
+- Every selection screen is SelectTeamsFinalMenu (63087) started with D0=255 -> D7=254 -> competitionsTable[254] = worldTable
+  (193158): [worldCup, -1] + bytes 80..85 (continents) + FF. Country bytes after -1 are read ONLY when D7 = 254 or 80..85
+  (63522); a club country's table is [leagues, -2, cups, -1] (cups shown only if showCupsAndOther).
+- Callers (all start from the world table): SelectTeamsForPresetCompetition (64253, choosingPreset=1, showCups=1),
+  season cseg_4C6EE (64276, playSeason=1, showCups=0), GoGetTeamsForPlay (friendly/DIY), ChooseCompetitionMenu (career
+  ViewWorldMenu), ChooseTeamsDialog (career SelectTeamToManage, edit/import teams), cseg_4C83A (career Buy Other Domestic/
+  Foreign Player).
+- Season (InitNewSeason 124910): slot 0 = first entry of competitionsTable[country], slots 1-2 = the entries after -2 -> a
+  country used in Season must have ONLY its league (+ real national cups), never the historic cups.
+
+### a) Container + exclusion from career (b): swap the world table, no menu filtering
+- Hook: replace `call SelectTeamsFinalMenu` in SelectTeamsForPresetCompetition and in cseg_4C6EE with calls to a cave stub that
+  saves competitionsTable[254], writes the address of an extended world table (preset: + CLASSICS 89 + league countries;
+  season: + league countries only), calls SelectTeamsFinalMenu, restores the saved dword. 2 retargeted calls + ~40 B cave.
+- Every other path (career start, career world view, transfers, edit/import teams, friendlies, DIY) keeps the original world
+  table -> historic countries are simply unreachable there. Filtering inside the country loop is NOT safe (click index maps to
+  the byte list). Not added to continent tables, seasonEndList, QTABLE, trailer -> career never loads their files.
+  Foreign market uses POOLPLYR.DAT, not team files. teamsCountryNumbers has 1 xref (SetTeamGlobalNumbers) -> no reverse lookup.
+- Layout proposal: 89 'CLASSICS' (it 'STORICI') = cups-only table [-2, WC82, EC89, (Euro 88...), -1] (preset only; no team
+  file of its own: cups list teams as (file, ordinal) pairs like euroCup/worldCup, country byte FF); each historic league = its
+  own country with [league, -2, -1] (e.g. 91 'ITALIA 1986-87', TEAM.091), in both extended tables. Team files: 89 = WC82
+  nations, 90 = EC 88-89 clubs, 91 = Serie A 86-87 (one file per tournament).
+- countries.py needs a 'historic' flag: register countriesTable/competitionsTable/teamsCountryNumbers, skip continent tables
+  and seasonEndList.
+
+### c) National teams in a club-numbered file (89)
+- National tests are all 80 <= n <= 85. IsTeamNational (50206) returns 1 for every team outside career (irrelevant);
+  CheckIsTeamNational sets isNationalTeam which nothing reads; FillManagementRecordInfo / ProcessCareerFile helpers = career only.
+  Remaining non-career sites: SquadFinish (2434: squad menu entries 13/55 moved up 13 px for national teams = cosmetic),
+  cseg_47981 (59610, team byte 301) and cseg_48CA1 (60782) not decoded -> playtest item (squad screen, match). No rule found
+  (foreigners, subs) tied to 80..85 outside career. Kits/faces/nationalities come from the records (copy the 1996 national
+  records from TEAM.080-085 as templates).
+
+### d) Global numbers
+- SetLoadedTeamsGlobalNumbers runs at every LoadTeamFile; SetLeagueNumbers / someLeaguesTable only in career (39137).
+- Historic teams never meet each other across tournaments nor real teams (preset/season only, own files), so ALL historic files
+  can share ONE block: base 1786 for every file (ordinals 0..31) -> 32 numbers total for any number of tournaments
+  (left after that: 1818-1846, 1960-1999, 470-474 = 74). Unique inside each file. Not using >= 2000 (non-career arrays indexed
+  by global number not fully excluded).
+
+### e) Contest ids
+- Used by the mod up to 0xC0; free 0xC1..0xFE (no range checks known, ids = identifiers + Randomize seed).
+  Proposed: 0xC1 WC82, 0xC2 EC 88-89, 0xC3 Serie A 86-87, 0xC4 Euro 88.
+
+### Formats
+- World Cup 1982: the game's own worldCup (187280) is already 24 teams, 6 groups of 4, best 16 (incl. 4 best thirds) -> round of
+  16, QF, SF, F = the 1986 format: closest approximation (real 1982: 12 teams to a second group stage of 4x3, then SF). Clone it
+  with 24 pairs (89, 0..23) and the real draw order (group A Italy/Poland/Peru/Cameroon ... ). Same 2-points rule? cup structs
+  have the points byte (3) -> set 2 for 1982/88.
+- European Cup 1988-89: 32-team two-leg knockout, single final = cupWinnersCup layout (32 pairs (90, 0..31)).
+- Serie A 1986-87: league 1 division of 16, 2 games, 2 points per win, no promotion/relegation.
+- Euro 88: europeanChampionships clone (8 teams, 2 groups of 4 -> SF, F).
+
+### Data / effort
+- 72 teams x 16 players: WC82 from one Wikipedia squads page (easy), Serie A 86-87 from it.wikipedia club season pages (good),
+  EC 88-89: big clubs good, minor clubs (Valur, Dundalk, Pezoporikos, Jeunesse Esch...) partial -> partly reconstructed.
+- Strength: c1c2-style calibration from the real final ranking (WC: final position; EC: round reached; Serie A: table), stars
+  hand-set to max (Maradona, Platini... per tournament list).
+- Estimate: impianto + WC82 = 1.5 sessions; Serie A 86-87 = 1; EC 88-89 = 1.5-2 (Euro 88 instead = 0.5). Docs/release apart.

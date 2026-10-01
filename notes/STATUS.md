@@ -608,3 +608,21 @@ league (12 exists already: Taiwan).
   The patcher must ship the new TEAM files whole (they contain only our data) -> mkpatcher change pending.
 - PLAYTEST (added to session 18 list): Africa menu shows 8 countries; each new league (names, 14/16/18 clubs, kits); a career with
   an Egyptian club to season end + save/reload; season end of any career with 71 countries in the list.
+
+## Session 19b — African national cups + CAF cups step 1 (2026-10-01, static checks only, UNTESTED in game)
+- National cups for the 5 new countries (africa.NATIONAL_CUPS, countries.py 'cup'): clones of the Algerian cup struct (18 B:
+  [id, 1, country, 0x60, 0x80, 0 x5, teams, 1, 0x35, 2, rounds]), country table [league, -2, cup, -1]. Ids 0xB2..0xB6 (after the
+  last original cup 0xB1; no id range checks found in the code: ids are identifiers + Randomize seed). EGY/MAR/NGA/CMR 16 teams
+  (rounds 54 54 94 14 as Algeria), TUN 8 (54 54 14, like Taiwan's 8-team cup with 12 clubs). Original Africa: Algeria and South
+  Africa have a cup, Ghana none.
+- tools/cafcups.py (step 1): CAF CHAMPIONS LEAGUE (0x76, Champions Cup clone: 16 teams, 4 groups of 4 + knockout), CAF CUP WINNERS
+  CUP (0x77) and CAF CUP (0x78) (16-team knockouts, sacups.knockout16). Names in the new obj2 page. Initial lists: top 2 / 3-4 / 5-6
+  of the 1996-97 tables (new countries), strongest clubs + real champions where present for ALG/SAF/GHA. Added to the Africa
+  continent table (cup buttons) and to the international contests list (membership test only, no size limit; sacups now exports
+  INTL_LIST; the list is relocated again, old copy left unused in the cave).
+- BUG FIXED in countries.py: the continent table's -1 + country bytes were written at +8 regardless of the pointer count.
+- Builds in c/SWOS: see md5 below. obj1 cave ends ~0xA1D00 of 0xA2000 (step 2 needs another obj1 page).
+- NEXT (step 2): career (slot-3 chain D7 = 6/7/8 + ProcessCareerFile mapping + trophy flag), season-end qualifiers from the
+  standings of the 8 African countries (sacups.qualify_hook generalised), persistence of the 3 lists (96 B) -> .CAR trailer
+  (session 17 C). Then manuals + patcher 1.1 (ship TEAM.052..058 whole).
+- md5 19b: IT EN FR DE = 1415fc77 45ade57e 1189010f 618c08fc 

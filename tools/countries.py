@@ -63,8 +63,9 @@ def tables(p):
     return ct[0], tcn, refs[0][4], refs[0][1]
 
 
-def patch(p, lang, area, cave):
-    """Register COUNTRIES; returns the new end of the obj1 cave."""
+def patch(p, lang, area, cave, extra=None):
+    """Register COUNTRIES; extra = {continent: [(obj, contest offset)]} cup buttons added to that continent.
+    Returns the new end of the obj1 cave."""
     d2 = p.le.obj_bytes(2)
     ct, tcn, sel, sel_ref = tables(p)
     fx2 = {f[1] for f in p.le.fixups() if f[0] == 2}
@@ -100,10 +101,22 @@ def patch(p, lang, area, cave):
         league = at
         p.put(1, at, body)
         at = (at + len(body) + 3) & ~3
-        table = at                                  # [league, -2, -1]
+        cup = None
+        if lg.get('cup'):                           # national cup: clone of the Algerian cup layout (18 bytes)
+            cu = lg['cup']
+            body = bytes((cu['id'], 1, n, 0x60, 0x80, 0, 0, 0, 0, 0, cu['teams'], 1, 0x35, 2)) + bytes(cu['rounds'])
+            cup = at
+            p.put(1, at, body)
+            at = (at + len(body) + 3) & ~3
+        table = at                                  # [league, -2, (cup,) -1]
         p.add_ptr(1, at, 1, league)
-        p.put(1, at + 4, struct.pack('<ii', -2, -1))
-        at += 12
+        p.put(1, at + 4, struct.pack('<i', -2))
+        at += 8
+        if cup is not None:
+            p.add_ptr(1, at, 1, cup)
+            at += 4
+        p.put(1, at, struct.pack('<i', -1))
+        at += 4
         p.add_ptr(2, comp + 4 * n, 1, table)
         new.append((n, c['continent'], cid, sum(dv[0] for dv in lg['divisions'])))
 
@@ -113,15 +126,16 @@ def patch(p, lang, area, cave):
         tobj, old = p.target(2, comp + 4 * cn)
         assert tobj in (1, 2) and cont != 'europe' and cont != 'south_america', 'Europe/SA tables live in the cave'
         src = p.le.obj_bytes(tobj)
-        ptrs = [p.target(tobj, old), p.target(tobj, old + 4)]
+        ptrs = [p.target(tobj, old), p.target(tobj, old + 4)] + (extra or {}).get(cont, [])
         assert src[old + 8:old + 12] == b'\xff' * 4
         countries = src[old + 12:src.index(b'\xff', old + 12)]
         countries += bytes(n for n, cc, _, _ in new if cc == cont and n not in countries)
         tab = at
         for k, (o, t) in enumerate(ptrs):
             p.add_ptr(1, at + 4 * k, o, t)
-        p.put(1, at + 8, b'\xff' * 4 + countries + b'\xff')
-        at = (at + 12 + len(countries) + 1 + 3) & ~3
+        end = at + 4 * len(ptrs)
+        p.put(1, end, b'\xff' * 4 + countries + b'\xff')
+        at = (end + 4 + len(countries) + 1 + 3) & ~3
         p.retarget(2, comp + 4 * cn, 1, tab)
 
     # season-end list: + new league countries

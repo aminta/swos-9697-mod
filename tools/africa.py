@@ -84,6 +84,17 @@ NAMES = {
 }
 
 
+# national cups (Egypt Cup, Coupe du Trone, Coupe de Tunisie, FA Cup, Coupe du Cameroun): clones of the Algerian cup,
+# ids after the last original cup (0xB1); rounds 0x54 = two legs?, 0x94 = two legs, 0x14 = final, as in the original cups
+NATIONAL_CUPS = {
+    52: dict(id=0xb2, teams=16, rounds=(0x54, 0x54, 0x94, 0x14)),
+    53: dict(id=0xb3, teams=16, rounds=(0x54, 0x54, 0x94, 0x14)),
+    54: dict(id=0xb4, teams=8, rounds=(0x54, 0x54, 0x14)),             # 14 clubs: 8-team cup like Taiwan (12 clubs)
+    56: dict(id=0xb5, teams=16, rounds=(0x54, 0x54, 0x94, 0x14)),
+    58: dict(id=0xb6, teams=16, rounds=(0x54, 0x54, 0x94, 0x14)),
+}
+
+
 def gen_name(rng, nat, used, maxlen=22):
     first, last = ([w.replace('_', ' ') for w in s.split()] for s in NAMES[nat])   # '_' joins two-word surnames
     while True:
@@ -134,5 +145,6 @@ def countries_config():
                            adj={'en': adj.encode(), **{k: v.encode() for k, v in names.items() if k != 'en'}},
                            base=base,
                            league=dict(start=0x40 if tmpl == 42 else 0x38, end=0x28, games=2,
-                                       divisions=[(len(clubs), 0, 0, 0, 0, 0)], names=None))
+                                       divisions=[(len(clubs), 0, 0, 0, 0, 0)], names=None,
+                                       cup=NATIONAL_CUPS[fileno]))
     return cfg

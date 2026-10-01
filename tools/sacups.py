@@ -19,6 +19,7 @@ import nasmcave
 
 COMP_SLOTS = [None]                           # obj2 offset of dseg_D8CAA (slot contest ptrs)
 COMP_TABLE = [None]                           # obj2 offset of competitionsTable, set by patch()
+INTL_LIST = [None]                            # (obj1 offset of the relocated international contests list, code refs)
 LIB_ID, SUP_ID, CON_ID = 0x6c, 0x6d, 0x6e     # unused ids (0x6c..0x7b free)
 INT_ID = 0x6f                                 # Intercontinental Cup
 CN_SOUTH_AMERICA = 82
@@ -178,6 +179,7 @@ def patch(p, pool, cave):
     assert len(code) == 3 and all(f[0] == 1 for f in code), code
     for f in code:
         p.retarget(1, f[1], 1, lst_new)
+    INTL_LIST[0] = (lst_new, [f[1] for f in code])
 
     print(f'exe: SA cups @ obj1+{cave:#x} (ids {LIB_ID:#x}-{CON_ID:#x}), SA table obj2+{sa:#x} -> obj1+{sa_new:#x}, '
           f'intl list obj2+{lst:#x} ({len(entries) - 3}+3) -> obj1+{lst_new:#x}')

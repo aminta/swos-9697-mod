@@ -18,6 +18,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 from le import LE
 from lepatch import LEPatch, add_object_page
 import c1c2
+import cafcups
 import countries
 import sacups
 from strpool import StrPool
@@ -139,7 +140,8 @@ def patch_exe(src, dst, remap, lang='it'):
     cave = sacups.patch(p, pool, SA_CAVE)
     assert cave <= OBJ1_NEW_VSIZE
     area = countries.Obj2Area(p, obj2_free, obj2_free + p.le.page_size)
-    cave = countries.patch(p, lang, area, cave)
+    cave, caf = cafcups.structs(p, area, cave)
+    cave = countries.patch(p, lang, area, cave, {'africa': caf})
     assert cave <= OBJ1_NEW_VSIZE, hex(cave)
     p.set_vsize(1, OBJ1_NEW_VSIZE)
     p.set_vsize(2, obj2_free + p.le.page_size)

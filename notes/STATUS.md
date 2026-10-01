@@ -1065,3 +1065,8 @@ Keep this list updated as new tournaments are added (European Cup 1959-60 next).
   Millonarios(3E)-Colo Colo(1C), Mineros(2C)-Cerro(2A), first named at home in the 1st leg. No away goals (Cerro-Mineros
   2-2 a, 1-1 -> penalties). QF Nacional-Emelec, Bolivar-Gremio, Alianza-Cruzeiro, Mineros-Colo Colo; SF Nacional-Bolivar,
   Cruzeiro-Colo Colo; two-leg final Bolivar-Cruzeiro, 0-0 aggregate -> penalties. Still to test: career + C6/C5/C4 saves.
+- PLAYTEST 27b career River (Davide): season 1 River (holder) played no group, R16 vs Velez (3rd of group B = holder's
+  country group) away first, home second; Supercopa and league unaffected. Season 2 list (RIV27.CAR, trailer C6 304 B,
+  salists): 20 group clubs from the standings (River in group B as ARG 1/2) + holder NACIONAL (season-1 winner, URU,
+  not in URU top 2 nor in CONMEBOL) as 21st; Intercontinental AC MILAN - NACIONAL. Still to test: reload RIV27.CAR,
+  RIVER20.CAR (C5), OLIMPIA.CAR (C4).

@@ -20,7 +20,7 @@ CAFCL_ID, CAFCWC_ID, CAFCUP_ID, CCC_ID, ACC_ID, ACWC_ID = 0x76, 0x77, 0x78, 0x79
 NAMES = {CAFCL_ID: b'CAF CHAMPIONS LEAGUE', CAFCWC_ID: b'CAF CUP WINNERS CUP', CAFCUP_ID: b'CAF CUP',
          CCC_ID: b'CONCACAF CHAMPIONS CUP', ACC_ID: b'ASIAN CLUB CHAMPIONSHIP', ACWC_ID: b'ASIAN CUP WINNERS CUP'}
 ALG, SAF, GHA, EGY, MAR, TUN, NGA, CMR = 42, 69, 79, 52, 53, 54, 56, 58
-MEX, USA, SLV, CRC = 60, 73, 51, 47
+MEX, USA, SLV, CRC, GUA, HON = 60, 73, 51, 47, 87, 88
 
 # groups / pairings are consecutive; no two clubs of one country together
 CHAMPIONS_LEAGUE = [
@@ -44,11 +44,11 @@ CAF_CUP = [
 
 # CONCACAF Champions' Cup (1.2): 16-team knockout, first season = strong clubs of the 4 countries in the spirit of the
 # 1997 edition (Cruz Azul, Guadalajara, LA Galaxy, DC United, Saprissa...); consecutive pairs from different countries
-CONCACAF = [
-    (MEX, 10), (USA, 17), (SLV, 5), (CRC, 11),     # Necaxa - DC United, Alianza - Saprissa
-    (USA, 6), (MEX, 15), (CRC, 0), (SLV, 33),      # LA Galaxy - Cruz Azul, Alajuela - Luis Angel Firpo
-    (MEX, 7), (SLV, 29), (USA, 14), (CRC, 6),      # Guadalajara - FAS, Tampa Bay - Herediano
-    (SLV, 4), (CRC, 8), (MEX, 0), (USA, 5),        # Aguila - Puntarenas, America - Kansas City
+CONCACAF = [                                       # 1.2: + Guatemala and Honduras (2 each)
+    (MEX, 10), (USA, 17), (CRC, 11), (GUA, 0),     # Necaxa - DC United, Saprissa - Comunicaciones
+    (HON, 0), (MEX, 15), (USA, 6), (SLV, 5),       # Olimpia - Cruz Azul, LA Galaxy - Alianza
+    (MEX, 7), (CRC, 0), (GUA, 2), (HON, 3),        # Guadalajara - Alajuela, Municipal - Motagua
+    (SLV, 33), (USA, 14), (CRC, 6), (MEX, 0),      # Firpo - Tampa Bay, Herediano - America
 ]
 
 # (id, team list, groups (Champions Cup clone) or knockout, league ranks taken at season end, continent,

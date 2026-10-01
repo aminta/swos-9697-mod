@@ -34,6 +34,8 @@ import africa                                       # noqa: E402  Egypt, Morocco
 import asia                                         # noqa: E402  South Korea, China, Saudi Arabia
 COUNTRIES.update(africa.countries_config())
 COUNTRIES.update(asia.countries_config())
+import namerica                                     # noqa: E402  Guatemala, Honduras
+COUNTRIES.update(namerica.countries_config())
 
 
 class Obj2Area:

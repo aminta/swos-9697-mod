@@ -717,3 +717,11 @@ league (12 exists already: Taiwan).
 - TEST: Asia menu (3 new countries, 2 cups; names fit?); career with a Korean/Saudi club; save (+294 B 'C4') / reload; load NEXACAN (C3).
 - PLAYTEST session 23 (Davide): all OK. ASIA1.CAR (Korean club) 102287 B, 'C4' 294 B, lists recomputed at season end
   (ACC: YAKUHEMA MERUNOS, CHI-HAI, PUSAN DAEWOO, EAST BENGAL...). PASSED.
+
+## Session 24 — Guatemala and Honduras (2026-10-01, static checks only, UNTESTED in game)
+- tools/namerica.py: Guatemala 87 (12 clubs, play-off champion Comunicaciones first), Honduras 88 (10 clubs), 1996-97 (RSSSF
+  allfirst9697). Generated squads on El Salvador templates (TEAM.051), nationalities GUA 53, HON 54, bases 1764 / 1776, league ids
+  0xBD/0xBE, national cups 0xBF/0xC0 (8 teams), season months as El Salvador. North America table [51, 60, 73, 47, 87, 88].
+- CONCACAF list 1.2: MEX 4, USA 3, CRC 3, SLV 2, GUA 2, HON 2 (Necaxa, DC United, Saprissa, Comunicaciones, Olimpia, Cruz Azul...).
+  QTABLE 30 countries. mkpatcher + TEAM.087/088.
+- Builds IT EN FR DE = cb940d42 ad93f6cb dd7d41b0 2e92ddcd . Free global numbers: 1786-1846, 1960-1999, 470-474.

@@ -195,8 +195,8 @@ def patch_teams(src, dst):
 
 def write_new_teams(src_dir, dst_dir):
     """Team files of the new countries (africa.py); checks their global numbers against every other team file."""
-    import africa, asia, glob
-    files = {**africa.build(src_dir), **asia.build(src_dir)}
+    import africa, asia, namerica, glob
+    files = {**africa.build(src_dir), **asia.build(src_dir), **namerica.build(src_dir)}
     taken = {}
     tcn = {n: c['base'] for n, c in countries.COUNTRIES.items() if 'base' in c}
     d2 = LE(os.path.join(ROOT, 'orig/ENGLISH.EXE')).obj_bytes(2)

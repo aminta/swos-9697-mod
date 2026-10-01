@@ -698,3 +698,6 @@ league (12 exists already: Taiwan).
 - Builds IT EN FR DE = . Saves backed up in c/SAVES_BACKUP/.
 - TEST: load a 1.0 save (RIVER.CAR, S2), a 1.1 save (EGY2.CAR, S2 + C1), NEXACA.CAR (S2 + C2); save each under a new name ->
   +230 B 'C3', someLeaguesTable[1740..1842] = 0, 'S3' mark; reload; new career after loading a save -> 1997 lists.
+- PLAYTEST session 22 (Davide): PASSED. RIVERN (from RIVER, 1.0 without block): defaults, C3; EGY2N (S2 + C1): SA lists + INT
+  (JUVENTUS - SAO PAULO) from S2, CAF from C1, CONCACAF default; NEXACAN (S2 + C2): all migrated. All: 230 B 'C3' trailer,
+  someLeaguesTable[1740..1842] zero, 'S3' 53 33 7A at 1847, table sum 0.

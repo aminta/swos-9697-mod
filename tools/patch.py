@@ -20,6 +20,7 @@ from lepatch import LEPatch, add_object_page
 import c1c2
 import cafcups
 import countries
+import historic
 import sacups
 import trailer
 from strpool import StrPool
@@ -142,6 +143,7 @@ def patch_exe(src, dst, remap, lang='it'):
     area = countries.Obj2Area(p, obj2_free, obj2_free + p.le.page_size)
     world, caf = cafcups.structs(p, area, WORLD_CAVE)
     world = countries.patch(p, lang, area, world, cafcups.continents(caf))
+    world = historic.patch(p, lang, area, world)
     info = cafcups.career_info(caf)
     info['new_career_ptr'] = world              # dword filled below: sacups is assembled before the trailer code
     world += 4
@@ -214,13 +216,15 @@ def write_new_teams(src_dir, dst_dir):
         taken[g] = 20
     for g in range(sacups.MARK3_GLOBAL, sacups.MARK3_GLOBAL + 3):   # career mark 'S3' + balance (1.2; lists in the
         taken[g] = 'S3'                                             # .CAR trailer, 1730..1846 free again)
-    for n, data in files.items():
+    hist = historic.build_teams(src_dir)
+    for n, data in list(files.items()) + list(hist.items()):
         k = struct.unpack('>H', data[:2])[0]
-        for g in range(tcn[n], tcn[n] + k):
+        for g in range(tcn.get(n, historic.BASE), tcn.get(n, historic.BASE) + k):
             assert g < 2000 and g not in taken, (n, g, taken.get(g))
-            taken[g] = n
+            if n not in hist:
+                taken[g] = n
         open(os.path.join(dst_dir, 'TEAM.%03d' % n), 'wb').write(data)
-        print(f'TEAM.{n:03d}: {k} teams, global numbers {tcn[n]}..{tcn[n] + k - 1}')
+        print(f'TEAM.{n:03d}: {k} teams, global numbers {tcn.get(n, historic.BASE)}..{tcn.get(n, historic.BASE) + k - 1}')
 
 
 if __name__ == '__main__':

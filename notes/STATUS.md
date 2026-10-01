@@ -841,3 +841,8 @@ World Cup 1982, European Cup 1988-89, Serie A 1986-87 (alt. Euro 88). Disassembl
   mkdocs, artifacts republished (EN v9, IT v8), internal hex manual v3 (CC vs Libertadores 1.3 dumps, C5 block of
   RIVER20.CAR); README EN/IT; patcher 1.3 (template notes, VERSION 1.3, Node test 19/19); release/notes-1.3.md;
   thank-you texts release/announcements/1.3/playaveli-thanks-{en,it}.txt. NOT pushed / released: waiting for Davide's ok.
+
+## Release 1.3 (2026-10-01, Davide's ok)
+- Pushed (main 91c220d) and released: github.com/aminta/swos-9697-mod/releases/tag/v1.3 (patcher 1.3 attached, notes from
+  release/notes-1.3.md). Pages updated (manual "sessions 1–25, release 1.3"). Thank-you texts for Playaveli in
+  release/announcements/1.3/ (to be posted by Davide).

@@ -45,7 +45,7 @@ WC82 = ['ITALY', 'POLAND', 'PERU', 'CAMEROON',                         # A
 # Ties in the real round-of-16 order, first-leg home club first: winners keep the tie order, so the natural pairing gives
 # the real quarter-finals (W1-W2 Ferencvaros-Kladno, W3-W4 Bologna-Rapid, W5-W6 Ujpest-Juventus, W7-W8 Admira-Sparta) and
 # semi-finals (Ferencvaros-Bologna, Juventus-Admira: DRAWS swaps to Admira at home first, and Admira first in the final).
-# (source team file, index, 1934 name) — PLACEHOLDER squads (1996 clubs) until the real 1934 rosters are written.
+# (1996 club giving the kit when mitropa34.py has none, index, 1934 name); squads: tools/mitropa34.py, build_m34.
 M34_ID = 0xC2
 M34_FILE = 90
 M34_NAMES = {'it': b'COPPA MITROPA 1934', 'en': b'MITROPA CUP 1934', 'fr': b'COUPE MITROPA 1934', 'de': b'MITROPACUP 1934'}
@@ -164,16 +164,78 @@ def build_teams(src_dir):
         recs.append(bytes(r))
     assert len(recs) <= MAX_TEAMS
     files[CLASSICS] = struct.pack('>H', len(recs)) + b''.join(recs)
-    recs = []
-    for i, (n, k, name) in enumerate(M34):
-        d = open(os.path.join(src_dir, 'TEAM.%03d' % n), 'rb').read()
-        r = bytearray(d[2 + k * TEAM_SIZE:2 + (k + 1) * TEAM_SIZE])
+    files[M34_FILE] = build_m34(src_dir)
+    return files
+
+
+FILLER = {   # invented names for the '?' slots (no source), per nationality
+    1: ('Franz Josef Karl Johann Leopold Rudolf Anton Ernst'.split(), 'Huber Gruber Pichler Moser Steiner Hofer Lechner Berger'.split()),
+    15: ('J\u00f3zsef J\u00e1nos Istv\u00e1n L\u00e1szl\u00f3 Ferenc Gyula S\u00e1ndor Imre'.split(), 'Nagy T\u00f3th Horv\u00e1th Varga Moln\u00e1r N\u00e9meth Farkas Balogh'.split()),
+    6: ('Josef Jan V\u00e1clav Karel Jaroslav Ladislav Anton\u00edn Miroslav'.split(), 'Nov\u00e1k Dvo\u0159\u00e1k Vesel\u00fd Hor\u00e1k N\u011bmec Pokorn\u00fd Mare\u0161 Posp\u00ed\u0161il'.split()),
+    18: ('Mario Giuseppe Giovanni Luigi Carlo Pietro Bruno Aldo'.split(), 'Rossi Bianchi Colombo Ricci Marino Greco Bruno Galli'.split()),
+}
+
+
+def build_m34(src_dir):
+    """TEAM.090: the 16 Mitropa 1934 clubs (tools/mitropa34.py) on the 1934 national teams of the SWOS 2020 DLC."""
+    import random
+    import c1c2
+    import mitropa34
+    d = open(os.path.join(SWOS2020, 'x_wc34', 'CUSTOMS.EDT'), 'rb').read()
+    nations, known = {}, {}
+    for k in range(struct.unpack('>H', d[:2])[0]):
+        r = d[2 + k * TEAM_SIZE:2 + (k + 1) * TEAM_SIZE]
+        nations.setdefault(r[76], r) if r[5:22].split(b'\0')[0] in (b'ITALY', b'AUSTRIA', b'HUNGARY', b'CZECHOSLOVAKIA') else None
+        for j in range(16):
+            p = r[76 + j * 38:76 + (j + 1) * 38]
+            known.setdefault(p[3:26].split(b'\0')[0].decode('latin1'), p)
+    rng = random.Random(1934)
+    recs, fillers = [], []
+    for i, (club, coach, nat, target, kit, roles) in enumerate(mitropa34.CLUBS):
+        t = nations[nat]
+        n, k, _ = M34[i]                                   # the 1996 placeholder club: kit when none is given
+        old = open(os.path.join(src_dir, 'TEAM.%03d' % n), 'rb').read()[2 + k * TEAM_SIZE:2 + (k + 1) * TEAM_SIZE]
+        r = bytearray(t)
         r[0], r[1] = M34_FILE, i
         struct.pack_into('>H', r, 2, BASE + i)
-        r[5:22] = name.encode('latin1').ljust(17, b'\0')[:17]
+        r[5:22] = club.encode('latin1').ljust(17, b'\0')[:17]
+        r[26:36] = bytes(kit) + bytes((0, 1, 1, 1, 1)) if kit else old[26:36]
+        r[36:59] = c1c2.swos_name(coach).encode('latin1').ljust(23, b'\0')[:23] if coach else bytes(23)
+        avg = sum(t[76 + j * 38 + 32] for j in range(16)) / 16
+        step = max(-3, min(2, round((target - avg) / 2)))
+        pools = {c: list(v) for c, v in roles.items()}
+        borrow = {'G': 'G', 'D': 'DMA', 'M': 'MDA', 'A': 'AMD'}
+        for j in range(16):
+            p = 76 + j * 38
+            cls = c1c2.CLASS[t[p + 26] >> 5]
+            src = next(x for x in borrow[cls] if pools[x])
+            who = pools[src].pop(0)
+            pnat = nat
+            if isinstance(who, tuple):
+                who, pnat = who
+            if who == '?':
+                first, last = FILLER[nat]
+                while True:
+                    who = f'{rng.choice(first)} {rng.choice(last)}'
+                    if c1c2.swos_name(who) not in known:
+                        break
+                fillers.append((club, who))
+            name = c1c2.swos_name(who)
+            if name in known and known[name][0] == pnat:   # a 1934 international: Insane's record (skills, face)
+                q = bytearray(known[name])
+                q[2] = t[p + 2]                            # the slot's shirt number
+                r[p:p + 38] = q
+            else:
+                r[p] = pnat
+                r[p + 3:p + 26] = name.encode('latin1').ljust(23, b'\0')[:23]
+                c1c2.level_player(r, p, step)
+            if name in mitropa34.STARS:
+                c1c2.level_player(r, p, 1)
+                r[p + 32] = 49
+        assert not any(pools.values()), (club, pools)
         recs.append(bytes(r))
-    files[M34_FILE] = struct.pack('>H', len(recs)) + b''.join(recs)
-    return files
+    print(f'TEAM.090: Mitropa 1934, {len(fillers)} invented names: {fillers}')
+    return struct.pack('>H', len(recs)) + b''.join(recs)
 
 
 def _calls(p):

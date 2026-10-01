@@ -986,3 +986,13 @@ World Cup 1982, European Cup 1988-89, Serie A 1986-87 (alt. Euro 88). Disassembl
   CLASSICS table [-2, WC82, M34, -1]. TEAM.090 = PLACEHOLDER 1996 clubs renamed. Builds IT EN FR DE = 09874895 4dae5cdf
   eaaa5499 e2b5f232, TEAM.090 8e8b3a12. TO VERIFY: winners keep tie order; first-leg home = first listed; replay after a
   two-leg aggregate tie works (else ask Davide).
+- Session 26g — Mitropa 1934 real squads (UNTESTED): tools/mitropa34.py (16 clubs in tie order, coach, nationality, target
+  price, kit, players by role starters first; sources in its docstring: tempofradi.hu line-ups of all Hungarian-club ties,
+  it.wikipedia season pages (Bologna, Juventus, Ambrosiana, Napoli), cs.wikipedia 1. asociacni liga 1933/1934 squads (Slavia,
+  Sparta, Kladno, Teplitzer FK), en.wikipedia 1933-34 Rapid season). historic.build_m34: template = the club nation's 1934
+  team of the SWOS 2020 DLC "1934 FIFA WORLD CUP (Italy)" by Insane (slots, shirt numbers, faces); 1934 internationals keep
+  Insane's record; others levelled to the club target (c1c2.level_player); STARS (Meazza, Sindelar, Sarosi, Bican,
+  Schiavio, Planicka, Reguzzoni, Nejedly, Monti, Orsi) price 49 + 1. 22 invented names for unsourced slots ('?', listed by
+  the build; FAC 4, Bocskai 5, Admira 3, Austria 2, Ujpest 2, Hungaria 2, FTC/Ambrosiana/Bologna/Teplitz 1). Unknown coaches
+  (FAC, Austria, Teplitz, Admira) left blank. Kits: given for FAC/Ambrosiana/Bocskai/Admira, else the 1996 club's.
+  TEAM.090 5ec479a8 installed (exes unchanged 09874895...). Libertadores session works in the same tree: commit only own hunks.

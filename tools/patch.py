@@ -21,6 +21,7 @@ import c1c2
 import cafcups
 import countries
 import historic
+import lib97
 import sacups
 import trailer
 from strpool import StrPool
@@ -143,7 +144,8 @@ def patch_exe(src, dst, remap, lang='it'):
     area = countries.Obj2Area(p, obj2_free, obj2_free + p.le.page_size)
     world, caf = cafcups.structs(p, area, WORLD_CAVE)
     world = countries.patch(p, lang, area, world, cafcups.continents(caf))
-    world = historic.patch(p, lang, area, world)
+    world, lib_pre = lib97.patch(p, world)        # Libertadores 1997: bye, real calendar (hist_draw calls lib_pre)
+    world = historic.patch(p, lang, area, world, lib_pre)
     info = cafcups.career_info(caf)
     info['new_career_ptr'] = world              # dword filled below: sacups is assembled before the trailer code
     world += 4

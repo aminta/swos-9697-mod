@@ -27,21 +27,23 @@ STR_BASE = None                               # obj2 offset contest names are re
 
 ARG, BOL, BRA, CHI, COL, ECU, PAR, PER, URU, VEN = 43, 45, 46, 48, 49, 50, 64, 65, 71, 77
 
-# 1997 editions; groups/pairings are consecutive. Libertadores (1.3): 20 clubs in 5 groups of 4, two countries per
-# group as in 1997; the top 3 of each group + the best 4th go to the round of 16 (the game's own "remainder" rule,
-# cseg_8A2CE, as in its Asian Cup). The game has no byes: the holder (River Plate, 1996) plays the group stage in
-# place of its country's runner-up (Racing Club in 1997).
+# 1997 editions; groups/pairings are consecutive. Libertadores (session 27, real 1997 format, tools/lib97.py): 21 clubs,
+# 20 in 5 groups of 4 (two countries per group), the holder (River Plate, 1996) last: it plays no group and enters the
+# round of 16 (lib97.lib_bye / lib_pre); top 3 of each group + the holder = 16.
 LIBERTADORES = [
     (BOL, 1), (PAR, 5), (BOL, 8), (PAR, 2),        # Bolivar, Guarani, Oriente Petrolero, Cerro Porteno
-    (ARG, 39), (ECU, 4), (ARG, 33), (ECU, 2),      # Velez, El Nacional, River Plate (holder), Emelec
+    (ARG, 39), (ECU, 4), (ARG, 32), (ECU, 2),      # Velez, El Nacional, Racing Club, Emelec
     (CHI, 7), (VEN, 13), (CHI, 14), (VEN, 12),     # Colo Colo, Minerven, U. Catolica, Mineros de Guayana
     (BRA, 12), (PER, 12), (BRA, 8), (PER, 1),      # Gremio, Sporting Cristal, Cruzeiro, Alianza Lima
     (URU, 17), (COL, 14), (URU, 16), (COL, 10),    # Penarol, Millonarios, Nacional, Deportivo Cali
+    (ARG, 33),                                     # River Plate (holder): round of 16
 ]
 LIB_N = len(LIBERTADORES)
-# type-2 stages from +0Eh: count, then (teams, groups, teams per group) per stage, the winners' count, padding;
-# from +22h one byte per stage (0x94 two legs, 0x14 single match)
-LIB_STAGES = bytes([5, LIB_N, 5, 4, 16, 0, 16, 8, 0, 8, 4, 0, 4, 2, 0, 2, 1, 0, 0, 0, 0, 0x94, 0x94, 0x94, 0x14])
+LIB_GROUPS = LIB_N - 1                        # clubs in the group stage (the holder is the last)
+# type-2 stages from +0Eh: count, then (teams, groups, teams per group) per stage (the first stage's teams = the
+# contest's team count [0Fh]), the winners' count, padding; from +22h one byte per stage: bits 7-6 legs (2 = two legs),
+# 5-4 extra time, 3-2 penalties -> 0x84 = two legs, no extra time, penalties (1997: aggregate, then penalties)
+LIB_STAGES = bytes([5, LIB_N, 5, 4, 16, 0, 16, 8, 0, 8, 4, 0, 4, 2, 0, 2, 1, 0, 0, 0, 0, 0x84, 0x84, 0x84, 0x84])
 SUPERCOPA = [
     (ARG, 33), (URU, 16), (ARG, 8), (PAR, 7),      # River - Nacional, Boca - Olimpia
     (ARG, 24), (BRA, 9), (ARG, 32), (BRA, 20),     # Independiente - Flamengo, Racing - Sao Paulo
@@ -113,6 +115,9 @@ def patch(p, pool, cave, caf):
     lib[0] = LIB_ID
     assert lib[0x0e:0x12] == bytes([4, 16, 4, 4]) and lib[5] == 0x22 and len(LIB_STAGES) == 0x27 - 0x0e   # names stay at +27h
     lib[0x0e:0x27] = LIB_STAGES
+    assert lib[8] == 1 and lib[9] == 1 and lib[0x0a] == 1
+    lib[9] = 0              # every round through the draw hook (historic.hist_draw: fixed 1997 bracket), not seeded
+    lib[0x0a] = 0           # no away goals (contest [0Ah] -> competition [5Dh]: 0 off, 1 after 90', 2 after e.t.)
     structs = [(LIB_ID, lib, 39, LIBERTADORES),
                (SUP_ID, knockout16(d2[cwc:cwc + 28], SUP_ID), 19, SUPERCOPA),
                (CON_ID, knockout16(d2[cwc:cwc + 28], CON_ID), 19, CONMEBOL),
@@ -703,40 +708,53 @@ sa_qualify:
     jnz .entry
     jmp .country
 .done:
-    mov ax, [LIBWIN]                ; holder keeps the title defence
+    mov ax, [LIBWIN]                ; holder: straight to the round of 16 (21st club, lib97)
     cmp ax, -1
     je .end
-    mov esi, LIBLIST
-    mov ecx, LIB_N
+    mov [LIBLIST + 2 * LIB_GROUPS], ax
+    mov esi, LIBLIST                ; also qualified through its league? that berth goes to its country's 3rd...
+    mov ecx, LIB_GROUPS
 .inlib:
     cmp [esi], ax
-    je .supercopa
+    je .berth
     add esi, 2
     loop .inlib
-    mov esi, RUNNERUP               ; its country's runner-up slot, else Chile's
-    mov edx, RU_DEFAULT
-.ru:
-    cmp byte [esi], 0FFh
-    je .put
-    cmp [esi], al
-    je .own
-    add esi, 2
-    jmp .ru
-.own:
-    movzx edx, byte [esi+1]
-.put:
-    mov bx, [LIBLIST + edx*2]           ; the club it displaces...
-    mov [LIBLIST + edx*2], ax
-    mov esi, CONLIST                    ; ...takes its CONMEBOL place, if it had one (no club plays both)
+    mov edi, CONLIST                ; in the CONMEBOL list? its place goes to the next club of its country
     mov ecx, 16
 .incon:
-    cmp [esi], ax
-    je .swap
-    add esi, 2
+    cmp [edi], ax
+    je .conplace
+    add edi, 2
     loop .incon
     jmp .supercopa
-.swap:
-    mov [esi], bx
+.berth:
+    call .ctry
+    jc .supercopa
+    movzx edx, byte [SPARE_TAB + ebx*2 + 1]
+    mov cx, [CONLIST + edx*2]       ; ... the 3rd moves up from the CONMEBOL list ...
+    mov [esi], cx
+    mov cx, [SPARE + ebx*2]         ; ... and the next club takes its CONMEBOL place
+    mov [CONLIST + edx*2], cx
+    jmp .supercopa
+.conplace:
+    call .ctry
+    jc .supercopa
+    mov cx, [SPARE + ebx*2]
+    mov [edi], cx
+    jmp .supercopa
+.ctry:                              ; al = country -> ebx = its SPARE_TAB row (CF = none)
+    xor ebx, ebx
+.cl:
+    cmp [SPARE_TAB + ebx*2], al
+    je .cf
+    inc ebx
+    cmp ebx, SPARE_N
+    jb .cl
+    stc
+    ret
+.cf:
+    clc
+    ret
 .supercopa:                         ; former champions: a new one takes the last place
     mov esi, SUPLIST
     mov ecx, 16
@@ -761,8 +779,8 @@ sa_qualify:
     call LISTS_OUT
     ret
 LIBWIN: dw 0FFFFh
-RUNNERUP: RU_BYTES
-    db 0FFh
+SPARE_TAB: SPARE_TAB_BYTES          ; per country: db country, CONMEBOL list position of its 3rd
+SPARE: times SPARE_N dw 0           ; per country: the club after its last CONMEBOL rank (season-end table)
 '''
 
 
@@ -792,23 +810,6 @@ def qualify_hook(p, cups, cave, intlist, extra_q=()):
     site = site[0]
     c92d55 = site + 5 + struct.unpack_from('<i', d1, site + 1)[0]
 
-    # qualification table: per country dd league, db n, n x (db rank, dd dest)
-    table = bytearray()
-    ptrs = []                       # (offset in table, tobj, toff)
-    per = {}
-    for base, lst in [(lib + 47, LIB_Q), (con + 27, CON_Q)] + list(extra_q):   # + CAF cups
-        for pos, (c, rank) in enumerate(lst):
-            per.setdefault(c, []).append((rank, base + 2 * pos))
-    for c, entries in per.items():
-        league = p.target(*p.target(2, COMP_TABLE[0] + 4 * c))     # country tables of new countries live in obj1
-        ptrs.append((len(table), *league))
-        table += bytes(4) + bytes((len(entries),))
-        for rank, dest in entries:
-            table += bytes((rank,))
-            ptrs.append((len(table), 1, dest))
-            table += bytes(4)
-    table += b'\xff' * 4
-
     code_at = cave
     # cseg_3AA17: mov [A1], offset competitionFileBuffer; mov eax,[dseg_D8CAA]; cmp [A0],eax; jnz; mov ax,[dseg_D6CDC]
     import re
@@ -826,13 +827,36 @@ def qualify_hook(p, cups, cave, intlist, extra_q=()):
         if holder not in (a4, d7) and not r['A0'] - 0x40 <= holder < r['A0'] + 0x40:   # skip the D0..A6 pseudo registers
             break
     assert d1[c92d55:c92d55 + 2] == b'\xc7\x05' and d1[c92d55 + 10] == 0xa1
-    ru = [(c, pos) for pos, (c, rank) in enumerate(LIB_Q) if rank == 2]
-    ru_bytes = 'db ' + ', '.join(f'{c}, {pos}' for c, pos in ru)
+    # holder rule (session 27): per SA country its 3rd's CONMEBOL position and a spare club (the rank after its last
+    # CONMEBOL rank), read at season end with the other ranks into SPARE
+    spare_c = list(dict.fromkeys(c for c, _ in LIB_Q))
+    spare_q = [(c, max(r for c2, r in LIB_Q + CON_Q if c2 == c) + 1) for c in spare_c]
+    third = [CON_Q.index((c, 3)) for c in spare_c]
+    spare_tab = 'db ' + ', '.join(f'{c}, {t}' for c, t in zip(spare_c, third))
     symbols = {'LISTS_OUT': (1, LISTS_OUT[0]), 'LIB': (1, lib), 'LIBLIST': (1, lib + 47), 'CONLIST': (1, con + 27), 'SUPLIST': (1, sup + 27), 'HOLDER': (2, holder), 'LIB_N': (0, LIB_N),
-               'RU_DEFAULT': (0, dict((c, p) for c, p in ru)[CHI]), 'RU_BYTES': (0, ru_bytes),
+               'LIB_GROUPS': (0, LIB_GROUPS), 'SPARE_N': (0, len(spare_c)), 'SPARE_TAB_BYTES': (0, spare_tab),
                'SLOT0': (2, slot0), 'PLAYER_LEAGUE': (2, pleague), 'PLAYER_DIV': (2, pdiv), 'A4': (2, a4), 'D7': (2, d7), 'DIY': (2, diy), 'CSEG_915ED': (1, f915),
                'CSEG_92D55': (1, c92d55), 'QTABLE': (1, 0), 'INTLIST': (1, intlist)}
     code, _ = nasmcave.assemble(QUALIFY_ASM, code_at, symbols)
+    spare = nasmcave.labels(QUALIFY_ASM, code_at, symbols)['SPARE']
+    extra_q = list(extra_q) + [(spare, spare_q)]
+    # qualification table: per country dd league, db n, n x (db rank, dd dest)
+    table = bytearray()
+    ptrs = []                       # (offset in table, tobj, toff)
+    per = {}
+    for base, lst in [(lib + 47, LIB_Q), (con + 27, CON_Q)] + extra_q:   # + CAF cups, + SPARE
+        for pos, (c, rank) in enumerate(lst):
+            per.setdefault(c, []).append((rank, base + 2 * pos))
+    for c, entries in per.items():
+        league = p.target(*p.target(2, COMP_TABLE[0] + 4 * c))     # country tables of new countries live in obj1
+        ptrs.append((len(table), *league))
+        table += bytes(4) + bytes((len(entries),))
+        for rank, dest in entries:
+            table += bytes((rank,))
+            ptrs.append((len(table), 1, dest))
+            table += bytes(4)
+    table += b'\xff' * 4
+
     table_at = (code_at + len(code) + 3) & ~3
     symbols['QTABLE'] = (1, table_at)
     code, fix = nasmcave.assemble(QUALIFY_ASM, code_at, symbols)

@@ -29,11 +29,11 @@ def find_block(d):
 
 
 def trailer(d):
-    """1.2/1.3: block after the N cached team records (N = word at save offset 95151)."""
+    """1.2/1.3/C6: block after the N cached team records (N = word at save offset 95151)."""
     n = struct.unpack_from('<H', d, 95151)[0]
     at = 95153 + n * 684
     mark = d[at:at + 2]
-    lib = {b'C5': 20, b'C4': 16}.get(mark)
+    lib = {b'C6': 21, b'C5': 20, b'C4': 16}.get(mark)
     if not lib:
         return False
     at += 2

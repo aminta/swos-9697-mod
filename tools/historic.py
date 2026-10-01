@@ -16,6 +16,7 @@ import os
 import struct
 
 import countries
+import lib97
 import nasmcave
 import sacups
 
@@ -67,6 +68,7 @@ DRAWS = [(WC82_ID, [0, 2, 11, 1, 3, 10, 6, 8, 5, 7, 9, 4]),   # 2nd round: 1A 1C
          (M34_ID, list(range(16))), (M34_ID, list(range(8))),  # keep the tie order (no random draw)
          (M34_ID, [0, 1, 3, 2]),                            # SF: Ferencvaros-Bologna, Admira-Juventus
          (M34_ID, [1, 0])]                                  # final: Admira at home first
+DRAWS += lib97.DRAWS                                        # Copa Libertadores 1997 (session 27): fixed real bracket
 
 ASM = '''
 hist_draw:                              ; replaces `call cseg_27F08` in cseg_26DFC (A2 = DIY buffer, A3 = round)
@@ -88,6 +90,7 @@ hist_draw:                              ; replaces `call cseg_27F08` in cseg_26D
     lea edx, [edx + ebx + 2]
     jmp .find
 .perm:
+    call DRAW_PRE                       ; lib97.lib_pre (Libertadores holder into the round of 16), else ret
     add esi, 59h
     xor ebx, ebx
 .copy:
@@ -110,6 +113,8 @@ hist_draw:                              ; replaces `call cseg_27F08` in cseg_26D
     popad
     jmp DRAW_ORIG
 
+draw_pre_none:
+    ret
 DRAW_TABLE: DRAW_BYTES
 DRAW_TMP: times 64 db 0
 
@@ -313,7 +318,7 @@ def _draw_call(p):
     return [c for c, _ in sites], sites[0][1]
 
 
-def patch(p, lang, area, cave):
+def patch(p, lang, area, cave, draw_pre=None):
     """Register CLASSICS and the World Cup 1982; returns the new cave end."""
     d2 = p.le.obj_bytes(2)
     ct, tcn, _, _ = countries.tables(p)
@@ -394,6 +399,7 @@ def patch(p, lang, area, cave):
     symbols = {'COMP254': (2, comp + 4 * 254), 'WORLD_PRESET': (1, wpre), 'SELECT': (1, select),
                'A2': (2, a0 + 8), 'A3': (2, a0 + 12), 'DRAW_ORIG': (1, draw_orig),
                'DRAW_BYTES': (0, 'db ' + ', '.join(str(b) for b in tbl)),
+               'DRAW_PRE': (1, draw_pre) if draw_pre is not None else (0, 'draw_pre_none'),
                'D0': (2, a0 - 32), 'A0': (2, a0), 'SET_COUNTRY_NAMES': (1, set_names), 'CALC_ENTRY': (1, calc_entry),
                'CLASSICS_NAME': (2, rec + 1), 'MENU_COLOR': (0, MENU_COLOR), 'MENU_GAP': (0, MENU_GAP)}
     code, fix = nasmcave.assemble(ASM, at, symbols)

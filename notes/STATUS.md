@@ -846,3 +846,23 @@ World Cup 1982, European Cup 1988-89, Serie A 1986-87 (alt. Euro 88). Disassembl
 - Pushed (main 91c220d) and released: github.com/aminta/swos-9697-mod/releases/tag/v1.3 (patcher 1.3 attached, notes from
   release/notes-1.3.md). Pages updated (manual "sessions 1–25, release 1.3"). Thank-you texts for Playaveli in
   release/announcements/1.3/ (to be posted by Davide).
+
+## Session 26b — historic tournaments: framework + World Cup 1982 skeleton (2026-10-01, static checks only, UNTESTED in game)
+- Davide's list (changed after the analysis): World Cup 1982 first, then European Cup 1959-60 (Puskas/Di Stefano), then one
+  tournament of another era that is neither a World Cup nor a European Cup. Davide: use the SWOS 2020 community data (they
+  made many historic teams and would be happy we use them) -> get their files before writing squads by hand.
+- tools/historic.py: country 89 CLASSICS (it STORICI, fr CLASSIQUES, de KLASSIKER), countriesTable record (continent Europe),
+  teamsCountryNumbers[89] = 1786 (shared base for all historic files, 1786..1817 reserved), competitionsTable[89] = [-2, WC82,
+  -1]. WORLD CUP 1982 (id 0xC1) = clone of the game's worldCup (24 teams, 6x4, best 16) with points byte 2 and 24 pairs
+  (89, 0..23) in the real group order A-F; name = the language's World Cup name + ' 1982'.
+- Hook: `call SelectTeamsFinalMenu` in SelectTeamsForPresetCompetition (IT obj1+0x3C553 area, found by pattern in all 4 exes)
+  -> hist_preset: push [competitionsTable+254*4]; point it at the extended world table [worldCup, -1] + continents + 89 + FF;
+  call; pop. Season call left untouched (no historic league yet). patch.py: historic.patch after countries.patch, TEAM.089
+  written by write_new_teams (global numbers checked free).
+- TEAM.089 = PLACEHOLDER: the 1996 national records of the 24 nations (renamed WEST GERMANY, CZECHOSLOVAKIA, USSR), real 1982
+  squads still to do (SWOS 2020 data or Wikipedia + c1c2-style calibration).
+- Builds IT EN FR DE = c0d88d2b 94d2a07d 7dd496e5 021fa4fa, TEAM.089 e544e16b; installed in c/SWOS (session 25 exes backed up in
+  c/S25BAK, IT 707068a3). Other TEAM files byte-identical.
+- PLAYTEST: (1) preset competition -> top menu shows CLASSICS/STORICI after the continents -> WORLD CUP 1982 -> plays (groups,
+  2 points, knockout); (2) season menu: no CLASSICS; (3) career: new career team choice, world view, transfer search: no
+  CLASSICS; (4) friendly/DIY team choice: no CLASSICS; (5) save/load a running WC 1982 preset competition.

@@ -1041,3 +1041,4 @@ removal ("if you are an author and want something changed, open an issue / write
 - RSSSF (Karel Stokkermans), "Mitropa Cup 1934" (results, play-offs).
 - hu.wikipedia "1934-es kozep-europai kupa"; A Ferencvarosi TC 1933-1934-es szezonja.
 Keep this list updated as new tournaments are added (European Cup 1959-60 next). Mention invented names (marked in STATUS).
+- PLAYTEST Mitropa 1934 (Davide, 2026-10-01): 'ok a posto' (build 132c024f from the Libertadores session, includes M34). Next: FA Cup 1871-72 (first edition) - analysis.

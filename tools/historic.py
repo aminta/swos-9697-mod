@@ -41,11 +41,32 @@ WC82 = ['ITALY', 'POLAND', 'PERU', 'CAMEROON',                         # A
         'SPAIN', 'YUGOSLAVIA', 'NORTHERN IRELAND', 'HONDURAS',          # E
         'BRAZIL', 'SOVIET UNION', 'SCOTLAND', 'NEW ZEALAND']            # F
 
+# Mitropa Cup 1934 (16 clubs, all rounds two legs incl. the final, play-off on aggregate tie, no away goals). TEAM.090.
+# Ties in the real round-of-16 order, first-leg home club first: winners keep the tie order, so the natural pairing gives
+# the real quarter-finals (W1-W2 Ferencvaros-Kladno, W3-W4 Bologna-Rapid, W5-W6 Ujpest-Juventus, W7-W8 Admira-Sparta) and
+# semi-finals (Ferencvaros-Bologna, Juventus-Admira: DRAWS swaps to Admira at home first, and Admira first in the final).
+# (source team file, index, 1934 name) — PLACEHOLDER squads (1996 clubs) until the real 1934 rosters are written.
+M34_ID = 0xC2
+M34_FILE = 90
+M34_NAMES = {'it': b'COPPA MITROPA 1934', 'en': b'MITROPA CUP 1934', 'fr': b'COUPE MITROPA 1934', 'de': b'MITROPACUP 1934'}
+M34 = [(16, 5, 'FERENCVAROS'), (1, 1, 'FLORIDSDORFER AC'),
+       (6, 9, 'SK KLADNO'), (20, 21, 'AMBROSIANA'),
+       (20, 7, 'BOLOGNA'), (16, 3, 'BOCSKAI'),
+       (6, 8, 'SLAVIA PRAHA'), (1, 5, 'RAPID WIEN'),
+       (1, 0, 'AUSTRIA WIEN'), (16, 16, 'UJPEST'),
+       (20, 22, 'JUVENTUS'), (6, 4, 'TEPLITZER FK'),
+       (1, 4, 'ADMIRA WIEN'), (20, 28, 'NAPOLI'),
+       (16, 9, 'HUNGARIA'), (6, 10, 'SPARTA PRAHA')]
+M34_LEGS = 0xA8              # two legs; extra time and penalties only in the play-off (replay) on aggregate tie
+
 # Fixed next-round placement (replaces the random draw cseg_27F08 for our contests). Qualifiers arrive in A2+59h ordered
 # 1st of each group A..F, then 2nd A..F (cseg_8A2CE: rank bonus 1000, group bonus 100, + points); slots are group-major.
 # (contest id, teams in the round, permutation: new[k] = old[perm[k]])
 DRAWS = [(WC82_ID, [0, 2, 11, 1, 3, 10, 6, 8, 5, 7, 9, 4]),   # 2nd round: 1A 1C 2F | 1B 1D 2E | 2A 2C 1F | 2B 2D 1E
-         (WC82_ID, [0, 2, 1, 3])]                           # semi-finals: winner A - winner C, B - D
+         (WC82_ID, [0, 2, 1, 3]),                           # semi-finals: winner A - winner C, B - D
+         (M34_ID, list(range(16))), (M34_ID, list(range(8))),  # keep the tie order (no random draw)
+         (M34_ID, [0, 1, 3, 2]),                            # SF: Ferencvaros-Bologna, Admira-Juventus
+         (M34_ID, [1, 0])]                                  # final: Admira at home first
 
 ASM = '''
 hist_draw:                              ; replaces `call cseg_27F08` in cseg_26DFC (A2 = DIY buffer, A3 = round)
@@ -143,6 +164,15 @@ def build_teams(src_dir):
         recs.append(bytes(r))
     assert len(recs) <= MAX_TEAMS
     files[CLASSICS] = struct.pack('>H', len(recs)) + b''.join(recs)
+    recs = []
+    for i, (n, k, name) in enumerate(M34):
+        d = open(os.path.join(src_dir, 'TEAM.%03d' % n), 'rb').read()
+        r = bytearray(d[2 + k * TEAM_SIZE:2 + (k + 1) * TEAM_SIZE])
+        r[0], r[1] = M34_FILE, i
+        struct.pack_into('>H', r, 2, BASE + i)
+        r[5:22] = name.encode('latin1').ljust(17, b'\0')[:17]
+        recs.append(bytes(r))
+    files[M34_FILE] = struct.pack('>H', len(recs)) + b''.join(recs)
     return files
 
 
@@ -262,11 +292,29 @@ def patch(p, lang, area, cave):
     p.put(1, at, blob)
     at = (at + len(blob) + 3) & ~3
 
-    table = at                                             # CLASSICS: [-2, WC82, -1] (cups only)
+    # Mitropa Cup 1934: same layout, knockout stages only; [0Ah] = 0 away goals off (as worldCup)
+    assert cd[wc + 0x0a] == 0
+    assert ct + 4 * M34_FILE not in fx2
+    p.add_ptr(2, ct + 4 * M34_FILE, 2, rec)                # a club's country = CLASSICS (never null)
+    p.put(2, tcn + 2 * M34_FILE, struct.pack('<H', BASE))
+    rel = area.add(M34_NAMES[lang] + b'\0') - sacups.STR_BASE
+    hdr = bytearray(cd[wc:wc + 0x28])
+    hdr[0] = M34_ID
+    hdr[12] = 2
+    stages = bytes([4, 16, 0, 16, 8, 0, 8, 4, 0, 4, 2, 0, 2, 1, 0, 0, 0, 0, 0, 0] + [M34_LEGS] * 4 + [0, 0])
+    assert len(stages) == 0x28 - 0x0e
+    hdr[0x0e:0x28] = stages
+    m34 = at
+    blob = bytes(hdr) + struct.pack('<II', rel, rel) + b''.join(bytes((M34_FILE, i)) for i in range(len(M34)))
+    p.put(1, at, blob)
+    at = (at + len(blob) + 3) & ~3
+
+    table = at                                             # CLASSICS: [-2, WC82, M34, -1] (cups only)
     p.put(1, at, struct.pack('<i', -2))
     p.add_ptr(1, at + 4, 1, wc82)
-    p.put(1, at + 8, struct.pack('<i', -1))
-    at += 12
+    p.add_ptr(1, at + 8, 1, m34)
+    p.put(1, at + 12, struct.pack('<i', -1))
+    at += 16
     p.add_ptr(2, comp + 4 * CLASSICS, 1, table)
 
     wpre = at                                              # preset world table: + CLASSICS

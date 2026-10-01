@@ -979,3 +979,10 @@ World Cup 1982, European Cup 1988-89, Serie A 1986-87 (alt. Euro 88). Disassembl
     A2+59h[20] (cseg_8A2CE rewrites only [31h] = 20 entries). Stage buffer: 21 rows end at 0x2C3 + 21*18 = 0x43D < 0x443.
   * bye: hist_draw at the R16 (id 0x6C, 16 teams): list[15] (best 4th picked by cseg_8A2CE because 16/5 leaves r = 1)
     := list[20] (holder), then the fixed permutation. Old saves: their running Lib DIY has [15Fh] = 1 -> never reaches hist_draw.
+- Session 26f — Mitropa Cup 1934 skeleton (UNTESTED): id 0xC2 'COPPA MITROPA 1934' / 'MITROPA CUP 1934' / 'COUPE MITROPA 1934' /
+  'MITROPACUP 1934', TEAM.090 (16 clubs, countriesTable[90] = CLASSICS record, base 1786), type-2 struct (worldCup header,
+  away goals [0Ah] = 0), stages [4, 16,0,16, 8,0,8, 4,0,4, 2,0,2, 1] all 0xA8 (two legs, e.t. + pens only in the replay).
+  Ties in the real order (home club first); DRAWS: 16/8 identity, SF [0,1,3,2] (Admira home first), final [1,0].
+  CLASSICS table [-2, WC82, M34, -1]. TEAM.090 = PLACEHOLDER 1996 clubs renamed. Builds IT EN FR DE = 09874895 4dae5cdf
+  eaaa5499 e2b5f232, TEAM.090 8e8b3a12. TO VERIFY: winners keep tie order; first-leg home = first listed; replay after a
+  two-leg aggregate tie works (else ask Davide).

@@ -118,6 +118,12 @@ def patch(p, lang, area, cave):
     hdr[0] = WC82_ID
     assert hdr[12] == 3
     hdr[12] = 2                                            # 2 points for a win (1982)
+    # real 1982 formula: 6 groups of 4 (top 2) -> 4 groups of 3 (winners) -> semi-finals, 3rd place play-off, final.
+    # Stages from +0Eh: count, (teams, groups, teams per group) per stage (knockout: groups 0, 3rd place: FF), the
+    # final 1, padding; from +22h one byte per stage (0 groups, 0x14 single match).
+    stages = bytes([5, 24, 6, 4, 12, 4, 3, 4, 0, 4, 2, 0xff, 2, 2, 0, 2, 1, 0, 0, 0, 0, 0, 0x14, 0x14, 0x14, 0])
+    assert len(stages) == 0x28 - 0x0e
+    hdr[0x0e:0x28] = stages
     pairs = b''.join(bytes((CLASSICS, i)) for i in range(len(WC82)))
     at = cave
     wc82 = at

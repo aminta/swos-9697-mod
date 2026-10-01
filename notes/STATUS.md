@@ -898,3 +898,15 @@ World Cup 1982, European Cup 1988-89, Serie A 1986-87 (alt. Euro 88). Disassembl
   ARSENAL 1930, BAYERN 1931, HERTHA 1929, AIK 1931, BOCA 1919...) but NO Mitropa clubs (Bologna, Ambrosiana, Juventus, Rapid,
   Austria Wien, Admira, Sparta, Slavia, Ferencvaros, Ujpest). => EC 1959-60: 2 clubs from SWOS 2020, the others by hand;
   Mitropa 1930s: all by hand (Wikipedia/RSSSF) unless another DLC has them.
+
+## Session 26d — World Cup 1982 with the REAL formula (2026-10-01, UNTESTED in game)
+- Davide: never approximate when the real format can be replicated (memory feedback_swos_exact_formats).
+- Contest stages (+0Eh): count, (teams, groups, teams per group) per stage (knockout groups 0, 3rd place FF), then 1
+  right after the last stage, padding; +22h one byte per stage (0 groups, 0x14 single match, 0x94 two legs). The DIY
+  designer draws "%0 GROUPS OF %1" for ANY round and the round names include FINAL GROUP(S) -> group stages after the first
+  are supported by the engine.
+- WC82 stages: [5, 24,6,4, 12,4,3, 4,0,4, 2,FF,2, 2,0,2, 1, 0..., legs 0,0,14,14,14]: 6x4 (top 2) -> 4x3 (winners) -> SF,
+  3rd place, F; 2 points. Builds IT EN FR DE = ee4ae05b d8834c10 02d6c886 14619f2f (TEAM.089 47b28c41), in c/SWOS.
+- TO VERIFY in game: how the engine fills the second-round groups (real 1982: A Poland/Belgium/USSR = 1A,1C,2F;
+  B FRG/England/Spain = 1B,1D,2E; C Italy/Argentina/Brazil = 2A,2C,1F; D Austria/France/N.Ireland = 2B,2D,1E) and
+  which group winners meet in the semis (real: A-C, B-D). If the engine's rule differs, find the code and replicate.

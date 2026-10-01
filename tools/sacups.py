@@ -334,27 +334,12 @@ init_sa:
     mov word [D7], 5
     call CHECK
     jz .found
-    mov dword [A0], CAFCL               ; African cups (cafcups.py): D7 = 6, 7, 8
-    mov word [D7], 6
-    call CHECK
-    jz .found
-    mov dword [A0], CAFCWC
-    mov word [D7], 7
-    call CHECK
-    jz .found
-    mov dword [A0], CAFCUP
-    mov word [D7], 8
-    call CHECK
-    jz .found
+;EXTRA_CHAIN                            ; cafcups.CUPS (CAF, CONCACAF): D7 = 6, 7, ...
     mov word [E092F], -1
     jmp DONE
 .found:                                 ; trophy flag, reputation and prize (dseg_D8CBE) as the euro cup of the
-    mov ax, [D7]                        ; same rank: Libertadores = Champions Cup, Supercopa = CWC, CONMEBOL = UEFA
-    sub ax, 3                           ; (CAF Champions League / Cup Winners' Cup / CAF Cup likewise)
-    cmp ax, 3
-    jb .kind
-    sub ax, 3
-.kind:
+    movzx ebx, word [D7]                ; same rank: Libertadores = Champions Cup, Supercopa = CWC, CONMEBOL = UEFA,
+    movzx ax, byte [KINDS - 3 + ebx]    ; extra cups per cafcups.CUPS
     mov [CUP_KIND], ax
     jmp FOUND
 
@@ -396,7 +381,7 @@ load_slot1:
     je LOAD_OUT
     jmp LOAD_CONT
 
-; ProcessCareerFile, replaces "cmp [E092F],2; jz map; jmp out": slot 3 = SA cup for E092F 3..5, CAF cup 6..8
+; ProcessCareerFile, replaces "cmp [E092F],2; jz map; jmp out": slot 3 = SA cup for E092F 3..5, extra cups 6..
 load_slot3:
     cmp word [E092F], 2
     je LOAD_MAP
@@ -409,15 +394,7 @@ load_slot3:
     mov dword [A0], CON
     cmp word [E092F], 5
     je LOAD_MAP
-    mov dword [A0], CAFCL
-    cmp word [E092F], 6
-    je LOAD_MAP
-    mov dword [A0], CAFCWC
-    cmp word [E092F], 7
-    je LOAD_MAP
-    mov dword [A0], CAFCUP
-    cmp word [E092F], 8
-    je LOAD_MAP
+;EXTRA_LOAD
     jmp LOAD_OUT
 
 ; InitializeNewSeason "found" (a euro or SA cup in slot 3): mov ax,[D7]; mov [E092F],ax replaced
@@ -575,6 +552,7 @@ copy:
     pop edi
     pop esi
     ret
+KINDS: KIND_BYTES
 LISTS: dd LIBLIST, SUPLIST, CONLIST
 DEFAULTS: DEFAULT_BYTES
 '''
@@ -679,11 +657,16 @@ def career_hooks(p, cups, cave, cups_all=None, caf=None):
                'SLOT4_CUP': (2, slot4_cup), 'SLOT4': (2, slot4), 'SLOT_SIZE': (0, 0x443), 'LEAGUE_SUBS': (2, league_subs),
                'CSEG_8DAC3': (1, c8dac3), 'PLAYOFF_OUT': (1, po_out), 'PLAYOFF_CONT': (1, po + 13),
                'DONE': (1, done), 'LOAD_OUT': (1, load_out), 'LOAD_CONT': (1, load0 + 10), 'LOAD_MAP': (1, load_map)}
-    for name, off in zip(('CAFCL', 'CAFCWC', 'CAFCUP'), caf['structs']):
-        symbols[name] = (1, off)
+    chain, load_map_lines = [], []
+    for k, off in enumerate(caf['structs']):
+        symbols[f'XCUP{k}'] = (1, off)
+        chain += [f'    mov dword [A0], XCUP{k}', f'    mov word [D7], {6 + k}', '    call CHECK', '    jz .found']
+        load_map_lines += [f'    mov dword [A0], XCUP{k}', f'    cmp word [E092F], {6 + k}', '    je LOAD_MAP']
+    symbols['KIND_BYTES'] = (0, 'db ' + ', '.join(str(x) for x in [0, 1, 2] + caf['kinds']))
     symbols['NEW_CAREER_DEFAULTS'] = (1, caf['defaults'])
-    code, fix = nasmcave.assemble(CAREER_ASM, cave, symbols)
-    labels = nasmcave.labels(CAREER_ASM, cave, symbols)
+    asm = CAREER_ASM.replace(';EXTRA_CHAIN', '\n'.join(chain)).replace(';EXTRA_LOAD', '\n'.join(load_map_lines))
+    code, fix = nasmcave.assemble(asm, cave, symbols)
+    labels = nasmcave.labels(asm, cave, symbols)
     LISTS_OUT[0] = labels['lists_out']
     p.put(1, cave, code)
     for off, tobj, toff in fix:

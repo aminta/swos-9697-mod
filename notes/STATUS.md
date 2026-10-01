@@ -672,3 +672,15 @@ league (12 exists already: Taiwan).
 - Manuals IT+EN: new chapter 19 (New countries and African cups), overview rows, limits, history 15-20, roadmap; mkdocs OK.
 - README + release notes: new countries, CAF cups, invented players explained + invitation to send real squads.
 - Announced 1.1 (Davide, 2026-10-01): forum reply text + short Facebook/Discord version prepared in session (posted by Davide).
+
+## Session 21 — CONCACAF Champions' Cup (2026-10-01, static checks only, UNTESTED in game)
+- cafcups.py generalised: CUPS = [(id, list, groups?, ranks at season end, continent, euro rank)]; CAF CL 0x76 / CWC 0x77 / CAF Cup
+  0x78 + CONCACAF CHAMPIONS CUP 0x79 (16-team knockout; first season: Necaxa, Cruz Azul, Guadalajara, America / DC United, LA Galaxy,
+  Tampa Bay, Kansas City / Alianza, Firpo, FAS, Aguila / Saprissa, Alajuela, Herediano, Puntarenas; season end: ranks 1-4 of MEX,
+  USA, SLV, CRC top divisions). Button in the North America table (cafcups.continents).
+- sacups CAREER_ASM: the extra-cup slot-3 chain and the load mapping are generated (D7/E092F = 6 + index); trophy/prize rank from a
+  KINDS table (0,1,2 for Lib/Sup/CON, then cafcups kinds: CAF 0,1,2, CONCACAF 0).
+- trailer.py: mark 'C2' + 4 lists (130 B); 'C1' saves of 1.1: their 3 CAF lists are read, CONCACAF starts from the defaults.
+- QTABLE 22 countries. Builds IT EN FR DE = c48c7706 fa8de5b9 f4f9fbab 90af0fc8 
+- PLAYTEST: North America menu -> CONCACAF CHAMPIONS CUP; career with Necaxa/DC United/Saprissa -> cup in slot 3; save (file +130 B,
+  'C2') + reload; load a 1.1 'C1' save (EGY2.CAR) -> OK; season end -> CONCACAF list from the standings.

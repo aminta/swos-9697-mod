@@ -15,9 +15,11 @@ import struct
 
 import sacups
 
-CAFCL_ID, CAFCWC_ID, CAFCUP_ID = 0x76, 0x77, 0x78
-NAMES = {CAFCL_ID: b'CAF CHAMPIONS LEAGUE', CAFCWC_ID: b'CAF CUP WINNERS CUP', CAFCUP_ID: b'CAF CUP'}
+CAFCL_ID, CAFCWC_ID, CAFCUP_ID, CCC_ID = 0x76, 0x77, 0x78, 0x79
+NAMES = {CAFCL_ID: b'CAF CHAMPIONS LEAGUE', CAFCWC_ID: b'CAF CUP WINNERS CUP', CAFCUP_ID: b'CAF CUP',
+         CCC_ID: b'CONCACAF CHAMPIONS CUP'}
 ALG, SAF, GHA, EGY, MAR, TUN, NGA, CMR = 42, 69, 79, 52, 53, 54, 56, 58
+MEX, USA, SLV, CRC = 60, 73, 51, 47
 
 # groups / pairings are consecutive; no two clubs of one country together
 CHAMPIONS_LEAGUE = [
@@ -39,17 +41,38 @@ CAF_CUP = [
     (MAR, 5), (NGA, 5), (CMR, 5), (GHA, 1),        # CODM Meknes - Gombe United, PWD Bamenda - Cape Coast
 ]
 
+# CONCACAF Champions' Cup (1.2): 16-team knockout, first season = strong clubs of the 4 countries in the spirit of the
+# 1997 edition (Cruz Azul, Guadalajara, LA Galaxy, DC United, Saprissa...); consecutive pairs from different countries
+CONCACAF = [
+    (MEX, 10), (USA, 17), (SLV, 5), (CRC, 11),     # Necaxa - DC United, Alianza - Saprissa
+    (USA, 6), (MEX, 15), (CRC, 0), (SLV, 33),      # LA Galaxy - Cruz Azul, Alajuela - Luis Angel Firpo
+    (MEX, 7), (SLV, 29), (USA, 14), (CRC, 6),      # Guadalajara - FAS, Tampa Bay - Herediano
+    (SLV, 4), (CRC, 8), (MEX, 0), (USA, 5),        # Aguila - Puntarenas, America - Kansas City
+]
+
+# (id, team list, groups (Champions Cup clone) or knockout, league ranks taken at season end, continent,
+#  euro cup of the same rank for trophy/prize: 0 Champions Cup, 1 Cup Winners' Cup, 2 UEFA)
+CUPS = [
+    (CAFCL_ID, CHAMPIONS_LEAGUE, True, (1, 2), 'africa', 0),
+    (CAFCWC_ID, CUP_WINNERS_CUP, False, (3, 4), 'africa', 1),   # no readable national cup winners: ranks 3-4
+    (CAFCUP_ID, CAF_CUP, False, (5, 6), 'africa', 2),
+    (CCC_ID, CONCACAF, False, (1, 2, 3, 4), 'north_america', 0),
+]
+
 
 def structs(p, area, cave):
-    """Write the three contests into the obj1 cave; returns (new cave end, [(1, struct offset)] for the continent)."""
+    """Write the CUPS contests into the obj1 cave; returns (new cave end, [(1, struct offset)] in CUPS order)."""
     d2 = p.le.obj_bytes(2)
     euro = sacups.unique(d2, sacups.EUROCUP_HDR)
     cwc = sacups.unique(d2, sacups.CWC_HDR)
-    cl = bytearray(d2[euro:euro + 47])
-    cl[0] = CAFCL_ID
-    defs = [(CAFCL_ID, cl, 39, CHAMPIONS_LEAGUE),
-            (CAFCWC_ID, sacups.knockout16(d2[cwc:cwc + 28], CAFCWC_ID), 19, CUP_WINNERS_CUP),
-            (CAFCUP_ID, sacups.knockout16(d2[cwc:cwc + 28], CAFCUP_ID), 19, CAF_CUP)]
+    defs = []
+    for cid, lst, groups, *_ in CUPS:
+        if groups:
+            body = bytearray(d2[euro:euro + 47])
+            body[0] = cid
+            defs.append((cid, body, 39, lst))
+        else:
+            defs.append((cid, sacups.knockout16(d2[cwc:cwc + 28], cid), 19, lst))
     at = cave
     out = []
     for cid, body, name_at, lst in defs:
@@ -61,7 +84,7 @@ def structs(p, area, cave):
         out.append((1, at))
         at += len(blob)
     at = (at + 3) & ~3
-    print(f'exe: CAF cups (ids {CAFCL_ID:#x}-{CAFCUP_ID:#x}) @ obj1+{out[0][1]:#x}')
+    print(f'exe: extra club cups (ids {CUPS[0][0]:#x}-{CUPS[-1][0]:#x}) @ obj1+{out[0][1]:#x}')
     return at, out
 
 
@@ -76,20 +99,23 @@ def _q(lst, ranks):
     return out
 
 
-CL_Q = _q(CHAMPIONS_LEAGUE, (1, 2))
-CWC_Q = _q(CUP_WINNERS_CUP, (3, 4))
-CUP_Q = _q(CAF_CUP, (5, 6))
+def continents(caf):
+    """{continent: [(1, struct offset)]}: cup buttons for countries.patch."""
+    out = {}
+    for (cid, lst, groups, ranks, cont, kind), ptr in zip(CUPS, caf):
+        out.setdefault(cont, []).append(ptr)
+    return out
 
 
 def career_info(caf):
-    """What sacups needs: contest offsets (slot-3 chain) and the qualification entries."""
-    cl, cwc, cup = (off for _, off in caf)
-    return {'structs': (cl, cwc, cup),
-            'q': [(cl + 47, CL_Q), (cwc + 27, CWC_Q), (cup + 27, CUP_Q)]}
+    """What sacups needs: contest offsets (slot-3 chain, D7 = 6, 7, ...), their euro rank and the qualification entries."""
+    offs = [off for _, off in caf]
+    return {'structs': offs, 'kinds': [c[5] for c in CUPS],
+            'q': [(off + (47 if c[2] else 27), _q(c[1], c[3])) for c, off in zip(CUPS, offs)]}
 
 
 def intl_list(p, caf, at):
-    """Append the three cups to the international contests list (relocated by sacups)."""
+    """Append the CUPS contests to the international contests list (relocated by sacups)."""
     lst, code = sacups.INTL_LIST[0]
     d1 = p.get(1, lst, 0x400)
     entries = []

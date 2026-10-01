@@ -10,7 +10,8 @@ D1, only if it fits in g_selectedTeams (N*684 + size <= 68400: after it come the
 load_trailer (replaces `call ProcessCareerFile`): if the file is long enough and has the mark, the lists come from
 it, otherwise (saves without trailer) the defaults (first-season lists). new_career_defaults is called by
 sacups' init_sa when a new career starts.
-Block: 'C1' + the three CAF cup lists (3 x 32 B).
+Block: 'C2' + the extra cup lists in cafcups.CUPS order (CAF x3, CONCACAF; 4 x 32 B). 1.1 saves have 'C1' + the
+three CAF lists: those are read and the newer lists start from the defaults.
 """
 import re
 import struct
@@ -18,7 +19,8 @@ import struct
 import nasmcave
 import sacups
 
-MARK = 0x3143                    # 'C1'
+MARK = 0x3243                    # 'C2': CAF lists + CONCACAF (1.2)
+OLD_MARK, OLD_LISTS = 0x3143, 3   # 'C1' (1.1): the three CAF lists
 TEAM_SIZE, SELECTED_ROOM = 684, 68400
 
 ASM = '''
@@ -58,14 +60,36 @@ load_trailer:
     imul eax, eax, TEAM_SIZE
     add eax, FIXED
     mov esi, eax
-    add eax, BLOCK
+    add eax, 2                          ; at least a mark
     cmp eax, [D1]
     ja .defaults
     add esi, CAREER
+    mov ebp, NLISTS
     cmp word [esi], MARK
+    jne .old
+    mov eax, esi
+    sub eax, CAREER
+    add eax, BLOCK
+    cmp eax, [D1]
+    jbe .file
+    jmp .defaults
+.old:
+    mov ebp, OLD_LISTS
+    cmp word [esi], OLD_MARK            ; 1.1 save: its CAF lists, the others from the defaults
     jne .defaults
-    add esi, 2
+    mov eax, esi
+    sub eax, CAREER
+    add eax, OLD_BLOCK
+    cmp eax, [D1]
+    ja .defaults
+.file:
+    push esi
+    mov esi, DEFAULTS
     call lists_in
+    pop esi
+    add esi, 2
+    mov ecx, ebp
+    call lists_n
     popad
     jmp PROCESS
 .defaults:
@@ -81,9 +105,12 @@ new_career_defaults:
     popad
     ret
 
-lists_in:                       ; esi -> the lists, 32 B each
+lists_in:                       ; esi -> all the lists, 32 B each
+    mov ecx, NLISTS
+lists_n:                        ; esi -> the first ecx lists
     mov edx, LISTS
 .next:
+    push ecx
     mov edi, [edx]
     mov ecx, 32
 .b:
@@ -94,8 +121,9 @@ lists_in:                       ; esi -> the lists, 32 B each
     dec ecx
     jnz .b
     add edx, 4
-    cmp edx, LISTS_END
-    jne .next
+    pop ecx
+    dec ecx
+    jnz .next
     ret
 
 LISTS: LIST_PTRS
@@ -132,7 +160,8 @@ def patch(p, cave, lists):
     defaults = b''.join(p.get(1, off, 32) for off in lists)
     symbols = {'NUMSEL': (2, numsel), 'CAREER': (2, career), 'D1': (2, dreg1), 'WRITEFILE': (1, writefile),
                'PROCESS': (1, process), 'MARK': (0, MARK), 'TEAM_SIZE': (0, TEAM_SIZE), 'ROOM': (0, SELECTED_ROOM),
-               'BLOCK': (0, 2 + 32 * len(lists)), 'FIXED': (0, numsel - career + 2),
+               'BLOCK': (0, 2 + 32 * len(lists)), 'FIXED': (0, numsel - career + 2), 'NLISTS': (0, len(lists)),
+               'OLD_MARK': (0, OLD_MARK), 'OLD_LISTS': (0, OLD_LISTS), 'OLD_BLOCK': (0, 2 + 32 * OLD_LISTS),
                'DEFAULT_BYTES': (0, 'db ' + ', '.join(str(b) for b in defaults))}
     # list pointers are obj1 addresses: give them as symbols so nasmcave adds their fixups
     for k_, off in enumerate(lists):

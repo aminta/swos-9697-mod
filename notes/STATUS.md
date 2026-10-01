@@ -921,3 +921,9 @@ World Cup 1982, European Cup 1988-89, Serie A 1986-87 (alt. Euro 88). Disassembl
   cseg_277E5, Euro: cseg_31CFE; generic with struct[9]=0 -> cseg_27F08 draw, else slot-major fill). Plan: hook cseg_26DFC
   for id 0xC1 and permute A2+59h with the 1982 table [0,2,11, 1,3,10, 6,8,5, 7,9,4] (round 2) and [0,2,1,3] (SF).
   Same hook could give the real 1997 Libertadores (holder straight into the round of 16).
+- PLAYTEST odd groups (Davide): OK, 4 groups of 3 play. Second round was a RANDOM draw (cseg_27F08 = Fisher-Yates shuffle of
+  A2+59h, called from cseg_26A78 and cseg_26DFC when round struct[9] = 0).
+- historic.hist_draw replaces both `call cseg_27F08`: if (contest id, round teams) is in DRAWS -> permute A2+59h
+  (new[k] = old[perm[k]]), else the original shuffle. WC82: 12 -> [0,2,11, 1,3,10, 6,8,5, 7,9,4] (1A 1C 2F | 1B 1D 2E |
+  2A 2C 1F | 2B 2D 1E), 4 -> [0,2,1,3] (SF A-C, B-D). Qualifier order verified statically (cseg_8A2CE: +2C3h = points,
+  cleared by cseg_26395; bonus 32000 - 100*group - 1000*rank). Builds IT EN FR DE = 33c2602b c64bf941 fc3f702f 70537ae3.

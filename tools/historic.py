@@ -39,7 +39,57 @@ WC82 = ['ITALY', 'POLAND', 'PERU', 'CAMEROON',                         # A
         'SPAIN', 'YUGOSLAVIA', 'NORTHERN IRELAND', 'HONDURAS',          # E
         'BRAZIL', 'SOVIET UNION', 'SCOTLAND', 'NEW ZEALAND']            # F
 
+# Fixed next-round placement (replaces the random draw cseg_27F08 for our contests). Qualifiers arrive in A2+59h ordered
+# 1st of each group A..F, then 2nd A..F (cseg_8A2CE: rank bonus 1000, group bonus 100, + points); slots are group-major.
+# (contest id, teams in the round, permutation: new[k] = old[perm[k]])
+DRAWS = [(WC82_ID, [0, 2, 11, 1, 3, 10, 6, 8, 5, 7, 9, 4]),   # 2nd round: 1A 1C 2F | 1B 1D 2E | 2A 2C 1F | 2B 2D 1E
+         (WC82_ID, [0, 2, 1, 3])]                           # semi-finals: winner A - winner C, B - D
+
 ASM = '''
+hist_draw:                              ; replaces `call cseg_27F08` in cseg_26DFC (A2 = DIY buffer, A3 = round)
+    pushad
+    mov esi, [A2]
+    mov al, [esi + 2Dh]
+    mov edi, [A3]
+    movzx ecx, word [edi + 161h]
+    mov edx, DRAW_TABLE
+.find:
+    cmp byte [edx], 0
+    je .orig
+    cmp [edx], al
+    jne .next
+    cmp [edx + 1], cl
+    je .perm
+.next:
+    movzx ebx, byte [edx + 1]
+    lea edx, [edx + ebx + 2]
+    jmp .find
+.perm:
+    add esi, 59h
+    xor ebx, ebx
+.copy:
+    mov al, [esi + ebx]
+    mov [DRAW_TMP + ebx], al
+    inc ebx
+    cmp ebx, ecx
+    jb .copy
+    xor ebx, ebx
+.put:
+    movzx eax, byte [edx + 2 + ebx]
+    mov al, [DRAW_TMP + eax]
+    mov [esi + ebx], al
+    inc ebx
+    cmp ebx, ecx
+    jb .put
+    popad
+    ret
+.orig:
+    popad
+    jmp DRAW_ORIG
+
+DRAW_TABLE: DRAW_BYTES
+DRAW_TMP: times 64 db 0
+
 hist_preset:
     push dword [COMP254]
     mov dword [COMP254], WORLD_PRESET
@@ -105,6 +155,24 @@ def odd_groups(p):
     print(f'exe: odd group sizes allowed (trap obj1+{ms[0].end() - 3:#x})')
 
 
+def _draw_call(p):
+    """obj1 offsets of the two `call cseg_27F08` (next-round random draw) and of cseg_27F08."""
+    import re
+    d1 = p.le.obj_bytes(1)
+    a0 = sacups.regs(d1)['D7'] + 4
+    a2, a3 = a0 + 8, a0 + 12
+    head = (b'\xa1' + struct.pack('<I', a2) + b'\x83\xc0\x59\xa3' + struct.pack('<I', a0) + b'\x8b\x35' +
+            struct.pack('<I', a3) + b'\x66\x8b\x86\x61\x01\x00\x00')
+    starts = {m.start() for m in re.finditer(re.escape(head), d1)}
+    calls = [(m.start(), m.end() + struct.unpack('<i', m.group(1))[0]) for m in re.finditer(rb'\xe8(.{4})', d1, re.S)]
+    # cseg_26A78 (knockout rounds) and cseg_26DFC (group rounds): mov ax,[esi+15Fh]; or ax,ax; jnz +10;
+    # call cseg_27F08; jmp near ...
+    sites = [(c, t) for c, t in calls if t in starts and d1[c + 5] == 0xe9
+             and d1[c - 12:c] == b'\x66\x8b\x86\x5f\x01\x00\x00\x66\x0b\xc0\x75\x0a']
+    assert len(sites) == 2 and sites[0][1] == sites[1][1], sites
+    return [c for c, _ in sites], sites[0][1]
+
+
 def patch(p, lang, area, cave):
     """Register CLASSICS and the World Cup 1982; returns the new cave end."""
     d2 = p.le.obj_bytes(2)
@@ -160,13 +228,22 @@ def patch(p, lang, area, cave):
 
     odd_groups(p)
     pre_call, season_call, select = _calls(p)
-    symbols = {'COMP254': (2, comp + 4 * 254), 'WORLD_PRESET': (1, wpre), 'SELECT': (1, select)}
+    draw_calls, draw_orig = _draw_call(p)
+    regs = sacups.regs(p.le.obj_bytes(1))
+    a0 = regs['D7'] + 4
+    tbl = b''.join(bytes((cid, len(pm))) + bytes(pm) for cid, pm in DRAWS) + b'\0'
+    symbols = {'COMP254': (2, comp + 4 * 254), 'WORLD_PRESET': (1, wpre), 'SELECT': (1, select),
+               'A2': (2, a0 + 8), 'A3': (2, a0 + 12), 'DRAW_ORIG': (1, draw_orig),
+               'DRAW_BYTES': (0, 'db ' + ', '.join(str(b) for b in tbl))}
     code, fix = nasmcave.assemble(ASM, at, symbols)
     labels = nasmcave.labels(ASM, at, symbols)
     p.put(1, at, code)
     for off, tobj, toff in fix:
         p.add_ptr(1, at + off, tobj, toff)
     p.put(1, pre_call + 1, struct.pack('<i', labels['hist_preset'] - (pre_call + 5)))
+    for c in draw_calls:
+        p.put(1, c + 1, struct.pack('<i', labels['hist_draw'] - (c + 5)))
+    print(f'exe: historic: fixed draws {[(hex(cid), len(pm)) for cid, pm in DRAWS]}, calls {[hex(c) for c in draw_calls]}')
     # season: no historic league yet -> its call stays on the original world table
     print(f'exe: historic: {name.decode()} = country {CLASSICS}, {full.decode()} id {WC82_ID:#x} @ obj1+{wc82:#x}, '
           f'preset call obj1+{pre_call:#x} -> obj1+{labels["hist_preset"]:#x} (season call obj1+{season_call:#x} untouched)')

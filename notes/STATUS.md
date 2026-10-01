@@ -715,3 +715,5 @@ league (12 exists already: Taiwan).
 - Builds IT EN FR DE = 059dcfc0 1d7b74c4 bd6c7a93 7c00cc18 ; TEAM.061/063/086 = dba8059d d61bbc3d 810a88f0 
 - Free global numbers now: 1764-1846, 1960-1999, 470-474.
 - TEST: Asia menu (3 new countries, 2 cups; names fit?); career with a Korean/Saudi club; save (+294 B 'C4') / reload; load NEXACAN (C3).
+- PLAYTEST session 23 (Davide): all OK. ASIA1.CAR (Korean club) 102287 B, 'C4' 294 B, lists recomputed at season end
+  (ACC: YAKUHEMA MERUNOS, CHI-HAI, PUSAN DAEWOO, EAST BENGAL...). PASSED.

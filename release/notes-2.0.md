@@ -1,8 +1,8 @@
-<!-- DRAFT for release 1.4 (with the historic tournaments: their section, credits from STATUS "RELEASE TODO" and the
+<!-- DRAFT for release 2.0 (with the historic tournaments: their section, credits from STATUS "RELEASE TODO" and the
      patcher's file list still to add). Libertadores part written in session 27. -->
 ## English
 
-**New in 1.4 — Copa Libertadores 1997, exactly as it was played**
+**New in 2.0 — Copa Libertadores 1997, exactly as it was played**
 
 - **21 clubs:** 20 in 5 groups of 4 (two countries per group, home and away) and the holder, River Plate, who **skips the group stage and goes straight into the round of 16**, as in 1997. Racing Club is back in group 2.
 - **The real group calendar** of 1997, matchday by matchday (group 5 had an irregular calendar: it gets the closest fit).
@@ -20,7 +20,7 @@ Technical manual (chapter 9: how the game encodes group formats, and how a club 
 
 ## Italiano
 
-**Novità della 1.4 — la Copa Libertadores 1997, esattamente come si giocò**
+**Novità della 2.0 — la Copa Libertadores 1997, esattamente come si giocò**
 
 - **21 club:** 20 in 5 gironi da 4 (due paesi per girone, andata e ritorno) e la detentrice, il River Plate, che **salta i gironi ed entra direttamente agli ottavi**, come nel 1997. Nel girone 2 torna il Racing Club.
 - **Il calendario reale dei gironi** del 1997, giornata per giornata (il girone 5 ebbe un calendario irregolare: si usa l'adattamento più vicino).

@@ -946,3 +946,36 @@ World Cup 1982, European Cup 1988-89, Serie A 1986-87 (alt. Euro 88). Disassembl
   Bologna-Rapid, Admira-Sparta. SF: Ferencvaros-Bologna, Admira-Juventus. Final Admira-Bologna 3-2, Bologna-Admira 5-1.
   Top scorer Reguzzoni 10.
 - Engine: replays exist (REPLAY strings, cup option bits from the legs byte -> round +16Dh/+16Fh/+171h), away goals exist too.
+
+## Session 27 — Libertadores 1997 1:1 (2026-10-01, ANALYSIS, no code, builds untouched)
+- REAL 1997 FORMAT (RSSSF sacups/copa97, Wikipedia "1997 Copa Libertadores"): 21 clubs. 20 in 5 groups of 4 (two
+  countries per group: BOL+PAR, ARG+ECU, CHI+VEN, BRA+PER, URU+COL), home and away, 3 points; River Plate (holder) bye
+  straight to the round of 16. Top 3 of every group (15) + holder = 16. NO best 4th. Groups 1997: G1 Bolivar, Oriente
+  Petrolero, Guarani, Cerro Porteno; G2 Velez, El Nacional, RACING, Emelec; G3 Colo-Colo, U. Catolica, Minerven, Mineros;
+  G4 Gremio, Cruzeiro, Sporting Cristal, Alianza Lima; G5 Penarol, Millonarios, Nacional, Deportivo Cali.
+  R16 (first-leg host first, Wikipedia bracket order): 3G2 Racing - H River | 2G5 Millonarios - 1G5 Penarol |
+  3G4 Sporting Cristal - 1G2 Velez | 3G3 Minerven - 1G1 Bolivar | 2G2 El Nacional - 2G4 Cruzeiro | 3G1 Guarani - 1G4 Gremio |
+  3G5 Nacional - 1G3 Colo-Colo | 2G3 U. Catolica - 2G1 Oriente. Group winners + holder host the 2nd leg.
+  QF (fixed bracket): Penarol(T2)-Racing(T1), Bolivar(T4)-S.Cristal(T3), Cruzeiro(T5)-Gremio(T6), U.Catolica(T8)-Colo-Colo(T7).
+  SF: Racing-S.Cristal, Cruzeiro-Colo-Colo. FINAL two legs: S.Cristal-Cruzeiro 0-0, 0-1.
+  Ties: aggregate, NO away goals (Racing-River 3-3 a, 1-1: River would have gone through on away goals, Racing won 5-3 on
+  pens), NO extra time (RSSSF marks no 'aet' anywhere), straight to penalties.
+  1996 (holder Gremio, BRA in G4) used a different R16 schema: holder - 3rd of its own country's group (3G4), 1G2-2G5,
+  1G5-3G2, other ties as 1997 -> the schema depends on the holder's group (no general rule derivable from 2 editions).
+- DIFFERENCES vs 1.3 (session 25): holder plays the groups in place of Racing (should be 21 clubs, holder bye); best 4th
+  goes through (should not); R16 pairs i vs n-1-i with random home (should be the fixed table above); QF/SF random draw
+  (fixed bracket); away goals after 90' ON (OFF); extra time ON (OFF); final single match (two legs).
+- ENGINE FINDINGS:
+  * contest header [0Ah] is NOT "groups home and away" (session 25 note wrong): cseg_24DFA -> DIY [49h] -> cseg_258E4 ->
+    competition [5Dh] = AWAY GOALS (0 off, 1 after 90', 2 after e.t.; cseg_2AE97 two-leg decision). Champions Cup = 1.
+    Group home/away comes from [0Bh] -> round [165h] (meetings per group, 1..4). [0Ch] = points (167h), [0Dh] nibbles -> [4Bh]/[4Dh].
+  * stage byte +22h: bits 7-6 legs (16Dh: 2 = two legs), 5-4 extra time (16Fh: 0 no, 1 yes, 2 if replay), 3-2 penalties
+    (171h: 0 no, 1 yes, 2 if replay). 0x94 = 2 legs + e.t. + pens; 0x84 = 2 legs, no e.t., pens.
+  * contest [8] != 0 -> DIY [4Fh] = 1 = fixed first-stage list (contest order); contest [9] -> round [15Fh] for every
+    stage: 0 = cseg_27F08 shuffle (= hist_draw) then consecutive pairs; != 0 = seeded i vs n-1-i, random home (1.3 Lib: 1).
+  * group stage records are indexed by TEAM TABLE INDEX (cseg_270C7: A5+6Dh = list[i]*18, A2+119h group of each index);
+    A2+59h is a byte list sized for all [0Fh] teams; cseg_24DFA orders it as the contest list. Stage 1 takes the first
+    [161h] entries -> with [0Fh] = 21 and stage 1 = (20,5,4) the 21st club (holder) plays no group and its index stays in
+    A2+59h[20] (cseg_8A2CE rewrites only [31h] = 20 entries). Stage buffer: 21 rows end at 0x2C3 + 21*18 = 0x43D < 0x443.
+  * bye: hist_draw at the R16 (id 0x6C, 16 teams): list[15] (best 4th picked by cseg_8A2CE because 16/5 leaves r = 1)
+    := list[20] (holder), then the fixed permutation. Old saves: their running Lib DIY has [15Fh] = 1 -> never reaches hist_draw.

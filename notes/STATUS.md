@@ -1133,3 +1133,4 @@ Keep this list updated as new tournaments are added (European Cup 1959-60 next).
   T1/T3/T5) were all this bug. Kept design: coin_draw on draw->replay, legs FA 0x00 / Mitropa 0x80.
   Builds IT EN FR DE = 94a90a53 19cc3e18 091e31e3 80d288e0 (UNTESTED in game).
 - PLAYTEST coin toss (Davide, 2026-10-02): PASSED - simulated FA Cup to the end, final replay Royal Engineers 0-0 Wanderers, 'WANDERERS VINCE AL SORTEGGIO', no crash. Still to check: a played/watched drawn replay, a Mitropa play-off.
+- PLAYTEST Mitropa play-off (Davide): Admira Wien 2-2 Napoli in the first-round play-off -> 'NAPOLI VINCE AL SORTEGGIO' (as in 1934 that tie went to a play-off). PASSED. Left: a played/watched drawn replay.

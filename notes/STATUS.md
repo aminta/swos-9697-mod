@@ -1070,3 +1070,8 @@ Keep this list updated as new tournaments are added (European Cup 1959-60 next).
   salists): 20 group clubs from the standings (River in group B as ARG 1/2) + holder NACIONAL (season-1 winner, URU,
   not in URU top 2 nor in CONMEBOL) as 21st; Intercontinental AC MILAN - NACIONAL. Still to test: reload RIV27.CAR,
   RIVER20.CAR (C5), OLIMPIA.CAR (C4).
+- PLAYTEST 27b saves (Davide): RIV27.CAR reload OK (same groups, holder outside). RIVER20.CAR (C5) and OLIMPIA.CAR (C4)
+  load, play to season end and save as RIVER20B.CAR / OLIMPIAB.CAR with trailer C6: new lists 20 + holder (RIVER20B:
+  ATLETICO MINEIRO, not in BRA top 2 nor CONMEBOL, also added to the Supercopa; Intercontinental JUVENTUS - ATLETICO
+  MINEIRO. OLIMPIAB: SAO PAULO). ALL 27b TESTS PASSED. Not exercised yet: holder also qualified through its league
+  (3rd moves up from CONMEBOL, SPARE fills) and holder in the CONMEBOL list; extra time absence not seen on screen.

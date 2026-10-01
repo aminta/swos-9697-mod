@@ -732,3 +732,36 @@ league (12 exists already: Taiwan).
   GOG rebuilt: IT 8bfdd743, EN ef2b78a7, FR a82592bd, DE e8daa60a (2 bytes from the CD builds).
 - Manuals IT+EN: chapter 19 extended (Asia, Central America, CONCACAF, trailer C4/S2 migration, country numbers 86+), note in 15,
   overview, limits, history 21-24, roadmap. README + release notes (invented players: 138 clubs).
+
+## Session 25 — Libertadores 5 gironi (2026-10-01, static checks only, UNTESTED in game)
+- Report by Playaveli (Swos2020 lead): the 1996/1997 Libertadores had 5 groups of 4 (two countries per group), top 3 + the
+  holder (bye) to a two-leg round of 16. 1997 groups (Wikipedia): BOL+PAR, ARG+ECU, CHI+VEN, BRA+PER, URU+COL; River holder.
+- ANALYSIS (type-2 contest struct, converter cseg_24DFA -> DIY file, stage records 0x76 B at +0x15D..):
+  [0Eh] stage count, [0Fh] teams, then per stage a triple (teams, groups, teams per group) -> [161h] [169h]/[15Dh] [16Bh];
+  the next triple's first byte = teams going through ([163h]); after the last stage the winners' count (01); groups = FF in
+  a triple = third-place match (World Cup). From +22h one byte per stage: bits 7-6 legs (0x94 two legs, 0x14 one match).
+  Teams per group must be even (int 3 otherwise). [0Ah] = groups home and away (CC 1, Copa/EC/WC/Asian 0).
+  Examples: CC 04 10 04 04 | 08 00 08 | 04 00 04 | 02 00 02 | 01; WC 06 18 06 04 | 10 00 10 | 08.. | 04.. | 02 FF 02 | 02.. | 01;
+  Copa America 04 0C 03 04 | 08 00 08 ... (2 best thirds); Asian Cup 05 1E 05 06 | 10 00 10 ... (5 groups of 6 -> 16).
+- Group stage end = cseg_8A2CE (WC: cseg_8A94F): q = advancing / groups, r = remainder; merged table scored by place
+  (1st..q-th by group order, the (q+1)-th of every group sorted by their record), first r of those go through too. Then
+  the knockout draw (cseg_26A78): after a group stage no strength seeding, pairs i vs n-1-i, home/away random.
+  => 5 groups of 4, 16 through = top 3 + best 4th is native (same rule as the original Asian Cup).
+  NO byes: every team of the list plays the group stage (team table = [0Fh] teams, groups equal size) -> holder must play
+  in a group. Chosen fallback: holder in its country's group in place of its runner-up (rule of 1.0-1.2, no 3 clubs of one
+  country in a group, CONMEBOL swap kept); 16 = top 3 + best 4th. 1997 list: River replaces Racing (ARG runner-up).
+  Known: R16 pairs 1st A-best 4th, 1st B-3rd E ... 2nd A-3rd A (same group: inherent to i vs n-1-i). Final kept single
+  match (0x14) as in every original SWOS cup (two-leg final untested in the engine: possible experiment).
+- Career: slot 3 holds a type-2 contest as the whole DIY file (cseg_8B71C: type 2 -> diyFileBufferCopy, 0xB52 B), current
+  stage 0x443 B: 20 rows end at 0x2C3 + 20*18 = 0x42B < 0x443. cseg_8D661 counts type-2 teams by [+0Fh] = 20. OK.
+- IMPLEMENTED: sacups LIBERTADORES (20, 1997 groups, River holder), LIB_STAGES, LIB_Q = champion + runner-up of all 10
+  countries (5 groups of 2 countries, 1997 pairings, fixed every season), CON_Q = ARG 3-5, BRA 3-5, CHI 3-4, URU 3-4,
+  others 3rd; holder loop LIB_N. trailer 'C5' (302 B: Lib 40 B); 'C4'/'C3' read through OLD_ITEMS (Lib -> LIB16 buffer),
+  1.0/1.1 S2/SA too; lib_merge: old 16 clubs = groups 1-4 + first 4 default clubs not among them = group 5.
+  salists.py decodes C4/C5 trailers.
+- Builds IT EN FR DE = 707068a3 ca5cf9c0 97928a51 b40b2943; GOG 6fddbd2b 6be9f5f7 a01027c5 4d3d37d7 (2 B from CD each).
+  TEAM files unchanged. 1.2 exes backed up in c/REL12 (+ c/REL12/gog). Diff vs 1.2: obj2 identical; obj1 below the caves
+  only the 7 hook call displacements (SA cave +8 B); fixups outside caves: SA/Europe continent tables, intl list.
+- TEST: preset Sudamerica -> Libertadores: 5 groups of 4, then round of 16; River career to season end (new lists: 20,
+  champions + runners-up); save (+302 B 'C5') / reload; load OLIMPIA.CAR / ASIA1.CAR (C4: group 5 = GUARANI, ORIENTE,
+  CERRO PORTENO, VELEZ for OLIMPIA).

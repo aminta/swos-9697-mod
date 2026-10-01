@@ -1,4 +1,5 @@
-"""Print the South American cup lists saved in a career file (someLeaguesTable[1740..]), both block formats."""
+"""Print the South American cup lists saved in a career file: .CAR trailer C4/C5 (1.2/1.3), else the 1.0/1.1 block
+in someLeaguesTable[1740..] (S2/SA)."""
 import os
 import struct
 import sys
@@ -27,7 +28,29 @@ def find_block(d):
     return hits[0] if len(hits) == 1 else SAVED
 
 
+def trailer(d):
+    """1.2/1.3: block after the N cached team records (N = word at save offset 95151)."""
+    n = struct.unpack_from('<H', d, 95151)[0]
+    at = 95153 + n * 684
+    mark = d[at:at + 2]
+    lib = {b'C5': 20, b'C4': 16}.get(mark)
+    if not lib:
+        return False
+    at += 2
+    print(f'trailer {mark.decode()} ({len(d) - at + 2} B)')
+    for cup, k in (('LIBERTADORES', lib), ('SUPERCOPA', 16), ('CONMEBOL', 16)):
+        teams = [name(d[at + i], d[at + i + 1]) for i in range(0, 2 * k, 2)]
+        at += 2 * k
+        print(cup + ':')
+        for g in range(0, k, 4):
+            print('   ' + ', '.join(teams[g:g + 4]))
+    print('INTERCONTINENTALE: ' + name(d[at], d[at + 1]) + ' - ' + name(d[at + 2], d[at + 3]))
+    return True
+
+
 d = open(sys.argv[1], 'rb').read()
+if trailer(d):
+    sys.exit()
 SAVED = find_block(d)
 mark = struct.unpack_from('<H', d, SAVED)[0]
 if mark not in (0x4153, 0x3253):

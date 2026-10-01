@@ -11,7 +11,7 @@ Contest struct layout (reversed from the European cups):
   names: two dwords, obj2 string offset - STR_BASE (strings must be in obj2)
   team list: (team file number, team index) byte pairs
 Knockout rounds: 0x94 = two legs, 0x14 = final (single match), as the CWC.
-Libertadores copies the Champions Cup (16 teams, 4 groups of 4, then knockout).
+Libertadores copies the Champions Cup header with its own stages (20 teams, 5 groups of 4, round of 16).
 """
 import struct
 
@@ -27,13 +27,21 @@ STR_BASE = None                               # obj2 offset contest names are re
 
 ARG, BOL, BRA, CHI, COL, ECU, PAR, PER, URU, VEN = 43, 45, 46, 48, 49, 50, 64, 65, 71, 77
 
-# 1997 editions, 16 teams each; groups/pairings are consecutive
+# 1997 editions; groups/pairings are consecutive. Libertadores (1.3): 20 clubs in 5 groups of 4, two countries per
+# group as in 1997; the top 3 of each group + the best 4th go to the round of 16 (the game's own "remainder" rule,
+# cseg_8A2CE, as in its Asian Cup). The game has no byes: the holder (River Plate, 1996) plays the group stage in
+# place of its country's runner-up (Racing Club in 1997).
 LIBERTADORES = [
-    (BRA, 8), (BRA, 12), (PER, 12), (PER, 1),      # Cruzeiro, Gremio, Sporting Cristal, Alianza Lima
-    (ARG, 39), (ARG, 32), (CHI, 7), (CHI, 14),     # Velez, Racing, Colo Colo, U. Catolica
-    (URU, 17), (PAR, 2), (PAR, 7), (BOL, 1),       # Penarol, Cerro Porteno, Olimpia, Bolivar
-    (ARG, 33), (ECU, 0), (COL, 0), (COL, 14),      # River Plate, Barcelona, America Cali, Millonarios
+    (BOL, 1), (PAR, 5), (BOL, 8), (PAR, 2),        # Bolivar, Guarani, Oriente Petrolero, Cerro Porteno
+    (ARG, 39), (ECU, 4), (ARG, 33), (ECU, 2),      # Velez, El Nacional, River Plate (holder), Emelec
+    (CHI, 7), (VEN, 13), (CHI, 14), (VEN, 12),     # Colo Colo, Minerven, U. Catolica, Mineros de Guayana
+    (BRA, 12), (PER, 12), (BRA, 8), (PER, 1),      # Gremio, Sporting Cristal, Cruzeiro, Alianza Lima
+    (URU, 17), (COL, 14), (URU, 16), (COL, 10),    # Penarol, Millonarios, Nacional, Deportivo Cali
 ]
+LIB_N = len(LIBERTADORES)
+# type-2 stages from +0Eh: count, then (teams, groups, teams per group) per stage, the winners' count, padding;
+# from +22h one byte per stage (0x94 two legs, 0x14 single match)
+LIB_STAGES = bytes([5, LIB_N, 5, 4, 16, 0, 16, 8, 0, 8, 4, 0, 4, 2, 0, 2, 1, 0, 0, 0, 0, 0x94, 0x94, 0x94, 0x14])
 SUPERCOPA = [
     (ARG, 33), (URU, 16), (ARG, 8), (PAR, 7),      # River - Nacional, Boca - Olimpia
     (ARG, 24), (BRA, 9), (ARG, 32), (BRA, 20),     # Independiente - Flamengo, Racing - Sao Paulo
@@ -103,6 +111,8 @@ def patch(p, pool, cave, caf):
     euro79 = d2[euro:euro + 79]
     lib = bytearray(euro79[:47])
     lib[0] = LIB_ID
+    assert lib[0x0e:0x12] == bytes([4, 16, 4, 4]) and lib[5] == 0x22 and len(LIB_STAGES) == 0x27 - 0x0e   # names stay at +27h
+    lib[0x0e:0x27] = LIB_STAGES
     structs = [(LIB_ID, lib, 39, LIBERTADORES),
                (SUP_ID, knockout16(d2[cwc:cwc + 28], SUP_ID), 19, SUPERCOPA),
                (CON_ID, knockout16(d2[cwc:cwc + 28], CON_ID), 19, CONMEBOL),
@@ -564,7 +574,7 @@ def career_hooks(p, cups, cave, cups_all=None, caf=None):
     assert len(copies) == 1, copies
     copies_base = copies.pop()
     saved_copy = copies_base + SAVED_GLOBAL
-    defaults = b''.join(p.get(1, off, 32) for off in (lib + 47, sup + 27, con + 27)) + p.get(1, cups_all[3] + 24, 4)
+    defaults = b''.join(p.get(1, off, n) for off, n in ((lib + 47, 2 * LIB_N), (sup + 27, 32), (con + 27, 32))) + p.get(1, cups_all[3] + 24, 4)
     sel = struct.unpack_from('<I', d1, check + 0x2d + 2)[0]               # cseg_8D661: mov ax,[selTeamNumber]
     assert d1[check + 0x2d:check + 0x2f] == b'\x66\xa1'
 
@@ -609,7 +619,7 @@ def career_hooks(p, cups, cave, cups_all=None, caf=None):
     symbols['MARK3_AT'] = (2, table + MARK3_GLOBAL)
     symbols['MARK3'] = (0, MARK3)
     TABLES[0] = (table, copies_base)
-    SAVE_ITEMS[0] = [(lib + 47, 32), (sup + 27, 32), (con + 27, 32), (cups_all[3] + 24, 4)]   # Lib, Sup, CON, INT pair
+    SAVE_ITEMS[0] = [(lib + 47, 2 * LIB_N), (sup + 27, 32), (con + 27, 32), (cups_all[3] + 24, 4)]   # Lib, Sup, CON, INT pair
     asm = CAREER_ASM.replace(';EXTRA_CHAIN', '\n'.join(chain)).replace(';EXTRA_LOAD', '\n'.join(load_map_lines))
     code, fix = nasmcave.assemble(asm, cave, symbols)
     labels = nasmcave.labels(asm, cave, symbols)
@@ -641,15 +651,16 @@ def career_hooks(p, cups, cave, cups_all=None, caf=None):
 # The player's own top division is read from season slot 0 instead (same
 # layout, cseg_8B71C copies it into DIY_competitionStart), i.e. the real table.
 # Supercopa keeps its fixed list (former Libertadores winners).
-LIB_Q = [  # groups of 4, no two clubs of a country together
-    (ARG, 1), (BRA, 2), (PER, 1), (VEN, 1),
-    (BRA, 1), (ARG, 2), (ECU, 1), (BOL, 1),
-    (URU, 1), (PAR, 2), (COL, 1), (CHI, 2),
-    (PAR, 1), (URU, 2), (CHI, 1), (COL, 2),
+LIB_Q = [  # 5 groups of 4 = champion and runner-up of two countries (1997 pairings)
+    (BOL, 1), (PAR, 1), (BOL, 2), (PAR, 2),
+    (ARG, 1), (ECU, 1), (ARG, 2), (ECU, 2),
+    (CHI, 1), (VEN, 1), (CHI, 2), (VEN, 2),
+    (BRA, 1), (PER, 1), (BRA, 2), (PER, 2),
+    (URU, 1), (COL, 1), (URU, 2), (COL, 2),
 ]
 CON_Q = [  # consecutive pairs meet in round 1
-    (ARG, 3), (VEN, 2), (BRA, 3), (BOL, 2), (ARG, 4), (ECU, 2), (BRA, 4), (PER, 2),
-    (CHI, 3), (URU, 3), (COL, 3), (PAR, 3), (PER, 3), (BOL, 3), (ECU, 3), (VEN, 3),
+    (ARG, 3), (VEN, 3), (BRA, 3), (BOL, 3), (ARG, 4), (ECU, 3), (BRA, 4), (PER, 3),
+    (CHI, 3), (URU, 3), (COL, 3), (PAR, 3), (ARG, 5), (CHI, 4), (BRA, 5), (URU, 4),
 ]
 
 QUALIFY_ASM = '''
@@ -696,7 +707,7 @@ sa_qualify:
     cmp ax, -1
     je .end
     mov esi, LIBLIST
-    mov ecx, 16
+    mov ecx, LIB_N
 .inlib:
     cmp [esi], ax
     je .supercopa
@@ -817,7 +828,7 @@ def qualify_hook(p, cups, cave, intlist, extra_q=()):
     assert d1[c92d55:c92d55 + 2] == b'\xc7\x05' and d1[c92d55 + 10] == 0xa1
     ru = [(c, pos) for pos, (c, rank) in enumerate(LIB_Q) if rank == 2]
     ru_bytes = 'db ' + ', '.join(f'{c}, {pos}' for c, pos in ru)
-    symbols = {'LISTS_OUT': (1, LISTS_OUT[0]), 'LIB': (1, lib), 'LIBLIST': (1, lib + 47), 'CONLIST': (1, con + 27), 'SUPLIST': (1, sup + 27), 'HOLDER': (2, holder),
+    symbols = {'LISTS_OUT': (1, LISTS_OUT[0]), 'LIB': (1, lib), 'LIBLIST': (1, lib + 47), 'CONLIST': (1, con + 27), 'SUPLIST': (1, sup + 27), 'HOLDER': (2, holder), 'LIB_N': (0, LIB_N),
                'RU_DEFAULT': (0, dict((c, p) for c, p in ru)[CHI]), 'RU_BYTES': (0, ru_bytes),
                'SLOT0': (2, slot0), 'PLAYER_LEAGUE': (2, pleague), 'PLAYER_DIV': (2, pdiv), 'A4': (2, a4), 'D7': (2, d7), 'DIY': (2, diy), 'CSEG_915ED': (1, f915),
                'CSEG_92D55': (1, c92d55), 'QTABLE': (1, 0), 'INTLIST': (1, intlist)}

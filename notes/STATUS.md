@@ -892,3 +892,9 @@ World Cup 1982, European Cup 1988-89, Serie A 1986-87 (alt. Euro 88). Disassembl
 - TEAM.089 = 47b28c41 (16418 B), exes unchanged (c0d88d2b ...). Credit for README/release: "World Cup 1982 squads: SWOS 2020
   DLC by Insane (SWOS United, sensiblesoccer.de), used with permission".
 - Public use OK (Davide relayed, 2026-10-01: "Just use it... and credit the author"): TEAM.089 may ship in the patcher with the credit above.
+- Checked candidate DLCs (orig/swos2020/x_*): 'CLUB TEAMS (1956-1979)' (Insane) = only the European Cup FINALISTS 1956-79
+  (2 per year: REAL MADRID 60 + FRANKFURT 60 for 1959-60; nearby: REIMS 59, REAL MADRID 59, BARCELONA 61, BENFICA 61, MILAN 58).
+  '1900s Retro Pack Teams (1900-1970)' (Francescomanetti82 and Gorzo) = 48 iconic clubs (REAL MADRID 1958, BARCELONA 1951,
+  ARSENAL 1930, BAYERN 1931, HERTHA 1929, AIK 1931, BOCA 1919...) but NO Mitropa clubs (Bologna, Ambrosiana, Juventus, Rapid,
+  Austria Wien, Admira, Sparta, Slavia, Ferencvaros, Ujpest). => EC 1959-60: 2 clubs from SWOS 2020, the others by hand;
+  Mitropa 1930s: all by hand (Wikipedia/RSSSF) unless another DLC has them.

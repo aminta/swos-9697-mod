@@ -1132,3 +1132,4 @@ Keep this list updated as new tournaments are added (European Cup 1959-60 next).
   +9 and text_site+2 (as lib97 does for its calendar hook). The earlier conclusions ('engine e.t./pens if replay crash',
   T1/T3/T5) were all this bug. Kept design: coin_draw on draw->replay, legs FA 0x00 / Mitropa 0x80.
   Builds IT EN FR DE = 94a90a53 19cc3e18 091e31e3 80d288e0 (UNTESTED in game).
+- PLAYTEST coin toss (Davide, 2026-10-02): PASSED - simulated FA Cup to the end, final replay Royal Engineers 0-0 Wanderers, 'WANDERERS VINCE AL SORTEGGIO', no crash. Still to check: a played/watched drawn replay, a Mitropa play-off.

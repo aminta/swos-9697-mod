@@ -833,3 +833,7 @@ World Cup 1982, European Cup 1988-89, Serie A 1986-87 (alt. Euro 88). Disassembl
 - RELEASE NOTES 1.3 (Davide's ok): explain that the game has no byes, so the holder plays the group stage in place of its
   country's runner-up (rule since 1.0); with 16 of 20 going through it is almost a bye. Also mention: final single match,
   R16 pairing 2nd A - 3rd A same group (engine draw).
+- PLAYTEST session 25 (Davide): tests 1-4 PASSED (menu 5 groups + R16, River career season end, save/reload, OLIMPIA/ASIA1
+  C4 load). RIVER20.CAR = 126235 B (N=45, 'C5' 302 B): Libertadores of 20 from the standings (BOLIVAR, PRESIDENTE HAYES,
+  WILSTERMAN, CERRO PORTENO / INDEPENDIENTE, EL NACIONAL, RIVER PLATE, EMELEC / ...), Intercontinental JUVENTUS - GREMIO
+  (Gremio won the 20-club Libertadores; in Lib as BRA2 and in Supercopa). No club in both Libertadores and CONMEBOL.

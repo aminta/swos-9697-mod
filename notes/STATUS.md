@@ -566,3 +566,26 @@ end -> S20-21 Morocco, Tunisia, Nigeria, Cameroon data -> S22-23 CAF cups -> CON
 NOT verified this session: menu display of a name stored in the new page; the 23 unread country>=80 tests; whether all_countries_list is
 used; what the single-team files 057/059/070 and TEAM.068 are used for; the max N of cached teams in a career; game behaviour with a 12-team
 league (12 exists already: Taiwan).
+
+## Session 18 — infrastructure + Costa Rica pilot (2026-10-01, static checks only, UNTESTED in game)
+- obj2 grows in patch.py: pages added with lepatch.add_object_page(.., 2) until (npages-1)*4096 >= old vsize (EN/IT +2 pages,
+  FR/DE +3: their obj2 has 196 physical pages and vsize 0xC5950/0xC5750), vsize = 0xC7000 in all 4. Free area obj2+0xC6000..0xC7000
+  (above the stack top ESP = old vsize). le.LE now also accepts bytes.
+- tools/countries.py: COUNTRIES config (number -> continent, name/adjective per language, league), Obj2Area allocator (strings and
+  country records in the new obj2 page), tables() finds countriesTable / teamsCountryNumbers / seasonEndList by content in every
+  language, patch(): country record + countriesTable ptr, league struct + country table [league, -2, -1] in the obj1 cave +
+  competitionsTable ptr, continent table rebuilt in the cave with the new country (retarget competitionsTable[80+k]), seasonEndList
+  copied to the cave + new league countries (retarget the single obj1 reference, ENG obj1+0x814AD). Contest ids from 0x70 (free 0x70..0x7B).
+- Costa Rica (47): record [1,'COSTA RICA','COSTA RICAN' (EN; other languages adjective = name)], league id 0x70, 1 division of 12,
+  2 games per pair (22 rounds), 3 points, season bytes 0x38/0x20 (as El Salvador/Mexico), names 'PRIMERA DIVISION'/'PRIMERA' (existing
+  Spanish strings reused). TEAM.047 unchanged (12 clubs, league byte 0, global base 1073).
+- Diff vs 1.0.1 (all 4 languages): obj2 only countriesTable[47] + competitionsTable[47] dwords; obj1 only 104 new cave bytes
+  (0xA1932..0xA19B2); fixups +5 added, 2 retargeted (competitionsTable[83], seasonEndList ref), none removed. obj1 cave now ends 0xA19B4
+  of 0xA2000 (~1.6 KB left: Africa will need another obj1 page).
+- Builds in c/SWOS: ITALIAN 089bbb06, ENGLISH ee8fb457, FRENCH d7060663, GERMAN 015e36cd, TEAM.020 ded1b97b (unchanged).
+  1.0.1 release builds backed up in c/REL101/ (cb6c817f, d094c39d, 1b7e87d9, 69071a3d, ded1b97b).
+- PLAYTEST needed (Davide): (1) Select teams / world view -> North America shows COSTA RICA with 12 clubs and PRIMERA DIVISION;
+  (2) new career with a Costa Rican club, play/simulate to season end + save/reload; (3) a career with another club (e.g. Italian)
+  to season end: no freeze with the longer season-end list; (4) one non-Italian language quick check of the name.
+- Pending after the playtest: manuals IT+EN (docs/src, mkdocs.py, 2 artifacts), patcher 1.1 (mkpatcher), then session 19 (save trailer
+  + Egypt).

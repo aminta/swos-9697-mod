@@ -15,8 +15,10 @@ import struct
 import sys
 
 sys.path.insert(0, os.path.dirname(__file__))
+from le import LE
 from lepatch import LEPatch, add_object_page
 import c1c2
+import countries
 import sacups
 from strpool import StrPool
 
@@ -108,9 +110,18 @@ def remap_italian_cup_teams(p, remap):
 
 def patch_exe(src, dst, remap, lang='it'):
     grown = dst + '.tmp'
-    open(grown, 'wb').write(add_object_page(open(src, 'rb').read(), 1))
+    data = add_object_page(open(src, 'rb').read(), 1)
+    while True:                    # obj2: zero pages over the old BSS/stack tail, then one free page
+        data = add_object_page(data, 2)
+        le2 = LE(data)
+        if (le2.obj(2).npages - 1) * le2.page_size >= le2.obj(2).vsize:
+            break
+    open(grown, 'wb').write(data)
     p = LEPatch(grown)
     os.remove(grown)
+    o2 = p.le.obj(2)
+    obj2_free = (o2.npages - 1) * p.le.page_size       # the last page: above the stack top (ESP = old vsize)
+    assert o2.vsize <= obj2_free and p.le.esp_obj == 2 and p.le.esp <= obj2_free
     cfg = LANGS[lang]
     sacups.NAMES[sacups.INT_ID] = cfg['int']
     d2 = p.le.obj_bytes(2)
@@ -127,7 +138,11 @@ def patch_exe(src, dst, remap, lang='it'):
     assert cave <= SA_CAVE
     cave = sacups.patch(p, pool, SA_CAVE)
     assert cave <= OBJ1_NEW_VSIZE
+    area = countries.Obj2Area(p, obj2_free, obj2_free + p.le.page_size)
+    cave = countries.patch(p, lang, area, cave)
+    assert cave <= OBJ1_NEW_VSIZE, hex(cave)
     p.set_vsize(1, OBJ1_NEW_VSIZE)
+    p.set_vsize(2, obj2_free + p.le.page_size)
     p.add_flags(1, 0x2)            # writable: season end rewrites the SA cup team lists in the cave
     delta, shift = p.save(dst)
     print(f'exe: fixups +{delta} bytes, data pages moved {shift:#x}, cave used up to obj1+{cave:#x}')

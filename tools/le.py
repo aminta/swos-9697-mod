@@ -21,7 +21,7 @@ class Obj:
 class LE:
     def __init__(self, path):
         self.path = path
-        self.data = bytearray(open(path, 'rb').read())
+        self.data = bytearray(path if isinstance(path, (bytes, bytearray)) else open(path, 'rb').read())
         d = self.data
         self.hdr = h = struct.unpack_from('<I', d, 0x3c)[0]
         assert d[h:h + 2] == b'LE', 'not an LE file'

@@ -664,3 +664,10 @@ league (12 exists already: Taiwan).
 - PLAYTEST session 20 (Davide): EGY.CAR (no trailer) loaded, played on, saved as EGY2.CAR = 106195 B (+98), trailer 'C1' + 3 lists,
   reload OK. The saved lists are the season-end ones from the standings (CAF CL starts with EL MANSOURA = Egyptian champion of the
   simulated season, WYDAD, JASPER UNITED...): CAF qualifiers from standings also confirmed. PASSED.
+
+## Release 1.1 (2026-10-01, Davide's ok)
+- Patcher 1.1 (mkpatcher VERSION 1.1): 14 outputs; new TEAM.052..058 shipped whole (Davide's call), produced together with TEAM.020
+  (entries with 'with': 'TEAM.020', delta from an empty source); GOG exes rebuilt (c/gog: IT da2e0c46, EN 9d329d03, FR aaeeae22,
+  DE 33866252; 2 bytes from the CD builds). Node test of the page's own JS: 14/14 outputs OK.
+- Manuals IT+EN: new chapter 19 (New countries and African cups), overview rows, limits, history 15-20, roadmap; mkdocs OK.
+- README + release notes: new countries, CAF cups, invented players explained + invitation to send real squads.

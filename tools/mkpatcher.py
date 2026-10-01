@@ -20,7 +20,7 @@ import os
 import struct
 
 ROOT = os.path.join(os.path.dirname(__file__), '..')
-VERSION = '1.0.1'
+VERSION = '1.1'
 BLOCK = 16
 FILES = [  # (id, original path, patched path, file name in the game folder)
     ('ITALIAN.EXE', 'orig/ITALIAN.EXE', 'c/SWOS/ITALIAN.EXE', 'ITALIAN.EXE'),
@@ -28,6 +28,12 @@ FILES = [  # (id, original path, patched path, file name in the game folder)
     ('FRENCH.EXE', 'orig/FRENCH.EXE', 'c/SWOS/FRENCH.EXE', 'FRENCH.EXE'),
     ('GERMAN.EXE', 'orig/GERMAN.EXE', 'c/SWOS/GERMAN.EXE', 'GERMAN.EXE'),
     ('TEAM.020', 'orig/DATA/TEAM.020', 'c/SWOS/DATA/TEAM.020', 'DATA/TEAM.020'),
+    # Roadmap 2 (1.1): new African countries (africa.py), shipped whole (orig None): produced together with TEAM.020
+    ('TEAM.052', None, 'c/SWOS/DATA/TEAM.052', 'DATA/TEAM.052'),
+    ('TEAM.053', None, 'c/SWOS/DATA/TEAM.053', 'DATA/TEAM.053'),
+    ('TEAM.054', None, 'c/SWOS/DATA/TEAM.054', 'DATA/TEAM.054'),
+    ('TEAM.056', None, 'c/SWOS/DATA/TEAM.056', 'DATA/TEAM.056'),
+    ('TEAM.058', None, 'c/SWOS/DATA/TEAM.058', 'DATA/TEAM.058'),
     # GOG release (2013): same files, 2 bytes changed in each exe (a national cup's months); TEAM.020 identical.
     # Originals in orig/gog/, built with patch.patch_exe(orig/gog/X, c/gog/X, ...)
     ('ITALIAN.EXE (GOG)', 'orig/gog/ITALIAN.EXE', 'c/gog/ITALIAN.EXE', 'ITALIAN.EXE'),
@@ -124,13 +130,15 @@ def decode(src, ops):
 def build():
     entries = []
     for fid, orig, patched, target in FILES:
-        src = open(os.path.join(ROOT, orig), 'rb').read()
+        src = open(os.path.join(ROOT, orig), 'rb').read() if orig else b''
         dst = open(os.path.join(ROOT, patched), 'rb').read()
         ops, inserted = encode(src, dst)
         assert decode(src, ops) == dst, fid
-        entries.append({'id': fid, 'target': target, 'size': len(src), 'md5': hashlib.md5(src).hexdigest(),
-                        'out_md5': hashlib.md5(dst).hexdigest(), 'out_size': len(dst),
-                        'delta': base64.b64encode(ops).decode()})
+        e = {'id': fid, 'target': target, 'size': len(src), 'md5': hashlib.md5(src).hexdigest() if orig else None,
+             'out_md5': hashlib.md5(dst).hexdigest(), 'out_size': len(dst), 'delta': base64.b64encode(ops).decode()}
+        if not orig:
+            e['with'] = 'TEAM.020'                  # new file: produced when the user's TEAM.020 is recognised
+        entries.append(e)
         print(f'{fid}: {len(dst)} bytes, delta {len(ops)} bytes ({inserted} inserted)')
     page = open(os.path.join(ROOT, 'tools', 'patcher_template.html'), encoding='utf-8').read()
     page = page.replace('/*PATCHES*/null', json.dumps(entries)).replace('{{VERSION}}', VERSION)

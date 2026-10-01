@@ -830,3 +830,6 @@ World Cup 1982, European Cup 1988-89, Serie A 1986-87 (alt. Euro 88). Disassembl
 - Strength: c1c2-style calibration from the real final ranking (WC: final position; EC: round reached; Serie A: table), stars
   hand-set to max (Maradona, Platini... per tournament list).
 - Estimate: impianto + WC82 = 1.5 sessions; Serie A 86-87 = 1; EC 88-89 = 1.5-2 (Euro 88 instead = 0.5). Docs/release apart.
+- RELEASE NOTES 1.3 (Davide's ok): explain that the game has no byes, so the holder plays the group stage in place of its
+  country's runner-up (rule since 1.0); with 16 of 20 going through it is almost a bye. Also mention: final single match,
+  R16 pairing 2nd A - 3rd A same group (engine draw).

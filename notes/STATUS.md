@@ -641,3 +641,12 @@ league (12 exists already: Taiwan).
 - md5 19c: IT EN FR DE = 7974c499 3320e8c3 555b8ecc eb001b72 
 - PLAYTEST: career with an African top club (e.g. AL AHLY, RAJA) -> CAF Champions League in slot 3 in season 1, save/reload keeps it;
   season end -> next season's CAF lists = standings (world view / the player's qualification).
+
+## PLAYTEST sessions 18-19 (Davide, 2026-10-01): ALL PASSED
+- After fix 230e17e (league byte 5 = names offset 9 + 6*divisions; 0x15 broke the 1-division Costa Rica league -> freeze in
+  preset competitions). Builds 5ff732c5 / e4ad379a / 002aab76 / cc6a9075.
+- TODO (Davide's question, not urgent): long careers were only tested 2-3 seasons (SA cups) / 1 season (Roadmap 2). No known
+  accumulating state (lists rewritten each season with fixed sizes, balance byte recomputed, single-division new leagues, global numbers
+  static), but test: results-only careers of 6-8 seasons (Italian club; African club, ideally moving country by job offer), saving
+  each season under a new name; check the saved block with salists.py. Known cosmetic: a CAF/SA cup win counts as the euro trophy
+  of the same rank.

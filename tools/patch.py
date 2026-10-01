@@ -21,6 +21,7 @@ import c1c2
 import cafcups
 import countries
 import sacups
+import trailer
 from strpool import StrPool
 
 ROOT = os.path.join(os.path.dirname(__file__), '..')
@@ -141,7 +142,9 @@ def patch_exe(src, dst, remap, lang='it'):
     area = countries.Obj2Area(p, obj2_free, obj2_free + p.le.page_size)
     world, caf = cafcups.structs(p, area, WORLD_CAVE)
     world = countries.patch(p, lang, area, world, {'africa': caf})
-    cave = sacups.patch(p, pool, SA_CAVE, cafcups.career_info(caf))
+    info = cafcups.career_info(caf)
+    world, info['defaults'] = trailer.patch(p, world, [base for base, _ in info['q']])
+    cave = sacups.patch(p, pool, SA_CAVE, info)
     assert cave <= WORLD_CAVE, hex(cave)
     world = cafcups.intl_list(p, caf, world)
     assert world <= OBJ1_NEW_VSIZE, hex(world)

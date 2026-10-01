@@ -650,3 +650,14 @@ league (12 exists already: Taiwan).
   static), but test: results-only careers of 6-8 seasons (Italian club; African club, ideally moving country by job offer), saving
   each season under a new name; check the saved block with salists.py. Known cosmetic: a CAF/SA cup win counts as the euro trophy
   of the same rank.
+
+## Session 20 — .CAR trailer: CAF lists saved with the career (2026-10-01, UNTESTED in game)
+- tools/trailer.py: save_trailer replaces `call WriteFile` in SaveCareerFile (ENG obj1+0x23245): if N*684 + 98 <= 68400 it writes
+  'C1' + the 3 CAF lists (96 B) after the team records and adds 98 to D1 (length). load_trailer replaces `call ProcessCareerFile`
+  in LoadCareerFile (ENG obj1+0x231AC): file size (D1 from LoadFile) >= 95153 + N*684 + 98 and mark 'C1' -> lists from the file,
+  else the first-season defaults. new_career_defaults is called by sacups init_sa when a new career starts (no S2 mark).
+  careerFileBuffer ENG obj2+0x958C, g_numSelectedTeams obj2+0x2093B (save offset 95151). The same load/save code pattern is used
+  twice for competition files (buffer obj2+0x1F4F6): the career one is the buffer used once.
+- Code @ WORLD_CAVE obj1+0xA2288, 16 fixups. Builds: IT 4156ff39, EN 2b1753cb, FR 369d5004, DE a8e363c0.
+- TEST: load EGY.CAR (no trailer, 106097 B) -> OK as before; save under a new name -> 106195 B (+98, ends with 'C1' + lists);
+  reload it; a new career after loading a save -> CAF lists = 1997 ones.

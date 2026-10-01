@@ -285,6 +285,7 @@ init_sa:
     mov ebx, DEFAULTS
     call lists_in
     call lists_out
+    call NEW_CAREER_DEFAULTS            ; CAF cup lists back to the first-season ones (trailer.py)
 .lists_ok:
     cmp dword [PLAYER_CUP], 0           ; no national cup (all SA countries): slot 1 is free
     jne .intercontinental
@@ -680,6 +681,7 @@ def career_hooks(p, cups, cave, cups_all=None, caf=None):
                'DONE': (1, done), 'LOAD_OUT': (1, load_out), 'LOAD_CONT': (1, load0 + 10), 'LOAD_MAP': (1, load_map)}
     for name, off in zip(('CAFCL', 'CAFCWC', 'CAFCUP'), caf['structs']):
         symbols[name] = (1, off)
+    symbols['NEW_CAREER_DEFAULTS'] = (1, caf['defaults'])
     code, fix = nasmcave.assemble(CAREER_ASM, cave, symbols)
     labels = nasmcave.labels(CAREER_ASM, cave, symbols)
     LISTS_OUT[0] = labels['lists_out']

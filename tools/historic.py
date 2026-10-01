@@ -24,6 +24,8 @@ MAX_TEAMS = 32
 CLASSICS = 89
 TEAM_SIZE = 684
 
+MENU_COLOR = 11              # bg.backAndFrameColor of the CLASSICS button: BLUE_TO_PURPLE_11 (continents are brown)
+MENU_GAP = 5                 # pixels between OCEANIA and CLASSICS
 NAMES = {'it': b'STORICI', 'en': b'CLASSICS', 'fr': b'CLASSIQUES', 'de': b'KLASSIKER'}
 
 # World Cup 1982: squads from the SWOS 2020 DLC "1982 FIFA WORLD CUP (Spain)" by Insane (v1.1, sensiblesoccer.de,
@@ -90,6 +92,32 @@ hist_draw:                              ; replaces `call cseg_27F08` in cseg_26D
 DRAW_TABLE: DRAW_BYTES
 DRAW_TMP: times 64 db 0
 
+hist_names:                             ; replaces `call SetCountryNames` in SelectTeamsReinit
+    call SET_COUNTRY_NAMES
+    pushad
+    push dword [D0]
+    push dword [A0]
+    mov dword [D0], 21                  ; first team/country entry
+    call CALC_ENTRY
+    mov esi, [A0]
+.e:
+    cmp word [esi + 2], 87              ; ordinal 87 = view selected teams (end of the entries)
+    je .done
+    cmp word [esi + 4], 0               ; isInvisible
+    jne .n
+    cmp dword [esi + 26h], CLASSICS_NAME
+    jne .n
+    mov word [esi + 1Eh], MENU_COLOR    ; bg.backAndFrameColor
+    add word [esi + 16h], MENU_GAP      ; y (recomputed by SetTeamsCoordinates before every layout)
+.n:
+    add esi, 56
+    jmp .e
+.done:
+    pop dword [A0]
+    pop dword [D0]
+    popad
+    ret
+
 hist_preset:
     push dword [COMP254]
     mov dword [COMP254], WORLD_PRESET
@@ -153,6 +181,26 @@ def odd_groups(p):
     assert len(ms) == 1, len(ms)
     p.put(1, ms[0].end() - 5, b'\xeb')
     print(f'exe: odd group sizes allowed (trap obj1+{ms[0].end() - 3:#x})')
+
+
+def _names_call(p):
+    """SelectTeamsReinit: call SetTeamsCoordinates; call SetLeagueNames; call SetCountryNames; mov ax, [...].
+    SetCountryNames is the one that colours names starting with '.' (cmp byte [esi],'.'; ...; mov word [esi+1Eh],7).
+    Returns (offset of `call SetCountryNames`, SetCountryNames, CalcMenuEntryAddress)."""
+    import re
+    d1 = p.le.obj_bytes(1)
+    d0 = sacups.regs(d1)['D7'] - 28
+    out = []
+    for m in re.finditer(rb'\xe8(.{4})\xe8(.{4})\xe8(.{4})\x66\xa1', d1, re.S):
+        t = m.start() + 15 + struct.unpack('<i', m.group(3))[0]
+        body = d1[t:t + 0x200]
+        i = body.find(b'\x80\x3e\x2e')
+        if i < 0 or not re.search(rb'\x66\xc7\x46\x1e\x07\x00', body[i:i + 20]):
+            continue
+        c = re.search(rb'\xc7\x05' + re.escape(struct.pack('<I', d0)) + rb'\x15\x00\x00\x00\xe8(.{4})', body, re.S)
+        out.append((m.start() + 10, t, t + c.end() + struct.unpack('<i', c.group(1))[0]))
+    assert len(out) == 1, out
+    return out[0]
 
 
 def _draw_call(p):
@@ -229,18 +277,22 @@ def patch(p, lang, area, cave):
     odd_groups(p)
     pre_call, season_call, select = _calls(p)
     draw_calls, draw_orig = _draw_call(p)
+    names_call, set_names, calc_entry = _names_call(p)
     regs = sacups.regs(p.le.obj_bytes(1))
     a0 = regs['D7'] + 4
     tbl = b''.join(bytes((cid, len(pm))) + bytes(pm) for cid, pm in DRAWS) + b'\0'
     symbols = {'COMP254': (2, comp + 4 * 254), 'WORLD_PRESET': (1, wpre), 'SELECT': (1, select),
                'A2': (2, a0 + 8), 'A3': (2, a0 + 12), 'DRAW_ORIG': (1, draw_orig),
-               'DRAW_BYTES': (0, 'db ' + ', '.join(str(b) for b in tbl))}
+               'DRAW_BYTES': (0, 'db ' + ', '.join(str(b) for b in tbl)),
+               'D0': (2, a0 - 32), 'A0': (2, a0), 'SET_COUNTRY_NAMES': (1, set_names), 'CALC_ENTRY': (1, calc_entry),
+               'CLASSICS_NAME': (2, rec + 1), 'MENU_COLOR': (0, MENU_COLOR), 'MENU_GAP': (0, MENU_GAP)}
     code, fix = nasmcave.assemble(ASM, at, symbols)
     labels = nasmcave.labels(ASM, at, symbols)
     p.put(1, at, code)
     for off, tobj, toff in fix:
         p.add_ptr(1, at + off, tobj, toff)
     p.put(1, pre_call + 1, struct.pack('<i', labels['hist_preset'] - (pre_call + 5)))
+    p.put(1, names_call + 1, struct.pack('<i', labels['hist_names'] - (names_call + 5)))
     for c in draw_calls:
         p.put(1, c + 1, struct.pack('<i', labels['hist_draw'] - (c + 5)))
     print(f'exe: historic: fixed draws {[(hex(cid), len(pm)) for cid, pm in DRAWS]}, calls {[hex(c) for c in draw_calls]}')

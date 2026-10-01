@@ -927,3 +927,7 @@ World Cup 1982, European Cup 1988-89, Serie A 1986-87 (alt. Euro 88). Disassembl
   (new[k] = old[perm[k]]), else the original shuffle. WC82: 12 -> [0,2,11, 1,3,10, 6,8,5, 7,9,4] (1A 1C 2F | 1B 1D 2E |
   2A 2C 1F | 2B 2D 1E), 4 -> [0,2,1,3] (SF A-C, B-D). Qualifier order verified statically (cseg_8A2CE: +2C3h = points,
   cleared by cseg_26395; bonus 32000 - 100*group - 1000*rank). Builds IT EN FR DE = 33c2602b c64bf941 fc3f702f 70537ae3.
+- CLASSICS button styling (Davide): hist_names replaces `call SetCountryNames` in SelectTeamsReinit (IT obj1+0x3A77C; after
+  SetTeamsCoordinates + SetLeagueNames); after it, the visible entry (ordinals 21..86, 56 B each, CalcMenuEntryAddress(21))
+  whose fg.string (+26h) == the CLASSICS name gets bg.backAndFrameColor (+1Eh) = 11 BLUE_TO_PURPLE and y (+16h) += 5.
+  (The game already colours names starting with '.' PINK_TO_BROWN_7.) Builds IT EN FR DE = 0f5d5996 af054b11 e9fd74c3 cb612d39.

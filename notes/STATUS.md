@@ -1145,3 +1145,8 @@ Keep this list updated as new tournaments are added (European Cup 1959-60 next).
   (tools/, on top of le/TEAM parsing and the .CAR layout we know: fixed part 95151 B + N cached team records).
 - He also changed: Champions League to a pure knock-out (no groups), nations/number of teams per nation in the euro cups,
   Coppa Italia final as a single match. (Our mod already rewrites cup formats; possible exchange of notes / collaboration.)
+- PLAYTEST watched drawn replay (Davide, 2026-10-02): FA Cup 2nd round replay Barnes 0-0 Queen's Park watched (VIS. PARTITA):
+  no e.t., no shoot-out, teams left the pitch, results screen 'BARNES VINCE AL SORTEGGIO'. PASSED.
+- HISTORIC TOURNAMENTS DONE (World Cup 1982, Mitropa Cup 1934, FA Cup 1871-72): all playtests passed. Handed over to the
+  Libertadores session for the 2.0 release notes / patcher (release only with Davide's ok). European Cup 1959-60 parked
+  (research in session 26e). Debug config dosbox-swos-debug.conf (core=normal, git-ignored) kept for future crashes.

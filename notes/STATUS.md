@@ -725,3 +725,4 @@ league (12 exists already: Taiwan).
 - CONCACAF list 1.2: MEX 4, USA 3, CRC 3, SLV 2, GUA 2, HON 2 (Necaxa, DC United, Saprissa, Comunicaciones, Olimpia, Cruz Azul...).
   QTABLE 30 countries. mkpatcher + TEAM.087/088.
 - Builds IT EN FR DE = cb940d42 ad93f6cb dd7d41b0 2e92ddcd . Free global numbers: 1786-1846, 1960-1999, 470-474.
+- PLAYTEST session 24 (Davide): OK. OLIMPIA.CAR (Honduran club) 'C4', CONCACAF recomputed with GUA/HON clubs. PASSED.

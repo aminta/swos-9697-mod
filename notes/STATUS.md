@@ -684,3 +684,5 @@ league (12 exists already: Taiwan).
 - QTABLE 22 countries. Builds IT EN FR DE = c48c7706 fa8de5b9 f4f9fbab 90af0fc8 
 - PLAYTEST: North America menu -> CONCACAF CHAMPIONS CUP; career with Necaxa/DC United/Saprissa -> cup in slot 3; save (file +130 B,
   'C2') + reload; load a 1.1 'C1' save (EGY2.CAR) -> OK; season end -> CONCACAF list from the standings.
+- PLAYTEST session 21 (Davide): all OK. NEXACA.CAR (Mexican club, 20 cached teams) = 108963 B with 'C2' trailer (130 B), 4 lists
+  recomputed at season end (CONCACAF: UNAM, Kansas City, Atletico Marte, Puriscal...). PASSED.

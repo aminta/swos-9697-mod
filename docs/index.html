@@ -100,8 +100,9 @@ html{scroll-behavior:smooth}
     <li><a href="#hook">17 · Hook table</a></li>
     <li><a href="#verifica">18 · Verifying without playing</a></li>
     <li><a href="#nazioni">19 · New countries and continental club cups (1.1–1.2)</a></li>
-    <li><a href="#limiti">20 · Limits and open issues</a></li>
-    <li><a href="#storia">21 · History and next steps</a></li>
+    <li><a href="#storici">20 · Classic tourneys (2.0)</a></li>
+    <li><a href="#limiti">21 · Limits and open issues</a></li>
+    <li><a href="#storia">22 · History and next steps</a></li>
   </ol>
 </nav>
 
@@ -109,9 +110,9 @@ html{scroll-behavior:smooth}
 <header class="top">
   <div class="eyebrow">Sensible World of Soccer 96/97 · DOS · ENGLISH.EXE · <a class="lang" href="it.html">Versione italiana</a></div>
   <h1>SWOS ITA Mod Technical Manual</h1>
-  <p>Documentation for anyone who wants to understand, extend or port the mod's patches: Serie C1 and C2, South American club cups (Libertadores, Supercopa, CONMEBOL), the Intercontinental Cup in career mode, real 1996-97 squads. Everything below was worked out from the disassembly and checked with builds and test games.</p>
+  <p>Documentation for anyone who wants to understand, extend or port the mod's patches: Serie C1 and C2, South American club cups (Libertadores, Supercopa, CONMEBOL), the Intercontinental Cup in career mode, real 1996-97 squads, classic tourneys (World Cup 1982, Mitropa Cup 1934, FA Cup 1871-72). Everything below was worked out from the disassembly and checked with builds and test games.</p>
   <div class="meta">
-    <span>State as of <b>2026-10-01</b> (sessions 1–25, release 1.3)</span>
+    <span>State as of <b>2026-10-02</b> (sessions 1–27, release 2.0)</span>
     <span>ENGLISH.EXE build <b><code>ca5cf9c0…</code></b></span>
     <span>TEAM.020 <b><code>ded1b97b…</code></b></span>
     <span>Original ENGLISH.EXE <b><code>aa21cd1c…</code></b></span>
@@ -140,6 +141,7 @@ html{scroll-behavior:smooth}
 <tr><td>Intercontinental</td><td>Single-match final in December between the Champions Cup winner and the Libertadores winner; finalists updated at season end; slot 2 or slot 4</td><td><code>sacups.py</code></td><td><span class="pill ok">slot 2, season end</span> <span class="pill todo">slot 4</span></td></tr>
 <tr><td>New countries (1.1–1.2)</td><td>Costa Rica league; Egypt, Morocco, Tunisia, Nigeria, Cameroon, South Korea, China, Saudi Arabia, Guatemala, Honduras with league and national cup (real clubs, invented players)</td><td><code>countries.py</code>, <code>africa.py</code></td><td><span class="pill ok">tested (1 season)</span></td></tr>
 <tr><td>Continental club cups (1.1–1.2)</td><td>CAF Champions League, CAF Cup Winners Cup, CAF Cup, CONCACAF Champions Cup, Asian Club Championship, Asian Cup Winners Cup: menus, world view, career, qualifiers from the standings, saved in a trailer of the .CAR file</td><td><code>cafcups.py</code>, <code>trailer.py</code></td><td><span class="pill ok">tested (1 season)</span></td></tr>
+<tr><td>Classic tourneys (2.0)</td><td>World Cup 1982, Mitropa Cup 1934, FA Cup 1871-72 with real formats and squads, in Preset competitions only; odd group sizes, fixed draws, byes, drawing lots</td><td><code>historic.py</code>, <code>lib97.py</code></td><td><span class="pill ok">tested</span></td></tr>
 </tbody></table></div>
 
 <!-- 2 -->
@@ -174,6 +176,7 @@ ndisasm -b32 -o 0xA1000 file.bin              # disassembler (Homebrew); nasm to
 <div class="rule"><b>No string instructions (<code>movs</code>, <code>rep</code>).</b> ES is not guaranteed to equal DS where we enter. All copies in added code are byte loops through DS.</div>
 <div class="rule"><b>"Registers" D0–D7 and A0–A6 are memory variables.</b> The game is a machine translation of 68000 (Amiga) code. Routines take parameters in these variables (<code>D0</code> = obj2+0x3146D …). x86 registers are not preserved across game calls.</div>
 <div class="rule"><b>Search by signature, never fixed addresses.</b> Every location is found with byte patterns and confirmed with <code>assert</code>. This makes porting to the other executables (English, French, German) possible and guards against silent errors.</div>
+<div class="rule"><b>Remove the fixup of an overwritten address.</b> A hook that overwrites an instruction holding an absolute address must first remove its fixup (<code>p.remove</code>); otherwise the loader rewrites those bytes and the new <code>call</code> jumps to garbage (<a href="#storici">section 20</a>).</div>
 <div class="rule"><b>Never drop teams that freeze.</b> A team or save that causes a freeze must be kept and analysed: it is the proof of the bug.</div>
 
 <!-- 4 -->
@@ -520,7 +523,24 @@ assert blk[:2] == b'S2' and sum(blk) % 256 == 0</code></pre>
 </ul>
 
 <!-- 20 -->
-<h2 id="limiti"><span class="n">20</span>Limits and open issues</h2>
+<h2 id="storici"><span class="n">20</span>Classic tourneys (2.0)</h2>
+<p>Three historic tournaments with their real formats and squads, playable <strong>only in Preset competitions</strong>: they never show up in career, season, DIY, friendlies or team editing. Code in <code>historic.py</code> (bye: <code>lib97.py</code>), squads in <code>mitropa34.py</code> and <code>facup72.py</code> (sources in their docstrings).</p>
+<ul>
+<li><strong>The button.</strong> Every team/competition menu is <code>SelectTeamsFinalMenu</code> started from <code>competitionsTable[254]</code> (the world table). <code>hist_preset</code> replaces only the <code>call SelectTeamsFinalMenu</code> of <code>SelectTeamsForPresetCompetition</code> (obj1+0x3C6DF): for the duration of the call <code>competitionsTable[254]</code> points at an extended world table (<code>[worldCup, -1]</code> + continents + 89), then it is restored. Country 89 (CLASSICS: it TORNEI STORICI, en CLASSIC TOURNEYS, fr TOURNOIS ANCIENS, de TURNIERKLASSIKER) has a <code>countriesTable</code> record and <code>competitionsTable[89] = [-2, WC82, M34, FA, -1]</code> (cups only). <code>hist_names</code> replaces <code>call SetCountryNames</code> in <code>SelectTeamsReinit</code> and gives the button colour 11 (blue to purple) and a 5-pixel gap.</li>
+<li><strong>Teams.</strong> TEAM.089 (World Cup 1982), TEAM.090 (Mitropa 1934), TEAM.091 (FA Cup 1871-72): team file number = country number, <code>countriesTable[90]/[91]</code> = the CLASSICS record. All three share the global numbers 1786–1817 (they never meet each other or real teams in one contest, and <code>SetLeagueNumbers</code> runs only in a career). The SWOS 2020 DLCs' <code>CUSTOMS.EDT</code> has the same 684-byte records as the TEAM files.</li>
+<li><strong>Contests</strong> (World Cup header clones): 0xC1 <strong>World Cup 1982</strong>, stages <code>05 18 06 04 | 0C 04 03 | 04 00 04 | 02 FF 02 | 02 00 02 | 01</code>, rounds <code>00 00 14 14 14</code>, 2 points for a win; 0xC2 <strong>Mitropa 1934</strong>, <code>04 10 00 10 | 08 00 08 | 04 00 04 | 02 00 02 | 01</code>, rounds <code>80</code> (two legs, no extra time, no penalties: an aggregate tie is replayed as a play-off), away goals off; 0xC3 <strong>FA Cup 1871-72</strong>, <code>04 0F 00 0F | 08 00 08 | 04 00 04 | 02 00 02 | 01</code>, rounds <code>00</code> (single match, a draw is replayed).</li>
+<li><strong>Odd group sizes.</strong> <code>cseg_24DFA</code> trapped (<code>test D0,1; jz; int 3; jmp $</code>) on an odd number of teams per group, but the groups are DIY leagues, which take 2–24 teams. <code>odd_groups</code> turns the <code>jz</code> into <code>jmp</code> (obj1+0x153F4): the 1982 second round has 4 groups of 3.</li>
+<li><strong>Fixed draws.</strong> <code>hist_draw</code> replaces both <code>call cseg_27F08</code> (the random shuffle of <code>A2+59h</code> called by <code>cseg_26A78</code> and <code>cseg_26DFC</code> when the round's [15Fh] = 0; obj1+0x16B55, +0x16ED9). <code>DRAWS</code> rows: contest id, teams in the round, permutation <code>new[k] = old[perm[k]]</code>; a permutation starting with <code>FF</code> means "only the bye, then the game's own random draw". Group qualifiers arrive 1st of each group A…, then 2nd A…, then the best (<code>cseg_8A2CE</code>). World Cup 1982: second round <code>0 2 11 | 1 3 10 | 6 8 5 | 7 9 4</code> (1A 1C 2F, 1B 1D 2E, 2A 2C 1F, 2B 2D 1E), semi-finals <code>0 2 1 3</code> (A–C, B–D). Mitropa: the real ties in order, semi-finals and final with the real home club first.</li>
+<li><strong>Bye in a knockout cup</strong> (FA Cup: Hampstead Heathens). Same mechanism as the Libertadores (<a href="#contest">section 9</a>): <code>lib_bye</code> plays round 1 with 14 of 15 clubs; <code>cseg_8A7BF</code> copies only 14 entries and <code>cseg_2ACAE</code> puts the 7 winners first, so <code>A2+59h[14]</code> survives and <code>lib_pre</code> moves it into place 7 of round 2, before the open draw.</li>
+<li><strong>Drawing lots.</strong> No penalties in 1872 or 1934: a drawn replay or play-off was decided by lot. <code>coin_draw</code> replaces <code>or byte [D7],80h; and byte [D7],0FDh</code> in <code>cseg_2AE97</code> (draw → replay, obj1+0x1B52F) for played and simulated matches alike: in our contests, when <code>DIY_competitionStart[32Fh]</code> (replay counter) is not 0, a random winner (<code>Rand2</code>), result stored as "penalties" 1-0 / 0-1 with the decided flags. <code>coin_text</code> replaces the <code>mov ax,[skip]</code> before the results <code>PrintFormatted</code> in <code>cseg_289AC</code> (obj1+0x18D56) and prints "%a WIN ON THE TOSS OF A COIN".</li>
+<li><strong>Lesson (golden rule).</strong> When a hook overwrites an instruction that holds an absolute address, its fixup must be removed first (<code>p.remove</code>): otherwise the DOS/4GW loader rewrites those bytes and the new <code>call</code> jumps to garbage. Every crash of the first coin-toss builds was this.</li>
+<li><strong>Squads.</strong> World Cup 1982: the 24 nations of the SWOS 2020 DLC by Insane, taken by name. Mitropa 1934: real line-ups on the 1934 national teams of Insane's World Cup 1934 DLC (slots, numbers, faces; 1934 internationals keep his record, the others are levelled to the club's strength; Meazza, Sindelar, Sárosi, Bican, Schiavio, Plánička, Reguzzoni, Nejedlý, Monti, Orsi at the top). FA Cup 1871-72: the "British Football Pioneers" DLC by Francescomanetti82 and Gorzo as templates. Players copied from a DLC keep the role of their slot.</li>
+<li><strong>Reconstructed names</strong> (no source; typical names of the country). Mitropa 1934 (22): Ferencváros 1 (Ferenc Horváth), Floridsdorfer AC 4 (Anton Huber, Leopold Hofer, Franz Moser, Anton Gruber), Ambrosiana 1 (Pietro Greco), Bologna 1 (Giovanni Colombo, reserve goalkeeper), Bocskai 5 (Sándor Varga, Ferenc Tóth, Ferenc Molnár, Imre Varga, József Németh), Austria Wien 2 (Karl Hofer, Anton Hofer), Újpest 2 (István Farkas, József Tóth), Teplitzer FK 1 (Miroslav Pokorný), Admira Wien 3 (Franz Pichler, Karl Moser, Franz Berger), Hungária 2 (Imre Molnár, József Balogh). Unknown coaches left blank (Floridsdorfer AC, Austria Wien, Teplitzer FK, Admira Wien); some players have only a surname, as in the sources; Kladno and Teplitz kits are provisional. FA Cup 1871-72 (59): Civil Service, Hitchin, Royal Engineers and Wanderers 1 each, Hampstead Heathens 2 (reserves), Maidenhead 5, Great Marlow 5, Upton Park 4, Harrow Chequers 6, Reigate Priory 15 (only R. W. Clutton is real), Donington School all 16. The playing positions of the 1871 players are reconstructed (line-ups were printed without them); Hitchin, Maidenhead and Reigate Priory kits are provisional; "HAMPSTEAD HEATH." because of the 16-character limit.</li>
+<li><strong>Not reproducible.</strong> FA Cup walkovers, withdrawals and the committee's "both clubs go through" decisions (Hitchin–Crystal Palace, Queen's Park–Donington, Wanderers–Crystal Palace), Queen's Park withdrawing before the semi-final replay.</li>
+</ul>
+
+<!-- 21 -->
+<h2 id="limiti"><span class="n">21</span>Limits and open issues</h2>
 <ul>
 <li><strong>C1/C2 groups.</strong> In 1996-97 C1 had 2 groups and C2 had 3. The mod uses one group per series. The full reality (128 teams) does not fit the limit of about 93 teams per nation. C1 with two groups would fit (92), but it needs promotions and relegations between parallel divisions, and checks on the 80-team career limit and on global numbers: estimated 2–3 sessions.</li>
 <li><strong>Intercontinental in slot 4.</strong> A finalist in a division with play-offs gets no Intercontinental. The routine <code>cseg_8BF89</code> (called by <code>cseg_8B2D3</code>) has not been analysed: if it keeps data tied to the slot number, the buffer swap could leave it inconsistent. In the season record the Intercontinental in slot 4 has no name.</li>
@@ -532,8 +552,8 @@ assert blk[:2] == b'S2' and sum(blk) % 256 == 0</code></pre>
 <li><strong>English bench (after 1.0).</strong> In the pre-match line-up English clubs show 14 players (11 + 3 on the bench). The original game does the same, and <code>TEAM.008</code> has 16 players per club: it is a game rule. To do: find where the bench size comes from (rules at buffer +3Dh…41h, values 5/2/8 set by <code>InitCareer</code>) and raise it to 5.</li>
 </ul>
 
-<!-- 21 -->
-<h2 id="storia"><span class="n">21</span>History and next steps</h2>
+<!-- 22 -->
+<h2 id="storia"><span class="n">22</span>History and next steps</h2>
 <div class="tbl"><table>
 <thead><tr><th>Session</th><th>Content</th><th>Test</th></tr></thead>
 <tbody>
@@ -549,6 +569,7 @@ assert blk[:2] == b'S2' and sum(blk) % 256 == 0</code></pre>
 <tr><td>17–20</td><td>Analysis of how a country is registered; added obj2 pages; Costa Rica; five African countries with national cups; CAF cups in career; save trailer; release 1.1</td><td><span class="pill ok">passed (1 season)</span></td></tr>
 <tr><td>21–24</td><td>CONCACAF Champions Cup; all saved lists in the .CAR trailer (global numbers 1730–1846 freed); South Korea, China, Saudi Arabia and the Asian cups; Guatemala and Honduras; release 1.2</td><td><span class="pill ok">passed (1 season)</span></td></tr>
 <tr><td>25</td><td>Group formats decoded; Copa Libertadores with 5 groups of 4 (20 clubs, top 3 + best 4th), trailer 'C5' (report by Playaveli, Swos2020); release 1.3</td><td><span class="pill ok">passed (1 season)</span></td></tr>
+<tr><td>26</td><td>Classic tourneys: World Cup 1982 (real formula, 4 groups of 3), Mitropa Cup 1934, FA Cup 1871-72 (bye, replays, drawing lots); squads from SWOS 2020 DLCs and period sources</td><td><span class="pill ok">passed</span></td></tr>
 <tr><td>27</td><td>Copa Libertadores with the real 1997 format: holder straight into the round of 16, real group calendar and bracket, no away goals or extra time, two-leg final; trailer 'C6'</td><td><span class="pill ok">passed (preset, career, saves)</span></td></tr>
 </tbody></table></div>
 <h3>Roadmap</h3>

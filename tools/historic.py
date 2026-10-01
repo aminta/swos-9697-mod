@@ -58,16 +58,17 @@ M34 = [(16, 5, 'FERENCVAROS'), (1, 1, 'FLORIDSDORFER AC'),
        (20, 22, 'JUVENTUS'), (6, 4, 'TEPLITZER FK'),
        (1, 4, 'ADMIRA WIEN'), (20, 28, 'NAPOLI'),
        (16, 9, 'HUNGARIA'), (6, 10, 'SPARTA PRAHA')]
-M34_LEGS = 0xA8              # two legs; extra time and penalties only in the play-off (replay) on aggregate tie
+M34_LEGS = 0xA8              # two legs; on an aggregate tie a play-off (replay) with extra time, then the coin toss
 
 # FA Cup 1871-72 (first edition): 15 clubs (tools/facup72.py), TEAM.091. Real first-round draw (7 ties) with Hampstead
 # Heathens' bye (last club: lib97.lib_bye plays round 1 with 14, lib97.lib_pre puts the 15th into the 8-club round 2),
 # then an open draw every round as in 1872 (DRAWS entry [0xFF] = bye only, then the game's random draw); single matches,
-# no extra time, no penalties: a draw is replayed (legs byte 0). Walkovers and the committee's "both teams go through"
+# a draw is replayed; a drawn replay gets extra time and then the coin toss (Davide: no endless replays, no penalties). Walkovers and the committee's "both teams go through"
 # decisions cannot be reproduced (see STATUS session 26h).
 FA_ID = 0xC3
 FA_FILE = 91
 FA_NAME = b'FA CUP 1871-72'
+FA_LEGS = 0x28               # 1 match; a draw is replayed; in the replay extra time, then the coin toss (penalties if replay)
 
 # Fixed next-round placement (replaces the random draw cseg_27F08 for our contests). Qualifiers arrive in A2+59h ordered
 # 1st of each group A..F, then 2nd A..F (cseg_8A2CE: rank bonus 1000, group bonus 100, + points); slots are group-major.
@@ -129,6 +130,70 @@ draw_pre_none:
     ret
 DRAW_TABLE: DRAW_BYTES
 DRAW_TMP: times 64 db 0
+
+; Coin toss (Mitropa 1934, FA Cup 1871-72): where the game would start a penalty shoot-out (only in the replay / play-off:
+; legs byte 'penalties if replay'), the winner is drawn by lot. The 'penalty score' becomes 127-126 (impossible in a
+; shoot-out) and the results screen shows COIN_TEXT instead of 'WIN n-m ON PENS'.
+coin_ours:                              ; ZF = 1 if the running contest is one of ours
+    cmp byte [DIYCOPY + 2Dh], M34_ID_
+    je .r
+    cmp byte [DIYCOPY + 2Dh], FA_ID_
+.r:
+    ret
+
+coin_flip:                              ; eax = 0 or 1 (the game's random generator)
+    pushad
+    call RAND2
+    movzx eax, byte [D0]
+    shr eax, 7
+    mov [COIN_TMP], eax
+    popad
+    mov eax, [COIN_TMP]
+    ret
+
+coin_sim:                               ; replaces `call cseg_2B84D` (simulated shoot-out) in cseg_2AE97
+    call coin_ours
+    jne PENS_SIM
+    call coin_flip
+    mov dword [D5], 7Fh                 ; side 0 wins: D6 <= D5
+    mov dword [D6], 7Eh
+    test eax, eax
+    jz .r
+    mov dword [D5], 7Eh                 ; side 1 wins: D6 > D5
+    mov dword [D6], 7Fh
+.r:
+    ret
+
+coin_play:                              ; replaces `call StartPenalties` in UpdateTime (penaltiesState already -1)
+    call coin_ours
+    jne START_PENALTIES
+    call coin_flip
+    test eax, eax
+    jnz .t2
+    mov word [PEN1], 7Fh
+    mov word [PEN2], 7Eh
+    mov dword [WINNER], TOP_TEAM
+    jmp END_OF_GAME
+.t2:
+    mov word [PEN1], 7Eh
+    mov word [PEN2], 7Fh
+    mov dword [WINNER], BOTTOM_TEAM
+    jmp END_OF_GAME
+
+coin_text:                              ; replaces `mov ax, [skip flag]` before the results PrintFormatted (cseg_289AC)
+    call coin_ours
+    jne .x
+    test byte [D7], 8                   ; penalties
+    jz .x
+    cmp word [D0], 7Eh
+    jb .x
+    cmp word [D1], 7Eh
+    jb .x
+    mov dword [A0], COIN_TEXT
+.x:
+    mov ax, [SKIP]
+    ret
+COIN_TMP: dd 0
 
 hist_names:                             ; replaces `call SetCountryNames` in SelectTeamsReinit
     call SET_COUNTRY_NAMES
@@ -350,6 +415,78 @@ def odd_groups(p):
     print(f'exe: odd group sizes allowed (trap obj1+{ms[0].end() - 3:#x})')
 
 
+def _coin(long, short):
+    """long (36 columns) and short (26 columns) variants, as the game's own result strings."""
+    def pad(t, w):
+        n = len(t) - 2 + 12
+        left = max(0, (w - n) // 2)
+        return (' ' * left + t + ' ' * max(0, w - n - left)).encode('latin1')
+    return pad(long, 36) + b'\0' + pad(short, 26) + b'\0'
+
+
+COIN_TEXT = {'it': _coin('%a VINCE AL SORTEGGIO', '%a VINCE A SORTE'),
+             'en': _coin('%a WIN ON THE TOSS OF A COIN', '%a WIN THE COIN TOSS'),
+             'fr': _coin('%a GAGNE AU TIRAGE AU SORT', '%a GAGNE AU SORT'),
+             'de': _coin('%a GEWINNT DURCH LOSENTSCHEID', '%a GEWINNT PER LOS')}
+
+
+def _coin_sites(p, draw_orig):
+    """Hook sites of the coin toss (see ASM) in any language."""
+    import re
+    d1 = p.le.obj_bytes(1)
+    r = sacups.regs(d1)
+    d7 = r['D7']
+    a0 = d7 + 4
+    out = {}
+    # cseg_2AE97: or byte [D7], 8; (pushes); call cseg_2B84D - the second 'or byte [D7], 8' in the exe
+    ors = [m.start() for m in re.finditer(re.escape(b'\x80\x0d' + struct.pack('<I', d7) + b'\x08'), d1)]
+    assert len(ors) == 2, ors
+    k = d1.index(b'\xe8', ors[1] + 7)
+    assert k - ors[1] < 0x40
+    out['sim_call'], out['pens_sim'] = k, k + 5 + struct.unpack_from('<i', d1, k + 1)[0]
+    # UpdateTime: mov [winningTeamPtr], 0; call EndOfGame; jmp; mov word [extraTimeState], -1; call StartFirstExtraTime;
+    # jmp; mov word [penaltiesState], -1; call StartPenalties
+    pat = (rb'\xc7\x05(.{4})\x00\x00\x00\x00\xe8(.{4})\xe9.{4}\x66\xc7\x05.{4}\xff\xff\xe8.{4}\xe9.{4}'
+           rb'\x66\xc7\x05(.{4})\xff\xff\xe8(.{4})')
+    m = list(re.finditer(pat, d1, re.S))
+    assert len(m) == 1, len(m)
+    m = m[0]
+    out['winner'] = struct.unpack('<I', m.group(1))[0]
+    eog = m.start() + 10
+    out['end_of_game'] = eog + 5 + struct.unpack('<i', m.group(2))[0]
+    ps = struct.unpack('<I', m.group(3))[0]
+    out['pen_call'] = m.end() - 5
+    out['start_pen'] = m.end() + struct.unpack('<i', m.group(4))[0]
+    # @@team2_wins: mov [winningTeamPtr], offset bottomTeamInGame; jmp; @@team1_wins: mov [..], offset topTeamInGame; jmp
+    w = re.escape(m.group(1))
+    t = list(re.finditer(rb'\xc7\x05' + w + rb'.{4}\xeb.\xc7\x05' + w + rb'.{4}\xeb.', d1, re.S))
+    assert len(t) == 1 and 0 < m.start() - t[0].start() < 0x40, len(t)
+    tobj, out['bottom'] = p.target(1, t[0].start() + 6)
+    tobj2, out['top'] = p.target(1, t[0].start() + 18)
+    assert tobj == tobj2 == 2
+    # after the match: mov ax, [penaltiesState]; or ax, ax; jns; mov ax, [team1PenaltyGoals]; ...; mov ax, [team2PenaltyGoals]
+    q = re.search(rb'\x66\xa1' + re.escape(struct.pack('<I', ps)) + rb'\x66\x0b\xc0\x79.\x66\xa1(.{4})\x66\xa3.{4}\x66\xa1(.{4})',
+                  d1, re.S)
+    out['pen1'], out['pen2'] = (struct.unpack('<I', q.group(k))[0] for k in (1, 2))
+    # cseg_289AC: mov [A0], offset aAWin01OnPensRe; jmp short $+2; mov ax, [skip]; or ax, ax; jz; mov esi, [A0]
+    t = list(re.finditer(rb'\xc7\x05' + re.escape(struct.pack('<I', a0)) + rb'.{4}\xeb\x00\x66\xa1(.{4})\x66\x0b\xc0\x74.\x8b\x35'
+                         + re.escape(struct.pack('<I', a0)), d1, re.S))
+    assert len(t) == 1, len(t)
+    out['text_site'] = t[0].start() + 12
+    out['skip'] = struct.unpack('<I', t[0].group(1))[0]
+    # the game's random generator: first call of cseg_27F08 (the draw shuffle)
+    k = d1.index(b'\xe8', draw_orig)
+    out['rand2'] = k + 5 + struct.unpack_from('<i', d1, k + 1)[0]
+    # diyFileBufferCopy: as lib97
+    # diyFileBufferCopy (as lib97._sites): end of cseg_24DFA -> cseg_2573C -> mov [A0], offset diyFileBufferCopy
+    m = re.search(rb'\x66\x89\x86\x61\x01\x00\x00\xe8(.{4})\xe8.{4}\xc3\xcc\xeb\xfe', d1, re.S)
+    c = m.start() + 12 + struct.unpack('<i', m.group(1))[0]
+    k = d1.find(b'\xc7\x05' + struct.pack('<I', a0), c)
+    assert 0 < k - c < 0x60
+    out['diycopy'] = struct.unpack_from('<I', d1, k + 6)[0]
+    return out
+
+
 def _names_call(p):
     """SelectTeamsReinit: call SetTeamsCoordinates; call SetLeagueNames; call SetCountryNames; mov ax, [...].
     SetCountryNames is the one that colours names starting with '.' (cmp byte [esi],'.'; ...; mov word [esi+1Eh],7).
@@ -456,7 +593,7 @@ def patch(p, lang, area, cave, draw_pre=None):
     hdr = bytearray(cd[wc:wc + 0x28])
     hdr[0] = FA_ID
     hdr[12] = 2
-    stages = bytes([4, nfa, 0, nfa, 8, 0, 8, 4, 0, 4, 2, 0, 2, 1, 0, 0, 0, 0, 0, 0] + [0] * 4 + [0, 0])
+    stages = bytes([4, nfa, 0, nfa, 8, 0, 8, 4, 0, 4, 2, 0, 2, 1, 0, 0, 0, 0, 0, 0] + [FA_LEGS] * 4 + [0, 0])
     assert len(stages) == 0x28 - 0x0e and nfa == 15
     hdr[0x0e:0x28] = stages
     fa = at
@@ -481,6 +618,8 @@ def patch(p, lang, area, cave, draw_pre=None):
     odd_groups(p)
     pre_call, season_call, select = _calls(p)
     draw_calls, draw_orig = _draw_call(p)
+    coin = _coin_sites(p, draw_orig)
+    coin_text = area.add(COIN_TEXT[lang])
     names_call, set_names, calc_entry = _names_call(p)
     regs = sacups.regs(p.le.obj_bytes(1))
     a0 = regs['D7'] + 4
@@ -490,7 +629,13 @@ def patch(p, lang, area, cave, draw_pre=None):
                'DRAW_BYTES': (0, 'db ' + ', '.join(str(b) for b in tbl)),
                'DRAW_PRE': (1, draw_pre) if draw_pre is not None else (0, 'draw_pre_none'),
                'D0': (2, a0 - 32), 'A0': (2, a0), 'SET_COUNTRY_NAMES': (1, set_names), 'CALC_ENTRY': (1, calc_entry),
-               'CLASSICS_NAME': (2, rec + 1), 'MENU_COLOR': (0, MENU_COLOR), 'MENU_GAP': (0, MENU_GAP)}
+               'CLASSICS_NAME': (2, rec + 1), 'MENU_COLOR': (0, MENU_COLOR), 'MENU_GAP': (0, MENU_GAP),
+               'M34_ID_': (0, M34_ID), 'FA_ID_': (0, FA_ID), 'COIN_TEXT': (2, coin_text),
+               'DIYCOPY': (2, coin['diycopy']), 'RAND2': (1, coin['rand2']), 'D5': (2, a0 - 12), 'D6': (2, a0 - 8),
+               'D7': (2, a0 - 4), 'D1': (2, a0 - 28), 'PENS_SIM': (1, coin['pens_sim']),
+               'START_PENALTIES': (1, coin['start_pen']), 'END_OF_GAME': (1, coin['end_of_game']),
+               'PEN1': (2, coin['pen1']), 'PEN2': (2, coin['pen2']), 'WINNER': (2, coin['winner']),
+               'TOP_TEAM': (2, coin['top']), 'BOTTOM_TEAM': (2, coin['bottom']), 'SKIP': (2, coin['skip'])}
     code, fix = nasmcave.assemble(ASM, at, symbols)
     labels = nasmcave.labels(ASM, at, symbols)
     p.put(1, at, code)
@@ -498,6 +643,11 @@ def patch(p, lang, area, cave, draw_pre=None):
         p.add_ptr(1, at + off, tobj, toff)
     p.put(1, pre_call + 1, struct.pack('<i', labels['hist_preset'] - (pre_call + 5)))
     p.put(1, names_call + 1, struct.pack('<i', labels['hist_names'] - (names_call + 5)))
+    for site, label in ((coin['sim_call'], 'coin_sim'), (coin['pen_call'], 'coin_play')):
+        p.put(1, site + 1, struct.pack('<i', labels[label] - (site + 5)))
+    p.put(1, coin['text_site'], b'\xe8' + struct.pack('<i', labels['coin_text'] - (coin['text_site'] + 5)) + b'\x90')
+    print(f'exe: historic: coin toss: sim call obj1+{coin["sim_call"]:#x}, StartPenalties call obj1+{coin["pen_call"]:#x}, '
+          f'results text obj1+{coin["text_site"]:#x}')
     for c in draw_calls:
         p.put(1, c + 1, struct.pack('<i', labels['hist_draw'] - (c + 5)))
     print(f'exe: historic: fixed draws {[(hex(cid), len(pm)) for cid, pm in DRAWS]}, calls {[hex(c) for c in draw_calls]}')

@@ -1097,3 +1097,15 @@ Keep this list updated as new tournaments are added (European Cup 1959-60 next).
 - TO VERIFY: preset TORNEI STORICI -> FA CUP 1871-72: round 1 = the 7 real ties (Barnes-Civil Service, Hitchin-Crystal Palace,
   Maidenhead-Marlow, Upton Park-Clapham Rovers, Queen's Park-Donington, Royal Engineers-Reigate Priory, Wanderers-Harrow
   Chequers), Hampstead not playing; draws replayed; round 2 = 7 winners + Hampstead, random pairs; then SF, final.
+- PLAYTEST 26i (Davide): FA Cup first round = the 7 real ties, Hampstead joins round 2 (OK). BUG: legs byte 0 (no e.t., no
+  pens) -> endless replays (Maidenhead-Hampstead 30+ replays; the game has REPLAY / 2ND / 3RD REPLAY texts and then repeats).
+- Session 26j — coin toss (Davide's choice "C", also for the Mitropa, whose MTK-Sparta tie really ended by coin toss):
+  FA legs byte 0x28 (1 match, extra time and 'penalties' only in the replay), Mitropa stays 0xA8. For our contests
+  (diyFileBufferCopy[2Dh] = 0xC2 / 0xC3) the shoot-out becomes a coin toss: coin_sim replaces `call cseg_2B84D` in cseg_2AE97
+  (simulated: D5/D6 = 7F/7E, random side), coin_play replaces `call StartPenalties` in UpdateTime @@switch_to_penalties
+  (played: team1/team2PenaltyGoals = 7F/7E, winningTeamPtr = top/bottomTeamInGame, jmp EndOfGame; the post-match code reads
+  the 'penalty goals' because penaltiesState is already -1), coin_text replaces `mov ax, [skip]` before the results
+  PrintFormatted in cseg_289AC (pens flag + scores >= 7Eh -> COIN_TEXT, long/short pair as the game's strings; it '%a VINCE
+  AL SORTEGGIO', en '%a WIN ON THE TOSS OF A COIN', fr '%a GAGNE AU TIRAGE AU SORT', de '%a GEWINNT DURCH LOSENTSCHEID').
+  Random = the game's Rand2 (first call of cseg_27F08). IT sites: sim 0x1B330, StartPenalties 0x5FC1B, text 0x18BA1.
+  Builds IT EN FR DE = 85a9a968 69b3e77d 1b06e429 dd66787e (TEAM files unchanged). RELEASE NOTES: explain the coin toss rule.

@@ -891,4 +891,4 @@ World Cup 1982, European Cup 1988-89, Serie A 1986-87 (alt. Euro 88). Disassembl
   byte0 89, ordinal, global 1786+i; skills/prices kept as the author's (avg 34-41, max 49 = Maradona).
 - TEAM.089 = 47b28c41 (16418 B), exes unchanged (c0d88d2b ...). Credit for README/release: "World Cup 1982 squads: SWOS 2020
   DLC by Insane (SWOS United, sensiblesoccer.de), used with permission".
-- OPEN: whether the generated TEAM.089 (SWOS 2020 data) may go in the public patcher -> Davide (Playaveli said "just use it").
+- Public use OK (Davide relayed, 2026-10-01: "Just use it... and credit the author"): TEAM.089 may ship in the patcher with the credit above.

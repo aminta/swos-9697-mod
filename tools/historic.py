@@ -8,7 +8,7 @@ career start, career world view, transfers, team editing, friendlies and DIY kee
 
 Country numbers (club range 86+, team file = country number):
   89 CLASSICS: countriesTable record + competitionsTable [-2, cups..., -1] (cups only: a season would add them to the
-     league); TEAM.089 = the World Cup 1982 nations. Not in any continent table, seasonEndList, QTABLE or trailer.
+     league); TEAM.089 = the World Cup 1982 nations (SWOS 2020 DLC by Insane). Not in any continent table, seasonEndList, QTABLE or trailer.
 Global numbers: every historic file uses the same base (they never meet each other or real teams in one contest;
 SetLeagueNumbers / someLeaguesTable run only in a career), so all historic tournaments together cost MAX_TEAMS numbers.
 """
@@ -26,15 +26,18 @@ TEAM_SIZE = 684
 
 NAMES = {'it': b'STORICI', 'en': b'CLASSICS', 'fr': b'CLASSIQUES', 'de': b'KLASSIKER'}
 
-# World Cup 1982: the real groups A..F in draw order, as (1996 national file, ordinal, 1982 name or None).
-# 1996 records are PLACEHOLDERS until the real 1982 squads are written (same kits/faces/positions).
+# World Cup 1982: squads from the SWOS 2020 DLC "1982 FIFA WORLD CUP (Spain)" by Insane (v1.1, sensiblesoccer.de,
+# used with permission: credit the author). Its CUSTOMS.EDT holds the 24 nations (+ 24 legend teams of other years);
+# taken by name, in the real group order A..F.
+SWOS2020 = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'orig', 'swos2020')
 WC82_ID = 0xC1
-WC82 = [(80, 23, None), (80, 33, None), (82, 7, None), (81, 6, None),            # A Italy Poland Peru Cameroon
-        (80, 17, 'WEST GERMANY'), (80, 2, None), (82, 3, None), (81, 0, None),   # B FRG Austria Chile Algeria
-        (82, 0, None), (80, 5, None), (80, 20, None), (83, 3, None),             # C Argentina Belgium Hungary El Salvador
-        (80, 11, None), (80, 15, None), (80, 9, 'CZECHOSLOVAKIA'), (84, 11, None),  # D England France CSSR Kuwait
-        (80, 42, None), (80, 48, None), (80, 31, None), (83, 6, None),           # E Spain Yugoslavia N.Ireland Honduras
-        (82, 2, None), (80, 37, 'USSR'), (80, 39, None), (85, 2, None)]          # F Brazil USSR Scotland New Zealand
+WC82_FILE = 'WC1982_CUSTOMS.EDT'
+WC82 = ['ITALY', 'POLAND', 'PERU', 'CAMEROON',                         # A
+        'WEST GERMANY', 'AUSTRIA', 'CHILE', 'ALGERIA',                  # B
+        'ARGENTINA', 'BELGIUM', 'HUNGARY', 'EL SALVADOR',               # C
+        'ENGLAND', 'FRANCE', 'CZECHOSLOVAKIA', 'KUWAIT',                # D
+        'SPAIN', 'YUGOSLAVIA', 'NORTHERN IRELAND', 'HONDURAS',          # E
+        'BRAZIL', 'SOVIET UNION', 'SCOTLAND', 'NEW ZEALAND']            # F
 
 ASM = '''
 hist_preset:
@@ -50,13 +53,15 @@ def build_teams(src_dir):
     """{file number: bytes} of the historic team files."""
     files = {}
     recs = []
-    for i, (n, k, name) in enumerate(WC82):
-        d = open(os.path.join(src_dir, 'TEAM.%03d' % n), 'rb').read()
-        r = bytearray(d[2 + k * TEAM_SIZE:2 + (k + 1) * TEAM_SIZE])
+    d = open(os.path.join(SWOS2020, WC82_FILE), 'rb').read()
+    by = {}
+    for k in range(struct.unpack('>H', d[:2])[0]):
+        r = d[2 + k * TEAM_SIZE:2 + (k + 1) * TEAM_SIZE]
+        by.setdefault(r[5:22].split(b'\0')[0].decode('latin1'), r)
+    for i, name in enumerate(WC82):
+        r = bytearray(by[name])
         r[0], r[1] = CLASSICS, i
         struct.pack_into('>H', r, 2, BASE + i)
-        if name:
-            r[5:22] = name.encode('latin1').ljust(17, b'\0')[:17]
         recs.append(bytes(r))
     assert len(recs) <= MAX_TEAMS
     files[CLASSICS] = struct.pack('>H', len(recs)) + b''.join(recs)

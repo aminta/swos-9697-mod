@@ -878,3 +878,17 @@ World Cup 1982, European Cup 1988-89, Serie A 1986-87 (alt. Euro 88). Disassembl
 - SWOS 2020 data permission (2026-10-01, via Davide): Playaveli (SWOS 2020, curator of the historic DLCs): "I think it's fine.
   Just use it... and credit the author"; per-DLC authors: "see DLC window" (DLC Manager) -> copy the exact credits from there
   into README / release notes / manuals when the historic squads ship.
+
+## Session 26c — World Cup 1982 real squads from SWOS 2020 (2026-10-01, UNTESTED in game)
+- SWOS 2020 DLC server: https://sensiblesoccer.de/swos2020/dlc/<kind>/<Name>.7z with indexes dlc/cup/cup-info.csv and
+  dlc/teamdb/teamdb-info.csv (Name, Author, Version). Cup DLC = CUSTOMS.EDT (48 x 684 B records, SAME format as TEAM files)
+  + a .DIY cup. Historic: every World Cup 1930-2026 and Euro 1960-2024 (author "Insane"), CLUB TEAMS 1956-1979 / 1970s / 1980s
+  ... (Insane), UEFA European Cup 1991-92, CL 1992-96, "1900s Retro Pack Teams (1900-1970)" (Francescomanetti82 and Gorzo),
+  "British Football Pioneers", "1968-69 TEAMS" (Kanchelskis); teamdb "VIVA SWOS (History of the World Cup 1930-1974)" (Kazax),
+  "Synchronated SWOS Legends". Candidates: EC 1959-60 -> CLUB TEAMS (1956-1979); Mitropa 1930s -> 1900s Retro Pack.
+- Downloaded '1982 FIFA WORLD CUP (Spain)' v1.1 by Insane -> orig/swos2020/ (git-ignored; CUSTOMS.EDT md5 fa21fa9d, WC1982.DIY,
+  the two index csv). historic.build_teams takes the 24 nations by name in group order A-F (+24 legend teams ignored), sets
+  byte0 89, ordinal, global 1786+i; skills/prices kept as the author's (avg 34-41, max 49 = Maradona).
+- TEAM.089 = 47b28c41 (16418 B), exes unchanged (c0d88d2b ...). Credit for README/release: "World Cup 1982 squads: SWOS 2020
+  DLC by Insane (SWOS United, sensiblesoccer.de), used with permission".
+- OPEN: whether the generated TEAM.089 (SWOS 2020 data) may go in the public patcher -> Davide (Playaveli said "just use it").

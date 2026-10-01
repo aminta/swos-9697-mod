@@ -866,3 +866,6 @@ World Cup 1982, European Cup 1988-89, Serie A 1986-87 (alt. Euro 88). Disassembl
 - PLAYTEST: (1) preset competition -> top menu shows CLASSICS/STORICI after the continents -> WORLD CUP 1982 -> plays (groups,
   2 points, knockout); (2) season menu: no CLASSICS; (3) career: new career team choice, world view, transfer search: no
   CLASSICS; (4) friendly/DIY team choice: no CLASSICS; (5) save/load a running WC 1982 preset competition.
+- PLAYTEST session 26b (Davide, 2026-10-01): all OK (CLASSICS/WC 1982 in preset; absent from season/career/friendly/DIY).
+- Decided: third historic tournament = Mitropa Cup (1930s). Order: WC 1982 real squads -> European Cup 1959-60 -> Mitropa 1930s.
+  Squads: ask Davide for the SWOS 2020 community files (location/format) first.

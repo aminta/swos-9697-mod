@@ -612,6 +612,11 @@ def patch(p, lang, area, cave, draw_pre=None):
         p.add_ptr(1, at + off, tobj, toff)
     p.put(1, pre_call + 1, struct.pack('<i', labels['hist_preset'] - (pre_call + 5)))
     p.put(1, names_call + 1, struct.pack('<i', labels['hist_names'] - (names_call + 5)))
+    # the overwritten instructions held absolute addresses (D7, the skip flag): drop their fixups, or the loader would
+    # rewrite our call displacement (that was the crash of the first coin builds)
+    p.remove(1, coin['draw_site'] + 2)                  # or byte [D7], 80h
+    p.remove(1, coin['draw_site'] + 9)                  # and byte [D7], 0FDh
+    p.remove(1, coin['text_site'] + 2)                  # mov ax, [skip flag]
     p.put(1, coin['draw_site'], b'\xe8' + struct.pack('<i', labels['coin_draw'] - (coin['draw_site'] + 5)) + b'\x90' * 9)
     p.put(1, coin['text_site'], b'\xe8' + struct.pack('<i', labels['coin_text'] - (coin['text_site'] + 5)) + b'\x90')
     print(f'exe: historic: coin toss: draw site obj1+{coin["draw_site"]:#x}, results text obj1+{coin["text_site"]:#x}')

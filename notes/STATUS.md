@@ -1126,3 +1126,9 @@ Keep this list updated as new tournaments are added (European Cup 1959-60 next).
   played matches alike: in our contests, if DIY_competitionStart[32Fh] != 0 (already a replay/play-off) -> random winner,
   flags |= 0Ah (decided + 'penalties'), D5/D6 1-0 / 0-1; coin_text shows the toss. coin_sim/coin_play removed.
   Builds IT EN FR DE = d434f928 6fc064a9 a2f9dc8c 7f0adb2f (UNTESTED; FREEZE.PRE is unusable: it carries the old 0x28 rounds).
+- ROOT CAUSE of all coin-toss crashes (DOSBox-X debugger, `BP 160:27C37A` + `LOG`; obj1 loads at linear 0x261000): the hooks
+  that overwrite instructions holding absolute addresses (coin_text over `mov ax,[skip]`, coin_draw over `or/and byte [D7]`)
+  kept the old LE fixups, so the loader rewrote our call displacement (`call 337D9758`). Fixed with p.remove at draw_site+2,
+  +9 and text_site+2 (as lib97 does for its calendar hook). The earlier conclusions ('engine e.t./pens if replay crash',
+  T1/T3/T5) were all this bug. Kept design: coin_draw on draw->replay, legs FA 0x00 / Mitropa 0x80.
+  Builds IT EN FR DE = 94a90a53 19cc3e18 091e31e3 80d288e0 (UNTESTED in game).

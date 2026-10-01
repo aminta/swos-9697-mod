@@ -26,7 +26,7 @@ TEAM_SIZE = 684
 
 MENU_COLOR = 11              # bg.backAndFrameColor of the CLASSICS button: BLUE_TO_PURPLE_11 (continents are brown)
 MENU_GAP = 5                 # pixels between OCEANIA and CLASSICS
-NAMES = {'it': b'STORICI', 'en': b'CLASSICS', 'fr': b'CLASSIQUES', 'de': b'KLASSIKER'}
+NAMES = {'it': b'TORNEI STORICI', 'en': b'CLASSIC TOURNEYS', 'fr': b'TOURNOIS ANCIENS', 'de': b'TURNIERKLASSIKER'}   # <= 16 chars
 
 # World Cup 1982: squads from the SWOS 2020 DLC "1982 FIFA WORLD CUP (Spain)" by Insane (v1.1, sensiblesoccer.de,
 # used with permission: credit the author). Its CUSTOMS.EDT holds the 24 nations (+ 24 legend teams of other years);

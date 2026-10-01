@@ -931,3 +931,4 @@ World Cup 1982, European Cup 1988-89, Serie A 1986-87 (alt. Euro 88). Disassembl
   SetTeamsCoordinates + SetLeagueNames); after it, the visible entry (ordinals 21..86, 56 B each, CalcMenuEntryAddress(21))
   whose fg.string (+26h) == the CLASSICS name gets bg.backAndFrameColor (+1Eh) = 11 BLUE_TO_PURPLE and y (+16h) += 5.
   (The game already colours names starting with '.' PINK_TO_BROWN_7.) Builds IT EN FR DE = 0f5d5996 af054b11 e9fd74c3 cb612d39.
+- Container renamed (Davide): it 'TORNEI STORICI', en 'CLASSIC TOURNEYS', fr 'TOURNOIS ANCIENS', de 'TURNIERKLASSIKER' (<= 16 chars). Builds IT EN FR DE = be8719ea 73060d93 674693d9 2b20a4a7.

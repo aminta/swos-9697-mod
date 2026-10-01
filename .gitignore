@@ -13,3 +13,5 @@ notes/dosbox.log
 __pycache__/
 *.tmp
 .DS_Store
+# internal docs (artifact only, not published)
+internal/

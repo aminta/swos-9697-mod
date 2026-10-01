@@ -1042,3 +1042,20 @@ removal ("if you are an author and want something changed, open an issue / write
 - hu.wikipedia "1934-es kozep-europai kupa"; A Ferencvarosi TC 1933-1934-es szezonja.
 Keep this list updated as new tournaments are added (European Cup 1959-60 next). Mention invented names (marked in STATUS).
 - PLAYTEST Mitropa 1934 (Davide, 2026-10-01): 'ok a posto' (build 132c024f from the Libertadores session, includes M34). Next: FA Cup 1871-72 (first edition) - analysis.
+
+## Session 26h — FA Cup 1871-72 (first edition): research (Davide's choice; format agreed 2026-10-01)
+- Format agreed: 15 real clubs, real first-round draw (7 ties + Hampstead Heathens bye), single matches, NO extra time, NO
+  penalties, replay on a draw (legs byte 0x00), open draw each later round (engine draw), final. Not reproducible: walkovers,
+  withdrawals, committee "both teams go through" decisions (Hitchin-Crystal Palace, Queen's Park-Donington, Wanderers-Crystal
+  Palace), Queen's Park withdrawing before the semi-final replay.
+- Line-up sources found: en.wikipedia "1872 FA Cup final" (both XIs, kits: Wanderers orange/violet/black halves? (pattern),
+  RE red/navy hoops + navy shorts), "1871-72 Barnes F.C. season" (Barnes x6, Civil Service, Hampstead Heathens x2, Crystal
+  Palace v Barnes), "1871-72 Queen's Park F.C. season" (SF XI; QP played dark blue shirts, grey shorts, black socks),
+  England v Scotland 1870-72 page (players with clubs), forum.hitchintownfc.club t=2506 (Hitchin v CP and Hitchin v RE, both
+  teams), cpfc.co.uk Peter Manning articles (CP: Chenery, Chappell, Ottaway, Morten in goal), stevesfootballstats.uk (results,
+  scorers: Dunnage, P. Weston; Young 2 for Maidenhead; Kenrick 2 + Thompson for Clapham; Pelham for Wanderers; Bouch, Chenery,
+  Lloyd for CP; Highton/Barker; Leach; Renny-Tailyour 2, Mitchell).
+- Missing: Clapham Rovers, Upton Park (Ogilvie, Stair), Maidenhead (Young), Marlow, Reigate Priory, Donington School,
+  Harrow Chequers (Betts, Welch + few). Pioneers DLC (Francescomanetti82 & Gorzo) has Barnes, Civil Service, Clapham, Crystal
+  Palace, Hampstead, Marlow, QP, RE, Upton Park, Wanderers but mixes decades and invented/modern names -> only verifiable names.
+  Pioneers almanac PDF (tinyurl in the DLC readme) not downloaded yet (needs Davide's ok).

@@ -996,3 +996,34 @@ World Cup 1982, European Cup 1988-89, Serie A 1986-87 (alt. Euro 88). Disassembl
   the build; FAC 4, Bocskai 5, Admira 3, Austria 2, Ujpest 2, Hungaria 2, FTC/Ambrosiana/Bologna/Teplitz 1). Unknown coaches
   (FAC, Austria, Teplitz, Admira) left blank. Kits: given for FAC/Ambrosiana/Bocskai/Admira, else the 1996 club's.
   TEAM.090 5ec479a8 installed (exes unchanged 09874895...). Libertadores session works in the same tree: commit only own hunks.
+
+## Session 27b — Libertadores 1997 1:1: implementation (2026-10-01, static checks only, UNTESTED in game)
+- Davide: holder meets the 3rd of ITS OWN country's group (1997: group 2 -> exact; other groups: that 3rd and 3G2 swap
+  places in the 1997 schema); replicate the real group calendar too; plan A (preset) + B (career) together.
+- tools/lib97.py (commit f3bb002): lib_bye replaces `call cseg_2573C` at the end of cseg_24DFA (IT obj1+0x15335, EN
+  +0x154EA): diyFileBufferCopy (IT obj2+0x4EBD4) round 1 [161h] 21 -> 20 for id 0x6C. lib_pre called by hist_draw at
+  .perm: list[15] := list[20] (holder), list[11] <-> list[10+h] (h = group of a club of the holder's country, A2+119h).
+  lib_cal replaces `mov esi,[A0]` at @@european_championships of cseg_89758 (IT obj1+0x79676): Lib groups of 4 read
+  LIB_CAL (per group 12 slot pairs; second cycle stored reversed, the engine swaps when [5Fh] is odd). Guards: id 0x6C
+  and diyFileBufferCopy [31h] = 21 (old 1.3 contests keep the game's table and [15Fh] = 1, never reach hist_draw).
+  Real calendar: groups 1-4 exactly as played by matchday (days 4-6 mirror 1-3); group 5 (irregular) closest fit,
+  days ordered by first match date (Millonarios exact, others swap 1-2 matches).
+  DRAWS 0x6C: R16 [11,15,9,4,13,1,12,0,6,8,10,3,14,2,7,5], QF [1,0,3,2,4,5,7,6], SF [0,1,2,3], F [0,1].
+- sacups: LIBERTADORES 21 (Racing in group 2, River last), LIB_GROUPS 20, stages (21,5,4)(16)(8)(4)(2) legs 0x84
+  (two legs, no e.t., penalties; final two legs), contest [9] = 0, [0Ah] = 0. Season end: LIBLIST[20] = Lib winner;
+  if it also qualified through its league, its berth goes to its country's 3rd (taken from the CONMEBOL list, whose
+  place goes to SPARE = the rank after the country's last CONMEBOL rank: ARG/BRA 6, CHI/URU 5, others 4); if it is in
+  the CONMEBOL list, SPARE takes that place. Old runner-up displacement removed.
+- trailer 'C6' (304 B, Lib 42 B); 'C5' read with a 40-B Lib (OLD_ITEMS40) and completed by lib_merge with the first
+  default club not in it (the season end rebuilds the list anyway); C4..C1, S2/SA as before. salists decodes C6.
+- Static: ndisasm of lib_bye/lib_pre/lib_cal and of both hook sites OK (jmp -> cseg_2573C obj1+0x15587, A0 0x315D7,
+  A3 0x315E3); fixup diff vs HEAD~ build: below the caves only the removed fixup of the lib_cal site (obj1+0x79678) and
+  3 pointers into the world cave moved (+0x218); obj2 only the CLASSICS competitions pointer. TEAM files unchanged.
+- Builds IT EN FR DE = 132c024f 8f7a1897 01ef3d79 0674721a installed in c/SWOS (includes the Mitropa 1934 work of
+  session 26g); previous exes (09874895 4dae5cdf eaaa5499 e2b5f232) backed up in c/S27BAK. GOG builds not made.
+- PLAYTEST: (1) preset Sudamerica -> Libertadores: 21 clubs, River in no group, Racing in group 2; group calendar
+  (G1 day 1 Guarani-Cerro, Oriente-Bolivar; day 2 Oriente-Guarani, Bolivar-Cerro ...); round of 16 = 3G2-River, 2G5-1G5,
+  3G4-1G2, 3G3-1G1, 2G2-2G4, 3G1-1G4, 3G5-1G3, 2G3-2G1 (first named at home in the 1st leg), QF/SF on the bracket, final
+  two legs; aggregate tie -> penalties with no extra time and no away goals. (2) career with a South American club
+  (River = holder: no group matches, enters the R16) to season end: new list 20 + holder; save (C6) / reload.
+  (3) load RIVER20.CAR (C5) and an old C4 save (OLIMPIA.CAR).

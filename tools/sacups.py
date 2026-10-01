@@ -202,7 +202,10 @@ def patch(p, pool, cave, caf):
 # Both chains are extended with D7/E092F = 3, 4, 5 for the SA cups.
 # dseg_D8CBE (trophy flag, reputation, prize) is set to the euro cup of the same rank (Lib 0, Sup 1, CON 2).
 SA_SLOT_BASE = 3
-SAVED_GLOBAL = 1740      # someLeaguesTable[1740..1842]: 'S2' + 3 lists + Intercontinental pair + balance byte
+MARK3_GLOBAL, MARK3 = 1847, 0x3353   # 1.2: someLeaguesTable[1847..1849] = 'S3' + balance byte: "this career is set up"
+TABLES = [None]          # (someLeaguesTable, leaguesTableCopy) obj2 offsets
+SAVE_ITEMS = [None]      # [(obj1 offset, size)] of the SA lists + Intercontinental pair, saved by trailer.py
+SAVED_GLOBAL = 1740      # 1.0/1.1 saves: someLeaguesTable[1740..1842]: 'S2' + 3 lists + Intercontinental pair + balance byte
                          # (cseg_9487A: sum must be 0); session-12 saves: 'SA' + 3 lists + balance byte (1740..1838);
                          # global numbers 1730..1849 belong to no team
 LISTS_OUT = [None]       # career code's lists_out, called at season end
@@ -278,14 +281,9 @@ def hook(p, at, length, fixup_at, target):
 CAREER_ASM = '''
 ; InitializeNewSeason, after the three euro cups (replaces "mov [E092F],-1; jmp done")
 init_sa:
-    cmp word [SAVED], MARK2             ; InitCareer zeroes the table: a new career starts from the 1997 lists
+    cmp word [MARK3_AT], MARK3          ; InitCareer zeroes the table: no mark = a new career (first-season lists)
     je .lists_ok
-    cmp word [SAVED], MARK
-    je .lists_ok
-    mov ebx, DEFAULTS
-    call lists_in
-    call lists_out
-    call NEW_CAREER_DEFAULTS            ; CAF cup lists back to the first-season ones (trailer.py)
+    call dword [NEW_CAREER_PTR]         ; trailer.new_career_defaults: every saved list + the mark
 .lists_ok:
     cmp dword [PLAYER_CUP], 0           ; no national cup (all SA countries): slot 1 is free
     jne .intercontinental
@@ -344,21 +342,7 @@ init_sa:
     jmp FOUND
 
 ; ProcessCareerFile, replaces "cmp [E092F],-1; jz out": restore a Supercopa in slot 1
-load_slot1:
-    mov ebx, SAVED + 2                  ; lists saved with the career, else (older saves) the 1997 ones
-    cmp word [SAVED], MARK2
-    je .in
-    cmp word [SAVED], MARK
-    jne .defaults
-    call lists_in                       ; session-12 save: its three lists, the 1997 Intercontinental pair
-    mov esi, DEFAULTS + 96
-    call int_in
-    jmp .loaded
-.defaults:
-    mov ebx, DEFAULTS
-.in:
-    call lists_in
-.loaded:
+load_slot1:                             ; the lists were restored by trailer.load_trailer (.CAR trailer / old saves)
     cmp dword [PLAYER_CUP], 0
     jne .euro
     cmp byte [SLOT1 + 2Dh], SUP_ID
@@ -492,51 +476,10 @@ playoffs:
     je PLAYOFF_OUT
     jmp PLAYOFF_CONT
 
-; SA cup lists + Intercontinental pair <-> a 100-byte block (ebx). The career copy lives in someLeaguesTable at global team
-; numbers nobody uses, so the game saves and loads it with the career and InitCareer clears it.
-lists_in:                               ; block (ebx) -> the three team lists
-    mov edx, LISTS
-.next:
-    mov esi, ebx
-    mov edi, [edx]
-    call copy32
-    add ebx, 32
-    add edx, 4
-    cmp edx, LISTS + 12
-    jne .next
-    mov esi, ebx
-int_in:                                 ; 4 bytes (esi) -> Intercontinental finalists
-    mov edi, INTLIST
-    mov ecx, 4
-    jmp copy
-lists_out:                              ; the three team lists -> saved copy
-    mov edx, LISTS
-    mov edi, SAVED + 2
-.next:
-    mov esi, [edx]
-    call copy32
-    add edi, 32
-    add edx, 4
-    cmp edx, LISTS + 12
-    jne .next
-    mov esi, INTLIST
-    mov ecx, 4
-    call copy
-    mov word [SAVED], MARK2
-    mov esi, SAVED                      ; cseg_9487A asserts that the table's bytes add up to 0 (promotions
-    mov ecx, 102                        ; and relegations balance): one more byte cancels our block's sum
-    xor al, al
-.sum:
-    add al, [esi]
-    inc esi
-    dec ecx
-    jnz .sum
-    neg al
-    mov [esi], al
-    mov esi, SAVED                      ; season end works on leaguesTableCopy and copies it back
-    mov edi, SAVED_COPY                 ; at the new season (cseg_8CC0A / cseg_8CC4E): keep both equal
-    mov ecx, 103
-    jmp copy
+; From 1.2 every saved list lives in the .CAR trailer (trailer.py), written when the career is saved: the season end has
+; nothing to store. (1.0/1.1 kept them in someLeaguesTable[1740..1842]; trailer.load_trailer reads and clears that block.)
+lists_out:
+    ret
 copy32:                                 ; byte copies through DS only (no movs: ES is not ours)
     mov ecx, 32
 copy:
@@ -553,8 +496,6 @@ copy:
     pop esi
     ret
 KINDS: KIND_BYTES
-LISTS: dd LIBLIST, SUPLIST, CONLIST
-DEFAULTS: DEFAULT_BYTES
 '''
 
 
@@ -621,7 +562,8 @@ def career_hooks(p, cups, cave, cups_all=None, caf=None):
     m = [x for x in re.finditer(rb'\xc7\x05' + struct.pack('<I', a0) + struct.pack('<I', table) + rb'\xc7\x05.{4}(.{4})', d1, re.S)]
     copies = {struct.unpack('<I', x.group(1))[0] for x in m}
     assert len(copies) == 1, copies
-    saved_copy = copies.pop() + SAVED_GLOBAL
+    copies_base = copies.pop()
+    saved_copy = copies_base + SAVED_GLOBAL
     defaults = b''.join(p.get(1, off, 32) for off in (lib + 47, sup + 27, con + 27)) + p.get(1, cups_all[3] + 24, 4)
     sel = struct.unpack_from('<I', d1, check + 0x2d + 2)[0]               # cseg_8D661: mov ax,[selTeamNumber]
     assert d1[check + 0x2d:check + 0x2f] == b'\x66\xa1'
@@ -663,7 +605,11 @@ def career_hooks(p, cups, cave, cups_all=None, caf=None):
         chain += [f'    mov dword [A0], XCUP{k}', f'    mov word [D7], {6 + k}', '    call CHECK', '    jz .found']
         load_map_lines += [f'    mov dword [A0], XCUP{k}', f'    cmp word [E092F], {6 + k}', '    je LOAD_MAP']
     symbols['KIND_BYTES'] = (0, 'db ' + ', '.join(str(x) for x in [0, 1, 2] + caf['kinds']))
-    symbols['NEW_CAREER_DEFAULTS'] = (1, caf['defaults'])
+    symbols['NEW_CAREER_PTR'] = (1, caf['new_career_ptr'])     # filled by trailer.patch (assembled after us)
+    symbols['MARK3_AT'] = (2, table + MARK3_GLOBAL)
+    symbols['MARK3'] = (0, MARK3)
+    TABLES[0] = (table, copies_base)
+    SAVE_ITEMS[0] = [(lib + 47, 32), (sup + 27, 32), (con + 27, 32), (cups_all[3] + 24, 4)]   # Lib, Sup, CON, INT pair
     asm = CAREER_ASM.replace(';EXTRA_CHAIN', '\n'.join(chain)).replace(';EXTRA_LOAD', '\n'.join(load_map_lines))
     code, fix = nasmcave.assemble(asm, cave, symbols)
     labels = nasmcave.labels(asm, cave, symbols)

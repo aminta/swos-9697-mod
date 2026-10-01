@@ -143,8 +143,11 @@ def patch_exe(src, dst, remap, lang='it'):
     world, caf = cafcups.structs(p, area, WORLD_CAVE)
     world = countries.patch(p, lang, area, world, cafcups.continents(caf))
     info = cafcups.career_info(caf)
-    world, info['defaults'] = trailer.patch(p, world, [base for base, _ in info['q']])
+    info['new_career_ptr'] = world              # dword filled below: sacups is assembled before the trailer code
+    world += 4
     cave = sacups.patch(p, pool, SA_CAVE, info)
+    world, new_career = trailer.patch(p, world, sacups.SAVE_ITEMS[0] + [(base, 32) for base, _ in info['q']])
+    p.add_ptr(1, info['new_career_ptr'], 1, new_career)
     assert cave <= WORLD_CAVE, hex(cave)
     world = cafcups.intl_list(p, caf, world)
     assert world <= OBJ1_NEW_VSIZE, hex(world)
@@ -209,8 +212,8 @@ def write_new_teams(src_dir, dst_dir):
     italy = struct.unpack('>H', open(os.path.join(dst_dir, 'TEAM.020'), 'rb').read(2))[0]   # written by patch_teams
     for g in range(ITALY_BASE, ITALY_BASE + italy):
         taken[g] = 20
-    for g in range(1740, 1843):                    # saved SA/Intercontinental block (sacups, someLeaguesTable)
-        taken[g] = 'S2'
+    for g in range(sacups.MARK3_GLOBAL, sacups.MARK3_GLOBAL + 3):   # career mark 'S3' + balance (1.2; lists in the
+        taken[g] = 'S3'                                             # .CAR trailer, 1730..1846 free again)
     for n, data in files.items():
         k = struct.unpack('>H', data[:2])[0]
         for g in range(tcn[n], tcn[n] + k):

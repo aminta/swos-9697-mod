@@ -686,3 +686,15 @@ league (12 exists already: Taiwan).
   'C2') + reload; load a 1.1 'C1' save (EGY2.CAR) -> OK; season end -> CONCACAF list from the standings.
 - PLAYTEST session 21 (Davide): all OK. NEXACA.CAR (Mexican club, 20 cached teams) = 108963 B with 'C2' trailer (130 B), 4 lists
   recomputed at season end (CONCACAF: UNAM, Kansas City, Atletico Marte, Puriscal...). PASSED.
+
+## Session 22 — all saved lists in the .CAR trailer, global numbers 1730-1846 freed (2026-10-01, UNTESTED in game)
+- trailer.py block 'C3' (230 B): Lib, Sup, CON (32 B each), Intercontinental pair (4 B), CAF CL/CWC/CAF Cup, CONCACAF (32 B each).
+  load_trailer: defaults first; 1.0/1.1 'S2'/'SA' block in someLeaguesTable[1740..] -> read, then CLEARED (sum 0, checksum kept);
+  trailer 'C3' all / 'C2' extra 4 / 'C1' CAF 3; then career mark 'S3' + balance 0x7A at someLeaguesTable[1847..1849] (+ copy).
+- sacups: init_sa = "no S3 mark -> call [NEW_CAREER_PTR]" (trailer.new_career_defaults via a dword filled after the trailer is
+  assembled); load_slot1 no longer reads lists; lists_out is a no-op (season end stores nothing: lists live in the cave until saved).
+  sacups exports TABLES (someLeaguesTable, leaguesTableCopy) and SAVE_ITEMS.
+- Free global numbers now: 470-474, 1730-1846 (117), 1960-1999 (40). patch.write_new_teams reserves only 1847-1849.
+- Builds IT EN FR DE = . Saves backed up in c/SAVES_BACKUP/.
+- TEST: load a 1.0 save (RIVER.CAR, S2), a 1.1 save (EGY2.CAR, S2 + C1), NEXACA.CAR (S2 + C2); save each under a new name ->
+  +230 B 'C3', someLeaguesTable[1740..1842] = 0, 'S3' mark; reload; new career after loading a save -> 1997 lists.

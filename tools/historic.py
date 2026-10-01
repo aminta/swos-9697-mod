@@ -296,6 +296,7 @@ def build_m34(src_dir):
             if name in known and known[name][0] == pnat:   # a 1934 international: Insane's record (skills, face)
                 q = bytearray(known[name])
                 q[2] = t[p + 2]                            # the slot's shirt number
+                q[26] = (q[26] & 0x1f) | (t[p + 26] & 0xe0)  # role from mitropa34 (the slot), not the DLC's
                 r[p:p + 38] = q
             else:
                 r[p] = pnat
@@ -356,6 +357,7 @@ def build_fa():
             if src in known and known[src][0] == t[p]:     # the Pioneers' record of the same player
                 q = bytearray(known[src])
                 q[2] = t[p + 2]
+                q[26] = (q[26] & 0x1f) | (t[p + 26] & 0xe0)  # role from facup72 (the slot), not the DLC's
                 q[3:26] = name.encode('latin1').ljust(23, b'\0')[:23]
                 r[p:p + 38] = q
             else:

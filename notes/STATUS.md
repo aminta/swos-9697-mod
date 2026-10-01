@@ -1116,3 +1116,13 @@ Keep this list updated as new tournaments are added (European Cup 1959-60 next).
   Builds IT EN FR DE = 62a5215f 71ae66ef b32a33b8 1a770f46, TEAM.091 a00c1adf. NEXT: Davide's tests (watch a first-round FA
   match, a WC82/Mitropa match) + DOSBox-X debugger EIP at the freeze.
 - Davide: the freeze is VIS. RISULTATI (simulated) on a replay, watching is fine -> likely the 127-126 'penalty score' used as counts. Coin result now 1-0 / 0-1; coin_text = our contest + pens flag (no real shoot-outs exist there). Builds IT EN FR DE = 500b1f1e d6ed7a07 74eff77a 77622a92 (UNTESTED).
+- Coin toss debugging (2026-10-02): test build T1 (engine's own penalties, no coin code) crashed too -> not the coin code.
+  FREEZE.PRE (Davide's save, c/SWOS) showed replay counter [32Fh] = 4: the engine's 'extra time / penalties IF REPLAY' never
+  applied in the preset cup and the 4th replay crashed (DOS/4GW invalid opcode at a garbage EIP, DOSBox-X log 'GRP5 Illegal
+  call 7'). The .PRE file = diyFileBufferCopy (round records at the same offsets, little-endian) + DIY_competitionStart at
+  file 0x420 (big-endian words).
+- NEW coin toss: legs bytes FA 0x00 (1 match), Mitropa 0x80 (2 legs), no e.t./pens; coin_draw replaces `or byte [D7],80h;
+  and byte [D7],0FDh` (draw -> replay, cseg_2B52F, IT obj1+0x1B37A, then the original jmp) in cseg_2AE97 for simulated and
+  played matches alike: in our contests, if DIY_competitionStart[32Fh] != 0 (already a replay/play-off) -> random winner,
+  flags |= 0Ah (decided + 'penalties'), D5/D6 1-0 / 0-1; coin_text shows the toss. coin_sim/coin_play removed.
+  Builds IT EN FR DE = d434f928 6fc064a9 a2f9dc8c 7f0adb2f (UNTESTED; FREEZE.PRE is unusable: it carries the old 0x28 rounds).

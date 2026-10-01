@@ -58,17 +58,17 @@ M34 = [(16, 5, 'FERENCVAROS'), (1, 1, 'FLORIDSDORFER AC'),
        (20, 22, 'JUVENTUS'), (6, 4, 'TEPLITZER FK'),
        (1, 4, 'ADMIRA WIEN'), (20, 28, 'NAPOLI'),
        (16, 9, 'HUNGARIA'), (6, 10, 'SPARTA PRAHA')]
-M34_LEGS = 0xA8              # two legs; on an aggregate tie a play-off (replay) with extra time, then the coin toss
+M34_LEGS = 0x80              # two legs, no e.t., no penalties: an aggregate tie -> play-off (replay); drawn play-off -> coin toss
 
 # FA Cup 1871-72 (first edition): 15 clubs (tools/facup72.py), TEAM.091. Real first-round draw (7 ties) with Hampstead
 # Heathens' bye (last club: lib97.lib_bye plays round 1 with 14, lib97.lib_pre puts the 15th into the 8-club round 2),
 # then an open draw every round as in 1872 (DRAWS entry [0xFF] = bye only, then the game's random draw); single matches,
-# a draw is replayed; a drawn replay gets extra time and then the coin toss (Davide: no endless replays, no penalties). Walkovers and the committee's "both teams go through"
+# a draw is replayed; a drawn replay is decided by the coin toss (Davide: no endless replays, no penalties). Walkovers and the committee's "both teams go through"
 # decisions cannot be reproduced (see STATUS session 26h).
 FA_ID = 0xC3
 FA_FILE = 91
 FA_NAME = b'FA CUP 1871-72'
-FA_LEGS = 0x28               # 1 match; a draw is replayed; in the replay extra time, then the coin toss (penalties if replay)
+FA_LEGS = 0x00               # 1 match, no e.t., no penalties: a draw is replayed; a drawn replay -> coin toss (coin_draw)
 
 # Fixed next-round placement (replaces the random draw cseg_27F08 for our contests). Qualifiers arrive in A2+59h ordered
 # 1st of each group A..F, then 2nd A..F (cseg_8A2CE: rank bonus 1000, group bonus 100, + points); slots are group-major.
@@ -131,10 +131,11 @@ draw_pre_none:
 DRAW_TABLE: DRAW_BYTES
 DRAW_TMP: times 64 db 0
 
-; Coin toss (Mitropa 1934, FA Cup 1871-72): where the game would start a penalty shoot-out (only in the replay / play-off:
-; legs byte 'penalties if replay'), the winner is drawn by lot. The 'penalty score' is 1-0 / 0-1 (small: the game uses
-; these numbers as counts; 127-126 froze the simulated replays) and, as no real shoot-out exists in these contests, the
-; results screen shows COIN_TEXT for any 'WIN n-m ON PENS' of ours.
+; Coin toss (Mitropa 1934, FA Cup 1871-72). These contests have no extra time and no penalties (legs byte), so a draw
+; means a replay. coin_draw replaces the 'draw -> replay' marking in cseg_2AE97 (simulated AND played matches both end
+; there): if the drawn match is already a replay ([32Fh] of DIY_competitionStart), the winner is drawn by lot and the tie
+; is marked as won 'on penalties' 1-0 / 0-1; the results screen shows COIN_TEXT for it (coin_text). (The engine's own
+; 'extra time / penalties if replay' options proved unusable in preset cups: no effect, then a crash at the 4th replay.)
 coin_ours:                              ; ZF = 1 if the running contest is one of ours
     cmp byte [DIYCOPY + 2Dh], M34_ID_
     je .r
@@ -152,36 +153,25 @@ coin_flip:                              ; eax = 0 or 1 (the game's random genera
     mov eax, [COIN_TMP]
     ret
 
-coin_sim:                               ; replaces `call cseg_2B84D` (simulated shoot-out) in cseg_2AE97
+coin_draw:                              ; replaces `or byte [D7], 80h; and byte [D7], 0FDh` (draw: replay) in cseg_2AE97
+    or byte [D7], 80h
+    and byte [D7], 0FDh
     call coin_ours
-    jne PENS_SIM
-    cmp word [PLAYED_PENS], 0           ; a played match: its 'penalty goals' (coin_play's toss) are taken as they are
-    jge PENS_SIM
+    jne .r
+    cmp word [DIYCOMP + 32Fh], 0        ; not a replay yet: replay as usual
+    je .r
     call coin_flip
-    mov dword [D5], 1                   ; side 0 wins: D6 <= D5
+    or byte [D7], 0Ah                   ; decided (2), 'penalties' (8)
+    and byte [D7], 0FEh                 ; side 0 ...
+    mov dword [D5], 1
     mov dword [D6], 0
     test eax, eax
     jz .r
-    mov dword [D5], 0                   ; side 1 wins: D6 > D5
+    or byte [D7], 1                     ; ... or side 1
+    mov dword [D5], 0
     mov dword [D6], 1
 .r:
     ret
-
-coin_play:                              ; replaces `call StartPenalties` in UpdateTime (penaltiesState already -1)
-    call coin_ours
-    jne START_PENALTIES
-    call coin_flip
-    test eax, eax
-    jnz .t2
-    mov word [PEN1], 1
-    mov word [PEN2], 0
-    mov dword [WINNER], TOP_TEAM
-    jmp END_OF_GAME
-.t2:
-    mov word [PEN1], 0
-    mov word [PEN2], 1
-    mov dword [WINNER], BOTTOM_TEAM
-    jmp END_OF_GAME
 
 coin_text:                              ; replaces `mov ax, [skip flag]` before the results PrintFormatted (cseg_289AC)
     call coin_ours
@@ -437,38 +427,19 @@ def _coin_sites(p, draw_orig):
     d7 = r['D7']
     a0 = d7 + 4
     out = {}
-    # cseg_2AE97: or byte [D7], 8; (pushes); call cseg_2B84D - the second 'or byte [D7], 8' in the exe
+    # cseg_2AE97 @cseg_2B52F (draw -> replay): or byte [D7], 80h; and byte [D7], 0FDh; jmp short - the first one after
+    # the shoot-out call that follows the second 'or byte [D7], 8'
     ors = [m.start() for m in re.finditer(re.escape(b'\x80\x0d' + struct.pack('<I', d7) + b'\x08'), d1)]
     assert len(ors) == 2, ors
-    k = d1.index(b'\xe8', ors[1] + 7)
-    assert k - ors[1] < 0x40
-    out['sim_call'], out['pens_sim'] = k, k + 5 + struct.unpack_from('<i', d1, k + 1)[0]
-    assert d1[out['pens_sim']:out['pens_sim'] + 2] == b'\x66\xa1'      # cseg_2B84D: mov ax, [dseg_114C9E]
-    out['played_pens'] = struct.unpack_from('<I', d1, out['pens_sim'] + 2)[0]
-    # UpdateTime: mov [winningTeamPtr], 0; call EndOfGame; jmp; mov word [extraTimeState], -1; call StartFirstExtraTime;
-    # jmp; mov word [penaltiesState], -1; call StartPenalties
-    pat = (rb'\xc7\x05(.{4})\x00\x00\x00\x00\xe8(.{4})\xe9.{4}\x66\xc7\x05.{4}\xff\xff\xe8.{4}\xe9.{4}'
-           rb'\x66\xc7\x05(.{4})\xff\xff\xe8(.{4})')
-    m = list(re.finditer(pat, d1, re.S))
-    assert len(m) == 1, len(m)
-    m = m[0]
-    out['winner'] = struct.unpack('<I', m.group(1))[0]
-    eog = m.start() + 10
-    out['end_of_game'] = eog + 5 + struct.unpack('<i', m.group(2))[0]
-    ps = struct.unpack('<I', m.group(3))[0]
-    out['pen_call'] = m.end() - 5
-    out['start_pen'] = m.end() + struct.unpack('<i', m.group(4))[0]
-    # @@team2_wins: mov [winningTeamPtr], offset bottomTeamInGame; jmp; @@team1_wins: mov [..], offset topTeamInGame; jmp
-    w = re.escape(m.group(1))
-    t = list(re.finditer(rb'\xc7\x05' + w + rb'.{4}\xeb.\xc7\x05' + w + rb'.{4}\xeb.', d1, re.S))
-    assert len(t) == 1 and 0 < m.start() - t[0].start() < 0x40, len(t)
-    tobj, out['bottom'] = p.target(1, t[0].start() + 6)
-    tobj2, out['top'] = p.target(1, t[0].start() + 18)
-    assert tobj == tobj2 == 2
-    # after the match: mov ax, [penaltiesState]; or ax, ax; jns; mov ax, [team1PenaltyGoals]; ...; mov ax, [team2PenaltyGoals]
-    q = re.search(rb'\x66\xa1' + re.escape(struct.pack('<I', ps)) + rb'\x66\x0b\xc0\x79.\x66\xa1(.{4})\x66\xa3.{4}\x66\xa1(.{4})',
-                  d1, re.S)
-    out['pen1'], out['pen2'] = (struct.unpack('<I', q.group(k))[0] for k in (1, 2))
+    e = re.escape(struct.pack('<I', d7))
+    sites = [m.start() for m in re.finditer(b'\x80\x0d' + e + b'\x80\x80\x25' + e + b'\xfd\xeb', d1)]
+    sites = [x for x in sites if 0 < x - ors[1] < 0x100]
+    assert len(sites) == 1, sites
+    out['draw_site'] = sites[0]
+    # DIY_competitionStart: cseg_2AE97 starts with mov [A6], offset DIY_competitionStart (A6 = D7 + 28)
+    k = d1.rfind(b"\xc7\x05" + struct.pack("<I", d7 + 28), 0, ors[1])
+    assert ors[1] - k < 0x800, hex(ors[1] - k)
+    out['diycomp'] = p.target(1, k + 6)[1]
     # cseg_289AC: mov [A0], offset aAWin01OnPensRe; jmp short $+2; mov ax, [skip]; or ax, ax; jz; mov esi, [A0]
     t = list(re.finditer(rb'\xc7\x05' + re.escape(struct.pack('<I', a0)) + rb'.{4}\xeb\x00\x66\xa1(.{4})\x66\x0b\xc0\x74.\x8b\x35'
                          + re.escape(struct.pack('<I', a0)), d1, re.S))
@@ -633,11 +604,7 @@ def patch(p, lang, area, cave, draw_pre=None):
                'CLASSICS_NAME': (2, rec + 1), 'MENU_COLOR': (0, MENU_COLOR), 'MENU_GAP': (0, MENU_GAP),
                'M34_ID_': (0, M34_ID), 'FA_ID_': (0, FA_ID), 'COIN_TEXT': (2, coin_text),
                'DIYCOPY': (2, coin['diycopy']), 'RAND2': (1, coin['rand2']), 'D5': (2, a0 - 12), 'D6': (2, a0 - 8),
-               'D7': (2, a0 - 4), 'D1': (2, a0 - 28), 'PENS_SIM': (1, coin['pens_sim']),
-               'START_PENALTIES': (1, coin['start_pen']), 'END_OF_GAME': (1, coin['end_of_game']),
-               'PEN1': (2, coin['pen1']), 'PEN2': (2, coin['pen2']), 'WINNER': (2, coin['winner']),
-               'TOP_TEAM': (2, coin['top']), 'BOTTOM_TEAM': (2, coin['bottom']), 'SKIP': (2, coin['skip']),
-               'PLAYED_PENS': (2, coin['played_pens'])}
+               'D7': (2, a0 - 4), 'D1': (2, a0 - 28), 'SKIP': (2, coin['skip']), 'DIYCOMP': (2, coin['diycomp'])}
     code, fix = nasmcave.assemble(ASM, at, symbols)
     labels = nasmcave.labels(ASM, at, symbols)
     p.put(1, at, code)
@@ -645,11 +612,9 @@ def patch(p, lang, area, cave, draw_pre=None):
         p.add_ptr(1, at + off, tobj, toff)
     p.put(1, pre_call + 1, struct.pack('<i', labels['hist_preset'] - (pre_call + 5)))
     p.put(1, names_call + 1, struct.pack('<i', labels['hist_names'] - (names_call + 5)))
-    for site, label in ((coin['sim_call'], 'coin_sim'), (coin['pen_call'], 'coin_play')):
-        p.put(1, site + 1, struct.pack('<i', labels[label] - (site + 5)))
+    p.put(1, coin['draw_site'], b'\xe8' + struct.pack('<i', labels['coin_draw'] - (coin['draw_site'] + 5)) + b'\x90' * 9)
     p.put(1, coin['text_site'], b'\xe8' + struct.pack('<i', labels['coin_text'] - (coin['text_site'] + 5)) + b'\x90')
-    print(f'exe: historic: coin toss: sim call obj1+{coin["sim_call"]:#x}, StartPenalties call obj1+{coin["pen_call"]:#x}, '
-          f'results text obj1+{coin["text_site"]:#x}')
+    print(f'exe: historic: coin toss: draw site obj1+{coin["draw_site"]:#x}, results text obj1+{coin["text_site"]:#x}')
     for c in draw_calls:
         p.put(1, c + 1, struct.pack('<i', labels['hist_draw'] - (c + 5)))
     print(f'exe: historic: fixed draws {[(hex(cid), len(pm)) for cid, pm in DRAWS]}, calls {[hex(c) for c in draw_calls]}')

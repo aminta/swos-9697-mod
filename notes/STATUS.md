@@ -490,3 +490,79 @@ per-country tables sized to 86 entries (names, flags, nationality maps, world-vi
 Plan: S1 analysis (obj2 data page, how a country is registered, persistence budget) -> go/no-go for new countries;
 Africa (new leagues + CAF cups) -> CONCACAF (Costa Rica + Champions' Cup) -> Asia -> Europe (Intertoto, Super Cup, CL 97-98).
 
+
+## Session 17 — analysis for Roadmap 2 (2026-10-01 night, analysis only, release builds untouched)
+(First scheduled run aborted at 98% of the 5-hour window; redone interactively after the reset. All addresses = ENGLISH.EXE.)
+
+### A. obj2 data space — FEASIBLE (static proof + boot)
+- ENG obj2: base 0xC0000, vsize 0xC5FC0, 197 physical pages (0xC5000), last page only 0x62F bytes in orig -> initialized data ends
+  0xC462F, BSS/stack 0xC462F..0xC5FC0. Entry ESP = obj2:0xC5FC0 (stack top = end of vsize, grows down).
+- lepatch.add_object_page(data, 2) works for obj2 unchanged: pads the file's last page, appends the new physical page, maps it as obj2's
+  next logical page. Because 0xC5000..0xC5FC0 is BSS/stack, ONE page is not enough: add TWO pages (0xC5000 = zero page covering the
+  old BSS/stack, 0xC6000 = free) and set_vsize(2, 0xC7000). Stack stays at 0xC5FC0, so the new page is above it and never touched.
+- Experiment (scratch only): rebuilt ENGLISH.EXE from orig with patch.py functions -> md5 d094c39d (= release, build reproducible), then
+  2x add_object_page(.., 2), vsize 0xC7000, wrote 'TEST NEW PAGE CUP' at obj2+0xC6000 and pointed the Intercontinental contest name
+  (two STR_BASE-relative dwords in the obj1 cave at obj1+0xA10D5) at it (rel = 0xC6000 - 0x16F8).
+  Re-parsed with le.py: obj2 bytes 0..0xC5000 byte-identical, padding zero, obj1 differs only in those 2 dwords, 73696 fixups identical.
+  DOSBox-X boot of the scratch exe: DOS/4GW loaded it and the game switched to 640x480 graphics (no loader error).
+  NOT verified: the name on screen (needs a look at the Intercontinental menu).
+- Steps for the real build: in patch_exe after add_object_page(.., 1): add_object_page twice for obj2, set_vsize(2, align_up(vsize,0x1000)
+  + 0x1000) per language (compute, do not hardcode 0xC7000), then StrPool can get a second area at obj2+0xC6000 (4 KB; add more pages
+  if needed). Strings there are reachable both by STR_BASE-relative dwords (league/contest names) and by fixup pointers (add_ptr).
+- Risks: (1) fixups whose SOURCE lies in a new obj2 page (e.g. a relocated pointer table placed there) are untested; the same path
+  already works for the added obj1 page, so low risk; or keep pointer tables in the obj1 cave and only strings in obj2.
+  (2) DOS/4GW object size limits: none hit (obj2 +8 KB, total < 2 MB). (3) release md5s change -> patcher regenerated (as usual).
+
+### B. How a country is registered (team file number = country number, 0..255)
+- LoadTeamFile (asm line ~39055): any number 0..255 -> 'data/team.nnn' (100 = CUSTOMS.EDT); file must be <= 64000 B (93 teams),
+  else FatalError. So TEAM.052, TEAM.086.. etc. load fine once something references them.
+- Tables indexed by country number (all ENG obj2):
+  | table | addr | entry | entries | notes |
+  | countriesTable | obj2+0x6742 | dword ptr (fixup) -> [continent byte, NAME\0, ADJECTIVE\0] | 256 (+6 continent adjectives) | holes: 47 (Costa Rica!), 52-54, 56-59, 61, 63, 68, 70, 74, 86-99, 101-251. Continent byte: 0 EUR, 1 N.AM, 2 S.AM, 3 ASIA, 4 OCE, 5 AFR. 13 code xrefs |
+  | competitionsTable | obj2+0x8B1C | dword ptr -> country table [league/cup ptrs, -2, -1] | 256 | null for the same holes |
+  | teamsCountryNumbers | obj2+0xB2A38 | word global base | 256 | 1 xref (SetTeamGlobalNumbers); global = base[team byte0] + team byte1; entries 86..255 all = 1730 (!) |
+  | continent tables 81..85 | Africa obj2+0x8FC8, S.Am 0x8FD8, N.Am 0x8FF0, Asia 0x9000, Oce 0x9010 | [WCQ ptr, nations cup ptr, -1 x4] + country bytes + FF | AFR [42,79,69], N.AM [51,60,73], ASIA [75,55,67], OCE [44,62] | world view / preset menus; must be relocated to add a country (as sacups did for SA) |
+  | seasonEndList | obj2+0x943A | byte, FF-terminated | 65 | 1 xref obj1+0x814AD (cseg_91428): at season end every listed country gets cseg_9153F + cseg_93974 (league processing + cup qualifiers). A new league country MUST be added -> relocate list + retarget that fixup |
+  | all_countries_list | obj2+0x93F8 | byte | 66 | no fixup xref to its start (maybe +1 or unused); same set as seasonEndList |
+  | shortCountryNames | obj2+0x6B98 | 3 chars | 153 | PLAYER nationalities, separate numbering: already has ALG 80, SAF 81, GHA 88, TUN 91, CMR 94, EGY 105, NIG 107, JAP 118, KOR 127, IRN 128, SAU 131, CHI 139, UAE 147, MAR 115, CRC 51, MEX 56, USA 58, ELS 66 -> no new nationality needed |
+- No per-country flag graphics found (country menus are text). Code tests country >= 80 only as ranges 80..85 = national teams
+  (5 of 28 sites read); 100 = customs. Safest numbers for new countries: the unused gaps 52, 53, 54, 56, 58, 61, 63 (7 slots); 86..99
+  probably fine too (not fully verified). Avoid 57/59/70 (single-team files SOUTH KOREA / MALAYSIA / TANZANIA exist) and 68 (60 teams).
+- New country X needs: TEAM.0nn (clubs, league byte 0..), countriesTable[n] record (continent byte + name + adjective, strings in the new
+  obj2 page, add_ptr), teamsCountryNumbers[n] = free global base (plain word), competitionsTable[n] -> new country table + league
+  struct (obj1 cave, like Italy), add n to the continent table and to seasonEndList (both relocated), league name string.
+- Costa Rica (47): TEAM.047 has 12 clubs (league byte 0), global base 1073 already reserved (1073..1084). Missing: countriesTable[47]
+  (name 'COSTA RICA'/'COSTA RICAN', continent 1), competitionsTable[47] + league struct (12 teams, 1 division), 47 in the North America
+  table and in seasonEndList. That is all — no global-number work.
+
+### C. Persistence budget
+- .CAR = obj2 dump from careerFileBuffer (ENG VA 0xC958C) to g_numSelectedTeams (save offset 0x173AF = 95151 B fixed part), then
+  N team records (684 B). 9 saves: N = 25..60. g_selectedTeams has room for 100 teams (68400 B) and is followed directly by the
+  pseudo registers D0..D7.
+- REAL free global numbers (computed from all TEAM files + mod Italy base 1850): only 424-474 (51, Italy's old range), 1730-1849 (120,
+  S2 block uses 1740-1842 -> 1730-1739 and 1843-1849 free = 17), 1924-1999 (76). Total 144. The older estimate (~300, runs 238-301 etc.)
+  was WRONG: those runs are taken by team files. Global numbers >= 2000 are not usable (someLeaguesTable[2000] is followed by currentTeam).
+  => global numbers are needed both for new countries' clubs and for persistence: 144 = e.g. 5 African leagues x 16 (80) + 64 left.
+- Bytes zero in all 9 saves (fixed part): tail of careerForeignMarketPlayers (352 x 42 B, 11822 B zero) and of dseg_D761E (season history,
+  1060 words, 1872 B zero) — NOT usable: the market loops always run over all 352 entries; the history fills up season by season.
+- Recommended: a save TRAILER. Hook SaveCareerFile (length = fixed + 2 + N*684, add T bytes copied from a block in the new obj2 page)
+  and LoadCareerFile (after LoadFile: if file size > 95151+2+N*684 and marker ok, copy the trailer back; else defaults). Old saves still
+  load (no trailer -> defaults). Guard: write the trailer only if N*684 + T <= 68400 (T <= 684 B keeps N <= 99; observed max N 60),
+  otherwise LoadFile would overwrite D0..D7. Fallback: keep using free global numbers (balance byte rule of cseg_9487A).
+
+### D. Go / no-go
+1. New continental club cups among EXISTING countries: GO. Same machinery as the SA cups (sacups.py). Few teams per continent though
+   (Africa 3 countries / 40 clubs, N.Am 3 (+CR) / 104, Asia 3 / 46), so a real CAF/AFC field needs new countries. Persistence via trailer.
+2. Costa Rica league: GO, smallest item (~1 session incl. relocating the N.America and seasonEnd lists + strings in the new page).
+3. Brand-new countries (Egypt, Morocco, Tunisia, Nigeria, Cameroon, South Korea...): GO with limits: 7 safe country numbers (52,53,54,
+   56,58,61,63; more in 86..99 after checking), ~127 free global numbers outside the S2 range (=> about 5-7 leagues of 16-18, or more
+   with 12-14 team leagues), strings in the new obj2 page. Main cost = data (rosters, sources poor).
+Effort (sessions): infrastructure (obj2 pages in patch.py for 4 languages, generic add_country/add_league/relocate lists, save trailer)
+1.5-2; Costa Rica 1; Africa: 5 new countries' data 2-3 + registration 1 + CAF Champions League 97 (groups) / Cup Winners' Cup / CAF Cup
+2-3 => 6-8; CONCACAF Champions' Cup 1-2; Asia (new countries + 2 cups) 4-5; Europe extras (Intertoto, Super Cup, CL 97-98) separate.
+Recommended order (Davide wants Africa first): S18 infrastructure + Costa Rica as the pilot of "register a country/league"
+(proves countriesTable/competitionsTable/continent/seasonEnd relocation in game) -> S19 save trailer + first African country (Egypt) end to
+end -> S20-21 Morocco, Tunisia, Nigeria, Cameroon data -> S22-23 CAF cups -> CONCACAF -> Asia.
+NOT verified this session: menu display of a name stored in the new page; the 23 unread country>=80 tests; whether all_countries_list is
+used; what the single-team files 057/059/070 and TEAM.068 are used for; the max N of cached teams in a career; game behaviour with a 12-team
+league (12 exists already: Taiwan).

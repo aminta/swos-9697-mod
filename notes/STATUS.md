@@ -933,3 +933,16 @@ World Cup 1982, European Cup 1988-89, Serie A 1986-87 (alt. Euro 88). Disassembl
   (The game already colours names starting with '.' PINK_TO_BROWN_7.) Builds IT EN FR DE = 0f5d5996 af054b11 e9fd74c3 cb612d39.
 - Container renamed (Davide): it 'TORNEI STORICI', en 'CLASSIC TOURNEYS', fr 'TOURNOIS ANCIENS', de 'TURNIERKLASSIKER' (<= 16 chars). Builds IT EN FR DE = be8719ea 73060d93 674693d9 2b20a4a7.
 - PLAYTEST WC 1982 full (Davide, 2026-10-01): PASSED. R1 1A Italy 2A Poland, 1B Chile 2B FRG, 1C Argentina 2C Belgium, 1D England 2D France, 1E Spain 2E Yugoslavia, 1F New Zealand 2F Scotland -> R2 A Argentina/Italy/Scotland, B Chile/England/Yugoslavia, C Belgium/NZ/Poland, D France/Spain/FRG (= 1A1C2F, 1B1D2E, 2A2C1F, 2B2D1E), 2 games each; SF Scotland-Belgium (A-C), England-Spain (B-D); 3rd place England-Scotland; final Spain-Belgium. TORNEI STORICI button purple with gap OK.
+
+## Session 26e — research: European Cup 1959-60 (parked) and Mitropa Cup 1934 (next, Davide: "il Bologna che tremare il mondo fa")
+- EC 1959-60 (en.wikipedia): 27 in the draw, 26 played (KuPS withdrew). Preliminary round two legs (byes: holder Real Madrid,
+  Sparta Rotterdam, Young Boys, B 1909, Red Star): Nice-Shamrock 4-3, Eintracht-KuPS w/o, Barcelona-CDNA 8-4, Wiener SC-Petrolul
+  2-1, IFK Goteborg-Linfield 7-3, Jeunesse-LKS 6-2, CH Bratislava-Porto 4-1, Milan-Olympiacos 5-3, Fenerbahce-Csepel 4-3,
+  Rangers-Anderlecht 7-2, Wolves-Vorwarts 3-2. First round 16 -> QF -> SF two legs (play-off on aggregate tie), final single
+  match (Hampden, Real 7-3 Eintracht).
+- Mitropa 1934 (en.wikipedia): 16 clubs (ITA, AUT, HUN, TCH x4), all rounds two legs incl. the final, play-off on aggregate tie
+  (one decided by coin toss). R16: Ferencvaros-Floridsdorfer, Kladno-Ambrosiana, Bologna-Bocskai, Slavia-Rapid, Austria Wien-
+  Ujpest, Juventus-Teplitzer, Admira-Napoli (play-off 5-0), MTK-Sparta (play-off, coin). QF: Ferencvaros-Kladno, Ujpest-Juventus,
+  Bologna-Rapid, Admira-Sparta. SF: Ferencvaros-Bologna, Admira-Juventus. Final Admira-Bologna 3-2, Bologna-Admira 5-1.
+  Top scorer Reguzzoni 10.
+- Engine: replays exist (REPLAY strings, cup option bits from the legs byte -> round +16Dh/+16Fh/+171h), away goals exist too.

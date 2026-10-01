@@ -1027,3 +1027,17 @@ World Cup 1982, European Cup 1988-89, Serie A 1986-87 (alt. Euro 88). Disassembl
   two legs; aggregate tie -> penalties with no extra time and no away goals. (2) career with a South American club
   (River = holder: no group matches, enters the R16) to season end: new list 20 + holder; save (C6) / reload.
   (3) load RIVER20.CAR (C5) and an old C4 save (OLIMPIA.CAR).
+
+## RELEASE TODO — sources and credits for the historic tournaments (Davide, 2026-10-01)
+README + release notes (EN first, then IT) must list EVERY source used, with an invitation to contact us for corrections or
+removal ("if you are an author and want something changed, open an issue / write to us"):
+- SWOS 2020 / SWOS United (sensiblesoccer.de): DLC "1982 FIFA WORLD CUP (Spain)" v1.1 and "1934 FIFA WORLD CUP (Italy)" by
+  Insane (squads, skills, faces, kits) - used with permission (Playaveli: "Just use it... and credit the author").
+- tempofradi.hu, "A KK tortenete - 1934, a Bologna masodszor" (Mitropa 1934 line-ups).
+- it.wikipedia season pages: Bologna Sezione Calcio 1933-1934, Foot-Ball Club Juventus 1933-1934, Associazione Sportiva
+  Ambrosiana-Inter 1933-1934, Associazione Calcio Napoli 1933-1934; Coppa dell'Europa Centrale 1934.
+- cs.wikipedia "1. asociacni liga 1933/1934" (Slavia, Sparta, Kladno, Teplitzer FK squads).
+- en.wikipedia "1933-34 SK Rapid Wien season" (data from rapidarchiv.at), "1934 Mitropa Cup", "1959-60 European Cup".
+- RSSSF (Karel Stokkermans), "Mitropa Cup 1934" (results, play-offs).
+- hu.wikipedia "1934-es kozep-europai kupa"; A Ferencvarosi TC 1933-1934-es szezonja.
+Keep this list updated as new tournaments are added (European Cup 1959-60 next). Mention invented names (marked in STATUS).

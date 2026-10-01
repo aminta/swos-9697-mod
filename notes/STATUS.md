@@ -910,3 +910,14 @@ World Cup 1982, European Cup 1988-89, Serie A 1986-87 (alt. Euro 88). Disassembl
 - TO VERIFY in game: how the engine fills the second-round groups (real 1982: A Poland/Belgium/USSR = 1A,1C,2F;
   B FRG/England/Spain = 1B,1D,2E; C Italy/Argentina/Brazil = 2A,2C,1F; D Austria/France/N.Ireland = 2B,2D,1E) and
   which group winners meet in the semis (real: A-C, B-D). If the engine's rule differs, find the code and replicate.
+- PLAYTEST 26d: freeze on TORNEO. Cause: cseg_24DFA (preset/DIY cup -> DIY tournament buffer) traps `test D0,1; jz; int 3;
+  jmp $` on an ODD teams-per-group count. Group stages run as DIY leagues (DIY_competitionStart: [79] groups, [81] per group,
+  [453] = n div 2 matches per group per day, days = n(n-1)/2 / (n div 2) = n for odd n) and DIY leagues accept 2..24 teams
+  (DesignDIYLeagueChangeNumberOfTeams) -> historic.odd_groups turns that jz into jmp (IT/FR/DE obj1+0x1523F, EN +0x153F4).
+  Builds IT EN FR DE = 87b7b35b 1dcfc517 cc517a10 d3e33d09 (c/SWOS). UNTESTED.
+- Next-round placement (for the exact 1982 second round and SF A-C / B-D): group qualifiers are scored in cseg_8A2CE
+  (worldCup has its own cseg_8A94F; generic: rank bonus 7D00h - 100*group - 1000*rank) and sorted -> list 1A..1F, 2A..2F
+  (to verify: the score field +2C3h may already hold points); the next round is filled by cseg_26DFC (worldCup:
+  cseg_277E5, Euro: cseg_31CFE; generic with struct[9]=0 -> cseg_27F08 draw, else slot-major fill). Plan: hook cseg_26DFC
+  for id 0xC1 and permute A2+59h with the 1982 table [0,2,11, 1,3,10, 6,8,5, 7,9,4] (round 2) and [0,2,1,3] (SF).
+  Same hook could give the real 1997 Libertadores (holder straight into the round of 16).

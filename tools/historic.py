@@ -90,6 +90,21 @@ def _calls(p):
     return preset[0].end() - 5, season[0].end() - 5, select
 
 
+def odd_groups(p):
+    """Allow odd group sizes (World Cup 1982: 4 groups of 3). The preset/DIY cup setup (cseg_24DFA) traps with
+    `test D0, 1; jz ok; int 3; jmp $` when a group stage has an odd number of teams per group, but the groups are DIY
+    leagues and the league engine handles odd sizes (DIY leagues take 2..24 teams; days = n(n-1)/2 / (n div 2) = n,
+    one team resting each day). The jz becomes jmp."""
+    import re
+    d1 = p.le.obj_bytes(1)
+    d0 = sacups.regs(d1)['D7'] - 28
+    ms = list(re.finditer(rb'\x66\x0b\xc0\x74\x0f\xf7\x05' + re.escape(struct.pack('<I', d0)) +
+                          rb'\x01\x00\x00\x00\x74\x03\xcc\xeb\xfe', d1))
+    assert len(ms) == 1, len(ms)
+    p.put(1, ms[0].end() - 5, b'\xeb')
+    print(f'exe: odd group sizes allowed (trap obj1+{ms[0].end() - 3:#x})')
+
+
 def patch(p, lang, area, cave):
     """Register CLASSICS and the World Cup 1982; returns the new cave end."""
     d2 = p.le.obj_bytes(2)
@@ -143,6 +158,7 @@ def patch(p, lang, area, cave):
     p.put(1, at + 4, b'\xff' * 4 + conts + bytes((CLASSICS, 0xff)))
     at = (at + 8 + len(conts) + 2 + 3) & ~3
 
+    odd_groups(p)
     pre_call, season_call, select = _calls(p)
     symbols = {'COMP254': (2, comp + 4 * 254), 'WORLD_PRESET': (1, wpre), 'SELECT': (1, select)}
     code, fix = nasmcave.assemble(ASM, at, symbols)

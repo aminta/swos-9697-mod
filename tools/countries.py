@@ -20,6 +20,7 @@ import sacups
 
 CN_NORTH_AMERICA = 83
 CONTINENT = {'europe': 0, 'north_america': 1, 'south_america': 2, 'asia': 3, 'oceania': 4, 'africa': 5}
+COMP = [None]                                      # obj2 offset of competitionsTable (tables())
 FREE_IDS = list(range(0x70, 0x7c))                 # contest ids nobody uses (0x6c..0x6f = SA cups)
 
 # country number -> (continent, name, adjective per language ('*' = all), league)
@@ -54,6 +55,11 @@ def tables(p):
     ct = [o for o in fx if all(o + 4 * i in fx for i in list(range(47)) + [252, 253, 254, 255])
           and o + 4 * 47 not in fx and o + 4 * 86 not in fx]
     assert len(ct) == 1, ct
+    # competitionsTable: same holes, but entry 9 (second England) empty
+    comp = [o for o in fx if all(o + 4 * i in fx for i in list(range(9)) + list(range(10, 47)) + list(range(80, 86)))
+            and o + 4 * 9 not in fx and o + 4 * 47 not in fx and o + 4 * 86 not in fx]
+    assert len(comp) == 1, comp
+    COMP[0] = comp[0]
     tcn = d2.find(struct.pack('<6H', 0, 16, 26, 44, 60, 72))
     assert tcn >= 0 and d2.find(struct.pack('<6H', 0, 16, 26, 44, 60, 72), tcn + 1) < 0
     head = bytes([0, 1, 76, 2, 3, 4, 5, 6, 7, 8, 10])         # also inside the Europe table: take the one code reads
@@ -69,8 +75,7 @@ def patch(p, lang, area, cave, extra=None):
     d2 = p.le.obj_bytes(2)
     ct, tcn, sel, sel_ref = tables(p)
     fx2 = {f[1] for f in p.le.fixups() if f[0] == 2}
-    comp = sacups.COMP_TABLE[0]
-    assert comp is not None, 'run sacups.patch first'
+    comp = COMP[0]
     at = cave
     ids = iter(FREE_IDS)
     new = []

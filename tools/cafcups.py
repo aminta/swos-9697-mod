@@ -7,7 +7,9 @@ world view) and in the international contests list.
 Initial team lists (first season): 1996-97 final standings (1997 for Nigeria/Cameroon, file order of
 africa.py); for Algeria, South Africa and Ghana (alphabetical files) the strongest clubs, with the real
 1996-97 champions where SWOS has them (Manning Rangers, Obuasi Goldfields).
-Step 2 (todo): player's club enters them in career, qualifiers from the standings at season end, persistence.
+Step 2: the player's club enters them in career (sacups chain, D7/E092F 6..8) and the next season's lists come from
+the standings at season end (sacups.qualify_hook). Not yet saved with the career (after a reload the world view
+shows the 1997 lists until the season end recomputes them).
 """
 import struct
 
@@ -59,14 +61,41 @@ def structs(p, area, cave):
         out.append((1, at))
         at += len(blob)
     at = (at + 3) & ~3
+    print(f'exe: CAF cups (ids {CAFCL_ID:#x}-{CAFCUP_ID:#x}) @ obj1+{out[0][1]:#x}')
+    return at, out
 
-    # international contests list (relocated by sacups): append the three cups
+
+# season end (sacups.qualify_hook table): (country, league rank) per list position, same pattern as the 1997 lists.
+# The Cup Winners' Cup takes ranks 3-4: the game keeps no national cup winners we could read (simplification).
+def _q(lst, ranks):
+    seen = {}
+    out = []
+    for c, _ in lst:
+        out.append((c, ranks[seen.get(c, 0)]))
+        seen[c] = seen.get(c, 0) + 1
+    return out
+
+
+CL_Q = _q(CHAMPIONS_LEAGUE, (1, 2))
+CWC_Q = _q(CUP_WINNERS_CUP, (3, 4))
+CUP_Q = _q(CAF_CUP, (5, 6))
+
+
+def career_info(caf):
+    """What sacups needs: contest offsets (slot-3 chain) and the qualification entries."""
+    cl, cwc, cup = (off for _, off in caf)
+    return {'structs': (cl, cwc, cup),
+            'q': [(cl + 47, CL_Q), (cwc + 27, CWC_Q), (cup + 27, CUP_Q)]}
+
+
+def intl_list(p, caf, at):
+    """Append the three cups to the international contests list (relocated by sacups)."""
     lst, code = sacups.INTL_LIST[0]
     d1 = p.get(1, lst, 0x400)
     entries = []
     while d1[4 * len(entries):4 * len(entries) + 4] != b'\xff' * 4:
         entries.append(p.target(1, lst + 4 * len(entries)))
-    entries += out
+    entries += caf
     new = at
     for k, (tobj, toff) in enumerate(entries):
         p.add_ptr(1, at + 4 * k, tobj, toff)
@@ -75,6 +104,5 @@ def structs(p, area, cave):
     at += 4
     for off in code:
         p.retarget(1, off, 1, new)
-    print(f'exe: CAF cups (ids {CAFCL_ID:#x}-{CAFCUP_ID:#x}) @ obj1+{out[0][1]:#x}, intl list -> obj1+{new:#x} '
-          f'({len(entries)} entries)')
-    return at, out
+    print(f'exe: intl list -> obj1+{new:#x} ({len(entries)} entries)')
+    return at

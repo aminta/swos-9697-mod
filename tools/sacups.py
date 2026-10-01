@@ -90,7 +90,7 @@ def intercontinental(cwc):
     return h
 
 
-def patch(p, pool, cave):
+def patch(p, pool, cave, caf):
     d2 = p.le.obj_bytes(2)
     o1base, o2base = p.le.obj(1).base, p.le.obj(2).base
     euro = unique(d2, EUROCUP_HDR)
@@ -191,8 +191,8 @@ def patch(p, pool, cave):
     m = [x for x in re.finditer(rb'\xc7\x05' + a1 + rb'(.{4})\xa1(.{4})\x39\x05' + a0 + rb'\x75', d1, re.S)]
     assert len(m) == 1
     COMP_SLOTS[0] = struct.unpack('<I', m[0].group(2))[0]
-    at = career_hooks(p, cups, at, [off for _, off, _ in layout])
-    return qualify_hook(p, cups, at, layout[3][1] + 24)
+    at = career_hooks(p, cups, at, [off for _, off, _ in layout], caf)
+    return qualify_hook(p, cups, at, layout[3][1] + 24, caf['q'])
 
 
 # --- career: the player's club enters an SA cup ------------------------------
@@ -333,11 +333,27 @@ init_sa:
     mov word [D7], 5
     call CHECK
     jz .found
+    mov dword [A0], CAFCL               ; African cups (cafcups.py): D7 = 6, 7, 8
+    mov word [D7], 6
+    call CHECK
+    jz .found
+    mov dword [A0], CAFCWC
+    mov word [D7], 7
+    call CHECK
+    jz .found
+    mov dword [A0], CAFCUP
+    mov word [D7], 8
+    call CHECK
+    jz .found
     mov word [E092F], -1
     jmp DONE
 .found:                                 ; trophy flag, reputation and prize (dseg_D8CBE) as the euro cup of the
     mov ax, [D7]                        ; same rank: Libertadores = Champions Cup, Supercopa = CWC, CONMEBOL = UEFA
+    sub ax, 3                           ; (CAF Champions League / Cup Winners' Cup / CAF Cup likewise)
+    cmp ax, 3
+    jb .kind
     sub ax, 3
+.kind:
     mov [CUP_KIND], ax
     jmp FOUND
 
@@ -379,7 +395,7 @@ load_slot1:
     je LOAD_OUT
     jmp LOAD_CONT
 
-; ProcessCareerFile, replaces "cmp [E092F],2; jz map; jmp out": slot 3 = SA cup for E092F 3..5
+; ProcessCareerFile, replaces "cmp [E092F],2; jz map; jmp out": slot 3 = SA cup for E092F 3..5, CAF cup 6..8
 load_slot3:
     cmp word [E092F], 2
     je LOAD_MAP
@@ -391,6 +407,15 @@ load_slot3:
     je LOAD_MAP
     mov dword [A0], CON
     cmp word [E092F], 5
+    je LOAD_MAP
+    mov dword [A0], CAFCL
+    cmp word [E092F], 6
+    je LOAD_MAP
+    mov dword [A0], CAFCWC
+    cmp word [E092F], 7
+    je LOAD_MAP
+    mov dword [A0], CAFCUP
+    cmp word [E092F], 8
     je LOAD_MAP
     jmp LOAD_OUT
 
@@ -554,8 +579,8 @@ DEFAULTS: DEFAULT_BYTES
 '''
 
 
-def career_hooks(p, cups, cave, cups_all=None):
-    """cups = obj1 offsets of the Libertadores, Supercopa, CONMEBOL structs."""
+def career_hooks(p, cups, cave, cups_all=None, caf=None):
+    """cups = obj1 offsets of the Libertadores, Supercopa, CONMEBOL structs; caf = cafcups.career_info()."""
     import re
     d1 = p.le.obj_bytes(1)
     lib, sup, con = cups
@@ -653,6 +678,8 @@ def career_hooks(p, cups, cave, cups_all=None):
                'SLOT4_CUP': (2, slot4_cup), 'SLOT4': (2, slot4), 'SLOT_SIZE': (0, 0x443), 'LEAGUE_SUBS': (2, league_subs),
                'CSEG_8DAC3': (1, c8dac3), 'PLAYOFF_OUT': (1, po_out), 'PLAYOFF_CONT': (1, po + 13),
                'DONE': (1, done), 'LOAD_OUT': (1, load_out), 'LOAD_CONT': (1, load0 + 10), 'LOAD_MAP': (1, load_map)}
+    for name, off in zip(('CAFCL', 'CAFCWC', 'CAFCUP'), caf['structs']):
+        symbols[name] = (1, off)
     code, fix = nasmcave.assemble(CAREER_ASM, cave, symbols)
     labels = nasmcave.labels(CAREER_ASM, cave, symbols)
     LISTS_OUT[0] = labels['lists_out']
@@ -797,7 +824,7 @@ RUNNERUP: RU_BYTES
 '''
 
 
-def qualify_hook(p, cups, cave, intlist):
+def qualify_hook(p, cups, cave, intlist, extra_q=()):
     d1 = p.le.obj_bytes(1)
     lib, sup, con = cups
     # cseg_915ED: call nullsub; mov eax,[A4]; mov [A0],eax; mov ax,[D7]; mov [D0],ax
@@ -827,11 +854,11 @@ def qualify_hook(p, cups, cave, intlist):
     table = bytearray()
     ptrs = []                       # (offset in table, tobj, toff)
     per = {}
-    for base, lst in ((lib + 47, LIB_Q), (con + 27, CON_Q)):
+    for base, lst in [(lib + 47, LIB_Q), (con + 27, CON_Q)] + list(extra_q):   # + CAF cups
         for pos, (c, rank) in enumerate(lst):
             per.setdefault(c, []).append((rank, base + 2 * pos))
     for c, entries in per.items():
-        league = p.target(2, p.target(2, COMP_TABLE[0] + 4 * c)[1])
+        league = p.target(*p.target(2, COMP_TABLE[0] + 4 * c))     # country tables of new countries live in obj1
         ptrs.append((len(table), *league))
         table += bytes(4) + bytes((len(entries),))
         for rank, dest in entries:

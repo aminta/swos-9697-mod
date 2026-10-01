@@ -26,8 +26,9 @@ from strpool import StrPool
 ROOT = os.path.join(os.path.dirname(__file__), '..')
 ITALY = 20
 ITALY_BASE = 1850          # free global numbers: ~1794..1999
-OBJ1_NEW_VSIZE = 0xa2000     # + one added page (lepatch.add_object_page)
-SA_CAVE = 0xa1000            # the added page: South American cups
+OBJ1_NEW_VSIZE = 0xa3000     # + two added pages (lepatch.add_object_page)
+SA_CAVE = 0xa1000            # first added page: South American cups
+WORLD_CAVE = 0xa2000         # second added page: new countries, CAF cups (Roadmap 2)
 
 LEAGUES_OLD = bytes.fromhex('3c00144020150000000202033512')
 TEAM_BASES = struct.pack('<16H', 0, 16, 26, 44, 60, 72, 86, 102, 114, 207, 207, 221, 233, 245, 287, 333)
@@ -111,7 +112,7 @@ def remap_italian_cup_teams(p, remap):
 
 def patch_exe(src, dst, remap, lang='it'):
     grown = dst + '.tmp'
-    data = add_object_page(open(src, 'rb').read(), 1)
+    data = add_object_page(add_object_page(open(src, 'rb').read(), 1), 1)
     while True:                    # obj2: zero pages over the old BSS/stack tail, then one free page
         data = add_object_page(data, 2)
         le2 = LE(data)
@@ -137,17 +138,18 @@ def patch_exe(src, dst, remap, lang='it'):
     remap_italian_cup_teams(p, remap)
     cave = patch_italy(p, pool)
     assert cave <= SA_CAVE
-    cave = sacups.patch(p, pool, SA_CAVE)
-    assert cave <= OBJ1_NEW_VSIZE
     area = countries.Obj2Area(p, obj2_free, obj2_free + p.le.page_size)
-    cave, caf = cafcups.structs(p, area, cave)
-    cave = countries.patch(p, lang, area, cave, {'africa': caf})
-    assert cave <= OBJ1_NEW_VSIZE, hex(cave)
+    world, caf = cafcups.structs(p, area, WORLD_CAVE)
+    world = countries.patch(p, lang, area, world, {'africa': caf})
+    cave = sacups.patch(p, pool, SA_CAVE, cafcups.career_info(caf))
+    assert cave <= WORLD_CAVE, hex(cave)
+    world = cafcups.intl_list(p, caf, world)
+    assert world <= OBJ1_NEW_VSIZE, hex(world)
     p.set_vsize(1, OBJ1_NEW_VSIZE)
     p.set_vsize(2, obj2_free + p.le.page_size)
     p.add_flags(1, 0x2)            # writable: season end rewrites the SA cup team lists in the cave
     delta, shift = p.save(dst)
-    print(f'exe: fixups +{delta} bytes, data pages moved {shift:#x}, cave used up to obj1+{cave:#x}')
+    print(f'exe: fixups +{delta} bytes, data pages moved {shift:#x}, caves used up to obj1+{cave:#x} / +{world:#x}')
 
 
 def team(rec, ordinal, league, name=None):

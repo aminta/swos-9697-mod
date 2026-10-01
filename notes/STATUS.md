@@ -626,3 +626,18 @@ league (12 exists already: Taiwan).
   standings of the 8 African countries (sacups.qualify_hook generalised), persistence of the 3 lists (96 B) -> .CAR trailer
   (session 17 C). Then manuals + patcher 1.1 (ship TEAM.052..058 whole).
 - md5 19b: IT EN FR DE = 1415fc77 45ade57e 1189010f 618c08fc 
+
+## Session 19c — CAF cups step 2: career + season-end qualifiers (2026-10-01, static checks only, UNTESTED in game)
+- obj1 grows by a SECOND page (OBJ1_NEW_VSIZE 0xA3000): 0xA1000 = SA cave (sacups), 0xA2000 = WORLD_CAVE (cafcups structs,
+  countries, CAF intl list). Build order: patch_italy -> cafcups.structs -> countries.patch (needs the CAF ptrs for the Africa
+  table; finds competitionsTable itself, countries.COMP) -> sacups.patch(.., cafcups.career_info) -> cafcups.intl_list.
+- Career (sacups CAREER_ASM): slot-3 chain after CONMEBOL tries CAF CL / CWC / CAF Cup with D7 = 6 / 7 / 8; CUP_KIND = D7-3 or D7-6
+  (Champions Cup / CWC / UEFA rank); load_slot3 maps E092F 6..8 back to the CAF struct.
+- Season end (sacups.qualify_hook): QTABLE now has 18 countries; African entries: CAF CL ranks 1-2, CWC ranks 3-4 (no readable cup
+  winners -> league ranks), CAF Cup ranks 5-6, list positions as the 1997 lists (cafcups.CL_Q/CWC_Q/CUP_Q). qualify_hook follows
+  country tables into obj1 (new countries).
+- NOT persisted: after loading a save the CAF lists are the 1997 ones until the next season end recomputes them (world view only;
+  the player's own CAF cup is in its slot buffer, saved by the game). Persistence -> .CAR trailer (next).
+- md5 19c: IT EN FR DE = 7974c499 3320e8c3 555b8ecc eb001b72 
+- PLAYTEST: career with an African top club (e.g. AL AHLY, RAJA) -> CAF Champions League in slot 3 in season 1, save/reload keeps it;
+  season end -> next season's CAF lists = standings (world view / the player's qualification).

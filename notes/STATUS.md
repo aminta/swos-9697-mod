@@ -875,3 +875,6 @@ World Cup 1982, European Cup 1988-89, Serie A 1986-87 (alt. Euro 88). Disassembl
   Plan: with Davide's ok download SWOS 2020, install in CrossOver, fetch the WC1982 DLC (and others), compare their team format
   with TEAM.xxx (SWOS 2020 derives from the 96/97 DOS exe -> probably same 684-byte records), convert into TEAM.089.
   European Cup 1959-60 and Mitropa 1930s: probably by hand (Wikipedia/RSSSF + c1c2-style calibration).
+- SWOS 2020 data permission (2026-10-01, via Davide): Playaveli (SWOS 2020, curator of the historic DLCs): "I think it's fine.
+  Just use it... and credit the author"; per-DLC authors: "see DLC window" (DLC Manager) -> copy the exact credits from there
+  into README / release notes / manuals when the historic squads ship.

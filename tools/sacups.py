@@ -60,6 +60,7 @@ NAMES = {LIB_ID: b'COPA LIBERTADORES', SUP_ID: b'SUPERCOPA', CON_ID: b'COPA CONM
          INT_ID: b'COPPA INTERCONTINENTALE'}
 # Tokyo, November 1996: Juventus - River Plate (Juventus' TEAM.020 index is looked up by name)
 INTERCONTINENTAL = [('JUVENTUS', 20), (ARG, 33)]
+NAME_SITES = []                               # (contest id, obj1 offset of its two name dwords), set by patch()
 
 EUROCUP_HDR = bytes.fromhex('0002ff40202200280101010203350410')
 CWC_HDR = bytes.fromhex('0101ff40200f001501002001350194949494')
@@ -134,6 +135,7 @@ def patch(p, pool, cave, caf):
     for cid, off, name_at in layout:
         rel = pool.add(NAMES[cid]) - STR_BASE
         p.put(1, off + name_at, struct.pack('<II', rel, rel))
+    NAME_SITES[:] = [(cid, off + name_at) for cid, off, name_at in layout]   # patch.short_names: 2nd dword
     at = (at + 3) & ~3
 
     # South America continent: [WC qualification, Copa America, -1] + countries

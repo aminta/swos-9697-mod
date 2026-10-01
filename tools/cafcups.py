@@ -19,6 +19,7 @@ import sacups
 CAFCL_ID, CAFCWC_ID, CAFCUP_ID, CCC_ID, ACC_ID, ACWC_ID = 0x76, 0x77, 0x78, 0x79, 0x7a, 0x7b
 NAMES = {CAFCL_ID: b'CAF CHAMPIONS LEAGUE', CAFCWC_ID: b'CAF CUP WINNERS CUP', CAFCUP_ID: b'CAF CUP',
          CCC_ID: b'CONCACAF CHAMPIONS CUP', ACC_ID: b'ASIAN CLUB CHAMPIONSHIP', ACWC_ID: b'ASIAN CUP WINNERS CUP'}
+NAME_SITES = []                                    # (contest id, obj1 offset of its two name dwords), set by structs()
 ALG, SAF, GHA, EGY, MAR, TUN, NGA, CMR = 42, 69, 79, 52, 53, 54, 56, 58
 MEX, USA, SLV, CRC, GUA, HON = 60, 73, 51, 47, 87, 88
 
@@ -68,6 +69,7 @@ def structs(p, area, cave):
     d2 = p.le.obj_bytes(2)
     euro = sacups.unique(d2, sacups.EUROCUP_HDR)
     cwc = sacups.unique(d2, sacups.CWC_HDR)
+    NAME_SITES.clear()
     defs = []
     for cid, lst, groups, *_ in CUPS:
         if groups:
@@ -82,6 +84,7 @@ def structs(p, area, cave):
         assert len(lst) == 16 and len(set(lst)) == 16
         rel = area.add(NAMES[cid] + b'\0') - sacups.STR_BASE
         blob = bytes(body[:name_at]) + struct.pack('<II', rel, rel) + sacups.teams(lst)
+        NAME_SITES.append((cid, at + name_at))                            # patch.short_names: 2nd dword
         assert blob[5] + 5 == name_at and blob[7] + 7 == name_at + 8
         p.put(1, at, blob)
         out.append((1, at))

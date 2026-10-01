@@ -56,6 +56,29 @@ LANGS = {
 }
 
 
+# Short contest names (the 2nd name dword: career schedule, fixtures lists; the game's own are <= 13 characters, e.g.
+# 'C.D. COP EURO'). Suggested by Playaveli: long names overlapped on the career main screen.
+SHORT = {sacups.LIB_ID: b'COPA LIB.', sacups.SUP_ID: b'SUPERCOPA', sacups.CON_ID: b'COPA CONMEBOL',
+         cafcups.CAFCL_ID: b'CAF CL', cafcups.CAFCWC_ID: b'CAF CWC', cafcups.CAFCUP_ID: b'CAF CUP',
+         cafcups.CCC_ID: b'CONCACAF CUP', cafcups.ACC_ID: b'ASIAN CC', cafcups.ACWC_ID: b'ASIAN CWC'}
+SHORT_INT = {'it': b'COPPA INTERC.', 'en': b'INTERC. CUP', 'fr': b'COUPE INTERC.', 'de': None}   # WELTPOKAL is short
+
+
+def short_names(p, area, lang):
+    """Second name dword of the SA, CAF, CONCACAF and Asian cups -> a short name in the new obj2 page."""
+    short = dict(SHORT)
+    short[sacups.INT_ID] = SHORT_INT[lang]
+    n = 0
+    for cid, off in sacups.NAME_SITES + cafcups.NAME_SITES:
+        name = short.get(cid)
+        if name is None:
+            continue
+        assert len(name) <= 13, name
+        p.put(1, off + 4, struct.pack('<I', area.add(name + b'\0') - sacups.STR_BASE))
+        n += 1
+    print(f'exe: short names for {n} cups')
+
+
 def patch_italy(p, pool):
     """Italy's global team base and 4-division league structure. Returns cave end."""
     CAVE = (p.le.obj(1).vsize + 15) & ~15       # slack after obj1's code (ITA 0xa09c9 -> 0xa09d0, ENG 0xa0b79 -> 0xa0b80)
@@ -150,6 +173,7 @@ def patch_exe(src, dst, remap, lang='it'):
     info['new_career_ptr'] = world              # dword filled below: sacups is assembled before the trailer code
     world += 4
     cave = sacups.patch(p, pool, SA_CAVE, info)
+    short_names(p, area, lang)
     world, new_career = trailer.patch(p, world, sacups.SAVE_ITEMS[0] + [(base, 32) for base, _ in info['q']])
     p.add_ptr(1, info['new_career_ptr'], 1, new_career)
     assert cave <= WORLD_CAVE, hex(cave)

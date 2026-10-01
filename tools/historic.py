@@ -132,8 +132,9 @@ DRAW_TABLE: DRAW_BYTES
 DRAW_TMP: times 64 db 0
 
 ; Coin toss (Mitropa 1934, FA Cup 1871-72): where the game would start a penalty shoot-out (only in the replay / play-off:
-; legs byte 'penalties if replay'), the winner is drawn by lot. The 'penalty score' becomes 127-126 (impossible in a
-; shoot-out) and the results screen shows COIN_TEXT instead of 'WIN n-m ON PENS'.
+; legs byte 'penalties if replay'), the winner is drawn by lot. The 'penalty score' is 1-0 / 0-1 (small: the game uses
+; these numbers as counts; 127-126 froze the simulated replays) and, as no real shoot-out exists in these contests, the
+; results screen shows COIN_TEXT for any 'WIN n-m ON PENS' of ours.
 coin_ours:                              ; ZF = 1 if the running contest is one of ours
     cmp byte [DIYCOPY + 2Dh], M34_ID_
     je .r
@@ -157,12 +158,12 @@ coin_sim:                               ; replaces `call cseg_2B84D` (simulated 
     cmp word [PLAYED_PENS], 0           ; a played match: its 'penalty goals' (coin_play's toss) are taken as they are
     jge PENS_SIM
     call coin_flip
-    mov dword [D5], 7Fh                 ; side 0 wins: D6 <= D5
-    mov dword [D6], 7Eh
+    mov dword [D5], 1                   ; side 0 wins: D6 <= D5
+    mov dword [D6], 0
     test eax, eax
     jz .r
-    mov dword [D5], 7Eh                 ; side 1 wins: D6 > D5
-    mov dword [D6], 7Fh
+    mov dword [D5], 0                   ; side 1 wins: D6 > D5
+    mov dword [D6], 1
 .r:
     ret
 
@@ -172,25 +173,21 @@ coin_play:                              ; replaces `call StartPenalties` in Upda
     call coin_flip
     test eax, eax
     jnz .t2
-    mov word [PEN1], 7Fh
-    mov word [PEN2], 7Eh
+    mov word [PEN1], 1
+    mov word [PEN2], 0
     mov dword [WINNER], TOP_TEAM
     jmp END_OF_GAME
 .t2:
-    mov word [PEN1], 7Eh
-    mov word [PEN2], 7Fh
+    mov word [PEN1], 0
+    mov word [PEN2], 1
     mov dword [WINNER], BOTTOM_TEAM
     jmp END_OF_GAME
 
 coin_text:                              ; replaces `mov ax, [skip flag]` before the results PrintFormatted (cseg_289AC)
     call coin_ours
     jne .x
-    test byte [D7], 8                   ; penalties
+    test byte [D7], 8                   ; penalties (in our contests always a coin toss)
     jz .x
-    cmp word [D0], 7Eh
-    jb .x
-    cmp word [D1], 7Eh
-    jb .x
     mov dword [A0], COIN_TEXT
 .x:
     mov ax, [SKIP]

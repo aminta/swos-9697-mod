@@ -1115,3 +1115,4 @@ Keep this list updated as new tournaments are added (European Cup 1959-60 next).
   played match's toss alone ([dseg_114C9E] >= 0 -> original cseg_2B84D); Queen's Park shorts grey (colour 0).
   Builds IT EN FR DE = 62a5215f 71ae66ef b32a33b8 1a770f46, TEAM.091 a00c1adf. NEXT: Davide's tests (watch a first-round FA
   match, a WC82/Mitropa match) + DOSBox-X debugger EIP at the freeze.
+- Davide: the freeze is VIS. RISULTATI (simulated) on a replay, watching is fine -> likely the 127-126 'penalty score' used as counts. Coin result now 1-0 / 0-1; coin_text = our contest + pens flag (no real shoot-outs exist there). Builds IT EN FR DE = 500b1f1e d6ed7a07 74eff77a 77622a92 (UNTESTED).

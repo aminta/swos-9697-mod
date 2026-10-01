@@ -1136,3 +1136,12 @@ Keep this list updated as new tournaments are added (European Cup 1959-60 next).
 - PLAYTEST Mitropa play-off (Davide): Admira Wien 2-2 Napoli in the first-round play-off -> 'NAPOLI VINCE AL SORTEGGIO' (as in 1934 that tie went to a play-off). PASSED. Left: a played/watched drawn replay.
 - Short cup names (Playaveli's suggestion: long names overlap on the career main screen/schedule): patch.short_names writes the 2nd name dword (the game's short name, <= 13 chars, e.g. 'C.D. COP EURO') of the SA, CAF, CONCACAF and Asian cups: COPA LIB., SUPERCOPA, COPA CONMEBOL, COPPA INTERC./INTERC. CUP/COUPE INTERC. (de keeps WELTPOKAL), CAF CL, CAF CWC, CAF CUP, CONCACAF CUP, ASIAN CC, ASIAN CWC (strings in the obj2 page; sacups/cafcups expose NAME_SITES). Builds IT EN FR DE = 9a2c4f15 608cc88a 3a3480e2 255e4d60 (UNTESTED: check the career main screen with a Libertadores club). Release notes: credit Playaveli for the suggestion.
 - Roles fix (Davide: Kirkpatrick in goal shown as M, the DLC's role): players copied from the DLCs keep the slot's role (facup72 / mitropa34), only skills/face come from the DLC. TEAM.090 / TEAM.091 rebuilt (md5 above in c/SWOS), exes unchanged. Played replay Civil Service 2-4 Barnes OK.
+
+## BACKLOG — ideas from Daniele Bordes (Facebook SWOS group, 2026-10-02; he hex-edits SWOS DOS and SWOS 2020)
+- Kit selection: his hack (TEAM.* files + exe) works around the game's bad kit-clash algorithm so that e.g. Milan, Inter and
+  Juventus meet each other in their home kits (SWOS 2020 has a kit selector; the DOS game does not). Worth a look for the mod.
+- Rudimentary transfer market tool: swap(teamFrom, playerFrom, teamTo, playerTo) updating both the TEAM.* file and the career
+  (.CAR) file; plus 'replace/retire' (a player becomes a new name with new values). Interesting as a Python tool here
+  (tools/, on top of le/TEAM parsing and the .CAR layout we know: fixed part 95151 B + N cached team records).
+- He also changed: Champions League to a pure knock-out (no groups), nations/number of teams per nation in the euro cups,
+  Coppa Italia final as a single match. (Our mod already rewrites cup formats; possible exchange of notes / collaboration.)

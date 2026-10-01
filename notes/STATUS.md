@@ -661,3 +661,6 @@ league (12 exists already: Taiwan).
 - Code @ WORLD_CAVE obj1+0xA2288, 16 fixups. Builds: IT 4156ff39, EN 2b1753cb, FR 369d5004, DE a8e363c0.
 - TEST: load EGY.CAR (no trailer, 106097 B) -> OK as before; save under a new name -> 106195 B (+98, ends with 'C1' + lists);
   reload it; a new career after loading a save -> CAF lists = 1997 ones.
+- PLAYTEST session 20 (Davide): EGY.CAR (no trailer) loaded, played on, saved as EGY2.CAR = 106195 B (+98), trailer 'C1' + 3 lists,
+  reload OK. The saved lists are the season-end ones from the standings (CAF CL starts with EL MANSOURA = Egyptian champion of the
+  simulated season, WYDAD, JASPER UNITED...): CAF qualifiers from standings also confirmed. PASSED.

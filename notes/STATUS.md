@@ -1059,3 +1059,9 @@ Keep this list updated as new tournaments are added (European Cup 1959-60 next).
   Harrow Chequers (Betts, Welch + few). Pioneers DLC (Francescomanetti82 & Gorzo) has Barnes, Civil Service, Clapham, Crystal
   Palace, Hampstead, Marlow, QP, RE, Upton Park, Wanderers but mixes decades and invented/modern names -> only verifiable names.
   Pioneers almanac PDF (tinyurl in the DLC readme) not downloaded yet (needs Davide's ok).
+- PLAYTEST 27b preset (Davide, 2026-10-01, IT): PASSED from screenshots. Groups 5x4 without River, Racing in group B;
+  last group match Penarol-Dep. Cali (real last day of group 5). R16 exactly per table: Emelec(3B)-River, Cali(2E)-
+  Nacional(1E), Gremio(3D)-El Nacional(1B), U.Catolica(3C)-Bolivar(1A), Racing(2B)-Alianza(2D), Guarani(3A)-Cruzeiro(1D),
+  Millonarios(3E)-Colo Colo(1C), Mineros(2C)-Cerro(2A), first named at home in the 1st leg. No away goals (Cerro-Mineros
+  2-2 a, 1-1 -> penalties). QF Nacional-Emelec, Bolivar-Gremio, Alianza-Cruzeiro, Mineros-Colo Colo; SF Nacional-Bolivar,
+  Cruzeiro-Colo Colo; two-leg final Bolivar-Cruzeiro, 0-0 aggregate -> penalties. Still to test: career + C6/C5/C4 saves.

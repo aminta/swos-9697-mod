@@ -99,7 +99,7 @@ html{scroll-behavior:smooth}
     <li><a href="#trofei">16 · Trofei e reputazione</a></li>
     <li><a href="#hook">17 · Tabella degli agganci</a></li>
     <li><a href="#verifica">18 · Verifica senza giocare</a></li>
-    <li><a href="#nazioni">19 · Nuove nazioni e coppe africane (1.1)</a></li>
+    <li><a href="#nazioni">19 · Nuove nazioni e coppe continentali per club (1.1–1.2)</a></li>
     <li><a href="#limiti">20 · Limiti e questioni aperte</a></li>
     <li><a href="#storia">21 · Storico e prossimi passi</a></li>
   </ol>
@@ -111,8 +111,8 @@ html{scroll-behavior:smooth}
   <h1>Manuale tecnico SWOS ITA Mod</h1>
   <p>Documentazione per chi vuole capire, ampliare o portare su altri eseguibili le patch del mod: Serie C1 e C2, coppe sudamericane (Libertadores, Supercopa, CONMEBOL), Coppa Intercontinentale in carriera, rose reali 1996-97. Tutto quello che segue è stato ricavato dal disassemblato e verificato con build e partite di prova.</p>
   <div class="meta">
-    <span>Stato al <b>01/10/2026</b> (sessioni 1–20, release 1.1)</span>
-    <span>Build exe <b><code>4156ff39…</code></b></span>
+    <span>Stato al <b>01/10/2026</b> (sessioni 1–24, release 1.2)</span>
+    <span>Build exe <b><code>cb940d42…</code></b></span>
     <span>TEAM.020 <b><code>ded1b97b…</code></b></span>
     <span>Exe originale <b><code>60cdb6b1…</code></b></span>
   </div>
@@ -138,8 +138,8 @@ html{scroll-behavior:smooth}
 <tr><td>Doppia partecipazione</td><td>Club sudamericani: Supercopa nello slot 1 (quello della coppa nazionale, libero in Sudamerica) + coppa continentale nello slot 3</td><td><code>sacups.py</code></td><td><span class="pill ok">provato</span></td></tr>
 <tr><td>Persistenza</td><td>Liste delle coppe sudamericane e finaliste dell'Intercontinentale salvate con la carriera</td><td><code>sacups.py</code>, <code>salists.py</code></td><td><span class="pill ok">provato</span></td></tr>
 <tr><td>Intercontinentale</td><td>Finale secca a dicembre fra vincitrice Coppa Campioni e vincitrice Libertadores; finaliste aggiornate a fine stagione; slot 2 oppure slot 4</td><td><code>sacups.py</code></td><td><span class="pill ok">slot 2, fine stagione</span> <span class="pill todo">slot 4</span></td></tr>
-<tr><td>Nuove nazioni (1.1)</td><td>Campionato del Costa Rica; Egitto, Marocco, Tunisia, Nigeria, Camerun con campionato e coppa nazionale (club reali, giocatori inventati)</td><td><code>countries.py</code>, <code>africa.py</code></td><td><span class="pill ok">provato (1 stagione)</span></td></tr>
-<tr><td>Coppe africane (1.1)</td><td>CAF Champions League, CAF Cup Winners Cup, CAF Cup: menu, vista mondo, carriera, qualificate dalle classifiche, salvate in coda al file .CAR</td><td><code>cafcups.py</code>, <code>trailer.py</code></td><td><span class="pill ok">provato (1 stagione)</span></td></tr>
+<tr><td>Nuove nazioni (1.1–1.2)</td><td>Campionato del Costa Rica; Egitto, Marocco, Tunisia, Nigeria, Camerun, Corea del Sud, Cina, Arabia Saudita, Guatemala, Honduras con campionato e coppa nazionale (club reali, giocatori inventati)</td><td><code>countries.py</code>, <code>africa.py</code></td><td><span class="pill ok">provato (1 stagione)</span></td></tr>
+<tr><td>Coppe continentali per club (1.1–1.2)</td><td>CAF Champions League, CAF Cup Winners Cup, CAF Cup, CONCACAF Champions Cup, Asian Club Championship, Asian Cup Winners Cup: menu, vista mondo, carriera, qualificate dalle classifiche, salvate in coda al file .CAR</td><td><code>cafcups.py</code>, <code>trailer.py</code></td><td><span class="pill ok">provato (1 stagione)</span></td></tr>
 </tbody></table></div>
 
 <!-- 2 -->
@@ -411,6 +411,7 @@ flowchart LR
 
 <!-- 15 -->
 <h2 id="persist"><span class="n">15</span>Persistenza nel salvataggio</h2>
+<div class="note">Dalla 1.2 le liste descritte qui stanno nella coda del .CAR (sezione 19); questa sezione descrive il formato della 1.0/1.1, che il mod legge ancora dai salvataggi vecchi.</div>
 <p>Il salvataggio contiene <code>someLeaguesTable</code> (2000 byte, uno per numero globale). I numeri 1730–1849 non appartengono a nessuna squadra: il mod ci parcheggia i suoi dati dal numero 1740 (obj2+0x1867E), con una copia speculare in <code>leaguesTableCopy</code> (obj2+0x59C08), perché a fine stagione il gioco copia una tabella sull'altra (<code>cseg_8CC0A</code> e <code>cseg_8CC4E</code>). <code>InitCareer</code> azzera la tabella: una tabella a zero significa carriera nuova.</p>
 <div class="tbl"><table>
 <thead><tr><th>Offset</th><th>Formato S2 (attuale)</th><th>Formato SA (sessione 12)</th></tr></thead>
@@ -469,8 +470,8 @@ assert blk[:2] == b'S2' and sum(blk) % 256 == 0</code></pre>
 <p>Se un controllo fallisce e non si risolve, si rimette la build precedente (<code>ITALIAN_S12.EXE</code> è l'ultima provata a fondo).</p>
 
 <!-- 19 -->
-<h2 id="nazioni"><span class="n">19</span>Nuove nazioni e coppe africane (1.1)</h2>
-<p>La versione 1.1 aggiunge sei nazioni di club (Costa Rica, Egitto, Marocco, Tunisia, Nigeria, Camerun), le coppe nazionali delle cinque africane e tre coppe africane per club. Tutto viene generato da <code>countries.py</code>, <code>africa.py</code>, <code>cafcups.py</code> e <code>trailer.py</code>; ogni tabella viene trovata dal contenuto, quindi le quattro lingue usano lo stesso codice.</p>
+<h2 id="nazioni"><span class="n">19</span>Nuove nazioni e coppe continentali per club (1.1–1.2)</h2>
+<p>Le versioni 1.1 e 1.2 aggiungono undici nazioni di club (Costa Rica, Egitto, Marocco, Tunisia, Nigeria, Camerun, Corea del Sud, Cina, Arabia Saudita, Guatemala, Honduras), le coppe nazionali delle dieci nuove e sei coppe continentali per club (tre africane, la CONCACAF Champions Cup, due asiatiche). Tutto viene generato da <code>countries.py</code>, <code>africa.py</code>, <code>asia.py</code>, <code>namerica.py</code>, <code>cafcups.py</code> e <code>trailer.py</code>; ogni tabella viene trovata dal contenuto, quindi le quattro lingue usano lo stesso codice.</p>
 <h3>Come si registra una nazione</h3>
 <p>Il numero di una nazione è anche il numero del suo file squadre: <code>LoadTeamFile</code> trasforma qualunque numero 0–255 in <code>data/team.nnn</code> (100 = <code>CUSTOMS.EDT</code>, al massimo 64000 byte). Il gioco riconosce una nazione di club da queste tabelle (offset di ENGLISH.EXE):</p>
 <div class="tbl"><table>
@@ -487,21 +488,22 @@ assert blk[:2] == b'S2' and sum(blk) % 256 == 0</code></pre>
 <ul>
 <li><strong>obj2</strong> cresce finché la vecchia coda BSS/stack è coperta da pagine a zero, poi una pagina libera: nomi e record delle nazioni stanno a obj2+0xC6000 (la cima dello stack, ESP = vecchia vsize, resta sotto). EN/IT aggiungono 2 pagine, FR/DE 3.</li>
 <li><strong>obj1</strong> ha una seconda pagina aggiunta, 0xA2000: tabelle delle nazioni, strutture di campionati e coppe, coppe CAF, coda del salvataggio.</li>
-<li><strong>Numeri globali</strong> davvero liberi nei dati originali: 424–474 e 1924–1999 (più l'intervallo del nostro blocco salvato, 1730–1849). La 1.1 usa 424–469 e 1924–1959.</li>
-<li><strong>Id delle competizioni:</strong> campionati 0x70–0x75, coppe CAF 0x76–0x78, coppe nazionali 0xB2–0xB6 (dopo l'ultima coppa originale, 0xB1). Gli id servono solo come identificativi e come seme casuale: nel codice non ci sono controlli per fasce.</li>
+<li><strong>Numeri globali</strong> davvero liberi nei dati originali: 424–474, 1730–1849 e 1924–1999. Le nazioni nuove usano 424–469, 1730–1785 e 1924–1959; 1847–1849 contengono il marcatore di carriera 'S3'. Ancora liberi: 470–474, 1786–1846, 1960–1999. <strong>Numeri di nazione</strong>: tutti i controlli "è una nazionale?" del codice sono 80 ≤ n ≤ 85, quindi 86–99 sono nazioni di club come i buchi sotto 80.</li>
+<li><strong>Id delle competizioni:</strong> campionati 0x70–0x75, coppe per club 0x76–0x7B (CAF ×3, CONCACAF, asiatiche ×2), coppe nazionali e campionati successivi 0xB2–0xC0 (dopo l'ultima coppa originale, 0xB1). Gli id servono solo come identificativi e come seme casuale: nel codice non ci sono controlli per fasce.</li>
 </ul>
 <h3>Le nazioni nuove</h3>
 <ul>
 <li><strong>Costa Rica</strong> (TEAM.047, dati originali): aveva 12 club ma né nome né campionato. Ora ha una PRIMERA DIVISION da 12 squadre in Nord America.</li>
 <li><strong>Egitto, Marocco, Tunisia, Nigeria, Camerun</strong> (TEAM.052, 053, 054, 056, 058): club reali e classifica finale 1996-97 (1997 per Nigeria e Camerun), da RSSSF e Wikipedia; coppa nazionale da 16 (Tunisia 8).</li>
+<li><strong>Corea del Sud, Cina, Arabia Saudita</strong> (61, 63, 86; 1997, 1997, 1996-97) e <strong>Guatemala, Honduras</strong> (87, 88; 1996-97): stesso metodo, modelli dai club della J-League, dell'Algeria e di El Salvador, coppe nazionali da 8.</li>
 <li><strong>Giocatori inventati.</strong> Per questi campionati non esistono rose 1996-97 affidabili, quindi i nomi di giocatori e allenatori sono inventati con nomi comuni di ogni paese, su ruoli, volti e abilità dei club africani originali (Algeria, Ghana), spostati verso una forza che scende con la posizione in classifica. Rose reali di quegli anni sono benvenute (GitHub Issues).</li>
 </ul>
-<h3>Coppe africane e coda del salvataggio</h3>
+<h3>Coppe continentali per club e coda del salvataggio</h3>
 <ul>
-<li><strong>Competizioni:</strong> CAF Champions League (copia della Coppa Campioni: 4 gironi da 4 + eliminazione diretta), CAF Cup Winners Cup e CAF Cup (eliminazione diretta a 16). Pulsanti del continente Africa e membri della lista delle competizioni internazionali.</li>
-<li><strong>Carriera:</strong> la catena dello slot 3 di <code>sacups.py</code> prosegue con D7 = 6, 7, 8; trofeo e premio come la coppa europea dello stesso livello.</li>
-<li><strong>Fine stagione:</strong> la tabella delle qualificazioni ora ha 18 nazioni: CAF Champions League posizioni 1–2, Coppa delle Coppe 3–4 (il gioco non conserva le vincitrici delle coppe nazionali), CAF Cup 5–6.</li>
-<li><strong>Coda del salvataggio:</strong> <code>SaveCareerFile</code> scrive 'C1' + le tre liste (98 byte) dopo i record delle squadre se c'è spazio in <code>g_selectedTeams</code> (68400 byte, seguiti dagli pseudo-registri); <code>LoadCareerFile</code> le rilegge, oppure usa le liste della prima stagione per i salvataggi senza coda.</li>
+<li><strong>Competizioni</strong> (<code>cafcups.CUPS</code>): CAF Champions League (copia della Coppa Campioni: 4 gironi da 4 + eliminazione diretta), CAF Cup Winners Cup, CAF Cup, CONCACAF Champions Cup, Asian Club Championship e Asian Cup Winners Cup (eliminazione diretta a 16). Pulsanti del loro continente e membri della lista delle competizioni internazionali.</li>
+<li><strong>Carriera:</strong> la catena dello slot 3 di <code>sacups.py</code> è generata dalla lista: D7 = 6 … 11; trofeo e premio come la coppa europea dello stesso livello (una tabella dei livelli).</li>
+<li><strong>Fine stagione:</strong> la tabella delle qualificazioni ora ha 30 nazioni: per esempio CAF Champions League posizioni 1–2, Coppa delle Coppe 3–4 (il gioco non conserva le vincitrici delle coppe nazionali), CAF Cup 5–6, CONCACAF 1–4.</li>
+<li><strong>Coda del salvataggio:</strong> <code>SaveCareerFile</code> scrive 'C4' + tutte le liste salvate (sudamericane, coppia dell'Intercontinentale, le sei coppe: 294 byte) dopo i record delle squadre se c'è spazio in <code>g_selectedTeams</code> (68400 byte, seguiti dagli pseudo-registri); <code>LoadCareerFile</code> le rilegge. Salvataggi vecchi: il blocco 'S2'/'SA' della 1.0/1.1 in <code>someLeaguesTable</code> viene letto e azzerato, le code precedenti ('C1'…'C3') vengono lette; una carriera nuova si riconosce dall'assenza del marcatore 'S3'.</li>
 </ul>
 
 <!-- 20 -->
@@ -509,7 +511,7 @@ assert blk[:2] == b'S2' and sum(blk) % 256 == 0</code></pre>
 <ul>
 <li><strong>Gironi di C1/C2.</strong> Nel 1996-97 la C1 aveva 2 gironi e la C2 3. Il mod usa un girone unico per serie. L'intera realtà (128 squadre) non entra nel limite di circa 93 squadre per nazione. La C1 su due gironi entrerebbe (92), ma servono promozioni e retrocessioni fra divisioni parallele, verifiche sul limite delle 80 squadre di carriera e sui numeri globali: stima 2–3 sessioni.</li>
 <li><strong>Intercontinentale nello slot 4.</strong> Una finalista in una divisione con play-off resta senza Intercontinentale. La routine <code>cseg_8BF89</code> (chiamata da <code>cseg_8B2D3</code>) non è stata analizzata: se tiene dati legati al numero di slot, lo scambio dei buffer potrebbe lasciarli incoerenti. Nel riepilogo stagionale l'Intercontinentale nello slot 4 non ha nome.</li>
-<li><strong>Giocatori inventati e carriere lunghe (1.1).</strong> Le rose degli 82 club africani aggiunti nella 1.1 sono inventate (mancano le fonti); le novità della 1.1 sono state provate per una stagione. Le stringhe non sono più un limite: i nomi nuovi vanno nella pagina aggiunta a obj2.</li>
+<li><strong>Giocatori inventati e carriere lunghe (1.1).</strong> Le rose dei 138 club aggiunti nella 1.1–1.2 sono inventate (mancano le fonti); le novità sono state provate per una stagione. Le stringhe non sono più un limite: i nomi nuovi vanno nella pagina aggiunta a obj2.</li>
 <li><strong>Trofei dedicati.</strong> Le coppe sudamericane usano i trofei delle coppe europee dello stesso rango.</li>
 <li><strong>Salvataggi vecchi.</strong> Tengono in cache i dati delle squadre di quando sono stati creati: le rose nuove si vedono solo in una carriera nuova.</li>
 <li><strong>Doppioni.</strong> Restano 5 nomi ripetuti (trasferimenti a metà stagione o omonimi). I dati SWOS originali ne avevano 61.</li>
@@ -531,13 +533,13 @@ assert blk[:2] == b'S2' and sum(blk) % 256 == 0</code></pre>
 <tr><td>14</td><td>Rose reali 1996-97 e forza calibrata per tutti i 36 club di C1/C2</td><td><span class="pill ok">passata</span></td></tr>
 <tr><td>15–16</td><td>Port a ENGLISH/FRENCH/GERMAN; patcher HTML; release 1.0 e 1.0.1 (GOG)</td><td><span class="pill ok">superato</span></td></tr>
 <tr><td>17–20</td><td>Analisi di come si registra una nazione; pagine aggiunte a obj2; Costa Rica; cinque nazioni africane con coppe nazionali; coppe CAF in carriera; coda del salvataggio; release 1.1</td><td><span class="pill ok">superato (1 stagione)</span></td></tr>
+<tr><td>21–24</td><td>CONCACAF Champions Cup; tutte le liste salvate nella coda del .CAR (numeri globali 1730–1846 liberati); Corea del Sud, Cina, Arabia Saudita e le coppe asiatiche; Guatemala e Honduras; release 1.2</td><td><span class="pill ok">superato (1 stagione)</span></td></tr>
 </tbody></table></div>
 <h3>Roadmap</h3>
 <ol>
-<li><strong>CONCACAF Champions' Cup</strong> fra Messico, USA, El Salvador e Costa Rica (una sessione, stesso meccanismo delle coppe CAF).</li>
-<li><strong>Asia:</strong> Asian Club Championship e Coppa delle Coppe asiatica; nazioni nuove (Corea del Sud, Cina, Arabia Saudita) entro gli ultimi numeri globali liberi (1960–1999) e numeri di nazione (61, 63).</li>
-<li><strong>Carriere lunghe:</strong> prove di 6–8 stagioni con le novità della 1.1; rose reali dei club africani dalla comunità.</li>
-<li><strong>Arretrati:</strong> panchina a 5 per le squadre inglesi; prova dell'Intercontinentale nello slot 4; C1 a due gironi; Intertoto, Supercoppa Europea, Champions League 1997-98.</li>
+<li><strong>Carriere lunghe:</strong> prove di 6–8 stagioni con le novità della 1.1–1.2; rose reali dei club nuovi dalla comunità.</li>
+<li><strong>Europa:</strong> Intertoto, Supercoppa Europea, Champions League 1997-98.</li>
+<li><strong>Arretrati:</strong> panchina a 5 per le squadre inglesi; prova dell'Intercontinentale nello slot 4; C1 a due gironi.</li>
 </ol>
 <p class="eyebrow" style="margin-top:36px">Crediti: disassemblato e documentazione dei formati da swos-port (zlatkok). Mod: Davide Lorigliola, con Claude.</p>
 </main>

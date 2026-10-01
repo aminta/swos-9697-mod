@@ -726,3 +726,9 @@ league (12 exists already: Taiwan).
   QTABLE 30 countries. mkpatcher + TEAM.087/088.
 - Builds IT EN FR DE = cb940d42 ad93f6cb dd7d41b0 2e92ddcd . Free global numbers: 1786-1846, 1960-1999, 470-474.
 - PLAYTEST session 24 (Davide): OK. OLIMPIA.CAR (Honduran club) 'C4', CONCACAF recomputed with GUA/HON clubs. PASSED.
+
+## Release 1.2 (2026-10-01, Davide's ok)
+- Patcher 1.2: 19 outputs (4 CD exes, TEAM.020, 10 new TEAM files shipped whole with TEAM.020, 4 GOG exes); Node test 19/19 OK.
+  GOG rebuilt: IT 8bfdd743, EN ef2b78a7, FR a82592bd, DE e8daa60a (2 bytes from the CD builds).
+- Manuals IT+EN: chapter 19 extended (Asia, Central America, CONCACAF, trailer C4/S2 migration, country numbers 86+), note in 15,
+  overview, limits, history 21-24, roadmap. README + release notes (invented players: 138 clubs).

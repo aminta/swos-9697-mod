@@ -1075,3 +1075,7 @@ Keep this list updated as new tournaments are added (European Cup 1959-60 next).
   ATLETICO MINEIRO, not in BRA top 2 nor CONMEBOL, also added to the Supercopa; Intercontinental JUVENTUS - ATLETICO
   MINEIRO. OLIMPIAB: SAO PAULO). ALL 27b TESTS PASSED. Not exercised yet: holder also qualified through its league
   (3rd moves up from CONMEBOL, SPARE fills) and holder in the CONMEBOL list; extra time absence not seen on screen.
+- Release plan (Davide, 2026-10-01): pushed main up to 0844f4e; ONE release 1.4 when the historic tournaments are done
+  (FA Cup 1871-72 included). Ready for it, local only: manuals IT/EN Libertadores 1997 (9a83c61, mkdocs rebuilt; artifacts
+  to republish at release), release/notes-1.4.md draft (42ca203). Still to do at release: historic section + credits,
+  patcher (mkpatcher.py), GOG builds, artifacts, tag, announcements (Playaveli thanks).

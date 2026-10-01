@@ -1109,3 +1109,9 @@ Keep this list updated as new tournaments are added (European Cup 1959-60 next).
   AL SORTEGGIO', en '%a WIN ON THE TOSS OF A COIN', fr '%a GAGNE AU TIRAGE AU SORT', de '%a GEWINNT DURCH LOSENTSCHEID').
   Random = the game's Rand2 (first call of cseg_27F08). IT sites: sim 0x1B330, StartPenalties 0x5FC1B, text 0x18BA1.
   Builds IT EN FR DE = 85a9a968 69b3e77d 1b06e429 dd66787e (TEAM files unchanged). RELEASE NOTES: explain the coin toss rule.
+- PLAYTEST 26j (Davide): FREEZE when clicking VIS. PARTITA (watch) on an FA Cup REPLAY (Maidenhead-Hampstead); simulated
+  results OK. Coin hooks are not reached at kick-off -> cause unknown; record bytes checked (all player bytes within the
+  originals' ranges; team byte 24 = tactic 10 ATTACK from the DLC templates, valid). Fixed meanwhile: coin_sim now leaves a
+  played match's toss alone ([dseg_114C9E] >= 0 -> original cseg_2B84D); Queen's Park shorts grey (colour 0).
+  Builds IT EN FR DE = 62a5215f 71ae66ef b32a33b8 1a770f46, TEAM.091 a00c1adf. NEXT: Davide's tests (watch a first-round FA
+  match, a WC82/Mitropa match) + DOSBox-X debugger EIP at the freeze.

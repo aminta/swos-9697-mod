@@ -62,7 +62,7 @@ CLUBS = [
         'M': ['E. W. Dent', 'C. Holden', 'Thomas Baker'],
         'A': ['Alexander Nash', 'J. Nash', 'P. St. Quintin', 'A. Thompson', 'C. C. Tayloe', 'C. F. Wace',
               'C. C. Bergmann', 'M. Mumford']}),
-    ("QUEEN'S PARK", 'Robert Gardner', "QUEEN'S PARK FC", 28, [0, 5, 5, 1, 2], {
+    ("QUEEN'S PARK", 'Robert Gardner', "QUEEN'S PARK FC", 28, [0, 5, 5, 0, 2], {
         'G': ['Robert Gardner', '?'],
         'D': ['William Ker', 'Joseph Taylor', 'R. Edmiston'],
         'M': ['James Thomson', 'James Smith', 'J. Hepburn'],

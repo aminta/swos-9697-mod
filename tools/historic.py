@@ -154,6 +154,8 @@ coin_flip:                              ; eax = 0 or 1 (the game's random genera
 coin_sim:                               ; replaces `call cseg_2B84D` (simulated shoot-out) in cseg_2AE97
     call coin_ours
     jne PENS_SIM
+    cmp word [PLAYED_PENS], 0           ; a played match: its 'penalty goals' (coin_play's toss) are taken as they are
+    jge PENS_SIM
     call coin_flip
     mov dword [D5], 7Fh                 ; side 0 wins: D6 <= D5
     mov dword [D6], 7Eh
@@ -444,6 +446,8 @@ def _coin_sites(p, draw_orig):
     k = d1.index(b'\xe8', ors[1] + 7)
     assert k - ors[1] < 0x40
     out['sim_call'], out['pens_sim'] = k, k + 5 + struct.unpack_from('<i', d1, k + 1)[0]
+    assert d1[out['pens_sim']:out['pens_sim'] + 2] == b'\x66\xa1'      # cseg_2B84D: mov ax, [dseg_114C9E]
+    out['played_pens'] = struct.unpack_from('<I', d1, out['pens_sim'] + 2)[0]
     # UpdateTime: mov [winningTeamPtr], 0; call EndOfGame; jmp; mov word [extraTimeState], -1; call StartFirstExtraTime;
     # jmp; mov word [penaltiesState], -1; call StartPenalties
     pat = (rb'\xc7\x05(.{4})\x00\x00\x00\x00\xe8(.{4})\xe9.{4}\x66\xc7\x05.{4}\xff\xff\xe8.{4}\xe9.{4}'
@@ -635,7 +639,8 @@ def patch(p, lang, area, cave, draw_pre=None):
                'D7': (2, a0 - 4), 'D1': (2, a0 - 28), 'PENS_SIM': (1, coin['pens_sim']),
                'START_PENALTIES': (1, coin['start_pen']), 'END_OF_GAME': (1, coin['end_of_game']),
                'PEN1': (2, coin['pen1']), 'PEN2': (2, coin['pen2']), 'WINNER': (2, coin['winner']),
-               'TOP_TEAM': (2, coin['top']), 'BOTTOM_TEAM': (2, coin['bottom']), 'SKIP': (2, coin['skip'])}
+               'TOP_TEAM': (2, coin['top']), 'BOTTOM_TEAM': (2, coin['bottom']), 'SKIP': (2, coin['skip']),
+               'PLAYED_PENS': (2, coin['played_pens'])}
     code, fix = nasmcave.assemble(ASM, at, symbols)
     labels = nasmcave.labels(ASM, at, symbols)
     p.put(1, at, code)

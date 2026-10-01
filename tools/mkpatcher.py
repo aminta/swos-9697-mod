@@ -20,7 +20,7 @@ import os
 import struct
 
 ROOT = os.path.join(os.path.dirname(__file__), '..')
-VERSION = '1.2'
+VERSION = '1.3'
 BLOCK = 16
 FILES = [  # (id, original path, patched path, file name in the game folder)
     ('ITALIAN.EXE', 'orig/ITALIAN.EXE', 'c/SWOS/ITALIAN.EXE', 'ITALIAN.EXE'),

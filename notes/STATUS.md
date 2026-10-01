@@ -837,3 +837,7 @@ World Cup 1982, European Cup 1988-89, Serie A 1986-87 (alt. Euro 88). Disassembl
   C4 load). RIVER20.CAR = 126235 B (N=45, 'C5' 302 B): Libertadores of 20 from the standings (BOLIVAR, PRESIDENTE HAYES,
   WILSTERMAN, CERRO PORTENO / INDEPENDIENTE, EL NACIONAL, RIVER PLATE, EMELEC / ...), Intercontinental JUVENTUS - GREMIO
   (Gremio won the 20-club Libertadores; in Lib as BRA2 and in Supercopa). No club in both Libertadores and CONMEBOL.
+- 1.3 prepared locally (Davide's ok after the playtest): manuals IT+EN (chapter 9 group formats, 14, 19, 20, 21, build md5),
+  mkdocs, artifacts republished (EN v9, IT v8), internal hex manual v3 (CC vs Libertadores 1.3 dumps, C5 block of
+  RIVER20.CAR); README EN/IT; patcher 1.3 (template notes, VERSION 1.3, Node test 19/19); release/notes-1.3.md;
+  thank-you texts release/announcements/1.3/playaveli-thanks-{en,it}.txt. NOT pushed / released: waiting for Davide's ok.

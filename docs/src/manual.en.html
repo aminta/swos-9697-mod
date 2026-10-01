@@ -104,8 +104,8 @@ html{scroll-behavior:smooth}
   <h1>SWOS ITA Mod Technical Manual</h1>
   <p>Documentation for anyone who wants to understand, extend or port the mod's patches: Serie C1 and C2, South American club cups (Libertadores, Supercopa, CONMEBOL), the Intercontinental Cup in career mode, real 1996-97 squads. Everything below was worked out from the disassembly and checked with builds and test games.</p>
   <div class="meta">
-    <span>State as of <b>2026-10-01</b> (sessions 1–24, release 1.2)</span>
-    <span>ENGLISH.EXE build <b><code>ad93f6cb…</code></b></span>
+    <span>State as of <b>2026-10-01</b> (sessions 1–25, release 1.3)</span>
+    <span>ENGLISH.EXE build <b><code>ca5cf9c0…</code></b></span>
     <span>TEAM.020 <b><code>ded1b97b…</code></b></span>
     <span>Original ENGLISH.EXE <b><code>aa21cd1c…</code></b></span>
   </div>
@@ -127,7 +127,7 @@ html{scroll-behavior:smooth}
 <tbody>
 <tr><td>Italy with 4 divisions</td><td>Serie A 18, B 20, C1 18, C2 18; 4 up and 4 down between adjacent levels; fixes the 1997 end-of-season freeze</td><td><code>patch.py</code></td><td><span class="pill ok">tested</span></td></tr>
 <tr><td>C1/C2 teams</td><td>36 real 1996-97 clubs with squads, coaches and calibrated strength</td><td><code>c1c2.py</code>, <code>c1c2_rosters.py</code></td><td><span class="pill ok">tested</span></td></tr>
-<tr><td>South American cups</td><td>Libertadores (groups + knockout), Supercopa, CONMEBOL: menus, world view, career, qualifiers from the standings, holder rules</td><td><code>sacups.py</code></td><td><span class="pill ok">tested</span></td></tr>
+<tr><td>South American cups</td><td>Libertadores (5 groups of 4 + knockout, 1.3), Supercopa, CONMEBOL: menus, world view, career, qualifiers from the standings, holder rules</td><td><code>sacups.py</code></td><td><span class="pill ok">tested</span></td></tr>
 <tr><td>Double participation</td><td>South American clubs: Supercopa in slot 1 (the national cup slot, free in South America) + continental cup in slot 3</td><td><code>sacups.py</code></td><td><span class="pill ok">tested</span></td></tr>
 <tr><td>Persistence</td><td>South American cup lists and Intercontinental finalists saved with the career</td><td><code>sacups.py</code>, <code>salists.py</code></td><td><span class="pill ok">tested</span></td></tr>
 <tr><td>Intercontinental</td><td>Single-match final in December between the Champions Cup winner and the Libertadores winner; finalists updated at season end; slot 2 or slot 4</td><td><code>sacups.py</code></td><td><span class="pill ok">slot 2, season end</span> <span class="pill todo">slot 4</span></td></tr>
@@ -194,7 +194,7 @@ ndisasm -b32 -o 0xA1000 file.bin              # disassembler (Homebrew); nasm to
 <dt>sacups.py</dt><dd>The heart of the mod: South American cup and Intercontinental structures, continental tables, nasm sources <code>CAREER_ASM</code> (season start and load) and <code>QUALIFY_ASM</code> (season end), all signature searches and hook installation.</dd>
 <dt>patch.py</dt><dd>Build entry point: Italy (global number base, 4-division structure), TEAM.020, remap of Italian clubs in the European cups.</dd>
 <dt>c1c2.py / c1c2_rosters.py</dt><dd>C1/C2 clubs (kits, division), real 1996-97 squads with coaches, strength targets, team record construction (<a href="#rose">section 8</a>).</dd>
-<dt>salists.py</dt><dd>Reads a <code>.CAR</code> and prints the saved block: format (SA or S2), checksum, Libertadores/Supercopa/CONMEBOL lists, Intercontinental pair.</dd>
+<dt>salists.py</dt><dd>Reads a <code>.CAR</code> and prints the saved lists: trailer 'C4'/'C5' (1.2/1.3), else the 1.0/1.1 block (SA or S2, with checksum); Libertadores/Supercopa/CONMEBOL lists, Intercontinental pair.</dd>
 <dt>addrmap.py</dt><dd>Builds <code>notes/addrmap.json</code> by comparing ENGLISH.EXE and ITALIAN.EXE in masked windows (fixup bytes excluded).</dd>
 <dt>asmbytes.py</dt><dd>Extracts the <code>db</code> bytes of a data label from <code>ref/swos.asm</code>, handy to find the same tables in the other language executables.</dd>
 <dt>mkdocs.py</dt><dd>Builds <code>docs/index.html</code> (English) and <code>docs/it.html</code> (Italian) for GitHub Pages from the sources in <code>docs/src/</code>.</dd>
@@ -291,11 +291,17 @@ ndisasm -b32 -o 0xA1000 file.bin              # disassembler (Homebrew); nasm to
 [7]  team list at +7+[7]: byte pairs (TEAM file number, index)
 [8]  1 = fixed list
 type 1: [10] team count, [14..] one byte per round (0x94 two legs, 0x14 single-match final), then 00
-type 2: [15] team count, groups of 4</code></pre>
+type 2: [14] stage count, [15] team count, then one triple per stage from [16]:
+        (teams, groups, teams per group); the next triple's first byte = teams going through,
+        after the last stage the winners' count (01); groups FF = third-place match.
+        From [34] (0x22) one byte per stage (0x94 two legs, 0x14 single match).
+        [10] = 1: groups home and away. Teams per group must be even (int 3 otherwise).</code></pre>
+<p><strong>Group formats of the original game</strong> (bytes from [14]): Champions Cup <code>04 10 04 04 | 08 00 08 | 04 00 04 | 02 00 02 | 01</code>; World Cup <code>06 18 06 04 | 10 00 10 | 08 00 08 | 04 00 04 | 02 FF 02 | 02 00 02 | 01</code> (best thirds, third-place match); Copa América 1995 <code>04 0C 03 04 | 08 00 08 …</code> (2 best thirds); Asian Cup <code>05 1E 05 06 | 10 00 10 …</code> (5 groups of 6 → 16). <code>cseg_24DFA</code> turns the struct into the DIY file (stage records of 0x76 bytes: +0x15D groups, +0x161 teams, +0x163 going through, +0x169/+0x16B groups / teams per group).</p>
+<p><strong>From groups to knockout</strong> (<code>cseg_8A2CE</code>; World Cup and European Championship have their own routines): q = going through ÷ groups, r = remainder. One merged table: the first q of each group in group order, then the (q+1)-th placed of every group sorted by their record, of which the first r go through as well. The draw (<code>cseg_26A78</code>) then pairs i with n−1−i, no strength seeding after a group stage, home/away random. There are no byes: every listed team plays the group stage and groups have equal size.</p>
 <div class="tbl"><table>
 <thead><tr><th>Id</th><th>Competition</th><th>Format</th><th>Months</th></tr></thead>
 <tbody>
-<tr><td class="m">0x6C</td><td>COPA LIBERTADORES</td><td>Champions Cup clone: 16 teams, 4 groups of 4, then knockout</td><td>as the European cups (September–May)</td></tr>
+<tr><td class="m">0x6C</td><td>COPA LIBERTADORES</td><td>1.3: Champions Cup header with its own stages <code>05 14 05 04 | 10 00 10 | 08 00 08 | 04 00 04 | 02 00 02 | 01</code>, rounds <code>00 94 94 94 14</code>: 20 teams, 5 groups of 4 (two countries per group, 1997 pairings), top 3 + best 4th to a two-leg round of 16, single-match final. (1.0–1.2: 16 teams, 4 groups.)</td><td>as the European cups (September–May)</td></tr>
 <tr><td class="m">0x6D</td><td>SUPERCOPA</td><td>16 teams, two legs, single-match final (Cup Winners' Cup clone)</td><td>same</td></tr>
 <tr><td class="m">0x6E</td><td>COPA CONMEBOL</td><td>same</td><td>same</td></tr>
 <tr><td class="m">0x6F</td><td>COPPA INTERCONTINENTALE</td><td>type 1, 2 teams, one 0x14 round (single match); default Juventus – River Plate (Tokyo, November 1996)</td><td>0x58–0x60: December, window to January</td></tr>
@@ -385,8 +391,8 @@ flowchart TD
 <ol>
 <li><code>[A4] = Libertadores</code> and <code>call cseg_92D55 + 10</code> (skips the first instruction, which would select the Champions Cup): closes the Libertadores (played by the player or simulated with <code>cseg_3ADAE</code>) and writes the winner into <code>dseg_18070F</code> → <code>LIBWIN</code>.</li>
 <li>For each South American nation: simulates the top division with <code>cseg_915ED</code> (the same simulation as the world view, so the standings match). For the player's own division it reads slot 0 instead. From the DIY: +6Dh row offsets in finishing order (rows of 12h bytes), +12Dh team number per row.</li>
-<li>Writes the qualifiers: Libertadores = champions of the 10 countries + runners-up of ARG, BRA, URU, PAR, COL, CHI (4 mixed groups, <code>LIB_Q</code>); CONMEBOL = the next places (<code>CON_Q</code>, 8 pairs). Supercopa: fixed list of former champions.</li>
-<li>Holder rules (real 1997): if <code>LIBWIN</code> is not already in the Libertadores it takes its country's runner-up place (else CHI2), and the displaced club takes its place in the CONMEBOL; if it is not in the Supercopa, it takes the last place.</li>
+<li>Writes the qualifiers: Libertadores = champion and runner-up of each of the 10 countries (1.3: 5 groups BOL+PAR, ARG+ECU, CHI+VEN, BRA+PER, URU+COL, <code>LIB_Q</code>); CONMEBOL = the next places (<code>CON_Q</code>, 8 pairs: ARG 3–5, BRA 3–5, CHI and URU 3–4, the others 3rd). Supercopa: fixed list of former champions.</li>
+<li>Holder rules (real 1997): if <code>LIBWIN</code> is not already in the Libertadores it takes its country's runner-up place (the real holder skipped the group stage, but the game has no byes: with 16 of 20 going through it is almost one), and the displaced club takes its place in the CONMEBOL; if it is not in the Supercopa, it takes the last place.</li>
 <li>The real <code>call cseg_92D55</code>: closes the Champions Cup. Both branches end in <code>cseg_92F1C</code>, which always writes the winner to <code>dseg_18070F</code>.</li>
 <li><code>INTLIST[0] = [dseg_18070F]</code>, <code>INTLIST[1] = LIBWIN</code> (each skipped if 0FFFFh), then <code>lists_out</code> and <code>ret</code>.</li>
 </ol>
@@ -496,7 +502,7 @@ assert blk[:2] == b'S2' and sum(blk) % 256 == 0</code></pre>
 <li><strong>Contests</strong> (<code>cafcups.CUPS</code>): CAF Champions League (copy of the Champions Cup: 4 groups of 4 + knockout), CAF Cup Winners Cup, CAF Cup, CONCACAF Champions Cup, Asian Club Championship and Asian Cup Winners Cup (16-team knockouts). Buttons of their continent and members of the international contests list.</li>
 <li><strong>Career:</strong> the slot-3 chain of <code>sacups.py</code> is generated from the list: D7 = 6 … 11; trophy and prize as the European cup of the same rank (a table of ranks).</li>
 <li><strong>Season end:</strong> the qualification table now has 30 countries: e.g. CAF Champions League ranks 1–2, Cup Winners Cup ranks 3–4 (the game keeps no national cup winners), CAF Cup ranks 5–6, CONCACAF ranks 1–4.</li>
-<li><strong>Trailer:</strong> <code>SaveCareerFile</code> writes 'C4' + every saved list (South American, Intercontinental pair, the six cups: 294 bytes) after the team records when they fit in <code>g_selectedTeams</code> (68400 bytes, followed by the pseudo registers); <code>LoadCareerFile</code> reads it back. Older saves: the 1.0/1.1 'S2'/'SA' block in <code>someLeaguesTable</code> is read and cleared, older trailers ('C1'…'C3') are read; a new career is recognised by the missing 'S3' mark.</li>
+<li><strong>Trailer:</strong> <code>SaveCareerFile</code> writes 'C5' + every saved list (South American with a 20-club Libertadores, Intercontinental pair, the six cups: 302 bytes; 'C4' of 1.2: 294 bytes) after the team records when they fit in <code>g_selectedTeams</code> (68400 bytes, followed by the pseudo registers); <code>LoadCareerFile</code> reads it back. Older saves: the 1.0/1.1 'S2'/'SA' block in <code>someLeaguesTable</code> is read and cleared, older trailers ('C1'…'C4') are read; their 16-club Libertadores list becomes groups 1–4 and group 5 gets the first 4 default clubs not among them (<code>lib_merge</code>); a new career is recognised by the missing 'S3' mark.</li>
 </ul>
 
 <!-- 20 -->
@@ -505,6 +511,7 @@ assert blk[:2] == b'S2' and sum(blk) % 256 == 0</code></pre>
 <li><strong>C1/C2 groups.</strong> In 1996-97 C1 had 2 groups and C2 had 3. The mod uses one group per series. The full reality (128 teams) does not fit the limit of about 93 teams per nation. C1 with two groups would fit (92), but it needs promotions and relegations between parallel divisions, and checks on the 80-team career limit and on global numbers: estimated 2–3 sessions.</li>
 <li><strong>Intercontinental in slot 4.</strong> A finalist in a division with play-offs gets no Intercontinental. The routine <code>cseg_8BF89</code> (called by <code>cseg_8B2D3</code>) has not been analysed: if it keeps data tied to the slot number, the buffer swap could leave it inconsistent. In the season record the Intercontinental in slot 4 has no name.</li>
 <li><strong>Invented players and long careers (1.1).</strong> The squads of the 138 clubs added in 1.1–1.2 are invented (no sources); the additions were tested for one season. Strings are no longer a limit: new names go to the added obj2 page.</li>
+<li><strong>Libertadores 1.3.</strong> No byes in the engine: the holder plays the group stage in its country's runner-up place. The final is a single match, as in every original SWOS cup (a two-leg final, <code>0x94</code>, is untested). The draw pairs i with n−1−i, so the 2nd of group 1 always meets the 3rd of group 1 in the round of 16.</li>
 <li><strong>Dedicated trophies.</strong> South American cups use the trophies of the European cups of the same rank.</li>
 <li><strong>Old saves.</strong> They cache the team data from when they were created: the new squads show only in a new career.</li>
 <li><strong>Duplicates.</strong> 5 repeated names remain (mid-season transfers or namesakes). The original SWOS data had 61.</li>
@@ -527,6 +534,7 @@ assert blk[:2] == b'S2' and sum(blk) % 256 == 0</code></pre>
 <tr><td>15–16</td><td>Port to ENGLISH/FRENCH/GERMAN; HTML patcher; release 1.0 and 1.0.1 (GOG)</td><td><span class="pill ok">passed</span></td></tr>
 <tr><td>17–20</td><td>Analysis of how a country is registered; added obj2 pages; Costa Rica; five African countries with national cups; CAF cups in career; save trailer; release 1.1</td><td><span class="pill ok">passed (1 season)</span></td></tr>
 <tr><td>21–24</td><td>CONCACAF Champions Cup; all saved lists in the .CAR trailer (global numbers 1730–1846 freed); South Korea, China, Saudi Arabia and the Asian cups; Guatemala and Honduras; release 1.2</td><td><span class="pill ok">passed (1 season)</span></td></tr>
+<tr><td>25</td><td>Group formats decoded; Copa Libertadores with 5 groups of 4 (20 clubs, top 3 + best 4th), trailer 'C5' (report by Playaveli, Swos2020); release 1.3</td><td><span class="pill ok">passed (1 season)</span></td></tr>
 </tbody></table></div>
 <h3>Roadmap</h3>
 <ol>

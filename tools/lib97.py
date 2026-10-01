@@ -78,6 +78,13 @@ def calendar_bytes():
 
 ASM = '''
 lib_bye:                                ; replaces `call cseg_2573C` at the end of cseg_24DFA
+    cmp byte [DIYCOPY + 2Dh], FA_ID     ; FA Cup 1871-72 (historic.py): round 1 without the bye club (the 15th)
+    jne .lib
+    cmp word [DIYCOPY + 161h], FA_N
+    jne .go
+    mov word [DIYCOPY + 161h], FA_N - 1
+    jmp .go
+.lib:
     cmp byte [DIYCOPY + 2Dh], LIB_ID
     jne .go
     cmp word [DIYCOPY + 161h], LIB_N    ; round 1 = every club of the contest...
@@ -87,6 +94,16 @@ lib_bye:                                ; replaces `call cseg_2573C` at the end 
     jmp CSEG_2573C
 
 lib_pre:                                ; hist_draw, before the permutation: esi = DIY buffer, ecx = clubs in the round
+    cmp byte [esi + 2Dh], FA_ID         ; FA Cup 1871-72: the bye club (list[14], untouched by round 1) takes the
+    jne .lib                            ; 8th place of round 2 (7 winners + 1)
+    cmp ecx, 8
+    jne .r
+    cmp word [esi + 31h], FA_N
+    jne .r
+    mov al, [esi + 59h + FA_N - 1]
+    mov [esi + 59h + 7], al
+    ret
+.lib:
     cmp byte [esi + 2Dh], LIB_ID
     jne .r
     cmp ecx, 16
@@ -172,6 +189,7 @@ def patch(p, cave):
     a0, bye_call, c2573c, diycopy, cal_site = _sites(p)
     symbols = {'DIYCOPY': (2, diycopy), 'LIB_ID': (0, sacups.LIB_ID), 'LIB_N': (0, sacups.LIB_N),
                'LIB_GROUPS': (0, LIB_GROUPS), 'CSEG_2573C': (1, c2573c), 'A0': (2, a0), 'A3': (2, a0 + 12),
+               'FA_ID': (0, 0xC3), 'FA_N': (0, 15),                    # historic.FA_ID, FA Cup 1871-72 clubs
                'CAL_BYTES': (0, 'db ' + ', '.join(str(b) for b in calendar_bytes()))}
     code, fix = nasmcave.assemble(ASM, cave, symbols)
     labels = nasmcave.labels(ASM, cave, symbols)

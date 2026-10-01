@@ -1079,3 +1079,21 @@ Keep this list updated as new tournaments are added (European Cup 1959-60 next).
   (FA Cup 1871-72 included). Ready for it, local only: manuals IT/EN Libertadores 1997 (9a83c61, mkdocs rebuilt; artifacts
   to republish at release), release/notes-1.4.md draft (42ca203). Still to do at release: historic section + credits,
   patcher (mkpatcher.py), GOG builds, artifacts, tag, announcements (Playaveli thanks).
+- Session 26i — FA Cup 1871-72 built (UNTESTED): id 0xC3 'FA CUP 1871-72', TEAM.091 (15 clubs, base 1786, countriesTable[91]
+  = CLASSICS record). Struct = worldCup header, stages [4, 15,0,15, 8,0,8, 4,0,4, 2,0,2, 1], legs 0 (1 leg, no e.t., no pens
+  -> replay on a draw), away goals off. Clubs in the real first-round order, Hampstead Heathens (bye) 15th. lib97.lib_bye:
+  FA with [161h] 15 -> 14 (round 1 without the bye club); hist_draw DRAWS (FA,14) identity, (FA,8) [FF] = 'pre only':
+  lib97.lib_pre puts list[14] (never touched: cseg_8A7BF copies [31h] = 14 entries, cseg_2ACAE winners first) into list[7]
+  (= first loser) and then the game's random draw (open draw as in 1872); later rounds random too. CLASSICS table
+  [-2, WC82, M34, FA, -1].
+- Squads: tools/facup72.py (sources in its docstring, incl. British Newspaper Archive OCR snippets via Davide's account:
+  Reading Mercury / Windsor & Eton Express 18 Nov 1871 Maidenhead v Marlow; Sportsman 15 Nov 1871 + Bell's Life 18 Nov 1871
+  Clapham Rovers v Upton Park; Bell's Life 21 Oct 1871 Harrow Chequers). historic.build_fa on the Pioneers DLC
+  (Francescomanetti82 & Gorzo) templates; 59 invented names (Reigate Priory 15, Donington School 16, Harrow Chequers 6,
+  Maidenhead 5, Marlow 5, Upton Park 4, ...). Positions reconstructed. Kits of Hitchin/Maidenhead/Reigate = Windsor Home Park
+  template (unknown). Name 'HAMPSTEAD HEATH.' (16-char limit).
+- Builds IT EN FR DE = b204b202 4b683dbe fd171ece 8195ebc1, TEAM.091 abad62ed; previous (Libertadores session) exes in
+  c/S26FA_BAK (132c024f ...).
+- TO VERIFY: preset TORNEI STORICI -> FA CUP 1871-72: round 1 = the 7 real ties (Barnes-Civil Service, Hitchin-Crystal Palace,
+  Maidenhead-Marlow, Upton Park-Clapham Rovers, Queen's Park-Donington, Royal Engineers-Reigate Priory, Wanderers-Harrow
+  Chequers), Hampstead not playing; draws replayed; round 2 = 7 winners + Hampstead, random pairs; then SF, final.

@@ -60,6 +60,15 @@ M34 = [(16, 5, 'FERENCVAROS'), (1, 1, 'FLORIDSDORFER AC'),
        (16, 9, 'HUNGARIA'), (6, 10, 'SPARTA PRAHA')]
 M34_LEGS = 0xA8              # two legs; extra time and penalties only in the play-off (replay) on aggregate tie
 
+# FA Cup 1871-72 (first edition): 15 clubs (tools/facup72.py), TEAM.091. Real first-round draw (7 ties) with Hampstead
+# Heathens' bye (last club: lib97.lib_bye plays round 1 with 14, lib97.lib_pre puts the 15th into the 8-club round 2),
+# then an open draw every round as in 1872 (DRAWS entry [0xFF] = bye only, then the game's random draw); single matches,
+# no extra time, no penalties: a draw is replayed (legs byte 0). Walkovers and the committee's "both teams go through"
+# decisions cannot be reproduced (see STATUS session 26h).
+FA_ID = 0xC3
+FA_FILE = 91
+FA_NAME = b'FA CUP 1871-72'
+
 # Fixed next-round placement (replaces the random draw cseg_27F08 for our contests). Qualifiers arrive in A2+59h ordered
 # 1st of each group A..F, then 2nd A..F (cseg_8A2CE: rank bonus 1000, group bonus 100, + points); slots are group-major.
 # (contest id, teams in the round, permutation: new[k] = old[perm[k]])
@@ -67,7 +76,8 @@ DRAWS = [(WC82_ID, [0, 2, 11, 1, 3, 10, 6, 8, 5, 7, 9, 4]),   # 2nd round: 1A 1C
          (WC82_ID, [0, 2, 1, 3]),                           # semi-finals: winner A - winner C, B - D
          (M34_ID, list(range(16))), (M34_ID, list(range(8))),  # keep the tie order (no random draw)
          (M34_ID, [0, 1, 3, 2]),                            # SF: Ferencvaros-Bologna, Admira-Juventus
-         (M34_ID, [1, 0])]                                  # final: Admira at home first
+         (M34_ID, [1, 0]),                                  # final: Admira at home first
+         (FA_ID, list(range(14))), (FA_ID, [0xFF] + [0] * 7)]  # FA Cup: real 1st round; round 2: bye club + open draw
 DRAWS += lib97.DRAWS                                        # Copa Libertadores 1997 (session 27): fixed real bracket
 
 ASM = '''
@@ -91,6 +101,8 @@ hist_draw:                              ; replaces `call cseg_27F08` in cseg_26D
     jmp .find
 .perm:
     call DRAW_PRE                       ; lib97.lib_pre (Libertadores holder into the round of 16), else ret
+    cmp byte [edx + 2], 0FFh            ; 'pre only': the bye club joins, then the game's own random draw
+    je .orig
     add esi, 59h
     xor ebx, ebx
 .copy:
@@ -170,6 +182,7 @@ def build_teams(src_dir):
     assert len(recs) <= MAX_TEAMS
     files[CLASSICS] = struct.pack('>H', len(recs)) + b''.join(recs)
     files[M34_FILE] = build_m34(src_dir)
+    files[FA_FILE] = build_fa()
     return files
 
 
@@ -240,6 +253,63 @@ def build_m34(src_dir):
         assert not any(pools.values()), (club, pools)
         recs.append(bytes(r))
     print(f'TEAM.090: Mitropa 1934, {len(fillers)} invented names: {fillers}')
+    return struct.pack('>H', len(recs)) + b''.join(recs)
+
+
+def build_fa():
+    """TEAM.091: the 15 FA Cup 1871-72 clubs (tools/facup72.py) on the SWOS 2020 'British Football Pioneers' DLC by
+    Francescomanetti82 and Gorzo (template club: slots, numbers, faces, kit; players of the same name keep its record)."""
+    import random
+    import c1c2
+    import facup72
+    d = open(os.path.join(SWOS2020, 'x_pioneers', 'CUSTOMS.EDT'), 'rb').read()
+    teams, known = {}, {}
+    for k in range(struct.unpack('>H', d[:2])[0]):
+        r = d[2 + k * TEAM_SIZE:2 + (k + 1) * TEAM_SIZE]
+        teams[r[5:22].split(b'\0')[0].decode('latin1')] = r
+        for j in range(16):
+            p = r[76 + j * 38:76 + (j + 1) * 38]
+            known.setdefault(p[3:26].split(b'\0')[0].decode('latin1'), p)
+    first = 'George Henry Charles Frederick William Arthur Edward Walter Herbert Alfred'.split()
+    last = 'Smith Taylor Brown Wilson Johnson Wright Walker Hall Green Wood Hughes Edwards Turner Cooper Parker'.split()
+    rng = random.Random(1872)
+    recs, fillers = [], []
+    for i, (club, capt, tname, target, kit, roles) in enumerate(facup72.CLUBS):
+        t = teams[tname]
+        r = bytearray(t)
+        r[0], r[1] = FA_FILE, i
+        struct.pack_into('>H', r, 2, BASE + i)
+        r[5:22] = club.encode('latin1').ljust(17, b'\0')[:17]
+        if kit:
+            r[26:36] = bytes(kit) + bytes((0, 1, 1, 1, 1))
+        r[36:59] = c1c2.swos_name(capt).encode('latin1').ljust(23, b'\0')[:23] if capt != '?' else bytes(23)
+        avg = sum(t[76 + j * 38 + 32] for j in range(16)) / 16
+        step = max(-3, min(3, round((target - avg) / 2)))
+        pools = {c: list(v) for c, v in roles.items()}
+        borrow = {'G': 'G', 'D': 'DMA', 'M': 'MDA', 'A': 'AMD'}
+        for j in range(16):
+            p = 76 + j * 38
+            cls = c1c2.CLASS[t[p + 26] >> 5]
+            who = pools[next(x for x in borrow[cls] if pools[x])].pop(0)
+            if who == '?':
+                while True:
+                    who = f'{rng.choice(first)} {rng.choice(last)}'
+                    if c1c2.swos_name(who) not in known:
+                        break
+                fillers.append((club, who))
+            name = c1c2.swos_name(who)
+            src = facup72.ALIAS.get(name, name)
+            if src in known and known[src][0] == t[p]:     # the Pioneers' record of the same player
+                q = bytearray(known[src])
+                q[2] = t[p + 2]
+                q[3:26] = name.encode('latin1').ljust(23, b'\0')[:23]
+                r[p:p + 38] = q
+            else:
+                r[p + 3:p + 26] = name.encode('latin1').ljust(23, b'\0')[:23]
+                c1c2.level_player(r, p, step)
+        assert not any(pools.values()), (club, pools)
+        recs.append(bytes(r))
+    print(f'TEAM.091: FA Cup 1871-72, {len(fillers)} invented names: {fillers}')
     return struct.pack('>H', len(recs)) + b''.join(recs)
 
 
@@ -376,12 +446,31 @@ def patch(p, lang, area, cave, draw_pre=None):
     p.put(1, at, blob)
     at = (at + len(blob) + 3) & ~3
 
-    table = at                                             # CLASSICS: [-2, WC82, M34, -1] (cups only)
+    # FA Cup 1871-72: 15 clubs, knockout only, single matches, replays (legs byte 0: 1 leg, no e.t., no penalties)
+    import facup72
+    assert ct + 4 * FA_FILE not in fx2
+    p.add_ptr(2, ct + 4 * FA_FILE, 2, rec)
+    p.put(2, tcn + 2 * FA_FILE, struct.pack('<H', BASE))
+    rel = area.add(FA_NAME + b'\0') - sacups.STR_BASE
+    nfa = len(facup72.CLUBS)
+    hdr = bytearray(cd[wc:wc + 0x28])
+    hdr[0] = FA_ID
+    hdr[12] = 2
+    stages = bytes([4, nfa, 0, nfa, 8, 0, 8, 4, 0, 4, 2, 0, 2, 1, 0, 0, 0, 0, 0, 0] + [0] * 4 + [0, 0])
+    assert len(stages) == 0x28 - 0x0e and nfa == 15
+    hdr[0x0e:0x28] = stages
+    fa = at
+    blob = bytes(hdr) + struct.pack('<II', rel, rel) + b''.join(bytes((FA_FILE, i)) for i in range(nfa))
+    p.put(1, at, blob)
+    at = (at + len(blob) + 3) & ~3
+
+    table = at                                             # CLASSICS: [-2, WC82, M34, FA, -1] (cups only)
     p.put(1, at, struct.pack('<i', -2))
     p.add_ptr(1, at + 4, 1, wc82)
     p.add_ptr(1, at + 8, 1, m34)
-    p.put(1, at + 12, struct.pack('<i', -1))
-    at += 16
+    p.add_ptr(1, at + 12, 1, fa)
+    p.put(1, at + 16, struct.pack('<i', -1))
+    at += 20
     p.add_ptr(2, comp + 4 * CLASSICS, 1, table)
 
     wpre = at                                              # preset world table: + CLASSICS

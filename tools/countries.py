@@ -8,7 +8,7 @@ A country number is also its team file number (data/team.nnn, 0..255). What a cl
   continent tables  competitionsTable[80..85] -> [ptr, ptr, -1] + country bytes + FF (menus, world view)
   seasonEndList     obj2+0x943A  country bytes + FF, read by cseg_91428: at the end of a career season every
                                  listed country gets cseg_9153F (league) + cseg_93974 (cup qualifiers)
-League struct: 13-byte header [id, 0, country, start, end, 0x15 if named, 0, 0, 0, divisions, 2 (games per
+League struct: 13-byte header [id, 0, country, start, end, names offset - 5 (0 = default names; 0x15 with 2 divisions), 0, 0, 0, divisions, 2 (games per
 pair), 3 (points per win), 0x35] + 6 bytes per division [teams, promoted, promotion playoff teams, relegated,
 relegation playoff, playoff data] + 0 + (if named) 2 name dwords per division (offsets from STR_BASE).
 
@@ -91,7 +91,7 @@ def patch(p, lang, area, cave, extra=None):
         lg = c['league']
         named = bool(lg.get('names'))
         cid = next(ids)
-        hdr = bytes((cid, 0, n, lg['start'], lg['end'], 0x15 if named else 0, 0, 0, 0, len(lg['divisions']),
+        hdr = bytes((cid, 0, n, lg['start'], lg['end'], 9 + 6 * len(lg['divisions']) if named else 0, 0, 0, 0, len(lg['divisions']),
                      lg['games'], 3, 0x35))
         body = hdr + b''.join(bytes(dv) for dv in lg['divisions']) + b'\0'
         if named:

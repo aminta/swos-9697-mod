@@ -1629,3 +1629,15 @@ MiSTer: new vhd/iso with 2.5), (e) Davide's ok before any push/release/announcem
   season 1 record keeps 'CLAUSURA (AP: INDEPENDIEN)' (the cave text, leagueStringOffset negative = obj1 address - chairman) after
   season 2 starts; season 2 record 'TORNEO APERTURA'. Libertadores ARG = Independiente, Hur. Corrientes = the season's 2-point
   totals top 2 (57, 49; Dep. Espanol 48 next). ARGENTINA DONE for 2.5.
+
+## Session 28s — finals series: time-boxed attempt with a type-1 cup (2026-10-02, Davide: "facciamo un tentativo")
+- Type-1 cups (cseg_87DA0 -> cseg_268C6): clubs per round are n, n/2, n/4... fixed by halving [31h] (rounds = floor(log2(n/2))+1,
+  matches [4Fh] = n/2); round advance cseg_26A78 -> cseg_27F08 draw / cseg_27B4B pairing. No bye, no 'wait a round' and no odd
+  counts, in any slot: NSL (6 clubs, 4 rounds with 3-1-1-1 ties and a club skipping round 2) and NSSL (4 clubs, 3 rounds with a
+  club waiting) cannot be expressed. Overriding per-round counts ([161h] per round, [4Fh]) à la lib_bye would mean reworking the
+  engine's round advance + the slot-4 season-end path (cseg_9228D/cseg_925C9) = several sessions, high risk. Type-2 (explicit
+  stages) is the right shape but overflows the 443h slot-4 buffer (T9 freeze).
+- VERDICT: the exact finals series are NOT feasible for 2.5. FINALS = False stays; finals97.py kept for a future attempt (idea:
+  enlarge/move the slot-4 buffer so a type-2 contest fits, then fin_pre as written).
+- Davide's rule: no silent approximation. Options offered: (A) postpone to a later release and document it (recommended);
+  (B) approximate (NSSL top-4 native 4-club knockout, no double chance; NSL not expressible); (C) long engine work.

@@ -197,6 +197,7 @@ def patch_exe(src, dst, remap, lang='it'):
         finals97.slot4_type(p)
     world, new_career = trailer.patch(p, world, sacups.SAVE_ITEMS[0] + [(base, 32) for base, _ in info['q']])
     p.add_ptr(1, info['new_career_ptr'], 1, new_career)
+    arg_end = arg97.load_hook(p, arg_end)         # 2.1: Apertura/Clausura names after loading a career
     assert cave <= WORLD_CAVE, hex(cave)
     world = cafcups.intl_list(p, caf, world)
     assert world <= NZ_CAVE and nz_end <= FIN_CAVE and fin_end <= ARG_CAVE and arg_end <= OBJ1_NEW_VSIZE, \

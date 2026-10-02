@@ -1592,7 +1592,7 @@ Questions to Davide: season 1996 or 1997, penalties OK, calendar (real / uniform
   champion trimmed to 11 chars, 26 chars max), so it survives save/load and every season keeps its own. obj1 grows to FIVE
   added pages (OBJ1_NEW_VSIZE 0xA6000); ARG code 3670 B at 0xA4400.
 
-## 2.1 DOCS TODO — release notes + "stable" README + manuals (Davide, 2026-10-02; write ONLY with his ok to publish)
+## 2.5 DOCS TODO (this release is 2.5, Davide 2026-10-02; "2.1" elsewhere in these notes = the same release) — release notes + "stable" README + manuals (Davide, 2026-10-02; write ONLY with his ok to publish)
 MUST explain, in release notes AND in the stable README (IT + EN, manual chapters in docs/src IT+EN too):
 1. ARGENTINA 1996-97 (exact where possible):
    - TORNEO APERTURA and TORNEO CLAUSURA: the Primera's 38 matchdays are two tournaments (19 each); at the end of the Apertura
@@ -1614,3 +1614,10 @@ MUST explain, in release notes AND in the stable README (IT + EN, manual chapter
 5. Management record fixes (Supercopa / Intercontinental names), tools: salists reads C7.
 6. Credits (sources): ozfootball.net archive (Thomas Esamie, Chris Dunkerley...) via Wayback Machine, The Ultimate New Zealand
    Soccer Website (Jeremy Ruane), Transfermarkt, Wikipedia EN/ES, RSSSF, SWOS 2020 community DB (checked, not used).
+
+## RELEASE NAME: 2.5 (Davide, 2026-10-02: "questa sarà la release 2.5")
+Everything called "2.1" in sessions 28-28r is the 2.5 release: Argentina Apertura/Clausura + aggregate + promedio, Australia NSL,
+New Zealand NSSL, MLS 1997. T25 PLAYTEST: Apertura champion in the record, OK (Davide "ok").
+Left for 2.5: (a) NSL/NSSL finals series (type-1 design) or declare them postponed; (b) test EN/FR/DE builds (only IT played);
+(c) docs (release notes, stable README IT+EN, manual chapters IT+EN, patcher via mkpatcher.py), (d) 12bit packages (eXoDOS +
+MiSTer: new vhd/iso with 2.5), (e) Davide's ok before any push/release/announcement.

@@ -1531,3 +1531,7 @@ Questions to Davide: season 1996 or 1997, penalties OK, calendar (real / uniform
   new career runs arg_names with a bad phase; if not, look at arg_round or at another reader of the name.
 - T19 PLAYTEST (Davide): still CLAUSURA on the first career screen -> not the load hook. T20 (experiment): arg_round hook off
   too (ROUND_HOOK = False); only arg_prebuild (writes APERTURA) remains of the Argentina name code.
+- T20 PLAYTEST (Davide): APERTURA at career start with the switch hook OFF -> the switch (arg_round) fires during career
+  creation (the counters routine is also reached while the game builds/advances the calendar, with all clubs at n-1).
+- T21 DIAGNOSTIC: switch hook on again; when it fires it stores its caller (return address of cseg_8922B's caller) in the
+  manager's season record field_22 (+22h of the 6Ah record). Save at career start, read it from the .CAR.

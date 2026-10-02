@@ -67,6 +67,10 @@ arg_names:                              ; ebp = league buffer (DIY during a matc
 ; cycle left, matchday 0, no match counted yet in it) = the start of the Clausura: the table still holds the final Apertura.
 arg_round:
     mov dword [A0], DIY
+    push eax
+    mov eax, [esp + 8]                  ; DIAGNOSTIC: who called cseg_8922B (return address of its caller)
+    mov [CALLER], eax
+    pop eax
     push ebp
     mov ebp, DIY
     call arg_ours
@@ -119,6 +123,8 @@ arg_round:
     jne .p
     mov dword [esi + 16h], CL_LONG_OFF
 .p:
+    mov eax, [CALLER]                   ; DIAGNOSTIC: into SeasonInformations.field_22
+    mov [esi + 22h], eax
     pop dword [D0]
     pop dword [A0]
     mov dword [NAME_DW], CL_LONG_OFF    ; the names the struct gives (career game list: the short one)
@@ -156,6 +162,7 @@ arg_prebuild:
 
 align 2
 APERTURA_CHAMP: dw 0FFFFh
+CALLER: dd 0
 '''
 LOAD_ASM = r'''
 ; arg_load: wraps the call that processes a loaded career (trailer.load_trailer): names in step with the saved league.
@@ -170,7 +177,7 @@ arg_load:
     ret
 '''
 LABELS = {}
-ROUND_HOOK = False      # T20 experiment: the switch hook off
+ROUND_HOOK = True       # T21 diagnostic: the switch hook on, logging its caller
 SLOT0 = None
 
 

@@ -64,6 +64,19 @@ arg_round:
     cmp ebx, ecx
     jb .zero
     mov dword [DIY + 27h], CLAUSURA_NAME
+    lea esi, [DIY + 4]                  ; the name text the game shows (built at season start from the struct name, maybe
+    mov ecx, 23h - 8                    ; with the country before it): APERTURA -> CLAUSURA, same length
+.find:
+    cmp dword [esi], 'APER'
+    jne .next
+    cmp dword [esi + 4], 'TURA'
+    jne .next
+    mov dword [esi], 'CLAU'
+    mov dword [esi + 4], 'SURA'
+    jmp .x
+.next:
+    inc esi
+    loop .find
 .x:
     popad
     ret

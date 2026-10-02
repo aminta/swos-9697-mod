@@ -1542,3 +1542,7 @@ Questions to Davide: season 1996 or 1997, penalties OK, calendar (real / uniform
 - T22: switch condition = [5Fh] 1, [5Bh] 0, [1CBh] 0 AND every club has n-1 played AND n-1 results (won+drawn+lost): true
   only in real play, at the START of the first Clausura match (nothing of it counted yet). arg_names rule: cycles left
   [5Fh] 2 = Apertura, 1/0 = Clausura, empty buffer = Apertura. Load hook back on. Diagnostic removed.
+- T22 PLAYTEST (Davide, 2026-10-02): PASSED. New River career: APERTURA at start (management record: TORNEO APERTURA, ancora in
+  gioco), CLAUSURA after the switch (record TORNEO CLAUSURA posizione 12 for season 1), second season starts as APERTURA
+  again; saved as APOK.CAR. Still open for Argentina: reload check of a Clausura save (arg_load), aggregate table, promedio,
+  Apertura champion message + record line, SA cup qualifiers from the aggregate; unnamed Supercopa/Intercontinental lines.

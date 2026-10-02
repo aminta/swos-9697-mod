@@ -342,6 +342,8 @@ def shootout(p, at):
     m = [x for x in re.finditer(pat, d1)]
     assert len(m) == 1, len(m)
     site_b = m[0].start() + 42
+    global SITE_B
+    SITE_B = site_b                                     # arg97 hooks the table sort that follows it
     # StartPenalties: mov word [penaltiesState], -1; 2 x (mov ax,[statsTeamXGoals]; mov [savedTeamXGoals],ax); 8 x mov word [..],0
     # (team goals and digits ..., team1PenaltyGoals, team2PenaltyGoals); call Rand; and word [D0], 1
     m = [x for x in re.finditer(rb'\x66\xc7\x05' + e(pen_state) + rb'\xff\xff(?:\x66\xa1.{4}\x66\xa3.{4}){2}' + zero * 8

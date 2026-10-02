@@ -191,3 +191,104 @@ def slot4_type(p):
     p.put(1, site + 9, b'\x00')
     p.put(1, site + 11, b'\x84')
     print(f'exe: slot 4 (division play-offs) accepts type-2 cups: obj1+{site:#x}')
+
+
+REC_ASM = r'''
+; season-end record: the club is looked up in each contest of the season (slots 1-3). A club that is not in the cup's
+; fixed list (Perth Glory, not in the NSL Cup 1996-97) made the lookup fail (assert: int3 + jmp $). The lookup now returns
+; -1 (see rec_guard); here the cup is dropped from the record instead of storing a position.
+%macro GUARD 3
+rec_g%1:
+    call LOOKUP
+    cmp word [IDX], 0
+    jl .nf
+    ret
+.nf:
+    add esp, 4                          ; our return address
+    pop dword [CUR]                     ; the caller's push [CUR]
+    mov esi, [REC]
+    mov dword [esi + %2], 0             ; no such contest in the record
+    jmp %3
+%endmacro
+GUARD 1, 1Ah, SKIP1
+GUARD 2, 1Eh, SKIP2
+GUARD 3, 22h, SKIP3
+'''
+
+
+def rec_guard(p, at):
+    """Season-end record (SeasonInformations +1Ah/+1Eh/+22h): survive a club missing from a fixed cup list."""
+    import re
+    d1 = p.le.obj_bytes(1)
+    blk = re.compile(rb'\x8b\x35(.{4})\x8b\x46([\x1a\x1e\x22])\x0b\xc0\x74(.)\xc7\x05(.{4}).{4}\x66\xa1.{4}\x66\xa3.{4}'
+                     rb'\xff\x35(.{4})\xe8(.{4})', re.S)
+    m = sorted(blk.finditer(d1), key=lambda x: x.start())
+    m = [x for x in m if x.group(4) == x.group(5)]
+    assert [x.group(2) for x in m] == [b'\x1a', b'\x1e', b'\x22'], [hex(x.start()) for x in m]
+    lookup = {x.end() + struct.unpack('<i', x.group(6))[0] for x in m}
+    assert len(lookup) == 1
+    lookup = lookup.pop()
+    rec, cur = struct.unpack('<I', m[0].group(1))[0], struct.unpack('<I', m[0].group(4))[0]
+    # the lookup's not-found tail: mov ax,[flag]; or ax,ax; jz assert; mov word [IDX],-1; mov ax,-1; or ax,ax; ret
+    tail = re.compile(rb'\x66\xa1.{4}\x66\x0b\xc0\x0f\x84(.{4})\x66\xc7\x05(.{4})\xff\xff\x66\xb8\xff\xff\x66\x0b\xc0\xc3', re.S)
+    t = tail.search(d1, lookup)
+    assert t and t.start() - lookup < 0x800
+    jz = t.start() + 9
+    assert d1[jz + 6 + struct.unpack('<i', t.group(1))[0]:][:3] == b'\xcc\xeb\xfe'
+    idx = struct.unpack('<I', t.group(2))[0]
+    symbols = {'LOOKUP': (1, lookup), 'IDX': (2, idx), 'CUR': (2, cur), 'REC': (2, rec)}
+    for k, x in enumerate(m, 1):
+        symbols[f'SKIP{k}'] = (1, x.start() + 13 + x.group(3)[0])
+    code, fix = nasmcave.assemble(REC_ASM, at, symbols)
+    labels = nasmcave.labels(REC_ASM, at, symbols)
+    assert not any(p.le.obj_bytes(1)[at:at + len(code)])
+    p.put(1, at, code)
+    for off, tobj, toff in fix:
+        p.add_ptr(1, at + off, tobj, toff)
+    p.put(1, jz, b'\x90' * 6)                           # not found: return -1 instead of the assert
+    for k, x in enumerate(m, 1):
+        call = x.end() - 5
+        p.put(1, call + 1, struct.pack('<i', labels[f'rec_g{k}'] - (call + 5)))
+    print(f'exe: season record: club missing from a cup list -> contest dropped (lookup obj1+{lookup:#x}, '
+          f'guards obj1+{at:#x})')
+    return (at + len(code) + 15) & ~15
+
+
+CAL_ASM = r'''
+; career calendar of a type-1 contest (cseg_8BF89): the rounds count [59h] of our 4-club play-offs arrives as 1 (only the
+; semi-finals got dates, so the final was never played); give them their 2 rounds. esi = the slot buffer.
+cal_rounds:
+    mov ax, [esi + 59h]
+    cmp byte [esi + 2Dh], NSL_ID
+    je .ours
+    cmp byte [esi + 2Dh], NSSL_ID
+    jne .x
+.ours:
+    cmp word [esi + 31h], 4
+    jne .x
+    mov ax, 2
+    mov [esi + 59h], ax
+.x:
+    mov [D3], ax
+    ret
+'''
+
+
+def cal_rounds(p, at):
+    """Hook `mov ax,[esi+59h]; mov [D3],ax` at the start of the type-1 branch of the career calendar builder."""
+    import re
+    d1 = p.le.obj_bytes(1)
+    m = list(re.finditer(rb'\x8b\x35(.{4})\x66\x8b\x46\x59\x66\xa3(.{4})\x8b\x35(.{4})\x66\x8b\x46\x31', d1, re.S))
+    assert len(m) == 1, len(m)
+    site = m[0].start() + 6
+    d3 = struct.unpack('<I', m[0].group(2))[0]
+    symbols = {'NSL_ID': (0, NSL_FIN), 'NSSL_ID': (0, NSSL_FIN), 'D3': (2, d3)}
+    code, fix = nasmcave.assemble(CAL_ASM, at, symbols)
+    assert not any(p.le.obj_bytes(1)[at:at + len(code)])
+    p.put(1, at, code)
+    for off, tobj, toff in fix:
+        p.add_ptr(1, at + off, tobj, toff)
+    p.remove(1, site + 6)                               # mov [D3],ax holds an absolute address
+    p.put(1, site, b'\xe8' + struct.pack('<i', at - (site + 5)) + b'\x90' * 5)
+    print(f'exe: finals: play-off calendar gets 2 rounds, obj1+{site:#x} -> obj1+{at:#x}')
+    return (at + len(code) + 15) & ~15

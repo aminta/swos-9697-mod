@@ -1657,3 +1657,18 @@ MiSTer: new vhd/iso with 2.5), (e) Davide's ok before any push/release/announcem
 - T26 PLAYTEST NSSL (Davide, NSSL18.CAR / NSSL18B.CAR, Waitakere City): at the end of the 18 rounds 'NSSL PLAYOFFS FINALE' appears in
   the calendar (Waitakere reached the final), the season closes without a freeze, season 2 starts (same 10 clubs in division 0
   of the cached records, nobody moved; regular-season draws show 'VINCE 5-3 AI RIG' lines). NSL (Australia) still to test.
+
+## Session 28t — NSL play-off bugs (2026-10-02)
+- T27: season-end record froze (int3 + jmp $ at obj1+0x2BCC3) for Perth Glory: the record lookup (obj1+0x2B6ED) does not find
+  the club in the slot-1 cup (Perth is not in the real NSL Cup 1996-97 list). finals97.rec_guard: lookup returns -1, the cup is
+  dropped from the record (SeasonInformations +1Ah/+1Eh/+22h := 0). TESTED OK (Perth, Collingwood, Gippsland).
+- Debug note: obj1 is loaded at linear 0x262000 (not 0x261000): BP 160:(0x262000 + obj1 offset).
+- No final in the NSL/NSSL play-offs (the "FINALE" rounds were the SEMI-FINALS): slot-4 DIY [59h] (rounds) = 1 in every save
+  (31h = 4), so the career calendar (type-1 branch of cseg_8BF89, IT obj1+0x7BF46) gave dates only to round 0 and the play-off
+  ended after the semis (NSSL too: its earlier "final" was the semi-final). Origin of the 1 NOT found (cseg_268C6 computes 2
+  for 4 clubs; no other writer of +59h). T29: finals97.cal_rounds hooks that read: contests C4/C5 with 4 clubs get 59h = 2 in
+  the slot buffer before the calendar is built. NSL rounds back to [0x94, 0x14]. TESTED OK (Davide, new Gippsland career): 'S-FINALE AND./RIT.' (two legs, away
+  goals), then 'FINALE' single match (lost 0-1 to Melbourne Knights), season closes. Record still 'NSL VINCITORI' (1st of the
+  regular season) -> option 3 to do.
+- Davide's choice on the record (option 3): the play-off winner should be the champion in the management record (to do after
+  the final works; today 'NSL VINCITORI' = 1st of the regular season).

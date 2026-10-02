@@ -108,6 +108,7 @@ def build(src_dir):
 # --- exe: league struct (4 divisions, 4 points a win) ---------------------------------------------------------------
 LEAGUE_SIG = bytes((0x61, 0, 0x3E, 0x10, 0x48, 0x1B, 0, 0, 0, 3, 2, 3, 0x35))
 NSSL_NAME = (b'NAT. SUMMER LEAGUE', b'NSSL')
+LEAGUE_AT = None
 
 
 def patch(p, area, str_base):
@@ -142,6 +143,8 @@ def patch(p, area, str_base):
     for objn, off in refs:
         p.retarget(objn, off, 2, at)
     print(f'exe: New Zealand NSSL 1996-97 + 3 regions of 10, struct obj2+{at:#x} ({len(refs)} pointers)')
+    global LEAGUE_AT
+    LEAGUE_AT = at                                      # finals97 adds the play-off block
     return at
 
 

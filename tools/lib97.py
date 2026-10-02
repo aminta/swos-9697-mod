@@ -94,6 +94,7 @@ lib_bye:                                ; replaces `call cseg_2573C` at the end 
     jmp CSEG_2573C
 
 lib_pre:                                ; hist_draw, before the permutation: esi = DIY buffer, ecx = clubs in the round
+    call FIN_PRE                        ; 2.1: NSL / NSSL finals series (finals97.fin_pre)
     cmp byte [esi + 2Dh], FA_ID         ; FA Cup 1871-72: the bye club (list[14], untouched by round 1) takes the
     jne .lib                            ; 8th place of round 2 (7 winners + 1)
     cmp ecx, 8
@@ -184,12 +185,13 @@ def _sites(p):
     return a0, bye_call, c2573c, diycopy, m[0]
 
 
-def patch(p, cave):
+def patch(p, cave, fin_pre):
     """Returns (cave end, lib_pre offset) — lib_pre is called by historic.hist_draw."""
     a0, bye_call, c2573c, diycopy, cal_site = _sites(p)
     symbols = {'DIYCOPY': (2, diycopy), 'LIB_ID': (0, sacups.LIB_ID), 'LIB_N': (0, sacups.LIB_N),
                'LIB_GROUPS': (0, LIB_GROUPS), 'CSEG_2573C': (1, c2573c), 'A0': (2, a0), 'A3': (2, a0 + 12),
                'FA_ID': (0, 0xC3), 'FA_N': (0, 15),                    # historic.FA_ID, FA Cup 1871-72 clubs
+               'FIN_PRE': (1, fin_pre),
                'CAL_BYTES': (0, 'db ' + ', '.join(str(b) for b in calendar_bytes()))}
     code, fix = nasmcave.assemble(ASM, cave, symbols)
     labels = nasmcave.labels(ASM, cave, symbols)

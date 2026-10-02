@@ -82,6 +82,8 @@ DRAWS = [(WC82_ID, [0, 2, 11, 1, 3, 10, 6, 8, 5, 7, 9, 4]),   # 2nd round: 1A 1C
 DRAWS += lib97.DRAWS                                        # Copa Libertadores 1997 (session 27): fixed real bracket
 import nsl97
 DRAWS += nsl97.DRAWS                                        # NSL Cup 1996-97 (2.1): fixed real bracket
+import finals97
+DRAWS += finals97.DRAWS                                     # NSL / NSSL finals series (2.1): keep the order
 
 ASM = '''
 hist_draw:                              ; replaces `call cseg_27F08` in cseg_26DFC (A2 = DIY buffer, A3 = round)

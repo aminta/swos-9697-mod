@@ -23,6 +23,7 @@ import countries
 import historic
 import nsl97
 import nz97
+import finals97
 import lib97
 import sacups
 import trailer
@@ -34,7 +35,8 @@ ITALY_BASE = 1850          # free global numbers: ~1794..1999
 OBJ1_NEW_VSIZE = 0xa4000     # + three added pages (lepatch.add_object_page)
 SA_CAVE = 0xa1000            # first added page: South American cups
 WORLD_CAVE = 0xa2000         # second added page: new countries, CAF cups (Roadmap 2)
-NZ_CAVE = 0xa3000            # third added page (2.1): NSSL shoot-out, play-offs
+NZ_CAVE = 0xa3000            # third added page (2.1): NSSL shoot-out
+FIN_CAVE = 0xa3400           # 2.1: finals series (finals97.fin_pre)
 
 LEAGUES_OLD = bytes.fromhex('3c00144020150000000202033512')
 TEAM_BASES = struct.pack('<16H', 0, 16, 26, 44, 60, 72, 86, 102, 114, 207, 207, 221, 233, 245, 287, 333)
@@ -170,7 +172,8 @@ def patch_exe(src, dst, remap, lang='it'):
     area = countries.Obj2Area(p, obj2_free, obj2_free + p.le.page_size)
     world, caf = cafcups.structs(p, area, WORLD_CAVE)
     world = countries.patch(p, lang, area, world, cafcups.continents(caf))
-    world, lib_pre = lib97.patch(p, world)        # Libertadores 1997: bye, real calendar (hist_draw calls lib_pre)
+    fin_end, fin_pre = finals97.code(p, FIN_CAVE)  # 2.1: NSL/NSSL finals (lib_pre calls fin_pre)
+    world, lib_pre = lib97.patch(p, world, fin_pre)  # Libertadores 1997: bye, real calendar (hist_draw calls lib_pre)
     world = historic.patch(p, lang, area, world, lib_pre)
     nz_end = nz97.shootout(p, NZ_CAVE)            # 2.1: NSSL shoot-out after every draw, +1 point to its winner
     info = cafcups.career_info(caf)
@@ -181,11 +184,15 @@ def patch_exe(src, dst, remap, lang='it'):
     nsl97.patch(p, area, sacups.STR_BASE)       # 2.1: Australia 1996-97 (14-club NSL), team bases moved
     nz97.patch(p, area, sacups.STR_BASE)        # 2.1: New Zealand 1996-97 (NSSL + 3 regions)
     nsl97.cup(p, area, sacups.STR_BASE)         # 2.1: NSL Cup 1996-97, real clubs and bracket
+    wobj, wptr = p.target(2, countries.COMP[0] + 4 * 254)        # worldCup header: template of the type-2 finals
+    cobj, wc = p.target(wobj, wptr)
+    finals97.structs(p, area, sacups.STR_BASE, bytes(p.le.obj_bytes(cobj)[wc:wc + 0x28]))
+    finals97.slot4_type(p)
     world, new_career = trailer.patch(p, world, sacups.SAVE_ITEMS[0] + [(base, 32) for base, _ in info['q']])
     p.add_ptr(1, info['new_career_ptr'], 1, new_career)
     assert cave <= WORLD_CAVE, hex(cave)
     world = cafcups.intl_list(p, caf, world)
-    assert world <= NZ_CAVE and nz_end <= OBJ1_NEW_VSIZE, (hex(world), hex(nz_end))
+    assert world <= NZ_CAVE and nz_end <= FIN_CAVE and fin_end <= OBJ1_NEW_VSIZE, (hex(world), hex(nz_end))
     p.set_vsize(1, OBJ1_NEW_VSIZE)
     p.set_vsize(2, obj2_free + p.le.page_size)
     p.add_flags(1, 0x2)            # writable: season end rewrites the SA cup team lists in the cave

@@ -294,22 +294,26 @@ CUP_ID = 0xAD
 # South Melbourne-Gippsland, Canberra-Melbourne Knights, Wollongong-Marconi, Northern NSW-Newcastle, Brisbane Lions-
 # Brisbane Strikers, Sydney United-UTS Olympic; QF winners 1v2, 3v4...; SF: South Melbourne-Collingwood, Marconi-Brisbane S.
 CUP_TEAMS = [3, 46, 52, 19, 39, 26, 11, 23, 49, 22, 53, 28, 8, 9, 42, 44]
+CUP_NAME = b'NSL CUP'          # Davide: the real name
 CUP_ROUNDS = (0x94, 0x54, 0x54, 0x14)   # two legs + extra time + penalties; single (home) x2; final
 DRAWS = [(CUP_ID, list(range(16))), (CUP_ID, list(range(8))), (CUP_ID, [1, 0, 2, 3]), (CUP_ID, [0, 1])]
 
 
-def cup(p, area):
-    """The NSL Cup struct with its fixed list in the new obj2 page; Australia's country table points to it."""
+def cup(p, area, str_base):
+    """The NSL Cup struct with its fixed list in the new obj2 page; Australia's country table points to it.
+    Layout as sacups.knockout16: 14-byte header, rounds, 0, name dwords (long, short), team list."""
     d2 = p.le.obj_bytes(2)
     lo = d2.find(CUP_SIG)
     assert lo >= 0 and d2.count(CUP_SIG) == 1
     hdr = bytearray(d2[lo:lo + 14])
-    assert hdr[10] == 32 and hdr[7] == 0
+    assert hdr[10] == 32 and hdr[7] == 0 and hdr[5] == 0 and d2[lo + 14 + 5] == 0   # 5 rounds + terminator
     hdr[10] = len(CUP_TEAMS)
     hdr[13] = 1                                         # as SWOS's other 16-club cups
-    head = bytes(hdr) + bytes(CUP_ROUNDS)
-    hdr[7] = len(head) - 7                              # team list right after the rounds
-    body = bytes(hdr) + bytes(CUP_ROUNDS) + b''.join(bytes((FILE, t)) for t in CUP_TEAMS)
+    hdr += bytes(CUP_ROUNDS) + b'\0'
+    hdr[5] = len(hdr) - 5                               # names right after the rounds' terminator
+    hdr[7] = len(hdr) + 8 - 7                           # then the team list
+    name = area.add(CUP_NAME + b'\0') - str_base
+    body = bytes(hdr) + struct.pack('<II', name, name) + b''.join(bytes((FILE, t)) for t in CUP_TEAMS)
     at = area.add(body)
     refs = []
     for gp, recs in enumerate(p.recs):

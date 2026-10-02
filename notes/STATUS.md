@@ -1556,3 +1556,20 @@ Questions to Davide: season 1996 or 1997, penalties OK, calendar (real / uniform
   `sub eax, offset aChairmanScenes` is an ABSOLUTE address with a loader fixup, ours subtracted 0x16F8 only -> a pointer to garbage
   -> empty name line. Fix: 'STR_BASE': (2, STR_BASE) in sacups' symbols -> both subs now carry a fixup (T23, new careers).
   Records already saved (APOK.CAR etc.) keep the wrong values.
+
+## Session 28r — Argentina: aggregate table + promedio relegation (2026-10-02, build T24, static checks only)
+- Season end (cseg_91428): `call cseg_92D55` is sacups' sa_qualify; arg_agg (arg97.late(), after sacups) runs first: for the
+  player's Argentine Primera (slot 0 name = AP/CL, AP_N > 0): LOAD slot 0 -> DIY (cseg_8B71C), add the stored Apertura stats
+  row by row (team word = DIY+12Dh), SORT (cseg_883DD), SAVE DIY -> slot 0 (cseg_8B7EA), then jmp [SAFTER_PTR] = sa_qualify.
+  => the qualifiers (which read SLOT0), the final table screen and the relegation all see Apertura + Clausura.
+- Relegation (cseg_93FD8, single caller IT obj1+0x81FCA): arg_relegate for DIY id 56h with relegations ([57h] != 0): promedio
+  = (2*won + drawn this season + PROM history) / (matches + history matches); the two worst rows go to the last two places
+  of DIY+6Dh (second worst, then worst), the real routine runs, the order is restored, PROM updated (old <- last, last <- this
+  season, rows without an entry get one). PROM defaults (32 x [team, pts, games, pts, games], 1994-95 and 1995-96) from
+  es.wikipedia's "Tabla de descenso" (Colon, Estudiantes: 1995-96 only; Union, Huracan Corrientes: none).
+- Saved data: .CAR trailer C7 = C6 + AP block (AP_N, AP_CH, 20 x [team + 7 stat words]) + PROM (320 B); 2.0 'C6' saves load
+  (new items from defaults). New 4th obj1 page (OBJ1_NEW_VSIZE 0xA5000; NZ 0xA4000, FIN 0xA4300, ARG 0xA4400, 2430 B) because
+  the bigger trailer (948 B) overflowed the world cave into the old 0xA3000 page.
+- TO TEST: (1) a full Argentine season with River, all matches: the final table screen = aggregate (38 matches); the two
+  relegated = the two worst promedios (compare with the real calculation); next season starts as APERTURA; PROM/AP in the
+  trailer; (2) qualifiers use the aggregate table; (3) load of an older save (C6) still works.

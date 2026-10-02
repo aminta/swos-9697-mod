@@ -88,11 +88,29 @@ arg_round:
     mov esi, [DIY + eax + 2B3h]
     add esi, [SELTEAMS]
     mov ax, [esi]
-    mov [APERTURA_CHAMP], ax
+    mov [AP_CH], ax
     xor ebx, ebx
 .zero:
-    movzx eax, word [DIY + 6Dh + ebx * 2]
-    lea edi, [DIY + eax + 2B7h]         ; played, won, drawn, lost, for, against, points
+    movzx esi, word [DIY + 6Dh + ebx * 2]   ; row offset (row * 12h)
+    mov eax, esi
+    xor edx, edx
+    push ecx
+    mov ecx, 12h
+    div ecx
+    pop ecx
+    mov dx, [DIY + 12Dh + eax * 2]      ; team number of the row
+    mov edi, ebx
+    shl edi, 4
+    add edi, AP_TAB
+    mov [edi], dx                       ; AP_TAB entry: team, then played, won, drawn, lost, for, against, points
+    add edi, 2
+    lea esi, [DIY + esi + 2B7h]
+    push ecx
+    mov ecx, 7
+    rep movsw
+    pop ecx
+    sub esi, 14
+    mov edi, esi                        ; ... and the table row is zeroed
     push ecx
     mov ecx, 7
     xor eax, eax
@@ -101,6 +119,7 @@ arg_round:
     inc ebx
     cmp ebx, ecx
     jb .zero
+    mov [AP_N], cx
     mov dword [DIY + 27h], CL_LONG
     mov eax, 'APER'
     mov edx, 'TURA'
@@ -146,13 +165,327 @@ arg_text:                               ; in DIY+4.. (name text, maybe country f
 ; struct names go back to TORNEO APERTURA / APERTURA before the build copies them (into DIY+4, DIY+27h, the slot buffer
 ; and the season record). (T15 renamed after the build: the slot copy kept CLAUSURA.)
 arg_prebuild:
+    mov word [AP_N], 0                  ; a new season: no Apertura stored yet
+    mov word [AP_CH], 0FFFFh
     mov dword [NAME_DW], AP_LONG_OFF
     mov dword [NAME_DW + 4], AP_SHORT_OFF
     jmp BUILD
 
-align 2
-APERTURA_CHAMP: dw 0FFFFh
 '''
+ASM += r'''
+; arg_agg: replaces the season end's `call cseg_92D55` (sacups: sa_qualify, which reads the final tables). The player's
+; Argentine Primera: Apertura + Clausura = the aggregate table, re-sorted and put back into season slot 0, so the
+; qualifiers, the final table screen and the relegation see the aggregate.
+arg_agg:
+    pushad
+    cmp word [AP_N], 0
+    je .go
+    mov ebp, SLOT0
+    call arg_ours
+    jne .go
+    mov dword [A0], SLOT0
+    call LOAD                           ; slot 0 -> DIY_competitionStart
+    movzx ecx, word [DIY + 31h]
+    xor ebx, ebx                        ; row
+.row:
+    mov dx, [DIY + 12Dh + ebx * 2]
+    mov esi, AP_TAB
+    movzx eax, word [AP_N]
+.find:
+    cmp [esi], dx
+    je .add
+    add esi, 16
+    dec eax
+    jnz .find
+    jmp .next
+.add:
+    lea edi, [ebx + ebx * 8]
+    add edi, edi                        ; row * 12h
+    lea edi, [DIY + edi + 2B7h]
+    add esi, 2
+    push ecx
+    mov ecx, 7
+.addw:
+    mov ax, [esi]
+    add [edi], ax
+    add esi, 2
+    add edi, 2
+    loop .addw
+    pop ecx
+.next:
+    inc ebx
+    cmp ebx, ecx
+    jb .row
+    call SORT                           ; DIY+6Dh = the aggregate order
+    mov dword [A0], SLOT0
+    call SAVE                           ; DIY -> slot 0
+.go:
+    popad
+    jmp dword [SAFTER_PTR]              ; sacups' sa_qualify (set by late())
+
+; promedio: points (2 per win) / matches over the last three seasons. PROM = 32 x [team, pts, games, pts, games]
+; (two seasons back, last season); TP / TG = this season's totals per row. arg_prom computes the two worst rows.
+arg_relegate:                           ; replaces the `call cseg_93FD8` (promotions / relegations of a league)
+    pushad
+    cmp byte [DIY + 2Dh], ARG_ID
+    jne .real
+    cmp word [DIY + 57h], 0             ; the Primera: relegations
+    je .real
+    movzx ecx, word [DIY + 31h]
+    cmp ecx, 24
+    ja .real
+    xor ebx, ebx
+.tot:                                   ; per row: P = 2*won + drawn (+ history), G = played (+ history)
+    lea edi, [ebx + ebx * 8]
+    add edi, edi
+    movzx eax, word [DIY + edi + 2B9h]
+    add eax, eax
+    movzx edx, word [DIY + edi + 2BBh]
+    add eax, edx
+    movzx edx, word [DIY + edi + 2B7h]
+    mov [TP + ebx * 4], eax
+    mov [TG + ebx * 4], edx
+    mov dx, [DIY + 12Dh + ebx * 2]
+    mov esi, PROM
+    push ecx
+    mov ecx, 32
+.hist:
+    cmp [esi], dx
+    jne .hn
+    movzx eax, word [esi + 2]
+    movzx edx, word [esi + 6]
+    add [TP + ebx * 4], eax
+    add [TP + ebx * 4], edx
+    movzx eax, word [esi + 4]
+    movzx edx, word [esi + 8]
+    add [TG + ebx * 4], eax
+    add [TG + ebx * 4], edx
+    jmp .hd
+.hn:
+    add esi, 10
+    loop .hist
+.hd:
+    pop ecx
+    inc ebx
+    cmp ebx, ecx
+    jb .tot
+    mov edi, -1                         ; edi = worst row, esi = second worst (-1 = none yet)
+    mov esi, -1
+    xor ebx, ebx
+.rank:                                  ; promedio(a) < promedio(b)  <=>  TP[a] * TG[b] < TP[b] * TG[a]
+    cmp edi, -1
+    je .first
+    mov eax, [TP + ebx * 4]
+    mul dword [TG + edi * 4]
+    mov ebp, eax
+    mov eax, [TP + edi * 4]
+    mul dword [TG + ebx * 4]
+    cmp ebp, eax
+    jb .newworst
+    cmp esi, -1
+    je .second
+    mov eax, [TP + ebx * 4]
+    mul dword [TG + esi * 4]
+    mov ebp, eax
+    mov eax, [TP + esi * 4]
+    mul dword [TG + ebx * 4]
+    cmp ebp, eax
+    jb .second
+    jmp .rn
+.first:
+    mov edi, ebx
+    jmp .rn
+.newworst:
+    mov esi, edi
+    mov edi, ebx
+    jmp .rn
+.second:
+    mov esi, ebx
+.rn:
+    inc ebx
+    cmp ebx, ecx
+    jb .rank
+    ; rows edi (worst) and esi (second worst) go to the last two places of the sorted list; the order is restored after
+    mov ebx, ecx
+    shl ebx, 1
+    push ecx
+    mov ecx, ebx
+    shr ecx, 1
+    lea eax, [edi + edi * 8]
+    add eax, eax                        ; worst row offset
+    lea edx, [esi + esi * 8]
+    add edx, edx                        ; second worst row offset
+    push eax
+    push edx
+    xor ebx, ebx
+    xor ebp, ebp
+.copy:
+    movzx edi, word [DIY + 6Dh + ebx * 2]
+    mov [ORD_SAVE + ebx * 2], di
+    cmp edi, [esp]
+    je .skipw
+    cmp edi, [esp + 4]
+    je .skipw
+    mov [ORD_NEW + ebp * 2], di
+    inc ebp
+.skipw:
+    inc ebx
+    cmp ebx, ecx
+    jb .copy
+    pop edx
+    pop eax
+    mov [ORD_NEW + ebp * 2], dx         ; second worst, then worst, last
+    mov [ORD_NEW + ebp * 2 + 2], ax
+    xor ebx, ebx
+.put:
+    mov dx, [ORD_NEW + ebx * 2]
+    mov [DIY + 6Dh + ebx * 2], dx
+    inc ebx
+    cmp ebx, ecx
+    jb .put
+    pop ecx
+    mov [ORD_N], cx
+    popad
+    pushad
+    call REL93
+    popad
+    pushad
+    movzx ecx, word [ORD_N]             ; the finishing order back (qualifiers and the table screens read it later)
+    xor ebx, ebx
+.back:
+    mov dx, [ORD_SAVE + ebx * 2]
+    mov [DIY + 6Dh + ebx * 2], dx
+    inc ebx
+    cmp ebx, ecx
+    jb .back
+    call arg_prom_update
+    popad
+    ret
+.real:
+    popad
+    jmp REL93
+
+arg_prom_update:                        ; PROM: this season goes in, the oldest goes out; new clubs get an entry
+    movzx ecx, word [DIY + 31h]
+    xor ebx, ebx
+.clr:
+    mov byte [USED + ebx], 0
+    inc ebx
+    cmp ebx, 32
+    jb .clr
+    mov esi, PROM
+    mov ebp, 32
+.e:
+    mov dx, [esi]
+    cmp dx, 0FFFFh
+    je .skipe
+    xor ebx, ebx
+.srch:
+    cmp ebx, ecx
+    jae .none
+    cmp [DIY + 12Dh + ebx * 2], dx
+    je .have
+    inc ebx
+    jmp .srch
+.have:
+    mov byte [USED + ebx], 1
+    lea edi, [ebx + ebx * 8]
+    add edi, edi
+    movzx eax, word [DIY + edi + 2B9h]
+    add eax, eax
+    movzx edx, word [DIY + edi + 2BBh]
+    add eax, edx
+    movzx edx, word [DIY + edi + 2B7h]
+    jmp .shift
+.none:
+    xor eax, eax
+    xor edx, edx
+.shift:
+    mov bx, [esi + 6]                   ; old <- last season, last season <- this one
+    mov [esi + 2], bx
+    mov bx, [esi + 8]
+    mov [esi + 4], bx
+    mov [esi + 6], ax
+    mov [esi + 8], dx
+.skipe:
+    add esi, 10
+    dec ebp
+    jnz .e
+    xor ebx, ebx                        ; rows without an entry (promoted clubs)
+.new:
+    cmp byte [USED + ebx], 0
+    jne .nn
+    mov dx, [DIY + 12Dh + ebx * 2]
+    mov esi, PROM
+    mov ebp, 32
+.free:
+    cmp word [esi], 0FFFFh
+    je .take
+    add esi, 10
+    dec ebp
+    jnz .free
+    jmp .nn
+.take:
+    lea edi, [ebx + ebx * 8]
+    add edi, edi
+    movzx eax, word [DIY + edi + 2B9h]
+    add eax, eax
+    movzx ecx, word [DIY + edi + 2BBh]
+    add eax, ecx
+    mov [esi], dx
+    mov word [esi + 2], 0
+    mov word [esi + 4], 0
+    mov [esi + 6], ax
+    mov ax, [DIY + edi + 2B7h]
+    mov [esi + 8], ax
+.nn:
+    inc ebx
+    movzx ecx, word [DIY + 31h]
+    cmp ebx, ecx
+    jb .new
+    ret
+
+align 4
+SAFTER_PTR: dd 0
+AP_BLOCK:
+AP_N: dw 0
+AP_CH: dw 0FFFFh
+AP_TAB: times 20 * 16 db 0
+PROM: PROM_BYTES
+TP: times 32 dd 0
+TG: times 32 dd 0
+ORD_SAVE: times 32 dw 0
+ORD_NEW: times 32 dw 0
+ORD_N: dw 0
+USED: times 32 db 0
+'''
+# promedio history (es.wikipedia "Campeonato de Primera Division 1996-97 (Argentina)", Tabla de descenso, 2 points per
+# win, 38 matches a season): SWOS club name (TEAM.043) -> points in 1994-95, 1995-96 (None = not in the Primera)
+HISTORY = {
+    'BANFIELD': (36, 25), 'BOCA JUNIORS': (41, 49), 'COLON SANTA FE': (None, 35), 'DEP. ESPANOL': (36, 32),
+    'ESTUDIANTES': (None, 44), 'FERROCARRIL': (32, 34), 'GIMNASIA JUJUY': (32, 35), 'GIMNASIA-ESGRIMA': (49, 43),
+    'HUR. CORRIENTES': (None, None), 'HURACAN': (29, 45), 'INDEPENDIENTE': (37, 35), 'LANUS': (39, 49),
+    'NEWELLS OLD BOYS': (59, 44), 'PLATENSE': (35, 32), 'RACING CLUB': (39, 46), 'RIVER PLATE': (49, 37),
+    'ROSARIO CENTRAL': (39, 41), 'SAN LORENZO': (56, 35), 'UNION SANTA FE': (None, None), 'VELEZ SARSFIELD': (52, 57),
+}
+AP_SIZE, PROM_SIZE = 4 + 20 * 16, 32 * 10
+ARG_ITEMS = []              # [(obj1 offset, size)] saved in the career trailer (set by patch)
+
+
+def prom_bytes(src_dir):
+    d = open(f'{src_dir}/TEAM.{FILE:03d}', 'rb').read()
+    out = b''
+    names = {}
+    for i in range(struct.unpack('>H', d[:2])[0]):
+        names[d[2 + i * 684 + 5:2 + i * 684 + 22].split(b'\0')[0].decode('latin1').strip()] = i
+    for name, (a, b) in HISTORY.items():
+        team = FILE | (names[name] << 8)
+        out += struct.pack('<HHHHH', team, a or 0, 38 if a else 0, b or 0, 38 if b else 0)
+    out += struct.pack('<HHHHH', 0xFFFF, 0, 0, 0, 0) * (32 - len(HISTORY))
+    assert len(out) == PROM_SIZE
+    return out
+
+
 LOAD_ASM = r'''
 ; arg_load: wraps the call that processes a loaded career (trailer.load_trailer): names in step with the saved league.
 arg_load:
@@ -175,7 +508,7 @@ def _refs(p, lo):
     return finals97._refs(p, lo)
 
 
-def patch(p, area, str_base, at, site_b):
+def patch(p, area, str_base, at, site_b, src_dir):
     """Named Argentine struct (new obj2 page) + arg_round at obj1:at (hook at the start of cseg_8922B); site_b unused."""
     import sacups
     d2 = p.le.obj_bytes(2)
@@ -226,7 +559,27 @@ def patch(p, area, str_base, at, site_b):
     build = build_site + 5 + struct.unpack_from('<i', d1, build_site + 1)[0]
     global SLOT0
     SLOT0 = struct.unpack('<I', m[0].group(2))[0] - 0x27        # the player's league buffer (its +27h = name pointer)
+    slot0 = SLOT0
+    # cseg_8B71C (slot -> DIY) and cseg_8B7EA (DIY -> slot)
+    m = [x for x in re.finditer(rb'\xc7\x05' + e(A['A0']) + rb'(.{4})\xeb.\xc7\x05' + e(A['A0']) + rb'\1\xe9(.{4})', d1, re.S)]
+    assert m
+    load = m[0].start() + 12 + d1[m[0].start() + 11]
+    save = m[0].end() + struct.unpack('<i', m[0].group(2))[0]
+    # cseg_93FD8 (promotions and relegations) and its single caller
+    m = [x.start() for x in re.finditer(rb'\xc7\x05' + e(A['A3']) + e(diy) + rb'\x8b\x35' + e(A['A3']) + rb'\x66\x83\x3e\x00\x0f\x85', d1)]
+    assert len(m) == 1
+    rel93 = m[0]
+    calls = [k for k in range(len(d1) - 5) if d1[k] == 0xE8 and k + 5 + struct.unpack_from('<i', d1, k + 1)[0] == rel93]
+    assert len(calls) == 1, calls
+    site_rel = calls[0]
+    # cseg_883DD, the table sort
+    m = [x for x in re.finditer(rb'\xc7\x05' + e(A['A4']) + e(diy) + rb'\x8b\x35' + e(A['A4']) + rb'\x66\x8b\x46\x4f', d1, re.S)]
+    assert len(m) == 1
+    sort = m[0].start()
     symbols = {'DIY': (2, diy), 'A0': (2, A['A0']), 'SELTEAMS': (2, sel), 'D0': (2, regs['D7'] - 28),
+               'SORT': (1, sort), 'LOAD': (1, load), 'SAVE': (1, save), 'REL93': (1, rel93),
+               'SLOT0': (2, slot0), 'ARG_ID': (0, LEAGUE_SIG[0]),
+               'PROM_BYTES': (0, 'db ' + ', '.join(str(b) for b in prom_bytes(src_dir))),
                'GETSEASON': (1, getseason), 'BUILD': (1, build), 'NAME_DW': (2, new + names_at),
                'AP_LONG': (2, ap[0]), 'CL_LONG': (2, cl[0]),
                'AP_LONG_OFF': (0, ap[0] - str_base), 'AP_SHORT_OFF': (0, ap[1] - str_base),
@@ -242,6 +595,9 @@ def patch(p, area, str_base, at, site_b):
         p.remove(1, site + 6)
         p.put(1, site, b'\xe8' + struct.pack('<i', labels['arg_round'] - (site + 5)) + b'\x90' * 5)
     p.put(1, build_site + 1, struct.pack('<i', labels['arg_prebuild'] - (build_site + 5)))   # relative call: no fixup
+    p.put(1, site_rel + 1, struct.pack('<i', labels['arg_relegate'] - (site_rel + 5)))        # relegations by promedio
+    ARG_ITEMS[:] = [(labels['AP_BLOCK'], AP_SIZE), (labels['PROM'], PROM_SIZE)]
+    assert labels['PROM'] - labels['AP_BLOCK'] == AP_SIZE
     LABELS.update(labels)
     print(f'exe: Argentina Apertura/Clausura: struct obj2+{new:#x}, counters obj1+{site:#x}, new season obj1+{build_site:#x}, '
           f'code obj1+{at:#x} ({len(code)} B)')
@@ -269,3 +625,20 @@ def load_hook(p, at):
     p.put(1, call + 1, struct.pack('<i', at - (call + 5)))
     print(f'exe: Argentina: career load call obj1+{call:#x} -> obj1+{at:#x}')
     return (at + len(code) + 15) & ~15
+
+
+def late(p):
+    """After sacups.patch: the season end's `call cseg_92D55` now calls sacups' sa_qualify; put arg_agg in front of it."""
+    d1 = p.le.obj_bytes(1)
+    site_se = [i for i in range(len(d1) - 24) if d1[i] == 0xe8 and d1[i + 5] == 0xe8 and d1[i + 10] == 0xe8
+               and d1[i + 15:i + 18] == b'\x66\xc7\x05' and d1[i + 22:i + 24] == b'\x00\x00' and d1[i + 24:i + 26] == b'\x66\xa1']
+    tg = lambda i: i + 5 + struct.unpack_from('<i', d1, i + 1)[0]
+    site_se = [i for i in site_se if 0 < tg(i + 5) - tg(i) < 0x1000 and 0 < tg(i + 10) - tg(i + 5) < 0x1000]
+    assert len(site_se) == 1, site_se
+    site_se = site_se[0]
+    safter = site_se + 5 + struct.unpack('<i', p.get(1, site_se + 1, 4))[0]        # sacups' sa_qualify (patched bytes!)
+    assert safter != tg(site_se), 'sacups not applied yet'
+    p.add_ptr(1, LABELS['SAFTER_PTR'], 1, safter)
+    p.put(1, site_se + 1, struct.pack('<i', LABELS['arg_agg'] - (site_se + 5)))
+    print(f'exe: Argentina season end: aggregate table before the qualifiers, call obj1+{site_se:#x} -> arg_agg '
+          f'(then obj1+{safter:#x})')

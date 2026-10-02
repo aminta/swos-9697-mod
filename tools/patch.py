@@ -34,13 +34,13 @@ from strpool import StrPool
 ROOT = os.path.join(os.path.dirname(__file__), '..')
 ITALY = 20
 ITALY_BASE = 1850          # free global numbers: ~1794..1999
-OBJ1_NEW_VSIZE = 0xa4000     # + three added pages (lepatch.add_object_page)
+OBJ1_NEW_VSIZE = 0xa5000     # + four added pages (lepatch.add_object_page)
 SA_CAVE = 0xa1000            # first added page: South American cups
 WORLD_CAVE = 0xa2000         # second added page: new countries, CAF cups (Roadmap 2)
-NZ_CAVE = 0xa3000            # third added page (2.1): NSSL shoot-out
-FIN_CAVE = 0xa3400           # 2.1: finals series (finals97.fin_pre)
+NZ_CAVE = 0xa4000            # fourth added page (2.1): NSSL shoot-out (the world cave may grow into page 3)
+FIN_CAVE = 0xa4300           # 2.1: finals series (finals97.fin_pre)
 FINALS = False               # finals series off until a type-1 design works (session 28m)
-ARG_CAVE = 0xa3500           # 2.1: Argentina Apertura/Clausura (arg97)
+ARG_CAVE = 0xa4400           # 2.1: Argentina Apertura/Clausura, aggregate, promedio (arg97)
 ARG_LOAD_HOOK = True
 
 LEAGUES_OLD = bytes.fromhex('3c00144020150000000202033512')
@@ -148,7 +148,7 @@ def remap_italian_cup_teams(p, remap):
 
 def patch_exe(src, dst, remap, lang='it'):
     grown = dst + '.tmp'
-    data = add_object_page(add_object_page(add_object_page(open(src, 'rb').read(), 1), 1), 1)
+    data = add_object_page(add_object_page(add_object_page(add_object_page(open(src, 'rb').read(), 1), 1), 1), 1)
     while True:                    # obj2: zero pages over the old BSS/stack tail, then one free page
         data = add_object_page(data, 2)
         le2 = LE(data)
@@ -181,11 +181,12 @@ def patch_exe(src, dst, remap, lang='it'):
     world, lib_pre = lib97.patch(p, world, fin_pre)  # Libertadores 1997: bye, real calendar (hist_draw calls lib_pre)
     world = historic.patch(p, lang, area, world, lib_pre)
     nz_end = nz97.shootout(p, NZ_CAVE)            # 2.1: NSSL shoot-out after every draw, +1 point to its winner
-    arg_end = arg97.patch(p, area, sacups.STR_BASE, ARG_CAVE, nz97.SITE_B)   # 2.1: Apertura / Clausura
+    arg_end = arg97.patch(p, area, sacups.STR_BASE, ARG_CAVE, nz97.SITE_B, os.path.join(ROOT, 'orig/DATA'))   # 2.1: Apertura / Clausura
     info = cafcups.career_info(caf)
     info['new_career_ptr'] = world              # dword filled below: sacups is assembled before the trailer code
     world += 4
     cave = sacups.patch(p, pool, SA_CAVE, info)
+    arg97.late(p)                               # 2.1: Argentina aggregate table before sacups' qualifiers
     short_names(p, area, lang)
     nsl97.patch(p, area, sacups.STR_BASE)       # 2.1: Australia 1996-97 (14-club NSL), team bases moved
     nz97.patch(p, area, sacups.STR_BASE)        # 2.1: New Zealand 1996-97 (NSSL + 3 regions)
@@ -196,7 +197,8 @@ def patch_exe(src, dst, remap, lang='it'):
         cobj, wc = p.target(wobj, wptr)
         finals97.structs(p, area, sacups.STR_BASE, bytes(p.le.obj_bytes(cobj)[wc:wc + 0x28]))
         finals97.slot4_type(p)
-    world, new_career = trailer.patch(p, world, sacups.SAVE_ITEMS[0] + [(base, 32) for base, _ in info['q']])
+    world, new_career = trailer.patch(p, world, sacups.SAVE_ITEMS[0] + [(base, 32) for base, _ in info['q']]
+                                      + arg97.ARG_ITEMS)
     p.add_ptr(1, info['new_career_ptr'], 1, new_career)
     if ARG_LOAD_HOOK:
         arg_end = arg97.load_hook(p, arg_end)     # 2.1: Apertura/Clausura names after loading a career

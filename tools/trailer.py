@@ -25,11 +25,12 @@ import struct
 import nasmcave
 import sacups
 
-MARK, S2, SA = 0x3643, 0x3253, 0x4153     # 'C6' (Libertadores of 21), 'S2' 'SA' (1.0/1.1 block in someLeaguesTable)
+MARK, S2, SA = 0x3743, 0x3253, 0x4153     # 'C7' (2.1: + Argentina), 'S2' 'SA' (1.0/1.1 block in someLeaguesTable)
+C6 = 0x3643                               # 2.0: the same first 10 items (Libertadores of 21 as saved)
 # older trailers: (mark, first item, item count, Libertadores bytes) — 'C5' 1.3 (10 items, 20 clubs), 'C4' 1.2 (10 items,
 # 16 clubs), 'C3' 1.2 dev (8 items), 'C2' (CAF + CONCACAF), 'C1' 1.1 (CAF). An old Libertadores list is read through
 # OLD_ITEMS<bytes> into LIBOLD, then lib_merge keeps it and adds the first default clubs not among them up to LIB_N.
-OLD_TRAILERS = [(0x3543, 0, 10, 40), (0x3443, 0, 10, 32), (0x3343, 0, 8, 32), (0x3243, 4, 4, 32), (0x3143, 4, 3, 32)]
+OLD_TRAILERS = [(0x3643, 0, 10, None), (0x3543, 0, 10, 40), (0x3443, 0, 10, 32), (0x3343, 0, 8, 32), (0x3243, 4, 4, 32), (0x3143, 4, 3, 32)]
 OLD_LIB = 32                              # 1.0/1.1 (S2/SA) and 1.2
 OLD_LIB_MAX = 40
 NSA = 4                                   # SA items first: Lib, Sup, CON, Intercontinental pair
@@ -248,6 +249,11 @@ def patch(p, cave, items):
     symbols['OLD_ENTRIES'] = (0, 'dd ' + ', '.join(f'I{k_}, {n}' for k_, (_, n) in enumerate(items) if k_))
     olds = []
     for mark, first, count, lib_b in OLD_TRAILERS:
+        if lib_b is None:                         # a trailer whose items are the first ones of the current: straight in
+            size = 2 + sum(n for k_, (_, n) in enumerate(items) if first <= k_ < first + count)
+            olds += [f'    mov edx, ITEMS + 8 * {first}', f'    mov ebp, {count}', f'    mov ecx, {size}',
+                     f'    cmp word [esi], {mark:#x}', '    je .check']
+            continue
         size = 2 + sum(lib_b if k_ == 0 else n for k_, (_, n) in enumerate(items) if first <= k_ < first + count)
         tbl = 'OLD_ITEMS' if lib_b == OLD_LIB else f'OLD_ITEMS{lib_b}'
         olds += [f'    mov edx, {tbl} + 8 * {first}', f'    mov ebp, {count}', f'    mov ecx, {size}',
@@ -260,6 +266,6 @@ def patch(p, cave, items):
         p.add_ptr(1, cave + off, tobj, toff)
     p.put(1, save_call + 1, struct.pack('<i', labels['save_trailer'] - (save_call + 5)))
     p.put(1, load_call + 1, struct.pack('<i', labels['load_trailer'] - (load_call + 5)))
-    print(f'exe: .CAR trailer C6 ({block} B) @ obj1+{cave:#x}, SaveCareerFile call obj1+{save_call:#x}, '
+    print(f'exe: .CAR trailer C7 ({block} B) @ obj1+{cave:#x}, SaveCareerFile call obj1+{save_call:#x}, '
           f'LoadCareerFile call obj1+{load_call:#x}')
     return (cave + len(code) + 3) & ~3, labels['new_career_defaults']

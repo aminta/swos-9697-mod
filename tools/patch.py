@@ -24,6 +24,7 @@ import historic
 import nsl97
 import nz97
 import finals97
+import mls97
 import lib97
 import sacups
 import trailer
@@ -185,6 +186,7 @@ def patch_exe(src, dst, remap, lang='it'):
     nsl97.patch(p, area, sacups.STR_BASE)       # 2.1: Australia 1996-97 (14-club NSL), team bases moved
     nz97.patch(p, area, sacups.STR_BASE)        # 2.1: New Zealand 1996-97 (NSSL + 3 regions)
     nsl97.cup(p, area, sacups.STR_BASE)         # 2.1: NSL Cup 1996-97, real clubs and bracket
+    mls97.patch(p)                              # 2.1: MLS 1997, 4 games per pair
     if FINALS:                                  # T9 (type-2 finals in slot 4) froze: slot 4 is a 443h buffer
         wobj, wptr = p.target(2, countries.COMP[0] + 4 * 254)
         cobj, wc = p.target(wobj, wptr)
@@ -249,7 +251,7 @@ def write_new_teams(src_dir, dst_dir):
         bases[n] = b
     for f in sorted(glob.glob(os.path.join(src_dir, 'TEAM.0[0-9][0-9]'))):
         n = int(f[-3:])
-        if n in files or n in (20, nsl97.FILE, nz97.FILE):
+        if n in files or n in (20, nsl97.FILE, nz97.FILE, mls97.FILE):
             continue
         d = open(f, 'rb').read()
         for i in range(struct.unpack('>H', d[:2])[0]):   # the game recomputes it: base[team byte 0] + team byte 1
@@ -269,7 +271,7 @@ def write_new_teams(src_dir, dst_dir):
                 taken[g] = n
         open(os.path.join(dst_dir, 'TEAM.%03d' % n), 'wb').write(data)
         print(f'TEAM.{n:03d}: {k} teams, global numbers {tcn.get(n, historic.BASE)}..{tcn.get(n, historic.BASE) + k - 1}')
-    for mod in (nsl97, nz97):                         # 2.1: Australia (52 clubs) and New Zealand (40)
+    for mod in (nsl97, nz97, mls97):                  # 2.1: Australia (54 records), New Zealand (40), MLS 1997
         data = mod.build(src_dir)
         for i in range(struct.unpack('>H', data[:2])[0]):
             r = data[2 + i * TEAM_SIZE:]
@@ -277,7 +279,7 @@ def write_new_teams(src_dir, dst_dir):
             assert g < 2000 and g not in taken, (mod.FILE, g, taken.get(g))   # word +2 is recomputed by the game
             taken[g] = mod.FILE
         open(os.path.join(dst_dir, 'TEAM.%03d' % mod.FILE), 'wb').write(data)
-    print(f'TEAM.{nsl97.FILE:03d}/{nz97.FILE:03d}: Australia and New Zealand 1996-97')
+    print(f'TEAM.{nsl97.FILE:03d}/{nz97.FILE:03d}/{mls97.FILE:03d}: Australia and New Zealand 1996-97, MLS 1997')
 
 
 if __name__ == '__main__':

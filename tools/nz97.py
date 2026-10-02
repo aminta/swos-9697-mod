@@ -151,35 +151,57 @@ def patch(p, area, str_base):
 # --- exe: shoot-out after every NSSL draw, +1 point to its winner (session 28h) ----------------------------------------
 NSSL_MASK = sum(1 << i for i, (div, _) in CLUBS.items() if div == NSSL)   # TEAM.062 ordinals of the 10 NSSL clubs
 SHOOTOUT_ASM = r'''
-; Both hooks know an NSSL match by its two teams (record byte 0 = team file 62, byte 1 = ordinal in NSSL_MASK): career league
-; days (player's division and the simulated other ones) and DIY leagues all reach cseg_88A12.
-nssl_team:                              ; esi -> team record; ZF = 1 if it is an NSSL club
-    cmp byte [esi], NZ_FILE
-    jne .r
-    movzx eax, byte [esi + 1]
-    cmp eax, 32
+; Shoot-out after every draw in the NSSL (1 point each + 1 to the winner) and in the MLS 1997 (0 each + 1 to the winner;
+; 2.1 session 28n). A match counts when both teams belong to the same league: team file 62 + ordinal in NSSL_MASK (kind
+; 1) or team file 73 + ordinal in MLS_MASK (kind 2). Career league days and DIY leagues all reach cseg_88A12.
+kind_of:                                ; al = team file, ah = ordinal -> eax = 0 (none), 1 (NSSL), 2 (MLS)
+    movzx edx, ah
+    cmp edx, 32
     jae .no
-    bt dword [NSSL_BITS], eax
+    cmp al, NZ_FILE
+    jne .m
+    bt dword [NSSL_BITS], edx
     jnc .no
-    cmp eax, eax
-.r:
+    mov eax, 1
+    ret
+.m:
+    cmp al, US_FILE
+    jne .no
+    bt dword [MLS_BITS], edx
+    jnc .no
+    mov eax, 2
     ret
 .no:
-    or esi, esi                         ; esi != 0: ZF = 0
+    xor eax, eax
+    ret
+
+pair_kind:                              ; ax, bx = the two team numbers (file, ordinal) -> eax = their league or 0
+    push ebx
+    call kind_of
+    pop ebx
+    push eax
+    mov ax, bx
+    call kind_of
+    pop edx
+    cmp eax, edx
+    je .r
+    xor eax, eax
+.r:
     ret
 
 nz_setup:                               ; replaces `mov word [penaltiesState], 0` in cseg_89381 (league match set-up)
     mov word [PEN_STATE], 0
     pushad
     mov word [PEN1], 0                  ; no shoot-out yet (a real one never ends 0-0)
-    mov byte [NZ_WIN], 0
     mov word [PEN2], 0
+    mov byte [NZ_WIN], 0
     mov esi, [A1]
-    call nssl_team
-    jne .x
-    mov esi, [A2]
-    call nssl_team
-    jne .x
+    mov ax, [esi]
+    mov edi, [A2]
+    mov bx, [edi]
+    call pair_kind
+    test eax, eax
+    jz .x
     mov word [PEN_STATE], 1             ; the engine plays the shoot-out at full time on a draw (no extra time)
 .x:
     popad
@@ -191,11 +213,19 @@ nz_draw:                                ; replaces `mov esi, [A4]; add word [esi
     pushad
     push dword [D0]
     mov esi, [A1]                       ; the teams (A3/A4 are their table entries: no team file byte there)
-    call nssl_team
-    jne .x
-    mov esi, [A2]
-    call nssl_team
-    jne .x
+    mov ax, [esi]
+    mov edi, [A2]
+    mov bx, [edi]
+    call pair_kind
+    test eax, eax
+    jz .x
+    cmp eax, 2
+    jne .w
+    mov esi, [A3]                       ; MLS: a draw gives nothing, only the shoot-out winner scores
+    sub word [esi + 2C3h], 1
+    mov esi, [A4]
+    sub word [esi + 2C3h], 1
+.w:
     mov al, [NZ_WIN]                    ; decided by nz_mark when the result went into the game list
     mov edi, [A3]                       ; home = team 1 of the match
     cmp al, 1
@@ -224,21 +254,6 @@ nz_draw:                                ; replaces `mov esi, [A4]; add word [esi
     popad
     ret
 
-nssl_id:                                ; ax = team number (low byte file, high byte ordinal); ZF = 1 if NSSL
-    cmp al, NZ_FILE
-    jne .r
-    movzx eax, ah
-    cmp eax, 32
-    jae .no
-    bt dword [NSSL_BITS], eax
-    jnc .no
-    cmp eax, eax
-.r:
-    ret
-.no:
-    or esi, esi
-    ret
-
 nz_mark:                                ; replaces `mov ax,[D6]; mov esi,[A1]; mov [esi+14h],ax`, the last store of a result
     mov ax, [D6]                        ; into the game list (cseg_2A71E, after the manager's statistics: a shoot-out
     mov esi, [A1]                       ; stays a draw there)
@@ -247,11 +262,10 @@ nz_mark:                                ; replaces `mov ax,[D6]; mov esi,[A1]; m
     push dword [D0]
     mov esi, [A1]
     mov ax, [esi + 0Ch]
-    call nssl_id
-    jne .x
-    mov ax, [esi + 0Eh]
-    call nssl_id
-    jne .x
+    mov bx, [esi + 0Eh]
+    call pair_kind
+    test eax, eax
+    jz .x
     mov ax, [esi + 10h]                 ; the result: home goals << 8 | away goals
     cmp ah, al
     jne .x
@@ -301,7 +315,9 @@ nz_mark:                                ; replaces `mov ax,[D6]; mov esi,[A1]; m
     popad
     ret
 NZ_WIN: db 0
+align 4
 NSSL_BITS: dd NSSL_MASK_
+MLS_BITS: dd MLS_MASK_
 '''
 
 
@@ -340,7 +356,8 @@ def shootout(p, at):
                                            for k, o in ((4, 0x10), (5, 0x12), (6, 0x14))), d1)]
     assert len(m) == 1, len(m)
     site_c = m[0].start() + 5 + 6 + 3 + 2 * 16
-    symbols = {'NZ_FILE': (0, FILE), 'NSSL_MASK_': (0, NSSL_MASK), 'PEN_STATE': (2, pen_state), 'PEN1': (2, pen1),
+    import mls97
+    symbols = {'NZ_FILE': (0, FILE), 'NSSL_MASK_': (0, NSSL_MASK), 'US_FILE': (0, mls97.FILE), 'MLS_MASK_': (0, mls97.MLS_MASK), 'PEN_STATE': (2, pen_state), 'PEN1': (2, pen1),
                'PEN2': (2, pen2), 'RAND': (1, rand), 'D0': (2, regs['D7'] - 28), 'D6': (2, d(6)),
                **{k: (2, v) for k, v in A.items()}}
     code, fix = nasmcave.assemble(SHOOTOUT_ASM, at, symbols)
@@ -357,6 +374,6 @@ def shootout(p, at):
     p.remove(1, site_c + 2)                             # mov ax, [D6]
     p.remove(1, site_c + 8)                             # mov esi, [A1]
     p.put(1, site_c, b'\xe8' + struct.pack('<i', labels['nz_mark'] - (site_c + 5)) + b'\x90' * 11)
-    print(f'exe: NSSL shoot-out: set-up obj1+{site_a:#x}, draw obj1+{site_b:#x}, game list obj1+{site_c:#x}, '
+    print(f'exe: NSSL/MLS shoot-out: set-up obj1+{site_a:#x}, draw obj1+{site_b:#x}, game list obj1+{site_c:#x}, '
           f'code obj1+{at:#x} ({len(code)} B)')
     return (at + len(code) + 15) & ~15

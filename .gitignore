@@ -18,3 +18,7 @@ internal/
 # Amiga game files (never published)
 amiga/orig/
 amiga/work/
+
+# announcement drafts and private messages: internal only
+release/announcements/
+release/forum-announcement.bbcode

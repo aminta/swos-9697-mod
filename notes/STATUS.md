@@ -1529,3 +1529,5 @@ Questions to Davide: season 1996 or 1997, penalties OK, calendar (real / uniform
   runtime (or read elsewhere).
 - T19 (experiment): arg_load hook switched off (ARG_LOAD_HOOK = False in patch.py). If CLAUSURA is gone, the load path of a
   new career runs arg_names with a bad phase; if not, look at arg_round or at another reader of the name.
+- T19 PLAYTEST (Davide): still CLAUSURA on the first career screen -> not the load hook. T20 (experiment): arg_round hook off
+  too (ROUND_HOOK = False); only arg_prebuild (writes APERTURA) remains of the Argentina name code.

@@ -170,6 +170,7 @@ arg_load:
     ret
 '''
 LABELS = {}
+ROUND_HOOK = False      # T20 experiment: the switch hook off
 SLOT0 = None
 
 
@@ -240,9 +241,10 @@ def patch(p, area, str_base, at, site_b):
     p.put(1, at, code)
     for off, tobj, toff in fix:
         p.add_ptr(1, at + off, tobj, toff)
-    p.remove(1, site + 2)                               # the replaced mov holds two absolute addresses
-    p.remove(1, site + 6)
-    p.put(1, site, b'\xe8' + struct.pack('<i', labels['arg_round'] - (site + 5)) + b'\x90' * 5)
+    if ROUND_HOOK:
+        p.remove(1, site + 2)                           # the replaced mov holds two absolute addresses
+        p.remove(1, site + 6)
+        p.put(1, site, b'\xe8' + struct.pack('<i', labels['arg_round'] - (site + 5)) + b'\x90' * 5)
     p.put(1, build_site + 1, struct.pack('<i', labels['arg_prebuild'] - (build_site + 5)))   # relative call: no fixup
     LABELS.update(labels)
     print(f'exe: Argentina Apertura/Clausura: struct obj2+{new:#x}, counters obj1+{site:#x}, new season obj1+{build_site:#x}, '

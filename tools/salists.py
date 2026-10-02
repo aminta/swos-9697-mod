@@ -33,7 +33,7 @@ def trailer(d):
     n = struct.unpack_from('<H', d, 95151)[0]
     at = 95153 + n * 684
     mark = d[at:at + 2]
-    lib = {b'C6': 21, b'C5': 20, b'C4': 16}.get(mark)
+    lib = {b'C7': 21, b'C6': 21, b'C5': 20, b'C4': 16}.get(mark)
     if not lib:
         return False
     at += 2

@@ -1573,3 +1573,16 @@ Questions to Davide: season 1996 or 1997, penalties OK, calendar (real / uniform
 - TO TEST: (1) a full Argentine season with River, all matches: the final table screen = aggregate (38 matches); the two
   relegated = the two worst promedios (compare with the real calculation); next season starts as APERTURA; PROM/AP in the
   trailer; (2) qualifiers use the aggregate table; (3) load of an older save (C6) still works.
+- T24 PLAYTEST (Davide, APOK3.CAR, River, season 1 + start of season 2): PASSED by the data.
+  * The end-of-season table screen shows the CLAUSURA (19 matches, champion Gimnasia-Esgrima 37, River 3rd 30): the engine shows
+    that table right after the last match, before arg_agg. Davide: "la schermata delle 38 giornate non si vede" (by design;
+    option: show the aggregate there instead / message with the Apertura champion).
+  * Aggregate (decoded from the .CAR): River 74 (44 Apertura + 30 Clausura), Gimnasia-Esgrima 64, Independiente 63, Hur.
+    Corrientes 63, Dep. Espanol 56. Libertadores ARG = River, Gimnasia-Esgrima; CONMEBOL ARG 3-5 = Independiente, Hur.
+    Corrientes, Dep. Espanol: EXACTLY the aggregate order (3-point, goal difference as tie-break).
+  * Promedio: recomputed from PROM (1994-95/1995-96 defaults + this season 2-pt aggregate): Ferrocarril 95/114 = 0.833 and
+    Platense 95/114 = 0.833 are the two worst (Colon .842, Huracan .868...). Season 2 starts with Almirante Brown and Douglas
+    Haig instead of Platense and Ferrocarril: relegation by promedio WORKS (the Clausura bottom two were Huracan and Ferrocarril).
+  * PROM after the season: old <- 1995-96, last <- this season (e.g. Banfield 25 / 42); AP block keeps the Apertura stats.
+  * Management record: Supercopa / Coppa Intercontinentale / Copa Libertadores now all named (T23 fix OK).
+- tools/salists.py reads the C7 trailer.

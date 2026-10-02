@@ -230,10 +230,12 @@ def write_new_teams(src_dir, dst_dir):
     taken = {}
     tcn = {n: c['base'] for n, c in countries.COUNTRIES.items() if 'base' in c}
     d2 = LE(os.path.join(ROOT, 'orig/ENGLISH.EXE')).obj_bytes(2)
-    bases = struct.unpack_from('<256H', d2, d2.find(struct.pack('<6H', 0, 16, 26, 44, 60, 72)))
+    bases = list(struct.unpack_from('<256H', d2, d2.find(struct.pack('<6H', 0, 16, 26, 44, 60, 72))))
+    for n, b in nsl97.BASE_MOVES.items():             # 2.1: Bolivia moved to make room for Australia's 52nd club
+        bases[n] = b
     for f in sorted(glob.glob(os.path.join(src_dir, 'TEAM.0[0-9][0-9]'))):
         n = int(f[-3:])
-        if n in files or n == 20:
+        if n in files or n == 20 or n == nsl97.FILE:
             continue
         d = open(f, 'rb').read()
         for i in range(struct.unpack('>H', d[:2])[0]):   # the game recomputes it: base[team byte 0] + team byte 1
@@ -253,7 +255,13 @@ def write_new_teams(src_dir, dst_dir):
                 taken[g] = n
         open(os.path.join(dst_dir, 'TEAM.%03d' % n), 'wb').write(data)
         print(f'TEAM.{n:03d}: {k} teams, global numbers {tcn.get(n, historic.BASE)}..{tcn.get(n, historic.BASE) + k - 1}')
-    open(os.path.join(dst_dir, 'TEAM.%03d' % nsl97.FILE), 'wb').write(nsl97.build(src_dir))   # same 51 clubs and numbers
+    aus = nsl97.build(src_dir)
+    for i in range(struct.unpack('>H', aus[:2])[0]):
+        r = aus[2 + i * TEAM_SIZE:]
+        g = bases[r[0]] + r[1]
+        assert g < 2000 and g not in taken, (nsl97.FILE, g, taken.get(g))
+        taken[g] = nsl97.FILE
+    open(os.path.join(dst_dir, 'TEAM.%03d' % nsl97.FILE), 'wb').write(aus)
     print(f'TEAM.{nsl97.FILE:03d}: Australia 1996-97 (NSL squads)')
 
 

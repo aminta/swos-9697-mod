@@ -30,7 +30,7 @@ CLUBS = {
     'Marconi-Fairfield':    (22, 'MARCONI-FAIRFLD', None),             # SWOS: MARCONI FAIRFIED (typo)
     'Melbourne Knights':    (23, None, None),
     'Newcastle Breakers':   (28, None, 'John Kosmina'),
-    'Perth Glory':          (10, 'PERTH GLORY', 'Gary Marocchi'),        # replaces Brunswick United (no league)
+    'Perth Glory':          (51, 'PERTH GLORY', 'Gary Marocchi'),        # NEW 52nd record (from Brunswick's)
     'South Melbourne':      (39, None, 'Ange Postecoglou'),
     'Sydney United':        (42, None, 'Branko Culina'),
     'UTS Olympic':          (44, None, None),
@@ -41,6 +41,12 @@ TEAM_ALIAS = {'Marconi Fairfield': 'Marconi-Fairfield', 'South Mebourne': 'South
               'Wollongong Wolves': 'Wollongong City'}
 KITS = {'Perth Glory': [0, 6, 6, 6, 6], 'Collingwood Warriors': [2, 2, 1, 2, 2]}   # purple; black-and-white stripes
 NSL, SOUTH = 0, 1               # division byte (record +25)
+BRUNSWICK = 10                  # Brunswick United: no league in SWOS -> SOUTH (Victoria), in place of Heidelberg
+# Australia needs 52 global numbers but TEAM.045 (Bolivia, 14 clubs) starts at 1035: Bolivia moves to the free run
+# 1960..1973 (global = teamsCountryNumbers[file byte] + ordinal, recomputed by SetTeamGlobalNumbers at every load;
+# cup lists use file/ordinal pairs) and Australia may use 984..1048.
+BASE_MOVES = {45: 1960}
+COUNT = 52
 
 
 def norm(s):
@@ -141,6 +147,13 @@ def swos_name(s, maxlen=22):
 def build(src_dir, report=False):
     d = bytearray(open(os.path.join(src_dir, 'TEAM.%03d' % FILE), 'rb').read())
     assert struct.unpack('>H', d[:2])[0] == 51
+    o = 2 + BRUNSWICK * TEAM_SIZE
+    perth = bytearray(d[o:o + TEAM_SIZE])               # Perth Glory: a new record on Brunswick's (players replaced)
+    perth[1] = 51
+    struct.pack_into('>H', perth, 2, 984 + 51)
+    d[o + 25] = SOUTH
+    d += perth
+    struct.pack_into('>H', d, 0, COUNT)
     known = known_players(src_dir)
     places = lineup_roles()
     app = collections.defaultdict(collections.Counter)
@@ -210,7 +223,6 @@ def build(src_dir, report=False):
             if report:
                 log.append((team, r[p + 2], cls, c['name'], c['n'], 'new' if c['guessed'] else 'swos', c['role']))
         d[o:o + TEAM_SIZE] = r
-    # Heidelberg's slot is Collingwood now: its old division (SOUTH) loses a club
     if report:
         for x in log:
             print(*x)
@@ -224,19 +236,23 @@ if __name__ == '__main__':
 
 # league struct of Australia in obj2 (13-byte header, see countries.py): id 57h, country 2Ch, 4 divisions
 LEAGUE_SIG = bytes((0x57, 0, 0x2C, 0x10, 0x50, 0x21, 0, 0, 0, 4, 2, 3, 0x35))
-DIVISIONS = (14, 11, 14, 12)    # NSL 1996-97 (+ Perth, Collingwood), SOUTH without Heidelberg, NSW, QUEENSLAND
+DIVISIONS = (14, 12, 14, 12)    # NSL 1996-97 (+ Perth, Collingwood), SOUTH (- Heidelberg + Brunswick), NSW, QLD
 NSL_NAME = (b'NSL', b'NSL')     # Davide: "rinominare 1st division in NSL" (long and short name)
 
 
 def patch(p, area, str_base):
-    """Australia's league struct: 14 clubs in the NSL, 11 in the SOUTH division; division 1 renamed NSL."""
+    """Australia's league struct: 14 clubs in the NSL; division 1 renamed NSL; Bolivia's global base moved."""
     d2 = p.le.obj_bytes(2)
     o = d2.find(LEAGUE_SIG)
     assert o >= 0 and d2.count(LEAGUE_SIG) == 1
     for i, n in enumerate(DIVISIONS):
         assert d2[o + 13 + 6 * i] in (12, 14)
         p.put(2, o + 13 + 6 * i, bytes((n,)))
-    assert sum(DIVISIONS) == 51
+    assert sum(DIVISIONS) == COUNT
+    tcn = d2.find(struct.pack('<6H', 0, 16, 26, 44, 60, 72))
+    for n, base in BASE_MOVES.items():
+        assert struct.unpack_from('<H', d2, tcn + 2 * n)[0] == 1035
+        p.put(2, tcn + 2 * n, struct.pack('<H', base))
     names = o + 13 + 6 * 4 + 1
     for k, s in enumerate(NSL_NAME):
         p.put(2, names + 4 * k, struct.pack('<I', area.add(s + b'\0') - str_base))

@@ -15,3 +15,6 @@ __pycache__/
 .DS_Store
 # internal docs (artifact only, not published)
 internal/
+# Amiga game files (never published)
+amiga/orig/
+amiga/work/

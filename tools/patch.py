@@ -34,7 +34,7 @@ from strpool import StrPool
 ROOT = os.path.join(os.path.dirname(__file__), '..')
 ITALY = 20
 ITALY_BASE = 1850          # free global numbers: ~1794..1999
-OBJ1_NEW_VSIZE = 0xa5000     # + four added pages (lepatch.add_object_page)
+OBJ1_NEW_VSIZE = 0xa6000     # + five added pages (lepatch.add_object_page)
 SA_CAVE = 0xa1000            # first added page: South American cups
 WORLD_CAVE = 0xa2000         # second added page: new countries, CAF cups (Roadmap 2)
 NZ_CAVE = 0xa4000            # fourth added page (2.1): NSSL shoot-out (the world cave may grow into page 3)
@@ -148,7 +148,9 @@ def remap_italian_cup_teams(p, remap):
 
 def patch_exe(src, dst, remap, lang='it'):
     grown = dst + '.tmp'
-    data = add_object_page(add_object_page(add_object_page(add_object_page(open(src, 'rb').read(), 1), 1), 1), 1)
+    data = open(src, 'rb').read()
+    for _ in range(5):
+        data = add_object_page(data, 1)
     while True:                    # obj2: zero pages over the old BSS/stack tail, then one free page
         data = add_object_page(data, 2)
         le2 = LE(data)

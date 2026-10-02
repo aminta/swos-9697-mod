@@ -1586,3 +1586,8 @@ Questions to Davide: season 1996 or 1997, penalties OK, calendar (real / uniform
   * PROM after the season: old <- 1995-96, last <- this season (e.g. Banfield 25 / 42); AP block keeps the Apertura stats.
   * Management record: Supercopa / Coppa Intercontinentale / Copa Libertadores now all named (T23 fix OK).
 - tools/salists.py reads the C7 trailer.
+- Davide: reloading APOK3.CAR works (load hook / C7 trailer OK). Chose option 1 for the Apertura champion.
+- T25: no in-game message system found; the Apertura champion goes into the management record's league line: at the switch the
+  record's leagueStringOffset becomes a fixed text 'CLAUSURA (AP: <CHAMPION>)' (one per TEAM.043 club, 40 texts in the cave,
+  champion trimmed to 11 chars, 26 chars max), so it survives save/load and every season keeps its own. obj1 grows to FIVE
+  added pages (OBJ1_NEW_VSIZE 0xA6000); ARG code 3670 B at 0xA4400.

@@ -133,6 +133,14 @@ arg_round:
     cmp dword [esi + 16h], AP_LONG_OFF  ; leagueStringOffset
     jne .p
     mov dword [esi + 16h], CL_LONG_OFF
+    cmp byte [AP_CH], ARG_FILE          ; 'CLAUSURA (AP: <champion>)': one fixed text per club (survives save and load)
+    jne .p
+    movzx eax, byte [AP_CH + 1]
+    cmp eax, NCHAMP
+    jae .p
+    mov eax, [CHAMP_TAB + eax * 4]
+    sub eax, CHAIRMAN
+    mov [esi + 16h], eax
 .p:
     pop dword [D0]
     pop dword [A0]
@@ -447,6 +455,9 @@ arg_prom_update:                        ; PROM: this season goes in, the oldest 
 
 align 4
 SAFTER_PTR: dd 0
+CHAMP_TAB: CHAMP_TAB_DD
+CHAMP_TEXTS
+align 4
 AP_BLOCK:
 AP_N: dw 0
 AP_CH: dw 0FFFFh
@@ -484,6 +495,14 @@ def prom_bytes(src_dir):
     out += struct.pack('<HHHHH', 0xFFFF, 0, 0, 0, 0) * (32 - len(HISTORY))
     assert len(out) == PROM_SIZE
     return out
+
+
+def champ_texts(src_dir):
+    """One text per TEAM.043 club: the Clausura line of the record with the Apertura champion in brackets."""
+    d = open(f'{src_dir}/TEAM.{FILE:03d}', 'rb').read()
+    n = struct.unpack('>H', d[:2])[0]
+    names = [d[2 + i * 684 + 5:2 + i * 684 + 22].split(b'\0')[0].decode('latin1').strip() for i in range(n)]
+    return [f'CLAUSURA (AP: {nm[:11].strip()})' for nm in names]
 
 
 LOAD_ASM = r'''
@@ -579,6 +598,9 @@ def patch(p, area, str_base, at, site_b, src_dir):
     symbols = {'DIY': (2, diy), 'A0': (2, A['A0']), 'SELTEAMS': (2, sel), 'D0': (2, regs['D7'] - 28),
                'SORT': (1, sort), 'LOAD': (1, load), 'SAVE': (1, save), 'REL93': (1, rel93),
                'SLOT0': (2, slot0), 'ARG_ID': (0, LEAGUE_SIG[0]),
+               'CHAIRMAN': (2, str_base), 'ARG_FILE': (0, FILE), 'NCHAMP': (0, len(champ_texts(src_dir))),
+               'CHAMP_TAB_DD': (0, 'dd ' + ', '.join(f'CT{i}' for i in range(len(champ_texts(src_dir))))),
+               'CHAMP_TEXTS': (0, '\n'.join(f'CT{i}: db "{t}", 0' for i, t in enumerate(champ_texts(src_dir)))),
                'PROM_BYTES': (0, 'db ' + ', '.join(str(b) for b in prom_bytes(src_dir))),
                'GETSEASON': (1, getseason), 'BUILD': (1, build), 'NAME_DW': (2, new + names_at),
                'AP_LONG': (2, ap[0]), 'CL_LONG': (2, cl[0]),

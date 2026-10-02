@@ -80,6 +80,8 @@ DRAWS = [(WC82_ID, [0, 2, 11, 1, 3, 10, 6, 8, 5, 7, 9, 4]),   # 2nd round: 1A 1C
          (M34_ID, [1, 0]),                                  # final: Admira at home first
          (FA_ID, list(range(14))), (FA_ID, [0xFF] + [0] * 7)]  # FA Cup: real 1st round; round 2: bye club + open draw
 DRAWS += lib97.DRAWS                                        # Copa Libertadores 1997 (session 27): fixed real bracket
+import nsl97
+DRAWS += nsl97.DRAWS                                        # NSL Cup 1996-97 (2.1): fixed real bracket
 
 ASM = '''
 hist_draw:                              ; replaces `call cseg_27F08` in cseg_26DFC (A2 = DIY buffer, A3 = round)

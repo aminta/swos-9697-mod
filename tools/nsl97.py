@@ -46,7 +46,16 @@ BRUNSWICK = 10                  # Brunswick United: no league in SWOS -> SOUTH (
 # byte] + ordinal, recomputed by SetTeamGlobalNumbers at every load; cup lists use file/ordinal pairs): New Zealand (40 clubs
 # in 2.1, nz97) moves to the free run 1960..1999 and Bolivia to NZ's old 1248..1261, so Australia may use 984..1048.
 BASE_MOVES = {45: (1035, 1248), 62: (1248, 1960)}     # file: (original base, new base)
-COUNT = 52
+COUNT = 54                      # 52 league clubs + the two NSL Cup select XIs (records 52, 53: no league)
+LEAGUE_CLUBS = 52
+# NSL Cup 1996-97 select XIs (ozfootball NSLCup.html: one line-up each, surnames only; the other 5 (SA) and 3 (NNSW) of the
+# 16 are invented)
+SELECTS = [  # (name, template record, kit, line-up)
+    ('SOUTH AUS. REDS', 46, [0, 4, 4, 4, 4], ['Bauer', 'Pitrowski', 'Simmons', 'Higgins', 'Dobson', 'Miller', 'Karadic',
+                                             'Berghetto', 'Maxwell', 'Artone', 'Misailidis']),
+    ('NTH NSW LIONS', 1, [0, 5, 5, 1, 5], ['Oberhauser', 'Hudson', 'Tredennick', 'Cresswall', 'Maier', 'Jonas', 'Naumou',
+                                          'Howard', 'Lane', 'Tressider', 'Gordon', 'Bailey', 'Richards']),
+]
 
 
 def norm(s):
@@ -153,6 +162,25 @@ def build(src_dir, report=False):
     struct.pack_into('>H', perth, 2, 984 + 51)
     d[o + 25] = SOUTH
     d += perth
+    import random
+    rng = random.Random(1996 * 44)
+    first = 'ANDREW CRAIG DAVID GLEN JASON MARK MATTHEW MICHAEL PAUL PETER SCOTT STEVE'.split()
+    last = 'BROWN CLARKE EVANS HARRIS JONES KELLY MARTIN NOLAN RYAN SMITH TAYLOR WALSH WILSON'.split()
+    for k, (name, tmpl, kit, players) in enumerate(SELECTS):
+        r = bytearray(d[2 + tmpl * TEAM_SIZE:2 + (tmpl + 1) * TEAM_SIZE])
+        r[1] = 52 + k
+        struct.pack_into('>H', r, 2, 984 + 52 + k)
+        r[5:22] = name.encode().ljust(17, b'\0')[:17]
+        r[25] = 4                                       # no league (cup only)
+        r[26:31] = bytes(kit)
+        r[36:59] = b'?'.ljust(23, b'\0')
+        order = sorted(range(16), key=lambda j: r[76 + j * 38 + 2])     # shirt 1..16: the line-up, then the rest
+        for j, slot in enumerate(order):
+            p = 76 + slot * 38
+            n = players[j] if j < len(players) else f'{rng.choice(first)} {rng.choice(last)}'
+            r[p] = AUS
+            r[p + 3:p + 26] = n.upper().encode().ljust(23, b'\0')[:23]
+        d += r
     struct.pack_into('>H', d, 0, COUNT)
     known = known_players(src_dir)
     places = lineup_roles()
@@ -248,7 +276,7 @@ def patch(p, area, str_base):
     for i, n in enumerate(DIVISIONS):
         assert d2[o + 13 + 6 * i] in (12, 14)
         p.put(2, o + 13 + 6 * i, bytes((n,)))
-    assert sum(DIVISIONS) == COUNT
+    assert sum(DIVISIONS) == LEAGUE_CLUBS
     tcn = d2.find(struct.pack('<6H', 0, 16, 26, 44, 60, 72))
     for n, (was, base) in BASE_MOVES.items():
         assert struct.unpack_from('<H', d2, tcn + 2 * n)[0] == was
@@ -257,3 +285,45 @@ def patch(p, area, str_base):
     for k, s in enumerate(NSL_NAME):
         p.put(2, names + 4 * k, struct.pack('<I', area.add(s + b'\0') - str_base))
     print(f'exe: Australia NSL 1996-97, divisions {DIVISIONS}')
+
+
+# --- NSL Cup 1996-97 (ozfootball NSLCup.html): 16 clubs, round of 16 two legs, then single matches; final 6/10/96 ------
+CUP_SIG = bytes((0xAD, 1, 0x2C, 0x28, 0x50))          # SWOS's own Australian cup: 32 clubs drawn from the file
+CUP_ID = 0xAD
+# real ties in bracket order (home team of the first leg first): Adelaide C.-West Adelaide, SA Reds-Collingwood,
+# South Melbourne-Gippsland, Canberra-Melbourne Knights, Wollongong-Marconi, Northern NSW-Newcastle, Brisbane Lions-
+# Brisbane Strikers, Sydney United-UTS Olympic; QF winners 1v2, 3v4...; SF: South Melbourne-Collingwood, Marconi-Brisbane S.
+CUP_TEAMS = [3, 46, 52, 19, 39, 26, 11, 23, 49, 22, 53, 28, 8, 9, 42, 44]
+CUP_ROUNDS = (0x94, 0x54, 0x54, 0x14)   # two legs + extra time + penalties; single (home) x2; final
+DRAWS = [(CUP_ID, list(range(16))), (CUP_ID, list(range(8))), (CUP_ID, [1, 0, 2, 3]), (CUP_ID, [0, 1])]
+
+
+def cup(p, area):
+    """The NSL Cup struct with its fixed list in the new obj2 page; Australia's country table points to it."""
+    d2 = p.le.obj_bytes(2)
+    lo = d2.find(CUP_SIG)
+    assert lo >= 0 and d2.count(CUP_SIG) == 1
+    hdr = bytearray(d2[lo:lo + 14])
+    assert hdr[10] == 32 and hdr[7] == 0
+    hdr[10] = len(CUP_TEAMS)
+    hdr[13] = 1                                         # as SWOS's other 16-club cups
+    head = bytes(hdr) + bytes(CUP_ROUNDS)
+    hdr[7] = len(head) - 7                              # team list right after the rounds
+    body = bytes(hdr) + bytes(CUP_ROUNDS) + b''.join(bytes((FILE, t)) for t in CUP_TEAMS)
+    at = area.add(body)
+    refs = []
+    for gp, recs in enumerate(p.recs):
+        for r in recs:
+            if r[0] & 0x20 or r[1] & 3 or (r[0] & 0x0F) == 2:
+                continue
+            q = 4
+            tobj = struct.unpack_from('<H', r, q)[0] if r[1] & 0x40 else r[q]
+            q += 2 if r[1] & 0x40 else 1
+            toff = struct.unpack_from('<I' if r[1] & 0x10 else '<H', r, q)[0]
+            if tobj == 2 and toff == lo:
+                obj = next(o for o in p.le.objs if o.page_idx - 1 <= gp < o.page_idx - 1 + o.npages)
+                refs.append((obj.idx, (gp - (obj.page_idx - 1)) * p.le.page_size + struct.unpack_from('<h', r, 2)[0]))
+    assert refs, 'no pointer to the Australian cup'
+    for objn, off in refs:
+        p.retarget(objn, off, 2, at)
+    print(f'exe: NSL Cup 1996-97: 16 clubs, fixed bracket, struct obj2+{at:#x} ({len(refs)} pointers)')

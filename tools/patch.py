@@ -180,6 +180,7 @@ def patch_exe(src, dst, remap, lang='it'):
     short_names(p, area, lang)
     nsl97.patch(p, area, sacups.STR_BASE)       # 2.1: Australia 1996-97 (14-club NSL), team bases moved
     nz97.patch(p, area, sacups.STR_BASE)        # 2.1: New Zealand 1996-97 (NSSL + 3 regions)
+    nsl97.cup(p, area)                          # 2.1: NSL Cup 1996-97, real clubs and bracket
     world, new_career = trailer.patch(p, world, sacups.SAVE_ITEMS[0] + [(base, 32) for base, _ in info['q']])
     p.add_ptr(1, info['new_career_ptr'], 1, new_career)
     assert cave <= WORLD_CAVE, hex(cave)

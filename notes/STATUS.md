@@ -1535,3 +1535,10 @@ Questions to Davide: season 1996 or 1997, penalties OK, calendar (real / uniform
   creation (the counters routine is also reached while the game builds/advances the calendar, with all clubs at n-1).
 - T21 DIAGNOSTIC: switch hook on again; when it fires it stores its caller (return address of cseg_8922B's caller) in the
   manager's season record field_22 (+22h of the 6Ah record). Save at career start, read it from the .CAR.
+- T21 PLAYTEST (Davide): CLAUSURA at career start again, but the caller log wasn't in DIAG.CAR (the season record found was
+  not the one GETSEASON returned at that time). Reasoning from the engine order: cseg_88A12 calls cseg_8922B (played +1)
+  BEFORE adding the result to the table; the calendar building also calls cseg_8922B (results counters at 0): at the
+  middle of that every club has played n-1 -> the switch fired during creation and left the struct names on CLAUSURA.
+- T22: switch condition = [5Fh] 1, [5Bh] 0, [1CBh] 0 AND every club has n-1 played AND n-1 results (won+drawn+lost): true
+  only in real play, at the START of the first Clausura match (nothing of it counted yet). arg_names rule: cycles left
+  [5Fh] 2 = Apertura, 1/0 = Clausura, empty buffer = Apertura. Load hook back on. Diagnostic removed.

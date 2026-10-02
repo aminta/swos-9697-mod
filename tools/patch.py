@@ -41,7 +41,7 @@ NZ_CAVE = 0xa3000            # third added page (2.1): NSSL shoot-out
 FIN_CAVE = 0xa3400           # 2.1: finals series (finals97.fin_pre)
 FINALS = False               # finals series off until a type-1 design works (session 28m)
 ARG_CAVE = 0xa3500           # 2.1: Argentina Apertura/Clausura (arg97)
-ARG_LOAD_HOOK = False        # T19 experiment: CLAUSURA at career creation, is the load hook guilty?
+ARG_LOAD_HOOK = True
 
 LEAGUES_OLD = bytes.fromhex('3c00144020150000000202033512')
 TEAM_BASES = struct.pack('<16H', 0, 16, 26, 44, 60, 72, 86, 102, 114, 207, 207, 221, 233, 245, 287, 333)

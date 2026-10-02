@@ -35,24 +35,10 @@ arg_names:                              ; ebp = league buffer (DIY during a matc
     pushad
     mov eax, AP_LONG_OFF
     mov edx, AP_SHORT_OFF
-    movzx ecx, word [ebp + 31h]         ; full = every club has played n-1 matches
-    jecxz .set                          ; empty buffer
-    lea edi, [ecx - 1]
-    xor ebx, ebx
-.chk:
-    movzx esi, word [ebp + 6Dh + ebx * 2]
-    cmp [ebp + esi + 2B7h], di
-    jne .notfull
-    inc ebx
-    cmp ebx, ecx
-    jb .chk
-    cmp word [ebp + 5Fh], 0             ; full: no cycle left = Clausura over; one left = Apertura just over
-    je .cl
-    jmp .set
-.notfull:                               ; not full: one cycle left = Clausura running; two (or a league not started
-    cmp word [ebp + 5Fh], 1             ; yet, 0 at career creation) = Apertura
-    jne .set
-.cl:
+    cmp word [ebp + 31h], 0             ; empty buffer: Apertura
+    je .set
+    cmp word [ebp + 5Fh], 1             ; cycles left: 2 = Apertura, 1 or 0 = Clausura
+    ja .set
     mov eax, CL_LONG_OFF
     mov edx, CL_SHORT_OFF
 .set:
@@ -63,31 +49,37 @@ arg_names:                              ; ebp = league buffer (DIY during a matc
     ret
 
 ; arg_round: replaces `mov dword [A0], offset DIY_competitionStart` at the start of cseg_8922B, the per-match counters of a
-; league (every match of the division goes through it, played or simulated). The first match of the second cycle (one
-; cycle left, matchday 0, no match counted yet in it) = the start of the Clausura: the table still holds the final Apertura.
+; league: for every match the engine first counts it as played here, THEN adds the result to the table. The calendar
+; building calls this routine too, but with the results counters at 0. First match of the second cycle ([5Fh] 1, nothing
+; counted in this cycle yet): every club has 19 played AND 19 results = the Apertura is over and the table still holds it
+; -> champion, table reset, TORNEO CLAUSURA; then this match is counted into a clean table.
 arg_round:
     mov dword [A0], DIY
-    push eax
-    mov eax, [esp + 8]                  ; DIAGNOSTIC: who called cseg_8922B (return address of its caller)
-    mov [CALLER], eax
-    pop eax
     push ebp
     mov ebp, DIY
     call arg_ours
     jne .r
     pushad
-    cmp word [DIY + 5Fh], 1             ; one cycle left
+    cmp word [DIY + 5Fh], 1             ; one cycle left ...
     jne .x
-    cmp word [DIY + 5Bh], 0             ; first match of a matchday
+    cmp word [DIY + 5Bh], 0             ; ... first match of a matchday
     jne .x
-    cmp word [DIY + 1CBh], 0            ; first matchday of the cycle
+    cmp word [DIY + 1CBh], 0            ; ... first matchday of the cycle
     jne .x
     movzx ecx, word [DIY + 31h]         ; clubs
-    lea edx, [ecx - 1]                  ; matches of a cycle
+    test ecx, ecx
+    jz .x
+    lea esi, [ecx - 1]                  ; matches of a cycle
     xor ebx, ebx
-.chk:
+.chk:                                   ; every club: n-1 played and n-1 results (won + drawn + lost)
     movzx eax, word [DIY + 6Dh + ebx * 2]
-    cmp [DIY + eax + 2B7h], dx          ; every club has played the Apertura (not reset yet)
+    movzx edx, word [DIY + eax + 2B9h]
+    add dx, [DIY + eax + 2BBh]
+    add dx, [DIY + eax + 2BDh]
+    cmp edx, esi
+    jne .x
+    movzx edx, word [DIY + eax + 2B7h]
+    cmp edx, esi
     jne .x
     inc ebx
     cmp ebx, ecx
@@ -123,8 +115,6 @@ arg_round:
     jne .p
     mov dword [esi + 16h], CL_LONG_OFF
 .p:
-    mov eax, [CALLER]                   ; DIAGNOSTIC: into SeasonInformations.field_22
-    mov [esi + 22h], eax
     pop dword [D0]
     pop dword [A0]
     mov dword [NAME_DW], CL_LONG_OFF    ; the names the struct gives (career game list: the short one)
@@ -162,7 +152,6 @@ arg_prebuild:
 
 align 2
 APERTURA_CHAMP: dw 0FFFFh
-CALLER: dd 0
 '''
 LOAD_ASM = r'''
 ; arg_load: wraps the call that processes a loaded career (trailer.load_trailer): names in step with the saved league.
@@ -177,7 +166,7 @@ arg_load:
     ret
 '''
 LABELS = {}
-ROUND_HOOK = True       # T21 diagnostic: the switch hook on, logging its caller
+ROUND_HOOK = True
 SLOT0 = None
 
 

@@ -41,6 +41,7 @@ NZ_CAVE = 0xa3000            # third added page (2.1): NSSL shoot-out
 FIN_CAVE = 0xa3400           # 2.1: finals series (finals97.fin_pre)
 FINALS = False               # finals series off until a type-1 design works (session 28m)
 ARG_CAVE = 0xa3500           # 2.1: Argentina Apertura/Clausura (arg97)
+ARG_LOAD_HOOK = False        # T19 experiment: CLAUSURA at career creation, is the load hook guilty?
 
 LEAGUES_OLD = bytes.fromhex('3c00144020150000000202033512')
 TEAM_BASES = struct.pack('<16H', 0, 16, 26, 44, 60, 72, 86, 102, 114, 207, 207, 221, 233, 245, 287, 333)
@@ -197,7 +198,8 @@ def patch_exe(src, dst, remap, lang='it'):
         finals97.slot4_type(p)
     world, new_career = trailer.patch(p, world, sacups.SAVE_ITEMS[0] + [(base, 32) for base, _ in info['q']])
     p.add_ptr(1, info['new_career_ptr'], 1, new_career)
-    arg_end = arg97.load_hook(p, arg_end)         # 2.1: Apertura/Clausura names after loading a career
+    if ARG_LOAD_HOOK:
+        arg_end = arg97.load_hook(p, arg_end)     # 2.1: Apertura/Clausura names after loading a career
     assert cave <= WORLD_CAVE, hex(cave)
     world = cafcups.intl_list(p, caf, world)
     assert world <= NZ_CAVE and nz_end <= FIN_CAVE and fin_end <= ARG_CAVE and arg_end <= OBJ1_NEW_VSIZE, \

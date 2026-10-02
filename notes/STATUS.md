@@ -33,7 +33,7 @@
   player's nation kept as full records in save cache, 45/74 present). Moves verified: A<->B 4/4, B<->C1 4/4, C1->C2 seen.
   NEXT: user plays 2 more seasons + short career from a C2 team. Optional proof: rebuild with ITALY_BASE=884 to reproduce old freeze.
 - PLAYTEST 2 (user): career from a C2 team, 2 seasons, no freeze (CARR2.CAR). Italian league moves of the player's nation are
-  NOT in someLeaguesTable (0 entries 1850-1923 in both saves); save caches only some team records -> league layout of the
+  [WRONG: read at save off 59352; the table is at 0xE8DC and does hold Italian moves, cumulative since career start (FE/02 seen)]; save caches only some team records -> league layout of the
   player's nation lives elsewhere in the save (not yet decoded). Career fix considered working (sessions 2-4 goal met).
 - 1997 method (user recollection): inserted bytes between Italy and Latvia league structs. ~50 nation league structs follow Italy
   (latvian_league ... ghana_league) and are reached via fixed fixup pointers -> all read shifted by N -> garbage leagues,
@@ -1162,3 +1162,370 @@ Keep this list updated as new tournaments are added (European Cup 1959-60 next).
   addresses, overview + history rows 26-27; README features/install/credits; artifacts republished (EN v10, IT v9).
 - Release notes release/notes-2.0.md (EN, IT), announcements in release/announcements/2.0/ (forum EN BBCode, forum IT,
   Facebook IT/EN) to be posted by Davide.
+
+## Session 28 — Australia NSL 1996-97 1:1 for 2.1: feasibility analysis (2026-10-02, Davide's request; no code yet)
+Original data (TEAM.044, 51 clubs, division byte = record +25; league struct obj2+0x81D4 in ENGLISH.EXE: id 0x57, country 0x2C,
+start 0x10, end 0x50, 4 divisions [12,12,14,12], no promotion/relegation/playoffs; names 1ST DIVISION, SOUTH DIVISION,
+NSW DIVISION (short NSW), QUEENSLAND DIVISION (short QUEENSLAND)):
+- 1ST DIVISION = the 1995-96 NSL (Adelaide City, Brisbane Strikers, Canberra Cosmos, Marconi, Melbourne Knights, Morwell Falcons,
+  Newcastle Breakers, South Melbourne, Sydney United, UTS Olympic, West Adelaide, Wollongong City).
+- The 3 lower "divisions" are state leagues (SOUTH mixes Victoria and South Australia, which never had one league); Brunswick United
+  has no league. No Oceania club cup in 1996-97 (OFC club championship 1987, then 1999) -> nothing to add there.
+Real 1996-97 (en.wikipedia "1996-97 National Soccer League", ozfootball.net archive on the Wayback Machine):
+- 14 clubs: + Perth Glory (new), + Collingwood Warriors (Heidelberg United merged into them), Morwell -> GIPPSLAND FALCONS.
+  26 rounds, closed league (premiers Sydney United 56 pts). Final table: SU, Brisbane, South Melb., Adelaide C., Marconi,
+  Melb. Knights, Perth, West Adelaide, UTS Olympic, Wollongong, Newcastle, Gippsland, Collingwood, Canberra.
+- Finals series (top 6, ozfootball Playoff.html): two-leg ties 1v2 (major semi), 3v6, 4v5; Match 1 = winners of 3v6 and 4v5
+  (single); Match 2 = loser of 1v2 v winner of Match 1 (single); Match 3 = Grand Final, winner of 1v2 v winner of Match 2.
+  1997: Brisbane beat Sydney United on away goals (1-0, 1-2), Grand Final Brisbane 2-0 Sydney United 25/5/97.
+- NSL Cup 1996-97 (Sept 1996, before the league): 16 teams, two-leg round of 16 and quarter-finals...: 13 NSL clubs (no Perth) +
+  South Australian Select XI, Northern NSW Select XI, Brisbane Lions.
+Sources for squads: web.archive.org/web/2005/http://www.ozfootball.net:80/ark/NSL/9697/ Round01..Round26.html, Playoff.html,
+NSLCup.html = full line-ups with subs of EVERY match (ozfootball.net itself is now a hijacked spam site, use the Wayback copy);
+Wikipedia season pages with squad lists exist for Perth Glory, Collingwood Warriors, Canberra Cosmos, Newcastle Breakers.
+Feasibility:
+1. NSL to 14 clubs: EASY. Brunswick United (no league) -> Perth Glory, Heidelberg Utd -> Collingwood Warriors moved to div 0,
+   Morwell -> Gippsland Falcons; divisions [14,11,14,12] = 51, no new global numbers. Squads of the 14 from the line-ups
+   (appearance counts), existing players keep their ratings. Rename 1ST DIVISION -> NSL / NATIONAL SOCCER LEAGUE (Davide:
+   "rinominare 1st division in NSL") with a new string (the old one may be shared).
+2. Finals series: the league engine has only promotion/relegation playoffs between divisions (Germany-like structs), no title
+   playoffs. Needs a career cup whose entrants are NSL places 1-6 (as our cups taken from tables) + custom code for the
+   double chance (loser of 1v2 continues, winner of 1v2 waits for the Grand Final): MEDIUM-HARD, like lib97. To ask Davide
+   before approximating.
+3. NSL Cup 1996-97: optional, needs 2 select XIs (+ Brisbane Lions exists) and a cup before the league.
+4. Season dates start 0x10 / end 0x50: check vs Oct-May.
+
+## Session 28b — NSL 1996-97: clubs and squads (2026-10-02, Davide: 2.1, finals AND NSL Cup yes; build T1 UNTESTED in game)
+- tools/nsl_lineups.py: parses the 26 rounds + finals + NSL Cup line-ups (internal/nsl9697, Wayback copies of ozfootball.net,
+  git-ignored): 410 line-ups, nested/unclosed substitutions handled, one source typo fixed (Mitroulas).
+- tools/nsl97.py build(): TEAM.044 in place (same 51 records and global numbers 984..1034): Brunswick United (no league) ->
+  PERTH GLORY (purple), Heidelberg Utd -> COLLINGWOOD WAR. (black-white stripes, Heidelberg merged into them in 1996), Morwell ->
+  GIPPSLAND FALCON, typos fixed (BRIS. STRIKERS, MARCONI-FAIRFLD); coaches 1996-97 (Nyskohus, Farina, Lyons, Matic, Arok, Kosmina,
+  Marocchi, Postecoglou, Culina; others kept). Squads: 16 most-used players (starts + sub appearances), a mid-season mover goes
+  to the club he played most for; 128 players reuse their SWOS record (skills, nationality; name = the line-ups' spelling),
+  94 new ones take the slot's skills; roles from the line-up place when >= 3 starts, else SWOS. Two backup keepers missing
+  (Gippsland, South Melbourne): the 1995-96 SWOS keeper stays. 9 NSL players also remain in their 1995-96 state club (no data
+  for the state leagues; the original file already had 26 repeated names).
+- nsl97.patch(): Australia league struct (obj2, sig 57 00 2C 10 50 21 ...) divisions [14, 11, 14, 12], division 1 long and short
+  name 'NSL'. No free global numbers after 1034 (TEAM.045 starts at 1035) and no 52-number free run anywhere -> no 52nd club:
+  the SOUTH division has 11 clubs = FIRST ODD-SIZED CAREER LEAGUE (original data has none; DIY leagues accept odd sizes). MUST be
+  playtested; fallback: Heidelberg stays in SOUTH and Collingwood replaces another club, or South drops to 10 + 1 unattached.
+- Build T1 installed in c/SWOS: ITALIAN.EXE ceb667a7, DATA/TEAM.044 f73b75ad (2.0 kept as ITALIAN_S20.EXE 9a2c4f15, original
+  TEAM.044 in c/SAVES_BACKUP/TEAM044_ORIG.BIN). Other files identical to 2.0.
+- Finals series: NATIVE mechanism found. cseg_8DAC3 (end of InitializeNewSeason): for the player's division, the playoffData byte
+  (div entry +5, struct +12h) is a relative offset from that byte to 2 dwords: contest struct pointer (built as slot 4 by
+  cseg_8B2D3 D0=4) and a list pointer stored in D8CC0. cseg_8ECAE (league end): list = count x (league ptr, division, position)
+  dwords; cseg_8EF2C takes standings[A1+1ADh + 2*position] -> team list -> cseg_32E15 + scheduling. So 'NSL places 1..6' is a
+  plain play-off definition. Missing: the double chance (loser of 1v2 goes to the preliminary final, winner of 1v2 waits for the
+  Grand Final) -> custom per-round team lists, like lib97's lib_pre insertion; fixed pairings via hist_draw DRAWS.
+  Only for a career in the NSL (play-offs are built only for the player's division).
+- NSL Cup 1996-97: needs 2 select XIs (South Australia, Northern NSW) = new team records, but no free global numbers in
+  Australia's range -> a separate team file (like the historic ones) or a reused range; to study.
+
+## Session 28c — New Zealand check (2026-10-02, Davide: "controlla la Nuova Zelanda"; analysis only)
+- SWOS: TEAM.062, 30 clubs, league struct obj2+0x82FC (EN) id 61h country 3Eh, 3 divisions of 10 (NORTHERN/CENTRAL/SOUTHERN
+  REGION), no promotion/relegation.
+- Real 1996-97 (en.wikipedia "1996-97 National Summer Soccer League", Nov 1996 - Apr 1997): 10 invited clubs, home and away
+  (18 games), 4 pts win / 1 draw + 1 bonus to the shoot-out winner after every draw; top-4 play-offs: 1v2 (winner to the final),
+  3v4, loser 1v2 v winner 3v4, final (Waitakere City 3-1 Napier City, 6/4/97). Table: Napier, Central Utd, Waitakere, North Shore,
+  Miramar, Nelson Suburbs, Melville Utd (SWOS: WAIKATO UNITED), Wellington Utd, Woolston WMC, Mount Maunganui (SWOS typo
+  MOUNT MANGANUI). All 10 are in TEAM.062. Winter regional leagues still existed (with the NSSL clubs in them too).
+- Exact: 10-club national division, 4 pts per win (header byte), top-4 double-chance play-offs (same mechanism as the NSL).
+  NOT exact: shoot-out bonus point (leagues have no shoot-outs) -> ask. No 1996-97 squad source found (RSSSF pages gone,
+  ultimatenzsoccer.com covers women's football) -> keep SWOS 1995-96 squads. Remaining 20 clubs (N 5, C 6, S 9): options asked
+  (2 island divisions 11+9, 3 regions 5/6/9, one division of 20).
+
+## Session 28d — NZ: feasibility of the shoot-out bonus point + regional clubs (2026-10-02, analysis only)
+Shoot-out after league draws (+1 point to the winner), what the code offers (ref/swos.asm):
+- Played match: UpdateTime at full time on a draw goes to StartPenalties when penaltiesState != 0 (no extra time needed:
+  extraTimeState 0). penaltiesState is set per match by the match setup (cseg_29E79: DIY/cup rounds set it from the round's
+  penalties flag; 0 otherwise). StartPenalties saves the 90' goals (savedTeam1/2Goals) and the setup keeps statsTeamXGoalsCopy ->
+  the league result can stay the 90' score. Needs: a hook at the CAREER league match setup (not yet located) to set
+  penaltiesState = 1 for NZ division 0, and to read team1/2PenaltyGoals afterwards.
+- Simulated matches (CPU v CPU, results-only): cup results come from cseg_2AE97 (our coin_draw site); the career league
+  simulation path is still to locate; a random shoot-out winner (Rand2) like coin_flip.
+- Bonus point: the league table update routine (where League.pointsForWin is added) is still to locate; +1 to the shoot-out
+  winner there. Leagues of other countries while the player is elsewhere: simulation path unknown (may not get the bonus).
+Verdict: probably feasible, 2-3 sessions + playtests, risk like the coin toss (hooks in match/result code).
+Regional clubs: no free global numbers after NZ (1248..1277, TEAM.064 from 1278). The only free 40-number run is 1960..1999
+(someLeaguesTable size 2000; 1810..1849 holds S3/saved lists) -> NZ could MOVE its base there and get 10 more clubs
+(10 NSSL + 3 regions x 10). Costs: 2.0 careers involving NZ clubs see different teams; 10 more clubs need real 1996 regional
+league names (squads would be invented). Island split 11 (North) + 9 (South) is forced by geography (Central non-NSSL clubs
+are all North Island).
+
+## Session 28e — Australia without sacrificing clubs (2026-10-02, Davide: "trovare un modo per non sacrificare squadre australiane")
+- Global number = teamsCountryNumbers[record byte 0] + byte 1, recomputed by SetTeamGlobalNumbers at every LoadTeamFile; cup
+  lists use (file, ordinal) pairs; our tools store no global numbers -> a country's base can move. Bolivia (TEAM.045, 14 clubs,
+  1035..1048) -> 1960..1973 (free run 1960..1999, someLeaguesTable < 2000): Australia may use 984..1048.
+- TEAM.044 now 52 clubs: PERTH GLORY = new record 51 (global 1035, built on Brunswick's record), Brunswick United (no league in
+  SWOS) -> SOUTH in place of Heidelberg (Collingwood). Divisions [14, 12, 14, 12]: no odd league any more.
+- nsl97.BASE_MOVES = {45: 1960} (exe) + write_new_teams uses it and checks Australia's numbers.
+- Build T2 installed: ITALIAN.EXE + DATA/TEAM.044 (md5 below in git log). Caveat: a 2.0 career saved with Bolivian clubs cached
+  may hold their old global numbers until the team file is reloaded -> recommend new careers for 2.1.
+- Room left for the NSL Cup select XIs (records 52, 53 -> 1036, 1037) and NZ ideas: 1974..1999 (26) still free.
+
+## Session 28f — NZ shoot-out bonus: the three routines FOUND (2026-10-02, Davide: "sì", analysis only, no code)
+1. Career league match setup = cseg_89381 (called 3x by cseg_88A12): sets `mov penaltiesState, 0` (ref line ~123620) before
+   InitializeInGameTeamsAndStartGame, then copies statsTeam1/2GoalsCopy to dseg_114C96/98 (the 90' result). Hook: penaltiesState
+   = 1 when DIY_competitionStart is NZ division 0 (remove the fixup of the overwritten instruction!). UpdateTime then plays the
+   shoot-out at full time on a draw (no extra time: extraTimeState stays 0); team1/2PenaltyGoals hold it. To verify in game:
+   the copy variables keep the 90' score (StartPenalties zeroes statsTeamXGoals, saves savedTeamXGoals).
+2. League matchday = cseg_88A12 (career): result in D1/D2 (played: stored goals; else simulated), table entries A3 (home),
+   A4 (away) in DIY_competitionStart's team table: +2B9h won, +2BBh drawn, +2BDh lost, +2BFh GF, +2C1h GA, +2C3h POINTS,
+   [DIY+61h] = points for a win, [DIY+1BDh] matches played counter. Draw branch cseg_88D6A adds 1 point to both.
+   Hook there: after the draw points, if NZ division 0 -> shoot-out winner (played: penalty goals; simulated: Rand2) +1 point.
+3. Simulated matches: cseg_88A12 gets D1/D2 for every fixture of the player's division (CPU v CPU too) -> the same hook covers
+   them (random winner). The cup result routine cseg_2AE97 (penalties via round flag [A5+7Dh], cseg_2B84D) is not used by
+   career leagues. Still unknown: leagues of OTHER countries while the player is elsewhere (probably not simulated per match).
+Verdict: FEASIBLE for a career in NZ (all 3 hook points located, small code: 2 hooks + ~40 bytes). ~1-2 sessions + playtests.
+Open: which team is team1 for the penalty goals (top/bottom swap), result screen shows only 1-1 (no "pens" note).
+
+## Session 28g — NZ regional leagues 1996 (2026-10-02, Davide: NSSL ok, "stesso trucco della Bolivia")
+Sources: ultimatenzsoccer.com NZClubSoccer (Jeremy Ruane), Wayback copies in internal/nz9697 (git-ignored): id271 NSSL 1996-97
+(all results, '*' = decided on penalties, BP column), id327/328 Northern League 1996/1997, id377/378 Central League 1996/1997,
+id295/296 Southern League 1996/1997.
+- 1996 Northern League top div (12): Lynn-Avon Utd (champ), Blockhouse Bay, Fencibles Utd, Ngaruawahia Utd, Papakura City, Oratia
+  Utd, Northland Utd, Eden, Cambridge, Hamilton Wanderers, Takapuna, Mt Albert-Ponsonby. (NSSL clubs played lower divs.)
+- 1996 Central League Premier (12): Western Suburbs (champ), North Wellington, Gisborne City, Tararua Utd, Seatoun, Waterside
+  Karori, Napier City*, Island Bay Utd, Raumati Hearts, New Plymouth City, Wellington Utd*, Stokes Valley (* = NSSL).
+- 1996 Southern League: Div One North (Canterbury, 10: Northern Hearts champ, Canterbury Univ., Western, Kaiapoi, Avon Utd,
+  Cashmere W., Burnside, Timaru City, Parklands, Ashburton) and Div One South (Otago, 10: Mosgiel champ, Roslyn Wakari,
+  Dunedin Technical, Caversham, Green Island, Waihopai, Otago Univ., Northern, Invercargill Thistle, Queens Park).
+- NUMBER SPACE: Bolivia already uses 1960..1973 -> NZ (40) does not fit in 1974..1999. Plan: NZ -> 1960..1999, Bolivia -> 1248..1261
+  (NZ's old range). Australia 984..1048 unchanged. Free after that: 1262..1277.
+- Proposal to Davide: NSSL 10 + NORTHERN/CENTRAL/SOUTHERN 10 each = the 20 SWOS regional clubs (all kept) + 10 real 1996 clubs:
+  North +5 (Lynn-Avon, Blockhouse Bay, Fencibles, Ngaruawahia, Papakura City), Central +4 (Western Suburbs, North Wellington,
+  Gisborne City, Tararua Utd), South +1 (Mosgiel or Northern Hearts). New clubs' squads would be invented (no source).
+- 28g DONE (build T3, untested in game): tools/nz97.py: TEAM.062 = 40 clubs (30 SWOS in place + 10 new, invented squads/coaches,
+  template = a SWOS club of the same region), divisions NSSL/NORTH/CENTRAL/SOUTH x 10; renames MT. MAUNGANUI, NAPIER CITY ROV.,
+  MELVILLE UNITED. exe: new 4-division struct in the new obj2 page (4 points a win, div 1 'NAT. SUMMER LEAGUE'/'NSSL', regions
+  keep their names), the single pointer to the old struct retargeted (scan of all fixup records, added ones included).
+  BASE_MOVES = {Bolivia 45: 1035 -> 1248, NZ 62: 1248 -> 1960}. Original TEAM.062 in c/SAVES_BACKUP/TEAM062_ORIG.BIN.
+
+## Session 28h — NSSL shoot-out bonus point: code (2026-10-02, build T4, static checks OK, UNTESTED in game)
+- nz97.shootout(): nz_setup replaces `mov word [penaltiesState],0` in cseg_89381 (IT obj1+0x79490): 0, then 1 if both teams
+  are NSSL clubs (record byte 0 = 62, ordinal in NSSL_MASK); clears team1/2PenaltyGoals. nz_draw replaces the last
+  `mov esi,[A4]; add word [esi+2C3h],1` of the draw branch in cseg_88A12 (IT obj1+0x78BE8): if both NSSL, +1 point to the
+  shoot-out winner (penalty goals if a shoot-out was played, home = team 1; else Rand bit 0), then clears the penalty goals.
+  Fixups of both overwritten instructions removed; ndisasm of sites and cave OK. Code at obj1+0xA295C (222 B).
+- TO TEST: a played NSSL draw -> shoot-out at 90' (no extra time), table: winner +2, loser +1, result stays the draw; the
+  right team gets the point (team 1 = home?). Simulated NSSL draws: points = 4W + D + bonus (one bonus per draw).
+
+## QUEUE 2.1 — USA (MLS) (Davide 2026-10-02: "metti in coda usa")
+SWOS TEAM.073: MLS 1996, the 10 real clubs (div 0, struct obj2+0x83F6 EN: id 69h country 49h, 1 division, 2 games per pair,
+3 pts) + 8 A-League clubs without a league (div 4). Real MLS 1996/1997: no draws, 35-yard shoot-out: winner 1 pt, loser 0
+(win 3); 32 games (unbalanced: conference rivals more often), East/West conferences, play-offs best-of-3, MLS Cup.
+Points: exact with a variant of the NSSL hook (draw: only the shoot-out winner +1). 35-yard shoot-out -> penalties
+(approximation, ask). Calendar/conferences/best-of-3: to study. Which season (1996 or 1997) and squads: to check.
+
+## Session 28i — NSSL shoot-out shown in the results list (2026-10-02, Davide: "fai terzo innesto"; build T6, static OK)
+- T5 PLAYTEST (Davide): played 0-0 Waitakere - Wellington: shoot-out at 90' (no extra time), result stays 0-0, Waitakere
+  2 -> 4 points, Wellington 5 -> 6: the bonus works. (T4 gave 1 point each: nz_draw checked A3/A4, fixed to A1/A2.)
+- nz_mark replaces the last store of cseg_2A71E (mov ax,[D6]; mov esi,[A1]; mov [esi+14h],ax; IT obj1+0x1A89C): for an NSSL
+  draw it sets the game-list entry flags |= 8Ah (+1 away win) and D6 = shoot-out score (played: real; simulated: winner by lot,
+  4-2/4-3/5-3/5-4), so the list prints "%a WIN %0-%1 ON PENS"; the manager's statistics (counted before, in the same routine)
+  still see a draw. NZ_WIN hands the winner to nz_draw (table point) so both agree. Team ids in the entry: +0Ch/+0Eh words
+  (low byte file, high byte ordinal). Rand clobbers esi (reloaded) and D0 (saved).
+- obj1 grows by a THIRD page (OBJ1_NEW_VSIZE 0xA4000, NZ_CAVE = 0xA3000 for 2.1 code); obj2 base 0xC0000 still above.
+
+## Session 28j — finals series (NSL top 6, NSSL top 4): native play-off mechanism studied (2026-10-02, analysis only)
+- T6 PLAYTEST (Davide): NSSL draw Waitakere - Mt. Maunganui: career game list shows "MT. MAUNGANUI WIN x-y ON PENS",
+  table +2/+1 correct. The league-table screen's results list shows only 0-0 (it never prints extra lines, cups neither):
+  accepted, to mention in the release notes.
+- Division play-off data (div entry +5 = relative offset to [contest ptr, team-list ptr, delta table...]):
+  * candidates: after every matchday cseg_88A12 fills DIY+1ADh (8 words max) with [55h] = promotion-play-off teams from
+    standings position [53h] (= promoted directly) and [59h] = relegation-play-off teams above the direct relegations
+    (DIY+6Dh = sorted standings, DIY+31h teams, 53h/55h/57h/59h = div entry bytes 1..4). So "0 promoted, 6 to the promotion
+    play-off" in the NSL entry = places 1..6 (4 for the NSSL).
+  * list entries (league ptr, division, k) take DIY+1ADh[k] (cseg_8ECAE/8EF2C) -> slot 4 contest, played after the league
+    ONLY for the player's division; other divisions' play-offs are simulated at season end (cseg_9228D -> cseg_916C2).
+  * results: cseg_925C9 reads the play-off's final standings (DIY+2CDh) and a signed delta byte per place (+ relegate,
+    - promote) applied to leaguesTableCopy -> all-zero deltas = nobody moves (what the NSL/NSSL need).
+  * BUT the native play-off is a MINI-LEAGUE: cseg_8B2D3 builds slot 4 only from a type-1 (league) contest
+    (`cmp byte [A0+1],1; jnz skip`), and cseg_925C9 reads league standings. Original examples: country 25 (0x37: div 0
+    2 relegation-play-off teams + div 1 2 promotion-play-off teams, 4-team league, 4 games each), 0x4D, 0x67.
+- Consequence: the real finals (two-leg ties, single matches, double chance, Grand Final) need a KNOCKOUT in slot 4:
+  allow a type-2 contest there (session 13 already ran a cup in slot 4: the Intercontinental), fixed pairings via
+  hist_draw, and custom code for the double chance (loser of 1v2 into the preliminary final, winner of 1v2 into the Grand
+  Final), plus the season-end path (cseg_925C9 must not read cup data as standings; deltas zero anyway). Big: 2-4 sessions.
+
+## Session 28k — NSL Cup 1996-97 (2026-10-02, Davide: plan B = finish/test the rest, play-offs last; build T7, static only)
+- SWOS already has an Australian cup (id ADh, obj2 struct, 32 clubs drawn from the file: list offset byte [7] = 0).
+  A type-1 cup with [7] != 0 takes the team list at +7+[7], count [0Ah] (cseg_32024, as the euro cups).
+- nsl97.cup(): copy of the header, 16 clubs, rounds 94h (two legs, extra time, penalties), 54h, 54h, 14h (final), fixed list in
+  bracket order (real ties, home side of the first leg first), new struct in the obj2 page, Australia's table retargeted.
+  hist_draw DRAWS for ADh: 16 and 8 identity, SF [1,0,2,3] (South Melbourne at home v Collingwood), final identity.
+  Real: R16 AC-WA, SA Reds-Collingwood (sudden death e.t.), SM-Gippsland, Canberra-Knights, Wollongong-Marconi,
+  NNSW-Newcastle, Brisbane Lions-Strikers (sudden death e.t.), Sydney U.-UTS; QF CW-AC 0-0 (CW 3-1 pens), SM-MK 1-0, MF-NB 3-1,
+  BS-UO; SF SM 1-3 CW, MF 5-0 BS; FINAL Collingwood 1-0 Marconi (6/10/96, Lakeside).
+- TEAM.044 = 54 records: 52 league + SOUTH AUS. REDS (52, global 1036) and NTH NSW LIONS (53, 1037), no league (div 4);
+  squads = their only line-up (surnames) + invented names to 16. Brisbane Lions keep their SWOS squad.
+- NOT exact: golden goal ("sudden death extra time") -> normal 30' extra time (ask Davide). Cup name: SWOS default (check).
+- T7 PLAYTEST (Davide): Australian cup shown as the default national cup name ("Australia coppa"), 16 clubs, real round of 16,
+  two legs: OK. Golden goal -> normal extra time ACCEPTED by Davide (release notes). Open: rename to "NSL CUP"?
+  Still to see: the cup played to the final along the fixed bracket.
+- T8: cup named 'NSL CUP' (Davide's choice; long = short) and FIXED a T7 bug: the rounds list had no 0 terminator (the team
+  list followed directly: after the final the engine could have read it as more rounds). Layout now as
+  sacups.knockout16: header, rounds, 0, two name dwords, list ([5] = 0Eh, [7] = 14h).
+- T8 PLAYTEST (Davide): NSLCUP.CAR: round of 16 = the real ties in bracket order (decoded from the save), cup played to the
+  final without freezes, next season starts. NSL Cup DONE.
+- CORRECTION to 28j: the native play-off contest is a TYPE-1 CUP (knockout: country 25's is 4 clubs, rounds 94h 94h, list
+  offset [7] = 11h), not a mini-league; type 0 = league, 1 = cup. So slot 4 natively plays a knockout: only the double chance
+  needs custom code (per-round team lists, like lib97's insertion).
+
+## Play-off definition layout (decoded 2026-10-02, originals of countries 25, 35, 71)
+div entry +5 (playoffData) = offset from that byte to: [contest ptr][list ptr][n words: candidate index of contest slot k
+(simulated path: index into the season's candidate list dseg_1807A2, filled per division by cseg_9221F from DIY+1ADh)]
+[n x n delta bytes (signed, leaguesTableCopy moves; 0 = stay)]. list (player's path, cseg_8ECAE) = n x (league ptr dword,
+division dword, k dword) -> DIY+1ADh[k] of that division. Contest = type-1 cup, [0Ah] = n, [7] = 11h (list), rounds, names.
+4-club example: index words 0,3,1,2; deltas 00 FF 00 FF 00 FF 00 FF 01 00 01 00 01 00 01 00.
+Round descriptors in the DIY buffer: stride 76h from DIY_competitionStart: +161h clubs in the round, +15Dh, +15Fh (0 =
+random draw), +163h, +16Bh, +16Dh legs, +16Fh extra time, +171h penalties (set by cseg_24DFA from the rounds bytes).
+Winners of a round fill DIY+59h[0..] in tie order (Libertadores/FA hooks rely on it).
+
+## QUEUE — Argentina (Davide's question, 2026-10-02)
+SWOS: TEAM.043 40 clubs, Primera 20 (2 down) + Nacional B 20 (2 up), one double round-robin table. Real 1996-97: Apertura 1996
+and Clausura 1997 (19 rounds each, two champions, River Plate both), relegation by 3-season average ("promedio"); Nacional B
+own format (champion + "reducido" play-off). Same 38 fixtures; different titles/relegation -> separate project, after USA.
+
+## Session 28l — finals series code (2026-10-02, build T9, static checks OK, UNTESTED in game)
+- Type-1 cups (cseg_87DA0) derive the rounds by halving [0Ah] (6 clubs -> 2 rounds): unusable for 6-2-2-2. Type-2 cups
+  (worldCup layout, historic.py) declare every stage: finals97 contests C4h 'NSL FINALS' (stages 6,2,2,2; legs 94h,14h,14h,
+  14h; [0Ah] = 6 = slot-4 placeholders and away goals on) and C5h 'NSSL PLAY-OFFS' (4,2,2; 14h x3).
+- slot4_type: in cseg_8B2D3 the slot-4 test `cmp byte [esi+1],1; jnz skip` -> `cmp byte [esi+1],0; jz skip` (IT obj1+0x7B245
+  +9/+11; slot-3 block before it untouched).
+- League structs NSL and NSSL relocated into the new obj2 page with the play-off block (div 0: 0 promoted, n to the
+  "promotion play-off", playoffData 52), block = [contest][list][order words][n*n zero deltas]; list = (league, 0, k) in tie
+  order NSL [0,1,2,5,3,4], NSSL [0,1,2,3].
+- fin_pre (obj1+0xA3400, FIN_CAVE) called first by lib97.lib_pre (hist_draw, DRAWS (C4,6),(C4,2),(C5,4),(C5,2) identity):
+  round 1 keeps the 1v2 pair in list[20..21], round counter list[24]; later rounds rebuild list[0..1]: NSL R2 W3v6-W4v5,
+  R3 L1v2-W(R2), R4 W1v2-W(R3); NSSL R2 L1v2-W3v4, R3 W1v2-W(R2).
+- TO TEST: career with an NSL club that finishes top 6 (e.g. Sydney United, results only to the end): NSL FINALS appear after
+  round 26 with 1v2, 3v6, 4v5 two legs; then the double chance; no freeze at season end; nobody changes division.
+  Same with an NSSL club (top 4). Unknowns: winners order after a 6-club stage, draw call for 2-club stages, season end.
+
+## Session 28m — T9 FREEZE explained; finals series postponed? (2026-10-02)
+- T9 PLAYTEST (Davide): freeze as soon as an Australian club is chosen in career. Restored T8 as ITALIAN.EXE (rebuilt from
+  f2566ef: md5 e31e0a0d, identical); T9 kept as c/SWOS/ITALIAN_T9.EXE.
+- CAUSE: cseg_8B7EA copies the built contest into its slot buffer with a size by type: league 733h, type-1 cup 443h,
+  type-2 cup B52h (from diyFileBufferCopy). Slot 4 (dseg_D9C9F) is a 443h buffer (slot4 = slot2 + 443h): a type-2 contest
+  overflows it. Type-2 finals in slot 4 = impossible without moving buffers. (cseg_883B8 dispatches: type 0 cseg_8F1F2,
+  1 cseg_87DA0, 2 cseg_24DFA.)
+- Remaining way: type-1 cup (cseg_87DA0: rounds from halving [31h]) + custom code for entrants/counts per round. Proposed to
+  Davide: postpone to the end of 2.1.
+- Argentina analysis (see QUEUE): 20 Primera clubs of SWOS = the real 1996-97 ones (Huracan Corrientes, Union promoted);
+  Apertura/Clausura = mid-season title + table reset (custom hook after round 19, Apertura title has no place in the season
+  record); promedio relegation needs 1994-95/1995-96 points (RSSSF) + per-season storage in the .CAR trailer + a season-end
+  hook (relegated 1997: Banfield, Huracan Corrientes); Nacional B real 32 clubs/zones/reducido not replicable with 20;
+  SA cup qualifiers read the table (choose which). 3-5 sessions.
+
+## Session 28n — USA (MLS) feasibility (2026-10-02, analysis only)
+Real (en.wikipedia 1996/1997 MLS seasons): 10 clubs, 2 conferences of 5; 32 games (conference rivals x4 = 16, other
+conference x3 = 15, + 1 more v a designated club); regulation win 3, shoot-out win 1, any loss 0 (35-yard shoot-out);
+top 4 per conference -> conference semis and finals best-of-three, MLS Cup single (DC United 1996 and 1997).
+SWOS: TEAM.073 the 10 real clubs (1996 names), one 10-club league, 2 games per pair, 3/1 points; 8 A-League clubs no league.
+Mod: USA ranks 1-4 feed our CONCACAF Champions' Cup (cafcups).
+Feasible: exact points (variant of nz97 hooks: draw = 0 each, +1 to the shoot-out winner; ON PENS line); custom 32-round
+calendar like lib97.lib_cal (needs the real fixture list) or uniform 3x/4x (27/36 games) approximation. Not native: two
+conference tables, best-of-three play-offs (with the NSL finals). Approximation: 35-yard shoot-out -> penalties.
+Questions to Davide: season 1996 or 1997, penalties OK, calendar (real / uniform / keep), conferences + play-offs later.
+
+## Session 28o — MLS 1997 (2026-10-02, Davide: 1997, penalties, uniform calendar (4 games per pair), one table; build T10)
+- Sources: Transfermarkt squad statistics MLS 1997 (saison_id 1996) for the 10 clubs (internal/mls97/*.apps.html,
+  tools/mls_tm.py: name, position, nationality, appearances); en.wikipedia 1997 MLS season (format, head coaches).
+  SWOS 2020 teamdbs checked: "1997_98 - Team Updates" = SWOS's 1996 MLS unchanged; "1997_98 - Revised" = MLS 1998 (Chicago,
+  Miami): not usable. FBref = Cloudflare check (not bypassed).
+- tools/mls97.py: TEAM.073 MLS records in place (names COLUMBUS CREW, KANSAS CITY WIZ., D.C. UNITED; 1997 coaches Fitzgerald,
+  Myernick, Dir, Newman, Zambrano, Rongen, Parreira, Quinn, Kowalski, Arena); 16 most-used players per club, movers to the
+  club with most apps, roles from Transfermarkt, SWOS record reused when the player exists (skills), nationality from the
+  game's code table (obj2 'ALBAUTBEL...' 153 codes, USA = 58). exe: MLS struct games per pair 2 -> 4 (36 games).
+- nz97 shoot-out code generalised: kind_of/pair_kind (NSSL = file 62 + NSSL_MASK, MLS = file 73 + MLS_MASK 0x2566D);
+  MLS draw: the engine's +1 each is taken back, +1 to the shoot-out winner (3/1/0). Same ON PENS line. Code 532 B.
+- Build T10 installed (contains the inert finals code: FINALS = False, fin_pre never matches). Original TEAM.073 in
+  c/SAVES_BACKUP/TEAM073_ORIG.BIN.
+- T10 PLAYTEST (Davide, 2026-10-02): ALL PASSED (MLS career: names, squads, 10-club table, played draw -> penalties 1/0 +
+  ON PENS, wins 3; NSSL regression from WAITAKER.CAR; Australian career starts). MLS 1997 DONE.
+
+## Session 28p — Argentina 1996-97: decisions (Davide, 2026-10-02)
+- Apertura and Clausura are TWO tournaments: after round 19 record the Apertura champion and reset the table (rounds 20-38 =
+  Clausura; the engine's season champion = Clausura). Apertura champion: message + into the season history if possible.
+- Relegation by "promedio" exactly (1994-95 and 1995-96 points from RSSSF + every career season stored in the save).
+- Nacional B unchanged (20 clubs, top 2 up): declared approximation.
+- SA cup qualifiers from the aggregate Apertura + Clausura table.
+- Promedio source: es.wikipedia "Campeonato de Primera Division 1996-97 (Argentina)", "Tabla de descenso" (2 points per win
+  for the averages, every season): points 1994-95 / 1995-96 / 1996-97, total, matches (114 = 3 x 38). Colon, Estudiantes:
+  from 1995-96 (76); Union, Huracan Corrientes: 1996-97 only (38). Bottom: Hur. Corrientes 0.842, Banfield 0.728 (relegated).
+  RSSSF arg95/96/97 (internal/arg9697): Apertura/Clausura tables (Apertura 1996 River 46, Clausura 1997 River 41).
+- Engine facts (Argentina design, 28p):
+  * League DIY counters (cseg_8922B, per match): [5Bh] matches played in the matchday, [4Fh] matches per matchday, [1CBh]
+    matchday within the cycle, [6Bh] matchdays left in the cycle, [69h] matchdays per cycle (19), [5Fh] cycles left
+    (playEach = 2 -> 2). At the end of cycle 1 [5Fh] 2 -> 1 and [6Bh] reloads: = end of the Apertura. At the season end
+    [5Fh] = 0. Table entries (A3/A4 of cseg_88A12): +2B7h played, +2B9h won, +2BBh drawn, +2BDh lost, +2BFh GF, +2C1h GA,
+    +2C3h points; DIY+6Dh = sorted standings (cseg_883DD sorts after every match).
+  * SeasonInformations (0x6A per season, the MANAGER's club): trophyFlags (4 trophy icons, entries 17-20),
+    leagueStringOffset, strOffset1, strOffset2, field_22 (competition lines), finalPosition... -> "Apertura in the history"
+    can only mean the manager's own club record (a competition line and/or a trophy when he wins it).
+- PLAN (3-5 sessions):
+  1. hook after the sort in cseg_88A12: Argentina Primera (league id 56h, file 43 div 0) and [5Fh] == 1 and every club has
+     played 19 -> store each club's Apertura W/D/L/GF/GA/Pts (aggregate), Apertura champion = DIY+6Dh[0], message, history,
+     zero +2B7h..+2C3h of the 20 entries.
+  2. .CAR trailer C7: Apertura champion + aggregate of the running season + per club (2-point points, games) of the last
+     2 Primera seasons (initialised from the es.wikipedia table for a new career).
+  3. season end: before cseg_93FD8 (relegation) put the 2 worst promedios last in DIY+6Dh (Argentina div 0 only); SA cup
+     qualifiers (sacups season-end code) read the aggregate order.
+  4. message / history display: to research.
+- Davide (2026-10-02): "non era meglio considerarle come due manifestazioni diverse?" -> not possible as two leagues (one
+  league per division; slots 1-3/4 take cups only, 443h buffers < league 733h; a club can't be in two leagues). Agreed
+  presentation: division 0 named 'TORNEO APERTURA' at season start; at the Apertura end the DIY name pointer (DIY+27h) and
+  the manager's season leagueStringOffset switch to 'TORNEO CLAUSURA'; the Apertura stays in the manager's history as its
+  own line (position) + trophy if won. Step 1 now.
+- 28p step 1 (build T11, static OK, UNTESTED): tools/arg97.py: Argentine struct relocated with names (div 0 TORNEO APERTURA /
+  APERTURA, div 1 NACIONAL B); arg_after replaces the `call cseg_883DD` (sort) that follows nz97's draw site in cseg_88A12
+  (IT obj1+0x78CAB) -> sort, then if DIY id 56h and home team file 43 division 0 and [5Fh] == 1 and every club played n-1:
+  APERTURA_CHAMP = top team word, zero +2B7h..+2C3h of all entries, DIY+27h (name ptr) = 'TORNEO CLAUSURA'. Code at
+  ARG_CAVE obj1+0xA3500 (156 B).
+- T11 PLAYTEST (Davide): at round 22 still TORNEO APERTURA, table not reset. Cause: the sort hook ran only after the player's
+  match (cseg_88A12); the other matches of the division go through cseg_8B8D9, so "all played 19" was never true there.
+- T12: arg_round replaces `mov dword [A0], offset DIY` at the start of cseg_8922B (per-match counters, called by cseg_88A12
+  AND cseg_8B8D9; IT obj1+0x7907F, fixups +2/+6 removed): at the first match of the second cycle ([5Fh] 1, [5Bh] 0, [1CBh]
+  0, top club file 43 division 0, all played n-1) -> Apertura champion, reset, TORNEO CLAUSURA. The final Apertura table
+  stays visible until round 20 starts.
+- T12 PLAYTEST (Davide): table resets at round 20 OK; names still TORNEO APERTURA: the game shows the TEXT built at season
+  start into DIY+4..+26h (StringCopy in cseg_8F1F2: optional country + division name), not the DIY+27h pointer.
+- T13: arg_round also replaces 'APERTURA' with 'CLAUSURA' (same length) in DIY+4..; the next season's build restores it.
+- Davide: the management record still says TORNEO APERTURA (position 1, still playing): InitializeNewSeason stores
+  leagueStringOffset (+16h of the 6Ah SeasonInformations, via GetCurrentSeasonPointer, IT obj1+0x2915F) at season start.
+- T14: at the switch arg_round also calls GetCurrentSeasonPointer (A0/D0 saved) and, if the season's leagueStringOffset is
+  TORNEO APERTURA's, sets it to TORNEO CLAUSURA's. Still to do: an Apertura line (final position) in the record.
+- T14 PLAYTEST (Davide): record shows TORNEO CLAUSURA (position 1) + two UNNAMED lines (River: Supercopa "out in phase 1",
+  Intercontinental "finalist": pre-existing, our SA cups write no name into the record, to fix later) + Copa Libertadores;
+  table title TORNEO CLAUSURA; but the career screen with the fixture list still says APERTURA: CareerGameListCommon reads
+  the competition's SHORT name from the struct ([struct+5+[5]] + division*8 + 4).
+- T15: arg_names keeps the struct's division-0 name dwords (long, short) in step with the phase (Clausura when [5Fh] == 0,
+  or [5Fh] == 1 and the table was reset); called after every Primera match (arg_round), at the start of every season
+  (arg_season replaces the `call GetCurrentSeasonPointer` in InitializeNewSeason, IT obj1+0x7D16E: DIY+27h and text back
+  to APERTURA) and after loading a career (arg_load wraps trailer's load_trailer at the LoadCareerFile call, IT
+  obj1+0x23000). The Primera is recognised by DIY+27h = its APERTURA/CLAUSURA long-name string.
+- LESSON: p.le.obj_bytes() returns the ORIGINAL bytes; to read an instruction another module already patched use p.get()
+  (first T15 build wrapped ProcessCareerFile directly and would have skipped the .CAR trailer).
+- T15 PLAYTEST (Davide, CLAUS.CAR): season 2 first matchday showed CLAUSURA, after a match APERTURA; record confused.
+  Decoded CLAUS.CAR: both season records leagueStringOffset = CLAUSURA, league DIY text 'ARGENTINA TORNEO CLAUSURA' with
+  [5Fh] = 2 (season 2, round 1 played). Cause: InitializeNewSeason builds the player's league into the career slot 0 buffer
+  (competitionFileBuffer, IT obj2+0x1F640: its +27h is what the season record reads; DIY_competitionStart 0x4EFF3 is the
+  matchday working copy) from the struct names, which were still CLAUSURA; arg_season fixed DIY after the build, too late.
+- T16: arg_prebuild replaces the `call cseg_8B2D3` before that GetCurrentSeasonPointer (IT obj1+0x7D163): struct names back to
+  APERTURA before the build. arg_names takes the buffer in ebp: DIY in arg_round, SLOT0 (obj2+0x1F640) in arg_load.
+  CLAUS.CAR's season 2 stays mislabelled (built by T15): test with a new career.
+- T16 PLAYTEST (Davide): new River career shows CLAUSURA on the main screen at once. Likely a league buffer processed at
+  career creation with [5Fh] = 0 (not started), which the T15/T16 rule read as "season over".
+- T17: arg_names: Clausura only if (every club has played n-1 and [5Fh] == 0) or (not every club and [5Fh] == 1);
+  empty buffer ([31h] = 0) -> Apertura.
+- T17 PLAYTEST (Davide): CLAUSURA only the first time the career main screen is shown at career start, then fine.
+- T18: no name sync after every match any more; the struct names change only at the switch (CLAUSURA), at every new
+  season (arg_prebuild: APERTURA) and after a career load (arg_names on SLOT0).
+- T18 PLAYTEST (Davide, fresh DOSBox, no load, new River career): calendar says CLAUSURA at once; NUOVA.CAR decoded: league
+  buffer text 'ARGENTINA TORNEO APERTURA', [27h] = AP_LONG ptr, season record leagueStringOffset = AP, [5Fh] 2, nothing
+  played: the BUILD is right and the struct in the exe has AP names -> the short name the screen shows is overwritten at
+  runtime (or read elsewhere).
+- T19 (experiment): arg_load hook switched off (ARG_LOAD_HOOK = False in patch.py). If CLAUSURA is gone, the load path of a
+  new career runs arg_names with a bad phase; if not, look at arg_round or at another reader of the name.

@@ -42,10 +42,10 @@ TEAM_ALIAS = {'Marconi Fairfield': 'Marconi-Fairfield', 'South Mebourne': 'South
 KITS = {'Perth Glory': [0, 6, 6, 6, 6], 'Collingwood Warriors': [2, 2, 1, 2, 2]}   # purple; black-and-white stripes
 NSL, SOUTH = 0, 1               # division byte (record +25)
 BRUNSWICK = 10                  # Brunswick United: no league in SWOS -> SOUTH (Victoria), in place of Heidelberg
-# Australia needs 52 global numbers but TEAM.045 (Bolivia, 14 clubs) starts at 1035: Bolivia moves to the free run
-# 1960..1973 (global = teamsCountryNumbers[file byte] + ordinal, recomputed by SetTeamGlobalNumbers at every load;
-# cup lists use file/ordinal pairs) and Australia may use 984..1048.
-BASE_MOVES = {45: 1960}
+# Australia needs 52 global numbers but TEAM.045 (Bolivia, 14 clubs) starts at 1035 (global = teamsCountryNumbers[file
+# byte] + ordinal, recomputed by SetTeamGlobalNumbers at every load; cup lists use file/ordinal pairs): New Zealand (40 clubs
+# in 2.1, nz97) moves to the free run 1960..1999 and Bolivia to NZ's old 1248..1261, so Australia may use 984..1048.
+BASE_MOVES = {45: (1035, 1248), 62: (1248, 1960)}     # file: (original base, new base)
 COUNT = 52
 
 
@@ -250,8 +250,8 @@ def patch(p, area, str_base):
         p.put(2, o + 13 + 6 * i, bytes((n,)))
     assert sum(DIVISIONS) == COUNT
     tcn = d2.find(struct.pack('<6H', 0, 16, 26, 44, 60, 72))
-    for n, base in BASE_MOVES.items():
-        assert struct.unpack_from('<H', d2, tcn + 2 * n)[0] == 1035
+    for n, (was, base) in BASE_MOVES.items():
+        assert struct.unpack_from('<H', d2, tcn + 2 * n)[0] == was
         p.put(2, tcn + 2 * n, struct.pack('<H', base))
     names = o + 13 + 6 * 4 + 1
     for k, s in enumerate(NSL_NAME):

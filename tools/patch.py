@@ -22,6 +22,7 @@ import cafcups
 import countries
 import historic
 import nsl97
+import nz97
 import lib97
 import sacups
 import trailer
@@ -175,7 +176,8 @@ def patch_exe(src, dst, remap, lang='it'):
     world += 4
     cave = sacups.patch(p, pool, SA_CAVE, info)
     short_names(p, area, lang)
-    nsl97.patch(p, area, sacups.STR_BASE)       # 2.1: Australia 1996-97 (14-club NSL)
+    nsl97.patch(p, area, sacups.STR_BASE)       # 2.1: Australia 1996-97 (14-club NSL), team bases moved
+    nz97.patch(p, area, sacups.STR_BASE)        # 2.1: New Zealand 1996-97 (NSSL + 3 regions)
     world, new_career = trailer.patch(p, world, sacups.SAVE_ITEMS[0] + [(base, 32) for base, _ in info['q']])
     p.add_ptr(1, info['new_career_ptr'], 1, new_career)
     assert cave <= WORLD_CAVE, hex(cave)
@@ -231,11 +233,11 @@ def write_new_teams(src_dir, dst_dir):
     tcn = {n: c['base'] for n, c in countries.COUNTRIES.items() if 'base' in c}
     d2 = LE(os.path.join(ROOT, 'orig/ENGLISH.EXE')).obj_bytes(2)
     bases = list(struct.unpack_from('<256H', d2, d2.find(struct.pack('<6H', 0, 16, 26, 44, 60, 72))))
-    for n, b in nsl97.BASE_MOVES.items():             # 2.1: Bolivia moved to make room for Australia's 52nd club
+    for n, (_, b) in nsl97.BASE_MOVES.items():        # 2.1: NZ and Bolivia moved (room for Australia and NZ)
         bases[n] = b
     for f in sorted(glob.glob(os.path.join(src_dir, 'TEAM.0[0-9][0-9]'))):
         n = int(f[-3:])
-        if n in files or n == 20 or n == nsl97.FILE:
+        if n in files or n in (20, nsl97.FILE, nz97.FILE):
             continue
         d = open(f, 'rb').read()
         for i in range(struct.unpack('>H', d[:2])[0]):   # the game recomputes it: base[team byte 0] + team byte 1
@@ -255,14 +257,15 @@ def write_new_teams(src_dir, dst_dir):
                 taken[g] = n
         open(os.path.join(dst_dir, 'TEAM.%03d' % n), 'wb').write(data)
         print(f'TEAM.{n:03d}: {k} teams, global numbers {tcn.get(n, historic.BASE)}..{tcn.get(n, historic.BASE) + k - 1}')
-    aus = nsl97.build(src_dir)
-    for i in range(struct.unpack('>H', aus[:2])[0]):
-        r = aus[2 + i * TEAM_SIZE:]
-        g = bases[r[0]] + r[1]
-        assert g < 2000 and g not in taken, (nsl97.FILE, g, taken.get(g))
-        taken[g] = nsl97.FILE
-    open(os.path.join(dst_dir, 'TEAM.%03d' % nsl97.FILE), 'wb').write(aus)
-    print(f'TEAM.{nsl97.FILE:03d}: Australia 1996-97 (NSL squads)')
+    for mod in (nsl97, nz97):                         # 2.1: Australia (52 clubs) and New Zealand (40)
+        data = mod.build(src_dir)
+        for i in range(struct.unpack('>H', data[:2])[0]):
+            r = data[2 + i * TEAM_SIZE:]
+            g = bases[r[0]] + r[1]
+            assert g < 2000 and g not in taken, (mod.FILE, g, taken.get(g))   # word +2 is recomputed by the game
+            taken[g] = mod.FILE
+        open(os.path.join(dst_dir, 'TEAM.%03d' % mod.FILE), 'wb').write(data)
+    print(f'TEAM.{nsl97.FILE:03d}/{nz97.FILE:03d}: Australia and New Zealand 1996-97')
 
 
 if __name__ == '__main__':

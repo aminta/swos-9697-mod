@@ -73,10 +73,21 @@ arg_round:
     jne .next
     mov dword [esi], 'CLAU'
     mov dword [esi + 4], 'SURA'
-    jmp .x
+    jmp .rec
 .next:
     inc esi
     loop .find
+.rec:                                   ; the manager's record of this season (if his club plays the Primera)
+    push dword [A0]                     ; (A0 = DIY for the rest of cseg_8922B; D0 used by GetCurrentSeasonPointer)
+    push dword [D0]
+    call GETSEASON
+    mov esi, [A0]
+    cmp dword [esi + 16h], APERTURA_OFF ; leagueStringOffset
+    jne .r
+    mov dword [esi + 16h], CLAUSURA_OFF
+.r:
+    pop dword [D0]
+    pop dword [A0]
 .x:
     popad
     ret
@@ -99,8 +110,10 @@ def patch(p, area, str_base, at, site_b):
     nd = d2[lo + 9]
     body = bytearray(d2[lo:lo + 13 + 6 * nd + 1])
     body[5] = 13 + 6 * nd + 1 - 5                       # names right after the divisions
+    offs = []
     for long, short in NAMES:
-        body += struct.pack('<II', area.add(long + b'\0') - str_base, area.add(short + b'\0') - str_base)
+        offs.append(area.add(long + b'\0') - str_base)
+        body += struct.pack('<II', offs[-1], area.add(short + b'\0') - str_base)
     new = area.add(bytes(body))
     refs = _refs(p, lo)
     assert refs
@@ -124,7 +137,14 @@ def patch(p, area, str_base, at, site_b):
                                                                   + e(A['A1']) + rb'\xa1(.{4})\x01\x05' + e(A['A1']), d1, re.S)}
     assert len(m) == 1
     sel = m.pop()
+    # InitializeNewSeason: call GetCurrentSeasonPointer; mov eax,[DIY+27h]; sub eax, offset aChairmanScenes;
+    # mov esi,[A0]; mov [esi+16h] (leagueStringOffset), eax
+    m = [x for x in re.finditer(rb'\xe8(.{4})\xa1(.{4})\x2d(.{4})\x8b\x35' + e(A['A0']) + rb'\x89\x46\x16', d1, re.S)]
+    assert len(m) == 1
+    getseason = m[0].start() + 5 + struct.unpack('<i', m[0].group(1))[0]
     symbols = {'DIY': (2, diy), 'A0': (2, A['A0']), 'SELTEAMS': (2, sel), 'ARG_ID': (0, LEAGUE_SIG[0]),
+               'D0': (2, regs['D7'] - 28), 'GETSEASON': (1, getseason), 'APERTURA_OFF': (0, offs[0]),
+               'CLAUSURA_OFF': (0, clausura - str_base),
                'ARG_FILE': (0, FILE), 'CLAUSURA_NAME': (2, clausura)}
     code, fix = nasmcave.assemble(ASM, at, symbols)
     labels = nasmcave.labels(ASM, at, symbols)

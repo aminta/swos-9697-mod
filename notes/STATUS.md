@@ -1546,3 +1546,13 @@ Questions to Davide: season 1996 or 1997, penalties OK, calendar (real / uniform
   gioco), CLAUSURA after the switch (record TORNEO CLAUSURA posizione 12 for season 1), second season starts as APERTURA
   again; saved as APOK.CAR. Still open for Argentina: reload check of a Clausura save (arg_load), aggregate table, promedio,
   Apertura champion message + record line, SA cup qualifiers from the aggregate; unnamed Supercopa/Intercontinental lines.
+
+## Session 28q — management record: nameless Supercopa / Intercontinental lines (2026-10-02)
+- Record layout (SeasonInformations, 6Ah each): +16h league name, +1Ah slot-1 name (national cup), +1Eh slot-2 name, +22h slot-3
+  name, status bytes +56h..+59h; every name = (string address - chairman address), read back as + aChairmanScenes.
+- APOK.CAR decoded: +1Ah = 0x30A6F0 and +1Eh = 0x309DBE (absolute-looking, wrong) while +22h (Copa Libertadores, original
+  game code) = 0x465A (relative, right). Cause: sacups' asm (`sub eax, STR_BASE` after the Supercopa slot-1 build, IT obj1+0xA12AE,
+  and int_step for the Intercontinental in slot 2, +0xA15E1) declared STR_BASE as a plain constant (symbol type 0): the original
+  `sub eax, offset aChairmanScenes` is an ABSOLUTE address with a loader fixup, ours subtracted 0x16F8 only -> a pointer to garbage
+  -> empty name line. Fix: 'STR_BASE': (2, STR_BASE) in sacups' symbols -> both subs now carry a fixup (T23, new careers).
+  Records already saved (APOK.CAR etc.) keep the wrong values.

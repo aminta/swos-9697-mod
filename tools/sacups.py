@@ -607,7 +607,7 @@ def career_hooks(p, cups, cave, cups_all=None, caf=None):
 
     symbols = {'PLAYER_CUP': (2, player_cup), 'SLOT1': (2, slot1), 'SEL': (2, sel), 'A0': (2, a0), 'D0': (2, d0),
                'D1': (2, d1v), 'D2': (2, d2), 'D7': (2, d7), 'E092F': (2, e092f), 'LIB': (1, lib), 'SUP': (1, sup),
-               'CON': (1, con), 'SUPLIST': (1, sup + 27), 'SUP_ID': (0, SUP_ID), 'STR_BASE': (0, STR_BASE),
+               'CON': (1, con), 'SUPLIST': (1, sup + 27), 'SUP_ID': (0, SUP_ID), 'STR_BASE': (2, STR_BASE),
                'CSEG_8B2D3': (1, c8b2d3), 'GET_SEASON': (1, getseason), 'CHECK': (1, check), 'FOUND': (1, found),
                'PLAYER_CUP2': (2, player_cup + 4), 'SLOT2': (2, slot2), 'INT': (1, cups_all[3]),
                'INTLIST': (1, cups_all[3] + 24), 'INT_ID': (0, INT_ID),

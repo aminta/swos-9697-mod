@@ -1625,3 +1625,7 @@ MiSTer: new vhd/iso with 2.5), (e) Davide's ok before any push/release/announcem
   Intercontinentale / Copa Libertadores: WORKS. Davide: "bellissimo tocco, evidenziamolo nella documentazione" -> in the release
   notes, the stable README and the manual, give the Apertura-champion line its own highlighted paragraph WITH THIS SCREENSHOT
   (River Plate record, 1996/97; the Apertura winner Independiente in brackets).
+- T25 PLAYTEST season 2 (Davide, APOK4.CAR): Apertura champion in the record CORRECT (Independiente, 40 pts in the Apertura);
+  season 1 record keeps 'CLAUSURA (AP: INDEPENDIEN)' (the cave text, leagueStringOffset negative = obj1 address - chairman) after
+  season 2 starts; season 2 record 'TORNEO APERTURA'. Libertadores ARG = Independiente, Hur. Corrientes = the season's 2-point
+  totals top 2 (57, 49; Dep. Espanol 48 next). ARGENTINA DONE for 2.5.

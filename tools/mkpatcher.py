@@ -20,7 +20,7 @@ import os
 import struct
 
 ROOT = os.path.join(os.path.dirname(__file__), '..')
-VERSION = '2.0'
+VERSION = '2.5'
 BLOCK = 16
 FILES = [  # (id, original path, patched path, file name in the game folder)
     ('ITALIAN.EXE', 'orig/ITALIAN.EXE', 'c/SWOS/ITALIAN.EXE', 'ITALIAN.EXE'),
@@ -28,6 +28,10 @@ FILES = [  # (id, original path, patched path, file name in the game folder)
     ('FRENCH.EXE', 'orig/FRENCH.EXE', 'c/SWOS/FRENCH.EXE', 'FRENCH.EXE'),
     ('GERMAN.EXE', 'orig/GERMAN.EXE', 'c/SWOS/GERMAN.EXE', 'GERMAN.EXE'),
     ('TEAM.020', 'orig/DATA/TEAM.020', 'c/SWOS/DATA/TEAM.020', 'DATA/TEAM.020'),
+    # 2.5: Australia (NSL 1996-97), New Zealand (NSSL 1996-97), USA (MLS 1997): changed original files
+    ('TEAM.044', 'orig/DATA/TEAM.044', 'c/SWOS/DATA/TEAM.044', 'DATA/TEAM.044'),
+    ('TEAM.062', 'orig/DATA/TEAM.062', 'c/SWOS/DATA/TEAM.062', 'DATA/TEAM.062'),
+    ('TEAM.073', 'orig/DATA/TEAM.073', 'c/SWOS/DATA/TEAM.073', 'DATA/TEAM.073'),
     # Roadmap 2 (1.1): new African countries (africa.py), shipped whole (orig None): produced together with TEAM.020
     ('TEAM.052', None, 'c/SWOS/DATA/TEAM.052', 'DATA/TEAM.052'),
     ('TEAM.053', None, 'c/SWOS/DATA/TEAM.053', 'DATA/TEAM.053'),

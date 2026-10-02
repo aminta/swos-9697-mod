@@ -101,8 +101,9 @@ html{scroll-behavior:smooth}
     <li><a href="#verifica">18 · Verifying without playing</a></li>
     <li><a href="#nazioni">19 · New countries and continental club cups (1.1–1.2)</a></li>
     <li><a href="#storici">20 · Classic tourneys (2.0)</a></li>
-    <li><a href="#limiti">21 · Limits and open issues</a></li>
-    <li><a href="#storia">22 · History and next steps</a></li>
+    <li><a href="#oceania">21 · Argentina, Oceania and MLS (2.5)</a></li>
+    <li><a href="#limiti">22 · Limits and open issues</a></li>
+    <li><a href="#storia">23 · History and next steps</a></li>
   </ol>
 </nav>
 
@@ -540,8 +541,23 @@ assert blk[:2] == b'S2' and sum(blk) % 256 == 0</code></pre>
 </ul>
 
 <!-- 21 -->
-<h2 id="limiti"><span class="n">21</span>Limits and open issues</h2>
+<h2 id="oceania"><span class="n">21</span>Argentina, Oceania and MLS (2.5)</h2>
+<p>Four leagues rebuilt as they were played in 1996-97. Code in <code>arg97.py</code> (Argentina), <code>nsl97.py</code> + <code>nsl_lineups.py</code> (Australia), <code>nz97.py</code> (New Zealand, and the shoot-out code shared with the MLS), <code>mls97.py</code> + <code>mls_tm.py</code> (USA), <code>finals97.py</code> (play-offs and season record). Sources are listed in each docstring; the downloaded pages stay out of the repository.</p>
 <ul>
+<li><strong>Apertura / Clausura.</strong> The Primera keeps one 38-round league struct; <code>arg_round</code> (in front of the per-match counters <code>cseg_8922B</code>) switches it at the start of the first Clausura match: <code>[5Fh]</code> = 1 cycle left, <code>[5Bh]</code> = <code>[1CBh]</code> = 0 and every row with W+D+L = played = n−1 (the calendar builder also calls <code>cseg_8922B</code>, with all results at 0: the W+D+L test keeps the switch from firing while a career is created). The Apertura table is copied to the trailer (<code>AP_TAB</code>), the table is reset, the league text becomes TORNEO CLAUSURA, and the season record gets a fixed per-club text "CLAUSURA (AP: club)" (stored as an offset from the chairman string, so it survives save and load). Every season starts as APERTURA (<code>arg_prebuild</code>, <code>arg_load</code> after loading).</li>
+<li><strong>Aggregate table and promedio.</strong> <code>arg_agg</code> runs before the South American qualifiers (<code>sa_qualify</code> reads the slot-0 table): it rewrites the slot-0 table as Apertura + Clausura (3 points a win, goal difference), then <code>arg_relegate</code> picks the two worst promedios (points at 2 a win / matches, last three seasons; history in the trailer item PROM, 32 clubs × 10 bytes, defaults = the real 1994-95 and 1995-96 seasons) and moves them to the bottom, so <code>cseg_93FD8</code> relegates them. <code>arg_prom_update</code> adds the season to the history.</li>
+<li><strong>Australia.</strong> TEAM.044 = 54 records (52 league clubs + the two NSL Cup select XIs); divisions 14/12/14/12. Australia needs 52 global numbers: Bolivia (TEAM.045) moves to 1248–1261 and New Zealand to 1960–1999 (global = <code>teamsCountryNumbers</code>[file] + ordinal, recomputed at every load; <code>BASE_MOVES</code>). NSL Cup: type-1 struct with a fixed list (16 clubs, rounds 94 54 54 14), fixed draws via <code>hist_draw</code>.</li>
+<li><strong>NSSL shoot-out point.</strong> <code>nz_setup</code> replaces <code>mov penaltiesState,0</code> in the career match setup <code>cseg_89381</code> (1 when both clubs are NSSL or MLS clubs): a draw goes to penalties at 90'. <code>nz_draw</code> in the draw branch of <code>cseg_88A12</code> gives +1 point to the shoot-out winner (simulated matches: a random winner); for the MLS the engine's +1 each is taken back first (3/1/0). <code>nz_mark</code> (end of <code>cseg_2A71E</code>) turns the game-list entry into "WIN x-y ON PENS". The new NZ struct has 4 divisions (NSSL, NORTHERN, CENTRAL, SOUTHERN), 4 points a win.</li>
+<li><strong>Play-offs (NSL Finals, NSSL Playoffs).</strong> The native division play-off: div entry "0 promoted, 4 to the play-off" = places 1–4, play-off block <code>[contest][list][4 index words][4×4 zero deltas]</code> (nobody moves), contest = a type-1 cup cloned from country 25's (ids C4/C5, NSL rounds 94 14, NSSL 14 14), built in slot 4 by <code>cseg_8B2D3</code> and filled at the end of the league by <code>cseg_8ECAE</code>. <strong>Bug found:</strong> the slot-4 buffer's rounds count <code>[59h]</code> arrives as 1 for 4 clubs (<code>cseg_268C6</code> computes 2; the writer of the 1 was not found), so the career calendar (type-1 branch of <code>cseg_8BF89</code>) dated only the semi-finals and the final was never played. <code>cal_rounds</code> hooks that read (EN obj1+0x7C0F8, IT +0x7BF4C) and sets 2 rounds for C4/C5.</li>
+<li><strong>Season record.</strong> <code>rec_guard</code>: the record looks the club up in every contest of the season (lookup EN obj1+0x2B899, IT +0x2B6ED); a club not in its cup's fixed list (Perth Glory, not in the NSL Cup 1996-97) hit an assert (<code>int 3; jmp $</code>). Now the lookup returns −1 and the cup line is dropped. <code>rec_playoff</code> (call EN obj1+0x29795, IT +0x295E9): a club that played our play-off gets the play-off result as its league line (1 = WINNERS, FINALIST, SEMI-FINAL), using the game's own cup lookup on the slot-4 buffer (contest pointer = slot-0 pointer + 16).</li>
+<li><strong>MLS 1997.</strong> TEAM.073 records in place (Transfermarkt squads, 16 most-used players, a SWOS record reused when the player exists); league struct 4 games per pair.</li>
+<li><strong>Debugging note.</strong> In DOSBox-X obj1 is loaded at linear 0x262000: a breakpoint is <code>BP 160:</code>(0x262000 + obj1 offset).</li>
+</ul>
+
+<!-- 22 -->
+<h2 id="limiti"><span class="n">22</span>Limits and open issues</h2>
+<ul>
+<li><strong>Play-offs (2.5).</strong> NSL Finals and NSSL Playoffs are top-4 knockouts: the real formats (NSL: 6 clubs; both: a "double chance" for the top two) need per-round control of the entrants, i.e. a type-2 contest in slot 4, whose buffer (443h) is too small. Kept for a future version (<code>finals97.py</code>, option A). The regular-season winner that loses the play-off still shows a small icon at the top of its season record (not yet traced in the code).</li>
 <li><strong>C1/C2 groups.</strong> In 1996-97 C1 had 2 groups and C2 had 3. The mod uses one group per series. The full reality (128 teams) does not fit the limit of about 93 teams per nation. C1 with two groups would fit (92), but it needs promotions and relegations between parallel divisions, and checks on the 80-team career limit and on global numbers: estimated 2–3 sessions.</li>
 <li><strong>Intercontinental in slot 4.</strong> A finalist in a division with play-offs gets no Intercontinental. The routine <code>cseg_8BF89</code> (called by <code>cseg_8B2D3</code>) has not been analysed: if it keeps data tied to the slot number, the buffer swap could leave it inconsistent. In the season record the Intercontinental in slot 4 has no name.</li>
 <li><strong>Invented players and long careers (1.1).</strong> The squads of the 138 clubs added in 1.1–1.2 are invented (no sources); the additions were tested for one season. Strings are no longer a limit: new names go to the added obj2 page.</li>
@@ -553,7 +569,7 @@ assert blk[:2] == b'S2' and sum(blk) % 256 == 0</code></pre>
 </ul>
 
 <!-- 22 -->
-<h2 id="storia"><span class="n">22</span>History and next steps</h2>
+<h2 id="storia"><span class="n">23</span>History and next steps</h2>
 <div class="tbl"><table>
 <thead><tr><th>Session</th><th>Content</th><th>Test</th></tr></thead>
 <tbody>
@@ -571,6 +587,7 @@ assert blk[:2] == b'S2' and sum(blk) % 256 == 0</code></pre>
 <tr><td>25</td><td>Group formats decoded; Copa Libertadores with 5 groups of 4 (20 clubs, top 3 + best 4th), trailer 'C5' (report by Playaveli, Swos2020); release 1.3</td><td><span class="pill ok">passed (1 season)</span></td></tr>
 <tr><td>26</td><td>Classic tourneys: World Cup 1982 (real formula, 4 groups of 3), Mitropa Cup 1934, FA Cup 1871-72 (bye, replays, drawing lots); squads from SWOS 2020 DLCs and period sources</td><td><span class="pill ok">passed</span></td></tr>
 <tr><td>27</td><td>Copa Libertadores with the real 1997 format: holder straight into the round of 16, real group calendar and bracket, no away goals or extra time, two-leg final; trailer 'C6'</td><td><span class="pill ok">passed (preset, career, saves)</span></td></tr>
+<tr><td>28</td><td>Argentina Apertura/Clausura with aggregate table and promedio; Australia NSL 1996-97 with NSL Cup and NSL Finals; New Zealand NSSL with shoot-out bonus point and play-offs; MLS 1997; play-off final scheduled (rounds count fix); season record: play-off winner = champion, club missing from its cup; trailer 'C7'</td><td><span class="pill ok">passed (IT; NSSL final and EN/FR/DE to replay)</span></td></tr>
 </tbody></table></div>
 <h3>Roadmap</h3>
 <ol>

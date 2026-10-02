@@ -34,21 +34,23 @@ arg_names:                              ; ebp = league buffer (DIY during a matc
     pushad
     mov eax, AP_LONG_OFF
     mov edx, AP_SHORT_OFF
-    cmp word [ebp + 5Fh], 0
-    je .cl
-    cmp word [ebp + 5Fh], 1
-    jne .set
-    movzx ecx, word [ebp + 31h]
+    movzx ecx, word [ebp + 31h]         ; full = every club has played n-1 matches
+    jecxz .set                          ; empty buffer
     lea edi, [ecx - 1]
     xor ebx, ebx
-.chk:                                   ; one cycle left: Apertura only while every club still has n-1 matches
+.chk:
     movzx esi, word [ebp + 6Dh + ebx * 2]
     cmp [ebp + esi + 2B7h], di
-    jne .cl
+    jne .notfull
     inc ebx
     cmp ebx, ecx
     jb .chk
+    cmp word [ebp + 5Fh], 0             ; full: no cycle left = Clausura over; one left = Apertura just over
+    je .cl
     jmp .set
+.notfull:                               ; not full: one cycle left = Clausura running; two (or a league not started
+    cmp word [ebp + 5Fh], 1             ; yet, 0 at career creation) = Apertura
+    jne .set
 .cl:
     mov eax, CL_LONG_OFF
     mov edx, CL_SHORT_OFF

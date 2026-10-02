@@ -1641,3 +1641,16 @@ MiSTer: new vhd/iso with 2.5), (e) Davide's ok before any push/release/announcem
   enlarge/move the slot-4 buffer so a type-2 contest fits, then fin_pre as written).
 - Davide's rule: no silent approximation. Options offered: (A) postpone to a later release and document it (recommended);
   (B) approximate (NSSL top-4 native 4-club knockout, no double chance; NSL not expressible); (C) long engine work.
+
+## DECISION (Davide, 2026-10-02): finals series = option B for 2.5, option A KEPT AS A FUTURE GOAL
+- B for 2.5: native 4-club type-1 play-off (clone of country 25's contest): semi-finals 1st v 4th and 2nd v 3rd, then the final, for
+  the NSSL (single matches) and the NSL (top 4 only: 5th and 6th do not play; semi-finals two legs, Grand Final single).
+  Declared approximations in the docs: NSL 6 clubs -> 4, no double chance (second chance of the loser of 1v2).
+- A (FUTURE, keep in the backlog): the exact formats (NSL: 1v2, 3v6, 4v5 two legs, then the double-chance sequence; NSSL: 1v2,
+  3v4, loser v winner, final): needs per-round control (byes / waiting clubs) = a type-2 contest in slot 4 (buffer 443h too small)
+  or a rewrite of the round advance; finals97.py (type-2 contests + fin_pre) kept for it.
+- T26 (build, static OK, UNTESTED): option B implemented: finals97.structs builds, for the NSL and NSSL division 0, the play-off
+  block (div entry: 0 promoted, 4 'promotion play-off' clubs = places 1-4, playoffData -> block) with a TYPE-1 contest cloned from
+  country 25's (14-byte header, rounds NSL 0x94 (two legs) + 0x14, NSSL 0x14 + 0x14, names 'NSL FINALS' / 'NSSL PLAYOFFS',
+  4 placeholder clubs), candidate order [0,3,1,2] (1v4, 2v3), zero deltas (nobody moves), fixed draws (hist_draw DRAWS, ids C4/C5,
+  4 and 2 clubs). fin_pre is a bare `ret` (DOUBLE_CHANCE = False); slot4_type not applied. FINALS = True in patch.py.

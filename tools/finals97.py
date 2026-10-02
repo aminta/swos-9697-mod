@@ -21,13 +21,16 @@ NSL_FIN, NSSL_FIN = 0xC4, 0xC5          # free contest ids (historic uses C1..C3
 
 # (id, country, league struct signature (after nsl97/nz97), clubs, standings place k of contest slot j, stage teams,
 #  legs byte per stage, name)
-DEFS = [
-    (NSL_FIN, 0x2C, bytes((0x57, 0, 0x2C, 0x10, 0x50, 0x21, 0, 0, 0, 4, 2, 3, 0x35)), 6, [0, 1, 2, 5, 3, 4],
-     [6, 2, 2, 2], [0x94, 0x14, 0x14, 0x14], b'NSL FINALS'),
-    (NSSL_FIN, 0x3E, bytes((0x61, 0, 0x3E, 0x10, 0x48, 0x21, 0, 0, 0, 4, 2, 4, 0x35)), 4, [0, 1, 2, 3],
-     [4, 2, 2], [0x14, 0x14, 0x14], b'NSSL PLAY-OFFS'),
+DOUBLE_CHANCE = False       # option A (exact formats, type-2 contests + fin_pre): future goal, see notes/STATUS.md
+# Option B (2.5): the native 4-club type-1 play-off (clone of country 25's contest): places 1-4 of the division, ties 1v4 and
+# 2v3 (candidate order 0,3,1,2), then the final.
+SIG_NSL = bytes((0x57, 0, 0x2C, 0x10, 0x50, 0x21, 0, 0, 0, 4, 2, 3, 0x35))
+SIG_NSSL = bytes((0x61, 0, 0x3E, 0x10, 0x48, 0x21, 0, 0, 0, 4, 2, 4, 0x35))
+DEFS = [  # (contest id, country, league struct signature, clubs, candidate order, rounds bytes, name)
+    (NSL_FIN, 0x2C, SIG_NSL, 4, [0, 3, 1, 2], [0x94, 0x14], b'NSL FINALS'),
+    (NSSL_FIN, 0x3E, SIG_NSSL, 4, [0, 3, 1, 2], [0x14, 0x14], b'NSSL PLAYOFFS'),
 ]
-DRAWS = [(NSL_FIN, list(range(6))), (NSL_FIN, [0, 1]), (NSSL_FIN, list(range(4))), (NSSL_FIN, [0, 1])]
+DRAWS = [(NSL_FIN, [0, 1, 2, 3]), (NSL_FIN, [0, 1]), (NSSL_FIN, [0, 1, 2, 3]), (NSSL_FIN, [0, 1])]   # fixed: no random draw
 
 ASM = r'''
 ; fin_pre: called by lib_pre (hist_draw, before the fixed permutation): esi = DIY buffer, ecx = clubs in the round.
@@ -97,7 +100,10 @@ fin_pre:
 
 
 def code(p, at):
-    """Assemble fin_pre at obj1:at; returns (end, fin_pre offset)."""
+    """Assemble fin_pre at obj1:at; returns (end, fin_pre offset). Without the double chance it is a bare `ret`."""
+    if not DOUBLE_CHANCE:
+        p.put(1, at, b'\xc3')
+        return at + 16, at
     symbols = {'NSL_ID': (0, NSL_FIN), 'NSSL_ID': (0, NSSL_FIN)}
     c, fix = nasmcave.assemble(ASM, at, symbols)
     labels = nasmcave.labels(ASM, at, symbols)
@@ -123,11 +129,11 @@ def _refs(p, lo):
     return out
 
 
-def structs(p, area, str_base, wc_header):
+def structs(p, area, str_base, wc_header=None):
     """League structs with the play-off block of division 0 + the type-2 finals contests, all in the new obj2 page."""
     import re
     d1 = p.le.obj_bytes(1)
-    for cid, country, sig, n, order, stages, legs, name in DEFS:
+    for cid, country, sig, n, order, legs, name in DEFS:
         d2 = p.le.obj_bytes(2)
         los = [m.start() for m in re.finditer(re.escape(sig), d2)]
         if not los:                                     # NZ: nz97 built it in the new obj2 page
@@ -151,18 +157,12 @@ def structs(p, area, str_base, wc_header):
         new = area.add(bytes(league) + block)
         for objn, off in old_refs:
             p.retarget(objn, off, 2, new)
-        # the finals contest: worldCup layout (0x28 header, 2 name dwords, clubs), stages as historic.py
-        hdr = bytearray(wc_header)
-        hdr[0], hdr[2] = cid, country
-        hdr[3] = hdr[4] = 0x80                              # as SWOS's own play-offs
-        hdr[0x0A] = n                                       # slot 4 makes n placeholders; non-zero = away goals on
-        st = [len(stages)]
-        for t in stages:
-            st += [t, 0, t]
-        st += [1]
-        st = bytes(st).ljust(0x22 - 0x0E, b'\0') + bytes(legs).ljust(0x28 - 0x22, b'\0')
-        hdr[0x0E:0x28] = st
+        # the play-off contest: type 1 (cup), cloned from country 25's: header 14 B, rounds, 2 name dwords, n placeholder clubs
+        hdr = bytes((cid, 1, country, 0x80, 0x80, 0x0b, 0, 0x11, 1, 1, n, 1, 0x35, 1)) + bytes(legs)
         rel = area.add(name + b'\0') - str_base
+        hdr = bytearray(hdr)
+        hdr[5] = len(hdr) - 5                           # names right after the rounds
+        hdr[7] = len(hdr) + 8 - 7                       # then the clubs
         contest = area.add(bytes(hdr) + struct.pack('<II', rel, rel) + bytes(2 * n))
         # list for the player's division: n x (league ptr, division 0, standings place k)
         lst = area.add(bytes(12 * n))
@@ -172,7 +172,7 @@ def structs(p, area, str_base, wc_header):
         p.add_ptr(2, new + block_at, 2, contest)
         p.add_ptr(2, new + block_at + 4, 2, lst)
         print(f'exe: finals {name.decode()}: league struct obj2+{new:#x} ({len(old_refs)} pointers), contest obj2+'
-              f'{contest:#x}, {n} clubs, stages {stages}')
+              f'{contest:#x}, {n} clubs, rounds {[hex(x) for x in legs]}')
 
 
 def slot4_type(p):

@@ -39,7 +39,7 @@ SA_CAVE = 0xa1000            # first added page: South American cups
 WORLD_CAVE = 0xa2000         # second added page: new countries, CAF cups (Roadmap 2)
 NZ_CAVE = 0xa4000            # fourth added page (2.1): NSSL shoot-out (the world cave may grow into page 3)
 FIN_CAVE = 0xa4300           # 2.1: finals series (finals97.fin_pre)
-FINALS = False               # finals series off until a type-1 design works (session 28m)
+FINALS = True                # NSL / NSSL play-offs, option B: native 4-club type-1 cup (session 28s)
 ARG_CAVE = 0xa4400           # 2.1: Argentina Apertura/Clausura, aggregate, promedio (arg97)
 ARG_LOAD_HOOK = True
 
@@ -194,11 +194,8 @@ def patch_exe(src, dst, remap, lang='it'):
     nz97.patch(p, area, sacups.STR_BASE)        # 2.1: New Zealand 1996-97 (NSSL + 3 regions)
     nsl97.cup(p, area, sacups.STR_BASE)         # 2.1: NSL Cup 1996-97, real clubs and bracket
     mls97.patch(p)                              # 2.1: MLS 1997, 4 games per pair
-    if FINALS:                                  # T9 (type-2 finals in slot 4) froze: slot 4 is a 443h buffer
-        wobj, wptr = p.target(2, countries.COMP[0] + 4 * 254)
-        cobj, wc = p.target(wobj, wptr)
-        finals97.structs(p, area, sacups.STR_BASE, bytes(p.le.obj_bytes(cobj)[wc:wc + 0x28]))
-        finals97.slot4_type(p)
+    if FINALS:                                  # 2.5: option B (native 4-club play-off); slot4_type is NOT needed
+        finals97.structs(p, area, sacups.STR_BASE)
     world, new_career = trailer.patch(p, world, sacups.SAVE_ITEMS[0] + [(base, 32) for base, _ in info['q']]
                                       + arg97.ARG_ITEMS)
     p.add_ptr(1, info['new_career_ptr'], 1, new_career)

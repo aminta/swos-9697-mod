@@ -19,8 +19,9 @@ CLAUSURA = b'TORNEO CLAUSURA'
 
 ASM = r'''
 ; The Primera is recognised by its name pointer DIY+27h (TORNEO APERTURA / TORNEO CLAUSURA: no other league has them).
-; arg_names keeps the names the game reads from the struct (long, short: the career game list shows the short one) in
-; step with the phase: Clausura when no cycle is left, or one is left and the Apertura table has been reset.
+; The struct's names (long, short: the career game list shows the short one) change only at three moments: the switch
+; (arg_round), every new season (arg_prebuild: APERTURA) and a career load (arg_load -> arg_names, phase of the saved
+; league). T16/T17 also synced after every match: during career creation that showed CLAUSURA once.
 arg_ours:                               ; ebp = league buffer; ZF = 1 if it is the Argentine Primera
     cmp dword [ebp + 27h], AP_LONG
     je .r
@@ -120,9 +121,10 @@ arg_round:
 .p:
     pop dword [D0]
     pop dword [A0]
+    mov dword [NAME_DW], CL_LONG_OFF    ; the names the struct gives (career game list: the short one)
+    mov dword [NAME_DW + 4], CL_SHORT_OFF
 .x:
     popad
-    call arg_names
 .r:
     pop ebp
     ret

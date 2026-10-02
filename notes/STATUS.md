@@ -1591,3 +1591,26 @@ Questions to Davide: season 1996 or 1997, penalties OK, calendar (real / uniform
   record's leagueStringOffset becomes a fixed text 'CLAUSURA (AP: <CHAMPION>)' (one per TEAM.043 club, 40 texts in the cave,
   champion trimmed to 11 chars, 26 chars max), so it survives save/load and every season keeps its own. obj1 grows to FIVE
   added pages (OBJ1_NEW_VSIZE 0xA6000); ARG code 3670 B at 0xA4400.
+
+## 2.1 DOCS TODO — release notes + "stable" README + manuals (Davide, 2026-10-02; write ONLY with his ok to publish)
+MUST explain, in release notes AND in the stable README (IT + EN, manual chapters in docs/src IT+EN too):
+1. ARGENTINA 1996-97 (exact where possible):
+   - TORNEO APERTURA and TORNEO CLAUSURA: the Primera's 38 matchdays are two tournaments (19 each); at the end of the Apertura
+     the table is reset and the league is renamed CLAUSURA (calendar, table, management record); every season starts as
+     APERTURA; the Apertura champion appears in the record line "CLAUSURA (AP: <club>)".
+   - AGGREGATE TABLE (Apertura + Clausura, 3 points a win, goal difference as tie-break) decides the South American
+     qualifiers (Libertadores 1-2, CONMEBOL 3-5 of Argentina); the table shown at the end of a season is the Clausura one.
+   - PROMEDIO relegation exactly as the AFA did it: points (2 per win) / matches over the last three seasons; the two worst
+     averages go down (Nacional B's two best come up). History 1994-95 / 1995-96 from es.wikipedia, kept in the career file
+     season after season (clubs without Primera seasons count only the ones played; promoted clubs start from zero).
+   - Nacional B: 20 clubs, top 2 up (declared approximation: real 1996-97 had 32 clubs in zones + 'reducido').
+   - Old careers (2.0) load; a new career is recommended (team numbers moved: Bolivia, New Zealand).
+2. Australia NSL 1996-97 (14 clubs, 26 rounds; Perth Glory + Collingwood Warriors; real squads from the ozfootball line-ups;
+   NSL Cup with real bracket; golden goal -> normal extra time; finals series NOT yet (type-1 design pending)).
+3. New Zealand NSSL (10 clubs, 4 points a win, shoot-out after every draw +1 point, ON PENS line in the results list but not in
+   the league-table screen; 10 real 1996 regional clubs with invented squads).
+4. MLS 1997 (real squads from Transfermarkt; 4 games per pair = 36, one table, penalties instead of the 35-yard shoot-out, 3/1/0
+   points; no conferences, no play-offs).
+5. Management record fixes (Supercopa / Intercontinental names), tools: salists reads C7.
+6. Credits (sources): ozfootball.net archive (Thomas Esamie, Chris Dunkerley...) via Wayback Machine, The Ultimate New Zealand
+   Soccer Website (Jeremy Ruane), Transfermarkt, Wikipedia EN/ES, RSSSF, SWOS 2020 community DB (checked, not used).

@@ -1676,3 +1676,8 @@ MiSTer: new vhd/iso with 2.5), (e) Davide's ok before any push/release/announcem
   played our play-off = its play-off result (1 VINCITORI, FINALISTA, ALLE SEMI-FINALI) via the game's own cup lookup/position
   on slot 4 (obj2+0x19DE9, contest ptr = slot-0 ptr + 16); others keep the regular-season place. Code after the Argentina
   cave (obj1+0xa5280): the FIN cave is full. Test from PRE.CAR (T29 Gippsland career, before the semis, 59h = 2).
+- NSSL check (Claude, via computer use, new Napier City career saved as NZT30.CAR): slot 4 C5 [59h] = 2, calendar has slot-4
+  entries for round 0 AND round 1 (semis + final). Builds EN/FR/DE + GOG made (EN d9d521d6 FR dff1ecb4 DE 314ac1a3; GOG
+  105e69a2 8c1520eb a3eb3f59 bfe9137c), patcher 2.5, docs committed (65f44d1). In-game EN/FR/DE test: Davide.
+- Driving SWOS in DOSBox-X by computer use: full-screen tools, hold_key ~0.05-0.1 s (plain key presses are missed), arrows +
+  left Ctrl = fire; Return in text fields.

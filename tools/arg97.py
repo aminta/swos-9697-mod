@@ -21,29 +21,29 @@ ASM = r'''
 ; The Primera is recognised by its name pointer DIY+27h (TORNEO APERTURA / TORNEO CLAUSURA: no other league has them).
 ; arg_names keeps the names the game reads from the struct (long, short: the career game list shows the short one) in
 ; step with the phase: Clausura when no cycle is left, or one is left and the Apertura table has been reset.
-arg_ours:                               ; ZF = 1 if DIY is the Argentine Primera
-    cmp dword [DIY + 27h], AP_LONG
+arg_ours:                               ; ebp = league buffer; ZF = 1 if it is the Argentine Primera
+    cmp dword [ebp + 27h], AP_LONG
     je .r
-    cmp dword [DIY + 27h], CL_LONG
+    cmp dword [ebp + 27h], CL_LONG
 .r:
     ret
 
-arg_names:
+arg_names:                              ; ebp = league buffer (DIY during a matchday, the career slot 0 after a load)
     call arg_ours
     jne .r
     pushad
     mov eax, AP_LONG_OFF
     mov edx, AP_SHORT_OFF
-    cmp word [DIY + 5Fh], 0
+    cmp word [ebp + 5Fh], 0
     je .cl
-    cmp word [DIY + 5Fh], 1
+    cmp word [ebp + 5Fh], 1
     jne .set
-    movzx ecx, word [DIY + 31h]
+    movzx ecx, word [ebp + 31h]
     lea edi, [ecx - 1]
     xor ebx, ebx
 .chk:                                   ; one cycle left: Apertura only while every club still has n-1 matches
-    movzx esi, word [DIY + 6Dh + ebx * 2]
-    cmp [DIY + esi + 2B7h], di
+    movzx esi, word [ebp + 6Dh + ebx * 2]
+    cmp [ebp + esi + 2B7h], di
     jne .cl
     inc ebx
     cmp ebx, ecx
@@ -64,6 +64,8 @@ arg_names:
 ; cycle left, matchday 0, no match counted yet in it) = the start of the Clausura: the table still holds the final Apertura.
 arg_round:
     mov dword [A0], DIY
+    push ebp
+    mov ebp, DIY
     call arg_ours
     jne .r
     pushad
@@ -104,7 +106,7 @@ arg_round:
     mov eax, 'APER'
     mov edx, 'TURA'
     mov ebx, 'CLAU'
-    mov ebp, 'SURA'
+    mov edi, 'SURA'
     call arg_text                       ; the name text the game shows
     push dword [A0]                     ; the manager's record of this season (if his club plays the Primera)
     push dword [D0]                     ; (A0 = DIY for the rest of cseg_8922B; D0 used by GetCurrentSeasonPointer)
@@ -120,9 +122,10 @@ arg_round:
     popad
     call arg_names
 .r:
+    pop ebp
     ret
 
-arg_text:                               ; in DIY+4.. (name text, maybe country first): eax:edx -> ebx:ebp (8 letters)
+arg_text:                               ; in DIY+4.. (name text, maybe country first): eax:edx -> ebx:edi (8 letters)
     lea esi, [DIY + 4]
     mov ecx, 23h - 8
 .f:
@@ -131,29 +134,21 @@ arg_text:                               ; in DIY+4.. (name text, maybe country f
     cmp [esi + 4], edx
     jne .n
     mov [esi], ebx
-    mov [esi + 4], ebp
+    mov [esi + 4], edi
     ret
 .n:
     inc esi
     loop .f
     ret
 
-; arg_season: replaces `call GetCurrentSeasonPointer` in InitializeNewSeason, right after the player's league is built and
-; before its name goes into the season record: a new season starts with the Apertura.
-arg_season:
-    call arg_ours
-    jne .g
-    pushad
-    mov dword [DIY + 27h], AP_LONG
-    mov eax, 'CLAU'
-    mov edx, 'SURA'
-    mov ebx, 'APER'
-    mov ebp, 'TURA'
-    call arg_text
-    popad
-    call arg_names
-.g:
-    jmp GETSEASON
+; arg_prebuild: replaces the `call cseg_8B2D3` that builds the player's league in InitializeNewSeason (right before the
+; GetCurrentSeasonPointer call that stores its name in the season record). A new season starts with the Apertura: the
+; struct names go back to TORNEO APERTURA / APERTURA before the build copies them (into DIY+4, DIY+27h, the slot buffer
+; and the season record). (T15 renamed after the build: the slot copy kept CLAUSURA.)
+arg_prebuild:
+    mov dword [NAME_DW], AP_LONG_OFF
+    mov dword [NAME_DW + 4], AP_SHORT_OFF
+    jmp BUILD
 
 align 2
 APERTURA_CHAMP: dw 0FFFFh
@@ -163,11 +158,15 @@ LOAD_ASM = r'''
 arg_load:
     call LOADER
     pushfd
+    push ebp
+    mov ebp, SLOT0                      ; the player's league as loaded from the .CAR
     call ARG_NAMES
+    pop ebp
     popfd
     ret
 '''
 LABELS = {}
+SLOT0 = None
 
 
 def _refs(p, lo):
@@ -220,8 +219,14 @@ def patch(p, area, str_base, at, site_b):
     assert len(m) == 1
     season_site = m[0].start()
     getseason = season_site + 5 + struct.unpack('<i', m[0].group(1))[0]
+    # ... preceded by: push dword [A6]; call cseg_8B2D3; pop dword [A6]
+    build_site = season_site - 6 - 5
+    assert d1[build_site] == 0xE8 and d1[build_site - 6:build_site - 4] == b'\xff\x35' and d1[season_site - 6:season_site - 4] == b'\x8f\x05'
+    build = build_site + 5 + struct.unpack_from('<i', d1, build_site + 1)[0]
+    global SLOT0
+    SLOT0 = struct.unpack('<I', m[0].group(2))[0] - 0x27        # the player's league buffer (its +27h = name pointer)
     symbols = {'DIY': (2, diy), 'A0': (2, A['A0']), 'SELTEAMS': (2, sel), 'D0': (2, regs['D7'] - 28),
-               'GETSEASON': (1, getseason), 'NAME_DW': (2, new + names_at),
+               'GETSEASON': (1, getseason), 'BUILD': (1, build), 'NAME_DW': (2, new + names_at),
                'AP_LONG': (2, ap[0]), 'CL_LONG': (2, cl[0]),
                'AP_LONG_OFF': (0, ap[0] - str_base), 'AP_SHORT_OFF': (0, ap[1] - str_base),
                'CL_LONG_OFF': (0, cl[0] - str_base), 'CL_SHORT_OFF': (0, cl[1] - str_base)}
@@ -234,9 +239,9 @@ def patch(p, area, str_base, at, site_b):
     p.remove(1, site + 2)                               # the replaced mov holds two absolute addresses
     p.remove(1, site + 6)
     p.put(1, site, b'\xe8' + struct.pack('<i', labels['arg_round'] - (site + 5)) + b'\x90' * 5)
-    p.put(1, season_site + 1, struct.pack('<i', labels['arg_season'] - (season_site + 5)))   # relative call: no fixup
+    p.put(1, build_site + 1, struct.pack('<i', labels['arg_prebuild'] - (build_site + 5)))   # relative call: no fixup
     LABELS.update(labels)
-    print(f'exe: Argentina Apertura/Clausura: struct obj2+{new:#x}, counters obj1+{site:#x}, season obj1+{season_site:#x}, '
+    print(f'exe: Argentina Apertura/Clausura: struct obj2+{new:#x}, counters obj1+{site:#x}, new season obj1+{build_site:#x}, '
           f'code obj1+{at:#x} ({len(code)} B)')
     return (at + len(code) + 15) & ~15
 
@@ -253,10 +258,12 @@ def load_hook(p, at):
     call = m[0].end() - 5
     loader = m[0].end() + struct.unpack('<i', p.get(1, call + 1, 4))[0]     # trailer's load_trailer (patched bytes)
     assert loader != m[0].end() + struct.unpack('<i', m[0].group(2))[0], 'trailer not applied yet'
-    symbols = {'LOADER': (1, loader), 'ARG_NAMES': (1, LABELS['arg_names'])}
+    symbols = {'LOADER': (1, loader), 'ARG_NAMES': (1, LABELS['arg_names']), 'SLOT0': (2, SLOT0)}
     code, fix = nasmcave.assemble(LOAD_ASM, at, symbols)
-    assert not fix and not any(p.le.obj_bytes(1)[at:at + len(code)])
+    assert not any(p.le.obj_bytes(1)[at:at + len(code)])
     p.put(1, at, code)
+    for off, tobj, toff in fix:
+        p.add_ptr(1, at + off, tobj, toff)
     p.put(1, call + 1, struct.pack('<i', at - (call + 5)))
     print(f'exe: Argentina: career load call obj1+{call:#x} -> obj1+{at:#x}')
     return (at + len(code) + 15) & ~15

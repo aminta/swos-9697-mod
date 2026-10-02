@@ -1672,3 +1672,7 @@ MiSTer: new vhd/iso with 2.5), (e) Davide's ok before any push/release/announcem
   regular season) -> option 3 to do.
 - Davide's choice on the record (option 3): the play-off winner should be the champion in the management record (to do after
   the final works; today 'NSL VINCITORI' = 1st of the regular season).
+- T30 (build fb4467e1, UNTESTED): finals97.rec_playoff (option 3): the league line of the season record (+56h) of a club that
+  played our play-off = its play-off result (1 VINCITORI, FINALISTA, ALLE SEMI-FINALI) via the game's own cup lookup/position
+  on slot 4 (obj2+0x19DE9, contest ptr = slot-0 ptr + 16); others keep the regular-season place. Code after the Argentina
+  cave (obj1+0xa5280): the FIN cave is full. Test from PRE.CAR (T29 Gippsland career, before the semis, 59h = 2).

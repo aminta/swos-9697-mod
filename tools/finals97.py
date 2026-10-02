@@ -292,3 +292,89 @@ def cal_rounds(p, at):
     p.put(1, site, b'\xe8' + struct.pack('<i', at - (site + 5)) + b'\x90' * 5)
     print(f'exe: finals: play-off calendar gets 2 rounds, obj1+{site:#x} -> obj1+{at:#x}')
     return (at + len(code) + 15) & ~15
+
+
+PO_ASM = r'''
+; season record, league line (SeasonInformations +56h) of a division with our play-off (slot 4 = NSL FINALS / NSSL PLAYOFFS):
+; a club that played the play-off gets its play-off result (1 = champions, FINALISTA, ALLE SEMI-FINALI) instead of its
+; regular-season place (Davide: the play-off winner is the champion). Replaces `call POS` after the slot-0 lookup.
+rec_po:
+    call POS                            ; regular-season place -> [IDX]
+    pushad
+    mov esi, [S4PTR]
+    test esi, esi
+    jz .x
+    mov al, [esi]
+    cmp al, NSL_ID
+    je .go
+    cmp al, NSSL_ID
+    jne .x
+.go:
+    push dword [CUR]
+    push dword [CONT]
+    push dword [IDX]
+    push dword [B7]
+    mov dword [CUR], SLOT4
+    mov ax, [TEAM]
+    mov [B7], ax
+    call LOOKUP                         ; -1 when the club did not play the play-off (rec_guard)
+    mov byte [.res], 0
+    cmp word [IDX], 0
+    jl .rest
+    mov eax, [S4PTR]
+    mov [CONT], eax
+    call POS
+    mov al, [IDX]
+    mov [.res], al
+.rest:
+    pop dword [B7]
+    pop dword [IDX]
+    pop dword [CONT]
+    pop dword [CUR]
+    mov al, [.res]
+    test al, al
+    jz .x
+    mov [IDX], al
+.x:
+    popad
+    ret
+.res: db 0
+'''
+
+
+def rec_playoff(p, at):
+    """The play-off result becomes the league line of the season record (see PO_ASM)."""
+    import re
+    d1 = p.le.obj_bytes(1)
+    rx = re.compile(rb'\xc7\x05(.{4})(.{4})\x66\xa1(.{4})\x66\xa3(.{4})\xff\x35\1\xe8(.{4})\x8f\x05\1\xa1(.{4})\xa3(.{4})'
+                    rb'\x66\xa1(.{4})\x66\x0b\xc0\x0f\x88.{4}\xe8(.{4})\xa0(.{4})\x8b\x35(.{4})\x88\x46\x56', re.S)
+    m = list(rx.finditer(d1))
+    assert len(m) == 1, len(m)
+    m = m[0]
+    u = lambda k: struct.unpack('<I', m.group(k))[0]
+    cur, slot0, team, b7, s0ptr, cont, idx = u(1), u(2), u(3), u(4), u(6), u(7), u(8)
+    lookup = m.start(5) + 4 + struct.unpack('<i', m.group(5))[0]
+    call = m.start(9) - 1
+    pos = call + 5 + struct.unpack('<i', m.group(9))[0]
+    diy = collections_mode([struct.unpack('<I', x.group(2))[0]
+                            for x in re.finditer(rb'\xc7\x05(.{4})(.{4})\x8b\x35\1\x66\x8b\x46\x31', d1, re.S)])
+    s4 = {struct.unpack('<I', x.group(2))[0] for x in re.finditer(rb'\xc7\x05(.{4})(.{4})\x8b\x35\1\x66\x8b\x46\x31', d1, re.S)}
+    s4 -= {diy, slot0}
+    assert len(s4) == 1, s4
+    s4 = s4.pop()
+    symbols = {'POS': (1, pos), 'LOOKUP': (1, lookup), 'CUR': (2, cur), 'CONT': (2, cont), 'IDX': (2, idx), 'B7': (2, b7),
+               'TEAM': (2, team), 'S4PTR': (2, s0ptr + 16), 'SLOT4': (2, s4), 'NSL_ID': (0, NSL_FIN),
+               'NSSL_ID': (0, NSSL_FIN)}
+    code, fix = nasmcave.assemble(PO_ASM, at, symbols)
+    assert not any(p.le.obj_bytes(1)[at:at + len(code)])
+    p.put(1, at, code)
+    for off, tobj, toff in fix:
+        p.add_ptr(1, at + off, tobj, toff)
+    p.put(1, call + 1, struct.pack('<i', at - (call + 5)))
+    print(f'exe: season record: play-off result as the league line (call obj1+{call:#x} -> obj1+{at:#x}, slot 4 obj2+{s4:#x})')
+    return (at + len(code) + 15) & ~15
+
+
+def collections_mode(xs):
+    import collections
+    return collections.Counter(xs).most_common(1)[0][0]

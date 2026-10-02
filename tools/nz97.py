@@ -185,10 +185,10 @@ nz_draw:                                ; replaces `mov esi, [A4]; add word [esi
     mov esi, [A4]
     add word [esi + 2C3h], 1
     pushad
-    mov esi, [A3]
+    mov esi, [A1]                       ; the teams (A3/A4 are their table entries: no team file byte there)
     call nssl_team
     jne .x
-    mov esi, [A4]
+    mov esi, [A2]
     call nssl_team
     jne .x
     mov edi, [A3]                       ; home = team 1 of the match

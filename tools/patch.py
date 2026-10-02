@@ -21,6 +21,7 @@ import c1c2
 import cafcups
 import countries
 import historic
+import nsl97
 import lib97
 import sacups
 import trailer
@@ -174,6 +175,7 @@ def patch_exe(src, dst, remap, lang='it'):
     world += 4
     cave = sacups.patch(p, pool, SA_CAVE, info)
     short_names(p, area, lang)
+    nsl97.patch(p, area, sacups.STR_BASE)       # 2.1: Australia 1996-97 (14-club NSL)
     world, new_career = trailer.patch(p, world, sacups.SAVE_ITEMS[0] + [(base, 32) for base, _ in info['q']])
     p.add_ptr(1, info['new_career_ptr'], 1, new_career)
     assert cave <= WORLD_CAVE, hex(cave)
@@ -251,6 +253,8 @@ def write_new_teams(src_dir, dst_dir):
                 taken[g] = n
         open(os.path.join(dst_dir, 'TEAM.%03d' % n), 'wb').write(data)
         print(f'TEAM.{n:03d}: {k} teams, global numbers {tcn.get(n, historic.BASE)}..{tcn.get(n, historic.BASE) + k - 1}')
+    open(os.path.join(dst_dir, 'TEAM.%03d' % nsl97.FILE), 'wb').write(nsl97.build(src_dir))   # same 51 clubs and numbers
+    print(f'TEAM.{nsl97.FILE:03d}: Australia 1996-97 (NSL squads)')
 
 
 if __name__ == '__main__':

@@ -171,6 +171,7 @@ def patch_exe(src, dst, remap, lang='it'):
     world = countries.patch(p, lang, area, world, cafcups.continents(caf))
     world, lib_pre = lib97.patch(p, world)        # Libertadores 1997: bye, real calendar (hist_draw calls lib_pre)
     world = historic.patch(p, lang, area, world, lib_pre)
+    world = nz97.shootout(p, world)               # 2.1: NSSL shoot-out after every draw, +1 point to its winner
     info = cafcups.career_info(caf)
     info['new_career_ptr'] = world              # dword filled below: sacups is assembled before the trailer code
     world += 4

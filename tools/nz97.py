@@ -143,3 +143,117 @@ def patch(p, area, str_base):
         p.retarget(objn, off, 2, at)
     print(f'exe: New Zealand NSSL 1996-97 + 3 regions of 10, struct obj2+{at:#x} ({len(refs)} pointers)')
     return at
+
+
+# --- exe: shoot-out after every NSSL draw, +1 point to its winner (session 28h) ----------------------------------------
+NSSL_MASK = sum(1 << i for i, (div, _) in CLUBS.items() if div == NSSL)   # TEAM.062 ordinals of the 10 NSSL clubs
+SHOOTOUT_ASM = r'''
+; Both hooks know an NSSL match by its two teams (record byte 0 = team file 62, byte 1 = ordinal in NSSL_MASK): career league
+; days (player's division and the simulated other ones) and DIY leagues all reach cseg_88A12.
+nssl_team:                              ; esi -> team record; ZF = 1 if it is an NSSL club
+    cmp byte [esi], NZ_FILE
+    jne .r
+    movzx eax, byte [esi + 1]
+    cmp eax, 32
+    jae .no
+    bt dword [NSSL_BITS], eax
+    jnc .no
+    cmp eax, eax
+.r:
+    ret
+.no:
+    or esi, esi                         ; esi != 0: ZF = 0
+    ret
+
+nz_setup:                               ; replaces `mov word [penaltiesState], 0` in cseg_89381 (league match set-up)
+    mov word [PEN_STATE], 0
+    pushad
+    mov word [PEN1], 0                  ; no shoot-out yet (a real one never ends 0-0)
+    mov word [PEN2], 0
+    mov esi, [A1]
+    call nssl_team
+    jne .x
+    mov esi, [A2]
+    call nssl_team
+    jne .x
+    mov word [PEN_STATE], 1             ; the engine plays the shoot-out at full time on a draw (no extra time)
+.x:
+    popad
+    ret
+
+nz_draw:                                ; replaces `mov esi, [A4]; add word [esi+2C3h], 1` (draw: 1 point each) in cseg_88A12
+    mov esi, [A4]
+    add word [esi + 2C3h], 1
+    pushad
+    mov esi, [A3]
+    call nssl_team
+    jne .x
+    mov esi, [A4]
+    call nssl_team
+    jne .x
+    mov edi, [A3]                       ; home = team 1 of the match
+    mov ax, [PEN1]
+    cmp ax, [PEN2]
+    ja .won
+    mov edi, [A4]
+    jb .won
+    call RAND                           ; not played (simulated, or no shoot-out): the shoot-out is drawn by lot
+    test byte [D0], 1
+    mov edi, [A3]
+    jz .won
+    mov edi, [A4]
+.won:
+    add word [edi + 2C3h], 1            ; the bonus point
+    mov word [PEN1], 0
+    mov word [PEN2], 0
+.x:
+    popad
+    ret
+NSSL_BITS: dd NSSL_MASK_
+'''
+
+
+def shootout(p, at):
+    """Hooks for the NSSL shoot-out bonus point; code at obj1:at, returns the new end."""
+    import re, nasmcave, sacups
+    d1 = p.le.obj_bytes(1)
+    regs = sacups.regs(d1)
+    a0 = regs['D7'] + 4
+    A = {n: a0 + 4 * i for i, n in enumerate(('A0', 'A1', 'A2', 'A3', 'A4'))}
+    e = lambda x: re.escape(struct.pack('<I', x))
+    zero = rb'\x66\xc7\x05(.{4})\x00\x00'
+    # cseg_89381: team1/2GoalsFirstLeg, extraTimeState, penaltiesState, secondLeg, playing2ndGame, isGameFriendly = 0;
+    # mov eax, [A0]; mov [A4], eax
+    m = [x for x in re.finditer(zero * 7 + rb'\xa1' + e(A['A0']) + rb'\xa3' + e(A['A4']), d1, re.S)]
+    assert len(m) == 1, len(m)
+    site_a = m[0].start() + 27
+    pen_state = struct.unpack('<I', m[0].group(4))[0]
+    # cseg_88D6A: mov esi,[A3]; add word [esi+2BBh],1; mov esi,[A4]; add ...; mov esi,[A3]; add word [esi+2C3h],1; mov esi,[A4]; ...
+    pat = (rb'\x8b\x35' + e(A['A3']) + rb'\x66\x83\x86\xbb\x02\x00\x00\x01\x8b\x35' + e(A['A4']) + rb'\x66\x83\x86\xbb\x02\x00\x00\x01'
+           + rb'\x8b\x35' + e(A['A3']) + rb'\x66\x83\x86\xc3\x02\x00\x00\x01\x8b\x35' + e(A['A4']) + rb'\x66\x83\x86\xc3\x02\x00\x00\x01')
+    m = [x for x in re.finditer(pat, d1)]
+    assert len(m) == 1, len(m)
+    site_b = m[0].start() + 42
+    # StartPenalties: mov word [penaltiesState], -1; 2 x (mov ax,[statsTeamXGoals]; mov [savedTeamXGoals],ax); 8 x mov word [..],0
+    # (team goals and digits ..., team1PenaltyGoals, team2PenaltyGoals); call Rand; and word [D0], 1
+    m = [x for x in re.finditer(rb'\x66\xc7\x05' + e(pen_state) + rb'\xff\xff(?:\x66\xa1.{4}\x66\xa3.{4}){2}' + zero * 8
+                                + rb'\xe8(.{4})\x66\x83\x25' + e(regs['D7'] - 28) + rb'\x01', d1, re.S)]
+    assert len(m) == 1, len(m)
+    pen1, pen2 = (struct.unpack('<I', m[0].group(k))[0] for k in (7, 8))
+    rand = m[0].start(9) + 4 + struct.unpack('<i', m[0].group(9))[0]
+    symbols = {'NZ_FILE': (0, FILE), 'NSSL_MASK_': (0, NSSL_MASK), 'PEN_STATE': (2, pen_state), 'PEN1': (2, pen1),
+               'PEN2': (2, pen2), 'RAND': (1, rand), 'D0': (2, regs['D7'] - 28),
+               **{k: (2, v) for k, v in A.items()}}
+    code, fix = nasmcave.assemble(SHOOTOUT_ASM, at, symbols)
+    labels = nasmcave.labels(SHOOTOUT_ASM, at, symbols)
+    assert not any(p.le.obj_bytes(1)[at:at + len(code)])
+    p.put(1, at, code)
+    for off, tobj, toff in fix:
+        p.add_ptr(1, at + off, tobj, toff)
+    # the overwritten instructions hold absolute addresses: drop their fixups first (see the coin-toss crash)
+    p.remove(1, site_a + 3)                             # mov word [penaltiesState], 0
+    p.put(1, site_a, b'\xe8' + struct.pack('<i', labels['nz_setup'] - (site_a + 5)) + b'\x90' * 4)
+    p.remove(1, site_b + 2)                             # mov esi, [A4]
+    p.put(1, site_b, b'\xe8' + struct.pack('<i', labels['nz_draw'] - (site_b + 5)) + b'\x90' * 9)
+    print(f'exe: NSSL shoot-out: set-up obj1+{site_a:#x}, draw obj1+{site_b:#x}, code obj1+{at:#x} ({len(code)} B)')
+    return (at + len(code) + 15) & ~15

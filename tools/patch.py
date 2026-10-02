@@ -37,6 +37,7 @@ SA_CAVE = 0xa1000            # first added page: South American cups
 WORLD_CAVE = 0xa2000         # second added page: new countries, CAF cups (Roadmap 2)
 NZ_CAVE = 0xa3000            # third added page (2.1): NSSL shoot-out
 FIN_CAVE = 0xa3400           # 2.1: finals series (finals97.fin_pre)
+FINALS = False               # finals series off until a type-1 design works (session 28m)
 
 LEAGUES_OLD = bytes.fromhex('3c00144020150000000202033512')
 TEAM_BASES = struct.pack('<16H', 0, 16, 26, 44, 60, 72, 86, 102, 114, 207, 207, 221, 233, 245, 287, 333)
@@ -184,10 +185,11 @@ def patch_exe(src, dst, remap, lang='it'):
     nsl97.patch(p, area, sacups.STR_BASE)       # 2.1: Australia 1996-97 (14-club NSL), team bases moved
     nz97.patch(p, area, sacups.STR_BASE)        # 2.1: New Zealand 1996-97 (NSSL + 3 regions)
     nsl97.cup(p, area, sacups.STR_BASE)         # 2.1: NSL Cup 1996-97, real clubs and bracket
-    wobj, wptr = p.target(2, countries.COMP[0] + 4 * 254)        # worldCup header: template of the type-2 finals
-    cobj, wc = p.target(wobj, wptr)
-    finals97.structs(p, area, sacups.STR_BASE, bytes(p.le.obj_bytes(cobj)[wc:wc + 0x28]))
-    finals97.slot4_type(p)
+    if FINALS:                                  # T9 (type-2 finals in slot 4) froze: slot 4 is a 443h buffer
+        wobj, wptr = p.target(2, countries.COMP[0] + 4 * 254)
+        cobj, wc = p.target(wobj, wptr)
+        finals97.structs(p, area, sacups.STR_BASE, bytes(p.le.obj_bytes(cobj)[wc:wc + 0x28]))
+        finals97.slot4_type(p)
     world, new_career = trailer.patch(p, world, sacups.SAVE_ITEMS[0] + [(base, 32) for base, _ in info['q']])
     p.add_ptr(1, info['new_career_ptr'], 1, new_career)
     assert cave <= WORLD_CAVE, hex(cave)

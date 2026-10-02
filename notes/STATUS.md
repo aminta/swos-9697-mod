@@ -1619,8 +1619,7 @@ MUST explain, in release notes AND in the stable README (IT + EN, manual chapter
 Everything called "2.1" in sessions 28-28r is the 2.5 release: Argentina Apertura/Clausura + aggregate + promedio, Australia NSL,
 New Zealand NSSL, MLS 1997. T25 PLAYTEST: Apertura champion in the record, OK (Davide "ok").
 Left for 2.5: (a) NSL/NSSL finals series (type-1 design) or declare them postponed; (b) test EN/FR/DE builds (only IT played);
-(c) docs (release notes, stable README IT+EN, manual chapters IT+EN, patcher via mkpatcher.py), (d) 12bit packages (eXoDOS +
-MiSTer: new vhd/iso with 2.5), (e) Davide's ok before any push/release/announcement.
+(c) docs (release notes, stable README IT+EN, manual chapters IT+EN, patcher via mkpatcher.py), (d) -, (e) Davide's ok before any push/release/announcement.
 - T25 PLAYTEST (Davide screenshot): management record shows "CLAUSURA (AP: INDEPENDIEN)" / Posizione 2 / Supercopa / Coppa
   Intercontinentale / Copa Libertadores: WORKS. Davide: "bellissimo tocco, evidenziamolo nella documentazione" -> in the release
   notes, the stable README and the manual, give the Apertura-champion line its own highlighted paragraph WITH THIS SCREENSHOT

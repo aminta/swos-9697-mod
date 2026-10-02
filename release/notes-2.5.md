@@ -9,7 +9,7 @@ The Primera División had no 38-round league in 1996-97. It played two separate 
 - **Torneo Apertura and Torneo Clausura:** each season starts with the **APERTURA** (19 rounds). When it ends, the table is reset and the league becomes the **CLAUSURA** (19 rounds), in the calendar, the table and the management record.
 - **The Apertura champion is kept.** The season record shows the Clausura with the Apertura champion in brackets, for example **"CLAUSURA (AP: INDEPENDIEN)"**. The text survives saving and loading.
 
-  ![Management record: the Clausura line with the Apertura champion in brackets](screenshots/argentina-registro-apertura.png)
+  ![Management record: the Clausura line with the Apertura champion in brackets](https://raw.githubusercontent.com/aminta/swos-9697-mod/main/release/screenshots/argentina-registro-apertura.png)
 
 - **Aggregate table for the South American cups:** the Copa Libertadores (1st and 2nd) and the Copa CONMEBOL (3rd to 5th) places of Argentina come from the **aggregate table**: Apertura + Clausura, 3 points for a win, goal difference as tie-break. The table you see at the end of the season is the Clausura's; the aggregate one is not shown, but it decides the qualifiers.
 - **Relegation by "promedio",** as the AFA did it: the points (2 for a win, as in the AFA's own count) divided by the matches played over the last three seasons. The two worst averages go down, the two best clubs of the Nacional B come up. The 1994-95 and 1995-96 seasons are real (es.wikipedia) and the history is saved with the career, season after season. A club that played fewer Primera seasons counts only those; a promoted club starts from zero.
@@ -69,7 +69,7 @@ Nel 1996-97 la Primera División non aveva un campionato da 38 giornate. Si gioc
 - **Torneo Apertura e Torneo Clausura:** ogni stagione comincia con l'**APERTURA** (19 giornate). Quando finisce, la classifica si azzera e il campionato diventa il **CLAUSURA** (19 giornate), nel calendario, nella classifica e nel registro di gestione.
 - **Il campione dell'Apertura resta.** Il registro della stagione mostra il Clausura con il campione dell'Apertura tra parentesi, per esempio **"CLAUSURA (AP: INDEPENDIEN)"**. Il testo resta anche dopo salvataggio e caricamento.
 
-  ![Registro di gestione: la riga del Clausura con il campione dell'Apertura tra parentesi](screenshots/argentina-registro-apertura.png)
+  ![Registro di gestione: la riga del Clausura con il campione dell'Apertura tra parentesi](https://raw.githubusercontent.com/aminta/swos-9697-mod/main/release/screenshots/argentina-registro-apertura.png)
 
 - **Classifica complessiva per le coppe sudamericane:** i posti dell'Argentina in Copa Libertadores (1ª e 2ª) e in Copa CONMEBOL (dalla 3ª alla 5ª) vengono dalla **classifica complessiva**: Apertura + Clausura, 3 punti a vittoria, differenza reti in caso di parità. La classifica che vedi a fine stagione è quella del Clausura; quella complessiva non viene mostrata, ma decide le qualificate.
 - **Retrocessioni col "promedio",** come faceva l'AFA: i punti (2 a vittoria, come nel conteggio dell'AFA) divisi per le partite giocate nelle ultime tre stagioni. Le due medie peggiori retrocedono, le prime due della Nacional B salgono. Le stagioni 1994-95 e 1995-96 sono reali (es.wikipedia) e lo storico viene salvato con la carriera, stagione dopo stagione. Un club che ha giocato meno stagioni in Primera conta solo quelle; una neopromossa parte da zero.

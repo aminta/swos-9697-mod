@@ -31,9 +31,10 @@ from strpool import StrPool
 ROOT = os.path.join(os.path.dirname(__file__), '..')
 ITALY = 20
 ITALY_BASE = 1850          # free global numbers: ~1794..1999
-OBJ1_NEW_VSIZE = 0xa3000     # + two added pages (lepatch.add_object_page)
+OBJ1_NEW_VSIZE = 0xa4000     # + three added pages (lepatch.add_object_page)
 SA_CAVE = 0xa1000            # first added page: South American cups
 WORLD_CAVE = 0xa2000         # second added page: new countries, CAF cups (Roadmap 2)
+NZ_CAVE = 0xa3000            # third added page (2.1): NSSL shoot-out, play-offs
 
 LEAGUES_OLD = bytes.fromhex('3c00144020150000000202033512')
 TEAM_BASES = struct.pack('<16H', 0, 16, 26, 44, 60, 72, 86, 102, 114, 207, 207, 221, 233, 245, 287, 333)
@@ -140,7 +141,7 @@ def remap_italian_cup_teams(p, remap):
 
 def patch_exe(src, dst, remap, lang='it'):
     grown = dst + '.tmp'
-    data = add_object_page(add_object_page(open(src, 'rb').read(), 1), 1)
+    data = add_object_page(add_object_page(add_object_page(open(src, 'rb').read(), 1), 1), 1)
     while True:                    # obj2: zero pages over the old BSS/stack tail, then one free page
         data = add_object_page(data, 2)
         le2 = LE(data)
@@ -171,7 +172,7 @@ def patch_exe(src, dst, remap, lang='it'):
     world = countries.patch(p, lang, area, world, cafcups.continents(caf))
     world, lib_pre = lib97.patch(p, world)        # Libertadores 1997: bye, real calendar (hist_draw calls lib_pre)
     world = historic.patch(p, lang, area, world, lib_pre)
-    world = nz97.shootout(p, world)               # 2.1: NSSL shoot-out after every draw, +1 point to its winner
+    nz_end = nz97.shootout(p, NZ_CAVE)            # 2.1: NSSL shoot-out after every draw, +1 point to its winner
     info = cafcups.career_info(caf)
     info['new_career_ptr'] = world              # dword filled below: sacups is assembled before the trailer code
     world += 4
@@ -183,7 +184,7 @@ def patch_exe(src, dst, remap, lang='it'):
     p.add_ptr(1, info['new_career_ptr'], 1, new_career)
     assert cave <= WORLD_CAVE, hex(cave)
     world = cafcups.intl_list(p, caf, world)
-    assert world <= OBJ1_NEW_VSIZE, hex(world)
+    assert world <= NZ_CAVE and nz_end <= OBJ1_NEW_VSIZE, (hex(world), hex(nz_end))
     p.set_vsize(1, OBJ1_NEW_VSIZE)
     p.set_vsize(2, obj2_free + p.le.page_size)
     p.add_flags(1, 0x2)            # writable: season end rewrites the SA cup team lists in the cave

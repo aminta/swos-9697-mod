@@ -169,6 +169,7 @@ nz_setup:                               ; replaces `mov word [penaltiesState], 0
     mov word [PEN_STATE], 0
     pushad
     mov word [PEN1], 0                  ; no shoot-out yet (a real one never ends 0-0)
+    mov byte [NZ_WIN], 0
     mov word [PEN2], 0
     mov esi, [A1]
     call nssl_team
@@ -185,13 +186,21 @@ nz_draw:                                ; replaces `mov esi, [A4]; add word [esi
     mov esi, [A4]
     add word [esi + 2C3h], 1
     pushad
+    push dword [D0]
     mov esi, [A1]                       ; the teams (A3/A4 are their table entries: no team file byte there)
     call nssl_team
     jne .x
     mov esi, [A2]
     call nssl_team
     jne .x
+    mov al, [NZ_WIN]                    ; decided by nz_mark when the result went into the game list
     mov edi, [A3]                       ; home = team 1 of the match
+    cmp al, 1
+    je .won
+    mov edi, [A4]
+    cmp al, 2
+    je .won
+    mov edi, [A3]
     mov ax, [PEN1]
     cmp ax, [PEN2]
     ja .won
@@ -204,11 +213,91 @@ nz_draw:                                ; replaces `mov esi, [A4]; add word [esi
     mov edi, [A4]
 .won:
     add word [edi + 2C3h], 1            ; the bonus point
+.x:
+    mov byte [NZ_WIN], 0
     mov word [PEN1], 0
     mov word [PEN2], 0
-.x:
+    pop dword [D0]
     popad
     ret
+
+nssl_id:                                ; ax = team number (low byte file, high byte ordinal); ZF = 1 if NSSL
+    cmp al, NZ_FILE
+    jne .r
+    movzx eax, ah
+    cmp eax, 32
+    jae .no
+    bt dword [NSSL_BITS], eax
+    jnc .no
+    cmp eax, eax
+.r:
+    ret
+.no:
+    or esi, esi
+    ret
+
+nz_mark:                                ; replaces `mov ax,[D6]; mov esi,[A1]; mov [esi+14h],ax`, the last store of a result
+    mov ax, [D6]                        ; into the game list (cseg_2A71E, after the manager's statistics: a shoot-out
+    mov esi, [A1]                       ; stays a draw there)
+    mov [esi + 14h], ax
+    pushad
+    push dword [D0]
+    mov esi, [A1]
+    mov ax, [esi + 0Ch]
+    call nssl_id
+    jne .x
+    mov ax, [esi + 0Eh]
+    call nssl_id
+    jne .x
+    mov ax, [esi + 10h]                 ; the result: home goals << 8 | away goals
+    cmp ah, al
+    jne .x
+    mov dx, [PEN1]
+    mov cx, [PEN2]
+    cmp dx, cx
+    je .lot
+    mov bl, 1                           ; played: the real shoot-out
+    ja .score
+    mov bl, 2
+.score:
+    mov ah, dl
+    mov al, cl
+    jmp .set
+.lot:                                   ; simulated: winner by lot, a shoot-out score as the engine shows for cups
+    call RAND                           ; (Rand uses esi)
+    mov esi, [A1]
+    movzx edx, byte [D0]
+    mov bl, 1
+    test dl, 1
+    jz .w
+    mov bl, 2
+.w:
+    mov ah, dl                          ; winner 4 or 5, loser 1 or 2 less
+    shr ah, 1
+    and ah, 1
+    add ah, 4
+    mov al, dl
+    shr al, 2
+    and al, 1
+    inc al
+    neg al
+    add al, ah
+    cmp bl, 1
+    je .set
+    xchg ah, al
+.set:
+    mov [esi + 14h], ax                 ; shoot-out score (home << 8 | away)
+    or byte [esi + 0Bh], 8Ah            ; result (80h), decided (2), on penalties (8): "%a WIN %0-%1 ON PENS"
+    cmp bl, 2
+    jne .k
+    or byte [esi + 0Bh], 1              ; won by the away side
+.k:
+    mov [NZ_WIN], bl
+.x:
+    pop dword [D0]
+    popad
+    ret
+NZ_WIN: db 0
 NSSL_BITS: dd NSSL_MASK_
 '''
 
@@ -241,8 +330,15 @@ def shootout(p, at):
     assert len(m) == 1, len(m)
     pen1, pen2 = (struct.unpack('<I', m[0].group(k))[0] for k in (7, 8))
     rand = m[0].start(9) + 4 + struct.unpack('<i', m[0].group(9))[0]
+    # cseg_2A71E: the result goes into the game list entry A1: flags +0Bh, D4 +10h, D5 +12h, D6 +14h
+    d = lambda k: regs['D7'] - 28 + 4 * k
+    m = [x for x in re.finditer(rb'\xa0' + e(regs['D7']) + rb'\x8b\x35' + e(A['A1']) + rb'\x88\x46\x0b'
+                                + b''.join(rb'\x66\xa1' + e(d(k)) + rb'\x8b\x35' + e(A['A1']) + rb'\x66\x89\x46' + bytes((o,))
+                                           for k, o in ((4, 0x10), (5, 0x12), (6, 0x14))), d1)]
+    assert len(m) == 1, len(m)
+    site_c = m[0].start() + 5 + 6 + 3 + 2 * 16
     symbols = {'NZ_FILE': (0, FILE), 'NSSL_MASK_': (0, NSSL_MASK), 'PEN_STATE': (2, pen_state), 'PEN1': (2, pen1),
-               'PEN2': (2, pen2), 'RAND': (1, rand), 'D0': (2, regs['D7'] - 28),
+               'PEN2': (2, pen2), 'RAND': (1, rand), 'D0': (2, regs['D7'] - 28), 'D6': (2, d(6)),
                **{k: (2, v) for k, v in A.items()}}
     code, fix = nasmcave.assemble(SHOOTOUT_ASM, at, symbols)
     labels = nasmcave.labels(SHOOTOUT_ASM, at, symbols)
@@ -255,5 +351,9 @@ def shootout(p, at):
     p.put(1, site_a, b'\xe8' + struct.pack('<i', labels['nz_setup'] - (site_a + 5)) + b'\x90' * 4)
     p.remove(1, site_b + 2)                             # mov esi, [A4]
     p.put(1, site_b, b'\xe8' + struct.pack('<i', labels['nz_draw'] - (site_b + 5)) + b'\x90' * 9)
-    print(f'exe: NSSL shoot-out: set-up obj1+{site_a:#x}, draw obj1+{site_b:#x}, code obj1+{at:#x} ({len(code)} B)')
+    p.remove(1, site_c + 2)                             # mov ax, [D6]
+    p.remove(1, site_c + 8)                             # mov esi, [A1]
+    p.put(1, site_c, b'\xe8' + struct.pack('<i', labels['nz_mark'] - (site_c + 5)) + b'\x90' * 11)
+    print(f'exe: NSSL shoot-out: set-up obj1+{site_a:#x}, draw obj1+{site_b:#x}, game list obj1+{site_c:#x}, '
+          f'code obj1+{at:#x} ({len(code)} B)')
     return (at + len(code) + 15) & ~15

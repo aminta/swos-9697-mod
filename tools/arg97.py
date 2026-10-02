@@ -4,7 +4,7 @@ Davide's decisions (notes/STATUS.md 28p): two tournaments in one season, relegat
 SA cup qualifiers from the aggregate table. The engine has one league per division, so the Primera's double round-robin is
 shown as two tournaments: division 0 is named TORNEO APERTURA; when its first cycle ends (19 rounds: every club has played
 n - 1 matches and one cycle is left, DIY [5Fh] == 1) arg_after records the Apertura champion, zeroes the 20 table entries and
-renames the running league TORNEO CLAUSURA. Steps still to come: aggregate + promedio + save trailer + message/history.
+renames the running league TORNEO CLAUSURA (at the first match of the second cycle, session 28p T12). Steps still to come: aggregate + promedio + save trailer + message/history.
 Sources: RSSSF arg97 (Apertura 1996, Clausura 1997), es.wikipedia "Campeonato de Primera Division 1996-97 (Argentina)".
 """
 import re
@@ -18,33 +18,38 @@ NAMES = [(b'TORNEO APERTURA', b'APERTURA'), (b'NACIONAL B', b'NACIONAL B')]
 CLAUSURA = b'TORNEO CLAUSURA'
 
 ASM = r'''
-; arg_after: replaces `call cseg_883DD` (table sort) at the end of a match in cseg_88A12. A1 = home team record.
-arg_after:
-    call SORT
+; arg_round: replaces `mov dword [A0], offset DIY_competitionStart` at the start of cseg_8922B, the per-match counters of a
+; league (every match of the division goes through it, played or simulated). The first match of the second cycle (one
+; cycle left, matchday 0, no match counted yet in it) = the start of the Clausura: the table still holds the final Apertura.
+arg_round:
+    mov dword [A0], DIY
     pushad
     cmp byte [DIY + 2Dh], ARG_ID        ; the Argentine league...
     jne .x
-    mov esi, [A1]
+    cmp word [DIY + 5Fh], 1             ; one cycle left
+    jne .x
+    cmp word [DIY + 5Bh], 0             ; first match of a matchday
+    jne .x
+    cmp word [DIY + 1CBh], 0            ; first matchday of the cycle
+    jne .x
+    movzx eax, word [DIY + 6Dh]         ; top of the sorted table: its team must be a Primera club (division 0)
+    mov esi, [DIY + eax + 2B3h]
+    add esi, [SELTEAMS]
     cmp byte [esi], ARG_FILE
     jne .x
-    cmp byte [esi + 25], 0              ; ... division 0 (Primera)
-    jne .x
-    cmp word [DIY + 5Fh], 1             ; one cycle left = the Clausura (or the Apertura just ended)
+    cmp byte [esi + 25], 0
     jne .x
     movzx ecx, word [DIY + 31h]         ; clubs
     lea edx, [ecx - 1]                  ; matches of a cycle
     xor ebx, ebx
 .chk:
     movzx eax, word [DIY + 6Dh + ebx * 2]
-    cmp [DIY + eax + 2B7h], dx          ; every club has played n - 1: the Apertura is over, not reset yet
+    cmp [DIY + eax + 2B7h], dx          ; every club has played the Apertura (not reset yet)
     jne .x
     inc ebx
     cmp ebx, ecx
     jb .chk
-    movzx eax, word [DIY + 6Dh]         ; Apertura champion (top of the sorted table)
-    mov eax, [DIY + eax + 2B3h]
-    add eax, [SELTEAMS]
-    mov ax, [eax]
+    mov ax, [esi]                       ; Apertura champion
     mov [APERTURA_CHAMP], ax
     xor ebx, ebx
 .zero:
@@ -73,7 +78,7 @@ def _refs(p, lo):
 
 
 def patch(p, area, str_base, at, site_b):
-    """Named Argentine struct (new obj2 page) + arg_after at obj1:at; site_b = nz97's draw site (the sort call follows it)."""
+    """Named Argentine struct (new obj2 page) + arg_round at obj1:at (hook at the start of cseg_8922B); site_b unused."""
     import sacups
     d2 = p.le.obj_bytes(2)
     lo = d2.find(LEAGUE_SIG)
@@ -96,15 +101,17 @@ def patch(p, area, str_base, at, site_b):
     e = lambda x: re.escape(struct.pack('<I', x))
     m = [x for x in re.finditer(rb'\xc7\x05' + e(A['A4']) + rb'(.{4})\x8b\x35' + e(A['A4']) + rb'\x66\x8b\x46\x4f', d1, re.S)]
     assert len(m) == 1
-    sort, diy = m[0].start(), struct.unpack('<I', m[0].group(1))[0]
-    calls = [k for k in range(site_b, site_b + 0x200) if d1[k] == 0xE8 and k + 5 + struct.unpack_from('<i', d1, k + 1)[0] == sort]
-    assert len(calls) == 1, calls
-    site = calls[0]
+    diy = struct.unpack('<I', m[0].group(1))[0]
+    # cseg_8922B: mov [A0], offset DIY; mov esi,[A1]; add word [esi+2B7h],1; mov esi,[A2]; add word [esi+2B7h],1
+    m = [x.start() for x in re.finditer(rb'\xc7\x05' + e(A['A0']) + e(diy) + rb'\x8b\x35' + e(A['A1'])
+                                        + rb'\x66\x83\x86\xb7\x02\x00\x00\x01\x8b\x35' + e(A['A2']), d1)]
+    assert len(m) == 1, m
+    site = m[0]
     m = {struct.unpack('<I', x.group(1))[0] for x in re.finditer(rb'\x8b\x35' + e(A['A1']) + rb'\x8b\x86\xb3\x02\x00\x00\xa3'
                                                                   + e(A['A1']) + rb'\xa1(.{4})\x01\x05' + e(A['A1']), d1, re.S)}
     assert len(m) == 1
     sel = m.pop()
-    symbols = {'SORT': (1, sort), 'DIY': (2, diy), 'A1': (2, A['A1']), 'SELTEAMS': (2, sel), 'ARG_ID': (0, LEAGUE_SIG[0]),
+    symbols = {'DIY': (2, diy), 'A0': (2, A['A0']), 'SELTEAMS': (2, sel), 'ARG_ID': (0, LEAGUE_SIG[0]),
                'ARG_FILE': (0, FILE), 'CLAUSURA_NAME': (2, clausura)}
     code, fix = nasmcave.assemble(ASM, at, symbols)
     labels = nasmcave.labels(ASM, at, symbols)
@@ -112,7 +119,9 @@ def patch(p, area, str_base, at, site_b):
     p.put(1, at, code)
     for off, tobj, toff in fix:
         p.add_ptr(1, at + off, tobj, toff)
-    p.put(1, site + 1, struct.pack('<i', labels['arg_after'] - (site + 5)))     # relative call: no fixup
-    print(f'exe: Argentina Apertura/Clausura: struct obj2+{new:#x}, sort call obj1+{site:#x}, code obj1+{at:#x} '
+    p.remove(1, site + 2)                               # the replaced mov holds two absolute addresses
+    p.remove(1, site + 6)
+    p.put(1, site, b'\xe8' + struct.pack('<i', labels['arg_round'] - (site + 5)) + b'\x90' * 5)
+    print(f'exe: Argentina Apertura/Clausura: struct obj2+{new:#x}, counters obj1+{site:#x}, code obj1+{at:#x} '
           f'({len(code)} B)')
     return (at + len(code) + 15) & ~15

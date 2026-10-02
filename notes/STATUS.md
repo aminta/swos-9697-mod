@@ -1654,3 +1654,6 @@ MiSTer: new vhd/iso with 2.5), (e) Davide's ok before any push/release/announcem
   country 25's (14-byte header, rounds NSL 0x94 (two legs) + 0x14, NSSL 0x14 + 0x14, names 'NSL FINALS' / 'NSSL PLAYOFFS',
   4 placeholder clubs), candidate order [0,3,1,2] (1v4, 2v3), zero deltas (nobody moves), fixed draws (hist_draw DRAWS, ids C4/C5,
   4 and 2 clubs). fin_pre is a bare `ret` (DOUBLE_CHANCE = False); slot4_type not applied. FINALS = True in patch.py.
+- T26 PLAYTEST NSSL (Davide, NSSL18.CAR / NSSL18B.CAR, Waitakere City): at the end of the 18 rounds 'NSSL PLAYOFFS FINALE' appears in
+  the calendar (Waitakere reached the final), the season closes without a freeze, season 2 starts (same 10 clubs in division 0
+  of the cached records, nobody moved; regular-season draws show 'VINCE 5-3 AI RIG' lines). NSL (Australia) still to test.

@@ -1621,3 +1621,7 @@ New Zealand NSSL, MLS 1997. T25 PLAYTEST: Apertura champion in the record, OK (D
 Left for 2.5: (a) NSL/NSSL finals series (type-1 design) or declare them postponed; (b) test EN/FR/DE builds (only IT played);
 (c) docs (release notes, stable README IT+EN, manual chapters IT+EN, patcher via mkpatcher.py), (d) 12bit packages (eXoDOS +
 MiSTer: new vhd/iso with 2.5), (e) Davide's ok before any push/release/announcement.
+- T25 PLAYTEST (Davide screenshot): management record shows "CLAUSURA (AP: INDEPENDIEN)" / Posizione 2 / Supercopa / Coppa
+  Intercontinentale / Copa Libertadores: WORKS. Davide: "bellissimo tocco, evidenziamolo nella documentazione" -> in the release
+  notes, the stable README and the manual, give the Apertura-champion line its own highlighted paragraph WITH THIS SCREENSHOT
+  (River Plate record, 1996/97; the Apertura winner Independiente in brackets).

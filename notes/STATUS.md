@@ -1680,3 +1680,14 @@ Left for 2.5: (a) NSL/NSSL finals series (type-1 design) or declare them postpon
   105e69a2 8c1520eb a3eb3f59 bfe9137c), patcher 2.5, docs committed (65f44d1). In-game EN/FR/DE test: Davide.
 - Driving SWOS in DOSBox-X by computer use: full-screen tools, hold_key ~0.05-0.1 s (plain key presses are missed), arrows +
   left Ctrl = fire; Return in text fields.
+
+## NEXT (Davide, 2026-10-05): DDR 1988-89 as a historic "nation" (start after the weekly reset, Thu 8 Oct)
+- DDR-Oberliga 1988-89 (14 clubs, 26 rounds, 2 points a win) + FDGB-Pokal 1988-89 (real bracket from the round where all
+  Oberliga clubs enter; lower-league clubs still in it at that point included).
+- Own country number (free 92-99) + new TEAM file (14 Oberliga clubs + Pokal clubs), real squads (16 most-used players:
+  de.wikipedia, weltfussball.de, RSSSF; check SWOS 2020 community packs first).
+- Visible in the historic tourneys menu of Preset competitions AND in Season mode team choice (pick e.g. Dynamo Dresden, play
+  Oberliga + Pokal); NEVER in career. To verify first: how Season mode builds its world menu (hook like hist_preset) and how it
+  assigns European cups.
+- Option 3 chosen: start with DDR only; meanwhile look for a community 1988-89 database. If found: rebuild the 1988-89
+  European cups (CC, CWC, UEFA, ~120 clubs) so Season mode plays them too. No 1996-97 squads as stand-ins.

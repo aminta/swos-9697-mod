@@ -21,6 +21,7 @@ import c1c2
 import cafcups
 import countries
 import historic
+import ddr89
 import nsl97
 import nz97
 import finals97
@@ -183,7 +184,8 @@ def patch_exe(src, dst, remap, lang='it'):
     fin_end = finals97.rec_guard(p, fin_end)      # 2.5: season record of a club not in its cup (Perth Glory)
     fin_end = finals97.cal_rounds(p, fin_end)     # 2.5: NSL/NSSL play-offs: semi-finals AND final get dates
     world, lib_pre = lib97.patch(p, world, fin_pre)  # Libertadores 1997: bye, real calendar (hist_draw calls lib_pre)
-    world = historic.patch(p, lang, area, world, lib_pre)
+    world, ddr_league = ddr89.patch(p, lang, area, world)   # 2.6: DDR 1988-89 (season button, Oberliga + Pokal)
+    world = historic.patch(p, lang, area, world, lib_pre, [ddr_league])
     nz_end = nz97.shootout(p, NZ_CAVE)            # 2.1: NSSL shoot-out after every draw, +1 point to its winner
     arg_end = arg97.patch(p, area, sacups.STR_BASE, ARG_CAVE, nz97.SITE_B, os.path.join(ROOT, 'orig/DATA'))   # 2.1: Apertura / Clausura
     info = cafcups.career_info(caf)

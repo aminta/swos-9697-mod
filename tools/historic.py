@@ -84,6 +84,8 @@ import nsl97
 DRAWS += nsl97.DRAWS                                        # NSL Cup 1996-97 (2.1): fixed real bracket
 import finals97
 DRAWS += finals97.DRAWS                                     # NSL / NSSL finals series (2.1): keep the order
+import ddr89
+DRAWS += ddr89.DRAWS                                        # FDGB-Pokal 1988-89 (2.6): real bracket
 
 ASM = '''
 hist_draw:                              ; replaces `call cseg_27F08` in cseg_26DFC (A2 = DIY buffer, A3 = round)
@@ -241,6 +243,8 @@ def build_teams(src_dir):
     files[CLASSICS] = struct.pack('>H', len(recs)) + b''.join(recs)
     files[M34_FILE] = build_m34(src_dir)
     files[FA_FILE] = build_fa()
+    import ddr89
+    files[ddr89.FILE] = ddr89.build()                     # 2.6: DDR 1988-89 (Oberliga + FDGB-Pokal clubs)
     return files
 
 
@@ -503,7 +507,7 @@ def _draw_call(p):
     return [c for c, _ in sites], sites[0][1]
 
 
-def patch(p, lang, area, cave, draw_pre=None):
+def patch(p, lang, area, cave, draw_pre=None, leagues=()):
     """Register CLASSICS and the World Cup 1982; returns the new cave end."""
     d2 = p.le.obj_bytes(2)
     ct, tcn, _, _ = countries.tables(p)
@@ -579,7 +583,10 @@ def patch(p, lang, area, cave, draw_pre=None):
     p.put(1, at, blob)
     at = (at + len(blob) + 3) & ~3
 
-    table = at                                             # CLASSICS: [-2, WC82, M34, FA, -1] (cups only)
+    table = at                                             # CLASSICS: [leagues..., -2, WC82, M34, FA, -1]
+    for lg in leagues:                                     # obj1 offsets (DDR-Oberliga 1988-89)
+        p.add_ptr(1, at, 1, lg)
+        at += 4
     p.put(1, at, struct.pack('<i', -2))
     p.add_ptr(1, at + 4, 1, wc82)
     p.add_ptr(1, at + 8, 1, m34)

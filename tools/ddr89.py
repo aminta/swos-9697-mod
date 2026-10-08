@@ -178,3 +178,196 @@ POKAL_R2 = [
 # Schwerin-Neubrandenburg 1-0, Ludwigsfelde-Rotation 1-0, KMS-Dresden 2-1 aet, Stendal-Jena 0-2, Aue-Cottbus 3-0.
 # Quarter-finals: Union-BFC 0-2, Aue-Jena 3-1 aet, KMS-Ludwigsfelde 4-1, Schwerin-Erfurt 0-3.
 # Semi-finals: BFC-Erfurt 6-1, Aue-KMS 1-2. Final (Berlin): BFC-KMS 1-0.
+
+# --- TEAM.092 ---------------------------------------------------------------------------------------------------------
+import os
+import random
+import struct
+
+FILE = 92                       # country / team file number (free: 92..99)
+BASE = 1786                     # global numbers shared with the historic files (never in one contest, no career)
+TEAM_SIZE = 684
+GER = 13                        # nationality byte (Peppecapello's DDR players)
+SRC = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'orig', 'swos2020', 'x_1990_91', 'TEAM.010')
+
+# template record in Peppecapello's 1990-91 TEAM.010 (slots, roles, kit, base skills) and target average price byte
+# (p+32; his 1990-91 clubs average 12-21): champions and title contenders highest, DDR-Liga clubs lowest.
+TEMPLATE = {'dresden': 1, 'bfc': 10, 'kms': 4, 'rostock': 0, 'lok': 6, 'magdeburg': 9, 'aue': 11, 'jena': 5,
+            'halle': 3, 'cottbus': 12, 'brandenburg': 7, 'erfurt': 2, 'zwickau': 13, 'union': 8}
+TARGET = {'dresden': 21, 'bfc': 20, 'kms': 17, 'rostock': 17, 'lok': 18, 'magdeburg': 16, 'aue': 15, 'jena': 16,
+          'halle': 15, 'cottbus': 14, 'brandenburg': 14, 'erfurt': 14, 'zwickau': 12, 'union': 12}
+LOWER_TEMPLATES = (8, 11, 13)   # Eisenhüttenstadt, Sachsen Leipzig, Vorwärts Frankfurt (weakest 1990-91 clubs)
+LOWER_TARGET = 9
+# kits [type, shirt, shirt 2, shorts, socks] for clubs not in the 1990-91 file (else the template's): by colour
+# analogy with Peppecapello's kits (Aue violet ~ BFC wine, Zwickau and Union red/white ~ Erfurt)
+KITS = {'aue': 10, 'zwickau': 2, 'union': 2}
+
+FIRST = 'Andreas Thomas Frank Jens Uwe Ralf Steffen Dirk Matthias Torsten Olaf Heiko Michael Jörg'.split()
+LAST = 'Müller Schulz Lehmann Krüger Hoffmann Wagner Becker Richter Wolf Neumann Schwarz Zimmermann Braun Hartmann'.split()
+
+
+def _players(spec):
+    return [tuple(x.rsplit(':', 1)) for x in spec.split(';')]
+
+
+def build():
+    """TEAM.092: the 14 Oberliga clubs (ordinals 0..13, final-table order) and the 18 lower Pokal clubs (14..31)."""
+    import c1c2
+    d = open(SRC, 'rb').read()
+    src = [d[2 + k * TEAM_SIZE:2 + (k + 1) * TEAM_SIZE] for k in range(struct.unpack('>H', d[:2])[0])]
+    known = {}
+    for r in src:
+        for j in range(16):
+            p = r[76 + j * 38:76 + (j + 1) * 38]
+            known.setdefault(p[3:26].split(b'\0')[0].decode('latin1'), p)
+    rng = random.Random(1989)
+    used, recs, fillers, reused = set(), [], [], []
+    clubs = [(k, n, c, s, TEMPLATE[k], TARGET[k]) for k, n, c, s in OBERLIGA]
+    clubs += [(k, n, c, s, LOWER_TEMPLATES[i % 3], LOWER_TARGET) for i, (k, n, c, s) in enumerate(LOWER)]
+    for i, (key, name, coach, spec, tk, target) in enumerate(clubs):
+        t = src[tk]
+        r = bytearray(t)
+        r[0], r[1] = FILE, i
+        struct.pack_into('>H', r, 2, BASE + i)
+        r[5:22] = name.encode('latin1').ljust(17, b'\0')[:17]
+        if key in KITS:
+            r[26:36] = src[KITS[key]][26:36]
+        r[36:59] = c1c2.swos_name(coach).encode('latin1').ljust(23, b'\0')[:23] if coach else bytes(23)
+        avg = sum(t[76 + j * 38 + 32] for j in range(16)) / 16
+        step = max(-3, min(3, round((target - avg) / 2)))
+        pools = {c: [] for c in 'GDMA'}
+        for who, role in _players(spec):
+            pools[role].append(who)
+        borrow = {'G': 'G', 'D': 'DMA', 'M': 'MDA', 'A': 'AMD'}
+        for j in range(16):
+            p = 76 + j * 38
+            cls = c1c2.CLASS[t[p + 26] >> 5]
+            src_role = next((x for x in borrow[cls] if pools[x]), None)
+            who = pools[src_role].pop(0) if src_role else '?'
+            if who == '?':
+                while True:
+                    who = f'{rng.choice(FIRST)} {rng.choice(LAST)}'
+                    if c1c2.swos_name(who) not in known and who not in used:
+                        break
+                fillers.append((name, who))
+            used.add(who)
+            sname = c1c2.swos_name(who)
+            if sname in known and i < len(OBERLIGA):     # Oberliga player in Peppecapello's 1990-91 file: his record
+                q = bytearray(known[sname])
+                q[2] = t[p + 2]
+                q[26] = (q[26] & 0x1f) | (t[p + 26] & 0xe0)
+                r[p:p + 38] = q
+                reused.append(sname)
+            else:
+                r[p] = GER
+                r[p + 3:p + 26] = sname.encode('latin1').ljust(23, b'\0')[:23]
+                c1c2.level_player(r, p, step)
+        recs.append(bytes(r))
+    print(f'TEAM.{FILE:03d}: DDR 1988-89, {len(recs)} clubs, {len(reused)} players from the 1990-91 file, '
+          f'{len(fillers)} invented names: {fillers}')
+    return struct.pack('>H', len(recs)) + b''.join(recs)
+
+
+# --- exe ----------------------------------------------------------------------------------------------------------------
+LEAGUE_ID = 0xC6                # free contest ids (historic C1..C3, finals C4/C5)
+POKAL_ID = 0xC7
+GERMANY = 14                    # league/cup dates copied from Germany's (August..May)
+NAME = b'DDR 1988-89'           # country button (season menu); every language
+LEAGUE_NAMES = (b'OBERLIGA 1988-89', b'OBERLIGA')
+POKAL_NAMES = (b'FDGB-POKAL 1988-89', b'FDGB-POKAL')
+AU_CUP_SIG = bytes((0xAD, 1, 0x2C, 0x28, 0x50))   # SWOS's Australian cup (32 clubs, 5 rounds): layout of the Pokal
+POKAL_ROUNDS = (0x54, 0x54, 0x54, 0x54, 0x14)     # single matches with extra time and penalties; the final
+_ORD = {k: i for i, k in enumerate([c[0] for c in OBERLIGA] + [c[0] for c in LOWER])}
+# fixed pairings (historic.DRAWS): keep the order, except the quarter-finals (Union-BFC, Schwerin-Erfurt, Aue-Jena,
+# KMS-Ludwigsfelde with the real home clubs; then BFC-Erfurt and Aue-KMS, final BFC-KMS)
+DRAWS = [(POKAL_ID, list(range(32))), (POKAL_ID, list(range(16))), (POKAL_ID, [1, 0, 3, 2, 7, 6, 5, 4]),
+         (POKAL_ID, list(range(4))), (POKAL_ID, [0, 1])]
+
+SEASON_ASM = '''
+ddr_season:                             ; replaces `call SelectTeamsFinalMenu` in the season team selector
+    push dword [COMP254]
+    mov dword [COMP254], WORLD_SEASON
+    call SELECT
+    pop dword [COMP254]
+    ret
+'''
+
+
+def patch(p, lang, area, cave):
+    """Country 92 'DDR 1988-89': Oberliga 1988-89 (league) + FDGB-Pokal 1988-89 (cup); the season team selector gets
+    a world table with the DDR button. Returns (cave end, obj1 offset of the Oberliga struct for the CLASSICS table)."""
+    import countries
+    import historic
+    import nasmcave
+    import sacups
+    d2 = p.le.obj_bytes(2)
+    ct, tcn, _, _ = countries.tables(p)
+    comp = countries.COMP[0]
+    fx2 = {f[1] for f in p.le.fixups() if f[0] == 2}
+    assert ct + 4 * FILE not in fx2 and comp + 4 * FILE not in fx2
+    rec = area.add(bytes((countries.CONTINENT['europe'],)) + NAME + b'\0' + NAME + b'\0')
+    p.add_ptr(2, ct + 4 * FILE, 2, rec)
+    p.put(2, tcn + 2 * FILE, struct.pack('<H', BASE))
+
+    gobj, gtab = p.target(2, comp + 4 * GERMANY)
+    gd = p.le.obj_bytes(gobj)
+    lobj, glg = p.target(gobj, gtab)
+    lg = p.le.obj_bytes(lobj)[glg:glg + 13]
+    assert lg[2] == GERMANY, lg.hex()
+    names = [area.add(s + b'\0') - sacups.STR_BASE for s in LEAGUE_NAMES]
+    hdr = bytes((LEAGUE_ID, 0, FILE, lg[3], lg[4], 9 + 6, 0, 0, 0, 1, 2, 2, 0x35))   # 1 division, 2 games, 2 points
+    body = hdr + bytes((len(OBERLIGA), 0, 0, 2, 0, 0)) + b'\0' + struct.pack('<II', *names)   # 2 relegated
+    at = cave
+    league = at
+    p.put(1, at, body)
+    at = (at + len(body) + 3) & ~3
+
+    lo = d2.find(AU_CUP_SIG)
+    assert lo >= 0 and d2.count(AU_CUP_SIG) == 1
+    cup = bytearray(d2[lo:lo + 14])
+    assert cup[10] == 32 and cup[7] == 0 and cup[5] == 0 and d2[lo + 14 + 5] == 0
+    k = 8
+    while struct.unpack_from('<i', gd, gtab + k - 4)[0] != -2:
+        k += 4
+    cobj, gcup = p.target(gobj, gtab + k)
+    gc = p.le.obj_bytes(cobj)[gcup:gcup + 5]
+    cup[0], cup[2], cup[3], cup[4] = POKAL_ID, FILE, gc[3], gc[4]
+    cup += bytes(POKAL_ROUNDS) + b'\0'
+    cup[5] = len(cup) - 5
+    cup[7] = len(cup) + 8 - 7
+    pn = [area.add(s + b'\0') - sacups.STR_BASE for s in POKAL_NAMES]
+    teams = [_ORD[x] for tie in POKAL_R2 for x in tie]
+    assert sorted(teams) == list(range(32))
+    body = bytes(cup) + struct.pack('<II', *pn) + b''.join(bytes((FILE, t)) for t in teams)
+    pokal = at
+    p.put(1, at, body)
+    at = (at + len(body) + 3) & ~3
+
+    table = at                                  # [Oberliga, -2, Pokal, -1]
+    p.add_ptr(1, at, 1, league)
+    p.put(1, at + 4, struct.pack('<i', -2))
+    p.add_ptr(1, at + 8, 1, pokal)
+    p.put(1, at + 12, struct.pack('<i', -1))
+    at += 16
+    p.add_ptr(2, comp + 4 * FILE, 1, table)
+
+    wobj, world = p.target(2, comp + 4 * 254)   # season world table: the game's + DDR
+    wd = p.le.obj_bytes(wobj)
+    conts = wd[world + 8:wd.index(b'\xff', world + 8)]
+    wseason = at
+    p.add_ptr(1, at, *p.target(wobj, world))
+    p.put(1, at + 4, b'\xff' * 4 + conts + bytes((FILE, 0xff)))
+    at = (at + 8 + len(conts) + 2 + 3) & ~3
+
+    _, season_call, select = historic._calls(p)
+    symbols = {'COMP254': (2, comp + 4 * 254), 'WORLD_SEASON': (1, wseason), 'SELECT': (1, select)}
+    code, fix = nasmcave.assemble(SEASON_ASM, at, symbols)
+    labels = nasmcave.labels(SEASON_ASM, at, symbols)
+    p.put(1, at, code)
+    for off, tobj, toff in fix:
+        p.add_ptr(1, at + off, tobj, toff)
+    p.put(1, season_call + 1, struct.pack('<i', labels['ddr_season'] - (season_call + 5)))
+    at = (at + len(code) + 3) & ~3
+    print(f'exe: DDR 1988-89 = country {FILE}: Oberliga id {LEAGUE_ID:#x} @ obj1+{league:#x} (dates {lg[3]:#x}/{lg[4]:#x}), '
+          f'FDGB-Pokal id {POKAL_ID:#x} @ obj1+{pokal:#x}, season call obj1+{season_call:#x} -> obj1+{labels["ddr_season"]:#x}')
+    return at, league

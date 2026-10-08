@@ -184,8 +184,10 @@ import os
 import random
 import struct
 
-FILE = 92                       # country / team file number (free: 92..99)
-BASE = 1786                     # global numbers shared with the historic files (never in one contest, no career)
+FILE = 92                       # country / team file number (free: 92..99): the 14 Oberliga clubs
+FILE2 = 93                      # the 18 lower clubs of the FDGB-Pokal (no league: the country's team count must match its league)
+BASE = 1786                     # global numbers 1786..1799 (92) and 1800..1817 (93)
+BASE2 = BASE + 14
 TEAM_SIZE = 684
 GER = 13                        # nationality byte (Peppecapello's DDR players)
 SRC = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'orig', 'swos2020', 'x_1990_91', 'TEAM.010')
@@ -227,8 +229,10 @@ def build():
     for i, (key, name, coach, spec, tk, target) in enumerate(clubs):
         t = src[tk]
         r = bytearray(t)
-        r[0], r[1] = FILE, i
+        lo = i >= len(OBERLIGA)
+        r[0], r[1] = (FILE2, i - len(OBERLIGA)) if lo else (FILE, i)
         struct.pack_into('>H', r, 2, BASE + i)
+        r[25] = 0
         r[5:22] = name.encode('latin1').ljust(17, b'\0')[:17]
         if key in KITS:
             r[26:36] = src[KITS[key]][26:36]
@@ -263,9 +267,10 @@ def build():
                 r[p + 3:p + 26] = sname.encode('latin1').ljust(23, b'\0')[:23]
                 c1c2.level_player(r, p, step)
         recs.append(bytes(r))
-    print(f'TEAM.{FILE:03d}: DDR 1988-89, {len(recs)} clubs, {len(reused)} players from the 1990-91 file, '
+    print(f'TEAM.{FILE:03d}/{FILE2:03d}: DDR 1988-89, {len(recs)} clubs, {len(reused)} players from the 1990-91 file, '
           f'{len(fillers)} invented names: {fillers}')
-    return struct.pack('>H', len(recs)) + b''.join(recs)
+    n = len(OBERLIGA)
+    return {FILE: struct.pack('>H', n) + b''.join(recs[:n]), FILE2: struct.pack('>H', len(recs) - n) + b''.join(recs[n:])}
 
 
 # --- exe ----------------------------------------------------------------------------------------------------------------
@@ -285,10 +290,10 @@ DRAWS = [(POKAL_ID, list(range(32))), (POKAL_ID, list(range(16))), (POKAL_ID, [1
 
 SEASON_ASM = '''
 ddr_season:                             ; replaces `call SelectTeamsFinalMenu` in the season team selector
-    push dword [COMP254]
-    mov dword [COMP254], WORLD_SEASON
+    push dword [COMP80]
+    mov dword [COMP80], EUROPE_SEASON
     call SELECT
-    pop dword [COMP254]
+    pop dword [COMP80]
     ret
 '''
 
@@ -308,6 +313,11 @@ def patch(p, lang, area, cave):
     rec = area.add(bytes((countries.CONTINENT['europe'],)) + NAME + b'\0' + NAME + b'\0')
     p.add_ptr(2, ct + 4 * FILE, 2, rec)
     p.put(2, tcn + 2 * FILE, struct.pack('<H', BASE))
+    # a country's team count = base of the next country - its own base: 93 must start after our 32 clubs
+    assert ct + 4 * FILE2 not in fx2 and comp + 4 * FILE2 not in fx2
+    p.add_ptr(2, ct + 4 * FILE2, 2, rec)                # a club's country is never null
+    p.put(2, tcn + 2 * FILE2, struct.pack('<H', BASE2))
+    p.put(2, tcn + 2 * (FILE2 + 1), struct.pack('<H', BASE + len(OBERLIGA) + len(LOWER)))
 
     gobj, gtab = p.target(2, comp + 4 * GERMANY)
     gd = p.le.obj_bytes(gobj)
@@ -338,7 +348,7 @@ def patch(p, lang, area, cave):
     pn = [area.add(s + b'\0') - sacups.STR_BASE for s in POKAL_NAMES]
     teams = [_ORD[x] for tie in POKAL_R2 for x in tie]
     assert sorted(teams) == list(range(32))
-    body = bytes(cup) + struct.pack('<II', *pn) + b''.join(bytes((FILE, t)) for t in teams)
+    body = bytes(cup) + struct.pack('<II', *pn) + b''.join(bytes((FILE, t) if t < len(OBERLIGA) else (FILE2, t - len(OBERLIGA))) for t in teams)
     pokal = at
     p.put(1, at, body)
     at = (at + len(body) + 3) & ~3
@@ -351,16 +361,26 @@ def patch(p, lang, area, cave):
     at += 16
     p.add_ptr(2, comp + 4 * FILE, 1, table)
 
-    wobj, world = p.target(2, comp + 4 * 254)   # season world table: the game's + DDR
-    wd = p.le.obj_bytes(wobj)
-    conts = wd[world + 8:wd.index(b'\xff', world + 8)]
-    wseason = at
-    p.add_ptr(1, at, *p.target(wobj, world))
-    p.put(1, at + 4, b'\xff' * 4 + conts + bytes((FILE, 0xff)))
-    at = (at + 8 + len(conts) + 2 + 3) & ~3
+    # Season: the DDR is one more country of EUROPE (a single-league country goes straight to its teams). The stub swaps
+    # competitionsTable[80] (Europe) for a copy + country 92 while the season selector runs.
+    eobj, eoff = p.target(2, comp + 4 * 80)
+    ed = p.le.obj_bytes(eobj)
+    fxe = {f[1]: (f[3], f[4]) for f in p.le.fixups() if f[0] == eobj}
+    k = 0
+    while struct.unpack_from('<i', ed, eoff + 4 * k)[0] != -1:
+        k += 1
+    countries_eu = ed[eoff + 4 * k + 4:ed.index(b'\xff', eoff + 4 * k + 4)]
+    europe = at
+    for j in range(k):
+        if eoff + 4 * j in fxe:
+            p.add_ptr(1, at + 4 * j, *fxe[eoff + 4 * j])
+        else:
+            p.put(1, at + 4 * j, ed[eoff + 4 * j:eoff + 4 * j + 4])
+    p.put(1, at + 4 * k, b'\xff' * 4 + countries_eu + bytes((FILE, 0xff)))
+    at = (at + 4 * k + 4 + len(countries_eu) + 2 + 3) & ~3
 
     _, season_call, select = historic._calls(p)
-    symbols = {'COMP254': (2, comp + 4 * 254), 'WORLD_SEASON': (1, wseason), 'SELECT': (1, select)}
+    symbols = {'COMP80': (2, comp + 4 * 80), 'EUROPE_SEASON': (1, europe), 'SELECT': (1, select)}
     code, fix = nasmcave.assemble(SEASON_ASM, at, symbols)
     labels = nasmcave.labels(SEASON_ASM, at, symbols)
     p.put(1, at, code)

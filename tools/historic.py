@@ -244,7 +244,7 @@ def build_teams(src_dir):
     files[M34_FILE] = build_m34(src_dir)
     files[FA_FILE] = build_fa()
     import ddr89
-    files[ddr89.FILE] = ddr89.build()                     # 2.6: DDR 1988-89 (Oberliga + FDGB-Pokal clubs)
+    files.update(ddr89.build())                           # 2.6: DDR 1988-89: TEAM.092 Oberliga, TEAM.093 Pokal-only clubs
     return files
 
 

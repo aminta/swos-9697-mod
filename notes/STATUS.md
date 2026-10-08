@@ -1758,3 +1758,11 @@ Left for 2.5: (a) NSL/NSSL finals series (type-1 design) or declare them postpon
   (STAG. STORICHE / CLASSIC SEASONS / SAISONS D'ANTAN / SAISONKLASSIKER, purple like CLASSICS via historic.hist_names);
   comp[97] = [-1] + 92 + FF; SelectTeamsFinalMenu continent check `cmp word [D7], 85; ja` retargeted to cont_check (97 = continent).
   DDR removed from Europe. Future historic seasons of any continent go into country list 97.
+
+## Release 2.6 PUBLISHED (2026-10-08, Davide's explicit ok)
+- github.com/aminta/swos-9697-mod/releases/tag/v2.6 (patcher 2.6: TEAM.092-096, upgrades from 1.0-2.5.1; old patchers in
+  orig/old-patchers incl. 2.5.1; mkpatcher.old_outputs skips 'from' entries). Manual artifacts IT v11 / EN v12 republished.
+- Builds: IT 9881320f EN 91db0f53 FR 5b853944 DE 0fefe711; GOG 857b124c 75519c3e 81d6420c 3639f21b.
+- Hex manual (internal): chapter 17 'La 2.6' added; the live artifact had been edited in another session (chapter 2 fixups
+  rewrite + 2 glossary entries): those parts now come from internal/manuale-hex/parts/*.html (build.py reads them).
+  Artifact republish pending (needs a full read of the 436 KB live version).

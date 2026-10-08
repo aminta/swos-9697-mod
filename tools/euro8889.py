@@ -22,6 +22,12 @@ import os
 import random
 import re
 import struct
+
+
+def _sn(s):
+    """c1c2.swos_name with the German sharp s kept as SS (NFKD would drop it)."""
+    import c1c2
+    return c1c2.swos_name(s.replace('ß', 'ss'))
 import unicodedata
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -219,7 +225,7 @@ def build_teams():
             r[5:22] = sname.encode('latin1').ljust(17, b'\0')
             r[25] = 0
             coach = co.get((cup, SLUG_OF[(cup, name)]), '')
-            r[36:59] = c1c2.swos_name(coach).encode('latin1').ljust(23, b'\0')[:23] if coach else bytes(23)
+            r[36:59] = _sn(coach).encode('latin1').ljust(23, b'\0')[:23] if coach else bytes(23)
             pools = {c: [] for c in 'GDMA'}
             for who, role in sq[(cup, name)]:
                 pools['M' if role == 'T' else role].append('?' if role == 'T' else who)
@@ -234,7 +240,7 @@ def build_teams():
                 if who == '?':                              # no name: a player of the country from the game
                     q = bytearray(rng.choice(filler))
                 else:
-                    pname = c1c2.swos_name(who)
+                    pname = _sn(who)
                     if pname in known:
                         q = bytearray(known[pname])
                         reused += 1

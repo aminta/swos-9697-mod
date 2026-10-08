@@ -184,6 +184,12 @@ import os
 import random
 import struct
 
+
+def _sn(s):
+    """c1c2.swos_name with the German sharp s kept as SS (NFKD would drop it)."""
+    import c1c2
+    return c1c2.swos_name(s.replace('ß', 'ss'))
+
 FILE = 92                       # country / team file number (free: 92..99): the 14 Oberliga clubs
 FILE2 = 93                      # the 18 lower clubs of the FDGB-Pokal (no league: the country's team count must match its league)
 BASE = 1786                     # global numbers 1786..1799 (92) and 1800..1817 (93)
@@ -236,7 +242,7 @@ def build():
         r[5:22] = name.encode('latin1').ljust(17, b'\0')[:17]
         if key in KITS:
             r[26:36] = src[KITS[key]][26:36]
-        r[36:59] = c1c2.swos_name(coach).encode('latin1').ljust(23, b'\0')[:23] if coach else bytes(23)
+        r[36:59] = _sn(coach).encode('latin1').ljust(23, b'\0')[:23] if coach else bytes(23)
         avg = sum(t[76 + j * 38 + 32] for j in range(16)) / 16
         step = max(-3, min(3, round((target - avg) / 2)))
         pools = {c: [] for c in 'GDMA'}
@@ -251,11 +257,11 @@ def build():
             if who == '?':
                 while True:
                     who = f'{rng.choice(FIRST)} {rng.choice(LAST)}'
-                    if c1c2.swos_name(who) not in known and who not in used:
+                    if _sn(who) not in known and who not in used:
                         break
                 fillers.append((name, who))
             used.add(who)
-            sname = c1c2.swos_name(who)
+            sname = _sn(who)
             if sname in known and i < len(OBERLIGA):     # Oberliga player in Peppecapello's 1990-91 file: his record
                 q = bytearray(known[sname])
                 q[2] = t[p + 2]

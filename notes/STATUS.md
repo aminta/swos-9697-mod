@@ -1754,3 +1754,7 @@ Left for 2.5: (a) NSL/NSSL finals series (type-1 design) or declare them postpon
   short cup names (COPPA COPPE...), names <= 16 chars, ß -> SS. All 4 languages + GOG built.
 - NEXT: release 2.6 (docs IT/EN chapter + README + notes, patcher with TEAM.092..096 and the incremental update, MGLs,
   internal packages) only with Davide's ok. Credits: weltfussball.de, de/en.wikipedia, SWOS 2020 teamdb 1990-91 by Peppecapello.
+- CLASSIC SEASONS (Davide's request, tested OK 2026-10-08): Season menu world table = world + continents + 97
+  (STAG. STORICHE / CLASSIC SEASONS / SAISONS D'ANTAN / SAISONKLASSIKER, purple like CLASSICS via historic.hist_names);
+  comp[97] = [-1] + 92 + FF; SelectTeamsFinalMenu continent check `cmp word [D7], 85; ja` retargeted to cont_check (97 = continent).
+  DDR removed from Europe. Future historic seasons of any continent go into country list 97.

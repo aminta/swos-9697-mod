@@ -284,6 +284,9 @@ LEAGUE_ID = 0xC6                # free contest ids (historic C1..C3, finals C4/C
 POKAL_ID = 0xC7
 GERMANY = 14                    # league/cup dates copied from Germany's (August..May)
 NAME = b'DDR 1988-89'           # country button (season menu); every language
+SEASONS = 97                    # pseudo-continent 'classic seasons' of the Season menu (continent range check extended)
+SEASONS_NAMES = {'it': b'STAG. STORICHE', 'en': b'CLASSIC SEASONS', 'fr': b"SAISONS D'ANTAN", 'de': b'SAISONKLASSIKER'}
+SEASONS_REC = [None]            # obj2 offset of its countriesTable record (historic.hist_names colours the button)
 LEAGUE_NAMES = (b'OBERLIGA 1988-89', b'OBERLIGA')
 POKAL_NAMES = (b'FDGB-POKAL 1988-89', b'FDGB-POKAL')
 AU_CUP_SIG = bytes((0xAD, 1, 0x2C, 0x28, 0x50))   # SWOS's Australian cup (32 clubs, 5 rounds): layout of the Pokal
@@ -296,11 +299,16 @@ DRAWS = [(POKAL_ID, list(range(32))), (POKAL_ID, list(range(16))), (POKAL_ID, [1
 
 SEASON_ASM = '''
 ddr_season:                             ; replaces `call SelectTeamsFinalMenu` in the season team selector
-    push dword [COMP80]
-    mov dword [COMP80], EUROPE_SEASON
+    push dword [COMP254]
+    mov dword [COMP254], EUROPE_SEASON
     call SELECT
-    pop dword [COMP80]
+    pop dword [COMP254]
     ret
+
+cont_check:                             ; ja target of `cmp word [D7], 85`: 97 (classic seasons) is a continent too
+    cmp word [D7REG], SEASONS_N
+    je CONT_WORLD
+    jmp CONT_LAST
 '''
 
 
@@ -375,23 +383,32 @@ def patch(p, lang, area, cave):
     at += 20
     p.add_ptr(2, comp + 4 * FILE, 1, table)
 
-    # Season: the DDR is one more country of EUROPE (a single-league country goes straight to its teams). The stub swaps
-    # competitionsTable[80] (Europe) for a copy + country 92 while the season selector runs.
-    eobj, eoff = p.target(2, comp + 4 * 80)
-    ed = p.le.obj_bytes(eobj)
-    fxe = {f[1]: (f[3], f[4]) for f in p.le.fixups() if f[0] == eobj}
-    k = 0
-    while struct.unpack_from('<i', ed, eoff + 4 * k)[0] != -1:
-        k += 1
-    countries_eu = ed[eoff + 4 * k + 4:ed.index(b'\xff', eoff + 4 * k + 4)]
-    europe = at
-    for j in range(k):
-        if eoff + 4 * j in fxe:
-            p.add_ptr(1, at + 4 * j, *fxe[eoff + 4 * j])
-        else:
-            p.put(1, at + 4 * j, ed[eoff + 4 * j:eoff + 4 * j + 4])
-    p.put(1, at + 4 * k, b'\xff' * 4 + countries_eu + bytes((FILE, 0xff)))
-    at = (at + 4 * k + 4 + len(countries_eu) + 2 + 3) & ~3
+    # Season: a CLASSIC SEASONS button after the continents (pseudo-continent 97: [-1] + its countries + FF; the game
+    # reads a country list only for numbers 80..85, so that check also accepts 97). The season selector runs on a
+    # world table [worldCup, -1] + continents + 97, swapped in like historic.hist_preset.
+    assert ct + 4 * SEASONS not in fx2 and comp + 4 * SEASONS not in fx2
+    srec = area.add(bytes((countries.CONTINENT['europe'],)) + SEASONS_NAMES[lang] + b'\0' + SEASONS_NAMES[lang] + b'\0')
+    SEASONS_REC[0] = srec
+    p.add_ptr(2, ct + 4 * SEASONS, 2, srec)
+    stab = at
+    p.put(1, at, struct.pack('<i', -1) + bytes((FILE, 0xff)))
+    at = (at + 6 + 3) & ~3
+    p.add_ptr(2, comp + 4 * SEASONS, 1, stab)
+    wobj, world = p.target(2, comp + 4 * 254)
+    wd = p.le.obj_bytes(wobj)
+    conts = wd[world + 8:wd.index(b'\xff', world + 8)]
+    europe = at                                 # (name kept for the symbol below) = the season world table
+    p.add_ptr(1, at, *p.target(wobj, world))
+    p.put(1, at + 4, b'\xff' * 4 + conts + bytes((SEASONS, 0xff)))
+    at = (at + 8 + len(conts) + 2 + 3) & ~3
+    # continent range check in SelectTeamsFinalMenu: cmp word [D7], 85 (CN_OCEANIA); ja last -> ja cont_check
+    import re as _re
+    d1 = p.le.obj_bytes(1)
+    d7 = sacups.regs(d1)['D7']
+    ms = [m.start() for m in _re.finditer(rb'\x66\x83\x3d' + _re.escape(struct.pack('<I', d7)) + rb'\x55\x0f\x87', d1)]
+    assert len(ms) == 1, ms
+    ja = ms[0] + 8
+    last = ja + 6 + struct.unpack_from('<i', d1, ja + 2)[0]
 
     _, season_call, select = historic._calls(p)
     site, skip, comp_cn, sel, num, r = euro8889.hook_sites(p)
@@ -400,7 +417,8 @@ def patch(p, lang, area, cave):
         emap[_ORD[key]] = euro8889.CUP_INDEX[cup]
     if os.environ.get('EURO_ALWAYS') == '1':           # test build: every DDR club gets the Cup Winners' Cup
         emap = bytearray([2] * 14)
-    symbols = {'COMP80': (2, comp + 4 * 80), 'EUROPE_SEASON': (1, europe), 'SELECT': (1, select),
+    symbols = {'COMP254': (2, comp + 4 * 254), 'EUROPE_SEASON': (1, europe), 'SELECT': (1, select),
+               'D7REG': (2, d7), 'SEASONS_N': (0, SEASONS), 'CONT_WORLD': (1, ja + 6), 'CONT_LAST': (1, last),
                'A0': (2, r['A0']), 'COMPCOUNTRY': (2, comp_cn), 'SELTEAMS': (2, sel), 'NUMSEL': (2, num),
                'DDR_FILE': (0, FILE), 'SKIP_SLOT2': (1, skip), 'MAP_BYTES': (0, 'db ' + ', '.join(map(str, emap))),
                'CUP_CC': (1, cups['cc']), 'CUP_CWC': (1, cups['cwc']), 'CUP_UEFA': (1, cups['uefa'])}
@@ -414,6 +432,7 @@ def patch(p, lang, area, cave):
     for off, tobj, toff in fix:
         p.add_ptr(1, at + off, tobj, toff)
     p.put(1, season_call + 1, struct.pack('<i', labels['ddr_season'] - (season_call + 5)))
+    p.put(1, ja + 2, struct.pack('<i', labels['cont_check'] - (ja + 6)))
     p.remove(1, site + 1)                                # `mov [A0], eax`: drop the fixup of its address operand
     p.put(1, site, b'\xe8' + struct.pack('<i', labels['euro_slot2'] - (site + 5)))
     at = (at + len(code) + 3) & ~3

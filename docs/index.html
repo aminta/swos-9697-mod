@@ -102,8 +102,9 @@ html{scroll-behavior:smooth}
     <li><a href="#nazioni">19 · New countries and continental club cups (1.1–1.2)</a></li>
     <li><a href="#storici">20 · Classic tourneys (2.0)</a></li>
     <li><a href="#oceania">21 · Argentina, Oceania and MLS (2.5)</a></li>
-    <li><a href="#limiti">22 · Limits and open issues</a></li>
-    <li><a href="#storia">23 · History and next steps</a></li>
+    <li><a href="#ddr">22 · Classic seasons: the DDR 1988-89 (2.6)</a></li>
+    <li><a href="#limiti">23 · Limits and open issues</a></li>
+    <li><a href="#storia">24 · History and next steps</a></li>
   </ol>
 </nav>
 
@@ -111,9 +112,9 @@ html{scroll-behavior:smooth}
 <header class="top">
   <div class="eyebrow">Sensible World of Soccer 96/97 · DOS · ENGLISH.EXE · <a class="lang" href="it.html">Versione italiana</a></div>
   <h1>SWOS ITA Mod Technical Manual</h1>
-  <p>Documentation for anyone who wants to understand, extend or port the mod's patches: Serie C1 and C2, South American club cups (Libertadores, Supercopa, CONMEBOL), the Intercontinental Cup in career mode, real 1996-97 squads, classic tourneys (World Cup 1982, Mitropa Cup 1934, FA Cup 1871-72), Argentina's Apertura and Clausura, Australia, New Zealand and MLS 1997 (2.5). Everything below was worked out from the disassembly and checked with builds and test games.</p>
+  <p>Documentation for anyone who wants to understand, extend or port the mod's patches: Serie C1 and C2, South American club cups (Libertadores, Supercopa, CONMEBOL), the Intercontinental Cup in career mode, real 1996-97 squads, classic tourneys (World Cup 1982, Mitropa Cup 1934, FA Cup 1871-72), Argentina's Apertura and Clausura, Australia, New Zealand and MLS 1997 (2.5), classic seasons with the DDR 1988-89 and that year's European cups (2.6). Everything below was worked out from the disassembly and checked with builds and test games.</p>
   <div class="meta">
-    <span>State as of <b>2026-10-02</b> (sessions 1–28, release 2.5)</span>
+    <span>State as of <b>2026-10-08</b> (sessions 1–29, release 2.6)</span>
     <span>ENGLISH.EXE build <b><code>d9d521d6…</code></b></span>
     <span>TEAM.020 <b><code>ded1b97b…</code></b></span>
     <span>Original ENGLISH.EXE <b><code>aa21cd1c…</code></b></span>
@@ -555,7 +556,18 @@ assert blk[:2] == b'S2' and sum(blk) % 256 == 0</code></pre>
 </ul>
 
 <!-- 22 -->
-<h2 id="limiti"><span class="n">22</span>Limits and open issues</h2>
+<h2 id="ddr"><span class="n">22</span>Classic seasons: the DDR 1988-89 (2.6)</h2>
+<p><em>Do you want to take charge of a club of the 1988-89 East German Oberliga and try to win the league, the national cup and the European cup your club qualified for? Now you can!</em> Code in <code>ddr89.py</code> (DDR, menu, Season hook), <code>euro8889.py</code> + <code>euro8889.json</code>, <code>euro8889_squads.txt</code>, <code>euro8889_coaches.txt</code> (European cups), with small additions to <code>historic.py</code>, <code>lib97.py</code> and <code>patch.py</code>.</p>
+<ul>
+<li><strong>Clubs.</strong> TEAM.092 = the 14 Oberliga clubs (final table order), TEAM.093 = the 18 lower FDGB-Pokal clubs, TEAM.094/095/096 = the foreign clubs of the 1988-89 European Cup, Cup Winners' Cup and UEFA Cup. A single-league country must have exactly as many clubs as its league (a country's club count is <code>teamsCountryNumbers</code>[n+1] − [n]): that is why the cup-only clubs live in a separate file. Global numbers: DDR 1786–1817; the European cups use 1850.. like Italy, which is never in a DDR season.</li>
+<li><strong>Countries and contests.</strong> Country 92 "DDR 1988-89" with table [Oberliga, −2, Pokal, cup, −1]. Oberliga: 1 division of 14, home and away, 2 points a win, 2 relegated (id C6). Pokal: the Australian cup's layout (32 clubs, 5 single-match rounds with extra time and penalties, id C7), fixed bracket via <code>historic.DRAWS</code>. European cups: the game's Cup Winners' Cup layout (ids C8/C9/CA), fixed lists and one fixed draw per round: the real bracket. Holders PSV skip round 1 of the European Cup like the FA Cup bye club (<code>lib_bye</code>/<code>lib_pre</code>).</li>
+<li><strong>European cup in slot 2.</strong> <code>InitNewSeason</code> loads slot 2 from the country table's third entry; <code>euro_slot2</code> replaces the <code>mov [A0], eax</code> before it (IT obj1+0x7B04F): it looks among the selected clubs for the first DDR club not controlled by the computer (<code>teamControls</code> ≠ 1) and gives it its cup (BFC → European Cup, Jena → Cup Winners' Cup, Dresden and Leipzig → UEFA Cup); if there is none, slot 2 stays empty.</li>
+<li><strong>CLASSIC SEASONS.</strong> The Season selector runs on a world table [World Cup, −1] + continents + 97 (pseudo-continent, name per language, purple like CLASSIC TOURNEYS via <code>hist_names</code>); table 97 is [−1] + 92 + FF. The game reads a country list only for numbers 80–85: the <code>ja</code> after <code>cmp word [D7], 85</code> in <code>SelectTeamsFinalMenu</code> goes through <code>cont_check</code>, which also accepts 97. Future classic seasons are added to list 97.</li>
+<li><strong>Squads.</strong> Oberliga: the 16 players with most minutes (weltfussball.de), ratings from the SWOS 2020 database "1990_91 - Team Updates" by Peppecapello when the player is there. Cups: 1988-89 squads from weltfussball.de (league minutes, else cup minutes); template = the same club's record in the 1996-97 game when it exists; players already in the game keep their record. ß becomes SS in names.</li>
+</ul>
+
+<!-- 23 -->
+<h2 id="limiti"><span class="n">23</span>Limits and open issues</h2>
 <ul>
 <li><strong>Play-offs (2.5).</strong> NSL Finals and NSSL Playoffs are top-4 knockouts: the real formats (NSL: 6 clubs; both: a "double chance" for the top two) need per-round control of the entrants, i.e. a type-2 contest in slot 4, whose buffer (443h) is too small. Kept for a future version (<code>finals97.py</code>, option A). The regular-season winner that loses the play-off still shows a small icon at the top of its season record (not yet traced in the code).</li>
 <li><strong>C1/C2 groups.</strong> In 1996-97 C1 had 2 groups and C2 had 3. The mod uses one group per series. The full reality (128 teams) does not fit the limit of about 93 teams per nation. C1 with two groups would fit (92), but it needs promotions and relegations between parallel divisions, and checks on the 80-team career limit and on global numbers: estimated 2–3 sessions.</li>
@@ -568,8 +580,8 @@ assert blk[:2] == b'S2' and sum(blk) % 256 == 0</code></pre>
 <li><strong>English bench (after 1.0).</strong> In the pre-match line-up English clubs show 14 players (11 + 3 on the bench). The original game does the same, and <code>TEAM.008</code> has 16 players per club: it is a game rule. To do: find where the bench size comes from (rules at buffer +3Dh…41h, values 5/2/8 set by <code>InitCareer</code>) and raise it to 5.</li>
 </ul>
 
-<!-- 22 -->
-<h2 id="storia"><span class="n">23</span>History and next steps</h2>
+<!-- 24 -->
+<h2 id="storia"><span class="n">24</span>History and next steps</h2>
 <div class="tbl"><table>
 <thead><tr><th>Session</th><th>Content</th><th>Test</th></tr></thead>
 <tbody>
@@ -588,6 +600,7 @@ assert blk[:2] == b'S2' and sum(blk) % 256 == 0</code></pre>
 <tr><td>26</td><td>Classic tourneys: World Cup 1982 (real formula, 4 groups of 3), Mitropa Cup 1934, FA Cup 1871-72 (bye, replays, drawing lots); squads from SWOS 2020 DLCs and period sources</td><td><span class="pill ok">passed</span></td></tr>
 <tr><td>27</td><td>Copa Libertadores with the real 1997 format: holder straight into the round of 16, real group calendar and bracket, no away goals or extra time, two-leg final; trailer 'C6'</td><td><span class="pill ok">passed (preset, career, saves)</span></td></tr>
 <tr><td>28</td><td>Argentina Apertura/Clausura with aggregate table and promedio; Australia NSL 1996-97 with NSL Cup and NSL Finals; New Zealand NSSL with shoot-out bonus point and play-offs; MLS 1997; play-off final scheduled (rounds count fix); season record: play-off winner = champion, club missing from its cup; trailer 'C7'</td><td><span class="pill ok">passed (IT; NSSL final and EN/FR/DE to replay)</span></td></tr>
+<tr><td>29</td><td>Classic seasons: DDR 1988-89 (Oberliga, FDGB-Pokal with the real bracket, 1988-89 European cups with real participants, brackets, squads and coaches) in the new CLASSIC SEASONS menu of Season mode; Oberliga also among the classic tourneys; incremental update in the patcher (2.5.1)</td><td><span class="pill ok">passed (IT)</span></td></tr>
 </tbody></table></div>
 <h3>Roadmap</h3>
 <ol>

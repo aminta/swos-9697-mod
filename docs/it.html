@@ -102,8 +102,9 @@ html{scroll-behavior:smooth}
     <li><a href="#nazioni">19 · Nuove nazioni e coppe continentali per club (1.1–1.2)</a></li>
     <li><a href="#storici">20 · Tornei storici (2.0)</a></li>
     <li><a href="#oceania">21 · Argentina, Oceania e MLS (2.5)</a></li>
-    <li><a href="#limiti">22 · Limiti e questioni aperte</a></li>
-    <li><a href="#storia">23 · Storico e prossimi passi</a></li>
+    <li><a href="#ddr">22 · Stagioni storiche: la DDR 1988-89 (2.6)</a></li>
+    <li><a href="#limiti">23 · Limiti e questioni aperte</a></li>
+    <li><a href="#storia">24 · Storico e prossimi passi</a></li>
   </ol>
 </nav>
 
@@ -111,9 +112,9 @@ html{scroll-behavior:smooth}
 <header class="top">
   <div class="eyebrow">Sensible World of Soccer 96/97 · DOS · ITALIAN.EXE · <a class="lang" href="index.html">English version</a></div>
   <h1>Manuale tecnico SWOS ITA Mod</h1>
-  <p>Documentazione per chi vuole capire, ampliare o portare su altri eseguibili le patch del mod: Serie C1 e C2, coppe sudamericane (Libertadores, Supercopa, CONMEBOL), Coppa Intercontinentale in carriera, rose reali 1996-97, tornei storici (Mondiale 1982, Coppa Mitropa 1934, FA Cup 1871-72), Apertura e Clausura in Argentina, Australia, Nuova Zelanda e MLS 1997 (2.5). Tutto quello che segue è stato ricavato dal disassemblato e verificato con build e partite di prova.</p>
+  <p>Documentazione per chi vuole capire, ampliare o portare su altri eseguibili le patch del mod: Serie C1 e C2, coppe sudamericane (Libertadores, Supercopa, CONMEBOL), Coppa Intercontinentale in carriera, rose reali 1996-97, tornei storici (Mondiale 1982, Coppa Mitropa 1934, FA Cup 1871-72), Apertura e Clausura in Argentina, Australia, Nuova Zelanda e MLS 1997 (2.5), stagioni storiche con la DDR 1988-89 e le coppe europee di quell'anno (2.6). Tutto quello che segue è stato ricavato dal disassemblato e verificato con build e partite di prova.</p>
   <div class="meta">
-    <span>Stato al <b>02/10/2026</b> (sessioni 1–28, release 2.5)</span>
+    <span>Stato al <b>08/10/2026</b> (sessioni 1–29, release 2.6)</span>
     <span>Build exe <b><code>fb4467e1…</code></b></span>
     <span>TEAM.020 <b><code>ded1b97b…</code></b></span>
     <span>Exe originale <b><code>60cdb6b1…</code></b></span>
@@ -555,7 +556,18 @@ assert blk[:2] == b'S2' and sum(blk) % 256 == 0</code></pre>
 </ul>
 
 <!-- 22 -->
-<h2 id="limiti"><span class="n">22</span>Limiti e questioni aperte</h2>
+<h2 id="ddr"><span class="n">22</span>Stagioni storiche: la DDR 1988-89 (2.6)</h2>
+<p><em>Vuoi metterti alla guida di una squadra della stagione 1988-89 del campionato della DDR e cercare di vincere campionato, coppa nazionale e la coppa europea a cui la tua squadra è qualificata? Ora puoi!</em> Codice in <code>ddr89.py</code> (DDR, menu, aggancio della Stagione), <code>euro8889.py</code> + <code>euro8889.json</code>, <code>euro8889_squads.txt</code>, <code>euro8889_coaches.txt</code> (coppe europee), con piccole aggiunte a <code>historic.py</code>, <code>lib97.py</code> e <code>patch.py</code>.</p>
+<ul>
+<li><strong>Squadre.</strong> TEAM.092 = le 14 dell'Oberliga (ordine della classifica finale), TEAM.093 = le 18 squadre minori della FDGB-Pokal, TEAM.094/095/096 = le squadre straniere di Coppa dei Campioni, Coppa delle Coppe e Coppa UEFA 1988-89. Un paese con un solo campionato deve avere tante squadre quante ne dichiara il campionato (il numero di squadre di un paese è <code>teamsCountryNumbers</code>[n+1] − [n]): per questo le squadre della sola coppa stanno in un file a parte. Numeri globali: DDR 1786–1817; le coppe europee usano 1850.. come l'Italia, che non è mai in una stagione della DDR.</li>
+<li><strong>Paesi e competizioni.</strong> Paese 92 «DDR 1988-89» con tabella [Oberliga, −2, Pokal, coppa, −1]. Oberliga: 1 girone da 14, andata e ritorno, 2 punti a vittoria, 2 retrocessioni (id C6). Pokal: struttura della coppa australiana (32 squadre, 5 turni secchi con supplementari e rigori, id C7), tabellone fisso con <code>historic.DRAWS</code>. Coppe europee: struttura della Coppa delle Coppe del gioco (id C8/C9/CA), liste fisse e un sorteggio fisso per turno: il tabellone reale. Il PSV detentore salta il primo turno della Coppa dei Campioni come il club esente della FA Cup (<code>lib_bye</code>/<code>lib_pre</code>).</li>
+<li><strong>Coppa europea nello slot 2.</strong> <code>InitNewSeason</code> carica lo slot 2 dalla terza voce della tabella del paese; <code>euro_slot2</code> sostituisce il <code>mov [A0], eax</code> che la precede (IT obj1+0x7B04F): cerca fra le squadre selezionate la prima della DDR non controllata dal computer (<code>teamControls</code> ≠ 1) e le dà la sua coppa (BFC → Campioni, Jena → Coppe, Dresda e Lipsia → UEFA); se non ce n'è, lo slot 2 resta vuoto.</li>
+<li><strong>STAGIONI STORICHE.</strong> Il selettore della Stagione usa una tabella del mondo [Mondiale, −1] + continenti + 97 (pseudo-continente, nome per lingua, viola come TORNEI STORICI tramite <code>hist_names</code>); la tabella 97 è [−1] + 92 + FF. Il gioco legge un elenco di paesi solo per i numeri 80–85: il <code>ja</code> dopo <code>cmp word [D7], 85</code> in <code>SelectTeamsFinalMenu</code> passa da <code>cont_check</code>, che accetta anche 97. Le prossime stagioni storiche si aggiungono alla lista del 97.</li>
+<li><strong>Rose.</strong> Oberliga: i 16 giocatori con più minuti (weltfussball.de), abilità dal database SWOS 2020 «1990_91 - Team Updates» di Peppecapello quando il giocatore c'è. Coppe: rose 1988-89 di weltfussball.de (minuti in campionato, altrimenti in coppa); modello = il record dello stesso club nel gioco 1996-97 quando esiste; i giocatori già nel gioco tengono il loro record. La ß diventa SS nei nomi.</li>
+</ul>
+
+<!-- 23 -->
+<h2 id="limiti"><span class="n">23</span>Limiti e questioni aperte</h2>
 <ul>
 <li><strong>Play-off (2.5).</strong> NSL Finals e NSSL Playoffs sono eliminazioni dirette a 4: i formati veri (NSL: 6 club; entrambi: la "doppia possibilità" per le prime due) richiedono il controllo dei club turno per turno, cioè un contest di tipo 2 nello slot 4, il cui buffer (443h) è troppo piccolo. Rimandati a una versione futura (<code>finals97.py</code>, opzione A). La prima della stagione regolare che perde i play-off mostra ancora una piccola icona in cima al registro della stagione (non ancora individuata nel codice).</li>
 <li><strong>Gironi di C1/C2.</strong> Nel 1996-97 la C1 aveva 2 gironi e la C2 3. Il mod usa un girone unico per serie. L'intera realtà (128 squadre) non entra nel limite di circa 93 squadre per nazione. La C1 su due gironi entrerebbe (92), ma servono promozioni e retrocessioni fra divisioni parallele, verifiche sul limite delle 80 squadre di carriera e sui numeri globali: stima 2–3 sessioni.</li>
@@ -568,8 +580,8 @@ assert blk[:2] == b'S2' and sum(blk) % 256 == 0</code></pre>
 <li><strong>Panchina inglese (dopo la 1.0).</strong> Nella formazione prima della partita le squadre inglesi mostrano 14 giocatori (11 + 3 in panchina). Succede anche con il gioco originale, e <code>TEAM.008</code> ha 16 giocatori per club: è una regola del gioco. Da capire da dove venga il numero di riserve (regole a +3Dh…41h del buffer, valori 5/2/8 impostati da <code>InitCareer</code>) per portarlo a 5.</li>
 </ul>
 
-<!-- 22 -->
-<h2 id="storia"><span class="n">23</span>Storico e prossimi passi</h2>
+<!-- 24 -->
+<h2 id="storia"><span class="n">24</span>Storico e prossimi passi</h2>
 <div class="tbl"><table>
 <thead><tr><th>Sessione</th><th>Contenuto</th><th>Prova</th></tr></thead>
 <tbody>
@@ -588,6 +600,7 @@ assert blk[:2] == b'S2' and sum(blk) % 256 == 0</code></pre>
 <tr><td>26</td><td>Tornei storici: Mondiale 1982 (formula vera, 4 gironi da 3), Coppa Mitropa 1934, FA Cup 1871-72 (esenzione, ripetizioni, sorteggio a moneta); rose dai DLC di SWOS 2020 e da fonti d'epoca</td><td><span class="pill ok">superato</span></td></tr>
 <tr><td>27</td><td>Copa Libertadores con il formato reale del 1997: detentrice direttamente agli ottavi, calendario dei gironi e tabellone reali, niente gol in trasferta né supplementari, finale andata e ritorno; coda 'C6'</td><td><span class="pill ok">superato (predefinite, carriera, salvataggi)</span></td></tr>
 <tr><td>28</td><td>Argentina con Apertura/Clausura, classifica complessiva e promedio; Australia NSL 1996-97 con NSL Cup e NSL Finals; Nuova Zelanda NSSL con punto bonus dei rigori e play-off; MLS 1997; finale dei play-off in calendario (correzione del numero di turni); registro: il vincitore dei play-off è il campione, club assente dalla sua coppa; coda 'C7'</td><td><span class="pill ok">superato (IT; da rigiocare la finale NSSL e EN/FR/DE)</span></td></tr>
+<tr><td>29</td><td>Stagioni storiche: DDR 1988-89 (Oberliga, FDGB-Pokal con tabellone reale, coppe europee 1988-89 con partecipanti, tabelloni, rose e allenatori reali) nel nuovo menu STAG. STORICHE della Stagione; Oberliga anche fra i tornei storici; aggiornamento incrementale del patcher (2.5.1)</td><td><span class="pill ok">superato (IT)</span></td></tr>
 </tbody></table></div>
 <h3>Roadmap</h3>
 <ol>

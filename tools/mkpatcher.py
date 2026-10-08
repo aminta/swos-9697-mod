@@ -20,7 +20,7 @@ import os
 import struct
 
 ROOT = os.path.join(os.path.dirname(__file__), '..')
-VERSION = '2.5.1'
+VERSION = '2.6'
 BLOCK = 16
 FILES = [  # (id, original path, patched path, file name in the game folder)
     ('ITALIAN.EXE', 'orig/ITALIAN.EXE', 'c/SWOS/ITALIAN.EXE', 'ITALIAN.EXE'),
@@ -50,6 +50,10 @@ FILES = [  # (id, original path, patched path, file name in the game folder)
     # 2.6: DDR 1988-89 (ddr89.py): Oberliga clubs, FDGB-Pokal-only clubs
     ('TEAM.092', None, 'c/SWOS/DATA/TEAM.092', 'DATA/TEAM.092'),
     ('TEAM.093', None, 'c/SWOS/DATA/TEAM.093', 'DATA/TEAM.093'),
+    # 2.6: European cups 1988-89 (euro8889.py): foreign clubs of CC, CWC, UEFA
+    ('TEAM.094', None, 'c/SWOS/DATA/TEAM.094', 'DATA/TEAM.094'),
+    ('TEAM.095', None, 'c/SWOS/DATA/TEAM.095', 'DATA/TEAM.095'),
+    ('TEAM.096', None, 'c/SWOS/DATA/TEAM.096', 'DATA/TEAM.096'),
     # GOG release (2013): same files, 2 bytes changed in each exe (a national cup's months); TEAM.020 identical.
     # Originals in orig/gog/, built with patch.patch_exe(orig/gog/X, c/gog/X, ...)
     ('ITALIAN.EXE (GOG)', 'orig/gog/ITALIAN.EXE', 'c/gog/ITALIAN.EXE', 'ITALIAN.EXE'),
@@ -157,6 +161,8 @@ def old_outputs():
         page = open(f, encoding='utf-8').read()
         table = json.loads(re.search(r'PATCHES\s*=\s*(\[.*?\]);\s*\n', page, re.S).group(1))
         for e in table:
+            if 'from' in e:                     # an upgrade entry (2.5.1+): its output is also produced from the original
+                continue
             orig = next((o for fid, o, _, _ in FILES if fid == e['id']), None)
             src = open(os.path.join(ROOT, orig), 'rb').read() if orig else b''
             if e['md5']:

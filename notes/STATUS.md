@@ -1736,3 +1736,15 @@ Left for 2.5: (a) NSL/NSSL finals series (type-1 design) or declare them postpon
   top-level country button lists competitions instead of teams.
 - Released separately: 2.5.1 (incremental update patcher) from a branch without the DDR work. DDR is local only (commits on main).
 - NEXT: European cups 1988-89 for Season (CC, CWC, UEFA ~100 clubs, 1988-89 squads); EN/FR/DE builds + GOG; docs; release 2.6.
+
+## Session 29 (cont.) — European cups 1988-89 in Season (2026-10-08)
+- tools/euro8889.py + euro8889.json (en.wikipedia 1988-89 European Cup / CWC / UEFA Cup: participants, ties, winners;
+  two penalty rows fixed by hand). CC 31 (PSV holder bye via lib97 lib_bye/lib_pre, CC_ID 0xC8), CWC 32 (0xC9), UEFA 64,
+  6 rounds (0xCA). Foreign clubs TEAM.094/095/096, RANDOM squads from the country's clubs (Davide: random first, real
+  squads later); global numbers 1850.. shared with Italy's block (never in a DDR Season).
+- DDR table [Oberliga, -2, Pokal, CC, -1]; euro_slot2 replaces `mov [A0], eax` before slot 2 in InitNewSeason
+  (IT obj1+0x7b04f): picks the cup of the first non-computer DDR club in selTeams (map by ordinal), else skips slot 2.
+- PLAYTEST (Davide): with EURO_ALWAYS=1 (every DDR club -> CWC, no computer check) the CWC 1988-89 appears as the 3rd
+  competition, plays, round 2 follows the real bracket positions. With the real map the cup did NOT appear (Jena):
+  detection bug. Diagnostic build EURO_ALWAYS=2 (real map, no computer check) installed in c/SWOS: expected UEFA for Jena
+  if the control byte is the cause (first club in the alphabetical list with a map = Dresden? No: BFC is 2nd) - to test.

@@ -398,7 +398,8 @@ def patch(p, lang, area, cave):
                'A0': (2, r['A0']), 'COMPCOUNTRY': (2, comp_cn), 'SELTEAMS': (2, sel), 'NUMSEL': (2, num),
                'DDR_FILE': (0, FILE), 'SKIP_SLOT2': (1, skip), 'MAP_BYTES': (0, 'db ' + ', '.join(map(str, emap))),
                'CUP_CC': (1, cups['cc']), 'CUP_CWC': (1, cups['cwc']), 'CUP_UEFA': (1, cups['uefa'])}
-    src = SEASON_ASM + euro8889.HOOK_ASM
+    src = SEASON_ASM + (euro8889.DIAG_ASM if os.environ.get('EURO_ALWAYS') == '3' else euro8889.HOOK_ASM)
+    symbols['DBG_STR'] = (2, euro8889.structs.names['uefa'])
     if os.environ.get('EURO_ALWAYS'):
         src = src.replace('    cmp byte [esi + 4], 1               ; computer-controlled\n    je .skip\n', '')
     code, fix = nasmcave.assemble(src, at, symbols)

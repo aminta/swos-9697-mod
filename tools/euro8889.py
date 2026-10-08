@@ -49,6 +49,19 @@ DDR_CLUB = {'BFC Dynamo': 'bfc', 'Carl Zeiss Jena': 'jena', 'Lokomotive Leipzig'
 # DDR club (key in ddr89) -> its cup (1 CC, 2 CWC, 3 UEFA)
 DDR_CUP = {'bfc': 'cc', 'jena': 'cwc', 'lok': 'uefa', 'dresden': 'uefa'}
 CUP_INDEX = {'cc': 1, 'cwc': 2, 'uefa': 3}
+SHORT_NAMES = {'it': {'cc': b'COPPA CAMPIONI', 'cwc': b'COPPA COPPE', 'uefa': b'COPPA UEFA'},
+               'en': {'cc': b'EUROPEAN CUP', 'cwc': b'CUP WINNERS CUP', 'uefa': b'UEFA CUP'},
+               'fr': {'cc': b'C. DES CHAMPIONS', 'cwc': b'C. DES COUPES', 'uefa': b'COUPE UEFA'},
+               'de': {'cc': b'LANDESMEISTER', 'cwc': b'POKALSIEGER', 'uefa': b'UEFA-POKAL'}}
+NAMES = {'it': {'cc': b'COPPA DEI CAMPIONI 1988-89', 'cwc': b'COPPA DELLE COPPE 1988-89', 'uefa': b'COPPA UEFA 1988-89'},
+         'en': {'cc': b'EUROPEAN CUP 1988-89', 'cwc': b'CUP WINNERS CUP 1988-89', 'uefa': b'UEFA CUP 1988-89'},
+         'fr': {'cc': b'COUPE DES CHAMPIONS 1988-89', 'cwc': b'COUPE DES COUPES 1988-89', 'uefa': b'COUPE UEFA 1988-89'},
+         'de': {'cc': b'LANDESMEISTERCUP 1988-89', 'cwc': b'POKALSIEGERCUP 1988-89', 'uefa': b'UEFA-POKAL 1988-89'}}
+# club names over 16 characters (the record has 17 bytes with the terminator)
+SHORT = {'HEART OF MIDLOTHIAN': 'HEARTS', 'DNIPRO DNIPROPETROVSK': 'DNIPRO', 'TATABANYAI BANYASZ': 'TATABANYA',
+         'VICTORIA BUCURESTI': 'VICTORIA BUCUR.', "ST PATRICK'S ATHLETIC": "ST PATRICK'S", 'EINTRACHT FRANKFURT': 'E. FRANKFURT',
+         'PEZOPORIKOS LARNACA': 'PEZOPORIKOS', 'VITORIA DE GUIMARAES': 'V. GUIMARAES', 'RED STAR BELGRADE': 'CRVENA ZVEZDA',
+         'INTERNACIONAL BRATISLAVA': 'INTER BRATISLAVA', 'INTERNACIONL BRATISLAVA': 'INTER BRATISLAVA'}
 FINALS = {'cwc': ('Barcelona', 'Sampdoria'), 'uefa': ('Napoli', 'Stuttgart')}   # first named = first leg at home
 
 
@@ -98,7 +111,9 @@ def spec(cup):
 def swos_club(name):
     s = unicodedata.normalize('NFKD', name).encode('ascii', 'ignore').decode().upper()
     s = s.replace('.', '').strip()
-    return s[:17]
+    s = SHORT.get(s, s)
+    assert len(s) <= 16, s
+    return s
 
 
 def ddr_key(name):
@@ -128,6 +143,19 @@ def _norm(s):
     return re.sub(r'[^a-z0-9]', '', s.replace('fc', '').replace('-', ''))
 
 
+SLUG_OF = {}
+
+
+def coaches():
+    out = {}
+    for line in open(os.path.join(HERE, 'euro8889_coaches.txt'), encoding='utf-8'):
+        if line.startswith('#') or not line.strip():
+            continue
+        cup, slug, coach = line.rstrip('\n').split('|')
+        out[(cup, slug)] = coach
+    return out
+
+
 def squads():
     """{(cup, Wikipedia club name): [(player, role)]} (role T = a coach the site lists: becomes a filler)."""
     import difflib
@@ -146,6 +174,7 @@ def squads():
             slug = SLUG.get(name) or max(slugs, key=lambda s: difflib.SequenceMatcher(None, _norm(name), _norm(s)).ratio())
             assert (cup, slug) in by, (cup, name, slug)
             out[(cup, name)] = by[(cup, slug)]
+            SLUG_OF[(cup, name)] = slug
         assert len({id(v) for v in out.values() if True}) >= 0
     used = {}
     for (cup, name), v in out.items():
@@ -172,6 +201,7 @@ def build_teams():
                 p = r[76 + j * 38:76 + (j + 1) * 38]
                 known.setdefault(p[3:26].split(b'\0')[0].decode('latin1'), p)
     sq = squads()
+    co = coaches()
     files, report = {}, []
     for cup in ('cc', 'cwc', 'uefa'):
         out = []
@@ -188,7 +218,8 @@ def build_teams():
             struct.pack_into('>H', r, 2, BASES[cup] + i)
             r[5:22] = sname.encode('latin1').ljust(17, b'\0')
             r[25] = 0
-            r[36:59] = bytes(23)
+            coach = co.get((cup, SLUG_OF[(cup, name)]), '')
+            r[36:59] = c1c2.swos_name(coach).encode('latin1').ljust(23, b'\0')[:23] if coach else bytes(23)
             pools = {c: [] for c in 'GDMA'}
             for who, role in sq[(cup, name)]:
                 pools['M' if role == 'T' else role].append('?' if role == 'T' else who)
@@ -327,7 +358,7 @@ def structs(p, lang, area, at, str_base):
     uefa = sacups.unique(d2, sacups.UEFA_HDR)
     euro = sacups.unique(d2, sacups.EUROCUP_HDR)
     name_of = {'cc': euro + 39, 'cwc': cwc + 20, 'uefa': uefa + 20}
-    ptrs = {}
+    ptrs, names = {}, {}
     for cup in ('cc', 'cwc', 'uefa'):
         sp = spec(cup)
         teams = contest_teams(cup)
@@ -336,11 +367,64 @@ def structs(p, lang, area, at, str_base):
         h += bytes(sp['rounds']) + b'\0'
         h[5] = len(h) - 5
         h[7] = len(h) + 8 - 7
-        long_name = str_base + struct.unpack_from('<I', d2, name_of[cup])[0]
-        s = d2[long_name:d2.index(b'\0', long_name)] + b' 1988-89'
-        rel = area.add(s + b'\0') - str_base
-        body = bytes(h) + struct.pack('<II', rel, rel) + b''.join(bytes(t) for t in teams)
+        nm = NAMES[lang][cup] if os.environ.get('EURO_ALWAYS') != '3' else NAMES[lang][cup].ljust(44)   # room for the diagnostic
+        rel = area.add(nm + b'\0') - str_base
+        names[cup] = rel + str_base
+        short = area.add(SHORT_NAMES[lang][cup] + b'\0') - str_base
+        body = bytes(h) + struct.pack('<II', rel, short) + b''.join(bytes(t) for t in teams)
         ptrs[cup] = at
         p.put(1, at, body)
         at = (at + len(body) + 3) & ~3
+    structs.names = names
     return at, ptrs
+
+
+DIAG_ASM = '''
+euro_slot2:                             ; DIAGNOSTIC build (EURO_ALWAYS=3): UEFA Cup for every DDR club; its name shows
+    mov [A0], eax                       ; "NN " (g_numSelectedTeams) + per selected team: ordinal letter (A = 0) or '-'
+    cmp byte [COMPCOUNTRY], DDR_FILE    ; for a non-DDR team, and its teamControls digit
+    jne .ret
+    pushad
+    mov esi, [SELTEAMS]
+    movzx ecx, word [NUMSEL]
+    mov edi, DBG_STR
+    mov eax, ecx
+    mov bl, 10
+    div bl
+    add al, '0'
+    mov [edi], al
+    add ah, '0'
+    mov [edi + 1], ah
+    mov byte [edi + 2], ' '
+    add edi, 3
+    cmp ecx, 14
+    jbe .c
+    mov ecx, 14
+.c:
+    test ecx, ecx
+    jz .end
+.l:
+    mov al, '-'
+    cmp byte [esi], DDR_FILE
+    jne .x
+    mov al, [esi + 1]
+    add al, 'A'
+.x:
+    mov [edi], al
+    mov al, [esi + 4]
+    add al, '0'
+    mov [edi + 1], al
+    add edi, 2
+    add esi, 684
+    dec ecx
+    jnz .l
+.end:
+    mov byte [edi], 0
+    mov eax, [EURO_PTRS + 12]
+    mov [A0], eax
+    popad
+.ret:
+    ret
+align 4
+EURO_PTRS: dd 0, CUP_CC, CUP_CWC, CUP_UEFA
+'''

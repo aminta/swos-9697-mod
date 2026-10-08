@@ -1,0 +1,126 @@
+# Coaches 1988-89 of the foreign European-cup clubs (weltfussball.de squad pages, 2026-10-08): cup|slug|coach
+# Fixed by hand: Sampdoria (the site lists Narciso Pezzotti, the head coach was Vujadin Boskov), CSKA (Penew -> Penev).
+# Empty = not listed (no coach shown in the game).
+cc|valur-reykjavik|Hörður Helgason
+cc|as-monaco|Arsène Wenger
+cc|werder-bremen|Otto Rehhagel
+cc|club-brugge-kv|Henk Houwaart
+cc|broendby-if|Ebbe Skovdahl
+cc|dundalk-fc|Turlough O'Connor
+cc|crvena-zvezda|Branko Stanković
+cc|gornik-zabrze|Marcin Bochynek
+cc|jeunesse-esch|Norbert Müller
+cc|hamrun-spartans|Lolly Aquilina
+cc|kf-tirane|Shyqyri Rreli
+cc|budapest-honved|István Vági
+cc|celtic-fc|Billy McNeill
+cc|pezoporikos-larnaca|Eric Smith
+cc|ifk-goeteborg|Kjell Pettersson
+cc|ae-larissa|Vladimír Táborský
+cc|neuchatel-xamax-fcs|Gilbert Gress
+cc|fc-porto|Artur Jorge
+cc|hjk-helsinki|Jyrki Heliskoski
+cc|rapid-wien|Vlatko Marković
+cc|galatasaray|Mustafa Denizli
+cc|ac-sparta-praha|Jozef Jarabinský
+cc|fcsb|Anghel Iordănescu
+cc|spartak-moskva|Oleg Romantsev
+cc|glentoran-fc|Tommy Jackson
+cc|real-madrid|Leo Beenhakker
+cc|moss-fk|
+cc|levski-sofia|
+cc|ac-milan|Arrigo Sacchi
+cc|psv-eindhoven|Guus Hiddink
+cwc|floriana-fc|Hugh Caruana
+cwc|dundee-united|Jim McLean
+cwc|omonia-nikosia|Ioncho Arsov
+cwc|panathinaikos|Gunder Bengtsson
+cwc|grasshopper-club-zuerich|Ottmar Hitzfeld
+cwc|eintracht-frankfurt|Jörg Berger
+cwc|kv-mechelen|Aad de Mos
+cwc|avenir-beggen|Michel Clement
+cwc|fram-reykjavik|Ásgeir Elíasson
+cwc|fc-barcelona|Johan Cruyff
+cwc|fc-dinamo-bucuresti|Mircea Lucescu
+cwc|fc-kuusysi-old|Antti Muurinen
+cwc|fc-metz|Marcel Husson
+cwc|rsc-anderlecht|Raymond Goethals
+cwc|glenavon-fc|Terry Nicholson
+cwc|aarhus-gf|Jens Harmsen
+cwc|flamurtari-vlore|
+cwc|lech-poznan|
+cwc|kremser-sc|Johann Kondert
+cwc|derry-city|Jim McLaughlin
+cwc|cardiff-city|Frank Burrows
+cwc|borac-banja-luka|Josip Kuže
+cwc|metalist-kharkiv|Leonid Tkachenko
+cwc|roda-jc-kerkrade|Jan Reker
+cwc|vitoria-guimaraes|Geninho
+cwc|inter-bratislava|Jozef Adamec
+cwc|cska-sofia|Dimitar Penev
+cwc|sakaryaspor|Tamer Kaptan
+cwc|bekescsaba-1912-eloere-se|János Csank
+cwc|ifk-norrkoeping|Kent Karlsson
+cwc|sampdoria|Vujadin Boskov
+uefa|vfb-stuttgart|Arie Haan
+uefa|tatabanya-fc|Antal Szentmihályi
+uefa|royal-antwerp-fc|Georg Keßler
+uefa|1-fc-koeln|Christoph Daum
+uefa|bayern-muenchen|Jupp Heynckes
+uefa|legia-warszawa|Andrzej Strejlau
+uefa|bayer-leverkusen|Jürgen Gelsdorf
+uefa|os-belenenses|Marinho Peres
+uefa|as-roma|Nils Liedholm
+uefa|1-fc-nuernberg|Hermann Gerland
+uefa|fc-groningen|Hans Westerhof
+uefa|atletico-madrid|Briones
+uefa|fc-aarau|Wolfgang Frank
+uefa|st-patricks-athletic|Brian Kerr
+uefa|heart-of-midlothian|Alex MacDonald
+uefa|fk-zalgiris|Benjaminas Zelkevičius
+uefa|austria-wien|Erich Hof
+uefa|sporting-cp|Manuel José
+uefa|afc-ajax|Spitz Kohn
+uefa|real-sociedad|John Toshack
+uefa|fk-pribram|Jaroslav Jareš
+uefa|union-luxembourg|Lorrain Libot
+uefa|rfc-liege|Robert Waseige
+uefa|inter|Giovanni Trapattoni
+uefa|ik-brage|
+uefa|ia-akranes|Sigurður Lárusson
+uefa|ujpest-fc|István Varga
+uefa|rangers-fc|Graeme Souness
+uefa|gks-katowice|Władysław Żmuda
+uefa|aberdeen-fc|Alex Smith
+uefa|dnipro-dnipropetrovsk|Evgeniy Kucherevskiy
+uefa|girondins-bordeaux|Didier Couécou
+uefa|oesters-if|Hans Backe
+uefa|fc-dac-1904|Karol Pecze
+uefa|tps-turku|Heikki Suhonen
+uefa|linfield-fc|Roy Coyle
+uefa|molde-fk|Åge Hareide
+uefa|ksv-waregem|Urbain Haesaert
+uefa|malmoe-ff|Roy Hodgson
+uefa|torpedo-moskva|Valentin Ivanov
+uefa|first-vienna-fc|Ernst Dokupil
+uefa|ikast-fs|Anders Hust
+uefa|otelul-galati|Cornel Dinu
+uefa|juventus|Dino Zoff
+uefa|velez-mostar|Enver Marić
+uefa|apoel-nikosia|Tommy Cassidy
+uefa|aek-athen|Dušan Bajević
+uefa|athletic-club|Howard Kendall
+uefa|montpellier-hsc|Pierre Mosca
+uefa|sl-benfica|Toni
+uefa|sliema-wanderers|Lawrence Borg
+uefa|victoria-bucuresti|Florin Halagian
+uefa|ssc-napoli|Ottavio Bianchi
+uefa|paok-saloniki|Stavros Sarafis
+uefa|partizan|Moca Vukotić
+uefa|slavia-sofia|Hristo Mladenov
+uefa|servette-fc|Jean-Claude Donzé
+uefa|sturm-graz|Otto Barić
+uefa|botev-plovdiv|Ivan Gluhchev
+uefa|dinamo-minsk|Eduard Malofeev
+uefa|besiktas|Gordon Milne
+uefa|dinamo-zagreb|Rudolf Belin

@@ -140,6 +140,48 @@ def decode(src, ops):
     return bytes(out)
 
 
+OLD = os.path.join(ROOT, 'orig', 'old-patchers')       # the patchers published with every release (gh release download)
+
+
+def old_outputs():
+    """{(file id, md5): (bytes, version)} of every modded file the earlier releases produced (their patcher applied to the
+    originals), so that a user who keeps the modded game can be upgraded without going back to the originals."""
+    import glob
+    import re
+    found = {}
+    for f in sorted(glob.glob(os.path.join(OLD, 'patcher-v*.html'))):
+        ver = re.search(r'patcher-v(.*)\.html', f).group(1)
+        page = open(f, encoding='utf-8').read()
+        table = json.loads(re.search(r'PATCHES\s*=\s*(\[.*?\]);\s*\n', page, re.S).group(1))
+        for e in table:
+            orig = next((o for fid, o, _, _ in FILES if fid == e['id']), None)
+            src = open(os.path.join(ROOT, orig), 'rb').read() if orig else b''
+            if e['md5']:
+                assert hashlib.md5(src).hexdigest() == e['md5'], (ver, e['id'])
+            out = decode(src, base64.b64decode(e['delta']))
+            assert hashlib.md5(out).hexdigest() == e['out_md5'], (ver, e['id'])
+            found.setdefault((e['id'], e['out_md5']), (out, ver))
+    return found
+
+
+def upgrades(entries):
+    """Extra entries: old modded file (recognised by its md5) -> this release's file. Old files identical to the new one
+    need nothing (the page says 'already up to date')."""
+    cur = {e['id']: e for e in entries}
+    extra = []
+    for (fid, md5), (old, ver) in sorted(old_outputs().items(), key=lambda kv: (kv[0][0], kv[1][1])):
+        e = cur.get(fid)
+        if e is None or md5 == e['out_md5'] or any(x['id'] == fid and x['md5'] == md5 for x in entries + extra):
+            continue
+        dst = open(os.path.join(ROOT, next(p for i, _, p, _ in FILES if i == fid)), 'rb').read()
+        ops, inserted = encode(old, dst)
+        assert decode(old, ops) == dst
+        extra.append({'id': fid, 'target': e['target'], 'size': len(old), 'md5': md5, 'out_md5': e['out_md5'],
+                      'out_size': e['out_size'], 'delta': base64.b64encode(ops).decode(), 'from': ver})
+        print(f'  upgrade {fid} from {ver}: delta {len(ops)} bytes')
+    return extra
+
+
 def build():
     entries = []
     for fid, orig, patched, target in FILES:
@@ -153,6 +195,7 @@ def build():
             e['with'] = 'TEAM.020'                  # new file: produced when the user's TEAM.020 is recognised
         entries.append(e)
         print(f'{fid}: {len(dst)} bytes, delta {len(ops)} bytes ({inserted} inserted)')
+    entries += upgrades(entries)
     page = open(os.path.join(ROOT, 'tools', 'patcher_template.html'), encoding='utf-8').read()
     page = page.replace('/*PATCHES*/null', json.dumps(entries)).replace('{{VERSION}}', VERSION)
     out = os.path.join(ROOT, 'release', 'swos-9697-mod-patcher.html')

@@ -95,8 +95,8 @@ a{color:var(--accent)}
 </section>
 
 <section>
-  <h2 data-it="1 · Scegli i file originali" data-en="1 · Pick the original files"></h2>
-  <p data-it="Dalla cartella del gioco (per esempio C:\SWOS) prendi l'eseguibile della tua lingua e DATA\TEAM.020. Puoi selezionarli insieme o trascinarli qui. Fai prima una copia di sicurezza della cartella." data-en="From the game folder (for example C:\SWOS) take your language's executable and DATA\TEAM.020. You can select them together or drag them here. Back up the folder first."></p>
+  <h2 data-it="1 · Scegli i file" data-en="1 · Pick the files"></h2>
+  <p data-it="Dalla cartella del gioco (per esempio C:\SWOS) prendi l'eseguibile della tua lingua e DATA\TEAM.020. Puoi selezionarli insieme o trascinarli qui. Fai prima una copia di sicurezza della cartella. AGGIORNAMENTO: se hai già installato una versione precedente di questa mod non serve tornare agli originali: dai alla pagina direttamente l'eseguibile e DATA\TEAM.020 che hai ora (anche 1.0–2.5, CD o GOG) e li aggiorna all'ultima versione. I salvataggi non vengono toccati." data-en="From the game folder (for example C:\SWOS) take your language's executable and DATA\TEAM.020. You can select them together or drag them here. Back up the folder first. UPGRADING: if you already installed an earlier release of this mod you do not need the originals any more: give the page the executable and DATA\TEAM.020 you have now (any release 1.0–2.5, CD or GOG) and it brings them to the latest version. Your saves are not touched."></p>
   <div class="drop" id="drop" tabindex="0" role="button" aria-controls="files">
     <b data-it="Trascina qui i file, oppure fai clic per sceglierli" data-en="Drop the files here, or click to choose them"></b>
     <span class="sub">ITALIAN.EXE · ENGLISH.EXE · FRENCH.EXE · GERMAN.EXE · TEAM.020 · TEAM.044 · TEAM.062 · TEAM.073</span>
@@ -195,9 +195,11 @@ function applyDelta(src, b64, outSize) {
 let lang = 'it';
 const T = {
   it: { wait: 'Controllo…', ok: 'Pronto', bad: 'File non riconosciuto', fail: 'Errore nella modifica', dl: 'Scarica', none: 'Nessun file ancora.',
-        unknown: n => `${n}: non corrisponde a nessun originale atteso (edizione diversa o file già modificato). Non è stato modificato.` },
+        current: 'Già aggiornato', from: v => `aggiornamento dalla ${v}`,
+        unknown: n => `${n}: non corrisponde a nessun file atteso (né un originale, né modificato da una versione precedente di questa mod). Non è stato modificato.` },
   en: { wait: 'Checking…', ok: 'Ready', bad: 'File not recognised', fail: 'Patching error', dl: 'Download', none: 'No files yet.',
-        unknown: n => `${n}: does not match any expected original (different edition or already modified file). It was not patched.` },
+        current: 'Already up to date', from: v => `upgrade from ${v}`,
+        unknown: n => `${n}: does not match any expected file (neither an original nor one modified by an earlier release of this mod). It was not patched.` },
 };
 const results = [];
 function setLang(l) {
@@ -215,8 +217,8 @@ function render() {
   if (!results.length) { rows.innerHTML = `<tr><td colspan="3" class="sub">${T[lang].none}</td></tr>`; return; }
   for (const r of results) {
     const tr = document.createElement('tr');
-    const st = r.state === 'ok' ? T[lang].ok : r.state === 'bad' ? T[lang].bad : r.state === 'fail' ? T[lang].fail : T[lang].wait;
-    tr.innerHTML = `<td class="m"></td><td><span class="st ${r.state === 'ok' ? 'ok' : r.state === 'wait' ? 'wait' : 'bad'}">${st}</span></td><td></td>`;
+    const st = r.state === 'current' ? T[lang].current : r.state === 'ok' ? T[lang].ok : r.state === 'bad' ? T[lang].bad : r.state === 'fail' ? T[lang].fail : T[lang].wait;
+    tr.innerHTML = `<td class="m"></td><td><span class="st ${r.state === 'ok' || r.state === 'current' ? 'ok' : r.state === 'wait' ? 'wait' : 'bad'}">${st}${r.patch && r.patch.from ? ' (' + T[lang].from(r.patch.from) + ')' : ''}</span></td><td></td>`;
     tr.children[0].textContent = r.patch ? r.patch.target.replace('/', '\\') : r.name;
     if (r.state === 'ok') {
       const b = document.createElement('button');
@@ -240,15 +242,21 @@ async function handle(files) {
     const src = new Uint8Array(await f.arrayBuffer());
     const sum = md5(src);
     let patches = PATCHES.filter(p => p.md5 === sum && p.size === src.length);
-    if (patches.length)                                   // new files (1.1 African countries) come with TEAM.020
-      patches = patches.concat(PATCHES.filter(p => patches.some(q => q.id === p.with) &&
+    const cur = PATCHES.find(p => p.out_md5 === sum && p.out_size === src.length);
+    const base = patches.length ? patches : cur && cur.id === 'TEAM.020' ? [cur] : [];
+    if (base.length)                                      // new files (1.1 African countries ...) come with TEAM.020
+      patches = patches.concat(PATCHES.filter(p => base.some(q => q.id === p.with) &&
                                                  !results.some(x => x.patch && x.patch.id === p.id)));
+    if (!patches.length && cur) {                         // already modified with this release
+      r.state = 'current'; render(); continue;
+    }
     if (!patches.length) {
       r.state = 'bad';
       msg.hidden = false; msg.textContent += (msg.textContent ? ' ' : '') + T[lang].unknown(f.name);
       render(); continue;
     }
-    results.splice(results.indexOf(r), 1);
+    if (!patches.some(p => p.md5 === sum)) { r.state = 'current'; render(); }   // current TEAM.020: only the new files
+    else results.splice(results.indexOf(r), 1);
     for (const patch of patches) {
       const q = { name: f.name, state: 'wait', patch }; results.push(q);
       try {

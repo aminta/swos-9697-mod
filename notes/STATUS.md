@@ -1728,3 +1728,11 @@ Left for 2.5: (a) NSL/NSSL finals series (type-1 design) or declare them postpon
 - RELEASE CHECKLIST: before mkpatcher for a new release, `gh release download <latest tag> -p swos-9697-mod-patcher.html -O
   orig/old-patchers/patcher-v<tag>.html` so the release being replaced is covered; rebuild ALL 4 languages + GOG first.
 - Not covered: files modified by hand or by other tools; saves are never touched.
+
+## Session 29 (cont.) — DDR 1988-89 PLAYTESTED OK (Davide, 2026-10-08)
+- All three tests passed in the IT build (Season > Europa > DDR 1988-89 with Oberliga + FDGB-Pokal; Tornei storici > Oberliga 1988-89;
+  career without DDR). Fixes along the way: a country's team count = tcn[next] - tcn[this] (set tcn[93]); a single-league country needs
+  exactly its league's team count -> lower Pokal clubs in TEAM.093; DDR must be a country of EUROPE in Season (swap comp[80]), a
+  top-level country button lists competitions instead of teams.
+- Released separately: 2.5.1 (incremental update patcher) from a branch without the DDR work. DDR is local only (commits on main).
+- NEXT: European cups 1988-89 for Season (CC, CWC, UEFA ~100 clubs, 1988-89 squads); EN/FR/DE builds + GOG; docs; release 2.6.

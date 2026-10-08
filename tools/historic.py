@@ -86,6 +86,8 @@ import finals97
 DRAWS += finals97.DRAWS                                     # NSL / NSSL finals series (2.1): keep the order
 import ddr89
 DRAWS += ddr89.DRAWS                                        # FDGB-Pokal 1988-89 (2.6): real bracket
+import euro8889
+DRAWS += euro8889.draws()                                   # European cups 1988-89 (2.6): real brackets
 
 ASM = '''
 hist_draw:                              ; replaces `call cseg_27F08` in cseg_26DFC (A2 = DIY buffer, A3 = round)
@@ -244,6 +246,8 @@ def build_teams(src_dir):
     files[M34_FILE] = build_m34(src_dir)
     files[FA_FILE] = build_fa()
     import ddr89
+    import euro8889
+    files.update(euro8889.build_teams())                    # 2.6: foreign clubs of the 1988-89 European cups (random squads)
     files.update(ddr89.build())                           # 2.6: DDR 1988-89: TEAM.092 Oberliga, TEAM.093 Pokal-only clubs
     return files
 

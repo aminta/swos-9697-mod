@@ -78,6 +78,13 @@ def calendar_bytes():
 
 ASM = '''
 lib_bye:                                ; replaces `call cseg_2573C` at the end of cseg_24DFA
+    cmp byte [DIYCOPY + 2Dh], CC_ID     ; Champions Cup 1988-89 (euro8889.py): round 1 without the holder (the 31st)
+    jne .fa
+    cmp word [DIYCOPY + 161h], CC_N
+    jne .go
+    mov word [DIYCOPY + 161h], CC_N - 1
+    jmp .go
+.fa:
     cmp byte [DIYCOPY + 2Dh], FA_ID     ; FA Cup 1871-72 (historic.py): round 1 without the bye club (the 15th)
     jne .lib
     cmp word [DIYCOPY + 161h], FA_N
@@ -95,6 +102,16 @@ lib_bye:                                ; replaces `call cseg_2573C` at the end 
 
 lib_pre:                                ; hist_draw, before the permutation: esi = DIY buffer, ecx = clubs in the round
     call FIN_PRE                        ; 2.1: NSL / NSSL finals series (finals97.fin_pre)
+    cmp byte [esi + 2Dh], CC_ID         ; Champions Cup 1988-89: the holder (list[30]) takes place 16 of round 2
+    jne .fa                             ; (the fixed draw then puts it in its bracket slot)
+    cmp ecx, 16
+    jne .r
+    cmp word [esi + 31h], CC_N
+    jne .r
+    mov al, [esi + 59h + CC_N - 1]
+    mov [esi + 59h + 15], al
+    ret
+.fa:
     cmp byte [esi + 2Dh], FA_ID         ; FA Cup 1871-72: the bye club (list[14], untouched by round 1) takes the
     jne .lib                            ; 8th place of round 2 (7 winners + 1)
     cmp ecx, 8
@@ -191,6 +208,7 @@ def patch(p, cave, fin_pre):
     symbols = {'DIYCOPY': (2, diycopy), 'LIB_ID': (0, sacups.LIB_ID), 'LIB_N': (0, sacups.LIB_N),
                'LIB_GROUPS': (0, LIB_GROUPS), 'CSEG_2573C': (1, c2573c), 'A0': (2, a0), 'A3': (2, a0 + 12),
                'FA_ID': (0, 0xC3), 'FA_N': (0, 15),                    # historic.FA_ID, FA Cup 1871-72 clubs
+               'CC_ID': (0, 0xC8), 'CC_N': (0, 31),                    # euro8889.CC_ID: Champions Cup 1988-89, 31 clubs
                'FIN_PRE': (1, fin_pre),
                'CAL_BYTES': (0, 'db ' + ', '.join(str(b) for b in calendar_bytes()))}
     code, fix = nasmcave.assemble(ASM, cave, symbols)

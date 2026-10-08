@@ -353,12 +353,20 @@ def patch(p, lang, area, cave):
     p.put(1, at, body)
     at = (at + len(body) + 3) & ~3
 
-    table = at                                  # [Oberliga, -2, Pokal, -1]
+    import euro8889
+    at, cups = euro8889.structs(p, lang, area, at, sacups.STR_BASE)
+    for cup, f in euro8889.FILES.items():               # foreign clubs of the European cups: country entries + bases
+        assert ct + 4 * f not in fx2 and comp + 4 * f not in fx2
+        p.add_ptr(2, ct + 4 * f, 2, rec)
+        p.put(2, tcn + 2 * f, struct.pack('<H', euro8889.BASES[cup]))
+
+    table = at                                  # [Oberliga, -2, Pokal, <cup>, -1]: slot 2 = the cup of the club (euro_slot2)
     p.add_ptr(1, at, 1, league)
     p.put(1, at + 4, struct.pack('<i', -2))
     p.add_ptr(1, at + 8, 1, pokal)
-    p.put(1, at + 12, struct.pack('<i', -1))
-    at += 16
+    p.add_ptr(1, at + 12, 1, cups['cc'])
+    p.put(1, at + 16, struct.pack('<i', -1))
+    at += 20
     p.add_ptr(2, comp + 4 * FILE, 1, table)
 
     # Season: the DDR is one more country of EUROPE (a single-league country goes straight to its teams). The stub swaps
@@ -380,13 +388,27 @@ def patch(p, lang, area, cave):
     at = (at + 4 * k + 4 + len(countries_eu) + 2 + 3) & ~3
 
     _, season_call, select = historic._calls(p)
-    symbols = {'COMP80': (2, comp + 4 * 80), 'EUROPE_SEASON': (1, europe), 'SELECT': (1, select)}
-    code, fix = nasmcave.assemble(SEASON_ASM, at, symbols)
-    labels = nasmcave.labels(SEASON_ASM, at, symbols)
+    site, skip, comp_cn, sel, num, r = euro8889.hook_sites(p)
+    emap = bytearray(14)
+    for key, cup in euro8889.DDR_CUP.items():
+        emap[_ORD[key]] = euro8889.CUP_INDEX[cup]
+    if os.environ.get('EURO_ALWAYS') == '1':           # test build: every DDR club gets the Cup Winners' Cup
+        emap = bytearray([2] * 14)
+    symbols = {'COMP80': (2, comp + 4 * 80), 'EUROPE_SEASON': (1, europe), 'SELECT': (1, select),
+               'A0': (2, r['A0']), 'COMPCOUNTRY': (2, comp_cn), 'SELTEAMS': (2, sel), 'NUMSEL': (2, num),
+               'DDR_FILE': (0, FILE), 'SKIP_SLOT2': (1, skip), 'MAP_BYTES': (0, 'db ' + ', '.join(map(str, emap))),
+               'CUP_CC': (1, cups['cc']), 'CUP_CWC': (1, cups['cwc']), 'CUP_UEFA': (1, cups['uefa'])}
+    src = SEASON_ASM + euro8889.HOOK_ASM
+    if os.environ.get('EURO_ALWAYS'):
+        src = src.replace('    cmp byte [esi + 4], 1               ; computer-controlled\n    je .skip\n', '')
+    code, fix = nasmcave.assemble(src, at, symbols)
+    labels = nasmcave.labels(src, at, symbols)
     p.put(1, at, code)
     for off, tobj, toff in fix:
         p.add_ptr(1, at + off, tobj, toff)
     p.put(1, season_call + 1, struct.pack('<i', labels['ddr_season'] - (season_call + 5)))
+    p.remove(1, site + 1)                                # `mov [A0], eax`: drop the fixup of its address operand
+    p.put(1, site, b'\xe8' + struct.pack('<i', labels['euro_slot2'] - (site + 5)))
     at = (at + len(code) + 3) & ~3
     print(f'exe: DDR 1988-89 = country {FILE}: Oberliga id {LEAGUE_ID:#x} @ obj1+{league:#x} (dates {lg[3]:#x}/{lg[4]:#x}), '
           f'FDGB-Pokal id {POKAL_ID:#x} @ obj1+{pokal:#x}, season call obj1+{season_call:#x} -> obj1+{labels["ddr_season"]:#x}')

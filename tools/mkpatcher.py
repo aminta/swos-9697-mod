@@ -47,6 +47,9 @@ FILES = [  # (id, original path, patched path, file name in the game folder)
     ('TEAM.089', None, 'c/SWOS/DATA/TEAM.089', 'DATA/TEAM.089'),
     ('TEAM.090', None, 'c/SWOS/DATA/TEAM.090', 'DATA/TEAM.090'),
     ('TEAM.091', None, 'c/SWOS/DATA/TEAM.091', 'DATA/TEAM.091'),
+    # 2.6: DDR 1988-89 (ddr89.py): Oberliga clubs, FDGB-Pokal-only clubs
+    ('TEAM.092', None, 'c/SWOS/DATA/TEAM.092', 'DATA/TEAM.092'),
+    ('TEAM.093', None, 'c/SWOS/DATA/TEAM.093', 'DATA/TEAM.093'),
     # GOG release (2013): same files, 2 bytes changed in each exe (a national cup's months); TEAM.020 identical.
     # Originals in orig/gog/, built with patch.patch_exe(orig/gog/X, c/gog/X, ...)
     ('ITALIAN.EXE (GOG)', 'orig/gog/ITALIAN.EXE', 'c/gog/ITALIAN.EXE', 'ITALIAN.EXE'),

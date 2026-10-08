@@ -22,6 +22,7 @@ import cafcups
 import countries
 import historic
 import ddr89
+import euro8889
 import nsl97
 import nz97
 import finals97
@@ -252,6 +253,15 @@ def patch_teams(src, dst):
     new_idx = {r[5:22]: i for i, r in enumerate(out)}
     return {i: new_idx[r[5:22]] for i, r in enumerate(recs) if r[5:22] in new_idx}
 
+def hist_base(n):
+    """First global number of a historic file (historic.BASE shared; the DDR and its European cups have their own)."""
+    if n == ddr89.FILE2:
+        return ddr89.BASE2
+    if n in euro8889.FILES.values():
+        return euro8889.BASES[next(c for c, f in euro8889.FILES.items() if f == n)]
+    return historic.BASE
+
+
 def write_new_teams(src_dir, dst_dir):
     """Team files of the new countries (africa.py); checks their global numbers against every other team file."""
     import africa, asia, namerica, glob
@@ -278,12 +288,13 @@ def write_new_teams(src_dir, dst_dir):
     hist = historic.build_teams(src_dir)
     for n, data in list(files.items()) + list(hist.items()):
         k = struct.unpack('>H', data[:2])[0]
-        for g in range(tcn.get(n, historic.BASE), tcn.get(n, historic.BASE) + k):
-            assert g < 2000 and g not in taken, (n, g, taken.get(g))
+        base = tcn.get(n) or hist_base(n)
+        for g in range(base, base + k):
+            assert g < 2000 and (n in euro8889.FILES.values() or g not in taken), (n, g, taken.get(g))
             if n not in hist:
                 taken[g] = n
         open(os.path.join(dst_dir, 'TEAM.%03d' % n), 'wb').write(data)
-        print(f'TEAM.{n:03d}: {k} teams, global numbers {tcn.get(n, historic.BASE)}..{tcn.get(n, historic.BASE) + k - 1}')
+        print(f'TEAM.{n:03d}: {k} teams, global numbers {base}..{base + k - 1}')
     for mod in (nsl97, nz97, mls97):                  # 2.1: Australia (54 records), New Zealand (40), MLS 1997
         data = mod.build(src_dir)
         for i in range(struct.unpack('>H', data[:2])[0]):

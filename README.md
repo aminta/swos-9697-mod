@@ -40,6 +40,8 @@ Patch for **Sensible World of Soccer 96/97** (DOS, CD or GOG version): ITALIAN.E
 
 The patcher ships only differences and checks every file before and after patching: an original copy of the game is required. It works with both the original CD and the GOG version (from 1.0.1).
 
+**Upgrading (2.5.1):** you do not need to go back to the originals. Drop the executable and `DATA\TEAM.020` you have now (modified by any earlier release, 1.0 to 2.5, CD or GOG): the patcher recognises them and brings them to the latest version, or tells you they are already up to date. Saves are never touched.
+
 ### For developers
 - Technical manual: [English](https://aminta.github.io/swos-9697-mod/) (ENGLISH.EXE addresses) · [Italian](https://aminta.github.io/swos-9697-mod/it.html) (ITALIAN.EXE addresses)
 - Build: put the original executables and `DATA/TEAM.020` in `orig/`, then `cd tools && python3 patch.py it|en|fr|de` (needs `nasm`; the classic tourneys' squads also need the SWOS 2020 DLC files in `orig/swos2020/`, not in the repository). Patcher: `python3 tools/mkpatcher.py`.
@@ -83,6 +85,8 @@ Patch per **Sensible World of Soccer 96/97** (versione DOS, CD o GOG): ITALIAN.E
 3. Copiali nella cartella del gioco (i file TEAM in `DATA`), dopo aver fatto una copia di sicurezza. Inizia una carriera nuova.
 
 Il patcher contiene solo differenze e controlla i file prima e dopo la modifica: serve una copia originale del gioco. Funziona sia con il CD originale sia con la versione GOG (dalla 1.0.1).
+
+**Aggiornamento (2.5.1):** non serve tornare agli originali. Trascina l'exe e `DATA\TEAM.020` che hai ora (modificati da una qualsiasi versione precedente, dalla 1.0 alla 2.5, CD o GOG): il patcher li riconosce e li porta all'ultima versione, oppure ti dice che sono già aggiornati. I salvataggi non vengono mai toccati.
 
 ### Per sviluppatori
 - Manuale tecnico: [italiano](https://aminta.github.io/swos-9697-mod/it.html) (indirizzi di ITALIAN.EXE) · [inglese](https://aminta.github.io/swos-9697-mod/) (indirizzi di ENGLISH.EXE)

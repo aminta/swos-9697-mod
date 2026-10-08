@@ -1748,3 +1748,9 @@ Left for 2.5: (a) NSL/NSSL finals series (type-1 design) or declare them postpon
   competition, plays, round 2 follows the real bracket positions. With the real map the cup did NOT appear (Jena):
   detection bug. Diagnostic build EURO_ALWAYS=2 (real map, no computer check) installed in c/SWOS: expected UEFA for Jena
   if the control byte is the cause (first club in the alphabetical list with a map = Dresden? No: BFC is 2nd) - to test.
+- PLAYTEST (Davide, 2026-10-08 evening): REAL build OK. Jena -> COPPA DELLE COPPE 1988-89 as 3rd competition (the earlier
+  "missing cup" was an old exe still loaded in his DOSBox); diagnostic (EURO_ALWAYS=3) confirmed selTeams/teamControls detection.
+  Real foreign squads (euro8889_squads.txt, weltfussball), coaches (euro8889_coaches.txt, 118/123; Sampdoria -> Boskov by hand),
+  short cup names (COPPA COPPE...), names <= 16 chars, ß -> SS. All 4 languages + GOG built.
+- NEXT: release 2.6 (docs IT/EN chapter + README + notes, patcher with TEAM.092..096 and the incremental update, MGLs,
+  internal packages) only with Davide's ok. Credits: weltfussball.de, de/en.wikipedia, SWOS 2020 teamdb 1990-91 by Peppecapello.

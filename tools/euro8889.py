@@ -3,8 +3,7 @@
 A DDR club in Season plays its league (slot 0), the FDGB-Pokal (slot 1) and, when it was in Europe in 1988-89, the European
 cup of that year (slot 2): BFC Dynamo the Champions Cup, Carl Zeiss Jena the Cup Winners' Cup, Dynamo Dresden and Lokomotive
 Leipzig the UEFA Cup. Real participants and real brackets (en.wikipedia 1988-89 European Cup / Cup Winners' Cup / UEFA Cup;
-euro8889.json). The foreign clubs have RANDOM squads for now (names and players picked from the country's clubs of the
-game): the real 1988-89 squads come later.
+euro8889.json). The foreign clubs have their real 1988-89 squads (weltfussball.de, euro8889_squads.txt).
 
 Engine:
 - the DDR country table is [Oberliga, -2, FDGB-Pokal, <a cup>, -1]; InitNewSeason loads that last entry into slot 2;
@@ -43,7 +42,7 @@ NAME_CODE = {'Austria': 'AUT', 'Belgium': 'BEL', 'Bulgaria': 'BUL', 'Cyprus': 'C
              'Denmark': 'DEN', 'East Germany': 'GDR', 'Finland': 'FIN', 'France': 'FRA', 'Greece': 'GRE',
              'Hungary': 'HUN', 'Iceland': 'ISL', 'Ireland': 'IRL', 'Italy': 'ITA', 'Luxembourg': 'LUX', 'Malta': 'MLT',
              'Netherlands': 'NED', 'Northern Ireland': 'NIR', 'Norway': 'NOR', 'Poland': 'POL', 'Portugal': 'POR',
-             'Romania': 'ROU', 'Scotland': 'SCO', 'Slavia Sofia': 'BUL', 'Soviet Union': 'URS', 'Spain': 'ESP',
+             'Romania': 'ROU', 'Scotland': 'SCO', 'Soviet Union': 'URS', 'Spain': 'ESP',
              'Sweden': 'SWE', 'Switzerland': 'SUI', 'Turkey': 'TUR', 'West Germany': 'FRG', 'Yugoslavia': 'YUG'}
 ALIAS = {'Budapest Honvéd': 'Budapesti Honvéd'}
 DDR_CLUB = {'BFC Dynamo': 'bfc', 'Carl Zeiss Jena': 'jena', 'Lokomotive Leipzig': 'lok', 'Dynamo Dresden': 'dresden'}
@@ -111,53 +110,115 @@ def cup_clubs(cup):
     return spec(cup)['clubs']
 
 
-def build_teams():
-    """{file: TEAM bytes} of the foreign clubs, random squads from the clubs of their country in the game."""
-    import ddr89
-    import c1c2
-    rng = random.Random(1988)
-    cache = {}
+SQUADS = os.path.join(HERE, 'euro8889_squads.txt')
+# Wikipedia name -> weltfussball slug where the names differ too much for the fuzzy match
+SLUG = {'17 Nëntori': 'kf-tirane', 'Sparta Prague': 'ac-sparta-praha', 'Steaua București': 'fcsb', 'Valur': 'valur-reykjavik',
+        'AEL': 'ae-larissa', 'HJK': 'hjk-helsinki', 'Vitosha Sofia': 'levski-sofia', 'Red Star Belgrade': 'crvena-zvezda',
+        'AGF': 'aarhus-gf', 'Fram': 'fram-reykjavik', 'Omonia': 'omonia-nikosia', 'Roda JC': 'roda-jc-kerkrade',
+        'Grasshopper': 'grasshopper-club-zuerich', 'Békéscsaba': 'bekescsaba-1912-eloere-se', 'Kuusysi Lahti': 'fc-kuusysi-old',
+        'Tatabányai Bányász': 'tatabanya-fc', 'Antwerp': 'royal-antwerp-fc', 'Žalgiris Vilnius': 'fk-zalgiris',
+        'Dukla Prague': 'fk-pribram', 'Internazionale': 'inter', 'ÍA': 'ia-akranes', 'Újpesti Dózsa': 'ujpest-fc',
+        'Bordeaux': 'girondins-bordeaux', 'Dunajská Streda': 'fc-dac-1904', 'TPS': 'tps-turku', 'RŠD Velež': 'velez-mostar',
+        'APOEL': 'apoel-nikosia', 'Athletic Bilbao': 'athletic-club', 'PAOK': 'paok-saloniki', 'Slavia Sofia': 'slavia-sofia',
+        'Trakia Plovdiv': 'botev-plovdiv'}
 
-    def pool(country):
-        if country not in cache:
-            f = os.path.join(ROOT, 'orig', 'DATA', 'TEAM.%03d' % country)
-            if not os.path.exists(f):
-                f = os.path.join(ROOT, 'orig', 'DATA', 'TEAM.014')
-            d = open(f, 'rb').read()
-            cache[country] = [d[2 + k * TEAM_SIZE:2 + (k + 1) * TEAM_SIZE] for k in range(struct.unpack('>H', d[:2])[0])]
-        return cache[country]
-    files = {}
+
+def _norm(s):
+    s = unicodedata.normalize('NFKD', s).encode('ascii', 'ignore').decode().lower()
+    return re.sub(r'[^a-z0-9]', '', s.replace('fc', '').replace('-', ''))
+
+
+def squads():
+    """{(cup, Wikipedia club name): [(player, role)]} (role T = a coach the site lists: becomes a filler)."""
+    import difflib
+    by = {}
+    for line in open(SQUADS, encoding='utf-8'):
+        if line.startswith('#') or not line.strip():
+            continue
+        cup, slug, players = line.rstrip('\n').split('|', 2)
+        by[(cup, slug)] = [tuple(x.rsplit(':', 1)) for x in players.split(';')]
+    out = {}
     for cup in ('cc', 'cwc', 'uefa'):
-        sp = spec(cup)
-        recs = []
-        for name, code in sp['clubs']:
+        slugs = [s for c, s in by if c == cup]
+        for name, _ in spec(cup)['clubs']:
             if ddr_key(name):
                 continue
-            recs.append((name, code))
+            slug = SLUG.get(name) or max(slugs, key=lambda s: difflib.SequenceMatcher(None, _norm(name), _norm(s)).ratio())
+            assert (cup, slug) in by, (cup, name, slug)
+            out[(cup, name)] = by[(cup, slug)]
+        assert len({id(v) for v in out.values() if True}) >= 0
+    used = {}
+    for (cup, name), v in out.items():
+        assert id(v) not in used, (cup, name, used.get(id(v)))
+        used[id(v)] = name
+    return out
+
+
+def build_teams():
+    """{file: TEAM bytes} of the foreign clubs: real 1988-89 squads (euro8889_squads.txt). Template record = the same
+    club in the 1996-97 game when it is there (kit, slots, skills), else a club of its country; players already in
+    the game (any team file, same name) keep their record, the others take the slot's skills of the template."""
+    import difflib
+    import glob
+    import c1c2
+    rng = random.Random(1988)
+    known, country_teams = {}, {}
+    for f in sorted(glob.glob(os.path.join(ROOT, 'orig', 'DATA', 'TEAM.0[0-9][0-9]'))):
+        d = open(f, 'rb').read()
+        recs = [d[2 + k * TEAM_SIZE:2 + (k + 1) * TEAM_SIZE] for k in range(struct.unpack('>H', d[:2])[0])]
+        country_teams[int(f[-3:])] = recs
+        for r in recs:
+            for j in range(16):
+                p = r[76 + j * 38:76 + (j + 1) * 38]
+                known.setdefault(p[3:26].split(b'\0')[0].decode('latin1'), p)
+    sq = squads()
+    files, report = {}, []
+    for cup in ('cc', 'cwc', 'uefa'):
         out = []
-        for i, (name, code) in enumerate(recs):
-            teams = pool(CODE_COUNTRY[code])
-            t = rng.choice(teams)
+        for name, code in [c for c in spec(cup)['clubs'] if not ddr_key(c[0])]:
+            teams = country_teams.get(CODE_COUNTRY[code]) or country_teams[14]
+            names = [t[5:22].split(b'\0')[0].decode('latin1') for t in teams]
+            sname = swos_club(name)
+            best = max(range(len(teams)), key=lambda k: difflib.SequenceMatcher(None, _norm(sname), _norm(names[k])).ratio())
+            same = difflib.SequenceMatcher(None, _norm(sname), _norm(names[best])).ratio() >= 0.8
+            t = teams[best] if same else rng.choice(teams)
             r = bytearray(t)
+            i = len(out)
             r[0], r[1] = FILES[cup], i
             struct.pack_into('>H', r, 2, BASES[cup] + i)
-            r[5:22] = swos_club(name).encode('latin1').ljust(17, b'\0')
+            r[5:22] = sname.encode('latin1').ljust(17, b'\0')
             r[25] = 0
             r[36:59] = bytes(23)
-            players = {c: [] for c in 'GDMA'}
-            for tt in teams:
-                for j in range(16):
-                    p = tt[76 + j * 38:76 + (j + 1) * 38]
-                    players[c1c2.CLASS[p[26] >> 5]].append(p)
+            pools = {c: [] for c in 'GDMA'}
+            for who, role in sq[(cup, name)]:
+                pools['M' if role == 'T' else role].append('?' if role == 'T' else who)
+            borrow = {'G': 'G', 'D': 'DMA', 'M': 'MDA', 'A': 'AMD'}
+            filler = [p for tt in teams for p in [tt[76 + j * 38:76 + (j + 1) * 38] for j in range(16)]]
+            reused = 0
             for j in range(16):
                 p0 = 76 + j * 38
                 cls = c1c2.CLASS[t[p0 + 26] >> 5]
-                q = bytearray(rng.choice(players[cls]))
+                src = next((x for x in borrow[cls] if pools[x]), None)
+                who = pools[src].pop(0) if src else '?'
+                if who == '?':                              # no name: a player of the country from the game
+                    q = bytearray(rng.choice(filler))
+                else:
+                    pname = c1c2.swos_name(who)
+                    if pname in known:
+                        q = bytearray(known[pname])
+                        reused += 1
+                    else:
+                        q = bytearray(t[p0:p0 + 38])
+                        q[3:26] = pname.encode('latin1').ljust(23, b'\0')[:23]
                 q[2] = t[p0 + 2]
                 q[26] = (q[26] & 0x1f) | (t[p0 + 26] & 0xe0)
                 r[p0:p0 + 38] = q
             out.append(bytes(r))
+            report.append((cup, sname, names[best] if same else '-', reused))
         files[FILES[cup]] = struct.pack('>H', len(out)) + b''.join(out)
+    same = sum(1 for x in report if x[2] != '-')
+    print(f'TEAM.094-096: European cups 1988-89, {len(report)} clubs, {same} on their own 1996-97 record, '
+          f'{sum(x[3] for x in report)} players already in the game')
     return files
 
 

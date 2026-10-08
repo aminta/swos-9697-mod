@@ -1691,3 +1691,22 @@ Left for 2.5: (a) NSL/NSSL finals series (type-1 design) or declare them postpon
   assigns European cups.
 - Option 3 chosen: start with DDR only; meanwhile look for a community 1988-89 database. If found: rebuild the 1988-89
   European cups (CC, CWC, UEFA, ~120 clubs) so Season mode plays them too. No 1996-97 squads as stand-ins.
+
+## Session 29 — DDR 1988-89: data (2026-10-08)
+- Davide: preset historic menu = Oberliga 1988-89; Season mode = Oberliga + FDGB-Pokal + (if possible) European cups 1988-89.
+  Pokal: Davide chose to start from the 2nd main round (32 clubs: 14 Oberliga + 18 lower; all 14 Oberliga clubs survived round 1).
+- tools/ddr89.py: OBERLIGA (14 clubs, final-table order, coach, players by Oberliga minutes from weltfussball.de
+  'Statistik: Einsätze'), LOWER (18 Pokal clubs from weltfussball 1988/89 squads; HFC Chemie II 11 names, Neustrelitz and
+  Weida 13 with surnames only -> invented fillers needed), POKAL_R2 ordered so consecutive winners meet as in reality
+  (natural pairing then gives the real R16/QF/SF/final); real results in comments.
+- weltfussball.de works only in the built-in browser (Cloudflare blocks curl). New URL scheme:
+  /teams/<teXXX>/<slug>/vs1988-1989/kader/ (squad by role), /teams/<teXXX>/<slug>/se3583/1988-1989/statistik-spiele/
+  (Oberliga 1988/89 appearances by minutes; se3583 = Oberliga 88/89), Pokal 88/89 = co1415/se19295.
+- Skills source: SWOS 2020 teamdb '1990_91 - Team Updates' (Peppecapello) -> its TEAM.010 = 14 NOFV-Oberliga clubs 1990-91
+  (Hansa, Dresden, Erfurt, HFC, Chemnitzer, Jena, Lok, Brandenburg, Eisenhüttenstadt, Magdeburg, BFC, Sachsen Leipzig,
+  Cottbus, Vorwärts Frankfurt). Downloaded to the session scratchpad (re-download: sensiblesoccer.de/swos2020/dlc/teamdb/
+  1990_91%20-%20Team%20Updates.7z) -> copy to orig/swos2020/x_1990_91 when building. Credit Peppecapello. (TEAM.010 in the
+  real game = another country: DDR needs its own free number.)
+- NEXT: (1) code study: how Season mode builds its world menu and assigns European cups (season call of SelectTeamsFinalMenu,
+  historic._calls 'season'); (2) country number + TEAM file + Oberliga league struct (14, 2 points) + Pokal cup (32,
+  single matches, e.t.+pens, fixed draws via historic.DRAWS); (3) European cups 1988-89 for Season (needs ~100 clubs of 88-89).

@@ -96,8 +96,9 @@ html{scroll-behavior:smooth}
     <li><a href="#storici">20 · Tornei storici (2.0)</a></li>
     <li><a href="#oceania">21 · Argentina, Oceania e MLS (2.5)</a></li>
     <li><a href="#ddr">22 · Stagioni storiche: la DDR 1988-89 (2.6)</a></li>
-    <li><a href="#limiti">23 · Limiti e questioni aperte</a></li>
-    <li><a href="#storia">24 · Storico e prossimi passi</a></li>
+    <li><a href="#pacchetti">23 · Pacchetti stagione e carriere storiche</a></li>
+    <li><a href="#limiti">24 · Limiti e questioni aperte</a></li>
+    <li><a href="#storia">25 · Storico e prossimi passi</a></li>
   </ol>
 </nav>
 
@@ -550,7 +551,7 @@ assert blk[:2] == b'S2' and sum(blk) % 256 == 0</code></pre>
 
 <!-- 22 -->
 <h2 id="ddr"><span class="n">22</span>Stagioni storiche: la DDR 1988-89 (2.6)</h2>
-<p><em>Vuoi metterti alla guida di una squadra della stagione 1988-89 del campionato della DDR e cercare di vincere campionato, coppa nazionale e la coppa europea a cui la tua squadra è qualificata? Ora puoi!</em> Codice in <code>ddr89.py</code> (DDR, menu, aggancio della Stagione), <code>euro8889.py</code> + <code>euro8889.json</code>, <code>euro8889_squads.txt</code>, <code>euro8889_coaches.txt</code> (coppe europee), con piccole aggiunte a <code>historic.py</code>, <code>lib97.py</code> e <code>patch.py</code>.</p>
+<p><em>Vuoi metterti alla guida di una squadra della stagione 1988-89 del campionato della DDR e cercare di vincere campionato, coppa nazionale e la coppa europea a cui la tua squadra è qualificata? Ora puoi!</em> Dalla sessione 30 è il pacchetto stagione <code>packs/ddr-1988-89</code> compilato da <code>mkseason.py</code> (capitolo 23); nella 2.6 il codice era <code>ddr89.py</code> ed <code>euro8889.py</code>, con piccole aggiunte a <code>historic.py</code>, <code>lib97.py</code> e <code>patch.py</code>.</p>
 <ul>
 <li><strong>Squadre.</strong> TEAM.092 = le 14 dell'Oberliga (ordine della classifica finale), TEAM.093 = le 18 squadre minori della FDGB-Pokal, TEAM.094/095/096 = le squadre straniere di Coppa dei Campioni, Coppa delle Coppe e Coppa UEFA 1988-89. Un paese con un solo campionato deve avere tante squadre quante ne dichiara il campionato (il numero di squadre di un paese è <code>teamsCountryNumbers</code>[n+1] − [n]): per questo le squadre della sola coppa stanno in un file a parte. Numeri globali: DDR 1786–1817; le coppe europee usano 1850.. come l'Italia, che non è mai in una stagione della DDR.</li>
 <li><strong>Paesi e competizioni.</strong> Paese 92 «DDR 1988-89» con tabella [Oberliga, −2, Pokal, coppa, −1]. Oberliga: 1 girone da 14, andata e ritorno, 2 punti a vittoria, 2 retrocessioni (id C6). Pokal: struttura della coppa australiana (32 squadre, 5 turni secchi con supplementari e rigori, id C7), tabellone fisso con <code>historic.DRAWS</code>. Coppe europee: struttura della Coppa delle Coppe del gioco (id C8/C9/CA), liste fisse e un sorteggio fisso per turno: il tabellone reale. Il PSV detentore salta il primo turno della Coppa dei Campioni come il club esente della FA Cup (<code>lib_bye</code>/<code>lib_pre</code>).</li>
@@ -560,7 +561,29 @@ assert blk[:2] == b'S2' and sum(blk) % 256 == 0</code></pre>
 </ul>
 
 <!-- 23 -->
-<h2 id="limiti"><span class="n">23</span>Limiti e questioni aperte</h2>
+<h2 id="pacchetti"><span class="n">23</span>Pacchetti stagione e carriere storiche (in sviluppo)</h2>
+<p>Un <em>pacchetto stagione</em> è una cartella di soli dati (<code>packs/&lt;id&gt;/</code>: <code>pack.json</code> + <code>clubs.csv</code>, <code>players.csv</code>, <code>ties.csv</code>, formato in <code>packs/README.md</code>) che <code>tools/mkseason.py</code> compila in file squadre e tabelle dell'exe, in modo deterministico. La DDR 1988-89 del capitolo 22 ora è il pacchetto <code>packs/ddr-1988-89</code> (identica byte per byte alla 2.6; <code>ddr89.py</code> ed <code>euro8889.py</code> sono stati rimossi). In una build entrano più pacchetti (<code>mkseason.ENABLED</code>); una rosa si costruisce con <code>calibrate</code> (forza obiettivo), <code>game</code> (giocatori già nel gioco) o <code>explicit</code> (ogni valore indicato). I numeri di nazione 101–251 sono liberi e funzionano (il nome del file squadre si costruisce da 0–255).</p>
+<p>Un <em>pacchetto carriera</em> (<code>"kind": "career"</code>) è un pacchetto giocato come carriera, dal pulsante CARR. STORICHE (pseudo-continente 98) del selettore squadra della carriera: <code>career_sel</code> sostituisce <code>call ChooseTeamsDialog</code> in <code>SelectTeamToManage</code> e scambia <code>competitionsTable[254]</code> con una tabella mondo che contiene 98. Il suo campionato può avere più divisioni con promozioni e retrocessioni (<code>divisions</code> + la colonna <code>division</code> di clubs.csv = byte +25 del record). Un <em>mondo</em> è un insieme di pacchetti carriera con lo stesso numero <code>world</code>: una carriera iniziata con uno dei suoi club vede solo le nazioni e le coppe europee del mondo (<code>tools/careerworld.py</code>). Stato: menu e divisioni provati (M1); cambio di mondo costruito, prova in attesa (M2).</p>
+<h3>Come funzionano davvero le coppe europee in carriera</h3>
+<ul>
+<li><strong>Inizio carriera.</strong> <code>InitCareer</code> azzera <code>someLeaguesTable</code> (tutti i 2000 byte), mette <code>careerFileBuffer</code> = 0 e chiama tre volte <code>LoadSomeEuroCup</code>: <code>data\eurocup.tmd</code>, <code>eurocwc.tmd</code>, <code>uefacup.tmd</code> vengono accodati in <code>tmdFileBuffer</code> (80 × 684 byte, parte del salvataggio; <code>careerFileBuffer</code> conta i record). Un record TMD è semplicemente un record di file squadre: <code>SetTeamGlobalNumbers</code> ricalcola la word +2 = <code>teamsCountryNumbers</code>[byte 0] + byte 1. Poi la tabella <code>careerContests</code> [sorgente, destinazione, dimensione] copia le strutture statiche delle coppe nel salvataggio: <code>euroCupCopy</code> (79 byte, 0x1ADFE), <code>cupWinnersCupCopy</code> (92, 0x1AE4D), <code>uefaCupCopy</code> (92, 0x1AEA9).</li>
+<li><strong>Elenco squadre di una struttura coppa</strong> a byte [7] + 7, una coppia di byte (file nazione, ordinale) per club: 16 coppie nella copia della Coppa dei Campioni, 32 nelle altre due. Le coppe della stagione successiva SONO queste copie nel salvataggio.</li>
+<li><strong>Fine stagione</strong> (<code>cseg_91428</code>). <code>cseg_936C0</code> punta i tre cursori di lista sugli elenchi squadre dentro le copie, azzera i contatori ed espande le <em>tabelle dei posti</em> statiche (0x95C6 / 0x9615 / 0x9664) in liste di nazioni di lavoro. Una tabella dei posti è <code>[dd nazioni, dw n, dw prese]…</code> + <code>dd −1</code>: <code>cseg_93E36</code> mescola gli n byte di nazione e ne prende <code>prese</code> (es. Coppa dei Campioni: 4 su 4, 5 su 6, 5 su 11, 2 su 22). Poi ogni nazione di <code>seasonEndList</code> (0x9584, prima quella del giocatore) passa per <code>cseg_9153F</code> (campionato) e <code>cseg_93974</code> (qualificate, solo continente europeo): <code>cseg_93D67</code> scrive la coppia del club nell'elenco della coppa e <code>cseg_94193</code> copia il suo record in <code>tmdFileBuffer</code>[<code>careerFileBuffer</code>++].</li>
+<li><strong>Controlli.</strong> <code>careerFileBuffer</code> deve valere 80 dopo il ciclo e di nuovo alla fine, i tre contatori 16 / 32 / 32: altrimenti <code>int 3; jmp $</code> (il blocco del 1997, capitolo 7).</li>
+<li><strong>Detentori</strong> (<code>cseg_92BBF</code> → <code>cseg_92C4D</code>): la vincitrice della coppa sostituisce una voce a caso dell'elenco, e il suo record viene scambiato in <code>tmdFileBuffer</code>. La routine confronta <code>voce &gt;&gt; 8</code> con <code>detentore &gt;&gt; 8</code>: su PC è l'<em>ordinale</em> del club (byte 1), non la nazione — un residuo dell'originale 68000 big-endian. Termina solo se qualche voce ha un altro ordinale e non è quella del giocatore.</li>
+<li><strong>Checksum.</strong> A fine stagione <code>cseg_9487A</code> esige che <code>someLeaguesTable</code> sommi a 0 modulo 256 (capitolo 15). Il numero globale 1999 appartiene a un club di TEAM.062; 1818–1846 non appartengono a nessuno.</li>
+</ul>
+<h3>Il cambio di mondo (M2)</h3>
+<ul>
+<li><strong>Byte del mondo</strong> = <code>someLeaguesTable</code>[1845] (0x17FB2 + 1845), byte di bilanciamento [1846] = −mondo; 0 = il mondo 1996-97. Lo scrive l'aggancio sulla prima chiamata a <code>LoadSomeEuroCup</code>, dalla nazione del club scelto (salvata all'ingresso di <code>InitCareer</code>, 0x7C5EA).</li>
+<li><strong>Coppe europee del mondo</strong>: coppe a eliminazione diretta che stanno nelle copie del salvataggio: Coppa dei Campioni ≤ 16 club, Coppa delle Coppe e Coppa UEFA ≤ 32, totale ≤ 80, ognuna una potenza di 2. Le strutture usano il formato della Coppa delle Coppe con id, date e nomi della coppa originale. Nel salvataggio non si sposta nulla.</li>
+<li><strong>Agganci</strong> (ITALIAN.EXE, obj1): ingresso di <code>InitCareer</code> 0x7C5EA; le tre chiamate a <code>LoadSomeEuroCup</code> da 0x7C7D3 (un mondo carica un solo file, <code>data\worldNN.tmd</code> = i suoi club europei della prima stagione); dopo la copia di <code>careerContests</code> 0x7C876 (le tre strutture del mondo); riferimento a <code>seasonEndList</code> 0x812FB; i cinque controlli da 0x81345; le tabelle dei posti da 0x835AF (anche la lettura del primo gruppo della tabella UEFA).</li>
+<li><strong>Campi del pacchetto:</strong> <code>world</code>, <code>europe_places</code> {cc, cwc, uefa}, facoltativo <code>first_europe</code> (predefinito: ordine del campionato), <code>world_cups</code> (turni) in un solo pacchetto del mondo. I club di un mondo possono riusare i numeri globali dei club europei 1996-97: una carriera storica non carica mai quei file.</li>
+<li><strong>Ancora aperti (M3):</strong> l'anno della stagione (parte dal 1996), la ricerca di giocatori stranieri (<code>BuyOtherForeignPlayer</code> usa lo stesso dialogo squadre: deve mostrare solo il mondo), le convocazioni in nazionale, le coppe degli altri continenti nella vista del mondo.</li>
+</ul>
+
+<!-- 24 -->
+<h2 id="limiti"><span class="n">24</span>Limiti e questioni aperte</h2>
 <ul>
 <li><strong>Play-off (2.5).</strong> NSL Finals e NSSL Playoffs sono eliminazioni dirette a 4: i formati veri (NSL: 6 club; entrambi: la "doppia possibilità" per le prime due) richiedono il controllo dei club turno per turno, cioè un contest di tipo 2 nello slot 4, il cui buffer (443h) è troppo piccolo. Rimandati a una versione futura (<code>finals97.py</code>, opzione A). La prima della stagione regolare che perde i play-off mostra ancora una piccola icona in cima al registro della stagione (non ancora individuata nel codice).</li>
 <li><strong>Gironi di C1/C2.</strong> Nel 1996-97 la C1 aveva 2 gironi e la C2 3. Il mod usa un girone unico per serie. L'intera realtà (128 squadre) non entra nel limite di circa 93 squadre per nazione. La C1 su due gironi entrerebbe (92), ma servono promozioni e retrocessioni fra divisioni parallele, verifiche sul limite delle 80 squadre di carriera e sui numeri globali: stima 2–3 sessioni.</li>
@@ -573,8 +596,8 @@ assert blk[:2] == b'S2' and sum(blk) % 256 == 0</code></pre>
 <li><strong>Panchina inglese (dopo la 1.0).</strong> Nella formazione prima della partita le squadre inglesi mostrano 14 giocatori (11 + 3 in panchina). Succede anche con il gioco originale, e <code>TEAM.008</code> ha 16 giocatori per club: è una regola del gioco. Da capire da dove venga il numero di riserve (regole a +3Dh…41h del buffer, valori 5/2/8 impostati da <code>InitCareer</code>) per portarlo a 5.</li>
 </ul>
 
-<!-- 24 -->
-<h2 id="storia"><span class="n">24</span>Storico e prossimi passi</h2>
+<!-- 25 -->
+<h2 id="storia"><span class="n">25</span>Storico e prossimi passi</h2>
 <div class="tbl"><table>
 <thead><tr><th>Sessione</th><th>Contenuto</th><th>Prova</th></tr></thead>
 <tbody>
@@ -594,9 +617,12 @@ assert blk[:2] == b'S2' and sum(blk) % 256 == 0</code></pre>
 <tr><td>27</td><td>Copa Libertadores con il formato reale del 1997: detentrice direttamente agli ottavi, calendario dei gironi e tabellone reali, niente gol in trasferta né supplementari, finale andata e ritorno; coda 'C6'</td><td><span class="pill ok">superato (predefinite, carriera, salvataggi)</span></td></tr>
 <tr><td>28</td><td>Argentina con Apertura/Clausura, classifica complessiva e promedio; Australia NSL 1996-97 con NSL Cup e NSL Finals; Nuova Zelanda NSSL con punto bonus dei rigori e play-off; MLS 1997; finale dei play-off in calendario (correzione del numero di turni); registro: il vincitore dei play-off è il campione, club assente dalla sua coppa; coda 'C7'</td><td><span class="pill ok">superato (IT; da rigiocare la finale NSSL e EN/FR/DE)</span></td></tr>
 <tr><td>29</td><td>Stagioni storiche: DDR 1988-89 (Oberliga, FDGB-Pokal con tabellone reale, coppe europee 1988-89 con partecipanti, tabelloni, rose e allenatori reali) nel nuovo menu STAG. STORICHE della Stagione; Oberliga anche fra i tornei storici; aggiornamento incrementale del patcher (2.5.1)</td><td><span class="pill ok">superato (IT)</span></td></tr>
+<tr><td>30</td><td>Pacchetti stagione: cartelle di dati compilate da <code>mkseason.py</code> (DDR 1988-89 = primo pacchetto), più pacchetti per build, rose <code>explicit</code>, nazioni 101–251; carriere storiche M1: menu CARR. STORICHE, campionati con divisioni</td><td><span class="pill ok">superato (IT)</span></td></tr>
+<tr><td>31</td><td>Catena europea della carriera decodificata (copie delle coppe nel salvataggio, tabelle dei posti, detentori, checksum); mondi delle carriere storiche: byte del mondo, coppe europee del mondo, <code>worldNN.tmd</code> (M2)</td><td><span class="pill todo">prova in attesa</span></td></tr>
 </tbody></table></div>
 <h3>Roadmap</h3>
 <ol>
+<li><strong>Carriere storiche:</strong> prova del cambio di mondo (M2); anno della stagione, ricerca stranieri e nazionali in un mondo (M3); poi un mondo reale 1984-85.</li>
 <li><strong>Carriere lunghe:</strong> prove di 6–8 stagioni con le novità della 1.1–1.2; rose reali dei club nuovi dalla comunità.</li>
 <li><strong>Europa:</strong> Intertoto, Supercoppa Europea, Champions League 1997-98.</li>
 <li><strong>Arretrati:</strong> panchina a 5 per le squadre inglesi; prova dell'Intercontinentale nello slot 4; C1 a due gironi.</li>

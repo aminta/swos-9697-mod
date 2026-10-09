@@ -205,3 +205,4 @@ lists of a career loaded earlier in the same game session, and a later season wi
 SA/CAF/Asian lists to the 1997 defaults. Present since 1.2 in normal careers too. Fix: euro_found does the same check
 first. Build ITALIAN a78d5d0a (world2 test build + fix) installed in c/SWOS. To test: new career with a club in a
 European cup (e.g. Juventus, or Dynamo Dresden in CARR. STORICHE), save at once, check the mark in the .CAR.
+- Playtest 2026-10-09: DRESDA.CAR (new world career, Dynamo Dresden in the Champions Cup, saved at once) has 'S3z' at 1847..1849 and world 1/FF, table sum 0: fix confirmed.

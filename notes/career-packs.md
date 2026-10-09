@@ -80,3 +80,26 @@ with Daniele Bordes's data).
   job offers arrived, saved WCARR1.CAR. Save read: someLeaguesTable deltas Zwickau +1, Union +1 (relegated),
   Eisenhuettenstadt -1, Thale -1 (promoted, 1st and 2nd of the DDR-LIGA table) = correct.
 - Expected gaps (M2): year 1996/97, 1996-97 European cups and world view (VISUALIZZA MONDO -> Europa has no DDR).
+
+## M2 — world switch: analysis so far (2026-10-09)
+
+- Career start: ChooseTeamAndStartCareer -> SelectTeamToManage -> ChooseTeamsDialog (also used by
+  BuyOtherForeignPlayer: in a historic world that browser must show only the world -> same comp[254] swap) ->
+  InitCareer(D0 = country << 8 | ordinal). InitCareer loads the 80 European clubs: careerFileBuffer = 0, then
+  LoadSomeEuroCup(euroCup / cupWinnersCup / uefaCup) appends data\eurocup.tmd / eurocwc.tmd / uefacup.tmd (plain
+  684-byte records) into tmdFileBuffer (careerFileBuffer = count); the .CAR fixed part starts at careerFileBuffer, so
+  these clubs (and their successors) live in the save.
+- Season end qualifiers: cseg_9153F leaves the country's standings as records from dseg_1807C2 (684 each);
+  cseg_939C9 (CC: the champion), cseg_939FE (CWC: from dseg_181D22, skipping holders), cseg_93A60 (UEFA: from
+  dseg_1827D2 or dseg_180A6E, skipping holders/already qualified via cseg_93B9C / 93BB5 = "already in CWC/UEFA list").
+  cseg_93D67 appends the global number (word) to the list pointed by dseg_180796 / 18079A / 18079E, counters
+  dseg_180784 / 86 / 88, then cseg_94193 (to read: probably copies the record into the next-season buffer).
+  cseg_93DAA removes a club from a list.
+- Idea for the world id: someLeaguesTable[1999] (saved with the .CAR fixed part, no club uses global 1999), written
+  where sacups writes the 'S3' career mark at career start (from the selected club's country: pack country -> world
+  index + 1, else 0). Hooks read it: seasonEndList pointer (cseg_91428), the 3 static qualifier lists (cseg_936C0),
+  the TMD loads (InitCareer), the 16/32/32/80 checks, the year, comp[254] in career menus.
+- Format change needed: a career pack = a WORLD with several countries (each: files, league with divisions, cup,
+  European places) + world European cups (formats, first-season clubs = generated TMD-like files).
+- Next to read: cseg_94193, cseg_92BBF (holders), how euroCupCopy / cupWinnersCupCopy / uefaCupCopy are built from
+  the lists at the next InitNewSeason (sizes: original structs 16 groups / 32 / 32), cseg_8D661 (membership).

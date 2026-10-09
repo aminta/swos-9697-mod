@@ -400,6 +400,10 @@ load_slot3:
 
 ; InitializeNewSeason "found" (a euro or SA cup in slot 3): mov ax,[D7]; mov [E092F],ax replaced
 euro_found:
+    cmp word [MARK3_AT], MARK3          ; a new career whose club starts in a European cup: same set-up as init_sa
+    je .lists_ok                        ; (before 2.7 only the no-European-cup branch did it: no 'S3' mark until a
+    call dword [NEW_CAREER_PTR]         ; reload, and the lists of a career loaded earlier in the session stayed)
+.lists_ok:
     call int_step
     mov ax, [D7]
     mov [E092F], ax

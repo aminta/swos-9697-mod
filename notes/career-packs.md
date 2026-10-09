@@ -195,3 +195,13 @@ table sums to 0 mod 256 (that is why the 'S3' mark at 1847..1849 has a balance b
   C BFC Dynamo (CWC), D Dynamo Dresden (UEFA), no duplicates. Places = size - 1, root pack fills the holder place in
   season 1. World code moved to a 6th obj1 page (0xA6000, only in builds with worlds; no-world builds unchanged).
 - Next: a real world (1984-85 with Daniele Bordes's data), world name per world (button text), long-career test.
+
+### 'S3' mark missing in world saves -> 1.2 bug, fixed (2026-10-09)
+
+sacups.init_sa (InitializeNewSeason, branch "club in no European cup") checks the 'S3' mark and, on a new career,
+calls trailer.new_career_defaults (saved lists from the defaults + mark). The other branch (euro_found: the club is in
+a European cup) never did: a new career starting in a European cup had no mark until the save was reloaded, kept the
+lists of a career loaded earlier in the same game session, and a later season without European cup reset the
+SA/CAF/Asian lists to the 1997 defaults. Present since 1.2 in normal careers too. Fix: euro_found does the same check
+first. Build ITALIAN a78d5d0a (world2 test build + fix) installed in c/SWOS. To test: new career with a club in a
+European cup (e.g. Juventus, or Dynamo Dresden in CARR. STORICHE), save at once, check the mark in the .CAR.

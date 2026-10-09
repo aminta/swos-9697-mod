@@ -137,8 +137,8 @@ ideally ordered by appearances), the coaches, and the cup brackets with the winn
 calibrated from the club's strength); real ratings from another database can be used with its author's permission
 and credit.
 
-## Limits (phase A)
+## Limits
 
-- One pack at a time in the build (the Season hook handles one league).
 - One national league per pack, single division.
-- Free team files 92–99 and free global numbers are few: every pack must fit in them.
+- Team files: 98, 99 and 101–251 are free (tested with 101–102); packs may share global numbers, since two
+  packs never run in the same season.

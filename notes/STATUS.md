@@ -1797,5 +1797,6 @@ Left for 2.5: (a) NSL/NSSL finals series (type-1 design) or declare them postpon
 - Free country numbers: ct/comp fixups only up to 85, 100, 252-255; file names are built as 3 digits from 0..255,
   so countries 101..251 look free (to confirm in game: the test pack uses TEAM.101/102, contest ids CB/CC).
   Globals: packs may share global numbers (never in the same season).
-- Test build installed in c/SWOS (ITALIAN.EXE c0a8de83 = DDR + test pack 'TEST 1988-89'); 2.6 exe kept as
-  c/SWOS/ITALIAN_26.EXE (9881320f). Test pack: scratchpad only (not in the repo).
+- Test build (ITALIAN.EXE c0a8de83 = DDR + test pack 'TEST 1988-89' in TEAM.101/102, ids CB/CC) PLAYTESTED OK by
+  Davide: two CLASSIC SEASONS buttons; Jena -> COPPA COPPE (Kremser), Dresden -> COPPA UEFA (Aberdeen); TEST pack
+  league + cup only; TORNEI STORICI lists both leagues. => countries/files > 100 work. c/SWOS back to 2.6 (9881320f).

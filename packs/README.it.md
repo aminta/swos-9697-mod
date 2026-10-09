@@ -143,8 +143,8 @@ per club con il ruolo, meglio se in ordine di presenze), gli allenatori e i tabe
 Le abilità sono facoltative (vengono calibrate sulla forza del club); abilità reali prese da un altro database si
 possono usare con il permesso del suo autore e citandolo.
 
-## Limiti (fase A)
+## Limiti
 
-- Un pacchetto alla volta nella build (l'aggancio della modalità Stagione gestisce un solo campionato).
 - Un solo campionato nazionale per pacchetto, a una divisione.
-- I file squadre liberi (92–99) e i numeri globali liberi sono pochi: ogni pacchetto deve starci.
+- File squadre: liberi il 98, il 99 e dal 101 al 251 (provati il 101 e il 102); i pacchetti possono condividere i
+  numeri globali, perché due pacchetti non giocano mai nella stessa stagione.

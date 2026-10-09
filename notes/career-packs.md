@@ -172,3 +172,11 @@ table sums to 0 mod 256 (that is why the 'S3' mark at 1847..1849 has a balance b
   byte written only in someLeaguesTable. Fix: world byte + balance also in leaguesTableCopy (found from the two
   copy routines cseg_8CC0A / cseg_8CC4E; IT obj2+0x5953C, EN +0x593F2). Build ITALIAN 271146d8 -> replay with a NEW
   career (WCARR2 is a 1996-97-world save now).
+
+### Playtest 2 (2026-10-09): M2 PASSED (save WCARRFIX.CAR)
+
+- New career with 271146d8: season 2 cups hold only world clubs (CC 4, CWC 4, UEFA 8), DDR-Liga clubs promoted,
+  save: world 1 / balance 255, table sum 0, 16 euro records (101: 4, 102: 6, 103: 3, 104: 3).
+- Engine rule seen: the CC holder (B Dynamo Dresden) replaced a random qualifier (BFC Dynamo, DDR champion) —
+  cseg_92C4D replaces, it never adds. Real formats with a holder place of its own (e.g. 1984-85: 31 + holder) need a
+  hook (count places + 1 before the holder step, or add instead of replace). Decide with Davide in M3.

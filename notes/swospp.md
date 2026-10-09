@@ -101,3 +101,10 @@ writes the same object bytes, removes the 14 records and adds the 7. Verificatio
 5. DIY competition editor + load/save of an old DIY competition (the mod hooks SaveDIYLeague/InitDIYCup/
    RestoreDIYTournament).
 6. Optional: a two-instance netplay with the mod's exe on both sides.
+
+## Playtest (2026-10-09, Davide, DOSBox-X)
+
+Test install c/SWOSPP (copy of c/SWOS + ENGLISH_SWOSPP.EXE 21985380 + LOADER.BIN/SWOSPP.BIN 1.9.2.2, config
+dosbox-swos-pp.conf): points 1-5 of the list above **all PASSED** (boot + SWOS++ menu, mod menus, match with
+shirt numbers/subs/bookings/replay+highlights save/load, career with mod cups + .CAR save/load, DIY editor
+save/load incl. old DIY). Not tested: netplay (optional), historic careers (this build has no career world).

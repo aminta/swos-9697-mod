@@ -269,6 +269,8 @@ async function handle(files) {
     }
     if (!patches.some(p => p.md5 === sum)) { r.state = 'current'; render(); }   // current TEAM.020: only the new files
     else results.splice(results.indexOf(r), 1);
+    if (cur && cur.id !== 'TEAM.020' && !patches.some(p => p.id === cur.id))     // up to date, offered + SWOS++ only
+      results.push({ name: f.name, state: 'current', patch: cur });
     for (const patch of patches) {
       const q = { name: f.name, state: 'wait', patch }; results.push(q);
       try {

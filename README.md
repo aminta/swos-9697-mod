@@ -30,6 +30,7 @@ Patch for **Sensible World of Soccer 96/97** (DOS, CD or GOG version): ITALIAN.E
 - **New Zealand NSSL 1996-97 (2.5):** 10 clubs, **4 points a win, penalties after every draw with 1 bonus point to the winner**, top-4 play-offs (single matches, winner = champion), plus three regional leagues of 10 (10 real 1996 clubs added, with invented squads). Approximation: no "double chance" in the play-offs.
 - **Classic seasons (2.6):** *do you want to take charge of a club of the 1988-89 East German Oberliga and try to win the league, the national cup and the European cup your club qualified for? Now you can!* A new **CLASSIC SEASONS** button in Season mode holds the **DDR 1988-89**: the 14-club Oberliga (2 points a win), the FDGB-Pokal with its real bracket, and for BFC Dynamo, Carl Zeiss Jena, Dynamo Dresden and Lokomotive Leipzig the real 1988-89 European Cup, Cup Winners' Cup or UEFA Cup (real participants and brackets). Real 1988-89 squads and coaches for all 155 clubs. Never in career mode.
 - **2.6.1:** career fix: a new career started with a club in a European cup no longer inherits (or later resets) the other continents' club cup lists.
+- **SWOS++ (2.7):** the English executable (CD or GOG) can now run with [SWOS++](https://github.com/zlatkok/swospp) by Zlatko Karakas: the patcher gives an extra `ENGLISH.EXE + SWOS++`; copy `loader.bin` and `swospp.bin` from the SWOS++ release next to it. No need for `patchit.com`.
 - **MLS 1997 (2.5):** the 10 clubs with real 1997 names, coaches and squads; **no draws** (penalties: win 3, shoot-out win 1, loss 0); one table of 36 matches. Approximations: penalties instead of the 35-yard shoot-out, no conferences or play-offs.
 - **Asia and Central America (1.2):** South Korea, China, Saudi Arabia, Guatemala and Honduras with their 1996-97 league and national cup; Asian Club Championship, Asian Cup Winners Cup and the CONCACAF Champions Cup (6 countries), all in career mode.
 
@@ -42,7 +43,7 @@ Patch for **Sensible World of Soccer 96/97** (DOS, CD or GOG version): ITALIAN.E
 
 The patcher ships only differences and checks every file before and after patching: an original copy of the game is required. It works with both the original CD and the GOG version (from 1.0.1).
 
-**Upgrading (2.5.1):** you do not need to go back to the originals. Drop the executable and `DATA\TEAM.020` you have now (modified by any earlier release, 1.0 to 2.6, CD or GOG): the patcher recognises them and brings them to the latest version, or tells you they are already up to date. Saves are never touched.
+**Upgrading (2.5.1):** you do not need to go back to the originals. Drop the executable and `DATA\TEAM.020` you have now (modified by any earlier release, 1.0 to 2.6.1, CD or GOG): the patcher recognises them and brings them to the latest version, or tells you they are already up to date. Saves are never touched.
 
 ### Build your own season
 Historic seasons (like the DDR 1988-89 of 2.6) are now **season packs**: folders of plain data (clubs, squads,
@@ -86,6 +87,7 @@ Patch per **Sensible World of Soccer 96/97** (versione DOS, CD o GOG): ITALIAN.E
 - **Nuova Zelanda NSSL 1996-97 (2.5):** 10 club, **4 punti a vittoria, rigori dopo ogni pareggio con 1 punto bonus a chi li vince**, play-off delle prime 4 (gare secche, il vincitore è il campione), più tre campionati regionali da 10 (aggiunti 10 club reali del 1996, con rose inventate). Approssimazione: niente "doppia possibilità" nei play-off.
 - **Stagioni storiche (2.6):** *vuoi metterti alla guida di una squadra della stagione 1988-89 del campionato della DDR e cercare di vincere campionato, coppa nazionale e la coppa europea a cui la tua squadra è qualificata? Ora puoi!* Un nuovo pulsante **STAG. STORICHE** nella modalità Stagione contiene la **DDR 1988-89**: l'Oberliga a 14 squadre (2 punti a vittoria), la FDGB-Pokal con il tabellone reale e, per BFC Dynamo, Carl Zeiss Jena, Dynamo Dresda e Lokomotive Lipsia, la Coppa dei Campioni, la Coppa delle Coppe o la Coppa UEFA 1988-89 vere (partecipanti e tabelloni reali). Rose e allenatori veri del 1988-89 per tutte le 155 squadre. Mai in carriera.
 - **2.6.1:** correzione della carriera: una carriera nuova iniziata con un club in una coppa europea non eredita più (né azzera più avanti) le liste delle coppe per club degli altri continenti.
+- **SWOS++ (2.7):** l'eseguibile inglese (CD o GOG) ora funziona con [SWOS++](https://github.com/zlatkok/swospp) di Zlatko Karakas: il patcher dà in più `ENGLISH.EXE + SWOS++`; accanto copia `loader.bin` e `swospp.bin` dalla release di SWOS++. Non serve `patchit.com`.
 - **MLS 1997 (2.5):** i 10 club con nomi, allenatori e rose reali del 1997; **niente pareggi** (rigori: vittoria 3, vittoria ai rigori 1, sconfitta 0); classifica unica da 36 partite. Approssimazioni: rigori al posto dello shoot-out dalle 35 yard, niente conference né play-off.
 - **Asia e Centroamerica (1.2):** Corea del Sud, Cina, Arabia Saudita, Guatemala e Honduras con campionato 1996-97 e coppa nazionale; Asian Club Championship, Asian Cup Winners Cup e CONCACAF Champions Cup (6 nazioni), tutte in carriera.
 
@@ -98,7 +100,7 @@ Patch per **Sensible World of Soccer 96/97** (versione DOS, CD o GOG): ITALIAN.E
 
 Il patcher contiene solo differenze e controlla i file prima e dopo la modifica: serve una copia originale del gioco. Funziona sia con il CD originale sia con la versione GOG (dalla 1.0.1).
 
-**Aggiornamento (2.5.1):** non serve tornare agli originali. Trascina l'exe e `DATA\TEAM.020` che hai ora (modificati da una qualsiasi versione precedente, dalla 1.0 alla 2.6, CD o GOG): il patcher li riconosce e li porta all'ultima versione, oppure ti dice che sono già aggiornati. I salvataggi non vengono mai toccati.
+**Aggiornamento (2.5.1):** non serve tornare agli originali. Trascina l'exe e `DATA\TEAM.020` che hai ora (modificati da una qualsiasi versione precedente, dalla 1.0 alla 2.6.1, CD o GOG): il patcher li riconosce e li porta all'ultima versione, oppure ti dice che sono già aggiornati. I salvataggi non vengono mai toccati.
 
 ### Costruisci la tua stagione
 Le stagioni storiche (come la DDR 1988-89 della 2.6) ora sono **pacchetti stagione**: cartelle di soli dati (club,

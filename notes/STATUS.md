@@ -1811,3 +1811,12 @@ Left for 2.5: (a) NSL/NSSL finals series (type-1 design) or declare them postpon
   from loaded clubs (national-team calls to disable), countries 101..251 permanent; world switch = seasonEndList
   pointer + 3 qualifier lists + euro formats/first-season clubs + 16/32/32/80 checks + year + start menu; .CAR
   trailer world id.
+
+## Release 2.7.0 — SWOS++ compatibility (2026-10-10, Davide's explicit ok; Zlatko asked for it via Playaveli)
+- Study notes/swospp.md (0 collisions, playtest 1-5 passed). tools/swospp.py: install() = SWOS++ install via lepatch,
+  patchit() = byte-exact patchit.com result (recognise vanilla + SWOS++).
+- mkpatcher: build_swospp() -> c/swospp/[gog/]ENGLISH.EXE (21985380 / adf6bb6b), outputs 'ENGLISH.EXE + SWOS++' (+ GOG),
+  sources: original, old modded English 1.0-2.6.1 (upgrades), vanilla+patchit ('via' swospp). loader.bin/swospp.bin NOT
+  shipped (link to zlatkok/swospp releases). Page shows 'already up to date' + the SWOS++ offer for a current English exe.
+  Node harness (scratchpad ut/t.js): original CD/GOG, vanilla+SWOS++ CD/GOG, EN 2.0, EN 2.6.1, mod+SWOS++, IT, TEAM.020 OK.
+- Manuals IT/EN: new chapter 24 SWOS++ (limits -> 25, history -> 26), history row 33. Other exes/TEAM files = 2.6.1.

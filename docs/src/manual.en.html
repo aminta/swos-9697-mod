@@ -97,8 +97,9 @@ html{scroll-behavior:smooth}
     <li><a href="#oceania">21 · Argentina, Oceania and MLS (2.5)</a></li>
     <li><a href="#ddr">22 · Classic seasons: the DDR 1988-89 (2.6)</a></li>
     <li><a href="#pacchetti">23 · Season packs and classic careers</a></li>
-    <li><a href="#limiti">24 · Limits and open issues</a></li>
-    <li><a href="#storia">25 · History and next steps</a></li>
+    <li><a href="#swospp">24 · SWOS++ (2.7)</a></li>
+    <li><a href="#limiti">25 · Limits and open issues</a></li>
+    <li><a href="#storia">26 · History and next steps</a></li>
   </ol>
 </nav>
 
@@ -108,7 +109,7 @@ html{scroll-behavior:smooth}
   <h1>SWOS ITA Mod Technical Manual</h1>
   <p>Documentation for anyone who wants to understand, extend or port the mod's patches: Serie C1 and C2, South American club cups (Libertadores, Supercopa, CONMEBOL), the Intercontinental Cup in career mode, real 1996-97 squads, classic tourneys (World Cup 1982, Mitropa Cup 1934, FA Cup 1871-72), Argentina's Apertura and Clausura, Australia, New Zealand and MLS 1997 (2.5), classic seasons with the DDR 1988-89 and that year's European cups (2.6). Everything below was worked out from the disassembly and checked with builds and test games.</p>
   <div class="meta">
-    <span>State as of <b>2026-10-09</b> (sessions 1–32, release 2.6.1)</span>
+    <span>State as of <b>2026-10-10</b> (sessions 1–33, release 2.7.0)</span>
     <span>ENGLISH.EXE build <b><code>feba4a5f…</code></b></span>
     <span>TEAM.020 <b><code>ded1b97b…</code></b></span>
     <span>Original ENGLISH.EXE <b><code>aa21cd1c…</code></b></span>
@@ -586,7 +587,19 @@ assert blk[:2] == b'S2' and sum(blk) % 256 == 0</code></pre>
 </ul>
 
 <!-- 24 -->
-<h2 id="limiti"><span class="n">24</span>Limits and open issues</h2>
+<h2 id="swospp"><span class="n">24</span>SWOS++ (2.7)</h2>
+<p>From 2.7 the mod works with <a href="https://github.com/zlatkok/swospp">SWOS++</a> by Zlatko Karakas (network play, full replays, DIY editor, shirt numbers up to 255, joystick calibration), on the English executable only (CD or GOG). Zlatko asked for it (via Playaveli). Study and tool: <code>notes/swospp.md</code>, <code>tools/swospp.py</code>. Addresses are ENGLISH.EXE object offsets.</p>
+<ul>
+<li><strong>Why patchit.com fails on the mod.</strong> It writes 36 chunks at fixed <em>file</em> offsets of the original exe, 21 of them inside the fixup record table. The mod rebuilds that table and appends pages, so the file offsets move, while object offsets do not (the mod never moves original code).</li>
+<li><strong>The install, in object terms.</strong> <code>main_</code>+0x18: <code>sub esp,0</code> → nops, <code>call SWOS</code> → <code>call DumpTimerVariables</code>. DumpTimerVariables (obj1+0xA929, unused debug code) becomes a stub that saves the registers and the D0/D1/A0/A1 pseudo-registers, calls <code>LoadFile("LOADER.BIN", pitchDatBuffer)</code>, calls the loader with eax = obj2 base and ebx = obj1 base, then restores everything and jumps to <code>SWOS</code>. The string at obj2+0x54F4 ("SAVE DISK F…") becomes <code>LOADER.BIN</code>. SetDefaultOptions+0x10 and <code>spinBigS</code> lose one byte each (1 → 0). Fixups: 14 records of the debug routine removed, 7 added (stack top, obj2 base, obj1 base, four pseudo-registers).</li>
+<li><strong>tools/swospp.py</strong> re-applies exactly that through <code>lepatch</code> on the modded exe. Applied to the original exe, the result is identical to patchit's: same object bytes, same 73388 fixups. <code>patchit()</code> reproduces patchit byte for byte, so the patcher can recognise a vanilla game with SWOS++ already installed.</li>
+<li><strong>Run time.</strong> loader.bin loads swospp.bin, relocates it and patches 54 sites in memory by English address (main menu entry, GameLoop, DrawSprites, the file dialogs, ShowMenu, MenuProc, CheckControls, the substitutes screen, …). None of them, and none of the 495 SWOS addresses swospp.bin references, touches a byte the mod changes; the nearest is 1142 bytes away from a mod hook.</li>
+<li><strong>Patcher.</strong> Two more outputs, <code>ENGLISH.EXE + SWOS++</code> and its GOG twin, built by <code>mkpatcher.build_swospp()</code>. They come from the original exe, from any earlier modded English exe, from the current one, or from an original exe with SWOS++ already installed. loader.bin and swospp.bin are not shipped: users get them from Zlatko's release page.</li>
+<li><strong>Tested</strong> with SWOS++ 1.9.2.2 in DOSBox-X: main menu entry, the mod's menus, matches (shirt numbers, substitutions, bookings, replays and highlights), career with the mod's cups plus save/load, and the DIY editor. Not tested: network play, classic careers.</li>
+</ul>
+
+<!-- 25 -->
+<h2 id="limiti"><span class="n">25</span>Limits and open issues</h2>
 <ul>
 <li><strong>Play-offs (2.5).</strong> NSL Finals and NSSL Playoffs are top-4 knockouts: the real formats (NSL: 6 clubs; both: a "double chance" for the top two) need per-round control of the entrants, i.e. a type-2 contest in slot 4, whose buffer (443h) is too small. Kept for a future version (<code>finals97.py</code>, option A). The regular-season winner that loses the play-off still shows a small icon at the top of its season record (not yet traced in the code).</li>
 <li><strong>C1/C2 groups.</strong> In 1996-97 C1 had 2 groups and C2 had 3. The mod uses one group per series. The full reality (128 teams) does not fit the limit of about 93 teams per nation. C1 with two groups would fit (92), but it needs promotions and relegations between parallel divisions, and checks on the 80-team career limit and on global numbers: estimated 2–3 sessions.</li>
@@ -599,8 +612,8 @@ assert blk[:2] == b'S2' and sum(blk) % 256 == 0</code></pre>
 <li><strong>English bench (after 1.0).</strong> In the pre-match line-up English clubs show 14 players (11 + 3 on the bench). The original game does the same, and <code>TEAM.008</code> has 16 players per club: it is a game rule. To do: find where the bench size comes from (rules at buffer +3Dh…41h, values 5/2/8 set by <code>InitCareer</code>) and raise it to 5.</li>
 </ul>
 
-<!-- 25 -->
-<h2 id="storia"><span class="n">25</span>History and next steps</h2>
+<!-- 26 -->
+<h2 id="storia"><span class="n">26</span>History and next steps</h2>
 <div class="tbl"><table>
 <thead><tr><th>Session</th><th>Content</th><th>Test</th></tr></thead>
 <tbody>
@@ -623,6 +636,7 @@ assert blk[:2] == b'S2' and sum(blk) % 256 == 0</code></pre>
 <tr><td>30</td><td>Season packs: data folders compiled by <code>mkseason.py</code> (DDR 1988-89 = first pack), several packs per build, <code>explicit</code> squads, countries 101–251; classic careers M1: CLASSIC CAREERS menu, leagues with divisions</td><td><span class="pill ok">passed (IT)</span></td></tr>
 <tr><td>31</td><td>Career European chain decoded (in-save cup copies, place tables, holders, checksum); classic career worlds: world byte, world European cups, <code>worldNN.tmd</code> (M2)</td><td><span class="pill ok">passed (IT, 2 seasons)</span></td></tr>
 <tr><td>32</td><td>Release 2.6.1: a new career started with a club in a European cup is set up at once (the 'S3' mark and the first-season lists of the other continents' cups were only written in the other branch since 1.2). Classic careers M3: world start year, world view and foreign-player browser limited to the world, no national-team jobs, holders with a place of their own</td><td><span class="pill ok">passed (IT, 2 seasons)</span></td></tr>
+<tr><td>33</td><td>Release 2.7.0: SWOS++ compatibility on the English exe (CD and GOG): <code>tools/swospp.py</code>, patcher outputs ENGLISH.EXE + SWOS++</td><td><span class="pill ok">passed (EN, SWOS++ 1.9.2.2)</span></td></tr>
 </tbody></table></div>
 <h3>Roadmap</h3>
 <ol>

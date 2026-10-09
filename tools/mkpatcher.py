@@ -218,6 +218,8 @@ def swospp_sources(entries):
         orig = open(os.path.join(ROOT, next(o for i, o, _, _ in FILES if i == base)), 'rb').read()
         plain = open(os.path.join(ROOT, next(p for i, _, p, _ in FILES if i == base)), 'rb').read()
         for src, via in ((swospp.patchit(orig), 'swospp'), (plain, 'mod')):
+            if any(x['id'] == vid and x['md5'] == hashlib.md5(src).hexdigest() for x in entries + extra):
+                continue
             ops, inserted = encode(src, dst)
             assert decode(src, ops) == dst
             extra.append({'id': vid, 'target': e['target'], 'size': len(src), 'md5': hashlib.md5(src).hexdigest(),
@@ -241,7 +243,8 @@ def build():
             e['with'] = 'TEAM.020'                  # new file: produced when the user's TEAM.020 is recognised
         entries.append(e)
         print(f'{fid}: {len(dst)} bytes, delta {len(ops)} bytes ({inserted} inserted)')
-    entries += upgrades(entries) + swospp_sources(entries)
+    entries += upgrades(entries)
+    entries += swospp_sources(entries)
     page = open(os.path.join(ROOT, 'tools', 'patcher_template.html'), encoding='utf-8').read()
     page = page.replace('/*PATCHES*/null', json.dumps(entries)).replace('{{VERSION}}', VERSION)
     out = os.path.join(ROOT, 'release', 'swos-9697-mod-patcher.html')

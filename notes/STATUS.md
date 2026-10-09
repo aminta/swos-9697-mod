@@ -1806,3 +1806,8 @@ Left for 2.5: (a) NSL/NSSL finals series (type-1 design) or declare them postpon
   marked with its world (loading must restore the right world); separate build only as fallback. Study first
   (1-2 sessions): simulation of unplayed leagues, seasonEndList as a country subset, career European-cup chain on
   a reduced world; then ~5-8 sessions to the first career pack.
+- Study (same session): findings and design in notes/career-packs.md. Verdict: feasible in the same exe; season
+  end runs on seasonEndList, European places are 3 static country lists, multi-division native, job offers only
+  from loaded clubs (national-team calls to disable), countries 101..251 permanent; world switch = seasonEndList
+  pointer + 3 qualifier lists + euro formats/first-season clubs + 16/32/32/80 checks + year + start menu; .CAR
+  trailer world id.

@@ -163,3 +163,12 @@ table sums to 0 mod 256 (that is why the 'S3' mark at 1847..1849 has a balance b
 - Playtest: CARR. STORICHE -> a club of a test country; season 1 European cups = the 4/4/8 world clubs; finish
   season 1 (no freeze = checks OK), season 2 cups = world qualifiers; save + reload; a normal career still has the
   1996-97 cups.
+
+### Playtest 1 (2026-10-09): season 1 OK, season 2 = 1996-97 qualifiers -> fixed
+
+- Season 1: CC 4 / CWC 4 / UEFA 8 world clubs, no freeze at season end, year 1997/98, save OK, normal career OK.
+- Season 2 cups held 1996-97 clubs (save WCARR2: 80 records of every European country, world byte 0): InitCareer
+  calls InitializeNewSeason, whose cseg_8CC4E copies leaguesTableCopy back over someLeaguesTable, wiping the world
+  byte written only in someLeaguesTable. Fix: world byte + balance also in leaguesTableCopy (found from the two
+  copy routines cseg_8CC0A / cseg_8CC4E; IT obj2+0x5953C, EN +0x593F2). Build ITALIAN 271146d8 -> replay with a NEW
+  career (WCARR2 is a 1996-97-world save now).

@@ -4,7 +4,8 @@ A WORLD is a set of career packs (countries) with the same pack.json `world` num
 a world country runs in that world: its season-end country list, its European places and cups, its first-season
 European clubs. The world byte lives in the save: someLeaguesTable[1845], with the balance byte [1846] = -world
 (cseg_9487A traps unless the table sums to 0; globals 1818..1846 belong to no club, 1847..1849 = 'S3' mark; InitCareer
-clears the table, so a normal career has 0 = the 1996-97 world).
+clears the table, so a normal career has 0 = the 1996-97 world). Written to leaguesTableCopy too: InitializeNewSeason
+copies that table back over someLeaguesTable (cseg_8CC4E).
 
 European cups of a world are knockout cups that fit the in-save copies (euroCupCopy 79 B = at most 16 clubs,
 cupWinnersCupCopy / uefaCupCopy 92 B = at most 32): the season end writes the qualifiers into their team lists, so
@@ -53,14 +54,17 @@ w_load1:                                ; replaces the first `call LoadSomeEuroC
     jmp .l
 .none:
     mov byte [SLT + WORLD_BYTE], 0
+    mov byte [SLTCOPY + WORLD_BYTE], 0
     pop eax
     pop esi
     jmp LOADEURO
 .found:
     mov al, [esi + 1]
-    mov [SLT + WORLD_BYTE], al
+    mov [SLT + WORLD_BYTE], al          ; also in leaguesTableCopy: InitializeNewSeason (cseg_8CC4E) copies it back
+    mov [SLTCOPY + WORLD_BYTE], al      ; over someLeaguesTable, like the 'S3' mark (trailer.set_mark)
     neg al
-    mov [SLT + WORLD_BYTE + 1], al      ; the table must keep summing to 0
+    mov [SLT + WORLD_BYTE + 1], al      ; the tables must keep summing to 0
+    mov [SLTCOPY + WORLD_BYTE + 1], al
     push ebx
     call w_rec
     mov eax, [ebx + 12]
@@ -187,6 +191,12 @@ def sites(p):
     s['entry'] = m.start()
     m = _one(rb'\xc7\x05' + pk(A0) + rb'.{4}\x66\xc7\x05' + pk(D0) + rb'\xcf\x07', d1[m.start():m.start() + 0x40], 'SLT')
     s['slt'] = p.target(1, s['entry'] + m.start() + 6)
+    # cseg_8CC0A: mov [D0], 1999; mov [A0], someLeaguesTable; mov [A1], leaguesTableCopy
+    slt_raw = d1[s['entry'] + m.start() + 6:s['entry'] + m.start() + 10]
+    ms = list(re.finditer(rb'\xc7\x05' + pk(A0) + re.escape(slt_raw) + rb'\xc7\x05' + pk(A1), d1))
+    tg = {p.target(1, x.end()) for x in ms}                  # cseg_8CC0A and cseg_8CC4E: the same table
+    assert len(ms) == 2 and len(tg) == 1, (len(ms), tg)
+    s['sltcopy'] = tg.pop()
     m = _one(rb'\x66\xc7\x05(.{4})\x00\x00' + (rb'\xc7\x05' + pk(A0) + rb'.{4}\xe8(.{4})') * 3, d1, 'LoadSomeEuroCup x3')
     s['cfb'] = struct.unpack('<I', m.group(1))[0]
     s['load'] = [m.start() + 9 + 15 * k + 10 for k in range(3)]
@@ -290,7 +300,7 @@ def patch(p, worlds, at, nasmcave):
     src = ASM + '\n'.join(data + extra) + '\n'
     sym = {k: (2, v) for k, v in s['regs'].items()}
     sobj, slt = s['slt']
-    sym.update({'SLT': (sobj, slt), 'WORLD_BYTE': (0, WORLD_BYTE), 'REC': (0, REC),
+    sym.update({'SLT': (sobj, slt), 'SLTCOPY': s['sltcopy'], 'WORLD_BYTE': (0, WORLD_BYTE), 'REC': (0, REC),
                 'LOADEURO': (1, s['loadeuro']), 'KNOWN': (1, s['known']), 'TEAMSLOADED': (2, s['teamsloaded']),
                 'CCCOPY': s['copies'][0][0],
                 'CWCCOPY': s['copies'][1][0], 'UEFACOPY': s['copies'][2][0],

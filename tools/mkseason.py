@@ -40,6 +40,9 @@ TEAM_SIZE = 684
 SEASONS = 97                            # pseudo-continent 'classic seasons' of the Season menu
 SEASONS_NAMES = {'it': b'STAG. STORICHE', 'en': b'CLASSIC SEASONS', 'fr': b"SAISONS D'ANTAN", 'de': b'SAISONKLASSIKER'}
 SEASONS_REC = [None]                    # obj2 offset of its countriesTable record (historic.hist_names colours it)
+CAREERS = 98                            # pseudo-continent 'classic careers' of the career team selector
+CAREERS_NAMES = {'it': b'CARR. STORICHE', 'en': b'CLASSIC CAREERS', 'fr': b"CARR. D'ANTAN", 'de': b'KLASS. KARRIERE'}
+CAREERS_REC = [None]
 ROUND = {'two_legs': 0x94, 'single': 0x14, 'single_et': 0x54}   # knockout round byte: two legs (away goals),
                                                                  # single match, single match + extra time/penalties
 AU_CUP_SIG = bytes((0xAD, 1, 0x2C, 0x28, 0x50))   # SWOS's Australian cup: layout of a 'national' cup
@@ -137,13 +140,28 @@ class Pack:
         self.count = count
         self.comps = m['competitions']
         self.league = next(c for c in self.comps if c['key'] == m['season']['league'])
+        self.kind = m.get('kind', 'season')
+        _need(self.kind in ('season', 'career'), "pack.json: kind must be 'season' or 'career'")
         self.league_clubs = [k for k, c in self.clubs.items() if c['file'] == self.league['clubs']]
+        self.division = {k: int(self.clubs[k].get('division') or 0) for k in self.league_clubs}
+        divs = self.divisions()
+        for d, dv in enumerate(divs):
+            n = sum(1 for k in self.league_clubs if self.division[k] == d)
+            _need(n == dv['teams'], f"{self.league['key']}: division {d + 1} has {n} clubs in clubs.csv, {dv['teams']} in pack.json")
+        _need(sum(dv['teams'] for dv in divs) == len(self.league_clubs), f"{self.league['key']}: clubs outside the divisions")
         for c in self.comps:
             if c['type'] == 'cup':
                 self.bracket(c)          # validates
         for club, cup in m['season'].get('europe', {}).items():
             _need(club in self.league_clubs, f'season.europe: {club} is not a league club')
             _need(club in self.bracket(self.comp(cup))['clubs'], f'season.europe: {club} does not play {cup}')
+
+    def divisions(self):
+        """League divisions: pack.json 'divisions' [{teams, promoted, relegated, names}], or one division."""
+        lg = self.league
+        if 'divisions' in lg:
+            return lg['divisions']
+        return [{'teams': len(self.league_clubs), 'promoted': 0, 'relegated': lg['relegated'], 'names': lg['names']}]
 
     def comp(self, key):
         return next(c for c in self.comps if c['key'] == key)
@@ -196,7 +214,7 @@ class Pack:
         f, i = self.where[key]
         r[0], r[1] = f, i
         struct.pack_into('>H', r, 2, self.files[c['file']][1] + i)
-        r[25] = 0
+        r[25] = self.division.get(key, 0)              # division (0 = top)
         r[5:22] = c['name'].encode('latin1').ljust(17, b'\0')[:17]
         r[36:59] = _sn(c['coach']).encode('latin1').ljust(23, b'\0')[:23] if c['coach'] else bytes(23)
         return r
@@ -474,6 +492,32 @@ euro_slot2:                             ; replaces `mov [A0], eax` before slot 2
 
 
 
+CAREER_ASM = '''
+career_sel:                             ; replaces `call ChooseTeamsDialog` in SelectTeamToManage (career start)
+    push dword [COMP254]
+    mov dword [COMP254], CAREER_WORLD
+    call CHOOSE
+    pop dword [COMP254]
+    ret
+'''
+
+
+def _career_site(p):
+    """(obj1 offset of `call ChooseTeamsDialog` in SelectTeamToManage, ChooseTeamsDialog): A1 = 0, D2 = 1 (club teams
+    only), D3 = D4 = 0, call, ret."""
+    import sacups
+    d1 = p.le.obj_bytes(1)
+    r = sacups.regs(d1)
+    pk = lambda x: re.escape(struct.pack('<I', x))
+    pat = (rb'\xc7\x05' + pk(r['A0']) + rb'.{4}\xc7\x05' + pk(r['A0'] + 4) + rb'\x00\x00\x00\x00'
+           + rb'\x66\xc7\x05' + pk(r['D7'] - 20) + rb'\x01\x00\x66\xc7\x05' + pk(r['D7'] - 16) + rb'\x00\x00'
+           + rb'\x66\xc7\x05' + pk(r['D7'] - 12) + rb'\x00\x00\xe8(.{4})\xc3')
+    ms = list(re.finditer(pat, d1, re.S))
+    assert len(ms) == 1, len(ms)
+    site = ms[0].end() - 6
+    return site, site + 5 + struct.unpack('<i', ms[0].group(1))[0]
+
+
 def _hook_sites(p):
     """(site of `mov [A0], eax` before slot 2, skip target, compCountryNumber, selTeamsPtr, g_numSelectedTeams, regs)."""
     import sacups
@@ -528,9 +572,15 @@ def _patch_pack(pk, p, lang, area, at, env):
             lobj, glg = p.target(gobj, gtab)
             lg = p.le.obj_bytes(lobj)[glg:glg + 13]
             assert lg[2] == src_c, lg.hex()
-            rel = [area.add(s.encode('latin1') + b'\0') - sacups.STR_BASE for s in names]
-            hdr = bytes((int(c['id'], 16), 0, lfile, lg[3], lg[4], 9 + 6, 0, 0, 0, 1, c['games'], c['win_points'], 0x35))
-            body = hdr + bytes((len(pk.league_clubs), 0, 0, c['relegated'], 0, 0)) + b'\0' + struct.pack('<II', *rel)
+            divs = pk.divisions()
+            rel = []
+            for dv in divs:
+                dn = dv['names'].get(lang) or dv['names']['*']
+                rel += [area.add(s.encode('latin1') + b'\0') - sacups.STR_BASE for s in dn]
+            hdr = bytes((int(c['id'], 16), 0, lfile, lg[3], lg[4], 9 + 6 * len(divs), 0, 0, 0, len(divs), c['games'],
+                         c['win_points'], 0x35))
+            body = hdr + b''.join(bytes((dv['teams'], dv['promoted'], 0, dv['relegated'], 0, 0)) for dv in divs) \
+                + b'\0' + struct.pack(f'<{len(rel)}I', *rel)
         else:
             br = pk.bracket(c)
             rounds = bytes(ROUND[x] for x in c['rounds'])
@@ -576,7 +626,7 @@ def _patch_pack(pk, p, lang, area, at, env):
     for club, cup in s.get('europe', {}).items():
         emap[pk.league_clubs.index(club)] = europe.index(cup) + 1
     pk.log(f"exe: country {lfile}, " + ', '.join(f"{c['key']} id {c['id']} @ obj1+{ptr[c['key']]:#x}" for c in pk.comps))
-    info = dict(file=lfile, n=len(pk.league_clubs), emap=bytes(emap) if s.get('europe') else None,
+    info = dict(kind=pk.kind, file=lfile, n=len(pk.league_clubs), emap=bytes(emap) if s.get('europe') else None,
                 cups=[ptr[k] for k in europe], classic=[ptr[c['key']] for c in pk.comps if c.get('classic_tourney')])
     return at, info
 
@@ -608,7 +658,7 @@ def patch(p, lang, area, cave):
     SEASONS_REC[0] = srec
     p.add_ptr(2, ct + 4 * SEASONS, 2, srec)
     stab = at
-    lst = struct.pack('<i', -1) + bytes(i['file'] for i in infos) + b'\xff'
+    lst = struct.pack('<i', -1) + bytes(i['file'] for i in infos if i['kind'] == 'season') + b'\xff'
     p.put(1, at, lst)
     at = (at + len(lst) + 3) & ~3
     p.add_ptr(2, comp + 4 * SEASONS, 1, stab)
@@ -619,6 +669,20 @@ def patch(p, lang, area, cave):
     p.add_ptr(1, at, *p.target(wobj, world))
     p.put(1, at + 4, b'\xff' * 4 + conts + bytes((SEASONS, 0xff)))
     at = (at + 8 + len(conts) + 2 + 3) & ~3
+    careers = [i['file'] for i in infos if i['kind'] == 'career']
+    if careers:                                 # career team selector: CLASSIC CAREERS (98) after the continents
+        assert ct + 4 * CAREERS not in fx2 and comp + 4 * CAREERS not in fx2
+        crec = area.add(bytes((countries.CONTINENT['europe'],)) + CAREERS_NAMES[lang] + b'\0' + CAREERS_NAMES[lang] + b'\0')
+        CAREERS_REC[0] = crec
+        p.add_ptr(2, ct + 4 * CAREERS, 2, crec)
+        lst = struct.pack('<i', -1) + bytes(careers) + b'\xff'
+        p.put(1, at, lst)
+        p.add_ptr(2, comp + 4 * CAREERS, 1, at)
+        at = (at + len(lst) + 3) & ~3
+        cworld = at
+        p.add_ptr(1, at, *p.target(wobj, world))
+        p.put(1, at + 4, b'\xff' * 4 + conts + bytes((CAREERS, 0xff)))
+        at = (at + 8 + len(conts) + 2 + 3) & ~3
     d1 = p.le.obj_bytes(1)
     d7 = sacups.regs(d1)['D7']                  # continent range check: cmp word [D7], 85; ja last -> ja cont_check
     ms = [x.start() for x in re.finditer(rb'\x66\x83\x3d' + re.escape(struct.pack('<I', d7)) + rb'\x55\x0f\x87', d1)]
@@ -632,6 +696,11 @@ def patch(p, lang, area, cave):
                'D7REG': (2, d7), 'SEASONS_N': (0, SEASONS), 'CONT_WORLD': (1, ja + 6), 'CONT_LAST': (1, last),
                'A0': (2, r['A0']), 'COMPCOUNTRY': (2, comp_cn), 'SELTEAMS': (2, sel), 'NUMSEL': (2, num),
                'SKIP_SLOT2': (1, skip)}
+    src = HOOK_ASM
+    if careers:
+        site_c, choose = _career_site(p)
+        symbols.update({'CAREER_WORLD': (1, cworld), 'CHOOSE': (1, choose), 'CAREERS_N': (0, CAREERS)})
+        src = src.replace('cont_check:', 'cont_check:\n    cmp word [D7REG], CAREERS_N\n    je CONT_WORLD') + CAREER_ASM
     tab = ['align 4', 'PACK_TAB:']
     data = []
     for k, i in enumerate(x for x in infos if x['emap']):
@@ -641,7 +710,7 @@ def patch(p, lang, area, cave):
         data.append(f'PACK_MAP_{k}: db ' + ', '.join(map(str, i['emap'])))
         for j, c in enumerate(i['cups']):
             symbols[f'CUP_{k}_{j}'] = (1, c)
-    src = HOOK_ASM + '\n'.join(tab + ['    db 0xff', 'align 4'] + data) + '\n'
+    src += '\n'.join(tab + ['    db 0xff', 'align 4'] + data) + '\n'
     code, fix = nasmcave.assemble(src, at, symbols)
     labels = nasmcave.labels(src, at, symbols)
     p.put(1, at, code)
@@ -649,6 +718,8 @@ def patch(p, lang, area, cave):
         p.add_ptr(1, at + off, tobj, toff)
     p.put(1, season_call + 1, struct.pack('<i', labels['season_sel'] - (season_call + 5)))
     p.put(1, ja + 2, struct.pack('<i', labels['cont_check'] - (ja + 6)))
+    if careers:
+        p.put(1, site_c + 1, struct.pack('<i', labels['career_sel'] - (site_c + 5)))
     p.remove(1, site + 1)                                # `mov [A0], eax`: drop the fixup of its address operand
     p.put(1, site, b'\xe8' + struct.pack('<i', labels['euro_slot2'] - (site + 5)))
     at = (at + len(code) + 3) & ~3

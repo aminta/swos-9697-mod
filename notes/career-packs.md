@@ -66,3 +66,17 @@ European places (CC / CWC / UEFA), and per world: the European cup formats, the 
 
 Study done for the main questions; ~5-8 sessions to a first playable career pack (test world first, then 1984-85
 with Daniele Bordes's data).
+
+## M1 — test world (2026-10-09): PASSED
+
+- mkseason: pack `kind` ('season' | 'career'); league `divisions` [{teams, promoted, relegated, names}] with the
+  clubs.csv `division` column (record byte +25); career packs go to pseudo-continent 98 CLASSIC CAREERS
+  (CARR. STORICHE), shown only in the career team selector: `career_sel` replaces `call ChooseTeamsDialog` in
+  SelectTeamToManage and swaps comp[254] for a world table with 98 (cont_check accepts 97 and 98); historic
+  hist_names colours the button.
+- Test world (scratchpad only): country 101 'DDR (TEST)', Oberliga 14 (2 relegated) + DDR-LIGA 18 (2 promoted),
+  FDGB-POKAL; still the 1996-97 European world.
+- Davide's playtest: CARR. STORICHE -> DDR (TEST) -> Dynamo Schwerin (DDR-LIGA); season 1 ended, season 2 started,
+  job offers arrived, saved WCARR1.CAR. Save read: someLeaguesTable deltas Zwickau +1, Union +1 (relegated),
+  Eisenhuettenstadt -1, Thale -1 (promoted, 1st and 2nd of the DDR-LIGA table) = correct.
+- Expected gaps (M2): year 1996/97, 1996-97 European cups and world view (VISUALIZZA MONDO -> Europa has no DDR).

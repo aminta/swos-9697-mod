@@ -620,8 +620,13 @@ def patch(p, lang, area, cave, draw_pre=None, leagues=()):
                'M34_ID_': (0, M34_ID), 'FA_ID_': (0, FA_ID), 'COIN_TEXT': (2, coin_text),
                'DIYCOPY': (2, coin['diycopy']), 'RAND2': (1, coin['rand2']), 'D5': (2, a0 - 12), 'D6': (2, a0 - 8),
                'D7': (2, a0 - 4), 'D1': (2, a0 - 28), 'SKIP': (2, coin['skip']), 'DIYCOMP': (2, coin['diycomp'])}
-    code, fix = nasmcave.assemble(ASM, at, symbols)
-    labels = nasmcave.labels(ASM, at, symbols)
+    src = ASM
+    if mkseason.CAREERS_REC[0] is not None:                # career packs: CLASSIC CAREERS button coloured too
+        symbols['CAREERS_NAME'] = (2, mkseason.CAREERS_REC[0] + 1)
+        src = src.replace('    cmp dword [esi + 26h], SEASONS_NAME', '    cmp dword [esi + 26h], CAREERS_NAME\n    je .c\n'
+                          '    cmp dword [esi + 26h], SEASONS_NAME')
+    code, fix = nasmcave.assemble(src, at, symbols)
+    labels = nasmcave.labels(src, at, symbols)
     p.put(1, at, code)
     for off, tobj, toff in fix:
         p.add_ptr(1, at + off, tobj, toff)

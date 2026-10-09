@@ -43,6 +43,7 @@ NZ_CAVE = 0xa4000            # fourth added page (2.1): NSSL shoot-out (the worl
 FIN_CAVE = 0xa4300           # 2.1: finals series (finals97.fin_pre)
 FINALS = True                # NSL / NSSL play-offs, option B: native 4-club type-1 cup (session 28s)
 ARG_CAVE = 0xa4400           # 2.1: Argentina Apertura/Clausura, aggregate, promedio (arg97)
+CAREER_CAVE = 0xa6000        # sixth added page, only in builds with a historic career world (careerworld.py)
 ARG_LOAD_HOOK = True
 
 LEAGUES_OLD = bytes.fromhex('3c00144020150000000202033512')
@@ -151,8 +152,10 @@ def remap_italian_cup_teams(p, remap):
 def patch_exe(src, dst, remap, lang='it'):
     grown = dst + '.tmp'
     data = open(src, 'rb').read()
-    for _ in range(5):
+    worlds = bool(mkseason.worlds())
+    for _ in range(6 if worlds else 5):
         data = add_object_page(data, 1)
+    mkseason.CAREER_CAVE[0] = CAREER_CAVE if worlds else None
     while True:                    # obj2: zero pages over the old BSS/stack tail, then one free page
         data = add_object_page(data, 2)
         le2 = LE(data)
@@ -211,7 +214,7 @@ def patch_exe(src, dst, remap, lang='it'):
     world = cafcups.intl_list(p, caf, world)
     assert world <= NZ_CAVE and nz_end <= FIN_CAVE and fin_end <= ARG_CAVE and arg_end <= OBJ1_NEW_VSIZE, \
         (hex(world), hex(nz_end), hex(fin_end), hex(arg_end))
-    p.set_vsize(1, OBJ1_NEW_VSIZE)
+    p.set_vsize(1, OBJ1_NEW_VSIZE + (0x1000 if worlds else 0))
     p.set_vsize(2, obj2_free + p.le.page_size)
     p.add_flags(1, 0x2)            # writable: season end rewrites the SA cup team lists in the cave
     delta, shift = p.save(dst)

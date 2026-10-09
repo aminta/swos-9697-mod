@@ -265,6 +265,86 @@ w_holders:                              ; replaces `call cseg_92BBF`: in a world
     popad
     ret
 
+w_isholder:                             ; ZF = 1 when word [D0] is one of the three holders or already in a list
+    push eax                            ; (a club skipped by one cup must not be taken twice by the next)
+    push esi
+    push ecx
+    mov ax, [D0R]
+    cmp ax, [HOLD_CC]
+    je .y
+    cmp ax, [HOLD_CWC]
+    je .y
+    cmp ax, [HOLD_UEFA]
+    je .y
+    mov esi, HOLDTAB
+.l:
+    cmp dword [esi], -1
+    je .n
+    mov ecx, [esi + 8]
+    movzx ecx, word [ecx]
+    push esi
+    mov esi, [esi + 4]
+    mov esi, [esi]
+.e:
+    test ecx, ecx
+    jz .x
+    cmp ax, [esi]
+    je .f
+    add esi, 2
+    dec ecx
+    jmp .e
+.f:
+    pop esi
+    jmp .y
+.x:
+    pop esi
+    add esi, 16
+    jmp .l
+.n:
+    or esi, esi                         ; ZF = 0 (esi -> HOLDTAB end, not 0)
+.y:
+    pop ecx
+    pop esi
+    pop eax
+    ret
+
+w_pick_cc:                              ; replaces `call cseg_93BCE` in cseg_939C9 (Champions Cup = the champion): in
+    push ebx                            ; a world a holder plays its own cup as holder, so the place goes to the next
+    call w_rec                          ; club of the table (cseg_93BCE would clear the holder: one place short)
+    pop ebx
+    jnz .w
+    jmp CLEARHOLD
+.w:
+    call w_isholder
+    jne .r
+    add dword [A5R], 684
+    push eax
+    mov eax, [A5R]
+    mov ax, [eax]
+    mov [D0R], ax
+    pop eax
+    jmp .w
+.r:
+    ret
+
+%macro W_PICK 2                         ; replaces `call cseg_93BCE` in the CWC / UEFA loops: a holder is skipped
+%1:                                     ; (back to the loop: the next club of the table)
+    push ebx
+    call w_rec
+    pop ebx
+    jnz .w
+    jmp CLEARHOLD
+.w:
+    call w_isholder
+    jne .r
+    add esp, 4
+    jmp %2
+.r:
+    ret
+%endmacro
+W_PICK w_pick_cwc, LOOP_CWC
+W_PICK w_pick_uefa, LOOP_UEFA
+
 align 4
 HOLDTAB:
     dd HOLD_CC, LIST_CC, CNT_CC, BUF_CC
@@ -398,7 +478,19 @@ def sites(p):
     # cseg_8D7B4 tail: mov word [D0], -1; mov ax, [D0]; mov [lastNationalityCall], ax; or ax, ax; ret
     m = _one(rb'\x66\xc7\x05' + pk(D0) + rb'\xff\xff\x66\xa1' + pk(D0) + rb'\x66\xa3(.{4})\x66\x0b\xc0\xc3', d1, 'lastNat')
     s['nat'], s['lastnat'] = m.start() + 9, struct.unpack('<I', m.group(1))[0]
-    s['regs'] = dict(D0R=D0, D7R=D7, A0R=A0, A1R=A1, A6R=A6)
+    # cseg_93BCE (clears a holder that qualified through its league) and its 3 calls: cseg_939C9 (CC champion),
+    # cseg_939FE / cseg_93A60 (CWC / UEFA loops: the jz before the call goes back to the loop)
+    hcc = s['hold'][0][0]
+    m = _one(rb'\x66\xa1' + pk(hcc) + rb'\x66\x39\x05' + pk(D0) + rb'\x75.\x66\xc7\x05' + pk(hcc) + rb'\xff\xff\xc3', d1,
+             'cseg_93BCE')
+    s['clearhold'] = m.start()
+    calls = [i for i in range(len(d1) - 5) if d1[i] == 0xe8
+             and i + 5 + struct.unpack_from('<i', d1, i + 1)[0] == s['clearhold']]
+    assert len(calls) == 3, calls
+    assert d1[calls[0] - 2] != 0x74 and d1[calls[1] - 2] == 0x74 and d1[calls[2] - 2] == 0x74
+    s['pick'] = [(calls[0], 'w_pick_cc', None)] + [(c, n, c + struct.unpack_from('<b', d1, c - 1)[0])
+                                                   for c, n in zip(calls[1:], ('w_pick_cwc', 'w_pick_uefa'))]
+    s['regs'] = dict(D0R=D0, D7R=D7, A0R=A0, A1R=A1, A5R=A0 + 20, A6R=A6)
     return s
 
 
@@ -468,7 +560,8 @@ def patch(p, worlds, at, nasmcave, comp, ct, cont_rec):
                 'WCONT': (0, WCONT), 'SEASONPLAYING': (2, s['season']), 'COMP254': (2, comp + 4 * 254),
                 'COMP99': (2, comp + 4 * WCONT), 'VIEWFIRST': p.target(vobj, vtab), 'CHOOSECOMP': (1, s['choosecomp']),
                 'CHOOSETEAMS': (1, s['chooseteams']), 'LASTNAT': (2, s['lastnat']), 'HOLDERS': (1, s['holders']),
-                'ADDREC': (1, s['addrec'])})
+                'ADDREC': (1, s['addrec']), 'CLEARHOLD': (1, s['clearhold']),
+                'LOOP_CWC': (1, s['pick'][1][2]), 'LOOP_UEFA': (1, s['pick'][2][2])})
     for key, (hold, buf, lst, cnt) in zip(('CC', 'CWC', 'UEFA'), s['hold']):
         sym.update({f'HOLD_{key}': (2, hold), f'BUF_{key}': (2, buf), f'LIST_{key}': (2, lst)})
         assert cnt == s['cnt'][('CC', 'CWC', 'UEFA').index(key)]
@@ -499,4 +592,6 @@ def patch(p, worlds, at, nasmcave, comp, ct, cont_rec):
     hook(s['view'], 5, 'w_view', ())
     hook(s['buy'], 5, 'w_buy', ())
     hook(s['nat'], 12, 'w_nat', (2, 8))
+    for site, name, _ in s['pick']:
+        hook(site, 5, name, ())
     return (at + len(code) + 3) & ~3

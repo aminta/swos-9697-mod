@@ -43,6 +43,7 @@ SEASONS_REC = [None]                    # obj2 offset of its countriesTable reco
 CAREERS = 98                            # pseudo-continent 'classic careers' of the career team selector
 CAREERS_NAMES = {'it': b'CARR. STORICHE', 'en': b'CLASSIC CAREERS', 'fr': b"CARR. D'ANTAN", 'de': b'KLASS. KARRIERE'}
 CAREERS_REC = [None]
+CAREER_CAVE = [None]                    # obj1 page of the career world code (patch.py adds it when worlds exist)
 ROUND = {'two_legs': 0x94, 'single': 0x14, 'single_et': 0x54}   # knockout round byte: two legs (away goals),
                                                                  # single match, single match + extra time/penalties
 AU_CUP_SIG = bytes((0xAD, 1, 0x2C, 0x28, 0x50))   # SWOS's Australian cup: layout of a 'national' cup
@@ -821,7 +822,9 @@ def patch(p, lang, area, cave):
     at = (at + len(code) + 3) & ~3
     if worlds():                                          # career packs M2: historic career worlds
         import careerworld
-        at = careerworld.patch(p, world_defs(), at, nasmcave, comp, ct, (2, CAREERS_REC[0]))
+        cave = CAREER_CAVE[0]
+        end = careerworld.patch(p, world_defs(), cave, nasmcave, comp, ct, (2, CAREERS_REC[0]))
+        _need(end <= cave + 0x1000, f'career world code overflows its page ({end:#x})')
     return at, [x for i in infos for x in i['classic']]
 
 

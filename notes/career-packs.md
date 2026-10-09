@@ -103,3 +103,5 @@ with Daniele Bordes's data).
   European places) + world European cups (formats, first-season clubs = generated TMD-like files).
 - Next to read: cseg_94193, cseg_92BBF (holders), how euroCupCopy / cupWinnersCupCopy / uefaCupCopy are built from
   the lists at the next InitNewSeason (sizes: original structs 16 groups / 32 / 32), cseg_8D661 (membership).
+- Test material for the next sessions: internal/career-test/ (git-ignored; README there). c/SWOS currently holds the
+  M1 test build (ITALIAN.EXE da08e328 + DATA/TEAM.101); 2.6 exe = c/SWOS/ITALIAN_26.EXE (9881320f); save WCARR1.CAR.

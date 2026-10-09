@@ -1783,3 +1783,19 @@ Left for 2.5: (a) NSL/NSSL finals series (type-1 design) or declare them postpon
 - Verified byte-identical to 2.6: IT/EN/FR/DE CD exes, GOG exes, TEAM.020 + all new TEAM files. Negative checks
   (wrong winner, 17-char name, wrong europe cup) rejected with clear messages.
 - EURO_ALWAYS test env vars (1/2/3) dropped with the old modules.
+
+## Session 30 (cont.) — Season packs, phase B (2026-10-09)
+- Davide: phase B with our own DDR data; Championship Manager only an OPTION (converter into explicit columns).
+- 'explicit' squad method (mkseason._explicit): tactic, kit1/kit2, lineup per club; per player position, number, nat,
+  skin, 7 skills (* = key), price. Test: built DDR TEAM.092-096 exported to explicit CSVs and recompiled =
+  IDENTICAL (155 clubs; the 2.6 calibration wrote 1 into the unused first skill nibble of 32 TEAM.092 players,
+  masked in the comparison; harmless, released files unchanged).
+- Multi-pack exe: per-pack country/structs/table (_patch_pack), shared CLASSIC SEASONS list of all pack leagues,
+  euro_slot2 now walks PACK_TAB (league file, clubs, map, cup pointers; packs without European cups not listed).
+  SEASON_PACKS env (names or paths) for test builds. Exe no longer byte-identical to 2.6 (code + shifted caves);
+  team files still identical.
+- Free country numbers: ct/comp fixups only up to 85, 100, 252-255; file names are built as 3 digits from 0..255,
+  so countries 101..251 look free (to confirm in game: the test pack uses TEAM.101/102, contest ids CB/CC).
+  Globals: packs may share global numbers (never in the same season).
+- Test build installed in c/SWOS (ITALIAN.EXE c0a8de83 = DDR + test pack 'TEST 1988-89'); 2.6 exe kept as
+  c/SWOS/ITALIAN_26.EXE (9881320f). Test pack: scratchpad only (not in the repo).

@@ -107,7 +107,22 @@ ripropone il tabellone vero.
     i giocatori trovati per nome nella fonte tengono le sue abilità (per i file in `reuse_ratings`).
   - `game`: ogni club sul proprio record del gioco 1996-97 quando c'è, altrimenti su un club della sua nazione; i
     giocatori già presenti nel gioco tengono le loro abilità.
+  - `explicit`: ogni byte viene dal pacchetto (nessun file di partenza, niente stimato). `clubs.csv` aggiunge
+    `tactic` (0–15), `kit1` e `kit2` (5 numeri ciascuno: tipo di maglia, colori di maglia, strisce, pantaloncini,
+    calzettoni) e `lineup` (16 numeri 0–15: quale giocatore occupa ogni posto della formazione). `players.csv` elenca
+    esattamente 16 giocatori per club nell'ordine del record e aggiunge `position` (`G RB LB D RW LW M A`, coerente
+    con il ruolo), `number`, `nat` (il numero di nazionalità del gioco), `skin` (`light` chiara, `dark` scura,
+    `ginger` rossa), le 7 abilità `pa ve he ta co sp fi` (passaggio, tiro, colpo di testa, contrasto, controllo di
+    palla, velocità, finalizzazione: 0–7, un `*` finale indica un'abilità chiave) e `price` (prezzo, 0–49).
   - `seed`: il seme casuale dei giocatori inventati (fa parte del determinismo).
+
+### Abilità: tre strade, nessuna obbligatoria
+
+1. **Nessuna abilità**: solo nomi e ruoli; le abilità vengono stimate dalla forza del club (`calibrate`, `game`).
+2. **Abilità SWOS scritte a mano**: le colonne di `explicit` qui sopra.
+3. **Da un altro database** (Championship Manager, SWOS 2020, qualsiasi database con valutazioni dei giocatori): un
+   piccolo convertitore lo traduce nelle colonne di `explicit`. Il compilatore non dipende mai dalla provenienza dei
+   dati; un convertitore è solo un'opzione, da usare con il permesso degli autori del database e citandoli.
 - `competitions`: in ordine.
   - campionato: `id` (identificativo della competizione, esadecimale), `clubs` (la chiave del suo file),
     `dates_from` (nazione di cui copia il calendario), `games` (2 = andata e ritorno), `win_points`, `relegated`,

@@ -105,7 +105,21 @@ real bracket.
     players found by name in the source keep its ratings (for the files in `reuse_ratings`).
   - `game`: each club on its own record of the 1996-97 game when it has one, else a club of its country; players
     already in the game keep their ratings.
+  - `explicit`: every byte comes from the pack (no source file, nothing estimated). `clubs.csv` adds `tactic`
+    (0–15), `kit1` and `kit2` (5 numbers each: kit type, shirt, stripes, shorts, socks colours) and `lineup` (16
+    numbers 0–15: which player takes each line-up place). `players.csv` lists exactly 16 players per club in record
+    order and adds `position` (`G RB LB D RW LW M A`, matching the role), `number`, `nat` (the game's nationality
+    number), `skin` (`light`, `dark`, `ginger`), the 7 skills `pa ve he ta co sp fi` (passing, shooting, heading,
+    tackling, ball control, speed, finishing: 0–7, a trailing `*` marks a key skill) and `price` (0–49).
   - `seed`: random seed of the fillers (part of the determinism).
+
+### Ratings: three ways, none required
+
+1. **No ratings**: names and roles only; skills are estimated from the club's strength (`calibrate`, `game`).
+2. **SWOS skills by hand**: the `explicit` columns above.
+3. **From another database** (Championship Manager, SWOS 2020, anything with player ratings): a small converter
+   turns it into the `explicit` columns. The compiler never depends on where the data comes from; a converter is
+   just an option, used with the permission and credit of the database's authors.
 - `competitions`: in order.
   - league: `id` (contest id, hex), `clubs` (its file key), `dates_from` (country whose calendar it copies),
     `games` (2 = home and away), `win_points`, `relegated`, `classic_tourney` (also in CLASSIC TOURNEYS), `names`.

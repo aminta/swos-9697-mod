@@ -34,7 +34,8 @@ import unicodedata
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.join(HERE, '..')
 PACKS = os.path.join(ROOT, 'packs')
-ENABLED = ['ddr-1988-89']               # packs built into the mod, in this order
+ENABLED = os.environ.get('SEASON_PACKS', 'ddr-1988-89').split(',')   # packs built into the mod, in this order
+                                        # (a name in packs/ or a path; SEASON_PACKS only for test builds)
 TEAM_SIZE = 684
 SEASONS = 97                            # pseudo-continent 'classic seasons' of the Season menu
 SEASONS_NAMES = {'it': b'STAG. STORICHE', 'en': b'CLASSIC SEASONS', 'fr': b"SAISONS D'ANTAN", 'de': b'SAISONKLASSIKER'}
@@ -48,6 +49,26 @@ COUNTRY = {'ALB': 0, 'AUT': 1, 'BEL': 2, 'BUL': 3, 'CYP': 5, 'TCH': 6, 'DEN': 7,
            'SUI': 37, 'TUR': 38, 'WAL': 40, 'YUG': 41}   # code -> game country (team file whose clubs give templates)
 ROLES = 'GDMA'
 BORROW = {'G': 'G', 'D': 'DMA', 'M': 'MDA', 'A': 'AMD'}   # slot role -> roles its player may come from
+
+
+EXPLICIT_POS = ['G', 'RB', 'LB', 'D', 'RW', 'LW', 'M', 'A']        # player byte 26, bits 5-7
+EXPLICIT_ROLE = {'G': 'G', 'RB': 'D', 'LB': 'D', 'D': 'D', 'RW': 'M', 'LW': 'M', 'M': 'M', 'A': 'A'}
+EXPLICIT_SKIN = {'light': 0, 'ginger': 1, 'dark': 2}                 # bits 3-4
+EXPLICIT_SKILLS = ['pa', 've', 'he', 'ta', 'co', 'sp', 'fi']          # passing, shooting, heading, tackling, ball
+                                                                      # control, speed, finishing: nibbles 1-7 of +28
+
+
+def _num(row, col, lo, hi, where):
+    v = (row.get(col) or '').strip()
+    _need(v.isdigit() and lo <= int(v) <= hi, f'{where}: {col} must be a number {lo}..{hi}')
+    return int(v)
+
+
+def _nums(row, col, n, lo, hi, where):
+    v = (row.get(col) or '').split()
+    _need(len(v) == n and all(x.isdigit() and lo <= int(x) <= hi for x in v),
+          f'{where}: {col} must be {n} numbers {lo}..{hi} separated by spaces')
+    return [int(x) for x in v]
 
 
 class PackError(Exception):
@@ -95,10 +116,12 @@ class Pack:
             _need(row['country'] in COUNTRY, f"clubs.csv: {row['key']}: unknown country code {row['country']}")
             self.clubs[row['key']] = row
         self.players = {k: [] for k in self.clubs}
+        self.prows = {k: [] for k in self.clubs}
         for row in _csv(os.path.join(path, 'players.csv')):
             _need(row['club'] in self.players, f"players.csv: unknown club {row['club']}")
             _need(row['role'] in ROLES, f"players.csv: {row['club']} {row['name']}: role must be one of G D M A")
             self.players[row['club']].append((row['name'], row['role']))
+            self.prows[row['club']].append(row)
         self.ties = {}
         for row in _csv(os.path.join(path, 'ties.csv')):
             for side in ('home', 'away', 'winner'):
@@ -163,7 +186,7 @@ class Pack:
     def team_files(self):
         out = {}
         for sq in self.meta['squads']:
-            builder = {'calibrate': self._calibrate, 'game': self._game}[sq['method']]
+            builder = {'calibrate': self._calibrate, 'game': self._game, 'explicit': self._explicit}[sq['method']]
             out.update(builder(sq))
         return out
 
@@ -288,6 +311,52 @@ class Pack:
         self.log(f"{'+'.join(sq['files'])}: {sum(self.count[f] for f in sq['files'])} clubs, {own} on their own 1996-97 record")
         return out
 
+    def _explicit(self, sq):
+        """Every byte from the pack: clubs.csv tactic, kit1, kit2, lineup; players.csv (16 per club, in record order)
+        number, position, nat, skin, the 7 skills and price (see EXPLICIT_*)."""
+        out = {}
+        for fk in sq['files']:
+            recs = []
+            for key, c in self.clubs.items():
+                if c['file'] != fk:
+                    continue
+                r = self._empty_record(key, bytes(TEAM_SIZE))
+                where = f'clubs.csv: {key}'
+                r[24] = _num(c, 'tactic', 0, 15, where)
+                for col, at in (('kit1', 26), ('kit2', 31)):
+                    v = _nums(c, col, 5, 0, 255, where)
+                    r[at:at + 5] = bytes(v)
+                lineup = _nums(c, 'lineup', 16, 0, 15, where)
+                _need(sorted(lineup) == list(range(16)), f'{where}: lineup must list 0..15 once each')
+                r[60:76] = bytes(lineup)
+                rows = self.prows[key]
+                _need(len(rows) == 16, f'players.csv: {key}: explicit squads need exactly 16 players ({len(rows)})')
+                for j, row in enumerate(rows):
+                    w = f"players.csv: {key} {row['name']}"
+                    p = 76 + j * 38
+                    pos = row.get('position', '')
+                    _need(pos in EXPLICIT_POS, f'{w}: position must be one of {" ".join(EXPLICIT_POS)}')
+                    _need(EXPLICIT_ROLE[pos] == row['role'], f"{w}: position {pos} is not role {row['role']}")
+                    _need(row.get('skin', '') in EXPLICIT_SKIN, f'{w}: skin must be one of {" ".join(EXPLICIT_SKIN)}')
+                    r[p] = _num(row, 'nat', 0, 255, w)
+                    r[p + 2] = _num(row, 'number', 1, 255, w)
+                    r[p + 3:p + 26] = _sn(row['name']).encode('latin1').ljust(23, b'\0')[:23]
+                    r[p + 26] = EXPLICIT_POS.index(pos) << 5 | EXPLICIT_SKIN[row['skin']] << 3
+                    nib = [0]
+                    for sk in EXPLICIT_SKILLS:
+                        v = row.get(sk, '').strip()
+                        key_skill = v.endswith('*')
+                        v = v.rstrip('*')
+                        _need(v.isdigit() and int(v) <= 7, f'{w}: {sk} must be 0..7 (a trailing * marks a key skill)')
+                        nib.append(int(v) | (8 if key_skill else 0))
+                    for i in range(4):
+                        r[p + 28 + i] = nib[2 * i] << 4 | nib[2 * i + 1]
+                    r[p + 32] = _num(row, 'price', 0, 49, w)
+                recs.append(bytes(r))
+            out[self.files[fk][0]] = struct.pack('>H', len(recs)) + b''.join(recs)
+        self.log(f"{'+'.join(sq['files'])}: {sum(self.count[f] for f in sq['files'])} clubs, explicit records")
+        return out
+
     def log(self, s):
         print(f"pack {self.meta['id']}: {s}")
 
@@ -306,7 +375,7 @@ class Pack:
 
 def packs():
     if not hasattr(packs, 'cache'):
-        packs.cache = [Pack(os.path.join(PACKS, x)) for x in ENABLED]
+        packs.cache = [Pack(x if os.sep in x else os.path.join(PACKS, x)) for x in ENABLED]
     return packs.cache
 
 
@@ -358,22 +427,32 @@ cont_check:                             ; ja target of `cmp word [D7], 85`: 97 (
 
 euro_slot2:                             ; replaces `mov [A0], eax` before slot 2 is loaded in InitNewSeason
     mov [A0], eax
-    cmp byte [COMPCOUNTRY], LEAGUE_FILE
-    jne .ret
     pushad
+    mov al, [COMPCOUNTRY]
+    mov edi, PACK_TAB                   ; per pack with European cups: league file, clubs, 0, 0, map, cup pointers
+.p:
+    cmp byte [edi], 0xff
+    je .ret
+    cmp [edi], al
+    je .pack
+    add edi, 12
+    jmp .p
+.pack:
     mov esi, [SELTEAMS]
     movzx ecx, word [NUMSEL]
+    mov bx, [edi]                       ; bl = league file, bh = its club count
+    mov ebp, [edi + 4]
 .n:
     test ecx, ecx
     jz .none
     cmp byte [esi + 4], 1               ; computer-controlled
     je .skip
-    cmp byte [esi], LEAGUE_FILE
+    cmp [esi], bl
     jne .skip
     movzx eax, byte [esi + 1]
-    cmp eax, LEAGUE_N
+    cmp al, bh
     jae .skip
-    movzx eax, byte [EURO_MAP + eax]
+    movzx eax, byte [ebp + eax]         ; 0 = no European cup, else 1-based index into the cup pointers
     test eax, eax
     jnz .found
 .skip:
@@ -381,20 +460,18 @@ euro_slot2:                             ; replaces `mov [A0], eax` before slot 2
     dec ecx
     jmp .n
 .found:
-    mov eax, [EURO_PTRS + eax * 4]
+    mov edx, [edi + 8]
+    mov eax, [edx + eax * 4 - 4]
     mov [A0], eax
+.ret:
     popad
     ret
 .none:
     popad
     add esp, 4
     jmp SKIP_SLOT2
-.ret:
-    ret
-EURO_MAP: MAP_BYTES
-align 4
-EURO_PTRS: dd 0, CUP_PTRS
 '''
+
 
 
 def _hook_sites(p):
@@ -421,36 +498,27 @@ def _hook_sites(p):
             struct.unpack('<I', t.group(1))[0], r)
 
 
-def patch(p, lang, area, cave):
-    """Every enabled pack into the exe (countries, competitions, CLASSIC SEASONS button, euro_slot2 hook).
-    Returns (cave end, obj1 offsets of the leagues that are also classic tourneys)."""
-    _need(len(packs()) == 1, 'phase A: one pack (the euro_slot2 hook handles a single league)')
-    pk = packs()[0]
+def _patch_pack(pk, p, lang, area, at, env):
+    """One pack: country entries, competition structs, country table. Returns (cave end, info for the shared part)."""
     import countries
-    import historic
-    import nasmcave
     import sacups
-    d2 = p.le.obj_bytes(2)
-    ct, tcn, _, _ = countries.tables(p)
-    comp = countries.COMP[0]
-    fx2 = {f[1] for f in p.le.fixups() if f[0] == 2}
+    d2, ct, tcn, comp, fx2 = env
     m = pk.meta
-    lfile, lbase = pk.files[pk.league['clubs']]
+    lfile, _ = pk.files[pk.league['clubs']]
     rec = area.add(bytes((countries.CONTINENT[m['continent']],)) + m['button'].encode('latin1') + b'\0'
                    + m['button'].encode('latin1') + b'\0')
     # every pack file is a country entry (a club's country is never null); bases in teamsCountryNumbers; the entry
-    # after the last file closes the team count of the last one (a country's count = next base - its base)
-    # (shared-base files last: their bases overwrite the closing entry when they follow the last own-base file)
+    # after the last own-base file closes its team count (a country's count = next base - its base); shared-base
+    # files last: their bases overwrite that closing entry when they follow it
     own = sorted(v for v in pk.files.values() if not shares_base(v[0]))
     for f, base in own + sorted(v for v in pk.files.values() if shares_base(v[0])):
-        assert ct + 4 * f not in fx2 and comp + 4 * f not in fx2, f
+        _need(ct + 4 * f not in fx2 and comp + 4 * f not in fx2, f'{pk.meta["id"]}: country {f} is already used')
         p.add_ptr(2, ct + 4 * f, 2, rec)
         p.put(2, tcn + 2 * f, struct.pack('<H', base))
         if (f, base) == own[-1]:
             p.put(2, tcn + 2 * (f + 1),
                   struct.pack('<H', base + pk.count[next(k for k, v in pk.files.items() if v[0] == f)]))
 
-    at = cave
     ptr = {}
     for c in pk.comps:
         names = c['names'].get(lang) or c['names']['*']
@@ -493,10 +561,10 @@ def patch(p, lang, area, cave):
 
     s = m['season']
     europe = [c['key'] for c in pk.comps if c['type'] == 'cup' and c['key'] != s['cup']]
-    table = at                                  # [league, -2, cup, <European cup>, -1]: slot 2 swapped by euro_slot2
-    p.add_ptr(1, at, 1, ptr[s['league']])
+    p.add_ptr(1, at, 1, ptr[s['league']])       # [league, -2, cup, <European cup>, -1]: slot 2 swapped by euro_slot2
     p.put(1, at + 4, struct.pack('<i', -2))
     p.add_ptr(1, at + 8, 1, ptr[s['cup']])
+    table = at
     at += 12
     if s.get('europe'):
         p.add_ptr(1, at, 1, ptr[s['europe_placeholder']])
@@ -504,17 +572,45 @@ def patch(p, lang, area, cave):
     p.put(1, at, struct.pack('<i', -1))
     at += 4
     p.add_ptr(2, comp + 4 * lfile, 1, table)
+    emap = bytearray(len(pk.league_clubs))
+    for club, cup in s.get('europe', {}).items():
+        emap[pk.league_clubs.index(club)] = europe.index(cup) + 1
+    pk.log(f"exe: country {lfile}, " + ', '.join(f"{c['key']} id {c['id']} @ obj1+{ptr[c['key']]:#x}" for c in pk.comps))
+    info = dict(file=lfile, n=len(pk.league_clubs), emap=bytes(emap) if s.get('europe') else None,
+                cups=[ptr[k] for k in europe], classic=[ptr[c['key']] for c in pk.comps if c.get('classic_tourney')])
+    return at, info
+
+
+def patch(p, lang, area, cave):
+    """Every enabled pack into the exe (countries, competitions), then the shared part: CLASSIC SEASONS button with one
+    country per pack, season_sel / cont_check / euro_slot2 hook with the packs' European-cup tables.
+    Returns (cave end, obj1 offsets of the leagues that are also classic tourneys)."""
+    import countries
+    import historic
+    import nasmcave
+    import sacups
+    ct, tcn, _, _ = countries.tables(p)
+    comp = countries.COMP[0]
+    env = (p.le.obj_bytes(2), ct, tcn, comp, {f[1] for f in p.le.fixups() if f[0] == 2})
+    ids = [c['id'] for pk in packs() for c in pk.comps]
+    _need(len(set(ids)) == len(ids), f'contest ids used twice: {ids}')
+    at, infos = cave, []
+    for pk in packs():
+        at, info = _patch_pack(pk, p, lang, area, at, env)
+        infos.append(info)
 
     # Season: CLASSIC SEASONS after the continents (pseudo-continent 97: [-1] + the pack countries + FF; the game reads a
     # country list only for 80..85, so that check also accepts 97). The season selector runs on a world table
     # [worldCup, -1] + continents + 97, swapped in like historic.hist_preset.
+    fx2 = env[4]
     assert ct + 4 * SEASONS not in fx2 and comp + 4 * SEASONS not in fx2
     srec = area.add(bytes((countries.CONTINENT['europe'],)) + SEASONS_NAMES[lang] + b'\0' + SEASONS_NAMES[lang] + b'\0')
     SEASONS_REC[0] = srec
     p.add_ptr(2, ct + 4 * SEASONS, 2, srec)
     stab = at
-    p.put(1, at, struct.pack('<i', -1) + bytes((lfile, 0xff)))
-    at = (at + 6 + 3) & ~3
+    lst = struct.pack('<i', -1) + bytes(i['file'] for i in infos) + b'\xff'
+    p.put(1, at, lst)
+    at = (at + len(lst) + 3) & ~3
     p.add_ptr(2, comp + 4 * SEASONS, 1, stab)
     wobj, world = p.target(2, comp + 4 * 254)
     wd = p.le.obj_bytes(wobj)
@@ -532,17 +628,20 @@ def patch(p, lang, area, cave):
 
     _, season_call, select = historic._calls(p)
     site, skip, comp_cn, sel, num, r = _hook_sites(p)
-    emap = bytearray(len(pk.league_clubs))
-    for club, cup in s.get('europe', {}).items():
-        emap[pk.league_clubs.index(club)] = europe.index(cup) + 1
     symbols = {'COMP254': (2, comp + 4 * 254), 'SEASON_WORLD': (1, sworld), 'SELECT': (1, select),
                'D7REG': (2, d7), 'SEASONS_N': (0, SEASONS), 'CONT_WORLD': (1, ja + 6), 'CONT_LAST': (1, last),
                'A0': (2, r['A0']), 'COMPCOUNTRY': (2, comp_cn), 'SELTEAMS': (2, sel), 'NUMSEL': (2, num),
-               'LEAGUE_FILE': (0, lfile), 'LEAGUE_N': (0, len(pk.league_clubs)), 'SKIP_SLOT2': (1, skip),
-               'MAP_BYTES': (0, 'db ' + ', '.join(map(str, emap)))}
-    src = HOOK_ASM.replace('CUP_PTRS', ', '.join(f'CUP_{i}' for i in range(len(europe))))
-    for i, k in enumerate(europe):
-        symbols[f'CUP_{i}'] = (1, ptr[k])
+               'SKIP_SLOT2': (1, skip)}
+    tab = ['align 4', 'PACK_TAB:']
+    data = []
+    for k, i in enumerate(x for x in infos if x['emap']):
+        tab.append(f"    db {i['file']}, {i['n']}, 0, 0")
+        tab.append(f'    dd PACK_MAP_{k}, PACK_CUPS_{k}')
+        data.append(f'PACK_CUPS_{k}: dd ' + ', '.join(f'CUP_{k}_{j}' for j in range(len(i['cups']))))
+        data.append(f'PACK_MAP_{k}: db ' + ', '.join(map(str, i['emap'])))
+        for j, c in enumerate(i['cups']):
+            symbols[f'CUP_{k}_{j}'] = (1, c)
+    src = HOOK_ASM + '\n'.join(tab + ['    db 0xff', 'align 4'] + data) + '\n'
     code, fix = nasmcave.assemble(src, at, symbols)
     labels = nasmcave.labels(src, at, symbols)
     p.put(1, at, code)
@@ -553,8 +652,8 @@ def patch(p, lang, area, cave):
     p.remove(1, site + 1)                                # `mov [A0], eax`: drop the fixup of its address operand
     p.put(1, site, b'\xe8' + struct.pack('<i', labels['euro_slot2'] - (site + 5)))
     at = (at + len(code) + 3) & ~3
-    pk.log(f"exe: country {lfile}, " + ', '.join(f"{c['key']} id {c['id']} @ obj1+{ptr[c['key']]:#x}" for c in pk.comps))
-    return at, [ptr[c['key']] for c in pk.comps if c.get('classic_tourney')]
+    return at, [x for i in infos for x in i['classic']]
+
 
 
 def main(argv):

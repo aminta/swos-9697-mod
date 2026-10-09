@@ -22,7 +22,8 @@ TEAM_SIZE = 684
 COPY = {'cc': 79, 'cwc': 92, 'uefa': 92}           # in-save struct copies
 MAX = {'cc': 16, 'cwc': 32, 'uefa': 32}
 WORLD_BYTE = 1845                                    # someLeaguesTable index (+1 = balance byte)
-REC = 40                                             # world record: 8 dwords + 4 words
+REC = 48                                             # world record: 8 dwords, 5 words, year byte, pad, dword
+WCONT = 99                                           # pseudo-continent of the running world (view, foreign browser)
 
 ASM = '''
 w_entry:                                ; replaces `mov ax, [D0]; mov [D7], ax` at the start of InitCareer
@@ -89,15 +90,17 @@ w_cups:                                 ; replaces `mov word [teamsLoaded], 0` a
     mov esi, [ebx]
     mov edi, CCCOPY
     mov ecx, 79
-    rep movsb
+    call w_copy
     mov esi, [ebx + 4]
     mov edi, CWCCOPY
     mov ecx, 92
-    rep movsb
+    call w_copy
     mov esi, [ebx + 8]
     mov edi, UEFACOPY
     mov ecx, 92
-    rep movsb
+    call w_copy
+    mov al, [ebx + 42]                  ; the world's first season (InitCareer: -1, then InitializeNewSeason: +1)
+    mov [SEASONPLAYING], al
 .r:
     popad
     ret
@@ -161,10 +164,116 @@ w_uefa0:                                ; replaces `mov eax, [UEFATAB]` (first g
     ret
 %endmacro
 W_CHK w_chk_tot, 32, CFB, 80
+W_CHK w_chk_tot0, 40, CFB, 80
 W_CHK w_chk_cc, 34, CNT_CC, 16
 W_CHK w_chk_cwc, 36, CNT_CWC, 32
 W_CHK w_chk_uefa, 38, CNT_UEFA, 32
 
+w_copy:                                 ; ecx bytes esi -> edi (no string instructions: ES may differ from DS)
+    mov al, [esi]
+    mov [edi], al
+    inc esi
+    inc edi
+    dec ecx
+    jnz w_copy
+    ret
+
+%macro W_YEAR 2                         ; replaces `cmp word [D0], %2` (year 1900 + seasonPlaying below it gets +100)
+%1:
+    push ebx
+    call w_rec
+    jz .o
+    push eax
+    movzx eax, byte [ebx + 42]
+    add eax, 1900 + %2 - 1996           ; a world wraps at its own first year
+    cmp [D0R], ax
+    pop eax
+    pop ebx
+    ret
+.o:
+    cmp word [D0R], %2
+    pop ebx
+    ret
+%endmacro
+W_YEAR w_year96, 1996
+W_YEAR w_year95, 1995
+
+%macro W_SWAP 2                         ; replaces `call %2`: in a world, competitionsTable[254] = [.., -1, 99] and
+%1:                                     ; [99] = the world's continent (its countries, its cups = the in-save copies)
+    push ebx
+    call w_rec
+    jz .o
+    push dword [COMP254]
+    push dword [COMP99]
+    mov dword [COMP254], WVIEW
+    mov ebx, [ebx + 44]
+    mov [COMP99], ebx
+    call %2
+    pop dword [COMP99]
+    pop dword [COMP254]
+    pop ebx
+    ret
+.o:
+    pop ebx
+    jmp %2
+%endmacro
+W_SWAP w_view, CHOOSECOMP
+W_SWAP w_buy, CHOOSETEAMS
+
+w_nat:                                  ; replaces `mov ax, [D0]; mov [lastNationalityCall], ax`: no national team
+    mov ax, [D0R]                       ; job in a world (-1 = none)
+    push ebx
+    call w_rec
+    pop ebx
+    jz .s
+    mov ax, -1
+.s:
+    mov [LASTNAT], ax
+    ret
+
+w_holders:                              ; replaces `call cseg_92BBF`: in a world the holders get a place of their own
+    push ebx                            ; (appended to the list + record), the game replaces a random qualifier
+    call w_rec
+    pop ebx
+    jnz .w
+    jmp HOLDERS
+.w:
+    pushad
+    mov esi, HOLDTAB                    ; per cup: holder, list start pointer, counter, saved holder record
+.c:
+    mov ebx, [esi]
+    cmp ebx, -1
+    je .r
+    mov ax, [ebx]
+    cmp ax, 0FFFFh
+    je .n
+    mov edi, [esi + 4]
+    mov edi, [edi]
+    mov edx, [esi + 8]
+    movzx ecx, word [edx]
+    mov [edi + ecx * 2], ax
+    inc word [edx]
+    mov eax, [esi + 12]
+    mov [A0R], eax
+    push esi
+    call ADDREC                         ; cseg_94193: record [A0] -> tmdFileBuffer[careerFileBuffer++]
+    pop esi
+.n:
+    add esi, 16
+    jmp .c
+.r:
+    popad
+    ret
+
+align 4
+HOLDTAB:
+    dd HOLD_CC, LIST_CC, CNT_CC, BUF_CC
+    dd HOLD_CWC, LIST_CWC, CNT_CWC, BUF_CWC
+    dd HOLD_UEFA, LIST_UEFA, CNT_UEFA, BUF_UEFA
+    dd -1
+WVIEW:
+    dd VIEWFIRST, -1
+    db WCONT, 0xff
 WSEL: db 0
 '''
 
@@ -231,7 +340,7 @@ def sites(p):
              rb'\x66\x83\x3d(.{4})\x10\x75.\x66\x83\x3d(.{4})\x20\x75.\x66\x83\x3d(.{4})\x20\x75.'
              rb'\x66\x83\x3d' + cfb + rb'\x50\x75', tail, 'checks')
     b = s['list'] + m.start()
-    s['chk'] = [(b, 'w_chk_tot'), (b + 29, 'w_chk_cc'), (b + 39, 'w_chk_cwc'), (b + 49, 'w_chk_uefa'),
+    s['chk'] = [(b, 'w_chk_tot0'), (b + 29, 'w_chk_cc'), (b + 39, 'w_chk_cwc'), (b + 49, 'w_chk_uefa'),
                 (b + 59, 'w_chk_tot')]
     s['cnt'] = [struct.unpack('<I', m.group(k))[0] for k in (1, 2, 3)]
     # cseg_936C0: the static place tables are 0x42 / 0x91 / 0xE0 after the original seasonEndList (obj2)
@@ -247,6 +356,48 @@ def sites(p):
                     and orig[f[1] - 6:f[1]] == op + struct.pack('<I', A0)]
         assert len(refs) == 1, (name, refs)
         s['tabs'].append((refs[0], name, o2 + delta))
+    # M3 holders: call cseg_92BBF after the first check; per cup mov ax,[holder]; mov [D2],ax; mov [A3],buf;
+    # mov eax,[list]; mov [A2],eax; mov ax,[counter]; mov [D3],ax; call cseg_92C4D
+    hb = b + 15 + struct.unpack_from('<i', d1, b + 11)[0]
+    assert d1[b + 10] == 0xe8
+    s['holders'], s['holders_call'] = hb, b + 10
+    s['hold'] = []
+    blk = (rb'\x66\xa1(.{4})\x66\xa3' + pk(D7 - 20) + rb'\xc7\x05' + pk(A0 + 12) + rb'(.{4})\xa1(.{4})\xa3' + pk(A0 + 8)
+           + rb'\x66\xa1(.{4})\x66\xa3' + pk(D7 - 16))
+    k = hb
+    for i in range(3):                                       # the third block falls through into cseg_92C4D
+        m = re.match(blk, d1[k:k + 60], re.S)
+        assert m, d1[k:k + 60].hex()
+        s['hold'].append(tuple(struct.unpack('<I', m.group(j))[0] for j in (1, 2, 3, 4)))
+        k += m.end()
+        if i < 2:
+            assert d1[k] == 0xe8
+            c4d = k + 5 + struct.unpack_from('<i', d1, k + 1)[0]
+            k += 5
+    assert c4d == k, (hex(c4d), hex(k))
+    m = _one(rb'\xa1' + pk(A0 + 12) + rb'\xa3' + pk(A0) + rb'\xe8(.{4})', d1[c4d:c4d + 0x120], 'cseg_94193 call')
+    s['addrec'] = c4d + m.end() + struct.unpack('<i', m.group(1))[0]
+    # year: InitCareer `sub byte [seasonPlaying], 1; call InitializeNewSeason`; PrintNameAndSeason cmp 1996,
+    # CareerOverFinish cmp 1995
+    m = _one(rb'\x80\x2d(.{4})\x01\xe8', d1, 'seasonPlaying')
+    s['season'] = struct.unpack('<I', m.group(1))[0]
+    s['y96'] = _one(rb'\x66\x81\x3d' + pk(D0) + rb'\xcc\x07', d1, '1996').start()
+    s['y95'] = _one(rb'\x66\x81\x3d' + pk(D0) + rb'\xcb\x07', d1, '1995').start()
+    # ViewWorldMenu: call ChooseCompetitionMenu; mov ax,[chooseTeamsResult]; or ax,ax; jz; mov eax,[selectedContest]
+    m = _one(rb'\xe8(.{4})\x66\xa1.{4}\x66\x0b\xc0\x74.\xa1.{4}\xa3' + pk(A0) + rb'\x66\xa1.{4}\x66\xa3' + pk(D0)
+             + rb'\xe8', d1, 'ViewWorldMenu')
+    s['view'] = m.start()
+    s['choosecomp'] = m.start() + 5 + struct.unpack('<i', m.group(1))[0]
+    # BuyOtherForeignPlayer: ... D2 = 1, D3 = D4 = 0, call ChooseTeamsDialog; cmp word [D0], -1
+    m = _one(rb'\xc7\x05' + pk(A1) + rb'\x00\x00\x00\x00\x66\xc7\x05' + pk(D7 - 20) + rb'\x01\x00\x66\xc7\x05' + pk(D7 - 16)
+             + rb'\x00\x00\x66\xc7\x05' + pk(D7 - 12) + rb'\x00\x00\xe8(.{4})\x66\x83\x3d' + pk(D0) + rb'\xff\x74', d1,
+             'BuyOtherForeignPlayer')
+    s['buy'] = m.start() + 37
+    assert d1[s['buy']] == 0xe8
+    s['chooseteams'] = s['buy'] + 5 + struct.unpack('<i', m.group(1))[0]
+    # cseg_8D7B4 tail: mov word [D0], -1; mov ax, [D0]; mov [lastNationalityCall], ax; or ax, ax; ret
+    m = _one(rb'\x66\xc7\x05' + pk(D0) + rb'\xff\xff\x66\xa1' + pk(D0) + rb'\x66\xa3(.{4})\x66\x0b\xc0\xc3', d1, 'lastNat')
+    s['nat'], s['lastnat'] = m.start() + 9, struct.unpack('<I', m.group(1))[0]
     s['regs'] = dict(D0R=D0, D7R=D7, A0R=A0, A1R=A1, A6R=A6)
     return s
 
@@ -271,7 +422,7 @@ def struct_for(p, key, euro, rounds, clubs):
     return body.ljust(COPY[key], b'\0')
 
 
-def patch(p, worlds, at, nasmcave):
+def patch(p, worlds, at, nasmcave, comp, ct, cont_rec):
     """worlds: [{'n', 'countries': [file], 'map': {file: world}, 'cups': {key: (rounds, [(file, ordinal)])},
     'places': {key: [country file per place]}, 'tmd': name}]. Returns the cave end."""
     s = sites(p)
@@ -282,8 +433,12 @@ def patch(p, worlds, at, nasmcave):
         tot = sum(len(w['cups'][k][1]) for k in ('cc', 'cwc', 'uefa'))
         assert tot <= 80
         data.append(f'    dd W{n}_CC, W{n}_CWC, W{n}_UEFA, W{n}_TMD, W{n}_LIST, W{n}_TCC, W{n}_TCWC, W{n}_TUEFA')
-        data.append('    dw %d, %d, %d, %d' % (tot, len(w['cups']['cc'][1]), len(w['cups']['cwc'][1]),
-                                              len(w['cups']['uefa'][1])))
+        data.append('    dw %d, %d, %d, %d, %d' % (tot, len(w['cups']['cc'][1]), len(w['cups']['cwc'][1]),
+                                                  len(w['cups']['uefa'][1]), tot - 3))   # before the 3 holders
+        data.append(f"    db {w['year'] - 1900}, 0")
+        data.append(f'    dd W{n}_CONT')
+        extra.append(f'W{n}_CONT: dd CCCOPY, CWCCOPY, UEFACOPY, -1')   # world view: the in-save cups
+        extra.append('    db ' + ', '.join(map(str, w['countries'] + [0xff])))
         for key, euro in zip(('cc', 'cwc', 'uefa'), s['euro']):
             rounds, clubs = w['cups'][key]
             body = struct_for(p, key, euro, rounds, clubs)
@@ -298,6 +453,9 @@ def patch(p, worlds, at, nasmcave):
     pairs = [x for w in worlds for f in w['countries'] for x in (f, w['n'])]
     extra.append('WMAP: db ' + ', '.join(map(str, pairs + [0xff])))
     src = ASM + '\n'.join(data + extra) + '\n'
+    vobj, vtab = p.target(2, comp + 4 * 254)
+    assert ct + 4 * WCONT not in {f[1] for f in p.le.fixups() if f[0] == 2} and p.get(2, comp + 4 * WCONT, 4) == bytes(4)
+    p.add_ptr(2, ct + 4 * WCONT, *cont_rec)        # continent button name (the CLASSIC CAREERS record)
     sym = {k: (2, v) for k, v in s['regs'].items()}
     sobj, slt = s['slt']
     sym.update({'SLT': (sobj, slt), 'SLTCOPY': s['sltcopy'], 'WORLD_BYTE': (0, WORLD_BYTE), 'REC': (0, REC),
@@ -306,7 +464,14 @@ def patch(p, worlds, at, nasmcave):
                 'CWCCOPY': s['copies'][1][0], 'UEFACOPY': s['copies'][2][0],
                 'SEASONLIST': s['seasonlist'], 'CFB': (2, s['cfb']),
                 'CNT_CC': (2, s['cnt'][0]), 'CNT_CWC': (2, s['cnt'][1]), 'CNT_UEFA': (2, s['cnt'][2]),
-                'CCTAB': (2, s['tabs'][0][2]), 'CWCTAB': (2, s['tabs'][1][2]), 'UEFATAB': (2, s['tabs'][3][2])})
+                'CCTAB': (2, s['tabs'][0][2]), 'CWCTAB': (2, s['tabs'][1][2]), 'UEFATAB': (2, s['tabs'][3][2]),
+                'WCONT': (0, WCONT), 'SEASONPLAYING': (2, s['season']), 'COMP254': (2, comp + 4 * 254),
+                'COMP99': (2, comp + 4 * WCONT), 'VIEWFIRST': p.target(vobj, vtab), 'CHOOSECOMP': (1, s['choosecomp']),
+                'CHOOSETEAMS': (1, s['chooseteams']), 'LASTNAT': (2, s['lastnat']), 'HOLDERS': (1, s['holders']),
+                'ADDREC': (1, s['addrec'])})
+    for key, (hold, buf, lst, cnt) in zip(('CC', 'CWC', 'UEFA'), s['hold']):
+        sym.update({f'HOLD_{key}': (2, hold), f'BUF_{key}': (2, buf), f'LIST_{key}': (2, lst)})
+        assert cnt == s['cnt'][('CC', 'CWC', 'UEFA').index(key)]
     code, fix = nasmcave.assemble(src, at, sym)
     labels = nasmcave.labels(src, at, sym)
     p.put(1, at, code)
@@ -328,4 +493,10 @@ def patch(p, worlds, at, nasmcave):
         hook(site, 8, name, (3,))
     for site, name, _ in s['tabs']:
         hook(site, 5 if name == 'w_uefa0' else 10, name, (1,) if name == 'w_uefa0' else (2, 6))
+    hook(s['holders_call'], 5, 'w_holders', ())
+    hook(s['y96'], 9, 'w_year96', (3,))
+    hook(s['y95'], 9, 'w_year95', (3,))
+    hook(s['view'], 5, 'w_view', ())
+    hook(s['buy'], 5, 'w_buy', ())
+    hook(s['nat'], 12, 'w_nat', (2, 8))
     return (at + len(code) + 3) & ~3

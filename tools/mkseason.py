@@ -159,8 +159,9 @@ class Pack:
             pl = m.get('europe_places', {})
             _need(set(pl) <= {'cc', 'cwc', 'uefa'}, 'europe_places: keys cc, cwc, uefa')
             for key, clubs in m.get('first_europe', {}).items():
-                _need(key in ('cc', 'cwc', 'uefa') and len(clubs) == pl.get(key, 0),
-                      f'first_europe.{key}: one club per place ({pl.get(key, 0)})')
+                extra = 1 if 'world_cups' in m else 0         # the root pack also fills the holder's place
+                _need(key in ('cc', 'cwc', 'uefa') and len(clubs) == pl.get(key, 0) + extra,
+                      f'first_europe.{key}: one club per place ({pl.get(key, 0) + extra})')
                 for c in clubs:
                     _need(c in self.league_clubs, f'first_europe.{key}: {c} is not a league club')
         for club, cup in m['season'].get('europe', {}).items():
@@ -445,10 +446,13 @@ def worlds():
     return out
 
 
-def _first_europe(pk):
+def _first_europe(pk, holder=False):
     """First-season European clubs of a world country per cup: pack.json first_europe, else the league order
-    (Champions Cup first, then Cup Winners' Cup, then UEFA Cup)."""
-    pl, fe = pk.meta.get('europe_places', {}), pk.meta.get('first_europe', {})
+    (Champions Cup first, then Cup Winners' Cup, then UEFA Cup). holder: the world's root pack also fills the place
+    the holders take from season 2 on (one more club per cup)."""
+    pl, fe = dict(pk.meta.get('europe_places', {})), pk.meta.get('first_europe', {})
+    if holder:
+        pl = {k: pl.get(k, 0) + 1 for k in ('cc', 'cwc', 'uefa')}
     order = iter(pk.league_clubs)
     taken = {c for v in fe.values() for c in v}
     out = {}
@@ -474,7 +478,10 @@ def world_defs():
         wc = roots[0].meta['world_cups']
         w = {'n': n, 'countries': [pk.files[pk.league['clubs']][0] for pk in pks], 'places': {}, 'cups': {},
              'clubs': {}, 'tmd': 'WORLD%02d.TMD' % n}
-        first = {id(pk): _first_europe(pk) for pk in pks}
+        _need(isinstance(wc.get('start_year'), int) and 1900 < wc['start_year'] < 2000,
+              f'world {n}: world_cups.start_year (first season, e.g. 1984) is needed')
+        w['year'] = wc['start_year']
+        first = {id(pk): _first_europe(pk, pk is roots[0]) for pk in pks}
         for key in ('cc', 'cwc', 'uefa'):
             w['places'][key] = [pk.files[pk.league['clubs']][0] for pk in pks
                                 for _ in range(pk.meta.get('europe_places', {}).get(key, 0))]
@@ -788,6 +795,8 @@ def patch(p, lang, area, cave):
         site_c, choose = _career_site(p)
         symbols.update({'CAREER_WORLD': (1, cworld), 'CHOOSE': (1, choose), 'CAREERS_N': (0, CAREERS)})
         src = src.replace('cont_check:', 'cont_check:\n    cmp word [D7REG], CAREERS_N\n    je CONT_WORLD') + CAREER_ASM
+        if worlds():                                      # careerworld.WCONT: the running world's continent
+            src = src.replace('cont_check:', 'cont_check:\n    cmp word [D7REG], 99\n    je CONT_WORLD')
     tab = ['align 4', 'PACK_TAB:']
     data = []
     for k, i in enumerate(x for x in infos if x['emap']):
@@ -812,7 +821,7 @@ def patch(p, lang, area, cave):
     at = (at + len(code) + 3) & ~3
     if worlds():                                          # career packs M2: historic career worlds
         import careerworld
-        at = careerworld.patch(p, world_defs(), at, nasmcave)
+        at = careerworld.patch(p, world_defs(), at, nasmcave, comp, ct, (2, CAREERS_REC[0]))
     return at, [x for i in infos for x in i['classic']]
 
 

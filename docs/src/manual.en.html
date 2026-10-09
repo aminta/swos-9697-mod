@@ -108,8 +108,8 @@ html{scroll-behavior:smooth}
   <h1>SWOS ITA Mod Technical Manual</h1>
   <p>Documentation for anyone who wants to understand, extend or port the mod's patches: Serie C1 and C2, South American club cups (Libertadores, Supercopa, CONMEBOL), the Intercontinental Cup in career mode, real 1996-97 squads, classic tourneys (World Cup 1982, Mitropa Cup 1934, FA Cup 1871-72), Argentina's Apertura and Clausura, Australia, New Zealand and MLS 1997 (2.5), classic seasons with the DDR 1988-89 and that year's European cups (2.6). Everything below was worked out from the disassembly and checked with builds and test games.</p>
   <div class="meta">
-    <span>State as of <b>2026-10-08</b> (sessions 1–29, release 2.6)</span>
-    <span>ENGLISH.EXE build <b><code>d9d521d6…</code></b></span>
+    <span>State as of <b>2026-10-09</b> (sessions 1–32, release 2.6.1)</span>
+    <span>ENGLISH.EXE build <b><code>feba4a5f…</code></b></span>
     <span>TEAM.020 <b><code>ded1b97b…</code></b></span>
     <span>Original ENGLISH.EXE <b><code>aa21cd1c…</code></b></span>
   </div>
@@ -622,7 +622,7 @@ assert blk[:2] == b'S2' and sum(blk) % 256 == 0</code></pre>
 <tr><td>29</td><td>Classic seasons: DDR 1988-89 (Oberliga, FDGB-Pokal with the real bracket, 1988-89 European cups with real participants, brackets, squads and coaches) in the new CLASSIC SEASONS menu of Season mode; Oberliga also among the classic tourneys; incremental update in the patcher (2.5.1)</td><td><span class="pill ok">passed (IT)</span></td></tr>
 <tr><td>30</td><td>Season packs: data folders compiled by <code>mkseason.py</code> (DDR 1988-89 = first pack), several packs per build, <code>explicit</code> squads, countries 101–251; classic careers M1: CLASSIC CAREERS menu, leagues with divisions</td><td><span class="pill ok">passed (IT)</span></td></tr>
 <tr><td>31</td><td>Career European chain decoded (in-save cup copies, place tables, holders, checksum); classic career worlds: world byte, world European cups, <code>worldNN.tmd</code> (M2)</td><td><span class="pill ok">passed (IT, 2 seasons)</span></td></tr>
-<tr><td>32</td><td>Classic careers M3: world start year, world view and foreign-player browser limited to the world, no national-team jobs, holders with a place of their own</td><td><span class="pill ok">passed (IT, 2 seasons)</span></td></tr>
+<tr><td>32</td><td>Release 2.6.1: a new career started with a club in a European cup is set up at once (the 'S3' mark and the first-season lists of the other continents' cups were only written in the other branch since 1.2). Classic careers M3: world start year, world view and foreign-player browser limited to the world, no national-team jobs, holders with a place of their own</td><td><span class="pill ok">passed (IT, 2 seasons)</span></td></tr>
 </tbody></table></div>
 <h3>Roadmap</h3>
 <ol>

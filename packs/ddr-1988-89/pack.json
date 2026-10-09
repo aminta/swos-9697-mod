@@ -1,0 +1,69 @@
+{
+  "format": 1,
+  "id": "ddr-1988-89",
+  "button": "DDR 1988-89",
+  "continent": "europe",
+  "sources": [
+    "de.wikipedia: DDR-Fussball-Oberliga 1988/89 (final table), FDGB-Pokal 1988/89 (bracket)",
+    "en.wikipedia: 1988-89 European Cup, European Cup Winners' Cup, UEFA Cup (participants, results)",
+    "weltfussball.de: squads, appearances (Oberliga 1988/89 'Statistik: Einsaetze') and coaches 1988/89",
+    "SWOS 2020 teamdb '1990_91 - Team Updates' by Peppecapello (SWOS United): ratings of the DDR players"
+  ],
+  "notes": [
+    "Fixed by hand: Sampdoria coach Vujadin Boskov (the site lists Narciso Pezzotti); CSKA coach Penev (Penew).",
+    "FDGB-Pokal from the 2nd main round (32 clubs); the 1st round had 64 clubs with no known squads."
+  ],
+
+  "files": {
+    "league":  {"file": 92, "base": 1786},
+    "cuponly": {"file": 93, "base": 1800},
+    "cc":      {"file": 94, "base": 1850},
+    "cwc":     {"file": 95, "base": 1850},
+    "uefa":    {"file": 96, "base": 1850}
+  },
+  "shared_base_files": ["cc", "cwc", "uefa"],
+
+  "squads": [
+    {"files": ["league", "cuponly"], "method": "calibrate", "seed": 1989, "nationality": 13,
+     "source": "orig/swos2020/x_1990_91/TEAM.010", "reuse_ratings": ["league"],
+     "filler_first": ["Andreas", "Thomas", "Frank", "Jens", "Uwe", "Ralf", "Steffen", "Dirk", "Matthias", "Torsten",
+                      "Olaf", "Heiko", "Michael", "Jörg"],
+     "filler_last": ["Müller", "Schulz", "Lehmann", "Krüger", "Hoffmann", "Wagner", "Becker", "Richter", "Wolf",
+                     "Neumann", "Schwarz", "Zimmermann", "Braun", "Hartmann"]},
+    {"files": ["cc", "cwc", "uefa"], "method": "game", "seed": 1988}
+  ],
+
+  "competitions": [
+    {"key": "oberliga", "type": "league", "id": "C6", "clubs": "league", "dates_from": 14,
+     "games": 2, "win_points": 2, "relegated": 2, "classic_tourney": true,
+     "names": {"*": ["OBERLIGA 1988-89", "OBERLIGA"]}},
+    {"key": "pokal", "type": "cup", "layout": "national", "id": "C7", "dates_from": 14,
+     "rounds": ["single_et", "single_et", "single_et", "single_et", "single"],
+     "names": {"*": ["FDGB-POKAL 1988-89", "FDGB-POKAL"]}},
+    {"key": "cc", "type": "cup", "layout": "european", "id": "C8",
+     "rounds": ["two_legs", "two_legs", "two_legs", "two_legs", "single"],
+     "names": {"it": ["COPPA DEI CAMPIONI 1988-89", "COPPA CAMPIONI"],
+               "en": ["EUROPEAN CUP 1988-89", "EUROPEAN CUP"],
+               "fr": ["COUPE DES CHAMPIONS 1988-89", "C. DES CHAMPIONS"],
+               "de": ["LANDESMEISTERCUP 1988-89", "LANDESMEISTER"]}},
+    {"key": "cwc", "type": "cup", "layout": "european", "id": "C9",
+     "rounds": ["two_legs", "two_legs", "two_legs", "two_legs", "single"],
+     "names": {"it": ["COPPA DELLE COPPE 1988-89", "COPPA COPPE"],
+               "en": ["CUP WINNERS CUP 1988-89", "CUP WINNERS CUP"],
+               "fr": ["COUPE DES COUPES 1988-89", "C. DES COUPES"],
+               "de": ["POKALSIEGERCUP 1988-89", "POKALSIEGER"]}},
+    {"key": "uefa", "type": "cup", "layout": "european", "id": "CA",
+     "rounds": ["two_legs", "two_legs", "two_legs", "two_legs", "two_legs", "two_legs"],
+     "names": {"it": ["COPPA UEFA 1988-89", "COPPA UEFA"],
+               "en": ["UEFA CUP 1988-89", "UEFA CUP"],
+               "fr": ["COUPE UEFA 1988-89", "COUPE UEFA"],
+               "de": ["UEFA-POKAL 1988-89", "UEFA-POKAL"]}}
+  ],
+
+  "season": {
+    "league": "oberliga",
+    "cup": "pokal",
+    "europe": {"bfc": "cc", "jena": "cwc", "lok": "uefa", "dresden": "uefa"},
+    "europe_placeholder": "cc"
+  }
+}

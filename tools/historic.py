@@ -84,10 +84,8 @@ import nsl97
 DRAWS += nsl97.DRAWS                                        # NSL Cup 1996-97 (2.1): fixed real bracket
 import finals97
 DRAWS += finals97.DRAWS                                     # NSL / NSSL finals series (2.1): keep the order
-import ddr89
-DRAWS += ddr89.DRAWS                                        # FDGB-Pokal 1988-89 (2.6): real bracket
-import euro8889
-DRAWS += euro8889.draws()                                   # European cups 1988-89 (2.6): real brackets
+import mkseason
+DRAWS += mkseason.draws()                                   # season packs (2.6: DDR 1988-89): real brackets
 
 ASM = '''
 hist_draw:                              ; replaces `call cseg_27F08` in cseg_26DFC (A2 = DIY buffer, A3 = round)
@@ -207,7 +205,7 @@ hist_names:                             ; replaces `call SetCountryNames` in Sel
     jne .n
     cmp dword [esi + 26h], CLASSICS_NAME
     je .c
-    cmp dword [esi + 26h], SEASONS_NAME ; 2.6: classic seasons button (ddr89.py), Season menu
+    cmp dword [esi + 26h], SEASONS_NAME ; 2.6: classic seasons button (mkseason.py), Season menu
     jne .n
 .c:
     mov word [esi + 1Eh], MENU_COLOR    ; bg.backAndFrameColor
@@ -248,10 +246,7 @@ def build_teams(src_dir):
     files[CLASSICS] = struct.pack('>H', len(recs)) + b''.join(recs)
     files[M34_FILE] = build_m34(src_dir)
     files[FA_FILE] = build_fa()
-    import ddr89
-    import euro8889
-    files.update(euro8889.build_teams())                    # 2.6: foreign clubs of the 1988-89 European cups (random squads)
-    files.update(ddr89.build())                           # 2.6: DDR 1988-89: TEAM.092 Oberliga, TEAM.093 Pokal-only clubs
+    files.update(mkseason.team_files())                    # season packs (2.6: DDR 1988-89, TEAM.092-096)
     return files
 
 
@@ -621,7 +616,7 @@ def patch(p, lang, area, cave, draw_pre=None, leagues=()):
                'DRAW_BYTES': (0, 'db ' + ', '.join(str(b) for b in tbl)),
                'DRAW_PRE': (1, draw_pre) if draw_pre is not None else (0, 'draw_pre_none'),
                'D0': (2, a0 - 32), 'A0': (2, a0), 'SET_COUNTRY_NAMES': (1, set_names), 'CALC_ENTRY': (1, calc_entry),
-               'CLASSICS_NAME': (2, rec + 1), 'SEASONS_NAME': (2, ddr89.SEASONS_REC[0] + 1), 'MENU_COLOR': (0, MENU_COLOR), 'MENU_GAP': (0, MENU_GAP),
+               'CLASSICS_NAME': (2, rec + 1), 'SEASONS_NAME': (2, mkseason.SEASONS_REC[0] + 1), 'MENU_COLOR': (0, MENU_COLOR), 'MENU_GAP': (0, MENU_GAP),
                'M34_ID_': (0, M34_ID), 'FA_ID_': (0, FA_ID), 'COIN_TEXT': (2, coin_text),
                'DIYCOPY': (2, coin['diycopy']), 'RAND2': (1, coin['rand2']), 'D5': (2, a0 - 12), 'D6': (2, a0 - 8),
                'D7': (2, a0 - 4), 'D1': (2, a0 - 28), 'SKIP': (2, coin['skip']), 'DIYCOMP': (2, coin['diycomp'])}

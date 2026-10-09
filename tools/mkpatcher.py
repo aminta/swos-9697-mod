@@ -47,10 +47,10 @@ FILES = [  # (id, original path, patched path, file name in the game folder)
     ('TEAM.089', None, 'c/SWOS/DATA/TEAM.089', 'DATA/TEAM.089'),
     ('TEAM.090', None, 'c/SWOS/DATA/TEAM.090', 'DATA/TEAM.090'),
     ('TEAM.091', None, 'c/SWOS/DATA/TEAM.091', 'DATA/TEAM.091'),
-    # 2.6: DDR 1988-89 (ddr89.py): Oberliga clubs, FDGB-Pokal-only clubs
+    # 2.6: DDR 1988-89 (packs/ddr-1988-89, mkseason.py): Oberliga clubs, FDGB-Pokal-only clubs
     ('TEAM.092', None, 'c/SWOS/DATA/TEAM.092', 'DATA/TEAM.092'),
     ('TEAM.093', None, 'c/SWOS/DATA/TEAM.093', 'DATA/TEAM.093'),
-    # 2.6: European cups 1988-89 (euro8889.py): foreign clubs of CC, CWC, UEFA
+    # 2.6: European cups 1988-89 (same pack): foreign clubs of CC, CWC, UEFA
     ('TEAM.094', None, 'c/SWOS/DATA/TEAM.094', 'DATA/TEAM.094'),
     ('TEAM.095', None, 'c/SWOS/DATA/TEAM.095', 'DATA/TEAM.095'),
     ('TEAM.096', None, 'c/SWOS/DATA/TEAM.096', 'DATA/TEAM.096'),

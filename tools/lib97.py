@@ -78,7 +78,7 @@ def calendar_bytes():
 
 ASM = '''
 lib_bye:                                ; replaces `call cseg_2573C` at the end of cseg_24DFA
-    cmp byte [DIYCOPY + 2Dh], CC_ID     ; Champions Cup 1988-89 (euro8889.py): round 1 without the holder (the 31st)
+    cmp byte [DIYCOPY + 2Dh], CC_ID     ; season-pack cup with a bye (mkseason.bye_cups; 2.6: Champions Cup 1988-89): round 1 without the holder (the 31st)
     jne .fa
     cmp word [DIYCOPY + 161h], CC_N
     jne .go
@@ -203,12 +203,16 @@ def _sites(p):
 
 
 def patch(p, cave, fin_pre):
+    import mkseason
+    bc = mkseason.bye_cups()
+    assert len(bc) == 1, bc                                 # lib_bye handles one season-pack cup with a bye
+    BYE_CUP = bc[0]
     """Returns (cave end, lib_pre offset) — lib_pre is called by historic.hist_draw."""
     a0, bye_call, c2573c, diycopy, cal_site = _sites(p)
     symbols = {'DIYCOPY': (2, diycopy), 'LIB_ID': (0, sacups.LIB_ID), 'LIB_N': (0, sacups.LIB_N),
                'LIB_GROUPS': (0, LIB_GROUPS), 'CSEG_2573C': (1, c2573c), 'A0': (2, a0), 'A3': (2, a0 + 12),
                'FA_ID': (0, 0xC3), 'FA_N': (0, 15),                    # historic.FA_ID, FA Cup 1871-72 clubs
-               'CC_ID': (0, 0xC8), 'CC_N': (0, 31),                    # euro8889.CC_ID: Champions Cup 1988-89, 31 clubs
+               'CC_ID': (0, BYE_CUP[0]), 'CC_N': (0, BYE_CUP[1]),       # season-pack cup with its holder's bye
                'FIN_PRE': (1, fin_pre),
                'CAL_BYTES': (0, 'db ' + ', '.join(str(b) for b in calendar_bytes()))}
     code, fix = nasmcave.assemble(ASM, cave, symbols)

@@ -1,0 +1,156 @@
+key,name,coach,country,file,template,target,kit,source
+dresden,DYNAMO DRESDEN,Eduard Geyer,GDR,league,1,21,,
+bfc,BFC DYNAMO,Jürgen Bogs,GDR,league,10,20,,
+kms,KARL-MARX-STADT,Hans Meyer,GDR,league,4,17,,
+rostock,HANSA ROSTOCK,Werner Voigt,GDR,league,0,17,,
+lok,LOK LEIPZIG,Hans-Ulrich Thomale,GDR,league,6,18,,
+magdeburg,1.FC MAGDEBURG,Joachim Streich,GDR,league,9,16,,
+aue,WISMUT AUE,Ulrich Schulze,GDR,league,11,15,10,
+jena,CARL ZEISS JENA,Lothar Kurbjuweit,GDR,league,5,16,,
+halle,HFC CHEMIE,Karl Trautmann,GDR,league,3,15,,
+cottbus,ENERGIE COTTBUS,Fritz Bohla,GDR,league,12,14,,
+brandenburg,ST. BRANDENBURG,Peter Kohl,GDR,league,7,14,,
+erfurt,ROT-WEISS ERFURT,Wilfried Gröbner,GDR,league,2,14,,
+zwickau,SACHSENR.ZWICKAU,Udo Schmuck,GDR,league,13,12,2,
+union,UNION BERLIN,Karsten Heine,GDR,league,8,12,2,
+halle2,HFC CHEMIE II,,GDR,cuponly,8,9,,
+babelsberg,MOT. BABELSBERG,Horst Stahlberg,GDR,cuponly,11,9,,
+neustrelitz,TSG NEUSTRELITZ,,GDR,cuponly,13,9,,
+neubrandenburg,POST NEUBRANDBG,Andreas Göhlich,GDR,cuponly,8,9,,
+weida,FORTSCHR. WEIDA,Lutz Lindemann,GDR,cuponly,11,9,,
+brieske,BRIESKE-SENFTENB,Peter Prell,GDR,cuponly,13,9,,
+weimar,MOTOR WEIMAR,Siegfried Vollrath,GDR,cuponly,8,9,,
+ludwigsfelde,MOT.LUDWIGSFELDE,Eckhard Düwiger,GDR,cuponly,11,9,,
+bischofswerda,BISCHOFSWERDA,Siegfried Gumz,GDR,cuponly,13,9,,
+schwerin,DYNAMO SCHWERIN,Manfred Radtke,GDR,cuponly,8,9,,
+eisenh,EISENHUTTENSTADT,Klaus-Dieter Helbig,GDR,cuponly,11,9,,
+gera,WISMUT GERA,Wolfgang Haustein,GDR,cuponly,13,9,,
+greifswald,KKW GREIFSWALD,Wolfgang Moschke,GDR,cuponly,8,9,,
+rotation,ROTATION BERLIN,Jürgen Piepenburg,GDR,cuponly,11,9,,
+thale,STAHL THALE,Olaf Keller,GDR,cuponly,13,9,,
+stendal,LOK STENDAL,Detlef Raßbach,GDR,cuponly,8,9,,
+schoenebeck,MOT. SCHONEBECK,Günter Reinke,GDR,cuponly,11,9,,
+fuerstenwalde,DYN.FURSTENWALDE,Peter Ränke,GDR,cuponly,13,9,,
+hamrun-spartans,AMRUN SPARTANS,Lolly Aquilina,MLT,cc,auto,,,Ħamrun Spartans
+kf-tirane,17 NENTORI,Shyqyri Rreli,ALB,cc,auto,,,17 Nëntori
+pezoporikos-larnaca,PEZOPORIKOS,Eric Smith,CYP,cc,auto,,,Pezoporikos Larnaca
+ifk-goeteborg,IFK GOTEBORG,Kjell Pettersson,SWE,cc,auto,,,IFK Göteborg
+ac-sparta-praha,SPARTA PRAGUE,Jozef Jarabinský,TCH,cc,auto,,,Sparta Prague
+fcsb,STEAUA BUCURESTI,Anghel Iordănescu,ROU,cc,auto,,,Steaua București
+spartak-moskva,SPARTAK MOSCOW,Oleg Romantsev,URS,cc,auto,,,Spartak Moscow
+glentoran-fc,GLENTORAN,Tommy Jackson,NIR,cc,auto,,,Glentoran
+club-brugge-kv,CLUB BRUGGE,Henk Houwaart,BEL,cc,auto,,,Club Brugge
+broendby-if,BRNDBY,Ebbe Skovdahl,DEN,cc,auto,,,Brøndby
+valur-reykjavik,VALUR,Hörður Helgason,ISL,cc,auto,,,Valur
+as-monaco,MONACO,Arsène Wenger,FRA,cc,auto,,,Monaco
+ae-larissa,AEL,Vladimír Táborský,GRE,cc,auto,,,AEL
+neuchatel-xamax-fcs,NEUCHATEL XAMAX,Gilbert Gress,SUI,cc,auto,,,Neuchâtel Xamax
+rapid-wien,RAPID WIEN,Vlatko Marković,AUT,cc,auto,,,Rapid Wien
+galatasaray,GALATASARAY,Mustafa Denizli,TUR,cc,auto,,,Galatasaray
+fc-porto,PORTO,Artur Jorge,POR,cc,auto,,,Porto
+hjk-helsinki,HJK,Jyrki Heliskoski,FIN,cc,auto,,,HJK
+gornik-zabrze,GORNIK ZABRZE,Marcin Bochynek,POL,cc,auto,,,Górnik Zabrze
+jeunesse-esch,JEUNESSE ESCH,Norbert Müller,LUX,cc,auto,,,Jeunesse Esch
+real-madrid,REAL MADRID,Leo Beenhakker,ESP,cc,auto,,,Real Madrid
+moss-fk,MOSS,,NOR,cc,auto,,,Moss
+budapest-honved,BUDAPEST HONVED,István Vági,HUN,cc,auto,,,Budapest Honvéd
+celtic-fc,CELTIC,Billy McNeill,SCO,cc,auto,,,Celtic
+werder-bremen,WERDER BREMEN,Otto Rehhagel,FRG,cc,auto,,,Werder Bremen
+levski-sofia,VITOSHA SOFIA,,BUL,cc,auto,,,Vitosha Sofia
+ac-milan,MILAN,Arrigo Sacchi,ITA,cc,auto,,,Milan
+dundalk-fc,DUNDALK,Turlough O'Connor,IRL,cc,auto,,,Dundalk
+crvena-zvezda,CRVENA ZVEZDA,Branko Stanković,YUG,cc,auto,,,Red Star Belgrade
+psv-eindhoven,PSV EINDHOVEN,Guus Hiddink,NED,cc,auto,,,PSV Eindhoven
+derry-city,DERRY CITY,Jim McLaughlin,IRL,cwc,auto,,,Derry City
+cardiff-city,CARDIFF CITY,Frank Burrows,WAL,cwc,auto,,,Cardiff City
+glenavon-fc,GLENAVON,Terry Nicholson,NIR,cwc,auto,,,Glenavon
+aarhus-gf,AGF,Jens Harmsen,DEN,cwc,auto,,,AGF
+fram-reykjavik,FRAM,Ásgeir Elíasson,ISL,cwc,auto,,,Fram
+fc-barcelona,BARCELONA,Johan Cruyff,ESP,cwc,auto,,,Barcelona
+flamurtari-vlore,FLAMURTARI VLORE,,ALB,cwc,auto,,,Flamurtari Vlorë
+lech-poznan,LECH POZNAN,,POL,cwc,auto,,,Lech Poznań
+inter-bratislava,INTER BRATISLAVA,Jozef Adamec,TCH,cwc,auto,,,Internacionál Bratislava
+cska-sofia,CSKA SOFIA,Dimitar Penev,BUL,cwc,auto,,,CSKA Sofia
+omonia-nikosia,OMONIA,Ioncho Arsov,CYP,cwc,auto,,,Omonia
+panathinaikos,PANATHINAIKOS,Gunder Bengtsson,GRE,cwc,auto,,,Panathinaikos
+roda-jc-kerkrade,RODA JC,Jan Reker,NED,cwc,auto,,,Roda JC
+vitoria-guimaraes,V. GUIMARAES,Geninho,POR,cwc,auto,,,Vitória de Guimarães
+borac-banja-luka,BORAC BANJA LUKA,Josip Kuže,YUG,cwc,auto,,,Borac Banja Luka
+metalist-kharkiv,METALIST KHARKIV,Leonid Tkachenko,URS,cwc,auto,,,Metalist Kharkiv
+grasshopper-club-zuerich,GRASSHOPPER,Ottmar Hitzfeld,SUI,cwc,auto,,,Grasshopper
+eintracht-frankfurt,E. FRANKFURT,Jörg Berger,FRG,cwc,auto,,,Eintracht Frankfurt
+sakaryaspor,SAKARYASPOR,Tamer Kaptan,TUR,cwc,auto,,,Sakaryaspor
+bekescsaba-1912-eloere-se,BEKESCSABA,János Csank,HUN,cwc,auto,,,Békéscsaba
+kv-mechelen,MECHELEN,Aad de Mos,BEL,cwc,auto,,,Mechelen
+avenir-beggen,AVENIR BEGGEN,Michel Clement,LUX,cwc,auto,,,Avenir Beggen
+fc-metz,METZ,Marcel Husson,FRA,cwc,auto,,,Metz
+rsc-anderlecht,ANDERLECHT,Raymond Goethals,BEL,cwc,auto,,,Anderlecht
+floriana-fc,FLORIANA,Hugh Caruana,MLT,cwc,auto,,,Floriana
+dundee-united,DUNDEE UNITED,Jim McLean,SCO,cwc,auto,,,Dundee United
+fc-dinamo-bucuresti,DINAMO BUCURESTI,Mircea Lucescu,ROU,cwc,auto,,,Dinamo București
+fc-kuusysi-old,KUUSYSI LAHTI,Antti Muurinen,FIN,cwc,auto,,,Kuusysi Lahti
+kremser-sc,KREMSER SC,Johann Kondert,AUT,cwc,auto,,,Kremser SC
+ifk-norrkoeping,IFK NORRKOPING,Kent Karlsson,SWE,cwc,auto,,,IFK Norrköping
+sampdoria,SAMPDORIA,Vujadin Boskov,ITA,cwc,auto,,,Sampdoria
+vfb-stuttgart,STUTTGART,Arie Haan,FRG,uefa,auto,,,Stuttgart
+tatabanya-fc,TATABANYA,Antal Szentmihályi,HUN,uefa,auto,,,Tatabányai Bányász
+royal-antwerp-fc,ANTWERP,Georg Keßler,BEL,uefa,auto,,,Antwerp
+1-fc-koeln,KOLN,Christoph Daum,FRG,uefa,auto,,,Köln
+bayern-muenchen,BAYERN MUNICH,Jupp Heynckes,FRG,uefa,auto,,,Bayern Munich
+legia-warszawa,LEGIA WARSAW,Andrzej Strejlau,POL,uefa,auto,,,Legia Warsaw
+bayer-leverkusen,BAYER LEVERKUSEN,Jürgen Gelsdorf,FRG,uefa,auto,,,Bayer Leverkusen
+os-belenenses,BELENENSES,Marinho Peres,POR,uefa,auto,,,Belenenses
+as-roma,ROMA,Nils Liedholm,ITA,uefa,auto,,,Roma
+1-fc-nuernberg,NURNBERG,Hermann Gerland,FRG,uefa,auto,,,Nürnberg
+fc-groningen,GRONINGEN,Hans Westerhof,NED,uefa,auto,,,Groningen
+atletico-madrid,ATLETICO MADRID,Briones,ESP,uefa,auto,,,Atlético Madrid
+fc-aarau,AARAU,Wolfgang Frank,SUI,uefa,auto,,,Aarau
+st-patricks-athletic,ST PATRICK'S,Brian Kerr,IRL,uefa,auto,,,St Patrick's Athletic
+heart-of-midlothian,HEARTS,Alex MacDonald,SCO,uefa,auto,,,Heart of Midlothian
+fk-zalgiris,ZALGIRIS VILNIUS,Benjaminas Zelkevičius,URS,uefa,auto,,,Žalgiris Vilnius
+austria-wien,AUSTRIA WIEN,Erich Hof,AUT,uefa,auto,,,Austria Wien
+sporting-cp,SPORTING CP,Manuel José,POR,uefa,auto,,,Sporting CP
+afc-ajax,AJAX,Spitz Kohn,NED,uefa,auto,,,Ajax
+real-sociedad,REAL SOCIEDAD,John Toshack,ESP,uefa,auto,,,Real Sociedad
+fk-pribram,DUKLA PRAGUE,Jaroslav Jareš,TCH,uefa,auto,,,Dukla Prague
+union-luxembourg,UNION LUXEMBOURG,Lorrain Libot,LUX,uefa,auto,,,Union Luxembourg
+rfc-liege,RFC LIEGE,Robert Waseige,BEL,uefa,auto,,,RFC Liège
+inter,INTERNAZIONALE,Giovanni Trapattoni,ITA,uefa,auto,,,Internazionale
+ik-brage,IK BRAGE,,SWE,uefa,auto,,,IK Brage
+ia-akranes,IA,Sigurður Lárusson,ISL,uefa,auto,,,ÍA
+ujpest-fc,UJPESTI DOZSA,István Varga,HUN,uefa,auto,,,Újpesti Dózsa
+rangers-fc,RANGERS,Graeme Souness,SCO,uefa,auto,,,Rangers
+gks-katowice,GKS KATOWICE,Władysław Żmuda,POL,uefa,auto,,,GKS Katowice
+aberdeen-fc,ABERDEEN,Alex Smith,SCO,uefa,auto,,,Aberdeen
+dnipro-dnipropetrovsk,DNIPRO,Evgeniy Kucherevskiy,URS,uefa,auto,,,Dnipro Dnipropetrovsk
+girondins-bordeaux,BORDEAUX,Didier Couécou,FRA,uefa,auto,,,Bordeaux
+oesters-if,OSTERS IF,Hans Backe,SWE,uefa,auto,,,Östers IF
+fc-dac-1904,DUNAJSKA STREDA,Karol Pecze,TCH,uefa,auto,,,Dunajská Streda
+tps-turku,TPS,Heikki Suhonen,FIN,uefa,auto,,,TPS
+linfield-fc,LINFIELD,Roy Coyle,NIR,uefa,auto,,,Linfield
+molde-fk,MOLDE,Åge Hareide,NOR,uefa,auto,,,Molde
+ksv-waregem,WAREGEM,Urbain Haesaert,BEL,uefa,auto,,,Waregem
+malmoe-ff,MALMO FF,Roy Hodgson,SWE,uefa,auto,,,Malmö FF
+torpedo-moskva,TORPEDO MOSCOW,Valentin Ivanov,URS,uefa,auto,,,Torpedo Moscow
+first-vienna-fc,FIRST VIENNA,Ernst Dokupil,AUT,uefa,auto,,,First Vienna
+ikast-fs,IKAST,Anders Hust,DEN,uefa,auto,,,Ikast
+otelul-galati,OTELUL GALATI,Cornel Dinu,ROU,uefa,auto,,,Oţelul Galaţi
+juventus,JUVENTUS,Dino Zoff,ITA,uefa,auto,,,Juventus
+velez-mostar,RSD VELEZ,Enver Marić,YUG,uefa,auto,,,RŠD Velež
+apoel-nikosia,APOEL,Tommy Cassidy,CYP,uefa,auto,,,APOEL
+aek-athen,AEK ATHENS,Dušan Bajević,GRE,uefa,auto,,,AEK Athens
+athletic-club,ATHLETIC BILBAO,Howard Kendall,ESP,uefa,auto,,,Athletic Bilbao
+montpellier-hsc,MONTPELLIER,Pierre Mosca,FRA,uefa,auto,,,Montpellier
+sl-benfica,BENFICA,Toni,POR,uefa,auto,,,Benfica
+sliema-wanderers,SLIEMA WANDERERS,Lawrence Borg,MLT,uefa,auto,,,Sliema Wanderers
+victoria-bucuresti,VICTORIA BUCUR.,Florin Halagian,ROU,uefa,auto,,,Victoria București
+ssc-napoli,NAPOLI,Ottavio Bianchi,ITA,uefa,auto,,,Napoli
+paok-saloniki,PAOK,Stavros Sarafis,GRE,uefa,auto,,,PAOK
+partizan,PARTIZAN,Moca Vukotić,YUG,uefa,auto,,,Partizan
+slavia-sofia,SLAVIA SOFIA,Hristo Mladenov,BUL,uefa,auto,,,Slavia Sofia
+servette-fc,SERVETTE,Jean-Claude Donzé,SUI,uefa,auto,,,Servette
+sturm-graz,STURM GRAZ,Otto Barić,AUT,uefa,auto,,,Sturm Graz
+botev-plovdiv,TRAKIA PLOVDIV,Ivan Gluhchev,BUL,uefa,auto,,,Trakia Plovdiv
+dinamo-minsk,DINAMO MINSK,Eduard Malofeev,URS,uefa,auto,,,Dinamo Minsk
+besiktas,BESIKTAS,Gordon Milne,TUR,uefa,auto,,,Beşiktaş
+dinamo-zagreb,DINAMO ZAGREB,Rudolf Belin,YUG,uefa,auto,,,Dinamo Zagreb

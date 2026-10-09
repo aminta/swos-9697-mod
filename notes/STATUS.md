@@ -1765,4 +1765,21 @@ Left for 2.5: (a) NSL/NSSL finals series (type-1 design) or declare them postpon
 - Builds: IT 9881320f EN 91db0f53 FR 5b853944 DE 0fefe711; GOG 857b124c 75519c3e 81d6420c 3639f21b.
 - Hex manual (internal): chapter 17 'La 2.6' added; the live artifact had been edited in another session (chapter 2 fixups
   rewrite + 2 glossary entries): those parts now come from internal/manuale-hex/parts/*.html (build.py reads them).
-  Artifact republish pending (needs a full read of the 436 KB live version).
+  Artifact republished 2026-10-08 (v39).
+
+## Session 30 — Season packs, phase A (2026-10-09)
+- Idea (Daniele Bordes, FB group: a 1984-85 career/season; he is preparing an Excel from the CM01/02 Retro Update
+  Team 1984/85 database): historic seasons as data packs + a deterministic compiler, later a user-side tool.
+  Plan: A = format + compiler + DDR as a pack (done); B = data-driven exe (several packs, euro map table, explicit
+  ratings method for CM-style data) + first new pack (Daniele's 84-85); C = web patcher "load a pack" (Pyodide),
+  Excel template, validation; D (maybe) historic careers, to be studied.
+- packs/README.md: format v1 (pack.json, clubs.csv, players.csv, ties.csv, raw/ provenance).
+- packs/ddr-1988-89: exported from ddr89.py/euro8889.py (155 clubs, 2500 players, 156 ties); raw/ = the old
+  euro8889.json + weltfussball squads/coaches txt. ddr89.py and euro8889.py removed.
+- tools/mkseason.py: Pack (load + validation: names, roles, clubs, bracket consistency, europe map), squad methods
+  'calibrate' (DDR) and 'game' (foreign clubs), draws from ties.csv, exe patch (country entries, league/cup structs,
+  CLASSIC SEASONS, season_sel/cont_check/euro_slot2 hook), `check` CLI. historic/patch/lib97 (bye cup from the pack)
+  use it.
+- Verified byte-identical to 2.6: IT/EN/FR/DE CD exes, GOG exes, TEAM.020 + all new TEAM files. Negative checks
+  (wrong winner, 17-char name, wrong europe cup) rejected with clear messages.
+- EURO_ALWAYS test env vars (1/2/3) dropped with the old modules.

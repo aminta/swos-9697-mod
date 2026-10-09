@@ -21,8 +21,7 @@ import c1c2
 import cafcups
 import countries
 import historic
-import ddr89
-import euro8889
+import mkseason
 import nsl97
 import nz97
 import finals97
@@ -185,8 +184,8 @@ def patch_exe(src, dst, remap, lang='it'):
     fin_end = finals97.rec_guard(p, fin_end)      # 2.5: season record of a club not in its cup (Perth Glory)
     fin_end = finals97.cal_rounds(p, fin_end)     # 2.5: NSL/NSSL play-offs: semi-finals AND final get dates
     world, lib_pre = lib97.patch(p, world, fin_pre)  # Libertadores 1997: bye, real calendar (hist_draw calls lib_pre)
-    world, ddr_league = ddr89.patch(p, lang, area, world)   # 2.6: DDR 1988-89 (season button, Oberliga + Pokal)
-    world = historic.patch(p, lang, area, world, lib_pre, [ddr_league])
+    world, pack_leagues = mkseason.patch(p, lang, area, world)   # season packs (2.6: DDR 1988-89), CLASSIC SEASONS
+    world = historic.patch(p, lang, area, world, lib_pre, pack_leagues)
     nz_end = nz97.shootout(p, NZ_CAVE)            # 2.1: NSSL shoot-out after every draw, +1 point to its winner
     arg_end = arg97.patch(p, area, sacups.STR_BASE, ARG_CAVE, nz97.SITE_B, os.path.join(ROOT, 'orig/DATA'))   # 2.1: Apertura / Clausura
     info = cafcups.career_info(caf)
@@ -254,12 +253,9 @@ def patch_teams(src, dst):
     return {i: new_idx[r[5:22]] for i, r in enumerate(recs) if r[5:22] in new_idx}
 
 def hist_base(n):
-    """First global number of a historic file (historic.BASE shared; the DDR and its European cups have their own)."""
-    if n == ddr89.FILE2:
-        return ddr89.BASE2
-    if n in euro8889.FILES.values():
-        return euro8889.BASES[next(c for c, f in euro8889.FILES.items() if f == n)]
-    return historic.BASE
+    """First global number of a historic file (historic.BASE shared; season pack files have their own)."""
+    b = mkseason.base_of(n)
+    return historic.BASE if b is None else b
 
 
 def write_new_teams(src_dir, dst_dir):
@@ -290,7 +286,7 @@ def write_new_teams(src_dir, dst_dir):
         k = struct.unpack('>H', data[:2])[0]
         base = tcn.get(n) or hist_base(n)
         for g in range(base, base + k):
-            assert g < 2000 and (n in euro8889.FILES.values() or g not in taken), (n, g, taken.get(g))
+            assert g < 2000 and (mkseason.shares_base(n) or g not in taken), (n, g, taken.get(g))
             if n not in hist:
                 taken[g] = n
         open(os.path.join(dst_dir, 'TEAM.%03d' % n), 'wb').write(data)

@@ -152,6 +152,17 @@ class Pack:
         for c in self.comps:
             if c['type'] == 'cup':
                 self.bracket(c)          # validates
+        self.world = m.get('world')
+        if self.world is not None:
+            _need(self.kind == 'career' and isinstance(self.world, int) and 1 <= self.world <= 50,
+                  'pack.json: world must be a number 1..50 (career packs only)')
+            pl = m.get('europe_places', {})
+            _need(set(pl) <= {'cc', 'cwc', 'uefa'}, 'europe_places: keys cc, cwc, uefa')
+            for key, clubs in m.get('first_europe', {}).items():
+                _need(key in ('cc', 'cwc', 'uefa') and len(clubs) == pl.get(key, 0),
+                      f'first_europe.{key}: one club per place ({pl.get(key, 0)})')
+                for c in clubs:
+                    _need(c in self.league_clubs, f'first_europe.{key}: {c} is not a league club')
         for club, cup in m['season'].get('europe', {}).items():
             _need(club in self.league_clubs, f'season.europe: {club} is not a league club')
             _need(club in self.bracket(self.comp(cup))['clubs'], f'season.europe: {club} does not play {cup}')
@@ -423,6 +434,82 @@ def base_of(n):
             if f == n:
                 return b
     return None
+
+
+def worlds():
+    """Historic career worlds: {number: [career packs of that world, ENABLED order]}."""
+    out = {}
+    for pk in packs():
+        if pk.world is not None:
+            out.setdefault(pk.world, []).append(pk)
+    return out
+
+
+def _first_europe(pk):
+    """First-season European clubs of a world country per cup: pack.json first_europe, else the league order
+    (Champions Cup first, then Cup Winners' Cup, then UEFA Cup)."""
+    pl, fe = pk.meta.get('europe_places', {}), pk.meta.get('first_europe', {})
+    order = iter(pk.league_clubs)
+    taken = {c for v in fe.values() for c in v}
+    out = {}
+    for key in ('cc', 'cwc', 'uefa'):
+        if key in fe:
+            out[key] = fe[key]
+        else:
+            out[key] = []
+            for _ in range(pl.get(key, 0)):
+                c = next(x for x in order if x not in taken)
+                taken.add(c)
+                out[key].append(c)
+    return out
+
+
+def world_defs():
+    """[{n, countries, places, cups: {key: (round bytes, [(file, ordinal)])}, clubs: {key: [(pack, club)]}, tmd}]."""
+    import careerworld
+    out = []
+    for n, pks in sorted(worlds().items()):
+        roots = [pk for pk in pks if 'world_cups' in pk.meta]
+        _need(len(roots) == 1, f'world {n}: exactly one pack must have world_cups')
+        wc = roots[0].meta['world_cups']
+        w = {'n': n, 'countries': [pk.files[pk.league['clubs']][0] for pk in pks], 'places': {}, 'cups': {},
+             'clubs': {}, 'tmd': 'WORLD%02d.TMD' % n}
+        first = {id(pk): _first_europe(pk) for pk in pks}
+        for key in ('cc', 'cwc', 'uefa'):
+            w['places'][key] = [pk.files[pk.league['clubs']][0] for pk in pks
+                                for _ in range(pk.meta.get('europe_places', {}).get(key, 0))]
+            clubs = [(pk, c) for pk in pks for c in first[id(pk)][key]]
+            size = len(clubs)
+            _need(2 <= size <= careerworld.MAX[key] and size & (size - 1) == 0,
+                  f'world {n}: {key} has {size} clubs (a power of 2, at most {careerworld.MAX[key]})')
+            rounds = wc.get(key, {}).get('rounds') or ['two_legs'] * (size.bit_length() - 2) + ['single']
+            _need(2 ** len(rounds) == size, f'world {n}: {key}: {len(rounds)} rounds for {size} clubs')
+            w['cups'][key] = (bytes(ROUND[x] for x in rounds), [pk.where[c] for pk, c in clubs])
+            w['clubs'][key] = clubs
+        _need(len({c for key in w['clubs'] for c in w['clubs'][key]}) == sum(len(v) for v in w['clubs'].values()),
+              f'world {n}: a club is in two European cups')
+        out.append(w)
+    return out
+
+
+def world_files():
+    """{'WORLDnn.TMD': first-season European clubs of world nn (team-file records, the game sets word +2)}."""
+    files = team_files()
+    out = {}
+    for w in world_defs():
+        recs = []
+        for key in ('cc', 'cwc', 'uefa'):
+            for pk, c in w['clubs'][key]:
+                f, i = pk.where[c]
+                recs.append(files[f][2 + i * TEAM_SIZE:2 + (i + 1) * TEAM_SIZE])
+        out[w['tmd']] = b''.join(recs)
+    return out
+
+
+def career_file(n):
+    """True for the team files of world career packs: their clubs may reuse 1996-97 European global numbers (a world
+    career never loads those files)."""
+    return any(pk.world is not None and n in (f for f, _ in pk.files.values()) for pk in packs())
 
 
 def shares_base(n):
@@ -723,6 +810,9 @@ def patch(p, lang, area, cave):
     p.remove(1, site + 1)                                # `mov [A0], eax`: drop the fixup of its address operand
     p.put(1, site, b'\xe8' + struct.pack('<i', labels['euro_slot2'] - (site + 5)))
     at = (at + len(code) + 3) & ~3
+    if worlds():                                          # career packs M2: historic career worlds
+        import careerworld
+        at = careerworld.patch(p, world_defs(), at, nasmcave)
     return at, [x for i in infos for x in i['classic']]
 
 

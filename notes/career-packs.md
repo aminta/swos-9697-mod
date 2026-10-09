@@ -133,9 +133,33 @@ with Daniele Bordes's data).
 
 ### M2 implementation plan (same exe)
 
-World byte = someLeaguesTable[1999] (written by an InitCareer hook from the chosen club's country; 0 = 1996-97).
+World byte = someLeaguesTable[1845] + balance byte [1846] = -world (written by an InitCareer hook from the chosen club's
+country; 0 = 1996-97). NOT [1999]: global 1999 belongs to a TEAM.062 club, and cseg_9487A traps (int 3) unless the
+table sums to 0 mod 256 (that is why the 'S3' mark at 1847..1849 has a balance byte too).
 1. InitCareer: world -> load the world TMD (one file `data\wNN.tmd`, all first-season euro clubs) instead of the 3
    files, and overwrite the 3 copies with the world's KO structs after the careerContests copy.
 2. cseg_91428: seasonEndList, the 3 place tables (cseg_936C0) and the 16/32/32/80 checks read per-world values.
 3. Holders: FFFF at a world start (nothing to inherit).
 4. Later (M3): year, comp[254] in BuyOtherForeignPlayer, national-team calls, other-continent cups in the world view.
+
+### M2 built (2026-10-09, session 31) — awaiting playtest
+
+- tools/careerworld.py (hooks + world data), mkseason: pack.json `world` (number), `europe_places` {cc, cwc, uefa},
+  optional `first_europe` {cup: [club keys]} (default: league order), `world_cups` {cup: {rounds}} in exactly one
+  pack of the world (default rounds: two legs, single-match final). Cups: knockout, power of 2, CC <= 16,
+  CWC / UEFA <= 32. Build writes DATA/WORLDnn.TMD (first-season European clubs). World clubs may reuse 1996-97
+  European global numbers (mkseason.career_file: exempt from the global-number check).
+- Hooks: InitCareer entry (club country), 3 LoadSomeEuroCup calls (world: one TMD), after careerContests (3 cup
+  structs), cseg_91428 seasonEndList + 5 checks, cseg_936C0 3 place tables (+ the UEFA first-group read).
+  Without worlds the build is byte-identical (M1 da08e328 rebuilt).
+- Holder insertion (cseg_92C4D) compares entry word >> 8 with holder >> 8: on PC that is the club ORDINAL (byte 1),
+  not the country (68000 big-endian leftover). It replaces a random entry with a different ordinal that is not the
+  player's: it ends as long as some entry has another ordinal (true when the holder's own country place went to
+  another club).
+- Test world 2 (internal/career-test/mkworld2.py -> world2/a..d): countries 101 DDR (TEST) base 1786, 102 TEST B
+  base 64, 103 TEST C base 0, 104 TEST D base 32 (cloned DDR data, prefixed names), each CC 1 / CWC 1 / UEFA 2 ->
+  cups 4 / 4 / 8. Build ITALIAN a0ac95c6 installed in c/SWOS with TEAM.101-104 + WORLD01.TMD (WCARR1.CAR = M1 save,
+  1996-97 world: do not use for M2).
+- Playtest: CARR. STORICHE -> a club of a test country; season 1 European cups = the 4/4/8 world clubs; finish
+  season 1 (no freeze = checks OK), season 2 cups = world qualifiers; save + reload; a normal career still has the
+  1996-97 cups.

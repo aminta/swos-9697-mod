@@ -22,6 +22,7 @@ import cafcups
 import countries
 import historic
 import mkseason
+import careerworld
 import nsl97
 import nz97
 import finals97
@@ -281,12 +282,14 @@ def write_new_teams(src_dir, dst_dir):
         taken[g] = 20
     for g in range(sacups.MARK3_GLOBAL, sacups.MARK3_GLOBAL + 3):   # career mark 'S3' + balance (1.2; lists in the
         taken[g] = 'S3'                                             # .CAR trailer, 1730..1846 free again)
+    for g in (careerworld.WORLD_BYTE, careerworld.WORLD_BYTE + 1):   # career packs: world byte + balance
+        taken[g] = 'world'
     hist = historic.build_teams(src_dir)
     for n, data in list(files.items()) + list(hist.items()):
         k = struct.unpack('>H', data[:2])[0]
         base = tcn.get(n) or hist_base(n)
         for g in range(base, base + k):
-            assert g < 2000 and (mkseason.shares_base(n) or g not in taken), (n, g, taken.get(g))
+            assert g < 2000 and (mkseason.shares_base(n) or mkseason.career_file(n) or g not in taken), (n, g, taken.get(g))
             if n not in hist:
                 taken[g] = n
         open(os.path.join(dst_dir, 'TEAM.%03d' % n), 'wb').write(data)
@@ -300,6 +303,9 @@ def write_new_teams(src_dir, dst_dir):
             taken[g] = mod.FILE
         open(os.path.join(dst_dir, 'TEAM.%03d' % mod.FILE), 'wb').write(data)
     print(f'TEAM.{nsl97.FILE:03d}/{nz97.FILE:03d}/{mls97.FILE:03d}: Australia and New Zealand 1996-97, MLS 1997')
+    for name, data in mkseason.world_files().items():  # career packs: first-season European clubs of each world
+        open(os.path.join(dst_dir, name), 'wb').write(data)
+        print(f'{name}: {len(data) // TEAM_SIZE} European clubs')
 
 
 if __name__ == '__main__':

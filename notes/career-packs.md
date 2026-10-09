@@ -180,3 +180,18 @@ table sums to 0 mod 256 (that is why the 'S3' mark at 1847..1849 has a balance b
 - Engine rule seen: the CC holder (B Dynamo Dresden) replaced a random qualifier (BFC Dynamo, DDR champion) —
   cseg_92C4D replaces, it never adds. Real formats with a holder place of its own (e.g. 1984-85: 31 + holder) need a
   hook (count places + 1 before the holder step, or add instead of replace). Decide with Davide in M3.
+
+## M3 (2026-10-09, session 31): PASSED (save WCARFIX2.CAR, build ITALIAN 89558430)
+
+- Year: world_cups.start_year (test 1988); w_cups sets seasonPlaying; PrintNameAndSeason (cmp 1996) and
+  CareerOverFinish (cmp 1995) compare with the world's year. Seen: CAMP. 1988/89 -> 1989/90.
+- World view + BuyOtherForeignPlayer: comp[254] = [first, -1, 99] and comp[99] = world continent (cups -> the in-save
+  copies, countries); countriesTable[99] = CLASSIC CAREERS record; cont_check accepts 99. Seen: one CARR. STORICHE
+  continent with 3 cups + 4 countries; foreign browser = the 4 world countries (bought from C Energie Cottbus).
+- National team: cseg_8D7B4 tail stores -1 in lastNationalityCall in a world.
+- Holders (Davide: extra place): first try froze — cseg_93BCE clears a holder that qualified through its league, so the
+  appended place was missing. Now the 3 calls of cseg_93BCE skip holders and clubs already in any list (next club of
+  the table) and w_holders appends the 3 holders + records. Save: 13 qualifiers + B Dynamo Dresden (CC holder),
+  C BFC Dynamo (CWC), D Dynamo Dresden (UEFA), no duplicates. Places = size - 1, root pack fills the holder place in
+  season 1. World code moved to a 6th obj1 page (0xA6000, only in builds with worlds; no-world builds unchanged).
+- Next: a real world (1984-85 with Daniele Bordes's data), world name per world (button text), long-career test.

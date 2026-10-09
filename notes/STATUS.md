@@ -1800,3 +1800,8 @@ Left for 2.5: (a) NSL/NSSL finals series (type-1 design) or declare them postpon
 - Test build (ITALIAN.EXE c0a8de83 = DDR + test pack 'TEST 1988-89' in TEAM.101/102, ids CB/CC) PLAYTESTED OK by
   Davide: two CLASSIC SEASONS buttons; Jena -> COPPA COPPE (Kremser), Dresden -> COPPA UEFA (Aberdeen); TEST pack
   league + cup only; TORNEI STORICI lists both leagues. => countries/files > 100 work. c/SWOS back to 2.6 (9881320f).
+- Historic careers (Davide, 2026-10-09): goal = an era world (e.g. 1984-85) limited to a set of countries, as a
+  data "career pack" (leagues with divisions + promotion/relegation, national cups, European cup places and formats
+  per country). First a separate patcher build; a same-exe CARRIERE STORICHE menu only after the study. Study first
+  (1-2 sessions): simulation of unplayed leagues, seasonEndList as a country subset, career European-cup chain on
+  a reduced world; then ~5-8 sessions to the first career pack.

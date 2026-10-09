@@ -20,7 +20,7 @@ import os
 import struct
 
 ROOT = os.path.join(os.path.dirname(__file__), '..')
-VERSION = '2.6.1'
+VERSION = '2.7.0'
 BLOCK = 16
 FILES = [  # (id, original path, patched path, file name in the game folder)
     ('ITALIAN.EXE', 'orig/ITALIAN.EXE', 'c/SWOS/ITALIAN.EXE', 'ITALIAN.EXE'),
@@ -60,7 +60,11 @@ FILES = [  # (id, original path, patched path, file name in the game folder)
     ('ENGLISH.EXE (GOG)', 'orig/gog/ENGLISH.EXE', 'c/gog/ENGLISH.EXE', 'ENGLISH.EXE'),
     ('FRENCH.EXE (GOG)', 'orig/gog/FRENCH.EXE', 'c/gog/FRENCH.EXE', 'FRENCH.EXE'),
     ('GERMAN.EXE (GOG)', 'orig/gog/GERMAN.EXE', 'c/gog/GERMAN.EXE', 'GERMAN.EXE'),
+    # 2.7: SWOS++ (Zlatko Karakas) on the modded English exe, built by tools/swospp.py from the two ENGLISH.EXE above
+    ('ENGLISH.EXE + SWOS++', 'orig/ENGLISH.EXE', 'c/swospp/ENGLISH.EXE', 'ENGLISH.EXE'),
+    ('ENGLISH.EXE + SWOS++ (GOG)', 'orig/gog/ENGLISH.EXE', 'c/swospp/gog/ENGLISH.EXE', 'ENGLISH.EXE'),
 ]
+SWOSPP_BASE = {'ENGLISH.EXE + SWOS++': 'ENGLISH.EXE', 'ENGLISH.EXE + SWOS++ (GOG)': 'ENGLISH.EXE (GOG)'}
 
 
 def varint(n):
@@ -161,7 +165,7 @@ def old_outputs():
         page = open(f, encoding='utf-8').read()
         table = json.loads(re.search(r'PATCHES\s*=\s*(\[.*?\]);\s*\n', page, re.S).group(1))
         for e in table:
-            if 'from' in e:                     # an upgrade entry (2.5.1+): its output is also produced from the original
+            if 'from' in e or 'via' in e:       # upgrade / extra-source entries: their output is also produced from the original
                 continue
             orig = next((o for fid, o, _, _ in FILES if fid == e['id']), None)
             src = open(os.path.join(ROOT, orig), 'rb').read() if orig else b''
@@ -178,7 +182,10 @@ def upgrades(entries):
     need nothing (the page says 'already up to date')."""
     cur = {e['id']: e for e in entries}
     extra = []
-    for (fid, md5), (old, ver) in sorted(old_outputs().items(), key=lambda kv: (kv[0][0], kv[1][1])):
+    olds = sorted(old_outputs().items(), key=lambda kv: (kv[0][0], kv[1][1]))
+    # an old modded English exe can also become mod + SWOS++
+    olds += [((v, md5), ov) for (fid, md5), ov in olds for v, b in SWOSPP_BASE.items() if b == fid]
+    for (fid, md5), (old, ver) in olds:
         e = cur.get(fid)
         if e is None or md5 == e['out_md5'] or any(x['id'] == fid and x['md5'] == md5 for x in entries + extra):
             continue
@@ -191,7 +198,37 @@ def upgrades(entries):
     return extra
 
 
+def build_swospp():
+    """c/swospp/[gog/]ENGLISH.EXE = this release's English exes + SWOS++ (tools/swospp.py)."""
+    import swospp
+    for src, dst in (('c/SWOS/ENGLISH.EXE', 'c/swospp/ENGLISH.EXE'), ('c/gog/ENGLISH.EXE', 'c/swospp/gog/ENGLISH.EXE')):
+        os.makedirs(os.path.dirname(os.path.join(ROOT, dst)), exist_ok=True)
+        swospp.install(os.path.join(ROOT, src), os.path.join(ROOT, dst))
+
+
+def swospp_sources(entries):
+    """Extra entries for the SWOS++ variants: from an original game that already has SWOS++ (patchit.com install),
+    and from this release's plain English exe (add SWOS++ to an up-to-date game)."""
+    import swospp
+    cur = {e['id']: e for e in entries}
+    extra = []
+    for vid, base in SWOSPP_BASE.items():
+        e = cur[vid]
+        dst = open(os.path.join(ROOT, next(p for i, _, p, _ in FILES if i == vid)), 'rb').read()
+        orig = open(os.path.join(ROOT, next(o for i, o, _, _ in FILES if i == base)), 'rb').read()
+        plain = open(os.path.join(ROOT, next(p for i, _, p, _ in FILES if i == base)), 'rb').read()
+        for src, via in ((swospp.patchit(orig), 'swospp'), (plain, 'mod')):
+            ops, inserted = encode(src, dst)
+            assert decode(src, ops) == dst
+            extra.append({'id': vid, 'target': e['target'], 'size': len(src), 'md5': hashlib.md5(src).hexdigest(),
+                          'out_md5': e['out_md5'], 'out_size': e['out_size'], 'delta': base64.b64encode(ops).decode(),
+                          'via': via})
+            print(f'  {vid} via {via}: delta {len(ops)} bytes')
+    return extra
+
+
 def build():
+    build_swospp()
     entries = []
     for fid, orig, patched, target in FILES:
         src = open(os.path.join(ROOT, orig), 'rb').read() if orig else b''
@@ -204,7 +241,7 @@ def build():
             e['with'] = 'TEAM.020'                  # new file: produced when the user's TEAM.020 is recognised
         entries.append(e)
         print(f'{fid}: {len(dst)} bytes, delta {len(ops)} bytes ({inserted} inserted)')
-    entries += upgrades(entries)
+    entries += upgrades(entries) + swospp_sources(entries)
     page = open(os.path.join(ROOT, 'tools', 'patcher_template.html'), encoding='utf-8').read()
     page = page.replace('/*PATCHES*/null', json.dumps(entries)).replace('{{VERSION}}', VERSION)
     out = os.path.join(ROOT, 'release', 'swos-9697-mod-patcher.html')

@@ -55,6 +55,58 @@ FIX_ADD = [
 ]
 
 
+# SWOS++'s own installer (patch/pdata.asm): (file offset, original, patched) on the ORIGINAL CD/GOG ENGLISH.EXE only.
+# Used to recognise a vanilla game that already has SWOS++ (the patcher upgrades it to mod + SWOS++).
+PATCHIT = [
+    (0x00d134, '2f', '2d'),
+    (0x00d137, 'e305', 'eb16'),
+    (0x00d13d, '43', '34'),
+    (0x00d140, 'e5050b', '000000'),
+    (0x00d146, '57', '82'),
+    (0x00d148, '02e1050b', '01000000'),
+    (0x00d14f, '6b', '92'),
+    (0x00d152, 'e7050b', '911403'),
+    (0x00d158, '7f', '98'),
+    (0x00d15b, 'c0460c', '8d1403'),
+    (0x00d498, '34', 'c0'),
+    (0x00d49f, '48', 'c0'),
+    (0x00d4a6, '5c', 'c0'),
+    (0x00d4ad, '70', 'c0'),
+    (0x00d4b4, '84', 'c0'),
+    (0x00d4bb, '93', '9e'),
+    (0x00d4be, '3a0305', '711403'),
+    (0x00d4c4, '98', 'c0'),
+    (0x00d4cb, 'a7', 'a4'),
+    (0x00d4ce, '360305', '6d1403'),
+    (0x00d4d4, 'ac', 'c0'),
+    (0x0a3e18, '81ec00000000', '909090909090'),
+    (0x0a3e1f, '3557', '06a9'),
+    (0x0ae729, '66ba0a0066a1e3050b00bee0ac', '90908925eb160b009c60bb0000'),
+    (0x0ae738, 'e8f602000066ba140066a1e5050b00bee0ac0000e8e202', 'ffb36d140300ffb371140300ffb38d140300ffb3911403'),
+    (0x0ae750, '0066ba1e', '8d83f454'),
+    (0x0ae755, '66a1e1050b00bee0ac0000e8ce02000066ba280066a1e7050b00bee0ac', '0089838d1403008d835e530500898391140300e83bf8ffff8b83711403'),
+    (0x0ae773, '00e8ba02', '3d320001'),
+    (0x0ae778, '0066ba320066a1c0460c', '7603ccebfd8bcb8bc3bb'),
+    (0x0ae783, 'bee0ac0000e8a602', '00000081c15e5305'),
+    (0x0ae78c, '0066ba3c0066a13a', '9090ffd18f059114'),
+    (0x0ae795, '0500bee0ac00', '008f058d1403'),
+    (0x0ae79c, 'e89202000066ba460066a136030500bee0ac0000e87e020000', '8f05711403008f056d140300619d9090e9a7adffffc3c3c3c3'),
+    (0x0b5753, '01', '00'),
+    (0x14a2f4, '53415645204449534b2046', '4c4f414445522e42494e00'),
+    (0x202f68, '01', '00'),
+]
+
+
+def patchit(data):
+    """Byte-exact result of SWOS++'s patchit.com 'install' on an original ENGLISH.EXE (bytes in, bytes out)."""
+    d = bytearray(data)
+    for off, old, new in PATCHIT:
+        old, new = bytes.fromhex(old), bytes.fromhex(new)
+        assert d[off:off + len(old)] == old, f'{off:#x}: not an original ENGLISH.EXE'
+        d[off:off + len(new)] = new
+    return bytes(d)
+
+
 def install(src, dst):
     p = LEPatch(src)
     for objn, off, old, new in OBJ:

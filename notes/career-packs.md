@@ -206,3 +206,4 @@ SA/CAF/Asian lists to the 1997 defaults. Present since 1.2 in normal careers too
 first. Build ITALIAN a78d5d0a (world2 test build + fix) installed in c/SWOS. To test: new career with a club in a
 European cup (e.g. Juventus, or Dynamo Dresden in CARR. STORICHE), save at once, check the mark in the .CAR.
 - Playtest 2026-10-09: new career with Dynamo Dresden (CARR. STORICHE, in the Champions Cup at season 1), saved at once without reload: DRESDA.CAR has 'S3z' at 1847..1849, world 1 / balance 255, table sum 0. PASSED.
+- Release 2.6.1 build (d38a5d1c) playtested 2026-10-10: new Juventus career saved at once (JUVE.CAR) has 'S3z', 80 euro records, sum 0; DDR season with Dynamo Dresden shows COPPA UEFA 1988-89 as 3rd competition.

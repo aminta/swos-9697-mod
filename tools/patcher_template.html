@@ -120,6 +120,16 @@ a{color:var(--accent)}
     <li data-it="Per disinstallare, rimetti i file originali." data-en="To uninstall, put the original files back."></li>
   </ol>
 </section>
+<section>
+  <h2 data-it="SWOS++ (facoltativo, solo inglese)" data-en="SWOS++ (optional, English only)"></h2>
+  <p data-it="Dalla 2.7 la mod funziona insieme a SWOS++ di Zlatko Karakas (partite in rete, replay completi, editor DIY, numeri di maglia fino a 255, calibrazione del joystick). SWOS++ esiste solo per l'eseguibile inglese." data-en="From 2.7 the mod works together with Zlatko Karakas's SWOS++ (network play, full match replays, DIY editor, shirt numbers up to 255, joystick calibration). SWOS++ exists for the English executable only."></p>
+  <ol>
+    <li data-it="Trascina qui sopra ENGLISH.EXE (originale, già modificato con una versione precedente della mod, oppure originale con SWOS++ già installato) e scarica il file della riga ENGLISH.EXE + SWOS++. Non serve più patchit.com." data-en="Drop ENGLISH.EXE above (original, modified by an earlier release of the mod, or original with SWOS++ already installed) and download the file of the ENGLISH.EXE + SWOS++ row. patchit.com is no longer needed."></li>
+    <li data-it="Scarica SWOS++ dalla sua pagina ufficiale e copia loader.bin e swospp.bin nella cartella del gioco, accanto all'eseguibile:" data-en="Download SWOS++ from its official page and copy loader.bin and swospp.bin into the game folder, next to the executable:"></li>
+  </ol>
+  <p><a href="https://github.com/zlatkok/swospp/releases/latest">github.com/zlatkok/swospp/releases</a></p>
+  <p class="sub" data-it="Se avvii il gioco con un altro nome (per esempio SWS.EXE), rinomina il file scaricato. Provato con SWOS++ 1.9.2.2: menu, partite, sostituzioni, replay e highlights, carriera con le coppe della mod, salvataggi, editor DIY. Grazie a Zlatko per SWOS++ e per il permesso." data-en="If you start the game under another name (for example SWS.EXE), rename the downloaded file. Tested with SWOS++ 1.9.2.2: menus, matches, substitutions, replays and highlights, career with the mod's cups, saves, DIY editor. Thanks to Zlatko for SWOS++ and for his permission."></p>
+</section>
 
 <section>
   <h2 data-it="Note sulla versione" data-en="Release notes"></h2>
@@ -137,6 +147,7 @@ a{color:var(--accent)}
     <li data-it="2.0, tornei storici (TEAM.089, 090, 091): solo nelle Competizioni predefinite. Dove mancano le fonti, nomi e ruoli dei giocatori sono ricostruiti (elenco nel manuale tecnico); rose dai DLC di SWOS 2020 (Insane; Francescomanetti82 e Gorzo), usati con il loro permesso. Una ripetizione o uno spareggio finiti in parità si decidono per sorteggio, come allora." data-en="2.0, classic tourneys (TEAM.089, 090, 091): Preset competitions only. Where sources are missing, player names and roles are reconstructed (listed in the technical manual); squads from the SWOS 2020 DLCs (Insane; Francescomanetti82 and Gorzo), used with their permission. A drawn replay or play-off is decided by drawing lots, as back then."></li>
     <li data-it="2.6 (TEAM.092–096): STAGIONI STORICHE nella modalità Stagione con la DDR 1988-89 (Oberliga, FDGB-Pokal con tabellone reale, Coppa dei Campioni, Coppa delle Coppe e Coppa UEFA 1988-89 per le squadre che le giocarono), rose e allenatori veri del 1988-89; Oberliga 1988-89 anche fra i tornei storici. Dalla 2.5.1 il patcher aggiorna anche un gioco già modificato." data-en="2.6 (TEAM.092–096): CLASSIC SEASONS in Season mode with the DDR 1988-89 (Oberliga, FDGB-Pokal with its real bracket, 1988-89 European Cup, Cup Winners' Cup and UEFA Cup for the clubs that played them), real 1988-89 squads and coaches; Oberliga 1988-89 also among the classic tourneys. Since 2.5.1 the patcher also upgrades an already modified game."></li>
     <li data-it="2.5 (TEAM.044, 062, 073): Argentina con Apertura e Clausura, classifica complessiva per le coppe sudamericane e retrocessioni col promedio; Australia NSL 1996-97 (rose reali, NSL Cup, play-off delle prime 4); Nuova Zelanda NSSL 1996-97 (4 punti a vittoria, rigori dopo ogni pareggio con punto bonus, play-off delle prime 4); MLS 1997 (rose reali, rigori dopo ogni pareggio). Approssimazioni dichiarate nelle note di rilascio. Inizia una carriera nuova." data-en="2.5 (TEAM.044, 062, 073): Argentina with Apertura and Clausura, aggregate table for the South American cups and promedio relegation; Australia NSL 1996-97 (real squads, NSL Cup, top-4 play-off); New Zealand NSSL 1996-97 (4 points a win, penalties after every draw with a bonus point, top-4 play-off); MLS 1997 (real squads, penalties after every draw). Declared approximations in the release notes. Start a new career."></li>
+    <li data-it="2.7: compatibilità con SWOS++ (eseguibile inglese, CD o GOG) e correzione della carriera: una carriera nuova con un club in una coppa europea nella prima stagione ora viene avviata subito (prima serviva salvare e ricaricare)." data-en="2.7: SWOS++ compatibility (English executable, CD or GOG) and a career fix: a new career with a club in a European cup in its first season is now set up at once (before, it needed a save and a reload)."></li>
     <li data-it="La panchina di 3 riserve delle squadre inglesi è del gioco originale." data-en="The 3-man bench of English clubs comes from the original game."></li>
   </ul>
   <p class="note" data-it="Il file viene controllato prima e dopo la modifica: se il tuo originale è diverso da quello atteso (altra edizione o file già modificato), la pagina si rifiuta di procedere invece di creare un gioco rotto." data-en="Every file is checked before and after patching: if your original differs from the expected one (another edition or an already modified file), the page refuses to go on instead of producing a broken game."></p>
@@ -196,10 +207,10 @@ function applyDelta(src, b64, outSize) {
 let lang = 'it';
 const T = {
   it: { wait: 'Controllo…', ok: 'Pronto', bad: 'File non riconosciuto', fail: 'Errore nella modifica', dl: 'Scarica', none: 'Nessun file ancora.',
-        current: 'Già aggiornato', from: v => `aggiornamento dalla ${v}`,
+        current: 'Già aggiornato', from: v => `aggiornamento dalla ${v}`, via: { swospp: 'dal gioco originale con SWOS++', mod: 'aggiunge SWOS++' },
         unknown: n => `${n}: non corrisponde a nessun file atteso (né un originale, né modificato da una versione precedente di questa mod). Non è stato modificato.` },
   en: { wait: 'Checking…', ok: 'Ready', bad: 'File not recognised', fail: 'Patching error', dl: 'Download', none: 'No files yet.',
-        current: 'Already up to date', from: v => `upgrade from ${v}`,
+        current: 'Already up to date', from: v => `upgrade from ${v}`, via: { swospp: 'from the original game with SWOS++', mod: 'adds SWOS++' },
         unknown: n => `${n}: does not match any expected file (neither an original nor one modified by an earlier release of this mod). It was not patched.` },
 };
 const results = [];
@@ -219,8 +230,8 @@ function render() {
   for (const r of results) {
     const tr = document.createElement('tr');
     const st = r.state === 'current' ? T[lang].current : r.state === 'ok' ? T[lang].ok : r.state === 'bad' ? T[lang].bad : r.state === 'fail' ? T[lang].fail : T[lang].wait;
-    tr.innerHTML = `<td class="m"></td><td><span class="st ${r.state === 'ok' || r.state === 'current' ? 'ok' : r.state === 'wait' ? 'wait' : 'bad'}">${st}${r.patch && r.patch.from ? ' (' + T[lang].from(r.patch.from) + ')' : ''}</span></td><td></td>`;
-    tr.children[0].textContent = r.patch ? r.patch.target.replace('/', '\\') : r.name;
+    tr.innerHTML = `<td class="m"></td><td><span class="st ${r.state === 'ok' || r.state === 'current' ? 'ok' : r.state === 'wait' ? 'wait' : 'bad'}">${st}${r.patch && r.patch.from ? ' (' + T[lang].from(r.patch.from) + ')' : r.patch && r.patch.via ? ' (' + T[lang].via[r.patch.via] + ')' : ''}</span></td><td></td>`;
+    tr.children[0].textContent = r.patch ? r.patch.target.replace('/', '\\') + (r.patch.id.includes('SWOS++') ? ' + SWOS++' : '') : r.name;
     if (r.state === 'ok') {
       const b = document.createElement('button');
       b.className = 'dl'; b.type = 'button'; b.textContent = `${T[lang].dl} ${r.patch.target.split('/').pop()}`;

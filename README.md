@@ -43,9 +43,14 @@ The patcher ships only differences and checks every file before and after patchi
 
 **Upgrading (2.5.1):** you do not need to go back to the originals. Drop the executable and `DATA\TEAM.020` you have now (modified by any earlier release, 1.0 to 2.5, CD or GOG): the patcher recognises them and brings them to the latest version, or tells you they are already up to date. Saves are never touched.
 
+### Build your own season
+Historic seasons (like the DDR 1988-89 of 2.6) are now **season packs**: folders of plain data (clubs, squads,
+league, cup brackets) in CSV files you can edit with Excel. Prepare the season you would like to play and send it to
+us: we check it and add it to a release. Instructions and a ready-to-copy example: [`packs/README.md`](packs/README.md).
+
 ### For developers
 - Technical manual: [English](https://aminta.github.io/swos-9697-mod/) (ENGLISH.EXE addresses) · [Italian](https://aminta.github.io/swos-9697-mod/it.html) (ITALIAN.EXE addresses)
-- Build: put the original executables and `DATA/TEAM.020` in `orig/`, then `cd tools && python3 patch.py it|en|fr|de` (needs `nasm`; the classic tourneys' squads also need the SWOS 2020 DLC files in `orig/swos2020/`, not in the repository). Patcher: `python3 tools/mkpatcher.py`.
+- Build: put the original executables and `DATA/TEAM.020` in `orig/`, then `cd tools && python3 patch.py it|en|fr|de` (needs `nasm`; the classic tourneys' squads also need the SWOS 2020 DLC files in `orig/swos2020/`, not in the repository). Patcher: `python3 tools/mkpatcher.py`. Season packs: `python3 tools/mkseason.py check packs/<pack>`.
 - The reference disassembly comes from [swos-port](https://github.com/zlatkok/swos-port) (`swos/swos.asm`, in `ref/`).
 - Detailed log of every session: [`notes/STATUS.md`](notes/STATUS.md).
 
@@ -90,9 +95,15 @@ Il patcher contiene solo differenze e controlla i file prima e dopo la modifica:
 
 **Aggiornamento (2.5.1):** non serve tornare agli originali. Trascina l'exe e `DATA\TEAM.020` che hai ora (modificati da una qualsiasi versione precedente, dalla 1.0 alla 2.5, CD o GOG): il patcher li riconosce e li porta all'ultima versione, oppure ti dice che sono già aggiornati. I salvataggi non vengono mai toccati.
 
+### Costruisci la tua stagione
+Le stagioni storiche (come la DDR 1988-89 della 2.6) ora sono **pacchetti stagione**: cartelle di soli dati (club,
+rose, campionato, tabelloni delle coppe) in file CSV che puoi modificare con Excel. Prepara la stagione che vorresti
+giocare e mandacela: la controlliamo e la inseriamo in una release. Istruzioni e un esempio pronto da copiare:
+[`packs/README.it.md`](packs/README.it.md).
+
 ### Per sviluppatori
 - Manuale tecnico: [italiano](https://aminta.github.io/swos-9697-mod/it.html) (indirizzi di ITALIAN.EXE) · [inglese](https://aminta.github.io/swos-9697-mod/) (indirizzi di ENGLISH.EXE)
-- Build: metti gli exe e `DATA/TEAM.020` originali in `orig/`, poi `cd tools && python3 patch.py it|en|fr|de` (serve `nasm`; le rose dei tornei storici richiedono anche i file dei DLC di SWOS 2020 in `orig/swos2020/`, non inclusi nel repository). Patcher: `python3 tools/mkpatcher.py`.
+- Build: metti gli exe e `DATA/TEAM.020` originali in `orig/`, poi `cd tools && python3 patch.py it|en|fr|de` (serve `nasm`; le rose dei tornei storici richiedono anche i file dei DLC di SWOS 2020 in `orig/swos2020/`, non inclusi nel repository). Patcher: `python3 tools/mkpatcher.py`. Pacchetti stagione: `python3 tools/mkseason.py check packs/<pacchetto>`.
 - Il disassemblato di riferimento viene da [swos-port](https://github.com/zlatkok/swos-port) (`swos/swos.asm`, in `ref/`).
 - Registro dettagliato di ogni sessione: [`notes/STATUS.md`](notes/STATUS.md).
 

@@ -1,0 +1,9 @@
+key,name,coach,country,file,template,target,kit,source
+north,NORTH CITY,Mario Rossi,ITA,league,auto,,,North City FC
+south,SOUTH UNITED,Luigi Bianchi,ITA,league,auto,,,South United
+east,EAST ROVERS,Paolo Verdi,ITA,league,auto,,,East Rovers
+west,WEST ATHLETIC,,ITA,league,auto,,,West Athletic
+hill,HILL TOWN,,ITA,cuponly,auto,,,Hill Town (2nd division)
+lake,LAKE SPORT,,ITA,cuponly,auto,,,Lake Sport (2nd division)
+river,RIVER FC,,ITA,cuponly,auto,,,River FC (amateurs)
+coast,COAST 1920,,ITA,cuponly,auto,,,Coast 1920 (amateurs)

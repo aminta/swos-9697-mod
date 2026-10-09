@@ -1,0 +1,30 @@
+{
+  "format": 1,
+  "id": "example-1984-85",
+  "button": "EXAMPLE 1984-85",
+  "continent": "europe",
+  "sources": ["Where every piece of data comes from (sites, books, databases and their authors)"],
+  "notes": ["Anything fixed by hand or uncertain"],
+
+  "files": {
+    "league": {"file": 98, "base": 1818},
+    "cuponly": {"file": 99, "base": 1822}
+  },
+  "squads": [
+    {"files": ["league", "cuponly"], "method": "game", "seed": 1984}
+  ],
+
+  "competitions": [
+    {"key": "league", "type": "league", "id": "D0", "clubs": "league", "dates_from": 20,
+     "games": 2, "win_points": 2, "relegated": 1, "classic_tourney": true,
+     "names": {"*": ["EXAMPLE LEAGUE 1984-85", "EXAMPLE LEAGUE"]}},
+    {"key": "cup", "type": "cup", "layout": "national", "id": "D1", "dates_from": 20,
+     "rounds": ["single_et", "single_et", "single"],
+     "names": {"it": ["COPPA ESEMPIO 1984-85", "COPPA ESEMPIO"],
+               "en": ["EXAMPLE CUP 1984-85", "EXAMPLE CUP"],
+               "fr": ["COUPE EXEMPLE 1984-85", "COUPE EXEMPLE"],
+               "de": ["BEISPIELPOKAL 1984-85", "BEISPIELPOKAL"]}}
+  ],
+
+  "season": {"league": "league", "cup": "cup"}
+}

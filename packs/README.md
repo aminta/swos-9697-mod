@@ -13,6 +13,23 @@ python3 tools/mkseason.py check packs/ddr-1988-89
 
 The packs that go into the build are listed in `mkseason.ENABLED`.
 
+*Italiano: [README.it.md](README.it.md).*
+
+## Build your own season
+
+Anyone can prepare a season and send it to us; we check it, finish the technical part and add it to a release.
+
+1. Copy the folder [`_template`](_template) and rename it (e.g. `italy-1984-85`). It is a small valid example
+   (4 league clubs, an 8-club cup): replace its rows with your data.
+2. Fill `clubs.csv`, `players.csv` and `ties.csv` (Excel or any spreadsheet: save as "CSV UTF-8"), then in
+   `pack.json` the button text, the competitions (names, rules, rounds) and the sources.
+3. Optional, if you have Python 3: `python3 tools/mkseason.py check packs/<your folder>` tells you what is wrong.
+4. Send it: open an issue on this repository with the folder zipped (or post it in the SWOS groups where we are).
+
+You do not need to care about `files` (file numbers and global numbers), contest `id`s, `squads` and `dates_from`:
+we assign them when the pack goes into the build. A spreadsheet with the same columns is fine too, and so is a
+database export (e.g. Championship Manager): tell us where it comes from.
+
 ## Files
 
 | File | Content |

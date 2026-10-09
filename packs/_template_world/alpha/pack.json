@@ -1,0 +1,98 @@
+{
+ "format": 1,
+ "id": "example-world-alpha",
+ "kind": "career",
+ "button": "ALPHA",
+ "continent": "europe",
+ "sources": [
+  "Where every piece of data comes from"
+ ],
+ "files": {
+  "league": {
+   "file": 120,
+   "base": 0
+  }
+ },
+ "squads": [
+  {
+   "files": [
+    "league"
+   ],
+   "method": "game",
+   "seed": 1984
+  }
+ ],
+ "competitions": [
+  {
+   "key": "league",
+   "type": "league",
+   "id": "D2",
+   "clubs": "league",
+   "dates_from": 14,
+   "games": 2,
+   "win_points": 2,
+   "relegated": 1,
+   "names": {
+    "*": [
+     "ALPHA LEAGUE",
+     "ALPHA LEAGUE"
+    ]
+   },
+   "divisions": [
+    {
+     "teams": 4,
+     "promoted": 0,
+     "relegated": 1,
+     "names": {
+      "*": [
+       "ALPHA LEAGUE",
+       "ALPHA LEAGUE"
+      ]
+     }
+    },
+    {
+     "teams": 4,
+     "promoted": 1,
+     "relegated": 0,
+     "names": {
+      "*": [
+       "ALPHA LEAGUE 2",
+       "ALPHA LEAGUE 2"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "key": "cup",
+   "type": "cup",
+   "layout": "national",
+   "id": "D3",
+   "dates_from": 14,
+   "rounds": [
+    "single_et",
+    "single_et",
+    "single"
+   ],
+   "names": {
+    "*": [
+     "ALPHA CUP",
+     "ALPHA CUP"
+    ]
+   }
+  }
+ ],
+ "season": {
+  "league": "league",
+  "cup": "cup"
+ },
+ "world": 1,
+ "europe_places": {
+  "cc": 1,
+  "cwc": 0,
+  "uefa": 1
+ },
+ "world_cups": {
+  "start_year": 1984
+ }
+}

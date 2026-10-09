@@ -15,6 +15,9 @@ The packs that go into the build are listed in `mkseason.ENABLED`.
 
 *Italiano: [README.it.md](README.it.md).*
 
+**A whole historic world played as a career** (several countries, divisions, European cups, many seasons)?
+See [CAREERS.md](CAREERS.md).
+
 ## Build your own season
 
 Anyone can prepare a season and send it to us; we check it, finish the technical part and add it to a release.
@@ -139,6 +142,6 @@ and credit.
 
 ## Limits
 
-- One national league per pack, single division.
-- Team files: 98, 99 and 101–251 are free (tested with 101–102); packs may share global numbers, since two
-  packs never run in the same season.
+- One national league per pack, single division (career packs may have several: [CAREERS.md](CAREERS.md)).
+- Team files: 101–251 are free (tested with 101–104); 98 and 99 are taken by the CLASSIC CAREERS menu. Packs may
+  share global numbers, since two packs never run in the same season.

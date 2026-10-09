@@ -1,0 +1,70 @@
+{
+ "format": 1,
+ "id": "example-world-beta",
+ "kind": "career",
+ "button": "BETA",
+ "continent": "europe",
+ "sources": [
+  "Where every piece of data comes from"
+ ],
+ "files": {
+  "league": {
+   "file": 121,
+   "base": 8
+  }
+ },
+ "squads": [
+  {
+   "files": [
+    "league"
+   ],
+   "method": "game",
+   "seed": 1984
+  }
+ ],
+ "competitions": [
+  {
+   "key": "league",
+   "type": "league",
+   "id": "D4",
+   "clubs": "league",
+   "dates_from": 14,
+   "games": 2,
+   "win_points": 2,
+   "relegated": 0,
+   "names": {
+    "*": [
+     "BETA LEAGUE",
+     "BETA LEAGUE"
+    ]
+   }
+  },
+  {
+   "key": "cup",
+   "type": "cup",
+   "layout": "national",
+   "id": "D5",
+   "dates_from": 14,
+   "rounds": [
+    "single_et",
+    "single"
+   ],
+   "names": {
+    "*": [
+     "BETA CUP",
+     "BETA CUP"
+    ]
+   }
+  }
+ ],
+ "season": {
+  "league": "league",
+  "cup": "cup"
+ },
+ "world": 1,
+ "europe_places": {
+  "cc": 0,
+  "cwc": 1,
+  "uefa": 2
+ }
+}

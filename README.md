@@ -48,6 +48,9 @@ Historic seasons (like the DDR 1988-89 of 2.6) are now **season packs**: folders
 league, cup brackets) in CSV files you can edit with Excel. Prepare the season you would like to play and send it to
 us: we check it and add it to a release. Instructions and a ready-to-copy example: [`packs/README.md`](packs/README.md).
 
+**Build a whole historic world** (in development, next release): several countries of an era played as a *career*,
+with divisions, national cups and European cups season after season. Guide and example: [`packs/CAREERS.md`](packs/CAREERS.md).
+
 ### For developers
 - Technical manual: [English](https://aminta.github.io/swos-9697-mod/) (ENGLISH.EXE addresses) · [Italian](https://aminta.github.io/swos-9697-mod/it.html) (ITALIAN.EXE addresses)
 - Build: put the original executables and `DATA/TEAM.020` in `orig/`, then `cd tools && python3 patch.py it|en|fr|de` (needs `nasm`; the classic tourneys' squads also need the SWOS 2020 DLC files in `orig/swos2020/`, not in the repository). Patcher: `python3 tools/mkpatcher.py`. Season packs: `python3 tools/mkseason.py check packs/<pack>`.
@@ -100,6 +103,10 @@ Le stagioni storiche (come la DDR 1988-89 della 2.6) ora sono **pacchetti stagio
 rose, campionato, tabelloni delle coppe) in file CSV che puoi modificare con Excel. Prepara la stagione che vorresti
 giocare e mandacela: la controlliamo e la inseriamo in una release. Istruzioni e un esempio pronto da copiare:
 [`packs/README.it.md`](packs/README.it.md).
+
+**Costruisci un intero mondo storico** (in sviluppo, prossima release): più nazioni di un'epoca da giocare in
+*carriera*, con divisioni, coppe nazionali e coppe europee stagione dopo stagione. Guida ed esempio:
+[`packs/CAREERS.it.md`](packs/CAREERS.it.md).
 
 ### Per sviluppatori
 - Manuale tecnico: [italiano](https://aminta.github.io/swos-9697-mod/it.html) (indirizzi di ITALIAN.EXE) · [inglese](https://aminta.github.io/swos-9697-mod/) (indirizzi di ENGLISH.EXE)

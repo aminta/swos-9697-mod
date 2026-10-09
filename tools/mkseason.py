@@ -454,7 +454,7 @@ def _first_europe(pk, holder=False):
     pl, fe = dict(pk.meta.get('europe_places', {})), pk.meta.get('first_europe', {})
     if holder:
         pl = {k: pl.get(k, 0) + 1 for k in ('cc', 'cwc', 'uefa')}
-    order = iter(pk.league_clubs)
+    order = iter(sorted(pk.league_clubs, key=lambda k: pk.division[k]))   # top division first, table order
     taken = {c for v in fe.values() for c in v}
     out = {}
     for key in ('cc', 'cwc', 'uefa'):
@@ -832,14 +832,22 @@ def patch(p, lang, area, cave):
 def main(argv):
     if len(argv) >= 2 and argv[0] == 'check':
         try:
-            pk = Pack(argv[1])
+            pks = [Pack(x) for x in argv[1:]]
+            for pk in pks:
+                print(f"== {pk.meta['id']} ({pk.kind})")
+                for c in pk.comps:
+                    n = len(pk.league_clubs) if c['type'] == 'league' else len(pk.bracket(c)['clubs'])
+                    print(f"{c['key']}: {c['type']}, {n} clubs")
+                short = [k for k, v in pk.players.items() if len(v) < 16]
+                print(f'{len(pk.clubs)} clubs, {sum(map(len, pk.players.values()))} players; under 16 players (fillers): {short}')
+            packs.cache = pks                   # several career packs = a world: check it as a whole
+            for w in world_defs():
+                print(f"== world {w['n']}: from {w['year']}, countries {w['countries']}")
+                for key in ('cc', 'cwc', 'uefa'):
+                    print(f"{key}: {len(w['cups'][key][1])} clubs = {len(w['places'][key])} places + holder; "
+                          f"season 1: {', '.join(pk.clubs[c]['name'] for pk, c in w['clubs'][key])}")
         except PackError as e:
             sys.exit(f'ERROR: {e}')
-        for c in pk.comps:
-            n = len(pk.league_clubs) if c['type'] == 'league' else len(pk.bracket(c)['clubs'])
-            print(f"{c['key']}: {c['type']}, {n} clubs")
-        short = [k for k, v in pk.players.items() if len(v) < 16]
-        print(f'{len(pk.clubs)} clubs, {sum(map(len, pk.players.values()))} players; under 16 players (fillers): {short}')
         return
     print(__doc__)
 

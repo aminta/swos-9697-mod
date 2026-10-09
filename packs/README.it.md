@@ -15,6 +15,9 @@ I pacchetti che entrano nella build sono elencati in `mkseason.ENABLED`.
 
 *English: [README.md](README.md).*
 
+**Un intero mondo storico da giocare in carriera** (più nazioni, divisioni, coppe europee, tante stagioni)?
+Vedi [CAREERS.it.md](CAREERS.it.md).
+
 ## Costruisci la tua stagione
 
 Chiunque può preparare una stagione e mandarcela: noi la controlliamo, completiamo la parte tecnica e la inseriamo in
@@ -145,6 +148,7 @@ possono usare con il permesso del suo autore e citandolo.
 
 ## Limiti
 
-- Un solo campionato nazionale per pacchetto, a una divisione.
-- File squadre: liberi il 98, il 99 e dal 101 al 251 (provati il 101 e il 102); i pacchetti possono condividere i
-  numeri globali, perché due pacchetti non giocano mai nella stessa stagione.
+- Un solo campionato nazionale per pacchetto, a una divisione (i pacchetti carriera possono averne di più:
+  [CAREERS.it.md](CAREERS.it.md)).
+- File squadre: liberi dal 101 al 251 (provati dal 101 al 104); il 98 e il 99 sono occupati dal menu CARR. STORICHE.
+  I pacchetti possono condividere i numeri globali, perché due pacchetti non giocano mai nella stessa stagione.

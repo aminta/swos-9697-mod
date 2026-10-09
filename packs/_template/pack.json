@@ -7,18 +7,18 @@
   "notes": ["Anything fixed by hand or uncertain"],
 
   "files": {
-    "league": {"file": 98, "base": 1818},
-    "cuponly": {"file": 99, "base": 1822}
+    "league": {"file": 101, "base": 1818},
+    "cuponly": {"file": 102, "base": 1822}
   },
   "squads": [
     {"files": ["league", "cuponly"], "method": "game", "seed": 1984}
   ],
 
   "competitions": [
-    {"key": "league", "type": "league", "id": "D0", "clubs": "league", "dates_from": 20,
+    {"key": "league", "type": "league", "id": "D0", "clubs": "league", "dates_from": 14,
      "games": 2, "win_points": 2, "relegated": 1, "classic_tourney": true,
      "names": {"*": ["EXAMPLE LEAGUE 1984-85", "EXAMPLE LEAGUE"]}},
-    {"key": "cup", "type": "cup", "layout": "national", "id": "D1", "dates_from": 20,
+    {"key": "cup", "type": "cup", "layout": "national", "id": "D1", "dates_from": 14,
      "rounds": ["single_et", "single_et", "single"],
      "names": {"it": ["COPPA ESEMPIO 1984-85", "COPPA ESEMPIO"],
                "en": ["EXAMPLE CUP 1984-85", "EXAMPLE CUP"],

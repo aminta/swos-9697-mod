@@ -1819,4 +1819,6 @@ Left for 2.5: (a) NSL/NSSL finals series (type-1 design) or declare them postpon
   sources: original, old modded English 1.0-2.6.1 (upgrades), vanilla+patchit ('via' swospp). loader.bin/swospp.bin NOT
   shipped (link to zlatkok/swospp releases). Page shows 'already up to date' + the SWOS++ offer for a current English exe.
   Node harness (scratchpad ut/t.js): original CD/GOG, vanilla+SWOS++ CD/GOG, EN 2.0, EN 2.6.1, mod+SWOS++, IT, TEAM.020 OK.
-- Manuals IT/EN: new chapter 24 SWOS++ (limits -> 25, history -> 26), history row 33. Other exes/TEAM files = 2.6.1.
+- Manuals IT/EN: new chapter 24 SWOS++ (limits -> 25, history -> 26), history row 33; artifacts EN v17 / IT v16. Other exes/TEAM
+  files = 2.6.1, so the 2.6.1 MiSTer/12bit packages stay current. PUBLISHED: github.com/aminta/swos-9697-mod/releases/tag/v2.7.0.
+  Announcement drafts in internal/announcements/2.7.0 + swospp/zlatko-released-en.txt (Davide posts).

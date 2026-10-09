@@ -105,3 +105,37 @@ with Daniele Bordes's data).
   the lists at the next InitNewSeason (sizes: original structs 16 groups / 32 / 32), cseg_8D661 (membership).
 - Test material for the next sessions: internal/career-test/ (git-ignored; README there). c/SWOS currently holds the
   M1 test build (ITALIAN.EXE da08e328 + DATA/TEAM.101); 2.6 exe = c/SWOS/ITALIAN_26.EXE (9881320f); save WCARR1.CAR.
+
+## M2 — European chain fully read (2026-10-09, session 31)
+
+- **Career start** (InitCareer): clears someLeaguesTable[0..1999] (2000 bytes, so [1999] is cleared too), then
+  `careerFileBuffer = 0` + LoadSomeEuroCup(euroCup / cupWinnersCup / uefaCup) = data\eurocup.tmd / eurocwc.tmd /
+  uefacup.tmd appended to tmdFileBuffer; SetTeamGlobalNumbers writes record word +2 = teamsCountryNumbers[byte 0] +
+  byte 1 (so a TMD record is just a copy of a team-file record). Then the `careerContests` table [src, dst, size]
+  copies the static structs into the save: euroCup -> euroCupCopy (79 B), cupWinnersCup -> cupWinnersCupCopy (92 B),
+  uefaCup -> uefaCupCopy (92 B).
+- **Cup struct team list** = byte [7] + 7 (CC: 47, CWC/UEFA: 28), one (country file, ordinal) byte pair per club;
+  CC 16 pairs, CWC/UEFA 32 pairs. So a world fits in the existing save with KNOCKOUT formats of at most
+  CC 16 / CWC 32 / UEFA 32 clubs (total <= 80 records): no buffer has to move.
+- **Season end** (cseg_91428): cseg_936C0 points dseg_18078A/96 (CC), 18078E/9A (CWC), 180792/9E (UEFA) at the
+  team list INSIDE euroCupCopy / cupWinnersCupCopy / uefaCupCopy and zeroes the counters 180784/86/88; it expands the
+  static place tables into the working country lists 18072F / 180740 / 180761 with cseg_93E36. A place table is
+  `[dd ptr, dw n, dw take]...` + dd -1: from the n country bytes at ptr, `take` are chosen at random (shuffle) — e.g.
+  CC: 4 of {0E,14,23,08}, 5 of 6, 5 of 11, 2 of 22. Then careerFileBuffer = 0 and every country of seasonEndList
+  (player's first) gets cseg_9153F + cseg_93974; cseg_93D67 writes the club pair into the cup's own list and
+  cseg_94193 copies its 684-byte record to tmdFileBuffer[careerFileBuffer++] (it asserts the club is in a loaded file:
+  SearchTeamInTmdFile). So the next season's cups are the in-save copies themselves.
+- Checks: careerFileBuffer == 80 after the loop; cseg_92BBF (holders): for each of CC / CWC / UEFA holder
+  (dseg_18070F / 180711 / 180713, FFFF = none) not qualified, a random list entry of another country (not the
+  player's) is replaced by the holder (cseg_9423A removes the record, cseg_94193 adds the holder's, record saved in
+  dseg_182A7E / 182D2A / 182FD6); then 16 / 32 / 32 / 80 again. All immediates -> per-world values.
+- **ProcessCareerFile** (load): only needs dseg_E092F (which copy the player is in) — nothing world-specific.
+
+### M2 implementation plan (same exe)
+
+World byte = someLeaguesTable[1999] (written by an InitCareer hook from the chosen club's country; 0 = 1996-97).
+1. InitCareer: world -> load the world TMD (one file `data\wNN.tmd`, all first-season euro clubs) instead of the 3
+   files, and overwrite the 3 copies with the world's KO structs after the careerContests copy.
+2. cseg_91428: seasonEndList, the 3 place tables (cseg_936C0) and the 16/32/32/80 checks read per-world values.
+3. Holders: FFFF at a world start (nothing to inherit).
+4. Later (M3): year, comp[254] in BuyOtherForeignPlayer, national-team calls, other-continent cups in the world view.

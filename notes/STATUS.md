@@ -1802,6 +1802,7 @@ Left for 2.5: (a) NSL/NSSL finals series (type-1 design) or declare them postpon
   league + cup only; TORNEI STORICI lists both leagues. => countries/files > 100 work. c/SWOS back to 2.6 (9881320f).
 - Historic careers (Davide, 2026-10-09): goal = an era world (e.g. 1984-85) limited to a set of countries, as a
   data "career pack" (leagues with divisions + promotion/relegation, national cups, European cup places and formats
-  per country). First a separate patcher build; a same-exe CARRIERE STORICHE menu only after the study. Study first
+  per country). Preferred (Davide): same exe, CARRIERE STORICHE menu, world tables swapped at career start, .CAR
+  marked with its world (loading must restore the right world); separate build only as fallback. Study first
   (1-2 sessions): simulation of unplayed leagues, seasonEndList as a country subset, career European-cup chain on
   a reduced world; then ~5-8 sessions to the first career pack.

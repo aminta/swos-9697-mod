@@ -276,3 +276,28 @@ both covered by the first test).
   world 3 from 1984, places CC 1 / CWC 1 / UEFA 2 (root 3) -> 32 / 32 / 64 with the holders. Build IT c3ad9f2f (+ EN
   65e603bd FR 720c1aee DE b4787104), WORLD03.TMD 128 records; no-world build still d38a5d1c, world2 build OK.
   Installed in c/SWOS (2.6.1 exe saved as c/SWOS/ITALIAN_261.EXE). Save checker: internal/career-test/checkw1.py.
+
+### Euro 128 playtest (2026-10-10) — fixes found on the way
+
+1. World table indexed by position, not by world number: a lone world 3 read an empty record (empty TMD name ->
+   LoadFile error -> exit to DOS). WTAB now has a slot per world number (missing ones zero).
+2. 'W1' after the C7 trailer did not fit: a world career caches ~92 teams (own 32 + the 60 foreign UEFA clubs of the
+   player's cup) and the 68400-B room was full -> W1 skipped silently, empty cups after a load, freeze at season end.
+   W1 (13274 B: cups + 128 x (pair + 99 VAROFF bytes)) now lives in the fixed part's 80-record area; load rebuilds all
+   128 records from the TEAM files (LoadTeamFile) + the saved bytes.
+3. Season 2 end froze after PARAGUAY (DOSBox-X debugger, core=normal, menu Debug: EIP in cseg_3283C's int 3): the
+   1996-97 qualifier simulations (arg_agg -> sa_qualify: SA / CAF / Asia / CONCACAF / Argentina) read someLeaguesTable at
+   their clubs' global numbers, which world clubs reuse -> wrong division size. In a world the season end now calls
+   cseg_92D55 directly (careerworld.late; also fixes world 2, whose numbers only hit European clubs).
+4. Then a freeze on the chairman's note (MEMDUMPBIN of the debugger, 32 MB): g_numSelectedTeams 104 > 100, pseudo
+   registers overwritten, endless search in cseg_32E15. cseg_92D55 ends the Champions Cup as the 1996-97 group cup (type
+   2: played cseg_89B5C, simulated cseg_3ADAE -> cseg_320A3 reads the club count at byte 15 = 0x94 = 148). A world's
+   Champions Cup is a knockout: in a world those two calls go to the CWC's cseg_45B51 / cseg_3ACAB (winner readers
+   cseg_92F1C / cseg_93241 are alike). Latent since M2 (4-club cups: 20 entries, no overflow).
+- Debug recipe kept: internal DIAG build (DIAG=1: int 3 + timer watchdog writing DIAG.BIN) did NOT fire under DOS/4GW
+  here; the DOSBox-X debugger from a terminal tab (Debug menu -> debugger, MEMDUMPBIN 0168:00000000 2000000) did.
+  ITALIAN obj1 at linear 0x263000, obj2 at 0x30C000 in these builds.
+- PASSED: build ITALIAN 25f5d535: seasons 1 and 2 ended with a load in between (W128.CAR -> W128B.CAR, season
+  1986/87): cups 32 / 32 / 64, 31 countries, no duplicates, W1 ok, table sum 0.
+- Still to test: load W128B + finish season 3; a normal career (Juventus) still works; career record with the shared
+  league id; EN/FR/DE.

@@ -608,8 +608,13 @@ def patch(p, worlds, at, nasmcave, comp, ct, cont_rec):
     s = sites(p)
     data = ['align 4', 'WTAB:']
     extra = []
-    for w in worlds:
+    nrec = 0
+    for w in sorted(worlds, key=lambda w: w['n']):
         n = w['n']
+        while nrec < n - 1:                     # WTAB is indexed by the world number (= the byte in the save)
+            nrec += 1
+            data.append(f'    times {REC} db 0                ; world {nrec}: not in this build')
+        nrec += 1
         tot = sum(len(w['cups'][k][1]) for k in ('cc', 'cwc', 'uefa'))
         bw = big(w)
         assert tot <= TOTAL_MAX and all(len(w['cups'][k][1]) <= (MAX if bw else SMALL)[k] for k in MAX), (n, tot)

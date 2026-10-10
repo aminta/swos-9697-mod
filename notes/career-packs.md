@@ -313,3 +313,12 @@ both covered by the first test).
   ITALIAN 24f09873): UEFA 1st round mixed, no same-country tie seen. A same-country tie can still come up by chance
   (~1 in 2 seasons for 64 clubs); the real 1984-85 rule kept them apart -> possible follow-up: swap such ties after the
   draw. Saves made before keep [8] = 1 in their W1 cups.
+- No same-country ties in rounds 1-2 (2026-10-10, branch career-euro-nodorby): RSSF 1980-90 UEFA Cup shows no
+  same-association tie in rounds 1-2 (~300 ties parsed), some later. With contest byte 8 = 0 the FIRST round is
+  shuffled by cseg_28139 (cseg_87DA0, list DIY_competitionStart+2CDh, [4Fh] ties), rounds 2.. by cseg_27F08 (via
+  hist_draw, list A2+59h). careerworld.late hooks both (w_draw1 / w_draw -> w_fixpairs: a same-country tie swaps its
+  away club with another tie's; country = low byte of the team number at DIY+24Dh). Derby test world (DERBY=1
+  mkworld3: season-1 UEFA 10 x 6 + 4 clubs, ~2.5 derbies per draw expected): first build hooked only cseg_27F08 ->
+  1 derby seen, debugger BP never hit; with w_draw1 (ITALIAN 1f3ae3ea) 0 derbies in 25 visible ties. Round 2 not
+  checked yet. The 1996-97 game has the same flaw from season 2 (JUVE2 / APOK4: 8 of 16 UEFA first-round ties
+  same-country): fixing it there changes normal careers -> Davide to decide for the next release.

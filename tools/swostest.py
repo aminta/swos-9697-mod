@@ -2,13 +2,15 @@
 
   python3 tools/swostest.py list                     scenarios
   python3 tools/swostest.py run [NAME...]            run scenarios (all when none given); exit code 1 on a failure
-  python3 tools/swostest.py keys EXE CAR|- 'KEYS' [-shots S] [-t T] [-name NAME]
+  python3 tools/swostest.py keys EXE CAR|- 'KEYS' [-shots S] [-t T] [-name NAME] [-match]
         ad-hoc run: EXE = a build dir (ITALIAN.EXE + DATA) or an .EXE file (DATA from c/SWOS); CAR = a save to copy
         in (or -); KEYS = the script below; window screenshots every S s into runs/NAME/shots; T = timeout (s);
-        -name NAME = run dir (default keys)
+        -name NAME = run dir (default keys); -match = the feeder also types during matches, replays and
+        highlights (all 12 GetKey calls; waits then count in match frames too)
   Env: SWOSTEST_BUILD = build dir under test, else SWOSTEST_BRANCH = git branch/commit to build, else this checkout.
 
-Key script: space-separated keys fire up down left right esc enter space bspace a-z 0-9, and 'dump'. 'key:s' waits
+Key script: space-separated keys fire up down left right esc enter space bspace a-z 0-9, and 'dump'; 'fire+right'
+= both held (fire typed), for the entries with input-function control masks (kit colours). 'key:s' waits
 s seconds (default 0.5) before the key, counted in menu frames (RATE GetKey calls per s), so the script follows the
 game: loading and simulating do not use it up. After a screen change wait >= 1-2 s (a menu that is still starting
 drops a key). 'dump' stops the game in the debugger: 32 MB memory dump (MEMDUMP.BIN) and the run ends there.
@@ -97,7 +99,7 @@ def build(name, env=None, branch=None):
     return out
 
 
-def prepare(name, exe_dir, cars, steps):
+def prepare(name, exe_dir, cars, steps, match=False):
     """runs/<name>/SWOS = base + exe_dir (ITALIAN.EXE + DATA, or an .EXE file) + saves {dos name: source path}."""
     run = os.path.join(WORK, 'runs', name)
     if os.path.isdir(run):
@@ -111,13 +113,14 @@ def prepare(name, exe_dir, cars, steps):
         shutil.copytree(exe_dir, game, dirs_exist_ok=True, ignore=shutil.ignore_patterns('log.txt'))
     for dos, src in cars.items():
         shutil.copy(src, os.path.join(game, dos))
-    return run, test_exe(os.path.join(game, 'ITALIAN.EXE'), steps)
+    return run, test_exe(os.path.join(game, 'ITALIAN.EXE'), steps, match)
 
 
 SCAN = {'fire': 0x1D, 'up': 0x48, 'down': 0x50, 'left': 0x4B, 'right': 0x4D, 'esc': 0x01, 'enter': 0x1C,
         'space': 0x39, 'bspace': 0x0E, 'dump': 0xFF}
 SCAN.update({ch: sc for row, base in (('1234567890', 0x02), ('qwertyuiop', 0x10), ('asdfghjkl', 0x1E),
                                       ('zxcvbnm', 0x2C)) for sc, ch in enumerate(row, base)})
+SCRIPT_MAX = 200                                       # steps a pause can write
 HOLD = 3                                               # GetKey calls a typed key stays held
 RATE = 30                                              # GetKey calls per second in the menus (calibrated)
 
@@ -128,11 +131,13 @@ def steps_of(text):
     out = []
     for tok in text.split():
         k, _, t = tok.partition(':')
-        out.append((SCAN[k.lower()], max(1, round(float(t or 0.5) * RATE))))
+        codes = [SCAN[x] for x in k.lower().split('+')]          # 'fire+right': both held, fire typed
+        assert len(codes) <= 2, tok
+        out.append((codes[0] | (codes[1] << 8 if len(codes) > 1 else 0), max(1, round(float(t or 0.5) * RATE))))
     return out
 
 
-def test_exe(exe, steps):
+def test_exe(exe, steps, match=False):
     """Test builds only (the exe under test is patched in its run copy):
     - intro skipped (skipIntro test -> jmp);
     - menus also read the latched last key (MenuCheckControls' 'two joypads' branch, normally only for
@@ -163,9 +168,13 @@ def test_exe(exe, steps):
     assert all(c[gk + 6 * k:gk + 6 * k + 2] == b'\xff\x35' for k in range(15)), hex(gk)
     calls = [i for i in range(len(c) - 5) if c[i] == 0xE8 and i + 5 + struct.unpack_from('<i', c, i + 1)[0] == gk]
     assert len(calls) == 12, len(calls)
-    calls = calls[-2:]          # MenuCheckControls, InputTextKeyLoop (the others: match, replays, highlights)
+    if not match:
+        calls = calls[-2:]      # MenuCheckControls, InputTextKeyLoop (the others: match, replays, highlights)
     mcc = one(rb'\x66\x83\x3d....\x05\x0f\x85....\x66\x83\x3d....\xff\x0f\x84')
     intro = one(rb'\x66\x83\x3d....\x00\x75.\xe8....\x75')
+    mp = one(rb'\x66\x83\x3d....\x01\x74.\x66\x83\x3d....\xff\x75.\xe8....\x66\xa9\x00\x02\x75.'
+             rb'\xe8....\xe8....\xe8....\xc7\x05')              # MenuProc: mov A6, offset g_currentMenu
+    curmenu = fx[c.index(b'\xc7\x05', mp + 20) + 6]
 
     o1 = le.obj(1)
     page = o1.npages * le.page_size
@@ -187,6 +196,11 @@ stub:   pushad
         movzx eax, byte [cur]           ; release after HOLD calls (screens that read the held state)
         or al, 0x80
         call emu
+        movzx eax, byte [cur+1]         ; second key of a combination (fire+right)
+        or eax, eax
+        jz .go
+        or al, 0x80
+        call emu
         jmp .go
 .idle:  cmp word [KEYCOUNT], 0
         jne .go
@@ -200,12 +214,20 @@ stub:   pushad
         mov [ptr], esi
         cmp al, 0xFF
         jne .key
-        int 3                           ; 'dump' step: the runner's BPINT 3 stops here (EIP in this page)
-        jmp .go
+        int 3                           ; 'dump' step: the runner's BPINT 3 stops here (EIP in this page); to go
+        jmp .go                         ; on, the runner sets EIP past it (and may write new steps + ptr)
 .key:   mov [KEYBUF], al                ; latched (menus' last key, text input) ...
         mov word [KEYCOUNT], 1
-        mov [cur], al
+        mov [cur], ax                   ; al = key, ah = second key held with it (0 = none)
+        push eax
+        movzx eax, al
         call emu                        ; ... and held, like Int9KeyboardHandler
+        pop eax
+        movzx eax, ah
+        or eax, eax
+        jz .held
+        call emu
+.held:
         mov word [hold], HOLD
 .go:    popad
         jmp GETKEY
@@ -219,11 +241,11 @@ calls:  dd 0                            ; GetKey calls (read from the dump)
 hold:   dw 0
 cur:    db 0, 0
 script:
-""" + ''.join(f'        dw {k:#x}, {w}\n' for k, w in steps) + '        dw 0, 0\n'
+""" + ''.join(f'        dw {k:#x}, {w}\n' for k, w in steps) + '        dw 0, 0\n' + f'        times {4 * SCRIPT_MAX} db 0\n'
     sym = {'KEYCOUNT': keycount, 'KEYBUF': keybuf, 'GETKEY': (1, gk), 'SCANCODE': scancode, 'PREVSCAN': prevscan,
            'SETKBD': (1, setkbd), 'HOLD': (0, HOLD)}
     code, fix = nasmcave.assemble(src, page, sym)
-    assert len(code) < le.page_size, 'script too long'
+    assert len(code) <= le.page_size, 'script too long'
     p.put(1, page, code)
     for off, tobj, toff in fix:
         p.add_ptr(1, page + off, tobj, toff)
@@ -234,7 +256,9 @@ script:
     anchor = d2.find(b'SERIE A\0') - 32                # constant strings: finds obj2 in a memory dump
     fixed = next(o for o in range(0x1000, len(c), 16)            # 48 code bytes with no fixup: finds obj1 in a dump
                  if not any(o - 3 <= f < o + 48 for f in range(o - 3, o + 48) if f in fx) and len(set(c[o:o + 48])) > 8)
-    return {'page': page, 'calls': page + nasmcave.labels(src, 0, sym)['calls'], 'code': (fixed, c[fixed:fixed + 48]),
+    lab = nasmcave.labels(src, 0, sym)
+    return {'page': page, 'calls': page + lab['calls'], 'code': (fixed, c[fixed:fixed + 48]), 'menu': curmenu[1],
+            'brk': page + code.index(b'\xcd\x03'), 'ptr': page + lab['ptr'], 'script': page + lab['script'],
             'anchor': (anchor, d2[anchor:anchor + 64])}
 
 
@@ -245,13 +269,13 @@ class Dosbox:
         self.run, self.timeout, self.shots = run, timeout, shots
         conf = CONF.format(cycles=os.environ.get('CYCLES', 'max'), core=os.environ.get('CORE', 'dynamic'), iso=ISO, exe=exe)
         open(os.path.join(run, 'test.conf'), 'w').write(conf)
-        self.screen, self.eip = b'', None
+        self.screen, self.eip, self.t0 = b'', None, time.time()
         self.pid, self.fd = pty.fork()
         if self.pid == 0:
             os.chdir(run)
             os.environ['TERM'] = 'xterm'
             os.execv(DOSBOX, [DOSBOX, '-conf', 'test.conf', '-fastlaunch', '-break-start',
-                              '-time-limit', str(int(timeout) + 120)])
+                              '-time-limit', '14400'])  # the runner kills it; sessions run long
 
     def pump(self, t):
         end = time.time() + t
@@ -281,6 +305,10 @@ class Dosbox:
         the timeout ('timeout' = hang without a trap, or the script did not get where expected)."""
         self.pump(3)
         self.cmd('BPINT 3')
+        return self.go_on()
+
+    def go_on(self):
+        """F5 (resume) and watch, as go()."""
         os.write(self.fd, b'\x1b[15~')                 # F5 = run
         self.pump(1)
         mark = len(self.screen)
@@ -295,7 +323,7 @@ class Dosbox:
                 return 'break'
             el = time.time() - start
             if self.shots and el >= nshot * self.shots:
-                self.shot('t%03d' % int(el))
+                self.shot('t%04d' % int(time.time() - self.t0))
                 nshot += 1
             if el > self.timeout:
                 return 'timeout'
@@ -374,9 +402,9 @@ class Result:
         return s
 
 
-def run_case(name, exe_dir, cars, keys, timeout, shots=0):
+def run_case(name, exe_dir, cars, keys, timeout, shots=0, match=False):
     """Run one key script on a copy of the game; returns a Result."""
-    run, info = prepare(name, exe_dir, cars, steps_of(keys))
+    run, info = prepare(name, exe_dir, cars, steps_of(keys), match)
     box = Dosbox(run, timeout, shots)
     eip = None
     try:
@@ -392,7 +420,215 @@ def run_case(name, exe_dir, cars, keys, timeout, shots=0):
     return Result(run, outcome, eip, info)
 
 
-CAR_FIXED = 95151                     # .CAR: fixed part (careerFileBuffer ..), then N cached teams + trailer
+class Screen:
+    """The current menu read from a dump: entries [(index, text, invisible, disabled)], selected index."""
+
+    def __init__(self, r, menu_off):
+        m = r.base2 + menu_off
+        mem = r.mem
+        self.n = struct.unpack_from('<H', mem, m + 0x10)[0]
+        sel = struct.unpack_from('<I', mem, m + 0x0C)[0]
+        self.selected = (sel - m - 0x16) // 0x38 if sel else None
+        self.entries, self.nav, self.geom = [], [], []
+        for i in range(min(self.n, 120)):
+            e = m + 0x16 + i * 0x38
+            inv, dis = struct.unpack_from('<HH', mem, e + 4)
+            self.nav.append((tuple(mem[e + 8:e + 12]), tuple(mem[e + 16:e + 20])))   # l/r/u/d, skip l/r/u/d
+            self.geom.append(struct.unpack_from('<4h', mem, e + 0x14))                # x, y, width, height
+            ptr = struct.unpack_from('<I', mem, e + 0x26)[0]
+            text = ''
+            if 0x1000 < ptr < len(mem) - 64:
+                raw = mem[ptr:ptr + 40].split(b'\0')[0]
+                if raw and all(32 <= b < 127 for b in raw):
+                    text = raw.decode()
+            self.entries.append((i, text, inv, dis))
+
+    def find(self, text, visible=True, exact=False):
+        """Index of the first entry whose text starts with (exact: is) `text`, visible ones only by default."""
+        for i, t, inv, dis in self.entries:
+            if (t == text if exact else t.startswith(text)) and (not visible or not inv):
+                return i
+        return None
+
+    def path(self, target):
+        """Keys from the selected entry to entry `target` (BFS on the entries' left/right/up/down links)."""
+        if self.selected is None:
+            return None
+        prev, todo = {self.selected: None}, [self.selected]
+        while todo:
+            cur = todo.pop(0)
+            if cur == target:
+                keys = []
+                while prev[cur]:
+                    cur, k = prev[cur]
+                    keys.append(k)
+                return keys[::-1]
+            links, skips = self.nav[cur] if cur < len(self.nav) else ((), ())
+            for k, nxt, alt in zip(('left', 'right', 'up', 'down'), links, skips):
+                if nxt < len(self.entries) and self.entries[nxt][2] and alt < len(self.entries):
+                    nxt = alt                            # invisible neighbour: the game takes the skip entry
+                if nxt < len(self.entries) and nxt not in prev and not self.entries[nxt][2]:
+                    prev[nxt] = (cur, k)
+                    todo.append(nxt)
+        return None
+
+    def texts(self):
+        return [t for _, t, inv, _ in self.entries if t and not inv]
+
+    def __str__(self):
+        return ' | '.join(('>' if i == self.selected else '') + t + ('(inv)' if inv else '')
+                          for i, t, inv, _ in self.entries if t)
+
+
+class Session:
+    """Interactive run: the script pauses at each 'dump', the caller reads the screen and sends the next keys.
+
+        with Session('name', build, cars, 'first keys dump:2') as s:
+            while ...: scr = s.screen(); s.send('keys ... dump:1')
+    """
+
+    def __init__(self, name, exe_dir, cars, keys, timeout=60, shots=0):
+        self.run, self.info = prepare(name, exe_dir, cars, steps_of(keys))
+        self.timeout = timeout
+        self.box = Dosbox(self.run, timeout, shots)
+        self.result = None
+        self.log = []
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *a):
+        self.box.kill()
+        open(os.path.join(self.run, 'debugger.raw'), 'wb').write(self.box.screen)
+        open(os.path.join(self.run, 'session.log'), 'w').write('\n'.join(self.log) + '\n')
+
+    def wait(self):
+        """Run to the next break; returns the Result (outcome 'dump' = our pause, 'trap', 'timeout', 'exit')."""
+        b = self.box
+        if not hasattr(self, 'started'):
+            self.started = True
+            outcome = b.go()
+        else:
+            outcome = b.go_on()
+        eip = None
+        dump = os.path.join(self.run, 'MEMDUMP.BIN')
+        if os.path.exists(dump):
+            os.remove(dump)
+        if outcome == 'break':
+            eip = b.post_mortem()
+            outcome = 'trap'
+        elif outcome == 'timeout':
+            b.shot('final')
+        self.result = Result(self.run, outcome, eip, self.info)
+        return self.result
+
+    def screen(self):
+        assert self.result.outcome == 'dump', str(self.result)
+        return Screen(self.result, self.info['menu'])
+
+    def send(self, keys):
+        """Write the next steps into the stub's script area, point ptr at them, step over the int 3, resume."""
+        r, b = self.result, self.box
+        steps = steps_of(keys)
+        assert len(steps) < SCRIPT_MAX
+        data = b''.join(struct.pack('<HH', k, w) for k, w in steps) + b'\0' * 4
+        base = r.base1 + self.info['script']
+        for i in range(0, len(data), 16):
+            b.cmd(f'SM 0168:{base + i:08X} ' + ' '.join(f'{x:02X}' for x in data[i:i + 16]), 0.2)
+        b.cmd(f'SM 0168:{r.base1 + self.info["ptr"]:08X} ' + ' '.join(f'{x:02X}' for x in struct.pack('<I', base)), 0.2)
+        b.cmd(f'SR EIP {r.base1 + self.info["brk"] + 2:X}', 0.3)   # int 3 = 2 bytes (CD 03)
+        self.log.append(keys)
+        return self.wait()
+
+
+def press(s, scr, text, wait=2, exact=True):
+    """Select the visible entry `text` (or entry number) and fire; returns the new Result (None if not reachable)."""
+    i = text if isinstance(text, int) else scr.find(text, exact=exact)
+    if i is None:
+        return None
+    keys = scr.path(i)
+    if keys is None:
+        return None
+    return s.send(' '.join(keys + ['fire']) + f' dump:{wait}')
+
+
+# Career "results only", the fast loop (Davide): career menu PARTITA -> VIS. RISULTATI -> ESCI -> PARTITA ...
+# (PROSS. PARTITA only shows each match). The squad screen hides VIS. RISULTATI while an injured/suspended player is
+# in the first 16: he must be swapped with one beyond the 16th (face of the player -> left, then fire on the name).
+
+
+RED = lambda c: c[0] > 180 and c[1] < 110 and c[2] < 110
+
+
+def row_colours(s, scr, tag):
+    """Screenshot of the paused game -> background colour of each squad row (entries 25,y,82,8 sorted by y)."""
+    from PIL import Image
+    rows = sorted((g[1], i) for i, g in enumerate(scr.geom)
+                  if (g[0], g[2], g[3]) == (25, 82, 8) and not scr.entries[i][1])   # drawn rows, not text copies
+    path = os.path.join(s.run, 'shots', tag + '.png')
+    s.box.shot(tag)
+    im = Image.open(path).convert('RGB')
+    w, h = im.size
+    top = h - w * 400 // 640                           # window title bar
+    return [(i, im.getpixel((int(100 * w / 320), int(top + (y + 4) * (h - top) / 200)))) for y, i in rows]
+
+
+def substitute(s, scr, tries=12):
+    """Squad screen without VIS. RISULTATI (Davide): the red rows (injured/suspended) among the first 16 are swapped
+    with a fit player beyond the 16th: fire on the red row, fire on the 17th row's face until its row is not red, fire
+    on the 17th row's name. Returns an error string or None."""
+    rows = row_colours(s, scr, f'sq{len(s.log):03d}')
+    if len(rows) != 17:
+        return f'squad screen: {len(rows)} rows'
+    reserve = rows[-1][0]
+    face = next((i for i, (l, r) in enumerate(scr.nav) if l[1] == reserve and scr.geom[i][0] < 25), None)
+    red = [i for i, c in rows[:16] if RED(c)]
+    if not red or face is None:
+        return f'squad screen without VIS. RISULTATI, red rows {red}, face {face}'
+    for i in red:
+        press(s, s.screen(), i, wait=1)
+        for _ in range(tries):
+            press(s, s.screen(), face, wait=1)
+            if not RED(row_colours(s, s.screen(), f'sq{len(s.log):03d}')[-1][1]):
+                break
+        else:
+            return f'no fit reserve for row {i}'
+        press(s, s.screen(), reserve, wait=1)
+    return None
+
+
+def advance(s, stop, max_steps=400):
+    """Press through the career until stop(screen) is true; returns (ok, message)."""
+    for step in range(max_steps):
+        r = s.result
+        if r.outcome != 'dump':
+            return False, f'step {step}: {r}'
+        scr = s.screen()
+        s.log.append(f'[{step}] {scr}')
+        seen = s.log[-12::2] if len(s.log) > 12 else []
+        if seen and len(set(seen)) == 1 and seen[0].startswith('['):
+            return False, f'step {step}: stuck on {str(scr)[:200]}'
+        if stop(scr):
+            return True, f'{step} steps'
+        texts = scr.texts()
+        if 'VIS. RISULTATI' in texts:
+            press(s, scr, 'VIS. RISULTATI') or s.send('fire dump:2')
+        elif 'MOD. TATTICA' in texts:
+            err = substitute(s, scr)
+            if err:
+                return False, f'step {step}: {err}'
+        elif 'TRASFERIMENTI' in texts and 'PARTITA' in texts:
+            press(s, scr, 'PARTITA') or s.send('fire dump:2')
+        elif '- RISULTATO -' in texts:                   # cup round screen: -> squad screen
+            press(s, scr, '- RISULTATO -') or s.send('fire dump:2')
+        elif 'ESCI' in texts:
+            press(s, scr, 'ESCI') or s.send('fire dump:2')
+        else:
+            s.send('fire dump:2')                        # message screens
+    return False, f'no stop after {max_steps} steps'
+
+
+CAR_FIXED = 95151                   # .CAR: fixed part (careerFileBuffer ..), then N cached teams + trailer
 SLT = 59612                           # someLeaguesTable in the save (world byte [1845], balance [1846])
 CUPS = {'CC': 71464, 'CWC': 71543, 'UEFA': 71635}   # euroCupCopy (79 B) / cupWinnersCupCopy / uefaCupCopy (92 B)
 
@@ -518,6 +754,108 @@ def ndiff(a, b):
     return sum(x != y for x, y in zip(a, b)) + abs(len(a) - len(b))
 
 
+def next_season_save(s, name):
+    """Season-end menu -> CONTINUA CARRIERA -> (messages) -> new season's career menu -> ESCI -> SALVA CARRIERA -> name.
+    Returns the save path or an error string."""
+    if press(s, s.screen(), 'CONTINUA CARRIERA', wait=3) is None:
+        return f'no CONTINUA CARRIERA on {s.screen()}'
+    for _ in range(20):                                # chairman's note, job offers ...: CONTINUA / fire
+        if s.result.outcome != 'dump':
+            return f'new season: {s.result}'
+        scr = s.screen()
+        s.log.append(f'[ns] {scr}')
+        if 'TRASFERIMENTI' in scr.texts():
+            break
+        press(s, scr, 'CONTINUA') or s.send('fire dump:2')
+    else:
+        return 'career menu of the new season not reached'
+    press(s, s.screen(), 'ESCI', wait=3)
+    if press(s, s.screen(), 'SALVA CARRIERA') is None:
+        return f'no SALVA CARRIERA on {s.screen()}'
+    s.send(name_entry(name) + ' dump:3')
+    path = os.path.join(s.run, 'SWOS', name + '.CAR')
+    return path if os.path.exists(path) else f'{name}.CAR not written ({s.result})'
+
+
+@scenario
+def italy_advance():
+    """JUVEFIX3 (Juventus 1998/99 mid-season): results-only loop with substitutions to FINISCI STAGIONE, new season,
+    save; next CC list: 16 distinct clubs incl. the Italian champion"""
+    car = os.path.join(SAVES, 'JUVEFIX3.CAR')
+    with Session('italy_advance', builds()['it'], {'JUVEFIX3.CAR': car}, 'dump:2', 180) as s:
+        if s.wait().outcome != 'dump':
+            return False, f'START: no first pause ({s.result})'
+        s.send('down down down down down fire dump:2')
+        s.send('fire dump:2')
+        ok, msg = advance(s, lambda scr: scr.find('FINISCI STAGIONE', exact=True) is not None)
+        if not ok:
+            return False, 'advance: ' + msg
+        press(s, s.screen(), 'FINISCI STAGIONE', wait=3)
+        if s.result.outcome != 'dump':
+            return False, f'FINISCI STAGIONE: {s.result}'
+        path = next_season_save(s, 'ADV1')
+        if not path.endswith('.CAR'):
+            return False, f'{msg}; {path}'
+    info, errs = car_info(path), []
+    lst = info['CC']
+    check(info['sum'] == 0 and info['trailer'] == b'C7', f"sum {info['sum']}, trailer {info['trailer']!r}", errs)
+    check(len(set(lst)) == 16, f'CC: {len(set(lst))} distinct {lst}', errs)
+    check(any(f == 20 for f, o in lst), 'CC: no Italian club', errs)
+    return not errs, f"{msg}; {'; '.join(errs) or 'ok'}; next CC {sorted(lst)} (Juventus 20,32 {'in' if (20, 32) in lst else 'out'})"
+
+
+SLOT = 0x1A22C            # player's European slot buffer dseg_DA0E2 (DIY layout), IT obj2 offset in a0f38ad5 builds
+HOLDERS = 0xC058B         # CC / CWC / UEFA holder team numbers (words, FFFF none), set at the season end, not saved
+
+
+def slot_ties(r, n):
+    """(round index, contest id, [(country a, country b)] of the first n ties) from the player's European slot."""
+    d = r.obj2(SLOT, 0x443)
+    team = lambda i: struct.unpack_from('<H', d, 0x24D + 2 * i)[0]
+    ties = [(team(d[0x2CD + 2 * k]) & 0xFF, team(d[0x2CD + 2 * k + 1]) & 0xFF) for k in range(n)]
+    return struct.unpack_from('<H', d, 0x57)[0], d[0x2D], ties
+
+
+@scenario
+def euro_draws():
+    """JUVE2F 1997/98 end -> 1998/99: CC holder rule (next CC list) and no same-country ties in rounds 1-2 of the
+    player's CWC/UEFA (euro9697-nodorby; obj2 offsets of build a0f38ad5)"""
+    with Session('euro_draws', builds()['it'], {'JUVE2F.CAR': juve2(True)}, 'dump:2', 180) as s:
+        if s.wait().outcome != 'dump':
+            return False, f'START: no first pause ({s.result})'
+        s.send('down down down down down fire dump:2')
+        s.send('fire dump:2')
+        press(s, s.screen(), 'FINISCI STAGIONE', wait=3)
+        if s.result.outcome != 'dump':
+            return False, f'FINISCI STAGIONE: {s.result}'
+        holders = struct.unpack_from('<3H', s.result.obj2(HOLDERS, 6))
+        path = next_season_save(s, 'EUR1')
+        if not path.endswith('.CAR'):
+            return False, path
+        errs, notes = [], [f'holders CC/CWC/UEFA {[hex(h) for h in holders]}']
+        lst = car_info(path)['CC']
+        cc = holders[0]
+        check(len(set(lst)) == 16, f'CC: {len(set(lst))} distinct', errs)
+        if cc != 0xFFFF:
+            check((cc & 0xFF, cc >> 8) in lst, f'CC holder {cc & 0xFF},{cc >> 8} not in the new CC list', errs)
+            notes.append(f'holder country {cc & 0xFF} x{sum(f == cc & 0xFF for f, o in lst)} in the CC list')
+        seen = {}
+
+        def stop(scr):
+            rnd, cid, ties = slot_ties(s.result, 16)
+            if cid in (1, 2) and rnd in (0, 1) and rnd not in seen and any(a or b for a, b in ties):
+                n = 16 if rnd == 0 else 8
+                seen[rnd] = ties[:n]
+                same = [k for k, (a, b) in enumerate(ties[:n]) if a == b]
+                check(not same, f'round {rnd + 1} ({"CWC" if cid == 1 else "UEFA"}): same-country ties {same} '
+                      f'{[ties[k] for k in same]}', errs)
+            return 1 in seen
+        ok, msg = advance(s, stop)
+        if not ok:
+            return False, f"advance: {msg}; {'; '.join(errs + notes)}"
+    return not errs, f"{msg}; {'; '.join(errs) or 'ok'}; {'; '.join(notes)}; rounds checked {sorted(seen)}"
+
+
 @scenario
 def roundtrip():
     """Load/save round trip: JUVE2F loaded + saved from the main menu (ROUNDT1), reloaded + saved (ROUNDT2) = ROUNDT1"""
@@ -586,7 +924,7 @@ def main(argv):
         timeout = float(argv[argv.index('-t') + 1]) if '-t' in argv else 60
         cars = {} if car == '-' else {os.path.basename(car).upper(): car}
         name = argv[argv.index('-name') + 1] if '-name' in argv else 'keys'
-        r = run_case(name, exe_dir, cars, keys, timeout, shots)
+        r = run_case(name, exe_dir, cars, keys, timeout, shots, '-match' in argv)
         print(r, '->', r.run)
         return 0
     if argv[0] == 'run':
@@ -595,6 +933,9 @@ def main(argv):
         for n in names:
             t = time.time()
             ok, msg = SCENARIOS[n]()
+            if not ok and msg.startswith('START'):          # rare stall at the main menu (cause unknown): retry once
+                print(f'RETRY {n}: {msg}', flush=True)
+                ok, msg = SCENARIOS[n]()
             bad += not ok
             print(f'{"PASS" if ok else "FAIL"} {n} ({time.time() - t:.0f} s) {msg}', flush=True)
         return 1 if bad else 0

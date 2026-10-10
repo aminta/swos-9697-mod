@@ -50,11 +50,27 @@ Goal: routine regression checks without driving DOSBox-X by hand. Usage and inte
   RISULTATI traps at cseg_3C4CE) is NOT reproduced here, also with 2.6.1 d38a5d1c: FINISCI goes straight to the
   season-end menu. Difference with Davide's runs still unknown (options in his install? state of c/SWOS at the time?).
 
+## Interactive sessions and the results-only loop (2026-10-10, evening)
+
+- Session (tools/swostest.py): each 'dump' is a pause. The runner dumps memory, reads the current menu (g_currentMenu
+  in obj2, found from MenuProc: header 0x16 B, entries 0x38 B: text pointer at +26h, isInvisible +4, links l/r/u/d at
+  +8, skip links at +10h, x/y/w/h at +14h; selectedEntry at +0Ch), then writes the next steps into the stub's script
+  area with the debugger (SM), sets EIP past the int 3 (SR EIP) and resumes (F5). press(screen, 'TEXT') walks the
+  entry links (BFS, skip links for invisible neighbours) and fires: every step is checked on the next screen, so a
+  dropped key is retried instead of derailing the script.
+- advance(stop): Davide's fast loop: career menu PARTITA -> VIS. RISULTATI (cup round screen: '- RISULTATO -' first,
+  it leads to the squad screen) -> ESCI -> PARTITA ...; other screens: ESCI, else fire. Squad screen without VIS.
+  RISULTATI = an injured/suspended player in the first 16 (red row): the runner screenshots the paused window, finds
+  the red rows (row background at x=100), fires on the red row, fires on the 17th row's face (cycles the players
+  beyond the 16th) until that row is not red, fires on the 17th row's name (swap). JUVEFIX3 -> FINISCI STAGIONE in 140
+  steps (~20 min), 17 squad screenshots on the way.
+- Player data (not used yet): the career squad (24 players) sits in memory as PlayerFile records; cardsInjuries
+  (+1Bh) bit 3 = red card (Montero/Di Livio were 0x08), bits 5-7 injuries.
+- keys extras (asked by the kit-colors session): 'fire+right' (two keys held, first typed), -match (feeder in all 12
+  GetKey calls, so esc works in a match), -name RUN.
+
 ## Not done yet / next
 
-- Season advance through player matches (W128B, JUVEFIX3 mid-season): needs a script that reacts to the screen.
-  Plan: the stub's 'dump' break becomes a pause (runner reads memory, sets EIP past the int 3 with the debugger, writes
-  more keys into the script area, F5), so the runner can loop "advance until FINISCI STAGIONE".
 - The euro session's round-2 no-derby check (UEFA R2 ties at DIY+2CDh, teams at DIY+24Dh) can read the dump once the
   season can be advanced to that draw.
 - Friendly matches (kit-colors session): reachable with `keys` + screenshots, scenario not written.

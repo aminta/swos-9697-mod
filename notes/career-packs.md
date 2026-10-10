@@ -343,3 +343,12 @@ both covered by the first test).
   Saves already made with the wrong E092F need the same one-word edit (save offset 0x173A3).
 - 1996-97 no-derby (build ITALIAN 84ad6364 = 2.6.1 + both fixes): JUVEFIX -> 1998/99 UEFA round 1 random order, no
   same-country tie in the 16 ties seen (Lokeren-Juventus, Roma-Barcelona, Man Utd-Reggiana, Lazio-Vojvodina ...).
+- Round 2 (2026-10-10): JUVER2 (old build) had Betis-Zaragoza in UEFA R2 = 2CDh pair (26, 28): the 1996-97 UEFA round 2
+  does not go through cseg_27F08 -> w_draw2 hooks the tie copy at cseg_26CC9 (IT obj1+0x16b14: A2+59h -> A4+2CDh, both
+  draw and seeded paths). Still Cagliari-Inter in R2 with that build (JUVEFIX3, CPU-simulated UEFA): suspected the
+  g_gameType gate (cups the computer simulates may run outside game type 4) -> w_dok now applies ids 1/2 in every game
+  mode (a world: ids 0..2 when game type 4). Build IT a9ffa81e (EN c5fbbef7 FR 0c40364c DE 1bbad94b) installed in
+  c/SWOS, UNTESTED for round 2 -> to verify with the test harness (JUVEFIX3.CAR, play to the UEFA R2 draw, no derby).
+- Open (original engine, noted in M2): cseg_92C4D makes room for the CC holder by replacing a random entry with a
+  different ORDINAL (68000 leftover) instead of another country: Juventus (holder, 4th) in, Italian champion out
+  (JUVEFIX3). Decide the 1996-97 rule with Davide.

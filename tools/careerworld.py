@@ -1080,10 +1080,10 @@ w_season_end:                           ; replaces `call arg_agg` (-> sa_qualify
 
 DRAW_ASM = '''
 w_dok:                                  ; esi = DIY buffer -> ZF = 0 when its first two rounds must have no same-country
-    cmp word [GAMETYPE], 4              ; tie: careers only; a world: its 3 European cups (ids 0..2); 1996-97: the Cup
-    jne .no                             ; Winners' Cup (1) and the UEFA Cup (2) (the Champions Cup is a group cup)
-    cmp byte [SLT + WORLD_BYTE], 0
-    je .normal
+    cmp byte [SLT + WORLD_BYTE], 0      ; tie: a world career: its 3 European cups (ids 0..2); otherwise the Cup
+    je .normal                          ; Winners' Cup (1) and the UEFA Cup (2) in any game mode (the cups the computer
+    cmp word [GAMETYPE], 4              ; simulates may run outside the career game type; the 1996-97 Champions Cup
+    jne .normal                         ; is a group cup)
     cmp byte [esi + 2Dh], 2
     ja .no
     jmp .yes

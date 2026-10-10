@@ -67,10 +67,13 @@ mostra come.
 ## Come funzionano le coppe europee
 
 - Sono coppe a **eliminazione diretta** (niente gironi). Il numero di club di ogni coppa deve essere una **potenza
-  di 2**: Coppa dei Campioni al massimo **16**, Coppa delle Coppe e Coppa UEFA al massimo **32**, tutte e tre
-  insieme al massimo **80**.
-- **Il detentore ha un posto suo**: dimensione della coppa = posti di tutte le nazioni + 1. Esempio: 15 nazioni con
-  un posto in Coppa dei Campioni + il detentore = 16 club. Nella prima stagione il posto del detentore va alla
+  di 2**: Coppa dei Campioni e Coppa delle Coppe al massimo **32**, Coppa UEFA al massimo **64**, tutte e tre
+  insieme al massimo **128** (il vero formato 1984-85: 32 / 32 / 64, andata e ritorno, nessun turno di riposo).
+- **Posti per nazione**: al massimo un posto in Coppa dei Campioni (la campione) e uno in Coppa delle Coppe (la
+  vincitrice della coppa); i posti UEFA vanno ai club successivi della prima divisione (al massimo circa 6: il gioco
+  legge le prime 9).
+- **Il detentore ha un posto suo**: dimensione della coppa = posti di tutte le nazioni + 1. Esempio: 31 nazioni con
+  un posto in Coppa dei Campioni + il detentore = 32 club. Nella prima stagione il posto del detentore va alla
   nazione principale (il suo `first_europe` ha un club in più per coppa).
 - **Dalla seconda stagione i club si qualificano dalla stagione appena giocata**: Coppa dei Campioni = la squadra
   campione; Coppa delle Coppe = la vincitrice della coppa nazionale; Coppa UEFA = i piazzamenti successivi della

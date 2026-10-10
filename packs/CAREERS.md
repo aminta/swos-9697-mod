@@ -65,10 +65,13 @@ competition, `divisions` lists them from the top (`teams`, `promoted`, `relegate
 
 ## How the European cups work
 
-- They are **knockout** cups (no groups). The number of clubs of each cup must be a **power of 2**: Champions Cup at
-  most **16**, Cup Winners' Cup and UEFA Cup at most **32**, all three together at most **80**.
-- **The holder has a place of its own**: cup size = all the countries' places + 1. Example: 15 countries with one
-  Champions Cup place each + the holder = 16 clubs. In the first season the holder's place goes to the root country
+- They are **knockout** cups (no groups). The number of clubs of each cup must be a **power of 2**: Champions Cup and
+  Cup Winners' Cup at most **32**, UEFA Cup at most **64**, all three together at most **128** (the real 1984-85
+  format: 32 / 32 / 64, two legs, no byes).
+- **Places per country**: at most one Champions Cup place (the champion) and one Cup Winners' Cup place (the cup
+  winner); UEFA places come from the next clubs of the top division (at most about 6: the game reads its top 9).
+- **The holder has a place of its own**: cup size = all the countries' places + 1. Example: 31 countries with one
+  Champions Cup place each + the holder = 32 clubs. In the first season the holder's place goes to the root country
   (its `first_europe` lists one club more per cup).
 - **From the second season on, the clubs qualify from the season just played**: Champions Cup = the league champion;
   Cup Winners' Cup = the national cup winner; UEFA Cup = the next places of the league table. A holder always plays

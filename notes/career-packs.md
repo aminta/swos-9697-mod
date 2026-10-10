@@ -299,5 +299,8 @@ both covered by the first test).
   ITALIAN obj1 at linear 0x263000, obj2 at 0x30C000 in these builds.
 - PASSED: build ITALIAN 25f5d535: seasons 1 and 2 ended with a load in between (W128.CAR -> W128B.CAR, season
   1986/87): cups 32 / 32 / 64, 31 countries, no duplicates, W1 ok, table sum 0.
-- Still to test: load W128B + finish season 3; a normal career (Juventus) still works; career record with the shared
-  league id; EN/FR/DE.
+- PASSED (Davide, 2026-10-10): W128B loaded, season 3 ended (W128C.CAR, 1987/88: k 128, W1 ok, sum 0), career record
+  shows the right league names with the shared id, a normal Juventus career to season 2 (JUVE2.CAR: world 0, 80
+  records, 'S3', C7). Builds IT 25f5d535 EN 754fe831 FR ebd58c01 DE db9b2520 (EN/FR/DE not run); no-world IT d38a5d1c.
+- Docs: packs/CAREERS(.it).md limits (32 / 32 / 64, 128, places per country), manual sources IT/EN chapter 23 item
+  'Euro 128' (artifacts not republished); mkseason check: europe_places at most cc 1, cwc 1, uefa 6.

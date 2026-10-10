@@ -484,6 +484,10 @@ def world_defs():
         _need(isinstance(wc.get('start_year'), int) and 1900 < wc['start_year'] < 2000,
               f'world {n}: world_cups.start_year (first season, e.g. 1984) is needed')
         w['year'] = wc['start_year']
+        for pk in pks:                          # cseg_93974: the champion, the cup winner, then the top 9's next clubs
+            pl = pk.meta.get('europe_places', {})
+            _need(pl.get('cc', 0) <= 1 and pl.get('cwc', 0) <= 1 and pl.get('uefa', 0) <= 6,
+                  f"{pk.meta['id']}: europe_places at most cc 1, cwc 1, uefa 6")
         first = {id(pk): _first_europe(pk, pk is roots[0]) for pk in pks}
         for key in ('cc', 'cwc', 'uefa'):
             w['places'][key] = [pk.files[pk.league['clubs']][0] for pk in pks

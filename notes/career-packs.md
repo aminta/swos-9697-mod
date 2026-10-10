@@ -207,3 +207,51 @@ first. Build ITALIAN a78d5d0a (world2 test build + fix) installed in c/SWOS. To 
 European cup (e.g. Juventus, or Dynamo Dresden in CARR. STORICHE), save at once, check the mark in the .CAR.
 - Playtest 2026-10-09: new career with Dynamo Dresden (CARR. STORICHE, in the Champions Cup at season 1), saved at once without reload: DRESDA.CAR has 'S3z' at 1847..1849, world 1 / balance 255, table sum 0. PASSED.
 - Release 2.6.1 build (d38a5d1c) playtested 2026-10-10: new Juventus career saved at once (JUVE.CAR) has 'S3z', 80 euro records, sum 0; DDR season with Dynamo Dresden shows COPPA UEFA 1988-89 as 3rd competition.
+
+## Euro 128 — analysis (2026-10-10, branch career-euro128): CC 32 / CWC 32 / UEFA 64 in a world
+
+Goal: the real 1984-85 format (all knockout, two legs, no byes) = 128 European clubs vs the engine's 80 (16/32/32).
+Every place that assumes 80 / 16-32-32 (swos-port names):
+
+- **tmdFileBuffer** (80 x 684 = 54720 B) sits in the .CAR fixed part (careerFileBuffer .. g_numSelectedTeams = 95151 B,
+  word 0 = record count) and cannot grow in place (dseg_D6B4E, currentSeasonShowing, the management record, someLeaguesTable
+  follow). Its code references: SearchTeamInTmdFile, LoadSomeEuroCup, cseg_52D40, cseg_5AB36 (x2), cseg_5B705 (job offers),
+  cseg_94193 (add record), cseg_9423A (remove) = 8 `mov Ax, offset tmdFileBuffer` sites; records are always addressed as
+  base + i*684, so a relocated buffer works if all 8 read the same base.
+- **Cup copies** euroCupCopy 79 / cupWinnersCupCopy 92 / uefaCupCopy 92 B (in the fixed part). World structs use the CWC
+  layout (list at +28, 2 B per club): CC 32 = 92 B, CWC 32 = 92 B, UEFA 64 = 156 B. References: ProcessCareerFile (3,
+  dseg_D8CB6 from dseg_E092F), InitializeNewSeason (3, membership), cseg_92D55 / 9307A / 9339D (3, finish the cups,
+  winners), cseg_936C0 (3, qualifier list pointers), careerContests (3 dst: the world structs are written after it, as in
+  M2), and **dseg_C707E** (contest list read by cseg_24DFA / cseg_87DA0 / one more: a contest in it gets DIY [3Bh] = 0 =
+  clubs from the tmd buffer; a relocated world cup MUST be listed there or it would load clubs from team files).
+- cseg_91428 checks 80 / 16 / 32 / 32 (+ cseg_92BBF holders): already per world (W_CHK, w_holders).
+- Cup engine: a type-1 slot buffer is 0x443 = 0x43 + 64 x 16 B, i.e. 64 clubs max; CLASSIC SEASONS already run UEFA
+  1988-89 with 64 clubs and 6 rounds (same CWC header, euro8889 / mkseason). Non-player cups are simulated at season end by
+  cseg_3ADAE in the DIY area (same engine). So 32 / 32 / 64 knockout fits the engine; more than 64 per cup does not.
+- Saves: g_selectedTeams room 68400 B holds N cached teams (N seen 10..47: the player's league + national cup clubs) + the
+  948-B trailer. 48 more full records (32832 B) fit only while N <= 50: too tight. But a tmd record = team-file record +
+  global number + byte 4 (status 1) / byte 22 + per-player season stats (+1, +33..36) — verified on WCARFIX2 / JUVE /
+  APOK4. So records 80..127 can be **rebuilt from the TEAM files at load** (LoadTeamFile applies the save's division
+  deltas) and only their (file, ordinal) pairs are saved: cost = the season stats of those clubs' players after a reload
+  (cosmetic, reset at the next season end anyway).
+- Memory: WTMD 128 x 684 = 87552 B + 3 cup buffers. The LE loader padding has only ~100 B left (8 B per added page = 12
+  pages), so not as file pages: **raise obj2's virtual size** (zero-filled BSS above the last page, like the original obj2
+  tail) — only in builds with a big world.
+- Not affected: season-end qualifiers (cseg_93974 writes into the list the cseg_936C0 pointers give), job offers (random
+  tmd record), VIEW WORLD (W_CONT -> world buffers), foreign transfer browser (comp[254] swap), ProcessCareerFile.
+
+### Design (behind the world flag; normal careers unchanged)
+
+1. Big world = total > 80 (world record flag). Helper `w_tmd`: base = WTMD in a big world, else tmdFileBuffer; the 8
+   sites call it. Helpers `w_cc / w_cwc / w_uefa`: the world cup buffer in a big world, else the copy; 12 code sites.
+   dseg_C707E copied into the cave + 3 world buffers, its 3 references retargeted (unconditional, harmless).
+2. w_cups writes the world structs into the world buffers; W_CONT points there.
+3. Save (trailer): big world -> WTMD[0..80) copied over tmdFileBuffer (fixed part) before WriteFile, then a 'W1' block
+   after the C7 block: the 3 cup buffers + the pairs of records 80..k-1. Load: fixed -> WTMD[0..80), cups restored,
+   records 80+ rebuilt with LoadTeamFile (byte 4 = 1). Normal careers write no 'W1' block (files identical).
+4. mkseason / careerworld: CC <= 32, CWC <= 32, UEFA <= 64, total <= 128 (powers of 2) for worlds.
+5. Test world: 8 countries x 20 clubs (mkworld3), cups 32 / 32 / 64.
+
+Estimate: 1 session to build (hooks + trailer + checks + test world), 1 playtest/fix round, docs in the release session.
+Verdict: GO (no engine limit is exceeded; the risks are the BSS growth under DOS/4GW and the season-end path with 128,
+both covered by the first test).

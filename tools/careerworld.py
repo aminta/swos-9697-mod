@@ -15,6 +15,7 @@ nothing has to move. Hooks (all found by content):
   cseg_91428   (season end) seasonEndList and the 16 / 32 / 32 / 80 checks per world.
   cseg_936C0   the 3 static place tables per world.
 """
+import os
 import re
 import struct
 
@@ -163,6 +164,10 @@ w_cups:                                 ; replaces `mov word [teamsLoaded], 0` a
     ret
 
 w_list:                                 ; replaces `mov dword [A6], seasonEndList` in cseg_91428
+%ifdef DIAG
+    mov dword [DG_TICKS], 0             ; diagnostic build: the timer watchdog dumps if the season end hangs
+    mov byte [DG_ARMED], 1
+%endif
     push ebx
     call w_rec
     jz .o
@@ -403,6 +408,10 @@ W_PICK w_pick_cwc, LOOP_CWC
 W_PICK w_pick_uefa, LOOP_UEFA
 
 align 4
+%ifdef DIAG
+DG_TICKS: dd 0
+DG_ARMED: db 0, 0, 0, 0
+%endif
 HOLDTAB:
     dd HOLD_CC, LIST_CC, CNT_CC, BUF_CC
     dd HOLD_CWC, LIST_CWC, CNT_CWC, BUF_CWC
@@ -665,6 +674,8 @@ def patch(p, worlds, at, nasmcave, comp, ct, cont_rec):
     bsym.update({'WTMD': (2, b + B_TMD), 'WCC': (2, b + B_CUPS), 'WCWC': (2, b + B_CUPS + 160),
                  'WUEFA': (2, b + B_CUPS + 320)})
     src = ASM + '\n'.join(stubs + data + extra) + '\n'
+    if os.environ.get('DIAG'):
+        src = '%define DIAG\n' + src
     vobj, vtab = p.target(2, comp + 4 * 254)
     assert ct + 4 * WCONT not in {f[1] for f in p.le.fixups() if f[0] == 2} and p.get(2, comp + 4 * WCONT, 4) == bytes(4)
     p.add_ptr(2, ct + 4 * WCONT, *cont_rec)        # continent button name (the CLASSIC CAREERS record)
@@ -840,6 +851,105 @@ w_load_tail:                            ; LoadCareerFile after load_trailer (tra
     popad
     jmp PROCESS
 
+%ifdef DIAG
+diag_install:                           ; DPMI: protected-mode int 3 and int 8 (timer watchdog) handlers, once
+    cmp byte [DGDONE], 0
+    jne .r
+    mov byte [DGDONE], 1
+    pushad
+    mov [DGDS], ds
+    mov ax, 0204h
+    mov bl, 8
+    int 31h
+    mov [OLD8], edx
+    mov [OLD8 + 4], cx
+    mov ax, 0205h
+    mov bl, 8
+    mov cx, cs
+    mov edx, diag8
+    int 31h
+    mov ax, 0205h
+    mov bl, 3
+    mov cx, cs
+    mov edx, diag3
+    int 31h
+    popad
+.r:
+    ret
+
+diag3:
+    pushad
+    push ds
+    push es
+    mov ax, [cs:DGDS]
+    mov ds, ax
+    mov es, ax
+    mov eax, [esp + 40]
+    mov byte [DGEIP + 8], 3
+    call diag_dump
+    pop es
+    pop ds
+    popad
+    iretd
+
+diag8:
+    pushad
+    push ds
+    push es
+    mov ax, [cs:DGDS]
+    mov ds, ax
+    mov es, ax
+    cmp byte [DG_ARMED], 0
+    je .c
+    inc dword [DG_TICKS]
+    cmp dword [DG_TICKS], 364           ; ~20 s after the season end started
+    jne .c
+    mov eax, [esp + 40]
+    mov byte [DGEIP + 8], 8
+    call diag_dump
+.c:
+    pop es
+    pop ds
+    popad
+    jmp far [cs:OLD8]
+
+diag_dump:                              ; eax = interrupted EIP -> DIAG.BIN
+    mov [DGEIP], eax
+    mov dword [DGEIP + 4], diag3
+    mov ah, 3Ch
+    xor ecx, ecx
+    mov edx, DGNAME
+    int 21h
+    jc .r
+    movzx ebx, ax
+    mov esi, DGBLK
+.b:
+    mov edx, [esi]
+    test edx, edx
+    jz .c
+    mov ecx, [esi + 4]
+    mov ah, 40h
+    push esi
+    push ebx
+    int 21h
+    pop ebx
+    pop esi
+    add esi, 8
+    jmp .b
+.c:
+    mov ah, 3Eh
+    int 21h
+.r:
+    ret
+
+align 4
+OLD8: dd 0, 0
+DGDS: dd 0
+DGDONE: dd 0
+DGEIP: dd 0, 0, 0
+DGBLK: dd DGEIP, 12, DREGS, 32, AREGS, 28, CFB, 2, HOLDREG, 0C0h, WCC, 2C0h, 0, 0
+DGNAME: db "DIAG.BIN", 0
+%endif
 align 4
 WI: dd 0
 WPTR: dd 0
@@ -871,8 +981,13 @@ def patch_tails(p, at, nasmcave):
     b = BSS[0]
     sym.update({'WTMD': (2, b + B_TMD), 'WCC': (2, b + B_CUPS), 'WCWC': (2, b + B_CUPS + 160),
                 'WUEFA': (2, b + B_CUPS + 320)})
-    code, fix = nasmcave.assemble(TAILS_ASM, at, sym)
-    labels = nasmcave.labels(TAILS_ASM, at, sym)
+    src = TAILS_ASM
+    if os.environ.get('DIAG'):                   # diagnostic build: int 3 handler writes DIAG.BIN
+        src = '%define DIAG\n' + src.replace('.w:\n    pushad\n    mov esi, TMDBUF', '.w:\n    call diag_install\n    pushad\n    mov esi, TMDBUF')
+        sym.update({'DREGS': (2, D0 - 0), 'AREGS': (2, A0), 'HOLDREG': (2, s['hold'][0][0] - 0x10),
+                    'DG_TICKS': (1, LABELS['DG_TICKS']), 'DG_ARMED': (1, LABELS['DG_ARMED'])})
+    code, fix = nasmcave.assemble(src, at, sym)
+    labels = nasmcave.labels(src, at, sym)
     p.put(1, at, code)
     for off, tobj, toff in fix:
         p.add_ptr(1, at + off, tobj, toff)
@@ -880,4 +995,41 @@ def patch_tails(p, at, nasmcave):
     p.retarget(1, save_dd, 1, labels['w_save_tail'])
     p.retarget(1, load_dd, 1, labels['w_load_tail'])
     print(f'exe: big world .CAR block W1 ({WBLOCK} B, in the 80-record area) @ obj1+{at:#x}, records moved to obj2+{b:#x}')
+    return (at + len(code) + 3) & ~3
+
+
+def late(p, at, nasmcave):
+    """After arg97.late: in a world the season end skips the 1996-97 qualifier simulations (arg_agg -> sa_qualify:
+    South America, CAF, Asia, CONCACAF, Argentina) and calls cseg_92D55 directly. Those simulations read
+    someLeaguesTable at the global numbers of their clubs, which a world's clubs reuse (bases 0..): after the world's
+    promotions a simulated division has the wrong club count and cseg_3283C traps (seen: euro 128 test, season 2 end,
+    after PARAGUAY). Returns the cave end."""
+    orig = p.le.obj_bytes(1)
+    d1 = bytes(p.get(1, 0, len(orig)))
+    site = [i for i in range(len(orig) - 24) if orig[i] == 0xe8 and orig[i + 5] == 0xe8 and orig[i + 10] == 0xe8
+            and orig[i + 15:i + 18] == b'\x66\xc7\x05' and orig[i + 22:i + 24] == b'\x00\x00'
+            and orig[i + 24:i + 26] == b'\x66\xa1']
+    tgt = lambda d, i: i + 5 + struct.unpack_from('<i', d, i + 1)[0]
+    site = [i for i in site if 0 < tgt(orig, i + 5) - tgt(orig, i) < 0x1000 and 0 < tgt(orig, i + 10) - tgt(orig, i + 5) < 0x1000]
+    assert len(site) == 1, site
+    site = site[0]
+    c92d55, cur = tgt(orig, site), tgt(d1, site)
+    assert cur != c92d55, 'sacups / arg97 not applied yet'
+    src = '''
+w_season_end:                           ; replaces `call arg_agg` (-> sa_qualify -> cseg_92D55) at the season end
+    push ebx
+    call w_rec
+    pop ebx
+    jz .n
+    jmp C92D55
+.n:
+    jmp CUR
+'''
+    sym = {'w_rec': (1, LABELS['w_rec']), 'C92D55': (1, c92d55), 'CUR': (1, cur)}
+    code, fix = nasmcave.assemble(src, at, sym)
+    p.put(1, at, code)
+    for off, tobj, toff in fix:
+        p.add_ptr(1, at + off, tobj, toff)
+    p.put(1, site + 1, struct.pack('<i', at - (site + 5)))
+    print(f'exe: career worlds skip the 1996-97 qualifier simulations: call obj1+{site:#x} -> obj1+{at:#x}')
     return (at + len(code) + 3) & ~3

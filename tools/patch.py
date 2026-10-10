@@ -214,8 +214,10 @@ def patch_exe(src, dst, remap, lang='it'):
         finals97.structs(p, area, sacups.STR_BASE)
     world, new_career = trailer.patch(p, world, sacups.SAVE_ITEMS[0] + [(base, 32) for base, _ in info['q']]
                                       + arg97.ARG_ITEMS, tails=bigw)
-    if bigw:
-        end = careerworld.patch_tails(p, careerworld.LABELS['end'], nasmcave)
+    if worlds:
+        end = careerworld.late(p, careerworld.LABELS['end'], nasmcave)
+        if bigw:
+            end = careerworld.patch_tails(p, end, nasmcave)
         assert end <= CAREER_CAVE + 0x1000, hex(end)
     p.add_ptr(1, info['new_career_ptr'], 1, new_career)
     if ARG_LOAD_HOOK:

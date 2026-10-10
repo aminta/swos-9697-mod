@@ -267,6 +267,7 @@ km_ok:                                  ; entry 21
 km_cancel:                              ; entry 20
     pushad
     mov byte [KM_ACTIVE], 0
+    mov dword [SLOTS + 32], 0           ; edits discarded
     mov esi, TXT_AUTO
     call set_button
     popad
@@ -328,6 +329,7 @@ kit_colors:                             ; replaces `mov eax, [A2]` at the start 
     je .auto
     pushad
     mov byte [KM_ACTIVE], 0             ; one match only
+    mov dword [SLOTS + 32], 0           ; next KITS: start again from the team files
     mov esi, TXT_AUTO
     call set_button
     mov esi, [A2]

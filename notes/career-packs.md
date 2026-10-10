@@ -336,3 +336,10 @@ both covered by the first test).
   Not related to the euro-128 / no-derby work, nor to other sessions' hooks (lib97 / historic check their ids).
 - Next: dedicated session (after an automated DOSBox-X test harness), JUVE2.CAR as the repro (copy in the session
   scratchpad: JUVE2_orig.CAR; c/SWOS/JUVE2.CAR restored).
+- ROOT CAUSE + FIX (commit 2b96905): sacups.euro_found called int_step BEFORE `mov ax, [D7]; mov [E092F], ax`; int_step
+  builds the Intercontinental with cseg_8B2D3, which clobbers D7. A CC holder (always in next season's CC) that plays
+  the Intercontinental got E092F = 1 (CWC) while cseg_8D661 had built the CC into slot 3. Now E092F is stored first.
+  Confirmed with JUVEFIX.CAR (= JUVE2 with E092F 1 -> 0): season 1997/98 ends, 1998/99 reached with CC groups.
+  Saves already made with the wrong E092F need the same one-word edit (save offset 0x173A3).
+- 1996-97 no-derby (build ITALIAN 84ad6364 = 2.6.1 + both fixes): JUVEFIX -> 1998/99 UEFA round 1 random order, no
+  same-country tie in the 16 ties seen (Lokeren-Juventus, Roma-Barcelona, Man Utd-Reggiana, Lazio-Vojvodina ...).

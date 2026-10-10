@@ -34,8 +34,15 @@ REC = 52                                             # world record: 8 dwords, 5
 # C7 trailer: a world career caches ~92 teams, so the 68400-B room is nearly full.) Normal careers never take these
 # paths.
 BSS = [None]
-BSS_SIZE = 0x16000
+BSS_SIZE = 0x27000
 B_TMD, B_CUPS, B_LISTS = 0, 128 * TEAM_SIZE, 128 * TEAM_SIZE + 3 * 160      # cups 160 B apart, lists 64 / 64 / 96
+# SaveSelectedTeams / RestoreSelectedTeams park the career's team cache while a contest is simulated (season end):
+# the game keeps only its first 32 records (21888 B in DOS memory at dosMemOfs60c00h), the simulated contest reuses
+# the cache, so records 32+ come back as the simulated clubs (a 64-club national cup lost its second half -> the
+# season end's VerifyTeamLoaded on a finalist -> exit to DOS; world 1984-85, 2026-10-10). A big world parks all 100
+# records (count word + 68400 B) at B_SAVE.
+B_SAVE, SAVE_SIZE = 0x16000, 2 + 100 * TEAM_SIZE
+assert B_LISTS + 224 <= B_SAVE and B_SAVE + SAVE_SIZE <= BSS_SIZE
 VAROFF = [4, 22, 25] + [76 + 38 * k + x for k in range(16) for x in (1, 27, 33, 34, 35, 36)]
 WMARK = 0x3157                                       # 'W1'
 WBLOCK = 2 + sum(BIGCOPY.values()) + TOTAL_MAX * (2 + len(VAROFF))   # in the fixed part's 80-record area
@@ -618,6 +625,7 @@ def struct_for(p, key, euro, rounds, clubs, size=None):
 def patch(p, worlds, at, nasmcave, comp, ct, cont_rec):
     """worlds: [{'n', 'countries': [file], 'map': {file: world}, 'cups': {key: (rounds, [(file, ordinal)])},
     'places': {key: [country file per place]}, 'tmd': name}]. Returns the cave end."""
+    import sacups
     s = sites(p)
     data = ['align 4', 'WTAB:']
     extra = []
@@ -652,7 +660,7 @@ def patch(p, worlds, at, nasmcave, comp, ct, cont_rec):
     pairs = [x for w in worlds for f in w['countries'] for x in (f, w['n'])]
     extra.append('WMAP: db ' + ', '.join(map(str, pairs + [0xff])))
     anybig = any(big(w) for w in worlds)
-    stubs, bsym, hooks = [], {}, []
+    stubs, bsym, hooks, saves = [], {}, [], []
     if anybig:                                   # euro 128: the moved buffers, one stub per `mov [Ax], offset X`
         assert BSS[0], 'big world: patch.py must give obj2 a zero-filled tail (careerworld.BSS)'
         b = BSS[0]
@@ -669,6 +677,25 @@ def patch(p, worlds, at, nasmcave, comp, ct, cont_rec):
                 bsym.update({f'PN{i}': normal, f'PW{i}': (2, moved), f'PR{i}': (2, reg)})
                 hooks.append((site, f'wp{i}'))
                 i += 1
+        orig1 = p.le.obj_bytes(1)
+        d1 = bytes(p.get(1, 0, len(orig1)))
+        rg = sacups.regs(orig1)
+        pk = lambda x: re.escape(struct.pack('<I', x))
+        a0, a1 = rg['A0'], rg['A0'] + 4
+        for k, pat in enumerate((                # SaveSelectedTeams, RestoreSelectedTeams
+                rb'\xa1.{4}\xa3' + pk(a1) + rb'\x8b\x35' + pk(a1) + rb'\x66\xa1.{4}\x66\x89\x06\x83\x05' + pk(a1)
+                + rb'\x02(\xc7\x05.{4}\x80\x55\x00\x00)',
+                rb'\xa1.{4}\xa3' + pk(a0) + rb'\xa1.{4}\xa3' + pk(a1) + rb'\x8b\x35' + pk(a0) + rb'\x66\x8b\x06\x66\xa3.{4}\x83\x05' + pk(a0)
+                + rb'\x02(\xc7\x05.{4}\x80\x55\x00\x00)')):
+            m = _one(pat, d1, ('SaveSelectedTeams', 'RestoreSelectedTeams')[k])
+            src_site, len_site = m.start(), m.start(1)
+            stubs += [f'ws{k}:', '    mov eax, [SVMEM]', '    pushfd', '    call w_big', '    jz .o',
+                      '    mov eax, WSAVE', '.o:', '    popfd', '    ret',
+                      f'wl{k}:', '    mov dword [SVD0], 21888', '    pushfd', '    call w_big', '    jz .o',
+                      f'    mov dword [SVD0], {SAVE_SIZE - 2}', '.o:', '    popfd', '    ret']
+            bsym.update({'SVMEM': p.target(1, src_site + 1), 'SVD0': p.target(1, len_site + 2)})
+            saves.append((src_site, f'ws{k}', len_site, f'wl{k}'))
+        bsym['WSAVE'] = (2, b + B_SAVE)
         stubs += ['align 4', 'WCLIST: dd ' + ', '.join(f'CL{k}' for k in range(len(s['clist'])))
                   + ', WCC, WCWC, WUEFA, -1']
         bsym.update({f'CL{k}': t for k, t in enumerate(s['clist'])})
@@ -730,6 +757,9 @@ def patch(p, worlds, at, nasmcave, comp, ct, cont_rec):
         hook(site, 5, name, ())
     for site, name in hooks:                     # euro 128 (big worlds only)
         hook(site, 10, name, (2, 6))
+    for src_site, src_name, len_site, len_name in saves:   # big worlds: park all 100 cached teams
+        hook(src_site, 5, src_name, (1,))
+        hook(len_site, 10, len_name, (2,))
     if anybig:
         for ref in s['clist_refs']:
             p.retarget(1, ref, 1, labels['WCLIST'])

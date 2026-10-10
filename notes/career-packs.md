@@ -346,3 +346,12 @@ EN bc9ce7bb FR 4ee86e86 DE b657d9f5. Installed in c/SWOS (ITALIAN.EXE + TEAM.101
 exe 24f09873 and world-3 TEAM.1xx saved in c/W3BAK). First smoke test = engine scale (92-club England, 784 clubs).
 Season 1 note: the engine needs places + 1 = cup size per cup, while in 1984-85 Liverpool was both holder and English
 champion -> exact season-1 entrants need first_europe lists not tied to the places (mkseason relax, to study).
+- Playtest 1 (Davide, Exeter, 2026-10-10): season end exited to DOS after "ENGLAND FA CUP FINALE" with a foreign
+  finalist (FC PORTO, then AZ '67). Dump (DOSBox-X debugger under a pty bridge, MEMDUMPBIN after the exit; obj1 at
+  linear 0x263000, obj2 0x30C000; return addresses left on the stack at ~0x3D1D00): cseg_91857 -> cseg_928CC ->
+  cseg_929BB (copies the 2 finalists from DIY_competitionStart+2CDh/+24Dh) -> VerifyTeamLoaded -> EndProgram. Cause:
+  SaveSelectedTeams / RestoreSelectedTeams park only 32 cached records (21888 B at dosMemOfs60c00h) while the season
+  end simulates a contest in the same cache; the career cache was 64 FA Cup + 24 league clubs, so records 32..63 came
+  back as the simulated UEFA clubs. World 3 never hit it (exactly 32 own clubs cached). Fix (careerworld, big worlds
+  only): both procs park count + 100 records at BSS+0x16000 (BSS_SIZE 0x16000 -> 0x27000). Builds: world 4 IT
+  0483cb8f EN 548a771d FR 057f5bae DE e4ba0487; world 3 IT 2920e8fb; no-world IT d38a5d1c (2.6.1, unchanged).

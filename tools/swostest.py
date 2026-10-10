@@ -613,7 +613,9 @@ def advance(s, stop, max_steps=400):
         texts = scr.texts()
         if 'VIS. RISULTATI' in texts:
             press(s, scr, 'VIS. RISULTATI') or s.send('fire dump:2')
-        elif 'MOD. TATTICA' in texts:
+        elif 'AMICHEVOLE' in texts and 'CONTINUA CARRIERA' in texts:     # main menu (after a save)
+            press(s, scr, 'CONTINUA CARRIERA') or s.send('fire dump:2')
+        elif 'MOD. TATTICA' in texts and 'AVVERSARI' in texts:          # squad screen without VIS. RISULTATI
             err = substitute(s, scr)
             if err:
                 return False, f'step {step}: {err}'
@@ -832,6 +834,8 @@ def euro_draws():
         path = next_season_save(s, 'EUR1')
         if not path.endswith('.CAR'):
             return False, path
+        if holders[0] in (0, 0xFFFF):                  # not set at the season-end menu: read again in the new season
+            holders = struct.unpack_from('<3H', s.result.obj2(HOLDERS, 6))
         errs, notes = [], [f'holders CC/CWC/UEFA {[hex(h) for h in holders]}']
         lst = car_info(path)['CC']
         cc = holders[0]

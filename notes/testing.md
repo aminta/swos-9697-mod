@@ -69,8 +69,14 @@ Goal: routine regression checks without driving DOSBox-X by hand. Usage and inte
 - keys extras (asked by the kit-colors session): 'fire+right' (two keys held, first typed), -match (feeder in all 12
   GetKey calls, so esc works in a match), -name RUN.
 
+## Results 2026-10-10 night (build a0f38ad5 = euro9697-nodorby 2ec51ba)
+
+- italy_advance PASS (140 steps, ~28 min): 1999/2000 CC list 16 distinct, Italian champion (20,45) in, Juventus out.
+- euro_draws: JUVE2F -> 1998/99 (Juve in the UEFA Cup): round 1 no same-country tie; at the first pause with round
+  index 1 the slot's ties still pair all 32 indices and k=2 is Italy-Italy (0x1E14 v 0x2014): stop condition or a
+  real derby, to be settled with the euro session. Holder words (obj2+0xC058B) read 0 at the season-end menu and
+  CC FFFF / CWC 0x1A14 / UEFA FFFF in the new season.
+
 ## Not done yet / next
 
-- The euro session's round-2 no-derby check (UEFA R2 ties at DIY+2CDh, teams at DIY+24Dh) can read the dump once the
-  season can be advanced to that draw.
 - Friendly matches (kit-colors session): reachable with `keys` + screenshots, scenario not written.

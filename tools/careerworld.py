@@ -1055,7 +1055,7 @@ w_cc_sim:                               ; cseg_92D55: a simulated Champions Cup 
 .n:
     jmp GROUP_SIM
 
-w_draw:                                 ; replaces `call hist_draw` (-> cseg_27F08, the random draw) in cseg_26A78 /
+w_draw:                                 ; replaces `call hist_draw` (-> cseg_27F08, the draw of rounds 2..) in cseg_26A78 /
     call HIST                           ; cseg_26DFC: in a world the European cups' first two rounds pair no clubs of
     push ebx                            ; one country (UEFA rule of the 1980s: no same-association ties in rounds 1-2)
     call w_rec
@@ -1065,71 +1065,91 @@ w_draw:                                 ; replaces `call hist_draw` (-> cseg_27F
 .w:
     pushad
     mov esi, [A2R]                      ; DIY buffer: +2Dh contest id, +31h clubs, +59h round list (team indices),
-    cmp byte [esi + 2Dh], 2             ; +24Dh team number per index (low byte = country file); ids 0..2 = the cups
-    ja .r
-    mov edi, [A3R]
+    mov edi, [A3R]                      ; +24Dh team number per index (low byte = country file)
     movzx ecx, word [edi + 161h]        ; clubs in this round
     movzx eax, word [esi + 31h]
-    cmp ecx, eax
-    je .fix
     shr eax, 1
-    cmp ecx, eax
+    cmp ecx, eax                        ; round 2 only (round 1 is drawn by cseg_28139: w_draw1)
     jne .r
-.fix:
     shr ecx, 1
+    lea edi, [esi + 59h]
+    call w_fixpairs
+.r:
+    popad
+    ret
+
+w_draw1:                                ; replaces `call cseg_28139` in cseg_87DA0 (contest byte 8 = 0: the first
+    call DRAW1                          ; round shuffled in DIY_competitionStart + 2CDh, [4Fh] ties)
+    push ebx
+    call w_rec
+    pop ebx
+    jnz .w
+    ret
+.w:
+    pushad
+    mov esi, DIYSTART
+    movzx ecx, word [esi + 4Fh]
+    lea edi, [esi + 2CDh]
+    call w_fixpairs
+    popad
+    ret
+
+w_fixpairs:                             ; esi = DIY buffer, edi = list of 2 * ecx team indices (ties = consecutive pairs):
+    cmp byte [esi + 2Dh], 2             ; in the European cups (ids 0..2) a same-country tie swaps its away club with
+    ja .r                               ; another tie's, so that neither tie is a same-country one
     mov [WD_N], ecx
     mov dword [WD_PASS], 0
 .pass:
+    mov dword [WD_CHG], 0
     xor ebp, ebp
-    xor edx, edx
 .k:
     cmp ebp, [WD_N]
     jae .endpass
-    movzx eax, byte [esi + 59h + ebp * 2]
+    movzx eax, byte [edi + ebp * 2]
     mov bl, [esi + 24Dh + eax * 2]
-    movzx eax, byte [esi + 59h + ebp * 2 + 1]
+    movzx eax, byte [edi + ebp * 2 + 1]
     mov bh, [esi + 24Dh + eax * 2]
     cmp bl, bh
     jne .nextk
-    xor edi, edi                        ; a tie j to swap the away clubs with: no same-country tie on either side
+    xor ecx, ecx
 .j:
-    cmp edi, [WD_N]
+    cmp ecx, [WD_N]
     jae .nextk
-    cmp edi, ebp
+    cmp ecx, ebp
     je .nj
-    movzx eax, byte [esi + 59h + edi * 2]
+    movzx eax, byte [edi + ecx * 2]
     mov al, [esi + 24Dh + eax * 2]
     cmp al, bh
     je .nj
-    movzx eax, byte [esi + 59h + edi * 2 + 1]
+    movzx eax, byte [edi + ecx * 2 + 1]
     mov al, [esi + 24Dh + eax * 2]
     cmp al, bl
     je .nj
-    mov al, [esi + 59h + ebp * 2 + 1]
-    mov ah, [esi + 59h + edi * 2 + 1]
-    mov [esi + 59h + ebp * 2 + 1], ah
-    mov [esi + 59h + edi * 2 + 1], al
-    inc edx
+    mov al, [edi + ebp * 2 + 1]
+    mov dl, [edi + ecx * 2 + 1]
+    mov [edi + ebp * 2 + 1], dl
+    mov [edi + ecx * 2 + 1], al
+    inc dword [WD_CHG]
     jmp .nextk
 .nj:
-    inc edi
+    inc ecx
     jmp .j
 .nextk:
     inc ebp
     jmp .k
 .endpass:
-    test edx, edx
-    jz .r
+    cmp dword [WD_CHG], 0
+    je .r
     inc dword [WD_PASS]
     cmp dword [WD_PASS], 4
     jb .pass
 .r:
-    popad
     ret
 
 align 4
 WD_N: dd 0
 WD_PASS: dd 0
+WD_CHG: dd 0
 
 w_season_end:                           ; replaces `call arg_agg` (-> sa_qualify -> cseg_92D55) at the season end
     push ebx
@@ -1142,11 +1162,20 @@ w_season_end:                           ; replaces `call arg_agg` (-> sa_qualify
 '''
     import historic
     draw_calls, _ = historic._draw_call(p)
+    # cseg_87DA0: mov al, [esi+8]; or al, al; jnz +5; call cseg_28139 (first-round shuffle when contest byte 8 = 0)
+    m = _one(rb'\x8a\x46\x08\x0a\xc0\x75\x05\xe8(.{4})', orig, 'cseg_28139 call')
+    d1call = m.start() + 7
+    draw1 = d1call + 5 + struct.unpack('<i', m.group(1))[0]
+    assert tgt(d1, d1call) == draw1, 'cseg_28139 call already hooked'
+    # cseg_28139: mov [A2], offset DIY_competitionStart
+    assert orig[draw1:draw1 + 2] == b'\xc7\x05'
+    diystart = p.target(1, draw1 + 6)
     hist = {tgt(d1, c) for c in draw_calls}
     assert len(hist) == 1, hist
     regs = LABELS['sites']['regs']
     sym = {'w_rec': (1, LABELS['w_rec']), 'C92D55': (1, c92d55), 'CUR': (1, cur), 'KO_PLAY': (1, cw[2][1]),
            'HIST': (1, hist.pop()), 'A2R': (2, regs['A0R'] + 8), 'A3R': (2, regs['A0R'] + 12),
+           'DRAW1': (1, draw1), 'DIYSTART': diystart,
            'GROUP_PLAY': (1, cc[2][1]), 'KO_SIM': (1, cw[5][1]), 'GROUP_SIM': (1, cc[5][1])}
     code, fix = nasmcave.assemble(src, at, sym)
     lab = nasmcave.labels(src, at, sym)
@@ -1158,5 +1187,6 @@ w_season_end:                           ; replaces `call arg_agg` (-> sa_qualify
     p.put(1, sim_site + 1, struct.pack('<i', lab['w_cc_sim'] - (sim_site + 5)))
     for c in draw_calls:
         p.put(1, c + 1, struct.pack('<i', lab['w_draw'] - (c + 5)))
+    p.put(1, d1call + 1, struct.pack('<i', lab['w_draw1'] - (d1call + 5)))
     print(f'exe: career worlds skip the 1996-97 qualifier simulations: call obj1+{site:#x} -> obj1+{at:#x}')
     return (at + len(code) + 3) & ~3

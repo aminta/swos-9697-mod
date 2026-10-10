@@ -28,15 +28,17 @@ WORLD_BYTE = 1845                                    # someLeaguesTable index (+
 REC = 52                                             # world record: 8 dwords, 5 words, year byte, pad, 2 dwords
 # Big world (more than 80 European clubs or a cup above SMALL): the 128 records, the 3 cups and the 3 working place
 # lists move to a zero-filled tail of obj2 (BSS[0] = its first offset, set by patch.py; obj2's virtual size grows by
-# BSS_SIZE). The .CAR keeps records 0..79 in its fixed part and appends a 'W1' block after the C7 trailer: the 3 cups
-# + per record 80..127 its (file, ordinal) word and the bytes the game changes (VAROFF); load rebuilds those records from
-# the TEAM files. Normal careers never take these paths.
+# BSS_SIZE). The .CAR's 80-record area (fixed part) holds a 'W1' block instead: the 3 cups + per record its (file,
+# ordinal) word and the bytes the game changes (VAROFF); load rebuilds all records from the TEAM files. (Not after the
+# C7 trailer: a world career caches ~92 teams, so the 68400-B room is nearly full.) Normal careers never take these
+# paths.
 BSS = [None]
 BSS_SIZE = 0x16000
 B_TMD, B_CUPS, B_LISTS = 0, 128 * TEAM_SIZE, 128 * TEAM_SIZE + 3 * 160      # cups 160 B apart, lists 64 / 64 / 96
 VAROFF = [4, 22, 25] + [76 + 38 * k + x for k in range(16) for x in (1, 27, 33, 34, 35, 36)]
 WMARK = 0x3157                                       # 'W1'
-WBLOCK = 2 + sum(BIGCOPY.values()) + (TOTAL_MAX - 80) * (2 + len(VAROFF))
+WBLOCK = 2 + sum(BIGCOPY.values()) + TOTAL_MAX * (2 + len(VAROFF))   # in the fixed part's 80-record area
+assert WBLOCK <= 80 * TEAM_SIZE
 LABELS = {}
 
 
@@ -727,23 +729,13 @@ def patch(p, worlds, at, nasmcave, comp, ct, cont_rec):
 
 
 TAILS_ASM = '''
-w_save_tail:                            ; SaveCareerFile after save_trailer (trailer.SAVE_TAIL), D1 = file length
+w_save_tail:                            ; SaveCareerFile after save_trailer (trailer.SAVE_TAIL)
     call w_big
     jnz .w
     jmp WRITEFILE
 .w:
-    pushad
-    mov esi, WTMD                       ; records 0..79 into the fixed part (tmdFileBuffer)
-    mov edi, TMDBUF
-    mov ecx, 80 * 684 / 4
-    call w_dcopy
-    movzx eax, word [NUMSEL]
-    imul eax, eax, 684
-    add eax, TBLOCK + WBLOCK            ; the C7 trailer fits whenever this does
-    cmp eax, ROOM
-    ja .x
-    mov edi, [D1R]
-    add edi, CAREER
+    pushad                              ; the fixed part's 80-record area (tmdFileBuffer, unused in a big world) gets
+    mov edi, TMDBUF                     ; the W1 block: the 3 cups + per record its (file, ordinal) word + VAROFF bytes
     mov word [edi], WMARK
     add edi, 2
     mov esi, WCC
@@ -755,7 +747,7 @@ w_save_tail:                            ; SaveCareerFile after save_trailer (tra
     mov esi, WUEFA
     mov ecx, 160
     call w_copy
-    mov dword [WI], 80
+    mov dword [WI], 0
 .rec:
     mov esi, [WI]
     imul esi, esi, 684
@@ -776,31 +768,16 @@ w_save_tail:                            ; SaveCareerFile after save_trailer (tra
     inc dword [WI]
     cmp dword [WI], 128
     jb .rec
-    add dword [D1R], WBLOCK
-.x:
     popad
     jmp WRITEFILE
 
-w_load_tail:                            ; LoadCareerFile after load_trailer (trailer.LOAD_TAIL), D1 = bytes read
+w_load_tail:                            ; LoadCareerFile after load_trailer (trailer.LOAD_TAIL)
     call w_big
     jnz .w
     jmp PROCESS
 .w:
     pushad
     mov esi, TMDBUF
-    mov edi, WTMD
-    mov ecx, 80 * 684 / 4
-    call w_dcopy
-    movzx eax, word [NUMSEL]
-    imul eax, eax, 684
-    add eax, FIXED
-    lea esi, [eax + CAREER]
-    cmp word [esi], TMARK
-    jne .x
-    add eax, TBLOCK + WBLOCK
-    cmp eax, [D1R]
-    ja .x
-    add esi, TBLOCK
     cmp word [esi], WMARK
     jne .x
     add esi, 2
@@ -814,8 +791,8 @@ w_load_tail:                            ; LoadCareerFile after load_trailer (tra
     mov ecx, 160
     call w_copy
     mov [WPTR], esi
-    mov dword [WI], 80
-.rec:
+    mov dword [WI], 0
+.rec:                                   ; every record from its TEAM file + the saved bytes
     movzx eax, word [CFB]
     cmp [WI], eax
     jae .x
@@ -823,7 +800,7 @@ w_load_tail:                            ; LoadCareerFile after load_trailer (tra
     movzx eax, word [esi]
     mov [WPAIR], eax
     mov [D0R], eax
-    call LOADTEAM                       ; D0 = country file (low byte): data\team.nnn -> teamFileBuffer, division
+    call LOADTEAM                       ; D0 = country file (low byte): data\\team.nnn -> teamFileBuffer, division
     mov esi, TEAMBUF + 2                ; numbers from this save's someLeaguesTable, global numbers set
     mov ecx, 94
 .s:
@@ -902,5 +879,5 @@ def patch_tails(p, at, nasmcave):
     save_dd, load_dd = t['tails']
     p.retarget(1, save_dd, 1, labels['w_save_tail'])
     p.retarget(1, load_dd, 1, labels['w_load_tail'])
-    print(f'exe: big world .CAR block W1 ({WBLOCK} B) @ obj1+{at:#x}, records moved to obj2+{b:#x}')
+    print(f'exe: big world .CAR block W1 ({WBLOCK} B, in the 80-record area) @ obj1+{at:#x}, records moved to obj2+{b:#x}')
     return (at + len(code) + 3) & ~3

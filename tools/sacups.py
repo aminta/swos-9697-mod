@@ -404,9 +404,9 @@ euro_found:
     je .lists_ok                        ; (before 2.7 only the no-European-cup branch did it: no 'S3' mark until a
     call dword [NEW_CAREER_PTR]         ; reload, and the lists of a career loaded earlier in the session stayed)
 .lists_ok:
-    call int_step
-    mov ax, [D7]
-    mov [E092F], ax
+    mov ax, [D7]                        ; the cup found (0 CC / 1 CWC / 2 UEFA) BEFORE int_step: building the
+    mov [E092F], ax                     ; Intercontinental (cseg_8B2D3) clobbers D7 (bug up to 2.7.0: the CC holder
+    call int_step                       ; got E092F = 1 while slot 3 held the CC -> mixed fixtures, results trap)
     jmp DONE
 
 int_step:                               ; Intercontinental Cup in slot 2 for last season's CC / Libertadores winner

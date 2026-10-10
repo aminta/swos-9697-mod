@@ -31,6 +31,7 @@ import arg97
 import lib97
 import sacups
 import trailer
+import nasmcave
 from strpool import StrPool
 
 ROOT = os.path.join(os.path.dirname(__file__), '..')
@@ -44,6 +45,7 @@ FIN_CAVE = 0xa4300           # 2.1: finals series (finals97.fin_pre)
 FINALS = True                # NSL / NSSL play-offs, option B: native 4-club type-1 cup (session 28s)
 ARG_CAVE = 0xa4400           # 2.1: Argentina Apertura/Clausura, aggregate, promedio (arg97)
 CAREER_CAVE = 0xa6000        # sixth added page, only in builds with a historic career world (careerworld.py)
+CAREER_DATA = 0xa7000        # 7th + 8th added pages (same builds): the career packs' structs (mkseason)
 ARG_LOAD_HOOK = True
 
 LEAGUES_OLD = bytes.fromhex('3c00144020150000000202033512')
@@ -153,19 +155,25 @@ def patch_exe(src, dst, remap, lang='it'):
     grown = dst + '.tmp'
     data = open(src, 'rb').read()
     worlds = bool(mkseason.worlds())
-    for _ in range(6 if worlds else 5):
+    for _ in range(8 if worlds else 5):
         data = add_object_page(data, 1)
     mkseason.CAREER_CAVE[0] = CAREER_CAVE if worlds else None
+    mkseason.CAREER_DATA[0] = CAREER_DATA if worlds else None
+    bigw = worlds and any(careerworld.big(w) for w in mkseason.world_defs())   # euro 128: obj2 tail + .CAR W1 block
     while True:                    # obj2: zero pages over the old BSS/stack tail, then one free page
         data = add_object_page(data, 2)
         le2 = LE(data)
         if (le2.obj(2).npages - 1) * le2.page_size >= le2.obj(2).vsize:
             break
+    o2pages = 2 if worlds else 1   # career packs: one more obj2 page (their strings)
+    if worlds:
+        data = add_object_page(data, 2)
     open(grown, 'wb').write(data)
     p = LEPatch(grown)
     os.remove(grown)
     o2 = p.le.obj(2)
-    obj2_free = (o2.npages - 1) * p.le.page_size       # the last page: above the stack top (ESP = old vsize)
+    obj2_free = (o2.npages - o2pages) * p.le.page_size  # the free pages: above the stack top (ESP = old vsize)
+    careerworld.BSS[0] = obj2_free + o2pages * p.le.page_size if bigw else None
     assert o2.vsize <= obj2_free and p.le.esp_obj == 2 and p.le.esp <= obj2_free
     cfg = LANGS[lang]
     sacups.NAMES[sacups.INT_ID] = cfg['int']
@@ -181,7 +189,7 @@ def patch_exe(src, dst, remap, lang='it'):
     remap_italian_cup_teams(p, remap)
     cave = patch_italy(p, pool)
     assert cave <= SA_CAVE
-    area = countries.Obj2Area(p, obj2_free, obj2_free + p.le.page_size)
+    area = countries.Obj2Area(p, obj2_free, obj2_free + o2pages * p.le.page_size)
     world, caf = cafcups.structs(p, area, WORLD_CAVE)
     world = countries.patch(p, lang, area, world, cafcups.continents(caf))
     fin_end, fin_pre = finals97.code(p, FIN_CAVE)  # 2.1: NSL/NSSL finals (lib_pre calls fin_pre)
@@ -205,7 +213,10 @@ def patch_exe(src, dst, remap, lang='it'):
     if FINALS:                                  # 2.5: option B (native 4-club play-off); slot4_type is NOT needed
         finals97.structs(p, area, sacups.STR_BASE)
     world, new_career = trailer.patch(p, world, sacups.SAVE_ITEMS[0] + [(base, 32) for base, _ in info['q']]
-                                      + arg97.ARG_ITEMS)
+                                      + arg97.ARG_ITEMS, tails=bigw)
+    if bigw:
+        end = careerworld.patch_tails(p, careerworld.LABELS['end'], nasmcave)
+        assert end <= CAREER_CAVE + 0x1000, hex(end)
     p.add_ptr(1, info['new_career_ptr'], 1, new_career)
     if ARG_LOAD_HOOK:
         arg_end = arg97.load_hook(p, arg_end)     # 2.1: Apertura/Clausura names after loading a career
@@ -214,8 +225,9 @@ def patch_exe(src, dst, remap, lang='it'):
     world = cafcups.intl_list(p, caf, world)
     assert world <= NZ_CAVE and nz_end <= FIN_CAVE and fin_end <= ARG_CAVE and arg_end <= OBJ1_NEW_VSIZE, \
         (hex(world), hex(nz_end), hex(fin_end), hex(arg_end))
-    p.set_vsize(1, OBJ1_NEW_VSIZE + (0x1000 if worlds else 0))
-    p.set_vsize(2, obj2_free + p.le.page_size)
+    p.set_vsize(1, OBJ1_NEW_VSIZE + (0x3000 if worlds else 0))
+    p.set_vsize(2, obj2_free + o2pages * p.le.page_size + (careerworld.BSS_SIZE if bigw else 0),
+                bss=careerworld.BSS_SIZE if bigw else 0)
     p.add_flags(1, 0x2)            # writable: season end rewrites the SA cup team lists in the cave
     delta, shift = p.save(dst)
     print(f'exe: fixups +{delta} bytes, data pages moved {shift:#x}, caves used up to obj1+{cave:#x} / +{world:#x}')

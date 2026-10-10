@@ -43,6 +43,8 @@ SEASONS_REC = [None]                    # obj2 offset of its countriesTable reco
 CAREERS = 98                            # pseudo-continent 'classic careers' of the career team selector
 CAREERS_NAMES = {'it': b'CARR. STORICHE', 'en': b'CLASSIC CAREERS', 'fr': b"CARR. D'ANTAN", 'de': b'KLASS. KARRIERE'}
 CAREERS_REC = [None]
+CAREER_DATA = [None]                    # obj1 pages of the career packs' structs (patch.py, only with worlds)
+CAREER_DATA_SIZE = 0x2000
 CAREER_CAVE = [None]                    # obj1 page of the career world code (patch.py adds it when worlds exist)
 ROUND = {'two_legs': 0x94, 'single': 0x14, 'single_et': 0x54}   # knockout round byte: two legs (away goals),
                                                                  # single match, single match + extra time/penalties
@@ -496,6 +498,8 @@ def world_defs():
             w['clubs'][key] = clubs
         _need(len({c for key in w['clubs'] for c in w['clubs'][key]}) == sum(len(v) for v in w['clubs'].values()),
               f'world {n}: a club is in two European cups')
+        tot = sum(len(v) for v in w['clubs'].values())
+        _need(tot <= careerworld.TOTAL_MAX, f'world {n}: {tot} European clubs (at most {careerworld.TOTAL_MAX})')
         out.append(w)
     return out
 
@@ -737,12 +741,21 @@ def patch(p, lang, area, cave):
     ct, tcn, _, _ = countries.tables(p)
     comp = countries.COMP[0]
     env = (p.le.obj_bytes(2), ct, tcn, comp, {f[1] for f in p.le.fixups() if f[0] == 2})
-    ids = [c['id'] for pk in packs() for c in pk.comps]
-    _need(len(set(ids)) == len(ids), f'contest ids used twice: {ids}')
+    ids = {}                                   # a league id may be shared by the packs of one career world
+    for pk in packs():                         # (the free contest ids 0xC1..0xFE are too few for 30 leagues + cups)
+        for c in pk.comps:
+            owner = ('world', pk.world) if pk.world is not None and c['type'] == 'league' else ('pack', pk.meta['id'])
+            _need(ids.setdefault(c['id'], owner) == owner, f"contest id {c['id']} used twice")
     at, infos = cave, []
+    cat = CAREER_DATA[0]                       # career packs: own obj1 pages (a world of 30 countries needs ~5 KB)
     for pk in packs():
-        at, info = _patch_pack(pk, p, lang, area, at, env)
+        if pk.world is not None:
+            cat, info = _patch_pack(pk, p, lang, area, cat, env)
+        else:
+            at, info = _patch_pack(pk, p, lang, area, at, env)
         infos.append(info)
+    if cat is not None:
+        _need(cat <= CAREER_DATA[0] + CAREER_DATA_SIZE, f'career packs overflow their pages ({cat:#x})')
 
     # Season: CLASSIC SEASONS after the continents (pseudo-continent 97: [-1] + the pack countries + FF; the game reads a
     # country list only for 80..85, so that check also accepts 97). The season selector runs on a world table

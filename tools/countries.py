@@ -45,9 +45,11 @@ class Obj2Area:
 
     def add(self, data):
         off = self.at
+        if off // 0x1000 != (off + len(data) - 1) // 0x1000 and len(data) <= 0x1000:
+            off = (off + 0xfff) & ~0xfff        # several pages (career worlds): pointers must not straddle a page
         assert off + len(data) <= self.end, 'obj2 area full'
         self.p.put(2, off, data)
-        self.at += len(data)
+        self.at = off + len(data)
         return off
 
 

@@ -204,9 +204,13 @@ DEFAULTS: DEFAULT_BYTES
 '''
 
 
-def patch(p, cave, items):
-    """items = [(obj1 offset, size)] to save: sacups.SAVE_ITEMS + the extra cup lists. Returns (cave end,
-    new_career_defaults offset)."""
+INFO = {}                                 # symbols + tail dwords for careerworld.patch_tails (big worlds)
+
+
+def patch(p, cave, items, tails=False):
+    """items = [(obj1 offset, size)] to save: sacups.SAVE_ITEMS + the extra cup lists. tails: save_trailer and
+    load_trailer end with `jmp [SAVE_TAIL]` / `jmp [LOAD_TAIL]` (dwords = WriteFile / ProcessCareerFile, retargeted by
+    careerworld.patch_tails: a big world appends its 'W1' block). Returns (cave end, new_career_defaults offset)."""
     d1 = p.le.obj_bytes(1)
     r = sacups.regs(d1)
     a1, dreg1 = r['A1'], r['D7'] - 24                     # D0..D7 consecutive dwords
@@ -259,13 +263,26 @@ def patch(p, cave, items):
         olds += [f'    mov edx, {tbl} + 8 * {first}', f'    mov ebp, {count}', f'    mov ecx, {size}',
                  f'    mov dword [LIBOLD_N], {lib_b}', f'    cmp word [esi], {mark:#x}', '    je .check']
     asm = ASM.replace(';OLD_TRAILERS', '\n'.join(olds))
-    code, fix = nasmcave.assemble(asm, cave, symbols)
+    if tails:
+        asm = asm.replace('    popad\n    jmp WRITEFILE', '    popad\n    jmp [SAVE_TAIL]')
+        asm = asm.replace('    popad\n    jmp PROCESS', '    popad\n    jmp [LOAD_TAIL]')
+        asm += 'align 4\nSAVE_TAIL: dd WRITEFILE\nLOAD_TAIL: dd PROCESS\n'
+    while True:                                   # no pointer may straddle an obj1 page (LE fixups are per page)
+        code, fix = nasmcave.assemble(asm, cave, symbols)
+        if all((cave + off) % 0x1000 <= 0x1000 - 4 for off, _, _ in fix):
+            break
+        cave += 4
     labels = nasmcave.labels(asm, cave, symbols)
     p.put(1, cave, code)
     for off, tobj, toff in fix:
         p.add_ptr(1, cave + off, tobj, toff)
     p.put(1, save_call + 1, struct.pack('<i', labels['save_trailer'] - (save_call + 5)))
     p.put(1, load_call + 1, struct.pack('<i', labels['load_trailer'] - (load_call + 5)))
+    INFO.clear()
+    INFO.update({k: symbols[k] for k in ('NUMSEL', 'CAREER', 'D1', 'WRITEFILE', 'PROCESS', 'BLOCK', 'FIXED', 'ROOM',
+                                         'MARK')})
+    if tails:
+        INFO['tails'] = (labels['SAVE_TAIL'], labels['LOAD_TAIL'])
     print(f'exe: .CAR trailer C7 ({block} B) @ obj1+{cave:#x}, SaveCareerFile call obj1+{save_call:#x}, '
           f'LoadCareerFile call obj1+{load_call:#x}')
     return (cave + len(code) + 3) & ~3, labels['new_career_defaults']

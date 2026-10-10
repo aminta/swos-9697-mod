@@ -60,9 +60,10 @@ class LEPatch:
     def get(self, objn, off, n):
         return bytes(self.out[self.le.file_off(objn, off + i)] for i in range(n))
 
-    def set_vsize(self, objn, vsize):
+    def set_vsize(self, objn, vsize, bss=0):
+        """bss: bytes allowed above the object's pages (zero-filled by the loader, like the original obj2 tail)."""
         o = self.le.obj(objn)
-        assert vsize <= o.npages * self.le.page_size
+        assert vsize <= o.npages * self.le.page_size + bss
         obj_tab = self.le.hdr + struct.unpack_from('<I', self.out, self.le.hdr + 0x40)[0]
         struct.pack_into('<I', self.out, obj_tab + (objn - 1) * 24, vsize)
 

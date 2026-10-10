@@ -20,9 +20,29 @@ import struct
 
 TEAM_SIZE = 684
 COPY = {'cc': 79, 'cwc': 92, 'uefa': 92}           # in-save struct copies
-MAX = {'cc': 16, 'cwc': 32, 'uefa': 32}
+SMALL = {'cc': 16, 'cwc': 32, 'uefa': 32}           # what fits the in-save copies and the 80 records
+MAX = {'cc': 32, 'cwc': 32, 'uefa': 64}             # big worlds (euro 128): a type-1 cup holds 64 clubs at most
+TOTAL_MAX = 128
+BIGCOPY = {'cc': 92, 'cwc': 92, 'uefa': 160}        # CWC layout: 22 + rounds + 2 B per club
 WORLD_BYTE = 1845                                    # someLeaguesTable index (+1 = balance byte)
-REC = 48                                             # world record: 8 dwords, 5 words, year byte, pad, dword
+REC = 52                                             # world record: 8 dwords, 5 words, year byte, pad, 2 dwords
+# Big world (more than 80 European clubs or a cup above SMALL): the 128 records, the 3 cups and the 3 working place
+# lists move to a zero-filled tail of obj2 (BSS[0] = its first offset, set by patch.py; obj2's virtual size grows by
+# BSS_SIZE). The .CAR keeps records 0..79 in its fixed part and appends a 'W1' block after the C7 trailer: the 3 cups
+# + per record 80..127 its (file, ordinal) word and the bytes the game changes (VAROFF); load rebuilds those records from
+# the TEAM files. Normal careers never take these paths.
+BSS = [None]
+BSS_SIZE = 0x16000
+B_TMD, B_CUPS, B_LISTS = 0, 128 * TEAM_SIZE, 128 * TEAM_SIZE + 3 * 160      # cups 160 B apart, lists 64 / 64 / 96
+VAROFF = [4, 22, 25] + [76 + 38 * k + x for k in range(16) for x in (1, 27, 33, 34, 35, 36)]
+WMARK = 0x3157                                       # 'W1'
+WBLOCK = 2 + sum(BIGCOPY.values()) + (TOTAL_MAX - 80) * (2 + len(VAROFF))
+LABELS = {}
+
+
+def big(w):
+    tot = sum(len(w['cups'][k][1]) for k in ('cc', 'cwc', 'uefa'))
+    return tot > 80 or any(len(w['cups'][k][1]) > SMALL[k] for k in SMALL)
 WCONT = 99                                           # pseudo-continent of the running world (view, foreign browser)
 
 ASM = '''
@@ -39,6 +59,24 @@ w_rec:                                  ; ebx = this career's world record, ZF =
     imul ebx, ebx, REC
     add ebx, WTAB - REC
 .r:
+    ret
+
+w_big:                                  ; ZF = 0 in a big world (records, cups and place lists moved)
+    push ebx
+    call w_rec
+    jz .r
+    cmp byte [ebx + 48], 0
+.r:
+    pop ebx
+    ret
+
+w_dcopy:                                ; ecx dwords esi -> edi
+    mov eax, [esi]
+    mov [edi], eax
+    add esi, 4
+    add edi, 4
+    dec ecx
+    jnz w_dcopy
     ret
 
 w_load1:                                ; replaces the first `call LoadSomeEuroCup` (euroCup) in InitCareer
@@ -87,6 +125,8 @@ w_cups:                                 ; replaces `mov word [teamsLoaded], 0` a
     pushad
     call w_rec
     jz .r
+    cmp byte [ebx + 48], 0
+    jne .big
     mov esi, [ebx]
     mov edi, CCCOPY
     mov ecx, 79
@@ -99,6 +139,21 @@ w_cups:                                 ; replaces `mov word [teamsLoaded], 0` a
     mov edi, UEFACOPY
     mov ecx, 92
     call w_copy
+    jmp .y
+.big:                                   ; big world: the cups live in the obj2 tail (the copies stay unused)
+    mov esi, [ebx]
+    mov edi, WCC
+    mov ecx, 92
+    call w_copy
+    mov esi, [ebx + 4]
+    mov edi, WCWC
+    mov ecx, 92
+    call w_copy
+    mov esi, [ebx + 8]
+    mov edi, WUEFA
+    mov ecx, 160
+    call w_copy
+.y:
     mov al, [ebx + 42]                  ; the world's first season (InitCareer: -1, then InitializeNewSeason: +1)
     mov [SEASONPLAYING], al
 .r:
@@ -490,13 +545,45 @@ def sites(p):
     assert d1[calls[0] - 2] != 0x74 and d1[calls[1] - 2] == 0x74 and d1[calls[2] - 2] == 0x74
     s['pick'] = [(calls[0], 'w_pick_cc', None)] + [(c, n, c + struct.unpack_from('<b', d1, c - 1)[0])
                                                    for c, n in zip(calls[1:], ('w_pick_cwc', 'w_pick_uefa'))]
+    # euro 128: every `mov [Ax], offset X` of tmdFileBuffer, the 3 in-save copies and the 3 working place lists
+    # (cseg_936C0 writes them, cseg_939C9 / 939FE / 93A60 read them), and dseg_C707E (contests whose clubs come from
+    # the tmd buffer: cseg_87DA0 sets DIY [3Bh] = 0 for them)
+    fx = list(p.le.fixups())
+
+    def movs(t):
+        return [(f[1] - 6, f[1] - 4) for f in fx if f[0] == 1 and f[3] == 2 and f[4] == t
+                and orig[f[1] - 6:f[1] - 4] == b'\xc7\x05']
+    s['tmd'] = s['cfb'] + 2
+    s['tmd_sites'] = movs(s['tmd'])
+    assert len(s['tmd_sites']) == 8, s['tmd_sites']
+    s['copy_sites'] = [movs(dst[1]) for dst, _ in s['copies']]
+    assert [len(x) for x in s['copy_sites']] == [4, 4, 4], s['copy_sites']
+    s['lists'] = []
+    for k in (0, 1, 3):                                      # cc, cwc, uefa place-table sites: `mov [A1], list` next
+        site = s['tabs'][k][0] + 10
+        assert orig[site:site + 6] == b'\xc7\x05' + struct.pack('<I', A1), orig[site:site + 10].hex()
+        s['lists'].append(p.target(1, site + 6)[1])
+    s['list_sites'] = [movs(t) for t in s['lists']]
+    assert [len(x) for x in s['list_sites']] == [2, 2, 2], s['list_sites']
+    tobj_, tab_ = p.target(1, s['load'][2] + 5 + 6)          # careerContests
+    srcs = [f[1] for f in fx if f[0] == 2 and f[3] == 2 and f[4] == s['copies'][0][0][1]]
+    srcs = [x for x in srcs if not tab_ <= x < tab_ + 0x100]
+    assert len(srcs) == 1, srcs
+    base = srcs[0] - 16
+    s['clist'] = []
+    k = base
+    while struct.unpack_from('<i', p.get(2, k, 4))[0] != -1:
+        s['clist'].append(p.target(2, k))
+        k += 4
+    s['clist_refs'] = [f[1] for f in fx if f[0] == 1 and f[3] == 2 and f[4] == base]
+    assert len(s['clist_refs']) == 3 and all(orig[x - 6:x - 4] == b'\xc7\x05' for x in s['clist_refs'])
     s['regs'] = dict(D0R=D0, D7R=D7, A0R=A0, A1R=A1, A5R=A0 + 20, A6R=A6)
     return s
 
 
-def struct_for(p, key, euro, rounds, clubs):
+def struct_for(p, key, euro, rounds, clubs, size=None):
     """World European cup struct: CWC layout (header, rounds, 0, name dwords, (file, ordinal) pairs) with the
-    original cup's id, dates and names, padded to the in-save copy size."""
+    original cup's id, dates and names, padded to the in-save copy size (size: a big world's buffer)."""
     obj, off = euro
     d = bytes(p.get(obj, off, 100))
     import sacups
@@ -510,8 +597,9 @@ def struct_for(p, key, euro, rounds, clubs):
     h[7] = len(h) + 8 - 7
     names = d[5 + d[5]:5 + d[5] + 8]
     body = bytes(h) + names + b''.join(bytes(c) for c in clubs)
-    assert len(body) <= COPY[key], (key, len(body))
-    return body.ljust(COPY[key], b'\0')
+    size = size or COPY[key]
+    assert len(body) <= size, (key, len(body))
+    return body.ljust(size, b'\0')
 
 
 def patch(p, worlds, at, nasmcave, comp, ct, cont_rec):
@@ -523,17 +611,18 @@ def patch(p, worlds, at, nasmcave, comp, ct, cont_rec):
     for w in worlds:
         n = w['n']
         tot = sum(len(w['cups'][k][1]) for k in ('cc', 'cwc', 'uefa'))
-        assert tot <= 80
+        bw = big(w)
+        assert tot <= TOTAL_MAX and all(len(w['cups'][k][1]) <= (MAX if bw else SMALL)[k] for k in MAX), (n, tot)
         data.append(f'    dd W{n}_CC, W{n}_CWC, W{n}_UEFA, W{n}_TMD, W{n}_LIST, W{n}_TCC, W{n}_TCWC, W{n}_TUEFA')
         data.append('    dw %d, %d, %d, %d, %d' % (tot, len(w['cups']['cc'][1]), len(w['cups']['cwc'][1]),
                                                   len(w['cups']['uefa'][1]), tot - 3))   # before the 3 holders
         data.append(f"    db {w['year'] - 1900}, 0")
-        data.append(f'    dd W{n}_CONT')
-        extra.append(f'W{n}_CONT: dd CCCOPY, CWCCOPY, UEFACOPY, -1')   # world view: the in-save cups
+        data.append(f'    dd W{n}_CONT, {int(bw)}')
+        extra.append(f'W{n}_CONT: dd ' + ('WCC, WCWC, WUEFA' if bw else 'CCCOPY, CWCCOPY, UEFACOPY') + ', -1')
         extra.append('    db ' + ', '.join(map(str, w['countries'] + [0xff])))
         for key, euro in zip(('cc', 'cwc', 'uefa'), s['euro']):
             rounds, clubs = w['cups'][key]
-            body = struct_for(p, key, euro, rounds, clubs)
+            body = struct_for(p, key, euro, rounds, clubs, BIGCOPY[key] if bw else None)
             extra.append(f'W{n}_{key.upper()}: db ' + ', '.join(map(str, body)))
             pl = w['places'][key]               # one group: every listed place is taken (n = take)
             extra.append(f'W{n}_T{key.upper()}: dd W{n}_P{key.upper()}')
@@ -544,7 +633,31 @@ def patch(p, worlds, at, nasmcave, comp, ct, cont_rec):
         extra.append(f'W{n}_TMD: db "data\\\\{w["tmd"].lower()}", 0')
     pairs = [x for w in worlds for f in w['countries'] for x in (f, w['n'])]
     extra.append('WMAP: db ' + ', '.join(map(str, pairs + [0xff])))
-    src = ASM + '\n'.join(data + extra) + '\n'
+    anybig = any(big(w) for w in worlds)
+    stubs, bsym, hooks = [], {}, []
+    if anybig:                                   # euro 128: the moved buffers, one stub per `mov [Ax], offset X`
+        assert BSS[0], 'big world: patch.py must give obj2 a zero-filled tail (careerworld.BSS)'
+        b = BSS[0]
+        groups = [(s['tmd_sites'], [(2, s['tmd'])], [b + B_TMD])]
+        groups += [(sites_, [s['copies'][k][0]], [b + B_CUPS + 160 * k]) for k, sites_ in enumerate(s['copy_sites'])]
+        groups += [(sites_, [(2, s['lists'][k])], [b + B_LISTS + (0, 64, 128)[k]])
+                   for k, sites_ in enumerate(s['list_sites'])]
+        i = 0
+        for sites_, (normal,), (moved,) in groups:
+            for site, regoff in sites_:
+                reg = p.target(1, regoff)[1]
+                stubs += [f'wp{i}:', '    pushfd', '    push eax', f'    mov eax, PN{i}', '    call w_big', '    jz .o',
+                          f'    mov eax, PW{i}', '.o:', f'    mov [PR{i}], eax', '    pop eax', '    popfd', '    ret']
+                bsym.update({f'PN{i}': normal, f'PW{i}': (2, moved), f'PR{i}': (2, reg)})
+                hooks.append((site, f'wp{i}'))
+                i += 1
+        stubs += ['align 4', 'WCLIST: dd ' + ', '.join(f'CL{k}' for k in range(len(s['clist'])))
+                  + ', WCC, WCWC, WUEFA, -1']
+        bsym.update({f'CL{k}': t for k, t in enumerate(s['clist'])})
+    b = BSS[0] or 0
+    bsym.update({'WTMD': (2, b + B_TMD), 'WCC': (2, b + B_CUPS), 'WCWC': (2, b + B_CUPS + 160),
+                 'WUEFA': (2, b + B_CUPS + 320)})
+    src = ASM + '\n'.join(stubs + data + extra) + '\n'
     vobj, vtab = p.target(2, comp + 4 * 254)
     assert ct + 4 * WCONT not in {f[1] for f in p.le.fixups() if f[0] == 2} and p.get(2, comp + 4 * WCONT, 4) == bytes(4)
     p.add_ptr(2, ct + 4 * WCONT, *cont_rec)        # continent button name (the CLASSIC CAREERS record)
@@ -565,6 +678,7 @@ def patch(p, worlds, at, nasmcave, comp, ct, cont_rec):
     for key, (hold, buf, lst, cnt) in zip(('CC', 'CWC', 'UEFA'), s['hold']):
         sym.update({f'HOLD_{key}': (2, hold), f'BUF_{key}': (2, buf), f'LIST_{key}': (2, lst)})
         assert cnt == s['cnt'][('CC', 'CWC', 'UEFA').index(key)]
+    sym.update(bsym)
     code, fix = nasmcave.assemble(src, at, sym)
     labels = nasmcave.labels(src, at, sym)
     p.put(1, at, code)
@@ -594,4 +708,194 @@ def patch(p, worlds, at, nasmcave, comp, ct, cont_rec):
     hook(s['nat'], 12, 'w_nat', (2, 8))
     for site, name, _ in s['pick']:
         hook(site, 5, name, ())
+    for site, name in hooks:                     # euro 128 (big worlds only)
+        hook(site, 10, name, (2, 6))
+    if anybig:
+        for ref in s['clist_refs']:
+            p.retarget(1, ref, 1, labels['WCLIST'])
+    LABELS.clear()
+    LABELS.update(labels)
+    LABELS['big'] = anybig
+    LABELS['sites'] = s
+    LABELS['end'] = (at + len(code) + 3) & ~3
+    return LABELS['end']
+
+
+TAILS_ASM = '''
+w_save_tail:                            ; SaveCareerFile after save_trailer (trailer.SAVE_TAIL), D1 = file length
+    call w_big
+    jnz .w
+    jmp WRITEFILE
+.w:
+    pushad
+    mov esi, WTMD                       ; records 0..79 into the fixed part (tmdFileBuffer)
+    mov edi, TMDBUF
+    mov ecx, 80 * 684 / 4
+    call w_dcopy
+    movzx eax, word [NUMSEL]
+    imul eax, eax, 684
+    add eax, TBLOCK + WBLOCK            ; the C7 trailer fits whenever this does
+    cmp eax, ROOM
+    ja .x
+    mov edi, [D1R]
+    add edi, CAREER
+    mov word [edi], WMARK
+    add edi, 2
+    mov esi, WCC
+    mov ecx, 92
+    call w_copy
+    mov esi, WCWC
+    mov ecx, 92
+    call w_copy
+    mov esi, WUEFA
+    mov ecx, 160
+    call w_copy
+    mov dword [WI], 80
+.rec:
+    mov esi, [WI]
+    imul esi, esi, 684
+    add esi, WTMD
+    mov ax, [esi]
+    mov [edi], ax
+    add edi, 2
+    mov ebx, VAROFFS
+    mov ecx, VARN
+.v:
+    movzx eax, word [ebx]
+    mov dl, [esi + eax]
+    mov [edi], dl
+    inc edi
+    add ebx, 2
+    dec ecx
+    jnz .v
+    inc dword [WI]
+    cmp dword [WI], 128
+    jb .rec
+    add dword [D1R], WBLOCK
+.x:
+    popad
+    jmp WRITEFILE
+
+w_load_tail:                            ; LoadCareerFile after load_trailer (trailer.LOAD_TAIL), D1 = bytes read
+    call w_big
+    jnz .w
+    jmp PROCESS
+.w:
+    pushad
+    mov esi, TMDBUF
+    mov edi, WTMD
+    mov ecx, 80 * 684 / 4
+    call w_dcopy
+    movzx eax, word [NUMSEL]
+    imul eax, eax, 684
+    add eax, FIXED
+    lea esi, [eax + CAREER]
+    cmp word [esi], TMARK
+    jne .x
+    add eax, TBLOCK + WBLOCK
+    cmp eax, [D1R]
+    ja .x
+    add esi, TBLOCK
+    cmp word [esi], WMARK
+    jne .x
+    add esi, 2
+    mov edi, WCC
+    mov ecx, 92
+    call w_copy
+    mov edi, WCWC
+    mov ecx, 92
+    call w_copy
+    mov edi, WUEFA
+    mov ecx, 160
+    call w_copy
+    mov [WPTR], esi
+    mov dword [WI], 80
+.rec:
+    movzx eax, word [CFB]
+    cmp [WI], eax
+    jae .x
+    mov esi, [WPTR]
+    movzx eax, word [esi]
+    mov [WPAIR], eax
+    mov [D0R], eax
+    call LOADTEAM                       ; D0 = country file (low byte): data\team.nnn -> teamFileBuffer, division
+    mov esi, TEAMBUF + 2                ; numbers from this save's someLeaguesTable, global numbers set
+    mov ecx, 94
+.s:
+    mov ax, [esi]
+    cmp ax, [WPAIR]
+    je .f
+    add esi, 684
+    dec ecx
+    jnz .s
+    jmp .n                              ; not in its file (cannot happen with an unchanged world)
+.f:
+    mov edi, [WI]
+    imul edi, edi, 684
+    add edi, WTMD
+    push edi
+    mov ecx, 684
+    call w_copy
+    pop edi
+    mov esi, [WPTR]
+    add esi, 2
+    mov ebx, VAROFFS
+    mov ecx, VARN
+.v:
+    movzx eax, word [ebx]
+    mov dl, [esi]
+    mov [edi + eax], dl
+    inc esi
+    add ebx, 2
+    dec ecx
+    jnz .v
+.n:
+    add dword [WPTR], 2 + VARN
+    inc dword [WI]
+    jmp .rec
+.x:
+    mov word [TEAMSLOADED], 0           ; teamFileBuffer holds another file now: force a reload
+    popad
+    jmp PROCESS
+
+align 4
+WI: dd 0
+WPTR: dd 0
+WPAIR: dd 0
+VAROFFS: VAROFF_WORDS
+'''
+
+
+def patch_tails(p, at, nasmcave):
+    """Big worlds: the save / load tails of the .CAR trailer ('W1' block after C7). Call after trailer.patch(tails=True).
+    Returns the cave end."""
+    import trailer
+    t, s = trailer.INFO, LABELS['sites']
+    orig = p.le.obj_bytes(1)
+    # GetTeamPointer: call FindTeamInCache; jz; call SearchTeamInTmdFile; jz; mov ax,[D0]; mov [D2],ax; call LoadTeamFile;
+    # mov [A0], offset teamFileBuffer + 2
+    D0, A0 = s['regs']['D0R'], s['regs']['A0R']
+    pk = lambda x: re.escape(struct.pack('<I', x))
+    m = _one(rb'\x66\xa1' + pk(D0) + rb'\x66\xa3.{4}\xe8(.{4})\xc7\x05' + pk(A0), orig, 'GetTeamPointer')
+    load_team = m.end() - 6 + struct.unpack('<i', m.group(1))[0]
+    team_buf = p.target(1, m.end())
+    sym = {'WRITEFILE': t['WRITEFILE'], 'PROCESS': t['PROCESS'], 'NUMSEL': t['NUMSEL'], 'CAREER': t['CAREER'],
+           'D1R': t['D1'], 'TBLOCK': t['BLOCK'], 'FIXED': t['FIXED'], 'ROOM': t['ROOM'], 'TMARK': t['MARK'],
+           'WBLOCK': (0, WBLOCK), 'WMARK': (0, WMARK), 'VARN': (0, len(VAROFF)),
+           'VAROFF_WORDS': (0, 'dw ' + ', '.join(map(str, VAROFF))),
+           'TMDBUF': (2, s['tmd']), 'CFB': (2, s['cfb']), 'D0R': (2, D0), 'LOADTEAM': (1, load_team),
+           'TEAMBUF': (team_buf[0], team_buf[1] - 2), 'TEAMSLOADED': (2, s['teamsloaded']),
+           'w_big': (1, LABELS['w_big']), 'w_copy': (1, LABELS['w_copy']), 'w_dcopy': (1, LABELS['w_dcopy'])}
+    b = BSS[0]
+    sym.update({'WTMD': (2, b + B_TMD), 'WCC': (2, b + B_CUPS), 'WCWC': (2, b + B_CUPS + 160),
+                'WUEFA': (2, b + B_CUPS + 320)})
+    code, fix = nasmcave.assemble(TAILS_ASM, at, sym)
+    labels = nasmcave.labels(TAILS_ASM, at, sym)
+    p.put(1, at, code)
+    for off, tobj, toff in fix:
+        p.add_ptr(1, at + off, tobj, toff)
+    save_dd, load_dd = t['tails']
+    p.retarget(1, save_dd, 1, labels['w_save_tail'])
+    p.retarget(1, load_dd, 1, labels['w_load_tail'])
+    print(f'exe: big world .CAR block W1 ({WBLOCK} B) @ obj1+{at:#x}, records moved to obj2+{b:#x}')
     return (at + len(code) + 3) & ~3

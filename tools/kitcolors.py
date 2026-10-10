@@ -73,8 +73,9 @@ def patch(p):
 
 # --- manual choice: a KITS button in the pre-match screen opens a SELECT KITS editor (this match only) ----------------
 # 1. The packed playMatchMenu (obj2, ends with dw -999) is copied into the obj1 cave with one more entry, 68, appended
-#    (the game's indices do not change; its fixups are replicated) and the only reference (ShowPlayMatchMenu) is
-#    retargeted. Entry 68: screen x 30..88, y 1..11, the free top-left corner between the check/X sprite (entry 0) and
+#    (the game's indices do not change; its fixups are replicated). ShowPlayMatchMenu's `call ShowMenu` goes through
+#    pm_show, which refreshes the copy from the original first (SWOS++ patches the original in memory at start-up: its
+#    onReturn and an entry pointer, swospp.bin+0x10eee/+0x10f67) and shows the copy. Entry 68: screen x 30..88, y 1..11, the free top-left corner between the check/X sprite (entry 0) and
 #    the team name (entry 1); entry 13 (first player) gets up -> 68. Its text is a fixed buffer (KITS AUTO / KITS SET),
 #    so a re-unpacked menu keeps it. (A first attempt recycled the "COACH:" entry 4: it is the coach name at run time.)
 # 2. Fire on 68 opens a new menu built around the game's own kit editor: entries 4..19 of editTeamsMenu (first and
@@ -324,6 +325,17 @@ apply_kit:                              ; edi -> slot, ecx -> topTeamInGame / bo
     popad
     ret
 
+pm_show:                                ; replaces `call ShowMenu` in ShowPlayMatchMenu ([A6] = playMatchMenu)
+    pushad                              ; copy it now: SWOS++ patches the original in memory at start-up
+    mov esi, [A6]
+    mov edi, PM_COPY
+    mov ecx, PM_LEN
+    rep movsb
+    mov byte [PM_COPY + E13_UP], KITS_
+    mov dword [A6], PM_COPY
+    popad
+    jmp SHOW_MENU
+
 kit_colors:                             ; replaces `mov eax, [A2]` at the start of SetInGameTeamsPrimaryColors
     cmp byte [KM_ACTIVE], 0
     je .auto
@@ -450,7 +462,6 @@ def button(p, at, lang, area):
     refs = [(f[0], f[1]) for f in p.le.fixups() if (f[3], f[4]) == (2, start)]
     assert len(refs) == 1 and refs[0][0] == 1, refs
     a6site = refs[0][1]
-    assert d[a6site - 6:a6site - 2] == b'\xC7\x05' + b'' or True
     assert u32(d, a6site - 4) == A0 + 24 and d[a6site + 4] == 0xE8
     show_menu = _rel(d, a6site + 4)
     pm = [x for x in pm if 0 < a6site - x.start() < 0x80]
@@ -547,31 +558,9 @@ def button(p, at, lang, area):
     while any((base + o) // 0x1000 != (base + o + 3) // 0x1000 for o, _, _ in ptrs):
         raise AssertionError('KITS data: a pointer straddles a page')
 
-    sym = {'D0': (2, D0), 'A0': (2, A0), 'A2': (2, A2), 'A6': (2, A0 + 24), 'CALC': (1, calc), 'DRAW_MENU': (1, draw.pop()),
-           'SET_COLORS': (1, set_colors), 'SITPC': (1, sitpc), 'TOP_TEAM': top, 'BOTTOM_TEAM': bottom,
-           'CONVERT_KIT': (1, convert), 'PM_TEAM1': pm1, 'PM_TEAM2': pm2, 'SHOW_MENU': (1, show_menu),
-           'SET_EXIT': (1, set_exit), 'EDIT_TEAM': edit_team, 'PRIM_CONV': (1, prim), 'SEC_CONV': (1, sec),
-           'MARK1': (1, mark1), 'MARK2': (1, mark2), 'KM_ACTIVE': (2, base), 'KM_TEAM': (2, base + 1),
-           'SLOTS': (2, base + 4), 'SLOT_': (0, SLOT), 'BTN_BUF': (2, base + off['btn']),
-           'OTHER_BUF': (2, base + off['other']), 'KITS_MENU': (2, base + menu_at),
-           'TXT_AUTO': (2, base + off['auto']), 'TXT_SET': (2, base + off['set']),
-           'TXT_WEAR1': (2, base + off['wear1']), 'TXT_WEAR2': (2, base + off['wear2']),
-           'TXT_K1': (2, base + off['k1']), 'TXT_K2': (2, base + off['k2'])}
-    code, fix = nasmcave.assemble(KITS_ASM, at, sym)
-    lab = nasmcave.labels(KITS_ASM, at, sym)
-    assert not any(d[at:at + len(code)])
-    p.put(1, at, code)
-    for o, t_obj, t_off in fix:
-        p.add_ptr(1, at + o, t_obj, t_off)
-    for o, t_obj, t in ptrs:
-        if isinstance(t, str):
-            t = lab[t] if t_obj == 1 else base + off[t]
-        p.add_ptr(2, base + o, t_obj, t)
-    assert p.get(1, sitpc, 1) == b'\xA1'
-    p.remove(1, sitpc + 1)
-    p.put(1, sitpc, b'\xE9' + struct.pack('<i', lab['kit_colors'] - (sitpc + 5)))
-
-    # playMatchMenu copy with entry 68 (text: the button buffer, fire: km_open)
+    # playMatchMenu copy with entry 68 (text: the button buffer, fire: km_open), placed first in the cave. pm_show
+    # refreshes its first PM_LEN bytes from the original at every pre-match screen (keeps SWOS++'s run-time patches of
+    # the original: its onReturn and an entry pointer); the build-time copy and its fixups make it valid without that.
     end = d2.find(b'\0\0\x19\xfc' + PM_MENU_TAIL, start) + 2
     assert start < end < start + 0x1000
     pmc = bytearray(d2[start:end])
@@ -585,18 +574,49 @@ def button(p, at, lang, area):
     ent += struct.pack('<IH', 0, 13)
     sel_at = len(pmc) + len(ent)
     ent += struct.pack('<IH', 0, 0)
+    pm_len = end - start
     pmc += ent + struct.pack('<h', -999)
     pptrs = [(o - start, t_obj, t_off) for o, t_obj, t_off in _fix_targets(p, 2, start, end)]
-    pptrs += [(buf_at, 2, base + off['btn']), (sel_at, 1, lab['km_open'])]
-    mat = (at + len(code) + 15) & ~15
+    pptrs += [(buf_at, 2, 'btn'), (sel_at, 1, 'km_open')]
+    mat = (at + 15) & ~15
     while any((mat + o) // 0x1000 != (mat + o + 3) // 0x1000 for o, _, _ in pptrs):
         mat += 4
     assert not any(d[mat:mat + len(pmc)])
     p.put(1, mat, bytes(pmc))
-    for o, t_obj, t_off in pptrs:
-        p.add_ptr(1, mat + o, t_obj, t_off)
-    p.retarget(1, a6site, 1, mat)
-    p.put(1, a6site, struct.pack('<I', mat))
-    print(f'exe: KITS: playMatchMenu obj2+{start:#x} -> obj1+{mat:#x} (+entry {KITS_ENTRY}), SELECT KITS menu + data '
-          f'obj2+{base:#x} ({len(data)} B), code obj1+{at:#x} ({len(code)} B), kit entries from obj2+{k0:#x}')
-    return (mat + len(pmc) + 15) & ~15
+    at = (mat + len(pmc) + 15) & ~15
+
+    sym = {'D0': (2, D0), 'A0': (2, A0), 'A2': (2, A2), 'A6': (2, A0 + 24), 'CALC': (1, calc), 'DRAW_MENU': (1, draw.pop()),
+           'SET_COLORS': (1, set_colors), 'SITPC': (1, sitpc), 'TOP_TEAM': top, 'BOTTOM_TEAM': bottom,
+           'CONVERT_KIT': (1, convert), 'PM_TEAM1': pm1, 'PM_TEAM2': pm2, 'SHOW_MENU': (1, show_menu),
+           'SET_EXIT': (1, set_exit), 'EDIT_TEAM': edit_team, 'PRIM_CONV': (1, prim), 'SEC_CONV': (1, sec),
+           'MARK1': (1, mark1), 'MARK2': (1, mark2), 'KM_ACTIVE': (2, base), 'KM_TEAM': (2, base + 1),
+           'SLOTS': (2, base + 4), 'SLOT_': (0, SLOT), 'BTN_BUF': (2, base + off['btn']),
+           'OTHER_BUF': (2, base + off['other']), 'KITS_MENU': (2, base + menu_at),
+           'TXT_AUTO': (2, base + off['auto']), 'TXT_SET': (2, base + off['set']),
+           'TXT_WEAR1': (2, base + off['wear1']), 'TXT_WEAR2': (2, base + off['wear2']),
+           'TXT_K1': (2, base + off['k1']), 'TXT_K2': (2, base + off['k2']),
+           'PM_COPY': (1, mat), 'PM_LEN': (0, pm_len), 'E13_UP': (0, e13 + 12), 'KITS_': (0, KITS_ENTRY)}
+    code, fix = nasmcave.assemble(KITS_ASM, at, sym)
+    lab = nasmcave.labels(KITS_ASM, at, sym)
+    assert not any(d[at:at + len(code)])
+    p.put(1, at, code)
+    for o, t_obj, t_off in fix:
+        p.add_ptr(1, at + o, t_obj, t_off)
+    for o, t_obj, t in ptrs:
+        if isinstance(t, str):
+            t = lab[t] if t_obj == 1 else base + off[t]
+        p.add_ptr(2, base + o, t_obj, t)
+    for o, t_obj, t in pptrs:
+        if isinstance(t, str):
+            t = lab[t] if t_obj == 1 else base + off[t]
+        p.add_ptr(1, mat + o, t_obj, t)
+    assert d[a6site + 4] == 0xE8 and _rel(d, a6site + 4) == show_menu
+    p.put(1, a6site + 5, struct.pack('<i', lab['pm_show'] - (a6site + 9)))
+    assert p.get(1, sitpc, 1) == b'\xA1'
+    p.remove(1, sitpc + 1)
+    p.put(1, sitpc, b'\xE9' + struct.pack('<i', lab['kit_colors'] - (sitpc + 5)))
+
+    print(f'exe: KITS: playMatchMenu obj2+{start:#x} -> obj1+{mat:#x} (+entry {KITS_ENTRY}, refreshed by pm_show), '
+          f'SELECT KITS menu + data obj2+{base:#x} ({len(data)} B), code obj1+{at:#x} ({len(code)} B), '
+          f'kit entries from obj2+{k0:#x}')
+    return (at + len(code) + 15) & ~15

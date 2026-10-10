@@ -255,3 +255,24 @@ Every place that assumes 80 / 16-32-32 (swos-port names):
 Estimate: 1 session to build (hooks + trailer + checks + test world), 1 playtest/fix round, docs in the release session.
 Verdict: GO (no engine limit is exceeded; the risks are the BSS growth under DOS/4GW and the season-end path with 128,
 both covered by the first test).
+
+### Euro 128 built (2026-10-10, commit 0dac0b3) — awaiting playtest
+
+- careerworld: big world = more than 80 clubs or a cup above 16/32/32 (record dword +48). 18 `mov [Ax], offset X`
+  sites (8 tmdFileBuffer, 4 per copy... see sites(): tmd_sites, copy_sites, list_sites) call stubs that pick the moved
+  buffer in a big world; dseg_C707E copied to WCLIST + WCC/WCWC/WUEFA (its 3 code refs retargeted). Moved buffers in
+  the obj2 tail (BSS[0] = first page after the free pages, vsize + 0x16000): WTMD 128 records, cups at +0x15600 (160 B
+  apart), place lists at +0x157E0 (64 / 64 / 96). Found in all 4 languages.
+- .CAR: trailer.patch(tails=True) ends with jmp [SAVE_TAIL] / [LOAD_TAIL]; patch_tails: save copies WTMD[0..80) into
+  the fixed part and appends 'W1' (5194 B: cups 92/92/160 + 48 x (pair + 99 VAROFF bytes)); load copies them back and
+  rebuilds records 80..k-1 with LoadTeamFile (GetTeamPointer's callee) + the saved bytes, then teamsLoaded = 0.
+- Found while building: a cup of 6 rounds is 29 + 2n B (UEFA 64 = 157 -> 160 B buffers); 31 career packs do not fit the
+  shared caves -> career packs get obj1 pages 0xA7000-0xA9000 (CAREER_DATA) and a 2nd free obj2 page (Obj2Area keeps
+  blocks inside one page); the free contest ids (0xCB..0xFE) are too few for 31 leagues + 31 cups -> a LEAGUE id may be
+  shared by the packs of one world (mkseason check). To verify in game: career record / history with shared ids.
+- Per country the engine qualifies at most the top 9 of the top division + the cup finalists (cseg_927A2): fine for
+  the real places (1984-85: at most CC 1 + CWC 1 + UEFA 4).
+- Test world 3 (internal/career-test/mkworld3.py): 31 countries TEAM.101..131 (DDR clones, prefixes B0.., bases 32k),
+  world 3 from 1984, places CC 1 / CWC 1 / UEFA 2 (root 3) -> 32 / 32 / 64 with the holders. Build IT c3ad9f2f (+ EN
+  65e603bd FR 720c1aee DE b4787104), WORLD03.TMD 128 records; no-world build still d38a5d1c, world2 build OK.
+  Installed in c/SWOS (2.6.1 exe saved as c/SWOS/ITALIAN_261.EXE). Save checker: internal/career-test/checkw1.py.

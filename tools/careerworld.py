@@ -1153,9 +1153,10 @@ w_draw2:                                ; replaces `mov eax, [A2]; add eax, 59h;
     mov [A0R], eax
     ret
 
-w_r2:                                   ; replaces `call cseg_2ACAE` in cseg_8A7BF (career cups, the player's and the
-    call R2ORIG                         ; simulated ones: end of a round). cseg_2ACAE puts the round's winners first
-    pushad                              ; at DIY_competitionStart+2CDh in tie order; the next round pairs them two by
+w_r2:                                   ; replaces every `call cseg_2ACAE` (end of a knockout round: cseg_29659 for the
+    call R2ORIG                         ; player's cup, cseg_8A7BF for the simulated ones, the season-end readers).
+    pushad                              ; cseg_2ACAE puts the round's winners first at DIY_competitionStart+2CDh in tie
+                                        ; order; the next round pairs them two by
     mov esi, DIYSTART                   ; two (a fixed bracket, no new draw): after round 1 a same-country pair swaps
     call w_dok                          ; its second club with another pair's
     jz .r
@@ -1281,9 +1282,11 @@ def euro_draw(p, at, nasmcave):
     r2 = [i for i in range(len(orig) - 5) if orig[i] == 0xe8 and tgt(orig, i) in starts
           and b'\x66\x8b\x86\x5b\x01\x00\x00' in orig[i + 5:i + 0x60]]
     assert len(r2) == 1, r2
-    r2 = r2[0]
-    st = tgt(orig, r2)
-    assert tgt(d1, r2) == st, 'cseg_8A7BF call already hooked'
+    st = tgt(orig, r2[0])
+    # every call of cseg_2ACAE (the player's cup ends its rounds through cseg_29659, not cseg_8A7BF; the season-end
+    # winner readers call it after a final, where the round-1 condition is false)
+    r2 = [i for i in range(len(orig) - 5) if orig[i] == 0xe8 and tgt(orig, i) == st]
+    assert len(r2) >= 2 and all(tgt(d1, i) == st for i in r2), r2
     sym = {'A0R': (2, A0), 'HIST': (1, hist.pop()), 'R2ORIG': (1, st), 'A2R': (2, regs['A0R'] + 8), 'A3R': (2, regs['A0R'] + 12), 'DRAW1': (1, draw1),
            'DIYSTART': diystart, 'GAMETYPE': gt.pop(), 'SLT': s['slt'], 'WORLD_BYTE': (0, WORLD_BYTE),
            'CWCCOPY': s['copies'][1][0], 'UEFACOPY': s['copies'][2][0], 'SE_NEXT': (1, tgt(d1, site))}
@@ -1306,7 +1309,8 @@ def euro_draw(p, at, nasmcave):
         assert d1[site_:site_ + 8] == orig[site_:site_ + 8]
         p.remove(1, site_ + 3)
         p.put(1, site_, b'\x90' * 8)
-    p.put(1, r2 + 1, struct.pack('<i', lab['w_r2'] - (r2 + 5)))
+    for c in r2:
+        p.put(1, c + 1, struct.pack('<i', lab['w_r2'] - (c + 5)))
     p.remove(1, copy_site + 1)                          # mov eax, [A2]
     p.remove(1, copy_site + 9)                          # mov [A0], eax
     p.put(1, copy_site, b'\xe8' + struct.pack('<i', lab['w_draw2'] - (copy_site + 5)) + b'\x90' * 8)

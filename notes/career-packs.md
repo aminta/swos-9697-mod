@@ -322,3 +322,17 @@ both covered by the first test).
   1 derby seen, debugger BP never hit; with w_draw1 (ITALIAN 1f3ae3ea) 0 derbies in 25 visible ties. Round 2 not
   checked yet. The 1996-97 game has the same flaw from season 2 (JUVE2 / APOK4: 8 of 16 UEFA first-round ties
   same-country): fixing it there changes normal careers -> Davide to decide for the next release.
+
+### BUG (found 2026-10-10, present in 2.5 and 2.6.1 releases): Intercontinental + a European cup in the same season
+
+- Case: JUVE2.CAR (Juventus, 1997/98; won the CC 1996/97 -> Intercontinental pair Juventus / Alianza Lima in the trailer;
+  E092F = 1 = Cup Winners' Cup). Season set-up is corrupt: CWC round 1 = Juventus v Club Brugge (1st leg, 2-3) but the
+  2nd leg is Juventus v AC Milan; the Intercontinental final sits among the first Serie A rounds. Playing it from the
+  calendar works (4-4, pens). FINISCI STAGIONE stops on the team screen instead of the new-season message; then VIS.
+  RISULTATI traps in cseg_3C4CE (`cmp word [A3], 1; jz; int 3`, IT obj1+0x2C689): DIY_competitionStart holds a 16-club
+  COPPA CAMPIONI EUROPEA (id 0, [2Bh] = 2 = slot 2, [0] = 0) — slot 2 data is not the Intercontinental.
+- Likely cause: sacups euro_found -> int_step builds the Intercontinental (cseg_8B2D3 into slot 2) in the middle of
+  InitializeNewSeason's European branch and disturbs the CWC build (River's tested case went through the SA branch).
+  Not related to the euro-128 / no-derby work, nor to other sessions' hooks (lib97 / historic check their ids).
+- Next: dedicated session (after an automated DOSBox-X test harness), JUVE2.CAR as the repro (copy in the session
+  scratchpad: JUVE2_orig.CAR; c/SWOS/JUVE2.CAR restored).

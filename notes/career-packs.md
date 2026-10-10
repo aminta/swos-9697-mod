@@ -361,3 +361,14 @@ champion -> exact season-1 entrants need first_europe lists not tied to the plac
   k 128, N 83, W1 ok, sum 0, cups 32 / 32 / 64, no duplicates. ENGINE OK for the 784-club world (3 seasons + load).
   Next (session 2): real data from Wikipedia (1983-84 tables, coaches, 1984-85 national cups, European entrants and
   places, exact season-1 lists -> mkseason relax), short-name review with Davide, credits.
+- Session 2 (2026-10-10), real data, converter now config-driven (internal/world8485/world.json + europe_1984_85.json +
+  tables_1983_84.json + short_names.csv; fetch/parse helpers r1.py, tables.py, titles.txt): European entrants = the
+  real first rounds (Wikipedia): CC 32 (31 champions + Liverpool holder/champion; Albania cc/cwc 0 from season 2),
+  CWC 32 (no Albania, Wrexham listed with England in season 1), UEFA 64 (England 4 + Tottenham holder, FRG/ESP 4,
+  ... 1 for the small countries); places from season 2 = the same counts. tools/mkseason.py: first_europe may list
+  any number of clubs per country, the world check is each cup's total = places + 1. Club order = 1983-84 final
+  tables (1983 for calendar-year leagues): same level by position, then relegated from above, then promoted from
+  below, clubs in no table by strength (165, mostly promoted clubs; no tables for BEL/AUT/SUI/DEN second divisions).
+  Iceland and Malta capped at 10 clubs (previous table's clubs first). 772 clubs. Build IT 9c252bfe EN db943872
+  FR 037adb9e DE 4420d57b (not installed). Still open: real national cups 1984-85, coaches (ask Daniele for a staff
+  export of the CM DB), short-name review by Davide.

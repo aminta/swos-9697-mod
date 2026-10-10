@@ -162,9 +162,9 @@ class Pack:
             pl = m.get('europe_places', {})
             _need(set(pl) <= {'cc', 'cwc', 'uefa'}, 'europe_places: keys cc, cwc, uefa')
             for key, clubs in m.get('first_europe', {}).items():
-                extra = 1 if 'world_cups' in m else 0         # the root pack also fills the holder's place
-                _need(key in ('cc', 'cwc', 'uefa') and len(clubs) == pl.get(key, 0) + extra,
-                      f'first_europe.{key}: one club per place ({pl.get(key, 0) + extra})')
+                # any number of clubs per country (the real first season: a holder that is also champion, a club
+                # of a country with no league); world_defs checks each cup's total = places + 1
+                _need(key in ('cc', 'cwc', 'uefa'), f'first_europe.{key}: keys cc, cwc, uefa')
                 for c in clubs:
                     _need(c in self.league_clubs, f'first_europe.{key}: {c} is not a league club')
         for club, cup in m['season'].get('europe', {}).items():
@@ -494,6 +494,8 @@ def world_defs():
                                 for _ in range(pk.meta.get('europe_places', {}).get(key, 0))]
             clubs = [(pk, c) for pk in pks for c in first[id(pk)][key]]
             size = len(clubs)
+            _need(size == len(w['places'][key]) + 1,
+                  f'world {n}: {key}: {size} clubs in the first season, {len(w["places"][key])} places + the holder')
             _need(2 <= size <= careerworld.MAX[key] and size & (size - 1) == 0,
                   f'world {n}: {key} has {size} clubs (a power of 2, at most {careerworld.MAX[key]})')
             rounds = wc.get(key, {}).get('rounds') or ['two_legs'] * (size.bit_length() - 2) + ['single']

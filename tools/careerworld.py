@@ -1015,7 +1015,44 @@ def late(p, at, nasmcave):
     site = site[0]
     c92d55, cur = tgt(orig, site), tgt(d1, site)
     assert cur != c92d55, 'sacups / arg97 not applied yet'
+    # cseg_92D55 ends the Champions Cup as the 1996-97 group cup (type 2): played -> cseg_89B5C, simulated ->
+    # cseg_3ADAE (whose cseg_320A3 reads the club count at byte 15). A world's Champions Cup is a knockout (type 1)
+    # like the CWC: cseg_9307A uses cseg_45B51 / cseg_3ACAB. The winner readers (cseg_92F1C / cseg_93241) are alike.
+    c9307a = tgt(orig, site + 5)
+
+    def calls(at, n):
+        out, i = [], at
+        while len(out) < n:
+            if orig[i] == 0xe8:
+                out.append((i, tgt(orig, i)))
+                i += 5
+            else:
+                i += 1
+            assert i < at + 0x200
+        return out
+    cc, cw = calls(c92d55, 6), calls(c9307a, 6)
+    assert [t for _, t in cc[:2]] == [t for _, t in cw[:2]] and cc[4][1] == cw[4][1], (cc, cw)
+    play_site, sim_site = cc[2][0], cc[5][0]
+    assert tgt(d1, play_site) == cc[2][1] and tgt(d1, sim_site) == cc[5][1], 'cseg_92D55 calls already hooked'
     src = '''
+w_cc_play:                              ; cseg_92D55: the player's Champions Cup -> knockout play-out in a world
+    push ebx
+    call w_rec
+    pop ebx
+    jz .n
+    jmp KO_PLAY
+.n:
+    jmp GROUP_PLAY
+
+w_cc_sim:                               ; cseg_92D55: a simulated Champions Cup -> knockout simulation in a world
+    push ebx
+    call w_rec
+    pop ebx
+    jz .n
+    jmp KO_SIM
+.n:
+    jmp GROUP_SIM
+
 w_season_end:                           ; replaces `call arg_agg` (-> sa_qualify -> cseg_92D55) at the season end
     push ebx
     call w_rec
@@ -1025,11 +1062,15 @@ w_season_end:                           ; replaces `call arg_agg` (-> sa_qualify
 .n:
     jmp CUR
 '''
-    sym = {'w_rec': (1, LABELS['w_rec']), 'C92D55': (1, c92d55), 'CUR': (1, cur)}
+    sym = {'w_rec': (1, LABELS['w_rec']), 'C92D55': (1, c92d55), 'CUR': (1, cur), 'KO_PLAY': (1, cw[2][1]),
+           'GROUP_PLAY': (1, cc[2][1]), 'KO_SIM': (1, cw[5][1]), 'GROUP_SIM': (1, cc[5][1])}
     code, fix = nasmcave.assemble(src, at, sym)
+    lab = nasmcave.labels(src, at, sym)
     p.put(1, at, code)
     for off, tobj, toff in fix:
         p.add_ptr(1, at + off, tobj, toff)
-    p.put(1, site + 1, struct.pack('<i', at - (site + 5)))
+    p.put(1, site + 1, struct.pack('<i', lab['w_season_end'] - (site + 5)))
+    p.put(1, play_site + 1, struct.pack('<i', lab['w_cc_play'] - (play_site + 5)))
+    p.put(1, sim_site + 1, struct.pack('<i', lab['w_cc_sim'] - (sim_site + 5)))
     print(f'exe: career worlds skip the 1996-97 qualifier simulations: call obj1+{site:#x} -> obj1+{at:#x}')
     return (at + len(code) + 3) & ~3

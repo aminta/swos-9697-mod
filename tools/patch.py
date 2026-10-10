@@ -21,6 +21,7 @@ import c1c2
 import cafcups
 import countries
 import historic
+import kitcolors
 import mkseason
 import careerworld
 import nsl97
@@ -175,6 +176,7 @@ def patch_exe(src, dst, remap, lang='it'):
     obj2_free = (o2.npages - o2pages) * p.le.page_size  # the free pages: above the stack top (ESP = old vsize)
     careerworld.BSS[0] = obj2_free + o2pages * p.le.page_size if bigw else None
     assert o2.vsize <= obj2_free and p.le.esp_obj == 2 and p.le.esp <= obj2_free
+    kitcolors.patch(p)             # automatic home/away kit choice (Daniele Bordes's analysis)
     cfg = LANGS[lang]
     sacups.NAMES[sacups.INT_ID] = cfg['int']
     d2 = p.le.obj_bytes(2)
@@ -225,6 +227,7 @@ def patch_exe(src, dst, remap, lang='it'):
     arg_end = finals97.rec_playoff(p, arg_end)    # 2.5: the play-off winner is the champion in the record (FIN cave full)
     arg_end = careerworld.euro_draw(p, arg_end, nasmcave)   # 2.7.x: no same-country ties in rounds 1-2 of the
                                                   # European cups of a career (1996-97 CWC / UEFA, worlds)
+    arg_end = kitcolors.button(p, arg_end, lang, area)  # KITS button + SELECT KITS menu (pre-match screen)
     assert cave <= WORLD_CAVE, hex(cave)
     world = cafcups.intl_list(p, caf, world)
     assert world <= NZ_CAVE and nz_end <= FIN_CAVE and fin_end <= ARG_CAVE and arg_end <= OBJ1_NEW_VSIZE, \

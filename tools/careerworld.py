@@ -1153,6 +1153,24 @@ w_draw2:                                ; replaces `mov eax, [A2]; add eax, 59h;
     mov [A0R], eax
     ret
 
+w_r2:                                   ; replaces `call cseg_2ACAE` in cseg_8A7BF (career cups, the player's and the
+    call R2ORIG                         ; simulated ones: end of a round). cseg_2ACAE puts the round's winners first
+    pushad                              ; at DIY_competitionStart+2CDh in tie order; the next round pairs them two by
+    mov esi, DIYSTART                   ; two (a fixed bracket, no new draw): after round 1 a same-country pair swaps
+    call w_dok                          ; its second club with another pair's
+    jz .r
+    movzx ecx, word [esi + 4Fh]         ; ties of the round just played = winners
+    movzx eax, word [esi + 31h]
+    shr eax, 1
+    cmp ecx, eax                        ; round 1 (e.g. 32 clubs -> 16 winners)
+    jne .r
+    shr ecx, 1
+    lea edi, [esi + 2CDh]
+    call w_fixpairs
+.r:
+    popad
+    ret
+
 w_se:                                   ; replaces the season end's first call (arg_agg / w_season_end): a 1996-97
     cmp word [GAMETYPE], 4              ; career draws its CWC and UEFA first round at random from the second season
     jne .j                              ; on (contest byte 8 = 0; the first season keeps the real 1996-97 pairings),
@@ -1257,7 +1275,16 @@ def euro_draw(p, at, nasmcave):
              + pk(A0 + 4), orig, 'cseg_26CC9')
     copy_site = m.start()
     assert d1[copy_site:copy_site + 13] == orig[copy_site:copy_site + 13], 'cseg_26CC9 already hooked'
-    sym = {'A0R': (2, A0), 'HIST': (1, hist.pop()), 'A2R': (2, regs['A0R'] + 8), 'A3R': (2, regs['A0R'] + 12), 'DRAW1': (1, draw1),
+    # cseg_2ACAE (winners first): mov [A6], offset DIY_competitionStart; mov [A4], offset dseg_114CA2; its call in
+    # cseg_8A7BF is the one followed by `mov ax, [esi+15Bh]`
+    starts = {m.start() for m in re.finditer(rb'\xc7\x05' + pk(A0 + 24) + rb'.{4}\xc7\x05' + pk(A0 + 16), orig, re.S)}
+    r2 = [i for i in range(len(orig) - 5) if orig[i] == 0xe8 and tgt(orig, i) in starts
+          and b'\x66\x8b\x86\x5b\x01\x00\x00' in orig[i + 5:i + 0x60]]
+    assert len(r2) == 1, r2
+    r2 = r2[0]
+    st = tgt(orig, r2)
+    assert tgt(d1, r2) == st, 'cseg_8A7BF call already hooked'
+    sym = {'A0R': (2, A0), 'HIST': (1, hist.pop()), 'R2ORIG': (1, st), 'A2R': (2, regs['A0R'] + 8), 'A3R': (2, regs['A0R'] + 12), 'DRAW1': (1, draw1),
            'DIYSTART': diystart, 'GAMETYPE': gt.pop(), 'SLT': s['slt'], 'WORLD_BYTE': (0, WORLD_BYTE),
            'CWCCOPY': s['copies'][1][0], 'UEFACOPY': s['copies'][2][0], 'SE_NEXT': (1, tgt(d1, site))}
     code, fix = nasmcave.assemble(DRAW_ASM, at, sym)
@@ -1279,6 +1306,7 @@ def euro_draw(p, at, nasmcave):
         assert d1[site_:site_ + 8] == orig[site_:site_ + 8]
         p.remove(1, site_ + 3)
         p.put(1, site_, b'\x90' * 8)
+    p.put(1, r2 + 1, struct.pack('<i', lab['w_r2'] - (r2 + 5)))
     p.remove(1, copy_site + 1)                          # mov eax, [A2]
     p.remove(1, copy_site + 9)                          # mov [A0], eax
     p.put(1, copy_site, b'\xe8' + struct.pack('<i', lab['w_draw2'] - (copy_site + 5)) + b'\x90' * 8)

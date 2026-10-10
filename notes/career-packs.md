@@ -357,3 +357,9 @@ both covered by the first test).
   compares countries (the two `shr word [D4/D1], 8` NOPed: low byte of the team number = country; it compared ordinals).
   Applies to CC / CWC / UEFA holders of normal careers (worlds use w_holders). Build IT a0f38ad5 (EN fde8cdca FR
   70aa73a2 DE 333ec176), untested in game: next season end with a holder that missed its league place.
+- Round 2 in careers (harness BP run, 2026-10-11): w_draw2 (cseg_26CC9) is never reached by career cups; there is no
+  round-2 draw at all: cseg_8A7BF (end of a round, player's and simulated career cups) calls cseg_2ACAE, which puts
+  the winners first at DIY_competitionStart+2CDh in tie order, and the next round pairs them two by two (fixed
+  bracket). New hook w_r2 on that call: after round 1 ([4Fh] ties == [31h]/2) w_fixpairs on the winners. Build IT
+  1994e494 (EN f553bb66 FR bea0ff37 DE 4af31d4f), to verify with the harness (JUVE2F -> 1998/99, UEFA R2 ties at
+  slot+2CDh first 16 entries after the R1 return leg).

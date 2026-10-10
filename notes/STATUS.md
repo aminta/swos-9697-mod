@@ -1822,3 +1822,12 @@ Left for 2.5: (a) NSL/NSSL finals series (type-1 design) or declare them postpon
 - Manuals IT/EN: new chapter 24 SWOS++ (limits -> 25, history -> 26), history row 33; artifacts EN v17 / IT v16. Other exes/TEAM
   files = 2.6.1, so the 2.6.1 MiSTer/12bit packages stay current. PUBLISHED: github.com/aminta/swos-9697-mod/releases/tag/v2.7.0.
   Announcement drafts in internal/announcements/2.7.0 + swospp/zlatko-released-en.txt (Davide posts).
+
+## BACKLOG (Davide, 2026-10-10): historic careers beyond Europe + zero-token worlds
+- Other continents in historic careers: leagues of non-European countries (the 1984-85 DB has Argentina, Brazil,
+  Mexico, Chile, Australia, USA, Colombia, Japan, Korea, South Africa) as world countries with no European places
+  (data work only), then continental cups inside worlds (Libertadores, CONCACAF, Intercontinental: engine work).
+- Principle: a new historic career built from data sent by users must cost no extra tokens. The engine and the
+  compiler stay deterministic and data-driven (packs -> mkseason, no per-world code); converters from a known source
+  format (e.g. the CM01/02 retro DB) are generic and driven by a config file, so a new world = new data + config, run
+  by a script, checked by `mkseason check`, like the DLC season packs.

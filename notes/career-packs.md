@@ -304,3 +304,12 @@ both covered by the first test).
   records, 'S3', C7). Builds IT 25f5d535 EN 754fe831 FR ebd58c01 DE db9b2520 (EN/FR/DE not run); no-world IT d38a5d1c.
 - Docs: packs/CAREERS(.it).md limits (32 / 32 / 64, 128, places per country), manual sources IT/EN chapter 23 item
   'Euro 128' (artifacts not republished); mkseason check: europe_places at most cc 1, cwc 1, uefa 6.
+
+### First-round draw (2026-10-10, Daniele Bordes's report)
+
+- Cup struct byte [8] != 0 = first round in list order (DIY [4Fh] = 1), [9] = 0 = later rounds drawn. The season end
+  fills the lists country by country, so a world's UEFA Cup had 31 of 32 same-country first-round ties (W128B/C).
+  World structs now get [8] = 0 (careerworld.struct_for): first round drawn at random. Playtest (new career, build
+  ITALIAN 24f09873): UEFA 1st round mixed, no same-country tie seen. A same-country tie can still come up by chance
+  (~1 in 2 seasons for 64 clubs); the real 1984-85 rule kept them apart -> possible follow-up: swap such ties after the
+  draw. Saves made before keep [8] = 1 in their W1 cups.

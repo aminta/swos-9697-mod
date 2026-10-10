@@ -2,9 +2,11 @@
 
   python3 tools/swostest.py list                     scenarios
   python3 tools/swostest.py run [NAME...]            run scenarios (all when none given); exit code 1 on a failure
-  python3 tools/swostest.py keys EXE CAR|- 'KEYS' [-shots S] [-t T] [-name NAME] [-match]
+  python3 tools/swostest.py keys EXE CAR|- 'KEYS' [-shots S] [-t T] [-name NAME] [-match] [-timer]
         ad-hoc run: EXE = a build dir (ITALIAN.EXE + DATA) or an .EXE file (DATA from c/SWOS); CAR = a save to copy
         in (or -); KEYS = the script below; window screenshots every S s into runs/NAME/shots; T = timeout (s);
+        -timer = feed from the timer (70 Hz) instead of GetKey: for SWOS++, which re-patches the menu input code;
+        waits are then game time, not menu frames (allow for loading);
         -name NAME = run dir (default keys); -match = the feeder also types during matches, replays and
         highlights (all 12 GetKey calls; waits then count in match frames too)
   Env: SWOSTEST_BUILD = build dir under test, else SWOSTEST_BRANCH = git branch/commit to build, else this checkout.
@@ -99,7 +101,7 @@ def build(name, env=None, branch=None):
     return out
 
 
-def prepare(name, exe_dir, cars, steps, match=False):
+def prepare(name, exe_dir, cars, steps, match=False, timer=False):
     """runs/<name>/SWOS = base + exe_dir (ITALIAN.EXE + DATA, or an .EXE file) + saves {dos name: source path}."""
     run = os.path.join(WORK, 'runs', name)
     if os.path.isdir(run):
@@ -113,7 +115,9 @@ def prepare(name, exe_dir, cars, steps, match=False):
         shutil.copytree(exe_dir, game, dirs_exist_ok=True, ignore=shutil.ignore_patterns('log.txt'))
     for dos, src in cars.items():
         shutil.copy(src, os.path.join(game, dos))
-    return run, test_exe(os.path.join(game, 'ITALIAN.EXE'), steps, match)
+    if not os.path.exists(os.path.join(game, 'ITALIAN.EXE')):      # e.g. an English SWOS++ bundle
+        shutil.copy(os.path.join(game, 'ENGLISH.EXE'), os.path.join(game, 'ITALIAN.EXE'))
+    return run, test_exe(os.path.join(game, 'ITALIAN.EXE'), steps, match, timer)
 
 
 SCAN = {'fire': 0x1D, 'up': 0x48, 'down': 0x50, 'left': 0x4B, 'right': 0x4D, 'esc': 0x01, 'enter': 0x1C,
@@ -121,11 +125,12 @@ SCAN = {'fire': 0x1D, 'up': 0x48, 'down': 0x50, 'left': 0x4B, 'right': 0x4D, 'es
 SCAN.update({ch: sc for row, base in (('1234567890', 0x02), ('qwertyuiop', 0x10), ('asdfghjkl', 0x1E),
                                       ('zxcvbnm', 0x2C)) for sc, ch in enumerate(row, base)})
 SCRIPT_MAX = 200                                       # steps a pause can write
+TICKS = 70                                             # timer ticks per s (-timer mode)
 HOLD = 3                                               # GetKey calls a typed key stays held
 RATE = 30                                              # GetKey calls per second in the menus (calibrated)
 
 
-def steps_of(text):
+def steps_of(text, rate=None):
     """'fire down:2 down fire:10' -> [(scan code, GetKey calls to wait before it)]; ':s' = seconds before the key
     (default 0.5), counted only while the game polls the keyboard (not while it loads or simulates)."""
     out = []
@@ -133,11 +138,11 @@ def steps_of(text):
         k, _, t = tok.partition(':')
         codes = [SCAN[x] for x in k.lower().split('+')]          # 'fire+right': both held, fire typed
         assert len(codes) <= 2, tok
-        out.append((codes[0] | (codes[1] << 8 if len(codes) > 1 else 0), max(1, round(float(t or 0.5) * RATE))))
+        out.append((codes[0] | (codes[1] << 8 if len(codes) > 1 else 0), max(1, round(float(t or 0.5) * (rate or RATE)))))
     return out
 
 
-def test_exe(exe, steps, match=False):
+def test_exe(exe, steps, match=False, timer=False):
     """Test builds only (the exe under test is patched in its run copy):
     - intro skipped (skipIntro test -> jmp);
     - menus also read the latched last key (MenuCheckControls' 'two joypads' branch, normally only for
@@ -170,6 +175,11 @@ def test_exe(exe, steps, match=False):
     assert len(calls) == 12, len(calls)
     if not match:
         calls = calls[-2:]      # MenuCheckControls, InputTextKeyLoop (the others: match, replays, highlights)
+    if timer:                   # SWOS++ re-patches the menu input code: feed from TimerProc (70 Hz) instead
+        t = one(rb'\x66\xff\x05....\x66\xff\x05....\x66\xa1....\x66\x0b\xc0\x75.\x66\xff\x05....\x66\x83\x05....'
+                rb'\x01\x66\x83\x25....\x01\x75.\x66\xc7\x05....\xff\xff\xe8') + 59   # call BumpIntroTimers
+        assert c[t] == 0xE8
+        calls, gk = [t], t + 5 + struct.unpack_from('<i', c, t + 1)[0]
     mcc = one(rb'\x66\x83\x3d....\x05\x0f\x85....\x66\x83\x3d....\xff\x0f\x84')
     intro = one(rb'\x66\x83\x3d....\x00\x75.\xe8....\x75')
     mp = one(rb'\x66\x83\x3d....\x01\x74.\x66\x83\x3d....\xff\x75.\xe8....\x66\xa9\x00\x02\x75.'
@@ -269,7 +279,7 @@ class Dosbox:
         self.run, self.timeout, self.shots = run, timeout, shots
         conf = CONF.format(cycles=os.environ.get('CYCLES', 'max'), core=os.environ.get('CORE', 'dynamic'), iso=ISO, exe=exe)
         open(os.path.join(run, 'test.conf'), 'w').write(conf)
-        self.screen, self.eip, self.t0 = b'', None, time.time()
+        self.screen, self.eip, self.t0, self.watch = b'', None, time.time(), set()
         self.pid, self.fd = pty.fork()
         if self.pid == 0:
             os.chdir(run)
@@ -309,15 +319,26 @@ class Dosbox:
 
     def go_on(self):
         """F5 (resume) and watch, as go()."""
+        self.cmd('C 0160:00000000', 0.3)              # move the code view away: the next break must redraw it
+        pre = len(self.screen)
         os.write(self.fd, b'\x1b[15~')                 # F5 = run
-        self.pump(1)
-        mark = len(self.screen)
+        end = time.time() + 2                          # watch from the debugger's '(Running)' on: a break can come
+        while b'Running' not in self.screen[pre:] and time.time() < end:   # within the first second
+            self.pump(0.05)
+        i = self.screen.find(b'Running', pre)
+        mark = i + 7 if i >= 0 else len(self.screen)
         start, nshot = time.time(), 0
         while True:
             n = self.pump(0.5)
             if n < 0 or not self.alive():
                 return 'exit'
             m = BREAK.search(self.screen, mark)    # the debugger's code view redrawn on an int 3 (CD03)
+            if not m and self.watch:                # or on one of our breakpoints (Session.bp)
+                seg = re.sub(rb'\x1b\[[0-9;?]*[a-zA-Z]|\x1b\(B', b' ', self.screen[mark:])
+                for w in re.finditer(rb'0160:([0-9A-F]{8})\s', seg):
+                    if int(w.group(1), 16) in self.watch:
+                        m = w
+                        break
             if m:
                 self.eip = int(m.group(1), 16)
                 return 'break'
@@ -402,9 +423,9 @@ class Result:
         return s
 
 
-def run_case(name, exe_dir, cars, keys, timeout, shots=0, match=False):
+def run_case(name, exe_dir, cars, keys, timeout, shots=0, match=False, timer=False):
     """Run one key script on a copy of the game; returns a Result."""
-    run, info = prepare(name, exe_dir, cars, steps_of(keys), match)
+    run, info = prepare(name, exe_dir, cars, steps_of(keys, TICKS if timer else RATE), match, timer)
     box = Dosbox(run, timeout, shots)
     eip = None
     try:
@@ -502,6 +523,13 @@ class Session:
         open(os.path.join(self.run, 'debugger.raw'), 'wb').write(self.box.screen)
         open(os.path.join(self.run, 'session.log'), 'w').write('\n'.join(self.log) + '\n')
 
+    def bp(self, lin, callback):
+        """Debugger breakpoint at a linear address; callback(result) runs at each hit, then the game goes on."""
+        self.box.cmd(f'BP 0160:{lin:08X}', 0.3)
+        self.box.watch.add(lin)
+        self.bps = getattr(self, 'bps', {})
+        self.bps[lin] = callback
+
     def wait(self):
         """Run to the next break; returns the Result (outcome 'dump' = our pause, 'trap', 'timeout', 'exit')."""
         b = self.box
@@ -509,6 +537,27 @@ class Session:
             self.started = True
             outcome = b.go()
         else:
+            outcome = b.go_on()
+        if os.environ.get('SWOSTEST_BP') and not getattr(self, 'bps', None) and outcome == 'break':
+            base1 = Result(self.run, 'x', None, self.info).base1 if b.post_mortem() is not None else None
+            self.bp_hits = {}
+            for off in os.environ['SWOSTEST_BP'].split(','):     # counting breakpoints (use CORE=normal)
+                o = int(off, 16)
+                self.bp(base1 + o, lambda r, o=o: self.bp_hits.__setitem__(o, self.bp_hits.get(o, 0) + 1))
+        while outcome == 'break' and b.eip in getattr(self, 'bps', {}):
+            dump = os.path.join(self.run, 'MEMDUMP.BIN')
+            if os.path.exists(dump):
+                os.remove(dump)
+            b.post_mortem()
+            self.bps[b.eip](Result(self.run, 'bp', b.eip, self.info))
+            pre = len(b.screen)
+            b.cmd('BPLIST', 0.5)
+            self.log.append('BPLIST: ' + re.sub(rb'\x1b\[[0-9;?]*[a-zA-Z]|\x1b\(B', b' ', b.screen[pre:])
+                            .decode('latin-1')[-300:])
+            b.cmd('BPDEL *', 0.3)                     # re-arm: a DOSBox-X breakpoint may not survive its hit
+            b.cmd('BPINT 3', 0.2)                      # (BPDEL * also removed the int 3 one)
+            for lin in self.bps:
+                b.cmd(f'BP 0160:{lin:08X}', 0.2)
             outcome = b.go_on()
         eip = None
         dump = os.path.join(self.run, 'MEMDUMP.BIN')
@@ -560,8 +609,9 @@ def press(s, scr, text, wait=2, exact=True):
 RED = lambda c: c[0] > 180 and c[1] < 110 and c[2] < 110
 
 
-def row_colours(s, scr, tag):
-    """Screenshot of the paused game -> background colour of each squad row (entries 25,y,82,8 sorted by y)."""
+def squad_rows(s, scr, tag):
+    """Screenshot of the paused game -> [(entry, unavailable)] for the squad rows (entries 25,y,82,8 sorted by y).
+    Unavailable = red row background (x=100) or red pixels in the face/icon column (x 2-11): red card / injury."""
     from PIL import Image
     rows = sorted((g[1], i) for i, g in enumerate(scr.geom)
                   if (g[0], g[2], g[3]) == (25, 82, 8) and not scr.entries[i][1])   # drawn rows, not text copies
@@ -570,29 +620,37 @@ def row_colours(s, scr, tag):
     im = Image.open(path).convert('RGB')
     w, h = im.size
     top = h - w * 400 // 640                           # window title bar
-    return [(i, im.getpixel((int(100 * w / 320), int(top + (y + 4) * (h - top) / 200)))) for y, i in rows]
+    px = lambda x, y: im.getpixel((min(w - 1, int(x * w / 320)), min(h - 1, int(top + y * (h - top) / 200))))
+    out = []
+    for y, i in rows:
+        icon = sum(RED(px(x, y + dy)) for x in range(2, 12) for dy in range(1, 8))
+        out.append((i, RED(px(100, y + 4)) or icon >= 4))
+    return out
 
 
-def substitute(s, scr, tries=12):
-    """Squad screen without VIS. RISULTATI (Davide): the red rows (injured/suspended) among the first 16 are swapped
-    with a fit player beyond the 16th: fire on the red row, fire on the 17th row's face until its row is not red, fire
-    on the 17th row's name. Returns an error string or None."""
-    rows = row_colours(s, scr, f'sq{len(s.log):03d}')
+def substitute(s, scr, tries=16):
+    """Squad screen without VIS. RISULTATI (Davide): an unavailable player (red row or red icon) among the first 16
+    is swapped with a fit player beyond the 16th: fire on his row, fire on the 17th row's face until its player is
+    fit (and a goalkeeper, P, for row 1), fire on the 17th row's name. Returns an error string or None."""
+    rows = squad_rows(s, scr, f'sq{len(s.log):03d}')
     if len(rows) != 17:
         return f'squad screen: {len(rows)} rows'
     reserve = rows[-1][0]
+    ry = scr.geom[reserve][1]
     face = next((i for i, (l, r) in enumerate(scr.nav) if l[1] == reserve and scr.geom[i][0] < 25), None)
-    red = [i for i, c in rows[:16] if RED(c)]
-    if not red or face is None:
-        return f'squad screen without VIS. RISULTATI, red rows {red}, face {face}'
-    for i in red:
+    bad = [(k, i) for k, (i, un) in enumerate(rows[:16]) if un]
+    if not bad or face is None:
+        return f'squad screen without VIS. RISULTATI, unavailable rows {bad}, face {face}'
+    for k, i in bad:
         press(s, s.screen(), i, wait=1)
         for _ in range(tries):
             press(s, s.screen(), face, wait=1)
-            if not RED(row_colours(s, s.screen(), f'sq{len(s.log):03d}')[-1][1]):
+            cur = s.screen()
+            pos = next((t for j, t, inv, _ in cur.entries if t and not inv and cur.geom[j][:2] == (108, ry)), '')
+            if not squad_rows(s, cur, f'sq{len(s.log):03d}')[-1][1] and (pos == 'P') == (k == 0):
                 break
         else:
-            return f'no fit reserve for row {i}'
+            return f'no fit reserve for row {k + 1}'
         press(s, s.screen(), reserve, wait=1)
     return None
 
@@ -847,17 +905,70 @@ def euro_draws():
 
         def stop(scr):
             rnd, cid, ties = slot_ties(s.result, 16)
-            if cid in (1, 2) and rnd in (0, 1) and rnd not in seen and any(a or b for a, b in ties):
-                n = 16 if rnd == 0 else 8
-                seen[rnd] = ties[:n]
-                same = [k for k, (a, b) in enumerate(ties[:n]) if a == b]
-                check(not same, f'round {rnd + 1} ({"CWC" if cid == 1 else "UEFA"}): same-country ties {same} '
-                      f'{[ties[k] for k in same]}', errs)
+            title = scr.entries[0][1] if scr.entries else ''
+            r2 = 'SECONDO TURNO' in title and 'COPP' in title       # the cup's round-2 screen: winners paired
+            if cid in (1, 2) and ((rnd == 0 and 0 not in seen and any(a or b for a, b in ties)) or (r2 and 1 not in seen)):
+                k = 0 if rnd == 0 and not r2 else 1
+                n = 16 if k == 0 else 8
+                seen[k] = ties[:n]
+                same = [j for j, (a, b) in enumerate(ties[:n]) if a == b]
+                check(not same, f'round {k + 1} ({"CWC" if cid == 1 else "UEFA"}): same-country ties {same} '
+                      f'{[ties[j] for j in same]} (screen: {title.strip()})', errs)
             return 1 in seen
         ok, msg = advance(s, stop)
         if not ok:
             return False, f"advance: {msg}; {'; '.join(errs + notes)}"
-    return not errs, f"{msg}; {'; '.join(errs) or 'ok'}; {'; '.join(notes)}; rounds checked {sorted(seen)}"
+        hits = {f'obj1+{o:X}': n for o, n in getattr(s, 'bp_hits', {}).items()}
+    return not errs, f"{msg}; {'; '.join(errs) or 'ok'}; {'; '.join(notes)}; rounds checked {sorted(seen)}; bp hits {hits}"
+
+
+def checkw1(path):
+    """internal/career-test/checkw1.py on a world save (DATA next to it); returns (ok, its output)."""
+    r = subprocess.run([sys.executable, os.path.join(MAIN, 'internal', 'career-test', 'checkw1.py'), path],
+                       capture_output=True, text=True)
+    out = (r.stdout + r.stderr).strip()
+    ok = r.returncode == 0 and 'W1 block: True' in out and 'bad pairs 0' in out
+    for line in out.splitlines():
+        if line.startswith(('CC ', 'CWC ', 'UEFA ')):
+            ok = ok and line.endswith('dups 0')
+    m = re.search(r'table sum mod 256 (\d+)', out)
+    ok = ok and 'euro records k=128' in out and re.search(r'world byte 4\b', out) is not None
+    return ok and m is not None and m.group(1) == '0', out
+
+
+@scenario
+def world8485():
+    """Europe 1984-85 world (world 4): new career at Liverpool, two seasons (save, reload, save), checkw1 on both"""
+    exe = os.environ.get('W8485_BUILD', os.path.join(WORK, 'builds', 'w8485'))
+    out, msgs = [], []
+    for season in (1, 2):
+        cars = {} if season == 1 else {'W84A.CAR': out[0]}
+        with Session(f'world8485_{season}', exe, cars, 'dump:2', 240) as s:
+            if s.wait().outcome != 'dump':
+                return False, f'START: no first pause ({s.result})'
+            if season == 1:
+                for t in ('CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'ENGLAND', 'FIRST DIVISION', 'LIVERPOOL'):
+                    if press(s, s.screen(), t) is None or s.result.outcome != 'dump':
+                        return False, f'new career: {t} not reached ({s.result})'
+            else:
+                s.send('down down down down down fire dump:2')
+                s.send('fire dump:3')
+            ok, msg = advance(s, lambda scr: scr.find('FINISCI STAGIONE', exact=True) is not None, 900)
+            if not ok:
+                return False, f'season {season}: {msg}'
+            press(s, s.screen(), 'FINISCI STAGIONE', wait=3)
+            if s.result.outcome != 'dump':
+                return False, f'season {season} FINISCI STAGIONE: {s.result}'
+            path = next_season_save(s, 'W84' + 'AB'[season - 1])
+            if not path.endswith('.CAR'):
+                return False, f'season {season}: {path}'
+        good, report = checkw1(path)
+        out.append(path)
+        msgs.append(f'season {season}: {msg}, ' + ('checkw1 ok' if good else 'checkw1 FAIL'))
+        open(os.path.join(WORK, 'runs', f'world8485_{season}', 'checkw1.txt'), 'w').write(report + '\n')
+        if not good:
+            return False, '; '.join(msgs) + '\n' + report
+    return True, '; '.join(msgs)
 
 
 @scenario
@@ -928,7 +1039,7 @@ def main(argv):
         timeout = float(argv[argv.index('-t') + 1]) if '-t' in argv else 60
         cars = {} if car == '-' else {os.path.basename(car).upper(): car}
         name = argv[argv.index('-name') + 1] if '-name' in argv else 'keys'
-        r = run_case(name, exe_dir, cars, keys, timeout, shots, '-match' in argv)
+        r = run_case(name, exe_dir, cars, keys, timeout, shots, '-match' in argv, '-timer' in argv)
         print(r, '->', r.run)
         return 0
     if argv[0] == 'run':

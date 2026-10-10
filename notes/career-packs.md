@@ -355,3 +355,5 @@ champion -> exact season-1 entrants need first_europe lists not tied to the plac
   back as the simulated UEFA clubs. World 3 never hit it (exactly 32 own clubs cached). Fix (careerworld, big worlds
   only): both procs park count + 100 records at BSS+0x16000 (BSS_SIZE 0x16000 -> 0x27000). Builds: world 4 IT
   0483cb8f EN 548a771d FR 057f5bae DE e4ba0487; world 3 IT 2920e8fb; no-world IT d38a5d1c (2.6.1, unchanged).
+- Playtest 2 (Davide, 2026-10-10, build 0483cb8f): EXE1.CAR loaded, season 2 ended (sacked at Exeter, then Port Vale),
+  saved PORVALE.CAR: checkw1 k 128, N 84, W1 ok, sum 0, cups 32 / 32 / 64 without duplicates. Next: load + season 3.

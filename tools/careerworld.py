@@ -1055,17 +1055,57 @@ w_cc_sim:                               ; cseg_92D55: a simulated Champions Cup 
 .n:
     jmp GROUP_SIM
 
-w_draw:                                 ; replaces `call hist_draw` (-> cseg_27F08, the draw of rounds 2..) in cseg_26A78 /
-    call HIST                           ; cseg_26DFC: in a world the European cups' first two rounds pair no clubs of
-    push ebx                            ; one country (UEFA rule of the 1980s: no same-association ties in rounds 1-2)
+w_season_end:                           ; replaces `call arg_agg` (-> sa_qualify -> cseg_92D55) at the season end
+    push ebx
     call w_rec
     pop ebx
-    jnz .w
+    jz .n
+    jmp C92D55
+.n:
+    jmp CUR
+'''
+    sym = {'w_rec': (1, LABELS['w_rec']), 'C92D55': (1, c92d55), 'CUR': (1, cur), 'KO_PLAY': (1, cw[2][1]),
+           'GROUP_PLAY': (1, cc[2][1]), 'KO_SIM': (1, cw[5][1]), 'GROUP_SIM': (1, cc[5][1])}
+    code, fix = nasmcave.assemble(src, at, sym)
+    lab = nasmcave.labels(src, at, sym)
+    p.put(1, at, code)
+    for off, tobj, toff in fix:
+        p.add_ptr(1, at + off, tobj, toff)
+    p.put(1, site + 1, struct.pack('<i', lab['w_season_end'] - (site + 5)))
+    p.put(1, play_site + 1, struct.pack('<i', lab['w_cc_play'] - (play_site + 5)))
+    p.put(1, sim_site + 1, struct.pack('<i', lab['w_cc_sim'] - (sim_site + 5)))
+    print(f'exe: career worlds skip the 1996-97 qualifier simulations: call obj1+{site:#x} -> obj1+{at:#x}')
+    return (at + len(code) + 3) & ~3
+
+
+DRAW_ASM = '''
+w_dok:                                  ; esi = DIY buffer -> ZF = 0 when its first two rounds must have no same-country
+    cmp word [GAMETYPE], 4              ; tie: careers only; a world: its 3 European cups (ids 0..2); 1996-97: the Cup
+    jne .no                             ; Winners' Cup (1) and the UEFA Cup (2) (the Champions Cup is a group cup)
+    cmp byte [SLT + WORLD_BYTE], 0
+    je .normal
+    cmp byte [esi + 2Dh], 2
+    ja .no
+    jmp .yes
+.normal:
+    cmp byte [esi + 2Dh], 1
+    je .yes
+    cmp byte [esi + 2Dh], 2
+    je .yes
+.no:
+    cmp eax, eax
     ret
-.w:
+.yes:
+    or esp, esp
+    ret
+
+w_draw:                                 ; replaces `call hist_draw` (-> cseg_27F08, the draw of rounds 2..) in cseg_26A78 /
+    call HIST                           ; cseg_26DFC
     pushad
     mov esi, [A2R]                      ; DIY buffer: +2Dh contest id, +31h clubs, +59h round list (team indices),
-    mov edi, [A3R]                      ; +24Dh team number per index (low byte = country file)
+    call w_dok                          ; +24Dh team number per index (low byte = country file)
+    jz .r
+    mov edi, [A3R]
     movzx ecx, word [edi + 161h]        ; clubs in this round
     movzx eax, word [esi + 31h]
     shr eax, 1
@@ -1080,25 +1120,30 @@ w_draw:                                 ; replaces `call hist_draw` (-> cseg_27F
 
 w_draw1:                                ; replaces `call cseg_28139` in cseg_87DA0 (contest byte 8 = 0: the first
     call DRAW1                          ; round shuffled in DIY_competitionStart + 2CDh, [4Fh] ties)
-    push ebx
-    call w_rec
-    pop ebx
-    jnz .w
-    ret
-.w:
     pushad
     mov esi, DIYSTART
+    call w_dok
+    jz .r
     movzx ecx, word [esi + 4Fh]
     lea edi, [esi + 2CDh]
     call w_fixpairs
+.r:
     popad
     ret
 
+w_se:                                   ; replaces the season end's first call (arg_agg / w_season_end): a 1996-97
+    cmp word [GAMETYPE], 4              ; career draws its CWC and UEFA first round at random from the second season
+    jne .j                              ; on (contest byte 8 = 0; the first season keeps the real 1996-97 pairings),
+    cmp byte [SLT + WORLD_BYTE], 0      ; since the season end fills their lists country by country
+    jne .j
+    mov byte [CWCCOPY + 8], 0
+    mov byte [UEFACOPY + 8], 0
+.j:
+    jmp SE_NEXT
+
 w_fixpairs:                             ; esi = DIY buffer, edi = list of 2 * ecx team indices (ties = consecutive pairs):
-    cmp byte [esi + 2Dh], 2             ; in the European cups (ids 0..2) a same-country tie swaps its away club with
-    ja .r                               ; another tie's, so that neither tie is a same-country one
-    mov [WD_N], ecx
-    mov dword [WD_PASS], 0
+    mov [WD_N], ecx                     ; a same-country tie swaps its away club with another tie's, so that neither
+    mov dword [WD_PASS], 0              ; tie is a same-country one
 .pass:
     mov dword [WD_CHG], 0
     xor ebp, ebp
@@ -1150,43 +1195,51 @@ align 4
 WD_N: dd 0
 WD_PASS: dd 0
 WD_CHG: dd 0
-
-w_season_end:                           ; replaces `call arg_agg` (-> sa_qualify -> cseg_92D55) at the season end
-    push ebx
-    call w_rec
-    pop ebx
-    jz .n
-    jmp C92D55
-.n:
-    jmp CUR
 '''
+
+
+def euro_draw(p, at, nasmcave):
+    """Every build (after historic, arg97.late and careerworld.late): no same-country tie in the first two rounds of the
+    European knockout cups of a career (a world: CC / CWC / UEFA; 1996-97: CWC and UEFA, random first round from season
+    2 on). UEFA Cup 1980-90 (RSSF): no same-association tie in rounds 1-2. Returns the cave end."""
     import historic
+    s = LABELS.get('sites') or sites(p)           # world builds: the sites found before careerworld.patch
+    orig = p.le.obj_bytes(1)
+    d1 = bytes(p.get(1, 0, len(orig)))
+    tgt = lambda d, i: i + 5 + struct.unpack_from('<i', d, i + 1)[0]
     draw_calls, _ = historic._draw_call(p)
+    hist = {tgt(d1, c) for c in draw_calls}
+    assert len(hist) == 1, hist
     # cseg_87DA0: mov al, [esi+8]; or al, al; jnz +5; call cseg_28139 (first-round shuffle when contest byte 8 = 0)
     m = _one(rb'\x8a\x46\x08\x0a\xc0\x75\x05\xe8(.{4})', orig, 'cseg_28139 call')
     d1call = m.start() + 7
     draw1 = d1call + 5 + struct.unpack('<i', m.group(1))[0]
     assert tgt(d1, d1call) == draw1, 'cseg_28139 call already hooked'
-    # cseg_28139: mov [A2], offset DIY_competitionStart
-    assert orig[draw1:draw1 + 2] == b'\xc7\x05'
+    assert orig[draw1:draw1 + 2] == b'\xc7\x05'           # cseg_28139: mov [A2], offset DIY_competitionStart
     diystart = p.target(1, draw1 + 6)
-    hist = {tgt(d1, c) for c in draw_calls}
-    assert len(hist) == 1, hist
-    regs = LABELS['sites']['regs']
-    sym = {'w_rec': (1, LABELS['w_rec']), 'C92D55': (1, c92d55), 'CUR': (1, cur), 'KO_PLAY': (1, cw[2][1]),
-           'HIST': (1, hist.pop()), 'A2R': (2, regs['A0R'] + 8), 'A3R': (2, regs['A0R'] + 12),
-           'DRAW1': (1, draw1), 'DIYSTART': diystart,
-           'GROUP_PLAY': (1, cc[2][1]), 'KO_SIM': (1, cw[5][1]), 'GROUP_SIM': (1, cc[5][1])}
-    code, fix = nasmcave.assemble(src, at, sym)
-    lab = nasmcave.labels(src, at, sym)
+    # g_gameType: `mov ax, [x]; or ax, ax; jnz; cmp word [g_gameType], 4; jnz` (cseg_32128 / cseg_3252E / ...)
+    gt = {p.target(1, m.start() + 14) for m in
+          re.finditer(rb'\x66\xa1.{4}\x66\x0b\xc0\x75.\x66\x83\x3d.{4}\x04\x75', orig, re.S)}
+    assert len(gt) == 1, gt
+    # the season end's first call (sacups / arg97 / careerworld.late chain): call X; call cseg_9307A; call cseg_9339D
+    site = [i for i in range(len(orig) - 24) if orig[i] == 0xe8 and orig[i + 5] == 0xe8 and orig[i + 10] == 0xe8
+            and orig[i + 15:i + 18] == b'\x66\xc7\x05' and orig[i + 22:i + 24] == b'\x00\x00'
+            and orig[i + 24:i + 26] == b'\x66\xa1']
+    site = [i for i in site if 0 < tgt(orig, i + 5) - tgt(orig, i) < 0x1000 and 0 < tgt(orig, i + 10) - tgt(orig, i + 5) < 0x1000]
+    assert len(site) == 1, site
+    site = site[0]
+    regs = s['regs']
+    sym = {'HIST': (1, hist.pop()), 'A2R': (2, regs['A0R'] + 8), 'A3R': (2, regs['A0R'] + 12), 'DRAW1': (1, draw1),
+           'DIYSTART': diystart, 'GAMETYPE': gt.pop(), 'SLT': s['slt'], 'WORLD_BYTE': (0, WORLD_BYTE),
+           'CWCCOPY': s['copies'][1][0], 'UEFACOPY': s['copies'][2][0], 'SE_NEXT': (1, tgt(d1, site))}
+    code, fix = nasmcave.assemble(DRAW_ASM, at, sym)
+    lab = nasmcave.labels(DRAW_ASM, at, sym)
     p.put(1, at, code)
     for off, tobj, toff in fix:
         p.add_ptr(1, at + off, tobj, toff)
-    p.put(1, site + 1, struct.pack('<i', lab['w_season_end'] - (site + 5)))
-    p.put(1, play_site + 1, struct.pack('<i', lab['w_cc_play'] - (play_site + 5)))
-    p.put(1, sim_site + 1, struct.pack('<i', lab['w_cc_sim'] - (sim_site + 5)))
     for c in draw_calls:
         p.put(1, c + 1, struct.pack('<i', lab['w_draw'] - (c + 5)))
     p.put(1, d1call + 1, struct.pack('<i', lab['w_draw1'] - (d1call + 5)))
-    print(f'exe: career worlds skip the 1996-97 qualifier simulations: call obj1+{site:#x} -> obj1+{at:#x}')
+    p.put(1, site + 1, struct.pack('<i', lab['w_se'] - (site + 5)))
+    print(f'exe: European cups: no same-country ties in rounds 1-2, code obj1+{at:#x} ({len(code)} B)')
     return (at + len(code) + 3) & ~3

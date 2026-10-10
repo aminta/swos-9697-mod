@@ -603,6 +603,8 @@ def struct_for(p, key, euro, rounds, clubs, size=None):
     h = bytearray(cwc)
     h[0] = d[0]
     h[10] = len(clubs)
+    h[8] = 0            # 0 = first round drawn at random (1 = the list order: the season end fills the lists country
+                        # by country, so a country's UEFA clubs met each other; seen by Daniele Bordes, 2026-10-10)
     h += bytes(rounds) + b'\0'
     h[5] = len(h) - 5
     h[7] = len(h) + 8 - 7

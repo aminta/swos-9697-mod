@@ -49,7 +49,7 @@ CAREER_CAVE = [None]                    # obj1 page of the career world code (pa
 ROUND = {'two_legs': 0x94, 'single': 0x14, 'single_et': 0x54}   # knockout round byte: two legs (away goals),
                                                                  # single match, single match + extra time/penalties
 AU_CUP_SIG = bytes((0xAD, 1, 0x2C, 0x28, 0x50))   # SWOS's Australian cup: layout of a 'national' cup
-COUNTRY = {'ALB': 0, 'AUT': 1, 'BEL': 2, 'BUL': 3, 'CYP': 5, 'TCH': 6, 'DEN': 7, 'FIN': 12, 'FRA': 13, 'GDR': 14,
+COUNTRY = {'ALB': 0, 'AUT': 1, 'BEL': 2, 'BUL': 3, 'CYP': 5, 'TCH': 6, 'DEN': 7, 'ENG': 8, 'FIN': 12, 'FRA': 13, 'GDR': 14,
            'FRG': 14, 'GRE': 15, 'HUN': 16, 'ISL': 17, 'IRL': 18, 'ITA': 20, 'LUX': 23, 'MLT': 24, 'NED': 25,
            'NIR': 26, 'NOR': 27, 'POL': 28, 'POR': 29, 'ROU': 30, 'URS': 31, 'SCO': 33, 'ESP': 35, 'SWE': 36,
            'SUI': 37, 'TUR': 38, 'WAL': 40, 'YUG': 41}   # code -> game country (team file whose clubs give templates)

@@ -313,3 +313,36 @@ both covered by the first test).
   ITALIAN 24f09873): UEFA 1st round mixed, no same-country tie seen. A same-country tie can still come up by chance
   (~1 in 2 seasons for 64 clubs); the real 1984-85 rule kept them apart -> possible follow-up: swap such ties after the
   draw. Saves made before keep [8] = 1 in their W1 cups.
+
+## Europe 1984-85 world (branch world-1984-85, from 2026-10-10)
+
+Data: DB squadre Daniele Bordes (CM01/02 Retro Update Team). Two files, used together:
+- `out_2026_10_10.csv` (tab, UTF-8, 66,297 players): Daniele's SWOS conversion (P V H T C S F 0-7, PriceValue 0-49,
+  role, TeamValue). Accents fixed; club names still cut at 30 chars.
+- `exported_players-extended_V788_000.csv` (';', cp1252, 102 columns): the raw CM01/02 export. Full club names (the
+  30-char prefixes map to one name except 4 Portuguese/Brazilian ones), side ratings (Left/Central/Right, cols 43-45:
+  RB/LB/RW/LW), squad numbers. 99.6 % of the `out` rows join on (name, club[:30]).
+- Gaps: coaches, kits, 1983-84 final tables (club order), national cups, real European entrants -> Wikipedia (session 2).
+
+Scope (Davide 2026-10-10): option "c" = every single-group division the DB has full squads for; the 5 small countries
+(Albania, Cyprus, Iceland, Luxembourg, Malta: generic 'A Premier/Lower Division', clubs by the players' majority
+nationality) as mini leagues; Wales has no league (Wrexham, Cardiff, Swansea play in England; Wrexham's 1984-85 CWC
+place to be handled in season 1). Parallel groups (C1/C2, D2 A/B, Segunda B1/B2, Oberliga, DDR-Liga, Portuguese /
+Polish / Czechoslovak / Yugoslav / Swedish second tiers) left out: the engine has one chain of divisions per country.
+
+Converter (private, internal/world8485/, git-ignored): `mkworld8485.py OUT EXT GAME OUTDIR` -> 32 career packs
+(world 4, TEAM.101-132, league id CB shared, cups CC..EB, England root, start 1984, calendar dates_from 8 for all),
+`short_names.csv` (hand-made 16-char names, wins over the 1996-97 game names and the generated ones),
+`build.py` (test build). Squads 'explicit': 16 per club in record order G RB LB D D RW LW M M A A G D M A + best
+remaining; best = PriceValue then skill sum; RB/LB/RW/LW = the most right/left-sided of the role's top 3; borrowed
+roles take the slot's position; fillers (names from the same nationality's DB names, low skills) when short; 3 key
+skills = the 3 highest; nationality bytes from docs/SWOS/teams.txt; skin by nationality (cosmetic); kit + tactic from
+the 1996-97 record of the same club, else a random club of the same SWOS country. tools/mkseason.py: COUNTRY 'ENG' = 8.
+Session 1 placeholders: club order = TeamValue, national cups generated (top 2^n <= 64 clubs, stronger wins),
+europe_places guessed (Albania cc/cwc 0 so that 31 + holder = 32), first_europe = league order.
+Result: 784 clubs (ENG 22+22+24+24, SCO 10+14+14, FRG 18+20, ITA 16+20, ESP 18+20, NED 18+18, BEL 18+16, AUT/SUI/DEN
+16+16, URS 18+22, HUN 16+20, the others one division), `mkseason check` OK (cups 32/32/64), build IT 9b8f8626
+EN bc9ce7bb FR 4ee86e86 DE b657d9f5. Installed in c/SWOS (ITALIAN.EXE + TEAM.101-132 + WORLD04.TMD; the previous test
+exe 24f09873 and world-3 TEAM.1xx saved in c/W3BAK). First smoke test = engine scale (92-club England, 784 clubs).
+Season 1 note: the engine needs places + 1 = cup size per cup, while in 1984-85 Liverpool was both holder and English
+champion -> exact season-1 entrants need first_europe lists not tied to the places (mkseason relax, to study).

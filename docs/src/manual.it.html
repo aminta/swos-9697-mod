@@ -98,8 +98,9 @@ html{scroll-behavior:smooth}
     <li><a href="#ddr">22 · Stagioni storiche: la DDR 1988-89 (2.6)</a></li>
     <li><a href="#pacchetti">23 · Pacchetti stagione e carriere storiche</a></li>
     <li><a href="#swospp">24 · SWOS++ (2.7)</a></li>
-    <li><a href="#limiti">25 · Limiti e questioni aperte</a></li>
-    <li><a href="#storia">26 · Storico e prossimi passi</a></li>
+    <li><a href="#maglie">25 · Maglie di casa e trasferta (in sviluppo)</a></li>
+    <li><a href="#limiti">26 · Limiti e questioni aperte</a></li>
+    <li><a href="#storia">27 · Storico e prossimi passi</a></li>
   </ol>
 </nav>
 
@@ -600,7 +601,18 @@ assert blk[:2] == b'S2' and sum(blk) % 256 == 0</code></pre>
 </ul>
 
 <!-- 25 -->
-<h2 id="limiti"><span class="n">25</span>Limiti e questioni aperte</h2>
+<h2 id="maglie"><span class="n">25</span>Maglie di casa e trasferta (in sviluppo)</h2>
+<p>Il gioco sceglie le maglie da solo, e molte sfide classiche (Juventus-Milan, Milan-Inter, Inter-Juventus, il Chelsea contro Juventus, Newcastle o Manchester City) non si giocavano mai con le maglie di casa. Analisi del grafo dei colori: Daniele Bordes (DaniSwos), thread del forum SWOS United "Home-Away kit automatic selection". Strumenti: <code>tools/kitsim.py</code> (simulatore), <code>tools/kitcolors.py</code> (patch).</p>
+<ul>
+<li><strong>Come sceglie il gioco.</strong> <code>SetInGameTeamsPrimaryColors</code> dà un punteggio a quattro abbinamenti con <code>GetTeamKitsSimilarityFactor</code>: casa-casa, casa-trasferta, trasferta-casa, trasferta-trasferta (casa = la prima squadra). Usa il primo sotto 11. Il punteggio (fattore di somiglianza) somma 5 o 2 punti per ogni coppia di colori in conflitto (colori delle maglie 5, colore di una maglia contro i pantaloncini dell'altra 2, pantaloncini contro pantaloncini 5); alcune combinazioni di tipi di maglia valgono subito 66–99. Una maglia a righe che resta sotto 11 viene ricontrollata come colore medio (tabella <code>dseg_130942</code>, es. rosso+nero → granata). Se tutti e quattro arrivano a 11 o più, la seconda squadra prende una maglia tinta unita in uno dei suoi colori o, se nessuno va, nel primo colore di <code>teamKitTieBreakColors</code> che funziona; come ultima risorsa rosso contro blu.</li>
+<li><strong>I colori in conflitto</strong> sono due tabelle di 10 word, <code>conflictingBasicTeamColorsTable</code> e <code>conflictingShortsTeamColorsTable</code> (riga = colore, bit n = conflitto con il colore n; colori 0 grigio, 1 bianco, 2 nero, 3 arancio, 4 rosso, 5 blu, 6 granata, 7 azzurro, 8 verde, 9 giallo).</li>
+<li><strong>Le regole della mod.</strong> (1) Il nero non è più in conflitto con blu e verde, il blu non più con l'azzurro: nella palette di gioco (<code>pal.256</code>) sono lontani (nero 0,0,0; blu 0,0,252; verde 0,220,0; azzurro 152,152,252). (2) Pantaloncini dello stesso colore per le due squadre pesano 3 invece di 5. (3) Correzione di un bug: dopo il passaggio dei colori medi l'inizio del ciclo controlla D0/D4, che a quel punto contengono i flag "convertita" e non i tipi di maglia, così l'altra maglia a righe perdeva le righe (l'Inter diventava tutta nera contro il Milan); ora controlla <code>shirtType1</code>/<code>shirtType2</code>. 23 byte per exe (12 nelle tabelle, 2 operandi più i loro fixup, 1 immediato), trovati per contenuto in tutte e quattro le lingue.</li>
+<li><strong>Effetto.</strong> Su tutte le sfide tra squadre della stessa nazione dei TEAM originali il casa-casa passa dal 69,5% al 79,6% (variante C di kitsim). Provato in DOSBox-X: Juventus-Milan, Milan-Inter, Inter-Juventus e Milan-Vicenza con le maglie di casa, tutte ben distinguibili.</li>
+<li><strong>Prossimo passo.</strong> Un pulsante MAGLIE nella schermata pre-partita (AUTO e i quattro abbinamenti), controllato all'inizio di <code>SetInGameTeamsPrimaryColors</code>.</li>
+</ul>
+
+<!-- 26 -->
+<h2 id="limiti"><span class="n">26</span>Limiti e questioni aperte</h2>
 <ul>
 <li><strong>Play-off (2.5).</strong> NSL Finals e NSSL Playoffs sono eliminazioni dirette a 4: i formati veri (NSL: 6 club; entrambi: la "doppia possibilità" per le prime due) richiedono il controllo dei club turno per turno, cioè un contest di tipo 2 nello slot 4, il cui buffer (443h) è troppo piccolo. Rimandati a una versione futura (<code>finals97.py</code>, opzione A). La prima della stagione regolare che perde i play-off mostra ancora una piccola icona in cima al registro della stagione (non ancora individuata nel codice).</li>
 <li><strong>Gironi di C1/C2.</strong> Nel 1996-97 la C1 aveva 2 gironi e la C2 3. Il mod usa un girone unico per serie. L'intera realtà (128 squadre) non entra nel limite di circa 93 squadre per nazione. La C1 su due gironi entrerebbe (92), ma servono promozioni e retrocessioni fra divisioni parallele, verifiche sul limite delle 80 squadre di carriera e sui numeri globali: stima 2–3 sessioni.</li>
@@ -613,8 +625,8 @@ assert blk[:2] == b'S2' and sum(blk) % 256 == 0</code></pre>
 <li><strong>Panchina inglese (dopo la 1.0).</strong> Nella formazione prima della partita le squadre inglesi mostrano 14 giocatori (11 + 3 in panchina). Succede anche con il gioco originale, e <code>TEAM.008</code> ha 16 giocatori per club: è una regola del gioco. Da capire da dove venga il numero di riserve (regole a +3Dh…41h del buffer, valori 5/2/8 impostati da <code>InitCareer</code>) per portarlo a 5.</li>
 </ul>
 
-<!-- 26 -->
-<h2 id="storia"><span class="n">26</span>Storico e prossimi passi</h2>
+<!-- 27 -->
+<h2 id="storia"><span class="n">27</span>Storico e prossimi passi</h2>
 <div class="tbl"><table>
 <thead><tr><th>Sessione</th><th>Contenuto</th><th>Prova</th></tr></thead>
 <tbody>

@@ -98,8 +98,9 @@ html{scroll-behavior:smooth}
     <li><a href="#ddr">22 · Classic seasons: the DDR 1988-89 (2.6)</a></li>
     <li><a href="#pacchetti">23 · Season packs and classic careers</a></li>
     <li><a href="#swospp">24 · SWOS++ (2.7)</a></li>
-    <li><a href="#limiti">25 · Limits and open issues</a></li>
-    <li><a href="#storia">26 · History and next steps</a></li>
+    <li><a href="#maglie">25 · Home and away kits (in development)</a></li>
+    <li><a href="#limiti">26 · Limits and open issues</a></li>
+    <li><a href="#storia">27 · History and next steps</a></li>
   </ol>
 </nav>
 
@@ -600,7 +601,18 @@ assert blk[:2] == b'S2' and sum(blk) % 256 == 0</code></pre>
 </ul>
 
 <!-- 25 -->
-<h2 id="limiti"><span class="n">25</span>Limits and open issues</h2>
+<h2 id="maglie"><span class="n">25</span>Home and away kits (in development)</h2>
+<p>The game picks the kits by itself, and many classic pairings (Juventus-Milan, Milan-Inter, Inter-Juventus, Chelsea against Juventus, Newcastle or Manchester City) never met in home kits. Analysis of the colour graph: Daniele Bordes (DaniSwos), SWOS United forum thread "Home-Away kit automatic selection". Tools: <code>tools/kitsim.py</code> (simulator), <code>tools/kitcolors.py</code> (patch).</p>
+<ul>
+<li><strong>How the game chooses.</strong> <code>SetInGameTeamsPrimaryColors</code> scores four pairings with <code>GetTeamKitsSimilarityFactor</code>: home-home, home-away, away-home, away-away (home = the first team). The first scoring below 11 is used. The score (similarity factor) adds 5 or 2 points for every pair of clashing colours (shirt colours 5, a shirt colour against the other's shorts 2, shorts against shorts 5); some shirt-type combinations score 66–99 straight away. A striped shirt that scores below 11 is checked again as its blended colour (table <code>dseg_130942</code>, e.g. red+black → maroon). If all four score 11 or more, the second team gets a plain kit in one of its own colours or, failing that, in the first colour of <code>teamKitTieBreakColors</code> that works; last resort red against blue.</li>
+<li><strong>Clashing colours</strong> are two 10-word tables, <code>conflictingBasicTeamColorsTable</code> and <code>conflictingShortsTeamColorsTable</code> (row = colour, bit n = clashes with colour n; colours 0 grey, 1 white, 2 black, 3 orange, 4 red, 5 blue, 6 maroon, 7 light blue, 8 green, 9 yellow).</li>
+<li><strong>The mod's rules.</strong> (1) Black no longer clashes with blue or green, blue no longer with light blue: in the in-game palette (<code>pal.256</code>) they are far apart (black 0,0,0; blue 0,0,252; green 0,220,0; light blue 152,152,252). (2) Same-coloured shorts on both teams weigh 3 instead of 5. (3) Bug fix: after the blending pass the loop start tests D0/D4, which then hold "converted" flags, not shirt types, so the other striped kit lost its stripes (Inter became all black against Milan); it now tests <code>shirtType1</code>/<code>shirtType2</code>. 23 bytes per exe (12 in the tables, 2 operands plus their fixups, 1 immediate), found by content in all four languages.</li>
+<li><strong>Effect.</strong> On every same-country pairing of the original TEAM files, home-home goes from 69.5% to 79.6% (kitsim variant C). Playtested in DOSBox-X: Juventus-Milan, Milan-Inter, Inter-Juventus and Milan-Vicenza in home kits, all easy to tell apart.</li>
+<li><strong>Next.</strong> A KITS button in the pre-match screen (AUTO and the four pairings), checked at the start of <code>SetInGameTeamsPrimaryColors</code>.</li>
+</ul>
+
+<!-- 26 -->
+<h2 id="limiti"><span class="n">26</span>Limits and open issues</h2>
 <ul>
 <li><strong>Play-offs (2.5).</strong> NSL Finals and NSSL Playoffs are top-4 knockouts: the real formats (NSL: 6 clubs; both: a "double chance" for the top two) need per-round control of the entrants, i.e. a type-2 contest in slot 4, whose buffer (443h) is too small. Kept for a future version (<code>finals97.py</code>, option A). The regular-season winner that loses the play-off still shows a small icon at the top of its season record (not yet traced in the code).</li>
 <li><strong>C1/C2 groups.</strong> In 1996-97 C1 had 2 groups and C2 had 3. The mod uses one group per series. The full reality (128 teams) does not fit the limit of about 93 teams per nation. C1 with two groups would fit (92), but it needs promotions and relegations between parallel divisions, and checks on the 80-team career limit and on global numbers: estimated 2–3 sessions.</li>
@@ -613,8 +625,8 @@ assert blk[:2] == b'S2' and sum(blk) % 256 == 0</code></pre>
 <li><strong>English bench (after 1.0).</strong> In the pre-match line-up English clubs show 14 players (11 + 3 on the bench). The original game does the same, and <code>TEAM.008</code> has 16 players per club: it is a game rule. To do: find where the bench size comes from (rules at buffer +3Dh…41h, values 5/2/8 set by <code>InitCareer</code>) and raise it to 5.</li>
 </ul>
 
-<!-- 26 -->
-<h2 id="storia"><span class="n">26</span>History and next steps</h2>
+<!-- 27 -->
+<h2 id="storia"><span class="n">27</span>History and next steps</h2>
 <div class="tbl"><table>
 <thead><tr><th>Session</th><th>Content</th><th>Test</th></tr></thead>
 <tbody>

@@ -1131,6 +1131,27 @@ w_draw1:                                ; replaces `call cseg_28139` in cseg_87D
     popad
     ret
 
+w_draw2:                                ; replaces `mov eax, [A2]; add eax, 59h; mov [A0], eax` in cseg_26A78 (cseg_26CC9:
+    pushad                              ; the round's list A2+59h is copied to the ties at A4+2CDh, after a random draw
+    mov esi, [A2R]                      ; or a seeded pairing; the 1996-97 UEFA Cup's round 2 takes the seeded way)
+    call w_dok
+    jz .r
+    mov edi, [A3R]
+    movzx ecx, word [edi + 161h]
+    movzx eax, word [esi + 31h]
+    shr eax, 1
+    cmp ecx, eax                        ; round 2
+    jne .r
+    shr ecx, 1
+    lea edi, [esi + 59h]
+    call w_fixpairs
+.r:
+    popad
+    mov eax, [A2R]
+    add eax, 59h
+    mov [A0R], eax
+    ret
+
 w_se:                                   ; replaces the season end's first call (arg_agg / w_season_end): a 1996-97
     cmp word [GAMETYPE], 4              ; career draws its CWC and UEFA first round at random from the second season
     jne .j                              ; on (contest byte 8 = 0; the first season keeps the real 1996-97 pairings),
@@ -1229,7 +1250,13 @@ def euro_draw(p, at, nasmcave):
     assert len(site) == 1, site
     site = site[0]
     regs = s['regs']
-    sym = {'HIST': (1, hist.pop()), 'A2R': (2, regs['A0R'] + 8), 'A3R': (2, regs['A0R'] + 12), 'DRAW1': (1, draw1),
+    pk = lambda x: re.escape(struct.pack('<I', x))
+    A0 = regs['A0R']
+    m = _one(rb'\xa1' + pk(A0 + 8) + rb'\x83\xc0\x59\xa3' + pk(A0) + rb'\xa1' + pk(A0 + 16) + rb'\x05\xcd\x02\x00\x00\xa3'
+             + pk(A0 + 4), orig, 'cseg_26CC9')
+    copy_site = m.start()
+    assert d1[copy_site:copy_site + 13] == orig[copy_site:copy_site + 13], 'cseg_26CC9 already hooked'
+    sym = {'A0R': (2, A0), 'HIST': (1, hist.pop()), 'A2R': (2, regs['A0R'] + 8), 'A3R': (2, regs['A0R'] + 12), 'DRAW1': (1, draw1),
            'DIYSTART': diystart, 'GAMETYPE': gt.pop(), 'SLT': s['slt'], 'WORLD_BYTE': (0, WORLD_BYTE),
            'CWCCOPY': s['copies'][1][0], 'UEFACOPY': s['copies'][2][0], 'SE_NEXT': (1, tgt(d1, site))}
     code, fix = nasmcave.assemble(DRAW_ASM, at, sym)
@@ -1241,5 +1268,8 @@ def euro_draw(p, at, nasmcave):
         p.put(1, c + 1, struct.pack('<i', lab['w_draw'] - (c + 5)))
     p.put(1, d1call + 1, struct.pack('<i', lab['w_draw1'] - (d1call + 5)))
     p.put(1, site + 1, struct.pack('<i', lab['w_se'] - (site + 5)))
+    p.remove(1, copy_site + 1)                          # mov eax, [A2]
+    p.remove(1, copy_site + 9)                          # mov [A0], eax
+    p.put(1, copy_site, b'\xe8' + struct.pack('<i', lab['w_draw2'] - (copy_site + 5)) + b'\x90' * 8)
     print(f'exe: European cups: no same-country ties in rounds 1-2, code obj1+{at:#x} ({len(code)} B)')
     return (at + len(code) + 3) & ~3

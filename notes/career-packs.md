@@ -352,3 +352,8 @@ both covered by the first test).
 - Open (original engine, noted in M2): cseg_92C4D makes room for the CC holder by replacing a random entry with a
   different ORDINAL (68000 leftover) instead of another country: Juventus (holder, 4th) in, Italian champion out
   (JUVEFIX3). Decide the 1996-97 rule with Davide.
+- Holder rule 1996-97 (Davide: the holder plays in addition, as in 1984-85): the 16-club group CC cannot take a 17th
+  club, so the closest real rule = the holder enters and the place goes to a club of ANOTHER country. cseg_92C4D now
+  compares countries (the two `shr word [D4/D1], 8` NOPed: low byte of the team number = country; it compared ordinals).
+  Applies to CC / CWC / UEFA holders of normal careers (worlds use w_holders). Build IT a0f38ad5 (EN fde8cdca FR
+  70aa73a2 DE 333ec176), untested in game: next season end with a holder that missed its league place.

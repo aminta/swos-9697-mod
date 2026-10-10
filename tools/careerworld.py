@@ -521,6 +521,7 @@ def sites(p):
             c4d = k + 5 + struct.unpack_from('<i', d1, k + 1)[0]
             k += 5
     assert c4d == k, (hex(c4d), hex(k))
+    s['c4d'] = c4d
     m = _one(rb'\xa1' + pk(A0 + 12) + rb'\xa3' + pk(A0) + rb'\xe8(.{4})', d1[c4d:c4d + 0x120], 'cseg_94193 call')
     s['addrec'] = c4d + m.end() + struct.unpack('<i', m.group(1))[0]
     # year: InitCareer `sub byte [seasonPlaying], 1; call InitializeNewSeason`; PrintNameAndSeason cmp 1996,
@@ -1268,6 +1269,16 @@ def euro_draw(p, at, nasmcave):
         p.put(1, c + 1, struct.pack('<i', lab['w_draw'] - (c + 5)))
     p.put(1, d1call + 1, struct.pack('<i', lab['w_draw1'] - (d1call + 5)))
     p.put(1, site + 1, struct.pack('<i', lab['w_se'] - (site + 5)))
+    # cseg_92C4D (a holder not qualified replaces a random list entry): it compares `entry >> 8` (the ordinal, a
+    # 68000 big-endian leftover) with the holder's / the player's; the country is the low byte -> drop both shifts, so
+    # the place goes to a club of ANOTHER country (Juventus holder no longer pushes out the Italian champion)
+    c4d, dregs = s['c4d'], {k: regs['D7R'] - 28 + 4 * k for k in range(8)}
+    for reg in (4, 1):
+        m = _one(rb'\x66\xc1\x2d' + pk(dregs[reg]) + rb'\x08', orig[c4d:c4d + 0x80], f'cseg_92C4D shr D{reg}')
+        site_ = c4d + m.start()
+        assert d1[site_:site_ + 8] == orig[site_:site_ + 8]
+        p.remove(1, site_ + 3)
+        p.put(1, site_, b'\x90' * 8)
     p.remove(1, copy_site + 1)                          # mov eax, [A2]
     p.remove(1, copy_site + 9)                          # mov [A0], eax
     p.put(1, copy_site, b'\xe8' + struct.pack('<i', lab['w_draw2'] - (copy_site + 5)) + b'\x90' * 8)

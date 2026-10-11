@@ -3,7 +3,7 @@
 The game scores how alike two kits look (5 or 2 points for each pair of clashing colours) and uses the first of
 home-home, home-away, away-home, away-away that scores below 11. Many classic pairings never met in home kits
 (Juventus-Milan, Milan-Inter, Inter-Juventus, Chelsea against Juventus, Newcastle or Manchester City).
-Analysis of the colour adjacency graph: Daniele Bordes (DaniSwos), SWOS United forum thread "Home-Away kit
+Analysis of the colour adjacency graph: DaniSwos, SWOS United forum thread "Home-Away kit
 automatic selection". Variants tested on every same-country pairing with tools/kitsim.py (variant 'C').
 
 Changes (all four languages, found by byte content):

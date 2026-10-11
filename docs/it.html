@@ -610,7 +610,7 @@ assert blk[:2] == b'S2' and sum(blk) % 256 == 0</code></pre>
 
 <!-- 25 -->
 <h2 id="maglie"><span class="n">25</span>Maglie di casa e trasferta (3.0)</h2>
-<p>Il gioco sceglie le maglie da solo, e molte sfide classiche (Juventus-Milan, Milan-Inter, Inter-Juventus, il Chelsea contro Juventus, Newcastle o Manchester City) non si giocavano mai con le maglie di casa. Analisi del grafo dei colori: Daniele Bordes (DaniSwos), thread del forum SWOS United "Home-Away kit automatic selection". Strumenti: <code>tools/kitsim.py</code> (simulatore), <code>tools/kitcolors.py</code> (patch).</p>
+<p>Il gioco sceglie le maglie da solo, e molte sfide classiche (Juventus-Milan, Milan-Inter, Inter-Juventus, il Chelsea contro Juventus, Newcastle o Manchester City) non si giocavano mai con le maglie di casa. Analisi del grafo dei colori: DaniSwos, thread del forum SWOS United "Home-Away kit automatic selection". Strumenti: <code>tools/kitsim.py</code> (simulatore), <code>tools/kitcolors.py</code> (patch).</p>
 <ul>
 <li><strong>Come sceglie il gioco.</strong> <code>SetInGameTeamsPrimaryColors</code> dà un punteggio a quattro abbinamenti con <code>GetTeamKitsSimilarityFactor</code>: casa-casa, casa-trasferta, trasferta-casa, trasferta-trasferta (casa = la prima squadra). Usa il primo sotto 11. Il punteggio (fattore di somiglianza) somma 5 o 2 punti per ogni coppia di colori in conflitto (colori delle maglie 5, colore di una maglia contro i pantaloncini dell'altra 2, pantaloncini contro pantaloncini 5); alcune combinazioni di tipi di maglia valgono subito 66–99. Una maglia a righe che resta sotto 11 viene ricontrollata come colore medio (tabella <code>dseg_130942</code>, es. rosso+nero → granata). Se tutti e quattro arrivano a 11 o più, la seconda squadra prende una maglia tinta unita in uno dei suoi colori o, se nessuno va, nel primo colore di <code>teamKitTieBreakColors</code> che funziona; come ultima risorsa rosso contro blu.</li>
 <li><strong>I colori in conflitto</strong> sono due tabelle di 10 word, <code>conflictingBasicTeamColorsTable</code> e <code>conflictingShortsTeamColorsTable</code> (riga = colore, bit n = conflitto con il colore n; colori 0 grigio, 1 bianco, 2 nero, 3 arancio, 4 rosso, 5 blu, 6 granata, 7 azzurro, 8 verde, 9 giallo).</li>
@@ -676,7 +676,7 @@ assert blk[:2] == b'S2' and sum(blk) % 256 == 0</code></pre>
 </tbody></table></div>
 <h3>Roadmap</h3>
 <ol>
-<li><strong>Carriere storiche:</strong> un mondo reale 1984-85 (dati di Daniele Bordes), un nome per ogni mondo nei menu, carriere lunghe.</li>
+<li><strong>Carriere storiche:</strong> un mondo reale 1984-85 (dati di DaniSwos), un nome per ogni mondo nei menu, carriere lunghe.</li>
 <li><strong>Carriere lunghe:</strong> prove di 6–8 stagioni con le novità della 1.1–1.2; rose reali dei club nuovi dalla comunità.</li>
 <li><strong>Europa:</strong> Intertoto, Supercoppa Europea, Champions League 1997-98.</li>
 <li><strong>Arretrati:</strong> panchina a 5 per le squadre inglesi; prova dell'Intercontinentale nello slot 4; C1 a due gironi.</li>

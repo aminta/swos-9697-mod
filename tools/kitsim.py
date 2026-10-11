@@ -7,7 +7,7 @@ ResolveTeamKitColorConflict (ref/swos.asm) register by register, so that
 changes to the two conflict tables (or the threshold) can be tested on all
 pairings of real teams before building an exe.
 
-Analysis of the colour adjacency graph: Daniele Bordes (DaniSwos), SWOS
+Analysis of the colour adjacency graph: DaniSwos, SWOS
 United forum thread "Home-Away kit automatic selection".
 
 Usage:

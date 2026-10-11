@@ -65,7 +65,7 @@ European places (CC / CWC / UEFA), and per world: the European cup formats, the 
 ## Estimate
 
 Study done for the main questions; ~5-8 sessions to a first playable career pack (test world first, then 1984-85
-with Daniele Bordes's data).
+with DaniSwos's data).
 
 ## M1 — test world (2026-10-09): PASSED
 
@@ -194,7 +194,7 @@ table sums to 0 mod 256 (that is why the 'S3' mark at 1847..1849 has a balance b
   the table) and w_holders appends the 3 holders + records. Save: 13 qualifiers + B Dynamo Dresden (CC holder),
   C BFC Dynamo (CWC), D Dynamo Dresden (UEFA), no duplicates. Places = size - 1, root pack fills the holder place in
   season 1. World code moved to a 6th obj1 page (0xA6000, only in builds with worlds; no-world builds unchanged).
-- Next: a real world (1984-85 with Daniele Bordes's data), world name per world (button text), long-career test.
+- Next: a real world (1984-85 with DaniSwos's data), world name per world (button text), long-career test.
 
 ### 'S3' mark missing in world saves -> 1.2 bug, fixed (2026-10-09)
 
@@ -305,7 +305,7 @@ both covered by the first test).
 - Docs: packs/CAREERS(.it).md limits (32 / 32 / 64, 128, places per country), manual sources IT/EN chapter 23 item
   'Euro 128' (artifacts not republished); mkseason check: europe_places at most cc 1, cwc 1, uefa 6.
 
-### First-round draw (2026-10-10, Daniele Bordes's report)
+### First-round draw (2026-10-10, DaniSwos's report)
 
 - Cup struct byte [8] != 0 = first round in list order (DIY [4Fh] = 1), [9] = 0 = later rounds drawn. The season end
   fills the lists country by country, so a world's UEFA Cup had 31 of 32 same-country first-round ties (W128B/C).
@@ -381,8 +381,8 @@ both covered by the first test).
 
 ## Europe 1984-85 world (branch world-1984-85, from 2026-10-10)
 
-Data: DB squadre Daniele Bordes (CM01/02 Retro Update Team). Two files, used together:
-- `out_2026_10_10.csv` (tab, UTF-8, 66,297 players): Daniele's SWOS conversion (P V H T C S F 0-7, PriceValue 0-49,
+Data: DaniSwos's database (CM01/02 Retro Update Team). Two files, used together:
+- `out_2026_10_10.csv` (tab, UTF-8, 66,297 players): DaniSwos's SWOS conversion (P V H T C S F 0-7, PriceValue 0-49,
   role, TeamValue). Accents fixed; club names still cut at 30 chars.
 - `exported_players-extended_V788_000.csv` (';', cp1252, 102 columns): the raw CM01/02 export. Full club names (the
   30-char prefixes map to one name except 4 Portuguese/Brazilian ones), side ratings (Left/Central/Right, cols 43-45:
@@ -435,7 +435,7 @@ champion -> exact season-1 entrants need first_europe lists not tied to the plac
   tables (1983 for calendar-year leagues): same level by position, then relegated from above, then promoted from
   below, clubs in no table by strength (165, mostly promoted clubs; no tables for BEL/AUT/SUI/DEN second divisions).
   Iceland and Malta capped at 10 clubs (previous table's clubs first). 772 clubs. Build IT 9c252bfe EN db943872
-  FR 037adb9e DE 4420d57b (not installed). Still open: real national cups 1984-85, coaches (ask Daniele for a staff
+  FR 037adb9e DE 4420d57b (not installed). Still open: real national cups 1984-85, coaches (ask DaniSwos for a staff
   export of the CM DB), short-name review by Davide.
 - Session 2b (2026-10-11): coaches (it/es/nl/pt/fr.wikipedia season tables + Wikidata P286/P6087 in Aug-Sep 1984,
   coaches.py) -> 222 clubs (ITA/NED complete, ESP/FRG 34 of 38, POR 14, ENG 25 = First Division, few elsewhere).

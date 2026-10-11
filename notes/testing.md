@@ -143,8 +143,9 @@ What changed (tools/swostest.py):
 - Parallel: `run -jN` (own process, run dir and DOSBox-X per scenario, one host core each; builds made once first);
   SWOSTEST_RUNS = another runs dir, so two suites (or sessions in two worktrees) do not share run dirs. The JUVE2F
   fixture is written atomically.
-- Determinism: in the new harness euro_draws took the same 57 steps three times; the old harness on the same build took
-  another path once (injuries -> squad substitutions, > 45 min): wall-clock timing leaked into the game before.
+- Determinism: the new harness ran euro_draws three times with no squad substitution; the old one, same build and
+  verdict (57 steps, same holders, rounds 1-2 ok), met injuries this time (4 squad substitutions, 57 min instead of
+  12.5): wall-clock timing leaks into the match results, in both harnesses; verdicts must not depend on it.
 - Not needed in the end: start-from-save shortcuts (world8485 already fits in 6 min; W8485_FROM still resumes from a
   season-1 save). Risk to watch: squad screenshots under turbo (frame skip) looked current in all runs; the
   substitution loop re-checks each step anyway.

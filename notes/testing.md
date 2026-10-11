@@ -98,6 +98,22 @@ Goal: routine regression checks without driving DOSBox-X by hand. Usage and inte
   CheckControls / InputText at run time. Kit-colors session: full friendly flow passed; in this mode a key can move a
   menu cursor twice (latched + held seen in different frames): use paths that stop at a border.
 
+## Europe 1984-85 world: PASS (2026-10-11)
+
+- Build IT 4c280af8 (world-1984-85 9b9b10b + the 32 world4 packs with a pack.json). Scenario world8485: new career
+  at Liverpool (CARRIERA -> SCEGLI SQUADRA -> CARR. STORICHE -> ENGLAND -> FIRST DIVISION -> LIVERPOOL),
+  results-only loop, new season saved, reload, second season, saved again. No freeze, no trap.
+- W84A.CAR (start of 1985/86): k 128, N 64, C7, W1 ok, world 4, sum 0, CC 32 / CWC 32 / UEFA 64, no dups, W1
+  records 128, bad pairs 0.
+- Season 1985/86: Liverpool last, manager sacked at the season end; the runner takes the first job offer (offers
+  screen rows, the letter's ACCETTA) -> Plymouth Argyle 1986/87. W84B.CAR: k 128, N 73, C7, W1 ok, world 4, sum 0,
+  cups 32/32/64 no dups, W1 records 128, bad pairs 0. Saves kept in internal/swostest/saves/W84A.CAR, W84B.CAR.
+- Learnt on the way: the season-end menu can come without FINISCI STAGIONE (every match played); keys are held 1
+  frame (3 frames triggered SWOS menu auto-repeat in slow menus, a move taken twice); press() checks the selection
+  before firing; invisible menu neighbours are skipped in the same direction; sacked = CONTINUA CARRIERA disabled
+  -> OFFERTE LAVORO -> offer row -> ACCETTA; BPINT 3 is confirmed at start (lost under load = no pauses); the window
+  id helper also finds windows off screen (other Space). A season of an English club: ~25 min.
+
 ## Not done yet / next
 
 - Friendly matches (kit-colors session): reachable with `keys` + screenshots, scenario not written.

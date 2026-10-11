@@ -126,7 +126,7 @@ SCAN.update({ch: sc for row, base in (('1234567890', 0x02), ('qwertyuiop', 0x10)
                                       ('zxcvbnm', 0x2C)) for sc, ch in enumerate(row, base)})
 SCRIPT_MAX = 200                                       # steps a pause can write
 TICKS = 70                                             # timer ticks per s (-timer mode)
-HOLD = 3                                               # GetKey calls a typed key stays held
+HOLD = 1                                               # GetKey calls a typed key stays held (more = menu auto-repeat)
 RATE = 30                                              # GetKey calls per second in the menus (calibrated)
 
 
@@ -314,7 +314,13 @@ class Dosbox:
         """Run until DOSBox-X exits ('exit'), an int 3 breaks into the debugger ('break': a trap or a 'dump' step) or
         the timeout ('timeout' = hang without a trap, or the script did not get where expected)."""
         self.pump(3)
-        self.cmd('BPINT 3')
+        for _ in range(20):                            # under load the debugger may not take input yet
+            pre = len(self.screen)
+            self.cmd('BPINT 3', 1)
+            if b'breakpoint at INT 03' in re.sub(rb'\x1b\[[0-9;?]*[a-zA-Z]|\x1b\(B', b'', self.screen[pre:]):
+                break
+        else:
+            return 'timeout'
         return self.go_on()
 
     def go_on(self):
@@ -485,9 +491,13 @@ class Screen:
                     keys.append(k)
                 return keys[::-1]
             links, skips = self.nav[cur] if cur < len(self.nav) else ((), ())
-            for k, nxt, alt in zip(('left', 'right', 'up', 'down'), links, skips):
+            for d, (k, nxt, alt) in enumerate(zip(('left', 'right', 'up', 'down'), links, skips)):
                 if nxt < len(self.entries) and self.entries[nxt][2] and alt < len(self.entries):
                     nxt = alt                            # invisible neighbour: the game takes the skip entry
+                hops = 0
+                while nxt < len(self.entries) and self.entries[nxt][2] and hops < 8:
+                    nxt = self.nav[nxt][0][d]            # ... or goes on in the same direction
+                    hops += 1
                 if nxt < len(self.entries) and nxt not in prev and not self.entries[nxt][2]:
                     prev[nxt] = (cur, k)
                     todo.append(nxt)
@@ -591,14 +601,21 @@ class Session:
 
 
 def press(s, scr, text, wait=2, exact=True):
-    """Select the visible entry `text` (or entry number) and fire; returns the new Result (None if not reachable)."""
+    """Select the visible entry `text` (or entry number), check on the next pause that it is the selected one (a
+    move can be taken twice), then fire; returns the new Result (None if not reachable)."""
     i = text if isinstance(text, int) else scr.find(text, exact=exact)
     if i is None:
         return None
-    keys = scr.path(i)
-    if keys is None:
-        return None
-    return s.send(' '.join(keys + ['fire']) + f' dump:{wait}')
+    for _ in range(4):
+        if scr.selected == i:
+            return s.send(f'fire dump:{wait}')
+        keys = scr.path(i)
+        if not keys:
+            return None
+        if s.send(' '.join(keys) + ' dump:0.5').outcome != 'dump':
+            return s.result
+        scr = s.screen()
+    return None
 
 
 # Career "results only", the fast loop (Davide): career menu PARTITA -> VIS. RISULTATI -> ESCI -> PARTITA ...
@@ -606,7 +623,7 @@ def press(s, scr, text, wait=2, exact=True):
 # in the first 16: he must be swapped with one beyond the 16th (face of the player -> left, then fire on the name).
 
 
-RED = lambda c: c[0] > 180 and c[1] < 110 and c[2] < 110
+RED = lambda c: c[0] > 180 and c[1] < 90 and c[2] < 90   # red rows (237,76,61), red cards; not skin (255,109,0)
 
 
 def squad_rows(s, scr, tag):
@@ -616,7 +633,11 @@ def squad_rows(s, scr, tag):
     rows = sorted((g[1], i) for i, g in enumerate(scr.geom)
                   if (g[0], g[2], g[3]) == (25, 82, 8) and not scr.entries[i][1])   # drawn rows, not text copies
     path = os.path.join(s.run, 'shots', tag + '.png')
-    s.box.shot(tag)
+    for _ in range(10):                                # the window can be briefly uncapturable (display, Space)
+        s.box.shot(tag)
+        if os.path.exists(path):
+            break
+        time.sleep(3)
     im = Image.open(path).convert('RGB')
     w, h = im.size
     top = h - w * 400 // 640                           # window title bar
@@ -624,7 +645,7 @@ def squad_rows(s, scr, tag):
     out = []
     for y, i in rows:
         icon = sum(RED(px(x, y + dy)) for x in range(2, 12) for dy in range(1, 8))
-        out.append((i, RED(px(100, y + 4)) or icon >= 4))
+        out.append((i, RED(px(100, y + 4)) or icon >= 16))     # faces have ~6 reddish points, red icons 20+
     return out
 
 
@@ -817,6 +838,29 @@ def ndiff(a, b):
 def next_season_save(s, name):
     """Season-end menu -> CONTINUA CARRIERA -> (messages) -> new season's career menu -> ESCI -> SALVA CARRIERA -> name.
     Returns the save path or an error string."""
+    for _ in range(8):                                 # sacked: CONTINUA CARRIERA is disabled -> take a job offer
+        scr = s.screen()
+        i = scr.find('CONTINUA CARRIERA', exact=True)
+        if i is not None and not scr.entries[i][3]:
+            break
+        s.log.append(f'[job] {scr}')
+        if scr.find('ACCETTA', exact=True) is not None:      # the offer letter: accept it
+            press(s, scr, 'ACCETTA', wait=3)
+            continue
+        rows = [j for j, g in enumerate(scr.geom) if g[0] == 8 and g[2] == 304 and not scr.entries[j][2]
+                and not scr.entries[j][3]]             # the offers screen: one selectable row per offer
+        if scr.find('OFF. LAVORO DA') is not None and rows:
+            for _ in range(12):
+                if s.screen().selected in rows:
+                    break
+                s.send('up dump:0.5')
+            s.send('fire dump:2')                      # take the selected offer
+        elif scr.find('OFFERTE LAVORO', exact=True) is not None and i is not None:
+            press(s, scr, 'OFFERTE LAVORO')
+        else:
+            press(s, scr, 'ESCI') or s.send('fire dump:2')
+        if s.result.outcome != 'dump':
+            return f'job offer: {s.result}'
     if press(s, s.screen(), 'CONTINUA CARRIERA', wait=3) is None:
         return f'no CONTINUA CARRIERA on {s.screen()}'
     for _ in range(20):                                # chairman's note, job offers ...: CONTINUA / fire
@@ -936,6 +980,11 @@ def checkw1(path):
     return ok and m is not None and m.group(1) == '0', out
 
 
+def season_over(scr):
+    """FINISCI STAGIONE offered, or already the season-end menu (every match played: no FINISCI STAGIONE)."""
+    return scr.find('FINISCI STAGIONE', exact=True) is not None or any('FINE CAMP' in t for t in scr.texts())
+
+
 @scenario
 def world8485():
     """Europe 1984-85 world (world 4): new career at Liverpool, two seasons (save, reload, save), checkw1 on both"""
@@ -956,10 +1005,11 @@ def world8485():
             else:
                 s.send('down down down down down fire dump:2')
                 s.send('fire dump:3')
-            ok, msg = advance(s, lambda scr: scr.find('FINISCI STAGIONE', exact=True) is not None, 900)
+            ok, msg = advance(s, season_over, 900)
             if not ok:
                 return False, f'season {season}: {msg}'
-            press(s, s.screen(), 'FINISCI STAGIONE', wait=3)
+            if s.screen().find('FINISCI STAGIONE', exact=True) is not None:
+                press(s, s.screen(), 'FINISCI STAGIONE', wait=3)
             if s.result.outcome != 'dump':
                 return False, f'season {season} FINISCI STAGIONE: {s.result}'
             path = next_season_save(s, 'W84' + 'AB'[season - 1])

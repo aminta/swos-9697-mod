@@ -1,0 +1,705 @@
+club,name,role,position,number,nat,skin,pa,ve,he,ta,co,sp,fi,price
+feyenoord,Joop Hiele,G,G,1,23,light,4*,3,5*,3,3,5*,3,34
+feyenoord,Sjaak Troost,D,RB,2,23,light,4,4,5*,5*,4,5*,4,31
+feyenoord,Ivan Nielsen,D,LB,3,7,light,5*,4,5*,6*,4,5,4,33
+feyenoord,Michel van de Korput,D,D,4,23,light,4,4,5*,6*,4,5*,4,32
+feyenoord,Andre Stafleu,D,D,5,23,light,3*,3*,3*,3,3,3,3,21
+feyenoord,Mario Been,M,RW,6,23,light,5*,5*,5*,5,5,5,5,35
+feyenoord,Cees Spaans,M,LW,7,23,light,3,4*,3,4*,3,4*,3,24
+feyenoord,Henk Duut,M,M,8,23,light,2*,2*,2*,2,2,2,2,14
+feyenoord,Peter Barendse,M,M,9,23,light,1*,1*,1*,1,1,1,1,7
+feyenoord,Ruud Gullit,A,A,10,23,light,6*,6*,6*,5,6,6,6,41
+feyenoord,Johnny Rep,A,A,11,23,light,6*,6*,6*,4,6,6,6,40
+feyenoord,Jan Formannoy,G,G,12,23,light,2*,2*,2*,2,2,2,2,24
+feyenoord,Ken Monkou,D,D,13,23,light,3*,2,4*,3*,3,3,2,20
+feyenoord,René Brochard,M,M,14,23,light,1*,1*,1*,1,1,1,1,7
+feyenoord,Peter Houtman,A,A,15,23,light,5*,5*,5,3,5,5,6*,34
+feyenoord,Pétur Pétursson,A,A,16,16,light,4,5*,5*,4,5*,5,5,33
+psv,Hans van Breukelen,G,G,1,23,light,4,5*,5*,5*,4,5,4,36
+psv,Ernie Brandts,D,RB,2,23,light,5*,4,6*,6*,5,5,4,35
+psv,Glenn Hysén,D,LB,3,33,light,5*,4,5*,5*,5,5,4,33
+psv,Huub Stevens,D,D,4,23,light,5*,4,5*,6*,4,5,4,33
+psv,Adick Koot,D,D,5,23,light,4*,4,5*,5*,3,4,3,28
+psv,Raymond Libregts,M,RW,6,23,light,5*,4*,4,5*,3,4,4,29
+psv,Rene Wolffs,M,LW,7,23,light,2*,2*,2*,2,2,2,2,14
+psv,Edward Linskens,M,M,8,23,light,1*,1,1,3*,1,3*,1,11
+psv,Alfons Arts,M,M,9,23,light,2,1,3*,3*,3*,3,3,18
+psv,Hallvar Thoresen,A,A,10,25,light,5*,5*,5*,5,5,5,5,35
+psv,Kenneth Brylle,A,A,11,7,light,4,5*,5*,4,5*,5,5,33
+psv,Pim Doesburg,G,G,12,23,light,4*,3,5*,4*,3,4,3,30
+psv,Bert Verhagen,D,D,13,23,light,2*,2*,2*,2,2,2,2,14
+psv,John Veldman,M,M,14,23,light,1*,1*,1*,1,1,1,1,7
+psv,Jurrie Koolhof,A,A,15,23,light,4,5*,5*,3,4,5*,5,31
+psv,Willy van de Kerkhof,M,RW,16,23,light,6*,6*,5,4,6*,6,5,38
+ajax,Stanley Menzo,G,G,1,23,light,3,4*,4*,3,4*,4,3,24
+ajax,Ron Spelbos,D,RB,2,23,light,5*,4,5*,5*,4,5,4,32
+ajax,Walter Meeuws,D,LB,3,2,light,5*,4,6*,6*,4,5,4,34
+ajax,Edo Ophof,D,D,4,23,light,5*,5*,5*,5,4,5,4,33
+ajax,Sonny Silooy,D,D,5,23,light,4,4,5*,5*,5*,5,4,32
+ajax,Frank Rijkaard,M,RW,6,23,light,6*,6*,6*,6,6,6,5,41
+ajax,Ronald Koeman,M,LW,7,23,light,6*,6*,6*,6,6,5,4,39
+ajax,Aaron Winter,M,M,8,23,light,4*,4*,4*,4,4,4,3,27
+ajax,Etienne Verveer,M,M,9,23,light,3*,3*,3*,3,3,3,3,21
+ajax,Marco van Basten,A,A,10,23,light,5,5,6*,4,6*,5,6*,37
+ajax,John Bosman,A,A,11,23,light,5*,4,5*,4,5*,5,5,33
+ajax,Hans Galje,G,G,12,2,light,2*,2*,2*,2,2,2,2,24
+ajax,Frank Verlaat,D,D,13,23,light,3*,2,3*,3*,3,3,2,19
+ajax,Richard Sneekes,M,M,14,23,light,3*,3*,2*,2,2,2,2,16
+ajax,Rob de Wit,A,A,15,23,light,5*,5*,4,4,5*,5,4,32
+ajax,Felix Gasselich,M,LW,16,1,light,5*,5*,5*,5,5,5,5,35
+haarlem,Edward Metgod,G,G,1,23,light,4*,3,4*,3,3,4*,3,31
+haarlem,Michel Doesburg,D,RB,2,23,light,1*,1*,1*,1,1,1,1,7
+haarlem,Cees Baas,D,LB,3,23,light,2*,2*,2*,2,2,2,2,14
+haarlem,Chris Verkaik,D,D,4,23,light,2*,2*,2*,2,2,2,2,14
+haarlem,Marc Tol,D,D,5,23,light,1*,1*,1*,1,1,1,1,7
+haarlem,Barry van Galen,M,RW,6,23,light,3*,2*,2*,2,2,2,2,15
+haarlem,Marcel Liesdek,M,LW,7,23,light,2*,2*,2*,2,2,2,2,14
+haarlem,Raymond Atteveld,M,M,8,23,light,2,2,3*,3*,2,3*,2,17
+haarlem,Mark Metgod,M,M,9,23,light,2*,2*,2*,2,2,2,2,14
+haarlem,Pieter Keur,A,A,10,23,light,4*,3,4*,4*,4,4,4,27
+haarlem,Frans Jansen,A,A,11,23,light,2*,2*,2*,2,2,2,2,14
+haarlem,Ruud Hesp,G,G,12,23,light,2*,2*,4*,2,2,2,2,24
+haarlem,Gerrie Kleton,D,D,13,23,light,2*,2*,2*,2,2,2,2,14
+haarlem,Rob Meinsma,M,M,14,23,light,2*,2*,2*,2,2,2,2,14
+haarlem,Joop Bockling,A,A,15,23,light,2*,2*,2*,2,2,2,2,14
+haarlem,Luc Nijholt,M,RW,16,23,light,4*,2,4*,5*,2,4,2,23
+spartarotterdam,Bas van Noortwijk,G,G,1,23,light,2*,2*,2*,2,2,2,2,24
+spartarotterdam,Danny Blind,D,RB,2,23,light,5*,5*,5*,5,4,5,4,33
+spartarotterdam,John de Wolf,D,LB,3,23,light,4,5*,5*,5*,4,3,4,30
+spartarotterdam,Henk Fräser,D,D,4,23,light,3,4*,4*,4,5*,4,4,28
+spartarotterdam,Gerard de Nooijer,D,D,5,23,light,3*,2*,2,2,3*,2,2,16
+spartarotterdam,Leen van der Weel,M,RW,6,23,light,2*,2*,2*,2,2,2,2,14
+spartarotterdam,Edwin Olde Riekerink,M,LW,7,23,light,5*,4*,4,5*,4,4,4,30
+spartarotterdam,Jan Olde Riekerink,M,M,8,23,light,3*,3*,3,4*,3,3,2,21
+spartarotterdam,Gerrie Slagboom,M,M,9,23,light,2*,2*,2*,2,2,2,2,14
+spartarotterdam,Dennis de Nooijer,A,A,10,23,light,3*,2,2,2,3*,3*,3,18
+spartarotterdam,Ronald Lengkeek,A,A,11,23,light,2*,2*,2*,2,2,2,2,14
+spartarotterdam,Ed de Goey,G,G,12,23,light,4*,2,4*,2,3,4*,2,22
+spartarotterdam,Rene Coufreur,D,D,13,23,light,2*,2*,2*,2,2,2,2,14
+spartarotterdam,Robin Schmidt,M,M,14,23,light,2*,2*,2*,2,2,2,2,14
+spartarotterdam,Victor Tebbens,A,A,15,23,light,2*,2*,2*,2,2,2,2,14
+spartarotterdam,Rene Eijer,M,LW,16,23,light,2*,2*,2*,2,2,2,2,14
+az67,Eddy Treijtel,G,G,1,23,light,4*,3,4*,3,4*,4,3,30
+az67,Fred Patrick,D,RB,2,75,dark,2*,2*,2*,2,2,2,2,14
+az67,Michael Vonk,D,LB,3,23,light,3*,2,3*,3*,2,3,2,18
+az67,Paul Nortan,D,D,4,23,light,5*,4,5*,3,5*,4,3,29
+az67,Fred Filippo,D,D,5,23,light,2*,2*,2*,2,2,2,2,14
+az67,Ype Anema,M,RW,6,23,light,2*,2*,2*,2,2,2,2,14
+az67,Gijs Steinmann,M,LW,7,23,light,4*,2,4*,4*,2,4,4,24
+az67,Maurice van Ham,M,M,8,23,light,4*,3,4*,4*,2,4,4,25
+az67,Frenkie Schinkels,M,M,9,1,light,2*,2*,2*,2,2,2,2,14
+az67,Kees Kist,A,A,10,23,light,5*,5*,5*,3,5,5,5,33
+az67,Kees Tol,A,A,11,23,light,5*,4,5*,3,5*,5,5,32
+az67,Hans de Koning,G,G,12,23,light,2*,2*,2*,2,2,2,2,22
+az67,Martin Haar,D,D,13,23,light,2*,2*,2*,2,2,2,2,14
+az67,Marc Castelijn,M,M,14,23,light,2*,2*,2*,2,2,2,2,14
+az67,David Loggie,A,A,15,8,light,4,5*,4,4,4,5*,5*,31
+az67,Jan Gaasbeek,M,RW,16,23,light,5*,5*,5*,4,5,5,5,34
+groningen,Harry Schellekens,G,G,1,23,light,2*,2*,2*,2,2,2,2,24
+groningen,Johan de Kock,D,RB,25,23,light,4,5*,5*,5*,4,4,4,31
+groningen,Wally Waalderbos,D,LB,2,23,light,2*,2*,2*,2,2,2,2,14
+groningen,Ale van der Meer,D,D,3,23,light,2*,2*,2*,2,2,2,2,14
+groningen,Karel Hiddink,D,D,4,23,light,2*,2*,2*,2,2,2,2,14
+groningen,Erwin Koeman,M,RW,5,23,light,5*,5*,5*,5,5,5,4,34
+groningen,Jan van Dijk,M,LW,6,23,light,5*,4*,4,5*,4,4,4,30
+groningen,Paul Mason,M,M,7,8,light,5*,4*,4*,4,4,4,4,29
+groningen,Jan Brouwer,M,M,8,23,light,2*,2*,2*,2,2,2,2,14
+groningen,Pieter Huistra,A,A,9,23,light,4*,4*,4,4,5*,4,4,29
+groningen,Rob McDonald,A,A,10,8,light,4*,4*,4,4,4,5*,4,29
+groningen,Piet Beuzenberg,G,G,11,23,light,2*,2*,2*,2,2,2,2,24
+groningen,Marco Waslander,D,D,12,23,light,1*,1*,1*,1,1,1,1,7
+groningen,Eddy Bosman,M,M,13,23,light,2*,2*,2*,2,2,2,2,14
+groningen,Fandi Ahmad,A,A,14,140,light,4*,4*,4*,3,4,4,4,27
+groningen,Adrie van Tiggelen,D,LB,15,23,light,5*,4,5*,5*,5,4,4,32
+utrecht,Jan Willem van Ede,G,G,1,23,light,2*,2*,2*,2,2,2,2,24
+utrecht,Wim Rijsbergen,D,RB,2,23,light,5*,4,5*,5*,5,5,4,33
+utrecht,Ton du Chatinier,D,LB,3,23,light,2*,2*,2*,2,2,2,2,14
+utrecht,Gerrit Plomp,D,D,4,23,light,2*,2*,2*,2,2,2,2,14
+utrecht,Jan van Halst,D,D,5,23,light,1*,1*,1*,1,1,1,1,7
+utrecht,Jan Wouters,M,RW,6,23,light,5*,5*,4,5*,4,4,4,31
+utrecht,Frits Goodings,M,LW,7,75,dark,2*,2*,2*,2,2,2,2,14
+utrecht,Rob Alflen,M,M,8,23,light,2,3*,2,3*,3*,3,2,18
+utrecht,Edwin Godee,M,M,9,23,light,2*,2*,2*,2,2,2,2,14
+utrecht,John van Loen,A,A,10,23,light,5*,5*,5*,4,5,5,5,34
+utrecht,Michel Beukers,A,A,11,23,light,2*,2*,5*,2,2,2,2,17
+utrecht,Peter Brunings,G,G,12,23,light,3*,2,4*,2,2,3*,2,19
+utrecht,Jan Lecker,D,D,13,23,light,2*,2*,2*,2,2,2,2,14
+utrecht,Gery Kruys,M,M,14,23,light,2*,2*,2*,2,2,2,2,14
+utrecht,Etienne Kelders,A,A,15,23,light,2*,2*,2,2,2,3*,2,15
+utrecht,Edu Nandlal,D,LB,16,23,light,2,2,3*,4*,2,3*,2,18
+rodajc,Jos Smits,G,G,1,23,light,3*,3*,3*,3,3,3,3,26
+rodajc,Harry Klein,D,RB,2,23,light,2*,2*,2*,2,2,2,2,14
+rodajc,Marco Grassi,D,LB,3,23,light,2*,2*,2*,2,2,2,2,14
+rodajc,Leo Degens,D,D,4,23,light,2*,2*,2*,2,2,2,2,14
+rodajc,Roger Polman,D,D,5,23,light,1*,1*,1*,1,1,1,1,7
+rodajc,Jos Daerden,M,RW,6,2,light,5*,5*,5*,4,5,5,4,33
+rodajc,Jimmy Calderwood,M,LW,7,31,light,4*,4*,3,3,4*,4,3,25
+rodajc,Eugene Marijnissen,M,M,8,23,light,2*,2*,2*,2,2,2,2,14
+rodajc,Mike Petersen,M,M,9,148,light,2*,2*,2*,2,2,2,2,14
+rodajc,Remco Boere,A,A,10,23,light,2*,2*,2*,2,2,2,2,14
+rodajc,Chris Guthrie,A,A,11,8,light,2*,2*,2*,2,2,2,2,14
+rodajc,Jo Dacier,G,G,12,23,light,2*,2*,2*,2,2,2,2,22
+rodajc,Edwin Gorter,D,D,13,23,light,2*,2*,2*,2,2,2,2,14
+rodajc,Pierre Blättler,M,M,14,23,light,1*,1*,1*,1,1,1,1,7
+rodajc,Michael van der Linden,A,A,15,23,light,1*,1*,1*,1,1,1,1,7
+rodajc,Martin van Geel,M,LW,16,23,light,5*,5*,5*,5,5,4,5,34
+denbosch,Jan van Grinsven,G,G,1,23,light,3,3,4*,4*,3,4*,3,26
+denbosch,Fred van der Hoorn,D,RB,2,23,light,3,3,4*,4*,3,4*,4,25
+denbosch,Jos van Herpen,D,LB,3,23,light,4*,3,4*,4*,3,4,3,25
+denbosch,Cor Adriaanse,D,D,4,23,light,2*,2*,2*,2,2,2,2,14
+denbosch,Theo de Jong,D,D,5,23,light,5*,5*,4,4,5*,5,4,32
+denbosch,Wim van der Horst,M,RW,6,23,light,2*,2*,2*,2,2,2,2,14
+denbosch,Arnold Scholten,M,LW,7,23,light,2*,2*,2*,2,2,2,2,14
+denbosch,John van Nielen,M,M,8,23,light,2*,2*,2*,2,2,2,2,14
+denbosch,Frans Matenhoru,M,M,9,23,light,1*,1*,1*,1,1,1,1,7
+denbosch,Hans Gillhaus,A,A,10,23,light,4,4,5*,4,5*,5*,5,32
+denbosch,Koen Burg,A,A,11,23,light,3*,2,2,3*,3*,3,2,18
+denbosch,Guido van de Kamp,G,G,12,23,light,2*,2*,2*,2,2,2,2,22
+denbosch,Roger Schouwenaar,D,D,13,23,light,2*,2*,2*,2,2,2,2,14
+denbosch,Peter van der Waart,M,M,14,23,light,2*,2*,2*,2,2,2,2,14
+denbosch,Jack de Gier,A,A,15,23,light,1*,1*,1*,1,1,1,1,7
+denbosch,Gerard Aichorn,D,LB,16,1,light,2*,2*,2*,2,2,2,2,14
+goaheadeagles,Jan Jongbloed,G,G,1,23,light,3,3,4*,3,4*,4*,3,29
+goaheadeagles,Hans Witteveen,D,RB,2,23,light,2*,2*,2*,2,2,2,2,14
+goaheadeagles,Johnny Oude Wesselink,D,LB,3,23,light,2*,2*,2*,2,2,2,2,14
+goaheadeagles,Arold Back,D,D,4,23,light,2*,2*,2*,2,2,2,2,14
+goaheadeagles,Ronald Dekker,D,D,5,23,light,2*,2*,2*,2,2,2,2,14
+goaheadeagles,Hans Voskamp,M,RW,6,23,light,2*,2*,2*,2,2,2,2,14
+goaheadeagles,Henk Veldmate,M,LW,7,23,light,2*,2*,2*,2,2,2,2,14
+goaheadeagles,Michel Boerebach,M,M,8,23,light,4*,5*,4,5*,4,4,4,30
+goaheadeagles,Marthijn Pothoven,M,M,9,23,light,1*,1*,1*,1,1,1,1,7
+goaheadeagles,René Eijkelkamp,A,A,18,23,light,5*,5*,5*,4,5,5,5,34
+goaheadeagles,Mike Small,A,A,10,8,light,4*,3,4*,4,3,5*,4,27
+goaheadeagles,Raimond van der Gouw,G,G,11,23,light,3,3,4*,4*,4*,3,2,20
+goaheadeagles,Kobus Nijzing,D,D,12,23,light,2*,2*,2*,2,2,2,2,14
+goaheadeagles,Robert Maaskant,M,M,13,23,light,1*,1*,1*,1,1,1,1,7
+goaheadeagles,Harry Decheiver,A,A,14,23,light,2,1,3*,1,3*,3*,3,16
+goaheadeagles,Rene Smit,M,LW,15,23,light,2*,2*,2*,2,2,2,2,14
+fortunasittard,Chris Korver,G,G,1,23,light,2*,2*,2*,2,2,2,2,22
+fortunasittard,Loek Frijns,D,RB,2,23,light,2*,2*,2*,2,2,2,2,14
+fortunasittard,Jo Bux,D,LB,3,23,light,2*,2*,2*,2,2,2,2,14
+fortunasittard,Mario Eleveld,D,D,4,23,light,2*,2*,2*,2,2,2,2,14
+fortunasittard,Jos Mordang,D,D,5,23,light,2*,2*,2*,2,2,2,2,14
+fortunasittard,Anne Evers,M,RW,6,23,light,2*,2*,2*,2,2,2,2,14
+fortunasittard,Chris Dekker,M,LW,7,23,light,5*,4,4,5*,4,5*,4,31
+fortunasittard,Arthur Hoyer,M,M,8,23,light,2*,2*,2*,2,2,2,2,14
+fortunasittard,Ger Schuman,M,M,9,23,light,1*,1*,1*,1,1,1,1,7
+fortunasittard,Roger Houtackers,A,A,10,23,light,2*,2*,2*,2,2,2,2,14
+fortunasittard,Wout Holverda,A,A,11,23,light,2*,2*,2*,2,2,2,2,14
+fortunasittard,Andre van Gerven,G,G,12,23,light,2*,2*,2*,2,2,2,2,22
+fortunasittard,Richard de Vries,D,D,13,23,light,1*,1*,1*,1,1,1,1,7
+fortunasittard,Richard Gerringa,M,M,14,23,light,1*,1*,1*,1,1,1,1,7
+fortunasittard,Rob Philippen,A,A,15,23,light,2*,2*,2*,2,2,2,2,14
+fortunasittard,Wilbert Suvrijn,M,RW,16,23,light,4,4,5*,5*,4,5*,4,31
+excelsior,Ton Kooiman,G,G,1,23,light,2*,2*,2*,2,2,2,2,19
+excelsior,Steve Wasiman,D,RB,2,23,light,2*,2*,2*,2,2,2,2,14
+excelsior,Graeme Rutjes,D,LB,3,23,light,4,4,5*,5*,5*,5,5,33
+excelsior,Ton van der Padt,D,D,4,23,light,2*,2*,2*,2,2,2,2,14
+excelsior,Rene van Eck,D,D,5,23,light,2*,2*,2*,2,2,2,2,14
+excelsior,Nico Jalink,M,RW,6,23,light,4*,4,5*,5*,4,4,4,30
+excelsior,Jeroen Boere,M,LW,7,23,light,3*,3*,4*,3,3,3,3,22
+excelsior,Frans Struis,M,M,8,23,light,2*,2*,2*,2,2,2,2,14
+excelsior,Peter Pijpers,M,M,9,23,light,2*,2*,2*,2,2,2,2,14
+excelsior,Bart Latuheru,A,A,10,23,light,2*,2*,2*,2,2,2,2,14
+excelsior,Karl Heimir Karlsson,A,A,11,16,light,2*,2*,2*,2,2,2,2,14
+excelsior,Jan Stroomberg,G,G,12,23,light,2*,2*,2*,2,2,2,2,19
+excelsior,Ad Bijl,D,D,13,23,light,2*,2*,2*,2,2,2,2,14
+excelsior,Gerard Meijer,M,M,14,23,light,1*,1*,1*,1,1,1,1,7
+excelsior,Henk van Goozen,A,A,15,23,light,2*,2*,2*,2,2,2,2,14
+excelsior,Andre Wasiman,D,RB,16,23,light,4*,4*,4,4,5*,4,3,28
+zwolle,Piet Schrijvers,G,G,1,23,light,4,5*,5*,4,5*,5,3,31
+zwolle,Gerard van Moorst,D,RB,2,23,light,2*,2*,2*,2,2,2,2,14
+zwolle,Frank Veldwijk,D,LB,3,23,light,2*,2*,2*,2,2,2,2,14
+zwolle,Wim Volkerink,D,D,4,23,light,2*,2*,2*,2,2,2,2,14
+zwolle,Alex Kamstra,D,D,5,23,light,2*,2*,2*,2,2,2,2,14
+zwolle,Jurgen Muller,M,RW,6,13,light,2*,2*,2*,2,2,2,2,14
+zwolle,Dean Wilkins,M,LW,7,23,light,2*,2*,2*,2,2,2,2,14
+zwolle,Aziz Doufikar,M,M,8,23,light,5*,4*,4,4,4,4,5*,30
+zwolle,Jan Mulder,M,M,9,23,light,2*,2*,2*,2,2,2,2,14
+zwolle,Cees van Kooten,A,A,10,23,light,4,5*,5*,3,4,4,5*,30
+zwolle,Ron Willems,A,A,11,23,light,4*,4*,4*,3,4,4,4,27
+zwolle,Ad Raven,G,G,12,23,light,2*,2*,2*,2,2,2,2,19
+zwolle,Gert-Peter de Gunst,D,D,13,23,light,1*,1*,1*,1,1,1,1,7
+zwolle,Erwin Lichtenberg,M,M,14,23,light,2*,2*,2*,2,2,2,2,14
+zwolle,Jan Groeneweg,A,A,15,23,light,2*,2*,2*,2,2,2,2,14
+zwolle,Gerrit Visscher,M,LW,16,23,light,2*,2*,2*,2,2,2,2,14
+volendam,Frans Hoek,G,G,1,23,light,3*,2,4*,2,3*,3,2,19
+volendam,Kees Guijt,D,RB,2,23,light,2*,2*,2*,2,2,2,2,14
+volendam,Jan Schokker,D,LB,3,23,light,2*,2*,2*,2,2,2,2,14
+volendam,Rene Kraay,D,D,4,23,light,2*,2*,2*,2,2,2,2,14
+volendam,Jack Klepper,D,D,5,23,light,2*,2*,2*,2,2,2,2,14
+volendam,Gerrie Mühren,M,RW,6,23,light,4*,4*,3,3,4*,4,4,26
+volendam,Jaap Jonk,M,LW,7,23,light,2*,2*,2*,2,2,2,2,14
+volendam,Wim Jonk,M,M,8,23,light,4*,4*,3,4,5*,4,4,28
+volendam,Dick Helling,M,M,9,23,light,2*,2*,2*,2,2,2,2,14
+volendam,Hennie Meijer,A,A,10,23,light,3,2,3,4*,4*,3,4*,23
+volendam,Ton Blanker,A,A,11,23,light,2*,2*,2*,2,2,2,2,14
+volendam,Jan Klouwer,G,G,12,23,light,2*,2*,2*,2,2,2,2,19
+volendam,Robert Molenaar,D,D,13,23,light,2*,2*,3*,2,2,2,1,14
+volendam,Gert Aandewiel,M,M,14,23,light,1*,1*,1*,1,1,1,1,7
+volendam,Jack Kemper,A,A,15,23,light,2*,2*,2*,2,2,2,2,14
+volendam,Ab Plugboer,M,LW,16,23,light,4,4,4,5*,5*,5*,4,31
+mvv,Chrit Baetsen,G,G,1,23,light,2*,2*,2*,2,2,2,2,22
+mvv,Rob Delahaye,D,RB,2,23,light,4*,3,5*,5*,3,4,4,28
+mvv,Reginald Thal,D,LB,3,23,light,2*,2*,2*,2,2,2,2,14
+mvv,Berry Penders,D,D,4,23,light,2*,2*,2*,2,2,2,2,14
+mvv,Jean Maas,D,D,5,23,light,2*,2*,2*,2,2,2,2,14
+mvv,Dave Bennett,M,RW,6,8,light,3*,3*,3*,3,3,3,3,21
+mvv,Eric van der Luer,M,LW,7,23,light,2*,2*,2*,2,2,2,2,14
+mvv,Huub Driessen,M,M,8,23,light,2*,2*,2*,2,2,2,2,14
+mvv,Bert van der Poppe,M,M,9,23,light,2*,2*,2*,2,2,2,2,14
+mvv,Pierre Vermeulen,A,A,10,23,light,5*,5*,4,5*,4,5,4,32
+mvv,Dick Nanninga,A,A,11,23,light,4,5*,6*,4,4,4,5*,32
+mvv,Marcel Spa,G,G,12,23,light,2*,2*,2*,2,2,2,2,17
+mvv,Johan Dijkstra,D,D,13,23,light,2*,2*,2*,2,2,2,2,14
+mvv,Erwin Vanderbroeck,M,M,14,23,light,1*,1*,1*,1,1,1,1,7
+mvv,Bert van Marwijk,A,A,15,23,light,5*,5*,4,4,4,5*,4,31
+mvv,Eric Gerets,D,RB,16,2,light,5*,6*,5,6*,5,5,5,37
+twente,Theo Snelders,G,G,25,23,light,4,5*,5*,5*,4,4,4,29
+twente,André Paus,D,RB,1,23,light,3*,3*,4*,3,3,3,3,22
+twente,Fred Rutten,D,LB,2,23,light,2*,2*,2*,2,2,2,2,14
+twente,Billy Ashcroft,D,D,3,8,light,4,4,5*,5*,4,5*,4,31
+twente,Rob Reekers,D,D,4,23,light,3,2,4*,4*,2,4*,2,21
+twente,Theo ten Caat,M,RW,5,23,light,4*,4*,4*,4,4,4,4,28
+twente,Marco Roelofsen,M,LW,6,23,light,2,3*,2,2,3*,2,3*,17
+twente,Dennis Brilhuis,M,M,7,23,light,1*,1*,1*,1,1,1,1,7
+twente,Erik ten Hag,M,M,8,23,light,1*,1*,1*,1,1,1,1,7
+twente,Jan Sorensen,A,A,9,7,light,5*,5*,4,3,5*,5,5,32
+twente,Willy Carbo,A,A,10,23,light,2*,2*,2*,2,2,2,2,14
+twente,Marcel Fleer,G,G,11,23,light,2*,2*,2*,2,2,2,2,22
+twente,Gerbie Olde Scheper,D,D,12,23,light,1*,1*,1*,1,1,1,1,7
+twente,Jerry Cooke,M,M,13,23,light,2*,2*,2*,2,2,2,2,14
+twente,Evert Bleuming,A,A,14,23,light,2*,2*,2*,2,2,2,2,14
+twente,Michael Birkedal,M,RW,15,7,light,3*,3*,3*,3,3,3,3,21
+nac,Christol van Campenhout,G,G,1,23,light,2*,2*,2*,2,2,2,2,19
+nac,Ad Krijnen,D,RB,2,23,light,2*,2*,2*,2,2,2,2,14
+nac,Kees Zwamborn,D,LB,3,23,light,2*,2*,2*,2,2,2,2,14
+nac,Willy Janssen,D,D,4,23,light,2*,2*,2*,2,2,2,2,14
+nac,Danny Schrijvers,D,D,5,23,light,2*,2*,2*,2,2,2,2,14
+nac,Edy de Schepper,M,RW,6,23,light,2*,2*,2*,2,2,2,2,14
+nac,Johan van Laar,M,LW,7,23,light,2*,2*,2*,2,2,2,2,14
+nac,Peter Coumans,M,M,8,23,light,1*,1*,1*,1,1,1,1,7
+nac,Huub Baardemans,M,M,9,23,light,1*,1*,1*,1,1,1,1,7
+nac,Ton Cornelissen,A,A,10,23,light,2*,2*,2*,2,2,2,2,14
+nac,Joost Bedert,A,A,11,23,light,2*,2*,2*,2,2,2,2,14
+nac,Frits von Seydlitz Kurzbach,G,G,12,23,light,2*,2*,2*,2,2,2,2,19
+nac,Guus van der Borgt,D,D,13,23,light,2*,2*,2*,2,2,2,2,14
+nac,Geert Meijer,M,M,14,23,light,2*,2*,2*,2,2,2,2,14
+nac,John Meinsma,A,A,15,23,light,2*,2*,0,0,1,2*,0,3
+nac,Meindert Dijkstra,D,RB,16,23,light,3*,3*,3,4*,2,3,2,20
+cambuur,Sierd van der Berg,G,G,1,23,light,1*,1*,1*,1,1,1,1,7
+cambuur,Johan Groote,D,RB,2,23,light,1*,1*,1*,1,1,1,1,7
+cambuur,Gerrie Schouwenaar,D,LB,3,23,light,2*,2*,2*,2,2,2,2,14
+cambuur,Gerard de Haan,D,D,4,23,light,1*,1*,1*,1,1,1,1,7
+cambuur,Andy King,D,D,5,8,light,5*,4,4,5*,5*,5,4,32
+cambuur,Len Cantello,M,RW,6,8,light,3*,3*,3*,3,3,3,3,21
+cambuur,Willem van der Ark,M,LW,7,23,light,4*,3,4*,3,3,4*,4,25
+cambuur,Mark Payne,M,M,8,8,light,3*,3*,3*,3,3,3,3,21
+cambuur,Koko Hoekstra,M,M,9,23,light,2*,2*,2*,2,2,2,2,14
+cambuur,Carlo de Leeuw,A,A,10,23,light,1*,1*,1*,1,1,1,1,7
+cambuur,Jaap Bos,A,A,11,23,light,1*,1*,1*,1,1,1,1,7
+cambuur,Oscar Zijlstra,G,G,12,23,light,1*,1*,1*,1,1,1,1,7
+cambuur,Douwe Huitema,D,D,13,23,light,1*,1*,1*,1,1,1,1,7
+cambuur,Jos Peltzer,M,M,14,23,light,1*,1*,1*,1,1,1,1,7
+cambuur,Roland Kuitert,A,A,15,23,light,1*,1*,1*,1,1,1,1,7
+cambuur,Hans Erkelens,D,LB,16,23,light,1*,1*,1*,1,1,1,1,7
+telstar,Siem de Graaf,G,G,1,23,light,1*,1*,1*,1,1,1,1,12
+telstar,Jerry de Jong,D,RB,2,23,light,4*,3,4*,4*,4,4,4,27
+telstar,Arnold Oosterveer,D,LB,3,23,light,3*,3,3,4*,3,4*,1,21
+telstar,Madrian Karbodin,D,D,4,23,light,1*,1*,1*,1,1,1,1,7
+telstar,Koos Kuut,D,D,5,23,light,1*,1*,1*,1,1,1,1,7
+telstar,Cees Schoo,M,RW,6,23,light,1*,1*,1*,1,1,1,1,7
+telstar,René Aubrun,M,LW,7,23,light,1*,1*,1*,1,1,1,1,7
+telstar,Radjin de Haan,M,M,8,75,dark,1*,1*,1*,1,1,1,1,7
+telstar,Marco Achmad,M,M,9,23,light,1*,1*,1*,1,1,1,1,7
+telstar,Jelle Visser,A,A,10,23,light,1*,1*,1*,1,1,1,1,7
+telstar,Manfred Nan,A,A,11,23,light,1*,1*,1*,1,1,1,1,7
+telstar,Jaap Bloem,G,G,12,23,light,1*,1*,1*,1,1,1,1,12
+telstar,John Weijers,D,D,13,23,light,1*,1*,1*,1,1,1,1,7
+telstar,Bert Nijdam,M,M,14,23,light,1*,1*,1*,1,1,1,1,7
+telstar,Ben Haverkort,A,A,15,23,light,1*,1*,1*,1,1,1,1,7
+telstar,Matthieu Niesten,M,LW,16,23,light,1*,1*,1*,1,1,1,1,7
+degraafschap,Ejo Elburg,G,G,1,23,light,2*,2*,2*,2,2,2,2,17
+degraafschap,Hans Loovens,D,RB,2,23,light,2*,2*,2*,2,2,2,2,14
+degraafschap,Jan Vreman,D,LB,3,23,light,2*,2*,2*,2,2,2,2,14
+degraafschap,Roberto Straal,D,D,4,75,dark,2*,2*,2*,2,2,2,2,14
+degraafschap,Jos van Eck,D,D,5,23,light,1*,1*,1*,1,1,1,1,7
+degraafschap,Frank Lukassen,M,RW,6,23,light,1*,1*,1*,1,1,1,1,7
+degraafschap,Ton Wildenbeest,M,LW,7,23,light,2*,2*,2*,2,2,2,2,14
+degraafschap,John Trentelman,M,M,8,23,light,1*,1*,1*,1,1,1,1,7
+degraafschap,Foeke Booy,M,M,9,23,light,4*,4,5*,4,4,4,5*,30
+degraafschap,Hans Galgenbeld,A,A,10,23,light,2*,2*,2*,2,2,2,2,14
+degraafschap,Tony McNulty,A,A,11,8,light,2*,2*,2*,2,2,2,2,14
+degraafschap,Wilfried Brookhuis,G,G,12,23,light,1*,1*,1*,1,1,1,1,9
+degraafschap,John Leeuwerik,D,D,13,23,light,1*,1*,1*,1,1,1,1,7
+degraafschap,Ton Rosendaal,M,M,14,23,light,1*,1*,1*,1,1,1,1,7
+degraafschap,Jan Brouns,A,A,15,23,light,1*,0*,0,0,0,1*,0,0
+degraafschap,Edward Sturing,D,RB,16,23,light,5*,4,5*,5*,5,5,5,34
+fcdenhaag,Dido Havenaar,G,G,1,23,light,3*,2,4*,2,2,3*,2,19
+fcdenhaag,Joop Lankhaar,D,RB,2,23,light,3,2,4*,4*,3,4*,2,22
+fcdenhaag,Marco Gentile,D,LB,3,23,light,1*,1*,1*,1,1,1,1,7
+fcdenhaag,Ko Pot,D,D,4,23,light,1*,1*,1*,1,1,1,1,7
+fcdenhaag,Marco de Vroedt,D,D,5,23,light,1*,1*,1*,1,1,1,1,7
+fcdenhaag,Alfons Groenendijk,M,RW,6,23,light,5*,5*,4*,4,4,4,3,29
+fcdenhaag,Guido Pen,M,LW,7,23,light,2*,2*,2*,2,2,2,2,14
+fcdenhaag,Lex Schoenmaker,M,M,8,23,light,1*,1*,1*,1,1,1,1,7
+fcdenhaag,Andro Knel,M,M,9,75,dark,1*,1*,1*,1,1,1,1,7
+fcdenhaag,Bram Rontberg,A,A,10,23,light,2,2,4*,2,2,4*,5*,21
+fcdenhaag,Piet Groen,A,A,11,23,light,2*,2*,2*,2,2,2,2,14
+fcdenhaag,René Stam,G,G,12,23,light,1*,1,3*,1,1,3*,1,9
+fcdenhaag,Marcel Tolsma,D,D,13,23,light,1*,1*,1*,1,1,1,1,7
+fcdenhaag,John Blok,M,M,14,23,light,1*,1*,1*,1,1,1,1,7
+fcdenhaag,Jeroen Wotte,A,A,15,23,light,2*,2*,2*,2,2,2,2,14
+fcdenhaag,Cees Tempelaar,D,RB,16,23,light,2*,2*,2*,2,2,2,2,14
+fcwageningen,Peter Heemskerk,G,G,1,23,light,1*,1*,1*,1,1,1,1,4
+fcwageningen,Evert Radstaat,D,RB,2,23,light,2*,2*,2*,2,2,2,2,14
+fcwageningen,Cees Lok,D,LB,3,23,light,1*,1*,1*,1,1,1,1,7
+fcwageningen,Peter van der Leij,D,D,4,23,light,1*,1*,1*,1,1,1,1,7
+fcwageningen,Jan Oosterhuis,D,D,5,23,light,1*,1*,1*,1,1,1,1,7
+fcwageningen,Ton van Leur,M,RW,6,23,light,1*,1*,1*,1,1,1,1,7
+fcwageningen,Nico van Zanten,M,LW,7,23,light,1*,1*,1*,1,1,1,1,7
+fcwageningen,Tom Krommendijk,M,M,8,23,light,1*,1*,1*,1,1,1,1,7
+fcwageningen,Gery Vink,M,M,9,23,light,1*,1*,1*,1,1,1,1,7
+fcwageningen,Gert van den Brink,A,A,10,23,light,2*,2*,2*,2,2,2,2,14
+fcwageningen,Ron Hagen,A,A,11,23,light,1*,1*,1*,1,1,1,1,7
+fcwageningen,Peter Hofman,G,G,12,23,light,1*,1*,1*,1,1,1,1,3
+fcwageningen,Mark Verhoeven,D,D,13,23,light,1*,1*,1*,1,1,1,1,7
+fcwageningen,René van den Brink,M,M,14,23,light,1*,1*,1*,1,1,1,1,7
+fcwageningen,Hans Nijhuis,A,A,15,23,light,1*,1*,1*,1,1,1,1,7
+fcwageningen,Martin Laamers,M,RW,16,23,light,1*,1*,1*,1,1,1,1,7
+nec,Nico Hanssen,G,G,1,23,light,2*,2*,2*,2,2,2,2,17
+nec,Kees van Wonderen,D,RB,2,23,light,3*,2,3*,3*,3,3,1,18
+nec,Eric van Rossum,D,LB,3,23,light,2*,2*,2*,2,2,2,2,14
+nec,Frans Paymans,D,D,4,23,light,2*,2*,2*,2,2,2,2,14
+nec,Brian Wilsterman,D,D,5,75,dark,1*,1*,1*,1,1,1,1,7
+nec,Wim van Zinnen,M,RW,6,23,light,2*,2*,2*,2,2,2,2,14
+nec,Berry Arends,M,LW,7,23,light,1*,1*,1*,1,1,1,1,7
+nec,Marc Hendriks,M,M,8,23,light,1*,1*,1*,1,1,1,1,7
+nec,John van Geenen,M,M,9,23,light,1*,1*,1*,1,1,1,1,7
+nec,Danny Hoekman,A,A,10,23,light,3*,2,3*,2,3,4*,3,20
+nec,Henk Grim,A,A,11,23,light,2*,2*,2*,2,2,2,2,14
+nec,Wim van Cuijk,G,G,12,23,light,1*,1*,1*,1,1,1,1,9
+nec,Remko Bicentini,D,D,13,23,light,1*,1*,1*,1,1,1,1,7
+nec,Frans Janssen,M,M,14,23,light,2*,2*,2*,2,2,2,2,14
+nec,Rick Hilgers,A,A,15,23,light,2*,2*,2*,2,2,2,2,14
+nec,Toon Willemse,D,RB,16,23,light,2*,2*,2*,2,2,2,2,14
+fcvvv,John Roox,G,G,1,23,light,1*,1*,1*,1,1,1,1,9
+fcvvv,Stan Valckx,D,RB,2,23,light,4*,4,5*,5*,4,4,3,29
+fcvvv,Chris Burhenne,D,LB,3,23,light,1*,1*,1*,1,1,1,1,7
+fcvvv,Mario Verlijsdonk,D,D,4,23,light,2*,2*,2*,2,2,2,2,14
+fcvvv,Edwin van Berge Henegouwen,D,D,5,23,light,2*,2*,2*,2,2,2,2,14
+fcvvv,Remy Reijnierse,M,RW,6,23,light,2*,2*,2*,2,2,2,2,14
+fcvvv,Hans Coort,M,LW,7,23,light,2*,2*,2*,2,2,2,2,14
+fcvvv,Jos van Aerts,M,M,8,23,light,1*,1*,1*,1,1,1,1,7
+fcvvv,Guido Kopp,M,M,9,13,light,1*,1*,1*,1,1,1,1,7
+fcvvv,Earnie Stewart,A,A,10,58,light,2*,2,2,3*,2,3*,2,16
+fcvvv,Jos Luhukay,A,A,11,23,light,2*,2*,2*,2,2,2,2,14
+fcvvv,Wim Jacobs,G,G,12,23,light,1*,1*,1*,1,1,1,1,9
+fcvvv,Erik van Kilsdonk,D,D,13,23,light,1*,1*,1*,1,1,1,1,7
+fcvvv,Johnny Taihuttu,M,M,14,23,light,2*,2*,2*,2,2,2,2,14
+fcvvv,Frank Verbeek,A,A,15,23,light,2*,2*,2*,2,2,2,2,14
+fcvvv,Jos Rutten,D,LB,16,23,light,2*,2*,2*,2,2,2,2,14
+vitesse,Lloyd Doesburg,G,G,1,75,dark,2*,2*,2*,2,2,2,2,14
+vitesse,Evert Gerritsen,D,RB,2,23,light,2*,2*,2*,2,2,2,2,14
+vitesse,Theo Bos,D,LB,3,23,light,3*,3*,3*,3,2,3,2,19
+vitesse,Edwin Neijenhuis,D,D,4,23,light,2*,2*,2*,2,2,2,2,14
+vitesse,Wilco Klop,D,D,5,23,light,1*,1*,1*,1,1,1,1,7
+vitesse,Frans Koenen,M,RW,6,23,light,2*,2*,2*,2,2,2,2,14
+vitesse,Henk Thijssen,M,LW,7,23,light,2*,2*,2*,2,2,2,2,14
+vitesse,Rudy Das,M,M,8,23,light,2*,2*,2*,2,2,2,2,14
+vitesse,Leo Jansen,M,M,9,23,light,1*,1*,1*,1,1,1,1,7
+vitesse,Harry Lubse,A,A,10,23,light,3,3,4*,2,3,4*,4*,23
+vitesse,John van den Brom,A,A,11,23,light,3*,3*,2,3*,3,3,3,20
+vitesse,Jan-Geert Wagenaar,G,G,12,23,light,1*,1*,1*,1,1,1,1,6
+vitesse,Arjan Vermeulen,D,D,13,23,light,1*,1*,1*,1,1,1,1,7
+vitesse,Oscar Meijer,M,M,14,23,light,1*,1*,1*,1,1,1,1,7
+vitesse,Richard Budding,A,A,15,23,light,2*,2*,2*,2,2,2,2,14
+vitesse,Chris van den Akker,M,RW,16,23,light,2*,2*,2*,2,2,2,2,14
+heracles,Johan Tukker,G,G,1,23,light,1*,1*,1*,1,1,1,1,9
+heracles,Tjalling Dilling,D,RB,2,23,light,2*,2*,2*,2,2,2,2,14
+heracles,Peter Schulte,D,LB,3,23,light,1*,1*,1*,1,1,1,1,7
+heracles,Ronald Dams,D,D,4,23,light,1*,1*,1*,1,1,1,1,7
+heracles,Rudy Degenaar,D,D,5,75,dark,1*,1*,1*,1,1,1,1,7
+heracles,Jan van Staa,M,RW,6,23,light,1*,1*,1*,1,1,1,1,7
+heracles,Bart Nijsink,M,LW,7,23,light,1*,1*,1*,1,1,1,1,7
+heracles,Koen Reinerink,M,M,8,23,light,1*,1*,1*,1,1,1,1,7
+heracles,Alex Wesselink,M,M,9,23,light,1*,1*,1*,1,1,1,1,7
+heracles,Hendrie Krüzen,A,A,10,23,light,4*,4*,3,3,4*,4,3,25
+heracles,Ron van Oosterom,A,A,11,23,light,2*,2*,2*,2,2,2,2,14
+heracles,Raimond Schilder,G,G,12,23,light,0*,0*,0,0,1*,0,0,0
+heracles,Hannes Lalopua,D,D,13,23,light,2*,2*,2*,2,2,2,2,14
+heracles,John ter Mors,M,M,14,23,light,1*,1*,1*,1,1,1,1,7
+heracles,Ben Wigger,A,A,15,23,light,1*,1*,1*,1,1,1,1,7
+heracles,Rob Poell,D,RB,16,23,light,2*,2*,2*,2,2,2,2,14
+heerenveen,Hiddo Reijs,G,G,1,23,light,1*,1*,1*,1,1,1,1,9
+heerenveen,Teun Kist,D,RB,2,23,light,1*,1*,1*,1,1,1,1,7
+heerenveen,Piet Boskma,D,LB,3,23,light,2*,2*,2*,2,2,2,2,14
+heerenveen,Cor Elzinga,D,D,4,23,light,1*,1*,1*,1,1,1,1,7
+heerenveen,Maarten de Jong,D,D,5,23,light,2,2,2,3*,3*,3*,2,17
+heerenveen,Bert Gotink,M,RW,6,23,light,1*,1*,1*,1,1,1,1,7
+heerenveen,Erik ten Voorde,M,LW,7,23,light,1*,1*,1*,1,1,1,1,7
+heerenveen,Pieter Bijl,M,M,8,23,light,1*,1*,1*,1,1,1,1,7
+heerenveen,Jan Schulting,M,M,9,23,light,1*,1*,1*,1,1,1,1,7
+heerenveen,Jan de Jonge,A,A,10,23,light,1*,1*,1*,1,1,1,1,7
+heerenveen,Jaap Schuurmans,A,A,11,23,light,1*,1*,1*,1,1,1,1,7
+heerenveen,Richard Haan,G,G,12,23,light,1*,0,0,1*,1*,1,0,0
+heerenveen,Willem Brouwer,D,D,13,23,light,1*,1*,1*,1,1,1,1,7
+heerenveen,Johan Zuid,M,M,14,23,light,1*,1*,1*,1,1,1,1,7
+heerenveen,Marcel Valk,A,A,15,23,light,1*,1*,1*,1,1,1,1,7
+heerenveen,Johan Akkerman,D,RB,16,23,light,2*,2*,2*,2,2,2,2,14
+rbc,Frank Brugel,G,G,1,23,light,1*,1*,1*,1,1,1,1,7
+rbc,Johan Molenaar,D,RB,2,23,light,2*,2*,2*,2,2,2,2,14
+rbc,Hans van Ham,D,LB,3,23,light,1*,1*,1*,1,1,1,1,7
+rbc,Geert Bouwman,D,D,4,23,light,2*,2*,2*,2,2,2,2,14
+rbc,Ad van Seeters,D,D,5,23,light,2*,2*,2*,2,2,2,2,14
+rbc,Gerrie Jumelet,M,RW,6,23,light,1*,1*,1*,1,1,1,1,7
+rbc,Henk Vos,M,LW,7,23,light,3*,1,2,3*,3*,2,3,17
+rbc,Marcel Schenk,M,M,8,23,light,2*,2*,2*,2,2,2,2,14
+rbc,Dirk van der Laan,M,M,9,23,light,1*,1*,1*,1,1,1,1,7
+rbc,Ad de Jong,A,A,10,23,light,1*,1*,1*,1,1,1,1,7
+rbc,Gerrie Voets,A,A,11,23,light,1*,1*,1*,1,1,1,1,7
+rbc,Rene Brilhuis,G,G,12,23,light,0*,0,0,1*,1*,0,0,0
+rbc,Steven Kessel,D,D,13,23,light,1*,0,0,1*,0,1*,0,0
+rbc,Ruud Verschoor,M,M,14,23,light,0*,1*,0,0,1*,0,0,0
+rbc,Adri Haan,A,A,15,23,light,0*,0,0,0,0,1*,1*,0
+rbc,Mario Molenaar,D,RB,16,23,light,2*,2*,2*,2,2,2,2,14
+eindhoven,Albert van der Sleen,G,G,1,23,light,1*,1*,1*,1,1,1,1,12
+eindhoven,Peter Alkemade,D,RB,2,23,light,2*,2*,2*,2,2,2,2,14
+eindhoven,Ad de Wert,D,LB,3,23,light,1*,1*,1*,1,1,1,1,7
+eindhoven,Marco van Tongeren,D,D,4,23,light,1*,1*,1*,1,1,1,1,7
+eindhoven,Wim Nederlof,D,D,5,23,light,1*,1*,1*,1,1,1,1,7
+eindhoven,Richard Duijvelaar,M,RW,6,23,light,1*,1*,1*,1,1,1,1,7
+eindhoven,Harry Bogers,M,LW,7,23,light,1*,1*,1*,1,1,1,1,7
+eindhoven,Clemens Bastiaansen,M,M,8,23,light,1*,1*,1*,1,1,1,1,7
+eindhoven,Rob Koster,M,M,9,23,light,1*,1*,1*,1,1,1,1,7
+eindhoven,Fred van der Vleut,A,A,10,23,light,1*,1*,1*,1,1,1,1,7
+eindhoven,Pascal Maas,A,A,11,23,light,1*,1*,1*,1,1,1,1,7
+eindhoven,Rik Laurs,G,G,12,23,light,1*,1*,1*,1,1,1,1,12
+eindhoven,Cor Peitsman,D,D,13,23,light,1*,1*,1*,1,1,1,1,7
+eindhoven,Adrie van Rijsingen,M,M,14,23,light,1*,1*,1*,1,1,1,1,7
+eindhoven,Eugène Constansia,A,A,15,23,light,1*,1*,1*,1,1,1,1,7
+eindhoven,Cees Jonkers,D,RB,16,23,light,1*,1*,1*,1,1,1,1,7
+veendam,Johan Krol,G,G,1,23,light,2*,2*,3*,2,2,2,2,14
+veendam,Henk de Haan,D,RB,2,23,light,2*,2*,2*,2,2,2,2,14
+veendam,Bert Wiebing,D,LB,3,23,light,1*,1*,1*,1,1,1,1,7
+veendam,Evert-Jan Nienhuis,D,D,4,23,light,1*,1*,1*,1,1,1,1,7
+veendam,Jan Korte,D,D,5,23,light,2*,2*,2*,2,2,2,2,14
+veendam,Alex Klompstra,M,RW,6,23,light,1*,1*,1*,1,1,1,1,7
+veendam,Ernst Sollner,M,LW,7,23,light,2*,2*,2*,2,2,2,2,14
+veendam,Jan Redmeijer,M,M,8,23,light,1*,1*,1*,1,1,1,1,7
+veendam,Boy Nijgh,M,M,9,23,light,2*,2*,2*,2,2,2,2,14
+veendam,André Brouwer,A,A,10,23,light,2*,2*,2*,2,2,2,2,14
+veendam,Siebolt Mellema,A,A,11,23,light,1*,1*,1*,1,1,1,1,7
+veendam,Rob de Blois,G,G,12,23,light,1*,1*,1*,1,1,1,1,7
+veendam,Jan Viswat,D,D,13,23,light,1*,1*,1*,1,1,1,1,7
+veendam,Ben de Jong,M,M,14,23,light,1*,1*,1*,1,1,1,1,7
+veendam,Loek Staa,A,A,15,23,light,1*,0,0,0,1*,1*,0,0
+veendam,Albert Koops,M,LW,16,23,light,2*,2*,2*,2,2,2,2,14
+svsvv,Henk Dirven,G,G,1,23,light,1*,1*,1*,1,1,1,1,12
+svsvv,Henk Salari,D,RB,2,23,light,1*,1*,1*,1,1,1,1,7
+svsvv,Leen Warnaar,D,LB,3,23,light,1*,1*,1*,1,1,1,1,7
+svsvv,Mark Wotte,D,D,4,23,light,1*,1*,1*,1,1,1,1,7
+svsvv,Hans Neeskens,D,D,5,23,light,1*,1*,1*,1,1,1,1,7
+svsvv,Paul Oschner,M,RW,6,23,light,1*,1*,1*,1,1,1,1,7
+svsvv,Chris Treling,M,LW,7,23,light,1*,1*,1*,1,1,1,1,7
+svsvv,Robin van der Laan,M,M,8,23,light,2*,2,3*,3*,2,2,2,16
+svsvv,Jan Könemann,M,M,9,23,light,1*,1*,1*,1,1,1,1,7
+svsvv,Rob Koevermans,A,A,10,23,light,1*,1*,1*,1,1,1,1,7
+svsvv,Peter van Velzen,A,A,11,23,light,1*,1*,1*,1,1,1,1,7
+svsvv,John Bos,G,G,12,23,light,1*,1*,1*,1,1,1,1,6
+svsvv,John Delamere,D,D,13,46,light,1*,1*,1*,1,1,1,1,7
+svsvv,Jeffrey Oost,M,M,14,23,light,1*,1*,1*,1,1,1,1,7
+svsvv,Roy van Duppen,A,A,15,23,light,1*,1*,1*,1,1,1,1,7
+svsvv,Harry van Kapel,M,RW,16,23,light,1*,1*,1*,1,1,1,1,7
+helmondsport,Otto Versfeld,G,G,1,23,light,2*,2,3*,2,2,3*,2,14
+helmondsport,Piet Hogenhout,D,RB,2,23,light,1*,1*,1*,1,1,1,1,7
+helmondsport,Eric Keizers,D,LB,3,23,light,1*,1*,1*,1,1,1,1,7
+helmondsport,Tjapko Teuben,D,D,4,23,light,1*,1*,1*,1,1,1,1,7
+helmondsport,Huub Stokmans,D,D,5,23,light,1*,1*,1*,1,1,1,1,7
+helmondsport,Jan van der Veen,M,RW,6,23,light,1*,1*,1*,1,1,1,1,7
+helmondsport,Hans Vincent,M,LW,7,23,light,2*,1,3*,2*,2,2,2,14
+helmondsport,John Heijster,M,M,8,23,light,1*,1*,1*,1,1,1,1,7
+helmondsport,Jack Edelbloedt,M,M,9,23,light,1*,1*,1*,1,1,1,1,7
+helmondsport,René van Tilburg,A,A,10,23,light,2*,2*,2*,2,2,2,2,14
+helmondsport,Piet Schilders,A,A,11,23,light,2*,2*,2*,2,2,2,2,14
+helmondsport,Rein van Duijnhoven,G,G,12,23,light,1*,1*,1*,1,1,1,1,8
+helmondsport,Jurgen Streppel,D,D,13,23,light,1*,1*,1*,1,1,1,1,7
+helmondsport,Beryl de Kort,M,M,14,23,light,1*,1*,1*,1,1,1,1,7
+helmondsport,Nico van Breemen,A,A,15,23,light,1*,1*,1*,1,1,1,1,7
+helmondsport,Marc van Hintum,D,LB,16,23,light,4*,3,3,4*,4*,4,3,25
+willemii,Ton Verkerk,G,G,1,23,light,2*,2*,2*,2,2,2,2,17
+willemii,Johan Huijbregts,D,RB,2,23,light,2*,2*,2*,2,2,2,2,14
+willemii,Frits Copal,D,LB,3,23,light,1*,1*,1*,1,1,1,1,7
+willemii,Winnie Haatrecht,D,D,4,23,light,2*,2*,2*,2,2,2,2,14
+willemii,Rob van der Kaay,D,D,5,23,light,2*,4*,2*,2,2,2,2,16
+willemii,John Feskens,M,RW,6,23,light,2*,2*,2*,2,2,2,2,14
+willemii,Marcel Bontekoe,M,LW,7,23,light,1*,1*,1*,1,1,1,1,7
+willemii,Cyril Holtkamp,M,M,8,23,light,1*,1*,1*,1,1,1,1,7
+willemii,Wanny van Gils,M,M,9,23,light,2*,2*,2*,2,2,2,2,14
+willemii,Bert Gozems,A,A,10,23,light,2*,2*,2*,2,2,2,2,14
+willemii,Cemal Yilmaz,A,A,11,23,light,1*,1*,1*,1,1,1,1,7
+willemii,Theo Wagener,G,G,12,23,light,2*,1,3*,1,2,3*,1,12
+willemii,Bart Jansen,D,D,13,23,light,1*,1*,1*,1,1,1,1,7
+willemii,Toon Krol,M,M,14,23,light,1*,0*,0*,0,0,0,0,0
+willemii,Michel Flight,A,A,15,23,light,0*,0*,1*,0,0,0,0,0
+willemii,Ton van de Ven,M,RW,16,23,light,2*,2*,2*,2,2,2,2,14
+drechtsteden79,Wim Berends,G,G,1,23,light,2*,1,3*,1,1,3*,1,12
+drechtsteden79,Niels Overweg,D,RB,2,23,light,1*,1*,1*,1,1,1,1,7
+drechtsteden79,Koert den Hartog,D,LB,3,23,light,1*,1*,1*,1,1,1,1,7
+drechtsteden79,Wim Los,D,D,4,23,light,1*,1*,1*,1,1,1,1,7
+drechtsteden79,Frans van der Heide,D,D,5,23,light,1*,1*,1*,1,1,1,1,7
+drechtsteden79,Terry Lees,M,RW,6,8,light,2*,2*,2*,2,2,2,2,14
+drechtsteden79,Hans Stout,M,LW,7,23,light,1*,1*,1*,1,1,1,1,7
+drechtsteden79,Marcel van der Net,M,M,8,23,light,1*,1*,1*,1,1,1,1,7
+drechtsteden79,Wim van de Steene,M,M,9,23,light,1*,1*,1*,1,1,1,1,7
+drechtsteden79,Hakim Braham,A,A,10,91,light,2*,2*,2*,2,2,2,2,14
+drechtsteden79,Marco Boogers,A,A,11,23,light,1*,1,2*,1,1,1,3*,10
+drechtsteden79,Ron van Bergen,G,G,12,23,light,2*,1,2*,1,1,3*,1,9
+drechtsteden79,Frank van der Woude,D,D,13,23,light,1*,1*,1*,1,1,1,1,7
+drechtsteden79,Kees Koudstaal,M,M,14,23,light,1*,1*,1*,1,1,1,1,7
+drechtsteden79,Michel Langerak,A,A,15,23,light,1*,1*,1*,1,1,1,1,7
+drechtsteden79,Paul Giles,M,LW,16,36,light,1*,1,1,2*,1,3*,1,10
+rkc,Ton Staveren,G,G,1,23,light,1*,0*,0,0,1*,0,0,0
+rkc,Anton Joore,D,RB,2,23,light,2*,2*,2*,2,2,2,2,14
+rkc,Erik Gouda,D,LB,3,23,light,1*,1*,1*,1,1,1,1,7
+rkc,Bas de Kok,D,D,4,23,light,4*,4*,3,3,2,4*,2,22
+rkc,Marcel Brands,D,D,5,23,light,2*,2*,2*,2,2,2,2,14
+rkc,Frank van Brunschot,M,RW,6,23,light,1*,1*,1*,1,1,1,1,7
+rkc,Frank van Riel,M,LW,7,23,light,1*,1*,1*,1,1,1,1,7
+rkc,John Lammers,M,M,8,23,light,5*,3,4,5*,4,5*,5,31
+rkc,Albert Bruurmijn,M,M,9,23,light,2*,2*,2*,2,2,2,2,14
+rkc,Leo van Veen,A,A,10,23,light,2*,2*,2*,2,2,2,2,14
+rkc,Michael van de Broek,A,A,11,23,light,1*,1*,1*,1,1,1,1,7
+rkc,Rob Brom,G,G,12,23,light,0*,1*,1*,0,0,0,0,0
+rkc,Norbert Rebsch,D,D,13,23,light,1*,1*,1*,1,1,1,1,7
+rkc,Jacques Vermeulen,M,M,14,23,light,1*,1*,1*,1,1,1,1,7
+rkc,Bart Zwijnenberg,A,A,15,23,light,1*,0,0,1*,1*,1,1,0
+rkc,Adrie Bogers,D,LB,16,23,light,4*,3,4,5*,5*,4,4,29
+rijnsburgseboys,Cees Star,G,G,1,23,light,1*,1*,1*,1,1,1,1,9
+rijnsburgseboys,Jack Manuputty,D,RB,2,23,light,1*,1*,1*,1,1,1,1,7
+rijnsburgseboys,Jan Hogewoning,D,LB,3,23,light,1*,1*,1*,1,1,1,1,7
+rijnsburgseboys,Dick Heemskerk,D,D,4,23,light,1*,1*,1*,1,1,1,1,7
+rijnsburgseboys,Huug Aandewiel,D,D,5,23,light,1*,1*,1*,1,1,1,1,7
+rijnsburgseboys,Martin Toet,M,RW,6,23,light,1*,1*,1*,1,1,1,1,7
+rijnsburgseboys,Toon Houtekamer,M,LW,7,23,light,1*,1*,1*,1,1,1,1,7
+rijnsburgseboys,Marcel van der Blom,M,M,8,23,light,1*,1*,1*,1,1,1,1,7
+rijnsburgseboys,Fred Arroyo,M,M,9,23,light,1*,1*,1*,1,1,1,1,7
+rijnsburgseboys,Rob Gillissen,A,A,10,23,light,1*,1*,1*,1,1,1,1,7
+rijnsburgseboys,Paul van der Blom,A,A,11,23,light,1*,1*,1*,1,1,1,1,7
+rijnsburgseboys,Frans Yilmaz,G,G,12,23,light,0*,0,0,1*,1*,0,0,0
+rijnsburgseboys,Hans Zwaan,D,D,13,23,light,1*,1*,1*,1,1,1,1,7
+rijnsburgseboys,Frank Waalderbos,M,M,14,23,light,1*,1*,0*,0,0,0,0,0
+rijnsburgseboys,Frans Spa,A,A,15,23,light,0*,0,0,1*,0,0,1*,0
+rijnsburgseboys,Wim Driebergen,D,LB,16,23,light,1*,1*,1*,1,1,1,1,7
+rch,John Tongeren,G,G,1,23,light,2*,0,1*,2*,0,1,0,3
+rch,Errol Jans,D,RB,2,23,light,2*,1,2*,0,0,1,2*,3
+rch,Gert Heeren,D,LB,3,23,light,0,1*,1*,2*,0,0,1,3
+rch,Roger Blois,D,D,4,23,light,1*,1*,2*,0,1,0,1,3
+rch,Huub Vroegop,D,D,5,23,light,1*,0,2*,0,0,1*,1,3
+rch,Jack Sleen,M,RW,6,23,light,1*,1,2*,2*,0,0,1,3
+rch,Robert Spaan,M,LW,7,23,light,1*,0*,0,2*,0,0,0,3
+rch,Wim Rebsch,M,M,8,23,light,0,2*,2*,0,1,2*,0,3
+rch,Maarten Nederburgh,M,M,9,23,light,2*,0,2*,2*,0,1,2,3
+rch,Nico Snoei,A,A,10,23,light,0,2*,1*,1*,0,0,0,3
+rch,Huug Brouwer,A,A,11,23,light,1*,0,2*,1,0,0,2*,3
+rch,Hans Kleij,G,G,12,23,light,0,0,1*,2*,1*,0,0,3
+rch,Folkert Linden,D,D,13,23,light,1,2*,2*,1,0,0,2*,3
+rch,Peter Roon,M,M,14,23,light,1*,2*,0,0,0,0,1*,3
+rch,Evert-Jan Cohen,A,A,15,23,light,2*,0*,0,0,0,1*,0,3
+rch,Leo Jong,M,M,16,23,light,1,2*,1,2*,2*,2,0,3
+heerjansdam,Toon Houtekamer,G,G,1,23,light,0*,1*,0*,0,0,0,0,0
+heerjansdam,Arie van den Berg,D,RB,2,23,light,1*,1*,1*,1,1,1,1,7
+heerjansdam,Fred Bijl,D,LB,3,23,light,1*,1*,1*,1,1,1,1,7
+heerjansdam,Arthur Jumelet,D,D,4,23,light,0*,0,0,1*,1*,0,0,0
+heerjansdam,Bert Koenen,D,D,5,23,light,0,0,1*,1*,0,1*,0,0
+heerjansdam,Stanley Adam,M,RW,6,23,light,0,1*,0,1*,0,1*,0,0
+heerjansdam,Ad Rijsenburg,M,LW,7,23,light,0,0,1*,1*,0,1*,0,0
+heerjansdam,Erik Luchtenberg,M,M,8,23,light,0,1*,0,1*,1*,1,0,0
+heerjansdam,René Jonk,M,M,9,23,light,0,1*,1*,1*,1,1,0,0
+heerjansdam,Dick Oosterveer,A,A,10,23,light,0,0,1*,1*,1*,1,0,0
+heerjansdam,Frans Kool,A,A,11,23,light,1*,0,0,0,0,1*,1*,0
+heerjansdam,Bert Shrijver,G,G,12,23,light,1*,1*,1*,1,0,0,0,0
+heerjansdam,Jo Starre,D,D,13,23,light,1*,1*,0,1*,1,1,0,0
+heerjansdam,Frank Klouwen,M,M,14,23,light,1*,0,1*,0,0,1*,0,0
+heerjansdam,Peter Romijn,A,A,15,23,light,0*,1*,0,0,0,1*,0,0
+heerjansdam,Hans Grassi,M,M,16,23,light,1*,0*,1*,0,0,0,0,0
+zwolscheboys,Joop Brunings,G,G,1,23,light,0*,0,1*,0,0,1*,0,0
+zwolscheboys,Jan Verheijen,D,RB,2,23,light,1*,1*,1*,1,1,1,1,7
+zwolscheboys,Jan Tromp,D,LB,3,23,light,0,1*,0,0,1*,1*,1,0
+zwolscheboys,Ben Spa,D,D,4,23,light,1*,1*,1*,0,0,0,1,0
+zwolscheboys,Ton Rontberg,D,D,5,23,light,0*,0,0,1*,1*,0,0,0
+zwolscheboys,Herman Schijndel,M,RW,6,23,light,0*,0*,0,1*,0,0,0,0
+zwolscheboys,Arjan Meijden,M,LW,7,23,light,0,0,1*,0,1*,1*,0,0
+zwolscheboys,Harry Kapel,M,M,8,23,light,1*,1*,1*,0,0,0,0,0
+zwolscheboys,Johan Flight,M,M,9,23,light,0,1*,1*,0,1*,1,0,0
+zwolscheboys,Rick Lengkeek,A,A,10,23,light,0*,0,0,0,0,1*,1*,0
+zwolscheboys,Marcel Neeskens,A,A,11,23,light,0*,1*,0,0,0,0,1*,0
+zwolscheboys,André Meijer,G,G,12,23,light,1*,1*,0,1*,1,0,0,0
+zwolscheboys,Jan Nederlof,D,D,13,23,light,0*,0*,0*,0,0,0,0,0
+zwolscheboys,Jan Landsbergen,M,M,14,23,light,0*,0*,0,1*,0,0,0,0
+zwolscheboys,Hans Lith,A,A,15,23,light,1*,0*,0,0,0,1*,0,0
+zwolscheboys,Jerry Fräser,M,M,16,23,light,0*,0*,0,0,1*,0,0,0
+nsvv,Guus Twikkeler,G,G,1,23,light,2*,0,1*,1,2*,0,0,3
+nsvv,Wil Gils,D,RB,2,23,light,0,2*,1,1,2*,2*,2,3
+nsvv,Johnny Campenhout,D,LB,3,23,light,2*,1,2*,1,1,0,2*,3
+nsvv,Terry Oosterlee,D,D,4,23,light,2*,0*,0*,0,0,0,0,3
+nsvv,Henk Wesselink,D,D,5,23,light,2*,0,1*,2*,1,0,1,3
+nsvv,Jack Kurzbach,M,RW,6,23,light,2*,2*,0,0,1,2*,0,3
+nsvv,Aldo Schuurhuizen,M,LW,7,23,light,2*,1*,1*,1,1,0,1,3
+nsvv,Ron Koudijzer,M,M,8,23,light,2*,1*,1,1,0,2*,1,3
+nsvv,Ruud Gritter,M,M,9,23,light,0,2*,0,2*,1,2*,2,3
+nsvv,Mart Graaf,A,A,10,23,light,1*,2*,0,1*,0,1,0,3
+nsvv,Alfred Fühler,A,A,11,23,light,1*,1,1,2*,2*,0,1,3
+nsvv,Etienne Linders,G,G,12,23,light,0,2*,1*,2*,1,1,0,3
+nsvv,Pieter Staa,D,D,13,23,light,1*,0,1*,0,2*,0,0,3
+nsvv,Jan Booy,M,M,14,23,light,0*,0*,0,1*,0,0,0,3
+nsvv,Jan Marree,A,A,15,23,light,2*,2*,2*,0,1,1,1,3
+nsvv,Geert Koudstaal,M,M,16,23,light,2*,2*,0,2*,0,2,2,3
+acv,Harm Hovenkamp,G,G,1,23,light,1*,1*,1*,1,1,1,1,9
+acv,Peter Kuntz,D,RB,2,23,light,1*,1*,1*,1,1,1,1,7
+acv,Harry Sinkgraven,D,LB,3,23,light,1*,1*,1*,1,1,1,1,7
+acv,Roel van Dijk,D,D,4,23,light,1*,1*,1*,1,1,1,1,7
+acv,Johan Pitstra,D,D,5,23,light,1*,1*,1*,1,1,1,1,7
+acv,Charlie Kenter,M,RW,6,23,light,1*,1*,1*,1,1,1,1,7
+acv,Ronnie Krohne,M,LW,7,23,light,1*,1*,1*,1,1,1,1,7
+acv,Rob Salomons,M,M,8,23,light,1*,1*,1*,1,1,1,1,7
+acv,Freek Gaal,M,M,9,23,light,1*,1*,0,0,0,1*,0,0
+acv,Peter Sar,A,A,10,23,light,0*,1*,0,0,0,1*,0,0
+acv,Stanley Smand,A,A,11,23,light,1*,0,1*,1*,0,0,0,0
+acv,Jaap Leusink,G,G,12,23,light,0*,0,1*,0,1*,0,0,0
+acv,Juno Vermeulen,D,D,13,23,light,0*,0*,0,0,1*,0,0,0
+acv,Koos Janssen,M,M,14,23,light,0*,0*,0*,0,0,0,0,0
+acv,Wim Kooistra,A,A,15,23,light,0,1*,1*,0,0,1*,0,0
+acv,André Luchtenberg,D,RB,16,23,light,1*,1*,1*,1,1,1,1,7
+noordwijk,Edwin van der Sar,G,G,1,23,light,2*,2*,3*,2,2,2,1,4
+noordwijk,Siem van Beveren,D,RB,2,23,light,1*,1*,1*,1,1,1,1,7
+noordwijk,Geert Jan Bakker,D,LB,3,23,light,1*,1*,1*,1,1,1,1,7
+noordwijk,Klaas Vink,D,D,4,23,light,1*,1*,1*,1,1,1,1,7
+noordwijk,Yvan Hermans,D,D,5,23,light,1*,1*,1*,1,1,1,1,7
+noordwijk,Ton Wiel,M,RW,6,23,light,1*,0,0,1*,0,0,1*,0
+noordwijk,Rob Bijnen,M,LW,7,23,light,0*,0*,1*,0,0,0,0,0
+noordwijk,Cees Boogaard,M,M,8,23,light,0,1*,1*,0,0,1*,1,0
+noordwijk,Michel Smak,M,M,9,23,light,0*,0*,1*,0,0,0,0,0
+noordwijk,Jan Marbus,A,A,10,23,light,0*,0*,0*,0,0,0,0,0
+noordwijk,Martin Hoop,A,A,11,23,light,0*,0,1*,1*,0,0,0,0
+noordwijk,Chris Rijnink,G,G,12,23,light,0*,0*,0,0,0,1*,0,0
+noordwijk,Ad Ehlen,D,D,13,23,light,1*,0*,0,0,0,0,1*,0
+noordwijk,Angelo Diliberto,M,M,14,23,light,1*,0,0,0,0,1*,1*,0
+noordwijk,Henk Kuntz,A,A,15,23,light,1*,0,1*,0,0,1*,0,0
+noordwijk,Bob Vlot,M,M,16,23,light,1*,0,1*,1*,0,1,1,0
+deto,Hendrie Bree,G,G,1,23,light,2*,2*,0,0,2*,2,0,3
+deto,John Schellekens,D,RB,2,23,light,2*,1,0,2*,2*,2,2,3
+deto,Gerrie Vonk,D,LB,3,23,light,1*,0*,0,0,2*,0,0,3
+deto,Robert Viswat,D,D,4,23,light,2*,2*,1,2*,1,1,0,3
+deto,Loek Duut,D,D,5,23,light,2*,2*,2*,2,2,0,0,3
+deto,Marco Castelijn,M,RW,6,23,light,0,0,1*,2*,0,0,1*,3
+deto,Cyril Melis,M,LW,7,23,light,2*,0,2*,1*,0,1,0,3
+deto,Peter Tollenaar,M,M,8,23,light,2*,2*,2*,2,1,1,2,3
+deto,Marc Marree,M,M,9,23,light,2*,1*,1,0,1,2*,0,3
+deto,Guus Mücher,A,A,10,23,light,0,1,2*,2*,1,0,2*,3
+deto,Gijs Voets,A,A,11,23,light,2*,2*,2*,0,2,0,2,3
+deto,Toine Janssen,G,G,12,23,light,0,1*,1*,2*,0,1,0,3
+deto,Ron Haan,D,D,13,23,light,2*,1*,2*,1,0,1,0,3
+deto,Marcel Postuma,M,M,14,23,light,0,1*,1,1,0,2*,2*,3
+deto,Gerrie Caljouw,A,A,15,23,light,2*,2*,1,1,2*,1,0,3
+deto,Marcel Adam,M,M,16,23,light,0,2*,1,2*,2*,0,1,3

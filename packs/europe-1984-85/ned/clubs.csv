@@ -1,0 +1,45 @@
+key,name,coach,country,file,division,tactic,kit1,kit2,lineup,source
+feyenoord,FEYENOORD,Thijs Libregts,NED,league,0,5,2 4 1 2 2,0 8 8 8 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Feyenoord
+psv,PSV,Jan Reker,NED,league,0,8,2 4 1 1 4,0 5 5 1 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,PSV
+ajax,AJAX,Aad de Mos,NED,league,0,8,1 4 1 1 1,0 0 0 0 0,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Ajax
+haarlem,HAARLEM,Hans van Doorneveld,NED,league,0,5,1 4 5 4 5,1 5 4 4 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,FC Haarlem
+spartarotterdam,SPARTA ROTTERDAM,Theo Vonk,NED,league,0,5,2 4 1 2 4,2 5 2 2 2,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Sparta Rotterdam
+az67,AZ '67,Piet de Visser,NED,league,0,0,0 4 4 1 1,0 1 1 4 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,AZ '67
+groningen,GRONINGEN,Han Berger,NED,league,0,0,2 1 8 1 1,0 7 7 7 2,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,FC Groningen
+utrecht,UTRECHT,Nol de Ruiter,NED,league,0,5,0 4 4 1 1,0 5 5 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,FC Utrecht
+rodajc,RODA JC,Frans Körver,NED,league,0,9,0 9 9 2 9,0 5 5 1 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Roda JC
+denbosch,DEN BOSCH,Rinus Israël,NED,league,0,5,0 5 5 1 1,1 1 4 2 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,FC Den Bosch '67
+goaheadeagles,GO AHEAD EAGLES,Henk Wullems,NED,league,0,0,2 4 9 4 9,0 5 5 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Go Ahead Eagles
+fortunasittard,FORTUNA SITTARD,Bert Jacobs,NED,league,0,5,0 9 9 8 9,0 5 5 5 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Fortuna Sittard
+excelsior,EXCELSIOR,Rob Jacobs,NED,league,0,0,2 4 2 2 4,0 1 1 4 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Excelsior
+zwolle,ZWOLLE,Co Adriaanse,NED,league,0,0,3 5 1 1 1,0 8 8 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,PEC Zwolle '82
+volendam,VOLENDAM,Leo Beenhakker,NED,league,0,5,1 3 1 3 3,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,FC Volendam
+mvv,MVV,Barry Hughes,NED,league,0,0,0 4 4 1 1,0 1 1 4 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,MVV
+twente,TWENTE,Fritz Korbach,NED,league,0,5,0 4 4 4 4,0 5 5 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,FC Twente
+nac,NAC,Bob Maaskant,NED,league,0,0,0 9 9 2 1,0 8 8 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,NAC
+cambuur,CAMBUUR,Theo Verlangen,NED,league,1,5,0 9 9 5 9,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,SC Cambuur
+telstar,TELSTAR,Fred André,NED,league,1,0,0 1 1 1 1,0 5 5 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,SC Telstar
+degraafschap,DE GRAAFSCHAP,Sándor Popovics,NED,league,1,5,3 5 1 1 5,0 9 9 9 9,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,De Graafschap
+fcdenhaag,FC DEN HAAG,Rob Baan,NED,league,1,0,0 9 9 8 9,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,FC Den Haag
+fcwageningen,WAGENINGEN,Jan van Eijck,NED,league,1,5,2 5 1 2 5,0 9 9 5 9,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,FC Wageningen
+nec,NEC,Pim van de Meent,NED,league,1,5,0 4 4 2 8,0 1 1 1 8,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,NEC
+fcvvv,FC VVV,Sef Vergoossen,NED,league,1,0,2 1 8 1 1,0 7 7 7 2,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,FC VVV
+vitesse,VITESSE,Clemens Westerhof,NED,league,1,5,2 9 2 1 1,1 6 9 6 9,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Vitesse
+heracles,HERACLES,Gerard Somer,NED,league,1,5,2 2 1 1 1,0 9 9 9 9,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,SC Heracles '74
+heerenveen,HEERENVEEN,Henk van Brussel,NED,league,1,5,2 5 1 1 1,1 4 2 4 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,SC Heerenveen
+rbc,RBC,Hans Verèl,NED,league,1,5,0 3 3 1 1,0 5 5 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,RBC
+eindhoven,EINDHOVEN,Ad Versluijs,NED,league,1,5,2 5 1 2 5,0 9 9 5 9,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,FC Eindhoven
+veendam,VEENDAM,Henk Nienhuis,NED,league,1,7,2 9 2 2 9,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,SC Veendam
+svsvv,SV SVV,Dick Buitelaar,NED,league,1,8,2 4 1 1 4,0 5 5 1 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,SV SVV
+helmondsport,HELMOND SPORT,Jan Brouwer,NED,league,1,5,0 4 4 4 4,0 5 5 5 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Helmond Sport
+willemii,WILLEM II,Jan Notermans,NED,league,1,5,2 4 5 1 1,0 5 5 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Willem II
+drechtsteden79,DRECHTSTEDEN '79,Frans Körver,NED,league,1,5,0 5 5 1 1,1 1 4 2 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Drechtsteden '79
+rkc,RKC,Leen Looijen,NED,league,1,0,0 9 9 5 1,0 5 5 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,RKC
+rijnsburgseboys,RIJNSBURGSE BOYS,,NED,cuponly,,5,0 5 5 1 1,1 1 4 2 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Rijnsburgse Boys
+rch,RCH,,NED,cuponly,,0,0 4 4 1 1,0 1 1 4 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,RCH
+heerjansdam,HEERJANSDAM,,NED,cuponly,,0,0 4 4 1 1,0 1 1 4 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Heerjansdam
+zwolscheboys,ZWOLSCHE BOYS,,NED,cuponly,,0,0 4 4 1 1,0 5 5 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Zwolsche Boys
+nsvv,NSVV,,NED,cuponly,,5,2 4 1 1 1,0 9 9 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,NSVV
+acv,ACV,,NED,cuponly,,0,3 5 1 1 1,0 8 8 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,ACV
+noordwijk,NOORDWIJK,,NED,cuponly,,5,0 9 9 5 9,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Noordwijk
+deto,DETO,,NED,cuponly,,0,1 8 1 8 8,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,DETO

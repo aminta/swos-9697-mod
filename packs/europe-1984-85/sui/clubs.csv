@@ -1,0 +1,33 @@
+key,name,coach,country,file,division,tactic,kit1,kit2,lineup,source
+grasshoppers,GRASSHOPPERS,,SUI,league,0,5,0 8 8 1 8,0 1 1 8 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Grasshopper Club Zürich
+servette,SERVETTE,,SUI,league,0,5,0 6 6 6 6,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Servette FC
+sion,SION,,SUI,league,0,0,0 1 1 1 1,0 4 4 4 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,FC Sion
+neuchatelxamax,NEUCHATEL XAMAX,,SUI,league,0,8,0 4 4 2 4,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,FC Neuchâtel Xamax
+stgallen,ST. GALLEN,,SUI,league,0,8,0 8 8 8 8,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,FC St. Gallen
+lausanne,LAUSANNE,,SUI,league,0,8,2 5 1 5 5,1 4 1 4 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Lausanne-Sports
+chauxdefonds,CHAUX-DE-FONDS,,SUI,league,0,5,0 8 8 1 8,0 1 1 8 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,FC La Chaux-de-Fonds
+fcwettingen,WETTINGEN,Willy Sommer,SUI,league,0,5,0 8 8 1 8,0 1 1 8 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,FC Wettingen
+basel,BASEL,,SUI,league,0,3,0 4 4 5 4,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,FC Basel
+aarau,AARAU,Ottmar Hitzfeld,SUI,league,0,4,0 1 1 1 1,1 9 2 2 9,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,FC Aarau
+bscyoungboys,YOUNG BOYS,,SUI,league,0,3,0 4 4 5 4,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,BSC Young Boys
+fcvevey,VEVEY,,SUI,league,0,5,1 5 1 1 1,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,FC Vevey
+luzern,LUZERN,,SUI,league,0,5,1 5 1 1 1,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,FC Luzern
+fczurich,FC ZURICH,,SUI,league,0,5,2 5 1 5 5,0 5 5 5 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,FC Zürich
+fcwinterthur,WINTERTHUR,,SUI,league,0,5,0 6 6 6 6,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,FC Winterthur
+sczug,SC ZUG,,SUI,league,0,5,1 1 4 1 1,0 4 4 4 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,SC Zug
+acbellinzona,BELLINZONA,,SUI,league,1,8,0 4 4 2 4,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,AC Bellinzona
+chiasso,CHIASSO,,SUI,league,1,7,2 4 5 4 1,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,FC Chiasso
+lugano,LUGANO,,SUI,league,1,8,0 2 2 1 2,0 1 1 2 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,FC Lugano
+martignysports,MARTIGNY-SPORTS,,SUI,league,1,4,0 1 1 1 1,1 9 2 2 9,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,FC Martigny-Sports
+etoilecarouge,ETOILE CAROUGE,,SUI,league,1,5,1 1 4 1 1,0 4 4 4 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Étoile Carouge FC
+cschenois,CHENOIS,,SUI,league,1,4,0 1 1 1 1,1 9 2 2 9,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,CS Chênois
+fclocarno,LOCARNO,,SUI,league,1,5,0 6 6 6 6,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,FC Locarno
+fcbielbienne,BIEL-BIENNE,,SUI,league,1,5,2 5 1 5 5,0 5 5 5 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,FC Biel-Bienne
+fcschaffhausen,SCHAFFHAUSEN,,SUI,league,1,8,0 4 4 2 4,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,FC Schaffhausen
+fcgrenchen,GRENCHEN,Bert Theunissen,SUI,league,1,8,0 8 8 8 8,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,FC Grenchen
+bulle,BULLE,,SUI,league,1,5,1 1 4 1 1,0 4 4 4 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,FC Bulle
+fcbaden,BADEN,,SUI,league,1,5,0 8 8 1 8,0 1 1 8 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,FC Baden
+yverdon,YVERDON,,SUI,league,1,5,0 8 8 1 8,0 1 1 8 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Yverdon Sport FC
+fclaufen,LAUFEN,,SUI,league,1,3,0 8 8 8 8,0 4 4 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,FC Laufen
+fcmendrisio,MENDRISIO,,SUI,league,1,3,0 8 8 8 8,0 4 4 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,FC Mendrisio
+fcmonthey,MONTHEY,,SUI,league,1,5,0 6 6 6 6,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,FC Monthey

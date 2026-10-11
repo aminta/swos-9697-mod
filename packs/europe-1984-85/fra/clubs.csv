@@ -1,0 +1,21 @@
+key,name,coach,country,file,division,tactic,kit1,kit2,lineup,source
+bordeaux,BORDEAUX,Aimé Jacquet,FRA,league,0,0,0 5 5 1 5,0 1 1 5 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,FC Girondins de Bordeaux
+monaco,MONACO,,FRA,league,0,0,1 4 1 4 4,0 7 7 7 7,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,AS Monaco
+auxerre,AUXERRE,,FRA,league,0,5,0 1 1 1 1,0 5 5 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,AJ Auxerre
+parissg,PARIS SG,,FRA,league,0,0,0 9 9 5 5,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Paris Saint-Germain FC
+toulouse,TOULOUSE,,FRA,league,0,0,0 1 1 1 1,0 6 6 1 6,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Toulouse FC
+nantes,NANTES,,FRA,league,0,8,2 9 8 9 9,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,FC Nantes Atlantique
+sochaux,SOCHAUX,,FRA,league,0,0,0 9 9 5 5,2 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,FC Sochaux-Montbéliard
+strasbourg,STRASBOURG,,FRA,league,0,0,3 7 1 7 7,0 5 5 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Racing Club Strasbourg
+lille,LILLE,,FRA,league,0,8,0 1 1 5 5,0 5 5 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Lille Olympique SC
+bastia,BASTIA,,FRA,league,0,0,0 5 5 5 5,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Sporting Étoile Club Bastia
+laval,LAVAL,,FRA,league,0,5,0 3 3 2 3,0 2 2 3 2,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Stade Lavallois
+metz,METZ,,FRA,league,0,8,0 6 6 6 1,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,FC Metz
+lens,LENS,,FRA,league,0,0,3 4 9 4 4,0 5 5 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Racing Club Lens
+fcrouen,ROUEN,,FRA,league,0,5,0 3 3 2 3,0 2 2 3 2,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,FC Rouen
+nancy,NANCY,Arsène Wenger,FRA,league,0,3,0 1 1 1 1,0 4 4 4 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,AS Nancy-Lorraine
+toulon,TOULON,,FRA,league,0,2,1 9 5 5 5,0 5 5 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Sporting Toulon Var
+brest,BREST,,FRA,league,0,0,0 5 5 5 5,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,FC Brest Armorique
+marseille,MARSEILLE,,FRA,league,0,0,0 1 1 1 1,0 7 7 7 7,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Olympique Marseille
+racingparis,RACING PARIS,,FRA,league,0,0,2 4 9 4 4,0 5 5 2 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Racing Club de Paris
+toursfc,TOURS,,FRA,league,0,5,0 9 9 5 5,0 5 5 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Tours FC

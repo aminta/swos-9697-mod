@@ -1,0 +1,257 @@
+club,name,role,position,number,nat,skin,pa,ve,he,ta,co,sp,fi,price
+benfica,Manuel Bento,G,G,1,27,light,4*,4,6*,4,4,5*,4,39
+benfica,António Oliveira,D,RB,2,27,light,5*,4,5*,5*,5,5,4,33
+benfica,Samuel,D,LB,3,27,light,3,3,5*,5*,3,4*,4,27
+benfica,António Bastos Lopes,D,D,4,27,light,5*,5*,5*,5,5,5,5,35
+benfica,Alberto Bastos Lopes,D,D,5,27,light,3*,3,5*,5*,3,3,3,25
+benfica,Diamantino,M,RW,6,27,light,6*,5*,5,4,6*,5,5,36
+benfica,Shéu,M,LW,7,27,light,5*,5*,5*,5,5,5,5,35
+benfica,Adelino Nunes,M,M,8,27,light,6*,5*,5,6*,5,5,5,37
+benfica,Carlos Manuel,M,M,9,27,light,6*,5*,5,6*,5,5,5,37
+benfica,Nené,A,A,10,27,light,5,5,6*,4,6*,6*,6,38
+benfica,Michael Manniche,A,A,11,7,light,5*,5*,6*,4,5,5,5,35
+benfica,Delgado,G,G,12,27,light,3*,3*,5*,3,3,3,3,34
+benfica,Paulo Guilherme,D,D,13,27,light,2*,2*,2*,2,2,2,2,14
+benfica,José Luís,M,M,14,27,light,5*,5*,5*,4,5,5,4,33
+benfica,Jorge Silva,A,A,15,27,light,4,4,5*,4,4,5*,5*,31
+benfica,Minervino Pietra,D,RB,16,27,light,5*,5*,5*,5,5,5,5,35
+fcporto,Zé Beto,G,G,1,27,light,3*,3*,5*,3,3,3,3,34
+fcporto,Eduardo Luís,D,RB,2,27,light,5*,4,5*,5*,5,5,4,33
+fcporto,António Lima Pereira,D,LB,3,27,light,5*,5*,5*,5,5,5,5,35
+fcporto,Eurico Gomes,D,D,4,27,light,5*,5*,5*,5,5,5,5,35
+fcporto,Mariano,D,D,5,27,dark,3*,3,3,4*,4*,3,3,23
+fcporto,Jaime Magalhães,M,RW,6,27,light,5*,5*,5*,5,5,5,5,35
+fcporto,António Frasco,M,LW,7,27,light,5*,5*,5*,5,5,5,5,35
+fcporto,Quim Vitorino,M,M,8,27,light,5*,5*,5*,5,5,5,4,34
+fcporto,André,M,M,11,27,light,5*,4,5*,5*,5,5,4,33
+fcporto,Fernando Gomes,A,A,9,27,light,5,5,6*,4,5,6*,6*,37
+fcporto,Paulo Futre,A,A,10,27,light,5*,5,4,3,6*,6*,5,34
+fcporto,Petar Borota,G,G,12,37,light,4*,3,5*,3,3,5*,3,30
+fcporto,Cerqueira,D,D,13,27,light,3*,3*,3*,3,3,3,3,21
+fcporto,Ademar,M,M,14,27,light,5*,3,4,5*,5*,5,4,31
+fcporto,Vermelhinho,A,A,15,27,light,5*,5*,5*,4,5,5,5,34
+fcporto,Augusto Inácio,D,LB,16,27,light,5*,5,5,6*,5,6*,5,37
+sportinglisbon,Vítor Damas,G,G,1,27,light,5*,4,5*,5*,4,5,3,35
+sportinglisbon,Oceano,D,RB,2,27,light,5*,5*,5*,5,4,5,5,34
+sportinglisbon,Venâncio,D,LB,3,27,light,5*,3,5*,5*,5,5,3,31
+sportinglisbon,Virgílio,D,D,4,27,light,5*,4,5*,5*,5,5,4,33
+sportinglisbon,Zezinho,D,D,5,27,light,5*,3,5*,5*,4,5,3,30
+sportinglisbon,António Sousa,M,RW,6,27,light,6*,5*,5*,5,5,5,5,36
+sportinglisbon,Carlos Xavier,M,LW,7,27,light,5*,4,5*,5*,5,5,4,33
+sportinglisbon,Jaime Pacheco,M,M,8,27,light,5*,5*,5,6*,5,5,5,36
+sportinglisbon,António Oliveira,M,M,10,27,light,6*,5*,4,4,5*,5,5,34
+sportinglisbon,Manuel Fernandes,A,A,9,27,light,5,6*,6*,5,6*,6,6,40
+sportinglisbon,Rui Jordão,A,A,11,27,light,5,5,6*,4,5,6*,6*,37
+sportinglisbon,Béla Katzirz,G,G,12,15,light,3*,3,5*,3,3,5*,3,33
+sportinglisbon,Morato,D,D,13,27,light,3,3,5*,5*,4,5*,4,29
+sportinglisbon,Vanyo Kostov,M,M,14,3,light,5*,3,3,3,5*,5*,3,27
+sportinglisbon,John Toshack,A,A,15,36,light,4*,4,5*,3,4,4,5*,29
+sportinglisbon,Mário Jorge,M,LW,16,27,light,5*,5*,5*,5,5,5,4,34
+braga,Valter,G,G,1,27,light,3*,3*,3*,3,3,3,3,29
+braga,Fernando Festas,D,RB,2,27,light,4*,4,5*,5*,4,4,4,30
+braga,Dito,D,LB,3,27,light,5*,3,5*,5*,3,5,3,29
+braga,Nélito,D,D,4,27,light,3*,3*,3*,3,3,3,3,21
+braga,Guedes,D,D,5,27,light,3*,3*,3*,3,3,3,3,21
+braga,Fernando Pires,M,RW,6,27,light,3*,3*,2,2,3*,3,3,19
+braga,Sérgio Pinto,M,LW,7,70,light,3*,3,4*,3,3,4*,3,23
+braga,Spencer,M,M,8,27,dark,3*,3*,3*,3,3,3,3,21
+braga,Joaquim Alberto,M,M,9,27,light,2*,2*,2*,2,2,2,2,14
+braga,Zinho,A,A,10,70,light,5*,5*,5*,4,5,5,5,34
+braga,Reinaldo,A,A,11,27,light,4,3,5*,3,5*,4,5*,29
+braga,Hélder Catalão,G,G,12,27,light,3*,3*,3*,3,3,3,3,28
+braga,Carlos Carvalhal,D,D,13,27,light,2*,2,4*,2,2,4*,2,18
+braga,Fernando Ribeiro,M,M,14,27,light,1*,1*,1*,1,1,1,1,7
+braga,Jorge Gomes,A,A,15,70,light,5*,3,5*,3,4*,4,4,28
+braga,Artur,D,RB,16,27,light,5*,3,5*,5*,4,5,3,30
+vitoriasetubal,Jorge Martins,G,G,1,27,light,3*,3*,5*,3,3,3,3,31
+vitoriasetubal,Sobrinho,D,RB,2,27,light,5*,4,5*,5*,5,5,4,33
+vitoriasetubal,Edmundo,D,LB,3,27,light,3,3,5*,5*,3,4*,3,26
+vitoriasetubal,Rui Cerdeira,D,D,4,27,light,4*,3,3,4*,4*,4,3,25
+vitoriasetubal,Teixeira,D,D,5,27,light,3*,3,5*,4*,3,3,3,24
+vitoriasetubal,Nascimento,M,RW,6,27,light,5*,3,5*,3,5*,5,5,31
+vitoriasetubal,Hernâni,M,LW,7,27,light,4*,3,4*,4*,4,4,3,26
+vitoriasetubal,Ricardo Formosinho,M,M,8,27,light,3*,3*,3*,3,3,3,3,21
+vitoriasetubal,Vítor Ova,M,M,9,27,light,2*,2*,2*,2,2,2,2,14
+vitoriasetubal,Carlos Freire,A,A,10,27,light,5*,3,4,3,5*,5*,5,30
+vitoriasetubal,Jorge Plácido,A,A,11,27,light,5*,4*,4,4,4,5*,4,30
+vitoriasetubal,Padrão,G,G,12,27,light,3*,3*,4*,3,3,3,3,28
+vitoriasetubal,Vicente,D,D,13,27,light,3,3,4*,4*,3,4*,3,24
+vitoriasetubal,António Umbelino,M,M,14,27,light,2*,2*,2*,2,2,2,2,14
+vitoriasetubal,António Aparício,A,A,15,27,light,4*,4*,4*,3,4,4,4,27
+vitoriasetubal,Mota,M,RW,16,27,light,4*,3,4,5*,4,5*,3,28
+vguimaraes,Jesus,G,G,1,27,light,4*,3,5*,3,3,4*,3,30
+vguimaraes,Gregório Freixo,D,RB,2,27,light,3,3,4*,5*,4,5*,3,27
+vguimaraes,Miguel Marques,D,LB,3,27,light,4*,3,4,5*,3,5*,3,27
+vguimaraes,Rui Vieira,D,D,4,27,light,4*,3,5*,5*,3,4,4,28
+vguimaraes,Teixeirinha,D,D,5,27,light,3,3,4*,5*,3,4*,3,25
+vguimaraes,José Soeiro,M,RW,6,27,light,3,3,4*,4*,3,4*,3,24
+vguimaraes,Francisco Dinis,M,LW,7,27,light,1*,1*,1*,1,1,1,1,7
+vguimaraes,Okey Isima,M,M,8,107,dark,3*,3*,3,3,3,5*,3,23
+vguimaraes,Hilário,M,M,9,27,light,3*,3*,3*,3,3,3,3,21
+vguimaraes,Paquito,A,A,10,27,light,3,3,3,3,5*,5*,5*,27
+vguimaraes,Paulo Ricardo,A,A,11,70,light,3*,3*,5*,3,3,3,3,23
+vguimaraes,Lopes,G,G,12,27,light,2*,2*,4*,2,2,2,2,20
+vguimaraes,Valério,D,D,13,27,light,3*,3*,3*,3,3,3,3,21
+vguimaraes,Tozé,M,M,14,27,light,3*,3*,3*,3,3,3,3,21
+vguimaraes,Da Silva,A,A,15,70,light,3*,3*,3*,3,3,3,3,21
+vguimaraes,Laureta,D,LB,16,27,light,5*,3,5*,5*,5,5,3,31
+boavista,Alfredo,G,G,1,27,light,3*,3*,5*,3,3,3,3,31
+boavista,Teixeira,D,RB,2,27,light,4*,3,4*,5*,4,4,3,27
+boavista,Adão,D,LB,3,27,light,3*,3*,4*,3,3,3,3,22
+boavista,Frederico,D,D,4,27,light,4,4,5*,5*,4,5*,4,31
+boavista,Jorginho,D,D,5,70,light,3,3,4*,4*,3,4*,3,24
+boavista,Rui Casaca,M,RW,6,27,light,5*,5*,4,5*,4,4,4,31
+boavista,Parente,M,LW,7,27,light,5*,4,4,5*,4,5*,4,31
+boavista,João Alves,M,M,8,27,light,5*,4,4,4,5*,4,5*,31
+boavista,Phil Walker,M,M,9,8,light,5*,4*,4,5*,4,4,4,30
+boavista,José Coelho,A,A,10,27,light,5*,4,5*,4,5*,5,4,32
+boavista,Zoran Filipovic,A,A,11,37,light,4*,3,5*,3,4,4,5*,28
+boavista,Paulino,G,G,12,102,dark,3*,3*,5*,3,3,3,3,25
+boavista,Carlinhos,D,D,13,70,light,3*,3*,3*,3,3,3,3,21
+boavista,Fernando Fonseca,M,M,14,27,light,1*,1*,1*,1,1,1,1,7
+boavista,José Rafael,A,A,15,27,light,3,3,4*,3,4*,4,5*,26
+boavista,Rui Palhares,M,LW,16,27,light,5*,4,4,3,5*,5*,5,31
+varzim,Lúcio,G,G,1,27,light,3*,3*,3*,3,3,3,3,30
+varzim,José Maria,D,RB,2,27,light,3*,3*,3*,3,3,3,3,21
+varzim,Zé Duarte,D,LB,3,27,light,2*,2,3*,3*,2,2,2,16
+varzim,António Dias,D,D,4,27,light,3*,3*,3*,3,3,3,3,21
+varzim,Varela,D,D,5,27,light,3*,3*,3*,3,3,3,3,21
+varzim,Adão,M,RW,6,27,light,5*,3,4,3,5*,5*,4,29
+varzim,Bobó,M,LW,7,27,dark,4*,4*,4,5*,4,4,4,29
+varzim,Miranda,M,M,8,27,light,4*,4*,4*,3,4,4,4,27
+varzim,Júlio Sérgio,M,M,9,27,light,4*,2,2,4*,4*,4,2,22
+varzim,Vata,A,A,10,102,dark,4*,4*,4,3,4,5*,4,28
+varzim,Folha,A,A,11,27,light,3*,3*,3,3,5*,3,3,23
+varzim,Dias Graça,G,G,12,70,light,2*,2*,2*,2,2,2,2,22
+varzim,Francisco Lima Pereira,D,D,13,27,light,2*,2*,2*,2,2,2,2,14
+varzim,Paulo Lima Pereira,M,M,14,27,light,3*,3*,2,2,3*,2,2,17
+varzim,Manuelzinho,A,A,15,27,light,3*,3*,3*,3,3,3,3,21
+varzim,Belmiro,D,LB,16,27,light,3*,3*,3*,3,3,3,3,21
+rioave,Diamantino Figueiredo,G,G,1,27,light,3*,3*,4*,3,3,3,3,25
+rioave,Santana,D,RB,2,27,light,3*,3,5*,4*,3,3,3,24
+rioave,Passo,D,LB,3,27,light,2*,2*,2*,2,2,2,2,14
+rioave,Brito,D,D,4,70,light,3*,3,4*,4*,3,3,3,23
+rioave,Antero,D,D,5,27,light,3*,3*,3*,3,3,3,3,21
+rioave,Juanico,M,RW,6,27,light,4*,4*,4,5*,4,4,4,29
+rioave,Carlos Manuel,M,LW,7,27,light,3*,3*,3*,3,3,3,3,21
+rioave,Carvalho,M,M,8,27,light,3*,3*,3*,3,3,3,3,21
+rioave,Frank Sheridan,M,M,9,8,light,2*,2*,2*,2,2,2,2,14
+rioave,Chico Faria,A,A,10,27,light,4,4,5*,3,4,5*,5*,30
+rioave,Álvaro Soares,A,A,11,27,light,3*,3,4*,3,3,4*,3,23
+rioave,Alberto,G,G,12,27,light,3*,3*,3*,3,3,3,3,25
+rioave,Ruca,D,D,13,27,light,2*,2*,2*,2,2,2,2,14
+rioave,Oliveira,M,M,14,27,light,2*,2*,2*,2,2,2,2,14
+rioave,Pires,A,A,15,27,light,3*,3,4*,3,3,4*,3,23
+rioave,Mário Pinto,M,LW,16,27,light,3*,3*,3*,3,3,3,3,21
+portimonense,Mendes,G,G,1,27,light,3*,3*,3*,3,3,3,3,26
+portimonense,Zé Alhinho,D,RB,2,27,dark,3*,3*,3*,3,3,3,3,21
+portimonense,Simões,D,LB,3,27,light,3,3,5*,5*,4*,3,4,27
+portimonense,Balacó,D,D,4,27,light,3*,3*,3*,3,3,3,3,21
+portimonense,Fernando,D,D,5,27,light,2*,2*,2*,2,2,2,2,14
+portimonense,Skoda,M,RW,6,27,light,4*,5*,4*,4,4,4,4,29
+portimonense,Pedroto,M,LW,7,27,light,3*,3*,3*,3,3,3,3,21
+portimonense,José Abreu,M,M,8,27,light,5*,3*,3,3,3,4*,3,24
+portimonense,António Carvalho,M,M,9,27,light,3,3,4*,3,4*,4*,3,24
+portimonense,Rui Águas,A,A,10,27,light,4*,4,4,3,5*,4,5*,29
+portimonense,Serge Cadorin,A,A,11,2,light,3*,3,5*,3,3,3,5*,25
+portimonense,Vital,G,G,12,27,light,3*,3*,4*,3,3,3,3,25
+portimonense,Luís Saura,D,D,13,27,light,3*,3*,3*,3,3,3,3,21
+portimonense,Vítor Oliveira,M,M,14,27,light,3*,3*,3*,3,3,3,3,21
+portimonense,Júlio,A,A,15,27,light,3*,3*,3,3,3,3,5*,23
+portimonense,Francisco Barão,D,LB,16,27,light,5*,4,4,5*,4,5*,4,31
+salgueiros,Madureira,G,G,1,27,light,3*,3*,3,3,3,4*,3,28
+salgueiros,António Paris,D,RB,2,27,light,3,3,5*,5*,3,4*,3,26
+salgueiros,Matias,D,LB,3,27,light,3,3,4*,4*,3,4*,3,24
+salgueiros,José Germano,D,D,4,27,light,3*,3*,3*,3,3,3,3,21
+salgueiros,Edgar,D,D,5,27,light,2*,2*,2*,2,2,2,2,14
+salgueiros,Gilberto,M,RW,6,27,light,3*,3,4*,3,3,5*,3,24
+salgueiros,Santos Cardoso,M,LW,7,27,light,3*,3*,3*,3,3,3,3,21
+salgueiros,José Manuel,M,M,8,27,light,3*,3*,3*,3,3,3,3,21
+salgueiros,João,M,M,9,27,light,2*,2*,2*,2,2,2,2,14
+salgueiros,Tonanha,A,A,10,70,light,3,3,5*,3,4*,4,5*,27
+salgueiros,Constantino,A,A,11,27,light,3*,3*,3*,3,3,3,3,21
+salgueiros,Soares,G,G,12,27,light,2*,2*,2*,2,2,2,2,20
+salgueiros,Vítor,D,D,13,27,light,2*,2*,2*,2,2,2,2,14
+salgueiros,Rui França,M,M,14,27,light,2*,2*,2*,2,2,2,2,14
+salgueiros,Penteado,A,A,15,27,light,3*,3*,3*,3,3,3,3,21
+salgueiros,Jorginho,M,LW,16,27,light,3*,3,3,3,3,5*,4*,24
+farense,Peres,G,G,1,27,light,3*,3*,3*,3,3,3,3,26
+farense,Miguel Quaresma,D,RB,2,27,light,3*,3*,3*,3,3,3,3,21
+farense,Jayme,D,LB,3,70,light,4*,3,4*,4*,4,3,3,25
+farense,Leonardo,D,D,4,27,light,3*,3,4*,4*,3,3,3,23
+farense,Quim Manuel,D,D,5,27,light,3*,3*,3*,3,3,3,3,21
+farense,Patrício Campina,M,RW,6,27,light,1*,1*,1*,1,1,1,1,7
+farense,Mário Wilson,M,LW,7,27,light,3*,3*,3*,3,3,3,3,21
+farense,Heliodoro Miranda,M,M,8,27,light,1*,1*,1*,1,1,1,1,7
+farense,Rui Russo,M,M,9,27,light,1*,1*,1*,1,1,1,1,7
+farense,Gil Alves,A,A,10,70,light,5*,5*,4,3,5*,5,5,32
+farense,Paco Fortes,A,A,11,40,light,5*,3,4,3,5*,5*,5,30
+farense,João Casaca,G,G,12,27,light,2*,2*,2*,2,2,2,2,17
+farense,Antero Afonso,D,D,13,27,light,2*,2*,2*,2,2,2,2,14
+farense,João José,M,M,14,27,light,1*,1*,1*,1,1,1,1,7
+farense,Rui Lopes,A,A,15,27,light,4*,4*,4*,3,4,4,4,27
+farense,Nélson Borges,A,A,16,70,light,4*,3,3,3,4*,4*,4,25
+penafiel,Francisco Trindade,G,G,1,27,light,3*,3*,3*,3,3,3,3,26
+penafiel,Fernando,D,RB,2,70,light,3*,3*,3,4*,3,3,3,22
+penafiel,Bruno Cardoso,D,LB,3,27,light,3*,3*,3*,3,3,3,3,21
+penafiel,Figueiredo,D,D,4,27,light,3*,3*,3*,3,3,3,3,21
+penafiel,Vasco,D,D,5,27,light,2*,2*,2*,2,2,2,2,14
+penafiel,Manuel Branco,M,RW,6,27,light,3*,3*,3*,3,3,3,3,21
+penafiel,Ferreira da Costa,M,LW,7,27,light,3*,3*,3*,3,3,3,3,21
+penafiel,Babo,M,M,8,27,light,3*,3*,3*,3,3,3,3,21
+penafiel,Elias,M,M,9,27,light,3*,3*,3*,3,3,3,3,21
+penafiel,Jason,A,A,10,70,light,3,4*,4*,3,4,4,5*,27
+penafiel,Afonso,A,A,11,27,light,3*,3*,3*,3,3,3,3,21
+penafiel,Gustavo Cerqueira,G,G,12,27,light,3*,3*,3*,3,3,3,3,25
+penafiel,Carlos Alberto,D,D,13,27,light,2*,2*,2*,2,2,2,2,14
+penafiel,Napoleão Magalhães,M,M,14,27,light,1*,1*,1*,1,1,1,1,7
+penafiel,Xavier,A,A,15,27,light,3*,3*,3*,3,3,3,3,21
+penafiel,Tozé Ribeiro,M,RW,16,27,light,4*,4*,4*,3,4,4,3,26
+belenenses,Melo,G,G,1,27,light,3*,3*,5*,3,3,3,3,28
+belenenses,José António,D,RB,2,27,light,5*,4,5*,5*,4,5,4,32
+belenenses,Rui Gregório,D,LB,3,27,light,2*,2,3*,3*,2,2,2,16
+belenenses,Paulo Menezes,D,D,4,70,light,4*,4*,4*,4,4,4,3,27
+belenenses,Tuna,D,D,5,27,light,2*,2*,2*,2,2,2,2,14
+belenenses,Jaime Mercês,M,RW,6,27,light,4*,4*,4*,4,4,4,4,28
+belenenses,Ronnie Glavin,M,LW,7,31,light,4*,4,4,5*,4,4,5*,30
+belenenses,Dudu,M,M,8,70,light,5*,5*,4,5*,5,4,4,32
+belenenses,Rúben,M,M,9,27,light,3*,3*,3*,3,3,3,3,21
+belenenses,Djão,A,A,10,27,light,5*,5*,4,4,5*,5,5,33
+belenenses,Luís Norton de Matos,A,A,11,27,light,3*,3*,3*,3,3,3,3,21
+belenenses,Justino,G,G,12,27,light,3*,3*,3*,3,3,3,3,25
+belenenses,Mário Paz,D,D,13,27,light,2*,2*,2*,2,2,2,2,14
+belenenses,Rocha,M,M,14,27,light,2*,2*,2*,2,2,2,2,14
+belenenses,Joel,A,A,15,27,light,3*,3*,3*,3,3,3,3,21
+belenenses,Joaquim Murça,D,LB,16,27,light,5*,3,3,5*,5*,5,3,29
+academica,Marrafa,G,G,1,27,light,3*,3*,3*,3,3,3,3,26
+academica,Kikas,D,RB,2,27,light,3*,3,4*,4*,3,3,3,23
+academica,Tomás,D,LB,3,27,light,3*,3*,3*,3,3,3,3,21
+academica,Francisco Silva,D,D,4,27,light,3*,3*,3*,3,3,3,3,21
+academica,Tozé,D,D,5,27,light,2*,2*,2*,2,2,2,2,14
+academica,José Ribeiro,M,RW,6,27,light,5*,4,4,4,5*,5*,4,31
+academica,Camilo,M,LW,7,27,light,3*,3*,3*,3,3,3,3,21
+academica,Artur Semedo,M,M,8,27,light,2*,2*,2*,2,2,2,2,14
+academica,Bravo,M,M,9,27,light,1*,1*,1*,1,1,1,1,7
+academica,Pedro Xavier,A,A,10,27,light,4*,4,4,3,4,5*,5*,29
+academica,Nilson Dias,A,A,11,70,light,4*,4*,4*,3,4,4,4,27
+academica,Vítor Nóvoa,G,G,12,27,light,2*,2*,2*,2,2,2,2,23
+academica,António Augusto,D,D,13,27,light,2*,2*,2*,2,2,2,2,14
+academica,Arménio,M,M,14,102,dark,1*,1*,1*,1,1,1,1,7
+academica,Reinaldo,A,A,15,27,light,4*,4*,4*,3,4,4,4,27
+academica,Carlos Ribeiro,D,RB,16,27,light,3*,3*,3*,3,3,3,3,21
+vizela,Sérgio,G,G,1,27,light,2*,2*,2*,2,2,2,2,22
+vizela,Manuel Correia,D,RB,2,27,light,3,3,4*,4*,3,4*,3,24
+vizela,Russo,D,LB,3,70,light,3*,3*,3,4*,3,3,3,22
+vizela,Manuel Teixeira,D,D,4,27,light,2*,2*,2*,2,2,2,2,14
+vizela,Berto,D,D,5,27,light,2*,2*,2*,2,2,2,2,14
+vizela,Tozé,M,RW,6,27,light,1*,1*,1*,1,1,1,1,7
+vizela,Adélio,M,LW,7,27,light,2*,2*,2*,2,2,2,2,14
+vizela,Perrichon,M,M,8,27,light,2*,2*,2*,2,2,2,2,14
+vizela,António Faria,M,M,9,27,light,1*,1*,1*,1,1,1,1,7
+vizela,Pita,A,A,10,27,dark,3*,3*,3*,3,3,3,3,21
+vizela,António Barbosa,A,A,11,27,light,3*,3*,3*,3,3,3,3,21
+vizela,Caldas,G,G,12,27,light,2*,2*,2*,2,2,2,2,20
+vizela,Adão Roque,D,D,13,27,light,2*,2*,2*,2,2,2,2,14
+vizela,Salvador,M,M,14,27,light,3*,3*,3*,3,3,3,3,21
+vizela,Nelito,A,A,15,102,dark,3*,3*,3*,3,3,3,3,21
+vizela,Toni,D,RB,16,27,light,3*,3,3,4*,3,4*,3,23

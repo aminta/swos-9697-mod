@@ -1,0 +1,68 @@
+key,name,coach,country,file,division,tactic,kit1,kit2,lineup,source
+vfbstuttgart,VFB STUTTGART,,FRG,league,0,4,0 1 1 1 1,0 4 4 4 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,VfB Stuttgart
+hamburg,HAMBURG,Ernst Happel,FRG,league,0,4,0 1 1 4 5,1 1 5 2 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Hamburger SV
+bmgladbach,B. M'GLADBACH,Jupp Heynckes,FRG,league,0,4,0 5 5 2 5,0 1 1 5 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Borussia M'gladbach
+bayernmunchen,BAYERN MUNCHEN,Udo Lattek,FRG,league,0,4,0 1 1 1 1,0 4 4 4 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,FC Bayern München
+werderbremen,WERDER BREMEN,Otto Rehhagel,FRG,league,0,4,0 1 1 8 1,0 5 5 5 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,SV Werder Bremen
+1fckoln,KOLN,Hannes Löhr,FRG,league,0,4,1 9 2 2 9,0 8 8 1 8,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,1.FC Köln
+bayerleverkusen,BAYER LEVERKUSEN,Dettmar Cramer,FRG,league,0,4,2 4 1 1 1,0 4 4 4 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Bayer 04 Leverkusen
+abielefeld,A. BIELEFELD,Gerd Roggensack,FRG,league,0,4,3 6 1 6 6,2 5 2 2 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Arminia Bielefeld
+ebraunschweig,E. BRAUNSCHWEIG,Aleksandar Ristić,FRG,league,0,4,0 4 4 4 4,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,TSV Eintracht Braunschweig
+bayeruerdingen,BAYER UERDINGEN,Karlheinz Feldkamp,FRG,league,0,4,0 4 4 5 5,0 5 5 4 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Bayer 05 Uerdingen
+waldhofmannheim,WALDHOF MANNHEIM,Klaus Schlappner,FRG,league,0,4,0 5 5 2 5,0 1 1 5 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,SV Waldhof Mannheim
+kaiserslautern,KAISERSLAUTERN,Manfred Krafft,FRG,league,0,4,0 4 4 4 4,1 1 5 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,1.FC Kaiserslautern
+bdortmund,B. DORTMUND,Timo Konietzka,FRG,league,0,4,0 1 1 5 5,2 4 2 2 2,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,BV Borussia Dortmund
+fdusseldorf,F. DUSSELDORF,Willibert Kremer,FRG,league,0,4,1 9 2 2 9,0 8 8 1 8,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Fortuna Düsseldorf
+vflbochum,VFL BOCHUM,Rolf Schafstall,FRG,league,0,4,0 5 5 5 1,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,VfL Bochum
+efrankfurt,E. FRANKFURT,Dietrich Weise,FRG,league,0,4,0 1 1 4 5,1 1 5 2 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Eintracht Frankfurt
+karlsruhe,KARLSRUHE,Werner Olk,FRG,league,0,4,2 1 5 1 1,0 5 5 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Karlsruher SC
+schalke,SCHALKE,Diethelm Ferner,FRG,league,0,4,0 5 5 1 5,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,FC Schalke 04
+msvduisburg,MSV DUISBURG,Luis Zacarias,FRG,league,1,4,3 5 1 1 1,0 4 4 4 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,MSV Duisburg
+hessenkassel,HESSEN KASSEL,Jörg Berger,FRG,league,1,4,1 1 2 2 1,0 4 4 4 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,KSV Hessen Kassel
+unionsolingen,UNION SOLINGEN,Eckhard Krautzun,FRG,league,1,4,2 5 1 1 1,0 5 5 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,SG Union Solingen
+alemanniaaachen,ALEMANNIA AACHEN,Werner Fuchs,FRG,league,1,4,0 5 5 5 5,0 9 9 5 9,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,TSV Alemannia Aachen
+freiburg,FREIBURG,,FRG,league,1,4,1 4 2 2 4,0 5 5 2 2,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,SC Freiburg
+stuttkickers,STUTT. KICKERS,Horst Buhtz,FRG,league,1,4,0 4 4 2 4,0 9 9 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Stuttgarter Kickers
+scfortunakoln,FORTUNA KOLN,,FRG,league,1,4,1 9 2 2 9,0 8 8 1 8,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,SC Fortuna Köln
+saarbrucken,SAARBRUCKEN,Uwe Klimaschefski,FRG,league,1,4,2 5 2 1 1,0 9 9 5 9,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,1.FC Saarbrücken
+herthaberlin,HERTHA BERLIN,Uwe Kliemann,FRG,league,1,4,0 4 4 5 5,0 5 5 4 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Hertha BSC Berlin
+svdarmstadt98,DARMSTADT 98,Lothar Kleim,FRG,league,1,4,0 5 5 1 5,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,SV Darmstadt 98
+ssvulm1846,ULM 1846,Hannes Baldauf,FRG,league,1,4,3 5 1 1 1,0 4 4 4 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,SSV Ulm 1846
+hannover96,HANNOVER 96,Werner Biskup,FRG,league,1,4,0 4 4 4 1,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Hannover 96
+wattenscheid,WATTENSCHEID,Fahrudin Jusufi,FRG,league,1,4,1 1 2 2 1,0 4 4 4 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,SG Wattenscheid 09
+rwoberhausen,RW OBERHAUSEN,Friedel Elting,FRG,league,1,4,0 5 5 5 5,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Rot-Weiß Oberhausen
+koffenbach,K. OFFENBACH,Fritz Fuchs,FRG,league,1,4,1 1 8 1 8,0 8 8 8 8,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Kickers Offenbach
+1fcnurnberg,NURNBERG,,FRG,league,1,4,0 5 5 5 5,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,1.FC Nürnberg
+stpauli,ST. PAULI,Michael Lorkowski,FRG,league,1,4,3 6 1 6 6,2 5 2 2 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,FC St. Pauli
+vfrburstadt,VFR BURSTADT,Lothar Buchmann,FRG,league,1,4,0 6 6 6 6,0 9 9 2 9,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,VfR Bürstadt
+homburg,HOMBURG,Albert Müller,FRG,league,1,4,1 1 8 1 8,0 8 8 8 8,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,FC 08 Homburg
+blauweiss90,BLAU-WEISS 90,Stefan Sprey,FRG,league,1,4,1 4 2 2 4,0 5 5 2 2,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Blau-Weiß 90 Berlin
+fv08duisburg,FV 08 DUISBURG,,FRG,cuponly,,4,2 5 4 5 5,0 9 9 8 8,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,FV 08 Duisburg
+vflosnabruck,OSNABRUCK,,FRG,cuponly,,4,0 4 4 4 4,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,VfL Osnabrück
+friesenhanigsen,FRIESEN HANIGSEN,,FRG,cuponly,,4,3 5 1 1 1,0 4 4 4 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,TSV Friesen Hänigsen
+tsvhavelse,HAVELSE,,FRG,cuponly,,4,0 4 4 2 4,0 9 9 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,TSV Havelse
+vflkellinghusen,KELLINGHUSEN,,FRG,cuponly,,4,2 4 1 1 1,0 4 4 4 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,VfL Kellinghusen
+ascdudweiler,ASC DUDWEILER,,FRG,cuponly,,4,0 1 1 8 8,0 5 5 8 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,ASC Dudweiler
+scgeislingen,GEISLINGEN,,FRG,cuponly,,4,0 1 1 4 5,1 1 5 2 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,SC Geislingen
+scjulich1910,JULICH 1910,,FRG,cuponly,,0,2 5 2 2 5,0 1 1 2 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,SC Jülich 1910
+fcrastatt,RASTATT,,FRG,cuponly,,0,2 5 2 2 5,0 1 1 2 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,FC Rastatt
+fcaltona93,ALTONA 93,,FRG,cuponly,,4,1 5 4 1 4,0 4 4 4 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,FC Altona 93
+tsvofterdingen,OFTERDINGEN,,FRG,cuponly,,4,0 6 6 6 6,0 9 9 2 9,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,TSV Ofterdingen
+kickers,KICKERS,,FRG,cuponly,,4,1 9 2 2 9,0 8 8 1 8,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Stuttgarter Kickers II
+rotweissessen,ROT-WEISS ESSEN,,FRG,cuponly,,4,2 4 1 1 1,0 4 4 4 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,SC Rot-Weiss Essen
+olympiabocholt,OLYMPIA BOCHOLT,,FRG,cuponly,,4,1 8 1 1 8,0 4 4 4 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Olympia Bocholt
+frankfurt,FRANKFURT,,FRG,cuponly,,4,2 5 2 1 1,0 9 9 5 9,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Eintracht Frankfurt Amateure
+spvggbayreuth,BAYREUTH,,FRG,cuponly,,4,0 5 5 5 5,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,SpVgg Bayreuth
+svmettlach,METTLACH,,FRG,cuponly,,4,0 5 5 1 1,0 9 9 2 9,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,SV Mettlach
+1fcnurnberg2,1.FC NURNBERG,,FRG,cuponly,,4,0 1 1 4 5,1 1 5 2 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,1.FC Nürnberg Amateure
+ludwigshafen,LUDWIGSHAFEN,,FRG,cuponly,,4,0 5 5 2 5,0 1 1 5 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,SV Südwest Ludwigshafen
+vfboldenburg,VFB OLDENBURG,,FRG,cuponly,,4,0 5 5 5 5,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,VfB Oldenburg
+luttringhausen,LUTTRINGHAUSEN,,FRG,cuponly,,4,2 4 1 1 1,0 4 4 4 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,BV 08 Lüttringhausen
+scherford,HERFORD,,FRG,cuponly,,4,2 1 5 1 1,0 5 5 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,SC Herford
+svschwetzingen,SCHWETZINGEN,,FRG,cuponly,,4,0 5 5 1 1,0 9 9 2 9,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,SV Schwetzingen
+eintrachthaiger,EINTRACHT HAIGER,,FRG,cuponly,,4,0 1 1 4 5,1 1 5 2 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Eintracht Haiger
+csc03kassel,CSC 03 KASSEL,,FRG,cuponly,,4,0 6 6 6 6,0 9 9 2 9,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,CSC 03 Kassel
+charlottenburg,CHARLOTTENBURG,,FRG,cuponly,,0,0 1 1 1 1,2 8 2 2 2,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,SC Charlottenburg
+bayernmunich,BAYERN MUNICH,,FRG,cuponly,,8,2 4 5 5 1,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,FC Bayern Munich II
+oscbremerhaven,OSC BREMERHAVEN,,FRG,cuponly,,4,0 4 4 4 4,1 1 5 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,OSC Bremerhaven
+dusseldorf,DUSSELDORF,,FRG,cuponly,,4,0 1 1 1 1,0 4 4 4 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Fortuna Düsseldorf

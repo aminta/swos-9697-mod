@@ -1,0 +1,609 @@
+club,name,role,position,number,nat,skin,pa,ve,he,ta,co,sp,fi,price
+athleticbilbao,Andoni Zubizarreta,G,G,1,40,light,5*,5*,5*,5,4,5,3,34
+athleticbilbao,Andoni Goikoetxea,D,RB,2,40,light,5*,4,6*,6*,5,5,4,35
+athleticbilbao,Iñigo Liceranzu,D,LB,3,40,light,4,4,5*,5*,4,5*,4,31
+athleticbilbao,Patxi Salinas,D,D,4,40,light,4,4,5*,5*,3,5*,3,29
+athleticbilbao,Ismael Urtubi,D,D,5,40,light,5*,5*,5*,5,4,5,5,34
+athleticbilbao,Miguel de Andrés,M,RW,6,40,light,5*,4,5*,5*,4,5,4,32
+athleticbilbao,Txetxu Gallego,M,LW,7,40,light,5*,5*,4,5*,4,5,4,32
+athleticbilbao,Dani,M,M,8,40,light,6*,6*,5,5,6*,6,5,39
+athleticbilbao,Manuel Sarabia,M,M,9,40,light,5*,5*,5*,4,5,5,5,34
+athleticbilbao,Estanislao Argote,A,A,10,40,light,5*,5*,5*,4,5,5,5,34
+athleticbilbao,Endika,A,A,11,40,light,5*,5*,4,3,5*,5,5,32
+athleticbilbao,Carlos Meléndez,G,G,12,40,light,3*,3,5*,3,3,4*,3,29
+athleticbilbao,Julio Salinas,D,D,13,40,light,4,3,5*,4,5*,5*,5,31
+athleticbilbao,Txema Noriega,M,M,14,40,light,4,5*,4,3,5*,5*,5,31
+athleticbilbao,Ricardo Arrien,A,A,15,40,light,2*,2*,2*,2,2,2,2,14
+athleticbilbao,Miguel Sola,M,LW,16,40,light,5*,5*,5*,4,5,5,5,34
+realmadrid,Miguel Ángel,G,G,1,40,light,4*,4,6*,4,4,5*,4,39
+realmadrid,José Antonio Camacho,D,RB,2,40,light,6*,5,6*,6*,6,6,5,40
+realmadrid,Alfonso Fraile,D,LB,3,40,light,4,4,5*,5*,4,5*,4,31
+realmadrid,Manuel Sanchís,D,D,5,40,light,5*,5*,6*,5,5,5,4,35
+realmadrid,Paco Bonet,D,D,4,40,light,4,4,5*,5*,4,5*,4,31
+realmadrid,Ricardo Gallego,M,RW,6,40,light,5*,5*,5,6*,5,5,5,36
+realmadrid,Juan Lozano,M,LW,7,40,light,5*,5*,4,5,6*,5,4,34
+realmadrid,Ulrich Stielike,M,M,8,13,light,6*,6*,6*,6,6,6,6,42
+realmadrid,Martín Vázquez,M,M,9,40,light,5*,5*,4,5*,5,5,4,33
+realmadrid,Juanito,A,A,10,40,light,6*,6*,5,4,6*,6,6,39
+realmadrid,Jorge Valdano,A,A,11,68,light,5,6*,6*,4,6*,6,6,39
+realmadrid,José Manuel Ochotorena,G,G,12,40,light,4*,3,5*,3,3,5*,3,31
+realmadrid,José Antonio Salguero,D,D,13,40,light,4,4,5*,5*,4,5*,4,31
+realmadrid,Ángel,M,M,14,40,light,5*,4,4,5*,4,5*,4,31
+realmadrid,Santillana,A,A,15,40,light,5,6*,5,4,5,6*,6*,37
+realmadrid,Míchel,M,RW,16,40,light,6*,6*,5,4,6*,5,5,37
+barcelona,Urruti,G,G,23,40,light,5*,5*,4,5*,4,5,4,35
+barcelona,Migueli,D,RB,1,40,light,5*,5,6*,6*,5,5,5,37
+barcelona,Josep Moratalla,D,LB,2,40,light,4,3,5*,5*,3,5*,3,28
+barcelona,José Ramón Alexanko,D,D,3,40,light,5*,5,6*,6*,5,5,4,36
+barcelona,Urbano,D,D,4,40,light,5*,4,4,5*,4,5*,4,31
+barcelona,Bernd Schuster,M,RW,5,13,light,6*,6*,6*,5,6,6,6,41
+barcelona,Periko Alonso,M,LW,6,40,light,6*,5*,5,6*,5,5,5,37
+barcelona,Víctor Muñoz,M,M,7,40,light,6*,5*,5,6*,5,5,5,37
+barcelona,Marcos Alonso,M,M,8,40,light,6*,5*,5,4,6*,5,5,36
+barcelona,Esteban Vigo,A,A,9,40,light,5*,5*,5*,4,5,5,5,34
+barcelona,Steve Archibald,A,A,10,31,light,5*,5*,5*,4,5,5,5,34
+barcelona,Amador,G,G,11,40,light,4*,3,4*,3,3,4*,3,31
+barcelona,Salva,D,D,12,40,light,3*,3*,3*,3,3,3,3,21
+barcelona,Ramón Calderé,M,M,13,40,light,5*,5*,5*,5,5,5,5,35
+barcelona,Paco Clos,A,A,14,40,light,4,5*,5*,4,5*,5,5,33
+barcelona,Gerardo,D,RB,15,40,light,5*,5*,5,6*,5,5,4,35
+atleticomadrid,Ángel Mejías,G,G,1,40,light,3*,3*,3,3,3,4*,3,30
+atleticomadrid,Roberto Solozábal,D,RB,2,40,light,3*,2,3*,3*,2,2,2,17
+atleticomadrid,Juan Carlos Arteche,D,LB,3,40,light,4,4,5*,5*,4,5*,4,31
+atleticomadrid,Miguel Ángel Ruiz,D,D,4,40,light,3*,3*,3*,3,3,3,3,21
+atleticomadrid,Juanma López,D,D,5,40,light,2*,1,3*,3*,2,2,2,15
+atleticomadrid,Quique Ramos,M,RW,6,40,light,5*,5*,5,6*,5,5,4,35
+atleticomadrid,Roberto Marina,M,LW,7,40,light,5*,4,4,4,5*,5*,5,32
+atleticomadrid,Miroslav Votava,M,M,8,13,light,5*,5*,4,5*,5,5,4,33
+atleticomadrid,Carlos Guerrero,M,M,9,40,light,4*,4*,4*,3,4,4,4,27
+atleticomadrid,Hugo Sánchez,A,A,10,56,light,6*,6*,6,4,6,6,7*,41
+atleticomadrid,Enrique Estebaranz,A,A,11,40,light,4*,3,3,3,4*,4*,4,25
+atleticomadrid,Carlos Pereira,G,G,12,40,light,3*,3*,3*,3,3,3,3,28
+atleticomadrid,Balbino,D,D,13,40,light,2*,2*,2*,2,2,2,2,14
+atleticomadrid,Jesús Landaburu,M,M,14,40,light,3*,3*,3,3,3,5*,3,23
+atleticomadrid,Enrique Morán,A,A,15,40,light,3*,3*,3*,3,3,3,3,21
+atleticomadrid,Tomás Reñones,D,RB,16,40,light,5*,4,5*,5*,4,5,4,32
+betis,José Ramón Esnaola,G,G,1,40,light,3,3,5*,4*,3,5*,3,33
+betis,Javier Mantilla,D,RB,2,40,light,5*,5*,5*,5,4,5,4,33
+betis,Diego,D,LB,3,40,light,4,3,5*,5*,3,5*,4,29
+betis,Alex,D,D,4,40,light,5*,5*,5*,5,3,5,3,31
+betis,Carmelo,D,D,5,40,light,4*,3,5*,5*,3,4,4,28
+betis,Antonio Casado,M,RW,6,40,light,5*,4,5*,5*,4,5,4,32
+betis,Gabriel Calderón,M,LW,7,68,light,5*,5*,5*,5,5,5,5,35
+betis,Antonio Reyes,M,M,8,40,light,5*,5*,4,5*,5,4,4,32
+betis,Nene Suárez,M,M,9,40,light,5*,4,5*,4,4,5*,4,31
+betis,Poli Rincón,A,A,10,40,light,5*,5*,5*,4,5,5,5,34
+betis,Paco Machín,A,A,11,40,light,5*,4,5*,4,5*,5,5,33
+betis,Jacinto Barroso,G,G,12,40,light,3*,3*,4*,3,3,3,3,26
+betis,Quico,D,D,13,40,light,2*,2*,2,4*,2,2,2,16
+betis,Antolín Ortega,M,M,14,40,light,5*,4,5*,5*,4,5,3,31
+betis,Valdo,A,A,15,40,light,2*,2*,2*,2,2,2,2,14
+betis,Rafael Gordillo,D,LB,16,40,light,6*,6*,5,6*,5,6,5,39
+realsociedad,Luis Arconada,G,G,1,40,light,4*,4,6*,4,4,5*,4,39
+realsociedad,Alberto Górriz,D,RB,2,40,light,5*,5*,5*,5,4,5,4,33
+realsociedad,Agustín Gajate,D,LB,3,40,light,5*,5,6*,6*,5,5,4,36
+realsociedad,Inaxio Kortabarria,D,D,4,40,light,5*,5*,5*,5,4,5,4,33
+realsociedad,Jon Andoni Larrañaga,D,D,5,40,light,5*,4,5*,5*,4,5,4,32
+realsociedad,Jesús Maria Zamora,M,RW,6,40,light,6*,6*,5*,5,5,5,5,37
+realsociedad,José María Bakero,M,LW,7,40,light,5*,5*,5*,5,5,5,5,35
+realsociedad,Diego Álvarez,M,M,8,40,light,5*,5*,5*,5,4,5,4,33
+realsociedad,Javier Zubillaga,M,M,9,40,light,5*,5*,5*,4,5,5,4,33
+realsociedad,Roberto López Ufarte,A,A,10,40,light,5*,5*,5,4,6*,5,5,35
+realsociedad,Pedro Uralde,A,A,11,40,light,4,5*,5*,4,5*,5,5,33
+realsociedad,Agustín Elduayen,G,G,13,40,light,4*,3,4*,4*,4,4,3,26
+realsociedad,José Miguel Zúñiga,D,D,12,40,light,2*,2*,2*,2,2,2,2,14
+realsociedad,Jesús Satrústegui,M,M,14,40,light,5*,5*,5*,3,5,5,5,33
+realsociedad,Txiki Begiristain,A,A,15,40,light,4,5*,4,4,5*,5*,5,32
+realsociedad,Julio Olaizola,D,LB,16,40,light,5*,4,5*,5*,5,5,4,33
+zaragoza,Andoni Cedrún,G,G,1,40,light,5*,3,5*,4,4,5*,3,31
+zaragoza,Casuco,D,RB,2,40,light,5*,4,5*,5*,5,5,4,33
+zaragoza,Canito,D,LB,3,40,light,5*,4,5*,5*,4,5,4,32
+zaragoza,José Antonio Casajús,D,D,4,40,light,5*,4,5*,5*,4,5,4,32
+zaragoza,Víctor Hugo Zayas,D,D,5,74,light,4*,4*,5*,4,4,4,4,29
+zaragoza,Juan Barbas,M,RW,6,68,light,5*,5*,5,6*,5,5,5,36
+zaragoza,Francisco Güerri,M,LW,7,40,light,5*,4,5*,5*,4,5,4,32
+zaragoza,Carlos Conde,M,M,8,40,light,5*,4*,5*,4,4,4,3,29
+zaragoza,Juan Carlos,M,M,9,40,light,4*,4*,4*,4,4,4,4,28
+zaragoza,Juan Señor,A,A,10,40,light,5*,5*,5*,5,5,5,5,35
+zaragoza,Raúl Amarilla,A,A,11,74,light,5*,5*,5*,4,5,5,5,34
+zaragoza,Eugenio Vitaller,G,G,12,40,light,4*,3,4*,4*,3,4,3,28
+zaragoza,Pedro Herrera,D,D,13,40,light,5*,5*,5*,5,5,5,4,34
+zaragoza,Ivica Surjak,M,M,14,37,light,5*,4,5*,4,5*,5,5,33
+zaragoza,José Ramón Corchado,A,A,15,40,light,4,4,5*,4,5*,5*,5,32
+zaragoza,Rafael García Cortés,D,LB,16,40,light,5*,5*,5*,5,5,5,4,34
+sevilla,Francisco Buyo,G,G,1,40,light,5*,3,5*,5*,3,5,3,35
+sevilla,Antonio Álvarez,D,RB,2,40,light,4,3,5*,5*,3,5*,4,29
+sevilla,Ricardo Serna,D,LB,3,40,light,4,5*,5*,5*,4,5,5,33
+sevilla,Antonio Grande,D,D,4,40,light,4*,3,4*,4*,3,4,3,25
+sevilla,José Luis Ruda,D,D,5,40,light,5*,5*,5*,5,5,5,4,34
+sevilla,José Luis Benítez,M,RW,6,40,light,5*,5*,5*,4,5,5,4,33
+sevilla,Francisco,M,LW,7,40,light,5*,5*,4,4,5*,5,5,33
+sevilla,Juan Carlos Álvarez,M,M,8,40,light,5*,5*,5*,4,5,5,4,33
+sevilla,Jesús Choya,M,M,9,40,light,4*,2,2,2,2,4*,4*,20
+sevilla,Enrique Montero,A,A,10,40,light,5*,5*,5*,5,5,5,5,35
+sevilla,Moisés,A,A,11,40,light,5*,4,5*,4,5*,5,5,33
+sevilla,Vicente Villalba,G,G,12,40,light,4*,2,4*,3,2,4*,2,23
+sevilla,Enrique Magdaleno,D,D,13,40,light,4,4,5*,4,5*,5*,5,32
+sevilla,Jorge Orlando López,M,M,14,68,light,5*,5*,4,4,5*,5,4,32
+sevilla,Ramón,A,A,15,40,light,4*,4*,5*,4,4,4,4,29
+sevilla,José Ramón Nimo,D,RB,16,40,light,5*,5*,5*,5,5,5,4,34
+cdmalaga,Fernando Peralta,G,G,1,40,light,4*,3,4*,4,3,5*,3,29
+cdmalaga,José Brescia,D,RB,2,40,light,4,4,5*,5*,4,5*,4,31
+cdmalaga,Óscar Regenhardt,D,LB,3,68,light,4*,3,5*,5*,4,4,3,28
+cdmalaga,Antonio Hierro,D,D,4,40,light,4*,3,5*,5*,4,4,3,28
+cdmalaga,Manolo Hierro,D,D,5,40,light,4*,3,4*,4*,4,4,3,26
+cdmalaga,Manuel Zambrano,M,RW,6,40,light,5*,5*,5*,5,4,4,4,32
+cdmalaga,Albis,M,LW,7,68,light,5*,5*,5*,4,5,5,4,33
+cdmalaga,José Manuel Canillas,M,M,8,40,light,5*,4,5*,5*,4,5,4,32
+cdmalaga,Alberto Martín,M,M,9,40,light,5*,5*,4*,4,4,4,4,30
+cdmalaga,José Hurtado,A,A,10,40,light,4,5*,5*,4,5*,5,4,32
+cdmalaga,Zlatomir Micanovic,A,A,11,37,light,4*,4*,5*,4,4,4,4,29
+cdmalaga,José Antonio Gallardo,G,G,12,40,light,3*,2,4*,2,2,4*,2,22
+cdmalaga,Ernesto Terrón,D,D,13,40,light,4*,2,4*,4*,4,4,2,24
+cdmalaga,Juan José Recio,M,M,14,40,light,4*,4*,4,4,4,5*,4,29
+cdmalaga,Toto,A,A,15,40,light,4*,3,4,4,5*,5*,4,29
+cdmalaga,Francisco Muñoz Pérez,D,LB,16,40,light,5*,5*,5*,5,4,5,4,33
+rcdespanol,Thomas N'Kono,G,G,1,94,dark,4*,4,5*,4,4,5*,3,31
+rcdespanol,Froilán Maldonado,D,RB,2,40,light,4*,3,4,5*,3,5*,3,27
+rcdespanol,Miguel Ángel,D,LB,3,40,light,5*,5*,5*,5,4,4,5,33
+rcdespanol,Josep María Gallart,D,D,4,40,light,5*,3,5*,5*,4,5,4,31
+rcdespanol,Francesc Sirvent,D,D,5,40,light,4*,2,4*,5*,3,4,2,24
+rcdespanol,John Lauridsen,M,RW,6,7,light,5*,5*,5,6*,5,5,5,36
+rcdespanol,Diego Orejuela,M,LW,7,40,light,5*,5*,5*,5,5,5,4,34
+rcdespanol,Iñaki,M,M,8,40,light,4,4,5*,5*,4,5*,4,31
+rcdespanol,José Manuel Lacalle,M,M,9,40,light,4*,3,4*,4*,4,4,4,27
+rcdespanol,Orlando Giménez,A,A,10,74,light,5*,5*,5,4,6*,5,5,35
+rcdespanol,Tintín Márquez,A,A,11,40,light,5*,4,5*,4,5*,5,5,33
+rcdespanol,Manuel Domínguez,G,G,12,40,light,4*,3,5*,4*,3,4,3,28
+rcdespanol,Francisco Macanaz,D,D,13,40,light,2*,2*,2,4*,2,2,2,16
+rcdespanol,Michel Pineda,M,M,14,40,light,4*,4,5*,3,4,4,5*,29
+rcdespanol,Luis Ignacio Ibáñez,A,A,15,40,light,3,3,4*,3,4*,4*,4,25
+rcdespanol,Manuel Zúñiga,M,RW,16,40,light,5*,5*,5*,5,5,5,5,35
+murcia,Pere Valentí Mora,G,G,1,40,light,3*,3*,3*,3,3,3,3,28
+murcia,Pepe Vidaña,D,RB,2,40,light,3*,3*,3*,3,3,3,3,21
+murcia,Antonio López,D,LB,3,40,light,3*,3*,3*,3,3,3,3,21
+murcia,Higinio García,D,D,4,40,light,3*,3*,3*,3,3,3,3,21
+murcia,José Luis Aparicio,D,D,5,40,light,2*,2*,2*,2,2,2,2,14
+murcia,Alfonso del Barrio,M,RW,6,40,light,3*,3*,3*,3,3,3,3,21
+murcia,Guina,M,LW,7,70,light,5*,4,5*,4,5*,5,5,33
+murcia,Miguel Sánchez,M,M,8,40,light,3*,3*,3*,3,3,3,3,21
+murcia,Sebas,M,M,9,40,light,3*,3*,3*,3,3,3,3,21
+murcia,Roberto Figueroa,A,A,10,54,light,4,5*,4,4,5*,5*,5,32
+murcia,Manolo,A,A,11,40,light,4*,4*,4,3,4,4,5*,28
+murcia,Manuel Cervantes,G,G,12,40,light,3*,3*,3*,3,3,3,3,28
+murcia,Salvador Campello,D,D,13,40,light,2*,2*,2*,2,2,2,2,14
+murcia,Santi,M,M,14,40,light,3*,3*,3*,3,3,3,3,21
+murcia,Mario Husillos,A,A,15,68,light,3*,3*,3*,3,3,3,3,21
+murcia,Andrés Ramírez,A,A,16,40,light,3*,3*,3*,3,3,3,3,21
+valencia,José Manuel Sempere,G,G,1,40,light,5*,3,5*,5*,3,5,3,30
+valencia,Miguel Tendillo,D,RB,2,40,light,5*,5,6*,6*,5,5,4,36
+valencia,Ángel Castellanos,D,LB,3,40,light,5*,5*,5*,5,5,5,5,35
+valencia,Ricardo Arias,D,D,4,40,light,4,5*,5*,5*,4,5,4,32
+valencia,Voro,D,D,15,40,light,4*,4,5*,5*,4,4,3,29
+valencia,Javier Subirats,M,RW,5,40,light,5*,4,4,5*,5*,5,4,32
+valencia,Robert,M,LW,6,40,light,6*,5*,5,5,6*,5,5,37
+valencia,Fernando,M,M,7,40,light,5*,5*,4,4,5*,4,5,32
+valencia,Enrique Moreno,M,M,8,40,light,4*,3,5*,5*,3,4,3,27
+valencia,Wilmar Cabrera,A,A,9,76,light,5*,5*,5*,5,5,5,5,35
+valencia,Enrique Saura,A,A,10,40,light,5*,5*,5*,4,5,5,4,33
+valencia,José Ramón Bermell,G,G,11,40,light,3,3,5*,4*,3,4*,3,29
+valencia,José Carlos Granero,D,D,12,40,light,3,3,4*,4*,4*,4,3,25
+valencia,Jesús García Pitarch,M,M,13,40,light,3,4,5*,4,5*,5*,4,30
+valencia,Juan José Urruti,A,A,14,68,light,4,3,3,4,5*,5*,5*,29
+valencia,Quique Flores,D,RB,16,40,light,5*,5*,5*,5,5,5,5,35
+sportinggijon,Juan Carlos Ablanedo,G,G,1,40,light,5*,3,5*,3,4,5*,3,34
+sportinggijon,Antonio Maceda,D,RB,2,40,light,5*,5,6*,6*,5,5,4,36
+sportinggijon,Manuel Jiménez,D,LB,3,40,light,5*,3,5*,5*,4,5,4,31
+sportinggijon,Mino,D,D,4,40,light,5*,4,5*,5*,3,5,3,30
+sportinggijon,José Manuel Espinosa,D,D,5,40,light,5*,3,5*,5*,4,5,3,30
+sportinggijon,Joaquín,M,RW,6,40,light,5*,5*,5*,4,5,5,5,34
+sportinggijon,Manuel Mesa,M,LW,7,40,light,5*,5*,5*,5,5,5,5,35
+sportinggijon,David,M,M,8,40,light,4*,3,4*,4,5*,4,3,27
+sportinggijon,Tino,M,M,9,40,light,5*,3,3,5*,3,4*,3,26
+sportinggijon,Quini,A,A,10,40,light,5,5,5,4,6*,6*,6*,37
+sportinggijon,Zurdi,A,A,11,40,light,5*,5*,4,4,5*,5,4,32
+sportinggijon,José Aurelio Rivero,G,G,12,40,light,4*,3,5*,4,3,5*,3,29
+sportinggijon,Fernando Tocornal,D,D,13,40,light,4*,4,5*,5*,4,4,3,29
+sportinggijon,Alberto Vallina,M,M,14,40,light,2*,2*,2*,2,2,2,2,14
+sportinggijon,Eloy,A,A,15,40,light,5*,4,4,3,5*,5*,5,31
+sportinggijon,Cundi,D,LB,16,40,light,5*,4,5*,5*,4,5,4,32
+valladolid,Carlos Fenoy,G,G,1,68,light,3*,3*,3*,3,3,3,3,30
+valladolid,Antonio García Navajas,D,RB,2,40,light,3*,3*,3*,3,3,3,3,21
+valladolid,Javi,D,LB,3,40,light,3*,3*,3*,3,3,3,3,21
+valladolid,Luis Miguel Gail,D,D,4,40,light,3*,3*,3*,3,3,3,3,21
+valladolid,Eusebio,D,D,10,40,light,5*,5*,4,4,5*,4,4,31
+valladolid,Jesús López,M,RW,5,40,light,3*,3*,3*,3,3,3,3,21
+valladolid,Luis Minguela,M,LW,6,40,light,3*,3*,3*,3,3,3,3,21
+valladolid,Pepe Moré,M,M,7,40,light,3*,3*,3*,3,3,3,3,21
+valladolid,Pedro Duque,M,M,8,40,light,2*,2*,2*,2,2,2,2,14
+valladolid,Patricio Yáñez,A,A,9,71,light,5*,4,4,4,5*,5*,5,32
+valladolid,Jorge da Silva,A,A,11,76,light,4,5*,4,3,5*,5*,5,31
+valladolid,Enrique Sala,G,G,12,40,light,3*,3*,3*,3,3,3,3,26
+valladolid,Gregorio Fonseca,D,D,13,40,light,3,4*,5*,3,4,4,5*,28
+valladolid,Manuel Peña,M,M,14,40,light,4*,4*,3,3,4*,4,4,26
+valladolid,Víctor,A,A,15,40,light,3*,3*,3*,3,3,3,3,21
+valladolid,Miguel Aracil,M,RW,16,40,light,3*,3*,3*,3,3,3,3,21
+osasuna,Vicente Biurrun,G,G,1,40,light,5*,3,5*,4,3,5*,3,32
+osasuna,Javier Castañeda,D,RB,2,40,light,5*,3,5*,5*,4,5,3,30
+osasuna,José María Lecumberri,D,LB,3,40,light,5*,3,5*,5*,4,5,3,30
+osasuna,Francisco Mina,D,D,4,40,light,4,3,5*,5*,4,5*,3,29
+osasuna,Pere Gratacós,D,D,5,40,light,2*,2*,2*,2,2,2,2,14
+osasuna,Patxi Rípodas,M,RW,6,40,light,5*,5*,4,5*,4,5,5,33
+osasuna,Iñaki Ibáñez,M,LW,7,40,light,4*,3,3,3,5*,4*,3,25
+osasuna,Francisco Javier Bayona,M,M,8,40,light,4*,3,4,4,5*,5*,4,29
+osasuna,Dioni,M,M,9,40,light,4*,3,4*,5*,4,4,3,27
+osasuna,Enrique Martín,A,A,10,40,light,5*,5*,5*,4,5,5,4,33
+osasuna,Jesús Orejuela,A,A,11,40,light,4,4,5*,4,5*,5*,5,32
+osasuna,Javier Vicuña,G,G,12,40,light,3,3,4*,4*,3,4*,3,27
+osasuna,José Félix Pérez Aguerri,D,D,13,40,light,3*,3*,3*,3,3,3,3,21
+osasuna,José Manuel Echeverria,M,M,14,40,light,5*,3,5*,4,5*,5,5,32
+osasuna,Benito,A,A,15,40,light,3,3,5*,3,4*,4*,4,26
+osasuna,José María Lumbreras,M,LW,16,40,light,4,4,4,5*,5*,5*,4,31
+hercules,Manuel Espinosa,G,G,1,40,light,3*,3*,3*,3,3,3,3,25
+hercules,Isidro Beltrán,D,RB,2,40,light,2*,2*,2*,2,2,2,2,14
+hercules,Juan Cartagena,D,LB,3,40,light,3*,3*,3*,3,3,3,3,21
+hercules,Antonio Villaescusa,D,D,4,40,light,2*,2*,2*,2,2,2,2,14
+hercules,José Rocamora,D,D,5,40,light,2*,2*,2*,2,2,2,2,14
+hercules,José Velásquez,M,RW,6,79,light,5*,5*,5*,5,5,5,4,34
+hercules,Ricardo Álvarez,M,LW,7,40,light,3*,3*,3*,3,3,3,3,21
+hercules,Pascual Parra,M,M,8,40,light,3*,3*,3*,3,3,3,3,21
+hercules,Vicente Latorre,M,M,9,40,light,3*,3*,3*,3,3,3,3,21
+hercules,Félix Torres,A,A,10,74,light,4*,4*,4,3,4,4,5*,28
+hercules,Abel Díez,A,A,11,40,light,3*,3*,3*,3,3,3,3,21
+hercules,César Blanco,G,G,12,40,light,2*,2*,2*,2,2,2,2,25
+hercules,Jordi Fabregat,D,D,13,40,light,2*,2*,2*,2,2,2,2,14
+hercules,Manuel Campins,M,M,14,40,light,2*,2*,2*,2,2,2,2,14
+hercules,Santiago Bakero,A,A,15,40,light,3*,3*,3*,3,3,3,3,21
+hercules,Dante Sanabria,A,A,16,68,light,3*,3*,3*,3,3,3,3,21
+racingsantander,Pedro Alba,G,G,1,40,light,5*,3,5*,5*,4,5,3,33
+racingsantander,Manuel Roncal,D,RB,2,40,light,4*,4*,4*,4,4,4,3,27
+racingsantander,Juan Antonio Sañudo,D,LB,3,40,light,4*,4,5*,5*,4,4,3,29
+racingsantander,Quique Setién,D,D,4,40,light,5*,5*,5*,5,5,5,5,35
+racingsantander,Chiri,D,D,5,40,light,5*,4,5*,5*,4,5,4,32
+racingsantander,Juan Carlos,M,RW,6,40,light,5*,4,5*,5*,4,5,3,31
+racingsantander,Miguel Bernal,M,LW,7,40,light,5*,4,5*,5*,4,4,4,31
+racingsantander,Mario Torres,M,M,8,40,light,5*,4*,4,5*,4,4,4,30
+racingsantander,Javier Ruisoto,M,M,9,40,light,4*,3,4*,4*,4,4,3,26
+racingsantander,Alan Campbell,A,A,10,46,light,4,5*,5*,4,5*,5,5,33
+racingsantander,Andoni Murúa,A,A,11,40,light,5*,5*,4,4,5*,4,4,31
+racingsantander,Garita,G,G,12,40,light,2*,2*,2*,2,2,2,2,21
+racingsantander,Valentín Cidón,D,D,13,40,light,4*,4*,4,4,4,5*,4,29
+racingsantander,Benigno Chaparro,M,M,14,74,light,4*,4*,4,3,4,4,5*,28
+racingsantander,José Castañeda,A,A,15,40,light,2,3*,3*,3,2,3,4*,9
+racingsantander,Tino,D,RB,16,40,light,5*,4,5*,5*,4,5,4,32
+elchecf,Miguel Recio,G,G,1,40,light,4*,3,4*,4*,4,4,3,28
+elchecf,Pablo de Lucas,D,RB,2,40,light,4*,3,4*,5*,4,4,3,27
+elchecf,Adriano Cano,D,LB,3,40,light,4*,3,4*,4*,4,4,3,26
+elchecf,Manuel Quesada,D,D,4,40,light,4*,3,4*,4*,3,4,3,25
+elchecf,Guillermo Asensio,D,D,5,40,light,4*,3,4*,4*,3,4,3,25
+elchecf,Miguel Ángel Belanche,M,RW,6,40,light,4*,4*,4,5*,4,4,4,29
+elchecf,Félix Palomares,M,LW,7,40,light,5*,5*,4,4,5*,5,4,32
+elchecf,Juan Pedro Ruiz,M,M,8,40,light,4*,4,5*,5*,4,4,4,30
+elchecf,José Sánchez Lorenzo,M,M,9,40,light,4*,4*,4*,4,4,4,4,28
+elchecf,Julio Suárez,A,A,10,40,light,4,5*,5*,4,5*,5,5,33
+elchecf,Juan Antonio Anquela,A,A,11,40,light,4*,4*,4,4,4,5*,4,29
+elchecf,José Luis Burgueña,G,G,12,40,light,4*,3,4*,4*,3,4,3,27
+elchecf,Nando,D,D,13,40,light,2*,2,2,4*,2,4*,2,18
+elchecf,Agustín Camacho,M,M,14,40,light,2*,2*,2*,2,2,2,2,14
+elchecf,Ignacio López Murga,A,A,15,40,light,4*,4*,4,5*,4,4,4,29
+elchecf,Juan Morgado,D,LB,16,40,light,5*,4,4,5*,4,5*,3,30
+bilbaoathletic,Patxi Iru,G,G,1,40,light,2*,2*,2*,2,2,2,2,23
+bilbaoathletic,Rafael Alkorta,D,RB,2,40,light,3,3,4*,4*,3,4*,3,24
+bilbaoathletic,Genar Andrinúa,D,LB,3,40,light,5*,4,4,5*,5*,5,4,32
+bilbaoathletic,Patxi Ferreira,D,D,4,40,light,4*,4*,5*,4,3,4,3,27
+bilbaoathletic,Patxi Bolaños,D,D,5,40,light,3*,3*,3*,3,3,3,3,21
+bilbaoathletic,Josu Urrutia,M,RW,6,40,light,3,3,4*,4*,3,4*,2,23
+bilbaoathletic,Joseba Aguirre,M,LW,7,40,light,4*,4*,4*,4,4,4,4,28
+bilbaoathletic,Pizo Gómez,M,M,8,40,light,4*,4,4,4,5*,5*,4,30
+bilbaoathletic,Juan José Elgezábal,M,M,9,40,light,3*,3*,3*,3,3,3,3,21
+bilbaoathletic,Félix Sarriugarte,A,A,10,40,light,3,4*,3,3,4*,4*,4,25
+bilbaoathletic,Roberto Martínez,A,A,11,40,light,2*,2*,2*,2,2,2,2,14
+bilbaoathletic,Francisco Javier Alonso,G,G,12,40,light,2*,2*,2*,2,2,2,2,18
+bilbaoathletic,Enrique Benguria,D,D,13,40,light,2*,2*,2*,2,2,2,2,14
+bilbaoathletic,Enrique Ayúcar,M,M,14,40,light,2*,2*,2*,2,2,2,2,14
+bilbaoathletic,José María Agiriano,A,A,15,40,light,2*,2*,2*,2,2,2,2,14
+bilbaoathletic,Íñigo Lizarralde,M,RW,16,40,light,4*,4*,3,4*,3,4,4,26
+celtavigo,Javier Maté,G,G,1,40,light,3*,3*,3*,3,3,3,3,28
+celtavigo,Javi,D,RB,2,40,light,3*,3*,3*,3,3,3,3,21
+celtavigo,Gilberto Yearwood,D,LB,3,54,light,5*,5*,5*,4,5,4,4,32
+celtavigo,Gelo,D,D,4,40,light,3*,3*,3*,3,3,3,3,21
+celtavigo,Vicente,D,D,5,40,light,5*,5*,4*,4,4,4,4,30
+celtavigo,José Antonio Cortés,M,RW,6,40,light,3*,3*,3*,3,3,3,3,21
+celtavigo,Cándido,M,LW,7,40,light,3*,3*,3*,3,3,3,3,21
+celtavigo,José Manuel Alvelo,M,M,8,40,light,3*,3*,3*,3,3,3,3,21
+celtavigo,Pep Mercader,M,M,9,40,light,3*,3*,3*,3,3,3,3,21
+celtavigo,Pichi Lucas,A,A,10,40,light,3*,3*,3*,3,3,3,3,21
+celtavigo,Fernando Arteaga,A,A,11,40,light,3*,3*,3*,3,3,3,3,21
+celtavigo,Chuco,G,G,12,40,light,2*,2*,2*,2,2,2,2,23
+celtavigo,Miguel Villaverde,D,D,13,40,light,2*,2*,2*,2,2,2,2,14
+celtavigo,Jaime Pineda,M,M,14,40,light,3*,3*,1,3*,2,1,3,6
+celtavigo,Juan Aldalur,A,A,15,40,light,3*,2*,2*,2,1,1,1,6
+celtavigo,José Lemos,D,RB,16,40,light,4*,3,4*,5*,3,4,3,26
+granadacf,José Puente,G,G,1,40,light,2*,2*,2*,2,2,2,2,23
+granadacf,Francisco Castillo,D,RB,2,40,light,2*,2*,2*,2,2,2,2,14
+granadacf,Carlos Eduardo Peruena,D,LB,3,76,light,3*,3*,4*,3,3,3,3,22
+granadacf,Lina,D,D,4,40,light,2*,2*,2*,2,2,2,2,14
+granadacf,Jesús Tinas,D,D,5,40,light,2*,2*,2*,2,2,2,2,14
+granadacf,José Castroverde,M,RW,6,40,light,2*,2*,2*,2,2,2,2,14
+granadacf,Brian Chrois,M,LW,7,7,light,3*,5*,3,3,3,3,5*,25
+granadacf,Agustín,M,M,8,40,light,2*,2*,2*,2,2,2,2,14
+granadacf,Víctor,M,M,9,40,light,1*,1*,1*,1,1,1,1,7
+granadacf,José Mauri,A,A,10,40,light,2*,2*,2*,2,2,2,2,14
+granadacf,Benito,A,A,11,40,light,2*,2*,2*,2,2,2,2,14
+granadacf,José Antonio Verdejo,G,G,12,40,light,2*,2*,2*,2,2,2,2,22
+granadacf,Francisco Pérez Durán,D,D,13,40,light,2*,2*,2*,2,2,2,2,14
+granadacf,Antonio Luis,M,M,14,40,light,1*,1*,1*,1,1,1,1,7
+granadacf,Julio Merayo,A,A,15,40,light,2*,2*,2*,2,2,2,2,14
+granadacf,Julio Pedraza,D,LB,16,40,light,3*,3*,3*,3,3,3,3,21
+deportivo,José Luis Montes,G,G,1,40,light,3*,3*,3*,3,3,3,3,25
+deportivo,José Manuel Pardo,D,RB,2,40,light,2*,2*,2*,2,2,2,2,14
+deportivo,Joaquín López,D,LB,3,68,light,2*,2*,2*,2,2,2,2,14
+deportivo,Carlos Alberto Ballesta,D,D,4,40,light,2*,2*,2*,2,2,2,2,14
+deportivo,Jordi Carreras,D,D,5,40,light,2*,2*,2*,2,2,2,2,14
+deportivo,Juan Moreno,M,RW,6,40,light,2*,2*,2*,2,2,2,2,14
+deportivo,Agustín Peralta,M,LW,7,40,light,2*,2*,2*,2,2,2,2,14
+deportivo,José Mario Cano,M,M,8,40,light,2*,2*,2*,2,2,2,2,14
+deportivo,Carlos,M,M,9,40,light,2*,2*,2*,2,2,2,2,14
+deportivo,José Luis Vara,A,A,10,40,light,3*,3*,3*,3,3,3,3,21
+deportivo,Vicente Celeiro,A,A,11,40,light,3*,3*,3*,3,3,3,3,21
+deportivo,Jorge García,G,G,12,40,light,2*,2*,2*,2,2,2,2,23
+deportivo,Carlos Brizzola,D,D,13,68,light,3*,3*,3*,3,3,3,3,21
+deportivo,José Manuel Traba,M,M,14,40,light,2*,2*,2*,2,2,2,2,14
+deportivo,Pablo Alonso,A,A,15,76,light,2*,2*,2*,2,2,2,2,14
+deportivo,Silvi,D,LB,16,40,light,2*,2*,2*,2,2,2,2,14
+castellon,Enrique Basauri,G,G,1,40,light,3*,3*,3*,3,3,3,3,25
+castellon,Manuel Botubot,D,RB,2,40,light,4*,3,5*,5*,3,4,3,27
+castellon,Javi,D,LB,3,40,light,2*,2*,2*,2,2,2,2,14
+castellon,Juan Antonio Carrillo,D,D,4,40,light,2*,2*,2*,2,2,2,2,14
+castellon,Francisco Botella,D,D,5,40,light,2*,2*,2*,2,2,2,2,14
+castellon,Francisco García Hernández,M,RW,6,40,light,3*,3*,3*,3,3,3,3,21
+castellon,Carlos Fontana,M,LW,7,68,light,2*,2*,2*,2,2,2,2,14
+castellon,Javier Beltrán,M,M,8,40,light,2*,2*,2*,2,2,2,2,14
+castellon,Juan Ángel Lafita,M,M,9,40,light,2*,2*,2*,2,2,2,2,14
+castellon,Pedro Alcañiz,A,A,10,40,light,3,4*,4*,3,4*,4,4,26
+castellon,José Ignacio Viña,A,A,11,40,light,2*,2*,2*,2,2,2,2,14
+castellon,Silvestre González,G,G,12,40,light,2*,2*,2*,2,2,2,2,22
+castellon,Juan José Verdú,D,D,13,40,light,2*,2*,2*,2,2,2,2,14
+castellon,Pedro López,M,M,14,40,light,2*,2*,2*,2,2,2,2,14
+castellon,Bartolomé Mestre,A,A,15,40,light,2*,2*,2*,2,2,2,2,14
+castellon,Javier Ibeas,M,RW,16,40,light,3*,3*,3*,3,3,3,3,21
+udlaspalmas,Juan Antonio Pérez,G,G,1,40,light,3*,3*,3*,3,3,3,3,28
+udlaspalmas,Juanito,D,RB,19,40,light,4,5*,5*,5*,3,4,4,30
+udlaspalmas,Julio Durán,D,LB,2,40,light,3*,3*,3*,3,3,3,3,21
+udlaspalmas,Felipe,D,D,3,40,light,5*,4*,4,3,4,5*,4,29
+udlaspalmas,Mayé,D,D,4,40,light,3*,3*,3*,3,3,3,3,21
+udlaspalmas,Alexis Trujillo,M,RW,22,40,light,4*,3*,3,4*,3,3,3,23
+udlaspalmas,Félix Marrero,M,LW,5,40,light,5*,4*,4,5*,4,4,4,30
+udlaspalmas,Román,M,M,6,40,light,3*,3*,3*,3,3,3,3,21
+udlaspalmas,Benito Morales,M,M,7,40,light,2*,2*,2*,2,2,2,2,14
+udlaspalmas,Jorge Contreras,A,A,8,71,light,5*,5*,5*,4,5,4,5,33
+udlaspalmas,Luis Saavedra,A,A,9,40,light,3*,3*,3*,3,3,3,3,21
+udlaspalmas,Manolo,G,G,10,40,light,3*,3*,3*,3,3,3,3,25
+udlaspalmas,Juan Román Rodríguez,D,D,11,40,light,2*,2*,2*,2,2,2,2,14
+udlaspalmas,Francisco Javier Almeida,M,M,12,40,light,2*,2*,2*,2,2,2,2,14
+udlaspalmas,Fernando Santís,A,A,13,71,light,3*,3*,3*,3,3,3,3,21
+udlaspalmas,Javier Campos,D,LB,14,40,light,3*,3*,3*,3,3,3,3,21
+recreativo,Jordi Castel,G,G,1,40,light,2*,2*,2*,2,2,2,2,24
+recreativo,Emilio de la Riva,D,RB,2,40,light,2*,2*,2*,2,2,2,2,14
+recreativo,Juan Maraver,D,LB,3,40,light,3*,3*,3*,3,3,3,3,21
+recreativo,José Manuel Ondina,D,D,4,40,light,2*,2*,2*,2,2,2,2,14
+recreativo,Cumbreño,D,D,5,40,light,2*,2*,2*,2,2,2,2,14
+recreativo,Carpi,M,RW,6,40,light,2*,2*,2*,2,2,2,2,14
+recreativo,Jesús María Linares,M,LW,7,40,light,4*,3,5*,5*,3,4,4,28
+recreativo,Víctor Zacharski,M,M,8,68,light,2*,2*,2*,2,2,2,2,14
+recreativo,Miguel Ángel,M,M,9,40,light,2*,2*,2*,2,2,2,2,14
+recreativo,Jesús Crespo,A,A,10,40,light,3*,3*,3*,3,3,3,3,21
+recreativo,José Villa,A,A,11,40,light,2*,2*,2*,2,2,2,2,14
+recreativo,Rafael Romero,G,G,12,40,light,2*,2*,2*,2,2,2,2,22
+recreativo,José Antonio Márquez,D,D,13,40,light,2*,2*,2*,2,2,2,2,14
+recreativo,Juanma,M,M,14,40,light,2*,2*,2*,2,2,2,2,14
+recreativo,Roberto Orellana,A,A,15,68,light,2*,2*,2*,2,2,2,2,14
+recreativo,Antonio Cepeda,D,LB,16,40,light,2*,2*,2*,2,2,2,2,14
+oviedo,Viti,G,G,1,40,light,3*,3*,3*,3,3,3,3,28
+oviedo,Enrique Herrero,D,RB,2,40,light,3*,3*,3*,3,3,3,3,21
+oviedo,José Miguel del Riego,D,LB,3,40,light,2*,2*,2*,2,2,2,2,14
+oviedo,José Luis Prados,D,D,4,40,light,2*,2*,2*,2,2,2,2,14
+oviedo,Alejandro Camaño,D,D,5,68,light,2*,2*,2*,2,2,2,2,14
+oviedo,José Luis Cárdeno,M,RW,6,40,light,2*,2*,2*,2,2,2,2,14
+oviedo,Vicente Blanco,M,LW,7,40,light,2*,2*,2*,2,2,2,2,14
+oviedo,José Antonio Arias,M,M,8,40,light,2*,2*,2*,2,2,2,2,14
+oviedo,Santiago García Barrero,M,M,9,40,light,2*,2*,2*,2,2,2,2,14
+oviedo,Santi,A,A,10,40,light,3*,3*,3*,3,3,3,3,21
+oviedo,Lope Acosta,A,A,11,40,light,2*,2*,2*,2,2,2,2,14
+oviedo,José Enrique Heres,G,G,12,40,light,2*,2*,2*,2,2,2,2,22
+oviedo,Fernando Muñoz,D,D,13,40,light,2*,2*,2*,2,2,2,2,14
+oviedo,Carlos Merayo,M,M,14,40,light,2*,2*,2*,2,2,2,2,14
+oviedo,José Antonio Velázquez,A,A,15,40,light,2*,2*,2*,2,2,2,2,14
+oviedo,Juanito,D,RB,16,40,light,3*,3*,3*,3,3,3,3,21
+tenerife,Peio Agirreoa,G,G,1,40,light,3*,3*,3*,3,3,3,3,26
+tenerife,Manolo,D,RB,2,40,light,2*,2*,2*,2,2,2,2,14
+tenerife,Pedro Camus,D,LB,3,40,light,3*,3*,3*,3,3,3,3,21
+tenerife,Santi,D,D,4,40,light,2*,2*,2*,2,2,2,2,14
+tenerife,Mini,D,D,5,40,light,2*,2*,2*,2,2,2,2,14
+tenerife,Luis Martínez,M,RW,6,40,light,2*,2*,2*,2,2,2,2,14
+tenerife,José Ramón Eizmendi,M,LW,7,40,light,2*,2*,2*,2,2,2,2,14
+tenerife,Paco,M,M,8,40,light,2*,2*,2*,2,2,2,2,14
+tenerife,Noly,M,M,9,40,light,2*,2*,2*,2,2,2,2,14
+tenerife,Rubén Cano,A,A,10,40,light,5*,5*,5*,4,5,5,5,34
+tenerife,Stjepan Milardovic,A,A,11,37,light,3*,3*,3*,3,3,3,3,21
+tenerife,Zoran Milenkovic,G,G,12,37,light,2*,2*,2*,2,2,2,2,22
+tenerife,Julián Ordoki,D,D,13,40,light,2*,2*,2*,2,2,2,2,14
+tenerife,José Antonio Pérez,M,M,14,40,light,2*,2*,2*,2,2,2,2,14
+tenerife,Agustín Lasaosa,A,A,15,40,light,2*,2*,2*,2,2,2,2,14
+tenerife,Toño,D,RB,16,40,light,4*,4*,4,5*,3,4,3,27
+cartagenacf,Paco López,G,G,1,40,light,2*,2*,2*,2,2,2,2,24
+cartagenacf,Juan Huertas,D,RB,2,40,light,2*,2*,2*,2,2,2,2,14
+cartagenacf,José Carlos Trasante,D,LB,3,76,light,3*,3*,3*,3,3,3,3,21
+cartagenacf,Antonio Gómez,D,D,4,40,light,2*,2*,2*,2,2,2,2,14
+cartagenacf,José Luis Arjol,D,D,5,40,light,2*,2*,2*,2,2,2,2,14
+cartagenacf,Fermín Pérez,M,RW,6,40,light,2*,2*,2*,2,2,2,2,14
+cartagenacf,Alejandro Sagarduy,M,LW,7,40,light,3*,3*,3*,3,3,3,3,21
+cartagenacf,Norberto Huezo,M,M,8,52,light,5*,4*,4,4,5*,4,4,30
+cartagenacf,Andrés Fernández,M,M,9,40,light,3*,3*,3*,3,3,3,3,21
+cartagenacf,Fernando Rodríguez,A,A,10,68,light,3*,3*,3*,3,3,3,3,21
+cartagenacf,José Antonio Amorós,A,A,11,40,light,3*,3*,3*,3,3,3,3,21
+cartagenacf,Sebastián,G,G,12,40,light,2*,2*,2*,2,2,2,2,21
+cartagenacf,Pedro González,D,D,13,40,light,2*,2*,2*,2,2,2,2,14
+cartagenacf,Juanma,M,M,14,40,light,2*,2*,2*,2,2,2,2,14
+cartagenacf,José Ángel Rivero,A,A,15,40,light,2*,2*,2*,2,2,2,2,14
+cartagenacf,Casimiro Torres,D,LB,16,40,light,3*,3*,3*,3,3,3,3,21
+cadiz,Paco Ruiz,G,G,1,40,light,3*,3*,3*,3,3,3,3,25
+cadiz,Mirko Vojinovic,D,RB,2,37,light,3*,3*,3*,3,3,3,3,21
+cadiz,Arreitu,D,LB,3,40,light,2*,2*,2*,2,2,2,2,14
+cadiz,Manuel Padilla,D,D,4,40,light,3*,3*,3*,3,3,3,3,21
+cadiz,Manolito,D,D,5,40,light,3*,3*,3*,3,3,3,3,21
+cadiz,Ricardo Escobar,M,RW,6,40,light,3*,3*,3*,3,3,3,3,21
+cadiz,Elías Benito,M,LW,7,40,light,2*,2*,2*,2,2,2,2,14
+cadiz,Mágico González,M,M,8,52,light,5*,5,5,3,6*,6*,5,35
+cadiz,Pepe Mejías,M,M,9,40,light,3*,3*,3*,3,3,3,3,21
+cadiz,Salva Mejías,A,A,10,40,light,3*,3*,3*,3,3,3,3,21
+cadiz,Manuel Villa,A,A,11,40,light,2*,2*,2*,2,2,2,2,14
+cadiz,Pedro Jaro,G,G,12,40,light,2*,2*,2*,2,2,2,2,22
+cadiz,Eduardo Luis,D,D,13,40,light,1*,1*,1,1,0,0,2*,3
+cadiz,Roberto I,M,M,14,40,light,1,2*,2*,1,1,2*,0,3
+cadiz,José Plasencia,A,A,15,40,light,2*,1,2*,0,0,2*,0,3
+cadiz,Antonio Amarillo,D,LB,16,40,light,3*,3*,3*,3,3,3,3,21
+mallorca,Sabino Zubeldia,G,G,1,40,light,3*,3,4*,3,3,4*,3,26
+mallorca,Alberto Benedé,D,RB,2,40,light,3*,3*,3*,3,3,3,3,21
+mallorca,Andrés Sabido,D,LB,3,40,light,3*,3*,3*,3,3,3,3,21
+mallorca,Antonio Dacosta,D,D,4,40,light,2*,2*,2*,2,2,2,2,14
+mallorca,Rafael Gallardo,D,D,5,40,light,2*,2*,2*,2,2,2,2,14
+mallorca,Paco Martínez,M,RW,6,40,light,3*,3*,3*,3,3,3,3,21
+mallorca,Juan Luis Riado,M,LW,7,40,light,3*,3*,3*,3,3,3,3,21
+mallorca,José Francisco Delgado,M,M,8,40,light,2*,2*,2*,2,2,2,2,14
+mallorca,Pepe Bonet,M,M,9,40,light,2*,2*,2*,2,2,2,2,14
+mallorca,Gerry Armstrong,A,A,10,24,light,5*,5*,5*,4,5,5,5,34
+mallorca,Francisco Higuera,A,A,11,40,light,4,4,4,4,5*,5*,5*,31
+mallorca,Ignacio Mallo,G,G,12,40,light,2*,2*,2*,2,2,2,2,23
+mallorca,Damià Amer,D,D,13,40,light,2*,2*,2*,2,2,2,2,14
+mallorca,Jesús García Jiménez,M,M,14,40,light,2*,2*,2*,2,2,2,2,14
+mallorca,Modesto Pérez,A,A,15,40,light,4*,4*,4*,4,4,4,4,28
+mallorca,Juani,M,LW,16,40,light,4*,5*,4,4,4,5*,4,30
+salamanca,Jorge D'Alessandro,G,G,1,68,light,3*,3*,3*,3,3,3,3,28
+salamanca,Juan,D,RB,2,40,light,2*,2*,2*,2,2,2,2,14
+salamanca,Juan Bezares,D,LB,3,40,light,3*,3*,3*,3,3,3,3,21
+salamanca,Luis García,D,D,4,40,light,3*,3*,3*,3,3,3,3,21
+salamanca,Serafín de la Torre,D,D,5,40,light,2*,2*,2*,2,2,2,2,14
+salamanca,Juan Antonio Choya,M,RW,6,40,light,3*,3*,3*,3,3,3,3,21
+salamanca,Enrique,M,LW,7,40,light,3*,3*,3*,3,3,3,3,21
+salamanca,César Ferrando,M,M,8,40,light,3*,3*,3*,3,3,3,3,21
+salamanca,Teófilo Abajo,M,M,9,40,light,2*,2*,2*,2,2,2,2,14
+salamanca,José Luis Lanao,A,A,10,68,light,3*,3*,3*,3,3,3,3,21
+salamanca,Pablo Rodríguez,A,A,11,40,light,3*,3*,3*,3,3,3,3,21
+salamanca,Ángel Lozano,G,G,12,40,light,4*,3,3,4*,3,4*,3,25
+salamanca,Miguel Ángel,D,D,13,40,light,2*,2*,2*,2,2,2,2,14
+salamanca,Chiqui,M,M,14,40,light,2*,2*,2*,2,2,2,2,14
+salamanca,Svetozar Martinovic,A,A,15,37,light,2*,2*,2*,2,2,2,2,14
+salamanca,Ángel González,M,LW,16,40,light,3*,3*,3*,3,3,3,3,21
+barcelonab,Covelo,G,G,1,40,light,2*,2*,2*,2,2,2,2,23
+barcelonab,Albert Albesa,D,RB,2,40,light,5*,3,5*,5*,4,5,3,30
+barcelonab,Nacho Martín,D,LB,3,40,light,3*,3*,3*,3,3,3,3,21
+barcelonab,Albert Valentín,D,D,4,40,light,2*,2*,2*,2,2,2,2,14
+barcelonab,Aurelio Guillén,D,D,5,40,light,2*,2*,2*,2,2,2,2,14
+barcelonab,José Gil,M,RW,6,40,light,3*,3*,3*,3,3,3,3,21
+barcelonab,Ángel Pedraza,M,LW,7,40,light,5*,5*,3,5*,5,4,3,30
+barcelonab,Miguel Retuerto,M,M,8,40,light,3,4*,3,4*,3,4*,3,24
+barcelonab,Jordi Vinyals,M,M,9,40,light,2*,2*,2*,2,2,2,2,14
+barcelonab,Carlos Muñoz,A,A,10,40,light,4*,4*,4,4,4,5*,4,29
+barcelonab,Josep Villarroya,A,A,11,40,light,2*,2*,2*,2,2,2,2,14
+barcelonab,Luis Miguel Fernández,G,G,12,40,light,2*,2*,2*,2,2,2,2,22
+barcelonab,Esteve Fradera,D,D,13,40,light,2*,2*,2*,2,2,2,2,14
+barcelonab,Antonio Leiva,M,M,14,40,light,2*,2*,2*,2,2,2,2,14
+barcelonab,Antonio Cañizares,A,A,15,40,light,2*,2*,2*,2,2,2,2,14
+barcelonab,Juan Carlos Carreras,D,RB,16,40,light,3*,2,3,4*,2,4*,2,20
+realmadridb,José Antonio Serna,G,G,1,40,light,2*,2*,2*,2,2,2,2,23
+realmadridb,Jesús Solana,D,RB,2,40,light,4*,4,4,5*,4,5*,4,30
+realmadridb,Juan José Martos,D,LB,3,40,light,2*,2*,2*,2,2,2,2,14
+realmadridb,Francis,D,D,4,40,light,3*,3*,3*,3,3,3,3,21
+realmadridb,José Manuel,D,D,5,40,light,3*,3*,3*,3,3,3,3,21
+realmadridb,Miguel Bolós,M,RW,6,40,light,2*,2*,2*,2,2,2,2,14
+realmadridb,Martín González,M,LW,7,40,light,4*,4*,3,4*,4,4,3,26
+realmadridb,Ángel Sánchez Candil,M,M,8,40,light,2*,2*,2*,2,2,2,2,14
+realmadridb,Pedro Gálvez,M,M,9,40,light,2*,2*,2*,2,2,2,2,14
+realmadridb,Miguel Pardeza,A,A,10,40,light,3,4*,3,3,5*,5*,4,27
+realmadridb,Sebastián Losada,A,A,11,40,light,3,4*,4*,3,4*,4,4,26
+realmadridb, Abadía,G,G,12,40,light,2*,2*,1*,0,1,1,0,3
+realmadridb,Luis Pombo,D,D,13,40,light,2*,2*,2*,2,2,2,2,14
+realmadridb,José Benito Blanco Vila,M,M,14,40,light,2*,2*,2*,2,2,2,2,14
+realmadridb,Francisco Ortiz,A,A,15,40,light,3,4*,4*,3,4*,4,4,26
+realmadridb,Luis Victor Verde,M,LW,16,40,light,2*,2*,2*,2,2,2,2,14
+sabadell,Joan Capó,G,G,1,40,light,2*,2*,2*,2,2,2,2,24
+sabadell,José Joaquín Saura,D,RB,2,40,light,3*,3*,3*,3,3,3,3,21
+sabadell,Francisco Tanco,D,LB,3,40,light,3*,3*,3*,3,3,3,3,21
+sabadell,Pedro Ceballos,D,D,4,40,light,2*,2*,2*,2,2,2,2,14
+sabadell,Pedro Gala,D,D,5,40,light,2*,2*,2*,2,2,2,2,14
+sabadell,Lino Gutiérrez,M,RW,6,40,light,3*,3*,3*,3,3,3,3,21
+sabadell,Joan Golobart,M,LW,7,40,light,3*,3*,3*,3,3,3,3,21
+sabadell,Josep María Sala,M,M,8,40,light,3*,4*,3,4*,3,3,3,23
+sabadell,Juan José Estella,M,M,9,40,light,3*,3*,3*,3,3,3,3,21
+sabadell,Rafael Marañón,A,A,10,40,light,4*,5*,4,3,4,4,5*,29
+sabadell,Omar Adrián Sánchez,A,A,11,68,light,2*,2*,2*,2,2,2,2,14
+sabadell,Alfonso Puig,G,G,12,40,light,2*,2*,2*,2,2,2,2,22
+sabadell,Francesc Bertrolí,D,D,13,40,light,2*,2*,2*,2,2,2,2,14
+sabadell,José Francisco Morilla,M,M,14,40,light,2*,2*,2*,2,2,2,2,14
+sabadell,Jordi Besonias,A,A,15,40,light,2*,2*,2*,2,2,2,2,14
+sabadell,Cecilio Zunzunegui,D,LB,16,40,light,3*,3*,3*,3,3,3,3,21
+atleticomadrb,Abel Resino,G,G,1,40,light,4*,5*,5*,3,3,4,3,30
+atleticomadrb,Juanín,D,RB,2,40,light,2*,2*,2*,2,2,2,2,14
+atleticomadrb,Sergio Morgado,D,LB,3,40,light,3*,3*,3*,3,3,3,3,21
+atleticomadrb,José Miguel Torres,D,D,4,40,light,2*,2*,2*,2,2,2,2,14
+atleticomadrb,José Luis Martínez,D,D,5,40,light,2*,2*,2*,2,2,2,2,14
+atleticomadrb,Carlos Bermejo,M,RW,6,40,light,2*,2*,2*,2,2,2,2,14
+atleticomadrb,Tomás,M,LW,7,40,light,5*,4*,3,3,5*,4,4,28
+atleticomadrb,Manolo,M,M,8,40,light,3*,3*,3*,3,3,3,3,21
+atleticomadrb,Salva Malagón,M,M,9,40,light,2*,2*,2*,2,2,2,2,14
+atleticomadrb,Gabriel González,A,A,10,74,light,4,4,5*,4,4,5*,5*,31
+atleticomadrb,Guache,A,A,11,40,light,2*,2*,2*,2,2,2,2,14
+atleticomadrb,Juan Carlos Arévalo,G,G,12,40,light,2*,2*,2*,2,2,2,2,18
+atleticomadrb,Rafael Ortega,D,D,13,40,light,2*,2*,2*,2,2,2,2,14
+atleticomadrb,Manuel Trigueros,M,M,14,40,light,2*,2*,2*,2,2,2,2,14
+atleticomadrb,Antonio Cuevas,A,A,15,40,light,2*,2*,2*,2,2,2,2,14
+atleticomadrb,Mendiondo,D,RB,16,40,light,3,3,4*,4*,3,4*,3,24
+lorca,Agapito Moncaleán,G,G,1,40,light,2*,2*,2*,2,2,2,2,24
+lorca,Juan José,D,RB,2,40,light,3*,3*,3*,3,3,3,3,21
+lorca,José Ignacio Oñaederra,D,LB,3,40,light,3*,3*,3*,3,3,3,3,21
+lorca,Joaquín,D,D,4,40,light,2*,2*,2*,2,2,2,2,14
+lorca,Joaquín Arregui,D,D,5,40,light,2*,2*,2*,2,2,2,2,14
+lorca,José Manuel Villalustre,M,RW,6,40,light,2*,2*,2*,2,2,2,2,14
+lorca,Eufemio Cabral,M,LW,7,74,light,3*,3*,3*,3,3,3,3,21
+lorca,Juan Pedro Martínez,M,M,8,40,light,2*,2*,2*,2,2,2,2,14
+lorca,Vicente Angulo,M,M,9,40,light,2*,2*,2*,2,2,2,2,14
+lorca,Miguel Ángel,A,A,10,40,light,2*,2*,2*,2,2,2,2,14
+lorca,Alfonso Castro,A,A,11,40,light,2*,2*,2*,2,2,2,2,14
+lorca,Rodolfo,G,G,12,40,light,2*,2*,2*,2,2,2,2,21
+lorca,Curro,D,D,13,40,light,2*,2*,2*,2,2,2,2,14
+lorca,Juan Manuel,M,M,14,40,light,2*,2*,2*,2,2,2,2,14
+lorca,Luis Miguel Heras,A,A,15,40,light,2*,2*,2*,2,2,2,2,14
+lorca,Jorge Carreño,M,RW,16,40,light,3*,3*,3*,3,3,3,3,21
+logrones,Pedro Otxotorena,G,G,1,40,light,2*,2*,2*,2,2,2,2,23
+logrones,Antonio Guembe,D,RB,2,40,light,3*,3*,3*,3,3,3,3,21
+logrones,Noly,D,LB,3,40,light,3*,3*,3*,3,3,3,3,21
+logrones,Felipe,D,D,4,40,light,2*,2*,2*,2,2,2,2,14
+logrones,José Ignacio Marro,D,D,5,40,light,2*,2*,2*,2,2,2,2,14
+logrones,Antón,M,RW,6,40,light,2*,2*,2*,2,2,2,2,14
+logrones,Eduardo Echeverría,M,LW,7,40,light,2*,2*,2*,2,2,2,2,14
+logrones,Nani,M,M,8,40,light,2*,2*,2*,2,2,2,2,14
+logrones,Salvador Barros,M,M,9,40,light,2*,2*,2*,2,2,2,2,14
+logrones,Salva,A,A,10,40,light,2*,2*,2*,2,2,2,2,14
+logrones,Chechu,A,A,11,40,light,2*,2*,2*,2,2,2,2,14
+logrones,Luciano Casado,G,G,12,40,light,2*,2*,2*,2,2,2,2,22
+logrones,Javier Eraso,D,D,13,40,light,2*,2*,2*,2,2,2,2,14
+logrones,Ricardo Moreno,M,M,14,40,light,2*,2*,2*,2,2,2,2,14
+logrones,Raúl Ruiz,A,A,15,40,light,2*,2*,2*,2,2,2,2,14
+logrones,Rodolfo Dapena,D,LB,16,40,light,3*,3*,3*,3,3,3,3,21
+calvosotelo,Jaume Huguet,G,G,1,40,light,2*,2*,2*,2,2,2,2,22
+calvosotelo,Chuti,D,RB,2,40,light,2*,2*,2*,2,2,2,2,14
+calvosotelo,Ramón,D,LB,3,40,light,2*,2*,2*,2,2,2,2,14
+calvosotelo,Francisco Rueda,D,D,4,40,light,2*,2*,2*,2,2,2,2,14
+calvosotelo,Paco,D,D,5,40,light,2*,2*,2*,2,2,2,2,14
+calvosotelo,Antonio Nuevo,M,RW,6,40,light,2*,2*,2*,2,2,2,2,14
+calvosotelo,Nani,M,LW,7,40,light,2*,2*,2*,2,2,2,2,14
+calvosotelo,Luis María Iraola,M,M,8,40,light,2*,2*,2*,2,2,2,2,14
+calvosotelo,Maxi,M,M,9,40,light,2*,2*,2*,2,2,2,2,14
+calvosotelo,Juan Enrique Cantarutti,A,A,10,68,light,2*,2*,2*,2,2,2,2,14
+calvosotelo,José Villacreces,A,A,11,40,light,2*,2*,2*,2,2,2,2,14
+calvosotelo,Fernando Sánchez,G,G,12,40,light,2*,2*,2*,2,2,2,2,19
+calvosotelo,José Antonio Molina,D,D,13,40,light,2*,2*,2*,2,2,2,2,14
+calvosotelo,Harry,M,M,14,40,light,2*,2*,2*,2,2,2,2,14
+calvosotelo,Rafael Alonso,A,A,15,40,light,2*,2*,2*,2,2,2,2,14
+calvosotelo,Jaime Martínez,D,LB,16,40,light,2*,2*,2*,2,2,2,2,14

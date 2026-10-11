@@ -1,0 +1,112 @@
+{
+ "format": 1,
+ "id": "europe-1984-85-urs",
+ "kind": "career",
+ "button": "SOVIET UNION",
+ "continent": "europe",
+ "sources": [
+  "DaniSwos (CM01/02 Retro Update Team), 1984-85 database",
+  "European entrants 1984-85: en.wikipedia.org (first rounds of the three cups)",
+  "Club order: final tables 1983-84 (1983 for calendar-year leagues), en.wikipedia.org",
+  "Coaches: it/es/nl/pt/fr.wikipedia.org 1984-85 season pages and Wikidata",
+  "National cups 1984-85: en.wikipedia.org cup pages (from the first round of 8..64 clubs)"
+ ],
+ "files": {
+  "league": {
+   "file": 120,
+   "base": 534
+  }
+ },
+ "squads": [
+  {
+   "files": [
+    "league"
+   ],
+   "method": "explicit"
+  }
+ ],
+ "competitions": [
+  {
+   "key": "league",
+   "type": "league",
+   "id": "CB",
+   "clubs": "league",
+   "dates_from": 8,
+   "games": 2,
+   "win_points": 2,
+   "relegated": 2,
+   "names": {
+    "*": [
+     "TOP LEAGUE",
+     "TOP LEAGUE"
+    ]
+   },
+   "divisions": [
+    {
+     "teams": 18,
+     "promoted": 0,
+     "relegated": 2,
+     "names": {
+      "*": [
+       "TOP LEAGUE",
+       "TOP LEAGUE"
+      ]
+     }
+    },
+    {
+     "teams": 22,
+     "promoted": 2,
+     "relegated": 0,
+     "names": {
+      "*": [
+       "FIRST LEAGUE",
+       "FIRST LEAGUE"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "key": "cup",
+   "type": "cup",
+   "layout": "national",
+   "id": "DF",
+   "dates_from": 8,
+   "rounds": [
+    "single_et",
+    "single_et",
+    "single_et",
+    "single_et",
+    "single"
+   ],
+   "names": {
+    "*": [
+     "SOVIET CUP",
+     "SOVIET CUP"
+    ]
+   }
+  }
+ ],
+ "season": {
+  "league": "league",
+  "cup": "cup"
+ },
+ "world": 4,
+ "europe_places": {
+  "cc": 1,
+  "cwc": 1,
+  "uefa": 2
+ },
+ "first_europe": {
+  "cc": [
+   "dnepr"
+  ],
+  "cwc": [
+   "dynamomoscow"
+  ],
+  "uefa": [
+   "dinamominsk",
+   "spartakmoscow"
+  ]
+ }
+}

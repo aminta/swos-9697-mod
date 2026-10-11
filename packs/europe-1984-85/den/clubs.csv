@@ -1,0 +1,43 @@
+key,name,coach,country,file,division,tactic,kit1,kit2,lineup,source
+lyngby,LYNGBY,,DEN,league,0,0,0 5 5 1 5,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Lyngby Football Club
+obodense,OB ODENSE,,DEN,league,0,4,0 1 1 5 1,0 4 4 4 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Odense Boldklub
+agfaarhus,AGF AARHUS,,DEN,league,0,4,0 1 1 5 1,0 4 4 4 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Aarhus Gymnastik Forening
+frem,FREM,,DEN,league,0,4,0 1 1 5 1,0 4 4 4 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Boldklubben Frem 1886
+ikastfs,IKAST FS,,DEN,league,0,4,0 4 4 1 4,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Ikast Forenede Sportsklubber
+naestved,NAESTVED,,DEN,league,0,0,0 1 1 5 1,0 9 9 2 9,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Næstved Boldklub
+vejle,VEJLE,,DEN,league,0,4,0 4 4 1 4,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Vejle Boldklub
+esbjergfb,ESBJERG FB,,DEN,league,0,4,2 4 1 1 1,0 5 5 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Esbjerg Forenede Boldklubber
+koge,KOGE,,DEN,league,0,4,1 8 1 1 1,0 4 4 4 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Køge Boldklub
+hvidovre,HVIDOVRE,,DEN,league,0,0,1 4 1 5 5,0 7 7 7 7,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Hvidovre Idrætsforening
+bronshoj,BRONSHOJ,,DEN,league,0,4,0 1 1 5 1,0 4 4 4 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Brønshøj Boldklub
+herningfremad,HERNING FREMAD,,DEN,league,0,8,0 9 9 5 5,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Herning Fremad
+brondby,BRONDBY,,DEN,league,0,8,0 9 9 5 5,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Brøndbyernes Idræts Forening
+kb,KB,,DEN,league,0,8,0 9 9 5 5,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Kjøbenhavns Boldklub
+herfolge,HERFOLGE,,DEN,league,0,7,0 9 9 5 9,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Herfølge Boldklub
+b1909,B 1909,,DEN,league,0,4,2 4 1 1 1,0 5 5 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Boldklubben af 1909
+b1903,B 1903,,DEN,league,1,7,0 9 9 5 9,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Boldklubben af 1903
+b93,B 93,,DEN,league,1,7,0 9 9 5 9,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Boldklubben af 1893
+koldingif,KOLDING IF,,DEN,league,1,4,2 4 1 1 1,0 5 5 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Kolding Idrætsforening
+randersfrejafc,RANDERS FREJA,,DEN,league,1,0,0 5 5 1 5,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Randers Freja FC
+silkeborg,SILKEBORG,,DEN,league,1,8,0 4 4 1 4,0 1 1 4 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Silkeborg Idræts Forening
+b1913,B 1913,,DEN,league,1,0,1 8 1 1 8,1 1 8 8 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Boldklubben af 1913
+ab,AB,,DEN,league,1,0,1 8 1 1 8,1 1 8 8 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Akademisk Boldklub
+b1901,B 1901,,DEN,league,1,0,0 5 5 1 5,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Nykøbing F. Boldklub af 1901
+kastrupboldklub,KASTRUP BOLDKLUB,,DEN,league,1,8,0 9 9 5 5,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Kastrup Boldklub
+viborg,VIBORG,,DEN,league,1,0,1 8 1 1 8,1 1 8 8 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Viborg Fodsports Forening
+svendborgfb,SVENDBORG FB,,DEN,league,1,0,1 8 1 1 8,1 1 8 8 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Svendborg forenede Boldklubber
+roskilde,ROSKILDE,,DEN,league,1,8,0 9 9 5 5,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Roskilde Boldklub af 1906
+glostrupic,GLOSTRUP IC,,DEN,league,1,4,0 1 1 5 1,0 4 4 4 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Glostrup Idræts Club
+oksodense,OKS ODENSE,,DEN,league,1,0,1 8 1 1 8,1 1 8 8 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Odense Kammeraternes SK
+skjoldbirkerod,SKJOLD BIRKEROD,,DEN,league,1,8,0 9 9 5 5,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,IF Skjold Birkerød
+fremadamager,FREMAD AMAGER,,DEN,league,1,4,0 4 4 1 4,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Boldklubben Fremad Amager
+brondbyif,BRONDBY IF,,DEN,cuponly,,8,0 9 9 5 5,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Brøndby IF
+jyderupboldklub,JYDERUP BOLDKLUB,,DEN,cuponly,,0,1 4 1 5 5,0 7 7 7 7,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Jyderup Boldklub
+boldklub,BOLDKLUB,,DEN,cuponly,,0,0 1 1 5 1,0 9 9 2 9,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Nørresundby Boldklub
+tingstedbk,TINGSTED,,DEN,cuponly,,4,0 1 1 1 1,0 4 4 4 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Tingsted BK
+vordingborgif,VORDINGBORG,,DEN,cuponly,,0,0 1 1 5 1,0 9 9 2 9,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Vordingborg IF
+ikastfs2,IKAST FS 2,,DEN,cuponly,,0,0 1 1 5 1,0 9 9 2 9,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Ikast FS
+ulbjergif,ULBJERG,,DEN,cuponly,,7,0 9 9 5 9,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Ulbjerg IF
+ab2,AB 2,,DEN,cuponly,,4,1 8 1 1 1,0 4 4 4 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,AB
+tistrupbk,TISTRUP,,DEN,cuponly,,0,0 5 5 1 5,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Tistrup BK
+hellerupidraets,HELLERUP IDRAETS,,DEN,cuponly,,0,1 8 1 1 8,1 1 8 8 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Hellerup Idræts Klub

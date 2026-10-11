@@ -1,0 +1,41 @@
+key,name,coach,country,file,division,tactic,kit1,kit2,lineup,source
+panathinaikos,PANATHINAIKOS,,GRE,league,0,0,0 8 8 8 8,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Panathinaikos AO
+olympiakos,OLYMPIAKOS,,GRE,league,0,0,2 4 1 1 1,0 1 1 4 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Olympiakos CFP
+iraklis,IRAKLIS,,GRE,league,0,5,2 5 1 5 5,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Iraklis Salonika
+aellarissa,AEL LARISSA,,GRE,league,0,0,2 4 1 1 1,0 1 1 4 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,AE Larisa
+paok,PAOK,,GRE,league,0,0,2 2 1 2 1,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,PAOK Salonika
+aekathens,AEK ATHENS,,GRE,league,0,0,0 9 9 2 9,0 2 2 2 9,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,AEK Athens
+oficrete,OFI CRETE,,GRE,league,0,0,0 1 1 2 1,0 2 2 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,OFI Crete
+ethnikos,ETHNIKOS,,GRE,league,0,0,0 7 7 1 1,0 5 5 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Ethnikos Piraeus
+apollonathens,APOLLON ATHENS,,GRE,league,0,3,0 7 7 5 1,0 5 5 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Apollon Athens
+doxa,DOXA,,GRE,league,0,3,0 2 2 1 2,0 1 1 2 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Doxa Dramas
+kalamarias,KALAMARIAS,,GRE,league,0,9,2 4 2 2 2,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Apollon Kalamarias
+egaleo,EGALEO,,GRE,league,0,0,2 2 1 2 1,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Egaleo
+panionios,PANIONIOS,,GRE,league,0,2,1 4 5 5 5,0 5 5 4 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Panionios
+aris,ARIS,,GRE,league,0,0,0 9 9 2 9,0 1 1 2 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Aris Salonika
+pierikos,PIERIKOS,,GRE,league,0,3,0 1 1 2 1,0 5 5 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Pierikos
+panachaiki,PANACHAIKI,,GRE,league,0,0,2 2 1 2 1,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Panachaiki
+florina,FLORINA,,GRE,cuponly,,3,0 4 4 4 4,0 9 9 9 9,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Florina
+kilkisiakos,KILKISIAKOS,,GRE,cuponly,,3,0 6 6 1 1,0 1 1 6 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Kilkisiakos
+panarkadikos,PANARKADIKOS,,GRE,cuponly,,3,0 1 1 2 1,0 5 5 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Panarkadikos
+kallithea,KALLITHEA,,GRE,cuponly,,3,2 8 1 8 1,0 8 8 8 8,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Kallithea
+makedonikos,MAKEDONIKOS,,GRE,cuponly,,3,0 7 7 5 1,0 5 5 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Makedonikos
+panelefsiniakos,PANELEFSINIAKOS,,GRE,cuponly,,0,2 4 1 1 1,0 1 1 4 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Panelefsiniakos
+karditsas,KARDITSAS,,GRE,cuponly,,9,2 4 2 2 2,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Anagennisi Karditsas
+olympiacos,OLYMPIACOS,,GRE,cuponly,,2,1 4 5 5 5,0 5 5 4 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Olympiacos
+kavala,KAVALA,,GRE,cuponly,,0,0 5 5 5 5,0 1 1 5 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Kavala
+aiolikos,AIOLIKOS,,GRE,cuponly,,3,0 2 2 1 2,0 1 1 2 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Aiolikos
+kozani,KOZANI,,GRE,cuponly,,3,0 6 6 1 1,0 1 1 6 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Kozani
+fostiras,FOSTIRAS,,GRE,cuponly,,0,2 2 1 2 1,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Fostiras
+diagoras,DIAGORAS,,GRE,cuponly,,0,0 9 9 2 9,0 1 1 2 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Diagoras
+korinthos,KORINTHOS,,GRE,cuponly,,3,0 4 4 4 4,0 9 9 9 9,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Korinthos
+ael,AEL,,GRE,cuponly,,2,1 4 5 5 5,0 5 5 4 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,AEL
+thiva,THIVA,,GRE,cuponly,,2,0 5 5 1 5,0 1 1 5 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Thiva
+proodeftiki,PROODEFTIKI,,GRE,cuponly,,9,2 4 2 2 2,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Proodeftiki
+edessaikos,EDESSAIKOS,,GRE,cuponly,,3,2 8 1 8 1,0 8 8 8 8,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Edessaikos
+levadiakos,LEVADIAKOS,,GRE,cuponly,,9,0 8 8 8 8,0 5 5 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Levadiakos
+ethnikosasteras,ETHNIKOS ASTERAS,,GRE,cuponly,,0,0 7 7 1 1,0 5 5 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Ethnikos Asteras
+olympiakosvolos,OLYMPIAKOS VOLOS,,GRE,cuponly,,0,2 4 1 1 1,0 1 1 4 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Olympiakos Volos
+lamia,LAMIA,,GRE,cuponly,,5,0 8 8 2 2,0 4 4 2 2,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Lamia
+kastoria,KASTORIA,,GRE,cuponly,,2,0 5 5 1 5,0 1 1 5 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Kastoria
+pasgiannina,PAS GIANNINA,,GRE,cuponly,,0,0 1 1 2 1,0 2 2 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,PAS Giannina

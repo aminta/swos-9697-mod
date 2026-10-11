@@ -1,0 +1,39 @@
+key,name,coach,country,file,division,tactic,kit1,kit2,lineup,source
+aberdeen,ABERDEEN,Alex Ferguson,SCO,league,0,5,0 4 4 4 4,0 5 5 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Aberdeen
+celtic,CELTIC,,SCO,league,0,0,3 8 1 1 1,0 2 2 2 2,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Glasgow Celtic
+dundeeunited,DUNDEE UNITED,,SCO,league,0,0,0 3 3 2 3,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Dundee United
+rangers,RANGERS,,SCO,league,0,3,0 5 5 1 2,0 1 1 4 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Glasgow Rangers
+hearts,HEARTS,,SCO,league,0,0,2 5 1 1 1,2 4 0 5 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Heart Of Midlothian
+stmirren,ST. MIRREN,,SCO,league,0,3,2 2 1 2 2,0 4 4 1 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,St. Mirren
+hibernian,HIBERNIAN,,SCO,league,0,5,1 8 1 1 8,2 6 8 6 6,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Hibernian
+dundee,DUNDEE,,SCO,league,0,0,0 3 3 2 3,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Dundee
+greenockmorton,GREENOCK MORTON,,SCO,league,0,0,2 5 1 5 5,0 8 8 4 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Greenock Morton
+dumbarton,DUMBARTON,,SCO,league,0,3,0 9 9 2 9,0 5 5 1 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Dumbarton
+partickthistle,PARTICK THISTLE,,SCO,league,1,0,2 4 9 2 9,2 5 7 1 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Partick Thistle
+clydebank,CLYDEBANK,,SCO,league,1,3,1 1 4 1 4,2 6 9 6 9,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Clydebank
+brechincity,BRECHIN CITY,,SCO,league,1,0,0 4 4 4 4,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Brechin City
+kilmarnock,KILMARNOCK,,SCO,league,1,0,2 5 1 1 1,2 4 0 5 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Kilmarnock
+falkirk,FALKIRK,,SCO,league,1,0,0 5 5 1 5,1 9 5 5 9,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Falkirk
+clyde,CLYDE,,SCO,league,1,3,1 1 4 1 4,2 6 9 6 9,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Clyde
+hamiltonacad,HAMILTON ACAD.,,SCO,league,1,0,0 1 1 4 4,2 2 5 2 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Hamilton Academical
+airdrie,AIRDRIE,,SCO,league,1,0,0 1 1 2 2,2 4 5 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Airdrieonians
+meadowbank,MEADOWBANK,,SCO,league,1,3,0 9 9 2 9,0 5 5 1 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Meadowbank Thistle
+ayrunited,AYR UNITED,,SCO,league,1,0,0 5 5 5 1,2 4 5 5 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Ayr United
+stjohnstone,ST. JOHNSTONE,,SCO,league,1,0,0 5 5 1 5,2 5 9 5 9,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,St. Johnstone
+motherwell,MOTHERWELL,,SCO,league,1,0,0 3 3 6 3,0 2 2 2 2,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Motherwell
+forfarathletic,FORFAR ATHLETIC,,SCO,league,1,3,2 5 7 5 5,2 8 1 1 8,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Forfar Athletic
+eastfife,EAST FIFE,,SCO,league,1,0,0 2 2 2 2,2 4 8 8 8,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,East Fife
+berwickrangers,BERWICK RANGERS,,SCO,league,2,3,0 5 5 1 2,0 1 1 4 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Berwick Rangers
+stirlingalbion,STIRLING ALBION,,SCO,league,2,3,1 4 1 4 1,2 7 5 1 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Stirling Albion
+arbroath,ARBROATH,,SCO,league,2,0,0 6 6 1 6,0 1 1 6 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Arbroath
+queenofsouth,QUEEN OF SOUTH,,SCO,league,2,0,0 8 8 8 3,0 5 5 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Queen Of The South
+stenhousemuir,STENHOUSEMUIR,,SCO,league,2,5,2 6 5 6 6,2 9 5 5 9,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Stenhousemuir
+stranraer,STRANRAER,,SCO,league,2,5,0 7 7 1 5,2 4 2 2 2,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Stranraer
+dunfermline,DUNFERMLINE,,SCO,league,2,0,2 1 2 2 2,1 4 5 4 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Dunfermline Athletic
+queenspark,QUEEN'S PARK,,SCO,league,2,0,3 2 1 1 1,0 4 4 2 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Queen's Park
+eaststirling,EAST STIRLING,,SCO,league,2,0,3 2 1 2 2,1 5 1 1 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,East Stirlingshire
+montrose,MONTROSE,,SCO,league,2,0,0 1 1 5 5,2 9 2 2 9,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Montrose
+cowdenbeath,COWDENBEATH,,SCO,league,2,0,2 1 5 1 5,2 1 4 1 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Cowdenbeath
+albionrovers,ALBION ROVERS,,SCO,league,2,0,0 9 9 9 9,0 6 6 6 6,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Albion Rovers
+raithrovers,RAITH ROVERS,,SCO,league,2,0,0 5 5 1 5,0 1 1 5 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Raith Rovers
+alloa,ALLOA,,SCO,league,2,0,1 3 2 2 3,1 5 1 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Alloa Athletic

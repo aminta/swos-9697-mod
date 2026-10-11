@@ -1,0 +1,545 @@
+club,name,role,position,number,nat,skin,pa,ve,he,ta,co,sp,fi,price
+kskbeveren,Filip De Wilde,G,G,1,2,light,5*,5*,5*,4,5,5,4,30
+kskbeveren,Alain Westerlinck,D,RB,2,2,light,3*,3*,3*,3,3,2,3,20
+kskbeveren,Paul Lambrichts,D,LB,3,2,light,5*,4,5*,5*,4,5,3,31
+kskbeveren,Julien Lodders,D,D,4,2,light,2*,2*,2*,2,2,2,2,14
+kskbeveren,Danny Pfaff,D,D,5,2,light,2*,2*,2*,2,2,2,2,14
+kskbeveren,Patrick Gorez,M,RW,6,2,light,4,5*,5*,5*,4,5,4,32
+kskbeveren,Dirk Volckerick,M,LW,7,2,light,3*,3*,3*,3,3,3,2,20
+kskbeveren,Paul Theunis,M,M,8,2,light,5*,5*,5*,4,5,5,5,34
+kskbeveren,Marc Van Britsom,M,M,9,2,light,2*,2*,2*,2,2,2,2,14
+kskbeveren,Marek Kusto,A,A,10,26,light,5*,4,3,3,5*,5*,5,30
+kskbeveren,Peter van Vossen,A,A,11,23,light,2,2,3*,2,4*,4*,2,19
+kskbeveren,Dirk Rosez,G,G,12,2,light,4,3,5*,5*,4,5*,3,24
+kskbeveren,Luk Hooftman,D,D,13,2,light,2*,2*,2*,2,2,2,2,14
+kskbeveren,Frank Peeraer,M,M,14,2,light,2*,2*,2*,2,2,2,2,14
+kskbeveren,Hans Christiaens,A,A,15,2,light,2*,2*,2*,2,2,2,2,14
+kskbeveren,Marc Baecke,D,LB,16,2,light,5*,4,5*,5*,4,5,4,32
+anderlecht,Jacky Munaron,G,G,1,2,light,3*,3*,5*,3,3,3,3,29
+anderlecht,Morten Olsen,D,RB,2,7,light,5,5,6*,6*,5,6*,4,37
+anderlecht,Walter De Greef,D,LB,3,2,light,5*,4,5*,5*,3,5,4,31
+anderlecht,Georges Grün,D,D,4,2,light,5*,4,5*,5*,3,5,4,31
+anderlecht,Luka Peruzovic,D,D,5,37,light,4*,4,5*,5*,4,4,4,30
+anderlecht,Wim Hofkens,M,RW,6,23,light,5*,4,5*,5*,4,4,4,31
+anderlecht,René Vandereycken,M,LW,7,2,light,5*,3,5*,6*,3,5,3,30
+anderlecht,Per Frimann,M,M,8,7,light,5*,5*,5*,5,5,5,5,35
+anderlecht,Theodoros Zakkas,M,M,9,14,light,3,4,5*,3,5*,4,5*,29
+anderlecht,Frank Arnesen,A,A,10,7,light,5,6*,6*,4,6*,6,5,38
+anderlecht,Enzo Scifo,A,A,11,2,light,6*,5*,5,5,6*,5,5,37
+anderlecht,Dirk Vekeman,G,G,12,2,light,3*,3,4*,3,3,4*,3,26
+anderlecht,Michel De Groote,D,D,13,2,light,4*,4*,4,5*,4,4,4,29
+anderlecht,Jean Kindermans,M,M,14,2,light,4*,3,4*,4*,4,4,3,26
+anderlecht,Erwin Vandenbergh,A,A,15,2,light,5*,5*,5,4,5,5,6*,35
+anderlecht,Alex Czerniatynski,A,A,16,2,light,4,4,5*,6*,5*,5,5,34
+clubbruggekv,Birger Jensen,G,G,1,7,light,5*,3,5*,4,3,5*,3,31
+clubbruggekv,Hugo Broos,D,RB,2,2,light,5*,3,5*,5*,4,5,4,31
+clubbruggekv,Mamadou Tew,D,LB,3,89,dark,5*,3,4*,4,4,5*,3,28
+clubbruggekv,Pascal Plovie,D,D,4,2,light,4*,3,4*,4*,3,4,4,26
+clubbruggekv,Alex Querter,D,D,5,2,light,4*,2,4*,4*,2,4,2,22
+clubbruggekv,René Verheyen,M,RW,6,2,light,5*,5*,5*,5,5,5,5,35
+clubbruggekv,Luc Beyens,M,LW,7,2,light,5*,5*,4,4,5*,5,4,32
+clubbruggekv,Franky Van der Elst,M,M,8,2,light,4,4,5*,5*,4,6*,4,32
+clubbruggekv,Yves Audoor,M,M,9,2,light,4*,4*,4*,3,4,4,4,27
+clubbruggekv,Jan Ceulemans,A,A,10,2,light,5,6*,6*,4,6*,5,6,38
+clubbruggekv,Willy Wellens,A,A,11,2,light,5*,5*,5*,4,5,5,5,34
+clubbruggekv,Philippe Vande Walle,G,G,12,2,light,4*,3,4*,4*,3,4,3,25
+clubbruggekv,Paul Op de Beeck,D,D,13,2,light,3*,3*,3*,3,3,3,3,21
+clubbruggekv,Luc Hinderyckx,M,M,14,2,light,3*,3*,3*,3,3,3,3,21
+clubbruggekv,Marc Degryse,A,A,15,2,light,5*,5*,5*,4,5,5,5,34
+clubbruggekv,Gino Maes,D,RB,16,2,light,5*,4,5*,5*,4,5,3,31
+standardliege,Michel Preud'homme,G,G,1,2,light,5*,3,5*,3,4,5*,3,33
+standardliege,Theo Poel,D,RB,2,2,light,3*,3*,3*,3,3,3,3,21
+standardliege,Eddy Snelders,D,LB,3,2,light,4,4,6*,5*,6*,5,5,35
+standardliege,Zoran Jelikic,D,D,4,37,light,3*,3*,3*,3,3,3,3,21
+standardliege,Johan Telen,D,D,5,2,light,2*,2*,2*,2,2,2,2,14
+standardliege,Guy Vandersmissen,M,RW,6,2,light,5*,5*,5,6*,5,5,4,35
+standardliege,Guy Hellers,M,LW,7,21,light,4,5*,5*,5*,5,5,4,33
+standardliege,Thierry Solheid,M,M,8,2,light,3*,3*,3*,3,3,3,3,21
+standardliege,Gilles Thomas,M,M,9,2,light,2*,2*,2*,2,2,2,2,14
+standardliege,Horst Hrubesch,A,A,10,13,light,5*,5*,5*,3,5,5,5,33
+standardliege,Guy Dardenne,A,A,11,2,light,3*,3*,5*,3,3,3,3,23
+standardliege,Gilbert Bodart,G,G,12,2,light,4,3,5*,3,5*,5*,3,32
+standardliege,Freddy Luyckx,D,D,13,2,light,2*,2*,2*,2,2,2,2,14
+standardliege,Patrick Bonomi,M,M,14,2,light,2*,2*,2*,2,2,2,2,14
+standardliege,Heinz Gründel,A,A,15,13,light,3*,3*,3*,3,3,3,3,21
+standardliege,Étienne Delangre,D,LB,16,2,light,2*,2*,2*,2,2,2,2,14
+rfcseresien,Peter Kerremans,G,G,1,2,light,1*,1*,1*,1,1,1,1,12
+rfcseresien,Serge Didier Kimoni,D,RB,2,2,light,1*,1*,1*,1,1,1,1,7
+rfcseresien,Marc Grosjean,D,LB,3,2,light,2,2,4*,4*,2,4*,2,20
+rfcseresien,Thierry Rouyr,D,D,4,2,light,1*,1*,1*,1,1,1,1,7
+rfcseresien,Marinko Rupcic,D,D,5,37,light,1*,1*,1*,1,1,1,1,7
+rfcseresien,Ido Cremasco,M,RW,6,2,light,1*,1*,1*,1,1,1,1,7
+rfcseresien,Marco Minelli,M,LW,7,2,light,1*,1*,1*,1,1,1,1,7
+rfcseresien,Arrigo Bernardi,M,M,8,2,light,1*,1*,1*,1,1,1,1,7
+rfcseresien,Kinkomba Kingambo,M,M,9,86,dark,1*,1*,1*,1,1,1,1,7
+rfcseresien,Eugène Kabongo,A,A,10,86,dark,4,5*,5*,4,5,5,6*,34
+rfcseresien,Alain Bettagno,A,A,14,2,light,2,2,3*,2,2,3*,3*,17
+rfcseresien,Dominique Michel,G,G,11,2,light,1*,1*,1*,1,1,1,1,12
+rfcseresien,Raphael Barrientos,D,D,12,40,light,1*,1*,1*,1,1,1,1,7
+rfcseresien,Giovanni Fimiani,M,M,13,2,light,1*,1*,1*,1,1,1,1,7
+rfcseresien,Eddy Sepul,A,A,15,2,light,1*,1*,1*,1,1,1,1,7
+rfcseresien,Vincent Toussaint,A,A,16,2,light,1*,1*,1*,1,1,1,1,7
+kvmechelen,Theo Custers,G,G,1,2,light,3*,3*,5*,3,3,3,3,29
+kvmechelen,Mike Verstraeten,D,RB,2,2,light,2*,2,4*,4*,2,2,2,18
+kvmechelen,Mathy Billen,D,LB,3,2,light,2*,2*,2*,2,2,2,2,14
+kvmechelen,Raymond Jaspers,D,D,4,2,light,2*,2*,2*,2,2,2,2,14
+kvmechelen,Karel Kesselaers,D,D,5,2,light,2*,2*,2*,2,2,2,2,14
+kvmechelen,Filip Benoot,M,RW,6,2,light,2*,2*,2*,2,2,2,2,14
+kvmechelen,Joachim Benfeld,M,LW,7,13,light,2*,2*,2*,2,2,2,2,14
+kvmechelen,Jozef Bogaerts,M,M,8,2,light,2*,2*,2*,2,2,2,2,14
+kvmechelen,Michel Van Campenhout,M,M,9,2,light,2*,2*,2*,2,2,2,2,14
+kvmechelen,Ivan Hoste,A,A,10,2,light,3*,3*,3*,3,3,3,3,21
+kvmechelen,Patrick Asselman,A,A,11,2,light,3*,3*,2,2,3*,3,3,19
+kvmechelen,Wilfried Dommicent,G,G,12,2,light,2*,2*,2*,2,2,2,2,22
+kvmechelen,John Dhondt,D,D,13,2,light,2*,2*,2*,2,2,2,2,14
+kvmechelen,Benedictus Asselberghs,M,M,14,2,light,2*,2*,2*,2,2,2,2,14
+kvmechelen,Koen Wijns,A,A,15,2,light,2*,2*,2*,2,2,2,2,14
+kvmechelen,Bert Cluytens,M,RW,16,2,light,4*,4*,4,3,4,5*,3,27
+ksvwaregem,Wim De Coninck,G,G,1,2,light,4*,3,5*,4*,3,4,3,28
+ksvwaregem,Luc Millecamps,D,RB,2,2,light,3*,3,4*,4*,3,3,2,22
+ksvwaregem,Bart Mauroo,D,LB,3,2,light,2,2,2,3*,2,3*,3*,17
+ksvwaregem,Yvan Desloover,D,D,4,2,light,2*,2*,2*,2,2,2,2,14
+ksvwaregem,Pino De Craeye,D,D,5,2,light,2*,2*,2*,2,2,2,2,14
+ksvwaregem,Rudy Boes,M,RW,6,2,light,1,3*,3*,3*,2,2,1,15
+ksvwaregem,Jan Hoebeeck,M,LW,7,2,light,2*,2*,2*,2,2,2,2,14
+ksvwaregem,Kurt Delesie,M,M,8,2,light,2*,2*,2*,2,2,2,2,14
+ksvwaregem,Armin Görtz,M,M,9,13,light,2*,2*,2*,2,2,2,2,14
+ksvwaregem,Philippe Desmet,A,A,10,2,light,5*,5*,5*,4,5,5,5,34
+ksvwaregem,Daniel Veyt,A,A,11,2,light,4,5*,4,4,4,5*,5*,31
+ksvwaregem,Ludo De Schepper,G,G,12,2,light,2*,2*,2*,2,2,2,2,14
+ksvwaregem,Jean-Pierre Devos,D,D,13,2,light,2*,2*,2*,2,2,2,2,14
+ksvwaregem,Liam Buckley,M,M,14,46,light,3,3,4*,3,3,4*,4*,24
+ksvwaregem,Yvan Decroix,A,A,15,2,light,2*,2*,2*,2,2,2,2,14
+ksvwaregem,Franky Dekenne,D,RB,16,2,light,2*,2*,2*,2,2,2,2,14
+antwerp,Ratko Svilar,G,G,1,37,light,3*,3*,3*,3,3,3,3,29
+antwerp,Rudy Smidts,D,RB,3,2,light,3,5*,4,5*,5*,5,3,30
+antwerp,Rudy Taeymans,D,LB,2,2,light,3,4*,4*,4*,3,4,4,26
+antwerp,Frank Mariman,D,D,4,2,light,3*,3*,3*,3,3,3,3,21
+antwerp,André Heerwegh,D,D,5,2,light,3*,3*,3*,3,3,3,3,21
+antwerp,Vladimir Petrovic,M,RW,6,37,light,5*,5*,5*,5,5,5,5,35
+antwerp,Arie Haan,M,LW,7,23,light,5*,5*,5*,5,5,5,5,35
+antwerp,Ronny Lambrechts,M,M,8,23,light,3*,3*,3*,3,3,3,3,21
+antwerp,Gunter Van Eyck,M,M,9,2,light,3*,3*,3*,3,3,3,3,21
+antwerp,Marc Van der Linden,A,A,10,2,light,5*,5*,5*,4,5,5,5,34
+antwerp,Francis Severeyns,A,A,14,2,light,2,2,4*,4*,4*,4,4,24
+antwerp,Antonio Goossens,G,G,11,2,light,3*,3*,3*,3,3,3,3,29
+antwerp,Norbert Beuls,D,D,12,2,light,2*,2*,2*,2,2,2,2,14
+antwerp,Guy Van Hoorenbeek,M,M,13,2,light,2*,2*,2*,2,2,2,2,14
+antwerp,Harry Cnops,A,A,15,2,light,3*,3*,3*,3,3,3,3,21
+antwerp,Gerrit Carleer,A,A,16,2,light,3*,3*,3*,3,3,3,3,21
+genk,Jean Thijs,G,G,1,2,light,2*,2*,2*,2,2,2,2,14
+genk,Lei Clijsters,D,RB,2,2,light,5*,3,5*,5*,4,5,4,31
+genk,Dirk Medved,D,LB,3,2,light,2,3*,3,3,4*,3,4*,22
+genk,Marc Emmers,D,D,4,2,light,4*,4*,4*,4,3,4,4,27
+genk,Dirk Vangronsveld,D,D,5,2,light,3*,3*,3*,3,3,3,2,20
+genk,Rony Van Geneugden,M,RW,6,2,light,2,3*,3*,3*,3,3,1,18
+genk,Horst Schlierer,M,LW,7,13,light,2*,2*,2*,2,2,2,2,14
+genk,Leo Ehlen,M,M,8,23,light,2*,2*,2*,2,2,2,2,14
+genk,Roland Janssen,M,M,9,2,light,2*,2*,2*,2,2,2,2,14
+genk,Eddy Voordeckers,A,A,10,2,light,5*,5*,5*,4,5,5,5,34
+genk,Pier Janssen,A,A,11,2,light,5*,5*,4*,3,4,4,4,29
+genk,Klaus Pudelko,G,G,12,13,light,2*,2*,2*,2,2,2,2,14
+genk,Tony Bialousz,D,D,13,2,light,2*,2*,2*,2,2,2,2,14
+genk,Aimé Coenen,M,M,14,2,light,2*,2*,2*,2,2,2,2,14
+genk,Robert Brace,A,A,15,8,light,3*,2,3*,2,2,3*,3,18
+genk,Rudi Vanhengel,D,RB,16,2,light,2*,2*,2*,2,2,2,2,14
+lokeren,Bob Hoogenboom,G,G,1,23,light,2*,2*,2*,2,2,2,2,24
+lokeren,Rudi Van Goethem,D,RB,2,2,light,2*,2*,2*,2,2,2,2,14
+lokeren,Maurice De Schrijver,D,LB,3,2,light,3*,3*,3*,3,3,3,3,21
+lokeren,Ronny Laroy,D,D,4,2,light,2*,2*,2*,2,2,2,2,14
+lokeren,Ronald Somers,D,D,5,2,light,2*,2*,2*,2,2,2,2,14
+lokeren,Jim Bett,M,RW,6,31,light,6*,5*,5*,5,5,5,5,36
+lokeren,Dirk De Vriese,M,LW,7,2,light,5*,4,5*,5*,4,5,4,32
+lokeren,Didier M'Buyu,M,M,8,2,light,3*,3*,3*,3,3,3,3,21
+lokeren,Erwin Palmers,M,M,9,2,light,1,3*,2,2,3*,3*,2,16
+lokeren,François Van der Elst,A,A,10,2,light,5*,5*,5*,4,5,5,5,34
+lokeren,Guido Vergeylen,A,A,11,2,light,2,2,3*,2,3*,3*,3,18
+lokeren,Danny D'Hondt,G,G,12,2,light,2*,2*,2*,2,2,2,2,24
+lokeren,Frank De Wispelaere,D,D,13,2,light,1*,1*,1*,1,1,1,1,7
+lokeren,Dirk De Wachter,M,M,14,2,light,2*,2*,2*,2,2,2,2,14
+lokeren,Dimitri M'Buyu,A,A,15,2,light,2*,2*,2*,2,2,2,2,14
+lokeren,Raymond Mommens,M,LW,16,2,light,5*,4,4,4,5*,5,6*,33
+kvkortrijk,Luc Vanderschommen,G,G,1,2,light,3,3,4*,2,3,4*,4*,20
+kvkortrijk,Nico Broeckaert,D,RB,2,2,light,4*,4,4,5*,5*,4,4,30
+kvkortrijk,Luc Bourgeois,D,LB,3,2,light,2*,2*,2*,2,2,2,2,14
+kvkortrijk,Dieter Schwabe,D,D,4,13,light,2*,2*,2*,2,2,2,2,14
+kvkortrijk,Claude Verspaille,D,D,5,2,light,2*,2*,2*,2,2,2,2,14
+kvkortrijk,Dirk Duyck,M,RW,6,2,light,2*,2*,2*,2,2,2,2,14
+kvkortrijk,Dirk Destorme,M,LW,7,2,light,2*,2*,2*,2,2,2,2,14
+kvkortrijk,Dominique Lemoine,M,M,8,2,light,2*,2*,2*,2,2,2,2,14
+kvkortrijk,Thierry Donnez,M,M,9,2,light,1*,1*,1*,1,1,1,1,7
+kvkortrijk,Dusan Lukic,A,A,10,37,light,3*,3*,3*,3,3,3,3,21
+kvkortrijk,Michel Vilain,A,A,11,2,light,2*,2*,2*,2,2,2,2,14
+kvkortrijk,Patrick Himpe,G,G,12,2,light,2*,2*,2*,2,2,2,2,18
+kvkortrijk,Serge Collie,D,D,13,2,light,2*,2*,2*,2,2,2,2,14
+kvkortrijk,Didier Debaveye,M,M,14,2,light,1*,1*,1*,1,1,1,1,7
+kvkortrijk,Edgar Van de Casteele,A,A,15,2,light,2*,2*,2*,2,2,2,2,14
+kvkortrijk,Luc Deltour,A,A,16,2,light,2*,2*,2*,2,2,2,2,14
+lierse,Danny Verlinden,G,G,1,2,light,3,5*,5*,5*,5,4,4,29
+lierse,Steven Goossen,D,RB,2,23,light,3*,1,3*,3*,3,3,1,17
+lierse,Herman Helleputte,D,LB,3,2,light,3*,3*,3*,3,3,3,3,21
+lierse,Marc Fierens,D,D,4,2,light,2*,2*,2*,2,2,2,2,14
+lierse,Kurt Van Roosbroeck,D,D,5,2,light,2*,2*,2*,2,2,2,2,14
+lierse,Johan Boskamp,M,RW,6,23,light,5*,5*,5*,5,5,5,5,35
+lierse,Frank Dauwen,M,LW,7,2,light,2,4*,4*,4*,4,3,3,24
+lierse,Stan Van den Buijs,M,M,8,2,light,3*,3*,3*,3,3,3,3,21
+lierse,Raf Pauwels,M,M,9,2,light,2,3*,3*,3*,2,3,3,19
+lierse,Paul Postuma,A,A,10,23,light,3*,3*,3*,3,3,3,3,21
+lierse,Rini van Roon,A,A,11,23,light,3*,3*,3*,3,3,3,3,21
+lierse,Carl Engelen,G,G,12,2,light,3*,3*,3*,3,3,3,3,28
+lierse,Peter Delen,D,D,13,2,light,2*,2*,2*,2,2,2,2,14
+lierse,Henri Van Mechelen,M,M,14,2,light,2*,2*,2*,2,2,2,2,14
+lierse,Dieter Weihrauch,A,A,15,13,light,2*,2*,2*,2,2,2,2,14
+lierse,Paul Beloy Beloy,D,RB,16,2,light,3*,3*,3*,3,3,3,3,21
+gent,André Lauryssen,G,G,1,2,light,2*,2*,2*,2,2,2,2,22
+gent,Michel De Wolf,D,RB,2,2,light,4,3,5*,5*,4,5*,4,30
+gent,Luc Criel,D,LB,3,2,light,2*,2*,2*,2,2,2,2,14
+gent,Thierry Pister,D,D,4,2,light,2*,2*,2*,2,2,2,2,14
+gent,Jan Van Troos,D,D,5,2,light,2*,2*,2*,2,2,2,2,14
+gent,Milan Ruzic,M,RW,6,37,light,5*,5*,4,3,5*,5,5,32
+gent,Guy Hanssens,M,LW,7,2,light,3*,3*,3*,3,3,3,3,21
+gent,Laurent Dauwe,M,M,8,2,light,3*,3*,3*,3,3,3,3,21
+gent,Tokodifuansiuka Kiyika,M,M,9,86,dark,2*,2*,2*,2,2,2,2,14
+gent,Cees Schapendonk,A,A,10,23,light,4,5*,5*,4,4,5*,5,32
+gent,Yves Soudan,A,A,11,2,light,3*,2,3,4*,3,4*,3,22
+gent,Franky Frans,G,G,12,2,light,2*,2*,2*,2,2,2,2,22
+gent,Johan Van Looy,D,D,13,2,light,2*,2*,2*,2,2,2,2,14
+gent,Jean-Claude Bouvy,M,M,14,86,dark,2*,2*,2*,2,2,2,2,14
+gent,Ronny Martens,A,A,15,2,light,3*,3*,3*,3,3,3,3,21
+gent,Sören Busk,D,RB,16,7,light,5*,5*,5*,5,5,5,4,34
+cerclebrugge,Gino Devriendt,G,G,1,2,light,1*,1*,1*,1,1,1,1,12
+cerclebrugge,Rudy Poorteman,D,RB,2,2,light,2*,2*,2*,2,2,2,2,14
+cerclebrugge,Philippe Schepens,D,LB,3,2,light,1*,1*,1*,1,1,1,1,7
+cerclebrugge,Peter Carly,D,D,4,2,light,1*,1*,1*,1,1,1,1,7
+cerclebrugge,Wim Kooiman,D,D,5,23,light,1*,1*,1*,1,1,1,1,7
+cerclebrugge,Geert Broeckaert,M,RW,6,2,light,5*,4*,4,5*,4,4,3,29
+cerclebrugge,Kari Ukkonen,M,LW,7,11,light,4,4,5*,5*,4,5*,4,31
+cerclebrugge,Paul Courant,M,M,10,2,light,5*,4,4,3,5*,4,5*,30
+cerclebrugge,Geert Claeys,M,M,8,2,light,2*,2*,2*,2,2,2,2,14
+cerclebrugge,Dick D'Hoore,A,A,9,2,light,3*,2*,3*,2,1,2,2,15
+cerclebrugge,André Raes,A,A,11,2,light,2*,2*,2*,2,2,2,2,14
+cerclebrugge,Leen Barth,G,G,12,23,light,1*,1*,1*,1,1,1,1,12
+cerclebrugge,Jean-Marie Dewalleff,D,D,13,2,light,1*,1*,1*,1,1,1,1,7
+cerclebrugge,Paul Sanders,M,M,14,2,light,1*,1*,1*,1,1,1,1,7
+cerclebrugge,Luc Decoussemaecker,A,A,15,2,light,2*,2*,2*,2,2,2,2,14
+cerclebrugge,Saevar Jónsson,D,RB,16,16,light,4*,4,4,5*,4,5*,4,30
+kbeerschotvav,Nicky Schippers,G,G,1,2,light,3,3,4*,5*,4*,3,3,23
+kbeerschotvav,Alain Lodewijckx,D,RB,2,2,light,2,4*,2,3*,2,3*,3,19
+kbeerschotvav,Marc Reykers,D,LB,3,2,light,2*,2*,2*,2,2,2,2,14
+kbeerschotvav,Patrick Houben,D,D,4,2,light,2*,2*,2*,2,2,2,2,14
+kbeerschotvav,Jean-Pierre Andries,D,D,5,2,light,2*,2*,2*,2,2,2,2,14
+kbeerschotvav,Frank Valkenborgh,M,RW,6,2,light,2*,2*,2*,2,2,2,2,14
+kbeerschotvav,Roberto Sciascia,M,LW,7,2,light,2*,2*,2*,2,2,2,2,14
+kbeerschotvav,Frank Nollet,M,M,8,2,light,2*,2*,2*,2,2,2,2,14
+kbeerschotvav,Marc Brys,M,M,9,2,light,1*,1*,1*,1,1,1,1,7
+kbeerschotvav,Jan De Laet,A,A,10,2,light,2*,2*,2*,2,2,2,2,14
+kbeerschotvav,Claudinho,A,A,11,70,light,2*,2*,2*,2,2,2,2,14
+kbeerschotvav,Alain Legge,G,G,12,2,light,2*,2*,2*,2,2,2,2,17
+kbeerschotvav,Marc Schaessens,D,D,13,2,light,1*,1*,1*,1,1,1,1,7
+kbeerschotvav,Alex Camerman,M,M,14,2,light,1*,1*,1*,1,1,1,1,7
+kbeerschotvav,Peter Claessens,A,A,15,2,light,2*,2*,2*,2,2,2,2,14
+kbeerschotvav,Patrick Vervoort,M,LW,16,2,light,5*,5*,4,4,5*,4,3,30
+rfcliegeois,Guy Hubart,G,G,1,2,light,2*,2*,2*,2,2,2,2,24
+rfcliegeois,Michel Rasquin,D,RB,2,2,light,2*,2*,2*,2,2,2,2,14
+rfcliegeois,Jean-Francois De Sart,D,LB,3,2,light,1*,1*,1*,1,1,1,1,7
+rfcliegeois,Vincent Dirix,D,D,4,2,light,1*,1*,1*,1,1,1,1,7
+rfcliegeois,Frédéric Waseige,D,D,5,2,light,1*,1*,1*,1,1,1,1,7
+rfcliegeois,Ian Hamilton,M,RW,6,8,light,3*,3*,3*,3,3,3,3,21
+rfcliegeois,Edhem Sljivo,M,LW,7,37,light,3*,3*,2,2,3*,3,3,19
+rfcliegeois,Hans-Peter Lipka,M,M,8,13,light,2*,2*,2*,2,2,2,2,14
+rfcliegeois,Raphaël Quaranta,M,M,9,2,light,2*,2*,2*,2,2,2,2,14
+rfcliegeois,Willy Geurts,A,A,10,2,light,3*,3*,3*,3,3,3,3,21
+rfcliegeois,Guy François,A,A,11,2,light,2*,2*,2*,2,2,2,2,14
+rfcliegeois,Patrick Gusbin,G,G,12,2,light,1*,1*,1*,1,1,1,1,9
+rfcliegeois,Jean-Marie Houben,D,D,13,2,light,1*,1*,1*,1,1,1,1,7
+rfcliegeois,Vincent Vilenne,M,M,14,2,light,1*,1*,1*,1,1,1,1,7
+rfcliegeois,Sören Lindsted,A,A,15,7,light,2*,2*,2*,2,2,2,2,14
+rfcliegeois,Bernard Habrant,D,LB,16,2,light,2*,2*,2*,2,2,2,2,14
+racingjet,Guy Bogaerts,G,G,1,2,light,2*,2*,2*,2,2,2,2,14
+racingjet,Francis Lemmens,D,RB,2,2,light,2*,2*,2*,2,2,2,2,14
+racingjet,Luc Demeurisse,D,LB,3,2,light,2*,2*,2*,2,2,2,2,14
+racingjet,Raymond Lesage,D,D,4,2,light,2*,2*,2*,2,2,2,2,14
+racingjet,Jean-Marc Voets,D,D,5,2,light,2*,2*,2*,2,2,2,2,14
+racingjet,Benny Geebelen,M,RW,6,2,light,2*,2*,2*,2,2,2,2,14
+racingjet,Philippe Bonfond,M,LW,7,2,light,2*,2*,2*,2,2,2,2,14
+racingjet,Pierre Frenay,M,M,8,2,light,2*,2*,2*,2,2,2,2,14
+racingjet,Jacques Lerat,M,M,9,2,light,0*,0*,0*,0,0,0,0,0
+racingjet,Mart van Duren,A,A,10,23,light,3,4*,4*,3,4*,4,4,26
+racingjet,Michel Ngonge,A,A,11,86,dark,2,2,4*,1,3*,3*,2,17
+racingjet,Oscar Everaert,G,G,12,2,light,2*,2*,2*,2,2,2,2,14
+racingjet,Christophe Dessy,D,D,13,2,light,1*,1*,1*,1,1,1,1,7
+racingjet,Stéphane Logist,M,M,14,2,light,0*,0*,0*,0,0,0,0,0
+racingjet,Ronald Ferguson,A,A,15,8,light,2*,4*,2*,2,2,2,2,16
+racingjet,Stephane Adriaens,D,LB,16,2,light,2*,2*,2*,2,2,2,2,14
+sintniklaas,Herwig Van Reeth,G,G,1,2,light,1*,1*,1*,1,1,1,1,12
+sintniklaas,Johnny Dusbaba,D,RB,2,23,light,3*,2,3*,3*,2,3,2,18
+sintniklaas,Daniel Maes,D,LB,3,2,light,3*,2,2,2,3*,3*,1,16
+sintniklaas,Dirk Van Osselaer,D,D,4,2,light,1*,1*,1*,1,1,1,1,7
+sintniklaas,Werner De Vocht,D,D,5,2,light,1*,1*,1*,1,1,1,1,7
+sintniklaas,Gunter De Meyer,M,RW,6,2,light,2*,1,3*,1,3*,1,1,12
+sintniklaas,Regi Van Acker,M,LW,7,2,light,2*,1,2,3*,1,3*,1,13
+sintniklaas,Claude Deproot,M,M,8,2,light,1*,1*,1*,1,1,1,1,7
+sintniklaas,Peter Quintelier,M,M,9,2,light,1*,1*,1*,1,1,1,1,7
+sintniklaas,Peter Van Wambeke,A,A,10,2,light,1*,1*,1*,1,1,1,1,7
+sintniklaas,Geert Mariman,A,A,11,2,light,1*,1*,1*,1,1,1,1,7
+sintniklaas,Rob Tervoort,G,G,12,23,light,1*,1*,1*,1,1,1,1,9
+sintniklaas,Marc Leroy,D,D,13,2,light,1*,1*,1*,1,1,1,1,7
+sintniklaas,Chris Van Spittael,M,M,14,2,light,1*,1*,1*,1,1,1,1,7
+sintniklaas,Frank De Daele,A,A,15,2,light,1*,1*,1*,1,1,1,1,7
+sintniklaas,Stéphane Demaere,D,RB,16,2,light,1*,1*,1*,1,1,1,1,7
+rwdmolenbeek,Eric Deleu,G,G,1,2,light,2*,2*,2*,2,2,2,2,22
+rwdmolenbeek,Geert Emmerechts,D,RB,2,2,light,2,4*,4*,3*,2,3,3,21
+rwdmolenbeek,Hans Mergan,D,LB,3,2,light,2*,2*,2*,2,2,2,2,14
+rwdmolenbeek,Marc Trigaux,D,D,4,2,light,2*,2*,2*,2,2,2,2,14
+rwdmolenbeek,Philippe Houx,D,D,5,2,light,1*,1*,1*,1,1,1,1,7
+rwdmolenbeek,Philippe Garot,M,RW,6,2,light,2*,2*,2*,2,2,2,2,14
+rwdmolenbeek,Yves De Greef,M,LW,7,2,light,2*,2*,2*,2,2,2,2,14
+rwdmolenbeek,Hans Bouwmeester,M,M,8,23,light,2*,2*,2*,2,2,2,2,14
+rwdmolenbeek,Alain Cneudt,M,M,9,2,light,2*,2*,2*,2,2,2,2,14
+rwdmolenbeek,Toine van Mierlo,A,A,10,23,light,2*,2*,2*,2,2,2,2,14
+rwdmolenbeek,Alain De Nil,A,A,11,2,light,2*,2*,2*,2,2,2,2,14
+rwdmolenbeek,Fortuna Verlinden,G,G,12,2,light,1*,0*,0,1*,0,0,0,0
+rwdmolenbeek,Wim Kiekens,D,D,13,2,light,1*,1*,1*,1,1,1,1,7
+rwdmolenbeek,Bruno Charels,M,M,14,2,light,1*,1*,1*,1,1,1,1,7
+rwdmolenbeek,Alain Kadjata,A,A,15,112,dark,1*,1*,1*,1,1,1,1,7
+rwdmolenbeek,Paul De Mesmaeker,M,LW,16,2,light,4*,4*,4*,4,3,4,4,27
+kberingenfc,Frans Geerkens,G,G,1,2,light,1*,1*,1*,1,1,1,1,12
+kberingenfc,Marc Rogiers,D,RB,2,2,light,1*,1*,1*,1,1,1,1,7
+kberingenfc,Ludo Geurts,D,LB,3,2,light,1*,1*,1*,1,1,1,1,7
+kberingenfc,Ruddi Tielemans,D,D,4,2,light,1*,1*,1*,1,1,1,1,7
+kberingenfc,Tony Geypen,D,D,5,2,light,1*,1*,1*,1,1,1,1,7
+kberingenfc,Marnik Bogaerts,M,RW,6,2,light,2,3*,3*,2,2,3,4*,19
+kberingenfc,Paolo Russo,M,LW,7,2,light,1*,1*,1*,1,1,1,1,7
+kberingenfc,Eric Reynders,M,M,8,2,light,1*,1*,1*,1,1,1,1,7
+kberingenfc,Rob Hutting,M,M,9,23,light,1*,1*,1*,1,1,1,1,7
+kberingenfc,Abdellah Mateso,A,A,10,86,dark,1,3*,2,2,3*,3*,3,17
+kberingenfc,Ronny Van Rethy,A,A,11,2,light,1*,1*,1*,1,1,1,1,7
+kberingenfc,Günther Schubert,G,G,12,13,light,1*,1*,1*,1,1,1,1,12
+kberingenfc,Luc Vangenechten,D,D,13,2,light,1*,1*,1*,1,1,1,1,7
+kberingenfc,Patrick Schoofs,M,M,14,2,light,1*,1*,1*,1,1,1,1,7
+kberingenfc,Chris van den Dungen,A,A,15,23,light,1*,1*,1*,1,1,1,1,7
+kberingenfc,Eddy Dries,D,LB,16,2,light,1*,1*,1*,1,1,1,1,7
+kfcwinterslag,Jacky Mathijssen,G,G,1,2,light,3*,3*,3*,3,3,3,3,29
+kfcwinterslag,Jan Swinnen,D,RB,2,2,light,3*,3*,3*,3,3,3,3,21
+kfcwinterslag,Luc Daemen,D,LB,3,2,light,3*,3*,3*,3,3,3,3,21
+kfcwinterslag,Walter Vitali,D,D,4,18,light,3*,3*,3*,3,3,3,3,21
+kfcwinterslag,Daniël De Raeve,D,D,5,2,light,2*,2*,2*,2,2,2,2,14
+kfcwinterslag,Guido Davids,M,RW,6,2,light,3*,3*,3*,3,3,3,3,21
+kfcwinterslag,Joachim Hutka,M,LW,7,26,light,2*,2*,2*,2,2,2,2,14
+kfcwinterslag,Mathieu Denier,M,M,8,2,light,2*,2*,2*,2,2,2,2,14
+kfcwinterslag,Patrick Teppers,M,M,9,2,light,2*,2*,2*,2,2,2,2,14
+kfcwinterslag,Djamel Zidane,A,A,10,80,dark,5*,5*,4,3,5*,5,5,32
+kfcwinterslag,Luc Nilis,A,A,11,2,light,5*,5*,4,3,5*,4,4,30
+kfcwinterslag,Renaat De Zutter,G,G,12,2,light,3*,3*,3*,3,3,3,3,26
+kfcwinterslag,Jean-Marie Smolders,D,D,13,2,light,2*,2*,2*,2,2,2,2,14
+kfcwinterslag,Pierre Denier,M,M,14,2,light,2*,2*,2*,2,2,2,2,14
+kfcwinterslag,Tony Englebert,A,A,15,2,light,3*,3*,3*,3,3,3,3,21
+kfcwinterslag,Patrick Bijnens,D,RB,16,2,light,3*,3*,3*,3,3,3,3,21
+sinttruiden,Roland Velkeneers,G,G,1,2,light,3*,3*,3*,3,3,3,3,29
+sinttruiden,Frans Beckers,D,RB,2,2,light,2*,2*,2*,2,2,2,2,14
+sinttruiden,Renaat Koopmans,D,LB,3,2,light,2*,2*,2*,2,2,2,2,14
+sinttruiden,Wilfried Sleurs,D,D,4,2,light,2*,2*,2*,2,2,2,2,14
+sinttruiden,Jean-Marie Claes,D,D,5,2,light,1*,1*,1*,1,1,1,1,7
+sinttruiden,Alain Peetermans,M,RW,6,2,light,3,3,4*,4*,3,4*,3,24
+sinttruiden,Wilfried Van Moer,M,LW,7,2,light,5*,5*,4,4,5*,5,4,32
+sinttruiden,Gunther Jacob,M,M,8,2,light,2*,3*,1,3*,2,2,2,15
+sinttruiden,Ronny Appeltans,M,M,9,2,light,2*,2*,2*,2,2,2,2,14
+sinttruiden,László Fazekas,A,A,10,15,light,5*,6*,5*,3,5,5,5,34
+sinttruiden,Johan Vandecaetsbeek,A,A,11,2,light,4*,4*,4,4,4,5*,4,29
+sinttruiden,Marc Nisen,G,G,12,2,light,1*,1*,1*,1,1,1,1,12
+sinttruiden,Erwin Coenen,D,D,13,2,light,2*,2*,2*,2,2,2,2,14
+sinttruiden,Pascal Delbrouck,M,M,14,2,light,2*,2*,2*,2,2,2,2,14
+sinttruiden,Marc Wilmots,A,A,24,2,light,3*,4*,3*,1,3,3,3,20
+sinttruiden,Danny Boffin,M,LW,25,2,light,4*,4*,4*,4,4,4,3,27
+charleroi,Benoit Mailleux,G,G,1,2,light,3*,3*,3*,3,3,3,3,29
+charleroi,Philippe Albert,D,RB,27,2,light,3,3,4*,4*,4*,4,3,25
+charleroi,Jean-Philippe Schrijnen,D,LB,2,2,light,3,4*,4*,3,4*,4,4,26
+charleroi,Peter Harrison,D,D,3,8,light,2*,2*,2*,2,2,2,2,14
+charleroi,François Ndanga Tumba,D,D,4,86,dark,2*,2*,2*,2,2,2,2,14
+charleroi,Philippe Migeot,M,RW,5,2,light,2*,2*,2*,2,2,2,2,14
+charleroi,Freddy Delanghe,M,LW,6,2,light,2*,2*,2*,2,2,2,2,14
+charleroi,Salvatore Curaba,M,M,7,18,light,2*,2*,2*,2,2,2,2,14
+charleroi,Giuseppe Varrichio,M,M,8,2,light,2*,2*,2*,2,2,2,2,14
+charleroi,Dante Brogno,A,A,9,2,light,4*,3*,2,2,3*,3,3,20
+charleroi,Didier Beugnies,A,A,10,2,light,2*,2*,2*,2,2,2,2,14
+charleroi,Alain Bassan,G,G,11,2,light,2*,2*,2*,2,2,2,2,24
+charleroi,Fabrice Silvagni,D,D,12,2,light,2*,2*,2*,2,2,2,2,14
+charleroi,Denis Barbier,M,M,13,2,light,2*,2*,2*,2,2,2,2,14
+charleroi,Jean-Pierre D'Hondt,A,A,14,2,light,2*,2*,2*,2,2,2,2,14
+charleroi,Walter Primi,M,M,15,2,light,2*,2*,2*,2,2,2,2,14
+eendrachtaalst,Wim Moyson,G,G,1,2,light,2*,2*,2*,2,2,2,2,24
+eendrachtaalst,Joel Crahay,D,RB,2,2,light,2*,2*,2*,2,2,2,2,14
+eendrachtaalst,Luc Limpens,D,LB,3,2,light,2*,2*,2*,2,2,2,2,14
+eendrachtaalst,Yves Moock,D,D,4,2,light,2*,2*,2*,2,2,2,2,14
+eendrachtaalst,Milco Derijck,D,D,5,2,light,1*,1*,1*,1,1,1,1,7
+eendrachtaalst,Roland Dewinne,M,RW,6,2,light,2*,2*,2*,2,2,2,2,14
+eendrachtaalst,Eddy Moerman,M,LW,7,2,light,2*,2*,2*,2,2,2,2,14
+eendrachtaalst,Marc Vermeiren,M,M,8,2,light,2*,2*,2*,2,2,2,2,14
+eendrachtaalst,Guy Droessaert,M,M,9,2,light,2*,2*,2*,2,2,2,2,14
+eendrachtaalst,Manu Ferrera,A,A,10,2,light,2*,2*,2,2,2,4*,2,16
+eendrachtaalst,Hans Groenendijk,A,A,11,23,light,2*,2*,2*,2,2,2,2,14
+eendrachtaalst,Luk Moerman,G,G,12,2,light,1*,2*,1,2*,0,1,0,3
+eendrachtaalst,Hervé Godtbil,D,D,13,2,light,1*,1*,1*,1,1,1,1,7
+eendrachtaalst,Emilio Ferrera,M,M,14,2,light,2*,2*,2*,2,2,2,2,14
+eendrachtaalst,Jacky Debougnoux,A,A,15,2,light,2*,2*,2*,2,2,2,2,14
+eendrachtaalst,Geert Van Roy,A,A,16,2,light,2*,2*,2*,2,2,2,2,14
+unionsg,Bobby Dekeyser,G,G,1,2,light,2*,2*,2*,2,2,2,2,14
+unionsg,Dany Ost,D,RB,2,2,light,2*,2*,2*,2,2,2,2,14
+unionsg,Marc Steyaert,D,LB,3,2,light,2*,2*,2*,2,2,2,2,14
+unionsg,Khalid Karama,D,D,4,2,light,2*,2*,2*,2,2,2,2,14
+unionsg,Danny Bonne,D,D,5,2,light,1*,1*,1*,1,1,1,1,7
+unionsg,Kris Ceuppens,M,RW,6,2,light,2*,2*,2*,2,2,2,2,14
+unionsg,Thierry Steenwerckx,M,LW,7,2,light,2*,2*,2*,2,2,2,2,14
+unionsg,Christian Saint-Jean,M,M,8,2,light,2*,2*,2*,2,2,2,2,14
+unionsg,Bruno Delentdecker,M,M,9,2,light,1*,1*,1*,1,1,1,1,7
+unionsg,Paul Put,A,A,10,2,light,2,2,3*,3*,2,3*,2,17
+unionsg,Thierry Bassem,A,A,11,2,light,2*,2*,2*,2,2,2,2,14
+unionsg,Bruno Taverne,G,G,12,2,light,2*,2*,2*,2,2,2,2,14
+unionsg,Chris Kerkhove,D,D,13,2,light,1*,1*,1*,1,1,1,1,7
+unionsg,Gerrick Muylaert,M,M,14,2,light,1*,1*,1*,1,1,1,1,7
+unionsg,René Van Dooren,A,A,15,2,light,2*,2*,2*,2,2,2,2,14
+unionsg,Michel Vandevelde,D,LB,16,2,light,2*,2*,2*,2,2,2,2,14
+harelbeke,Éric Demaeght,G,G,1,2,light,1*,1*,1*,1,1,1,1,12
+harelbeke,Gino Donckele,D,RB,2,2,light,1*,1*,1*,1,1,1,1,7
+harelbeke,Kurt Deltour,D,LB,3,2,light,4*,4*,4*,4,3,3,3,25
+harelbeke,Willy Vanoplynus,D,D,4,2,light,1*,1*,1*,1,1,1,1,7
+harelbeke,Philippe Siau,D,D,5,2,light,1*,1*,1*,1,1,1,1,7
+harelbeke,Chris Craeye,M,RW,6,2,light,1*,1*,1*,1,1,1,1,7
+harelbeke,Samba Diallo,M,LW,7,2,light,1*,1*,1*,1,1,1,1,7
+harelbeke,Lieven Vandevenne,M,M,8,2,light,1*,1*,1*,1,1,1,1,7
+harelbeke,Rik Bouckaert,M,M,9,2,light,1*,1*,1*,1,1,1,1,7
+harelbeke,Dirk Beheydt,A,A,10,2,light,3,4*,4*,2,3,4*,4,24
+harelbeke,Kurt Vanhove,A,A,11,2,light,1*,1*,1*,1,1,1,1,7
+harelbeke,Franky Vandenbroucke,G,G,12,2,light,1*,1*,1*,1,1,1,1,12
+harelbeke,Franky Kesteloot,D,D,13,2,light,1*,1*,1*,1,1,1,1,7
+harelbeke,Francky Cieters,M,M,14,2,light,1*,1*,1*,1,1,1,1,7
+harelbeke,Paul Dubus,A,A,15,2,light,1*,1*,1*,1,1,1,1,7
+harelbeke,Yves Faelens,M,M,16,2,light,1*,1*,1*,1,1,1,1,7
+vvpatroeisden,Jean-Pierre Gerets,G,G,1,2,light,1*,1*,1*,1,1,1,1,7
+vvpatroeisden,Huub Pfennings,D,RB,2,23,light,1*,1*,1*,1,1,1,1,7
+vvpatroeisden,Guy Winkels,D,LB,3,2,light,1*,1*,1*,1,1,1,1,7
+vvpatroeisden,Rik Schrijvers,D,D,4,2,light,1*,1*,1*,1,1,1,1,7
+vvpatroeisden,Roger Greyn,D,D,5,2,light,1*,1*,1*,1,1,1,1,7
+vvpatroeisden,Filip Olaerts,M,RW,6,2,light,1*,1*,1*,1,1,1,1,7
+vvpatroeisden,Manu Karagiannis,M,LW,7,2,light,3*,2,3*,3*,3,3,2,19
+vvpatroeisden,Jacky Boonen,M,M,8,2,light,2*,3*,2,1,2,3*,2,15
+vvpatroeisden,Harry la Valette,M,M,9,2,light,1*,1*,1*,1,1,1,1,7
+vvpatroeisden,Guy Mesotten,A,A,10,2,light,1*,1*,1*,1,1,1,1,7
+vvpatroeisden,Jaak Dreesen,A,A,11,2,light,1*,1*,1*,1,1,1,1,7
+vvpatroeisden,Eric Elst,G,G,12,2,light,1*,1*,1*,0,0,0,0,0
+vvpatroeisden,Roger Smeets,D,D,13,2,light,1*,1*,1*,1,1,1,1,7
+vvpatroeisden,Alain Austen,M,M,14,2,light,1*,1*,1*,1,1,1,1,7
+vvpatroeisden,Marcel Vandeweerd,A,A,15,2,light,1*,1*,1*,1,1,1,1,7
+vvpatroeisden,Vital Borkelmans,D,LB,16,2,light,5*,4,4,5*,5*,4,4,31
+kboomfc,Peter Thys,G,G,1,2,light,1*,1*,1*,1,1,1,1,12
+kboomfc,Hugo Andries,D,RB,2,2,light,1*,1*,1*,1,1,1,1,7
+kboomfc,Luc Abrams,D,LB,3,2,light,1*,1*,1*,1,1,1,1,7
+kboomfc,Wilfried Jeurissen,D,D,4,2,light,1*,1*,1*,1,1,1,1,7
+kboomfc,Alain Blanckaert,D,D,5,2,light,3*,3*,4*,3,2,2,2,19
+kboomfc,Guy De Hertog,M,RW,6,2,light,1*,1*,1*,1,1,1,1,7
+kboomfc,Johnny Vandenbossche,M,LW,7,2,light,1*,1*,1*,1,1,1,1,7
+kboomfc,Dirk Gille,M,M,8,2,light,1*,1*,1*,1,1,1,1,7
+kboomfc,Bart De Mondt,M,M,9,2,light,1*,1*,1*,1,1,1,1,7
+kboomfc,Marc De Buyser,A,A,10,2,light,2,4*,4*,3,3,2,4*,22
+kboomfc,Jan Lauwers,A,A,11,2,light,1*,1*,1*,1,1,1,1,7
+kboomfc,Andy Prins,G,G,12,2,light,1*,1*,1*,1,1,1,1,3
+kboomfc,Dirk Motte,D,D,13,2,light,1*,1*,1*,1,1,1,1,7
+kboomfc,Rudy Duchesne,M,M,14,2,light,1*,1*,1*,1,1,1,1,7
+kboomfc,Paul van der Stappen,A,A,15,2,light,1*,1*,1*,1,1,1,1,7
+kboomfc,Freddy Vanbeginne,D,LB,16,2,light,1*,1*,1*,1,1,1,1,7
+kfcdiest,Luc Coomans,G,G,1,2,light,1*,1*,1*,1,1,1,1,9
+kfcdiest,Johan Baers,D,RB,2,2,light,1*,1*,1*,1,1,1,1,7
+kfcdiest,Jozef Grieten,D,LB,3,2,light,1*,1*,1*,1,1,1,1,7
+kfcdiest,Bruno Versavel,D,D,4,2,light,3*,4*,3,3,3,3,4*,23
+kfcdiest,Willem Leushuis,D,D,5,23,light,1*,1*,1*,1,1,1,1,7
+kfcdiest,Kristiaan Ceupens,M,RW,6,2,light,1*,1*,1*,1,1,1,1,7
+kfcdiest,Johan Ceulemans,M,LW,7,2,light,1*,1*,1*,1,1,1,1,7
+kfcdiest,Benny Meeus,M,M,8,2,light,1*,1*,1*,1,1,1,1,7
+kfcdiest,Benny Rener,M,M,9,2,light,1*,1*,1*,1,1,1,1,7
+kfcdiest,Mario Vitali,A,A,10,2,light,1*,1*,1*,1,1,1,1,7
+kfcdiest,Raymond Hamers,A,A,11,2,light,1*,1*,1*,1,1,1,1,7
+kfcdiest,Marc Kiekens,G,G,12,2,light,1*,0,1*,0,1*,0,0,0
+kfcdiest,Stefaan Peys,D,D,13,2,light,1*,1*,1*,1,1,1,1,7
+kfcdiest,Patrick Versavel,M,M,14,2,light,1*,1*,1*,1,1,1,1,7
+kfcdiest,Jean-Paul Massignani,A,A,15,2,light,1*,1*,1*,1,1,1,1,7
+kfcdiest,Jozef Van den Bergh,D,RB,16,2,light,1*,1*,1*,1,1,1,1,7
+kberchemsport,Guido Van Limbergen,G,G,1,2,light,1*,1*,1*,1,1,1,1,12
+kberchemsport,Johan Vercruysse,D,RB,2,2,light,1*,1*,1*,1,1,1,1,7
+kberchemsport,Eric Van Meir,D,LB,3,2,light,2*,2,4*,3*,2,2,2,17
+kberchemsport,Dominique Rasker,D,D,4,2,light,1*,1*,1*,1,1,1,1,7
+kberchemsport,Roger Leirs,D,D,5,2,light,1*,1*,1*,1,1,1,1,7
+kberchemsport,Albert Van Den Bergh,M,RW,6,2,light,1*,1*,1*,1,1,1,1,7
+kberchemsport,Robby Nardus,M,LW,7,2,light,1*,1*,1*,1,1,1,1,7
+kberchemsport,Gert Turelinckx,M,M,8,2,light,1*,1*,1*,1,1,1,1,7
+kberchemsport,Rik Gotzen,M,M,9,2,light,1*,1*,1*,1,1,1,1,7
+kberchemsport,Stanislaw Gzil,A,A,10,26,light,1*,1*,1*,1,1,1,1,7
+kberchemsport,Jozef Van Pelt,A,A,11,2,light,1*,1*,1*,1,1,1,1,7
+kberchemsport,Guy Dupont,G,G,12,2,light,1*,1*,1*,1,1,1,1,7
+kberchemsport,Paul Van Asch,D,D,13,2,light,1*,1*,1*,1,1,1,1,7
+kberchemsport,Benny Meurs,M,M,14,2,light,1*,1*,1*,1,1,1,1,7
+kberchemsport,Frank Simons,A,A,15,2,light,1*,1*,1*,1,1,1,1,7
+kberchemsport,Luc Wagemans,D,RB,16,2,light,1*,1*,1*,1,1,1,1,7
+krcmechelen,Dirk Pauwels,G,G,1,2,light,1*,1*,1*,1,1,1,1,12
+krcmechelen,Paul Van Nuffelen,D,RB,2,2,light,1*,1*,1*,1,1,1,1,7
+krcmechelen,Nick Verboven,D,LB,3,2,light,1*,1*,1*,1,1,1,1,7
+krcmechelen,Guy Kiala,D,D,4,2,light,1*,1*,1*,1,1,1,1,7
+krcmechelen,Rafail Derwae,D,D,5,2,light,1*,1*,1*,1,1,1,1,7
+krcmechelen,Danny Lemmens,M,RW,6,2,light,1*,1*,1*,1,1,1,1,7
+krcmechelen,Danny Caes,M,LW,7,2,light,1*,1*,1*,1,1,1,1,7
+krcmechelen,Stefaan De Coninck,M,M,8,2,light,1*,1*,1*,1,1,1,1,7
+krcmechelen,Luc Leys,M,M,9,2,light,1*,1*,1*,1,1,1,1,7
+krcmechelen,Patrick Van Kets,A,A,10,2,light,1*,1*,1*,1,1,1,1,7
+krcmechelen,Daniël Mondt,A,A,11,2,light,0,0,1*,0,1*,0,1*,0
+krcmechelen,Marc Bosmans,G,G,12,2,light,1*,1*,1*,1,1,1,1,9
+krcmechelen,Raoul Heyden,D,D,13,2,light,0,1*,1*,0,0,0,1*,0
+krcmechelen,Vincent Vossen,M,M,14,2,light,0,1*,1*,0,1*,0,0,0
+krcmechelen,Jean-Pierre Vandenwijngaarden,A,A,15,2,light,0,0,1*,1*,0,0,1*,0
+krcmechelen,Marc Van Craen,D,RB,16,2,light,2*,2*,2*,2,2,2,2,14
+overpelt,Filip Verspaille,G,G,1,2,light,0*,0,0,1*,0,1*,0,0
+overpelt,Johnny Velkeneers,D,RB,2,2,light,1*,1*,1*,1,1,1,1,7
+overpelt,Jacky Peeters,D,LB,3,2,light,1*,1*,1,1,1,3*,1,9
+overpelt,Vital Vanaken,D,D,4,2,light,1*,1*,1*,1,1,1,1,7
+overpelt,Theo Meeus,D,D,5,2,light,1*,1*,1*,1,1,1,1,7
+overpelt,Rudi Abrahams,M,RW,6,2,light,1*,1*,1*,1,1,1,1,7
+overpelt,Patrick Jacobs,M,LW,7,2,light,1*,1*,1*,1,1,1,1,7
+overpelt,Roberto Alvarez,M,M,8,2,light,1*,1*,1*,1,1,1,1,7
+overpelt,Mario Pepels,M,M,9,2,light,1*,1*,1*,1,1,1,1,7
+overpelt,Johan Simons,A,A,10,2,light,1*,1*,1*,1,1,1,1,7
+overpelt,Mathieu Peeters,A,A,11,2,light,1*,1*,1*,1,1,1,1,7
+overpelt,Robert Rampen,G,G,12,2,light,1*,0,0,1*,1*,0,0,0
+overpelt,Hugo Meeus,D,D,13,2,light,1*,1*,1*,1,1,1,1,7
+overpelt,Henri Huyberts,M,M,14,2,light,1*,1*,1*,1,1,1,1,7
+overpelt,Marcel Put,A,A,15,2,light,1*,1*,1*,1,1,1,1,7
+overpelt,Dirk Bertens,D,RB,16,2,light,2,3*,2,2,3*,2,3*,17
+ksktongeren,Patrick Rondags,G,G,1,2,light,1*,1*,1*,1,1,1,1,12
+ksktongeren,Hans van Thielen,D,RB,2,2,light,1*,1*,1*,1,1,1,1,7
+ksktongeren,Geert Lambrix,D,LB,3,2,light,1*,1*,1*,1,1,1,1,7
+ksktongeren,Joseph Bijloos,D,D,4,2,light,1*,1*,1*,1,1,1,1,7
+ksktongeren,Ronny Neven,D,D,5,2,light,1*,1*,1*,1,1,1,1,7
+ksktongeren,Jean Lemmens,M,RW,6,2,light,1*,1*,1*,1,1,1,1,7
+ksktongeren,Freddy Cuyx,M,LW,7,2,light,1*,1*,1*,1,1,1,1,7
+ksktongeren,Désiré Thys,M,M,8,2,light,1*,1*,1*,1,1,1,1,7
+ksktongeren,Johan Stassen,M,M,9,2,light,1*,1*,1*,1,1,1,1,7
+ksktongeren,Paul Sampermans,A,A,10,2,light,1*,1*,1*,1,1,1,1,7
+ksktongeren,Jozef Dewallef,A,A,11,2,light,1*,1*,1*,1,1,1,1,7
+ksktongeren,Nico Vaesen,G,G,12,2,light,1*,1*,1*,1,1,1,1,4
+ksktongeren,Erwin Raeymaeker,D,D,13,2,light,1*,1*,1*,1,1,1,1,7
+ksktongeren,Marino Sabbadini,M,M,14,2,light,1*,1*,1*,1,1,1,1,7
+ksktongeren,Benny Driesen,A,A,15,2,light,1*,1*,1*,1,1,1,1,7
+ksktongeren,Rudi Vossen,D,LB,16,2,light,2*,2*,2*,2,2,2,2,14
+kschasselt,Yves De Bellefroid,G,G,1,2,light,1*,1*,1*,1,1,1,1,7
+kschasselt,Pierre Vandepitte,D,RB,2,2,light,1*,1*,1*,1,1,1,1,7
+kschasselt,Danny Moermans,D,LB,3,2,light,1*,1*,1*,1,1,1,1,7
+kschasselt,Winand Vandelaer,D,D,4,2,light,1*,1*,1*,1,1,1,1,7
+kschasselt,Michel Corneillie,D,D,5,2,light,1*,1*,1*,1,1,1,1,7
+kschasselt,Alain Hermans,M,RW,6,2,light,1*,1*,1*,1,1,1,1,7
+kschasselt,Pierre Essers,M,LW,7,23,light,1*,1*,1*,1,1,1,1,7
+kschasselt,Ronny Vangompel,M,M,8,2,light,1*,1*,1,1,1,2*,1,8
+kschasselt,Pierre Veraa,M,M,9,2,light,1*,1*,1*,1,1,1,1,7
+kschasselt,Christian Labarbe,A,A,10,2,light,1*,1*,1*,1,1,1,1,7
+kschasselt,Willy Noelmans,A,A,11,2,light,1*,1*,1*,1,1,1,1,7
+kschasselt,Hans Devroe,G,G,12,2,light,1*,0*,0,0,0,1*,0,0
+kschasselt,Patrick Dupas,D,D,13,2,light,1*,1*,1*,1,1,1,1,7
+kschasselt,Albert Dewaay,M,M,14,2,light,1*,1*,1*,1,1,1,1,7
+kschasselt,Didier Kerremans,A,A,15,2,light,0*,0*,0*,0,0,0,0,0
+kschasselt,Philippe Ennekens,D,LB,16,2,light,1*,1*,1*,1,1,1,1,7

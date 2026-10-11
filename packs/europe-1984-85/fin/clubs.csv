@@ -1,0 +1,13 @@
+key,name,coach,country,file,division,tactic,kit1,kit2,lineup,source
+ilves,ILVES,,FIN,league,0,4,0 9 9 9 9,0 4 4 4 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Tampereen Ilves
+hakavalkeakoski,HAKA VALKEAKOSKI,,FIN,league,0,0,2 5 1 5 5,0 5 5 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,FC Haka Valkeakoski
+kuusysilahti,KUUSYSI LAHTI,,FIN,league,0,5,0 1 1 2 1,0 4 4 4 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Kuusysi Lahti
+hjkhelsinki,HJK HELSINKI,,FIN,league,0,4,0 4 4 1 4,0 1 1 4 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,HJK Helsinki
+rops,ROPS,,FIN,league,0,0,1 5 1 1 5,1 1 5 5 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Rovaniemen Palloseura
+kpvkokkola,KPV KOKKOLA,,FIN,league,0,7,2 2 1 1 1,0 1 1 2 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Kokkolan Pallo-Veikot
+kuopionkoparit,KUOPION KOPARIT,,FIN,league,0,0,0 5 5 5 5,0 1 1 5 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Kuopion Koparit
+kups,KUPS,,FIN,league,0,4,0 9 9 9 9,0 4 4 4 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Kuopion Palloseura
+turunpalloseura,TURUN PALLOSEURA,,FIN,league,0,0,0 5 5 5 5,0 1 1 5 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Turun Palloseura
+pptpori,PPT PORI,,FIN,league,0,0,1 5 1 1 5,1 1 5 5 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Porin Pallo-Toverit
+mpmikkeli,MP MIKKELI,,FIN,league,0,0,2 5 1 5 5,0 5 5 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Mikkelin Palloilijat
+keminpalloseura,KEMIN PALLOSEURA,,FIN,league,0,0,2 5 1 5 5,0 5 5 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Kemin Palloseura

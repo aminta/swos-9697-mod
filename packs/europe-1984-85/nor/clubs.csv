@@ -1,0 +1,65 @@
+key,name,coach,country,file,division,tactic,kit1,kit2,lineup,source
+valerengensif,VALERENGENS,,NOR,league,0,0,0 4 4 1 1,0 1 1 4 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Vålerengens IF
+lillestrom,LILLESTROM,,NOR,league,0,0,0 9 9 2 9,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Lillestrøm SK
+start,START,,NOR,league,0,4,0 9 9 2 9,0 5 5 1 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,IK Start
+moss,MOSS,,NOR,league,0,0,0 9 9 2 2,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Moss FK
+eikif,EIK IF,,NOR,league,0,2,0 5 5 1 4,0 4 4 5 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Eik IF
+viking,VIKING,,NOR,league,0,0,0 5 5 1 1,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Viking FK
+rosenborg,ROSENBORG,,NOR,league,0,0,0 1 1 2 1,0 4 4 4 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Rosenborg BK
+brynefk,BRYNE,,NOR,league,0,0,0 5 5 1 1,0 1 1 5 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Bryne FK
+kongsvinger,KONGSVINGER,,NOR,league,0,0,0 4 4 1 1,0 1 1 4 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Kongsvinger IL
+fredrikstadfk,FREDRIKSTAD,,NOR,league,0,0,1 5 1 1 5,1 1 5 5 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Fredrikstad FK
+molde,MOLDE,,NOR,league,0,5,0 5 5 1 5,0 1 1 5 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Molde FK
+strindheim,STRINDHEIM,,NOR,league,0,5,0 9 9 5 9,0 4 4 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Strindheim IL
+abildso,ABILDSO,,NOR,cuponly,,5,0 5 5 1 5,0 1 1 5 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Abildsø
+falken,FALKEN,,NOR,cuponly,,5,0 9 9 5 9,0 4 4 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Falken
+nessegutten,NESSEGUTTEN,,NOR,cuponly,,8,1 1 4 5 1,0 1 1 4 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Nessegutten
+sandnessjoen,SANDNESSJOEN,,NOR,cuponly,,5,0 9 9 9 9,0 1 1 2 7,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Sandnessjøen
+baerumsk,BAERUM,,NOR,cuponly,,5,0 1 1 2 1,0 5 5 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Bærum SK
+oddsbk,ODDS,,NOR,cuponly,,5,0 9 9 5 9,0 4 4 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Odds BK
+clausenengenfk,CLAUSENENGEN,,NOR,cuponly,,2,0 1 1 8 1,0 8 8 1 8,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Clausenengen FK
+aalesundsfk,AALESUNDS,,NOR,cuponly,,5,0 9 9 5 9,0 4 4 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Aalesunds FK
+kfumkameratene,KFUM KAMERATENE,,NOR,cuponly,,0,0 9 9 2 2,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,KFUM Kameratene Oslo
+figgjo,FIGGJO,,NOR,cuponly,,0,0 9 9 2 9,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Figgjo
+lillehammerfk,LILLEHAMMER,,NOR,cuponly,,0,0 5 5 1 1,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Lillehammer FK
+fyllingen,FYLLINGEN,,NOR,cuponly,,2,0 9 9 5 5,0 5 5 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Fyllingen Fotball
+skhaugar,HAUGAR,,NOR,cuponly,,0,0 4 4 1 1,0 1 1 4 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,SK Haugar
+forde,FORDE,,NOR,cuponly,,0,1 1 5 1 5,2 5 2 2 2,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Førde
+brann,BRANN,,NOR,cuponly,,5,0 4 4 1 4,0 1 1 2 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,SK Brann
+faabergfotball,FAABERG FOTBALL,,NOR,cuponly,,4,0 9 9 2 9,0 5 5 1 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Faaberg Fotball
+mjondalen,MJONDALEN,,NOR,cuponly,,0,0 6 6 1 1,0 1 1 6 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Mjøndalen IF
+hamkam,HAMKAM,,NOR,cuponly,,8,1 1 4 5 1,0 1 1 4 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,HamKam
+teieif,TEIE,,NOR,cuponly,,0,0 1 1 2 1,0 4 4 4 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Teie IF
+hareid,HAREID,,NOR,cuponly,,0,0 4 4 5 5,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Hareid
+molde2,MOLDE 2,,NOR,cuponly,,5,0 5 5 1 5,0 1 1 5 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Molde
+harstadil,HARSTAD IL,,NOR,cuponly,,0,0 5 5 1 1,0 1 1 5 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Harstad IL
+bodoglimt,BODO GLIMT,,NOR,cuponly,,5,0 9 9 9 9,0 1 1 2 7,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,FK Bodø/Glimt
+klepp,KLEPP,,NOR,cuponly,,0,2 4 1 1 1,0 9 9 9 9,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Klepp
+kafjord,KAFJORD,,NOR,cuponly,,0,1 5 1 1 5,1 1 5 5 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Kåfjord
+karnes,KARNES,,NOR,cuponly,,0,1 1 5 1 5,2 5 2 2 2,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Karnes
+turnforening,TURNFORENING,,NOR,cuponly,,0,1 1 5 1 5,2 5 2 2 2,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Eidsvold Turnforening
+lisleby,LISLEBY,,NOR,cuponly,,0,0 1 1 2 1,0 4 4 4 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Lisleby
+jervfk,JERV,,NOR,cuponly,,0,0 6 6 1 1,0 1 1 6 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Jerv FK
+norild,NORILD,,NOR,cuponly,,0,2 4 1 1 1,0 9 9 9 9,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Norild
+fkmjolner,MJOLNER,,NOR,cuponly,,5,0 5 5 1 5,0 1 1 5 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,FK Mjølner
+ifpors,PORS,,NOR,cuponly,,2,0 5 5 1 4,0 4 4 5 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,IF Pors
+fkornhorten,ORN-HORTEN,,NOR,cuponly,,5,0 4 4 1 4,0 1 1 2 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,FK Ørn-Horten
+roros,ROROS,,NOR,cuponly,,0,1 1 5 1 5,2 5 2 2 2,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Røros
+brumunddalif,BRUMUNDDAL,,NOR,cuponly,,0,0 9 9 2 9,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Brumunddal IF
+rade,RADE,,NOR,cuponly,,0,0 5 5 1 1,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Råde
+strommenif,STROMMEN,,NOR,cuponly,,5,0 9 9 5 9,0 4 4 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Strømmen IF
+skeid,SKEID,,NOR,cuponly,,0,0 4 4 5 5,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Skeid Fotball
+sogndal,SOGNDAL,,NOR,cuponly,,5,0 1 1 2 1,0 5 5 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Sogndal IL
+lyngbo,LYNGBO,,NOR,cuponly,,0,0 6 6 1 1,0 1 1 6 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Lyngbø
+steinkjer,STEINKJER,,NOR,cuponly,,0,0 5 5 1 1,0 1 1 5 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Steinkjer
+ifframlarvik,FRAM LARVIK,,NOR,cuponly,,8,1 1 4 5 1,0 1 1 4 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,IF Fram Larvik
+rollon,ROLLON,,NOR,cuponly,,0,1 5 1 1 5,1 1 5 5 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Rollon
+stromsgodset,STROMSGODSET,,NOR,cuponly,,0,0 5 5 1 1,0 1 1 5 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Strømsgodset IF
+kvikhalden,KVIK HALDEN,,NOR,cuponly,,5,0 9 9 9 9,0 1 1 2 7,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Kvik Halden
+sunndal,SUNNDAL,,NOR,cuponly,,0,0 9 9 2 2,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Sunndal
+langevag,LANGEVAG,,NOR,cuponly,,0,0 1 1 2 1,0 4 4 4 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Langevåg
+tydal,TYDAL,,NOR,cuponly,,5,0 9 9 5 9,0 4 4 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Tydal
+vardhaugesund,VARD HAUGESUND,,NOR,cuponly,,4,0 9 9 2 9,0 5 5 1 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Vard Haugesund
+egersundsik,EGERSUNDS,,NOR,cuponly,,2,0 5 5 1 4,0 4 4 5 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Egersunds IK
+stord,STORD,,NOR,cuponly,,4,0 9 9 2 9,0 5 5 1 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Stord
+assiden,ASSIDEN,,NOR,cuponly,,0,0 1 1 2 1,0 4 4 4 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Åssiden

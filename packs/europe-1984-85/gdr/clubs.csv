@@ -1,0 +1,15 @@
+key,name,coach,country,file,division,tactic,kit1,kit2,lineup,source
+bfcdynamo,BFC DYNAMO,,GDR,league,0,4,0 4 4 5 5,0 5 5 4 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Berliner FC Dynamo
+dynamodresden,DYNAMO DRESDEN,Rainer Mundt,GDR,league,0,4,1 9 2 2 9,0 8 8 1 8,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,SG Dynamo Dresden
+lokleipzig,LOK LEIPZIG,Hannes Löhr,GDR,league,0,4,0 1 1 1 1,0 4 4 4 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,1. FC Lokomotive Leipzig
+vorwfrankfurt,VORW. FRANKFURT,Dietrich Weise,GDR,league,0,4,0 4 4 4 1,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,FC Vorwärts Frankfurt (Oder)
+1fcmagdeburg,MAGDEBURG,,GDR,league,0,4,0 1 1 5 5,2 4 2 2 2,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,1.FC Magdeburg
+karlmarxstadt,KARL-MARX-STADT,,GDR,league,0,4,0 4 4 4 1,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,FC Karl-Marx-Stadt
+rotweisserfurt,ROT-WEISS ERFURT,,GDR,league,0,4,0 1 1 4 5,1 1 5 2 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,FC Rot-Weiss Erfurt
+bsgwismutaue,WISMUT AUE,Hans-Ulrich Thomale,GDR,league,0,4,2 1 4 4 1,0 4 4 4 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,BSG Wismut Aue
+hansarostock,HANSA ROSTOCK,,GDR,league,0,4,0 1 1 5 5,2 4 2 2 2,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,FC Hansa Rostock
+carlzeissjena,CARL ZEISS JENA,,GDR,league,0,4,0 5 5 1 1,0 9 9 2 9,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,FC Carl Zeiss Jena
+bsgstahlriesa,STAHL RIESA,,GDR,league,0,4,1 9 2 2 9,0 8 8 1 8,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,BSG Stahl Riesa
+chemieleipzig,CHEMIE LEIPZIG,,GDR,league,0,4,0 4 4 2 4,0 9 9 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,BSG Chemie Leipzig
+stbrandenburg,ST. BRANDENBURG,,GDR,league,0,0,2 5 2 2 5,0 1 1 2 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,BSG Stahl Brandenburg
+bsgmotorsuhl,MOTOR SUHL,,GDR,league,0,4,0 4 4 5 5,0 5 5 4 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,BSG Motor Suhl

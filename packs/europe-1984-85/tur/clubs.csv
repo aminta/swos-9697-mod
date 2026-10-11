@@ -1,0 +1,19 @@
+key,name,coach,country,file,division,tactic,kit1,kit2,lineup,source
+trabzonspor,TRABZONSPOR,,TUR,league,0,5,0 6 6 6 6,0 7 7 7 7,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Trabzonspor
+fenerbahce,FENERBAHCE,,TUR,league,0,8,2 5 9 1 1,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Fenerbahçe SK
+galatasaray,GALATASARAY,Jupp Derwall,TUR,league,0,0,0 9 9 9 9,0 4 4 4 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Galatasaray SK
+besiktas,BESIKTAS,,TUR,league,0,4,0 1 1 2 1,0 4 4 2 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Besiktas JK
+ankaragucu,ANKARAGUCU,,TUR,league,0,4,2 9 5 5 5,0 5 5 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,MKE Ankaragücü
+sakaryaspor,SAKARYASPOR,,TUR,league,0,7,2 8 1 8 8,0 1 1 8 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Sakaryaspor
+denizlispor,DENIZLISPOR,,TUR,league,0,0,0 8 8 8 8,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Denizlispor
+kocaelispor,KOCAELISPOR,,TUR,league,0,4,0 1 1 2 8,0 8 8 2 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Kocaelispor
+zonguldakspor,ZONGULDAKSPOR,,TUR,league,0,5,2 5 1 5 1,0 5 5 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Zonguldakspor
+bursaspor,BURSASPOR,,TUR,league,0,7,2 8 1 8 8,0 1 1 8 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Bursaspor
+genclerbirligi,GENCLERBIRLIGI,,TUR,league,0,4,2 4 2 2 4,0 9 9 9 9,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Gençlerbirligi
+sariyer,SARIYER,,TUR,league,0,5,2 5 1 5 1,0 5 5 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Sariyer Spor Kulübü
+orduspor,ORDUSPOR,,TUR,league,0,4,0 4 4 4 4,0 9 9 9 9,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Orduspor
+boluspor,BOLUSPOR,,TUR,league,0,4,0 1 1 1 1,0 9 9 5 9,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Boluspor
+antalyaspor,ANTALYASPOR,,TUR,league,0,4,0 1 1 4 4,0 4 4 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Antalyaspor
+altay,ALTAY,,TUR,league,0,4,2 1 2 2 2,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Altay
+eskisehirspor,ESKISEHIRSPOR,,TUR,league,0,4,0 4 4 2 4,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Eskisehirspor
+malatyaspor,MALATYASPOR,,TUR,league,0,4,2 9 5 5 5,0 5 5 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Malatyaspor

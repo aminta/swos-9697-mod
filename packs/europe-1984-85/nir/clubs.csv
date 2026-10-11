@@ -1,0 +1,33 @@
+key,name,coach,country,file,division,tactic,kit1,kit2,lineup,source
+linfield,LINFIELD,,NIR,league,0,4,0 5 5 1 4,0 1 1 5 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Linfield
+glentoran,GLENTORAN,,NIR,league,0,5,1 8 4 2 8,0 4 4 2 2,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Glentoran
+cliftonville,CLIFTONVILLE,,NIR,league,0,5,0 4 4 1 1,0 1 1 4 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Cliftonville
+ards,ARDS,,NIR,league,0,5,2 4 5 5 4,0 1 1 5 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Ards
+coleraine,COLERAINE,,NIR,league,0,5,2 5 1 1 1,0 5 5 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Coleraine
+ballymenaunited,BALLYMENA UNITED,,NIR,league,0,5,2 7 1 1 7,0 5 5 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Ballymena United
+glenavon,GLENAVON,,NIR,league,0,5,0 5 5 1 5,0 4 4 1 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Glenavon
+crusaders,CRUSADERS,,NIR,league,0,0,2 4 2 1 1,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Crusaders
+distillery,DISTILLERY,,NIR,league,0,5,0 1 1 1 1,0 5 5 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Lisburn Distillery
+portadown,PORTADOWN,,NIR,league,0,0,0 4 4 4 4,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Portadown
+newrytown,NEWRY TOWN,,NIR,league,0,0,2 5 1 1 5,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Newry Town
+bangor,BANGOR,,NIR,league,0,5,0 9 9 5 9,0 5 5 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Bangor
+larne,LARNE,,NIR,league,0,5,0 4 4 1 4,0 1 1 4 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Larne
+carrickrangers,CARRICK RANGERS,,NIR,league,0,5,0 3 3 2 2,0 1 1 2 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Carrick Rangers
+ballyclarec,BALLYCLARE C.,,NIR,cuponly,,5,0 4 4 2 4,0 1 1 1 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Ballyclare Comrades
+michelin,MICHELIN,,NIR,cuponly,,5,0 1 1 2 1,0 4 4 2 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Michelin
+banbridgetown,BANBRIDGE TOWN,,NIR,cuponly,,5,0 1 1 1 1,0 5 5 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Banbridge Town
+civilservice,CIVIL SERVICE,,NIR,cuponly,,5,2 7 1 1 7,0 5 5 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Civil Service
+harlandwolff,HARLAND & WOLFF,,NIR,cuponly,,5,2 7 1 1 7,0 5 5 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Harland & Wolff Welders
+brantwood,BRANTWOOD,,NIR,cuponly,,5,0 4 4 1 1,0 1 1 4 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Brantwood
+dunmurryrec,DUNMURRY REC.,,NIR,cuponly,,5,0 4 4 2 4,0 1 1 1 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Dunmurry Rec.
+downpatrickrec,DOWNPATRICK REC.,,NIR,cuponly,,5,0 4 4 1 4,0 1 1 4 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Downpatrick Rec.
+limavadyunited,LIMAVADY UNITED,,NIR,cuponly,,5,1 8 4 2 8,0 4 4 2 2,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Limavady United
+chimneycorner,CHIMNEY CORNER,,NIR,cuponly,,5,0 1 1 1 1,0 5 5 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Chimney Corner
+stc,STC,,NIR,cuponly,,5,0 4 4 1 4,0 1 1 4 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,STC
+barnunited,BARN UNITED,,NIR,cuponly,,5,0 3 3 2 2,0 1 1 2 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Barn United
+islandmagee,ISLANDMAGEE,,NIR,cuponly,,5,0 5 5 1 5,0 4 4 1 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Islandmagee
+united,UNITED,,NIR,cuponly,,5,0 1 1 1 1,0 5 5 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Ballymoney United
+killyleaghyouth,KILLYLEAGH YOUTH,,NIR,cuponly,,5,0 4 4 1 1,0 1 1 4 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Killyleagh Youth
+omaghtown,OMAGH TOWN,,NIR,cuponly,,5,0 1 1 2 1,0 4 4 2 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Omagh Town
+tobermoreunited,TOBERMORE UNITED,,NIR,cuponly,,5,2 5 1 1 1,0 5 5 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Tobermore United
+ruc,RUC,,NIR,cuponly,,4,0 5 5 1 4,0 1 1 5 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,RUC

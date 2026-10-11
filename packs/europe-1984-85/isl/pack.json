@@ -1,0 +1,91 @@
+{
+ "format": 1,
+ "id": "europe-1984-85-isl",
+ "kind": "career",
+ "button": "ICELAND",
+ "continent": "europe",
+ "sources": [
+  "DaniSwos (CM01/02 Retro Update Team), 1984-85 database",
+  "European entrants 1984-85: en.wikipedia.org (first rounds of the three cups)",
+  "Club order: final tables 1983-84 (1983 for calendar-year leagues), en.wikipedia.org",
+  "Coaches: it/es/nl/pt/fr.wikipedia.org 1984-85 season pages and Wikidata",
+  "National cups 1984-85: en.wikipedia.org cup pages (from the first round of 8..64 clubs)"
+ ],
+ "files": {
+  "league": {
+   "file": 117,
+   "base": 494
+  },
+  "cuponly": {
+   "file": 139,
+   "base": 877
+  }
+ },
+ "squads": [
+  {
+   "files": [
+    "league",
+    "cuponly"
+   ],
+   "method": "explicit"
+  }
+ ],
+ "competitions": [
+  {
+   "key": "league",
+   "type": "league",
+   "id": "CB",
+   "clubs": "league",
+   "dates_from": 8,
+   "games": 2,
+   "win_points": 2,
+   "relegated": 0,
+   "names": {
+    "*": [
+     "1. DEILD",
+     "1. DEILD"
+    ]
+   }
+  },
+  {
+   "key": "cup",
+   "type": "cup",
+   "layout": "national",
+   "id": "DC",
+   "dates_from": 8,
+   "rounds": [
+    "single_et",
+    "single_et",
+    "single_et",
+    "single"
+   ],
+   "names": {
+    "*": [
+     "BIKARKEPPNI",
+     "BIKARKEPPNI"
+    ]
+   }
+  }
+ ],
+ "season": {
+  "league": "league",
+  "cup": "cup"
+ },
+ "world": 4,
+ "europe_places": {
+  "cc": 1,
+  "cwc": 1,
+  "uefa": 1
+ },
+ "first_europe": {
+  "cc": [
+   "iaakranes"
+  ],
+  "cwc": [
+   "ibv"
+  ],
+  "uefa": [
+   "krreykjavik"
+  ]
+ }
+}

@@ -1,0 +1,37 @@
+key,name,coach,country,file,division,tactic,kit1,kit2,lineup,source
+honved,HONVED,,HUN,league,0,8,0 8 8 1 1,0 1 1 8 8,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Budapesti Honvéd SE
+videotonsc,VIDEOTON,,HUN,league,0,0,0 6 6 6 6,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Videoton SC
+ujpestidozsasc,UJPESTI DOZSA,,HUN,league,0,8,0 4 4 5 4,1 5 4 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Újpesti Dózsa SC
+tatabanya,TATABANYA,,HUN,league,0,3,0 1 1 1 1,0 5 5 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Tatabányai Bányász SC
+vasas,VASAS,,HUN,league,0,8,0 4 4 4 4,0 1 1 5 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Vasas SC
+zalaegerszeg,ZALAEGERSZEG,,HUN,league,0,4,1 1 7 1 1,0 5 5 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Zalaegerszegi TE
+mtkvmsk,MTK-VM,,HUN,league,0,8,1 1 5 1 5,1 1 4 1 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,MTK-VM SK
+szegedieolak,SZEGEDI EOL AK,,HUN,league,0,4,3 8 1 1 1,0 8 8 8 8,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Szegedi EOL AK
+csepel,CSEPEL,,HUN,league,0,0,2 6 5 5 5,0 4 4 4 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Csepel SC
+ferencvaros,FERENCVAROS,,HUN,league,0,4,3 8 1 1 1,0 8 8 8 8,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Ferencvárosi TC
+haladas,HALADAS,,HUN,league,0,3,0 1 1 8 1,0 8 8 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Szombathelyi Haladás VSE
+egerse,EGER SE,,HUN,league,0,4,3 8 1 1 1,0 8 8 8 8,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Eger SE
+debrecen,DEBRECEN,,HUN,league,0,7,0 1 1 4 4,2 4 1 4 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Debreceni MVSC
+rabavasaseto,RABA VASAS ETO,,HUN,league,0,8,0 4 4 4 4,0 1 1 5 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Rába Vasas ETO
+pecsimsc,PECSI MSC,,HUN,league,0,2,1 1 4 1 1,0 4 4 2 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Pécsi MSC
+bekescsaba,BEKESCSABA,,HUN,league,0,0,0 6 6 6 6,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Békéscsabai ESSC
+metripondse,METRIPOND SE,,HUN,league,1,0,0 6 6 6 6,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Metripond SE
+bakonyvegyesz,BAKONY VEGYESZ,,HUN,league,1,4,3 8 1 1 1,0 8 8 8 8,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Bakony Vegyész TC
+szolnokimavmte,SZOLNOKI MAV MTE,,HUN,league,1,7,0 1 1 4 4,2 4 1 4 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Szolnoki MÁV MTE
+nagykanizsa,NAGYKANIZSA,,HUN,league,1,4,2 4 2 2 4,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Nagykanizsai Olajbányász SE
+debrecenkinizsi,DEBRECEN KINIZSI,,HUN,league,1,7,0 1 1 4 4,2 4 1 4 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Debreceni Kinizsi SE
+kazincbarcika,KAZINCBARCIKA,,HUN,league,1,3,0 1 1 8 1,0 8 8 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Kazincbarcikai Vegyész SE
+keszthely,KESZTHELY,,HUN,league,1,3,0 1 1 8 1,0 8 8 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Keszthelyi Haladás SC
+sopron,SOPRON,,HUN,league,1,8,0 1 1 5 1,0 5 5 1 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Soproni SE
+bajaisk,BAJAI,,HUN,league,1,3,0 1 1 8 1,0 8 8 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Bajai SK
+szekszard,SZEKSZARD,,HUN,league,1,8,0 1 1 5 1,0 5 5 1 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Szekszárdi Dózsa SE
+diosgyor,DIOSGYOR,,HUN,league,1,8,0 1 1 1 1,0 4 4 4 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Diósgyöri VTK
+volan,VOLAN,,HUN,league,1,5,2 5 1 5 5,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,22. számú Volán SC
+volansc,VOLAN SC,,HUN,league,1,4,3 8 1 1 1,0 8 8 8 8,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Volán SC
+vaciizzomte,VACI IZZO MTE,,HUN,league,1,4,2 4 2 2 4,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Váci Izzó MTE
+dunaujvaros,DUNAUJVAROS,,HUN,league,1,3,0 1 1 1 1,0 5 5 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Dunaújvárosi Kohász SE
+nyiregyhazi,NYIREGYHAZI,,HUN,league,1,2,1 1 5 1 5,1 5 1 5 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Nyíregyházi VSSC
+ozdikohaszse,OZDI KOHASZ SE,,HUN,league,1,8,0 4 4 5 4,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Ózdi Kohász SE
+salgotarjanibtc,SALGOTARJANI BTC,,HUN,league,1,8,0 1 1 5 1,0 5 5 1 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Salgótarjáni BTC
+siofok,SIOFOK,,HUN,league,1,8,3 4 2 2 4,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Siófoki Bányász SE
+tapolca,TAPOLCA,,HUN,league,1,4,2 4 2 2 4,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Tapolcai Bauxitbányász SE

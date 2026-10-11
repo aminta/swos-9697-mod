@@ -1,0 +1,22 @@
+key,name,coach,country,file,division,tactic,kit1,kit2,lineup,source
+levskisofia,LEVSKI SOFIA,Dobromir Zhechev,BUL,league,0,0,2 1 8 1 1,0 8 8 8 8,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Levski-Spartak Sofia
+cskasofia,CSKA SOFIA,Manol Manolov,BUL,league,0,8,0 4 4 4 4,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,CSKA Septemvriysko zname Sofia
+spartakvarna,SPARTAK VARNA,,BUL,league,0,6,0 8 8 8 8,0 9 9 8 9,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,ZhSK-Spartak Varna
+beroe,BEROE,,BUL,league,0,8,0 4 4 4 4,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Beroe Stara Zagora
+chernomoretsb,CHERNOMORETS B.,,BUL,league,0,0,2 2 1 1 1,2 2 4 4 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Chernomorets Burgas
+lokomotivsofia,LOKOMOTIV SOFIA,,BUL,league,0,5,2 2 4 2 4,0 1 1 2 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Lokomotiv Sofia
+fcsliven,SLIVEN,,BUL,league,0,5,2 2 4 2 4,0 1 1 2 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,FC Sliven
+botevvratsa,BOTEV VRATSA,,BUL,league,0,0,1 8 1 8 8,1 1 8 1 8,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Botev Vratsa
+trakiaplovdiv,TRAKIA PLOVDIV,,BUL,league,0,8,0 4 4 4 4,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Trakia Plovdiv
+etar,ETAR,,BUL,league,0,0,1 8 1 8 8,1 1 8 1 8,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Etar Veliko Tarnovo
+chernomore,CHERNO MORE,,BUL,league,0,2,0 6 6 6 6,0 1 1 6 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Cherno More Varna
+slaviasofia,SLAVIA SOFIA,,BUL,league,0,5,0 1 1 1 1,0 7 7 7 7,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Slavia Sofia
+dunavruse,DUNAV RUSE,,BUL,league,0,2,0 6 6 6 6,0 1 1 6 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Dunav Ruse
+spartakpleven,SPARTAK PLEVEN,,BUL,league,0,0,0 1 1 1 8,0 8 8 8 8,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Spartak Pleven
+pirin,PIRIN,,BUL,league,0,3,0 4 4 5 5,0 5 5 4 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Pirin Blagoevgrad
+minyorpernik,MINYOR PERNIK,,BUL,league,0,0,1 1 5 5 1,0 1 1 1 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Minyor Pernik
+shumen,SHUMEN,,BUL,cuponly,,5,0 9 9 5 5,1 1 5 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Shumen
+marekstanke,MAREK STANKE,,BUL,cuponly,,5,2 2 4 1 1,2 2 1 2 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Marek Stanke Dimitrov
+hebrosharmanli,HEBROS HARMANLI,,BUL,cuponly,,8,0 4 4 4 4,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Hebros Harmanli
+burgas,BURGAS,,BUL,cuponly,,5,2 9 2 2 9,0 1 1 2 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Neftochimik Burgas
+chirpan,CHIRPAN,,BUL,cuponly,,2,0 6 6 6 6,0 1 1 6 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Chirpan

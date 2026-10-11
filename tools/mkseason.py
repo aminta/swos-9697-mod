@@ -34,7 +34,10 @@ import unicodedata
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.join(HERE, '..')
 PACKS = os.path.join(ROOT, 'packs')
-ENABLED = os.environ.get('SEASON_PACKS', 'ddr-1988-89').split(',')   # packs built into the mod, in this order
+WORLDS = ['europe-1984-85']                        # career worlds: packs/<world>/<country> (3.0: Europe 1984-85)
+ENABLED = (os.environ['SEASON_PACKS'].split(',') if 'SEASON_PACKS' in os.environ else   # packs built into the mod,
+           ['ddr-1988-89'] + [os.path.join(PACKS, w, c) for w in WORLDS                 # in this order
+                              for c in sorted(os.listdir(os.path.join(PACKS, w))) if not c.startswith('.')])
                                         # (a name in packs/ or a path; SEASON_PACKS only for test builds)
 TEAM_SIZE = 684
 SEASONS = 97                            # pseudo-continent 'classic seasons' of the Season menu

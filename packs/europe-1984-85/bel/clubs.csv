@@ -1,0 +1,35 @@
+key,name,coach,country,file,division,tactic,kit1,kit2,lineup,source
+kskbeveren,BEVEREN,,BEL,league,0,8,0 1 1 2 9,0 4 4 1 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,KSK Beveren
+anderlecht,ANDERLECHT,,BEL,league,0,8,0 1 1 1 1,0 6 6 1 6,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,RSC Anderlecht
+clubbruggekv,CLUB BRUGGE,,BEL,league,0,8,0 1 1 2 9,0 4 4 1 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Club Brugge KV
+standardliege,STANDARD LIEGE,Louis Pilot,BEL,league,0,0,0 1 1 1 1,0 4 4 4 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,R Standard de Liège
+rfcseresien,SERESIEN,René Taelman,BEL,league,0,8,2 4 9 2 4,0 5 5 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,RFC Sérésien
+kvmechelen,KV MECHELEN,,BEL,league,0,8,2 4 9 2 4,0 5 5 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,KV Mechelen
+ksvwaregem,WAREGEM,,BEL,league,0,8,0 4 4 1 1,0 1 1 4 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,KSV Waregem
+antwerp,ANTWERP,Arie Haan,BEL,league,0,8,0 4 4 1 1,0 1 1 4 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,R Antwerp FC
+genk,GENK,Pierre Geys,BEL,league,0,4,0 5 5 5 5,2 4 1 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,K Waterschei SV THOR Genk
+lokeren,LOKEREN,Dimitri Davidović,BEL,league,0,8,0 1 1 2 9,0 4 4 1 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,KSC Lokeren
+kvkortrijk,KORTRIJK,,BEL,league,0,8,0 4 4 4 4,0 5 5 5 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,KV Kortrijk
+lierse,LIERSE,,BEL,league,0,5,0 9 9 2 2,1 1 4 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,K Lierse SK
+gent,GENT,,BEL,league,0,3,0 1 1 1 1,0 5 5 5 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,KAA Gent
+cerclebrugge,CERCLE BRUGGE,Georges Leekens,BEL,league,0,3,0 1 1 1 1,0 5 5 5 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,KSV Cercle Brugge
+kbeerschotvav,K BEERSCHOT VAV,,BEL,league,0,8,0 4 4 4 4,0 5 5 5 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,K Beerschot VAV
+rfcliegeois,LIEGEOIS,Robert Waseige,BEL,league,0,8,0 1 1 1 1,0 6 6 1 6,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,RFC Liègeois
+racingjet,RACING JET,,BEL,league,0,3,1 1 4 2 1,0 4 4 1 2,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Racing Jet de Bruxelles
+sintniklaas,SINT-NIKLAAS,,BEL,league,0,8,2 1 2 1 1,0 5 5 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,K Sint-Niklase SK
+rwdmolenbeek,RWD MOLENBEEK,,BEL,league,1,8,0 4 4 1 1,0 1 1 4 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Racing White Daring Molenbeek
+kberingenfc,K BERINGEN,,BEL,league,1,4,0 5 5 5 5,2 4 1 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,K Beringen FC
+kfcwinterslag,WINTERSLAG,,BEL,league,1,8,0 4 4 4 4,0 5 5 5 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,KFC Winterslag
+sinttruiden,SINT-TRUIDEN,,BEL,league,1,8,0 9 9 5 9,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,K Sint-Truidense VV
+charleroi,CHARLEROI,,BEL,league,1,8,2 1 2 1 1,0 5 5 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,R Charleroi SC
+eendrachtaalst,EENDRACHT AALST,,BEL,league,1,8,0 1 1 2 1,0 5 5 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,KSC Eendracht Aalst
+unionsg,UNION SG,,BEL,league,1,8,0 1 1 1 1,0 6 6 1 6,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,R Union Saint-Gilloise
+harelbeke,HARELBEKE,,BEL,league,1,4,0 1 1 1 1,0 6 6 6 6,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,KRC Harelbeke
+vvpatroeisden,PATRO EISDEN,,BEL,league,1,8,0 4 4 1 1,0 1 1 4 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,VV Patro Eisden
+kboomfc,K BOOM,,BEL,league,1,5,0 9 9 2 2,1 1 4 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,K Boom FC
+kfcdiest,DIEST,,BEL,league,1,8,2 1 2 1 1,0 5 5 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,KFC Diest
+kberchemsport,K BERCHEM SPORT,,BEL,league,1,8,2 5 2 2 2,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,K Berchem Sport
+krcmechelen,KRC MECHELEN,,BEL,league,1,3,1 1 4 2 1,0 4 4 1 2,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,KRC Mechelen
+overpelt,OVERPELT,,BEL,league,1,8,2 1 2 1 1,0 5 5 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,VV Overpelt Fabriek
+ksktongeren,TONGEREN,,BEL,league,1,8,2 1 2 1 1,0 5 5 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,KSK Tongeren
+kschasselt,KSC HASSELT,,BEL,league,1,4,0 4 4 1 4,1 1 4 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,KSC Hasselt

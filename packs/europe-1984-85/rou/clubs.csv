@@ -1,0 +1,34 @@
+key,name,coach,country,file,division,tactic,kit1,kit2,lineup,source
+dinamobucharest,DINAMO BUCHAREST,,ROU,league,0,0,0 1 1 4 4,0 4 4 1 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,FC Dinamo Bucharest
+steauabucharest,STEAUA BUCHAREST,,ROU,league,0,5,1 4 5 4 4,0 5 5 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,CSA Steaua Bucharest
+univcraiova,UNIV. CRAIOVA,,ROU,league,0,0,1 1 6 6 6,0 6 6 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,CS Universitatea Craiova
+sportulstud,SPORTUL STUD.,,ROU,league,0,1,2 2 1 2 2,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,FC Sportul Studentesc
+argespitesti,ARGES PITESTI,,ROU,league,0,0,0 6 6 1 6,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,FC Arges Pitesti
+scbacau,BACAU,,ROU,league,0,0,2 4 1 1 4,0 1 1 4 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,SC Bacau
+fcbihororadea,BIHOR ORADEA,,ROU,league,0,4,1 1 2 2 2,0 2 2 2 2,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,FC Bihor Oradea
+politehnicaiasi,POLITEHNICA IASI,Vasile Simionaș,ROU,league,0,5,0 6 6 6 6,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,FC Politehnica Iasi
+chimiarmvalcea,CHIMIA RM.VALCEA,,ROU,league,0,0,1 1 6 6 6,0 6 6 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,CS Chimia Râmnicu Vâlcea
+oltscornicesti,OLT SCORNICESTI,,ROU,league,0,5,1 5 1 1 1,1 4 1 4 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,FC Olt Scornicesti
+jiulpetrosani,JIUL PETROSANI,,ROU,league,0,0,0 1 1 5 7,1 5 1 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,CSM Jiul Petrosani
+corvinul,CORVINUL,Ion Nunweiller,ROU,league,0,5,0 5 5 1 1,0 7 7 5 7,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,CS Corvinul Hunedoara
+rapidbucharest,RAPID BUCHAREST,,ROU,league,0,5,0 6 6 6 6,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,FC Rapid Bucharest
+asatargumures,ASA TARGU MURES,,ROU,league,0,0,0 1 1 4 4,0 4 4 1 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,ASA Târgu Mures
+fcbaiamare,BAIA MARE,,ROU,league,0,0,0 8 8 9 8,0 9 9 8 9,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,FC Baia Mare
+fcgloriabuzau,GLORIA BUZAU,Gheorghe Constantin,ROU,league,0,0,0 9 9 2 9,0 5 5 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,FC Gloria Buzau
+brasov,BRASOV,,ROU,league,0,3,0 9 9 2 9,0 4 4 4 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,FC Brasov
+politehnicat,POLITEHNICA T.,,ROU,league,0,0,1 1 6 6 6,0 6 6 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,FC Politehnica Timisoara
+dinamovictoria,DINAMO VICTORIA,,ROU,cuponly,,4,1 1 2 2 2,0 2 2 2 2,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Dinamo Victoria Bucharest
+muncitoresc,MUNCITORESC,,ROU,cuponly,,0,0 8 8 9 8,0 9 9 8 9,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Sportul Muncitoresc Caracal
+steauacfrcluj,STEAUA CFR CLUJ,,ROU,cuponly,,0,0 6 6 1 6,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Steaua CFR Cluj
+dragasani,DRAGASANI,,ROU,cuponly,,1,2 2 1 2 2,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Viitorul Drăgăşani
+fagaras,FAGARAS,,ROU,cuponly,,4,1 1 2 2 2,0 2 2 2 2,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Nitramonia Făgăraș
+unireadinamo,UNIREA DINAMO,,ROU,cuponly,,0,2 5 1 1 5,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Unirea Dinamo Focsani
+dunareacsu,DUNAREA CSU,,ROU,cuponly,,0,1 1 6 6 6,0 6 6 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Dunarea CSU Galati
+cimentulfieni,CIMENTUL FIENI,,ROU,cuponly,,4,1 1 2 2 2,0 2 2 2 2,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Cimentul Fieni
+asmizil,MIZIL,,ROU,cuponly,,0,0 6 6 1 6,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,AS Mizil
+mineruloravita,MINERUL ORAVITA,,ROU,cuponly,,1,2 2 1 2 2,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Minerul Oravita
+ceahlaulpiatra,CEAHLAUL PIATRA,,ROU,cuponly,,5,0 5 5 1 1,0 7 7 5 7,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Ceahlaul Piatra Neamt
+surianulsebes,SURIANUL SEBES,,ROU,cuponly,,3,0 1 1 1 1,0 4 4 5 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Șurianul Sebeș
+dinamobucuresti,DINAMO BUCURESTI,,ROU,cuponly,,3,1 5 9 1 1,0 4 4 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Dinamo București
+cilmecanica,CIL MECANICA,,ROU,cuponly,,0,1 1 5 1 1,1 5 1 1 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,CIL Mecanica Sighet
+cluj,CLUJ,,ROU,cuponly,,0,1 1 6 6 6,0 6 6 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Universitatea Cluj

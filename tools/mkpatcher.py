@@ -20,7 +20,7 @@ import os
 import struct
 
 ROOT = os.path.join(os.path.dirname(__file__), '..')
-VERSION = '2.7.0'
+VERSION = '3.0'
 BLOCK = 16
 FILES = [  # (id, original path, patched path, file name in the game folder)
     ('ITALIAN.EXE', 'orig/ITALIAN.EXE', 'c/SWOS/ITALIAN.EXE', 'ITALIAN.EXE'),
@@ -54,6 +54,52 @@ FILES = [  # (id, original path, patched path, file name in the game folder)
     ('TEAM.094', None, 'c/SWOS/DATA/TEAM.094', 'DATA/TEAM.094'),
     ('TEAM.095', None, 'c/SWOS/DATA/TEAM.095', 'DATA/TEAM.095'),
     ('TEAM.096', None, 'c/SWOS/DATA/TEAM.096', 'DATA/TEAM.096'),
+    # 3.0: career world Europe 1984-85 (packs/europe-1984-85, DaniSwos's database): league and cup-only clubs, world table
+    ('TEAM.101', None, 'c/SWOS/DATA/TEAM.101', 'DATA/TEAM.101'),
+    ('TEAM.102', None, 'c/SWOS/DATA/TEAM.102', 'DATA/TEAM.102'),
+    ('TEAM.103', None, 'c/SWOS/DATA/TEAM.103', 'DATA/TEAM.103'),
+    ('TEAM.104', None, 'c/SWOS/DATA/TEAM.104', 'DATA/TEAM.104'),
+    ('TEAM.105', None, 'c/SWOS/DATA/TEAM.105', 'DATA/TEAM.105'),
+    ('TEAM.106', None, 'c/SWOS/DATA/TEAM.106', 'DATA/TEAM.106'),
+    ('TEAM.107', None, 'c/SWOS/DATA/TEAM.107', 'DATA/TEAM.107'),
+    ('TEAM.108', None, 'c/SWOS/DATA/TEAM.108', 'DATA/TEAM.108'),
+    ('TEAM.109', None, 'c/SWOS/DATA/TEAM.109', 'DATA/TEAM.109'),
+    ('TEAM.110', None, 'c/SWOS/DATA/TEAM.110', 'DATA/TEAM.110'),
+    ('TEAM.111', None, 'c/SWOS/DATA/TEAM.111', 'DATA/TEAM.111'),
+    ('TEAM.112', None, 'c/SWOS/DATA/TEAM.112', 'DATA/TEAM.112'),
+    ('TEAM.113', None, 'c/SWOS/DATA/TEAM.113', 'DATA/TEAM.113'),
+    ('TEAM.114', None, 'c/SWOS/DATA/TEAM.114', 'DATA/TEAM.114'),
+    ('TEAM.115', None, 'c/SWOS/DATA/TEAM.115', 'DATA/TEAM.115'),
+    ('TEAM.116', None, 'c/SWOS/DATA/TEAM.116', 'DATA/TEAM.116'),
+    ('TEAM.117', None, 'c/SWOS/DATA/TEAM.117', 'DATA/TEAM.117'),
+    ('TEAM.118', None, 'c/SWOS/DATA/TEAM.118', 'DATA/TEAM.118'),
+    ('TEAM.119', None, 'c/SWOS/DATA/TEAM.119', 'DATA/TEAM.119'),
+    ('TEAM.120', None, 'c/SWOS/DATA/TEAM.120', 'DATA/TEAM.120'),
+    ('TEAM.121', None, 'c/SWOS/DATA/TEAM.121', 'DATA/TEAM.121'),
+    ('TEAM.122', None, 'c/SWOS/DATA/TEAM.122', 'DATA/TEAM.122'),
+    ('TEAM.123', None, 'c/SWOS/DATA/TEAM.123', 'DATA/TEAM.123'),
+    ('TEAM.124', None, 'c/SWOS/DATA/TEAM.124', 'DATA/TEAM.124'),
+    ('TEAM.125', None, 'c/SWOS/DATA/TEAM.125', 'DATA/TEAM.125'),
+    ('TEAM.126', None, 'c/SWOS/DATA/TEAM.126', 'DATA/TEAM.126'),
+    ('TEAM.127', None, 'c/SWOS/DATA/TEAM.127', 'DATA/TEAM.127'),
+    ('TEAM.128', None, 'c/SWOS/DATA/TEAM.128', 'DATA/TEAM.128'),
+    ('TEAM.129', None, 'c/SWOS/DATA/TEAM.129', 'DATA/TEAM.129'),
+    ('TEAM.130', None, 'c/SWOS/DATA/TEAM.130', 'DATA/TEAM.130'),
+    ('TEAM.131', None, 'c/SWOS/DATA/TEAM.131', 'DATA/TEAM.131'),
+    ('TEAM.132', None, 'c/SWOS/DATA/TEAM.132', 'DATA/TEAM.132'),
+    ('TEAM.133', None, 'c/SWOS/DATA/TEAM.133', 'DATA/TEAM.133'),
+    ('TEAM.134', None, 'c/SWOS/DATA/TEAM.134', 'DATA/TEAM.134'),
+    ('TEAM.135', None, 'c/SWOS/DATA/TEAM.135', 'DATA/TEAM.135'),
+    ('TEAM.136', None, 'c/SWOS/DATA/TEAM.136', 'DATA/TEAM.136'),
+    ('TEAM.137', None, 'c/SWOS/DATA/TEAM.137', 'DATA/TEAM.137'),
+    ('TEAM.138', None, 'c/SWOS/DATA/TEAM.138', 'DATA/TEAM.138'),
+    ('TEAM.139', None, 'c/SWOS/DATA/TEAM.139', 'DATA/TEAM.139'),
+    ('TEAM.140', None, 'c/SWOS/DATA/TEAM.140', 'DATA/TEAM.140'),
+    ('TEAM.141', None, 'c/SWOS/DATA/TEAM.141', 'DATA/TEAM.141'),
+    ('TEAM.142', None, 'c/SWOS/DATA/TEAM.142', 'DATA/TEAM.142'),
+    ('TEAM.143', None, 'c/SWOS/DATA/TEAM.143', 'DATA/TEAM.143'),
+    ('TEAM.144', None, 'c/SWOS/DATA/TEAM.144', 'DATA/TEAM.144'),
+    ('WORLD04.TMD', None, 'c/SWOS/DATA/WORLD04.TMD', 'DATA/WORLD04.TMD'),
     # GOG release (2013): same files, 2 bytes changed in each exe (a national cup's months); TEAM.020 identical.
     # Originals in orig/gog/, built with patch.patch_exe(orig/gog/X, c/gog/X, ...)
     ('ITALIAN.EXE (GOG)', 'orig/gog/ITALIAN.EXE', 'c/gog/ITALIAN.EXE', 'ITALIAN.EXE'),
@@ -64,6 +110,9 @@ FILES = [  # (id, original path, patched path, file name in the game folder)
     ('ENGLISH.EXE + SWOS++', 'orig/ENGLISH.EXE', 'c/swospp/ENGLISH.EXE', 'ENGLISH.EXE'),
     ('ENGLISH.EXE + SWOS++ (GOG)', 'orig/gog/ENGLISH.EXE', 'c/swospp/gog/ENGLISH.EXE', 'ENGLISH.EXE'),
 ]
+BUILD = os.environ.get('PATCHER_BUILD')   # e.g. c/REL30: built files read from there instead of c/ (c/SWOS -> c/REL30/SWOS)
+if BUILD:
+    FILES = [(i, o, BUILD + '/' + p[2:] if p.startswith('c/') else p, t) for i, o, p, t in FILES]
 SWOSPP_BASE = {'ENGLISH.EXE + SWOS++': 'ENGLISH.EXE', 'ENGLISH.EXE + SWOS++ (GOG)': 'ENGLISH.EXE (GOG)'}
 
 
@@ -201,7 +250,8 @@ def upgrades(entries):
 def build_swospp():
     """c/swospp/[gog/]ENGLISH.EXE = this release's English exes + SWOS++ (tools/swospp.py)."""
     import swospp
-    for src, dst in (('c/SWOS/ENGLISH.EXE', 'c/swospp/ENGLISH.EXE'), ('c/gog/ENGLISH.EXE', 'c/swospp/gog/ENGLISH.EXE')):
+    c = (BUILD or 'c') + '/'
+    for src, dst in ((c + 'SWOS/ENGLISH.EXE', c + 'swospp/ENGLISH.EXE'), (c + 'gog/ENGLISH.EXE', c + 'swospp/gog/ENGLISH.EXE')):
         os.makedirs(os.path.dirname(os.path.join(ROOT, dst)), exist_ok=True)
         swospp.install(os.path.join(ROOT, src), os.path.join(ROOT, dst))
 

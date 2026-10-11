@@ -1,0 +1,85 @@
+{
+ "format": 1,
+ "id": "europe-1984-85-cyp",
+ "kind": "career",
+ "button": "CYPRUS",
+ "continent": "europe",
+ "sources": [
+  "DaniSwos (CM01/02 Retro Update Team), 1984-85 database",
+  "European entrants 1984-85: en.wikipedia.org (first rounds of the three cups)",
+  "Club order: final tables 1983-84 (1983 for calendar-year leagues), en.wikipedia.org",
+  "Coaches: it/es/nl/pt/fr.wikipedia.org 1984-85 season pages and Wikidata",
+  "National cups 1984-85: en.wikipedia.org cup pages (from the first round of 8..64 clubs)"
+ ],
+ "files": {
+  "league": {
+   "file": 130,
+   "base": 742
+  }
+ },
+ "squads": [
+  {
+   "files": [
+    "league"
+   ],
+   "method": "explicit"
+  }
+ ],
+ "competitions": [
+  {
+   "key": "league",
+   "type": "league",
+   "id": "CB",
+   "clubs": "league",
+   "dates_from": 8,
+   "games": 2,
+   "win_points": 2,
+   "relegated": 0,
+   "names": {
+    "*": [
+     "CYPRUS DIVISION",
+     "CYPRUS DIVISION"
+    ]
+   }
+  },
+  {
+   "key": "cup",
+   "type": "cup",
+   "layout": "national",
+   "id": "E9",
+   "dates_from": 8,
+   "rounds": [
+    "single_et",
+    "single_et",
+    "single"
+   ],
+   "names": {
+    "*": [
+     "CYPRUS CUP",
+     "CYPRUS CUP"
+    ]
+   }
+  }
+ ],
+ "season": {
+  "league": "league",
+  "cup": "cup"
+ },
+ "world": 4,
+ "europe_places": {
+  "cc": 1,
+  "cwc": 1,
+  "uefa": 1
+ },
+ "first_europe": {
+  "cc": [
+   "omonianicosia"
+  ],
+  "cwc": [
+   "apoelnicosia"
+  ],
+  "uefa": [
+   "apollonlimassol"
+  ]
+ }
+}

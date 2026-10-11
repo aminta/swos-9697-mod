@@ -1,0 +1,41 @@
+key,name,coach,country,file,division,tactic,kit1,kit2,lineup,source
+spartakmoscow,SPARTAK MOSCOW,,URS,league,0,8,0 4 4 4 4,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Spartak Moscow
+dinamominsk,DINAMO MINSK,,URS,league,0,0,1 1 7 1 1,0 5 5 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Dinamo Minsk
+zenit,ZENIT,,URS,league,0,4,0 6 6 1 6,0 1 1 6 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Zenit Leningrad
+torpedomoscow,TORPEDO MOSCOW,,URS,league,0,0,0 1 1 2 1,0 8 8 2 8,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Torpedo Moscow
+dynamokyiv,DYNAMO KYIV,Valeriy Lobanovskyi,URS,league,0,5,0 1 1 5 1,0 5 5 1 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Dynamo Kyiv
+chernomorets,CHERNOMORETS,,URS,league,0,0,0 4 4 8 4,0 8 8 4 8,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Chernomorets Odessa
+shakhtardonetsk,SHAKHTAR DONETSK,,URS,league,0,0,0 5 5 5 5,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Shakhtyor Donetsk
+pakhtakor,PAKHTAKOR,,URS,league,0,2,0 5 5 1 5,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Pakhtakor Tashkent
+metalistkharkov,METALIST KHARKOV,,URS,league,0,2,0 5 5 1 5,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Metalist Kharkov
+cskamoscow,CSKA MOSCOW,,URS,league,0,0,1 1 7 1 1,0 5 5 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,CSKA Moscow
+neftchibaku,NEFTCHI BAKU,,URS,league,0,0,0 1 1 2 1,0 8 8 2 8,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Neftchi Baku
+araratyerevan,ARARAT YEREVAN,,URS,league,0,0,1 1 7 1 1,0 5 5 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Ararat Yerevan
+dynamomoscow,DYNAMO MOSCOW,,URS,league,0,0,1 1 7 1 1,0 5 5 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Dynamo Moscow
+dinamotbilisi,DINAMO TBILISI,,URS,league,0,2,0 5 5 1 5,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Dinamo Tbilisi
+kairatalmaata,KAIRAT ALMA-ATA,,URS,league,0,3,0 1 1 1 1,0 4 4 2 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Kairat Alma-Ata
+skarostov,SKA ROSTOV,,URS,league,0,0,0 1 1 5 1,0 5 5 1 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,SKA Rostov-na-Donu
+dnepr,DNEPR,Anatoly Baidachny,URS,league,0,0,0 1 1 2 1,0 8 8 2 8,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Dnepr Dnepropetrovsk
+zalgirisvilnius,ZALGIRIS VILNIUS,,URS,league,0,0,0 1 1 2 1,0 8 8 2 8,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Zalgiris Vilnius
+fakelvoronezh,FAKEL VORONEZH,,URS,league,1,0,0 1 1 1 1,0 4 4 4 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Fakel Voronezh
+rotorvolgograd,ROTOR VOLGOGRAD,,URS,league,1,5,0 1 1 1 1,0 7 7 7 7,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Rotor Volgograd
+metallurgzap,METALLURG ZAP.,,URS,league,1,0,0 4 4 8 4,0 8 8 4 8,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Metallurg Zaporozhia
+kolosnikopol,KOLOS NIKOPOL,,URS,league,1,0,0 5 5 5 5,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Kolos Nikopol
+tavria,TAVRIA,,URS,league,1,5,0 1 1 1 1,0 7 7 7 7,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Tavria Simferopol
+kubankrasnodar,KUBAN KRASNODAR,,URS,league,1,0,0 1 1 8 8,0 8 8 1 8,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Kuban Krasnodar
+gurialanchkhuti,GURIA LANCHKHUTI,,URS,league,1,0,0 4 4 4 4,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Guria Lanchkhuti
+kuzbasskemerovo,KUZBASS KEMEROVO,,URS,league,1,0,0 4 4 5 5,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Kuzbass Kemerovo
+skakarpatylvov,SKA KARPATY LVOV,,URS,league,1,0,0 1 1 8 8,0 8 8 1 8,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,SKA Karpaty Lvov
+pamirdushanbe,PAMIR DUSHANBE,,URS,league,1,4,0 6 6 1 6,0 1 1 6 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Pamir Dushanbe
+zorya,ZORYA,,URS,league,1,0,0 1 1 5 1,0 5 5 1 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Zorya Voroshilovgrad
+daugavariga,DAUGAVA RIGA,,URS,league,1,0,0 4 4 4 4,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Daugava Riga
+lokomotivmoscow,LOKOMOTIV MOSCOW,,URS,league,1,0,0 1 1 4 4,0 4 4 1 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Lokomotiv Moscow
+zvezdadzhizak,ZVEZDA DZHIZAK,,URS,league,1,0,0 1 1 8 8,0 8 8 1 8,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Zvezda Dzhizak
+iskrasmolensk,ISKRA SMOLENSK,,URS,league,1,0,0 4 4 4 4,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Iskra Smolensk
+shinnik,SHINNIK,,URS,league,1,0,0 4 4 5 5,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Shinnik Yaroslavl
+skakhabarovsk,SKA KHABAROVSK,,URS,league,1,0,1 1 7 1 1,0 5 5 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,SKA Khabarovsk
+torpedokutaisi,TORPEDO KUTAISI,,URS,league,1,0,0 5 5 1 5,0 9 9 9 9,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Torpedo Kutaisi
+nistrukishinev,NISTRU KISHINEV,,URS,league,1,8,0 4 4 4 4,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Nistru Kishinev
+dinamobatumi,DINAMO BATUMI,,URS,league,1,4,0 6 6 1 6,0 1 1 6 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Dinamo Batumi
+spartakordzh,SPARTAK ORDZH.,,URS,league,1,4,0 5 5 2 5,0 1 1 2 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Spartak Ordzhonikidze
+irtyshomsk,IRTYSH OMSK,,URS,league,1,4,0 4 4 1 4,0 1 1 4 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Irtysh Omsk

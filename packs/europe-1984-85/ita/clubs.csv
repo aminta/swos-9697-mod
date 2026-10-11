@@ -1,0 +1,37 @@
+key,name,coach,country,file,division,tactic,kit1,kit2,lineup,source
+juventus,JUVENTUS,Giovanni Trapattoni,ITA,league,0,5,2 1 2 1 1,0 5 5 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Juventus
+roma,ROMA,Roberto Clagluna,ITA,league,0,8,0 6 6 6 6,0 8 8 8 8,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,AS Roma
+fiorentina,FIORENTINA,Giancarlo De Sisti,ITA,league,0,0,0 6 6 6 6,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Fiorentina
+internazionale,INTERNAZIONALE,Ilario Castagner,ITA,league,0,8,0 1 1 2 1,0 9 9 2 9,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Internazionale
+torino,TORINO,Luigi Radice,ITA,league,0,3,0 6 6 1 6,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Torino
+acmilan,AC MILAN,Nils Liedholm,ITA,league,0,0,2 4 2 1 1,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,AC Milan
+sampdoria,SAMPDORIA,Eugenio Bersellini,ITA,league,0,8,0 5 5 1 1,0 2 2 2 2,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Sampdoria
+verona,VERONA,Osvaldo Bagnoli,ITA,league,0,8,0 9 9 9 9,0 5 5 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Hellas Verona
+udinese,UDINESE,Luís Vinício,ITA,league,0,0,2 2 1 2 1,0 5 5 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Udinese
+ascoli,ASCOLI,Carlo Mazzone,ITA,league,0,0,2 2 1 1 1,0 9 9 9 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Ascoli
+napoli,NAPOLI,Rino Marchesi,ITA,league,0,8,0 7 7 1 7,0 1 1 7 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Napoli
+avellino,AVELLINO,Antonio Angelillo,ITA,league,0,8,0 8 8 8 8,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Avellino
+lazio,LAZIO,Paolo Carosi,ITA,league,0,0,0 7 7 1 1,1 5 7 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Lazio
+atalanta,ATALANTA,Nedo Sonetti,ITA,league,0,3,2 2 5 2 2,0 1 1 5 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Atalanta
+como,COMO,Ottavio Bianchi,ITA,league,0,8,0 5 5 1 5,0 4 4 4 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Como
+cremonese,CREMONESE,Emiliano Mondonico,ITA,league,0,4,2 4 0 4 4,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Cremonese
+lecce,LECCE,Eugenio Fascetti,ITA,league,1,8,2 4 9 4 4,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Lecce
+padova,PADOVA,Gennaro Rambone,ITA,league,1,0,0 1 1 1 1,0 4 4 4 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Padova
+arezzo,AREZZO,Enzo Riccomini,ITA,league,1,3,2 4 5 5 5,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Arezzo
+campobasso,CAMPOBASSO,Giancarlo Cadè,ITA,league,1,4,2 6 7 6 6,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Campobasso
+perugia,PERUGIA,Aldo Agroppi,ITA,league,1,5,0 4 4 4 4,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Perugia
+triestina,TRIESTINA,Massimo Giacomini,ITA,league,1,3,0 4 4 1 4,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Triestina
+varese,VARESE,Giampiero Vitali,ITA,league,1,8,0 7 7 1 7,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Varese
+cagliari,CAGLIARI,Fernando Veneranda,ITA,league,1,0,2 4 5 5 5,0 1 1 7 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Cagliari
+pescara,PESCARA,Enrico Catuzzi,ITA,league,1,5,2 1 7 1 1,0 5 5 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Pescara
+cesena,CESENA,Adriano Buffoni,ITA,league,1,8,0 1 1 2 1,0 9 9 2 9,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Cesena
+sambenedettese,SAMBENEDETTESE,Francesco Liguori,ITA,league,1,8,0 7 7 1 7,0 1 1 7 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Sambenedettese
+monza,MONZA,Alfredo Magni,ITA,league,1,8,0 4 4 4 4,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Monza
+empoli,EMPOLI,Vincenzo Guerini,ITA,league,1,5,0 5 5 1 5,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Empoli
+genoa,GENOA,Tarcisio Burgnich,ITA,league,1,8,2 5 4 5 5,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Genoa
+pisa,PISA,Luigi Simoni,ITA,league,1,8,2 5 2 2 5,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Pisa
+catania,CATANIA,Antonio Renna,ITA,league,1,0,2 4 5 5 5,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Catania
+bologna,BOLOGNA,Pietro Santin,ITA,league,1,5,2 5 6 1 5,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Bologna
+bari,BARI,Bruno Bolchi,ITA,league,1,8,0 1 1 4 1,0 4 4 4 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Bari
+parma,PARMA,Marino Perani,ITA,league,1,0,0 1 1 1 1,1 3 7 3 3,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Parma
+taranto,TARANTO,Bruno Pinna,ITA,league,1,0,2 4 5 5 5,0 1 1 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Taranto

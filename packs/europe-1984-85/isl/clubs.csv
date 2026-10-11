@@ -1,0 +1,18 @@
+key,name,coach,country,file,division,tactic,kit1,kit2,lineup,source
+breidablik,BREIDABLIK,,ISL,league,0,0,1 8 1 1 4,1 1 8 4 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Breiðablik
+iaakranes,IA AKRANES,,ISL,league,0,4,0 1 1 1 1,0 5 5 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Íþróttafélag Akranes
+valur,VALUR,Ian Ross,ISL,league,0,2,0 4 4 1 4,0 1 1 4 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Valur Reykjavík
+vikingur,VIKINGUR,,ISL,league,0,4,2 4 2 2 2,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Víkingur
+keflavik,KEFLAVIK,,ISL,league,0,4,0 5 5 1 2,0 9 9 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Keflavík
+krreykjavik,KR REYKJAVIK,,ISL,league,0,5,2 2 1 2 1,0 9 9 9 9,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Knattspyrnufélag Reykjavík
+ibv,IBV,,ISL,league,0,0,0 9 9 2 9,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Íþróttabandalag Vestmannaeyja
+throttur,THROTTUR,,ISL,league,0,4,0 1 1 2 1,0 4 4 4 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Þróttur Reykjavík
+irreykjavik,IR REYKJAVIK,,ISL,league,0,4,0 1 1 4 1,0 4 4 4 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Íþróttafélag Reykjavíkur
+volsungur,VOLSUNGUR,,ISL,league,0,4,0 1 1 2 1,0 4 4 4 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Íþróttafélagið Völsungur
+eskifjordur,ESKIFJORDUR,,ISL,cuponly,,5,2 2 1 2 1,0 9 9 9 9,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Austri Eskifjörður
+thor,THOR,,ISL,cuponly,,4,0 1 1 4 1,0 4 4 4 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Þór Akureyri
+fh,FH,,ISL,cuponly,,4,0 5 5 1 2,0 9 9 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Fimleikafélag Hafnarfjarðar
+ibi,IBI,,ISL,cuponly,,4,0 9 9 2 2,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,ÍBÍ
+fram,FRAM,,ISL,cuponly,,4,0 5 5 1 5,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Knattspyrnufélagið Fram
+vidir,VIDIR,,ISL,cuponly,,2,0 4 4 1 4,0 1 1 4 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Víðir
+vikingur2,VIKINGUR 2,,ISL,cuponly,,4,2 4 2 2 2,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Víkingur

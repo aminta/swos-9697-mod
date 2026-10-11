@@ -1,0 +1,147 @@
+{
+ "format": 1,
+ "id": "europe-1984-85-eng",
+ "kind": "career",
+ "button": "ENGLAND",
+ "continent": "europe",
+ "sources": [
+  "DaniSwos (CM01/02 Retro Update Team), 1984-85 database",
+  "European entrants 1984-85: en.wikipedia.org (first rounds of the three cups)",
+  "Club order: final tables 1983-84 (1983 for calendar-year leagues), en.wikipedia.org",
+  "Coaches: it/es/nl/pt/fr.wikipedia.org 1984-85 season pages and Wikidata",
+  "National cups 1984-85: en.wikipedia.org cup pages (from the first round of 8..64 clubs)"
+ ],
+ "files": {
+  "league": {
+   "file": 101,
+   "base": 0
+  },
+  "cuponly": {
+   "file": 133,
+   "base": 772
+  }
+ },
+ "squads": [
+  {
+   "files": [
+    "league",
+    "cuponly"
+   ],
+   "method": "explicit"
+  }
+ ],
+ "competitions": [
+  {
+   "key": "league",
+   "type": "league",
+   "id": "CB",
+   "clubs": "league",
+   "dates_from": 8,
+   "games": 2,
+   "win_points": 3,
+   "relegated": 3,
+   "names": {
+    "*": [
+     "FIRST DIVISION",
+     "FIRST DIVISION"
+    ]
+   },
+   "divisions": [
+    {
+     "teams": 22,
+     "promoted": 0,
+     "relegated": 3,
+     "names": {
+      "*": [
+       "FIRST DIVISION",
+       "FIRST DIVISION"
+      ]
+     }
+    },
+    {
+     "teams": 22,
+     "promoted": 3,
+     "relegated": 3,
+     "names": {
+      "*": [
+       "SECOND DIVISION",
+       "SECOND DIVISION"
+      ]
+     }
+    },
+    {
+     "teams": 24,
+     "promoted": 3,
+     "relegated": 4,
+     "names": {
+      "*": [
+       "THIRD DIVISION",
+       "THIRD DIVISION"
+      ]
+     }
+    },
+    {
+     "teams": 24,
+     "promoted": 4,
+     "relegated": 0,
+     "names": {
+      "*": [
+       "FOURTH DIVISION",
+       "FOURTH DIVISION"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "key": "cup",
+   "type": "cup",
+   "layout": "national",
+   "id": "CC",
+   "dates_from": 8,
+   "rounds": [
+    "single_et",
+    "single_et",
+    "single_et",
+    "single_et",
+    "single_et",
+    "single"
+   ],
+   "names": {
+    "*": [
+     "FA CUP",
+     "FA CUP"
+    ]
+   }
+  }
+ ],
+ "season": {
+  "league": "league",
+  "cup": "cup"
+ },
+ "world": 4,
+ "world_cups": {
+  "start_year": 1984
+ },
+ "europe_places": {
+  "cc": 1,
+  "cwc": 1,
+  "uefa": 4
+ },
+ "first_europe": {
+  "cc": [
+   "liverpool"
+  ],
+  "cwc": [
+   "wrexham",
+   "everton"
+  ],
+  "uefa": [
+   "qpr",
+   "manchesterutd",
+   "nottinghamf",
+   "tottenhamh",
+   "southampton"
+  ]
+ }
+}

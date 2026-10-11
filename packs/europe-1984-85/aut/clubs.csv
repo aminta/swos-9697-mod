@@ -1,0 +1,36 @@
+key,name,coach,country,file,division,tactic,kit1,kit2,lineup,source
+austriavienna,AUSTRIA VIENNA,,AUT,league,0,8,0 6 6 1 6,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,FK Austria Vienna
+rapidvienna,RAPID VIENNA,,AUT,league,0,4,0 8 8 1 8,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,SK Rapid Vienna
+linzerask,LINZER ASK,,AUT,league,0,4,2 8 2 2 1,0 8 8 8 8,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Linzer ASK
+wackerinnsbruck,WACKER INNSBRUCK,,AUT,league,0,4,0 4 4 4 4,0 5 5 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,SpG Swarovski Wacker Innsbruck
+sturmgraz,STURM GRAZ,,AUT,league,0,4,2 1 2 1 1,0 9 9 9 9,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,SK Sturm Graz
+fcadmirawacker,ADMIRA WACKER,,AUT,league,0,4,2 8 2 2 1,0 8 8 8 8,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,FC Admira Wacker
+grazerak,GRAZER AK,,AUT,league,0,4,0 4 4 4 4,0 5 5 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Grazer AK
+wienersc,WIENER SC,,AUT,league,0,4,0 1 1 1 1,0 6 6 6 6,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Wiener Sport-Club
+austriasalzburg,AUSTRIA SALZBURG,,AUT,league,0,4,0 1 1 1 1,0 6 6 6 6,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,SV Austria Salzburg
+sceisenstadt,EISENSTADT,,AUT,league,0,4,0 4 4 4 4,0 5 5 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,SC Eisenstadt
+skvoestlinz,VOEST LINZ,,AUT,league,0,4,0 1 1 2 2,0 5 5 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,SK VÖEST Linz
+favoritnerac,FAVORITNER,,AUT,league,0,8,0 6 6 1 6,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Favoritner AC
+klagenfurt,KLAGENFURT,,AUT,league,0,4,2 8 2 2 1,0 8 8 8 8,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,SK Austria Klagenfurt
+firstvienna,FIRST VIENNA,,AUT,league,0,4,2 1 2 1 1,0 9 9 9 9,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,First Vienna FC 1894
+dsvalpine,DSV ALPINE,,AUT,league,0,4,0 1 1 2 2,0 5 5 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Donawitzer SV Alpine
+svspittaldrau,SPITTAL/DRAU,,AUT,league,0,4,0 4 4 4 4,0 5 5 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,SV Spittal/Drau
+svstveitglan,ST. VEIT/GLAN,,AUT,league,1,4,0 1 1 2 2,0 5 5 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,SV St. Veit/Glan
+bregenzdornbirn,BREGENZ/DORNBIRN,,AUT,league,1,4,0 1 1 2 2,0 5 5 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,IG Bregenz/Dornbirn
+vorwartssteyr,VORWARTS STEYR,,AUT,league,1,4,0 2 2 2 2,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,SK Vorwärts Steyr
+wsgwattens,WSG WATTENS,,AUT,league,1,4,1 8 1 1 1,1 1 4 4 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,WSG Wattens
+wolfsbergerac,WOLFSBERGER,,AUT,league,1,4,0 1 1 2 2,0 5 5 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Wolfsberger AC
+sckufstein,KUFSTEIN,,AUT,league,1,4,0 1 1 2 2,0 5 5 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,SC Kufstein
+badenerac,BADENER,,AUT,league,1,4,2 8 2 2 1,0 8 8 8 8,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Badener AC
+salzburgerak,SALZBURGER AK,,AUT,league,1,4,0 5 5 1 1,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Salzburger AK 1914
+svthorl,THORL,,AUT,league,1,4,2 8 2 2 1,0 8 8 8 8,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,SV Thörl
+simmeringer,1. SIMMERINGER,,AUT,league,1,4,0 4 4 4 4,0 5 5 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,1. Simmeringer SC
+askvoitsberg,ASK VOITSBERG,,AUT,league,1,4,0 1 1 1 1,0 6 6 6 6,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,ASK Voitsberg
+kremsersc,KREMSER,,AUT,league,1,4,0 2 2 2 2,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Kremser SC
+svoberwart,OBERWART,,AUT,league,1,4,0 5 5 1 1,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,SV Oberwart
+flaviasolva,FLAVIA SOLVA,,AUT,league,1,8,0 6 6 1 6,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,SV Flavia Solva Wagna
+svsalzburg,SV SALZBURG,,AUT,league,1,4,0 1 1 1 1,0 6 6 6 6,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,USV Salzburg
+kapfenbergersv,KAPFENBERGER,,AUT,league,1,8,0 6 6 1 6,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Kapfenberger SV
+fczellamsee,ZELL AM SEE,,AUT,cuponly,,4,0 2 2 2 2,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,FC Zell am See
+mautnermarkhof,MAUTNER MARKHOF,,AUT,cuponly,,4,2 1 2 1 1,0 9 9 9 9,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,SC Mautner Markhof
+unionmodling,UNION MODLING,,AUT,cuponly,,4,0 5 5 1 1,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,VfB Union Mödling

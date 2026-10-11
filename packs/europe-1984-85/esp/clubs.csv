@@ -1,0 +1,39 @@
+key,name,coach,country,file,division,tactic,kit1,kit2,lineup,source
+athleticbilbao,ATHLETIC BILBAO,Javier Clemente,ESP,league,0,4,2 5 6 5 5,0 7 7 7 7,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Athletic Club de Bilbao
+realmadrid,REAL MADRID,Amancio Amaro,ESP,league,0,5,0 1 1 1 1,0 5 5 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Real Madrid C.F.
+barcelona,BARCELONA,Terry Venables,ESP,league,0,4,2 5 6 5 5,0 7 7 7 7,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,F.C. Barcelona
+atleticomadrid,ATLETICO MADRID,Luis Aragonés,ESP,league,0,0,2 4 1 2 2,0 5 5 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,C. Atlético de Madrid
+betis,BETIS,José Alzate,ESP,league,0,8,2 8 1 1 8,0 8 8 8 8,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Real Betis Balompié
+realsociedad,REAL SOCIEDAD,Alberto Ormaetxea,ESP,league,0,0,2 5 1 1 5,0 1 1 1 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Real Sociedad C.F.
+zaragoza,ZARAGOZA,Enzo Ferrari,ESP,league,0,0,0 1 1 5 1,0 4 4 5 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Real Zaragoza C.D.
+sevilla,SEVILLA,Manolo Cardo,ESP,league,0,0,0 1 1 1 1,0 4 4 4 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Sevilla F.C.
+cdmalaga,MALAGA,Antonio Fernández Benítez,ESP,league,0,3,0 1 1 1 1,0 5 5 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,C.D. Málaga
+rcdespanol,R.C.D. ESPANOL,,ESP,league,0,0,2 4 1 2 2,0 5 5 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,R.C.D. Español
+murcia,MURCIA,Eusebio Ríos,ESP,league,0,8,0 4 4 1 1,0 1 1 2 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Real Murcia C.F.
+valencia,VALENCIA,Roberto Gil,ESP,league,0,3,0 1 1 1 2,0 5 5 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Valencia C.F.
+sportinggijon,SPORTING GIJON,José Manuel Díaz Novoa,ESP,league,0,8,2 2 1 1 1,1 4 2 2 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Real Sporting de Gijón
+valladolid,VALLADOLID,Fernando Redondo,ESP,league,0,1,2 6 1 1 1,0 6 6 1 6,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Real Valladolid Deportivo
+osasuna,OSASUNA,Iván Brzić,ESP,league,0,0,0 4 4 5 4,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,C.A. Osasuna
+hercules,HERCULES,Carlos Jurado,ESP,league,0,0,2 5 1 5 5,0 1 1 2 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Hércules C.F.
+racingsantander,RACING SANTANDER,José María Maguregui,ESP,league,0,0,2 5 1 5 5,0 1 1 2 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,R. Racing C. de Santander
+elchecf,ELCHE,Antonio Ruiz Cervilla,ESP,league,0,0,0 1 1 5 1,0 4 4 5 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Elche C.F.
+bilbaoathletic,BILBAO ATHLETIC,José Ángel Iribar,ESP,league,1,3,0 1 1 2 1,2 8 1 2 8,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Athletic Club de Bilbao B
+celtavigo,CELTA VIGO,Félix Carnero,ESP,league,1,8,2 2 1 1 1,1 4 2 2 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,R.C. Celta de Vigo
+granadacf,GRANADA,Nando Yosu,ESP,league,1,0,0 1 1 5 1,0 4 4 5 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Granada C.F.
+deportivo,DEPORTIVO,Arsenio Iglesias,ESP,league,1,3,0 1 1 1 1,0 5 5 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,R.C. Deportivo Coruña
+castellon,CASTELLON,Antonio Torres,ESP,league,1,0,2 2 1 1 1,0 5 5 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,C.D. Castellón
+udlaspalmas,U.D. LAS PALMAS,Roque Olsen,ESP,league,1,8,0 7 7 1 7,0 6 6 6 6,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,U.D. Las Palmas
+recreativo,RECREATIVO,Juan Carlos Touriño,ESP,league,1,0,2 5 1 5 5,2 4 1 4 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,R.C. Recreativo de Huelva
+oviedo,OVIEDO,José Luis Romero,ESP,league,1,2,0 5 5 1 5,1 1 5 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Real Oviedo C.F.
+tenerife,TENERIFE,Dragoljub Milošević,ESP,league,1,0,0 1 1 5 1,0 5 5 1 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,C.D. Tenerife
+cartagenacf,CARTAGENA,'Txutxi' Aranguren,ESP,league,1,8,0 4 4 1 1,0 1 1 2 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Cartagena C.F.
+cadiz,CADIZ,Benito Joanet,ESP,league,1,0,1 9 5 5 5,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Cádiz C.F.
+mallorca,MALLORCA,Manolo Villanova,ESP,league,1,8,0 4 4 2 2,0 1 1 2 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,R.C.D. Mallorca
+salamanca,SALAMANCA,Felipe Mesones,ESP,league,1,0,0 1 1 2 1,0 6 6 6 6,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,U.D. Salamanca
+barcelonab,BARCELONA B,,ESP,league,1,8,2 5 6 5 5,0 7 7 7 7,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,F.C. Barcelona B
+realmadridb,REAL MADRID B,,ESP,league,1,5,0 1 1 1 1,0 5 5 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Real Madrid C.F. B
+sabadell,SABADELL,Vicente Dauder,ESP,league,1,4,2 5 6 5 5,0 7 7 7 7,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,C.E. Sabadell F.C.
+atleticomadrb,ATLETICO MADR. B,,ESP,league,1,8,0 1 1 1 1,0 5 5 5 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,C. Atlético de Madrid B
+lorca,LORCA,Jesús Moreno Manzaneque,ESP,league,1,3,2 5 1 5 5,0 5 5 2 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,C.F. Lorca Deportiva
+logrones,LOGRONES,Delfín Álvarez,ESP,league,1,0,2 4 1 2 4,0 4 4 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,C.D. Logroñés
+calvosotelo,CALVO SOTELO,Juan Manuel Tartilán,ESP,league,1,0,2 4 1 1 1,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,C.F. Calvo Sotelo de Puertollano

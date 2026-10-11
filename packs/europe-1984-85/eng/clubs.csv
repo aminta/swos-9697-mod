@@ -1,0 +1,96 @@
+key,name,coach,country,file,division,tactic,kit1,kit2,lineup,source
+liverpool,LIVERPOOL,Joe Fagan,ENG,league,0,1,0 4 4 4 4,0 1 1 2 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Liverpool
+southampton,SOUTHAMPTON,Lawrie McMenemy,ENG,league,0,5,2 4 1 2 1,2 5 9 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Southampton
+nottinghamf,NOTTINGHAM F.,Brian Clough,ENG,league,0,5,2 4 2 1 1,1 5 9 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Nottingham Forest
+manchesterutd,MANCHESTER UTD,Ron Atkinson,ENG,league,0,0,0 1 1 2 1,0 4 4 4 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Manchester United
+qpr,QPR,Alan Mullery,ENG,league,0,0,0 9 9 2 9,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Queens Park Rangers
+arsenal,ARSENAL,Don Howe,ENG,league,0,3,1 4 1 1 4,1 5 7 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Arsenal
+everton,EVERTON,Howard Kendall,ENG,league,0,0,0 5 5 1 5,2 3 2 2 3,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Everton
+tottenhamh,TOTTENHAM H.,Peter Shreeves,ENG,league,0,0,0 1 1 5 1,0 9 9 9 9,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Tottenham Hotspur
+westhamunited,WEST HAM UNITED,John Lyall,ENG,league,0,3,1 6 7 1 7,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,West Ham United
+astonvilla,ASTON VILLA,Graham Turner,ENG,league,0,3,1 6 7 7 6,0 1 1 6 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Aston Villa
+watford,WATFORD,Graham Taylor,ENG,league,0,0,0 9 9 2 2,0 6 6 6 6,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Watford
+ipswichtown,IPSWICH TOWN,Bobby Ferguson,ENG,league,0,4,0 5 5 1 5,2 2 1 2 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Ipswich Town
+sunderland,SUNDERLAND,Len Ashurst,ENG,league,0,0,2 4 1 2 4,0 1 1 1 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Sunderland
+norwichcity,NORWICH CITY,Ken Brown,ENG,league,0,4,0 9 9 8 9,0 5 5 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Norwich City
+leicestercity,LEICESTER CITY,Gordon Milne,ENG,league,0,3,0 5 5 1 5,0 9 9 9 9,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Leicester City
+lutontown,LUTON TOWN,David Pleat,ENG,league,0,2,1 1 5 5 1,2 2 3 2 2,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Luton Town
+westbromwich,WEST BROMWICH,Johnny Giles,ENG,league,0,0,2 5 1 1 1,1 9 7 7 9,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,West Bromwich Albion
+stokecity,STOKE CITY,Richie Barker,ENG,league,0,3,2 4 1 1 4,2 8 2 2 2,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Stoke City
+coventrycity,COVENTRY CITY,Bobby Gould,ENG,league,0,0,2 7 5 5 5,2 5 4 5 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Coventry City
+chelsea,CHELSEA,John Neal,ENG,league,0,3,0 5 5 5 1,1 9 7 9 9,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Chelsea
+sheffieldwed,SHEFFIELD WED.,Howard Wilkinson,ENG,league,0,0,1 5 1 5 5,0 3 3 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Sheffield Wednesday
+newcastleunited,NEWCASTLE UNITED,,ENG,league,0,0,2 2 1 2 2,0 7 7 7 7,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Newcastle United
+chestercity,CHESTER CITY,,ENG,league,1,5,2 5 1 5 1,0 9 9 5 9,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Manchester City
+grimsbytown,GRIMSBY TOWN,,ENG,league,1,0,2 2 1 2 1,2 4 5 5 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Grimsby Town
+blackburnrovers,BLACKBURN ROVERS,,ENG,league,1,0,1 5 1 1 5,0 9 9 5 9,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Blackburn Rovers
+carlisleunited,CARLISLE UNITED,,ENG,league,1,0,0 5 5 1 5,0 8 8 8 8,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Carlisle United
+shrewsburytown,SHREWSBURY TOWN,,ENG,league,1,0,0 5 5 5 5,0 4 4 4 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Shrewsbury Town
+brighton,BRIGHTON,,ENG,league,1,3,2 5 1 5 1,1 4 1 1 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Brighton and Hove Albion
+leedsunited,LEEDS UNITED,,ENG,league,1,0,0 1 1 1 1,0 9 9 9 9,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Leeds United
+fulham,FULHAM,,ENG,league,1,0,0 1 1 2 1,0 4 4 4 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Fulham
+huddersfield,HUDDERSFIELD,,ENG,league,1,0,2 5 1 1 1,0 9 9 9 9,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Huddersfield Town
+charltonath,CHARLTON ATH.,,ENG,league,1,0,0 4 4 1 4,0 1 1 2 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Charlton Athletic
+barnsley,BARNSLEY,,ENG,league,1,0,0 4 4 1 4,2 5 2 2 2,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Barnsley
+cardiffcity,CARDIFF CITY,,ENG,league,1,5,0 5 5 5 5,0 9 9 2 9,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Cardiff City
+portsmouth,PORTSMOUTH,,ENG,league,1,0,0 5 5 1 4,2 4 2 2 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Portsmouth
+middlesbrough,MIDDLESBROUGH,,ENG,league,1,3,0 4 4 1 1,0 1 1 2 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Middlesbrough
+crystalpalace,CRYSTAL PALACE,,ENG,league,1,0,2 4 5 1 1,0 1 1 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Crystal Palace
+oldhamathletic,OLDHAM ATHLETIC,,ENG,league,1,0,3 5 4 1 5,0 8 8 5 8,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Oldham Athletic
+birminghamcity,BIRMINGHAM CITY,,ENG,league,1,0,0 5 5 1 5,2 4 2 2 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Birmingham City
+nottscounty,NOTTS COUNTY,Richie Barker,ENG,league,1,5,2 2 1 1 2,0 9 9 9 9,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Notts County
+wolverhamptonw,WOLVERHAMPTON W.,,ENG,league,1,0,0 9 9 2 9,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Wolverhampton Wanderers
+oxfordunited,OXFORD UNITED,,ENG,league,1,0,1 9 5 5 5,2 4 2 2 2,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Oxford United
+wimbledon,WIMBLEDON,,ENG,league,1,0,0 5 5 5 5,0 4 4 2 2,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Wimbledon
+sheffieldunited,SHEFFIELD UNITED,,ENG,league,1,0,2 4 1 2 2,1 6 9 9 9,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Sheffield United
+hullcity,HULL CITY,,ENG,league,2,0,2 9 2 2 9,0 6 6 6 6,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Hull City
+bristolrovers,BRISTOL ROVERS,,ENG,league,2,0,1 5 1 1 5,2 8 1 2 2,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Bristol Rovers
+walsall,WALSALL,,ENG,league,2,3,0 4 4 2 1,1 8 1 8 8,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Walsall
+bradfordcity,BRADFORD CITY,,ENG,league,2,5,2 6 9 2 2,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Bradford City
+gillingham,GILLINGHAM,,ENG,league,2,5,0 5 5 1 1,0 4 4 4 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Gillingham
+millwall,MILLWALL,George Graham,ENG,league,2,0,0 5 5 1 5,1 8 1 8 8,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Millwall
+boltonwanderers,BOLTON WANDERERS,,ENG,league,2,0,0 1 1 5 5,1 5 2 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Bolton Wanderers
+leytonorient,LEYTON ORIENT,,ENG,league,2,0,0 4 4 1 4,0 9 9 5 9,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Leyton Orient
+burnley,BURNLEY,,ENG,league,2,5,1 6 7 1 1,2 1 7 2 7,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Burnley
+newportcounty,NEWPORT COUNTY,,ENG,league,2,5,2 4 2 1 1,1 5 9 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Newport County
+lincolncity,LINCOLN CITY,,ENG,league,2,0,2 4 1 2 4,0 5 5 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Lincoln City
+wiganathletic,WIGAN ATHLETIC,,ENG,league,2,0,1 1 5 5 5,0 9 9 9 9,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Wigan Athletic
+prestonne,PRESTON N.E.,,ENG,league,2,0,1 5 1 1 5,2 8 1 2 2,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Preston North End
+bournemouth,BOURNEMOUTH,Harry Redknapp,ENG,league,2,5,2 4 2 1 1,1 5 9 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,AFC Bournemouth
+rotherhamunited,ROTHERHAM UNITED,,ENG,league,2,3,0 4 4 1 4,1 1 2 2 2,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Rotherham United
+plymouthargyle,PLYMOUTH ARGYLE,,ENG,league,2,0,2 8 2 2 2,0 9 9 8 9,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Plymouth Argyle
+brentford,BRENTFORD,,ENG,league,2,0,2 4 1 4 4,2 2 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Brentford
+derbycounty,DERBY COUNTY,,ENG,league,2,0,0 1 1 2 1,0 5 5 5 2,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Derby County
+swanseacity,SWANSEA CITY,,ENG,league,2,3,0 1 1 1 1,2 4 2 2 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Swansea City
+cambridgeunited,CAMBRIDGE UNITED,,ENG,league,2,0,2 9 2 2 2,1 5 8 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Cambridge United
+yorkcity,YORK CITY,,ENG,league,2,0,0 4 4 5 4,0 5 5 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,York City
+doncasterrovers,DONCASTER ROVERS,,ENG,league,2,0,1 4 1 1 4,1 5 1 1 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Doncaster Rovers
+reading,READING,,ENG,league,2,5,3 5 1 1 1,0 4 4 4 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Reading
+bristolcity,BRISTOL CITY,,ENG,league,2,0,0 4 4 1 4,3 8 2 2 8,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Bristol City
+aldershottown,ALDERSHOT TOWN,,ENG,league,3,0,0 4 4 1 4,0 9 9 5 9,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Aldershot Town
+blackpool,BLACKPOOL,,ENG,league,3,5,0 3 3 1 3,0 1 1 3 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Blackpool
+peterboroughutd,PETERBOROUGH UTD,,ENG,league,3,0,0 1 1 1 1,0 9 9 9 9,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Peterborough United
+colchesterutd,COLCHESTER UTD,,ENG,league,3,0,2 4 1 4 4,2 2 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Colchester United
+torquayunited,TORQUAY UNITED,,ENG,league,3,5,2 9 5 5 9,2 5 1 1 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Torquay United
+tranmererovers,TRANMERE ROVERS,,ENG,league,3,0,0 1 1 1 1,2 9 2 2 2,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Tranmere Rovers
+herefordunited,HEREFORD UNITED,,ENG,league,3,0,0 1 1 2 2,2 4 2 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Hereford United
+stockportcounty,STOCKPORT COUNTY,,ENG,league,3,0,0 5 5 1 5,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Stockport County
+chesterfield,CHESTERFIELD,,ENG,league,3,0,0 5 5 1 5,2 8 1 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Chesterfield
+darlington,DARLINGTON,,ENG,league,3,0,3 2 1 2 2,0 9 5 5 9,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Darlington
+bury,BURY,,ENG,league,3,0,0 5 5 5 5,0 4 4 4 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Bury
+crewealexandra,CREWE ALEXANDRA,,ENG,league,3,0,0 4 4 1 4,0 1 1 4 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Crewe Alexandra
+swindontown,SWINDON TOWN,,ENG,league,3,0,0 4 4 4 4,2 2 5 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Swindon Town
+northamptontown,NORTHAMPTON TOWN,Tony Barton,ENG,league,3,0,0 6 6 1 6,0 1 1 6 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Northampton Town
+mansfieldtown,MANSFIELD TOWN,,ENG,league,3,0,0 9 9 9 5,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Mansfield Town
+wrexham,WREXHAM,,ENG,league,3,0,0 4 4 1 4,0 9 9 2 2,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Wrexham
+halifaxtown,HALIFAX TOWN,,ENG,league,3,0,0 5 5 1 5,0 4 4 4 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Halifax Town
+rochdale,ROCHDALE,,ENG,league,3,0,0 5 5 5 1,0 8 8 2 8,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Rochdale
+hartlepoolutd,HARTLEPOOL UTD,,ENG,league,3,3,1 4 1 1 4,1 5 7 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Hartlepool United
+chestercity2,CHESTER CITY 2,,ENG,league,3,5,2 5 1 5 1,0 9 9 5 9,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Chester City
+scunthorpeutd,SCUNTHORPE UTD,,ENG,league,3,4,0 5 5 1 5,2 2 1 2 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Scunthorpe United
+southendunited,SOUTHEND UNITED,,ENG,league,3,0,0 5 5 5 5,0 4 4 4 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Southend United
+portvale,PORT VALE,,ENG,league,3,0,0 1 1 2 2,1 9 2 9 9,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Port Vale
+exetercity,EXETER CITY,,ENG,league,3,0,2 4 1 2 4,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Exeter City
+dagenham,DAGENHAM,,ENG,cuponly,,3,0 5 5 5 1,1 9 7 9 9,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Dagenham
+westbromwich2,WEST BROMWICH 2,,ENG,cuponly,,0,2 5 1 1 1,1 9 7 7 9,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,West Bromwich Albion
+telfordunited,TELFORD UNITED,,ENG,cuponly,,0,2 8 2 2 2,0 9 9 8 9,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Telford United

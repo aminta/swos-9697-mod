@@ -1137,7 +1137,7 @@ Keep this list updated as new tournaments are added (European Cup 1959-60 next).
 - Short cup names (Playaveli's suggestion: long names overlap on the career main screen/schedule): patch.short_names writes the 2nd name dword (the game's short name, <= 13 chars, e.g. 'C.D. COP EURO') of the SA, CAF, CONCACAF and Asian cups: COPA LIB., SUPERCOPA, COPA CONMEBOL, COPPA INTERC./INTERC. CUP/COUPE INTERC. (de keeps WELTPOKAL), CAF CL, CAF CWC, CAF CUP, CONCACAF CUP, ASIAN CC, ASIAN CWC (strings in the obj2 page; sacups/cafcups expose NAME_SITES). Builds IT EN FR DE = 9a2c4f15 608cc88a 3a3480e2 255e4d60 (UNTESTED: check the career main screen with a Libertadores club). Release notes: credit Playaveli for the suggestion.
 - Roles fix (Davide: Kirkpatrick in goal shown as M, the DLC's role): players copied from the DLCs keep the slot's role (facup72 / mitropa34), only skills/face come from the DLC. TEAM.090 / TEAM.091 rebuilt (md5 above in c/SWOS), exes unchanged. Played replay Civil Service 2-4 Barnes OK.
 
-## BACKLOG — ideas from Daniele Bordes (Facebook SWOS group, 2026-10-02; he hex-edits SWOS DOS and SWOS 2020)
+## BACKLOG — ideas from DaniSwos (Facebook SWOS group, 2026-10-02; he hex-edits SWOS DOS and SWOS 2020)
 - Kit selection: his hack (TEAM.* files + exe) works around the game's bad kit-clash algorithm so that e.g. Milan, Inter and
   Juventus meet each other in their home kits (SWOS 2020 has a kit selector; the DOS game does not). Worth a look for the mod.
 - Rudimentary transfer market tool: swap(teamFrom, playerFrom, teamTo, playerTo) updating both the TEAM.* file and the career
@@ -1768,10 +1768,10 @@ Left for 2.5: (a) NSL/NSSL finals series (type-1 design) or declare them postpon
   Artifact republished 2026-10-08 (v39).
 
 ## Session 30 — Season packs, phase A (2026-10-09)
-- Idea (Daniele Bordes, FB group: a 1984-85 career/season; he is preparing an Excel from the CM01/02 Retro Update
+- Idea (DaniSwos, FB group: a 1984-85 career/season; he is preparing an Excel from the CM01/02 Retro Update
   Team 1984/85 database): historic seasons as data packs + a deterministic compiler, later a user-side tool.
   Plan: A = format + compiler + DDR as a pack (done); B = data-driven exe (several packs, euro map table, explicit
-  ratings method for CM-style data) + first new pack (Daniele's 84-85); C = web patcher "load a pack" (Pyodide),
+  ratings method for CM-style data) + first new pack (DaniSwos's 84-85); C = web patcher "load a pack" (Pyodide),
   Excel template, validation; D (maybe) historic careers, to be studied.
 - packs/README.md: format v1 (pack.json, clubs.csv, players.csv, ties.csv, raw/ provenance).
 - packs/ddr-1988-89: exported from ddr89.py/euro8889.py (155 clubs, 2500 players, 156 ties); raw/ = the old

@@ -610,7 +610,7 @@ assert blk[:2] == b'S2' and sum(blk) % 256 == 0</code></pre>
 
 <!-- 25 -->
 <h2 id="maglie"><span class="n">25</span>Home and away kits (3.0)</h2>
-<p>The game picks the kits by itself, and many classic pairings (Juventus-Milan, Milan-Inter, Inter-Juventus, Chelsea against Juventus, Newcastle or Manchester City) never met in home kits. Analysis of the colour graph: Daniele Bordes (DaniSwos), SWOS United forum thread "Home-Away kit automatic selection". Tools: <code>tools/kitsim.py</code> (simulator), <code>tools/kitcolors.py</code> (patch).</p>
+<p>The game picks the kits by itself, and many classic pairings (Juventus-Milan, Milan-Inter, Inter-Juventus, Chelsea against Juventus, Newcastle or Manchester City) never met in home kits. Analysis of the colour graph: DaniSwos, SWOS United forum thread "Home-Away kit automatic selection". Tools: <code>tools/kitsim.py</code> (simulator), <code>tools/kitcolors.py</code> (patch).</p>
 <ul>
 <li><strong>How the game chooses.</strong> <code>SetInGameTeamsPrimaryColors</code> scores four pairings with <code>GetTeamKitsSimilarityFactor</code>: home-home, home-away, away-home, away-away (home = the first team). The first scoring below 11 is used. The score (similarity factor) adds 5 or 2 points for every pair of clashing colours (shirt colours 5, a shirt colour against the other's shorts 2, shorts against shorts 5); some shirt-type combinations score 66–99 straight away. A striped shirt that scores below 11 is checked again as its blended colour (table <code>dseg_130942</code>, e.g. red+black → maroon). If all four score 11 or more, the second team gets a plain kit in one of its own colours or, failing that, in the first colour of <code>teamKitTieBreakColors</code> that works; last resort red against blue.</li>
 <li><strong>Clashing colours</strong> are two 10-word tables, <code>conflictingBasicTeamColorsTable</code> and <code>conflictingShortsTeamColorsTable</code> (row = colour, bit n = clashes with colour n; colours 0 grey, 1 white, 2 black, 3 orange, 4 red, 5 blue, 6 maroon, 7 light blue, 8 green, 9 yellow).</li>
@@ -676,7 +676,7 @@ assert blk[:2] == b'S2' and sum(blk) % 256 == 0</code></pre>
 </tbody></table></div>
 <h3>Roadmap</h3>
 <ol>
-<li><strong>Classic careers:</strong> a real 1984-85 world (Daniele Bordes's data), a name per world in the menus, long careers.</li>
+<li><strong>Classic careers:</strong> a real 1984-85 world (DaniSwos's data), a name per world in the menus, long careers.</li>
 <li><strong>Long careers:</strong> 6–8 season tests with the 1.1–1.2 additions; real squads for the new clubs from the community.</li>
 <li><strong>Europe:</strong> Intertoto Cup, European Super Cup, 1997-98 Champions League format.</li>
 <li><strong>Backlog:</strong> 5-man bench for English clubs; Intercontinental in slot 4 test; C1 with two groups.</li>

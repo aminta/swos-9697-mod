@@ -363,3 +363,11 @@ both covered by the first test).
   bracket). New hook w_r2 on that call: after round 1 ([4Fh] ties == [31h]/2) w_fixpairs on the winners. Build IT
   1994e494 (EN f553bb66 FR bea0ff37 DE 4af31d4f), to verify with the harness (JUVE2F -> 1998/99, UEFA R2 ties at
   slot+2CDh first 16 entries after the R1 return leg).
+- Round 2, status 2026-10-11 (build IT 9216c1ec, commit after 14e6e84): w_r2 hooks every `call cseg_2ACAE`; harness
+  run euro_draws (dazzling-rhodes worktree, SWOSTEST_BUILD) still FAILS: UEFA R2 Inter v Juventus. Probe
+  (internal/career-test/r2probe.py: BPs on w_fixpairs call/return, records DIY_competitionStart +2Dh/+31h/+4Fh/+2CDh/
+  +24Dh) shows the fix DOES run on the UEFA round-1 winners in DIY_competitionStart (2 hits with id 2 / [4Fh] 16, first
+  pair (20,20) -> swapped), but the round-2 ties the player sees come from elsewhere: the slot's own +2CDh (slot buffer
+  dseg_DA0E2) keeps the old order. Next: follow cseg_8A7BF's A2/A4 (it copies A4+2CDh -> A2+59h after cseg_2ACAE;
+  A4/A2 may be the slot buffers, not DIY_competitionStart) and cseg_29659's flow for the player's cup; fix the list
+  that actually feeds round 2.

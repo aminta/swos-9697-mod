@@ -1000,15 +1000,33 @@ def world8485():
             if s.wait().outcome != 'dump':
                 return False, f'START: no first pause ({s.result})'
             if season == 1:
-                for t in ('CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'ENGLAND', 'FIRST DIVISION', 'LIVERPOOL'):
+                team = os.environ.get('W8485_TEAM', 'ENGLAND,FIRST DIVISION,LIVERPOOL').split(',')
+                for t in ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE'] + team:
                     if press(s, s.screen(), t) is None or s.result.outcome != 'dump':
                         return False, f'new career: {t} not reached ({s.result})'
             else:
                 s.send('down down down down down fire dump:2')
                 s.send('fire dump:3')
-            ok, msg = advance(s, season_over, 900)
-            if not ok:
-                return False, f'season {season}: {msg}'
+            seen, errs = {}, []
+
+            def stop(scr):                             # the player's European cup: no same-country tie in rounds 1-2
+                rnd, cid, ties = slot_ties(s.result, 32)
+                title = scr.entries[0][1] if scr.entries else ''
+                k = {0: 'PRIMO TURNO', 1: 'SECONDO TURNO'}.get(rnd)
+                if cid <= 2 and k and k in title and (season, rnd) not in seen and any(a or b for a, b in ties):
+                    n = struct.unpack_from('<H', s.result.obj2(SLOT + 0x31, 2))[0] >> (rnd + 1)
+                    seen[season, rnd] = ties[:n]
+                    same = [ties[j] for j in range(n) if ties[j][0] == ties[j][1]]
+                    check(not same, f'season {season} cup {cid} round {rnd + 1}: same-country ties {same}', errs)
+                return season_over(scr) or (r2only and (season, 1) in seen)
+            r2only = os.environ.get('W8485_R2') == '1'         # stop once the player's round 2 is checked
+            ok, msg = advance(s, stop, 900)
+            if r2only:
+                return (season, 1) in seen and not errs, f"season {season}: {msg}; {'; '.join(errs) or 'ok'}"
+
+            msg += f', euro rounds checked {sorted(seen)}'
+            if not ok or errs:
+                return False, f"season {season}: {msg}; {'; '.join(errs)}"
             if s.screen().find('FINISCI STAGIONE', exact=True) is not None:
                 press(s, s.screen(), 'FINISCI STAGIONE', wait=3)
             if s.result.outcome != 'dump':

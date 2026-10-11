@@ -56,12 +56,12 @@ standardliege,Guy Vandersmissen,M,RW,6,2,light,5*,5*,5,6*,5,5,4,35
 standardliege,Guy Hellers,M,LW,7,21,light,4,5*,5*,5*,5,5,4,33
 standardliege,Thierry Solheid,M,M,8,2,light,3*,3*,3*,3,3,3,3,21
 standardliege,Gilles Thomas,M,M,9,2,light,2*,2*,2*,2,2,2,2,14
-standardliege,Horst Hrubesch,A,A,10,13,light,5*,5*,5*,3,5,5,5,33
+standardliege,Horst Hrubesch,A,A,10,155,light,5*,5*,5*,3,5,5,5,33
 standardliege,Guy Dardenne,A,A,11,2,light,3*,3*,5*,3,3,3,3,23
 standardliege,Gilbert Bodart,G,G,12,2,light,4,3,5*,3,5*,5*,3,32
 standardliege,Freddy Luyckx,D,D,13,2,light,2*,2*,2*,2,2,2,2,14
 standardliege,Patrick Bonomi,M,M,14,2,light,2*,2*,2*,2,2,2,2,14
-standardliege,Heinz Gründel,A,A,15,13,light,3*,3*,3*,3,3,3,3,21
+standardliege,Heinz Gründel,A,A,15,155,light,3*,3*,3*,3,3,3,3,21
 standardliege,Étienne Delangre,D,LB,16,2,light,2*,2*,2*,2,2,2,2,14
 rfcseresien,Peter Kerremans,G,G,1,2,light,1*,1*,1*,1,1,1,1,12
 rfcseresien,Serge Didier Kimoni,D,RB,2,2,light,1*,1*,1*,1,1,1,1,7
@@ -85,7 +85,7 @@ kvmechelen,Mathy Billen,D,LB,3,2,light,2*,2*,2*,2,2,2,2,14
 kvmechelen,Raymond Jaspers,D,D,4,2,light,2*,2*,2*,2,2,2,2,14
 kvmechelen,Karel Kesselaers,D,D,5,2,light,2*,2*,2*,2,2,2,2,14
 kvmechelen,Filip Benoot,M,RW,6,2,light,2*,2*,2*,2,2,2,2,14
-kvmechelen,Joachim Benfeld,M,LW,7,13,light,2*,2*,2*,2,2,2,2,14
+kvmechelen,Joachim Benfeld,M,LW,7,155,light,2*,2*,2*,2,2,2,2,14
 kvmechelen,Jozef Bogaerts,M,M,8,2,light,2*,2*,2*,2,2,2,2,14
 kvmechelen,Michel Van Campenhout,M,M,9,2,light,2*,2*,2*,2,2,2,2,14
 kvmechelen,Ivan Hoste,A,A,10,2,light,3*,3*,3*,3,3,3,3,21
@@ -103,7 +103,7 @@ ksvwaregem,Pino De Craeye,D,D,5,2,light,2*,2*,2*,2,2,2,2,14
 ksvwaregem,Rudy Boes,M,RW,6,2,light,1,3*,3*,3*,2,2,1,15
 ksvwaregem,Jan Hoebeeck,M,LW,7,2,light,2*,2*,2*,2,2,2,2,14
 ksvwaregem,Kurt Delesie,M,M,8,2,light,2*,2*,2*,2,2,2,2,14
-ksvwaregem,Armin Görtz,M,M,9,13,light,2*,2*,2*,2,2,2,2,14
+ksvwaregem,Armin Görtz,M,M,9,155,light,2*,2*,2*,2,2,2,2,14
 ksvwaregem,Philippe Desmet,A,A,10,2,light,5*,5*,5*,4,5,5,5,34
 ksvwaregem,Daniel Veyt,A,A,11,2,light,4,5*,4,4,4,5*,5*,31
 ksvwaregem,Ludo De Schepper,G,G,12,2,light,2*,2*,2*,2,2,2,2,14
@@ -133,12 +133,12 @@ genk,Dirk Medved,D,LB,3,2,light,2,3*,3,3,4*,3,4*,22
 genk,Marc Emmers,D,D,4,2,light,4*,4*,4*,4,3,4,4,27
 genk,Dirk Vangronsveld,D,D,5,2,light,3*,3*,3*,3,3,3,2,20
 genk,Rony Van Geneugden,M,RW,6,2,light,2,3*,3*,3*,3,3,1,18
-genk,Horst Schlierer,M,LW,7,13,light,2*,2*,2*,2,2,2,2,14
+genk,Horst Schlierer,M,LW,7,155,light,2*,2*,2*,2,2,2,2,14
 genk,Leo Ehlen,M,M,8,23,light,2*,2*,2*,2,2,2,2,14
 genk,Roland Janssen,M,M,9,2,light,2*,2*,2*,2,2,2,2,14
 genk,Eddy Voordeckers,A,A,10,2,light,5*,5*,5*,4,5,5,5,34
 genk,Pier Janssen,A,A,11,2,light,5*,5*,4*,3,4,4,4,29
-genk,Klaus Pudelko,G,G,12,13,light,2*,2*,2*,2,2,2,2,14
+genk,Klaus Pudelko,G,G,12,155,light,2*,2*,2*,2,2,2,2,14
 genk,Tony Bialousz,D,D,13,2,light,2*,2*,2*,2,2,2,2,14
 genk,Aimé Coenen,M,M,14,2,light,2*,2*,2*,2,2,2,2,14
 genk,Robert Brace,A,A,15,8,light,3*,2,3*,2,2,3*,3,18
@@ -162,7 +162,7 @@ lokeren,Raymond Mommens,M,LW,16,2,light,5*,4,4,4,5*,5,6*,33
 kvkortrijk,Luc Vanderschommen,G,G,1,2,light,3,3,4*,2,3,4*,4*,20
 kvkortrijk,Nico Broeckaert,D,RB,2,2,light,4*,4,4,5*,5*,4,4,30
 kvkortrijk,Luc Bourgeois,D,LB,3,2,light,2*,2*,2*,2,2,2,2,14
-kvkortrijk,Dieter Schwabe,D,D,4,13,light,2*,2*,2*,2,2,2,2,14
+kvkortrijk,Dieter Schwabe,D,D,4,155,light,2*,2*,2*,2,2,2,2,14
 kvkortrijk,Claude Verspaille,D,D,5,2,light,2*,2*,2*,2,2,2,2,14
 kvkortrijk,Dirk Duyck,M,RW,6,2,light,2*,2*,2*,2,2,2,2,14
 kvkortrijk,Dirk Destorme,M,LW,7,2,light,2*,2*,2*,2,2,2,2,14
@@ -189,7 +189,7 @@ lierse,Rini van Roon,A,A,11,23,light,3*,3*,3*,3,3,3,3,21
 lierse,Carl Engelen,G,G,12,2,light,3*,3*,3*,3,3,3,3,28
 lierse,Peter Delen,D,D,13,2,light,2*,2*,2*,2,2,2,2,14
 lierse,Henri Van Mechelen,M,M,14,2,light,2*,2*,2*,2,2,2,2,14
-lierse,Dieter Weihrauch,A,A,15,13,light,2*,2*,2*,2,2,2,2,14
+lierse,Dieter Weihrauch,A,A,15,155,light,2*,2*,2*,2,2,2,2,14
 lierse,Paul Beloy Beloy,D,RB,16,2,light,3*,3*,3*,3,3,3,3,21
 gent,André Lauryssen,G,G,1,2,light,2*,2*,2*,2,2,2,2,22
 gent,Michel De Wolf,D,RB,2,2,light,4,3,5*,5*,4,5*,4,30
@@ -246,7 +246,7 @@ rfcliegeois,Vincent Dirix,D,D,4,2,light,1*,1*,1*,1,1,1,1,7
 rfcliegeois,Frédéric Waseige,D,D,5,2,light,1*,1*,1*,1,1,1,1,7
 rfcliegeois,Ian Hamilton,M,RW,6,8,light,3*,3*,3*,3,3,3,3,21
 rfcliegeois,Edhem Sljivo,M,LW,7,37,light,3*,3*,2,2,3*,3,3,19
-rfcliegeois,Hans-Peter Lipka,M,M,8,13,light,2*,2*,2*,2,2,2,2,14
+rfcliegeois,Hans-Peter Lipka,M,M,8,155,light,2*,2*,2*,2,2,2,2,14
 rfcliegeois,Raphaël Quaranta,M,M,9,2,light,2*,2*,2*,2,2,2,2,14
 rfcliegeois,Willy Geurts,A,A,10,2,light,3*,3*,3*,3,3,3,3,21
 rfcliegeois,Guy François,A,A,11,2,light,2*,2*,2*,2,2,2,2,14
@@ -314,7 +314,7 @@ kberingenfc,Eric Reynders,M,M,8,2,light,1*,1*,1*,1,1,1,1,7
 kberingenfc,Rob Hutting,M,M,9,23,light,1*,1*,1*,1,1,1,1,7
 kberingenfc,Abdellah Mateso,A,A,10,86,dark,1,3*,2,2,3*,3*,3,17
 kberingenfc,Ronny Van Rethy,A,A,11,2,light,1*,1*,1*,1,1,1,1,7
-kberingenfc,Günther Schubert,G,G,12,13,light,1*,1*,1*,1,1,1,1,12
+kberingenfc,Günther Schubert,G,G,12,155,light,1*,1*,1*,1,1,1,1,12
 kberingenfc,Luc Vangenechten,D,D,13,2,light,1*,1*,1*,1,1,1,1,7
 kberingenfc,Patrick Schoofs,M,M,14,2,light,1*,1*,1*,1,1,1,1,7
 kberingenfc,Chris van den Dungen,A,A,15,23,light,1*,1*,1*,1,1,1,1,7

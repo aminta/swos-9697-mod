@@ -477,6 +477,37 @@ class NationalPack(Pack):
             f, i = self.where[row['key']]
             self.nations[(self.as_file[f], i)] = row
 
+    def word(self, key):
+        """The game's team word of a national team: file (80..85) | ordinal << 8."""
+        _need(key in self.where, f"{self.path}: national: unknown team {key}")
+        f, i = self.where[key]
+        return self.as_file[f] | i << 8
+
+    def competitions(self):
+        """pack.json 'national' (3.1): the world's national competitions as team words, validated."""
+        n = self.meta.get('national')
+        if not n:
+            return None
+        cyc = []
+        for c in n['cycles']:
+            g = {}
+            for k in ('wcq', 'ecq'):
+                _need(len(c[k]) <= 8, f"national {c['years']}: {k}: at most 8 groups")
+                g[k] = [(take, [self.word(t) for t in teams]) for take, teams in c[k]]
+                for j, (take, teams) in enumerate(g[k]):
+                    _need(len(teams) <= (4 if j == 7 else 6) and take <= len(teams),
+                          f"national {c['years']}: {k} group {j + 1}: at most {4 if j == 7 else 6} teams, places <= teams")
+            ec = 1 + sum(t for t, _ in g['ecq'])
+            _need(ec == n['ec_teams'], f"national {c['years']}: European Championship: host + {ec - 1} places != {n['ec_teams']}")
+            direct = [self.word(t) for t in c['wc_direct']]
+            wc = 2 + sum(t for t, _ in g['wcq'])
+            _need(wc + len(direct) >= n['wc_teams'] + 3,
+                  f"national {c['years']}: World Cup: holder, host, {wc - 2} places, {len(direct)} direct: too few spares")
+            cyc.append({'wc_host': self.word(c['wc_host']), 'ec_host': self.word(c['ec_host']), 'direct': direct, **g})
+        _need(n['wc_teams'] == 24 and n['ec_teams'] == 8, 'national: wc_teams 24 and ec_teams 8 (the formats built)')
+        return {'holder': self.word(n['wc_holder']), 'points': n['win_points'], 'wc_teams': n['wc_teams'],
+                'ec_teams': n['ec_teams'], 'cycles': cyc}
+
     def nat_base(self):
         """Physical team file that stands for TEAM.080."""
         return next(f for f, a in self.as_file.items() if a == 80)
@@ -590,6 +621,7 @@ def world_defs():
         _need(len(nat) <= 1, f'world {n}: one national pack at most')
         w['nat'] = nat[0].nat_base() if nat else 0     # 0 = the game's national teams
         w['nations'] = nat[0].nations if nat else {}
+        w['natcomp'] = nat[0].competitions() if nat else None
         w['codes'] = {pk.clubs[pk.league_clubs[0]]['country']: pk.files[pk.league['clubs']][0] for pk in pks}
         for pk in pks:                          # cseg_93974: the champion, the cup winner, then the top 9's next clubs
             pl = pk.meta.get('europe_places', {})

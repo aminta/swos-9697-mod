@@ -88,9 +88,36 @@ mostra come.
 - L'anno parte da `start_year` (CAMP. 1984/85, poi 1985/86, …).
 - VISUALIZZA MONDO mostra solo questo mondo: le sue nazioni e le sue tre coppe europee.
 - L'acquisto di giocatori stranieri mostra solo i club di questo mondo.
-- Nessuna offerta di panchina delle nazionali (le nazionali del gioco sono quelle del 1996-97).
+- Nazionali (3.1, mondi con la cartella `national`): le nazionali del mondo (nel mondo Europa 1984-85: Germania Ovest
+  e Est, URSS, Cecoslovacchia, Jugoslavia; nessuna nazione nata dopo il 1990). Le nazionali dei paesi del mondo
+  offrono la panchina; si convocano i giocatori dei club del mondo; ciclo Mondiali/Europei di quell'epoca (1984-85:
+  qualificazioni a Messico '86, poi Messico '86, le qualificazioni a Euro '88, Euro '88). Senza la cartella
+  `national`: nessuna panchina di nazionale, come prima.
 - Gli altri club non si scambiano mai giocatori fra loro: tengono le loro rose ogni stagione (SWOS 96/97 funziona
   così); compra e vende solo la tua squadra.
+
+## Nazionali (cartella `national`, 3.1)
+
+`packs/<mondo>/national` contiene le nazionali del mondo, un file squadre per ogni file nazionale del gioco (TEAM.080
+Europa … TEAM.085 Oceania), **nello stesso ordine** (una squadra prende il posto di quella del 1996-97 in quella
+posizione: la Germania Est in quello della Croazia, l'URSS in quello della Russia); la carriera del mondo carica
+questi file al posto di quelli del gioco.
+
+- `pack.json`: `"kind": "national"`, `world`, `files` (`{"nat80": {"file": 180, "base": 0, "as": 80}, …}`),
+  `squads` (explicit) e `national`: le competizioni (sotto).
+- `clubs.csv`, `players.csv`: come per le rose esplicite (16 giocatori ciascuna).
+- `nations.csv`: per squadra `code` (il paese del mondo: quella nazionale offre la panchina e convoca "in casa" dal
+  campionato di quel paese; vuoto = nessuna panchina in questo mondo), `nat` (codice nazionalità dei giocatori, per
+  esempio 153 = GDR, nuovo nella 3.1), `home` (il campionato di un altro paese per le convocazioni in casa, per
+  esempio Galles → ENG), `unused` (1 = nazione che in quell'epoca non esiste: non gioca nulla).
+- `national`: `win_points`, `wc_holder`, `wc_teams` (24) / `ec_teams` (8) e `cycles` (uno ogni 4 stagioni:
+  qualificazioni ai Mondiali, Mondiali, qualificazioni agli Europei, Europei): `wc_host`, `ec_host`, `wcq` / `ecq` =
+  fino a 8 gironi `[posti, [squadre]]` (al massimo 6 squadre; l'ottavo al massimo 4), `wc_direct` = le qualificate
+  degli altri continenti in ordine (le riserve prendono il posto di chi è già dentro). Detentore e paesi ospitanti
+  escono dai gironi all'inizio della stagione. Dopo l'ultimo ciclo si ripete l'ultimo.
+
+Le nazionali del mondo Europa 1984-85 sono costruite da un convertitore dallo stesso database dei club (i giocatori di
+ogni nazionalità, prima i nazionali) e verificate con il test automatico `world8485_nat`.
 
 ## Cosa ci serve da chi contribuisce
 

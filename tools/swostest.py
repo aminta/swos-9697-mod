@@ -391,12 +391,15 @@ class Dosbox:
         path = os.path.join(self.run, 'MEMDUMP.BIN')
         if os.path.exists(path):
             os.remove(path)
-        os.write(self.fd, f'MEMDUMPBIN 168:{lin:X} {n:X}\r'.encode())
-        end = time.time() + 30 + n / 0x200000
-        while not (os.path.exists(path) and os.path.getsize(path) >= n):
-            if time.time() > end:
-                raise RuntimeError(f'MEMDUMPBIN {lin:X} {n:X}: no file')
-            self.pump(0.01)
+        for attempt in range(3):                       # a command typed while the debugger redraws can be lost
+            os.write(self.fd, f'MEMDUMPBIN 168:{lin:X} {n:X}\r'.encode())
+            end = time.time() + 10 + n / 0x200000
+            while not (os.path.exists(path) and os.path.getsize(path) >= n) and time.time() < end:
+                self.pump(0.01)
+            if os.path.exists(path) and os.path.getsize(path) >= n:
+                break
+        else:
+            raise RuntimeError(f'MEMDUMPBIN {lin:X} {n:X}: no file')
         data = open(path, 'rb').read()
         self.stat('dump', t)
         return data
@@ -680,6 +683,12 @@ class Session:
         assert self.result.outcome == 'dump', str(self.result)
         return Screen(self.result, self.info['menu'])
 
+    def poke(self, lin, data):
+        """Write bytes into the paused game's memory (debugger SM; the next read sees them)."""
+        os.write(self.box.fd, f"SM 168:{lin:X} {' '.join(f'{x:X}' for x in data)}\r".encode())
+        if self.result:
+            self.result.chunks = []
+
     def send(self, keys):
         """Write the next steps into the stub's script area (ptr was reset to it by the pause), step over the int 3, resume
         (debugger commands typed in one go: DOSBox-X runs them in order before the F5)."""
@@ -777,6 +786,47 @@ def substitute(s, scr, tries=16):
     return None
 
 
+def nat_callups(s, limit=120):
+    """National team squad screen ('SQUADRA DEL ...', 'SCEGLI ALTRI N GIOCATORI ...'): add players from the home
+    leagues' clubs (enabled player rows = eligible) until N is 0, then ESCI. Returns an error or None."""
+    taken, clubs_done = set(), set()
+    for _ in range(limit):
+        scr = s.screen()
+        texts = scr.texts()
+        need = next((int(m.group(1)) for t in texts for m in [re.match(r'SCEGLI ALTRI (\d+)', t)] if m), 0)
+        if any(t.startswith('SQUADRA DEL ') for t in texts):
+            if need == 0:
+                press(s, scr, 'ESCI') or s.send('fire dump:2')
+                return None
+            press(s, scr, 'AGGIUNGI GIOCATORE') or s.send('fire dump:2')
+        elif 'AGGIUNGI GIOCA. INTERNAZIONALE (CASA)' in texts and len(texts) <= 4:
+            press(s, scr, 'AGGIUNGI GIOCA. INTERNAZIONALE (CASA)')
+        elif 'AGGIUNGI GIOCA. INTERNAZIONALE (CASA)' in texts and any('DIVISION' in t or 'LEAGUE' in t for t in texts) \
+                and 'ABBANDONA' in texts:
+            first = next(i for i, t, inv, dis in scr.entries if t and not inv and t != texts[0])
+            press(s, scr, first)                # the top league
+        elif 'AGGIUNGI GIOCA. INTERNAZIONALE (CASA)' in texts and 'ESCI' in texts and 'CONTINUA' in [
+                t for _, t, _, _ in scr.entries]:   # a club's players
+            club = scr.entries[1][1]
+            rows = [i for i, t, inv, dis in scr.entries if scr.geom[i][0] == 8 and scr.geom[i][2] >= 304
+                    and not inv and not dis and (club, scr.geom[i][1]) not in taken]
+            if not rows:
+                clubs_done.add(club)
+                press(s, scr, 'ESCI') or s.send('fire dump:2')
+                continue
+            taken.add((club, scr.geom[rows[0]][1]))
+            press(s, scr, rows[0], wait=1)
+        elif any(t.startswith('AGGIUNGI GIOCA.') for t in texts):   # the clubs of the league
+            club = next((t for i, t, inv, dis in scr.entries if t and not inv and not dis and i > 3
+                         and t not in clubs_done and t not in ('ABBANDONA', 'ESCI') and scr.geom[i][2] > 60), None)
+            if club is None:
+                return f'call-ups: no club left ({need} players missing)'
+            press(s, scr, club)
+        else:
+            press(s, scr, 'ESCI') or s.send('fire dump:2')
+    return 'call-ups: too many steps'
+
+
 def advance(s, stop, max_steps=400):
     """Press through the career until stop(screen) is true; returns (ok, message)."""
     recent = []
@@ -800,7 +850,14 @@ def advance(s, stop, max_steps=400):
             err = substitute(s, scr)
             if err:
                 return False, f'step {step}: {err}'
-        elif 'TRASFERIMENTI' in texts and 'PARTITA' in texts:
+        elif any(t.startswith('SQUADRA DEL ') for t in texts) and 'ESCI' in texts:   # national call-ups
+            err = nat_callups(s)
+            if err:
+                return False, f'step {step}: {err}'
+        elif 'SCEGLI SQUADRA' in texts and 'VISUALIZZA MONDO' in texts and \
+                scr.entries[scr.find('PARTITA', exact=True)][3]:   # national team menu: squad first
+            press(s, scr, 'SCEGLI SQUADRA') or s.send('fire dump:2')
+        elif ('TRASFERIMENTI' in texts or 'VISUALIZZA MONDO' in texts) and 'PARTITA' in texts:
             press(s, scr, 'PARTITA') or s.send('fire dump:2')
         elif '- RISULTATO -' in texts:                   # cup round screen: -> squad screen
             press(s, scr, '- RISULTATO -') or s.send('fire dump:2')
@@ -972,8 +1029,13 @@ def next_season_save(s, name):
             return f'new season: {s.result}'
         scr = s.screen()
         s.log.append(f'[ns] {scr}')
-        if 'TRASFERIMENTI' in scr.texts():
+        if 'TRASFERIMENTI' in scr.texts() or 'VISUALIZZA MONDO' in scr.texts():    # club / national team menu
             break
+        if any(t.startswith('SQUADRA DEL ') for t in scr.texts()):    # national squad call-ups
+            err = nat_callups(s)
+            if err:
+                return err
+            continue
         press(s, scr, 'CONTINUA') or s.send('fire dump:2')
     else:
         return 'career menu of the new season not reached'
@@ -1146,6 +1208,226 @@ def world8485():
         if not good:
             return False, '; '.join(msgs) + '\n' + report
     return True, '; '.join(msgs)
+
+
+def nat_offsets(exe):
+    """obj2 offsets in the exe under test: national competition copies (careerContests: EC 6, ECQ 7-14, WC 20,
+    WCQ 21-28) and dseg_17A3CE (2 = the national team of the manager's nationality offers a job at once: debug)."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    from le import LE
+    le = LE(open(exe, 'rb').read())
+    d1, d2 = le.obj_bytes(1), le.obj_bytes(2)
+    t2 = {f[1]: f[4] for f in le.fixups() if f[0] == 2 and f[3] == 2 and f[4] is not None}
+    cc = next(o for o in sorted(t2) if struct.unpack_from('<H', d2, o + 8)[0] == 79
+              and struct.unpack_from('<H', d2, o + 18)[0] == 92 and struct.unpack_from('<H', d2, o + 28)[0] == 92)
+    copy = [t2[cc + 10 * k + 4] for k in range(34)]
+    t1 = {f[1]: f[4] for f in le.fixups() if f[0] == 1 and f[3] == 2}
+    m = re.search(rb'\x66\x83\x3d(.{4})\x13\x0f\x84.{4}\x66\x83\x3d(.{4})\x01\x0f\x84', d1, re.S)
+    k = re.search(rb'\xa1(.{4})\xa3.{4}\x80\x3d.{4}\x50\x74.\xa1(.{4})\xa3', d1, re.S)   # cseg_5C304: dseg_C8B14 =
+    return {'ec': copy[6], 'ecq': copy[7:15], 'wc': copy[20], 'wcq': copy[21:29], 'force': t1[m.start(2)],  # seasons
+            'mask': t1[k.start(1)],
+            'isnat': t1[re.search(rb'\x66\xa1(.{4})\x66\x0b\xc0\x74.\x80\x3d.{4}\x50\x75.\xe8', d1, re.S).start(1)],
+            'flags': t1[re.search(rb'\xf6\x05(.{4})\x80\x74.\x66\xa1.{4}\x66\xa3(.{4})\xf6\x05\1\x40\x0f\x84', d1, re.S).start(1)],
+            'd6cd0': t1[re.search(rb'\xf6\x05(.{4})\x80\x74.\x66\xa1.{4}\x66\xa3(.{4})\xf6\x05\1\x40\x0f\x84', d1, re.S).start(2)],
+            'csd': t1[re.search(rb'\x66\xa1.{4}\x66\x0b\xc0\x75.\x66\x83\x3d(.{4})\x03\x72', d1, re.S).start(1)]}                       # (bits) a European national team may offer a job
+
+
+def team_list(r, off):
+    """Team words of a competition copy (list at +7 + [+7]; groups: count at +0Dh; cups: the first stage)."""
+    hdr = r.obj2(off, 0x30)
+    lst = off + 7 + hdr[7]
+    n = hdr[13] if hdr[1] == 0 else hdr[15]       # groups: teams at +0Dh; cups: the first stage's teams (+0Fh)
+    words = struct.unpack(f'<{n}H', r.obj2(lst, 2 * n))
+    return [w for w in words if w] if hdr[1] else list(words)
+
+
+def nat_names(build):
+    """Team word -> name from the national files of the build (TEAM.180-185 stand for 080-085)."""
+    out = {}
+    for f in range(180, 186):
+        d = open(os.path.join(build, 'DATA', 'TEAM.%03d' % f), 'rb').read()
+        for i in range(struct.unpack('>H', d[:2])[0]):
+            r = d[2 + i * 684:]
+            out[r[0] | r[1] << 8] = r[5:22].split(b'\0')[0].decode('latin-1')
+    return out
+
+
+def nat_offer_save(exe, off, name='W84NAT', season=None):
+    """Slow part, once per build (kept in internal/swostest/saves/W84NAT.CAR; W84NAT_REDO=1 makes it again): new
+    career at Fulham (2nd division: no sacking), debug switches poked so that England offers its job at once, the
+    offer kept (CONSIDERA: a national job is accepted at the season end), season played, saved at the season-end menu.
+    Returns the save path or an error."""
+    dst = os.path.join(WORK, 'saves', name + '.CAR')
+    stamp = dst + '.exe'
+    if os.path.exists(dst) and open(stamp).read() == md5(os.path.join(exe, 'ITALIAN.EXE')) \
+            and not os.environ.get('W84NAT_REDO'):
+        return dst
+    with Session('world8485_natA', exe, {}, 'dump:2', 240) as s:   # season: currentSeasonShowing poked (cycles)
+        if s.wait().outcome != 'dump':
+            return f'START: no first pause ({s.result})'
+        for t in ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'EUROPA 1984-85', 'INGHILTERRA', 'SECOND DIVISION',
+                  'FULHAM']:
+            if press(s, s.screen(), t) is None or s.result.outcome != 'dump':
+                return f'new career: {t} not reached ({s.result})'
+        s.poke(s.result.base2 + off['force'], b'\x02')         # debug: the national team calls at once
+        s.poke(s.result.base2 + off['mask'], b'\xff\xff\xff\x0f')   # in any season
+        if season is not None:
+            s.poke(s.result.base2 + off['csd'], struct.pack('<H', season))
+        offer = lambda scr: 'TRASFERIMENTI' in scr.texts() and 'OFFERTE LAVORO' in scr.texts()
+        ok, msg = advance(s, lambda scr: offer(scr) or season_over(scr), 600)
+        if not ok or not offer(s.screen()):
+            return f'no job offer ({msg})'
+        err = nat_letter(s, 'CONSIDERA')
+        if err:
+            return err
+        ok, msg = advance(s, season_over, 600)
+        if not ok:
+            return 'season 1: ' + msg
+        if s.screen().find('FINISCI STAGIONE', exact=True) is not None:
+            press(s, s.screen(), 'FINISCI STAGIONE', wait=3)
+        if press(s, s.screen(), 'SALVA CARRIERA') is None:
+            return f'no SALVA CARRIERA on {s.screen()}'
+        s.send(name_entry(name) + ' dump:3')
+        path = os.path.join(s.run, 'SWOS', name + '.CAR')
+        if not os.path.exists(path):
+            return f'{name}.CAR not written ({s.result})'
+    shutil.copy(path, dst)
+    open(stamp, 'w').write(md5(os.path.join(exe, 'ITALIAN.EXE')))
+    return dst
+
+
+def nat_letter(s, button):
+    """Career menu with a job offer -> OFFERTE LAVORO -> the national offer's row -> the letter -> button (CONSIDERA
+    during the season, ACCETTA at its end) -> back to the menu. Returns an error or None."""
+    if press(s, s.screen(), 'OFFERTE LAVORO') is None:
+        return f'no OFFERTE LAVORO on {s.screen()}'
+    scr = s.screen()
+    rows = [j for j, g in enumerate(scr.geom) if g[0] == 8 and g[2] == 304 and not scr.entries[j][2]
+            and not scr.entries[j][3]]               # one selectable row per offer (as next_season_save)
+    if scr.find('OFFERTA DI LAVORO INTERNAZIONALE', exact=False) is None or not rows:
+        return f'no national offer on {scr}'
+    for _ in range(12):
+        if s.screen().selected in rows:
+            break
+        s.send('up dump:0.5')
+    s.send('fire dump:2')
+    scr = s.screen()
+    s.log.append(f'[letter] {scr}')
+    i = scr.find(button, exact=True)
+    if i is None or scr.entries[i][3]:
+        return f'{button} not available on {scr}'
+    press(s, scr, button, wait=3)
+    for _ in range(6):
+        if 'TRASFERIMENTI' in s.screen().texts() or 'CONTINUA CARRIERA' in s.screen().texts():
+            return None
+        press(s, s.screen(), 'ESCI') or s.send('fire dump:2')
+    return f'after {button}: {s.screen()}'
+
+
+@scenario
+def world8485_nat():
+    """Europe 1984-85 world, national teams (England's job by the debug switch; saves W84NAT / W84NAT3 made once per
+    build): the real Euro 88 qualifying groups and Euro 88's 8 (host + 7 group winners); with the season index poked
+    to the next cycle, the Italia 90 qualifying draw (host out) and its 24 (holder, host, 13 European, direct)"""
+    exe = os.environ.get('W8485_BUILD', os.path.join(WORK, 'builds', 'w8485'))
+    off, names = nat_offsets(os.path.join(exe, 'ITALIAN.EXE')), nat_names(exe)
+    nm = lambda ws: [names.get(w, hex(w)) for w in ws]
+    errs, notes = [], []
+    real = [{'SPAIN', 'ROMANIA', 'AUSTRIA', 'ALBANIA'}, {'ITALY', 'SWEDEN', 'PORTUGAL', 'SWITZERLAND', 'MALTA'},
+            {'SOVIET UNION', 'EAST GERMANY', 'FRANCE', 'ICELAND', 'NORWAY'},
+            {'ENGLAND', 'YUGOSLAVIA', 'NORTHERN IRELAND', 'TURKEY'}, {'HOLLAND', 'GREECE', 'HUNGARY', 'POLAND', 'CYPRUS'},
+            {'DENMARK', 'CZECHOSLOVAKIA', 'WALES', 'FINLAND'},
+            {'REPUBLIC IRELAND', 'BULGARIA', 'BELGIUM', 'SCOTLAND', 'LUXEMBOURG'}, set()]
+
+    def england(name, season, seasons):
+        """Load the save, accept England's offer, play `seasons` national seasons; returns the Session (open)."""
+        car = nat_offer_save(exe, off, name, season)
+        if not car.endswith('.CAR'):
+            raise RuntimeError(f'{name}: {car}')
+        s = Session(f'world8485_nat_{name}', exe, {name + '.CAR': car}, 'dump:2', 240)
+        if s.wait().outcome != 'dump':
+            raise RuntimeError(f'START: no first pause ({s.result})')
+        s.send('down down down down down fire dump:2')
+        s.send('fire dump:3')
+        err = nat_letter(s, 'ACCETTA')
+        if err:
+            raise RuntimeError(err)
+        return s
+
+    def season_end(s, label):
+        ok, msg = advance(s, season_over, 600)
+        if not ok:
+            raise RuntimeError(f'{label}: {msg}')
+        if s.screen().find('FINISCI STAGIONE', exact=True) is not None:
+            press(s, s.screen(), 'FINISCI STAGIONE', wait=3)
+
+    def after_end(s):
+        """Season-end menu -> CONTINUA CARRIERA (enabled by a poke when the manager was sacked: only the season-end
+        processing matters) -> the first screen after it (the national finalists are chosen there)."""
+        for _ in range(6):                        # chairman's notes first
+            scr = s.screen()
+            i = scr.find('CONTINUA CARRIERA', exact=True)
+            if i is not None:
+                break
+            press(s, scr, 'CONTINUA') or s.send('fire dump:2')
+        else:
+            raise RuntimeError(f'no CONTINUA CARRIERA on {scr}')
+        if scr.entries[i][3]:
+            s.poke(s.result.base2 + s.info['menu'] + 0x16 + i * 0x38 + 6, b'\0\0')
+            s.send('dump:0.5')
+        press(s, s.screen(), 'CONTINUA CARRIERA', wait=3)
+        for _ in range(10):                       # chairman's opinion, then the season end runs
+            scr = s.screen()
+            if 'VISUALIZZA MONDO' in scr.texts() or any(t.startswith('SQUADRA DEL ') for t in scr.texts()):
+                break
+            press(s, scr, 'CONTINUA') or s.send('fire dump:2')
+
+    def new_season(s, label):
+        path = next_season_save(s, 'W84NN')
+        if not path.endswith('.CAR'):
+            raise RuntimeError(f'{label}: {path}')
+
+    with Session('world8485_nat_menu', exe, {}, 'dump:2', 120) as s:   # the coach's nationalities: + YUG, URS, GDR
+        if s.wait().outcome != 'dump' or press(s, s.screen(), 'CARRIERA') is None:
+            return False, f'START: {s.result}'
+        i = s.screen().find('ENG', exact=True)
+        seen = []
+        if i is not None and press(s, s.screen(), i, wait=0.5) is not None:   # (fire on the field = right)
+            for _ in range(5):
+                s.send('fire+left dump:0.5')
+                seen.append(s.screen().entries[i][1])
+        notes.append(f'coach nationalities before ENG: {seen}')
+        check(seen[-4:] == ['YUG', 'FRG', 'URS', 'GDR'], f'coach nationalities: {seen}', errs)
+    try:
+        with england('W84NAT', None, 2) as s:             # Euro 88
+            new_season(s, '1985-86')
+            season_end(s, '1985-86')
+            new_season(s, '1986-87')
+            groups = [nm(team_list(s.result, o)) for o in off['ecq']]
+            notes.append(f'Euro 88 qualifying {groups}')
+            check([set(g) for g in groups] == real, 'Euro 88 qualifying groups are not the real ones', errs)
+            season_end(s, '1986-87')
+            after_end(s)
+            ec = nm(team_list(s.result, off['ec']))
+            notes.append(f'Euro 88 {ec}')
+            check(len(ec) == 8 and ec[0] == 'WEST GERMANY' and all(sum(t in g for t in ec) == 1 for g in real[:7]),
+                  f'Euro 88: {ec}', errs)
+        with england('W84NAT3', 3, 1) as s:               # next cycle: Italia 90
+            new_season(s, 'WC 1990 qualifying')
+            groups = [nm(team_list(s.result, o)) for o in off['wcq']]
+            notes.append(f'WC 1990 qualifying {groups}')
+            flat = [t for g in groups for t in g]
+            check(len(flat) == len(set(flat)) and 'ITALY' not in flat and len(flat) == 32 and 'ENGLAND' in flat,
+                  f'WC 1990 qualifying: {len(flat)} teams', errs)
+            season_end(s, 'WC 1990 qualifying')
+            after_end(s)
+            wc = nm(team_list(s.result, off['wc']))
+            notes.append(f'WC 1990 {wc}')
+            check(len(wc) == 24 and len(set(wc)) == 24 and wc[0] == 'ITALY' and 'ARGENTINA' in wc,
+                  f'WC 1990: {len(wc)} teams', errs)
+    except RuntimeError as e:
+        return False, f'{e}; ' + '; '.join(errs + notes)
+    return not errs, '; '.join(errs + notes)
 
 
 @scenario

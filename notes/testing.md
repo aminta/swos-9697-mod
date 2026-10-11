@@ -150,6 +150,14 @@ What changed (tools/swostest.py):
   season-1 save). Risk to watch: squad screenshots under turbo (frame skip) looked current in all runs; the
   substitution loop re-checks each step anyway.
 
+## National teams scenario (3.1)
+
+- world8485_nat: the national job is forced in debug (poke dseg_17A3CE = 2 + the season mask dseg_C8B14), the slow
+  club season is played once and saved (internal/swostest/saves/W84NAT.CAR, W84NAT3.CAR with the season index poked to
+  3; remade when the exe's md5 changes). harness: Session.poke, nat_callups (the 20 call-ups), the national team menu
+  (no TRASFERIMENTI), the season end runs after the chairman's opinion (read the finalists after it), MEMDUMPBIN
+  retried when the typed command is lost.
+
 ## Not done yet / next
 
 - Friendly matches (kit-colors session): reachable with `keys` + screenshots, scenario not written.

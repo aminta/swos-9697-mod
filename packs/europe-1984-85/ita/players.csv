@@ -56,7 +56,7 @@ internazionale,Ludo Coeck,M,RW,20,2,light,5*,6*,5*,5,5,5,5,36
 internazionale,Gianpiero Marini,M,LW,14,18,light,5*,5*,5*,5,5,5,4,34
 internazionale,Antonio Sabato,M,M,8,18,light,5*,5*,5*,5,5,5,5,35
 internazionale,Evaristo Beccalossi,M,M,13,18,light,5*,5*,5*,4,5,5,5,34
-internazionale,Karl-Heinz Rummenigge,A,A,11,13,light,6*,6*,6,5,6,6,7*,42
+internazionale,Karl-Heinz Rummenigge,A,A,11,155,light,6*,6*,6,5,6,6,7*,42
 internazionale,Alessandro Altobelli,A,A,9,18,light,6*,6*,6*,4,6,6,6,40
 internazionale,Angelo Recchi,G,G,12,18,light,4*,3,5*,3,4*,4,3,30
 internazionale,Fabio Calcaterra,D,D,49,18,light,4*,4*,4*,4,4,4,3,27
@@ -116,7 +116,7 @@ verona,Silvano Fontolan,D,RB,5,18,light,5*,5*,5,6*,5,5,4,35
 verona,Roberto Tricella,D,LB,4,18,light,5*,4,6*,6*,5,5,4,35
 verona,Fabio Marangon,D,D,15,18,light,3,3,5*,5*,4,5*,3,28
 verona,Guido Bertoldo,D,D,22,18,light,2*,2*,2*,2,2,2,2,14
-verona,Hans-Peter Briegel,M,RW,6,13,light,6*,6*,6*,5,6,6,5,40
+verona,Hans-Peter Briegel,M,RW,6,155,light,6*,6*,6*,5,6,6,5,40
 verona,Antonio Di Gennaro,M,LW,10,18,light,6*,5,5,4,6*,6*,5,37
 verona,Luigi Sacchetti,M,M,16,18,light,5*,5*,5*,5,5,5,4,34
 verona,Domenico Volpati,M,M,8,18,light,5*,5*,5*,4,5,5,4,33
@@ -228,7 +228,7 @@ como,Antonio Tempestilli,D,RB,2,18,light,4,5*,5*,5*,4,5,4,32
 como,Luca Fusi,D,LB,6,18,light,4,4,5*,5*,4,5*,4,31
 como,Massimo Albiero,D,D,5,18,light,5*,5*,5*,5,5,5,4,34
 como,Giovanni Guerrini,D,D,3,18,light,5*,5*,5*,5,5,5,4,34
-como,Hansi Müller,M,RW,10,13,light,6*,5*,5*,5,5,5,5,36
+como,Hansi Müller,M,RW,10,155,light,6*,5*,5*,5,5,5,5,36
 como,Gianfranco Matteoli,M,LW,7,18,light,5*,5*,5*,5,5,5,5,35
 como,Giancarlo Centi,M,M,8,18,light,5*,5*,5*,5,5,5,4,34
 como,Giovanni Invernizzi,M,M,13,18,light,4*,3,4*,4*,4,4,3,26

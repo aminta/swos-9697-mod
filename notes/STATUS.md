@@ -1861,3 +1861,23 @@ Left for 2.5: (a) NSL/NSSL finals series (type-1 design) or declare them postpon
 - 3.1 step 1 (2026-10-11): test harness ~10x faster (DOSBox-X turbo, 1 MB dumps instead of 32 MB, no fixed sleeps,
   `run -jN`): euro_draws 12.5 min -> 1 min, suite of 4 -> 63 s, world8485 2 seasons > 1 h -> 6 min; same verdicts on
   REL301 (notes/testing.md "Faster harness").
+
+## 3.1 step 2 — national teams of the Europe 1984-85 world (2026-10-11/12)
+- Data: internal/world8485/mknat8485.py + nations_1984_85.json (git-ignored converter, DaniSwos DB): 143 national
+  teams in the order of TEAM.080-085 (packs/europe-1984-85/national, TEAM.180-185, records say 80-85): 123 from the DB
+  (players of that nationality, capped and born >= 1951 first), 8 keep their 1996 record (< 11 DB players), 12
+  post-1990 slots unused; East Germany in Croatia's slot, USSR in Russia's, FRG in Germany's. Coaches only when sure.
+- New nationalities (careerworld NEW_NATS): GDR 153, URS 154, FRG 155 (shortCountryNames relocated and longer); the
+  career menu offers them + YUG (37, not offered by the game). World packs regenerated: only the nat column changed.
+- Engine (careerworld, world careers with a national pack): w_tfile/w_tcache load TEAM.18x for 08x; the world's
+  nationalTeams (nat_table: no post-1990 nations, home = world league, no jobs for non-European teams) via 4 stubs;
+  national jobs on (w_nat); call-ups abroad on the world's countries (w_buy at cseg_5C72F); hosts per cycle
+  (w_hostwc/w_hostec), WC holder Italy at the career start (w_natcups), the WC 1986 (24, 2 points) / Euro 88 (8)
+  structs, the qualifying draws from pack.json `national.cycles` (w_ecqdraw / w_wcqdraw, holder and hosts left out)
+  and the season-end finalists (w_ecfill / w_wcfill: places per group + direct qualifiers in order). Career cave 2
+  pages (CAREER_DATA 0xa8000).
+- Checked by tools/swostest.py world8485_nat (England's job forced by the game's debug switch dseg_17A3CE = 2 and the
+  season mask; saves W84NAT / W84NAT3 made once per build): real Euro 88 qualifying groups, Euro 88 = West Germany +
+  the 7 group winners, the Italia 90 draw (host out), Italia 90 = 24 distinct (holder, host, 13 European, the real
+  non-European qualifiers), the coach nationalities ALTRI/YUG/FRG/URS/GDR. Call-ups at home list the world's leagues.
+- Not possible by design (as in the game): WC 1986 is built only if you coach a national team during 1984-85.

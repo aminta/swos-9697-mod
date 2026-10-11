@@ -41,7 +41,7 @@ linzerask,Wolfgang Nagl,M,LW,7,1,light,2*,2*,2*,2,2,2,2,14
 linzerask,Erwin Höld,M,M,8,1,light,2*,2*,2*,2,2,2,2,14
 linzerask,Dietmar Grüneis,M,M,9,1,light,2*,2*,2*,2,2,2,2,14
 linzerask,Max Hagmayr,A,A,10,1,light,4,4,5*,3,5*,5*,5,31
-linzerask,Michael Toppel,A,A,11,13,light,2*,2*,2*,2,2,2,2,14
+linzerask,Michael Toppel,A,A,11,155,light,2*,2*,2*,2,2,2,2,14
 linzerask,Josef Schicklgruber,G,G,30,1,light,2*,2*,2*,2,2,2,2,17
 linzerask,Klaus Dantlinger,D,D,12,1,light,2*,2*,2*,2,2,2,2,14
 linzerask,Wolfgang Wollanek,M,M,13,1,light,2*,2*,2*,2,2,2,2,14
@@ -141,7 +141,7 @@ austriasalzburg,Slavko Kovacic,A,A,11,37,light,3*,3*,3*,3,3,3,3,21
 austriasalzburg,Hans-Peter Berger,G,G,12,1,light,3*,3*,3*,3,3,3,3,29
 austriasalzburg,Christian Fürstaller,D,D,13,1,light,3*,3*,3*,3,3,3,3,21
 austriasalzburg,Gernot Teufl,M,M,14,1,light,2*,2*,2*,2,2,2,2,14
-austriasalzburg,Hans-Gerd Schildt,A,A,15,13,light,3*,3*,3*,3,3,3,3,21
+austriasalzburg,Hans-Gerd Schildt,A,A,15,155,light,3*,3*,3*,3,3,3,3,21
 austriasalzburg,Georg Wimmer,A,A,16,1,light,3*,3*,3*,3,3,3,3,21
 sceisenstadt,Gerhard Horvath,G,G,1,1,light,1*,1*,1*,1,1,1,1,12
 sceisenstadt,Rudolf Strobl,D,RB,2,1,light,1*,1*,1*,1,1,1,1,7
@@ -151,7 +151,7 @@ sceisenstadt,Peter Kloiber,D,D,5,1,light,1*,1*,1*,1,1,1,1,7
 sceisenstadt,Johann Schöll,M,RW,6,1,light,1*,1*,1*,1,1,1,1,7
 sceisenstadt,Joachim Weiss,M,LW,7,1,light,1*,1*,1*,1,1,1,1,7
 sceisenstadt,Michael Fleischhacker,M,M,8,1,light,1*,1*,1*,1,1,1,1,7
-sceisenstadt,Detlef Bruckhoff,M,M,9,13,light,1*,1*,1*,1,1,1,1,7
+sceisenstadt,Detlef Bruckhoff,M,M,9,155,light,1*,1*,1*,1,1,1,1,7
 sceisenstadt,Premysl Bicovský,A,A,10,6,light,4*,4*,3,2,4*,4,4,25
 sceisenstadt,Istvan Magyar,A,A,11,15,light,2*,2*,2*,2,2,2,2,14
 sceisenstadt,Leo Martinschitz,G,G,12,1,light,1*,1*,1*,1,1,1,1,12
@@ -285,7 +285,7 @@ bregenzdornbirn,Arnold Ender,A,A,11,1,light,2*,2*,2*,2,2,2,2,14
 bregenzdornbirn,Erwin Wawra,G,G,12,1,light,2*,2*,2*,2,2,2,2,22
 bregenzdornbirn,Nikolaus Schrottenbaum,D,D,13,1,light,2*,2*,2*,2,2,2,2,14
 bregenzdornbirn,Karl-Heinz Pototschnig,M,M,14,1,light,2*,2*,2*,2,2,2,2,14
-bregenzdornbirn,Joachim Wieczorek,A,A,15,13,light,2*,2*,2*,2,2,2,2,14
+bregenzdornbirn,Joachim Wieczorek,A,A,15,155,light,2*,2*,2*,2,2,2,2,14
 bregenzdornbirn,Kurt Schreiber,A,A,16,1,light,2*,2*,2*,2,2,2,2,14
 vorwartssteyr,Friedrich Traxler,G,G,1,1,light,2*,2*,2*,2,2,2,2,22
 vorwartssteyr,Franz Staudenmayr,D,RB,2,1,light,2*,2*,2*,2,2,2,2,14
@@ -377,11 +377,11 @@ salzburgerak,Manfred Pammer,M,LW,7,1,light,1*,1*,1*,1,1,1,1,7
 salzburgerak,Siegfried Höckner,M,M,8,1,light,1*,1*,1*,1,1,1,1,7
 salzburgerak,Josef Huber,M,M,9,1,light,2*,2*,2*,2,2,2,2,14
 salzburgerak,Harald Fesl,A,A,10,1,light,1*,1*,1*,1,1,1,1,7
-salzburgerak,Franz Fegg,A,A,11,13,light,1*,1*,1*,1,1,1,1,7
+salzburgerak,Franz Fegg,A,A,11,155,light,1*,1*,1*,1,1,1,1,7
 salzburgerak,Helmut Friedl,G,G,12,1,light,1*,1*,1*,1,1,1,1,9
 salzburgerak,Michael Rosbaud,D,D,13,1,light,1*,1*,1*,1,1,1,1,7
 salzburgerak,Günther Ursprunger,M,M,14,1,light,1*,1*,1*,1,1,1,1,7
-salzburgerak,Oliver Sekula,A,A,15,13,light,1*,1*,1*,1,1,1,1,7
+salzburgerak,Oliver Sekula,A,A,15,155,light,1*,1*,1*,1,1,1,1,7
 salzburgerak,Gustav Kofler,D,RB,16,1,light,1*,1*,1*,1,1,1,1,7
 svthorl,Zlatko Stojanovic,G,G,1,37,light,1*,1*,1*,1,1,1,1,9
 svthorl,Hans Angerer,D,RB,2,1,light,1*,1*,1*,1,1,1,1,7

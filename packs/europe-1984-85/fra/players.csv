@@ -9,12 +9,12 @@ bordeaux,René Girard,M,LW,4,12,light,5*,5*,5,6*,5,5,5,36
 bordeaux,Jean Tigana,M,M,8,12,light,6*,6,6,7*,6,7*,6,44
 bordeaux,Antoine Martínez,M,M,14,40,light,5*,5*,5*,5,4,5,4,33
 bordeaux,Bernard Lacombe,A,A,11,12,light,6*,5,6*,4,6*,6,6,39
-bordeaux,Dieter Müller,A,A,9,13,light,5*,5*,5,4,5,5,6*,35
+bordeaux,Dieter Müller,A,A,9,155,light,5*,5*,5,4,5,5,6*,35
 bordeaux,Christian Delachet,G,G,16,12,light,3*,3*,3*,3,3,3,3,30
 bordeaux,Bernard Gimenez,D,D,18,12,light,4*,3,4*,4*,3,4,3,25
 bordeaux,Denis Bourdoncle,M,M,21,12,light,2*,2*,2*,2,2,2,2,14
 bordeaux,Joël Lopez,A,A,19,12,light,3*,3*,3*,3,3,3,3,21
-bordeaux,Gernot Rohr,D,LB,3,13,light,5*,5*,5*,5,5,5,5,35
+bordeaux,Gernot Rohr,D,LB,3,155,light,5*,5*,5*,5,5,5,5,35
 monaco,Jean-Luc Ettori,G,G,1,12,light,4,5*,5*,5*,5,4,4,34
 monaco,Manuel Amoros,D,RB,3,12,light,6*,6*,6*,6,5,6,5,40
 monaco,Juan Simón,D,LB,2,68,light,5*,4,5*,5*,4,5,4,32
@@ -104,7 +104,7 @@ sochaux,Jean-Christophe Thomas,M,RW,15,12,light,4*,4*,4,5*,4,4,4,29
 sochaux,Philippe Lucas,M,LW,2,12,light,4*,3,4*,5*,4,4,4,28
 sochaux,Franck Sauzée,M,M,10,12,light,4,5*,5*,4,4,5*,4,31
 sochaux,Fabrice Henry,M,M,20,12,light,4*,4*,4*,4,4,4,4,28
-sochaux,Uwe Krause,A,A,9,13,light,5*,5*,5*,3,5,5,5,33
+sochaux,Uwe Krause,A,A,9,155,light,5*,5*,5*,3,5,5,5,33
 sochaux,Eric Lada,A,A,18,12,light,4*,4,4,3,5*,5*,4,29
 sochaux,Gilles Rousset,G,G,16,12,light,4*,2,5*,4*,4,4,2,24
 sochaux,Franck Silvestre,D,D,24,12,light,3*,2,3*,4*,3,3,2,20
@@ -125,7 +125,7 @@ strasbourg,Gérard Soler,A,A,10,12,light,4,5*,5*,4,4,5*,5,32
 strasbourg,Philippe Schuth,G,G,16,12,light,3*,2,3*,2,3,4*,2,22
 strasbourg,Bruno Paterno,D,D,29,115,light,2*,2*,2*,2,2,2,2,14
 strasbourg,Georges van Straelen,M,M,14,12,light,3*,3*,3*,3,3,3,3,21
-strasbourg,Walter Kelsch,A,A,7,13,light,3*,3*,3*,3,3,3,3,21
+strasbourg,Walter Kelsch,A,A,7,155,light,3*,3*,3*,3,3,3,3,21
 strasbourg,Denis Schaer,M,M,12,12,light,3*,3*,3*,3,3,3,3,21
 lille,Jean-Pierre Mottet,G,G,1,12,light,3*,3*,3*,3,3,3,3,29
 lille,Dominique Thomas,D,RB,2,12,light,3,3,5*,5*,3,5*,3,27

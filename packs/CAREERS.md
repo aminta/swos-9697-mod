@@ -84,9 +84,35 @@ competition, `divisions` lists them from the top (`teams`, `promoted`, `relegate
 - The season year starts from `start_year` (CAMP. 1984/85, then 1985/86, …).
 - VIEW WORLD shows only this world: its countries and its three European cups.
 - Buying a foreign player shows only the clubs of this world.
-- No national-team job offers (the national teams of the game are the 1996-97 ones).
+- National teams (3.1, worlds with a `national` folder): the world's own national teams (the Europe 1984-85 world:
+  West and East Germany, USSR, Czechoslovakia, Yugoslavia; no post-1990 nations). The national teams of the world's
+  countries offer jobs; call-ups come from the world's clubs; World Cup and European Championship cycle of that era
+  (1984-85: qualifiers for Mexico '86, then Mexico '86, the Euro '88 qualifiers, Euro '88). Without a `national`
+  folder: no national-team jobs, as before.
 - The other clubs never trade players among themselves: they keep their squads every season (that is how SWOS 96/97
   works); only your club buys and sells.
+
+## National teams (`national` folder, 3.1)
+
+`packs/<world>/national` holds the world's national teams, one team file per national file of the game (TEAM.080
+Europe … TEAM.085 Oceania), **same order** (a team takes the place of the 1996-97 team in that position: East Germany
+in Croatia's, the USSR in Russia's); the world's career loads these files instead of the game's.
+
+- `pack.json`: `"kind": "national"`, `world`, `files` (`{"nat80": {"file": 180, "base": 0, "as": 80}, …}`),
+  `squads` (explicit), and `national`: the competitions (below).
+- `clubs.csv`, `players.csv`: as for explicit squads (16 players each).
+- `nations.csv`: per team `code` (the world country: that national team offers jobs, its home call-ups come from that
+  country's league; empty = no job in this world), `nat` (player nationality code, e.g. 153 = GDR, new in 3.1),
+  `home` (another country's league for home call-ups, e.g. Wales → ENG), `unused` (1 = a nation that does not exist
+  in this era: it plays nothing).
+- `national`: `win_points`, `wc_holder`, `wc_teams` (24) / `ec_teams` (8), and `cycles` (one per 4 seasons: World Cup
+  qualifiers, World Cup, European Championship qualifiers, European Championship): `wc_host`, `ec_host`, `wcq` / `ecq`
+  = up to 8 groups `[places, [teams]]` (at most 6 teams; the 8th at most 4), `wc_direct` = the other continents'
+  qualifiers in order (spares fill the places of teams already in). The holder and the hosts are taken out of the
+  groups when the season starts. After the last cycle the last one repeats.
+
+The Europe 1984-85 national teams are built by a converter from the same database as the clubs (players of each
+nationality, internationals first) and checked with the automatic test `world8485_nat`.
 
 ## What a contributor sends us
 

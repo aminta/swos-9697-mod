@@ -53,8 +53,10 @@ LABELS = {}
 def big(w):
     tot = sum(len(w['cups'][k][1]) for k in ('cc', 'cwc', 'uefa'))
     return tot > 80 or any(len(w['cups'][k][1]) > SMALL[k] for k in SMALL)
-NEW_NATS = ['GDR']                                   # 3.1: player nationalities after the game's 153 (GDR = 153):
-                                                     # 3-letter names (the same in every exe) + career menu choices
+NEW_NATS = ['GDR', 'URS', 'FRG']                     # 3.1: player nationalities after the game's 153 (GDR = 153,
+                                                     # URS = 154, FRG = 155): 3-letter names (the same in every exe)
+MENU_NATS = [153, 154, 155, 37]                      # added to the career menu's nationalities (Davide: the coach can be
+                                                     # East/West German, Soviet, Yugoslav; YUG existed, not offered)
 WCONT = 99                                           # pseudo-continent of the running world (view, foreign browser)
 
 ASM = '''
@@ -168,6 +170,7 @@ w_cups:                                 ; replaces `mov word [teamsLoaded], 0` a
 .y:
     mov al, [ebx + 42]                  ; the world's first season (InitCareer: -1, then InitializeNewSeason: +1)
     mov [SEASONPLAYING], al
+    call w_natcups
 .r:
     popad
     ret
@@ -292,13 +295,15 @@ W_SWAP w_view, CHOOSECOMP
 W_SWAP w_buy, CHOOSETEAMS
 
 w_nat:                                  ; replaces `mov ax, [D0]; mov [lastNationalityCall], ax`: no national team
-    mov ax, [D0R]                       ; job in a world (-1 = none)
+    mov ax, [D0R]                       ; job in a world (-1 = none) unless the world has its national teams (3.1)
     push ebx
     call w_rec
-    pop ebx
     jz .s
+    call w_nc
+    jnz .s
     mov ax, -1
 .s:
+    pop ebx
     mov [LASTNAT], ax
     ret
 
@@ -399,6 +404,285 @@ w_nttot:                                ; replaces `mul word [dseg_168A85]` (all
     mul bx
     pop ebx
     ret
+
+; ---- world national competitions (3.1): WNCT[world] -> dw holder; db cycles, points; dd WC struct, EC struct,
+; WC hosts, EC hosts, cycle records (db wc teams, ec teams, direct count, 0; WCQ 8 x (count, places, 6 words);
+; ECQ 8 x 14 B; direct qualifier words)
+w_nc:                                   ; ebx = this career's world national record, ZF = 1: none (the game's)
+    xor ebx, ebx
+    cmp word [GAMETYPE], 4
+    jne .z
+    movzx ebx, byte [SLT + WORLD_BYTE]
+    mov ebx, [WNCT + ebx * 4]
+.z:
+    test ebx, ebx
+    ret
+
+w_cyc:                                  ; ebx = national record -> esi = the cycle record of this season
+    push ecx
+    movzx esi, word [CSD]
+    shr esi, 2
+    movzx ecx, byte [ebx + 2]
+    dec ecx
+    cmp esi, ecx
+    jbe .o
+    mov esi, ecx
+.o:
+    mov esi, [ebx + 20 + esi * 4]
+    pop ecx
+    ret
+
+%macro W_HOST 3                         ; replaces `mov dword [A0], offset (World Cup / EC hosts per cycle)`
+%1:
+    pushfd
+    push ebx
+    call w_nc
+    jz .g
+    mov ebx, [ebx + %2]
+    jmp .s
+.g:
+    mov ebx, %3
+.s:
+    mov [A0R], ebx
+    pop ebx
+    popfd
+    ret
+%endmacro
+W_HOST w_hostwc, 12, HOSTWC
+W_HOST w_hostec, 16, HOSTEC
+
+w_fill:                                 ; esi = 8 group records, edi = the 8 group structs; WSKIP1/2 = teams left out
+    mov dword [WPLAYER], -1             ; (holder, host); -> eax = the player's group or -1
+    xor ebx, ebx
+.g:
+    mov ebp, [edi + ebx * 4]
+    movzx eax, byte [ebp + 7]
+    lea eax, [ebp + eax + 7]            ; team list
+    push edi
+    mov edi, eax
+    mov al, [WPTS]
+    mov [ebp + 11], al                  ; points for a win
+    mov al, [esi + 1]
+    mov [ebp + 14], al                  ; places ("top N qualify")
+    movzx ecx, byte [esi]
+    xor edx, edx
+    push esi
+    add esi, 2
+.t:
+    jecxz .e
+    mov ax, [esi]
+    add esi, 2
+    dec ecx
+    cmp ax, [WSKIP1]
+    je .t
+    cmp ax, [WSKIP2]
+    je .t
+    mov [edi + edx * 2], ax
+    cmp ax, [SELTEAM]
+    jne .n
+    mov [WPLAYER], ebx
+.n:
+    inc edx
+    jmp .t
+.e:
+    pop esi
+    mov [ebp + 13], dl                  ; teams in the group
+    pop edi
+    add esi, 14
+    inc ebx
+    cmp ebx, 8
+    jb .g
+    mov eax, [WPLAYER]
+    ret
+
+w_ecqdraw:                              ; replaces `call cseg_33A1A` of the EC qualifying draw (cseg_65CA2)
+    call w_nc
+    jnz .w
+    jmp DRAW33
+.w:
+    pushad
+    mov al, [ebx + 3]
+    mov [WPTS], al
+    call w_cyc
+    add esi, 4 + 8 * 14
+    mov edi, ECQTAB
+    mov ax, [D6CD4]                     ; the host plays no qualifier
+    mov [WSKIP1], ax
+    mov [WSKIP2], ax
+    call w_fill
+    cmp eax, -1
+    je .n
+    mov ebx, [edi + eax * 4]
+    mov [D6CBC], ebx                    ; the player's group (the game: only when he is not the host)
+    shl eax, 2
+    mov [E0931], ax
+.n:
+    popad
+    add esp, 4                          ; back to cseg_65CA2's caller (the rest of the draw is skipped)
+    ret
+
+w_wcqdraw:                              ; replaces `call cseg_33A1A` of the WC qualifying draw (cseg_6604A)
+    call w_nc
+    jnz .w
+    jmp DRAW33
+.w:
+    pushad
+    mov al, [ebx + 3]
+    mov [WPTS], al
+    call w_cyc
+    add esi, 4
+    mov edi, WCQTAB
+    mov ax, [D6CD0]                     ; holder and host play no qualifier
+    mov [WSKIP1], ax
+    mov ax, [D6CD2]
+    mov [WSKIP2], ax
+    call w_fill
+    cmp eax, -1
+    je .n
+    mov ebx, [edi + eax * 4]
+    mov [D6CBC], ebx
+    shl eax, 2
+    mov [E0933], ax
+.n:
+    popad
+    add esp, 4
+    jmp WCQCONT                         ; the other continents' qualifiers as the game draws them
+
+w_groups:                               ; esi = 8 group records, edi = the 8 structs, GROUPPROC: take places -> [A5]
+    xor ecx, ecx
+.g:
+    movzx eax, byte [esi + 1]
+    test eax, eax
+    jz .s
+    mov ebp, [edi + ecx * 4]
+    cmp byte [ebp + 13], 0
+    je .s
+    mov [D7R], eax
+    mov [A4R], ebp
+    pushad
+    call [GROUPPROC]
+    popad
+.s:
+    add esi, 14
+    inc ecx
+    cmp ecx, 8
+    jb .g
+    ret
+
+w_ecfill:                               ; replaces `call cseg_94E85` (season end: the EC finalists)
+    call w_nc
+    jnz .w
+    jmp ECFILL
+.w:
+    test byte [FLAGS], 1
+    jz .r
+    pushad
+    call w_cyc
+    add esi, 4 + 8 * 14
+    mov ebp, ECCOPY
+    movzx eax, byte [ebp + 7]
+    lea edi, [ebp + eax + 7]
+    mov ax, [D6CD4]
+    stosw
+    mov [A5R], edi
+    mov edi, ECQTAB
+    mov dword [GROUPPROC], ECGROUP
+    call w_groups
+    popad
+.r:
+    ret
+
+w_wcfill:                               ; replaces `call cseg_95298` (season end: WC holder, the WC finalists)
+    call w_nc
+    jnz .w
+    jmp WCFILL
+.w:
+    test byte [FLAGS], 80h
+    jz .a
+    mov ax, [DF52F]                     ; the World Cup just played: its winner is the holder
+    mov [D6CD0], ax
+.a:
+    test byte [FLAGS], 40h
+    jz .r
+    pushad
+    call w_cyc
+    mov ebp, WCCOPY
+    movzx eax, byte [ebp + 7]
+    lea edi, [ebp + eax + 7]
+    mov [WLIST], edi
+    mov ax, [D6CD0]
+    stosw
+    mov ax, [D6CD2]
+    cmp ax, 0FFFFh
+    je .h
+    cmp ax, [D6CD0]
+    je .h
+    stosw
+.h:
+    mov [A5R], edi
+    push esi
+    add esi, 4
+    mov edi, WCQTAB
+    mov dword [GROUPPROC], WCGROUP
+    call w_groups
+    pop esi
+    mov edi, [A5R]
+    movzx ecx, byte [esi + 2]           ; direct qualifiers, in order, until the World Cup is full
+    movzx edx, byte [esi]
+    add esi, 4 + 2 * 8 * 14
+.d:
+    jecxz .x
+    mov eax, edi
+    sub eax, [WLIST]
+    shr eax, 1
+    cmp eax, edx
+    jae .x
+    lodsw
+    dec ecx
+    push edi
+    push ecx
+    mov ecx, edi
+    sub ecx, [WLIST]
+    shr ecx, 1
+    mov edi, [WLIST]
+    repne scasw                         ; already in (the holder)?
+    pop ecx
+    pop edi
+    je .d
+    stosw
+    jmp .d
+.x:
+    mov [A5R], edi
+    popad
+.r:
+    ret
+
+w_natcups:                              ; career start (from w_cups): the world's World Cup / EC structs and
+    call w_nc                           ; World Cup holder (w_holder runs before the world is known)
+    jz .r
+    mov ax, [ebx]
+    mov [D6CD0], ax
+    mov esi, [ebx + 4]
+    mov edi, WCCOPY
+    mov ecx, 112
+    call w_copy
+    mov esi, [ebx + 8]
+    mov edi, ECCOPY
+    mov ecx, 78
+    call w_copy
+.r:
+    ret
+
+align 4
+WPLAYER: dd 0
+WLIST: dd 0
+GROUPPROC: dd 0
+WSKIP1: dw 0
+WSKIP2: dw 0
+WPTS: db 0
+align 4
+ECQTAB: dd EQ1, EQ2, EQ3, EQ4, EQ5, EQ6, EQ7, EQ8
+WCQTAB: dd WQ1, WQ2, WQ3, WQ4, WQ5, WQ6, WQ7, WQ8
 
 w_tcache:                               ; replaces `mov al, [lastLoadedExtNumber]` (cache test): a cached 80..85 is
     mov al, [LASTEXT]                   ; a hit only if it is the file this career wants (1996-97 or world)
@@ -818,7 +1102,118 @@ def sites(p):
             assert d1[at:at + len(want)] == want, (k, hex(at))
             s['nt_sites'][k].append(at)
     assert [len(s['nt_sites'][k]) for k in ('ptr', 'num', 'lim', 'tot')] == [5, 3, 1, 1], s['nt_sites']
+    s['nc'] = natsites(p, d1, d2, fx2, r)
+    # national team call-ups ABROAD (cseg_5C72F): mov [A0], text; mov [A1], AddInternationalPlayerAbroad;
+    # call ChooseTeamsDialog; mov ax, [dseg_17A3B4] -> the world's countries, as BuyOtherForeignPlayer (w_buy)
+    ab = [m.start() + 20 for m in re.finditer(rb'\xc7\x05' + pk(A0) + rb'.{4}\xc7\x05' + pk(A1) + rb'.{4}\xe8(.{4})\x66\xa1',
+                                             d1, re.S)
+          if m.start() + 25 + struct.unpack('<i', m.group(1))[0] == s['chooseteams']]
+    assert len(ab) == 1, ab
+    s['abroad'] = ab[0]
     return s
+
+
+def natsites(p, d1, d2, fx, regs, one=None):
+    """Hook sites of the national competitions (3.1, world national teams). fx: obj1/obj2 fixups list."""
+    one = one or _one
+    D7, A0 = regs['D7'], regs['A0']
+    D0 = D7 - 28
+    A = lambda k: A0 + 4 * k
+    pk = lambda x: re.escape(struct.pack('<I', x))
+    s = {}
+    # careerContests: (original, copy, size) x 34 -> copies of EC (6), ECQ 1-8 (7-14), WC (20), WCQ 1-8 (21-28)
+    t2 = {f[1]: f[4] for f in fx if f[0] == 2 and f[3] == 2 and f[4] is not None}
+    cc = next(o for o in sorted(t2) if struct.unpack_from('<H', d2, o + 8)[0] == 79
+              and struct.unpack_from('<H', d2, o + 18)[0] == 92 and struct.unpack_from('<H', d2, o + 28)[0] == 92)
+    ent = [(t2[cc + 10 * k], t2[cc + 10 * k + 4], struct.unpack_from('<H', d2, cc + 10 * k + 8)[0]) for k in range(34)]
+    s['ec_copy'], s['wc_copy'], s['ec_src'], s['wc_src'] = ent[6][1], ent[20][1], ent[6][0], ent[20][0]
+    s['wc_preset'] = d2.index(bytes.fromhex('0402ff889023002901000001033506'))   # worldCup (preset): the 1986 format
+    assert ent[6][2] == 78 and ent[20][2] == 112, (ent[6], ent[20])
+    s['ecq'] = [e[1] for e in ent[7:15]]
+    s['wcq'] = [e[1] for e in ent[21:29]]
+    s['na_copy'] = ent[29][1]
+    # cseg_95298 (WC season end): test [flags], 80h; jz; mov ax, [DF52F]; mov [D6CD0], ax; test [flags], 40h; jz
+    m = one(rb'\xf6\x05(.{4})\x80\x74.\x66\xa1(.{4})\x66\xa3(.{4})\xf6\x05\1\x40\x0f\x84', d1, 'cseg_95298')
+    s['wcfill'] = m.start()
+    s['flags'], s['df52f'], s['d6cd0'] = [p.target(1, m.start(k)) for k in (1, 2, 3)]
+    # cseg_94E85 (EC season end): test [flags], 1; jz; mov [A5], offset europeanChampionships2Copy
+    m = one(rb'\xf6\x05' + pk(p.target(1, s['wcfill'] + 2)[1]) + rb'\x01\x0f\x84.{4}\xc7\x05' + pk(A(5)), d1, 'cseg_94E85')
+    s['ecfill'] = m.start()
+    calls = lambda tgt: [i for i in range(len(d1) - 5) if d1[i] == 0xe8 and i + 5 + struct.unpack_from('<i', d1, i + 1)[0] == tgt]
+    for k in ('wcfill', 'ecfill'):
+        c = calls(s[k])
+        assert len(c) == 1, (k, c)
+        s[k + '_call'] = c[0]
+    # the per-group season-end procs: mov [A4], offset (W|E)CQ1 copy; call X
+    ref = lambda tgt: [f[1] for f in fx if f[0] == 1 and f[3] == 2 and f[4] == tgt]
+    for k, grp in (('wcgroup', s['wcq'][0]), ('ecgroup', s['ecq'][0])):
+        at = [r for r in ref(grp) if d1[r - 6:r] == b'\xc7\x05' + struct.pack('<I', A(4)) and d1[r + 4] == 0xe8]
+        assert len(at) == 1, (k, at)
+        s[k] = at[0] + 9 + struct.unpack_from('<i', d1, at[0] + 5)[0]
+    # holder at the career start: mov word [D6CD0], 594 (Brazil)
+    m = one(rb'\x66\xc7\x05' + pk(s['d6cd0'][1]) + rb'\x52\x02', d1, 'holder init')
+    s['holder_init'] = m.start()
+    # hosts per cycle: dseg_C8AD8 (World Cup, 5 words) and dseg_C8AE2 (European Championship) = mov [A0], offset X
+    ec_h = d2.index(bytes((5, 80, 37, 80, 34, 80, 17, 80, 11, 80)))
+    assert d2[ec_h - 10:ec_h] == b'\xff' * 10
+    for k, tgt in (('wchost', ec_h - 10), ('echost', ec_h)):
+        r = [x for x in ref(tgt) if d1[x - 6:x - 4] == b'\xc7\x05']
+        assert len(r) == 1, (k, r)
+        s[k] = r[0] - 6
+    # the draws: mov byte [D0], 50h; call cseg_33A1A; call Rand2; (EC) mov ax, [D0]; mov bx, 7 / (WC) and [D0], 1Ch
+    m = one(rb'\xc6\x05' + pk(D0) + rb'\x50\xe8(.{4})\xe8.{4}\x66\xa1' + pk(D0) + rb'\x66\xbb\x07\x00', d1, 'ECQ draw')
+    s['ecqdraw'] = m.start() + 7
+    s['draw33'] = s['ecqdraw'] + 5 + struct.unpack('<i', m.group(1))[0]
+    m = one(rb'\xc6\x05' + pk(D0) + rb'\x50\xe8.{4}\xe8.{4}\x66\x83\x25' + pk(D0) + rb'\x1c', d1, 'WCQ draw')
+    s['wcqdraw'] = m.start() + 7
+    # where the WC draw goes on (the other continents): mov [A5], offset north_america copy; mov byte [D0], 53h
+    m = one(rb'\xc7\x05' + pk(A(5)) + rb'.{4}\xc6\x05' + pk(D0) + rb'\x53', d1, 'WCQ other continents')
+    assert p.target(1, m.start() + 6)[1] == s['na_copy']
+    s['wcq_cont'] = m.start()
+    # the player's group: ECQ mov eax, [A3]; mov [D6CBC], eax ... ; the group index words E0931 / E0933
+    m = one(rb'\x66\xa1' + pk(D0) + rb'\x66\xa3(.{4})\x8b\x35.{4}\x0f\xb7\x1d' + pk(D0), d1[s['ecqdraw']:s['ecqdraw'] + 200], 'E0931')
+    s['e0931'] = p.target(1, s['ecqdraw'] + m.start(1))
+    m = one(rb'\x66\xa1' + pk(D0) + rb'\x66\xa3(.{4})\x8b\x35.{4}\x0f\xb7\x1d' + pk(D0), d1[s['wcqdraw']:s['wcqdraw'] + 200], 'E0933')
+    s['e0933'] = p.target(1, s['wcqdraw'] + m.start(1))
+    m = one(rb'\xa1' + pk(A(3)) + rb'\xa3(.{4})\xeb', d1[s['ecqdraw']:s['ecqdraw'] + 600], 'D6CBC')
+    s['d6cbc'] = p.target(1, s['ecqdraw'] + m.start(1))
+    m = one(rb'\x66\xa1(.{4})\x66\xa3' + pk(D0) + rb'\x66\xa1' + pk(s['d6cd0'][1] + 4) + rb'\x66\x39\x05' + pk(D0),
+            d1[s['ecqdraw']:s['ecqdraw'] + 700], 'selTeamNumber')
+    s['selteam'] = p.target(1, s['ecqdraw'] + m.start(1))
+    m = one(rb'\x66\xa1.{4}\x66\x0b\xc0\x75.\x66\x83\x3d(.{4})\x03\x72', d1, 'currentSeasonShowing')
+    s['csd'] = p.target(1, m.start(1))
+    return s
+
+
+EC_STAGES = bytes([3, 8, 2, 4, 4, 0, 4, 2, 0, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x14, 0x14, 0])   # EC 1980-92: 2 x 4,
+                                                     # semi-finals, final (+0Eh: stages as historic.py's WC 1982)
+
+
+def natcomp_data(p, nc, c, n):
+    """Asm data of world n's national competitions (see w_nc)."""
+    wc = bytearray(p.get(2, nc['wc_src'], 112))
+    wc[0x0e:0x28] = p.get(2, nc['wc_preset'] + 0x0e, 0x28 - 0x0e)   # 24 teams, 6 groups, best thirds (1986)
+    wc[12] = c['points']
+    assert wc[15] == 24 and wc[7] + 7 + 2 * 24 <= 112
+    ec = bytearray(p.get(2, nc['ec_src'], 78))
+    assert ec[7] == 0x27 and len(EC_STAGES) == 0x26 - 0x0e
+    ec[0x0e:0x26] = EC_STAGES
+    ec[12] = c['points']
+    cyc = c['cycles']
+    hosts = lambda k: b''.join(struct.pack('>H', cyc[min(i, len(cyc) - 1)][k]) for i in range(5))
+    out = [f'WNC{n}: dw {c["holder"]}', f'    db {len(cyc)}, {c["points"]}',
+           f'    dd WCF{n}, ECF{n}, WHW{n}, WHE{n}, ' + ', '.join(f'WCY{n}_{i}' for i in range(len(cyc))),
+           f'WCF{n}: db ' + ', '.join(map(str, wc)), f'ECF{n}: db ' + ', '.join(map(str, ec)),
+           f'WHW{n}: db ' + ', '.join(map(str, hosts('wc_host'))), f'WHE{n}: db ' + ', '.join(map(str, hosts('ec_host')))]
+    for i, y in enumerate(cyc):
+        b = bytearray((c['wc_teams'], c['ec_teams'], len(y['direct']), 0))
+        for k in ('wcq', 'ecq'):
+            for j in range(8):
+                take, teams = y[k][j] if j < len(y[k]) else (0, [])
+                b += bytes((len(teams), take)) + struct.pack('<6H', *(teams + [0] * (6 - len(teams))))
+        b += struct.pack(f'<{len(y["direct"])}H', *y['direct'])
+        out.append(f'WCY{n}_{i}: db ' + ', '.join(map(str, b)))
+    return out
 
 
 def nat_table(game, counts, w):
@@ -917,12 +1312,24 @@ def patch(p, worlds, at, nasmcave, comp, ct, cont_rec):
         natt.append(f'    dd WNT{n}')
         natt.append('    dw %d, %d, %d, 0' % cnt)
         extra.append(f'WNT{n}: db ' + ', '.join(map(str, tab)))
+    nc, wnct = s['nc'], []
+    for n in range(len(wnat)):
+        w = next((x for x in worlds if x['n'] == n and x.get('natcomp')), None)
+        if w is None:
+            wnct.append('0')
+            continue
+        wnct.append(f'WNC{n}')
+        extra += natcomp_data(p, nc, w['natcomp'], n)
+    extra.append('align 4')
+    extra.append('WNCT: dd ' + ', '.join(wnct))
     extra.append('align 4')
     extra.append('WNATT:')
     extra += natt
     short = bytes(p.get(2, s['short'], s['short_len'])) + ''.join(NEW_NATS).encode()
     extra.append('NATSHORT: db ' + ', '.join(map(str, short + b'\0')))
-    order = bytes(p.get(2, s['natord'], 63)) + bytes(range(s['short_len'] // 3, len(short) // 3)) + b'\xff'
+    order = bytes(p.get(2, s['natord'], 63))
+    assert not set(MENU_NATS) & set(order) and max(MENU_NATS) < len(short) // 3
+    order += bytes(MENU_NATS) + b'\xff'
     extra.append('NATORD: db ' + ', '.join(map(str, order)))
     pairs = [x for w in worlds for f in w['countries'] for x in (f, w['n'])]
     extra.append('WMAP: db ' + ', '.join(map(str, pairs + [0xff])))
@@ -989,7 +1396,17 @@ def patch(p, worlds, at, nasmcave, comp, ct, cont_rec):
                 'CHOOSETEAMS': (1, s['chooseteams']), 'LASTNAT': (2, s['lastnat']), 'HOLDERS': (1, s['holders']),
                 'ADDREC': (1, s['addrec']), 'CLEARHOLD': (1, s['clearhold']),
                 'LOOP_CWC': (1, s['pick'][1][2]), 'LOOP_UEFA': (1, s['pick'][2][2]),
-                'GAMETYPE': s['gametype'], 'LASTEXT': s['lastext'], 'NTGAME': (2, s['nt'])})
+                'GAMETYPE': s['gametype'], 'LASTEXT': s['lastext'], 'NTGAME': (2, s['nt']),
+                'A4R': (2, s['regs']['A0R'] + 16), 'FLAGS': s['nc']['flags'], 'DF52F': s['nc']['df52f'],
+                'D6CD0': s['nc']['d6cd0'], 'D6CD2': (2, s['nc']['d6cd0'][1] + 2), 'D6CD4': (2, s['nc']['d6cd0'][1] + 4),
+                'D6CBC': s['nc']['d6cbc'], 'E0931': s['nc']['e0931'], 'E0933': s['nc']['e0933'],
+                'SELTEAM': s['nc']['selteam'], 'CSD': s['nc']['csd'], 'DRAW33': (1, s['nc']['draw33']),
+                'ECFILL': (1, s['nc']['ecfill']), 'WCFILL': (1, s['nc']['wcfill']), 'ECGROUP': (1, s['nc']['ecgroup']),
+                'WCGROUP': (1, s['nc']['wcgroup']), 'WCQCONT': (1, s['nc']['wcq_cont']),
+                'HOSTWC': p.target(1, s['nc']['wchost'] + 6), 'HOSTEC': p.target(1, s['nc']['echost'] + 6),
+                'ECCOPY': (2, s['nc']['ec_copy']), 'WCCOPY': (2, s['nc']['wc_copy']),
+                **{f'EQ{k + 1}': (2, x) for k, x in enumerate(s['nc']['ecq'])},
+                **{f'WQ{k + 1}': (2, x) for k, x in enumerate(s['nc']['wcq'])}})
     for key, (hold, buf, lst, cnt) in zip(('CC', 'CWC', 'UEFA'), s['hold']):
         sym.update({f'HOLD_{key}': (2, hold), f'BUF_{key}': (2, buf), f'LIST_{key}': (2, lst)})
         assert cnt == s['cnt'][('CC', 'CWC', 'UEFA').index(key)]
@@ -1026,12 +1443,20 @@ def patch(p, worlds, at, nasmcave, comp, ct, cont_rec):
                                    'lim': ('w_ntlim', 7, (3,)), 'tot': ('w_nttot', 7, (3,))}.items():
         for site in s['nt_sites'][k]:
             hook(site, length, label, fx)
+    nc = s['nc']                                 # world national competitions
+    hook(s['abroad'], 5, 'w_buy', ())             # national call-ups abroad: the world's countries
+    hook(nc['wchost'], 10, 'w_hostwc', (2, 6))
+    hook(nc['echost'], 10, 'w_hostec', (2, 6))
+    hook(nc['ecqdraw'], 5, 'w_ecqdraw', ())
+    hook(nc['wcqdraw'], 5, 'w_wcqdraw', ())
+    hook(nc['ecfill_call'], 5, 'w_ecfill', ())
+    hook(nc['wcfill_call'], 5, 'w_wcfill', ())
     for objn, off in s['short_refs']:            # new nationalities: longer name table and career menu list
         p.retarget(objn, off, 1, labels['NATSHORT'])
     for objn, off in s['natord_refs']:
         p.retarget(objn, off, 1, labels['NATORD'])
-    p.put(1, s['nat_wrap'][0], bytes((63 + len(NEW_NATS),)))
-    p.put(1, s['nat_wrap'][1], bytes((64 + len(NEW_NATS),)))
+    p.put(1, s['nat_wrap'][0], bytes((63 + len(MENU_NATS),)))
+    p.put(1, s['nat_wrap'][1], bytes((64 + len(MENU_NATS),)))
     hook(s['tcache'], 5, 'w_tcache', (1,))
     for site, name, _ in s['pick']:
         hook(site, 5, name, ())

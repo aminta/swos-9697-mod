@@ -209,13 +209,15 @@ def draft(pack):
         own = tnames.index(own) if own in tnames else ''
         if key in cfg.get('templates', {}):
             templ = tnames.index(cfg['templates'][key])
-        elif own != '' and abs(avg(trecs[own]) - target) <= 6:
-            templ = own                             # its own record reaches the target (calibrate moves +-3 levels)
-        else:                                       # the top-two-division record closest to the target strength
-            templ = min((k for k, r in enumerate(trecs) if r[25] <= 1),
-                        key=lambda k: (abs(avg(trecs[k]) - target), k))
+        else:                                       # a record already as strong as the target: calibrate moves every
+            near = [k for k, r in enumerate(trecs)  # skill by whole levels, which changes the real strength (and the
+                    if r[25] <= 1 and abs(avg(r) - target) <= 1.5]   # simulated results) far more than the price
+            templ = own if own in near else near[len(crow) % len(near)] if near else \
+                min((k for k, r in enumerate(trecs) if r[25] <= 1), key=lambda k: (abs(avg(trecs[k]) - target), k))
         crow.append(dict(key=key, name=cfg.get('names', {}).get(key, short.upper())[:16], coach=coach(w, key, cfg),
-                         country='ITA', file=cfg.get('file', 'league'), template=templ, target=target, kit='' if own in ('', templ) else own,
+                         country='ITA', file=cfg.get('file', 'league'), template=templ,
+                         target=target if key in tg.get('clubs', {}) else round(avg(trecs[templ])),   # no level shift
+                         kit='' if own in ('', templ) else own,
                          kit1=cfg.get('kits', {}).get(key, kit_from_page(w) if own == '' else ''), kit2='',
                          source=title, points=pts))
         for p in known:

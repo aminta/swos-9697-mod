@@ -803,6 +803,18 @@ def _patch_pack(pk, p, lang, area, at, env):
     return at, info
 
 
+def odd_leagues(p):
+    """Allow leagues with an odd number of clubs (Italy 1947-48: 21). The league setup of Season/Career traps with
+    `test byte [esi+ebx+0Dh], 1; jz ok; int 3; jmp $` (+0Dh = the division's club count, ebx = division * 6), but the
+    league engine handles odd sizes (DIY leagues, World Cup 1982 groups of 3: one club rests each round, like
+    historic.odd_groups). The jz becomes jmp."""
+    d1 = p.le.obj_bytes(1)
+    ms = list(re.finditer(rb'\x0f\xb7\x1d[\s\S]{4}\xf6\x44\x1e\x0d\x01\x74\x03\xcc\xeb\xfe', d1))
+    assert len(ms) == 1, len(ms)
+    p.put(1, ms[0].end() - 5, b'\xeb')
+    print(f'exe: odd league sizes allowed (trap obj1+{ms[0].end() - 3:#x})')
+
+
 def patch(p, lang, area, cave):
     """Every enabled pack into the exe (countries, competitions), then the shared part: CLASSIC SEASONS button with one
     country per pack, season_sel / cont_check / euro_slot2 hook with the packs' European-cup tables.
@@ -829,6 +841,8 @@ def patch(p, lang, area, cave):
         infos.append(info)
     if cat is not None:
         _need(cat <= CAREER_DATA[0] + CAREER_DATA_SIZE, f'career packs overflow their pages ({cat:#x})')
+    if any(dv['teams'] % 2 for pk in packs() for dv in pk.divisions()):
+        odd_leagues(p)
 
     # Season: CLASSIC SEASONS after the continents (pseudo-continent 97: [-1] + the pack countries + FF; the game reads a
     # country list only for 80..85, so that check also accepts 97). The season selector runs on a world table

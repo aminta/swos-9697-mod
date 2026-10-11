@@ -1,22 +1,22 @@
 key,name,coach,country,file,template,target,kit,kit1,kit2,source,points
 torino,TORINO,Mario Sperone,ITA,league,0,41,46,,,Associazione Calcio Torino 1947-1948,65
-milan,MILAN,Giuseppe Bigogno,ITA,league,40,30,0,,,Associazione Calcio Milan 1947-1948,49
-juventus,JUVENTUS,Renato Cesarini,ITA,league,22,30,,,,Juventus Football Club 1947-1948,49
-triestina,TRIESTINA,Nereo Rocco,ITA,league,40,30,,0 4 4 1 4,,Unione Sportiva Triestina 1947-1948,49
-atalanta,ATALANTA,Ivo Fiorentini,ITA,league,42,27,4,,,Atalanta Bergamasca Calcio 1947-1948,44
-modena,MODENA,Alfredo Mazzoni,ITA,league,42,27,26,,,Modena Football Club 1947-1948,44
-fiorentina,FIORENTINA,Luigi Ferrero,ITA,league,18,26,,,,Associazione Calcio Fiorentina 1947-1948,41
-bologna,BOLOGNA,Gyula Lelovics,ITA,league,7,25,,,,Bologna Football Club 1947-1948,40
-propatria,PRO PATRIA,Aldo Biffi,ITA,league,28,25,,0 1 1 5 5,,Pro Patria et Libertate Sezione Calcio 1947-1948,40
-lazio,LAZIO,Tony Cargnelli,ITA,league,23,25,,,,Società Sportiva Lazio 1947-1948,39
-bari,BARI,András Kuttik,ITA,league,6,24,,,,Associazione Sportiva Bari 1947-1948,38
-genoa,GENOA,William Garbutt,ITA,league,20,24,,,,Genoa Cricket and Football Club 1947-1948,37
-inter,INTERNAZIONALE,Giuseppe Meazza,ITA,league,47,24,21,,,Football Club Internazionale 1947-1948,37
-livorno,LIVORNO,Mario Magnozzi,ITA,league,38,23,,0 6 6 1 6,,Unione Sportiva Livorno 1947-1948,36
+milan,MILAN,Giuseppe Bigogno,ITA,league,23,31,0,,,Associazione Calcio Milan 1947-1948,49
+juventus,JUVENTUS,Renato Cesarini,ITA,league,40,30,22,,,Juventus Football Club 1947-1948,49
+triestina,TRIESTINA,Nereo Rocco,ITA,league,21,31,,0 4 4 1 4,,Unione Sportiva Triestina 1947-1948,49
+atalanta,ATALANTA,Ivo Fiorentini,ITA,league,28,26,4,,,Atalanta Bergamasca Calcio 1947-1948,44
+modena,MODENA,Alfredo Mazzoni,ITA,league,42,26,26,,,Modena Football Club 1947-1948,44
+fiorentina,FIORENTINA,Luigi Ferrero,ITA,league,28,26,18,,,Associazione Calcio Fiorentina 1947-1948,41
+bologna,BOLOGNA,Gyula Lelovics,ITA,league,42,26,7,,,Bologna Football Club 1947-1948,40
+propatria,PRO PATRIA,Aldo Biffi,ITA,league,47,24,,0 1 1 5 5,,Pro Patria et Libertate Sezione Calcio 1947-1948,40
+lazio,LAZIO,Tony Cargnelli,ITA,league,28,26,23,,,Società Sportiva Lazio 1947-1948,39
+bari,BARI,András Kuttik,ITA,league,38,23,6,,,Associazione Sportiva Bari 1947-1948,38
+genoa,GENOA,William Garbutt,ITA,league,47,24,20,,,Genoa Cricket and Football Club 1947-1948,37
+inter,INTERNAZIONALE,Giuseppe Meazza,ITA,league,9,23,21,,,Football Club Internazionale 1947-1948,37
+livorno,LIVORNO,Mario Magnozzi,ITA,league,20,22,,0 6 6 1 6,,Unione Sportiva Livorno 1947-1948,36
 lucchese,LUCCHESE,Árpád Hajós,ITA,league,38,23,25,,,Unione Sportiva Lucchese Libertas 1947-1948,36
-sampdoria,SAMPDORIA,Adolfo Baloncieri,ITA,league,42,23,,,,Unione Calcio Sampdoria 1947-1948,36
-roma,ROMA,Imre Senkey,ITA,league,38,23,40,,,Associazione Sportiva Roma 1947-1948,35
-salernitana,SALERNITANA,Giuseppe Viani,ITA,league,41,22,,,,Unione Sportiva Salernitana 1947-1948,34
+sampdoria,SAMPDORIA,Adolfo Baloncieri,ITA,league,47,24,42,,,Unione Calcio Sampdoria 1947-1948,36
+roma,ROMA,Imre Senkey,ITA,league,9,23,40,,,Associazione Sportiva Roma 1947-1948,35
+salernitana,SALERNITANA,Giuseppe Viani,ITA,league,9,23,41,,,Unione Sportiva Salernitana 1947-1948,34
 alessandria,ALESSANDRIA,Lajos Kovács,ITA,league,46,21,,0 0 0 2 0,,Alessandria Unione Sportiva 1947-1948,31
-vicenza,VICENZA,Giovanni Vecchina,ITA,league,50,18,,,,Associazione Calcio Vicenza 1947-1948,26
-napoli,NAPOLI,Arnaldo Sentimenti,ITA,league,28,22,,,,Associazione Calcio Napoli 1947-1948,34
+vicenza,VICENZA,Giovanni Vecchina,ITA,league,12,17,50,,,Associazione Calcio Vicenza 1947-1948,26
+napoli,NAPOLI,Arnaldo Sentimenti,ITA,league,46,21,28,,,Associazione Calcio Napoli 1947-1948,34

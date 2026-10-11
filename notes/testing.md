@@ -114,6 +114,41 @@ Goal: routine regression checks without driving DOSBox-X by hand. Usage and inte
   -> OFFERTE LAVORO -> offer row -> ACCETTA; BPINT 3 is confirmed at start (lost under load = no pauses); the window
   id helper also finds windows off screen (other Space). A season of an English club: ~25 min.
 
+## Faster harness (3.1, 2026-10-11)
+
+Build under test: release 3.0.1 c/REL301/SWOS (ITALIAN.EXE c2c30bf5). Same verdicts, old vs new harness:
+
+| scenario | old (seq.) | new | notes |
+|---|---|---|---|
+| italy_season | 60 s | 6-9 s | same 804 GetKey calls; dump EIP obj1+0xA9074 (stub one instruction longer) |
+| roundtrip | 139 s | 14-17 s | 0 bytes differ |
+| world8485 (W8485_START=1) | 116 s | 13 s | career started |
+| euro_draws | 12.5 min (57 steps) | 54-63 s | 57 steps, holders CC FFFF / CWC 0x1A14 / UEFA FFFF, rounds 1-2 ok (3 runs identical) |
+| the 4 above, `run -j4` | ~17 min | 63 s | |
+| world8485, 2 seasons | > 1 h (~25-30 min per season) | 354 s | 209 + 190 steps, substitutions and a job offer, checkw1 ok on W84A and W84B |
+
+What changed (tools/swostest.py):
+- DOSBox-X `turbo=true` (+ `stop turbo on key=false`): the emulated PC runs as fast as the host allows; every wait in
+  the scripts is game time (menu frames, GetKey calls), so ~10x faster menus and season simulation, same frames.
+  cycles=max stays best (fixed 50k/150k/400k are slower: the menus' idle loops eat the cycles). TURBO=0 = old speed.
+- Memory: a Session dumps 32 MB only at its first pause (obj1/obj2 bases), then one ~1 MB MEMDUMPBIN per pause (stub
+  page + obj2, adjacent: menu, slots, holders), anything else on demand (Result.read; Result.mem still gives the full
+  32 MB for old probe scripts). Small dump = ~42 ms, 1 MB = ~92 ms (32 MB took seconds + parse).
+- Debugger I/O: no fixed sleeps; commands typed in one go (DOSBox-X runs them in order before F5), short forms
+  (`SM 168:30C0D1 50 0 F 0`, `C 160:0`: ~1 ms per typed char); the stub resets its script pointer at each pause, so
+  the runner writes no ptr; break detection on each output read. No screenshot per pause (only on trap/timeout and
+  for the squad rows). SWOSTEST_VERIFY=1 reads the written script back (debug aid).
+- Per pause now ~0.2-0.3 s runner overhead + game time (dump:2 = 60 menu frames = ~0.2 s in turbo). session.log
+  ends with `N pauses in T s: dump .., run ..`.
+- Parallel: `run -jN` (own process, run dir and DOSBox-X per scenario, one host core each; builds made once first);
+  SWOSTEST_RUNS = another runs dir, so two suites (or sessions in two worktrees) do not share run dirs. The JUVE2F
+  fixture is written atomically.
+- Determinism: in the new harness euro_draws took the same 57 steps three times; the old harness on the same build took
+  another path once (injuries -> squad substitutions, > 45 min): wall-clock timing leaked into the game before.
+- Not needed in the end: start-from-save shortcuts (world8485 already fits in 6 min; W8485_FROM still resumes from a
+  season-1 save). Risk to watch: squad screenshots under turbo (frame skip) looked current in all runs; the
+  substitution loop re-checks each step anyway.
+
 ## Not done yet / next
 
 - Friendly matches (kit-colors session): reachable with `keys` + screenshots, scenario not written.

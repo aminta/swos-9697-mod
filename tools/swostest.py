@@ -1,7 +1,8 @@
 """SWOS regression harness: runs the game in a private DOSBox-X, feeds it a key script, checks the outcome.
 
   python3 tools/swostest.py list                     scenarios
-  python3 tools/swostest.py run [NAME...]            run scenarios (all when none given); exit code 1 on a failure
+  python3 tools/swostest.py run [-jN] [NAME...]      run scenarios (all when none given); exit code 1 on a failure;
+        -jN = N scenarios at a time (own processes and run dirs; -j = 4)
   python3 tools/swostest.py keys EXE CAR|- 'KEYS' [-shots S] [-t T] [-name NAME] [-match] [-timer]
         ad-hoc run: EXE = a build dir (ITALIAN.EXE + DATA) or an .EXE file (DATA from c/SWOS); CAR = a save to copy
         in (or -); KEYS = the script below; window screenshots every S s into runs/NAME/shots; T = timeout (s);
@@ -9,7 +10,9 @@
         waits are then game time, not menu frames (allow for loading);
         -name NAME = run dir (default keys); -match = the feeder also types during matches, replays and
         highlights (all 12 GetKey calls; waits then count in match frames too)
-  Env: SWOSTEST_BUILD = build dir under test, else SWOSTEST_BRANCH = git branch/commit to build, else this checkout.
+  Env: SWOSTEST_BUILD = build dir under test, else SWOSTEST_BRANCH = git branch/commit to build, else this checkout;
+       SWOSTEST_RUNS = run dirs (default internal/swostest/runs; another one = a second suite at the same time);
+       TURBO=0 = real-time speed (default: DOSBox-X turbo, the emulated machine runs as fast as the host allows).
 
 Key script: space-separated keys fire up down left right esc enter space bspace a-z 0-9, and 'dump'; 'fire+right'
 = both held (fire typed), for the entries with input-function control masks (kit colours). 'key:s' waits
@@ -24,10 +27,13 @@ How it works
 - The exe is patched in its run copy only (test_exe): intro skipped, menus read the latched last key, and a key
   feeder on a new obj1 page (called instead of GetKey by MenuCheckControls and InputTextKeyLoop) types the script:
   each key goes into keyBuffer and is held for HOLD calls through SetKeyboardControlFlags, like a real key press.
-- DOSBox-X runs under a pty with -break-start and BPINT 3, core=dynamic, cycles=max: the mod's `int 3; jmp $` traps
-  and the 'dump' step break into the debugger; the runner sees the code view (CD03), writes MEMDUMP.BIN and reads EIP;
-  obj1/obj2 linear bases are found in the dump (they move with the exe size). No break before the timeout = hang or a
-  script that went astray (runs/<name>/shots/final.png shows where).
+- DOSBox-X runs under a pty with -break-start and BPINT 3, core=dynamic, cycles=max, turbo: the mod's `int 3; jmp $`
+  traps and the 'dump' step break into the debugger; the runner sees the code view (CD03), writes MEMDUMP.BIN and
+  reads EIP; obj1/obj2 linear bases are found in the dump (they move with the exe size). No break before the timeout =
+  hang or a script that went astray (runs/<name>/shots/final.png shows where).
+- Speed (2026-10-11): all waits are game time (menu frames), and turbo runs it ~10x real time; a Session dumps the
+  whole 32 MB only at its first pause (bases), then one ~1 MB dump per pause (stub page + obj2: menu, slots) and small
+  ones on demand; debugger commands are typed in one go, short forms (~1 ms per char), no fixed sleeps.
 - Oracles: saves written by the game, checked in Python (car_info, W1 block, cup lists), the outcome, the dump.
 """
 import hashlib, os, pty, re, select, shutil, signal, struct, subprocess, sys, time
@@ -35,6 +41,7 @@ import hashlib, os, pty, re, select, shutil, signal, struct, subprocess, sys, ti
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 MAIN = os.path.expanduser('~/swos-mod')               # main checkout: c/, orig/, internal/ live there
 WORK = os.path.join(MAIN, 'internal', 'swostest')
+RUNS = os.environ.get('SWOSTEST_RUNS') or os.path.join(WORK, 'runs')   # run dirs (another one = a parallel suite)
 DOSBOX = '/Applications/dosbox-x.app/Contents/MacOS/dosbox-x'
 ISO = os.path.join(MAIN, 'orig', 'swos9697ita.iso')
 BREAK = re.compile(rb'[0-9A-F]{4}:([0-9A-F]{8}) +CD03')
@@ -48,6 +55,8 @@ memsize=32
 core={core}
 cputype=pentium
 cycles={cycles}
+turbo={turbo}
+stop turbo on key=false
 [mixer]
 nosound=true
 [sblaster]
@@ -103,7 +112,7 @@ def build(name, env=None, branch=None):
 
 def prepare(name, exe_dir, cars, steps, match=False, timer=False):
     """runs/<name>/SWOS = base + exe_dir (ITALIAN.EXE + DATA, or an .EXE file) + saves {dos name: source path}."""
-    run = os.path.join(WORK, 'runs', name)
+    run = os.path.join(RUNS, name)
     if os.path.isdir(run):
         shutil.rmtree(run)
     game = os.path.join(run, 'SWOS')
@@ -224,8 +233,9 @@ stub:   pushad
         mov [ptr], esi
         cmp al, 0xFF
         jne .key
+        mov dword [ptr], script         ; the runner writes the next steps from the start of the script area
         int 3                           ; 'dump' step: the runner's BPINT 3 stops here (EIP in this page); to go
-        jmp .go                         ; on, the runner sets EIP past it (and may write new steps + ptr)
+        jmp .go                         ; on, the runner sets EIP past it (and may write new steps)
 .key:   mov [KEYBUF], al                ; latched (menus' last key, text input) ...
         mov word [KEYCOUNT], 1
         mov [cur], ax                   ; al = key, ah = second key held with it (0 = none)
@@ -267,9 +277,13 @@ script:
     fixed = next(o for o in range(0x1000, len(c), 16)            # 48 code bytes with no fixup: finds obj1 in a dump
                  if not any(o - 3 <= f < o + 48 for f in range(o - 3, o + 48) if f in fx) and len(set(c[o:o + 48])) > 8)
     lab = nasmcave.labels(src, 0, sym)
-    return {'page': page, 'calls': page + lab['calls'], 'code': (fixed, c[fixed:fixed + 48]), 'menu': curmenu[1],
+    return {'page': page, 'size2': le.obj(2).vsize, 'calls': page + lab['calls'], 'code': (fixed, c[fixed:fixed + 48]), 'menu': curmenu[1],
             'brk': page + code.index(b'\xcd\x03'), 'ptr': page + lab['ptr'], 'script': page + lab['script'],
             'anchor': (anchor, d2[anchor:anchor + 64])}
+
+
+ANSI = re.compile(rb'\x1b\[[0-9;?]*[a-zA-Z]|\x1b\(B')
+MEMSIZE = 0x2000000                                   # memsize=32: linear 0..32 MB
 
 
 class Dosbox:
@@ -277,9 +291,11 @@ class Dosbox:
 
     def __init__(self, run, timeout, shots=0, exe='ITALIAN.EXE'):
         self.run, self.timeout, self.shots = run, timeout, shots
-        conf = CONF.format(cycles=os.environ.get('CYCLES', 'max'), core=os.environ.get('CORE', 'dynamic'), iso=ISO, exe=exe)
+        conf = CONF.format(cycles=os.environ.get('CYCLES', 'max'), core=os.environ.get('CORE', 'dynamic'), iso=ISO,
+                           exe=exe, turbo='false' if os.environ.get('TURBO') == '0' else 'true')
         open(os.path.join(run, 'test.conf'), 'w').write(conf)
         self.screen, self.eip, self.t0, self.watch = b'', None, time.time(), set()
+        self.stats = {}                                # wall time per phase (s), shown in the session log
         self.pid, self.fd = pty.fork()
         if self.pid == 0:
             os.chdir(run)
@@ -287,11 +303,18 @@ class Dosbox:
             os.execv(DOSBOX, [DOSBOX, '-conf', 'test.conf', '-fastlaunch', '-break-start',
                               '-time-limit', '14400'])  # the runner kills it; sessions run long
 
-    def pump(self, t):
+    def pump(self, t, until=None, start=None):
+        """Read the debugger's output for up to t s; returns early once `until` (bytes regex, b'' = any output) shows
+        up in the output after `start` (default: what is read from now on). Returns the bytes read, -1 if the process
+        is gone."""
         end = time.time() + t
         got = 0
-        while time.time() < end:
-            r, _, _ = select.select([self.fd], [], [], 0.1)
+        start = len(self.screen) if start is None else start
+        while True:
+            left = end - time.time()
+            if left <= 0:
+                return got
+            r, _, _ = select.select([self.fd], [], [], min(left, 0.05))
             if r:
                 try:
                     b = os.read(self.fd, 65536)
@@ -301,11 +324,13 @@ class Dosbox:
                     return -1
                 self.screen += b
                 got += len(b)
-        return got
+                if until is not None and re.search(until, ANSI.sub(b' ', self.screen[start:])):
+                    return got
 
-    def cmd(self, text, wait=1.0):
+    def cmd(self, text, wait=1.0, until=None):
+        pre = len(self.screen)
         os.write(self.fd, text.encode() + b'\r')
-        return self.pump(wait)
+        return self.pump(wait, until, pre)
 
     def alive(self):
         return os.waitpid(self.pid, os.WNOHANG) == (0, 0)
@@ -313,11 +338,11 @@ class Dosbox:
     def go(self):
         """Run until DOSBox-X exits ('exit'), an int 3 breaks into the debugger ('break': a trap or a 'dump' step) or
         the timeout ('timeout' = hang without a trap, or the script did not get where expected)."""
-        self.pump(3)
-        for _ in range(20):                            # under load the debugger may not take input yet
+        self.pump(1)
+        for _ in range(30):                            # under load the debugger may not take input yet
             pre = len(self.screen)
-            self.cmd('BPINT 3', 1)
-            if b'breakpoint at INT 03' in re.sub(rb'\x1b\[[0-9;?]*[a-zA-Z]|\x1b\(B', b'', self.screen[pre:]):
+            self.cmd('BPINT 3', 1, rb'breakpoint at INT 03')
+            if b'breakpoint at INT 03' in ANSI.sub(b'', self.screen[pre:]):
                 break
         else:
             return 'timeout'
@@ -325,35 +350,56 @@ class Dosbox:
 
     def go_on(self):
         """F5 (resume) and watch, as go()."""
-        self.cmd('C 0160:00000000', 0.3)              # move the code view away: the next break must redraw it
+        t = time.time()
+        os.write(self.fd, b'C 160:0\r')        # move the code view away: the next break must redraw it
         pre = len(self.screen)
         os.write(self.fd, b'\x1b[15~')                 # F5 = run
-        end = time.time() + 2                          # watch from the debugger's '(Running)' on: a break can come
-        while b'Running' not in self.screen[pre:] and time.time() < end:   # within the first second
-            self.pump(0.05)
+        self.pump(2, rb'Running', pre)                 # watch from the debugger's '(Running)' on
         i = self.screen.find(b'Running', pre)
         mark = i + 7 if i >= 0 else len(self.screen)
         start, nshot = time.time(), 0
         while True:
-            n = self.pump(0.5)
+            n = self.pump(0.25, b'')
             if n < 0 or not self.alive():
-                return 'exit'
-            m = BREAK.search(self.screen, mark)    # the debugger's code view redrawn on an int 3 (CD03)
-            if not m and self.watch:                # or on one of our breakpoints (Session.bp)
-                seg = re.sub(rb'\x1b\[[0-9;?]*[a-zA-Z]|\x1b\(B', b' ', self.screen[mark:])
-                for w in re.finditer(rb'0160:([0-9A-F]{8})\s', seg):
-                    if int(w.group(1), 16) in self.watch:
-                        m = w
-                        break
-            if m:
-                self.eip = int(m.group(1), 16)
-                return 'break'
+                return self.stat('run', t, 'exit')
+            if n:
+                m = BREAK.search(self.screen, mark)    # the debugger's code view redrawn on an int 3 (CD03)
+                if not m and self.watch:               # or on one of our breakpoints (Session.bp)
+                    seg = ANSI.sub(b' ', self.screen[mark:])
+                    for w in re.finditer(rb'0160:([0-9A-F]{8})\s', seg):
+                        if int(w.group(1), 16) in self.watch:
+                            m = w
+                            break
+                if m:
+                    self.pump(0.02)                    # the rest of the redraw
+                    self.eip = int(m.group(1), 16)
+                    return self.stat('run', t, 'break')
             el = time.time() - start
             if self.shots and el >= nshot * self.shots:
                 self.shot('t%04d' % int(time.time() - self.t0))
                 nshot += 1
             if el > self.timeout:
-                return 'timeout'
+                return self.stat('run', t, 'timeout')
+
+    def stat(self, k, t, ret=None):
+        self.stats[k] = self.stats.get(k, 0) + time.time() - t
+        return ret
+
+    def dump(self, lin, n):
+        """n bytes of linear memory from lin (debugger MEMDUMPBIN into the run dir, read back)."""
+        t = time.time()
+        path = os.path.join(self.run, 'MEMDUMP.BIN')
+        if os.path.exists(path):
+            os.remove(path)
+        os.write(self.fd, f'MEMDUMPBIN 168:{lin:X} {n:X}\r'.encode())
+        end = time.time() + 30 + n / 0x200000
+        while not (os.path.exists(path) and os.path.getsize(path) >= n):
+            if time.time() > end:
+                raise RuntimeError(f'MEMDUMPBIN {lin:X} {n:X}: no file')
+            self.pump(0.01)
+        data = open(path, 'rb').read()
+        self.stat('dump', t)
+        return data
 
     def shot(self, tag):
         exe = os.path.join(WORK, 'bin', 'winid')            # window id of a pid (screencapture -l needs it)
@@ -367,14 +413,11 @@ class Dosbox:
             subprocess.run(['screencapture', '-x', '-o', '-l', wid, os.path.join(self.run, 'shots', tag + '.png')],
                            capture_output=True)
 
-    def post_mortem(self):
-        """After a break: 32 MB memory dump (MEMDUMP.BIN = linear 0..32 MB); returns the break EIP (int) or None."""
-        self.shot('final')
-        dump = os.path.join(self.run, 'MEMDUMP.BIN')
-        self.cmd('MEMDUMPBIN 0168:00000000 2000000', 1)
-        end = time.time() + 30
-        while time.time() < end and not (os.path.exists(dump) and os.path.getsize(dump) >= 0x2000000):
-            self.pump(0.5)
+    def post_mortem(self, shot=True):
+        """After a break: full memory dump (MEMDUMP.BIN = linear 0..32 MB, read by Result); returns the break EIP."""
+        if shot:
+            self.shot('final')
+        self.dump(0, MEMSIZE)
         return self.eip
 
     def kill(self):
@@ -388,30 +431,61 @@ class Dosbox:
 # ----------------------------------------------------------------------------------------------------------- scenarios
 
 class Result:
-    """What a run left: outcome ('exit', 'dump', 'trap', 'timeout'), EIP, the game dir and the memory dump
-    (obj1/obj2 linear bases found in the dump: they move with the exe's size)."""
+    """What a run left: outcome ('exit', 'dump', 'trap', 'timeout'), EIP, the game dir and the game's memory.
+    Memory: the full dump MEMDUMP.BIN when there is one (obj1/obj2 linear bases found in it: they move with the exe's
+    size), else read on demand from the paused game (box) at the bases a Session already knows; read() caches."""
 
-    def __init__(self, run, outcome, eip, info):
+    def __init__(self, run, outcome, eip, info, box=None, bases=None):
         self.run, self.game, self.outcome, self.eip = run, os.path.join(run, 'SWOS'), outcome, eip
-        path = os.path.join(run, 'MEMDUMP.BIN')
-        self.mem = open(path, 'rb').read() if os.path.exists(path) else None
+        self.box, self.chunks, self._mem = box, [], None
         self.base1 = self.base2 = self.calls = None
-        if self.mem:
-            off, chunk = info['code']
-            self.base1 = self.mem.find(chunk) - off
-            off, chunk = info['anchor']
-            self.base2 = self.mem.find(chunk) - off
-            self.calls = struct.unpack_from('<I', self.mem, self.base1 + info['calls'])[0]
+        if bases:
+            self.base1, self.base2 = bases
+        else:
+            path = os.path.join(run, 'MEMDUMP.BIN')
+            if os.path.exists(path) and os.path.getsize(path) == MEMSIZE:
+                self._mem = open(path, 'rb').read()
+                off, chunk = info['code']
+                self.base1 = self._mem.find(chunk) - off
+                off, chunk = info['anchor']
+                self.base2 = self._mem.find(chunk) - off
+        if bases and box:                              # one dump: the stub's page + obj2 (adjacent; menus, slots)
+            lo, hi = self.base1 + info['page'], self.base2 + info['size2']
+            if 0 < hi - lo <= 0x200000:
+                self.read(lo, hi - lo)
+        if self.base1 is not None and (self._mem is not None or box):
+            self.calls = struct.unpack('<I', self.obj1(info['calls'], 4))[0]
         if eip is not None and self.base1 is not None:
             rel = eip - self.base1
             if info['page'] <= rel < info['page'] + 0x1000:
                 self.outcome = 'dump'
 
+    @property
+    def mem(self):
+        """The whole 32 MB (dumped now if this result only reads ranges)."""
+        if self._mem is None and self.box:
+            self._mem = self.box.dump(0, MEMSIZE)
+        return self._mem
+
+    def read(self, lin, n):
+        if self._mem is not None:
+            return self._mem[lin:lin + n]
+        for a, d in self.chunks:
+            if a <= lin and lin + n <= a + len(d):
+                return d[lin - a:lin - a + n]
+        assert self.box, 'memory of a finished pause'
+        d = self.box.dump(lin, n)
+        self.chunks.append((lin, d))
+        return d
+
+    def cached(self, lin, n):
+        return self._mem is not None or any(a <= lin and lin + n <= a + len(d) for a, d in self.chunks)
+
     def obj1(self, off, n):
-        return self.mem[self.base1 + off:self.base1 + off + n]
+        return self.read(self.base1 + off, n)
 
     def obj2(self, off, n):
-        return self.mem[self.base2 + off:self.base2 + off + n]
+        return self.read(self.base2 + off, n)
 
     def where(self, lin):
         if self.base1 is None:
@@ -452,20 +526,25 @@ class Screen:
 
     def __init__(self, r, menu_off):
         m = r.base2 + menu_off
-        mem = r.mem
-        self.n = struct.unpack_from('<H', mem, m + 0x10)[0]
-        sel = struct.unpack_from('<I', mem, m + 0x0C)[0]
+        self.n = struct.unpack('<H', r.read(m + 0x10, 2))[0]
+        sel = struct.unpack('<I', r.read(m + 0x0C, 4))[0]
         self.selected = (sel - m - 0x16) // 0x38 if sel else None
+        n = min(self.n, 120)
+        mem = r.read(m, 0x16 + n * 0x38)
+        ptrs = [struct.unpack_from('<I', mem, 0x16 + i * 0x38 + 0x26)[0] for i in range(n)]
+        ptrs = [p if 0x1000 < p < MEMSIZE - 64 else 0 for p in ptrs]
+        out = [p for p in ptrs if p and not r.cached(p, 40)]
+        if out and max(out) - min(out) < 0x100000:     # texts outside the cached ranges: one dump for all
+            r.read(min(out), max(out) + 40 - min(out))
         self.entries, self.nav, self.geom = [], [], []
-        for i in range(min(self.n, 120)):
-            e = m + 0x16 + i * 0x38
+        for i in range(n):
+            e = 0x16 + i * 0x38
             inv, dis = struct.unpack_from('<HH', mem, e + 4)
             self.nav.append((tuple(mem[e + 8:e + 12]), tuple(mem[e + 16:e + 20])))   # l/r/u/d, skip l/r/u/d
             self.geom.append(struct.unpack_from('<4h', mem, e + 0x14))                # x, y, width, height
-            ptr = struct.unpack_from('<I', mem, e + 0x26)[0]
             text = ''
-            if 0x1000 < ptr < len(mem) - 64:
-                raw = mem[ptr:ptr + 40].split(b'\0')[0]
+            if ptrs[i]:
+                raw = r.read(ptrs[i], 40).split(b'\0')[0]
                 if raw and all(32 <= b < 127 for b in raw):
                     text = raw.decode()
             self.entries.append((i, text, inv, dis))
@@ -530,6 +609,9 @@ class Session:
 
     def __exit__(self, *a):
         self.box.kill()
+        el = time.time() - self.box.t0
+        self.log.append(f'{getattr(self, "steps", 0)} pauses in {el:.0f} s: ' +
+                        ', '.join(f'{k} {v:.0f} s' for k, v in sorted(self.box.stats.items())))
         open(os.path.join(self.run, 'debugger.raw'), 'wb').write(self.box.screen)
         open(os.path.join(self.run, 'session.log'), 'w').write('\n'.join(self.log) + '\n')
 
@@ -541,61 +623,80 @@ class Session:
         self.bps[lin] = callback
 
     def wait(self):
-        """Run to the next break; returns the Result (outcome 'dump' = our pause, 'trap', 'timeout', 'exit')."""
+        """Run to the next break; returns the Result (outcome 'dump' = our pause, 'trap', 'timeout', 'exit').
+        The first pause dumps all memory (finds the obj1/obj2 bases); later pauses read only what is asked
+        (Result.read: one dump of the stub page + obj2 up front, the rest on demand)."""
         b = self.box
+        if self.result:
+            self.result.box = None                     # its memory is gone once the game runs on
         if not hasattr(self, 'started'):
             self.started = True
             outcome = b.go()
         else:
             outcome = b.go_on()
         if os.environ.get('SWOSTEST_BP') and not getattr(self, 'bps', None) and outcome == 'break':
-            base1 = Result(self.run, 'x', None, self.info).base1 if b.post_mortem() is not None else None
+            base1 = self.paused('x', b.eip).base1
             self.bp_hits = {}
             for off in os.environ['SWOSTEST_BP'].split(','):     # counting breakpoints (use CORE=normal)
                 o = int(off, 16)
                 self.bp(base1 + o, lambda r, o=o: self.bp_hits.__setitem__(o, self.bp_hits.get(o, 0) + 1))
         while outcome == 'break' and b.eip in getattr(self, 'bps', {}):
-            dump = os.path.join(self.run, 'MEMDUMP.BIN')
-            if os.path.exists(dump):
-                os.remove(dump)
-            b.post_mortem()
-            self.bps[b.eip](Result(self.run, 'bp', b.eip, self.info))
+            r = self.paused('bp', b.eip)
+            self.bps[b.eip](r)
+            r.box = None
             pre = len(b.screen)
             b.cmd('BPLIST', 0.5)
-            self.log.append('BPLIST: ' + re.sub(rb'\x1b\[[0-9;?]*[a-zA-Z]|\x1b\(B', b' ', b.screen[pre:])
-                            .decode('latin-1')[-300:])
+            self.log.append('BPLIST: ' + ANSI.sub(b' ', b.screen[pre:]).decode('latin-1')[-300:])
             b.cmd('BPDEL *', 0.3)                     # re-arm: a DOSBox-X breakpoint may not survive its hit
             b.cmd('BPINT 3', 0.2)                      # (BPDEL * also removed the int 3 one)
             for lin in self.bps:
                 b.cmd(f'BP 0160:{lin:08X}', 0.2)
             outcome = b.go_on()
-        eip = None
-        dump = os.path.join(self.run, 'MEMDUMP.BIN')
-        if os.path.exists(dump):
-            os.remove(dump)
+        self.steps = getattr(self, 'steps', 0) + 1
         if outcome == 'break':
-            eip = b.post_mortem()
-            outcome = 'trap'
-        elif outcome == 'timeout':
-            b.shot('final')
-        self.result = Result(self.run, outcome, eip, self.info)
+            self.result = self.paused('trap', b.eip)   # Result turns it into 'dump' when EIP is in the stub
+            if self.result.outcome != 'dump' and self.result._mem is None:
+                b.post_mortem()                        # a real trap: full dump + screenshot for the post-mortem
+                self.result = Result(self.run, 'trap', b.eip, self.info)
+        else:
+            if outcome == 'timeout':
+                b.shot('final')
+            dump = os.path.join(self.run, 'MEMDUMP.BIN')
+            if os.path.exists(dump):
+                os.remove(dump)                        # an older pause's dump
+            self.result = Result(self.run, outcome, None, self.info)
         return self.result
+
+    def paused(self, outcome, eip):
+        """Result of the paused game: the first time a full dump (bases), then reads on demand."""
+        if not getattr(self, 'bases', None):
+            self.box.post_mortem(shot=False)
+            r = Result(self.run, outcome, eip, self.info, self.box)
+            self.bases = (r.base1, r.base2)
+            return r
+        return Result(self.run, outcome, eip, self.info, self.box, self.bases)
 
     def screen(self):
         assert self.result.outcome == 'dump', str(self.result)
         return Screen(self.result, self.info['menu'])
 
     def send(self, keys):
-        """Write the next steps into the stub's script area, point ptr at them, step over the int 3, resume."""
+        """Write the next steps into the stub's script area (ptr was reset to it by the pause), step over the int 3, resume
+        (debugger commands typed in one go: DOSBox-X runs them in order before the F5)."""
         r, b = self.result, self.box
+        t = time.time()
         steps = steps_of(keys)
         assert len(steps) < SCRIPT_MAX
         data = b''.join(struct.pack('<HH', k, w) for k, w in steps) + b'\0' * 4
         base = r.base1 + self.info['script']
-        for i in range(0, len(data), 16):
-            b.cmd(f'SM 0168:{base + i:08X} ' + ' '.join(f'{x:02X}' for x in data[i:i + 16]), 0.2)
-        b.cmd(f'SM 0168:{r.base1 + self.info["ptr"]:08X} ' + ' '.join(f'{x:02X}' for x in struct.pack('<I', base)), 0.2)
-        b.cmd(f'SR EIP {r.base1 + self.info["brk"] + 2:X}', 0.3)   # int 3 = 2 bytes (CD 03)
+        hexs = lambda d: ' '.join(f'{x:X}' for x in d)       # short forms: the debugger takes ~1 ms per typed char
+        cmds = [f'SM 168:{base + i:X} {hexs(data[i:i + 16])}' for i in range(0, len(data), 16)]
+        cmds.append(f'SR EIP {r.base1 + self.info["brk"] + 2:X}')   # int 3 = 2 bytes (CD 03)
+        os.write(b.fd, ''.join(c + '\r' for c in cmds).encode())
+        if os.environ.get('SWOSTEST_VERIFY'):          # read the script back (the SMs must have landed)
+            got = b.dump(base, len(data))
+            assert got == data, f'SM: wrote {data.hex()}, read {got.hex()}'
+        b.stat('send', t)
         self.log.append(keys)
         return self.wait()
 
@@ -801,7 +902,9 @@ def juve2(fixed):
         d[0x173A3] = 0
     path = os.path.join(WORK, 'saves', 'JUVE2F.CAR' if fixed else 'JUVE2.CAR')
     os.makedirs(os.path.dirname(path), exist_ok=True)
-    open(path, 'wb').write(d)
+    tmp = f'{path}.{os.getpid()}'
+    open(tmp, 'wb').write(d)
+    os.replace(tmp, path)                              # parallel runs: never a half-written save
     return path
 
 
@@ -1039,7 +1142,7 @@ def world8485():
         good, report = checkw1(path)
         out.append(path)
         msgs.append(f'season {season}: {msg}, ' + ('checkw1 ok' if good else 'checkw1 FAIL'))
-        open(os.path.join(WORK, 'runs', f'world8485_{season}', 'checkw1.txt'), 'w').write(report + '\n')
+        open(os.path.join(RUNS, f'world8485_{season}', 'checkw1.txt'), 'w').write(report + '\n')
         if not good:
             return False, '; '.join(msgs) + '\n' + report
     return True, '; '.join(msgs)
@@ -1102,6 +1205,28 @@ def juve2_trap():
     return r.outcome == 'dump', str(r)
 
 
+def run_parallel(names, jobs):
+    """run -jN: each scenario in its own process (own run dirs and DOSBox-X, one host core each in turbo); the
+    builds are made once here first. Output in the order of the names; exit code 1 on a failure."""
+    env = dict(os.environ, SWOSTEST_BUILD=builds()['it'])
+    if 'world_roundtrip' in names:
+        world_build()
+    t0, todo, running, out = time.time(), list(names), {}, {}
+    while todo or running:
+        while todo and len(running) < jobs:
+            n = todo.pop(0)
+            running[n] = subprocess.Popen([sys.executable, os.path.abspath(__file__), 'run', n], env=env,
+                                          stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+        time.sleep(0.5)
+        for n, p in list(running.items()):
+            if p.poll() is not None:
+                out[n] = (p.returncode, p.stdout.read().strip())
+                print(out[n][1], flush=True)
+                del running[n]
+    print(f'{len(names)} scenarios, {jobs} at a time: {time.time() - t0:.0f} s', flush=True)
+    return 1 if any(rc for rc, _ in out.values()) else 0
+
+
 def main(argv):
     if not argv or argv[0] == 'list':
         for k, f in SCENARIOS.items():
@@ -1117,7 +1242,10 @@ def main(argv):
         print(r, '->', r.run)
         return 0
     if argv[0] == 'run':
-        names = argv[1:] or list(SCENARIOS)
+        names = [a for a in argv[1:] if not a.startswith('-j')] or list(SCENARIOS)
+        jobs = int(next((a[2:] for a in argv[1:] if a.startswith('-j')), 1) or 4)
+        if jobs > 1 and len(names) > 1:
+            return run_parallel(names, jobs)
         bad = 0
         for n in names:
             t = time.time()

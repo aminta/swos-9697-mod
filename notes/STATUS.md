@@ -1858,3 +1858,6 @@ Left for 2.5: (a) NSL/NSSL finals series (type-1 design) or declare them postpon
   Union, Erfurt bottom. TEAM.092 6065464d (was 1e1d2483 since 2.6), TEAM.093 unchanged.
 - RULE (Davide, memory): before releasing any historic season/world, check built SKILLS vs the real tables of the
   time and a simulated season. World 1984-85 checked by the 3.0 session (explicit DaniSwos ratings, no shifts).
+- 3.1 step 1 (2026-10-11): test harness ~10x faster (DOSBox-X turbo, 1 MB dumps instead of 32 MB, no fixed sleeps,
+  `run -jN`): euro_draws 12.5 min -> 1 min, suite of 4 -> 63 s, world8485 2 seasons > 1 h -> 6 min; same verdicts on
+  REL301 (notes/testing.md "Faster harness").

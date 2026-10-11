@@ -678,15 +678,16 @@ def substitute(s, scr, tries=16):
 
 def advance(s, stop, max_steps=400):
     """Press through the career until stop(screen) is true; returns (ok, message)."""
+    recent = []
     for step in range(max_steps):
         r = s.result
         if r.outcome != 'dump':
             return False, f'step {step}: {r}'
         scr = s.screen()
         s.log.append(f'[{step}] {scr}')
-        seen = s.log[-12::2] if len(s.log) > 12 else []
-        if seen and len(set(seen)) == 1 and seen[0].startswith('['):
-            return False, f'step {step}: stuck on {str(scr)[:200]}'
+        recent.append(str(scr))                          # stuck: the last 16 screens are 1 or 2 alternating ones
+        if len(recent) >= 16 and len(set(recent[-16:])) <= 2:
+            return False, f'step {step}: stuck on {" / ".join(sorted(set(recent[-16:])))[:300]}'
         if stop(scr):
             return True, f'{step} steps'
         texts = scr.texts()

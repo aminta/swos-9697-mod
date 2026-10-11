@@ -906,7 +906,7 @@ def euro_draws():
         def stop(scr):
             rnd, cid, ties = slot_ties(s.result, 16)
             title = scr.entries[0][1] if scr.entries else ''
-            r2 = 'SECONDO TURNO' in title and 'COPP' in title       # the cup's round-2 screen: winners paired
+            r2 = 'SECONDO TURNO' in title and ('EUFA' if cid == 2 else 'COPPE') in title   # that cup's round-2 screen
             if cid in (1, 2) and ((rnd == 0 and 0 not in seen and any(a or b for a, b in ties)) or (r2 and 1 not in seen)):
                 k = 0 if rnd == 0 and not r2 else 1
                 n = 16 if k == 0 else 8
@@ -941,7 +941,10 @@ def world8485():
     """Europe 1984-85 world (world 4): new career at Liverpool, two seasons (save, reload, save), checkw1 on both"""
     exe = os.environ.get('W8485_BUILD', os.path.join(WORK, 'builds', 'w8485'))
     out, msgs = [], []
-    for season in (1, 2):
+    first = os.environ.get('W8485_FROM')                   # resume from a season-1 save (W84A.CAR)
+    if first:
+        out, msgs = [first], [f'season 1: from {first}']
+    for season in ((2,) if first else (1, 2)):
         cars = {} if season == 1 else {'W84A.CAR': out[0]}
         with Session(f'world8485_{season}', exe, cars, 'dump:2', 240) as s:
             if s.wait().outcome != 'dump':

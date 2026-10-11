@@ -77,6 +77,27 @@ Goal: routine regression checks without driving DOSBox-X by hand. Usage and inte
   real derby, to be settled with the euro session. Holder words (obj2+0xC058B) read 0 at the season-end menu and
   CC FFFF / CWC 0x1A14 / UEFA FFFF in the new season.
 
+## More results (2026-10-11)
+
+- euro_draws on 1994e494 (euro9697-nodorby c3971c4, w_r2 hook): round 1 OK; round 2 FAILS: the cup's round-2 screen
+  'COPPA EUFA SECONDO TURNO ANDATA' lists INTER MILAN v JUVENTUS (slot+2CDh pair k=2 = 0x1E14 v 0x2014, same bytes as
+  on a0f38ad5); w_r2's call (obj1+0x7A64E) was hit 3 times. Career cups have no round-2 draw: cseg_2ACAE puts the
+  winners first at +2CDh in tie order, the next round pairs them two by two (euro session). The scenario now checks
+  round 2 on that cup's round-2 screen.
+- Breakpoints: Session.bp(linear, callback) / SWOSTEST_BP=obj1 offsets (counting). Code breakpoints need
+  CORE=normal: with the dynamic core a BP fires only the first time (translated code is not re-checked). Each resume
+  moves the debugger's code view away (C 0160:0) so that a break at the same address is redrawn and seen; BPDEL *
+  also deletes BPINT 3 (re-added).
+- Squad screen: unavailable = red row background OR red pixels in the face column (a goalkeeper with a red icon keeps
+  his green row); the reserve for row 1 must be a goalkeeper (position text P at x=108 of the 17th row).
+- world8485 (Europe 1984-85, IT 4c280af8 = world-1984-85 9b9b10b + 32 world4 packs): new career at Liverpool via
+  CARRIERA -> SCEGLI SQUADRA -> CARR. STORICHE -> ENGLAND -> FIRST DIVISION -> LIVERPOOL; season 1984/85 finished,
+  new season saved (W84A.CAR): checkw1 k 128, N 64, C7, W1 ok, world 4, sum 0, cups 32/32/64 no dups, W1 records 128
+  bad pairs 0. A season of an English club takes ~70 min in the results-only loop.
+- SWOS++ (-timer): the feeder hooks TimerProc's call BumpIntroTimers (70 Hz) because SWOS++ re-patches MenuProc /
+  CheckControls / InputText at run time. Kit-colors session: full friendly flow passed; in this mode a key can move a
+  menu cursor twice (latched + held seen in different frames): use paths that stop at a border.
+
 ## Not done yet / next
 
 - Friendly matches (kit-colors session): reachable with `keys` + screenshots, scenario not written.

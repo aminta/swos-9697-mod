@@ -121,7 +121,8 @@
  },
  "world": 4,
  "world_cups": {
-  "start_year": 1984
+  "start_year": 1984,
+  "name": {"it": "EUROPA 1984-85", "en": "EUROPE 1984-85", "fr": "EUROPE 1984-85", "de": "EUROPA 1984-85"}
  },
  "europe_places": {
   "cc": 1,

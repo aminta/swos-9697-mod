@@ -46,6 +46,8 @@ SEASONS_REC = [None]                    # obj2 offset of its countriesTable reco
 CAREERS = 98                            # pseudo-continent 'classic careers' of the career team selector
 CAREERS_NAMES = {'it': b'CARR. STORICHE', 'en': b'CLASSIC CAREERS', 'fr': b"CARR. D'ANTAN", 'de': b'KLASS. KARRIERE'}
 CAREERS_REC = [None]
+WMENU = 200                             # a world's entry in the CLASSIC CAREERS list: pseudo-continent 200 + world number
+                                        # (its countries), named by the root pack's world_cups.name
 CAREER_DATA = [None]                    # obj1 pages of the career packs' structs (patch.py, only with worlds)
 CAREER_DATA_SIZE = 0x2000
 CAREER_CAVE = [None]                    # obj1 page of the career world code (patch.py adds it when worlds exist)
@@ -600,6 +602,27 @@ euro_slot2:                             ; replaces `mov [A0], eax` before slot 2
 
 
 
+WMENU_ASM = '''
+w_lvl:                                  ; replaces `cmp word [numSelectedTeams], 2` (SelectTeamsFinalMenu shows a
+    cmp word [NST], 2                   ; country's leagues at depth 2 only): depth 3 too when the parent list is a
+    je .r                               ; world of CLASSIC CAREERS (top of countryStack = WMENU + n)
+    cmp word [NST], 3
+    jne .r
+    push eax
+    mov eax, [CSP]
+    cmp byte [eax - 1], WMENU_N
+    jb .no
+    cmp eax, eax
+    pop eax
+    ret
+.no:
+    or esp, esp
+    pop eax
+.r:
+    ret
+'''
+
+
 CAREER_ASM = '''
 career_sel:                             ; replaces `call ChooseTeamsDialog` in SelectTeamToManage (career start)
     push dword [COMP254]
@@ -608,6 +631,21 @@ career_sel:                             ; replaces `call ChooseTeamsDialog` in S
     pop dword [COMP254]
     ret
 '''
+
+
+def _level_site(p):
+    """(obj1 offset of `cmp word [numSelectedTeams], 2; jnz` in SelectTeamsFinalMenu, numSelectedTeams, countryStackPtr):
+    both from PushContinent (mov eax, [countryStackPtr] ... add word [numSelectedTeams], 1; ret)."""
+    d1 = p.le.obj_bytes(1)
+    pat = rb'\xa1(.{4})\xa3(.{4})\xa0.{4}\x8b\x35\2\x88\x06\xff\x05\2\xa1\2\xa3\1\x66\x83\x05(.{4})\x01\xc3'
+    ms = list(re.finditer(pat, d1, re.S))
+    assert len(ms) == 1, len(ms)
+    push = ms[0].start()
+    nst = p.target(1, ms[0].end() - 6)
+    csp = p.target(1, push + 1)
+    sites = [m.start() for m in re.finditer(rb'\x66\x83\x3d' + re.escape(ms[0].group(3)) + rb'\x02\x0f\x85', d1)]
+    assert len(sites) == 1, sites
+    return sites[0], nst, csp
 
 
 def _career_site(p):
@@ -787,12 +825,36 @@ def patch(p, lang, area, cave):
     p.put(1, at + 4, b'\xff' * 4 + conts + bytes((SEASONS, 0xff)))
     at = (at + 8 + len(conts) + 2 + 3) & ~3
     careers = [i['file'] for i in infos if i['kind'] == 'career']
+    wmenus = []
     if careers:                                 # career team selector: CLASSIC CAREERS (98) after the continents
         assert ct + 4 * CAREERS not in fx2 and comp + 4 * CAREERS not in fx2
         crec = area.add(bytes((countries.CONTINENT['europe'],)) + CAREERS_NAMES[lang] + b'\0' + CAREERS_NAMES[lang] + b'\0')
         CAREERS_REC[0] = crec
         p.add_ptr(2, ct + 4 * CAREERS, 2, crec)
-        lst = struct.pack('<i', -1) + bytes(careers) + b'\xff'
+        entries = []                            # a world = one entry (WMENU + n) listing its countries; packs of no
+        for pk, i in zip(packs(), infos):       # world stay countries of the list
+            if i['kind'] != 'career':
+                continue
+            if pk.world is None:
+                entries.append(i['file'])
+            elif WMENU + pk.world not in entries:
+                entries.append(WMENU + pk.world)
+        for n, pks in sorted(worlds().items()):
+            wid = WMENU + n
+            _need(wid < 252 and ct + 4 * wid not in fx2 and comp + 4 * wid not in fx2, f'world {n}: menu id {wid} is used')
+            root = [pk for pk in pks if 'world_cups' in pk.meta][0].meta['world_cups']
+            name = root.get('name', f"{root['start_year']}-{(root['start_year'] + 1) % 100:02d}")
+            name = (name.get(lang) or name.get('*') or next(iter(name.values()))) if isinstance(name, dict) else name
+            name = name.upper().encode('latin1')
+            _need(len(name) <= 20, f'world {n}: world_cups.name longer than 20 characters')
+            rec = area.add(bytes((countries.CONTINENT['europe'],)) + name + b'\0' + name + b'\0')
+            p.add_ptr(2, ct + 4 * wid, 2, rec)
+            wl = struct.pack('<i', -1) + bytes(pk.files[pk.league['clubs']][0] for pk in pks) + b'\xff'
+            p.put(1, at, wl)
+            p.add_ptr(2, comp + 4 * wid, 1, at)
+            at = (at + len(wl) + 3) & ~3
+            wmenus.append(wid)
+        lst = struct.pack('<i', -1) + bytes(entries) + b'\xff'
         p.put(1, at, lst)
         p.add_ptr(2, comp + 4 * CAREERS, 1, at)
         at = (at + len(lst) + 3) & ~3
@@ -820,6 +882,12 @@ def patch(p, lang, area, cave):
         src = src.replace('cont_check:', 'cont_check:\n    cmp word [D7REG], CAREERS_N\n    je CONT_WORLD') + CAREER_ASM
         if worlds():                                      # careerworld.WCONT: the running world's continent
             src = src.replace('cont_check:', 'cont_check:\n    cmp word [D7REG], 99\n    je CONT_WORLD')
+        for wid in wmenus:                                # the worlds of the CLASSIC CAREERS list
+            src = src.replace('cont_check:', f'cont_check:\n    cmp word [D7REG], {wid}\n    je CONT_WORLD')
+        if wmenus:
+            lvl, nst, csp = _level_site(p)
+            symbols.update({'NST': nst, 'CSP': csp, 'WMENU_N': (0, WMENU)})
+            src += WMENU_ASM
     tab = ['align 4', 'PACK_TAB:']
     data = []
     for k, i in enumerate(x for x in infos if x['emap']):
@@ -839,6 +907,9 @@ def patch(p, lang, area, cave):
     p.put(1, ja + 2, struct.pack('<i', labels['cont_check'] - (ja + 6)))
     if careers:
         p.put(1, site_c + 1, struct.pack('<i', labels['career_sel'] - (site_c + 5)))
+    if wmenus:
+        p.remove(1, lvl + 3)                              # the cmp's address operand
+        p.put(1, lvl, b'\xe8' + struct.pack('<i', labels['w_lvl'] - (lvl + 5)) + b'\x90' * 4)
     p.remove(1, site + 1)                                # `mov [A0], eax`: drop the fixup of its address operand
     p.put(1, site, b'\xe8' + struct.pack('<i', labels['euro_slot2'] - (site + 5)))
     at = (at + len(code) + 3) & ~3

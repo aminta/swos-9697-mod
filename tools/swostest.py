@@ -1001,9 +1001,11 @@ def world8485():
                 return False, f'START: no first pause ({s.result})'
             if season == 1:
                 team = os.environ.get('W8485_TEAM', 'ENGLAND,FIRST DIVISION,LIVERPOOL').split(',')
-                for t in ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE'] + team:
+                for t in ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'EUROPA 1984-85'] + team:
                     if press(s, s.screen(), t) is None or s.result.outcome != 'dump':
                         return False, f'new career: {t} not reached ({s.result})'
+                if os.environ.get('W8485_START') == '1':          # menu check only: the career has started
+                    return True, f'career started: {s.screen()}'[:400]
             else:
                 s.send('down down down down down fire dump:2')
                 s.send('fire dump:3')

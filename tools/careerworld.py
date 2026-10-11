@@ -331,6 +331,20 @@ w_holders:                              ; replaces `call cseg_92BBF`: in a world
     add esi, 16
     jmp .c
 .r:
+    xor ecx, ecx                        ; the real holders back (w_pick_cc: a champion holding the CWC / UEFA Cup)
+.h:
+    mov ax, [WH_SAVE + ecx * 2]
+    cmp ax, 0FFFFh
+    je .hn
+    mov esi, ecx
+    shl esi, 4
+    mov esi, [HOLDTAB + esi]
+    mov [esi], ax
+    mov word [WH_SAVE + ecx * 2], 0FFFFh
+.hn:
+    inc ecx
+    cmp ecx, 3
+    jb .h
     popad
     ret
 
@@ -384,15 +398,59 @@ w_pick_cc:                              ; replaces `call cseg_93BCE` in cseg_939
     jnz .w
     jmp CLEARHOLD
 .w:
+    push eax
+    mov ax, [D0R]
+    cmp ax, [HOLD_CC]                   ; the Champions Cup holder plays as holder: next club of the table
+    je .skip
+    cmp ax, [HOLD_CWC]                  ; a champion that holds the CWC / UEFA Cup plays the Champions Cup (rule of
+    je .c1                              ; the time); its holder place goes to the first club of the table not
+    cmp ax, [HOLD_UEFA]                 ; qualified yet
+    je .c2
+    pop eax
     call w_isholder
     jne .r
-    add dword [A5R], 684
     push eax
+.skip:
+    add dword [A5R], 684
     mov eax, [A5R]
     mov ax, [eax]
     mov [D0R], ax
     pop eax
     jmp .w
+.c1:
+    pushad
+    mov ecx, 1
+    jmp .champ
+.c2:
+    pushad
+    mov ecx, 2
+.champ:
+    mov esi, ecx
+    shl esi, 4
+    add esi, HOLDTAB
+    mov ebx, [A5R]                      ; the champion's record stays the pick
+    mov bp, ax
+.next:
+    add ebx, 684
+    mov ax, [ebx]
+    mov [D0R], ax
+    call w_isholder
+    je .next
+    mov edi, [esi]                      ; the holder word: the replacement for this season's list
+    cmp word [WH_SAVE + ecx * 2], 0FFFFh
+    jne .keep
+    mov dx, [edi]
+    mov [WH_SAVE + ecx * 2], dx         ; w_holders restores the real holder afterwards
+.keep:
+    mov [edi], ax
+    mov edi, [esi + 12]                 ; holder record buffer <- the replacement's record
+    mov esi, ebx
+    mov ecx, 684
+    cld
+    rep movsb
+    mov [D0R], bp
+    popad
+    pop eax
 .r:
     ret
 
@@ -419,6 +477,7 @@ align 4
 DG_TICKS: dd 0
 DG_ARMED: db 0, 0, 0, 0
 %endif
+WH_SAVE: dw 0FFFFh, 0FFFFh, 0FFFFh, 0
 HOLDTAB:
     dd HOLD_CC, LIST_CC, CNT_CC, BUF_CC
     dd HOLD_CWC, LIST_CWC, CNT_CWC, BUF_CWC

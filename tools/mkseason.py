@@ -668,6 +668,7 @@ def _level_site(p):
     csp = p.target(1, push + 1)
     sites = [m.start() for m in re.finditer(rb'\x66\x83\x3d' + re.escape(ms[0].group(3)) + rb'\x02\x0f\x85', d1)]
     assert len(sites) == 1, sites
+    assert d1[sites[0] + 8:sites[0] + 10] == b'\x0f\x85'        # the cmp is 8 bytes, the jnz must stay intact
     return sites[0], nst, csp
 
 
@@ -949,7 +950,7 @@ def patch(p, lang, area, cave):
         p.put(1, site_c + 1, struct.pack('<i', labels['career_sel'] - (site_c + 5)))
     if wmenus:
         p.remove(1, lvl + 3)                              # the cmp's address operand
-        p.put(1, lvl, b'\xe8' + struct.pack('<i', labels['w_lvl'] - (lvl + 5)) + b'\x90' * 4)
+        p.put(1, lvl, b'\xe8' + struct.pack('<i', labels['w_lvl'] - (lvl + 5)) + b'\x90' * 3)   # the cmp is 8 bytes; keep the jnz
     p.remove(1, site + 1)                                # `mov [A0], eax`: drop the fixup of its address operand
     p.put(1, site, b'\xe8' + struct.pack('<i', labels['euro_slot2'] - (site + 5)))
     at = (at + len(code) + 3) & ~3

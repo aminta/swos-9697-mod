@@ -97,6 +97,11 @@ def _sn(s):
     return c1c2.swos_name(s.replace('ß', 'ss'))
 
 
+def _bare(s):
+    """Name without the Italian numbering of namesakes (FERRARIS II, MENTI II): sources do not agree on it."""
+    return re.sub(r' (I{1,3}|IV|V|VI)$', '', s)
+
+
 def _norm(s):
     s = unicodedata.normalize('NFKD', s).encode('ascii', 'ignore').decode().lower()
     return re.sub(r'[^a-z0-9]', '', s.replace('fc', '').replace('-', ''))
@@ -172,6 +177,7 @@ class Pack:
                 _need(key in ('cc', 'cwc', 'uefa'), f'first_europe.{key}: keys cc, cwc, uefa')
                 for c in clubs:
                     _need(c in self.league_clubs, f'first_europe.{key}: {c} is not a league club')
+        _need(m['season'].get('cup') or not m['season'].get('europe'), 'season: European cups need a national cup')
         for club, cup in m['season'].get('europe', {}).items():
             _need(club in self.league_clubs, f'season.europe: {club} is not a league club')
             _need(club in self.bracket(self.comp(cup))['clubs'], f'season.europe: {club} does not play {cup}')
@@ -248,14 +254,25 @@ class Pack:
     def _calibrate(self, sq):
         """Clubs on a template record of a source TEAM file (slots, roles, kit); players found in that file by name keep
         their record (only for the files in reuse_ratings), the others get the template slot's skills moved towards
-        the club's target strength (average price byte)."""
+        the club's target strength (average price byte). ratings_from [{source, clubs}]: the players of those clubs
+        found by name in another team file (or a CUSTOMS.EDT) keep that record instead."""
         import c1c2
+
+        def players_of(path):
+            known = {}
+            for r in _records(open(os.path.join(ROOT, path), 'rb').read()):
+                for j in range(16):
+                    p = r[76 + j * 38:76 + (j + 1) * 38]
+                    known.setdefault(p[3:26].split(b'\0')[0].decode('latin1'), p)
+            return known
         src = _records(open(os.path.join(ROOT, sq['source']), 'rb').read())
-        known = {}
-        for r in src:
-            for j in range(16):
-                p = r[76 + j * 38:76 + (j + 1) * 38]
-                known.setdefault(p[3:26].split(b'\0')[0].decode('latin1'), p)
+        known = players_of(sq['source'])
+        extra = {}
+        for rf in sq.get('ratings_from', []):
+            other = {_bare(n): q for n, q in players_of(rf['source']).items()}
+            for key in rf['clubs']:
+                _need(key in self.clubs, f'ratings_from: unknown club {key}')
+                extra[key] = other
         rng = random.Random(sq['seed'])
         used, fillers = set(), []
         recs = {f: [] for f in sq['files']}
@@ -266,9 +283,13 @@ class Pack:
             r = self._empty_record(key, t)
             if c['kit']:
                 r[26:36] = src[int(c['kit'])][26:36]
+            for col, at in (('kit1', 26), ('kit2', 31)):         # optional explicit colours (as for 'explicit')
+                if c.get(col):
+                    r[at:at + 5] = bytes(_nums(c, col, 5, 0, 255, f'clubs.csv: {key}'))
             avg = sum(t[76 + j * 38 + 32] for j in range(16)) / 16
             step = max(-3, min(3, round((int(c['target']) - avg) / 2)))
             pools = self._pools(key)
+            nat = {row['name']: row.get('nat') for row in self.prows[key]}     # optional players.csv column
             for j in range(16):
                 p = 76 + j * 38
                 cls = c1c2.CLASS[t[p + 26] >> 5]
@@ -282,13 +303,15 @@ class Pack:
                     fillers.append((c['name'], who))
                 used.add(who)
                 sname = _sn(who)
-                if sname in known and c['file'] in sq['reuse_ratings']:
-                    q = bytearray(known[sname])
+                mine = extra.get(key, {}).get(_bare(sname))
+                if mine or (sname in known and c['file'] in sq['reuse_ratings']):
+                    q = bytearray(mine or known[sname])
+                    q[3:26] = sname.encode('latin1').ljust(23, b'\0')[:23]
                     q[2] = t[p + 2]
                     q[26] = (q[26] & 0x1f) | (t[p + 26] & 0xe0)
                     r[p:p + 38] = q
                 else:
-                    r[p] = sq['nationality']
+                    r[p] = int(nat[who]) if nat.get(who) else sq['nationality']
                     r[p + 3:p + 26] = sname.encode('latin1').ljust(23, b'\0')[:23]
                     c1c2.level_player(r, p, step)
             recs[c['file']].append(bytes(r))
@@ -757,12 +780,14 @@ def _patch_pack(pk, p, lang, area, at, env):
         at = (at + len(body) + 3) & ~3
 
     s = m['season']
-    europe = [c['key'] for c in pk.comps if c['type'] == 'cup' and c['key'] != s['cup']]
+    europe = [c['key'] for c in pk.comps if c['type'] == 'cup' and c['key'] != s.get('cup')]
     p.add_ptr(1, at, 1, ptr[s['league']])       # [league, -2, cup, <European cup>, -1]: slot 2 swapped by euro_slot2
-    p.put(1, at + 4, struct.pack('<i', -2))
-    p.add_ptr(1, at + 8, 1, ptr[s['cup']])
+    p.put(1, at + 4, struct.pack('<i', -2))     # no national cup (Italy 1947-48): [league, -2, -1], like Costa Rica
     table = at
-    at += 12
+    at += 8
+    if s.get('cup'):
+        p.add_ptr(1, at, 1, ptr[s['cup']])
+        at += 4
     if s.get('europe'):
         p.add_ptr(1, at, 1, ptr[s['europe_placeholder']])
         at += 4

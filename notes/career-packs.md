@@ -456,3 +456,10 @@ champion -> exact season-1 entrants need first_europe lists not tied to the plac
 - Automated test PASS on IT b7b870a9 (real national cups + cup-only files 133-144, 949 clubs), 2026-10-11:
   swostest world8485 (test-harness 1c0e99c, W8485_BUILD = that build), 3880 s: season 1 219 steps, season 2 148
   steps, no freeze/trap; W84A and W84B: k 128, W1 ok, world 4, sum 0, cups 32/32/64, dups 0, bad pairs 0.
+- Release 3.0 prep (2026-10-11, branch release-3.0 = euro9697-nodorby + world-1984-85 + test-harness): world packs in
+  packs/europe-1984-85 (built by default, mkseason WORLDS), short names via world.json 'short_strip' (converter in the
+  world-1984-85 worktree's internal/world8485), credit DaniSwos. Builds in c/REL30 (c/SWOS untouched): IT b5bba176 EN
+  c6679535 FR b38d9024 DE 043a5052, GOG IT 2542baa0 EN 4ecff1f9 FR 38ab1410 DE 4eeec1c5, SWOS++ 21897e1b / e55ebc98,
+  WORLD04.TMD 0db4960d; patcher: PATCHER_BUILD=c/REL30 python3 tools/mkpatcher.py. Harness: world8485 PASS (Liverpool, 2
+  seasons, R1 checked), world R2 checked with W8485_TEAM="WEST GERMANY,BUNDESLIGA,BAYERN MUNCHEN" W8485_R2=1: CWC round 2,
+  8 ties, no same-country tie (Liverpool, Juventus, Everton went out in round 1).

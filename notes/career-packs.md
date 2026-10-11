@@ -398,3 +398,6 @@ champion -> exact season-1 entrants need first_europe lists not tied to the plac
   W84B: k 128, N 73, same checks ok. Saves in internal/swostest/saves/. Albania (file 129) absent from the cups
   from season 2: expected (no places: cc/cwc 0 by choice, uefa 0 as in 1984-85). Build with real national cups and
   cup-only files (b7b870a9): own scenario internal/world8485/test_w8485.py running.
+- Automated test PASS on IT b7b870a9 (real national cups + cup-only files 133-144, 949 clubs), 2026-10-11:
+  swostest world8485 (test-harness 1c0e99c, W8485_BUILD = that build), 3880 s: season 1 219 steps, season 2 148
+  steps, no freeze/trap; W84A and W84B: k 128, W1 ok, world 4, sum 0, cups 32/32/64, dups 0, bad pairs 0.

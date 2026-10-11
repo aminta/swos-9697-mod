@@ -377,3 +377,82 @@ both covered by the first test).
   call) was undone. New hook w_r2p on `call cseg_29659`: same fix (w_r2fix) on the rebuilt list. Simulated cups
   (cseg_8A7BF) have no permutation: w_r2 alone. Harness euro_draws PASS (JUVE2F -> 1998/99, UEFA rounds 1-2, no
   same-country tie, 747 s); italy_season and roundtrip PASS.
+
+
+## Europe 1984-85 world (branch world-1984-85, from 2026-10-10)
+
+Data: DB squadre Daniele Bordes (CM01/02 Retro Update Team). Two files, used together:
+- `out_2026_10_10.csv` (tab, UTF-8, 66,297 players): Daniele's SWOS conversion (P V H T C S F 0-7, PriceValue 0-49,
+  role, TeamValue). Accents fixed; club names still cut at 30 chars.
+- `exported_players-extended_V788_000.csv` (';', cp1252, 102 columns): the raw CM01/02 export. Full club names (the
+  30-char prefixes map to one name except 4 Portuguese/Brazilian ones), side ratings (Left/Central/Right, cols 43-45:
+  RB/LB/RW/LW), squad numbers. 99.6 % of the `out` rows join on (name, club[:30]).
+- Gaps: coaches, kits, 1983-84 final tables (club order), national cups, real European entrants -> Wikipedia (session 2).
+
+Scope (Davide 2026-10-10): option "c" = every single-group division the DB has full squads for; the 5 small countries
+(Albania, Cyprus, Iceland, Luxembourg, Malta: generic 'A Premier/Lower Division', clubs by the players' majority
+nationality) as mini leagues; Wales has no league (Wrexham, Cardiff, Swansea play in England; Wrexham's 1984-85 CWC
+place to be handled in season 1). Parallel groups (C1/C2, D2 A/B, Segunda B1/B2, Oberliga, DDR-Liga, Portuguese /
+Polish / Czechoslovak / Yugoslav / Swedish second tiers) left out: the engine has one chain of divisions per country.
+
+Converter (private, internal/world8485/, git-ignored): `mkworld8485.py OUT EXT GAME OUTDIR` -> 32 career packs
+(world 4, TEAM.101-132, league id CB shared, cups CC..EB, England root, start 1984, calendar dates_from 8 for all),
+`short_names.csv` (hand-made 16-char names, wins over the 1996-97 game names and the generated ones),
+`build.py` (test build). Squads 'explicit': 16 per club in record order G RB LB D D RW LW M M A A G D M A + best
+remaining; best = PriceValue then skill sum; RB/LB/RW/LW = the most right/left-sided of the role's top 3; borrowed
+roles take the slot's position; fillers (names from the same nationality's DB names, low skills) when short; 3 key
+skills = the 3 highest; nationality bytes from docs/SWOS/teams.txt; skin by nationality (cosmetic); kit + tactic from
+the 1996-97 record of the same club, else a random club of the same SWOS country. tools/mkseason.py: COUNTRY 'ENG' = 8.
+Session 1 placeholders: club order = TeamValue, national cups generated (top 2^n <= 64 clubs, stronger wins),
+europe_places guessed (Albania cc/cwc 0 so that 31 + holder = 32), first_europe = league order.
+Result: 784 clubs (ENG 22+22+24+24, SCO 10+14+14, FRG 18+20, ITA 16+20, ESP 18+20, NED 18+18, BEL 18+16, AUT/SUI/DEN
+16+16, URS 18+22, HUN 16+20, the others one division), `mkseason check` OK (cups 32/32/64), build IT 9b8f8626
+EN bc9ce7bb FR 4ee86e86 DE b657d9f5. Installed in c/SWOS (ITALIAN.EXE + TEAM.101-132 + WORLD04.TMD; the previous test
+exe 24f09873 and world-3 TEAM.1xx saved in c/W3BAK). First smoke test = engine scale (92-club England, 784 clubs).
+Season 1 note: the engine needs places + 1 = cup size per cup, while in 1984-85 Liverpool was both holder and English
+champion -> exact season-1 entrants need first_europe lists not tied to the places (mkseason relax, to study).
+- Playtest 1 (Davide, Exeter, 2026-10-10): season end exited to DOS after "ENGLAND FA CUP FINALE" with a foreign
+  finalist (FC PORTO, then AZ '67). Dump (DOSBox-X debugger under a pty bridge, MEMDUMPBIN after the exit; obj1 at
+  linear 0x263000, obj2 0x30C000; return addresses left on the stack at ~0x3D1D00): cseg_91857 -> cseg_928CC ->
+  cseg_929BB (copies the 2 finalists from DIY_competitionStart+2CDh/+24Dh) -> VerifyTeamLoaded -> EndProgram. Cause:
+  SaveSelectedTeams / RestoreSelectedTeams park only 32 cached records (21888 B at dosMemOfs60c00h) while the season
+  end simulates a contest in the same cache; the career cache was 64 FA Cup + 24 league clubs, so records 32..63 came
+  back as the simulated UEFA clubs. World 3 never hit it (exactly 32 own clubs cached). Fix (careerworld, big worlds
+  only): both procs park count + 100 records at BSS+0x16000 (BSS_SIZE 0x16000 -> 0x27000). Builds: world 4 IT
+  0483cb8f EN 548a771d FR 057f5bae DE e4ba0487; world 3 IT 2920e8fb; no-world IT d38a5d1c (2.6.1, unchanged).
+- Playtest 2 (Davide, 2026-10-10, build 0483cb8f): EXE1.CAR loaded, season 2 ended (sacked at Exeter, then Port Vale),
+  saved PORVALE.CAR: checkw1 k 128, N 84, W1 ok, sum 0, cups 32 / 32 / 64 without duplicates. Next: load + season 3.
+- Playtest 3 (Davide, 2026-10-10): game restarted, PORVALE.CAR loaded, season 3 ended (Colchester), COLCHEST.CAR:
+  k 128, N 83, W1 ok, sum 0, cups 32 / 32 / 64, no duplicates. ENGINE OK for the 784-club world (3 seasons + load).
+  Next (session 2): real data from Wikipedia (1983-84 tables, coaches, 1984-85 national cups, European entrants and
+  places, exact season-1 lists -> mkseason relax), short-name review with Davide, credits.
+- Session 2 (2026-10-10), real data, converter now config-driven (internal/world8485/world.json + europe_1984_85.json +
+  tables_1983_84.json + short_names.csv; fetch/parse helpers r1.py, tables.py, titles.txt): European entrants = the
+  real first rounds (Wikipedia): CC 32 (31 champions + Liverpool holder/champion; Albania cc/cwc 0 from season 2),
+  CWC 32 (no Albania, Wrexham listed with England in season 1), UEFA 64 (England 4 + Tottenham holder, FRG/ESP 4,
+  ... 1 for the small countries); places from season 2 = the same counts. tools/mkseason.py: first_europe may list
+  any number of clubs per country, the world check is each cup's total = places + 1. Club order = 1983-84 final
+  tables (1983 for calendar-year leagues): same level by position, then relegated from above, then promoted from
+  below, clubs in no table by strength (165, mostly promoted clubs; no tables for BEL/AUT/SUI/DEN second divisions).
+  Iceland and Malta capped at 10 clubs (previous table's clubs first). 772 clubs. Build IT 9c252bfe EN db943872
+  FR 037adb9e DE 4420d57b (not installed). Still open: real national cups 1984-85, coaches (ask Daniele for a staff
+  export of the CM DB), short-name review by Davide.
+- Session 2b (2026-10-11): coaches (it/es/nl/pt/fr.wikipedia season tables + Wikidata P286/P6087 in Aug-Sep 1984,
+  coaches.py) -> 222 clubs (ITA/NED complete, ESP/FRG 34 of 38, POR 14, ENG 25 = First Division, few elsewhere).
+  Real national cups 1984-85 (cupparse.py: any of OneLegResult/TwoLegResult/footballbox/wikitables/RD-brackets per
+  round section, replays merged; a winner = the club in the next round): the first round of 8..64 clubs whose next
+  rounds halve; participants outside the leagues = cup-only clubs (a 'cuponly' file per country, files 133-144,
+  bases after all leagues, contiguous) with their DB squad when the DB has them (same nationality), else invented.
+  15 countries real (ENG FA Cup 3rd round 64 incl. Dagenham, Telford; FRG 64; NOR 64; ITA/ESP last 16 ...), the
+  others generated. 949 clubs. One-command harness internal/world8485/run.sh (convert -> check -> build). Build IT
+  b7b870a9 EN 0ab28390 FR 489fe4e5 DE 78a87742, 44 team files 1xx. Cup-only files in a world: untested in game.
+- Automated test (test-harness session, tools/swostest.py run world8485, 2026-10-11): PASS on IT 4c280af8 (= 9b9b10b,
+  real European entrants + table order + coaches, generated national cups). New career Liverpool, results-only loop,
+  season end, CONTINUA CARRIERA, save, reload, season 2 (Liverpool last -> sacked -> first offer Plymouth Argyle,
+  1986/87). No freeze/trap. W84A (start 1985/86): k 128, N 64, C7, W1 ok, world 4, sum 0, cups 32/32/64, dups 0;
+  W84B: k 128, N 73, same checks ok. Saves in internal/swostest/saves/. Albania (file 129) absent from the cups
+  from season 2: expected (no places: cc/cwc 0 by choice, uefa 0 as in 1984-85). Build with real national cups and
+  cup-only files (b7b870a9): own scenario internal/world8485/test_w8485.py running.
+- Automated test PASS on IT b7b870a9 (real national cups + cup-only files 133-144, 949 clubs), 2026-10-11:
+  swostest world8485 (test-harness 1c0e99c, W8485_BUILD = that build), 3880 s: season 1 219 steps, season 2 148
+  steps, no freeze/trap; W84A and W84B: k 128, W1 ok, world 4, sum 0, cups 32/32/64, dups 0, bad pairs 0.

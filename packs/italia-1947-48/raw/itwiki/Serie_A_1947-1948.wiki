@@ -1,0 +1,1525 @@
+{{Nd}}
+{{Edizione di competizione sportiva
+|competizione = [[Serie A]]
+|sport = Calcio
+|edizione = 46ª (16ª di ''Serie A'')
+|organizzatore = [[Lega Nazionale Professionisti|Lega Nazionale]]
+|luogo bandiera = ITA
+|partecipanti = 21
+|formula = [[Girone all'italiana|girone unico]]
+|vincitore = {{Calcio Torino|N}}
+|volta = 5
+|retrocessioni = {{Calcio Salernitana|N}}<br />{{Calcio Alessandria|N}}<br />{{Calcio Vicenza|N|1903}}<br />{{Calcio Napoli|N}}
+|miglior marcatore = {{Bandiera|ITA}} [[Giampiero Boniperti]] (27)
+|incontri disputati = 420
+|gol = 1200
+|immagine = Torino47-48.jpg
+|didascalia = Il [[Grande Torino]] campione d'Italia
+|edizione precedente = [[Serie A 1946-1947|1946-1947]]
+|edizione successiva = [[Serie A 1948-1949|1948-1949]]
+}}
+
+La '''Serie A 1947-1948''' è stata la 46ª edizione della [[Serie A|massima serie]] del [[campionato italiano di calcio]] (la 16ª a [[Girone all'italiana|girone unico]]), disputata tra il 14 settembre 1947 e il 4 luglio 1948 e conclusa con la vittoria del {{Calcio Torino|N}}, al suo quinto titolo, il quarto consecutivo (se non si considera il periodo di pausa dovuto al secondo conflitto mondiale).
+
+Capocannoniere del torneo è stato [[Giampiero Boniperti]] ({{Calcio Juventus|N}}) con 27 reti.
+
+== Stagione ==
+=== Novità ===
+[[File:U.S. Triestina 1947-1948.jpg|thumb|left|La formazione della {{Calcio Triestina|N}}, ripescata e seconda a fine torneo, a pari punti con Milan e Juventus.]]
+
+Il ripescaggio della {{Calcio Triestina|N}} – avvenuto nel luglio 1947 e imputabile a [[Questione triestina|motivi patriottici]] –<ref name=pozzo>{{cita news|url=http://www.archiviolastampa.it/component/option,com_lastampa/task,search/mod,libera/action,viewer/Itemid,3/page,2/articleid,0041_01_1947_0177_0002_24636370/anews,true/|titolo=La Triestina in Serie A|autore=[[Vittorio Pozzo]]|pubblicazione=[[La Stampa|La Nuova Stampa]]|data=29 luglio 1947|p=2}}</ref> ingenerò il campionato più affollato nella [[storia della Serie A]]<ref>{{cita web|url=https://www.gazzetta.it/Calcio/SerieA/Primo_Piano/2008/12/24/popup_curiosit%C3%A0.shtml|titolo=1947-48: il campionato più lungo|data=24 dicembre 2008}}</ref> nonché l'unico disputato con numero di squadre dispari:<ref name=ventuno>{{cita news|url=https://ricerca.repubblica.it/repubblica/archivio/repubblica/2003/07/30/il-campionato-zoppo-del-47-48-ma.html|titolo=Il campionato zoppo del '47-'48 ma l'Italia voleva Trieste in A|autore=Maurizio Crosetti|autore2=Bruno Colombero|pubblicazione=[[la Repubblica (quotidiano)|la Repubblica]]|data=30 luglio 2003|p=47}}</ref> il calendario fu dunque costituito di 42 giornate totali, con due turni di riposo a testa.<ref name=Chiesa118>{{Cita|Chiesa|p. 118}}.</ref> Essendo la riammissione dei giuliani avvenuta in sovrannumero, ciò comportò automaticamente una retrocessione aggiuntiva come compensazione.<ref name=pozzo/>
+
+In questa stagione il calcio assunse le dimensioni di un fenomeno economico imponente per vari aspetti che vi gravitavano attorno, con il verticale incremento delle entrate del concorso di pronostici ideato dalla [[Sisal (azienda)|SISAL]] e poi ridenominato [[Totocalcio]].<ref name=Chiesa118 /><ref name=Melegari231>{{cita|Melegari 2005|p. 231}}.</ref>
+
+=== Calciomercato ===
+{{Approfondimento
+|allineamento = destra
+|larghezza = 40%
+|dim-testo = 80%
+|titolo = Aspetti economici
+|contenuto = Oltre ad imporre un massimo di 16 giocatori nelle rose delle squadre, le norme economiche, stabilite dalla Commissione paritetica Società Calciatori, deliberarono quanto di seguito riportato.
+* Stipendio (titolari): minimo 30.000 lire; massimo 50.000 lire (solo per i giocatori di eccezionale valore tecnico ed in particolari condizioni di disagio).<ref>Come riferimento si consideri che 50.000 lire dell'epoca corrispondono a 1.397 [[euro]] di oggi. [http://rivaluta.istat.it/Rivaluta/ Rivalutazione ISTAT.] Dall'insieme delle norme riportate, si evince il carattere fortemente meritocratico del "non-dilettantismo" dell'epoca rispetto al "professionismo" dei giorni d'oggi. Se la paga-base dei calciatori, seppur sicuramente gratificante, non si scostava da quella dei quadri aziendali, a fare la differenza erano i premi di rendimento. Un grande campione del Torino poteva mettere insieme 50.000 lire mensili di paga più 665.000 lire di premi partita più 500.000 lire di premio di riconferma più 300.000 lire di premio di anzianità più 300.000 di premio scudetto, per un totale annuo di 2.365.000 lire, pari a poco più di 66.000 [[euro]] odierni.</ref>
+* Stipendio (non titolari): minimo 7.500 lire; massimo 15.000 lire; premio di 5.000 lire per ogni presenza in prima squadra.
+* Premi partita: massimo 10.000 lire per ogni punto e per 12 giocatori; per i restanti 4 componenti la rosa dai 2.000 ai 5.000 lire; in 3 sole occasioni le società potevano stabilire un premio extra, dal valore massimo di 15.000 lire, previo preavviso alla FIGC.
+* Premio di riconferma: minimo 200.000 lire annui; massimo 500.000 lire. Tale premio poteva essere versato in tre rate (inizio campionato, fine girone d'andata, fine campionato).
+* Premi speciali: ai giocatori con anzianità di Serie A di 3, 4, 5 anni ed oltre rispettivamente spettava un premio annuo dal valore massimo di 100.000, 200.000, 300.000 lire.
+* Premi di classifica: per il primo posto 300.000 lire annui massimi; per le restanti posizioni 100.000 lire annui massimi.<ref>{{cita news |url=http://www.emeroteca.coni.it/bookreader.php?&c=1&f=6913&p=2#page/3/mode/1up |titolo=La verità sugli accordi economici fra calciatori e società di A e B |pubblicazione=Corriere dello Sport |data=13 settembre 1947 |pagina=3 |accesso=14 marzo 2012 |urlmorto=sì |urlarchivio=https://web.archive.org/web/20140812204642/http://www.emeroteca.coni.it/bookreader.php?&c=1&f=6913&p=2#page/3/mode/1up |dataarchivio=12 agosto 2014 }}</ref>}}
+
+In fase di mercato il Torino restò ad osservare.<ref name=Chiesa11819>{{cita|Chiesa|pp. 118-119}}.</ref> La {{Calcio Juventus|N}}, che liberò i due [[Cecoslovacchia|cecoslovacchi]] [[Čestmír Vycpálek|Vycpálek]] e [[Július Korostelev|Korostelev]], predispose il ritorno di [[Pietro Rava|Rava]] e promosse titolare il diciannovenne [[Giampiero Boniperti|Boniperti]].<ref>{{cita|Chiesa|pp. 124-125}}.</ref> Più massicci furono gli interventi del {{Calcio Napoli|N}}, che ingaggiò il romanista giallo-rosso [[Naim Krieziu|Krieziu]] e un gruppo di uruguaiani selezionati dall'allenatore [[Raffaele Sansone|Sansone]],<ref name=Chiesa12021>{{cita|Chiesa|pp. 120-121}}.</ref> e della Triestina, ripresentatasi al via con un gruppo di calciatori navigati ([[Guglielmo Trevisan|Trevisan]], [[Mario Tosolini|Tosolini]], [[Bruno Ispiro|Ispiro]]) e un allenatore pressoché esordiente, l'ex giocatore [[Nereo Rocco|Rocco]], al timone.<ref name=Chiesa11920>{{cita|Chiesa|pp. 119-120}}.</ref> Il {{Calcio Bologna|N}} acquistò l'attaccante [[Ungheria|ungherese]] [[István Mike Mayer|Mike]], mentre il {{Calcio Milan|N}} prelevò alcuni elementi in provincia ([[Pietro Degano|Degano]], [[Edy Gratton|Gratton]]), così come l'{{Calcio Inter|N}} ([[Giuseppe Arezzi|Arezzi]], [[Gustavo Fiorini|Fiorini]]), che [[Giuseppe Meazza|Meazza]] tentava di convertire al [[Sistema (calcio)|sistema]].
+
+=== Avvenimenti ===
+Fatta eccezione per un passo falso a [[Bari]], il {{Calcio Torino|N}} partì bene, e si portò in vetta alla sesta giornata. Da novembre a gennaio i granata avanzarono di pari passo con il {{Calcio Milan|N}} di [[Riccardo Carapellese|Carapellese]] e [[Héctor Puricelli|Puricelli]]. Il 25 gennaio i rossoneri vinsero lo scontro diretto per 3-2 e due settimane dopo chiusero in vetta il girone d'andata con due punti di vantaggio sul Torino e ben sei sul trio formato da {{Calcio Inter|N}}, {{Calcio Juventus|N}} e {{Calcio Triestina|N}}, che trovò in un'attenta fase difensiva (il «mezzo sistema», che prevedeva l'ulteriore arretramento di un centrocampista)<ref name=Caliceti>{{cita|Caliceti|p. 59}}.</ref> la chiave per scalare posizioni in campionato.<ref name=Chiesa11920 />
+[[File:Romeo Menti2.jpg|thumb|upright|left|[[Romeo Menti]], ala destra del {{Calcio Torino|N}} pluricampione.]]
+
+Il Milan mancò dello scatto decisivo per lo scudetto e il Torino ne approfittò nel girone di ritorno. Il 21 marzo i lombardi, privi di Carapellese allontanato per motivi disciplinari<ref>{{cita|Chiesa|pp. 123-124}}.</ref> persero a Bologna; poi, il 17 aprile, caddero anche a Bergamo, contro l'{{Calcio Atalanta|N}} in buona condizione, dopodiché calarono, pareggiando in casa contro la {{Calcio Roma|N}} non brillante e lasciandosi sconfiggere, anche in casa, dalla neopromossa {{Calcio Lucchese|N}}. Il Torino agganciò, superò e allungò con un ritmo serrato; alla trentacinquesima giornata collezionò dieci punti di vantaggio sul Milan. I rossoneri, infine, si lasciarono raggiungere dalla Triestina e dalla Juventus di Boniperti, [[capocannoniere]] con 27 reti.<ref name=Melegari231 /> I granata invece fecero il 30 maggio una notevole impresa, rimontando da 0-3 a 4-3 la {{Calcio Lazio|N}} e ottenendo, grazie ancora a una sconfitta del Milan, la vittoria matematica dello scudetto con cinque giornate di anticipo. Alla fine della quarantaduesima e ultima giornata, giocata in piena estate, il vantaggio su Juventus, Triestina e Milan fu di ben sedici punti, distacco record nell'era dei [[Calcolo dei punti nello sport|due punti a vittoria]].<ref name=Chiesa118 />
+
+Il [[Grande Torino]] si confermò così la squadra più forte in assoluto. Nel corso del lungo torneo schierò appena 15 giocatori; deteneva la difesa migliore del torneo e, soprattutto, un attacco prolifico capace di segnare 125 reti (25 di [[Guglielmo Gabetto|Gabetto]] e 23 di [[Valentino Mazzola|Mazzola]]) in quaranta partite.<ref name=Chiesa11819 /> In questa stagione piazzarono anche la vittoria più larga della Serie A a girone unico, battendo per 10-0 l'[[Unione Sportiva Alessandria Calcio 1912|Alessandria]].
+[[File:Giampiero Boniperti, Juventus.jpg|thumb|upright|Il diciannovenne [[Giampiero Boniperti]] della {{Calcio Juventus|N}}, capocannoniere con 27 gol.]]
+
+Il {{Calcio Napoli|N}} invece entrò in pesante crisi. Sempre in fondo alla classifica, finì il girone di andata con diversi punti di svantaggio e, malgrado un tentativo di rimonta nella tornata conclusiva, terminò la sua travagliata stagione con la retrocessione, venendo condannato anche all'ultimo posto per un [[Caso Napoli|tentativo di corruzione]] nella partita contro il {{Calcio Bologna|N}}.<ref name=Chiesa12021 /> La seconda retrocessione della storia partenopea non fu accettata serenamente dalla società, che si rivolse alle assemblee estive per recuperare a tavolino la categoria<ref name=ventuno/>, insistendo per la messa a disposizione di un ventunesimo posto per la successiva stagione della massima serie;<ref>Giuseppe Melillo. ''Questione Napoli e «ventunesima» oggi in discussione al consiglio federale», da «[[Corriere dello Sport - Stadio|Il Corriere dello Sport]], 30 agosto 1948, n. 201/1948, pp. 1-2''</ref> a questa proposta la [[Lega Nazionale Professionisti|Lega Nazionale]] e i suoi organi di giustizia sportiva reagirono duramente, intrecciando una disputa legale che si concluse solamente con l'intervento della [[Federazione Italiana Giuoco Calcio|FIGC]] e la minaccia di una radiazione dai quadri per la società azzurra.<ref>Giuseppe Melillo. ''Il Consiglio Federale decide i numeri pari''», da «[[Corriere dello Sport - Stadio|Il Corriere dello Sport]], 31 agosto 1948, n. 202/1948, pp. 1-2</ref>
+
+Rischiò il declassamento anche la declinante Roma che, al penultimo turno, ottenne la vittoria necessaria per la salvezza nello scontro diretto contro la {{Calcio Salernitana|N}}, il cui gioco estremamente passivo (ritenuto «ostruzionistico» dai critici),<ref>{{cita news|url=http://archiviostorico.gazzetta.it/1997/marzo/07/quei_ragazzi_Salerno_ga_0_9703077263.shtml|titolo=Quei ragazzi di Salerno|autore=Giovanni Vitale|pubblicazione=[[La Gazzetta dello Sport]]|data=7 marzo 1997}}</ref> imposto dall'allenatore [[Giuseppe Viani|Viani]],<ref>Mario Valitutti. ''Viani. Il capomastro delle pedate'', in Marco Sappino (a cura di). ''Dizionario del calcio italiano'', Vol. II, pp. 874-877</ref> era apparso efficace per tutto il girone d'andata. Oltre al Napoli e la Salernitana, caddero infine tra i cadetti anche il {{Calcio Vicenza|N|1903}} ultimo sul campo, e l'Alessandria condannata da un negativo girone di ritorno.<ref>{{cita news|url=http://www.archiviolastampa.it/component/option,com_lastampa/task,search/mod,libera/action,viewer/Itemid,3/page,4/articleid,1605_02_1948_0144_0004_22333109/|titolo=Tutto deciso in testa e in coda|pubblicazione=[[Stampa Sera|Nuova Stampa Sera]]|data=28 giugno 1948|p=4}}</ref> Si salvò la Lucchese, così come più che buono fu il campionato della {{Calcio Pro Patria|N}}, alla prima apparizione in massima serie in quattordici anni.
+
+== Squadre partecipanti ==
+{| class="wikitable sortable" style="font-size:85%;width:99%;"
+! Club
+! Stagione
+! Città
+! Stadio
+! Stagione precedente
+|-
+| {{Calcio Alessandria|N}}
+| ''[[Alessandria Unione Sportiva 1947-1948|dettagli]]''
+| [[Alessandria (Italia)|Alessandria]]
+| [[Stadio Giuseppe Moccagatta]]
+| [[Serie A 1946-1947|14º posto in Serie A]]
+|-
+| {{Calcio Atalanta|N}}
+| ''[[Atalanta Bergamasca Calcio 1947-1948|dettagli]]''
+| [[Bergamo]]
+| [[Stadio Atleti Azzurri d'Italia|Stadio Comunale]]
+| [[Serie A 1946-1947|8º posto in Serie A]]
+|-
+| {{Calcio Bari|N}}
+| ''[[Associazione Sportiva Bari 1947-1948|dettagli]]''
+| [[Bari]]
+| [[Stadio della Vittoria (Bari)|Stadio della Vittoria]]<br />[[Stadio Arturo Collana|Stadio della Liberazione]], [[Napoli]] <small>(solo 15ª)</small>
+| [[Serie A 1946-1947|7º posto in Serie A]]
+|-
+| {{Calcio Bologna|N}}
+| ''[[Bologna Football Club 1947-1948|dettagli]]''
+| [[Bologna]]
+| [[Stadio Renato Dall'Ara|Stadio Comunale]]
+| [[Serie A 1946-1947|5º posto in Serie A]]
+|-
+| {{Calcio Fiorentina|N}}
+| ''[[Associazione Calcio Fiorentina 1947-1948|dettagli]]''
+| [[Firenze]]
+| [[Stadio Artemio Franchi|Stadio Comunale]]<br />[[Stadio Artemio Franchi (Siena)|Stadio del Rastrello]], [[Siena]] <small>(solo 1ª)</small>
+| [[Serie A 1946-1947|17º posto in Serie A]]
+|-
+| {{Calcio Genoa|N}}
+| ''[[Genoa Cricket and Football Club 1947-1948|dettagli]]''
+| [[Genova]]
+| [[Stadio Luigi Ferraris]]<br />[[Stadio Atleti Azzurri d'Italia|Stadio Comunale]], [[Bergamo]] <small>(solo 40ª)</small><ref>{{cita news|url=http://www.archiviolastampa.it/component/option,com_lastampa/task,search/mod,libera/action,viewer/Itemid,3/page,4/articleid,1605_02_1948_0138_0004_22332737/|titolo=Classifica e risultati|pubblicazione=Stampa sera|data=20 giugno 1948|p=1|accesso=27 novembre 2015}}</ref>
+| [[Serie A 1946-1947|10º posto in Serie A]]
+|-
+| {{Calcio Inter|N}}
+| ''[[Football Club Internazionale 1947-1948|dettagli]]''
+| [[Milano]]
+| [[Stadio Giuseppe Meazza|Stadio San Siro]]<br />[[Arena Civica]] <small>(solo 13ª)</small><ref>{{cita news|url=http://dlib.coninet.it/bookreader.php?&c=1&f=6983&p=1|titolo=Inter-Pro Patria si svolgerà all'Arena|pubblicazione=Il Corriere dello Sport, n. 309|data=17 dicembre 1947|p=1}}</ref>
+| [[Serie A 1946-1947|10º posto in Serie A]]
+|-
+| {{Calcio Juventus|N}}
+| ''[[Juventus Football Club 1947-1948|dettagli]]''
+| [[Torino]]
+| [[Stadio Olimpico Grande Torino#Stadio Municipale (1933-1945) e Stadio Comunale (1945-2005)|Stadio Comunale di Torino]]
+| [[Serie A 1946-1947|2º posto in Serie A]]
+|-
+| {{Calcio Lazio|N}}
+| ''[[Società Sportiva Lazio 1947-1948|dettagli]]''
+| [[Roma]]
+| [[Stadio Nazionale]]
+| [[Serie A 1946-1947|10º posto in Serie A]]
+|-
+| {{Calcio Livorno|N}}
+| ''[[Unione Sportiva Livorno 1947-1948|dettagli]]''
+| [[Livorno]]
+| [[Stadio Armando Picchi|Stadio Comunale]]<br />[[Stadio Alberto Picco]], [[La Spezia]] <small>(solo 7ª)</small>{{Senza fonte}}<br />[[Stadio Artemio Franchi|Stadio Comunale]], [[Firenze]] <small>(solo 9ª e 12ª)</small>
+| [[Serie A 1946-1947|15º posto in Serie A]]
+|-
+| {{Calcio Lucchese|N}}
+| ''[[Unione Sportiva Lucchese Libertas 1947-1948|dettagli]]''
+| [[Lucca]]
+| [[Stadio Porta Elisa]]
+| [[Serie B 1946-1947|1º posto nel girone B di Serie B, promossa]]
+|-
+| {{Calcio Milan|N}}
+| ''[[Associazione Calcio Milan 1947-1948|dettagli]]''
+| [[Milano]]
+| [[Stadio Giuseppe Meazza|Stadio San Siro]]
+| [[Serie A 1946-1947|4º posto in Serie A]]
+|-
+| {{Calcio Modena|N}}
+| ''[[Modena Football Club 1947-1948|dettagli]]''
+| [[Modena]]
+| [[Stadio Alberto Braglia|Stadio Comunale]]
+| [[Serie A 1946-1947|3º posto in Serie A]]
+|-
+| {{Calcio Napoli|N}}
+| ''[[Associazione Calcio Napoli 1947-1948|dettagli]]''
+| [[Napoli]]
+| [[Stadio Arturo Collana|Stadio della Liberazione]]<br />[[Campo Rampigna]], [[Pescara]] <small>(solo 7ª)</small><br />[[Stadio Tommaso Fattori|Stadio Comunale]], [[L'Aquila]] <small>(solo 18ª)</small><ref>{{cita news|url=http://www.archiviolastampa.it/component/option,com_lastampa/task,search/mod,libera/action,viewer/Itemid,3/page,4/articleid,1605_02_1948_0016_0004_22325955/|titolo=Classifica e risultati|pubblicazione=Stampa sera|data=19 gennaio 1948|p=4|accesso=27 novembre 2015}}</ref>
+| [[Serie A 1946-1947|8º posto in Serie A]]
+|-
+| {{Calcio Pro Patria|N}}
+| ''[[Pro Patria et Libertate Sezione Calcio 1947-1948|dettagli]]''
+| [[Busto Arsizio]]
+| [[Stadio Carlo Speroni|Stadio Comunale]]
+| [[Serie B 1946-1947|1º posto nel girone A di Serie B, promossa]]
+|-
+| {{Calcio Roma|N}}
+| ''[[Associazione Sportiva Roma 1947-1948|dettagli]]''
+| [[Roma]]
+| [[Stadio Nazionale]]
+| [[Serie A 1946-1947|15º posto in Serie A]]
+|-
+| {{Calcio Salernitana|N}}
+| ''[[Unione Sportiva Salernitana 1947-1948|dettagli]]''
+| [[Salerno]]
+| [[Stadio Donato Vestuti|Stadio Comunale]]
+| [[Serie B 1946-1947|1º posto nel girone C di Serie B, promossa]]
+|-
+| {{Calcio Sampdoria|N}}
+| ''[[Unione Calcio Sampdoria 1947-1948|dettagli]]''
+| [[Genova]]
+| [[Stadio Luigi Ferraris]]<br />[[Stadio Artemio Franchi|Stadio Comunale]], [[Firenze]] <small>(solo 11ª)</small><ref>{{Cita web|http://www.enciclopediadelcalcio.it/4748-11.html|Enciclopediadelcalcio.it}}</ref>
+| [[Serie A 1946-1947|10º posto in Serie A]]
+|-
+| {{Calcio Torino|N}}
+| ''[[Associazione Calcio Torino 1947-1948|dettagli]]''
+| [[Torino]]
+| [[Stadio Filadelfia]]
+| [[Serie A 1946-1947|1º posto in Serie A]]
+|-
+| {{Calcio Triestina|N}}
+| ''[[Unione Sportiva Triestina 1947-1948|dettagli]]''
+| [[Trieste]]
+| [[Stadio Giuseppe Grezar|Stadio Comunale]]
+| [[Serie A 1946-1947|20º posto in Serie A, riammessa]]
+|-
+| {{Calcio Vicenza|N|1903}}
+| ''[[Associazione Calcio Vicenza 1947-1948|dettagli]]''
+| [[Vicenza]]
+| [[Stadio Romeo Menti|Stadio del Littorio]]
+| [[Serie A 1946-1947|5º posto in Serie A]]
+|-
+|}
+
+== Allenatori e primatisti ==
+{| class="wikitable" width=85% style="font-size: 85%;"
+! width=13% | Squadra
+! width=29% | Allenatore
+! width=29% | Calciatore più presente<ref name=Melegari435>{{cita|Melegari 2005|p. 435}}.</ref>
+! width=29% | Cannoniere<ref name=Melegari435 />
+|-
+| Alessandria
+| {{Bandiera|HUN 1946-1949}} [[Lajos Kovács|Lajos Nems Kovács]]
+| {{Bandiera|ITA}} [[Aristide Coscia]] (38)
+| {{Bandiera|ITA}} [[Carlo Stradella]] (14)
+|-
+| Atalanta
+| {{Bandiera|ITA}} [[Ivo Fiorentini]]
+| {{Bandiera|ITA}} [[Sergio Manente]],<br />{{Bandiera|ITA}} [[Giacomo Mari]] (40)
+| {{Bandiera|ITA}} [[Mario Astorri]] (9)
+|-
+| Bari<ref>{{cita news|url=http://dlib.coninet.it/bookreader.php?&c=1&f=5945&p=2#page/2/mode/1up|titolo=Plemich allenatore del Bari|pubblicazione=Il Corriere dello Sport, n. 18|data=21 gennaio 1948|p=2}}</ref>
+| {{Bandiera|HUN 1946-1949}} [[András Kuttik]] <small>(1ª-6ª)</small><br />{{Bandiera|HUN 1946-1949}} [[Ferenc Plemich]] <small>(7ª-18ª)</small><br/>{{Bandiera|HUN 1946-1949}} [[András Kuttik]] <small>(19ª-42ª)</small>
+| {{Bandiera|ITA}} [[Ivo Isetto]] (40)
+| {{Bandiera|ITA}} [[Mario Tontodonati]] (10)
+|-
+| Bologna
+| {{Bandiera|HUN 1946-1949}} [[Gyula Lelovics]]
+| {{Bandiera|ITA}} [[Luigi Spadoni]] (35)
+| {{Bandiera|ITA}} [[Mario Gritti]] (10)
+|-
+| Fiorentina
+| {{Bandiera|ITA}} [[Luigi Ferrero]]
+| {{Bandiera|ITA}} [[Zeffiro Furiassi]] (40)
+| {{Bandiera|ITA}} [[Alberto Galassi]] (15)
+|-
+| Genoa<ref>{{cita news|url=http://dlib.coninet.it/bookreader.php?&c=1&f=5965&p=2#page/2/mode/1up|titolo=Garbutt lascia il Genova|pubblicazione=Il Corriere dello Sport, n. 38|data=13 febbraio 1948|p=2}}</ref>
+| {{Bandiera|ENG}} [[William Garbutt]] <small>(1ª-21ª)</small><br />{{Bandiera|ITA}} [[Federico Allasio]] <small>(22ª-42ª)</small>
+| {{Bandiera|ITA}} [[Silvio Formentin]] (40)
+| {{Bandiera|ITA}} [[Riccardo Dalla Torre]] (18)
+|-
+| Inter<ref>{{cita news|url=http://dlib.coninet.it/bookreader.php?&c=1&f=5996&p=3#page/3/mode/1up|titolo=Ultime sulle squadre in campo|pubblicazione=Il Corriere dello Sport, n. 69|data=20 marzo 1948|p=3}}</ref><ref>{{cita news|url=http://dlib.coninet.it/bookreader.php?&c=1&f=6045&p=2#page/2/mode/1up|titolo=Allenamenti|pubblicazione=Il Corriere dello Sport, n. 118|data=21 maggio 1948|p=2}}</ref>
+| {{Bandiera|ITA}} [[Giuseppe Meazza]] <small>(1ª-26ª)</small><br />{{Bandiera|ITA}} [[Carlo Carcano]] <small>(27ª-34ª)</small><br />{{Bandiera|WAL}} [[David John Astley]] <small>(35ª-42ª)</small>
+| {{Bandiera|ITA}} [[Osvaldo Fattori]] (39)
+| {{Bandiera|ITA}} [[Bruno Quaresima]] (16)
+|-
+| Juventus<ref>{{cita news|url=http://dlib.coninet.it/bookreader.php?&c=1&f=6008&p=2#page/2/mode/1up|titolo=Chalmers assume le funzioni di allenatore alla Juventus|pubblicazione=Il Corriere dello Sport, n. 81|data=8 aprile 1948|p=2}}</ref>
+| {{Bandiera|ITA}} {{Bandiera|ARG}} [[Renato Cesarini]] <small>(1ª-28ª)</small><br />{{Bandiera|ITA}} {{Bandiera|ARG}} [[Renato Cesarini]] e {{Bandiera|SCO}} [[William Chalmers]] <small>(29ª-32ª)</small><br />{{Bandiera|SCO}} [[William Chalmers]] <small>(33ª-42ª)</small>
+| {{Bandiera|ITA}} [[Giampiero Boniperti]] (40)
+| {{Bandiera|ITA}} [[Giampiero Boniperti]] (27)
+|-
+| Lazio<ref>{{cita news|url=http://dlib.coninet.it/bookreader.php?&c=1&f=5966&p=1#page/1/mode/1up|titolo=Nel ricordo della sconfitta di Bari il Torino affronta il Napoli che gioca l'ultima carta|pubblicazione=Il Corriere dello Sport, n. 39|data=14 febbraio 1948|p=1}}</ref>
+| {{Bandiera|AUT}} [[Tony Cargnelli]] <small>(1ª-21ª)</small><br />{{Bandiera|ITA}} [[Orlando Tognotti]] <small>(22ª-42ª)</small>
+| {{Bandiera|ITA}} [[Romolo Alzani]] (38)
+| {{Bandiera|ITA}} [[Romano Penzo]] (17)
+|-
+| Livorno
+| {{Bandiera|ITA}} [[Mario Magnozzi]]
+| {{Bandiera|ITA}} [[Aredio Gimona]],<br />{{Bandiera|ITA}} [[Gino Merlo]] (39)
+| {{Bandiera|ITA}} [[Guido Tieghi]] (14)
+|-
+| Lucchese L.<ref>{{cita news|url=http://dlib.coninet.it/bookreader.php?&c=1&f=6946&p=2|titolo=Gli allenamenti|pubblicazione=Il Corriere dello Sport, n. 271|data=31 ottobre 1947|p=2}}</ref><ref>{{cita news|url=http://dlib.coninet.it/bookreader.php?&c=1&f=6008&p=2#page/2/mode/1up|titolo=Cargnelli alla Lucchese|pubblicazione=Il Corriere dello Sport, n. 81|data=8 aprile 1948|p=2}}</ref>
+| {{Bandiera|HUN 1946-1949}} [[Árpád Hajós]] <small>(1ª-7ª)</small><br />{{Bandiera|ITA}} [[Giulio Cappelli]] <small>(8ª-28ª)</small><br />{{Bandiera|AUT}} [[Tony Cargnelli]] <small>(29ª-42ª)</small>
+| {{Bandiera|ITA}} [[Gianmarco Mezzadri]] (37)
+| {{Bandiera|ITA}} [[Ugo Conti (calciatore)|Ugo Conti]] (19)
+|-
+| Milan<ref>{{Cita web|http://www.magliarossonera.it/194748_storia.html|Storia della stagione su magliarossonera.it}}</ref>
+| {{Bandiera|ITA}} [[Giuseppe Bigogno]]
+| {{Bandiera|ITA}} [[Carlo Annovazzi]] (40)
+| {{Bandiera|URY}} {{Bandiera|ITA}} [[Héctor Puricelli]] (17)
+|-
+| Modena
+| {{Bandiera|ITA}} [[Alfredo Mazzoni]]
+| {{Bandiera|ITA}} [[Renato Braglia]],<br />{{Bandiera|ITA}} [[Enzo Menegotti]] (40)
+| {{Bandiera|ITA}} [[Francesco Pernigo]] (18)
+|-
+| Napoli<ref>{{cita news|url=http://dlib.coninet.it/bookreader.php?&c=1&f=6943&p=5#page/4/mode/2up|titolo=Vecchina allenatore del Napoli|pubblicazione=Il Corriere dello Sport, n. 268|data=27 ottobre 1947|p=3}}</ref><ref>{{cita news|url=http://dlib.coninet.it/bookreader.php?&c=1&f=5945&p=2#page/2/mode/1up|titolo=Sentimenti II sostituisce come allenatore provvisorio Vecchina nel Napoli|pubblicazione=Il Corriere dello Sport, n. 18|data=21 gennaio 1948|p=2}}</ref>
+| {{Bandiera|ITA}} [[Raffaele Sansone]] <small>(1ª-7ª)</small><br />{{Bandiera|ITA}} [[Giovanni Vecchina]] <small>(8ª-18ª)</small><br />{{Bandiera|ITA}} [[Arnaldo Sentimenti]] <small>(19ª-42ª)</small>
+| {{Bandiera|ITA}} [[Ferdinando Pastore]] (38)
+| {{Bandiera|ITA}} [[Dante Di Benedetti]] (13)
+|-
+| Pro Patria
+| {{Bandiera|ITA}} [[Aldo Biffi]]
+| {{Bandiera|ITA}} [[Antonio Fossati]] (40)
+| {{Bandiera|ITA}} [[Angelo Turconi]] (18)
+|-
+| Roma<ref>{{Cita web|url=http://www.asrtalenti.altervista.org/index.php?a=campionato4748.htm|titolo=Storia della stagione su asrtalenti.altervista.it}}</ref><ref>{{cita news|autore=Meber|url=http://dlib.coninet.it/bookreader.php?&c=1&f=5992&p=1#page/1/mode/1up|titolo=Roma:Brunella sostituirà Senkey|pubblicazione=Il Corriere dello Sport, n. 65|data=16 marzo 1948|p=1}}</ref>
+| {{Bandiera|HUN 1946-1949}} [[Imre Senkey]] <small>(1ª-26ª)</small><br />{{Bandiera|ITA}} [[Luigi Brunella]] <small>(27ª-42ª)</small>
+| {{Bandiera|ITA}} [[Fosco Risorti]] (39)
+| {{Bandiera|ITA}} [[Amedeo Amadei]] (19)
+|-
+| Salernitana
+| {{Bandiera|ITA}} [[Giuseppe Viani]]
+| {{Bandiera|ITA}} [[Elio Onorato]] (39)
+| {{Bandiera|ITA}} [[Renzo Merlin]] (10)
+|-
+| Sampdoria
+| {{Bandiera|ITA}} [[Adolfo Baloncieri]]
+| {{Bandiera|ITA}} [[Adriano Bassetto]] (39)
+| {{Bandiera|ITA}} [[Adriano Bassetto]] (21)
+|-
+| Torino
+| {{Bandiera|ITA}} [[Mario Sperone]]
+| {{Bandiera|ITA}} [[Valerio Bacigalupo]] (40)
+| {{Bandiera|ITA}} [[Valentino Mazzola]] (25)
+|-
+| Triestina
+| {{Bandiera|ITA}} [[Nereo Rocco]]
+| {{Bandiera|ITA}} [[Ivano Blason]],<br />{{Bandiera|ITA}} [[Enrico Radio]],<br />{{Bandiera|ITA}} [[Antonio Sessa]],<br />{{Bandiera|ITA}} [[Guerrino Striuli]] (40)
+| {{Bandiera|ITA}} [[Mario Begni]] (11)
+|-
+| Vicenza<ref>{{cita news|url=http://dlib.coninet.it/bookreader.php?&c=1&f=6960&p=2#page/1/mode/1up|titolo=Berkessy al Vicenza in qualità di allenatore|pubblicazione=Il Corriere dello Sport, n. 286|data=19 novembre 1947|p=2}}</ref><ref>{{cita news|url=http://dlib.coninet.it/bookreader.php?&c=1&f=5988&p=1#page/1/mode/1up|titolo=Berkessy lascia il Vicenza|pubblicazione=Il Corriere dello Sport, n. 61|data=11 marzo 1948|p=1}}</ref><ref>{{cita news|url=http://dlib.coninet.it/bookreader.php?&c=1&f=5995&p=2#page/2/mode/1up|titolo=Vecchina è tornato ad allenare il Vicenza|pubblicazione=Il Corriere dello Sport, n. 68|data=19 marzo 1948|p=2}}</ref>
+| {{Bandiera|ITA}} [[Giovanni Vecchina]] <small>(1ª-3ª)</small><br />{{Bandiera|ITA}} [[Pietro Spinato]] <small>(4ª-9ª)</small><br />{{Bandiera|HUN 1946-1949}} [[Elemér Berkessy]] <small>(10ª-26ª)</small><br />{{Bandiera|ITA}} [[Giovanni Vecchina]] <small>(27ª-42ª)</small>
+| {{Bandiera|ITA}} [[Guerrino Carraro]] (40)
+| {{Bandiera|ITA}} [[Giovanni Sperotto]] (8)
+|}
+
+== Classifica finale ==
+{| class="wikitable sortable" style="text-align: center; font-size: 90%;"
+!width=7%|
+!width=7%|{{Abbr|Pos.|Posizione}}
+!width=27%|Squadra
+!width=10%|{{Abbr|Pt|Punti}}
+!width=7%|{{Abbr|G|Giocate}}
+!width=7%|{{Abbr|V|Vinte}}
+!width=7%|{{Abbr|N|Nulle}}
+!width=7%|{{Abbr|P|Perse}}
+!width=7%|{{Abbr|GF|Gol fatti}}
+!width=7%|{{Abbr|GS|Gol subiti}}
+|- style=background:#99CBFF;
+|{{simbolo|Scudetto.svg|15}} ||1.||style="text-align:left;"|'''{{Calcio Torino}}'''
+||'''65'''||40||29||7||4||125||33
+|-
+| ||2.||style="text-align:left;"|{{Calcio Milan}}
+||'''49'''||40||21||7||12||76||48
+|-
+| ||2.||style="text-align:left;"|{{Calcio Juventus}}
+||'''49'''||40||19||11||10||74||48
+|-
+| ||2.||style="text-align:left;"|{{Calcio Triestina}}
+||'''49'''||40||17||15||8||51||42
+|-
+| ||5.||style="text-align:left;"|{{Calcio Atalanta}}
+||'''44'''||40||16||12||12||48||41
+|-
+| ||5.||style="text-align:left;"|{{Calcio Modena}}
+||'''44'''||40||16||12||12||45||40
+|-
+| ||7.||style="text-align:left;"|{{Calcio Fiorentina}}
+||'''41'''||40||18||5||17||49||55
+|-
+| ||8.||style="text-align:left;"|{{Calcio Bologna}}
+||'''40'''||40||14||12||14||51||52
+|-
+| ||8.||style="text-align:left;"|{{Calcio Pro Patria}}
+||'''40'''||40||17||6||17||65||66
+|-
+| ||10.||style="text-align:left;"|{{Calcio Lazio}}
+||'''39'''||40||13||13||14||54||55
+|-
+| ||11.||style="text-align:left;"|{{Calcio Bari}}
+||'''38'''||40||14||10||16||38||60
+|-
+| ||12.||style="text-align:left;"|{{Calcio Genoa}}
+||'''37'''||40||15||7||18||68||65
+|-
+| ||12.||style="text-align:left;"|{{Calcio Inter}}
+||'''37'''||40||16||5||19||67||60
+|-
+| ||14.||style="text-align:left;"|{{Calcio Livorno}}
+||'''36'''||40||11||14||15||45||62
+|-
+| ||14.||style="text-align:left;"|{{Calcio Lucchese}}
+||'''36'''||40||12||12||16||46||82
+|-
+| ||14.||style="text-align:left;"|{{Calcio Sampdoria}}
+||'''36'''||40||13||10||17||68||63
+|-
+| ||17.||style="text-align:left;"|{{Calcio Roma}}
+||'''35'''||40||13||9||18||54||69
+|- style=background:#FFCCCC;
+|{{simbolo|1downarrow red.svg|15}} ||18.||style="text-align:left;"|'''{{Calcio Salernitana}}'''
+||'''34'''||40||13||8||19||46||63
+|- style=background:#FFCCCC;
+|{{simbolo|1downarrow red.svg|15}} ||19.||style="text-align:left;"|'''{{Calcio Alessandria}}'''
+||'''31'''||40||11||9||20||49||75
+|- style=background:#FFCCCC;
+|{{simbolo|1downarrow red.svg|15}} ||20.||style="text-align:left;"|'''{{Calcio Vicenza||1903}}'''
+||'''26'''||40||10||6||24||31||75
+|- style=background:#FFCCCC;
+|{{simbolo|US Department of Justice Scales Of Justice.svg|15}} ||21.||style="text-align:left;"|'''{{Calcio Napoli}}'''
+||'''34'''||40||12||10||18||50||46
+|}
+
+<div style="font-size:smaller">
+{{Colonne}}
+'''''Legenda:'''''
+:<span style="background-color:#99CBFF;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span> Campione d'Italia.
+:<span style="background-color:#FFCCCC;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span> Retrocesse in [[Serie B 1948-1949]].
+{{Colonne spezza}}
+'''''Regolamento:'''''
+:Due punti a vittoria, uno a pareggio, zero a sconfitta.
+:Era in vigore il pari merito ed in caso di parità venivano effettuati spareggi, quando necessari; la stampa del periodo usava, inoltre, un ordinamento grafico secondo il [[quoziente reti]] (gol fatti÷gol subiti).
+
+'''''Note:'''''
+:Il '''Napoli''' fu declassato all'ultimo posto per un [[Caso Napoli|tentativo di corruzione]].
+{{Colonne fine}}
+</div>
+
+===Squadra campione===
+{{vedi anche|Associazione Calcio Torino 1947-1948}}
+{| class="wikitable" style="font-size:85%;width:85%;"
+! width="200" |Formazione tipo<ref name=Chiesa51>{{cita|Chiesa|p. 138}}.</ref>
+! | Giocatori (presenze)<ref>{{cita|Melegari 2005|p. 113}}.</ref>
+|-
+| rowspan=11 align=center | <div style="position:relative;">
+[[File:Soccer Field Transparant.svg|200px]]
+{{Etichetta immagine|x=0.41|y=0.13|scale=200|text='''[[Valerio Bacigalupo|Bacigalupo]]'''}}
+{{Etichetta immagine|x=0.15|y=0.33|scale=200|text='''[[Aldo Ballarin|Ballarin]]'''}}
+{{Etichetta immagine|x=0.42|y=0.28|scale=200|text='''[[Mario Rigamonti|Rigamonti]]'''}}
+{{Etichetta immagine|x=0.78|y=0.33|scale=200|text='''[[Sauro Tomà|Tomà]]'''}}
+{{Etichetta immagine|x=0.30|y=0.48|scale=200|text='''[[Giuseppe Grezar|Grezar]]'''}}
+{{Etichetta immagine|x=0.61|y=0.48|scale=200|text='''[[Eusebio Castigliano|Castigliano]]'''}}
+{{Etichetta immagine|x=0.30|y=0.68|scale=200|text='''[[Ezio Loik|Loik II]]'''}}
+{{Etichetta immagine|x=0.64|y=0.68|scale=200|text='''[[Valentino Mazzola|Mazzola]]'''}}
+{{Etichetta immagine|x=0.17|y=0.88|scale=200|text='''[[Romeo Menti|Menti III]]'''}}
+{{Etichetta immagine|x=0.76|y=0.88|scale=200|text='''[[Franco Ossola|Ossola]]'''}}
+{{Etichetta immagine|x=0.44|y=1.03|scale=200|text='''[[Guglielmo Gabetto|Gabetto]]'''}}
+</div>
+| {{Bandiera|ITA}} [[Valerio Bacigalupo]] (40)
+|-
+| {{Bandiera|ITA}} [[Aldo Ballarin]] (39)
+|-
+| {{Bandiera|ITA}} [[Mario Rigamonti]] (39)
+|-
+| {{Bandiera|ITA}} [[Sauro Tomà]] (24)
+|-
+| {{Bandiera|ITA}} [[Giuseppe Grezar]] (33)
+|-
+| {{Bandiera|ITA}} [[Eusebio Castigliano]] (29)
+|-
+| {{Bandiera|ITA}} [[Ezio Loik]] (33)
+|-
+| {{Bandiera|ITA}} [[Valentino Mazzola]] (37)
+|-
+| {{Bandiera|ITA}} [[Franco Ossola]] (17)
+|-
+| {{Bandiera|ITA}} [[Romeo Menti]] (38)
+|-
+| {{Bandiera|ITA}} [[Guglielmo Gabetto]] (36)
+|-
+| colspan=2 | '''Altri giocatori''': [[Virgilio Maroso]] (17), [[Danilo Martelli]] (27), [[Pietro Ferraris]] (16), [[Josef Fabian]] (15).
+|}
+
+== Risultati ==
+=== Tabellone ===
+{| class=wikitable style="font-size:85%; text-align:center"
+! !!Ale!!Ata!!Bar!!Bol!!Fio!!Gen!!Int!!Juv!!Laz!!Liv!!Luc!!Mil!!Mod!!Nap!!PPa!!Rom!!Sal!!Sam!!Tor!!Tri!!Vic
+|-
+|style="text-align:left;"|Alessandria
+|{{Sfondo|cc}}|––––||0-1||1-0||0-2||1-0||0-0||1-0||1-3||2-2||1-0||4-2||2-2||0-0||2-2||2-5||4-0||3-0||1-1||2-2||1-1||4-0
+|- style=background:#FFFFFF;
+|style="text-align:left;"|Atalanta
+||0-0||{{Sfondo|cc}}|––––||3-1||1-0||1-0||2-1||1-1||0-0||5-0||3-1||5-0||1-0||2-1||2-1||2-2||1-1||0-0||2-0||1-0||3-1||2-0
+|-
+|style="text-align:left;"|Bari
+||1-0||3-0||{{Sfondo|cc}}|––––||1-1||1-0||{{Abbr|0-2|A tavolino.}}||2-1||2-1||2-1||3-0||1-0||1-0||1-1||2-1||1-3||2-1||0-0||0-2||1-0||0-0||1-0
+|- style=background:#FFFFFF;
+|style="text-align:left;"|Bologna
+||3-2||3-1||0-0||{{Sfondo|cc}}|––––||1-0||4-2||1-0||1-1||0-0||4-1||2-2||1-0||3-3||0-1||2-2||2-2||4-0||1-0||1-0||0-0||2-1
+|-
+|style="text-align:left;"|Fiorentina
+||2-1||2-0||2-0||1-1||{{Sfondo|cc}}|––––||4-0||1-0||2-4||4-1||1-1||2-0||2-1||4-2||1-0||1-0||1-0||1-0||4-3||1-2||2-1||1-2
+|- style=background:#FFFFFF;
+|style="text-align:left;"|Genoa
+||3-0||1-1||2-2||7-2||1-2||{{Sfondo|cc}}|––––||2-1||2-3||3-1||0-0||1-1||3-1||2-0||3-2||4-1||2-4||3-1||2-1||1-2||2-1||4-0
+|-
+|style="text-align:left;"|Inter
+||6-0||0-3||4-1||2-1||4-1||1-0||{{Sfondo|cc}}|––––||4-2||1-1||1-0||6-0||0-2||1-1||1-0||4-0||3-2||2-1||2-4||0-1||1-1||2-0
+|- style=background:#FFFFFF;
+|style="text-align:left;"|Juventus
+||6-1||1-0||6-0||0-1||3-0||2-1||2-0||{{Sfondo|cc}}|––––||1-1||6-1||1-1||2-1||0-1||1-3||0-4||3-0||2-0||4-1||1-1||0-1||6-0
+|-
+|style="text-align:left;"|Lazio
+||1-0||1-1||3-3||2-1||5-0||3-0||1-0||0-0||{{Sfondo|cc}}|––––||4-1||1-0||1-2||1-0||0-0||1-0||0-1||3-1||3-3||0-0||3-1||2-1
+|- style=background:#FFFFFF;
+|style="text-align:left;"|Livorno
+||1-0||2-0||1-1||2-0||2-2||1-1||3-2||0-0||0-0||{{Sfondo|cc}}|––––||2-0||1-1||1-1||1-0||2-2||2-1||3-0||1-1||1-3||2-1||2-0
+|-
+|style="text-align:left;"|Lucchese
+||2-1||1-1||1-0||1-0||1-0||0-3||1-1||2-2||2-1||2-2||{{Sfondo|cc}}|––––||0-0||2-0||2-1||2-0||2-2||1-0||2-1||2-2||1-1||1-1
+|- style=background:#FFFFFF;
+|style="text-align:left;"|Milan
+||1-3||1-0||8-1||2-1||2-1||2-0||3-2||5-0||5-2||2-0||1-2||{{Sfondo|cc}}|––––||2-1||3-0||4-2||2-2||2-0||1-0||3-2||1-1||3-2
+|-
+|style="text-align:left;"|Modena
+||1-0||2-0||2-0||1-1||1-1||3-2||2-0||0-1||2-0||3-0||3-0||1-0||{{Sfondo|cc}}|––––||1-0||1-0||3-0||1-0||1-1||0-3||0-0||2-0
+|- style=background:#FFFFFF;
+|style="text-align:left;"|Napoli
+||1-2||1-1||1-0||1-1||3-0||3-0||3-0||0-0||0-0||3-0||5-0||0-2||5-1||{{Sfondo|cc}}|––––||1-0||1-2||0-0||3-1||0-0||1-0||1-1
+|-
+|style="text-align:left;"|Pro Patria
+||3-2||2-0||2-0||1-0||1-0||3-2||2-0||2-3||1-1||2-0||5-1||2-3||0-1||3-1||{{Sfondo|cc}}|––––||2-2||1-0||1-0||0-2||3-1||2-0
+|- style=background:#FFFFFF;
+|style="text-align:left;"|Roma
+||4-1||4-1||0-0||0-2||0-1||3-0||2-3||2-3||0-2||1-0||4-2||1-4||0-0||1-0||1-1||{{Sfondo|cc}}|––––||1-0||2-0||1-7||1-3||2-0
+|-
+|style="text-align:left;"|Salernitana
+||1-0||0-0||1-0||2-0||2-0||4-1||1-0||0-0||2-0||2-4||5-2||4-3||1-0||3-3||5-0||0-1||{{Sfondo|cc}}|––––||2-1||1-4||2-2||1-0
+|- style=background:#FFFFFF;
+|style="text-align:left;"|Sampdoria
+||4-0||1-0||0-1||2-0||0-0||1-1||1-4||5-2||2-1||1-1||4-1||0-0||0-0||2-1||5-3||2-1||6-3||{{Sfondo|cc}}|––––||0-1||2-2||6-1
+|-
+|style="text-align:left;"|Torino
+||10-0||4-0||5-1||5-1||5-0||2-1||5-0||1-1||4-3||5-2||6-0||2-1||5-2||4-0||4-1||4-1||7-1||3-2||{{Sfondo|cc}}|––––||6-0||2-0
+|- style=background:#FFFFFF;
+|style="text-align:left;"|Triestina
+||2-1||1-1||1-1||1-0||1-0||1-0||4-3||1-0||2-1||1-1||4-1||2-0||1-0||1-0||4-1||2-0||0-0||2-0||0-0||{{Sfondo|cc}}|––––||1-0
+|-
+|style="text-align:left;"|Vicenza
+||0-3||1-0||3-1||2-1||1-2||0-3||1-4||0-1||2-1||1-0||1-3||0-0||0-0||2-1||1-0||1-1||2-0||3-2||0-4||1-1||{{Sfondo|cc}}|––––
+|}
+
+=== Calendario ===
+Sorteggiato il 26 agosto 1947<ref name=lastampa>{{cita news|url=http://www.archiviolastampa.it/component/option,com_lastampa/task,search/mod,libera/action,viewer/Itemid,3/page,2/articleid,0041_01_1947_0201_0002_24637193/|titolo=Il calendario di calcio Serie A|pubblicazione=La Nuova Stampa|data=27 agosto 1947|p=2}}</ref>, il calendario — oltre ad inserire due turni di riposo per ciascuna formazione —<ref name=ventuno/><ref name=lastampa/> prevedeva soste per impegni della [[Nazionale di calcio dell'Italia|Nazionale azzurra]] alle seguenti date<ref name=lastampa/>: 9 novembre, 14 dicembre 1947, 4 aprile e 16 maggio 1948.<ref name=lastampa/> I turni infrasettimanali erano invece calendarizzati al 1º gennaio, 6 maggio e 27 maggio 1948.<ref name=lastampa/>
+
+In quanto sovrapposta alle [[Elezioni politiche in Italia del 1948|elezioni del 18 aprile 1948]]<ref name=rsssf>{{cita web|url=http://www.rsssf.com/tablesi/ital48.html|titolo=Italy Championship 1947/48|autore=Maurizio Mariani|data=23 febbraio 2017|lingua=en}}</ref>, la 30ª giornata (col riposo spettante al Modena<ref name=lastampa/><ref name=rsssf/>) conobbe una spalmatura delle gare con anticipi al 15 e 17 aprile seguiti da posticipi al 21 e 22 aprile.<ref name=rsssf/><ref>{{cita news|url=http://www.archiviolastampa.it/component/option,com_lastampa/task,search/mod,libera/action,viewer/Itemid,3/page,2/articleid,0010_01_1948_0070_0002_24519585/anews,true/|titolo=Tutte le gare rinviate il giorno delle elezioni|pubblicazione=La Nuova Stampa|data=1º aprile 1948|p=2}}</ref>
+
+{| class=nowrap style="width:100%; border-collapse:collapse; font-size:85%; text-align:center"
+|style="padding:0"|
+{| width=100%
+| width=50% valign=top |
+{| border=0 cellspacing=0 cellpadding=1 width=99%
+| bgcolor="#90c0ff" colspan="2" |'''andata (1ª)'''
+| bgcolor="#d3d3d3" |'''Prima giornata'''
+| bgcolor="#90c0ff" colspan="2" |'''ritorno (22ª)'''
+|-
+!width=12% |
+!width=10% |
+!width=56% |
+!width=10% |
+!width=12% |
+|-
+| bgcolor="#e0f0ff" rowspan="11" | 14 set. ||1-3 || Alessandria-Juventus ||1-6 || bgcolor="#e0f0ff" rowspan="11" | 15 feb.
+|- bgcolor="#f5f5f5"
+|3-1 || Atalanta-Bari ||0-3
+|-
+|2-2 || Bologna-Pro Patria ||0-1
+|- bgcolor="#f5f5f5"
+|1-0 || Fiorentina-Roma ||1-0
+|-
+|1-1 || Inter-Modena ||0-2
+|- bgcolor="#f5f5f5"
+|1-2 || Lazio-Milan ||2-5
+|-
+|2-0 || Livorno-Vicenza ||0-1
+|- bgcolor="#f5f5f5"
+|0-3 || Lucchese-Genoa ||1-1
+|-
+|2-2 || Sampdoria-Triestina ||0-2
+|- bgcolor="#f5f5f5"
+|4-0 || Torino-Napoli ||0-0
+|-
+|colspan=3| Riposa: Salernitana
+|}
+<br />
+| width=50% valign=top |
+{| border=0 cellspacing=0 cellpadding=1 width=99%
+| bgcolor="#90c0ff" colspan="2" |'''andata (2ª)'''
+| bgcolor="#d3d3d3" |'''Seconda giornata'''
+| bgcolor="#90c0ff" colspan="2" |'''ritorno (23ª)'''
+|-
+!width=12% |
+!width=10% |
+!width=56% |
+!width=10% |
+!width=12% |
+|-
+| bgcolor="#e0f0ff" rowspan="11" | 21 set. ||4-0 || Alessandria-Vicenza ||3-0 || bgcolor="#f0ffff" | 11 mar.
+|- bgcolor="#f5f5f5"
+|1-1 || Atalanta-Inter ||3-0 || bgcolor="#e0f0ff" rowspan="4" | 22 feb.
+|-
+|1-0 || Bari-Torino ||1-5
+|- bgcolor="#f5f5f5"
+|3-2 || Genoa-Napoli ||0-3
+|-
+|4-1 || Juventus-Sampdoria ||2-5
+|- bgcolor="#f5f5f5"
+|1-0 || Lucchese-Bologna ||2-2 || bgcolor="#f0ffff" | 4 mar.
+|-
+|4-2 || Milan-Pro Patria ||3-2 || bgcolor="#e0f0ff" rowspan="5" | 22 feb.
+|- bgcolor="#f5f5f5"
+|1-1 || Modena-Fiorentina ||2-4
+|-
+|1-0 || Roma-Livorno ||1-2
+|- bgcolor="#f5f5f5"
+|2-0 || Salernitana-Lazio ||1-3
+|-
+|colspan=3| Riposa: Triestina
+|}
+<br />
+|}
+{| width=100%
+| width=50% valign=top |
+{| border=0 cellspacing=0 cellpadding=1 width=99%
+| bgcolor="#90c0ff" colspan="2" |'''andata (3ª)'''
+| bgcolor="#d3d3d3" |'''Terza giornata'''
+| bgcolor="#90c0ff" colspan="2" |'''ritorno (24ª)'''
+|-
+!width=12% |
+!width=10% |
+!width=56% |
+!width=10% |
+!width=12% |
+|-
+| bgcolor="#e0f0ff" rowspan="11" | 28 set. ||2-1 || Bari-Roma ||0-0 || bgcolor="#e0f0ff" rowspan="11" | 29 feb.
+|- bgcolor="#f5f5f5"
+|3-1 || Bologna-Atalanta ||0-1
+|-
+|2-1 || Fiorentina-Milan ||1-2
+|- bgcolor="#f5f5f5"
+|2-3 || Genoa-Juventus ||1-2
+|-
+|6-0 || Inter-Alessandria ||0-1
+|- bgcolor="#f5f5f5"
+|1-0 || Lazio-Modena ||0-2
+|-
+|2-1 || Livorno-Triestina ||1-1
+|- bgcolor="#f5f5f5"
+|1-0 || Pro Patria-Sampdoria ||3-5
+|-
+|6-0 || Torino-Lucchese ||2-2
+|- bgcolor="#f5f5f5"
+|2-0 || Vicenza-Salernitana ||0-1
+|-
+|colspan=3| Riposa: Napoli
+|}
+<br />
+| width=50% valign=top |
+{| border=0 cellspacing=0 cellpadding=1 width=99%
+| bgcolor="#90c0ff" colspan="2" |'''andata (4ª)'''
+| bgcolor="#d3d3d3" |'''Quarta giornata'''
+| bgcolor="#90c0ff" colspan="2" |'''ritorno (25ª)'''
+|-
+!width=12% |
+!width=10% |
+!width=56% |
+!width=10% |
+!width=12% |
+|-
+| bgcolor="#e0f0ff" rowspan="11" | 5 ott. ||0-2 || Alessandria-Bologna ||2-3 || bgcolor="#e0f0ff" rowspan="11" | 7 mar.
+|- bgcolor="#f5f5f5"
+|1-0 || Juventus-Atalanta ||0-0
+|-
+|2-0 || Milan-Genoa ||1-3
+|- bgcolor="#f5f5f5"
+|3-0 || Modena-Livorno ||1-1
+|-
+|0-0 || Napoli-Lazio ||0-0
+|- bgcolor="#f5f5f5"
+|1-0 || Pro Patria-Fiorentina ||0-1
+|-
+|1-7 || Roma-Torino ||1-4
+|- bgcolor="#f5f5f5"
+|1-4 || Sampdoria-Inter ||4-2
+|-
+|0-0 || Triestina-Salernitana ||2-2
+|- bgcolor="#f5f5f5"
+|3-1 || Vicenza-Bari ||0-1
+|-
+|colspan=3| Riposa: Lucchese
+|}
+<br />
+|}
+{| width=100%
+| width=50% valign=top |
+{| border=0 cellspacing=0 cellpadding=1 width=99%
+| bgcolor="#90c0ff" colspan="2" |'''andata (5ª)'''
+| bgcolor="#d3d3d3" |'''Quinta giornata'''
+| bgcolor="#90c0ff" colspan="2" |'''ritorno (26ª)'''
+|-
+!width=12% |
+!width=10% |
+!width=56% |
+!width=10% |
+!width=12% |
+|-
+| bgcolor="#e0f0ff" rowspan="11" | 12 ott. ||2-1 || Atalanta-Modena ||0-2 || bgcolor="#e0f0ff" rowspan="11" | 14 mar.
+|- bgcolor="#f5f5f5"
+|2-2 || Bologna-Roma ||2-0
+|-
+|1-0 || Fiorentina-Napoli ||0-3
+|- bgcolor="#f5f5f5"
+|3-0 || Genoa-Alessandria ||0-0
+|-
+|4-2 || Inter-Juventus ||0-2
+|- bgcolor="#f5f5f5"
+|1-0 || Lazio-Pro Patria ||1-1
+|-
+|1-1 || Livorno-Milan ||0-2
+|- bgcolor="#f5f5f5"
+|5-2 || Salernitana-Lucchese ||0-1
+|-
+|2-0 || Torino-Vicenza ||4-0
+|- bgcolor="#f5f5f5"
+|1-1 || Triestina-Bari ||0-0
+|-
+|colspan=3| Riposa: Sampdoria
+|}
+<br />
+| width=50% valign=top |
+{| border=0 cellspacing=0 cellpadding=1 width=99%
+| bgcolor="#90c0ff" colspan="2" |'''andata (6ª)'''
+| bgcolor="#d3d3d3" |'''Sesta giornata'''
+| bgcolor="#90c0ff" colspan="2" |'''ritorno (27ª)'''
+|-
+!width=12% |
+!width=10% |
+!width=56% |
+!width=10% |
+!width=12% |
+|-
+| bgcolor="#e0f0ff" rowspan="11" | 19 ott. ||1-0 || Alessandria-Livorno ||0-1 || bgcolor="#e0f0ff" rowspan="11" | 21 mar.
+|- bgcolor="#f5f5f5"
+|0-0 || Bari-Salernitana ||0-1
+|-
+|0-1 || Juventus-Triestina ||0-1
+|- bgcolor="#f5f5f5"
+|1-0 || Lazio-Inter ||1-1
+|-
+|1-0 || Lucchese-Fiorentina ||0-2
+|- bgcolor="#f5f5f5"
+|2-1 || Milan-Bologna ||0-1
+|-
+|3-2 || Modena-Genoa ||0-2
+|- bgcolor="#f5f5f5"
+|1-1 || Napoli-Vicenza ||1-2
+|-
+|0-2 || Pro Patria-Torino ||1-4
+|- bgcolor="#f5f5f5"
+|1-0 || Sampdoria-Atalanta ||0-2
+|-
+|colspan=3| Riposa: Roma
+|}
+|}
+{| width=100%
+| width=50% valign=top |
+{| border=0 cellspacing=0 cellpadding=1 width=99%
+| bgcolor="#90c0ff" colspan="2" |'''andata (7ª)'''
+| bgcolor="#d3d3d3" |'''Settima giornata'''
+| bgcolor="#90c0ff" colspan="2" |'''ritorno (28ª)'''
+|-
+!width=12% |
+!width=10% |
+!width=56% |
+!width=10% |
+!width=12% |
+|-
+| bgcolor="#e0f0ff" rowspan="11" | 26 ott. ||1-0 || Bologna-Sampdoria ||0-2 || bgcolor="#e0f0ff" rowspan="11" | 28 mar.
+|- bgcolor="#f5f5f5"
+|1-0 || Fiorentina-Salernitana ||0-2
+|-
+|3-1 || Genoa-Lazio ||0-3
+|- bgcolor="#f5f5f5"
+|6-0 || Inter-Lucchese ||1-1
+|-
+|2-2 || Livorno-Pro Patria ||0-2
+|- bgcolor="#f5f5f5"
+|1-2 || Napoli-Alessandria ||2-2
+|-
+|4-1 || Roma-Atalanta ||1-1
+|- bgcolor="#f5f5f5"
+|1-1 || Torino-Juventus ||1-1
+|-
+|2-0 || Triestina-Milan ||1-1
+|- bgcolor="#f5f5f5"
+|0-0 || Vicenza-Modena ||0-2
+|-
+|colspan=3| Riposa: Bari
+|}
+<br />
+| width=50% valign=top |
+{| border=0 cellspacing=0 cellpadding=1 width=99%
+| bgcolor="#90c0ff" colspan="2" |'''andata (8ª)'''
+| bgcolor="#d3d3d3" |'''Ottava giornata'''
+| bgcolor="#90c0ff" colspan="2" |'''ritorno (29ª)'''
+|-
+!width=12% |
+!width=10% |
+!width=56% |
+!width=10% |
+!width=12% |
+|-
+| bgcolor="#e0f0ff" rowspan="11" | 2 nov. ||0-0 || Atalanta-Alessandria ||1-0 || bgcolor="#e0f0ff" rowspan="11" | 11 apr.
+|- bgcolor="#f5f5f5"
+|1-1 || Bari-Modena ||0-2
+|-
+|1-0 || Bologna-Torino ||1-5
+|- bgcolor="#f5f5f5"
+|1-1 || Fiorentina-Livorno ||2-2
+|-
+|1-1 || Juventus-Lazio ||0-0
+|- bgcolor="#f5f5f5"
+|1-1 || Lucchese-Triestina ||1-4
+|-
+|3-2 || Milan-Inter ||2-0
+|- bgcolor="#f5f5f5"
+|1-1 || Roma-Pro Patria ||2-2
+|-
+|3-3 || Salernitana-Napoli ||0-0
+|- bgcolor="#f5f5f5"
+|6-1 || Sampdoria-Vicenza ||2-3
+|-
+|colspan=3| Riposa: Genoa
+|}
+|}
+{| width=100%
+| width=50% valign=top |
+{| border=0 cellspacing=0 cellpadding=1 width=99%
+| bgcolor="#90c0ff" colspan="2" |'''andata (9ª)'''
+| bgcolor="#d3d3d3" |'''Nona giornata'''
+| bgcolor="#90c0ff" colspan="2" |'''ritorno (30ª)'''
+|-
+!width=12% |
+!width=10% |
+!width=56% |
+!width=10% |
+!width=12% |
+|-
+| bgcolor="#e0f0ff" rowspan="11" | 16 nov. ||4-2 || Alessandria-Lucchese ||1-2 || bgcolor="#e0f0ff" rowspan="2" | 17 apr.
+|- bgcolor="#f5f5f5"
+|1-0 || Bari-Fiorentina ||0-2
+|-
+|2-1 || Genoa-Sampdoria ||1-1 || bgcolor="#f0ffff" | 22 apr.
+|- bgcolor="#f5f5f5"
+|0-1 || Lazio-Roma ||2-0 || bgcolor="#e0f0ff" | 21 apr.
+|-
+|3-2 || Livorno-Inter ||0-1 || bgcolor="#f0ffff" | 15 apr.
+|- bgcolor="#f5f5f5"
+|1-0 || Milan-Atalanta ||0-1 || bgcolor="#e0f0ff" | 17 apr.
+|-
+|0-0 || Napoli-Juventus ||3-1 || bgcolor="#f0ffff" | 21 apr.
+|- bgcolor="#f5f5f5"
+|3-1 || Pro Patria-Triestina ||1-4 || bgcolor="#e0f0ff" rowspan="4" | 17 apr.
+|-
+|7-1 || Torino-Salernitana ||4-1
+|- bgcolor="#f5f5f5"
+|2-1 || Vicenza-Bologna ||1-2
+|-
+|colspan=3| Riposa: Modena
+|}
+<br />
+| width=50% valign=top |
+{| border=0 cellspacing=0 cellpadding=1 width=99%
+| bgcolor="#90c0ff" colspan="2" |'''andata (10ª)'''
+| bgcolor="#d3d3d3" |'''Decima giornata'''
+| bgcolor="#90c0ff" colspan="2" |'''ritorno (31ª)'''
+|-
+!width=12% |
+!width=10% |
+!width=56% |
+!width=10% |
+!width=12% |
+|-
+| bgcolor="#e0f0ff" rowspan="11" | 23 nov. ||0-0 || Atalanta-Salernitana ||0-0 || bgcolor="#e0f0ff" rowspan="11" | 25 apr.
+|- bgcolor="#f5f5f5"
+|1-1 || Fiorentina-Bologna ||0-1
+|-
+|1-0 || Inter-Genoa ||1-2
+|- bgcolor="#f5f5f5"
+|6-1 || Juventus-Livorno ||0-0
+|-
+|1-0 || Lucchese-Bari ||0-1
+|- bgcolor="#f5f5f5"
+|1-0 || Modena-Alessandria ||0-0
+|-
+|1-0 || Napoli-Pro Patria ||1-3
+|- bgcolor="#f5f5f5"
+|1-4 || Roma-Milan ||2-2
+|-
+|0-1 || Sampdoria-Torino ||2-3
+|- bgcolor="#f5f5f5"
+|2-1 || Triestina-Lazio ||1-3
+|-
+|colspan=3| Riposa: Vicenza
+|}
+|}
+{| width=100%
+| width=50% valign=top |
+{| border=0 cellspacing=0 cellpadding=1 width=99%
+| bgcolor="#90c0ff" colspan="2" |'''andata (11ª)'''
+| bgcolor="#d3d3d3" |'''Undicesima giornata'''
+| bgcolor="#90c0ff" colspan="2" |'''ritorno (32ª)'''
+|-
+!width=12% |
+!width=10% |
+!width=56% |
+!width=10% |
+!width=12% |
+|-
+| bgcolor="#e0f0ff" rowspan="11" | 30 nov. ||2-2 || Alessandria-Torino ||0-10 || bgcolor="#e0f0ff" rowspan="11" | 2 mag.
+|- bgcolor="#f5f5f5"
+|4-1 || Bologna-Livorno ||0-2
+|-
+|4-1 || Inter-Bari ||1-2
+|- bgcolor="#f5f5f5"
+|1-1 || Lazio-Atalanta ||0-5
+|-
+|0-0 || Lucchese-Milan ||2-1
+|- bgcolor="#f5f5f5"
+|3-2 || Pro Patria-Genoa ||1-4
+|-
+|1-0 || Salernitana-Modena ||0-1
+|- bgcolor="#f5f5f5"
+|2-1 || Sampdoria-Napoli ||1-3
+|-
+|1-0 || Triestina-Fiorentina ||1-2
+|- bgcolor="#f5f5f5"
+|1-1 || Vicenza-Roma ||0-2
+|-
+|colspan=3| Riposa: Juventus
+|}
+<br />
+| width=50% valign=top |
+{| border=0 cellspacing=0 cellpadding=1 width=99%
+| bgcolor="#90c0ff" colspan="2" |'''andata (12ª)'''
+| bgcolor="#d3d3d3" |'''Dodicesima giornata'''
+| bgcolor="#90c0ff" colspan="2" |'''ritorno (33ª)'''
+|-
+!width=12% |
+!width=10% |
+!width=56% |
+!width=10% |
+!width=12% |
+|-
+| bgcolor="#f0ffff" | 14 dic. ||5-0 || Atalanta-Lucchese ||1-1 || bgcolor="#e0f0ff" rowspan="11" | 6 mag.
+|- bgcolor="#f5f5f5"
+| bgcolor="#e0f0ff" rowspan="10" | 7 dic. ||1-0 || Bari-Alessandria ||0-1
+|-
+|0-0 || Bologna-Triestina ||0-1
+|- bgcolor="#f5f5f5"
+|4-0 || Genoa-Vicenza ||3-0
+|-
+|0-0 || Livorno-Lazio ||1-4
+|- bgcolor="#f5f5f5"
+|5-0 || Milan-Juventus ||1-2
+|-
+|5-1 || Napoli-Modena ||0-1
+|- bgcolor="#f5f5f5"
+|1-0 || Pro Patria-Salernitana ||0-5
+|-
+|2-0 || Roma-Sampdoria ||1-2
+|- bgcolor="#f5f5f5"
+|5-0 || Torino-Inter ||1-0
+|-
+|colspan=3| Riposa: Fiorentina
+|}
+|}
+{| width=100%
+| width=50% valign=top |
+{| border=0 cellspacing=0 cellpadding=1 width=99%
+| bgcolor="#90c0ff" colspan="2" |'''andata (13ª)'''
+| bgcolor="#d3d3d3" |'''Tredicesima giornata'''
+| bgcolor="#90c0ff" colspan="2" |'''ritorno (34ª)'''
+|-
+!width=12% |
+!width=10% |
+!width=56% |
+!width=10% |
+!width=12% |
+|-
+| bgcolor="#e0f0ff" rowspan="11" | 21 dic. ||1-0 || Atalanta-Torino ||0-4 || bgcolor="#e0f0ff" rowspan="11" | 9 mag.
+|- bgcolor="#f5f5f5"
+|2-1 || Fiorentina-Alessandria ||0-1
+|-
+|0-0 || Genoa-Livorno ||1-1
+|- bgcolor="#f5f5f5"
+|4-0 || Inter-Pro Patria ||0-2
+|-
+|1-1 || Juventus-Lucchese ||2-2
+|- bgcolor="#f5f5f5"
+|3-3 || Lazio-Bari ||1-2
+|-
+|1-1 || Modena-Bologna ||3-3
+|- bgcolor="#f5f5f5"
+|1-2 || Napoli-Roma ||0-1
+|-
+|2-1 || Salernitana-Sampdoria ||3-6
+|- bgcolor="#f5f5f5"
+|1-0 || Triestina-Vicenza ||1-1
+|-
+|colspan=3| Riposa: Milan
+|}
+<br />
+| width=50% valign=top |
+{| border=0 cellspacing=0 cellpadding=1 width=99%
+| bgcolor="#90c0ff" colspan="2" |'''andata (14ª)'''
+| bgcolor="#d3d3d3" |'''Quattordicesima giornata'''
+| bgcolor="#90c0ff" colspan="2" |'''ritorno (35ª)'''
+|-
+!width=12% |
+!width=10% |
+!width=56% |
+!width=10% |
+!width=12% |
+|-
+| bgcolor="#e0f0ff" rowspan="11" | 28 dic. ||3-0 || Alessandria-Salernitana ||0-1 || bgcolor="#e0f0ff" rowspan="11" | 23 mag.
+|- bgcolor="#f5f5f5"
+|0-2 || <ref>A tavolino per delibera del [[Lega Nazionale Professionisti|Lega Nazionale]]. Partita sospesa all'86' per invasione di campo sul punteggio di 0-1. [http://www.enciclopediadelcalcio.it/4748-14.html Enciclopediadelcalcio.it]</ref> Bari-Genoa ||2-2
+|-
+|0-0 || Bologna-Lazio ||1-2
+|- bgcolor="#f5f5f5"
+|1-0 || Livorno-Napoli ||0-3
+|-
+|2-0 || Lucchese-Pro Patria ||1-5
+|- bgcolor="#f5f5f5"
+|2-1 || Milan-Modena ||0-1
+|-
+|2-3 || Roma-Juventus ||0-3
+|- bgcolor="#f5f5f5"
+|0-0 || Sampdoria-Fiorentina ||3-4
+|-
+|6-0 || Torino-Triestina ||0-0
+|- bgcolor="#f5f5f5"
+|1-4 || Vicenza-Inter ||0-2
+|-
+|colspan=3| Riposa: Atalanta
+|}
+|}
+{| width=100%
+| width=50% valign=top |
+{| border=0 cellspacing=0 cellpadding=1 width=99%
+| bgcolor="#90c0ff" colspan="2" |'''andata (15ª)'''
+| bgcolor="#d3d3d3" |'''Quindicesima giornata'''
+| bgcolor="#90c0ff" colspan="2" |'''ritorno (36ª)'''
+|-
+!width=12% |
+!width=10% |
+!width=56% |
+!width=10% |
+!width=12% |
+|-
+| bgcolor="#e0f0ff" rowspan="6" | 1º gen. ||4-0 || Alessandria-Roma ||1-4 || bgcolor="#e0f0ff" rowspan="11" | 27 mag.
+|- bgcolor="#f5f5f5"
+|2-1 || Atalanta-Napoli ||1-1
+|-
+|1-3 || Bari-Pro Patria ||0-2
+|- bgcolor="#f5f5f5"
+|2-1 || Inter-Bologna ||0-1
+|-
+|1-0 || Lazio-Lucchese ||1-2
+|- bgcolor="#f5f5f5"
+|0-0 || Modena-Triestina ||0-1
+|-
+| bgcolor="#f0ffff" | 9 nov. ||4-1 || <ref>{{Cita web|http://www.enciclopediadelcalcio.it/4748-15.html|Enciclopediadelcalcio.it}}</ref> Salernitana-Genoa ||1-3
+|- bgcolor="#f5f5f5"
+| bgcolor="#e0f0ff" rowspan="4" | 1º gen. ||0-0 || Sampdoria-Milan ||0-1
+|-
+|5-0 || Torino-Fiorentina ||2-1
+|- bgcolor="#f5f5f5"
+|0-1 || Vicenza-Juventus ||0-6
+|-
+|colspan=3| Riposa: Livorno
+|}
+<br />
+| width=50% valign=top |
+{| border=0 cellspacing=0 cellpadding=1 width=99%
+| bgcolor="#90c0ff" colspan="2" |'''andata (16ª)'''
+| bgcolor="#d3d3d3" |'''Sedicesima giornata'''
+| bgcolor="#90c0ff" colspan="2" |'''ritorno (37ª)'''
+|-
+!width=12% |
+!width=10% |
+!width=56% |
+!width=10% |
+!width=12% |
+|-
+| bgcolor="#e0f0ff" rowspan="7" | 4 gen. ||2-0 || Atalanta-Vicenza ||0-1 || bgcolor="#e0f0ff" rowspan="11" | 30 mag.
+|- bgcolor="#f5f5f5"
+|1-0 || Fiorentina-Inter ||1-4
+|-
+|2-4 || Genoa-Roma ||0-3
+|- bgcolor="#f5f5f5"
+|0-1 || Juventus-Modena ||1-0
+|-
+|0-0 || Lazio-Torino ||3-4
+|- bgcolor="#f5f5f5"
+|2-1 || Lucchese-Sampdoria ||1-4
+|-
+|8-1 || Milan-Bari ||0-1
+|- bgcolor="#f5f5f5"
+| bgcolor="#f0ffff" | 6 gen. ||3-2 || Pro Patria-Alessandria ||5-2
+|-
+| bgcolor="#e0f0ff" rowspan="3" | 4 gen. ||2-4 || Salernitana-Livorno ||0-3
+|- bgcolor="#f5f5f5"
+|1-0 || Triestina-Napoli ||0-1
+|-
+|colspan=3| Riposa: Bologna
+|}
+|}
+{| width=100%
+| width=50% valign=top |
+{| border=0 cellspacing=0 cellpadding=1 width=99%
+| bgcolor="#90c0ff" colspan="2" |'''andata (17ª)'''
+| bgcolor="#d3d3d3" |'''Diciassettesima giornata'''
+| bgcolor="#90c0ff" colspan="2" |'''ritorno (38ª)'''
+|-
+!width=12% |
+!width=10% |
+!width=56% |
+!width=10% |
+!width=12% |
+|-
+| bgcolor="#e0f0ff" rowspan="11" | 11 gen. ||1-1 || Alessandria-Triestina ||1-2 || bgcolor="#e0f0ff" rowspan="11" | 6 giu.
+|- bgcolor="#f5f5f5"
+|0-2 || Bari-Sampdoria ||1-0
+|-
+|1-1 || Genoa-Atalanta ||1-2
+|- bgcolor="#f5f5f5"
+|3-0 || Juventus-Fiorentina ||4-2
+|-
+|1-3 || Livorno-Torino ||2-5
+|- bgcolor="#f5f5f5"
+|2-0 || Milan-Salernitana ||3-4
+|-
+|3-0 || Modena-Lucchese ||0-2
+|- bgcolor="#f5f5f5"
+|1-1 || Napoli-Bologna ||1-0
+|-
+|2-3 || Roma-Inter ||2-3
+|- bgcolor="#f5f5f5"
+|2-1 || Vicenza-Lazio ||1-2
+|-
+|colspan=3| Riposa: Pro Patria
+|}
+<br />
+| width=50% valign=top |
+{| border=0 cellspacing=0 cellpadding=1 width=99%
+| bgcolor="#90c0ff" colspan="2" |'''andata (18ª)'''
+| bgcolor="#d3d3d3" |'''Diciottesima giornata'''
+| bgcolor="#90c0ff" colspan="2" |'''ritorno (39ª)'''
+|-
+!width=12% |
+!width=10% |
+!width=56% |
+!width=10% |
+!width=12% |
+|-
+| bgcolor="#e0f0ff" rowspan="11" | 18 gen. ||1-1 || Bari-Bologna ||0-0 || bgcolor="#e0f0ff" rowspan="11" | 13 giu.
+|- bgcolor="#f5f5f5"
+|2-0 || Fiorentina-Atalanta ||0-1
+|-
+|1-0 || Lazio-Alessandria ||2-2
+|- bgcolor="#f5f5f5"
+|1-1 || Lucchese-Vicenza ||3-1
+|-
+|1-0 || Modena-Pro Patria ||1-0
+|- bgcolor="#f5f5f5"
+|0-2 || Napoli-Milan ||0-3
+|-
+|0-0 || Salernitana-Juventus ||0-2
+|- bgcolor="#f5f5f5"
+|1-1 || Sampdoria-Livorno ||1-1
+|-
+|2-1 || Torino-Genoa ||2-1
+|- bgcolor="#f5f5f5"
+|2-0 || Triestina-Roma ||3-1
+|-
+|colspan=3| Riposa: Inter
+|}
+|}
+{| width=100%
+| width=50% valign=top |
+{| border=0 cellspacing=0 cellpadding=1 width=99%
+| bgcolor="#90c0ff" colspan="2" |'''andata (19ª)'''
+| bgcolor="#d3d3d3" |'''Diciannovesima giornata'''
+| bgcolor="#90c0ff" colspan="2" |'''ritorno (40ª)'''
+|-
+!width=12% |
+!width=10% |
+!width=56% |
+!width=10% |
+!width=12% |
+|-
+| bgcolor="#e0f0ff" rowspan="11" | 25 gen. ||3-1 || Atalanta-Livorno ||0-2 || bgcolor="#e0f0ff" rowspan="11" | 20 giu.
+|- bgcolor="#f5f5f5"
+|4-0 || Bologna-Salernitana ||0-2
+|-
+|4-1 || Fiorentina-Lazio ||0-5
+|- bgcolor="#f5f5f5"
+|6-0 || Juventus-Bari ||1-2
+|-
+|3-2 || Milan-Torino ||1-2
+|- bgcolor="#f5f5f5"
+|3-0 || Napoli-Inter ||0-1
+|-
+|2-0 || Pro Patria-Vicenza ||0-1
+|- bgcolor="#f5f5f5"
+|4-2 || Roma-Lucchese ||2-2
+|-
+|0-0 || Sampdoria-Modena ||1-1
+|- bgcolor="#f5f5f5"
+|1-0 || Triestina-Genoa ||1-2
+|-
+|colspan=3| Riposa: Alessandria
+|}
+<br />
+| width=50% valign=top |
+{| border=0 cellspacing=0 cellpadding=1 width=99%
+| bgcolor="#90c0ff" colspan="2" |'''andata (20ª)'''
+| bgcolor="#d3d3d3" |'''Ventesima giornata'''
+| bgcolor="#90c0ff" colspan="2" |'''ritorno (41ª)'''
+|-
+!width=12% |
+!width=10% |
+!width=56% |
+!width=10% |
+!width=12% |
+|-
+| bgcolor="#f0ffff" | 4 apr. ||1-1 || Alessandria-Sampdoria ||0-4 || bgcolor="#e0f0ff" rowspan="11" | 27 giu.
+|- bgcolor="#f5f5f5"
+| bgcolor="#e0f0ff" rowspan="10" | 1º feb. ||2-2 || Atalanta-Pro Patria ||0-2
+|-
+|1-2 || Genoa-Fiorentina ||0-4
+|- bgcolor="#f5f5f5"
+|1-1 || Inter-Triestina ||3-4
+|-
+|0-1 || Juventus-Bologna ||1-1
+|- bgcolor="#f5f5f5"
+|1-1 || Livorno-Bari ||0-3
+|-
+|2-1 || Lucchese-Napoli ||0-5
+|- bgcolor="#f5f5f5"
+|0-3 || Modena-Torino ||2-5
+|-
+|0-1 || Salernitana-Roma ||0-1
+|- bgcolor="#f5f5f5"
+|0-0 || Vicenza-Milan ||2-3
+|-
+|colspan=3| Riposa: Lazio
+|}
+|}
+{| width=100%
+| width=50% valign=top |
+{| border=0 cellspacing=0 cellpadding=1 width=99%
+| bgcolor="#90c0ff" colspan="2" |'''andata (21ª)'''
+| bgcolor="#d3d3d3" |'''Ventunesima giornata'''
+| bgcolor="#90c0ff" colspan="2" |'''ritorno (42ª)'''
+|-
+!width=12% |
+!width=10% |
+!width=56% |
+!width=10% |
+!width=12% |
+|-
+| bgcolor="#e0f0ff" rowspan="11" | 8 feb. ||2-2 || Alessandria-Milan ||3-1 || bgcolor="#e0f0ff" rowspan="11" | 4 lug.
+|- bgcolor="#f5f5f5"
+|2-1 || Bari-Napoli ||0-1
+|-
+|4-2 || Bologna-Genoa ||2-7
+|- bgcolor="#f5f5f5"
+|1-2 || Fiorentina-Vicenza ||2-1
+|-
+|2-1 || Inter-Salernitana ||0-1
+|- bgcolor="#f5f5f5"
+|2-0 || Livorno-Lucchese ||2-2
+|-
+|2-3 || Pro Patria-Juventus ||4-0
+|- bgcolor="#f5f5f5"
+|0-0 || Roma-Modena ||0-3
+|-
+|2-1 || Sampdoria-Lazio ||3-3
+|- bgcolor="#f5f5f5"
+|1-1 || Triestina-Atalanta ||1-3
+|-
+|colspan=3| Riposa: Torino
+|}
+| width=50% valign=top |
+|}
+|}
+
+== Statistiche ==
+===Squadre===
+==== Capoliste solitarie ====
+{{Capoliste
+|giornate = 42
+|c1-nome = [[Juventus Football Club|Juve]] |c1-colore = black |c1-da = 3 |c1-a = 4
+|c2-nome = {{Calcio Torino|N}} |c2-colore = #881F19 |c2-da = 6 |c2-a = 7
+|c3-nome = [[Torino Football Club|Tor]] |c3-colore = #881F19 |c3-da = 15 |c3-a = 15
+|c4-nome = {{Calcio Milan|N}} |c4-colore = #FF0000 |c4-da = 19 |c4-a = 26
+|c5-nome = {{Calcio Torino|N}} |c5-colore = #881F19 |c5-da = 30 |c5-a = 42
+}}
+
+==== Classifica in divenire ====
+<div style="overflow:auto">
+{| class="wikitable sortable nowrap" style="text-align:center; font-size:85%;"
+!rowspan=2|
+!1ª!!2ª!!3ª!!4ª!!5ª!!6ª!!7ª!!8ª!!9ª!!10ª!!11ª!!12ª!!13ª!!14ª!!15ª!!16ª!!17ª!!18ª!!19ª!!20ª!!21ª!!22ª!!23ª!!24ª!!25ª!!26ª!!27ª!!28ª!!29ª!!30ª!!31ª!!32ª!!33ª!!34ª!!35ª!!36ª!!37ª!!38ª!!39ª!!40ª!!41ª!!42ª
+|-
+!{{zwsp}}!! !! !! !! !! !! !! !! !! !! !! !! !! !! !! !! !! !! !! !! !! !! !! !! !! !! !! !! !! !! !! !! !! !! !! !! !! !! !! !! !!
+|-
+!Alessandria
+||0||2||2||2||2||4||6||7||9||9||10||10||10||12||14||14||15||15||15||16||17||17||19||21||21||22||22||23||23||23||24||24||26||28||28||28||28||28||29||29||29||31
+|- style=background:#FFFFFF;
+!Atalanta
+||2||3||3||3||5||5||5||6||6||7||8||10||12||12||14||16||17||17||19||20||21||21||23||25||26||26||28||29||31||33||34||36||37||37||37||38||38||40||42||42||42||44
+|-
+!Bari
+||0||2||4||4||5||6||6||7||9||9||9||11||12||12||12||12||12||13||13||14||16||18||18||19||21||22||22||22||22||22||24||26||26||28||29||29||31||33||34||36||38||38
+|- style=background:#FFFFFF;
+!Bologna
+||1||1||3||5||6||6||8||10||10||11||13||14||15||16||16||16||17||18||20||22||24||24||25||25||27||29||31||31||31||33||35||35||35||36||36||38||38||38||39||39||40||40
+|-
+!Pro Patria
+||1||1||3||5||5||5||6||7||9||9||11||13||13||13||15||17||17||17||19||20||20||22||22||22||22||23||23||25||26||26||28||28||28||30||32||34||36||36||36||36||38||38
+|- style=background:#FFFFFF;
+!Fiorentina
+||2||3||5||5||7||7||9||10||10||11||11||11||13||14||14||16||16||18||20||22||22||24||26||26||28||28||30||30||31||33||33||35||35||35||37||37||37||37||37||37||39||39
+|-
+!Genoa
+||2||4||4||4||6||6||8||8||10||10||10||12||13||15||15||15||16||16||16||16||16||17||17||17||19||20||22||22||22||23||25||27||29||30||31||33||33||33||33||35||35||37
+|- style=background:#FFFFFF;
+!Inter
+||1||2||4||6||8||8||10||10||10||12||14||14||16||18||20||20||22||22||22||23||25||25||25||25||25||25||26||27||27||29||29||29||29||29||31||31||33||35||35||37||37||37
+|-
+!Juventus
+||2||4||6||8||8||8||9||10||11||13||13||13||14||16||18||18||20||21||23||23||25||27||27||29||30||32||32||33||34||34||35||35||37||38||40||42||44||46||48||48||49||49
+|- style=background:#FFFFFF;
+!Lazio
+||0||0||2||3||5||7||7||8||8||8||9||10||11||12||14||15||15||17||17||17||17||17||19||19||20||21||22||24||25||27||29||29||31||31||33||33||33||35||36||38||38||39
+|-
+!Livorno
+||2||2||4||4||5||5||6||7||9||9||9||10||11||13||13||15||15||16||16||17||19||19||21||22||23||23||25||25||26||26||27||29||29||30||30||30||32||32||33||35||35||36
+|- style=background:#FFFFFF;
+!Milan
+||2||4||4||6||7||9||9||11||13||15||16||18||18||20||21||23||25||27||29||30||31||33||35||37||37||39||39||40||42||42||43||43||43||43||43||45||45||45||47||47||49||49
+|-
+!Modena
+||1||2||2||4||4||6||7||8||8||10||10||10||11||11||12||14||16||18||19||19||20||22||22||24||25||27||27||29||31||31||32||34||36||37||39||39||39||39||41||42||42||44
+|- style=background:#FFFFFF;
+!Napoli
+||0||0||0||1||1||2||2||3||4||6||6||8||8||8||8||8||9||9||11||11||11||12||14||14||15||17||17||18||19||21||21||23||23||23||25||26||28||30||30||30||32||34
+|-
+!Roma
+||0||2||2||2||3||3||5||6||8||8||9||11||13||13||13||15||15||15||17||19||20||20||20||21||21||21||21||22||23||23||24||26||26||28||28||30||32||32||32||33||35||35
+|- style=background:#FFFFFF;
+!Sampdoria
+||1||1||1||1||1||3||3||5||5||5||7||7||7||8||9||9||11||12||13||14||16||16||18||20||22||22||22||24||24||25||25||25||27||29||29||29||31||31||32||33||35||36
+|-
+!Torino
+||2||2||4||6||8||10||11||11||13||15||16||18||18||20||22||23||25||27||27||29||29||30||32||33||35||37||39||40||42||44||46||48||50||52||53||55||57||59||61||63||65||65
+|- style=background:#FFFFFF;
+!Triestina
+||1||1||1||2||3||5||7||8||8||10||12||13||15||15||16||18||19||21||23||24||25||27||27||28||29||30||32||33||35||37||37||37||39||40||41||43||43||45||47||47||49||49
+|-
+!Salernitana
+||0||2||2||3||5||6||6||7||7||8||10||10||12||12||14||14||14||15||15||15||15||15||15||17||18||18||20||22||23||23||24||24||26||26||28||28||28||30||30||32||32||34
+|- style=background:#FFFFFF;
+!Vicenza
+||0||0||2||4||4||5||6||6||8||8||9||9||9||9||9||9||11||12||12||13||15||17||17||17||17||17||19||19||21||21||21||21||21||22||22||22||24||24||24||26||26||26
+|-
+!Lucchese
+||0||2||2||2||2||4||4||5||5||7||8||8||9||11||11||13||13||14||14||16||16||17||18||19||19||21||21||22||22||24||24||26||27||28||28||30||30||32||34||35||35||36
+|}
+</div>
+
+==== Classifiche di rendimento ====
+{{Colonne}}
+===== Rendimento andata-ritorno =====
+{| border=0 cellspacing=0 cellpadding=0 style="font-size: 85%; border-collapse: collapse;"
+| colspan=2 bgcolor=#D3D3D3 |'''Andata'''
+| colspan=2 bgcolor=#D3D3D3 |'''Ritorno'''
+|- align=center
+!width=140|
+!width=40|
+!width=140|
+!width=40|
+|-
+| Milan || 31 || Torino || 36
+|- bgcolor=#f5f5f5
+| Torino || 29 || Juventus || 24
+|-
+| Inter || 25 || Modena || 24
+|- bgcolor=#f5f5f5
+| Juventus || 25 || Triestina || 24
+|-
+| Triestina || 25 || Atalanta || 23
+|- bgcolor=#f5f5f5
+| Bologna || 24 || Napoli || 23
+|-
+| Fiorentina || 22 || Bari || 22
+|- bgcolor=#f5f5f5
+| Atalanta || 21 || Lazio || 22
+|-
+| Modena || 20 || Genoa || 21
+|- bgcolor=#f5f5f5
+| Pro Patria || 20 || Lucchese || 20
+|-
+| Roma || 20 || Pro Patria || 20
+|- bgcolor=#f5f5f5
+| Livorno || 19 || Sampdoria || 20
+|-
+| Alessandria || 17 || Fiorentina || 19
+|- bgcolor=#f5f5f5
+| Lazio || 17 || Salernitana || 19
+|-
+| Bari || 16 || Milan || 18
+|- bgcolor=#f5f5f5
+| Genoa || 16 || Livorno || 17
+|-
+| Lucchese || 16 || Bologna || 16
+|- bgcolor=#f5f5f5
+| Sampdoria || 16 || Roma || 15
+|-
+| Salernitana || 15 || Alessandria || 14
+|- bgcolor=#f5f5f5
+| Vicenza || 15 || Inter || 12
+|-
+| Napoli || 11 || Vicenza || 11
+|}
+{{Colonne spezza}}
+===== Rendimento casa-trasferta =====
+{| border=0 cellspacing=0 cellpadding=0 style="font-size: 85%; border-collapse: collapse;"
+| colspan=2 bgcolor=#D3D3D3 |'''In casa'''
+| colspan=2 bgcolor=#D3D3D3 |'''In trasferta'''
+|- align=center
+!width=140|
+!width=40|
+!width=140|
+!width=40|
+|-
+| Torino || 39 || Torino || 26
+|- bgcolor=#f5f5f5
+| Triestina || 35 || Juventus || 22
+|-
+| Atalanta || 34 || Milan || 15
+|- bgcolor=#f5f5f5
+| Milan || 34 || Roma || 14
+|-
+| Fiorentina || 32 || Triestina || 14
+|- bgcolor=#f5f5f5
+| Modena || 32 || Modena || 12
+|-
+| Bari || 30 || Atalanta || 10
+|- bgcolor=#f5f5f5
+| Bologna || 30 || Bologna || 10
+|-
+| Lazio || 30 || Pro Patria || 10
+|- bgcolor=#f5f5f5
+| Pro Patria || 30 || Fiorentina || 9
+|-
+| Salernitana || 30 || Genoa || 9
+|- bgcolor=#f5f5f5
+| Inter || 29 || Lazio || 9
+|-
+| Livorno || 29 || Bari || 8
+|- bgcolor=#f5f5f5
+| Lucchese || 29 || Inter || 8
+|-
+| Genoa || 28 || Sampdoria || 8
+|- bgcolor=#f5f5f5
+| Sampdoria || 28 || Alessandria || 7
+|-
+| Juventus || 27 || Livorno || 7
+|- bgcolor=#f5f5f5
+| Napoli || 27 || Lucchese || 7
+|-
+| Alessandria || 24 || Napoli || 7
+|- bgcolor=#f5f5f5
+| Vicenza || 22 || Salernitana || 4
+|-
+| Roma || 21 || Vicenza || 4
+|}
+{{Colonne fine}}
+
+==== Primati stagionali ====
+* Maggior numero di vittorie: Torino (29)
+* Minor numero di sconfitte: Torino (4)
+* Miglior attacco: Torino (125 reti fatte)
+* Miglior difesa: Torino (33 reti subite)
+* Miglior differenza reti: Torino (+92)
+* Maggior numero di pareggi: Triestina (15)
+* Minor numero di vittorie: Vicenza (10)
+* Maggior numero di sconfitte: Vicenza (24)
+* Peggiore attacco: Vicenza (31 reti fatte)
+* Peggior difesa: Lucchese (82 reti subite)
+* Peggior differenza reti: Vicenza (−44)
+* Partita con più reti: Torino-Alessandria 10-0 (32ª giornata)
+===Individuale===
+==== Classifica marcatori ====
+Nel corso del campionato furono segnati complessivamente 1.200 gol (di cui 54 su [[calcio di rigore]], 40 su [[autogol|autorete]] e 2 assegnati per giudizio sportivo) da 226 diversi giocatori, per una media di 2,86 gol a partita. La gara per la quale il risultato fu deciso a tavolino fu Bari-Genoa.<ref name=rsssf/> Di seguito, la classifica dei marcatori.<ref name=rsssf />
+
+{{Classifica marcatori/inizio|rigori=on}}
+{{Classifica marcatori|reti=27|nazione=ITA|nome=[[Giampiero Boniperti]]|squadra=Juventus|testa=on}}
+{{Classifica marcatori|reti=25|nazione=ITA|nome=[[Valentino Mazzola]]|squadra=Torino}}
+{{Classifica marcatori|reti=23|nazione=ITA|nome=[[Guglielmo Gabetto]]|squadra=Torino}}
+{{Classifica marcatori|reti=21|nazione=ITA|nome=[[Adriano Bassetto]]|squadra=Sampdoria}}
+{{Classifica marcatori|reti=19|rigori=1|nazione=ITA|nome=[[Amedeo Amadei]]|squadra=Roma}}
+{{Classifica marcatori|reti=19|rigori=2|nazione=ITA|nome=[[Ugo Conti (calciatore)|Ugo Conti]]|squadra=Lucchese Libertas}}
+{{Classifica marcatori|reti=18|rigori=4|nazione=ITA|nome=[[Francesco Pernigo]]|squadra=Modena}}
+{{Classifica marcatori|reti=18|rigori=2|nazione=ITA|nome=[[Angelo Turconi]]|squadra=Pro Patria}}
+{{Classifica marcatori|reti=18|rigori=1|nazione=ITA|nome=[[Riccardo Dalla Torre]]|squadra=Genoa}}
+{{Classifica marcatori|reti=17|nazione=ITA|nome=[[Romano Penzo]]|squadra=Lazio}}
+{{Classifica marcatori|reti=17|nazione=ITA|nome=[[Héctor Puricelli]]|squadra=Milan}}
+{{Classifica marcatori|reti=16|nazione=ITA|nome=[[Renato Brighenti]]|squadra=Genoa}}
+{{Classifica marcatori|reti=16|nazione=ITA|nome=[[Ezio Loik]]|squadra=Torino}}
+{{Classifica marcatori|reti=16|rigori=4|nazione=ITA|nome=[[Romeo Menti]]|squadra=Torino}}
+{{Classifica marcatori|reti=16|nazione=ITA|nome=[[Bruno Quaresima]]|squadra=Inter}}
+{{Classifica marcatori/fine}}
+
+== Note ==
+<references/>
+
+== Bibliografia ==
+* ''[[Corriere dello Sport - Stadio|Il Corriere dello Sport]]'', annata 1948.
+* {{cita pubblicazione|autore=Carlo Caliceti|titolo=Lo stato dell'unione|rivista=[[Calcio 2000]]|data=gennaio 2003|pp=56-61|cid=Caliceti}}
+* {{cita pubblicazione|autore=[[Carlo F. Chiesa]]|titolo=Il grande romanzo dello scudetto. Ottava puntata: L'ultimo volo degli invincibili|rivista=Calcio 2000|data=settembre 2002|pp=116-132|cid=Chiesa}}
+* {{cita libro|curatore=Fabrizio Melegari|titolo=Almanacco illustrato del calcio 2003|città=Modena|editore=Panini|anno=2002|cid=Melegari 2002}}
+* {{cita libro|curatore=Fabrizio Melegari|titolo=Almanacco illustrato del calcio - La storia 1898-2004|città=Modena|editore=Panini|anno=2005|cid=Melegari 2005}}
+
+== Altri progetti ==
+{{interprogetto}}
+
+{{Serie A storico}}
+{{Calcio in Italia 1947-1948}}
+{{Calcio in Europa nel 1947-1948}}
+{{Portale|calcio}}
+
+[[Categoria:Calcio nel 1947]]
+[[Categoria:Calcio nel 1948]]
+[[Categoria:Campionato italiano di calcio Serie A|1947]]

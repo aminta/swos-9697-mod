@@ -1,0 +1,980 @@
+{{Torna a|Atalanta Bergamasca Calcio}}
+{{Stagione squadra
+|sport=calcio
+|club = Atalanta Bergamasca Calcio
+|immagine = Atalanta 1947-1948.jpg
+|stagione = 1947-1948
+|allenatore1 = {{Bandiera|ITA}} [[Ivo Fiorentini]]
+|allenatore2 = {{Bandiera|ITA}} [[Francesco Simonetti]]
+|presidente = {{Bandiera|ITA}} [[Daniele Turani]]
+|campionato = [[Serie A 1947-1948|Serie A]]
+|campionato posizione = 5º
+|coppa1 =
+|coppa1 posizione =
+|coppa2 =
+|coppa2 posizione =
+|presenze campionato = [[Sergio Manente|Manente]], [[Giacomo Mari|Mari]] (40)
+|presenze totale =
+|marcatore campionato = [[Mario Astorri|Astorri]] (9)
+|marcatore totale =
+|stadio = [[Stadio Atleti Azzurri d'Italia|Comunale]]
+|spettatori max =
+|spettatori min =
+|spettatori media =
+|stagione prima = [[Atalanta Bergamasca Calcio 1946-1947|1946-1947]]
+|stagione dopo = [[Atalanta Bergamasca Calcio 1948-1949|1948-1949]]
+}}
+Questa pagina raccoglie i dati riguardanti l''''Atalanta Bergamasca Calcio''' nelle competizioni ufficiali della stagione '''1947-1948'''.
+== Stagione ==
+L'Atalanta chiude il campionato 1947-1948 al quinto posto, ottenendo il suo secondo miglior piazzamento in oltre cent'anni di storia, che sarebbe stato superato solo dalla quarta posizione del campionato 2016-2017. L'allenatore è ancora il confermatissimo [[Ivo Fiorentini]] mentre si rivedono a [[Bergamo]] giocatori come [[Severo Cominelli|Cominelli]] e [[Edmondo Fabbri|Fabbri]] che avevano fatto bene negli anni precedenti. Iniziano i rapporti con la [[Juventus Football Club|Juventus]]: vanno a Torino [[Mihály Kincses|Kincses]] e [[Francesco Cergoli|Cergoli]], mentre [[Mario Astorri|Astorri]] e [[Július Korostelev|Korostelev]] fanno il percorso inverso.
+La stagione è ricca di soddisfazioni, come le vittorie contro il ''Grande Torino'', il Milan, il Bologna e l'Inter (0-3 a San Siro).
+Trascinatori della squadra sono [[Severo Cominelli|Cominelli]], [[Vittorio Schiavi|Schiavi]] e [[Edmondo Fabbri|Fabbri]], con [[Giuseppe Casari|Casari]] e [[Giacomo Mari|Mari]] convocati nella nazionale olimpica a [[Giochi della XIV Olimpiade|Londra 1948]], e [[Mario Astorri|Astorri]] capocannoniere della stagione.
+== Organigramma societario ==
+{{Colonne}}
+'''''Area direttiva'''''
+* Presidente: [[Daniele Turani]]
+{{Colonne spezza}}
+'''''Area tecnica'''''
+* Allenatore: [[Ivo Fiorentini]]
+{{Colonne spezza}}
+'''''Area sanitaria'''''
+* Massaggiatore: Leone Sala
+{{Colonne fine}}
+== Rosa ==
+{{Calciatore in rosa/inizio}}
+{{Calciatore in rosa|n=|nome=[[Giuseppe Casari]]|ruolo=P|nazione=ITA}}
+{{Calciatore in rosa|n=|nome=[[Pietro Mosca]]|ruolo=P|nazione=ITA}}
+{{Calciatore in rosa|n=|nome=[[Alberto Citterio]]|ruolo=D|nazione=ITA}}
+{{Calciatore in rosa|n=|nome=[[Sergio Manente]]|ruolo=D|nazione=ITA}}
+{{Calciatore in rosa|n=|nome=[[Luigi Bertoli]]|ruolo=C|nazione=ITA}}
+{{Calciatore in rosa|n=|nome=[[Severo Cominelli]]|ruolo=C|nazione=ITA}}
+{{Calciatore in rosa|n=|nome=[[Giacomo Mari]]|ruolo=C|nazione=ITA}}
+{{Calciatore in rosa|n=|nome=[[Sandro Medolago]]|ruolo=C|nazione=ITA}}
+{{Calciatore in rosa|n=|nome=[[Renato Miglioli]]|ruolo=C|nazione=ITA}}
+{{Calciatore in rosa|n=|nome=[[Francesco Randon]]|ruolo=C|nazione=ITA}}
+{{Calciatore in rosa|n=|nome=[[Vittorio Schiavi]]|ruolo=C|nazione=ITA}}
+{{Calciatore in rosa/medio}}
+{{Calciatore in rosa|n=|nome=[[Paolo Tabanelli]]|ruolo=C|nazione=ITA}}
+{{Calciatore in rosa|n=|nome=[[Paolo Todeschini]]|ruolo=C|nazione=ITA}}
+{{Calciatore in rosa|n=|nome=[[Mario Astorri]]|ruolo=A|nazione=ITA}}
+{{Calciatore in rosa|n=|nome=[[Onorio Busnelli]]|ruolo=A|nazione=ITA}}
+{{Calciatore in rosa|n=|nome=[[Andrea Cagnoni]]|ruolo=A|nazione=ITA}}
+{{Calciatore in rosa|n=|nome=[[Edmondo Fabbri]]|ruolo=A|nazione=ITA}}
+{{Calciatore in rosa|n=|nome=[[Július Korostelev]]|ruolo=A|nazione=CSK}}
+{{Calciatore in rosa|n=|nome=[[Arnaldo Salvi]]|ruolo=A|nazione=ITA}}
+{{Calciatore in rosa|n=|nome=[[Sergio Scudeler]]|ruolo=A|nazione=ITA}}
+{{Calciatore in rosa|n=|nome=[[Tullio Zuppet]]|ruolo=A|nazione=ITA}}
+{{Calciatore in rosa/fine}}
+== Calciomercato ==
+{{colonne}}
+{| class="wikitable" style="font-size:90%"
+! colspan="4" | Acquisti
+|-
+! width=3% | R.
+! width=33% | Nome
+! width=28% | da
+! width=36% | Modalità
+|-
+| P || [[Pietro Mosca]] || {{Calcio Piombino|N}} || ''definitivo''
+|-
+| C || [[Severo Cominelli]] || {{Calcio Inter|N}} || ''definitivo''
+|-
+| C || [[Renato Miglioli]] || {{Calcio Gallaratese|N}} || ''definitivo''
+|-
+| A || [[Mario Astorri]] || {{Calcio Juventus|N}} || ''definitivo''
+|-
+| A || [[Onorio Busnelli]] || {{Calcio Piombino|N}} || ''definitivo''
+|-
+| A || [[Edmondo Fabbri]] || {{Calcio Sampdoria|N}} || ''definitivo''
+|-
+| A || [[Július Korostelev]] || {{Calcio Juventus|N}} || ''definitivo''
+|-
+| A || [[Sergio Scudeler]] || {{Calcio Giorgione|N}} || ''definitivo''
+|}
+{{colonne spezza}}
+{| class="wikitable" style="font-size:90%"
+! colspan="4" | Cessioni
+|-
+! width=3% | R.
+! width=33% | Nome
+! width=28% | a
+! width=36% | Modalità
+|-
+| P || [[Pietro Dentella]] || {{Calcio Palazzolo|N}} || ''definitivo''
+|-
+| P || [[Pierino Fuzzi]] || {{Calcio Centese|N}} || ''definitivo''
+|-
+| D || [[Aulo Fogar]] || {{Calcio Mantova|N}} || ''definitivo''
+|-
+| D || [[Attilio Gallo]] || {{Calcio Brescia|N}} || ''definitivo''
+|-
+| C || [[Antonio Bacchetti]] || {{Calcio Lucchese|N}} || ''definitivo''
+|-
+| C || [[Benito Meroni]] || {{Calcio Treviso|N}} || ''definitivo''
+|-
+| C || [[Cesare Meucci]] || {{Calcio Treviso|N}} || ''definitivo''
+|-
+| A || [[Francesco Cergoli]] || {{Calcio Juventus|N}} || ''definitivo''
+|-
+| A || [[Bruno Dazzi]] || {{Calcio Fidenza|N}} || ''definitivo''
+|-
+| A || [[Mihály Kincses]] || {{Calcio Juventus|N}} || ''definitivo''
+|-
+| A || [[Luciano Loschi]] || {{Calcio Cosenza|N}} || ''definitivo''
+|-
+| A || [[Sándor Olajkár]] || {{Calcio Lecco|N}} || ''definitivo''
+|}
+{{colonne fine}}
+
+== Risultati ==
+=== Serie A ===
+{{vedi anche|Serie A 1947-1948}}
+==== Girone di andata ====
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 14 settembre
+|Anno = 1947
+|Ora =
+|Turno = 1ª giornata
+|Squadra 1 = Atalanta
+|Squadra 2 = Bari
+|Punteggio 1 = 3
+|Punteggio 2 = 1
+|Parziali =
+|Referto =
+|Città = [[Bergamo]]
+|Stadio = [[Stadio Atleti Azzurri d'Italia|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Giorgio Bernardi]]
+|Cittarbitro = [[Bologna]]
+|Marcatori 1 = [[Július Korostelev|Korostelev]] {{Goal|11}}<br />[[Vittorio Schiavi|Schiavi]] {{Goal|14}}<br />[[Mario Astorri|Astorri]] {{Goal|43}}
+|Marcatori 2 = {{Goal|74}} [[Mario Tontodonati|Tontodonati]]
+|Sfondo =
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 21 settembre
+|Anno = 1947
+|Ora =
+|Turno = 2ª giornata
+|Squadra 1 = Atalanta
+|Squadra 2 = Inter
+|Punteggio 1 = 1
+|Punteggio 2 = 1
+|Parziali =
+|Referto =
+|Città = [[Bergamo]]
+|Stadio = [[Stadio Atleti Azzurri d'Italia|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Giovanni Galeati]]
+|Cittarbitro = [[Bologna]]
+|Marcatori 1 = [[Severo Cominelli|Cominelli]] {{Goal|6}}
+|Marcatori 2 = {{Goal|26}} [[Bruno Quaresima|Quaresima]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 28 settembre
+|Anno = 1947
+|Ora =
+|Turno = 3ª giornata
+|Squadra 1 = Bologna
+|Squadra 2 = Atalanta
+|Punteggio 1 = 3
+|Punteggio 2 = 1
+|Referto =
+|Città = [[Bologna]]
+|Stadio = [[Stadio Renato Dall'Ara|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Guido Agnolin]]
+|Cittarbitro = [[Bassano del Grappa]]
+|Marcatori 1 = [[Amedeo Biavati|Biavati]] {{Goal|15}}<br/>[[Mario Gritti|Gritti]] {{Goal|35}}<br/>[[Gino Cappello|Cappello]] {{Goal|54}}
+|Marcatori 2 = {{Goal|65}} [[Mario Astorri|Astorri]]
+|Sfondo =
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 5 ottobre
+|Anno = 1947
+|Ora =
+|Turno = 4ª giornata
+|Squadra 1 = Juventus
+|Squadra 2 = Atalanta
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Torino]]
+|Stadio = [[Stadio Comunale di Torino|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Angelo Pizzato]]
+|Cittarbitro = [[Mestre]]
+|Marcatori 1 = [[Giampiero Boniperti|Boniperti]] {{Goal|35}}
+|Marcatori 2 =
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 12 ottobre
+|Anno = 1947
+|Ora =
+|Turno = 5ª giornata
+|Squadra 1 = Atalanta
+|Squadra 2 = Modena
+|Punteggio 1 = 2
+|Punteggio 2 = 1
+|Parziali =
+|Referto =
+|Città = [[Bergamo]]
+|Stadio = [[Stadio Atleti Azzurri d'Italia|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Oreste Dellarole]]
+|Cittarbitro = [[Roma]]
+|Marcatori 1 = [[Edmondo Fabbri|E. Fabbri]] {{Goal|16}}<br/>[[Július Korostelev|Korostelev]] {{Goal|21}}
+|Marcatori 2 = {{Goal|47}} [[Francesco Pernigo|Pernigo]]
+|Sfondo =
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 19 ottobre
+|Anno = 1947
+|Ora =
+|Turno = 6ª giornata
+|Squadra 1 = Sampdoria
+|Squadra 2 = Atalanta
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Genova]]
+|Stadio = [[Stadio Luigi Ferraris]]
+|Spettatori =
+|Arbitro = [[Armando Marchetti]]
+|Cittarbitro = [[Milano]]
+|Marcatori 1 = [[Adriano Bassetto|Bassetto]] {{Goal|35}}
+|Marcatori 2 =
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 26 ottobre
+|Anno = 1947
+|Ora =
+|Turno = 7ª giornata
+|Squadra 1 = Roma
+|Squadra 2 = Atalanta
+|Punteggio 1 = 4
+|Punteggio 2 = 1
+|Referto =
+|Città = [[Roma]]
+|Stadio = [[Stadio Nazionale del PNF|Stadio Nazionale]]
+|Spettatori =
+|Arbitro = [[Ermanno Silvano]]
+|Cittarbitro = [[Torino]]
+|Marcatori 1 = [[Amedeo Amadei|Amadei]] {{Goal|2||61}}<br/>[[Stefano Ferrari|Ferrari]] {{Goal|56||68}}
+|Marcatori 2 = {{Goal|90}} [[Giacomo Mari|Mari]]
+|Sfondo =
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 2 novembre
+|Anno = 1947
+|Ora =
+|Turno = 8ª giornata
+|Squadra 1 = Atalanta
+|Squadra 2 = Alessandria
+|Punteggio 1 = 0
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Bergamo]]
+|Stadio = [[Stadio Atleti Azzurri d'Italia|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Bruno Tassini]]
+|Cittarbitro = [[Verona]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 16 novembre
+|Anno = 1947
+|Ora =
+|Turno = 9ª giornata
+|Squadra 1 = Milan
+|Squadra 2 = Atalanta
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Milano]]
+|Stadio = [[Stadio San Siro]]
+|Spettatori =
+|Arbitro = [[Bruno Zilli]]
+|Cittarbitro = [[Reggio Emilia]]
+|Marcatori 1 = [[Ettore Puricelli|Puricelli]] {{Goal|71}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 23 novembre
+|Anno = 1947
+|Ora =
+|Turno = 10ª giornata
+|Squadra 1 = Atalanta
+|Squadra 2 = Salernitana
+|Punteggio 1 = 0
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Bergamo]]
+|Stadio = [[Stadio Atleti Azzurri d'Italia|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Renzo Massai]]
+|Cittarbitro = [[Pisa]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 30 novembre
+|Anno = 1947
+|Ora =
+|Turno = 11ª giornata
+|Squadra 1 = Lazio
+|Squadra 2 = Atalanta
+|Punteggio 1 = 1
+|Punteggio 2 = 1
+|Referto =
+|Città = [[Roma]]
+|Stadio = [[Stadio Nazionale del PNF|Stadio Nazionale]]
+|Spettatori =
+|Arbitro = [[Luigi Valsecchi (arbitro)|Luigi Valsecchi]]
+|Cittarbitro = [[Milano]]
+|Marcatori 1 = [[Alessandro Ferri|Ferri]] {{Goal|67}}
+|Marcatori 2 = {{Goal|11}} [[Sergio Scudeler|Scudeler]]
+|Sfondo =
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 14 dicembre
+|Anno = 1947
+|Ora =
+|Turno = 12ª giornata
+|Squadra 1 = Atalanta
+|Squadra 2 = Lucchese
+|Punteggio 1 = 5
+|Punteggio 2 = 0
+|Parziali =
+|Referto =
+|Città = [[Bergamo]]
+|Stadio = [[Stadio Atleti Azzurri d'Italia|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Antonio Zambotto]]
+|Cittarbitro = [[Padova]]
+|Marcatori 1 = [[Paolo Tabanelli|Tabanelli]] {{Goal|5||71}}<br/>[[Edmondo Fabbri|E. Fabbri]] {{Goal|22}}<br/>[[Onorio Busnelli|Busnelli]] {{Goal|56||88}}
+|Marcatori 2 =
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 21 dicembre
+|Anno = 1947
+|Ora =
+|Turno = 13ª giornata
+|Squadra 1 = Atalanta
+|Squadra 2 = Torino
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Parziali =
+|Referto =
+|Città = [[Bergamo]]
+|Stadio = [[Stadio Atleti Azzurri d'Italia|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Generoso Dattilo]]
+|Cittarbitro = [[Roma]]
+|Marcatori 1 = [[Arnaldo Salvi|Salvi]] {{Goal|18}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 28 dicembre
+|Anno = 1947
+|Ora =
+|Turno = 14ª giornata
+|Note = Turno di riposo dell'ATALANTA
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 1º gennaio
+|Anno = 1948
+|Ora =
+|Turno = 15ª giornata
+|Squadra 1 = Atalanta
+|Squadra 2 = Napoli
+|Punteggio 1 = 2
+|Punteggio 2 = 1
+|Referto =
+|Città = [[Bergamo]]
+|Stadio = [[Stadio Atleti Azzurri d'Italia|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Mario Maurelli]]
+|Cittarbitro = [[Roma]]
+|Marcatori 1 = [[Arnaldo Salvi|Salvi]] {{Goal|50}}<br />[[Edmondo Fabbri|Ed. Fabbri]] {{Goal|60}}
+|Marcatori 2 = {{Goal|74}} [[Dante Di Benedetti|Di Benedetti]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 4 gennaio
+|Anno = 1948
+|Ora =
+|Turno = 16ª giornata
+|Squadra 1 = Atalanta
+|Squadra 2 = Vicenza
+|Punteggio 1 = 2
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Bergamo]]
+|Stadio = [[Stadio Atleti Azzurri d'Italia|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Mario Cambi (arbitro)|Mario Cambi]]
+|Cittarbitro = [[Livorno]]
+|Marcatori 1 = [[Renato Miglioli|Miglioli]] {{Goal|41}}<br/>[[Onorio Busnelli|Busnelli]] {{Goal|87}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 11 gennaio
+|Anno = 1948
+|Ora =
+|Turno = 17ª giornata
+|Squadra 1 = Genoa
+|Squadra 2 = Atalanta
+|Punteggio 1 = 1
+|Punteggio 2 = 1
+|Referto =
+|Città = [[Genova]]
+|Stadio = [[Stadio Luigi Ferraris]]
+|Spettatori =
+|Arbitro = [[Agostino Gamba]]
+|Cittarbitro = [[Napoli]]
+|Marcatori 1 = [[Riccardo Dalla Torre|Dalla Torre]] {{Goal|58|rig.}}
+|Marcatori 2 = {{Goal|65}} [[Giacomo Mari|Mari]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 18 gennaio
+|Anno = 1948
+|Ora =
+|Turno = 18ª giornata
+|Squadra 1 = Fiorentina
+|Squadra 2 = Atalanta
+|Punteggio 1 = 2
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Firenze]]
+|Stadio = [[Stadio Artemio Franchi|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Otello Savio]]
+|Cittarbitro = [[Torino]]
+|Marcatori 1 = [[Angelo Bollano|Bollano]] {{Goal|5}}<br/>[[Alberto Galassi|Galassi]] {{Goal|56}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 25 gennaio
+|Anno = 1948
+|Ora =
+|Turno = 19ª giornata
+|Squadra 1 = Atalanta
+|Squadra 2 = Livorno
+|Punteggio 1 = 3
+|Punteggio 2 = 1
+|Parziali =
+|Referto =
+|Città = [[Bergamo]]
+|Stadio = [[Stadio Atleti Azzurri d'Italia|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Giacomo Bertolio]]
+|Cittarbitro = [[Torino]]
+|Marcatori 1 = [[Mario Astorri|Astorri]] {{Goal|56||89}}<br/>[[Giacomo Mari|Mari]] {{Goal|65|rig.}}
+|Marcatori 2 = {{Goal|74}} [[Aredio Gimona|Gimona]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 1º febbraio
+|Anno = 1948
+|Ora =
+|Turno = 20ª giornata
+|Squadra 1 = Atalanta
+|Squadra 2 = Pro Patria
+|Punteggio 1 = 2
+|Punteggio 2 = 2
+|Parziali =
+|Referto =
+|Città = [[Bergamo]]
+|Stadio = [[Stadio Atleti Azzurri d'Italia|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Ferruccio Bellè]]
+|Cittarbitro = [[Venezia]]
+|Marcatori 1 = [[Edmondo Fabbri|Ed. Fabbri]] {{Goal|24}}<br/>[[Giacomo Mari|Mari]] {{Goal|48}}
+|Marcatori 2 = {{Goal|41||50}} [[Angelo Turconi|Turconi]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 8 febbraio
+|Anno = 1948
+|Ora =
+|Turno = 21ª giornata
+|Squadra 1 = Triestina
+|Squadra 2 = Atalanta
+|Punteggio 1 = 1
+|Punteggio 2 = 1
+|Referto =
+|Città = [[Trieste]]
+|Stadio = [[Stadio Giuseppe Grezar|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Renzo Massai]]
+|Cittarbitro = [[Pisa]]
+|Marcatori 1 = [[Guglielmo Trevisan|G. Trevisan]] {{Goal|14}}
+|Marcatori 2 = {{Goal|59}} [[Renato Miglioli|Miglioli]]
+}}
+
+==== Girone di ritorno ====
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 15 febbraio
+|Anno = 1948
+|Ora =
+|Turno = 22ª giornata
+|Squadra 1 = Bari
+|Squadra 2 = Atalanta
+|Punteggio 1 = 3
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Bari]]
+|Stadio = [[Stadio della Vittoria (Bari)|Stadio della Vittoria]]
+|Spettatori =
+|Arbitro = [[Luigi Gemini]]
+|Cittarbitro = [[Roma]]
+|Marcatori 1 = [[Alfredo Spadavecchia|Spadavecchia]] {{Goal|32}}<br/>[[Severo Cominelli|Cominelli]] {{Goal|35|aut.}}<br />[[János Hrotkó|Hrotkó]] {{Goal|85}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 22 febbraio
+|Anno = 1948
+|Ora =
+|Turno = 23ª giornata
+|Squadra 1 = Inter
+|Squadra 2 = Atalanta
+|Punteggio 1 = 0
+|Punteggio 2 = 3
+|Referto =
+|Città = [[Milano]]
+|Stadio = [[Stadio San Siro]]
+|Spettatori =
+|Arbitro = [[Guido Agnolin]]
+|Cittarbitro = [[Bassano del Grappa]]
+|Marcatori 1 =
+|Marcatori 2 = {{Goal|24|rig.}} [[Giacomo Mari|Mari]]<br/>{{Goal|56|aut.}} [[Franco Pian|Pian]]<br/>{{Goal|75}} [[Edmondo Fabbri|Ed. Fabbri]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 29 febbraio
+|Anno = 1948
+|Ora =
+|Turno = 24ª giornata
+|Squadra 1 = Atalanta
+|Squadra 2 = Bologna
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Parziali =
+|Referto =
+|Città = [[Bergamo]]
+|Stadio = [[Stadio Atleti Azzurri d'Italia|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Mario Scotto]]
+|Cittarbitro = [[Savona]]
+|Marcatori 1 = [[Renato Miglioli|Miglioli]] {{Goal|78}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 7 marzo
+|Anno = 1948
+|Ora =
+|Turno = 25ª giornata
+|Squadra 1 = Atalanta
+|Squadra 2 = Juventus
+|Punteggio 1 = 0
+|Punteggio 2 = 0
+|Parziali =
+|Referto =
+|Città = [[Bergamo]]
+|Stadio = [[Stadio Atleti Azzurri d'Italia|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Ferruccio Bellè]]
+|Cittarbitro = [[Venezia]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 14 marzo
+|Anno = 1948
+|Ora =
+|Turno = 26ª giornata
+|Squadra 1 = Modena
+|Squadra 2 = Atalanta
+|Punteggio 1 = 2
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Modena]]
+|Stadio = [[Stadio Alberto Braglia|Stadio Cesare Marzari]]
+|Spettatori =
+|Arbitro = [[Mario Maurelli]]
+|Cittarbitro = [[Roma]]
+|Marcatori 1 = [[Sergio Bertoni|Bertoni]] {{Goal|62}}<br/>[[Primo Sentimenti|P. Sentimenti]] {{Goal|78}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 21 marzo
+|Anno = 1948
+|Ora =
+|Turno = 27ª giornata
+|Squadra 1 = Atalanta
+|Squadra 2 = Sampdoria
+|Punteggio 1 = 2
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Bergamo]]
+|Stadio = [[Stadio Atleti Azzurri d'Italia|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Virginio Canavesio]]
+|Cittarbitro = [[Torino]]
+|Marcatori 1 = [[Francesco Randon|Randon]] {{Goal|12||82}}
+|Marcatori 2 =
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 28 marzo
+|Anno = 1948
+|Ora =
+|Turno = 28ª giornata
+|Squadra 1 = Atalanta
+|Squadra 2 = Roma
+|Punteggio 1 = 1
+|Punteggio 2 = 1
+|Referto =
+|Città = [[Bergamo]]
+|Stadio = [[Stadio Atleti Azzurri d'Italia|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Giorgio Bernardi]]
+|Cittarbitro = [[Bologna]]
+|Marcatori 1 = [[Severo Cominelli|Cominelli]] {{Goal|50}}
+|Marcatori 2 = {{Goal|75}} [[Amedeo Amadei|Amadei]]
+|Sfondo =
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 11 aprile
+|Anno = 1948
+|Ora =
+|Turno = 29ª giornata
+|Squadra 1 = Alessandria
+|Squadra 2 = Atalanta
+|Punteggio 1 = 0
+|Punteggio 2 = 1
+|Referto =
+|Città = [[Alessandria (Italia)|Alessandria]]
+|Stadio = [[Stadio Giuseppe Moccagatta]]
+|Spettatori =
+|Arbitro = [[Guido Agnolin]]
+|Cittarbitro = [[Bassano del Grappa]]
+|Marcatori 1 =
+|Marcatori 2 = {{Goal|73}} [[Mario Astorri|Astorri]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 18 aprile
+|Anno = 1948
+|Ora =
+|Turno = 30ª giornata
+|Squadra 1 = Atalanta
+|Squadra 2 = Milan
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Parziali =
+|Referto =
+|Città = [[Bergamo]]
+|Stadio = [[Stadio Atleti Azzurri d'Italia|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Riccardo Pieri]]
+|Cittarbitro = [[Trieste]]
+|Marcatori 1 = [[Francesco Randon|Randon]] {{Goal|61}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 25 aprile
+|Anno = 1948
+|Ora =
+|Turno = 31ª giornata
+|Squadra 1 = Salernitana
+|Squadra 2 = Atalanta
+|Punteggio 1 = 0
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Salerno]]
+|Stadio = [[Stadio Donato Vestuti|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Eriprando Poggipollini]]
+|Cittarbitro = [[Ferrara]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 2 maggio
+|Anno = 1948
+|Ora =
+|Turno = 32ª giornata
+|Squadra 1 = Atalanta
+|Squadra 2 = Lazio
+|Punteggio 1 = 5
+|Punteggio 2 = 0
+|Parziali =
+|Referto =
+|Città = [[Bergamo]]
+|Stadio = [[Stadio Atleti Azzurri d'Italia|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Agostino Gamba]]
+|Cittarbitro = [[Napoli]]
+|Marcatori 1 = [[Edmondo Fabbri|Ed. Fabbri]] {{Goal|48}}<br/>[[Vittorio Schiavi|Schiavi]] {{Goal|53}}<br/>[[Július Korostelev|Korostelev]] {{Goal|58}}<br/>[[Mario Astorri|Astorri]] {{Goal|67||85}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 6 maggio
+|Anno = 1948
+|Ora =
+|Turno = 33ª giornata
+|Squadra 1 = Lucchese
+|Squadra 2 = Atalanta
+|Punteggio 1 = 1
+|Punteggio 2 = 1
+|Referto =
+|Città = [[Lucca]]
+|Stadio = [[Stadio Porta Elisa]]
+|Spettatori =
+|Arbitro = [[Florindo Longagnani]]
+|Cittarbitro = [[Modena]]
+|Marcatori 1 = [[Ugo Conti (calciatore)|U. Conti]] {{Goal|17}}
+|Marcatori 2 = {{Goal|65}} [[Július Korostelev|Korostelev]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 9 maggio
+|Anno = 1948
+|Ora =
+|Turno = 34ª giornata
+|Squadra 1 = Torino
+|Squadra 2 = Atalanta
+|Punteggio 1 = 4
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Torino]]
+|Stadio = [[Stadio Filadelfia]]
+|Spettatori =
+|Arbitro = [[Bruno Zilli]]
+|Cittarbitro = [[Reggio Emilia]]
+|Marcatori 1 = [[Valentino Mazzola|Mazzola]] {{Goal|13||24}}<br/>[[Romeo Menti|R. Menti]] {{Goal|78}}<br/>[[Guglielmo Gabetto|Gabetto]] {{Goal|90}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 23 maggio
+|Anno = 1948
+|Ora =
+|Turno = 35ª giornata
+|Note = Turno di riposo dell'ATALANTA
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 27 maggio
+|Anno = 1948
+|Ora =
+|Turno = 36ª giornata
+|Squadra 1 = Napoli
+|Squadra 2 = Atalanta
+|Punteggio 1 = 1
+|Punteggio 2 = 1
+|Referto =
+|Città = [[Napoli]]
+|Stadio = [[Stadio Arturo Collana|Stadio della Liberazione]]
+|Spettatori =
+|Arbitro = [[Giuseppe Zelocchi]]
+|Cittarbitro = [[Modena]]
+|Marcatori 1 = [[Carlo Barbieri (calciatore 1922)|Barbieri]] {{Goal|79}}
+|Marcatori 2 = {{Goal|55}} [[Mario Astorri|Astorri]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 30 maggio
+|Anno = 1948
+|Ora =
+|Turno = 37ª giornata
+|Squadra 1 = Vicenza
+|Squadra 2 = Atalanta
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Vicenza]]
+|Stadio = [[Stadio Romeo Menti|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Cesare Cappucci]]
+|Cittarbitro = [[Roma]]
+|Marcatori 1 = [[Serafino Conti|S. Conti]] {{Goal|28}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 6 giugno
+|Anno = 1948
+|Ora =
+|Turno = 38ª giornata
+|Squadra 1 = Atalanta
+|Squadra 2 = Genoa
+|Punteggio 1 = 2
+|Punteggio 2 = 1
+|Parziali =
+|Referto =
+|Città = [[Bergamo]]
+|Stadio = [[Stadio Atleti Azzurri d'Italia|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Generoso Dattilo]]
+|Cittarbitro = [[Roma]]
+|Marcatori 1 = [[Francesco Randon|Randon]] {{Goal|3}}<br/>[[Edmondo Fabbri|Ed. Fabbri]] {{Goal|13}}
+|Marcatori 2 = {{Goal|77}} [[Silvano Trevisani|Trevisani]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 13 giugno
+|Anno = 1948
+|Ora =
+|Turno = 39ª giornata
+|Squadra 1 = Atalanta
+|Squadra 2 = Fiorentina
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Parziali =
+|Referto =
+|Città = [[Bergamo]]
+|Stadio = [[Stadio Atleti Azzurri d'Italia|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Otello Savio]]
+|Cittarbitro = [[Torino]]
+|Marcatori 1 = [[Sergio Manente|Manente]] {{Goal|77}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 20 giugno
+|Anno = 1948
+|Ora =
+|Turno = 40ª giornata
+|Squadra 1 = Livorno
+|Squadra 2 = Atalanta
+|Punteggio 1 = 2
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Livorno]]
+|Stadio = [[Stadio Armando Picchi|Stadio Ardenza]]
+|Spettatori =
+|Arbitro = [[Guido Agnolin]]
+|Cittarbitro = [[Bassano del Grappa]]
+|Marcatori 1 = [[Armando Tre Re|Tre Re]] {{Goal|59}}<br/>[[Teresio Piana|Piana]] {{Goal|85}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 27 giugno
+|Anno = 1948
+|Ora =
+|Turno = 41ª giornata
+|Squadra 1 = Pro Patria
+|Squadra 2 = Atalanta
+|Punteggio 1 = 2
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Busto Arsizio]]
+|Stadio = [[Stadio Carlo Speroni|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Marcello Pasinetti]]
+|Cittarbitro = [[Roma]]
+|Marcatori 1 = [[Lelio Antoniotti|Antoniotti]] {{Goal|27}}<br/>[[Enrico Candiani|Candiani]] {{Goal|84}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 4 luglio
+|Anno = 1948
+|Ora =
+|Turno = 42ª giornata
+|Squadra 1 = Atalanta
+|Squadra 2 = Triestina
+|Punteggio 1 = 3
+|Punteggio 2 = 1
+|Parziali =
+|Referto =
+|Città = [[Bergamo]]
+|Stadio = [[Stadio Atleti Azzurri d'Italia|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Ettore Neri (arbitro)|Ettore Neri]]
+|Cittarbitro = [[Vicenza]]
+|Marcatori 1 = [[Mario Astorri|Astorri]] {{Goal|32}}<br/>[[Edmondo Fabbri|Ed. Fabbri]] {{Goal|37}}<br/>[[Július Korostelev|Korostelev]] {{Goal|74|rig.}}
+|Marcatori 2 = {{Goal|86}} [[Guglielmo Trevisan|G. Trevisan]]
+}}
+
+== Statistiche ==
+=== Statistiche di squadra ===
+
+{{Statistiche squadra
+|comp1=[[Serie A 1947-1948|Serie A]]
+|punti1=44
+|cv1=14
+|cn1=6
+|cp1=0
+|cgf1=37
+|cgs1=10
+|tv1=2
+|tn1=6
+|tp1=12
+|tgf1=11
+|tgs1=31
+}}
+=== Statistiche dei giocatori ===
+{{Statistiche dei giocatori
+| Competizione1 = Serie A
+| Totale = no
+| Cartellini = no
+| {{Sortname|M.|Astorri|Mario Astorri}} {{Sommastat|C=no |31|9|?|?}}
+| {{Sortname|L.|Bertoli|Luigi Bertoli}} {{Sommastat|C=no |2|0|?|?}}
+| {{Sortname|O.|Busnelli|Onorio Busnelli}} {{Sommastat|C=no |16|3|?|?}}
+| {{Sortname|A.|Cagnoni|Andrea Cagnoni}} {{Sommastat|C=no |2|0|?|?}}
+| {{Sortname|G.|Casari|Giuseppe Casari}} {{Sommastat|C=no |36|-36|?|?}}
+| {{Sortname|A.|Citterio|Alberto Citterio}} {{Sommastat|C=no |38|0|?|?}}
+| {{Sortname|S.|Cominelli|Severo Cominelli}} {{Sommastat|C=no |33|2|?|?}}
+| {{Sortname|E.|Fabbri|Edmondo Fabbri}} {{Sommastat|C=no |33|8|?|?}}
+| {{Sortname|J.|Korostelev|Július Korostelev}} {{Sommastat|C=no |18|5|?|?}}
+| {{Sortname|S.|Manente|Sergio Manente}} {{Sommastat|C=no |40|1|?|?}}
+| {{Sortname|G.|Mari|Giacomo Mari}} {{Sommastat|C=no |40|4|?|?}}
+| {{Sortname|S.|Medolago|Sandro Medolago}} {{Sommastat|C=no |1|0|?|?}}
+| {{Sortname|R.|Miglioli|Renato Miglioli}} {{Sommastat|C=no |37|4|?|?}}
+| {{Sortname|P.|Mosca|Pietro Mosca}} {{Sommastat|C=no |4|-5|?|?}}
+| {{Sortname|F.|Randon|Francesco Randon}} {{Sommastat|C=no |21|4|?|?}}
+| {{Sortname|A.|Salvi|Arnaldo Salvi}} {{Sommastat|C=no |10|2|?|?}}
+| {{Sortname|V.|Schiavi|Vittorio Schiavi}} {{Sommastat|C=no |34|2|?|?}}
+| {{Sortname|S.|Scudeler|Sergio Scudeler}} {{Sommastat|C=no |3|1|?|?}}
+| {{Sortname|P.|Tabanelli|Paolo Tabanelli}} {{Sommastat|C=no |10|2|?|?}}
+| {{Sortname|P.|Todeschini|Paolo Todeschini}} {{Sommastat|C=no |30|0|?|?}}
+| {{Sortname|T.|Zuppet|Tullio Zuppet}} {{Sommastat|C=no |1|0|?|?}}
+}}
+== Note ==
+<references/>
+== Bibliografia ==
+* {{cita libro|autore= [[Elio Corbani]]|coautori=Pietro Serina| titolo= Cent'anni di Atalanta| anno= 2007| volume=2| editore= Sesaab| città=Bergamo|isbn=978-88-903088-0-2|cid=[[Elio Corbani|E. Corbani]], P. Serina}}
+{{Atalanta storico}}
+{{Calcio in Italia 1947-1948}}
+{{Portale|calcio}}

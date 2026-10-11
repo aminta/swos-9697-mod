@@ -1,0 +1,898 @@
+{{Torna a|Associazione Sportiva Livorno Calcio}}
+{{Stagione squadra
+|sport=calcio
+|club = Unione Sportiva Livorno
+|stagione = 1947-1948
+|immagine =
+|didascalia =
+|allenatore1 = {{Bandiera|ITA}} [[Mario Magnozzi]]
+|presidente = {{Bandiera|ITA}} Ricciotti Paggini
+|campionato = [[Serie A 1947-1948|Serie A]]
+|campionato posizione = 15º posto
+|marcatore campionato = [[Guido Tieghi|Tieghi]] (14)
+|presenze campionato = [[Aredio Gimona|Gimona]], [[Gino Merlo|Merlo]] (39)
+|stagione prima = [[Unione Sportiva Livorno 1946-1947|1946-1947]]
+|stagione dopo = [[Unione Sportiva Livorno 1948-1949|1948-1949]]
+}}
+
+Questa voce raccoglie le informazioni riguardanti l''''Unione Sportiva Livorno''' nelle competizioni ufficiali della stagione '''1947-1948'''.
+
+==Stagione==
+La stagione 1947-1948 è dominata dal Torino, con 65 punti stacca di ben sedici punti Milan, Juventus e Triestina, secondi con 49 punti. Le armi del Livorno sono l'umiltà, lo spirito di sacrificio ed il fattore campo dell'Ardenza, dove si costruisce una onesta salvezza. [[Mario Magnozzi]] è l'allenatore giusto per interpretare questa filosofia ed il presidente Ricciotti Paggini lo richiama al timone della squadra labronica. Alla quinta giornata accade un fatto spiacevole, un'invasione campo all'Ardenza per una rete assegnata al Milan oltre il novantesimo, il campo subisce una pesante squalifica. Malgrado la punizione il campo del Livorno viene violato in questa stagione solo dal super Torino. Grazie all'ottimo rendimento interno gli amaranto si piazzano al 14º posto con Sampdoria e Lucchese. Il goleador stagionale dei labronici è [[Guido Tieghi]] con 14 centri.
+
+==Rosa==
+{{Calciatore in rosa/inizio}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Gino Merlo]]|ruolo=P}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Aristide Nascenzi]]|ruolo=P}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Eto Soldani]]|ruolo=D}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Ermelindo Lovagnini]]|ruolo=D}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Mauro Tuccini]]|ruolo=D}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Aredio Gimona]]|ruolo=C}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Ostilio Capaccioli]]|ruolo=C}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Dandolo Brondi]]|ruolo=C}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Leo Picchi]]|ruolo=C}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Umberto Mannocci]]|ruolo=C}}
+{{Calciatore in rosa/medio}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Mido Bimbi]]|ruolo=C}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Armando Tre Re]]|ruolo=C}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Leonetto Spagnoli]]|ruolo=C}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Angelo Torriglia]]|ruolo=C}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Guido Tieghi]]|ruolo=A}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Mario Stua]]|ruolo=A}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Bruno Dante]]|ruolo=A}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Teresio Piana]]|ruolo=A}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Domenico De Vito]]|ruolo=A}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Marcello Taccola]]|ruolo=A}}
+{{Calciatore in rosa/fine}}
+
+== Risultati ==
+=== Serie A ===
+{{Vedi anche|Serie A 1947-1948}}
+==== Girone di andata ====
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 14 settembre
+|Anno = 1947
+|Ora =
+|Turno = 1ª giornata
+|Squadra 1 = Livorno
+|Squadra 2 = Vicenza
+|Punteggio 1 = 2
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Livorno]]
+|Stadio = [[Stadio Armando Picchi|Stadio Ardenza]]
+|Spettatori =
+|Arbitro = [[Giuseppe Boffardi]]
+|Cittarbitro = [[Genova]]
+|Marcatori 1 = [[Mido Bimbi|Bimbi]] {{Goal|29}}<br/>[[Leo Picchi|Picchi]] {{Goal|65}}
+|Marcatori 2 =
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 21 settembre
+|Anno = 1947
+|Ora =
+|Turno = 2ª giornata
+|Squadra 1 = Roma
+|Squadra 2 = Livorno
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Roma]]
+|Stadio = [[Stadio Nazionale]]
+|Spettatori =
+|Arbitro = [[Armando Marchetti]]
+|Cittarbitro = [[Milano]]
+|Marcatori 1 = [[Amadeo Amadei|Amadei]] {{Goal|17}}
+|Marcatori 2 =
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 28 settembre
+|Anno = 1947
+|Ora =
+|Turno = 3ª giornata
+|Squadra 1 = Livorno
+|Squadra 2 = Triestina
+|Punteggio 1 = 2
+|Punteggio 2 = 1
+|Referto =
+|Città = [[Livorno]]
+|Stadio = [[Stadio Armando Picchi|Stadio Ardenza]]
+|Spettatori =
+|Arbitro = [[Mario Codeluppi]]
+|Cittarbitro = [[Lodi]]
+|Marcatori 1 = [[Mario Stua|Stua]] {{Goal|40}}<br/>[[Bruno Dante|Dante]] {{Goal|60}}
+|Marcatori 2 = {{Goal|27}} [[Licio Rossetti|Rossetti]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 5 ottobre
+|Anno = 1947
+|Ora =
+|Turno = 4ª giornata
+|Squadra 1 = Modena
+|Squadra 2 = Livorno
+|Punteggio 1 = 3
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Modena]]
+|Stadio = [[Stadio Alberto Braglia|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Ferruccio Bonivento]]
+|Cittarbitro = [[Venezia]]
+|Marcatori 1 = [[Primo Sentimenti|P. Sentimenti]] {{Goal|26}} {{Goal|70}}<br/>[[Francesco Pernigo|Pernigo]] {{Goal|79}}
+|Marcatori 2 =
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 12 ottobre
+|Anno = 1947
+|Ora =
+|Turno = 5ª giornata
+|Squadra 1 = Livorno
+|Squadra 2 = Milan
+|Punteggio 1 = 1
+|Punteggio 2 = 1
+|Referto =
+|Città = [[Livorno]]
+|Stadio = [[Stadio Armando Picchi|Stadio Ardenza]]
+|Spettatori =
+|Arbitro = [[Ferruccio Bellè]]
+|Cittarbitro = [[Venezia]]
+|Marcatori 1 = [[Umberto Mannocci|Mannocci]] {{Goal|65}}
+|Marcatori 2 = {{Goal|90}} [[Pietro Degano|Degano]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 19 ottobre
+|Anno = 1947
+|Ora =
+|Turno = 6ª giornata
+|Squadra 1 = Alessandria
+|Squadra 2 = Livorno
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Alessandria (Italia)|Alessandria]]
+|Stadio = [[Stadio Giuseppe Moccagatta]]
+|Spettatori =
+|Arbitro = [[Mario Scotto]]
+|Cittarbitro = [[Savona]]
+|Marcatori 1 = [[Mario Pietruzzi|Pietruzzi]] {{Goal|18}}
+|Marcatori 2 =
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 26 ottobre
+|Anno = 1947
+|Ora =
+|Turno = 7ª giornata<ref>Partita giocata sul campo neutro di La Spezia</ref>
+|Squadra 1 = Livorno
+|Squadra 2 = Pro Patria
+|Punteggio 1 = 2
+|Punteggio 2 = 2
+|Referto =
+|Città = [[La Spezia]]
+|Stadio = [[Stadio Alberto Picco]]
+|Spettatori =
+|Arbitro = [[Giovanni Galeati]]
+|Cittarbitro = [[Bologna]]
+|Marcatori 1 = [[Aredio Gimona|Gimona]] {{Goal|29}}<br/>[[Teresio Piana|Piana]] {{Goal|65}}
+|Marcatori 2 = {{Goal|56}} [[Angelo Turconi|Turconi]]<br/>{{Goal|80}} [[Lelio Antoniotti|Antoniotti]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 2 novembre
+|Anno = 1947
+|Ora =
+|Turno = 8ª giornata
+|Squadra 1 = Fiorentina
+|Squadra 2 = Livorno
+|Punteggio 1 = 1
+|Punteggio 2 = 1
+|Referto =
+|Città = [[Firenze]]
+|Stadio = [[Stadio Artemio Franchi|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Vincenzo Orlandini]]
+|Cittarbitro = [[Roma]]
+|Marcatori 1 = [[Guido Tieghi|Tieghi]] {{Goal|30}}
+|Marcatori 2 = {{Goal|46}} [[Renato Gei|Gei]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 16 novembre
+|Anno = 1947
+|Ora =
+|Turno = 9ª giornata<ref name="ref_A">Partita giocata sul campo neutro di Firenze</ref>
+|Squadra 1 = Livorno
+|Squadra 2 = Inter
+|Punteggio 1 = 3
+|Punteggio 2 = 2
+|Referto =
+|Città = [[Firenze]]
+|Stadio = [[Stadio Artemio Franchi|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Eriprando Poggipollini]]
+|Cittarbitro = [[Ferrara]]
+|Marcatori 1 = [[Guido Tieghi|Tieghi]] {{Goal|3||20||25}} 
+|Marcatori 2 = {{Goal|15|aut.}} [[Eto Soldani|Soldani]]<br/>{{Goal|76}} [[Bruno Quaresima|Quaresima]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 23 novembre
+|Anno = 1947
+|Ora =
+|Turno = 10ª giornata
+|Squadra 1 = Juventus
+|Squadra 2 = Livorno
+|Punteggio 1 = 6
+|Punteggio 2 = 1
+|Referto =
+|Città = [[Torino]]
+|Stadio = [[Stadio Olimpico (Torino)|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Luigi Valsecchi (arbitro)|Luigi Valsecchi]]
+|Cittarbitro = [[Milano]]
+|Marcatori 1 = [[Giampiero Boniperti|Boniperti]] {{Goal|21||44||68}}<br/>[[Francesco Cergoli|Cergoli]] {{Goal|62}}<br/>[[Ján Arpáš|Arpas]] {{Goal|70}}<br/>[[Vittorio Sentimenti|V. Sentimenti]] {{Goal|85|rig.}}
+|Marcatori 2 = {{Goal|42}} [[Guido Tieghi|Tieghi]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 30 novembre
+|Anno = 1947
+|Ora =
+|Turno = 11ª giornata
+|Squadra 1 = Bologna
+|Squadra 2 = Livorno
+|Punteggio 1 = 4
+|Punteggio 2 = 1
+|Referto =
+|Città = [[Bologna]]
+|Stadio = [[Stadio Renato Dall'Ara|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Ferruccio Bonivento]]
+|Cittarbitro = [[Venezia]]
+|Marcatori 1 = [[Gino Cappello|Cappello]] {{Goal|44}}<br/>[[Sauro Taiti|Taiti]] {{Goal|52}}<br/>[[István Mike Mayer|Mike]] {{Goal|66}}<br/>[[Mario Gritti|Gritti]] {{Goal|72}}
+|Marcatori 2 = {{Goal|24}} [[Guido Tieghi|Tieghi]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 7 dicembre
+|Anno = 1947
+|Ora =
+|Turno = 12ª giornata
+|Squadra 1 = Livorno
+|Squadra 2 = Lazio
+|Punteggio 1 = 0
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Firenze]]
+|Stadio = [[Stadio Artemio Franchi|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Gino Cicardi]]
+|Cittarbitro = [[Lecco]]
+|Marcatori 1 =
+|Marcatori 2 =
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 21 dicembre
+|Anno = 1947
+|Ora =
+|Turno = 13ª giornata
+|Squadra 1 = Genoa
+|Squadra 2 = Livorno
+|Punteggio 1 = 0
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Genova]]
+|Stadio = [[Stadio Luigi Ferraris]]
+|Spettatori =
+|Arbitro = [[Armando Marchetti]]
+|Cittarbitro = [[Milano]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 28 dicembre
+|Anno = 1947
+|Ora =
+|Turno = 14ª giornata
+|Squadra 1 = Livorno
+|Squadra 2 = Napoli
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Livorno]]
+|Stadio = [[Stadio Armando Picchi|Stadio Ardenza]]
+|Spettatori =
+|Arbitro = [[Giacomo Bertolio]]
+|Cittarbitro = [[Torino]]
+|Marcatori 1 = [[Guido Tieghi|Tieghi]] {{Goal|11}}
+|Marcatori 2 =
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 1° gennaio
+|Anno = 1948
+|Ora =
+|Turno = 15ª giornata
+|Note = Turno di riposo del LIVORNO
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 4 gennaio
+|Anno = 1948
+|Ora =
+|Turno = 16ª giornata
+|Squadra 1 = Salernitana
+|Squadra 2 = Livorno
+|Punteggio 1 = 2
+|Punteggio 2 = 4
+|Referto =
+|Città = [[Salerno]]
+|Stadio = [[Stadio Donato Vestuti|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Bruno Zilli]]
+|Cittarbitro = [[Reggio Emilia]]
+|Marcatori 1 = [[Pasquale Morisco|Morisco]] {{Goal|2}}<br/>[[Ivo Buzzegoli|Buzzegoli]] {{Goal|7|rig.}}
+|Marcatori 2 = {{Goal|11|aut.}} [[Cesare Benedetti (calciatore 1920-2002)|Benedetti]]<br/>{{Goal|24}} [[Domenico De Vito|De Vito]]<br/>{{Goal|78}} [[Aredio Gimona|Gimona]]<br/>{{Goal|84}} [[Guido Tieghi|Tieghi]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 11 gennaio
+|Anno = 1948
+|Ora =
+|Turno = 17ª giornata
+|Squadra 1 = Livorno
+|Squadra 2 = Torino
+|Punteggio 1 = 1
+|Punteggio 2 = 3
+|Referto =
+|Città = [[Livorno]]
+|Stadio = [[Stadio Armando Picchi|Stadio Ardenza]]
+|Spettatori =
+|Arbitro = [[Luigi Gemini]]
+|Cittarbitro = [[Roma]]
+|Marcatori 1 = [[Dandolo Brondi|Brondi]] {{Goal|27|rig.}}
+|Marcatori 2 = {{Goal|9}} [[Guglielmo Gabetto|Gabetto]]<br/>{{Goal|46}} {{Goal|89}} [[Danilo Martelli|Martelli]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 18 gennaio
+|Anno = 1948
+|Ora =
+|Turno = 18ª giornata
+|Squadra 1 = Sampdoria
+|Squadra 2 = Livorno
+|Punteggio 1 = 1
+|Punteggio 2 = 1
+|Referto =
+|Città = [[Genova]]
+|Stadio = [[Stadio Luigi Ferraris]]
+|Spettatori =
+|Arbitro = [[Virginio Canavesio]]
+|Cittarbitro = [[Torino]]
+|Marcatori 1 = [[Engelbert Koenig|Koenig]] {{Goal|24}}
+|Marcatori 2 = {{Goal|28}} [[Guido Tieghi|Tieghi]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 25 gennaio
+|Anno = 1948
+|Ora =
+|Turno = 19ª giornata
+|Squadra 1 = Atalanta
+|Squadra 2 = Livorno
+|Punteggio 1 = 3
+|Punteggio 2 = 1
+|Referto =
+|Città = [[Bergamo]]
+|Stadio = [[Stadio Atleti Azzurri d'Italia|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Giacomo Bertolio]]
+|Cittarbitro = [[Torino]]
+|Marcatori 1 = [[Mario Astorri|Astorri]] {{Goal|56||89}}<br/>[[Giacomo Mari|Mari]] {{Goal|65|rig.}}
+|Marcatori 2 = {{Goal|74}} [[Aredio Gimona|Gimona]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 1º febbraio
+|Anno = 1948
+|Ora =
+|Turno = 20ª giornata
+|Squadra 1 = Livorno
+|Squadra 2 = Bari
+|Punteggio 1 = 1
+|Punteggio 2 = 1
+|Referto =
+|Città = [[Livorno]]
+|Stadio = [[Stadio Armando Picchi|Stadio Ardenza]]
+|Spettatori =
+|Arbitro = [[Giuseppe Carpani (arbitro)|Giuseppe Carpani]]
+|Cittarbitro = [[Milano]]
+|Marcatori 1 = [[Guido Tieghi|Tieghi]] {{Goal|20}}
+|Marcatori 2 = {{Goal|35}} [[Mario Tontodonati|Tontodonati]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 8 febbraio
+|Anno = 1948
+|Ora =
+|Turno = 21ª giornata
+|Squadra 1 = Livorno
+|Squadra 2 = Lucchese
+|Punteggio 1 = 2
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Livorno]]
+|Stadio = [[Stadio Armando Picchi|Stadio Ardenza]]
+|Spettatori =
+|Arbitro = [[Osvaldo Savio]]
+|Cittarbitro = [[Torino]]
+|Marcatori 1 = [[Bruno Dante|Dante]] {{Goal|14}}<br/>[[Guido Tieghi|Tieghi]] {{Goal|66}}
+}}
+
+==== Girone di ritorno ====
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 15 febbraio
+|Anno = 1948
+|Ora =
+|Turno = 22ª giornata
+|Squadra 1 = Vicenza
+|Squadra 2 = Livorno
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Vicenza]]
+|Stadio = [[Stadio Romeo Menti|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Bruno Bergomi]]
+|Cittarbitro = [[Milano]]
+|Marcatori 1 = [[Giovanni Sperotto|Sperotto]] {{Goal|81}}
+|Marcatori 2 =
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 22 febbraio
+|Anno = 1948
+|Ora =
+|Turno = 23ª giornata
+|Squadra 1 = Livorno
+|Squadra 2 = Roma
+|Punteggio 1 = 2
+|Punteggio 2 = 1
+|Referto =
+|Città = [[Livorno]]
+|Stadio = [[Stadio Armando Picchi|Stadio Ardenza]]
+|Spettatori =
+|Arbitro = [[Bruno Tassini]]
+|Cittarbitro = [[Verona]]
+|Marcatori 1 = [[Guido Tieghi|Tieghi]] {{Goal|26}}<br/>[[Bruno Dante|Dante]] {{Goal|41}}
+|Marcatori 2 = {{Goal|22|rig.}} [[Amadeo Amadei|Amadei]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 29 febbraio
+|Anno = 1948
+|Ora =
+|Turno = 24ª giornata
+|Squadra 1 = Triestina
+|Squadra 2 = Livorno
+|Punteggio 1 = 1
+|Punteggio 2 = 1
+|Referto =
+|Città = [[Trieste]]
+|Stadio = [[Stadio Giuseppe Grezar|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Giuseppe Carpani (arbitro)|Giuseppe Carpani]]
+|Cittarbitro = [[Milano]]
+|Marcatori 1 = [[Mario Tosolini|Tosolini]] {{Goal|20}}
+|Marcatori 2 = {{Goal|74}} [[Domenico De Vito|De Vito]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 7 marzo
+|Anno = 1948
+|Ora =
+|Turno = 25ª giornata
+|Squadra 1 = Livorno
+|Squadra 2 = Modena
+|Punteggio 1 = 1
+|Punteggio 2 = 1
+|Referto =
+|Città = [[Livorno]]
+|Stadio = [[Stadio Armando Picchi|Stadio Ardenza]]
+|Spettatori =
+|Arbitro = [[Ettore Neri]]
+|Cittarbitro = [[Vicenza]]
+|Marcatori 1 = [[Guido Tieghi|Tieghi]] {{Goal|28}}
+|Marcatori 2 = {{Goal|73}} [[Francesco Pernigo|Pernigo]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 14 marzo
+|Anno = 1948
+|Ora =
+|Turno = 26ª giornata
+|Squadra 1 = Milan
+|Squadra 2 = Livorno
+|Punteggio 1 = 2
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Milano]]
+|Stadio = [[Stadio San Siro]]
+|Spettatori =
+|Arbitro = [[Bruno Tassini]]
+|Cittarbitro = [[Verona]]
+|Marcatori 1 = [[Pietro Degano|Degano]] {{Goal|16||90}}
+|Marcatori 2 =
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 21 marzo
+|Anno = 1948
+|Ora =
+|Turno = 27ª giornata
+|Squadra 1 = Livorno
+|Squadra 2 = Alessandria
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Livorno]]
+|Stadio = [[Stadio Armando Picchi|Stadio Ardenza]]
+|Spettatori =
+|Arbitro = [[Armando Marchetti]]
+|Cittarbitro = [[Milano]]
+|Marcatori 1 = [[Domenico De Vito|De Vito]] {{Goal|68}}
+|Marcatori 2 =
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 28 marzo
+|Anno = 1948
+|Ora =
+|Turno = 28ª giornata
+|Squadra 1 = Pro Patria
+|Squadra 2 = Livorno
+|Punteggio 1 = 2
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Busto Arsizio]]
+|Stadio = [[Stadio Carlo Speroni|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Florindo Longagnani]]
+|Cittarbitro = [[Modena]]
+|Marcatori 1 = [[Lelio Antoniotti|Antoniotti]] {{Goal|13}}<br/>[[Emidio Cavigioli|Cavigioli]] {{Goal|86}}
+|Marcatori 2 =
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 11 aprile
+|Anno = 1948
+|Ora =
+|Turno = 29ª giornata
+|Squadra 1 = Livorno
+|Squadra 2 = Fiorentina
+|Punteggio 1 = 2
+|Punteggio 2 = 2
+|Referto =
+|Città = [[Livorno]]
+|Stadio = [[Stadio Armando Picchi|Stadio Ardenza]]
+|Spettatori =
+|Arbitro = [[Vincenzo Orlandini]]
+|Cittarbitro = [[Roma]]
+|Marcatori 1 = [[Bruno Dante|Dante]] {{Goal|9}}<br/>[[Teresio Piana|Piana]] {{Goal|16}}
+|Marcatori 2 = {{Goal|6}} [[Alberto Galassi|Galassi]]<br/>{{Goal|14}} [[Renato Gei|Gei]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 15 aprile
+|Anno = 1948
+|Ora =
+|Turno = 30ª giornata
+|Squadra 1 = Inter
+|Squadra 2 = Livorno
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Milano]]
+|Stadio = [[Stadio San Siro]]
+|Spettatori =
+|Arbitro = [[Generoso Dattilo]]
+|Cittarbitro = [[Roma]]
+|Marcatori 1 = [[Benito Lorenzi|Lorenzi]] {{Goal|52}}
+|Marcatori 2 =
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 25 aprile
+|Anno = 1948
+|Ora =
+|Turno = 31ª giornata
+|Squadra 1 = Livorno
+|Squadra 2 = Juventus
+|Punteggio 1 = 0
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Livorno]]
+|Stadio = [[Stadio Armando Picchi|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Giuseppe Carpani (arbitro)|Giuseppe Carpani]]
+|Cittarbitro = [[Milano]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 2 maggio
+|Anno = 1948
+|Ora =
+|Turno = 32ª giornata
+|Squadra 1 = Livorno
+|Squadra 2 = Bologna
+|Punteggio 1 = 2
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Livorno]]
+|Stadio = [[Stadio Armando Picchi|Stadio Ardenza]]
+|Spettatori =
+|Arbitro = [[Bruno Bergomi]]
+|Cittarbitro = [[Milano]]
+|Marcatori 1 = [[Aredio Gimona|Gimona]] {{Goal|12}}<br/>[[Mario Stua|Stua]] {{Goal|85}}
+|Marcatori 2 =
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 6 maggio
+|Anno = 1948
+|Ora =
+|Turno = 33ª giornata
+|Squadra 1 = Lazio
+|Squadra 2 = Livorno
+|Punteggio 1 = 4
+|Punteggio 2 = 1
+|Referto =
+|Città = [[Roma]]
+|Stadio = [[Stadio Nazionale]]
+|Spettatori =
+|Arbitro = [[Mario Scotto]]
+|Cittarbitro = [[Savona]]
+|Marcatori 1 = [[Aldo Puccinelli|Puccinelli]] {{Goal|16}}<br/>[[Romano Penzo|Penzo]] {{Goal|39||68||77}}
+|Marcatori 2 = {{Goal|31}} [[Mario Stua|Stua]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 9 maggio
+|Anno = 1948
+|Ora =
+|Turno = 34ª giornata
+|Squadra 1 = Livorno
+|Squadra 2 = Genoa
+|Punteggio 1 = 1
+|Punteggio 2 = 1
+|Referto =
+|Città = [[Livorno]]
+|Stadio = [[Stadio Armando Picchi|Stadio Ardenza]]
+|Spettatori =
+|Arbitro = [[Giuseppe Zelocchi]]
+|Cittarbitro = [[Modena]]
+|Marcatori 1 = [[Teresio Piana|Piana]] {{Goal|71}}
+|Marcatori 2 = {{Goal|69}} [[Riccardo Dalla Torre|Dalla Torre]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 23 maggio
+|Anno = 1948
+|Ora =
+|Turno = 35ª giornata
+|Squadra 1 = Napoli
+|Squadra 2 = Livorno
+|Punteggio 1 = 3
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Napoli]]
+|Stadio = [[Stadio Arturo Collana|Stadio della Liberazione]]
+|Spettatori =
+|Arbitro = [[Giuseppe Parpaiola]]
+|Cittarbitro = [[Padova]]
+|Marcatori 1 = [[Dante Di Benedetti|Di Benedetti]] {{Goal|2||24}}<br/>[[Umberto Busani|Busani]] {{Goal|85}}
+|Marcatori 2 =
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 27 maggio
+|Anno = 1948
+|Ora =
+|Turno = 36ª giornata
+|Note = Turno di riposo del LIVORNO
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 30 maggio
+|Anno = 1948
+|Ora =
+|Turno = 37ª giornata
+|Squadra 1 = Livorno
+|Squadra 2 = Salernitana
+|Punteggio 1 = 3
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Livorno]]
+|Stadio = [[Stadio Armando Picchi|Stadio Ardenza]]
+|Spettatori =
+|Arbitro = [[Riccardo Pieri]]
+|Cittarbitro = [[Trieste]]
+|Marcatori 1 = [[Ermelindo Lovagnini|Lovagnini]] {{Goal|75}}<br/>[[Armando Tre Re|Tre Re]] {{Goal|82}}<br/>[[Teresio Piana|Piana]] {{Goal|90|rig.}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 6 giugno
+|Anno = 1948
+|Ora =
+|Turno = 38ª giornata
+|Squadra 1 = Torino
+|Squadra 2 = Livorno
+|Punteggio 1 = 5
+|Punteggio 2 = 2
+|Referto =
+|Città = [[Torino]]
+|Stadio = [[Stadio Filadelfia]]
+|Spettatori =
+|Arbitro = [[Mario Scotto]]
+|Cittarbitro = [[Savona]]
+|Marcatori 1 = [[Valentino Mazzola|Mazzola]] {{Goal|15||66}}<br/>[[Mario Stua|Stua]] {{Goal|47|aut.}}<br/>[[Guglielmo Gabetto|Gabetto]] {{Goal|56}}<br/>[[Danilo Martelli|Martelli]] {{Goal|65}}
+|Marcatori 2 = {{Goal|42}} [[Guido Tieghi|Tieghi]]<br/>{{Goal|55}} [[Teresio Piana|Piana]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 13 giugno
+|Anno = 1948
+|Ora =
+|Turno = 39ª giornata
+|Squadra 1 = Livorno
+|Squadra 2 = Sampdoria
+|Punteggio 1 = 1
+|Punteggio 2 = 1
+|Referto =
+|Città = [[Livorno]]
+|Stadio = [[Stadio Armando Picchi|Stadio Ardenza]]
+|Spettatori =
+|Arbitro = [[Bruno Zilli]]
+|Cittarbitro = [[Reggio Emilia]]
+|Marcatori 1 = [[Armando Tre Re|Tre Re]] {{Goal|77}}
+|Marcatori 2 = {{Goal|25}} [[Engelbert Koenig|Koenig]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 20 giugno
+|Anno = 1948
+|Ora =
+|Turno = 40ª giornata
+|Squadra 1 = Livorno
+|Squadra 2 = Atalanta
+|Punteggio 1 = 2
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Livorno]]
+|Stadio = [[Stadio Armando Picchi|Stadio Ardenza]]
+|Spettatori =
+|Arbitro = [[Guido Agnolin]]
+|Cittarbitro = [[Bassano del Grappa]]
+|Marcatori 1 = [[Armando Tre Re|Tre Re]] {{Goal|59}}<br/>[[Teresio Piana|Piana]] {{Goal|85}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 27 giugno
+|Anno = 1948
+|Ora =
+|Turno = 41ª giornata
+|Squadra 1 = Bari
+|Squadra 2 = Livorno
+|Punteggio 1 = 3
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Bari]]
+|Stadio = [[Stadio della Vittoria (Bari)|Stadio della Vittoria]]
+|Spettatori =
+|Arbitro = [[Florindo Longagnani]]
+|Cittarbitro = [[Modena]]
+|Marcatori 1 = [[Sabino Cavone|Cavone]] {{Goal|7}}<br/>[[Mario Tontodonati|Tontodonati]] {{Goal|29}}<br/>[[Mihály Vörös|Vörös]] {{Goal|66}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 4 luglio
+|Anno = 1948
+|Ora =
+|Turno = 42ª giornata
+|Squadra 1 = Lucchese
+|Squadra 2 = Livorno
+|Punteggio 1 = 2
+|Punteggio 2 = 2
+|Referto =
+|Città = [[Lucca]]
+|Stadio = [[Stadio Porta Elisa]]
+|Spettatori =
+|Arbitro = [[Giuseppe Carpani (arbitro)|Giuseppe Carpani]]
+|Cittarbitro = [[Milano]]
+|Marcatori 1 = [[Danilo Michelini|Michelini]] {{Goal|31|rig.}}<br/>[[Lelio Catelli|Catelli]] {{Goal|40}}
+|Marcatori 2 = {{Goal|34}} [[Armando Tre Re|Tre Re]]<br/>{{Goal|64|rig.}} [[Teresio Piana|Piana]]
+}}
+
+== Statistiche ==
+=== Statistiche di squadra ===
+{{Statistiche squadra
+|comp1=[[Serie A 1947-1948|Serie A]]
+|punti1=36
+|cv1=10
+|cn1=9
+|cp1=1
+|cgf1=30
+|cgs1=16
+|tv1=1
+|tn1=5
+|tp1=14
+|tgf1=15
+|tgs1=46
+}}
+=== Statistiche dei giocatori ===
+{{Statistiche dei giocatori
+| Competizione1 = Serie A
+| Totale = no
+| Cartellini = no
+| {{Sortname|M.|Bimbi|Mido Bimbi}} {{Sommastat|C=no |15|1|?|?}}
+| {{Sortname|D.|Brondi|Dandolo Brondi}} {{Sommastat|C=no |31|1|?|?}}
+| {{Sortname|O.|Capaccioli|Ostilio Capaccioli}} {{Sommastat|C=no |35|0|?|?}}
+| {{Sortname|B.|Dante|Bruno Dante}} {{Sommastat|C=no |26|4|?|?}}
+| {{Sortname|D.|De Vito|Domenico De Vito}} {{Sommastat|C=no |20|3|?|?}}
+| {{Sortname|A.|Gimona|Aredio Gimona}} {{Sommastat|C=no |39|4|?|?}}
+| {{Sortname|E.|Lovagnini|Ermelindo Lovagnini}} {{Sommastat|C=no |37|1|?|?}}
+| {{Sortname|U.|Mannocci|Umberto Mannocci}} {{Sommastat|C=no |19|1|?|?}}
+| {{Sortname|G.|Merlo|Gino Merlo}} {{Sommastat|C=no |39|-57|?|?}}
+| {{Sortname|A.|Nascenzi|Aristide Nascenzi}} {{Sommastat|C=no |1|-5|?|?}}
+| {{Sortname|T.|Piana|Teresio Piana}} {{Sommastat|C=no |22|7|?|?}}
+| {{Sortname|L.|Picchi|Leo Picchi}} {{Sommastat|C=no |25|1|?|?}}
+| {{Sortname|E.|Soldani|Eto Soldani}} {{Sommastat|C=no |38|0|?|?}}
+| {{Sortname|L.|Spagnoli|Leonetto Spagnoli}} {{Sommastat|C=no |2|0|?|?}}
+| {{Sortname|M.|Stua|Mario Stua}} {{Sommastat|C=no |30|3|?|?}}
+| {{Sortname|M.|Taccola|Marcello Taccola}} {{Sommastat|C=no |7|0|?|?}}
+| {{Sortname|G.|Tieghi|Guido Tieghi}} {{Sommastat|C=no |32|14|?|?}}
+| {{Sortname|A.|Torriglia|Angelo Torriglia}} {{Sommastat|C=no |4|0|?|?}}
+| {{Sortname|A.|Tre Re|Armando Tre Re}} {{Sommastat|C=no |13|4|?|?}}
+| {{Sortname|M.|Tuccini|Mauro Tuccini}} {{Sommastat|C=no |5|0|?|?}}
+}}
+
+== Note ==
+<references/>
+
+==Bibliografia==
+*{{cita libro|titolo=Livornocento...un secolo di passione amaranto.|autore=Carlo Fontanelli, Paolo Nacarlo e Fabio Discalzi|editore=GEO Editore|città=Empoli|anno=2015|pp=328-329}}
+
+== Collegamenti esterni ==
+* {{cita web|url=http://www.wikicalcioitalia.info/vros.php?idsta=117&idsqu=15|titolo=Rosa su Wikicalcioitalia.info}}
+* http://www.calcio.com/tutte_le_partite/ita-serie-a-1947-1948/
+
+{{Calcio Livorno storico}}
+{{Calcio in Italia 1947-1948}}
+{{Portale|calcio}}

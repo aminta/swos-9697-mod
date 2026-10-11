@@ -1,0 +1,891 @@
+{{Torna a|Torino Football Club}}
+{{Stagione squadra
+|sport=calcio
+|club = AC Torino
+|immagine = Torino47-48.jpg
+|stagione = 1947-1948
+|allenatore1 = {{Bandiera|ITA}} [[Roberto Copernico]]
+|titolo allenatore1 = Direttore Tecnico
+|allenatore2 = {{Bandiera|ITA}} [[Mario Sperone]]
+|titolo allenatore2 = Allenatore
+|presidente = {{Bandiera|ITA}} [[Ferruccio Novo]]
+|titolo presidente = Presidente
+|campionato = [[Serie A 1947-1948|Serie A]]
+|campionato posizione = '''1º'''
+|presenze campionato = [[Valerio Bacigalupo|Bacigalupo]] (40)
+|marcatore campionato = [[Valentino Mazzola|Mazzola]] (25)
+|stadio = [[Stadio Filadelfia|Filadelfia]]
+|stagione prima = [[Associazione Calcio Torino 1946-1947|1946-1947]]
+|stagione dopo = [[Associazione Calcio Torino 1948-1949|1948-1949]]
+|aggiornato = 30 luglio 2026
+}}
+Questa voce raccoglie le informazioni riguardanti l''''Associazione Calcio Torino''' nelle competizioni ufficiali della stagione '''1947-1948'''.
+
+==Stagione==
+I ''Granata'' conquistano il loro quinto titolo (il quarto consecutivo) alimentando così la leggenda del [[Grande Torino]]. Vincono il quinto titolo con un vantaggio di sedici punti sulle seconde classificate. Su 42 incontri ha vinto 29 volte, 10 le vittorie ottenute in trasferta, 125 le reti realizzate, il Filadelfia imbattuto con 19 vittorie ed 1 pareggio. Ha fatto collezione di primati, alcuni in senso assoluto, mettendo il sigillo al titolo di "Grande Torino". Manca il titolo di capocannoniere del campionato, vinto dallo juventino Giampiero Boniperti con 27 reti, ma si prendono il secondo posto con Valentino Mazzola che firma 25 reti e anche il terzo posto con Guglielmo Gabetto autore di 23 reti.
+
+A fine stagione il Torino venne invitato da diverse Federazioni calcistiche sudamericane per disputare delle gare amichevoli. La scelta cadde sul Brasile, dove nel luglio 1948 vennero giocate le seguenti partite:
+* San Paolo, 19 luglio 1948 - [[Sociedade Esportiva Palmeiras|Palmeiras]] - Torino (1-1)
+* San Paolo, 21 luglio 1948 - [[Sport Club Corinthians Paulista|Corinthians]] - Torino (2-1)
+* San Paolo, 25 luglio 1948 - [[Associação Portuguesa de Desportos|Portoguesa]] - Torino (1-4)
+* San Paolo, 29 luglio 1948 - [[São Paulo Futebol Clube|São Paulo]] - Torino (2-2)
+
+== Rosa ==
+{{Calciatore in rosa/inizio}}
+{{Calciatore in rosa|ruolo=P|nazione=ITA|nome=[[Valerio Bacigalupo]]}}
+{{Calciatore in rosa|ruolo=P|nazione=ITA|nome=[[Dino Ballarin]]}}
+{{Calciatore in rosa|ruolo=D|nazione=ITA|nome=[[Aldo Ballarin]]}}
+{{Calciatore in rosa|ruolo=D|nazione=ITA|nome=[[Virgilio Maroso]]}}
+{{Calciatore in rosa|ruolo=D|nazione=ITA|nome=[[Mario Rigamonti]]}}
+{{Calciatore in rosa|ruolo=D|nazione=ITA|nome=[[Sauro Tomà]]}}
+{{Calciatore in rosa|ruolo=C|nazione=ITA|nome=[[Eusebio Castigliano]]}}
+{{Calciatore in rosa|ruolo=C|nazione=ITA|nome=[[Giuseppe Grezar]]}}
+{{Calciatore in rosa/medio}}
+{{Calciatore in rosa|ruolo=C|nazione=ITA|nome=[[Ezio Loik]]}}
+{{Calciatore in rosa|ruolo=C|nazione=ITA|nome=[[Danilo Martelli]]}}
+{{Calciatore in rosa|ruolo=A|nazione=ROU|nome=[[Josef Fabian]]}}
+{{Calciatore in rosa|ruolo=A|nazione=ITA|nome=[[Pietro Ferraris]] II}}
+{{Calciatore in rosa|ruolo=A|nazione=ITA|nome=[[Guglielmo Gabetto]]}}
+{{Calciatore in rosa|ruolo=A|nazione=ITA|nome=[[Valentino Mazzola]]|altro=c}}
+{{Calciatore in rosa|ruolo=A|nazione=ITA|nome=[[Romeo Menti]] II}}
+{{Calciatore in rosa|ruolo=A|nazione=ITA|nome=[[Franco Ossola]]}}
+{{Calciatore in rosa/fine}}
+
+== Calciomercato ==
+{{Colonne}}
+{| class="wikitable" style="font-size:90%"
+
+! colspan="4" | Acquisti
+|-
+! width=3% | R.
+! width=32% | Nome
+! width=30% | da
+! width=35% | Modalità
+|-
+| P || [[Dino Ballarin]] || {{Calcio Clodia|N}} || ''definitivo''
+|-
+| D || [[Raffaele Cuscela]] || {{Calcio Taranto|N}} || ''definitivo''
+|-
+| D || [[Sauro Tomà]] || {{Calcio Spezia|N}} || ''definitivo''
+|-
+| A || [[Josef Fabian]] || {{Calcio Carmen Bucarest|N}} || ''definitivo''
+|-
+| A || [[Oreste Guaraldo]] || {{Calcio Novara|N}} || ''fine prestito''
+|}
+{{colonne spezza}}
+{| class="wikitable" style="font-size:90%"
+
+! colspan="4" | Cessioni
+|-
+! width=3% | R.
+! width=32% | Nome
+! width=30% | a
+! width=35% | Modalità
+|-
+| P || [[Dante Piani]] || {{Calcio Lucchese|N}} || ''definitivo''
+|-
+| D || [[Francesco Rosetta]] || {{Calcio Alessandria|N}} || ''definitivo''
+|-
+| A || [[Guido Tieghi]] || {{Calcio Livorno|N}} || ''definitivo''
+|}
+{{colonne fine}}
+
+== Risultati ==
+=== Serie A ===
+{{vedi anche|Serie A 1947-1948}}
+==== Girone di andata ====
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 14 settembre
+|Anno = 1947
+|Ora = 15:30 [[UTC+1]]
+|Turno = 1ª giornata
+|Squadra 1 = Torino
+|Squadra 2 = Napoli
+|Punteggio 1 = 4
+|Punteggio 2 = 0
+|Città = [[Torino]]
+|Stadio = [[Stadio Filadelfia]]
+|Spettatori = 17.600
+|Arbitro = [[Luigi Gemini]]
+|Cittarbitro = [[Roma]]
+|Marcatori 1 = [[Valentino Mazzola|Mazzola]] {{Goal|44}}<br />[[Guglielmo Gabetto|Gabetto]] {{Goal|51}}<br />[[Romeo Menti|R. Menti]] {{Goal|81}}<br/>[[Pietro Ferraris|Ferraris]] {{Goal|88}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 21 settembre
+|Anno = 1947
+|Ora = 15:30 [[UTC+1]]
+|Turno = 2ª giornata
+|Squadra 1 = Bari
+|Squadra 2 = Torino
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Città = [[Bari]]
+|Stadio = [[Stadio della Vittoria (Bari)|Stadio della Vittoria]]
+|Spettatori = 
+|Arbitro = [[Guido Agnolin]]
+|Cittarbitro = [[Bassano del Grappa]]
+|Marcatori 1 = [[Guido Tavellin|Tavellin]] {{Goal|10}}
+|Marcatori 2 = 
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 28 settembre
+|Anno = 1947
+|Ora = 15:30 [[UTC+1]]
+|Turno = 3ª giornata
+|Squadra 1 = Torino
+|Squadra 2 = Lucchese
+|Punteggio 1 = 6
+|Punteggio 2 = 0
+|Città = [[Torino]]
+|Stadio = [[Stadio Filadelfia]]
+|Spettatori = 
+|Arbitro = [[Bruno Zilli]]
+|Cittarbitro = [[Reggio Emilia]]
+|Marcatori 1 = [[Ezio Loik|Loik]] {{Goal|28||36}}<br />[[Valentino Mazzola|Mazzola]] {{Goal|59}}<br />[[Guglielmo Gabetto|Gabetto]] {{Goal|76}}<br />[[Aldo Ballarin|Ballarin]] {{Goal|78}}<br />[[Eusebio Castigliano|Castigliano]] {{Goal|89}}
+|Marcatori 2 = 
+|Sfondo = 
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 5 ottobre
+|Anno = 1947
+|Ora = 15:30 [[UTC+1]]
+|Turno = 4ª giornata
+|Squadra 1 = Roma
+|Squadra 2 = Torino
+|Punteggio 1 = 1
+|Punteggio 2 = 7
+|Città = [[Roma]]
+|Stadio = [[Stadio Nazionale]]
+|Spettatori = 
+|Arbitro = [[Giorgio Bernardi]]
+|Cittarbitro = [[Bologna]]
+|Marcatori 1 = [[Amadeo Amadei|Amadei]] {{Goal|33}}
+|Marcatori 2 = {{Goal|60||64||74}} [[Valentino Mazzola|Mazzola]]<br />{{Goal|62}} [[Eusebio Castigliano|Castigliano]]<br />{{Goal|81||86}} [[Josef Fabian|Fabian]]<br />{{Goal|82}} [[Pietro Ferraris|Ferraris]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 12 ottobre
+|Anno = 1947
+|Ora = 15:30 [[UTC+1]]
+|Turno = 5ª giornata
+|Squadra 1 = Torino
+|Squadra 2 = Vicenza
+|Punteggio 1 = 2
+|Punteggio 2 = 0
+|Città = [[Torino]]
+|Stadio = [[Stadio Filadelfia]]
+|Spettatori = 
+|Arbitro = [[Giuseppe Carpani (arbitro)|Giuseppe Carpani]]
+|Cittarbitro = [[Milano]]
+|Marcatori 1 = [[Valentino Mazzola|Mazzola]] {{Goal|1}}<br />[[Josef Fabian|Fabian]] {{Goal|16}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 19 ottobre
+|Anno = 1947
+|Ora = 15:00 [[UTC+1]]
+|Turno = 6ª giornata
+|Squadra 1 = Pro Patria
+|Squadra 2 = Torino
+|Punteggio 1 = 0
+|Punteggio 2 = 2
+|Città = [[Busto Arsizio]]
+|Stadio = [[Stadio Carlo Speroni|Stadio Comunale]]
+|Spettatori = 26.000
+|Arbitro = [[Vittorio Pera]]
+|Cittarbitro = [[Firenze]]
+|Marcatori 2 = {{Goal|84}} [[Valentino Mazzola|Mazzola]]<br/>{{Goal|87}} [[Romeo Menti|R. Menti]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 26 ottobre
+|Anno = 1947
+|Ora = 14:30 [[UTC+1]]
+|Turno = 7ª giornata
+|Squadra 1 = Torino
+|Squadra 2 = Juventus
+|Punteggio 1 = 1
+|Punteggio 2 = 1
+|Città = [[Torino]]
+|Stadio = [[Stadio Filadelfia]]
+|Spettatori = 
+|Arbitro = [[Ferruccio Bellè]]
+|Cittarbitro = [[Venezia]]
+|Marcatori 1 = [[Valentino Mazzola|Mazzola]] {{Goal|9}}
+|Marcatori 2 = {{Goal|70|rig.}} [[Vittorio Sentimenti|V. Sentimenti]]
+|Sfondo = 
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 2 novembre
+|Anno = 1947
+|Ora = 14:30 [[UTC+1]]
+|Turno = 8ª giornata
+|Squadra 1 = Bologna
+|Squadra 2 = Torino
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Città = [[Bologna]]
+|Stadio = [[Stadio Renato Dall'Ara|Stadio Comunale]]
+|Spettatori = 50.000
+|Arbitro = [[Riccardo Pieri]]
+|Cittarbitro = [[Trieste]]
+|Marcatori 1 = [[Gino Cappello|Cappello]] {{Goal|45}}
+|Marcatori 2 = 
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 16 novembre
+|Anno = 1947
+|Ora = 14:30 [[UTC+1]]
+|Turno = 9ª giornata
+|Squadra 1 = Torino
+|Squadra 2 = Salernitana
+|Punteggio 1 = 7
+|Punteggio 2 = 1
+|Città = [[Torino]]
+|Stadio = [[Stadio Filadelfia]]
+|Spettatori = 
+|Arbitro = [[Giovanni Galeati]]
+|Cittarbitro = [[Bologna]]
+|Marcatori 1 = [[Guglielmo Gabetto|Gabetto]] {{Goal|8}}<br />[[Ezio Loik|Loik]] {{Goal|12||53||68}}<br />[[Romeo Menti|R. Menti]] {{Goal|32}}<br />[[Giuseppe Grezar|Grezar]] {{Goal|70}}<br />[[Josef Fabian|Fabian]] {{Goal|87}}
+|Marcatori 2 = {{Goal|41}} [[Sebastiano Vaschetto|Vaschetto]]
+|Sfondo = 
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 23 novembre
+|Anno = 1947
+|Ora = 14:30 [[UTC+1]]
+|Turno = 10ª giornata
+|Squadra 1 = Sampdoria
+|Squadra 2 = Torino
+|Punteggio 1 = 0
+|Punteggio 2 = 1
+|Città = [[Genova]]
+|Stadio = [[Stadio Luigi Ferraris]]
+|Spettatori = 
+|Arbitro = [[Vincenzo Orlandini]]
+|Cittarbitro = [[Roma]]
+|Marcatori 2 = {{Goal|37|rig.}} [[Romeo Menti|R. Menti]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 30 novembre
+|Anno = 1947
+|Ora = 14:30 [[UTC+1]]
+|Turno = 11ª giornata
+|Squadra 1 = Alessandria
+|Squadra 2 = Torino
+|Punteggio 1 = 2
+|Punteggio 2 = 2
+|Città = [[Alessandria (Italia)|Alessandria]]
+|Stadio = [[Stadio Giuseppe Moccagatta]]
+|Spettatori = 19.000
+|Arbitro = [[Giorgio Bernardi]]
+|Cittarbitro = [[Bologna]]
+|Marcatori 1 = [[Carlo Stradella|Stradella]] {{Goal|37}}<br />[[Luigi Sotgiu|Sotgiu]] {{Goal|38}}
+|Marcatori 2 = {{Goal|17}} [[Valentino Mazzola|Mazzola]]<br />{{Goal|18}} [[Romeo Menti|R. Menti]]
+|Sfondo = 
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 7 dicembre
+|Anno = 1947
+|Ora = 14:30 [[UTC+1]]
+|Turno = 12ª giornata
+|Squadra 1 = Torino
+|Squadra 2 = Inter
+|Punteggio 1 = 5
+|Punteggio 2 = 0
+|Città = [[Torino]]
+|Stadio = [[Stadio Filadelfia]]
+|Spettatori = 20.000
+|Arbitro = [[Giovanni Galeati]]
+|Cittarbitro = [[Bologna]]
+|Marcatori 1 = [[Romeo Menti|R. Menti]] {{Goal|20}}<br />[[Ezio Loik|Loik]] {{Goal|30}}<br />[[Valentino Mazzola|Mazzola]] {{Goal|32}}<br />[[Josef Fabian|Fabian]] {{Goal|49}}<br />[[Guglielmo Gabetto|Gabetto]] {{Goal|64}}
+|Marcatori 2 = 
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 21 dicembre
+|Anno = 1947
+|Ora = 14:30 [[UTC+1]]
+|Turno = 13ª giornata
+|Squadra 1 = Atalanta
+|Squadra 2 = Torino
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Città = [[Bergamo]]
+|Stadio = [[Stadio Atleti Azzurri d'Italia|Stadio Comunale]]
+|Spettatori = 
+|Arbitro = [[Generoso Dattilo]]
+|Cittarbitro = [[Roma]]
+|Marcatori 1 = [[Arnaldo Salvi|Salvi]] {{Goal|18}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 28 dicembre
+|Anno = 1947
+|Ora = 14:30 [[UTC+1]]
+|Turno = 14ª giornata
+|Squadra 1 = Torino
+|Squadra 2 = Triestina
+|Punteggio 1 = 6
+|Punteggio 2 = 0
+|Città = [[Torino]]
+|Stadio = [[Stadio Filadelfia]]
+|Spettatori = 
+|Arbitro = [[Bruno Tassini]]
+|Cittarbitro = [[Verona]]
+|Marcatori 1 = [[Guglielmo Gabetto|Gabetto]] {{Goal|32}}<br />[[Romeo Menti|R. Menti]] {{Goal|48||73|rig.}}<br />[[Ezio Loik|Loik]] {{Goal|50}}<br />[[Pietro Ferraris|Ferraris]] {{Goal|65}}<br />[[Virgilio Maroso|Maroso]] {{Goal|90}}
+|Marcatori 2 = 
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 1º gennaio
+|Anno = 1948
+|Ora = 14:30 [[UTC+1]]
+|Turno = 15ª giornata
+|Squadra 1 = Torino
+|Squadra 2 = Fiorentina
+|Punteggio 1 = 5
+|Punteggio 2 = 0
+|Città = [[Torino]]
+|Stadio = [[Stadio Filadelfia]]
+|Spettatori = 17.000
+|Arbitro = [[Giuseppe Boffardi]]
+|Cittarbitro = [[Genova]]
+|Marcatori 1 = [[Valentino Mazzola|Mazzola]] {{Goal|5}}<br />[[Ezio Loik|Loik]] {{Goal|32||68}}<br />[[Guglielmo Gabetto|Gabetto]] {{Goal|37}}<br />[[Danilo Martelli|Martelli]] {{Goal|67}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 4 gennaio
+|Anno = 1948
+|Ora = 14:30 [[UTC+1]]
+|Turno = 16ª giornata
+|Squadra 1 = Lazio
+|Squadra 2 = Torino
+|Punteggio 1 = 0
+|Punteggio 2 = 0
+|Città = [[Roma]]
+|Stadio = [[Stadio Nazionale]]
+|Spettatori = 
+|Arbitro = [[Eriprando Poggipollini]]
+|Cittarbitro = [[Ferrara]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 11 gennaio
+|Anno = 1948
+|Ora = 14:30 [[UTC+1]]
+|Turno = 17ª giornata
+|Squadra 1 = Livorno
+|Squadra 2 = Torino
+|Punteggio 1 = 1
+|Punteggio 2 = 3
+|Città = [[Livorno]]
+|Stadio = [[Stadio Armando Picchi|Stadio Ardenza]]
+|Spettatori = 20.000
+|Arbitro = [[Luigi Gemini]]
+|Cittarbitro = [[Roma]]
+|Marcatori 1 = [[Dandolo Brondi|Brondi]] {{Goal|27|rig.}}
+|Marcatori 2 = {{Goal|9}} [[Guglielmo Gabetto|Gabetto]]<br/>{{Goal|46||89}} [[Danilo Martelli|Martelli]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 18 gennaio
+|Anno = 1948
+|Ora = 14:30 [[UTC+1]]
+|Turno = 18ª giornata
+|Squadra 1 = Torino
+|Squadra 2 = Genoa
+|Punteggio 1 = 2
+|Punteggio 2 = 1
+|Città = [[Torino]]
+|Stadio = [[Stadio Filadelfia]]
+|Spettatori = 17.000
+|Arbitro = [[Mario Maurelli]]
+|Cittarbitro = [[Roma]]
+|Marcatori 1 = [[Guglielmo Gabetto|Gabetto]] {{Goal|36}}<br/>[[Valentino Mazzola|Mazzola]] {{Goal|38}}
+|Marcatori 2 = {{Goal|29}} [[Renato Brighenti|Brighenti]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 25 gennaio
+|Anno = 1948
+|Ora = 14:30 [[UTC+1]]
+|Turno = 19ª giornata
+|Squadra 1 = Milan
+|Squadra 2 = Torino
+|Punteggio 1 = 3
+|Punteggio 2 = 2
+|Città = [[Milano]]
+|Stadio = [[Stadio San Siro]]
+|Spettatori = 55.000
+|Arbitro = [[Generoso Dattilo]]
+|Cittarbitro = [[Roma]]
+|Marcatori 1 = [[Héctor Puricelli|Puricelli]] {{Goal|7||32}}<br />[[Pietro Degano|Degano]] {{Goal|45}}
+|Marcatori 2 = {{Goal|47}} [[Romeo Menti|R. Menti]]<br/>{{Goal|70}} [[Valentino Mazzola|Mazzola]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 1º febbraio
+|Anno = 1948
+|Ora = 14:30 [[UTC+1]]
+|Turno = 20ª giornata
+|Squadra 1 = Modena
+|Squadra 2 = Torino
+|Punteggio 1 = 0
+|Punteggio 2 = 3
+|Città = [[Modena]]
+|Stadio = [[Stadio Alberto Braglia|Stadio Comunale]]
+|Spettatori = 25.000
+|Arbitro = [[Bruno Tassini]]
+|Cittarbitro = [[Verona]]
+|Marcatori 2 = {{Goal|2}} [[Guglielmo Gabetto|Gabetto]]<br />{{Goal|61}} [[Josef Fabian|Fabian]]<br />{{Goal|85|rig.}} [[Romeo Menti|R. Menti]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 8 febbraio
+|Anno = 1948
+|Ora =
+|Turno = 21ª giornata
+|Note = Turno di riposo del TORINO
+}}
+
+==== Girone di ritorno ====
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 15 febbraio
+|Anno = 1948
+|Ora = 15:00 [[UTC+1]]
+|Turno = 22ª giornata
+|Squadra 1 = Napoli
+|Squadra 2 = Torino
+|Punteggio 1 = 0
+|Punteggio 2 = 0
+|Città = [[Napoli]]
+|Stadio = [[Stadio Arturo Collana|Stadio della Liberazione]]
+|Spettatori = 
+|Arbitro = [[Giorgio Bernardi]]
+|Cittarbitro = [[Bologna]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 22 febbraio
+|Anno = 1948
+|Ora = 15:00 [[UTC+1]]
+|Turno = 23ª giornata
+|Squadra 1 = Torino
+|Squadra 2 = Bari
+|Punteggio 1 = 5
+|Punteggio 2 = 1
+|Città = [[Torino]]
+|Stadio = [[Stadio Filadelfia]]
+|Spettatori = 
+|Arbitro = [[Bruno Guarda (arbitro)|Bruno Guarda]]
+|Cittarbitro = [[Mestre]]
+|Marcatori 1 = [[Josef Fabian|Fabian]] {{Goal|36}}<br/>[[Guglielmo Gabetto|Gabetto]] {{Goal|44||61}}<br/>[[Valentino Mazzola|Mazzola]] {{Goal|70}}<br/>[[Danilo Martelli|Martelli]] {{Goal|79}}
+|Marcatori 2 = {{Goal|83}} [[Vincenzo Orlando|Orlando]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 29 febbraio
+|Anno = 1948
+|Ora = 15:30 [[UTC+1]]
+|Turno = 24ª giornata
+|Squadra 1 = Lucchese
+|Squadra 2 = Torino
+|Punteggio 1 = 2
+|Punteggio 2 = 2
+|Città = [[Lucca]]
+|Stadio = [[Stadio Porta Elisa]]
+|Spettatori = 
+|Arbitro = [[Giovanni Galeati]]
+|Cittarbitro = [[Bologna]]
+|Marcatori 1 = [[Luigi Rosellini|Rosellini]] {{Goal|9}}<br/>[[Gyula Tóth (calciatore 1920)|Toth]] {{Goal|46}}
+|Marcatori 2 = {{Goal|49}} [[Giuseppe Grezar|Grezar]]<br/>{{Goal|83}} [[Valentino Mazzola|Mazzola]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 7 marzo
+|Anno = 1948
+|Ora = 15:30 [[UTC+1]]
+|Turno = 25ª giornata
+|Squadra 1 = Torino
+|Squadra 2 = Roma
+|Punteggio 1 = 4
+|Punteggio 2 = 1
+|Città = [[Torino]]
+|Stadio = [[Stadio Filadelfia]]
+|Spettatori = 18.000
+|Arbitro = [[Eriprando Poggipollini]]
+|Cittarbitro = [[Ferrara]]
+|Marcatori 1 = [[Ezio Loik|Loik]] {{Goal|20}}<br/>[[Danilo Martelli|Martelli]] {{Goal|63}}<br/>[[Franco Ossola|Ossola]] {{Goal|70}}<br/>[[Romeo Menti|R. Menti]] {{Goal|86}}
+|Marcatori 2 = {{Goal|10}} [[Vicente Di Paola|Di Paola]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 14 marzo
+|Anno = 1948
+|Ora = 15:30 [[UTC+1]]
+|Turno = 26ª giornata
+|Squadra 1 = Vicenza
+|Squadra 2 = Torino
+|Punteggio 1 = 0
+|Punteggio 2 = 4
+|Città = [[Vicenza]]
+|Stadio = [[Stadio Romeo Menti|Stadio Comunale]]
+|Spettatori = 
+|Arbitro = [[Giovanni Galeati]]
+|Cittarbitro = [[Bologna]]
+|Marcatori 2 = {{Goal|1}} [[Eusebio Castigliano|Castigliano]]<br/>{{Goal|21}} [[Romeo Menti|R. Menti]]<br/>{{Goal|78}} [[Ezio Loik|Loik]]<br/>{{Goal|85}} [[Franco Ossola|Ossola]]
+|Sfondo = 
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 21 marzo
+|Anno = 1948
+|Ora = 15:30 [[UTC+1]]
+|Turno = 27ª giornata
+|Squadra 1 = Torino
+|Squadra 2 = Pro Patria
+|Punteggio 1 = 4
+|Punteggio 2 = 1
+|Città = [[Torino]]
+|Stadio = [[Stadio Filadelfia]]
+|Spettatori = 
+|Arbitro = [[Giuseppe Parpaiola]]
+|Cittarbitro = [[Padova]]
+|Marcatori 1 = [[Franco Ossola|Ossola]] {{Goal|33}}<br/>[[Ezio Loik|Loik]] {{Goal|49}}<br/>[[Giuseppe Grezar|Grezar]] {{Goal|51}}<br/>[[Romeo Menti|R. Menti]] {{Goal|63}}
+|Marcatori 2 = {{Goal|89|rig.}} [[Angelo Turconi|Turconi]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 28 marzo
+|Anno = 1948
+|Ora = 15:30 [[UTC+1]]
+|Turno = 28ª giornata
+|Squadra 1 = Juventus
+|Squadra 2 = Torino
+|Punteggio 1 = 1
+|Punteggio 2 = 1
+|Città = [[Torino]]
+|Stadio = [[Stadio Olimpico Grande Torino|Stadio Comunale]]
+|Spettatori = 
+|Arbitro = [[Luigi Gemini]]
+|Cittarbitro = [[Roma]]
+|Marcatori 1 = [[Aldo Ballarin|Ballarin]] {{Goal|50|aut.}}
+|Marcatori 2 = {{Goal|37}} [[Franco Ossola|Ossola]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 11 aprile
+|Anno = 1948
+|Ora = 16:00 [[UTC+1]]
+|Turno = 29ª giornata
+|Squadra 1 = Torino
+|Squadra 2 = Bologna
+|Punteggio 1 = 5
+|Punteggio 2 = 1
+|Città = [[Torino]]
+|Stadio = [[Stadio Filadelfia]]
+|Spettatori = 
+|Arbitro = [[Ferruccio Bonivento]]
+|Cittarbitro = [[Venezia]]
+|Marcatori 1 = [[Valentino Mazzola|Mazzola]] {{Goal|9}}<br/>[[Guglielmo Gabetto|Gabetto]] {{Goal|15||57||88}}<br/>[[Franco Ossola|Ossola]] {{Goal|34}}
+|Marcatori 2 = {{Goal|78}} [[Aurelio Marchese|Marchese]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 17 aprile
+|Anno = 1948
+|Ora = 16:00 [[UTC+1]]
+|Turno = 30ª giornata
+|Squadra 1 = Salernitana
+|Squadra 2 = Torino
+|Punteggio 1 = 1
+|Punteggio 2 = 4
+|Città = [[Salerno]]
+|Stadio = [[Stadio Donato Vestuti|Stadio Comunale]]
+|Spettatori = 14.000
+|Arbitro = [[Bruno Zilli]]
+|Cittarbitro = [[Reggio Emilia]]
+|Marcatori 1 = [[Renzo Merlin|Merlin]] {{Goal|7}}
+|Marcatori 2 = {{Goal|17||59}} [[Guglielmo Gabetto|Gabetto]]<br/>{{Goal|74}} [[Franco Ossola|Ossola]]<br/>{{Goal|81}} [[Valentino Mazzola|Mazzola]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 25 aprile
+|Anno = 1948
+|Ora = 16:00 [[UTC+1]]
+|Turno = 31ª giornata
+|Squadra 1 = Torino
+|Squadra 2 = Sampdoria
+|Punteggio 1 = 3
+|Punteggio 2 = 2
+|Città = [[Torino]]
+|Stadio = [[Stadio Filadelfia]]
+|Spettatori = 
+|Arbitro = [[Guido Agnolin]]
+|Cittarbitro = [[Bassano del Grappa]]
+|Marcatori 1 = [[Franco Ossola|Ossola]] {{Goal|4}}<br/>[[Guglielmo Gabetto|Gabetto]] {{Goal|14}}<br/>[[Danilo Martelli|Martelli]] {{Goal|68}}
+|Marcatori 2 = {{Goal|28}} [[Italo Rebuzzi|It. Rebuzzi]]<br/>{{Goal|89}} [[Giorgio Barsanti|Barsanti]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 2 maggio
+|Anno = 1948
+|Ora = 16:00 [[UTC+1]]
+|Turno = 32ª giornata
+|Squadra 1 = Torino
+|Squadra 2 = Alessandria
+|Punteggio 1 = 10
+|Punteggio 2 = 0
+|Città = [[Torino]]
+|Stadio = [[Stadio Filadelfia]]
+|Spettatori = 10.500
+|Arbitro = [[Bruno Guarda (arbitro)|Bruno Guarda]]
+|Cittarbitro = [[Mestre]]
+|Marcatori 1 = [[Franco Ossola|Ossola]] {{Goal|5}}<br/>[[Ezio Loik|Loik]] {{Goal|7||42||86}}<br/>[[Valentino Mazzola|Mazzola]] {{Goal|35}}<br/>[[Giuseppe Grezar|Grezar]] {{Goal|75||77}}<br/>[[Josef Fabian|Fabian]] {{Goal|81||83}}<br/>[[Guglielmo Gabetto|Gabetto]] {{Goal|88}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 6 maggio
+|Anno = 1948
+|Ora = 16:00 [[UTC+1]]
+|Turno = 33ª giornata
+|Squadra 1 = Inter
+|Squadra 2 = Torino
+|Punteggio 1 = 0
+|Punteggio 2 = 1
+|Città = [[Milano]]
+|Stadio = [[Stadio San Siro]]
+|Spettatori = 
+|Arbitro = [[Luigi Gemini]]
+|Cittarbitro = [[Roma]]
+|Marcatori 2 = {{Goal|87}} [[Valentino Mazzola|Mazzola]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 9 maggio
+|Anno = 1948
+|Ora = 16:00 [[UTC+1]]
+|Turno = 34ª giornata
+|Squadra 1 = Torino
+|Squadra 2 = Atalanta
+|Punteggio 1 = 4
+|Punteggio 2 = 0
+|Città = [[Torino]]
+|Stadio = [[Stadio Filadelfia]]
+|Spettatori = 15.000
+|Arbitro = [[Bruno Zilli]]
+|Cittarbitro = [[Reggio Emilia]]
+|Marcatori 1 = [[Valentino Mazzola|Mazzola]] {{Goal|13||24}}<br/>[[Romeo Menti|R. Menti]] {{Goal|78}}<br/>[[Guglielmo Gabetto|Gabetto]] {{Goal|80}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 23 maggio
+|Anno = 1948
+|Ora = 16:00 [[UTC+1]]
+|Turno = 35ª giornata
+|Squadra 1 = Triestina
+|Squadra 2 = Torino
+|Punteggio 1 = 0
+|Punteggio 2 = 0
+|Città = [[Trieste]]
+|Stadio = [[Stadio Giuseppe Grezar|Stadio Comunale]]
+|Spettatori = 
+|Arbitro = [[Eliseo Camiolo]]
+|Cittarbitro = [[Roma]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 27 maggio
+|Anno = 1948
+|Ora = 16:30 [[UTC+1]]
+|Turno = 36ª giornata
+|Squadra 1 = Fiorentina
+|Squadra 2 = Torino
+|Punteggio 1 = 1
+|Punteggio 2 = 2
+|Città = [[Firenze]]
+|Stadio = [[Stadio Artemio Franchi|Stadio Comunale]]
+|Spettatori = 
+|Arbitro = [[Giorgio Bernardi]]
+|Cittarbitro = [[Bologna]]
+|Marcatori 1 = [[Alberto Galassi|Galassi]] {{Goal|8}}
+|Marcatori 2 = {{Goal|50|rig.}} [[Romeo Menti|R. Menti]]<br/>{{Goal|74}} [[Valentino Mazzola|Mazzola]]
+|Sfondo = 
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 30 maggio
+|Anno = 1948
+|Ora = 16:30 [[UTC+1]]
+|Turno = 37ª giornata
+|Squadra 1 = Torino
+|Squadra 2 = Lazio
+|Punteggio 1 = 4
+|Punteggio 2 = 3
+|Città = [[Torino]]
+|Stadio = [[Stadio Filadelfia]]
+|Spettatori = 
+|Arbitro = [[Guido Agnolin]]
+|Cittarbitro = [[Bassano del Grappa]]
+|Marcatori 1 = [[Eusebio Castigliano|Castigliano]] {{Goal|25||55}}<br/>[[Guglielmo Gabetto|Gabetto]] {{Goal|43}}<br/>[[Valentino Mazzola|Mazzola]] {{Goal|61}}
+|Marcatori 2 = {{Goal|4}} [[Aldo Puccinelli|Puccinelli]]<br/>{{Goal|13|aut.}} [[Giuseppe Grezar|Grezar]]<br/>{{Goal|20}} [[Romano Penzo|Penzo]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 6 giugno
+|Anno = 1948
+|Ora = 16:30 [[UTC+1]]
+|Turno = 38ª giornata
+|Squadra 1 = Torino
+|Squadra 2 = Livorno
+|Punteggio 1 = 5
+|Punteggio 2 = 2
+|Città = [[Torino]]
+|Stadio = [[Stadio Filadelfia]]
+|Spettatori = 6.500
+|Arbitro = [[Mario Scotto]]
+|Cittarbitro = [[Savona]]
+|Marcatori 1 = [[Valentino Mazzola|Mazzola]] {{Goal|15||69}}<br/>[[Mario Stua|Stua]] {{Goal|47|aut.}}<br/>[[Guglielmo Gabetto|Gabetto]] {{Goal|56}}<br/>[[Danilo Martelli|Martelli]] {{Goal|75}}
+|Marcatori 2 = {{Goal|42}} [[Guido Tieghi|Tieghi]]<br/>{{Goal|55}} [[Teresio Piana|Piana]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 16 giugno
+|Anno = 1948
+|Ora = 16:30 [[UTC+1]]
+|Turno = 39ª giornata
+|Squadra 1 = Genoa
+|Squadra 2 = Torino
+|Punteggio 1 = 1
+|Punteggio 2 = 2
+|Città = [[Genova]]
+|Stadio = [[Stadio Luigi Ferraris]]
+|Spettatori = 30.000
+|Arbitro = [[Ferruccio Bellè]]
+|Cittarbitro = [[Venezia]]
+|Marcatori 1 = [[Vittorio Bergamo|Bergamo]] {{Goal|46}}
+|Marcatori 2 = {{Goal|44}} [[Eusebio Castigliano|Castigliano]]<br/>{{Goal|54}} [[Guglielmo Gabetto|Gabetto]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 20 giugno
+|Anno = 1948
+|Ora = 17:00 [[UTC+1]]
+|Turno = 40ª giornata
+|Squadra 1 = Torino
+|Squadra 2 = Milan
+|Punteggio 1 = 2
+|Punteggio 2 = 1
+|Città = [[Torino]]
+|Stadio = [[Stadio Filadelfia]]
+|Spettatori = 20.000
+|Arbitro = [[Giorgio Bernardi]]
+|Cittarbitro = [[Bologna]]
+|Marcatori 1 = [[Guglielmo Gabetto|Gabetto]] {{Goal|23}}<br/>[[Franco Ossola|Ossola]] {{Goal|30}}
+|Marcatori 2 = {{Goal|43}} [[Renzo Burini|Burini]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 27 giugno
+|Anno = 1948
+|Ora = 17:00 [[UTC+1]]
+|Turno = 41ª giornata
+|Squadra 1 = Torino
+|Squadra 2 = Modena
+|Punteggio 1 = 5
+|Punteggio 2 = 2
+|Città = [[Torino]]
+|Stadio = [[Stadio Filadelfia]]
+|Spettatori = 
+|Arbitro = [[Vincenzo Orlandini]]
+|Cittarbitro = [[Roma]]
+|Marcatori 1 = [[Ezio Loik|Loik]] {{Goal|18}}<br/>[[Danilo Martelli|Martelli]] {{Goal|22||57}}<br/>[[Eusebio Castigliano|Castigliano]] {{Goal|66}}<br/>[[Romeo Menti|R. Menti]] {{Goal|77}}
+|Marcatori 2 = {{Goal|38}} [[Francesco Pernigo|Pernigo]]<br/>{{Goal|80}} [[Sergio Bertoni|Bertoni]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 4 luglio
+|Anno = 1948
+|Ora =
+|Turno = 42ª giornata
+|Note = Turno di riposo del TORINO
+}}
+
+== Statistiche ==
+=== Statistiche di squadra ===
+{{Statistiche squadra
+|comp1=[[Serie A 1947-1948|Serie A]]
+|punti1=65
+|cv1=19
+|cn1=1
+|cp1=0
+|cgf1=87
+|cgs1=17
+|tv1=10
+|tn1=6
+|tp1=4
+|tgf1=38
+|tgs1=16
+}}
+=== Statistiche dei giocatori ===
+{{Statistiche dei giocatori
+| Competizione1 = Serie A
+| Totale = no
+| Cartellini = no
+| {{Sortname|V.|Bacigalupo|Valerio Bacigalupo}} {{Sommastat|C=no |40|-33|?|?}}
+| {{Sortname|A.|Ballarin|Aldo Ballarin}} {{Sommastat|C=no |39|1|?|?}}
+| {{Sortname|E.|Castigliano|Eusebio Castigliano}} {{Sommastat|C=no |29|7|?|?}}
+| {{Sortname|J.|Fabian|Josef Fabian}} {{Sommastat|C=no |15|9|?|?}}
+| {{Sortname|P.|Ferraris II|Pietro Ferraris}} {{Sommastat|C=no |16|3|?|?}}
+| {{Sortname|G.|Gabetto|Guglielmo Gabetto}} {{Sommastat|C=no |36|23|?|?}}
+| {{Sortname|G.|Grezar|Giuseppe Grezar}} {{Sommastat|C=no |33|5|?|?}}
+| {{Sortname|E.|Loik|Ezio Loik}} {{Sommastat|C=no |33|16|?|?}}
+| {{Sortname|V.|Maroso|Virgilio Maroso}} {{Sommastat|C=no |17|1|?|?}}
+| {{Sortname|D.|Martelli|Danilo Martelli}} {{Sommastat|C=no |27|9|?|?}}
+| {{Sortname|V.|Mazzola|Valentino Mazzola}} {{Sommastat|C=no |37|25|?|?}}
+| {{Sortname|R.|Menti II|Romeo Menti}} {{Sommastat|C=no |38|16|?|?}}
+| {{Sortname|F.|Ossola|Franco Ossola}} {{Sommastat|C=no |17|9|?|?}}
+| {{Sortname|M.|Rigamonti|Mario Rigamonti}} {{Sommastat|C=no |39|0|?|?}}
+| {{Sortname|S.|Tomà|Sauro Tomà}} {{Sommastat|C=no |24|0|?|?}}
+}}
+
+== Note ==
+<references/>
+
+==Bibliografia==
+* {{cita libro|autore=Leone Boccali (a cura di)|titolo=Almanacco illustrato del calcio 1949|editore=Rizzoli|anno=1948|pp=100-154}}
+
+{{Calcio Torino storico}}
+{{Calcio in Italia 1947-1948}}
+{{Portale|calcio}}

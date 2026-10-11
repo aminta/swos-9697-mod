@@ -1,0 +1,891 @@
+{{Torna a|Associazione Sportiva Lucchese Libertas 1905}}
+{{Stagione squadra
+|sport=calcio
+|club = Unione Sportiva Lucchese Libertas
+|stagione = 1947-1948
+|immagine =
+|didascalia =
+|allenatore1 = {{Bandiera|HUN}} [[Árpád Hajós]], poi dalla 8ª <br/>{{Bandiera|ITA}} [[Giulio Cappelli]], poi dalla 29ª<br/>  {{Bandiera|AUT}} [[Tony Cargnelli]]
+|presidente = {{Bandiera|ITA}} [[Antonio Fontana]]
+|campionato = [[Serie A 1947-1948|Serie A]]
+|campionato posizione = 16º posto
+|marcatore campionato = [[Ugo Conti (calciatore)|Conti]] (19)
+|presenze campionato = [[Gianmarco Mezzadri|Mezzadri]] (37)
+|stadio = [[Stadio Porta Elisa]]
+|stagione prima = [[Unione Sportiva Lucchese Libertas 1946-1947|1946-1947]]
+|stagione dopo = [[Unione Sportiva Lucchese Libertas 1948-1949|1948-1949]]
+|aggiornato = 26 luglio 2026
+}}
+
+Questa voce raccoglie le informazioni riguardanti il l''''Unione Sportiva Lucchese Libertas''' nelle competizioni ufficiali della stagione '''1947-1948'''.
+
+==Stagione==
+Nella stagione 1947-1948 la neopromossa Lucchese ritorna ad assaporare il massimo campionato nazionale, un campionato maratona, con 21 squadre partecipanti, alle 20 qualificate a disputarlo si è aggiunta la Triestina, riammessa d'ufficio. Il campionato lo rivince il "Grande" Torino, con  sedici punti di vantaggio sul terzetto Milan, Juventus e Triestina. La Lucchese parte male, al termine del girone di andata ha 16 punti, alle spalle con 15 punti solo Sampdoria, Salernitana e Vicenza, e con 11 punti il Napoli. Poi nel girone di ritorno i rossoneri raccolgono 20 punti, che risultano appena sufficienti per festeggiare il mantenimento della categoria con il sedicesimo posto. Sono stati tre i tecnici alternati sulla panca toscana, nel tentativo riuscito di poter raggiungere la salvezza. Obiettivo raggiunto grazie alla verve realizzativa del pisano Ugo Conti che ha messo la firma su 19 reti, non soffrendo affatto il salto di categoria, nella scorsa stagione in Serie B aveva realizzato 29 reti, nella cavalcata dei rossoneri verso la massima serie.
+
+==Rosa==
+{{Calciatore in rosa/inizio}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Dante Piani]]|ruolo=P}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Duilio Zotti]]|ruolo=P}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Lorenzo Vellutini]]|ruolo=P}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Attilio Giovannini]]|ruolo=D}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Giovanni Clocchiatti]]|ruolo=D}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Alberto Bertuccelli]]|ruolo=D}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Raffaele Cuscela]]|ruolo=D}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Gianmarco Mezzadri]]|ruolo=C}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Ruggero Salar]]|ruolo=C}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Aldo Giannotti]]|ruolo=C}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Lelio Catelli]]|ruolo=C}}
+{{Calciatore in rosa/medio}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Marcello Bonaccorsi]]|ruolo=C}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Luigi Rosellini]]|ruolo=A}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Ugo Conti (calciatore)|Ugo Conti]]|ruolo=A}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Athos Miniati]]|ruolo=A}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Danilo Michelini]]|ruolo=A}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Emo Roffi]]|ruolo=A}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Luciano Giusti]]|ruolo=A}}
+{{Calciatore in rosa|n=|nazione=HUN|nome=[[Gyula Tóth (calciatore 1920)|Gyula Tóth]]|ruolo=A}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Elpidio Coppa]]|ruolo=A}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Antonio Bacchetti]]|ruolo=A}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Arturo Presselli]]|ruolo=A}}
+{{Calciatore in rosa/fine}}
+
+== Risultati ==
+=== Serie A ===
+{{Vedi anche|Serie A 1947-1948}}
+==== Girone di andata ====
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 14 settembre
+|Anno = 1947
+|Ora =
+|Turno = 1ª giornata
+|Squadra 1 = Lucchese
+|Squadra 2 = Genoa
+|Punteggio 1 = 0
+|Punteggio 2 = 3
+|Referto =
+|Città = [[Lucca]]
+|Stadio = [[Stadio Porta Elisa]]
+|Spettatori =
+|Arbitro = [[Agostino Gamba]]
+|Cittarbitro = [[Napoli]]
+|Marcatori 2 = {{goal|5}} [[Riccardo Dalla Torre|Dalla Torre]]<br/>{{goal|13||72}} [[Renato Brighenti|R. Brighenti]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 21 settembre
+|Anno = 1947
+|Ora =
+|Turno = 2ª giornata
+|Squadra 1 = Lucchese
+|Squadra 2 = Bologna
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Lucca]]
+|Stadio = [[Stadio Porta Elisa]]
+|Spettatori =
+|Arbitro = [[Giuseppe Carpani (arbitro)|Giuseppe Carpani]]
+|Cittarbitro = [[Milano]]
+|Marcatori 1 = [[Athos Miniati|Miniati]] {{goal|10}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 28 settembre
+|Anno = 1947
+|Ora =
+|Turno = 3ª giornata
+|Squadra 1 = Torino
+|Squadra 2 = Lucchese
+|Punteggio 1 = 6
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Torino]]
+|Stadio = [[Stadio Filadelfia]]
+|Spettatori =
+|Arbitro = [[Bruno Zilli]]
+|Cittarbitro = [[Reggio Emilia]]
+|Marcatori 1 = [[Ezio Loik|Loik]] {{goal|28||36}}<br/>[[Valentino Mazzola|Mazzola]] {{goal|59}}<br/>[[Guglielmo Gabetto|Gabetto]] {{goal|76}}<br/>[[Aldo Ballarin|Ballarin]] {{goal|78}}<br/>[[Eusebio Castigliano|Castigliano]] {{goal|89}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 5 ottobre
+|Anno = 1947
+|Ora =
+|Turno = 4ª giornata
+|Note = Turno di riposo della LUCCHESE
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 12 ottobre
+|Anno = 1947
+|Ora =
+|Turno = 5ª giornata
+|Squadra 1 = Salernitana
+|Squadra 2 = Lucchese
+|Punteggio 1 = 5
+|Punteggio 2 = 2
+|Referto =
+|Città = [[Salerno]]
+|Stadio = [[Stadio Donato Vestuti|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Giuseppe Boffardi]]
+|Cittarbitro = [[Genova]]
+|Marcatori 1 = [[Secondo Rossi|S. Rossi]] {{goal|7||60}}<br/>[[Elio Onorato|Onorato]] {{goal|51}}<br/>[[Sebastiano Vaschetto|Vaschetto]] {{goal|89}}<br/>[[Vincenzo Margiotta|Margiotta]] {{goal|90}}
+|Marcatori 2 = {{goal|2}} [[Emo Roffi|Roffi]]<br/>{{goal|36}} [[Danilo Michelini|Michelini]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 19 ottobre
+|Anno = 1947
+|Ora =
+|Turno = 6ª giornata
+|Squadra 1 = Lucchese
+|Squadra 2 = Fiorentina
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Lucca]]
+|Stadio = [[Stadio Porta Elisa]]
+|Spettatori =
+|Arbitro = [[Giorgio Bernardi]]
+|Cittarbitro = [[Bologna]]
+|Marcatori 1 = [[Ugo Conti (calciatore)|U. Conti]] {{goal|5}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 26 ottobre
+|Anno = 1947
+|Ora =
+|Turno = 7ª giornata
+|Squadra 1 = Inter
+|Squadra 2 = Lucchese
+|Punteggio 1 = 6
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Milano]]
+|Stadio = [[Stadio San Siro]]
+|Spettatori =
+|Arbitro = [[Osvaldo Savio]]
+|Cittarbitro = [[Torino]]
+|Marcatori 1 = [[Benito Lorenzi|Lorenzi]] {{goal|1||5||18||30}}<br/>[[Rinaldo Fiumi|Fiumi]] {{goal|54}}<br/>[[Bibiano Zapirain|Zapirain]] {{goal|79}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 2 novembre
+|Anno = 1947
+|Ora =
+|Turno = 8ª giornata
+|Squadra 1 = Lucchese
+|Squadra 2 = Triestina
+|Punteggio 1 = 1
+|Punteggio 2 = 1
+|Referto =
+|Città = [[Lucca]]
+|Stadio = [[Stadio Porta Elisa]]
+|Spettatori =
+|Arbitro = [[Eliseo Camiolo]]
+|Cittarbitro = [[Roma]]
+|Marcatori 1 = [[Giovanni Clocchiatti|Clocchiatti]] {{goal|77}}
+|Marcatori 2 = {{goal|82}} [[Mario Begni|Begni]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 16 novembre
+|Anno = 1947
+|Ora =
+|Turno = 9ª giornata
+|Squadra 1 = Alessandria
+|Squadra 2 = Lucchese
+|Punteggio 1 = 4
+|Punteggio 2 = 2
+|Referto =
+|Città = [[Alessandria (Italia)|Alessandria]]
+|Stadio = [[Stadio Giuseppe Moccagatta]]
+|Spettatori =
+|Arbitro = [[Mario Codeluppi]]
+|Cittarbitro = [[Lodi]]
+|Marcatori 1 = [[Aristide Coscia|Coscia]] {{goal|21|rig}}<br/>[[Riza Lushta|Lushta]] {{goal|25}}<br/>[[Pietro Sotgiu|Sotgiu]] {{goal|46}}<br/>[[Francesco Tortarolo|Tortarolo]] {{goal|88}}
+|Marcatori 2 = {{goal|40}} [[Elpidio Coppa|Coppa]]<br/>{{goal|86}} [[Ugo Conti (calciatore)|U. Conti]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 23 novembre
+|Anno = 1947
+|Ora =
+|Turno = 10ª giornata
+|Squadra 1 = Lucchese
+|Squadra 2 = Bari
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Lucca]]
+|Stadio = [[Stadio Porta Elisa]]
+|Spettatori =
+|Arbitro = [[Bruno Tassini]]
+|Cittarbitro = [[Verona]]
+|Marcatori 1 = [[Arturo Presselli|Presselli]] {{goal|70}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 30 novembre
+|Anno = 1947
+|Ora =
+|Turno = 11ª giornata
+|Squadra 1 = Lucchese
+|Squadra 2 = Milan
+|Punteggio 1 = 0
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Lucca]]
+|Stadio = [[Stadio Porta Elisa]]
+|Spettatori =
+|Arbitro = [[Guido Agnolin]]
+|Cittarbitro = [[Bassano del Grappa]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 7 dicembre<ref>Partita sospesa per nebbia al minuto 66' dal Sig. Parpaiola sul punteggio (2-1) con reti di Cominelli, Rosellini e Schiavi, poi recuperata il 14 dicembre 1947.</ref>
+|Anno = 1947
+|Ora =
+|Turno = 12ª giornata
+|Squadra 1 = Atalanta
+|Squadra 2 = Lucchese
+|Punteggio 1 = 5
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Bergamo]]
+|Stadio = [[Stadio Mario Brumana|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Antonio Zambotto]]
+|Cittarbitro = [[Padova]]
+|Marcatori 1 = [[Paolo Tabanelli|Tabanelli]] {{goal|22||71}}<br/>[[Edmondo Fabbri|Ed. Fabbri]] {{goal|24}}<br/>[[Onorio Busnelli|Busnelli]] {{goal|56||88}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 21 dicembre
+|Anno = 1947
+|Ora =
+|Turno = 13ª giornata
+|Squadra 1 = Juventus
+|Squadra 2 = Lucchese
+|Punteggio 1 = 1
+|Punteggio 2 = 1
+|Referto =
+|Città = [[Torino]]
+|Stadio = [[Stadio Olimpico (Torino)|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Eriprando Poggipollini]]
+|Cittarbitro = [[Ferrara]]
+|Marcatori 1 = [[Vittorio Sentimenti|V. Sentimenti]] {{goal|41}}
+|Marcatori 2 = {{goal|63}} [[Ugo Conti (calciatore)|U. Conti]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 28 dicembre
+|Anno = 1947
+|Ora =
+|Turno = 14ª giornata
+|Squadra 1 = Lucchese
+|Squadra 2 = Pro Patria
+|Punteggio 1 = 2
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Lucca]]
+|Stadio = [[Stadio Porta Elisa]]
+|Spettatori =
+|Arbitro = [[Riccardo Pieri]]
+|Cittarbitro = [[Trieste]]
+|Marcatori 1 = [[Ugo Conti (calciatore)|U. Conti]] {{goal|44}}<br/>[[Emo Roffi|Roffi]] {{goal|54}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 1 gennaio
+|Anno = 1948
+|Ora =
+|Turno = 15ª giornata
+|Squadra 1 = Lazio
+|Squadra 2 = Lucchese
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Roma]]
+|Stadio = [[Stadio Nazionale]]
+|Spettatori =
+|Arbitro = [[Guido Agnolin|Agnolin]]
+|Cittarbitro = [[Bassano del Grappa]]
+|Marcatori 1 = [[Leandro Remondini|Remondini]] {{goal|68}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 4 gennaio
+|Anno = 1948
+|Ora =
+|Turno = 16ª giornata
+|Squadra 1 = Lucchese
+|Squadra 2 = Sampdoria
+|Punteggio 1 = 2
+|Punteggio 2 = 1
+|Referto =
+|Città = [[Lucca]]
+|Stadio = [[Stadio Porta Elisa]]
+|Spettatori =
+|Arbitro = [[Luigi Valsecchi (arbitro)|Luigi Valsecchi]]
+|Cittarbitro = [[Milano]]
+|Marcatori 1 = [[Ugo Conti (calciatore)|U. Conti]] {{goal|31}}<br/>[[Luigi Zorzi|Zorzi]] {{goal|60|aut}}
+|Marcatori 2 = {{goal|9}} [[Adriano Bassetto|Bassetto]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 11 gennaio
+|Anno = 1948
+|Ora =
+|Turno = 17ª giornata
+|Squadra 1 = Modena
+|Squadra 2 = Lucchese
+|Punteggio 1 = 3
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Modena]]
+|Stadio = [[Stadio Alberto Braglia|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Tommaso Corallo]]
+|Cittarbitro = [[Lecce]]
+|Marcatori 1 = [[Valerio Cassani|Cassani]] {{goal|39}}<br/>[[Francesco Pernigo|Pernigo]] {{goal|43}}<br/>[[Primo Sentimenti|P. Sentimenti]] {{goal|62}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 18 gennaio
+|Anno = 1948
+|Ora =
+|Turno = 18ª giornata
+|Squadra 1 = Lucchese
+|Squadra 2 = Vicenza
+|Punteggio 1 = 1
+|Punteggio 2 = 1
+|Referto =
+|Città = [[Lucca]]
+|Stadio = [[Stadio Porta Elisa]]
+|Spettatori =
+|Arbitro = [[Ermanno Silvano]]
+|Cittarbitro = [[Torino]]
+|Marcatori 1 = [[Giovanni Clocchiatti|Clocchiatti]] {{goal|9}}
+|Marcatori 2 = {{goal|2}} [[Lino Begnini|Begnini]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 25 gennaio
+|Anno = 1948
+|Ora =
+|Turno = 19ª giornata
+|Squadra 1 = Roma
+|Squadra 2 = Lucchese
+|Punteggio 1 = 4
+|Punteggio 2 = 2
+|Referto =
+|Città = [[Roma]]
+|Stadio = [[Stadio Nazionale]]
+|Spettatori =
+|Arbitro = [[Armando Marchetti]]
+|Cittarbitro = [[Milano]]
+|Marcatori 1 = [[Gyula Zsengellér|Zsengeller]] {{goal|13||43}}<br/>[[Amedeo Amadei|Amadei]] {{goal|49||70}}
+|Marcatori 2 = {{goal|33}} [[Athos Miniati|Miniati]]<br/>{{goal|54}} [[Giovanni Clocchiatti|Clocchiatti]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 1° febbraio
+|Anno = 1948
+|Ora =
+|Turno = 20ª giornata
+|Squadra 1 = Lucchese
+|Squadra 2 = Napoli
+|Punteggio 1 = 2
+|Punteggio 2 = 1
+|Referto =
+|Città = [[Lucca]]
+|Stadio = [[Stadio Porta Elisa]]
+|Spettatori =
+|Arbitro = [[Giovanni Galeati]]
+|Cittarbitro = [[Bologna]]
+|Marcatori 1 = [[Athos Miniati|Miniati]] {{goal|18||23}}
+|Marcatori 2 = {{goal|88}} [[Michele Andreolo|Andreolo]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 8 febbraio
+|Anno = 1948
+|Ora =
+|Turno = 21ª giornata
+|Squadra 1 = Livorno
+|Squadra 2 = Lucchese
+|Punteggio 1 = 2
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Livorno]]
+|Stadio = [[Stadio Armando Picchi|Stadio Ardenza]]
+|Spettatori =
+|Arbitro = [[Osvaldo Savio]]
+|Cittarbitro = [[Torino]]
+|Marcatori 1 = [[Bruno Dante|Dante]] {{goal|14}}<br/>[[Guido Tieghi|Tieghi]] {{goal|66}}
+}}
+
+==== Girone di ritorno ====
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 22 febbraio
+|Anno = 1948
+|Ora =
+|Turno = 22ª giornata
+|Squadra 1 = Genoa
+|Squadra 2 = Lucchese
+|Punteggio 1 = 1
+|Punteggio 2 = 1
+|Referto =
+|Città = [[Genova]]
+|Stadio = [[Stadio Luigi Ferraris]]
+|Spettatori =
+|Arbitro = [[Gino Cicardi]]
+|Cittarbitro = [[Lecco]]
+|Marcatori 1 = [[Silvio Formentin|Formentin]] {{goal|41}}
+|Marcatori 2 = {{goal|82}} [[Ugo Conti (calciatore)|U. Conti]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 29 febbraio
+|Anno = 1948
+|Ora =
+|Turno = 23ª giornata
+|Squadra 1 = Bologna
+|Squadra 2 = Lucchese
+|Punteggio 1 = 2
+|Punteggio 2 = 2
+|Referto =
+|Città = [[Bologna]]
+|Stadio = [[Stadio Renato Dall'Ara|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Armando Marchetti]]
+|Cittarbitro = [[Milano]]
+|Marcatori 1 = [[Béla Sárosi|Sarosi]] {{goal|33}}<br/>[[Mario Gritti|Gritti]] {{goal|81}}
+|Marcatori 2 = {{goal|76}} [[Danilo Michelini|Michelini]]<br/>{{goal|86}} [[Gyula Tóth (calciatore 1920)|Toth]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 7 marzo
+|Anno = 1948
+|Ora =
+|Turno = 24ª giornata
+|Squadra 1 = Lucchese
+|Squadra 2 = Torino
+|Punteggio 1 = 2
+|Punteggio 2 = 2
+|Referto =
+|Città = [[Lucca]]
+|Stadio = [[Stadio Porta Elisa]]
+|Spettatori =
+|Arbitro = [[Giovanni Galeati]]
+|Cittarbitro = [[Bologna]]
+|Marcatori 1 = [[Luigi Rosellini|Rosellini]] {{goal|9}}<br/>[[Gyula Tóth (calciatore 1920)|Toth]] {{goal|46}}
+|Marcatori 2 = {{goal|49}} [[Giuseppe Grezar|Grezar]]<br/>{{goal|83}} [[Valentino Mazzola|Mazzola]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 14 marzo
+|Anno = 1948
+|Ora =
+|Turno = 25ª giornata
+|Note = Turno di riposo della LUCCHESE
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 21 marzo
+|Anno = 1948
+|Ora =
+|Turno = 26ª giornata
+|Squadra 1 = Lucchese
+|Squadra 2 = Salernitana
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Lucca]]
+|Stadio = [[Stadio Porta Elisa]]
+|Spettatori =
+|Arbitro = [[Giuseppe Carpani (arbitro)|Giuseppe Carpani]]
+|Cittarbitro = [[Milano]]
+|Marcatori 1 = [[Danilo Michelini|Michelini]] {{goal|74}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 28 marzo
+|Anno = 1948
+|Ora =
+|Turno = 27ª giornata
+|Squadra 1 = Fiorentina
+|Squadra 2 = Lucchese
+|Punteggio 1 = 2
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Stadio Artemio Franchi|Stadio Comunale]]
+|Stadio =
+|Spettatori =
+|Arbitro = [[Guido Agnolin]]
+|Cittarbitro = [[Bassano del Grappa]]
+|Marcatori 1 = [[Alberto Marchetti (1920)|Marchetti]] {{goal|16}}<br/>[[Alberto Galassi|Gallassi]] {{goal|80}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 8 aprile
+|Anno = 1948
+|Ora =
+|Turno = 28ª giornata
+|Squadra 1 = Lucchese
+|Squadra 2 = Inter
+|Punteggio 1 = 1
+|Punteggio 2 = 1
+|Referto =
+|Città = [[Lucca]]
+|Stadio = [[Stadio Porta Elisa]]
+|Spettatori =
+|Arbitro = [[Ermanno Silvano]]
+|Cittarbitro = [[Torino]]
+|Marcatori 1 = [[Luciano Giusti|Giusti]] {{goal|89}}
+|Marcatori 2 = {{goal|29}} [[Cosimo Muci|Muci]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 15 aprile
+|Anno = 1948
+|Ora =
+|Turno = 29ª giornata
+|Squadra 1 = Triestina
+|Squadra 2 = Lucchese
+|Punteggio 1 = 4
+|Punteggio 2 = 1
+|Referto =
+|Città = [[Trieste]]
+|Stadio = [[Stadio Giuseppe Grezar|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Gino Cicardi]]
+|Cittarbitro = [[Lecco]]
+|Marcatori 1 = [[Ivano Blason|Blason]] {{goal|9}}<br/>[[Guglielmo Trevisan|G. Trevisan]] {{goal|16}}<br/>[[Mario Begni|Begni]] {{goal|68}}<br/>[[Mario Tosolini|Tosolini]] {{goal|78}}
+|Marcatori 2 = {{goal|76}} [[Ugo Conti (calciatore)|U. Conti]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 21 aprile
+|Anno = 1948
+|Ora =
+|Turno = 30ª giornata
+|Squadra 1 = Lucchese
+|Squadra 2 = Alessandria
+|Punteggio 1 = 2
+|Punteggio 2 = 1
+|Referto =
+|Città = [[Lucca]]
+|Stadio = [[Stadio Porta Elisa]]
+|Spettatori =
+|Arbitro = [[Giorgio Bernardi]]
+|Cittarbitro = [[Bologna]]
+|Marcatori 1 = [[Luciano Giusti|Giusti]] {{goal|32}}<br/>[[Danilo Michelini|Michelini]] {{goal|87}}
+|Marcatori 2 = {{goal|40}} [[Carlo Stradella|Stradella]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 2 maggio
+|Anno = 1948
+|Ora =
+|Turno = 31ª giornata
+|Squadra 1 = Bari
+|Squadra 2 = Lucchese
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Bari]]
+|Stadio = [[Stadio della Vittoria (Bari)|Stadio della Vittoria]]
+|Spettatori =
+|Arbitro = [[Giuseppe Parpaiola]]
+|Cittarbitro = [[Padova]]
+|Marcatori 1 = [[Giulio Pellicari|Pellicari]] {{goal|16|rig}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 9 maggio
+|Anno = 1948
+|Ora =
+|Turno = 32ª giornata
+|Squadra 1 = Milan
+|Squadra 2 = Lucchese
+|Punteggio 1 = 1
+|Punteggio 2 = 2
+|Referto =
+|Città = [[Milano]]
+|Stadio = [[Stadio San Siro]]
+|Spettatori =
+|Arbitro = [[Generoso Dattilo]]
+|Cittarbitro = [[Roma]]
+|Marcatori 1 = [[Raffaele Cuscela|Cuscela]] {{goal|58|aut}}
+|Marcatori 2 = {{goal|48||65}} [[Ugo Conti (calciatore)|U. Conti]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 23 maggio
+|Anno = 1948
+|Ora =
+|Turno = 33ª giornata
+|Squadra 1 = Lucchese
+|Squadra 2 = Atalanta
+|Punteggio 1 = 1
+|Punteggio 2 = 1
+|Referto =
+|Città = [[Lucca]]
+|Stadio = [[Stadio Porta Elisa]]
+|Spettatori =
+|Arbitro = [[Florindo Longagnani]]
+|Cittarbitro = [[Modena]]
+|Marcatori 1 = [[Ugo Conti (calciatore)|U. Conti]] {{goal|17}}
+|Marcatori 2 = {{goal|65}} [[Július Korostelev|Korostelev]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 27 maggio
+|Anno = 1948
+|Ora =
+|Turno = 34ª giornata
+|Squadra 1 = Lucchese
+|Squadra 2 = Juventus
+|Punteggio 1 = 2
+|Punteggio 2 = 2
+|Referto =
+|Città = [[Lucca]]
+|Stadio = [[Stadio Porta Elisa]]
+|Spettatori =
+|Arbitro = [[Ettore Neri (arbitro)|Ettore Neri]]
+|Cittarbitro = [[Vicenza]]
+|Marcatori 1 = [[Ugo Conti (calciatore)|U. Conti]] {{goal|18||70}}
+|Marcatori 2 = {{goal|9||19}} [[Giampiero Boniperti|Boniperti]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 30 maggio
+|Anno = 1948
+|Ora =
+|Turno = 35ª giornata
+|Squadra 1 = Pro Patria
+|Squadra 2 = Lucchese
+|Punteggio 1 = 5
+|Punteggio 2 = 1
+|Referto =
+|Città = [[Busto Arsizio]]
+|Stadio = [[Stadio Carlo Speroni]]
+|Spettatori =
+|Arbitro = [[Ferruccio Bellè]]
+|Cittarbitro = [[Venezia]]
+|Marcatori 1 = [[Emidio Cavigioli|Cavigioli]] {{goal|6}}<br/>[[Giuseppe Molina|Molina]] {{goal|50}}<br/> [[Enrico Candiani|Candiani]] {{goal|53}}<br/>[[Lelio Antoniotti|Antoniotti]] {{goal|60}}<br/>[[Angelo Turconi|Turconi]] {{goal|88}}
+|Marcatori 2 = {{goal|65|aut}} [[Antonio Azimonti|Azimonti]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 6 giugno
+|Anno = 1948
+|Ora =
+|Turno = 36ª giornata
+|Squadra 1 = Lucchese
+|Squadra 2 = Lazio
+|Punteggio 1 = 2
+|Punteggio 2 = 1
+|Referto =
+|Città = [[Lucca]]
+|Stadio = [[Stadio Porta Elisa]]
+|Spettatori =
+|Arbitro = [[Eriprando Poggipollini]]
+|Cittarbitro = [[Ferrara]]
+|Marcatori 1 = [[Luigi Rosellini|Rosellini]] {{goal|19}}<br/>[[Ugo Conti (calciatore)|U. Conti]] {{goal|86|rig}}
+|Marcatori 2 = {{goal|69|aut}} [[Giovanni Clocchiatti|Clochiatti]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 13 maggio
+|Anno = 1948
+|Ora =
+|Turno = 37ª giornata
+|Squadra 1 = Sampdoria
+|Squadra 2 = Lucchese
+|Punteggio 1 = 4
+|Punteggio 2 = 1
+|Referto =
+|Città = [[Genova]]
+|Stadio = [[Stadio Luigi Ferraris]]
+|Spettatori =
+|Arbitro = [[Armando Marchetti]]
+|Cittarbitro = [[Milano]]
+|Marcatori 1 = [[Italo Rebuzzi|It. Rebuzzi]] {{goal|27||84}}<br/>[[Adriano Bassetto|Bassetto]] {{goal|39||89}}
+|Marcatori 2 = {{goal|69}} [[Raffaele Cuscela|Cuscela]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 20 giugno
+|Anno = 1948
+|Ora =
+|Turno = 38ª giornata
+|Squadra 1 = Lucchese
+|Squadra 2 = Modena
+|Punteggio 1 = 2
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Lucca]]
+|Stadio = [[Stadio Porta Elisa]]
+|Spettatori =
+|Arbitro = [[Eliseo Camiolo]]
+|Cittarbitro = [[Roma]]
+|Marcatori 1 = [[Ugo Conti (calciatore)|U. Conti]] {{goal|42||55}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 27 giugno
+|Anno = 1948
+|Ora =
+|Turno = 39ª giornata
+|Squadra 1 = Vicenza
+|Squadra 2 = Lucchese
+|Punteggio 1 = 1
+|Punteggio 2 = 3
+|Referto =
+|Città = [[Vicenza]]
+|Stadio = [[Stadio Romeo Menti|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Giacomo Bertolio]]
+|Cittarbitro = [[Torino]]
+|Marcatori 1 = [[Guerrino Carraro|Carraro]] {{goal|16}}
+|Marcatori 2 = {{goal|10}} [[Danilo Michelini|Michelini]]<br/>{{goal|25||55}} [[Ugo Conti (calciatore)|U. Conti]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 4 agosto
+|Anno = 1948
+|Ora =
+|Turno = 40ª giornata
+|Squadra 1 = Lucchese
+|Squadra 2 = Roma
+|Punteggio 1 = 2
+|Punteggio 2 = 2
+|Referto =
+|Città = [[Lucca]]
+|Stadio = [[Stadio Porta Elisa]]
+|Spettatori =
+|Arbitro = [[Ferruccio Bellè]]
+|Cittarbitro = [[Venezia]]
+|Marcatori 1 = [[Ugo Conti (calciatore)|U. Conti]] {{goal|7||72}}
+|Marcatori 2 = {{goal|48}} [[Bruno Pesaola|Pesaola]]<br/>{{goal|51}} [[Amedeo Amadei|Amadei]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 8 agosto
+|Anno = 1949
+|Ora =
+|Turno = 41ª giornata
+|Squadra 1 = Napoli
+|Squadra 2 = Lucchese
+|Punteggio 1 = 5
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Napoli]]
+|Stadio = [[Stadio Arturo Collana|Stadio della Liberazione]]
+|Spettatori =
+|Arbitro = [[Bruno Zilli]]
+|Cittarbitro = [[Reggio Emilia]]
+|Marcatori 1 = [[Dante Di Benedetti|Di Benedetti]] {{goal|10||82}}<br/>[[Naim Krieziu|Krieziu]] {{goal|15||67}}<br/>[[Egidio Di Costanzo|Di Costanzo]] {{goal|60}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 12 agosto
+|Anno = 1948
+|Ora =
+|Turno = 42ª giornata
+|Squadra 1 = Lucchese
+|Squadra 2 = Livorno
+|Punteggio 1 = 2
+|Punteggio 2 = 2
+|Referto =
+|Città = [[Lucca]]
+|Stadio = [[Stadio Porta Elisa]]
+|Spettatori =
+|Arbitro = [[Giuseppe Carpani (arbitro)|Giuseppe Carpani]]
+|Cittarbitro = [[Milano]]
+|Marcatori 1 = [[Danilo Michelini|Michelini]] {{goal|31|rig}}<br/>[[Lelio Catelli|Catelli]] {{goal|40}}
+|Marcatori 2 = {{goal|34}} [[Armando Tre Re|Tre Re]]<br/>{{goal|64|rig}} [[Teresio Piana|Piana]]
+}}
+
+== Statistiche ==
+=== Statistiche di squadra ===
+{{Statistiche squadra
+|comp1=[[Serie A 1947-1948|Serie A]]
+|punti1=36
+|cv1=10
+|cn1=9
+|cp1=1
+|cgf1=28
+|cgs1=19
+|tv1=2
+|tn1=3
+|tp1=15
+|tgf1=18
+|tgs1=63
+}}
+=== Statistiche dei giocatori ===
+{{Statistiche dei giocatori
+| Competizione1 = Serie A
+| Totale = no
+| Cartellini = no
+| {{Sortname|A.|Bacchetti|Antonio Bacchetti}} {{Sommastat|C=no |5|0|?|?}}
+| {{Sortname|A.|Bertuccelli|Alberto Bertuccelli}} {{Sommastat|C=no |29|0|?|?}}
+| {{Sortname|M.|Bonaccorsi|Marcello Bonaccorsi}} {{Sommastat|C=no |1|0|?|?}}
+| {{Sortname|L.|Catelli|Lelio Catelli}} {{Sommastat|C=no |4|1|?|?}}
+| {{Sortname|G.|Clocchiatti|Giovanni Clocchiatti}} {{Sommastat|C=no |32|3|?|?}}
+| {{Sortname|U.|Conti|Ugo Conti (calciatore)}} {{Sommastat|C=no |34|19|?|?}}
+| {{Sortname|E.|Coppa|Elpidio Coppa}} {{Sommastat|C=no |6|1|?|?}}
+| {{Sortname|R.|Cuscela|Raffaele Cuscela}} {{Sommastat|C=no |22|1|?|?}}
+| {{Sortname|A.|Giannotti|Aldo Giannotti}} {{Sommastat|C=no |7|0|?|?}}
+| {{Sortname|A.|Giovannini|Attilio Giovannini}} {{Sommastat|C=no |36|0|?|?}}
+| {{Sortname|L.|Giusti|Luciano Giusti}} {{Sommastat|C=no |21|2|?|?}}
+| {{Sortname|G.|Mezzadri|Gianmarco Mezzadri}} {{Sommastat|C=no |37|0|?|?}}
+| {{Sortname|D.|Michelini|Danilo Michelini}} {{Sommastat|C=no |29|6|?|?}}
+| {{Sortname|A.|Miniati|Athos Miniati}} {{Sommastat|C=no |30|4|?|?}}
+| {{Sortname|D.|Piani|Dante Piani}} {{Sommastat|C=no |21|-38|?|?}}
+| {{Sortname|A.|Presselli|Arturo Presselli}} {{Sommastat|C=no |3|1|?|?}}
+| {{Sortname|E.|Roffi|Emo Roffi}} {{Sommastat|C=no |23|2|?|?}}
+| {{Sortname|L.|Rosellini|Luigi Rosellini}} {{Sommastat|C=no |34|2|?|?}}
+| {{Sortname|R.|Salar|Ruggero Salar}} {{Sommastat|C=no |29|0|?|?}}
+| {{Sortname|G.|Toth|Gyula Tóth (calciatore 1920)}} {{Sommastat|C=no |18|2|?|?}}
+| {{Sortname|L.|Vellutini|Lorenzo Vellutini}} {{Sommastat|C=no |9|-23|?|?}}
+| {{Sortname|D.|Zotti|Duilio Zotti}} {{Sommastat|C=no |10|-21|?|?}}
+}}
+
+== Note ==
+<references/>
+
+== Collegamenti esterni ==
+* {{cita web|url=http://www.wikicalcioitalia.info/vros.php?idsta=117&idsqu=27|titolo=Rosa su Wikicalcioitalia.info}}
+* {{cita web|url=http://calcio-seriea.net/risultati/1947/479/|titolo=Stagione 1947-1948}}
+
+{{Calcio Lucchese storico}}
+{{Calcio in Italia 1947-1948}}
+{{Portale|calcio}}

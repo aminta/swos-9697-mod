@@ -67,7 +67,9 @@ classifica finale della stagione).
 `club` (una chiave di club), `name`, `role` (`G` portiere, `D` difensore, `M` centrocampista, `A` attaccante). Elenca
 i giocatori in ordine di importanza (per esempio minuti giocati), con 2 portieri. Ogni club ha 16 giocatori: il
 compilatore riempie ciascuno dei 16 posti della rosa con il prossimo giocatore del ruolo di quel posto (o di un ruolo
-vicino quando quello è finito). `?` come nome = giocatore sconosciuto: ne viene inventato uno.
+vicino quando quello è finito). `?` come nome = giocatore sconosciuto: ne viene inventato uno. Colonna facoltativa
+`nat`: la nazionalità del giocatore (il numero del gioco, per esempio 18 Italia, 15 Ungheria, 68 Argentina,
+76 Uruguay), altrimenti la `nationality` della rosa.
 
 ### ties.csv
 
@@ -107,7 +109,10 @@ ripropone il tabellone vero.
 - `squads`: come si costruiscono i record, una voce per gruppo di file:
   - `calibrate`: ogni club sul record `template` (posizione) di un file squadre `source` (ruoli, maglia, abilità);
     `kit` = un altro record di quel file per i colori; abilità spostate verso `target` (valore medio dei giocatori);
-    i giocatori trovati per nome nella fonte tengono le sue abilità (per i file in `reuse_ratings`).
+    i giocatori trovati per nome nella fonte tengono le sue abilità (per i file in `reuse_ratings`). `ratings_from`
+    `[{"source", "clubs"}]`: i giocatori di quei club trovati per nome in un altro file squadre (o in un
+    `CUSTOMS.EDT` di SWOS 2020) tengono quel record (Italia 1947-48: il Torino dal 1900s Retro Pack). Le colonne
+    facoltative `kit1` / `kit2` di clubs.csv (5 numeri, come per `explicit`) fissano i colori.
   - `game`: ogni club sul proprio record del gioco 1996-97 quando c'è, altrimenti su un club della sua nazione; i
     giocatori già presenti nel gioco tengono le loro abilità.
   - `explicit`: ogni byte viene dal pacchetto (nessun file di partenza, niente stimato). `clubs.csv` aggiunge
@@ -137,7 +142,16 @@ ripropone il tabellone vero.
     nome corto al massimo 16 caratteri.
 - `season`: cosa gioca un club in modalità Stagione: il campionato (`league`), la coppa nazionale (`cup`) e in
   `europe` quale club del campionato gioca quale coppa europea (`europe_placeholder`: una qualsiasi di quelle coppe,
-  sostituita durante il gioco).
+  sostituita durante il gioco). Senza `cup` = una stagione con il solo campionato (Italia 1947-48: niente Coppa
+  Italia dal 1943 al 1958); le coppe europee richiedono una coppa nazionale.
+
+### Bozze da it.wikipedia
+
+`tools/itwiki_season.py` prepara `clubs.csv` e `players.csv` di una stagione del campionato italiano da it.wikipedia:
+la pagina della stagione (classifica finale, partecipanti) e la pagina stagionale di ogni club (rosa, presenze in
+campionato, allenatori, divisa). `packs/<id>/itwiki.json` contiene ciò che le pagine non dicono (vedi l'intestazione
+dello strumento); le pagine restano in `raw/itwiki`. `python3 tools/itwiki_season.py fetch packs/<id>`, poi
+`draft packs/<id>`.
 
 ## Cosa ci serve da chi contribuisce
 

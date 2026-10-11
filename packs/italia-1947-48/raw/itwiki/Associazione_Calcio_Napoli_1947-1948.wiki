@@ -1,0 +1,844 @@
+{{Torna a|Società Sportiva Calcio Napoli}}
+{{Stagione squadra
+|sport=calcio
+|club = AC Napoli
+|immagine = Napoli 1947-1948.jpg
+|stagione = 1947-1948
+|allenatore1 = {{Bandiera|URY}} {{Bandiera|ITA}} [[Raffaele Sansone]] <small>(1ª-7ª)</small><br/>{{Bandiera|ITA}} [[Giovanni Vecchina]] <small>(8ª-17ª)</small><br/>{{Bandiera|ITA}} [[Arnaldo Sentimenti|Arnaldo Sentimenti II]] <small>(18ª-42ª)</small>
+|presidente = {{Bandiera|ITA}} [[Pasquale Russo (dirigente sportivo)|Pasquale Russo]]<ref>Fino al 7 gennaio 1948</ref> poi<br>''Carica vacante''
+|campionato = [[Serie A 1947-1948|Serie A]]
+|campionato posizione = 21º (in Serie B)<ref>Declassato dal 18º al 21º posto dalla [[Commissione di Appello Federale|CAF]] per illecito sportivo ([[caso Napoli]]).</ref>
+|presenze campionato = [[Ferdinando Pastore|Pastore]] (38)
+|presenze totale = Pastore (38)
+|marcatore campionato = [[Dante Di Benedetti|Di Benedetti]] (13)
+|marcatore totale = Di Benedetti (13)
+|stadio = [[Stadio Arturo Collana|della Liberazione]]
+|spettatori max =
+|spettatori min =
+|spettatori media =
+|stagione prima = [[Associazione Calcio Napoli 1946-1947|1946-1947]]
+|stagione dopo = [[Associazione Calcio Napoli 1948-1949|1948-1949]]
+}}
+
+Questa voce raccoglie le informazioni riguardanti l{{'}}'''Associazione Calcio Napoli''' nelle competizioni ufficiali della stagione '''1947-1948'''.
+
+==Stagione==
+Nella Stagione 1947-1948 il Napoli ha disputato il campionato di Serie A, un campionato a 21 squadre. La squadra partenopea parte molto male, al termine del girone di andata con 11 punti in classifica è ultima sola soletta, poi disputa un sontuoso girone di ritorno con un bottino di 23 punti, ma viene declassato dal 18º posto ottenuto sul campo, all'ultimo posto della classifica, per un tentativo di corruzione nella gara contro il Bologna. Così il Napoli viene retrocesso in Serie B con la Salernitana anch'essa con 34 punti, con l'Alessandria con 31 punti e con il Vicenza con 26 punti. Lo scudetto è stato vinto dal Torino con 65 punti in classifica, secondi nettamente staccati con 49 punti il Milan, la Juventus e la Triestina.
+
+== Divise ==
+{|
+|-
+|{{Divisa calcio
+|pattern_b= _vneckwhite
+|leftarm=6495ED
+|rightarm=6495ED
+|pattern_ra= _whiteborder
+|pattern_la= _whiteborder
+|body=6495ED
+|shorts=FFFFFF
+|socks=6495ED
+|title= Prima divisa
+}}
+|{{Divisa calcio
+|pattern_la = _whiteborder
+|pattern_b = _napoli4748v
+|pattern_ra = _whiteborder
+|leftarm = 6495ED
+|rightarm = 6495ED
+|shorts = FFFFFF
+|socks = 6495ED
+|title= Prima divisa
+}}
+|{{Divisa calcio
+|pattern_b = _collar_buttons_007FFF
+|body = 000000
+|leftarm = 000000
+|rightarm = 000000
+|shorts = 0086b6
+|socks = 000000
+|title= Divisa portiere
+}}
+|}
+
+== Organigramma societario ==
+* Presidente: Pasquale Russo poi ''Carica vacante''
+* Allenatori: 1ª-7ª giornata [[Raffaele Sansone]], 8ª-18ª [[Giovanni Vecchina]], 19ª-40ª [[Arnaldo Sentimenti]] II.
+
+== Rosa ==
+{{Calciatore in rosa/inizio}}
+{{Calciatore in rosa|n=1 |nazione=ITA|nome=[[Arnaldo Sentimenti]]|ruolo=P|altro=C}}
+{{Calciatore in rosa|n= |nazione=ITA|nome=[[Sergio Chellini]]|ruolo=P}}
+{{Calciatore in rosa|n= |nazione=URY|nome=[[Dandolo Candalés]]|ruolo=D}}
+{{Calciatore in rosa|n= |nazione=ITA|nome=[[Egidio Di Costanzo]]|ruolo=D}}
+{{Calciatore in rosa|n= |nazione=ITA|nome=[[Ferdinando Pastore]]|ruolo=D}}
+{{Calciatore in rosa|n= |nazione=ITA|nome=[[Mario Pretto]]|ruolo=D}}
+{{Calciatore in rosa|n= |nazione=ITA|nome=[[Mario Rosi]]|ruolo=D}}
+{{Calciatore in rosa|n= |nazione=URY|nome=[[Michele Andreolo]]<ref>[[Naturalizzazione|Naturalizzato]] italiano.</ref>|ruolo=C}}
+{{Calciatore in rosa|n= |nazione=ITA|nome=[[Umberto Busani]]|ruolo=C}}
+{{Calciatore in rosa|n= |nazione=ITA|nome=[[Augusto Capolino]]|ruolo=C}}
+{{Calciatore in rosa/medio}}
+{{Calciatore in rosa|n= |nazione=URY|nome=[[Ángel Cerilla]]|ruolo=C}}
+{{Calciatore in rosa|n= |nazione=ITA|nome=[[Luigi Ganelli]]|ruolo=C}}
+{{Calciatore in rosa|n= |nazione=ITA|nome=[[Andrea Nespolo]]|ruolo=C}}
+{{Calciatore in rosa|n= |nazione=ITA|nome=[[Jone Spartano]]|ruolo=C}}
+{{Calciatore in rosa|n= |nazione=ITA|nome=[[Andrea Verrina]]|ruolo=C}}
+{{Calciatore in rosa|n= |nazione=ITA|nome=[[Carlo Barbieri (calciatore 1922)|Carlo Barbieri]]|ruolo=A}}
+{{Calciatore in rosa|n= |nazione=ITA|nome=[[Dante Di Benedetti]]|ruolo=A}}
+{{Calciatore in rosa|n= |nazione=ALB 1946-1992|nome=[[Naim Krieziu]]|ruolo=A}}
+{{Calciatore in rosa|n= |nazione=URY|nome=[[Roberto La Paz]]|ruolo=A}}
+{{Calciatore in rosa|n= |nazione=ITA|nome=[[Ferruccio Santamaria]]|ruolo=A}}
+{{Calciatore in rosa/fine}}
+
+== Risultati ==
+=== Serie A ===
+{{Vedi anche|Serie A 1947-1948}}
+==== Girone di andata ====
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 14 settembre
+|Anno = 1947
+|Turno = 1ª giornata
+|Squadra 1 = Torino
+|Squadra 2 = Napoli
+|Punteggio 1 = 4
+|Punteggio 2 = 0
+|Città = [[Torino]]
+|Stadio = [[Stadio Filadelfia]]
+|Spettatori =
+|Arbitro = [[Luigi Gemini]]
+|Cittarbitro = [[Roma]]
+|Marcatori 1 = [[Valentino Mazzola|Mazzola]] {{Goal|44}}<br/>[[Guglielmo Gabetto|Gabetto]] {{Goal|51}}<br/>[[Romeo Menti|R. Menti]] {{Goal|81}}<br/>[[Piero Ferraris|Ferraris]] {{Goal|88}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 21 settembre
+|Anno = 1947
+|Turno = 2ª giornata
+|Squadra 1 = Genoa
+|Squadra 2 = Napoli
+|Punteggio 1 = 3
+|Punteggio 2 = 2
+|Città = [[Genova]]
+|Stadio = [[Stadio Luigi Ferraris]]
+|Spettatori =
+|Arbitro = [[Eliseo Camiolo]]
+|Cittarbitro = [[Milano]]
+|Marcatori 1 = [[Vittorio Bergamo|Bergamo]] {{Goal|50}}<br/>[[Riccardo Dalla Torre|Dalla Torre]] {{Goal|56||59}}
+|Marcatori 2 = {{Goal|16}} [[Ferruccio Santamaria|Santamaria]]<br/>{{Goal|89}} [[Ferdinando Pastore|Pastore]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 28 settembre
+|Anno = 1947
+|Ora =
+|Turno = 3ª giornata
+|Note = Turno di riposo del NAPOLI
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 5 ottobre
+|Anno = 1947
+|Turno = 4ª giornata
+|Squadra 1 = Napoli
+|Squadra 2 = Lazio
+|Punteggio 1 = 0
+|Punteggio 2 = 0
+|Città = [[Napoli]]
+|Stadio = [[Stadio Arturo Collana|Stadio della Liberazione]]
+|Spettatori =
+|Arbitro = [[Lelio Coppolone]]
+|Cittarbitro = [[Bari]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 12 ottobre
+|Anno = 1947
+|Turno = 5ª giornata
+|Squadra 1 = Fiorentina
+|Squadra 2 = Napoli
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Città = [[Firenze]]
+|Stadio = [[Stadio Artemio Franchi|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Guido Agnolin]]
+|Cittarbitro = [[Bassano del Grappa]]
+|Marcatori 1 = [[Alberto Galassi|Galassi]] {{Goal|65}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 19 ottobre
+|Anno = 1947
+|Turno = 6ª giornata
+|Squadra 1 = Napoli
+|Squadra 2 = Vicenza
+|Punteggio 1 = 1
+|Punteggio 2 = 1
+|Città = [[Napoli]]
+|Stadio = [[Stadio Arturo Collana|Stadio della Liberazione]]
+|Spettatori =
+|Arbitro = [[Renzo Massai]]
+|Cittarbitro = [[Pisa]]
+|Marcatori 1 = [[Umberto Busani|Busani]] {{Goal|6}}
+|Marcatori 2 = {{Goal|62}} [[Serafino Conti|S. Conti]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 26 ottobre
+|Anno = 1947
+|Turno = 7ª giornata<ref>Partita disputata sul campo neutro di Pescara.</ref>
+|Squadra 1 = Napoli
+|Squadra 2 = Alessandria
+|Punteggio 1 = 1
+|Punteggio 2 = 2
+|Città = [[Pescara]]
+|Stadio = [[Stadio Rampigna]]
+|Spettatori =
+|Arbitro = [[Antonio Zambotto]]
+|Cittarbitro = [[Padova]]
+|Marcatori 1 = [[Dante Di Benedetti|Di Benedetti]] {{Goal|32}}
+|Marcatori 2 = {{Goal|13|rig.|52|rig}} [[Aristide Coscia|Coscia]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 2 novembre
+|Anno = 1947
+|Turno = 8ª giornata
+|Squadra 1 = Salernitana
+|Squadra 2 = Napoli
+|Punteggio 1 = 3
+|Punteggio 2 = 3
+|Città = [[Salerno]]
+|Stadio = [[Stadio Donato Vestuti|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Giuseppe Zelocchi]]
+|Cittarbitro = [[Modena]]
+|Marcatori 1 = [[Elio Onorato|Onorato]] {{Goal|51}}<br/>[[Ivo Buzzegoli|Buzzegoli]] {{Goal|59|rig.}}<br/>[[Sebastiano Vaschetto|Vaschetto]] {{Goal|86}}
+|Marcatori 2 = {{Goal|21}} [[Carlo Barbieri (calciatore 1922)|Barbieri]]<br/>{{Goal|32||89}} [[Dante Di Benedetti|Di Benedetti]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 16 novembre
+|Anno = 1947
+|Turno = 9ª giornata
+|Squadra 1 = Napoli
+|Squadra 2 = Juventus
+|Punteggio 1 = 0
+|Punteggio 2 = 0
+|Città = [[Napoli]]
+|Stadio = [[Stadio Arturo Collana|Stadio della Liberazione]]
+|Spettatori =
+|Arbitro = [[Giuseppe Boffardi]]
+|Cittarbitro = [[Genova]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 23 novembre
+|Anno = 1947
+|Turno = 10ª giornata
+|Squadra 1 = Napoli
+|Squadra 2 = Pro Patria
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Città = [[Napoli]]
+|Stadio = [[Stadio Arturo Collana|Stadio della Liberazione]]
+|Spettatori =
+|Arbitro = [[Virginio Canavesio]]
+|Cittarbitro = [[Torino]]
+|Marcatori 1 = [[Naim Krieziu|Krieziu]] {{Goal|46}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 30 novembre
+|Anno = 1947
+|Turno = 11ª giornata<ref>Partita disputata sul campo neutro di Firenze.</ref>
+|Squadra 1 = Sampdoria
+|Squadra 2 = Napoli
+|Punteggio 1 = 2
+|Punteggio 2 = 1
+|Città = [[Firenze]]
+|Stadio = [[Stadio Artemio Franchi|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Giuseppe Vannini]]
+|Cittarbitro = [[Bologna]]
+|Marcatori 1 = [[Adriano Bassetto|Bassetto]] {{Goal|80}}<br/>[[Engelbert Koenig|Koenig]] {{Goal|84}}
+|Marcatori 2 = {{Goal|76}} [[Ferruccio Santamaria|Santamaria]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 7 dicembre
+|Anno = 1947
+|Turno = 12ª giornata
+|Squadra 1 = Napoli
+|Squadra 2 = Modena
+|Punteggio 1 = 5
+|Punteggio 2 = 1
+|Città = [[Napoli]]
+|Stadio = [[Stadio Arturo Collana|Stadio della Liberazione]]
+|Spettatori =
+|Arbitro = [[Eliseo Camiolo]]
+|Cittarbitro = [[Milano]]
+|Marcatori 1 = [[Ferruccio Santamaria|Santamaria]] {{Goal|28||29||75}}<br/>[[Andrea Verrina|Verrina]] {{Goal|73}}<br/>[[Carlo Barbieri (calciatore 1922)|Barbieri]] {{Goal|85}}
+|Marcatori 2 = {{Goal|62}} [[Valerio Cassani|Cassani]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 21 dicembre
+|Anno = 1947
+|Turno = 13ª giornata
+|Squadra 1 = Napoli
+|Squadra 2 = Roma
+|Punteggio 1 = 1
+|Punteggio 2 = 2
+|Città = [[Napoli]]
+|Stadio = [[Stadio Arturo Collana|Stadio della Liberazione]]
+|Spettatori =
+|Arbitro = [[Giorgio Bernardi]]
+|Cittarbitro = [[Bologna]]
+|Marcatori 1 = [[Andrea Verrina|Verrina]] {{Goal|57}}
+|Marcatori 2 = {{Goal|51||89}} [[Bruno Pesaola|Pesaola]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 28 dicembre
+|Anno = 1947
+|Turno = 14ª giornata
+|Squadra 1 = Livorno
+|Squadra 2 = Napoli
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Città = [[Livorno]]
+|Stadio = [[Stadio Armando Picchi|Stadio Ardenza]]
+|Spettatori =
+|Arbitro = [[Giacomo Bertolio]]
+|Cittarbitro = [[Torino]]
+|Marcatori 1 = [[Guido Tieghi|Tieghi]] {{Goal|11}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 1º gennaio
+|Anno = 1948
+|Turno = 15ª giornata
+|Squadra 1 = Atalanta
+|Squadra 2 = Napoli
+|Punteggio 1 = 2
+|Punteggio 2 = 1
+|Città = [[Bergamo]]
+|Stadio = [[Stadio Atleti Azzurri d'Italia|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Mario Maurelli]]
+|Cittarbitro = [[Roma]]
+|Marcatori 1 = [[Arnaldo Salvi|Salvi]] {{Goal|50}}<br/>[[Edmondo Fabbri|Ed. Fabbri]] {{Goal|60}}
+|Marcatori 2 = {{Goal|74}} [[Dante Di Benedetti|Di Benedetti]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 4 gennaio
+|Anno = 1948
+|Turno = 16ª giornata
+|Squadra 1 = Triestina
+|Squadra 2 = Napoli
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Città = [[Trieste]]
+|Stadio = [[Stadio Giuseppe Grezar|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Armando Marchetti]]
+|Cittarbitro = [[Milano]]
+|Marcatori 1 = [[Mario Tosolini|Tosolini]] {{Goal|67}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 11 gennaio
+|Anno = 1948
+|Turno = 17ª giornata
+|Squadra 1 = Napoli
+|Squadra 2 = Bologna
+|Punteggio 1 = 1
+|Punteggio 2 = 1
+|Città = [[Napoli]]
+|Stadio = [[Stadio Arturo Collana|Stadio della Liberazione]]
+|Spettatori =
+|Arbitro = [[Riccardo Pieri]]
+|Cittarbitro = [[Trieste]]
+|Marcatori 1 = [[Dante Di Benedetti|Di Benedetti]] {{Goal|17}}
+|Marcatori 2 = {{Goal|77}} [[Amedeo Biavati|Biavati]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 18 gennaio
+|Anno = 1948
+|Turno = 18ª giornata<ref>Partita disputata sul campo neutro dell'Aquila.</ref>
+|Squadra 1 = Napoli
+|Squadra 2 = Milan
+|Punteggio 1 = 0
+|Punteggio 2 = 2
+|Città = [[L'Aquila]]
+|Stadio = [[Stadio Tommaso Fattori|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Vittorio Pera]]
+|Cittarbitro = [[Firenze]]
+|Marcatori 2 = {{Goal|7|aut.}} [[Mario Rosi|Rosi]]<br/>{{Goal|77}} [[Renato Raccis|Raccis]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 25 gennaio
+|Anno = 1948
+|Turno = 19ª giornata
+|Squadra 1 = Napoli
+|Squadra 2 = Inter
+|Punteggio 1 = 3
+|Punteggio 2 = 0
+|Città = [[Napoli]]
+|Stadio = [[Stadio Arturo Collana|Stadio della Liberazione]]
+|Spettatori =
+|Arbitro = [[Ermanno Silvano]]
+|Cittarbitro = [[Torino]]
+|Marcatori 1 = [[Naim Krieziu|Krieziu]] {{Goal|23}}<br/>[[Roberto La Paz|La Paz]] {{Goal|31}}<br/>[[Luigi Ganelli|Ganelli]] {{Goal|84}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 1º febbraio
+|Anno = 1948
+|Turno = 20ª giornata
+|Squadra 1 = Lucchese
+|Squadra 2 = Napoli
+|Punteggio 1 = 2
+|Punteggio 2 = 1
+|Città = [[Lucca]]
+|Stadio = [[Stadio Porta Elisa]]
+|Spettatori =
+|Arbitro = [[Giovanni Galeati]]
+|Cittarbitro = [[Bologna]]
+|Marcatori 1 = [[Athos Miniati|Miniati]] {{Goal|18||23}}
+|Marcatori 2 = {{Goal|88}} [[Michele Andreolo|Andreolo]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 8 febbraio
+|Anno = 1948
+|Turno = 21ª giornata
+|Squadra 1 = Bari
+|Squadra 2 = Napoli
+|Punteggio 1 = 2
+|Punteggio 2 = 1
+|Città = [[Bari]]
+|Stadio = [[Stadio della Vittoria (Bari)|Stadio della Vittoria]]
+|Spettatori =
+|Arbitro = [[Eliseo Camiolo]]
+|Cittarbitro = [[Milano]]
+|Marcatori 1 = [[János Hrotkó|Hrotko]] {{Goal|38}}<br/>[[Alfredo Spadavecchia|Spadavecchia]] {{Goal|79}}
+|Marcatori 2 = {{Goal|90}} [[Naim Krieziu|Krieziu]]
+}}
+
+==== Girone di ritorno ====
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 15 febbraio
+|Anno = 1948
+|Turno = 22ª giornata
+|Squadra 1 = Napoli
+|Squadra 2 = Torino
+|Punteggio 1 = 0
+|Punteggio 2 = 0
+|Città = [[Napoli]]
+|Stadio = [[Stadio Arturo Collana|Stadio della Liberazione]]
+|Spettatori =
+|Arbitro = [[Giorgio Bernardi]]
+|Cittarbitro = [[Bologna]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 22 febbraio
+|Anno = 1948
+|Turno = 23ª giornata
+|Squadra 1 = Napoli
+|Squadra 2 = Genoa
+|Punteggio 1 = 3
+|Punteggio 2 = 0
+|Città = [[Napoli]]
+|Stadio = [[Stadio Arturo Collana|Stadio della Liberazione]]
+|Spettatori =
+|Arbitro = [[Giacomo Bertolio]]
+|Cittarbitro = [[Torino]]
+|Marcatori 1 = [[Michele Andreolo|Andreolo]] {{Goal|21}}<br/>[[Roberto La Paz|La Paz]] {{Goal|28}}<br/>[[Augusto Capolino|Capolino]] {{Goal|64}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 29 febbraio
+|Anno = 1948
+|Ora =
+|Turno = 24ª giornata
+|Note = Turno di riposo del NAPOLI
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 7 marzo
+|Anno = 1948
+|Turno = 25ª giornata
+|Squadra 1 = Lazio
+|Squadra 2 = Napoli
+|Punteggio 1 = 0
+|Punteggio 2 = 0
+|Città = [[Roma]]
+|Stadio = [[Stadio Nazionale]]
+|Spettatori =
+|Arbitro = [[Guido Agnolin]]
+|Cittarbitro = [[Bassano del Grappa]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 14 marzo
+|Anno = 1948
+|Turno = 26ª giornata
+|Squadra 1 = Napoli
+|Squadra 2 = Fiorentina
+|Punteggio 1 = 3
+|Punteggio 2 = 0
+|Città = [[Napoli]]
+|Stadio = [[Stadio Arturo Collana|Stadio della Liberazione]]
+|Spettatori =
+|Arbitro = [[Ermanno Silvano]]
+|Cittarbitro = [[Torino]]
+|Marcatori 1 = [[Menotti Avanzolini|Avanzolini]] {{Goal|22|aut.}}<br/>[[Roberto La Paz|La Paz]] {{Goal|55||56}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 21 marzo
+|Anno = 1948
+|Turno = 27ª giornata
+|Squadra 1 = Vicenza
+|Squadra 2 = Napoli
+|Punteggio 1 = 2
+|Punteggio 2 = 1
+|Città = [[Vicenza]]
+|Stadio = [[Stadio Romeo Menti|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Giacomo Bertolio]]
+|Cittarbitro = [[Torino]]
+|Marcatori 1 = [[Guerrino Carraro|Carraro]] {{Goal|30}}<br/>[[Aldo Parena|Parena]] {{Goal|79|rig.}}
+|Marcatori 2 = {{Goal|68}} [[Carlo Barbieri (calciatore 1922)|Barbieri]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 28 marzo
+|Anno = 1948
+|Turno = 28ª giornata
+|Squadra 1 = Alessandria
+|Squadra 2 = Napoli
+|Punteggio 1 = 2
+|Punteggio 2 = 2
+|Città = [[Alessandria (Italia)|Alessandria]]
+|Stadio = [[Stadio Giuseppe Moccagatta]]
+|Spettatori =
+|Arbitro = [[Bruno Tassini]]
+|Cittarbitro = [[Verona]]
+|Marcatori 1 = [[Cesare Gallea|Gallea]] {{Goal|63||65}}
+|Marcatori 2 = {{Goal|32}} [[Dante Di Benedetti|Di Benedetti]]<br/>{{Goal|60}} [[Naim Krieziu|Krieziu]]
+|Sfondo =
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 11 aprile
+|Anno = 1948
+|Turno = 29ª giornata
+|Squadra 1 = Napoli
+|Squadra 2 = Salernitana
+|Punteggio 1 = 0
+|Punteggio 2 = 0
+|Città = [[Napoli]]
+|Stadio = [[Stadio Arturo Collana|Stadio della Liberazione]]
+|Spettatori =
+|Arbitro = [[Osvaldo Savio]]
+|Cittarbitro = [[Torino]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 21 aprile
+|Anno = 1948
+|Turno = 30ª giornata
+|Squadra 1 = Juventus
+|Squadra 2 = Napoli
+|Punteggio 1 = 1
+|Punteggio 2 = 3
+|Città = [[Torino]]
+|Stadio = [[Stadio Olimpico (Torino)|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Giuseppe Zelocchi]]
+|Cittarbitro = [[Modena]]
+|Marcatori 1 = [[Giampiero Boniperti|Boniperti]] {{Goal|42}}
+|Marcatori 2 = {{Goal|46||78||89}} [[Carlo Barbieri (calciatore 1922)|Barbieri]]
+|Sfondo =
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 25 aprile
+|Anno = 1948
+|Turno = 31ª giornata
+|Squadra 1 = Pro Patria
+|Squadra 2 = Napoli
+|Punteggio 1 = 3
+|Punteggio 2 = 1
+|Città = [[Busto Arsizio]]
+|Stadio = [[Stadio Carlo Speroni|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Bruno Tassini]]
+|Cittarbitro = [[Verona]]
+|Marcatori 1 = [[Enrico Candiani|Candiani]] {{Goal|64}}<br/>[[Angelo Turconi|Turconi]] {{Goal|80}}<br/>[[Lelio Antoniotti|Antoniotti]] {{Goal|89}}
+|Marcatori 2 = {{Goal|73}} [[Dante Di Benedetti|Di Benedetti]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 2 maggio
+|Anno = 1948
+|Turno = 32ª giornata
+|Squadra 1 = Napoli
+|Squadra 2 = Sampdoria
+|Punteggio 1 = 3
+|Punteggio 2 = 1
+|Città = [[Napoli]]
+|Stadio = [[Stadio Arturo Collana|Stadio della Liberazione]]
+|Spettatori =
+|Arbitro = [[Eriprando Poggipollini]]
+|Cittarbitro = [[Ferrara]]
+|Marcatori 1 = [[Naim Krieziu|Krieziu]] {{Goal|16}}<br/>[[Dandolo Candalés|Candalés]] {{Goal|29}}<br/>[[Dante Di Benedetti|Di Benedetti]] {{Goal|70}}
+|Marcatori 2 = {{Goal|50}} [[Giuseppe Baldini|Baldini]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 6 maggio
+|Anno = 1948
+|Turno = 33ª giornata
+|Squadra 1 = Modena
+|Squadra 2 = Napoli
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Città = [[Modena]]
+|Stadio = [[Stadio Alberto Braglia]]
+|Spettatori =
+|Arbitro = [[Ferruccio Bellè]]
+|Cittarbitro = [[Venezia]]
+|Marcatori 1 = [[Francesco Pernigo|Pernigo]] {{Goal|45|rig.}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 9 maggio
+|Anno = 1948
+|Turno = 34ª giornata
+|Squadra 1 = Roma
+|Squadra 2 = Napoli
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Città = [[Roma]]
+|Stadio = [[Stadio Nazionale]]
+|Spettatori =
+|Arbitro = [[Giorgio Bernardi]]
+|Cittarbitro = [[Bologna]]
+|Marcatori 1 = [[Amedeo Amadei|Amadei]] {{Goal|40}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 23 maggio
+|Anno = 1948
+|Turno = 35ª giornata
+|Squadra 1 = Napoli
+|Squadra 2 = Livorno
+|Punteggio 1 = 3
+|Punteggio 2 = 0
+|Città = [[Napoli]]
+|Stadio = [[Stadio Arturo Collana|Stadio della Liberazione]]
+|Spettatori =
+|Arbitro = [[Giuseppe Parpaiola]]
+|Cittarbitro = [[Padova]]
+|Marcatori 1 = [[Dante Di Benedetti|Di Benedetti]] {{Goal|2||24}}<br/>[[Umberto Busani|Busani]] {{Goal|85}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 27 maggio
+|Anno = 1948
+|Turno = 36ª giornata
+|Squadra 1 = Napoli
+|Squadra 2 = Atalanta
+|Punteggio 1 = 1
+|Punteggio 2 = 1
+|Città = [[Napoli]]
+|Stadio = [[Stadio Arturo Collana|Stadio della Liberazione]]
+|Spettatori =
+|Arbitro = [[Giuseppe Zelocchi]]
+|Cittarbitro = [[Modena]]
+|Marcatori 1 = [[Carlo Barbieri (calciatore 1922)|Barbieri]] {{Goal|79}}
+|Marcatori 2 = {{Goal|55}} [[Mario Astorri|Astorri]]
+|Sfondo =
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 30 maggio
+|Anno = 1948
+|Turno = 37ª giornata
+|Squadra 1 = Napoli
+|Squadra 2 = Triestina
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Città = [[Napoli]]
+|Stadio = [[Stadio Arturo Collana|Stadio della Liberazione]]
+|Spettatori =
+|Arbitro = [[Virginio Canavesio]]
+|Cittarbitro = [[Torino]]
+|Marcatori 1 = [[Dante Di Benedetti|Di Benedetti]] {{Goal|11}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 6 giugno
+|Anno = 1948
+|Turno = 38ª giornata
+|Squadra 1 = Bologna
+|Squadra 2 = Napoli
+|Punteggio 1 = 0
+|Punteggio 2 = 1
+|Città = [[Bologna]]
+|Stadio = [[Stadio Renato Dall'Ara]]
+|Spettatori =
+|Arbitro = [[Luigi Gemini]]
+|Cittarbitro = [[Roma]]
+|Marcatori 2 = {{Goal|90}} [[Naim Krieziu|Krieziu]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 13 giugno
+|Anno = 1948
+|Turno = 39ª giornata
+|Squadra 1 = Milan
+|Squadra 2 = Napoli
+|Punteggio 1 = 3
+|Punteggio 2 = 0
+|Città = [[Milano]]
+|Stadio = [[Stadio San Siro]]
+|Spettatori =
+|Arbitro = [[Generoso Dattilo]]
+|Cittarbitro = [[Roma]]
+|Marcatori 1 = [[Ettore Puricelli|Puricelli]] {{Goal|13||66}}<br/>[[Riccardo Carapellese|Carapellese]] {{Goal|67}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 20 giugno
+|Anno = 1948
+|Turno = 40ª giornata
+|Squadra 1 = Inter
+|Squadra 2 = Napoli
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Città = [[Milano]]
+|Stadio = [[Stadio San Siro]]
+|Spettatori =
+|Arbitro = [[Ferruccio Bonivento]]
+|Cittarbitro = [[Venezia]]
+|Marcatori 1 = [[Benito Lorenzi|Lorenzi]] {{Goal|66}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 27 giugno
+|Anno = 1949
+|Turno = 41ª giornata
+|Squadra 1 = Napoli
+|Squadra 2 = Lucchese
+|Punteggio 1 = 5
+|Punteggio 2 = 0
+|Città = [[Napoli]]
+|Stadio = [[Stadio Arturo Collana|Stadio della Liberazione]]
+|Spettatori =
+|Arbitro = [[Bruno Zilli]]
+|Cittarbitro = [[Reggio Emilia]]
+|Marcatori 1 = [[Dante Di Benedetti|Di Benedetti]] {{Goal|10||82}}<br/>[[Naim Krieziu|Krieziu]] {{Goal|15||67}}<br/>[[Egidio Di Costanzo|Di Costanzo]] {{Goal|60}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 4 luglio
+|Anno = 1948
+|Turno = 42ª giornata
+|Squadra 1 = Napoli
+|Squadra 2 = Bari
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Città = [[Napoli]]
+|Stadio = [[Stadio Arturo Collana|Stadio della Liberazione]]
+|Spettatori =
+|Arbitro = [[Osvaldo Savio]]
+|Cittarbitro = [[Torino]]
+|Marcatori 1 = [[Naim Krieziu|Krieziu]] {{Goal|44}}
+}}
+
+== Statistiche ==
+=== Statistiche di squadra ===
+{{Statistiche squadra
+|comp1=[[Serie A 1947-1948|Serie A]]
+|punti1=34
+|cv1=10
+|cn1=7
+|cp1=3
+|cgf1=33
+|cgs1=11
+|tv1=2
+|tn1=3
+|tp1=15
+|tgf1=17
+|tgs1=35
+}}
+=== Statistiche dei giocatori ===
+{{Statistiche dei giocatori
+| Competizione1 = Serie A
+| Totale = no
+| Cartellini = no
+| {{Sortname|M.|Andreolo|Michele Andreolo}} {{Sommastat|C=no |28|2|?|?}}
+| {{Sortname|C.|Barbieri|Carlo Barbieri (calciatore 1922)}} {{Sommastat|C=no |32|7|?|?}}
+| {{Sortname|U.|Busani|Umberto Busani}} {{Sommastat|C=no |12|2|?|?}}
+| {{Sortname|D.|Candales|Dandolo Candalés}} {{Sommastat|C=no |20|1|?|?}}
+| {{Sortname|A.|Capolino|Augusto Capolino}} {{Sommastat|C=no |7|1|?|?}}
+| {{Sortname|A.|Cerilla|Ángel Cerilla}} {{Sommastat|C=no |9|0|?|?}}
+| {{Sortname|S.|Chellini|Sergio Chellini}} {{Sommastat|C=no |22|-26|?|?}}
+| {{Sortname|D.|Di Benedetti|Dante Di Benedetti}} {{Sommastat|C=no |24|13|?|?}}
+| {{Sortname|E.|Di Costanzo|Egidio Di Costanzo}} {{Sommastat|C=no |37|1|?|?}}
+| {{Sortname|L.|Ganelli|Luigi Ganelli}} {{Sommastat|C=no |20|1|?|?}}
+| {{Sortname|R.|La Paz|Roberto La Paz}} {{Sommastat|C=no |17|4|?|?}}
+| {{Sortname|N.|Krieziu|Naim Krieziu}} {{Sommastat|C=no |33|9|?|?}}
+| {{Sortname|A.|Nespolo|Andrea Nespolo}} {{Sommastat|C=no |2|0|?|?}}
+| {{Sortname|F.|Pastore|Ferdinando Pastore}} {{Sommastat|C=no |38|1|?|?}}
+| {{Sortname|M.|Pretto|Mario Pretto}} {{Sommastat|C=no |29|0|?|?}}
+| {{Sortname|M.|Rosi|Mario Rosi}} {{Sommastat|C=no |36|0|?|?}}
+| {{Sortname|F.|Santamaria|Ferruccio Santamaria}} {{Sommastat|C=no |14|5|?|?}}
+| {{Sortname|A.|Sentimenti|Arnaldo Sentimenti}} {{Sommastat|C=no |18|-20|?|?}}
+| {{Sortname|J.|Spartano|Jone Spartano}} {{Sommastat|C=no |14|0|?|?}}
+| {{Sortname|A.|Verrina|Andrea Verrina}} {{Sommastat|C=no |28|2|?|?}}
+}}
+
+== Note ==
+<references/>
+
+== Voci correlate ==
+* [[Caso Napoli]]
+
+== Collegamenti esterni ==
+* {{cita web|http://www.calcio.com/tutte_le_partite/ita-serie-a-1947-1948/|Serie A 1947/1948}}
+
+{{Calcio Napoli storico}}
+{{Calcio in Italia 1947-1948}}
+{{Portale|calcio}}

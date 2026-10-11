@@ -1,0 +1,916 @@
+{{Torna a|Bologna Football Club 1909}}
+{{Stagione squadra
+|sport=calcio
+|club = Bologna FC
+|stagione = 1947-1948
+|immagine =
+|didascalia =
+|allenatore1 = {{Bandiera|HUN}} [[Gyula Lelovics]]
+|presidente = {{Bandiera|ITA}} [[Renato Dall'Ara]]
+|campionato = [[Serie A 1947-1948|Serie A]]
+|campionato posizione = 9º
+|marcatore campionato = [[Mario Gritti|Gritti]] (10)
+|presenze campionato = [[Luigi Spadoni|Spadoni]] (35)
+|stadio = [[Stadio Renato Dall'Ara|Comunale]]
+|stagione prima = [[Bologna Football Club 1946-1947|1946-1947]]
+|stagione dopo = [[Bologna Football Club 1948-1949|1948-1949]]
+}}
+
+Questa voce raccoglie le informazioni riguardanti il '''Bologna Football Club''' nelle competizioni ufficiali della stagione '''1947-1948'''.
+
+== Stagione ==
+Nella stagione 1947-1948 il Bologna affidato al tecnico ungherese Gyula Lelovics, disputa la [[Serie A]], un torneo nell'insolita impostazione a 21 squadre che comportano 42 giornate di campionato, raccoglie 40 punti in classifica piazzandosi ottavo il {{Calcio Torino|N}} si laurea Campione d'Italia con 65 punti, sedici in più di {{Calcio Milan|N}} e {{Calcio Juventus|N}} seconde con 49 punti.<ref>{{Cita|C.F. Chiesa|p. 84}}.</ref> Mario Gritti firma 10 reti ed è il miglior realizzatore della stagione rossoblù.
+
+== Divise ==
+<ref>{{Cita|Bertuzzi, Monti|pp. 46-47}}.</ref>
+{|
+|
+{{Divisa Calcio
+|pattern_la =
+|leftarm =D70000
+|pattern_b =_red_stripes_bologna
+|body =002056
+|pattern_ra =
+|rightarm =002056
+|shorts =FFFFFF
+|socks =002056
+|title = Casa
+}}
+|}
+
+==Rosa==
+{{Calciatore in rosa/inizio}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Glauco Vanz]]|ruolo=P}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Gino Vasirani]]|ruolo=P}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Luigi Spadoni]]|ruolo=D}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Luigi Cingolani]]|ruolo=D}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Guglielmo Giovannini]]|ruolo=D}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Dino Ballacci]]|ruolo=D}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Secondo Ricci]]|ruolo=D}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Aldo Brandimarte]]|ruolo=D}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Franco Marchi]]|ruolo=C}}
+{{Calciatore in rosa|n=|nazione=HUN|nome=[[Béla Sárosi]]|ruolo=C}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Aurelio Marchese]]|ruolo=C}}
+{{Calciatore in rosa/medio}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Giuseppe Baiocchi]]|ruolo=A}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Bruno Arcari (calciatore)|Bruno Arcari]]|ruolo=A}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Mario Gritti]]|ruolo=A}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Gino Cappello]]|ruolo=A}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Sauro Taiti]]|ruolo=A}}
+{{Calciatore in rosa|n=|nazione=HUN|nome=[[István Mike Mayer]]|ruolo=A}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Amedeo Biavati]]|ruolo=A}}
+{{Calciatore in rosa|n=|nazione=ARG|nome=[[Hugo Giorgi]]|ruolo=A}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Alberto Bonaretti]]|ruolo=A}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Carlo Matteucci (calciatore)|Carlo Matteucci]]|ruolo=A}}
+{{Calciatore in rosa/fine}}
+
+== Risultati ==
+=== Serie A ===
+{{Vedi anche|Serie A 1947-1948}}
+==== Girone di andata ====
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 14 settembre
+|Anno = 1947
+|Ora =
+|Turno = 1ª giornata
+|Squadra 1 = Bologna
+|Squadra 2 = Pro Patria
+|Punteggio 1 = 2
+|Punteggio 2 = 2
+|Referto =
+|Città = [[Bologna]]
+|Stadio = [[Stadio Renato Dall'Ara|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Bruno Tassini]]
+|Cittarbitro = [[Verona]]
+|Marcatori 1 = [[Amedeo Biavati|Biavati]] {{Goal|23||66}}
+|Marcatori 2 = {{Goal|39}} [[Spartaco Bertolucci|Bertolucci]]<br/>{{Goal|49}} [[Angelo Turconi|Turconi]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 21 settembre
+|Anno = 1947
+|Ora =
+|Turno = 2ª giornata
+|Squadra 1 = Lucchese
+|Squadra 2 = Bologna
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Lucca]]
+|Stadio = [[Stadio Porta Elisa]]
+|Spettatori =
+|Arbitro = [[Giuseppe Carpani (arbitro)|Giuseppe Carpani]]
+|Cittarbitro = [[Milano]]
+|Marcatori 1 = [[Athos Miniati|Miniati]] {{Goal|10}}
+|Marcatori 2 =
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 28 settembre
+|Anno = 1947
+|Ora =
+|Turno = 3ª giornata
+|Squadra 1 = Bologna
+|Squadra 2 = Atalanta
+|Punteggio 1 = 3
+|Punteggio 2 = 1
+|Referto =
+|Città = [[Bologna]]
+|Stadio = [[Stadio Renato Dall'Ara|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Guido Agnolin]]
+|Cittarbitro = [[Bassano del Grappa]]
+|Marcatori 1 = [[Amedeo Biavati|Biavati]] {{Goal|15}}<br/>[[Mario Gritti|Gritti]] {{Goal|35}}<br/>[[Gino Cappello|Cappello]] {{goal|54}}
+|Marcatori 2 = {{Goal|65}} [[Mario Astorri|Astorri]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 5 ottobre
+|Anno = 1947
+|Ora =
+|Turno = 4ª giornata
+|Squadra 1 = Alessandria
+|Squadra 2 = Bologna
+|Punteggio 1 = 0
+|Punteggio 2 = 2
+|Referto =
+|Città = [[Alessandria (Italia)|Alessandria]]
+|Stadio = [[Stadio Giuseppe Moccagatta]]
+|Spettatori =
+|Arbitro = [[Gino Cicardi]]
+|Cittarbitro = [[Lecco]]
+|Marcatori 1 =
+|Marcatori 2 = {{Goal|12||90}} [[Giuseppe Baiocchi|Baiocchi]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 12 ottobre
+|Anno = 1947
+|Ora =
+|Turno = 5ª giornata
+|Squadra 1 = Bologna
+|Squadra 2 = Roma
+|Punteggio 1 = 2
+|Punteggio 2 = 2
+|Referto =
+|Città = [[Bologna]]
+|Stadio = [[Stadio Renato Dall'Ara|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Luigi Valsecchi (arbitro)|Luigi Valsecchi]]
+|Cittarbitro = [[Milano]]
+|Marcatori 1 = [[Gino Cappello|Cappello]] {{Goal|18}}<br/>[[Gianfranco Dell'Innocenti|Dell'Innocenti]] {{Goal|84|aut.}}
+|Marcatori 2 = {{Goal|47}} [[Osvaldo Perretti|Perretti]]<br/>{{Goal|69}} [[Bruno Pesaola|Pesaola]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 19 ottobre
+|Anno = 1947
+|Ora =
+|Turno = 6ª giornata
+|Squadra 1 = Milan
+|Squadra 2 = Bologna
+|Punteggio 1 = 2
+|Punteggio 2 = 1
+|Referto =
+|Città = [[Milano]]
+|Stadio = [[Stadio San Siro]]
+|Spettatori =
+|Arbitro = [[Vincenzo Orlandini]]
+|Cittarbitro = [[Roma]]
+|Marcatori 1 = [[Gino Vasirani|Vasirani]] {{Goal|43|aut.}}<br/>[[Renato Raccis|Raccis]] {{Goal|46}}
+|Marcatori 2 = {{Goal|64}} [[Sauro Taiti|Taiti]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 26 ottobre
+|Anno = 1947
+|Ora =
+|Turno = 7ª giornata
+|Squadra 1 = Bologna
+|Squadra 2 = Sampdoria
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Bologna]]
+|Stadio = [[Stadio Renato Dall'Ara|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Giuseppe Parpaiola]]
+|Cittarbitro = [[Padova]]
+|Marcatori 1 = [[Gino Cappello|Cappello]] {{Goal|54}}
+|Marcatori 2 =
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 2 novembre
+|Anno = 1947
+|Ora =
+|Turno = 8ª giornata
+|Squadra 1 = Bologna
+|Squadra 2 = Torino
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Bologna]]
+|Stadio = [[Stadio Renato Dall'Ara|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Riccardo Pieri]]
+|Cittarbitro = [[Trieste]]
+|Marcatori 1 = [[Gino Cappello|Capello]] {{Goal|45}}
+|Marcatori 2 =
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 16 novembre
+|Anno = 1947
+|Ora =
+|Turno = 9ª giornata
+|Squadra 1 = Vicenza
+|Squadra 2 = Bologna
+|Punteggio 1 = 2
+|Punteggio 2 = 1
+|Referto =
+|Città = [[Vicenza]]
+|Stadio = [[Stadio Romeo Menti|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Virginio Canavesio]]
+|Cittarbitro = [[Torino]]
+|Marcatori 1 = [[Guerrino Carraro|Carraro]] {{Goal|76}}<br/>[[Luigi Spadoni|Spadoni]] {{Goal|83|aut.}}
+|Marcatori 2 = {{Goal|55}} [[Mario Gritti|Gritti]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 23 novembre
+|Anno = 1947
+|Ora =
+|Turno = 10ª giornata
+|Squadra 1 = Fiorentina
+|Squadra 2 = Bologna
+|Punteggio 1 = 1
+|Punteggio 2 = 1
+|Referto =
+|Città = [[Firenze]]
+|Stadio = [[Stadio Artemio Franchi|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Mario Scotto]]
+|Cittarbitro = [[Savona]]
+|Marcatori 1 = [[Piero Suppi|Suppi]] {{Goal|43}}
+|Marcatori 2 = {{Goal|58}} [[Gino Cappello|Cappello]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 30 novembre
+|Anno = 1947
+|Ora =
+|Turno = 11ª giornata
+|Squadra 1 = Bologna
+|Squadra 2 = Livorno
+|Punteggio 1 = 4
+|Punteggio 2 = 1
+|Referto =
+|Città = [[Bologna]]
+|Stadio = [[Stadio Renato Dall'Ara|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Ferruccio Bonivento]]
+|Cittarbitro = [[Venezia]]
+|Marcatori 1 = [[Gino Cappello|Cappello]] {{Goal|44}}<br/>[[Sauro Taiti|Taiti]] {{Goal|52}}<br/>[[István Mike Mayer|Mike]] {{Goal|66}}<br/>[[Mario Gritti|Gritti]] {{Goal|72}}
+|Marcatori 2 = {{Goal|24}} [[Guido Tieghi|Tieghi]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 7 dicembre
+|Anno = 1947
+|Ora =
+|Turno = 12ª giornata
+|Squadra 1 = Bologna
+|Squadra 2 = Triestina
+|Punteggio 1 = 0
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Bologna]]
+|Stadio = [[Stadio Renato Dall'Ara|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Lelio Coppolone]]
+|Cittarbitro = [[Bari]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 21 dicembre
+|Anno = 1947
+|Ora =
+|Turno = 13ª giornata
+|Squadra 1 = Modena
+|Squadra 2 = Bologna
+|Punteggio 1 = 1
+|Punteggio 2 = 1
+|Referto =
+|Città = [[Modena]]
+|Stadio = [[Stadio Alberto Braglia|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Ermanno Silvano]]
+|Cittarbitro = [[Torino]]
+|Marcatori 1 = [[Enzo Menegotti|Menegotti]] {{Goal|20}}
+|Marcatori 2 = {{Goal|49}} [[István Mike Mayer|Mike]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 28 dicembre
+|Anno = 1947
+|Ora =
+|Turno = 14ª giornata
+|Squadra 1 = Bologna
+|Squadra 2 = Lazio
+|Punteggio 1 = 0
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Bologna]]
+|Stadio = [[Stadio Renato Dall'Ara|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Mario Scotto]]
+|Cittarbitro = [[Savona]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 1º gennaio
+|Anno = 1948
+|Ora =
+|Turno = 15ª giornata
+|Squadra 1 = Inter
+|Squadra 2 = Bologna
+|Punteggio 1 = 2
+|Punteggio 2 = 1
+|Referto =
+|Città = [[Milano]]
+|Stadio = [[Arena Civica]]
+|Spettatori =
+|Arbitro = [[Ferruccio Bonivento]]
+|Cittarbitro = [[Venezia]]
+|Marcatori 1 = [[Bruno Quaresima|Quaresima]] {{Goal|56}}<br/>[[Cosimo Muci|Muci]] {{Goal|90}}
+|Marcatori 2 = {{Goal|55}} [[Mario Gritti|Gritti]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 4 gennaio
+|Anno = 1948
+|Ora =
+|Turno = 16ª giornata
+|Note = Turno di riposo del BOLOGNA
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 11 gennaio
+|Anno = 1948
+|Ora =
+|Turno = 17ª giornata
+|Squadra 1 = Napoli
+|Squadra 2 = Bologna
+|Punteggio 1 = 1
+|Punteggio 2 = 1
+|Referto =
+|Città = [[Napoli]]
+|Stadio = [[Stadio Arturo Collana|Stadio della Liberazione]]
+|Spettatori =
+|Arbitro = [[Riccardo Pieri]]
+|Cittarbitro = [[Trieste]]
+|Marcatori 1 = [[Dante Di Benedetti|Di Benedetti]] {{Goal|17}}
+|Marcatori 2 = {{Goal|77}} [[Amedeo Biavati|Biavati]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 18 gennaio
+|Anno = 1948
+|Ora =
+|Turno = 18ª giornata
+|Squadra 1 = Bari
+|Squadra 2 = Bologna
+|Punteggio 1 = 1
+|Punteggio 2 = 1
+|Referto =
+|Città = [[Bari]]
+|Stadio = [[Stadio della Vittoria (Bari)|Stadio della Vittoria]]
+|Spettatori =
+|Arbitro = [[Agostino Gamba]]
+|Cittarbitro = [[Napoli]]
+|Marcatori 1 = [[János Hrotkó|Hrotko]] {{Goal|63}}
+|Marcatori 2 = {{Goal|79}} [[Gino Cappello|Cappello]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 25 gennaio
+|Anno = 1948
+|Ora =
+|Turno = 19ª giornata
+|Squadra 1 = Bologna
+|Squadra 2 = Salernitana
+|Punteggio 1 = 4
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Bologna]]
+|Stadio = [[Stadio Renato Dall'Ara|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Luigi Valsecchi (arbitro)|Luigi Valsecchi]]
+|Cittarbitro = [[Milano]]
+|Marcatori 1 = [[Bruno Arcari (calciatore)|Arcari]] {{Goal|52}}<br/>[[Gino Cappello|Cappello]] {{Goal|65}}<br/>[[Silvio Rispoli|Rispoli]] {{Goal|74|aut.}}<br/>[[Mario Gritti|Gritti]] {{Goal|85}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 1º febbraio
+|Anno = 1948
+|Ora =
+|Turno = 20ª giornata
+|Squadra 1 = Juventus
+|Squadra 2 = Bologna
+|Punteggio 1 = 0
+|Punteggio 2 = 1
+|Referto =
+|Città = [[Torino]]
+|Stadio = [[Stadio Olimpico (Torino)|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Vincenzo Orlandini]]
+|Cittarbitro = [[Roma]]
+|Marcatori 1 =
+|Marcatori 2 = {{Goal|77}} [[Mario Gritti|Gritti]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 8 febbraio
+|Anno = 1948
+|Ora =
+|Turno = 21ª giornata
+|Squadra 1 = Bologna
+|Squadra 2 = Genoa
+|Punteggio 1 = 4
+|Punteggio 2 = 2
+|Referto =
+|Città = [[Bologna]]
+|Stadio = [[Stadio Renato Dall'Ara|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Agostino Gamba]]
+|Cittarbitro = [[Napoli]]
+|Marcatori 1 = [[Mario Gritti|Gritti]] {{Goal|29}}<br/>[[Béla Sárosi|Sarosi]] {{Goal|34}}<br/>[[Giuseppe Baiocchi|Baiocchi]] {{Goal|37}}<br/>[[István Mike Mayer|Mike]] {{Goal|69}}
+|Marcatori 2 = {{Goal|73}} [[Juan Carlos Verdeal|Verdeal]]<br/>{{Goal|76}} [[Vittorio Sardelli|Sardelli]]
+}}
+
+==== Girone di ritorno ====
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 15 febbraio
+|Anno = 1948
+|Ora =
+|Turno = 22ª giornata
+|Squadra 1 = Pro Patria
+|Squadra 2 = Bologna
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Busto Arsizio]]
+|Stadio = [[Stadio Carlo Speroni|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Antonio Zambotto]]
+|Cittarbitro = [[Padova]]
+|Marcatori 1 = [[Lorenzo Colpo|Colpo]] {{Goal|86}}
+|Marcatori 2 =
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 22 febbraio
+|Anno = 1948
+|Ora =
+|Turno = 23ª giornata<ref>Gara rinviata per imraticabilità del campo e recuperata il 4 marzo 1948.</ref>
+|Squadra 1 = Bologna
+|Squadra 2 = Lucchese
+|Punteggio 1 = 2
+|Punteggio 2 = 2
+|Referto =
+|Città = [[Bologna]]
+|Stadio = [[Stadio Renato Dall'Ara|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Armando Marchetti]]
+|Cittarbitro = [[Milano]]
+|Marcatori 1 = [[Béla Sárosi|Sarosi]] {{Goal|33}}<br/>[[Mario Gritti|Gritti]] {{Goal|81}}
+|Marcatori 2 = {{Goal|76}} [[Danilo Michelini|Michelini]]<br/>{{Goal|86}} [[Gyula Tóth (calciatore 1920)|Toth]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 29 febbraio
+|Anno = 1948
+|Ora =
+|Turno = 24ª giornata
+|Squadra 1 = Atalanta
+|Squadra 2 = Bologna
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Bergamo]]
+|Stadio = [[Stadio Atleti Azzurri d'Italia|Stadio Mario Brumana]]
+|Spettatori =
+|Arbitro = [[Mario Scotto]]
+|Cittarbitro = [[Savona]]
+|Marcatori 1 = [[Renato Miglioli|Miglioli]] {{Goal|78}}
+|Marcatori 2 =
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 7 marzo
+|Anno = 1948
+|Ora =
+|Turno = 25ª giornata
+|Squadra 1 = Bologna
+|Squadra 2 = Alessandria
+|Punteggio 1 = 3
+|Punteggio 2 = 2
+|Referto =
+|Città = [[Bologna]]
+|Stadio = [[Stadio Renato Dall'Ara|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Giacomo Bertolio]]
+|Cittarbitro = [[Torino]]
+|Marcatori 1 = [[Mario Gritti|Gritti]] {{Goal|32}}<br/>[[István Mike Mayer|Mike]] {{Goal|74||77}}
+|Marcatori 2 = {{Goal|16||44}} [[Gino Armano|Armano]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 14 marzo
+|Anno = 1948
+|Ora =
+|Turno = 26ª giornata
+|Squadra 1 = Roma
+|Squadra 2 = Bologna
+|Punteggio 1 = 0
+|Punteggio 2 = 2
+|Referto =
+|Città = [[Roma]]
+|Stadio = [[Stadio Nazionale]]
+|Spettatori =
+|Arbitro = [[Lelio Coppolone]]
+|Cittarbitro = [[Bari]]
+|Marcatori 1 =
+|Marcatori 2 = {{Goal|80}} [[Sauro Taiti|Taiti]]<br/>{{Goal|87}} [[Mario Gritti|Gritti]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 21 marzo
+|Anno = 1948
+|Ora =
+|Turno = 27ª giornata
+|Squadra 1 = Bologna
+|Squadra 2 = Milan
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Bologna]]
+|Stadio = [[Stadio Renato Dall'Ara|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Luigi Gemini]]
+|Cittarbitro = [[Roma]]
+|Marcatori 1 = [[Edy Gratton|Gratton]] {{Goal|32|aut.}}
+|Marcatori 2 =
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 28 marzo
+|Anno = 1948
+|Ora =
+|Turno = 28ª giornata
+|Squadra 1 = Sampdoria
+|Squadra 2 = Bologna
+|Punteggio 1 = 2
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Genova]]
+|Stadio = [[Stadio Luigi Ferraris]]
+|Spettatori =
+|Arbitro = [[Riccardo Pieri]]
+|Cittarbitro = [[Trieste]]
+|Marcatori 1 = [[Adriano Bassetto|Bassetto]] {{Goal|8}}<br/>[[Italo Rebuzzi|Ita. Rebuzzi]] {{Goal|22}}
+|Marcatori 2 =
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 11 aprile
+|Anno = 1948
+|Ora =
+|Turno = 29ª giornata
+|Squadra 1 = Torino
+|Squadra 2 = Bologna
+|Punteggio 1 = 5
+|Punteggio 2 = 1
+|Referto =
+|Città = [[Torino]]
+|Stadio = [[Stadio Filadelfia]]
+|Spettatori =
+|Arbitro = [[Ferruccio Bonivento]]
+|Cittarbitro = [[Venezia]]
+|Marcatori 1 = [[Valentino Mazzola|Mazzola]] {{Goal|9}}<br/>[[Guglielmo Gabetto|Gabetto]] {{Goal|17}}<br/>[[Franco Ossola|Ossola]] {{Goal|34}}<br/>[[Guglielmo Gabetto|Gabetto]] {{Goal|57||88}}
+|Marcatori 2 = {{Goal|76}} [[Aurelio Marchese|Marchese]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 17 aprile
+|Anno = 1948
+|Ora =
+|Turno = 30ª giornata
+|Squadra 1 = Bologna
+|Squadra 2 = Vicenza
+|Punteggio 1 = 2
+|Punteggio 2 = 1
+|Referto =
+|Città = [[Bologna]]
+|Stadio = [[Stadio Renato Dall'Ara|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Ermanno Silvano]]
+|Cittarbitro = [[Torino]]
+|Marcatori 1 = [[Giuseppe Baiocchi|Baiocchi]] {{Goal|22||51}}
+|Marcatori 2 = {{Goal|86}} [[Serafino Conti|S. Conti]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 25 aprile
+|Anno = 1948
+|Ora =
+|Turno = 31ª giornata
+|Squadra 1 = Bologna
+|Squadra 2 = Fiorentina
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Bologna]]
+|Stadio = [[Stadio Renato Dall'Ara|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Cesare Cappucci]]
+|Cittarbitro = [[Roma]]
+|Marcatori 1 = [[Amedeo Biavati|Biavati]] {{Goal|75}}
+|Marcatori 2 =
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 2 maggio
+|Anno = 1948
+|Ora =
+|Turno = 32ª giornata
+|Squadra 1 = Livorno
+|Squadra 2 = Bologna
+|Punteggio 1 = 2
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Livorno]]
+|Stadio = [[Stadio Armando Picchi|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Bruno Bergomi]]
+|Cittarbitro = [[Milano]]
+|Marcatori 1 = [[Aredio Gimona|Gimona]] {{Goal|12}}<br/>[[Mario Stua|Stua]] {{Goal|85}}
+|Marcatori 2 =
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 6 maggio
+|Anno = 1948
+|Ora =
+|Turno = 33ª giornata
+|Squadra 1 = Triestina
+|Squadra 2 = Bologna
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Trieste]]
+|Stadio = [[Stadio Giuseppe Grezar|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Giuseppe Boffardi]]
+|Cittarbitro = [[Genova]]
+|Marcatori 1 = [[Mario Begni|Begni]] {{Goal|30}}
+|Marcatori 2 =
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 9 maggio
+|Anno = 1948
+|Ora =
+|Turno = 34ª giornata
+|Squadra 1 = Bologna
+|Squadra 2 = Modena
+|Punteggio 1 = 3
+|Punteggio 2 = 3
+|Referto =
+|Città = [[Bologna]]
+|Stadio = [[Stadio Renato Dall'Ara|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Ermanno Silvano]]
+|Cittarbitro = [[Torino]]
+|Marcatori 1 = [[Hugo Giorgi|Giorgi]] {{Goal|19||24}}<br/>[[Alberto Bonaretti|Bonaretti]] {{Goal|49}}
+|Marcatori 2 = {{Goal|3}} [[Primo Sentimenti|P. Sentimenti]]<br/>{{Goal|38}} [[Francesco Pernigo|Pernigo]]<br/>{{Goal|62}} [[Walter Del Medico|Del Medico]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 23 maggio
+|Anno = 1948
+|Ora =
+|Turno = 35ª giornata
+|Squadra 1 = Lazio
+|Squadra 2 = Bologna
+|Punteggio 1 = 2
+|Punteggio 2 = 1
+|Referto =
+|Città = [[Roma]]
+|Stadio = [[Stadio Nazionale]]
+|Spettatori =
+|Arbitro = [[Aldo Donati (arbitro)|Aldo Donati]]
+|Cittarbitro = [[Milano]]
+|Marcatori 1 = [[Romano Penzo|Penzo]] {{Goal|37}}<br/>[[Leandro Remondini|Remondini]] {{Goal|68}}
+|Marcatori 2 = {{Goal|89|rig.}} [[Bruno Arcari (calciatore)|Arcari]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 27 maggio
+|Anno = 1948
+|Ora =
+|Turno = 36ª giornata
+|Squadra 1 = Bologna
+|Squadra 2 = Inter
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Bologna]]
+|Stadio = [[Stadio Renato Dall'Ara|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Vincenzo Orlandini]]
+|Cittarbitro = [[Roma]]
+|Marcatori 1 = [[István Mike Mayer|Mike]] {{Goal|67}}
+|Marcatori 2 =
+}}
+{{Incontro di club
+|Sport = Giornomese = 30 maggio 1948
+|Ora =
+|Turno = 37ª giornata
+|Note = Turno di riposo del BOLOGNA
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 6 giugno
+|Anno = 1948
+|Ora =
+|Turno = 38ª giornata
+|Squadra 1 = Bologna
+|Squadra 2 = Napoli
+|Punteggio 1 = 0
+|Punteggio 2 = 1
+|Referto =
+|Città = [[Bologna]]
+|Stadio = [[Stadio Renato Dall'Ara|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Luigi Gemini]]
+|Cittarbitro = [[Roma]]
+|Marcatori 1 =
+|Marcatori 2 = {{Goal|90}} [[Naim Krieziu|Krieziu]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 13 giugno
+|Anno = 1948
+|Ora =
+|Turno = 39ª giornata
+|Squadra 1 = Bologna
+|Squadra 2 = Bari
+|Punteggio 1 = 0
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Bologna]]
+|Stadio = [[Stadio Renato Dall'Ara|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Giuseppe Carpani (arbitro)|Giuseppe Carpani]]
+|Cittarbitro = [[Milano]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 20 giugno
+|Anno = 1948
+|Ora =
+|Turno = 40ª giornata
+|Squadra 1 = Salernitana
+|Squadra 2 = Bologna
+|Punteggio 1 = 2
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Salerno]]
+|Stadio = [[Stadio Donato Vestuti|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Ermanno Silvano]]
+|Cittarbitro = [[Torino]]
+|Marcatori 1 = [[Renzo Merlin|Merlin]] {{Goal|20||27}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 27 giugno
+|Anno = 1949
+|Ora =
+|Turno = 41ª giornata
+|Squadra 1 = Bologna
+|Squadra 2 = Juventus
+|Punteggio 1 = 1
+|Punteggio 2 = 1
+|Referto =
+|Città = [[Bologna]]
+|Stadio = [[Stadio Renato Dall'Ara|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Bruno Tassini]]
+|Cittarbitro = [[Verona]]
+|Marcatori 1 = [[Bruno Arcari (calciatore)|Arcari]] {{Goal|53|rig.}}
+|Marcatori 2 = {{Goal|60|rig.}} [[Vittorio Sentimenti|V. Sentimenti]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 4 luglio
+|Anno = 1948
+|Ora =
+|Turno = 42ª giornata
+|Squadra 1 = Genoa
+|Squadra 2 = Bologna
+|Punteggio 1 = 7
+|Punteggio 2 = 2
+|Referto =
+|Città = [[Genova]]
+|Stadio = [[Stadio Luigi Ferraris]]
+|Spettatori =
+|Arbitro = [[Agostino Gamba]]
+|Cittarbitro = [[Napoli]]
+|Marcatori 1 = [[Alido Grisanti|Grisanti]] {{Goal|17}}<br/>[[Renato Brighenti|Brighenti]] {{Goal|25||87}}<br/>[[Riccardo Dalla Torre|Dalla Torre]] {{Goal|41||56||82}}<br/>[[Silvio Formentin|Formentin]] {{Goal|42}}
+|Marcatori 2 = {{Goal|30}} [[Carlo Matteucci|Matteucci]]<br/>{{Goal|58}} [[Amedeo Biavati|Biavati]]
+}}
+
+== Statistiche ==
+=== Statistiche di squadra ===
+{{Statistiche squadra
+|comp1=[[Serie A 1947-1948|Serie A]]
+|punti1=40
+|cv1=11
+|cn1=8
+|cp1=1
+|cgf1=35
+|cgs1=18
+|tv1=3
+|tn1=4
+|tp1=13
+|tgf1=16
+|tgs1=34
+}}
+=== Statistiche dei giocatori ===
+{{Statistiche dei giocatori
+| Competizione1 = Serie A
+| Totale = no
+| Cartellini = no
+| {{Sortname|B.|Arcari (IV)|Bruno Arcari (calciatore)}} {{Sommastat|C=no |30|3|?|?}}
+| {{Sortname|G.|Baiocchi|Giuseppe Baiocchi}} {{Sommastat|C=no |32|5|?|?}}
+| {{Sortname|D.|Ballacci|Dino Ballacci}} {{Sommastat|C=no |14|0|?|?}}
+| {{Sortname|A.|Biavati|Amedeo Biavati}} {{Sommastat|C=no |19|6|?|?}}
+| {{Sortname|A.|Bonaretti|Alberto Bonaretti}} {{Sommastat|C=no |9|1|?|?}}
+| {{Sortname|A.|Brandimarte|Aldo Brandimarte}} {{Sommastat|C=no |3|0|?|?}}
+| {{Sortname|G.|Cappello (IV)|Gino Cappello}} {{Sommastat|C=no |24|8|?|?}}
+| {{Sortname|L.|Cingolani|Luigi Cingolani}} {{Sommastat|C=no |29|0|?|?}}
+| {{Sortname|H.|Giorgi|Hugo Giorgi}} {{Sommastat|C=no |10|2|?|?}}
+| {{Sortname|G.|Giovannini|Guglielmo Giovannini}} {{Sommastat|C=no |28|0|?|?}}
+| {{Sortname|M.|Gritti|Mario Gritti}} {{Sommastat|C=no |29|10|?|?}}
+| {{Sortname|A.|Marchese|Aurelio Marchese}} {{Sommastat|C=no |21|1|?|?}}
+| {{Sortname|F.|Marchi|Franco Marchi}} {{Sommastat|C=no |30|0|?|?}}
+| {{Sortname|C.|Matteucci|Carlo Matteucci (calciatore)}} {{Sommastat|C=no |3|1|?|?}}
+| {{Sortname|I.|Mike|István Mike Mayer}} {{Sommastat|C=no |22|6|?|?}}
+| {{Sortname|S.|Ricci|Secondo Ricci}} {{Sommastat|C=no |10|0|?|?}}
+| {{Sortname|B.|Sarosi (III)|Béla Sárosi}} {{Sommastat|C=no |30|2|?|?}}
+| {{Sortname|L.|Spadoni|Luigi Spadoni}} {{Sommastat|C=no |35|0|?|?}}
+| {{Sortname|S.|Taiti|Sauro Taiti}} {{Sommastat|C=no |22|3|?|?}}
+| {{Sortname|G.|Vanz|Glauco Vanz}} {{Sommastat|C=no |28|-34|?|?}}
+| {{Sortname|G.|Vasirani|Gino Vasirani}} {{Sommastat|C=no |12|-18|?|?}}
+}}
+
+== Note ==
+<references />
+
+== Bibliografia ==
+* {{Cita libro|titolo=Almanacco illustrato del calcio 1949|anno=Dicembre 1948|editore=Rizzoli|città=Milano|pp=101-144|cid=Almanacco 1948}}
+
+==Collegamenti esterni==
+* {{cita web|url=http://www.wikicalcioitalia.info/vros.php?idsta=117&idsqu=8|titolo=Rosa su Wikicalcioitalia.info}}
+* http://www.calcio.com/tutte_le_partite/ita-serie-a-1947-1948/
+
+{{Calcio Bologna storico}}
+{{Calcio in Italia 1947-1948}}
+{{Portale|calcio}}

@@ -1,0 +1,885 @@
+{{torna a|Vicenza Calcio}}
+{{Stagione squadra
+|sport=calcio
+|club = Associazione Calcio Vicenza
+|stagione = 1947-1948
+|allenatore1 = {{Bandiera|ITA}} [[Giovanni Vecchina]], poi dalla 2ª {{Bandiera|ITA}} [[Piero Spinato]], poi dalla 15ª {{Bandiera|HUN}} [[Elemér Berkessy|Emilio Berkessy]]
+|presidente = {{Bandiera|ITA}} [[Silvio Griggio]]
+|campionato = [[Serie A 1947-1948|Serie A]]
+|campionato posizione = 20º posto
+|marcatore campionato = [[Giovanni Sperotto|Sperotto]] (8)
+|presenze campionato = [[Guerrino Carraro|Carraro]] (40)
+|stadio = [[Stadio Romeo Menti|Stadio Comunale]]
+|stagione prima = [[Associazione Calcio Vicenza 1946-1947|1946-1947]]
+|stagione dopo = [[Associazione Calcio Vicenza 1948-1949|1948-1949]]
+|aggiornato = 30 luglio 2026
+}}
+
+Questa voce raccoglie le informazioni riguardanti l''''Associazione Calcio Vicenza''' nelle competizioni ufficiali della stagione '''1947-1948'''.
+
+==Stagione==
+Nella stagione 1947-1948 il Vicenza, dopo l'ottima stagione scorsa terminata in sesta posizione, disputa il massimo campionato, si tratta di un torneo maratona, con ben 21 squadre ai nastri, con 42 giornate di torneo, compresi i due riposi. Ma per i colori biancorossi si tratta di una stagione terribile, coincisa con la retrocessione in Serie B, con il penultimo posto a soli 26 punti. La pesante cessione di Bruno Quaresima all'Inter, l'avvio difficile con le dimissioni del tecnico Giovanni Vecchina, causate da un disaccordo economico con la dirigenza, sono le campanelle di allarme di una stagione difficile. Il percorso in campionato del Vicenza è infatti una lunga Via Crucis, costellata da 24 sconfitte, dove spicca l'unica vittoria esterna del torneo (1-2), ottenuta a Firenze nell'ultima giornata del girone di andata. Con 8 reti Giovanni Sperotto, prodotto del vivaio vicentino, è stato il miglior marcatore dei berici.
+
+==Rosa==
+{{Calciatore in rosa/inizio}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Giorgio Fioravanti]]|ruolo=P}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Angelo Bellotto]]|ruolo=P}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Emanuele Dalla Fontana]]|ruolo=P}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Pietro Grosso]]|ruolo=D}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Aldo Parena]]|ruolo=D}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Ernesto Sandroni]]|ruolo=D}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Walter De Boni]]|ruolo=D}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Guerrino Carraro]]|ruolo=C}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Serafino Conti]]|ruolo=C}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Andrea Campana]]|ruolo=C}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Rolando Spanevello]]|ruolo=C}}
+{{Calciatore in rosa/medio}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Alfonso Santagiuliana]]|ruolo=C}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Marcello Filippi]]|ruolo=C}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Giancarlo Fabrello]]|ruolo=C}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Giovanni Sperotto]]|ruolo=A}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Lino Begnini]]|ruolo=A}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Luigi Zambelli]]|ruolo=A}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Pietro Rebuzzi]]|ruolo=A}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Dino Gozzi]]|ruolo=A}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=Renato Capraro|ruolo=A}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=Giovanni Tomasella|ruolo=A}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Albano Vicariotto]]|ruolo=A}}
+{{Calciatore in rosa/fine}}
+
+== Risultati ==
+=== Campionato ===
+{{Vedi anche|Serie A 1947-1948}}
+==== Girone di andata ====
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 14 settembre
+|Anno = 1947
+|Ora =
+|Turno = 1ª giornata
+|Squadra 1 = Livorno
+|Squadra 2 = Vicenza
+|Punteggio 1 = 2
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Livorno]]
+|Stadio = [[Stadio Armando Picchi|Stadio Ardenza]]
+|Spettatori =
+|Arbitro = [[Giuseppe Boffardi]]
+|Cittarbitro = [[Genova]]
+|Marcatori 1 = [[Mido Bimbi|Bimbi]] {{goal|29}}<br/>[[Leo Picchi|Picchi]] {{goal|65}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 21 settembre
+|Anno = 1947
+|Ora =
+|Turno = 2ª giornata
+|Squadra 1 = Alessandria
+|Squadra 2 = Vicenza
+|Punteggio 1 = 4
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Alessandria (Italia)|Alessandria]]
+|Stadio = [[Stadio Giuseppe Moccagatta]]
+|Spettatori =
+|Arbitro = [[Riccardo Pieri]]
+|Cittarbitro = [[Trieste]]
+|Marcatori 1 = [[Carlo Stradella|Stradella]] {{goal|48}}<br/>[[Fabio Frugali|Frugali]] {{goal|45}}<br/>[[Riza Lushta|Lushta]] {{goal|27||57}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 28 settembre
+|Anno = 1947
+|Ora =
+|Turno = 3ª giornata
+|Squadra 1 = Vicenza
+|Squadra 2 = Salernitana
+|Punteggio 1 = 2
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Vicenza]]
+|Stadio = [[Stadio Romeo Menti|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Giuseppe Zelocchi]]
+|Cittarbitro = [[Modena]]
+|Marcatori 1 = [[Pietro Grosso|Grosso]] {{goal|37}}<br/>[[Giovanni Sperotto|Sperotto]] {{goal|78}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 5 ottobre
+|Anno = 1947
+|Ora =
+|Turno = 4ª giornata
+|Squadra 1 = Vicenza
+|Squadra 2 = Bari
+|Punteggio 1 = 3
+|Punteggio 2 = 1
+|Referto =
+|Città = [[Vicenza]]
+|Stadio = [[Stadio Romeo Menti|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Eliseo Camiolo]]
+|Cittarbitro = [[Roma]]
+|Marcatori 1 = [[Giovanni Sperotto|Sperotto]] {{goal|29}}<br/>[[Lino Begnini|Begnini]] {{goal|34}}<br/>[[Serafino Conti|S. Conti]] {{goal|53}}
+|Marcatori 2 = {{goal|70}} [[Guido Tavellin|Tavellin]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 12 ottobre
+|Anno = 1947
+|Ora =
+|Turno = 5ª giornata
+|Squadra 1 = Torino
+|Squadra 2 = Vicenza
+|Punteggio 1 = 2
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Torino]]
+|Stadio = [[Stadio Filadelfia]]
+|Spettatori =
+|Arbitro = [[Giuseppe Carpani (arbitro)|Giuseppe Carpani]]
+|Cittarbitro = [[Milano]]
+|Marcatori 1 = [[Valentino Mazzola|Mazzola]] {{goal|1}}<br/>[[Josef Fabian|Fabian]] {{goal|16}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 19 ottobre
+|Anno = 1947
+|Ora =
+|Turno = 6ª giornata
+|Squadra 1 = Napoli
+|Squadra 2 = Vicenza
+|Punteggio 1 = 1
+|Punteggio 2 = 1
+|Referto =
+|Città = [[Napoli]]
+|Stadio = [[Stadio Arturo Collana|Stadio della Liberazione]]
+|Spettatori =
+|Arbitro = [[Renzo Massai]]
+|Cittarbitro = [[Pisa]]
+|Marcatori 1 = [[Umberto Busani|Busani]] {{goal|6}}
+|Marcatori 2 = {{goal|62}} [[Serafino Conti|S. Conti]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 26 ottobre
+|Anno = 1947
+|Ora =
+|Turno = 7ª giornata
+|Squadra 1 = Vicenza
+|Squadra 2 = Modena
+|Punteggio 1 = 0
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Vicenza]]
+|Stadio = [[Stadio Romeo Menti|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Luigi Gemini]]
+|Cittarbitro = [[Roma]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 2 novembre
+|Anno = 1947
+|Ora =
+|Turno = 8ª giornata
+|Squadra 1 = Sampdoria
+|Squadra 2 = Vicenza
+|Punteggio 1 = 6
+|Punteggio 2 = 1
+|Referto =
+|Città = [[Genova]]
+|Stadio = [[Stadio Luigi Ferraris]]
+|Spettatori =
+|Arbitro = [[Giacomo Bertolio]]
+|Cittarbitro = [[Torino]]
+|Marcatori 1 = [[Adriano Bassetto|Bassetto]] {{goal|25||80||87}}<br/>[[Giuseppe Baldini|Baldini]] {{goal|38||70}}<br/>[[Longino Di Piazza|Di Piazza]] {{goal|55}}
+|Marcatori 2 = {{goal|34}} [[Giovanni Sperotto|Sperotto]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 16 novembre
+|Anno = 1947
+|Ora =
+|Turno = 9ª giornata
+|Squadra 1 = Vicenza
+|Squadra 2 = Bologna
+|Punteggio 1 = 2
+|Punteggio 2 = 1
+|Referto =
+|Città = [[Vicenza]]
+|Stadio = [[Stadio Romeo Menti|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Virginio Canavesio]]
+|Cittarbitro = [[Torino]]
+|Marcatori 1 = [[Guerrino Carraro|Carraro]] {{goal|76}}<br/>[[Luigi Spadoni|Spadoni]] {{goal|83|aut}}
+|Marcatori 2 = {{goal|55}} [[Mario Gritti|Gritti]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 23 novembre
+|Anno = 1947
+|Ora =
+|Turno = 10ª giornata
+|Note = Turno di riposo del VICENZA
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 30 novembre
+|Anno = 1947
+|Ora =
+|Turno = 11ª giornata
+|Squadra 1 = Vicenza
+|Squadra 2 = Roma
+|Punteggio 1 = 1
+|Punteggio 2 = 1
+|Referto =
+|Città = [[Vicenza]]
+|Stadio = [[Stadio Romeo Menti|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Eliseo Camiolo]]
+|Cittarbitro = [[Roma]]
+|Marcatori 1 = [[Andrea Campana|Campana]] {{goal|88}}
+|Marcatori 2 = {{goal|4}} [[Paolo Jacobini|Jacobini]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 7 dicembre
+|Anno = 1947
+|Ora =
+|Turno = 12ª giornata
+|Squadra 1 = Genoa
+|Squadra 2 = Vicenza
+|Punteggio 1 = 4
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Genova]]
+|Stadio = [[Stadio Luigi Ferraris]]
+|Spettatori =
+|Arbitro = [[Bruno Zilli]]
+|Cittarbitro = [[Reggio Emilia]]
+|Marcatori 1 = [[Silvio Formentin|Formentin]] {{goal|5}}<br/>[[Riccardo Dalla Torre|Dalla Torre]] {{goal|47}}<br/>[[Renato Brighenti|Brighenti]] {{goal|61}}<br/>[[Guglielmo Trevisan|G. Trevisan]] {{goal|87}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 21 dicembre
+|Anno = 1947
+|Ora =
+|Turno = 13ª giornata
+|Squadra 1 = Triestina
+|Squadra 2 = Vicenza
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Trieste]]
+|Stadio = [[Stadio Giuseppe Grezar|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Vittorio Pera]]
+|Cittarbitro = [[Firenze]]
+|Marcatori 1 = [[Bruno Ispiro|Ispiro]] {{goal|87}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 28 dicembre
+|Anno = 1947
+|Ora =
+|Turno = 14ª giornata
+|Squadra 1 = Vicenza
+|Squadra 2 = Inter
+|Punteggio 1 = 1
+|Punteggio 2 = 4
+|Referto =
+|Città = [[Vicenza]]
+|Stadio = [[Stadio Romeo Menti|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Luigi Gemini]]
+|Cittarbitro = [[Roma]]
+|Marcatori 1 = [[Bruno Luigi Zambelli|Zambelli]] {{goal|44}}
+|Marcatori 2 = {{goal|12}} [[Benito Lorenzi|Lorenzi]]<br/>{{goal|52||56}} [[Bruno Quaresima|Quaresima]]<br/>{{goal|81}} [[Bibiano Zapirain|Zapirain]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 1 gennaio
+|Anno = 1948
+|Ora =
+|Turno = 15ª giornata
+|Squadra 1 = Vicenza
+|Squadra 2 = Juventus
+|Punteggio 1 = 0
+|Punteggio 2 = 1
+|Referto =
+|Città = [[Vicenza]]
+|Stadio = [[Stadio Romeo Menti|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Giuseppe Carpani (arbitro)|Giuseppe Carpani]]
+|Cittarbitro = [[Milano]]
+|Marcatori 2 = {{goal|27}} [[Ján Arpáš|Arpas]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 4 gennaio
+|Anno = 1948
+|Ora =
+|Turno = 16ª giornata
+|Squadra 1 = Atalanta
+|Squadra 2 = Vicenza
+|Punteggio 1 = 2
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Bergamo]]
+|Stadio = [[Stadio Mario Brumana|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Mario Cambi]]
+|Cittarbitro = [[Livorno]]
+|Marcatori 1 = [[Renato Miglioli|Miglioli]] {{goal|41}}<br/>[[Onorio Busnelli|Busnelli]] {{goal|87}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 11 gennaio
+|Anno = 1948
+|Ora =
+|Turno = 17ª giornata
+|Squadra 1 = Vicenza
+|Squadra 2 = Lazio
+|Punteggio 1 = 2
+|Punteggio 2 = 1
+|Referto =
+|Città = [[Vicenza]]
+|Stadio = [[Stadio Romeo Menti|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Giorgio Bernardi]]
+|Cittarbitro = [[Bologna]]
+|Marcatori 1 = [[Giovanni Sperotto|Sperotto]] {{goal|15||34}}
+|Marcatori 2 = {{goal|55|rig}} [[Leandro Remondini|Remondini]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 18 gennaio
+|Anno = 1948
+|Ora =
+|Turno = 18ª giornata
+|Squadra 1 = Lucchese
+|Squadra 2 = Vicenza
+|Punteggio 1 = 1
+|Punteggio 2 = 1
+|Referto =
+|Città = [[Lucca]]
+|Stadio = [[Stadio Porta Elisa]]
+|Spettatori =
+|Arbitro = [[Ermanno Silvano]]
+|Cittarbitro = [[Torino]]
+|Marcatori 1 = [[Giovanni Clocchiatti|Clocchiatti]] {{goal|9}}
+|Marcatori 2 = {{goal|2}} [[Lino Begnini|Begnini]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 25 gennaio
+|Anno = 1948
+|Ora =
+|Turno = 19ª giornata
+|Squadra 1 = Pro Patria
+|Squadra 2 = Vicenza
+|Punteggio 1 = 2
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Busto Arsizio]]
+|Stadio = [[Stadio Carlo Speroni|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Lelio Coppolone]]
+|Cittarbitro = [[Bari]]
+|Marcatori 1 = [[Lorenzo Colpo|Colpo]] {{goal|30}}<br/>[[Piero Pozzi|Pozzi]] {{goal|41}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 1 febbraio
+|Anno = 1948
+|Ora =
+|Turno = 20ª giornata
+|Squadra 1 = Vicenza
+|Squadra 2 = Milan
+|Punteggio 1 = 0
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Vicenza]]
+|Stadio = [[Stadio Romeo Menti|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Giorgio Bernardi]]
+|Cittarbitro = [[Bologna]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 8 febbraio
+|Anno = 1948
+|Ora =
+|Turno = 21ª giornata
+|Squadra 1 = Fiorentina
+|Squadra 2 = Vicenza
+|Punteggio 1 = 1
+|Punteggio 2 = 2
+|Referto =
+|Città = [[Firenze]]
+|Stadio = [[Stadio Artemio Franchi|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Mario Scotto]]
+|Cittarbitro = [[Savona]]
+|Marcatori 1 = [[Alberto Galassi|Galassi]] {{goal|34}}
+|Marcatori 2 = {{goal|8}} [[Serafino Conti|S. Conti]]<br/>{{goal|24}} [[Bruno Luigi Zambelli|Zambelli]]
+}}
+
+==== Girone di ritorno ====
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 15 febbraio
+|Anno = 1948
+|Ora =
+|Turno = 22ª giornata
+|Squadra 1 = Vicenza
+|Squadra 2 = Livorno
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Vicenza]]
+|Stadio = [[Stadio Romeo Menti|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Bruno Bergomi]]
+|Cittarbitro = [[Milano]]
+|Marcatori 1 = [[Giovanni Sperotto|Sperotto]] {{goal|81}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 22 febbraio
+|Anno = 1948
+|Ora =
+|Turno = 23ª giornata<ref>Partita rinviata per impraticabilità del campo e recuperata l'11 marzo 1948.</ref>
+|Squadra 1 = Vicenza
+|Squadra 2 = Alessandria
+|Punteggio 1 = 0
+|Punteggio 2 = 3
+|Referto =
+|Città = [[Vicenza]]
+|Stadio = [[Stadio Romeo Menti|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Luigi Valsecchi (arbitro)|Luigi Valsecchi]]
+|Cittarbitro = [[Milano]]
+|Marcatori 2 = {{goal|15}} [[Luigi Soffrido|Soffrido]]<br/>{{goal|28}} [[Carlo Stradella|Stradella]]<br/>{{goal|66}} [[Pietro Sotgiu|Sotgiu]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 29 febbraio
+|Anno = 1948
+|Ora =
+|Turno = 24ª giornata
+|Squadra 1 = Salernitana
+|Squadra 2 = Vicenza
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Salerno]]
+|Stadio = [[Stadio Donato Vestuti|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Renzo Massai]]
+|Cittarbitro = [[Pisa]]
+|Marcatori 1 = [[Pasquale Morisco|Morisco]] {{goal|55}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 7 marzo
+|Anno = 1948
+|Ora =
+|Turno = 25ª giornata
+|Squadra 1 = Bari
+|Squadra 2 = Vicenza
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Bari]]
+|Stadio = [[Stadio della Vittoria (Bari)|Stadio della Vittoria]]
+|Spettatori =
+|Arbitro = [[Virginio Canavesio]]
+|Cittarbitro = [[Torino]]
+|Marcatori 1 = [[Vincenzo Orlando|Orlando]] {{goal|30}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 14 marzo
+|Anno = 1948
+|Ora =
+|Turno = 26ª giornata
+|Squadra 1 = Vicenza
+|Squadra 2 = Torino
+|Punteggio 1 = 0
+|Punteggio 2 = 4
+|Referto =
+|Città = [[Vicenza]]
+|Stadio = [[Stadio Romeo Menti|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Giovanni Galeati]]
+|Cittarbitro = [[Bologna]]
+|Marcatori 2 = {{goal|1}} [[Eusebio Castigliano|Castigliano]]<br/>{{goal|21}} [[Romeo Menti|R. Menti]]<br/>{{goal|78}} [[Ezio Loik|Ez. Loik]]<br/>{{goal|85}} [[Franco Ossola|Ossola]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 21 marzo
+|Anno = 1948
+|Ora =
+|Turno = 27ª giornata
+|Squadra 1 = Vicenza
+|Squadra 2 = Napoli
+|Punteggio 1 = 2
+|Punteggio 2 = 1
+|Referto =
+|Città = [[Vicenza]]
+|Stadio = [[Stadio Romeo Menti|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Giacomo Bertolio]]
+|Cittarbitro = [[Torino]]
+|Marcatori 1 = [[Guerrino Carraro|Carraro]] {{goal|30}}<br/>[[Aldo Parena|Parena]] {{goal|79|rig}}
+|Marcatori 2 = {{goal|68}} [[Carlo Barbieri (calciatore 1922)|Barbieri]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 28 marzo
+|Anno = 1948
+|Ora =
+|Turno = 28ª giornata
+|Squadra 1 = Modena
+|Squadra 2 = Vicenza
+|Punteggio 1 = 2
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Modena]]
+|Stadio = [[Stadio Alberto Braglia|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Virginio Canavesio]]
+|Cittarbitro = [[Torino]]
+|Marcatori 1 = [[Francesco Pernigo|Pernigo]] {{goal|28||43|rig}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 11 aprile
+|Anno = 1948
+|Ora =
+|Turno = 29ª giornata
+|Squadra 1 = Vicenza
+|Squadra 2 = Sampdoria
+|Punteggio 1 = 3
+|Punteggio 2 = 2
+|Referto =
+|Città = [[Vicenza]]
+|Stadio = [[Stadio Romeo Menti|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Bruno Zilli]]
+|Cittarbitro = [[Reggio Emilia]]
+|Marcatori 1 = [[Lino Begnini|Begnini]] {{goal|16}}<br/>[[Giovanni Sperotto|Sperotto]] {{goal|21||47}}
+|Marcatori 2 = {{goal|29}} [[Giuseppe Baldini|Baldini]]<br/>{{goal|67|aut}} [[Pietro Grosso|Grosso]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 17 aprile
+|Anno = 1948
+|Ora =
+|Turno = 30ª giornata
+|Squadra 1 = Bologna
+|Squadra 2 = Vicenza
+|Punteggio 1 = 2
+|Punteggio 2 = 1
+|Referto =
+|Città = [[Bologna]]
+|Stadio = [[Stadio Renato Dall'Ara|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Ermanno Silvano]]
+|Cittarbitro = [[Torino]]
+|Marcatori 1 = [[Giuseppe Baiocchi|Baiocchi]] {{goal|25||51}}
+|Marcatori 2 = {{goal|86}} [[Serafino Conti|S. Conti]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 25 aprile
+|Anno = 1948
+|Ora =
+|Turno = 31ª giornata
+|Note = Turno di riposo del VICENZA
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 2 maggio
+|Anno = 1948
+|Ora =
+|Turno = 32ª giornata
+|Squadra 1 = Roma
+|Squadra 2 = Vicenza
+|Punteggio 1 = 2
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Roma]]
+|Stadio = [[Stadio Nazionale]]
+|Spettatori =
+|Arbitro = [[Armando Marchetti]]
+|Cittarbitro = [[Milano]]
+|Marcatori 1 = [[Sergio Andreoli|Andreoli]] {{goal|9}}<br/>[[Andrea Campana|Campana]] {{goal|40|aut}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 6 maggio
+|Anno = 1948
+|Ora =
+|Turno = 33ª giornata
+|Squadra 1 = Vicenza
+|Squadra 2 = Genoa
+|Punteggio 1 = 0
+|Punteggio 2 = 3
+|Referto =
+|Città = [[Vicenza]]
+|Stadio = [[Stadio Romeo Menti|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Vittorio Pera]]
+|Cittarbitro = [[Firenze]]
+|Marcatori 2 = {{goal|46||87}} [[Riccardo Dalla Torre|Dalla Torre]]<br/>{{goal|76}} [[Renato Brighenti|Brighenti]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 9 maggio
+|Anno = 1948
+|Ora =
+|Turno = 34ª giornata
+|Squadra 1 = Vicenza
+|Squadra 2 = Triestina
+|Punteggio 1 = 1
+|Punteggio 2 = 1
+|Referto =
+|Città = [[Vicenza]]
+|Stadio = [[Stadio Romeo Menti|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Osvaldo Savio]]
+|Cittarbitro = [[Torino]]
+|Marcatori 1 = [[Lino Begnini|Begnini]] {{goal|76|rig}}
+|Marcatori 2 = {{goal|47}} [[Mario Begni|Begni]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 23 maggio
+|Anno = 1948
+|Ora =
+|Turno = 35ª giornata
+|Squadra 1 = Inter
+|Squadra 2 = Vicenza
+|Punteggio 1 = 2
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Milano]]
+|Stadio = [[Stadio San Siro]]
+|Spettatori =
+|Arbitro = [[Giuseppe Boffardi]]
+|Cittarbitro = [[Genova]]
+|Marcatori 1 = [[Rinaldo Fiumi|Fiumi]] {{goal|36}}<br/>[[Benito Lorenzi|Lorenzi]] {{goal|38}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 27 maggio
+|Anno = 1948
+|Ora =
+|Turno = 36ª giornata
+|Squadra 1 = Juventus
+|Squadra 2 = Vicenza
+|Punteggio 1 = 6
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Torino]]
+|Stadio = [[Stadio Olimpico (Torino)|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Battista Tibaldi]]
+|Cittarbitro = [[Savona]]
+|Marcatori 1 = [[Vittorio Sentimenti|V. Sentimenti]] {{goal|7}}<br/>[[Giampiero Boniperti|Boniperti]] {{goal|39||46}}<br/>[[Stefano Angeleri|Angeleri]] {{goal|59}}<br/>[[Ugo Locatelli|Locatelli]] {{goal|76}}<br/>[[Francesco Cergoli|Cergoli]] {{goal|84}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 30 maggio
+|Anno = 1948
+|Ora =
+|Turno = 37ª giornata
+|Squadra 1 = Vicenza
+|Squadra 2 = Atalanta
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Vicenza]]
+|Stadio = [[Stadio Romeo Menti|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Cesare Cappucci]]
+|Cittarbitro = [[Roma]]
+|Marcatori 1 = [[Serafino Conti|S. Conti]] {{goal|28}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 6 giugno
+|Anno = 1948
+|Ora =
+|Turno = 38ª giornata
+|Squadra 1 = Lazio
+|Squadra 2 = Vicenza
+|Punteggio 1 = 2
+|Punteggio 2 = 1
+|Referto =
+|Città = [[Roma]]
+|Stadio = [[Stadio Nazionale]]
+|Spettatori =
+|Arbitro = [[Guglielmo Matucci]]
+|Cittarbitro = [[Seregno]]
+|Marcatori 1 = [[Mario Magrini|Magrini]] {{goal|32}}<br/>[[Romano Penzo|Penzo]] {{goal|78}}
+|Marcatori 2 = {{goal|27}} [[Pietro Rebuzzi|P. Rebuzzi]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 13 giugno
+|Anno = 1948
+|Ora =
+|Turno = 39ª giornata
+|Squadra 1 = Vicenza
+|Squadra 2 = Lucchese
+|Punteggio 1 = 1
+|Punteggio 2 = 3
+|Referto =
+|Città = [[Vicenza]]
+|Stadio = [[Stadio Romeo Menti|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Giacomo Bertolio]]
+|Cittarbitro = [[Torino]]
+|Marcatori 1 = [[Guerrino Carraro|Carraro]] {{goal|16}}
+|Marcatori 2 = {{goal|10}} [[Danilo Michelini|Michelini]]<br/>{{goal|25||55}} [[Ugo Conti (calciatore)|U. Conti]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 20 giugno
+|Anno = 1948
+|Ora =
+|Turno = 40ª giornata
+|Squadra 1 = Vicenza
+|Squadra 2 = Pro Patria
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Vicenza]]
+|Stadio = [[Stadio Romeo Menti|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Nino Mosca]]
+|Cittarbitro = [[Napoli]]
+|Marcatori 1 = [[Rolando Spanavello|Spanavello]] {{goal|39}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 27 giugno
+|Anno = 1948
+|Ora =
+|Turno = 41ª giornata
+|Squadra 1 = Milan
+|Squadra 2 = Vicenza
+|Punteggio 1 = 3
+|Punteggio 2 = 2
+|Referto =
+|Città = [[Milano]]
+|Stadio = [[Stadio San Siro]]
+|Spettatori =
+|Arbitro = [[Luigi Arietti]]
+|Cittarbitro = [[Siena]]
+|Marcatori 1 = [[Ettore Puricelli|Puricelli]] {{goal|19}}<br/>[[Pietro Degano|Degano]] {{goal|59}}<br/>[[Riccardo Carapellese|Carapellese]] {{goal|75}}
+|Marcatori 2 = {{goal|20}} [[Bruno Luigi Zambelli|Zambelli]]<br/>{{goal|63|rig}} [[Alfonso Santagiuliana|Santagiuliana]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 4 luglio
+|Anno = 1948
+|Ora =
+|Turno = 42ª giornata
+|Squadra 1 = Vicenza
+|Squadra 2 = Fiorentina
+|Punteggio 1 = 1
+|Punteggio 2 = 2
+|Referto =
+|Città = [[Vicenza]]
+|Stadio = [[Stadio Romeo Menti|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Lelio Coppolone]]
+|Cittarbitro = [[Bari]]
+|Marcatori 1 = [[Rolando Spanavello|Spanavello]] {{goal|34}}
+|Marcatori 2 = {{goal|4}} [[Alberto Marchetti (1920)|Marchetti]]<br/>{{goal|49|aut}} [[Andrea Campana|Campana]]
+}}
+
+== Statistiche ==
+=== Statistiche di squadra ===
+{{Statistiche squadra
+|comp1=[[Serie A 1947-1948|Serie A]]
+|punti1=26
+|cv1=9
+|cn1=4
+|cp1=7
+|cgf1=22
+|cgs1=28
+|tv1=1
+|tn1=2
+|tp1=17
+|tgf1=9
+|tgs1=47
+}}
+=== Statistiche dei giocatori ===
+{{Statistiche dei giocatori
+| Competizione1 = Serie A
+| Totale = no
+| Cartellini = no
+| {{Sortname|L.|Begnini|Lino Begnini}} {{Sommastat|C=no |31|4|?|?}}
+| {{Sortname|A.|Bellotto|Angelo Bellotto}} {{Sommastat|C=no |11|-20|?|?}}
+| {{Sortname|A.|Campana|Andrea Campana}} {{Sommastat|C=no |26|1|?|?}}
+| {{Sortname|R.|Capraro|nolink=1}} {{Sommastat|C=no |2|0|?|?}}
+| {{Sortname|G.|Carraro|Guerrino Carraro}} {{Sommastat|C=no |40|3|?|?}}
+| {{Sortname|S.|Conti|Serafino Conti}} {{Sommastat|C=no |34|5|?|?}}
+| {{Sortname|E.|Dalla Fontana|Emanuele Dalla Fontana}} {{Sommastat|C=no |9|-23|?|?}}
+| {{Sortname|W.|De Boni|Walter De Boni}} {{Sommastat|C=no |8|0|?|?}}
+| {{Sortname|G.|Fabrello|Giancarlo Fabrello}} {{Sommastat|C=no |5|0|?|?}}
+| {{Sortname|M.|Filippi|Marcello Filippi}} {{Sommastat|C=no |10|0|?|?}}
+| {{Sortname|G.|Fioravanti|Giorgio Fioravanti}} {{Sommastat|C=no |20|-32|?|?}}
+| {{Sortname|D.|Gozzi|Dino Gozzi}} {{Sommastat|C=no |13|0|?|?}}
+| {{Sortname|P.|Grosso|Pietro Grosso}} {{Sommastat|C=no |37|1|?|?}}
+| {{Sortname|A.|Parena|Aldo Parena}} {{Sommastat|C=no |36|1|?|?}}
+| {{Sortname|P.|Rebuzzi|Pietro Rebuzzi}} {{Sommastat|C=no |17|1|?|?}}
+| {{Sortname|E.|Sandroni|Ernesto Sandroni}} {{Sommastat|C=no |31|0|?|?}}
+| {{Sortname|A.|Santagiuliana|Alfonso Santagiuliana}} {{Sommastat|C=no |24|1|?|?}}
+| {{Sortname|R.|Spanevello|Rolando Spanevello}} {{Sommastat|C=no |21|2|?|?}}
+| {{Sortname|G.|Sperotto|Giovanni Sperotto}} {{Sommastat|C=no |35|8|?|?}}
+| {{Sortname|G.|Tomasella|nolink=1}} {{Sommastat|C=no |1|0|?|?}}
+| {{Sortname|A.|Vicariotto|Albano Vicariotto}} {{Sommastat|C=no |1|0|?|?}}
+| {{Sortname|L.|Zambelli|Luigi Zambelli}} {{Sommastat|C=no |28|3|?|?}}
+}}
+
+== Note ==
+<references/>
+
+==Bibliografia==
+* {{Cita libro|autore=Rino Gissi e Alessandro Lancellotti|titolo=Il bianco e il rosso|editore=Geo Edizioni|anno=2019|p=50}}
+
+== Collegamenti esterni ==
+* {{cita web|url=http://www.wikicalcioitalia.info/vros.php?idsta=117&idsqu=32|titolo=Stagione su Wikicalcioitalia.info}}
+* http://www.calcio.com/tutte_le_partite/ita-serie-a-1947-1948/
+
+{{Calcio Vicenza storico}}
+{{Calcio in Italia 1947-1948}}
+{{Portale|calcio}}

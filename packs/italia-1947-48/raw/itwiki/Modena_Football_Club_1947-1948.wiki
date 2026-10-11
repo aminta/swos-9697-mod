@@ -1,0 +1,871 @@
+{{Torna a|Modena Football Club}}
+{{Stagione squadra
+|sport=calcio
+|club = Modena Football Club
+|immagine = Modena Football Club 1947-1948.jpg
+|stagione = 1947-1948
+|allenatore1 = {{Bandiera|ITA}} [[Alfredo Mazzoni]]
+|campionato = [[Serie A 1947-1948|Serie A]]
+|campionato posizione = 6º posto
+|coppa1 = Torneo dell'Amicizia di Ginevra
+|coppa1 posizione = Vincitore
+|marcatore campionato = [[Francesco Pernigo|Pernigo]] (18)
+|presenze campionato = [[Renato Braglia|Braglia]], [[Enzo Menegotti|Menegotti]] (40)
+|stadio = [[Stadio Alberto Braglia|Stadio Comunale]]
+|stagione prima = [[Modena Football Club 1946-1947|1946-1947]]
+|stagione dopo = [[Modena Football Club 1948-1949|1948-1949]]
+|aggiornato = 29 luglio 2026
+}}
+
+Questa voce raccoglie le informazioni riguardanti il '''Modena Football Club''' nelle competizioni ufficiali della stagione '''1947-1948'''.
+
+==Stagione==
+Lo storico terzo posto centrato nel campionato 1946-1947 è valso ad Alfredo Mazzoni la riconferma sulla panchina modenese. Nel [[Serie A 1947-1948|Campionato 1947-1948]] il massimo campionato nasce con un format di 20 squadre, poi vi è stata aggiunta la Triestina per motivi politici, pertanto ne esce un campionato maratona con 21 squadre e 42 giornate di torneo, più due riposi. Scudetto ancora una volta all'immenso Torino con 16 punti di vantaggio su Milan, Triestina e Juventus. Per i canarini il rendimento non è stato straordinario come nell'annata precedente, ma la squadra riesce comunque ad aggiudicarsi un ottimo quinto posto (a pari merito con l'{{Calcio Atalanta|N}}, che vanta però una migliore [[differenza reti]]). Protagonista del campionato dei gialloblù è stato il centravanti veronese [[Francesco Pernigo]], a segno per 18 volte in 37 partite: i suoi [[gol]] gli hanno procurato la chiamata della Nazionale italiana per le [[Calcio ai Giochi della XIV Olimpiade|Olimpiadi di Londra]]. Sono stati convocati in maglia azzurra anche [[Maino Neri]], [[Enzo Menegotti]] e [[Valerio Cassani]]. Discreto il contributo di reti in stagione di Primo Sentimenti che ha firmato di 8 reti.
+
+==Rosa==
+{{Calciatore in rosa/inizio}}
+{{Calciatore in rosa|n= |nazione=ITA|nome=[[Andrea Carlo Corazza]]|ruolo=P}}
+{{Calciatore in rosa|n= |nazione=ITA|nome=[[Ivano Corghi]]|ruolo=P}}
+{{Calciatore in rosa|n= |nazione=ITA|nome=[[Renato Braglia]]|ruolo=D}}
+{{Calciatore in rosa|n= |nazione=ITA|nome=[[Arturo Silvestri]]|ruolo=D}}
+{{Calciatore in rosa|n= |nazione=ITA|nome=[[Primo Sentimenti]]|ruolo=D}}
+{{Calciatore in rosa|n= |nazione=ITA|nome=Danilo Vecchi|ruolo=D}}
+{{Calciatore in rosa|n= |nazione=ITA|nome=[[Enzo Menegotti]]|ruolo=C}}
+{{Calciatore in rosa|n= |nazione=ITA|nome=[[Maino Neri]]|ruolo=C}}
+{{Calciatore in rosa|n= |nazione=ITA|nome=[[Ermanno Malinverni]]|ruolo=C}}
+{{Calciatore in rosa|n= |nazione=ITA|nome=[[Valerio Cassani]]|ruolo=C}}
+{{Calciatore in rosa/medio}}
+{{Calciatore in rosa|n= |nazione=ITA|nome=[[Lidio Stefanini]]|ruolo=C}}
+{{Calciatore in rosa|n= |nazione=ITA|nome=[[Renato Cavalieri]]|ruolo=C}}
+{{Calciatore in rosa|n= |nazione=ITA|nome=[[Sergio Bertoni]]|ruolo=A}}
+{{Calciatore in rosa|n= |nazione=ITA|nome=[[Francesco Pernigo]]|ruolo=A}}
+{{Calciatore in rosa|n= |nazione=ITA|nome=[[Serafino Romani]]|ruolo=A}}
+{{Calciatore in rosa|n= |nazione=ITA|nome=[[Walter Del Medico]]|ruolo=A}}
+{{Calciatore in rosa|n= |nazione=ITA|nome=[[Giovan Battista Fabbri (allenatore di calcio)|Giovan Battista Fabbri]]|ruolo=A}}
+{{Calciatore in rosa|n= |nazione=ITA|nome=[[Brenno Milani]]|ruolo=A}}
+{{Calciatore in rosa|n= |nazione=ITA|nome=[[Giuliano Giovetti]]|ruolo=A}}
+{{Calciatore in rosa/fine}}
+
+== Risultati ==
+=== Serie A ===
+{{Vedi anche|Serie A 1947-1948}}
+==== Girone di andata ====
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 14 settembre
+|Anno = 1947
+|Ora =
+|Turno = 1ª giornata
+|Squadra 1 = Inter
+|Squadra 2 = Modena
+|Punteggio 1 = 1
+|Punteggio 2 = 1
+|Referto = http://calcio-seriea.net/tabellini/1947/4079/
+|Città = [[Milano]]
+|Stadio = [[Stadio San Siro]]
+|Spettatori =
+|Arbitro = [[Ferruccio Bellè]]
+|Cittarbitro = [[Venezia]]
+|Marcatori 1 = [[Giacomo Neri|Neri]] {{goal|38}}
+|Marcatori 2 = {{goal|63}} [[Francesco Pernigo|Pernigo]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 21 settembre
+|Anno = 1947
+|Ora =
+|Turno = 2ª giornata
+|Squadra 1 = Modena
+|Squadra 2 = Fiorentina
+|Punteggio 1 = 1
+|Punteggio 2 = 1
+|Referto = http://calcio-seriea.net/tabellini/1947/4225/
+|Città = [[Modena]]
+|Stadio = [[Stadio Alberto Braglia|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Ermanno Silvano]]
+|Cittarbitro = [[Torino]]
+|Marcatori 1 = [[Walter Del Medico|Del Medico]] {{goal|4}}
+|Marcatori 2 = {{goal|81}} [[Alberto Galassi|Galassi]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 28 settembre
+|Anno = 1947
+|Ora =
+|Turno = 3ª giornata
+|Squadra 1 = Lazio
+|Squadra 2 = Modena
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Referto = http://calcio-seriea.net/tabellini/1947/4361/
+|Città = [[Roma]]
+|Stadio = [[Stadio Nazionale]]
+|Spettatori =
+|Arbitro = [[Virginio Canavesio]]
+|Cittarbitro = [[Torino]]
+|Marcatori 1 = [[Orlando Fantoni|Fantoni]] {{goal|28}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 5 ottobre
+|Anno = 1947
+|Ora =
+|Turno = 4ª giornata
+|Squadra 1 = Modena
+|Squadra 2 = Livorno
+|Punteggio 1 = 3
+|Punteggio 2 = 0
+|Referto = http://calcio-seriea.net/tabellini/1947/4097/
+|Città = [[Modena]]
+|Stadio = [[Stadio Alberto Braglia|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Ferruccio Bonivento]]
+|Cittarbitro = [[Venezia]]
+|Marcatori 1 = [[Primo Sentimenti|P. Sentimenti]] {{goal|26||70}}<br/>[[Francesco Pernigo|Pernigo]] {{goal|79}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 12 ottobre
+|Anno = 1947
+|Ora =
+|Turno = 5ª giornata
+|Squadra 1 = Atalanta
+|Squadra 2 = Modena
+|Punteggio 1 = 2
+|Punteggio 2 = 1
+|Referto = http://calcio-seriea.net/tabellini/1947/4231/
+|Città = [[Bergamo]]
+|Stadio = [[Stadio Mario Brumana|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Oreste Dellarole]]
+|Cittarbitro = [[Roma]]
+|Marcatori 1 = [[Edmondo Fabbri|Ed. Fabbri]] {{goal|16}}<br/>[[Július Korostelev|Korostelev]] {{goal|21}}
+|Marcatori 2 = {{goal|47}} [[Francesco Pernigo|Pernigo]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 19 ottobre
+|Anno = 1947
+|Ora =
+|Turno = 6ª giornata
+|Squadra 1 = Modena
+|Squadra 2 = Genoa
+|Punteggio 1 = 3
+|Punteggio 2 = 2
+|Referto = http://calcio-seriea.net/tabellini/1947/4383/
+|Città = [[Modena]]
+|Stadio = [[Stadio Alberto Braglia|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Eliseo Camiolo]]
+|Cittarbitro = [[Roma]]
+|Marcatori 1 = [[Enzo Menegotti|Menegotti]] {{goal|8}}<br/>[[Francesco Pernigo|Pernigo]] {{goal|58|rig|65}}
+|Marcatori 2 = {{goal|17}} [[Silvio Formentin|Formentin]]<br/>{{goal|52}} [[Riccardo Dalla Torre|Dalla Torre]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 26 ottobre
+|Anno = 1947
+|Ora =
+|Turno = 7ª giornata
+|Squadra 1 = Vicenza
+|Squadra 2 = Modena
+|Punteggio 1 = 0
+|Punteggio 2 = 0
+|Referto = http://calcio-seriea.net/tabellini/1947/4129/
+|Città = [[Vicenza]]
+|Stadio = [[Stadio Romeo Menti|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Luigi Gemini]]
+|Cittarbitro = [[Roma]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 2 novembre
+|Anno = 1947
+|Ora =
+|Turno = 8ª giornata
+|Squadra 1 = Bari
+|Squadra 2 = Modena
+|Punteggio 1 = 1
+|Punteggio 2 = 1
+|Referto = http://calcio-seriea.net/tabellini/1947/4253/
+|Città = [[Bari]]
+|Stadio = [[Stadio della Vittoria (Bari)|Stadio della Vittoria]]
+|Spettatori =
+|Arbitro = [[Giuseppe Carpani (arbitro)|Giuseppe Carpani]]
+|Cittarbitro = [[Milano]]
+|Marcatori 1 = [[Guido Tavellin|Tavellin]] {{goal|52}}
+|Marcatori 2 = {{goal|26|rig}} [[Francesco Pernigo|Pernigo]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 16 novembre
+|Anno = 1947
+|Ora =
+|Turno = 9ª giornata
+|Note = Turno di riposo del MODENA
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 23 novembre
+|Anno = 1947
+|Ora =
+|Turno = 10ª giornata
+|Squadra 1 = Modena
+|Squadra 2 = Alessandria
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Referto = http://calcio-seriea.net/tabellini/1947/4141/
+|Città = [[Modena]]
+|Stadio = [[Stadio Alberto Braglia|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Mario Cambi]]
+|Cittarbitro = [[Livorno]]
+|Marcatori 1 = [[Serafino Romani|Romani]] {{goal|25}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 30 novembre
+|Anno = 1947
+|Ora =
+|Turno = 11ª giornata
+|Squadra 1 = Salernitana
+|Squadra 2 = Modena
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Referto = http://calcio-seriea.net/tabellini/1947/4283/
+|Città = [[Salerno]]
+|Stadio = [[Stadio Donato Vestuti|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Vittorio Pera]]
+|Cittarbitro = [[Firenze]]
+|Marcatori 1 = [[Ivo Buzzegoli|Buzzegoli]] {{goal|44}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 7 dicembre
+|Anno = 1947
+|Ora =
+|Turno = 12ª giornata
+|Squadra 1 = Napoli
+|Squadra 2 = Modena
+|Punteggio 1 = 5
+|Punteggio 2 = 1
+|Referto = http://calcio-seriea.net/tabellini/1947/4423/
+|Città = [[Napoli]]
+|Stadio = [[Stadio Arturo Collana|Stadio della Liberazione]]
+|Spettatori =
+|Arbitro = [[Eliseo Camiolo]]
+|Cittarbitro = [[Roma]]
+|Marcatori 1 = [[Ferruccio Santamaria|Santamaria]] {{goal|25||29||75}}<br/>[[Andrea Verrina|Verrina]] {{goal|73}}<br/>[[Carlo Barbieri (calciatore 1922)|Barbieri]] {{goal|85}}
+|Marcatori 2 = {{goal|62}} [[Valerio Cassano|Cassano]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 21 dicembre
+|Anno = 1947
+|Ora =
+|Turno = 13ª giornata
+|Squadra 1 = Modena
+|Squadra 2 = Bologna
+|Punteggio 1 = 1
+|Punteggio 2 = 1
+|Referto = http://calcio-seriea.net/tabellini/1947/4163/
+|Città = [[Modena]]
+|Stadio = [[Stadio Alberto Braglia|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Ermanno Silvano]]
+|Cittarbitro = [[Torino]]
+|Marcatori 1 = [[Enzo Menegotti|Menegotti]] {{goal|20}}
+|Marcatori 2 = {{goal|49}} [[Istvan Mike|Mike]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 28 dicembre
+|Anno = 1947
+|Ora =
+|Turno = 14ª giornata
+|Squadra 1 = Milan
+|Squadra 2 = Modena
+|Punteggio 1 = 2
+|Punteggio 2 = 1
+|Referto = http://calcio-seriea.net/tabellini/1947/4301/
+|Città = [[Milano]]
+|Stadio = [[Stadio San Siro]]
+|Spettatori =
+|Arbitro = [[Eriprando Poggipollini]]
+|Cittarbitro = [[Ferrara]]
+|Marcatori 1 = [[Giuseppe Antonini (calciatore)|Antonini]] {{goal|15}}<br/>[[Renato Raccis|Raccis]] {{goal|81}}
+|Marcatori 2 = {{goal|2}} [[Primo Sentimenti|P. Sentimenti]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 1 gennaio
+|Anno = 1948
+|Ora =
+|Turno = 15ª giornata
+|Squadra 1 = Modena
+|Squadra 2 = Triestina
+|Punteggio 1 = 0
+|Punteggio 2 = 0
+|Referto = http://calcio-seriea.net/tabellini/1947/4441/
+|Città = [[Modena]]
+|Stadio = [[Stadio Alberto Braglia|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Virginio Canavesio]]
+|Cittarbitro = [[Torino]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 4 gennaio
+|Anno = 1948
+|Ora =
+|Turno = 16ª giornata
+|Squadra 1 = Juventus
+|Squadra 2 = Modena
+|Punteggio 1 = 0
+|Punteggio 2 = 1
+|Referto = http://calcio-seriea.net/tabellini/1947/4177/
+|Città = [[Torino]]
+|Stadio = [[Stadio Olimpico (Torino)|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Antonio Zambotto]]
+|Cittarbitro = [[Padova]]
+|Marcatori 2 = {{goal|81}} [[Primo Sentimenti|P. Sentimenti]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 11 gennaio
+|Anno = 1948
+|Ora =
+|Turno = 17ª giornata
+|Squadra 1 = Modena
+|Squadra 2 = Lucchese
+|Punteggio 1 = 3
+|Punteggio 2 = 0
+|Referto = http://calcio-seriea.net/tabellini/1947/4323/
+|Città = [[Modena]]
+|Stadio = [[Stadio Alberto Braglia|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Tommaso Corallo]]
+|Cittarbitro = [[Lecce]]
+|Marcatori 1 = [[Valerio Cassani|Cassani]] {{goal|39}}<br/>[[Francesco Pernigo|Pernigo]] {{goal|43}}<br/>[[Primo Sentimenti|P. Sentimenti]] {{goal|62}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 18 gennaio
+|Anno = 1948
+|Ora =
+|Turno = 18ª giornata
+|Squadra 1 = Modena
+|Squadra 2 = Pro Patria
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Referto = http://calcio-seriea.net/tabellini/1947/4459/
+|Città = [[Modena]]
+|Stadio = [[Stadio Alberto Braglia|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Vincenzo Orlandini]]
+|Cittarbitro = [[Roma]]
+|Marcatori 1 = [[Primo Sentimenti|P. Sentimenti]] {{goal|77}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 25 gennaio
+|Anno = 1948
+|Ora =
+|Turno = 19ª giornata
+|Squadra 1 = Sampdoria
+|Squadra 2 = Modena
+|Punteggio 1 = 0
+|Punteggio 2 = 0
+|Referto = http://calcio-seriea.net/tabellini/1947/4207/
+|Città = [[Genova]]
+|Stadio = [[Stadio Luigi Ferraris]]
+|Spettatori =
+|Arbitro = [[Bruno Tassini]]
+|Cittarbitro = [[Verona]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 1° febbraio
+|Anno = 1948
+|Ora =
+|Turno = 20ª giornata
+|Squadra 1 = Modena
+|Squadra 2 = Torino
+|Punteggio 1 = 0
+|Punteggio 2 = 3
+|Referto = http://calcio-seriea.net/tabellini/1947/4345/
+|Città = [[Modena]]
+|Stadio = [[Stadio Alberto Braglia|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Bruno Tassini]]
+|Cittarbitro = [[Verona]]
+|Marcatori 2 = {{goal|2}} [[Guglielmo Gabetto|Gabetto]]<br/>{{goal|61}} [[Josef Fabian|Fabian]]<br/>{{goal|85|rig}} [[Romeo Menti|R. Menti]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 8 febbraio
+|Anno = 1948
+|Ora =
+|Turno = 21ª giornata
+|Squadra 1 = Roma
+|Squadra 2 = Modena
+|Punteggio 1 = 0
+|Punteggio 2 = 0
+|Referto = http://calcio-seriea.net/tabellini/1947/4485/
+|Città = [[Roma]]
+|Stadio = [[Stadio Nazionale]]
+|Spettatori =
+|Arbitro = [[Giacomo Bertolio]]
+|Cittarbitro = [[Torino]]
+}}
+
+==== Girone di ritorno ====
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 15 febbraio
+|Anno = 1948
+|Ora =
+|Turno = 22ª giornata
+|Squadra 1 = Modena
+|Squadra 2 = Inter
+|Punteggio 1 = 2
+|Punteggio 2 = 0
+|Referto = http://calcio-seriea.net/tabellini/1947/4080/
+|Città = [[Modena]]
+|Stadio = [[Stadio Alberto Braglia|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Virginio Canavesio]]
+|Cittarbitro = [[Torino]]
+|Marcatori 1 = [[Sergio Bertoni|Bertoni]] {{goal|56}}<br/>[[Francesco Pernigo|Pernigo]] {{goal|78}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 22 febbraio
+|Anno = 1948
+|Ora =
+|Turno = 23ª giornata
+|Squadra 1 = Fiorentina
+|Squadra 2 = Modena
+|Punteggio 1 = 4
+|Punteggio 2 = 2
+|Referto = http://calcio-seriea.net/tabellini/1947/4226/
+|Città = [[Firenze]]
+|Stadio = [[Stadio Artemio Franchi|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Agostino Gamba]]
+|Cittarbitro = [[Napoli]]
+|Marcatori 1 = [[Piero Suppi|Suppi]] {{goal|8||68}}<br/>[[Ferruccio Valcareggi|F. Valcareggi]] {{goal|30}}<br/>[[Alberto Marchetti (1920)|Marchetti]] {{goal|65}}
+|Marcatori 2 = {{goal|46}} [[Enzo Menegotti|Menegotti]]<br/>{{goal|63}} [[Sergio Bertoni|Bertoni]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 29 febbraio
+|Anno = 1948
+|Ora =
+|Turno = 24ª giornata
+|Squadra 1 = Modena
+|Squadra 2 = Lazio
+|Punteggio 1 = 2
+|Punteggio 2 = 0
+|Referto = http://calcio-seriea.net/tabellini/1947/4362/
+|Città = [[Modena]]
+|Stadio = [[Stadio Alberto Braglia|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Ermanno Silvano]]
+|Cittarbitro = [[Torino]]
+|Marcatori 1 = [[Francesco Pernigo|Pernigo]] {{goal|4}}<br/>[[Walter Del Medico|Del Medico]] {{goal|49}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 7 marzo
+|Anno = 1948
+|Ora =
+|Turno = 25ª giornata
+|Squadra 1 = Livorno
+|Squadra 2 = Modena
+|Punteggio 1 = 1
+|Punteggio 2 = 1
+|Referto = http://calcio-seriea.net/tabellini/1947/4098/
+|Città = [[Livorno]]
+|Stadio = [[Stadio Armando Picchi|Stadio Ardenza]]
+|Spettatori =
+|Arbitro = [[Ettore Neri (arbitro)|Ettore Neri]]
+|Cittarbitro = [[Vicenza]]
+|Marcatori 1 = [[Guido Tieghi|Tieghi]] {{goal|28}}
+|Marcatori 2 = {{goal|73}} [[Francesco Pernigo|Pernigo]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 14 marzo
+|Anno = 1948
+|Ora =
+|Turno = 26ª giornata
+|Squadra 1 = Modena
+|Squadra 2 = Atalanta
+|Punteggio 1 = 2
+|Punteggio 2 = 0
+|Referto = http://calcio-seriea.net/tabellini/1947/4232/
+|Città = [[Modena]]
+|Stadio = [[Stadio Alberto Braglia|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Mario Maurelli]]
+|Cittarbitro = [[Roma]]
+|Marcatori 1 = [[Sergio Bertoni|Bertoni]] {{goal|62}}<br/>[[Primo Sentimenti|P. Sentimenti]] {{goal|78}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 21 marzo
+|Anno = 1948
+|Ora =
+|Turno = 27ª giornata
+|Squadra 1 = Genoa
+|Squadra 2 = Modena
+|Punteggio 1 = 2
+|Punteggio 2 = 0
+|Referto = http://calcio-seriea.net/tabellini/1947/4384/
+|Città = [[Genova]]
+|Stadio = [[Stadio Luigi Ferraris]]
+|Spettatori =
+|Arbitro = [[Ferruccio Bonivento]]
+|Cittarbitro = [[Venezia]]
+|Marcatori 1 = [[Juan Carlos Verdeal|Verdeal]] {{goal|2}}<br/>[[Amedeo Cattani|Cattani]] {{goal|30|rig}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 28 marzo
+|Anno = 1948
+|Ora =
+|Turno = 28ª giornata
+|Squadra 1 = Modena
+|Squadra 2 = Vicenza
+|Punteggio 1 = 2
+|Punteggio 2 = 0
+|Referto = http://calcio-seriea.net/tabellini/1947/4130/
+|Città = [[Modena]]
+|Stadio = [[Stadio Alberto Braglia|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Virginio Canavesio]]
+|Cittarbitro = [[Torino]]
+|Marcatori 1 = [[Francesco Pernigo|Pernigo]] {{goal|6||75}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 11 aprile
+|Anno = 1948
+|Ora =
+|Turno = 29ª giornata
+|Squadra 1 = Modena
+|Squadra 2 = Bari
+|Punteggio 1 = 2
+|Punteggio 2 = 0
+|Referto = http://calcio-seriea.net/tabellini/1947/4254/
+|Città = [[Modena]]
+|Stadio = [[Stadio Alberto Braglia|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Bruno Bergomi]]
+|Cittarbitro = [[Milano]]
+|Marcatori 1 = [[Francesco Pernigo|Pernigo]] {{goal|28||43|rig}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 17 aprile
+|Anno = 1948
+|Ora =
+|Turno = 30ª giornata
+|Note = Turno di riposo del MODENA
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 25 aprile
+|Anno = 1948
+|Ora =
+|Turno = 31ª giornata
+|Squadra 1 = Alessandria
+|Squadra 2 = Modena
+|Punteggio 1 = 0
+|Punteggio 2 = 0
+|Referto = http://calcio-seriea.net/tabellini/1947/4142/
+|Città = [[Alessandria (Italia)|Alessandria]]
+|Stadio = [[Stadio Giuseppe Moccagatta]]
+|Spettatori =
+|Arbitro = [[Ferruccio Bonivento]]
+|Cittarbitro = [[Venezia]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 2 maggio
+|Anno = 1948
+|Ora =
+|Turno = 32ª giornata
+|Squadra 1 = Modena
+|Squadra 2 = Salernitana
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Referto = http://calcio-seriea.net/tabellini/1947/4284/
+|Città = [[Modena]]
+|Stadio = [[Stadio Alberto Braglia|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Carlo Maglio]]
+|Cittarbitro = [[Torino]]
+|Marcatori 1 = [[Sergio Bertoni|Bertoni]] {{goal|6}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 6 maggio
+|Anno = 1948
+|Ora =
+|Turno = 33ª giornata
+|Squadra 1 = Modena
+|Squadra 2 = Napoli
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Referto = http://calcio-seriea.net/tabellini/1947/4424/
+|Città = [[Modena]]
+|Stadio = [[Stadio Alberto Braglia|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Ferruccio Bellè]]
+|Cittarbitro = [[Firenze]]
+|Marcatori 1 = [[Francesco Pernigo|Pernigo]] {{goal|45|rig}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 9 maggio
+|Anno = 1948
+|Ora =
+|Turno = 34ª giornata
+|Squadra 1 = Bologna
+|Squadra 2 = Modena
+|Punteggio 1 = 3
+|Punteggio 2 = 3
+|Referto = http://calcio-seriea.net/tabellini/1947/4164/
+|Città = [[Bologna]]
+|Stadio = [[Stadio Renato Dall'Ara|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Ermanno Silvano]]
+|Cittarbitro = [[Torino]]
+|Marcatori 1 = [[Hugo Giorgi|Giorgi]] {{goal|19||24}}<br/>[[Alberto Bonaretti|Bonaretti]] {{goal|49}}
+|Marcatori 2 = {{goal|3}} [[Primo Sentimenti|P. Sentimenti]]<br/>{{goal|38}} [[Francesco Pernigo|Pernigo]]<br/>{{goal|62}} [[Walter Del Medico|Del Medico]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 23 maggio
+|Anno = 1948
+|Ora =
+|Turno = 35ª giornata
+|Squadra 1 = Modena
+|Squadra 2 = Milan
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Referto = http://calcio-seriea.net/tabellini/1947/4302/
+|Città = [[Modena]]
+|Stadio = [[Stadio Alberto Braglia|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Mario Cambi]]
+|Cittarbitro = [[Livorno]]
+|Marcatori 1 = [[Serafino Romani|Romani]] {{goal|28}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 27 maggio
+|Anno = 1948
+|Ora =
+|Turno = 36ª giornata
+|Squadra 1 = Triestina
+|Squadra 2 = Modena
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Referto = http://calcio-seriea.net/tabellini/1947/4442/
+|Città = [[Trieste]]
+|Stadio = [[Stadio Giuseppe Grezar|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Giuseppe Carpani (arbitro)|Giuseppe Carpani]]
+|Cittarbitro = [[Milano]]
+|Marcatori 1 = [[Bruno Ispiro|Ispiro]] {{goal|12}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 30 maggio
+|Anno = 1948
+|Ora =
+|Turno = 37ª giornata
+|Squadra 1 = Modena
+|Squadra 2 = Juventus
+|Punteggio 1 = 0
+|Punteggio 2 = 1
+|Referto = http://calcio-seriea.net/tabellini/1947/4178/
+|Città = [[Modena]]
+|Stadio = [[Stadio Alberto Braglia|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Demetrio Stampacchia]]
+|Cittarbitro = [[Nola]]
+|Marcatori 2 = {{goal|9}} [[Giampiero Boniperti|Boniperti]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 6 giugno
+|Anno = 1948
+|Ora =
+|Turno = 38ª giornata
+|Squadra 1 = Lucchese
+|Squadra 2 = Modena
+|Punteggio 1 = 2
+|Punteggio 2 = 0
+|Referto = http://calcio-seriea.net/tabellini/1947/4324/
+|Città = [[Lucca]]
+|Stadio = [[Stadio Porta Elisa]]
+|Spettatori =
+|Arbitro = [[Eliseo Camiolo]]
+|Cittarbitro = [[Roma]]
+|Marcatori 1 = [[Ugo Conti (calciatore)|U. Conti]] {{goal|42||55}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 13 giugno
+|Anno = 1948
+|Ora =
+|Turno = 39ª giornata
+|Squadra 1 = Pro Patria
+|Squadra 2 = Modena
+|Punteggio 1 = 0
+|Punteggio 2 = 1
+|Referto = http://calcio-seriea.net/tabellini/1947/4460/
+|Città = [[Busto Arsizio]]
+|Stadio = [[Stadio Carlo Speroni|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Vittorio Pera]]
+|Cittarbitro = [[Firenze]]
+|Marcatori 2 = {{goal|40}} [[Francesco Pernigo|Pernigo]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 20 giugno
+|Anno = 1948
+|Ora =
+|Turno = 40ª giornata
+|Squadra 1 = Modena
+|Squadra 2 = Sampdoria
+|Punteggio 1 = 1
+|Punteggio 2 = 1
+|Referto = http://calcio-seriea.net/tabellini/1947/4208/
+|Città = [[Modena]]
+|Stadio = [[Stadio Alberto Braglia|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Luigi Gemini]]
+|Cittarbitro = [[Roma]]
+|Marcatori 1 = [[Maino Neri|M. Neri]] {{goal|4}}
+|Marcatori 2 = {{goal|43}} [[Giuseppe Baldini|Baldini]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 27 giugno
+|Anno = 1948
+|Ora =
+|Turno = 41ª giornata
+|Squadra 1 = Torino
+|Squadra 2 = Modena
+|Punteggio 1 = 5
+|Punteggio 2 = 2
+|Referto = http://calcio-seriea.net/tabellini/1947/4346/
+|Città = [[Torino]]
+|Stadio = [[Stadio Filadelfia]]
+|Spettatori =
+|Arbitro = [[Vincenzo Orlandini]]
+|Cittarbitro = [[Roma]]
+|Marcatori 1 = [[Ezio Loik|Ez. Loik]] {{goal|18}}<Br/>[[Danilo Martelli|Martelli]] {{goal|22||57}}<br/>[[Eusebio Castigliano|Castigliano]] {{goal|66}}<br/>[[Romeo Menti|R. Menti]] {{goal|77}}
+|Marcatori 2 = {{goal|38}} [[Francesco Pernigo|Pernigo]]<br/>{{goal|80}} [[Sergio Bertoni|Bertoni]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 4 luglio
+|Anno = 1948
+|Ora =
+|Turno = 42ª giornata
+|Squadra 1 = Modena
+|Squadra 2 = Roma
+|Punteggio 1 = 3
+|Punteggio 2 = 0
+|Referto = http://calcio-seriea.net/tabellini/1947/4486/
+|Città = [[Modena]]
+|Stadio = [[Stadio Alberto Braglia|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Giacomo Bertolio]]
+|Cittarbitro = [[Torino]]
+|Marcatori 1 = [[Sergio Bertoni|Bertoni]] {{goal|44}}<br/>[[Giovanni Battista Fabbri|G.B. Fabbri]] {{goal|54}}<br/>[[Ermando Malinverni|Malinverni]] {{goal|60}}
+}}
+
+== Statistiche ==
+=== Statistiche di squadra ===
+{{Statistiche squadra
+|comp1=[[Serie A 1947-1948|Serie A]]
+|punti1=44
+|cv1=14
+|cn1=4
+|cp1=2
+|cgf1=30
+|cgs1=9
+|tv1=2
+|tn1=8
+|tp1=10
+|tgf1=15
+|tgs1=31
+}}
+=== Statistiche dei giocatori ===
+{{Statistiche dei giocatori
+| Competizione1 = Serie A
+| Totale = no
+| Cartellini = no
+| {{Sortname|S.|Bertoni|Sergio Bertoni}} {{Sommastat|C=no |39|6|?|?}}
+| {{Sortname|R.|Braglia|Renato Braglia}} {{Sommastat|C=no |40|0|?|?}}
+| {{Sortname|V.|Cassani|Valerio Cassani}} {{Sommastat|C=no |21|2|?|?}}
+| {{Sortname|R.|Cavalieri|Renato Cavalieri}} {{Sommastat|C=no |1|0|?|?}}
+| {{Sortname|A.|Corazza|Andrea Carlo Corazza}} {{Sommastat|C=no |27|-23|?|?}}
+| {{Sortname|I.|Corghi|Ivano Corghi}} {{Sommastat|C=no |13|-17|?|?}}
+| {{Sortname|W.|Del Medico|Walter Del Medico}} {{Sommastat|C=no |17|3|?|?}}
+| {{Sortname|G.B.|Fabbri|Giovan Battista Fabbri (allenatore di calcio)}} {{Sommastat|C=no |14|1|?|?}}
+| {{Sortname|G.|Giovetti|Giuliano Giovetti}} {{Sommastat|C=no |1|0|?|?}}
+| {{Sortname|E.|Malinverni|Ermanno Malinverni}} {{Sommastat|C=no |33|1|?|?}}
+| {{Sortname|E.|Menegotti|Enzo Menegotti}} {{Sommastat|C=no |40|3|?|?}}
+| {{Sortname|B.|Milani|Brenno Milani}} {{Sommastat|C=no |5|0|?|?}}
+| {{Sortname|M.|Neri|Maino Neri}} {{Sommastat|C=no |38|1|?|?}}
+| {{Sortname|F.|Pernigo|Francesco Pernigo}} {{Sommastat|C=no |37|18|?|?}}
+| {{Sortname|S.|Romani|Serafino Romani}} {{Sommastat|C=no |32|2|?|?}}
+| {{Sortname|P.|Sentimenti|Primo Sentimenti}} {{Sommastat|C=no |23|8|?|?}}
+| {{Sortname|A.|Silvestri|Arturo Silvestri}} {{Sommastat|C=no |39|0|?|?}}
+| {{Sortname|L.|Stefanini|Lidio Stefanini}} {{Sommastat|C=no |19|0|?|?}}
+| {{Sortname|D.|Vecchi|nolink=1}} {{Sommastat|C=no |1|0|?|?}}
+}}
+
+== Note ==
+<references/>
+
+== Collegamenti esterni ==
+* {{cita web|url=http://www.wikicalcioitalia.info/vros.php?idsta=117&idsqu=13|titolo=Rosa su Wikicalcioitalia.info}}
+* {{cita web|url=http://calcio-seriea.net/risultati/1947/479/|titolo=Stagione 1947-1948}}
+
+{{Calcio Modena storico}}
+{{Calcio in Italia 1947-1948}}
+{{portale|calcio}}

@@ -1,0 +1,921 @@
+{{Torna a|Unione Sportiva Alessandria Calcio 1912}}
+{{Stagione squadra
+|sport=calcio
+|club = Alessandria Unione Sportiva
+|stagione = 1947-1948
+|allenatore1 = {{Bandiera|HUN 1946-1949}} [[Lajos Kovács|Lajos Nems Kovács]]
+|allenatore2 = {{Bandiera|ITA}} [[Umberto Dadone]]
+|presidente = {{Bandiera|ITA}} Mario Moccagatta
+|campionato = [[Serie A 1947-1948|Serie A]]
+|campionato posizione = 19º posto
+|presenze campionato = [[Aristide Coscia|Coscia]] (38)
+|marcatore campionato = [[Carlo Stradella|Stradella]] (14)
+|stadio = [[Stadio Giuseppe Moccagatta]]
+|spettatori max =
+|spettatori min =
+|spettatori media =
+|stagione prima = [[Alessandria Unione Sportiva 1946-1947|1946-1947]]
+|stagione dopo = [[Alessandria Unione Sportiva 1948-1949|1948-1949]]
+}}
+Questa pagina raccoglie i dati riguardanti l''''Alessandria Unione Sportiva''' nelle competizioni ufficiali della stagione '''1947-1948'''.
+
+== Stagione ==
+Al termine del suo decimo campionato di [[Serie A]], l'unico torneo di massima serie a ventuno partecipanti mai disputato in [[Italia]], l'Alessandria retrocesse. La squadra, guidata ancora da [[Lajos Kovács|Kovács]], giocò un buon inizio di campionato; nel finale i grigi andarono però incontro a una crisi di risultati, con un solo punto guadagnato tra la trentacinquesima e la quarantunesima giornata, e persero lentamente posizioni.
+
+Decisive furono le sconfitte nei due scontri diretti contro {{Calcio Salernitana|N}} (35ª giornata, il 23 maggio) e [[Associazione Sportiva Roma|Roma]] (36ª giornata, il 27 maggio).
+
+Il 27 giugno, a [[Genova]], l'Alessandria demoralizzata perse nettamente contro la {{Calcio Sampdoria|N}}, per 0 a 4, e retrocesse in [[Serie B]] con un turno d'anticipo.
+
+La classifica finale, che vide i grigi ventesimi, fu poi rivoluzionata nel finale per il declassamento del {{Calcio Napoli|N}}, dovuto a un tentativo di corruzione denunciato dal {{Calcio Bologna|N}}; i grigi salirono così al 19º posto. Altra magra consolazione fu la consacrazione di [[Gino Armano]], talento cresciuto nel vivaio destinato a una luminosa carriera, con l'{{Calcio Inter|N}}.
+
+Clamorosa fu la ''debacle'' contro il {{Calcio Torino|N}} del 2 maggio 1948: il 10-0 è ancora oggi la sconfitta più netta subita da una squadra nella storia della Serie A a girone unico. L'infierire dei granata nell'ultimo quarto d'ora fu dovuto agli screzi tra [[Valentino Mazzola]] e un tifoso alessandrino che lo sbeffeggiava da bordo campo, oltre che all'impegno profuso nel tentativo di raggiungere i 100 gol in campionato, obiettivo centrato con il decimo sigillo di [[Guglielmo Gabetto]].
+== Divise ==
+{|
+|{{Divisa calcio
+|leftarm = CCCCCC
+|pattern_la =
+|body = CCCCCC
+|pattern_b = _whitecollar
+|rightarm = CCCCCC
+|pattern_ra =
+|shorts = 000000
+|pattern_sh =
+|socks = CCCCCC
+|pattern_so = _black_band_color
+|title = 1ª divisa
+}}
+|}
+== Organigramma societario ==
+{{Colonne}}
+'''''Area direttiva'''''
+* Presidente: Mario Moccagatta
+* Vicepresidente: G. Doglioli
+* Dirigenti: P. Burzi, F. Dogliolo, V. Ferrari, E. Lanzavecchia, V. Maranzana, Piero Melchionni, L. Morando, Giovanni Battista Rangone, A. Rigoni, M. Roncali, G. Taverna
+* Segretario: Enrico Dericci
+* Addetto ai rapporti con la [[Federazione Italiana Giuoco Calcio|FIGC]]: Grassano
+{{Colonne spezza}}
+'''''Area tecnica'''''
+* Allenatore: [[Lajos Kovács|Lajos Nems Kovács]]
+* Viceallenatore: [[Umberto Dadone]]
+* Componenti: Cesare Testera, [[Andrea Viviano]]
+'''''Area sanitaria'''''
+* Responsabile: Carlo Villa
+{{Colonne fine}}
+Note:<ref>{{cita|Boccassi et al.|p. 139}}.</ref>
+
+== Rosa ==
+{{Calciatore in rosa/inizio}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Luigi Diamante (calciatore)|Luigi Diamante]]|ruolo=P}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Anselmo Giorcelli]]|ruolo=P}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Carlo Rognoni (calciatore)|Carlo Rognoni]]|ruolo=P}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Giacomo Delaude]]|ruolo=D}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Giuseppe Della Frera]]|ruolo=D}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Silvio Di Gennaro]]|ruolo=D}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Giovanni Ottonello]]|ruolo=D}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Ranieri Valdirosa]]|ruolo=D}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Lanfranco Albertelli]]|ruolo=C}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Gino Armano]]|ruolo=C}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Aristide Coscia]]|ruolo=C}}
+{{Calciatore in rosa/medio}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Fabio Frugali]]|ruolo=C}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Cesare Gallea]]|ruolo=C}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Mario Pietruzzi]]|ruolo=C}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Francesco Rosetta]]|ruolo=C}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Luigi Soffrido]]|ruolo=C}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Francesco Tortarolo]]|ruolo=C}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Domenico Tosi|Luigi Domenico Tosi]]|ruolo=C}}
+{{Calciatore in rosa|n=|nazione=ALB 1946-1992|nome=[[Riza Lushta]]|ruolo=A}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Pietro Sotgiu|Pietro Luigi Sotgiu]]|ruolo=A}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Carlo Stradella]]|ruolo=A}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Luigi Traini]]|ruolo=A}}
+{{Calciatore in rosa/fine}}
+
+== Risultati ==
+=== Serie A ===
+{{Vedi anche|Serie A 1947-1948}}
+==== Girone d'andata ====
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 14 settembre
+|Anno = 1947
+|Ora =
+|Turno = 1ª giornata
+|Squadra 1 = Alessandria
+|Squadra 2 = Juventus
+|Punteggio 1 = 1
+|Punteggio 2 = 3
+|Referto =
+|Città=[[Alessandria (Italia)|Alessandria]]
+|Stadio = [[Stadio Giuseppe Moccagatta]]
+|Spettatori =
+|Arbitro = [[Vittorio Pera]]
+|Cittarbitro = [[Firenze]]
+|Marcatori 1 = [[Fabio Frugali|Frugali]] {{Goal|10}}
+|Marcatori 2 = {{Goal|19}} [[Vittorio Sentimenti|V. Sentimenti]]<br />{{Goal|69||84}} [[Ján Arpáš|Arpáš]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 21 settembre
+|Anno = 1947
+|Ora =
+|Turno = 2ª giornata
+|Squadra 1 = Alessandria
+|Squadra 2 = Vicenza
+|Punteggio 1 = 4
+|Punteggio 2 = 0
+|Referto =
+|Città=[[Alessandria (Italia)|Alessandria]]
+|Stadio = [[Stadio Giuseppe Moccagatta]]
+|Spettatori =
+|Arbitro = [[Riccardo Pieri]]
+|Cittarbitro = [[Trieste]]
+|Marcatori 1 = [[Carlo Stradella|Stradella]] {{Goal|8}}<br />[[Fabio Frugali|Frugali]] {{Goal|15}}<br />[[Riza Lushta|Lushta]] {{Goal|27||57}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 28 settembre
+|Anno = 1947
+|Ora =
+|Turno = 3ª giornata
+|Squadra 1 = Inter
+|Squadra 2 = Alessandria
+|Punteggio 1 = 6
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Milano]]
+|Stadio = [[Stadio Giuseppe Meazza|Stadio San Siro]]
+|Spettatori =
+|Arbitro = [[Giuseppe Vannini]]
+|Cittarbitro = [[Bologna]]
+|Marcatori 1 = [[Bruno Quaresima|Quaresima]] {{Goal|38||62||70||79}}<br />[[Bibiano Zapirain|Zapirain]] {{Goal|67||86}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 5 ottobre
+|Anno = 1947
+|Ora =
+|Turno = 4ª giornata
+|Squadra 1 = Alessandria
+|Squadra 2 = Bologna
+|Punteggio 1 = 0
+|Punteggio 2 = 2
+|Referto =
+|Città=[[Alessandria (Italia)|Alessandria]]
+|Stadio = [[Stadio Giuseppe Moccagatta]]
+|Spettatori =
+|Arbitro = [[Gino Cicardi]]
+|Cittarbitro = [[Lecco]]
+|Marcatori 2 = {{Goal|12||90}} [[Giuseppe Baiocchi|Baiocchi]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 12 ottobre
+|Anno = 1947
+|Ora =
+|Turno = 5ª giornata
+|Squadra 1 = Genoa
+|Squadra 2 = Alessandria
+|Punteggio 1 = 3
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Genova]]
+|Stadio = [[Stadio Luigi Ferraris]]
+|Spettatori =
+|Arbitro = [[Bruno Guarda (arbitro)|Bruno Guarda]]
+|Cittarbitro = [[Venezia]]
+|Marcatori 1 = [[Vittorio Bergamo|Bergamo]] {{Goal|43}}<br />[[Giuseppe Della Frera|Della Frera]] {{Goal|47|aut.}}<br />[[Juan Carlos Verdeal|Verdeal]] {{Goal|53}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 19 ottobre
+|Anno = 1947
+|Ora =
+|Turno = 6ª giornata
+|Squadra 1 = Alessandria
+|Squadra 2 = Livorno
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Referto =
+|Città=[[Alessandria (Italia)|Alessandria]]
+|Stadio = [[Stadio Giuseppe Moccagatta]]
+|Spettatori =
+|Arbitro = [[Mario Scotto]]
+|Cittarbitro = [[Savona]]
+|Marcatori 1 = [[Mario Pietruzzi|Pietruzzi]] {{Goal|18}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 26 ottobre
+|Anno = 1947
+|Ora =
+|Turno = 7ª giornata
+|Squadra 1 = Napoli
+|Squadra 2 = Alessandria
+|Punteggio 1 = 1
+|Punteggio 2 = 2
+|Referto =
+|Città = [[Pescara]]
+|Stadio = [[Campo Rampigna]]
+|Spettatori =
+|Arbitro = [[Antonio Zambotto]]
+|Cittarbitro = [[Padova]]
+|Marcatori 1 = [[Dante Di Benedetti|Di Benedetti]] {{Goal|32}}
+|Marcatori 2 = {{Goal|13|rig|52|rig}} [[Aristide Coscia|Coscia]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 2 novembre
+|Anno = 1947
+|Ora =
+|Turno = 8ª giornata
+|Squadra 1 = Atalanta
+|Squadra 2 = Alessandria
+|Punteggio 1 = 0
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Bergamo]]
+|Stadio = [[Stadio Atleti Azzurri d'Italia|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Bruno Tassini]]
+|Cittarbitro = [[Verona]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 16 novembre
+|Anno = 1947
+|Ora =
+|Turno = 9ª giornata
+|Squadra 1 = Alessandria
+|Squadra 2 = Lucchese
+|Punteggio 1 = 4
+|Punteggio 2 = 2
+|Referto =
+|Città=[[Alessandria (Italia)|Alessandria]]
+|Stadio = [[Stadio Giuseppe Moccagatta]]
+|Spettatori =
+|Arbitro = [[Mario Codeluppi]]
+|Cittarbitro = [[Lodi]]
+|Marcatori 1 = [[Aristide Coscia|Coscia]] {{Goal|21|rig.}}<br />[[Riza Lushta|Lushta]] {{Goal|25}}<br />[[Pietro Sotgiu|Sotgiu]] {{Goal|46}}<br />[[Francesco Tortarolo|Tortarolo]] {{Goal|87}}
+|Marcatori 2 = {{Goal|40}} [[Elpidio Coppa|Coppa]]<br />{{Goal|86}} [[Ugo Conti (calciatore)|Conti]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 23 novembre
+|Anno = 1947
+|Ora =
+|Turno = 10ª giornata
+|Squadra 1 = Modena
+|Squadra 2 = Alessandria
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Modena]]
+|Stadio = [[Stadio Alberto Braglia|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Mario Cambi]]
+|Cittarbitro = [[Livorno]]
+|Marcatori 1 = [[Serafino Romani|Romani]] {{Goal|25}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 30 novembre
+|Anno = 1947
+|Ora = 14:30 [[Central European Time|CET]]
+|Turno = 11ª giornata
+|Squadra 1 = Alessandria
+|Squadra 2 = Torino
+|Punteggio 1 = 2
+|Punteggio 2 = 2
+|Referto = http://www.archiviotoro.it/a/tabe.asp?tabellino=1505
+|Città=[[Alessandria (Italia)|Alessandria]]
+|Stadio = [[Stadio Giuseppe Moccagatta]]
+|Spettatori = 19.000
+|Arbitro = [[Giorgio Bernardi]]
+|Cittarbitro = [[Bologna]]
+|Marcatori 1 = [[Carlo Stradella|Stradella]] {{Goal|37}}<br />[[Pietro Sotgiu|Sotgiu]] {{Goal|38}}
+|Marcatori 2 = {{Goal|17}} [[Valentino Mazzola|Mazzola]]<br />{{Goal|18}} [[Romeo Menti|Menti]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 7 dicembre
+|Anno = 1947
+|Ora =
+|Turno = 12ª giornata
+|Squadra 1 = Bari
+|Squadra 2 = Alessandria
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Bari]]
+|Stadio = [[Stadio della Vittoria (Bari)|Stadio della Vittoria]]
+|Spettatori =
+|Arbitro = [[Vincenzo Orlandini]]
+|Cittarbitro = [[Roma]]
+|Marcatori 1 = [[Mario Tontodonati|Tontodonati]] {{Goal|80}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 21 dicembre
+|Anno = 1947
+|Ora =
+|Turno = 13ª giornata
+|Squadra 1 = Fiorentina
+|Squadra 2 = Alessandria
+|Punteggio 1 = 2
+|Punteggio 2 = 1
+|Referto =
+|Città = [[Firenze]]
+|Stadio = [[Stadio Artemio Franchi|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Ettore Neri (arbitro)|Ettore Neri]]
+|Cittarbitro = [[Vicenza]]
+|Marcatori 1 = [[Alberto Galassi|Galassi]] {{Goal|25}}<br />[[Alberto Marchetti (1920)|Marchetti]] {{Goal|80}}
+|Marcatori 2 = {{Goal|40}} [[Aristide Coscia|Coscia]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 28 dicembre
+|Anno = 1947
+|Ora =
+|Turno = 14ª giornata
+|Squadra 1 = Alessandria
+|Squadra 2 = Salernitana
+|Punteggio 1 = 3
+|Punteggio 2 = 0
+|Referto =
+|Città=[[Alessandria (Italia)|Alessandria]]
+|Stadio = [[Stadio Giuseppe Moccagatta]]
+|Spettatori =
+|Arbitro = [[Bruno Bergomi]]
+|Cittarbitro = [[Milano]]
+|Marcatori 1 = [[Aristide Coscia|Coscia]] {{Goal|24||39|rig}}<br />[[Pietro Sotgiu|Sotgiu]] {{Goal|41}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 1º gennaio
+|Anno = 1948
+|Ora =
+|Turno = 15ª giornata
+|Squadra 1 = Alessandria
+|Squadra 2 = Roma
+|Punteggio 1 = 4
+|Punteggio 2 = 0
+|Referto =
+|Città=[[Alessandria (Italia)|Alessandria]]
+|Stadio = [[Stadio Giuseppe Moccagatta]]
+|Spettatori =
+|Arbitro = [[Vittorio Pera]]
+|Cittarbitro = [[Firenze]]
+|Marcatori 1 = [[Carlo Stradella|Stradella]] {{Goal|25||40||62||89}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 6 gennaio
+|Anno = 1948
+|Ora =
+|Turno = 16ª giornata
+|Squadra 1 = Pro Patria
+|Squadra 2 = Alessandria
+|Punteggio 1 = 3
+|Punteggio 2 = 2
+|Referto =
+|Città = [[Busto Arsizio]]
+|Stadio = [[Stadio Carlo Speroni|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Bruno Guarda (arbitro)|Bruno Guarda]]
+|Cittarbitro = [[Venezia]]
+|Marcatori 1 = [[Angelo Turconi|Turconi]] {{Goal|25}}<br />[[Egiziano Bertolucci|Bertolucci]] {{Goal|43}}<br />[[Emidio Cavigioli|Cavigioli]] {{Goal|55}}
+|Marcatori 2 = {{Goal|64}} [[Carlo Stradella|Stradella]]<br />{{Goal|87}} [[Pietro Sotgiu|Sotgiu]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 11 gennaio
+|Anno = 1948
+|Ora =
+|Turno = 17ª giornata
+|Squadra 1 = Alessandria
+|Squadra 2 = Triestina
+|Punteggio 1 = 1
+|Punteggio 2 = 1
+|Referto =
+|Città=[[Alessandria (Italia)|Alessandria]]
+|Stadio = [[Stadio Giuseppe Moccagatta]]
+|Spettatori =
+|Arbitro = [[Eliseo Camiolo]]
+|Cittarbitro = [[Milano]]
+|Marcatori 1 = [[Aristide Coscia|Coscia]] {{Goal|86|rig}}
+|Marcatori 2 = {{Goal|33}} [[Mario Begni|Begni]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 18 gennaio
+|Anno = 1948
+|Ora =
+|Turno = 18ª giornata
+|Squadra 1 = Lazio
+|Squadra 2 = Alessandria
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Roma]]
+|Stadio = [[Stadio Nazionale]]
+|Spettatori =
+|Arbitro = [[Ferruccio Bonivento]]
+|Cittarbitro = [[Venezia]]
+|Marcatori 1 = [[Mario Magrini|Magrini]] {{Goal|23}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 25 gennaio
+|Anno = 1948
+|Ora =
+|Turno = 19ª giornata
+|Note = Turno di riposo dell'ALESSANDRIA
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 1º febbraio<ref>Partita rinviata per impraticabilità del campo e recuperata il 4 aprile 1948.</ref>
+|Anno = 1948
+|Ora =
+|Turno = 20ª giornata
+|Squadra 1 = Alessandria
+|Squadra 2 = Sampdoria
+|Punteggio 1 = 1
+|Punteggio 2 = 1
+|Referto =
+|Città=[[Alessandria (Italia)|Alessandria]]
+|Stadio = [[Stadio Giuseppe Moccagatta]]
+|Spettatori =
+|Arbitro = [[Eliseo Camiolo]]
+|Cittarbitro = [[Milano]]
+|Marcatori 1 = [[Carlo Stradella|Stradella]] {{Goal|22}}
+|Marcatori 2 = {{Goal|74}} [[Giuseppe Carissimi|Carissimi]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 8 febbraio
+|Anno = 1948
+|Ora =
+|Turno = 21ª giornata
+|Squadra 1 = Alessandria
+|Squadra 2 = Milan
+|Punteggio 1 = 2
+|Punteggio 2 = 2
+|Referto =
+|Città = [[Alessandria (Italia)|Alessandria]]
+|Stadio = [[Stadio Giuseppe Moccagatta]]
+|Spettatori =
+|Arbitro = [[Giuseppe Zelocchi]]
+|Cittarbitro = [[Mosena]]
+|Marcatori 1 = [[Pietro Sotgiu|Sotgiu]] {{goal|44}}<br/>[[Aristide Coscia|Coscia]] {{goal|56}}
+|Marcatori 2 = {{goal|28}} [[Franco De Gregori|De Gregori]]<br/>{{goal|50}} [[Renzo Burini|Burini]]
+}}
+
+==== Girone di ritorno ====
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 15 febbraio
+|Anno = 1948
+|Ora =
+|Turno = 22ª giornata
+|Squadra 1 = Juventus
+|Squadra 2 = Alessandria
+|Punteggio 1 = 6
+|Punteggio 2 = 1
+|Referto =
+|Città = [[Torino]]
+|Stadio = [[Stadio Olimpico (Torino)|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Giuseppe Zelocchi]]
+|Cittarbitro = [[Modena]]
+|Marcatori 1 = [[Ermes Muccinelli|Muccinelli]] {{Goal|3||39||50}}<br/>[[Giampiero Boniperti|Boniperti]] {{Goal|9||19}}<br/>[[Pietro Magni (calciatore)|Magni]] {{Goal|68}}
+|Marcatori 2 = {{Goal|73}} [[Riza Lushta|Lushta]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 22 febbraio
+|Anno = 1948
+|Ora =
+|Turno = 23ª giornata<ref>Partita rinviata per maltempo e recuperata l'11 marzo 1948.</ref>
+|Squadra 1 = Vicenza
+|Squadra 2 = Alessandria
+|Punteggio 1 = 0
+|Punteggio 2 = 3
+|Referto =
+|Città = [[Vicenza]]
+|Stadio = [[Stadio Romeo Menti|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Luigi Valsecchi (arbitro)|Luigi Valsecchi]]
+|Cittarbitro = [[Milano]]
+|Marcatori 2 = {{goal|15}} [[Luigi Soffrido|Soffrido]]<br/>{{goal|28}} [[Carlo Stradella|Stradella]]<br/>{{goal|66}} [[Pietro Sotgiu|Sotgiu]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 29 febbraio
+|Anno = 1948
+|Ora =
+|Turno = 24ª giornata
+|Squadra 1 = Alessandria
+|Squadra 2 = Inter
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Alessandria (Italia)|Alessandria]]
+|Stadio = [[Stadio Giuseppe Moccagatta]]
+|Spettatori =
+|Arbitro = [[Generoso Dattilo]]
+|Cittarbitro = [[Roma]]
+|Marcatori 1 = [[Tristano Pangaro|Pangaro]] {{Goal|54|aut}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 7 marzo
+|Anno = 1948
+|Ora =
+|Turno = 25ª giornata
+|Squadra 1 = Bologna
+|Squadra 2 = Alessandria
+|Punteggio 1 = 3
+|Punteggio 2 = 2
+|Referto =
+|Città = [[Bologna]]
+|Stadio = [[Stadio Renato Dall'Ara|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Giacomo Bertolio]]
+|Cittarbitro = [[Torino]]
+|Marcatori 1 = [[Mario Gritti|Gritti]] {{Goal|32}}<br/>[[István Mike Mayer|Mike]] {{Goal|74||77}}
+|Marcatori 2 = {{Goal|16||44}} [[Gino Armano|Armano]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 14 marzo
+|Anno = 1948
+|Ora =
+|Turno = 26ª giornata
+|Squadra 1 = Alessandria
+|Squadra 2 = Genoa
+|Punteggio 1 = 0
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Alessandria (Italia)|Alessandria]]
+|Stadio = [[Stadio Giuseppe Moccagatta]]
+|Spettatori =
+|Arbitro = [[Ferruccio Bellè]]
+|Cittarbitro = [[Venezia]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 21 marzo
+|Anno = 1948
+|Ora =
+|Turno = 27ª giornata
+|Squadra 1 = Livorno
+|Squadra 2 = Alessandria
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Livorno]]
+|Stadio = [[Stadio Armando Picchi|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Armando Marchetti]]
+|Cittarbitro = [[Milano]]
+|Marcatori 1 = [[Domenico De Vito|De Vito]] {{Goal|68}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 28 marzo
+|Anno = 1948
+|Ora =
+|Turno = 28ª giornata
+|Squadra 1 = Alessandria
+|Squadra 2 = Napoli
+|Punteggio 1 = 2
+|Punteggio 2 = 2
+|Referto =
+|Città = [[Alessandria (Italia)|Alessandria]]
+|Stadio = [[Stadio Giuseppe Moccagatta]]
+|Spettatori =
+|Arbitro = [[Bruno Tassini]]
+|Cittarbitro = [[Verona]]
+|Marcatori 1 = [[Cesare Gallea|Gallea]] {{Goal|63||65}}
+|Marcatori 2 = {{Goal|32}} [[Dante Di Benedetti|Di Benedetti]]<br/>{{Goal|60}} [[Naim Krieziu|Krieziu]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 11 aprile
+|Anno = 1948
+|Ora =
+|Turno = 29ª giornata
+|Squadra 1 = Alessandria
+|Squadra 2 = Atalanta
+|Punteggio 1 = 0
+|Punteggio 2 = 1
+|Referto =
+|Città = [[Alessandria (Italia)|Alessandria]]
+|Stadio = [[Stadio Giuseppe Moccagatta]]
+|Spettatori =
+|Arbitro = [[Guido Agnolin]]
+|Cittarbitro = [[Bassano del Grappa]]
+|Marcatori 2 = {{Goal|73}} [[Mario Astorri|Astorri]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 17 aprile
+|Anno = 1948
+|Ora =
+|Turno = 30ª giornata
+|Squadra 1 = Lucchese
+|Squadra 2 = Alessandria
+|Punteggio 1 = 2
+|Punteggio 2 = 1
+|Referto =
+|Città = [[Lucca]]
+|Stadio = [[Stadio Porta Elisa]]
+|Spettatori =
+|Arbitro = [[Giorgio Bernardi]]
+|Cittarbitro = [[Bologna]]
+|Marcatori 1 = [[Luciano Giusti|Giusti]] {{Goal|32}}<br/>[[Danilo Michelini|Michelini]] {{Goal|87}}
+|Marcatori 2 = {{Goal|40}} [[Carlo Stradella|Stradella]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 25 aprile
+|Anno = 1948
+|Ora =
+|Turno = 31ª giornata
+|Squadra 1 = Alessandria
+|Squadra 2 = Modena
+|Punteggio 1 = 0
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Alessandria (Italia)|Alessandria]]
+|Stadio = [[Stadio Giuseppe Moccagatta]]
+|Spettatori =
+|Arbitro = [[Ferruccio Bonivento]]
+|Cittarbitro = [[Venezia]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 2 maggio
+|Anno = 1948
+|Ora = 16:00 [[Central European Time|CET]]
+|Turno = 32ª giornata
+|Squadra 1 = Torino
+|Squadra 2 = Alessandria
+|Punteggio 1 = 10
+|Punteggio 2 = 0
+|Referto = http://www.archiviotoro.it/a/tabe.asp?tabellino=1526
+|Città = [[Torino]]
+|Stadio = [[Stadio Filadelfia]]
+|Spettatori = 10.500
+|Arbitro = [[Bruno Guarda (arbitro)|Bruno Guarda]]
+|Cittarbitro = [[Venezia]]
+|Marcatori 1 = [[Franco Ossola|Ossola]] {{Goal|5}}<br/>[[Ezio Loik|Loik]] {{Goal|7||42||86}}<br/>[[Valentino Mazzola|Mazzola]] {{Goal|35}}<br/>[[Giuseppe Grezar|Grezar]] {{Goal|75||77}}<br/>[[Josef Fabian|Fabian]] {{Goal|81||83}}<br/>[[Guglielmo Gabetto|Gabetto]] {{Goal|88}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 6 maggio
+|Anno = 1948
+|Ora =
+|Turno = 33ª giornata
+|Squadra 1 = Alessandria
+|Squadra 2 = Bari
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Alessandria (Italia)|Alessandria]]
+|Stadio = [[Stadio Giuseppe Moccagatta]]
+|Spettatori =
+|Arbitro = [[Giuseppe Carpani (arbitro)|Giuseppe Carpani]]
+|Cittarbitro = [[Milano]]
+|Marcatori 1 = [[Luigi Soffrido|Soffrido]] {{Goal|21}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 9 maggio
+|Anno = 1948
+|Ora =
+|Turno = 34ª giornata
+|Squadra 1 = Alessandria
+|Squadra 2 = Fiorentina
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Alessandria (Italia)|Alessandria]]
+|Stadio = [[Stadio Giuseppe Moccagatta]]
+|Spettatori =
+|Arbitro = [[Eriprando Poggipollini]]
+|Cittarbitro = [[Ferrara]]
+|Marcatori 1 = [[Aristide Coscia|Coscia]] {{Goal|25}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 23 maggio
+|Anno = 1948
+|Ora =
+|Turno = 35ª giornata
+|Squadra 1 = Salernitana
+|Squadra 2 = Alessandria
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Salerno]]
+|Stadio = [[Stadio Donato Vestuti|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Luigi Gemini]]
+|Cittarbitro = [[Roma]]
+|Marcatori 1 = [[Renzo Merlin|Merlin]] {{Goal|2}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 27 maggio
+|Anno = 1948
+|Ora =
+|Turno = 36ª giornata
+|Squadra 1 = Roma
+|Squadra 2 = Alessandria
+|Punteggio 1 = 4
+|Punteggio 2 = 1
+|Referto =
+|Città = [[Roma]]
+|Stadio = [[Stadio Nazionale]]
+|Spettatori =
+|Arbitro = [[Bruno Zilli]]
+|Cittarbitro = [[Reggio nell'Emilia|Reggio Emilia]]
+|Marcatori 1 = [[Gyula Zsengellér|Zsengellér]] {{Goal|66||75}}<br/>[[José Valle|Valle]] {{Goal|74}}<br/>[[Omero Losi|Losi]] {{Goal|80}}
+|Marcatori 2 = {{Goal|1}} [[Fabio Frugali|Frugali]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 30 maggio
+|Anno = 1948
+|Ora =
+|Turno = 37ª giornata
+|Squadra 1 = Alessandria
+|Squadra 2 = Pro Patria
+|Punteggio 1 = 2
+|Punteggio 2 = 5
+|Referto =
+|Città = [[Alessandria (Italia)|Alessandria]]
+|Stadio = [[Stadio Giuseppe Moccagatta]]
+|Spettatori =
+|Arbitro = [[Ferruccio Bellè]]
+|Cittarbitro = [[Venezia]]
+|Marcatori 1 = [[Mario Pietruzzi|Pietruzzi]] {{Goal|41}}<br/>[[Carlo Stradella|Stradella]] {{Goal|55}}
+|Marcatori 2 = {{Goal|9||15}} [[Emidio Cavigioli|Cavigioli]]<br/>{{Goal|40}} [[Giuseppe Molina|Molina]]<br/>{{Goal|65}} [[Lelio Antoniotti|Antoniotti]]<br/>{{Goal|79}} [[Enrico Candiani|Candiani]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 6 giugno
+|Anno = 1948
+|Ora =
+|Turno = 38ª giornata
+|Squadra 1 = Triestina
+|Squadra 2 = Alessandria
+|Punteggio 1 = 2
+|Punteggio 2 = 1
+|Referto =
+|Città = [[Trieste]]
+|Stadio = [[Stadio Giuseppe Grezar|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Bruno Bergomi]]
+|Cittarbitro = [[Milano]]
+|Marcatori 1 = [[Licio Rossetti|Rossetti]] {{Goal|5}}<br/>[[Guglielmo Trevisan|G. Trevisan]] {{Goal|35}}
+|Marcatori 2 = {{Goal|64}} [[Gino Armano|Armano]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 13 giugno
+|Anno = 1948
+|Ora =
+|Turno = 39ª giornata
+|Squadra 1 = Alessandria
+|Squadra 2 = Lazio
+|Punteggio 1 = 2
+|Punteggio 2 = 2
+|Referto =
+|Città = [[Alessandria (Italia)|Alessandria]]
+|Stadio = [[Stadio Giuseppe Moccagatta]]
+|Spettatori =
+|Arbitro = [[Florindo Longagnani]]
+|Cittarbitro = [[Modena]]
+|Marcatori 1 = [[Carlo Stradella|Stradella]] {{Goal|26}}<br/>[[Aristide Coscia|Coscia]] {{Goal|63}}
+|Marcatori 2 = {{Goal|20||69}} [[Costantino De Andreis|De Andreis]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 20 giugno
+|Anno = 1948
+|Ora =
+|Turno = 40ª giornata
+|Note = Turno di riposo dell'ALESSANDRIA
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 27 giugno
+|Anno = 1948
+|Ora =
+|Turno = 41ª giornata
+|Squadra 1 = Sampdoria
+|Squadra 2 = Alessandria
+|Punteggio 1 = 4
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Genova]]
+|Stadio = [[Stadio Luigi Ferraris]]
+|Spettatori =
+|Arbitro = [[Armando Marchetti]]
+|Cittarbitro = [[Milano]]
+|Marcatori 1 = [[Mario Pietruzzi|Pietruzzi]] {{Goal|5|aut}}<br/>[[Engelbert Koenig|Koenig]] {{Goal|22||90}}<br/>[[Adriano Bassetto|Bassetto]] {{Goal|77}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 4 luglio
+|Anno = 1948
+|Ora =
+|Turno = 42ª giornata
+|Squadra 1 = Milan
+|Squadra 2 = Alessandria
+|Punteggio 1 = 1
+|Punteggio 2 = 3
+|Referto =
+|Città = [[Milano]]
+|Stadio = [[Stadio San Siro]]
+|Spettatori =
+|Arbitro = [[Giuseppe Vannini]]
+|Cittarbitro = [[Bologna]]
+|Marcatori 1 = [[Carlo Annovazzi|Annovazzi]] {{Goal|83|rig}}
+|Marcatori 2 = {{Goal|31||66}} [[Carlo Stradella|Stradella]]<br/>{{Goal|42}} [[Fabio Frugali|Frugali]]
+}}
+
+== Statistiche ==
+=== Statistiche di squadra<ref>{{cita|Melegari|p. 115}}.</ref> ===
+{{Statistiche squadra
+|comp1= [[Serie A 1947-1948|Serie A]]
+|punti1= 31
+|cv1=8 |cn1=8 |cp1=4 |cgf1=32 |cgs1=23
+|tv1=3 |tn1=1 |tp1=16 |tgf1=17 |tgs1= 52
+}}
+
+=== Statistiche dei giocatori ===
+{{Statistiche dei giocatori
+| Competizione1 = Serie A
+| Totale = no
+| Cartellini = no
+| {{Sortname|L.|Albertelli|Lanfranco Albertelli}} {{Sommastat|C=no |6|0|?|?}}
+| {{Sortname|G.|Armano|Gino Armano}} {{Sommastat|C=no |33|3|?|?}}
+| {{Sortname|A.|Coscia|Aristide Coscia}} {{Sommastat|C=no |38|10|?|?}}
+| {{Sortname|G.|Delaude|Giacomo Delaude}} {{Sommastat|C=no |7|0|?|?}}
+| {{Sortname|G.|Della Frera|Giuseppe Della Frera}} {{Sommastat|C=no |26|0|?|?}}
+| {{Sortname|S.|Di Gennaro|Silvio Di Gennaro}} {{Sommastat|C=no |34|0|?|?}}
+| {{Sortname|L.|Diamante|Luigi Diamante (calciatore)}} {{Sommastat|C=no |35|−60|?|?}}
+| {{Sortname|F.|Frugali|Fabio Frugali}} {{Sommastat|C=no |10|4|?|?}}
+| {{Sortname|C.|Gallea|Cesare Gallea}} {{Sommastat|C=no |34|2|?|?}}
+| {{Sortname|A.|Giorcelli|Anselmo Giorcelli}} {{Sommastat|C=no |3|−10|?|?}}
+| {{Sortname|R.|Lushta|Riza Lushta}} {{Sommastat|C=no |21|4|?|?}}
+| {{Sortname|G.|Ottonello|Giuseppe Ottonello}} {{Sommastat|C=no |2|0|?|?}}
+| {{Sortname|M.|Pietruzzi|Mario Pietruzzi}} {{Sommastat|C=no |24|2|?|?}}
+| {{Sortname|C.|Rognoni|Carlo Rognoni (calciatore)}} {{Sommastat|C=no |2|−5|?|?}}
+| {{Sortname|F.|Rosetta|Francesco Rosetta}} {{Sommastat|C=no |32|0|?|?}}
+| {{Sortname|L.|Soffrido|Luigi Soffrido}} {{Sommastat|C=no |21|2|?|?}}
+| {{Sortname|P.L.|Sotgiu|Pietro Sotgiu}} {{Sommastat|C=no |35|6|?|?}}
+| {{Sortname|C.|Stradella|Carlo Stradella}} {{Sommastat|C=no |35|14|?|?}}
+| {{Sortname|F.|Tortarolo|Francesco Tortarolo}} {{Sommastat|C=no |37|1|?|?}}
+| {{Sortname|L.D.|Tosi|Domenico Tosi}} {{Sommastat|C=no |2|0|?|?}}
+| {{Sortname|L.|Traini|Luigi Traini}} {{Sommastat|C=no |2|0|?|?}}
+| {{Sortname|R.|Valdirosa|Ranieri Valdirosa}} {{Sommastat|C=no |1|0|?|?}}
+}}
+Note:<ref>{{cita|Boccassi et al.|p. 143}}.</ref><ref>{{cita|Melegari|p. 113}}.</ref>
+== Note ==
+<references />
+
+== Bibliografia ==
+* {{cita libro|autore=Ugo Boccassi, Enrico Dericci e Marcello Marcellini|titolo=Alessandria U.S.: 60 anni|città=Milano|editore=G.E.P.|anno=1973|cid=Boccassi et al.}}
+* {{cita pubblicazione|autore=[[Carlo F. Chiesa]]|titolo=Il grande romanzo dello scudetto|rivista=[[Calcio 2000]]|anno=annate 2002 e 2003}}
+* {{cita libro|curatore=Fabrizio Melegari|titolo=Almanacco illustrato del calcio - La storia 1898-2004|città=Modena|editore=Panini|anno=2004|cid=Melegari}}
+== Collegamenti esterni ==
+* {{cita web|http://www.rsssf.com/tablesi/ital48.html|Serie A 1947-1948 su RSSSF.com|lingua=en}}
+* {{cita web|url = http://www.enciclopediadelcalcio.it/4748.htm | titolo = Serie A 1947-1948 |urlmorto = sì |accesso = 25 novembre 2015|urlarchivio = https://web.archive.org/web/20151125210855/http://www.enciclopediadelcalcio.it/4748.htm }}
+{{Calcio Alessandria storico}}
+{{Calcio in Italia 1947-1948}}
+{{Portale|calcio}}

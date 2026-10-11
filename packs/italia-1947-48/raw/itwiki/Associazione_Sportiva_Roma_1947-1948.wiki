@@ -1,0 +1,1015 @@
+{{Torna a|Associazione Sportiva Roma}}
+{{Stagione squadra
+|sport=calcio
+|club = AS Roma
+|stagione = 1947-1948
+|immagine = AsRoma4748.jpg
+|didascalia = Una formazione della Roma nel 1947-1948
+|allenatore1 = {{Bandiera|HUN 1946-1949}} [[Imre Senkey]]<ref>Fino alla 26ª giornata.</ref>, poi<br />{{Bandiera|Italia}} [[Luigi Brunella]]<ref>Dalla 27ª in poi.</ref>
+|presidente = {{Bandiera|ITA}} Pietro Baldassarre
+|campionato = [[Serie A 1947-1948|Serie A]]
+|campionato posizione = 17º
+|presenze campionato = [[Fosco Risorti|Risorti]] (39)
+|marcatore campionato = [[Amedeo Amadei|Amadei]] (19)
+|stadio = [[Stadio Nazionale|Nazionale]]
+|stagione prima = [[Associazione Sportiva Roma 1946-1947|1946-1947]]
+|stagione dopo = [[Associazione Sportiva Roma 1948-1949|1948-1949]]
+}}
+Questa voce raccoglie le informazioni riguardanti l''''Associazione Sportiva Roma''' nelle competizioni ufficiali della stagione '''1947-1948'''.
+== Stagione ==
+Nella stagione 1947-1948 la Roma disputa il massimo campionato, un lungo torneo con 21 squadre, e quindi 42 giornate più 2 riposi. Rivince lo scudetto il "Grande" Torino, questa volta con un vantaggio abissale, 16 punti sul terzetto Milan, Triestina e Juventus. Nel corso della stagione sulla panchina giallorossa siede il tecnico ungherese [[Imre Senkey]], che pretende a tutti i costi l'acquisto dell'asso suo conterraneo [[Gyula Zsengellér]], centrocampista di grande peso ribattezzato dai tifosi "er professore", poiché uomo colto e pieno di interessi intellettuali, che costa alla Roma la cifra record per l'epoca di 14 milioni:<ref name=c2000>{{cita news|titolo=Gyula Szengellér|pubblicazione=[[Calcio 2000]]|giorno=13|mese=luglio|anno=2003|pagina=17}}</ref> decisamente spropositata per un trentunenne. Il nuovo acquisto garantisce un maggior peso specifico alla manovra di gioco, ma i risultati non arrivano a causa di un infortunio subito da [[Amedeo Amadei|Amadei]] durante un [[Derby di Roma|derby]] e per colpa degli altri giocatori acquistati dall'[[Argentina]] che non riescono a dimostrarsi all'altezza della situazione. Alla 26ª la panchina salta e al posto del tecnico ungherese viene messo uno dei veterani della squadra, [[Luigi Brunella]], con il doppio ruolo di allenatore e giocatore. Alla fine della stagione la squadra si classifica diciassettesima, sull'orlo della retrocessione. La partita decisiva per la salvezza dei giallorossi è la sfida alla penultima giornata con la {{Calcio Salernitana|NB}}, decisa da un gol di [[Luigi Brunella|Brunella]].<ref name=cor2>{{cita|Romano|titolo=1942-1964 Gli assi dell'Olimpico}}.</ref>
+
+== Divise ==
+La divisa primaria è costituita da maglia rossa con collo a V giallo, pantaloncini bianchi, calze rosse bordate di giallo; in trasferta viene usata una maglia bianca con colletto a polo, pantaloncini neri e calzettoni rossi bordati di giallo. Viene usata in alcune occasioni un'altra divisa nelle trasferte, costituita da maglia grigia con colletto rosso e banda rossa orizzontale con pantaloncini neri e calze a strisce orizzontali gialle e rosse. I portieri hanno una divisa costituita da maglia grigia con colletto a polo, pantaloncini neri e calzettoni rossi bordati di giallo.<ref>{{cita|Castellani, Ceci, de Conciliis|pp. 53-55}}.</ref>
+{|
+|
+{{Divisa Calcio
+|pattern_la =
+|leftarm = 880000
+|pattern_b =_asroma40sh
+|body = 880000
+|pattern_ra =
+|rightarm = 880000
+|shorts = FFFFFF
+|pattern_so =_asromah
+|socks = 000000
+|title = Casa
+}}
+|
+{{Divisa Calcio
+|pattern_la =
+|leftarm = FFFFFF
+|pattern_b =_asroma4748a
+|body = FFFFFF
+|pattern_ra =
+|rightarm = FFFFFF
+|shorts = 000000
+|pattern_so =_asromah
+|socks = 000000
+|title = Trasferta
+}}
+|
+{{Divisa Calcio
+|pattern_la =
+|leftarm = 858585
+|pattern_b =_asroma3031gk
+|body = 858585
+|pattern_ra =
+|rightarm = 858585
+|shorts = 000000
+|pattern_so =_asromah
+|socks = 030347
+|title = Portiere
+}}
+|}
+== Organigramma societario ==
+Di seguito l'organigramma societario.<ref name=cor2/>
+{{Colonne}}
+;Area direttiva
+* Presidente: [[Pietro Baldassarre]]
+;Area tecnica
+* Allenatore: [[Imre Senkey]], poi dalla ''27ª'' [[Luigi Brunella]]
+{{Colonne fine}}
+== Rosa ==
+Di seguito la rosa.<ref name=cor2/>
+{{Calciatore in rosa/inizio}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Cesare Francalancia]]|ruolo=P}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Fosco Risorti]]|ruolo=P}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Pietro Benedetti (calciatore)|Pietro Benedetti]]|ruolo=P}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Sergio Andreoli]]|ruolo=D}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Luigi Brunella]]|ruolo=D}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Corrado Contin]]|ruolo=D}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Onofrio Fusco]]|ruolo=D}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Sandro Puppo]]|ruolo=D}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Aldo Riva]]|ruolo=D}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Enrico Schiavetti]]|ruolo=D}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=Aldo Curti|ruolo=C}}
+{{Calciatore in rosa/medio}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Gianfranco Dell'Innocenti]]|ruolo=C}}
+{{Calciatore in rosa|n=|nazione=ARG|nome=[[Vicente Di Paola]]|ruolo=C}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Paolo Jacobini]]|ruolo=C}}
+{{Calciatore in rosa|n=|nazione=ARG|nome=[[Osvaldo Peretti]]|ruolo=C}}
+{{Calciatore in rosa|n=|nazione=ARG|nome=[[José Valle]]|ruolo=C}}
+{{Calciatore in rosa|n=|nazione=HUN 1946-1949|nome=[[Gyula Zsengellér]]|ruolo=C}}<ref>Acquistato durante la sessione invernale di calciomercato.</ref>
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Amedeo Amadei]]|altro=c|ruolo=A}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Stefano Ferrari]]|ruolo=A}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Omero Losi]]|ruolo=A}}
+{{Calciatore in rosa|n=|nazione=ARG|nome=[[Bruno Pesaola]]|ruolo=A}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Oliviero Zega]]|ruolo=A}}
+{{Calciatore in rosa/fine}}
+
+== Calciomercato ==
+Di seguito il calciomercato.<ref name=cor2/>
+{{colonne}}
+{| class="wikitable" style="font-size:90%"
+! colspan="4" | Acquisti
+|-
+! width=3% | R.
+! width=32% | Nome
+! width=30% | da
+! width=35% | Modalità
+|-
+| D ||[[Onofrio Fusco]]|| {{Calcio Bari|NB}} || ''definitivo''
+|-
+| D ||[[Sandro Puppo]]|| {{Calcio Venezia (1907-1987)|NB}} || ''definitivo''
+|-
+| D ||[[Aldo Riva]]|| {{Calcio Montevarchi|NB}} || ''definitivo''
+|-
+| C || Aldo Curti || {{Calcio Montevarchi|NB}} || ''definitivo''
+|-
+| C ||[[Gianfranco Dell'Innocenti]]|| {{Calcio Albatrastevere|NB}} || ''definitivo''
+|-
+| C ||[[Osvaldo Peretti]]||Argentino de Mendoza || ''definitivo''
+|-
+| C ||[[José Valle]]|| {{Calcio Temperley|NB}} || ''definitivo''
+|-
+| C ||[[Gyula Zsengellér]]|| {{Calcio Ujpest|NB}} || ''definitivo (14 milioni £)''<ref name=c2000/>
+|-
+| A ||[[Bruno Pesaola]]|| {{Calcio Sportivo Dock Sud|NB}} || ''definitivo''
+|-
+| A ||[[Oliviero Zega]]|| {{Calcio Salernitana|NB}} || ''definitivo''
+|}
+{{colonne spezza}}
+{| class="wikitable" style="font-size:90%"
+! colspan="4" | Cessioni
+|-
+! width=3% | R.
+! width=32% | Nome
+! width=30% | a
+! width=35% | Modalità
+|-
+| D ||[[Gregorio Esperón]]|| - || ''svincolato''
+|-
+| D ||[[Claudio Matteini]]|| {{Calcio Ternana|NB}} || ''definitivo''
+|-
+| C ||[[Alfredo Bordonali]]|| - || ''svincolato''
+|-
+| C || Alfredo Ciucci || ? ||''svincolato''
+|-
+| C ||[[Naim Krieziu]]|| {{Calcio Napoli|NB}} || ''definitivo (18 milioni £)''<ref>{{Cita web|url=http://www.asrtalenti.altervista.org/index.php?a=giocatori/krieziu_naim.htm|titolo=ASR Talenti, Krieziu|3=NB|dataarchivio=30 ottobre 2020|urlarchivio=https://web.archive.org/web/20201030053105/https://www.asrtalenti.altervista.org/index.php?a=giocatori%2Fkrieziu_naim.htm|urlmorto=sì}}</ref>
+|-
+| C ||[[Ruggero Salar]]|| {{Calcio Lucchese|NB}} || ''definitivo''
+|-
+| A ||[[Antonio Fusco (calciatore)|Antonio Fusco]]|| - || ''svincolato''
+|-
+| A ||[[Miguel Ángel Pantó]]|| - || ''fine carriera''
+|-
+| A ||[[Umberto Renica]]|| {{Calcio Como|NB}} || ''definitivo''
+|-
+| A ||[[Goffredo Stabellini]]|| {{Calcio Parma|NB}} || ''prestito''
+|}
+{{colonne fine}}
+
+== Risultati ==
+=== Serie A ===
+{{Vedi anche|Serie A 1947-1948}}
+==== Girone di andata ====
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 14 settembre
+|Anno = 1947
+|Ora =
+|Turno = 1ª giornata<ref>Partita disputata sul campo neutro di Siena.</ref>
+|Squadra 1 = Fiorentina
+|Squadra 2 = Roma
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Referto = http://www.asromaultras.org/4748FiorentinaRoma_CorrSport_01_af.JPG
+|Città = [[Siena]]
+|Stadio = [[Stadio Artemio Franchi (Siena)|Stadio del Rastrello]]
+|Spettatori = 12.000 circa
+|Arbitro = [[Virginio Canavesio]]
+|Cittarbitro = [[Torino]]
+|Marcatori 1 = [[Raoul Bortoletto|Bortoletto]] {{Goal|90}}
+|Marcatori 2 =
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 21 settembre
+|Anno = 1947
+|Ora =
+|Turno = 2ª giornata
+|Squadra 1 = Roma
+|Squadra 2 = Livorno
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Referto = http://www.asromaultras.org/4748RomaLivorno_CorrSport_02_af.JPG
+|Città = [[Roma]]
+|Stadio = [[Stadio Nazionale]]
+|Spettatori = 25.000 circa
+|Arbitro = [[Armando Marchetti]]
+|Cittarbitro = [[Milano]]
+|Marcatori 1 = [[Amedeo Amadei|Amadei]] {{Goal|16}}
+|Marcatori 2 =
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 28 settembre
+|Anno = 1947
+|Ora =
+|Turno = 3ª giornata
+|Squadra 1 = Bari
+|Squadra 2 = Roma
+|Punteggio 1 = 2
+|Punteggio 2 = 1
+|Referto = http://www.asromaultras.org/4748BariRoma_CorrSport_01_af.JPG
+|Città = [[Bari]]
+|Stadio = [[Stadio della Vittoria (Bari)|Stadio della Vittoria]]
+|Spettatori =
+|Arbitro = [[Ferruccio Bellè]]
+|Cittarbitro = [[Venezia]]
+|Marcatori 1 = [[Vincenzo Orlando|Orlando]] {{Goal|31}}<br/>[[Mario Tontodonati|Tontodonati]] {{Goal|47}}
+|Marcatori 2 = {{Goal|66}} [[Amedeo Amadei|Amadei]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 5 ottobre
+|Anno = 1947
+|Ora = 15:00
+|Turno = 4ª giornata
+|Squadra 1 = Roma
+|Squadra 2 = Torino
+|Punteggio 1 = 1
+|Punteggio 2 = 7
+|Referto = http://www.asromaultras.org/4748RomaTorino_CorrSport_02_af.JPG
+|Città = [[Roma]]
+|Stadio = [[Stadio Nazionale]]
+|Spettatori = 26.000 circa
+|Arbitro = [[Giorgio Bernardi]]
+|Cittarbitro = [[Bologna]]
+|Marcatori 1 = [[Amadeo Amadei|Amadei]] {{Goal|34}}
+|Marcatori 2 = {{Goal|60||63||74}} [[Valentino Mazzola|Mazzola]]<br />{{Goal|61}} [[Eusebio Castigliano|Castigliano]]<br />{{Goal|81||86}} [[Josef Fabian|Fabian]]<br />{{Goal|82}} [[Pietro Ferraris|Ferraris]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 12 ottobre
+|Anno = 1947
+|Ora =
+|Turno = 5ª giornata
+|Squadra 1 = Bologna
+|Squadra 2 = Roma
+|Punteggio 1 = 2
+|Punteggio 2 = 2
+|Referto = http://www.asromaultras.org/4748BolognaRoma_CorrSport_02_af.JPG
+|Città = [[Bologna]]
+|Stadio = [[Stadio Renato Dall'Ara|Stadio Comunale]]
+|Spettatori = 22.000 circa
+|Arbitro = [[Luigi Valsecchi (arbitro)|Luigi Valsecchi]]
+|Cittarbitro = [[Milano]]
+|Marcatori 1 = [[Gino Cappello|Cappello]] {{Goal|18}}<br />[[Sauro Taiti|Taiti]] {{Goal|84}}
+|Marcatori 2 = {{Goal|49}} [[Osvaldo Peretti|Peretti]]<br />{{Goal|69}} [[Bruno Pesaola|Pesaola]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 19 ottobre
+|Anno = 1947
+|Ora =
+|Turno = 6ª giornata
+|Note = Turno di riposo della ROMA
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 26 ottobre
+|Anno = 1947
+|Ora = 14:30
+|Turno = 7ª giornata
+|Squadra 1 = Roma
+|Squadra 2 = Atalanta
+|Punteggio 1 = 4
+|Punteggio 2 = 1
+|Referto = http://www.asromaultras.org/4748RomaAtalanta_CorrSport_03_af.JPG
+|Città = [[Roma]]
+|Stadio = [[Stadio Nazionale]]
+|Spettatori = 12.000 circa
+|Arbitro = [[Ermanno Silvano]]
+|Cittarbitro = [[Torino]]
+|Marcatori 1 = [[Amedeo Amadei|Amadei]] {{Goal|3||62}}<br/>[[Stefano Ferrari|Ferrari]] {{Goal|56||68}}
+|Marcatori 2 = {{Goal|90}} [[Giacomo Mari|Mari]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 2 novembre
+|Anno = 1947
+|Ora = 14:30
+|Turno = 8ª giornata
+|Squadra 1 = Roma
+|Squadra 2 = Pro Patria
+|Punteggio 1 = 1
+|Punteggio 2 = 1
+|Referto = http://www.asromaultras.org/4748RomaProPatria_CorrSport_03_af.JPG
+|Città = [[Roma]]
+|Stadio = [[Stadio Nazionale]]
+|Spettatori = 30.000 circa
+|Arbitro = [[Angelo Pizzato]]
+|Cittarbitro = [[Mestre]]
+|Marcatori 1 = [[Gyula Zsengellér|Zsengellér]] {{Goal|79}}
+|Marcatori 2 = {{Goal|40}} [[Angelo Turconi|Turconi]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 16 novembre
+|Anno = 1947
+|Ora = 14:30
+|Turno = 9ª giornata
+|Squadra 1 = Lazio
+|Squadra 2 = Roma
+|Punteggio 1 = 0
+|Punteggio 2 = 1
+|Referto =
+|Città = [[Roma]]
+|Stadio = [[Stadio Nazionale]]
+|Spettatori = 30.000 circa
+|Arbitro = [[Ferruccio Bellè]]
+|Cittarbitro = [[Venezia]]
+|Marcatori 2 = {{Goal|14}} [[Amedeo Amadei|Amadei]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 23 novembre
+|Anno = 1947
+|Ora = 14:30
+|Turno = 10ª giornata
+|Squadra 1 = Roma
+|Squadra 2 = Milan
+|Punteggio 1 = 1
+|Punteggio 2 = 4
+|Referto = http://www.asromaultras.org/roma%20milan%2047-48%20a.jpg
+|Città = [[Roma]]
+|Stadio = [[Stadio Nazionale]]
+|Spettatori = 22.000 circa
+|Arbitro = [[Giuseppe Zelocchi]]
+|Cittarbitro = [[Modena]]
+|Marcatori 1 = [[Gianfranco Dell'Innocenti|Dell'Innocenti]] {{Goal|50}}
+|Marcatori 2 = {{Goal|41||85}} [[Pietro Degano|Degano]]<br/>{{Goal|60}} [[Héctor Puricelli|Puricelli]]<br/>{{Goal|62}} [[Riccardo Carapellese|Carapellese]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 30 novembre
+|Anno = 1947
+|Ora =
+|Turno = 11ª giornata
+|Squadra 1 = Vicenza
+|Squadra 2 = Roma
+|Punteggio 1 = 1
+|Punteggio 2 = 1
+|Referto = http://www.asromaultras.org/4748VicenzaRoma_CorrSport_01_af.JPG
+|Città = [[Vicenza]]
+|Stadio = [[Stadio Romeo Menti|Stadio Comunale]]
+|Spettatori = 8.000 circa
+|Arbitro = [[Eliseo Camiolo]]
+|Cittarbitro = [[Milano]]
+|Marcatori 1 = [[Andrea Campana|Campana]] {{Goal|88}}
+|Marcatori 2 = {{Goal|4}} [[Paolo Jacobini|Jacobini]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 7 dicembre
+|Anno = 1947
+|Ora =
+|Turno = 12ª giornata
+|Squadra 1 = Roma
+|Squadra 2 = Sampdoria
+|Punteggio 1 = 2
+|Punteggio 2 = 0
+|Referto = http://www.asromaultras.org/4748RomaSamppdoria_CorrSport_01_af.JPG
+|Città = [[Roma]]
+|Stadio = [[Stadio Nazionale]]
+|Spettatori = 15.000 circa
+|Arbitro = [[Giuseppe Carpani (arbitro)|Giuseppe Carpani]]
+|Cittarbitro = [[Milano]]
+|Marcatori 1 = [[Stefano Ferrari|Ferrari]] {{Goal|15||29}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 21 dicembre
+|Anno = 1947
+|Ora =
+|Turno = 13ª giornata
+|Squadra 1 = Napoli
+|Squadra 2 = Roma
+|Punteggio 1 = 1
+|Punteggio 2 = 2
+|Referto = http://www.asromaultras.org/4748NapoliRoma_CorrSport_03_af.JPG
+|Città = [[Napoli]]
+|Stadio = [[Stadio Arturo Collana|Stadio della Liberazione]]
+|Spettatori = 20.000 circa
+|Arbitro = [[Giorgio Bernardi]]
+|Cittarbitro = [[Bologna]]
+|Marcatori 1 = [[Andrea Verrina|Verrina]] {{Goal|56}}
+|Marcatori 2 = {{Goal|48||89}} [[Bruno Pesaola|Pesaola]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 28 dicembre
+|Anno = 1947
+|Ora =
+|Turno = 14ª giornata
+|Squadra 1 = Roma
+|Squadra 2 = Juventus
+|Punteggio 1 = 2
+|Punteggio 2 = 3
+|Referto = http://www.asromaultras.org/4748RomaJuventus_CorrSport_01_af.JPG
+|Città = [[Roma]]
+|Stadio = [[Stadio Nazionale]]
+|Spettatori = 30.000 circa
+|Arbitro = [[Giuseppe Zelocchi]]
+|Cittarbitro = [[Modena]]
+|Marcatori 1 = [[Bruno Pesaola|Pesaola]] {{Goal|12}}<br/>[[Vicente Di Paola|Di Paola]] {{Goal|62}}
+|Marcatori 2 = {{Goal|9||36}} [[Giampiero Boniperti|Boniperti]]<br/>{{Goal|77}} [[Pietro Rava|Rava]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 1º gennaio
+|Anno = 1948
+|Ora =
+|Turno = 15ª giornata
+|Squadra 1 = Alessandria
+|Squadra 2 = Roma
+|Punteggio 1 = 4
+|Punteggio 2 = 0
+|Referto = http://www.asromaultras.org/4748AlessandriaRoma_CorrSport_02_af.JPG
+|Città =[[Alessandria (Italia)|Alessandria]]
+|Stadio = [[Stadio Giuseppe Moccagatta]]
+|Spettatori = 10.500 circa
+|Arbitro = [[Vittorio Pera]]
+|Cittarbitro = [[Firenze]]
+|Marcatori 1 = [[Carlo Stradella|Stradella]] {{Goal|25||40||52||89}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 4 gennaio
+|Anno = 1948
+|Ora =
+|Turno = 16ª giornata
+|Squadra 1 = Genoa
+|Squadra 2 = Roma
+|Punteggio 1 = 2
+|Punteggio 2 = 4
+|Referto = http://www.asromaultras.org/4748GenoaRoma_CorrSport_01_af.JPG
+|Città = [[Genova]]
+|Stadio = [[Stadio Luigi Ferraris]]
+|Spettatori = 25.000 circa
+|Arbitro = [[Ermanno Silvano]]
+|Cittarbitro = [[Torino]]
+|Marcatori 1 = [[Amedeo Cattani|Cattani]] {{Goal|5}}<br/>[[Riccardo Dalla Torre|Dalla Torre]] {{Goal|13}}
+|Marcatori 2 = {{Goal|20||25||43}} [[Bruno Pesaola|Pesaola]]<br/>{{Goal|65}} [[Stefano Ferrari|Ferrari]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 11 gennaio
+|Anno = 1948
+|Ora =
+|Turno = 17ª giornata
+|Squadra 1 = Roma
+|Squadra 2 = Inter
+|Punteggio 1 = 2
+|Punteggio 2 = 3
+|Referto = http://www.asromaultras.org/4748RomaInter_CorrSport_02_af.JPG
+|Città = [[Roma]]
+|Stadio = [[Stadio Nazionale]]
+|Spettatori = 25.000 circa
+|Arbitro = [[Giovanni Galeati]]
+|Cittarbitro = [[Bologna]]
+|Marcatori 1 = [[Vicente Di Paola|Di Paola]] {{Goal|12}}<br/>[[Stefano Ferrari|Ferrari]] {{Goal|30}}
+|Marcatori 2 = {{Goal|24}} [[Rinaldo Fiumi|Fiumi]]<br/>{{Goal|67}} [[Osvaldo Fattori|Fattori]]<br/>{{Goal|84}} [[Benito Lorenzi|Lorenzi]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 18 gennaio
+|Anno = 1948
+|Ora =
+|Turno = 18ª giornata
+|Squadra 1 = Triestina
+|Squadra 2 = Roma
+|Punteggio 1 = 2
+|Punteggio 2 = 0
+|Referto = http://www.asromaultras.org/4748TriestinaRoma_CorrSport_02_af.JPG
+|Città = [[Trieste]]
+|Stadio = [[Stadio Giuseppe Grezar|Stadio Comunale]]
+|Spettatori = 12.000 circa
+|Arbitro = [[Mario Cambi]]
+|Cittarbitro = [[Livorno]]
+|Marcatori 1 = [[Bruno Ispiro|Ispiro]] {{Goal|18}}<br/>[[Mario Tosolini|Tosolini]] {{Goal|38}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 25 gennaio
+|Anno = 1948
+|Ora = 15:00
+|Turno = 19ª giornata
+|Squadra 1 = Roma
+|Squadra 2 = Lucchese
+|Punteggio 1 = 4
+|Punteggio 2 = 2
+|Referto = http://www.asromaultras.org/4748RomaLucchese_CorrSport_03_af.JPG
+|Città = [[Roma]]
+|Stadio = [[Stadio Nazionale]]
+|Spettatori = 10.000 circa
+|Arbitro = [[Armando Marchetti]]
+|Cittarbitro = [[Milano]]
+|Marcatori 1 = [[Gyula Zsengellér|Zsengellér]] {{Goal|13||43}}<br/>[[Amedeo Amadei|Amadei]] {{Goal|49||70}}
+|Marcatori 2 = {{Goal|33}} [[Athos Miniati|Miniati]]<br/>{{Goal|55}} [[Giovanni Clocchiatti|Clocchiatti]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 1º febbraio
+|Anno = 1948
+|Ora =
+|Turno = 20ª giornata
+|Squadra 1 = Salernitana
+|Squadra 2 = Roma
+|Punteggio 1 = 0
+|Punteggio 2 = 1
+|Referto = http://www.asromaultras.org/4748SalernitanaRoma_CorrSport_01_af.JPG
+|Città = [[Salerno]]
+|Stadio = [[Stadio Donato Vestuti|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Virginio Canavesio]]
+|Cittarbitro = [[Torino]]
+|Marcatori 2 = {{Goal|74}} [[Bruno Pesaola|Pesaola]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 8 febbraio
+|Anno = 1948
+|Ora = 15:00
+|Turno = 21ª giornata
+|Squadra 1 = Roma
+|Squadra 2 = Modena
+|Punteggio 1 = 0
+|Punteggio 2 = 0
+|Referto = http://www.asromaultras.org/4748RomaModena_CorrSport_02_af.JPG
+|Città = [[Roma]]
+|Stadio = [[Stadio Nazionale]]
+|Spettatori = 20.000 circa
+|Arbitro = [[Giacomo Bertolio]]
+|Cittarbitro = [[Torino]]
+}}
+
+==== Girone di ritorno ====
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 15 febbraio
+|Anno = 1948
+|Ora =
+|Turno = 22ª giornata
+|Squadra 1 = Roma
+|Squadra 2 = Fiorentina
+|Punteggio 1 = 0
+|Punteggio 2 = 1
+|Referto = http://www.asromaultras.org/4748RomaFiorentina_CorrSport_01_af.JPG
+|Città = [[Roma]]
+|Stadio = [[Stadio Nazionale]]
+|Spettatori = 26.000 circa
+|Arbitro = [[Ermanno Silvano]]
+|Cittarbitro = [[Torino]]
+|Marcatori 1 =
+|Marcatori 2 = {{Goal|71}} [[Alberto Galassi|Galassi]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 22 febbraio
+|Anno = 1948
+|Ora =
+|Turno = 23ª giornata
+|Squadra 1 = Livorno
+|Squadra 2 = Roma
+|Punteggio 1 = 2
+|Punteggio 2 = 1
+|Referto = http://www.asromaultras.org/4748LivornoRoma_CorrSport_01_af.JPG
+|Città = [[Livorno]]
+|Stadio = [[Stadio Armando Picchi|Stadio Ardenza]]
+|Spettatori = 3.000 circa
+|Arbitro = [[Bruno Tassini]]
+|Cittarbitro = [[Verona]]
+|Marcatori 1 = [[Guido Tieghi|Tieghi]] {{Goal|26}}<br/>[[Bruno Dante|Dante]] {{Goal|41}}
+|Marcatori 2 = {{Goal|22|rig.}} [[Amedeo Amadei|Amadei]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 29 febbraio
+|Anno = 1948
+|Ora = 15:30
+|Turno = 24ª giornata
+|Squadra 1 = Roma
+|Squadra 2 = Bari
+|Punteggio 1 = 0
+|Punteggio 2 = 0
+|Referto = http://www.asromaultras.org/4748RomaBari_CorrSport_02_af.JPG
+|Città = [[Roma]]
+|Stadio = [[Stadio Nazionale]]
+|Spettatori = 18.000 circa
+|Arbitro = [[Mario Codeluppi]]
+|Cittarbitro = [[Lodi]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 7 marzo
+|Anno = 1948
+|Ora = 15:30
+|Turno = 25ª giornata
+|Squadra 1 = Torino
+|Squadra 2 = Roma
+|Punteggio 1 = 4
+|Punteggio 2 = 1
+|Referto = http://www.asromaultras.org/4748TorinoRoma_CorrSport_02_af.JPG
+|Città = [[Torino]]
+|Stadio = [[Stadio Filadelfia]]
+|Spettatori = 18.000
+|Arbitro = [[Eriprando Poggipollini]]
+|Cittarbitro = [[Ferrara]]
+|Marcatori 1 = [[Ezio Loik|Loik]] {{Goal|20}}<br/>[[Danilo Martelli|Martelli]] {{Goal|63}}<br/>[[Franco Ossola|Ossola]] {{Goal|70}}<br/>[[Romeo Menti|R. Menti]] {{Goal|86}}
+|Marcatori 2 = {{Goal|10}} [[Vicente Di Paola|Di Paola]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 14 marzo
+|Anno = 1948
+|Ora = 15:30
+|Turno = 26ª giornata
+|Squadra 1 = Roma
+|Squadra 2 = Bologna
+|Punteggio 1 = 0
+|Punteggio 2 = 2
+|Referto = http://www.asromaultras.org/4748RomaBologna_CorrSport_02_af.JPG
+|Città = [[Roma]]
+|Stadio = [[Stadio Nazionale]]
+|Spettatori = 17.000 circa
+|Arbitro = [[Lelio Coppolone]]
+|Cittarbitro = [[Bari]]
+|Marcatori 2 = {{Goal|80}} [[Sauro Taiti|Taiti]]<br/>{{Goal|87}} [[Mario Gritti|Gritti]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 21 marzo
+|Anno = 1948
+|Ora =
+|Turno = 27ª giornata
+|Note = Turno di riposo della ROMA
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 28 marzo
+|Anno = 1948
+|Ora =
+|Turno = 28ª giornata
+|Squadra 1 = Atalanta
+|Squadra 2 = Roma
+|Punteggio 1 = 1
+|Punteggio 2 = 1
+|Referto = http://www.asromaultras.org/4748AtalantaRoma_CorrSport_01_af.JPG
+|Città = [[Bergamo]]
+|Stadio = [[Stadio Atleti Azzurri d'Italia|Stadio Comunale]]
+|Spettatori = 4.000 circa
+|Arbitro = [[Giorgio Bernardi]]
+|Cittarbitro = [[Bologna]]
+|Marcatori 1 = [[Severo Cominelli|Cominelli]] {{Goal|49}}
+|Marcatori 2 = {{Goal|75}} [[Amedeo Amadei|Amadei]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 11 aprile
+|Anno = 1948
+|Ora =
+|Turno = 29ª giornata
+|Squadra 1 = Pro Patria
+|Squadra 2 = Roma
+|Punteggio 1 = 2
+|Punteggio 2 = 2
+|Referto = http://www.asromaultras.org/4748ProPatriaRoma_CorrSport_01_af.JPG
+|Città = [[Busto Arsizio]]
+|Stadio = [[Stadio Carlo Speroni|Stadio Comunale]]
+|Spettatori = 8.000 circa
+|Arbitro = [[Ermanno Silvano]]
+|Cittarbitro = [[Torino]]
+|Marcatori 1 = [[Enrico Candiani|Candiani]] {{Goal|10||52|rig.}}
+|Marcatori 2 = {{Goal|34}} [[Amedeo Amadei|Amadei]]<br/>{{Goal|80}} [[Omero Losi|Losi]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 21 aprile
+|Anno = 1948
+|Ora = 16:30
+|Turno = 30ª giornata
+|Squadra 1 = Roma
+|Squadra 2 = Lazio
+|Punteggio 1 = 0
+|Punteggio 2 = 2
+|Referto = http://www.asromaultras.org/4748RomaLazie_CorrSport_07_af.JPG
+|Città = [[Roma]]
+|Stadio = [[Stadio Nazionale]]
+|Spettatori = 30.000 circa
+|Arbitro = [[Giacomo Bertolio]]
+|Cittarbitro = [[Torino]]
+|Marcatori 1 =
+|Marcatori 2 = {{Goal|46}} [[Flavio Cecconi|Cecconi]]<br/>{{Goal|52}} [[Costantino De Andreis|De Andreis]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 25 aprile
+|Anno = 1948
+|Ora =
+|Turno = 31ª giornata
+|Squadra 1 = Milan
+|Squadra 2 = Roma
+|Punteggio 1 = 2
+|Punteggio 2 = 2
+|Referto = http://www.asromaultras.org/milan%20roma%2047-48%20azz.jpg
+|Città = [[Milano]]
+|Stadio = [[Stadio Giuseppe Meazza|Stadio San Siro]]
+|Spettatori = 20.000 circa
+|Arbitro = [[Ferruccio Bellè]]
+|Cittarbitro = [[Venezia]]
+|Marcatori 1 = [[Carlo Annovazzi|Annovazzi]] {{Goal|38}}<br/>[[Héctor Puricelli|Puricelli]] {{Goal|76}}
+|Marcatori 2 = {{Goal|19}} [[Amedeo Amadei|Amadei]]<br/>{{Goal|45}} [[Bruno Pesaola|Pesaola]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 2 maggio
+|Anno = 1948
+|Ora = 16:00
+|Turno = 32ª giornata
+|Squadra 1 = Roma
+|Squadra 2 = Vicenza
+|Punteggio 1 = 2
+|Punteggio 2 = 0
+|Referto = http://www.asromaultras.org/4748RomaVicenza_CorrSport_02_af.JPG
+|Città = [[Roma]]
+|Stadio = [[Stadio Nazionale]]
+|Spettatori = 12.000 circa
+|Arbitro = [[Armando Marchetti]]
+|Cittarbitro = [[Milano]]
+|Marcatori 1 = [[Sergio Andreoli|Andreoli]] {{Goal|9}}<br/>[[Andrea Campana|Campana]] {{Goal|40|aut}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 6 maggio
+|Anno = 1948
+|Ora =
+|Turno = 33ª giornata
+|Squadra 1 = Sampdoria
+|Squadra 2 = Roma
+|Punteggio 1 = 2
+|Punteggio 2 = 1
+|Referto = http://www.asromaultras.org/4748SampdoriaRoma_CorrSport_02_af.JPG
+|Città = [[Genova]]
+|Stadio = [[Stadio Luigi Ferraris]]
+|Spettatori = 10.000 circa
+|Arbitro = [[Eliseo Camiolo]]
+|Cittarbitro = [[Milano]]
+|Marcatori 1 = [[Adriano Bassetto|Bassetto]] {{Goal|3}}<br/>[[Giuseppe Carissimi|Carissimi]] {{Goal|76}}
+|Marcatori 2 = {{Goal|56}} [[Amedeo Amadei|Amadei]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 9 maggio
+|Anno = 1948
+|Ora = 16:00
+|Turno = 34ª giornata
+|Squadra 1 = Roma
+|Squadra 2 = Napoli
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Referto = http://www.asromaultras.org/4748RomaNapoli_CorrSport_02_af.JPG
+|Città = [[Roma]]
+|Stadio = [[Stadio Nazionale]]
+|Spettatori = 30.000 circa
+|Arbitro = [[Giorgio Bernardi]]
+|Cittarbitro = [[Bologna]]
+|Marcatori 1 = [[Amedeo Amadei|Amadei]] {{Goal|56}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 23 maggio
+|Anno = 1948
+|Ora =
+|Turno = 35ª giornata
+|Squadra 1 = Juventus
+|Squadra 2 = Roma
+|Punteggio 1 = 3
+|Punteggio 2 = 0
+|Referto = http://www.asromaultras.org/4748JuventusRoma_CorrSport_01_af.JPG
+|Città = [[Torino]]
+|Stadio = [[Stadio Olimpico (Torino)|Stadio Comunale]]
+|Spettatori = 14.000 circa
+|Arbitro = [[Bruno Tassini]]
+|Cittarbitro = [[Verona]]
+|Marcatori 1 = [[Francesco Cergoli|Cergoli]] {{Goal|66}}<br/>[[Giampiero Boniperti|Boniperti]] {{Goal|73||78}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 27 maggio
+|Anno = 1948
+|Ora = 16
+|Turno = 36ª giornata
+|Squadra 1 = Roma
+|Squadra 2 = Alessandria
+|Punteggio 1 = 4
+|Punteggio 2 = 1
+|Referto = http://www.asromaultras.org/4748RomaAlessandria_CorrSport_03_af.JPG
+|Città = [[Roma]]
+|Stadio = [[Stadio Nazionale]]
+|Spettatori = 8.000 circa
+|Arbitro = [[Bruno Zilli]]
+|Cittarbitro = [[Reggio Emilia]]
+|Marcatori 1 = [[Gyula Zsengellér|Zsengellér]] {{Goal|66||75}}<br/>[[José Valle|Valle]] {{Goal|74}}<br/>[[Omero Losi|Losi]] {{Goal|85}}
+|Marcatori 2 = {{Goal|1}} [[Fabio Frugali|Frugali]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 30 maggio
+|Anno = 1948
+|Ora =
+|Turno = 37ª giornata
+|Squadra 1 = Roma
+|Squadra 2 = Genoa
+|Punteggio 1 = 3
+|Punteggio 2 = 0
+|Referto = http://www.asromaultras.org/4748RomaGenoa_CorrSport_01_af.JPG
+|Città = [[Roma]]
+|Stadio = [[Stadio Nazionale]]
+|Spettatori =
+|Arbitro = [[Osvaldo Savio]]
+|Cittarbitro = [[Torino]]
+|Marcatori 1 = [[Amedeo Amadei|Amadei]] {{Goal|3||56}}<br/>[[Bruno Pesaola|Pesaola]] {{Goal|77}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 6 giugno
+|Anno = 1948
+|Ora =
+|Turno = 38ª giornata
+|Squadra 1 = Inter
+|Squadra 2 = Roma
+|Punteggio 1 = 3
+|Punteggio 2 = 2
+|Referto = http://www.asromaultras.org/4748InterRoma_CorrSport_01_af.JPG
+|Città = [[Milano]]
+|Stadio = [[Stadio Giuseppe Meazza|Stadio San Siro]]
+|Spettatori = 15.000 circa
+|Arbitro = [[Ermanno Silvano]]
+|Cittarbitro = [[Torino]]
+|Marcatori 1 = [[Giacomo Neri|G. Neri]] {{Goal|9}}<br/>[[Nicolae Simatoc|Simatoc]] {{Goal|17}}<br/>[[Camillo Achilli|Achilli]] {{Goal|75}}
+|Marcatori 2 = {{Goal|28||67}} [[Amedeo Amadei|Amadei]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 13 giugno
+|Anno = 1948
+|Ora =
+|Turno = 39ª giornata
+|Squadra 1 = Roma
+|Squadra 2 = Triestina
+|Punteggio 1 = 1
+|Punteggio 2 = 3
+|Referto = http://www.asromaultras.org/4748RomaTriestina_CorrSport_01_af.JPG
+|Città = [[Roma]]
+|Stadio = [[Stadio Nazionale]]
+|Spettatori =
+|Arbitro = [[Virginio Canavesio]]
+|Cittarbitro = [[Torino]]
+|Marcatori 1 = [[Omero Losi|Losi]] {{Goal|27}}
+|Marcatori 2 = [[Bruno Ispiro|Ispiro]] {{Goal|20}}<br/>[[Corrado Contin|Contin]] {{Goal|23|aut.}}<br/>[[Mario Begni|Begni]] {{Goal|77}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 20 giugno
+|Anno = 1948
+|Ora =
+|Turno = 40ª giornata
+|Squadra 1 = Lucchese
+|Squadra 2 = Roma
+|Punteggio 1 = 2
+|Punteggio 2 = 2
+|Referto = http://www.asromaultras.org/4748LuccheseRoma_CorrSport_01_af.JPG
+|Città = [[Lucca]]
+|Stadio = [[Stadio Porta Elisa]]
+|Spettatori =
+|Arbitro = [[Ferruccio Bellè]]
+|Cittarbitro = [[Venezia]]
+|Marcatori 1 = [[Ugo Conti (calciatore)|U. Conti]] {{Goal|7||72}}
+|Marcatori 2 = {{Goal|47}} [[Bruno Pesaola|Pesaola]]<br/>{{Goal|50}} [[Amedeo Amadei|Amadei]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 27 giugno
+|Anno = 1948
+|Ora =
+|Turno = 41ª giornata
+|Squadra 1 = Roma
+|Squadra 2 = Salernitana
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Referto = http://www.asromaultras.org/4748RomaSalernitana_CorrSport_01_af.JPG
+|Città = [[Roma]]
+|Stadio = [[Stadio Nazionale]]
+|Spettatori =
+|Arbitro = [[Vittorio Pera]]
+|Cittarbitro = [[Firenze]]
+|Marcatori 1 = [[Luigi Brunella|Brunella]] {{Goal|50}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 4 luglio
+|Anno = 1948
+|Ora =
+|Turno = 42ª giornata
+|Squadra 1 = Modena
+|Squadra 2 = Roma
+|Punteggio 1 = 3
+|Punteggio 2 = 0
+|Referto = http://www.asromaultras.org/4748ModenaRoma_CorrSport_01_af.JPG
+|Città = [[Modena]]
+|Stadio = [[Stadio Alberto Braglia|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Giacomo Bertolio]]
+|Cittarbitro = [[Torino]]
+|Marcatori 1 = [[Sergio Bertoni|Bertoni]] {{Goal|42}}<br/>[[Giovan Battista Fabbri (allenatore di calcio)|G.B. Fabbri]] {{Goal|56}}<br />[[Ermanno Malinverni|Malinverni]] {{Goal|62}}
+}}
+
+== Statistiche ==
+=== Statistiche di squadra ===
+Di seguito le statistiche di squadra.<ref name=cor2/>
+{{Statistiche_squadra
+|comp1={{simbolo|Scudetto.svg|15}} [[Serie A 1947-1948|Serie A]]
+|punti1=35
+|cv1=9
+|cn1=3
+|cp1=8
+|cgf1=30
+|cgs1=30
+|tv1=4
+|tn1=6
+|tp1=10
+|tgf1=24
+|tgs1=40
+}}
+=== Andamento in campionato ===
+{{Andamento |nr=42}}
+{{Andamento/Luogo |m1=T |m2=C |m3=T |m4=C |m5=T |m6= |m7=C |m8=C |m9=T |m10=C |m11=T |m12=C |m13=T |m14=C |m15=T |m16=T |m17=C |m18=T |m19=C |m20=T |m21=C |m22=C |m23=T |m24=C |m25=T |m26=C |m27= |m28=T |m29=T |m30=C |m31=T |m32=C |m33=T |m34=C |m35=T |m36=C |m37=C |m38=T |m39=C |m40=T |m41=C |m42=T }}
+{{Andamento/Risultato 	|m1=P |m2=V |m3=P |m4=P |m5=N |m6=- |m7=V |m8=N |m9=V |m10=P |m11=N |m12=V |m13=V |m14=P |m15=P |m16=V |m17=P |m18=P |m19=V |m20=V |m21=N |m22=P |m23=P |m24=N |m25=P |m26=P |m27=- |m28=N |m29=N |m30=P |m31=N |m32=V |m33=P |m34=V |m35=P |m36=V |m37=V |m38=P |m39=P |m40=N |m41=V |m42=P }}
+{{Andamento/Posizione |r=18 |m1=14 |m2=6 |m3=12 |m4=16 |m5=16 |m6=18 |m7=17 |m8=16 |m9=12 |m10=14 |m11=13 |m12=9 |m13=7 |m14=9 |m15=14 |m16=10 |m17=12 |m18=14 |m19=11 |m20=10 |m21=9 |m22=11 |m23=12 |m24=12 |m25=13 |m26=15 |m27=17 |m28=15 |m29=14 |m30=14 |m31=15 |m32=14 |m33=15 |m34=15 |m35=16 |m36=14 |m37=13 |m38=14 |m39=15 |m40=15 |m41=13 |m42=17 }}
+{{Andamento/Fine}}
+
+=== Statistiche dei giocatori ===
+Desunte dalle testate giornalistiche dell'epoca.<ref>A completamento va conteggiato un autogol.</ref>
+{{Statistiche dei giocatori
+| Competizione1 = Serie A
+| Cartellini = no
+| Totale = no
+| {{Sortname|P.|Benedetti|Pietro Benedetti (calciatore)}} {{Sommastat|C=no |0|-0|?|? }}
+| {{Sortname|C.|Francalancia|Cesare Francalancia}} {{Sommastat|C=no |1|-2|?|? }}
+| {{Sortname|F.|Risorti|Fosco Risorti}} {{Sommastat|C=no |39|-68|?|? }}
+| {{Sortname|S.|Andreoli|Sergio Andreoli}} {{Sommastat|C=no |35|1|?|? }}
+| {{Sortname|L.|Brunella|Luigi Brunella}} {{Sommastat|C=no |12|1|?|? }}
+| {{Sortname|C.|Contin|Corrado Contin}} {{Sommastat|C=no |34|0|?|? }}
+| {{Sortname|O.|Fusco|Onofrio Fusco}} {{Sommastat|C=no |26|0|?|? }}
+| {{Sortname|S.|Puppo|Sandro Puppo}} {{Sommastat|C=no |14|0|?|? }}
+| {{Sortname|A.|Riva|Aldo Riva}} {{Sommastat|C=no |10|0|?|? }}
+| {{Sortname|E.|Schiavetti|Enrico Schiavetti}} {{Sommastat|C=no |15|0|?|? }}
+| {{Sortname|A.|Curti|Aldo Curti (calciatore)}} {{Sommastat|C=no |1|0|?|? }}
+| {{Sortname|G.|Dell'Innocenti|Gianfranco Dell'Innocenti}} {{Sommastat|C=no |22|1|?|? }}
+| {{Sortname|V.|Di Paola|Vicente Di Paola}} {{Sommastat|C=no |32|3|?|? }}
+| {{Sortname|P.|Jacobini|Paolo Jacobini}} {{Sommastat|C=no |20|1|?|? }}
+| {{Sortname|O.|Peretti|Osvaldo Peretti}} {{Sommastat|C=no |7|1|?|? }}
+| {{Sortname|J.|Valle|José Valle}} {{Sommastat|C=no |26|1|?|? }}
+| {{Sortname|G.|Zsengellér|Gyula Zsengellér}} {{Sommastat|C=no |28|5|?|? }}
+| {{Sortname|A.|Amadei|Amedeo Amadei}} {{Sommastat|C=no |35|19|?|? }}
+| {{Sortname|S.|Ferrari|Stefano Ferrari}} {{Sommastat|C=no |27|6|?|? }}
+| {{Sortname|O.|Losi|Omero Losi}} {{Sommastat|C=no |17|3|?|? }}
+| {{Sortname|B.|Pesaola|Bruno Pesaola}} {{Sommastat|C=no |38|11|?|? }}
+| {{Sortname|O.|Zega|Oliviero Zega}} {{Sommastat|C=no |1|0|?|? }}
+}}
+== Note ==
+<references/>
+== Bibliografia ==
+* {{cita libro|autore=Paolo Castellani|autore2=Massimiliano Ceci|autore3=Riccardo de Conciliis|città=Roma|titolo=La maglia che ci unisce. Storia delle divise dell'AS Roma dalla nascita ai giorni nostri|editore=Goalbook Edizioni|anno=2012|isbn=978-88-908115-0-0|cid=Castellani, Ceci, de Conciliis}}
+=== Videografia ===
+* {{cita TV|autore=Manuela Romano (a cura di)|trasmissione=La storia della A.S. Roma|canale=Corriere dello Sport, Rai Trade|anno=2006|tipo=10 DVD-Video|cid=Romano}}
+== Collegamenti esterni ==
+* {{cita web|http://www.asroma.it/|Sito ufficiale}}
+* {{cita web|http://www.rsssf.com/tablesi/ital48.html|Serie A 1947-1948 su Rsssf.com|lingua=en}}
+* {{cita web|http://www.transfermarkt.it/as-rom/transfers/verein/12/saison_id/1947|Profilo e statistiche su Transfermarkt.it|lingua=it, en, de}}
+{{Calcio Roma storico}}
+{{Calcio in Italia 1947-1948}}
+{{Portale|calcio}}

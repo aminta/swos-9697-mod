@@ -1,0 +1,952 @@
+{{torna a|Società Sportiva Lazio}}
+{{Stagione squadra
+|sport=calcio
+|club = SS Lazio
+|stagione = 1947-1948
+|immagine = Lazio 1947-48.jpg
+|didascalia = Una formazione della Lazio 1947-48
+|allenatore1 = {{Bandiera|AUT}} [[Tony Cargnelli]]<ref>1ª-21ª</ref>, poi <br /> {{Bandiera|Italia}} [[Orlando Tognotti]]<ref>Dalla 22ª giornata - 15 febbraio 1948</ref>
+|presidente = {{Bandiera|ITA}} [[Andrea Ercoli]], poi<br>{{Bandiera|ITA}} [[Renato Bornigia]]
+|campionato = [[Serie A 1947-1948|Serie A]]
+|campionato posizione = 10º
+|marcatore campionato = [[Romano Penzo|Penzo]] (17)
+|presenze campionato = [[Romolo Alzani|Alzani]] (38)
+|stadio = [[Stadio Nazionale|Nazionale]]
+|stagione prima = [[Società Sportiva Lazio 1946-1947|1946-1947]]
+|stagione dopo = [[Società Sportiva Lazio 1948-1949|1948-1949]]
+|aggiornato = 26 luglio 2026
+}}
+Questa voce raccoglie le informazioni riguardanti la '''Società Sportiva Lazio''' nelle competizioni ufficiali della stagione '''1947-1948'''.
+
+== Stagione ==
+Nella stagione 1947-1948 la Lazio, affidata al tecnico austriaco Tony Cargnelli, disputa il massimo campionato, un torneo maratona, con un format di 21 squadre e quindi 42 giornate di campionato più due riposi, cose mai viste in Serie A. La squadra biancoazzurra capitolina si classifica al decimo posto con 39 punti. Ancora una volta lo scudetto tricolore va al "Grande" Torino con sedici punti di vantaggio su Milan e Juventus. A metà febbraio dopo la sconfitta di Genova (2-1) con la Sampdoria, e la Lazio a 17 punti, appena sopra la zona pericolosa, viene esonerato il tecnico austriaco e affidata la conduzione a Orlando Tognotti fino al termine della stagione. Miglior realizzatore laziale Romano Penzo, arrivato in estate dal Brescia, che ha messo la firma su 17 reti.
+
+== Organigramma societario ==
+{{Colonne}}
+'''''Area direttiva'''''
+* Presidente: [[Andrea Ercoli]], poi Renato Bornigia
+{{Colonne spezza}}
+'''''Area tecnica'''''
+* Allenatore: [[Tony Cargnelli]], da febbraio [[Orlando Tognotti]]
+{{Colonne fine}}
+== Rosa ==
+{{Calciatore in rosa/inizio}}
+{{Calciatore in rosa|n=|ruolo=P|nazione=ITA|nome=[[Corrado Giubilo]]}}
+{{Calciatore in rosa|n=|ruolo=P|nazione=ITA|nome=[[Uber Gradella]]}}
+{{Calciatore in rosa|n=|ruolo=D|nazione=ITA|nome=[[Francesco Antonazzi]]}}
+{{Calciatore in rosa|n=|ruolo=D|nazione=ITA|nome=[[Emilio Carton]]}}
+{{Calciatore in rosa|n=|ruolo=D|nazione=ITA|nome=[[Alessandro Ferri]]}}
+{{Calciatore in rosa|n=|ruolo=D|nazione=ITA|nome=[[Sergio Piacentini]]}}
+{{Calciatore in rosa|n=|ruolo=D|nazione=ITA|nome=[[Leandro Remondini]]}}
+{{Calciatore in rosa|n=|ruolo=C|nazione=ITA|nome=[[Romolo Alzani]]}}
+{{Calciatore in rosa|n=|ruolo=C|nazione=ITA|nome=[[Cesare Brunetti]]}}
+{{Calciatore in rosa|n=|ruolo=C|nazione=ITA|nome=[[Flavio Cecconi]]}}
+{{Calciatore in rosa|n=|ruolo=C|nazione=ITA|nome=[[Sergio Del Pinto]]}}
+{{Calciatore in rosa/medio}}
+{{Calciatore in rosa|n=|ruolo=C|nazione=ARG|nome=[[Enrique Flamini]]}}
+{{Calciatore in rosa|n=|ruolo=C|nazione=ARG|nome=[[Salvador Gualtieri]]|altro={{capitano}}}}
+{{Calciatore in rosa|n=|ruolo=C|nazione=ITA|nome=[[Mario Magrini]]}}
+{{Calciatore in rosa|n=|ruolo=C|nazione=ITA|nome=[[Luciano Ramella]]}}
+{{Calciatore in rosa|n=|ruolo=C|nazione=ITA|nome=[[Franco Rosi (calciatore)|Franco Rosi]]}}
+{{Calciatore in rosa|n=|ruolo=A|nazione=ITA|nome=[[Costantino De Andreis]]}}
+{{Calciatore in rosa|n=|ruolo=A|nazione=BRA 1889-1960|nome=[[Orlando Fantoni|Orlando Fantoni IV]]}}
+{{Calciatore in rosa|n=|ruolo=A|nazione=ITA|nome=[[Umberto Lombardini]]}}
+{{Calciatore in rosa|n=|ruolo=A|nazione=ITA|nome=[[Romano Penzo]]}}
+{{Calciatore in rosa|n=|ruolo=A|nazione=ITA|nome=[[Aldo Puccinelli]]}}
+{{Calciatore in rosa|n=|ruolo=A|nazione=ARG|nome=[[Salustiano Vidal]]}}
+{{Calciatore in rosa/fine}}
+
+== Calciomercato ==
+{{colonne}}
+{| class="wikitable" style="font-size:90%"
+!colspan="4"| Acquisti
+|-
+!width=3%| R.
+!width=33%| Nome
+!width=28%| da
+!width=36%| Modalità
+|-
+| D || [[Sergio Piacentini]] || {{Calcio Sampdoria|N}} || ''definitivo''
+|-
+| D || [[Leandro Remondini]] || {{Calcio Modena|N}} || ''definitivo''
+|-
+| D || Arsenio Robespierri ||  || ''svincolato''
+|-
+| C || [[Flavio Cecconi]] || {{Calcio Maceratese|N}} || ''definitivo''
+|-
+| C || Julio Hernandez ||  || ''svincolato''
+|-
+| A || [[Orlando Fantoni|Orlando Fantoni IV]] || {{Calcio Palmeiras|N}} || ''definitivo''
+|-
+| A || [[Romano Penzo]] || {{Calcio Brescia|N}} || ''definitivo''
+|-
+| A || [[Salustiano Vidal]] || {{Calcio Independiente|N}} || ''definitivo''
+|}
+{{colonne spezza}}
+{| class="wikitable" style="font-size:90%"
+!colspan="4"| Cessioni
+|-
+!width=3%| R.
+!width=33%| Nome
+!width=28%| a
+!width=36%| Modalità
+|-
+| P || Paolo Colucci ||  || ''svincolato''
+|-
+| D || [[Luigi Cassano]] || {{Calcio Sampdoria|N}} || ''definitivo''
+|-
+| D || [[Edoardo Valenti]] || {{Calcio Perugia|N}} || ''definitivo''
+|-
+| C || [[Antonio Sessa]] || {{Calcio Triestina|N}} || ''definitivo''
+|-
+| A || [[Bruno Ispiro]] || {{Calcio Triestina|N}} || ''definitivo''
+|-
+| A || [[Engelbert Koenig]] || {{Calcio Sampdoria|N}} || ''definitivo''
+|-
+| A || Ennio Modesti ||  || ''svincolato''
+|}
+{{colonne fine}}
+== Risultati ==
+=== Serie A ===
+{{Vedi anche|Serie A 1947-1948}}
+==== Girone di andata ====
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 14 settembre
+|Anno = 1947
+|Ora =
+|Turno = 1ª giornata
+|Squadra 1 = Lazio
+|Squadra 2 = Milan
+|Punteggio 1 = 1
+|Punteggio 2 = 2
+|Referto = http://calcio-seriea.net/tabellini/1947/4081/
+|Città = [[Roma]]
+|Stadio = [[Stadio Nazionale]]
+|Spettatori =
+|Arbitro = [[Eriprando Poggipollini]]
+|Cittarbitro = [[Ferrara]]
+|Marcatori 1 = [[Costantino De Andreis|De Andreis]] {{Gol|11}}
+|Marcatori 2 = {{Gol|21}} [[Riccardo Carapellese|Carapellese]]<br/>{{Gol|54}} [[Héctor Puricelli|Puricelli]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 21 settembre
+|Anno = 1947
+|Ora =
+|Turno = 2ª giornata
+|Squadra 1 = Salernitana
+|Squadra 2 = Lazio
+|Punteggio 1 = 2
+|Punteggio 2 = 0
+|Referto = http://calcio-seriea.net/tabellini/1947/4229/
+|Città = [[Salerno]]
+|Stadio = [[Stadio Donato Vestuti|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Giacomo Bertolio]]
+|Cittarbitro = [[Torino]]
+|Marcatori 1 = [[Pasquale Morisco|Morisco]] {{Gol|35||79}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 28 settembre
+|Anno = 1947
+|Ora =
+|Turno = 3ª giornata
+|Squadra 1 = Lazio
+|Squadra 2 = Modena
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Referto = http://calcio-seriea.net/tabellini/1947/4361/
+|Città = [[Roma]]
+|Stadio = [[Stadio Nazionale]]
+|Spettatori =
+|Arbitro = [[Virginio Canavesio]]
+|Cittarbitro = [[Torino]]
+|Marcatori 1 = [[Orlando Fantoni|Fantoni]] {{Gol|28}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 5 ottobre
+|Anno = 1947
+|Ora =
+|Turno = 4ª giornata
+|Squadra 1 = Napoli
+|Squadra 2 = Lazio
+|Punteggio 1 = 0
+|Punteggio 2 = 0
+|Referto = http://calcio-seriea.net/tabellini/1947/4099/
+|Città = [[Napoli]]
+|Stadio = [[Stadio Arturo Collana|Stadio della Liberazione]]
+|Spettatori =
+|Arbitro = [[Lelio Coppolone]]
+|Cittarbitro = [[Bari]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 12 ottobre
+|Anno = 1947
+|Ora =
+|Turno = 5ª giornata
+|Squadra 1 = Lazio
+|Squadra 2 = Pro Patria
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Referto = http://calcio-seriea.net/tabellini/1947/4241/
+|Città = [[Roma]]
+|Stadio = [[Stadio Nazionale]]
+|Spettatori =
+|Arbitro = [[Agostino Gamba]]
+|Cittarbitro = [[Napoli]]
+|Marcatori 1 = [[Orlando Fantoni|Fantoni]] {{Gol|67}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 19 ottobre
+|Anno = 1947
+|Ora =
+|Turno = 6ª giornata
+|Squadra 1 = Lazio
+|Squadra 2 = Inter
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Referto = http://calcio-seriea.net/tabellini/1947/4377/
+|Città = [[Roma]]
+|Stadio = [[Stadio Nazionale]]
+|Spettatori =
+|Arbitro = [[Riccardo Pieri]]
+|Cittarbitro = [[Trieste]]
+|Marcatori 1 = [[Leandro Remondini|Remondini]] {{Gol|59}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 26 ottobre
+|Anno = 1947
+|Ora =
+|Turno = 7ª giornata
+|Squadra 1 = Genoa
+|Squadra 2 = Lazio
+|Punteggio 1 = 3
+|Punteggio 2 = 1
+|Referto = http://calcio-seriea.net/tabellini/1947/4115/
+|Città = [[Genova]]
+|Stadio = [[Stadio Luigi Ferraris]]
+|Spettatori =
+|Arbitro = [[Bruno Zilli]]
+|Cittarbitro = [[Reggio Emilia]]
+|Marcatori 1 = [[Renato Brighenti|R. Brighenti]] {{Gol|11||18}}<br/>[[Silvio Formentin|Formentin]] {{Gol|83}}
+|Marcatori 2 = {{Gol|65}} [[Romano Penzo|Penzo]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 2 novembre
+|Anno = 1947
+|Ora =
+|Turno = 8ª giornata
+|Squadra 1 = Juventus
+|Squadra 2 = Lazio
+|Punteggio 1 = 1
+|Punteggio 2 = 1
+|Referto = http://calcio-seriea.net/tabellini/1947/4259/
+|Città = [[Torino]]
+|Stadio = [[Stadio Olimpico Grande Torino|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Giorgio Bernardi]]
+|Cittarbitro = [[Bologna]]
+|Marcatori 1 = [[Giampiero Boniperti|Boniperti]] {{Gol|31}}
+|Marcatori 2 = {{Gol|73}} [[Aldo Puccinelli|Puccinelli]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 16 novembre
+|Anno = 1947
+|Ora =
+|Turno = 9ª giornata
+|Squadra 1 = Lazio
+|Squadra 2 = Roma
+|Punteggio 1 = 0
+|Punteggio 2 = 1
+|Referto = http://calcio-seriea.net/tabellini/1947/4397/
+|Città = [[Roma]]
+|Stadio = [[Stadio Nazionale]]
+|Spettatori =
+|Arbitro = [[Ferruccio Bellè]]
+|Cittarbitro = [[Venezia]]
+|Marcatori 2 = {{Gol|14}} [[Amedeo Amadei|Amadei]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 23 novembre
+|Anno = 1947
+|Ora =
+|Turno = 10ª giornata
+|Squadra 1 = Triestina
+|Squadra 2 = Lazio
+|Punteggio 1 = 2
+|Punteggio 2 = 1
+|Referto = http://calcio-seriea.net/tabellini/1947/4149/
+|Città = [[Trieste]]
+|Stadio = [[Stadio Giuseppe Grezar|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Giuseppe Carpani (arbitro)|Giuseppe Carpani]]
+|Cittarbitro = [[Milano]]
+|Marcatori 1 = [[Mario Begni|Begni]] {{Gol|26}}<br/>[[Mario Tosolini|Tosolini]] {{Gol|66}}
+|Marcatori 2 = {{Gol|87}} [[Salustiano Vidal|Vidal]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 30 novembre
+|Anno = 1947
+|Ora =
+|Turno = 11ª giornata
+|Squadra 1 = Lazio
+|Squadra 2 = Atalanta
+|Punteggio 1 = 1
+|Punteggio 2 = 1
+|Referto = http://calcio-seriea.net/tabellini/1947/4277/
+|Città = [[Roma]]
+|Stadio = [[Stadio Nazionale]]
+|Spettatori =
+|Arbitro = [[Luigi Valsecchi (arbitro)|Luigi Valsecchi]]
+|Cittarbitro = [[Milano]]
+|Marcatori 1 = [[Alessandro Ferri|Ferri]] {{Gol|67}}
+|Marcatori 2 = {{Gol|11}} [[Sergio Scudeler|Scudeler]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 7 dicembre
+|Anno = 1947
+|Ora =
+|Turno = 12ª giornata
+|Squadra 1 = Livorno
+|Squadra 2 = Lazio
+|Punteggio 1 = 0
+|Punteggio 2 = 0
+|Referto = http://calcio-seriea.net/tabellini/1947/4419/
+|Città = [[Livorno]]
+|Stadio = [[Stadio Armando Picchi|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Gino Cicardi]]
+|Cittarbitro = [[Lecco]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 21 dicembre
+|Anno = 1947
+|Ora =
+|Turno = 13ª giornata
+|Squadra 1 = Lazio
+|Squadra 2 = Bari
+|Punteggio 1 = 3
+|Punteggio 2 = 3
+|Referto = http://calcio-seriea.net/tabellini/1947/4161/
+|Città = [[Roma]]
+|Stadio = [[Stadio Nazionale]]
+|Spettatori =
+|Arbitro = [[Agostino Gamba]]
+|Cittarbitro = [[Napoli]]
+|Marcatori 1 = [[Romano Penzo|Penzo]] {{Gol|41||48}}<br/>[[Aldo Puccinelli|Puccinelli]] {{Gol|57}}
+|Marcatori 2 = {{Gol|44|rig|52|rig}} [[Giulio Pellicari|Pellicari]]<br/>{{Gol|75}} [[Mario Tontodonati|Tontodonati]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 28 dicembre
+|Anno = 1947
+|Ora =
+|Turno = 14ª giornata
+|Squadra 1 = Bologna
+|Squadra 2 = Lazio
+|Punteggio 1 = 0
+|Punteggio 2 = 0
+|Referto = http://calcio-seriea.net/tabellini/1947/4295/
+|Città = [[Bologna]]
+|Stadio = [[Stadio Renato Dall'Ara|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Mario Scotto]]
+|Cittarbitro = [[Savona]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 1º gennaio
+|Anno = 1948
+|Ora =
+|Turno = 15ª giornata
+|Squadra 1 = Lazio
+|Squadra 2 = Lucchese
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Referto = http://calcio-seriea.net/tabellini/1947/4439/
+|Città = [[Roma]]
+|Stadio = [[Stadio Nazionale]]
+|Spettatori =
+|Arbitro = [[Guido Agnolin]]
+|Cittarbitro = [[Bassano del Grappa]]
+|Marcatori 1 = [[Leandro Remondini|Remondini]] {{Gol|68}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 4 gennaio
+|Anno = 1948
+|Ora =
+|Turno = 16ª giornata
+|Squadra 1 = Lazio
+|Squadra 2 = Torino
+|Punteggio 1 = 0
+|Punteggio 2 = 0
+|Referto = http://calcio-seriea.net/tabellini/1947/4179/
+|Città = [[Roma]]
+|Stadio = [[Stadio Nazionale]]
+|Spettatori =
+|Arbitro = [[Eriprando Poggipollini]]
+|Cittarbitro = [[Ferrara]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 11 gennaio
+|Anno = 1948
+|Ora =
+|Turno = 17ª giornata
+|Squadra 1 = Vicenza
+|Squadra 2 = Lazio
+|Punteggio 1 = 2
+|Punteggio 2 = 1
+|Referto = http://calcio-seriea.net/tabellini/1947/4329/
+|Città = [[Vicenza]]
+|Stadio = [[Stadio Romeo Menti|Stadio del Littorio]]
+|Spettatori =
+|Arbitro = [[Giorgio Bernardi]]
+|Cittarbitro = [[Bologna]]
+|Marcatori 1 = [[Giovanni Sperotto|Sperotto]] {{Gol|15||34}}
+|Marcatori 2 = {{Gol|55|rig}} [[Leandro Remondini|Remondini]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 18 gennaio
+|Anno = 1948
+|Ora =
+|Turno = 18ª giornata
+|Squadra 1 = Lazio
+|Squadra 2 = Alessandria
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Referto = http://calcio-seriea.net/tabellini/1947/4455/
+|Città = [[Roma]]
+|Stadio = [[Stadio Nazionale]]
+|Spettatori =
+|Arbitro = [[Ferruccio Bonivento]]
+|Cittarbitro = [[Venezia]]
+|Marcatori 1 = [[Mario Magrini|Magrini]] {{Gol|23}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 25 gennaio
+|Anno = 1948
+|Ora =
+|Turno = 19ª giornata
+|Squadra 1 = Fiorentina
+|Squadra 2 = Lazio
+|Punteggio 1 = 4
+|Punteggio 2 = 1
+|Referto = http://calcio-seriea.net/tabellini/1947/4195/
+|Città = [[Firenze]]
+|Stadio = [[Stadio Artemio Franchi|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Eliseo Camiolo]]
+|Cittarbitro = [[Milano]]
+|Marcatori 1 = [[Angelo Bollano|Bollano]] {{Gol|4||5}}<br/>[[Alberto Galassi|Galassi]] {{Gol|35||64}}
+|Marcatori 2 = {{Gol|52}} [[Romano Penzo|Penzo]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 1º febbraio
+|Anno = 1948
+|Ora =
+|Turno = 20ª giornata
+|Note = Turno di riposo della LAZIO
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 8 febbraio
+|Anno = 1948
+|Ora =
+|Turno = 21ª giornata
+|Squadra 1 = Sampdoria
+|Squadra 2 = Lazio
+|Punteggio 1 = 2
+|Punteggio 2 = 1
+|Referto = http://calcio-seriea.net/tabellini/1947/4487/
+|Città = [[Genova]]
+|Stadio = [[Stadio Luigi Ferraris]]
+|Spettatori =
+|Arbitro = [[Ferruccio Bellè]]
+|Cittarbitro = [[Venezia]]
+|Marcatori 1 = [[Adriano Bassetto|Bassetto]] {{Gol|8||15}}
+|Marcatori 2 = {{Gol|81}} [[Costantino De Andreis|De Andreis]]
+}}
+
+==== Girone di ritorno ====
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 15 febbraio
+|Anno = 1948
+|Ora =
+|Turno = 22ª giornata
+|Squadra 1 = Milan
+|Squadra 2 = Lazio
+|Punteggio 1 = 5
+|Punteggio 2 = 2
+|Referto = http://calcio-seriea.net/tabellini/1947/4082/
+|Città = [[Milano]]
+|Stadio = [[Stadio San Siro]]
+|Spettatori =
+|Arbitro = [[Bruno Zilli]]
+|Cittarbitro = [[Reggio Emilia]]
+|Marcatori 1 = [[Renato Raccis|Raccis]] {{Gol|15}}<br/>[[Riccardo Carapellese|Carapellese]] {{Gol|56||77}}<br/>[[Renzo Burini|Burini]] {{Gol|62}}<br/>[[Carlo Annovazzi|Annovazzi]] {{Gol|82}}
+|Marcatori 2 = {{Gol|43}} [[Flavio Cecconi|Cecconi]]<br/>{{Gol|67}} [[Romano Penzo|Penzo]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 22 febbraio
+|Anno = 1948
+|Ora =
+|Turno = 23ª giornata
+|Squadra 1 = Lazio
+|Squadra 2 = Salernitana
+|Punteggio 1 = 3
+|Punteggio 2 = 1
+|Referto = http://calcio-seriea.net/tabellini/1947/4230/
+|Città = [[Roma]]
+|Stadio = [[Stadio Nazionale]]
+|Spettatori =
+|Arbitro = [[Giuseppe Parpaiola]]
+|Cittarbitro = [[Padova]]
+|Marcatori 1 = [[Mario Magrini|Magrini]] {{Gol|11}}<br/>[[Romano Penzo|Penzo]] {{Gol|43||86}}
+|Marcatori 2 = {{Gol|35}} [[Elio Onorato|Onorato]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 29 febbraio
+|Anno = 1948
+|Ora =
+|Turno = 24ª giornata
+|Squadra 1 = Modena
+|Squadra 2 = Lazio
+|Punteggio 1 = 2
+|Punteggio 2 = 0
+|Referto = http://calcio-seriea.net/tabellini/1947/4362/
+|Città = [[Modena]]
+|Stadio = [[Stadio Alberto Braglia|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Ermanno Silvano]]
+|Cittarbitro = [[Torino]]
+|Marcatori 1 = [[Francesco Pernigo|Pernigo]] {{Gol|4}}<br/>[[Walter Del Medico|Del Medico]] {{Gol|49}}
+|Sfondo =
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 7 marzo
+|Anno = 1948
+|Ora =
+|Turno = 25ª giornata
+|Squadra 1 = Lazio
+|Squadra 2 = Napoli
+|Punteggio 1 = 0
+|Punteggio 2 = 0
+|Referto = http://calcio-seriea.net/tabellini/1947/4100/
+|Città = [[Roma]]
+|Stadio = [[Stadio Nazionale]]
+|Spettatori =
+|Arbitro = [[Guido Agnolin]]
+|Cittarbitro = [[Bassano del Grappa]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 14 marzo
+|Anno = 1948
+|Ora =
+|Turno = 26ª giornata
+|Squadra 1 = Pro Patria
+|Squadra 2 = Lazio
+|Punteggio 1 = 1
+|Punteggio 2 = 1
+|Referto = http://calcio-seriea.net/tabellini/1947/4242/
+|Città = [[Busto Arsizio]]
+|Stadio = [[Stadio Carlo Speroni|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Giuseppe Boffardi]]
+|Cittarbitro = [[Genova]]
+|Marcatori 1 = [[Fausto Bonelli|Bonelli]] {{Gol|87}}
+|Marcatori 2 = {{Gol|54}} [[Romano Penzo|Penzo]]
+|Sfondo =
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 21 marzo
+|Anno = 1948
+|Ora =
+|Turno = 27ª giornata
+|Squadra 1 = Inter
+|Squadra 2 = Lazio
+|Punteggio 1 = 1
+|Punteggio 2 = 1
+|Referto = http://calcio-seriea.net/tabellini/1947/4378/
+|Città = [[Milano]]
+|Stadio = [[Stadio San Siro]]
+|Spettatori =
+|Arbitro = [[Eriprando Poggipollini]]
+|Cittarbitro = [[Ferrara]]
+|Marcatori 1 = [[Gustavo Fiorini|Fiorini]] {{Gol|54}}
+|Marcatori 2 = {{Gol|46}} [[Salvador Gualtieri|Gualtieri]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 28 marzo
+|Anno = 1948
+|Ora =
+|Turno = 28ª giornata
+|Squadra 1 = Lazio
+|Squadra 2 = Genoa
+|Punteggio 1 = 3
+|Punteggio 2 = 0
+|Referto = http://calcio-seriea.net/tabellini/1947/4116/
+|Città = [[Roma]]
+|Stadio = [[Stadio Nazionale]]
+|Spettatori =
+|Arbitro = [[Ferruccio Bellè]]
+|Cittarbitro = [[Venezia]]
+|Marcatori 1 = [[Flavio Cecconi|Cecconi]] {{Gol|16}}<br/>[[Aldo Puccinelli|Puccinelli]] {{Gol|81}}<br/>[[Leandro Remondini|Remondini]] {{Gol|87}}
+|Sfondo =
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 11 aprile
+|Anno = 1948
+|Ora =
+|Turno = 29ª giornata
+|Squadra 1 = Lazio
+|Squadra 2 = Juventus
+|Punteggio 1 = 0
+|Punteggio 2 = 0
+|Referto = http://calcio-seriea.net/tabellini/1947/4260/
+|Città = [[Roma]]
+|Stadio = [[Stadio Nazionale]]
+|Spettatori =
+|Arbitro = [[Eliseo Camiolo]]
+|Cittarbitro = [[Milano]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 21 aprile
+|Anno = 1948
+|Ora =
+|Turno = 30ª giornata
+|Squadra 1 = Roma
+|Squadra 2 = Lazio
+|Punteggio 1 = 0
+|Punteggio 2 = 2
+|Referto = http://calcio-seriea.net/tabellini/1947/4398/
+|Città = [[Roma]]
+|Stadio = [[Stadio Nazionale]]
+|Spettatori =
+|Arbitro = [[Giacomo Bertolio]]
+|Cittarbitro = [[Torino]]
+|Marcatori 2 = {{Gol|46}} [[Flavio Cecconi|Cecconi]]<br/>{{Gol|52}} [[Costantino De Andreis|De Andreis]]
+|Sfondo =
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 25 aprile
+|Anno = 1948
+|Ora =
+|Turno = 31ª giornata
+|Squadra 1 = Lazio
+|Squadra 2 = Triestina
+|Punteggio 1 = 3
+|Punteggio 2 = 1
+|Referto = http://calcio-seriea.net/tabellini/1947/4150/
+|Città = [[Roma]]
+|Stadio = [[Stadio Nazionale]]
+|Spettatori =
+|Arbitro = [[Tommaso Corallo]]
+|Cittarbitro = [[Lecce]]
+|Marcatori 1 = [[Mario Magrini|Magrini]] {{Gol|25}}<br/>[[Romano Penzo|Penzo]] {{Gol|58||70}}
+|Marcatori 2 = {{Gol|42}} [[Antonio Gordini|Gordini]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 2 maggio
+|Anno = 1948
+|Ora =
+|Turno = 32ª giornata
+|Squadra 1 = Atalanta
+|Squadra 2 = Lazio
+|Punteggio 1 = 5
+|Punteggio 2 = 0
+|Referto = http://calcio-seriea.net/tabellini/1947/4278/
+|Città = [[Bergamo]]
+|Stadio = [[Stadio Atleti Azzurri d'Italia|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Agostino Gamba]]
+|Cittarbitro = [[Napoli]]
+|Marcatori 1 = [[Edmondo Fabbri|Ed. Fabbri]] {{Gol|48}}<br/>[[Vittorio Schiavi|Schiavi]] {{Gol|53}}<br/>[[Július Korostelev|Korostelev]] {{Gol|58}}<br/>[[Mario Astorri|Astorri]] {{Gol|67||85}}
+|Sfondo =
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 6 maggio
+|Anno = 1948
+|Ora =
+|Turno = 33ª giornata
+|Squadra 1 = Lazio
+|Squadra 2 = Livorno
+|Punteggio 1 = 4
+|Punteggio 2 = 1
+|Referto = http://calcio-seriea.net/tabellini/1947/4420/
+|Città = [[Roma]]
+|Stadio = [[Stadio Nazionale]]
+|Spettatori =
+|Arbitro = [[Mario Scotto]]
+|Cittarbitro = [[Savona]]
+|Marcatori 1 = [[Aldo Puccinelli|Puccinelli]] {{Gol|15}}<br/>[[Romano Penzo|Penzo]] {{Gol|40||68||78}}
+|Marcatori 2 = {{Gol|31}} [[Mario Stua|Stua]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 9 maggio
+|Anno = 1948
+|Ora =
+|Turno = 34ª giornata
+|Squadra 1 = Bari
+|Squadra 2 = Lazio
+|Punteggio 1 = 2
+|Punteggio 2 = 1
+|Referto = http://calcio-seriea.net/tabellini/1947/4162/
+|Città = [[Bari]]
+|Stadio = [[Stadio della Vittoria (Bari)|Stadio della Vittoria]]
+|Spettatori =
+|Arbitro = [[Renzo Massai]]
+|Cittarbitro = [[Pisa]]
+|Marcatori 1 = [[Guido Tavellin|Tavellin]] {{Gol|38}}<br/>[[János Hrotkó|Hrotkó]] {{Gol|80}}
+|Marcatori 2 = {{Gol|83|rig}} [[Leandro Remondini|Remondini]]
+|Sfondo =
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 23 maggio
+|Anno = 1948
+|Ora =
+|Turno = 35ª giornata
+|Squadra 1 = Lazio
+|Squadra 2 = Bologna
+|Punteggio 1 = 2
+|Punteggio 2 = 1
+|Referto = http://calcio-seriea.net/tabellini/1947/4296/
+|Città = [[Roma]]
+|Stadio = [[Stadio Nazionale]]
+|Spettatori =
+|Arbitro = [[Aldo Donati (arbitro)|Aldo Donati]]
+|Cittarbitro = [[Milano]]
+|Marcatori 1 = [[Romano Penzo|Penzo]] {{Gol|37}}<br/>[[Leandro Remondini|Remondini]] {{Gol|68}}
+|Marcatori 2 = {{Gol|89|rig}} [[Bruno Arcari (calciatore)|Arcari]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 27 maggio
+|Anno = 1948
+|Ora =
+|Turno = 36ª giornata
+|Squadra 1 = Lucchese
+|Squadra 2 = Lazio
+|Punteggio 1 = 2
+|Punteggio 2 = 1
+|Referto = http://calcio-seriea.net/tabellini/1947/4440/
+|Città = [[Lucca]]
+|Stadio = [[Stadio Porta Elisa]]
+|Spettatori =
+|Arbitro = [[Eriprando Poggipollini]]
+|Cittarbitro = [[Ferrara]]
+|Marcatori 1 = [[Luigi Rosellini|Rosellini]] {{Gol|19}}<br/>[[Ugo Conti (calciatore)|U. Conti]] {{Gol|86|rig}}
+|Marcatori 2 = {{Gol|69|aut}} [[Giovanni Clocchiatti|Clocchiatti]]
+|Sfondo =
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 30 maggio
+|Anno = 1948
+|Ora =
+|Turno = 37ª giornata
+|Squadra 1 = Torino
+|Squadra 2 = Lazio
+|Punteggio 1 = 4
+|Punteggio 2 = 3
+|Referto = http://calcio-seriea.net/tabellini/1947/4180/
+|Città = [[Torino]]
+|Stadio = [[Stadio Filadelfia]]
+|Spettatori =
+|Arbitro = [[Guido Agnolin]]
+|Cittarbitro = [[Bassano del Grappa]]
+|Marcatori 1 = [[Eusebio Castigliano|Castigliano]] {{Gol|25||55}}<br/>[[Guglielmo Gabetto|Gabetto]] {{Gol|43}}<br/>[[Valentino Mazzola|Mazzola]] {{Gol|61}}
+|Marcatori 2 = {{Gol|6}} [[Aldo Puccinelli|Puccinelli]]<br/>{{Gol|13|aut}} [[Giuseppe Grezar|Grezar]]<br/>{{Gol|22}} [[Romano Penzo|Penzo]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 6 giugno
+|Anno = 1948
+|Ora =
+|Turno = 38ª giornata
+|Squadra 1 = Lazio
+|Squadra 2 = Vicenza
+|Punteggio 1 = 2
+|Punteggio 2 = 1
+|Referto = http://calcio-seriea.net/tabellini/1947/4330/
+|Città = [[Roma]]
+|Stadio = [[Stadio Nazionale]]
+|Spettatori =
+|Arbitro = [[Guglielmo Matucci]]
+|Cittarbitro = [[Seregno]]
+|Marcatori 1 = [[Mario Magrini|Magrini]] {{Gol|32}}<br/>[[Romano Penzo|Penzo]] {{Gol|78}}
+|Marcatori 2 = {{Gol|27}} [[Pietro Rebuzzi|P. Rebuzzi]]
+|Sfondo =
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 13 giugno
+|Anno = 1948
+|Ora =
+|Turno = 39ª giornata
+|Squadra 1 = Alessandria
+|Squadra 2 = Lazio
+|Punteggio 1 = 2
+|Punteggio 2 = 2
+|Referto = http://calcio-seriea.net/tabellini/1947/4456/
+|Città = [[Alessandria (Italia)|Alessandria]]
+|Stadio = [[Stadio Giuseppe Moccagatta]]
+|Spettatori =
+|Arbitro = [[Florindo Longagnani]]
+|Cittarbitro = [[Modena]]
+|Marcatori 1 = [[Carlo Stradella|Stradella]] {{Gol|26}}<br/>[[Aristide Coscia|Coscia]] {{Gol|63}}
+|Marcatori 2 = {{Gol|20||69}} [[Costantino De Andreis|De Andreis]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 20 giugno
+|Anno = 1948
+|Ora =
+|Turno = 40ª giornata
+|Squadra 1 = Lazio
+|Squadra 2 = Fiorentina
+|Punteggio 1 = 5
+|Punteggio 2 = 0
+|Referto = http://calcio-seriea.net/tabellini/1947/4196/
+|Città = [[Roma]]
+|Stadio = [[Stadio Nazionale]]
+|Spettatori =
+|Arbitro = [[Bruno Tassini]]
+|Cittarbitro = [[Verona]]
+|Marcatori 1 = [[Italo Acconcia|Acconcia]] {{Gol|4|aut}}<br/>[[Mario Caciagli|Caciagli]] {{Gol|26|aut}}<br/>[[Romano Penzo|Penzo]] {{Gol|30}}<br/>[[Flavio Cecconi|Cecconi]] {{Gol|33}}<br/>[[Mario Magrini|Magrini]] {{Gol|63}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 27 giugno
+|Anno = 1948
+|Ora =
+|Turno = 41ª giornata
+|Note = Turno di riposo della LAZIO
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 4 luglio
+|Anno = 1948
+|Ora =
+|Turno = 42ª giornata
+|Squadra 1 = Lazio
+|Squadra 2 = Sampdoria
+|Punteggio 1 = 3
+|Punteggio 2 = 3
+|Referto = http://calcio-seriea.net/tabellini/1947/4488/
+|Città = [[Roma]]
+|Stadio = [[Stadio Nazionale]]
+|Spettatori =
+|Arbitro = [[Eliseo Camiolo]]
+|Cittarbitro = [[Milano]]
+|Marcatori 1 = [[Aldo Puccinelli|Puccinelli]] {{Gol|24}}<br/>[[Costantino De Andreis|De Andreis]] {{Gol|40}}<br/>[[Flavio Cecconi|Cecconi]] {{Gol|67}}
+|Marcatori 2 = {{Gol|8|aut}} [[Leandro Remondini|Remondini]]<br/>{{Gol|59||61}} [[Engelbert Koenig|Koenig]]
+}}
+
+== Statistiche ==
+=== Statistiche di squadra ===
+{{Statistiche squadra
+|comp1=[[Serie A 1947-1948|Serie A]]<ref>{{cita web|url=http://calcio-seriea.net/partite/1947/265/|titolo=SERIE A 1947-1948 - Lazio - Partite - Riepilogo|sito=calcio-seriea.net|accesso=26 luglio 2015}}</ref>
+|punti1=39
+|cv1=12
+|cn1=6
+|cp1=2
+|cgf1=35
+|cgs1=15
+|tv1=1
+|tn1=7
+|tp1=12
+|tgf1=19
+|tgs1=40
+}}
+=== Statistiche dei giocatori ===
+<small>Nel computo delle reti realizzate vanno aggiunti 4 autogol a favore.</small>
+{{Statistiche dei giocatori
+| Competizione1 = Serie A<ref>{{cita web|url=http://calcio-seriea.net/presenze/1947/265/|titolo=SERIE A 1947-1948 - Lazio - Presenze|sito=calcio-seriea.net|accesso=26 luglio 2015}}</ref>
+| Totale = no
+| Cartellini = no
+| {{Sortname|R.|Alzani|Romolo Alzani}} {{Sommastat|C=no |38|0|?|? }}
+| {{Sortname|F.|Antonazzi|Francesco Antonazzi}} {{Sommastat|C=no |21|0|?|? }}
+| {{Sortname|C.|Brunetti|Cesare Brunetti}} {{Sommastat|C=no |16|0|?|? }}
+| {{Sortname|E.|Carton|Emilio Carton}} {{Sommastat|C=no |6|0|?|? }}
+| {{Sortname|F.|Cecconi|Flavio Cecconi}} {{Sommastat|C=no |16|5|?|? }}
+| {{Sortname|C.|De Andreis|Costantino De Andreis}} {{Sommastat|C=no |30|6|?|? }}
+| {{Sortname|S.|Del Pinto|Sergio Del Pinto}} {{Sommastat|C=no |6|0|?|? }}
+| {{Sortname|O.|Fantoni IV|Orlando Fantoni}} {{Sommastat|C=no |8|2|?|? }}
+| {{Sortname|A.|Ferri|Alessandro Ferri}} {{Sommastat|C=no |23|1|?|? }}
+| {{Sortname|E.|Flamini|Enrique Flamini}} {{Sommastat|C=no |26|0|?|? }}
+| {{Sortname|C.|Giubilo|Corrado Giubilo}} {{Sommastat|C=no |6|-11|?|? }}
+| {{Sortname|U.|Gradella|Uber Gradella}} {{Sommastat|C=no |34|-44|?|? }}
+| {{Sortname|S.|Gualtieri|Salvador Gualtieri}} {{Sommastat|C=no |28|1|?|? }}
+| {{Sortname|J.|Hernandez|Julio Hernandez|nolink=1}} {{Sommastat|C=no |-|-|-|- }}
+| {{Sortname|U.|Lombardini|Umberto Lombardini}} {{Sommastat|C=no |8|0|?|? }}
+| {{Sortname|M.|Magrini|Mario Magrini}} {{Sommastat|C=no |32|5|?|? }}
+| {{Sortname|R.|Penzo|Romano Penzo}} {{Sommastat|C=no |33|17|?|? }}
+| {{Sortname|S.|Piacentini|Sergio Piacentini}} {{Sommastat|C=no |26|0|?|? }}
+| {{Sortname|A.|Puccinelli|Aldo Puccinelli}} {{Sommastat|C=no |34|6|?|? }}
+| {{Sortname|L.|Ramella|Luciano Ramella}} {{Sommastat|C=no |1|0|?|? }}
+| {{Sortname|L.|Remondini|Leandro Remondini}} {{Sommastat|C=no |35|6|?|? }}
+| {{Sortname|A.R.|Robespierri|Arsenio Rosalino Robespierri|nolink=1}} {{Sommastat|C=no |-|-|-|- }}
+| {{Sortname|F.|Rosi|Franco Rosi (calciatore)}} {{Sommastat|C=no |8|0|?|? }}
+| {{Sortname|S.|Vidal|Salustiano Vidal}} {{Sommastat|C=no |5|1|?|? }}
+}}
+== Note ==
+<references/>
+== Collegamenti esterni ==
+* {{Cita web|url=http://www.calcio.com/tutte_le_partite/ita-serie-a-1947-1948/|titolo=Stagione 1947-1948}}
+* {{Cita web|url=https://www.transfermarkt.it/ss-lazio/spielplan/verein/398/plus/0?saison_id=1947|titolo=SS Lazio 1947-1948}}
+* {{cita web|url=http://calcio-seriea.net/partite/1947/265/|titolo=Serie A 1947-1948 - partite della Lazio}}
+* {{cita web|url=http://calcio-seriea.net/presenze/1947/265/|titolo=Presenze della Lazio 1947-1948|cid=Presenze}}
+{{Calcio Lazio storico}}
+{{Calcio in Italia 1947-1948}}
+{{Portale|calcio}}

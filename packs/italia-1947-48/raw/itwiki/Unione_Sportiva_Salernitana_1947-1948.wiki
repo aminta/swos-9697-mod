@@ -1,0 +1,981 @@
+{{Torna a|Unione Sportiva Salernitana 1919}}
+{{Stagione squadra
+|sport=calcio
+|immagine = Salernitana47-48-SerieA.jpg
+|club = Unione Sportiva Salernitana
+|stagione = 1947-1948
+|allenatore1 = {{Bandiera|ITA}} [[Giuseppe Viani]]
+|presidente = {{Bandiera|ITA}} Domenico Mattioli
+|campionato = [[Serie A 1947-1948|Serie A]]
+|campionato posizione = 18º (retrocesso in B)
+|presenze campionato = [[Elio Onorato|Onorato]] (39)<ref name="onorato">{{cita web|url=http://www.salernitanastory.it/schedaGiocatore.php?keepThis=true&idgiocatore=899&idcampionato=107&TB_iframe=true&height=500&width=700|titolo=Elio Onorato|editore=salernitanastory.it|accesso=3 marzo 2014|urlarchivio=https://web.archive.org/web/20150924140539/http://www.salernitanastory.it/schedaGiocatore.php?keepThis=true&idgiocatore=899&idcampionato=107&TB_iframe=true&height=500&width=700|dataarchivio=24 settembre 2015|urlmorto=sì}}</ref>
+|presenze totale = Onorato (39)<ref name="onorato"/>
+|marcatore campionato = [[Renzo Merlin|Merlin]] (10)<ref name="merlin">{{cita web|url=http://www.salernitanastory.it/schedaGiocatore.php?keepThis=true&idgiocatore=800&idcampionato=107&TB_iframe=true&height=500&width=700|titolo=Renzo Merlin|editore=salernitanastory.it}}</ref>
+|marcatore totale = Merlin (10)<ref name="merlin"/>
+|stadio = [[Stadio Donato Vestuti|Comunale]] ({{Formatnum:9000}})
+|stagione prima = [[Unione Sportiva Salernitana 1946-1947|1946-1947]]
+|stagione dopo = [[Unione Sportiva Salernitana 1948-1949|1948-1949]]
+|aggiornato = 4 luglio 1948
+}}
+Questa pagina raccoglie i dati riguardanti l{{'}}'''Unione Sportiva Salernitana''' nelle competizioni ufficiali della stagione '''1947-1948'''.
+== Stagione ==
+L'esordio assoluto in [[Serie A]] dei granata avviene nell'[[Serie A 1947-1948|unico torneo con 21 squadre]]<ref name=vitale>{{cita news|url=http://archiviostorico.gazzetta.it/1997/marzo/07/quei_ragazzi_Salerno_ga_0_9703077263.shtml|titolo=Quei ragazzi di Salerno|autore=Giovanni Vitale|pubblicazione=[[La Gazzetta dello Sport]]|data=7 marzo 1997}}</ref>, fatto imputabile al ripescaggio della [[Unione Sportiva Triestina Calcio 1918|Triestina]]<ref name=ventuno>{{cita news|url=https://ricerca.repubblica.it/repubblica/archivio/repubblica/2003/07/30/il-campionato-zoppo-del-47-48-ma.html|titolo=Il campionato zoppo del '47-48 ma l'Italia voleva Trieste in A|autore=[[Maurizio Crosetti]]|autore2=Bruno Colombero|pubblicazione=[[la Repubblica (quotidiano)|la Repubblica]]|data=30 luglio 2003|p=47}}</ref>: l'organico in numero dispari comportò un doppio riposo stagionale a testa, il primo dei quali toccato proprio agli uomini di [[Giuseppe Viani|Viani]].<ref name=ventuno/> Il debutto recò quindi la data del 21 settembre 1947, con una doppietta di [[Pasquale Morisco|Morisco]] a regolare la [[Società Sportiva Lazio|Lazio]] tra le mura amiche.<ref>{{cita news|url=http://www.archiviolastampa.it/component/option,com_lastampa/task,search/mod,libera/action,viewer/Itemid,3/page,4/articleid,1606_02_1947_0135_0004_22323676/|titolo=Classifica e risultati|pubblicazione=[[Stampa Sera]]|data=22 settembre 1947|p=4}}</ref>
+
+Soprannominata dalla stampa «[[Torino Football Club|Torino]] del [[Italia meridionale|Sud]]» per l'aspetto cromatico della divisa di gioco e le qualità espresse in campo<ref name=vitale/><ref>{{cita news|url=http://www.archiviolastampa.it/component/option,com_lastampa/task,search/mod,libera/action,viewer/Itemid,3/page,4/articleid,1606_02_1947_0181_0004_22281464/|titolo=Uno due tre (tempi), vince il Torino 7-1|autore=[[Vittorio Pozzo]]|pubblicazione=Stampa Sera|data=17 novembre 1947|p=4}}</ref>, la Salernitana era schierata in campo secondo una [[Vianema|rivisitazione]] del classico ''[[Sistema (calcio)|sistema]]''<ref name=vitale/>: con l'incontrista [[Alberto Piccinini|Piccinini]] (cui venne affidata la maglia numero 9) divenuto il collante tra pacchetto arretrato e batteria offensiva<ref name=vitale/>, [[Ivo Buzzegoli|Buzzegoli]] fu esentato dai tradizionali compiti di marcatura arretrando a battitore libero.<ref name=vitale/> Apparsa temporaneamente in grado di sottrarsi alla retrocessione<ref>{{cita news|url=http://www.archiviolastampa.it/component/option,com_lastampa/task,search/mod,libera/action,viewer/Itemid,3/page,4/articleid,1606_02_1947_0216_0004_22324949/|titolo=Su un campo... di pattinaggio l'Alessandria fila sicura: 3-0|autore=Paolo Bertoldi|pubblicazione=Stampa Sera|data=29 dicembre 1947|p=4}}</ref>, la squadra sprofondò in zona pericolante dopo la sconfitta interna riportata contro i [[Grande Torino|sabaudi]].<ref name=vitale/><ref>{{cita news|url=http://www.archiviolastampa.it/component/option,com_lastampa/task,search/mod,libera/action,viewer/Itemid,3/page,3/articleid,0010_01_1948_0085_0003_24644576/|titolo=Vittoria dei campioni sul campo del Salerno: 4-1|pubblicazione=[[La Stampa|La Nuova Stampa]]|data=18 aprile 1948|p=3}}</ref>
+
+[[File:Roma-Salernitana 1-0 andreoli 47-48.jpg|thumb|upright=0.8|Un'immagine della trasferta capitolina del 27 giugno 1948.<ref>{{cita web|url=https://www.tuttosalernitana.com/accadde-oggi/salernitana-sessantanove-anni-fa-il-gol-della-roma-che-condanno-i-granata-in-b-29495|titolo=SALERNITANA: sessantanove anni fa, il gol della Roma che condannò i granata in B|autore=Matteo Di Palma|data=27 giugno 2017}}</ref>]]
+
+Pur segnalandosi in positivo tra le rivelazioni dell'annata<ref>{{cita news|url=http://www.archiviolastampa.it/component/option,com_lastampa/task,search/mod,libera/action,viewer/Itemid,3/page,4/articleid,0010_01_1948_0100_0004_24489816/anews,true/|titolo=Salernitana-Pro Patria 5-0|pubblicazione=La Nuova Stampa|data=7 maggio 1948|p=4}}</ref>, i campani mancarono d'eludere l'immediato ritorno in [[Serie B|B]] anche a causa della nuova formula varata (resasi necessaria in conseguenza dell'abbuono riconosciuto ai giuliani<ref name=ventuno/>): da segnalare le affermazioni casalinghe contro le meneghine<ref>{{cita news|url=http://archiviostorico.gazzetta.it/1997/marzo/14/Parma_giocano_tutti_contro_Inter_ga_0_9703146506.shtml|titolo=A Parma giocano tutti contro l'Inter|autore=Luca Curino|autore2=Andrea Schianchi|pubblicazione=La Gazzetta dello Sport|data=14 marzo 1997|p=5}}</ref>, col primo torneo in massima divisione archiviato dal successo a scapito dell'[[Football Club Internazionale Milano|Inter]] il 4 luglio 1948.<ref>{{cita web|url=https://www.gazzetta.it/comparazione-quote/16-12-2021/coparazione-quote-inter-lanciata-ora-tabu-salerno-due-sconfitte-due-zero-gol-segnati-430483283737.shtml|titolo=Inter lanciata, ora il tabù Salerno: due sconfitte su due e zero gol segnati|autore=Francesco Sessa|data=16 dicembre 2021}}</ref>
+
+La classifica finale registrò un quartultimo posto ''ex aequo'' col corregionale [[Società Sportiva Calcio Napoli|Napoli]]<ref name=Panini121>{{Cita|Panini|p. 121|titolo=Storia della Salernitana}}.</ref><ref name=campania>{{cita web|url=https://www.calciopolis.it/2021/05/11/salernitana-napoli-derby-serie-a-dopo-73-anni/|titolo=Salernitana promossa: torna il derby in Serie A con il Napoli dopo 73 anni|autore=Mauro Abbate|data=11 maggio 2021}}</ref>, poi declassato in ultima posizione per [[Caso Napoli|illecito]].<ref name=campania/> A livello statistico [[Elio Onorato|Onorato]], Buzzegoli, [[Vittorio Dagianti|Dagianti]], [[Sebastiano Vaschetto|Vaschetto]], [[Renato Pastori|Pastori]] e Piccinini iscrissero i propri nomi nella ''top ten'' dei calciatori granata con più presenze in A.<ref name=Panini121/>
+
+== Divise ==
+{{vedi anche|Colori e simboli dell'Unione Sportiva Salernitana 1919}}
+{|
+|-
+|
+{{Divisa Calcio
+|pattern_la =
+|leftarm = 831d1c
+|pattern_b =
+|body = 831d1c
+|pattern_ra =
+|rightarm = 831d1c
+|shorts = 831d1c
+|pattern_so = _salernitana8687h
+|socks =
+|title = Casa
+}}
+|}
+== Organigramma societario ==
+''Fonte''<ref>{{cita|Vitale|pag. 122-125}}.</ref>
+{{Colonne}}
+'''''Area direttiva'''''
+* Presidente: Domenico Mattioli
+* Segretario: Antonio Pizzi
+{{Colonne spezza}}
+'''''Area tecnica'''''
+* Allenatore: [[Gipo Viani]]
+* Preparatore Atletico: Domenico Varricchio
+{{Colonne spezza}}
+'''''Area sanitaria'''''
+* Medico Sociale: Gino Bernabò
+* Massaggiatore: Angelo Carmando
+{{Colonne fine}}
+== Rosa ==
+{{Calciatore in rosa/inizio}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Vittorio Masci]]|ruolo=P}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Mario Gambazza]]|ruolo=P}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=Nicola Lombardi|ruolo=P}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Silvio Rispoli]]|ruolo=D}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Renato Pastori]]|ruolo=D}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Ivo Buzzegoli]]|ruolo=D}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Cesare Benedetti (calciatore 1920-2002)|Cesare Benedetti]]|ruolo=D}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Alberto Piccinini]]|ruolo=C}}
+{{Calciatore in rosa|n=|nazione=ARG|nome=[[José Adolfo Rodríguez]]|ruolo=C}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Vittorio Dagianti]]|ruolo=C}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Carmine Jacovazzo]]|ruolo=C}}
+{{Calciatore in rosa/medio}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Renato Tori]]|ruolo=C}}
+{{Calciatore in rosa|n=|nazione=ARG|nome=[[José Carlos Surano]]|ruolo=C}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Renzo Merlin]]|ruolo=C}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Secondo Rossi]]|ruolo=A}}
+{{Calciatore in rosa|n=|nazione=ARG|nome=[[Adalberto Sifredi]]|ruolo=A}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Sebastiano Vaschetto]]|ruolo=A}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Elio Onorato]]|ruolo=A}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Silvano Grassi]]|ruolo=A}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Pasquale Morisco]]|ruolo=A}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Vincenzo Margiotta]]|ruolo=A}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Vincenzo Volpe (calciatore)|Vincenzo Volpe]]|ruolo=A}}
+{{Calciatore in rosa/fine}}
+== Calciomercato ==
+{{colonne}}
+{| class="wikitable" style="font-size:90%"
+! colspan="4" | Acquisti
+|-
+! width=3% | R.
+! width=33% | Nome
+! width=28% | da
+! width=36% | Modalità
+|-
+| P || [[Vittorio Masci]]<ref>{{cita web|url=http://www.uscatanzaro.net/modules.php?name=News&file=article&sid=24505||titolo=È morto Vittorio Masci, storico portiere del Catanzaro|editore=uscatanzaro.net}}</ref> || {{Calcio Catanzaro|N}} ||
+|-
+| P || [[Mario Gambazza]]<ref>{{cita web|url=http://www.enciclopediadelcalcio.it/Gambazza.html|titolo=Gambazza Mario|editore=enciclopediadelcalcio.it}}</ref> || {{Calcio Cremonese|N}} ||
+|-
+| D || [[Silvio Rispoli]]<ref>{{cita web|url=http://www.enciclopediadelcalcio.it/Rispoli.html|titolo=Silvio Rispoli|editore=enciclopediadelcalcio.it}}</ref> || {{Calcio Scafatese|N}} ||
+|-
+| C || [[José Adolfo Rodríguez]]<ref>{{cita web|url=http://www.enciclopediadelcalcio.it/Rodriguez.html|titolo=Rodriguez Josè Adolfo|editore=enciclopediadelcalcio.it}}</ref> || {{Calcio Independiente|N}} ||
+|-
+| C || [[José Carlos Surano]] || {{Calcio Chacarita Juniors|N}} ||
+|-
+| A || [[Secondo Rossi]]<ref>{{cita web|url=http://www.enciclopediadelcalcio.it/RossiS.html|titolo=Secondo Rossi|editore=enciclopediadelcalcio.it}}</ref> || {{Calcio Torrese|N}} ||
+|-
+| A || [[Adalberto Sifredi]]<ref>{{cita web|url=http://www.enciclopediadelcalcio.it/Sifredi.html|titolo=Silfredi Adalberto|editore=enciclopediadelcalcio.it}}</ref> || {{Calcio Independiente|N}} ||
+|-
+| A || [[Silvano Grassi]]<ref>{{cita web|url=http://www.enciclopediadelcalcio.it/Grassi.html|titolo=Grassi Silvano|editore=enciclopediadelcalcio.it}}</ref> || {{Calcio Livorno|N}} ||
+|}
+{{colonne spezza}}
+{| class="wikitable" style="font-size:90%"
+! colspan="4" | Cessioni
+|-
+! width=3% | R.
+! width=33% | Nome
+! width=28% | a
+! width=36% | Modalità
+|-
+| P || [[Vittorio Mosele]] || || ''fine carriera''
+|-
+| P || [[Amedeo Rega]]<ref>{{cita web|url=http://www.enciclopediadelcalcio.it/Rega.html||titolo=Amedeo Rega|editore=enciclopediadelcalcio.it}}</ref> || ||
+|-
+| D || [[Fernando Lomi]] || || ''fine carriera''
+|-
+| C || [[Antonio Valese]]<ref>{{cita web|url=http://www.savoiaclub.com/legginews.asp?Id=6386|2=|titolo=Un derby storico|editore=savoiaclub.com|urlmorto=sì|urlarchivio=https://web.archive.org/web/20120119123836/http://www.savoiaclub.com/legginews.asp?Id=6386|dataarchivio=19 gennaio 2012}}</ref> || {{Calcio Torrese|N}} ||
+|-
+| C || [[Vincenzo Voccia]]<ref>{{cita web|url=http://www.enciclopediadelcalcio.it/Voccia.html||titolo=Voccia Vincenzo|editore=enciclopediadelcalcio.it}}</ref> || {{Calcio Scafatese|N}} ||
+|-
+| A || [[Lelio Colaneri]] || || ''fine carriera''
+|-
+| A || [[Oliviero Zega]]<ref>{{cita web|url=http://www.enciclopediadelcalcio.it/Zega.html||titolo=Oliviero Zega|editore=enciclopediadelcalcio.it}}</ref> || {{Calcio Roma|N}} ||
+|}
+{{colonne fine}}
+== Risultati ==
+=== Serie A<ref>{{cita web|url=http://www.rsssf.com/tablesi/ital48.html|titolo=Serie A 1947/1948|editore=rsssf.com}}</ref> ===
+{{vedi anche|Serie A 1947-1948}}
+==== Girone di andata ====
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 14 settembre
+|Anno = 1947
+|Ora =
+|Turno = 1ª giornata
+|Note = Turno di riposo della SALERNITANA
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 20 settembre
+|Anno = 1947
+|Ora =
+|Turno = 2ª giornata
+|Squadra 1 = Salernitana
+|Squadra 2 = Lazio
+|Punteggio 1 = 2
+|Punteggio 2 = 0
+|Referto = http://www.rsssf.com/tablesi/ital48.html
+|Città = [[Salerno]]
+|Stadio = [[Stadio Donato Vestuti|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Giacomo Bertolio]]
+|Cittarbitro = [[Torino]]
+|Marcatori 1 = [[Pasquale Morisco|Morisco]] {{Goal|35||79}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 28 settembre
+|Anno = 1947
+|Ora = 
+|Turno = 3ª giornata
+|Squadra 1 = Vicenza
+|Squadra 2 = Salernitana
+|Punteggio 1 = 2
+|Punteggio 2 = 0
+|Referto = http://www.rsssf.com/tablesi/ital48.html
+|Città = [[Vicenza]]
+|Stadio = [[Stadio Romeo Menti|Stadio Comunale]]
+|Spettatori = 
+|Arbitro = [[Giuseppe Zelocchi]]
+|Cittarbitro = [[Modena]]
+|Marcatori 1 = [[Pietro Grosso|Grosso]] {{Goal|37}}<br />[[Giovanni Sperotto|Sperotto]] {{Goal|68}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 5 ottobre
+|Anno = 1947
+|Ora = 
+|Turno = 4ª giornata
+|Squadra 1 = Triestina
+|Squadra 2 = Salernitana
+|Punteggio 1 = 0
+|Punteggio 2 = 0
+|Referto = http://www.rsssf.com/tablesi/ital48.html
+|Città = [[Trieste]]
+|Stadio = [[Stadio Giuseppe Grezar|Stadio Comunale]]
+|Spettatori = 
+|Arbitro = [[Ermanno Silvano]]
+|Cittarbitro = [[Torino]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 12 ottobre
+|Anno = 1947
+|Ora = 
+|Turno = 5ª giornata
+|Squadra 1 = Salernitana
+|Squadra 2 = Lucchese
+|Punteggio 1 = 5
+|Punteggio 2 = 2
+|Referto = http://www.rsssf.com/tablesi/ital48.html
+|Città = [[Salerno]]
+|Stadio = [[Stadio Donato Vestuti|Stadio Comunale]]
+|Spettatori = 
+|Arbitro = [[Giuseppe Boffardi]]
+|Cittarbitro = [[Genova]]
+|Marcatori 1 = [[Secondo Rossi|S. Rossi]] {{Goal|7||60}}<br/>[[Elio Onorato|Onorato]] {{Goal|51}}<br/>[[Sebastiano Vaschetto|Vaschetto]] {{Goal|89}}<br/>[[Vincenzo Margiotta|Margiotta]] {{Goal|90}}
+|Marcatori 2 = {{Goal|2}} [[Emo Roffi|Roffi]]<br/>{{Goal|36}} [[Danilo Michelini|Michelini]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 19 ottobre
+|Anno = 1947
+|Ora = 
+|Turno = 6ª giornata
+|Squadra 1 = Bari
+|Squadra 2 = Salernitana
+|Punteggio 1 = 0
+|Punteggio 2 = 0
+|Referto = http://www.rsssf.com/tablesi/ital48.html
+|Città = [[Bari]]
+|Stadio = [[Stadio della Vittoria (Bari)|Stadio della Vittoria]]
+|Spettatori = 
+|Arbitro = [[Mario Cambi]]
+|Cittarbitro = [[Livorno]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 26 ottobre
+|Anno = 1947
+|Ora = 
+|Turno = 7ª giornata
+|Squadra 1 = Fiorentina
+|Squadra 2 = Salernitana
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Referto = http://www.rsssf.com/tablesi/ital48.html
+|Città = [[Firenze]]
+|Stadio = [[Stadio Artemio Franchi|Stadio Comunale]]
+|Spettatori = 
+|Arbitro = [[Giuseppe Vannini]]
+|Cittarbitro = [[Roma]]
+|Marcatori 1 = [[Alberto Eliani|Eliani]] {{Goal|82}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 2 novembre
+|Anno = 1947
+|Ora = 
+|Turno = 8ª giornata
+|Squadra 1 = Salernitana
+|Squadra 2 = Napoli
+|Punteggio 1 = 3
+|Punteggio 2 = 3
+|Referto = http://www.rsssf.com/tablesi/ital48.html
+|Città = [[Salerno]]
+|Stadio = [[Stadio Donato Vestuti|Stadio Comunale]]
+|Spettatori = 
+|Arbitro = [[Giuseppe Zelocchi]]
+|Cittarbitro = [[Modena]]
+|Marcatori 1 = [[Elio Onorato|Onorato]] {{Goal|51}}<br/>[[Ivo Buzzegoli|Buzzegoli]] {{Goal|59|rig.}}<br/>[[Sebastiano Vaschetto|Vaschetto]] {{Goal|86}}
+|Marcatori 2 = {{Goal|21}} [[Carlo Barbieri (calciatore 1922)|Barbieri]]<br/>{{Goal|32||89}} [[Dante Di Benedetti|Di Benedetti]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 16 novembre
+|Anno = 1947
+|Ora = 
+|Turno = 9ª giornata
+|Squadra 1 = Torino
+|Squadra 2 = Salernitana
+|Punteggio 1 = 7
+|Punteggio 2 = 1
+|Referto = http://www.rsssf.com/tablesi/ital48.html
+|Città = [[Torino]]
+|Stadio = [[Stadio Filadelfia]]
+|Spettatori = 
+|Arbitro = [[Giovanni Galeati]]
+|Cittarbitro = [[Bologna]]
+|Marcatori 1 = [[Guglielmo Gabetto|Gabetto]] {{Goal|8}}<br/>[[Ezio Loik|Loik]] {{Goal|12||53||68}}<br/>[[Romeo Menti|R. Menti]] {{Goal|32}}<br />[[Giuseppe Grezar|Grezar]] {{Goal|70}}<br/>[[Josef Fabian|Fabian]] {{Goal|87}}
+|Marcatori 2 = {{Goal|41}} [[Sebastiano Vaschetto|Vaschetto]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 23 novembre
+|Anno = 1947
+|Ora = 
+|Turno = 10ª giornata
+|Squadra 1 = Atalanta
+|Squadra 2 = Salernitana
+|Punteggio 1 = 0
+|Punteggio 2 = 0
+|Referto = http://www.rsssf.com/tablesi/ital48.html
+|Città = [[Bergamo]]
+|Stadio = [[Stadio Atleti Azzurri d'Italia|Stadio Comunale]]
+|Spettatori = 
+|Arbitro = [[Renzo Massai]]
+|Cittarbitro = [[Pisa]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 30 novembre
+|Anno = 1947
+|Ora = 
+|Turno = 11ª giornata
+|Squadra 1 = Salernitana
+|Squadra 2 = Modena
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Referto = http://www.rsssf.com/tablesi/ital48.html
+|Città = [[Salerno]]
+|Stadio = [[Stadio Donato Vestuti|Stadio Comunale]]
+|Spettatori = 
+|Arbitro = [[Vittorio Pera]]
+|Cittarbitro = [[Firenze]]
+|Marcatori 1 = [[Ivo Buzzegoli|Buzzegoli]] {{Goal|44}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 7 dicembre
+|Anno = 1947
+|Ora = 
+|Turno = 12ª giornata
+|Squadra 1 = Pro Patria
+|Squadra 2 = Salernitana
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Referto = http://www.rsssf.com/tablesi/ital48.html
+|Città = [[Busto Arsizio]]
+|Stadio = [[Stadio Carlo Speroni|Stadio Comunale]]
+|Spettatori = 
+|Arbitro = [[Giacomo Bertolio]]
+|Cittarbitro = [[Torino]]
+|Marcatori 1 = [[Giuseppe Molina|Molina]] {{Goal|45}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 21 dicembre
+|Anno = 1947
+|Ora = 
+|Turno = 13ª giornata
+|Squadra 1 = Salernitana
+|Squadra 2 = Sampdoria
+|Punteggio 1 = 2
+|Punteggio 2 = 1
+|Referto = http://www.rsssf.com/tablesi/ital48.html
+|Città = [[Salerno]]
+|Stadio = [[Stadio Donato Vestuti|Stadio Comunale]]
+|Spettatori = 
+|Arbitro = [[Osvaldo Savio]]
+|Cittarbitro = [[Torino]]
+|Marcatori 1 = [[Pasquale Morisco|Morisco]] {{Goal|30}}<br/>[[Sebastiano Vaschetto|Vaschetto]] {{Goal|46}}
+|Marcatori 2 = {{Goal|60}} [[Giuseppe Baldini|Baldini]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 28 dicembre
+|Anno = 1947
+|Ora = 
+|Turno = 14ª giornata
+|Squadra 1 = Alessandria
+|Squadra 2 = Salernitana
+|Punteggio 1 = 3
+|Punteggio 2 = 0
+|Referto = http://www.rsssf.com/tablesi/ital48.html
+|Città = [[Alessandria (Italia)|Alessandria]]
+|Stadio = [[Stadio Giuseppe Moccagatta]]
+|Spettatori = 
+|Arbitro = [[Bruno Bergomi]]
+|Cittarbitro = [[Milano]]
+|Marcatori 1 = [[Aristide Coscia|Coscia]] {{Goal|24||39|rig.}}<br/>[[Pietro Sotgiu|Sotgiu]] {{Goal|41}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 1º gennaio
+|Anno = 1948
+|Ora = 
+|Turno = 15ª giornata
+|Squadra 1 = Salernitana
+|Squadra 2 = Genoa
+|Punteggio 1 = 4
+|Punteggio 2 = 1
+|Referto = http://www.rsssf.com/tablesi/ital48.html
+|Città = [[Salerno]]
+|Stadio = [[Stadio Donato Vestuti|Stadio Comunale]]
+|Spettatori = 
+|Arbitro = [[Giorgio Bernardi]]
+|Cittarbitro = [[Bologna]]
+|Marcatori 1 = [[Secondo Rossi|S. Rossi]] {{Goal|17}}<br/>[[Vincenzo Margiotta|Margiotta]] {{Goal|20||90}}<br/>[[Elio Onorato|Onorato]] {{Goal|56}}
+|Marcatori 2 = {{Goal|75}} [[Renato Brighenti|Brighenti]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 4 gennaio
+|Anno = 1948
+|Ora = 
+|Turno = 16ª giornata
+|Squadra 1 = Salernitana
+|Squadra 2 = Livorno
+|Punteggio 1 = 2
+|Punteggio 2 = 4
+|Referto = http://www.rsssf.com/tablesi/ital48.html
+|Città = [[Salerno]]
+|Stadio = [[Stadio Donato Vestuti|Stadio Comunale]]
+|Spettatori = 
+|Arbitro = [[Bruno Zilli]]
+|Cittarbitro = [[Reggio Emilia]]
+|Marcatori 1 = [[Pasquale Morisco|Morisco]] {{Goal|2}}<br />[[Ivo Buzzegoli|Buzzegoli]] {{Goal|7|rig.}}
+|Marcatori 2 = {{Goal|11|aut.}} [[Cesare Benedetti (calciatore 1920-2002)|Benedetti]]<br/>{{Goal|24}} [[Domenico De Vito|De Vito]]<br/>{{Goal|78}} [[Aredio Gimona|Gimona]]<br/>{{Goal|84}} [[Guido Tieghi|Tieghi]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 11 gennaio
+|Anno = 1948
+|Ora = 
+|Turno = 17ª giornata
+|Squadra 1 = Milan
+|Squadra 2 = Salernitana
+|Punteggio 1 = 2
+|Punteggio 2 = 0
+|Referto = http://www.rsssf.com/tablesi/ital48.html
+|Città = [[Milano]]
+|Stadio = [[Stadio San Siro]]
+|Spettatori = 
+|Arbitro = [[Giuseppe Parpaiola]]
+|Cittarbitro = [[Padova]]
+|Marcatori 1 = [[Riccardo Carapellese|Carapellese]] {{Goal|49}}<br/>[[Pietro Degano|Degano]] {{Goal|82}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 18 gennaio
+|Anno = 1948
+|Ora = 
+|Turno = 18ª giornata
+|Squadra 1 = Salernitana
+|Squadra 2 = Juventus
+|Punteggio 1 = 0
+|Punteggio 2 = 0
+|Referto = http://www.rsssf.com/tablesi/ital48.html
+|Città = [[Salerno]]
+|Stadio = [[Stadio Donato Vestuti|Stadio Comunale]]
+|Spettatori = 
+|Arbitro = [[Giuseppe Carpani (arbitro)|Giuseppe Carpani]]
+|Cittarbitro = [[Milano]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 25 gennaio
+|Anno = 1948
+|Ora = 
+|Turno = 19ª giornata
+|Squadra 1 = Bologna
+|Squadra 2 = Salernitana
+|Punteggio 1 = 4
+|Punteggio 2 = 0
+|Referto = http://www.rsssf.com/tablesi/ital48.html
+|Città = [[Bologna]]
+|Stadio = [[Stadio Renato Dall'Ara|Stadio Comunale]]
+|Spettatori = 
+|Arbitro = [[Luigi Valsecchi (arbitro)|Luigi Valsecchi]]
+|Cittarbitro = [[Milano]]
+|Marcatori 1 = [[Bruno Arcari (calciatore)|Arcari]] {{Goal|52}}<br/>[[Gino Cappello|Cappello]] {{Goal|65}}<br/>[[Silvio Rispoli|Rispoli]] {{Goal|74|aut.}}<br/>[[Mario Gritti|Gritti]] {{Goal|85}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 1º febbraio
+|Anno = 1948
+|Ora = 
+|Turno = 20ª giornata
+|Squadra 1 = Salernitana
+|Squadra 2 = Roma
+|Punteggio 1 = 0
+|Punteggio 2 = 1
+|Referto = http://www.rsssf.com/tablesi/ital48.html
+|Città = [[Salerno]]
+|Stadio = [[Stadio Donato Vestuti|Stadio Comunale]]
+|Spettatori = 
+|Arbitro = [[Virginio Canavesio]]
+|Cittarbitro = [[Torino]]
+|Marcatori 2 = {{Goal|73}} [[Bruno Pesaola|Pesaola]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 8 febbraio
+|Anno = 1948
+|Ora = 
+|Turno = 21ª giornata
+|Squadra 1 = Inter
+|Squadra 2 = Salernitana
+|Punteggio 1 = 2
+|Punteggio 2 = 1
+|Referto = http://www.rsssf.com/tablesi/ital48.html
+|Città = [[Milano]]
+|Stadio = [[Stadio San Siro]]
+|Spettatori = 
+|Arbitro = [[Bruno Guarda (arbitro)|Bruno Guarda]]
+|Cittarbitro = [[Mestre]]
+|Marcatori 1 = [[Bruno Quaresima|Quaresima]] {{Goal|11}}<br/>[[Benito Lorenzi|Lorenzi]] {{Goal|43}}
+|Marcatori 2 = {{Goal|77}} [[Sebastiano Vaschetto|Vaschetto]]
+}}
+
+==== Girone di ritorno ====
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 15 febbraio
+|Anno = 1948
+|Ora =
+|Turno = 22ª giornata
+|Note = Turno di riposo della SALERNITANA
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 22 febbraio
+|Anno = 1948
+|Ora = 
+|Turno = 23ª giornata
+|Squadra 1 = Lazio
+|Squadra 2 = Salernitana
+|Punteggio 1 = 3 
+|Punteggio 2 = 1
+|Referto = http://www.rsssf.com/tablesi/ital48.html
+|Città = [[Roma]]
+|Stadio = [[Stadio Nazionale]]
+|Spettatori = 
+|Arbitro = [[Giuseppe Parpaiola]]
+|Cittarbitro = [[Padova]]
+|Marcatori 1 = [[Mario Magrini|Magrini]] {{Goal|10}}<br/>[[Romano Penzo|Penzo]] {{Goal|44||86}}
+|Marcatori 2 = {{Goal|35}} [[Elio Onorato|Onorato]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 29 febbraio
+|Anno = 1948
+|Ora = 
+|Turno = 24ª giornata
+|Squadra 1 = Salernitana
+|Squadra 2 = Vicenza
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Referto = http://www.rsssf.com/tablesi/ital48.html
+|Città = [[Salerno]]
+|Stadio = [[Stadio Donato Vestuti|Stadio Comunale]]
+|Spettatori = 
+|Arbitro = [[Renzo Massai]]
+|Cittarbitro = [[Pisa]]
+|Marcatori 1 = [[Pasquale Morisco|Morisco]] {{Goal|55}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 7 marzo
+|Anno = 1948
+|Ora = 
+|Turno = 25ª giornata
+|Squadra 1 = Salernitana
+|Squadra 2 = Triestina
+|Punteggio 1 = 2
+|Punteggio 2 = 2
+|Referto = http://www.rsssf.com/tablesi/ital48.html
+|Città = [[Salerno]]
+|Stadio = [[Stadio Donato Vestuti|Stadio Comunale]]
+|Spettatori = 
+|Arbitro = [[Eliseo Camiolo]]
+|Cittarbitro = [[Milano]]
+|Marcatori 1 = [[Adalberto Sifredi|Sifredi]] {{Goal|29||51}}
+|Marcatori 2 = {{Goal|8}} [[Mario Tosolini|Tosolini]]<br/>{{Goal|86|aut.}} [[Vittorio Dagianti|Dagianti]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 14 marzo
+|Anno = 1948
+|Ora = 
+|Turno = 26ª giornata
+|Squadra 1 = Lucchese
+|Squadra 2 = Salernitana
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Referto = http://www.rsssf.com/tablesi/ital48.html
+|Città = [[Lucca]]
+|Stadio = [[Stadio Porta Elisa]]
+|Spettatori = 
+|Arbitro = [[Giuseppe Carpani (arbitro)|Giuseppe Carpani]]
+|Cittarbitro = [[Milano]]
+|Marcatori 1 = [[Danilo Michelini|Michelini]] {{Goal|74}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 21 marzo
+|Anno = 1948
+|Ora = 
+|Turno = 27ª giornata
+|Squadra 1 = Salernitana
+|Squadra 2 = Bari
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Referto = http://www.rsssf.com/tablesi/ital48.html
+|Città = [[Salerno]]
+|Stadio = [[Stadio Donato Vestuti|Stadio Comunale]]
+|Spettatori = 
+|Arbitro = [[Mario Scotto]]
+|Cittarbitro = [[Savona]]
+|Marcatori 1 = [[Ivo Buzzegoli|Buzzegoli]] {{Goal|42|rig.}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 28 marzo
+|Anno = 1948
+|Ora = 
+|Turno = 28ª giornata
+|Squadra 1 = Salernitana
+|Squadra 2 = Fiorentina
+|Punteggio 1 = 2
+|Punteggio 2 = 0
+|Referto = http://www.rsssf.com/tablesi/ital48.html
+|Città = [[Salerno]]
+|Stadio = [[Stadio Donato Vestuti|Stadio Comunale]]
+|Spettatori = 
+|Arbitro = [[Giovanni Galeati]]
+|Cittarbitro = [[Bologna]]
+|Marcatori 1 = [[Renzo Merlin|Merlin]] {{Goal|51}}<br/>[[Adalberto Sifredi|Sifredi]] {{Goal|65}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 11 aprile
+|Anno = 1948
+|Ora = 
+|Turno = 29ª giornata
+|Squadra 1 = Napoli
+|Squadra 2 = Salernitana
+|Punteggio 1 = 0
+|Punteggio 2 = 0
+|Referto = http://www.rsssf.com/tablesi/ital48.html
+|Città = [[Napoli]]
+|Stadio = [[Stadio Arturo Collana|Stadio della Liberazione]]
+|Spettatori = 
+|Arbitro = [[Osvaldo Savio]]
+|Cittarbitro = [[Torino]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 17 aprile
+|Anno = 1948
+|Ora = 
+|Turno = 30ª giornata
+|Squadra 1 = Salernitana
+|Squadra 2 = Torino
+|Punteggio 1 = 1
+|Punteggio 2 = 4
+|Referto = http://www.rsssf.com/tablesi/ital48.html
+|Città = [[Salerno]]
+|Stadio = [[Stadio Donato Vestuti|Stadio Comunale]]
+|Spettatori = 
+|Arbitro = [[Bruno Zilli]]
+|Cittarbitro = [[Reggio Emilia]]
+|Marcatori 1 = [[Renzo Merlin|Merlin]] {{Goal|7}}
+|Marcatori 2 = {{Goal|17||59}} [[Guglielmo Gabetto|Gabetto]]<br/>{{Goal|79}} [[Franco Ossola|Ossola]]<br/>{{Goal|81}} [[Valentino Mazzola|Mazzola]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 25 aprile
+|Anno = 1948
+|Ora = 
+|Turno = 31ª giornata
+|Squadra 1 = Salernitana
+|Squadra 2 = Atalanta
+|Punteggio 1 = 0
+|Punteggio 2 = 0
+|Referto = http://www.rsssf.com/tablesi/ital48.html
+|Città = [[Salerno]]
+|Stadio = [[Stadio Donato Vestuti|Stadio Comunale]]
+|Spettatori = 
+|Arbitro = [[Eriprando Poggipollini]]
+|Cittarbitro = [[Ferrara]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 2 maggio
+|Anno = 1948
+|Ora = 
+|Turno = 32ª giornata
+|Squadra 1 = Modena
+|Squadra 2 = Salernitana
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Referto = http://www.rsssf.com/tablesi/ital48.html
+|Città = [[Modena]]
+|Stadio = [[Stadio Alberto Braglia|Stadio Comunale]]
+|Spettatori = 
+|Arbitro = [[Carlo Maglio]]
+|Cittarbitro = [[Torino]]
+|Marcatori 1 = [[Sergio Bertoni|Bertoni]] {{Goal|6}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 6 maggio
+|Anno = 1948
+|Ora = 
+|Turno = 33ª giornata
+|Squadra 1 = Salernitana
+|Squadra 2 = Pro Patria
+|Punteggio 1 = 5
+|Punteggio 2 = 0
+|Referto = http://www.rsssf.com/tablesi/ital48.html
+|Città = [[Salerno]]
+|Stadio = [[Stadio Donato Vestuti|Stadio Comunale]]
+|Spettatori = 
+|Arbitro = [[Riccardo Pieri]]
+|Cittarbitro = [[Trieste]]
+|Marcatori 1 = [[Secondo Rossi|S. Rossi]] {{Goal|4}}<br/>[[Renzo Merlin|Merlin]] {{Goal|18||75}}<br/>[[Ivo Buzzegoli|Buzzegoli]] {{Goal|56}}<br />[[Sebastiano Vaschetto|Vaschetto]] {{Goal|72}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 9 maggio
+|Anno = 1948
+|Ora = 
+|Turno = 34ª giornata
+|Squadra 1 = Sampdoria
+|Squadra 2 = Salernitana
+|Punteggio 1 = 6
+|Punteggio 2 = 3
+|Referto = http://www.rsssf.com/tablesi/ital48.html
+|Città = [[Genova]]
+|Stadio = [[Stadio Luigi Ferraris]]
+|Spettatori = 
+|Arbitro = [[Gino Cicardi]]
+|Cittarbitro = [[Lecco]]
+|Marcatori 1 = [[Giuseppe Baldini|Baldini]] {{Goal|7||57}}<br/>[[Adriano Bassetto|Bassetto]] {{Goal|17||63}}<br/>[[Giuseppe Carissimi|Carissimi]] {{Goal|30}}<br/>[[Luigi Parodi|Parodi]] {{Goal|90}}
+|Marcatori 2 = {{Goal|25}} [[Secondo Rossi|S. Rossi]]<br/>{{Goal|38}} [[Renzo Merlin|Merlin]]<br/>{{Goal|80}} [[Elio Onorato|Onorato]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 23 maggio
+|Anno = 1948
+|Ora = 
+|Turno = 35ª giornata
+|Squadra 1 = Salernitana
+|Squadra 2 = Alessandria
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Referto = http://www.rsssf.com/tablesi/ital48.html
+|Città = [[Salerno]]
+|Stadio = [[Stadio Donato Vestuti|Stadio Comunale]]
+|Spettatori = 
+|Arbitro = [[Luigi Gemini]]
+|Cittarbitro = [[Roma]]
+|Marcatori 1 = [[Renzo Merlin|Merlin]] {{Goal|2}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 27 maggio
+|Anno = 1948
+|Ora = 
+|Turno = 36ª giornata
+|Squadra 1 = Genoa
+|Squadra 2 = Salernitana
+|Punteggio 1 = 3
+|Punteggio 2 = 1
+|Referto = http://www.rsssf.com/tablesi/ital48.html
+|Città = [[Genova]]
+|Stadio = [[Stadio Luigi Ferraris]]
+|Spettatori = 
+|Arbitro = [[Ermanno Silvano]]
+|Cittarbitro = [[Torino]]
+|Marcatori 1 = [[Renato Brighenti|Brighenti]] {{Goal|31||53}}<br/>[[Silvio Formentin|Formentin]] {{Goal|73}}
+|Marcatori 2 = {{Goal|54}} [[Vittorio Dagianti|Dagianti]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 30 maggio
+|Anno = 1948
+|Ora = 
+|Turno = 37ª giornata
+|Squadra 1 = Livorno
+|Squadra 2 = Salernitana
+|Punteggio 1 = 3
+|Punteggio 2 = 0
+|Referto = http://www.rsssf.com/tablesi/ital48.html
+|Città = [[Livorno]]
+|Stadio = [[Stadio Armando Picchi|Stadio Comunale]]
+|Spettatori = 
+|Arbitro = [[Riccardo Pieri]]
+|Cittarbitro = [[Trieste]]
+|Marcatori 1 = [[Ermelindo Lovagnini|Lovagnini]] {{Goal|75}}<br/>[[Armando Tre Re|Trerè]] {{Goal|82}}<br/>[[Teresio Piana|Piana]] {{Goal|90|rig.}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 6 giugno
+|Anno = 1948
+|Ora = 
+|Turno = 38ª giornata
+|Squadra 1 = Salernitana
+|Squadra 2 = Milan
+|Punteggio 1 = 4
+|Punteggio 2 = 3
+|Referto = http://www.rsssf.com/tablesi/ital48.html
+|Città = [[Salerno]]
+|Stadio = [[Stadio Donato Vestuti|Stadio Comunale]]
+|Spettatori = 
+|Arbitro = [[Giuseppe Parpaiola]]
+|Cittarbitro = [[Padova]]
+|Marcatori 1 = [[Renzo Merlin|Merlin]] {{Goal|1}}<br/>[[Adalberto Sifredi|Sifredi]] {{Goal|20}}<br/>[[Ivo Buzzegoli|Buzzegoli]] {{Goal|34}}<br />[[Andrea Bonomi (calciatore)|Bonomi]] {{Goal|49|aut.}}
+|Marcatori 2 = {{Goal|37||70}} [[Riccardo Carapellese|Carapellese]]<br/>{{Goal|40}} [[Aurelio Santagostino|Santagostino]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 13 giugno
+|Anno = 1948
+|Ora = 
+|Turno = 39ª giornata
+|Squadra 1 = Juventus
+|Squadra 2 = Salernitana
+|Punteggio 1 = 2
+|Punteggio 2 = 0
+|Referto = http://www.rsssf.com/tablesi/ital48.html
+|Città = [[Torino]]
+|Stadio = [[Stadio Olimpico (Torino)|Stadio Comunale]]
+|Spettatori = 
+|Arbitro = [[Gino Cicardi]]
+|Cittarbitro = [[Lecco]]
+|Marcatori 1 = [[Silvio Rispoli|Rispoli]] {{Goal|34|aut.}}<br/>[[Pietro Magni (calciatore)|Magni]] {{Goal|87}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 20 giugno
+|Anno = 1948
+|Ora = 
+|Turno = 40ª giornata
+|Squadra 1 = Salernitana
+|Squadra 2 = Bologna
+|Punteggio 1 = 2
+|Punteggio 2 = 0
+|Referto = http://www.rsssf.com/tablesi/ital48.html
+|Città = [[Salerno]]
+|Stadio = [[Stadio Donato Vestuti|Stadio Comunale]]
+|Spettatori = 
+|Arbitro = [[Ermanno Silvano]]
+|Cittarbitro = [[Torino]]
+|Marcatori 1 = [[Renzo Merlin|Merlin]] {{Goal|20||27}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 27 giugno
+|Anno = 1948
+|Ora = 
+|Turno = 41ª giornata
+|Squadra 1 = Roma
+|Squadra 2 = Salernitana
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Referto = http://www.rsssf.com/tablesi/ital48.html
+|Città = [[Roma]]
+|Stadio = [[Stadio Nazionale]]
+|Spettatori = 
+|Arbitro = [[Vittorio Pera]]
+|Cittarbitro = [[Firenze]]
+|Marcatori 1 = [[Luigi Brunella|Brunella]] {{Goal|50}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 4 luglio
+|Anno = 1948
+|Ora = 
+|Turno = 42ª giornata
+|Squadra 1 = Salernitana
+|Squadra 2 = Inter
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Referto = http://www.rsssf.com/tablesi/ital48.html
+|Città = [[Salerno]]
+|Stadio = [[Stadio Donato Vestuti|Stadio Comunale]]
+|Spettatori = 
+|Arbitro = [[Mario Scotto]]
+|Cittarbitro = [[Savona]]
+|Marcatori 1 = [[Renzo Merlin|Merlin]] {{Goal|4}}
+}}
+
+== Statistiche ==
+=== Statistiche di squadra ===
+{{Statistiche squadra
+|comp1=[[Serie A 1947-1948|Serie A]]<ref>{{cita web|url=http://www.calcio.com/calendario/ita-serie-a-1947-1948/|titolo=Serie A 1947/1948 – Classifiche|editore=calcio.com}}</ref>
+|punti1=34
+|cv1=13
+|cn1=4
+|cp1=3
+|cgf1=39
+|cgs1=21
+|tv1=0
+|tn1=4
+|tp1=16
+|tgf1=7
+|tgs1=42
+}}
+=== Andamento in campionato ===
+{{Andamento |nr=42}}
+{{Andamento/Luogo |m1= |m2=C |m3=T |m4=T |m5=C |m6=T |m7=T |m8=C |m9=T |m10=T |m11=C |m12=T |m13=C |m14=T |m15=C |m16=C |m17=T |m18=C |m19=T |m20=C |m21=T |m22 |m23=T |m24=C |m25=C |m26=T |m27=C |m28=C |m29=T |m30=C |m31=C |m32=T |m33=C |m34=T |m35=C |m36=T |m37=T |m38=C |m39=T |m40=C |m41=T |m42=C }}
+{{Andamento/Risultato |m1=- |m2=V |m3=P |m4=N |m5=V |m6=N |m7=P |m8=N |m9=P |m10=N |m11=V |m12=P |m13=V |m14=P |m15=V |m16=P |m17=P |m18=N |m19=P |m20=P |m21=P |m22=- |m23=P |m24=V |m25=N |m26=P |m27=V |m28=V |m29=N |m30=P |m31=N |m32=P |m33=V |m34=P |m35=V |m36=P |m37=P |m38=V |m39=P |m40=V |m41=P |m42=V }}
+{{Andamento/Posizione |m1=14 |m2=8 |m3=12 |m4=13 |m5=8 |m6=8 |m7=11 |m8=11 |m9=17 |m10=14 |m11=11 |m12=14 |m13=12 |m14=15 |m15=11 |m16=16 |m17=16 |m18=15 |m19=16 |m20=17 |m21=19 |m22=20 |m23=20 |m24=19 |m25=19 |m26=19 |m27=19 |m28=16 |m29=15 |m30=18 |m31=17 |m32=18 |m33=16 |m34=19 |m35=16 |m36=18 |m37=19 |m38=19 |m39=19 |m40=18 |m41=19 |m42=19 }}
+{{Andamento/Fine |neutro=X |rinviata=X |riposo=X |fonte={{cita web |url=http://www.calcio.com/calendario/ita-serie-a-1947-1948/ |titolo=Serie A 1947/1948 – Classifiche |editore=calcio.com}}}}
+
+=== Statistiche dei giocatori ===
+Sono in ''corsivo'' i calciatori che hanno lasciato la società a stagione in corso.
+{{Statistiche dei giocatori
+|Competizione1 = {{simbolo|Scudetto.svg|15}} [[Serie A 1947-1948|Serie A]]
+| Totale = no
+| Cartellini = no
+| {{Sortname|C.|Benedetti|Cesare Benedetti (calciatore 1920-2002)}}<ref>{{cita web|url=http://www.salernitanastory.it/leggiGiocatoreSalernitana.php/102/2|titolo=Cesare Benedetti|editore=salernitanastory.it}}</ref> {{Sommastat|C=no |25|0|?|? }}
+| {{Sortname|I.|Buzzegoli|Ivo Buzzegoli}}<ref>{{cita web|url=http://www.salernitanastory.it/schedaGiocatore.php?keepThis=true&idgiocatore=167&idcampionato=107&TB_iframe=true&height=500&width=700|titolo=Ivo Buzzegoli|editore=salernitanastory.it}}</ref> {{Sommastat|C=no |36|6|?|? }}
+| {{Sortname|V.|Dagianti|Vittorio Dagianti}}<ref>{{cita web|url=http://www.salernitanastory.it/schedaGiocatore.php?keepThis=true&idgiocatore=339&idcampionato=107&TB_iframe=true&height=500&width=700|titolo=Vittorio Dagianti|editore=salernitanastory.it}}</ref> {{Sommastat|C=no |35|1|?|? }}
+| {{Sortname|M.|Gambazza|Mario Gambazza}}<ref>{{cita web|url=http://www.salernitanastory.it/schedaGiocatore.php?keepThis=true&idgiocatore=570&idcampionato=107&TB_iframe=true&height=500&width=700|titolo=Mario Gambazza|editore=salernitanastory.it}}</ref> {{Sommastat|C=no |15|-22|?|? }}
+| {{Sortname|S.|Grassi|Silvano Grassi}}<ref>{{cita web|url=http://www.salernitanastory.it/schedaGiocatore.php?keepThis=true&idgiocatore=621&idcampionato=107&TB_iframe=true&height=500&width=700|titolo=Silvano Grassi|editore=salernitanastory.it}}</ref> {{Sommastat|C=no |2|0|?|? }}
+| {{Sortname|C.|Jacovazzo|Carmine Jacovazzo}}<ref>{{cita web|url=http://www.salernitanastory.it/schedaGiocatore.php?keepThis=true&idgiocatore=641&idcampionato=107&TB_iframe=true&height=500&width=700|titolo=Carmine Iacovazzo|editore=salernitanastory.it}}</ref> {{Sommastat|C=no |26|0|?|? }}
+| N. Lombardi<ref>{{cita web|url=http://www.salernitanastory.it/schedaGiocatore.php?keepThis=true&idgiocatore=700&idcampionato=107&TB_iframe=true&height=500&width=700|titolo=Nicola Lombardi|editore=salernitanastory.it}}</ref> {{Sommastat|C=no |0|-0|?|? }}
+| {{Sortname|V.|Margiotta|Vincenzo Margiotta}}<ref>{{cita web|url=http://www.salernitanastory.it/schedaGiocatore.php?keepThis=true&idgiocatore=756&idcampionato=107&TB_iframe=true&height=500&width=700|titolo=Vincenzo Margiotta|editore=salernitanastory.it}}</ref> {{Sommastat|C=no |19|3|?|? }}
+| {{Sortname|V.|Masci|Vittorio Masci}}<ref>{{cita web|url=http://www.salernitanastory.it/schedaGiocatore.php?keepThis=true&idgiocatore=773&idcampionato=107&TB_iframe=true&height=500&width=700|titolo=Vittorio Masci|editore=salernitanastory.it}}</ref> {{Sommastat|C=no |25|-41|?|? }}
+| {{Sortname|R.|Merlin|Renzo Merlin}}<ref name="merlin"/>{{Sommastat|C=no |21|10|?|? }}
+| {{Sortname|P.|Morisco|Pasquale Morisco}}<ref>{{cita web|url=http://www.salernitanastory.it/schedaGiocatore.php?keepThis=true&idgiocatore=827&idcampionato=107&TB_iframe=true&height=500&width=700|titolo=Pasquale Morisco|editore=salernitanastory.it}}</ref> {{Sommastat|C=no |12|5|?|? }}
+| {{Sortname|E.|Onorato|Elio Onorato}}<ref name="onorato"/>{{Sommastat|C=no |39|6|?|? }}
+| {{Sortname|R.|Pastori|Renato Pastori}}<ref>{{cita web|url=http://www.salernitanastory.it/schedaGiocatore.php?keepThis=true&idgiocatore=935&idcampionato=107&TB_iframe=true&height=500&width=700|titolo=Renato Pastori|editore=salernitanastory.it}}</ref> {{Sommastat|C=no |32|0|?|? }}
+| {{Sortname|A.|Piccinini|Alberto Piccinini}}<ref>{{cita web|url=http://www.salernitanastory.it/schedaGiocatore.php?keepThis=true&idgiocatore=965&idcampionato=107&TB_iframe=true&height=500&width=700|titolo=Alberto Piccinini|editore=salernitanastory.it}}</ref> {{Sommastat|C=no |32|0|?|? }}
+| {{Sortname|S.|Rispoli|Silvio Rispoli}}<ref>{{cita web|url=http://www.salernitanastory.it/schedaGiocatore.php?keepThis=true&idgiocatore=1041&idcampionato=107&TB_iframe=true&height=500&width=700|titolo=Silvio Rispoli|editore=salernitanastory.it}}</ref> {{Sommastat|C=no |15|0|?|? }}
+| {{Sortname|J. A.|Rodríguez|José Adolfo Rodríguez}}<ref>{{cita web|url=http://www.salernitanastory.it/schedaGiocatore.php?keepThis=true&idgiocatore=1054&idcampionato=107&TB_iframe=true&height=500&width=700|titolo=José Adolfo Rodríguez|editore=salernitanastory.it}}</ref> {{Sommastat|C=no |10|0|?|? }}
+| {{Sortname|S.|Rossi|Secondo Rossi}}<ref>{{cita web|url=http://www.salernitanastory.it/schedaGiocatore.php?keepThis=true&idgiocatore=1080&idcampionato=107&TB_iframe=true&height=500&width=700|titolo=Secondo Rossi|editore=salernitanastory.it}}</ref> {{Sommastat|C=no |19|4|?|? }}
+| {{Sortname|A.|Sifredi|Adalberto Sifredi}}<ref>{{cita web|url=http://www.salernitanastory.it/schedaGiocatore.php?keepThis=true&idgiocatore=1145&idcampionato=107&TB_iframe=true&height=500&width=700|titolo=Adalberto Sifredi|editore=salernitanastory.it}}</ref> {{Sommastat|C=no |13|4|?|? }}
+| {{Sortname|J. C.|Surano|José Carlos Surano}}<ref>{{cita web|url=http://www.salernitanastory.it/schedaGiocatore.php?keepThis=true&idgiocatore=1181&idcampionato=107&TB_iframe=true&height=500&width=700|titolo=José Carlos Surano|editore=salernitanastory.it}}</ref> {{Sommastat|C=no |1|0|?|? }}
+| {{Sortname|R.|Tori|Renato Tori}}<ref>{{cita web|url=http://www.salernitanastory.it/schedaGiocatore.php?keepThis=true&idgiocatore=1207&idcampionato=107&TB_iframe=true&height=500&width=700|titolo=Renato Tori|editore=salernitanastory.it}}</ref> {{Sommastat|C=no |30|0|?|? }}
+| {{Sortname|S.|Vaschetto|Sebastiano Vaschetto}}<ref>{{cita web|url=http://www.salernitanastory.it/schedaGiocatore.php?keepThis=true&idgiocatore=1240&idcampionato=107&TB_iframe=true&height=500&width=700|titolo=Sebastiano Vaschetto|editore=salernitanastory.it}}</ref> {{Sommastat|C=no |32|6|?|? }}
+| {{Sortname|V.|Volpe|Vincenzo Volpe (calciatore)}}<ref>{{cita web|url=http://www.salernitanastory.it/schedaGiocatore.php?keepThis=true&idgiocatore=1276&idcampionato=107&TB_iframe=true&height=500&width=700|titolo=Vincenzo Volpe|editore=salernitanastory.it}}</ref> {{Sommastat|C=no |1|0|?|? }}
+}}
+== Note ==
+<references/>
+== Bibliografia ==
+* {{cita libro|nome=Giovanni|cognome=Vitale|titolo=Salernitana storia di gol sorrisi e affanni|anno=2010|editore=International Printing Editore|ISBN=978-88-7868-094-4|cid=Vitale}}
+* {{cita libro|autore=[[Francesco Pio Fasano]]|coautori=Giuseppe Fasano|titolo=Salernitana: la Storia. 1919-2019: cent'anni di uomini, tabellini e racconti|anno=2019|editore=GEO Edizioni}}
+* {{cita libro|titolo=Almanacco Illustrato del Calcio 2022|editore=[[Panini (azienda)|Panini Editore]]|anno=2021|p=832|città=Modena|ISSN=1129-3381|cid=Panini}}
+== Collegamenti esterni ==
+* {{cita web|http://www.salernitanastory.it/campionato.php/107/A/1947-48|Serie A 1947-48 su Salernitanastory.it}}
+Indirizzi in cui si parla di partite svolte dalla Salernitana 1947-1948:
+* {{cita web|url=https://www.corederoma.it/online/?p=4678|titolo=Salernitana-Roma: formazioni}}
+* {{cita web|url=https://www.corederoma.it/online/?p=4658|titolo=Roma-Salernitana: formazioni}}
+* {{cita web|http://www.bolognafc.it/it/go/pagine/1807/Tutte-le-partite-1947-48.html|Salernitana-Bologna: tabellino}}
+* {{cita web | 1 = http://www.archiviotoro.it/a/archivio/archivio/4748/09.asp | 2 = Torino-Salernitana: tabellino | accesso = 14 gennaio 2010 | urlarchivio = https://web.archive.org/web/20091215075627/http://www.archiviotoro.it/a/archivio/archivio/4748/09.asp | dataarchivio = 15 dicembre 2009 | urlmorto = sì }}
+* {{cita web | 1 = http://doria.altervista.org/archivio/1948/samp-a48.htm | 2 = Salernitana-Sampdoria: tabellino | accesso = 14 gennaio 2010 | urlarchivio = https://web.archive.org/web/20110522002104/http://doria.altervista.org/archivio/1948/samp-a48.htm | dataarchivio = 22 maggio 2011 | urlmorto = sì }}
+* {{cita web|http://archiviostorico.gazzetta.it/1997/marzo/07/quei_ragazzi_Salerno_ga_0_9703077263.shtml|Articolo della Gazzetta dello Sport sulla partita Salernitana Torino 1-4 (1947-1948)}}
+* {{cita web|http://www.rsssf.com/tablesi/ital48.html|Serie A 1947-1948 su RSSSF.com|lingua=en}}
+{{Calcio Salernitana storico}}
+{{Calcio in Italia 1947-1948}}
+{{Portale|calcio}}

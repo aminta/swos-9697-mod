@@ -65,7 +65,8 @@ season, for instance).
 `club` (a club key), `name`, `role` (`G` goalkeeper, `D` defender, `M` midfielder, `A` attacker). List the players in
 order of importance (for instance minutes played), with 2 goalkeepers. A club gets 16 players: the compiler fills
 each of the 16 squad slots with the next player of the slot's role (or of a near role when that role is used up).
-`?` as a name = no known player: a filler is invented.
+`?` as a name = no known player: a filler is invented. Optional column `nat`: the player's nationality (the game's
+number, e.g. 18 Italy, 15 Hungary, 68 Argentina, 76 Uruguay), else the squad's `nationality`.
 
 ### ties.csv
 
@@ -105,7 +106,10 @@ real bracket.
 - `squads`: how records are built, one entry per group of files:
   - `calibrate`: each club on the record `template` (position) of a `source` team file (positions, kit, skills);
     `kit` = another record of that file for the colours; skills moved towards `target` (average player value);
-    players found by name in the source keep its ratings (for the files in `reuse_ratings`).
+    players found by name in the source keep its ratings (for the files in `reuse_ratings`). `ratings_from`
+    `[{"source", "clubs"}]`: the players of those clubs found by name in another team file (or a SWOS 2020
+    `CUSTOMS.EDT`) keep that record (Italy 1947-48: Torino from the 1900s Retro Pack). Optional clubs.csv `kit1` /
+    `kit2` (5 numbers, as for `explicit`) set the colours.
   - `game`: each club on its own record of the 1996-97 game when it has one, else a club of its country; players
     already in the game keep their ratings.
   - `explicit`: every byte comes from the pack (no source file, nothing estimated). `clubs.csv` adds `tactic`
@@ -131,7 +135,15 @@ real bracket.
   - `names`: per language (`it`, `en`, `fr`, `de`, or `*` for all): `[long name, short name]`, upper case, short
     name at most 16 characters.
 - `season`: what a club plays in Season mode: the `league`, the national `cup`, and in `europe` which league club
-  plays which European cup (`europe_placeholder`: any of those cups, replaced at run time).
+  plays which European cup (`europe_placeholder`: any of those cups, replaced at run time). No `cup` = a season with
+  the league only (Italy 1947-48: no Coppa Italia from 1943 to 1958); European cups need a national cup.
+
+### Drafts from it.wikipedia
+
+`tools/itwiki_season.py` drafts `clubs.csv` and `players.csv` of an Italian league season from it.wikipedia: the
+season page (final table, participants) and every club's season page (squad box, league appearances, coaches, kit).
+`packs/<id>/itwiki.json` holds what the pages do not say (see the tool's header); the pages are cached in
+`raw/itwiki`. `python3 tools/itwiki_season.py fetch packs/<id>`, then `draft packs/<id>`.
 
 ## What a contributor sends us
 

@@ -1,0 +1,846 @@
+{{Torna a|Aurora Pro Patria 1919}}
+{{Stagione squadra
+|sport=calcio
+|club = Pro Patria et Libertate Sezione Calcio
+|stagione = 1947-1948
+|allenatore1 = {{Bandiera|ITA}} [[Aldo Biffi]]
+|presidente = {{Bandiera|ITA}} Antonio Formenti
+|campionato = [[Serie A 1947-1948|Serie A]]
+|campionato posizione = 8º posto
+|presenze campionato = [[Antonio Fossati|Fossati]] (40)
+|marcatore campionato = [[Angelo Turconi|Turconi]] (18)
+|stadio = [[Stadio Carlo Speroni|Stadio Comunale]]
+|stagione prima = [[Pro Patria et Libertate Sezione Calcio 1946-1947|1946-1947]]
+|stagione dopo = [[Pro Patria et Libertate Sezione Calcio 1948-1949|1948-1949]]
+|aggiornato = 29 luglio 2026
+}}
+
+Questa voce raccoglie le informazioni riguardanti la '''Pro Patria et Libertate Sezione Calcio''' nelle competizioni ufficiali della stagione '''1947-1948'''.
+
+==Stagione==
+Nella stagione 1947-1948 lo scudetto è stato vinto dal "grande" Torino con sedici punti di vantaggio sulle seconde piazzate, Triestina, Milan e Juventus. Un campionato maratona con 21 squadre e quindi 42 giornate più 2 riposi. Ottimo il piazzamento della squadra bustocca neo promossa in Seria A, allenata da Aldo Biffi, si piazza in ottava posizione con 40 punti, appaiata al Bologna. In doppia cifra in fatto di reti vi giungono tre tigrotti: Angelo Turconi che firma 18 reti, ben spalleggiato dall'ex interista Enrico Candiani e Lelio Antoniotti con 11 centri a testa.
+
+== Rosa ==
+{{Calciatore in rosa/inizio}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Angelo Uboldi]]|ruolo=P}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Guido Visco Gilardi]]|ruolo=P}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Eugenio Patti]]|ruolo=D}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Antonio Azimonti]]|ruolo=D}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Giovanni Ivaldi]]|ruolo=D}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Antonio Fossati]]|ruolo=D}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Aldo Marelli]]|ruolo=D}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Alfonso Borra]]|ruolo=C}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Giobatta Martini]]|ruolo=C}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Piero Pozzi]]|ruolo=C}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Lorenzo Colpo]]|ruolo=C}}
+{{Calciatore in rosa/medio}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Fausto Bonelli]]|ruolo=C}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Carlo Ceriotti]]|ruolo=C}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=Piero Messanzani|ruolo=C}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Angelo Turconi]]|ruolo=A}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Lelio Antoniotti]]|ruolo=A}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Enrico Candiani]]|ruolo=A}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Giuseppe Molina]]|ruolo=A}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Emidio Cavigioli]]|ruolo=A}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Spartaco Bertolucci]]|ruolo=A}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Carlo Reguzzoni]]|ruolo=A}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=Giuseppe Carnevali|ruolo=A}}
+{{Calciatore in rosa/fine}}
+== Risultati ==
+=== Serie A ===
+{{Vedi anche|Serie A 1947-1948}}
+==== Girone di andata ====
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 14 settembre
+|Anno = 1947
+|Ora =
+|Turno = 1ª giornata
+|Squadra 1 = Bologna
+|Squadra 2 = Pro Patria
+|Punteggio 1 = 2
+|Punteggio 2 = 2
+|Città = [[Bologna]]
+|Stadio = [[Stadio Renato Dall'Ara|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Bruno Tassini]]
+|Cittarbitro = [[Verona]]
+|Marcatori 1 = [[Amedeo Biavati|Biavati]] {{Goal|23}} {{Goal|66}}
+|Marcatori 2 = {{Goal|39}} [[Spartaco Bertolucci|Bertolucci]]<br />{{Goal|49}} [[Angelo Turconi|Turconi]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 21 settembre
+|Anno = 1947
+|Ora =
+|Turno = 2ª giornata
+|Squadra 1 = Milan
+|Squadra 2 = Pro Patria
+|Punteggio 1 = 4
+|Punteggio 2 = 2
+|Città = [[Milano]]
+|Stadio = [[Stadio Giuseppe Meazza|Stadio San Siro]]
+|Spettatori =
+|Arbitro = [[Ferruccio Bonivento]]
+|Cittarbitro = [[Venezia]]
+|Marcatori 1 = [[Héctor Puricelli|Puricelli]] {{Goal|7}}<br/>[[Carlo Annovazzi|Annovazzi]] {{Goal|22}}<br/>[[Héctor Puricelli|Puricelli]] {{Goal|40}}<br/>[[Pietro Degano|Degano]] {{Goal|59}}
+|Marcatori 2 = {{Goal|45}} [[Carlo Reguzzoni|Reguzzoni]]<br/>{{Goal|84}} [[Angelo Turconi|Turconi]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 28 settembre
+|Anno = 1947
+|Ora =
+|Turno = 3ª giornata
+|Squadra 1 = Pro Patria
+|Squadra 2 = Sampdoria
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Busto Arsizio]]
+|Stadio = [[Stadio Carlo Speroni|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Antonio Zambotto]]
+|Cittarbitro = [[Padova]]
+|Marcatori 1 = [[Angelo Turconi|Turconi]] {{Goal|25}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 5 ottobre
+|Anno = 1947
+|Ora =
+|Turno = 4ª giornata
+|Squadra 1 = Pro Patria
+|Squadra 2 = Fiorentina
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Città = [[Busto Arsizio]]
+|Stadio = [[Stadio Carlo Speroni|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Riccardo Pieri]]
+|Cittarbitro = [[Trieste]]
+|Marcatori 1 = [[Lelio Antoniotti|Antoniotti]] {{Goal|12}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 12 ottobre
+|Anno = 1947
+|Ora =
+|Turno = 5ª giornata
+|Squadra 1 = Lazio
+|Squadra 2 = Pro Patria
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Città = [[Roma]]
+|Stadio = [[Stadio Nazionale]]
+|Spettatori =
+|Arbitro = [[Agostino Gamba]]
+|Cittarbitro = [[Napoli]]
+|Marcatori 1 = [[Orlando Fantoni|Fantoni]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 19 ottobre
+|Anno = 1947
+|Ora =
+|Turno = 6ª giornata
+|Squadra 1 = Pro Patria
+|Squadra 2 = Torino
+|Punteggio 1 = 0
+|Punteggio 2 = 2
+|Città = [[Busto Arsizio]]
+|Stadio = [[Stadio Carlo Speroni|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Vittorio Pera]]
+|Cittarbitro = [[Firenze]]
+|Marcatori 2 = {{Goal|84}} [[Valentino Mazzola|Mazzola]]<br/>{{Goal|87}} [[Romeo Menti|R. Menti]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 26 ottobre
+|Anno = 1947
+|Ora =
+|Turno = 7ª giornata<ref>Partita disputata sul campo neutro di La Spezia.</ref>
+|Squadra 1 = Livorno
+|Squadra 2 = Pro Patria
+|Punteggio 1 = 2
+|Punteggio 2 = 2
+|Città = [[La Spezia]]
+|Stadio = [[Stadio Alberto Picco]]
+|Spettatori =
+|Arbitro = [[Giovanni Galeati]]
+|Cittarbitro = [[Bologna]]
+|Marcatori 1 = [[Aredio Gimona|Gimona]] {{Goal|29}}<br/>[[Teresio Piana|Piana]] {{Goal|65}}
+|Marcatori 2 = {{Goal|56}} [[Angelo Turconi|Turconi]]<br/>{{Goal|80}} [[Lelio Antoniotti|Antoniotti]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 2 novembre
+|Anno = 1947
+|Ora =
+|Turno = 8ª giornata
+|Squadra 1 = Roma
+|Squadra 2 = Pro Patria
+|Punteggio 1 = 1
+|Punteggio 2 = 1
+|Città = [[Roma]]
+|Stadio = [[Stadio Nazionale]]
+|Spettatori =
+|Arbitro = [[Angelo Pizzato]]
+|Cittarbitro = [[Mestre]]
+|Marcatori 1 = [[Gyula Zsengellér|Zsengellér]] {{Goal|78}}
+|Marcatori 2 = {{Goal|40}} [[Angelo Turconi|Turconi]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 16 novembre
+|Anno = 1947
+|Ora =
+|Turno = 9ª giornata
+|Squadra 1 = Pro Patria
+|Squadra 2 = Triestina
+|Punteggio 1 = 3
+|Punteggio 2 = 1
+|Città = [[Busto Arsizio]]
+|Stadio = [[Stadio Carlo Speroni|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Ferruccio Bonivento]]
+|Cittarbitro = [[Venezia]]
+|Marcatori 1 = [[Fausto Bonelli|Bonelli]] {{Goal|28}}<br/>[[Lelio Antoniotti|Antoniotti]] {{Goal|44}}<br/>[[Emidio Cavigioli|Cavigioli]] {{Goal|74}}
+|Marcatori 2 = {{Goal|30}} [[Guglielmo Trevisan|G. Trevisan]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 23 novembre
+|Anno = 1947
+|Ora =
+|Turno = 10ª giornata
+|Squadra 1 = Napoli
+|Squadra 2 = Pro Patria
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Città = [[Napoli]]
+|Stadio = [[Stadio Arturo Collana|Stadio della Liberazione]]
+|Spettatori =
+|Arbitro = [[Virginio Canavesio]]
+|Cittarbitro = [[Torino]]
+|Marcatori 1 = [[Naim Krieziu|Krieziu]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 30 novembre
+|Anno = 1947
+|Ora =
+|Turno = 11ª giornata
+|Squadra 1 = Pro Patria
+|Squadra 2 = Genoa
+|Punteggio 1 = 3
+|Punteggio 2 = 2
+|Città = [[Busto Arsizio]]
+|Stadio = [[Stadio Carlo Speroni|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Ermanno Silvano]]
+|Cittarbitro = [[Torino]]
+|Marcatori 1 = [[Emidio Cavigioli|Cavigioli]] {{Goal|59}}<br/>[[Angelo Turconi|Turconi]] {{Goal|63||82}}
+|Marcatori 2 = {{Goal|73}} [[Miguel Ortega|Ortega]]<br/>{{Goal|88}} [[Juan Carlos Verdeal|Verdeal]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 7 dicembre
+|Anno = 1947
+|Ora =
+|Turno = 12ª giornata
+|Squadra 1 = Pro Patria
+|Squadra 2 = Salernitana
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Città = [[Busto Arsizio]]
+|Stadio = [[Stadio Carlo Speroni|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Giacomo Bertolio]]
+|Cittarbitro = [[Torino]]
+|Marcatori 1 = [[Giuseppe Molina|Molina]] {{Goal|45}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 21 dicembre
+|Anno = 1947
+|Ora =
+|Turno = 13ª giornata
+|Squadra 1 = Inter
+|Squadra 2 = Pro Patria
+|Punteggio 1 = 4
+|Punteggio 2 = 0
+|Città = [[Milano]]
+|Stadio = [[Stadio Giuseppe Meazza|Stadio San Siro]]
+|Spettatori =
+|Arbitro = [[Guido Agnolin]]
+|Cittarbitro = [[Bassano del Grappa]]
+|Marcatori 1 = [[Camillo Achilli|Achilli]] {{Goal|40}}<br/>[[Benito Lorenzi|Lorenzi]] {{Goal|44}}<br/>[[Bibiano Zapirain|Zapirain]] {{Goal|47}} {{Goal|67}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 28 dicembre
+|Anno = 1947
+|Ora =
+|Turno = 14ª giornata
+|Squadra 1 = Lucchese
+|Squadra 2 = Pro Patria
+|Punteggio 1 = 2
+|Punteggio 2 = 0
+|Città = [[Lucca]]
+|Stadio = [[Stadio Porta Elisa]]
+|Spettatori =
+|Arbitro = [[Riccardo Pieri]]
+|Cittarbitro = [[Trieste]]
+|Marcatori 1 = [[Ugo Conti|U. Conti]] {{Goal|44}}<br/>[[Emo Roffi|Roffi]] {{Goal|54}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 1 gennaio
+|Anno = 1948
+|Ora =
+|Turno = 15ª giornata<ref>Partita disputata sul campo neutro di Napoli.</ref>
+|Squadra 1 = Bari
+|Squadra 2 = Pro Patria
+|Punteggio 1 = 1
+|Punteggio 2 = 3
+|Città = [[Napoli]]
+|Stadio = [[Stadio Arturo Collana|Stadio della Liberazione]]
+|Spettatori =
+|Arbitro = [[Mario Scotto]]
+|Cittarbitro = [[Savona]]
+|Marcatori 1 = [[Tommaso Maestrelli|Maestrelli]] {{Goal|30}}
+|Marcatori 2 = {{Goal|50||84}} [[Enrico Candiani|Candiani]]<br/>{{Goal|69|rig.}} [[Spartaco Bertolucci|Bertolucci]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 4 gennaio
+|Anno = 1948
+|Ora =
+|Turno = 16ª giornata<ref>Partita posticipata il 6 gennaio 1948.</ref>
+|Squadra 1 = Pro Patria
+|Squadra 2 = Alessandria
+|Punteggio 1 = 3
+|Punteggio 2 = 2
+|Città = [[Busto Arsizio]]
+|Stadio = [[Stadio Carlo Speroni|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Bruno Guarda (arbitro)|Bruno Guarda]]
+|Cittarbitro = [[Venezia]]
+|Marcatori 1 = [[Angelo Turconi|Turconi]] {{Goal|25}}<br/>[[Spartaco Bertolucci|Bertolucci]] {{Goal|43}}<br/>[[Emidio Cavigioli|Cavigioli]] {{Goal|55}}
+|Marcatori 2 = {{Goal|64}} [[Carlo Stradella|Stradella]]<br/>{{Goal|87}} [[Pietro Sotgiu|Sotgiu]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 11 gennaio
+|Anno = 1948
+|Ora =
+|Turno = 17ª giornata
+|Note = Turno di riposo della PRO PATRIA
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 18 gennaio
+|Anno = 1948
+|Ora =
+|Turno = 18ª giornata
+|Squadra 1 = Modena
+|Squadra 2 = Pro Patria
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Città = [[Modena]]
+|Stadio = [[Stadio Alberto Braglia|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Vincenzo Orlandini]]
+|Cittarbitro = [[Roma]]
+|Marcatori 1 = [[Primo Sentimenti|P. Sentimenti]] {{Goal|77}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 25 gennaio
+|Anno = 1948
+|Ora =
+|Turno = 19ª giornata
+|Squadra 1 = Pro Patria
+|Squadra 2 = Vicenza
+|Punteggio 1 = 2
+|Punteggio 2 = 0
+|Città = [[Busto Arsizio]]
+|Stadio = [[Stadio Carlo Speroni|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Lelio Coppolone]]
+|Cittarbitro = [[Bari]]
+|Marcatori 1 = [[Lorenzo Colpo|Colpo]] {{Goal|30}}<br/>[[Piero Pozzi|Pozzi]] {{Goal|41}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 1º febbraio
+|Anno = 1948
+|Ora =
+|Turno = 20ª giornata
+|Squadra 1 = Atalanta
+|Squadra 2 = Pro Patria
+|Punteggio 1 = 2
+|Punteggio 2 = 2
+|Città = [[Bergamo]]
+|Stadio = [[Stadio Atleti Azzurri d'Italia|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Ferruccio Bellè]]
+|Cittarbitro = [[Venezia]]
+|Marcatori 1 = [[Edmondo Fabbri|Ed. Fabbri]] {{Goal|24}}<br/>[[Giacomo Mari|Mari]] {{Goal|48}}
+|Marcatori 2 = {{Goal|41||50}} [[Angelo Turconi|Turconi]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 8 febbraio
+|Anno = 1948
+|Ora =
+|Turno = 21ª giornata
+|Squadra 1 = Pro Patria
+|Squadra 2 = Juventus
+|Punteggio 1 = 2
+|Punteggio 2 = 3
+|Città = [[Busto Arsizio]]
+|Stadio = [[Stadio Carlo Speroni|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Guido Agnolin]]
+|Cittarbitro = [[Bassano del Grappa]]
+|Marcatori 1 = [[Lelio Antoniotti|Antoniotti]] {{Goal|62}}<br/>[[Alfonso Borra|Borra]] {{Goal|78}}
+|Marcatori 2 = {{Goal|30}} [[Pietro Rava|Rava]]<br/>{{Goal|57||84}} [[Ermes Muccinelli|Muccinelli]]
+}}
+
+==== Girone di ritorno ====
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 15 febbraio
+|Anno = 1948
+|Ora =
+|Turno = 22ª giornata
+|Squadra 1 = Pro Patria
+|Squadra 2 = Bologna
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Città = [[Busto Arsizio]]
+|Stadio = [[Stadio Carlo Speroni|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Antonio Zambotto]]
+|Cittarbitro = [[Padova]]
+|Marcatori 1 = [[Lorenzo Colpo|Colpo]] {{Goal|86}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 22 febbraio
+|Anno = 1948
+|Ora =
+|Turno = 23ª giornata
+|Squadra 1 = Pro Patria
+|Squadra 2 = Milan
+|Punteggio 1 = 2
+|Punteggio 2 = 3
+|Città = [[Busto Arsizio]]
+|Stadio = [[Stadio Carlo Speroni|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Eriprando Poggipollini]]
+|Cittarbitro = [[Ferrara]]
+|Marcatori 1 = [[Lorenzo Colpo|Colpo]] {{Goal|18}}<br/>[[Enrico Candiani|Candiani]] {{Goal|26}}
+|Marcatori 2 = {{Goal|1||81}} [[Giuseppe Antonini (calciatore)|Antonini]]<br/>{{Goal|8}} [[Renzo Burini|Burini]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 29 febbraio
+|Anno = 1948
+|Ora =
+|Turno = 24ª giornata
+|Squadra 1 = Sampdoria
+|Squadra 2 = Pro Patria
+|Punteggio 1 = 5
+|Punteggio 2 = 3
+|Città = [[Genova]]
+|Stadio = [[Stadio Marassi]]
+|Spettatori =
+|Arbitro = [[Tommaso Corallo]]
+|Cittarbitro = [[Lecce]]
+|Marcatori 1 = [[Giorgio Barsanti|Barsanti]] {{Goal|4}}<br/>[[Giuseppe Baldini|Baldini]] {{Goal|31||39}}<br/>[[Italo Rebuzzi|It. Rebuzzi]] {{Goal|66}}<br/>[[Adriano Bassetto|Bassetto]] {{Goal|78}}
+|Marcatori 2 = {{Goal|8}} {{Goal|35}} [[Enrico Candiani|Candiani]]<br/>{{Goal|41}} [[Angelo Turconi|Turconi]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 7 marzo
+|Anno = 1948
+|Ora =
+|Turno = 25ª giornata
+|Squadra 1 = Fiorentina
+|Squadra 2 = Pro Patria
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Città = [[Firenze]]
+|Stadio = [[Stadio Artemio Franchi|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Bruno Tassini]]
+|Cittarbitro = [[Verona]]
+|Marcatori 1 = [[Alberto Marchetti (1920)|Marchetti]] {{Goal|10}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 14 marzo
+|Anno = 1948
+|Ora =
+|Turno = 26ª giornata
+|Squadra 1 = Pro Patria
+|Squadra 2 = Lazio
+|Punteggio 1 = 1
+|Punteggio 2 = 1
+|Città = [[Busto Arsizio]]
+|Stadio = [[Stadio Carlo Speroni|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Giuseppe Boffardi]]
+|Cittarbitro = [[Genova]]
+|Marcatori 1 = [[Fausto Bonelli|Bonelli]] {{Goal|87}}
+|Marcatori 2 = {{Goal|54}} [[Romano Penzo|Penzo]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 21 marzo
+|Anno = 1948
+|Ora =
+|Turno = 27ª giornata
+|Squadra 1 = Torino
+|Squadra 2 = Pro Patria
+|Punteggio 1 = 4
+|Punteggio 2 = 1
+|Città = [[Torino]]
+|Stadio = [[Stadio Filadelfia]]
+|Spettatori =
+|Arbitro = [[Giuseppe Parpaiola]]
+|Cittarbitro = [[Padova]]
+|Marcatori 1 = [[Franco Ossola|Ossola]] {{Goal|38}}<br/>[[Ezio Loik|Loik]] {{Goal|49}}<br/>[[Giuseppe Grezar|Grezar]] {{Goal|51}}<br/>[[Romeo Menti|R. Menti]] {{Goal|52}}
+|Marcatori 2 = {{Goal|89|rig.}} [[Angelo Turconi|Turconi]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 28 marzo
+|Anno = 1948
+|Ora =
+|Turno = 28ª giornata
+|Squadra 1 = Pro Patria
+|Squadra 2 = Livorno
+|Punteggio 1 = 2
+|Punteggio 2 = 0
+|Città = [[Busto Arsizio]]
+|Stadio = [[Stadio Carlo Speroni|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Florindo Longagnani]]
+|Cittarbitro = [[Modena]]
+|Marcatori 1 = [[Lelio Antoniotti|Antoniotti]] {{Goal|13}}<br/>[[Emidio Cavigioli|Cavigioli]] {{Goal|86}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 11 aprile
+|Anno = 1948
+|Ora =
+|Turno = 29ª giornata
+|Squadra 1 = Pro Patria
+|Squadra 2 = Roma
+|Punteggio 1 = 2
+|Punteggio 2 = 2
+|Città = [[Busto Arsizio]]
+|Stadio = [[Stadio Carlo Speroni|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Ermanno Silvano]]
+|Cittarbitro = [[Torino]]
+|Marcatori 1 = [[Enrico Candiani|Candiani]] {{Goal|8||52|rig}}
+|Marcatori 2 = {{Goal|35}} [[Amadeo Amadei|Amadei]]<br/>{{Goal|79}} [[Omero Losi|Losi]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 17 aprile
+|Anno = 1948
+|Ora =
+|Turno = 30ª giornata
+|Squadra 1 = Triestina
+|Squadra 2 = Pro Patria
+|Punteggio 1 = 4
+|Punteggio 2 = 1
+|Città = [[Trieste]]
+|Stadio = [[Stadio Giuseppe Grezar|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Virginio Canavesio]]
+|Cittarbitro = [[Torino]]
+|Marcatori 1 = [[Antonio Gordini|Gordini]] {{Goal|31||84}}<br/>[[Bruno Ispiro|Ispiro]] {{Goal|42}} {{Goal|55}}
+|Marcatori 2 = {{Goal|51|rig.}} [[Angelo Turconi|Turconi]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 25 aprile
+|Anno = 1948
+|Ora =
+|Turno = 31ª giornata
+|Squadra 1 = Pro Patria
+|Squadra 2 = Napoli
+|Punteggio 1 = 3
+|Punteggio 2 = 1
+|Città = [[Busto Arsizio]]
+|Stadio = [[Stadio Carlo Speroni|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Bruno Tassini]]
+|Cittarbitro = [[Verona]]
+|Marcatori 1 = [[Enrico Candiani|Candiani]] {{Goal|64}}<br/>[[Angelo Turconi|Turconi]] {{Goal|80}}<br/>[[Lelio Antoniotti|Antoniotti]] {{Goal|89}}
+|Marcatori 2 = {{Goal|73}} [[Dante Di Benedetti|Di Benedetti]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 2 maggio
+|Anno = 1948
+|Ora =
+|Turno = 32ª giornata
+|Squadra 1 = Genoa
+|Squadra 2 = Pro Patria
+|Punteggio 1 = 4
+|Punteggio 2 = 1
+|Città = [[Genova]]
+|Stadio = [[Stadio Luigi Ferraris]]
+|Spettatori =
+|Arbitro = [[Giorgio Bernardi]]
+|Cittarbitro = [[Bologna]]
+|Marcatori 1 = [[Silvio Formentin|Formentin]] {{Goal|24}}<br/>[[Renato Brighenti|Brighenti]] {{Goal|27||70}}<br/>[[Silvio Formentin|Formentin]] {{Goal|59}}
+|Marcatori 2 = {{Goal|72}} [[Spartaco Bertolucci|Bertolucci]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 6 maggio
+|Anno = 1948
+|Ora =
+|Turno = 33ª giornata
+|Squadra 1 = Salernitana
+|Squadra 2 = Pro Patria
+|Punteggio 1 = 5
+|Punteggio 2 = 0
+|Città = [[Salerno]]
+|Stadio = [[Stadio Donato Vestuti|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Riccardo Pieri]]
+|Cittarbitro = [[Trieste]]
+|Marcatori 1 = [[Secondo Rossi|S. Rossi]] {{Goal|4}}<br/>[[Renzo Merlin|Merlin]] {{Goal|18||75}}<br/>[[Ivo Buzzegoli|Buzzegoli]] {{Goal|56}}<br/>[[Sebastiano Vaschetto|Vaschetto]] {{Goal|72}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 9 maggio
+|Anno = 1948
+|Ora =
+|Turno = 34ª giornata
+|Squadra 1 = Pro Patria
+|Squadra 2 = Inter
+|Punteggio 1 = 2
+|Punteggio 2 = 0
+|Città = [[Busto Arsizio]]
+|Stadio = [[Stadio Carlo Speroni|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Generoso Dattilo]]
+|Cittarbitro = [[Roma]]
+|Marcatori 1 = [[Sergio Susmel|Susmel]] {{Goal|34|aut.}}<br/>[[Emidio Cavigioli|Cavigioli]] {{Goal|78}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 23 maggio
+|Anno = 1948
+|Ora =
+|Turno = 35ª giornata
+|Squadra 1 = Pro Patria
+|Squadra 2 = Lucchese
+|Punteggio 1 = 5
+|Punteggio 2 = 1
+|Città = [[Busto Arsizio]]
+|Stadio = [[Stadio Carlo Speroni|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Ferruccio Bellè]]
+|Cittarbitro = [[Venezia]]
+|Marcatori 1 = [[Emidio Cavigioli|Cavigioli]] {{Goal|6}}<br/>[[Giuseppe Molina|Molina]] {{Goal|50}}<br/>[[Enrico Candiani|Candiani]] {{Goal|53}}<br/>[[Lelio Antoniotti|Antoniotti]] {{Goal|60}}<br/>[[Angelo Turconi|Turconi]] {{Goal|88}}
+|Marcatori 2 = {{Goal|65|aut.}} [[Antonio Azimonti|A. Azimonti]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 27 maggio
+|Anno = 1948
+|Ora =
+|Turno = 36ª giornata
+|Squadra 1 = Pro Patria
+|Squadra 2 = Bari
+|Punteggio 1 = 2
+|Punteggio 2 = 0
+|Città = [[Busto Arsizio]]
+|Stadio = [[Stadio Carlo Speroni|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Giacomo Bertolio]]
+|Cittarbitro = [[Torino]]
+|Marcatori 1 = [[Angelo Turconi|Turconi]] {{Goal|44}}<br/>[[Lelio Antoniotti|Antoniotti]] {{Goal|85}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 30 maggio
+|Anno = 1948
+|Ora =
+|Turno = 37ª giornata
+|Squadra 1 = Alessandria
+|Squadra 2 = Pro Patria
+|Punteggio 1 = 2
+|Punteggio 2 = 5
+|Città = [[Alessandria (Italia)|Alessandria]]
+|Stadio = [[Stadio Giuseppe Moccagatta]]
+|Spettatori =
+|Arbitro = [[Ferruccio Bellè]]
+|Cittarbitro = [[Venezia]]
+|Marcatori 1 = [[Mario Pietruzzi|Pietruzzi]] {{Goal|41}}<br/>[[Carlo Stradella|Stradella]] {{Goal|55}}
+|Marcatori 2 = {{Goal|9||15}} [[Emidio Cavigioli|Cavigioli]]<br/>{{Goal|40}} [[Giuseppe Molina|Molina]]<br/>{{Goal|65}} [[Lelio Antoniotti|Antoniotti]]<br/>{{Goal|79}} [[Enrico Candiani|Candiani]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 6 giugno
+|Anno = 1948
+|Ora =
+|Turno = 38ª giornata
+|Note = Turno di riposo della PRO PATRIA
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 13 giugno
+|Anno = 1948
+|Ora =
+|Turno = 39ª giornata
+|Squadra 1 = Pro Patria
+|Squadra 2 = Modena
+|Punteggio 1 = 0
+|Punteggio 2 = 1
+|Città = [[Busto Arsizio]]
+|Stadio = [[Stadio Carlo Speroni|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Vittorio Pera]]
+|Cittarbitro = [[Firenze]]
+|Marcatori 2 = {{Goal|40}} [[Francesco Pernigo|Pernigo]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 20 giugno
+|Anno = 1948
+|Ora =
+|Turno = 40ª giornata
+|Squadra 1 = Vicenza
+|Squadra 2 = Pro Patria
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Città = [[Vicenza]]
+|Stadio = [[Stadio Romeo Menti|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Nino Mosca]]
+|Cittarbitro = [[Napoli]]
+|Marcatori 1 = [[Rolando Spanevello|Spanevello]] {{Goal|39}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 27 giugno
+|Anno = 1948
+|Ora =
+|Turno = 41ª giornata
+|Squadra 1 = Pro Patria
+|Squadra 2 = Atalanta
+|Punteggio 1 = 2
+|Punteggio 2 = 0
+|Città = [[Busto Arsizio]]
+|Stadio = [[Stadio Carlo Speroni|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Marcello Pasinetti]]
+|Cittarbitro = [[Roma]]
+|Marcatori 1 = [[Lelio Antoniotti|Antoniotti]] {{Goal|27}}<br/>[[Enrico Candiani|Candiani]] {{Goal|84}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 4 luglio
+|Anno = 1948
+|Ora =
+|Turno = 42ª giornata
+|Squadra 1 = Juventus
+|Squadra 2 = Pro Patria
+|Punteggio 1 = 0
+|Punteggio 2 = 4
+|Città = [[Torino]]
+|Stadio = [[Stadio Olimpico (Torino)|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Giuseppe Parpaiola]]
+|Cittarbitro = [[Padova]]
+|Marcatori 1 =
+|Marcatori 2 = {{Goal|40}} [[Piero Pozzi|Pozzi]]<br/>{{Goal|52}} {{Goal|54}} [[Angelo Turconi|Turconi]]<br/>{{Goal|60}} [[Lelio Antoniotti|Antoniotti]]
+}}
+
+== Statistiche ==
+=== Statistiche di squadra ===
+{{Statistiche squadra
+|comp1=[[Serie A 1947-1948|Serie A]]
+|punti1=40
+|cv1=14
+|cn1=2
+|cp1=4
+|cgf1=38
+|cgs1=19
+|tv1=10
+|tn1=3
+|tp1=4
+|tgf1=13
+|tgs1=27
+}}
+=== Statistiche dei giocatori ===
+{{Statistiche dei giocatori
+| Competizione1 = Serie A
+| Totale = no
+| Cartellini = no
+| {{Sortname|L.|Antoniotti|Lelio Antoniotti}} {{Sommastat|C=no |33|11|?|?}}
+| {{Sortname|A.|Azimonti|Antonio Azimonti}} {{Sommastat|C=no |31|0|?|?}}
+| {{Sortname|S.|Bertolucci|Spartaco Bertolucci}} {{Sommastat|C=no |13|4|?|?}}
+| {{Sortname|F.|Bonelli|Fausto Bonelli}} {{Sommastat|C=no |14|2|?|?}}
+| {{Sortname|A.|Borra|Alfonso Borra}} {{Sommastat|C=no |35|1|?|?}}
+| {{Sortname|E.|Candiani|Enrico Candiani}} {{Sommastat|C=no |26|11|?|?}}
+| {{Sortname|G.|Carnevali|nolink=1}} {{Sommastat|C=no |1|0|?|?}}
+| {{Sortname|E.|Cavigioli|Emidio Cavigioli}} {{Sommastat|C=no |20|8|?|?}}
+| {{Sortname|C.|Ceriotti|Carlo Ceriotti}} {{Sommastat|C=no |4|0|?|?}}
+| {{Sortname|L.|Colpo|Lorenzo Colpo}} {{Sommastat|C=no |16|3|?|?}}
+| {{Sortname|A.|Fossati|Antonio Fossati}} {{Sommastat|C=no |40|0|?|?}}
+| {{Sortname|G.|Ivaldi|Giovanni Ivaldi}} {{Sommastat|C=no |3|0|?|?}}
+| {{Sortname|A.|Marelli|Aldo Marelli}} {{Sommastat|C=no |23|0|?|?}}
+| {{Sortname|G.|Martini|Giobatta Martini}} {{Sommastat|C=no |19|0|?|?}}
+| {{Sortname|P.|Messanzani|nolink=1}} {{Sommastat|C=no |1|0|?|?}}
+| {{Sortname|G.|Molina|Giuseppe Molina}} {{Sommastat|C=no |21|3|?|?}}
+| {{Sortname|E.|Patti|Eugenio Patti}} {{Sommastat|C=no |33|0|?|?}}
+| {{Sortname|P.|Pozzi|Piero Pozzi}} {{Sommastat|C=no |17|2|?|?}}
+| {{Sortname|C.|Reguzzoni|Carlo Reguzzoni}} {{Sommastat|C=no |11|1|?|?}}
+| {{Sortname|A.|Turconi|Angelo Turconi}} {{Sommastat|C=no |39|18|?|?}}
+| {{Sortname|A.|Uboldi|Angelo Uboldi}} {{Sommastat|C=no |36|-55|?|?}}
+| {{Sortname|G.|Visco Gilardi|Guido Visco Gilardi}} {{Sommastat|C=no |4|-11|?|?}}
+}}
+== Note ==
+<references/>
+== Collegamenti esterni ==
+* {{cita web|url=http://www.wikicalcioitalia.info/vros.php?idsta=117&idsqu=14|titolo=Rosa su Wikicalcioitalia.info}}
+* {{cita web|url=http://calcio-seriea.net/risultati/1947/479/|titolo=Stagione 1947-1948}}
+
+{{Calcio Pro Patria storico}}
+{{Calcio in Italia 1947-1948}}
+{{Portale|calcio}}

@@ -1,0 +1,791 @@
+{{Stagione squadra
+|sport=calcio
+|club = AC Fiorentina
+|stagione = 1947-1948
+|immagine = fiorentina48.jpg
+|allenatore1 = {{Bandiera|ITA}} [[Luigi Ferrero]]
+|presidente = {{Bandiera|ITA}} [[Ardelio Allori]]
+|campionato = [[Serie A 1947-1948|Serie A]]
+|campionato posizione = 7º
+|coppa1 = Capitano
+|coppa1 posizione = {{Bandiera|ITA}} [[Augusto Magli (calciatore)|Augusto Magli]]
+|coppa2 =
+|coppa2 posizione =
+|marcatore campionato = [[Alberto Galassi|Galassi]] (15)
+|presenze campionato = [[Zeffiro Furiassi|Furiassi]] (40)
+|marcatore totale =
+|stadio = [[Stadio Artemio Franchi|Comunale]]<br/>[[Stadio Artemio Franchi (Siena)|Stadio Rastrello]]<ref>Solo 1ª</ref>
+|spettatori max =
+|spettatori min =
+|spettatori media =
+|stagione prima = [[Associazione Calcio Fiorentina 1946-1947|1946-1947]]
+|stagione dopo = [[Associazione Calcio Fiorentina 1948-1949|1948-1949]]
+}}
+
+Questa voce contiene le informazioni riguardanti l{{'}}'''Associazione Calcio Fiorentina''' nelle competizioni ufficiali della stagione '''1947-1948'''.
+
+==La Stagione==
+[[File:Italo Acconcia.jpg|thumb|upright=0.6|Il difensore Italo Acconcia.]] Quello della stagione 1947-1948 è il campionato più lungo della storia, (21 partecipanti per 42 giornate), causa il ripescaggio della Triestina, per motivi politici, retrocessa l'anno precedente. Lo ha rivinto il "Grande" Torino, con 16 punti di vantaggio su Milan e Juventus.
+
+Da segnalare un buon inizio di campionato per la squadra viola, che lotta con vigore con le squadre migliori, e poi un brutto fine campionato, con cinque sconfitte consecutive, con Torino, Internazionale, Juventus, Atalanta e Lazio, che hanno segnato la classifica conclusiva dei viola. La Fiorentina finisce il campionato settima in classifica, guidata dal centravanti [[Alberto Galassi]], dal difensore [[Italo Acconcia]] e dal portiere [[Giuseppe Moro]]. Da segnalare una strana partita giocata contro la Lazio, conclusasi con un netto (5-0) a favore dei biancocelesti, dove la partita viene decisa da due autogol iniziali dei viola, intervallati da due pali consecutivi di Galassi e [[Ferruccio Valcareggi|Valcareggi]].
+
+Come allenatore per questo ed i tre campionati che sono seguiti c'è stato il tecnico [[Luigi Ferrero]]. Presidente della Fiorentina di quest'annata è stato [[Ardelio Allori]].
+
+Miglior marcatore di stagione della squadra viola è stato Alberto Galassi che ha firmato 15 reti.
+
+==Rosa==
+{{Calciatore in rosa/inizio}}
+{{Calciatore in rosa|nazione=ITA|nome=Mario Bigazzi<ref name=g>Aggregato dalla squadra giovanile.</ref>|ruolo=P}}
+{{Calciatore in rosa|nazione=ITA|nome=[[Giuseppe Moro]]|ruolo=P}}
+{{Calciatore in rosa|nazione=ITA|nome=[[Raoul Bortoletto]]|ruolo=D}}
+{{Calciatore in rosa|nazione=ITA|nome=[[Alberto Eliani]]|ruolo=D}}
+{{Calciatore in rosa|nazione=ITA|nome=[[Mario Caciagli]]<ref name=g/>|ruolo=D}}
+{{Calciatore in rosa|nazione=ITA|nome=[[Zeffiro Furiassi]]|ruolo=D}}
+{{Calciatore in rosa|nazione=ITA|nome=[[Italo Acconcia]]|ruolo=D}}
+{{Calciatore in rosa|nazione=ITA|nome=[[Rudi Abele Compiani]]|ruolo=C}}
+{{Calciatore in rosa|nazione=ITA|nome=[[Menotti Avanzolini]]|ruolo=C}}
+{{Calciatore in rosa|nazione=ITA|nome=[[Augusto Magli (calciatore)|Augusto Magli]]|altro={{capitano}}|ruolo=C}}
+{{Calciatore in rosa/medio}}
+{{Calciatore in rosa|nazione=ITA|nome=[[Angelo Bollano]]|ruolo=C}}
+{{Calciatore in rosa|nazione=ITA|nome=[[Alberto Marchetti (1920)|Alberto Marchetti]]|ruolo=C}}
+{{Calciatore in rosa|nazione=ITA|nome=Luca Ponticelli<ref name=g/>|ruolo=C}}
+{{Calciatore in rosa|nazione=ITA|nome=[[Piero Suppi]]|ruolo=C}}
+{{Calciatore in rosa|nazione=ITA|nome=[[Ferruccio Valcareggi]]|ruolo=A}}
+{{Calciatore in rosa|nazione=ITA|nome=[[Alberto Galassi]]|ruolo=A}}
+{{Calciatore in rosa|nazione=ITA|nome=[[Renato Gei]]|ruolo=A}}
+{{Calciatore in rosa|nazione=ITA|nome=[[Otello Badiali]]|ruolo=A}}
+{{Calciatore in rosa|nazione=ITA|nome=[[Ugo Gregorin]]|ruolo=A}}
+{{Calciatore in rosa|nazione=ITA|nome=[[Carlo Zoppellari]]|ruolo=A}}
+{{Calciatore in rosa/fine}}
+
+== Risultati ==
+=== Serie A ===
+{{vedi anche|Serie A 1947-1948}}
+=== Girone di andata ===
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 14 settembre
+|Anno = 1947
+|Turno = 1ª giornata
+|Squadra 1 = Fiorentina
+|Squadra 2 = Roma
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Città = [[Siena]]
+|Stadio = [[Stadio Artemio Franchi (Siena)|Stadio del Rastrello]]
+|Arbitro = [[Virginio Canavesio]]
+|Cittarbitro = [[Torino]]
+|Marcatori 1 = [[Raoul Bortoletto|Bortoletto]] {{Goal|89}}
+|Marcatori 2 =
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 21 settembre
+|Anno = 1947
+|Turno = 2ª giornata
+|Squadra 1 = Modena
+|Squadra 2 = Fiorentina
+|Punteggio 1 = 1
+|Punteggio 2 = 1
+|Città = [[Modena]]
+|Stadio = [[Stadio Alberto Braglia|Stadio Comunale]]
+|Arbitro = [[Ermanno Silvano]]
+|Cittarbitro = [[Torino]]
+|Marcatori 1 = [[Walter Del Medico|Del Medico]] {{Goal|4}}
+|Marcatori 2 = {{Goal|81}} [[Alberto Galassi|Galassi]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 28 settembre
+|Anno = 1947
+|Turno = 3ª giornata
+|Squadra 1 = Fiorentina
+|Squadra 2 = Milan
+|Punteggio 1 = 2
+|Punteggio 2 = 1
+|Città = [[Firenze]]
+|Stadio = [[Stadio Artemio Franchi|Stadio Comunale]]
+|Arbitro = [[Agostino Gamba]]
+|Cittarbitro = [[Napoli]]
+|Marcatori 1 = [[Alberto Marchetti (1920)|Marchetti]] {{Goal|37}}<br/>[[Piero Suppi|Suppi]] {{Goal|45}}
+|Marcatori 2 = {{Goal|3}} [[Carlo Annovazzi|Annovazzi]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 5 ottobre
+|Anno = 1947
+|Turno = 4ª giornata
+|Squadra 1 = Pro Patria
+|Squadra 2 = Fiorentina
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Città = [[Busto Arsizio]]
+|Stadio = [[Stadio Carlo Speroni|Stadio Comunale]]
+|Arbitro = [[Riccardo Pieri]]
+|Cittarbitro = [[Trieste]]
+|Marcatori 1 = [[Lelio Antoniotti|Antoniotti]] {{Goal|12}}
+|Marcatori 2 =
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 12 ottobre
+|Anno = 1947
+|Turno = 5ª giornata
+|Squadra 1 = Fiorentina
+|Squadra 2 = Napoli
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Città = [[Firenze]]
+|Stadio = [[Stadio Artemio Franchi|Stadio Comunale]]
+|Arbitro = [[Guido Agnolin]]
+|Cittarbitro = [[Bassano del Grappa]]
+|Marcatori 1 = [[Alberto Galassi|Galassi]] {{Goal|65}}
+|Marcatori 2 =
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 19 ottobre
+|Anno = 1947
+|Turno = 6ª giornata
+|Squadra 1 = Lucchese
+|Squadra 2 = Fiorentina
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Città = [[Lucca]]
+|Stadio = [[Stadio Porta Elisa]]
+|Arbitro = [[Giorgio Bernardi]]
+|Cittarbitro = [[Bologna]]
+|Marcatori 1 = [[Ugo Conti (calciatore)|U. Conti]] {{Goal|5}}
+|Marcatori 2 =
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 26 ottobre
+|Anno = 1947
+|Turno = 7ª giornata
+|Squadra 1 = Fiorentina
+|Squadra 2 = Salernitana
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Città = [[Firenze]]
+|Stadio = [[Stadio Artemio Franchi|Stadio Comunale]]
+|Arbitro = [[Giuseppe Vannini]]
+|Cittarbitro = [[Bologna]]
+|Marcatori 1 = [[Alberto Eliani|Eliani]] {{Goal|82}}
+|Marcatori 2 =
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 2 novembre
+|Anno = 1947
+|Turno = 8ª giornata
+|Squadra 1 = Fiorentina
+|Squadra 2 = Livorno
+|Punteggio 1 = 1
+|Punteggio 2 = 1
+|Città = [[Firenze]]
+|Stadio = [[Artemio Franchi|Stadio Comunale]]
+|Arbitro = [[Vincenzo Orlandini]]
+|Cittarbitro = [[Roma]]
+|Marcatori 1 = [[Renato Gei|Gei]] {{Goal|46}}
+|Marcatori 2 = {{Goal|30}} [[Guido Tieghi|Tieghi]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 16 novembre
+|Anno = 1947
+|Turno = 9ª giornata
+|Squadra 1 = Bari
+|Squadra 2 = Fiorentina
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Città = [[Bari]]
+|Stadio = [[Stadio della Vittoria (Bari)|Stadio della Vittoria]]
+|Arbitro = [[Luigi Gemini]]
+|Cittarbitro = [[Roma]]
+|Marcatori 1 = [[Guido Tavellin|Tavellin]] {{Goal|25}}
+|Marcatori 2 =
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 23 novembre
+|Anno = 1947
+|Turno = 10ª giornata
+|Squadra 1 = Fiorentina
+|Squadra 2 = Bologna
+|Punteggio 1 = 1
+|Punteggio 2 = 1
+|Città = [[Firenze]]
+|Stadio = [[Stadio Artemio Franchi|Stadio Comunale]]
+|Arbitro = [[mario Scotto|Scotto]]
+|Cittarbitro = [[Savona]]
+|Marcatori 1 = [[Piero Suppi|Suppi]] {{Goal|43}}
+|Marcatori 2 = {{Goal|58}} [[Gino Cappello|Cappello]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 30 novembre
+|Anno = 1947
+|Turno = 11ª giornata
+|Squadra 1 = Triestina
+|Squadra 2 = Fiorentina
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Città = [[Trieste]]
+|Stadio = [[Stadio Giuseppe Grezar|Stadio Comunale]]
+|Arbitro = [[Mario Maurelli]]
+|Cittarbitro = [[Roma]]
+|Marcatori 1 = [[Bruno Ispiro|Ispiro]] {{Goal|35}}
+|Marcatori 2 =
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 7 dicembre
+|Anno = 1947
+|Ora =
+|Turno = 12ª giornata
+|Note = Turno di riposo della FIORENTINA
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 21 dicembre
+|Anno = 1947
+|Turno = 13ª giornata
+|Squadra 1 = Fiorentina
+|Squadra 2 = Alessandria
+|Punteggio 1 = 2
+|Punteggio 2 = 1
+|Città = [[Firenze]]
+|Stadio = [[Stadio Artemio Franchi|Stadio Comunale]]
+|Arbitro = [[Ettore Neri (arbitro)|Ettore Neri]]
+|Cittarbitro = [[Firenze]]
+|Marcatori 1 = [[Alberto Galassi|Galassi]] {{Goal|25}}<br/>[[Alberto Marchetti (1920)|Marchetti]] {{Goal|80}}
+|Marcatori 2 = {{Goal|40}} [[Aristide Coscia|Coscia]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 28 dicembre
+|Anno = 1947
+|Turno = 14ª giornata
+|Squadra 1 = Sampdoria
+|Squadra 2 = Fiorentina
+|Punteggio 1 = 0
+|Punteggio 2 = 0
+|Città = [[Genova]]
+|Stadio = [[Stadio Luigi Ferraris]]
+|Arbitro = [[Eliseo Camiolo]]
+|Cittarbitro = [[Milano]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 1º gennaio
+|Anno = 1948
+|Turno = 15ª giornata
+|Squadra 1 = Torino
+|Squadra 2 = Fiorentina
+|Punteggio 1 = 5
+|Punteggio 2 = 0
+|Città = [[Torino]]
+|Stadio = [[Stadio Filadelfia]]
+|Arbitro = [[Giuseppe Boffardi]]
+|Cittarbitro = [[Genova]]
+|Marcatori 1 = [[Valentino Mazzola|Mazzola]] {{Goal|5||68}}<br/>[[Ezio Loik|Loik]] {{Goal|32}}<br/>[[Guglielmo Gabetto|Gabetto]] {{Goal|37}}<br/>[[Danilo Martelli|Martelli]] {{Goal|67}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 4 gennaio
+|Anno = 1948
+|Turno = 16ª giornata
+|Squadra 1 = Fiorentina
+|Squadra 2 = Inter
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Città = [[Firenze]]
+|Stadio = [[Stadio Artemio Franchi|Stadio Comunale]]
+|Arbitro = [[Generoso Dattilo]]
+|Cittarbitro = [[Roma]]
+|Marcatori 1 = [[Otello Badiali|Badiali]] {{Goal|65}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 11 gennaio
+|Anno = 1948
+|Turno = 17ª giornata
+|Squadra 1 = Juventus
+|Squadra 2 = Fiorentina
+|Punteggio 1 = 3
+|Punteggio 2 = 0
+|Città = [[Torino]]
+|Stadio = [[Stadio Olimpico (Torino)|Stadio Comunale]]
+|Arbitro = [[Bruno Tassini]]
+|Cittarbitro = [[Verona]]
+|Marcatori 1 = [[Mihály Kincses|Kincses]] {{Goal|54||68}}<br/>[[Giampiero Boniperti|Boniperti]] {{Goal|72}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 18 gennaio
+|Anno = 1948
+|Turno = 18ª giornata
+|Squadra 1 = Fiorentina
+|Squadra 2 = Atalanta
+|Punteggio 1 = 2
+|Punteggio 2 = 0
+|Città = [[Firenze]]
+|Stadio = [[Stadio Artemio Franchi|Stadio Comunale]]
+|Arbitro = [[Osvaldo Savio]]
+|Cittarbitro = [[Torino]]
+|Marcatori 1 = [[Angelo Bollano|Bollano]] {{Goal|5}}<br/>[[Alberto Galassi|Galassi]] {{Goal|56}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 25 gennaio
+|Anno = 1948
+|Turno = 19ª giornata
+|Squadra 1 = Fiorentina
+|Squadra 2 = Lazio
+|Punteggio 1 = 4
+|Punteggio 2 = 1
+|Città = [[Firenze]]
+|Stadio = [[Stadio Artemio Franchi|Stadio Comunale]]
+|Arbitro = [[Eliseo Camiolo]]
+|Cittarbitro = [[Milano]]
+|Marcatori 1 = [[Angelo Bollano|Bollano]] {{Goal|4||5}}<br/>[[Alberto Galassi|Galassi]] {{Goal|35||64}}
+|Marcatori 2 = {{Goal|52}} [[Romano Penzo|Penzo]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 1º febbraio
+|Anno = 1948
+|Turno = 20ª giornata
+|Squadra 1 = Genoa
+|Squadra 2 = Fiorentina
+|Punteggio 1 = 1
+|Punteggio 2 = 2
+|Città = [[Genova]]
+|Stadio = [[Stadio Luigi Ferraris]]
+|Arbitro = [[Generoso Dattilo]]
+|Cittarbitro = [[Roma]]
+|Marcatori 1 = [[Riccardo Dalla Torre|Dalla Torre]] {{Goal|50}}
+|Marcatori 2 = {{Goal|6}} [[Piero Suppi|Suppi]]<br/>{{Goal|61}} [[Otello Badiali|Badiali]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 8 febbraio
+|Anno = 1948
+|Turno = 21ª giornata
+|Squadra 1 = Fiorentina
+|Squadra 2 = Vicenza
+|Punteggio 1 = 1
+|Punteggio 2 = 2
+|Città = [[Firenze]]
+|Stadio = [[Stadio Artemio Franchi|Stadio Comunale]]
+|Arbitro = [[Mario Scotto]]
+|Cittarbitro = [[Savona]]
+|Marcatori 1 = [[Alberto Galassi|Galassi]] {{Goal|34}}
+|Marcatori 2 = {{Goal|8}} [[Serafino Conti|S. Conti]]<br/>{{Goal|24}} [[Luigi Zambelli|Zambelli]]
+}}
+
+=== Girone di ritorno ===
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 15 febbraio
+|Anno = 1948
+|Turno = 22ª giornata
+|Squadra 1 = Roma
+|Squadra 2 = Fiorentina
+|Punteggio 1 = 0
+|Punteggio 2 = 1
+|Città = [[Roma]]
+|Stadio = [[Stadio Nazionale]]
+|Arbitro = [[Ermanno Silvano]]
+|Cittarbitro = [[Torino]]
+|Marcatori 1 =
+|Marcatori 2 = {{Goal|71}} [[Alberto Galassi|Galassi]]
+|Sfondo =
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 22 febbraio
+|Anno = 1948
+|Turno = 23ª giornata
+|Squadra 1 = Fiorentina
+|Squadra 2 = Modena
+|Punteggio 1 = 4
+|Punteggio 2 = 2
+|Città = [[Firenze]]
+|Stadio = [[Stadio Artemio Franchi|Stadio Comunale]]
+|Arbitro = [[Agostino Gamba]]
+|Cittarbitro = [[Napoli]]
+|Marcatori 1 = [[Piero Suppi|Suppi]] {{Goal|8||68}}<br/>[[Ferruccio Valcareggi|Valcareggi]] {{Goal|30}}<br/>[[Alberto Marchetti (1920)|Marchetti]] {{Goal|65}}
+|Marcatori 2 = {{Goal|46}} [[Enzo Menegotti|Menegotti]]<br/>{{Goal|63}} [[Sergio Bertoni|Bertoni]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 29 febbraio
+|Anno = 1948
+|Turno = 24ª giornata
+|Squadra 1 = Milan
+|Squadra 2 = Fiorentina
+|Punteggio 1 = 2
+|Punteggio 2 = 1
+|Città = [[Milano]]
+|Stadio = [[Stadio Giuseppe Meazza|Stadio San Siro]]
+|Arbitro = [[Antonio Zambotto]]
+|Cittarbitro = [[Padova]]
+|Marcatori 1 = [[Renato Raccis|Raccis]] {{Goal|35|rig.}}<br/>[[Carlo Annovazzi|Annovazzi]] {{Goal|53}}
+|Marcatori 2 = {{Goal|60|rig.}} [[Alberto Eliani|Eliani]]
+|Sfondo =
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 7 marzo
+|Anno = 1948
+|Turno = 25ª giornata
+|Squadra 1 = Fiorentina
+|Squadra 2 = Pro Patria
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Città = [[Firenze]]
+|Stadio = [[Stadio Artemio Franchi|Stadio Comunale]]
+|Arbitro = [[Bruno Tassini]]
+|Cittarbitro = [[Verona]]
+|Marcatori 1 = [[Alberto Marchetti (1920)|Marchetti]] {{Goal|10}}
+|Marcatori 2 =
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 14 marzo
+|Anno = 1948
+|Turno = 26ª giornata
+|Squadra 1 = Napoli
+|Squadra 2 = Fiorentina
+|Punteggio 1 = 3
+|Punteggio 2 = 0
+|Città = [[Napoli]]
+|Stadio = [[Stadio Arturo Collana|Stadio della Liberazione]]
+|Arbitro = [[Ermanno Silvano]]
+|Cittarbitro = [[Torino]]
+|Marcatori 1 = [[Menotti Avanzolini|Avanzolini]] {{Goal|22|aut.}}<br/>[[Roberto La Paz|La Paz]] {{Goal|55||56}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 21 marzo
+|Anno = 1948
+|Turno = 27ª giornata
+|Squadra 1 = Fiorentina
+|Squadra 2 = Lucchese
+|Punteggio 1 = 2
+|Punteggio 2 = 0
+|Città = [[Firenze]]
+|Stadio = [[Stadio Artemio Franchi|Stadio Comunale]]
+|Arbitro = [[Guido Agnolin]]
+|Cittarbitro = [[Bassano del Grappa]]
+|Marcatori 1 = [[Alberto Marchetti (1920)|Marchetti]] {{Goal|16}}<br/>[[Alberto Galassi|Galassi]] {{Goal|80}}
+|Marcatori 2 =
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 28 marzo
+|Anno = 1948
+|Turno = 28ª giornata
+|Squadra 1 = Salernitana
+|Squadra 2 = Fiorentina
+|Punteggio 1 = 2
+|Punteggio 2 = 0
+|Città = [[Salerno]]
+|Stadio = [[Stadio Donato Vestuti|Stadio Comunale]]
+|Arbitro = [[Giovanni Galeati]]
+|Cittarbitro = [[Bologna]]
+|Marcatori 1 = [[Renzo Merlin|Merlin]] {{Goal|51}}<br/>[[Adalberto Sifredi|Sifredi]] {{Goal|65}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 11 aprile
+|Anno = 1948
+|Turno = 29ª giornata
+|Squadra 1 = Livorno
+|Squadra 2 = Fiorentina
+|Punteggio 1 = 2
+|Punteggio 2 = 2
+|Città = [[Livorno]]
+|Stadio = [[Stadio Armando Picchi|Stadio Comunale]]
+|Arbitro = [[Vincenzo Orlandini]]
+|Cittarbitro = [[Roma]]
+|Marcatori 1 = [[Bruno Dante|Dante]] {{Goal|9}}<br/>[[Teresio Piana|Piana]] {{Goal|16}}
+|Marcatori 2 = {{Goal|6}} [[Alberto Galassi|Galassi]]<br/>{{Goal|14}} [[Renato Gei|Gei]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 15 aprile
+|Anno = 1948
+|Turno = 30ª giornata
+|Squadra 1 = Fiorentina
+|Squadra 2 = Bari
+|Punteggio 1 = 2
+|Punteggio 2 = 0
+|Città = [[Firenze]]
+|Stadio = [[Stadio Artemio Franchi|Stadio Comunale]]
+|Arbitro = [[Carlo Maglio]]
+|Cittarbitro = [[Torino]]
+|Marcatori 1 = [[Renato Gei|Gei]] {{Goal|31}}<br/>[[Alberto Galassi|Galassi]] {{Goal|87}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 25 aprile
+|Anno = 1948
+|Turno = 31ª giornata
+|Squadra 1 = Bologna
+|Squadra 2 = Fiorentina
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Città = [[Bologna]]
+|Stadio = [[Stadio Renato Dall'Ara|Stadio Comunale]]
+|Arbitro = [[Cesare Cappucci]]
+|Cittarbitro = [[Roma]]
+|Marcatori 1 = [[Amedeo Biavati|Biavati]] {{Goal|75}}
+|Marcatori 2 =
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 2 maggio
+|Anno = 1948
+|Turno = 32ª giornata
+|Squadra 1 = Fiorentina
+|Squadra 2 = Triestina
+|Punteggio 1 = 2
+|Punteggio 2 = 1
+|Città = [[Firenze]]
+|Stadio = [[Stadio Artemio Franchi|Stadio Comunale]]
+|Arbitro = [[Generoso Dattilo]]
+|Cittarbitro = [[Roma]]
+|Marcatori 1 = [[Italo Acconcia|Acconcia]] {{Goal|2}}<br/>[[Renato Gei|Gei]] {{Goal|67}}
+|Marcatori 2 = {{Goal|28}} [[Gino Rossetti|Rossetti]]
+|Sfondo =
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 6 maggio
+|Anno = 1948
+|Ora =
+|Turno = 33ª giornata
+|Note = Turno di riposo della FIORENTINA
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 9 maggio
+|Anno = 1948
+|Turno = 34ª giornata
+|Squadra 1 = Alessandria
+|Squadra 2 = Fiorentina
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Città = [[Alessandria (Italia)|Alessandria]]
+|Stadio = [[Stadio Giuseppe Moccagatta]]
+|Arbitro = [[Eriprando Poggipollini]]
+|Cittarbitro = [[Ferrara]]
+|Marcatori 1 = [[Aristide Coscia|Coscia]] {{Goal|25}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 23 maggio
+|Anno = 1948
+|Turno = 35ª giornata
+|Squadra 1 = Fiorentina
+|Squadra 2 = Sampdoria
+|Punteggio 1 = 4
+|Punteggio 2 = 3
+|Città = [[Firenze]]
+|Stadio = [[Stadio Artemio Franchi|Stadio Comunale]]
+|Arbitro = [[Ferruccio Bonivento]]
+|Cittarbitro = [[Venezia]]
+|Marcatori 1 = [[Alberto Eliani|Eliani]] {{Goal|25|rig.}}<br/>[[Ugo Gregorin|Gregorin]] {{Goal|35}}<br/>[[Alberto Marchetti (1920)|Marchetti]] {{Goal|56}}<br/>[[Ferruccio Valcareggi|Valcareggi]] {{Goal|61}}
+|Marcatori 2 = {{Goal|3}} [[Adriano Bassetto|Bassetto]]<br/>{{Goal|23|aut.}} [[Zeffiro Furiassi|Furiassi]]<br/>{{Goal|52}} [[Giuseppe Baldini|Baldini]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 27 maggio
+|Anno = 1948
+|Turno = 36ª giornata
+|Squadra 1 = Fiorentina
+|Squadra 2 = Torino
+|Punteggio 1 = 1
+|Punteggio 2 = 2
+|Città = [[Firenze]]
+|Stadio = [[Stadio Artemio Franchi|Stadio Comunale]]
+|Arbitro = [[Giorgio Bernardi]]
+|Cittarbitro = [[Bologna]]
+|Marcatori 1 = [[Alberto Galassi|Galassi]] {{Goal|8}}
+|Marcatori 2 = {{Goal|50|rig.}} [[Romeo Menti|R. Menti]]<br/>{{Goal|74}} [[Valentino Mazzola|Mazzola]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 30 maggio
+|Anno = 1948
+|Turno = 37ª giornata
+|Squadra 1 = Inter
+|Squadra 2 = Fiorentina
+|Punteggio 1 = 4
+|Punteggio 2 = 1
+|Città = [[Milano]]
+|Stadio = [[Arena Civica]]
+|Arbitro = [[Giacomo Bertolio]]
+|Cittarbitro = [[Torino]]
+|Marcatori 1 = [[Nicolae Simatoc|Simatoc]] {{Goal|11}}<br/>[[Camillo Achilli|Achilli]] {{Goal|37||58}}<br/>[[Benito Lorenzi|Lorenzi]] {{Goal|71}}
+|Marcatori 2 = {{Goal|80}} [[Ugo Gregorin|Gregorin]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 6 giugno
+|Anno = 1948
+|Turno = 38ª giornata
+|Squadra 1 = Fiorentina
+|Squadra 2 = Juventus
+|Punteggio 1 = 2
+|Punteggio 2 = 4
+|Città = [[Firenze]]
+|Stadio = [[Stadio Artemio Franchi|Stadio Comunale]]
+|Arbitro = [[Armando Marchetti]]
+|Cittarbitro = [[Milano]]
+|Marcatori 1 = [[Ferruccio Valcareggi|Valcareggi]] {{Goal|25}}<br/>[[Alberto Marchetti (1920)|Marchetti]] {{Goal|56}}
+|Marcatori 2 = {{Goal|48||89}} [[Giampiero Boniperti|Boniperti]]<br/>{{Goal|55}} [[Mihály Kincses|Kincses]]<br/>{{Goal|85}} [[Pietro Magni (calciatore)|Magni]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 13 giugno
+|Anno = 1948
+|Turno = 39ª giornata
+|Squadra 1 = Atalanta
+|Squadra 2 = Fiorentina
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Città = [[Bergamo]]
+|Stadio = [[Stadio Atleti Azzurri d'Italia|Stadio Mario Brumana]]
+|Arbitro = [[Osvaldo Savio]]
+|Cittarbitro = [[Torino]]
+|Marcatori 1 = [[Sergio Manente|Manente]] {{Goal|77}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 20 giugno
+|Anno = 1948
+|Turno = 40ª giornata
+|Squadra 1 = Lazio
+|Squadra 2 = Fiorentina
+|Punteggio 1 = 5
+|Punteggio 2 = 0
+|Città = [[Roma]]
+|Stadio = [[Stadio Nazionale]]
+|Arbitro = [[Bruno Tassini]]
+|Cittarbitro = [[Verona]]
+|Marcatori 1 = [[Italo Acconcia|Acconcia]] {{Goal|4|aut.}}<br/>[[Mario Caciagli|Caciagli]] {{Goal|26|aut.}}<br/>[[Romano Penzo|Penzo]] {{Goal|30}}<br/>[[Flavio Cecconi|Cecconi]] {{Goal|33}}<br/>[[Mario Magrini|Magrini]] {{Goal|63}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 27 giugno
+|Anno = 1948
+|Turno = 41ª giornata
+|Squadra 1 = Fiorentina
+|Squadra 2 = Genoa
+|Punteggio 1 = 4
+|Punteggio 2 = 0
+|Città = [[Firenze]]
+|Stadio = [[Stadio Artemio Franchi|Stadio Comunale]]
+|Arbitro = [[Giuseppe Zelocchi]]
+|Cittarbitro = [[Modena]]
+|Marcatori 1 = [[Alberto Galassi|Galassi]] {{Goal|1||5||16}}<br/>[[Ferruccio Valcareggi|Valcareggi]] {{Goal|66}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 4 luglio
+|Anno = 1948
+|Turno = 42ª giornata
+|Squadra 1 = Vicenza
+|Squadra 2 = Fiorentina
+|Punteggio 1 = 1
+|Punteggio 2 = 2
+|Città = [[Vicenza]]
+|Stadio = [[Stadio Romeo Menti|Stadio Comunale]]
+|Arbitro = [[Lelio Coppolone]]
+|Cittarbitro = [[Bari]]
+|Marcatori 1 = [[Rolando Spanevello|Spanavello]] {{Goal|34}}
+|Marcatori 2 = {{Goal|4}} [[Alberto Marchetti (1920)|Marchetti]]<br/>{{Goal|49|aut.}} [[Andrea Campana|Campana]]
+}}
+
+== Statistiche ==
+=== Statistiche di squadra ===
+{{Statistiche squadra
+|comp1=[[Serie A 1947-1948|Serie A]]
+|punti1=41
+|cv1=15
+|cn1=2
+|cp1=3
+|cgf1=39
+|cgs1=19
+|tv1=3
+|tn1=3
+|tp1=14
+|tgf1=10
+|tgs1=36
+}}
+=== Statistiche dei giocatori ===
+Nel computo totale va conteggiato 1 autorete a favore dei viola.
+
+{{Statistiche dei giocatori
+| Competizione1 = Serie A
+| Cartellini = no
+| Totale = no
+| {{Sortname|I.|Acconcia|Italo Acconcia}} {{Sommastat|C=no| 35|1|?|? }}
+| {{Sortname|M.|Avanzolini|Menotti Avanzolini}} {{Sommastat|C=no| 23|0|?|? }}
+| {{Sortname|O.|Badiali|Otello Badiali}}  {{Sommastat|C=no| 24|2|?|? }}
+| {{Sortname|M.|Bigazzi|Mario Bigazzi|nolink=1}} {{Sommastat|C=no| 2|-3|?|? }}
+| {{Sortname|A.|Bollano|Angelo Bollano}} {{Sommastat|C=no| 18|3|?|? }}
+| {{Sortname|R.|Bortoletto|Raoul Bortoletto}}  {{Sommastat|C=no| 9|1|?|? }}
+| {{Sortname|M.|Caciagli|Mario Caciagli}} {{Sommastat|C=no| 8|0|?|? }}
+| {{Sortname|R.A.|Compiani|Rudi Abele Compiani}} {{Sommastat|C=no| 7|0|?|? }}
+| {{Sortname|A.|Eliani|Alberto Eliani}} {{Sommastat|C=no| 35|3|?|? }}
+| {{Sortname|Z.|Furiassi|Zeffiro Furiassi}}  {{Sommastat|C=no| 40|0|?|? }}
+| {{Sortname|A.|Galassi|Alberto Galassi}} {{Sommastat|C=no| 38|15|?|? }}
+| {{Sortname|R.|Gei|Renato Gei}} {{Sommastat|C=no| 26|4|?|? }}
+| {{Sortname|U.|Gregorin|Ugo Gregorin}} {{Sommastat|C=no| 7|2|?|? }}
+| {{Sortname|A.|Magli|Augusto Magli (calciatore)}} {{Sommastat|C=no| 34|0|?|? }}
+| {{Sortname|A.|Marchetti|Alberto Marchetti (1920)}} {{Sommastat|C=no| 29|8|?|? }}
+| {{Sortname|G.|Moro|Giuseppe Moro}} {{Sommastat|C=no| 38|-52|?|? }}
+| {{Sortname|L.|Ponticelli|Luca Ponticelli|nolink=1}} {{Sommastat|C=no| 1|0|?|? }}
+| {{Sortname|P.|Suppi|Piero Suppi}} {{Sommastat|C=no| 19|5|?|? }}
+| {{Sortname|F.|Valcareggi|Ferruccio Valcareggi}} {{Sommastat|C=no| 33|4|?|? }}
+| {{Sortname|C.|Zoppellari|Carlo Zoppellari}} {{Sommastat|C=no| 14|0|?|? }}
+}}
+
+==Note==
+<references/>
+
+== Bibliografia ==
+* {{Cita libro|titolo=Almanacco illustrato del calcio anno 1949|anno=Dicembre 1948|editore=Rizzoli|città=Milano|pp=103-144|cid=Almanacco 1949}}
+
+== Collegamenti esterni ==
+* {{cita web|url=http://www.rsssf.com/tablesi/ital47.html|titolo=Classifica su rsssf.com}}
+* {{cita web|url=http://www.atf-firenze.it/HTML/campionati/043%2747-48.htm|titolo=Tabellini e statistiche su atf-firenze.it}}
+
+{{Calcio Fiorentina storico}}
+{{Calcio in Italia 1947-1948}}
+{{Portale|calcio}}

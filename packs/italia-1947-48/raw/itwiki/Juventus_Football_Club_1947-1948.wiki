@@ -1,0 +1,911 @@
+{{torna a|Juventus Football Club}}
+{{Stagione squadra
+|sport=calcio
+|club = Juventus FC
+|immagine = Juventus Football Club 1947-1948.jpg
+|stagione = 1947-1948
+|allenatore1 = {{Bandiera|ITA}}{{Bandiera|ARG}} [[Renato Cesarini]], poi<br/>{{Bandiera|SCO}} [[William Chalmers]]{{#tag:ref|Cesarini coadiuvato da Chalmers — già designato quale allenatore ''in pectore'' per la stagione seguente<ref>{{cita news|url=http://www.archiviolastampa.it/component/option,com_lastampa/task,search/mod,libera/action,viewer/Itemid,3/page,2/articleid,1605_02_1948_0041_0002_22327176/|titolo=Lo scozzese Chalmers allenerà la Juventus|pubblicazione=Nuova Stampa Sera|data=17 febbraio 1948|p=2}}</ref> — dalla 29ª<ref name="Chalmers">{{cita news|url=http://dlib.coninet.it/bookreader.php?&c=1&f=6008&p=2#page/2/mode/1up|titolo=Chalmers assume le funzioni di allenatore alla Juventus|pubblicazione=Corriere dello Sport|data=8 aprile 1948|p=2}}</ref> alla 32ª giornata; la decisione di Cesarini di lasciare anticipatamente la Juventus<ref>{{cita news|url=http://www.archiviolastampa.it/component/option,com_lastampa/task,search/mod,libera/action,viewer/Itemid,3/page,3/articleid,0010_01_1948_0091_0003_24563031/anews,true/|titolo=La Juventus a Livorno cerca la «riabilitazione»|pubblicazione=La Nuova Stampa|data=25 aprile 1948|p=3}}</ref> porta Chalmers a ricoprire immediatamente il ruolo di allenatore dei bianconeri a partire dalla 33ª giornata.|group=N}}
+|presidente = {{Bandiera|ITA}} [[Gianni Agnelli]]
+|campionato = [[Serie A 1947-1948|Serie A]]
+|campionato posizione = 2º
+|presenze campionato = [[Giampiero Boniperti|Boniperti]] (40)<ref name="Melegari">{{cita|Melegari|p. 435}}.</ref>
+|presenze totale = 
+|marcatore campionato = Boniperti (27)<ref name="Melegari"/>
+|marcatore totale = 
+|stadio = [[Stadio Olimpico Grande Torino|Comunale]]
+|spettatori media = 
+|stagione prima = [[Juventus Football Club 1946-1947|1946-1947]]
+|stagione dopo = [[Juventus Football Club 1948-1949|1948-1949]]
+|aggiornato = 4 luglio 1948
+}}
+
+Questa voce raccoglie le informazioni riguardanti la '''Juventus Football Club''' nelle competizioni ufficiali della stagione '''1947-1948'''.
+
+== Stagione ==
+{{Citazione|Rientrato a Torino dopo la guerra, fui richiamato alla presidenza della Juventus. Rimasi presidente per sette anni, conquistando due scudetti e costruendo una squadra, ritengo, forte.|Gianni Agnelli<ref>{{cita web|url=http://www.juventus.com/it/news/news/2015/68-anni-fa-l-avvocato-alla-guida-della-juve.php|titolo=68 anni fa l’Avvocato alla guida della Juve|sito=juventus.com|data=22 luglio 2015|urlarchivio=https://web.archive.org/web/20150723010812/http://www.juventus.com/it/news/news/2015/68-anni-fa-l-avvocato-alla-guida-della-juve.php|urlmorto=sì}}</ref> }}
+
+Sul versante societario, il 22 luglio 1947 [[Gianni Agnelli]] divenne presidente del club bianconero,<ref>{{cita news|url=http://www.archiviolastampa.it/component/option,com_lastampa/task,search/mod,libera/action,viewer/Itemid,3/page,2/articleid,0041_01_1947_0172_0002_24636192/anews,true/|titolo=L'avv. Gianni Agnelli presidente della Juventus|pubblicazione=La Nuova Stampa|data=23 luglio 1947|p=2}}</ref> carica che ricoprirà per i successivi sette anni.<ref>{{cita news|url=https://ricerca.repubblica.it/repubblica/archivio/repubblica/2003/01/25/la-compagna-della-mia-vita.html|titolo=La compagna della mia vita|autore=Maurizio Crosetti|pubblicazione=la Repubblica|data=25 gennaio 2003|p=24}}</ref> Per quanto concerne il lato sportivo, i piemontesi, peraltro passati in primavera per l'avvicendamento tecnico fra l'oriundo [[Renato Cesarini]] e lo scozzese [[William Chalmers]],<ref name="Chalmers"/> come l'anno precedente terminarono il campionato di [[Serie A 1947-1948|Serie A]] al secondo posto, stavolta a pari merito col {{Calcio Milan|N}} e la rivelazione {{Calcio Triestina|N}}, un terzetto staccato tuttavia di ben sedici punti dal {{Calcio Torino|N}} scudettato.<ref>{{cita news|autore=Vittorio Pozzo|url=http://www.archiviolastampa.it/component/option,com_lastampa/task,search/mod,libera/action,viewer/Itemid,3/page,4/articleid,1605_02_1948_0150_0004_22333502/|titolo=La Juventus era in ferie ma la Pro Patria lavorava: 4-0|pubblicazione=Stampa Sera|data=5 luglio 1948|p=4}}</ref> A nobilitare la stagione bianconera pensò il diciannovenne [[Giampiero Boniperti]], futura ''leggenda'' del club, il quale, dopo i fugaci esordi della stagione precedente, in quest'annata assurse repentinamente fra i trascinarori dell{{'}}''undici'' juventino: con un bottino di 27 gol, il giovane centravanti barenghese fece suo il titolo di capocannoniere del campionato.<ref name="Prima">{{cita web|url=http://www.juventus.com/it/news/news/2017/settant-anni-fa--la--prima--di-boniperti-in-bianconero.php|titolo=Settant'anni fa, la "Prima" di Boniperti in bianconero|data=2 marzo 2017}}</ref>
+
+== Divise ==
+{|
+|
+{{Divisa Calcio
+|pattern_la =_juve2
+|leftarm = ffffff
+|pattern_b =_juve193642h
+|body = ffffff
+|pattern_ra =_juve2
+|rightarm = ffffff
+|shorts = ffffff
+|pattern_so =_juve
+|socks = 000000
+|title = Casa
+}}
+|
+{{Divisa Calcio
+|pattern_la =
+|leftarm = 05662c
+|pattern_b =_juve5152a
+|body = 05662c
+|pattern_ra =
+|rightarm = 05662c
+|shorts = 000000
+|pattern_so =
+|socks = 05662c
+|title = Trasferta
+}}
+|
+{{Divisa Calcio
+|pattern_la = _juve5455t
+|leftarm = 000000
+|pattern_b = _juve5455t
+|body = 000000
+|pattern_ra = _juve5455t
+|rightarm = 000000
+|shorts = 000000
+|pattern_so = _juve
+|socks = 000000
+|title = 1ª portiere
+}}
+|}
+
+== Rosa ==
+{{Calciatore in rosa/inizio}}
+{{Calciatore in rosa|n=|ruolo=P|nazione=ITA|nome=[[Filippo Cavalli]]}}
+{{Calciatore in rosa|n=|ruolo=P|nazione=ITA|nome=[[Lucidio Sentimenti|Lucidio Sentimenti IV]]}}
+{{Calciatore in rosa|n=|ruolo=D|nazione=ITA|nome=[[Araldo Caprili]]}}
+{{Calciatore in rosa|n=|ruolo=D|nazione=ITA|nome=[[Antonio Dalmonte]]}}
+{{Calciatore in rosa|n=|ruolo=D|nazione=ITA|nome=[[Piero Gibellino]]}}
+{{Calciatore in rosa|n=|ruolo=D|nazione=ITA|nome=[[Pietro Rava]]|altro=C}}
+{{Calciatore in rosa|n=|ruolo=C|nazione=ITA|nome=[[Stefano Angeleri]]}}
+{{Calciatore in rosa|n=|ruolo=C|nazione=ITA|nome=[[Teobaldo Depetrini]]}}
+{{Calciatore in rosa|n=|ruolo=C|nazione=ITA|nome=[[Francesco Grosso]]}}
+{{Calciatore in rosa|n=|ruolo=C|nazione=ITA|nome=[[Ugo Locatelli]]}}
+{{Calciatore in rosa/medio}}
+{{Calciatore in rosa|n=|ruolo=C|nazione=ITA|nome=[[Pietro Magni (calciatore)|Pietro Magni]]}}
+{{Calciatore in rosa|n=|ruolo=C|nazione=ITA|nome=[[Carlo Parola]]}}
+{{Calciatore in rosa|n=|ruolo=C|nazione=ITA|nome=[[Vittorio Sentimenti|Vittorio Sentimenti III]]}}
+{{Calciatore in rosa|n=|ruolo=A|nazione=CSK|nome=[[Ján Arpáš]]}}
+{{Calciatore in rosa|n=|ruolo=A|nazione=ITA|nome=[[Giampiero Boniperti]]}}
+{{Calciatore in rosa|n=|ruolo=A|nazione=ITA|nome=[[Francesco Cergoli]]}}
+{{Calciatore in rosa|n=|ruolo=A|nazione=HUN 1946-1949|nome=[[Mihály Kincses]]}}
+{{Calciatore in rosa|n=|ruolo=A|nazione=ITA|nome=[[Carlo Lenci]]}}
+{{Calciatore in rosa|n=|ruolo=A|nazione=ITA|nome=[[Ermes Muccinelli]]}}
+{{Calciatore in rosa/fine}}
+
+== Risultati ==
+=== Serie A ===
+{{vedi anche|Serie A 1947-1948}}
+
+==== Girone di andata ====
+{{Incontro di club
+|Sport = calcio
+|id = 4748-A-1A
+|Giornomese = 14 settembre
+|Anno = 1947
+|Ora = 15:30 [[Central European Time|CET]]
+|Turno = 1ª giornata
+|Squadra 1 = Alessandria
+|Squadra 2 = Juventus
+|Punteggio 1 = 1
+|Punteggio 2 = 3
+|Referto = https://juworld.net/partita.asp?idpartita=1497
+|Città = [[Alessandria (Italia)|Alessandria]]
+|Stadio = [[Stadio Giuseppe Moccagatta]]
+|Spettatori = {{formatnum:}}
+|Arbitro = [[Vittorio Pera]]
+|Cittarbitro = [[Firenze]]
+|Marcatori 1 = [[Fabio Frugali|Frugali]] {{goal|10}}
+|Marcatori 2 = {{goal|19}} [[Vittorio Sentimenti|V. Sentimenti]]<br />{{goal|69||84}} [[Ján Arpáš|Arpáš]]
+}}
+{{Incontro di club
+|Sport = calcio
+|id = 4748-A-2A
+|Giornomese = 21 settembre
+|Anno = 1947
+|Ora = 15:30 [[Central European Time|CET]]
+|Turno = 2ª giornata
+|Squadra 1 = Juventus
+|Squadra 2 = Sampdoria
+|Punteggio 1 = 4
+|Punteggio 2 = 1
+|Referto = https://juworld.net/partita.asp?idpartita=1498
+|Città = [[Torino]]
+|Stadio = [[Stadio Olimpico Grande Torino|Stadio Comunale]]
+|Spettatori = {{formatnum:}}
+|Arbitro = [[Generoso Dattilo]]
+|Cittarbitro = [[Roma]]
+|Marcatori 1 = [[Araldo Caprili|Caprili]] {{goal|10}}<br />[[Francesco Cergoli|Cergoli]] {{goal|20}}<br />[[Teobaldo Depetrini|Depetrini]] {{goal|44}}<br />[[Giampiero Boniperti|Boniperti]] {{goal|48}}
+|Marcatori 2 = {{goal|83}} [[Adriano Bassetto|Bassetto]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|id = 4748-A-3A
+|Giornomese = 28 settembre
+|Anno = 1947
+|Ora = 15:30 [[Central European Time|CET]]
+|Turno = 3ª giornata
+|Squadra 1 = Genoa
+|Squadra 2 = Juventus
+|Punteggio 1 = 2
+|Punteggio 2 = 3
+|Referto = https://juworld.net/partita.asp?idpartita=1499
+|Città = [[Genova]]
+|Stadio = [[Stadio Luigi Ferraris]]
+|Spettatori = {{formatnum:}}
+|Arbitro = [[Giovanni Galeati]]
+|Cittarbitro = [[Bologna]]
+|Marcatori 1 = [[Silvano Trevisani|Trevisani]] {{goal|27}}<br />[[Riccardo Dalla Torre|Dalla Torre]] {{goal|77}}
+|Marcatori 2 = {{goal|45||89}} [[Giampiero Boniperti|Boniperti]]<br />{{goal|82|rig}} [[Pietro Rava|Rava]]
+}}
+{{Incontro di club
+|Sport = calcio
+|id = 4748-A-4A
+|Giornomese = 5 ottobre
+|Anno = 1947
+|Ora = 14:30 [[Central European Time|CET]]
+|Turno = 4ª giornata
+|Squadra 1 = Juventus
+|Squadra 2 = Atalanta
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Referto = https://juworld.net/partita.asp?idpartita=1500
+|Città = [[Torino]]
+|Stadio = [[Stadio Olimpico Grande Torino|Stadio Comunale]]
+|Spettatori = ca {{formatnum:17000}}
+|Arbitro = [[Angelo Pizzato]]
+|Cittarbitro = [[Venezia]]
+|Marcatori 1 = [[Giampiero Boniperti|Boniperti]] {{goal|64}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|id = 4748-A-5A
+|Giornomese = 12 ottobre
+|Anno = 1947
+|Ora = 14:30 [[Central European Time|CET]]
+|Turno = 5ª giornata
+|Squadra 1 = Inter
+|Squadra 2 = Juventus
+|Punteggio 1 = 4
+|Punteggio 2 = 2
+|Referto = https://juworld.net/partita.asp?idpartita=1501
+|Città = [[Milano]]
+|Stadio = [[Stadio Giuseppe Meazza|Stadio San Siro]]
+|Spettatori = {{formatnum:}}
+|Arbitro = [[Generoso Dattilo]]
+|Cittarbitro = [[Roma]]
+|Marcatori 1 = [[Benito Lorenzi|Lorenzi]] {{goal|15||53}}<br />[[Bibiano Zapirain|Zapirain]] {{goal|55}}<br />[[Aldo Campatelli|Campatelli]] {{goal|60}}
+|Marcatori 2 = {{goal|69}} [[Mihály Kincses|Kincses]]<br />{{goal|88}} [[Francesco Cergoli|Cergoli]]
+}}
+{{Incontro di club
+|Sport = calcio
+|id = 4748-A-6A
+|Giornomese = 19 ottobre
+|Anno = 1947
+|Ora = 14:30 [[Central European Time|CET]]
+|Turno = 6ª giornata
+|Squadra 1 = Juventus
+|Squadra 2 = Triestina
+|Punteggio 1 = 0
+|Punteggio 2 = 1
+|Referto = https://juworld.net/partita.asp?idpartita=1502
+|Città = [[Torino]]
+|Stadio = [[Stadio Olimpico Grande Torino|Stadio Comunale]]
+|Spettatori = {{formatnum:}}
+|Arbitro = [[Giuseppe Zelocchi]]
+|Cittarbitro = [[Modena]]
+|Marcatori 2 = {{goal|25}} [[Mario Begni|Begni]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|id = 4748-A-7A
+|Giornomese = 26 ottobre
+|Anno = 1947
+|Ora = 14:30 [[Central European Time|CET]]
+|Turno = 7ª giornata
+|Squadra 1 = Torino
+|Squadra 2 = Juventus
+|Punteggio 1 = 1
+|Punteggio 2 = 1
+|Referto = https://juworld.net/partita.asp?idpartita=1503
+|Città = [[Torino]]
+|Stadio = [[Stadio Olimpico Grande Torino|Stadio Comunale]]
+|Spettatori = {{formatnum:}}
+|Arbitro = [[Ferruccio Bellè]]
+|Cittarbitro = [[Venezia]]
+|Marcatori 1 = [[Valentino Mazzola|Mazzola]] {{goal|9}}
+|Marcatori 2 = {{goal|70|rig}} [[Vittorio Sentimenti|V. Sentimenti]]
+}}
+{{Incontro di club
+|Sport = calcio
+|id = 4748-A-8A
+|Giornomese = 2 novembre
+|Anno = 1947
+|Ora = 14:30 [[Central European Time|CET]]
+|Turno = 8ª giornata
+|Squadra 1 = Juventus
+|Squadra 2 = Lazio
+|Punteggio 1 = 1
+|Punteggio 2 = 1
+|Referto = https://juworld.net/partita.asp?idpartita=1504
+|Città = [[Torino]]
+|Stadio = [[Stadio Olimpico Grande Torino|Stadio Comunale]]
+|Spettatori = {{formatnum:}}
+|Arbitro = [[Giorgio Bernardi]]
+|Cittarbitro = [[Bologna]]
+|Marcatori 1 = [[Giampiero Boniperti|Boniperti]] {{goal|31}}
+|Marcatori 2 = {{goal|73}} [[Aldo Puccinelli|Puccinelli]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|id = 4748-A-9A
+|Giornomese = 16 novembre
+|Anno = 1947
+|Ora = 14:30 [[Central European Time|CET]]
+|Turno = 9ª giornata
+|Squadra 1 = Napoli
+|Squadra 2 = Juventus
+|Punteggio 1 = 0
+|Punteggio 2 = 0
+|Referto = https://juworld.net/partita.asp?idpartita=1506
+|Città = [[Napoli]]
+|Stadio = [[Stadio Arturo Collana|Stadio della Liberazione]]
+|Spettatori = {{formatnum:}}
+|Arbitro = [[Giuseppe Boffardi]]
+|Cittarbitro = [[Genova]]
+}}
+{{Incontro di club
+|Sport = calcio
+|id = 4748-A-10A
+|Giornomese = 23 novembre
+|Anno = 1947
+|Ora = 14:30 [[Central European Time|CET]]
+|Turno = 10ª giornata
+|Squadra 1 = Juventus
+|Squadra 2 = Livorno
+|Punteggio 1 = 6
+|Punteggio 2 = 1
+|Referto = https://juworld.net/partita.asp?idpartita=1507
+|Città = [[Torino]]
+|Stadio = [[Stadio Olimpico Grande Torino|Stadio Comunale]]
+|Spettatori = {{formatnum:}}
+|Arbitro = [[Luigi Valsecchi (arbitro)|Luigi Valsecchi]]
+|Cittarbitro = [[Milano]]
+|Marcatori 1 = [[Giampiero Boniperti|Boniperti]] {{goal|21||44||68}}<br />[[Francesco Cergoli|Cergoli]] {{goal|62}}<br />[[Ján Arpáš|Arpáš]] {{goal|70}}<br />[[Vittorio Sentimenti|V. Sentimenti]] {{goal|85|rig}}
+|Marcatori 2 = {{goal|42}} [[Guido Tieghi|Tieghi]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|id = 4748-A-12A
+|Giornomese = 7 dicembre
+|Anno = 1947
+|Ora = 14:30 [[Central European Time|CET]]
+|Turno = 12ª giornata<ref group=N name=riposo>Turno di riposo calendarizzato alla 11ª (30 novembre 1947) e 32ª giornata (2 maggio 1948); cfr. {{cita web|url=https://www.rsssf.org/tablesi/ital48.html|titolo=Italy Championship 1947/48|autore=Maurizio Mariani|data=23 febbraio 2017|lingua=en}}</ref>
+|Squadra 1 = Milan
+|Squadra 2 = Juventus
+|Punteggio 1 = 5
+|Punteggio 2 = 0
+|Referto = https://juworld.net/partita.asp?idpartita=1509
+|Città = [[Milano]]
+|Stadio = [[Stadio Giuseppe Meazza|Stadio San Siro]]
+|Spettatori = {{formatnum:}}
+|Arbitro = [[Luigi Gemini]]
+|Cittarbitro = [[Roma]]
+|Marcatori 1 = [[Stefano Angeleri|Angeleri]] {{goal|24|aut}}<br />[[Carlo Annovazzi|Annovazzi]] {{goal|38}}<br />[[Edy Gratton|Gratton]] {{goal|58}}<br />[[Riccardo Carapellese|Carapellese]] {{goal|72||90}}
+}}
+{{Incontro di club
+|Sport = calcio
+|id = 4748-A-13A
+|Giornomese = 21 dicembre
+|Anno = 1947
+|Ora = 14:30 [[Central European Time|CET]]
+|Turno = 13ª giornata
+|Squadra 1 = Juventus
+|Squadra 2 = Lucchese
+|Punteggio 1 = 1
+|Punteggio 2 = 1
+|Referto = https://juworld.net/partita.asp?idpartita=1510
+|Città = [[Torino]]
+|Stadio = [[Stadio Olimpico Grande Torino|Stadio Comunale]]
+|Spettatori = {{formatnum:}}
+|Arbitro = [[Eriprando Poggipollini]]
+|Cittarbitro = [[Ferrara]]
+|Marcatori 1 = [[Vittorio Sentimenti|V. Sentimenti]] {{goal|41}}
+|Marcatori 2 = {{goal|63}} [[Ugo Conti (calciatore)|U. Conti]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|id = 4748-A-14A
+|Giornomese = 28 dicembre
+|Anno = 1947
+|Ora = 14:30 [[Central European Time|CET]]
+|Turno = 14ª giornata
+|Squadra 1 = Roma
+|Squadra 2 = Juventus
+|Punteggio 1 = 2
+|Punteggio 2 = 3
+|Referto = https://juworld.net/partita.asp?idpartita=1511
+|Città = [[Roma]]
+|Stadio = [[Stadio Nazionale]]
+|Spettatori = {{formatnum:}}
+|Arbitro = [[Giuseppe Zelocchi]]
+|Cittarbitro = [[Modena]]
+|Marcatori 1 = [[Bruno Pesaola|Pesaola]] {{goal|13}}<br />[[Vicente Di Paola|Di Paola]] {{goal|62}}
+|Marcatori 2 = {{goal|9||36}} [[Giampiero Boniperti|Boniperti]]<br />{{goal|76}} [[Pietro Rava|Rava]]
+}}
+{{Incontro di club
+|Sport = calcio
+|id = 4748-A-15A
+|Giornomese = 1º gennaio
+|Anno = 1948
+|Ora = 14:30 [[Central European Time|CET]]
+|Turno = 15ª giornata
+|Squadra 1 = Vicenza
+|Squadra 2 = Juventus
+|Punteggio 1 = 0
+|Punteggio 2 = 1
+|Referto = https://juworld.net/partita.asp?idpartita=1512
+|Città = [[Vicenza]]
+|Stadio = [[Stadio Romeo Menti|Stadio Comunale]]
+|Spettatori = {{formatnum:}}
+|Arbitro = [[Giuseppe Carpani (arbitro)|Giuseppe Carpani]]
+|Cittarbitro = [[Milano]]
+|Marcatori 2 = {{goal|37}} [[Ján Arpáš|Arpáš]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|id = 4748-A-16A
+|Giornomese = 4 gennaio
+|Anno = 1948
+|Ora = 14:30 [[Central European Time|CET]]
+|Turno = 16ª giornata
+|Squadra 1 = Juventus
+|Squadra 2 = Modena
+|Punteggio 1 = 0
+|Punteggio 2 = 1
+|Referto = https://juworld.net/partita.asp?idpartita=1513
+|Città = [[Torino]]
+|Stadio = [[Stadio Olimpico Grande Torino|Stadio Comunale]]
+|Spettatori = {{formatnum:}}
+|Arbitro = [[Antonio Zambotto]]
+|Cittarbitro = [[Padova]]
+|Marcatori 2 = {{goal|81}} [[Primo Sentimenti|P. Sentimenti]]
+}}
+{{Incontro di club
+|Sport = calcio
+|id = 4748-A-17A
+|Giornomese = 11 gennaio
+|Anno = 1948
+|Ora = 14:30 [[Central European Time|CET]]
+|Turno = 17ª giornata
+|Squadra 1 = Juventus
+|Squadra 2 = Fiorentina
+|Punteggio 1 = 3
+|Punteggio 2 = 0
+|Referto = https://juworld.net/partita.asp?idpartita=1514
+|Città = [[Torino]]
+|Stadio = [[Stadio Olimpico Grande Torino|Stadio Comunale]]
+|Spettatori = {{formatnum:}}
+|Arbitro = [[Bruno Tassini]]
+|Cittarbitro = [[Verona]]
+|Marcatori 1 = [[Mihály Kincses|Kincses]] {{goal|54||68}}<br />[[Giampiero Boniperti|Boniperti]] {{goal|72}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|id = 4748-A-18A
+|Giornomese = 18 gennaio
+|Anno = 1948
+|Ora = 14:30 [[Central European Time|CET]]
+|Turno = 18ª giornata
+|Squadra 1 = Salernitana
+|Squadra 2 = Juventus
+|Punteggio 1 = 0
+|Punteggio 2 = 0
+|Referto = https://juworld.net/partita.asp?idpartita=1515
+|Città = [[Salerno]]
+|Stadio = [[Stadio Donato Vestuti|Stadio Comunale]]
+|Spettatori = {{formatnum:}}
+|Arbitro = [[Giuseppe Carpani (arbitro)|Giuseppe Carpani]]
+|Cittarbitro = [[Milano]]
+}}
+{{Incontro di club
+|Sport = calcio
+|id = 4748-A-19A
+|Giornomese = 25 gennaio
+|Anno = 1948
+|Ora = 14:30 [[Central European Time|CET]]
+|Turno = 19ª giornata
+|Squadra 1 = Juventus
+|Squadra 2 = Bari
+|Punteggio 1 = 6
+|Punteggio 2 = 0
+|Referto = https://juworld.net/partita.asp?idpartita=1516
+|Città = [[Torino]]
+|Stadio = [[Stadio Olimpico Grande Torino|Stadio Comunale]]
+|Spettatori = {{formatnum:}}
+|Arbitro = [[Bruno Zilli]]
+|Cittarbitro = [[Reggio Emilia]]
+|Marcatori 1 = [[Francesco Cergoli|Cergoli]] {{goal|9||79}}<br />[[Giampiero Boniperti|Boniperti]] {{goal|43}}<br />[[Ján Arpáš|Arpáš]] {{goal|72||86}}<br />[[Carlo Lenci|Lenci]] {{goal|87}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|id = 4748-A-20A
+|Giornomese = 1º febbraio
+|Anno = 1948
+|Ora = 14:30 [[Central European Time|CET]]
+|Turno = 20ª giornata
+|Squadra 1 = Juventus
+|Squadra 2 = Bologna
+|Punteggio 1 = 0
+|Punteggio 2 = 1
+|Referto = https://juworld.net/partita.asp?idpartita=1517
+|Città = [[Torino]]
+|Stadio = [[Stadio Olimpico Grande Torino|Stadio Comunale]]
+|Spettatori = {{formatnum:}}
+|Arbitro = [[Vincenzo Orlandini]]
+|Cittarbitro = [[Roma]]
+|Marcatori 2 = {{goal|77}} [[Mario Gritti|Gritti]]
+}}
+{{Incontro di club
+|Sport = calcio
+|id = 4748-A-21A
+|Giornomese = 8 febbraio
+|Anno = 1948
+|Ora = 14:30 [[Central European Time|CET]]
+|Turno = 21ª giornata
+|Squadra 1 = Pro Patria
+|Squadra 2 = Juventus
+|Punteggio 1 = 2
+|Punteggio 2 = 3
+|Referto = https://juworld.net/partita.asp?idpartita=1518
+|Città = [[Busto Arsizio]]
+|Stadio = [[Stadio Carlo Speroni|Stadio Comunale]]
+|Spettatori = {{formatnum:}}
+|Arbitro = [[Guido Agnolin]]
+|Cittarbitro = [[Bassano del Grappa]]
+|Marcatori 1 = [[Lelio Antoniotti|Antoniotti]] {{goal|62}}<br />[[Alfonso Borra|Borra]] {{goal|78}}
+|Marcatori 2 = {{goal|30}} [[Pietro Rava|Rava]]<br />{{goal|57||84}} [[Ermes Muccinelli|Muccinelli]]
+|Sfondo = on
+}}
+
+==== Girone di ritorno ====
+{{Incontro di club
+|Sport = calcio
+|id = 4748-A-1R
+|Giornomese = 15 febbraio
+|Anno = 1948
+|Ora = 15:00 [[Central European Time|CET]]
+|Turno = 22ª giornata
+|Squadra 1 = Juventus
+|Squadra 2 = Alessandria
+|Punteggio 1 = 6
+|Punteggio 2 = 1
+|Referto = https://juworld.net/partita.asp?idpartita=1519
+|Città = [[Torino]]
+|Stadio = [[Stadio Olimpico Grande Torino|Stadio Comunale]]
+|Spettatori = {{formatnum:}}
+|Arbitro = [[Riccardo Pieri]]
+|Cittarbitro = [[Trieste]]
+|Marcatori 1 = [[Ermes Muccinelli|Muccinelli]] {{goal|3||39||50}}<br />[[Giampiero Boniperti|Boniperti]] {{goal|9||19}}<br />[[Pietro Magni (calciatore)|Magni]] {{goal|68}}
+|Marcatori 2 = {{goal|73}} [[Riza Lushta|Lushta]]
+}}
+{{Incontro di club
+|Sport = calcio
+|id = 4748-A-2R
+|Giornomese = 22 febbraio
+|Anno = 1948
+|Ora = 15:00 [[Central European Time|CET]]
+|Turno = 23ª giornata
+|Squadra 1 = Sampdoria
+|Squadra 2 = Juventus
+|Punteggio 1 = 5
+|Punteggio 2 = 2
+|Referto = https://juworld.net/partita.asp?idpartita=1520
+|Città = [[Genova]]
+|Stadio = [[Stadio Luigi Ferraris]]
+|Spettatori = {{formatnum:}}
+|Arbitro = [[Giuseppe Zelocchi]]
+|Cittarbitro = [[Modena]]
+|Marcatori 1 = [[Adriano Bassetto|Bassetto]] {{goal|14||81}}<br />[[Mario Silvestrelli|Silvestrelli]] {{goal|27||53}}<br />[[Carlo Parola|Parola]] {{goal|61|aut}}
+|Marcatori 2 = {{goal|42}} [[Giampiero Boniperti|Boniperti]]<br />{{goal|63}} [[Ermes Muccinelli|Muccinelli]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|id = 4748-A-3R
+|Giornomese = 29 febbraio
+|Anno = 1948
+|Ora = 15:30 [[Central European Time|CET]]
+|Turno = 24ª giornata
+|Squadra 1 = Juventus
+|Squadra 2 = Genoa
+|Punteggio 1 = 2
+|Punteggio 2 = 1
+|Referto = https://juworld.net/partita.asp?idpartita=1521
+|Città = [[Torino]]
+|Stadio = [[Stadio Olimpico Grande Torino|Stadio Comunale]]
+|Spettatori = {{formatnum:}}
+|Arbitro = [[Luigi Gemini]]
+|Cittarbitro = [[Roma]]
+|Marcatori 1 = [[Vittorio Sentimenti|V. Sentimenti]] {{goal|61}}<br />[[Vittorio Sardelli|Sardelli]] {{goal|73|aut}}
+|Marcatori 2 = {{goal|83}} [[Juan Carlos Verdeal|Verdeal]]
+}}
+{{Incontro di club
+|Sport = calcio
+|id = 4748-A-4R
+|Giornomese = 7 marzo
+|Anno = 1948
+|Ora = 15:30 [[Central European Time|CET]]
+|Turno = 25ª giornata
+|Squadra 1 = Atalanta
+|Squadra 2 = Juventus
+|Punteggio 1 = 0
+|Punteggio 2 = 0
+|Referto = https://juworld.net/partita.asp?idpartita=1522
+|Città = [[Bergamo]]
+|Stadio = [[Gewiss Stadium|Stadio Comunale]]
+|Spettatori = {{formatnum:}}
+|Arbitro = [[Ferruccio Bellè]]
+|Cittarbitro = [[Venezia]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|id = 4748-A-5R
+|Giornomese = 14 marzo
+|Anno = 1948
+|Ora = 15:30 [[Central European Time|CET]]
+|Turno = 26ª giornata
+|Squadra 1 = Juventus
+|Squadra 2 = Inter
+|Punteggio 1 = 2
+|Punteggio 2 = 0
+|Referto = https://juworld.net/partita.asp?idpartita=1523
+|Città = [[Torino]]
+|Stadio = [[Stadio Olimpico Grande Torino|Stadio Comunale]]
+|Spettatori = {{formatnum:}}
+|Arbitro = [[Giorgio Bernardi]]
+|Cittarbitro = [[Bologna]]
+|Marcatori 1 = [[Giampiero Boniperti|Boniperti]] {{goal|9}}<br />[[Carlo Parola|Parola]] {{goal|78}}
+}}
+{{Incontro di club
+|Sport = calcio
+|id = 4748-A-6R
+|Giornomese = 21 marzo
+|Anno = 1948
+|Ora = 15:30 [[Central European Time|CET]]
+|Turno = 27ª giornata
+|Squadra 1 = Triestina
+|Squadra 2 = Juventus
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Referto = https://juworld.net/partita.asp?idpartita=1524
+|Città = [[Trieste]]
+|Stadio = [[Stadio Giuseppe Grezar|Stadio Comunale]]
+|Spettatori = {{formatnum:}}
+|Arbitro = [[Vincenzo Orlandini]]
+|Cittarbitro = [[Roma]]
+|Marcatori 1 = [[Carlo Parola|Parola]] {{goal|4|aut}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|id = 4748-A-7R
+|Giornomese = 28 marzo
+|Anno = 1948
+|Ora = 15:30 [[Central European Time|CET]]
+|Turno = 28ª giornata
+|Squadra 1 = Juventus
+|Squadra 2 = Torino
+|Punteggio 1 = 1
+|Punteggio 2 = 1
+|Referto = https://juworld.net/partita.asp?idpartita=1525
+|Città = [[Torino]]
+|Stadio = [[Stadio Olimpico Grande Torino|Stadio Comunale]]
+|Spettatori = {{formatnum:}}
+|Arbitro = [[Luigi Gemini]]
+|Cittarbitro = [[Roma]]
+|Marcatori 1 = [[Aldo Ballarin|Ballarin]] {{goal|50|aut}}
+|Marcatori 2 = {{goal|37}} [[Franco Ossola|Ossola]]
+}}
+{{Incontro di club
+|Sport = calcio
+|id = 4748-A-8R
+|Giornomese = 11 aprile
+|Anno = 1948
+|Ora = 16:00 [[Central European Time|CET]]
+|Turno = 29ª giornata
+|Squadra 1 = Lazio
+|Squadra 2 = Juventus
+|Punteggio 1 = 0
+|Punteggio 2 = 0
+|Referto = https://juworld.net/partita.asp?idpartita=1531
+|Città = [[Roma]]
+|Stadio = [[Stadio Nazionale]]
+|Spettatori = {{formatnum:}}
+|Arbitro = [[Eliseo Camiolo]]
+|Cittarbitro = [[Milano]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|id = 4748-A-9R
+|Giornomese = 21 aprile
+|Anno = 1948{{#tag:ref|Gara in programma il {{data|18|04|1948}}, rinviata — insieme ad altre partite di campionato — per la concomitanza con le [[Elezioni politiche in Italia del 1948|elezioni politiche]].<ref>{{cita news|url=http://www.archiviolastampa.it/component/option,com_lastampa/task,search/mod,libera/action,viewer/Itemid,3/page,2/articleid,1605_02_1948_0077_0002_22329182/|titolo=Juventus-Napoli si giocherà il 21 aprile|pubblicazione=Nuova Stampa Sera|data=8 aprile 1948|p=2}}</ref>|group=N}}
+|Ora = 17:30 [[Central European Time|CET]]
+|Turno = 30ª giornata
+|Squadra 1 = Juventus
+|Squadra 2 = Napoli
+|Punteggio 1 = 1
+|Punteggio 2 = 3
+|Referto = https://juworld.net/partita.asp?idpartita=1532
+|Città = [[Torino]]
+|Stadio = [[Stadio Olimpico Grande Torino|Stadio Comunale]]
+|Spettatori = {{formatnum:}}
+|Arbitro = [[Giuseppe Zelocchi]]
+|Cittarbitro = [[Modena]]
+|Marcatori 1 = [[Giampiero Boniperti|Boniperti]] {{goal|42}}
+|Marcatori 2 = {{goal|46||78||89}} [[Carlo Barbieri (calciatore 1922)|Barbieri]]
+}}
+{{Incontro di club
+|Sport = calcio
+|id = 4748-A-10R
+|Giornomese = 25 aprile
+|Anno = 1948
+|Ora = 16:00 [[Central European Time|CET]]
+|Turno = 31ª giornata
+|Squadra 1 = Livorno
+|Squadra 2 = Juventus
+|Punteggio 1 = 0
+|Punteggio 2 = 0
+|Referto = https://juworld.net/partita.asp?idpartita=1533
+|Città = [[Livorno]]
+|Stadio = [[Stadio Armando Picchi|Stadio Ardenza]]
+|Spettatori = {{formatnum:}}
+|Arbitro = [[Giuseppe Carpani (arbitro)|Giuseppe Carpani]]
+|Cittarbitro = [[Milano]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|id = 4748-A-12R
+|Giornomese = 6 maggio
+|Anno = 1948
+|Ora = 16:00 [[Central European Time|CET]]
+|Turno = 33ª giornata<ref group=N name=riposo/>
+|Squadra 1 = Juventus
+|Squadra 2 = Milan
+|Punteggio 1 = 2
+|Punteggio 2 = 1
+|Referto = https://juworld.net/partita.asp?idpartita=1533
+|Città = [[Torino]]
+|Stadio = [[Stadio Olimpico Grande Torino|Stadio Comunale]]
+|Spettatori = ca {{formatnum:15000}}
+|Arbitro = [[Generoso Dattilo]]
+|Cittarbitro = [[Roma]]
+|Marcatori 1 = [[Stefano Angeleri|Angeleri]] {{goal|23}}<br />[[Giampiero Boniperti|Boniperti]] {{goal|56}}
+|Marcatori 2 = {{goal|77}} [[Riccardo Carapellese|Carapellese]]
+}}
+{{Incontro di club
+|Sport = calcio
+|id = 4748-A-13R
+|Giornomese = 9 maggio
+|Anno = 1948
+|Ora = 16:00 [[Central European Time|CET]]
+|Turno = 34ª giornata
+|Squadra 1 = Lucchese
+|Squadra 2 = Juventus
+|Punteggio 1 = 2
+|Punteggio 2 = 2
+|Referto = https://juworld.net/partita.asp?idpartita=1534
+|Città = [[Lucca]]
+|Stadio = [[Stadio Porta Elisa]]
+|Spettatori = {{formatnum:}}
+|Arbitro = [[Ettore Neri (arbitro)|Ettore Neri]]
+|Cittarbitro = [[Vicenza]]
+|Marcatori 1 = [[Ugo Conti (calciatore)|U. Conti]] {{goal|18||70}}
+|Marcatori 2 = {{goal|9||19}} [[Giampiero Boniperti|Boniperti]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|id = 4748-A-14R
+|Giornomese = 23 maggio
+|Anno = 1948
+|Ora = 16:00 [[Central European Time|CET]]
+|Turno = 35ª giornata
+|Squadra 1 = Juventus
+|Squadra 2 = Roma
+|Punteggio 1 = 3
+|Punteggio 2 = 0
+|Referto = https://juworld.net/partita.asp?idpartita=1537
+|Città = [[Torino]]
+|Stadio = [[Stadio Olimpico Grande Torino|Stadio Comunale]]
+|Spettatori = {{formatnum:}}
+|Arbitro = [[Bruno Tassini]]
+|Cittarbitro = [[Verona]]
+|Marcatori 1 = [[Francesco Cergoli|Cergoli]] {{goal|64}}<br />[[Giampiero Boniperti|Boniperti]] {{goal|72||78}}
+}}
+{{Incontro di club
+|Sport = calcio
+|id = 4748-A-15R
+|Giornomese = 27 maggio
+|Anno = 1948
+|Ora = 16:00 [[Central European Time|CET]]
+|Turno = 36ª giornata
+|Squadra 1 = Juventus
+|Squadra 2 = Vicenza
+|Punteggio 1 = 6
+|Punteggio 2 = 0
+|Referto = https://juworld.net/partita.asp?idpartita=1538
+|Città = [[Torino]]
+|Stadio = [[Stadio Olimpico Grande Torino|Stadio Comunale]]
+|Spettatori = {{formatnum:}}
+|Arbitro = [[Battista Tibaldi]]
+|Cittarbitro = [[Savona]]
+|Marcatori 1 = [[Vittorio Sentimenti|V. Sentimenti]] {{goal|7}}<br />[[Giampiero Boniperti|Boniperti]] {{goal|39||46}}<br />[[Stefano Angeleri|Angeleri]] {{goal|59}}<br />[[Ugo Locatelli|Locatelli]] {{goal|75}}<br />[[Francesco Cergoli|Cergoli]] {{goal|84}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|id = 4748-A-16R
+|Giornomese = 30 maggio
+|Anno = 1948
+|Ora = 16:30 [[Central European Time|CET]]
+|Turno = 37ª giornata
+|Squadra 1 = Modena
+|Squadra 2 = Juventus
+|Punteggio 1 = 0
+|Punteggio 2 = 1
+|Referto = https://juworld.net/partita.asp?idpartita=1539
+|Città = [[Modena]]
+|Stadio = [[Stadio Alberto Braglia|Stadio Comunale]]
+|Spettatori = {{formatnum:}}
+|Arbitro = [[Demetrio Stampacchia]]
+|Cittarbitro = [[Nola]]
+|Marcatori 2 = {{goal|9}} [[Giampiero Boniperti|Boniperti]]
+}}
+{{Incontro di club
+|Sport = calcio
+|id = 4748-A-17R
+|Giornomese = 6 giugno
+|Anno = 1948
+|Ora = 17:00 [[Central European Time|CET]]
+|Turno = 38ª giornata
+|Squadra 1 = Fiorentina
+|Squadra 2 = Juventus
+|Punteggio 1 = 2
+|Punteggio 2 = 4
+|Referto = https://juworld.net/partita.asp?idpartita=1541
+|Città = [[Firenze]]
+|Stadio = [[Stadio Artemio Franchi|Stadio Comunale]]
+|Spettatori = {{formatnum:}}
+|Arbitro = [[Armando Marchetti]]
+|Cittarbitro = [[Milano]]
+|Marcatori 1 = [[Ferruccio Valcareggi|Valcareggi]] {{goal|25}}<br />[[Alberto Marchetti (1920)|Marchetti]] {{goal|68}}
+|Marcatori 2 = {{goal|48||89}} [[Giampiero Boniperti|Boniperti]]<br />{{goal|55}} [[Mihály Kincses|Kincses]]<br />{{goal|85}} [[Pietro Magni (calciatore)|Magni]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|id = 4748-A-18R
+|Giornomese = 13 giugno
+|Anno = 1948
+|Ora = 17:00 [[Central European Time|CET]]
+|Turno = 39ª giornata
+|Squadra 1 = Juventus
+|Squadra 2 = Salernitana
+|Punteggio 1 = 2
+|Punteggio 2 = 0
+|Referto = https://juworld.net/partita.asp?idpartita=1542
+|Città = [[Torino]]
+|Stadio = [[Stadio Olimpico Grande Torino|Stadio Comunale]]
+|Spettatori = {{formatnum:}}
+|Arbitro = [[Gino Cicardi]]
+|Cittarbitro = [[Lecco]]
+|Marcatori 1 = [[Silvio Rispoli|Rispoli]] {{goal|34|aut}}<br />[[Pietro Magni (calciatore)|Magni]] {{goal|87}}
+}}
+{{Incontro di club
+|Sport = calcio
+|id = 4748-A-19R
+|Giornomese = 20 giugno
+|Anno = 1948
+|Ora = 17:00 [[Central European Time|CET]]
+|Turno = 40ª giornata
+|Squadra 1 = Bari
+|Squadra 2 = Juventus
+|Punteggio 1 = 2
+|Punteggio 2 = 1
+|Referto = https://juworld.net/partita.asp?idpartita=1543
+|Città = [[Bari]]
+|Stadio = [[Stadio della Vittoria (Bari)|Stadio della Vittoria]]
+|Spettatori = {{formatnum:}}
+|Arbitro = [[Eliseo Camiolo]]
+|Cittarbitro = [[Milano]]
+|Marcatori 1 = [[János Hrotkó|Hrotkó]] {{goal|4}}<br />[[Guido Tavellin|Tavellin]] {{goal|29}}
+|Marcatori 2 = {{goal|33}} [[Mihály Kincses|Kincses]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|id = 4748-A-20R
+|Giornomese = 27 giugno
+|Anno = 1948
+|Ora = 17:00 [[Central European Time|CET]]
+|Turno = 41ª giornata
+|Squadra 1 = Bologna
+|Squadra 2 = Juventus
+|Punteggio 1 = 1
+|Punteggio 2 = 1
+|Referto = https://juworld.net/partita.asp?idpartita=1544
+|Città = [[Bologna]]
+|Stadio = [[Stadio Renato Dall'Ara|Stadio Comunale]]
+|Spettatori = {{formatnum:}}
+|Arbitro = [[Bruno Tassini]]
+|Cittarbitro = [[Verona]]
+|Marcatori 1 = [[Bruno Arcari (calciatore)|Arcari]] {{goal|53|rig}}
+|Marcatori 2 = {{goal|60|rig}} [[Vittorio Sentimenti|V. Sentimenti]]
+}}
+{{Incontro di club
+|Sport = calcio
+|id = 4748-A-21R
+|Giornomese = 4 luglio
+|Anno = 1948
+|Ora = 17:00 [[Central European Time|CET]]
+|Turno = 42ª giornata
+|Squadra 1 = Juventus
+|Squadra 2 = Pro Patria
+|Punteggio 1 = 0
+|Punteggio 2 = 4
+|Referto = https://juworld.net/partita.asp?idpartita=1542
+|Città = [[Torino]]
+|Stadio = [[Stadio Olimpico Grande Torino|Stadio Comunale]]
+|Spettatori = {{formatnum:}}
+|Arbitro = [[Giuseppe Parpaiola]]
+|Cittarbitro = [[Padova]]
+|Marcatori 2 = {{goal|40}} [[Piero Pozzi|Pozzi]]<br />{{goal|53||54}} [[Angelo Turconi|Turconi]]<br />{{goal|60}} [[Lelio Antoniotti|Antoniotti]]
+|Sfondo = on
+}}
+
+== Note ==
+=== Esplicative ===
+<references group=N/>
+
+=== Bibliografiche ===
+<references/>
+
+==Bibliografia==
+* {{cita libro|curatore=Fabrizio Melegari|titolo=Almanacco illustrato del calcio 2003|città=Modena|editore=Panini|anno=2002|cid=Melegari}}
+
+{{Calcio Juventus storico}}
+{{Calcio in Italia 1947-1948}}
+{{Portale|calcio}}

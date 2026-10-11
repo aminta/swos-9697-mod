@@ -1,0 +1,883 @@
+{{Torna a|Unione Calcio Sampdoria}}
+{{Stagione squadra
+|sport=calcio
+|club = Unione Calcio Sampdoria
+|stagione = 1947-1948
+|allenatore1 = {{Bandiera|ITA}} [[Adolfo Baloncieri]]
+|presidente = {{Bandiera|ITA}} [[Amedeo Rissotto]]
+|campionato = [[Serie A 1947-1948|Serie A]]
+|campionato posizione = 14º posto
+|marcatore campionato = Bassetto (21)
+|presenze campionato = [[Adriano Bassetto|Bassetto]] (39)
+|stadio = [[Stadio Luigi Ferraris]]
+|stagione prima = [[Unione Calcio Sampdoria 1946-1947|1946-1947]]
+|stagione dopo = [[Unione Calcio Sampdoria 1948-1949|1948-1949]]
+|aggiornato = 29 luglio 2026
+}}
+Questa voce raccoglie le informazioni riguardanti l''''Unione Calcio Sampdoria''' nelle competizioni ufficiali della stagione '''1947-1948'''.
+
+== Stagione ==
+Nella stagione 1947-1948 la Sampdoria disputa il secondo campionato di Serie A della sua recente storia calcistica. Un torneo maratona con un format a 21 squadre, infatti la Triestina è stata riammessa d'ufficio in Serie A. Quindi un torneo con 42 giornate e 2 riposi. Lo ha vinto ancota il "Grande" Torino, con un vantaggio copioso, 16 punti, sulle seconde classificate: Milan, Triestina e Juventus. La Sampdoria ancora allenata da Adolfo Baloncieri, con 36 punti ottiene il quattordicesimo posto finale a braccio di Livorno e Lucchese, due soli punti sopra la zona retrocessione. I blucerchiati hanno raccolto 16 punti nel girone di andata e 20 nel girone di ritorno, raggiungendo la matematica salvezza nella penultima giornata con il (4-0) rifilato all'Alessandria. Chiudendo poi il torneo con il (3-3) ottenuto a Roma con la Lazio.
+
+==Organigramma societario==
+{{Colonne}}
+'''''Area direttiva'''''
+* Presidente: [[Amedeo Rissotto]]
+{{Colonne spezza}}
+'''''Area tecnica'''''
+* Allenatore: [[Adolfo Baloncieri]]
+{{Colonne fine}}
+
+==Divise==
+{|
+|-
+|{{Divisa calcio
+|pattern_la =
+|leftarm = 0044BE
+|pattern_b = _samp
+|body = 0044BE
+|pattern_ra =
+|rightarm = 0044BE
+|shorts = FFFFFF
+|pattern_so= _hoops_white
+|socks = 0044BE
+|title = Prima divisa
+}}
+|}
+
+==Rosa==
+<ref name="cita-Melegari-115">{{cita|Melegari|115}}.</ref>
+{{Calciatore in rosa/inizio}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Pietro Bonetti]]|ruolo=P}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Satiro Lusetti]]|ruolo=P}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Giovanni Ballico]]|ruolo=D}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Luigi Cassano]]|ruolo=D}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Oscarre Vicich]]|ruolo=D}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Luigi Zorzi|Luigi Zorzi (I)]]|ruolo=D}}
+{{Calciatore in rosa|n=|nazione=ARG|nome=[[Carlos Bello]]|ruolo=C}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Luigi Bertani]]|ruolo=C}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Marco Borrini]]|ruolo=C}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Elio Bertoni|Elio Bertoni (II)]]|ruolo=C}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Pietro Broccini]]|ruolo=C}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Giuseppe Carissimi]]|ruolo=C}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Longino Di Piazza]]|ruolo=C}}
+{{Calciatore in rosa/medio}}
+{{Calciatore in rosa|n=|nazione=ARG|nome=[[Óscar Garro]]|ruolo=C}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Bruno Gramaglia]]|ruolo=C}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Luigi Parodi]]|ruolo=C}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Italo Rebuzzi|Italo Rebuzzi (II)]]|ruolo=C}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Mario Silvestrelli]]|ruolo=C}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Giuseppe Baldini]]|ruolo=A}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Giorgio Barsanti]]|ruolo=A}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Adriano Bassetto]]|ruolo=A}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Ernani D'Alconzo]]|ruolo=A}}
+{{Calciatore in rosa|n=|nazione=ARG|nome=[[Juan Calichio]]|ruolo=A}}
+{{Calciatore in rosa|n=|nazione=AUT|nome=[[Engelbert Koenig]]|ruolo=A}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Giorgio Pruzzo]]|ruolo=A}}
+{{Calciatore in rosa/fine}}
+
+==Risultati==
+===Serie A ===
+{{Vedi anche|Serie A 1947-1948}}
+==== Girone di andata ====
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 14 settembre
+|Anno = 1947
+|Turno = 1ª giornata
+|Squadra 1 = Sampdoria
+|Squadra 2 = Triestina
+|Punteggio 1 = 2
+|Punteggio 2 = 2
+|Città = [[Genova]]
+|Stadio = [[Stadio Luigi Ferraris]]
+|Spettatori =
+|Arbitro = [[Luigi Valsecchi (arbitro)|Luigi Valsecchi]]
+|Cittarbitro = [[Milano]]
+|Marcatori 1 = [[Juan Calichio|Calichio]] {{Goal|60}}<br/>[[Carlos Bello|Bello]] {{Goal|69}}
+|Marcatori 2 = {{Goal|2}} [[Mario Mlacher|Mlacher]]<br/>{{Goal|8}} [[Mario Tosolini|Tosolini]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 21 settembre
+|Anno = 1947
+|Turno = 2ª giornata
+|Squadra 1 = Juventus
+|Squadra 2 = Sampdoria
+|Punteggio 1 = 4
+|Punteggio 2 = 1
+|Città = [[Torino]]
+|Stadio = [[Stadio Olimpico (Torino)|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Generoso Dattilo]]
+|Cittarbitro = [[Roma]]
+|Marcatori 1 = [[Araldo Caprili|Caprili]] {{Gol|10}}<br />[[Francesco Cergoli|Cergoli]] {{Goal|20}}<br />[[Teobaldo Depetrini|Depetrini]] {{Goal|44}}<br />[[Giampiero Boniperti|Boniperti]] {{Goal|48}}
+|Marcatori 2 = {{Goal|83}} [[Adriano Bassetto|Bassetto]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 28 settembre
+|Anno = 1947
+|Turno = 3ª giornata
+|Squadra 1 = Pro Patria
+|Squadra 2 = Sampdoria
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Città = [[Busto Arsizio]]
+|Stadio = [[Stadio Carlo Speroni|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Antonio Zambotto]]
+|Cittarbitro = [[Padova]]
+|Marcatori 1 = [[Angelo Turconi|Turconi]] {{Goal|25}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 5 ottobre
+|Anno = 1947
+|Turno = 4ª giornata
+|Squadra 1 = Sampdoria
+|Squadra 2 = Inter
+|Punteggio 1 = 1
+|Punteggio 2 = 4
+|Città = [[Genova]]
+|Stadio = [[Stadio Luigi Ferraris]]
+|Spettatori =
+|Arbitro = [[Luigi Gemini]]
+|Cittarbitro = [[Roma]]
+|Marcatori 1 = [[Adriano Bassetto|Bassetto]] {{Goal|58}}
+|Marcatori 2 = {{Goal|8||72}} [[Bruno Quaresima|Quaresima]]<br/>{{Goal|31}} [[Giuseppe Madini|Madini]]<br/>{{Goal|45}} [[Rinaldo Fiumi|Fiumi]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 12 ottobre
+|Anno = 1947
+|Ora =
+|Turno = 5ª giornata
+|Note = Turno di riposo della SAMPDORIA
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 19 ottobre
+|Anno = 1947
+|Turno = 6ª giornata
+|Squadra 1 = Sampdoria
+|Squadra 2 = Atalanta
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Città = [[Genova]]
+|Stadio = [[Stadio Luigi Ferraris]]
+|Spettatori =
+|Arbitro = [[Armando Marchetti]]
+|Cittarbitro = [[Milano]]
+|Marcatori 1 = [[Adriano Bassetto|Bassetto]] {{Goal|35}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 26 ottobre
+|Anno = 1947
+|Turno = 7ª giornata
+|Squadra 1 = Bologna
+|Squadra 2 = Sampdoria
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Città = [[Bologna]]
+|Stadio = [[Stadio Renato Dall'Ara|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Giuseppe Parpaiola]]
+|Cittarbitro = [[Padova]]
+|Marcatori 1 = [[Gino Cappello|Cappello]] {{Goal|54}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 2 novembre
+|Anno = 1947
+|Turno = 8ª giornata
+|Squadra 1 = Sampdoria
+|Squadra 2 = Vicenza
+|Punteggio 1 = 6
+|Punteggio 2 = 1
+|Città = [[Genova]]
+|Stadio = [[Stadio Luigi Ferraris]]
+|Spettatori =
+|Arbitro = [[Giacomo Bertolio]]
+|Cittarbitro = [[Torino]]
+|Marcatori 1 = [[Adriano Bassetto|Bassetto]] {{Goal|25||80||87}}<br/>[[Giuseppe Baldini|Baldini]] {{Goal|38||70}}<br/>[[Longino Di Piazza|Di Piazza]] {{Goal|55}}
+|Marcatori 2 = {{Goal|34}} [[Giovanni Sperotto|Sperotto]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 16 novembre
+|Anno = 1947
+|Turno = 9ª giornata
+|Squadra 1 = Genoa|1947
+|Squadra 2 = Sampdoria
+|Punteggio 1 = 2
+|Punteggio 2 = 1
+|Città = [[Genova]]
+|Stadio = [[Stadio Luigi Ferraris]]
+|Spettatori =
+|Arbitro = [[Guido Agnolin]]
+|Cittarbitro = [[Bassano del Grappa]]
+|Marcatori 1 = [[Juan Carlos Verdeal|Verdeal]] {{Goal|59}}<br />[[Silvano Trevisani|Trevisani]] {{Goal|85}}
+|Marcatori 2 = {{Goal|9|aut.}} [[Bruno Cappellini|Cappellini]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 23 novembre
+|Anno = 1947
+|Turno = 10ª giornata
+|Squadra 1 = Sampdoria
+|Squadra 2 = Torino
+|Punteggio 1 = 0
+|Punteggio 2 = 1
+|Città = [[Genova]]
+|Stadio = [[Stadio Luigi Ferraris]]
+|Spettatori =
+|Arbitro = [[Vincenzo Orlandini]]
+|Cittarbitro = [[Roma]]
+|Marcatori 2 = {{Goal|37|rig.}} [[Romeo Menti|R. Menti]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 30 novembre
+|Anno = 1947
+|Turno = 11ª giornata
+|Squadra 1 = Sampdoria
+|Squadra 2 = Napoli
+|Punteggio 1 = 2
+|Punteggio 2 = 1
+|Città = [[Genova]]
+|Stadio = [[Stadio Luigi Ferraris]]
+|Spettatori =
+|Arbitro = [[Giuseppe Vannini]]
+|Cittarbitro = [[Bologna]]
+|Marcatori 1 = [[Adriano Bassetto|Bassetto]] {{Goal|80}}<br/>[[Engelbert Koenig|Koenig]] {{Goal|84}}
+|Marcatori 2 = {{Goal|76}} [[Ferruccio Santamaria|Santamaria]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 7 dicembre
+|Anno = 1947
+|Turno = 12ª giornata
+|Squadra 1 = Roma
+|Squadra 2 = Sampdoria
+|Punteggio 1 = 2
+|Punteggio 2 = 0
+|Città = [[Roma]]
+|Stadio = [[Stadio Nazionale del PNF|Stadio Nazionale]]
+|Spettatori =
+|Arbitro = [[Giuseppe Carpani (arbitro)|Giuseppe Carpani]]
+|Cittarbitro = [[Milano]]
+|Marcatori 1 = [[Stefano Ferrari|Ferrari]] {{Goal|15||30}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 21 dicembre
+|Anno = 1947
+|Turno = 13ª giornata
+|Squadra 1 = Salernitana
+|Squadra 2 = Sampdoria
+|Punteggio 1 = 2
+|Punteggio 2 = 1
+|Città = [[Salerno]]
+|Stadio = [[Stadio Donato Vestuti|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Osvaldo Savio]]
+|Cittarbitro = [[Torino]]
+|Marcatori 1 = [[Pasquale Morisco|Morisco]] {{Goal|30}}<br/>[[Sebastiano Vaschetto|Vaschetto]] {{Goal|46}}
+|Marcatori 2 = {{Goal|60}} [[Giuseppe Baldini|Baldini]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 28 dicembre
+|Anno = 1947
+|Turno = 14ª giornata
+|Squadra 1 = Sampdoria
+|Squadra 2 = Fiorentina
+|Punteggio 1 = 0
+|Punteggio 2 = 0
+|Città = [[Genova]]
+|Stadio = [[Stadio Luigi Ferraris]]
+|Arbitro = [[Eliseo Camiolo]]
+|Cittarbitro = [[Milano]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 1º gennaio
+|Anno = 1948
+|Turno = 15ª giornata
+|Squadra 1 = Sampdoria
+|Squadra 2 = Milan
+|Punteggio 1 = 0
+|Punteggio 2 = 0
+|Città = [[Genova]]
+|Stadio = [[Stadio Luigi Ferraris]]
+|Arbitro = [[Renzo Massai]]
+|Cittarbitro = [[Pisa]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 4 gennaio
+|Anno = 1948
+|Turno = 16ª giornata
+|Squadra 1 = Lucchese
+|Squadra 2 = Sampdoria
+|Punteggio 1 = 2
+|Punteggio 2 = 1
+|Città = [[Lucca]]
+|Stadio = [[Stadio Porta Elisa]]
+|Spettatori =
+|Arbitro = [[Luigi Valsecchi (arbitro)|Luigi Valsecchi]]
+|Cittarbitro = [[Milano]]
+|Marcatori 1 = [[Ugo Conti (calciatore)|U. Conti]] {{Goal|31|rig.}}<br/>[[Luigi Zorzi|Zorzi]] {{Goal|60|aut.}}
+|Marcatori 2 = {{Goal|9}} [[Adriano Bassetto|Bassetto]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 11 gennaio
+|Anno = 1948
+|Turno = 17ª giornata
+|Squadra 1 = Bari
+|Squadra 2 = Sampdoria
+|Punteggio 1 = 0
+|Punteggio 2 = 2
+|Città = [[Bari]]
+|Stadio = [[Stadio della Vittoria (Bari)|Stadio della Vittoria]]
+|Spettatori =
+|Arbitro = [[Eriprando Poggipollini]]
+|Cittarbitro = [[Ferrara]]
+|Marcatori 2 = {{Goal|37|aut.}} [[Alessandro Carlini|Carlini]]<br/>{{Goal|62}} [[Luigi Parodi|Parodi]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 18 gennaio
+|Anno = 1948
+|Turno = 18ª giornata
+|Squadra 1 = Sampdoria
+|Squadra 2 = Livorno
+|Punteggio 1 = 1
+|Punteggio 2 = 1
+|Città = [[Genova]]
+|Stadio = [[Stadio Luigi Ferraris]]
+|Spettatori =
+|Arbitro = [[Virginio Canavesio]]
+|Cittarbitro = [[Torino]]
+|Marcatori 1 = [[Engelbert Koenig|Koenig]] {{Goal|24}}
+|Marcatori 2 = {{Goal|28}} [[Guido Tieghi|Tieghi]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 25 gennaio
+|Anno = 1948
+|Turno = 19ª giornata
+|Squadra 1 = Sampdoria
+|Squadra 2 = Modena
+|Punteggio 1 = 0
+|Punteggio 2 = 0
+|Città = [[Genova]]
+|Stadio = [[Stadio Luigi Ferraris]]
+|Arbitro = [[Bruno Tassini]]
+|Cittarbitro = [[Verona]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 1º febbraio
+|Anno = 1948
+|Turno = 20ª giornata
+|Squadra 1 = Alessandria
+|Squadra 2 = Sampdoria
+|Punteggio 1 = 1
+|Punteggio 2 = 1
+|Città = [[Alessandria (Italia)|Alessandria]]
+|Stadio = [[Stadio Giuseppe Moccagatta]]
+|Spettatori =
+|Arbitro = [[Eliseo Camiolo]]
+|Cittarbitro = [[Milano]]
+|Marcatori 1 = [[Carlo Stradella|Stradella]] {{Goal|22}}
+|Marcatori 2 = {{Goal|74}} [[Giuseppe Carissimi|Carissimi]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 8 febbraio
+|Anno = 1948
+|Turno  = 21ª giornata
+|Squadra 1 = Sampdoria
+|Squadra 2 = Lazio
+|Punteggio 1 = 2
+|Punteggio 2 = 1
+|Città = [[Genova]]
+|Stadio = [[Stadio Luigi Ferraris]]
+|Spettatori =
+|Arbitro = [[Ferruccio Bellè]]
+|Cittarbitro = [[Venezia]]
+|Marcatori 1 = [[Adriano Bassetto|Bassetto]] {{Goal|8}}, {{Goal|15}}
+|Marcatori 2 = {{Goal|81}} [[Costantino De Andreis|De Andreis]]
+}}
+
+==== Girone di ritorno ====
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 15 febbraio
+|Anno = 1948
+|Turno = 22ª giornata
+|Squadra 1 = Triestina
+|Squadra 2 = Sampdoria
+|Punteggio 1 = 2
+|Punteggio 2 = 0
+|Città = [[Trieste]]
+|Stadio = [[Stadio Giuseppe Grezar|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Vittorio Pera]]
+|Cittarbitro = [[Firenze]]
+|Marcatori 1 = [[Mario Begni|Begni]] {{Goal|47||60}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 22 febbraio
+|Anno = 1948
+|Turno = 23ª giornata
+|Squadra 1 = Sampdoria
+|Squadra 2 = Juventus
+|Punteggio 1 = 5
+|Punteggio 2 = 2
+|Città = [[Genova]]
+|Stadio = [[Stadio Luigi Ferraris]]
+|Spettatori =
+|Arbitro = [[Giuseppe Zelocchi]]
+|Cittarbitro = [[Modena]]
+|Marcatori 1 = [[Adriano Bassetto|Bassetto]] {{Goal|14||81}}<br/>[[Mario Silvestrelli|Silvestrelli]] {{Goal|27||53}}<br/>[[Carlo Parola|Parola]] {{Goal|61|aut.}}
+|Marcatori 2 = {{Goal|42}} [[Giampiero Boniperti|Boniperti]]<br/>{{Goal|63}} [[Ermes Muccinelli|Muccinelli]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 29 febbraio
+|Anno = 1948
+|Turno = 24ª giornata
+|Squadra 1 = Sampdoria
+|Squadra 2 = Pro Patria
+|Punteggio 1 = 5
+|Punteggio 2 = 3
+|Città = [[Genova]]
+|Stadio = [[Stadio Luigi Ferraris]]
+|Spettatori =
+|Arbitro = [[Tommaso Corallo]]
+|Cittarbitro = [[Lecce]]
+|Marcatori 1 = [[Giorgio Barsanti|Barsanti]] {{Goal|8||35}}<br/>[[Giuseppe Baldini|Baldini]] {{Goal|31||39}}<br/>[[Italo Rebuzzi|It. Rebuzzi]] {{Goal|66}}
+|Marcatori 2 = {{Goal|8||35}} [[Enrico Candiani|Candiani]]<br/>{{Goal|41}} [[Angelo Turconi|Turconi]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 7 marzo
+|Anno = 1948
+|Turno = 25ª giornata
+|Squadra 1 = Inter
+|Squadra 2 = Sampdoria
+|Punteggio 1 = 2
+|Punteggio 2 = 4
+|Città = [[Milano]]
+|Stadio = [[Arena Civica]]
+|Spettatori =
+|Arbitro = [[Agostino Gamba]]
+|Cittarbitro = [[Napoli]]
+|Marcatori 1 = [[Bibiano Zapirain|Zapirain]] {{Goal|40||61|rig}}
+|Marcatori 2 = {{Goal|10||13||87}}, {{Goal|13}} [[Mario Silvestrelli|Silvestrelli]]<br/>{{Goal|20}} [[Giuseppe Baldini|Baldini]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 14 marzo
+|Anno = 1948
+|Ora =
+|Turno = 26ª giornata
+|Note = Turno di riposo della SAMPDORIA
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 21 marzo
+|Anno = 1948
+|Turno = 27ª giornata
+|Squadra 1 = Atalanta
+|Squadra 2 = Sampdoria
+|Punteggio 1 = 2
+|Punteggio 2 = 0
+|Città = [[Bergamo]]
+|Stadio = [[Stadio Atleti Azzurri d'Italia|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Virginio Canavesio]]
+|Cittarbitro = [[Torino]]
+|Marcatori 1 = [[Francesco Randon|Randon]] {{Goal|12||82}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 28 marzo
+|Anno = 1948
+|Turno = 28ª giornata
+|Squadra 1 = Sampdoria
+|Squadra 2 = Bologna
+|Punteggio 1 = 2
+|Punteggio 2 = 0
+|Città = [[Genova]]
+|Stadio = [[Stadio Luigi Ferraris]]
+|Spettatori =
+|Arbitro = [[Riccardo Pieri]]
+|Cittarbitro = [[Trieste]]
+|Marcatori 1 = [[Adriano Bassetto|Bassetto]] {{Goal|8}}<br/>[[Italo Rebuzzi|It. Rebuzzi]] {{Goal|22}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 11 aprile
+|Anno = 1948
+|Turno = 29ª giornata
+|Squadra 1 = Vicenza
+|Squadra 2 = Sampdoria
+|Punteggio 1 = 3
+|Punteggio 2 = 2
+|Città = [[Vicenza]]
+|Stadio = [[Stadio Romeo Menti|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Bruno Zilli]]
+|Cittarbitro = [[Reggio Emilia]]
+|Marcatori 1 = [[Lino Begnini|Begnini]] {{Goal|16}}<br/>[[Giovanni Sperotto|Sperotto]] {{Goal|21||47}}
+|Marcatori 2 = {{Goal|29}} [[Giuseppe Baldini|Baldini]]<br/>{{Goal|67|aut.}} [[Pietro Grosso|Grosso]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 22 aprile
+|Anno = 1948
+|Turno = 30ª giornata
+|Squadra 1 = Sampdoria
+|Squadra 2 = Genoa
+|Punteggio 1 = 1
+|Punteggio 2 = 1
+|Città = [[Genova]]
+|Stadio = [[Stadio Luigi Ferraris]]
+|Spettatori =
+|Arbitro = [[Luigi Gemini]]
+|Cittarbitro = [[Roma]]
+|Marcatori 1 = [[Giuseppe Baldini|Baldini]] {{Goal|46}}
+|Marcatori 2 = {{Goal|20}} [[Riccardo Dalla Torre|Dalla Torre]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 25 aprile
+|Anno = 1948
+|Turno = 31ª giornata
+|Squadra 1 = Torino
+|Squadra 2 = Sampdoria
+|Punteggio 1 = 3
+|Punteggio 2 = 2
+|Città = [[Torino]]
+|Stadio = [[Stadio Filadelfia]]
+|Spettatori =
+|Arbitro = [[Guido Agnolin]]
+|Cittarbitro = [[Bassano del Grappa]]
+|Marcatori 1 = [[Franco Ossola|Ossola]] {{Goal|4}}<br/>[[Guglielmo Gabetto|Gabetto]] {{Goal|14}}<br/>[[Danilo Martelli|Martelli]] {{Goal|68}}
+|Marcatori 2 = {{Goal|28}} [[Italo Rebuzzi|It. Rebuzzi]]<br/>{{Goal|89}} [[Giorgio Barsanti|Barsanti]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 2 maggio
+|Anno = 1948
+|Turno = 32ª giornata
+|Squadra 1 = Napoli
+|Squadra 2 = Sampdoria
+|Punteggio 1 = 3
+|Punteggio 2 = 1
+|Città = [[Napoli]]
+|Stadio = [[Stadio Arturo Collana|Stadio della Liberazione]]
+|Spettatori =
+|Arbitro = [[Eriprando Poggipollini]]
+|Cittarbitro = [[Ferrara]]
+|Marcatori 1 = [[Naim Krieziu|Krieziu]] {{Goal|16}}<br/>[[Dandolo Candalés|Candalés]] {{Goal|29}}<br/>[[Dante Di Benedetti|Di Benedetti]] {{Goal|70}}
+|Marcatori 2 = {{Goal|50}} [[Giuseppe Baldini|Baldini]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 6 maggio
+|Anno = 1948
+|Turno = 33ª giornata
+|Squadra 1 = Sampdoria
+|Squadra 2 = Roma
+|Punteggio 1 = 2
+|Punteggio 2 = 1
+|Città = [[Genova]]
+|Stadio = [[Stadio Luigi Ferraris]]
+|Spettatori =
+|Arbitro = [[Eliseo Camiolo]]
+|Cittarbitro = [[Milano]]
+|Marcatori 1 = [[Adriano Bassetto|Bassetto]] {{Goal|3}}<br/>[[Giuseppe Carissimi|Carissimi]] {{Goal|76}}
+|Marcatori 2 = {{Goal|56}} [[Amedeo Amadei|Amadei]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 9 maggio
+|Anno = 1948
+|Turno = 34ª giornata
+|Squadra 1 = Sampdoria
+|Squadra 2 = Salernitana
+|Punteggio 1 = 6
+|Punteggio 2 = 3
+|Città = [[Genova]]
+|Stadio = [[Stadio Luigi Ferraris]]
+|Spettatori =
+|Arbitro = [[Gino Cicardi]]
+|Cittarbitro = [[Lecco]]
+|Marcatori 1 = [[Giuseppe Baldini|Baldini]] {{Goal|7||57}}<br/>[[Adriano Bassetto|Bassetto]] {{Goal|17||63}}<br/>[[Giuseppe Carissimi|Carissimi]] {{Goal|30}}<br/>[[Luigi Parodi|Parodi]] {{Goal|90}}
+|Marcatori 2 = {{Goal|25}} [[Secondo Rossi|S. Rossi]]<br/>{{Goal|38}} [[Renzo Merlin|Merlin]]<br/>{{Goal|80}} [[Elio Onorato|Onorato]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 23 maggio
+|Anno = 1948
+|Turno = 35ª giornata
+|Squadra 1 = Fiorentina
+|Squadra 2 = Sampdoria
+|Punteggio 1 = 4
+|Punteggio 2 = 3
+|Città = [[Firenze]]
+|Stadio = [[Stadio Artemio Franchi|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Ferruccio Bonivento]]
+|Cittarbitro = [[Venezia]]
+|Marcatori 1 = [[Alberto Eliani|Eliani]] {{Goal|20|rig.}}<br/>[[Ugo Gregorin|Gregorin]] {{Goal|35}}<br/>[[Alberto Marchetti (1920)|Marchetti]] {{Goal|56}}<br/>[[Ferruccio Valcareggi|Valcareggi]] {{Goal|61}}
+|Marcatori 2 = {{Goal|3}} [[Adriano Bassetto|Bassetto]]<br/>{{Goal|23|aut.}} [[Zeffiro Furiassi|Furiassi]]<br/>{{Goal|52}} [[Giuseppe Baldini|Baldini]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 27 maggio
+|Anno = 1948
+|Turno = 36ª giornata
+|Squadra 1 = Milan
+|Squadra 2 = Sampdoria
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Città = [[Milano]]
+|Stadio = [[Stadio San Siro]]
+|Spettatori =
+|Arbitro = [[Renzo Massai]]
+|Cittarbitro = [[Pisa]]
+|Marcatori 1 = [[Carlo Annovazzi|Annovazzi]] {{Goal|80|rig.}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 30 maggio
+|Anno = 1948
+|Turno = 37ª giornata
+|Squadra 1 = Sampdoria
+|Squadra 2 = Lucchese
+|Punteggio 1 = 4
+|Punteggio 2 = 1
+|Città = [[Genova]]
+|Stadio = [[Stadio Luigi Ferraris]]
+|Spettatori =
+|Arbitro = [[Armando Marchetti]]
+|Cittarbitro = [[Milano]]
+|Marcatori 1 = [[Italo Rebuzzi|It. Rebuzzi]] {{Goal|27||84}}<br/>[[Adriano Bassetto|Bassetto]] {{Goal|39||89}}
+|Marcatori 2 = {{Goal|69}} [[Raffaele Cuscela|Cuscela]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 6 giugno
+|Anno = 1948
+|Turno = 38ª giornata
+|Squadra 1 = Sampdoria
+|Squadra 2 = Bari
+|Punteggio 1 = 0
+|Punteggio 2 = 1
+|Città = [[Genova]]
+|Stadio = [[Stadio Luigi Ferraris]]
+|Spettatori =
+|Arbitro = [[Bruno Tassini]]
+|Cittarbitro = [[Verona]]
+|Marcatori 1 =
+|Marcatori 2 = {{Goal|20}} [[Mario Tontodonati|Tontodonati]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 13 giugno
+|Anno = 1948
+|Turno = 39ª giornata
+|Squadra 1 = Livorno
+|Squadra 2 = Sampdoria
+|Punteggio 1 = 1
+|Punteggio 2 = 1
+|Città = [[Livorno]]
+|Stadio = [[Stadio Armando Picchi|Stadio Ardenza]]
+|Spettatori =
+|Arbitro = [[Bruno Zilli]]
+|Cittarbitro = [[Reggio Emilia]]
+|Marcatori 1 = [[Armando Tre Re|Tre Re]] {{Goal|77}}
+|Marcatori 2 = {{Goal|25}} [[Engelbert Koenig|Koenig]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 20 giugno
+|Anno = 1948
+|Turno = 40ª giornata
+|Squadra 1 = Modena
+|Squadra 2 = Sampdoria
+|Punteggio 1 = 1
+|Punteggio 2 = 1
+|Città = [[Modena]]
+|Stadio = [[Stadio Alberto Braglia|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Luigi Gemini]]
+|Cittarbitro = [[Roma]]
+|Marcatori 1 = [[Maino Neri|M. Neri]] {{Goal|4}}
+|Marcatori 2 = {{Goal|43}} [[Giuseppe Baldini|Baldini]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 27 giugno
+|Anno = 1948
+|Turno = 41ª giornata
+|Squadra 1 = Sampdoria
+|Squadra 2 = Alessandria
+|Punteggio 1 = 4
+|Punteggio 2 = 0
+|Città = [[Genova]]
+|Stadio = [[Stadio Luigi Ferraris]]
+|Spettatori =
+|Arbitro = [[Armando Marchetti]]
+|Cittarbitro = [[Milano]]
+|Marcatori 1 = [[Mario Pietruzzi|Pietruzzi]] {{Goal|5|aut.}}<br/>[[Engelbert Koenig|Koenig]] {{Goal|22||90}}<br/>[[Adriano Bassetto|Bassetto]] {{Goal|77}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 4 luglio
+|Anno = 1948
+|Turno = 42ª giornata
+|Squadra 1 = Lazio
+|Squadra 2 = Sampdoria
+|Punteggio 1 = 3
+|Punteggio 2 = 3
+|Città = [[Roma]]
+|Stadio = [[Stadio Nazionale]]
+|Spettatori =
+|Arbitro = [[Eliseo Camiolo]]
+|Cittarbitro = [[Milano]]
+|Marcatori 1 = [[Aldo Puccinelli|Puccinelli]] {{Goal|24}}<br/>[[Costantino De Andreis|De Andreis]] {{Goal|40}}<br/>[[Flavio Cecconi|Cecconi]] {{Goal|68}}
+|Marcatori 2 = {{Goal|8|aut.}} [[Leandro Remondini|Remondini]]<br/>{{Goal|59||61}} [[Engelbert Koenig|Koenig]]
+}}
+
+== Statistiche ==
+===Statistiche di squadra<ref>{{cita|Melegari|114}}.</ref>===
+{| class="wikitable" style="width:100%;text-align:center;"
+! rowspan="2" | Competizione
+! rowspan="2" | Punti
+! colspan="6" | In casa
+! colspan="6" | In trasferta
+! colspan="6" | Totale
+|-
+!G
+!V
+!N
+!P
+!Gf
+!Gs
+!G
+!V
+!N
+!P
+!Gf
+!Gs
+!G
+!V
+!N
+!P
+!Gf
+!Gs
+|-
+| [[Serie A 1947-1948|Campionato]] || 36 || 20 || 11 || 6 || 3 || 44 || 23 || 20 || 2 || 4 || 14 || 24 || 40 || 40 || 13 || 10|| 17 || 68 || 63
+|-
+! Totale || || 20 || 11 || 6 || 3 || 44 || 23 || 20 || 2 || 4 || 14 || 24 || 40 || 40 || 13 || 10|| 17 || 68 || 63
+|}
+
+===Statistiche dei giocatori===
+{{W|stagioni delle società calcistiche|maggio 2026}}
+{| class="wikitable" style="font-size:90%;width:60%;text-align:center"
+! rowspan="2" | Giocatore<ref name="cita-Melegari-115"/>
+! colspan="2" | {{simbolo|Scudetto.svg|15}} [[Serie A 1947-1948|Campionato]]
+|-
+!Pres
+!Gol<ref>{{cita web|http://www.rsssf.com/tablesi/ital48.html|Italy 1947-48|giorno 14 agosto 2011}}</ref>
+|-
+| [[Giuseppe Baldini|G. Baldini]] || 35 || 13
+|-
+| [[Giovanni Ballico|G. Ballico]] || 31 || 0
+|-
+| [[Giorgio Barsanti|G. Barsanti]] || 26 || 2
+|-
+| [[Adriano Bassetto|A. Bassetto]] || 39 || 21
+|-
+| [[Carlos Bello|C. Bello]] || 3 || 1
+|-
+| [[Luigi Bertani|L. Bertani]] || 27 || 0
+|-
+| [[Elio Bertoni|E. Bertoni (II)]] || 20 || 0
+|-
+| [[Pietro Bonetti|P. Bonetti]] || 5 || -15
+|-
+| [[Marco Borrini|M. Borrini]] || 11 || 0
+|-
+| [[Pietro Broccini|P. Broccini]] || 3 || 0
+|-
+| [[Juan Calichio|J. Calichio]] || 4 || 1
+|-
+| [[Giuseppe Carissimi|G. Carissimi]] || 15 || 3
+|-
+| [[Luigi Cassano|L. Cassano]] || 10 || 0
+|-
+| [[Ernani D'Alconzo|E. D'Alconzo]] || 5 || 0
+|-
+| [[Longino Di Piazza|L. Di Piazza]] || 7 || 1
+|-
+| [[Bruno Gramaglia|B. Gramaglia]] || 33 || 0
+|-
+| [[Engelbert Koenig|E. Koenig]] || 17 || 7
+|-
+| [[Satiro Lusetti|S. Lusetti]] || 35 || -48
+|-
+| [[Luigi Parodi|L. Parodi]] || 11 || 2
+|-
+| [[Giorgio Pruzzo|G. Pruzzo]] || 1 || 0
+|-
+| [[Italo Rebuzzi|I. Rebuzzi (II)]] || 36 || 5
+|-
+| [[Mario Silvestrelli|M. Silvestrelli]] || 7 || 5
+|-
+| [[Oscarre Vicich|O. Vicich]] || 22 || 0
+|-
+| [[Luigi Zorzi|L. Zorzi (I)]] || 37 || 0
+|}
+
+==Note==
+<references/>
+==Bibliografia==
+* {{cita libro|cid=Melegari|curatore=Fabrizio Melegari|titolo=Almanacco illustrato del calcio - La storia 1898-2004|città=Modena|editore=Panini|anno=2004}}
+*{{cita libro |cognome=Chiesa |nome=Carlo F.|titolo=Il grande romanzo dello scudetto |editore=da ''[[Calcio 2000]]'' |anno=annate 2002 e 2003}}
+*''[[La Stampa]]'', annate 1947 e 1948.
+== Collegamenti esterni ==
+*{{cita web|http://www.rsssf.com/tablesi/ital48.html|Serie A 1947-1948|sito=[[RSSSF]]|lingua=en}}
+{{Calcio Sampdoria storico}}
+{{Calcio in Italia 1947-1948}}
+{{portale|calcio}}

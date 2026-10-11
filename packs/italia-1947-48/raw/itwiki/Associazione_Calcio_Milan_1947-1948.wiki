@@ -1,0 +1,938 @@
+{{Torna a|Associazione Calcio Milan}}
+{{Stagione squadra
+|sport=calcio
+|club = AC Milan
+|stagione = 1947-1948
+|immagine = Milan19471948.jpg
+|allenatore1 = {{Bandiera|ITA}} [[Giuseppe Bigogno]]
+|allenatore2 = {{Bandiera|ITA}} [[Antonio Busini]]
+|titolo allenatore2 = Direttore tecnico
+|presidente = {{Bandiera|ITA}} [[Umberto Trabattoni]]
+|campionato = [[Serie A 1947-1948|Serie A]]
+|campionato posizione = 2º
+|coppa1 =
+|coppa1 posizione =
+|presenze campionato = [[Carlo Annovazzi|Annovazzi]] (40)
+|presenze totale =
+|marcatore campionato = [[Héctor Puricelli|Puricelli]] (17)
+|marcatore totale =
+|stadio = [[Stadio Giuseppe Meazza|San Siro]]<br />[[Arena Civica]] (saltuariamente)
+|spettatori max =
+|spettatori min =
+|spettatori media =
+|stagione prima = [[Associazione Calcio Milan 1946-1947|1946-1947]]
+|stagione dopo = [[Associazione Calcio Milan 1948-1949|1948-1949]]
+}}
+Questa voce raccoglie le informazioni riguardanti l{{'}}'''Associazione Calcio Milan''' nelle competizioni ufficiali della stagione '''1947-1948'''.
+== Stagione ==
+[[File:Renzo Burini.jpg|thumb|upright|Il neoacquisto [[Renzo Burini]], al Milan fino al 1953]]
+In questa stagione la dirigenza del Milan appronta un calciomercato volto al rafforzamento della squadra con l'obiettivo di puntare al titolo nazionale. Vengono acquistati [[Edy Gratton]], [[Pietro Degano]], [[Renato Raccis]], [[Carlo Piccardi]] e [[Renzo Burini]]. In questa stagione il Milan gioca le gare casalinghe anche all'[[Arena Civica]]: a [[Stadio Giuseppe Meazza|San Siro]] disputa gli incontri dove ci si aspettava l'arrivo di molti spettatori. Sulla panchina rossonera viene confermato [[Giuseppe Bigogno]].
+I rossoneri in [[Serie A 1947-1948|Serie A]] si classificano al 2º posto finale a pari merito con [[Juventus Football Club|Juventus]] e {{Calcio Triestina|N}} dopo essere stati [[Campione d'inverno|campioni d'inverno]]. L'apice della stagione viene toccato alla 24ª giornata, quando il Milan è primo a 4 punti dalla seconda classificata. Il Milan conosce poi un forte calo (10 sconfitte nelle ultime 17 partite) che permette al [[Grande Torino]] di sorpassare i rossoneri e di vincere lo scudetto. Durante la stagione il Milan viene marginalmente coinvolto (per omessa denuncia) nel cosiddetto "[[Caso Napoli]]": per i rossoneri non ci sono conseguenze gravi, ma una semplice ammonizione.
+== Divise ==
+{|
+|
+{{Divisa Calcio
+|pattern_la =_black stripes thin1
+|leftarm = ff0000
+|pattern_b =_milan4751h
+|body = 000000
+|pattern_ra =_black stripes thin1
+|rightarm = ff0000
+|shorts = ffffff
+|pattern_so =
+|socks = 000000
+|title = Casa
+}}
+|
+{{Divisa Calcio
+|pattern_la =
+|leftarm = ffffff
+|pattern_b =
+|body = ffffff
+|pattern_ra =
+|rightarm = ffffff
+|shorts = ffffff
+|pattern_so =
+|socks = ffffff
+|title = Trasferta
+}}
+|}
+== Organigramma societario ==
+{{Colonne}}
+'''''Area direttiva'''''
+*Presidente: [[Umberto Trabattoni]]
+*Vice presidente: [[Mario Mauprivez]]
+{{Colonne spezza}}
+'''''Area tecnica'''''
+*Allenatore: [[Giuseppe Bigogno]]
+*Allenatore riserve: [[Giuseppe Santagostino]]
+*Direttore tecnico: [[Antonio Busini]]
+{{Colonne spezza}}
+'''''Area medica'''''
+*Medico sociale: Giuseppe Veneroni
+*Massaggiatore: Guglielmo Zanella
+{{Colonne fine}}
+== Rosa ==
+{{Calciatore in rosa/inizio}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Gianni Mattioni]]|ruolo=P}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Giovanni Rossetti]]|ruolo=P}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=''[[Efrem Milanese]]''<ref>Ceduto nella sessione autunnale di calciomercato.</ref>|ruolo=P}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Andrea Bonomi (calciatore)|Andrea Bonomi]]|ruolo=D}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Felice Cerri]]|ruolo=D}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Edy Gratton]]|ruolo=D}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Carlo Piccardi]]|ruolo=D}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Gianni Toppan]]|ruolo=D}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Carlo Annovazzi]]|ruolo=C}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Giuseppe Antonini (calciatore)|Giuseppe Antonini]]|ruolo=C|altro=c}}
+{{Calciatore in rosa/medio}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Mario Foglia]]|ruolo=C}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Lino Grava]]|ruolo=C}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Omero Tognon]]|ruolo=C}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Renzo Burini]]|ruolo=A}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Riccardo Carapellese]]|ruolo=A}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Pietro Degano]]|ruolo=A}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Franco De Gregori]]|ruolo=A}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Héctor Puricelli]]|ruolo=A}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Renato Raccis]]|ruolo=A}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Aurelio Santagostino]]|ruolo=A}}
+{{Calciatore in rosa/fine}}
+== Calciomercato ==
+=== Sessione estiva ===
+{{colonne}}
+{| class="wikitable" style="font-size:90%"
+! colspan="4" | Acquisti
+|-
+! width=3% | R.
+! width=32% | Nome
+! width=30% | da
+! width=35% | Modalità
+|-
+| A || [[Renzo Burini]] || {{Calcio Palmanova|N}} || -
+|-
+| C || [[Franco De Gregori]] || {{Calcio Vittorio Veneto|N|1947}} || -
+|-
+| A || [[Pietro Degano]] || {{Calcio Livorno|N}} || -
+|-
+| D || [[Edy Gratton]] || {{Calcio Triestina|N}} || -
+|-
+| D || [[Lino Grava]] || {{Calcio Vittorio Veneto|N|1947}} || -
+|-
+| P || [[Gianni Mattioni]] || {{Calcio Seregno|N}} || -
+|-
+| D || [[Carlo Piccardi]] || {{Calcio Fiorentina|N}} || -
+|-
+| A || [[Renato Raccis]] || {{Calcio Livorno|N}} || -
+|-
+|}
+{{colonne spezza}}
+{| class="wikitable" style="font-size:90%"
+! colspan="4" | Cessioni
+|-
+! width=3% | R.
+! width=32% | Nome
+! width=30% | a
+! width=35% | Modalità
+|-
+| D || [[Celso Battaia]] || {{Calcio Cremonese|N}} || -
+|-
+| P || [[Giovanni Busani]] || {{Calcio Mantova|N}} || -
+|-
+| D || [[Giovanni Clocchiatti]] || {{Calcio Lucchese|N}} || -
+|-
+| C || [[Aredio Gimona]] || {{Calcio Livorno|N}} || -
+|-
+| C || [[Giorgio Granata]] || {{Calcio Varese|N}} || -
+|-
+| A || [[Bruno Micheloni]] || {{Calcio Varese|N}} || -
+|-
+| A || Franco Torricelli || {{Calcio Cagliari|N}} || -
+|-
+| D || [[Mario Tosolini]] || {{Calcio Triestina|N}} || -
+|-
+| P || [[Duilio Zotti]] || {{Calcio Lucchese|N}} || -
+|-
+|}
+{{colonne fine}}
+=== Sessione autunnale ===
+{{colonne}}
+{| class="wikitable" style="font-size:90%"
+! colspan="4" | Acquisti
+|-
+! width=3% | R.
+! width=32% | Nome
+! width=30% | da
+! width=35% | Modalità
+|-
+|}
+{{colonne spezza}}
+{| class="wikitable" style="font-size:90%"
+! colspan="4" | Cessioni
+|-
+! width=3% | R.
+! width=32% | Nome
+! width=30% | a
+! width=35% | Modalità
+|-
+| P || [[Efrem Milanese]] || {{Calcio Fanfulla|N}} || -
+|}
+{{colonne fine}}
+== Risultati ==
+=== Serie A ===
+{{Vedi anche|Serie A 1947-1948}}
+==== Girone di andata ====
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 14 settembre
+|Anno = 1947
+|Turno = 1ª giornata
+|Squadra 1 = Lazio
+|Squadra 2 = Milan
+|Punteggio 1 = 1
+|Punteggio 2 = 2
+|Città = [[Roma]]
+|Stadio = [[Stadio Nazionale]]
+|Spettatori = {{formatnum:30000}}
+|Arbitro = [[Eriprando Poggipollini]]
+|Cittarbitro = [[Ferrara]]
+|Marcatori 1 = [[Costantino De Andreis|De Andreis]] {{Goal|11}}
+|Marcatori 2 = {{Goal|21}} [[Riccardo Carapellese|Carapellese]]<br />{{Goal|54}} [[Ettore Puricelli|Puricelli]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 21 settembre
+|Anno = 1947
+|Turno = 2ª giornata
+|Squadra 1 = Milan
+|Squadra 2 = Pro Patria
+|Punteggio 1 = 4
+|Punteggio 2 = 2
+|Città = [[Milano]]
+|Stadio = [[Stadio San Siro]]
+|Spettatori = {{formatnum:25000}}
+|Arbitro = [[Ferruccio Bonivento]]
+|Cittarbitro = [[Venezia]]
+|Marcatori 1 = [[Ettore Puricelli|Puricelli]] {{Goal|7||40}}<br/>[[Carlo Annovazzi|Annovazzi]] {{Goal|22}}<br/>[[Pietro Degano|Degano]] {{Goal|59}}
+|Marcatori 2 = {{Goal|45}} [[Carlo Reguzzoni|Reguzzoni]]<br/>{{Goal|84}} [[Angelo Turconi|Turconi]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 28 settembre
+|Anno = 1947
+|Turno = 3ª giornata
+|Squadra 1 = Fiorentina
+|Squadra 2 = Milan
+|Punteggio 1 = 2
+|Punteggio 2 = 1
+|Città = [[Firenze]]
+|Stadio = [[Stadio Artemio Franchi|Stadio Comunale]]
+|Spettatori = {{formatnum:40000}}
+|Arbitro = [[Agostino Gamba]]
+|Cittarbitro = [[Napoli]]
+|Marcatori 1 = [[Alberto Marchetti (1920)|Marchetti]] {{Goal|37}}<br/>[[Piero Suppi|Suppi]] {{Goal|45}}
+|Marcatori 2 = {{Goal|3}} [[Carlo Annovazzi|Annovazzi]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 5 ottobre
+|Anno = 1947
+|Turno = 4ª giornata
+|Squadra 1 = Milan
+|Squadra 2 = Genoa
+|Punteggio 1 = 2
+|Punteggio 2 = 0
+|Città = [[Milano]]
+|Stadio = [[Stadio San Siro]]
+|Spettatori = {{formatnum:40000}}
+|Arbitro = [[Bruno Tassini]]
+|Cittarbitro = Verona
+|Marcatori 1 = [[Riccardo Carapellese|Carapellese]] {{Goal|37||76}}
+|Marcatori 2 =
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 12 ottobre
+|Anno = 1947
+|Turno = 5ª giornata
+|Squadra 1 = Livorno
+|Squadra 2 = Milan
+|Punteggio 1 = 1
+|Punteggio 2 = 1
+|Città = [[Livorno]]
+|Stadio = [[Stadio Armando Picchi|Stadio Comunale]]
+|Spettatori = {{formatnum:12000}}
+|Arbitro = [[Ferruccio Bellè]]
+|Cittarbitro = [[Venezia]]
+|Marcatori 1 = [[Umberto Mannocci|Mannocci]] {{Goal|65}}
+|Marcatori 2 = {{Goal|90}} [[Pietro Degano|Degano]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 19 ottobre
+|Anno = 1947
+|Turno = 6ª giornata
+|Squadra 1 = Milan
+|Squadra 2 = Bologna
+|Punteggio 1 = 2
+|Punteggio 2 = 1
+|Città = [[Milano]]
+|Stadio = [[Stadio San Siro]]
+|Spettatori = {{formatnum:30000}}
+|Arbitro = [[Vincenzo Orlandini]]
+|Cittarbitro = [[Roma]]
+|Marcatori 1 = [[Gino Vasirani|Vasirani]] {{Goal|43|aut}}<br/>[[Renato Raccis|Raccis]] {{Goal|46}}
+|Marcatori 2 = {{Goal|64}} [[Sauro Taiti|Taiti]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 26 ottobre
+|Anno = 1947
+|Turno = 7ª giornata
+|Squadra 1 = Triestina
+|Squadra 2 = Milan
+|Punteggio 1 = 2
+|Punteggio 2 = 0
+|Città = [[Trieste]]
+|Stadio = [[Stadio Giuseppe Grezar|Stadio Comunale]]
+|Spettatori = {{formatnum:10000}}
+|Arbitro = [[Bruno Guarda (arbitro)|Bruno Guarda]]
+|Cittarbitro = [[Mestre]]
+|Marcatori 1 = [[Licio Rossetti|Rossetti]] {{Goal|4}}<br/>[[Bruno Ispiro|Ispiro]] {{Goal|68}}
+|Marcatori 2 =
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 2 novembre
+|Anno = 1947
+|Turno = 8ª giornata
+|Squadra 1 = Milan
+|Squadra 2 = Inter
+|Punteggio 1 = 3
+|Punteggio 2 = 2
+|Città = [[Milano]]
+|Stadio = [[Stadio San Siro]]
+|Spettatori = {{formatnum:48000}}
+|Arbitro = [[Generoso Dattilo]]
+|Cittarbitro = [[Roma]]
+|Marcatori 1 = [[Carlo Annovazzi|Annovazzi]] {{Goal|13}}<br/>[[Renato Raccis|Raccis]] {{Goal|38}}<br/>[[Riccardo Carapellese|Carapellese]] {{Goal|44}}
+|Marcatori 2 = {{Goal|22}} [[Bibiano Zapirain|Zapirain]]<br/>{{Goal|36}} [[Aldo Campatelli|Campatelli]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 16 novembre
+|Anno = 1947
+|Turno = 9ª giornata
+|Squadra 1 = Milan
+|Squadra 2 = Atalanta
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Città = [[Milano]]
+|Stadio = [[Stadio San Siro]]
+|Spettatori = {{formatnum:25000}}
+|Arbitro = [[Bruno Zilli]]
+|Cittarbitro = [[Reggio Emilia]]
+|Marcatori 1 = [[Ettore Puricelli|Puricelli]] {{Goal|71}}
+|Marcatori 2 =
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 23 novembre
+|Anno = 1947
+|Turno = 10ª giornata
+|Squadra 1 = Roma
+|Squadra 2 = Milan
+|Punteggio 1 = 1
+|Punteggio 2 = 4
+|Città = [[Roma]]
+|Stadio = [[Stadio Nazionale]]
+|Spettatori = {{formatnum:22000}}
+|Arbitro = [[Giuseppe Zelocchi]]
+|Cittarbitro = [[Modena]]
+|Marcatori 1 = [[Gianfranco Dell'Innocenti|Dell'Innocenti]] {{Goal|51}}
+|Marcatori 2 = {{Goal|41||86}} [[Pietro Degano|Degano]]<br/>{{Goal|62}} [[Ettore Puricelli|Puricelli]]<br/>{{Goal|64}} [[Riccardo Carapellese|Carapellese]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 30 novembre
+|Anno = 1947
+|Turno = 11ª giornata
+|Squadra 1 = Lucchese
+|Squadra 2 = Milan
+|Punteggio 1 = 0
+|Punteggio 2 = 0
+|Città = [[Lucca]]
+|Stadio = [[Stadio Porta Elisa]]
+|Spettatori = {{formatnum:13000}}
+|Arbitro = [[Guido Agnolin]]
+|Cittarbitro = [[Bassano del Grappa]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 7 dicembre
+|Anno = 1947
+|Turno = 12ª giornata
+|Squadra 1 = Milan
+|Squadra 2 = Juventus
+|Punteggio 1 = 5
+|Punteggio 2 = 0
+|Città = [[Milano]]
+|Stadio = [[Stadio San Siro]]
+|Spettatori = {{formatnum:32000}}
+|Arbitro = [[Luigi Gemini]]
+|Cittarbitro = [[Roma]]
+|Marcatori 1 = [[Stefano Angeleri|Angeleri]] {{Goal|24|aut}}<br/>[[Carlo Annovazzi|Annovazzi]] {{Goal|38}}<br/>[[Edy Gratton|Gratton]] {{Goal|58}}<br/>[[Riccardo Carapellese|Carapellese]] {{Goal|72||90}}
+|Marcatori 2 =
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 21 dicembre
+|Anno = 1947
+|Ora =
+|Turno = 13ª giornata
+|Note = Turno di riposo del MILAN
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 28 dicembre
+|Anno = 1947
+|Turno = 14ª giornata
+|Squadra 1 = Milan
+|Squadra 2 = Modena
+|Punteggio 1 = 2
+|Punteggio 2 = 1
+|Città = [[Milano]]
+|Stadio = [[Stadio Giuseppe Meazza|Stadio San Siro]]
+|Spettatori = {{formatnum:25000}}
+|Arbitro = [[Eriprando Poggipollini]]
+|Cittarbitro = [[Ferrara]]
+|Marcatori 1 = [[Giuseppe Antonini (calciatore)|Antonini]] {{Goal|15}}<br/>[[Renato Raccis|Raccis]] {{Goal|81}}
+|Marcatori 2 = {{Goal|2}} [[Primo Sentimenti|P. Sentimenti]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 1º gennaio
+|Anno = 1948
+|Turno = 15ª giornata
+|Squadra 1 = Sampdoria
+|Squadra 2 = Milan
+|Punteggio 1 = 0
+|Punteggio 2 = 0
+|Città = [[Genova]]
+|Stadio = [[Stadio Luigi Ferraris]]
+|Spettatori = {{formatnum:20000}}
+|Arbitro = [[Renzo Massai]]
+|Cittarbitro = [[Pisa]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 4 gennaio
+|Anno = 1948
+|Turno = 16ª giornata
+|Squadra 1 = Milan
+|Squadra 2 = Bari
+|Punteggio 1 = 8
+|Punteggio 2 = 1
+|Città = [[Milano]]
+|Stadio = [[Stadio Giuseppe Meazza|Stadio San Siro]]
+|Spettatori = {{formatnum:25000}}
+|Arbitro = [[Vittorio Balestrino]]
+|Cittarbitro = [[Oneglia]]
+|Marcatori 1 = [[Renzo Burini|Burini]] {{Goal|18||54}}<br/>[[Renato Raccis|Raccis]] {{Goal|19}}<br/>[[Carlo Annovazzi|Annovazzi]] {{Goal|31|rig}}<br/>[[Ettore Puricelli|Puricelli]] {{Goal|50||57||72||79}}
+|Marcatori 2 = {{Goal|63}} [[Mario Tontodonati|Tontodonati]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 11 gennaio
+|Anno = 1948
+|Turno = 17ª giornata
+|Squadra 1 = Milan
+|Squadra 2 = Salernitana
+|Punteggio 1 = 2
+|Punteggio 2 = 0
+|Città = [[Milano]]
+|Stadio = [[Stadio Giuseppe Meazza|Stadio San Siro]]
+|Spettatori = {{formatnum:22000}}
+|Arbitro = [[Giuseppe Parpaiola]]
+|Cittarbitro = [[Padova]]
+|Marcatori 1 = [[Riccardo Carapellese|Carapellese]] {{Goal|49}}<br/>[[Pietro Degano|Degano]] {{Goal|82}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 18 gennaio
+|Anno = 1948
+|Turno = 18ª giornata<ref>Partita disputata sul campo neutro dell'Aquila.</ref>
+|Squadra 1 = Napoli
+|Squadra 2 = Milan
+|Punteggio 1 = 0
+|Punteggio 2 = 2
+|Città = [[L'Aquila]]
+|Stadio = [[Stadio Tommaso Fattori|Stadio Comunale]]
+|Spettatori = {{formatnum:11000}}
+|Arbitro = [[Vittorio Pera]]
+|Cittarbitro = [[Firenze]]
+|Marcatori 1 =
+|Marcatori 2 = {{Goal|7|aut}} [[Mario Rosi|Rosi]]<br/>{{Goal|77}} [[Renato Raccis|Raccis]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 25 gennaio
+|Anno = 1948
+|Turno = 19ª giornata
+|Squadra 1 = Milan
+|Squadra 2 = Torino
+|Punteggio 1 = 3
+|Punteggio 2 = 2
+|Città = [[Milano]]
+|Stadio = [[Stadio San Siro]]
+|Spettatori = {{formatnum:60000}}
+|Arbitro = [[Generoso Dattilo]]
+|Cittarbitro = [[Roma]]
+|Marcatori 1 = [[Ettore Puricelli|Puricelli]] {{Goal|7||32}}<br/>[[Pietro Degano|Degano]] {{Goal|45}}
+|Marcatori 2 = {{Goal|47}} [[Romeo Menti|R. Menti]]<br/>{{Goal|70}} [[Valentino Mazzola|Mazzola]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 1º febbraio
+|Anno = 1948
+|Turno = 20ª giornata
+|Squadra 1 = Vicenza
+|Squadra 2 = Milan
+|Punteggio 1 = 0
+|Punteggio 2 = 0
+|Città = [[Vicenza]]
+|Stadio = [[Stadio Romeo Menti|Stadio del Littorio]]
+|Spettatori = {{formatnum:18000}}
+|Arbitro = [[Giorgio Bernardi]]
+|Cittarbitro = [[Bologna]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 8 febbraio
+|Anno = 1948
+|Turno = 21ª giornata
+|Squadra 1 = Alessandria
+|Squadra 2 = Milan
+|Punteggio 1 = 2
+|Punteggio 2 = 2
+|Città = [[Alessandria (Italia)|Alessandria]]
+|Stadio = [[Stadio Giuseppe Moccagatta]]
+|Spettatori = {{formatnum:20000}}
+|Arbitro = [[Giuseppe Zelocchi]]
+|Cittarbitro = [[Modena]]
+|Marcatori 1 = [[Pietro Sotgiu|Sotgiu]] {{Goal|44}}<br/>[[Aristide Coscia|Coscia]] {{Goal|56}}
+|Marcatori 2 = {{Goal|28}} [[Franco De Gregori|De Gregori]]<br/>{{Goal|50}} [[Renzo Burini|Burini]]
+}}
+==== Girone di ritorno ====
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 15 febbraio
+|Anno = 1948
+|Turno = 22ª giornata
+|Squadra 1 = Milan
+|Squadra 2 = Lazio
+|Punteggio 1 = 5
+|Punteggio 2 = 2
+|Città = [[Milano]]
+|Stadio = [[Stadio San Siro]]
+|Spettatori = {{formatnum:18000}}
+|Arbitro = [[Bruno Zilli]]
+|Cittarbitro = [[Reggio Emilia]]
+|Marcatori 1 = [[Renato Raccis|Raccis]] {{Goal|15}}<br/>[[Riccardo Carapellese|Carapellese]] {{Goal|56||77}}<br/>[[Renzo Burini|Burini]] {{Goal|62}}<br/>[[Carlo Annovazzi|Annovazzi]] {{Goal|82}}
+|Marcatori 2 = {{Goal|43}} [[Flavio Cecconi|Cecconi]]<br/>{{Goal|67}} [[Romano Penzo|Penzo]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 22 febbraio
+|Anno = 1948
+|Turno = 23ª giornata
+|Squadra 1 = Pro Patria
+|Squadra 2 = Milan
+|Punteggio 1 = 2
+|Punteggio 2 = 3
+|Città = [[Busto Arsizio]]
+|Stadio = [[Stadio Carlo Speroni|Stadio Comunale]]
+|Spettatori = {{formatnum:12000}}
+|Arbitro = [[Eriprando Poggipollini]]
+|Cittarbitro = [[Ferrara]]
+|Marcatori 1 = [[Lorenzo Colpo|Colpo]] {{Goal|18}}<br/>[[Enrico Candiani|Candiani]] {{Goal|26}}
+|Marcatori 2 = {{Goal|1||81}} [[Giuseppe Antonini (calciatore)|Antonini]]<br/>{{Goal|8}} [[Renzo Burini|Burini]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 29 febbraio
+|Anno = 1948
+|Turno = 24ª giornata
+|Squadra 1 = Milan
+|Squadra 2 = Fiorentina
+|Punteggio 1 = 2
+|Punteggio 2 = 1
+|Città = [[Milano]]
+|Stadio = [[Stadio San Siro]]
+|Spettatori = {{formatnum:50000}}
+|Arbitro = [[Antonio Zambotto]]
+|Cittarbitro = [[Padova]]
+|Marcatori 1 = [[Renato Raccis|Raccis]] {{Goal|35|rig}}<br/>[[Carlo Annovazzi|Annovazzi]] {{Goal|53}}
+|Marcatori 2 = {{Goal|60|rig}} [[Alberto Eliani|Eliani]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 7 marzo
+|Anno = 1948
+|Turno = 25ª giornata
+|Squadra 1 = Genoa
+|Squadra 2 = Milan
+|Punteggio 1 = 3
+|Punteggio 2 = 1
+|Città = [[Genova]]
+|Stadio = [[Stadio Luigi Ferraris]]
+|Spettatori = {{formatnum:30000}}
+|Arbitro = [[Vittorio Pera]]
+|Cittarbitro = [[Firenze]]
+|Marcatori 1 = [[Enzo Rosignoli|Rosignoli]] {{Goal|54||59}}<br/>[[Riccardo Dalla Torre|Dalla Torre]] {{Goal|75}}
+|Marcatori 2 = {{Goal|51}} [[Renato Raccis|Raccis]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 14 marzo
+|Anno = 1948
+|Turno = 26ª giornata
+|Squadra 1 = Milan
+|Squadra 2 = Livorno
+|Punteggio 1 = 2
+|Punteggio 2 = 0
+|Città = [[Milano]]
+|Stadio = [[Stadio San Siro]]
+|Spettatori = {{formatnum:20000}}
+|Arbitro = [[Bruno Tassini]]
+|Cittarbitro = [[Verona]]
+|Marcatori 1 = [[Pietro Degano|Degano]] {{Goal|16||90}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 21 marzo
+|Anno = 1948
+|Turno = 27ª giornata
+|Squadra 1 = Bologna
+|Squadra 2 = Milan
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Città = [[Bologna]]
+|Stadio = [[Stadio Renato Dall'Ara|Stadio Comunale]]
+|Spettatori = {{formatnum:40000}}
+|Arbitro = [[Luigi Gemini]]
+|Cittarbitro = [[Roma]]
+|Marcatori 1 = [[Edy Gratton|Gratton]] {{Goal|32|aut}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 28 marzo
+|Anno = 1948
+|Turno = 28ª giornata
+|Squadra 1 = Milan
+|Squadra 2 = Triestina
+|Punteggio 1 = 1
+|Punteggio 2 = 1
+|Città = [[Milano]]
+|Stadio = [[Stadio San Siro]]
+|Spettatori = {{formatnum:30000}}
+|Arbitro = [[Vittorio Pera]]
+|Cittarbitro = [[Firenze]]
+|Marcatori 1 = [[Ettore Puricelli|Puricelli]] {{Goal|26}}
+|Marcatori 2 = {{Goal|2}} [[Licio Rossetti|Rossetti]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 11 aprile
+|Anno = 1948
+|Turno = 29ª giornata
+|Squadra 1 = Inter
+|Squadra 2 = Milan
+|Punteggio 1 = 0
+|Punteggio 2 = 2
+|Città = [[Milano]]
+|Stadio = [[Stadio San Siro]]
+|Spettatori = {{formatnum:50000}}
+|Arbitro = [[Bruno Tassini]]
+|Cittarbitro = [[Verona]]
+|Marcatori 2 = {{Goal|39}} [[Giuseppe Antonini (calciatore)|Antonini]]<br />{{Goal|45}} [[Ettore Puricelli|Puricelli]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 17 aprile
+|Anno = 1948
+|Turno = 30ª giornata
+|Squadra 1 = Atalanta
+|Squadra 2 = Milan
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Città = [[Bergamo]]
+|Stadio = [[Stadio Atleti Azzurri d'Italia|Stadio Comunale]]
+|Spettatori = {{formatnum:18000}}
+|Arbitro = [[Riccardo Pieri]]
+|Cittarbitro = [[Trieste]]
+|Marcatori 1 = [[Francesco Randon|Randon]] {{Goal|61}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 25 aprile
+|Anno = 1948
+|Turno = 31ª giornata
+|Squadra 1 = Milan
+|Squadra 2 = Roma
+|Punteggio 1 = 2
+|Punteggio 2 = 2
+|Città = [[Milano]]
+|Stadio = [[Stadio San Siro]]
+|Spettatori = {{formatnum:20000}}
+|Arbitro = [[Ferruccio Bellè]]
+|Cittarbitro = [[Venezia]]
+|Marcatori 1 = [[Carlo Annovazzi|Annovazzi]] {{Goal|37}}<br/>[[Ettore Puricelli|Puricelli]] {{Goal|76}}
+|Marcatori 2 = {{Goal|18}} [[Amadeo Amadei|Amadei]]<br/>{{Goal|45}} [[Bruno Pesaola|Pesaola]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 2 maggio
+|Anno = 1948
+|Turno = 32ª giornata
+|Squadra 1 = Milan
+|Squadra 2 = Lucchese
+|Punteggio 1 = 1
+|Punteggio 2 = 2
+|Città = [[Milano]]
+|Stadio = [[Stadio Giuseppe Meazza|Stadio San Siro]]
+|Spettatori = {{formatnum:10000}}
+|Arbitro = [[Vincenzo Orlandini]]
+|Cittarbitro = [[Roma]]
+|Marcatori 1 = [[Raffaele Cuscela|Cuscela]] {{Goal|58|aut}}
+|Marcatori 2 = {{Goal|48||69}} [[Ugo Conti (calciatore)|U. Conti]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 6 maggio
+|Anno = 1948
+|Turno = 33ª giornata
+|Squadra 1 = Juventus
+|Squadra 2 = Milan
+|Punteggio 1 = 2
+|Punteggio 2 = 1
+|Città = [[Torino]]
+|Stadio = [[Stadio Olimpico (Torino)|Stadio Comunale]]
+|Spettatori = {{formatnum:15000}}
+|Arbitro = [[Generoso Dattilo]]
+|Cittarbitro = [[Roma]]
+|Marcatori 1 = [[Stefano Angeleri|Angeleri]] {{Goal|23}}<br/>[[Giampiero Boniperti|Boniperti]] {{Goal|56}}
+|Marcatori 2 = {{Goal|77}} [[Riccardo Carapellese|Carapellese]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 9 maggio
+|Anno = 1948
+|Ora =
+|Turno = 34ª giornata
+|Note = Turno di riposo del MILAN
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 23 maggio
+|Anno = 1948
+|Turno = 35ª giornata
+|Squadra 1 = Modena
+|Squadra 2 = Milan
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Città = [[Modena]]
+|Stadio = [[Stadio Alberto Braglia|Stadio Comunale]]
+|Spettatori = {{formatnum:10000}}
+|Arbitro = [[Mario Cambi (arbitro)|Mario Cambi]]
+|Cittarbitro = [[Livorno]]
+|Marcatori 1 = [[Serafino Romani|Romani]] {{Goal|28}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 27 maggio
+|Anno = 1948
+|Turno = 36ª giornata
+|Squadra 1 = Milan
+|Squadra 2 = Sampdoria
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Città = [[Milano]]
+|Stadio = [[Stadio San Siro]]
+|Spettatori = {{formatnum:8000}}
+|Arbitro = [[Renzo Massai]]
+|Cittarbitro = [[Pisa]]
+|Marcatori 1 = [[Carlo Annovazzi|Annovazzi]] {{Goal|80|rig}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 30 maggio
+|Anno = 1948
+|Turno = 37ª giornata
+|Squadra 1 = Bari
+|Squadra 2 = Milan
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Città = [[Bari]]
+|Stadio = [[Stadio della Vittoria (Bari)|Stadio della Vittoria]]
+|Spettatori = {{formatnum:20000}}
+|Arbitro = [[Antonio Zambotto]]
+|Cittarbitro = [[Padova]]
+|Marcatori 1 = [[Ioan Bogdan|Bogdan]] {{Goal|50}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 6 giugno
+|Anno = 1948
+|Turno = 38ª giornata
+|Squadra 1 = Salernitana
+|Squadra 2 = Milan
+|Punteggio 1 = 4
+|Punteggio 2 = 3
+|Città = [[Salerno]]
+|Stadio = [[Stadio Donato Vestuti|Stadio Comunale]]
+|Spettatori = {{formatnum:11000}}
+|Arbitro = [[Giuseppe Parpaiola]]
+|Cittarbitro = [[Padova]]
+|Marcatori 1 = [[Renzo Merlin|Merlin]] {{Goal|1}}<br/>[[Adalberto Sifredi|Sifredi]] {{Goal|20}}<br/>[[Ivo Buzzegoli|Buzzegoli]] {{Goal|34}}<br/>[[Andrea Bonomi (calciatore)|Bonomi]] {{Goal|49|aut}}
+|Marcatori 2 = {{Goal|37||70}} [[Riccardo Carapellese|Carapellese]]<br/>{{Goal|40}} [[Aurelio Santagostino|Santagostino]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 13 giugno
+|Anno = 1948
+|Turno = 39ª giornata
+|Squadra 1 = Milan
+|Squadra 2 = Napoli
+|Punteggio 1 = 3
+|Punteggio 2 = 0
+|Città = [[Milano]]
+|Stadio = [[Stadio San Siro]]
+|Spettatori = {{formatnum:7000}}
+|Arbitro = [[Generoso Dattilo]]
+|Cittarbitro = [[Roma]]
+|Marcatori 1 = [[Ettore Puricelli|Puricelli]] {{Goal|13||66}}<br/>[[Riccardo Carapellese|Carapellese]] {{Goal|67}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 20 giugno
+|Anno = 1948
+|Turno = 40ª giornata
+|Squadra 1 = Torino
+|Squadra 2 = Milan
+|Punteggio 1 = 2
+|Punteggio 2 = 1
+|Città = [[Torino]]
+|Stadio = [[Stadio Filadelfia]]
+|Spettatori = {{formatnum:14000}}
+|Arbitro = [[Giorgio Bernardi]]
+|Cittarbitro = [[Bologna]]
+|Marcatori 1 = [[Guglielmo Gabetto|Gabetto]] {{Goal|23}}<br/>[[Franco Ossola|Ossola]] {{Goal|30}}
+|Marcatori 2 = {{Goal|43}} [[Renzo Burini|Burini]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 27 giugno
+|Anno = 1948
+|Turno = 41ª giornata
+|Squadra 1 = Milan
+|Squadra 2 = Vicenza
+|Punteggio 1 = 3
+|Punteggio 2 = 2
+|Città = [[Milano]]
+|Stadio = [[Stadio San Siro]]
+|Spettatori = {{formatnum:5000}}
+|Arbitro = [[Luigi Arietti]]
+|Cittarbitro = [[Siena]]
+|Marcatori 1 = [[Ettore Puricelli|Puricelli]] {{Goal|19}}<br/>[[Pietro Degano|Degano]] {{Goal|59}}<br/>[[Riccardo Carapellese|Carapellese]] {{Goal|75}}
+|Marcatori 2 = {{Goal|20}} [[Luigi Zambelli|Zambelli]]<br/>{{Goal|63|rig}} [[Alfonso Santagiuliana|Santagiuliana]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 4 luglio
+|Anno = 1948
+|Turno = 42ª giornata
+|Squadra 1 = Milan
+|Squadra 2 = Alessandria
+|Punteggio 1 = 1
+|Punteggio 2 = 3
+|Città = [[Milano]]
+|Stadio = [[Arena Civica]]
+|Spettatori = {{formatnum:9000}}
+|Arbitro = [[Giuseppe Vanini]]
+|Cittarbitro = [[Bologna]]
+|Marcatori 1 = [[Carlo Annovazzi|Annovazzi]] {{Goal|83|rig}}
+|Marcatori 2 = {{Goal|31||66}} [[Carlo Stradella|Stradella]]<br/>{{Goal|42}} [[Fabio Frugali|Frugali]]
+}}
+
+== Statistiche ==
+=== Statistiche di squadra ===
+{{Statistiche squadra
+|comp1=[[Serie A 1947-1948|Serie A]]
+|punti1=49
+|cv1=16
+|cn1=2
+|cp1=2
+|cgf1=53
+|cgs1=22
+|tv1=5
+|tn1=5
+|tp1=10
+|tgf1=23
+|tgs1=26
+}}
+=== Statistiche dei giocatori ===
+{{Statistiche dei giocatori
+| Competizione1 = Serie A
+| Totale = no
+| Cartellini = no
+| {{Sortname|C.|Annovazzi|Carlo Annovazzi}} {{Sommastat|C=no |40|10|?|?}}
+| {{Sortname|G.|Antonini|Giuseppe Antonini (calciatore)}} {{Sommastat|C=no |28|4|?|?}}
+| {{Sortname|A.|Bonomi|Andrea Bonomi (calciatore)}} {{Sommastat|C=no |38|0|?|?}}
+| {{Sortname|R.|Burini|Renzo Burini}} {{Sommastat|C=no |19|6|?|?}}
+| {{Sortname|R.|Carapellese|Riccardo Carapellese}} {{Sommastat|C=no |34|15|?|?}}
+| {{Sortname|F.|Cerri|Felice Cerri}} {{Sommastat|C=no |10|0|?|?}}
+| {{Sortname|F.|De Gregori|Franco De Gregori}} {{Sommastat|C=no |4|1|?|?}}
+| {{Sortname|P.|Degano|Pietro Degano}} {{Sommastat|C=no |29|9|?|?}}
+| {{Sortname|M.|Foglia|Mario Foglia}} {{Sommastat|C=no |18|0|?|?}}
+| {{Sortname|E.|Gratton|Edy Gratton}} {{Sommastat|C=no |32|1|?|?}}
+| {{Sortname|L.|Grava|Lino Grava}} {{Sommastat|C=no |3|0|?|?}}
+| {{Sortname|G.|Mattioni|Gianni Mattioni}} {{Sommastat|C=no |1|-1|?|?}}
+| {{Sortname|C.|Piccardi|Carlo Piccardi}} {{Sommastat|C=no |21|0|?|?}}
+| {{Sortname|H.|Puricelli|Héctor Puricelli}} {{Sommastat|C=no |34|17|?|?}}
+| {{Sortname|R.|Raccis|Renato Raccis}} {{Sommastat|C=no |26|8|?|?}}
+| {{Sortname|G.|Rossetti|Giovanni Rossetti}} {{Sommastat|C=no |39|-47|?|?}}
+| {{Sortname|A.|Santagostino|Aurelio Santagostino}} {{Sommastat|C=no |3|1|?|?}}
+| {{Sortname|O.|Tognon|Omero Tognon}} {{Sommastat|C=no |36|0|?|?}}
+| {{Sortname|G.|Toppan|Gianni Toppan}} {{Sommastat|C=no |25|0|?|?}}
+}}
+== Note ==
+<references/>
+== Bibliografia ==
+* {{cita libro |titolo=Almanacco illustrato del Milan |ed=2 |anno=2005 |mese=marzo |editore=Panini}}
+* {{cita libro |titolo=Almanacco illustrato del Milan |ed=1 |anno=1999 |mese=|editore=Panini |cid=}}
+== Voci correlate ==
+* [[Storia dell'Associazione Calcio Milan]]
+== Collegamenti esterni ==
+* {{cita web|https://www.magliarossonera.it/194748.html|Stagione 1947-1948 su Magliarossonera.it}}
+{{Calcio Milan storico}}
+{{Calcio in Italia 1947-1948}}
+{{Portale|calcio}}

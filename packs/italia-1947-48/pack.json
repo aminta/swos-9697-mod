@@ -1,0 +1,42 @@
+{
+  "format": 1,
+  "id": "italia-1947-48",
+  "button": "ITALIA 1947-48",
+  "button_names": {"it": "ITALIA 1947-48", "en": "ITALY 1947-48", "fr": "ITALIE 1947-48", "de": "ITALIEN 1947-48"},
+  "continent": "europe",
+  "sources": [
+    "it.wikipedia: Serie A 1947-1948 (final table, participants) and the 21 club season pages '<club> 1947-1948' (squads, league appearances, coaches, kits); cached in raw/itwiki, drafted by tools/itwiki_season.py",
+    "RSSSF: Italy 1947/48 (rsssf.org/tablesi/ital48.html), final table cross-check",
+    "Juventus appearances: national-football-teams.com (club 1292, 1947/48) and it.wikipedia player pages; Inter appearances: inter.it player archive, RSSSF and it.wikipedia player pages",
+    "SWOS 2020 '1900s Retro Pack Teams (1900-1970)' by FrancescoManetti82 and Gorzo (SWOS United): TORINO 1947 ratings",
+    "SWOS 96/97: positions and kits of the 1996-97 Italian clubs (TEAM.020) as templates"
+  ],
+  "notes": [
+    "No national cup: the Coppa Italia was not played from 1943 to 1958 (RSSSF Italy - Coppa Italia history). No European club cups in 1947-48.",
+    "21 clubs (Triestina readmitted in July 1947): 42 rounds, every club rests twice, 2 points per win, 4 relegated (Salernitana, Alessandria, Vicenza, Napoli).",
+    "Napoli finished on 34 points but was placed last for an attempted bribe (Bologna-Napoli): the game cannot replay that, so the bottom 4 on the pitch go down.",
+    "Juventus and Inter: the club pages have no appearance table; players with known appearances first (sources above), then the others in squad-box order.",
+    "Kits: 1996-97 game kits; Alessandria, Triestina from the 1947-48 page kit box; Pro Patria (white, blue shorts) and Livorno (maroon, white shorts) by hand.",
+    "Ratings: Torino from the 1900s Retro Pack; the other 20 clubs calibrated on the final points (average price 18 at 26 points to 30 at 49 points)."
+  ],
+
+  "files": {
+    "league": {"file": 145, "base": 1786}
+  },
+
+  "squads": [
+    {"files": ["league"], "method": "calibrate", "seed": 1948, "nationality": 18,
+     "source": "orig/DATA/TEAM.020", "reuse_ratings": [],
+     "ratings_from": [{"source": "orig/swos2020/x_1900s Retro Pack Teams (1900-1970)/CUSTOMS.EDT", "clubs": ["torino"]}],
+     "filler_first": ["Giuseppe", "Mario", "Giovanni", "Carlo", "Luigi", "Franco", "Bruno", "Aldo", "Renato", "Sergio"],
+     "filler_last": ["Rossi", "Bianchi", "Colombo", "Ferrari", "Russo", "Galli", "Conti", "Costa", "Fontana", "Moretti"]}
+  ],
+
+  "competitions": [
+    {"key": "seriea", "type": "league", "id": "EC", "clubs": "league", "dates_from": 35,
+     "games": 2, "win_points": 2, "relegated": 4, "classic_tourney": true,
+     "names": {"*": ["SERIE A 1947-48", "SERIE A"]}}
+  ],
+
+  "season": {"league": "seriea"}
+}

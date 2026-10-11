@@ -1,0 +1,883 @@
+{{Torna a|Associazione Sportiva Bari}}
+{{Stagione squadra
+|sport=calcio
+|club = A.S. Bari
+|stagione = 1947-1948
+|allenatore1 = {{Bandiera|HUN}} [[András Kuttik]] (1ª-6ª) <br />{{Bandiera|HUN}} [[Ferenc Plemich]] (7ª-18ª) <br />{{Bandiera|HUN}} [[András Kuttik]] (19ª-40ª)
+|presidente = {{Bandiera|ITA}} [[Tommaso Annoscia]]
+|campionato = [[Serie A 1947-1948|Serie A]]
+|campionato posizione = 11º posto
+|presenze campionato = [[Ivo Isetto|Isetto]] (40)
+|marcatore campionato = [[Mario Tontodonati|Tontodonati]] (10)
+|stadio = [[Stadio della Vittoria (Bari)|Stadio della Vittoria]]
+|stagione prima = [[Associazione Sportiva Bari 1946-1947|1946-1947]]
+|stagione dopo = [[Associazione Sportiva Bari 1948-1949|1948-1949]]
+|aggiornato = 25 luglio 2026
+}}
+
+Questa voce raccoglie le informazioni riguardanti <nowiki>l'</nowiki>'''Associazione Sportiva Bari''' nelle competizioni ufficiali della stagione '''1947-1948'''.
+
+==Stagione==
+Nella stagione 1947-1948 il Bari disputa il massimo campionato, vi raccoglie ancora 38 punti, ma stavolta con l'undicesima posizione finale. Si è trattato di un campionato di una lunghezza inusitata, avendo richiesto con un format a 21 squadre ben 42 giornate di campionato, con due riposi, una cosa senza precedenti nel massimo torneo. Lo scudetto lo ha rivinto il Torino con un distacco di sedici punti sul terzetto giunto secondo, formato da Triestina, Juventus e Milan. La squadra biancorossa del presidente Tommaso Annoscia raccoglie 16 punti nel girone di andata e 22 punti nel girone di ritorno. Miglior marcatore di stagione Mario Tontodonati con 10 reti, mentre sono 7 quelle messe a segno da Guido Tavellin. Sulla panchina dei galletti pugliesi si sono alternati i tecnici danubiani Andreas Kuttik e Ferenc Plemich. Da segnalare che il Bari ha inflitto al "Grande" Torino una delle quattro sconfitte subite in campionato, nella seconda giornata (1-0) il 21 settembre 1947.
+
+==Rosa==
+{{Calciatore in rosa/inizio}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Leonardo Costagliola]]|ruolo=P}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Silvano Pipan]]|ruolo=P}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Giulio Pellicari]]|ruolo=D}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Alessandro Carlini]]|ruolo=D}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Renato Lucchi]]|ruolo=D}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Piero Pietrasanta]]|ruolo=D}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Gennarino Ottogalli]]|ruolo=D}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Luigi Lenzi]]|ruolo=D}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Ivo Isetto]]|ruolo=C}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Tommaso Maestrelli]]|ruolo=C}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Paolo Giammarco]]|ruolo=C}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=Agostino Nasi|ruolo=C}}
+{{Calciatore in rosa/medio}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Giuseppe Santamato]]|ruolo=C}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Mario Tontodonati]]|ruolo=A}}
+{{Calciatore in rosa|n=|nazione=HUN|nome=[[János Hrotkó]]|ruolo=A}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Vincenzo Orlando]]|ruolo=A}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Alfredo Spadavecchia]]|ruolo=A}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Guido Tavellin]]|ruolo=A}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Sabino Cavone]]|ruolo=A}}
+{{Calciatore in rosa|n=|nazione=HUN|nome=[[Mihály Vörös]]|ruolo=A}}
+{{Calciatore in rosa|n=|nazione=ROU|nome=[[Ioan Bogdan]]|ruolo=A}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=Giovanni Mongelli|ruolo=A}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=Franco Piemontese|ruolo=A}}
+{{Calciatore in rosa/fine}}
+
+== Risultati ==
+=== Serie A ===
+{{Vedi anche|Serie A 1947-1948}}
+==== Girone di andata ====
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 14 settembre
+|Anno = 1947
+|Ora =
+|Turno = 1ª giornata
+|Squadra 1 = Atalanta
+|Squadra 2 = Bari
+|Punteggio 1 = 3
+|Punteggio 2 = 1
+|Referto =
+|Città = [[Bergamo]]
+|Stadio = [[Stadio Mario Brumana|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Giorgio Bernardi]]
+|Cittarbitro = [[Bologna]]
+|Marcatori 1 = [[Július Korostelev|Korostelev]] {{goal|11}}<br/>[[Vittorio Schiavi|Schiavi]] {{goal|14}}<br/>[[Mario Astorri|Astorri]] {{goal|43}}
+|Marcatori 2 = {{goal|74}} [[Mario Tontodonati|Tontodonati]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 21 settembre
+|Anno = 1947
+|Ora =
+|Turno = 2ª giornata
+|Squadra 1 = Bari
+|Squadra 2 = Torino
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Bari]]
+|Stadio = [[Stadio della Vittoria (Bari)|Stadio della Vittoria]]
+|Spettatori =
+|Arbitro = [[Guido Agnolin]]
+|Cittarbitro = [[Bassano del Grappa]]
+|Marcatori 1 = [[Guido Tavellin|Tavellin]] {{goal|10}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 28 settembre
+|Anno = 1947
+|Ora =
+|Turno = 3ª giornata
+|Squadra 1 = Bari
+|Squadra 2 = Roma
+|Punteggio 1 = 2
+|Punteggio 2 = 1
+|Referto =
+|Città = [[Bari]]
+|Stadio = [[Stadio della Vittoria (Bari)|Stadio della Vittoria]]
+|Spettatori =
+|Arbitro = [[Ferruccio Bellè]]
+|Cittarbitro = [[Venezia]]
+|Marcatori 1 = [[Vincenzo Orlando|Orlando]] {{goal|31}}<br/>[[Mario Tontodonati|Tontodonati]] {{goal|47}}
+|Marcatori 2 = {{goal|66}} [[Amedeo Amadei|Amadei]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 5 ottobre
+|Anno = 1947
+|Ora =
+|Turno = 4ª giornata
+|Squadra 1 = Vicenza
+|Squadra 2 = Bari
+|Punteggio 1 = 3
+|Punteggio 2 = 1
+|Referto =
+|Città = [[Vicenza]]
+|Stadio = [[Stadio Romeo Menti|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Eliseo Camiolo]]
+|Cittarbitro = [[Roma]]
+|Marcatori 1 = [[Giovanni Sperotto|Sperotto]] {{goal|29}}<br/>[[Lino Begnini|Begnini]] {{goal|34}}<br/>[[Serafino Conti|S. Conti]] {{goal|53}}
+|Marcatori 2 = {{goal|70}} [[Guido Tavellin|Tavellin]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 12 ottobre
+|Anno = 1947
+|Ora =
+|Turno = 5ª giornata
+|Squadra 1 = Triestina
+|Squadra 2 = Bari
+|Punteggio 1 = 1
+|Punteggio 2 = 1
+|Referto =
+|Città = [[Trieste]]
+|Stadio = [[Stadio Giuseppe Grezar|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Pietro Massironi]]
+|Cittarbitro = [[Milano]]
+|Marcatori 1 = [[Licio Rossetti|Rossetti]] {{goal|89}}
+|Marcatori 2 = {{goal|34}} [[Sabino Cavone|Cavone]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 19 ottobre
+|Anno = 1947
+|Ora =
+|Turno = 6ª giornata
+|Squadra 1 = Bari
+|Squadra 2 = Salernitana
+|Punteggio 1 = 0
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Bari]]
+|Stadio = [[Stadio della Vittoria (Bari)|Stadio della Vittoria]]
+|Spettatori =
+|Arbitro = [[Mario Cambi]]
+|Cittarbitro = [[Livorno]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 26 ottobre
+|Anno = 1947
+|Ora =
+|Turno = 7ª giornata
+|Note = Turno di riposo del BARI
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 2 novembre
+|Anno = 1947
+|Ora =
+|Turno = 8ª giornata
+|Squadra 1 = Bari
+|Squadra 2 = Modena
+|Punteggio 1 = 1
+|Punteggio 2 = 1
+|Referto =
+|Città = [[Bari]]
+|Stadio = [[Stadio della Vittoria (Bari)|Stadio della Vittoria]]
+|Spettatori =
+|Arbitro = [[Giuseppe Carpani (arbitro)|Giuseppe Carpani]]
+|Cittarbitro = [[Milano]]
+|Marcatori 1 = [[Guido Tavellin|Tavellin]] {{goal|51}}
+|Marcatori 2 = {{goal|20|rig}} [[Francesco Pernigo|Pernigo]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 16 novembre
+|Anno = 1947
+|Ora =
+|Turno = 9ª giornata
+|Squadra 1 = Bari
+|Squadra 2 = Fiorentina
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Bari]]
+|Stadio = [[Stadio della Vittoria (Bari)|Stadio della Vittoria]]
+|Spettatori =
+|Arbitro = [[Luigi Gemini]]
+|Cittarbitro = [[Roma]]
+|Marcatori 1 = [[Guido Tavellin|Tavellin]] {{goal|26}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 23 novembre
+|Anno = 1947
+|Ora =
+|Turno = 10ª giornata
+|Squadra 1 = Lucchese
+|Squadra 2 = Bari
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Lucca]]
+|Stadio = [[Stadio Porta Elisa]]
+|Spettatori =
+|Arbitro = [[Bruno Tassini]]
+|Cittarbitro = [[Verona]]
+|Marcatori 1 = [[Arturo Presselli|Presselli]] {{goal|70}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 30 novembre
+|Anno = 1947
+|Ora =
+|Turno = 11ª giornata
+|Squadra 1 = Inter
+|Squadra 2 = Bari
+|Punteggio 1 = 4
+|Punteggio 2 = 1
+|Referto =
+|Città = [[Milano]]
+|Stadio = [[Stadio San Siro]]
+|Spettatori =
+|Arbitro = [[Giuseppe Boffardi]]
+|Cittarbitro = [[Genova]]
+|Marcatori 1 = [[Bruno Quaresima|Quaresima]] {{goal|11||42||61||70}}
+|Marcatori 2 = {{goal|56}} [[Giovanni Battista Mongelli|Mongelli]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 7 dicembre
+|Anno = 1947
+|Ora =
+|Turno = 12ª giornata
+|Squadra 1 = Bari
+|Squadra 2 = Alessandria
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Bari]]
+|Stadio = [[Stadio della Vittoria (Bari)|Stadio della Vittoria]]
+|Spettatori =
+|Arbitro = [[Vincenzo Orlandini]]
+|Cittarbitro = [[Roma]]
+|Marcatori 1 = [[Mario Tontodonati|Tontodonati]] {{goal|80}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 21 dicembre
+|Anno = 1947
+|Ora =
+|Turno = 13ª giornata
+|Squadra 1 = Lazio
+|Squadra 2 = Bari
+|Punteggio 1 = 3
+|Punteggio 2 = 3
+|Referto =
+|Città = [[Roma]]
+|Stadio = [[Stadio Nazionale]]
+|Spettatori =
+|Arbitro = [[Agostino Gamba]]
+|Cittarbitro = [[Napoli]]
+|Marcatori 1 = [[Romano Penzo|Penzo]] {{goal|41||48}}<br/>[[Aldo Puccinelli|Puccinelli]] {{goal|57}}
+|Marcatori 2 = {{goal|44|rig|52|rig}} [[Giulio Pellicari|Pellicari]]<br/>{{goal|75}} [[Mario Tontodonati|Tontodonati]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 28 dicembre
+|Anno = 1947
+|Ora =
+|Turno = 14ª giornata<ref>Partita assegnata (0-2) dal Giudice Sportivo, sul campo sospesa al minuto 86 per incidenti sul punteggio (0-1)</ref>
+|Squadra 1 = Bari
+|Squadra 2 = Genoa
+|Punteggio 1 = 0
+|Punteggio 2 = 2
+|Referto =
+|Città = [[Bari]]
+|Stadio = [[Stadio della Vittoria (Bari)|Stadio della Vittoria]]
+|Spettatori =
+|Arbitro = [[Angelo Pizzato]]
+|Cittarbitro = [[Mestre]]
+|Marcatori 2 = {{goal|85}} [[Riccardo Dalla Torre|Dalla Torre]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 1° gennaio
+|Anno = 1948
+|Ora =
+|Turno = 15ª giornata<ref>Partita disputata sul campo neutro di Napoli per squalifica del campo barese.</ref>
+|Squadra 1 = Bari
+|Squadra 2 = Pro Patria
+|Punteggio 1 = 1
+|Punteggio 2 = 3
+|Referto =
+|Città = [[Napoli]]
+|Stadio = [[Stadio Arturo Collana|Stadio della Liberazione]]
+|Spettatori =
+|Arbitro = [[Mario Scotto]]
+|Cittarbitro = [[Savona]]
+|Marcatori 1 = [[Tommaso Maestrelli|Maestrelli]] {{goal|30}}
+|Marcatori 2 = {{goal|50||84}} [[Enrico Candiani|Candiani]]<br/>{{goal|69|rig}} [[Egiziano Bertolucci|Bertolucci]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 4 gennaio
+|Anno = 1948
+|Ora =
+|Turno = 16ª giornata
+|Squadra 1 = Milan
+|Squadra 2 = Bari
+|Punteggio 1 = 8
+|Punteggio 2 = 1
+|Referto =
+|Città = [[Milano]]
+|Stadio = [[Stadio San Siro]]
+|Spettatori =
+|Arbitro = [[Vittorio Balestrino]]
+|Cittarbitro = [[Oneglia]]
+|Marcatori 1 = [[Renzo Burini|Burini]] {{goal|18||54}}<br/>[[Renato Raccis|Raccis]] {{goal|19}}<br/>[[Carlo Annovazzi|Annovazzi]] {{goal|31|rig}}<br/>[[Ettore Puricelli|Puricelli]] {{goal|50||57||72||79}}
+|Marcatori 2 = {{goal|63}} [[Mario Tontodonati|Tontodonati]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 11 gennaio
+|Anno = 1948
+|Ora =
+|Turno = 17ª giornata
+|Squadra 1 = Bari
+|Squadra 2 = Sampdoria
+|Punteggio 1 = 0
+|Punteggio 2 = 2
+|Referto =
+|Città = [[Bari]]
+|Stadio = [[Stadio della Vittoria (Bari)|Stadio della Vittoria]]
+|Spettatori =
+|Arbitro = [[Eriprando Poggipollini]]
+|Cittarbitro = [[Ferrara]]
+|Marcatori 2 = {{goal|37|aut}} [[Alessandro Carlini|Carlini]]<br/>{{goal|62}} [[Luigi Parodi|Parodi]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 18 gennaio
+|Anno = 1948
+|Ora =
+|Turno = 18ª giornata
+|Squadra 1 = Bari
+|Squadra 2 = Bologna
+|Punteggio 1 = 1
+|Punteggio 2 = 1
+|Referto =
+|Città = [[Bari]]
+|Stadio = [[Stadio della Vittoria (Bari)|Stadio della Vittoria]]
+|Spettatori =
+|Arbitro = [[Agostino Gamba]]
+|Cittarbitro = [[Napoli]]
+|Marcatori 1 = [[János Hrotkó|Hrotko]] {{goal|63}}
+|Marcatori 2 = {{goal|79}} [[Gino Cappello|Cappello]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 25 gennaio
+|Anno = 1948
+|Ora =
+|Turno = 19ª giornata
+|Squadra 1 = Juventus
+|Squadra 2 = Bari
+|Punteggio 1 = 6
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Torino]]
+|Stadio = [[Stadio Olimpico (Torino)|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Bruno Zilli]]
+|Cittarbitro = [[Reggio Emilia]]
+|Marcatori 1 = [[Francesco Cergoli|Cergoli]] {{goal|9||79}}<br/>[[Giampiero Boniperti|Boniperti]] {{goal|43}}<br/>[[Ján Arpáš|Arpas]] {{goal|72||86}}<br/>[[Carlo Lenci|Lenci]] {{goal|87}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 1° febbraio
+|Anno = 1948
+|Ora =
+|Turno = 20ª giornata
+|Squadra 1 = Livorno
+|Squadra 2 = Bari
+|Punteggio 1 = 1
+|Punteggio 2 = 1
+|Referto =
+|Città = [[Livorno]]
+|Stadio = [[Stadio Armando Picchi|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Giuseppe Carpani (arbitro)|Giuseppe Carpani]]
+|Cittarbitro = [[Milano]]
+|Marcatori 1 = [[Guido Tieghi|Tieghi]] {{goal|20}}
+|Marcatori 2 = {{goal|35}} [[Mario Tontodonati|Tontodonati]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 8 febbraio
+|Anno = 1948
+|Ora =
+|Turno = 21ª giornata
+|Squadra 1 = Bari
+|Squadra 2 = Napoli
+|Punteggio 1 = 2
+|Punteggio 2 = 1
+|Referto =
+|Città = [[Bari]]
+|Stadio = [[Stadio della Vittoria (Bari)|Stadio della Vittoria]]
+|Spettatori =
+|Arbitro = [[Eliseo Camiolo]]
+|Cittarbitro = [[Roma]]
+|Marcatori 1 = [[János Hrotkó|Hrotko]] {{goal|38}}<br/>[[Alfredo Spadavecchia|Spadavecchia]] {{goal|79}}
+|Marcatori 2 = {{goal|90}} [[Naim Krieziu|Krieziu]]
+}}
+
+==== Girone di ritorno ====
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 15 febbraio
+|Anno = 1948
+|Ora =
+|Turno = 22ª giornata
+|Squadra 1 = Bari
+|Squadra 2 = Atalanta
+|Punteggio 1 = 3
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Bari]]
+|Stadio = [[Stadio della Vittoria (Bari)|Stadio della Vittoria]]
+|Spettatori =
+|Arbitro = [[Luigi Gemini]]
+|Cittarbitro = [[Roma]]
+|Marcatori 1 = [[Alfredo Spadavecchia|Spadavecchia]] {{goal|32}}<br/>[[Severo Cominelli|Cominelli]] {{goal|35|aut}}<br/>[[János Hrotkó|Hrotko]] {{goal|85}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 22 febbraio
+|Anno = 1948
+|Ora =
+|Turno = 23ª giornata
+|Squadra 1 = Torino
+|Squadra 2 = Bari
+|Punteggio 1 = 5
+|Punteggio 2 = 1
+|Referto =
+|Città = [[Torino]]
+|Stadio = [[Stadio Filadelfia]]
+|Spettatori =
+|Arbitro = [[Bruno Guarda (arbitro)|Bruno Guarda]]
+|Cittarbitro = [[Mestre]]
+|Marcatori 1 = [[Josef Fabian|Fabian]] {{goal|36}}<br/>[[Guglielmo Gabetto|Gabetto]] {{goal|44||61}}<br/>[[Valentino Mazzola|Mazzola]] {{goal|70}}<br/>[[Danilo Martelli|Martelli]] {{goal|79}}
+|Marcatori 2 = {{goal|83}} [[Vincenzo Orlando|Orlando]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 29 febbraio
+|Anno = 1948
+|Ora =
+|Turno = 24ª giornata
+|Squadra 1 = Roma
+|Squadra 2 = Bari
+|Punteggio 1 = 0
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Roma]]
+|Stadio = [[Stadio Nazionale]]
+|Spettatori =
+|Arbitro = [[Mario Codeluppi]]
+|Cittarbitro = [[Lodi]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 7 marzo
+|Anno = 1948
+|Ora =
+|Turno = 25ª giornata
+|Squadra 1 = Bari
+|Squadra 2 = Vicenza
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Bari]]
+|Stadio = [[Stadio della Vittoria (Bari)|Stadio della Vittoria]]
+|Spettatori =
+|Arbitro = [[Virginio Canavesio]]
+|Cittarbitro = [[Torino]]
+|Marcatori 1 = [[Vincenzo Orlando|Orlando]] {{goal|30}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 14 marzo
+|Anno = 1948
+|Ora =
+|Turno = 26ª giornata
+|Squadra 1 = Bari
+|Squadra 2 = Triestina
+|Punteggio 1 = 0
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Bari]]
+|Stadio = [[Stadio della Vittoria (Bari)|Stadio della Vittoria]]
+|Spettatori =
+|Arbitro = [[Mario Cambi]]
+|Cittarbitro = [[Livorno]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 21 marzo
+|Anno = 1948
+|Ora =
+|Turno = 27ª giornata
+|Squadra 1 = Salernitana
+|Squadra 2 = Bari
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Salerno]]
+|Stadio = [[Stadio Donato Vestuti|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Mario Scotto]]
+|Cittarbitro = [[Savona]]
+|Marcatori 1 = [[Ivo Buzzegoli|Buzzegoli]] {{goal|42|rig}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 28 marzo
+|Anno = 1948
+|Ora =
+|Turno = 28ª giornata
+|Note = Turno di riposo del BARI
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 11 aprile
+|Anno = 1948
+|Ora =
+|Turno = 29ª giornata
+|Squadra 1 = Modena
+|Squadra 2 = Bari
+|Punteggio 1 = 2
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Modena]]
+|Stadio = [[Stadio Alberto Braglia|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Bruno Bergomi]]
+|Cittarbitro = [[Milano]]
+|Marcatori 1 = [[Francesco Pernigo|Pernigo]] {{goal|26||45+1|rig}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 21 aprile
+|Anno = 1948
+|Ora =
+|Turno = 30ª giornata
+|Squadra 1 = Fiorentina
+|Squadra 2 = Bari
+|Punteggio 1 = 2
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Firenze]]
+|Stadio = [[Stadio Artemio Franchi|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Carlo Maglio]]
+|Cittarbitro = [[Torino]]
+|Marcatori 1 = [[Renato Gei|Gei]] {{goal|76}}<br/>[[Alberto Galassi|Galassi]] {{goal|87}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 2 maggio
+|Anno = 1948
+|Ora =
+|Turno = 31ª giornata
+|Squadra 1 = Bari
+|Squadra 2 = Lucchese
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Bari]]
+|Stadio = [[Stadio della Vittoria (Bari)|Stadio della Vittoria]]
+|Spettatori =
+|Arbitro = [[Giuseppe Parpaiola]]
+|Cittarbitro = [[Padova]]
+|Marcatori 1 = [[Giulio Pellicari|Pellicari]] {{goal|16|rig}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 9 maggio
+|Anno = 1948
+|Ora =
+|Turno = 32ª giornata
+|Squadra 1 = Bari
+|Squadra 2 = Inter
+|Punteggio 1 = 2
+|Punteggio 2 = 1
+|Referto =
+|Città = [[Bari]]
+|Stadio = [[Stadio della Vittoria (Bari)|Stadio della Vittoria]]
+|Spettatori =
+|Arbitro = [[Virginio Canavesio]]
+|Cittarbitro = [[Torino]]
+|Marcatori 1 = [[Mario Tontodonati|Tontodonati]] {{goal|41}}<br/>[[Guido Tavellin|Tavellin]] {{goal|44}}
+|Marcatori 2 = {{goal|30}} [[Cosimo Muci|Muci]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 23 maggio
+|Anno = 1948
+|Ora =
+|Turno = 33ª giornata
+|Squadra 1 = Alessandria
+|Squadra 2 = Bari
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Alessandria (Italia)|Alessandria]]
+|Stadio = [[Stadio Giuseppe Moccagatta]]
+|Spettatori =
+|Arbitro = [[Giuseppe Carpani (arbitro)|Giuseppe Carpani]]
+|Cittarbitro = [[Milano]]
+|Marcatori 1 = [[Luigi Soffrido|Soffrido]] {{goal|21}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 27 maggio
+|Anno = 1948
+|Ora =
+|Turno = 34ª giornata
+|Squadra 1 = Bari
+|Squadra 2 = Lazio
+|Punteggio 1 = 2
+|Punteggio 2 = 1
+|Referto =
+|Città = [[Bari]]
+|Stadio = [[Stadio della Vittoria (Bari)|Stadio della Vittoria]]
+|Spettatori =
+|Arbitro = [[Renzo Massai]]
+|Cittarbitro = [[Pisa]]
+|Marcatori 1 = [[Guido Tavellin|Tavellin]] {{goal|38}}<br/>[[János Hrotkó|Hrotko]] {{goal|80}}
+|Marcatori 2 = {{goal|83|rig}} [[Leandro Remondini|Remondini]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 30 maggio
+|Anno = 1948
+|Ora =
+|Turno = 35ª giornata
+|Squadra 1 = Genoa
+|Squadra 2 = Bari
+|Punteggio 1 = 2
+|Punteggio 2 = 2
+|Referto =
+|Città = [[Genova]]
+|Stadio = [[Stadio Luigi Ferraris]]
+|Spettatori =
+|Arbitro = [[Guido Agnolin]]
+|Cittarbitro = [[Bassano del Grappa]]
+|Marcatori 1 = [[Renato Brighenti|R. Brighenti]] {{goal|22}}<br/>[[Riccardo Dalla Torre|Dalla Torre]] {{goal|67}}
+|Marcatori 2 = {{goal|88}} [[Mario Tontodonati|Tontodonati]]<br/>{{goal|90+1}} [[Tommaso Maestrelli|Maestrelli]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 6 giugno
+|Anno = 1948
+|Ora =
+|Turno = 36ª giornata
+|Squadra 1 = Pro Patria
+|Squadra 2 = Bari
+|Punteggio 1 = 2
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Busto Arsizio]]
+|Stadio = [[Stadio Carlo Speroni|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Giacomo Bertolio]]
+|Cittarbitro = [[Torino]]
+|Marcatori 1 = [[Angelo Turconi|Turconi]] {{goal|44}}<br/>[[Lelio Antoniotti|Antoniotti]] {{goal|85}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 13 maggio
+|Anno = 1948
+|Ora =
+|Turno = 37ª giornata
+|Squadra 1 = Bari
+|Squadra 2 = Milan
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Bari]]
+|Stadio = [[Stadio della Vittoria (Bari)|Stadio della Vittoria]]
+|Spettatori =
+|Arbitro = [[Antonio Zambotto]]
+|Cittarbitro = [[Padova]]
+|Marcatori 1 = [[Ioan Bogdan|Bogdan]] {{goal|50}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 20 giugno
+|Anno = 1948
+|Ora =
+|Turno = 38ª giornata
+|Squadra 1 = Sampdoria
+|Squadra 2 = Bari
+|Punteggio 1 = 0
+|Punteggio 2 = 1
+|Referto =
+|Città = [[Genova]]
+|Stadio = [[Stadio Luigi Ferraris]]
+|Spettatori =
+|Arbitro = [[Bruno Tassini]]
+|Cittarbitro = [[Verona]]
+|Marcatori 2 = {{goal|20}} [[Mario Tontodonati|Tontodonati]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 27 giugno
+|Anno = 1948
+|Ora =
+|Turno = 39ª giornata
+|Squadra 1 = Bologna
+|Squadra 2 = Bari
+|Punteggio 1 = 0
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Bologna]]
+|Stadio = [[Stadio Renato Dall'Ara|Stadio Comunale]]
+|Spettatori =
+|Arbitro = [[Giuseppe Carpani (arbitro)|Giuseppe Carpani]]
+|Cittarbitro = [[Milano]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 4 agosto
+|Anno = 1948
+|Ora =
+|Turno = 40ª giornata
+|Squadra 1 = Bari
+|Squadra 2 = Juventus
+|Punteggio 1 = 2
+|Punteggio 2 = 1
+|Referto =
+|Città = [[Bari]]
+|Stadio = [[Stadio della Vittoria (Bari)|Stadio della Vittoria]]
+|Spettatori =
+|Arbitro = [[Eliseo Camiolo]]
+|Cittarbitro = [[Roma]]
+|Marcatori 1 = [[János Hrotkó|Hrotko]] {{goal|4}}<br/>[[Guido Tavellin|Tavellin]] {{goal|29}}
+|Marcatori 2 = {{goal|33}} [[Mihaly Kincses|Kincses]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 8 agosto
+|Anno = 1949
+|Ora =
+|Turno = 41ª giornata
+|Squadra 1 = Bari
+|Squadra 2 = Livorno
+|Punteggio 1 = 3
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Bari]]
+|Stadio = [[Stadio della Vittoria (Bari)|Stadio della Vittoria]]
+|Spettatori =
+|Arbitro = [[Florindo Longagnani]]
+|Cittarbitro = [[Modena]]
+|Marcatori 1 = [[Sabino Cavone|Cavone]] {{goal|7}}<br/>[[Mario Tontodonati|Tontodonati]] {{goal|29}}<br/>[[Mihály Vörös|Vörös]] {{goal|66}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 12 agosto
+|Anno = 1948
+|Ora =
+|Turno = 42ª giornata
+|Squadra 1 = Napoli
+|Squadra 2 = Bari
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Referto =
+|Città = [[Napoli]]
+|Stadio = [[Stadio Arturo Collana|Stadio della Liberazione]]
+|Spettatori =
+|Arbitro = [[Osvaldo Savio]]
+|Cittarbitro = [[Torino]]
+|Marcatori 1 = [[Naim Krieziu|Krieziu]] {{goal|44}}
+}}
+
+== Statistiche ==
+=== Statistiche di squadra ===
+{{Statistiche squadra
+|comp1=[[Serie A 1947-1948|Serie A]]
+|punti1=38
+|cv1=13
+|cn1=4
+|cp1=3
+|cgf1=25
+|cgs1=14
+|tv1=1
+|tn1=6
+|tp1=13
+|tgf1=13
+|tgs1=46
+}}
+=== Statistiche dei giocatori ===
+{{Statistiche dei giocatori
+| Competizione1 = Serie A
+| Totale = no
+| Cartellini = no
+| {{Sortname|I.|Bogdan|Ioan Bogdan}} {{Sommastat|C=no |4|1|?|?}}
+| {{Sortname|A.|Carlini|Alessandro Carlini}} {{Sommastat|C=no |37|0|?|?}}
+| {{Sortname|S.|Cavone|Sabino Cavone}} {{Sommastat|C=no |20|2|?|?}}
+| {{Sortname|L.|Costagliola|Leonardo Costagliola}} {{Sommastat|C=no |31|-48|?|?}}
+| {{Sortname|P.|Giammarco|Paolo Giammarco}} {{Sommastat|C=no |4|0|?|?}}
+| {{Sortname|J.|Hrotko|János Hrotkó}} {{Sommastat|C=no |30|5|?|?}}
+| {{Sortname|I.|Isetto|Ivo Isetto}} {{Sommastat|C=no |40|0|?|?}}
+| {{Sortname|L.|Lenzi|Luigi Lenzi}} {{Sommastat|C=no |2|0|?|?}}
+| {{Sortname|R.|Lucchi|Renato Lucchi}} {{Sommastat|C=no |25|0|?|?}}
+| {{Sortname|T.|Maestrelli|Tommaso Maestrelli}} {{Sommastat|C=no |37|2|?|?}}
+| {{Sortname|G.|Mongelli|nolink=1}} {{Sommastat|C=no |3|1|?|?}}
+| {{Sortname|A.|Nasi|nolink=1}} {{Sommastat|C=no |2|0|?|?}}
+| {{Sortname|V.|Orlando|Vincenzo Orlando}} {{Sommastat|C=no |30|3|?|?}}
+| {{Sortname|G.|Ottogalli|Gennarino Ottogalli}} {{Sommastat|C=no |5|0|?|?}}
+| {{Sortname|G.|Pellicari|Giulio Pellicari}} {{Sommastat|C=no |39|3|?|?}}
+| {{Sortname|F.|Piemontese|nolink=1}} {{Sommastat|C=no |1|0|?|?}}
+| {{Sortname|P.|Pietrasanta|Piero Pietrasanta}} {{Sommastat|C=no |22|0|?|?}}
+| {{Sortname|S.|Pipan|Silvano Pipan}} {{Sommastat|C=no |9|-10|?|?}}
+| {{Sortname|G.|Santamato|Giuseppe Santamato}} {{Sommastat|C=no |1|0|?|?}}
+| {{Sortname|A.|Spadavecchia|Alfredo Spadavecchia}} {{Sommastat|C=no |27|2|?|?}}
+| {{Sortname|G.|Tavellin|Guido Tavellin}} {{Sommastat|C=no |25|7|?|?}}
+| {{Sortname|M.|Tontodonati|Mario Tontodonati}} {{Sommastat|C=no |39|10|?|?}}
+| {{Sortname|M.|Voros|Mihály Vörös}} {{Sommastat|C=no |7|1|?|?}}
+}}
+
+== Note ==
+<references/>
+
+==Collegamenti esterni==
+*{{cita web|url=http://www.wikicalcioitalia.info/vros.php?idsta=117&idsqu=23|titolo=Rosa su Wikicalcioitalia.info}}
+*{{cita web|url=http://www.solobari.it/almanacco/stagione.php?y=1947|titolo=Stagione su Solobari.it}}
+* http://www.calcio.com/tutte_le_partite/ita-serie-a-1947-1948/
+
+{{calcio Bari storico}}
+{{Calcio in Italia 1947-1948}}
+{{portale|calcio}}

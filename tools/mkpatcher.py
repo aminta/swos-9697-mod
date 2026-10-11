@@ -99,6 +99,7 @@ FILES = [  # (id, original path, patched path, file name in the game folder)
     ('TEAM.142', None, 'c/SWOS/DATA/TEAM.142', 'DATA/TEAM.142'),
     ('TEAM.143', None, 'c/SWOS/DATA/TEAM.143', 'DATA/TEAM.143'),
     ('TEAM.144', None, 'c/SWOS/DATA/TEAM.144', 'DATA/TEAM.144'),
+    ('TEAM.145', None, 'c/SWOS/DATA/TEAM.145', 'DATA/TEAM.145'),      # Italy 1947-48 (CLASSIC SEASONS)
     ('WORLD04.TMD', None, 'c/SWOS/DATA/WORLD04.TMD', 'DATA/WORLD04.TMD'),
     # GOG release (2013): same files, 2 bytes changed in each exe (a national cup's months); TEAM.020 identical.
     # Originals in orig/gog/, built with patch.patch_exe(orig/gog/X, c/gog/X, ...)

@@ -1,0 +1,57 @@
+{
+ "league": "Serie A 1947-1948",
+ "template_src": "orig/DATA/TEAM.020",
+ "same_club": {
+  "milan": "AC MILAN",
+  "inter": "INTER MILAN"
+ },
+ "names": {
+  "inter": "INTERNAZIONALE"
+ },
+ "apps": {
+  "juventus": {
+   "Giampiero Boniperti": 40,
+   "Lucidio Sentimenti": 34,
+   "Carlo Parola": 34,
+   "Teobaldo Depetrini": 31,
+   "Pietro Rava": 29,
+   "Ugo Locatelli": 26,
+   "Mihály Kincses": 24,
+   "Ján Arpáš": 18,
+   "Antonio Dalmonte": 16,
+   "Ermes Muccinelli": 15,
+   "Piero Gibellino": 14,
+   "Carlo Lenci": 4
+  },
+  "inter": {
+   "Angelo Franzosi": 39,
+   "Osvaldo Fattori": 39,
+   "Benito Lorenzi": 29,
+   "Giuseppe Arezzi": 26,
+   "Rinaldo Fiumi": 24,
+   "Ubaldo Passalacqua": 14,
+   "Aldo Campatelli": 13,
+   "Sergio Susmel": 13,
+   "Giuseppe Madini": 6,
+   "Tibor Garay": 2,
+   "Alfredo Colombo": 1
+  }
+ },
+ "targets": {
+  "from": [
+   26,
+   18
+  ],
+  "to": [
+   49,
+   30
+  ],
+  "clubs": {
+   "torino": 41
+  }
+ },
+ "kits": {
+  "propatria": "0 1 1 5 5",
+  "livorno": "0 6 6 1 6"
+ }
+}

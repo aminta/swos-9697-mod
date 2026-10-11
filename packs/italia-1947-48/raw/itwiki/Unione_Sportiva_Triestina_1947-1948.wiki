@@ -1,0 +1,937 @@
+{{Torna a|Unione Sportiva Triestina Calcio}}
+{{Stagione squadra
+|sport=calcio
+|club = Unione Sportiva Triestina
+|stagione = 1947-1948
+|immagine = U.S. Triestina 1947-1948.jpg
+|didascalia = Una formazione della Triestina 1947-1948
+|allenatore1 = {{Bandiera|ITA}} [[Nereo Rocco]]
+|presidente = {{Bandiera|ITA}} Leo Brunner
+|campionato = [[Serie A 1947-1948|Serie A]]
+|campionato posizione = 2º posto
+|presenze campionato = [[Ivano Blason|Blason]], [[Enrico Radio|Radio]], [[Antonio Sessa|Sessa]], [[Guerrino Striuli|Striuli]] (40)
+|marcatore campionato = [[Mario Begni|Begni]] (11)
+|spettatori max = 
+|spettatori min = 
+|spettatori media = 
+|stadio = [[Stadio Giuseppe Grezar|Stadio Comunale]]
+|stagione prima = [[Unione Sportiva Triestina 1946-1947|1946-1947]]
+|stagione dopo = [[Unione Sportiva Triestina 1948-1949|1948-1949]]
+|aggiornato = 30 luglio 2026
+}}
+Questa voce raccoglie le informazioni riguardanti l''''Unione Sportiva Triestina''' nelle competizioni ufficiali della stagione '''1947-1948'''.
+
+== Stagione ==
+Nella stagione 1947-1948 ripescata "per motivi patriottici" dopo la travagliata [[Serie A 1946-1947|stagione precedente]], la Triestina affida la direzione tecnica della squadra all'ex giocatore [[Nereo Rocco]], il quale ha a disposizione calciatori maturi come [[Guglielmo Trevisan]] e [[Mario Tosolini]] oppure reduci da stagioni non particolarmente brillanti, come [[Bruno Ispiro]] e [[Antonio Sessa]].
+
+Impostando un assetto simile al [[Sistema (calcio)|sistema]], ma caratterizzato da una maggior propensione difensiva ([[Catenaccio (calcio)|catenaccio]]) la Triestina, nonostante un avvio stentato (tre punti nelle prime quattro partite), che ha fatto vacillare la panchina di Rocco, cresce in continuità nei risultati e conclude la stagione al secondo posto con 49 punti. Un posto d'onore, anche se a sedici lunghezze di svantaggio, dietro ai campioni del [[Grande Torino]], che hanno dominato il campionato e vinto il quarto titolo di fila. I giuliani hanno condiviso il secondo posto con Milan e Juventus. La squadra alabardata ha mantenuto imbattuto il proprio campo, raccogliendo 25 punti nel girone di andata e 24 punti nel girone di ritorno.
+
+== Divise ==
+La divisa casalinga, completamente rossa con i calzoncini bianchi, aveva il collo a polo chiuso dai lacci e sul petto a sinistra lo stemma societario.
+
+{|
+|{{Divisa calcio
+|pattern_la = 
+|pattern_b = _collarred_laced
+|pattern_ra = 
+|leftarm = FF0000
+|body = FF0000
+|rightarm = FF0000
+|shorts = FFFFFF
+|socks = FF0000
+|title = 
+}}
+|}
+
+== Rosa ==
+{{Calciatore in rosa/inizio}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Guerrino Striuli]]|ruolo=P}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=Aldo Vitti|ruolo=P}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Dino Antonini]]|ruolo=D}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Ivano Blason]]|ruolo=D}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Enrico Radio]]|ruolo=D}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Antonio Sessa]]|ruolo=D}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Corrado Zorzin]]|ruolo=D}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Gerardo Bernard]]|ruolo=C}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Euro Giannini]]|ruolo=C}}
+{{Calciatore in rosa/medio}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Mario Mlacher]]|ruolo=C}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Cesare Presca]]|ruolo=C}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Mario Tosolini]]|ruolo=C}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Guglielmo Trevisan]]|ruolo=C}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Mario Begni]]|ruolo=A}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Antonio Gordini]]|ruolo=A}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Bruno Ispiro]]|ruolo=A}}
+{{Calciatore in rosa|n=|nazione=ITA|nome=[[Licio Rossetti]]|ruolo=A}}
+{{Calciatore in rosa/fine}}
+
+== Calciomercato ==
+{{Colonne}}
+{|class="wikitable" style="font-size:90%"
+!colspan="4"|Acquisti
+|-
+!width=3%|R.
+!width=33%|Nome
+!width=28%|da
+!width=36%|Modalità
+|-
+|P ||[[Aldo Vitti]] ||{{Calcio Ponziana|N}} ||
+|-
+|D ||[[Antonio Sessa]] ||{{Calcio Lazio|N}} ||
+|-
+|C ||[[Mario Tosolini]] ||{{Calcio Milan|N}} ||
+|-
+|C ||[[Guglielmo Trevisan]] ||{{Calcio Genoa|N}} ||
+|-
+|C ||[[Euro Giannini]] ||{{Calcio Ponziana|N}} ||
+|-
+|A ||[[Antonio Gordini]] ||{{Calcio Spezia|N}} ||
+|-
+|A ||[[Bruno Ispiro]] ||{{Calcio Lazio|N}} ||
+|-
+|A ||[[Mario Begni]] ||{{Calcio Fanfulla|N}} ||
+|}
+{{colonne spezza}}
+{|class="wikitable" style="font-size:90%"
+!colspan="4"|Cessioni
+|-
+!width=3%|R.
+!width=33%|Nome
+!width=28%|da
+!width=36%|Modalità
+|-
+|P ||[[Bruno Bacchetti]] ||{{Calcio Libertas Trieste|N}} ||
+|-
+|D ||[[Edy Gratton]] ||{{Calcio Milan|N}} ||
+|-
+|D ||[[Carlo Codnig]] ||{{Calcio Pro Gorizia|N}} ||
+|-
+|C ||[[Alberto Milli]] ||{{Calcio Pro Gorizia|N}} ||
+|-
+|C ||[[Marino Bergamasco]] ||{{Calcio Pro Gorizia|N}} ||
+|-
+|C ||[[Ermanno Englaro]] ||{{Calcio Libertas Trieste|N}} ||
+|-
+|C ||[[Angelo Solazzo]] ||{{Calcio Libertas Trieste|N}} ||
+|-
+|A ||[[Mario Urbani]] ||{{Calcio Pro Gorizia|N}} ||
+|-
+|A ||[[Giuseppe Persi]] ||{{Calcio Udinese|N}} ||
+|-
+|A ||[[Federico Zanolla]] ||{{Calcio Spezia|N}} ||
+|}
+{{colonne fine}}
+
+== Risultati ==
+=== Serie A ===
+{{Vedi anche|Serie A 1947-1948}}
+==== Girone di andata ====
+{{Incontro di club
+|Sport=calcio
+|Giornomese = 14 settembre
+|Anno = 1947
+|Ora = 
+|Turno = 1ª giornata
+|Squadra 1 = Sampdoria
+|Squadra 2 = Triestina
+|Punteggio 1 = 2
+|Punteggio 2 = 2
+|Città = [[Genova]]
+|Stadio = [[Stadio Luigi Ferraris]]
+|Spettatori = 
+|Arbitro = [[Luigi Valsecchi (arbitro)|Luigi Valsecchi]]
+|Cittarbitro = [[Milano]]
+|Marcatori 1 = [[Juan Calichio|Calichio]] {{Goal|60}}<br/>[[Carlos Bello|Bello]] {{Goal|69}}
+|Marcatori 2 = {{Goal|2}} [[Mario Mlacher|Mlacher]]<br/>{{Goal|8}} [[Mario Tosolini|Tosolini]]
+|Sfondo = 
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 21 settembre
+|Anno = 1947
+|Ora =
+|Turno = 2ª giornata
+|Note = Turno di riposo della TRIESTINA
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport=calcio
+|Giornomese = 28 settembre
+|Anno = 1947
+|Ora = 
+|Turno = 3ª giornata
+|Squadra 1 = Livorno
+|Squadra 2 = Triestina
+|Punteggio 1 = 2
+|Punteggio 2 = 1
+|Città = [[Livorno]]
+|Stadio = [[Stadio Armando Picchi|Stadio Ardenza]]
+|Spettatori = 
+|Arbitro = [[Mario Codeluppi]]
+|Cittarbitro = [[Lodi]]
+|Marcatori 1 = [[Mario Stua|Stua]] {{Goal|40}}<br/>[[Bruno Dante|Dante]] {{Goal|60}}
+|Marcatori 2 = {{Goal|27}} [[Licio Rossetti|Rossetti]]
+}}
+{{Incontro di club
+|Sport=calcio
+|Giornomese = 5 ottobre
+|Anno = 1947
+|Ora = 
+|Turno = 4ª giornata
+|Squadra 1 = Triestina
+|Squadra 2 = Salernitana
+|Punteggio 1 = 0
+|Punteggio 2 = 0
+|Città = [[Trieste]]
+|Stadio = [[Stadio Giuseppe Grezar|Stadio Comunale]]
+|Spettatori = 
+|Arbitro = [[Ermanno Silvano|Silvano]]
+|Cittarbitro = [[Torino]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 12 ottobre
+|Anno = 1947
+|Ora = 
+|Turno = 5ª giornata
+|Squadra 1 = Triestina
+|Squadra 2 = Bari
+|Punteggio 1 = 1
+|Punteggio 2 = 1
+|Città = [[Trieste]]
+|Stadio = [[Stadio Giuseppe Grezar|Stadio Comunale]]
+|Spettatori = 
+|Arbitro = [[Pietro Massironi]]
+|Cittarbitro = [[Milano]]
+|Marcatori 1 = [[Licio Rossetti|Rossetti]] {{Goal|89}}
+|Marcatori 2 = {{Goal|24}} [[Severino Cavone|Cavone]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 19 ottobre
+|Anno = 1947
+|Ora = 
+|Turno = 6ª giornata
+|Squadra 1 = Juventus
+|Squadra 2 = Triestina
+|Punteggio 1 = 0
+|Punteggio 2 = 1
+|Città = [[Torino]]
+|Stadio = [[Stadio Olimpico (Torino)|Stadio Comunale]]
+|Spettatori = 
+|Arbitro = [[Giuseppe Zelocchi]]
+|Cittarbitro = [[Modena]]
+|Marcatori 2 = {{Goal|25}} [[Mario Begni|Begni]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport=calcio
+|Giornomese = 26 ottobre
+|Anno = 1947
+|Ora = 
+|Turno = 7ª giornata
+|Squadra 1 = Triestina
+|Squadra 2 = Milan
+|Punteggio 1 = 2
+|Punteggio 2 = 0
+|Città = [[Trieste]]
+|Stadio = [[Stadio Giuseppe Grezar|Stadio Comunale]]
+|Spettatori = 
+|Arbitro = [[Bruno Guarda (arbitro)|Bruno Guarda]]
+|Cittarbitro = [[Mestre]]
+|Marcatori 1 = [[Licio Rossetti|Rossetti]] {{Goal|4}}<br/>[[Bruno Ispiro|Ispiro]] {{Goal|68}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 2 novembre
+|Anno = 1947
+|Ora = 
+|Turno = 8ª giornata
+|Squadra 1 = Lucchese
+|Squadra 2 = Triestina
+|Punteggio 1 = 1
+|Punteggio 2 = 1
+|Città = [[Lucca]]
+|Stadio = [[Stadio Porta Elisa]]
+|Spettatori = 
+|Arbitro = [[Eliseo Camiolo]]
+|Cittarbitro = [[Roma]]
+|Marcatori 1 = [[Giovanni Clocchiatti|Clocchiatti]] {{Goal|77}}
+|Marcatori 2 = {{Goal|82}} [[Mario Begni|Begni]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 16 novembre
+|Anno = 1947
+|Ora = 
+|Turno = 9ª giornata
+|Squadra 1 = Pro Patria
+|Squadra 2 = Triestina
+|Punteggio 1 = 3
+|Punteggio 2 = 1
+|Città = [[Busto Arsizio]]
+|Stadio = [[Stadio Carlo Speroni|Stadio Comunale]]
+|Spettatori = 
+|Arbitro = [[Ferruccio Bonivento]]
+|Cittarbitro = [[Venezia]]
+|Marcatori 1 = [[Fausto Bonelli|Bonelli]] {{Goal|28}}<br/>[[Lelio Antoniotti|Antoniotti]] {{Goal|44}}<br/>[[Emidio Cavigioli|Cavigioli]] {{Goal|74}}
+|Marcatori 2 = {{Goal|30}} [[Guglielmo Trevisan|G. Trevisan]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 23 novembre
+|Anno = 1947
+|Ora = 
+|Turno = 10ª giornata
+|Squadra 1 = Triestina
+|Squadra 2 = Lazio
+|Punteggio 1 = 2
+|Punteggio 2 = 1
+|Città = [[Trieste]]
+|Stadio = [[Stadio Giuseppe Grezar|Stadio Comunale]]
+|Spettatori = 
+|Arbitro = [[Giuseppe Carpani (arbitro)|Giuseppe Carpani]]
+|Cittarbitro = [[Milano]]
+|Marcatori 1 = [[Mario Begni|Begni]] {{Goal|26}}<br/>[[Mario Tosolini|Tosolini]] {{Goal|66}}
+|Marcatori 2 = {{Goal|87}} [[Salustiano Vidal|Vidal]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport=calcio
+|Giornomese = 30 novembre
+|Anno = 1947
+|Ora = 
+|Turno = 11ª giornata
+|Squadra 1 = Triestina
+|Squadra 2 = Fiorentina
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Città = [[Trieste]]
+|Stadio = [[Stadio Giuseppe Grezar|Stadio Comunale]]
+|Spettatori = 
+|Arbitro = [[Mario Maurelli]]
+|Cittarbitro = [[Roma]]
+|Marcatori 1 = [[Bruno Ispiro|Ispiro]] {{Goal|35}}
+}}
+{{Incontro di club
+|Sport=calcio
+|Giornomese = 7 dicembre
+|Anno = 1947
+|Ora = 
+|Turno = 12ª giornata
+|Squadra 1 = Bologna
+|Squadra 2 = Triestina
+|Punteggio 1 = 0
+|Punteggio 2 = 0
+|Città = [[Bologna]]
+|Stadio = [[Stadio Renato Dall'Ara|Stadio Comunale]]
+|Spettatori = 
+|Arbitro = [[Lelio Coppolone]]
+|Cittarbitro = [[Bari]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport=calcio
+|Giornomese = 21 dicembre
+|Anno = 1947
+|Ora = 
+|Turno = 13ª giornata
+|Squadra 1 = Triestina
+|Squadra 2 = Vicenza
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Città = [[Trieste]]
+|Stadio = [[Stadio Giuseppe Grezar|Stadio Comunale]]
+|Spettatori = 
+|Arbitro = [[Vittorio Pera]]
+|Cittarbitro = [[Firenze]]
+|Marcatori 1 = [[Bruno Ispiro|Ispiro]] {{Goal|87}}
+}}
+{{Incontro di club
+|Sport=calcio
+|Giornomese = 28 dicembre
+|Anno = 1947
+|Ora = 
+|Turno = 14ª giornata
+|Squadra 1 = Torino
+|Squadra 2 = Triestina
+|Punteggio 1 = 6
+|Punteggio 2 = 0
+|Città = [[Torino]]
+|Stadio = [[Stadio Filadelfia]]
+|Spettatori = 
+|Arbitro = [[Bruno Tassini]]
+|Cittarbitro = [[Verona]]
+|Marcatori 1 = [[Guglielmo Gabetto|Gabetto]] {{Goal|32}}<br/>[[Romeo Menti|R. Menti]] {{Goal|48||73|rig.}}<br/>[[Ezio Loik|Loik]] {{Goal|50}}<br/>[[Pietro Ferraris|Ferraris]] {{Goal|65}}<br/>[[Virgilio Maroso|Maroso]] {{Goal|90}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport=calcio
+|Giornomese = 1º gennaio
+|Anno = 1947
+|Ora = 
+|Turno = 15ª giornata
+|Squadra 1 = Modena
+|Squadra 2 = Triestina
+|Punteggio 1 = 0
+|Punteggio 2 = 0
+|Città = [[Modena]]
+|Stadio = [[Stadio Alberto Braglia|Stadio Comunale]]
+|Spettatori = 
+|Arbitro = [[Virginio Canavesio]]
+|Cittarbitro = [[Torino]]
+}}
+{{Incontro di club
+|Sport=calcio
+|Giornomese = 4 gennaio
+|Anno = 1948
+|Ora = 
+|Turno = 16ª giornata
+|Squadra 1 = Triestina
+|Squadra 2 = Napoli
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Città = [[Trieste]]
+|Stadio = [[Stadio Giuseppe Grezar|Stadio Comunale]]
+|Spettatori = 
+|Arbitro = [[Armando Marchetti]]
+|Cittarbitro = [[Milano]]
+|Marcatori 1 = [[Mario Tosolini|Tosolini]] {{Goal|67}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport=calcio
+|Giornomese = 11 gennaio
+|Anno = 1948
+|Ora = 
+|Turno = 17ª giornata
+|Squadra 1 = Alessandria
+|Squadra 2 = Triestina
+|Punteggio 1 = 1
+|Punteggio 2 = 1
+|Città = [[Alessandria (Italia)|Alessandria]]
+|Stadio = [[Stadio Giuseppe Moccagatta]]
+|Spettatori = 
+|Arbitro = [[Eliseo Camiolo]]
+|Cittarbitro = [[Roma]]
+|Marcatori 1 = [[Aristide Coscia|Coscia]] {{Goal|86|rig.}}
+|Marcatori 2 = {{Goal|33}} [[Mario Begni|Begni]]
+}}
+{{Incontro di club
+|Sport=calcio
+|Giornomese = 18 gennaio
+|Anno = 1948
+|Ora = 
+|Turno = 18ª giornata
+|Squadra 1 = Triestina
+|Squadra 2 = Roma
+|Punteggio 1 = 2
+|Punteggio 2 = 0
+|Città = [[Trieste]]
+|Stadio = [[Stadio Giuseppe Grezar|Stadio Comunale]]
+|Spettatori = 
+|Arbitro = [[Mario Cambi]]
+|Cittarbitro = Livorno
+|Marcatori 1 = [[Bruno Ispiro|Ispiro]] {{Goal|17}}<br/>[[Mario Tosolini|Tosolini]] {{Goal|32}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport=calcio
+|Giornomese = 25 gennaio
+|Anno = 1948
+|Ora = 
+|Turno = 19ª giornata
+|Squadra 1 = Triestina
+|Squadra 2 = Genoa
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Città = [[Trieste]]
+|Stadio = [[Stadio Giuseppe Grezar|Stadio Comunale]]
+|Spettatori = 
+|Arbitro = [[Giorgio Bernardi]]
+|Cittarbitro = [[Bologna]]
+|Marcatori 1 = [[Ivano Blason|Blason]] {{Goal|49}}
+}}
+{{Incontro di club
+|Sport=calcio
+|Giornomese = 1º febbraio
+|Anno = 1948
+|Ora = 
+|Turno = 20ª giornata
+|Squadra 1 = Inter
+|Squadra 2 = Triestina
+|Punteggio 1 = 1
+|Punteggio 2 = 1
+|Città = [[Milano]]
+|Stadio = [[Arena Civica]]
+|Spettatori = 
+|Arbitro = [[Eriprando Poggipollini]]
+|Cittarbitro = [[Ferrara]]
+|Marcatori 1 = [[Giuseppe Arezzi|Arezzi]] {{Goal|52}}
+|Marcatori 2 = {{Goal|33}} [[Mario Tosolini|Tosolini]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport=calcio
+|Giornomese = 8 febbraio
+|Anno = 1948
+|Ora = 
+|Turno = 21ª giornata
+|Squadra 1 = Triestina
+|Squadra 2 = Atalanta
+|Punteggio 1 = 1
+|Punteggio 2 = 1
+|Città = [[Trieste]]
+|Stadio = [[Stadio Giuseppe Grezar|Stadio Comunale]]
+|Spettatori = 
+|Arbitro = [[Giovanni Galeati]]
+|Cittarbitro = [[Bologna]]
+|Marcatori 1 = [[Guglielmo Trevisan|G. Trevisan]] {{Goal|14}}
+|Marcatori 2 = {{Goal|59}} [[Renato Miglioli|Miglioli]]
+}}
+
+==== Girone di ritorno ====
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 15 febbraio
+|Anno = 1948
+|Ora = 
+|Turno = 22ª giornata
+|Squadra 1 = Triestina
+|Squadra 2 = Sampdoria
+|Punteggio 1 = 2
+|Punteggio 2 = 0
+|Città = [[Trieste]]
+|Stadio = [[Stadio Giuseppe Grezar|Stadio Comunale]]
+|Spettatori = 
+|Arbitro = [[Vittorio Pera]]
+|Cittarbitro = [[Firenze]]
+|Marcatori 1 = [[Mario Begni|Begni]] {{Goal|47||60}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 22 febbraio
+|Anno = 1948
+|Ora =
+|Turno = 23ª giornata
+|Note = Turno di riposo della TRIESTINA
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport=calcio
+|Giornomese = 29 febbraio
+|Anno = 1948
+|Ora = 
+|Turno = 24ª giornata
+|Squadra 1 = Triestina
+|Squadra 2 = Livorno
+|Punteggio 1 = 1
+|Punteggio 2 = 1
+|Città = [[Trieste]]
+|Stadio = [[Stadio Giuseppe Grezar|Stadio Comunale]]
+|Spettatori = 
+|Arbitro = [[Giuseppe Carpani (arbitro)|Giuseppe Carpani]]
+|Cittarbitro = [[Milano]]
+|Marcatori 1 = [[Mario Tosolini|Tosolini]] {{Goal|20}}
+|Marcatori 2 = {{Goal|74}} [[Domenico De Vito|De Vito]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 7 marzo
+|Anno = 1948
+|Ora = 
+|Turno = 25ª giornata
+|Squadra 1= Salernitana
+|Squadra 2 = Triestina
+|Punteggio 1 = 2
+|Punteggio 2 = 2
+|Città = [[Salerno]]
+|Stadio = [[Stadio Donato Vestuti|Stadio Comunale]]
+|Spettatori = 
+|Arbitro = [[Eliseo Camiolo]]
+|Cittarbitro = [[Roma]]
+|Marcatori 1 = [[Adalberto Sifredi|Sifredi]] {{Goal|29||51}}
+|Marcatori 2 = {{Goal|8}} [[Mario Tosolini|Tosolini]]<br/>{{Goal|86|aut.}} [[Vittorio Dagianti|Dagianti]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 14 marzo
+|Anno = 1948
+|Ora = 
+|Turno = 26ª giornata
+|Squadra 1 = Bari
+|Squadra 2 = Triestina
+|Punteggio 1 = 0
+|Punteggio 2 = 0
+|Città = [[Bari]]
+|Stadio = [[Stadio della Vittoria (Bari)|Stadio della Vittoria]]
+|Spettatori = 
+|Arbitro = [[Mario Cambi]]
+|Cittarbitro = [[Livorno]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 21 marzo
+|Anno = 1948
+|Ora = 
+|Turno = 27ª giornata
+|Squadra 1 = Triestina
+|Squadra 2 = Juventus
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Città = [[Trieste]]
+|Stadio = [[Stadio Giuseppe Grezar|Stadio Comunale]]
+|Spettatori = 
+|Arbitro = [[Vincenzo Orlandini]]
+|Cittarbitro = [[Roma]]
+|Marcatori 1 = [[Carlo Parola|Parola]] {{Goal|4|aut.}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 28 marzo
+|Anno = 1948
+|Ora = 
+|Turno = 28ª giornata
+|Squadra 1 = Milan
+|Squadra 2 = Triestina
+|Punteggio 1 = 1
+|Punteggio 2 = 1
+|Città = [[Milano]]
+|Stadio = [[Stadio San Siro]]
+|Spettatori = 
+|Arbitro = [[Vittorio Pera]]
+|Cittarbitro = [[Firenze]]
+|Marcatori 1 = [[Ettore Puricelli|Puricelli]] {{Goal|26}}
+|Marcatori 2 = {{Goal|2}} [[Licio Rossetti|Rossetti]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 11 aprile
+|Anno = 1948
+|Ora = 
+|Turno = 29ª giornata
+|Squadra 1 = Triestina
+|Squadra 2 = Lucchese
+|Punteggio 1 = 4
+|Punteggio 2 = 1
+|Città = [[Trieste]]
+|Stadio = [[Stadio Giuseppe Grezar|Stadio Comunale]]
+|Spettatori = 
+|Arbitro = [[Gino Cicardi]]
+|Cittarbitro = [[Lecco]]
+|Marcatori 1 = [[Ivano Blason|Blason]] {{Goal|9}}<br/>[[Guglielmo Trevisan|G. Trevisan]] {{Goal|16}}<br/>[[Mario Begni|Begni]] {{Goal|68}}<br/>[[Mario Tosolini|Tosolini]] {{Goal|75}}
+|Marcatori 2 = {{Goal|76}} [[Ugo Conti (calciatore)|U. Conti]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 17 aprile
+|Anno = 1948
+|Ora = 
+|Turno = 30ª giornata
+|Squadra 1 = Triestina
+|Squadra 2 = Pro Patria
+|Punteggio 1 = 4
+|Punteggio 2 = 1
+|Città = [[Trieste]]
+|Stadio = [[Stadio Giuseppe Grezar|Stadio Comunale]]
+|Spettatori = 
+|Arbitro = [[Virginio Canavesio]]
+|Cittarbitro = [[Torino]]
+|Marcatori 1 = [[Antonio Gordini|Gordini]] {{Goal|31||84}}<br/>[[Bruno Ispiro|Ispiro]] {{Goal|42||55}}
+|Marcatori 2 = {{Goal|51|rig.}} [[Angelo Turconi|Turconi]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 25 aprile
+|Anno = 1948
+|Ora = 
+|Turno = 31ª giornata
+|Squadra 1 = Lazio
+|Squadra 2 = Triestina
+|Punteggio 1 = 3
+|Punteggio 2 = 1
+|Città = [[Roma]]
+|Stadio = [[Stadio Nazionale]]
+|Spettatori = 
+|Arbitro = [[Tommaso Corallo]]
+|Cittarbitro = [[Lecce]]
+|Marcatori 1 = [[Mario Magrini|Magrini]] {{Goal|25}}<br/>[[Romano Penzo|Penzo]] {{Goal|58||70}}
+|Marcatori 2 = {{Goal|42}} [[Antonio Gordini|Gordini]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 2 maggio
+|Anno = 1948
+|Ora = 
+|Turno = 32ª giornata
+|Squadra 1 = Fiorentina
+|Squadra 2 = Triestina
+|Punteggio 1 = 2
+|Punteggio 2 = 1
+|Città = [[Firenze]]
+|Stadio = [[Stadio Artemio Franchi|Stadio Comunale]]
+|Spettatori = 
+|Arbitro = [[Generoso Dattilo]]
+|Cittarbitro = [[Roma]]
+|Marcatori 1 = [[Italo Acconcia|Acconcia]] {{Goal|2}}<br/>[[Renato Gei|Gei]] {{Goal|67}}
+|Marcatori 2 = {{Goal|28}} [[Licio Rossetti|Rossetti]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 6 maggio
+|Anno = 1948
+|Ora = 
+|Turno = 33ª giornata
+|Squadra 1 = Triestina
+|Squadra 2 = Bologna
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Città = [[Trieste]]
+|Stadio = [[Stadio Giuseppe Grezar|Stadio Comunale]]
+|Spettatori = 
+|Arbitro = [[Giuseppe Boffardi]]
+|Cittarbitro = [[Genova]]
+|Marcatori 1 = [[Mario Begni|Begni]] {{Goal|30}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 9 maggio
+|Anno = 1948
+|Ora = 
+|Turno = 34ª giornata
+|Squadra 1 = Vicenza
+|Squadra 2 = Triestina
+|Punteggio 1 = 1
+|Punteggio 2 = 1
+|Città = [[Vicenza]]
+|Stadio = [[Stadio Romeo Menti|Stadio Comunale]]
+|Spettatori = 
+|Arbitro = [[Osvaldo Savio]]
+|Cittarbitro = [[Torino]]
+|Marcatori 1 = [[Lino Begnini|Begnini]] {{Goal|76|rig.}}
+|Marcatori 2 = {{Goal|46}} [[Mario Begni|Begni]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 23 maggio
+|Anno = 1948
+|Ora = 
+|Turno = 35ª giornata
+|Squadra 1 = Triestina
+|Squadra 2 = Torino
+|Punteggio 1 = 0
+|Punteggio 2 = 0
+|Città = [[Trieste]]
+|Stadio = [[Stadio Giuseppe Grezar|Stadio Comunale]]
+|Spettatori = 
+|Arbitro = [[Eliseo Camiolo]]
+|Cittarbitro = [[Roma]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 27 maggio
+|Anno = 1948
+|Ora = 
+|Turno = 36ª giornata
+|Squadra 1 = Triestina
+|Squadra 2 = Modena
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Città = [[Trieste]]
+|Stadio = [[Stadio Giuseppe Grezar|Stadio Comunale]]
+|Spettatori = 
+|Arbitro = [[Giuseppe Carpani (arbitro)|Giuseppe Carpani]]
+|Cittarbitro = [[Milano]]
+|Marcatori 1 = [[Bruno Ispiro|Ispiro]] {{Goal|12}}
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 30 maggio
+|Anno = 1948
+|Ora = 
+|Turno = 37ª giornata
+|Squadra 1 = Napoli
+|Squadra 2 = Triestina
+|Punteggio 1 = 1
+|Punteggio 2 = 0
+|Città = [[Napoli]]
+|Stadio = [[Stadio Arturo Collana|Stadio della Liberazione]]
+|Spettatori = 
+|Arbitro = [[Virginio Canavesio]]
+|Cittarbitro = [[Torino]]
+|Marcatori 1 = [[Dante Di Benedetti|Di Benedetti]] {{Goal|11}}
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 6 giugno
+|Anno = 1948
+|Ora = 
+|Turno = 38ª giornata
+|Squadra 1 = Triestina
+|Squadra 2 = Alessandria
+|Punteggio 1 = 2
+|Punteggio 2 = 1
+|Città = [[Trieste]]
+|Stadio = [[Stadio Giuseppe Grezar|Stadio Comunale]]
+|Spettatori = 
+|Arbitro = [[Bruno Bergomi]]
+|Cittarbitro = [[Milano]]
+|Marcatori 1 = [[Licio Rossetti|Rossetti]] {{Goal|5}}<br/>[[Guglielmo Trevisan|G. Trevisan]] {{Goal|35}}
+|Marcatori 2 = {{Goal|64}} [[Gino Armano|Armano]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 13 giugno
+|Anno = 1948
+|Ora = 
+|Turno = 39ª giornata
+|Squadra 1 = Roma
+|Squadra 2 = Triestina
+|Punteggio 1 = 1
+|Punteggio 2 = 3
+|Città = [[Roma]]
+|Stadio = [[Stadio Nazionale]]
+|Spettatori = 
+|Arbitro = [[Virginio Canavesio]]
+|Cittarbitro = [[Torino]]
+|Marcatori 1 = [[Omero Losi|Losi]] {{Goal|27}}
+|Marcatori 2 = {{Goal|19}} [[Bruno Ispiro|Ispiro]]<br/>{{Goal|25|aut.}} [[Corrado Contin|Contin]]<br/>{{Goal|78}} [[Mario Begni|Begni]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 20 giugno
+|Anno = 1948
+|Ora = 
+|Turno = 40ª giornata
+|Squadra 1 = Genoa
+|Squadra 2 = Triestina
+|Punteggio 1 = 2
+|Punteggio 2 = 1
+|Città = [[Trieste]]
+|Stadio = [[Stadio Giuseppe Grezar|Stadio Comunale]]
+|Spettatori = 
+|Arbitro = [[Giacomo Bertolio]]
+|Cittarbitro = [[Torino]]
+|Marcatori 1 = [[Alido Grisanti|Grisanti]] {{Goal|54}}<br/>[[Juan Carlos Verdeal|Verdeal]] {{Goal|56}}
+|Marcatori 2 = {{Goal|46}} [[Guglielmo Trevisan|G. Trevisan]]
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 27 giugno
+|Anno = 1948
+|Ora = 
+|Turno = 41ª giornata
+|Squadra 1 = Triestina
+|Squadra 2 = Inter
+|Punteggio 1 = 4
+|Punteggio 2 = 3
+|Città = [[Trieste]]
+|Stadio = [[Stadio Giuseppe Grezar|Stadio Comunale]]
+|Spettatori = 
+|Arbitro = [[Agostino Gamba]]
+|Cittarbitro = [[Napoli]]
+|Marcatori 1 = [[Guglielmo Trevisan|G. Trevisan]] {{Goal|11}}<br/>[[Bruno Ispiro|Ispiro]] {{Goal|15}}<br/>[[Mario Tosolini|Tosolini]] {{Goal|41}}<br/>[[Mario Begni|Begni]] {{Goal|84}}
+|Marcatori 2 = {{Goal|7}} [[Benito Lorenzi|Lorenzi]]<br/>{{Goal|61}} [[Cosimo Muci|Muci]]<br/>{{Goal|70|rig.}} [[Nicolae Simatoc|Simatoc]]
+|Sfondo = on
+}}
+{{Incontro di club
+|Sport = calcio
+|Giornomese = 4 luglio
+|Anno = 1948
+|Ora = 
+|Turno = 42ª giornata
+|Squadra 1 = Atalanta
+|Squadra 2 = Triestina
+|Punteggio 1 = 3
+|Punteggio 2 = 1
+|Città = [[Bergamo]]
+|Stadio = [[Stadio Atleti Azzurri d'Italia|Stadio Comunale]]
+|Spettatori = 
+|Arbitro = [[Ettore Neri (arbitro)|Ettore Neri]]
+|Cittarbitro = [[Vicenza]]
+|Marcatori 1 = [[Mario Astorri|Astorri]] {{Goal|32}}<br/>[[Edmondo Fabbri|Ed. Fabbri]] {{Goal|37}}<br/>[[Július Korostelev|Korostolev]] {{Goal|74|rig.}}
+|Marcatori 2 = {{Goal|86}} [[Guglielmo Trevisan|G. Trevisan]]
+}}
+
+== Statistiche ==
+=== Statistiche di squadra ===
+
+{|class="wikitable" style="width:90%;text-align:center"
+! rowspan="2" |Competizione<ref>{{cita|Panini|114}}.</ref>
+! rowspan="2" |Punti
+! colspan="6" |In casa
+! colspan="6" |In trasferta
+! colspan="6" |Totale
+! rowspan="2" |[[Differenza reti|DR]]
+|-
+! {{Descrizione comando|G|Partite giocate}}
+! {{Descrizione comando|V|Partite vinte}}
+! {{Descrizione comando|N|Partite pareggiate (nulle)}}
+! {{Descrizione comando|P|Partite perse}}
+! {{Descrizione comando|Gf|Gol fatti}}
+! {{Descrizione comando|Gs|Gol subiti}}
+! {{Descrizione comando|G|Partite giocate}}
+! {{Descrizione comando|V|Partite vinte}}
+! {{Descrizione comando|N|Partite pareggiate (nulle)}}
+! {{Descrizione comando|P|Partite perse}}
+! {{Descrizione comando|Gf|Gol fatti}}
+! {{Descrizione comando|Gs|Gol subiti}}
+! {{Descrizione comando|G|Partite giocate}}
+! {{Descrizione comando|V|Partite vinte}}
+! {{Descrizione comando|N|Partite pareggiate (nulle)}}
+! {{Descrizione comando|P|Partite perse}}
+! {{Descrizione comando|Gf|Gol fatti}}
+! {{Descrizione comando|Gs|Gol subiti}}
+|-
+|{{simbolo|Scudetto.svg|15}} [[Serie A 1947-1948|Serie A]] ||49 ||20 ||15 ||5 ||0 ||32 ||10 ||20 ||2 ||10 ||8 ||19 ||32 ||40 ||17 ||15 ||8 ||51 ||42 ||+9
+|-
+! Totale ||||20 ||15 ||5 ||0 ||32 ||10 ||20 ||2 ||10 ||8 ||19 ||32 ||40 ||17 ||15 ||8 ||51 ||42 ||+9
+|}
+
+=== Statistiche dei giocatori<ref>{{cita|Panini|115}}.</ref> ===
+{{Statistiche dei giocatori
+|Competizione1 = Serie A
+|Totale = no
+|Cartellini = no
+|{{Sortname|M.|Begni|Mario Begni}} {{Sommastat|C=no |37|11|?|?}}
+|{{Sortname|G.|Bernard|Gerardo Bernard}} {{Sommastat|C=no |11|0|?|?}}
+|{{Sortname|I.|Blason|Ivano Blason}} {{Sommastat|C=no |40|2|?|?}}
+|{{Sortname|E.|Giannini|Euro Giannini}} {{Sommastat|C=no |17|0|?|?}}
+|{{Sortname|A.|Gordini|Antonio Gordini}} {{Sommastat|C=no |5|3|?|?}}
+|{{Sortname|B.|Ispiro|Bruno Ispiro}} {{Sommastat|C=no |38|9|?|?}}
+|{{Sortname|M.|Mlacher|Mario Mlacher}} {{Sommastat|C=no |5|1|?|?}}
+|{{Sortname|C.|Presca|Cesare Presca}} {{Sommastat|C=no |23|0|?|?}}
+|{{Sortname|E.|Radio|Enrico Radio}} {{Sommastat|C=no |40|0|?|?}}
+|{{Sortname|L.|Rossetti|Licio Rossetti}} {{Sommastat|C=no |37|6|?|?}}
+|{{Sortname|A.|Sessa|Antonio Sessa}} {{Sommastat|C=no |40|0|?|?}}
+|{{Sortname|G.|Striuli|Guerrino Striuli}} {{Sommastat|C=no |40|-42|?|?}}
+|{{Sortname|M.|Tosolini|Mario Tosolini}} {{Sommastat|C=no |36|9|?|?}}
+|{{Sortname|G.|Trevisan|Guglielmo Trevisan}} {{Sommastat|C=no |33|8|?|?}}
+|{{Sortname|C.|Zorzin|Corrado Zorzin}} {{Sommastat|C=no |38|0|?|?}}
+}}
+
+== Note ==
+<references/>
+
+== Bibliografia ==
+* {{cita libro |titolo=Almanacco illustrato del calcio - La storia 1898-2004 |anno=2004 |città=Modena |editore=Panini |cid= Panini}}
+* {{cita libro |cognome=Chiesa |nome=Carlo F.|titolo=Il grande romanzo dello scudetto |editore=da «[[Calcio 2000]]» |anno=annate 2002 e 2003}}
+* {{Cita web|url=https://web.archive.org/web/20110411200923/http://www3.lastampa.it/archivio-storico/|titolo=La Stampa, annate 1946 e 1947}}
+
+== Collegamenti esterni ==
+* {{cita web|url=http://www.rsssf.com/tablesi/ital48.html|titolo=Serie A 1947-1948|sito=[[RSSSF]]|lingua=en}}
+
+{{Calcio Triestina storico}}
+{{Calcio in Italia 1947-1948}}
+{{Portale|calcio}}

@@ -695,8 +695,9 @@ def _patch_pack(pk, p, lang, area, at, env):
     d2, ct, tcn, comp, fx2 = env
     m = pk.meta
     lfile, _ = pk.files[pk.league['clubs']]
-    rec = area.add(bytes((countries.CONTINENT[m['continent']],)) + m['button'].encode('latin1') + b'\0'
-                   + m['button'].encode('latin1') + b'\0')
+    button = m.get('button_names', {}).get(lang) or m['button']      # button_names: the country name per language
+    rec = area.add(bytes((countries.CONTINENT[m['continent']],)) + button.encode('latin1') + b'\0'
+                   + button.encode('latin1') + b'\0')
     # every pack file is a country entry (a club's country is never null); bases in teamsCountryNumbers; the entry
     # after the last own-base file closes its team count (a country's count = next base - its base); shared-base
     # files last: their bases overwrite that closing entry when they follow it

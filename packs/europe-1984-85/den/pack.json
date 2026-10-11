@@ -3,6 +3,7 @@
  "id": "europe-1984-85-den",
  "kind": "career",
  "button": "DENMARK",
+ "button_names": {"it": "DANIMARCA", "en": "DENMARK", "fr": "DANEMARK", "de": "DANEMARK"},
  "continent": "europe",
  "sources": [
   "DaniSwos (CM01/02 Retro Update Team), 1984-85 database",

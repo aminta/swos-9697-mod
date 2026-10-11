@@ -3,6 +3,7 @@
  "id": "europe-1984-85-por",
  "kind": "career",
  "button": "PORTUGAL",
+ "button_names": {"it": "PORTOGALLO", "en": "PORTUGAL", "fr": "PORTUGAL", "de": "PORTUGAL"},
  "continent": "europe",
  "sources": [
   "DaniSwos (CM01/02 Retro Update Team), 1984-85 database",

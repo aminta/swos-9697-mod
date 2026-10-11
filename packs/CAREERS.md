@@ -54,10 +54,11 @@ As for season packs, you do not need to care about `files` (file numbers and glo
 |---|---|
 | `kind` | `"career"` (a season pack has `"season"` or nothing) |
 | `button` | the country's button in the world |
+| `button_names` | optional: the button per game language, e.g. `{"it": "INGHILTERRA", "en": "ENGLAND", "fr": "ANGLETERRE", "de": "ENGLAND"}` (default `button`) |
 | `world` | the world's number: all the countries of one world have the same number |
 | `europe_places` | places of this country in the European Cup (`cc`), Cup Winners' Cup (`cwc`) and UEFA Cup (`uefa`) |
 | `first_europe` | optional: the clubs that play each European cup in the **first** season (club keys of this country). Default: the clubs in league order, top division first (Champions Cup first, then Cup Winners' Cup, then UEFA Cup) |
-| `world_cups` | in **one** pack of the world only (the *root* country): `start_year` (the first season, e.g. `1984` for 1984-85) and optionally the `rounds` of each cup, e.g. `{"cc": {"rounds": ["two_legs", "two_legs", "two_legs", "two_legs", "single"]}}`. Default rounds: two legs, single-match final |
+| `world_cups` | in **one** pack of the world only (the *root* country): `start_year` (the first season, e.g. `1984` for 1984-85), `name` (the world's entry in the CLASSIC CAREERS list, also per language: `{"it": "EUROPA 1984-85", "en": "EUROPE 1984-85"}`; default `1984-85`) and optionally the `rounds` of each cup, e.g. `{"cc": {"rounds": ["two_legs", "two_legs", "two_legs", "two_legs", "single"]}}`. Default rounds: two legs, single-match final |
 
 **Leagues with divisions.** A country can have several divisions with promotion and relegation: in the league
 competition, `divisions` lists them from the top (`teams`, `promoted`, `relegated`, `names`), and `clubs.csv` gets a

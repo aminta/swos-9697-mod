@@ -3,6 +3,7 @@
  "id": "europe-1984-85-ita",
  "kind": "career",
  "button": "ITALY",
+ "button_names": {"it": "ITALIA", "en": "ITALY", "fr": "ITALIE", "de": "ITALIEN"},
  "continent": "europe",
  "sources": [
   "DaniSwos (CM01/02 Retro Update Team), 1984-85 database",

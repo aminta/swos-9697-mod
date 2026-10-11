@@ -3,6 +3,7 @@
  "id": "europe-1984-85-cyp",
  "kind": "career",
  "button": "CYPRUS",
+ "button_names": {"it": "CIPRO", "en": "CYPRUS", "fr": "CHYPRE", "de": "ZYPERN"},
  "continent": "europe",
  "sources": [
   "DaniSwos (CM01/02 Retro Update Team), 1984-85 database",

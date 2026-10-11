@@ -3,6 +3,7 @@
  "id": "europe-1984-85-tur",
  "kind": "career",
  "button": "TURKEY",
+ "button_names": {"it": "TURCHIA", "en": "TURKEY", "fr": "TURQUIE", "de": "TURKEI"},
  "continent": "europe",
  "sources": [
   "DaniSwos (CM01/02 Retro Update Team), 1984-85 database",

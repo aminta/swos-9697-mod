@@ -3,6 +3,7 @@
  "id": "europe-1984-85-isl",
  "kind": "career",
  "button": "ICELAND",
+ "button_names": {"it": "ISLANDA", "en": "ICELAND", "fr": "ISLANDE", "de": "ISLAND"},
  "continent": "europe",
  "sources": [
   "DaniSwos (CM01/02 Retro Update Team), 1984-85 database",

@@ -3,6 +3,7 @@
  "id": "europe-1984-85-urs",
  "kind": "career",
  "button": "SOVIET UNION",
+ "button_names": {"it": "URSS", "en": "SOVIET UNION", "fr": "URSS", "de": "UDSSR"},
  "continent": "europe",
  "sources": [
   "DaniSwos (CM01/02 Retro Update Team), 1984-85 database",

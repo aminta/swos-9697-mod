@@ -3,6 +3,7 @@
  "id": "europe-1984-85-bel",
  "kind": "career",
  "button": "BELGIUM",
+ "button_names": {"it": "BELGIO", "en": "BELGIUM", "fr": "BELGIQUE", "de": "BELGIEN"},
  "continent": "europe",
  "sources": [
   "DaniSwos (CM01/02 Retro Update Team), 1984-85 database",

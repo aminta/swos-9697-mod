@@ -3,6 +3,7 @@
  "id": "europe-1984-85-frg",
  "kind": "career",
  "button": "WEST GERMANY",
+ "button_names": {"it": "GERMANIA OVEST", "en": "WEST GERMANY", "fr": "RFA", "de": "BRD"},
  "continent": "europe",
  "sources": [
   "DaniSwos (CM01/02 Retro Update Team), 1984-85 database",

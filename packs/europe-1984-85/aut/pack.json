@@ -3,6 +3,7 @@
  "id": "europe-1984-85-aut",
  "kind": "career",
  "button": "AUSTRIA",
+ "button_names": {"it": "AUSTRIA", "en": "AUSTRIA", "fr": "AUTRICHE", "de": "OSTERREICH"},
  "continent": "europe",
  "sources": [
   "DaniSwos (CM01/02 Retro Update Team), 1984-85 database",

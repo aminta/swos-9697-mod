@@ -3,6 +3,7 @@
  "id": "europe-1984-85-yug",
  "kind": "career",
  "button": "YUGOSLAVIA",
+ "button_names": {"it": "JUGOSLAVIA", "en": "YUGOSLAVIA", "fr": "YOUGOSLAVIE", "de": "JUGOSLAWIEN"},
  "continent": "europe",
  "sources": [
   "DaniSwos (CM01/02 Retro Update Team), 1984-85 database",

@@ -3,6 +3,7 @@
  "id": "europe-1984-85-sco",
  "kind": "career",
  "button": "SCOTLAND",
+ "button_names": {"it": "SCOZIA", "en": "SCOTLAND", "fr": "ECOSSE", "de": "SCHOTTLAND"},
  "continent": "europe",
  "sources": [
   "DaniSwos (CM01/02 Retro Update Team), 1984-85 database",

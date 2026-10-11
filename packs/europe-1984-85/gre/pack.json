@@ -3,6 +3,7 @@
  "id": "europe-1984-85-gre",
  "kind": "career",
  "button": "GREECE",
+ "button_names": {"it": "GRECIA", "en": "GREECE", "fr": "GRECE", "de": "GRIECHENLAND"},
  "continent": "europe",
  "sources": [
   "DaniSwos (CM01/02 Retro Update Team), 1984-85 database",

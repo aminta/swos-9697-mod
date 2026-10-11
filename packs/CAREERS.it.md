@@ -54,10 +54,11 @@ competizioni, di `squads` e di `dates_from`: li assegniamo noi quando il mondo e
 |---|---|
 | `kind` | `"career"` (un pacchetto stagione ha `"season"` o niente) |
 | `button` | il pulsante della nazione nel mondo |
+| `button_names` | facoltativo: il pulsante per lingua del gioco, es. `{"it": "INGHILTERRA", "en": "ENGLAND", "fr": "ANGLETERRE", "de": "ENGLAND"}` (predefinito `button`) |
 | `world` | il numero del mondo: tutte le nazioni di un mondo hanno lo stesso numero |
 | `europe_places` | posti di questa nazione in Coppa dei Campioni (`cc`), Coppa delle Coppe (`cwc`) e Coppa UEFA (`uefa`) |
 | `first_europe` | facoltativo: i club che giocano ogni coppa europea nella **prima** stagione (chiavi dei club di questa nazione). Predefinito: i club in ordine di campionato, prima la divisione più alta (prima la Coppa dei Campioni, poi la Coppa delle Coppe, poi la UEFA) |
-| `world_cups` | in **un solo** pacchetto del mondo (la nazione *principale*): `start_year` (la prima stagione, es. `1984` per il 1984-85) e, se serve, i turni (`rounds`) di ogni coppa, es. `{"cc": {"rounds": ["two_legs", "two_legs", "two_legs", "two_legs", "single"]}}`. Turni predefiniti: andata e ritorno, finale secca |
+| `world_cups` | in **un solo** pacchetto del mondo (la nazione *principale*): `start_year` (la prima stagione, es. `1984` per il 1984-85), `name` (il nome del mondo nell'elenco CARR. STORICHE, anche per lingua: `{"it": "EUROPA 1984-85", "en": "EUROPE 1984-85"}`; predefinito `1984-85`) e, se serve, i turni (`rounds`) di ogni coppa, es. `{"cc": {"rounds": ["two_legs", "two_legs", "two_legs", "two_legs", "single"]}}`. Turni predefiniti: andata e ritorno, finale secca |
 
 **Campionati con più divisioni.** Una nazione può avere più divisioni con promozioni e retrocessioni: nella
 competizione del campionato, `divisions` le elenca dalla più alta (`teams`, `promoted`, `relegated`, `names`), e

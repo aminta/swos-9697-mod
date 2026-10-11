@@ -3,6 +3,7 @@
  "id": "europe-1984-85-irl",
  "kind": "career",
  "button": "REP. IRELAND",
+ "button_names": {"it": "EIRE", "en": "REP. IRELAND", "fr": "EIRE", "de": "IRLAND"},
  "continent": "europe",
  "sources": [
   "DaniSwos (CM01/02 Retro Update Team), 1984-85 database",

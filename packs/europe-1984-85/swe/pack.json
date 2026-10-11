@@ -3,6 +3,7 @@
  "id": "europe-1984-85-swe",
  "kind": "career",
  "button": "SWEDEN",
+ "button_names": {"it": "SVEZIA", "en": "SWEDEN", "fr": "SUEDE", "de": "SCHWEDEN"},
  "continent": "europe",
  "sources": [
   "DaniSwos (CM01/02 Retro Update Team), 1984-85 database",

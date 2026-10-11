@@ -3,6 +3,7 @@
  "id": "europe-1984-85-mlt",
  "kind": "career",
  "button": "MALTA",
+ "button_names": {"it": "MALTA", "en": "MALTA", "fr": "MALTE", "de": "MALTA"},
  "continent": "europe",
  "sources": [
   "DaniSwos (CM01/02 Retro Update Team), 1984-85 database",

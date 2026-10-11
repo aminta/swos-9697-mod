@@ -3,6 +3,7 @@
  "id": "europe-1984-85-nor",
  "kind": "career",
  "button": "NORWAY",
+ "button_names": {"it": "NORVEGIA", "en": "NORWAY", "fr": "NORVEGE", "de": "NORWEGEN"},
  "continent": "europe",
  "sources": [
   "DaniSwos (CM01/02 Retro Update Team), 1984-85 database",

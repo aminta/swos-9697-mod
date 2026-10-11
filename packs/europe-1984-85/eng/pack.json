@@ -3,6 +3,7 @@
  "id": "europe-1984-85-eng",
  "kind": "career",
  "button": "ENGLAND",
+ "button_names": {"it": "INGHILTERRA", "en": "ENGLAND", "fr": "ANGLETERRE", "de": "ENGLAND"},
  "continent": "europe",
  "sources": [
   "DaniSwos (CM01/02 Retro Update Team), 1984-85 database",

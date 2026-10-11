@@ -3,6 +3,7 @@
  "id": "europe-1984-85-nir",
  "kind": "career",
  "button": "N. IRELAND",
+ "button_names": {"it": "IRLANDA DEL NORD", "en": "N. IRELAND", "fr": "IRLANDE DU NORD", "de": "NORDIRLAND"},
  "continent": "europe",
  "sources": [
   "DaniSwos (CM01/02 Retro Update Team), 1984-85 database",

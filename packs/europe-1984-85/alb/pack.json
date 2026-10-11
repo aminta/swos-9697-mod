@@ -3,6 +3,7 @@
  "id": "europe-1984-85-alb",
  "kind": "career",
  "button": "ALBANIA",
+ "button_names": {"it": "ALBANIA", "en": "ALBANIA", "fr": "ALBANIE", "de": "ALBANIEN"},
  "continent": "europe",
  "sources": [
   "DaniSwos (CM01/02 Retro Update Team), 1984-85 database",

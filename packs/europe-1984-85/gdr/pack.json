@@ -3,6 +3,7 @@
  "id": "europe-1984-85-gdr",
  "kind": "career",
  "button": "EAST GERMANY",
+ "button_names": {"it": "GERMANIA EST", "en": "EAST GERMANY", "fr": "RDA", "de": "DDR"},
  "continent": "europe",
  "sources": [
   "DaniSwos (CM01/02 Retro Update Team), 1984-85 database",

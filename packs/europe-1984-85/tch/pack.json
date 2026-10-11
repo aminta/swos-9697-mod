@@ -3,6 +3,7 @@
  "id": "europe-1984-85-tch",
  "kind": "career",
  "button": "CZECHOSLOVAKIA",
+ "button_names": {"it": "CECOSLOVACCHIA", "en": "CZECHOSLOVAKIA", "fr": "TCHECOSLOVAQUIE", "de": "TSCHECHOSLOWAKEI"},
  "continent": "europe",
  "sources": [
   "DaniSwos (CM01/02 Retro Update Team), 1984-85 database",

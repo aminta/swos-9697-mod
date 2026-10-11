@@ -3,6 +3,7 @@
  "id": "europe-1984-85-sui",
  "kind": "career",
  "button": "SWITZERLAND",
+ "button_names": {"it": "SVIZZERA", "en": "SWITZERLAND", "fr": "SUISSE", "de": "SCHWEIZ"},
  "continent": "europe",
  "sources": [
   "DaniSwos (CM01/02 Retro Update Team), 1984-85 database",

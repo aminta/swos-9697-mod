@@ -3,6 +3,7 @@
  "id": "europe-1984-85-ned",
  "kind": "career",
  "button": "HOLLAND",
+ "button_names": {"it": "OLANDA", "en": "HOLLAND", "fr": "PAYS BAS", "de": "HOLLAND"},
  "continent": "europe",
  "sources": [
   "DaniSwos (CM01/02 Retro Update Team), 1984-85 database",

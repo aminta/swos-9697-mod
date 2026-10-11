@@ -3,6 +3,7 @@
  "id": "europe-1984-85-hun",
  "kind": "career",
  "button": "HUNGARY",
+ "button_names": {"it": "UNGHERIA", "en": "HUNGARY", "fr": "HONGRIE", "de": "UNGARN"},
  "continent": "europe",
  "sources": [
   "DaniSwos (CM01/02 Retro Update Team), 1984-85 database",

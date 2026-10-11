@@ -3,6 +3,7 @@
  "id": "europe-1984-85-fin",
  "kind": "career",
  "button": "FINLAND",
+ "button_names": {"it": "FINLANDIA", "en": "FINLAND", "fr": "FINLANDE", "de": "FINNLAND"},
  "continent": "europe",
  "sources": [
   "DaniSwos (CM01/02 Retro Update Team), 1984-85 database",

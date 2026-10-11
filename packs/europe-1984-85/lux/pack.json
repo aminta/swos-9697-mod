@@ -3,6 +3,7 @@
  "id": "europe-1984-85-lux",
  "kind": "career",
  "button": "LUXEMBOURG",
+ "button_names": {"it": "LUSSEMBURGO", "en": "LUXEMBOURG", "fr": "LUXEMBOURG", "de": "LUXEMBURG"},
  "continent": "europe",
  "sources": [
   "DaniSwos (CM01/02 Retro Update Team), 1984-85 database",

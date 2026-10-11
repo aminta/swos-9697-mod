@@ -3,6 +3,7 @@
  "id": "europe-1984-85-esp",
  "kind": "career",
  "button": "SPAIN",
+ "button_names": {"it": "SPAGNA", "en": "SPAIN", "fr": "ESPAGNE", "de": "SPANIEN"},
  "continent": "europe",
  "sources": [
   "DaniSwos (CM01/02 Retro Update Team), 1984-85 database",

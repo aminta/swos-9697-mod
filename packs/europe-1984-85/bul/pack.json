@@ -3,6 +3,7 @@
  "id": "europe-1984-85-bul",
  "kind": "career",
  "button": "BULGARIA",
+ "button_names": {"it": "BULGARIA", "en": "BULGARIA", "fr": "BULGARIE", "de": "BULGARIEN"},
  "continent": "europe",
  "sources": [
   "DaniSwos (CM01/02 Retro Update Team), 1984-85 database",

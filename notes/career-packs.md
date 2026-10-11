@@ -382,3 +382,12 @@ champion -> exact season-1 entrants need first_europe lists not tied to the plac
   Iceland and Malta capped at 10 clubs (previous table's clubs first). 772 clubs. Build IT 9c252bfe EN db943872
   FR 037adb9e DE 4420d57b (not installed). Still open: real national cups 1984-85, coaches (ask Daniele for a staff
   export of the CM DB), short-name review by Davide.
+- Session 2b (2026-10-11): coaches (it/es/nl/pt/fr.wikipedia season tables + Wikidata P286/P6087 in Aug-Sep 1984,
+  coaches.py) -> 222 clubs (ITA/NED complete, ESP/FRG 34 of 38, POR 14, ENG 25 = First Division, few elsewhere).
+  Real national cups 1984-85 (cupparse.py: any of OneLegResult/TwoLegResult/footballbox/wikitables/RD-brackets per
+  round section, replays merged; a winner = the club in the next round): the first round of 8..64 clubs whose next
+  rounds halve; participants outside the leagues = cup-only clubs (a 'cuponly' file per country, files 133-144,
+  bases after all leagues, contiguous) with their DB squad when the DB has them (same nationality), else invented.
+  15 countries real (ENG FA Cup 3rd round 64 incl. Dagenham, Telford; FRG 64; NOR 64; ITA/ESP last 16 ...), the
+  others generated. 949 clubs. One-command harness internal/world8485/run.sh (convert -> check -> build). Build IT
+  b7b870a9 EN 0ab28390 FR 489fe4e5 DE 78a87742, 44 team files 1xx. Cup-only files in a world: untested in game.

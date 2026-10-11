@@ -11,7 +11,8 @@
   ],
   "notes": [
     "Fixed by hand: Sampdoria coach Vujadin Boskov (the site lists Narciso Pezzotti); CSKA coach Penev (Penew).",
-    "FDGB-Pokal from the 2nd main round (32 clubs); the 1st round had 64 clubs with no known squads."
+    "FDGB-Pokal from the 2nd main round (32 clubs); the 1st round had 64 clubs with no known squads.",
+    "3.0: league templates re-chosen so that the built skills follow the real 1988-89 table with no calibrate level shift (one level moves the skills by ~9 price points but the price by 2): skills of the first 11 from Dresden 16.3 down to Union 9.5; Rostock 15.0 and Halle 13.8 stay a little high because of their real SWOS 2020 players."
   ],
 
   "files": {

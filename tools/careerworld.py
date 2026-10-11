@@ -53,6 +53,8 @@ LABELS = {}
 def big(w):
     tot = sum(len(w['cups'][k][1]) for k in ('cc', 'cwc', 'uefa'))
     return tot > 80 or any(len(w['cups'][k][1]) > SMALL[k] for k in SMALL)
+NEW_NATS = ['GDR']                                   # 3.1: player nationalities after the game's 153 (GDR = 153):
+                                                     # 3-letter names (the same in every exe) + career menu choices
 WCONT = 99                                           # pseudo-continent of the running world (view, foreign browser)
 
 ASM = '''
@@ -326,6 +328,76 @@ w_tfile:                                ; replaces `and dword [D0], 0FFh` before
     mov [D0R], eax
     mov [WTPHYS], al                    ; the physical file now in teamFileBuffer
     pop eax
+    ret
+
+w_ntw:                                  ; ebx = this career's world nationalTeams record (WNATT), 0 = the game's
+    xor ebx, ebx
+    cmp word [GAMETYPE], 4
+    jne .r
+    movzx ebx, byte [SLT + WORLD_BYTE]
+    imul ebx, ebx, 12
+    add ebx, WNATT
+    cmp dword [ebx], 0
+    jne .r
+    xor ebx, ebx
+.r:
+    ret
+
+w_ntptr:                                ; replaces `mov dword [A0], offset nationalTeams`
+    pushfd
+    push ebx
+    call w_ntw
+    test ebx, ebx
+    jz .g
+    mov ebx, [ebx]
+    jmp .o
+.g:
+    mov ebx, NTGAME
+.o:
+    mov [A0R], ebx
+    pop ebx
+    popfd
+    ret
+
+w_ntnum:                                ; replaces `mov ax, [numNationalTeams]`
+    pushfd
+    push ebx
+    call w_ntw
+    mov ax, [NTGAME - 4]
+    test ebx, ebx
+    jz .o
+    mov ax, [ebx + 6]
+.o:
+    pop ebx
+    popfd
+    ret
+
+w_ntlim:                                ; replaces `mul word [nat_teams_rand_limit1]` (the job-offer pool)
+    push ebx
+    call w_ntw
+    test ebx, ebx
+    jz .g
+    mov bx, [ebx + 4]
+    jmp .m
+.g:
+    mov bx, [NTGAME - 6]
+.m:
+    mul bx
+    pop ebx
+    ret
+
+w_nttot:                                ; replaces `mul word [dseg_168A85]` (all national teams)
+    push ebx
+    call w_ntw
+    test ebx, ebx
+    jz .g
+    mov bx, [ebx + 8]
+    jmp .m
+.g:
+    mov bx, [NTGAME - 2]
+.m:
+    mul bx
+    pop ebx
     ret
 
 w_tcache:                               ; replaces `mov al, [lastLoadedExtNumber]` (cache test): a cached 80..85 is
@@ -714,7 +786,62 @@ def sites(p):
           re.finditer(rb'\x66\xa1.{4}\x66\x0b\xc0\x75.\x66\x83\x3d.{4}\x04\x75', orig, re.S)}
     assert len(gt) == 1, gt
     s['gametype'] = gt.pop()
+    # new nationalities (3.1: GDR = 153): shortCountryNames (3 chars per code, obj2) and the career menu's
+    # nationalityOrdinalsArray (64 codes, the last = 255 OTHER) move to the cave, longer; ChangeNationality wraps at 63/64
+    d2 = p.le.obj_bytes(2)
+    fx2 = [f for f in p.le.fixups()]
+    s['short'] = d2.index(b'ALBAUTBELBULCROCYPTCH')
+    s['short_len'] = d2.index(b'\0', s['short']) - s['short']
+    assert s['short_len'] % 3 == 0
+    s['short_refs'] = [(f[0], f[1]) for f in fx2 if f[3] == 2 and f[4] == s['short']]
+    assert len(s['short_refs']) == 3, s['short_refs']   # (+1CBh, the empty string after it, stays)
+    s['natord'] = d2.index(bytes((8, 31, 36, 24, 46, 0, 1, 2, 38, 3, 4)))
+    assert d2[s['natord'] + 63] == 0xff
+    s['natord_refs'] = [(f[0], f[1]) for f in fx2 if f[3] == 2 and f[4] == s['natord']]
+    assert len(s['natord_refs']) == 2, s['natord_refs']
+    m = _one(rb'\x80\x2d' + pk(D0) + rb'\x01\x79.\xc6\x05' + pk(D0) + rb'\x3f\xeb.\xa0.{4}\xa2.{4}\x80\x05' + pk(D0)
+             + rb'\x01\x80\x3d' + pk(D0) + rb'\x40\x75', d1, 'ChangeNationality')
+    s['nat_wrap'] = (m.start() + 15, m.start() + 41)        # the 63 and the 64
+    assert d1[s['nat_wrap'][0]] == 0x3f and d1[s['nat_wrap'][1]] == 0x40
+    # nationalTeams (142 x 6 B: file, ordinal, nationality, home country, rating word) after its 3 counts (job-offer
+    # pool 41, with a nationality 63, all 142): the 5 `mov [A0], offset nationalTeams`, 3 `mov ax, [count]`, 2 `mul`
+    nt = d2.index(bytes((80, 0, 0, 0, 0, 0x13, 80, 2, 1, 1, 0, 0x18)))
+    s['nt'], s['nt_counts'] = nt, struct.unpack_from('<3H', d2, nt - 6)
+    assert s['nt_counts'] == (41, 63, 142), s['nt_counts']
+    s['nt_sites'] = {'ptr': [], 'num': [], 'lim': [], 'tot': []}
+    for f in fx2:
+        if f[0] == 1 and f[3] == 2 and f[4] is not None and nt - 6 <= f[4] <= nt:
+            k = {nt: 'ptr', nt - 4: 'num', nt - 6: 'lim', nt - 2: 'tot'}[f[4]]
+            at = f[1] - {'ptr': 6, 'num': 2, 'lim': 3, 'tot': 3}[k]
+            want = {'ptr': b'\xc7\x05' + struct.pack('<I', A0), 'num': b'\x66\xa1', 'lim': b'\x66\xf7\x25',
+                    'tot': b'\x66\xf7\x25'}[k]
+            assert d1[at:at + len(want)] == want, (k, hex(at))
+            s['nt_sites'][k].append(at)
+    assert [len(s['nt_sites'][k]) for k in ('ptr', 'num', 'lim', 'tot')] == [5, 3, 1, 1], s['nt_sites']
     return s
+
+
+def nat_table(game, counts, w):
+    """A world's nationalTeams (3.1): the game's 142 records, minus the world's unused teams (post-1990 nations);
+    a team with a world country code keeps (or gets: GDR 153) a nationality and its home = that country's league file
+    (national jobs, home call-ups); one without loses its nationality (no job in the world). Returns (bytes, counts)."""
+    groups = ([], [], [])
+    for k in range(counts[2]):
+        r = bytearray(game[6 * k:6 * k + 6])
+        g = 0 if k < counts[0] else 1 if k < counts[1] else 2
+        rule = w['nations'].get((r[0], r[1]))
+        if rule and rule['unused'] == '1':
+            continue
+        if rule is not None:
+            if rule['code']:
+                r[2], r[3] = int(rule['nat']), w['codes'][rule['home']]
+                g = min(g, 1)                   # a team without a nationality in 1996-97 (e.g. Croatia's slot) gets one
+            else:
+                r[2] = r[3] = 0
+                g = 2
+        groups[g].append(bytes(r))
+    n1, n2 = len(groups[0]), len(groups[0]) + len(groups[1])
+    return b''.join(groups[0] + groups[1] + groups[2]), (n1, n2, n2 + len(groups[2]))
 
 
 def struct_for(p, key, euro, rounds, clubs, size=None):
@@ -779,6 +906,24 @@ def patch(p, worlds, at, nasmcave, comp, ct, cont_rec):
     for w in worlds:
         wnat[w['n']] = w.get('nat', 0)
     extra.append('WNAT: db ' + ', '.join(map(str, wnat)))
+    natt = []                                    # per world: dd its nationalTeams (0 = the game's), dw the 3 counts
+    game = bytes(p.get(2, s['nt'], 6 * s['nt_counts'][2]))
+    for n in range(len(wnat)):
+        w = next((x for x in worlds if x['n'] == n and x.get('nations')), None)
+        if w is None:
+            natt.append('    dd 0, 0, 0')
+            continue
+        tab, cnt = nat_table(game, s['nt_counts'], w)
+        natt.append(f'    dd WNT{n}')
+        natt.append('    dw %d, %d, %d, 0' % cnt)
+        extra.append(f'WNT{n}: db ' + ', '.join(map(str, tab)))
+    extra.append('align 4')
+    extra.append('WNATT:')
+    extra += natt
+    short = bytes(p.get(2, s['short'], s['short_len'])) + ''.join(NEW_NATS).encode()
+    extra.append('NATSHORT: db ' + ', '.join(map(str, short + b'\0')))
+    order = bytes(p.get(2, s['natord'], 63)) + bytes(range(s['short_len'] // 3, len(short) // 3)) + b'\xff'
+    extra.append('NATORD: db ' + ', '.join(map(str, order)))
     pairs = [x for w in worlds for f in w['countries'] for x in (f, w['n'])]
     extra.append('WMAP: db ' + ', '.join(map(str, pairs + [0xff])))
     anybig = any(big(w) for w in worlds)
@@ -844,7 +989,7 @@ def patch(p, worlds, at, nasmcave, comp, ct, cont_rec):
                 'CHOOSETEAMS': (1, s['chooseteams']), 'LASTNAT': (2, s['lastnat']), 'HOLDERS': (1, s['holders']),
                 'ADDREC': (1, s['addrec']), 'CLEARHOLD': (1, s['clearhold']),
                 'LOOP_CWC': (1, s['pick'][1][2]), 'LOOP_UEFA': (1, s['pick'][2][2]),
-                'GAMETYPE': s['gametype'], 'LASTEXT': s['lastext']})
+                'GAMETYPE': s['gametype'], 'LASTEXT': s['lastext'], 'NTGAME': (2, s['nt'])})
     for key, (hold, buf, lst, cnt) in zip(('CC', 'CWC', 'UEFA'), s['hold']):
         sym.update({f'HOLD_{key}': (2, hold), f'BUF_{key}': (2, buf), f'LIST_{key}': (2, lst)})
         assert cnt == s['cnt'][('CC', 'CWC', 'UEFA').index(key)]
@@ -877,6 +1022,16 @@ def patch(p, worlds, at, nasmcave, comp, ct, cont_rec):
     hook(s['buy'], 5, 'w_buy', ())
     hook(s['nat'], 12, 'w_nat', (2, 8))
     hook(s['tfile'], 10, 'w_tfile', (2,))
+    for k, (label, length, fx) in {'ptr': ('w_ntptr', 10, (2, 6)), 'num': ('w_ntnum', 6, (2,)),
+                                   'lim': ('w_ntlim', 7, (3,)), 'tot': ('w_nttot', 7, (3,))}.items():
+        for site in s['nt_sites'][k]:
+            hook(site, length, label, fx)
+    for objn, off in s['short_refs']:            # new nationalities: longer name table and career menu list
+        p.retarget(objn, off, 1, labels['NATSHORT'])
+    for objn, off in s['natord_refs']:
+        p.retarget(objn, off, 1, labels['NATORD'])
+    p.put(1, s['nat_wrap'][0], bytes((63 + len(NEW_NATS),)))
+    p.put(1, s['nat_wrap'][1], bytes((64 + len(NEW_NATS),)))
     hook(s['tcache'], 5, 'w_tcache', (1,))
     for site, name, _ in s['pick']:
         hook(site, 5, name, ())

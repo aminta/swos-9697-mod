@@ -46,7 +46,7 @@ FIN_CAVE = 0xa4300           # 2.1: finals series (finals97.fin_pre)
 FINALS = True                # NSL / NSSL play-offs, option B: native 4-club type-1 cup (session 28s)
 ARG_CAVE = 0xa4400           # 2.1: Argentina Apertura/Clausura, aggregate, promedio (arg97)
 CAREER_CAVE = 0xa6000        # 6th + 7th added pages (3.1: two), only in builds with a historic career world (careerworld.py)
-CAREER_CAVE_SIZE = 0x2000
+CAREER_CAVE_SIZE = mkseason.CAREER_CAVE_SIZE
 CAREER_DATA = 0xa8000        # 8th + 9th added pages (same builds): the career packs' structs (mkseason)
 ARG_LOAD_HOOK = True
 

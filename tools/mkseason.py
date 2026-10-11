@@ -53,6 +53,7 @@ WMENU = 200                             # a world's entry in the CLASSIC CAREERS
 CAREER_DATA = [None]                    # obj1 pages of the career packs' structs (patch.py, only with worlds)
 CAREER_DATA_SIZE = 0x2000
 CAREER_CAVE = [None]                    # obj1 page of the career world code (patch.py adds it when worlds exist)
+CAREER_CAVE_SIZE = 0x2000               # 3.1: two pages (patch.py)
 ROUND = {'two_legs': 0x94, 'single': 0x14, 'single_et': 0x54}   # knockout round byte: two legs (away goals),
                                                                  # single match, single match + extra time/penalties
 AU_CUP_SIG = bytes((0xAD, 1, 0x2C, 0x28, 0x50))   # SWOS's Australian cup: layout of a 'national' cup
@@ -469,6 +470,12 @@ class NationalPack(Pack):
             self.where[k] = (self.files[c['file']][0], n)
             self.count[c['file']] = n + 1
         self.division, self.comps, self.ties = {}, [], {}
+        self.nations = {}                       # nations.csv: (game file, ordinal) -> code, nat, home, unused
+        np_ = os.path.join(path, 'nations.csv')
+        for row in (_csv(np_) if os.path.exists(np_) else []):
+            _need(row['key'] in self.clubs, f"nations.csv: unknown team {row['key']}")
+            f, i = self.where[row['key']]
+            self.nations[(self.as_file[f], i)] = row
 
     def nat_base(self):
         """Physical team file that stands for TEAM.080."""
@@ -582,6 +589,8 @@ def world_defs():
         nat = [x for x in nationals() if x.world == n]
         _need(len(nat) <= 1, f'world {n}: one national pack at most')
         w['nat'] = nat[0].nat_base() if nat else 0     # 0 = the game's national teams
+        w['nations'] = nat[0].nations if nat else {}
+        w['codes'] = {pk.clubs[pk.league_clubs[0]]['country']: pk.files[pk.league['clubs']][0] for pk in pks}
         for pk in pks:                          # cseg_93974: the champion, the cup winner, then the top 9's next clubs
             pl = pk.meta.get('europe_places', {})
             _need(pl.get('cc', 0) <= 1 and pl.get('cwc', 0) <= 1 and pl.get('uefa', 0) <= 6,
@@ -1027,7 +1036,7 @@ def patch(p, lang, area, cave):
         import careerworld
         cave = CAREER_CAVE[0]
         end = careerworld.patch(p, world_defs(), cave, nasmcave, comp, ct, (2, CAREERS_REC[0]))
-        _need(end <= cave + 0x1000, f'career world code overflows its page ({end:#x})')
+        _need(end <= cave + CAREER_CAVE_SIZE, f'career world code overflows its pages ({end:#x})')
     return at, [x for i in infos for x in i['classic']]
 
 

@@ -1831,3 +1831,30 @@ Left for 2.5: (a) NSL/NSSL finals series (type-1 design) or declare them postpon
   compiler stay deterministic and data-driven (packs -> mkseason, no per-world code); converters from a known source
   format (e.g. the CM01/02 retro DB) are generic and driven by a config file, so a new world = new data + config, run
   by a script, checked by `mkseason check`, like the DLC season packs.
+
+## Italy 1947-48 season pack + strength check (2026-10-11, for release 3.0)
+- Davide: Serie A 1947-48 as a CLASSIC SEASON, league only (Coppa Italia not played 1943-58, RSSSF; no European
+  cups: Mitropa stopped 1940-51, Latin Cup from 1949). 21 clubs (Triestina readmitted), 42 rounds, 2 points, 4
+  relegated; Napoli's bribery last place not reproducible (bottom 4 on the pitch go down). INTERNAZIONALE (name
+  since 27/10/1945). Pack packs/italia-1947-48, TEAM.145 (base 1786, contest id EC), button per language
+  ITALIA/ITALY/ITALIE/ITALIEN 1947-48, calendar from Spain 1996-97 (dates_from 35: 22 clubs, 42 rounds; Italy's
+  league header is relocated by the mod and cannot be copied). Menu: Stagione > STAG. STORICHE > ITALIA 1947-48.
+- tools/itwiki_season.py (Davide: reusable, no tokens next time): fetch + draft clubs.csv/players.csv of any Italian
+  season from it.wikipedia (final table, participants, club season pages: squad box, appearances, coaches, kit box),
+  config packs/<id>/itwiki.json, pages cached in raw/itwiki. Juventus/Inter pages have no appearance table: apps from
+  national-football-teams.com, inter.it archive, RSSSF, player pages.
+- mkseason: seasons without a national cup ([league, -2, -1] like Costa Rica); calibrate ratings_from (Torino 1947
+  from the SWOS 2020 1900s Retro Pack by FrancescoManetti82 and Gorzo), players.csv nat, clubs.csv kit1/kit2;
+  odd_leagues: the Season league setup traps on an odd division (`test byte [esi+ebx+0Dh],1; jz; int 3; jmp $`,
+  found by Davide's freeze + variants A 20 clubs ok / B 21 clubs + cup freeze), jz -> jmp only when a pack has an odd
+  division (default build without such a pack unchanged).
+- Strength (Davide's playtests): calibrate level shifts distort strength (1 level = ~7 skill points = ~9 price points
+  of the game's own records, but the price byte moves by 2): first simulated Serie A had Salernitana 3rd, Lazio 1 win.
+  Fix: templates as strong as the target, no shift -> simulated: Torino 72, Milan 57, Juve 55 ... Napoli, Alessandria,
+  Vicenza last (real: Torino 65, Milan/Juve/Triestina 49; Salernitana, Alessandria, Vicenza, Napoli relegated).
+- DDR 1988-89 (Davide: fix for 3.0): same flaw (Wismut Aue 2nd, skills 17.5 for target 15; Zwickau 7.7). League
+  templates re-chosen by built skills (incl. the players reused from SWOS 2020), no shift: Dresden 16.3 ... Union 9.5;
+  Rostock 15.0 / Halle 13.8 a bit high (their real 1990-91 players). Fully simulated: Dresden, BFC top; Zwickau,
+  Union, Erfurt bottom. TEAM.092 6065464d (was 1e1d2483 since 2.6), TEAM.093 unchanged.
+- RULE (Davide, memory): before releasing any historic season/world, check built SKILLS vs the real tables of the
+  time and a simulated season. World 1984-85 checked by the 3.0 session (explicit DaniSwos ratings, no shifts).

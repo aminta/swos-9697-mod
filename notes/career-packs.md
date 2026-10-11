@@ -391,3 +391,10 @@ champion -> exact season-1 entrants need first_europe lists not tied to the plac
   15 countries real (ENG FA Cup 3rd round 64 incl. Dagenham, Telford; FRG 64; NOR 64; ITA/ESP last 16 ...), the
   others generated. 949 clubs. One-command harness internal/world8485/run.sh (convert -> check -> build). Build IT
   b7b870a9 EN 0ab28390 FR 489fe4e5 DE 78a87742, 44 team files 1xx. Cup-only files in a world: untested in game.
+- Automated test (test-harness session, tools/swostest.py run world8485, 2026-10-11): PASS on IT 4c280af8 (= 9b9b10b,
+  real European entrants + table order + coaches, generated national cups). New career Liverpool, results-only loop,
+  season end, CONTINUA CARRIERA, save, reload, season 2 (Liverpool last -> sacked -> first offer Plymouth Argyle,
+  1986/87). No freeze/trap. W84A (start 1985/86): k 128, N 64, C7, W1 ok, world 4, sum 0, cups 32/32/64, dups 0;
+  W84B: k 128, N 73, same checks ok. Saves in internal/swostest/saves/. Albania (file 129) absent from the cups
+  from season 2: expected (no places: cc/cwc 0 by choice, uefa 0 as in 1984-85). Build with real national cups and
+  cup-only files (b7b870a9): own scenario internal/world8485/test_w8485.py running.

@@ -371,3 +371,9 @@ both covered by the first test).
   dseg_DA0E2) keeps the old order. Next: follow cseg_8A7BF's A2/A4 (it copies A4+2CDh -> A2+59h after cseg_2ACAE;
   A4/A2 may be the slot buffers, not DIY_competitionStart) and cseg_29659's flow for the player's cup; fix the list
   that actually feeds round 2.
+- ROUND 2 FIXED (2026-10-11, build IT 24033dd3, EN daf2d516 FR 6d1489d3 DE 0a1fe6de): the player's cup ends a round in
+  cseg_29659 (called once, from cseg_284D8): after cseg_2ACAE it copies the winners to dseg_1728B6 and REBUILDS
+  DIY_competitionStart+2CDh as winners[DIY+30Dh[i]] (the next round's order), so w_r2's swap (done inside cseg_2ACAE's
+  call) was undone. New hook w_r2p on `call cseg_29659`: same fix (w_r2fix) on the rebuilt list. Simulated cups
+  (cseg_8A7BF) have no permutation: w_r2 alone. Harness euro_draws PASS (JUVE2F -> 1998/99, UEFA rounds 1-2, no
+  same-country tie, 747 s); italy_season and roundtrip PASS.

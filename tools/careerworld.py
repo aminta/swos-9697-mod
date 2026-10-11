@@ -1153,8 +1153,13 @@ w_draw2:                                ; replaces `mov eax, [A2]; add eax, 59h;
     mov [A0R], eax
     ret
 
+w_r2p:                                  ; replaces `call cseg_29659` in cseg_284D8 (the player's cup): after
+    call P29659                         ; cseg_2ACAE it rebuilds DIY+2CDh as winners[DIY+30Dh[i]] (the next round's
+    jmp w_r2fix                         ; order), which undoes w_r2's fix -> fix the rebuilt list again
+
 w_r2:                                   ; replaces every `call cseg_2ACAE` (end of a knockout round: cseg_29659 for the
     call R2ORIG                         ; player's cup, cseg_8A7BF for the simulated ones, the season-end readers).
+w_r2fix:
     pushad                              ; cseg_2ACAE puts the round's winners first at DIY_competitionStart+2CDh in tie
                                         ; order; the next round pairs them two by
     mov esi, DIYSTART                   ; two (a fixed bracket, no new draw): after round 1 a same-country pair swaps
@@ -1287,7 +1292,13 @@ def euro_draw(p, at, nasmcave):
     # winner readers call it after a final, where the round-1 condition is false)
     r2 = [i for i in range(len(orig) - 5) if orig[i] == 0xe8 and tgt(orig, i) == st]
     assert len(r2) >= 2 and all(tgt(d1, i) == st for i in r2), r2
-    sym = {'A0R': (2, A0), 'HIST': (1, hist.pop()), 'R2ORIG': (1, st), 'A2R': (2, regs['A0R'] + 8), 'A3R': (2, regs['A0R'] + 12), 'DRAW1': (1, draw1),
+    # cseg_29659 = the cseg_2ACAE call site that starts a function (called once, from cseg_284D8)
+    p29659 = [c for c in r2 if any(orig[i] == 0xe8 and tgt(orig, i) == c for i in range(c - 0x2000, c))]
+    assert len(p29659) == 1, p29659
+    p29659_call = [i for i in range(len(orig) - 5) if orig[i] == 0xe8 and tgt(orig, i) == p29659[0]]
+    assert len(p29659_call) == 1 and tgt(d1, p29659_call[0]) == p29659[0], p29659_call
+    p29659_call = p29659_call[0]
+    sym = {'P29659': (1, p29659[0]), 'A0R': (2, A0), 'HIST': (1, hist.pop()), 'R2ORIG': (1, st), 'A2R': (2, regs['A0R'] + 8), 'A3R': (2, regs['A0R'] + 12), 'DRAW1': (1, draw1),
            'DIYSTART': diystart, 'GAMETYPE': gt.pop(), 'SLT': s['slt'], 'WORLD_BYTE': (0, WORLD_BYTE),
            'CWCCOPY': s['copies'][1][0], 'UEFACOPY': s['copies'][2][0], 'SE_NEXT': (1, tgt(d1, site))}
     code, fix = nasmcave.assemble(DRAW_ASM, at, sym)
@@ -1311,6 +1322,7 @@ def euro_draw(p, at, nasmcave):
         p.put(1, site_, b'\x90' * 8)
     for c in r2:
         p.put(1, c + 1, struct.pack('<i', lab['w_r2'] - (c + 5)))
+    p.put(1, p29659_call + 1, struct.pack('<i', lab['w_r2p'] - (p29659_call + 5)))
     p.remove(1, copy_site + 1)                          # mov eax, [A2]
     p.remove(1, copy_site + 9)                          # mov [A0], eax
     p.put(1, copy_site, b'\xe8' + struct.pack('<i', lab['w_draw2'] - (copy_site + 5)) + b'\x90' * 8)

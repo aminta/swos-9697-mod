@@ -468,3 +468,7 @@ champion -> exact season-1 entrants need first_europe lists not tied to the plac
   b9053991 EN 16c8d82b FR b4181597 DE a1f85730, SWOS++ 15025ab7 / b38895cd, WORLD04 0db4960d. Harness on the final build:
   euro_draws, italy_season, roundtrip, world8485 start (W8485_START=1) PASS. Next 3.1: faster harness, then era national
   teams (EUROPE 1984-85: Mexico '86 / Euro '88 cycle matches the game's 1996-97 phase).
+- Release 3.0 FINAL build (2026-10-11, + Italy 1947-48 pack from the 1947-48 session, DDR recalibrated): c/REL301 IT
+  c2c30bf5 EN 8ab109c4 FR 5a150fb1 DE 78350086, GOG IT 7e9b4ee5 EN e7e4e981 FR f98dcac5 DE f2faf98d, SWOS++ b3a630ae /
+  a74a28d0, TEAM.145 91323832, TEAM.092 6065464d, WORLD04 0db4960d. Harness: euro_draws, italy_season, roundtrip (alone:
+  in parallel with euro_draws it timed out once), world8485 start PASS.

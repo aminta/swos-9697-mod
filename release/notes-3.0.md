@@ -1,6 +1,6 @@
 ## English
 
-**SWOS 96/97 Mod 3.0: Classic careers — Europe 1984-85**
+**SWOS 96/97 Mod 3.0: Classic careers — Europe 1984-85, and the 1947-48 Serie A**
 
 *Take a club of 1984-85 Europe, from Juventus and Liverpool down to the Icelandic league, and play a whole career through the
 leagues, national cups and European cups of the time.*
@@ -30,6 +30,23 @@ leagues, national cups and European cups of the time.*
 - Short club names in SWOS style (MALAGA, MAGDEBURG, WISMUT AUE...). Club names that the original game already had keep the
   game's name.
 
+### Classic seasons: Serie A 1947-48 (CLASSIC SEASONS)
+
+- **Season > CLASSIC SEASONS > ITALY 1947-48** (IT `ITALIA 1947-48`, FR `ITALIE 1947-48`, DE `ITALIEN 1947-48`), also in
+  CLASSIC TOURNEYS as SERIE A 1947-48: the season of the Grande Torino.
+- **21 clubs** (Triestina readmitted in July 1947: the only odd-sized Serie A, one club rests each round), home and away, 42
+  rounds / 40 matches per club, 2 points per win, 4 relegated (Salernitana, Alessandria, Vicenza, Napoli). Napoli was placed
+  last for an attempted bribe (Bologna-Napoli): the game cannot reproduce that, the bottom 4 on the pitch go down.
+- League only: no Coppa Italia (not played from 1943 to 1958) and no European club cups in 1947-48.
+- Clubs in the final-table order with their 1948 names; real squads, coaches and kits (it.wikipedia season pages of the 21
+  clubs, RSSSF, inter.it, national-football-teams.com); foreign players with their real nationality.
+- Ratings: **Torino** from the SWOS 2020 "1900s Retro Pack Teams (1900-1970)" by **FrancescoManetti82** and **Gorzo** (SWOS
+  United) — thanks! The other 20 clubs are calibrated on the final points.
+- Engine: leagues with an odd number of clubs now work in Season and Career mode.
+- **DDR 1988-89 recalibrated:** the clubs' skills now follow the real 1988-89 table (2.6 made Wismut Aue too strong and Zwickau
+  too weak).
+- New tool `tools/itwiki_season.py`: drafts any Italian season from it.wikipedia (see `packs/README.md`).
+
 ### European cups in every career
 
 - **No same-country ties in rounds 1 and 2** of the knockout European cups, as in the UEFA rule of the time: Cup Winners' Cup and
@@ -51,15 +68,16 @@ leagues, national cups and European cups of the time.*
 
 ### Patcher
 
-- New files: `DATA/TEAM.101` to `DATA/TEAM.144` and `DATA/WORLD04.TMD` (the 1984-85 world), created together with `TEAM.020`.
+- New files: `DATA/TEAM.101` to `DATA/TEAM.144` and `DATA/WORLD04.TMD` (the 1984-85 world), `DATA/TEAM.145` (Serie A
+  1947-48), created together with `TEAM.020`; `DATA/TEAM.092` (DDR) is updated.
 - As before, it upgrades any earlier version of the mod (1.0 to 2.7.0, CD and GOG) and keeps your saves. The
   `ENGLISH.EXE + SWOS++` row is still there.
 - Tested with an automated DOSBox-X harness: a full Italian season, save/load round trip, the European draws of a 1998-99
-  career, and two seasons of the 1984-85 world with save and reload.
+  career, and two seasons of the 1984-85 world with save and reload; Serie A 1947-48 playtested by Davide.
 
 ## Italiano
 
-**SWOS 96/97 Mod 3.0: Carriere storiche — Europa 1984-85**
+**SWOS 96/97 Mod 3.0: Carriere storiche — Europa 1984-85, e la Serie A 1947-48**
 
 *Prendi un club dell'Europa 1984-85, dalla Juventus e dal Liverpool fino al campionato islandese, e gioca un'intera carriera tra
 campionati, coppe nazionali e coppe europee dell'epoca.*
@@ -90,6 +108,25 @@ campionati, coppe nazionali e coppe europee dell'epoca.*
 - Nomi brevi dei club nello stile di SWOS (MALAGA, MAGDEBURG, WISMUT AUE...). I club che il gioco originale aveva già tengono il
   nome del gioco.
 
+### Stagioni storiche: Serie A 1947-48 (STAG. STORICHE)
+
+- **Stagione > STAG. STORICHE > ITALIA 1947-48** (EN `ITALY 1947-48`, FR `ITALIE 1947-48`, DE `ITALIEN 1947-48`), anche nei
+  TORNEI STORICI come SERIE A 1947-48: la stagione del Grande Torino.
+- **21 squadre** (Triestina riammessa nel luglio 1947: l'unica Serie A con un numero dispari di squadre, ogni giornata una
+  riposa), andata e ritorno, 42 giornate / 40 partite a squadra, 2 punti a vittoria, 4 retrocessioni (Salernitana, Alessandria,
+  Vicenza, Napoli). Il Napoli fu messo ultimo per un tentato illecito (Bologna-Napoli): il gioco non può riprodurlo, retrocedono
+  le ultime 4 sul campo.
+- Solo campionato: niente Coppa Italia (non si giocò dal 1943 al 1958) e nessuna coppa europea per club nel 1947-48.
+- Squadre nell'ordine della classifica finale con i nomi del 1948; rose, allenatori e maglie reali (pagine it.wikipedia della
+  stagione delle 21 squadre, RSSSF, inter.it, national-football-teams.com); stranieri con la loro vera nazionalità.
+- Valori: il **Torino** dal "1900s Retro Pack Teams (1900-1970)" di SWOS 2020 di **FrancescoManetti82** e **Gorzo** (SWOS
+  United) — grazie! Le altre 20 squadre sono tarate sui punti finali.
+- Motore: i campionati con un numero dispari di squadre ora funzionano in Stagione e in Carriera.
+- **DDR 1988-89 ricalibrata:** i valori dei club ora seguono la classifica reale 1988-89 (nella 2.6 il Wismut Aue era troppo
+  forte e lo Zwickau troppo debole).
+- Nuovo strumento `tools/itwiki_season.py`: prepara una bozza di qualsiasi stagione italiana da it.wikipedia (vedi
+  `packs/README.it.md`).
+
 ### Coppe europee in ogni carriera
 
 - **Niente sfide tra squadre dello stesso paese al primo e al secondo turno** delle coppe europee a eliminazione diretta, come
@@ -113,8 +150,9 @@ campionati, coppe nazionali e coppe europee dell'epoca.*
 
 ### Patcher
 
-- File nuovi: da `DATA/TEAM.101` a `DATA/TEAM.144` e `DATA/WORLD04.TMD` (il mondo 1984-85), creati insieme a `TEAM.020`.
+- File nuovi: da `DATA/TEAM.101` a `DATA/TEAM.144` e `DATA/WORLD04.TMD` (il mondo 1984-85), `DATA/TEAM.145` (Serie A
+  1947-48), creati insieme a `TEAM.020`; `DATA/TEAM.092` (DDR) è aggiornato.
 - Come prima, aggiorna qualsiasi versione precedente della mod (dalla 1.0 alla 2.7.0, CD e GOG) e non tocca i salvataggi. La riga
   `ENGLISH.EXE + SWOS++` c'è ancora.
 - Provato con un banco di prova automatico in DOSBox-X: una stagione italiana completa, salvataggio e ricaricamento, i sorteggi
-  europei di una carriera 1998-99 e due stagioni del mondo 1984-85 con salvataggio e ricaricamento.
+  europei di una carriera 1998-99 e due stagioni del mondo 1984-85 con salvataggio e ricaricamento; Serie A 1947-48 provata da Davide.

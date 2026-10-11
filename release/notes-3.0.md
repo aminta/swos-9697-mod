@@ -7,9 +7,12 @@ leagues, national cups and European cups of the time.*
 
 ### Europe 1984-85 (CLASSIC CAREERS)
 
-- A new **CLASSIC CAREERS** button in Career mode (IT `CARR. STORICHE`, FR `CARR. D'ANTAN`, DE `KLASS. KARRIERE`) holds a whole
-  world: **32 European countries, 949 clubs**, starting from the 1984-85 season. A career in this world sees only these clubs and
-  countries; normal careers are unchanged.
+- A new **CLASSIC CAREERS** button in Career mode (IT `CARR. STORICHE`, FR `CARR. D'ANTAN`, DE `KLASS. KARRIERE`) lists the
+  historic worlds; the first one is **EUROPE 1984-85**: **32 European countries, 949 clubs**, starting from the 1984-85 season.
+  A career in this world sees only these clubs and countries; normal careers are unchanged. Future worlds will be added to the
+  same list. Country names follow the game's language (INGHILTERRA, GERMANIA OVEST, URSS... in the Italian game).
+- No national-team jobs in this world for now (the game's national teams are the 1996 ones): era national teams are planned
+  for 3.1.
 - **Squads:** the real 1984-85 players, from the database by **DaniSwos** (CM01/02 Retro Update Team), converted to SWOS ratings.
 - **Leagues:** every country with its top division (two or more divisions where the data has them: England 4, Scotland 3, West
   Germany, Italy, Spain, the Netherlands, Belgium, Austria, Switzerland, Denmark, Hungary and the USSR 2), clubs in the 1983-84 final order, promotion and relegation. Wales has no league: Wrexham plays
@@ -19,7 +22,8 @@ leagues, national cups and European cups of the time.*
   part. In the other countries the first season's cup is generated from the league clubs. From the second season on, all cups
   are run by the game.
 - **European cups as in 1984-85:** Champions' Cup 32 clubs, Cup Winners' Cup 32, UEFA Cup 64, all knockout; the first season has
-  the real first-round ties. The holders play in addition to their country's places.
+  the real first-round ties. The holders play in addition to their country's places; a league champion that also holds the Cup
+  Winners' Cup or the UEFA Cup plays the Champions' Cup, as at the time (its holder place goes to the next club of its table).
 - **Coaches:** the real coaches of 222 clubs (complete for Italy and the Netherlands, almost complete for Spain and West
   Germany). The others are missing: **anyone who finds them is welcome to add them** (column `coach` of `clubs.csv` in
   `packs/europe-1984-85/<country>`, see `packs/CAREERS.md`) and send them to us.
@@ -63,8 +67,11 @@ campionati, coppe nazionali e coppe europee dell'epoca.*
 ### Europa 1984-85 (CARRIERE STORICHE)
 
 - Un nuovo pulsante **CARR. STORICHE** in modalità Carriera (EN `CLASSIC CAREERS`, FR `CARR. D'ANTAN`, DE `KLASS. KARRIERE`)
-  contiene un mondo intero: **32 paesi europei, 949 club**, a partire dalla stagione 1984-85. Una carriera in questo mondo vede
-  solo questi club e paesi; le carriere normali non cambiano.
+  elenca i mondi storici; il primo è **EUROPA 1984-85**: **32 paesi europei, 949 club**, a partire dalla stagione 1984-85. Una
+  carriera in questo mondo vede solo questi club e paesi; le carriere normali non cambiano. I prossimi mondi si aggiungeranno
+  allo stesso elenco. I nomi dei paesi seguono la lingua del gioco (INGHILTERRA, GERMANIA OVEST, URSS... nel gioco italiano).
+- Per ora in questo mondo non arrivano offerte dalle nazionali (le nazionali del gioco sono quelle del 1996): le nazionali
+  dell'epoca sono previste per la 3.1.
 - **Rose:** i giocatori reali del 1984-85, dal database di **DaniSwos** (CM01/02 Retro Update Team), convertiti nei valori di SWOS.
 - **Campionati:** ogni paese con la sua massima serie (due o più divisioni dove i dati ci sono: Inghilterra 4, Scozia 3, Germania
   Ovest, Italia, Spagna, Olanda, Belgio, Austria, Svizzera, Danimarca, Ungheria e URSS 2), club nell'ordine finale 1983-84, promozioni e retrocessioni. Il Galles non ha un campionato:
@@ -74,7 +81,9 @@ campionati, coppe nazionali e coppe europee dell'epoca.*
   Negli altri paesi la coppa della prima stagione è generata dai club del campionato. Dalla seconda stagione tutte le coppe le
   organizza il gioco.
 - **Coppe europee come nel 1984-85:** Coppa dei Campioni 32 club, Coppa delle Coppe 32, Coppa UEFA 64, tutte a eliminazione
-  diretta; la prima stagione ha gli accoppiamenti reali del primo turno. I detentori giocano in più rispetto ai posti del loro paese.
+  diretta; la prima stagione ha gli accoppiamenti reali del primo turno. I detentori giocano in più rispetto ai posti del loro
+  paese; un campione nazionale che detiene anche la Coppa delle Coppe o la Coppa UEFA gioca la Coppa dei Campioni, come all'epoca
+  (il suo posto da detentore va al club successivo della sua classifica).
 - **Allenatori:** quelli reali di 222 club (completi per Italia e Olanda, quasi completi per Spagna e Germania Ovest). Gli altri
   mancano: **chi li trova è il benvenuto se li aggiunge** (colonna `coach` di `clubs.csv` in `packs/europe-1984-85/<paese>`,
   vedi `packs/CAREERS.it.md`) e ce li manda.

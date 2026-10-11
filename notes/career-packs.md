@@ -463,3 +463,8 @@ champion -> exact season-1 entrants need first_europe lists not tied to the plac
   WORLD04.TMD 0db4960d; patcher: PATCHER_BUILD=c/REL30 python3 tools/mkpatcher.py. Harness: world8485 PASS (Liverpool, 2
   seasons, R1 checked), world R2 checked with W8485_TEAM="WEST GERMANY,BUNDESLIGA,BAYERN MUNCHEN" W8485_R2=1: CWC round 2,
   8 ties, no same-country tie (Liverpool, Juventus, Everton went out in round 1).
+- Release 3.0 final (2026-10-11): + champion/holder rule (w_pick_cc), CLASSIC CAREERS -> world list (WMENU 200 + n, w_lvl
+  depth-3 fix), button_names / world_cups.name. Builds c/REL300: IT 7fb435b9 EN a0547580 FR dbbf6d12 DE 3c7fc480, GOG IT
+  b9053991 EN 16c8d82b FR b4181597 DE a1f85730, SWOS++ 15025ab7 / b38895cd, WORLD04 0db4960d. Harness on the final build:
+  euro_draws, italy_season, roundtrip, world8485 start (W8485_START=1) PASS. Next 3.1: faster harness, then era national
+  teams (EUROPE 1984-85: Mexico '86 / Euro '88 cycle matches the game's 1996-97 phase).

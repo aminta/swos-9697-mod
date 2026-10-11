@@ -105,9 +105,10 @@ html{scroll-behavior:smooth}
     <li><a href="#ddr">22 · Classic seasons: the DDR 1988-89 (2.6)</a></li>
     <li><a href="#pacchetti">23 · Season packs and classic careers</a></li>
     <li><a href="#swospp">24 · SWOS++ (2.7)</a></li>
-    <li><a href="#maglie">25 · Home and away kits (in development)</a></li>
-    <li><a href="#limiti">26 · Limits and open issues</a></li>
-    <li><a href="#storia">27 · History and next steps</a></li>
+    <li><a href="#maglie">25 · Home and away kits (3.0)</a></li>
+    <li><a href="#euro8485">26 · Europe 1984-85 and European cups (3.0)</a></li>
+    <li><a href="#limiti">27 · Limits and open issues</a></li>
+    <li><a href="#storia">28 · History and next steps</a></li>
   </ol>
 </nav>
 
@@ -117,7 +118,7 @@ html{scroll-behavior:smooth}
   <h1>SWOS ITA Mod Technical Manual</h1>
   <p>Documentation for anyone who wants to understand, extend or port the mod's patches: Serie C1 and C2, South American club cups (Libertadores, Supercopa, CONMEBOL), the Intercontinental Cup in career mode, real 1996-97 squads, classic tourneys (World Cup 1982, Mitropa Cup 1934, FA Cup 1871-72), Argentina's Apertura and Clausura, Australia, New Zealand and MLS 1997 (2.5), classic seasons with the DDR 1988-89 and that year's European cups (2.6). Everything below was worked out from the disassembly and checked with builds and test games.</p>
   <div class="meta">
-    <span>State as of <b>2026-10-10</b> (sessions 1–33, release 2.7.0)</span>
+    <span>State as of <b>2026-10-11</b> (sessions 1–34, release 3.0)</span>
     <span>ENGLISH.EXE build <b><code>feba4a5f…</code></b></span>
     <span>TEAM.020 <b><code>ded1b97b…</code></b></span>
     <span>Original ENGLISH.EXE <b><code>aa21cd1c…</code></b></span>
@@ -570,7 +571,7 @@ assert blk[:2] == b'S2' and sum(blk) % 256 == 0</code></pre>
 </ul>
 
 <!-- 23 -->
-<h2 id="pacchetti"><span class="n">23</span>Season packs and classic careers (in development)</h2>
+<h2 id="pacchetti"><span class="n">23</span>Season packs and classic careers (3.0)</h2>
 <p>A <em>season pack</em> is a folder of plain data (<code>packs/&lt;id&gt;/</code>: <code>pack.json</code> + <code>clubs.csv</code>, <code>players.csv</code>, <code>ties.csv</code>, format in <code>packs/README.md</code>) that <code>tools/mkseason.py</code> compiles into team files and exe tables, deterministically. The DDR 1988-89 of chapter 22 is now the pack <code>packs/ddr-1988-89</code> (byte-identical to 2.6; <code>ddr89.py</code> and <code>euro8889.py</code> were removed). Several packs go into one build (<code>mkseason.ENABLED</code>); a squad is built by <code>calibrate</code> (target strength), <code>game</code> (players already in the game) or <code>explicit</code> (every value given). Country numbers 101–251 are free and work (team file names are built from 0–255).</p>
 <p>A <em>career pack</em> (<code>"kind": "career"</code>) is a pack played as a career, from the CLASSIC CAREERS button (pseudo-continent 98) of the career team selector: <code>career_sel</code> replaces <code>call ChooseTeamsDialog</code> in <code>SelectTeamToManage</code> and swaps <code>competitionsTable[254]</code> for a world table with 98. Its league may have several divisions with promotion and relegation (<code>divisions</code> + the <code>division</code> column of clubs.csv = record byte +25). A <em>world</em> is a set of career packs with the same <code>world</code> number: a career started with one of its clubs only sees the world's countries and European cups (<code>tools/careerworld.py</code>). Status: menu and divisions playtested (M1); world switch (M2) and season year, world view, holders (M3) playtested over two seasons with a 4-country test world.</p>
 <h3>How the career European cups really work</h3>
@@ -608,7 +609,7 @@ assert blk[:2] == b'S2' and sum(blk) % 256 == 0</code></pre>
 </ul>
 
 <!-- 25 -->
-<h2 id="maglie"><span class="n">25</span>Home and away kits (in development)</h2>
+<h2 id="maglie"><span class="n">25</span>Home and away kits (3.0)</h2>
 <p>The game picks the kits by itself, and many classic pairings (Juventus-Milan, Milan-Inter, Inter-Juventus, Chelsea against Juventus, Newcastle or Manchester City) never met in home kits. Analysis of the colour graph: Daniele Bordes (DaniSwos), SWOS United forum thread "Home-Away kit automatic selection". Tools: <code>tools/kitsim.py</code> (simulator), <code>tools/kitcolors.py</code> (patch).</p>
 <ul>
 <li><strong>How the game chooses.</strong> <code>SetInGameTeamsPrimaryColors</code> scores four pairings with <code>GetTeamKitsSimilarityFactor</code>: home-home, home-away, away-home, away-away (home = the first team). The first scoring below 11 is used. The score (similarity factor) adds 5 or 2 points for every pair of clashing colours (shirt colours 5, a shirt colour against the other's shorts 2, shorts against shorts 5); some shirt-type combinations score 66–99 straight away. A striped shirt that scores below 11 is checked again as its blended colour (table <code>dseg_130942</code>, e.g. red+black → maroon). If all four score 11 or more, the second team gets a plain kit in one of its own colours or, failing that, in the first colour of <code>teamKitTieBreakColors</code> that works; last resort red against blue.</li>
@@ -621,7 +622,19 @@ assert blk[:2] == b'S2' and sum(blk) % 256 == 0</code></pre>
 </ul>
 
 <!-- 26 -->
-<h2 id="limiti"><span class="n">26</span>Limits and open issues</h2>
+<h2 id="euro8485"><span class="n">26</span>Europe 1984-85 and European cups (3.0)</h2>
+<p>The <strong>CLASSIC CAREERS</strong> button of the career lists the historic worlds (pseudo-continent 98 &rarr; entry 200 + world number &rarr; countries). The first one is <strong>EUROPE 1984-85</strong>: 32 countries, 949 clubs, real squads from the database by <strong>DaniSwos</strong> (CM01/02 Retro Update Team), leagues in the 1983-84 final order, real 1984-85 national cups for 15 countries, European cups 32/32/64 with the real first-round ties. The data are in <code>packs/europe-1984-85/&lt;country&gt;</code>: anyone can complete them (for example the missing coaches, column <code>coach</code> of <code>clubs.csv</code>).</p>
+<ul>
+<li><strong>Names per language.</strong> <code>button_names</code> in each country's <code>pack.json</code> and <code>world_cups.name</code> in the root pack give the name in the exe's language (INGHILTERRA / ENGLAND / ANGLETERRE, EUROPA 1984-85 / EUROPE 1984-85).</li>
+<li><strong>The extra menu level.</strong> <code>SelectTeamsFinalMenu</code> shows a country's leagues at depth 2 only (<code>numSelectedTeams</code>); <code>w_lvl</code> also accepts depth 3 when the previous entry (top of <code>countryStack</code>) is a world.</li>
+<li><strong>No same-country ties in the first two rounds.</strong> Cup Winners' Cup and UEFA Cup (all three cups in a world): round 1 is drawn (<code>w_draw1</code> after <code>cseg_28139</code>), round 2 comes from the round-1 winners: <code>w_r2</code> after <code>cseg_2ACAE</code> (simulated cups) and <code>w_r2p</code> after <code>cseg_29659</code> (the player's cup, which reorders the winners with the table at DIY+30Dh). A same-country tie swaps its away club with another tie's.</li>
+<li><strong>Holders.</strong> Normal careers: a Champions' Cup holder that did not qualify takes the place of a club of another country (<code>cseg_92C4D</code> compared the ordinal instead of the country). Worlds: the holders play in addition; a league champion holding the CWC or the UEFA Cup plays the Champions' Cup and its holder place goes to the next club of its table (<code>w_pick_cc</code>, <code>WH_SAVE</code>).</li>
+<li><strong>Intercontinental.</strong> Fixed the bug (since 2.5) that put a Champions' Cup winner playing the Intercontinental into the Cup Winners' Cup: <code>sacups.euro_found</code> stores the cup type before <code>cseg_8B2D3</code> clobbers D7.</li>
+<li><strong>National teams.</strong> In a world the national-team offers are disabled (the game's national teams are the 1996 ones). The game's cycle (World Cup qualifiers, World Cup, European qualifiers, European Championship) matches 1984-85: era national teams are the 3.1 work.</li>
+</ul>
+
+<!-- 27 -->
+<h2 id="limiti"><span class="n">27</span>Limits and open issues</h2>
 <ul>
 <li><strong>Play-offs (2.5).</strong> NSL Finals and NSSL Playoffs are top-4 knockouts: the real formats (NSL: 6 clubs; both: a "double chance" for the top two) need per-round control of the entrants, i.e. a type-2 contest in slot 4, whose buffer (443h) is too small. Kept for a future version (<code>finals97.py</code>, option A). The regular-season winner that loses the play-off still shows a small icon at the top of its season record (not yet traced in the code).</li>
 <li><strong>C1/C2 groups.</strong> In 1996-97 C1 had 2 groups and C2 had 3. The mod uses one group per series. The full reality (128 teams) does not fit the limit of about 93 teams per nation. C1 with two groups would fit (92), but it needs promotions and relegations between parallel divisions, and checks on the 80-team career limit and on global numbers: estimated 2–3 sessions.</li>
@@ -634,8 +647,8 @@ assert blk[:2] == b'S2' and sum(blk) % 256 == 0</code></pre>
 <li><strong>English bench (after 1.0).</strong> In the pre-match line-up English clubs show 14 players (11 + 3 on the bench). The original game does the same, and <code>TEAM.008</code> has 16 players per club: it is a game rule. To do: find where the bench size comes from (rules at buffer +3Dh…41h, values 5/2/8 set by <code>InitCareer</code>) and raise it to 5.</li>
 </ul>
 
-<!-- 27 -->
-<h2 id="storia"><span class="n">27</span>History and next steps</h2>
+<!-- 28 -->
+<h2 id="storia"><span class="n">28</span>History and next steps</h2>
 <div class="tbl"><table>
 <thead><tr><th>Session</th><th>Content</th><th>Test</th></tr></thead>
 <tbody>
@@ -659,6 +672,7 @@ assert blk[:2] == b'S2' and sum(blk) % 256 == 0</code></pre>
 <tr><td>31</td><td>Career European chain decoded (in-save cup copies, place tables, holders, checksum); classic career worlds: world byte, world European cups, <code>worldNN.tmd</code> (M2)</td><td><span class="pill ok">passed (IT, 2 seasons)</span></td></tr>
 <tr><td>32</td><td>Release 2.6.1: a new career started with a club in a European cup is set up at once (the 'S3' mark and the first-season lists of the other continents' cups were only written in the other branch since 1.2). Classic careers M3: world start year, world view and foreign-player browser limited to the world, no national-team jobs, holders with a place of their own</td><td><span class="pill ok">passed (IT, 2 seasons)</span></td></tr>
 <tr><td>33</td><td>Release 2.7.0: SWOS++ compatibility on the English exe (CD and GOG): <code>tools/swospp.py</code>, patcher outputs ENGLISH.EXE + SWOS++</td><td><span class="pill ok">passed (EN, SWOS++ 1.9.2.2)</span></td></tr>
+<tr><td>34</td><td>Release 3.0: classic careers Europe 1984-85 (DaniSwos's data), European cups up to 128 clubs, no same-country ties in rounds 1-2, holder rule, Intercontinental fix, KITS editor</td><td><span class="pill ok">passed (automated harness + Davide's playtest)</span></td></tr>
 </tbody></table></div>
 <h3>Roadmap</h3>
 <ol>

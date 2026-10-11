@@ -105,9 +105,10 @@ html{scroll-behavior:smooth}
     <li><a href="#ddr">22 · Stagioni storiche: la DDR 1988-89 (2.6)</a></li>
     <li><a href="#pacchetti">23 · Pacchetti stagione e carriere storiche</a></li>
     <li><a href="#swospp">24 · SWOS++ (2.7)</a></li>
-    <li><a href="#maglie">25 · Maglie di casa e trasferta (in sviluppo)</a></li>
-    <li><a href="#limiti">26 · Limiti e questioni aperte</a></li>
-    <li><a href="#storia">27 · Storico e prossimi passi</a></li>
+    <li><a href="#maglie">25 · Maglie di casa e trasferta (3.0)</a></li>
+    <li><a href="#euro8485">26 · Europa 1984-85 e coppe europee (3.0)</a></li>
+    <li><a href="#limiti">27 · Limiti e questioni aperte</a></li>
+    <li><a href="#storia">28 · Storico e prossimi passi</a></li>
   </ol>
 </nav>
 
@@ -117,7 +118,7 @@ html{scroll-behavior:smooth}
   <h1>Manuale tecnico SWOS ITA Mod</h1>
   <p>Documentazione per chi vuole capire, ampliare o portare su altri eseguibili le patch del mod: Serie C1 e C2, coppe sudamericane (Libertadores, Supercopa, CONMEBOL), Coppa Intercontinentale in carriera, rose reali 1996-97, tornei storici (Mondiale 1982, Coppa Mitropa 1934, FA Cup 1871-72), Apertura e Clausura in Argentina, Australia, Nuova Zelanda e MLS 1997 (2.5), stagioni storiche con la DDR 1988-89 e le coppe europee di quell'anno (2.6). Tutto quello che segue è stato ricavato dal disassemblato e verificato con build e partite di prova.</p>
   <div class="meta">
-    <span>Stato al <b>10/10/2026</b> (sessioni 1–33, release 2.7.0)</span>
+    <span>Stato all'<b>11/10/2026</b> (sessioni 1–34, release 3.0)</span>
     <span>Build exe <b><code>d38a5d1c…</code></b></span>
     <span>TEAM.020 <b><code>ded1b97b…</code></b></span>
     <span>Exe originale <b><code>60cdb6b1…</code></b></span>
@@ -570,7 +571,7 @@ assert blk[:2] == b'S2' and sum(blk) % 256 == 0</code></pre>
 </ul>
 
 <!-- 23 -->
-<h2 id="pacchetti"><span class="n">23</span>Pacchetti stagione e carriere storiche (in sviluppo)</h2>
+<h2 id="pacchetti"><span class="n">23</span>Pacchetti stagione e carriere storiche (3.0)</h2>
 <p>Un <em>pacchetto stagione</em> è una cartella di soli dati (<code>packs/&lt;id&gt;/</code>: <code>pack.json</code> + <code>clubs.csv</code>, <code>players.csv</code>, <code>ties.csv</code>, formato in <code>packs/README.md</code>) che <code>tools/mkseason.py</code> compila in file squadre e tabelle dell'exe, in modo deterministico. La DDR 1988-89 del capitolo 22 ora è il pacchetto <code>packs/ddr-1988-89</code> (identica byte per byte alla 2.6; <code>ddr89.py</code> ed <code>euro8889.py</code> sono stati rimossi). In una build entrano più pacchetti (<code>mkseason.ENABLED</code>); una rosa si costruisce con <code>calibrate</code> (forza obiettivo), <code>game</code> (giocatori già nel gioco) o <code>explicit</code> (ogni valore indicato). I numeri di nazione 101–251 sono liberi e funzionano (il nome del file squadre si costruisce da 0–255).</p>
 <p>Un <em>pacchetto carriera</em> (<code>"kind": "career"</code>) è un pacchetto giocato come carriera, dal pulsante CARR. STORICHE (pseudo-continente 98) del selettore squadra della carriera: <code>career_sel</code> sostituisce <code>call ChooseTeamsDialog</code> in <code>SelectTeamToManage</code> e scambia <code>competitionsTable[254]</code> con una tabella mondo che contiene 98. Il suo campionato può avere più divisioni con promozioni e retrocessioni (<code>divisions</code> + la colonna <code>division</code> di clubs.csv = byte +25 del record). Un <em>mondo</em> è un insieme di pacchetti carriera con lo stesso numero <code>world</code>: una carriera iniziata con uno dei suoi club vede solo le nazioni e le coppe europee del mondo (<code>tools/careerworld.py</code>). Stato: menu e divisioni provati (M1); cambio di mondo (M2) e anno, vista del mondo, detentori (M3) provati per due stagioni con un mondo di test a 4 nazioni.</p>
 <h3>Come funzionano davvero le coppe europee in carriera</h3>
@@ -608,7 +609,7 @@ assert blk[:2] == b'S2' and sum(blk) % 256 == 0</code></pre>
 </ul>
 
 <!-- 25 -->
-<h2 id="maglie"><span class="n">25</span>Maglie di casa e trasferta (in sviluppo)</h2>
+<h2 id="maglie"><span class="n">25</span>Maglie di casa e trasferta (3.0)</h2>
 <p>Il gioco sceglie le maglie da solo, e molte sfide classiche (Juventus-Milan, Milan-Inter, Inter-Juventus, il Chelsea contro Juventus, Newcastle o Manchester City) non si giocavano mai con le maglie di casa. Analisi del grafo dei colori: Daniele Bordes (DaniSwos), thread del forum SWOS United "Home-Away kit automatic selection". Strumenti: <code>tools/kitsim.py</code> (simulatore), <code>tools/kitcolors.py</code> (patch).</p>
 <ul>
 <li><strong>Come sceglie il gioco.</strong> <code>SetInGameTeamsPrimaryColors</code> dà un punteggio a quattro abbinamenti con <code>GetTeamKitsSimilarityFactor</code>: casa-casa, casa-trasferta, trasferta-casa, trasferta-trasferta (casa = la prima squadra). Usa il primo sotto 11. Il punteggio (fattore di somiglianza) somma 5 o 2 punti per ogni coppia di colori in conflitto (colori delle maglie 5, colore di una maglia contro i pantaloncini dell'altra 2, pantaloncini contro pantaloncini 5); alcune combinazioni di tipi di maglia valgono subito 66–99. Una maglia a righe che resta sotto 11 viene ricontrollata come colore medio (tabella <code>dseg_130942</code>, es. rosso+nero → granata). Se tutti e quattro arrivano a 11 o più, la seconda squadra prende una maglia tinta unita in uno dei suoi colori o, se nessuno va, nel primo colore di <code>teamKitTieBreakColors</code> che funziona; come ultima risorsa rosso contro blu.</li>
@@ -621,7 +622,19 @@ assert blk[:2] == b'S2' and sum(blk) % 256 == 0</code></pre>
 </ul>
 
 <!-- 26 -->
-<h2 id="limiti"><span class="n">26</span>Limiti e questioni aperte</h2>
+<h2 id="euro8485"><span class="n">26</span>Europa 1984-85 e coppe europee (3.0)</h2>
+<p>Il pulsante <strong>CARR. STORICHE</strong> della carriera elenca i mondi storici (pseudo-continente 98 &rarr; voce 200 + numero del mondo &rarr; paesi). Il primo è <strong>EUROPA 1984-85</strong>: 32 paesi, 949 club, rose reali dal database di <strong>DaniSwos</strong> (CM01/02 Retro Update Team), campionati nell'ordine finale 1983-84, coppe nazionali reali 1984-85 per 15 paesi, coppe europee 32/32/64 con gli accoppiamenti reali del primo turno. I dati sono in <code>packs/europe-1984-85/&lt;paese&gt;</code>: chiunque può completarli (per esempio gli allenatori mancanti, colonna <code>coach</code> di <code>clubs.csv</code>).</p>
+<ul>
+<li><strong>Nomi per lingua.</strong> <code>button_names</code> nel <code>pack.json</code> di ogni paese e <code>world_cups.name</code> nel pacchetto principale danno il nome nella lingua dell'exe (INGHILTERRA / ENGLAND / ANGLETERRE, EUROPA 1984-85 / EUROPE 1984-85).</li>
+<li><strong>Il livello in più del menu.</strong> <code>SelectTeamsFinalMenu</code> mostra i campionati di un paese solo a profondità 2 (<code>numSelectedTeams</code>); <code>w_lvl</code> accetta anche la profondità 3 quando la voce precedente (cima di <code>countryStack</code>) è un mondo.</li>
+<li><strong>Niente derby nei primi due turni.</strong> Coppa delle Coppe e Coppa UEFA (tutte e tre le coppe in un mondo): il primo turno è sorteggiato (<code>w_draw1</code> dopo <code>cseg_28139</code>), il secondo nasce dai vincitori del primo: <code>w_r2</code> dopo <code>cseg_2ACAE</code> (coppe simulate) e <code>w_r2p</code> dopo <code>cseg_29659</code> (la coppa del giocatore, che riordina i vincitori con la tabella a DIY+30Dh). Una sfida tra club dello stesso paese scambia la squadra in trasferta con quella di un'altra sfida.</li>
+<li><strong>Detentori.</strong> Normali carriere: il detentore della Coppa dei Campioni che non si è qualificato prende il posto di un club di un altro paese (<code>cseg_92C4D</code> confrontava l'ordinale invece del paese). Mondi: i detentori giocano in più; un campione nazionale che detiene la Coppa delle Coppe o la UEFA gioca la Coppa dei Campioni e il suo posto da detentore va al club successivo della sua classifica (<code>w_pick_cc</code>, <code>WH_SAVE</code>).</li>
+<li><strong>Intercontinentale.</strong> Corretto il bug (dalla 2.5) per cui il vincitore della Coppa dei Campioni che giocava l'Intercontinentale ripartiva in Coppa delle Coppe: <code>sacups.euro_found</code> salva il tipo di coppa prima che <code>cseg_8B2D3</code> sporchi D7.</li>
+<li><strong>Nazionali.</strong> In un mondo le offerte delle nazionali sono disattivate (le nazionali del gioco sono quelle del 1996). Il ciclo del gioco (qualificazioni Mondiali, Mondiale, qualificazioni Europei, Europeo) combacia con il 1984-85: le nazionali dell'epoca sono il lavoro della 3.1.</li>
+</ul>
+
+<!-- 27 -->
+<h2 id="limiti"><span class="n">27</span>Limiti e questioni aperte</h2>
 <ul>
 <li><strong>Play-off (2.5).</strong> NSL Finals e NSSL Playoffs sono eliminazioni dirette a 4: i formati veri (NSL: 6 club; entrambi: la "doppia possibilità" per le prime due) richiedono il controllo dei club turno per turno, cioè un contest di tipo 2 nello slot 4, il cui buffer (443h) è troppo piccolo. Rimandati a una versione futura (<code>finals97.py</code>, opzione A). La prima della stagione regolare che perde i play-off mostra ancora una piccola icona in cima al registro della stagione (non ancora individuata nel codice).</li>
 <li><strong>Gironi di C1/C2.</strong> Nel 1996-97 la C1 aveva 2 gironi e la C2 3. Il mod usa un girone unico per serie. L'intera realtà (128 squadre) non entra nel limite di circa 93 squadre per nazione. La C1 su due gironi entrerebbe (92), ma servono promozioni e retrocessioni fra divisioni parallele, verifiche sul limite delle 80 squadre di carriera e sui numeri globali: stima 2–3 sessioni.</li>
@@ -634,8 +647,8 @@ assert blk[:2] == b'S2' and sum(blk) % 256 == 0</code></pre>
 <li><strong>Panchina inglese (dopo la 1.0).</strong> Nella formazione prima della partita le squadre inglesi mostrano 14 giocatori (11 + 3 in panchina). Succede anche con il gioco originale, e <code>TEAM.008</code> ha 16 giocatori per club: è una regola del gioco. Da capire da dove venga il numero di riserve (regole a +3Dh…41h del buffer, valori 5/2/8 impostati da <code>InitCareer</code>) per portarlo a 5.</li>
 </ul>
 
-<!-- 27 -->
-<h2 id="storia"><span class="n">27</span>Storico e prossimi passi</h2>
+<!-- 28 -->
+<h2 id="storia"><span class="n">28</span>Storico e prossimi passi</h2>
 <div class="tbl"><table>
 <thead><tr><th>Sessione</th><th>Contenuto</th><th>Prova</th></tr></thead>
 <tbody>
@@ -659,6 +672,7 @@ assert blk[:2] == b'S2' and sum(blk) % 256 == 0</code></pre>
 <tr><td>31</td><td>Catena europea della carriera decodificata (copie delle coppe nel salvataggio, tabelle dei posti, detentori, checksum); mondi delle carriere storiche: byte del mondo, coppe europee del mondo, <code>worldNN.tmd</code> (M2)</td><td><span class="pill ok">superato (IT, 2 stagioni)</span></td></tr>
 <tr><td>32</td><td>Release 2.6.1: una carriera nuova iniziata con un club in una coppa europea viene avviata subito (dalla 1.2 il marchio 'S3' e le liste iniziali delle coppe degli altri continenti si scrivevano solo nell'altro ramo). Carriere storiche M3: anno iniziale del mondo, vista del mondo e ricerca stranieri limitate al mondo, niente panchine delle nazionali, detentori con un posto loro</td><td><span class="pill ok">superato (IT, 2 stagioni)</span></td></tr>
 <tr><td>33</td><td>Release 2.7.0: compatibilità con SWOS++ sull'exe inglese (CD e GOG): <code>tools/swospp.py</code>, uscite del patcher ENGLISH.EXE + SWOS++</td><td><span class="pill ok">superato (EN, SWOS++ 1.9.2.2)</span></td></tr>
+<tr><td>34</td><td>Release 3.0: carriere storiche Europa 1984-85 (dati DaniSwos), coppe europee fino a 128 club, niente derby nei primi due turni, regola dei detentori, correzione Intercontinentale, editor MAGLIE</td><td><span class="pill ok">superato (banco di prova automatico + prova di Davide)</span></td></tr>
 </tbody></table></div>
 <h3>Roadmap</h3>
 <ol>

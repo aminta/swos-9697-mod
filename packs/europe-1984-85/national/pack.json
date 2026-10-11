@@ -1,0 +1,55 @@
+{
+ "format": 1,
+ "id": "europe-1984-85-national",
+ "kind": "national",
+ "world": 4,
+ "sources": [
+  "DaniSwos (CM01/02 Retro Update Team), 1984-85 database: players by nationality, caps",
+  "Kits and tactics: the 1996-97 national teams (TEAM.080-085)"
+ ],
+ "files": {
+  "nat80": {
+   "file": 180,
+   "base": 0,
+   "as": 80
+  },
+  "nat81": {
+   "file": 181,
+   "base": 0,
+   "as": 81
+  },
+  "nat82": {
+   "file": 182,
+   "base": 0,
+   "as": 82
+  },
+  "nat83": {
+   "file": 183,
+   "base": 0,
+   "as": 83
+  },
+  "nat84": {
+   "file": 184,
+   "base": 0,
+   "as": 84
+  },
+  "nat85": {
+   "file": 185,
+   "base": 0,
+   "as": 85
+  }
+ },
+ "squads": [
+  {
+   "files": [
+    "nat80",
+    "nat81",
+    "nat82",
+    "nat83",
+    "nat84",
+    "nat85"
+   ],
+   "method": "explicit"
+  }
+ ]
+}

@@ -1,0 +1,144 @@
+key,name,coach,country,file,division,tactic,kit1,kit2,lineup,source
+albania80,ALBANIA,,ALB,nat80,0,3,0 4 4 4 4,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Albania
+armenia80,ARMENIA,KHOREN OGANESYAN,ARM,nat80,0,3,0 4 4 5 3,0 1 1 1 1,0 2 4 5 3 8 6 10 9 13 14 1 7 11 12 15,TEAM.080 ARMENIA
+austria80,AUSTRIA,Branko Elsner,AUS,nat80,0,4,0 1 1 2 1,0 4 4 1 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Austria
+azerbaijan80,AZERBAIJAN,KAZBEK TUAYEV,AZE,nat80,0,5,0 1 1 5 1,2 5 1 5 5,0 2 4 5 3 6 9 10 8 13 14 1 7 11 12 15,TEAM.080 AZERBAIJAN
+belarus80,BELARUS,SERGEI BOROVSKY,BEL,nat80,0,0,0 8 8 8 8,0 1 1 4 1,0 2 4 5 3 7 9 10 8 13 14 1 6 11 12 15,TEAM.080 BELARUS
+belgium80,BELGIUM,Guy Thys,BEL,nat80,0,8,0 4 4 4 4,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Belgium
+bulgaria80,BULGARIA,Ivan Vutsov,BUL,nat80,0,8,0 1 1 8 1,0 4 4 8 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Bulgaria
+eastgermany80,EAST GERMANY,Bernd Stange,CRO,nat80,0,4,0 1 1 5 1,0 0 0 0 0,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,East Germany
+cyprus80,CYPRUS,,CYP,nat80,0,0,0 5 5 1 5,0 1 1 5 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Cyprus
+czechoslovakia80,CZECHOSLOVAKIA,,CZE,nat80,0,4,0 4 4 1 5,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Czechoslovakia
+denmark80,DENMARK,Sepp Piontek,DEN,nat80,0,8,0 4 4 1 4,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Denmark
+england80,ENGLAND,Bobby Robson,ENG,nat80,0,4,0 1 1 5 1,0 0 0 0 0,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,England
+estonia80,ESTONIA,TEITUR THORDARSON,EST,nat80,0,2,0 5 5 2 1,0 1 1 2 5,0 2 4 5 3 8 10 11 9 13 14 1 6 7 12 15,TEAM.080 ESTONIA
+faroeisles80,FAROE ISLES,,FAR,nat80,0,0,0 1 1 5 1,0 5 5 1 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Faroe Islands
+finland80,FINLAND,Martti Kuusela,FIN,nat80,0,4,0 1 1 5 1,0 5 5 1 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Finland
+france80,FRANCE,Henri Michel,FRA,nat80,0,2,0 5 5 1 4,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,France
+georgia80,GEORGIA,ALEKSANDR CHIVADZE,GEO,nat80,0,2,0 1 1 2 1,0 4 4 1 4,0 2 4 5 3 7 9 10 8 12 13 1 6 11 14 15,TEAM.080 GEORGIA
+westgermany80,WEST GERMANY,Franz Beckenbauer,GER,nat80,0,4,0 1 1 2 1,0 8 8 1 8,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,West Germany
+greece80,GREECE,,GRE,nat80,0,0,0 5 5 1 5,0 1 1 5 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Greece
+holland80,HOLLAND,Rinus Michels,HOL,nat80,0,4,0 3 3 1 3,0 5 5 3 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Holland
+hungary80,HUNGARY,Gyorgy Mezey,HUN,nat80,0,4,0 4 4 1 8,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Hungary
+iceland80,ICELAND,Tony Knapp,ICE,nat80,0,0,0 5 5 1 5,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Iceland
+israel80,ISRAEL,,ISR,nat80,0,8,0 7 7 1 7,0 1 1 7 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Israel
+italy80,ITALY,Enzo Bearzot,ITA,nat80,0,0,0 5 5 1 5,0 1 1 5 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Italy
+latvia80,LATVIA,YANIS GILIS,LAT,nat80,0,0,0 6 6 1 6,0 1 1 6 1,0 2 4 5 3 8 10 11 9 12 13 1 6 7 14 15,TEAM.080 LATVIA
+liechtenstein80,LIECHTENSTEIN,,LIE,nat80,0,1,0 5 5 4 5,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Liechtenstein
+lithuania80,LITHUANIA,BENJAMINAS ZELKEVICIUS,LIT,nat80,0,0,0 9 9 8 9,0 1 1 1 1,0 2 4 5 3 7 9 10 8 13 14 1 6 11 12 15,TEAM.080 LITHUANIA
+luxembourg80,LUXEMBOURG,,LUX,nat80,0,2,0 4 4 1 5,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Luxembourg
+macedonia80,MACEDONIA,DJOKO HADJIEVSKI,MAC,nat80,0,3,0 4 4 1 4,0 1 1 1 1,0 2 4 5 3 8 6 10 9 12 13 1 7 11 14 15,TEAM.080 MACEDONIA
+malta80,MALTA,,MAL,nat80,0,2,0 4 4 1 4,0 1 1 4 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Malta
+moldova80,MOLDOVA,ION CARAS,MOL,nat80,0,0,2 5 9 4 9,0 9 9 9 9,0 2 4 5 3 7 9 10 8 13 14 1 6 11 12 15,TEAM.080 MOLDOVA
+northernireland80,NORTHERN IRELAND,Billy Bingham,NOR,nat80,0,0,1 8 5 1 8,0 1 1 8 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Northern Ireland
+norway80,NORWAY,Tor Roste Fossen,NOR,nat80,0,0,0 4 4 5 4,0 1 1 5 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Norway
+poland80,POLAND,Antoni Piechniczek,POL,nat80,0,8,0 1 1 4 1,0 4 4 4 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Poland
+portugal80,PORTUGAL,Jose Torres,POR,nat80,0,0,0 4 4 8 4,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Portugal
+republicireland80,REPUBLIC IRELAND,Eoin Hand,REP,nat80,0,4,0 8 8 1 8,0 1 1 8 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Republic of Ireland
+romania80,ROMANIA,Mircea Lucescu,ROM,nat80,0,2,0 9 9 9 9,0 4 4 4 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Romania
+sovietunion80,SOVIET UNION,Eduard Malofeyev,RUS,nat80,0,0,0 4 4 1 4,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Soviet Union
+sanmarino80,SAN MARINO,,SAN,nat80,0,1,0 7 7 7 7,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,San Marino
+scotland80,SCOTLAND,Jock Stein,SCO,nat80,0,0,0 5 5 1 5,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Scotland
+slovakia80,SLOVAKIA,JOZEF JANKECH,SLO,nat80,0,0,0 5 5 5 5,0 1 1 1 1,0 2 4 5 3 7 10 12 8 13 14 1 6 9 11 15,TEAM.080 SLOVAKIA
+slovenia80,SLOVENIA,ZDENKO VERDENIK,SLO,nat80,0,0,0 1 1 8 1,0 8 8 7 8,0 2 4 6 3 7 9 10 8 13 14 1 5 11 12 15,TEAM.080 SLOVENIA
+spain80,SPAIN,Miguel Munoz,SPA,nat80,0,2,0 4 4 5 5,0 5 5 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Spain
+sweden80,SWEDEN,Lars Arnesson,SWE,nat80,0,0,0 9 9 5 9,0 5 5 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Sweden
+switzerland80,SWITZERLAND,Paul Wolfisberg,SWI,nat80,0,0,0 4 4 1 4,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Switzerland
+turkey80,TURKEY,,TUR,nat80,0,8,0 1 1 1 1,0 4 4 4 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Turkey
+ukraine80,UKRAINE,JOZEF SZABO,UKR,nat80,0,0,0 9 9 5 9,0 5 5 9 5,0 2 4 5 3 7 9 12 8 13 14 1 6 10 11 15,TEAM.080 UKRAINE
+wales80,WALES,Mike England,WAL,nat80,0,0,0 4 4 4 4,0 2 2 2 2,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Wales
+yugoslavia80,YUGOSLAVIA,Milos Milutinovic,YUG,nat80,0,0,1 5 1 1 4,1 1 5 5 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Yugoslavia
+algeria81,ALGERIA,,ALG,nat81,0,0,0 8 8 1 4,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Algeria
+angola81,ANGOLA,,ANG,nat81,0,0,0 4 4 2 4,0 1 1 4 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Angola
+benin81,BENIN,,BEN,nat81,0,0,0 8 8 8 8,0 4 4 8 8,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Benin
+botswana81,BOTSWANA,,BOT,nat81,0,0,0 5 5 5 5,0 1 1 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Botswana
+burkinafaso81,BURKINA FASO,,BUR,nat81,0,0,0 4 4 4 4,0 4 4 8 9,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Burkina Faso
+burundi81,BURUNDI,RIBAKARE BANDA,BUR,nat81,0,8,0 4 4 1 8,0 8 8 4 1,0 2 4 5 3 7 9 10 8 12 13 1 6 11 14 15,TEAM.081 BURUNDI
+cameroon81,CAMEROON,,CAM,nat81,0,0,0 8 8 4 9,0 9 9 8 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Cameroon
+congo81,CONGO,,CON,nat81,0,0,0 4 4 4 4,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,The Congo
+egypt81,EGYPT,,EGY,nat81,0,0,0 4 4 1 2,0 8 8 1 8,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Egypt
+ethiopia81,ETHIOPIA,,ETH,nat81,0,0,0 8 8 9 4,0 9 9 9 9,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Ethiopia
+gabon81,GABON,,GAB,nat81,0,0,0 5 5 1 1,0 5 5 9 8,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Gabon
+ghana81,GHANA,,GHA,nat81,0,0,0 4 4 9 8,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Ghana
+guinea81,GUINEA,,GUI,nat81,0,0,0 4 4 9 8,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Guinea
+ivorycoast81,IVORY COAST,,IVO,nat81,0,3,0 3 3 1 8,0 1 1 1 3,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Ivory Coast
+kenya81,KENYA,,KEN,nat81,0,0,0 4 4 4 4,0 8 8 8 8,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Kenya
+lesotho81,LESOTHO,PHUMO,LES,nat81,0,0,0 5 5 1 8,0 8 8 1 8,0 2 4 5 3 7 9 10 8 13 14 1 6 11 12 15,TEAM.081 LESOTHO
+liberia81,LIBERIA,,LIB,nat81,0,0,0 4 4 1 4,0 5 5 5 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Liberia
+malawi81,MALAWI,,MAL,nat81,0,0,0 4 4 4 4,0 8 8 4 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Malawi
+mali81,MALI,,MAL,nat81,0,0,0 8 8 9 4,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Mali
+morocco81,MOROCCO,,MOR,nat81,0,8,0 4 4 4 4,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Morocco
+mozambique81,MOZAMBIQUE,,MOZ,nat81,0,0,0 4 4 2 4,0 1 1 4 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Mozambique
+niger81,NIGER,,NIG,nat81,0,0,0 3 3 1 8,0 3 3 3 3,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Niger
+nigeria81,NIGERIA,,NIG,nat81,0,0,0 8 8 8 8,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Nigeria
+senegal81,SENEGAL,,SEN,nat81,0,0,0 8 8 9 4,0 9 9 8 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Senegal
+sierraleone81,SIERRA LEONE,,SIE,nat81,0,0,0 8 8 1 5,0 5 5 1 8,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Sierra Leone
+southafrica81,SOUTH AFRICA,,SOU,nat81,0,0,0 8 8 9 8,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,South Africa
+sudan81,SUDAN,,SUD,nat81,0,0,2 5 9 1 1,0 8 8 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Sudan
+swaziland81,SWAZILAND,,SWA,nat81,0,0,0 5 5 9 5,0 9 9 5 9,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Swaziland
+tanzania81,TANZANIA,,TAN,nat81,0,0,0 9 9 9 9,0 8 8 2 8,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Tanzania
+togo81,TOGO,,TOG,nat81,0,0,0 1 1 8 8,0 8 8 9 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Togo
+tunisia81,TUNISIA,,TUN,nat81,0,0,0 4 4 1 4,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Tunisia
+uganda81,UGANDA,,UGA,nat81,0,0,0 9 9 2 9,0 4 4 4 2,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Uganda
+zambia81,ZAMBIA,,ZAM,nat81,0,0,0 8 8 1 4,0 3 3 2 2,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Zambia
+zimbabwe81,ZIMBABWE,,ZIM,nat81,0,0,0 8 8 9 9,0 9 9 9 8,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Zimbabwe
+argentina82,ARGENTINA,Carlos Bilardo,ARG,nat82,0,8,2 7 1 2 1,0 5 5 2 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Argentina
+bolivia82,BOLIVIA,,BOL,nat82,0,2,0 8 8 1 1,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Bolivia
+brazil82,BRAZIL,,BRA,nat82,0,0,0 9 9 5 1,0 5 5 5 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Brazil
+chile82,CHILE,,CHI,nat82,0,0,0 4 4 5 1,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Chile
+colombia82,COLOMBIA,,COL,nat82,0,8,0 9 9 5 4,0 4 4 5 9,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Colombia
+ecuador82,ECUADOR,,ECU,nat82,0,8,0 9 9 5 4,0 4 4 5 9,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Ecuador
+paraguay82,PARAGUAY,,PAR,nat82,0,0,2 1 4 5 5,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Paraguay
+peru82,PERU,,PER,nat82,0,8,2 1 4 1 1,0 4 4 4 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Peru
+uruguay82,URUGUAY,Omar Borras,URU,nat82,0,0,0 7 7 2 7,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Uruguay
+venezuela82,VENEZUELA,,VEN,nat82,0,0,0 4 4 1 4,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Venezuela
+bermuda83,BERMUDA,,BER,nat83,0,0,2 5 9 9 5,0 4 4 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Bermuda
+canada83,CANADA,,CAN,nat83,0,0,0 4 4 1 1,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Canada
+costarica83,COSTA RICA,,COS,nat83,0,0,0 4 4 5 1,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Costa Rica
+elsalvador83,EL SALVADOR,,EL ,nat83,0,0,0 5 5 5 5,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,El Salvador
+guatemala83,GUATEMALA,,GUA,nat83,0,8,0 1 1 1 1,0 4 4 5 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Guatemala
+guyana83,GUYANA,,GUY,nat83,0,2,0 8 8 9 9,0 9 9 8 9,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Guyana
+honduras83,HONDURAS,,HON,nat83,0,8,0 1 1 1 1,0 5 5 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Honduras
+jamaica83,JAMAICA,,JAM,nat83,0,5,0 8 8 2 9,0 9 9 2 9,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Jamaica
+mexico83,MEXICO,Bora Milutinovic,MEX,nat83,0,0,0 8 8 1 4,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Mexico
+nicaragua83,NICARAGUA,,NIC,nat83,0,0,0 5 5 5 5,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Nicaragua
+panama83,PANAMA,,PAN,nat83,0,0,2 1 4 5 4,2 5 1 4 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Panama
+stvincent83,ST. VINCENT,LENNY TAYLOR,ST.,nat83,0,0,0 4 4 2 9,0 8 8 9 4,0 2 4 5 3 7 9 10 8 13 14 1 6 11 12 15,TEAM.083 ST. VINCENT
+surinam83,SURINAM,,SUR,nat83,0,0,0 4 4 8 1,0 8 8 4 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Surinam
+trinidadtobago83,TRINIDAD-TOBAGO,,TRI,nat83,0,0,0 4 4 2 4,0 9 9 9 9,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Trinidad & Tobago
+unitedstates83,UNITED STATES,,UNI,nat83,0,3,0 1 1 1 1,0 5 5 5 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,United States
+bahrain84,BAHRAIN,,BAH,nat84,0,0,0 1 1 4 1,0 4 4 1 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Bahrain
+bangladesh84,BANGLADESH,,BAN,nat84,0,0,0 3 3 1 8,0 8 8 8 8,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Bangladesh
+brunei84,BRUNEI,,BRU,nat84,0,0,0 9 9 2 9,0 2 2 2 2,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Brunei Darussalam
+china84,CHINA,,CHI,nat84,0,8,0 4 4 1 4,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,China PR
+hongkong84,HONG KONG,,HON,nat84,0,0,0 4 4 1 4,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Hong Kong
+india84,INDIA,,IND,nat84,0,0,0 8 8 1 4,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,India
+indonesia84,INDONESIA,,IND,nat84,0,0,0 4 4 1 4,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Indonesia
+iran84,IRAN,,IRA,nat84,0,0,0 8 8 1 4,0 4 4 1 8,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Iran
+iraq84,IRAQ,,IRA,nat84,0,0,0 1 1 8 1,0 8 8 8 8,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Iraq
+japan84,JAPAN,,JAP,nat84,0,0,0 5 5 1 5,0 5 5 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Japan
+jordan84,JORDAN,,JOR,nat84,0,0,0 1 1 1 1,0 4 4 4 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Jordan
+kuwait84,KUWAIT,,KUW,nat84,0,0,0 5 5 1 5,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Kuwait
+laos84,LAOS,PITHAT,LAO,nat84,0,0,0 4 4 1 5,0 1 1 1 1,0 2 4 5 3 7 9 10 8 13 14 1 6 11 12 15,TEAM.084 LAOS
+malaysia84,MALAYSIA,,MAL,nat84,0,0,0 9 9 9 9,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Malaysia
+mauritius84,MAURITIUS,,MAU,nat84,0,0,0 4 4 1 4,0 1 1 1 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Mauritius
+burma84,BURMA,,MYA,nat84,0,0,0 4 4 1 4,0 1 1 4 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Burma
+northkorea84,NORTH KOREA,,NOR,nat84,0,0,0 4 4 1 4,0 1 1 8 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,North Korea
+oman84,OMAN,,OMA,nat84,0,0,0 4 4 1 4,0 1 1 4 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Oman
+pakistan84,PAKISTAN,,PAK,nat84,0,0,0 8 8 1 8,0 1 1 8 8,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Pakistan
+papuanewguinea84,PAPUA NEW GUINEA,JOHN PEKA,PAP,nat84,0,0,0 4 4 2 4,0 1 1 1 1,0 2 4 5 3 7 9 10 8 13 14 1 6 11 12 15,TEAM.084 PAPUA NEW GUINEA
+philippines84,PHILIPPINES,,PHI,nat84,0,0,0 5 5 1 5,0 1 1 5 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,The Philippines
+qatar84,QATAR,,QAT,nat84,0,0,0 1 1 6 1,0 6 6 1 6,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Qatar
+saudiarabia84,SAUDI ARABIA,,SAU,nat84,0,0,0 1 1 8 1,0 8 8 1 8,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Saudi Arabia
+singapore84,SINGAPORE,,SIN,nat84,0,0,0 1 1 4 1,0 4 4 4 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Singapore
+southkorea84,SOUTH KOREA,,SOU,nat84,0,8,0 4 4 4 4,0 5 5 5 5,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,South Korea
+srilanka84,SRI LANKA,M.L. ZAHAIR,SRI,nat84,0,0,0 6 6 9 1,0 9 9 9 9,0 2 4 5 3 7 9 10 8 12 13 1 6 11 14 15,TEAM.084 SRI LANKA
+syria84,SYRIA,,SYR,nat84,0,0,0 1 1 1 1,0 4 4 4 4,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Syria
+taiwan84,TAIWAN,,TAI,nat84,0,0,0 4 4 1 5,0 1 1 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Taiwan
+unitedarabemis84,UNITED ARAB EMIS,,UNI,nat84,0,0,0 1 1 1 1,0 4 4 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,United Arab Emirates
+vietnam84,VIETNAM,PHAN NUONG DHANG,VIE,nat84,0,0,0 4 4 1 4,0 1 1 4 1,0 2 4 5 3 7 9 10 8 13 14 1 6 11 12 15,TEAM.084 VIETNAM
+northyemen84,NORTH YEMEN,,YEM,nat84,0,0,0 8 8 8 8,0 9 9 8 9,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,North Yemen
+australia85,AUSTRALIA,,AUS,nat85,0,0,0 9 9 8 1,0 8 8 1 8,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Australia
+fiji85,FIJI,,FIJ,nat85,0,8,0 1 1 2 1,2 1 2 2 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,Fiji
+newzealand85,NEW ZEALAND,,NEW,nat85,0,0,0 1 1 1 1,0 2 2 1 1,0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15,New Zealand
+solomonislands85,SOLOMON ISLANDS,LUITO FA'ARODO,SOL,nat85,0,8,0 5 5 4 4,0 4 4 4 4,0 2 4 5 3 8 10 11 9 13 14 1 6 7 12 15,TEAM.085 SOLOMON ISLANDS

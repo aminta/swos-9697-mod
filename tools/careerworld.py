@@ -300,6 +300,53 @@ w_nat:                                  ; replaces `mov ax, [D0]; mov [lastNatio
     mov [LASTNAT], ax
     ret
 
+w_tmap:                                 ; eax = team file number (80..85) -> the world's own national file
+    cmp word [GAMETYPE], 4              ; (career only: the world byte is stale outside a career)
+    jne .r
+    cmp eax, 80
+    jb .r
+    cmp eax, 85
+    ja .r
+    push ebx
+    movzx ebx, byte [SLT + WORLD_BYTE]
+    movzx ebx, byte [WNAT + ebx]
+    test ebx, ebx
+    jz .p
+    lea eax, [eax + ebx - 80]
+.p:
+    pop ebx
+.r:
+    ret
+
+w_tfile:                                ; replaces `and dword [D0], 0FFh` before LoadTeamFile builds data\team.nnn
+    and dword [D0R], 0FFh
+    push eax
+    mov eax, [D0R]
+    call w_tmap
+    mov [D0R], eax
+    mov [WTPHYS], al                    ; the physical file now in teamFileBuffer
+    pop eax
+    ret
+
+w_tcache:                               ; replaces `mov al, [lastLoadedExtNumber]` (cache test): a cached 80..85 is
+    mov al, [LASTEXT]                   ; a hit only if it is the file this career wants (1996-97 or world)
+    push edx
+    movzx edx, byte [D0R]
+    cmp edx, 80
+    jb .o
+    cmp edx, 85
+    ja .o
+    xchg eax, edx
+    call w_tmap
+    cmp al, [WTPHYS]
+    mov eax, edx
+    je .o
+    mov al, 0FEh                        ; no team file has this number: reload
+.o:
+    pop edx
+    ret
+WTPHYS: db 0
+
 w_holders:                              ; replaces `call cseg_92BBF`: in a world the holders get a place of their own
     push ebx                            ; (appended to the list + record), the game replaces a random qualifier
     call w_rec
@@ -656,6 +703,17 @@ def sites(p):
     s['clist_refs'] = [f[1] for f in fx if f[0] == 1 and f[3] == 2 and f[4] == base]
     assert len(s['clist_refs']) == 3 and all(orig[x - 6:x - 4] == b'\xc7\x05' for x in s['clist_refs'])
     s['regs'] = dict(D0R=D0, D7R=D7, A0R=A0, A1R=A1, A5R=A0 + 20, A6R=A6)
+    # LoadTeamFile (3.1, world national teams): the cache test `mov al, [lastLoadedExtNumber]; cmp [D0], al; jz` and,
+    # after `mov [lastLoadedExtNumber], al`, the file name's `and dword [D0], 0FFh`
+    m = _one(rb'\x66\x0b\xc0\x74.\xa0(.{4})\x38\x05' + pk(D0) + rb'\x0f\x84', d1, 'LoadTeamFile cache')
+    s['tcache'], s['lastext'] = m.start() + 5, p.target(1, m.start() + 6)
+    m = _one(rb'\xa2' + pk(struct.unpack('<I', m.group(1))[0]) + rb'\x81\x25' + pk(D0) + rb'\xff\x00\x00\x00', d1,
+             'LoadTeamFile name')
+    s['tfile'] = m.start() + 5
+    gt = {p.target(1, x.start() + 14) for x in
+          re.finditer(rb'\x66\xa1.{4}\x66\x0b\xc0\x75.\x66\x83\x3d.{4}\x04\x75', orig, re.S)}
+    assert len(gt) == 1, gt
+    s['gametype'] = gt.pop()
     return s
 
 
@@ -717,6 +775,10 @@ def patch(p, worlds, at, nasmcave, comp, ct, cont_rec):
             extra.append(f'W{n}_P{key.upper()}: db ' + ', '.join(map(str, pl)))
         extra.append(f'W{n}_LIST: db ' + ', '.join(map(str, w['countries'] + [0xff])))
         extra.append(f'W{n}_TMD: db "data\\\\{w["tmd"].lower()}", 0')
+    wnat = [0] * (max(w['n'] for w in worlds) + 1)  # physical file standing for TEAM.080 per world (0 = the game's)
+    for w in worlds:
+        wnat[w['n']] = w.get('nat', 0)
+    extra.append('WNAT: db ' + ', '.join(map(str, wnat)))
     pairs = [x for w in worlds for f in w['countries'] for x in (f, w['n'])]
     extra.append('WMAP: db ' + ', '.join(map(str, pairs + [0xff])))
     anybig = any(big(w) for w in worlds)
@@ -781,7 +843,8 @@ def patch(p, worlds, at, nasmcave, comp, ct, cont_rec):
                 'COMP99': (2, comp + 4 * WCONT), 'VIEWFIRST': p.target(vobj, vtab), 'CHOOSECOMP': (1, s['choosecomp']),
                 'CHOOSETEAMS': (1, s['chooseteams']), 'LASTNAT': (2, s['lastnat']), 'HOLDERS': (1, s['holders']),
                 'ADDREC': (1, s['addrec']), 'CLEARHOLD': (1, s['clearhold']),
-                'LOOP_CWC': (1, s['pick'][1][2]), 'LOOP_UEFA': (1, s['pick'][2][2])})
+                'LOOP_CWC': (1, s['pick'][1][2]), 'LOOP_UEFA': (1, s['pick'][2][2]),
+                'GAMETYPE': s['gametype'], 'LASTEXT': s['lastext']})
     for key, (hold, buf, lst, cnt) in zip(('CC', 'CWC', 'UEFA'), s['hold']):
         sym.update({f'HOLD_{key}': (2, hold), f'BUF_{key}': (2, buf), f'LIST_{key}': (2, lst)})
         assert cnt == s['cnt'][('CC', 'CWC', 'UEFA').index(key)]
@@ -813,6 +876,8 @@ def patch(p, worlds, at, nasmcave, comp, ct, cont_rec):
     hook(s['view'], 5, 'w_view', ())
     hook(s['buy'], 5, 'w_buy', ())
     hook(s['nat'], 12, 'w_nat', (2, 8))
+    hook(s['tfile'], 10, 'w_tfile', (2,))
+    hook(s['tcache'], 5, 'w_tcache', (1,))
     for site, name, _ in s['pick']:
         hook(site, 5, name, ())
     for site, name in hooks:                     # euro 128 (big worlds only)

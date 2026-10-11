@@ -34,10 +34,12 @@ import unicodedata
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.join(HERE, '..')
 PACKS = os.path.join(ROOT, 'packs')
+NATIONAL = 'national'                   # packs/<world>/national: the world's national teams (NationalPack)
 WORLDS = ['europe-1984-85']                        # career worlds: packs/<world>/<country> (3.0: Europe 1984-85)
 ENABLED = (os.environ['SEASON_PACKS'].split(',') if 'SEASON_PACKS' in os.environ else   # packs built into the mod,
            ['ddr-1988-89', 'italia-1947-48'] + [os.path.join(PACKS, w, c) for w in WORLDS                 # in this order
-                              for c in sorted(os.listdir(os.path.join(PACKS, w))) if not c.startswith('.')])
+                              for c in sorted(os.listdir(os.path.join(PACKS, w)))
+                              if not c.startswith('.') and c != NATIONAL])
                                         # (a name in packs/ or a path; SEASON_PACKS only for test builds)
 TEAM_SIZE = 684
 SEASONS = 97                            # pseudo-continent 'classic seasons' of the Season menu
@@ -434,15 +436,80 @@ class Pack:
         return b''.join(bytes(self.where[k]) for k in clubs)
 
 
+class NationalPack(Pack):
+    """A world's national teams (3.1): explicit squads only, one team file per 1996-97 national file (TEAM.080-085)
+    with the same ordinals. pack.json: world, files {key: {file, base, as}} (as = the game's national file it stands
+    for: the records say 'as', so global numbers and every (file, ordinal) reference stay the game's; the world's
+    career loads TEAM.<file> instead of TEAM.<as>, careerworld w_tfile), squads [{files, method: explicit}]."""
+
+    def __init__(self, path):
+        self.path = path
+        self.meta = m = json.load(open(os.path.join(path, 'pack.json'), encoding='utf-8'))
+        _need(m.get('format') == 1 and m.get('kind') == 'national', f'{path}: pack.json: format 1, kind national')
+        self.kind, self.world = 'national', m.get('world')
+        _need(isinstance(self.world, int) and 1 <= self.world <= 50, f'{path}: world must be a number 1..50')
+        self.files = {k: (v['file'], v['base']) for k, v in m['files'].items()}
+        self.as_file = {v['file']: v['as'] for v in m['files'].values()}
+        off = {f - a for f, a in self.as_file.items()}
+        _need(sorted(self.as_file.values()) == list(range(80, 86)) and len(off) == 1,
+              f'{path}: files must stand for the national files 80..85, in order (as = file - constant)')
+        _need(all(sq['method'] == 'explicit' for sq in m['squads']), f'{path}: squads: method explicit only')
+        self.clubs, self.prows = {}, {}
+        for row in _csv(os.path.join(path, 'clubs.csv')):
+            _need(row['key'] not in self.clubs and row['file'] in self.files, f"clubs.csv: {row['key']}: key / file")
+            _need(0 < len(row['name']) <= 16 and row['name'] == row['name'].upper(),
+                  f"clubs.csv: {row['key']}: name must be 1-16 upper-case characters")
+            self.clubs[row['key']], self.prows[row['key']] = row, []
+        for row in _csv(os.path.join(path, 'players.csv')):
+            _need(row['club'] in self.prows, f"players.csv: unknown club {row['club']}")
+            self.prows[row['club']].append(row)
+        self.where, self.count = {}, {}
+        for k, c in self.clubs.items():
+            n = self.count.get(c['file'], 0)
+            self.where[k] = (self.files[c['file']][0], n)
+            self.count[c['file']] = n + 1
+        self.division, self.comps, self.ties = {}, [], {}
+
+    def nat_base(self):
+        """Physical team file that stands for TEAM.080."""
+        return next(f for f, a in self.as_file.items() if a == 80)
+
+    def _empty_record(self, key, template):
+        r = super()._empty_record(key, template)
+        r[0] = self.as_file[r[0]]
+        return r
+
+    def divisions(self):
+        return []
+
+    def draws(self):
+        return []
+
+    def bye_cups(self):
+        return []
+
+
+def nationals():
+    """National team packs of the career worlds (packs/<world>/national)."""
+    if not hasattr(nationals, 'cache'):
+        if 'SEASON_PACKS' in os.environ:        # test builds: the listed folders named 'national'
+            paths = [x for x in ENABLED if os.path.basename(x.rstrip(os.sep)) == NATIONAL]
+        else:
+            paths = [os.path.join(PACKS, w, NATIONAL) for w in WORLDS if os.path.isdir(os.path.join(PACKS, w, NATIONAL))]
+        nationals.cache = [NationalPack(x) for x in paths]
+    return nationals.cache
+
+
 def packs():
     if not hasattr(packs, 'cache'):
-        packs.cache = [Pack(x if os.sep in x else os.path.join(PACKS, x)) for x in ENABLED]
+        packs.cache = [Pack(x if os.sep in x else os.path.join(PACKS, x)) for x in ENABLED
+                       if os.path.basename(x.rstrip(os.sep)) != NATIONAL]
     return packs.cache
 
 
 def team_files():
     out = {}
-    for pk in packs():
+    for pk in packs() + nationals():
         out.update(pk.team_files())
     return out
 
@@ -456,12 +523,12 @@ def bye_cups():
 
 
 def file_numbers():
-    return sorted(f for pk in packs() for f, _ in pk.files.values())
+    return sorted(f for pk in packs() + nationals() for f, _ in pk.files.values())
 
 
 def base_of(n):
     """First global number of a pack team file (None if n is not one)."""
-    for pk in packs():
+    for pk in packs() + nationals():
         for f, b in pk.files.values():
             if f == n:
                 return b
@@ -512,6 +579,9 @@ def world_defs():
         _need(isinstance(wc.get('start_year'), int) and 1900 < wc['start_year'] < 2000,
               f'world {n}: world_cups.start_year (first season, e.g. 1984) is needed')
         w['year'] = wc['start_year']
+        nat = [x for x in nationals() if x.world == n]
+        _need(len(nat) <= 1, f'world {n}: one national pack at most')
+        w['nat'] = nat[0].nat_base() if nat else 0     # 0 = the game's national teams
         for pk in pks:                          # cseg_93974: the champion, the cup winner, then the top 9's next clubs
             pl = pk.meta.get('europe_places', {})
             _need(pl.get('cc', 0) <= 1 and pl.get('cwc', 0) <= 1 and pl.get('uefa', 0) <= 6,
@@ -555,7 +625,7 @@ def world_files():
 def career_file(n):
     """True for the team files of world career packs: their clubs may reuse 1996-97 European global numbers (a world
     career never loads those files)."""
-    return any(pk.world is not None and n in (f for f, _ in pk.files.values()) for pk in packs())
+    return any(pk.world is not None and n in (f for f, _ in pk.files.values()) for pk in packs() + nationals())
 
 
 def shares_base(n):

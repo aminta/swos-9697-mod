@@ -1,0 +1,2289 @@
+club,name,role,position,number,nat,skin,pa,ve,he,ta,co,sp,fi,price
+albania80,Perlat Musta,G,G,1,0,light,2*,2*,2*,2,2,2,2,22
+albania80,Kastriot Hysi,D,RB,2,0,light,2*,2*,2*,2,2,2,2,14
+albania80,Arjan Hametaj,D,LB,3,0,light,2*,2*,2*,2,2,2,2,14
+albania80,Kreshnik Çipi,D,D,4,0,light,2*,2*,2*,2,2,2,2,14
+albania80,Muhedin Targaj,D,D,5,0,light,2*,2*,2*,2,2,2,2,14
+albania80,Antonin Naci,M,RW,6,0,light,2*,2*,2*,2,2,2,2,14
+albania80,Kristaq Eksarko,M,LW,7,0,light,2*,2*,2*,2,2,2,2,14
+albania80,Ilir Lame,M,M,8,0,light,2*,2*,2*,2,2,2,2,14
+albania80,Mirel Josa,M,M,9,0,light,2*,2*,2*,2,2,2,2,14
+albania80,Ferdinand Lleshi,A,A,10,0,light,2*,2*,2*,2,2,2,2,14
+albania80,Ardian Popa,A,A,11,0,light,2*,2*,2*,2,2,2,2,14
+albania80,Jani Kaçi,G,G,12,0,light,2*,2*,2*,2,2,2,2,19
+albania80,Edmond Abazi,D,D,13,0,light,3*,3*,3*,3,3,2,3,20
+albania80,Skender Hodja,M,M,14,0,light,2*,2*,2*,2,2,2,2,14
+albania80,Bedri Omuri,A,A,15,0,light,2*,2*,2*,2,2,2,2,14
+albania80,Eduard Abazaj,D,LB,16,0,light,3,4*,3,4*,3,4*,3,24
+armenia80,HARUTYUN ABRAHAMYAN,G,G,1,41,light,0,0,0,0,0,0,0,15
+armenia80,ARMENAK PETROSYAN,G,G,12,41,light,0,0,0,0,0,0,0,11
+armenia80,YERVAND SUKIASYAN,D,RB,2,41,light,2,2,1,4*,2,5*,1,17
+armenia80,VARDAN KHACHATRYAN,D,LB,3,41,light,1,0,2,4*,2,4*,2,15
+armenia80,SARKIS HOVSEPYAN,D,D,4,41,light,2,0,6*,5*,1,1,1,16
+armenia80,SARKIS OGANESYAN,D,D,5,41,light,2,1,5*,4*,2,2,1,17
+armenia80,MICHEL DER ZAKARIAN,D,D,6,41,light,1,1,5*,6*,0,1,1,15
+armenia80,ASHOT KHACHATRYAN,D,D,13,41,light,1,1,5*,4*,1,0,0,12
+armenia80,ARTUR PETROSYAN,M,RW,7,41,light,0,1,2,1,5*,5*,1,15
+armenia80,RAMZIK GRIGORYAN,M,LW,8,41,light,1,2,1,1,5*,3*,2,15
+armenia80,HAMLET MKHITARYAN,M,M,9,41,light,6*,1,2,4*,1,2,1,17
+armenia80,YERVAND KARBASHYAN,M,M,14,41,light,4*,0,1,4*,1,0,1,11
+armenia80,VARAZDAT AVETISYAN,M,M,15,41,light,0,3*,4*,0,0,1,3*,11
+armenia80,ERIC ASSADOURIAN,A,A,10,41,light,1,3*,3*,1,1,2,3*,14
+armenia80,ARSEN AVETISYAN,A,A,11,41,light,1,4*,6*,1,0,1,4*,17
+armenia80,HAKOP TER-PETROSYAN,A,A,16,41,light,4*,1,1,6*,0,1,0,13
+austria80,Klaus Lindenberger,G,G,1,1,light,3*,3*,5*,3,3,3,3,33
+austria80,Bruno Pezzey,D,RB,2,1,light,6*,5,6*,6*,6,6,5,40
+austria80,Heribert Weber,D,LB,3,1,light,5*,5,6*,6*,4,5,4,35
+austria80,Erich Obermayer,D,D,4,1,light,5*,4,5*,5*,5,5,4,33
+austria80,Anton Pichler,D,D,5,1,light,4,5*,5*,5*,5,5,4,33
+austria80,Herbert Prohaska,M,RW,6,1,light,5*,5*,5*,4,5,5,5,34
+austria80,Walter Hörmann,M,LW,7,1,light,5*,5*,5*,5,4,5,4,33
+austria80,Ernst Baumeister,M,M,8,1,light,5*,5*,5*,3,5,5,4,32
+austria80,Karl Daxbacher,M,M,9,1,light,5*,4,5*,3,5*,4,4,30
+austria80,Hans Krankl,A,A,10,1,light,6*,6*,6*,4,6,6,6,40
+austria80,Walter Schachner,A,A,11,1,light,5*,5,6*,4,5,6*,5,36
+austria80,Herbert Feurer,G,G,12,1,light,3*,3,5*,3,4*,3,3,30
+austria80,Reinhold Hintermaier,D,D,13,1,light,3,5*,4,5*,4,5*,5,31
+austria80,Gerald Willfurth,M,M,14,1,light,3,3,5*,3,3,5*,5*,27
+austria80,Toni Polster,A,A,15,1,light,4,5*,5*,4,5,5,6*,34
+austria80,Bernd Krauss,D,RB,16,1,light,5*,5,5,6*,5,6*,5,37
+azerbaijan80,ALEKSANDR ZHIDKOV,G,G,1,43,light,0,0,0,0,0,0,0,13
+azerbaijan80,ELHAN HASANOV,G,G,12,43,light,0,0,0,0,0,0,0,10
+azerbaijan80,IGOR GETMAN,D,RB,2,43,light,1,2,1,3*,1,5*,1,14
+azerbaijan80,EMIN AGAYEV,D,LB,3,43,light,2,1,2,5*,1,4*,0,15
+azerbaijan80,TARLAN AHMEDOV,D,D,4,43,light,0,1,6*,5*,1,1,1,15
+azerbaijan80,ARIF ASADOV,D,D,5,43,light,1,2,5*,5*,0,1,2,16
+azerbaijan80,RASIM ABUSOV,D,D,6,43,light,1,0,6*,4*,2,2,0,15
+azerbaijan80,YASHAR VAHABZADE,D,D,13,43,light,2,1,4*,6*,0,0,0,13
+azerbaijan80,VLADISLAV KADIROV,M,RW,9,43,light,2,0,2,1,4*,4*,2,15
+azerbaijan80,SAHIN DINIEV,M,LW,7,43,light,4*,1,1,5*,1,1,1,14
+azerbaijan80,VIDADI RZAEV,M,M,8,43,light,2,3*,5*,1,1,0,4*,16
+azerbaijan80,VYACHESLAV LYCHKIN,M,M,14,43,light,3*,2,1,4*,1,1,0,12
+azerbaijan80,YUNIS HUSEINOV,M,M,15,43,light,1,3*,3*,1,1,1,3*,13
+azerbaijan80,VELLI KASUMOV,A,A,11,43,light,2,5*,5*,0,0,1,4*,17
+azerbaijan80,NEZIM SULEIMANOV,A,A,10,43,light,0,2,2,0,4*,4*,2,14
+azerbaijan80,SAMIR ALEKPEROV,A,A,16,43,light,0,4*,3*,1,1,0,3*,12
+belarus80,VALERY SHANTALOSOV,G,G,1,38,light,0,0,0,0,0,0,0,16
+belarus80,ANDREY SATSUNKHEVICH,G,G,12,38,light,0,0,0,0,0,0,0,15
+belarus80,SERGEI GURENKO,D,RB,2,38,light,0,2,2,6*,1,6*,1,18
+belarus80,ANDREI DOVNAR,D,LB,3,38,light,2,1,2,7*,1,5*,0,18
+belarus80,SERGEI SHTANYUK,D,D,5,38,light,2,2,7*,7*,3,2,2,25
+belarus80,PAVEL RODNENOK,D,D,4,38,light,0,1,7*,4*,1,2,1,16
+belarus80,ALEXANDER TAIKOV,D,D,13,38,light,0,0,4*,6*,2,0,2,14
+belarus80,ALEXANDER METLITSKY,M,RW,10,38,light,2,1,3,3,5*,6*,2,22
+belarus80,VASILI BARANOV,M,LW,6,38,light,2,2,1,1,6*,5*,1,18
+belarus80,VALENTIN BELKEVICH,M,M,9,38,light,5*,1,1,5*,1,2,2,17
+belarus80,VLADIMIR MAKOVSKI,M,M,8,38,light,6*,7*,1,4*,1,1,1,21
+belarus80,YURY VERGEICHIK,M,M,14,38,light,5*,0,1,7*,0,1,1,15
+belarus80,ALEXANDER KULCHI,M,M,15,38,light,3*,2,2,6*,0,1,1,15
+belarus80,SERGEY GERASIMETS,A,A,7,38,light,7*,2,2,6*,1,3,2,23
+belarus80,PETR KACHURO,A,A,11,38,light,0,5*,5*,2,1,1,6*,20
+belarus80,YEVGENY KASHENTSEV,A,A,16,38,light,1,6*,1,1,1,4*,4*,18
+belgium80,Jean-Marie Pfaff,G,G,1,2,light,5*,4,6*,4,4,6*,4,41
+belgium80,Eddy Snelders,D,RB,2,2,light,4,4,6*,5*,6*,5,5,35
+belgium80,Gérard Plessers,D,LB,3,2,light,5*,5*,5,6*,5,5,4,35
+belgium80,Walter Meeuws,D,D,4,2,light,5*,4,6*,6*,4,5,4,34
+belgium80,Michel Renquin,D,D,5,2,light,5*,4,5*,5*,5,5,4,33
+belgium80,Ludo Coeck,M,RW,6,2,light,5*,6*,5*,5,5,5,5,36
+belgium80,Guy Vandersmissen,M,LW,7,2,light,5*,5*,5,6*,5,5,4,35
+belgium80,René Verheyen,M,M,8,2,light,5*,5*,5*,5,5,5,5,35
+belgium80,Paul Theunis,M,M,9,2,light,5*,5*,5*,4,5,5,5,34
+belgium80,Jan Ceulemans,A,A,10,2,light,5,6*,6*,4,6*,5,6,38
+belgium80,Enzo Scifo,A,A,11,2,light,6*,5*,5,5,6*,5,5,37
+belgium80,Michel Preud'homme,G,G,12,2,light,5*,3,5*,3,4,5*,3,33
+belgium80,Paul Lambrichts,D,D,13,2,light,5*,4,5*,5*,4,5,3,31
+belgium80,Jos Daerden,M,M,14,2,light,5*,5*,5*,4,5,5,4,33
+belgium80,Erwin Vandenbergh,A,A,15,2,light,5*,5*,5,4,5,5,6*,35
+belgium80,Eric Gerets,D,RB,16,2,light,5*,6*,5,6*,5,5,5,37
+bulgaria80,Bobby Mikhailov,G,G,1,3,light,4*,3,5*,3,3,5*,3,31
+bulgaria80,Georgi Dimitrov,D,RB,2,3,light,5*,5*,5,6*,4,5,5,35
+bulgaria80,Nikolay Iliev,D,LB,3,3,light,5*,4,5*,5*,5,5,4,33
+bulgaria80,Nikolay Arabov,D,D,4,3,light,5*,4,5*,5*,4,5,4,32
+bulgaria80,Petar Hubchev,D,D,5,3,light,4*,4,5*,5*,4,4,4,30
+bulgaria80,Nasko Sirakov,M,RW,6,3,light,5*,5*,5*,5,5,5,5,35
+bulgaria80,Bozidar Iskrenov,M,LW,7,3,light,5*,5*,5*,4,5,5,5,34
+bulgaria80,Radoslav Zdravkov,M,M,8,3,light,5*,5*,5*,4,5,5,5,34
+bulgaria80,Georgi Yordanov,M,M,9,3,light,5*,4,5*,5*,5,4,5,33
+bulgaria80,Stoycho Mladenov,A,A,10,3,light,5*,5*,5,4,5,5,6*,35
+bulgaria80,Plamen Getov,A,A,11,3,light,5*,5*,5*,4,5,5,5,34
+bulgaria80,Venelin Nikolov,G,G,12,3,light,3*,3*,3*,3,3,3,3,30
+bulgaria80,Georgi Iliev,D,D,13,3,light,3*,3*,3*,3,3,3,3,21
+bulgaria80,Ayan Sadakov,M,M,14,3,light,5*,4,4,5*,5*,4,4,31
+bulgaria80,Andrey Zhelyazkov,A,A,15,3,light,5*,5*,5*,4,5,5,5,34
+bulgaria80,Plamen Nikolov,D,RB,16,3,light,5*,5*,5*,5,5,5,4,34
+eastgermany80,René Müller,G,G,1,13,light,3*,3,5*,3,3,5*,3,33
+eastgermany80,Hans-Jürgen Dörner,D,RB,2,13,light,5*,5,6*,6*,5,5,5,37
+eastgermany80,Dirk Stahmann,D,LB,3,13,light,4,5*,5*,5*,4,5,5,33
+eastgermany80,Konrad Weise,D,D,4,13,light,5*,4,5*,5*,4,5,3,31
+eastgermany80,Norbert Trieloff,D,D,5,13,light,5*,3,4,5*,5*,5,3,30
+eastgermany80,Rüdiger Schnuphase,M,RW,6,13,light,5*,5*,4,5*,5,5,5,34
+eastgermany80,Matthias Liebers,M,LW,7,13,light,5*,5*,5*,5,4,5,4,33
+eastgermany80,Wolfgang Steinbach,M,M,8,13,light,5*,5*,5*,4,4,5,5,33
+eastgermany80,Axel Schulz,M,M,9,13,light,5*,5*,4,5*,4,5,4,32
+eastgermany80,Damian Halata,A,A,10,13,light,5*,5*,5*,5,5,5,5,35
+eastgermany80,Joachim Streich,A,A,11,13,light,5*,5*,5,3,5,5,6*,34
+eastgermany80,Bodo Rudwaleit,G,G,12,13,light,3*,3*,6*,3,3,3,3,33
+eastgermany80,Carsten Sänger,D,D,13,13,light,4*,4*,4*,4,4,4,4,28
+eastgermany80,Hartmut Schade,M,M,14,13,light,4*,4*,4*,4,4,4,4,28
+eastgermany80,Ralf Minge,A,A,15,13,light,5*,5*,4,4,5*,5,5,33
+eastgermany80,Reinhard Häfner,M,RW,16,13,light,5*,5*,5*,5,5,5,5,35
+cyprus80,Giorgos Pantziaras,G,G,1,5,light,2*,2*,2*,2,2,2,2,22
+cyprus80,Stavros Papadopoulos,D,RB,2,5,light,3*,3*,3*,3,3,3,3,21
+cyprus80,Giorgos Kezos,D,LB,3,5,light,2*,2*,2*,2,2,2,2,14
+cyprus80,Makis Socratous,D,D,4,5,light,2*,2*,2*,2,2,2,2,14
+cyprus80,Takis Timotheou,D,D,5,5,light,2*,2*,2*,2,2,2,2,14
+cyprus80,Pambos Anastasiou,M,RW,6,5,light,2*,2*,2*,2,2,2,2,14
+cyprus80,Georgios Mavroudis,M,LW,7,5,light,2*,2*,2*,2,2,2,2,14
+cyprus80,Nikos Pantziaras,M,M,8,5,light,2*,2*,2*,2,2,2,2,14
+cyprus80,Nikos Prokopis,M,M,9,5,light,2*,2*,2*,2,2,2,2,14
+cyprus80,Georgios Savvidis,A,A,10,5,light,4*,4*,4*,3,4,4,4,27
+cyprus80,Lakis Karseras,A,A,11,5,light,2*,2*,2*,2,2,2,2,14
+cyprus80,Andros Charitou,G,G,12,5,light,2*,2*,2*,2,2,2,2,17
+cyprus80,Koulis Pantziaras,D,D,13,5,light,2*,2*,2*,2,2,2,2,14
+cyprus80,Takis Mavris,M,M,14,5,light,2*,2*,2*,2,2,2,2,14
+cyprus80,Loizos Mavroudis,A,A,15,5,light,2*,2*,2*,2,2,2,2,14
+cyprus80,Dimitrios Kyzas,D,LB,16,5,light,3*,3*,3*,3,3,3,3,21
+czechoslovakia80,Ludek Miklosko,G,G,1,6,light,5*,4,6*,5*,4,5,4,31
+czechoslovakia80,Jozef Chovanec,D,RB,2,6,light,5*,5*,5*,5,5,5,4,34
+czechoslovakia80,Frantisek Straka,D,LB,3,6,light,5*,5*,5*,5,4,5,4,33
+czechoslovakia80,Ladislav Jurkemik,D,D,4,6,light,5*,5*,5*,5,4,5,4,33
+czechoslovakia80,Stanislav Levý,D,D,5,6,light,5*,5*,5*,5,3,5,3,31
+czechoslovakia80,Frantisek Stambachr,M,RW,6,6,light,5*,5*,4,4,5*,5,5,33
+czechoslovakia80,Oldrich Rott,M,LW,7,6,light,5*,5*,4,4,5*,5,5,33
+czechoslovakia80,Jan Berger,M,M,8,6,light,5*,5*,5*,3,5,5,5,33
+czechoslovakia80,Ivan Hasek,M,M,9,6,light,5*,4,5*,4,4,5*,5,32
+czechoslovakia80,Milan Luhovy,A,A,10,6,light,5*,4,5*,5*,5,5,5,34
+czechoslovakia80,Radek Drulak,A,A,11,6,light,4,4,5*,4,4,5*,5*,31
+czechoslovakia80,Pavol Michalik,G,G,12,6,light,3*,3*,3*,3,3,3,3,26
+czechoslovakia80,Jozef Barmos,D,D,13,6,light,4*,4,4,5*,4,5*,3,29
+czechoslovakia80,Petr Rada,M,M,14,6,light,5*,4*,4,5*,4,4,4,30
+czechoslovakia80,Václav Danek,A,A,15,6,light,4,4,5*,3,4,5*,5*,30
+czechoslovakia80,Ladislav Vízek,M,LW,16,6,light,5*,5,5,4,6*,6*,5,36
+denmark80,Birger Jensen,G,G,1,7,light,5*,3,5*,4,3,5*,3,31
+denmark80,Ivan Nielsen,D,RB,2,7,light,5*,4,5*,6*,4,5,4,33
+denmark80,John Sivebaek,D,LB,3,7,light,4*,4,4,5*,4,5*,4,30
+denmark80,Kent Nielsen,D,D,4,7,light,4,4,5*,5*,4,5*,3,30
+denmark80,Ejnar Rahbek,D,D,5,7,light,3,3,5*,5*,3,4*,3,26
+denmark80,John Lauridsen,M,RW,6,7,light,5*,5*,5,6*,5,5,5,36
+denmark80,Per Frimann,M,LW,7,7,light,5*,5*,5*,5,5,5,5,35
+denmark80,Klaus Berggreen,M,M,8,7,light,5*,5*,5*,5,5,5,5,35
+denmark80,John Helt,M,M,9,7,light,5*,4,5*,5*,4,5,4,32
+denmark80,Preben Elkjaer,A,A,10,7,light,5,6*,6*,4,6*,6,6,39
+denmark80,Frank Arnesen,A,A,11,7,light,5,6*,6*,4,6*,6,5,38
+denmark80,Troels Rasmussen,G,G,12,7,light,4*,4*,5*,4,4,4,3,31
+denmark80,Niels Ole Ostergaard,D,D,13,7,light,3*,3*,3*,3,3,3,3,21
+denmark80,Carsten Nielsen,M,M,14,7,light,5*,4,5*,3,5*,5,5,32
+denmark80,Allan Simonsen,A,A,15,7,light,5,5,5,4,6*,6*,6*,37
+denmark80,Soren Lerby,M,LW,16,7,light,6*,6*,5,4,6*,6,6,39
+england80,Peter Shilton,G,G,1,8,light,5*,5,6*,5,5,6*,4,41
+england80,Terry Butcher,D,RB,2,8,light,6*,5,6*,6*,5,6,5,39
+england80,Mark Wright,D,LB,3,8,light,5*,4,6*,6*,5,5,4,35
+england80,Phil Thompson,D,D,4,8,light,5*,4,6*,6*,4,5,4,34
+england80,Dave Watson,D,D,5,8,light,4,4,5*,6*,4,5*,4,32
+england80,Bryan Robson,M,RW,6,8,light,6*,6*,6*,5,6,6,6,41
+england80,Glenn Hoddle,M,LW,7,8,light,6*,6*,5,5,6*,6,6,40
+england80,Ray Wilkins,M,M,8,8,light,6*,6*,5,5,5,6*,6,39
+england80,Steve Williams,M,M,9,8,light,6*,5*,5*,5,5,5,5,36
+england80,Tony Woodcock,A,A,10,8,light,6*,5,6*,5,6*,6,6,40
+england80,Trevor Francis,A,A,11,8,light,5,5,6*,4,5,6*,6*,37
+england80,Ray Clemence,G,G,12,8,light,5*,5*,6*,5,5,5,4,40
+england80,Terry Fenwick,D,D,13,8,light,4,5*,5*,5*,4,5,4,32
+england80,Steve Coppell,M,M,14,8,light,5*,5*,5*,5,5,5,5,35
+england80,Luther Blissett,A,A,15,8,light,5*,5,6*,4,5,5,6*,36
+england80,John Barnes,M,LW,16,8,light,6*,6*,5,4,6*,6,5,38
+estonia80,MART POOM,G,G,1,9,light,0,0,0,0,0,0,0,11
+estonia80,SERGEI PAREIKO,G,G,12,9,light,0,0,0,0,0,0,0,10
+estonia80,MAREK LEMSALU,D,RB,2,9,light,0,0,0,7*,0,3*,1,11
+estonia80,TOOMAS KALLASTE,D,LB,4,9,light,1,1,0,4*,0,6*,0,12
+estonia80,URMAS ROOBA,D,D,6,9,light,1,0,3*,5*,1,1,1,12
+estonia80,INDREK ZELINSKI,D,D,3,9,light,1,1,4*,4*,1,1,0,12
+estonia80,SERGEI HOHLOV-SIMSON,D,D,13,9,light,1,1,3*,3*,1,1,0,10
+estonia80,VIKTOR ALONEN,D,D,14,9,light,0,0,5*,4*,0,0,0,9
+estonia80,RISTO KALLASTE,M,RW,5,9,ginger,2,1,1,1,3*,3*,0,11
+estonia80,LEMBIT RAJALA,M,LW,11,9,light,1,2,1,1,3*,3*,0,11
+estonia80,MEELIS LINDMAA,M,M,7,9,light,7*,1,1,3*,1,0,0,13
+estonia80,MEELIS ROOBA,M,M,8,9,light,5*,0,1,3*,0,1,1,11
+estonia80,ARGO ARBEITER,M,M,15,9,light,2*,1,0,4*,0,1,0,8
+estonia80,MARKO KRISTAL,M,M,9,9,light,0,2*,5*,0,1,1,4*,13
+estonia80,MARTIN REIM,A,A,10,9,light,1,3*,2*,1,1,1,3*,12
+estonia80,ANDRES OPER,A,A,16,9,light,1,1*,3*,1,1,0,2*,9
+faroeisles80,Jan Alberg,G,G,1,10,light,1*,1*,1*,1,1,1,1,12
+faroeisles80,Pól Sundskard,D,RB,2,10,light,1*,1*,1*,1,1,1,1,7
+faroeisles80,Finn Joensen,D,LB,3,10,light,1*,1*,1*,1,1,1,1,7
+faroeisles80,Oddmar Faero,D,D,4,10,light,1*,1*,1*,1,1,1,1,7
+faroeisles80,Mikkjal Danielsen,D,D,5,10,light,1*,1*,1*,1,1,1,1,7
+faroeisles80,Beinur Poulsen,M,RW,6,10,light,2*,2*,2*,2,2,2,2,14
+faroeisles80,Abraham Lokin,M,LW,7,10,light,1*,1,1,1,1,3*,2*,10
+faroeisles80,Ernst Dalsgard,M,M,8,10,light,1*,1*,1*,1,1,1,1,7
+faroeisles80,Sámal á Vágalid,M,M,9,10,light,1*,1*,1*,1,1,1,1,7
+faroeisles80,Helgi Olsen,A,A,10,10,light,1*,1*,1*,1,1,1,1,7
+faroeisles80,Vilmund Michelsen,A,A,11,10,light,1*,1*,1*,1,1,1,1,7
+faroeisles80,Kjartan Nesá,G,G,12,10,light,1*,1*,1*,1,1,1,1,12
+faroeisles80,Jógvan Júst Olsen,D,D,13,10,light,1*,1*,1*,1,1,1,1,7
+faroeisles80,Lias Mikkelsen,M,M,14,10,light,1*,1*,1*,1,1,1,1,7
+faroeisles80,Jan Nielsen,A,A,15,10,light,1*,1*,1*,1,1,1,1,7
+faroeisles80,Bigge Mikkelsen,A,A,16,10,light,1*,1*,1*,1,1,1,1,7
+finland80,Olli Huttunen,G,G,1,11,light,3*,4*,4*,3,3,3,3,26
+finland80,Jari Europaeus,D,RB,2,11,light,4*,3,4*,4*,3,4,3,25
+finland80,Pasi Jaakonsaari,D,LB,3,11,light,3*,3*,3*,3,3,3,3,21
+finland80,Hannu Turunen,D,D,4,11,light,3*,3*,3*,3,3,3,3,21
+finland80,Juha Rissanen,D,D,5,11,light,2*,2*,2*,2,2,2,2,14
+finland80,Kari Ukkonen,M,RW,6,11,light,4,4,5*,5*,4,5*,4,31
+finland80,Kari Virtanen,M,LW,7,11,light,4*,4*,4,5*,4,4,3,28
+finland80,Jyrki Nieminen,M,M,8,11,light,3*,3*,3*,3,3,3,3,21
+finland80,Mikael Granskog,M,M,9,11,light,3*,3*,3*,3,3,3,3,21
+finland80,Pasi Rautiainen,A,A,10,11,light,5*,4,4,4,4,5*,5*,31
+finland80,Mika Lipponen,A,A,11,11,light,4*,4*,5*,4,4,4,4,29
+finland80,Markku Palmroos,G,G,12,11,light,3*,3*,3*,3,3,3,3,25
+finland80,Teuvo Vilen,D,D,13,11,light,2*,2*,2*,2,2,2,2,14
+finland80,Jukka Ikäläinen,M,M,14,11,light,3*,3*,3*,3,3,3,3,21
+finland80,Ari Hjelm,A,A,15,11,light,4*,4*,4*,3,4,4,4,27
+finland80,Aki Lahtinen,D,LB,16,11,light,4*,4*,4*,4,4,4,4,28
+france80,Joël Bats,G,G,1,12,light,5*,4,5*,5*,4,5,4,39
+france80,Manuel Amoros,D,RB,2,12,light,6*,6*,6*,6,5,6,5,40
+france80,Maxime Bossis,D,LB,3,12,light,5,5,6*,6*,5,6*,5,38
+france80,Patrick Battiston,D,D,4,12,light,5*,5,6*,6*,5,5,5,37
+france80,Léonard Specht,D,D,5,12,light,5*,5,6*,6*,5,5,4,36
+france80,Jean Tigana,M,RW,6,12,light,6*,6,6,7*,6,7*,6,44
+france80,Alain Giresse,M,LW,7,12,light,6*,6*,5,5,6*,6,6,40
+france80,Luis Fernández,M,M,8,12,light,6*,5,5,6*,5,6*,5,38
+france80,René Girard,M,M,9,12,light,5*,5*,5,6*,5,5,5,36
+france80,Michel Platini,A,A,10,12,light,7*,7*,6,6,7*,6,7,46
+france80,Bernard Genghini,A,A,11,12,light,6*,6*,5,5,5,6*,6,39
+france80,Jean-Paul Bertrand-Demanes,G,G,12,12,light,4,3,5*,3,5*,5*,3,35
+france80,Yvon Le Roux,D,D,13,12,light,5*,5,6*,6*,5,5,4,36
+france80,Patrick Delamontagne,M,M,14,12,light,5*,5*,5*,5,5,5,5,35
+france80,Bernard Lacombe,A,A,15,12,light,6*,5,6*,4,6*,6,6,39
+france80,Bruno Bellone,M,LW,16,12,light,5*,5*,5,5,5,6*,5,36
+georgia80,IRAKLI ZOIDZE,G,G,1,44,light,0,0,0,0,0,0,0,22
+georgia80,AKAKI DEVADZE,G,G,12,44,light,0,0,0,0,0,0,0,20
+georgia80,NIKOLOZ TOGONIDZE,D,RB,2,44,light,1,2,4*,4*,2,2,2,17
+georgia80,GEORGI CHIKHRADZE,D,LB,5,44,light,2,2,1,6*,2,6*,2,21
+georgia80,DMITRI KUDINOV,D,D,3,44,light,3,3,7*,5*,1,3,1,23
+georgia80,MURTAZ SHELIA,D,D,4,44,light,2,1,7*,6*,1,2,1,20
+georgia80,KAKHABER TSKHADADZE,D,D,13,44,light,3,1,5*,7*,1,2,2,21
+georgia80,GOCHA JAMARAULI,M,RW,8,44,light,2,1,3,7*,2,5*,1,21
+georgia80,KAKHABER GOGICHAISHVII,M,LW,6,44,light,1,2,2,2,7*,7*,2,23
+georgia80,GEORGI NEMSADZE,M,M,7,44,light,5*,6*,2,2,5*,1,1,22
+georgia80,TEMUR KETSBAIA,M,M,9,44,light,6*,7*,2,5*,4*,2,1,27
+georgia80,GOCHA GOGRICHIANI,M,M,14,44,light,2,4*,5*,2,1,1,5*,20
+georgia80,GEORGI KINKLADZE,M,M,10,44,light,7*,7*,5,3,7*,7*,7*,43
+georgia80,SHOTA ARVELADZE,A,A,11,44,light,4,7*,7*,3,3,6*,7*,37
+georgia80,ARCHIL ARVELADZE,A,A,15,44,light,5*,1,1,5*,2,7*,2,23
+georgia80,MIKHAIL KAVELASHVILI,A,A,16,44,light,3,6*,6*,1,3,2,5*,26
+westgermany80,Harald Schumacher,G,G,1,13,light,5*,4,6*,5,5,6*,4,42
+westgermany80,Klaus Augenthaler,D,RB,2,13,light,6*,6*,6*,6,5,6,5,40
+westgermany80,Ditmar Jakobs,D,LB,3,13,light,5,5,6*,6*,5,6*,5,38
+westgermany80,Hans-Günter Bruns,D,D,4,13,light,5*,5,6*,6*,5,5,5,37
+westgermany80,Karlheinz Förster,D,D,5,13,light,5,5,6*,6*,5,6*,4,37
+westgermany80,Ulrich Stielike,M,RW,6,13,light,6*,6*,6*,6,6,6,6,42
+westgermany80,Lothar Matthäus,M,LW,7,13,light,6*,6*,5,6*,6,6,6,41
+westgermany80,Bernd Schuster,M,M,8,13,light,6*,6*,6*,5,6,6,6,41
+westgermany80,Karl Allgöwer,M,M,9,13,light,6*,6*,6*,5,6,6,6,41
+westgermany80,Karl-Heinz Rummenigge,A,A,10,13,light,6*,6*,6,5,6,6,7*,42
+westgermany80,Felix Magath,A,A,11,13,light,6*,6*,6*,5,6,6,6,41
+westgermany80,Helmut Roleder,G,G,12,13,light,4*,3,5*,3,3,5*,3,34
+westgermany80,Wilfried Hannes,D,D,13,13,light,5*,6*,6*,5,5,5,5,37
+westgermany80,Hans-Peter Briegel,M,M,14,13,light,6*,6*,6*,5,6,6,5,40
+westgermany80,Rudi Völler,A,A,15,13,light,5,6*,6*,4,6*,6,6,39
+westgermany80,Andreas Brehme,D,LB,16,13,light,6*,6*,6*,6,6,6,5,41
+greece80,Nikos Sarganis,G,G,1,14,light,5*,5*,5*,4,5,5,4,35
+greece80,Petros Michos,D,RB,2,14,light,5*,4,6*,6*,5,5,4,35
+greece80,Stellios Manolas,D,LB,3,14,light,4,4,5*,6*,4,5*,4,32
+greece80,Petros Ravousis,D,D,4,14,light,4*,3,4*,5*,4,4,3,27
+greece80,Ioannis Kyrastas,D,D,5,14,light,4*,3,3,5*,3,4*,3,25
+greece80,Dimitris Saravakos,M,RW,6,14,light,5*,5*,5,5,6*,5,5,36
+greece80,Tasos Mitropoulos,M,LW,7,14,light,5*,5*,5*,5,5,5,5,35
+greece80,Takis Lemonis,M,M,8,14,light,5*,5*,5*,5,5,5,4,34
+greece80,Dinos Kouis,M,M,9,14,light,5*,5*,4,4,5*,5,5,33
+greece80,Vasilis Chatzipanagis,A,A,10,14,light,6*,6*,5,4,6*,6,6,39
+greece80,Nikos Anastopoulos,A,A,11,14,light,5*,5,5,4,6*,5,6*,36
+greece80,Giorgos Dafkos,G,G,12,14,light,4*,3,5*,3,3,5*,3,30
+greece80,Georgios Firos,D,D,13,14,light,3*,3,5*,5*,3,3,3,25
+greece80,Lakis Papaioannou,M,M,14,14,light,5*,5*,4,4,5*,5,5,33
+greece80,Kostas Antoniou,A,A,15,14,light,5*,5*,5*,5,5,5,5,35
+greece80,Thomas Mavros,A,A,16,14,light,5*,5*,5,4,5,5,6*,35
+holland80,Hans van Breukelen,G,G,1,23,light,4,5*,5*,5*,4,5,4,36
+holland80,John Metgod,D,RB,2,23,light,6*,6*,5,6*,5,5,5,38
+holland80,Ernie Brandts,D,LB,3,23,light,5*,4,6*,6*,5,5,4,35
+holland80,Huub Stevens,D,D,4,23,light,5*,4,5*,6*,4,5,4,33
+holland80,Edo Ophof,D,D,5,23,light,5*,5*,5*,5,4,5,4,33
+holland80,Frank Rijkaard,M,RW,6,23,light,6*,6*,6*,6,6,6,5,41
+holland80,Ronald Koeman,M,LW,7,23,light,6*,6*,6*,6,6,5,4,39
+holland80,Jan Peters,M,M,8,23,light,5*,5*,5*,5,5,5,5,35
+holland80,Johan Neeskens,M,M,9,23,light,5*,5*,5*,5,5,5,5,35
+holland80,Ruud Gullit,A,A,10,23,light,6*,6*,6*,5,6,6,6,41
+holland80,Johnny Rep,A,A,11,23,light,6*,6*,6*,4,6,6,6,40
+holland80,Joop Hiele,G,G,12,23,light,4*,3,5*,3,3,5*,3,34
+holland80,Wim Rijsbergen,D,D,13,23,light,5*,4,5*,5*,5,5,4,33
+holland80,Erwin Koeman,M,M,14,23,light,5*,5*,5*,5,5,5,4,34
+holland80,Marco van Basten,A,A,15,23,light,5,5,6*,4,6*,5,6*,37
+holland80,Willy van de Kerkhof,M,RW,16,23,light,6*,6*,5,4,6*,6,5,38
+hungary80,Béla Katzirz,G,G,1,15,light,3*,3,5*,3,3,5*,3,33
+hungary80,Imre Garaba,D,RB,2,15,light,4,4,5*,5*,4,5*,4,31
+hungary80,László Disztl,D,LB,3,15,light,4*,4,5*,5*,4,4,4,30
+hungary80,József Csuhay,D,D,4,15,light,4*,4*,4,5*,4,4,3,28
+hungary80,József Kardos,D,D,5,15,light,4*,3,5*,5*,3,4,3,27
+hungary80,Sándor Zombori,M,RW,6,15,light,5*,5*,5*,5,5,5,5,35
+hungary80,Lajos Detari,M,LW,7,15,light,5*,5*,4,4,5*,5,5,33
+hungary80,Zoltan Kereki,M,M,8,15,light,5*,5*,5*,3,5,5,4,32
+hungary80,László Gyimesi,M,M,9,15,light,5*,4,5*,4,4,5*,4,31
+hungary80,Tibor Nyilasi,A,A,10,15,light,6*,5*,5,4,5,5,6*,36
+hungary80,László Fekete,A,A,11,15,light,5*,5*,5*,4,5,5,5,34
+hungary80,Péter Disztl,G,G,12,15,light,4*,3,5*,3,3,4*,3,30
+hungary80,Tibor Rab,D,D,13,15,light,4*,3,5*,3,4*,4,3,26
+hungary80,Ferenc Csongrádi,M,M,14,15,light,5*,4*,4,4,5*,4,4,30
+hungary80,Márton Esterházy,A,A,15,15,light,4,5*,5*,4,5*,5,5,33
+hungary80,András Töröcsik,A,A,16,15,light,5*,4,4,4,5*,5*,5,32
+iceland80,Bjarni Sigurdsson,G,G,1,16,light,2*,2*,2*,2,2,2,2,24
+iceland80,Siggi Jónsson,D,RB,2,16,light,4*,4*,4*,4,3,4,3,26
+iceland80,Ágúst Hauksson,D,LB,3,16,light,2*,2*,2*,2,2,2,2,14
+iceland80,THorgrímur THráinsson,D,D,4,16,light,2*,2*,2*,2,2,2,2,14
+iceland80,Sigurdur Halldórsson,D,D,5,16,light,2*,2*,2*,2,2,2,2,14
+iceland80,Atli Edvaldsson,M,RW,6,16,light,5*,5*,5*,5,4,5,5,34
+iceland80,Magnús Bergs,M,LW,7,16,light,5*,4,3,3,4,5*,5*,29
+iceland80,Ólafur THórdarson,M,M,8,16,light,4*,4*,4*,4,4,4,4,28
+iceland80,Karl THórdarson,M,M,9,16,light,4*,3,3,3,4*,4*,4,25
+iceland80,Arnór Gudjohnsen,A,A,10,16,light,5*,5*,4,5*,5,5,5,34
+iceland80,Pétur Pétursson,A,A,11,16,light,4,5*,5*,4,5*,5,5,33
+iceland80,THorsteinn Bjarnason,G,G,12,16,light,2*,2*,2*,2,2,2,2,14
+iceland80,Otto Gudmundsson,D,D,13,16,light,1*,1*,1*,1,1,1,1,7
+iceland80,Janus Gudlaugsson,M,M,14,16,light,3*,2,4*,4*,3,2,2,20
+iceland80,Teitur THórdarson,A,A,15,16,light,3,3,4*,3,4,5*,5*,27
+iceland80,Ásgeir Sigurvinsson,M,LW,16,16,light,6*,6*,6*,5,6,6,5,40
+israel80,Boni Ginzburg,G,G,1,17,light,4*,4*,4,5*,4,3,4,29
+israel80,Avi Cohen,D,RB,2,17,light,4,5*,5*,5*,5,5,4,33
+israel80,Shlomo Kirat,D,LB,3,17,light,3*,3*,3*,3,3,3,3,21
+israel80,Ya'akov Ekhoiz,D,D,4,17,light,3*,3*,3*,3,3,3,3,21
+israel80,Yossi Zana,D,D,5,17,light,3*,3*,3*,3,3,3,3,21
+israel80,Eli Cohen,M,RW,6,17,light,3*,3*,3*,3,3,3,3,21
+israel80,Rifaat Turk,M,LW,7,17,light,3*,3*,3*,3,3,3,3,21
+israel80,Nissim Cohen,M,M,8,17,light,3*,3*,3*,3,3,3,3,21
+israel80,Moshe Gariani,M,M,9,17,light,3*,3*,3*,3,3,3,3,21
+israel80,Eli Ohana,A,A,10,17,light,5*,5*,5*,4,5,5,5,34
+israel80,Ronny Rosenthal,A,A,11,17,light,4,4,5*,4,5*,5*,5,32
+israel80,Arie Haviv,G,G,12,17,light,3*,3*,3*,3,3,3,3,26
+israel80,Efraim Davidi,D,D,13,17,light,3*,3*,3*,3,3,3,3,21
+israel80,Benny Lam,M,M,14,17,light,3*,3*,3*,3,3,3,3,21
+israel80,Vicky Peretz,A,A,15,17,light,3,3,5*,3,5*,5*,5,29
+israel80,David Pizanti,D,LB,16,17,light,5*,3,5*,5*,5,5,3,31
+italy80,Giovanni Galli,G,G,1,18,light,4*,4,6*,4,4,5*,4,41
+italy80,Gaetano Scirea,D,RB,2,18,light,6*,6*,6,7*,5,6,6,42
+italy80,Claudio Gentile,D,LB,3,18,light,6*,5,6*,6*,5,6,5,39
+italy80,Pietro Vierchowod,D,D,4,18,light,6*,5,6*,6*,5,6,5,39
+italy80,Giuseppe Bergomi,D,D,5,18,light,5,6*,6*,6*,5,6,5,39
+italy80,Carlo Ancelotti,M,RW,6,18,light,6*,6*,6*,6,6,6,5,41
+italy80,Marco Tardelli,M,LW,7,18,light,6*,6*,6*,6,5,6,5,40
+italy80,Giancarlo Antognoni,M,M,8,18,light,6*,6*,5,5,6*,6,6,40
+italy80,Antonio Di Gennaro,M,M,9,18,light,6*,5,5,4,6*,6*,5,37
+italy80,Alessandro Altobelli,A,A,10,18,light,6*,6*,6*,4,6,6,6,40
+italy80,Paolo Rossi,A,A,11,18,light,5,6*,6*,4,6*,6,6,39
+italy80,Ivano Bordon,G,G,12,18,light,4*,4,6*,4,4,5*,4,40
+italy80,Franco Baresi,D,D,13,18,light,5,5,5,6*,6*,6*,4,37
+italy80,Gabriele Oriali,M,M,14,18,light,5*,5*,5,6*,5,5,5,36
+italy80,Francesco Graziani,A,A,15,18,light,5,5,6*,4,5,6*,6*,37
+italy80,Salvatore Bagni,M,LW,16,18,light,6*,6*,6*,6,6,6,6,42
+latvia80,OLEG KARAVAYEV,G,G,1,19,light,0,0,0,0,0,0,0,15
+latvia80,RAIMOND LAIZANS,G,G,12,19,light,0,0,0,0,0,0,0,12
+latvia80,IGOR TROITSKY,D,RB,2,19,light,1,2,0,6*,1,3*,2,15
+latvia80,YURY SHEVLYAKOV,D,LB,5,19,light,1,2,2,4*,1,5*,0,15
+latvia80,MIKHAIL ZEMLINSKY,D,D,4,19,light,0,0,5*,6*,1,2,1,15
+latvia80,ARTUR ZAKRESHEVSKY,D,D,11,19,light,1,1,6*,6*,1,1,1,17
+latvia80,BORIS MONYAK,D,D,13,19,light,1,2,6*,5*,0,0,0,14
+latvia80,IGOR STEPANOV,D,D,14,19,light,2,1,5*,3*,0,1,0,12
+latvia80,VALERY IVANOV,M,RW,7,19,light,2,2,1,1,5*,5*,0,16
+latvia80,IMANTS BLEIDELIS,M,LW,6,19,light,3*,1,2,3*,1,2,1,13
+latvia80,VITALY ASTAFYEV,M,M,3,19,light,1,2,2,2,4*,5*,2,18
+latvia80,ARMANDS ZEIBERLINS,M,M,8,19,light,5*,1,1,7*,2,1,1,18
+latvia80,VITAS RIMKUS,A,A,9,19,light,1,5*,4*,1,1,2,4*,18
+latvia80,VLADIMIR BABICHEV,A,A,10,19,light,1,3*,4*,2,1,0,4*,15
+latvia80,MARYAN RAKHAR,A,A,15,19,light,6*,0,0,5*,1,0,1,13
+latvia80,ROLAND BULDERS,A,A,16,19,light,0,4*,3*,1,1,0,2*,11
+liechtenstein80,Horst Marxer,G,G,1,49,light,1*,1*,1*,1,1,1,1,9
+liechtenstein80,Walter Büchel,D,RB,2,49,light,1*,1*,1*,1,1,1,1,7
+liechtenstein80,Markus Haas,D,LB,3,49,light,1*,1*,1*,1,1,1,1,7
+liechtenstein80,Gerhard Schädler,D,D,4,49,light,1*,1*,1*,1,1,1,1,7
+liechtenstein80,Donath Marxer,D,D,5,49,light,2*,2*,2*,2,2,2,2,14
+liechtenstein80,Manfred Moser,M,RW,6,49,light,2*,2*,2*,2,2,2,2,14
+liechtenstein80,Erich Büchel,M,LW,7,49,light,1*,1*,1*,1,1,1,1,7
+liechtenstein80,Manfred Frick,M,M,8,49,light,1*,1*,1*,1,1,1,1,7
+liechtenstein80,Erich Bürzle,M,M,9,49,light,1*,1*,1*,1,1,1,1,7
+liechtenstein80,Manfred Büchel,A,A,10,49,light,1*,1*,1*,1,1,1,1,7
+liechtenstein80,Norman Nigsch,A,A,11,49,light,1*,1*,1*,1,1,1,1,7
+liechtenstein80,Stefan Wolfinger,G,G,12,49,light,1*,1*,1*,1,1,1,1,3
+liechtenstein80,Roger Zech,D,D,13,49,light,2*,2*,2*,2,2,2,2,14
+liechtenstein80,Roland Moser,M,M,14,49,light,2*,2*,2*,2,2,2,2,14
+liechtenstein80,Modestus Haas,A,A,15,49,light,1*,1*,1*,1,1,1,1,7
+liechtenstein80,Haymo Haas,A,A,16,49,light,1*,1*,1*,1,1,1,1,7
+lithuania80,GINTARAS STAUCE,G,G,1,20,light,0,0,0,0,0,0,0,24
+lithuania80,MARIUS POSKUS,G,G,12,20,light,0,0,0,0,0,0,0,15
+lithuania80,TOMAS ZIUKAS,D,RB,2,20,light,1,1,1,4*,2,7*,2,18
+lithuania80,ANDREIUS TERESKINAS,D,LB,3,20,light,2,2,1,6*,2,6*,1,20
+lithuania80,RAMUNAS STONKUS,D,D,4,20,light,2,2,4*,5*,1,0,1,15
+lithuania80,RAIMONDAS VAINORAS,D,D,5,20,light,2,0,4*,6*,2,0,2,16
+lithuania80,GINTARAS RIMKUS,D,D,13,20,light,1,2,4*,4*,2,1,1,15
+lithuania80,ARMINAS NARBEKOVAS,M,RW,9,20,light,1,1,1,1,6*,7*,1,18
+lithuania80,AURELIJUS SKARBALIUS,M,LW,10,20,light,7*,1,1,6*,1,2,2,20
+lithuania80,DARIUS MACIULEVICIUS,M,M,7,20,light,5*,0,0,7*,1,2,1,16
+lithuania80,ARUNAS SUIKA,M,M,6,20,light,2,1,1,2,6*,6*,1,19
+lithuania80,RAIMONDAS ZUTAUTAS,M,M,14,20,light,4*,1,0,6*,0,1,2,14
+lithuania80,VIRGINIJUS BALTUSNIKAS,M,M,15,20,light,5*,2,0,3*,1,2,2,15
+lithuania80,VAIDOTAS SLEKYS,A,A,11,20,light,2,3*,4*,1,2,0,6*,18
+lithuania80,EDGARAS JANKAUSKAS,A,A,8,20,light,2,6*,2,3,2,5*,5*,25
+lithuania80,RIMAS ZVINGILIS,A,A,16,20,light,1,1,5*,1,2,0,5*,15
+luxembourg80,Jean-Pierre Van Rijswijck,G,G,1,21,light,2*,2*,2*,2,2,2,2,18
+luxembourg80,Nico Rohmann,D,RB,2,21,light,2,2,4*,2,3*,3*,2,18
+luxembourg80,Jean Schmitz,D,LB,3,21,light,2*,2*,2*,2,2,2,2,14
+luxembourg80,Michel Bechet,D,D,4,21,light,1*,1*,1*,1,1,1,1,7
+luxembourg80,Laurent Schonckert,D,D,5,21,light,1*,1*,1*,1,1,1,1,7
+luxembourg80,Guy Hellers,M,RW,6,21,light,4,5*,5*,5*,5,5,4,33
+luxembourg80,Jean-Paul Girres,M,LW,7,21,light,2*,2*,2*,2,2,2,2,14
+luxembourg80,Marcel Bossi,M,M,8,21,light,2*,2*,2*,2,2,2,2,14
+luxembourg80,Romain Schreiner,M,M,9,21,light,2*,2*,2*,2,2,2,2,14
+luxembourg80,Robby Langers,A,A,10,21,light,4*,4,5*,3,4,4,5*,29
+luxembourg80,Benny Reiter,A,A,11,21,light,3*,3*,3,3,4*,3,3,22
+luxembourg80,Jean-Paul Defrang,G,G,12,21,light,2*,2*,2*,2,2,2,2,14
+luxembourg80,Romain Blasi,D,D,13,21,light,1*,1*,1*,1,1,1,1,7
+luxembourg80,Carlo Weis,M,M,14,21,light,2*,2*,2*,2,2,2,2,14
+luxembourg80,Romain Michaux,A,A,15,21,light,2*,2*,2*,2,2,2,2,14
+luxembourg80,Hubert Meunier,D,RB,16,21,light,2*,2*,2*,2,2,2,2,14
+macedonia80,DANCO CELESKI,G,G,1,47,light,0,0,0,0,0,0,0,18
+macedonia80,ZORAN MICEVSKI,G,G,12,47,light,0,0,0,0,0,0,0,17
+macedonia80,RISTO MILOSAVOV,D,RB,2,47,light,1,1,2,5*,2,7*,1,19
+macedonia80,MITKO STOJKOVSKI,D,LB,3,47,light,2,2,1,6*,3,6*,1,21
+macedonia80,ZORAN JOVANOVSKI,D,D,4,47,light,5*,0,5*,5*,2,1,2,20
+macedonia80,SASO NIKOLOVSKI,D,D,5,47,light,2,2,6*,6*,3,1,2,22
+macedonia80,LJUPKO MARKOVSKI,D,D,6,47,light,1,2,7*,6*,2,2,1,21
+macedonia80,GOCE SEDLOSKI,D,D,13,47,light,1,2,4*,4*,2,2,2,17
+macedonia80,NEDZMEDIN MEMED,M,RW,8,47,light,6*,2,2,2,5*,6*,2,25
+macedonia80,BOBAN BABUNSKI,M,LW,10,47,light,1,2,1,2,7*,7*,1,21
+macedonia80,TONI SAVEVSKI,M,M,11,47,light,7*,2,2,6*,1,2,2,22
+macedonia80,VLADO GOSEV,M,M,14,47,light,6*,1,0,7*,1,1,1,17
+macedonia80,ZORAN BOSKOVSKI,A,A,7,47,light,2,2,5*,2,2,5*,7*,25
+macedonia80,SASA CIRIC,A,A,9,47,light,2,5*,5*,2,2,2,6*,24
+macedonia80,DARKO PANCEV,A,A,15,47,light,7*,3,3,5*,2,1,2,23
+macedonia80,GEORGI HRISTOV,A,A,16,47,light,1,1,6*,1,4*,2,4*,19
+malta80,John Bonello,G,G,1,22,light,2*,2*,2*,2,2,2,2,15
+malta80,John Buttigieg,D,RB,2,22,light,4*,3,4*,4*,3,3,3,24
+malta80,John Holland,D,LB,3,22,light,3,3,4*,4*,3,4*,3,24
+malta80,Edwin Farrugia,D,D,4,22,light,2*,2*,2*,2,2,2,2,14
+malta80,David Buckingham,D,D,5,22,light,2*,2*,2*,2,2,2,2,14
+malta80,Carmel Busuttil,M,RW,6,22,light,4*,4*,4*,3,4,4,4,27
+malta80,Michael Degiorgio,M,LW,7,22,light,4*,4*,2,2,4*,4,3,23
+malta80,Raymond Vella,M,M,8,22,light,4*,3*,3,4*,3,3,3,23
+malta80,Leli Fabri,M,M,9,22,light,2*,2*,2*,2,2,2,2,14
+malta80,Leonard Farrugia,A,A,10,22,light,2*,2,4*,2,2,2,4*,18
+malta80,Raymond Xuereb,A,A,11,22,light,2*,2,3*,2,2,2,4*,17
+malta80,Raymond Mifsud,G,G,12,22,light,1*,1*,1*,1,1,1,1,12
+malta80,Martin Scicluna,D,D,13,22,light,2*,2*,2*,2,2,2,2,14
+malta80,Noel Attard,M,M,14,22,light,2*,2*,2*,2,2,2,2,14
+malta80,Denis Fenech,A,A,15,22,light,2*,2*,2*,2,2,2,2,14
+malta80,Vincent Magro,M,RW,16,22,light,2,2,2,2,3*,3*,3*,17
+moldova80,DENIS ROMANENCO,G,G,1,50,light,0,0,0,0,0,0,0,17
+moldova80,VASILI COSELEV,G,G,12,50,light,0,0,0,0,0,0,0,15
+moldova80,SERGHEI SECU,D,RB,2,50,light,1,1,2,6*,1,6*,2,19
+moldova80,SERGHEI BELOUS,D,LB,5,50,light,2,4*,2,2,4*,5*,2,21
+moldova80,ION TESTIMITANU,D,D,3,50,light,2,6*,5*,6*,1,3,1,24
+moldova80,VITALI COULIBABA,D,D,8,50,light,1,1,1,4*,1,6*,2,16
+moldova80,OLEG FISTICAN,D,D,13,50,light,2,1,4*,5*,2,0,1,15
+moldova80,VLADIMIR GAIDAMASCIUK,M,RW,7,50,light,2,2,1,2,4*,5*,2,18
+moldova80,SERGIU NANI,M,LW,6,50,light,1,1,6*,6*,1,1,0,16
+moldova80,SERGIU EPUREANU,M,M,4,50,light,7*,0,1,4*,1,2,2,17
+moldova80,ALEXANDRU CURTIANU,M,M,10,50,light,7*,1,2,5*,3,3,1,22
+moldova80,OLEG SISCIN,M,M,14,50,light,6*,0,0,4*,2,1,2,15
+moldova80,RADU REBEJA,M,M,15,50,light,5*,1,0,7*,2,0,1,16
+moldova80,IURIE MITEREV,A,A,9,50,light,0,4*,5*,1,1,2,6*,19
+moldova80,SERGHEI CLESCENCO,A,A,11,50,light,2,3*,4*,2,1,2,4*,18
+moldova80,ALEXANDER POPOVICI,A,A,16,50,light,1,5*,3*,0,1,0,4*,14
+northernireland80,Jim Platt,G,G,1,24,light,3*,2,4*,2,3*,3,3,22
+northernireland80,John O'Neill,D,RB,2,24,light,5*,5*,5*,5,4,5,4,33
+northernireland80,John McClelland,D,LB,3,24,light,4,5*,5*,5*,4,5,4,32
+northernireland80,Gerry McElhinney,D,D,4,24,light,3*,3,5*,4*,3,3,3,24
+northernireland80,Tom Connell,D,D,5,24,light,1*,1*,1*,1,1,1,1,7
+northernireland80,Sammy McIlroy,M,RW,6,24,light,5*,5*,5*,5,5,5,5,35
+northernireland80,Norman Whiteside,M,LW,7,24,light,5*,5*,5*,3,5,5,5,33
+northernireland80,David McCreery,M,M,8,24,light,5*,4,5*,5*,4,5,4,32
+northernireland80,Vic Moreland,M,M,9,24,light,4*,4*,4*,4,4,4,3,27
+northernireland80,Gerry Armstrong,A,A,10,24,light,5*,5*,5*,4,5,5,5,34
+northernireland80,Jimmy Quinn,A,A,11,24,light,4*,4,5*,3,4,4,5*,29
+northernireland80,George Dunlop,G,G,12,24,light,2*,2*,2*,2,2,2,2,14
+northernireland80,Alan McDonald,D,D,13,24,light,4*,4*,5*,4,4,4,4,29
+northernireland80,Noel Brotherston,M,M,14,24,light,3*,3,3,3,5*,4*,3,24
+northernireland80,Bobby Campbell,A,A,15,24,light,3,4*,4*,3,4,4,5*,27
+northernireland80,Mal Donaghy,D,LB,16,24,light,5*,5*,5*,5,4,5,5,34
+norway80,Frode Hansen,G,G,1,25,light,3*,3*,3*,3,3,3,3,36
+norway80,Arne Erlandsen,D,RB,2,25,light,5*,4,5*,5*,4,5,4,32
+norway80,Svein Grondalen,D,LB,3,25,light,4,4,5*,5*,4,5*,4,31
+norway80,Knut Torbjorn Eggen,D,D,4,25,light,4,4,5*,5*,4,5*,4,31
+norway80,Terje Kojedal,D,D,5,25,light,4*,4*,4*,4,4,4,3,27
+norway80,Jan Berg,M,RW,6,25,light,5*,5*,5*,5,5,5,5,35
+norway80,Per-Egil Ahlsen,M,LW,7,25,light,5*,5*,5*,5,5,5,5,35
+norway80,Roger Albertsen,M,M,8,25,light,5*,5*,5*,5,5,5,4,34
+norway80,Kai Erik Herlovsen,M,M,9,25,light,5*,4,5*,5*,5,5,4,33
+norway80,Hallvar Thoresen,A,A,10,25,light,5*,5*,5*,5,5,5,5,35
+norway80,Arne Ökland,A,A,11,25,light,5*,5*,5*,3,5,5,5,33
+norway80,Erik Thorstvedt,G,G,12,25,light,4,3,5*,3,5*,5*,3,33
+norway80,Einar Jan Aas,D,D,13,25,light,3,3,5*,5*,3,4*,3,26
+norway80,Sverre Brandhaug,M,M,14,25,light,5*,5*,4,4,5*,5,5,33
+norway80,Tom Sundby,A,A,15,25,light,5*,3,5*,3,5*,5,5,31
+norway80,Erik Sóler,M,RW,16,25,light,5*,5*,4,5*,5,5,4,33
+poland80,Jozef Mlynarczyk,G,G,1,26,light,5*,4,5*,4,5*,5,4,37
+poland80,Pawel Janas,D,RB,2,26,light,5*,5*,5,6*,5,5,4,35
+poland80,Wladyslaw Zmuda,D,LB,3,26,light,5*,4,5*,5*,5,5,4,33
+poland80,Stefan Majewski,D,D,4,26,light,4,4,5*,5*,5*,5,4,32
+poland80,Krzysztof Pawlak,D,D,5,26,light,4,4,5*,5*,4,5*,4,31
+poland80,Andrzej Buncol,M,RW,6,26,light,5*,5*,5*,5,5,5,5,35
+poland80,Waldemar Matysik,M,LW,7,26,light,5*,5*,5,6*,4,5,4,34
+poland80,Andrzej Palasz,M,M,8,26,light,5*,5*,4,5*,4,5,4,32
+poland80,Wlodzimierz Ciolek,M,M,9,26,light,5*,5*,4,3,5*,5,5,32
+poland80,Wlodzimierz Smolarek,A,A,10,26,light,5*,5*,5*,5,5,5,5,35
+poland80,Ryszard Tarasiewicz,A,A,11,26,light,5*,5*,5*,3,5,5,5,33
+poland80,Jacek Kazimierski,G,G,12,26,light,3*,3*,3*,3,3,3,3,33
+poland80,Roman Wójcicki,D,D,13,26,light,4,4,5*,5*,4,5*,4,31
+poland80,Piotr Rzepka,M,M,14,26,light,4*,4*,4,4,4,5*,4,29
+poland80,Miroslaw Okonski,A,A,15,26,light,5*,4,5*,4,5*,5,5,33
+poland80,Zbigniew Boniek,M,LW,16,26,light,6*,6*,6*,4,6,6,6,40
+portugal80,Silvino,G,G,1,27,light,5*,3,5*,5*,5,5,3,33
+portugal80,António Lima Pereira,D,RB,2,27,light,5*,5*,5*,5,5,5,5,35
+portugal80,Eurico Gomes,D,LB,3,27,light,5*,5*,5*,5,5,5,5,35
+portugal80,António Bastos Lopes,D,D,4,27,light,5*,5*,5*,5,5,5,5,35
+portugal80,Eduardo Luís,D,D,5,27,light,5*,4,5*,5*,5,5,4,33
+portugal80,Adelino Nunes,M,RW,6,27,light,6*,5*,5,6*,5,5,5,37
+portugal80,Carlos Manuel,M,LW,7,27,light,6*,5*,5,6*,5,5,5,37
+portugal80,António Sousa,M,M,8,27,light,6*,5*,5*,5,5,5,5,36
+portugal80,Diamantino,M,M,9,27,light,6*,5*,5,4,6*,5,5,36
+portugal80,Manuel Fernandes,A,A,10,27,light,5,6*,6*,5,6*,6,6,40
+portugal80,Rui Jordão,A,A,11,27,light,5,5,6*,4,5,6*,6*,37
+portugal80,Amaral,G,G,12,27,light,3*,3*,5*,3,3,3,3,30
+portugal80,Virgílio,D,D,13,27,light,5*,4,5*,5*,5,5,4,33
+portugal80,Jaime Pacheco,M,M,14,27,light,5*,5*,5,6*,5,5,5,36
+portugal80,Fernando Gomes,A,A,15,27,light,5,5,6*,4,5,6*,6*,37
+portugal80,Augusto Inácio,D,LB,16,27,light,5*,5,5,6*,5,6*,5,37
+republicireland80,Pat Bonner,G,G,1,46,light,4,5*,5*,4,5*,4,4,34
+republicireland80,Mark Lawrenson,D,RB,2,46,light,5,5,6*,6*,5,6*,4,37
+republicireland80,David O'Leary,D,LB,3,46,light,5*,5,6*,6*,5,5,4,36
+republicireland80,Kevin Moran,D,D,4,46,light,4,4,6*,6*,5*,5,4,34
+republicireland80,Mick McCarthy,D,D,5,46,light,4,4,5*,5*,4,5*,4,31
+republicireland80,Ronnie Whelan,M,RW,6,46,light,5*,5*,5*,5,5,5,5,35
+republicireland80,Tony Grealish,M,LW,7,46,light,5*,5*,5*,5,4,5,4,33
+republicireland80,Gerry Daly,M,M,8,46,light,5*,5*,4,5*,4,5,5,33
+republicireland80,Kevin O'Callaghan,M,M,9,46,light,5*,4,4,4,5*,5*,4,31
+republicireland80,Liam Brady,A,A,10,46,light,6*,6*,5,4,6*,6,6,39
+republicireland80,Frank Stapleton,A,A,11,46,light,5*,5*,6*,3,5,5,5,34
+republicireland80,Gerry Peyton,G,G,12,46,light,4*,3,5*,3,4,5*,3,30
+republicireland80,Ashley Grimes,D,D,13,46,light,4,4,5*,5*,4,5*,3,30
+republicireland80,Sean O'Driscoll,M,M,14,46,light,5*,4*,4*,4,4,4,4,29
+republicireland80,Mickey Walsh,A,A,15,46,light,4,5*,5*,3,5*,5,5,32
+republicireland80,Kevin Sheedy,M,LW,16,46,light,6*,6*,5,4,6*,6,6,39
+romania80,Helmut Duckadam,G,G,1,28,light,4*,3,5*,4,3,5*,3,31
+romania80,Miodrag Belodedici,D,RB,2,28,light,4,4,6*,5*,5,6*,4,34
+romania80,Costica Stefanescu,D,LB,3,28,light,4,4,6*,6*,4,5*,4,33
+romania80,Mircea Rednic,D,D,4,28,light,5*,4,4,5*,5*,5,4,32
+romania80,Ioan Andone,D,D,5,28,light,4,4,5*,5*,4,5*,4,31
+romania80,Laszlo Bölöni,M,RW,6,28,light,6*,6*,5,5,6*,6,5,39
+romania80,Marcel Raducanu,M,LW,7,28,light,6*,5*,5,5,6*,5,5,37
+romania80,Gabi Balint,M,M,8,28,light,5*,5*,5*,4,5,5,5,34
+romania80,Gheorghe Hagi,M,M,9,28,light,5*,6*,4,3,6*,5,5,34
+romania80,Ilie Balaci,A,A,10,28,light,5*,5*,5*,4,5,5,5,34
+romania80,Rodion Camataru,A,A,11,28,light,4,5*,5*,4,5,5,6*,34
+romania80,Silviu Lung,G,G,12,28,light,4*,4*,4,4,3,5*,3,31
+romania80,Stefan Sames,D,D,13,28,light,4,5*,5*,5*,3,4,3,29
+romania80,Mircea Irimescu,M,M,14,28,light,5*,4,5*,4,4,4,5*,31
+romania80,Costel Orac,A,A,15,28,light,5*,5*,5*,4,5,5,4,33
+romania80,Michael Klein,D,LB,16,28,light,5*,3,5*,5*,5,5,5,33
+sovietunion80,Rinat Dasayev,G,G,1,29,light,5*,4,6*,4,4,5*,4,41
+sovietunion80,Sergiy Baltacha,D,RB,2,29,light,5*,5,6*,6*,5,5,4,36
+sovietunion80,Vagiz Khidiyatullin,D,LB,3,29,light,5*,5*,5*,5,5,5,4,34
+sovietunion80,Tengiz Sulakvelidze,D,D,4,29,light,5*,5*,5*,5,5,5,4,34
+sovietunion80,Aleksandre Chivadze,D,D,5,29,light,5*,5*,5*,5,5,5,4,34
+sovietunion80,Yury Gavrilov,M,RW,6,29,light,6*,6*,5,4,6*,5,6,38
+sovietunion80,Sergey Shavlo,M,LW,7,29,light,5*,5*,5,6*,5,5,5,36
+sovietunion80,Sergey Aleinikov,M,M,8,29,light,5*,5*,5,5,6*,5,5,36
+sovietunion80,Fedor Cherenkov,M,M,9,29,light,6*,5*,5*,4,5,5,5,35
+sovietunion80,Oleg Blokhin,A,A,10,29,light,5,6*,5,4,6*,6*,6,38
+sovietunion80,Sergey Andreyev,A,A,11,29,light,5*,5*,5,4,5,5,6*,35
+sovietunion80,Mikhail Biryukov,G,G,12,29,light,4*,4,5*,4,4,5*,4,35
+sovietunion80,Sergey Borovski,D,D,13,29,light,5*,5*,5*,5,5,5,4,34
+sovietunion80,Gennady Litovchenko,M,M,14,29,light,5*,5*,5*,5,5,5,5,35
+sovietunion80,Sergey Rodionov,A,A,15,29,light,5*,5*,5,4,5,5,6*,35
+sovietunion80,Anatoliy Demyanenko,M,LW,16,29,light,6*,6*,5,6*,6,6,5,40
+sanmarino80,Claudio Maiani,G,G,1,30,light,2*,2*,2*,2,2,2,2,24
+sanmarino80,Maurizio Reggini,D,RB,2,30,light,1*,1*,1*,1,1,1,1,7
+sanmarino80,Valdes Pasolini,D,LB,3,30,light,1*,1*,1*,1,1,1,1,7
+sanmarino80,Bruno Muccioli,D,D,4,30,light,1*,1*,1*,1,1,1,1,7
+sanmarino80,William Guerra,D,D,5,30,light,0*,0*,0*,0,0,0,0,0
+sanmarino80,Massimo Bonini,M,RW,6,30,light,5*,5*,5*,5,4,5,4,33
+sanmarino80,Guerrino Albani,M,LW,7,30,light,1*,1*,1*,1,1,1,1,7
+sanmarino80,Giuseppe Canini,M,M,8,30,light,1*,1*,1*,1,1,1,1,7
+sanmarino80,Fabio Gasperoni,M,M,9,30,light,1*,1*,1*,1,1,1,1,7
+sanmarino80,Marco Macina,A,A,10,30,light,4*,4*,4,3,5*,4,4,28
+sanmarino80,Claudio Peverani,A,A,11,30,light,1*,1*,1*,1,1,1,1,7
+sanmarino80,Pierluigi Benedettini,G,G,12,30,light,2*,1,3*,1,1,2*,1,7
+sanmarino80,Ivano Toccaceli,D,D,13,30,light,0*,0*,0*,0,0,0,0,0
+sanmarino80,Massimo Ceccoli,M,M,14,30,light,1*,1*,1*,1,1,1,1,7
+sanmarino80,Fabio Zanotti,A,A,15,30,light,1*,1*,1*,1,1,1,1,7
+sanmarino80,Dante Maiani,M,RW,16,30,light,1*,1*,1*,1,1,1,1,7
+scotland80,Jim Leighton,G,G,1,31,light,5*,4,6*,5*,5,5,4,39
+scotland80,Alan Hansen,D,RB,2,31,light,6*,5,6*,6*,6,6,5,40
+scotland80,Alex McLeish,D,LB,3,31,light,5,5,6*,6*,5,6*,5,38
+scotland80,Willie Miller,D,D,4,31,light,5,4,6*,6*,5,6*,4,36
+scotland80,David Narey,D,D,5,31,light,5*,5,6*,6*,4,5,4,35
+scotland80,Gordon Strachan,M,RW,6,31,light,6*,6*,5,5,6*,6,5,39
+scotland80,Graeme Souness,M,LW,7,31,light,6*,5,6*,5,6*,6,5,39
+scotland80,John Wark,M,M,8,31,light,5,6*,6*,6*,4,5,5,37
+scotland80,Paul McStay,M,M,9,31,light,6*,5*,5,5,6*,5,5,37
+scotland80,Kenny Dalglish,A,A,10,31,light,6*,6*,5,4,6*,5,6,38
+scotland80,Andy Gray,A,A,11,31,light,5*,5*,6*,4,5,5,5,35
+scotland80,Alan Rough,G,G,12,31,light,4,5*,5*,4,4,5*,3,33
+scotland80,Richard Gough,D,D,13,31,light,5*,4,6*,6*,5,5,4,35
+scotland80,Jim Bett,M,M,14,31,light,6*,5*,5*,5,5,5,5,36
+scotland80,Mark McGhee,A,A,15,31,light,5*,5*,6*,4,5,5,5,35
+scotland80,Davie Cooper,M,LW,16,31,light,6*,6*,5,5,6*,6,5,39
+slovakia80,LADISLAV MOLNAR,G,G,1,39,light,0,0,0,0,0,0,0,20
+slovakia80,ALEXANDER VENCEL,G,G,12,39,light,0,0,0,0,0,0,0,18
+slovakia80,MARIAN ZEMAN,D,RB,2,39,light,2,1,2,6*,2,6*,2,21
+slovakia80,VLADIMIR KINDER,D,LB,5,39,light,1,1,3,7*,2,6*,2,22
+slovakia80,MIROSLAV KARHAN,D,D,3,39,light,2,3,7*,6*,3,1,1,23
+slovakia80,DUSAN TITTEL,D,D,6,39,light,2,2,7*,5*,2,2,2,22
+slovakia80,IVAN KOZAK,D,D,13,39,light,2,0,5*,7*,0,2,1,17
+slovakia80,IGOR BALIS,M,RW,7,39,light,7*,3,1,5*,2,1,2,21
+slovakia80,LUBOMIR MORAVCIK,M,LW,11,39,light,7*,6*,2,2,7*,6*,1,31
+slovakia80,JOZEF JURIGA,M,M,14,39,light,6*,1,3,6*,2,2,1,21
+slovakia80,ROBERT TOMASCHEK,M,M,4,39,light,6*,3,2,5*,3,1,2,22
+slovakia80,MAREK UJLAKY,M,M,15,39,light,4*,1,2,4*,3*,2,0,16
+slovakia80,JULIUS SIMON,M,M,8,39,light,2,2,6*,6*,1,3,2,22
+slovakia80,PETER DUBOVSKY,A,A,10,39,light,6*,5*,2,2,5*,3,7*,30
+slovakia80,JAROSLAV TIMKO,A,A,9,39,ginger,2,4*,4*,2,4*,4*,4*,24
+slovakia80,TIBOR JANCULA,A,A,16,39,light,2,3*,1,1,4*,4*,5*,20
+slovenia80,BOSKO BOSKOVIC,G,G,1,32,light,0,0,0,0,0,0,0,17
+slovenia80,BRANKO ZUPAN,G,G,12,32,light,0,0,0,0,0,0,0,18
+slovenia80,MARINKO GALIC,D,RB,2,32,light,2,2,0,5*,0,5*,2,16
+slovenia80,PETER BINKOVSKI,D,LB,5,32,light,1,2,2,4*,2,5*,2,18
+slovenia80,DARKO MILANIC,D,D,4,32,light,2,2,7*,7*,3,1,2,24
+slovenia80,ALES KRIZAN,D,D,13,32,light,2,1,5*,5*,2,2,1,18
+slovenia80,ROBERT ENGLARO,D,D,3,32,light,1,1,5*,7*,2,1,1,18
+slovenia80,DZONI NOVAK,M,RW,7,32,light,4*,2,6*,5*,1,4*,1,23
+slovenia80,ALFRED JERMANIS,M,LW,11,32,light,6*,1,1,7*,2,1,3,21
+slovenia80,ZLATKO ZAHOVIC,M,M,9,32,light,1,2,1,6*,5*,5*,2,22
+slovenia80,ALES CEH,M,M,6,32,light,5*,0,4*,4*,2,1,2,18
+slovenia80,VLADIMIR KOKOL,M,M,14,32,light,5*,1,1,4*,4*,1,2,18
+slovenia80,AMIR KARIC,M,M,15,32,light,1,5*,1,2,1,1,7*,18
+slovenia80,SASO UDOVIC,A,A,8,32,light,3,5*,5*,1,1,5*,5*,25
+slovenia80,MATJAZ FLORJANCIC,A,A,10,32,light,2,5*,1,3,3,6*,6*,26
+slovenia80,ERMIN SILJAK,A,A,16,32,light,2,3*,4*,1,2,2,4*,18
+spain80,Luis Arconada,G,G,1,40,light,4*,4,6*,4,4,5*,4,39
+spain80,José Antonio Camacho,D,RB,2,40,light,6*,5,6*,6*,6,6,5,40
+spain80,Migueli,D,LB,3,40,light,5*,5,6*,6*,5,5,5,37
+spain80,Miguel Tendillo,D,D,4,40,light,5*,5,6*,6*,5,5,4,36
+spain80,José Ramón Alexanko,D,D,5,40,light,5*,5,6*,6*,5,5,4,36
+spain80,Periko Alonso,M,RW,6,40,light,6*,5*,5,6*,5,5,5,37
+spain80,Víctor Muñoz,M,LW,7,40,light,6*,5*,5,6*,5,5,5,37
+spain80,Jesús Maria Zamora,M,M,8,40,light,6*,6*,5*,5,5,5,5,37
+spain80,Robert,M,M,9,40,light,6*,5*,5,5,6*,5,5,37
+spain80,Juanito,A,A,10,40,light,6*,6*,5,4,6*,6,6,39
+spain80,Dani,A,A,11,40,light,6*,6*,5,5,6*,6,5,39
+spain80,Urruti,G,G,12,40,light,5*,5*,4,5*,4,5,4,35
+spain80,Antonio Maceda,D,D,13,40,light,5*,5,6*,6*,5,5,4,36
+spain80,Marcos Alonso,M,M,14,40,light,6*,5*,5,4,6*,5,5,36
+spain80,Santillana,A,A,15,40,light,5,6*,5,4,5,6*,6*,37
+spain80,Rafael Gordillo,D,LB,16,40,light,6*,6*,5,6*,5,6,5,39
+sweden80,Thomas Ravelli,G,G,1,33,light,4*,3,5*,3,3,5*,3,31
+sweden80,Peter Larsson,D,RB,2,33,light,5*,5*,5*,5,5,5,4,34
+sweden80,Glenn Hysén,D,LB,3,33,light,5*,4,5*,5*,5,5,4,33
+sweden80,Hasse Borg,D,D,4,33,light,5*,4,5*,5*,5,5,4,33
+sweden80,Mats Gren,D,D,5,33,light,4,5*,4,5*,5*,4,4,31
+sweden80,Glenn Strömberg,M,RW,6,33,light,5*,5*,5*,5,5,5,5,35
+sweden80,Robert Prytz,M,LW,7,33,light,5*,5*,4,5*,5,5,5,34
+sweden80,Sten-Ove Ramberg,M,M,8,33,light,5*,3*,3,3,5*,3,3,25
+sweden80,Tommy Holmgren,M,M,9,33,light,3*,3,3,3,5*,5*,3,25
+sweden80,Torbjörn Nilsson,A,A,10,33,light,5,5,6*,4,6*,6*,6,38
+sweden80,Ulf Eriksson,A,A,11,33,light,5*,5*,5*,5,5,5,5,35
+sweden80,Jan Möller,G,G,12,33,light,3*,3,5*,3,3,4*,3,30
+sweden80,Sven Dahlkvist,D,D,13,33,light,3,3,6*,5*,3,5*,3,28
+sweden80,Tord Holmgren,M,M,14,33,light,3*,3,3,3,3,5*,4*,24
+sweden80,Dan Corneliusson,A,A,15,33,light,5*,5*,5*,3,5,5,5,33
+sweden80,Ingemar Erlandsson,D,LB,16,33,light,5*,5*,5*,5,5,5,5,35
+switzerland80,Karl Engel,G,G,1,45,light,3*,3*,3*,3,3,3,3,33
+switzerland80,Charly In-Albon,D,RB,2,45,light,5*,4,5*,5*,5,5,4,33
+switzerland80,Robert Lüthi,D,LB,3,45,light,4,4,5*,5*,4,5*,5,32
+switzerland80,Gianpietro Zappa,D,D,4,45,light,5*,5*,5*,5,4,4,4,32
+switzerland80,Andre Egli,D,D,5,45,light,3,4,5*,5*,4,5*,5,31
+switzerland80,René Botteron,M,RW,6,45,light,5*,5*,4,5*,5,5,5,34
+switzerland80,Heinz Hermann,M,LW,7,45,light,5*,5*,5*,5,4,5,4,33
+switzerland80,Marcel Koller,M,M,8,45,light,5*,5*,5*,5,4,5,4,33
+switzerland80,Michel Decastel,M,M,9,45,light,3*,3*,3*,3,3,3,3,21
+switzerland80,Georges Bregy,A,A,10,45,light,5*,5*,5*,4,5,5,5,34
+switzerland80,Raimondo Ponte,A,A,11,45,light,5*,5*,5*,4,5,5,5,34
+switzerland80,Erich Burgener,G,G,12,45,light,5*,4,5*,5*,4,4,4,30
+switzerland80,Philippe Perret,D,D,13,45,light,4,4,5*,5*,4,5*,4,31
+switzerland80,Christian Gross,M,M,14,45,light,3*,3*,3*,3,3,3,3,21
+switzerland80,Manfred Braschler,A,A,15,45,light,5*,5*,5*,4,5,5,5,34
+switzerland80,Claudio Sulser,A,A,16,45,light,5*,5*,5*,4,5,5,5,34
+turkey80,Senol Günes,G,G,1,34,light,4*,4,6*,4,4,5*,4,37
+turkey80,Erhan Önal,D,RB,2,34,light,4,5*,5*,5*,4,5,4,32
+turkey80,Fatih Terim,D,LB,3,34,light,4,4,5*,5*,4,5*,4,31
+turkey80,Yusuf Altintas,D,D,4,34,light,4,4,5*,5*,4,5*,4,31
+turkey80,Kadir Akbulut,D,D,5,34,light,4*,4,5*,5*,4,4,3,29
+turkey80,Cüneyt Tanman,M,RW,6,34,light,5*,5*,5*,5,5,5,4,34
+turkey80,Riza Çalimbay,M,LW,7,34,light,5*,4,5*,5*,4,5,4,32
+turkey80,Hüseyin Çakiroglu,M,M,8,34,light,5*,5*,3,3,5*,3,5,29
+turkey80,Isa Ertürk,M,M,9,34,light,5*,5*,3,3,5*,3,3,27
+turkey80,Senol Çorlu,A,A,10,34,light,5*,5*,5*,4,5,5,5,34
+turkey80,Erdal Keser,A,A,11,34,light,4,5*,5*,3,5*,5,5,32
+turkey80,Eser Özaltindere,G,G,12,34,light,3*,3,5*,3,3,5*,3,34
+turkey80,Niko Kovi,D,D,13,34,light,4*,4,5*,5*,3,4,3,28
+turkey80,Beyhan Çaliskan,M,M,14,34,light,3,4*,3,3,5*,3,4*,25
+turkey80,Ilyas Tüfekçi,A,A,15,34,light,4,5*,5*,4,4,5*,5,32
+turkey80,Sercan Görgülü,A,A,16,34,light,3,3,5*,3,5*,5*,5,29
+ukraine80,OLEG SUSLOV,G,G,1,35,light,0,0,0,0,0,0,0,18
+ukraine80,ALEXANDER SHOVKOVSKY,G,G,12,35,light,0,0,0,0,0,0,0,17
+ukraine80,OLEG LUZHNY,D,RB,2,35,light,2,2,2,7*,1,6*,2,22
+ukraine80,ALEXANDER GOLOVKO,D,LB,4,35,light,1,2,1,5*,2,7*,2,20
+ukraine80,VIKTOR SKRYPNYK,D,D,3,35,ginger,2,2,7*,5*,2,1,1,20
+ukraine80,SERGEI BEZHENAR,D,D,9,35,light,1,1,5*,7*,1,2,0,17
+ukraine80,SERGEI SHMATOVALENKO,D,D,13,35,light,1,0,5*,6*,2,2,2,18
+ukraine80,GENNADY ORBU,M,RW,7,35,light,5*,6*,1,6*,1,1,1,21
+ukraine80,YURI KALITVINTSEV,M,LW,8,35,ginger,5*,4*,1,2,5*,2,2,21
+ukraine80,SERGEI REBROV,M,M,5,35,light,7*,1,1,7*,3,1,1,21
+ukraine80,SERGEI POPOV,M,M,14,35,light,1,2,4*,4*,2,2,2,17
+ukraine80,YURY MAKSIMOV,M,M,15,35,light,5*,0,1,7*,2,1,2,18
+ukraine80,VITALY KOSOVSKY,M,M,6,35,light,7*,5*,1,2,4*,4*,1,24
+ukraine80,VIKTOR LEONENKO,A,A,10,35,light,2,6*,5*,3,1,6*,5*,28
+ukraine80,TIMERLAN GUSEINOV,A,A,11,35,light,2,5*,1,2,1,4*,7*,22
+ukraine80,VALERY KRIVENTSOV,A,A,16,35,light,2,7*,4*,2,1,2,5*,23
+wales80,Neville Southall,G,G,1,36,light,5*,5,6*,4,5,6*,4,40
+wales80,Kevin Ratcliffe,D,RB,2,36,light,5,4,6*,6*,5,6*,4,36
+wales80,Paul Price,D,LB,3,36,light,4,4,5*,5*,4,5*,4,31
+wales80,George Berry,D,D,4,36,light,4*,4,5*,5*,4,4,4,30
+wales80,Terry Boyle,D,D,5,36,light,4*,4,5*,5*,4,4,4,30
+wales80,Alan Curtis,M,RW,6,36,light,5*,5*,5*,5,5,5,5,35
+wales80,Kenny Jackett,M,LW,7,36,light,5*,3,5*,5*,4,5,4,31
+wales80,David Phillips,M,M,8,36,light,5*,5*,4,4,4,5*,4,31
+wales80,Peter Nicholas,M,M,9,36,light,4*,4,5*,5*,4,4,3,29
+wales80,Ian Rush,A,A,10,36,light,6*,6,6,7*,6,6,7*,44
+wales80,Mark Hughes,A,A,11,36,light,5*,5*,6*,4,5,5,5,35
+wales80,Tony Norman,G,G,12,36,light,3*,3*,3,3,3,4*,3,28
+wales80,Jeff Hopkins,D,D,13,36,light,4,4,5*,5*,4,5*,3,30
+wales80,Nigel Vaughan,M,M,14,36,light,4*,4*,4*,4,4,4,4,28
+wales80,Gordon Davies,A,A,15,36,light,4,4,5*,3,4,5*,5*,30
+wales80,Mickey Thomas,M,LW,16,36,light,6*,5*,4,5*,5,5,5,35
+yugoslavia80,Zoran Simovic,G,G,1,37,light,4,3,5*,3,5*,5*,3,35
+yugoslavia80,Boro Primorac,D,RB,2,37,light,5*,5*,5*,5,5,5,5,35
+yugoslavia80,Velimir Zajec,D,LB,3,37,light,5*,5*,5*,5,5,5,4,34
+yugoslavia80,Davor Jozic,D,D,4,37,light,5*,4,5*,5*,4,5,4,32
+yugoslavia80,Vladimir Matijevic,D,D,5,37,light,5*,4,5*,5*,4,5,4,32
+yugoslavia80,Safet Susic,M,RW,6,37,light,6*,6*,5,4,6*,6,5,38
+yugoslavia80,Vladimir Petrovic,M,LW,7,37,light,5*,5*,5*,5,5,5,5,35
+yugoslavia80,Nenad Gracan,M,M,8,37,light,5*,5*,5*,5,4,5,5,34
+yugoslavia80,Edin Bahtic,M,M,9,37,light,5*,5*,5*,4,5,5,5,34
+yugoslavia80,Vahid Halilhodzic,A,A,10,37,light,5,6*,6*,4,5,6*,6,38
+yugoslavia80,Milos Sestic,A,A,11,37,light,5*,5,5,4,6*,6*,5,36
+yugoslavia80,Tomislav Ivkovic,G,G,12,37,light,4*,3,4*,3,4,5*,3,31
+yugoslavia80,Zoran Vujovic,D,D,13,37,light,4,4,5*,5*,5*,5,4,32
+yugoslavia80,Slavoljub Nikolic,M,M,14,37,light,5*,5*,5*,4,4,5,5,33
+yugoslavia80,Dusan Savic,A,A,15,37,light,5*,5,6*,3,5,5,6*,35
+yugoslavia80,Marko Mlinaric,M,LW,16,37,light,6*,5,5,4,6*,6*,5,37
+algeria81,Nacerdine Drid,G,G,1,80,dark,3*,3,4*,3,3,4*,3,29
+algeria81,Nourredine Kourichi,D,RB,2,80,dark,4,4,5*,5*,4,5*,4,31
+algeria81,Bouzid Mahyouz,D,LB,3,80,dark,4*,3,4*,4*,4,4,4,27
+algeria81,Mahmoud Guendouz,D,D,4,80,dark,4*,3,4*,4*,4,4,3,26
+algeria81,Mohamed Chaïb,D,D,5,80,dark,3*,3*,3*,3,3,3,3,21
+algeria81,Mohamed Kaci-Said,M,RW,6,80,dark,4*,5*,4,3,4,5*,4,29
+algeria81,Hocine Yahi,M,LW,7,80,dark,5*,3,4*,3,5*,4,4,28
+algeria81,Ali Fergani,M,M,8,80,dark,5*,4*,4*,3,4,4,3,27
+algeria81,Hamid Lefdjah,M,M,9,80,dark,3*,3*,3*,3,3,3,3,21
+algeria81,Rabah Madjer,A,A,10,80,dark,5*,5*,5*,4,5,5,5,34
+algeria81,Lakhdar Belloumi,A,A,11,80,dark,5*,5*,5*,4,5,5,5,34
+algeria81,Mourad Amara,G,G,12,80,dark,3*,3*,5*,3,3,3,3,28
+algeria81,Hamid Bouras,D,D,13,80,dark,3*,3*,3*,3,3,3,3,21
+algeria81,Abdelkader Meziani,M,M,14,80,dark,3*,3*,3*,3,3,3,3,21
+algeria81,Mustapha Dahleb,A,A,15,80,dark,5*,5*,4,4,5*,5,5,33
+algeria81,Ali Bencheikh,A,A,16,80,dark,5*,5*,5*,3,5,5,5,33
+angola81,Napoleão Brandão,G,G,1,102,dark,2*,2*,2*,2,2,2,2,20
+angola81,Chico Dinis,D,RB,2,102,dark,2*,2*,2*,2,2,2,2,14
+angola81,Lourenço Caquinta,D,LB,3,102,dark,2*,2*,2*,2,2,2,2,14
+angola81,João Melanchton,D,D,4,102,dark,2*,2*,2*,2,2,2,2,14
+angola81,Jorge Costa,D,D,5,102,dark,2*,2*,2*,2,2,2,2,14
+angola81,Tony,M,RW,6,102,dark,2*,2*,2*,2,2,2,2,14
+angola81,Ivo Traça,M,LW,7,102,dark,2*,2*,2*,2,2,2,2,14
+angola81,Edmundo,M,M,8,102,dark,2*,2*,2*,2,2,2,2,14
+angola81,Francisco Feliciano,M,M,9,102,dark,2*,2*,2*,2,2,2,2,14
+angola81,Vata,A,A,10,102,dark,4*,4*,4,3,4,5*,4,28
+angola81,Daniel Ndunguidi,A,A,11,102,dark,3*,3*,3*,3,3,3,3,21
+angola81,Luís Cão,G,G,12,102,dark,2*,2*,2*,2,2,2,2,19
+angola81,Sabú,D,D,13,102,dark,2*,2*,2*,2,2,2,2,14
+angola81,Augusto Messo,M,M,14,102,dark,2*,2*,2*,2,2,2,2,14
+angola81,Jesús,A,A,15,102,dark,3*,3*,3*,3,3,3,3,21
+angola81,Abel Campos,M,RW,16,102,dark,4*,4*,4,3,4,5*,4,28
+benin81,Jean-Louis Noumakagnan,G,G,1,111,dark,1*,1*,1*,1,1,1,1,7
+benin81,Jean-Marc Adjovi-Boco,D,RB,2,111,dark,2*,2,3*,2,2,2,3*,16
+benin81,Victor Zèvounou,D,LB,3,111,dark,1*,1*,1*,1,1,1,1,7
+benin81,Sylvain Zèvounou,D,D,4,111,dark,1*,1*,1*,1,1,1,1,7
+benin81,Gilbert Edjekpoto,D,D,5,111,dark,1*,1*,1*,1,1,1,1,7
+benin81,Akim Brym,M,RW,6,111,dark,1*,1*,1*,1,1,1,1,7
+benin81,S. Seidou,M,LW,7,111,dark,1*,1*,1*,1,1,1,1,7
+benin81,Amadou Bagri,M,M,8,111,dark,1*,1*,1*,1,1,1,1,7
+benin81,Expédit Dossou-Gbété,M,M,9,111,dark,1*,1*,1*,1,1,1,1,7
+benin81,Sadou Do Rego,A,A,10,111,dark,2*,2*,2*,2,2,2,2,14
+benin81,Henri Assouramou,A,A,11,111,dark,1*,1*,1*,1,1,1,1,7
+benin81,Djibril Mohamed,G,G,12,111,dark,0,1*,1*,1*,1,0,0,0
+benin81,Hippolyte Dangbeto,D,D,13,111,dark,1*,1*,1*,1,1,1,1,7
+benin81,Ludovic Ali Kparah,M,M,14,111,dark,1*,1*,1*,1,1,1,1,7
+benin81,Douhanadou Boukari,A,A,15,111,dark,1*,1*,1*,1,1,1,1,7
+benin81,Sidi Ali Mohamed,A,A,16,111,dark,1*,1*,1*,1,1,1,1,7
+botswana81,Matshidiso Saxton Kowa,G,G,1,82,dark,1*,1*,1*,1,1,1,1,7
+botswana81,Moshoeshoe Molelekwa,D,RB,2,82,dark,1*,1*,1*,1,1,1,1,7
+botswana81,Mulalu Mulalu,D,LB,3,82,dark,1*,1*,1*,1,1,1,1,7
+botswana81,Ronan Ntseane,D,D,4,82,dark,1*,1*,1*,1,1,1,1,7
+botswana81,Churchill Gape,D,D,5,82,dark,1*,1*,1*,1,1,1,1,7
+botswana81,Mbakiso Sebina,M,RW,6,82,dark,1*,1*,1*,1,1,1,1,7
+botswana81,Seengwato Rathedi,M,LW,7,82,dark,1*,1*,1*,1,1,1,1,7
+botswana81,Moreetsi Moremi,M,M,8,82,dark,1*,1*,1*,1,1,1,1,7
+botswana81,Cocorico Mnese,M,M,9,82,dark,1*,1*,1*,1,1,1,1,7
+botswana81,Louis Tlhowe,A,A,10,82,dark,1*,1*,1*,1,1,1,1,7
+botswana81,Morwalela Seema,A,A,11,82,dark,1*,1*,1*,1,1,1,1,7
+botswana81,Batsile Makubate,G,G,12,82,dark,1*,1*,1*,1,1,1,1,7
+botswana81,Michael Dintwe,D,D,13,82,dark,1*,1*,1*,1,1,1,1,7
+botswana81,Topito Masheleng,M,M,14,82,dark,1*,1*,1*,1,1,1,1,7
+botswana81,Keoagile Gosalamang,A,A,15,82,dark,1*,1*,1*,1,1,1,1,7
+botswana81,Sehularo Pelekekae,M,M,16,82,dark,1*,1*,1*,1,1,1,1,7
+burkinafaso81,Ibrahim Diarra,G,G,1,83,dark,1*,1*,1*,1,1,1,1,12
+burkinafaso81,Gualbert Kaboré,D,RB,2,83,dark,1*,1*,1*,1,1,1,1,7
+burkinafaso81,Ousmane Coulibaly,D,LB,3,83,dark,1*,1*,1*,1,1,1,1,7
+burkinafaso81,Jules Kadeba,D,D,4,83,dark,1*,1*,1*,1,1,1,1,7
+burkinafaso81,Inoussa Zongo,D,D,5,83,dark,1*,1*,1*,1,1,1,1,7
+burkinafaso81,Souleymane Camara,M,RW,6,83,dark,1*,1*,1*,1,1,1,1,7
+burkinafaso81,Adama Dembelé,M,LW,7,83,dark,1*,1*,1*,1,1,1,1,7
+burkinafaso81,Boureima Balima,M,M,8,83,dark,1*,1*,1*,1,1,1,1,7
+burkinafaso81,Damien Gnimassou,M,M,9,83,dark,1*,1*,1*,1,1,1,1,7
+burkinafaso81,Sissi,A,A,10,83,dark,2*,2*,2*,2,2,2,2,14
+burkinafaso81,Alexis Ilbowdo,A,A,11,83,dark,1*,1*,1*,1,1,1,1,7
+burkinafaso81,Yacouba Touré,G,G,12,83,dark,1*,1*,1*,1,1,1,1,12
+burkinafaso81,Côme Gnimassou,D,D,13,83,dark,1*,1*,1*,1,1,1,1,7
+burkinafaso81,Paul Nikièma,M,M,14,83,dark,1*,1*,1*,1,1,1,1,7
+burkinafaso81,Tasséré Ouédraogo,A,A,15,83,dark,1*,1*,1*,1,1,1,1,7
+burkinafaso81,Amadou Koné,M,M,16,83,dark,1*,1*,1*,1,1,1,1,7
+burundi81,RAMADHANI,G,G,1,84,dark,0,0,0,0,0,0,0,13
+burundi81,MILANGWE,G,G,12,84,dark,0,0,0,0,0,0,0,10
+burundi81,NGANDO,D,RB,2,84,dark,2,1,1,2*,1,4*,1,12
+burundi81,KITENGE,D,LB,3,84,dark,2,1,1,4*,1,2*,0,11
+burundi81,KINAMBA,D,D,4,84,dark,2,1,4*,3*,1,0,2,13
+burundi81,GATERA,D,D,5,84,dark,2,1,4*,6*,0,0,0,13
+burundi81,MVANO,D,D,13,84,dark,0,0,4*,5*,0,1,0,10
+burundi81,NOMBA,M,RW,6,84,dark,1,0,1,1,4*,3*,1,11
+burundi81,NDUWAYO,M,LW,7,84,dark,1,0,0,2,4*,5*,2,14
+burundi81,MASUMBUKO,M,M,8,84,dark,5*,1,0,3*,1,0,1,11
+burundi81,HABIMARA,M,M,10,84,dark,5*,2,0,5*,1,1,0,14
+burundi81,ABDI,M,M,14,84,dark,5*,0,0,3*,1,1,0,10
+burundi81,SAIDI,A,A,9,84,dark,2,1,4*,1,0,1,4*,13
+burundi81,NZEYIMANA,A,A,11,84,dark,1,1,6*,2,0,1,3*,14
+burundi81,JEAN-JACQUES MBUYI,A,A,15,84,dark,0,0,5*,0,1,0,3*,9
+burundi81,JEAN-MARC MBUYI,A,A,16,84,dark,1,1,4*,0,0,1,3*,10
+cameroon81,Joseph-Antoine Bell,G,G,1,94,dark,4,5*,5*,5*,4,5,3,31
+cameroon81,Emmanuel Kundé,D,RB,2,94,dark,4,5*,5*,5*,4,4,4,31
+cameroon81,René N'Djeya,D,LB,3,94,dark,4*,4,5*,5*,4,4,4,30
+cameroon81,Ibrahim Aoudou,D,D,4,94,dark,4*,4,5*,5*,4,4,4,30
+cameroon81,Elie Onana,D,D,5,94,dark,4*,4,5*,5*,4,4,3,29
+cameroon81,Joseph Enanga,M,RW,6,94,dark,5*,4,4,4,5*,4,5*,31
+cameroon81,Grégoire Mbida,M,LW,7,94,dark,5*,5*,4,4,5*,4,4,31
+cameroon81,Louis M'Fédé,M,M,8,94,dark,2*,2*,4*,2,2,2,2,16
+cameroon81,Joseph Kamga,M,M,9,94,dark,2*,2*,2*,2,2,2,2,14
+cameroon81,Roger Milla,A,A,10,94,dark,5,5,6*,4,5,6*,6*,37
+cameroon81,Théophile Abega,A,A,11,94,dark,5*,5*,4,4,5*,5,5,33
+cameroon81,Thomas N'Kono,G,G,12,94,dark,4*,4,5*,4,4,5*,3,31
+cameroon81,Edmond Enoka,D,D,13,94,dark,4*,4*,4*,4,4,4,4,28
+cameroon81,Jean-Paul Akono,M,M,14,94,dark,1*,1*,1,1,1,3*,1,9
+cameroon81,Jacques Nguea,A,A,15,94,dark,4*,4,4,4,5*,5*,4,30
+cameroon81,François N'Doumbé,D,LB,16,94,dark,5*,4*,5*,4,4,4,4,30
+congo81,Jean-Jacques Maboundou,G,G,1,112,dark,2*,2*,2*,2,2,2,2,18
+congo81,Germain Mbemba,D,RB,2,112,dark,2*,2*,2*,2,2,2,2,14
+congo81,Célestin Mouyabi,D,LB,3,112,dark,2*,2*,2*,2,2,2,2,14
+congo81,Simplice Owomat,D,D,4,112,dark,2*,2*,2*,2,2,2,2,14
+congo81,Roger Moukalou,D,D,5,112,dark,1*,1*,1*,1,1,1,1,7
+congo81,Guy-Armand Nkéoua,M,RW,6,112,dark,2*,2*,2*,2,2,2,2,14
+congo81,Jean-Luc Tsélantsiéné,M,LW,7,112,dark,2*,2*,2*,2,2,2,2,14
+congo81,Jean-Michel M'Bemba,M,M,8,112,dark,2*,2*,2*,2,2,2,2,14
+congo81,Roger Zaba,M,M,9,112,dark,2*,2*,2*,2,2,2,2,14
+congo81,Médard Ngakosso,A,A,10,112,dark,2*,2*,2*,2,2,2,2,14
+congo81,Anges Ngapy,A,A,11,112,dark,2*,2*,2*,2,2,2,2,14
+congo81,Ambroise Ngoya,G,G,12,112,dark,1*,1*,1*,1,1,1,1,11
+congo81,Yvon Okemba,D,D,13,112,dark,1*,1*,1*,1,1,1,1,7
+congo81,Isaac N'Gata,M,M,14,112,dark,1*,1*,1*,1,1,1,1,7
+congo81,Didier Bonazebi,A,A,15,112,dark,2*,2*,2*,2,2,2,2,14
+congo81,Paul Moukila,A,A,16,112,dark,4*,4*,3,2,4*,4,2,23
+egypt81,Thabet El Batal,G,G,1,105,light,3*,3*,4*,3,3,3,3,29
+egypt81,Ibrahim Youssef,D,RB,2,105,light,5*,3,5*,5*,3,5,3,29
+egypt81,Saber Eid,D,LB,3,105,light,2*,2*,2*,2,2,2,2,14
+egypt81,Hamada Sedki,D,D,4,105,light,2*,2*,2*,2,2,2,2,14
+egypt81,Hesham Yakan,D,D,5,105,light,2*,2*,2*,2,2,2,2,14
+egypt81,Magdi Abdelghani,M,RW,6,105,light,5*,5*,5*,4,5,4,5,33
+egypt81,Alaa Mayhoub,M,LW,7,105,light,3*,3*,3*,3,3,3,3,21
+egypt81,Farouk Gaafar,M,M,8,105,light,4*,2,2,2,4*,4*,2,20
+egypt81,Mohamed Amer,M,M,9,105,light,2*,2*,2*,2,2,2,2,14
+egypt81,Mahmoud El Khatib,A,A,10,105,light,4,4,6*,4,6*,6*,6,36
+egypt81,Gamal Abdel Hamid,A,A,11,105,light,3,3,4,3,5*,5*,5*,28
+egypt81,Ekramy El Shahat,G,G,12,105,light,3*,3*,5*,3,3,3,3,26
+egypt81,Hamed El Badr,D,D,13,105,light,2*,2*,2*,2,2,2,2,14
+egypt81,Moustafa El-Zeftawy,M,M,14,105,light,2*,2*,2*,2,2,2,2,14
+egypt81,Taher Abouzaid,A,A,15,105,light,3,5*,5*,3,3,5*,3,27
+egypt81,Tarek Yehia,M,LW,16,105,light,3,3,4,3,5*,5*,5*,28
+ethiopia81,Tekabe Zewde,G,G,1,108,dark,1*,1*,1*,1,1,1,1,7
+ethiopia81,Godefam Dedass,D,RB,2,108,dark,1*,1*,1*,1,1,1,1,7
+ethiopia81,Ejigu Mulualem,D,LB,3,108,dark,1*,1*,1*,1,1,1,1,7
+ethiopia81,Zenete Argaoi,D,D,4,108,dark,1*,1*,1*,1,1,1,1,7
+ethiopia81,Negash Teklit,D,D,5,108,dark,1*,1*,1*,1,1,1,1,7
+ethiopia81,Kebede Mulugeta,M,RW,6,108,dark,1*,1*,1*,1,1,1,1,7
+ethiopia81,Bitew Abre,M,LW,7,108,dark,1*,1*,1*,1,1,1,1,7
+ethiopia81,Negussie Asfaw,M,M,8,108,dark,1*,1*,1*,1,1,1,1,7
+ethiopia81,Sisaye Mamo,M,M,9,108,dark,1*,1*,1*,1,1,1,1,7
+ethiopia81,Teféri Agune,A,A,10,108,dark,1*,1*,1*,1,1,1,1,7
+ethiopia81,Mulugeta Woldeyes,A,A,11,108,dark,1*,1*,1*,1,1,1,1,7
+ethiopia81,Gebremedhin Mulugeta,G,G,12,108,dark,0*,0*,0,0,1*,0,0,0
+ethiopia81,Million Begashaw,D,D,13,108,dark,1*,1*,1*,1,1,1,1,7
+ethiopia81,Dagne Tesfaye,M,M,14,108,dark,1*,1*,1*,1,1,1,1,7
+ethiopia81,Hussein Mengistu,A,A,15,108,dark,1*,1*,1*,1,1,1,1,7
+ethiopia81,Taffesse Tamerat,D,RB,16,108,dark,1*,1*,1*,1,1,1,1,7
+gabon81,Gaston Angoué,G,G,1,109,dark,2*,2*,2*,2,2,2,2,20
+gabon81,Jean-Joseph Louba,D,RB,2,109,dark,2*,2*,2*,2,2,2,2,14
+gabon81,Koffi Moudouma,D,LB,3,109,dark,2*,2*,2*,2,2,2,2,14
+gabon81,Alfred Mébalé,D,D,4,109,dark,2*,2*,2*,2,2,2,2,14
+gabon81,Gaston Rembendambia,D,D,5,109,dark,2*,2*,2*,2,2,2,2,14
+gabon81,Pierre Aubameyang,M,RW,6,109,dark,4*,3,4*,4*,3,4,3,25
+gabon81,Anselme Delicat,M,LW,7,109,dark,3*,3*,3*,3,3,3,3,21
+gabon81,Philippe Aguékyzo,M,M,8,109,dark,2*,2*,2*,2,2,2,2,14
+gabon81,Wandze Sossa,M,M,9,109,dark,2*,2*,2*,2,2,2,2,14
+gabon81,Guy Anotho,A,A,10,109,dark,2*,2*,2*,2,2,2,2,14
+gabon81,Régis Manon,A,A,11,109,dark,2*,2*,2*,2,2,2,2,14
+gabon81,Philippe Akendengu,G,G,12,109,dark,2*,2*,2*,2,2,2,2,18
+gabon81,Ndong Nkoulou,D,D,13,109,dark,2*,2*,2*,2,2,2,2,14
+gabon81,Jean-Claude Doucka,M,M,14,109,dark,2*,2*,2*,2,2,2,2,14
+gabon81,Félix Fondoko,A,A,15,109,dark,1*,1*,1*,1,1,1,1,7
+gabon81,Michel Minko,A,A,16,109,dark,1*,1*,1*,1,1,1,1,7
+ghana81,Edward Ansah,G,G,1,88,dark,2*,2*,2*,2,2,2,2,22
+ghana81,Papa Arko,D,RB,2,88,dark,2*,2*,2*,2,2,2,2,14
+ghana81,Samson Lamptey,D,LB,3,88,dark,2*,2*,2*,2,2,2,2,14
+ghana81,Addae Kyenkyenhene,D,D,4,88,dark,2*,2*,2*,2,2,2,2,14
+ghana81,George Lamptey,D,D,5,88,dark,2*,2*,2*,2,2,2,2,14
+ghana81,Karim Abdul Razak,M,RW,6,88,dark,5*,4*,4,3,5*,4,4,29
+ghana81,Ebo Smith,M,LW,7,88,dark,2*,2*,2*,2,2,2,2,14
+ghana81,John Bannerman,M,M,8,88,dark,1*,1*,1*,1,1,1,1,7
+ghana81,Albert Asaase,M,M,9,88,dark,1*,1*,1*,1,1,1,1,7
+ghana81,Opoku Nti,A,A,10,88,dark,5*,5*,5*,3,5,5,5,33
+ghana81,Abedi Pele,A,A,11,88,dark,5*,5*,4,4,5*,5,5,33
+ghana81,Fuseini Salifu,G,G,12,88,dark,2*,2*,2*,2,2,2,2,22
+ghana81,Joseph Addo,D,D,13,88,dark,1*,1*,1*,1,1,1,1,7
+ghana81,Sly Tetteh,M,M,14,88,dark,1*,1*,1*,1,1,1,1,7
+ghana81,Mohamed Polo,A,A,15,88,dark,5*,5*,4,3,5*,5,5,32
+ghana81,Emmanuel Ofei Ansah,D,RB,16,88,dark,4,5*,4,5*,5*,4,3,30
+guinea81,Mohamed Djouba,G,G,1,113,dark,1*,1*,1*,1,1,1,1,7
+guinea81,Alsény Diaby,D,RB,2,113,dark,1*,1*,1*,1,1,1,1,7
+guinea81,Papa Camara,D,LB,3,113,dark,3*,3,3,3,5*,4*,3,24
+guinea81,Mady Touré,D,D,4,113,dark,3*,3*,3*,3,3,3,3,21
+guinea81,Gaston Boisdet,D,D,5,113,dark,1*,1*,1*,1,1,1,1,7
+guinea81,Mbaye Ndour,M,RW,6,113,dark,1*,1*,1*,1,1,1,1,7
+guinea81,Soriba Soumah,M,LW,7,113,dark,1*,1*,1*,1,1,1,1,7
+guinea81,Lucien Guilao,M,M,8,113,dark,1*,1*,1*,1,1,1,1,7
+guinea81,Ibrahima Barry,M,M,9,113,dark,1*,1*,1*,1,1,1,1,7
+guinea81,Soriba Djouba,A,A,10,113,dark,1*,0*,0,1*,0,0,0,0
+guinea81,Gaston Camara,A,A,11,113,dark,1*,0,0,1*,0,1*,1,0
+guinea81,Fodé Sylla,G,G,12,113,dark,1*,1*,1*,1,1,1,1,2
+guinea81,Aboubacar Touré,D,D,13,113,dark,0*,0*,0*,0,0,0,0,0
+guinea81,Mbaye Sylla,M,M,14,113,dark,1*,0*,0*,0,0,0,0,0
+guinea81,Aboubacar Djouba,A,A,15,113,dark,0*,1*,0,0,0,0,1*,0
+guinea81,Aboubacar Keita,D,RB,16,113,dark,1*,1*,1*,1,1,1,1,7
+ivorycoast81,Koffi Kouadio,G,G,1,90,dark,2*,2*,2*,2,2,2,2,22
+ivorycoast81,François Monguehi,D,RB,2,90,dark,2*,2*,2*,2,2,2,2,14
+ivorycoast81,Aime Tchetche,D,LB,3,90,dark,3*,3*,3*,3,3,3,3,21
+ivorycoast81,Gnato Gbala,D,D,4,90,dark,3*,3*,3*,3,3,3,3,21
+ivorycoast81,Mama Ouattara,D,D,5,90,dark,2*,2*,2*,2,2,2,2,14
+ivorycoast81,Boris Diecket,M,RW,6,90,dark,3*,3*,5*,3,3,3,3,23
+ivorycoast81,Pascal Aka Miezan,M,LW,7,90,dark,2*,2*,2*,2,2,2,2,14
+ivorycoast81,Oumar Ben Salah,M,M,8,90,dark,2*,2*,2*,2,2,2,2,14
+ivorycoast81,Gaston Adjoukoua,M,M,9,90,dark,2*,2*,2*,2,2,2,2,14
+ivorycoast81,Jean-Michel Guédé,A,A,10,90,dark,4,4,5*,4,4,5*,5*,31
+ivorycoast81,Youssouf Fofana,A,A,11,90,dark,4,4,4,3,5*,5*,5*,30
+ivorycoast81,Ali Doumbia,G,G,12,90,dark,2*,2*,2*,2,2,2,2,22
+ivorycoast81,Arsène Hobou,D,D,13,90,dark,2*,2*,2*,2,2,2,2,14
+ivorycoast81,Francois Zahoui,M,M,14,90,dark,3*,3*,3*,3,3,3,3,21
+ivorycoast81,Ignace Guede-Gba,A,A,15,90,dark,3*,3*,3*,3,3,3,3,21
+ivorycoast81,Jean-Desire Sikely,A,A,16,90,dark,2*,2*,2*,2,2,2,2,14
+kenya81,Mahmoud Abbas,G,G,1,99,dark,4*,4*,4*,4,3,4,3,24
+kenya81,Austin Oduor Origi,D,RB,2,99,dark,5*,4*,4,5*,4,4,3,29
+kenya81,Bobby Ogolla,D,LB,3,99,dark,4*,5*,4,5*,3,4,3,28
+kenya81,Josephat Murila,D,D,4,99,dark,4*,3,4*,5*,4,4,3,27
+kenya81,Edward Kiiza,D,D,5,99,dark,1*,1*,1*,1,1,1,1,7
+kenya81,Joe Masiga,M,RW,6,99,dark,2,2,3*,3*,2,4*,3,19
+kenya81,Charles Otieno,M,LW,7,99,dark,2*,2*,2*,2,2,2,2,14
+kenya81,Hussein Kheri,M,M,8,99,dark,1*,1*,1*,1,1,1,1,7
+kenya81,Douglas Mutua,M,M,9,99,dark,1*,1*,1*,1,1,1,1,7
+kenya81,Wilberforce Mulamba,A,A,10,99,dark,5*,5*,3,3,5*,4,5,30
+kenya81,Elly Adero,A,A,11,99,dark,1*,1*,1*,1,1,1,1,7
+kenya81,Washington Muhanji,G,G,12,99,dark,1*,1*,1*,1,1,1,1,7
+kenya81,Ronald Watsiera,D,D,13,99,dark,1*,1*,1*,1,1,1,1,7
+kenya81,John Okello,M,M,14,99,dark,1*,1*,1*,1,1,1,1,7
+kenya81,Ambrose Ayoyi,A,A,15,99,dark,3,4*,5*,3,4*,4,3,26
+kenya81,Sammy Onyango,M,LW,16,99,dark,4*,4,4,3,5*,5*,4,29
+lesotho81,PHAKISI,G,G,1,85,dark,0,0,0,0,0,0,0,8
+lesotho81,NTSOHI,G,G,12,85,dark,0,0,0,0,0,0,0,4
+lesotho81,MOKHOTSO,D,RB,2,85,dark,0,1,1,3*,0,1*,0,6
+lesotho81,SITHOLE,D,LB,3,85,dark,0,0,0,2*,0,5*,0,7
+lesotho81,PHALIME,D,D,4,85,dark,0,0,2*,3*,0,1,0,6
+lesotho81,MAJORO,D,D,5,85,dark,0,0,3*,1*,0,1,0,5
+lesotho81,SIDIBE,D,D,13,85,dark,0,0,1*,3*,1,0,0,5
+lesotho81,MAEMA,M,RW,6,85,dark,0,1,0,1,1*,3*,0,6
+lesotho81,LEKOANE,M,LW,7,85,dark,1,1,1,0,2*,3*,1,9
+lesotho81,MOCHELA,M,M,8,85,dark,4*,0,0,3*,0,1,0,8
+lesotho81,MASELA,M,M,10,85,dark,3*,0,0,6*,0,1,0,10
+lesotho81,KHETSI,M,M,14,85,dark,2*,1,0,1*,0,0,1,5
+lesotho81,FERNANDO,M,M,15,85,dark,1*,0,0,3*,0,0,0,4
+lesotho81,MOHALE,A,A,9,85,dark,1,0,3*,0,0,0,4*,8
+lesotho81,LEKHOTLA,A,A,11,85,dark,0,1,3*,0,0,0,2*,6
+lesotho81,MONYOBI,A,A,16,85,dark,0,1,1*,0,0,0,1*,3
+liberia81,Raymond Morton,G,G,1,97,dark,1*,1*,1*,1,1,1,1,7
+liberia81,Nelson Sonpon,D,RB,2,97,dark,1*,1*,1*,1,1,1,1,7
+liberia81,Charley Vinitius,D,LB,3,97,dark,1*,1*,1*,1,1,1,1,7
+liberia81,Mathew Browne,D,D,4,97,dark,1*,1*,1*,1,1,1,1,7
+liberia81,Joe Nagbe,D,D,5,97,dark,4*,4*,4*,3,3,3,3,24
+liberia81,Ben Collins,M,RW,6,97,dark,2*,2*,3*,2,2,2,2,15
+liberia81,Isaiah Lincoln,M,LW,7,97,dark,1*,1*,1*,1,1,1,1,7
+liberia81,Sam Surno,M,M,8,97,dark,1*,1*,1*,1,1,1,1,7
+liberia81,Jerry Johnson,M,M,9,97,dark,1*,1*,1*,1,1,1,1,7
+liberia81,George Weah,A,A,10,97,dark,4*,4*,4*,2,4,4,4,26
+liberia81,James Debbah,A,A,11,97,dark,3,4*,4*,2,4*,4,3,24
+liberia81,Boye Cooper,G,G,12,97,dark,1*,1*,1*,1,1,1,1,7
+liberia81,Frank Nagbe,D,D,13,97,dark,1*,1*,1*,1,1,1,1,7
+liberia81,Joseph Sion,M,M,14,97,dark,1*,1*,1*,1,1,1,1,7
+liberia81,Edwin Morgan,A,A,15,97,dark,1*,1*,1*,1,1,1,1,7
+liberia81,Theophilus Swaucy,A,A,16,97,dark,1*,1*,1*,1,1,1,1,7
+malawi81,Patson Banda,G,G,1,117,dark,4*,3,5*,3,3,4*,3,28
+malawi81,Jack Chamangwana,D,RB,2,117,dark,3*,3*,3,5*,3,3,3,23
+malawi81,Young Chimodzi,D,LB,3,117,dark,2*,2*,2*,2,2,2,2,14
+malawi81,Gilbert Chirwa,D,D,4,117,dark,2*,2*,2*,2,2,2,2,14
+malawi81,James Makoloni,D,D,5,117,dark,1*,1*,1*,1,1,1,1,7
+malawi81,Barnet Gondwe,M,RW,6,117,dark,5*,5*,4,3,5*,5,4,31
+malawi81,Ernest Mtawali,M,LW,7,117,dark,4*,4*,3,4*,4,4,3,26
+malawi81,Jonathan Billie,M,M,8,117,dark,2*,5*,2*,2,2,2,2,17
+malawi81,Collins Thewe,M,M,9,117,dark,2*,2*,2*,2,2,2,2,14
+malawi81,Lawrence Waya,A,A,10,117,dark,2,4*,2,2,4*,2,4*,20
+malawi81,Kinnah Phiri,A,A,11,117,dark,2,2,4*,3*,2,2,4*,19
+malawi81,John Jzimbiri,G,G,12,117,dark,2*,2*,2*,2,2,2,2,19
+malawi81,Kannock Munde,D,D,13,117,dark,2*,2*,2*,2,2,2,2,14
+malawi81,Kennedy Malunga,M,M,14,117,dark,4*,2*,2,2,4*,2,2,18
+malawi81,Stock Dandize,A,A,15,117,dark,2*,2*,2,2,2,2,4*,16
+malawi81,Peterkins Kayira,A,A,16,117,dark,2*,2*,2*,2,2,2,2,14
+mali81,Modibo Doumbia,G,G,1,92,dark,1*,1*,1*,1,1,1,1,7
+mali81,Idrissa Traoré,D,RB,2,92,dark,1*,1*,1*,1,1,1,1,7
+mali81,Boubacar Sidibé,D,LB,3,92,dark,1*,1*,1*,1,1,1,1,7
+mali81,Bakary Diakité,D,D,4,92,dark,1*,1*,1*,1,1,1,1,7
+mali81,Gaoussou Samake,D,D,5,92,dark,2*,2*,2*,2,2,2,2,14
+mali81,Moussa Koné,M,RW,6,92,dark,1*,1*,1*,1,1,1,1,7
+mali81,Mamadou Doumbia,M,LW,7,92,dark,1*,1*,1*,1,1,1,1,7
+mali81,Cheick Oumar Koné,M,M,8,92,dark,1*,1*,1*,1,1,1,1,7
+mali81,Cheikh Diallo,M,M,9,92,dark,2*,2*,2*,2,2,2,2,14
+mali81,Abdoulaye Kaloga,A,A,10,92,dark,2*,2*,2*,2,2,2,2,14
+mali81,Amadou Diallo,A,A,11,92,dark,2*,2*,2*,2,2,2,2,14
+mali81,Sory Kourouma,G,G,12,92,dark,1*,1*,1*,1,1,1,1,7
+mali81,Issouf Traoré,D,D,13,92,dark,1*,1*,1*,1,1,1,1,7
+mali81,Fantamady Keita,M,M,14,92,dark,1*,1*,1*,1,1,1,1,7
+mali81,Sidi Kaba,A,A,15,92,dark,1*,1*,1*,1,1,1,1,7
+mali81,Abdoulaye Koumaré,A,A,16,92,dark,1*,1*,1*,1,1,1,1,7
+morocco81,Ezzaki Badou,G,G,1,115,light,4*,3,5*,3,3,5*,3,31
+morocco81,Mustapha El Biyaz,D,RB,2,115,light,3*,3*,4*,3,3,3,3,22
+morocco81,Khalifa Laâbd,D,LB,3,115,light,3*,3*,3*,3,3,3,3,21
+morocco81,Noureddine Bouyahyaoui,D,D,4,115,light,3*,3*,3*,3,3,3,3,21
+morocco81,Jawad El Andaloussi,D,D,5,115,light,2*,2*,2*,2,2,2,2,14
+morocco81,Aziz Bouderbala,M,RW,6,115,light,5*,5*,4,4,5*,5,5,33
+morocco81,Mustafa El Haddaoui,M,LW,7,115,light,5*,4,4,5*,5*,5,4,32
+morocco81,Abdelmajid Dolmy,M,M,8,115,light,5*,4,4,5*,5*,4,4,31
+morocco81,Larbi Hazam,M,M,9,115,light,3*,3*,3*,3,3,3,3,21
+morocco81,Mohamed Timoumi,A,A,10,115,light,5,6*,5,4,6*,6*,5,37
+morocco81,Krimau Merry,A,A,11,115,light,5*,4,5*,4,5*,5,5,33
+morocco81,Khalil Azmi,G,G,12,115,light,3*,3,5*,3,3,4*,3,30
+morocco81,Lahcen Ouadani,D,D,13,115,light,2*,2*,2*,2,2,2,2,14
+morocco81,Azzedine Amanallah,M,M,14,115,light,3*,3*,3*,3,3,3,3,21
+morocco81,Mohamed Boussati,A,A,15,115,light,3*,3*,3*,3,3,3,3,21
+morocco81,Khaled Labied,A,A,16,115,light,3*,3*,3*,3,3,3,3,21
+mozambique81,Nuro Americano,G,G,1,98,dark,1*,1*,1*,1,1,1,1,7
+mozambique81,Mário João,D,RB,2,98,dark,2*,2*,2*,2,2,2,2,14
+mozambique81,Chico Oliveira,D,LB,3,98,dark,2*,2*,2*,2,2,2,2,14
+mozambique81,Cassamo,D,D,4,98,dark,2*,2*,2*,2,2,2,2,14
+mozambique81,Daúto Faquirá,D,D,5,98,dark,1*,1*,1*,1,1,1,1,7
+mozambique81,Ali Hassan,M,RW,6,98,dark,1*,1*,1*,1,1,1,1,7
+mozambique81,Joaquim João,M,LW,7,98,dark,1*,1*,1*,1,1,1,1,7
+mozambique81,Rui Mendonça,M,M,8,98,dark,2*,2*,2*,2,2,2,2,14
+mozambique81,Rendeiro,M,M,9,98,dark,2*,2*,2*,2,2,2,2,14
+mozambique81,Geraldo Conde,A,A,10,98,dark,1*,1*,1*,1,1,1,1,7
+mozambique81,Nico de Souza,A,A,11,98,dark,1*,1*,1*,1,1,1,1,7
+mozambique81,Victor Nogueira,G,G,12,98,dark,2*,2*,2*,2,2,2,2,20
+mozambique81,António Muchanga,D,D,13,98,dark,1*,1*,1*,1,1,1,1,7
+mozambique81,Emanuel Matola,M,M,14,98,dark,1*,1*,1*,1,1,1,1,7
+mozambique81,Calton Banze,A,A,15,98,dark,1*,1*,1*,1,1,1,1,7
+mozambique81,Edgar Chababe,A,A,16,98,dark,1*,1*,1*,1,1,1,1,7
+niger81,Garba Oumarou,G,G,1,107,light,1*,1*,1*,1,1,1,1,4
+niger81,Adamou Christova,D,RB,2,107,light,1*,1*,1*,1,1,1,1,7
+niger81,Moussa Kanfideni,D,LB,3,107,light,1*,1*,1*,1,1,1,1,7
+niger81,Brah Taher Djibo,D,D,4,107,light,1*,1*,1*,1,1,1,1,7
+niger81,Djibrilla Diambala,D,D,5,107,light,1*,1*,1*,1,1,1,1,7
+niger81,Daouda Tahirou,M,RW,6,107,light,1*,1*,1*,1,1,1,1,7
+niger81,Adamou Djibo,M,LW,7,107,light,1*,1*,1*,1,1,1,1,7
+niger81,Lawan Didi Manzo,M,M,8,107,light,1*,1*,1*,1,1,1,1,7
+niger81,Daouda Djibo,M,M,9,107,light,1*,1*,1*,0,0,0,1,0
+niger81,Harouna Djibo,A,A,10,107,light,1*,0,1*,0,0,1*,1,0
+niger81,Saley Ali,A,A,11,107,light,0*,0*,0*,0,0,0,0,0
+niger81,Jacques Adandogo,G,G,12,107,light,1*,1*,1*,1,1,1,1,2
+niger81,Adamou Adandogo,D,D,13,107,light,0*,0*,0*,0,0,0,0,0
+niger81,Hassane Tahirou,M,M,14,107,light,1*,0*,1*,0,0,0,0,0
+niger81,Lawan Adandogo,A,A,15,107,light,0*,0,0,0,1*,1*,0,0
+niger81,Harouna Doula,D,RB,16,107,light,1*,1*,1*,1,1,1,1,7
+nigeria81,Peter Rufai,G,G,1,107,dark,4*,3,5*,3,3,4*,3,26
+nigeria81,Stephen Keshi,D,RB,2,107,dark,4,5*,5*,5*,4,4,3,30
+nigeria81,Godwin Odiye,D,LB,3,107,dark,4*,3,4*,4*,4,4,2,25
+nigeria81,Sunday Eboigbe,D,D,4,107,dark,3*,3,5*,3,3,4*,3,24
+nigeria81,Christian Chukwu,D,D,5,107,dark,4*,4*,4*,2,3,3,2,22
+nigeria81,Muda Lawal,M,RW,6,107,dark,5*,4*,4,3,5*,4,4,29
+nigeria81,Emeka Nwajiobi,M,LW,7,107,dark,3,4*,4*,3,4*,4,4,26
+nigeria81,Sylvanus Okpala,M,M,8,107,dark,3*,3,4*,3,3,5*,3,24
+nigeria81,Okey Isima,M,M,9,107,dark,3*,3*,3,3,3,5*,3,23
+nigeria81,Segun Odegbami,A,A,10,107,dark,4*,4,4,4,5*,5*,4,30
+nigeria81,John Chiedozie,A,A,11,107,dark,4*,5*,4,4,4,5*,4,30
+nigeria81,Emanuel Okala,G,G,12,107,dark,3*,4*,4*,2,3,2,2,19
+nigeria81,Paul Okoku,D,D,13,107,dark,2*,2*,2*,2,2,2,2,14
+nigeria81,Ademola Adeshina,M,M,14,107,dark,2*,2*,2*,2,2,2,2,14
+nigeria81,Ricky Owubokiri,A,A,15,107,dark,2,2,4*,2,4*,4*,4,22
+nigeria81,Reuben Agboola,D,LB,16,107,dark,3,3,4*,4*,3,4*,3,24
+senegal81,Thierry Favier,G,G,1,89,dark,1*,1*,1*,1,1,1,1,12
+senegal81,Roger Mendy,D,RB,2,89,dark,4*,4,5*,5*,4,4,3,29
+senegal81,Mamadou Tew,D,LB,3,89,dark,5*,3,4*,4,4,5*,3,28
+senegal81,Roussa Djaye,D,D,4,89,dark,1*,1*,1*,1,1,1,1,7
+senegal81,Pascal Diop,D,D,5,89,dark,1*,1*,1*,1,1,1,1,7
+senegal81,Oumar Sène,M,RW,6,89,dark,5*,5*,5*,4,5,5,5,34
+senegal81,Moussa N'Daw,M,LW,7,89,dark,1*,1*,1*,1,1,1,1,7
+senegal81,Amadou Diop,M,M,8,89,dark,1*,1*,1*,1,1,1,1,7
+senegal81,Mamadou Guèye,M,M,9,89,dark,1*,1*,1*,1,1,1,1,7
+senegal81,Jules Bocandé,A,A,10,89,dark,4,5*,5*,4,5*,5,5,33
+senegal81,Thierno Youm,A,A,11,89,dark,4,4,4,4,5*,5*,5*,31
+senegal81,Cheikh Seck,G,G,12,89,dark,1*,1*,1*,1,1,1,1,7
+senegal81,Pape Fall,D,D,13,89,dark,1*,1*,1*,1,1,1,1,7
+senegal81,Lamine N'Diaye,M,M,14,89,dark,1*,1*,1*,1,1,1,1,7
+senegal81,Karim Seye,A,A,15,89,dark,2*,2*,2*,2,2,2,2,14
+senegal81,Christophe Sagna,A,A,16,89,dark,1*,1*,1*,1,1,1,1,7
+sierraleone81,Rodney Suma,G,G,1,110,dark,1*,1*,1*,1,1,1,1,2
+sierraleone81,Mohammed Kanu,D,RB,2,110,dark,3*,3*,3*,3,3,3,2,20
+sierraleone81,Foday Sesay,D,LB,3,110,dark,1*,1*,1*,1,1,1,1,7
+sierraleone81,Momoh Kanu,D,D,4,110,dark,0*,0*,0*,0,0,0,0,0
+sierraleone81,Lamin Konteh,D,D,5,110,dark,1*,1*,1*,1,1,1,1,7
+sierraleone81,Amadu Rappel Kamara,M,RW,6,110,dark,1*,1*,1*,1,1,1,1,7
+sierraleone81,John Johnson,M,LW,7,110,dark,0*,0*,0*,0,0,0,0,0
+sierraleone81,Ismael Dyfan,M,M,8,110,dark,3*,3*,3,3,5*,3,3,23
+sierraleone81,Soloman Hilton,M,M,9,110,dark,2*,2*,2*,2,2,2,2,14
+sierraleone81,Abu Gbator Sesay,A,A,10,110,dark,1*,1*,1*,1,1,1,1,7
+sierraleone81,Michael Effiong,A,A,11,110,dark,1*,1*,1*,1,1,1,1,7
+sierraleone81,Foday Effiong,G,G,12,110,dark,1*,0,1*,0,0,1*,0,0
+sierraleone81,Saidu Kanu,D,D,13,110,dark,1*,1*,1*,1,1,1,1,7
+sierraleone81,Idrissa Kanu,M,M,14,110,dark,0*,0*,0,0,1*,0,0,0
+sierraleone81,Mohammed Kanu,A,A,15,110,dark,0,1*,1*,1*,1,0,1,0
+sierraleone81,Alusine Terry,D,RB,16,110,dark,1*,1*,1*,1,1,1,1,7
+southafrica81,Cyprian Maimane,G,G,1,81,dark,2*,2*,2*,2,2,2,2,24
+southafrica81,Simon Lehoko,D,RB,2,81,dark,3*,3*,3*,3,2,3,1,18
+southafrica81,Gavin Nebbeling,D,LB,3,81,dark,3,2,5*,4*,2,5*,2,23
+southafrica81,Neil Tovey,D,D,4,81,dark,3*,3*,3*,3,3,3,3,21
+southafrica81,Archie Radebe,D,D,5,81,dark,3*,3*,3*,3,3,3,3,21
+southafrica81,Patrick Ntsoelengoe,M,RW,6,81,dark,4*,5*,4,4,5*,4,4,30
+southafrica81,Lawrence Chelin,M,LW,7,81,dark,2*,2*,2*,2,2,2,2,14
+southafrica81,John Moshoeu,M,M,8,81,dark,4*,3,3,3,4*,4*,4,25
+southafrica81,Webster Lichaba,M,M,9,81,dark,3*,3*,3*,3,3,3,3,21
+southafrica81,Steve Wegerle,A,A,10,81,dark,3*,3*,3*,3,3,3,3,21
+southafrica81,Rodney Bush,A,A,11,81,dark,2*,2*,2*,2,2,2,2,14
+southafrica81,Deshi Bhaktawer,G,G,12,81,dark,2*,2*,2*,2,2,2,2,22
+southafrica81,Mark Tovey,D,D,13,81,dark,3*,3*,3*,3,3,3,3,21
+southafrica81,Jan Lechaba,M,M,14,81,dark,3*,3*,3*,3,3,3,3,21
+southafrica81,Andries Maseko,A,A,15,81,dark,2*,2*,2*,2,2,2,2,14
+southafrica81,Ryder Mofokeng,D,RB,16,81,dark,4*,3,4,5*,4,5*,3,28
+sudan81,Hamed Berima,G,G,1,100,dark,3*,4*,5*,2,3,3,2,24
+sudan81,Sheikh Idris Kabashi,D,RB,2,100,dark,4*,3,4*,4*,3,4,3,25
+sudan81,Tareg Ahmed Adam,D,LB,3,100,dark,4*,3,4*,4*,4,4,3,26
+sudan81,Tawfiq El-Seed,D,D,4,100,dark,1*,1*,1*,1,1,1,1,7
+sudan81,Sami Ezzeldin,D,D,5,100,dark,4*,4*,3,2,4*,4,4,25
+sudan81,Gamal Abu Anja,M,RW,6,100,dark,1*,1*,1*,1,1,1,1,7
+sudan81,Adel El-Anil,M,LW,7,100,dark,1*,1*,1*,1,1,1,1,7
+sudan81,Mohamed Kassala,M,M,8,100,dark,4*,4*,3,3,4*,4,4,26
+sudan81,Mustafa Al-Naqr,M,M,9,100,dark,3*,3*,3*,3,3,3,3,21
+sudan81,Mohamed Ahmed Abdalla,A,A,10,100,dark,1*,1*,1*,1,1,1,1,7
+sudan81,Ahmed Bireish,A,A,11,100,dark,1*,1*,1*,1,1,1,1,7
+sudan81,Sharaf Abdalla,G,G,12,100,dark,0*,0,0,1*,0,1*,0,0
+sudan81,Jafar Abdul-Raziq,D,D,13,100,dark,1*,1*,1*,1,1,1,1,7
+sudan81,Adel El-Seed,M,M,14,100,dark,1*,1*,1*,1,1,1,1,7
+sudan81,Mustaf Naggar,A,A,15,100,dark,1*,1*,1*,1,1,1,1,7
+sudan81,Mansour Tenga Bashir,D,LB,16,100,dark,4*,4*,3,4*,4,4,3,26
+swaziland81,William Shongwe,G,G,1,101,dark,2*,2*,2*,2,2,2,2,19
+swaziland81,Piet Mcongwane,D,RB,2,101,dark,1*,1*,1*,1,1,1,1,7
+swaziland81,Simon Thwala,D,LB,3,101,dark,1*,1*,1*,1,1,1,1,7
+swaziland81,Wicky Marks,D,D,4,101,dark,1*,1*,1*,1,1,1,1,7
+swaziland81,Mandla Hlatjwako,D,D,5,101,dark,1*,1*,1*,1,1,1,1,7
+swaziland81,Abel Shongwe,M,RW,6,101,dark,1*,1*,1*,1,1,1,1,7
+swaziland81,Mlamuli Zwane,M,LW,7,101,dark,1*,1*,1*,1,1,1,1,7
+swaziland81,Beke Sililane,M,M,8,101,dark,1*,1*,1*,1,1,1,1,7
+swaziland81,Fanie Terblanche,M,M,9,101,dark,1*,1*,1*,1,1,1,1,7
+swaziland81,Scara Thindwa,A,A,10,101,dark,2*,2*,2*,2,2,2,2,14
+swaziland81,Ronnie Dube,A,A,11,101,dark,1*,1*,1*,1,1,1,1,7
+swaziland81,Richard Lukhele,G,G,12,101,dark,1*,1*,1*,1,1,1,1,4
+swaziland81,Thulani Hlanze,D,D,13,101,dark,1*,1*,1*,1,1,1,1,7
+swaziland81,Lloyd Maziya,M,M,14,101,dark,1*,1*,1*,1,1,1,1,7
+swaziland81,Titus Dlamini,A,A,15,101,dark,1*,1*,1*,1,1,1,1,7
+swaziland81,Pius Dube,D,LB,16,101,dark,1*,1*,1*,1,1,1,1,7
+tanzania81,Moses Mkandawile,G,G,1,106,light,1*,1*,1*,1,1,1,1,6
+tanzania81,Salim Amir,D,RB,2,106,light,1*,1*,1*,1,1,1,1,7
+tanzania81,Lilla Shomari,D,LB,3,106,light,1*,1*,1*,1,1,1,1,7
+tanzania81,Felix Fred,D,D,4,106,light,1*,1*,1*,1,1,1,1,7
+tanzania81,Makumbi Juma,D,D,5,106,light,1*,1*,1*,1,1,1,1,7
+tanzania81,Kassim Ramadhani,M,RW,6,106,light,2*,2*,2*,2,2,2,2,14
+tanzania81,Mohamed Rishard,M,LW,7,106,light,1*,1*,1*,1,1,1,1,7
+tanzania81,Leonard Williams,M,M,8,106,light,1*,1*,1*,1,1,1,1,7
+tanzania81,Omari Hussein,M,M,9,106,light,1*,1*,1*,1,1,1,1,7
+tanzania81,Abeid Mziba,A,A,10,106,light,2*,2*,2*,2,2,2,2,14
+tanzania81,Peter Tino,A,A,11,106,light,1*,1*,1*,1,1,1,1,7
+tanzania81,Joseph Fungo,G,G,12,106,light,1*,1*,1*,1,1,1,1,7
+tanzania81,Jaffer Mwidau,D,D,13,106,light,1*,1*,1*,1,1,1,1,7
+tanzania81,Hussein Iddi,M,M,14,106,light,1*,1*,1*,1,1,1,1,7
+tanzania81,Elisha John,A,A,15,106,light,1*,1*,1*,1,1,1,1,7
+tanzania81,Selestine Mbunga,M,LW,16,106,light,1*,1*,1*,1,1,1,1,7
+togo81,Yaovi Assogba,G,G,1,103,dark,1*,1*,1*,1,1,1,1,3
+togo81,Wazo Denké,D,RB,2,103,dark,2*,2*,3*,2,2,2,2,15
+togo81,Ganiou Apampa,D,LB,3,103,dark,1*,1*,1*,1,1,1,1,7
+togo81,Essowazina Sanounou,D,D,4,103,dark,1*,1*,1*,1,1,1,1,7
+togo81,Messan Efoé,D,D,5,103,dark,1*,1*,1*,1,1,1,1,7
+togo81,Koffi Kamlan,M,RW,6,103,dark,1*,1*,1*,1,1,1,1,7
+togo81,Adjé Da Silveira,M,LW,7,103,dark,1*,1*,1*,1,1,1,1,7
+togo81,Sunu Mawuli,M,M,8,103,dark,1*,1*,1*,1,1,1,1,7
+togo81,Djogou Akoulassi Tao,M,M,9,103,dark,1*,1*,1*,1,1,1,1,7
+togo81,Rafiou Moutairou,A,A,10,103,dark,3,3,3,3,4*,5*,5*,26
+togo81,Sadou Boukari,A,A,11,103,dark,1*,1*,3*,1,1,1,1,9
+togo81,Koffi Essoazina,G,G,12,103,dark,0*,1*,0,1*,0,0,0,0
+togo81,Koami Dos Reis,D,D,13,103,dark,1*,1*,1*,1,1,1,1,7
+togo81,Kossivi Asare,M,M,14,103,dark,1*,1*,1*,1,1,1,1,7
+togo81,Koffi Fiawoo,A,A,15,103,dark,1,2*,3*,1,2*,2,2,13
+togo81,Pierre-Antoine Dossevi,M,RW,16,103,dark,2*,2,3*,2,2,4*,2,17
+tunisia81,Mokhtar Naili,G,G,1,91,light,2*,2*,2*,2,2,2,2,24
+tunisia81,Moncef Chargui,D,RB,2,91,light,3*,3*,3*,3,3,3,3,21
+tunisia81,Mohsen Labidi Jendoubi,D,LB,3,91,light,2*,2*,2*,2,2,2,2,14
+tunisia81,Kamel Chebli,D,D,4,91,light,3*,3*,3*,3,3,3,3,21
+tunisia81,Abdelrazak Chahat,D,D,5,91,light,3*,3*,3*,3,3,3,3,21
+tunisia81,Khaled Ben Yahia,M,RW,6,91,light,5*,4*,4,5*,4,4,4,30
+tunisia81,Hamadi Agrebi,M,LW,7,91,light,5*,5*,4,3,5*,4,4,30
+tunisia81,Samir Bakaou,M,M,8,91,light,3,4*,3,3,4*,4*,4,25
+tunisia81,Nabil Maaloul,M,M,9,91,light,3*,3*,3*,3,3,3,3,21
+tunisia81,Tarak Dhiab,A,A,10,91,light,5*,5*,5*,4,5,5,5,34
+tunisia81,Ziad Tlemcani,A,A,11,91,light,4*,4*,4,3,4,4,5*,28
+tunisia81,Mondher Ben Jaballah,G,G,12,91,light,3*,3*,3*,3,3,3,3,25
+tunisia81,Yassine Dziri,D,D,13,91,light,3*,3*,3*,3,3,3,3,21
+tunisia81,Hosni Zouaoui,M,M,14,91,light,3*,3*,3*,3,3,3,3,21
+tunisia81,Mohamed Hedi Bayari,A,A,15,91,light,3,4*,4*,3,3,4*,4,25
+tunisia81,Samir Khemiri,D,RB,16,91,light,3*,3*,3*,3,3,3,3,21
+uganda81,Paul Ssali,G,G,1,96,dark,2,3*,4*,2,3*,2,3,24
+uganda81,John Latigo,D,RB,2,96,dark,4*,3,4*,4*,3,4,3,25
+uganda81,Tom Lwanga,D,LB,3,96,dark,2,2,4*,4*,3*,3,3,21
+uganda81,William Nkemba,D,D,4,96,dark,1*,1*,1*,1,1,1,1,7
+uganda81,Fred Mugisha,D,D,5,96,dark,1*,1*,1*,1,1,1,1,7
+uganda81,Paul Hasule,M,RW,6,96,dark,4*,3,4*,4*,4,4,3,26
+uganda81,Moses Nserenko,M,LW,7,96,dark,4*,4*,2,2,4*,3,2,21
+uganda81,Paul Nkata,M,M,8,96,dark,3*,1,1,1,3*,3*,1,13
+uganda81,Stephen Bogere,M,M,9,96,dark,1*,1*,1*,1,1,1,1,7
+uganda81,Philipp Omondi,A,A,10,96,dark,5*,4,4,3,5*,5*,5,31
+uganda81,Godfrey Kateregga,A,A,11,96,dark,2,2,5*,3,4*,4*,4,24
+uganda81,Paul Kateregga,G,G,12,96,dark,0,1*,0,1*,1*,0,0,0
+uganda81,Shaban Mwinda,D,D,13,96,dark,1*,1*,1*,1,1,1,1,7
+uganda81,Charles Katumba,M,M,14,96,dark,1*,1*,1*,1,1,1,1,7
+uganda81,Issa Sekatawa,A,A,15,96,dark,2,2,2,2,3*,4*,4*,19
+uganda81,Majid Musisi,A,A,16,96,dark,1,3*,3*,1,3*,3,3,17
+zambia81,Efford Chabala,G,G,1,87,dark,3*,3*,4*,3,3,3,3,26
+zambia81,Ashious Melu,D,RB,2,87,dark,4*,5*,4*,4,4,4,4,29
+zambia81,Jones Chilengi,D,LB,3,87,dark,4*,4*,5*,4,4,4,4,29
+zambia81,Milton Muke,D,D,4,87,dark,1*,1*,1*,1,1,1,1,7
+zambia81,Peter Mwanza,D,D,5,87,dark,2*,2*,2*,2,2,2,2,14
+zambia81,Jericho Shinde,M,RW,6,87,dark,5*,5*,4,3,5*,4,4,30
+zambia81,Willie Phiri,M,LW,7,87,dark,4*,3,3,3,4*,3,4*,24
+zambia81,Jani Simulambo,M,M,8,87,dark,2*,2*,2*,2,2,2,2,14
+zambia81,Evans Katebe,M,M,9,87,dark,2*,2*,2*,2,2,2,2,14
+zambia81,Wisdom Mumba Chansa,A,A,10,87,dark,5*,4,4,4,5*,5*,4,31
+zambia81,Alex Chola,A,A,11,87,dark,5*,3,4*,3,5*,4,4,28
+zambia81,Vincent Chileshe,G,G,12,87,dark,2*,2*,2*,2,2,2,2,23
+zambia81,Mordon Malitoli,D,D,13,87,dark,2*,2*,2*,2,2,2,2,14
+zambia81,Chris Kaoma,M,M,14,87,dark,1*,1*,1*,1,1,1,1,7
+zambia81,Kalusha Bwalya,A,A,15,87,dark,4*,4*,4*,3,4,4,4,27
+zambia81,Kaiser Kalambo,D,LB,16,87,dark,3*,3,3,4*,3,4*,3,23
+zimbabwe81,Bruce Grobbelaar,G,G,1,104,dark,6*,4,6*,5,6*,5,4,40
+zimbabwe81,Misheck Marimo,D,RB,2,104,dark,2*,2*,2*,2,2,2,2,14
+zimbabwe81,Carlos Max,D,LB,3,104,dark,2*,2*,2*,2,2,2,2,14
+zimbabwe81,John Phiri,D,D,4,104,dark,1*,1*,1*,1,1,1,1,7
+zimbabwe81,James Takavada,D,D,5,104,dark,1*,1*,1*,1,1,1,1,7
+zimbabwe81,Joel Shambo,M,RW,6,104,dark,2*,4*,2,2,4*,2,2,18
+zimbabwe81,Greg Faasen,M,LW,7,104,dark,2*,2*,2*,2,2,2,2,14
+zimbabwe81,Rahman Gumbo,M,M,8,104,dark,2*,2*,2*,2,2,2,2,14
+zimbabwe81,Edward Katsvere,M,M,9,104,dark,1*,1*,1*,1,1,1,1,7
+zimbabwe81,Shacky Tauro,A,A,10,104,dark,2*,2*,2*,2,2,2,2,14
+zimbabwe81,Max Tshuma,A,A,11,104,dark,2*,2*,2*,2,2,2,2,14
+zimbabwe81,Japhet Mparutsa,G,G,12,104,dark,2*,2*,2*,2,2,2,2,24
+zimbabwe81,Alexander Maseko,D,D,13,104,dark,1*,1*,1*,1,1,1,1,7
+zimbabwe81,Moses Chunga,M,M,14,104,dark,1*,1*,1*,1,1,1,1,7
+zimbabwe81,Ebson Muguyo,A,A,15,104,dark,1*,1*,1*,1,1,1,1,7
+zimbabwe81,Charles Sibanda,D,LB,16,104,dark,2*,2*,2*,2,2,2,2,14
+argentina82,Nery Pumpido,G,G,1,68,light,4*,3,5*,3,3,5*,3,34
+argentina82,Daniel Passarella,D,RB,2,68,light,6*,6*,6*,6,6,6,5,41
+argentina82,Óscar Ruggeri,D,LB,3,68,light,5,5,6*,6*,5,6*,5,38
+argentina82,Enzo Trossero,D,D,4,68,light,5*,5*,5*,5,5,5,5,35
+argentina82,Edgardo Bauza,D,D,5,68,light,5*,4,5*,5*,5,5,4,33
+argentina82,Osvaldo Ardiles,M,RW,6,68,light,6*,6*,5,5,6*,6,5,39
+argentina82,Juan Barbas,M,LW,7,68,light,5*,5*,5,6*,5,5,5,36
+argentina82,Claudio Marangoni,M,M,8,68,light,5*,5*,5*,5,5,5,5,35
+argentina82,Ricardo Bochini,M,M,9,68,light,6*,5*,5*,4,5,5,5,35
+argentina82,Diego Maradona,A,A,10,68,light,7*,7*,6,6,7*,7,6,46
+argentina82,Daniel Bertoni,A,A,11,68,light,6*,6*,5,4,6*,6,6,39
+argentina82,Luis Alberto Islas,G,G,12,68,light,4*,3,5*,4*,4,4,3,33
+argentina82,Jorge Olguín,D,D,13,68,light,5*,5*,5*,5,4,5,4,33
+argentina82,Patricio Hernández,M,M,14,68,light,5*,5*,5*,5,5,5,5,35
+argentina82,Jorge Valdano,A,A,15,68,light,5,6*,6*,4,6*,6,6,39
+argentina82,René Houseman,A,A,16,68,light,5,5,5,4,6*,6*,6*,37
+bolivia82,Eduardo Terrazas,G,G,1,69,light,3*,3*,3*,3,3,3,3,26
+bolivia82,Carlos Urizar,D,RB,2,69,light,3*,3*,3*,3,3,3,3,21
+bolivia82,Luis González,D,LB,3,69,light,3*,3*,3*,3,3,3,3,21
+bolivia82,Rogelio Delfín,D,D,4,69,light,3*,3*,3*,3,3,3,3,21
+bolivia82,Eduardo Angulo,D,D,5,69,light,2*,2*,2*,2,2,2,2,14
+bolivia82,Erwin Romero,M,RW,6,69,light,5*,5*,4,4,5*,5,5,33
+bolivia82,Carlos Borja,M,LW,7,69,light,5*,5*,4,4,4,5*,5,32
+bolivia82,Milton Melgar,M,M,8,69,light,5*,4*,4,4,4,5*,4,30
+bolivia82,Carlos Aragonés,M,M,9,69,light,4*,4*,4,5*,4,4,3,28
+bolivia82,Miguel Aguilar,A,A,10,69,light,3,3,5*,4,5*,5*,5,30
+bolivia82,Juan Carlos Sánchez,A,A,11,69,light,3,5*,5*,3,4,4,5*,29
+bolivia82,Hebert Hoyos,G,G,12,69,light,2*,2*,2*,2,2,2,2,22
+bolivia82,Jorge Campos,D,D,13,69,light,2*,2*,2*,2,2,2,2,14
+bolivia82,Andrés Gallardo,M,M,14,69,light,3*,3*,3*,3,3,3,3,21
+bolivia82,Fernando Salinas,A,A,15,69,light,3,3,4*,3,4*,4*,4,25
+bolivia82,Jesús Reynaldo,A,A,16,69,light,3,3,5*,3,4*,4*,3,25
+brazil82,Waldir Peres,G,G,1,70,light,5*,5*,5*,4,5,5,4,36
+brazil82,Edinho,D,RB,2,70,light,6*,6*,6*,6,6,6,5,41
+brazil82,Leandro,D,LB,3,70,light,6*,5,5,6*,6*,5,5,38
+brazil82,Luizinho,D,D,4,70,light,5*,5,6*,6*,5,5,5,37
+brazil82,Carlos Mozer,D,D,5,70,light,5*,5*,6*,5,5,5,5,36
+brazil82,Toninho Cerezo,M,RW,6,70,light,6*,6*,6*,6,6,6,6,42
+brazil82,Júnior,M,LW,7,70,light,6*,6*,6*,5,6,6,5,40
+brazil82,Falcão,M,M,8,70,light,6*,6*,5,5,6*,6,5,39
+brazil82,Éder,M,M,9,70,light,6*,6*,5,4,6*,5,6,38
+brazil82,Sócrates,A,A,10,70,light,6*,6*,5,5,6*,6,6,40
+brazil82,Zico,A,A,11,70,light,6*,6*,6*,4,6,6,6,40
+brazil82,Paulo Vítor,G,G,12,70,light,4*,4,5*,4,4,5*,4,36
+brazil82,Amaral,D,D,13,70,light,5*,5*,5,6*,5,5,4,35
+brazil82,Dirceu,M,M,14,70,light,6*,6*,5,4,6*,5,5,37
+brazil82,Roberto Dinamite,A,A,15,70,light,6*,6*,6*,4,6,6,6,40
+brazil82,Assis,A,A,16,70,light,6*,5,6*,4,6*,5,6,38
+chile82,Roberto Rojas,G,G,1,71,light,3*,3*,3*,3,3,3,3,34
+chile82,Lizardo Garrido,D,RB,2,71,light,5*,5*,5,6*,5,5,3,34
+chile82,René Valenzuela,D,LB,3,71,light,4,4,5*,5*,4,5*,4,31
+chile82,Edgardo Fuentes,D,D,4,71,light,3,3,5*,5*,3,5*,3,27
+chile82,Luis Mosquera,D,D,5,71,light,3*,3*,3*,3,3,3,3,21
+chile82,Rodolfo Dubó,M,RW,6,71,light,5*,5*,5*,5,5,5,5,35
+chile82,Orlando Mondaca,M,LW,7,71,light,5*,3,5*,3,5*,3,5,29
+chile82,Héctor Puebla,M,M,8,71,light,3*,3,3,5*,3,5*,3,25
+chile82,Manny Rojas,M,M,9,71,light,3*,5*,3,3,5*,3,3,25
+chile82,Gustavo Moscoso,A,A,10,71,light,5*,5*,5*,4,5,5,5,34
+chile82,Miguel Neira,A,A,11,71,light,5*,5*,4,4,5*,5,5,33
+chile82,Marco Cornez,G,G,12,71,light,3*,5*,4*,3,3,3,3,29
+chile82,Marcelo Pacheco,D,D,13,71,light,3*,3*,3*,3,3,3,3,21
+chile82,Carlos Rivas,M,M,14,71,light,5*,4*,4*,2,4,2,2,23
+chile82,Jorge Contreras,A,A,15,71,light,5*,5*,5*,4,5,4,5,33
+chile82,Patricio Yáñez,A,A,16,71,light,5*,4,4,4,5*,5*,5,32
+colombia82,Carlos Valencia,G,G,1,72,light,3*,3*,3*,3,3,3,3,34
+colombia82,Nolberto Molina,D,RB,2,72,light,5*,4*,4,5*,4,4,4,30
+colombia82,Henry Viáfara,D,LB,3,72,light,3*,3,5*,5*,3,3,3,25
+colombia82,Miguel Prince,D,D,4,72,light,3*,3,5*,3,3,4*,3,24
+colombia82,Astolfo Romero,D,D,5,72,light,3*,3*,3*,3,3,3,3,21
+colombia82,Willington Ortíz,M,RW,6,72,light,5*,5*,4,4,5,6*,5,34
+colombia82,Pedro Sarmiento,M,LW,7,72,light,3*,3*,3*,3,3,3,3,21
+colombia82,Jesus Barrios,M,M,8,72,light,3*,3*,3*,3,3,3,3,21
+colombia82,Federico Valencia,M,M,9,72,light,3*,3*,3*,3,3,3,3,21
+colombia82,Hernán Herrera,A,A,10,72,light,5*,5*,5*,4,5,5,5,34
+colombia82,Arnaldo Iguarán,A,A,11,72,light,4,5*,5*,4,5*,5,5,33
+colombia82,James Mina Camacho,G,G,12,72,light,2*,2*,2*,2,2,2,2,19
+colombia82,Luis Murillo,D,D,13,72,light,3*,3*,3*,3,3,3,3,21
+colombia82,German Morales,M,M,14,72,light,3*,3*,3*,3,3,3,3,21
+colombia82,Antony de Avila,A,A,15,72,light,4*,4,4,4,5*,5*,4,30
+colombia82,Didi Valderrama,A,A,16,72,light,3,5*,5*,3,5*,3,5,29
+ecuador82,Milton Rodríguez,G,G,1,73,light,3*,3*,3*,3,3,3,3,26
+ecuador82,Hólger Quiñónez,D,RB,2,73,light,4*,3,4*,4*,3,4,3,25
+ecuador82,Orly Klinger,D,LB,3,73,light,3*,3,4*,5*,3,3,3,24
+ecuador82,Carlos Maldonado,D,D,4,73,light,3*,3*,3*,3,3,3,3,21
+ecuador82,Wilson Armas,D,D,5,73,light,3*,3*,3*,3,3,3,3,21
+ecuador82,Elias de Negri,M,RW,6,73,light,3*,3*,3*,3,3,3,3,21
+ecuador82,Luis Granda,M,LW,7,73,light,3*,3*,3*,3,3,3,3,21
+ecuador82,Marcelo Hurtado,M,M,8,73,light,3*,3*,3*,3,3,3,3,21
+ecuador82,Ricardo Armendáriz,M,M,9,73,light,3*,3*,3*,3,3,3,3,21
+ecuador82,Hamilton Cuvi,A,A,10,73,light,4*,4*,4*,3,4,4,4,27
+ecuador82,Fabián Paz y Miño,A,A,11,73,light,3,4*,4*,3,4*,4,4,26
+ecuador82,Israel Rodriguez,G,G,12,73,light,2*,2*,2*,2,2,2,2,24
+ecuador82,Ecuador Figueroa,D,D,13,73,light,3*,3*,3*,3,3,3,3,21
+ecuador82,Gabriel Cantos,M,M,14,73,light,3*,2,3*,3,2,4*,2,19
+ecuador82,José Valencia,A,A,15,73,light,3,3,4*,3,4*,4*,4,25
+ecuador82,Luiz Narvaez,D,LB,16,73,light,3*,3*,3*,3,3,3,3,21
+paraguay82,Roberto Fernández,G,G,1,74,light,4*,4,5*,5*,4,4,4,34
+paraguay82,Rogelio Delgado,D,RB,2,74,light,5*,4,5*,5*,4,5,4,32
+paraguay82,Gustavo Benítez,D,LB,3,74,light,4,5*,5*,5*,3,5,3,30
+paraguay82,Oscar Surian,D,D,4,74,light,3*,3*,4*,3,3,3,3,22
+paraguay82,Hugo Caballero,D,D,5,74,light,3*,3*,3*,3,3,3,3,21
+paraguay82,Julio Cesar Romero,M,RW,6,74,light,6*,5*,5,4,6*,5,5,36
+paraguay82,Hugo Enrique Kiese,M,LW,7,74,light,5*,5*,4,4,5*,5,5,33
+paraguay82,Gerardo González Aquino,M,M,8,74,light,5*,4,4,5*,5*,5,4,32
+paraguay82,Alfredo Mendoza,M,M,9,74,light,4*,4*,4,3,4,5*,4,28
+paraguay82,Crispín Maciel,A,A,10,74,light,4,5*,5*,3,4,5*,5,31
+paraguay82,Juan Battaglia,A,A,11,74,light,5*,5*,4,3,5*,4,5,31
+paraguay82,Jacinto Rodriguez,G,G,12,74,light,3*,3*,3*,3,3,3,3,31
+paraguay82,Óscar López,D,D,13,74,light,3*,3*,3*,3,3,3,3,21
+paraguay82,Carlos Kiese,M,M,14,74,light,5*,3,3,3,5*,4*,3,26
+paraguay82,Roberto Cabanas,A,A,15,74,light,4,5*,5*,4,4,4,5*,31
+paraguay82,Juan Bautista Torales,D,LB,16,74,light,4,5*,5*,5*,5,5,4,33
+peru82,José Gonzáles,G,G,1,79,light,4*,3,5*,3,4*,4,3,29
+peru82,Rubén Díaz,D,RB,2,79,light,5*,5*,5*,5,5,5,4,34
+peru82,Jorge Olaechea,D,LB,3,79,light,4*,4,4,5*,4,5*,4,30
+peru82,Wilmar Valencia,D,D,4,79,light,4*,3,4*,4*,3,4,3,25
+peru82,Tomás Farfán,D,D,5,79,light,3*,3*,3*,3,3,3,3,21
+peru82,José Velásquez,M,RW,6,79,light,5*,5*,5*,5,5,5,4,34
+peru82,César Cueto,M,LW,7,79,light,5*,5*,4,4,6*,5,5,34
+peru82,Luis Reyna,M,M,8,79,light,5*,4,5*,5*,5,5,4,33
+peru82,Eduardo Malásquez,M,M,9,79,light,5*,4*,4,4,5*,4,4,30
+peru82,Franco Navarro,A,A,10,79,light,4,5*,5*,4,5*,5,5,33
+peru82,Gerónimo Barbadillo,A,A,11,79,light,5*,5*,5*,3,5,5,5,33
+peru82,Eusebio Acasuzo,G,G,12,79,light,3*,3*,4*,3,3,3,3,26
+peru82,Samuel Eugenio,D,D,13,79,light,3*,3*,3*,3,3,3,3,21
+peru82,Raúl Gorriti,M,M,14,79,light,3*,3*,3,3,4*,3,3,22
+peru82,Julio César Uribe,A,A,15,79,light,5*,5*,4,4,5*,5,5,33
+peru82,Jaime Duarte,D,RB,16,79,light,5*,4,5*,5*,5,5,4,33
+uruguay82,Rodolfo Rodríguez,G,G,1,76,light,5*,4,5*,5*,4,4,4,35
+uruguay82,Darío Pereira,D,RB,2,76,light,5*,5*,5,6*,5,5,4,35
+uruguay82,Hugo de León,D,LB,3,76,light,5*,5*,5,6*,5,5,4,35
+uruguay82,Nelson Gutiérrez,D,D,4,76,light,5*,4,5*,5*,4,5,4,32
+uruguay82,Walter Olivera,D,D,5,76,light,5*,4,5*,5*,4,4,4,31
+uruguay82,José Luis Zalazar,M,RW,6,76,light,5*,6*,4,5*,5,5,4,34
+uruguay82,Arsenio Luzardo,M,LW,7,76,light,5*,5*,5*,4,5,5,5,34
+uruguay82,Sergio Santín,M,M,8,76,light,5*,5*,5*,3,5,5,5,33
+uruguay82,Rubén Paz,M,M,9,76,light,5*,5*,4,4,5*,5,5,33
+uruguay82,Wilmar Cabrera,A,A,10,76,light,5*,5*,5*,5,5,5,5,35
+uruguay82,Vénancio Ramos,A,A,11,76,light,5*,5*,5*,4,5,5,5,34
+uruguay82,José Luis Sosa,G,G,12,76,light,3*,3*,5*,3,3,3,3,31
+uruguay82,Martín Taborda,D,D,13,76,light,4*,4,5*,5*,4,4,4,30
+uruguay82,Ariel Krasouski,M,M,14,76,light,5*,4,4,5*,5*,5,4,32
+uruguay82,Fernando Morena,A,A,15,76,light,5*,5*,5,3,5,5,6*,34
+uruguay82,Juan Ramón Carrasco,A,A,16,76,light,5*,5*,5*,4,5,5,5,34
+venezuela82,César Baena,G,G,1,77,light,2*,2*,4*,2,2,2,2,24
+venezuela82,Pedro Acosta,D,RB,2,77,light,3,4*,5*,4*,3,4,3,26
+venezuela82,Johnny Castellanos,D,LB,3,77,light,2*,2*,2*,2,2,2,2,14
+venezuela82,Mauro Cichero,D,D,4,77,light,2*,2*,2*,2,2,2,2,14
+venezuela82,José Abel Díaz,D,D,5,77,light,2*,2*,2*,2,2,2,2,14
+venezuela82,Asdrubal Sanchez,M,RW,6,77,light,3*,3*,4*,3,3,3,3,22
+venezuela82,Robert Ellie,M,LW,7,77,light,2*,2*,4*,2,2,2,2,16
+venezuela82,Rafael Cadenas,M,M,8,77,light,2*,2*,2*,2,2,2,2,14
+venezuela82,Plinio Araque,M,M,9,77,light,2*,2*,2*,2,2,2,2,14
+venezuela82,Pedro Febles,A,A,10,77,light,4*,3,4*,3,4*,3,3,24
+venezuela82,Bernardo Añor,A,A,11,77,light,3*,3*,4*,3,3,3,3,22
+venezuela82,Vicente Vega,G,G,12,77,light,1*,1*,1*,1,1,1,1,7
+venezuela82,Ricardo Moss,D,D,13,77,light,2*,2*,2*,2,2,2,2,14
+venezuela82,Carlos Maldonado,M,M,14,77,light,4*,4*,3,3,5*,4,4,27
+venezuela82,Rodolfo Carvajal,A,A,15,77,light,2*,2,4*,2,2,4*,2,18
+venezuela82,Emilio Campos,D,LB,16,77,light,3,3,4*,3,4*,4*,3,24
+bermuda83,Llewellyn Simmons,G,G,1,61,dark,1*,1*,1*,1,1,1,1,11
+bermuda83,Quinton Simons,D,RB,2,61,dark,1*,1*,1*,1,1,1,1,7
+bermuda83,Lorenzo Symonds,D,LB,3,61,dark,1*,1*,1*,1,1,1,1,7
+bermuda83,Shawn Smith,D,D,4,61,dark,1*,1*,1*,1,1,1,1,7
+bermuda83,Neil Paynter,D,D,5,61,dark,1*,1*,1*,1,1,1,1,7
+bermuda83,Elliott Jennings,M,RW,6,61,dark,1*,1*,1*,1,1,1,1,7
+bermuda83,Cornell Castle,M,LW,7,61,dark,1*,1*,1*,1,1,1,1,7
+bermuda83,Clevie Wade,M,M,8,61,dark,1*,1*,1*,1,1,1,1,7
+bermuda83,David Lambe,M,M,9,61,dark,1*,1*,1*,1,1,1,1,7
+bermuda83,Clyde Best,A,A,10,61,dark,3,3,4*,2,3,4*,4*,23
+bermuda83,Andrew Bascome,A,A,11,61,dark,2*,2*,2*,2,2,2,2,14
+bermuda83,Edward Williams,G,G,12,61,dark,1*,1*,1*,1,1,1,1,9
+bermuda83,Kevin Grant,D,D,13,61,dark,1*,1*,1*,1,1,1,1,7
+bermuda83,Rodney Bascome,M,M,14,61,dark,1*,1*,1*,1,1,1,1,7
+bermuda83,Melvin Bean,A,A,15,61,dark,1*,1*,1*,1,1,1,1,7
+bermuda83,Dennis Brown,D,RB,16,61,dark,1*,1*,1*,1,1,1,1,7
+canada83,Tino Lettieri,G,G,1,64,light,2,2,4*,2,3*,2,3*,24
+canada83,Colin Miller,D,RB,2,64,light,3,4*,4*,4*,4,4,4,27
+canada83,Frank Yallop,D,LB,3,64,light,4*,3,5*,5*,3,4,3,27
+canada83,Robert Iarusci,D,D,4,64,light,4*,3,4*,4*,3,4,3,25
+canada83,Randy Samuel,D,D,5,64,light,3,2,4*,4*,3,4*,2,22
+canada83,Gerry Gray,M,RW,6,64,light,4*,4*,4*,2,4,4,4,26
+canada83,David Norman,M,LW,7,64,light,2,2,4*,2,2,4*,4*,20
+canada83,Victor Kodelja,M,M,8,64,light,4*,2,3*,2,3,4*,2,20
+canada83,Lyndon Hooper,M,M,9,64,light,2,3*,3*,2,2,4*,3,19
+canada83,Branko Segota,A,A,10,64,light,2,4*,4*,2,4*,4,4,24
+canada83,Jim Easton,A,A,11,64,light,3*,3*,3,2,3,4*,3,21
+canada83,Jack Brand,G,G,12,64,light,2*,2*,2*,2,2,2,2,22
+canada83,Ian Bridge,D,D,13,64,light,2,3,4*,4*,2,4*,3,22
+canada83,Mike Sweeney,M,M,14,64,light,2*,2,3*,2,2,4*,2,17
+canada83,Igor Vrablic,A,A,15,64,light,2,3*,4*,3*,3,3,2,20
+canada83,Bob Lenarduzzi,M,RW,16,64,light,4*,3,5*,5*,4,4,3,28
+costarica83,Luis Gabelo Conejo,G,G,1,51,light,3,4*,5*,4*,3,4,3,25
+costarica83,Róger Flores,D,RB,2,51,light,4*,4*,4*,4,4,4,3,27
+costarica83,Mauricio Montero,D,LB,3,51,light,3*,3*,3*,3,3,3,3,21
+costarica83,Cesar Hines,D,D,4,51,light,3*,3*,3*,3,3,3,3,21
+costarica83,José Carlos Chaves,D,D,5,51,light,3*,3*,3*,3,3,3,3,21
+costarica83,Carlos Santana,M,RW,6,51,light,5*,3,3,3,5*,3,5*,27
+costarica83,Germán Chavarría,M,LW,7,51,light,3,4*,4*,3,3,4*,3,24
+costarica83,Luis Galagarza,M,M,8,51,light,3*,3*,3*,3,3,3,3,21
+costarica83,Enrique Díaz,M,M,9,51,light,3*,3*,3*,3,3,3,3,21
+costarica83,Juan Cayasso,A,A,10,51,light,4,5*,4,3,5*,5*,4,30
+costarica83,Evaristo Coronado,A,A,11,51,light,4*,4*,5*,3,4,4,4,28
+costarica83,Alejandro Gonzalez,G,G,12,51,light,3*,3*,3*,3,3,3,3,25
+costarica83,Rodolfo Mills,D,D,13,51,light,2*,2*,4*,2,2,2,2,16
+costarica83,Javier Jimenez Baez,M,M,14,51,light,4*,2*,2,2,4*,2,2,18
+costarica83,Alexandre Guimarães,A,A,15,51,light,3*,3,5*,3,3,4*,3,24
+costarica83,Marvin Obando,D,LB,16,51,light,3,3,4*,4*,3,4*,3,24
+elsalvador83,Jose Luis Munguia,G,G,1,52,light,3*,3*,3*,3,3,3,3,26
+elsalvador83,Jaime Rodríguez,D,RB,2,52,light,4,4,5*,5*,4,5*,4,31
+elsalvador83,Jose Francisco Jovel,D,LB,3,52,light,4*,3,4*,4*,4,4,3,26
+elsalvador83,Ramon Fagoaga,D,D,4,52,light,4*,3,4*,4*,3,4,3,25
+elsalvador83,Guillermo Ragazzone,D,D,5,52,light,3*,3*,3*,3,3,3,3,21
+elsalvador83,Jose Luis Rugamas,M,RW,6,52,light,4*,4*,4*,4,4,4,4,28
+elsalvador83,Mauricio Alfaro,M,LW,7,52,light,4*,4*,4*,4,4,4,4,28
+elsalvador83,Joaquin Ventura,M,M,8,52,light,4*,3,4*,4*,4,4,4,27
+elsalvador83,Julio Palacios,M,M,9,52,light,3*,3*,3*,3,3,3,3,21
+elsalvador83,Mágico González,A,A,10,52,light,5*,5,5,3,6*,6*,5,35
+elsalvador83,Norberto Huezo,A,A,11,52,light,5*,4*,4,4,5*,4,4,30
+elsalvador83,Carlos Melendez,G,G,12,52,light,3*,3*,3*,3,3,3,3,26
+elsalvador83,Mauricio Perla,D,D,13,52,light,3*,3*,3*,3,3,3,3,21
+elsalvador83,Salvador Coreas Privado,M,M,14,52,light,3*,3*,3*,3,3,3,3,21
+elsalvador83,Luis Ramirez Zapata,A,A,15,52,light,5*,4*,4,3,4,4,5*,29
+elsalvador83,Jose Maria Rivas,A,A,16,52,light,4*,4*,4*,3,4,4,4,27
+guatemala83,Ricardo Jerez Hidalgo,G,G,1,53,light,3*,3*,3*,3,3,3,3,26
+guatemala83,Allan Wellman,D,RB,2,53,light,3*,3*,3*,3,3,3,3,21
+guatemala83,Sergio Rivera,D,LB,3,53,light,3*,3*,3*,3,3,3,3,21
+guatemala83,Victor Hugo Monzon,D,D,4,53,light,3*,3*,3*,3,3,3,3,21
+guatemala83,Alejandro Ortiz,D,D,5,53,light,3*,3*,3*,3,3,3,3,21
+guatemala83,Luis Lopez,M,RW,6,53,light,3*,3*,3*,3,3,3,3,21
+guatemala83,Alfredo Solorzano,M,LW,7,53,light,3*,3*,3*,3,3,3,3,21
+guatemala83,Otoniel Guevara,M,M,8,53,light,3*,3*,3*,3,3,3,3,21
+guatemala83,David Gardiner,M,M,9,53,light,3*,3*,3*,3,3,3,3,21
+guatemala83,Oscar Sanchez,A,A,10,53,light,3,3,3,3,4*,5*,5*,26
+guatemala83,Byron Perez,A,A,11,53,light,3*,3*,3*,3,3,3,3,21
+guatemala83,Pepp Castro,G,G,12,53,light,2*,2*,2*,2,2,2,2,22
+guatemala83,Edgar Bolaños,D,D,13,53,light,2*,2*,2*,2,2,2,2,14
+guatemala83,Erwin Donis,M,M,14,53,light,3*,3*,3*,3,3,3,3,21
+guatemala83,Adan Paniagua,A,A,15,53,light,3*,3*,3*,3,3,3,3,21
+guatemala83,Kevin Sandoval,A,A,16,53,light,3*,3*,3*,3,3,3,3,21
+guyana83,Floyd Hall,G,G,1,78,dark,1*,1*,0,0,0,1*,0,0
+guyana83,Terrence Archer,D,RB,2,78,dark,1*,1*,1*,1,1,1,1,7
+guyana83,Trevor Maxwell,D,LB,3,78,dark,1*,1*,1*,1,1,1,1,7
+guyana83,Gordon Braithwaite,D,D,4,78,dark,2*,2*,2*,2,2,2,2,14
+guyana83,Floyd Cadogan,D,D,5,78,dark,1*,1*,1*,1,1,1,1,7
+guyana83,Lerone Bayley,M,RW,6,78,dark,1*,1*,1*,1,1,1,1,7
+guyana83,Donald Joseph,M,LW,7,78,dark,1*,1*,1*,1,1,1,1,7
+guyana83,Trevor Isaacs,M,M,8,78,dark,1*,1*,1*,1,1,1,1,7
+guyana83,Shawn Hall,M,M,9,78,dark,1*,1*,1*,1,1,1,1,7
+guyana83,Clyde Watson,A,A,10,78,dark,2*,2*,2*,2,2,2,2,14
+guyana83,Norton Smart,A,A,11,78,dark,1*,1*,1*,1,1,1,1,7
+guyana83,Clyde Anthony,G,G,12,78,dark,0*,1*,0*,0,0,0,0,0
+guyana83,Neil Ochoa,D,D,13,78,dark,1*,1*,1*,1,1,1,1,7
+guyana83,Don Callender,M,M,14,78,dark,1*,1*,1*,1,1,1,1,7
+guyana83,Wesley Baynes,A,A,15,78,dark,1*,1*,1*,1,1,1,1,7
+guyana83,Terence Gordon,M,M,16,78,dark,1*,1*,1*,1,1,1,1,7
+honduras83,Julio César Arzú,G,G,1,54,light,4*,4*,4*,3,3,4,3,26
+honduras83,Gilberto Yearwood,D,RB,2,54,light,5*,5*,5*,4,5,4,4,32
+honduras83,Anthony Costly,D,LB,3,54,light,4*,3,5*,5*,4,4,4,29
+honduras83,Héctor Zelaya,D,D,4,54,light,4*,4*,4*,4,4,4,3,27
+honduras83,Marco Adolfo Ordóñez,D,D,5,54,light,2*,2*,2*,2,2,2,2,14
+honduras83,Ramón Maradiaga,M,RW,6,54,light,4*,4*,3,4*,4,4,4,27
+honduras83,Prudencio Norales,M,LW,7,54,light,4*,4*,4*,3,4,4,4,27
+honduras83,Richardson Smith,M,M,8,54,light,2*,2*,2*,2,2,2,2,14
+honduras83,Salvador Bernárdez,M,M,9,54,light,2*,2*,2*,2,2,2,2,14
+honduras83,Roberto Figueroa,A,A,10,54,light,4,5*,4,4,5*,5*,5,32
+honduras83,Porfirio Betancourt,A,A,11,54,light,4*,4*,4*,3,4,4,4,27
+honduras83,Belarmino Rivera,G,G,12,54,light,2*,2*,2*,2,2,2,2,24
+honduras83,Patricinio Sierra,D,D,13,54,light,2*,2*,2*,2,2,2,2,14
+honduras83,David Buezo,M,M,14,54,light,2*,2*,2*,2,2,2,2,14
+honduras83,Roberto Bailey,A,A,15,54,light,3,4*,4*,3,4*,4,4,26
+honduras83,Efraín Gutiérrez,D,LB,16,54,light,4*,4*,4*,4,4,4,3,27
+jamaica83,Delroy Allen,G,G,1,62,dark,2*,2*,2*,2,2,2,2,15
+jamaica83,Noel Blake,D,RB,2,62,dark,4*,3,5*,5*,3,4,3,27
+jamaica83,Bob Hazell,D,LB,3,62,dark,3,3,4*,4*,3,4*,3,24
+jamaica83,Floyd Streete,D,D,4,62,dark,3*,3*,4*,3,3,3,3,22
+jamaica83,Donovan Panton,D,D,5,62,dark,2*,2*,2*,2,2,2,2,14
+jamaica83,Winston Anglin,M,RW,6,62,dark,2*,2*,2*,2,2,2,2,14
+jamaica83,Donovan Downer,M,LW,7,62,dark,2*,2*,2*,2,2,2,2,14
+jamaica83,Brendon Phillips,M,M,8,62,dark,2*,2*,2*,2,2,2,2,14
+jamaica83,Peter Cargill,M,M,9,62,dark,2*,2*,2*,2,2,2,2,14
+jamaica83,Paul Davis,A,A,10,62,dark,2*,2*,2*,2,2,2,2,14
+jamaica83,Wendell Downswell,A,A,11,62,dark,2*,2*,2*,2,2,2,2,14
+jamaica83,Warren Barrett,G,G,12,62,dark,2*,1,3*,1,1,2*,1,8
+jamaica83,Durrant Brown,D,D,13,62,dark,2*,2*,2*,2,2,2,2,14
+jamaica83,Rudolph Speid,M,M,14,62,dark,1*,1*,1*,1,1,1,1,7
+jamaica83,Tony Cunningham,A,A,15,62,dark,3,4*,5*,4*,4,4,4,28
+jamaica83,Dwight Marshall,A,A,16,62,dark,2*,2*,2,2,3*,2,2,15
+mexico83,Pablo Larios,G,G,1,56,light,4*,3,4*,3,3,5*,3,33
+mexico83,Alfredo Tena,D,RB,2,56,light,5*,4,5*,5*,5,5,4,33
+mexico83,Jesús Rico,D,LB,3,56,light,5*,3,4,5*,5*,5,3,30
+mexico83,Antonio de la Torre,D,D,4,56,light,3,3,5*,5*,5*,5,3,29
+mexico83,Rafael Amador,D,D,5,56,light,3,3,5*,5*,5*,5,3,29
+mexico83,Javier Aguirre,M,RW,6,56,light,5*,5*,5*,5,5,5,5,35
+mexico83,Manuel Negrete,M,LW,7,56,light,5*,5*,5*,4,5,5,5,34
+mexico83,Gonzalo Farfán,M,M,8,56,light,5*,5*,5*,4,5,5,5,34
+mexico83,Carlos Muñoz,M,M,9,56,light,5*,4,6*,5*,4,5,4,33
+mexico83,Hugo Sánchez,A,A,10,56,light,6*,6*,6,4,6,6,7*,41
+mexico83,Tomás Boy,A,A,11,56,light,6*,6*,5,4,6*,5,6,38
+mexico83,Javier Ledezma,G,G,12,56,light,4*,3,5*,3,3,5*,3,31
+mexico83,Félix Cruz,D,D,13,56,light,3,3,5*,5*,4,5*,4,29
+mexico83,Cristóbal Ortega,M,M,14,56,light,5*,4,5*,5*,5,5,4,33
+mexico83,Carlos Hermosillo,A,A,15,56,light,5*,5*,5*,4,5,5,5,34
+mexico83,Carlos de los Cobos,M,M,16,56,light,5*,4,5*,5*,4,5,4,32
+nicaragua83,Edward Mayorga,G,G,1,60,light,0,0,1*,1*,0,1*,0,0
+nicaragua83,Jose Cuarezma,D,RB,2,60,light,2*,2*,2*,2,2,2,2,14
+nicaragua83,Jose Esquivel,D,LB,3,60,light,2*,2*,2*,2,2,2,2,14
+nicaragua83,Antonio Gonzalez,D,D,4,60,light,1*,1*,1*,1,1,1,1,7
+nicaragua83,Otoniel Olivas,D,D,5,60,light,1*,1*,1*,1,1,1,1,7
+nicaragua83,Edward Urroz,M,RW,6,60,light,2*,2*,2*,2,2,2,2,14
+nicaragua83,Nestor Jerez,M,LW,7,60,light,2*,2*,2*,2,2,2,2,14
+nicaragua83,Mauricio Cruz,M,M,8,60,light,2*,2,4*,2,2,4*,2,18
+nicaragua83,Julio Mayorga,M,M,9,60,light,2*,2*,2*,2,2,2,2,14
+nicaragua83,Luis Mena,A,A,10,60,light,2*,2*,2*,2,2,2,2,14
+nicaragua83,Luis Orellana,A,A,11,60,light,1*,1*,1*,1,1,1,1,7
+nicaragua83,Otoniel Jerez,G,G,12,60,light,1*,0*,0,1*,0,0,0,0
+nicaragua83,Livio Bendana,D,D,13,60,light,1*,1*,1*,1,1,1,1,7
+nicaragua83,Livio Esquivel,M,M,14,60,light,0*,0*,0,0,0,0,1*,0
+nicaragua83,Jose Mena,A,A,15,60,light,1*,0*,0,1*,0,0,0,0
+nicaragua83,Nestor Mayorga,M,M,16,60,light,0*,0*,0,0,0,1*,0,0
+panama83,Carlos Bustamente,G,G,1,57,light,2*,2*,2*,2,2,2,2,24
+panama83,Jorge Mendez,D,RB,2,57,light,3*,3*,3*,3,3,3,3,21
+panama83,Edilberto Melendez,D,LB,3,57,light,2*,2*,2*,2,2,2,2,14
+panama83,Rogelio Clarke,D,D,4,57,light,2*,2*,2*,2,2,2,2,14
+panama83,Alfredo Poyatos,D,D,5,57,light,2*,2*,2*,2,2,2,2,14
+panama83,Oberto Lynch,M,RW,6,57,light,3*,3*,3*,3,3,3,3,21
+panama83,Eduardo Young,M,LW,7,57,light,2*,2*,2*,2,2,2,2,14
+panama83,Antonio Davis,M,M,8,57,light,2*,2*,2*,2,2,2,2,14
+panama83,Armando de Gracia,M,M,9,57,light,2*,2*,2*,2,2,2,2,14
+panama83,Victor Rene Mendieta,A,A,10,57,light,4*,4*,5*,3,4,4,4,28
+panama83,Armando Dely Valdés,A,A,11,57,light,4*,4*,4*,3,4,4,4,27
+panama83,Edilberto Aguirre,G,G,12,57,light,2*,2*,2*,2,2,2,2,14
+panama83,Franklin Delgado,D,D,13,57,light,2*,2*,2*,2,2,2,2,14
+panama83,David Berroa,M,M,14,57,light,2*,2*,2*,2,2,2,2,14
+panama83,Carlos Maldonado,A,A,15,57,light,2*,2*,2*,2,2,2,2,14
+panama83,Julian Cedeno,A,A,16,57,light,2*,2*,2*,2,2,2,2,14
+stvincent83,URTIS BLACKETT,G,G,1,67,dark,0,0,0,0,0,0,0,8
+stvincent83,FRITZ-GERALD BRAMBLE,G,G,12,67,dark,0,0,0,0,0,0,0,6
+stvincent83,DEXTER BROWNE,D,RB,2,67,dark,1,1,1,2*,0,4*,1,10
+stvincent83,BURTON FORDE,D,LB,3,67,dark,1,1,0,5*,2,4*,0,13
+stvincent83,EZRA HENRICKSON,D,D,4,67,dark,0,0,5*,5*,0,0,0,10
+stvincent83,CORNELIUS HUGGINS,D,D,5,67,dark,1,1,4*,2*,0,1,0,9
+stvincent83,KEITH OLLIVIERRE,D,D,13,67,dark,0,0,4*,3*,0,0,0,7
+stvincent83,EARL ALEXANDER,M,RW,6,67,dark,1,0,1,1,4*,5*,0,12
+stvincent83,ORANDE ASH,M,LW,7,67,dark,0,0,0,0,5*,5*,0,10
+stvincent83,KENLYN GONCALVES,M,M,8,67,dark,3*,2,0,5*,2,1,1,14
+stvincent83,WESLEY JOHN,M,M,10,67,dark,2*,1,1,2*,1,1,1,9
+stvincent83,TYRONE PRINCE,M,M,14,67,dark,3*,0,0,4*,0,0,0,7
+stvincent83,EVERALD SAM,M,M,16,67,dark,3*,0,1,1*,0,0,0,5
+stvincent83,ANDRE HINDS,A,A,9,67,dark,1,0,2*,1,1,0,4*,9
+stvincent83,RODNEY JACK,A,A,11,67,dark,0,0,3*,1,0,0,5*,9
+stvincent83,MARLON JAMES,A,A,15,67,dark,1,0,2*,1,0,0,3*,7
+surinam83,Carlo Monpellier,G,G,1,75,dark,2*,2*,2*,2,2,2,2,14
+surinam83,Roberto Straal,D,RB,2,75,dark,2*,2*,2*,2,2,2,2,14
+surinam83,Fred Patrick,D,LB,3,75,dark,2*,2*,2*,2,2,2,2,14
+surinam83,Brian Wilsterman,D,D,4,75,dark,1*,1*,1*,1,1,1,1,7
+surinam83,Marcel Riedewald,D,D,5,75,dark,1*,1*,1*,1,1,1,1,7
+surinam83,Umberto Klinker,M,RW,6,75,dark,2*,2*,2*,2,2,2,2,14
+surinam83,Frits Goodings,M,LW,7,75,dark,2*,2*,2*,2,2,2,2,14
+surinam83,Virgall Joemankhan,M,M,8,75,dark,1*,1*,1*,1,1,1,1,7
+surinam83,Andro Knel,M,M,9,75,dark,1*,1*,1*,1,1,1,1,7
+surinam83,Wendel Fräser,A,A,10,75,dark,1*,1*,1*,1,1,1,1,7
+surinam83,Radjin de Haan,A,A,11,75,dark,1*,1*,1*,1,1,1,1,7
+surinam83,Lloyd Doesburg,G,G,12,75,dark,2*,2*,2*,2,2,2,2,14
+surinam83,Rudy Degenaar,D,D,13,75,dark,1*,1*,1*,1,1,1,1,7
+surinam83,Rinaldo Entingh,M,M,14,75,dark,1*,1*,1*,1,1,1,1,7
+surinam83,Sigi Lens,A,A,15,75,dark,1*,1*,1*,1,1,1,1,7
+surinam83,Hans Reijnders,D,RB,16,75,dark,2*,2*,2*,2,2,2,2,14
+trinidadtobago83,Michael Maurice,G,G,1,63,dark,2*,2*,2*,2,2,2,2,19
+trinidadtobago83,Brian Williams,D,RB,2,63,dark,2*,2*,2*,2,2,2,2,14
+trinidadtobago83,Clayton Morris,D,LB,3,63,dark,2*,2*,2*,2,2,2,2,14
+trinidadtobago83,Dexter Francis,D,D,4,63,dark,2*,2*,2*,2,2,2,2,14
+trinidadtobago83,Roderick Gibbs,D,D,5,63,dark,2*,2,2,2,4*,4*,2,18
+trinidadtobago83,Floyd Lawrence,M,RW,6,63,dark,2*,2*,2*,2,2,2,2,14
+trinidadtobago83,Paul Elliot-Allen,M,LW,7,63,dark,2*,2*,2*,2,2,2,2,14
+trinidadtobago83,Anthony Streete,M,M,8,63,dark,2*,2*,2*,2,2,2,2,14
+trinidadtobago83,Richard Chinapoo,M,M,9,63,dark,2*,2*,2*,2,2,2,2,14
+trinidadtobago83,Maurice Alibey,A,A,10,63,dark,2*,2*,2*,2,2,2,2,14
+trinidadtobago83,Leroy Spann,A,A,11,63,dark,2*,2*,2*,2,2,2,2,14
+trinidadtobago83,Earl Carter,G,G,12,63,dark,2*,2*,2*,2,2,2,2,18
+trinidadtobago83,Marvin Faustin,D,D,13,63,dark,1*,1*,1*,1,1,1,1,7
+trinidadtobago83,Larry Joseph,M,M,14,63,dark,2*,2*,2*,2,2,2,2,14
+trinidadtobago83,Anton Corneal,A,A,15,63,dark,2*,2*,2*,2,2,2,2,14
+trinidadtobago83,Stephen Hart,M,M,16,63,dark,2*,2*,2*,2,2,2,2,14
+unitedstates83,Winston DuBose,G,G,1,58,light,2*,2*,2*,2,2,2,2,22
+unitedstates83,Doc Lawson,D,RB,2,58,light,2*,2*,4*,2,2,2,2,16
+unitedstates83,Martin Vasquez,D,LB,3,58,light,2*,2*,4*,2,2,2,2,16
+unitedstates83,John Lignos,D,D,4,58,light,2*,2*,2*,2,2,2,2,14
+unitedstates83,Dan Canter,D,D,5,58,light,2*,2*,2*,2,2,2,2,14
+unitedstates83,Rick Davis,M,RW,6,58,light,4*,4*,4,4,4,5*,4,29
+unitedstates83,Hugo Perez,M,LW,7,58,light,4*,4*,4*,3,4,4,4,27
+unitedstates83,Tab Ramos,M,M,8,58,light,3*,3*,3*,3,3,3,3,21
+unitedstates83,Tommy O'Hara,M,M,9,58,light,3*,2,3,4*,2,4*,2,20
+unitedstates83,Steve Moyers,A,A,10,58,light,3,4*,4*,2,4*,4,4,25
+unitedstates83,Alan Green,A,A,11,58,light,3*,3*,3*,3,3,3,3,21
+unitedstates83,Arnie Mausser,G,G,12,58,light,2*,2*,4*,2,2,2,2,20
+unitedstates83,Derek Spalding,D,D,13,58,light,2*,2*,2*,2,2,2,2,14
+unitedstates83,Angelo Di Bernardo,M,M,14,58,light,2*,2*,2,2,2,4*,2,16
+unitedstates83,Ade Coker,A,A,15,58,light,2*,2*,4*,2,2,2,2,16
+unitedstates83,Dave D'Errico,D,RB,16,58,light,2,2,3*,3*,2,3*,2,17
+bahrain84,Hamood Sultan Mathkoor,G,G,1,59,light,4*,2,4*,3,4*,3,3,24
+bahrain84,Abdulrazaq Mohamed Abbas,D,RB,2,59,light,2*,2*,2*,2,2,2,2,14
+bahrain84,Abdullah Badir,D,LB,3,59,light,2*,2*,2*,2,2,2,2,14
+bahrain84,Ali Jaffar Hussain,D,D,4,59,light,2*,2*,2*,2,2,2,2,14
+bahrain84,Abdul-Amir Yousef,D,D,5,59,light,2*,2*,2*,2,2,2,2,14
+bahrain84,Khamis Eid,M,RW,6,59,light,3,4*,4*,3,4*,3,3,24
+bahrain84,Saeed Mudkhoor,M,LW,7,59,light,2*,2*,2*,2,2,2,2,14
+bahrain84,Adnan Ibrahim,M,M,8,59,light,2*,2*,2*,2,2,2,2,14
+bahrain84,Ibrahim Zuweid,M,M,9,59,light,2*,2*,2*,2,2,2,2,14
+bahrain84,Waleed Shwetar,A,A,10,59,light,2*,2*,2*,2,2,2,2,14
+bahrain84,Khalil Shoueir,A,A,11,59,light,2*,2*,2*,2,2,2,2,14
+bahrain84,Mohamed Saleh Al-Bushait,G,G,12,59,light,2*,2*,2*,2,2,2,2,17
+bahrain84,Ebrahim Zaid,D,D,13,59,light,2*,2*,2*,2,2,2,2,14
+bahrain84,Ahmed Hassan,M,M,14,59,light,2*,2*,2*,2,2,2,2,14
+bahrain84,Hamad Mohammed,A,A,15,59,light,2*,2*,2*,2,2,2,2,14
+bahrain84,Hamid Darwish,M,M,16,59,light,2*,2*,2*,2,2,2,2,14
+bangladesh84,Mohamed Mohsin,G,G,1,121,light,2*,2*,2*,2,2,2,2,15
+bangladesh84,Azharul Haque Tipu,D,RB,2,121,light,2*,2*,2*,2,2,2,2,14
+bangladesh84,Rouf Babul,D,LB,3,121,light,2*,2*,2*,2,2,2,2,14
+bangladesh84,Shahid Uddin Selim,D,D,4,121,light,2*,2*,2*,2,2,2,2,14
+bangladesh84,Azmat Ali,D,D,5,121,light,2*,2*,2*,2,2,2,2,14
+bangladesh84,Ashish Bhadra,M,RW,6,121,light,3*,4*,2,2,2,2,3*,18
+bangladesh84,Khurshid Alam Babul,M,LW,7,121,light,2*,2*,2*,2,2,2,2,14
+bangladesh84,Sheikh Mohammad Sohel,M,M,8,121,light,2*,2*,2*,2,2,2,2,14
+bangladesh84,Mobinul Islam Khasru,M,M,9,121,light,2*,2*,2*,2,2,2,2,14
+bangladesh84,Badal Roy,A,A,10,121,light,3*,4*,2,2,3*,2,3,19
+bangladesh84,Kazi Salahuddin,A,A,11,121,light,2*,2,4*,2,2,2,4*,18
+bangladesh84,Hassan Sayeed Kanan,G,G,12,121,light,2*,2*,2*,2,2,2,2,14
+bangladesh84,Ahsanullah Montu,D,D,13,121,light,2*,2*,2*,2,2,2,2,14
+bangladesh84,Dastagir Nira,M,M,14,121,light,2*,2*,2*,2,2,2,2,14
+bangladesh84,Abdul Gaffar,A,A,15,121,light,2*,2*,2*,2,2,2,2,14
+bangladesh84,Samrat Hossain Emily,A,A,16,121,light,2*,2*,2*,2,2,2,2,14
+brunei84,Ali Haji Ismail,G,G,1,122,light,1*,1*,1*,1,1,1,1,4
+brunei84,Ahmad Haji Mahim,D,RB,2,122,light,1*,1*,1*,1,1,1,1,7
+brunei84,Rahman Matarsad,D,LB,3,122,light,1*,1*,1*,1,1,1,1,7
+brunei84,Shair Bakar,D,D,4,122,light,1*,1*,1*,1,1,1,1,7
+brunei84,Ali Rashid,D,D,5,122,light,1*,1*,1*,1,1,1,1,7
+brunei84,Dyaim Ali,M,RW,6,122,light,1*,1*,1*,1,1,1,1,7
+brunei84,Hamid Jaafar,M,LW,7,122,light,1*,1*,1*,1,1,1,1,7
+brunei84,Mahadi Ghani,M,M,8,122,light,1*,1*,1*,1,1,1,1,7
+brunei84,Aji Metali,M,M,9,122,light,1*,1*,1*,1,1,1,1,7
+brunei84,Zainuddin Kassim,A,A,10,122,light,1*,1*,1*,1,1,1,1,7
+brunei84,Zamani Ahmad,A,A,11,122,light,1*,1*,1*,1,1,1,1,7
+brunei84,Ahmad Rahim,G,G,12,122,light,1*,1*,1*,1,1,1,1,4
+brunei84,Liew Chuian Fue,D,D,13,122,light,1*,1*,1*,1,1,1,1,7
+brunei84,Sharbini Razali,M,M,14,122,light,1*,1*,1*,1,1,1,1,7
+brunei84,Zulkifli Anis Arifin,A,A,15,122,light,1*,1*,1*,1,1,1,1,7
+brunei84,Ahmed Metarsad,D,LB,16,122,light,1*,1*,1*,1,1,1,1,7
+china84,Ning Yang,G,G,1,139,light,3*,3*,3*,3,3,3,3,26
+china84,Xiuquan Jia,D,RB,2,139,light,4*,3,4*,4*,4,4,3,26
+china84,Minghua Chi,D,LB,3,139,light,3*,3*,3*,3,3,3,3,21
+china84,Zhixiong Xie,D,D,4,139,light,2*,2*,2*,2,2,2,2,14
+china84,Lefeng Lin,D,D,5,139,light,2*,2*,2*,2,2,2,2,14
+china84,Guorong Qin,M,RW,6,139,light,3*,3,5*,3,3,4*,3,24
+china84,Jia He,M,LW,7,139,light,2*,2*,2*,2,2,2,2,14
+china84,Youhong Zhu,M,M,8,139,light,2*,2*,2*,2,2,2,2,14
+china84,Qiang Lin,M,M,9,139,light,2*,2*,2*,2,2,2,2,14
+china84,Haiguang Liu,A,A,10,139,light,4*,4*,4*,3,4,4,4,27
+china84,Shusheng Zuo,A,A,11,139,light,4*,4*,4*,3,4,4,4,27
+china84,Jianping Xu,G,G,12,139,light,3*,3*,3*,3,3,3,3,26
+china84,Cailing Zang,D,D,13,139,light,2*,2*,2*,2,2,2,2,14
+china84,Feng Wang,M,M,14,139,light,2*,2*,2*,2,2,2,2,14
+china84,Dayu Zhao,A,A,15,139,light,3*,3,3,3,4*,5*,3,24
+china84,Guangming Gu,M,RW,16,139,light,4*,4,4,3,5*,5*,4,29
+hongkong84,Wan Ngok Chan,G,G,1,54,light,2*,2*,2*,2,2,2,2,14
+hongkong84,Yiu Shun Wong,D,RB,2,54,light,2*,2*,2*,2,2,2,2,14
+hongkong84,York Yee Choi,D,LB,3,54,light,2*,2*,2*,2,2,2,2,14
+hongkong84,Kam Fai Ku,D,D,4,54,light,2*,2*,2*,2,2,2,2,14
+hongkong84,Sui Wing Leung,D,D,5,54,light,2*,2*,2*,2,2,2,2,14
+hongkong84,Wing Cheung Lai,M,RW,6,54,light,3*,3*,3*,3,3,3,3,21
+hongkong84,Kwok On Wong,M,LW,7,54,light,2*,2*,2*,2,2,2,2,14
+hongkong84,Nang Yan Leung,M,M,8,54,light,2*,2*,2*,2,2,2,2,14
+hongkong84,Wai Chung Tsang,M,M,9,54,light,2*,2*,2*,2,2,2,2,14
+hongkong84,Wing Yip Lau,A,A,10,54,light,2*,2,3*,2,2,4*,2,17
+hongkong84,Chi Keung Wan,A,A,11,54,light,2*,2*,2,2,2,2,4*,16
+hongkong84,Tung Ping Lau,G,G,12,54,light,2*,2*,2*,2,2,2,2,19
+hongkong84,Chu Shing Tang,D,D,13,54,light,2*,2*,2*,2,2,2,2,14
+hongkong84,Kwok Hung Wu,M,M,14,54,light,2*,2*,2*,2,2,2,2,14
+hongkong84,Chi Ming Fung,A,A,15,54,light,2*,2*,2*,2,2,2,2,14
+hongkong84,Sai Kau Chan,D,RB,16,54,light,2*,2*,2*,2,2,2,2,14
+india84,Brahmanand Shankwalkar,G,G,1,120,light,4*,3,5*,3,3,4*,3,28
+india84,Manoranjan Bhattacharya,D,RB,2,120,light,2*,2,4*,4*,2,2,2,18
+india84,Subrata Bhattacharya,D,LB,3,120,light,2*,2*,2*,2,2,2,2,14
+india84,Pem Dorji,D,D,4,120,light,2*,2*,2*,2,2,2,2,14
+india84,Tarun Dey,D,D,5,120,light,2*,2*,2*,2,2,2,2,14
+india84,Narayansawami Ulagathan,M,RW,6,120,light,4*,3,3,3,4*,4*,3,24
+india84,Bikash Panji,M,LW,7,120,light,2*,2*,2,2,2,4*,2,16
+india84,Prasanta Banerjee,M,M,8,120,light,2*,2*,2*,2,2,2,2,14
+india84,Mauricio Afonso,M,M,9,120,light,2*,2*,2*,2,2,2,2,14
+india84,Krishanu Dey,A,A,10,120,light,4*,4,3,3,5*,5*,4,28
+india84,Shabbir Ali,A,A,11,120,light,2*,2*,2,2,2,2,4*,16
+india84,Atanu Bhattacharya,G,G,12,120,light,2*,2*,2*,2,2,2,2,24
+india84,Krishnendu Roy,D,D,13,120,light,2*,2*,2*,2,2,2,2,14
+india84,Sudip Chatterjee,M,M,14,120,light,2*,2*,2*,2,2,2,2,14
+india84,Bidesh Ranjan Bose,A,A,15,120,light,2*,2*,2*,2,2,2,2,14
+india84,Parminder Singh,A,A,16,120,light,2*,2*,2*,2,2,2,2,14
+indonesia84, Hermansyah,G,G,1,120,light,2*,2*,2*,2,2,2,2,20
+indonesia84,Herry Kiswanto,D,RB,2,120,light,4*,4*,4*,4,4,4,4,28
+indonesia84,Robby Darwis,D,LB,3,120,light,3,4*,4*,4*,3,3,3,24
+indonesia84,Subankit,D,D,4,120,light,2*,2*,2*,2,2,2,2,14
+indonesia84,Rudy Keeltjes,D,D,5,120,light,2*,2*,2*,2,2,2,2,14
+indonesia84,Rully Nere,M,RW,6,120,light,5*,4*,4*,4,4,4,4,29
+indonesia84,Elly Idris,M,LW,7,120,light,2*,2*,2*,2,2,2,2,14
+indonesia84,Patar Tambunan,M,M,8,120,light,2*,2*,2*,2,2,2,2,14
+indonesia84,Memed Permadi,M,M,9,120,light,2*,2*,2*,2,2,2,2,14
+indonesia84,Zulkarnaen Lubis,A,A,10,120,light,5*,4*,4,4,5*,4,4,30
+indonesia84,Ricky Yacobi,A,A,11,120,light,3*,3*,3*,3,3,3,3,21
+indonesia84,Endang Tirtana,G,G,12,120,light,2*,2*,2*,2,2,2,2,18
+indonesia84,Syafrudin Fabanyo,D,D,13,120,light,2*,2*,2*,2,2,2,2,14
+indonesia84,Arief Hidayat,M,M,14,120,light,2*,2*,2*,2,2,2,2,14
+indonesia84,Ajat Sudrajat,A,A,15,120,light,3*,3*,3*,3,3,3,3,21
+indonesia84,Johanes Auri,D,LB,16,120,light,3*,3*,3,3,3,4*,3,22
+iran84,Rasoul Korbekandi,G,G,1,128,light,2*,2*,2*,2,2,2,2,19
+iran84,Mohammad Panjali,D,RB,2,128,light,4*,4*,4*,4,4,4,3,27
+iran84,Andranik Eskandarian,D,LB,3,128,light,4*,3,4*,4*,4,4,3,26
+iran84,Nasrollah Abdollahi,D,D,4,128,light,2*,2*,4*,2,2,2,2,16
+iran84,Alireza Ghashghaean,D,D,5,128,light,2*,2*,2*,2,2,2,2,14
+iran84,Zia Arabshahi,M,RW,6,128,light,3,5*,4*,3,3,4*,3,25
+iran84,Behtash Fariba,M,LW,7,128,light,3*,3,4*,3,3,3,5*,24
+iran84,Ebrahim Ghasempour,M,M,8,128,light,2,4*,4*,2,2,4*,4,22
+iran84,Hamid Derakhshan,M,M,9,128,light,3*,3*,3*,3,3,3,3,21
+iran84,Hassan Rowshan,A,A,10,128,light,4,4,4,4,5*,5*,5*,31
+iran84,Farshad Pious,A,A,11,128,light,4*,4*,4*,3,4,4,4,27
+iran84,Nasser Hejazi,G,G,12,128,light,5*,4,5*,5*,4,4,3,33
+iran84,Ahmad Sanjari,D,D,13,128,light,3*,3*,3*,3,3,3,3,21
+iran84,Mohammad Sadeghi,M,M,14,128,light,2*,2*,4*,2,2,2,2,16
+iran84,Abdolali Changiz,A,A,15,128,light,4*,3,3,3,5*,5*,4,27
+iran84,Hamid Alidoosti,A,A,16,128,light,3,3,4*,3,4*,4*,4,25
+iraq84,Raad Hammoudi,G,G,1,123,light,4*,3,4*,4*,3,3,3,26
+iraq84,Adnan Dirjal,D,RB,2,123,light,4,5*,5*,5*,4,4,4,31
+iraq84,Nadhum Shaker,D,LB,3,123,light,4*,3,5*,4*,4,4,3,27
+iraq84,Samir Shaker,D,D,4,123,light,2*,2*,2*,2,2,2,2,14
+iraq84,Hassan Farhan,D,D,5,123,light,1*,1*,1*,1,1,1,1,7
+iraq84,Basil Gorgis,M,RW,6,123,light,4*,4*,5*,4,4,4,4,29
+iraq84,Natiq Hashim,M,LW,7,123,light,4*,4*,4*,4,4,4,4,28
+iraq84,Hadi Ahmed,M,M,8,123,light,4*,4*,4*,3,4,4,4,27
+iraq84,Annad Obiad,M,M,9,123,light,3*,3*,3*,3,3,3,3,21
+iraq84,Hussein Saeed,A,A,10,123,light,4,5*,5*,3,4,4,5*,30
+iraq84,Falah Hassan,A,A,11,123,light,4*,4,4,3,5*,5*,4,29
+iraq84,Fatah Nsaief,G,G,12,123,light,2*,2*,2*,2,2,2,2,22
+iraq84,Ayed Mohammed Ali,D,D,13,123,light,1*,1*,1*,1,1,1,1,7
+iraq84,Sabah Abdul-Jalil,M,M,14,123,light,2*,2*,2*,2,2,2,2,14
+iraq84,Ahmed Radhi,A,A,15,123,light,4*,4*,4*,3,4,4,4,27
+iraq84,Karim Allawi,M,RW,16,123,light,4*,5*,4*,4,4,4,4,29
+japan84,Mitsuhisa Taguchi,G,G,1,118,light,3*,3*,4*,3,3,3,3,29
+japan84,Satoshi Tsunami,D,RB,2,118,light,5*,4,4,5*,4,5*,4,31
+japan84,Hisashi Kato,D,LB,3,118,light,4*,4*,4,5*,4,4,4,29
+japan84,Shinji Tanaka,D,D,4,118,light,3,3,4*,5*,3,4*,3,25
+japan84,Tetsuo Sugamata,D,D,5,118,light,3,3,4*,4*,3,4*,3,24
+japan84,Kazushi Kimura,M,RW,6,118,light,5*,5*,4,4,5*,5,5,33
+japan84,Atsushi Natori,M,LW,7,118,light,4*,4*,5*,4,4,4,4,29
+japan84,Yahiro Kazama,M,M,8,118,light,4*,4*,4*,4,4,4,4,28
+japan84,Hideki Maeda,M,M,9,118,light,4*,3,4*,3,4*,4,4,26
+japan84,Kazuo Ozaki,A,A,10,118,light,5*,4,5*,3,5*,5,5,32
+japan84,Koichi Hashiratani,A,A,11,118,light,4*,4,4,4,4,5*,5*,30
+japan84,Tatsuhiko Seta,G,G,12,118,light,3*,3*,4*,3,3,3,3,26
+japan84,Masakuni Yamamoto,D,D,13,118,light,3*,3*,3*,3,3,3,3,21
+japan84,Nobutoshi Kaneda,M,M,14,118,light,3*,3,4*,3,3,5*,3,24
+japan84,Hiromi Hara,A,A,15,118,light,4*,4,5*,4,4,4,5*,30
+japan84,Yasuhiko Okudera,D,RB,16,118,light,5*,5*,5*,5,5,5,5,35
+jordan84,Milad Abbasi,G,G,1,124,light,2*,2*,2*,2,2,2,2,19
+jordan84,Jamal Abu Abed,D,RB,2,124,light,2*,2*,2*,2,2,2,2,14
+jordan84,Issam Al-Tally,D,LB,3,124,light,2*,2*,2*,2,2,2,2,14
+jordan84,Mohammed Naser Al-Odali,D,D,4,124,light,2*,2*,2*,2,2,2,2,14
+jordan84,Yousef Assaf Raed,D,D,5,124,light,2*,2*,2*,2,2,2,2,14
+jordan84,Subhi Sulaiman Al-Ghunaimat,M,RW,6,124,light,2*,2*,2*,2,2,2,2,14
+jordan84,Jehad Abed Al-Minem,M,LW,7,124,light,2*,2*,2*,2,2,2,2,14
+jordan84,Naret Yadej,M,M,8,124,light,1*,1*,1*,1,1,1,1,7
+jordan84,Mohammad Al-Khazaali,M,M,9,124,light,1*,1*,1*,1,1,1,1,7
+jordan84,Hisham Abdelmonaem,A,A,10,124,light,1*,1*,1*,1,1,1,1,7
+jordan84,Yousuf Al-Amouri,A,A,11,124,light,1*,1*,1*,1,1,1,1,7
+jordan84,Naser Ghandour,G,G,12,124,light,1*,1*,1*,1,1,1,1,12
+jordan84,Hisham Abdel-Qader,D,D,13,124,light,1*,1*,0,1*,0,1,0,0
+jordan84,Issam Ghandour,M,M,14,124,light,0*,0*,0,0,1*,0,0,0
+jordan84,Yousuf Al-Ghunaimat,A,A,15,124,light,0,0,1*,1*,0,0,1*,0
+jordan84,Husam Azmi Sinnokrat,D,LB,16,124,light,2*,2*,2*,2,2,2,2,14
+kuwait84,Samir Said,G,G,1,133,light,3*,3*,3*,3,3,3,3,26
+kuwait84,Mahboub Jumaa Mubarak,D,RB,2,133,light,4*,4*,4,5*,4,4,4,29
+kuwait84,Abdullah Mayouf,D,LB,3,133,light,4*,4*,4*,4,4,4,3,27
+kuwait84,Jamal Yaqoub Al-Qabendi,D,D,4,133,light,4*,3,4*,4*,3,4,2,24
+kuwait84,Wail Sulaiman,D,D,5,133,light,3*,4*,3,4*,3,3,3,23
+kuwait84,Abdulaziz Al-Buloushi,M,RW,6,133,light,4*,5*,4*,4,4,4,4,29
+kuwait84,Sa'ad Al-Houti,M,LW,7,133,light,4*,4*,3,5*,4,4,4,28
+kuwait84,Nassir Al-Ghanem,M,M,8,133,light,4*,4*,4*,3,4,4,4,27
+kuwait84,Mohammed Karam,M,M,9,133,light,4*,4*,3,4*,4,4,3,26
+kuwait84,Muayad Al-Haddad,A,A,10,133,light,4*,4*,4,3,4,5*,4,28
+kuwait84,Faisal Al-Dakhil,A,A,11,133,light,4*,5*,4*,3,4,4,4,28
+kuwait84,Adam Marjan,G,G,12,133,light,3*,3*,3*,3,3,3,3,25
+kuwait84,Naeem Saad Faraj,D,D,13,133,light,3*,3*,3*,3,3,3,3,21
+kuwait84,Wail Sulaiman Al-Habashi,M,M,14,133,light,3*,3*,3*,3,3,3,3,21
+kuwait84,Yusuf Al-Suwayed,A,A,15,133,light,4*,4*,4*,3,4,4,4,27
+kuwait84,Abdulaziz Al-Anbari,M,LW,16,133,light,4*,4*,4*,3,4,4,4,27
+laos84,XUVAN,G,G,1,134,light,0,0,0,0,0,0,0,0
+laos84,PHAYPADIT,G,G,12,134,light,0,0,0,0,0,0,0,2
+laos84,UDOM,D,RB,2,134,light,0,0,0,2*,1,1*,0,4
+laos84,IMPON,D,LB,3,134,light,0,0,0,1*,0,0*,0,1
+laos84,BUPON,D,D,4,134,light,1,0,0*,1*,0,0,0,2
+laos84,XIXUPHAN,D,D,5,134,light,0,1,1*,1*,0,0,0,3
+laos84,VATTHANA,D,D,13,134,light,0,0,0*,0*,0,0,0,0
+laos84,KHANXAMAY,M,RW,6,134,light,0,0,0,0,0*,0*,0,0
+laos84,BUNNHU,M,LW,7,134,light,1,0,0,0,1*,0*,0,2
+laos84,THAVON,M,M,8,134,light,1*,0,0,3*,0,0,0,4
+laos84,VAN KEO,M,M,10,134,light,1*,0,0,0*,0,0,0,1
+laos84,COXON,M,M,14,134,light,0*,0,0,0*,0,0,0,0
+laos84,ENOI,M,M,15,134,light,1*,0,0,0*,0,0,0,1
+laos84,XAYXANA,A,A,9,134,light,0,1,0*,0,0,0,1*,2
+laos84,KHAMXAVAT,A,A,11,134,light,0,0,1*,0,0,0,0*,1
+laos84,CHONGHI,A,A,16,134,light,0,0,1*,0,0,0,1*,2
+malaysia84,Arumugam Rengasamy,G,G,1,130,light,4*,3*,4*,3,3,3,3,25
+malaysia84,Santokh Singh,D,RB,2,130,light,3,3,4*,4*,3,4*,3,24
+malaysia84,Shebby Singh,D,LB,3,130,light,2*,2*,2*,2,2,2,2,14
+malaysia84,Razip Ismail,D,D,4,130,light,2*,2*,2*,2,2,2,2,14
+malaysia84,P Dharmalingam,D,D,5,130,light,2*,2*,2*,2,2,2,2,14
+malaysia84,Ahmed Yusof,M,RW,6,130,light,2*,2*,2*,2,2,2,2,14
+malaysia84,Abdul Nasir Yusof,M,LW,7,130,light,2*,2*,2*,2,2,2,2,14
+malaysia84,Azizol Abu Haniffah,M,M,8,130,light,2*,2*,2*,2,2,2,2,14
+malaysia84,Teong Kim Lim,M,M,9,130,light,2*,2*,2*,2,2,2,2,14
+malaysia84,Mokhtar Dahari,A,A,10,130,light,5*,5*,4,4,5*,5,5,33
+malaysia84,Zainal Abidin Hassan,A,A,11,130,light,4*,4*,4*,3,4,4,4,27
+malaysia84,Abdul Rashid Hassan,G,G,12,130,light,2*,2*,2*,2,2,2,2,20
+malaysia84,Chin Ann Soh,D,D,13,130,light,4*,3,4*,5*,4,4,3,27
+malaysia84,Shukor Salleh,M,M,14,130,light,3*,3*,3*,1,3,3,2,18
+malaysia84,Hassan Sani,A,A,15,130,light,2*,2*,2*,2,2,2,2,14
+malaysia84,Hung Nung Wong,D,LB,16,130,light,2*,2*,2*,2,2,2,2,14
+mauritius84,Sharma Kanhye,G,G,1,141,light,1*,1*,1*,1,1,1,1,7
+mauritius84,Elie Paul Songor,D,RB,2,141,light,1*,1*,1*,1,1,1,1,7
+mauritius84,Hedley Jacquotte,D,LB,3,141,light,1*,1*,1*,1,1,1,1,7
+mauritius84,Sarjoo Gowreesunkur,D,D,4,141,light,1*,1*,1*,1,1,1,1,7
+mauritius84,Benjamin Théodore,D,D,5,141,light,1*,1*,1*,1,1,1,1,7
+mauritius84,Saleem Moosa,M,RW,6,141,light,1*,1*,1*,1,1,1,1,7
+mauritius84,Quéland Tombé,M,LW,7,141,light,1*,1*,1*,1,1,1,1,7
+mauritius84,Gilbert Herbu,M,M,8,141,light,1*,1*,1*,1,1,1,1,7
+mauritius84,Jean-Marc Ithier,M,M,9,141,light,1*,1*,2*,1,1,1,1,8
+mauritius84,Serge Bardottier,A,A,10,141,light,1*,1*,1*,1,1,1,1,7
+mauritius84,Jean-Yves L'Énflé,A,A,11,141,light,1*,1*,1*,1,1,1,1,7
+mauritius84,Désiré L'Enclume,G,G,12,141,light,1*,1*,1*,1,1,1,1,7
+mauritius84,Saoud Lallmohamed,D,D,13,141,light,1*,1*,1*,1,1,1,1,7
+mauritius84,Jacques Jackson,M,M,14,141,light,1*,1*,1*,1,1,1,1,7
+mauritius84,Sarjoo Kanhye,A,A,15,141,light,0*,0*,0*,0,0,0,0,0
+mauritius84,Suren Chundunsing,D,RB,16,141,light,1*,1*,1*,1,1,1,1,7
+burma84,Myo Chit,G,G,1,142,light,1*,1*,1*,1,1,1,1,4
+burma84,Kyi Lwin,D,RB,2,142,light,1*,1*,1*,1,1,1,1,7
+burma84,Ye Win Nyung,D,LB,3,142,light,1*,1*,1*,1,1,1,1,7
+burma84,Ko Ko,D,D,4,142,light,1*,1*,1*,1,1,1,1,7
+burma84,Soe Min,D,D,5,142,light,1*,1*,1*,1,1,1,1,7
+burma84,Soe Moe Kyaw,M,RW,6,142,light,1*,1*,1*,1,1,1,1,7
+burma84,Than Aung,M,LW,7,142,light,1*,1*,1*,1,1,1,1,7
+burma84,Mya Zaw,M,M,8,142,light,1*,1*,1*,1,1,1,1,7
+burma84,Tint Aung Shwe,M,M,9,142,light,1*,1*,1*,1,1,1,1,7
+burma84,Ko Ko Naing,A,A,10,142,light,1*,1*,1*,1,1,1,1,7
+burma84,Aye Cho Cho,A,A,11,142,light,1*,1*,1*,1,1,1,1,7
+burma84,Kyi Lwin,G,G,12,142,light,0*,0*,0,1*,0,0,0,0
+burma84,Han Tun,D,D,13,142,light,1*,1*,1*,1,1,1,1,7
+burma84,Tin Maung Kyaing,M,M,14,142,light,1*,1*,1*,1,1,1,1,7
+burma84,Aung Kyaing,A,A,15,142,light,1*,1*,1*,1,1,1,1,7
+burma84,Than Win,A,A,16,142,light,1*,1*,1*,1,1,1,1,7
+northkorea84,Kim Gang-Il,G,G,1,135,light,2*,2*,2*,2,2,2,2,23
+northkorea84,Kim Gwang-Min,D,RB,2,135,light,2*,2*,2*,2,2,2,2,14
+northkorea84,Kim Jong-Hun,D,LB,3,135,light,2*,2*,2*,2,2,2,2,14
+northkorea84,Tak Yong-Bin,D,D,4,135,light,2*,2*,2*,2,2,2,2,14
+northkorea84,Oh Yong-Nam,D,D,5,135,light,2*,2*,2*,2,2,2,2,14
+northkorea84,Kim Jong-Man,M,RW,6,135,light,3*,3*,3*,3,3,3,3,21
+northkorea84,Ri Bong-Nam,M,LW,7,135,light,2*,2*,2*,2,2,2,2,14
+northkorea84,Kim Jong-Su,M,M,8,135,light,2*,2*,2*,2,2,2,2,14
+northkorea84,Kim Hun,M,M,9,135,light,2*,2*,2*,2,2,2,2,14
+northkorea84,Han Hyong-Il,A,A,10,135,light,2*,2*,2*,2,2,2,2,14
+northkorea84,Kim Gwang-Ho,A,A,11,135,light,2*,2*,2*,2,2,2,2,14
+northkorea84,Ri Jong-Man,G,G,12,135,light,2*,2*,1,2*,2,0,0,3
+northkorea84,Kim Gwang-Sung,D,D,13,135,light,2*,2*,2*,2,2,2,2,14
+northkorea84,Yun Jong-Su,M,M,14,135,light,2*,2*,2*,2,2,2,2,14
+northkorea84,Yu Song-Chol,A,A,15,135,light,2*,2*,2*,2,2,2,2,14
+northkorea84,Kim Yong-Nam,A,A,16,135,light,2*,2*,2*,2,2,2,2,14
+oman84,Mohamed Seef,G,G,1,136,light,1*,1*,1*,1,1,1,1,2
+oman84,Ibrahim Haikal,D,RB,2,136,light,1*,1*,1*,1,1,1,1,7
+oman84,Ahmed Ali,D,LB,3,136,light,1*,1*,1*,1,1,1,1,7
+oman84,Hussein Hassan,D,D,4,136,light,1*,1*,1*,1,1,1,1,7
+oman84,Abdullah Hamood,D,D,5,136,light,1*,1*,1*,1,1,1,1,7
+oman84,Matar Khalifa,M,RW,6,136,light,1*,1*,1*,1,1,1,1,7
+oman84,Saeed Shaban,M,LW,7,136,light,1*,1*,1*,1,1,1,1,7
+oman84,Ghulam Khamis,M,M,8,136,light,0*,0*,0*,0,0,0,0,0
+oman84,Ali Shuwaid,M,M,9,136,light,0*,0*,0*,0,0,0,0,0
+oman84,Khamis Obaid,A,A,10,136,light,1*,1*,1*,1,1,1,1,7
+oman84,Nasser Hamdan Hamed,A,A,11,136,light,1*,1*,1*,1,1,1,1,7
+oman84,Suleiman Khayef,G,G,12,136,light,1*,1*,1*,1,1,1,1,2
+oman84,Darwish Ahmed,D,D,13,136,light,1*,1*,1*,1,1,1,1,7
+oman84,Hilal Humeid,M,M,14,136,light,1*,1*,1*,1,1,1,1,7
+oman84,Mohamed Juma,A,A,15,136,light,1*,1*,1*,1,1,1,1,7
+oman84,Magdi Shaban Samir,D,RB,16,136,light,1*,1*,1*,1,1,1,1,7
+pakistan84,Malik Mateen Akhtar,G,G,1,137,light,2*,2*,2*,2,2,2,2,19
+pakistan84,Mohammed Naveed,D,RB,2,137,light,2*,2*,2*,2,2,2,2,14
+pakistan84,Mohammed Saleem Awan,D,LB,3,137,light,2*,2*,2*,2,2,2,2,14
+pakistan84,Zulfiqar Hussain Dogar,D,D,4,137,light,2*,2*,2*,2,2,2,2,14
+pakistan84,Tahir Pervez,D,D,5,137,light,1*,1*,1*,1,1,1,1,7
+pakistan84,Shaukat Ali,M,RW,6,137,light,2*,2*,2*,2,2,2,2,14
+pakistan84,Ejaz Ali,M,LW,7,137,light,2*,2*,2*,2,2,2,2,14
+pakistan84,Shabbir Hussain,M,M,8,137,light,1*,1*,1*,1,1,1,1,7
+pakistan84,Ghulam Sarwar,M,M,9,137,light,1*,1*,1*,1,1,1,1,7
+pakistan84,Sharafat Ali,A,A,10,137,light,1*,1*,1*,1,1,1,1,7
+pakistan84,Abdul Ghafoor Majna,A,A,11,137,light,2*,2*,2*,2,2,2,2,14
+pakistan84,Malik Dogar,G,G,12,137,light,0*,0*,0,1*,0,0,0,0
+pakistan84,Haji Abdul Sattar,D,D,13,137,light,1*,1*,1*,1,1,1,1,7
+pakistan84,Syed Nasir Ismail,M,M,14,137,light,1*,1*,1*,1,1,1,1,7
+pakistan84,Amjad Ali,A,A,15,137,light,1*,1*,1*,1,1,1,1,7
+pakistan84,Pervez Ahmed,D,D,16,137,light,1*,1*,1*,1,1,1,1,7
+papuanewguinea84,ADAM WANGU,G,G,1,143,dark,0,0,0,0,0,0,0,0
+papuanewguinea84,ABRONG KERA,G,G,12,143,dark,0,0,0,0,0,0,0,2
+papuanewguinea84,JOE TURIA,D,RB,2,143,dark,0,0,0,2*,0,0*,0,2
+papuanewguinea84,ADAM LEMA,D,LB,3,143,dark,0,0,0,0*,0,0*,0,0
+papuanewguinea84,MICHAEL RAMO,D,D,4,143,dark,1,0,0*,1*,0,0,0,2
+papuanewguinea84,LUDWIG PEKA,D,D,5,143,dark,0,0,0*,0*,0,0,0,0
+papuanewguinea84,ANDREW GURIA,D,D,13,143,dark,0,0,2*,0*,0,0,0,2
+papuanewguinea84,MASTIN LAVIONG,M,RW,6,143,dark,0,0,0,0,1*,2*,0,3
+papuanewguinea84,KULE MATU,M,LW,7,143,dark,0,0,0,0,1*,1*,0,2
+papuanewguinea84,RAYMOND NASA,M,M,8,143,dark,1*,0,0,1*,0,0,1,3
+papuanewguinea84,WESLEY WAIWAI,M,M,10,143,dark,1*,0,0,0*,0,0,0,1
+papuanewguinea84,AMUK MAWI,M,M,14,143,dark,0*,0,0,1*,0,0,0,1
+papuanewguinea84,LUCAS BAZO,M,M,15,143,dark,1*,0,0,1*,0,0,0,2
+papuanewguinea84,JOE SALEU,A,A,9,143,dark,0,0,1*,0,0,0,2*,3
+papuanewguinea84,DAINO SAMI,A,A,11,143,dark,0,0,0*,0,0,0,1*,1
+papuanewguinea84,JASPER PATTERSON,A,A,16,143,dark,0,0,1*,0,0,0,0*,1
+philippines84,Melo Sabacan,G,G,1,138,light,2*,2*,2*,2,2,2,2,20
+philippines84,Marlon Maro,D,RB,2,138,light,2*,2*,2*,2,2,2,2,14
+philippines84,Rodolfo Alicante,D,LB,3,138,light,2*,2*,2*,2,2,2,2,14
+philippines84,Rolando Pinero,D,D,4,138,light,2*,2*,2*,2,2,2,2,14
+philippines84,Paul Zuluaga,D,D,5,138,light,1*,1*,1*,1,1,1,1,7
+philippines84,Jude Carmona,M,RW,6,138,light,1*,1*,1*,1,1,1,1,7
+philippines84,Mariano Araneta,M,LW,7,138,light,1*,1*,1*,1,1,1,1,7
+philippines84,Rey Saluria,M,M,8,138,light,1*,1*,1*,1,1,1,1,7
+philippines84,Filomeno Tuano,M,M,9,138,light,1*,1*,1*,1,1,1,1,7
+philippines84,Elmer Bedia,A,A,10,138,light,2*,2*,2*,2,2,2,2,14
+philippines84,Vicente Rosell,A,A,11,138,light,2*,2*,2*,2,2,2,2,14
+philippines84,José Luis Gomez,G,G,12,138,light,1*,1*,1*,1,1,1,1,4
+philippines84,Mario Ceniza,D,D,13,138,light,1*,1*,1*,1,1,1,1,7
+philippines84,José Maria Mendoza,M,M,14,138,light,1*,1*,1*,1,1,1,1,7
+philippines84,Evelio Alobín,A,A,15,138,light,1*,1*,1*,1,1,1,1,7
+philippines84,Jesus Baron,D,LB,16,138,light,1*,1*,1*,1,1,1,1,7
+qatar84,Ahmed Al-Majid,G,G,1,146,light,2*,2*,2*,2,2,2,2,24
+qatar84,Mubarak Anber,D,RB,2,146,light,4*,4*,4*,4,4,4,3,27
+qatar84,Ibrahim Saeed Al-Rumaihi,D,LB,3,146,light,2*,2*,2*,2,2,2,2,14
+qatar84,Abdullah Mubarak Al-Eidan,D,D,4,146,light,2*,2*,2*,2,2,2,2,14
+qatar84,Yousuf Al-Adsani,D,D,5,146,light,2*,2*,2*,2,2,2,2,14
+qatar84,Khalid Salman Al-Mohannadi,M,RW,6,146,light,4*,4*,4*,4,4,4,4,28
+qatar84,Mubarak Issa Al-Muhannadi,M,LW,7,146,light,2*,2*,2*,2,2,2,2,14
+qatar84,Issa Ahmed,M,M,8,146,light,2*,2*,2*,2,2,2,2,14
+qatar84,Mubarak Salem Al-Khater,M,M,9,146,light,2*,2*,2*,2,2,2,2,14
+qatar84,Mansour Muftah,A,A,10,146,light,4*,4,5*,4,4,4,5*,30
+qatar84,Saleh Eid Al-Mehaizaa,A,A,11,146,light,3*,3*,4*,3,3,3,3,22
+qatar84,Younes Ahmed,G,G,12,146,light,2*,2*,3*,2,2,2,2,19
+qatar84,Mohammed Daham Al-Suwaidi,D,D,13,146,light,2*,2*,2*,2,2,2,2,14
+qatar84,Mohamed Khalifa Al-Ammari,M,M,14,146,light,2*,2*,2*,2,2,2,2,14
+qatar84,Ahmed Omar,A,A,15,146,light,2*,2*,2*,2,2,2,2,14
+qatar84,Khamis Daham Al-Suwaidi,A,A,16,146,light,2*,2*,2*,2,2,2,2,14
+saudiarabia84,Abdullah Al-Deayea,G,G,1,131,light,4*,3,4,3,5*,5*,3,29
+saudiarabia84,Saleh Al-Neimah,D,RB,2,131,light,5*,5*,5*,5,4,5,4,33
+saudiarabia84,Hussain Al-Bishi,D,LB,3,131,light,4*,4*,4,4,4,5*,3,28
+saudiarabia84,Sami Jasem Al-Dosari,D,D,4,131,light,2*,2*,2*,2,2,2,2,14
+saudiarabia84,Salman Al-Dosari,D,D,5,131,light,2*,2*,2*,2,2,2,2,14
+saudiarabia84,Fahad Al-Mosaibeh,M,RW,6,131,light,5*,4,4,4,5*,5*,4,31
+saudiarabia84,Abadi Al-Hadlol,M,LW,7,131,light,5*,4*,4*,4,4,4,4,29
+saudiarabia84,Saleh Khelifa Al-Dosari,M,M,8,131,light,3*,3*,3*,3,3,3,3,21
+saudiarabia84,Ahmad Al-Bishi,M,M,9,131,light,2*,2*,2*,2,2,2,2,14
+saudiarabia84,Majed Abdullah,A,A,10,131,light,5*,5*,5,4,6*,5,5,35
+saudiarabia84,Mohaisen Al-Jaman,A,A,11,131,light,4*,4*,4*,2,4,4,4,26
+saudiarabia84,Mohammed Al-Mutlaq,G,G,12,131,light,2*,2*,2*,2,2,2,2,24
+saudiarabia84,Samir Abdul-Shakoor,D,D,13,131,light,2*,2*,2*,2,2,2,2,14
+saudiarabia84,Yosuf Al-Thunayan,M,M,14,131,light,4*,4*,4*,2,4,4,4,26
+saudiarabia84,Shaye Al-Nafisah,A,A,15,131,light,3*,3*,3*,3,3,3,3,21
+saudiarabia84,Mohamed Abd Al-Jawad,D,LB,16,131,light,4,5*,4,5*,5*,5,4,32
+singapore84,David Lee,G,G,1,140,light,2*,2*,2*,2,2,2,2,22
+singapore84,Norhalis Shafik,D,RB,2,140,light,2*,2*,2*,2,2,2,2,14
+singapore84,Marzuki Elias,D,LB,3,140,light,2*,2*,2*,2,2,2,2,14
+singapore84,Razali Saad,D,D,4,140,light,2*,2*,2*,2,2,2,2,14
+singapore84,Thambiyah Pathmanathan,D,D,5,140,light,2*,2*,2*,2,2,2,2,14
+singapore84,Salim Moin,M,RW,6,140,light,2,4*,3,2,2,4*,4*,21
+singapore84,Razali Rashid,M,LW,7,140,light,2*,2*,2*,2,2,2,2,14
+singapore84,Tang Boom Lim,M,M,8,140,light,2*,2*,2*,2,2,2,2,14
+singapore84,Pak Kuan Au-Yeong,M,M,9,140,light,2*,2*,2*,2,2,2,2,14
+singapore84,Fandi Ahmad,A,A,10,140,light,4*,4*,4*,3,4,4,4,27
+singapore84,Mat Noh,A,A,11,140,light,2*,2*,2*,2,2,2,2,14
+singapore84,Yakob Hashim,G,G,12,140,light,2*,2*,2*,2,2,2,2,17
+singapore84,Ishak Saad,D,D,13,140,light,2*,2*,2*,2,2,2,2,14
+singapore84,Varadaraju Sundramoorthy,M,M,14,140,light,2*,2*,2*,2,2,2,2,14
+singapore84,Kunjuraman Kannan,A,A,15,140,light,2*,2*,2*,2,2,2,2,14
+singapore84,Malek Awab,M,RW,16,140,light,2*,2,3*,2,2,4*,2,17
+southkorea84,Cho Byung-Deuk,G,G,1,127,light,3*,3*,5*,3,3,3,3,31
+southkorea84,Park Kyung-Hoon,D,RB,2,127,light,5*,4,4,5*,5*,5,4,32
+southkorea84,Park Sung-Hwa,D,LB,3,127,light,3,3,5*,5*,3,5*,3,27
+southkorea84,Chung Yong-Hwan,D,D,4,127,light,3,3,4*,5*,3,5*,3,26
+southkorea84,Cho Young-Jeung,D,D,5,127,light,3,3,5*,5*,3,4*,3,26
+southkorea84,Cho Kwang-Rae,M,RW,6,127,light,5*,5*,5*,3,5,5,5,33
+southkorea84,Huh Jung-Moo,M,LW,7,127,light,5*,5*,5*,3,5,5,5,33
+southkorea84,Kim Jong-Boo,M,M,8,127,light,3,3,4*,3,4*,3,4*,24
+southkorea84,Chung Hae-Won,M,M,9,127,light,3*,3*,5*,3,3,3,3,23
+southkorea84,Cha Bum-Kun,A,A,10,127,light,5*,5*,5*,4,5,5,5,34
+southkorea84,Park Chang-Sun,A,A,11,127,light,5*,5*,4,4,5*,5,4,32
+southkorea84,Choi In-Young,G,G,12,127,light,3*,3*,4*,3,3,3,3,28
+southkorea84,Cho Min-Kook,D,D,13,127,light,3,3,4*,4*,3,4*,3,24
+southkorea84,Kim Sam-Soo,M,M,14,127,light,2,2,4*,2,4*,4*,4,22
+southkorea84,Choi Soon-Ho,A,A,15,127,light,5*,5*,5*,3,5,5,3,31
+southkorea84,Byun Byung-Joo,A,A,16,127,light,3,3,4*,3,5*,5*,4,27
+srilanka84,LOFITH WEERASINGHE,G,G,1,125,dark,0,0,0,0,0,0,0,3
+srilanka84,SUJITH HEMANTHA,G,G,12,125,dark,0,0,0,0,0,0,0,0
+srilanka84,SAMPATH PERERA,D,RB,2,125,dark,1,0,0,1*,0,1*,0,3
+srilanka84,JUNAIDEEN HASSIMADEEN,D,LB,3,125,dark,0,0,0,3*,0,1*,0,4
+srilanka84,ANANDA ANTHONYPILLAI,D,D,4,125,dark,1,0,1*,1*,0,0,0,3
+srilanka84,PRABATH FERDINAND,D,D,5,125,dark,1,1,3*,2*,0,0,0,7
+srilanka84,U.L. NIHAL,D,D,13,125,dark,0,1,1*,0*,0,0,0,2
+srilanka84,JOSEPH SHANTHAKUMAR,M,RW,6,125,dark,1,0,0,0,1*,1*,0,3
+srilanka84,MAIDOO MOHAMED USMAN,M,LW,7,125,dark,0,0,0,0,3*,2*,0,5
+srilanka84,DUDLEY STAINWALL,M,M,8,125,dark,3*,0,0,3*,0,0,0,6
+srilanka84,B.R.A. PREENA,M,M,10,125,dark,1*,0,0,2*,0,0,1,4
+srilanka84,WALDO FERNANDO,M,M,14,125,dark,1*,0,0,1*,0,0,0,2
+srilanka84,K.M. KABEER,A,A,9,125,dark,0,0,3*,1,0,0,1*,5
+srilanka84,ROSHAN PEREIRA,A,A,11,125,dark,0,1,4*,0,0,0,2*,7
+srilanka84,A. DEVENDRA,A,A,15,125,dark,0,0,0*,0,0,0,1*,1
+srilanka84,SUMITH PEREIRA,A,A,16,125,dark,0,0,0*,0,0,0,2*,2
+syria84,Malek Shakuhi,G,G,1,126,light,2*,2*,2*,2,2,2,2,24
+syria84,Radwan Al-Shaikh,D,RB,2,126,light,2*,2*,2*,2,2,2,2,14
+syria84,Jihad Chit,D,LB,3,126,light,1*,1*,1*,1,1,1,1,7
+syria84,Hachem Chalabi,D,D,4,126,light,1*,1*,1*,1,1,1,1,7
+syria84,Samer Zuhair Assassa,D,D,5,126,light,1*,1*,1*,1,1,1,1,7
+syria84,Georges Khoury,M,RW,6,126,light,3*,3*,3*,3,3,3,3,21
+syria84,Kevorg Mardikian,M,LW,7,126,light,2*,2*,2*,2,2,2,2,14
+syria84,Mohamed Afash,M,M,8,126,light,4*,4*,3,4*,3,3,3,24
+syria84,Anouar Abdul Kader,M,M,9,126,light,1*,1*,1*,1,1,1,1,7
+syria84,Marwan Madrati,A,A,10,126,light,3*,3*,3*,3,3,3,3,21
+syria84,Abdul Kader Kardaghli,A,A,11,126,light,2*,4*,2*,2,2,2,2,16
+syria84,Ahmed Eid Beirakdar,G,G,12,126,light,2*,2*,2*,2,2,2,2,22
+syria84,Ammar Habib,D,D,13,126,light,1*,1*,1*,1,1,1,1,7
+syria84,Fouad Aref,M,M,14,126,light,1*,1*,1*,1,1,1,1,7
+syria84,Nizar Mahrous,A,A,15,126,light,2*,2*,2*,2,2,2,2,14
+syria84,Fajr Ibrahim,D,LB,16,126,light,3*,3*,3*,3,3,3,3,21
+taiwan84,Yung Hing Ho,G,G,1,119,light,2*,2*,2*,2,2,2,2,22
+taiwan84,Yao-Chuan Chang,D,RB,2,119,light,1*,1*,1*,1,1,1,1,7
+taiwan84,Jung-Tsung Liu,D,LB,3,119,light,1*,1*,1*,1,1,1,1,7
+taiwan84,Sung-Shun Huang,D,D,4,119,light,0*,0*,0*,0,0,0,0,0
+taiwan84,Chun-Kuei Chang,D,D,5,119,light,1*,1*,1*,1,1,1,1,7
+taiwan84,In-Yen Chen,M,RW,6,119,light,1*,1*,1*,1,1,1,1,7
+taiwan84,Ming-Jen Yu,M,LW,7,119,light,1*,1*,1*,1,1,1,1,7
+taiwan84,Deng-Chyan Duh,M,M,8,119,light,1*,1*,1*,1,1,1,1,7
+taiwan84,Deng-Sheng Duh,M,M,9,119,light,1*,1*,1*,1,1,1,1,7
+taiwan84,Duen-Jeng Wang,A,A,10,119,light,1*,1*,1*,1,1,1,1,7
+taiwan84,I-Hsiu Chien,A,A,11,119,light,1*,1*,1*,1,1,1,1,7
+taiwan84,Jyh-Hsiung Yang,G,G,12,119,light,1*,1*,1*,1,1,1,1,2
+taiwan84,Sing-An Chen,D,D,13,119,light,1*,1*,1*,1,1,1,1,7
+taiwan84,Shui-Chi Wu,M,M,14,119,light,0*,0*,0*,0,0,0,0,0
+taiwan84,Jing-An Chen,A,A,15,119,light,0*,0*,0*,0,0,0,0,0
+taiwan84,Chang-Chung Yao,D,RB,16,119,light,1*,1*,1*,1,1,1,1,7
+unitedarabemis84,Abdulqadir Hassan Mohammed,G,G,1,147,light,2*,2*,2*,2,2,2,2,24
+unitedarabemis84,Khalil Ghanim Mubarak,D,RB,2,147,light,4*,4*,5*,4,4,4,3,28
+unitedarabemis84,Mubarak Ghanim Mubarak,D,LB,3,147,light,3*,3*,3*,3,3,3,3,21
+unitedarabemis84,Abdulrahman Mohamed,D,D,4,147,light,4*,3*,3,4*,3,3,3,23
+unitedarabemis84,Abdulrahman Al-Haddad,D,D,5,147,light,2*,2*,2*,2,2,2,2,14
+unitedarabemis84,Khalid Ismail Mubarak,M,RW,6,147,light,4*,4*,4*,4,4,4,4,28
+unitedarabemis84,Fahad Abdullah Abdulrahman,M,LW,7,147,light,2*,2*,2*,2,2,2,2,14
+unitedarabemis84,Abdullah Ali Sultan,M,M,8,147,light,2*,2*,2*,2,2,2,2,14
+unitedarabemis84,Mohamed Salim Mubarak,M,M,9,147,light,2*,2*,2*,2,2,2,2,14
+unitedarabemis84,Adnan Khamis Al-Talyani,A,A,10,147,light,4,5*,5*,4,4,4,5*,31
+unitedarabemis84,Nasser Khamees Mubarak,A,A,11,147,light,4*,4*,4*,3,4,4,4,27
+unitedarabemis84,Muhsin Musabah Faraj,G,G,12,147,light,3*,2,4*,2,3,4*,2,24
+unitedarabemis84,Fahad Khamees Mubarak,D,D,13,147,light,3,4*,4*,3,4*,4,4,26
+unitedarabemis84,Zuhair Bakheet Bilal,M,M,14,147,light,3*,4*,3*,2,3,3,3,21
+unitedarabemis84,Ali Thani Juma'a Al-Ehawi,A,A,15,147,light,2*,2*,2*,2,2,2,2,14
+unitedarabemis84,Eissa Meer,D,RB,16,147,light,3*,3*,3*,3,3,3,2,20
+vietnam84,TRUON VAN LOI,G,G,1,129,light,0,0,0,0,0,0,0,6
+vietnam84,PHAM VAN HUNG,G,G,12,129,light,0,0,0,0,0,0,0,5
+vietnam84,NGUYEN MANH CUONG,D,RB,2,129,light,1,1,0,3*,0,1*,0,6
+vietnam84,NGUYEN VAN LONG,D,LB,3,129,light,0,0,0,3*,0,3*,0,6
+vietnam84,LE HUYNH DUC,D,D,4,129,light,0,0,2*,4*,0,0,1,7
+vietnam84,BUI THONG TAN,D,D,5,129,light,0,1,1*,4*,0,0,0,6
+vietnam84,PHAM TIEN DUNG,D,D,13,129,light,0,1,2*,1*,0,0,1,5
+vietnam84,NGUYEN XUAN TANH,M,RW,6,129,light,0,1,0,1,3*,4*,0,9
+vietnam84,CHU VAN MUI,M,LW,7,129,light,1,0,0,0,4*,6*,0,11
+vietnam84,NGUYEN PHONB THRUNG,M,M,8,129,light,2*,1,1,2*,0,0,0,6
+vietnam84,HO VAN TAM,M,M,10,129,light,3*,0,1,2*,0,0,0,6
+vietnam84,NGUYEN HONG SON,M,M,14,129,light,1*,0,0,3*,0,0,0,4
+vietnam84,NGUYEN DOR CAN,M,M,15,129,light,2*,0,0,3*,0,0,0,5
+vietnam84,DINH THANH HAI,A,A,9,129,light,0,0,4*,1,0,1,2*,8
+vietnam84,HA VUONG NGAV NAI,A,A,11,129,light,1,1,1*,1,0,1,2*,7
+vietnam84,HO HAIPONG,A,A,16,129,light,0,0,2*,0,0,1,1*,4
+northyemen84,Amine Al-Sunaini,G,G,1,132,light,1*,1*,1*,1,1,1,1,9
+northyemen84,Salah Salim Mohd,D,RB,2,132,light,1*,1*,1*,1,1,1,1,7
+northyemen84,Abdul Atteq,D,LB,3,132,light,1*,1*,1*,1,1,1,1,7
+northyemen84,Faisal Al-Saad,D,D,4,132,light,1*,1*,1*,1,1,1,1,7
+northyemen84,Khalid Al-Naderi,D,D,5,132,light,1*,1*,1*,1,1,1,1,7
+northyemen84,Jamal Hamdi,M,RW,6,132,light,1*,1*,1*,1,1,1,1,7
+northyemen84,Abdulmalek Thabet,M,LW,7,132,light,1*,1*,1*,1,1,1,1,7
+northyemen84,Abdul Ouabah,M,M,8,132,light,1*,1*,1*,1,1,1,1,7
+northyemen84,Abdul Shawish,M,M,9,132,light,1*,1*,1*,1,1,1,1,7
+northyemen84,Amine Ouabah,A,A,10,132,light,1*,0*,0*,0,0,0,0,0
+northyemen84,Amine Al-Yareimi,A,A,11,132,light,0,0,1*,1*,0,0,1*,0
+northyemen84,Moneef Abdul-Aziz,G,G,12,132,light,1*,1*,1*,1,1,1,1,2
+northyemen84,Faisal Shawish,D,D,13,132,light,1*,0,1*,1*,0,0,0,0
+northyemen84,Abdul Asadi,M,M,14,132,light,0*,0,0,0,0,1*,1*,0
+northyemen84,Abdul Al-Yareimi,A,A,15,132,light,0,1*,1*,1*,1,1,1,0
+northyemen84,Mohamed Yahya Al-Yareimi,D,LB,16,132,light,1*,1*,1*,1,1,1,1,7
+australia85,Peter Laumets,G,G,1,148,light,2*,2*,2*,2,2,2,2,19
+australia85,Alan Davidson,D,RB,2,148,light,3*,3,3,5*,3,4*,3,24
+australia85,David Jones,D,LB,3,148,light,2*,2*,2*,2,2,2,2,14
+australia85,John Karaspyros,D,D,4,148,light,2*,2*,2*,2,2,2,2,14
+australia85,Harry Williams,D,D,5,148,light,2*,2*,2*,2,2,2,2,14
+australia85,Murray Barnes,M,RW,6,148,light,2*,2*,2*,2,2,2,2,14
+australia85,Oscar Crino,M,LW,7,148,light,2*,2*,2*,2,2,2,2,14
+australia85,Kenny Murphy,M,M,8,148,light,2*,2*,2*,2,2,2,2,14
+australia85,Peter Raskopoulos,M,M,9,148,light,2*,2*,2*,2,2,2,2,14
+australia85,Eddie Krncevic,A,A,10,148,light,4,4,4,5*,4,5*,5*,31
+australia85,John Kosmina,A,A,11,148,light,3,4*,4*,3,2,4*,4,24
+australia85,Yakka Banovic,G,G,12,148,light,2*,1,3*,1,1,3*,1,12
+australia85,Charlie Yankos,D,D,13,148,light,2*,2*,2*,2,2,2,2,14
+australia85,Joe Senkalski,M,M,14,148,light,1*,1*,1*,1,1,1,1,7
+australia85,David Mitchell,A,A,15,148,light,3,3,4*,4*,3,4*,3,24
+australia85,Gary Cole,A,A,16,148,light,3*,3*,3,2,3,3,4*,21
+fiji85,Bale Raniga,G,G,1,150,light,3*,2,5*,2,3*,3,2,20
+fiji85,Josaia Tubuna,D,RB,2,150,light,4*,3,4*,5*,4,4,3,27
+fiji85,Jone Nakosia,D,LB,3,150,light,3,4*,4*,4*,3,3,3,24
+fiji85,Abdul Mannan,D,D,4,150,light,3,4*,4*,4*,3,3,3,24
+fiji85,Niko Lilo,D,D,5,150,light,2*,2*,2*,2,2,2,2,14
+fiji85,Emasi Koroi,M,RW,6,150,light,4*,3,4*,2,4*,4,3,24
+fiji85,Meli Vuilabasa,M,LW,7,150,light,3*,4*,3,2,3,4*,3,22
+fiji85,Tony Kabakoro,M,M,8,150,light,3*,3,3,3,4*,4*,3,23
+fiji85,Henry Dyer,M,M,9,150,light,2*,2*,2*,2,2,2,2,14
+fiji85,Kasimiro Dinono,A,A,10,150,light,4*,4*,4*,3,4,4,4,27
+fiji85,Kelemedi Vosuga,A,A,11,150,light,4*,4*,4*,3,4,4,4,27
+fiji85,Savenaca Waqa,G,G,12,150,light,3*,2,4*,2,3*,3,2,20
+fiji85,Semi Tabaiwalu,D,D,13,150,light,2*,2*,2*,2,2,2,2,14
+fiji85,Julie Sami,M,M,14,150,light,2*,2*,2*,2,2,2,2,14
+fiji85,Mohammed Saleem,A,A,15,150,light,3*,4*,3,3,3,4*,3,23
+fiji85,Anand Sami,M,RW,16,150,light,4*,4*,3,2,4*,4,3,24
+newzealand85,Richard Wilson,G,G,1,149,light,3*,3*,4*,2,3,3,2,24
+newzealand85,Ricki Herbert,D,RB,2,149,light,4*,3,5*,4*,4,4,4,28
+newzealand85,Glenn Dods,D,LB,3,149,light,4*,3,4*,4*,4,4,3,26
+newzealand85,Bobby Almond,D,D,4,149,light,4*,3,4*,4*,4,4,3,26
+newzealand85,Glen Adam,D,D,5,149,light,3*,2,3*,3*,3,3,2,19
+newzealand85,Steve Sumner,M,RW,6,149,light,4*,4*,4,3,4,4,5*,28
+newzealand85,Allan Boath,M,LW,7,149,light,4*,4*,4*,4,4,4,4,28
+newzealand85,Peter Simonsen,M,M,8,149,light,4*,4*,4*,2,4,4,4,26
+newzealand85,Billy McClure,M,M,9,149,light,4*,3,4*,3,4*,4,4,26
+newzealand85,Wynton Rufer,A,A,10,149,light,4*,4*,4,4,5*,4,4,29
+newzealand85,Steve Wooddin,A,A,11,149,light,4*,4*,4,3,4,4,5*,28
+newzealand85,Frank van Hattum,G,G,12,149,light,3*,3*,4*,2,3,3,2,22
+newzealand85,Shane Rufer,D,D,13,149,light,2*,2*,4*,2,2,2,2,16
+newzealand85,Duncan Cole,M,M,14,149,light,4*,4*,4*,2,4,4,4,26
+newzealand85,Grant Turner,A,A,15,149,light,4*,4*,4*,4,4,4,4,28
+newzealand85,Keith Mackay,M,M,16,149,light,4*,4*,4*,2,4,4,3,25
+solomonislands85,JOSEPH BATAI,G,G,1,151,dark,0,0,0,0,0,0,0,1
+solomonislands85,SOLOMON VEVOA,G,G,12,151,dark,0,0,0,0,0,0,0,0
+solomonislands85,PATRICK HORIWAPU,D,RB,2,151,dark,0,0,1,0*,0,1*,0,2
+solomonislands85,JOHN TANISPAPA,D,LB,3,151,dark,0,0,0,0*,0,0*,0,0
+solomonislands85,ALFRED WALA,D,D,4,151,dark,0,0,0*,0*,0,0,0,0
+solomonislands85,GEORGE TEMAHUA,D,D,5,151,dark,0,1,3*,1*,0,0,0,5
+solomonislands85,SAMSON GAMASI,D,D,13,151,dark,0,0,0*,1*,0,0,0,1
+solomonislands85,RICHARD GULU,D,D,14,151,dark,1,0,1*,0*,0,0,0,2
+solomonislands85,CHARLES ASHLEY,M,RW,6,151,dark,0,0,0,0,1*,0*,2,3
+solomonislands85,CHRIS MOLI,M,LW,7,151,dark,0,0,0,0,2*,1*,0,3
+solomonislands85,MATAIASI VAVA,M,M,8,151,dark,0*,0,0,2*,0,0,0,2
+solomonislands85,IAN PWAHOLO,M,M,10,151,dark,0*,0,0,0*,0,0,0,0
+solomonislands85,ROBINSON BOE,M,M,15,151,dark,0*,0,0,0*,0,0,0,0
+solomonislands85,NOEL BERRY,A,A,9,151,dark,0,0,1*,0,0,0,0*,1
+solomonislands85,GEORGE KIRIAU,A,A,11,151,dark,0,0,0*,0,0,0,0*,0
+solomonislands85,DUDLEY NATEI,A,A,16,151,dark,0,0,0*,0,0,0,1*,1

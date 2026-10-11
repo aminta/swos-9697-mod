@@ -45,8 +45,9 @@ NZ_CAVE = 0xa4000            # fourth added page (2.1): NSSL shoot-out (the worl
 FIN_CAVE = 0xa4300           # 2.1: finals series (finals97.fin_pre)
 FINALS = True                # NSL / NSSL play-offs, option B: native 4-club type-1 cup (session 28s)
 ARG_CAVE = 0xa4400           # 2.1: Argentina Apertura/Clausura, aggregate, promedio (arg97)
-CAREER_CAVE = 0xa6000        # sixth added page, only in builds with a historic career world (careerworld.py)
-CAREER_DATA = 0xa7000        # 7th + 8th added pages (same builds): the career packs' structs (mkseason)
+CAREER_CAVE = 0xa6000        # 6th + 7th added pages (3.1: two), only in builds with a historic career world (careerworld.py)
+CAREER_CAVE_SIZE = 0x2000
+CAREER_DATA = 0xa8000        # 8th + 9th added pages (same builds): the career packs' structs (mkseason)
 ARG_LOAD_HOOK = True
 
 LEAGUES_OLD = bytes.fromhex('3c00144020150000000202033512')
@@ -156,7 +157,7 @@ def patch_exe(src, dst, remap, lang='it'):
     grown = dst + '.tmp'
     data = open(src, 'rb').read()
     worlds = bool(mkseason.worlds())
-    for _ in range(8 if worlds else 5):
+    for _ in range(9 if worlds else 5):
         data = add_object_page(data, 1)
     mkseason.CAREER_CAVE[0] = CAREER_CAVE if worlds else None
     mkseason.CAREER_DATA[0] = CAREER_DATA if worlds else None
@@ -220,7 +221,7 @@ def patch_exe(src, dst, remap, lang='it'):
         end = careerworld.late(p, careerworld.LABELS['end'], nasmcave)
         if bigw:
             end = careerworld.patch_tails(p, end, nasmcave)
-        assert end <= CAREER_CAVE + 0x1000, hex(end)
+        assert end <= CAREER_CAVE + CAREER_CAVE_SIZE, hex(end)
     p.add_ptr(1, info['new_career_ptr'], 1, new_career)
     if ARG_LOAD_HOOK:
         arg_end = arg97.load_hook(p, arg_end)     # 2.1: Apertura/Clausura names after loading a career
@@ -232,7 +233,7 @@ def patch_exe(src, dst, remap, lang='it'):
     world = cafcups.intl_list(p, caf, world)
     assert world <= NZ_CAVE and nz_end <= FIN_CAVE and fin_end <= ARG_CAVE and arg_end <= OBJ1_NEW_VSIZE, \
         (hex(world), hex(nz_end), hex(fin_end), hex(arg_end))
-    p.set_vsize(1, OBJ1_NEW_VSIZE + (0x3000 if worlds else 0))
+    p.set_vsize(1, OBJ1_NEW_VSIZE + (0x4000 if worlds else 0))
     p.set_vsize(2, obj2_free + o2pages * p.le.page_size + (careerworld.BSS_SIZE if bigw else 0),
                 bss=careerworld.BSS_SIZE if bigw else 0)
     p.add_flags(1, 0x2)            # writable: season end rewrites the SA cup team lists in the cave

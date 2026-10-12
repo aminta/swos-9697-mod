@@ -20,7 +20,7 @@ import os
 import struct
 
 ROOT = os.path.join(os.path.dirname(__file__), '..')
-VERSION = '3.0.1'
+VERSION = '3.1'
 BLOCK = 16
 FILES = [  # (id, original path, patched path, file name in the game folder)
     ('ITALIAN.EXE', 'orig/ITALIAN.EXE', 'c/SWOS/ITALIAN.EXE', 'ITALIAN.EXE'),
@@ -101,6 +101,13 @@ FILES = [  # (id, original path, patched path, file name in the game folder)
     ('TEAM.144', None, 'c/SWOS/DATA/TEAM.144', 'DATA/TEAM.144'),
     ('TEAM.145', None, 'c/SWOS/DATA/TEAM.145', 'DATA/TEAM.145'),      # Italy 1947-48 (CLASSIC SEASONS)
     ('WORLD04.TMD', None, 'c/SWOS/DATA/WORLD04.TMD', 'DATA/WORLD04.TMD'),
+    # 3.1: the national teams of the Europe 1984-85 world (packs/europe-1984-85/national), in place of TEAM.080-085
+    ('TEAM.180', None, 'c/SWOS/DATA/TEAM.180', 'DATA/TEAM.180'),
+    ('TEAM.181', None, 'c/SWOS/DATA/TEAM.181', 'DATA/TEAM.181'),
+    ('TEAM.182', None, 'c/SWOS/DATA/TEAM.182', 'DATA/TEAM.182'),
+    ('TEAM.183', None, 'c/SWOS/DATA/TEAM.183', 'DATA/TEAM.183'),
+    ('TEAM.184', None, 'c/SWOS/DATA/TEAM.184', 'DATA/TEAM.184'),
+    ('TEAM.185', None, 'c/SWOS/DATA/TEAM.185', 'DATA/TEAM.185'),
     # GOG release (2013): same files, 2 bytes changed in each exe (a national cup's months); TEAM.020 identical.
     # Originals in orig/gog/, built with patch.patch_exe(orig/gog/X, c/gog/X, ...)
     ('ITALIAN.EXE (GOG)', 'orig/gog/ITALIAN.EXE', 'c/gog/ITALIAN.EXE', 'ITALIAN.EXE'),

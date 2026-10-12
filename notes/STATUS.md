@@ -1881,3 +1881,15 @@ Left for 2.5: (a) NSL/NSSL finals series (type-1 design) or declare them postpon
   the 7 group winners, the Italia 90 draw (host out), Italia 90 = 24 distinct (holder, host, 13 European, the real
   non-European qualifiers), the coach nationalities ALTRI/YUG/FRG/URS/GDR. Call-ups at home list the world's leagues.
 - Not possible by design (as in the game): WC 1986 is built only if you coach a national team during 1984-85.
+
+## Release 3.1 (2026-10-12)
+- Build c/REL31 (SWOS: IT 7330b5c8, EN 82305414, FR 179d4e75, DE 168334aa; gog: IT 13cef7b5, EN 2ef3e635, FR a58371ab,
+  DE 328567c5; DATA + TEAM.180-185). Hooks of 3.1 checked in all 8 exes (each followed by the original instruction or by
+  another hook). Fixes before the release: careers saved by 3.0 get the world's World Cup / Euro structs and the holder
+  Italy at the first fill; no string instructions in the new stubs (ES may differ from DS).
+- Suite on c/REL31: italy_season, roundtrip, juve2_trap, world_roundtrip, euro_draws, italy_advance, world8485 (2
+  seasons), world8485_nat: all PASS; a 3.0-era world save (W84A) plays a season in 3.1 (checkw1 ok).
+- Patcher 3.1 (VERSION 3.1, + TEAM.180-185, old patcher v3.0.1 added to orig/old-patchers): Node test of the page's
+  own code: originals CD/GOG, 3.0.1 exe/GOG/TEAM.020/SWOS++ all upgrade, outputs = c/REL31.
+- Docs: release/notes-3.1.md, README IT/EN, manual chapter 27 (IT/EN, docs/), announcements internal/announcements/3.1.
+  Davide's playtest of the national teams (URSS) OK.

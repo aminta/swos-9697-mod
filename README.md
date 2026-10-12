@@ -32,6 +32,7 @@ Patch for **Sensible World of Soccer 96/97** (DOS, CD or GOG version): ITALIAN.E
 - **2.6.1:** career fix: a new career started with a club in a European cup no longer inherits (or later resets) the other continents' club cup lists.
 - **SWOS++ (2.7):** the English executable (CD or GOG) can now run with [SWOS++](https://github.com/zlatkok/swospp) by Zlatko Karakas: the patcher gives an extra `ENGLISH.EXE + SWOS++`; copy `loader.bin` and `swospp.bin` from the SWOS++ release next to it. No need for `patchit.com`.
 - **Classic careers: Europe 1984-85 (3.0):** a CLASSIC CAREERS button in Career mode lists the historic worlds; the first, EUROPE 1984-85, holds 32 European countries and 949 clubs from the 1984-85 season, with the real squads from DaniSwos's database, leagues in the 1983-84 order with promotion and relegation, the real 1984-85 national cups of 15 countries and the European cups as they were (Champions' Cup 32, Cup Winners' Cup 32, UEFA Cup 64, real first-round ties). Real coaches for 222 clubs: the missing ones can be added by anyone in `packs/europe-1984-85/<country>/clubs.csv` (see `packs/CAREERS.md`).
+- **National teams of Europe 1984-85 (3.1):** in the Europe 1984-85 career the national teams are those of the era (West and East Germany, the USSR, Czechoslovakia, Yugoslavia; 143 teams from DaniSwos's database) and offer jobs: call-ups from the 1984-85 clubs, the real qualifying groups of the 1986 World Cup and of Euro '88, Mexico '86 with 24 teams, Euro '88 with 8; later cycles with the real hosts. Coaches can be East German, Soviet, West German or Yugoslav.
 - **Classic seasons: Serie A 1947-48 (3.0):** Season > CLASSIC SEASONS > ITALY 1947-48: the Grande Torino's season, 21 clubs (one rests each round), 2 points per win, 4 relegated, real squads, coaches and kits; Torino's ratings from the SWOS 2020 1900s Retro Pack by FrancescoManetti82 and Gorzo. Leagues with an odd number of clubs now work; DDR 1988-89 recalibrated on the real table.
 - **Home and away kits (3.0):** the automatic kit choice is smarter: black no longer clashes with blue or green, blue no longer with light blue, same-coloured shorts count less, and a game bug that turned a striped kit into a single colour is fixed. Juventus-Milan, Milan-Inter, Inter-Juventus and Chelsea against Juventus, Newcastle or Manchester City now play in home kits. A new **KITS** button in the pre-match screen (top left) opens a **SELECT KITS** editor, like SWOS 2020's: for each team choose the first or second kit and change its shirt type and colours, shorts and socks, for that match only (team files are not changed). Thanks to DaniSwos for the analysis.
 - **European cups without same-country ties in the first two rounds (3.0):** in careers the Cup Winners' Cup and the UEFA Cup (from the second season on, and the three cups of historic careers) no longer pair two clubs of the same country in rounds 1 and 2, as in the UEFA rule of the time. Thanks to DaniSwos for the report.
@@ -47,14 +48,14 @@ Patch for **Sensible World of Soccer 96/97** (DOS, CD or GOG version): ITALIAN.E
 
 The patcher ships only differences and checks every file before and after patching: an original copy of the game is required. It works with both the original CD and the GOG version (from 1.0.1).
 
-**Upgrading (2.5.1):** you do not need to go back to the originals. Drop the executable and `DATA\TEAM.020` you have now (modified by any earlier release, 1.0 to 2.6.1, CD or GOG): the patcher recognises them and brings them to the latest version, or tells you they are already up to date. Saves are never touched.
+**Upgrading (2.5.1):** you do not need to go back to the originals. Drop the executable and `DATA\TEAM.020` you have now (modified by any earlier release, 1.0 to 3.0.1, CD or GOG): the patcher recognises them and brings them to the latest version, or tells you they are already up to date. Saves are never touched.
 
 ### Build your own season
 Historic seasons (like the DDR 1988-89 of 2.6) are now **season packs**: folders of plain data (clubs, squads,
 league, cup brackets) in CSV files you can edit with Excel. Prepare the season you would like to play and send it to
 us: we check it and add it to a release. Instructions and a ready-to-copy example: [`packs/README.md`](packs/README.md).
 
-**Build a whole historic world** (in development, next release): several countries of an era played as a *career*,
+**Build a whole historic world** (3.0; national teams 3.1): several countries of an era played as a *career*,
 with divisions, national cups and European cups season after season. Guide and example: [`packs/CAREERS.md`](packs/CAREERS.md).
 
 ### For developers
@@ -62,6 +63,7 @@ with divisions, national cups and European cups season after season. Guide and e
 - Build: put the original executables and `DATA/TEAM.020` in `orig/`, then `cd tools && python3 patch.py it|en|fr|de` (needs `nasm`; the classic tourneys' squads also need the SWOS 2020 DLC files in `orig/swos2020/`, not in the repository). Patcher: `python3 tools/mkpatcher.py`. Season packs: `python3 tools/mkseason.py check packs/<pack>`.
 - The reference disassembly comes from [swos-port](https://github.com/zlatkok/swos-port) (`swos/swos.asm`, in `ref/`).
 - Detailed log of every session: [`notes/STATUS.md`](notes/STATUS.md).
+- Automated tests (the game played in DOSBox-X by a program): [`notes/harness.md`](notes/harness.md).
 
 ## Italiano
 
@@ -93,6 +95,7 @@ Patch per **Sensible World of Soccer 96/97** (versione DOS, CD o GOG): ITALIAN.E
 - **2.6.1:** correzione della carriera: una carriera nuova iniziata con un club in una coppa europea non eredita più (né azzera più avanti) le liste delle coppe per club degli altri continenti.
 - **SWOS++ (2.7):** l'eseguibile inglese (CD o GOG) ora funziona con [SWOS++](https://github.com/zlatkok/swospp) di Zlatko Karakas: il patcher dà in più `ENGLISH.EXE + SWOS++`; accanto copia `loader.bin` e `swospp.bin` dalla release di SWOS++. Non serve `patchit.com`.
 - **Carriere storiche: Europa 1984-85 (3.0):** un pulsante CARR. STORICHE in modalità Carriera elenca i mondi storici; il primo, EUROPA 1984-85, contiene 32 paesi europei e 949 club dalla stagione 1984-85, con le rose reali dal database di DaniSwos, campionati nell'ordine 1983-84 con promozioni e retrocessioni, le coppe nazionali reali 1984-85 di 15 paesi e le coppe europee com'erano (Coppa dei Campioni 32, Coppa delle Coppe 32, Coppa UEFA 64, accoppiamenti reali del primo turno). Allenatori reali per 222 club: quelli mancanti può aggiungerli chiunque in `packs/europe-1984-85/<paese>/clubs.csv` (vedi `packs/CAREERS.it.md`).
+- **Nazionali dell'Europa 1984-85 (3.1):** nella carriera Europa 1984-85 le nazionali sono quelle dell'epoca (Germania Ovest ed Est, URSS, Cecoslovacchia, Jugoslavia; 143 squadre dal database di DaniSwos) e offrono la panchina: convocazioni dai club del 1984-85, i gironi reali delle qualificazioni ai Mondiali 1986 e a Euro '88, Messico '86 a 24 squadre, Euro '88 a 8; cicli successivi con gli ospitanti reali. L'allenatore può essere tedesco orientale, sovietico, tedesco occidentale o jugoslavo.
 - **Stagioni storiche: Serie A 1947-48 (3.0):** Stagione > STAG. STORICHE > ITALIA 1947-48: la stagione del Grande Torino, 21 squadre (ogni giornata una riposa), 2 punti a vittoria, 4 retrocessioni, rose, allenatori e maglie reali; i valori del Torino dal 1900s Retro Pack di SWOS 2020 di FrancescoManetti82 e Gorzo. I campionati con un numero dispari di squadre ora funzionano; DDR 1988-89 ricalibrata sulla classifica reale.
 - **Maglie di casa e trasferta (3.0):** la scelta automatica delle maglie è più furba: il nero non è più in conflitto con blu e verde, il blu non più con l'azzurro, i pantaloncini dello stesso colore contano meno, ed è corretto un bug del gioco che trasformava una maglia a righe in tinta unita. Juventus-Milan, Milan-Inter, Inter-Juventus e il Chelsea contro Juventus, Newcastle o Manchester City ora si giocano con le maglie di casa. Un nuovo pulsante **MAGLIE** nella schermata pre-partita (in alto a sinistra) apre l'editor **SELEZIONA MAGLIE**, come in SWOS 2020: per ogni squadra scegli la prima o la seconda tenuta e cambi tipo e colori della maglia, pantaloncini e calzettoni, solo per quella partita (i file delle squadre non cambiano). Grazie a DaniSwos per l'analisi.
 - **Coppe europee senza derby nei primi due turni (3.0):** in carriera la Coppa delle Coppe e la Coppa UEFA (dalla seconda stagione, e le tre coppe delle carriere storiche) non mettono più di fronte due squadre dello stesso paese al primo e al secondo turno, come nella regola UEFA dell'epoca. Grazie a DaniSwos per la segnalazione.
@@ -108,7 +111,7 @@ Patch per **Sensible World of Soccer 96/97** (versione DOS, CD o GOG): ITALIAN.E
 
 Il patcher contiene solo differenze e controlla i file prima e dopo la modifica: serve una copia originale del gioco. Funziona sia con il CD originale sia con la versione GOG (dalla 1.0.1).
 
-**Aggiornamento (2.5.1):** non serve tornare agli originali. Trascina l'exe e `DATA\TEAM.020` che hai ora (modificati da una qualsiasi versione precedente, dalla 1.0 alla 2.6.1, CD o GOG): il patcher li riconosce e li porta all'ultima versione, oppure ti dice che sono già aggiornati. I salvataggi non vengono mai toccati.
+**Aggiornamento (2.5.1):** non serve tornare agli originali. Trascina l'exe e `DATA\TEAM.020` che hai ora (modificati da una qualsiasi versione precedente, dalla 1.0 alla 3.0.1, CD o GOG): il patcher li riconosce e li porta all'ultima versione, oppure ti dice che sono già aggiornati. I salvataggi non vengono mai toccati.
 
 ### Costruisci la tua stagione
 Le stagioni storiche (come la DDR 1988-89 della 2.6) ora sono **pacchetti stagione**: cartelle di soli dati (club,
@@ -116,7 +119,7 @@ rose, campionato, tabelloni delle coppe) in file CSV che puoi modificare con Exc
 giocare e mandacela: la controlliamo e la inseriamo in una release. Istruzioni e un esempio pronto da copiare:
 [`packs/README.it.md`](packs/README.it.md).
 
-**Costruisci un intero mondo storico** (in sviluppo, prossima release): più nazioni di un'epoca da giocare in
+**Costruisci un intero mondo storico** (3.0; nazionali 3.1): più nazioni di un'epoca da giocare in
 *carriera*, con divisioni, coppe nazionali e coppe europee stagione dopo stagione. Guida ed esempio:
 [`packs/CAREERS.it.md`](packs/CAREERS.it.md).
 
@@ -125,6 +128,7 @@ giocare e mandacela: la controlliamo e la inseriamo in una release. Istruzioni e
 - Build: metti gli exe e `DATA/TEAM.020` originali in `orig/`, poi `cd tools && python3 patch.py it|en|fr|de` (serve `nasm`; le rose dei tornei storici richiedono anche i file dei DLC di SWOS 2020 in `orig/swos2020/`, non inclusi nel repository). Patcher: `python3 tools/mkpatcher.py`. Pacchetti stagione: `python3 tools/mkseason.py check packs/<pacchetto>`.
 - Il disassemblato di riferimento viene da [swos-port](https://github.com/zlatkok/swos-port) (`swos/swos.asm`, in `ref/`).
 - Registro dettagliato di ogni sessione: [`notes/STATUS.md`](notes/STATUS.md).
+- Test automatici (il gioco giocato in DOSBox-X da un programma): [`notes/harness.md`](notes/harness.md).
 
 ---
 Mod by Davide Lorigliola, with Claude. Sensible World of Soccer © Sensible Software / Codemasters. Squad data from it.wikipedia 1996-97 club season pages; African, Asian and Central American tables from RSSSF and Wikipedia.

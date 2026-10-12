@@ -578,13 +578,20 @@ w_ecfill:                               ; replaces `call cseg_94E85` (season end
     test byte [FLAGS], 1
     jz .r
     pushad
+    push ebx                            ; the world's EC struct first (a career saved by 3.0 has the 1996 one)
+    mov esi, [ebx + 8]
+    mov edi, ECCOPY
+    mov ecx, 78
+    call w_copy
+    pop ebx
     call w_cyc
     add esi, 4 + 8 * 14
     mov ebp, ECCOPY
     movzx eax, byte [ebp + 7]
     lea edi, [ebp + eax + 7]
     mov ax, [D6CD4]
-    stosw
+    mov [edi], ax                       ; (no string instructions: ES may differ from DS)
+    add edi, 2
     mov [A5R], edi
     mov edi, ECQTAB
     mov dword [GROUPPROC], ECGROUP
@@ -606,19 +613,32 @@ w_wcfill:                               ; replaces `call cseg_95298` (season end
     test byte [FLAGS], 40h
     jz .r
     pushad
+    push ebx                            ; the world's World Cup struct first (3.0 saves: the 1996 one), and in the
+    mov esi, [ebx + 4]                  ; first cycle the world's holder (3.0 saves: Brazil, the game's)
+    mov edi, WCCOPY
+    mov ecx, 112
+    call w_copy
+    pop ebx
+    cmp word [CSD], 4
+    jae .c
+    mov ax, [ebx]
+    mov [D6CD0], ax
+.c:
     call w_cyc
     mov ebp, WCCOPY
     movzx eax, byte [ebp + 7]
     lea edi, [ebp + eax + 7]
     mov [WLIST], edi
     mov ax, [D6CD0]
-    stosw
+    mov [edi], ax
+    add edi, 2
     mov ax, [D6CD2]
     cmp ax, 0FFFFh
     je .h
     cmp ax, [D6CD0]
     je .h
-    stosw
+    mov [edi], ax
+    add edi, 2
 .h:
     mov [A5R], edi
     push esi
@@ -638,19 +658,20 @@ w_wcfill:                               ; replaces `call cseg_95298` (season end
     shr eax, 1
     cmp eax, edx
     jae .x
-    lodsw
+    mov ax, [esi]
+    add esi, 2
     dec ecx
-    push edi
-    push ecx
-    mov ecx, edi
-    sub ecx, [WLIST]
-    shr ecx, 1
-    mov edi, [WLIST]
-    repne scasw                         ; already in (the holder)?
-    pop ecx
-    pop edi
+    mov ebx, [WLIST]                    ; already in (the holder, the host)?
+.s:
+    cmp ebx, edi
+    jae .n
+    cmp ax, [ebx]
     je .d
-    stosw
+    add ebx, 2
+    jmp .s
+.n:
+    mov [edi], ax
+    add edi, 2
     jmp .d
 .x:
     mov [A5R], edi

@@ -100,8 +100,9 @@ html{scroll-behavior:smooth}
     <li><a href="#swospp">24 · SWOS++ (2.7)</a></li>
     <li><a href="#maglie">25 · Maglie di casa e trasferta (3.0)</a></li>
     <li><a href="#euro8485">26 · Europa 1984-85 e coppe europee (3.0)</a></li>
-    <li><a href="#limiti">27 · Limiti e questioni aperte</a></li>
-    <li><a href="#storia">28 · Storico e prossimi passi</a></li>
+    <li><a href="#nazionali">27 · Nazionali dell'Europa 1984-85 (3.1)</a></li>
+    <li><a href="#limiti">28 · Limiti e questioni aperte</a></li>
+    <li><a href="#storia">29 · Storico e prossimi passi</a></li>
   </ol>
 </nav>
 
@@ -627,11 +628,23 @@ assert blk[:2] == b'S2' and sum(blk) % 256 == 0</code></pre>
 <li><strong>Niente derby nei primi due turni.</strong> Coppa delle Coppe e Coppa UEFA (tutte e tre le coppe in un mondo): il primo turno è sorteggiato (<code>w_draw1</code> dopo <code>cseg_28139</code>), il secondo nasce dai vincitori del primo: <code>w_r2</code> dopo <code>cseg_2ACAE</code> (coppe simulate) e <code>w_r2p</code> dopo <code>cseg_29659</code> (la coppa del giocatore, che riordina i vincitori con la tabella a DIY+30Dh). Una sfida tra club dello stesso paese scambia la squadra in trasferta con quella di un'altra sfida.</li>
 <li><strong>Detentori.</strong> Normali carriere: il detentore della Coppa dei Campioni che non si è qualificato prende il posto di un club di un altro paese (<code>cseg_92C4D</code> confrontava l'ordinale invece del paese). Mondi: i detentori giocano in più; un campione nazionale che detiene la Coppa delle Coppe o la UEFA gioca la Coppa dei Campioni e il suo posto da detentore va al club successivo della sua classifica (<code>w_pick_cc</code>, <code>WH_SAVE</code>).</li>
 <li><strong>Intercontinentale.</strong> Corretto il bug (dalla 2.5) per cui il vincitore della Coppa dei Campioni che giocava l'Intercontinentale ripartiva in Coppa delle Coppe: <code>sacups.euro_found</code> salva il tipo di coppa prima che <code>cseg_8B2D3</code> sporchi D7.</li>
-<li><strong>Nazionali.</strong> In un mondo le offerte delle nazionali sono disattivate (le nazionali del gioco sono quelle del 1996). Il ciclo del gioco (qualificazioni Mondiali, Mondiale, qualificazioni Europei, Europeo) combacia con il 1984-85: le nazionali dell'epoca sono il lavoro della 3.1.</li>
+<li><strong>Nazionali.</strong> Nella 3.0 le offerte delle nazionali erano disattivate in un mondo (le nazionali del gioco sono quelle del 1996); la 3.1 porta le nazionali dell'epoca: capitolo 27.</li>
 </ul>
 
 <!-- 27 -->
-<h2 id="limiti"><span class="n">27</span>Limiti e questioni aperte</h2>
+<h2 id="nazionali"><span class="n">27</span>Nazionali dell'Europa 1984-85 (3.1)</h2>
+<p>Nel mondo Europa 1984-85 le nazionali sono quelle dell'epoca e giocano il ciclo 1984-88. Dati in <code>packs/europe-1984-85/national</code> (dal database di DaniSwos: per nazionalità prima i nazionali del 1984, nati dal 1951), motore in <code>tools/careerworld.py</code>, compilatore in <code>tools/mkseason.py</code> (<code>NationalPack</code>).</p>
+<ul>
+<li><strong>File squadre.</strong> 143 squadre nell'ordine di <code>TEAM.080</code>-<code>085</code> del gioco (stesse posizioni: la Germania Est al posto della Croazia, l'URSS della Russia, la Germania Ovest della Germania; 12 posti post-1990 inutilizzati), scritte come <code>TEAM.180</code>-<code>185</code> con i record che dicono 80-85, così i numeri globali e ogni riferimento (file, posizione) restano quelli del gioco. In una carriera del mondo <code>LoadTeamFile</code> legge <code>TEAM.18x</code> al posto di <code>TEAM.08x</code>: <code>w_tfile</code> sul nome del file, <code>w_tcache</code> sul controllo "già caricato".</li>
+<li><strong>nationalTeams.</strong> I 142 record del gioco (file, posizione, nazionalità, paese di casa, valutazione; 41 nel bacino delle offerte, 63 con una nazionalità) sono sostituiti per mondo (<code>nat_table</code> da <code>nations.csv</code>): niente nazioni post-1990, paese di casa = il campionato del mondo di quella nazione (Galles &rarr; Inghilterra), nessuna panchina per le nazionali extra-europee. Quattro stub scelgono la tabella e i suoi tre contatori nei 10 punti che li leggono.</li>
+<li><strong>Panchine e convocazioni.</strong> <code>w_nat</code> non disattiva più la panchina della nazionale in un mondo che ha le nazionali; le convocazioni FUORI CASA passano da <code>w_buy</code> (i paesi del mondo).</li>
+<li><strong>Nuove nazionalità.</strong> GDR 153, URS 154, FRG 155 (<code>NEW_NATS</code>, tre lettere per lingua dell'exe): <code>shortCountryNames</code> e l'elenco delle nazionalità del menu carriera (+ YUG 37) passano nella cave della carriera, più lunghi; <code>ChangeNationality</code> ricomincia alla nuova lunghezza.</li>
+<li><strong>Competizioni.</strong> <code>pack.json</code> <code>national</code>: cicli di 4 stagioni con ospitanti, gironi di qualificazione [posti, squadre] e le qualificate degli altri continenti. I sorteggi di qualificazione (<code>call cseg_33A1A</code> in <code>cseg_6604A</code> / <code>cseg_65CA2</code>) diventano <code>w_wcqdraw</code> / <code>w_ecqdraw</code> (detentore e ospitanti esclusi, girone del giocatore impostato); la fine stagione (<code>cseg_95298</code> / <code>cseg_94E85</code>) diventa <code>w_wcfill</code> / <code>w_ecfill</code> (posti per girone con le procedure del gioco, poi le qualificate dirette fino a riempire la fase finale). Mondiale 1986 = il formato di <code>worldCup</code> delle competizioni preimpostate (24 squadre, 6 gironi, migliori terze), Euro 88 = 2 gironi da 4, semifinali, finale; 2 punti a vittoria. Ospitanti per ciclo: <code>w_hostwc</code> / <code>w_hostec</code>; detentore Italia scritto a inizio carriera e nel riempimento del primo ciclo (carriere salvate con la 3.0).</li>
+<li><strong>Test automatici.</strong> Il banco di prova (<code>tools/swostest.py</code>, guida <code>notes/harness.md</code>) fa girare DOSBox-X in turbo leggendo ~1 MB di memoria per pausa: circa dieci volte più veloce. <code>world8485_nat</code> forza la panchina della nazionale con l'interruttore di debug del gioco e verifica il ciclo qui sopra; la stagione da club che la precede si gioca una volta per build con un club maltese e resta in cache.</li>
+</ul>
+
+<!-- 28 -->
+<h2 id="limiti"><span class="n">28</span>Limiti e questioni aperte</h2>
 <ul>
 <li><strong>Play-off (2.5).</strong> NSL Finals e NSSL Playoffs sono eliminazioni dirette a 4: i formati veri (NSL: 6 club; entrambi: la "doppia possibilità" per le prime due) richiedono il controllo dei club turno per turno, cioè un contest di tipo 2 nello slot 4, il cui buffer (443h) è troppo piccolo. Rimandati a una versione futura (<code>finals97.py</code>, opzione A). La prima della stagione regolare che perde i play-off mostra ancora una piccola icona in cima al registro della stagione (non ancora individuata nel codice).</li>
 <li><strong>Gironi di C1/C2.</strong> Nel 1996-97 la C1 aveva 2 gironi e la C2 3. Il mod usa un girone unico per serie. L'intera realtà (128 squadre) non entra nel limite di circa 93 squadre per nazione. La C1 su due gironi entrerebbe (92), ma servono promozioni e retrocessioni fra divisioni parallele, verifiche sul limite delle 80 squadre di carriera e sui numeri globali: stima 2–3 sessioni.</li>
@@ -644,8 +657,8 @@ assert blk[:2] == b'S2' and sum(blk) % 256 == 0</code></pre>
 <li><strong>Panchina inglese (dopo la 1.0).</strong> Nella formazione prima della partita le squadre inglesi mostrano 14 giocatori (11 + 3 in panchina). Succede anche con il gioco originale, e <code>TEAM.008</code> ha 16 giocatori per club: è una regola del gioco. Da capire da dove venga il numero di riserve (regole a +3Dh…41h del buffer, valori 5/2/8 impostati da <code>InitCareer</code>) per portarlo a 5.</li>
 </ul>
 
-<!-- 28 -->
-<h2 id="storia"><span class="n">28</span>Storico e prossimi passi</h2>
+<!-- 29 -->
+<h2 id="storia"><span class="n">29</span>Storico e prossimi passi</h2>
 <div class="tbl"><table>
 <thead><tr><th>Sessione</th><th>Contenuto</th><th>Prova</th></tr></thead>
 <tbody>
@@ -670,10 +683,11 @@ assert blk[:2] == b'S2' and sum(blk) % 256 == 0</code></pre>
 <tr><td>32</td><td>Release 2.6.1: una carriera nuova iniziata con un club in una coppa europea viene avviata subito (dalla 1.2 il marchio 'S3' e le liste iniziali delle coppe degli altri continenti si scrivevano solo nell'altro ramo). Carriere storiche M3: anno iniziale del mondo, vista del mondo e ricerca stranieri limitate al mondo, niente panchine delle nazionali, detentori con un posto loro</td><td><span class="pill ok">superato (IT, 2 stagioni)</span></td></tr>
 <tr><td>33</td><td>Release 2.7.0: compatibilità con SWOS++ sull'exe inglese (CD e GOG): <code>tools/swospp.py</code>, uscite del patcher ENGLISH.EXE + SWOS++</td><td><span class="pill ok">superato (EN, SWOS++ 1.9.2.2)</span></td></tr>
 <tr><td>34</td><td>Release 3.0: carriere storiche Europa 1984-85 (dati DaniSwos), coppe europee fino a 128 club, niente derby nei primi due turni, regola dei detentori, correzione Intercontinentale, editor MAGLIE</td><td><span class="pill ok">superato (banco di prova automatico + prova di Davide)</span></td></tr>
+<tr><td>35</td><td>Release 3.1: banco di prova circa dieci volte più veloce; nazionali dell'Europa 1984-85 (143 squadre, panchine, convocazioni, ciclo Mondiali 1986 / Euro 88 con i gironi reali), nazionalità RDT / URS / RFT</td><td><span class="pill ok">superato (banco di prova automatico + prova di Davide)</span></td></tr>
 </tbody></table></div>
 <h3>Roadmap</h3>
 <ol>
-<li><strong>Carriere storiche:</strong> un mondo reale 1984-85 (dati di DaniSwos), un nome per ogni mondo nei menu, carriere lunghe.</li>
+<li><strong>Carriere storiche:</strong> un nome per ogni mondo nei menu, carriere lunghe, altri mondi (per esempio il Sudamerica per le sue nazionali).</li>
 <li><strong>Carriere lunghe:</strong> prove di 6–8 stagioni con le novità della 1.1–1.2; rose reali dei club nuovi dalla comunità.</li>
 <li><strong>Europa:</strong> Intertoto, Supercoppa Europea, Champions League 1997-98.</li>
 <li><strong>Arretrati:</strong> panchina a 5 per le squadre inglesi; prova dell'Intercontinentale nello slot 4; C1 a due gironi.</li>

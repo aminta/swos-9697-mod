@@ -107,8 +107,9 @@ html{scroll-behavior:smooth}
     <li><a href="#swospp">24 · SWOS++ (2.7)</a></li>
     <li><a href="#maglie">25 · Home and away kits (3.0)</a></li>
     <li><a href="#euro8485">26 · Europe 1984-85 and European cups (3.0)</a></li>
-    <li><a href="#limiti">27 · Limits and open issues</a></li>
-    <li><a href="#storia">28 · History and next steps</a></li>
+    <li><a href="#nazionali">27 · National teams of Europe 1984-85 (3.1)</a></li>
+    <li><a href="#limiti">28 · Limits and open issues</a></li>
+    <li><a href="#storia">29 · History and next steps</a></li>
   </ol>
 </nav>
 
@@ -634,11 +635,23 @@ assert blk[:2] == b'S2' and sum(blk) % 256 == 0</code></pre>
 <li><strong>No same-country ties in the first two rounds.</strong> Cup Winners' Cup and UEFA Cup (all three cups in a world): round 1 is drawn (<code>w_draw1</code> after <code>cseg_28139</code>), round 2 comes from the round-1 winners: <code>w_r2</code> after <code>cseg_2ACAE</code> (simulated cups) and <code>w_r2p</code> after <code>cseg_29659</code> (the player's cup, which reorders the winners with the table at DIY+30Dh). A same-country tie swaps its away club with another tie's.</li>
 <li><strong>Holders.</strong> Normal careers: a Champions' Cup holder that did not qualify takes the place of a club of another country (<code>cseg_92C4D</code> compared the ordinal instead of the country). Worlds: the holders play in addition; a league champion holding the CWC or the UEFA Cup plays the Champions' Cup and its holder place goes to the next club of its table (<code>w_pick_cc</code>, <code>WH_SAVE</code>).</li>
 <li><strong>Intercontinental.</strong> Fixed the bug (since 2.5) that put a Champions' Cup winner playing the Intercontinental into the Cup Winners' Cup: <code>sacups.euro_found</code> stores the cup type before <code>cseg_8B2D3</code> clobbers D7.</li>
-<li><strong>National teams.</strong> In a world the national-team offers are disabled (the game's national teams are the 1996 ones). The game's cycle (World Cup qualifiers, World Cup, European qualifiers, European Championship) matches 1984-85: era national teams are the 3.1 work.</li>
+<li><strong>National teams.</strong> In 3.0 the national-team offers were disabled in a world (the game's national teams are the 1996 ones); 3.1 brings the era national teams: chapter 27.</li>
 </ul>
 
 <!-- 27 -->
-<h2 id="limiti"><span class="n">27</span>Limits and open issues</h2>
+<h2 id="nazionali"><span class="n">27</span>National teams of Europe 1984-85 (3.1)</h2>
+<p>In the Europe 1984-85 world the national teams are those of the era and play the 1984-88 cycle. Data in <code>packs/europe-1984-85/national</code> (built from DaniSwos's database: per nationality the internationals of 1984 first, born 1951 or later), engine in <code>tools/careerworld.py</code>, compiler in <code>tools/mkseason.py</code> (<code>NationalPack</code>).</p>
+<ul>
+<li><strong>Team files.</strong> 143 teams in the order of the game's <code>TEAM.080</code>-<code>085</code> (same ordinals: East Germany in Croatia's slot, the USSR in Russia's, West Germany in Germany's; 12 post-1990 slots unused), written as <code>TEAM.180</code>-<code>185</code> whose records say 80-85, so global numbers and every (file, ordinal) reference stay the game's. In a world career <code>LoadTeamFile</code> reads <code>TEAM.18x</code> instead of <code>TEAM.08x</code>: <code>w_tfile</code> on the file name, <code>w_tcache</code> on the "already loaded" test.</li>
+<li><strong>nationalTeams.</strong> The game's 142 records (file, ordinal, nationality, home country, rating; 41 in the job pool, 63 with a nationality) are replaced per world (<code>nat_table</code> from <code>nations.csv</code>): no post-1990 nations, home country = the world league of that nation (Wales &rarr; England), no job for non-European teams. Four stubs choose the table and its three counts at the 10 places that read them.</li>
+<li><strong>Jobs and call-ups.</strong> <code>w_nat</code> no longer disables the national job in a world that has national teams; call-ups ABROAD go through <code>w_buy</code> (the world's countries).</li>
+<li><strong>New nationalities.</strong> GDR 153, URS 154, FRG 155 (<code>NEW_NATS</code>, three letters per exe language): <code>shortCountryNames</code> and the career menu's nationality list (+ YUG 37) move to the career cave, longer; <code>ChangeNationality</code> wraps at the new size.</li>
+<li><strong>Competitions.</strong> <code>pack.json</code> <code>national</code>: cycles of 4 seasons with hosts, qualifying groups [places, teams] and the other continents' qualifiers. The WCQ/ECQ draws (<code>call cseg_33A1A</code> in <code>cseg_6604A</code> / <code>cseg_65CA2</code>) become <code>w_wcqdraw</code> / <code>w_ecqdraw</code> (holder and hosts left out, the player's group set); the season end (<code>cseg_95298</code> / <code>cseg_94E85</code>) becomes <code>w_wcfill</code> / <code>w_ecfill</code> (places per group through the game's own group procedures, then the direct qualifiers until the finals are full). World Cup 1986 = the preset <code>worldCup</code> format (24 teams, 6 groups, best thirds), Euro 88 = 2 groups of 4, semi-finals, final; 2 points per win. Hosts per cycle: <code>w_hostwc</code> / <code>w_hostec</code>; holder Italy written at the career start and in the first cycle's fill (careers saved by 3.0).</li>
+<li><strong>Automated tests.</strong> The harness (<code>tools/swostest.py</code>, guide <code>notes/harness.md</code>) runs DOSBox-X in turbo with ~1 MB memory reads per pause: about ten times faster. <code>world8485_nat</code> forces the national job with the game's debug switch and checks the cycle above; the career season before it is played once per build at a Maltese club and cached.</li>
+</ul>
+
+<!-- 28 -->
+<h2 id="limiti"><span class="n">28</span>Limits and open issues</h2>
 <ul>
 <li><strong>Play-offs (2.5).</strong> NSL Finals and NSSL Playoffs are top-4 knockouts: the real formats (NSL: 6 clubs; both: a "double chance" for the top two) need per-round control of the entrants, i.e. a type-2 contest in slot 4, whose buffer (443h) is too small. Kept for a future version (<code>finals97.py</code>, option A). The regular-season winner that loses the play-off still shows a small icon at the top of its season record (not yet traced in the code).</li>
 <li><strong>C1/C2 groups.</strong> In 1996-97 C1 had 2 groups and C2 had 3. The mod uses one group per series. The full reality (128 teams) does not fit the limit of about 93 teams per nation. C1 with two groups would fit (92), but it needs promotions and relegations between parallel divisions, and checks on the 80-team career limit and on global numbers: estimated 2–3 sessions.</li>
@@ -651,8 +664,8 @@ assert blk[:2] == b'S2' and sum(blk) % 256 == 0</code></pre>
 <li><strong>English bench (after 1.0).</strong> In the pre-match line-up English clubs show 14 players (11 + 3 on the bench). The original game does the same, and <code>TEAM.008</code> has 16 players per club: it is a game rule. To do: find where the bench size comes from (rules at buffer +3Dh…41h, values 5/2/8 set by <code>InitCareer</code>) and raise it to 5.</li>
 </ul>
 
-<!-- 28 -->
-<h2 id="storia"><span class="n">28</span>History and next steps</h2>
+<!-- 29 -->
+<h2 id="storia"><span class="n">29</span>History and next steps</h2>
 <div class="tbl"><table>
 <thead><tr><th>Session</th><th>Content</th><th>Test</th></tr></thead>
 <tbody>
@@ -677,10 +690,11 @@ assert blk[:2] == b'S2' and sum(blk) % 256 == 0</code></pre>
 <tr><td>32</td><td>Release 2.6.1: a new career started with a club in a European cup is set up at once (the 'S3' mark and the first-season lists of the other continents' cups were only written in the other branch since 1.2). Classic careers M3: world start year, world view and foreign-player browser limited to the world, no national-team jobs, holders with a place of their own</td><td><span class="pill ok">passed (IT, 2 seasons)</span></td></tr>
 <tr><td>33</td><td>Release 2.7.0: SWOS++ compatibility on the English exe (CD and GOG): <code>tools/swospp.py</code>, patcher outputs ENGLISH.EXE + SWOS++</td><td><span class="pill ok">passed (EN, SWOS++ 1.9.2.2)</span></td></tr>
 <tr><td>34</td><td>Release 3.0: classic careers Europe 1984-85 (DaniSwos's data), European cups up to 128 clubs, no same-country ties in rounds 1-2, holder rule, Intercontinental fix, KITS editor</td><td><span class="pill ok">passed (automated harness + Davide's playtest)</span></td></tr>
+<tr><td>35</td><td>Release 3.1: test harness about ten times faster; national teams of Europe 1984-85 (143 teams, jobs, call-ups, World Cup 1986 / Euro 88 cycle with the real qualifying groups), nationalities GDR / URS / FRG</td><td><span class="pill ok">passed (automated harness + Davide's playtest)</span></td></tr>
 </tbody></table></div>
 <h3>Roadmap</h3>
 <ol>
-<li><strong>Classic careers:</strong> a real 1984-85 world (DaniSwos's data), a name per world in the menus, long careers.</li>
+<li><strong>Classic careers:</strong> a name per world in the menus, long careers, more worlds (e.g. South America for its national teams).</li>
 <li><strong>Long careers:</strong> 6–8 season tests with the 1.1–1.2 additions; real squads for the new clubs from the community.</li>
 <li><strong>Europe:</strong> Intertoto Cup, European Super Cup, 1997-98 Champions League format.</li>
 <li><strong>Backlog:</strong> 5-man bench for English clubs; Intercontinental in slot 4 test; C1 with two groups.</li>

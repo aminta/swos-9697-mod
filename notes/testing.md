@@ -1,6 +1,7 @@
 # Automated tests (tools/swostest.py) — 2026-10-10, branch test-harness
 
-Goal: routine regression checks without driving DOSBox-X by hand. Usage and internals: docstring of tools/swostest.py.
+Goal: routine regression checks without driving DOSBox-X by hand. **How it works today: notes/harness.md** (this file
+is the work log: history, results, timings).
 
 ## What is reliable
 

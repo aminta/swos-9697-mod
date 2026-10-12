@@ -51,6 +51,7 @@ breakpoints), `W84NAT_REDO=1` (remake the cached national-team saves).
   cup round screens, the squad screen. Special cases:
   - squad screen without VIS. RISULTATI (an injured/suspended player in the first 16): `substitute()` takes a
     window screenshot, finds the red rows, swaps them with fit reserves (a goalkeeper for row 1);
+  - injured goalkeeper: first the reserve goalkeeper of row 12 (the rows' positions are drawn, not menu entries);
   - national team: menu without TRASFERIMENTI, PARTITA disabled until the squad is called up: `nat_callups()` adds
     players from the home leagues (enabled player rows = eligible) until "SCEGLI ALTRI 0".
 - `next_season_save(s, NAME)`: season-end menu → (job offers if sacked) → CONTINUA CARRIERA → new season → save.
@@ -64,6 +65,8 @@ Rare events are **forced** and slow parts are **done once and saved**:
   national team of the manager's nationality offer its job at once; `dseg_C8B14` (bit per season in which a European
   national team may offer a job) set to all ones; `currentSeasonShowing` poked to start in another cycle.
   Addresses come from patterns in the exe under test (`nat_offsets`), so they follow every build and language.
+- **Smallest league**: the club season before a national job is played at St. Andrews (Malta: 10 clubs, 18 matches,
+  low expectations), not in a big league: the national team depends on the coach's nationality, not on the club.
 - **Cached saves**: `nat_offer_save()` plays the club season once (England's offer kept, career saved at the season
   end) and keeps it in `internal/swostest/saves/<NAME>.CAR` with the exe's md5; later runs reload it. A new build
   remakes it automatically.
@@ -111,6 +114,9 @@ Rare events are **forced** and slow parts are **done once and saved**:
 
 - `timeout` with no trap: the script went astray; `runs/<name>/session.log` lists every screen and the keys sent,
   `shots/final.png` the last screen.
+- DOSBox-X windows open on screen and can take the focus: keys or a Cmd+Q meant for another application can end a
+  run (`DOSBox-X ended: ...` in session.log); `SWOSTEST_NOEXIT=1` keeps DOSBox-X at the DOS prompt when the game
+  exits to DOS, so shots/final shows its message.
 - `MEMDUMPBIN ...: no file`: the debugger lost a typed command (the dump is retried 3 times; if it still fails, DOSBox
   probably died: see `debugger.raw`).
 - Breakpoints (`Session.bp`, `SWOSTEST_BP`) need `CORE=normal` (the dynamic core does not re-check translated code).

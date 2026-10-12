@@ -10,7 +10,8 @@
         waits are then game time, not menu frames (allow for loading);
         -name NAME = run dir (default keys); -match = the feeder also types during matches, replays and
         highlights (all 12 GetKey calls; waits then count in match frames too)
-  Env: SWOSTEST_BUILD = build dir under test, else SWOSTEST_BRANCH = git branch/commit to build, else this checkout;
+  Env: SWOSTEST_NOEXIT=1 = DOSBox-X stays at the DOS prompt when the game exits (see its last message: shots/final);
+       SWOSTEST_BUILD = build dir under test, else SWOSTEST_BRANCH = git branch/commit to build, else this checkout;
        SWOSTEST_RUNS = run dirs (default internal/swostest/runs; another one = a second suite at the same time);
        TURBO=0 = real-time speed (default: DOSBox-X turbo, the emulated machine runs as fast as the host allows).
 
@@ -291,7 +292,8 @@ class Dosbox:
 
     def __init__(self, run, timeout, shots=0, exe='ITALIAN.EXE'):
         self.run, self.timeout, self.shots = run, timeout, shots
-        conf = CONF.format(cycles=os.environ.get('CYCLES', 'max'), core=os.environ.get('CORE', 'dynamic'), iso=ISO,
+        conf = CONF if not os.environ.get('SWOSTEST_NOEXIT') else CONF.replace('{exe}\nexit\n', '{exe}\n')
+        conf = conf.format(cycles=os.environ.get('CYCLES', 'max'), core=os.environ.get('CORE', 'dynamic'), iso=ISO,
                            exe=exe, turbo='false' if os.environ.get('TURBO') == '0' else 'true')
         open(os.path.join(run, 'test.conf'), 'w').write(conf)
         self.screen, self.eip, self.t0, self.watch = b'', None, time.time(), set()
@@ -333,7 +335,10 @@ class Dosbox:
         return self.pump(wait, until, pre)
 
     def alive(self):
-        return os.waitpid(self.pid, os.WNOHANG) == (0, 0)
+        pid, st = os.waitpid(self.pid, os.WNOHANG)
+        if pid:                                        # gone: keep how (signal / exit code) for the session log
+            self.status = (f'signal {os.WTERMSIG(st)}' if os.WIFSIGNALED(st) else f'exit code {os.WEXITSTATUS(st)}')
+        return pid == 0
 
     def go(self):
         """Run until DOSBox-X exits ('exit'), an int 3 breaks into the debugger ('break': a trap or a 'dump' step) or
@@ -613,6 +618,8 @@ class Session:
     def __exit__(self, *a):
         self.box.kill()
         el = time.time() - self.box.t0
+        if getattr(self.box, 'status', None):
+            self.log.append(f'DOSBox-X ended: {self.box.status}')
         self.log.append(f'{getattr(self, "steps", 0)} pauses in {el:.0f} s: ' +
                         ', '.join(f'{k} {v:.0f} s' for k, v in sorted(self.box.stats.items())))
         open(os.path.join(self.run, 'debugger.raw'), 'wb').write(self.box.screen)
@@ -762,28 +769,41 @@ def squad_rows(s, scr, tag):
 def substitute(s, scr, tries=16):
     """Squad screen without VIS. RISULTATI (Davide): an unavailable player (red row or red icon) among the first 16
     is swapped with a fit player beyond the 16th: fire on his row, fire on the 17th row's face until its player is
-    fit (and a goalkeeper, P, for row 1), fire on the 17th row's name. Returns an error string or None."""
-    rows = squad_rows(s, scr, f'sq{len(s.log):03d}')
-    if len(rows) != 17:
-        return f'squad screen: {len(rows)} rows'
-    reserve = rows[-1][0]
-    ry = scr.geom[reserve][1]
-    face = next((i for i, (l, r) in enumerate(scr.nav) if l[1] == reserve and scr.geom[i][0] < 25), None)
-    bad = [(k, i) for k, (i, un) in enumerate(rows[:16]) if un]
-    if not bad or face is None:
-        return f'squad screen without VIS. RISULTATI, unavailable rows {bad}, face {face}'
-    for k, i in bad:
-        press(s, s.screen(), i, wait=1)
+    fit (and a goalkeeper, P, for row 1), fire on the 17th row's name. Row 1 first tries a fit goalkeeper of the bench
+    (rows 12-16: a national squad may have only one goalkeeper beyond the 16th). Returns an error string or None."""
+    pos_of = lambda cur, y: next((t for j, t, inv, _ in cur.entries if t and not inv and cur.geom[j][1] == y
+                                  and 95 <= cur.geom[j][0] <= 125), '')     # the position text of the row at y
+    for _ in range(8):                          # one swap per round, then look again
+        cur = s.screen()
+        rows = squad_rows(s, cur, f'sq{len(s.log):03d}')
+        if len(rows) != 17:
+            return f'squad screen: {len(rows)} rows'
+        reserve = rows[-1][0]
+        ry = cur.geom[reserve][1]
+        face = next((i for i, (l, r) in enumerate(cur.nav) if l[1] == reserve and cur.geom[i][0] < 25), None)
+        bad = [(k, i) for k, (i, un) in enumerate(rows[:16]) if un]
+        if not bad:
+            return None if 'VIS. RISULTATI' in cur.texts() else f'squad screen without VIS. RISULTATI, no unavailable row'
+        if face is None:
+            return f'squad screen: no face entry for the 17th row'
+        k, i = bad[0]
+        if k == 0:                              # the goalkeeper: a fit one from the bench?
+            gk = rows[11][0] if not rows[11][1] else None   # row 12 = the reserve goalkeeper (SWOS squads; the rows'
+                                                            # positions are drawn, not menu entries)
+            if gk is not None:
+                press(s, cur, i, wait=1)
+                press(s, s.screen(), gk, wait=1)
+                continue
+        press(s, cur, i, wait=1)
         for _ in range(tries):
             press(s, s.screen(), face, wait=1)
-            cur = s.screen()
-            pos = next((t for j, t, inv, _ in cur.entries if t and not inv and cur.geom[j][:2] == (108, ry)), '')
-            if not squad_rows(s, cur, f'sq{len(s.log):03d}')[-1][1] and (pos == 'P') == (k == 0):
+            c2 = s.screen()
+            if not squad_rows(s, c2, f'sq{len(s.log):03d}')[-1][1] and (pos_of(c2, ry) == 'P') == (k == 0):
                 break
         else:
             return f'no fit reserve for row {k + 1}'
         press(s, s.screen(), reserve, wait=1)
-    return None
+    return 'squad screen: still unavailable players after 8 swaps'
 
 
 def nat_callups(s, limit=120):
@@ -1283,7 +1303,7 @@ def nat_names(build):
 
 def nat_offer_save(exe, off, name='W84NAT', season=None, lefts=0):
     """Slow part, once per build (kept in internal/swostest/saves/W84NAT.CAR; W84NAT_REDO=1 makes it again): new
-    career at Fulham (2nd division: no sacking), debug switches poked so that England offers its job at once, the
+    career at St. Andrews (Malta: 10 clubs, a short season; low expectations), debug switches poked so that England offers its job at once, the
     offer kept (CONSIDERA: a national job is accepted at the season end), season played, saved at the season-end menu.
     lefts: the coach's nationality moved that many times left from ENG first (5 = GDR). Returns the save path or an
     error."""
@@ -1303,8 +1323,8 @@ def nat_offer_save(exe, off, name='W84NAT', season=None, lefts=0):
                 return f'no nationality field on {s.screen()}'
             s.send(' '.join(['fire+left:0.5'] * lefts) + ' dump:0.5')
             s.log.append(f'[nationality] {s.screen().entries[i][1]}')
-        for t in ['SCEGLI SQUADRA', 'CARR. STORICHE', 'EUROPA 1984-85', 'INGHILTERRA', 'SECOND DIVISION',
-                  'FULHAM']:                   # a second-division club: no sacking after a results-only season
+        for t in ['SCEGLI SQUADRA', 'CARR. STORICHE', 'EUROPA 1984-85', 'MALTA',
+                  'ST. ANDREWS']:              # Davide: a small league (18 matches) and a weak club (no sacking)
             if press(s, s.screen(), t) is None or s.result.outcome != 'dump':
                 return f'new career: {t} not reached ({s.result})'
         s.poke(s.result.base2 + off['force'], b'\x02')         # debug: the national team calls at once

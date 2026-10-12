@@ -1068,6 +1068,7 @@ def patch(p, lang, area, cave):
     if worlds():                                          # career packs M2: historic career worlds
         import careerworld
         cave = CAREER_CAVE[0]
+        careerworld.LANG[0] = lang
         end = careerworld.patch(p, world_defs(), cave, nasmcave, comp, ct, (2, CAREERS_REC[0]))
         _need(end <= cave + CAREER_CAVE_SIZE, f'career world code overflows its pages ({end:#x})')
     return at, [x for i in infos for x in i['classic']]

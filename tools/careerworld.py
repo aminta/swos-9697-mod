@@ -53,8 +53,9 @@ LABELS = {}
 def big(w):
     tot = sum(len(w['cups'][k][1]) for k in ('cc', 'cwc', 'uefa'))
     return tot > 80 or any(len(w['cups'][k][1]) > SMALL[k] for k in SMALL)
-NEW_NATS = ['GDR', 'URS', 'FRG']                     # 3.1: player nationalities after the game's 153 (GDR = 153,
-                                                     # URS = 154, FRG = 155): 3-letter names (the same in every exe)
+NEW_NATS = {'it': ['RDT', 'URS', 'RFT'], 'en': ['GDR', 'URS', 'FRG'],   # 3.1: player nationalities after the game's
+            'fr': ['RDA', 'URS', 'RFA'], 'de': ['DDR', 'URS', 'BRD']}   # 153: East Germany 153, USSR 154, West Germany
+LANG = ['it']                                        # 155; 3-letter names per exe language (set by mkseason.patch)
 MENU_NATS = [153, 154, 155, 37]                      # added to the career menu's nationalities (Davide: the coach can be
                                                      # East/West German, Soviet, Yugoslav; YUG existed, not offered)
 WCONT = 99                                           # pseudo-continent of the running world (view, foreign browser)
@@ -1325,7 +1326,9 @@ def patch(p, worlds, at, nasmcave, comp, ct, cont_rec):
     extra.append('align 4')
     extra.append('WNATT:')
     extra += natt
-    short = bytes(p.get(2, s['short'], s['short_len'])) + ''.join(NEW_NATS).encode()
+    nn = NEW_NATS[LANG[0]]
+    assert all(len(x) == 3 for x in nn)
+    short = bytes(p.get(2, s['short'], s['short_len'])) + ''.join(nn).encode()
     extra.append('NATSHORT: db ' + ', '.join(map(str, short + b'\0')))
     order = bytes(p.get(2, s['natord'], 63))
     assert not set(MENU_NATS) & set(order) and max(MENU_NATS) < len(short) // 3

@@ -1450,7 +1450,7 @@ def world8485_nat():
                 s.send('fire+left dump:0.5')
                 seen.append(s.screen().entries[i][1])
         notes.append(f'coach nationalities before ENG: {seen}')
-        check(seen[-4:] == ['YUG', 'FRG', 'URS', 'GDR'], f'coach nationalities: {seen}', errs)
+        check(seen[-4:] == ['YUG', 'RFT', 'URS', 'RDT'], f'coach nationalities: {seen}', errs)   # Italian exe
     try:
         with england('W84NAT', None, 2) as s:             # Euro 88
             check(s.offer.endswith('ENG'), f'offer: {s.offer}', errs)

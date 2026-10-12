@@ -96,7 +96,7 @@ a{color:var(--accent)}
 
 <section>
   <h2 data-it="1 · Scegli i file" data-en="1 · Pick the files"></h2>
-  <p data-it="Dalla cartella del gioco (per esempio C:\SWOS) prendi l'eseguibile della tua lingua e DATA\TEAM.020. Puoi selezionarli insieme o trascinarli qui. Fai prima una copia di sicurezza della cartella. AGGIORNAMENTO: se hai già installato una versione precedente di questa mod non serve tornare agli originali: dai alla pagina direttamente l'eseguibile e DATA\TEAM.020 che hai ora (anche 1.0–2.5, CD o GOG) e li aggiorna all'ultima versione. I salvataggi non vengono toccati." data-en="From the game folder (for example C:\SWOS) take your language's executable and DATA\TEAM.020. You can select them together or drag them here. Back up the folder first. UPGRADING: if you already installed an earlier release of this mod you do not need the originals any more: give the page the executable and DATA\TEAM.020 you have now (any release 1.0–2.5, CD or GOG) and it brings them to the latest version. Your saves are not touched."></p>
+  <p data-it="Dalla cartella del gioco (per esempio C:\SWOS) prendi l'eseguibile della tua lingua e DATA\TEAM.020. Puoi selezionarli insieme o trascinarli qui. Fai prima una copia di sicurezza della cartella. AGGIORNAMENTO: se hai già installato una versione precedente di questa mod non serve tornare agli originali: dai alla pagina direttamente l'eseguibile e DATA\TEAM.020 che hai ora (qualsiasi versione precedente dalla 1.0 in poi, CD o GOG) e li aggiorna all'ultima versione. I salvataggi non vengono toccati." data-en="From the game folder (for example C:\SWOS) take your language's executable and DATA\TEAM.020. You can select them together or drag them here. Back up the folder first. UPGRADING: if you already installed an earlier release of this mod you do not need the originals any more: give the page the executable and DATA\TEAM.020 you have now (any earlier release from 1.0 on, CD or GOG) and it brings them to the latest version. Your saves are not touched."></p>
   <div class="drop" id="drop" tabindex="0" role="button" aria-controls="files">
     <b data-it="Trascina qui i file, oppure fai clic per sceglierli" data-en="Drop the files here, or click to choose them"></b>
     <span class="sub">ITALIAN.EXE · ENGLISH.EXE · FRENCH.EXE · GERMAN.EXE · TEAM.020 · TEAM.044 · TEAM.062 · TEAM.073</span>
@@ -208,10 +208,12 @@ let lang = 'it';
 const T = {
   it: { wait: 'Controllo…', ok: 'Pronto', bad: 'File non riconosciuto', fail: 'Errore nella modifica', dl: 'Scarica', none: 'Nessun file ancora.',
         current: 'Già aggiornato', from: v => `aggiornamento dalla ${v}`, via: { swospp: 'dal gioco originale con SWOS++', mod: 'aggiunge SWOS++' },
-        unknown: n => `${n}: non corrisponde a nessun file atteso (né un originale, né modificato da una versione precedente di questa mod). Non è stato modificato.` },
+        unknown: n => `${n}: non corrisponde a nessun file atteso (né un originale, né modificato da una versione precedente di questa mod). Non è stato modificato.`,
+        page: n => `${n} è questa pagina, non un file del gioco: trascina qui l'eseguibile (es. ITALIAN.EXE) dalla cartella del gioco e TEAM.020 dalla sua cartella DATA.` },
   en: { wait: 'Checking…', ok: 'Ready', bad: 'File not recognised', fail: 'Patching error', dl: 'Download', none: 'No files yet.',
         current: 'Already up to date', from: v => `upgrade from ${v}`, via: { swospp: 'from the original game with SWOS++', mod: 'adds SWOS++' },
-        unknown: n => `${n}: does not match any expected file (neither an original nor one modified by an earlier release of this mod). It was not patched.` },
+        unknown: n => `${n}: does not match any expected file (neither an original nor one modified by an earlier release of this mod). It was not patched.`,
+        page: n => `${n} is this page, not a game file: drop here the executable (e.g. ENGLISH.EXE) from the game folder and TEAM.020 from its DATA folder.` },
 };
 const results = [];
 function setLang(l) {
@@ -264,7 +266,7 @@ async function handle(files) {
     }
     if (!patches.length) {
       r.state = 'bad';
-      msg.hidden = false; msg.textContent += (msg.textContent ? ' ' : '') + T[lang].unknown(f.name);
+      msg.hidden = false; msg.textContent += (msg.textContent ? ' ' : '') + (/\.html?$/i.test(f.name) ? T[lang].page(f.name) : T[lang].unknown(f.name));
       render(); continue;
     }
     if (!patches.some(p => p.md5 === sum)) { r.state = 'current'; render(); }   // current TEAM.020: only the new files

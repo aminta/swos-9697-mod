@@ -82,7 +82,7 @@ Rare events are **forced** and slow parts are **done once and saved**:
 | euro_draws | season end 1997/98 → 1998/99: Champions Cup holder rule, no same-country ties in rounds 1-2 | ~60 s |
 | italy_advance | mid-season 1998/99 save → results loop with substitutions → new season → CC list | ~3 min |
 | world8485 | Europe 1984-85: new career at Liverpool, 2 seasons (save, reload, save), checkw1 on both | ~6 min |
-| world8485_nat | coach nationalities (YUG/FRG/URS/GDR in the menu); England's job (forced); real Euro 88 qualifying groups; Euro 88 = West Germany + the 7 group winners, the 8-team finals played; next cycle: Italia 90 draw (host out), the 24 (holder, host, 13 European, real others), the World Cup played, its winner becomes the holder | ~10 min (first run on a build) / ~5 min |
+| world8485_nat | coach nationalities (YUG/FRG/URS/GDR in the menu); England's job (forced); call-ups at home (the world's English divisions) and abroad (the world's 32 countries); real Euro 88 qualifying groups; a national career saved mid-qualifying and reloaded (groups intact); Euro 88 = West Germany + the 7 group winners, the 8-team finals played; next cycle: Italia 90 draw (host out), the 24 (holder, host, 13 European, real others), the World Cup played, its winner becomes the holder; an East German coach gets the GDR job, squad "EAST GERMANY", call-ups from the DDR-Oberliga clubs | ~14 min (first run on a build) / ~8 min |
 
 `run -j4` runs them in parallel (own DOSBox-X and run dir each).
 
@@ -104,8 +104,8 @@ Rare events are **forced** and slow parts are **done once and saved**:
 - **The look of the screens**: names, kits, colours, text alignment (only entry texts and red rows are read).
 - **Languages at run time**: scenarios run the Italian exe; EN/FR/DE are only patched and assembled.
 - **Every branch of the career**: e.g. the World Cup 1986 list exists only if one coaches a national team during
-  1984-85 (as in the original game); the other national teams' jobs (only England's is forced), job offers from
-  clubs to a national coach, long careers beyond 1990.
+  1984-85 (as in the original game); jobs of national teams other than England and East Germany; job offers from
+  clubs to a national coach; long careers beyond 1990.
 
 ## 8. Troubleshooting
 

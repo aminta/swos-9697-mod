@@ -793,16 +793,43 @@ def nat_callups(s, limit=120):
     for _ in range(limit):
         scr = s.screen()
         texts = scr.texts()
+        s.log.append(f'[callups] {scr}')
         need = next((int(m.group(1)) for t in texts for m in [re.match(r'SCEGLI ALTRI (\d+)', t)] if m), 0)
         if any(t.startswith('SQUADRA DEL ') for t in texts):
             if need == 0:
                 press(s, scr, 'ESCI') or s.send('fire dump:2')
                 return None
+            s.squad_title = next(t for t in texts if t.startswith('SQUADRA DEL '))
             press(s, scr, 'AGGIUNGI GIOCATORE') or s.send('fire dump:2')
         elif 'AGGIUNGI GIOCA. INTERNAZIONALE (CASA)' in texts and len(texts) <= 4:
+            if not hasattr(s, 'abroad'):        # once: the abroad chooser -> the world (CARR. STORICHE) -> its
+                press(s, scr, next(t for t in texts if 'FUORI CASA' in t))   # countries, then back
+                if press(s, s.screen(), 'CARR. STORICHE') is not None:
+                    s.abroad = s.screen().texts()
+                    s.log.append(f'[abroad] {s.screen()}')
+                else:
+                    s.abroad = []
+                for _ in range(4):              # back to the squad screen
+                    t2 = s.screen().texts()
+                    if any(t.startswith('SQUADRA DEL ') for t in t2) or 'AGGIUNGI GIOCATORE' in t2:
+                        break
+                    sc2 = s.screen()
+                    i = sc2.find('ABBANDONA', exact=True)
+                    if i is None:
+                        i = sc2.find('ESCI', exact=True)
+                    if i is None:
+                        s.send('esc dump:2')
+                        continue
+                    for _ in range(40):         # the country list: its links do not reach ESCI, walk down
+                        if s.screen().selected == i:
+                            break
+                        s.send('down dump:0.3')
+                    s.send('fire dump:2')
+                continue
             press(s, scr, 'AGGIUNGI GIOCA. INTERNAZIONALE (CASA)')
         elif 'AGGIUNGI GIOCA. INTERNAZIONALE (CASA)' in texts and any('DIVISION' in t or 'LEAGUE' in t for t in texts) \
                 and 'ABBANDONA' in texts:
+            s.home_leagues = texts
             first = next(i for i, t, inv, dis in scr.entries if t and not inv and t != texts[0])
             press(s, scr, first)                # the top league
         elif 'AGGIUNGI GIOCA. INTERNAZIONALE (CASA)' in texts and 'ESCI' in texts and 'CONTINUA' in [
@@ -817,6 +844,8 @@ def nat_callups(s, limit=120):
             taken.add((club, scr.geom[rows[0]][1]))
             press(s, scr, rows[0], wait=1)
         elif any(t.startswith('AGGIUNGI GIOCA.') for t in texts):   # the clubs of the league
+            if not hasattr(s, 'home_clubs'):
+                s.home_clubs = texts
             club = next((t for i, t, inv, dis in scr.entries if t and not inv and not dis and i > 3
                          and t not in clubs_done and t not in ('ABBANDONA', 'ESCI') and scr.geom[i][2] > 60), None)
             if club is None:
@@ -1252,11 +1281,12 @@ def nat_names(build):
     return out
 
 
-def nat_offer_save(exe, off, name='W84NAT', season=None):
+def nat_offer_save(exe, off, name='W84NAT', season=None, lefts=0):
     """Slow part, once per build (kept in internal/swostest/saves/W84NAT.CAR; W84NAT_REDO=1 makes it again): new
     career at Fulham (2nd division: no sacking), debug switches poked so that England offers its job at once, the
     offer kept (CONSIDERA: a national job is accepted at the season end), season played, saved at the season-end menu.
-    Returns the save path or an error."""
+    lefts: the coach's nationality moved that many times left from ENG first (5 = GDR). Returns the save path or an
+    error."""
     dst = os.path.join(WORK, 'saves', name + '.CAR')
     stamp = dst + '.exe'
     if os.path.exists(dst) and open(stamp).read() == md5(os.path.join(exe, 'ITALIAN.EXE')) \
@@ -1265,8 +1295,16 @@ def nat_offer_save(exe, off, name='W84NAT', season=None):
     with Session('world8485_natA', exe, {}, 'dump:2', 240) as s:   # season: currentSeasonShowing poked (cycles)
         if s.wait().outcome != 'dump':
             return f'START: no first pause ({s.result})'
-        for t in ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'EUROPA 1984-85', 'INGHILTERRA', 'SECOND DIVISION',
-                  'FULHAM']:
+        if press(s, s.screen(), 'CARRIERA') is None:
+            return f'no CARRIERA ({s.result})'
+        if lefts:
+            i = s.screen().find('ENG', exact=True)
+            if i is None or press(s, s.screen(), i, wait=0.5) is None:
+                return f'no nationality field on {s.screen()}'
+            s.send(' '.join(['fire+left:0.5'] * lefts) + ' dump:0.5')
+            s.log.append(f'[nationality] {s.screen().entries[i][1]}')
+        for t in ['SCEGLI SQUADRA', 'CARR. STORICHE', 'EUROPA 1984-85', 'INGHILTERRA', 'SECOND DIVISION',
+                  'FULHAM']:                   # a second-division club: no sacking after a results-only season
             if press(s, s.screen(), t) is None or s.result.outcome != 'dump':
                 return f'new career: {t} not reached ({s.result})'
         s.poke(s.result.base2 + off['force'], b'\x02')         # debug: the national team calls at once
@@ -1306,6 +1344,7 @@ def nat_letter(s, button):
             and not scr.entries[j][3]]               # one selectable row per offer (as next_season_save)
     if scr.find('OFFERTA DI LAVORO INTERNAZIONALE', exact=False) is None or not rows:
         return f'no national offer on {scr}'
+    s.offer = next(t for t in scr.texts() if t.startswith('OFFERTA DI LAVORO INTERNAZIONALE'))
     for _ in range(12):
         if s.screen().selected in rows:
             break
@@ -1339,9 +1378,9 @@ def world8485_nat():
             {'DENMARK', 'CZECHOSLOVAKIA', 'WALES', 'FINLAND'},
             {'REPUBLIC IRELAND', 'BULGARIA', 'BELGIUM', 'SCOTLAND', 'LUXEMBOURG'}, set()]
 
-    def england(name, season, seasons):
-        """Load the save, accept England's offer, play `seasons` national seasons; returns the Session (open)."""
-        car = nat_offer_save(exe, off, name, season)
+    def england(name, season, seasons, lefts=0):
+        """Load the save, accept the national offer; returns the Session (open)."""
+        car = nat_offer_save(exe, off, name, season, lefts)
         if not car.endswith('.CAR'):
             raise RuntimeError(f'{name}: {car}')
         s = Session(f'world8485_nat_{name}', exe, {name + '.CAR': car}, 'dump:2', 240)
@@ -1382,6 +1421,20 @@ def world8485_nat():
                 break
             press(s, scr, 'CONTINUA') or s.send('fire dump:2')
 
+    def callups(s):
+        """National team menu -> SCEGLI SQUADRA -> call-ups (records home leagues, the abroad chooser, the title)."""
+        for _ in range(8):                        # from the main menu (after the save): back into the career
+            texts = s.screen().texts()
+            if 'SCEGLI SQUADRA' in texts:
+                break
+            press(s, s.screen(), 'CONTINUA CARRIERA' if 'CONTINUA CARRIERA' in texts else 'CONTINUA') \
+                or s.send('fire dump:2')
+        if press(s, s.screen(), 'SCEGLI SQUADRA') is None:
+            raise RuntimeError(f'no SCEGLI SQUADRA on {s.screen()}')
+        err = nat_callups(s)
+        if err:
+            raise RuntimeError(err)
+
     def new_season(s, label):
         path = next_season_save(s, 'W84NN')
         if not path.endswith('.CAR'):
@@ -1400,7 +1453,15 @@ def world8485_nat():
         check(seen[-4:] == ['YUG', 'FRG', 'URS', 'GDR'], f'coach nationalities: {seen}', errs)
     try:
         with england('W84NAT', None, 2) as s:             # Euro 88
+            check(s.offer.endswith('ENG'), f'offer: {s.offer}', errs)
             new_season(s, '1985-86')
+            callups(s)
+            notes.append(f"call-ups: {getattr(s, 'squad_title', '?')}, home {getattr(s, 'home_leagues', '?')}, "
+                         f"abroad {getattr(s, 'abroad', '?')}")
+            check('FIRST DIVISION' in getattr(s, 'home_leagues', []), 'England: home call-ups not from the world', errs)
+            ab = getattr(s, 'abroad', [])
+            check('GERMANIA EST' in ab and 'URSS' in ab and not {'CROAZIA', 'UCRAINA'} & set(ab),
+                  f'call-ups abroad: not the world 1984-85 ({ab})', errs)
             season_end(s, '1985-86')
             new_season(s, '1986-87')
             groups = [nm(team_list(s.result, o)) for o in off['ecq']]
@@ -1415,6 +1476,27 @@ def world8485_nat():
             season_end(s, '1987-88 (Euro 88 played)')     # the 8-team format: groups, semi-finals, final
             after_end(s)
             notes.append(f'after Euro 88: {str(s.screen())[:60]}')
+            mid = os.path.join(s.run, 'SWOS', 'W84NN.CAR')   # saved at the start of 1986-87 (Euro 88 qualifying)
+        with Session('world8485_nat_reload', exe, {'W84NN.CAR': mid}, 'dump:2', 240) as s:   # national career reload
+            if s.wait().outcome != 'dump':
+                raise RuntimeError(f'reload: no first pause ({s.result})')
+            s.send('down down down down down fire dump:2')
+            s.send('fire dump:3')
+            for _ in range(6):
+                if 'VISUALIZZA MONDO' in s.screen().texts():
+                    break
+                press(s, s.screen(), 'CONTINUA') or s.send('fire dump:2')
+            groups = [nm(team_list(s.result, o)) for o in off['ecq']]
+            check('ENGLAND' in s.screen().texts() and [set(g) for g in groups] == real,
+                  f'reloaded national career: {str(s.screen())[:80]} groups {groups}', errs)
+            notes.append(f'reloaded mid-qualifying: {str(s.screen())[:40]}')
+        with england('W84GDR', None, 1, lefts=5) as s:   # an East German coach: the GDR job, DDR-Oberliga call-ups
+            check(s.offer.endswith('EAS'), f'GDR coach: offer {s.offer}', errs)   # the game: 3 letters of the name
+            new_season(s, 'GDR 1985-86')
+            callups(s)
+            notes.append(f"GDR: {s.offer}, {getattr(s, 'squad_title', '?')}, home clubs {getattr(s, 'home_clubs', '?')}")
+            check(getattr(s, 'squad_title', '') == 'SQUADRA DEL EAST GERMANY'      # one league: straight to its clubs
+                  and 'DYNAMO DRESDEN' in getattr(s, 'home_clubs', []), 'GDR job / call-ups', errs)
         with england('W84NAT3', 3, 1) as s:               # next cycle: Italia 90
             new_season(s, 'WC 1990 qualifying')
             groups = [nm(team_list(s.result, o)) for o in off['wcq']]

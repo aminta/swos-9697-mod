@@ -1412,6 +1412,9 @@ def world8485_nat():
             notes.append(f'Euro 88 {ec}')
             check(len(ec) == 8 and ec[0] == 'WEST GERMANY' and all(sum(t in g for t in ec) == 1 for g in real[:7]),
                   f'Euro 88: {ec}', errs)
+            season_end(s, '1987-88 (Euro 88 played)')     # the 8-team format: groups, semi-finals, final
+            after_end(s)
+            notes.append(f'after Euro 88: {str(s.screen())[:60]}')
         with england('W84NAT3', 3, 1) as s:               # next cycle: Italia 90
             new_season(s, 'WC 1990 qualifying')
             groups = [nm(team_list(s.result, o)) for o in off['wcq']]
@@ -1425,6 +1428,11 @@ def world8485_nat():
             notes.append(f'WC 1990 {wc}')
             check(len(wc) == 24 and len(set(wc)) == 24 and wc[0] == 'ITALY' and 'ARGENTINA' in wc,
                   f'WC 1990: {len(wc)} teams', errs)
+            season_end(s, '1989-90 (WC 1990 played)')     # 24 teams, 6 groups, best thirds, knockout
+            after_end(s)
+            holder = nm([struct.unpack('<H', s.result.obj2(off['d6cd0'], 2))[0]])[0]
+            notes.append(f'WC 1990 winner (new holder): {holder}')
+            check(holder in wc, f'WC 1990 winner {holder} is not one of the 24', errs)
     except RuntimeError as e:
         return False, f'{e}; ' + '; '.join(errs + notes)
     return not errs, '; '.join(errs + notes)

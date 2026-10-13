@@ -21,7 +21,7 @@
 
 ### Also
 
-- Menus aligned (a player's suggestion): the pre-match KITS button lines up with the player rows and the team name;
+- Menus aligned (suggested by Marco): the pre-match KITS button lines up with the player rows and the team name;
   in team selection lists where the last country of a column covered EXIT (PRESET COMPETITION > EUROPE), EXIT takes
   the free place under the last country of the right column (under Yugoslavia).
 - The patcher page says that it upgrades any earlier release (it said 1.0-2.5), and explains which files to drop if
@@ -54,7 +54,7 @@
 
 ### Inoltre
 
-- Menu allineati (su suggerimento di un giocatore): il pulsante MAGLIE della schermata pre-partita si allinea alle
+- Menu allineati (su suggerimento di Marco): il pulsante MAGLIE della schermata pre-partita si allinea alle
   righe dei giocatori e al nome della squadra; negli elenchi di scelta squadre in cui l'ultimo paese di una colonna
   copriva ESCI (COMP. PREDEFINITA > EUROPA), ESCI va nel posto libero sotto l'ultimo paese della colonna destra
   (sotto Jugoslavia).

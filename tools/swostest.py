@@ -1597,6 +1597,114 @@ def juve2_trap():
     return r.outcome == 'dump', str(r)
 
 
+def play_preset(s, button, max_steps=400):
+    """PRESET COMPETITION > CLASSIC TOURNEYS > button, all teams by the computer, every match by results only, to the
+    end. Returns (ok, message, rounds [(title, [(home, away)])], coin texts)."""
+    for t in ('COMP. PREDEFINITA', 'TORNEI STORICI', button, 'TORNEO'):
+        if press(s, s.screen(), t) is None or s.result.outcome != 'dump':
+            return False, f'{t} not reached ({s.result})', [], []
+    rounds, coins, title = [], [], None
+    for k in range(max_steps):
+        if s.result.outcome != 'dump':
+            return False, f'{s.result} after {len(rounds)} rounds', rounds, coins
+        scr = s.screen()
+        vis = [t for _, t, inv, _ in scr.entries if t and not inv]
+        coins += [t.strip() for t in vis if 'SORTEGGIO' in t and t.strip() not in coins]
+        if scr.entries[0][1] != title:
+            title = scr.entries[0][1]
+            names = vis[vis.index('ESCI') + 1:]
+            pairs = [(names[j + 1], names[j + 2]) for j in range(len(names) - 2) if names[j] in ('C', '-')]
+            rounds.append((title.strip(), pairs))
+        for want in ('VIS. RISULTATI', 'REPLAY', 'PROSS. PARTITA', 'PROSSIMO TURNO', 'TURNO RITORNO', 'CONTINUA', 'OK'):
+            i = scr.find(want, exact=True)
+            if i is not None:
+                break
+        else:
+            end = 'FINALE' in title
+            return end, f"{len(rounds)} rounds, last {title.strip()!r}" + ('' if end else f" ({' | '.join(vis)})"), rounds, coins
+        press(s, scr, i, wait=3)
+    return False, f'no end in {max_steps} steps', rounds, coins
+
+
+@scenario
+def classic_wc34():
+    """3.2 tourney pack: World Cup 1934 in CLASSIC TOURNEYS, the real bracket (R1 ties of ties.csv, each later tie =
+    winners of two adjacent ties, also after replays), replays + coin toss, third place, final"""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import mkseason
+    pk = mkseason.Pack(os.path.join(ROOT, 'packs', 'world-cup-1934'))
+    name = {k: c['name'] for k, c in pk.clubs.items()}
+    r1 = [(name[x['home']], name[x['away']]) for x in pk.ties['wc34'] if x['round'] == '1']
+    with Session('classic_wc34', builds()['it'], {}, 'dump:2', 900) as s:
+        s.wait()
+        ok, msg, rounds, coins = play_preset(s, 'COPPA MONDIALE 1934')
+    errs = []
+    main = [(t, p) for t, p in rounds if not re.search(r' (I )?R(E|$)', t) and 'SPAREGGIO' not in t]   # replays: 'I REPLA'...
+    check([t for t, _ in main] == ['COPPA MONDIALE 1934 ' + x for x in
+                                   ('PRIMO TURNO', 'QUARTI FINALE', 'SEMIFINALE', 'FINALE')], f'rounds {[t for t, _ in main]}', errs)
+    check(main and main[0][1] == r1[:len(main[0][1])], f'round 1 {main[0][1] if main else None} != ties.csv', errs)
+    if main:
+        main[0] = (main[0][0], r1)                   # (the screen lists 6 ties; the rest is ties.csv, checked above)
+    for (_, before), (t, after) in zip(main, main[1:]):
+        for k, (h, a) in enumerate(after):          # tie k of a round: one winner of tie 2k and one of tie 2k+1 before
+            sides = [set(before[2 * k]), set(before[2 * k + 1])] if 2 * k + 1 < len(before) else []
+            check(sides and len({h, a} & sides[0]) == 1 and len({h, a} & sides[1]) == 1,
+                  f'{t} tie {k + 1} {h}-{a}: not winners of ties {2 * k + 1}, {2 * k + 2}', errs)
+    third = [p for t, p in rounds if 'SPAREGGIO 3' in t]
+    check(bool(third), 'no third-place match', errs)
+    return ok and not errs, f"{msg}; {' > '.join(f'{t[20:]}: {p}' for t, p in main)}; third {third[:1]}; coin {coins}; " + '; '.join(errs)
+
+
+@scenario
+def classic_groups():
+    """3.2 tourney pack with groups (packs/_template_tourney, test build only): 2 groups of 4, semi-finals from
+    1A-2B / 1B-2A (each semi-final: one team of each group), third place, final"""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import mkseason
+    pk = mkseason.Pack(os.path.join(ROOT, 'packs', '_template_tourney'))
+    names = [c['name'] for c in pk.clubs.values()]
+    ga, gb = set(names[:4]), set(names[4:])
+    exe = build('tourney_groups', env={'SEASON_PACKS': 'ddr-1988-89,world-cup-1934,' + os.path.join(ROOT, 'packs', '_template_tourney')})
+    with Session('classic_groups', exe, {}, 'dump:2', 900) as s:
+        s.wait()
+        ok, msg, rounds, coins = play_preset(s, 'TORNEO ESEMPIO 1960')
+    errs = []
+    semi = [p for t, p in rounds if 'SEMIFINALE' in t]
+    check(bool(semi) and len(semi[0]) == 2, f'semi-finals {semi}', errs)
+    for h, a in (semi[0] if semi else []):
+        check(len({h, a} & ga) == 1 and len({h, a} & gb) == 1, f'semi-final {h}-{a}: not one team of each group', errs)
+    check(any('SPAREGGIO 3' in t for t, _ in rounds), 'no third-place match', errs)
+    return ok and not errs, f"{msg}; rounds {[t[19:] for t, _ in rounds]}; semi {semi[:1]}; " + '; '.join(errs)
+
+
+@scenario
+def classic_tourneys():
+    """CLASSIC TOURNEYS of 2.0 still play to the final (hist_draw changed in 3.2): World Cup 1982, Mitropa 1934, FA Cup 1871-72"""
+    out, good = [], True
+    for button in ('COPPA MONDIALE 1982', 'COPPA MITROPA 1934', 'FA CUP 1871-72'):
+        with Session('classic_' + button.split()[-1].replace('-', ''), builds()['it'], {}, 'dump:2', 900) as s:
+            s.wait()
+            ok, msg, rounds, coins = play_preset(s, button, 600)
+        if button == 'COPPA MITROPA 1934':          # the real bracket also after play-offs (3.2 sort flag)
+            sys.path.insert(0, os.path.join(ROOT, 'tools'))
+            import historic
+            first = [t for t, p in rounds if 'ANDAT' in t and 'REPLAY' not in t]
+            legs = {t: p for t, p in rounds}
+            main = [legs[t] for t in first]
+            r1 = [(historic.M34[2 * k][2], historic.M34[2 * k + 1][2]) for k in range(8)]
+            if main and main[0] == r1[:len(main[0])]:
+                main[0] = r1
+            for before, after in zip(main, main[1:]):
+                for k, (h, a) in enumerate(after):
+                    sides = [set(before[2 * k]), set(before[2 * k + 1])] if 2 * k + 1 < len(before) else []
+                    if not (sides and len({h, a} & sides[0]) == 1 and len({h, a} & sides[1]) == 1):
+                        ok, msg = False, msg + f'; Mitropa {h}-{a}: not the winners of ties {2 * k + 1}, {2 * k + 2}'
+            msg += f'; Mitropa rounds {[t[19:] for t, _ in rounds]}, first legs {main}'
+        good &= ok
+        out.append(f"{button}: {'ok' if ok else 'FAIL'} {msg}, {len(coins)} coin tosses")
+    return good, '; '.join(out)
+
+
 def run_parallel(names, jobs):
     """run -jN: each scenario in its own process (own run dirs and DOSBox-X, one host core each in turbo); the
     builds are made once here first. Output in the order of the names; exit code 1 on a failure."""

@@ -75,9 +75,10 @@ FA_LEGS = 0x00               # 1 match, no e.t., no penalties: a draw is replaye
 # (contest id, teams in the round, permutation: new[k] = old[perm[k]])
 DRAWS = [(WC82_ID, [0, 2, 11, 1, 3, 10, 6, 8, 5, 7, 9, 4]),   # 2nd round: 1A 1C 2F | 1B 1D 2E | 2A 2C 1F | 2B 2D 1E
          (WC82_ID, [0, 2, 1, 3]),                           # semi-finals: winner A - winner C, B - D
-         (M34_ID, list(range(16))), (M34_ID, list(range(8))),  # keep the tie order (no random draw)
-         (M34_ID, [0, 1, 3, 2]),                            # SF: Ferencvaros-Bologna, Admira-Juventus
-         (M34_ID, [1, 0]),                                  # final: Admira at home first
+         (M34_ID, list(range(16))), (M34_ID, list(range(8)), True),  # keep the tie order (no random draw); True (3.2):
+         (M34_ID, [0, 1, 3, 2], True),                      # winners sorted by place first (a play-off reorders
+         (M34_ID, [1, 0], True),                            # them). SF: Ferencvaros-Bologna, Admira-Juventus;
+                                                            # final: Admira at home first
          (FA_ID, list(range(14))), (FA_ID, [0xFF] + [0] * 7)]  # FA Cup: real 1st round; round 2: bye club + open draw
 DRAWS += lib97.DRAWS                                        # Copa Libertadores 1997 (session 27): fixed real bracket
 import nsl97
@@ -86,6 +87,114 @@ import finals97
 DRAWS += finals97.DRAWS                                     # NSL / NSSL finals series (2.1): keep the order
 import mkseason
 DRAWS += mkseason.draws()                                   # season packs (2.6: DDR 1988-89): real brackets
+
+ESCI_ASM = '''
+; 3.2 (Marco): when the bottom of a team/country column covers ESCI (preset EUROPA: 14/15/14 countries, ESCI over the
+; 15th of the middle column), ESCI takes the free slot under the last entry of the rightmost column that has one.
+; esi = the entry of ordinal 87; ESCI = ordinal 88 just after it. Its old place is kept and put back if the game did
+; not lay the menu out again.
+esci_fix:                               ; (variables through ebp: few fixups, the LE header has little room)
+    lea edi, [esi + 56]
+    cmp word [edi + 2], 88
+    jne .r
+    mov ebp, EF_VARS
+    cmp byte [ebp + 16], 0              ; moved by us last time: put it back unless the game laid it out again
+    je .eval
+    mov byte [ebp + 16], 0
+    mov eax, [edi + 14h]
+    cmp eax, [ebp + 12]
+    jne .eval
+    mov eax, [ebp + 4]
+    mov [edi + 14h], eax
+    mov eax, [ebp + 8]
+    mov [edi + 18h], eax
+    mov eax, [ebp + 20]
+    mov [edi + 8], eax                  ; left/right/up/down links
+.eval:
+    push dword [ebp]                    ; [esp] = first entry
+    mov ebx, [esp]
+    xor ecx, ecx                        ; lowest bottom of a visible entry over ESCI's columns
+.o:
+    cmp ebx, esi
+    jae .od
+    cmp word [ebx + 4], 0
+    jne .on
+    movsx eax, word [ebx + 14h]
+    movsx edx, word [edi + 14h]
+    movsx ebp, word [edi + 18h]
+    add ebp, edx
+    cmp eax, ebp
+    jge .on
+    movsx ebp, word [ebx + 18h]
+    add eax, ebp
+    cmp eax, edx
+    jle .on
+    movsx eax, word [ebx + 16h]
+    movsx ebp, word [ebx + 1Ah]
+    add eax, ebp
+    cmp eax, ecx
+    jle .on
+    mov ecx, eax
+.on:
+    add ebx, 56
+    jmp .o
+.od:
+    movsx eax, word [edi + 16h]
+    cmp ecx, eax
+    jle .x                              ; nothing covers ESCI
+    mov ebx, [esp]
+    add ebx, 56
+    xor edx, edx                        ; free slot: an invisible entry after a visible one of its column
+.c:
+    cmp ebx, esi
+    jae .cd
+    cmp word [ebx + 4], 0
+    je .cn
+    cmp word [ebx - 56 + 4], 0
+    jne .cn
+    mov ax, [ebx + 14h]
+    cmp ax, [ebx - 56 + 14h]
+    jne .cn
+    movsx eax, word [ebx + 16h]
+    movsx ebp, word [ebx + 1Ah]
+    add eax, ebp
+    cmp eax, 200
+    jg .cn
+    test edx, edx
+    jz .take
+    mov ax, [ebx + 14h]
+    cmp ax, [edx + 14h]
+    jle .cn
+.take:
+    mov edx, ebx
+.cn:
+    add ebx, 56
+    jmp .c
+.cd:
+    test edx, edx
+    jz .x
+    mov ebp, EF_VARS
+    mov eax, [edi + 14h]
+    mov [ebp + 4], eax
+    mov eax, [edi + 18h]
+    mov [ebp + 8], eax
+    mov eax, [edx + 14h]
+    mov [edi + 14h], eax
+    mov [ebp + 12], eax
+    mov eax, [edx + 18h]
+    mov [edi + 18h], eax
+    mov eax, [edi + 8]
+    mov [ebp + 20], eax
+    mov ax, [edx + 2]                   ; up: the last entry of that column (the one before the slot)
+    dec eax
+    mov [edi + 10], al
+    mov byte [ebp + 16], 1
+.x:
+    pop eax
+.r:
+    ret
+EF_VARS: dd 0, 0, 0, 0, 0, 0            ; first entry, ESCI's x/y and w/h before the move, x/y after, moved, links
+'''
 
 ASM = '''
 hist_draw:                              ; replaces `call cseg_27F08` in cseg_26DFC (A2 = DIY buffer, A3 = round)
@@ -98,12 +207,13 @@ hist_draw:                              ; replaces `call cseg_27F08` in cseg_26D
 .find:
     cmp byte [edx], 0
     je .orig
+    movzx ebx, byte [edx + 1]           ; teams in the round; bit 7: sort first (tourney packs)
+    and bl, 7Fh
     cmp [edx], al
     jne .next
-    cmp [edx + 1], cl
+    cmp ebx, ecx
     je .perm
 .next:
-    movzx ebx, byte [edx + 1]
     lea edx, [edx + ebx + 2]
     jmp .find
 .perm:
@@ -111,6 +221,28 @@ hist_draw:                              ; replaces `call cseg_27F08` in cseg_26D
     cmp byte [edx + 2], 0FFh            ; 'pre only': the bye club joins, then the game's own random draw
     je .orig
     add esi, 59h
+    test byte [edx + 1], 80h            ; tourney packs (3.2): the qualifiers come in an order left by the results
+    jz .copy0                           ; (replays first, ...): sort them by their place in the contest (a fixed
+    mov ebx, 1                          ; bracket: the perm is relative to that order)
+.s1:
+    cmp ebx, ecx
+    jae .copy0
+    mov al, [esi + ebx]
+    mov edi, ebx
+.s2:
+    test edi, edi
+    jz .s3
+    cmp [esi + edi - 1], al
+    jbe .s3
+    mov ah, [esi + edi - 1]
+    mov [esi + edi], ah
+    dec edi
+    jmp .s2
+.s3:
+    mov [esi + edi], al
+    inc ebx
+    jmp .s1
+.copy0:
     xor ebx, ebx
 .copy:
     mov al, [esi + ebx]
@@ -198,6 +330,7 @@ hist_names:                             ; replaces `call SetCountryNames` in Sel
     mov dword [D0], 21                  ; first team/country entry
     call CALC_ENTRY
     mov esi, [A0]
+    mov [EF_VARS], esi
 .e:
     cmp word [esi + 2], 87              ; ordinal 87 = view selected teams (end of the entries)
     je .done
@@ -214,10 +347,12 @@ hist_names:                             ; replaces `call SetCountryNames` in Sel
     add esi, 56
     jmp .e
 .done:
+    call ESCI_FIX
     pop dword [A0]
     pop dword [D0]
     popad
     ret
+
 
 hist_preset:
     push dword [COMP254]
@@ -509,7 +644,7 @@ def _draw_call(p):
     return [c for c, _ in sites], sites[0][1]
 
 
-def patch(p, lang, area, cave, draw_pre=None, leagues=()):
+def patch(p, lang, area, cave, draw_pre=None, leagues=(), cave2=None):
     """Register CLASSICS and the World Cup 1982; returns the new cave end."""
     d2 = p.le.obj_bytes(2)
     ct, tcn, _, _ = countries.tables(p)
@@ -585,16 +720,47 @@ def patch(p, lang, area, cave, draw_pre=None, leagues=()):
     p.put(1, at, blob)
     at = (at + len(blob) + 3) & ~3
 
-    table = at                                             # CLASSICS: [leagues..., -2, WC82, M34, FA, -1]
+    # tourney packs (3.2, mkseason.tourneys): same layout, stages and matches from pack.json; their team files share
+    # BASE (MAX_TEAMS global numbers) like TEAM.089-091
+    cups, coin_ids = [wc82, m34, fa], []
+    at2 = cave2                                            # 3.2 page: ESCI fix, then the tourney packs' contests
+    ecode, efix = nasmcave.assemble(ESCI_ASM, at2, {})
+    elab = nasmcave.labels(ESCI_ASM, at2, {})
+    p.put(1, at2, ecode)
+    for off, tobj, toff in efix:
+        p.add_ptr(1, at2 + off, tobj, toff)
+    at2 = (at2 + len(ecode) + 3) & ~3
+    for t in mkseason.tourneys():
+        assert ct + 4 * t['file'] not in fx2 and t['base'] == BASE, (t['file'], t['base'])
+        p.add_ptr(2, ct + 4 * t['file'], 2, rec)
+        p.put(2, tcn + 2 * t['file'], struct.pack('<H', BASE))
+        long, short = t['names'].get(lang) or t['names']['*']
+        rl, rs = (area.add(x.encode('latin1') + b'\0') - sacups.STR_BASE for x in (long, short))
+        hdr = bytearray(cd[wc:wc + 0x28])
+        hdr[0], hdr[12] = t['id'], t['win_points']
+        hdr[0x0e:0x28] = t['stages']
+        blob = bytes(hdr) + struct.pack('<II', rl, rs) + t['pairs']
+        p.put(1, at2, blob)
+        cups.append(at2)
+        if t['coin']:
+            coin_ids.append(t['id'])
+        print(f"exe: historic: tourney {long} id {t['id']:#x} @ obj1+{at2:#x}, {len(t['pairs']) // 2} teams, "
+              f"file {t['file']}{', coin toss' if t['coin'] else ''}")
+        at2 = (at2 + len(blob) + 3) & ~3
+    assert at2 <= cave2 + 0x1000, hex(at2)
+    at2 = (at2 + 15) & ~15
+
+    table = at                                             # CLASSICS: [leagues..., -2, WC82, M34, FA, tourneys..., -1]
     for lg in leagues:                                     # obj1 offsets (DDR-Oberliga 1988-89)
         p.add_ptr(1, at, 1, lg)
         at += 4
     p.put(1, at, struct.pack('<i', -2))
-    p.add_ptr(1, at + 4, 1, wc82)
-    p.add_ptr(1, at + 8, 1, m34)
-    p.add_ptr(1, at + 12, 1, fa)
-    p.put(1, at + 16, struct.pack('<i', -1))
-    at += 20
+    at += 4
+    for c in cups:
+        p.add_ptr(1, at, 1, c)
+        at += 4
+    p.put(1, at, struct.pack('<i', -1))
+    at += 4
     p.add_ptr(2, comp + 4 * CLASSICS, 1, table)
 
     wpre = at                                              # preset world table: + CLASSICS
@@ -610,7 +776,7 @@ def patch(p, lang, area, cave, draw_pre=None, leagues=()):
     names_call, set_names, calc_entry = _names_call(p)
     regs = sacups.regs(p.le.obj_bytes(1))
     a0 = regs['D7'] + 4
-    tbl = b''.join(bytes((cid, len(pm))) + bytes(pm) for cid, pm in DRAWS) + b'\0'
+    tbl = b''.join(bytes((d[0], len(d[1]) | (0x80 if d[2:] and d[2] else 0))) + bytes(d[1]) for d in DRAWS) + b'\0'
     symbols = {'COMP254': (2, comp + 4 * 254), 'WORLD_PRESET': (1, wpre), 'SELECT': (1, select),
                'A2': (2, a0 + 8), 'A3': (2, a0 + 12), 'DRAW_ORIG': (1, draw_orig),
                'DRAW_BYTES': (0, 'db ' + ', '.join(str(b) for b in tbl)),
@@ -619,17 +785,25 @@ def patch(p, lang, area, cave, draw_pre=None, leagues=()):
                'CLASSICS_NAME': (2, rec + 1), 'SEASONS_NAME': (2, mkseason.SEASONS_REC[0] + 1), 'MENU_COLOR': (0, MENU_COLOR), 'MENU_GAP': (0, MENU_GAP),
                'M34_ID_': (0, M34_ID), 'FA_ID_': (0, FA_ID), 'COIN_TEXT': (2, coin_text),
                'DIYCOPY': (2, coin['diycopy']), 'RAND2': (1, coin['rand2']), 'D5': (2, a0 - 12), 'D6': (2, a0 - 8),
-               'D7': (2, a0 - 4), 'D1': (2, a0 - 28), 'SKIP': (2, coin['skip']), 'DIYCOMP': (2, coin['diycomp'])}
+               'D7': (2, a0 - 4), 'D1': (2, a0 - 28), 'SKIP': (2, coin['skip']), 'DIYCOMP': (2, coin['diycomp']),
+               'ESCI_FIX': (1, elab['esci_fix']), 'EF_VARS': (1, elab['EF_VARS'])}
     src = ASM
+    extra = ''.join(f'    je .r\n    cmp byte [DIYCOPY + 2Dh], {cid:#x}\n' for cid in coin_ids)   # tourney packs
+    src = src.replace('    cmp byte [DIYCOPY + 2Dh], FA_ID_\n.r:', '    cmp byte [DIYCOPY + 2Dh], FA_ID_\n' + extra + '.r:')
     if mkseason.CAREERS_REC[0] is not None:                # career packs: CLASSIC CAREERS button coloured too
         symbols['CAREERS_NAME'] = (2, mkseason.CAREERS_REC[0] + 1)
         src = src.replace('    cmp dword [esi + 26h], SEASONS_NAME', '    cmp dword [esi + 26h], CAREERS_NAME\n    je .c\n'
                           '    cmp dword [esi + 26h], SEASONS_NAME')
-    code, fix = nasmcave.assemble(src, at, symbols)
-    labels = nasmcave.labels(src, at, symbols)
-    p.put(1, at, code)
+    while True:                                            # (3.2: the code on its own page; tables stay in the cave)
+        code, fix = nasmcave.assemble(src, at2, symbols)    # no pointer may straddle a page
+        if all((at2 + off) % 0x1000 <= 0x1000 - 4 for off, _, _ in fix):
+            break
+        at2 += 4
+    labels = nasmcave.labels(src, at2, symbols)
+    assert at2 + len(code) <= cave2 + 0x1000, hex(at2 + len(code))
+    p.put(1, at2, code)
     for off, tobj, toff in fix:
-        p.add_ptr(1, at + off, tobj, toff)
+        p.add_ptr(1, at2 + off, tobj, toff)
     p.put(1, pre_call + 1, struct.pack('<i', labels['hist_preset'] - (pre_call + 5)))
     p.put(1, names_call + 1, struct.pack('<i', labels['hist_names'] - (names_call + 5)))
     # the overwritten instructions held absolute addresses (D7, the skip flag): drop their fixups, or the loader would
@@ -642,8 +816,9 @@ def patch(p, lang, area, cave, draw_pre=None, leagues=()):
     print(f'exe: historic: coin toss: draw site obj1+{coin["draw_site"]:#x}, results text obj1+{coin["text_site"]:#x}')
     for c in draw_calls:
         p.put(1, c + 1, struct.pack('<i', labels['hist_draw'] - (c + 5)))
-    print(f'exe: historic: fixed draws {[(hex(cid), len(pm)) for cid, pm in DRAWS]}, calls {[hex(c) for c in draw_calls]}')
+    print(f'exe: historic: fixed draws {[(hex(d[0]), len(d[1])) for d in DRAWS]}, calls {[hex(c) for c in draw_calls]}')
     # season: no historic league yet -> its call stays on the original world table
     print(f'exe: historic: {name.decode()} = country {CLASSICS}, {full.decode()} id {WC82_ID:#x} @ obj1+{wc82:#x}, '
           f'preset call obj1+{pre_call:#x} -> obj1+{labels["hist_preset"]:#x} (season call obj1+{season_call:#x} untouched)')
-    return (at + len(code) + 3) & ~3
+    print(f'exe: historic: code obj1+{at2:#x}..{at2 + len(code):#x} (page {cave2:#x})')
+    return at

@@ -37,7 +37,7 @@ PACKS = os.path.join(ROOT, 'packs')
 NATIONAL = 'national'                   # packs/<world>/national: the world's national teams (NationalPack)
 WORLDS = ['europe-1984-85']                        # career worlds: packs/<world>/<country> (3.0: Europe 1984-85)
 ENABLED = (os.environ['SEASON_PACKS'].split(',') if 'SEASON_PACKS' in os.environ else   # packs built into the mod,
-           ['ddr-1988-89', 'italia-1947-48'] + [os.path.join(PACKS, w, c) for w in WORLDS                 # in this order
+           ['ddr-1988-89', 'italia-1947-48', 'world-cup-1934'] + [os.path.join(PACKS, w, c) for w in WORLDS                 # in this order
                               for c in sorted(os.listdir(os.path.join(PACKS, w)))
                               if not c.startswith('.') and c != NATIONAL])
                                         # (a name in packs/ or a path; SEASON_PACKS only for test builds)
@@ -56,6 +56,13 @@ CAREER_CAVE = [None]                    # obj1 page of the career world code (pa
 CAREER_CAVE_SIZE = 0x2000               # 3.1: two pages (patch.py)
 ROUND = {'two_legs': 0x94, 'single': 0x14, 'single_et': 0x54}   # knockout round byte: two legs (away goals),
                                                                  # single match, single match + extra time/penalties
+# tourney packs (3.2, CLASSIC TOURNEYS): matches of a knockout stage = the legs byte of a worldCup-layout stage (as the
+# World Cup 1982 / Mitropa 1934 / FA Cup 1871-72 of historic.py). *_replay: a draw (on aggregate) is replayed, a drawn
+# replay is decided by a coin toss (historic coin_draw): those tourneys use no penalties at all.
+MATCHES = {'single': 0x14, 'single_et': 0x54, 'two_legs': 0x94, 'single_replay': 0x00, 'two_legs_replay': 0x80}
+REPLAY = ('single_replay', 'two_legs_replay')
+RESERVED_IDS = {0xAD, 0xC1, 0xC2, 0xC3, 0xC4, 0xC5} | set(range(0x6c, 0x7c))   # hand-made contests (historic, finals97,
+                                                                               # sacups, cafcups, Australian cup)
 AU_CUP_SIG = bytes((0xAD, 1, 0x2C, 0x28, 0x50))   # SWOS's Australian cup: layout of a 'national' cup
 COUNTRY = {'ALB': 0, 'AUT': 1, 'BEL': 2, 'BUL': 3, 'CYP': 5, 'TCH': 6, 'DEN': 7, 'ENG': 8, 'FIN': 12, 'FRA': 13, 'GDR': 14,
            'FRG': 14, 'GRE': 15, 'HUN': 16, 'ISL': 17, 'IRL': 18, 'ITA': 20, 'LUX': 23, 'MLT': 24, 'NED': 25,
@@ -132,7 +139,8 @@ class Pack:
             _need(row['file'] in self.files, f"clubs.csv: {row['key']}: unknown file {row['file']}")
             _need(0 < len(row['name']) <= 16 and row['name'] == row['name'].upper(),
                   f"clubs.csv: {row['key']}: name must be 1-16 upper-case characters")
-            _need(row['country'] in COUNTRY, f"clubs.csv: {row['key']}: unknown country code {row['country']}")
+            _need(m.get('kind') == 'tourney' or row['country'] in COUNTRY,
+                  f"clubs.csv: {row['key']}: unknown country code {row['country']}")
             self.clubs[row['key']] = row
         self.players = {k: [] for k in self.clubs}
         self.prows = {k: [] for k in self.clubs}
@@ -155,9 +163,17 @@ class Pack:
             count[c['file']] = n + 1
         self.count = count
         self.comps = m['competitions']
-        self.league = next(c for c in self.comps if c['key'] == m['season']['league'])
         self.kind = m.get('kind', 'season')
-        _need(self.kind in ('season', 'career'), "pack.json: kind must be 'season' or 'career'")
+        _need(self.kind in ('season', 'career', 'tourney'), "pack.json: kind must be 'season', 'career' or 'tourney'")
+        self.world = None
+        if self.kind == 'tourney':              # 3.2: CLASSIC TOURNEYS only (no league, no Season / Career entry)
+            self.league, self.league_clubs, self.division = None, [], {}
+            _need(self.comps and all(c['type'] == 'tourney' for c in self.comps),
+                  "a tourney pack holds competitions of type 'tourney' only")
+            for c in self.comps:
+                self.tourney(c)          # validates
+            return
+        self.league = next(c for c in self.comps if c['key'] == m['season']['league'])
         self.league_clubs = [k for k, c in self.clubs.items() if c['file'] == self.league['clubs']]
         self.division = {k: int(self.clubs[k].get('division') or 0) for k in self.league_clubs}
         divs = self.divisions()
@@ -168,6 +184,8 @@ class Pack:
         for c in self.comps:
             if c['type'] == 'cup':
                 self.bracket(c)          # validates
+            _need(not c.get('classic_tourney') or c['type'] == 'league',
+                  f"{c['key']}: classic_tourney is for leagues (a cup or a tournament: a tourney pack, see packs/README.md)")
         self.world = m.get('world')
         if self.world is not None:
             _need(self.kind == 'career' and isinstance(self.world, int) and 1 <= self.world <= 50,
@@ -188,6 +206,8 @@ class Pack:
     def divisions(self):
         """League divisions: pack.json 'divisions' [{teams, promoted, relegated, names}], or one division."""
         lg = self.league
+        if lg is None:
+            return []
         if 'divisions' in lg:
             return lg['divisions']
         return [{'teams': len(self.league_clubs), 'promoted': 0, 'relegated': lg['relegated'], 'names': lg['names']}]
@@ -195,13 +215,14 @@ class Pack:
     def comp(self, key):
         return next(c for c in self.comps if c['key'] == key)
 
-    def bracket(self, comp):
+    def bracket(self, comp, rounds=None):
         """{'clubs': contest order (round 1 ties, then byes), 'draws': [perm per round], 'byes': n} from ties.csv."""
         key = comp['key']
         rows = self.ties.get(key)
         _need(rows, f'ties.csv: no ties for {key}')
         nr = max(int(r['round']) for r in rows)
-        _need(nr == len(comp['rounds']), f"{key}: {nr} rounds in ties.csv, {len(comp['rounds'])} in pack.json")
+        want = len(comp['rounds']) if rounds is None else rounds
+        _need(nr == want, f"{key}: {nr} rounds in ties.csv, {want} in pack.json")
         by = {r: [x for x in rows if int(x['round']) == r] for r in range(1, nr + 1)}
         byes = [x['home'] for x in by[1] if not x['away']]
         _need(all(not x['away'] for x in by[1][len(by[1]) - len(byes):]), f'{key}: byes must follow the round 1 ties')
@@ -233,7 +254,8 @@ class Pack:
     def team_files(self):
         out = {}
         for sq in self.meta['squads']:
-            builder = {'calibrate': self._calibrate, 'game': self._game, 'explicit': self._explicit}[sq['method']]
+            builder = {'calibrate': self._calibrate, 'game': self._game, 'explicit': self._explicit,
+                       'records': self._records}[sq['method']]
             out.update(builder(sq))
         return out
 
@@ -320,6 +342,137 @@ class Pack:
             recs[c['file']].append(bytes(r))
         self.log(f"{'+'.join(sq['files'])}: {sum(map(len, recs.values()))} clubs, invented names {fillers}")
         return {self.files[f][0]: struct.pack('>H', len(v)) + b''.join(v) for f, v in recs.items()}
+
+    def _records(self, sq):
+        """Whole teams from a SWOS team file (a TEAM.xxx, a SWOS 2020 CUSTOMS.EDT): clubs.csv 'record' = the team's name
+        in sq['source'] (first one of that name); players, kit, tactic, lineup as there; clubs.csv name, and coach when
+        given, replace that file's; kit1 / kit2 optional as for 'explicit'."""
+        path = os.path.join(ROOT, sq['source'])
+        _need(os.path.exists(path), f"squads: {sq['source']} not found (SWOS 2020 files go in orig/swos2020/, not in the "
+                                    f"repository)")
+        by = {}
+        for r in _records(open(path, 'rb').read()):
+            by.setdefault(r[5:22].split(b'\0')[0].decode('latin1'), r)
+        recs = {f: [] for f in sq['files']}
+        for key, c in self.clubs.items():
+            if c['file'] not in sq['files']:
+                continue
+            _need(c.get('record') in by, f"clubs.csv: {key}: record {c.get('record')!r} is not a team of {sq['source']}")
+            src = by[c['record']]
+            r = self._empty_record(key, src)
+            if not c['coach']:
+                r[36:59] = src[36:59]
+            for col, at in (('kit1', 26), ('kit2', 31)):
+                if c.get(col):
+                    r[at:at + 5] = bytes(_nums(c, col, 5, 0, 255, f'clubs.csv: {key}'))
+            recs[c['file']].append(bytes(r))
+        self.log(f"{'+'.join(sq['files'])}: {sum(map(len, recs.values()))} teams from {sq['source']}")
+        return {self.files[f][0]: struct.pack('>H', len(v)) + b''.join(v) for f, v in recs.items()}
+
+    def tourney(self, c):
+        """A CLASSIC TOURNEYS competition (worldCup layout, historic.py): {'clubs': contest order, 'stages': the 26 bytes
+        from header +0Eh, 'draws': [perm], 'coin': replays decided by a coin toss}.
+        pack.json: key, type 'tourney', id, clubs (a files key), names, win_points, draw ('fixed' or 'random'), stages:
+          {"type": "groups", "teams": 24, "groups": 6}                 round robin, one match per pair
+          {"type": "knockout", "teams": 16, "matches": "single"}      MATCHES; the last stage: knockout of 2 (final)
+          {"type": "third_place", "matches": "single"}                the semi-final losers (before the final)
+          "from": ["1A", "2B", ...] on the stage after a group stage: where each qualifier goes (1A = winner of group
+          A); qualifiers otherwise come in the game's order (1st of every group A.., then 2nd ...).
+        Order of the clubs: ties.csv round 1 when the tourney starts with a knockout and has ties (the real bracket:
+        every round of ties.csv must follow from the winners), else clubs.csv order (groups: A first)."""
+        key = c['key']
+        w = f'{key}:'
+        _need(c.get('clubs') in self.files, f"{w} clubs must be a key of files")
+        _need(isinstance(c.get('win_points'), int) and 1 <= c['win_points'] <= 9, f'{w} win_points 1..9')
+        _need(c.get('draw', 'fixed') in ('fixed', 'random'), f"{w} draw must be 'fixed' or 'random'")
+        _need(re.fullmatch(r'[0-9A-F]{2}', c.get('id', '')) and int(c['id'], 16) >= 0x80
+              and int(c['id'], 16) not in RESERVED_IDS, f'{w} id: a free contest id (hex, 80..FE, see packs/README.md)')
+        for lg, nm in c['names'].items():
+            _need(len(nm) == 2 and all(x == x.upper() for x in nm) and len(nm[1]) <= 16 and len(nm[0]) <= 30,
+                  f'{w} names.{lg}: [long name (<= 30), short name (<= 16)], upper case')
+        st = c.get('stages') or []
+        _need(2 <= len(st) <= 6, f'{w} 2 to 6 stages (the last one the final)')
+        clubs = [k for k, x in self.clubs.items() if x['file'] == c['clubs']]
+        _need(len(clubs) <= 32, f'{w} at most 32 teams (CLASSIC TOURNEYS share 32 global numbers)')
+        trip, legs, draws, coin, prev = [], [], [], None, None
+        nko = sum(1 for x in st if x['type'] == 'knockout')
+        ties = st[0]['type'] == 'knockout' and key in self.ties
+        if ties:
+            br = self.bracket(c, nko)
+            _need(not br['byes'], f'{w} no byes in a tourney (every knockout round halves the teams)')
+            clubs = br['clubs']
+            # the game leaves a round's winners in an order of its own (replays first ...): historic hist_draw sorts
+            # them by their place in the contest (flag), so each perm is relative to that order
+            rows = sorted(self.ties[key], key=lambda r: int(r['round']))
+            sperm, prev = [], None
+            for r in range(1, nko + 1):
+                tr = [x for x in rows if int(x['round']) == r]
+                if prev is not None:
+                    order = sorted(prev, key=clubs.index)
+                    sperm.append([order.index(x[side]) for x in tr for side in ('home', 'away')])
+                prev = [x['winner'] for x in tr]
+            _need(sorted(clubs) == sorted(k for k, x in self.clubs.items() if x['file'] == c['clubs']),
+                  f"{w} ties.csv round 1 must hold every club of {c['clubs']}")
+        ko = 0
+        for i, x in enumerate(st):
+            t = x.get('type')
+            n = x.get('teams', 2 if t == 'third_place' else None)
+            sw = f'{w} stage {i + 1}:'
+            _need(t in ('groups', 'knockout', 'third_place'), f'{sw} type groups, knockout or third_place')
+            _need(isinstance(n, int) and n >= 2, f'{sw} teams')
+            if i == 0:
+                _need(n == len(clubs), f'{sw} {n} teams, {len(clubs)} clubs in {c["clubs"]}')
+                _need(t != 'third_place', f'{sw} a tourney cannot start with the third place match')
+            elif t == 'third_place':
+                _need(prev['type'] == 'knockout' and prev['teams'] == 4 and i == len(st) - 2,
+                      f'{sw} third_place comes after the semi-finals (knockout of 4), before the final')
+            elif prev['type'] == 'groups':
+                _need(n < prev['teams'], f'{sw} fewer teams than the group stage before')
+            else:
+                last = st[i - 2] if prev['type'] == 'third_place' else prev
+                _need(n * 2 == last['teams'], f'{sw} {n} teams: half of the knockout before')
+            if t == 'groups':
+                g = x.get('groups')
+                _need(isinstance(g, int) and g >= 1 and n % g == 0 and n // g >= 2, f'{sw} groups: teams / groups >= 2')
+                _need(n // g <= 24, f'{sw} at most 24 teams per group')
+                trip += [n, g, n // g]
+                legs.append(0)
+            else:
+                _need(x.get('matches') in MATCHES, f"{sw} matches: one of {', '.join(MATCHES)}")
+                _need(t == 'third_place' or n & (n - 1) == 0, f'{sw} a knockout stage needs 2, 4, 8, 16 or 32 teams')
+                trip += [n, 0xFF, n] if t == 'third_place' else [n, 0, n]
+                legs.append(MATCHES[x['matches']])
+                rp = x['matches'] in REPLAY
+                _need(coin is None or coin == rp, f'{w} replays (coin toss) and penalties cannot be mixed in one '
+                                                 f'tourney: the results screen shows the coin toss for every shoot-out')
+                coin = rp
+            frm = x.get('from')
+            if frm is not None:
+                _need(i > 0 and prev['type'] == 'groups', f'{sw} from: only on the stage after a group stage')
+                g = prev['groups']
+                _need(n % g == 0, f'{sw} from needs the same number of qualifiers from every group')
+                labels = [f'{r}{chr(65 + k)}' for r in range(1, n // g + 1) for k in range(g)]
+                _need(sorted(frm) == sorted(labels), f"{sw} from must list {' '.join(labels)} once each")
+                draws.append((n, [labels.index(q) for q in frm], False))
+            elif i == 0:
+                draws.append((n, list(range(n)), False))   # keep the order: groups / round 1 ties as listed
+            elif prev['type'] != 'groups' and c.get('draw', 'fixed') == 'fixed' and n > 2:
+                draws.append((n, list(range(n)), True))    # winners by their place in the contest: tie k = W2k-W2k+1
+            if t == 'knockout':
+                ko += 1
+            prev = dict(x, teams=n)
+        _need(st[-1]['type'] == 'knockout' and st[-1]['teams'] == 2, f'{w} the last stage must be the final (knockout of 2)')
+        if ties:                                # the real bracket replaces the knockout orders
+            sizes = [len(pm) for pm in sperm] + [len(clubs)]
+            draws = [d for d in draws if d[0] not in sizes] + [(len(clubs), list(range(len(clubs))), False)]
+            draws += [(len(pm), pm, True) for pm in sperm if len(pm) > 2]
+        ns = [d[0] for d in draws]
+        _need(len(set(ns)) == len(ns), f'{w} two stages of {ns} teams: the fixed order needs a different team count per '
+                                       f'stage (or draw: random)')
+        body = bytes([len(st)] + trip + [1])
+        _need(len(body) <= 20, w)
+        stages = body + bytes(20 - len(body)) + bytes(legs) + bytes(6 - len(legs))
+        return {'clubs': clubs, 'stages': stages, 'draws': [(pm, srt) for _, pm, srt in draws], 'coin': bool(coin)}
 
     def _game(self, sq):
         """Clubs on the record of the same club in the 1996-97 game when there is one (name match >= 0.8 in its country),
@@ -427,6 +580,8 @@ class Pack:
     # --- exe ---------------------------------------------------------------------------------------------------------
     def draws(self):
         """historic.DRAWS entries (contest id, permutation), cups in pack order."""
+        if self.kind == 'tourney':
+            return [(int(c['id'], 16), pm, srt) for c in self.comps for pm, srt in self.tourney(c)['draws']]
         return [(int(c['id'], 16), perm) for c in self.comps if c['type'] == 'cup' for perm in self.bracket(c)['draws']]
 
     def bye_cups(self):
@@ -558,6 +713,21 @@ def draws():
 
 def bye_cups():
     return [b for pk in packs() for b in pk.bye_cups()]
+
+
+def tourneys():
+    """The tourney packs' competitions for historic.patch (CLASSIC TOURNEYS after the hand-made ones): [{id, names,
+    win_points, file, base, stages, pairs, coin}]."""
+    out = []
+    for pk in packs():
+        if pk.kind != 'tourney':
+            continue
+        for c in pk.comps:
+            t = pk.tourney(c)
+            f, base = pk.files[c['clubs']]
+            out.append(dict(id=int(c['id'], 16), names=c['names'], win_points=c['win_points'], file=f, base=base,
+                            stages=t['stages'], pairs=pk.team_bytes(t['clubs']), coin=t['coin']))
+    return out
 
 
 def file_numbers():
@@ -943,9 +1113,12 @@ def patch(p, lang, area, cave):
         for c in pk.comps:
             owner = ('world', pk.world) if pk.world is not None and c['type'] == 'league' else ('pack', pk.meta['id'])
             _need(ids.setdefault(c['id'], owner) == owner, f"contest id {c['id']} used twice")
+            _need(int(c['id'], 16) not in RESERVED_IDS, f"contest id {c['id']} is used by the mod")
     at, infos = cave, []
     cat = CAREER_DATA[0]                       # career packs: own obj1 pages (a world of 30 countries needs ~5 KB)
     for pk in packs():
+        if pk.kind == 'tourney':                # historic.patch: CLASSIC TOURNEYS
+            continue
         if pk.world is not None:
             cat, info = _patch_pack(pk, p, lang, area, cat, env)
         else:
@@ -1082,9 +1255,15 @@ def main(argv):
             for pk in pks:
                 print(f"== {pk.meta['id']} ({pk.kind})")
                 for c in pk.comps:
+                    if c['type'] == 'tourney':
+                        t = pk.tourney(c)
+                        print(f"{c['key']}: tourney, {len(t['clubs'])} teams, stages "
+                              f"{' > '.join(str(x.get('teams', 2)) + ' ' + x['type'] for x in c['stages'])}, "
+                              f"{'replays + coin toss' if t['coin'] else 'no replays'}")
+                        continue
                     n = len(pk.league_clubs) if c['type'] == 'league' else len(pk.bracket(c)['clubs'])
                     print(f"{c['key']}: {c['type']}, {n} clubs")
-                short = [k for k, v in pk.players.items() if len(v) < 16]
+                short = [k for k, v in pk.players.items() if len(v) < 16 and pk.kind != 'tourney']
                 print(f'{len(pk.clubs)} clubs, {sum(map(len, pk.players.values()))} players; under 16 players (fillers): {short}')
             packs.cache = pks                   # several career packs = a world: check it as a whole
             for w in world_defs():

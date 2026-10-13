@@ -1,0 +1,30 @@
+{
+  "format": 1,
+  "id": "world-cup-1934",
+  "kind": "tourney",
+  "sources": ["Squads, ratings, kits and coaches: SWOS 2020 DLC \"1934 FIFA WORLD CUP (Italy)\" by Insane (sensiblesoccer.de), used with permission (orig/swos2020/x_wc34/CUSTOMS.EDT, not in the repository)",
+              "Bracket: en.wikipedia, 1934 FIFA World Cup; RSSSF"],
+  "notes": ["1934: a drawn match went to extra time, then to a replay (Italy-Spain, quarter-final). The game cannot play extra time before a replay: a draw is replayed at once, a drawn replay is decided by a coin toss (as the FA Cup 1871-72)."],
+
+  "files": {
+    "teams": {"file": 146, "base": 1786}
+  },
+  "squads": [
+    {"files": ["teams"], "method": "records", "source": "orig/swos2020/x_wc34/CUSTOMS.EDT"}
+  ],
+
+  "competitions": [
+    {"key": "wc34", "type": "tourney", "id": "ED", "clubs": "teams", "win_points": 2, "draw": "fixed",
+     "stages": [
+       {"type": "knockout", "teams": 16, "matches": "single_replay"},
+       {"type": "knockout", "teams": 8, "matches": "single_replay"},
+       {"type": "knockout", "teams": 4, "matches": "single_replay"},
+       {"type": "third_place", "matches": "single_replay"},
+       {"type": "knockout", "teams": 2, "matches": "single_replay"}
+     ],
+     "names": {"it": ["COPPA MONDIALE 1934", "MONDIALE 1934"],
+               "en": ["WORLD CUP 1934", "WORLD CUP 1934"],
+               "fr": ["COUPE DU MONDE 1934", "COUPE MONDE 1934"],
+               "de": ["WM 1934", "WM 1934"]}}
+  ]
+}

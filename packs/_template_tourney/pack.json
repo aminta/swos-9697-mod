@@ -1,0 +1,28 @@
+{
+  "format": 1,
+  "id": "example-tourney",
+  "kind": "tourney",
+  "sources": ["Where every piece of data comes from (sites, books, databases and their authors)"],
+  "notes": ["Anything fixed by hand or uncertain"],
+
+  "files": {
+    "teams": {"file": 147, "base": 1786}
+  },
+  "squads": [
+    {"files": ["teams"], "method": "game", "seed": 1960}
+  ],
+
+  "competitions": [
+    {"key": "cup", "type": "tourney", "id": "EE", "clubs": "teams", "win_points": 2, "draw": "fixed",
+     "stages": [
+       {"type": "groups", "teams": 8, "groups": 2},
+       {"type": "knockout", "teams": 4, "matches": "single_et", "from": ["1A", "2B", "1B", "2A"]},
+       {"type": "third_place", "matches": "single_et"},
+       {"type": "knockout", "teams": 2, "matches": "single_et"}
+     ],
+     "names": {"it": ["TORNEO ESEMPIO 1960", "TORNEO ESEMPIO"],
+               "en": ["EXAMPLE CUP 1960", "EXAMPLE CUP"],
+               "fr": ["COUPE EXEMPLE 1960", "COUPE EXEMPLE"],
+               "de": ["BEISPIELPOKAL 1960", "BEISPIELPOKAL"]}}
+  ]
+}

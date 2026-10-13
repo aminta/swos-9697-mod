@@ -1893,3 +1893,24 @@ Left for 2.5: (a) NSL/NSSL finals series (type-1 design) or declare them postpon
   own code: originals CD/GOG, 3.0.1 exe/GOG/TEAM.020/SWOS++ all upgrade, outputs = c/REL31.
 - Docs: release/notes-3.1.md, README IT/EN, manual chapter 27 (IT/EN, docs/), announcements internal/announcements/3.1.
   Davide's playtest of the national teams (URSS) OK.
+
+## Release 3.2 (2026-10-13): tourney packs, World Cup 1934, menu alignment
+- Tourney packs (mkseason `kind: tourney`, `Pack.tourney`): CLASSIC TOURNEYS from data, worldCup layout (stages bytes
+  from +0Eh, legs from +22h), team file 146 (base 1786 shared), contest ids from ED; squads method `records` (teams from
+  a TEAM.xxx / CUSTOMS.EDT). Guide packs/TOURNEYS(.it).md, template packs/_template_tourney (file 147, id EE, not built).
+- World Cup 1934 (packs/world-cup-1934): Insane's DLC records, real bracket from ties.csv, single_replay everywhere
+  (draw -> replay, drawn replay -> coin toss), third place match.
+- hist_draw: bit 7 of a round's team count = sort the qualifiers by contest index before the perm (the game leaves a
+  knockout round's winners in its own order: replay winners first). Tourney perms are relative to that order; the
+  Mitropa 1934 entries after round 1 get the flag too (its bracket broke after a play-off).
+- Menus (Davide's friend Marco): KITS button x 25..88, y 0..10 (rows / team name); esci_fix in hist_names: when a column
+  covers ESCI (preset EUROPA 14/15/14), ESCI takes the free slot under the rightmost column (211,188), old place
+  restored if the game does not lay the menu out again.
+- New obj1 page (patch.HIST2_PAGE, 0xaa000 with a world, else 0xa6000): historic's code (hist_draw, coin, hist_names,
+  hist_preset), esci_fix and the tourney contests; the world cave keeps only historic's tables (it was 0xf8 bytes from
+  full; the world3 test build overflowed). LE header padding before the data pages: IT 75, FR 1 byte (lepatch.save
+  moves the data pages when it runs out; the harness's add_object_page needs 8, it runs the IT exe).
+- Patcher: '1.0-2.5' text -> any earlier release; dropping the page itself explains which files to drop (also
+  re-uploaded to v3.1). Old patcher v3.1 in orig/old-patchers.
+- Harness: play_preset; scenarios classic_wc34, classic_groups (test build with SEASON_PACKS, needs ddr for lib97's
+  bye cup), classic_tourneys (WC82, Mitropa bracket after play-offs, FA Cup).

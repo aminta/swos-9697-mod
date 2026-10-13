@@ -98,7 +98,8 @@ TEXTS = {
                k1=b'HEIMTRIKOT', k2=b'AUSWAERTS', cancel=b'ABBRUCH', ok=b'OK', reset=b'RESET'),
 }
 KITS_ENTRY = 68
-BUTTON = (22, 21, 58, 10)       # packed x, y, width, height (screen = x + 8, y - 20): x 30..88
+BUTTON = (17, 20, 63, 10)       # packed x, y, width, height (screen = x + 8, y - 20): x 25..88, y 0..10 (3.2, Marco:
+                                # left edge = the player rows', top = the team name's)
 BUTTON_COLOR = 8                # as USE MATCH TEAM: blue to black, grey frame
 SLOT = 36                       # name 18, kits 10 (+18), worn kit (+28), team pointer (+32)
 

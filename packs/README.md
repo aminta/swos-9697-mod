@@ -18,6 +18,9 @@ The packs that go into the build are listed in `mkseason.ENABLED`.
 **A whole historic world played as a career** (several countries, divisions, European cups, many seasons)?
 See [CAREERS.md](CAREERS.md).
 
+**A historic tournament** (a World Cup, a European Championship, an old cup with groups, knockout rounds, replays) in
+PRESET COMPETITION > CLASSIC TOURNEYS? See [TOURNEYS.md](TOURNEYS.md).
+
 ## Build your own season
 
 Anyone can prepare a season and send it to us; we check it, finish the technical part and add it to a release.
@@ -129,7 +132,8 @@ real bracket.
    just an option, used with the permission and credit of the database's authors.
 - `competitions`: in order.
   - league: `id` (contest id, hex), `clubs` (its file key), `dates_from` (country whose calendar it copies),
-    `games` (2 = home and away), `win_points`, `relegated`, `classic_tourney` (also in CLASSIC TOURNEYS), `names`.
+    `games` (2 = home and away), `win_points`, `relegated`, `classic_tourney` (the league also in CLASSIC TOURNEYS; a cup or a tournament:
+    [TOURNEYS.md](TOURNEYS.md)), `names`.
   - cup: `id`, `layout` (`national` or `european` contest layout), `dates_from` (national), `rounds` (one per round:
     `two_legs`, `single`, `single_et` = single match with extra time and penalties), `names`.
   - `names`: per language (`it`, `en`, `fr`, `de`, or `*` for all): `[long name, short name]`, upper case, short
@@ -155,5 +159,6 @@ and credit.
 ## Limits
 
 - One national league per pack, single division (career packs may have several: [CAREERS.md](CAREERS.md)).
-- Team files: 101–251 are free (tested with 101–104); 98 and 99 are taken by the CLASSIC CAREERS menu. Packs may
-  share global numbers, since two packs never run in the same season.
+- Team files: we assign them. Taken today: up to 96, 97-99 (menus), 101-145 and 180-185 (Europe 1984-85),
+  146-147 (tourney packs), 153-155 (nationalities); 200 and up are the worlds' menu entries. Packs may share global
+  numbers, since two packs never run in the same season.

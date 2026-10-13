@@ -101,8 +101,9 @@ html{scroll-behavior:smooth}
     <li><a href="#maglie">25 · Home and away kits (3.0)</a></li>
     <li><a href="#euro8485">26 · Europe 1984-85 and European cups (3.0)</a></li>
     <li><a href="#nazionali">27 · National teams of Europe 1984-85 (3.1)</a></li>
-    <li><a href="#limiti">28 · Limits and open issues</a></li>
-    <li><a href="#storia">29 · History and next steps</a></li>
+    <li><a href="#tornei32">28 · Classic tourneys from data (3.2)</a></li>
+    <li><a href="#limiti">29 · Limits and open issues</a></li>
+    <li><a href="#storia">30 · History and next steps</a></li>
   </ol>
 </nav>
 
@@ -237,6 +238,7 @@ ndisasm -b32 -o 0xA1000 file.bin              # disassembler (Homebrew); nasm to
 <tr><td>0x4EEA9</td><td>DIY_competitionStart</td><td>"working" contest: routines copy a slot here, process it and copy it back</td></tr>
 <tr><td>0x593F2</td><td>leaguesTableCopy</td><td>copy of someLeaguesTable used at season end (checksum!)</td></tr>
 <tr><td>0xC070F</td><td>dseg_18070F</td><td>Champions Cup winner (holder); the mod also uses it for the Libertadores</td></tr>
+<tr><td>36</td><td>Release 3.2: tourney packs (CLASSIC TOURNEYS from data: groups, knockout, third place, replays and coin toss, real brackets); World Cup 1934</td><td><span class="pill ok">passed (automated harness)</span></td></tr>
 </tbody></table></div>
 <h3>Object 1: code (game routines used by the mod)</h3>
 <div class="tbl"><table>
@@ -644,7 +646,19 @@ assert blk[:2] == b'S2' and sum(blk) % 256 == 0</code></pre>
 </ul>
 
 <!-- 28 -->
-<h2 id="limiti"><span class="n">28</span>Limits and open issues</h2>
+<h2 id="tornei32"><span class="n">28</span>Classic tourneys from data (3.2)</h2>
+<p>A <strong>tourney pack</strong> (<code>kind: tourney</code>, guide <code>packs/TOURNEYS.md</code>) adds a tournament to CLASSIC TOURNEYS with data only; the first one is <code>packs/world-cup-1934</code>. Compiler: <code>Pack.tourney</code> in <code>tools/mkseason.py</code>; exe: <code>historic.patch</code>.</p>
+<ul>
+<li><strong>Layout.</strong> The contest is a copy of the game's <code>worldCup</code> header (as the World Cup 1982, Mitropa 1934 and FA Cup 1871-72 of 2.0): id, points per win at +0Ch, the stages from +0Eh (count, then teams / groups / teams per group per stage: knockout groups 0, third place FFh, then 1) and from +22h one legs byte per stage (<code>single</code> 14h, <code>single_et</code> 54h, <code>two_legs</code> 94h, <code>single_replay</code> 00h, <code>two_legs_replay</code> 80h), two name offsets, then (file, ordinal) per team. Team file 146 (country entry = the CLASSICS record, base 1786 shared by every classic tourney).</li>
+<li><strong>Brackets.</strong> <code>hist_draw</code> (the fixed-draw table that replaces the random draw <code>cseg_27F08</code>) takes a flag in bit 7 of a round's team count: sort the qualifiers by their place in the contest before the permutation. The game leaves a knockout round's winners in an order of its own (replay winners first ...), so a fixed bracket needs that sort; the permutations of a pack's <code>ties.csv</code> are computed relative to the sorted order. The entries of 2.0 and of the season packs have no flag (unchanged).</li>
+<li><strong>Replays.</strong> Tourneys with <code>*_replay</code> stages join <code>coin_ours</code> (coin toss on a drawn replay, "... VINCE AL SORTEGGIO").</li>
+<li><strong>Squads.</strong> New method <code>records</code>: whole teams from a SWOS team file or a SWOS 2020 <code>CUSTOMS.EDT</code> (World Cup 1934: Insane's DLC).</li>
+<li><strong>Tests.</strong> <code>classic_wc34</code> (the real bracket after replays, coin tosses, third place, final), <code>classic_groups</code> (the template: 2 groups, crossed semi-finals), <code>classic_tourneys</code> (World Cup 1982, Mitropa, FA Cup to the final).</li>
+<li><strong>Menus.</strong> The pre-match KITS button lines up with the player rows and the team name (x 25..88, y 0..10). <code>esci_fix</code> (called by <code>hist_names</code> in every team selection list): when a column covers ESCI (preset EUROPA: 14/15/14 countries), ESCI takes the free slot under the rightmost column, with up = that column's last entry; its place and links are restored if the game does not lay the menu out again. The code of <code>historic.py</code>, the fix and the tourney contests are on a page of their own (0xaa000, or 0xa6000 without a world).</li>
+</ul>
+
+<!-- 29 -->
+<h2 id="limiti"><span class="n">29</span>Limits and open issues</h2>
 <ul>
 <li><strong>Play-offs (2.5).</strong> NSL Finals and NSSL Playoffs are top-4 knockouts: the real formats (NSL: 6 clubs; both: a "double chance" for the top two) need per-round control of the entrants, i.e. a type-2 contest in slot 4, whose buffer (443h) is too small. Kept for a future version (<code>finals97.py</code>, option A). The regular-season winner that loses the play-off still shows a small icon at the top of its season record (not yet traced in the code).</li>
 <li><strong>C1/C2 groups.</strong> In 1996-97 C1 had 2 groups and C2 had 3. The mod uses one group per series. The full reality (128 teams) does not fit the limit of about 93 teams per nation. C1 with two groups would fit (92), but it needs promotions and relegations between parallel divisions, and checks on the 80-team career limit and on global numbers: estimated 2–3 sessions.</li>
@@ -657,8 +671,8 @@ assert blk[:2] == b'S2' and sum(blk) % 256 == 0</code></pre>
 <li><strong>English bench (after 1.0).</strong> In the pre-match line-up English clubs show 14 players (11 + 3 on the bench). The original game does the same, and <code>TEAM.008</code> has 16 players per club: it is a game rule. To do: find where the bench size comes from (rules at buffer +3Dh…41h, values 5/2/8 set by <code>InitCareer</code>) and raise it to 5.</li>
 </ul>
 
-<!-- 29 -->
-<h2 id="storia"><span class="n">29</span>History and next steps</h2>
+<!-- 30 -->
+<h2 id="storia"><span class="n">30</span>History and next steps</h2>
 <div class="tbl"><table>
 <thead><tr><th>Session</th><th>Content</th><th>Test</th></tr></thead>
 <tbody>

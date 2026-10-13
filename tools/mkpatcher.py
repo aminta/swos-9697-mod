@@ -20,7 +20,7 @@ import os
 import struct
 
 ROOT = os.path.join(os.path.dirname(__file__), '..')
-VERSION = '3.1'
+VERSION = '3.2'
 BLOCK = 16
 FILES = [  # (id, original path, patched path, file name in the game folder)
     ('ITALIAN.EXE', 'orig/ITALIAN.EXE', 'c/SWOS/ITALIAN.EXE', 'ITALIAN.EXE'),
@@ -47,6 +47,7 @@ FILES = [  # (id, original path, patched path, file name in the game folder)
     ('TEAM.089', None, 'c/SWOS/DATA/TEAM.089', 'DATA/TEAM.089'),
     ('TEAM.090', None, 'c/SWOS/DATA/TEAM.090', 'DATA/TEAM.090'),
     ('TEAM.091', None, 'c/SWOS/DATA/TEAM.091', 'DATA/TEAM.091'),
+    ('TEAM.146', None, 'c/SWOS/DATA/TEAM.146', 'DATA/TEAM.146'),   # 3.2: World Cup 1934 (tourney pack)
     # 2.6: DDR 1988-89 (packs/ddr-1988-89, mkseason.py): Oberliga clubs, FDGB-Pokal-only clubs
     ('TEAM.092', None, 'c/SWOS/DATA/TEAM.092', 'DATA/TEAM.092'),
     ('TEAM.093', None, 'c/SWOS/DATA/TEAM.093', 'DATA/TEAM.093'),

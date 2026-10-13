@@ -48,6 +48,8 @@ ARG_CAVE = 0xa4400           # 2.1: Argentina Apertura/Clausura, aggregate, prom
 CAREER_CAVE = 0xa6000        # 6th + 7th added pages (3.1: two), only in builds with a historic career world (careerworld.py)
 CAREER_CAVE_SIZE = mkseason.CAREER_CAVE_SIZE
 CAREER_DATA = 0xa8000        # 8th + 9th added pages (same builds): the career packs' structs (mkseason)
+HIST2_PAGE = 0x1000          # 3.2: one more page after the others (0xa6000, or 0xaa000 with a world): tourney packs'
+                             # contests and the ESCI fix (historic.patch; the world cave was nearly full)
 ARG_LOAD_HOOK = True
 
 LEAGUES_OLD = bytes.fromhex('3c00144020150000000202033512')
@@ -157,7 +159,7 @@ def patch_exe(src, dst, remap, lang='it'):
     grown = dst + '.tmp'
     data = open(src, 'rb').read()
     worlds = bool(mkseason.worlds())
-    for _ in range(9 if worlds else 5):
+    for _ in range(10 if worlds else 6):
         data = add_object_page(data, 1)
     mkseason.CAREER_CAVE[0] = CAREER_CAVE if worlds else None
     mkseason.CAREER_DATA[0] = CAREER_DATA if worlds else None
@@ -200,7 +202,8 @@ def patch_exe(src, dst, remap, lang='it'):
     fin_end = finals97.cal_rounds(p, fin_end)     # 2.5: NSL/NSSL play-offs: semi-finals AND final get dates
     world, lib_pre = lib97.patch(p, world, fin_pre)  # Libertadores 1997: bye, real calendar (hist_draw calls lib_pre)
     world, pack_leagues = mkseason.patch(p, lang, area, world)   # season packs (2.6: DDR 1988-89), CLASSIC SEASONS
-    world = historic.patch(p, lang, area, world, lib_pre, pack_leagues)
+    hist2 = OBJ1_NEW_VSIZE + (0x4000 if worlds else 0)
+    world = historic.patch(p, lang, area, world, lib_pre, pack_leagues, cave2=hist2)
     nz_end = nz97.shootout(p, NZ_CAVE)            # 2.1: NSSL shoot-out after every draw, +1 point to its winner
     arg_end = arg97.patch(p, area, sacups.STR_BASE, ARG_CAVE, nz97.SITE_B, os.path.join(ROOT, 'orig/DATA'))   # 2.1: Apertura / Clausura
     info = cafcups.career_info(caf)
@@ -230,10 +233,11 @@ def patch_exe(src, dst, remap, lang='it'):
                                                   # European cups of a career (1996-97 CWC / UEFA, worlds)
     arg_end = kitcolors.button(p, arg_end, lang, area)  # KITS button + SELECT KITS menu (pre-match screen)
     assert cave <= WORLD_CAVE, hex(cave)
+    print(f'exe: caves: world end {world:#x} (limit {NZ_CAVE:#x}), arg end {arg_end:#x} (limit {OBJ1_NEW_VSIZE:#x})')
     world = cafcups.intl_list(p, caf, world)
     assert world <= NZ_CAVE and nz_end <= FIN_CAVE and fin_end <= ARG_CAVE and arg_end <= OBJ1_NEW_VSIZE, \
         (hex(world), hex(nz_end), hex(fin_end), hex(arg_end))
-    p.set_vsize(1, OBJ1_NEW_VSIZE + (0x4000 if worlds else 0))
+    p.set_vsize(1, OBJ1_NEW_VSIZE + (0x4000 if worlds else 0) + HIST2_PAGE)
     p.set_vsize(2, obj2_free + o2pages * p.le.page_size + (careerworld.BSS_SIZE if bigw else 0),
                 bss=careerworld.BSS_SIZE if bigw else 0)
     p.add_flags(1, 0x2)            # writable: season end rewrites the SA cup team lists in the cave

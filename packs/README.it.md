@@ -18,6 +18,9 @@ I pacchetti che entrano nella build sono elencati in `mkseason.ENABLED`.
 **Un intero mondo storico da giocare in carriera** (più nazioni, divisioni, coppe europee, tante stagioni)?
 Vedi [CAREERS.it.md](CAREERS.it.md).
 
+**Un torneo storico** (un Mondiale, un Europeo, una vecchia coppa con gironi, eliminazione diretta, ripetizioni) in
+COMP. PREDEFINITA > TORNEI STORICI? Vedi [TOURNEYS.it.md](TOURNEYS.it.md).
+
 ## Costruisci la tua stagione
 
 Chiunque può preparare una stagione e mandarcela: noi la controlliamo, completiamo la parte tecnica e la inseriamo in
@@ -134,7 +137,8 @@ ripropone il tabellone vero.
 - `competitions`: in ordine.
   - campionato: `id` (identificativo della competizione, esadecimale), `clubs` (la chiave del suo file),
     `dates_from` (nazione di cui copia il calendario), `games` (2 = andata e ritorno), `win_points`, `relegated`,
-    `classic_tourney` (anche in TORNEI STORICI), `names`.
+    `classic_tourney` (il campionato anche in TORNEI STORICI; una coppa o un torneo:
+    [TOURNEYS.it.md](TOURNEYS.it.md)), `names`.
   - coppa: `id`, `layout` (struttura `national` o `european`), `dates_from` (per `national`), `rounds` (uno per
     turno: `two_legs` andata e ritorno, `single` partita secca, `single_et` partita secca con supplementari e
     rigori), `names`.
@@ -164,5 +168,6 @@ possono usare con il permesso del suo autore e citandolo.
 
 - Un solo campionato nazionale per pacchetto, a una divisione (i pacchetti carriera possono averne di più:
   [CAREERS.it.md](CAREERS.it.md)).
-- File squadre: liberi dal 101 al 251 (provati dal 101 al 104); il 98 e il 99 sono occupati dal menu CARR. STORICHE.
-  I pacchetti possono condividere i numeri globali, perché due pacchetti non giocano mai nella stessa stagione.
+- File squadre: li assegniamo noi. Occupati oggi: fino al 96, 97-99 (menu), 101-145 e 180-185 (Europa 1984-85),
+  146-147 (pacchetti torneo), 153-155 (nazionalità); dal 200 in su le voci dei mondi nei menu. I pacchetti possono
+  condividere i numeri globali, perché due pacchetti non giocano mai nella stessa stagione.

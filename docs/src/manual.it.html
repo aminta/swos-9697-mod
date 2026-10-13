@@ -101,8 +101,9 @@ html{scroll-behavior:smooth}
     <li><a href="#maglie">25 · Maglie di casa e trasferta (3.0)</a></li>
     <li><a href="#euro8485">26 · Europa 1984-85 e coppe europee (3.0)</a></li>
     <li><a href="#nazionali">27 · Nazionali dell'Europa 1984-85 (3.1)</a></li>
-    <li><a href="#limiti">28 · Limiti e questioni aperte</a></li>
-    <li><a href="#storia">29 · Storico e prossimi passi</a></li>
+    <li><a href="#tornei32">28 · Tornei storici da dati (3.2)</a></li>
+    <li><a href="#limiti">29 · Limiti e questioni aperte</a></li>
+    <li><a href="#storia">30 · Storico e prossimi passi</a></li>
   </ol>
 </nav>
 
@@ -237,6 +238,7 @@ ndisasm -b32 -o 0xA1000 file.bin              # disassemblatore (Homebrew), nasm
 <tr><td>0x4EFF3</td><td>DIY_competitionStart</td><td>contest "di lavoro": le routine copiano qui uno slot, lo elaborano e lo ricopiano</td></tr>
 <tr><td>0x5953C</td><td>leaguesTableCopy</td><td>copia di someLeaguesTable usata a fine stagione (checksum!)</td></tr>
 <tr><td>0xC058B</td><td>dseg_18070F</td><td>vincitore della Coppa Campioni (detentore); il mod lo usa anche per la Libertadores</td></tr>
+<tr><td>36</td><td>Release 3.2: pacchetti torneo (TORNEI STORICI da dati: gironi, eliminazione, 3° posto, ripetizioni e sorteggio, tabelloni reali); Mondiale 1934</td><td><span class="pill ok">superato (harness automatico)</span></td></tr>
 </tbody></table></div>
 <h3>Oggetto 1: codice (routine del gioco usate dal mod)</h3>
 <div class="tbl"><table>
@@ -644,7 +646,19 @@ assert blk[:2] == b'S2' and sum(blk) % 256 == 0</code></pre>
 </ul>
 
 <!-- 28 -->
-<h2 id="limiti"><span class="n">28</span>Limiti e questioni aperte</h2>
+<h2 id="tornei32"><span class="n">28</span>Tornei storici da dati (3.2)</h2>
+<p>Un <strong>pacchetto torneo</strong> (<code>kind: tourney</code>, guida <code>packs/TOURNEYS.it.md</code>) aggiunge un torneo a TORNEI STORICI con soli dati; il primo è <code>packs/world-cup-1934</code>. Compilatore: <code>Pack.tourney</code> in <code>tools/mkseason.py</code>; exe: <code>historic.patch</code>.</p>
+<ul>
+<li><strong>Struttura.</strong> La competizione è una copia dell'intestazione <code>worldCup</code> del gioco (come Mondiale 1982, Mitropa 1934 e FA Cup 1871-72 della 2.0): id, punti a vittoria a +0Ch, le fasi da +0Eh (numero, poi squadre / gironi / squadre per girone per ogni fase: eliminazione gironi 0, 3° posto FFh, poi 1) e da +22h un byte di gare per fase (<code>single</code> 14h, <code>single_et</code> 54h, <code>two_legs</code> 94h, <code>single_replay</code> 00h, <code>two_legs_replay</code> 80h), due offset dei nomi, poi (file, ordinale) per squadra. File squadre 146 (voce paese = il record CLASSICS, base 1786 condivisa da tutti i tornei storici).</li>
+<li><strong>Tabelloni.</strong> <code>hist_draw</code> (la tabella dei sorteggi fissi che sostituisce il sorteggio casuale <code>cseg_27F08</code>) accetta un flag nel bit 7 del numero di squadre del turno: ordinare le qualificate secondo la loro posizione nella competizione prima della permutazione. Il gioco lascia le vincenti di un turno in un ordine suo (prima chi ha vinto una ripetizione ...), quindi un tabellone fisso ha bisogno di quell'ordinamento; le permutazioni da <code>ties.csv</code> sono calcolate rispetto all'ordine ordinato. Le voci della 2.0 e dei pacchetti stagione non hanno il flag (invariate).</li>
+<li><strong>Ripetizioni.</strong> I tornei con fasi <code>*_replay</code> entrano in <code>coin_ours</code> (sorteggio su una ripetizione pari, "... VINCE AL SORTEGGIO").</li>
+<li><strong>Rose.</strong> Nuovo metodo <code>records</code>: squadre intere da un file di squadre di SWOS o da un <code>CUSTOMS.EDT</code> di SWOS 2020 (Mondiale 1934: il DLC di Insane).</li>
+<li><strong>Test.</strong> <code>classic_wc34</code> (il tabellone reale dopo le ripetizioni, sorteggi, 3° posto, finale), <code>classic_groups</code> (il modello: 2 gironi, semifinali incrociate), <code>classic_tourneys</code> (Mondiale 1982, Mitropa, FA Cup fino alla finale).</li>
+<li><strong>Menu.</strong> Il pulsante MAGLIE della schermata pre-partita è allineato alle righe dei giocatori e al nome della squadra (x 25..88, y 0..10). <code>esci_fix</code> (chiamato da <code>hist_names</code> in ogni elenco di scelta squadre): se una colonna copre ESCI (COMP. PREDEFINITA EUROPA: 14/15/14 paesi), ESCI va nel posto libero sotto la colonna più a destra, con su = l'ultima voce di quella colonna; posizione e collegamenti tornano quelli di prima se il gioco non ridisegna il menu. Il codice di <code>historic.py</code>, la correzione e le competizioni dei pacchetti torneo stanno in una pagina loro (0xaa000, o 0xa6000 senza un mondo).</li>
+</ul>
+
+<!-- 29 -->
+<h2 id="limiti"><span class="n">29</span>Limiti e questioni aperte</h2>
 <ul>
 <li><strong>Play-off (2.5).</strong> NSL Finals e NSSL Playoffs sono eliminazioni dirette a 4: i formati veri (NSL: 6 club; entrambi: la "doppia possibilità" per le prime due) richiedono il controllo dei club turno per turno, cioè un contest di tipo 2 nello slot 4, il cui buffer (443h) è troppo piccolo. Rimandati a una versione futura (<code>finals97.py</code>, opzione A). La prima della stagione regolare che perde i play-off mostra ancora una piccola icona in cima al registro della stagione (non ancora individuata nel codice).</li>
 <li><strong>Gironi di C1/C2.</strong> Nel 1996-97 la C1 aveva 2 gironi e la C2 3. Il mod usa un girone unico per serie. L'intera realtà (128 squadre) non entra nel limite di circa 93 squadre per nazione. La C1 su due gironi entrerebbe (92), ma servono promozioni e retrocessioni fra divisioni parallele, verifiche sul limite delle 80 squadre di carriera e sui numeri globali: stima 2–3 sessioni.</li>
@@ -657,8 +671,8 @@ assert blk[:2] == b'S2' and sum(blk) % 256 == 0</code></pre>
 <li><strong>Panchina inglese (dopo la 1.0).</strong> Nella formazione prima della partita le squadre inglesi mostrano 14 giocatori (11 + 3 in panchina). Succede anche con il gioco originale, e <code>TEAM.008</code> ha 16 giocatori per club: è una regola del gioco. Da capire da dove venga il numero di riserve (regole a +3Dh…41h del buffer, valori 5/2/8 impostati da <code>InitCareer</code>) per portarlo a 5.</li>
 </ul>
 
-<!-- 29 -->
-<h2 id="storia"><span class="n">29</span>Storico e prossimi passi</h2>
+<!-- 30 -->
+<h2 id="storia"><span class="n">30</span>Storico e prossimi passi</h2>
 <div class="tbl"><table>
 <thead><tr><th>Sessione</th><th>Contenuto</th><th>Prova</th></tr></thead>
 <tbody>

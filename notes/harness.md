@@ -87,7 +87,7 @@ Rare events are **forced** and slow parts are **done once and saved**:
 | world8485 | Europe 1984-85: new career at Liverpool, 2 seasons (save, reload, save), checkw1 on both | ~6 min |
 | world8485_nat | coach nationalities (YUG/FRG/URS/GDR in the menu); England's job (forced); call-ups at home (the world's English divisions) and abroad (the world's 32 countries); real Euro 88 qualifying groups; a national career saved mid-qualifying and reloaded (groups intact); Euro 88 = West Germany + the 7 group winners, the 8-team finals played; next cycle: Italia 90 draw (host out), the 24 (holder, host, 13 European, real others), the World Cup played, its winner becomes the holder; an East German coach gets the GDR job, squad "EAST GERMANY", call-ups from the DDR-Oberliga clubs | ~14 min (first run on a build) / ~8 min |
 | classic_wc34 | 3.2 tourney pack: World Cup 1934 in CLASSIC TOURNEYS: round 1 = ties.csv, every later tie = the winners of two adjacent ties (also after replays), coin tosses, third place, final | ~30 s |
-| classic_groups | 3.2 tourney pack with groups (the template, in a test build with SEASON_PACKS): 2 groups of 4, crossed semi-finals, third place, final | ~30 s + build |
+| classic_groups | 3.2 tourney pack with groups (the template, in a test build with SEASON_PACKS): 2 groups of 4, crossed semi-finals, third place, final; its round robin (5 clubs, home and away: 20 matches) | ~1 min + build |
 | classic_tourneys | World Cup 1982, Mitropa Cup 1934 (real bracket also after play-offs), FA Cup 1871-72 played to the final | ~2.5 min |
 
 Preset competitions are driven by `play_preset(s, button)`: COMP. PREDEFINITA > TORNEI STORICI > button > TORNEO,

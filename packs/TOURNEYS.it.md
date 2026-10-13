@@ -7,8 +7,9 @@ TORNEI STORICI**, accanto al Mondiale 1982, alla Coppa Mitropa 1934 e alla FA Cu
 (gironi, turni a eliminazione, finale per il 3° posto, ripetizioni) si descrive in `pack.json`. Il primo è
 [`world-cup-1934`](world-cup-1934): il Mondiale 1934 con il suo tabellone reale.
 
-Un campionato giocato come torneo (girone all'italiana) non ha bisogno di un pacchetto torneo: un pacchetto stagione
-con `"classic_tourney": true` sul campionato compare anche lì ([README.it.md](README.it.md)).
+Un pacchetto torneo può contenere anche un **girone all'italiana**: un girone unico, tutti contro tutti di sola
+andata o andata e ritorno (sotto). Un campionato che è anche una stagione intera (modalità Stagione) è invece un
+pacchetto stagione con `"classic_tourney": true` ([README.it.md](README.it.md)): compare in tutti e due i menu.
 
 ## In breve
 
@@ -54,6 +55,20 @@ Un esempio completo è [`world-cup-1934/pack.json`](world-cup-1934/pack.json).
 - `win_points`: punti per vittoria nei gironi (2 prima del 1994, 3 dopo).
 - `id`: l'id di competizione, lo assegniamo noi (esadecimale; ED per il 1934).
 
+## Girone all'italiana
+
+```json
+{"key": "league", "type": "league", "id": "EF", "clubs": "league", "games": 2, "win_points": 2, "dates_from": 14,
+ "names": {"it": ["GIRONE ESEMPIO 1960", "GIRONE ESEMPIO"], "en": ["EXAMPLE LEAGUE 1960", "EXAMPLE LEAGUE"], ...}}
+```
+
+- Tutte le squadre del file `clubs` (da 3 a 24; vanno anche in numero dispari: una riposa a ogni giornata).
+- `games`: 1 = sola andata, 2 = andata e ritorno. `win_points`: 2 o 3.
+- `dates_from`: il paese di cui copia il calendario (14 = Germania, come i pacchetti stagione).
+- Il suo file squadre ha un numero suo e il numero dopo libero (il gioco conta le squadre di un campionato fino al
+  primo numero del file successivo); li assegniamo noi. Nel gioco il pulsante per iniziare è LEGA invece di TORNEO.
+- Esempio: la competizione `league` di [`_template_tourney`](_template_tourney).
+
 ## Rose
 
 - `explicit`, `calibrate`, `game`: come nel pacchetto stagione ([README.it.md](README.it.md)).
@@ -73,3 +88,4 @@ compare come "... VINCE AL SORTEGGIO" nei risultati.
 - Niente esenzioni (ogni turno a eliminazione dimezza le squadre); al massimo 32 squadre, 6 fasi, gironi da 24.
 - Due fasi con lo stesso numero di squadre non possono avere entrambe l'ordine fisso (usa `draw: random`).
 - Solo in COMP. PREDEFINITA (non in Stagione né in Carriera).
+- Un girone all'italiana ha un solo girone (più gironi e una finale: un `tourney`).

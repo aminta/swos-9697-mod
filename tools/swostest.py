@@ -1597,10 +1597,12 @@ def juve2_trap():
     return r.outcome == 'dump', str(r)
 
 
-def play_preset(s, button, max_steps=400):
+def play_preset(s, button, max_steps=400, start='TORNEO'):
     """PRESET COMPETITION > CLASSIC TOURNEYS > button, all teams by the computer, every match by results only, to the
-    end. Returns (ok, message, rounds [(title, [(home, away)])], coin texts)."""
-    for t in ('COMP. PREDEFINITA', 'TORNEI STORICI', button, 'TORNEO'):
+    end (start: TORNEO, or LEGA for a league). Returns (ok, message, rounds [(title, [(home, away)])], coin texts);
+    s.matches = the matches played (PROSS. PARTITA / REPLAY presses)."""
+    s.matches = 0
+    for t in ('COMP. PREDEFINITA', 'TORNEI STORICI', button, start):
         if press(s, s.screen(), t) is None or s.result.outcome != 'dump':
             return False, f'{t} not reached ({s.result})', [], []
     rounds, coins, title = [], [], None
@@ -1618,9 +1620,10 @@ def play_preset(s, button, max_steps=400):
         for want in ('VIS. RISULTATI', 'REPLAY', 'PROSS. PARTITA', 'PROSSIMO TURNO', 'TURNO RITORNO', 'CONTINUA', 'OK'):
             i = scr.find(want, exact=True)
             if i is not None:
+                s.matches += want in ('PROSS. PARTITA', 'REPLAY')
                 break
         else:
-            end = 'FINALE' in title
+            end = 'FINALE' in title or (start == 'LEGA' and vis[1:3] == ['STAT', 'ESCI'])
             return end, f"{len(rounds)} rounds, last {title.strip()!r}" + ('' if end else f" ({' | '.join(vis)})"), rounds, coins
         press(s, scr, i, wait=3)
     return False, f'no end in {max_steps} steps', rounds, coins
@@ -1658,11 +1661,13 @@ def classic_wc34():
 @scenario
 def classic_groups():
     """3.2 tourney pack with groups (packs/_template_tourney, test build only): 2 groups of 4, semi-finals from
-    1A-2B / 1B-2A (each semi-final: one team of each group), third place, final"""
+    1A-2B / 1B-2A (each semi-final: one team of each group), third place, final; its round robin (5 clubs, home and
+    away: 20 matches) in CLASSIC TOURNEYS"""
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import mkseason
     pk = mkseason.Pack(os.path.join(ROOT, 'packs', '_template_tourney'))
     names = [c['name'] for c in pk.clubs.values()]
+    names = [c['name'] for c in pk.clubs.values() if c['file'] == 'teams']
     ga, gb = set(names[:4]), set(names[4:])
     exe = build('tourney_groups', env={'SEASON_PACKS': 'ddr-1988-89,world-cup-1934,' + os.path.join(ROOT, 'packs', '_template_tourney')})
     with Session('classic_groups', exe, {}, 'dump:2', 900) as s:
@@ -1674,7 +1679,13 @@ def classic_groups():
     for h, a in (semi[0] if semi else []):
         check(len({h, a} & ga) == 1 and len({h, a} & gb) == 1, f'semi-final {h}-{a}: not one team of each group', errs)
     check(any('SPAREGGIO 3' in t for t, _ in rounds), 'no third-place match', errs)
-    return ok and not errs, f"{msg}; rounds {[t[19:] for t, _ in rounds]}; semi {semi[:1]}; " + '; '.join(errs)
+    with Session('classic_league', exe, {}, 'dump:2', 900) as s:     # the template's round robin, home and away
+        s.wait()
+        ok2, msg2, _, _ = play_preset(s, 'GIRONE ESEMPIO 1960', start='LEGA')
+        n = len([k for k, c in pk.clubs.items() if c['file'] == 'league'])
+        check(ok2 and s.matches == n * (n - 1), f'round robin: {msg2}, {s.matches} matches (want {n * (n - 1)})', errs)
+    return ok and not errs, (f"{msg}; rounds {[t[19:] for t, _ in rounds]}; semi {semi[:1]}; round robin {n} clubs, "
+                             f"{s.matches} matches; " + '; '.join(errs))
 
 
 @scenario

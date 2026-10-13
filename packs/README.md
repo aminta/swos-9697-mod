@@ -160,5 +160,5 @@ and credit.
 
 - One national league per pack, single division (career packs may have several: [CAREERS.md](CAREERS.md)).
 - Team files: we assign them. Taken today: up to 96, 97-99 (menus), 101-145 and 180-185 (Europe 1984-85),
-  146-147 (tourney packs), 153-155 (nationalities); 200 and up are the worlds' menu entries. Packs may share global
+  146-148 (tourney packs), 153-155 (nationalities); 200 and up are the worlds' menu entries. Packs may share global
   numbers, since two packs never run in the same season.

@@ -2,27 +2,112 @@
   "format": 1,
   "id": "example-tourney",
   "kind": "tourney",
-  "sources": ["Where every piece of data comes from (sites, books, databases and their authors)"],
-  "notes": ["Anything fixed by hand or uncertain"],
-
+  "sources": [
+    "Where every piece of data comes from (sites, books, databases and their authors)"
+  ],
+  "notes": [
+    "Anything fixed by hand or uncertain"
+  ],
   "files": {
-    "teams": {"file": 147, "base": 1786}
+    "teams": {
+      "file": 147,
+      "base": 1786
+    },
+    "league": {
+      "file": 148,
+      "base": 1786
+    }
   },
   "squads": [
-    {"files": ["teams"], "method": "game", "seed": 1960}
+    {
+      "files": [
+        "teams",
+        "league"
+      ],
+      "method": "game",
+      "seed": 1960
+    }
   ],
-
   "competitions": [
-    {"key": "cup", "type": "tourney", "id": "EE", "clubs": "teams", "win_points": 2, "draw": "fixed",
-     "stages": [
-       {"type": "groups", "teams": 8, "groups": 2},
-       {"type": "knockout", "teams": 4, "matches": "single_et", "from": ["1A", "2B", "1B", "2A"]},
-       {"type": "third_place", "matches": "single_et"},
-       {"type": "knockout", "teams": 2, "matches": "single_et"}
-     ],
-     "names": {"it": ["TORNEO ESEMPIO 1960", "TORNEO ESEMPIO"],
-               "en": ["EXAMPLE CUP 1960", "EXAMPLE CUP"],
-               "fr": ["COUPE EXEMPLE 1960", "COUPE EXEMPLE"],
-               "de": ["BEISPIELPOKAL 1960", "BEISPIELPOKAL"]}}
+    {
+      "key": "cup",
+      "type": "tourney",
+      "id": "EE",
+      "clubs": "teams",
+      "win_points": 2,
+      "draw": "fixed",
+      "stages": [
+        {
+          "type": "groups",
+          "teams": 8,
+          "groups": 2
+        },
+        {
+          "type": "knockout",
+          "teams": 4,
+          "matches": "single_et",
+          "from": [
+            "1A",
+            "2B",
+            "1B",
+            "2A"
+          ]
+        },
+        {
+          "type": "third_place",
+          "matches": "single_et"
+        },
+        {
+          "type": "knockout",
+          "teams": 2,
+          "matches": "single_et"
+        }
+      ],
+      "names": {
+        "it": [
+          "TORNEO ESEMPIO 1960",
+          "TORNEO ESEMPIO"
+        ],
+        "en": [
+          "EXAMPLE CUP 1960",
+          "EXAMPLE CUP"
+        ],
+        "fr": [
+          "COUPE EXEMPLE 1960",
+          "COUPE EXEMPLE"
+        ],
+        "de": [
+          "BEISPIELPOKAL 1960",
+          "BEISPIELPOKAL"
+        ]
+      }
+    },
+    {
+      "key": "league",
+      "type": "league",
+      "id": "EF",
+      "clubs": "league",
+      "games": 2,
+      "win_points": 2,
+      "dates_from": 14,
+      "names": {
+        "it": [
+          "GIRONE ESEMPIO 1960",
+          "GIRONE ESEMPIO"
+        ],
+        "en": [
+          "EXAMPLE LEAGUE 1960",
+          "EXAMPLE LEAGUE"
+        ],
+        "fr": [
+          "POULE EXEMPLE 1960",
+          "POULE EXEMPLE"
+        ],
+        "de": [
+          "BEISPIELLIGA 1960",
+          "BEISPIELLIGA"
+        ]
+      }
+    }
   ]
 }

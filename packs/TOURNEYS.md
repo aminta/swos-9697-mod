@@ -7,8 +7,9 @@ CLASSIC TOURNEYS**, next to the World Cup 1982, the Mitropa Cup 1934 and the FA 
 formula (groups, knockout rounds, third place match, replays) is described in `pack.json`. The first one is
 [`world-cup-1934`](world-cup-1934): the 1934 World Cup with its real bracket.
 
-A league season played as a tournament (a round robin) needs no tourney pack: a season pack with
-`"classic_tourney": true` on its league is also listed there ([README.md](README.md)).
+A tourney pack can also hold a **round robin**: a single group, everyone against everyone once or home and away
+(below). A league that is also a whole season (Season mode) is a season pack with `"classic_tourney": true`
+([README.md](README.md)): it is listed in both menus.
 
 ## Quick start
 
@@ -52,6 +53,20 @@ A complete example is [`world-cup-1934/pack.json`](world-cup-1934/pack.json).
 - `win_points`: points for a win in the groups (2 before 1994, 3 after).
 - `id`: a contest id we assign (hex; ED for 1934).
 
+## Round robin
+
+```json
+{"key": "league", "type": "league", "id": "EF", "clubs": "league", "games": 2, "win_points": 2, "dates_from": 14,
+ "names": {"it": ["GIRONE ESEMPIO 1960", "GIRONE ESEMPIO"], "en": ["EXAMPLE LEAGUE 1960", "EXAMPLE LEAGUE"], ...}}
+```
+
+- Every club of the team file `clubs` (3 to 24; an odd number works: one club rests each round).
+- `games`: 1 = one match per pair, 2 = home and away. `win_points`: 2 or 3.
+- `dates_from`: the country whose league calendar it copies (14 = Germany, as the season packs).
+- Its team file needs its own number with the next number free (the game counts a league's clubs up to the next
+  file's first number); we assign them. In the game the start button is LEGA / LEAGUE instead of TOURNAMENT.
+- Example: the `league` competition of [`_template_tourney`](_template_tourney).
+
 ## Squads
 
 - `explicit`, `calibrate`, `game`: as in a season pack ([README.md](README.md)).
@@ -71,3 +86,4 @@ players), then the rounds as in the game's own cups. Replays show "(REPLAY)" in 
 - No byes (every knockout round halves the teams); at most 32 teams, 6 stages, groups of at most 24.
 - Two stages with the same number of teams cannot both keep a fixed order (use `draw: random`).
 - Only in PRESET COMPETITION (not in Season or Career).
+- A round robin has one group only (several groups and a final: a `tourney`).

@@ -1914,3 +1914,8 @@ Left for 2.5: (a) NSL/NSSL finals series (type-1 design) or declare them postpon
   re-uploaded to v3.1). Old patcher v3.1 in orig/old-patchers.
 - Harness: play_preset; scenarios classic_wc34, classic_groups (test build with SEASON_PACKS, needs ddr for lib97's
   bye cup), classic_tourneys (WC82, Mitropa bracket after play-offs, FA Cup).
+- After the release: round robins in tourney packs (competition type `league`, `Pack.round_robin`, compiled by
+  mkseason._tourney_leagues with the season packs' league struct (_league_body); its team file = a country with the
+  CLASSIC TOURNEYS record and its count closed at the next number; listed with the leagues of CLASSIC TOURNEYS, start
+  button LEGA). Template: 5 clubs home and away (file 148, id EF): 20 matches played (classic_groups); games 1: 10.
+  The release exe is unchanged (no round robin enabled).

@@ -168,10 +168,10 @@ class Pack:
         self.world = None
         if self.kind == 'tourney':              # 3.2: CLASSIC TOURNEYS only (no league, no Season / Career entry)
             self.league, self.league_clubs, self.division = None, [], {}
-            _need(self.comps and all(c['type'] == 'tourney' for c in self.comps),
-                  "a tourney pack holds competitions of type 'tourney' only")
+            _need(self.comps and all(c['type'] in ('tourney', 'league') for c in self.comps),
+                  "a tourney pack holds competitions of type 'tourney' or 'league' only")
             for c in self.comps:
-                self.tourney(c)          # validates
+                self.tourney(c) if c['type'] == 'tourney' else self.round_robin(c)     # validates
             return
         self.league = next(c for c in self.comps if c['key'] == m['season']['league'])
         self.league_clubs = [k for k, c in self.clubs.items() if c['file'] == self.league['clubs']]
@@ -368,6 +368,25 @@ class Pack:
             recs[c['file']].append(bytes(r))
         self.log(f"{'+'.join(sq['files'])}: {sum(map(len, recs.values()))} teams from {sq['source']}")
         return {self.files[f][0]: struct.pack('>H', len(v)) + b''.join(v) for f, v in recs.items()}
+
+    def round_robin(self, c):
+        """A tourney pack's league (3.2): every club of its file plays every other once (games 1) or home and away
+        (games 2); clubs, id, names, win_points, games, dates_from (the country whose league calendar it copies)."""
+        w = f"{c['key']}:"
+        _need(c.get('clubs') in self.files, f"{w} clubs must be a key of files")
+        n = self.count.get(c['clubs'], 0)
+        _need(3 <= n <= 24, f'{w} 3 to 24 clubs ({n})')
+        _need(c.get('games') in (1, 2), f'{w} games 1 (one match per pair) or 2 (home and away)')
+        _need(isinstance(c.get('win_points'), int) and 1 <= c['win_points'] <= 9, f'{w} win_points 1..9')
+        _need(isinstance(c.get('dates_from', 14), int), f'{w} dates_from: a country number')
+        c.setdefault('dates_from', 14)
+        _need(re.fullmatch(r'[0-9A-F]{2}', c.get('id', '')) and int(c['id'], 16) >= 0x80
+              and int(c['id'], 16) not in RESERVED_IDS, f'{w} id: a free contest id (hex, 80..FE, see packs/README.md)')
+        for lg, nm in c['names'].items():
+            _need(len(nm) == 2 and all(x == x.upper() for x in nm) and len(nm[1]) <= 16 and len(nm[0]) <= 30,
+                  f'{w} names.{lg}: [long name (<= 30), short name (<= 16)], upper case')
+        _need(sum(1 for x in self.files.values() if x[0] == self.files[c['clubs']][0]) == 1, w)
+        return n
 
     def tourney(self, c):
         """A CLASSIC TOURNEYS competition (worldCup layout, historic.py): {'clubs': contest order, 'stages': the 26 bytes
@@ -581,7 +600,8 @@ class Pack:
     def draws(self):
         """historic.DRAWS entries (contest id, permutation), cups in pack order."""
         if self.kind == 'tourney':
-            return [(int(c['id'], 16), pm, srt) for c in self.comps for pm, srt in self.tourney(c)['draws']]
+            return [(int(c['id'], 16), pm, srt) for c in self.comps if c['type'] == 'tourney'
+                    for pm, srt in self.tourney(c)['draws']]
         return [(int(c['id'], 16), perm) for c in self.comps if c['type'] == 'cup' for perm in self.bracket(c)['draws']]
 
     def bye_cups(self):
@@ -723,6 +743,8 @@ def tourneys():
         if pk.kind != 'tourney':
             continue
         for c in pk.comps:
+            if c['type'] != 'tourney':
+                continue                        # round robins: _tourney_leagues
             t = pk.tourney(c)
             f, base = pk.files[c['clubs']]
             out.append(dict(id=int(c['id'], 16), names=c['names'], win_points=c['win_points'], file=f, base=base,
@@ -993,6 +1015,57 @@ def _hook_sites(p):
             struct.unpack('<I', t.group(1))[0], r)
 
 
+def _league_body(p, lang, area, comp, c, lfile, divs):
+    """A league struct: the calendar of the league of country dates_from, divs [{teams, promoted, relegated, names}]."""
+    import sacups
+    src_c = c['dates_from']
+    gobj, gtab = p.target(2, comp + 4 * src_c)
+    lobj, glg = p.target(gobj, gtab)
+    lg = p.le.obj_bytes(lobj)[glg:glg + 13]
+    assert lg[2] == src_c, lg.hex()
+    rel = []
+    for dv in divs:
+        dn = dv['names'].get(lang) or dv['names']['*']
+        rel += [area.add(x.encode('latin1') + b'\0') - sacups.STR_BASE for x in dn]
+    hdr = bytes((int(c['id'], 16), 0, lfile, lg[3], lg[4], 9 + 6 * len(divs), 0, 0, 0, len(divs), c['games'],
+                 c['win_points'], 0x35))
+    return hdr + b''.join(bytes((dv['teams'], dv['promoted'], 0, dv['relegated'], 0, 0)) for dv in divs) \
+        + b'\0' + struct.pack(f'<{len(rel)}I', *rel)
+
+
+def _tourney_leagues(p, lang, area, at, env):
+    """Tourney packs' round robins (3.2): a league struct each, its team file a country of its own (record =
+    CLASSIC TOURNEYS, team count closed by the next file's base). Returns (cave end, [league offsets])."""
+    import countries
+    import historic
+    d2, ct, tcn, comp, fx2 = env
+    out = []
+    name = historic.NAMES[lang]
+    rec = None
+    for pk in packs():
+        if pk.kind != 'tourney':
+            continue
+        for c in pk.comps:
+            if c['type'] != 'league':
+                continue
+            f, base = pk.files[c['clubs']]
+            n = pk.count[c['clubs']]
+            _need(ct + 4 * f not in fx2 and ct + 4 * (f + 1) not in fx2, f"{pk.meta['id']}: country {f} or {f + 1} is used")
+            if rec is None:
+                rec = area.add(bytes((countries.CONTINENT['europe'],)) + name + b'\0' + name + b'\0')
+            p.add_ptr(2, ct + 4 * f, 2, rec)
+            p.put(2, tcn + 2 * f, struct.pack('<H', base))
+            p.put(2, tcn + 2 * (f + 1), struct.pack('<H', base + n))     # a league = every club of its country
+            names = c['names'].get(lang) or c['names']['*']
+            body = _league_body(p, lang, area, comp, c, f, [{'teams': n, 'promoted': 0, 'relegated': 0,
+                                                             'names': {'*': names}}])
+            p.put(1, at, body)
+            out.append(at)
+            pk.log(f"exe: tourney league {names[0]} id {c['id']} @ obj1+{at:#x}, {n} clubs, file {f}")
+            at = (at + len(body) + 3) & ~3
+    return at, out
+
+
 def _patch_pack(pk, p, lang, area, at, env):
     """One pack: country entries, competition structs, country table. Returns (cave end, info for the shared part)."""
     import countries
@@ -1019,20 +1092,7 @@ def _patch_pack(pk, p, lang, area, at, env):
     for c in pk.comps:
         names = c['names'].get(lang) or c['names']['*']
         if c['type'] == 'league':
-            src_c = c['dates_from']
-            gobj, gtab = p.target(2, comp + 4 * src_c)
-            lobj, glg = p.target(gobj, gtab)
-            lg = p.le.obj_bytes(lobj)[glg:glg + 13]
-            assert lg[2] == src_c, lg.hex()
-            divs = pk.divisions()
-            rel = []
-            for dv in divs:
-                dn = dv['names'].get(lang) or dv['names']['*']
-                rel += [area.add(s.encode('latin1') + b'\0') - sacups.STR_BASE for s in dn]
-            hdr = bytes((int(c['id'], 16), 0, lfile, lg[3], lg[4], 9 + 6 * len(divs), 0, 0, 0, len(divs), c['games'],
-                         c['win_points'], 0x35))
-            body = hdr + b''.join(bytes((dv['teams'], dv['promoted'], 0, dv['relegated'], 0, 0)) for dv in divs) \
-                + b'\0' + struct.pack(f'<{len(rel)}I', *rel)
+            body = _league_body(p, lang, area, comp, c, lfile, pk.divisions())
         else:
             br = pk.bracket(c)
             rounds = bytes(ROUND[x] for x in c['rounds'])
@@ -1126,7 +1186,9 @@ def patch(p, lang, area, cave):
         infos.append(info)
     if cat is not None:
         _need(cat <= CAREER_DATA[0] + CAREER_DATA_SIZE, f'career packs overflow their pages ({cat:#x})')
-    if any(dv['teams'] % 2 for pk in packs() for dv in pk.divisions()):
+    at, tleagues = _tourney_leagues(p, lang, area, at, env)
+    if any(dv['teams'] % 2 for pk in packs() for dv in pk.divisions()) or \
+            any(pk.count[c['clubs']] % 2 for pk in packs() if pk.kind == 'tourney' for c in pk.comps if c['type'] == 'league'):
         odd_leagues(p)
 
     # Season: CLASSIC SEASONS after the continents (pseudo-continent 97: [-1] + the pack countries + FF; the game reads a
@@ -1244,7 +1306,7 @@ def patch(p, lang, area, cave):
         careerworld.LANG[0] = lang
         end = careerworld.patch(p, world_defs(), cave, nasmcave, comp, ct, (2, CAREERS_REC[0]))
         _need(end <= cave + CAREER_CAVE_SIZE, f'career world code overflows its pages ({end:#x})')
-    return at, [x for i in infos for x in i['classic']]
+    return at, [x for i in infos for x in i['classic']] + tleagues
 
 
 
@@ -1255,6 +1317,10 @@ def main(argv):
             for pk in pks:
                 print(f"== {pk.meta['id']} ({pk.kind})")
                 for c in pk.comps:
+                    if c['type'] == 'league' and pk.kind == 'tourney':
+                        print(f"{c['key']}: round robin, {pk.round_robin(c)} clubs, "
+                              f"{'home and away' if c['games'] == 2 else 'one match per pair'}")
+                        continue
                     if c['type'] == 'tourney':
                         t = pk.tourney(c)
                         print(f"{c['key']}: tourney, {len(t['clubs'])} teams, stages "

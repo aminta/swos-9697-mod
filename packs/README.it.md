@@ -169,5 +169,5 @@ possono usare con il permesso del suo autore e citandolo.
 - Un solo campionato nazionale per pacchetto, a una divisione (i pacchetti carriera possono averne di più:
   [CAREERS.it.md](CAREERS.it.md)).
 - File squadre: li assegniamo noi. Occupati oggi: fino al 96, 97-99 (menu), 101-145 e 180-185 (Europa 1984-85),
-  146-147 (pacchetti torneo), 153-155 (nazionalità); dal 200 in su le voci dei mondi nei menu. I pacchetti possono
+  146-148 (pacchetti torneo), 153-155 (nazionalità); dal 200 in su le voci dei mondi nei menu. I pacchetti possono
   condividere i numeri globali, perché due pacchetti non giocano mai nella stessa stagione.

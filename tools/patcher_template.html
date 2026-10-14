@@ -108,13 +108,15 @@ a{color:var(--accent)}
       <tbody id="rows"></tbody>
     </table>
   </div>
+  <p id="allrow" hidden><button class="dl" type="button" id="dlall"></button>
+    <span class="sub" data-it="Uno zip con le cartelle già giuste: estrailo dentro la cartella del gioco (dopo averne fatto una copia)." data-en="One zip with the right folders: extract it into the game folder (after backing it up)."></span></p>
   <div id="msg" class="msg" hidden></div>
 </section>
 
 <section>
   <h2 data-it="2 · Installa" data-en="2 · Install"></h2>
   <ol>
-    <li data-it="Scarica i file modificati con i pulsanti qui sopra." data-en="Download the patched files with the buttons above."></li>
+    <li data-it="Scarica i file modificati con i pulsanti qui sopra, oppure tutti insieme con Scarica tutto (uno zip con le cartelle già giuste)." data-en="Download the patched files with the buttons above, or all of them at once with Download all (one zip with the right folders)."></li>
     <li data-it="Copia l'eseguibile nella cartella del gioco e i file TEAM (020, 044, 052, 053, 054, 056, 058, 061, 062, 063, 073, 086, 087, 088, 089, 090, 091, 092, 093, 094, 095, 096) nella sottocartella DATA: TEAM.020, 044, 062 e 073 sostituiscono gli originali (di cui hai la copia), gli altri sono file nuovi che la pagina crea insieme a TEAM.020." data-en="Copy the executable into the game folder and the TEAM files (020, 044, 052, 053, 054, 056, 058, 061, 062, 063, 073, 086, 087, 088, 089, 090, 091, 092, 093, 094, 095, 096) into the DATA subfolder: TEAM.020, 044, 062 and 073 replace the originals (which you backed up), the others are new files the page creates together with TEAM.020."></li>
     <li data-it="Avvia il gioco come sempre (per esempio in DOSBox o DOSBox-X). Inizia una carriera nuova: i salvataggi vecchi conservano le squadre di quando sono stati creati." data-en="Start the game as usual (for example in DOSBox or DOSBox-X). Start a new career: old saves keep the teams from when they were created."></li>
     <li data-it="Per disinstallare, rimetti i file originali." data-en="To uninstall, put the original files back."></li>
@@ -206,11 +208,11 @@ function applyDelta(src, b64, outSize) {
 // ---- UI ----
 let lang = 'it';
 const T = {
-  it: { wait: 'Controllo…', ok: 'Pronto', bad: 'File non riconosciuto', fail: 'Errore nella modifica', dl: 'Scarica', none: 'Nessun file ancora.',
+  it: { all: n => `Scarica tutto (${n} file, .zip)`, wait: 'Controllo…', ok: 'Pronto', bad: 'File non riconosciuto', fail: 'Errore nella modifica', dl: 'Scarica', none: 'Nessun file ancora.',
         current: 'Già aggiornato', from: v => `aggiornamento dalla ${v}`, via: { swospp: 'dal gioco originale con SWOS++', mod: 'aggiunge SWOS++' },
         unknown: n => `${n}: non corrisponde a nessun file atteso (né un originale, né modificato da una versione precedente di questa mod). Non è stato modificato.`,
         page: n => `${n} è questa pagina, non un file del gioco: trascina qui l'eseguibile (es. ITALIAN.EXE) dalla cartella del gioco e TEAM.020 dalla sua cartella DATA.` },
-  en: { wait: 'Checking…', ok: 'Ready', bad: 'File not recognised', fail: 'Patching error', dl: 'Download', none: 'No files yet.',
+  en: { all: n => `Download all (${n} files, .zip)`, wait: 'Checking…', ok: 'Ready', bad: 'File not recognised', fail: 'Patching error', dl: 'Download', none: 'No files yet.',
         current: 'Already up to date', from: v => `upgrade from ${v}`, via: { swospp: 'from the original game with SWOS++', mod: 'adds SWOS++' },
         unknown: n => `${n}: does not match any expected file (neither an original nor one modified by an earlier release of this mod). It was not patched.`,
         page: n => `${n} is this page, not a game file: drop here the executable (e.g. ENGLISH.EXE) from the game folder and TEAM.020 from its DATA folder.` },
@@ -242,6 +244,53 @@ function render() {
     }
     rows.appendChild(tr);
   }
+  const ready = zipEntries();
+  document.getElementById('allrow').hidden = ready.length < 2;
+  document.getElementById('dlall').textContent = T[lang].all(ready.length);
+}
+
+// 3.2.2: "download all" = one stored (uncompressed) zip; paths as in the game folder (TEAM files in DATA/), the
+// SWOS++ variant of an exe in a folder of its own (its name is the same as the plain exe's)
+function zipEntries() {
+  const out = [];
+  for (const r of results) {
+    if (r.state !== 'ok') continue;
+    const swospp = r.patch.id.includes('SWOS++');
+    out.push({ path: (swospp ? 'SWOS++/' : '') + r.patch.target, data: r.out });
+  }
+  return out;
+}
+const CRC = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n;
+  for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+function crc32(b) { let c = 0xFFFFFFFF; for (let i = 0; i < b.length; i++) c = CRC[(c ^ b[i]) & 255] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
+function makeZip(entries) {
+  const parts = [], central = []; let off = 0;
+  const d = new Date(), time = d.getHours() << 11 | d.getMinutes() << 5 | d.getSeconds() >> 1,
+        date = (d.getFullYear() - 1980) << 9 | (d.getMonth() + 1) << 5 | d.getDate();
+  for (const e of entries) {
+    const name = new TextEncoder().encode(e.path), crc = crc32(e.data), n = e.data.length;
+    const h = new DataView(new ArrayBuffer(30));
+    [[0, 0x04034b50, 4], [4, 20, 2], [6, 0, 2], [8, 0, 2], [10, time, 2], [12, date, 2], [14, crc, 4], [18, n, 4],
+     [22, n, 4], [26, name.length, 2], [28, 0, 2]].forEach(([o, v, w]) => w === 4 ? h.setUint32(o, v, true) : h.setUint16(o, v, true));
+    parts.push(new Uint8Array(h.buffer), name, e.data);
+    const c = new DataView(new ArrayBuffer(46));
+    [[0, 0x02014b50, 4], [4, 20, 2], [6, 20, 2], [8, 0, 2], [10, 0, 2], [12, time, 2], [14, date, 2], [16, crc, 4],
+     [20, n, 4], [24, n, 4], [28, name.length, 2], [30, 0, 2], [32, 0, 2], [34, 0, 2], [36, 0, 2], [38, 0, 4], [42, off, 4]]
+      .forEach(([o, v, w]) => w === 4 ? c.setUint32(o, v, true) : c.setUint16(o, v, true));
+    central.push(new Uint8Array(c.buffer), name);
+    off += 30 + name.length + n;
+  }
+  const size = central.reduce((a, x) => a + x.length, 0);
+  const z = new DataView(new ArrayBuffer(22));
+  [[0, 0x06054b50, 4], [4, 0, 2], [6, 0, 2], [8, entries.length, 2], [10, entries.length, 2], [12, size, 4], [16, off, 4], [20, 0, 2]]
+    .forEach(([o, v, w]) => w === 4 ? z.setUint32(o, v, true) : z.setUint16(o, v, true));
+  return new Blob([...parts, ...central, new Uint8Array(z.buffer)], { type: 'application/zip' });
+}
+function downloadAll() {
+  const url = URL.createObjectURL(makeZip(zipEntries()));
+  const a = document.createElement('a'); a.href = url; a.download = 'swos-9697-mod-{{VERSION}}.zip';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
 function download(bytes, name) {
   const url = URL.createObjectURL(new Blob([bytes], { type: 'application/octet-stream' }));
@@ -288,6 +337,7 @@ const drop = document.getElementById('drop'), input = document.getElementById('f
 drop.onclick = () => input.click();
 drop.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); input.click(); } };
 input.onchange = () => { handle([...input.files]); input.value = ''; };
+document.getElementById('dlall').onclick = downloadAll;
 drop.ondragover = e => { e.preventDefault(); drop.classList.add('over'); };
 drop.ondragleave = () => drop.classList.remove('over');
 drop.ondrop = e => { e.preventDefault(); drop.classList.remove('over'); handle([...e.dataTransfer.files]); };

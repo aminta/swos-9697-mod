@@ -1926,3 +1926,9 @@ Left for 2.5: (a) NSL/NSSL finals series (type-1 design) or declare them postpon
   AFRICA keeps ESCI at (129,180). Full suite 11/11 PASS on c/REL32 (now 3.2.1; the 3.2 exes kept in c/REL320).
 - Patcher 3.2.1 (old patcher v3.2 in orig/old-patchers): originals, 3.0.1, 3.1 and the published 3.2 exes upgrade;
   outputs = c/REL32.
+
+## Release 3.2.2 (2026-10-14): Download all (Marco)
+- patcher_template: "Scarica tutto / Download all" button (shown with 2+ ready files): a stored zip built in the page
+  (crc32, local headers, central directory), paths as in the game folder, SWOS++ exe under SWOS++/. Tested in Node with
+  the page's own code (unzip -t, extracted files identical) and a DOM stub (button hidden with 1 file, labels IT/EN).
+  Game files unchanged from 3.2.1; patcher upgrade test as 3.2.1 (old patcher v3.2.1 added).

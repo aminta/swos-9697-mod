@@ -1215,7 +1215,7 @@ def world8485():
         out, msgs = [first], [f'season 1: from {first}']
     for season in ((2,) if first else (1, 2)):
         cars = {} if season == 1 else {'W84A.CAR': out[0]}
-        with Session(f'world8485_{season}', exe, cars, 'dump:2', 240) as s:
+        with Session(f'world8485_{season}', exe, cars, 'dump:2', 240, int(os.environ.get('W8485_SHOTS', 0))) as s:
             if s.wait().outcome != 'dump':
                 return False, f'START: no first pause ({s.result})'
             if season == 1:

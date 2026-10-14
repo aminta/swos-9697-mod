@@ -1932,3 +1932,11 @@ Left for 2.5: (a) NSL/NSSL finals series (type-1 design) or declare them postpon
   (crc32, local headers, central directory), paths as in the game folder, SWOS++ exe under SWOS++/. Tested in Node with
   the page's own code (unzip -t, extracted files identical) and a DOM stub (button hidden with 1 file, labels IT/EN).
   Game files unchanged from 3.2.1; patcher upgrade test as 3.2.1 (old patcher v3.2.1 added).
+
+## After 3.2.2 (2026-10-15): KITS button aligned in English (Marco)
+- Marco's photo (ENGLISH.EXE): the KITS AUTO button stuck out left of the player names and touched the X sprite. Cause:
+  the packed playMatchMenu places the player rows from a menu origin of x -6 in IT/FR/DE but 0 in EN, so the names
+  start at screen x 25 (IT/FR/DE) or 31 (EN), while the button was fixed at 25. kitcolors now takes the button's left
+  edge from entry 13's own origin (right edge 88, before the team name at 90; text centred): EN 31..88, the others
+  unchanged (IT/FR/DE exes byte-identical to 3.2.2; EN differs in 2 bytes). Checked with a Session screenshot (EN, IT,
+  DE: entry 68 x = entry 13 x). For the next release (EN CD/GOG + the SWOS++ output).

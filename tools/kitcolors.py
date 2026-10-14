@@ -75,8 +75,9 @@ def patch(p):
 # 1. The packed playMatchMenu (obj2, ends with dw -999) is copied into the obj1 cave with one more entry, 68, appended
 #    (the game's indices do not change; its fixups are replicated). ShowPlayMatchMenu's `call ShowMenu` goes through
 #    pm_show, which refreshes the copy from the original first (SWOS++ patches the original in memory at start-up: its
-#    onReturn and an entry pointer, swospp.bin+0x10eee/+0x10f67) and shows the copy. Entry 68: screen x 30..88, y 1..11, the free top-left corner between the check/X sprite (entry 0) and
-#    the team name (entry 1); entry 13 (first player) gets up -> 68. Its text is a fixed buffer (KITS AUTO / KITS SET),
+#    onReturn and an entry pointer, swospp.bin+0x10eee/+0x10f67) and shows the copy. Entry 68: screen y 0..10, x from
+#    the player names' left edge (25 IT/FR/DE, 31 EN) to 88, between the check/X sprite (entry 0) and the team name
+#    (entry 1); entry 13 (first player) gets up -> 68. Its text is a fixed buffer (KITS AUTO / KITS SET),
 #    so a re-unpacked menu keeps it. (A first attempt recycled the "COACH:" entry 4: it is the coach name at run time.)
 # 2. Fire on 68 opens a new menu built around the game's own kit editor: entries 4..19 of editTeamsMenu (first and
 #    second kit: big shirt, shorts, socks, the four shirt types), copied byte for byte at the SAME indices, because
@@ -98,8 +99,9 @@ TEXTS = {
                k1=b'HEIMTRIKOT', k2=b'AUSWAERTS', cancel=b'ABBRUCH', ok=b'OK', reset=b'RESET'),
 }
 KITS_ENTRY = 68
-BUTTON = (17, 20, 63, 10)       # packed x, y, width, height (screen = x + 8, y - 20): x 25..88, y 0..10 (3.2, Marco:
-                                # left edge = the player rows', top = the team name's)
+BUTTON = (20, 10, 88)           # packed y, height; screen right edge (team name at 90). Left edge = the player names'
+                                # (entry 13: packed x 23 + the menu origin before it, -6 in IT/FR/DE, 0 in EN), so the
+                                # button lines up with the names and clears the X sprite (3.3, Marco); screen = x + 8
 BUTTON_COLOR = 8                # as USE MATCH TEAM: blue to black, grey frame
 SLOT = 36                       # name 18, kits 10 (+18), worn kit (+28), team pointer (+32)
 
@@ -568,7 +570,11 @@ def button(p, at, lang, area):
     e13 = pmc.find(PM_ENTRY13)
     assert e13 > 0 and pmc.count(PM_ENTRY13) == 1
     pmc[e13 + 12] = KITS_ENTRY                                           # first player: up -> KITS
-    x_, y_, w_, h_ = BUTTON
+    org = pmc.rfind(struct.pack('<h', -998), 0, e13)                    # the menu origin entry 13 is placed from
+    x_ = struct.unpack_from('<h', pmc, org + 2)[0] + struct.unpack_from('<h', PM_ENTRY13)[0]
+    assert x_ in (17, 23), x_
+    y_, h_, right = BUTTON
+    w_ = right - 8 - x_
     ent = struct.pack('<hhh', -998, 0, -20) + struct.pack('<hhhhH', x_, y_, w_, h_, 2) + bytes((0xFF, 0xFF, 0xFF, 13))
     ent += struct.pack('<HHHH', 4, BUTTON_COLOR, 8, 0)
     buf_at = len(pmc) + len(ent)

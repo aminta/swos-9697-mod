@@ -34,7 +34,10 @@ REC = 52                                             # world record: 8 dwords, 5
 # C7 trailer: a world career caches ~92 teams, so the 68400-B room is nearly full.) Normal careers never take these
 # paths.
 BSS = [None]
-BSS_SIZE = 0x27000
+BSS_SIZE = 0x27000 + 0x1A000                         # + the big team-file buffer (B_TFB)
+# World 2025-26 (phase 0): a country may hold more than 93 clubs (Italy A + B + C = 100): teamFileBuffer (64014 B,
+# LoadFile reads the whole file there before checking 64000 -> FatalError) moves to the obj2 tail, 106496 B (155 clubs).
+B_TFB, TFB_SIZE = 0x27000, 0x1A000
 B_TMD, B_CUPS, B_LISTS = 0, 128 * TEAM_SIZE, 128 * TEAM_SIZE + 3 * 160      # cups 160 B apart, lists 64 / 64 / 96
 # SaveSelectedTeams / RestoreSelectedTeams park the career's team cache while a contest is simulated (season end):
 # the game keeps only its first 32 records (21888 B in DOS memory at dosMemOfs60c00h), the simulated contest reuses
@@ -42,7 +45,7 @@ B_TMD, B_CUPS, B_LISTS = 0, 128 * TEAM_SIZE, 128 * TEAM_SIZE + 3 * 160      # cu
 # season end's VerifyTeamLoaded on a finalist -> exit to DOS; world 1984-85, 2026-10-10). A big world parks all 100
 # records (count word + 68400 B) at B_SAVE.
 B_SAVE, SAVE_SIZE = 0x16000, 2 + 100 * TEAM_SIZE
-assert B_LISTS + 224 <= B_SAVE and B_SAVE + SAVE_SIZE <= BSS_SIZE
+assert B_LISTS + 224 <= B_SAVE and B_SAVE + SAVE_SIZE <= B_TFB and B_TFB + TFB_SIZE <= BSS_SIZE
 VAROFF = [4, 22, 25] + [76 + 38 * k + x for k in range(16) for x in (1, 27, 33, 34, 35, 36)]
 WMARK = 0x3157                                       # 'W1'
 WBLOCK = 2 + sum(BIGCOPY.values()) + TOTAL_MAX * (2 + len(VAROFF))   # in the fixed part's 80-record area
@@ -2086,3 +2089,28 @@ def euro_draw(p, at, nasmcave):
     p.put(1, copy_site, b'\xe8' + struct.pack('<i', lab['w_draw2'] - (copy_site + 5)) + b'\x90' * 8)
     print(f'exe: European cups: no same-country ties in rounds 1-2, code obj1+{at:#x} ({len(code)} B)')
     return (at + len(code) + 3) & ~3
+
+
+def big_team_buffer(p):
+    """Big worlds: teamFileBuffer -> BSS + B_TFB (every fixup into its 64014 bytes keeps its offset inside it) and the
+    two `cmp [D1], 64000; ja FatalError` of LoadTeamFile (CUSTOMS.EDT, TEAM.nnn) -> TFB_SIZE - 14."""
+    import re
+    d1 = bytes(p.get(1, 0, len(p.le.obj_bytes(1))))
+    fx = {(f[0], f[1]): (f[3], f[4]) for f in p.le.fixups() if f[4] is not None}
+    cmps = [m.start() for m in re.finditer(rb'\x81\x3d.{4}\x00\xfa\x00\x00\x0f\x87', d1, re.S)]
+    tfb = {}
+    for c in cmps:                    # mov [A1], offset teamFileBuffer; call LoadFile; jnz ..; cmp [D1], 64000
+        m = [i for i in range(c - 40, c) if d1[i:i + 2] == b'\xc7\x05' and (1, i + 6) in fx and fx[1, i + 6][0] == 2]
+        if m:
+            tfb.setdefault(fx[1, m[-1] + 6][1], []).append(c)
+    big = [t for t, v in tfb.items() if len(v) == 2]
+    assert len(big) == 1, tfb
+    tfb, cmps = big[0], tfb[big[0]]
+    n = 0
+    for (so, off), (to, toff) in fx.items():
+        if to == 2 and tfb <= toff < tfb + 64014:
+            p.retarget(so, off, 2, BSS[0] + B_TFB + toff - tfb)
+            n += 1
+    for c in cmps:
+        p.put(1, c + 6, struct.pack('<I', TFB_SIZE - 14))
+    print(f'exe: big world: teamFileBuffer obj2+{tfb:#x} -> obj2+{BSS[0] + B_TFB:#x} ({n} fixups, limit {TFB_SIZE - 14})')

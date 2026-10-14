@@ -67,7 +67,12 @@ AU_CUP_SIG = bytes((0xAD, 1, 0x2C, 0x28, 0x50))   # SWOS's Australian cup: layou
 COUNTRY = {'ALB': 0, 'AUT': 1, 'BEL': 2, 'BUL': 3, 'CYP': 5, 'TCH': 6, 'DEN': 7, 'ENG': 8, 'FIN': 12, 'FRA': 13, 'GDR': 14,
            'FRG': 14, 'GRE': 15, 'HUN': 16, 'ISL': 17, 'IRL': 18, 'ITA': 20, 'LUX': 23, 'MLT': 24, 'NED': 25,
            'NIR': 26, 'NOR': 27, 'POL': 28, 'POR': 29, 'ROU': 30, 'URS': 31, 'SCO': 33, 'ESP': 35, 'SWE': 36,
-           'SUI': 37, 'TUR': 38, 'WAL': 40, 'YUG': 41}   # code -> game country (team file whose clubs give templates)
+           'SUI': 37, 'TUR': 38, 'WAL': 40, 'YUG': 41}
+COUNTRY.update({'CRO': 4, 'CZE': 6, 'GER': 14, 'EST': 10, 'FRO': 11, 'ISR': 19, 'LVA': 21, 'LTU': 22, 'SMR': 32,
+                'SVN': 34, 'UKR': 39, 'SRB': 41, 'BLR': 76, 'SVK': 78, 'XEU': 31, 'ALG': 42, 'ARG': 43, 'AUS': 44,
+                'BOL': 45, 'BRA': 46, 'CRC': 47, 'CHI': 48, 'COL': 49, 'ECU': 50, 'SLV': 51, 'GUA': 51, 'HON': 51,
+                'PAN': 51, 'JPN': 55, 'MEX': 60, 'NZL': 62, 'FIJ': 62, 'SOL': 62, 'PAR': 64, 'PER': 65, 'KSA': 67,
+                'RSA': 69, 'URU': 71, 'USA': 73, 'QAT': 75, 'VEN': 77, 'EGY': 79})   # world 2025-26 (phase-0 prototype)   # code -> game country (team file whose clubs give templates)
 ROLES = 'GDMA'
 BORROW = {'G': 'G', 'D': 'DMA', 'M': 'MDA', 'A': 'AMD'}   # slot role -> roles its player may come from
 
@@ -412,7 +417,7 @@ class Pack:
         st = c.get('stages') or []
         _need(2 <= len(st) <= 6, f'{w} 2 to 6 stages (the last one the final)')
         clubs = [k for k, x in self.clubs.items() if x['file'] == c['clubs']]
-        _need(len(clubs) <= 32, f'{w} at most 32 teams (CLASSIC TOURNEYS share 32 global numbers)')
+        _need(len(clubs) <= (40 if os.environ.get('PROTO36') else 32), f'{w} at most 32 teams (CLASSIC TOURNEYS share 32 global numbers)')
         trip, legs, draws, coin, prev = [], [], [], None, None
         nko = sum(1 for x in st if x['type'] == 'knockout')
         ties = st[0]['type'] == 'knockout' and key in self.ties
@@ -453,7 +458,7 @@ class Pack:
             if t == 'groups':
                 g = x.get('groups')
                 _need(isinstance(g, int) and g >= 1 and n % g == 0 and n // g >= 2, f'{sw} groups: teams / groups >= 2')
-                _need(n // g <= 24, f'{sw} at most 24 teams per group')
+                _need(n // g <= (36 if os.environ.get('PROTO36') else 24), f'{sw} at most 24 teams per group')
                 trip += [n, g, n // g]
                 legs.append(0)
             else:
@@ -806,7 +811,7 @@ def world_defs():
         wc = roots[0].meta['world_cups']
         w = {'n': n, 'countries': [pk.files[pk.league['clubs']][0] for pk in pks], 'places': {}, 'cups': {},
              'clubs': {}, 'tmd': 'WORLD%02d.TMD' % n}
-        _need(isinstance(wc.get('start_year'), int) and 1900 < wc['start_year'] < 2000,
+        _need(isinstance(wc.get('start_year'), int) and 1900 < wc["start_year"] < 2100,
               f'world {n}: world_cups.start_year (first season, e.g. 1984) is needed')
         w['year'] = wc['start_year']
         nat = [x for x in nationals() if x.world == n]

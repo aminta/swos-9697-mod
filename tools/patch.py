@@ -179,6 +179,8 @@ def patch_exe(src, dst, remap, lang='it'):
     obj2_free = (o2.npages - o2pages) * p.le.page_size  # the free pages: above the stack top (ESP = old vsize)
     careerworld.BSS[0] = obj2_free + o2pages * p.le.page_size if bigw else None
     assert o2.vsize <= obj2_free and p.le.esp_obj == 2 and p.le.esp <= obj2_free
+    if bigw:
+        careerworld.big_team_buffer(p)     # world 2025-26: countries above 93 clubs (Italy A + B + C)
     kitcolors.patch(p)             # automatic home/away kit choice (DaniSwos's analysis)
     cfg = LANGS[lang]
     sacups.NAMES[sacups.INT_ID] = cfg['int']

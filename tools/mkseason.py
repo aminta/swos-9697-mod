@@ -48,6 +48,9 @@ SEASONS_REC = [None]                    # obj2 offset of its countriesTable reco
 CAREERS = 98                            # pseudo-continent 'classic careers' of the career team selector
 CAREERS_NAMES = {'it': b'CARR. STORICHE', 'en': b'CLASSIC CAREERS', 'fr': b"CARR. D'ANTAN", 'de': b'KLASS. KARRIERE'}
 CAREERS_REC = [None]
+WCONT_IDS = {}                          # world 2025-26: world n -> [(continent menu id, [country files])] when the world
+CONT_ORDER = ['europe', 'south_america', 'north_america', 'asia', 'africa', 'oceania']   # spans several continents
+CONT_NAT = {'europe': 80, 'africa': 81, 'south_america': 82, 'north_america': 83, 'asia': 84, 'oceania': 85}
 WMENU = 200                             # a world's entry in the CLASSIC CAREERS list: pseudo-continent 200 + world number
                                         # (its countries), named by the root pack's world_cups.name
 CAREER_DATA = [None]                    # obj1 pages of the career packs' structs (patch.py, only with worlds)
@@ -938,7 +941,10 @@ w_lvl:                                  ; replaces `cmp word [numSelectedTeams],
     cmp word [NST], 2                   ; country's leagues at depth 2 only): depth 3 too when the parent list is a
     je .r                               ; world of CLASSIC CAREERS (top of countryStack = WMENU + n)
     cmp word [NST], 3
+    je .w
+    cmp word [NST], 4                   ; depth 4: CLASSIC CAREERS > world > continent > country (world 2025-26)
     jne .r
+.w:
     push eax
     mov eax, [CSP]
     cmp byte [eax - 1], WMENU_N
@@ -1241,7 +1247,27 @@ def patch(p, lang, area, cave):
             _need(len(name) <= 20, f'world {n}: world_cups.name longer than 20 characters')
             rec = area.add(bytes((countries.CONTINENT['europe'],)) + name + b'\0' + name + b'\0')
             p.add_ptr(2, ct + 4 * wid, 2, rec)
-            wl = struct.pack('<i', -1) + bytes(pk.files[pk.league['clubs']][0] for pk in pks) + b'\xff'
+            wconts = {}                          # several continents: the world entry lists them (continent menu
+            for pk in pks:                      # ids from 251 down; names = the game's continents)
+                wconts.setdefault(pk.meta.get('continent', 'europe'), []).append(pk.files[pk.league['clubs']][0])
+            if len(wconts) > 1:
+                ids, cid = [], 251
+                for c in sorted(wconts, key=CONT_ORDER.index):
+                    while ct + 4 * cid in fx2 or comp + 4 * cid in fx2 or cid in wmenus or any(
+                            cid == x for v in WCONT_IDS.values() for x, _ in v):
+                        cid -= 1
+                    _need(cid > WMENU + max(worlds()), f'world {n}: no free continent menu id')
+                    p.add_ptr(2, ct + 4 * cid, *p.target(2, ct + 4 * CONT_NAT[c]))
+                    cl = struct.pack('<i', -1) + bytes(wconts[c]) + b'\xff'
+                    p.put(1, at, cl)
+                    p.add_ptr(2, comp + 4 * cid, 1, at)
+                    at = (at + len(cl) + 3) & ~3
+                    ids.append((cid, wconts[c]))
+                    cid -= 1
+                WCONT_IDS[n] = ids
+                wl = struct.pack('<i', -1) + bytes(x for x, _ in ids) + b'\xff'
+            else:
+                wl = struct.pack('<i', -1) + bytes(pk.files[pk.league['clubs']][0] for pk in pks) + b'\xff'
             p.put(1, at, wl)
             p.add_ptr(2, comp + 4 * wid, 1, at)
             at = (at + len(wl) + 3) & ~3
@@ -1276,6 +1302,9 @@ def patch(p, lang, area, cave):
             src = src.replace('cont_check:', 'cont_check:\n    cmp word [D7REG], 99\n    je CONT_WORLD')
         for wid in wmenus:                                # the worlds of the CLASSIC CAREERS list
             src = src.replace('cont_check:', f'cont_check:\n    cmp word [D7REG], {wid}\n    je CONT_WORLD')
+        for ids in WCONT_IDS.values():                    # a world's continents (world 2025-26)
+            for cid, _ in ids:
+                src = src.replace('cont_check:', f'cont_check:\n    cmp word [D7REG], {cid}\n    je CONT_WORLD')
         if wmenus:
             lvl, nst, csp = _level_site(p)
             symbols.update({'NST': nst, 'CSP': csp, 'WMENU_N': (0, WMENU)})

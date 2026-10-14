@@ -110,6 +110,10 @@ esci_fix:                               ; (variables through ebp: few fixups, th
     mov [edi + 18h], eax
     mov eax, [ebp + 20]
     mov [edi + 8], eax                  ; left/right/up/down links
+    mov ecx, [ebp + 24]                 ; the neighbour's right link
+    jecxz .eval
+    mov al, [ebp + 28]
+    mov [ecx + 9], al
 .eval:
     push dword [ebp]                    ; [esp] = first entry
     mov ebx, [esp]
@@ -189,11 +193,44 @@ esci_fix:                               ; (variables through ebp: few fixups, th
     dec eax
     mov [edi + 10], al
     mov byte [ebp + 16], 1
+    mov dword [ebp + 24], 0             ; left: the visible entry next to the slot on its row (Marco: PORTOGALLO
+    mov ebx, [esp]                      ; right -> ESCI, ESCI left -> PORTOGALLO)
+    xor ecx, ecx
+.l:
+    cmp ebx, esi
+    jae .ld
+    cmp word [ebx + 4], 0
+    jne .ln
+    mov ax, [ebx + 16h]
+    cmp ax, [edx + 16h]
+    jne .ln
+    mov ax, [ebx + 14h]
+    cmp ax, [edx + 14h]
+    jge .ln
+    test ecx, ecx
+    jz .lt
+    cmp ax, [ecx + 14h]
+    jle .ln
+.lt:
+    mov ecx, ebx
+.ln:
+    add ebx, 56
+    jmp .l
+.ld:
+    test ecx, ecx
+    jz .x
+    mov [ebp + 24], ecx
+    mov al, [ecx + 9]
+    mov [ebp + 28], al
+    mov byte [ecx + 9], 88              ; right -> ESCI
+    mov ax, [ecx + 2]
+    mov [edi + 8], al                   ; ESCI left -> it
 .x:
     pop eax
 .r:
     ret
-EF_VARS: dd 0, 0, 0, 0, 0, 0            ; first entry, ESCI's x/y and w/h before the move, x/y after, moved, links
+EF_VARS: dd 0, 0, 0, 0, 0, 0, 0, 0      ; first entry, ESCI's x/y and w/h before, x/y after, moved, links,
+                                        ; the left neighbour and its right link
 '''
 
 ASM = '''

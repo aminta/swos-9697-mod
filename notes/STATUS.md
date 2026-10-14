@@ -1919,3 +1919,10 @@ Left for 2.5: (a) NSL/NSSL finals series (type-1 design) or declare them postpon
   CLASSIC TOURNEYS record and its count closed at the next number; listed with the leagues of CLASSIC TOURNEYS, start
   button LEGA). Template: 5 clubs home and away (file 148, id EF): 20 matches played (classic_groups); games 1: 10.
   The release exe is unchanged (no round robin enabled).
+
+## Release 3.2.1 (2026-10-14): ESCI with the right arrow (Marco)
+- esci_fix also links the visible entry left of ESCI's new slot on its row (PORTOGALLO): its right -> ESCI, ESCI's
+  left -> it (both put back with the rest when the game does not lay the menu out again). Checked with real arrow keys;
+  AFRICA keeps ESCI at (129,180). Full suite 11/11 PASS on c/REL32 (now 3.2.1; the 3.2 exes kept in c/REL320).
+- Patcher 3.2.1 (old patcher v3.2 in orig/old-patchers): originals, 3.0.1, 3.1 and the published 3.2 exes upgrade;
+  outputs = c/REL32.

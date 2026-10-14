@@ -45,7 +45,7 @@ WORK = os.path.join(MAIN, 'internal', 'swostest')
 RUNS = os.environ.get('SWOSTEST_RUNS') or os.path.join(WORK, 'runs')   # run dirs (another one = a parallel suite)
 DOSBOX = '/Applications/dosbox-x.app/Contents/MacOS/dosbox-x'
 ISO = os.path.join(MAIN, 'orig', 'swos9697ita.iso')
-BREAK = re.compile(rb'[0-9A-F]{4}:([0-9A-F]{8}) +CD03')
+BREAK = re.compile(rb'[0-9A-F]{4}:([0-9A-F]{8}) +' + (rb'[0-9A-F]{2}' if os.environ.get('SWOSTEST_BP4C') else rb'CD03'))
 
 CONF = """[sdl]
 output=surface
@@ -356,6 +356,11 @@ class Dosbox:
     def go_on(self):
         """F5 (resume) and watch, as go()."""
         t = time.time()
+        if os.environ.get('SWOSTEST_BP4C') and self.eip is not None and not getattr(self, 'bp4c', False):
+            self.cmd('BPINT 21 4C', 1, rb'breakpoint at INT 21')    # debug: after the first pause, also stop on
+            for x in ('00', '06', '0D', '0E'):                 # the DOS exit (int 21h, AH 4Ch) and on CPU
+                self.cmd('BPINT ' + x, 0.5)                        # exceptions (any break: SWOSTEST_BP4C only)
+            self.bp4c = True
         os.write(self.fd, b'C 160:0\r')        # move the code view away: the next break must redraw it
         pre = len(self.screen)
         os.write(self.fd, b'\x1b[15~')                 # F5 = run
@@ -1191,7 +1196,7 @@ def checkw1(path):
         if line.startswith(('CC ', 'CWC ', 'UEFA ')):
             ok = ok and line.endswith('dups 0')
     m = re.search(r'table sum mod 256 (\d+)', out)
-    ok = ok and 'euro records k=128' in out and re.search(r'world byte 4\b', out) is not None
+    ok = ok and 'euro records k=128' in out and re.search(rf"world byte {os.environ.get('W8485_WNUM', '4')}\b", out) is not None
     return ok and m is not None and m.group(1) == '0', out
 
 

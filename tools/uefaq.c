@@ -118,6 +118,8 @@ struct uq_out {
     u16 mt_opp[6];
     u8 mt_win[6];
     u16 standin;                        /* the club in the manager's league-phase place until its ties are played */
+    u8 gn[3];                           /* the game's lists: the league phases without the holders that w_holders */
+    u16 gl[3][40];                      /* appends (CL: CL / EL holders, EL: UECL holder), exactly 36 - those */
 };
 
 struct uq_in UQ_IN;
@@ -128,7 +130,8 @@ const u32 UQ_LAYOUT[] = { OFF(uq_in, present), OFF(uq_in, eps), OFF(uq_in, hold)
                           OFF(uq_in, league), OFF(uq_in, cup), OFF(uq_in, club), sizeof(UQ_IN.club[0]),
                           OFF(uq_out, n), OFF(uq_out, ls), OFF(uq_out, status), sizeof(struct uq_in), NC,
                           OFF(uq_in, manager), OFF(uq_in, force), OFF(uq_out, mt_n), OFF(uq_out, mt_round),
-                          OFF(uq_out, mt_opp), OFF(uq_out, mt_win), OFF(uq_out, standin) };
+                          OFF(uq_out, mt_opp), OFF(uq_out, mt_win), OFF(uq_out, standin), OFF(uq_out, gn),
+                          OFF(uq_out, gl) };
 
 static struct { u8 rank, round, code, pad; } E[NE];
 static int ne;
@@ -387,7 +390,7 @@ void uq_season(void) {
         if (!c) continue;
         for (int i = 0; i < ne; i++)
             if (CLUB[i] == c) dom = E[i].round;
-        int league = h < 2 ? dom == CL_LS : dom == EL_LS || (dom != NR && COMP(dom) == 0);
+        int league = h < 2 ? dom == CL_LS : dom == EL_LS;   /* (UECL holder: only its EL league-phase place) */
         UQ_OUT.status[h] = league ? 1 : 2;
         if (!league) own[h] = c;
     }
@@ -451,5 +454,31 @@ void uq_season(void) {
                     if (b) { taken[b] = 1; RL[r][i] = b; UQ_OUT.standin = b; }
                 }
         for (int i = 0; i < n; i++) UQ_OUT.ls[c][i] = RL[r][i];
+    }
+    /* the game's lists: exactly 36 - its routed holders, whatever happened above (the season end's record count
+       checks would stop the game): holders out, then the best unused clubs in / the last ones out */
+    static const u8 ROUTE[3] = { 0, 0, 1 };     /* CL holder -> CL, EL holder -> CL, UECL holder -> EL */
+    for (int c = 0; c <= UQ_IN.nclub; c++) taken[c] = 0;
+    for (int h = 0; h < 3; h++) if (UQ_IN.hold[h]) taken[UQ_IN.hold[h]] = 1;
+    for (int c = 0; c < 3; c++) {
+        int want = 36, n = 0;
+        for (int h = 0; h < 3; h++) if (UQ_IN.hold[h] && ROUTE[h] == c) want--;
+        for (int i = 0; i < UQ_OUT.n[c] && n < want; i++) {
+            int k = UQ_OUT.ls[c][i];
+            if (!taken[k]) { taken[k] = 1; UQ_OUT.gl[c][n++] = k; }
+        }
+        UQ_OUT.gn[c] = n;
+    }
+    for (int c = 0; c < 3; c++) {
+        int want = 36;
+        for (int h = 0; h < 3; h++) if (UQ_IN.hold[h] && ROUTE[h] == c) want--;
+        while (UQ_OUT.gn[c] < want) {
+            int b = 0;
+            for (int k = 1; k <= 550 && k <= UQ_IN.nclub; k++)
+                if (!taken[k] && UQ_IN.club[k - 1].id && (!b || seed_less(k, b))) b = k;
+            if (!b) break;
+            taken[b] = 1;
+            UQ_OUT.gl[c][UQ_OUT.gn[c]++] = b;
+        }
     }
 }

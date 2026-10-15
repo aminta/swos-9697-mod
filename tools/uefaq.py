@@ -276,10 +276,10 @@ uq_fill:                                ; careerworld w_q_fill (before the seaso
 .o:
     xor edx, edx
 .o1:
-    cmp dl, [UQ_OUT + O_N + ebx]
+    cmp dl, [UQ_OUT + O_GN + ebx]
     jae .on
     imul eax, ebx, 80
-    movzx eax, word [UQ_OUT + O_LS + eax + edx*2]
+    movzx eax, word [UQ_OUT + O_GL + eax + edx*2]
     dec eax
     cmp eax, 550
     jae .o2                             ; (a holder not seen: w_holders adds it)
@@ -438,9 +438,10 @@ def patch(p, at, limit, sites):
     bss_at = sites['bss'] + cw.B_UQ
     syms, end, bss = cobj.link(p, obj, at, (2, bss_at), limit=limit)
     assert bss <= cw.UQ_BSS, hex(bss)
-    lay = struct.unpack('<20I', p.get(1, syms['UQ_LAYOUT'][1], 80))
+    lay = struct.unpack('<22I', p.get(1, syms['UQ_LAYOUT'][1], 88))
     keys = ('L_PRESENT', 'L_EPS', 'L_HOLD', 'L_NCLUB', 'L_LEAGUE', 'L_CUP', 'L_CLUB', 'CSZ', 'O_N', 'O_LS', 'O_STATUS',
-            'IN_SIZE', 'NC', 'L_MANAGER', 'L_FORCE', 'O_MT_N', 'O_MT_ROUND', 'O_MT_OPP', 'O_MT_WIN', 'O_STANDIN')
+            'IN_SIZE', 'NC', 'L_MANAGER', 'L_FORCE', 'O_MT_N', 'O_MT_ROUND', 'O_MT_OPP', 'O_MT_WIN', 'O_STANDIN', 'O_GN',
+            'O_GL')
     lay = dict(zip(keys, lay))
     assert lay['IN_SIZE'] % 4 == 0 and lay['CSZ'] == 12 and lay['NC'] >= 553, lay
     q = sites['qual']

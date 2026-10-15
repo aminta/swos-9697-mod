@@ -847,7 +847,7 @@ def patch(p, lang, area, cave, draw_pre=None, leagues=(), cave2=None, lp=None):
             break
         at2 += 4
     labels = nasmcave.labels(src, at2, symbols)
-    assert at2 + len(code) <= cave2 + (0x900 if lp else 0x1000), hex(at2 + len(code))   # lp36 code after 0x900
+    assert at2 + len(code) <= cave2 + (0x700 if lp else 0x1000), hex(at2 + len(code))   # lp36 code after 0x700 (patch.LP_OFF)
     p.put(1, at2, code)
     for off, tobj, toff in fix:
         p.add_ptr(1, at2 + off, tobj, toff)

@@ -51,7 +51,7 @@ CAREER_DATA = 0xa8000        # 8th + 9th added pages (same builds): the career p
 HIST2_PAGE = 0x1000          # 3.2: one more page after the others (0xa6000, or 0xaa000 with a world): tourney packs'
                              # contests and the ESCI fix (historic.patch; the world cave was nearly full)
 ARG_LOAD_HOOK = True
-LP_OFF = 0x900               # league phase prototype (lp36) in the historic page, after historic's code
+LP_OFF = 0x700               # league phase (lp36) in the historic page, after historic's code
 
 LEAGUES_OLD = bytes.fromhex('3c00144020150000000202033512')
 TEAM_BASES = struct.pack('<16H', 0, 16, 26, 44, 60, 72, 86, 102, 114, 207, 207, 221, 233, 245, 287, 333)
@@ -173,6 +173,9 @@ def patch_exe(src, dst, remap, lang='it'):
     o2pages = 2 if worlds else 1   # career packs: one more obj2 page (their strings)
     if worlds:
         data = add_object_page(data, 2)
+    if mkseason.league_phase_cups():   # UEFA league phase: its draw's work buffers
+        o2pages += 1
+        data = add_object_page(data, 2)
     open(grown, 'wb').write(data)
     p = LEPatch(grown)
     os.remove(grown)
@@ -209,7 +212,7 @@ def patch_exe(src, dst, remap, lang='it'):
     lp = None
     if mkseason.league_phase_cups():               # UEFA league phase prototype (PROTO36 test builds)
         import lp36
-        lp_end, lp_draw, lp_id = lp36.patch(p, hist2 + LP_OFF, mkseason.league_phase_cups(), area)
+        lp_end, lp_draw, lp_id = lp36.patch(p, hist2 + LP_OFF, mkseason.league_phase_cups(), area, lang)
         assert lp_end <= hist2 + HIST2_PAGE, hex(lp_end)
         lp = (lp_draw, lp_id)
     world = historic.patch(p, lang, area, world, lib_pre, pack_leagues, cave2=hist2, lp=lp)

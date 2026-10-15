@@ -24,8 +24,11 @@ a type-2 contest is 0xB52 = diyFileBufferCopy 0x41F + DIY_competitionStart 0x733
 - lp_draw (from historic.hist_draw for this contest): every draw keeps the order (fixed bracket), except the round
   of 16: tie k = (play-off winner k, seeded club k), seeded order 1 8 3 5 | 2 7 4 6 (2024-25 bracket shape: QF 1v8,
   3v5, 2v7, 4v6; SF top half / bottom half).
-Prototype limits: the draw (LP_CAL) is made at build time for the pack's 36 clubs (a career needs it at run time,
-stored in the DIY state); seeded pairs and home legs are fixed, not drawn.
+Also: lp_mkdraw (from lp_start) = the draw made by the game at every stage start (the model of rt draw below:
+one-to-one per pot pair with backtracking, then 8 perfect matchings), written into DIY + CAL_OFF (saved with the
+slot; the build's draw only as a fallback); lp_gend draws the seeded pairs of the play-offs and the halves of the
+seeded pairs; lp_rank uses only criteria 1-5 + the names while the phase runs (UEFA); lp_hdr / lp_num / lp_col turn
+the two group pages into one table 1-36 ('CLASSIFICA 1-18' / '19-36', 1-8 light blue, 9-24 green, 25-36 plain).
 """
 import random
 import re
@@ -33,7 +36,8 @@ import struct
 
 N, POT, DAYS = 36, 9, 8
 ROW = 0x2B3                     # team row r = DIY + ROW + 18 * r (+0 team dword, +4 played .. +16 points)
-AWAY_GF = ROW + 18 * 44         # 36 bytes, then AWAY_W 36 bytes (rows 44..47: unused by a 36-club stage)
+CAL_OFF = ROW + 18 * 36         # the season's draw: 144 (home row, away row), matchday order (rows 36..51: unused by a
+AWAY_GF = CAL_OFF + 288         # 36-club stage, saved with the slot); then away goals (36 bytes), away wins (36 bytes)
 
 
 def draw(countries, seed=2025):
@@ -206,6 +210,7 @@ lp_start:                               ; replaces `call cseg_2653B` in cseg_258
     pop eax
     pop ecx
     pop edi
+    call lp_mkdraw                      ; this season's draw into DIY + CAL_OFF
 .r:
     ret
 
@@ -221,11 +226,11 @@ lp_pair:                                ; replaces the first instruction of cseg
     add eax, edx
     cmp eax, 144
     jae .bad
-    movzx edx, byte [LP_CAL + eax*2]    ; home row
+    movzx edx, byte [DIY + CAL_OFF + eax*2]  ; home row
     imul edx, edx, 18
     add edx, DIY
     mov [A1], edx
-    movzx edx, byte [LP_CAL + eax*2 + 1]
+    movzx edx, byte [DIY + CAL_OFF + eax*2 + 1]
     imul edx, edx, 18
     add edx, DIY
     mov [A2], edx
@@ -280,8 +285,8 @@ lp_rank:                                ; LP_ORD = rows best first, written into
     jb .z
     xor ecx, ecx
 .m:                                     ; every match of the draw (played or not): add each side's figures to the other
-    movzx esi, byte [LP_CAL + ecx*2]
-    movzx edi, byte [LP_CAL + ecx*2 + 1]
+    movzx esi, byte [DIY + CAL_OFF + ecx*2]
+    movzx edi, byte [DIY + CAL_OFF + ecx*2 + 1]
     call .acc
     xchg esi, edi
     call .acc
@@ -323,7 +328,12 @@ lp_rank:                                ; LP_ORD = rows best first, written into
     or eax, edx
     mov [edi + 8], eax
     mov eax, 255
-    sub eax, ecx
+    sub eax, ecx                        ; then the contest order (= the club coefficients' order)
+    cmp word [DIY + 5Fh], 0             ; phase still running (UEFA: only criteria 1-5, then the names)
+    je .k3
+    mov dword [edi + 8], 0
+    call .alpha
+.k3:
     mov [edi + 12], eax
     mov [LP_ORD + ecx], cl
     inc ecx
@@ -361,6 +371,49 @@ lp_rank:                                ; LP_ORD = rows best first, written into
     jb .w1
     popad
     ret
+.alpha:                                 ; eax = 255 - clubs whose name sorts before row ecx's
+    push ebx
+    push ecx
+    push edx
+    push esi
+    push edi
+    mov ebx, ecx
+    xor edx, edx                        ; count
+    xor ecx, ecx
+.a1:
+    imul esi, ecx, 18                   ; name of row ecx (team record + 5) vs name of row ebx
+    mov esi, [DIY + esi + 2B3h]
+    add esi, [SELTEAMS]
+    add esi, 5
+    imul edi, ebx, 18
+    mov edi, [DIY + edi + 2B3h]
+    add edi, [SELTEAMS]
+    add edi, 5
+.a2:
+    mov al, [esi]
+    cmp al, [edi]
+    jb .a4                              ; row ecx first
+    ja .a5
+    test al, al
+    jz .a5
+    inc esi
+    inc edi
+    jmp .a2
+.a4:
+    inc edx
+.a5:
+    inc ecx
+    cmp ecx, 36
+    jb .a1
+    mov eax, 255
+    sub eax, edx
+    pop edi
+    pop esi
+    pop edx
+    pop ecx
+    pop ebx
+    ret
+
 .acc:                                   ; LP_OPP[esi] += figures of row edi
     imul eax, edi, 18
     movzx edx, word [DIY + eax + 2C3h]
@@ -401,13 +454,42 @@ lp_gend:                                ; replaces `call cseg_8A2CE` (group stag
     call C8A2CE
     pushad
     xor ecx, ecx
-.t:
-    movzx eax, byte [LP_PO + ecx]       ; place (0-based) of the play-off slot
+.t:                                     ; list[0..15]: play-off ties (unseeded club first: first leg at home)
+    movzx eax, byte [LP_PO + ecx]
     mov al, [LP_ORD + eax]
     mov [DIYCOPY + 59h + ecx], al
     inc ecx
-    cmp ecx, 24
+    cmp ecx, 16
     jb .t
+    xor ecx, ecx
+.s:                                     ; list[16..23]: the seeded club of round-of-16 tie k (the play-off round
+    movzx eax, byte [LP_R16 + ecx]      ; puts its winners in list[0..7] in tie order, leaves [16..23] alone)
+    mov al, [LP_ORD + eax]
+    mov [DIYCOPY + 59h + 16 + ecx], al
+    inc ecx
+    cmp ecx, 8
+    jb .s
+    xor ebx, ebx                        ; the draws: in each play-off pair (9/10 v 23/24 ...) which seeded club
+.d:                                     ; meets which; in each seeded pair (1/2, 8/7, 3/4, 5/6) which half
+    mov ecx, 2
+    call lp_rand
+    test eax, eax
+    jz .d2
+    mov al, [DIYCOPY + 59h + ebx*2 + 1]
+    xchg al, [DIYCOPY + 59h + ebx*2 + 9]
+    mov [DIYCOPY + 59h + ebx*2 + 1], al
+.d2:
+    mov ecx, 2
+    call lp_rand
+    test eax, eax
+    jz .d3
+    mov al, [DIYCOPY + 59h + 16 + ebx]
+    xchg al, [DIYCOPY + 59h + 20 + ebx]
+    mov [DIYCOPY + 59h + 16 + ebx], al
+.d3:
+    inc ebx
+    cmp ebx, 4
+    jb .d
     popad
     ret
 .plain:
@@ -429,9 +511,8 @@ lp_draw:                                ; called by hist_draw for this contest (
     xor ecx, ecx
 .p:
     mov al, [LP_ORD + ecx]
-    mov [esi + 59h + ecx*2], al         ; tie k: winner k (first leg at home) - seeded club k
-    movzx eax, byte [LP_R16 + ecx]
-    mov al, [esi + 59h + 16 + eax]      ; places 1-8 (lp_gend; the play-off round leaves list[16..23] alone)
+    mov [esi + 59h + ecx*2], al         ; tie k: winner k (first leg at home) - seeded club k (lp_gend)
+    mov al, [esi + 59h + 16 + ecx]
     mov [esi + 59h + ecx*2 + 1], al
     inc ecx
     cmp ecx, 8
@@ -440,11 +521,377 @@ lp_draw:                                ; called by hist_draw for this contest (
 .r:
     ret
 
-LP_CAL: CAL_BYTES
+; ---- The draw at the stage start (positions p = places in the contest list = pots of 9; team rows = list[p]) ----
+; Model: tools/lp36.py rt_draw. For each ordered pot pair (P, Q), in a random rotation of the 16: a one-to-one
+; 'p hosts q' (backtracking, random rotations), q != p, no rematch, no club of the same country, at most 2 opponents
+; of one country. Then 8 matchdays: perfect matchings of the 144 matches (backtracking, first free club).
+; Countries: LP_CTRYS (a tourney pack's own list, by position) or the team word's file byte (careers).
+lp_rand:                                ; eax = random 0..ecx-1 (ecx <= 256); the game's Rand2 (D0 kept)
+    push dword [D0]
+    pushad
+    call RAND2
+    popad
+    movzx eax, byte [D0]
+    imul eax, ecx
+    shr eax, 8
+    pop dword [D0]
+    ret
+
+lp_mkdraw:
+    pushad
+    xor ecx, ecx
+.ct:
+%if LP_FIXED
+    mov al, [LP_CTRYS + ecx]
+%else
+    movzx ebx, byte [DIYCOPY + 59h + ecx]
+    mov al, [DIYCOPY + 99h + ebx*2]
+%endif
+    mov [W_CTRY + ecx], al
+    inc ecx
+    cmp ecx, 36
+    jb .ct
+    mov dword [W_TRY], 60
+.att:
+    dec dword [W_TRY]
+    js .fallback
+    mov edi, W_ADJ                      ; no matches yet
+    mov ecx, 36 * 36
+    xor eax, eax
+    rep stosb
+    mov dword [W_NE], 0
+    mov dword [W_STEPS], 0
+    mov ecx, 16
+    call lp_rand
+    mov [W_R0], eax
+    mov dword [W_T], 0
+.pair:
+    mov eax, [W_T]
+    add eax, [W_R0]
+    and eax, 15
+    mov edx, eax
+    shr eax, 2
+    imul eax, eax, 9
+    mov [W_P], eax                      ; first position of pot P
+    and edx, 3
+    imul edx, edx, 9
+    mov [W_Q], edx
+    mov edi, W_USED
+    mov ecx, 36
+    xor eax, eax
+    rep stosb
+    mov ecx, 9
+    call lp_rand
+    mov [W_ROT], eax
+    xor ebx, ebx
+    call lp_bij
+    jnc .att                            ; CF = 1: done
+    inc dword [W_T]
+    cmp dword [W_T], 16
+    jb .pair
+    mov dword [W_STRY], 20              ; 144 matches: now the matchdays
+.sch:
+    dec dword [W_STRY]
+    js .att
+    mov edi, W_DAY
+    mov ecx, 144
+    mov al, 0FFh
+    rep stosb
+    mov dword [W_D], 0
+.day:
+    mov edi, W_FREE
+    mov ecx, 36
+    mov al, 1
+    rep stosb
+    mov dword [W_STEPS], 0
+    call lp_match
+    jnc .sch
+    inc dword [W_D]
+    cmp dword [W_D], 8
+    jb .day
+    xor edx, edx                        ; write the calendar: matchday 1 first, rows = list[position]
+    xor ecx, ecx
+.w0:
+    xor ebx, ebx
+.w1:
+    cmp [W_DAY + ebx], cl
+    jne .w2
+    movzx eax, byte [W_EH + ebx]
+    mov al, [DIYCOPY + 59h + eax]
+    mov [DIY + CAL_OFF + edx*2], al
+    movzx eax, byte [W_EA + ebx]
+    mov al, [DIYCOPY + 59h + eax]
+    mov [DIY + CAL_OFF + edx*2 + 1], al
+    inc edx
+.w2:
+    inc ebx
+    cmp ebx, 144
+    jb .w1
+    inc ecx
+    cmp ecx, 8
+    jb .w0
+    popad
+    ret
+.fallback:                              ; (never seen in tests) the build's draw, by position
+    xor ecx, ecx
+.f1:
+    movzx eax, byte [LP_CAL + ecx]
+    mov al, [DIYCOPY + 59h + eax]
+    mov [DIY + CAL_OFF + ecx], al
+    inc ecx
+    cmp ecx, 288
+    jb .f1
+    popad
+    ret
+
+lp_fits:                                ; CF = 1 if position esi may host / meet edi
+    cmp esi, edi
+    je .no
+    imul eax, esi, 36
+    cmp byte [W_ADJ + eax + edi], 0
+    jne .no
+    mov al, [W_CTRY + esi]
+    cmp al, [W_CTRY + edi]
+    je .no
+    push esi
+    push edi
+    call .cnt                           ; opponents of esi from the country of edi
+    pop edi
+    pop esi
+    cmp ecx, 2
+    jae .no
+    push esi
+    push edi
+    xchg esi, edi
+    call .cnt
+    pop edi
+    pop esi
+    cmp ecx, 2
+    jae .no
+    stc
+    ret
+.no:
+    clc
+    ret
+.cnt:                                   ; ecx = opponents of esi with the country of edi
+    mov dl, [W_CTRY + edi]
+    imul esi, esi, 36
+    xor ecx, ecx
+    xor eax, eax
+.c1:
+    cmp byte [W_ADJ + esi + eax], 0
+    je .c2
+    cmp [W_CTRY + eax], dl
+    jne .c2
+    inc ecx
+.c2:
+    inc eax
+    cmp eax, 36
+    jb .c1
+    ret
+
+lp_bij:                                 ; ebx = i (0..9); CF = 1: the rest of the one-to-one P -> Q found
+    cmp ebx, 9
+    jb .go
+    stc
+    ret
+.go:
+    inc dword [W_STEPS]
+    cmp dword [W_STEPS], 20000
+    ja .fail
+    mov eax, ebx                        ; p = P + (i + rot) mod 9
+    add eax, [W_ROT]
+    xor edx, edx
+    mov ecx, 9
+    div ecx
+    mov esi, edx
+    add esi, [W_P]
+    mov ecx, 9
+    call lp_rand
+    push eax                            ; [esp+4] = r, [esp] = k
+    push dword 0
+.k:
+    mov eax, [esp]
+    add eax, [esp + 4]
+    xor edx, edx
+    mov ecx, 9
+    div ecx
+    mov edi, edx
+    add edi, [W_Q]                      ; q
+    cmp byte [W_USED + edi], 0
+    jne .next
+    call lp_fits
+    jnc .next
+    mov byte [W_USED + edi], 1
+    imul eax, esi, 36
+    mov byte [W_ADJ + eax + edi], 1
+    imul eax, edi, 36
+    mov byte [W_ADJ + eax + esi], 1
+    mov eax, [W_NE]
+    mov ecx, esi
+    mov [W_EH + eax], cl
+    mov ecx, edi
+    mov [W_EA + eax], cl
+    inc dword [W_NE]
+    push esi
+    push edi
+    push ebx
+    inc ebx
+    call lp_bij
+    pop ebx
+    pop edi
+    pop esi
+    jc .ok
+    dec dword [W_NE]
+    mov byte [W_USED + edi], 0
+    imul eax, esi, 36
+    mov byte [W_ADJ + eax + edi], 0
+    imul eax, edi, 36
+    mov byte [W_ADJ + eax + esi], 0
+.next:
+    inc dword [esp]
+    cmp dword [esp], 9
+    jb .k
+    add esp, 8
+.fail:
+    clc
+    ret
+.ok:
+    add esp, 8
+    stc
+    ret
+
+lp_match:                               ; one matchday W_D: CF = 1 if every free club got a match
+    inc dword [W_STEPS]
+    cmp dword [W_STEPS], 5000
+    ja .fail
+    xor esi, esi                        ; first free club
+.f:
+    cmp byte [W_FREE + esi], 0
+    jne .got
+    inc esi
+    cmp esi, 36
+    jb .f
+    stc
+    ret
+.got:
+    mov ecx, 144
+    call lp_rand
+    push eax                            ; [esp+4] = r, [esp] = k
+    push dword 0
+.k:
+    mov eax, [esp]
+    add eax, [esp + 4]
+    cmp eax, 144
+    jb .e
+    sub eax, 144
+.e:
+    mov ebx, eax                        ; match e
+    cmp byte [W_DAY + ebx], 0FFh
+    jne .next
+    movzx edi, byte [W_EA + ebx]
+    movzx eax, byte [W_EH + ebx]
+    cmp eax, esi
+    je .o
+    movzx edi, byte [W_EH + ebx]
+    movzx eax, byte [W_EA + ebx]
+    cmp eax, esi
+    jne .next
+.o:
+    cmp byte [W_FREE + edi], 0
+    je .next
+    mov byte [W_FREE + esi], 0
+    mov byte [W_FREE + edi], 0
+    mov al, [W_D]
+    mov [W_DAY + ebx], al
+    push esi
+    push edi
+    push ebx
+    call lp_match
+    pop ebx
+    pop edi
+    pop esi
+    jc .ok
+    mov byte [W_FREE + esi], 1
+    mov byte [W_FREE + edi], 1
+    mov byte [W_DAY + ebx], 0FFh
+.next:
+    inc dword [esp]
+    cmp dword [esp], 144
+    jb .k
+    add esp, 8
+.fail:
+    clc
+    ret
+.ok:
+    add esp, 8
+    stc
+    ret
+
+; The table screen (DIYLeagueTournament16BeforeDraw, also the career's group tables): one table of 36 on two pages.
+lp_hdr:                                 ; replaces `mov [A0], offset cseg_49E7A` (the 'GROUP A..H' names)
+    mov dword [A0], C49E7A
+    call lp_ours
+    jne .r
+    mov dword [A0], LP_HDR              ; 'CLASSIFICA 1-18' / 'CLASSIFICA 19-36'
+.r:
+    ret
+
+lp_num:                                 ; replaces `mov ax, [D5]` (row number on the page, 1..18)
+    mov ax, [D5]
+    call lp_ours
+    jne .r
+    mov ax, [D7]                        ; offset of the row in DIY+6Dh = 2 x place (0-based, both groups)
+    shr ax, 1
+    inc ax
+.r:
+    ret
+
+lp_col:                                 ; replaces `mov ax, [dseg_11F41C]` at cseg_49B65 (row colour D3 final)
+    call lp_ours
+    jne .r
+    push eax
+    push edx
+    push esi
+    movzx eax, word [D7]
+    shr eax, 1                          ; place 0..35
+    mov dx, 0Dh                         ; 1-8: round of 16 (light blue)
+    cmp eax, 8
+    jb .c
+    mov dx, 0Eh                         ; 9-24: play-offs (green)
+    cmp eax, 24
+    jb .c
+    mov word [D3], 7                    ; 25-36: out (the game's plain row, computer clubs' names red)
+    mov dx, 10
+    jmp .n
+.c:
+    mov [D3], dx
+.n:
+    mov esi, [A1]                       ; club (team file record): computer club -> name in the row colour
+    cmp byte [esi + 4], 1
+    jne .x
+    mov esi, [A5]
+    mov [esi + 1Eh], dx
+.x:
+    pop esi
+    pop edx
+    pop eax
+.r:
+    mov ax, [C11F41C]
+    ret
+
+LP_HDR: dd LP_S1, LP_S2
+
 LP_PO: PO_BYTES
 LP_R16: R16_BYTES
 '''
 WORK = 36 * 16 + 108 * 4 + 36           # LP_KEY, LP_OPP, LP_ORD: work buffers in obj2 (the obj1 page is full)
+W_LAYOUT, _at = {}, 0                   # the draw's work area (obj2, not saved: the result is in DIY + CAL_OFF)
+for _n, _sz in (('W_TRY', 4), ('W_NE', 4), ('W_STEPS', 4), ('W_R0', 4), ('W_T', 4), ('W_P', 4), ('W_Q', 4), ('W_ROT', 4),
+                ('W_STRY', 4), ('W_D', 4), ('W_CTRY', 36), ('W_ADJ', 36 * 36), ('W_USED', 36), ('W_FREE', 36),
+                ('W_DAY', 144), ('W_EH', 144), ('W_EA', 144)):
+    W_LAYOUT[_n], _at = _at, _at + _sz
+WORK_DRAW = _at
 
 # play-off ties, R16 bracket order: tie k of the play-off feeds R16 tie k. Seeded order (places 0-based) 0 7 2 4 1 6 3 5
 # = 1 8 3 5 | 2 7 4 6; their play-off groups: 1/2 <- 15/16 v 17/18, 3/4 <- 13/14 v 19/20, 5/6 <- 11/12 v 21/22,
@@ -519,10 +966,24 @@ def _sites(p):
     s['gend'] = calls[c8a2ce]
     s['C8A2CE'] = c8a2ce
     s.update(D1=d1r, D2=d2r)
+    # selTeamsPtr: mov eax, [esi+2B3h]; mov [A1], eax; mov eax, [selTeamsPtr]; add [A1], eax (table screen)
+    s['selteams'] = [x.start() for x in re.finditer(rb'\x8b\x86\xb3\x02\x00\x00\xa3' + re.escape(A(a0 + 4)) + rb'\xa1.{4}\x01\x05'
+                                                   + re.escape(A(a0 + 4)), d1, re.S)][0] + 12
+    # table screen (DIYLeagueTournament16BeforeDraw): cmp word [esi+4Fh], 1; jz; mov [A0], offset cseg_49E7A
+    s['hdr'] = one(rb'\x66\x83\x7e\x4f\x01\x74.\xc7\x05' + re.escape(A(a0)), 'group names') + 7
+    # row loop: mov ax, [D2]; mov esi, [A5]; mov [esi+16h], ax; mov ax, [D5]; mov esi, [A5]; mov [esi+26h], ax
+    s['num'] = one(rb'\x66\xa1' + re.escape(A(a0 - 24)) + rb'\x8b\x35' + re.escape(A(a0 + 20)) + rb'\x66\x89\x46\x16\x66\xa1'
+                   + re.escape(A(a0 - 12)) + rb'\x8b\x35' + re.escape(A(a0 + 20)) + rb'\x66\x89\x46\x26', 'row number') + 16
+    # mov [D3], 7; test [D5], 1; jz +9; mov [D3], 9; then cseg_49B65: mov ax, [dseg_11F41C]
+    s['col'] = one(rb'\x66\xc7\x05' + re.escape(A(a0 - 20)) + rb'\x07\x00\x66\xf7\x05' + re.escape(A(a0 - 12))
+                   + rb'\x01\x00\x74\x09\x66\xc7\x05' + re.escape(A(a0 - 20)) + rb'\x09\x00\x66\xa1', 'row colour') + 29
     return s
 
 
-def patch(p, cave, cups, area):
+HEADERS = {'it': 'CLASSIFICA', 'en': 'STANDINGS', 'fr': 'CLASSEMENT', 'de': 'TABELLE'}
+
+
+def patch(p, cave, cups, area, lang='it'):
     """cups = [(contest id, countries in contest order)] (one prototype contest). Returns (end, lp_draw, id)."""
     import nasmcave
     assert len(cups) == 1, cups
@@ -535,11 +996,28 @@ def patch(p, cave, cups, area):
     db = lambda b: 'db ' + ', '.join(str(x) for x in b)
     symbols = {'DIYCOPY': (2, s['DIYCOPY']), 'DIY': (2, s['DIY']), 'A0': (2, a0), 'A1': (2, a0 + 4), 'A2': (2, a0 + 8),
                'A3': (2, a0 + 12), 'A4': (2, a0 + 16), 'D1': (2, s['D1']), 'D2': (2, s['D2']),
-               'LP_ID': (0, lp_id), 'AWAY_GF': (0, AWAY_GF),
+               'LP_ID': (0, lp_id), 'AWAY_GF': (0, AWAY_GF), 'CAL_OFF': (0, CAL_OFF),
                'C260A9': (1, s['C260A9']), 'C2653B': (1, s['C2653B']), 'C8A2CE': (1, s['C8A2CE']),
                'C89758_NEXT': (1, s['pair'] + 10), 'C883DD_NEXT': (1, s['sort'] + 10),
-               'CAL_BYTES': (0, db(b for m in cal for b in m)), 'PO_BYTES': (0, db(playoff_slots())),
+               'PO_BYTES': (0, db(playoff_slots())),
                'R16_BYTES': (0, db(R16_SEEDS))}
+    for k, t in enumerate(('1-18', '19-36')):
+        symbols[f'LP_S{k + 1}'] = (2, area.add(f'{HEADERS[lang]} {t}'.encode() + b'\0'))
+    symbols.update(C49E7A=p.target(1, s['hdr'] + 6), C11F41C=p.target(1, s['col'] + 2),
+                   D3=(2, a0 - 20), D5=(2, a0 - 12), D7=(2, a0 - 4), A5=(2, a0 + 20))
+    import historic
+    _, draw_orig = historic._draw_call(p)
+    symbols['RAND2'] = (1, historic._coin_sites(p, draw_orig)['rand2'])
+    symbols['SELTEAMS'] = p.target(1, s['selteams'])
+    symbols['D0'] = (2, a0 - 32)
+    symbols['LP_CAL'] = (2, area.add(bytes(b for m in cal for b in m)))      # fallback draw (by position)
+    codes = sorted(set(countries))
+    symbols['LP_FIXED'] = (0, 1)                                         # tourney pack: countries from the pack
+    symbols['LP_CTRYS'] = (2, area.add(bytes(codes.index(c) for c in countries)))
+    w = area.add(bytes(WORK_DRAW + 4))
+    w = (w + 3) & ~3
+    for name, off in W_LAYOUT.items():
+        symbols[name] = (2, w + off)
     work = area.add(bytes(WORK + 4))
     work = (work + 3) & ~3
     symbols.update(LP_KEY=(2, work), LP_OPP=(2, work + 576), LP_ORD=(2, work + 576 + 432))
@@ -557,6 +1035,12 @@ def patch(p, cave, cups, area):
         p.remove(1, site + 2)
         p.remove(1, site + 6)
         p.put(1, site, b'\xe9' + rel(site, lab[name]) + b'\x90' * 5)
+    p.remove(1, s['hdr'] + 2)                                    # mov [A0], offset (10 B) -> call; nops
+    p.remove(1, s['hdr'] + 6)
+    p.put(1, s['hdr'], b'\xe8' + rel(s['hdr'], lab['lp_hdr']) + b'\x90' * 5)
+    for site, name in ((s['num'], 'lp_num'), (s['col'], 'lp_col')):  # mov ax, [mem] (6 B) -> call; nop
+        p.remove(1, site + 2)
+        p.put(1, site, b'\xe8' + rel(site, lab[name]) + b'\x90')
     p.remove(1, s['res'] + 2)                                    # mov ax, [D1]; mov esi, [A3] (12 B) -> call; nops
     p.remove(1, s['res'] + 8)
     p.put(1, s['res'], b'\xe8' + rel(s['res'], lab['lp_res']) + b'\x90' * 7)

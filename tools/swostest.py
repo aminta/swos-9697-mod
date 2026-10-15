@@ -1729,6 +1729,102 @@ def classic_tourneys():
     return good, '; '.join(out)
 
 
+@scenario
+def lp36_tourney():
+    """UEFA league phase (tools/lp36.py; private test pack internal/world2526/lp36, PROTO36 build): the 36 clubs of the
+    2025-26 Champions League in CLASSIC TOURNEYS. The game's own draw (calendar read in memory: every UEFA rule),
+    8 matchdays = the draw, the 1-36 table pages, the final ranking recomputed from memory with the UEFA criteria,
+    play-offs 9-24 (seeded pairs), round of 16 (seeded clubs v the play-off winners of their pair), bracket to the final"""
+    import csv
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import lib97
+    import lp36
+    from le import LE
+    pack = os.path.join(MAIN, 'internal', 'world2526', 'lp36')
+    if not os.path.isdir(pack):
+        return True, 'SKIP: private pack internal/world2526/lp36 missing'
+    clubs = list(csv.DictReader(open(os.path.join(pack, 'clubs.csv'))))
+    names, cc = [c['name'] for c in clubs], [c['country'] for c in clubs]
+    exe = build('lp36', env={'PROTO36': '1', 'SEASON_PACKS': 'ddr-1988-89,world-cup-1934,' + pack})
+
+    class _P:
+        pass
+    op = _P()
+    op.le = LE(open(os.path.join(ROOT, 'orig', 'ITALIAN.EXE'), 'rb').read())
+    diy = lib97._sites(op)[3] + 0x41F
+    errs, cal, rows, aw, rounds, heads = [], None, None, None, {}, set()
+    with Session('lp36_tourney', exe, {}, 'dump:2', 1800) as s:
+        s.wait()
+        for t in ('COMP. PREDEFINITA', 'TORNEI STORICI', 'CHAMPIONS LEAGUE 2025-26', 'TORNEO'):
+            if press(s, s.screen(), t) is None or s.result.outcome != 'dump':
+                return False, f'{t} not reached ({s.result})'
+        for k in range(900):
+            if s.result.outcome != 'dump':
+                return False, f'{s.result} at step {k}'
+            scr = s.screen()
+            vis = [t for _, t, inv, _ in scr.entries if t and not inv]
+            title = vis[0].replace('CHAMPIONS LEAGUE 2025-26', '').strip()
+            if title.startswith('PRIMO'):
+                heads |= {t for t in vis if t.startswith('CLASSIFICA')}
+                b = s.result.obj2(diy, 0x733)
+                if cal is None:
+                    cal = [(b[lp36.CAL_OFF + 2 * i], b[lp36.CAL_OFF + 2 * i + 1]) for i in range(144)]
+                rows = [struct.unpack_from('<7H', b, lp36.ROW + 4 + 18 * r) for r in range(36)]
+                aw = (b[lp36.AWAY_GF:lp36.AWAY_GF + 36], b[lp36.AWAY_GF + 36:lp36.AWAY_GF + 72])
+            key = title.split()[0] + (' ' + title.split()[1] if title.split()[0] in ('SECONDO', 'TERZO') else '')
+            for j in range(len(vis) - 2):
+                if vis[j] in ('C', '-') and vis[j + 1] in names and vis[j + 2] in names:
+                    r = rounds.setdefault(key, [])
+                    p = (vis[j + 1], vis[j + 2])
+                    if p not in r and p[::-1] not in r:
+                        r.append(p)
+            for want in ('VIS. RISULTATI', 'PROSS. PARTITA', 'PROSSIMO TURNO', 'TURNO RITORNO', 'CONTINUA', 'OK'):
+                i = scr.find(want, exact=True)
+                if i is not None:
+                    break
+            else:
+                break
+            press(s, scr, i, wait=3)
+    try:
+        lp36.check(cal, cc)
+    except AssertionError as e:
+        errs.append(f'draw breaks a rule: {e}')
+    played = [(names.index(h), names.index(a)) for h, a in rounds.get('PRIMO', [])]
+    check(played and all(m in cal for m in played), f'league-phase fixtures not in the draw: {[m for m in played if m not in cal][:4]}', errs)
+    check(all(r[0] == 8 for r in rows), f'played {[r[0] for r in rows]}', errs)
+    check(heads == {'CLASSIFICA 1-18', 'CLASSIFICA 19-36'}, f'table headers {heads}', errs)
+    pts = [r[6] for r in rows]
+    gd = [r[4] - r[5] for r in rows]
+    opp = {x: [] for x in range(36)}
+    for h, a in cal:
+        opp[h].append(a)
+        opp[a].append(h)
+    key = lambda r: (pts[r], gd[r], rows[r][4], aw[0][r], rows[r][1], aw[1][r], sum(pts[o] for o in opp[r]),
+                     sum(gd[o] for o in opp[r]), sum(rows[o][4] for o in opp[r]), -r)
+    rank = sorted(range(36), key=key, reverse=True)
+    place = {names[r]: k + 1 for k, r in enumerate(rank)}
+    po = rounds.get('SECONDO TURNO', [])
+    check(sorted(place[x] for t in po for x in t) == list(range(9, 25)), f'play-off clubs {po}', errs)
+    for h, a in po:                          # unseeded (23/24 ..) at home first v seeded (9/10 ..) of the same pair
+        j = (place[a] - 9) // 2
+        check(place[h] in (23 - 2 * j, 24 - 2 * j), f'play-off {h} ({place[h]}) - {a} ({place[a]})', errs)
+    r16 = rounds.get('TERZO TURNO', [])
+    check(len(r16) == 8 and sorted(place[a] for _, a in r16) == list(range(1, 9)), f'round of 16 {r16}', errs)
+    for h, a in r16:                         # play-off winner v seeded club of its pair (15/16 v 17/18 -> 1/2 ...)
+        j = (min(place[h], 33 - place[h]) - 9) // 2
+        check((place[a] + 1) // 2 == 4 - j, f'R16 {h} ({place[h]}) - {a} ({place[a]})', errs)
+    order = [('TERZO TURNO', 'QUARTI'), ('QUARTI', 'SEMIFINALE'), ('SEMIFINALE', 'FINALE')]
+    for a, b in order:
+        prev, nxt = rounds.get(a, []), rounds.get(b, [])
+        for k, (h, x) in enumerate(nxt):     # tie k = one club of tie 2k and one of tie 2k+1 before
+            sides = [set(prev[2 * k]), set(prev[2 * k + 1])] if 2 * k + 1 < len(prev) else []
+            check(sides and len({h, x} & sides[0]) == 1 and len({h, x} & sides[1]) == 1, f'{b} {h}-{x} not from {a}', errs)
+    check(len(rounds.get('FINALE', [])) == 1, 'no final', errs)
+    top = ', '.join(f'{k + 1} {names[r]} {pts[r]}' for k, r in enumerate(rank[:3]))
+    return not errs, (f'draw ok, {len(played)} fixtures seen, 144 x 8; top {top}; play-offs {po[:2]}...; R16 {r16[:2]}...; '
+                      f'final {rounds.get("FINALE")}; ' + '; '.join(errs))
+
+
 def run_parallel(names, jobs):
     """run -jN: each scenario in its own process (own run dirs and DOSBox-X, one host core each in turbo); the
     builds are made once here first. Output in the order of the names; exit code 1 on a failure."""

@@ -121,6 +121,21 @@ def _records(data):
     return [data[2 + k * TEAM_SIZE:2 + (k + 1) * TEAM_SIZE] for k in range(struct.unpack('>H', data[:2])[0])]
 
 
+def _shirt_numbers(data):
+    """Team file bytes with every shirt number outside 1..99 replaced by the lowest number of 1..16 its club does not
+    use (record order): the mod draws 1..99 over the controlled / booked player (shirtnum.py), others not at all.
+    Returns (bytes, count)."""
+    d, n = bytearray(data), 0
+    for k in range(struct.unpack('>H', d[:2])[0]):
+        at = [2 + k * TEAM_SIZE + 76 + j * 38 + 2 for j in range(16)]
+        free = sorted(set(range(1, 17)) - {d[a] for a in at})
+        for a in at:
+            if not 1 <= d[a] <= 99:
+                d[a] = free.pop(0)
+                n += 1
+    return bytes(d), n
+
+
 def _csv(path):
     with open(path, encoding='utf-8', newline='') as f:
         return list(csv.DictReader(f))
@@ -257,6 +272,12 @@ class Pack:
             builder = {'calibrate': self._calibrate, 'game': self._game, 'explicit': self._explicit,
                        'records': self._records}[sq['method']]
             out.update(builder(sq))
+        fixed = 0
+        for k in out:
+            out[k], n = _shirt_numbers(out[k])
+            fixed += n
+        if fixed:
+            self.log(f'{fixed} shirt numbers outside 1..99 renumbered (shirtnum draws 1..99)')
         return out
 
     def _empty_record(self, key, template):

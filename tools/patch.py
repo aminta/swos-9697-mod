@@ -22,6 +22,7 @@ import cafcups
 import countries
 import historic
 import kitcolors
+import shirtnum
 import mkseason
 import careerworld
 import nsl97
@@ -235,11 +236,13 @@ def patch_exe(src, dst, remap, lang='it'):
     assert cave <= WORLD_CAVE, hex(cave)
     print(f'exe: caves: world end {world:#x} (limit {NZ_CAVE:#x}), arg end {arg_end:#x} (limit {OBJ1_NEW_VSIZE:#x})')
     world = cafcups.intl_list(p, caf, world)
+    num_bss = obj2_free + o2pages * p.le.page_size + (careerworld.BSS_SIZE if bigw else 0)
+    world = shirtnum.patch(p, world, num_bss)    # 3.2.5: shirt numbers 17..99 over the players (built from the digits)
     assert world <= NZ_CAVE and nz_end <= FIN_CAVE and fin_end <= ARG_CAVE and arg_end <= OBJ1_NEW_VSIZE, \
         (hex(world), hex(nz_end), hex(fin_end), hex(arg_end))
     p.set_vsize(1, OBJ1_NEW_VSIZE + (0x4000 if worlds else 0) + HIST2_PAGE)
-    p.set_vsize(2, obj2_free + o2pages * p.le.page_size + (careerworld.BSS_SIZE if bigw else 0),
-                bss=careerworld.BSS_SIZE if bigw else 0)
+    tail = (careerworld.BSS_SIZE if bigw else 0) + shirtnum.BSS_SIZE     # zero-filled obj2 tail: world lists, numbers
+    p.set_vsize(2, obj2_free + o2pages * p.le.page_size + tail, bss=tail)
     p.add_flags(1, 0x2)            # writable: season end rewrites the SA cup team lists in the cave
     delta, shift = p.save(dst)
     print(f'exe: fixups +{delta} bytes, data pages moved {shift:#x}, caves used up to obj1+{cave:#x} / +{world:#x}')

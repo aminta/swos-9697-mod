@@ -1934,6 +1934,7 @@ w_season_end:                           ; replaces `call arg_agg` (-> sa_qualify
         assert tgt(d1, k[2][0]) == k[2][1] and tgt(d1, k[5][0]) == k[5][1], 'cseg_9307A / 9339D calls already hooked'
         p.put(1, k[2][0] + 1, struct.pack('<i', lab['w_ko_play'] - (k[2][0] + 5)))
         p.put(1, k[5][0] + 1, struct.pack('<i', lab['w_ko_sim'] - (k[5][0] + 5)))
+    LABELS.update({k: v for k, v in lab.items() if k.startswith('w_')})    # (w_lpw: uefacoef.py)
     print(f'exe: career worlds skip the 1996-97 qualifier simulations: call obj1+{site:#x} -> obj1+{at:#x}; '
           + ' '.join(f'{k} {v:#x}' for k, v in lab.items() if k.startswith('w_q') or k == 'w_lpw'))
     return (at + len(code) + 3) & ~3
@@ -1999,8 +2000,10 @@ w_q_next:                               ; [A5] = the next standings record (top 
 
 w_q_cl:                                 ; replaces `call cseg_939C9` in cseg_93974
     call w_lpw
-    je .lp
+    je .lp0
     jmp C939C9
+.lp0:
+    call w_q_cb                         ; (uefacoef: the season's coefficients and the places, once per season end)
 .lp:
     mov dword [A0R], WORK_CC            ; one more place of this country in the CC list?
     call C93B30
@@ -2056,6 +2059,9 @@ w_q_inlists:                            ; replaces `call cseg_93B9C` in cseg_93A
 .r:
     ret
 
+w_q_cb:                                 ; patched to `jmp uc_final` by uefacoef.py
+    ret
+    times 4 nop
 W_QI: dd 0
 W_QF: db 0
 """

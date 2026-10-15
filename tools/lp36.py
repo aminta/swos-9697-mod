@@ -35,6 +35,7 @@ import re
 import struct
 
 N, POT, DAYS = 36, 9, 8
+LABELS = {}                     # lp36 labels (uefacoef.py patches the lp_cb_* callbacks)
 ROW = 0x2B3                     # team row r = DIY + ROW + 18 * r (+0 team dword, +4 played .. +16 points)
 CAL_OFF = ROW + 18 * 36         # the season's draw: 144 (home row, away row), matchday order (rows 36..51: unused by a
 AWAY_GF = CAL_OFF + 288         # 36-club stage, saved with the slot); then away goals (36 bytes), away wins (36 bytes)
@@ -382,6 +383,7 @@ lp_start:                               ; replaces `call cseg_2653B` in cseg_258
     pop ecx
     pop edi
     call lp_mkdraw                      ; this season's draw into DIY + CAL_OFF
+    call lp_cb_start                    ; (UEFA coefficients: participation)
 .r:
     ret
 
@@ -459,6 +461,7 @@ lp_res:                                 ; replaces `mov ax, [D1]; mov esi, [A3]`
     call lp_ours
     jne .r
     pushad
+    call lp_cb_res                      ; (UEFA coefficients: A3 home row, A4 away row, D1 / D2 goals)
     mov eax, [A4]                       ; away row
     sub eax, DIY
     xor edx, edx
@@ -704,6 +707,7 @@ lp_gend:                                ; replaces `call cseg_8A2CE` (group stag
     inc ebx
     cmp ebx, 4
     jb .d
+    call lp_cb_gend                     ; (UEFA coefficients: the ranking in LP_ORD)
     popad
     ret
 .plain:
@@ -733,7 +737,7 @@ lp_draw:                                ; called by hist_draw for this contest (
     jb .p
     popad
 .r:
-    ret
+    jmp lp_cb_draw                      ; (UEFA coefficients: every knockout round's clubs, esi / ecx)
 
 ; ---- The draw at the stage start (positions p = places in the contest list = pots of 9; team rows = list[p]) ----
 ; Model: tools/lp36.py rt_draw. For each ordered pot pair (P, Q), in a random rotation of the 16: a one-to-one
@@ -796,6 +800,7 @@ lp_mkdraw:
     inc ebx
     cmp ebx, 16
     jb .pv
+    call lp_cb_str                      ; (UEFA coefficients: eax = the pot key of team edx)
     mov [W_STR + ecx*4], eax
     inc ecx
     cmp ecx, 36
@@ -1358,6 +1363,23 @@ lp_col:                                 ; replaces `mov ax, [dseg_11F41C]` at cs
 
 LP_HDR: dd LP_S1, LP_S2
 
+; callbacks of tools/uefacoef.py (UEFA coefficients in a league-phase world): `ret` until it patches them to `jmp`
+lp_cb_start:
+    ret
+    times 4 nop
+lp_cb_res:
+    ret
+    times 4 nop
+lp_cb_gend:
+    ret
+    times 4 nop
+lp_cb_draw:
+    ret
+    times 4 nop
+lp_cb_str:
+    ret
+    times 4 nop
+
 LP_PAIRS6: PAIRS6_BYTES
 LP_PO: PO_BYTES
 LP_R16: R16_BYTES
@@ -1543,4 +1565,6 @@ def patch(p, cave, cups, area, lang='it', world_ids=()):
     print(f'exe: league phase {lp_id:#x}: code obj1+{cave:#x}..{cave + len(code):#x}, sites ' +
           ', '.join(f'{k} {v:#x}' for k, v in s.items() if k in ('days', 'start', 'pair', 'sort', 'res')) +
           f"; day 1 {days[0][:3]}...; labels " + ' '.join(f'{k} {v:#x}' for k, v in lab.items() if k.startswith('lp_')))
+    LABELS.update(lab)
+    LABELS['LP_ORD'] = symbols['LP_ORD']
     return cave + len(code), lab['lp_copy_ours'], lab['lp_draw']

@@ -881,6 +881,17 @@ def world_defs():
               f'world {n}: a club is in two European cups')
         tot = sum(len(v) for v in w['clubs'].values())
         _need(tot <= careerworld.TOTAL_MAX, f'world {n}: {tot} European clubs (at most {careerworld.TOTAL_MAX})')
+        # UEFA coefficients (league-phase worlds, uefacoef.py): pack.json uefa_coef = {country: 5 seasons, oldest first;
+        # clubs: {club key: coefficient}}
+        w['coef'] = {'countries': [], 'clubs': []}
+        for pk in pks:
+            uc = pk.meta.get('uefa_coef')
+            if uc:
+                _need(len(uc.get('country', [])) == 5, f"{pk.meta['id']}: uefa_coef.country: 5 seasons")
+                w['coef']['countries'].append((pk.files[pk.league['clubs']][0], uc['country']))
+                for c, v in uc.get('clubs', {}).items():
+                    _need(c in pk.league_clubs, f"{pk.meta['id']}: uefa_coef: {c} is not a league club")
+                    w['coef']['clubs'].append((pk.where[c], v))
         out.append(w)
     return out
 

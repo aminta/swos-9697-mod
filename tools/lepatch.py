@@ -12,6 +12,7 @@ import struct
 from le import LE
 
 ALIGN = 0x200
+HARNESS_ROOM = 64
 
 
 class LEPatch:
@@ -133,7 +134,8 @@ class LEPatch:
         assert len(pt) == le.fix_rec_tab - le.fix_page_tab
         end = le.fix_rec_tab + len(table)
         old_data = le.data_pages
-        new_data = max(old_data, (end + ALIGN - 1) // ALIGN * ALIGN)
+        # keep >= 64 bytes of padding: the harness's test copy adds its page with add_object_page (8 bytes each)
+        new_data = old_data if end + HARNESS_ROOM <= old_data else (end + HARNESS_ROOM + ALIGN - 1) // ALIGN * ALIGN
         shift = new_data - old_data
         body = out[old_data:]
         out = out[:le.fix_page_tab] + pt + table + bytes(new_data - end) + body

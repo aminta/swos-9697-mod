@@ -160,6 +160,7 @@ def patch_exe(src, dst, remap, lang='it'):
     data = open(src, 'rb').read()
     worlds = bool(mkseason.worlds())
     lpb = bool(mkseason.league_phase_cups() or mkseason.league_phase_worlds())
+    lpb += bool(mkseason.league_phase_worlds())   # (+1 more: the UEFA coefficients, uefacoef)
     for _ in range((10 if worlds else 6) + lpb):  # (+1: the UEFA league phase's code page, lp36)
         data = add_object_page(data, 1)
     mkseason.CAREER_CAVE[0] = CAREER_CAVE if worlds else None
@@ -246,6 +247,16 @@ def patch_exe(src, dst, remap, lang='it'):
     arg_end = careerworld.euro_draw(p, arg_end, nasmcave)   # 2.7.x: no same-country ties in rounds 1-2 of the
                                                   # European cups of a career (1996-97 CWC / UEFA, worlds)
     arg_end = kitcolors.button(p, arg_end, lang, area)  # KITS button + SELECT KITS menu (pre-match screen)
+    if mkseason.league_phase_worlds():          # UEFA coefficients of a league-phase world (own page after lp36's)
+        import uefacoef
+        import lp36
+        a0 = sacups.regs(p.le.obj_bytes(1))['A0']
+        s36 = lp36._sites(p)
+        cs = {'tmd': careerworld.LABELS['sites']['tmd'], 'tcn': countries.tables(p)[1], 'diy': s36['DIY'],
+              'diycopy': s36['DIYCOPY'], 'qual': careerworld._qual_sites(p.le.obj_bytes(1), p), 'a0': a0,
+              'lp_ord': lp36.LABELS['LP_ORD']}
+        uc_end = uefacoef.patch(p, hist2 + HIST2_PAGE + 0x1000, mkseason.world_defs(), cs)
+        assert uc_end <= hist2 + HIST2_PAGE + 0x2000, hex(uc_end)
     assert cave <= WORLD_CAVE, hex(cave)
     print(f'exe: caves: world end {world:#x} (limit {NZ_CAVE:#x}), arg end {arg_end:#x} (limit {OBJ1_NEW_VSIZE:#x})')
     world = cafcups.intl_list(p, caf, world)

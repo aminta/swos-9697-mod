@@ -240,6 +240,14 @@ hist_draw:                              ; replaces `call cseg_27F08` in cseg_26D
     mov al, [esi + 2Dh]
     mov edi, [A3]
     movzx ecx, word [edi + 161h]
+%if LP_ON
+    cmp al, LP_ID                       ; UEFA league phase (lp36 prototype): its own orders, never the game's draw
+    jne .nlp
+    call LP_DRAW
+    popad
+    ret
+.nlp:
+%endif
     mov edx, DRAW_TABLE
 .find:
     cmp byte [edx], 0
@@ -681,7 +689,7 @@ def _draw_call(p):
     return [c for c, _ in sites], sites[0][1]
 
 
-def patch(p, lang, area, cave, draw_pre=None, leagues=(), cave2=None):
+def patch(p, lang, area, cave, draw_pre=None, leagues=(), cave2=None, lp=None):
     """Register CLASSICS and the World Cup 1982; returns the new cave end."""
     d2 = p.le.obj_bytes(2)
     ct, tcn, _, _ = countries.tables(p)
@@ -823,7 +831,9 @@ def patch(p, lang, area, cave, draw_pre=None, leagues=(), cave2=None):
                'M34_ID_': (0, M34_ID), 'FA_ID_': (0, FA_ID), 'COIN_TEXT': (2, coin_text),
                'DIYCOPY': (2, coin['diycopy']), 'RAND2': (1, coin['rand2']), 'D5': (2, a0 - 12), 'D6': (2, a0 - 8),
                'D7': (2, a0 - 4), 'D1': (2, a0 - 28), 'SKIP': (2, coin['skip']), 'DIYCOMP': (2, coin['diycomp']),
-               'ESCI_FIX': (1, elab['esci_fix']), 'EF_VARS': (1, elab['EF_VARS'])}
+               'ESCI_FIX': (1, elab['esci_fix']), 'EF_VARS': (1, elab['EF_VARS']),
+               'LP_ON': (0, int(lp is not None)), 'LP_ID': (0, lp[1] if lp else 0),
+               'LP_DRAW': (1, lp[0]) if lp else (0, 'draw_pre_none')}
     src = ASM
     extra = ''.join(f'    je .r\n    cmp byte [DIYCOPY + 2Dh], {cid:#x}\n' for cid in coin_ids)   # tourney packs
     src = src.replace('    cmp byte [DIYCOPY + 2Dh], FA_ID_\n.r:', '    cmp byte [DIYCOPY + 2Dh], FA_ID_\n' + extra + '.r:')
@@ -837,7 +847,7 @@ def patch(p, lang, area, cave, draw_pre=None, leagues=(), cave2=None):
             break
         at2 += 4
     labels = nasmcave.labels(src, at2, symbols)
-    assert at2 + len(code) <= cave2 + 0x1000, hex(at2 + len(code))
+    assert at2 + len(code) <= cave2 + (0x900 if lp else 0x1000), hex(at2 + len(code))   # lp36 code after 0x900
     p.put(1, at2, code)
     for off, tobj, toff in fix:
         p.add_ptr(1, at2 + off, tobj, toff)

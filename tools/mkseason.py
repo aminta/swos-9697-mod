@@ -440,6 +440,10 @@ class Pack:
                 prev = [x['winner'] for x in tr]
             _need(sorted(clubs) == sorted(k for k, x in self.clubs.items() if x['file'] == c['clubs']),
                   f"{w} ties.csv round 1 must hold every club of {c['clubs']}")
+        lp = bool(c.get('league_phase'))       # UEFA league phase (tools/lp36.py, prototype): 36 in 2 x 18, play-offs, R16
+        if lp:
+            _need(os.environ.get('PROTO36') and [x.get('teams') for x in st] == [36, 16, 16, 8, 4, 2]
+                  and st[0].get('groups') == 2, f'{w} league_phase: stages 36 (2 groups) 16 16 8 4 2 (PROTO36 builds)')
         ko = 0
         for i, x in enumerate(st):
             t = x.get('type')
@@ -455,6 +459,8 @@ class Pack:
                       f'{sw} third_place comes after the semi-finals (knockout of 4), before the final')
             elif prev['type'] == 'groups':
                 _need(n < prev['teams'], f'{sw} fewer teams than the group stage before')
+            elif lp and i == 2:
+                _need(n == 16 and prev['teams'] == 16, f'{sw} league phase: the round of 16 after the play-offs')
             else:
                 last = st[i - 2] if prev['type'] == 'third_place' else prev
                 _need(n * 2 == last['teams'], f'{sw} {n} teams: half of the knockout before')
@@ -493,6 +499,8 @@ class Pack:
             sizes = [len(pm) for pm in sperm] + [len(clubs)]
             draws = [d for d in draws if d[0] not in sizes] + [(len(clubs), list(range(len(clubs))), False)]
             draws += [(len(pm), pm, True) for pm in sperm if len(pm) > 2]
+        if lp:
+            draws = [(36, list(range(36)), False)]  # lp36.lp_draw keeps every later order (the play-offs from lp_gend)
         ns = [d[0] for d in draws]
         _need(len(set(ns)) == len(ns), f'{w} two stages of {ns} teams: the fixed order needs a different team count per '
                                        f'stage (or draw: random)')
@@ -741,6 +749,16 @@ def draws():
 
 def bye_cups():
     return [b for pk in packs() for b in pk.bye_cups()]
+
+
+def league_phase_cups():
+    """[(contest id, countries of the clubs in contest order)] of the tourneys with league_phase (lp36 prototype)."""
+    out = []
+    for pk in packs():
+        for c in pk.comps:
+            if pk.kind == 'tourney' and c['type'] == 'tourney' and c.get('league_phase'):
+                out.append((int(c['id'], 16), [pk.clubs[k]['country'] for k in pk.tourney(c)['clubs']]))
+    return out
 
 
 def tourneys():

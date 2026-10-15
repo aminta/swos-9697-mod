@@ -124,6 +124,8 @@ it returns the rounds (title, ties shown: at most 6 per screen) and the coin-tos
 - DOSBox-X windows open on screen and can take the focus: keys or a Cmd+Q meant for another application can end a
   run (`DOSBox-X ended: ...` in session.log); `SWOSTEST_NOEXIT=1` keeps DOSBox-X at the DOS prompt when the game
   exits to DOS, so shots/final shows its message.
+- `DOSBox-X ended: exit code 0` after a few minutes of a long run (fixed 2026-10-15): DOSBox-X's `-time-limit` counts
+  EMULATED seconds; the old 14400 ran out after ~4.5 real minutes in turbo. Keep it huge (the runner kills DOSBox-X).
 - `MEMDUMPBIN ...: no file`: the debugger lost a typed command (the dump is retried 3 times; if it still fails, DOSBox
   probably died: see `debugger.raw`).
 - Breakpoints (`Session.bp`, `SWOSTEST_BP`) need `CORE=normal` (the dynamic core does not re-check translated code).

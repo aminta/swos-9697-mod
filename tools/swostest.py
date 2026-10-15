@@ -1192,6 +1192,21 @@ def euro_draws():
     return not errs, f"{msg}; {'; '.join(errs) or 'ok'}; {'; '.join(notes)}; rounds checked {sorted(seen)}; bp hits {hits}"
 
 
+def nosack_off(exe):
+    """obj2 offset of dseg_D6B62 (non-zero: the chairman never sacks the manager; cleared by every season start):
+    the second word of the `mov ax,[D6B64]; or ax,ax; jnz; mov ax,[D6B62]; or ax,ax; jnz` pair of both sacking
+    checks (cseg_3CCF0)."""
+    import collections
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    from le import LE
+    le = LE(open(exe, 'rb').read())
+    pat = re.compile(rb'\x66\xa1(.{4})\x66\x0b\xc0\x0f\x85.{4}\x66\xa1(.{4})\x66\x0b\xc0\x0f\x85', re.S)
+    pairs = collections.Counter(struct.unpack('<II', m.group(1) + m.group(2)) for m in pat.finditer(le.obj_bytes(1)))
+    hits = [b for (a, b), n in pairs.items() if a == b + 2 and n == 2]
+    assert len(hits) == 1, hits
+    return hits[0]
+
+
 def checkw1(path):
     """internal/career-test/checkw1.py on a world save (DATA next to it); returns (ok, its output)."""
     r = subprocess.run([sys.executable, os.path.join(MAIN, 'internal', 'career-test', 'checkw1.py'), path],
@@ -1237,8 +1252,13 @@ def world8485():
                 s.send('down down down down down fire dump:2')
                 s.send('fire dump:3')
             seen, errs = {}, []
+            nosack, poked = (nosack_off(os.path.join(exe, 'ITALIAN.EXE')) if os.environ.get('W8485_NOSACK') == '1'
+                             else None), set()
 
             def stop(scr):                             # the player's European cup: no same-country tie in rounds 1-2
+                if nosack is not None and season not in poked:   # W8485_NOSACK: the game's 'no sacking' word
+                    s.poke(s.result.base2 + nosack, b'\x01\x00')   # (dseg_D6B62, cleared at every season start)
+                    poked.add(season)
                 rnd, cid, ties = slot_ties(s.result, 32)
                 if struct.unpack_from('<H', s.result.obj2(SLOT, 2))[0] == 2:   # a league phase (type 2): no ties
                     return season_over(scr)

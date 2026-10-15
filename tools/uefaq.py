@@ -262,7 +262,25 @@ uq_fill:                                ; careerworld w_q_fill (before the seaso
     inc ecx
     cmp ecx, 550
     jb .ms
-    jmp .mn
+    cmp byte [UQ_FORCE], 0              ; (test builds: a club outside the top 9 / cup winners is put in as an extra
+    je .mn                              ; club 553, no record: it never reaches the lists while its ties are open)
+    mov ecx, 553
+    imul edi, ecx, CSZ
+    mov [UQ_IN + L_CLUB + edi], ax
+    mov dword [UQ_IN + L_CLUB + edi + 8], 1000
+    xor edx, edx
+.mr:
+    cmp edx, [UC_N]
+    jae .mr1
+    cmp al, [UC_C + edx]
+    je .mr0
+    inc edx
+    jmp .mr
+.mr0:
+    inc edx
+    mov [UQ_IN + L_CLUB + edi + 2], dl
+.mr1:
+    mov word [UQ_IN + L_NCLUB], 554
 .mf:
     inc ecx
     mov [UQ_IN + L_MANAGER], cx
@@ -396,7 +414,7 @@ UQ_E: dw 0
 '''
 
 
-STRUCTS_AT = 0x1F00             # the 3 contests (obj1, after the C code and the glue in uefaq's two pages)
+STRUCTS_AT = 0x2F00             # the 3 contests (obj1, after the C code and the glue in uefaq's three pages)
 QIDS = (0x7C, 0x7D, 0x7E)       # contest ids (mkseason.RESERVED_IDS): CL / EL / UECL qualifying tie
 Q_NAME, Q_LIST = 16, 24         # offsets in a contest: its 2 name dwords, its 2-club list
 NAMES = {'it': 'PRELIM. ', 'en': 'QUAL. ', 'fr': 'QUALIF. ', 'de': 'QUALI. '}

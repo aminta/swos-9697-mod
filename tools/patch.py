@@ -161,7 +161,7 @@ def patch_exe(src, dst, remap, lang='it'):
     worlds = bool(mkseason.worlds())
     lpb = bool(mkseason.league_phase_cups() or mkseason.league_phase_worlds())
     lpb += bool(mkseason.league_phase_worlds())   # (+1 more: the UEFA coefficients, uefacoef)
-    lpb += 2 * bool(mkseason.league_phase_worlds())   # (+2: the UEFA qualifying rounds, uefaq: C code + glue)
+    lpb += 3 * bool(mkseason.league_phase_worlds())   # (+3: the UEFA qualifying rounds, uefaq: C code + glue)
     for _ in range((10 if worlds else 6) + lpb):  # (+1: the UEFA league phase's code page, lp36)
         data = add_object_page(data, 1)
     mkseason.CAREER_CAVE[0] = CAREER_CAVE if worlds else None
@@ -263,7 +263,7 @@ def patch_exe(src, dst, remap, lang='it'):
               'lp_ord': lp36.LABELS['LP_ORD']}
         uc_end = uefacoef.patch(p, hist2 + HIST2_PAGE + 0x1000, mkseason.world_defs(), cs)
         assert uc_end <= hist2 + HIST2_PAGE + 0x2000, hex(uc_end)
-        import uefaq                            # UEFA qualifying rounds (C code, tools/uefaq.c; 2 pages)
+        import uefaq                            # UEFA qualifying rounds (C code, tools/uefaq.c; 3 pages)
         cs['bss'] = careerworld.BSS[0]
         cs['sel'] = sacups.SEL_ADDR[0]
         uefaq.patch(p, hist2 + HIST2_PAGE + 0x2000, hist2 + HIST2_PAGE + 0x2000 + uefaq.STRUCTS_AT, cs)

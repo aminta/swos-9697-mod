@@ -36,6 +36,7 @@ REC = 52                                             # world record: 8 dwords, 5
 # C7 trailer: a world career caches ~92 teams, so the 68400-B room is nearly full.) Normal careers never take these
 # paths.
 BSS = [None]
+SITES = {}                                           # sites(p) of the last careerworld.patch
 # World 2025-26 (phase 0): a country may hold more than 93 clubs (Italy A + B + C = 100): teamFileBuffer (64014 B,
 # LoadFile reads the whole file there before checking 64000 -> FatalError) moves to the obj2 tail, 106496 B (155 clubs).
 B_TFB, TFB_SIZE = 0x31000, 0x1A000
@@ -1365,6 +1366,7 @@ def patch(p, worlds, at, nasmcave, comp, ct, cont_rec):
     'places': {key: [country file per place]}, 'tmd': name}]. Returns the cave end."""
     import sacups
     s = sites(p)
+    SITES.update(s)                             # for later patches (historic: the world byte of world_draws)
     data = ['align 4', 'WTAB:']
     extra = []
     nrec = 0

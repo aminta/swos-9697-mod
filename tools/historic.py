@@ -249,14 +249,35 @@ hist_draw:                              ; replaces `call cseg_27F08` in cseg_26D
 .nlp:
 %endif
     mov edx, DRAW_TABLE
+%if WD_ON
+    mov byte [DRAW_W], 0                ; world filter: 0 = every career / mode
+%endif
 .find:
     cmp byte [edx], 0
     je .orig
+%if WD_ON
+    cmp byte [edx], 1                   ; [1, 0, w]: the next draws belong to world w (its own cup ids)
+    jne .rec
+    mov bl, [edx + 2]
+    mov [DRAW_W], bl
+    add edx, 3
+    jmp .find
+.rec:
+%endif
     movzx ebx, byte [edx + 1]           ; teams in the round; bit 7: sort first (tourney packs)
     and bl, 7Fh
     cmp [edx], al
     jne .next
     cmp ebx, ecx
+%if WD_ON
+    jne .next
+    cmp byte [DRAW_W], 0
+    je .perm
+    push eax
+    mov al, [DRAW_W]
+    cmp al, [WORLDB]                    ; someLeaguesTable[1845]: the running career's world
+    pop eax
+%endif
     je .perm
 .next:
     lea edx, [edx + ebx + 2]
@@ -311,8 +332,8 @@ hist_draw:                              ; replaces `call cseg_27F08` in cseg_26D
 
 draw_pre_none:
     ret
-DRAW_TABLE: DRAW_BYTES
 DRAW_TMP: times 64 db 0
+DRAW_W: db 0
 
 ; Coin toss (Mitropa 1934, FA Cup 1871-72). These contests have no extra time and no penalties (legs byte), so a draw
 ; means a replay. coin_draw replaces the 'draw -> replay' marking in cseg_2AE97 (simulated AND played matches both end
@@ -689,6 +710,16 @@ def _draw_call(p):
     return [c for c, _ in sites], sites[0][1]
 
 
+def draw_table():
+    """hist_draw's fixed draws: [id, teams | sort flag, perm...] per round; each career world's after a filter
+    record [1, 0, world] (its cup ids are its own); 0 ends."""
+    drec = lambda d: bytes((d[0], len(d[1]) | (0x80 if d[2:] and d[2] else 0))) + bytes(d[1])
+    wdraws = mkseason.world_draws()
+    assert all(d[0] > 1 for d in DRAWS) and all(d[0] > 1 for ds in wdraws.values() for d in ds)
+    return b''.join(map(drec, DRAWS)) + b''.join(bytes((1, 0, w)) + b''.join(map(drec, ds))
+                                                 for w, ds in sorted(wdraws.items()) if ds) + b'\0'
+
+
 def patch(p, lang, area, cave, draw_pre=None, leagues=(), cave2=None, lp=None, cave2_size=0x1000):
     """Register CLASSICS and the World Cup 1982; returns the new cave end."""
     d2 = p.le.obj_bytes(2)
@@ -821,10 +852,14 @@ def patch(p, lang, area, cave, draw_pre=None, leagues=(), cave2=None, lp=None, c
     names_call, set_names, calc_entry = _names_call(p)
     regs = sacups.regs(p.le.obj_bytes(1))
     a0 = regs['D7'] + 4
-    tbl = b''.join(bytes((d[0], len(d[1]) | (0x80 if d[2:] and d[2] else 0))) + bytes(d[1]) for d in DRAWS) + b'\0'
+    tbl = draw_table()
+    wd = any(mkseason.world_draws().values())
+    if wd:
+        import careerworld
+        slt = careerworld.SITES['slt']        # careerworld.patch ran first (mkseason.patch, before historic)
     symbols = {'COMP254': (2, comp + 4 * 254), 'WORLD_PRESET': (1, wpre), 'SELECT': (1, select),
                'A2': (2, a0 + 8), 'A3': (2, a0 + 12), 'DRAW_ORIG': (1, draw_orig),
-               'DRAW_BYTES': (0, 'db ' + ', '.join(str(b) for b in tbl)),
+               'DRAW_TABLE': (2, area.add(tbl)),   # obj2 (patch.py adds pages for it): two worlds' brackets
                'DRAW_PRE': (1, draw_pre) if draw_pre is not None else (0, 'draw_pre_none'),
                'D0': (2, a0 - 32), 'A0': (2, a0), 'SET_COUNTRY_NAMES': (1, set_names), 'CALC_ENTRY': (1, calc_entry),
                'CLASSICS_NAME': (2, rec + 1), 'SEASONS_NAME': (2, mkseason.SEASONS_REC[0] + 1), 'MENU_COLOR': (0, MENU_COLOR), 'MENU_GAP': (0, MENU_GAP),
@@ -832,6 +867,7 @@ def patch(p, lang, area, cave, draw_pre=None, leagues=(), cave2=None, lp=None, c
                'DIYCOPY': (2, coin['diycopy']), 'RAND2': (1, coin['rand2']), 'D5': (2, a0 - 12), 'D6': (2, a0 - 8),
                'D7': (2, a0 - 4), 'D1': (2, a0 - 28), 'SKIP': (2, coin['skip']), 'DIYCOMP': (2, coin['diycomp']),
                'ESCI_FIX': (1, elab['esci_fix']), 'EF_VARS': (1, elab['EF_VARS']),
+               'WD_ON': (0, int(wd)), 'WORLDB': (slt[0], slt[1] + careerworld.WORLD_BYTE) if wd else (0, 0),
                'LP_ON': (0, int(lp is not None)), 'LP_CHK': (1, lp[0]) if lp else (0, 'draw_pre_none'),
                'LP_DRAW': (1, lp[1]) if lp else (0, 'draw_pre_none')}
     src = ASM

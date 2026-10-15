@@ -836,7 +836,18 @@ def xtra_files():
 
 
 def draws():
-    return [d for pk in packs() for d in pk.draws()]
+    """Fixed draws of the packs outside career worlds (one contest id each in the whole build)."""
+    return [d for pk in packs() if pk.world is None for d in pk.draws()]
+
+
+def world_draws():
+    """{world: fixed draws of its packs}: a world's cup ids are its own (worlds never run together), so historic's
+    table puts each world's draws after a filter record [1, 0, world] matched against the career's world byte."""
+    out = {}
+    for pk in packs():
+        if pk.world is not None:
+            out.setdefault(pk.world, []).extend(pk.draws())
+    return out
 
 
 def bye_cups():
@@ -1326,11 +1337,15 @@ def patch(p, lang, area, cave):
     ct, tcn, _, _ = countries.tables(p)
     comp = countries.COMP[0]
     env = (p.le.obj_bytes(2), ct, tcn, comp, {f[1] for f in p.le.fixups() if f[0] == 2})
-    ids = {}                                   # a league id may be shared by the packs of one career world
-    for pk in packs():                         # (the free contest ids 0xC1..0xFE are too few for 30 leagues + cups)
-        for c in pk.comps:
+    ids = {}                                   # a league id may be shared by the packs of one career world, and
+    for pk in packs():                         # every world has its own ids (worlds never run together: their cups'
+        for c in pk.comps:                     # fixed draws are filtered by the career's world byte, world_draws)
             owner = ('world', pk.world) if pk.world is not None and c['type'] == 'league' else ('pack', pk.meta['id'])
-            _need(ids.setdefault(c['id'], owner) == owner, f"contest id {c['id']} used twice")
+            scope = pk.world                   # None = seasons / tourneys / no-world careers: unique in the build
+            users = ids.setdefault(c['id'], {})
+            _need(all(s2 is not None and scope is not None and s2 != scope or o == owner for s2, o in users.items())
+                  and users.get(scope, owner) == owner, f"contest id {c['id']} used twice")
+            users[scope] = owner
             _need(int(c['id'], 16) not in RESERVED_IDS, f"contest id {c['id']} is used by the mod")
     at, infos = cave, []
     cat = CAREER_DATA[0]                       # career packs: own obj1 pages (a world of 30 countries needs ~5 KB)

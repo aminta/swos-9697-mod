@@ -175,3 +175,45 @@ leaves room for purchases).
 | 2f. Strength check (tables + simulated seasons) | 1-2 |
 | **Total** | **10-13** (part 1: 3-4; part 2: 7-9) |
 | Later: 2026-27 (new snapshot, rerun, new clubs in the mapping, strength check) | ~1-2 |
+
+## 3. Every club with 24+ players (follow-up question, 2026-10-15)
+Davide: can ALL clubs have 24 (e.g. a classic tourney 'Serie A 2023-24' with every real squad)?
+
+### Why not by making the record bigger
+16 is wired through the engine: the 684-byte record (~70 immediates 684/683/2ACh in swos.asm), `playerNumbers[16]`,
+loops 'for 16 players' (`UpdatePlayerInjuries`: `mov D2, 15`), random picks `and 0Fh` (`AddCareerTeamPlayer`),
+the `GetPlayerAtIndex` trap for index >= 16, `g_selectedTeams db 68400` (= 100 x 684), the TEAM.nnn / .CAR /
+competition save formats, and every outside tool (SWOS 2020 files, editors, SWOS++). A 24-player record = rewrite
+of all of that: not realistic (15+ sessions, high risk, every existing team file incompatible).
+
+### What works: squad of 24, 16 called up per match ('convocati')
+A match only ever uses 16 (11 + 5 on the bench): the engine's 16 can be the **matchday squad**, as in real
+football; the other players wait in an extension table outside the record.
+- **Data:** `XTRA.nnn` as in part 1, but for every club of the file (rows 17-30 of players.csv). In a season or a
+  classic tourney (<= 100 clubs: 20 x 10 x 38 = ~7.6 KB for Serie A) the table sits in a mod page next to
+  `g_selectedTeams`, one block per selected team.
+- **Call-up hook** before each match day: per club, the 16 called up are written into the record's 16 slots, the
+  others go to the table. CPU clubs: a fixed rule (squad order = importance; replace the unavailable by the next of
+  the same role; optional rotation), or for a historic tourney the **real matchday squads** from a per-round file.
+  Note: the engine does not even record injuries of CPU clubs (`UpdatePlayerInjuries` returns for TEAM_COMPUTER),
+  so today a CPU club always fields the same 16.
+- **Human club:** in career the managed club already has 32 slots and its squad screen (part 1). In a season /
+  tourney the human club is a 684-byte record too -> a new 'SQUAD 24' screen to swap players between the 16 and the
+  reserves (the mod already builds menus), or v1 automatic call-up like the CPU.
+- **Top scorers** are stored as (team, slot) and shown with `GetPlayer(team, slot)`
+  (`CompetitionTopGoalScorersInit`, `TopGoalScorersBeforeDrawCommon`): when a scorer leaves the 16 his entry must
+  follow him (a virtual slot 16+ that those two display sites resolve in the table; same for the season best scorer).
+- **Injuries / cards** of human players in the stands: ticked by the hook per match day.
+- **Saves:** season / preset / DIY saves have their own writers (`SaveContest` -> `SaveDIYFile`,
+  `SavePresetCompetitionFile`, season); the table and the call-up state need a trailer there too, as the .CAR has.
+- Rejected alternative: patch `GetPlayer` so slots 16-23 of any club read the table (`@@look_up_team` path; the
+  managed club already reads 32 from careerTeam). Cleaner data, but every loop that walks the 16 raw slots would
+  need an audit.
+
+### Estimate
+| Part | Sessions |
+|---|---|
+| Trace the match-day point, call-up hook for CPU clubs, scorer remap, save trailer (season/tourney) | 3-4 |
+| 'SQUAD 24' screen for the human club (season/tourney) | 2-3 |
+| Real per-round call-ups for a historic tourney (data + file format) | 1-2 |
+| Career worlds: table for every club (~1500 x 8-14 x 38 = 0.45-0.8 MB), job change, .CAR trailer | 2-3 |

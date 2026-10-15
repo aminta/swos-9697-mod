@@ -122,9 +122,44 @@ struct uq_out {
     u16 gl[3][40];                      /* appends (CL: CL / EL holders, EL: UECL holder), exactly 36 - those */
 };
 
+/* the season's qualifying state, kept in the save (the 80-record area, after uefacoef's block) while the career
+   club has ties to play: the whole simulated bracket (team words), the game's lists as written, the stand-in */
+#define NBR 320
+struct uq_state {
+    u16 mark;                           /* 'UQ' while valid */
+    u16 m;                              /* the career club (team word) */
+    u16 s;                              /* the stand-in holding its league-phase place (0 = none) */
+    u8 sc;                              /* the stand-in's list (0 CL, 1 EL, 2 UECL) */
+    u8 k;                               /* the career club's ties played */
+    u8 res;                             /* their results: bit j = won tie j */
+    u8 pad;
+    u16 nbr;
+    u8 gn[3];
+    u8 pad2;
+    u16 gl[3][36];                      /* the lists written at the season end */
+    struct { u8 r, aw; u16 a, b; } br[NBR];     /* every tie in playing order: round, 1 = a went through */
+};
+/* uq_resolve(): from the state, the career club's next tie or (done) the final lists */
+struct uq_res {
+    u8 done;                            /* 1: no tie left (the lists below are final) */
+    u8 r;                               /* the next tie: round, opponent */
+    u16 opp;
+    u8 dest;                            /* done: the club's league phase (0 CL, 1 EL, 2 UECL, 3 none) */
+    u8 pad;
+    u16 gl[3][36];
+    u8 npot;                            /* uq_season: every club the career club may meet (records needed) */
+    u8 pad2;
+    u16 pot[16];
+};
+
 struct uq_in UQ_IN;
 struct uq_out UQ_OUT;
+struct uq_state *UQ_S;                  /* set by the caller (the save's area) */
+struct uq_res UQ_R;
 #define OFF(t, f) ((u32) __builtin_offsetof(struct t, f))
+const u32 UQ_SLAYOUT[] = { OFF(uq_state, m), OFF(uq_state, k), OFF(uq_state, res), OFF(uq_state, gn),
+                           OFF(uq_state, gl), sizeof(struct uq_state), OFF(uq_res, done), OFF(uq_res, r),
+                           OFF(uq_res, opp), OFF(uq_res, dest), OFF(uq_res, gl), OFF(uq_res, npot), OFF(uq_res, pot) };
 /* for the asm (uefaq.py): offsets in UQ_IN / UQ_OUT, the club record's size */
 const u32 UQ_LAYOUT[] = { OFF(uq_in, present), OFF(uq_in, eps), OFF(uq_in, hold), OFF(uq_in, nclub),
                           OFF(uq_in, league), OFF(uq_in, cup), OFF(uq_in, club), sizeof(UQ_IN.club[0]),
@@ -362,6 +397,13 @@ static void play(int r) {
         u32 pa = sq(a), pb = sq(b);
         int w = below(1000) < pa * 1000 / (pa + pb) ? a : b, l = w == a ? b : a;
         UQ_OUT.last[a - 1] = UQ_OUT.last[b - 1] = r;
+        if (UQ_S && UQ_S->nbr < NBR) {
+            int j = UQ_S->nbr++;
+            UQ_S->br[j].r = r;
+            UQ_S->br[j].aw = w == a;
+            UQ_S->br[j].a = UQ_IN.club[a - 1].id;
+            UQ_S->br[j].b = UQ_IN.club[b - 1].id;
+        }
         if ((a == UQ_IN.manager || b == UQ_IN.manager) && UQ_OUT.mt_n < 6) {
             int k = UQ_OUT.mt_n++;
             UQ_OUT.mt_round[k] = r;
@@ -376,10 +418,24 @@ static void play(int r) {
     }
 }
 
+void uq_resolve(void);
+
+static u16 phi(u16 x, const u16 *from, const u16 *to, int n) {
+    for (int i = 0; i < n; i++) if (from[i] == x) return to[i];
+    return x;
+}
+static void setphi(u16 x, u16 y, u16 *from, u16 *to, int *n) {
+    for (int i = 0; i < *n; i++) if (from[i] == x) { to[i] = y; return; }
+    from[*n] = x;
+    to[*n] = y;
+    ++*n;
+}
+
 void uq_season(void) {
     static const u8 none[3] = { 0, 0, 0 };
     static u16 own[3];
     rng = UQ_IN.seed;
+    if (UQ_S) { UQ_S->mark = 0; UQ_S->nbr = 0; UQ_S->k = 0; UQ_S->res = 0; UQ_S->s = 0; }
     for (int c = 0; c < UQ_IN.nclub; c++) { UQ_OUT.round_of[c] = NR; UQ_OUT.last[c] = NR; }
     own[0] = own[1] = own[2] = 0;
     rebalance(UQ_IN.eps, none, 0);              /* where would the holders qualify domestically */
@@ -419,6 +475,7 @@ void uq_season(void) {
     }
     UQ_OUT.mt_n = 0;
     UQ_OUT.standin = 0;
+    int standin_c = 0;
     static const u8 HR[3] = { CL_LS, CL_LS, EL_LS };
     for (int h = 0; h < 3; h++)
         if (own[h]) { add(HR[h], own[h]); UQ_OUT.round_of[own[h] - 1] = HR[h]; }
@@ -451,7 +508,7 @@ void uq_season(void) {
                     int b = 0;
                     for (int k = 1; k <= 550 && k <= UQ_IN.nclub; k++)
                         if (!taken[k] && UQ_IN.club[k - 1].id && (!b || seed_less(k, b))) b = k;
-                    if (b) { taken[b] = 1; RL[r][i] = b; UQ_OUT.standin = b; }
+                    if (b) { taken[b] = 1; RL[r][i] = b; UQ_OUT.standin = b; standin_c = c; }
                 }
         for (int i = 0; i < n; i++) UQ_OUT.ls[c][i] = RL[r][i];
     }
@@ -481,4 +538,70 @@ void uq_season(void) {
             UQ_OUT.gl[c][UQ_OUT.gn[c]++] = b;
         }
     }
+    if (!UQ_S) return;
+    UQ_S->m = m ? UQ_IN.club[m - 1].id : 0;
+    UQ_S->s = UQ_OUT.standin ? UQ_IN.club[UQ_OUT.standin - 1].id : 0;
+    UQ_S->sc = standin_c;
+    for (int c = 0; c < 3; c++) {
+        UQ_S->gn[c] = UQ_OUT.gn[c];
+        for (int i = 0; i < UQ_OUT.gn[c] && i < 36; i++) UQ_S->gl[c][i] = UQ_IN.club[UQ_OUT.gl[c][i] - 1].id;
+    }
+    UQ_S->mark = 0x5155;                /* 'UQ' */
+    /* every opponent the career club may meet, whatever its results (their records go into the save now) */
+    UQ_R.npot = 0;
+    if (!UQ_S->m || !UQ_OUT.mt_n) return;
+    for (u32 seq = 0; seq < 64; seq++) {
+        UQ_S->k = 0;
+        UQ_S->res = 0;
+        for (int t = 0; t < 6; t++) {
+            uq_resolve();
+            if (UQ_R.done) break;
+            int in = 0;
+            for (int i = 0; i < UQ_R.npot; i++) in |= UQ_R.pot[i] == UQ_R.opp;
+            if (!in && UQ_R.npot < 16) UQ_R.pot[UQ_R.npot++] = UQ_R.opp;
+            UQ_S->res |= (seq >> t & 1) << t;
+            UQ_S->k++;
+        }
+    }
+    UQ_S->k = 0;
+    UQ_S->res = 0;
+}
+
+/* the bracket with the career club's real results: every result unlike the simulated one swaps the club with its
+   opponent for the rest of the bracket (as UEFA's draws made before the results: "winner of tie X") */
+void uq_resolve(void) {
+    struct uq_state *S = UQ_S;
+    static u16 from[16], to[16];        /* the map bracket club -> real club (identity elsewhere) */
+    int nm = 0, j = 0;
+    u16 m = S->m;
+    UQ_R.done = 0;
+    #define PHI(x) phi(x, from, to, nm)
+    for (int t = 0; t < S->nbr; t++) {
+        u16 a = PHI(S->br[t].a), b = PHI(S->br[t].b);
+        if (a != m && b != m) continue;
+        u16 opp = a == m ? b : a;
+        if (j == S->k) {                /* the next tie to play */
+            UQ_R.r = S->br[t].r;
+            UQ_R.opp = opp;
+            return;
+        }
+        int simwon = (a == m) == S->br[t].aw;
+        if (simwon != (S->res >> j & 1) && nm < 15) {   /* swap the club and its opponent from here on */
+            u16 bm = a == m ? S->br[t].a : S->br[t].b, bo = a == m ? S->br[t].b : S->br[t].a;
+            setphi(bm, opp, from, to, &nm);
+            setphi(bo, m, from, to, &nm);
+        }
+        j++;
+    }
+    UQ_R.done = 1;                      /* the final lists: the written ones, the stand-in back to the club, mapped */
+    UQ_R.dest = 3;
+    for (int c = 0; c < 3; c++)
+        for (int i = 0; i < 36; i++) {
+            u16 w = i < S->gn[c] ? S->gl[c][i] : 0;
+            if (w && S->s && w == S->s && c == S->sc) w = m;
+            w = w ? PHI(w) : 0;
+            UQ_R.gl[c][i] = w;
+            if (w == m) UQ_R.dest = c;
+        }
+    #undef PHI
 }

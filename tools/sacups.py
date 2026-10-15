@@ -227,6 +227,7 @@ SAVED_GLOBAL = 1740      # 1.0/1.1 saves: someLeaguesTable[1740..1842]: 'S2' + 3
                          # global numbers 1730..1849 belong to no team
 LISTS_OUT = [None]       # career code's lists_out, called at season end
 SEL_ADDR = [None]        # obj2 offset of selTeamNumber (the career club's word), set by career_hooks
+SITES = {}               # career_hooks: E092F, D8CBE (cup kind), cseg_8B2D3, the slot-3 buffer (uefaq.py)
 
 # ITA bytes (obj-relative offsets as stored in the file), see notes/STATUS.md
 
@@ -602,6 +603,7 @@ def career_hooks(p, cups, cave, cups_all=None, caf=None):
     k = d1.find(b'\xc7\x05', k + 10)
     assert k - po < 0x30
     slot4 = struct.unpack_from('<I', d1, k + 6)[0]
+    SITES.update(e092f=e092f, cup_kind=cup_kind, c8b2d3=c8b2d3, slot3=slot4 + 0x443)    # (uefaq.py)
     assert slot4 == slot2 + 0x443, (hex(slot4), hex(slot2))
     # its tail: mov ax,[league+3Dh]; mov [slot4+3Dh],ax (x3)
     k = d1.find(b'\x66\xa3' + struct.pack('<I', slot4 + 0x3d), po)

@@ -226,6 +226,7 @@ def patch_exe(src, dst, remap, lang='it'):
     if mkseason.league_phase_worlds():          # UEFA qualifying ties of the career club (uefaq): 3 contests in the
         import uefaq                            # slot-3 chain (D7 / E092F after the CAF / CONCACAF ones)
         q = uefaq.structs(p, area, lang, hist2 + HIST2_PAGE + 0x2000 + uefaq.STRUCTS_AT)
+        uefaq.D7_BASE[0] = 6 + len(info['structs'])     # (sacups: D7 / E092F = 6 + index in the chain)
         info['structs'] += q
         info['kinds'] += [0, 1, 2]
     info['new_career_ptr'] = world              # dword filled below: sacups is assembled before the trailer code
@@ -266,6 +267,7 @@ def patch_exe(src, dst, remap, lang='it'):
         import uefaq                            # UEFA qualifying rounds (C code, tools/uefaq.c; 3 pages)
         cs['bss'] = careerworld.BSS[0]
         cs['sel'] = sacups.SEL_ADDR[0]
+        cs.update(sacups.SITES)
         uefaq.patch(p, hist2 + HIST2_PAGE + 0x2000, hist2 + HIST2_PAGE + 0x2000 + uefaq.STRUCTS_AT, cs)
         careerworld.BSS_SIZE = (careerworld.B_UQ + careerworld.UQ_BSS + careerworld.UQ_RECS * 684 + 0xFFF) & ~0xFFF
     assert cave <= WORLD_CAVE, hex(cave)

@@ -1219,7 +1219,10 @@ def checkw1(path):
         if line.startswith(('CC ', 'CWC ', 'UEFA ')):
             ok = ok and line.endswith('dups 0')
     m = re.search(r'table sum mod 256 (\d+)', out)
-    ok = ok and f"euro records k={os.environ.get('W8485_K', '128')}" in out and re.search(rf"world byte {os.environ.get('W8485_WNUM', '4')}\b", out) is not None
+    want = os.environ.get('W8485_K', '128')            # 'N+': at least N (uefaq: the qualifying opponents' records)
+    k = re.search(r'euro records k=(\d+)', out)
+    ok = ok and k is not None and (int(k.group(1)) >= int(want[:-1]) if want.endswith('+') else k.group(1) == want)
+    ok = ok and re.search(rf"world byte {os.environ.get('W8485_WNUM', '4')}\b", out) is not None
     return ok and m is not None and m.group(1) == '0', out
 
 
@@ -1861,7 +1864,7 @@ def world2526():
         return False, f'build: {(r.stdout + r.stderr)[-300:]}'
     keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K')}
     os.environ.update(W8485_BUILD=out, W8485_WORLD='WORLD 2025-26', W8485_TEAM='EUROPA,ENGLAND,ENGLAND DIV 1,ARSENAL',
-                      W8485_WNUM='5', W8485_K='108')
+                      W8485_WNUM='5', W8485_K='108+' if os.environ.get('UEFAQ_FORCE') else '108')
     try:
         return world8485()
     finally:

@@ -9,6 +9,7 @@ best two associations of the season just ended), a seed, uq_season() (C), then t
 the CC / CWC / UEFA lists (+ their records) except the holders, which w_holders appends as before (36 / 36 / 36).
 """
 import os
+import re
 import struct
 
 ASM = '''
@@ -287,6 +288,7 @@ uq_fill:                                ; careerworld w_q_fill (before the seaso
 .mn:
     mov al, [UQ_FORCE]
     mov [UQ_IN + L_FORCE], al
+    mov dword [UQ_S], STATE             ; the bracket and the lists, kept in the save
     cld
     call uq_season
 .ran:
@@ -364,25 +366,7 @@ uq_fill:                                ; careerworld w_q_fill (before the seaso
     imul esi, eax, CSZ
     mov si, [UQ_IN + L_CLUB + esi]
     mov [edi + Q_LIST + 2], si
-    inc eax                             ; its record after the season end's checks (w_q_post), unless the
-    xor ebx, ebx                        ; opponent is in a league phase already
-.q2:
-    movzx ecx, byte [UQ_OUT + O_N + ebx]
-    imul esi, ebx, 80
-    lea esi, [UQ_OUT + O_LS + esi]
-.q3:
-    test ecx, ecx
-    jz .q4
-    cmp ax, [esi]
-    je .qx
-    add esi, 2
-    dec ecx
-    jmp .q3
-.q4:
-    inc ebx
-    cmp ebx, 3
-    jb .q2
-    mov [UQ_PEND], ax
+    mov byte [UQ_PEND], 1               ; (w_q_post: the records of every opponent it may meet)
 .qx:
     pop es
     popad
@@ -390,23 +374,163 @@ uq_fill:                                ; careerworld w_q_fill (before the seaso
     ret
 
 uq_post:                                ; careerworld w_q_post (after the season end's last record count check):
-    cmp word [UQ_PEND], 0               ; the record of the career club's first opponent
-    je .r
+    cmp byte [UQ_PEND], 0               ; the records of every club the career club may meet in its ties (not in
+    je .r                               ; a list already; a club outside the top 9 / cup winners has none)
     pushad
-    movzx eax, word [UQ_PEND]
-    mov word [UQ_PEND], 0
-    dec eax
-    imul eax, eax, 2ACh
+    mov byte [UQ_PEND], 0
+    xor ebx, ebx
+.p:
+    cmp bl, [UQ_R + R_NPOT]
+    jae .px
+    mov ax, [UQ_R + R_POT + ebx*2]
+    xor ecx, ecx                        ; in a list?
+.p1:
+    movzx edx, byte [UQ_OUT + O_GN + ecx]
+    imul esi, ecx, 80
+    lea esi, [UQ_OUT + O_GL + esi]
+.p2:
+    test edx, edx
+    jz .p3
+    movzx edi, word [esi]
+    dec edi
+    imul edi, edi, CSZ
+    cmp ax, [UQ_IN + L_CLUB + edi]
+    je .pn
+    add esi, 2
+    dec edx
+    jmp .p2
+.p3:
+    inc ecx
+    cmp ecx, 3
+    jb .p1
+    xor ecx, ecx                        ; its record
+.p4:
+    imul edi, ecx, CSZ
+    cmp ax, [UQ_IN + L_CLUB + edi]
+    je .p5
+    inc ecx
+    cmp ecx, 550
+    jb .p4
+    jmp .pn
+.p5:
+    imul eax, ecx, 2ACh
     add eax, UQREC
     mov [A0R], eax
+    push ebx
     call ADDREC
+    pop ebx
+.pn:
+    inc ebx
+    jmp .p
+.px:
     popad
 .r:
     ret
 
+uq_daily:                               ; replaces `call cseg_8EA56` at the start of cseg_8E3DA (the next match, between
+    pushad                              ; matches): the career club's finished qualifying tie -> its next tie, or the
+    mov esi, STATE                      ; league phase it reached (or none) into slot 3
+    cmp word [esi], 5155h
+    jne .x
+    mov ax, [SEL]
+    cmp ax, [esi + S_M]
+    jne .x
+    mov al, [SLOT3 + 2Dh]
+    cmp al, QID0
+    jb .x
+    cmp al, QID0 + 2
+    ja .x
+    mov ax, [SLOT3 + 39h]               ; the tie's winner (FFFF until the second leg)
+    cmp ax, 0FFFFh
+    je .x
+    movzx ecx, byte [esi + S_K]
+    cmp ax, [esi + S_M]
+    jne .lost
+    mov dl, 1
+    shl dl, cl
+    or [esi + S_RES], dl
+.lost:
+    inc byte [esi + S_K]
+    mov dword [UQ_S], STATE
+    push es
+    push ds
+    pop es
+    cld
+    call uq_resolve
+    pop es
+    cmp byte [UQ_R + R_DONE], 0
+    jne .final
+    movzx eax, byte [UQ_R + R_R]        ; the next tie: its competition's contest, dates, the two clubs
+    xor ebx, ebx
+    cmp eax, 8
+    jb .n1
+    inc ebx
+    cmp eax, 14
+    jb .n1
+    inc ebx
+.n1:
+    mov edi, [UQ_QS + ebx*4]
+    mov dl, [UQ_WIN + eax]
+    mov [edi + 3], dl
+    add dl, 2
+    mov [edi + 4], dl
+    mov ax, [STATE + S_M]
+    mov [edi + Q_LIST], ax
+    mov ax, [UQ_R + R_OPP]
+    mov [edi + Q_LIST + 2], ax
+    mov [A0R], edi
+    lea eax, [ebx + D7_BASE]
+    push eax
+    call .build
+    pop eax
+    mov [E092F], ax
+    mov [CUP_KIND], bx
+    jmp .x
+.final:
+    mov word [esi], 0                   ; (no tie left)
+    xor ebx, ebx                        ; the final lists into the season's three league-phase cups
+.f1:
+    mov edi, [UQ_WC + ebx*4]
+    imul esi, ebx, 72
+    xor ecx, ecx
+.f2:
+    cmp cl, [STATE + S_GN + ebx]
+    jae .f3
+    mov ax, [UQ_R + R_GL + esi + ecx*2]
+    mov [edi + 30h + ecx*2], ax
+    inc ecx
+    jmp .f2
+.f3:
+    inc ebx
+    cmp ebx, 3
+    jb .f1
+    movzx ebx, byte [UQ_R + R_DEST]
+    cmp ebx, 3
+    jae .none
+    mov edi, [UQ_WC + ebx*4]            ; the league phase reached: slot 3, as at a season start
+    mov [A0R], edi
+    call .build
+    mov [E092F], bx
+    mov [CUP_KIND], bx
+    jmp .x
+.none:
+    mov word [E092F], -1                ; (out of Europe: the finished tie stays in slot 3, not reloaded)
+.x:
+    popad
+    jmp C8EA56
+.build:                                 ; [A0] = contest -> slot 3 (cseg_8B2D3: buffer + calendar)
+    mov word [D0R], 3
+    mov word [D1R], 0
+    mov word [D2R], 0
+    pushad
+    call C8B2D3
+    popad
+    ret
+
 UQ_HP: dd HOLD_CC, HOLD_CWC, HOLD_UEFA
 UQ_QS: dd QS0, QS1, QS2
-UQ_PEND: dw 0
+UQ_PEND: db 0
+UQ_WC: dd WCC, WCWC, WUEFA
 UQ_FORCE: db FORCE
 UQ_WIN: WIN_BYTES
 UQ_V: dd 0, 0
@@ -420,6 +544,7 @@ Q_NAME, Q_LIST = 16, 24         # offsets in a contest: its 2 name dwords, its 2
 NAMES = {'it': 'PRELIM. ', 'en': 'QUAL. ', 'fr': 'QUALIF. ', 'de': 'QUALI. '}
 CUPS = (b'CHAMPIONS LEAGUE', b'EUROPA LEAGUE', b'CONFERENCE LEAGUE')
 STRUCTS = []
+D7_BASE = [None]                # sacups' chain value of the first contest (patch.py)
 # the legs' dates per round (eighths of a month from January; the second leg 2 later): Q1 early July, Q2 late
 # July, Q3 early August, play-off late August (the league phases start in September)
 WIN = {'Q1': 0x31, 'Q2': 0x35, 'Q3': 0x39, 'PO': 0x3C}
@@ -462,6 +587,15 @@ def patch(p, at, limit, sites):
             'O_GL')
     lay = dict(zip(keys, lay))
     assert lay['IN_SIZE'] % 4 == 0 and lay['CSZ'] == 12 and lay['NC'] >= 553, lay
+    slay = dict(zip(('S_M', 'S_K', 'S_RES', 'S_GN', 'S_GL', 'S_SIZE', 'R_DONE', 'R_R', 'R_OPP', 'R_DEST', 'R_GL',
+                     'R_NPOT', 'R_POT'), struct.unpack('<13I', p.get(1, syms['UQ_SLAYOUT'][1], 52))))
+    assert uc.CB_OFF + uc.SIZE + slay['S_SIZE'] <= 80 * 684, slay
+    d1 = p.le.obj_bytes(1)                      # cseg_8E3DA: `call cseg_8EA56` after the careerFinished test
+    hits = [m.start() + 9 for m in re.finditer(
+        rb'\x66\x0b\xc0\x0f\x85.{4}\xe8.{4}\x8b\x35.{4}\x8a\x46\x06\x0a\xc0\x78.\x75.', d1, re.S)]
+    assert len(hits) == 1, hits
+    site = hits[0]
+    c8ea56 = site + 5 + struct.unpack_from('<i', d1, site + 1)[0]
     q = sites['qual']
     symbols = {k: (0, v) for k, v in lay.items()}
     symbols.update({'UQ_IN': syms['UQ_IN'], 'UQ_OUT': syms['UQ_OUT'], 'uq_season': syms['uq_season'],
@@ -474,7 +608,15 @@ def patch(p, at, limit, sites):
                     'RING': (0, uc.RING), 'SEL': (2, sites['sel']), 'Q_LIST': (0, Q_LIST),
                     'QS0': (1, STRUCTS[0]), 'QS1': (1, STRUCTS[1]), 'QS2': (1, STRUCTS[2]),
                     'FORCE': (0, ROUNDS.index(os.environ['UEFAQ_FORCE']) if os.environ.get('UEFAQ_FORCE') else 0),
-                    'WIN_BYTES': (0, 'db ' + ', '.join(str(WIN.get(r.split()[1][:2], 0)) for r in ROUNDS))})
+                    'WIN_BYTES': (0, 'db ' + ', '.join(str(WIN.get(r.split()[1][:2], 0)) for r in ROUNDS)),
+                    'UQ_S': syms['UQ_S'], 'UQ_R': syms['UQ_R'], 'uq_resolve': syms['uq_resolve'],
+                    'STATE': (2, sites['tmd'] + uc.CB_OFF + uc.SIZE), 'SLOT3': (2, sites['slot3']),
+                    'E092F': (2, sites['e092f']), 'CUP_KIND': (2, sites['cup_kind']), 'C8B2D3': (1, sites['c8b2d3']),
+                    'D0R': (2, sites['a0'] - 32), 'D1R': (2, sites['a0'] - 28), 'D2R': (2, sites['a0'] - 24),
+                    'QID0': (0, QIDS[0]), 'D7_BASE': (0, D7_BASE[0]),
+                    'WCC': (2, sites['bss'] + cw.B_CUPS), 'WCWC': (2, sites['bss'] + cw.B_CUPS + 160),
+                    'WUEFA': (2, sites['bss'] + cw.B_CUPS + 320), 'C8EA56': (1, c8ea56)})
+    symbols.update({k: (0, v) for k, v in slay.items()})
     glue = (end + 15) & ~15
     code, fix = nasmcave.assemble(ASM, glue, symbols)
     lab = nasmcave.labels(ASM, glue, symbols)
@@ -487,6 +629,7 @@ def patch(p, at, limit, sites):
     for stub, target in (('w_q_cq', 'uq_country'), ('w_q_fill', 'uq_fill'), ('w_q_post', 'uq_post')):
         a = cw.LABELS[stub]
         p.put(1, a, b'\xe9' + rel(a, lab[target]))
+    p.put(1, site + 1, rel(site, lab['uq_daily']))     # (a relative call: no fixup to move)
     print('exe: uefaq labels ' + ' '.join(f'{k} {lab[k]:#x}' for k in ('uq_country', 'uq_fill', 'uq_fill.ran', 'uq_fill.done', 'uq_post')))
     print(f'exe: UEFA qualifying rounds: C obj1+{at:#x}..{end:#x}, glue ..{glue + len(code):#x}, '
           f'bss obj2+{bss_at:#x} ({bss} B + {cw.UQ_RECS} records)')

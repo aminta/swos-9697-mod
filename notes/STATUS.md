@@ -1981,7 +1981,7 @@ Left for 2.5: (a) NSL/NSSL finals series (type-1 design) or declare them postpon
   world8485_nat passed this time). Patcher 3.2.5 (old v3.2.4 added): Node test all OK, outputs = c/REL325.
 - Untested: the booked-player number (same code path), SWOS++ in a match.
 
-## Release 3.2.6 (prepared 2026-10-15): shirt numbers with SWOS++ (Marco)
+## Release 3.2.6 (2026-10-15): shirt numbers with SWOS++ (Marco)
 - Marco (3.2.5, English + SWOS++): booked player over 16 without a number; the sprite column still seen. SWOS++
   (sources github.com/zlatkok/swospp, main/pdata.asm) draws 0 and 17+ itself: SetPlayerNumber replaces our add at
   DrawControlledPlayerNumbers+0x184 (= our site, EN obj1 0x5f867) and FixPlayerBooking (BookPlayer+0x165, before our

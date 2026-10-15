@@ -88,6 +88,8 @@ def patch(p):
 # 3. OK arms the choice. The jump at the start of SetInGameTeamsPrimaryColors finds each team's slot by name (A2 top,
 #    A3 bottom), loads the kit it wears into topTeamInGame / bottomTeamInGame with ConvertTeamKitColors, skips the
 #    automatic choice and disarms (one match only; the button shows AUTO again). Nothing is written to the team files.
+#    A pre-match screen exited without playing leaves the choice armed: pm_show (every new pre-match screen) and km_open
+#    keep it only for the same two teams by name (same_match), else it is dropped and the button reads AUTO (3.2.4).
 TEXTS = {
     'it': dict(auto=b'MAGLIE AUTO', set=b'MAGLIE FISSE', title=b'SELEZIONA MAGLIE', wears=b'IN CAMPO: ',
                k1=b'PRIMA TENUTA', k2=b'SECONDA TENUTA', cancel=b'ESCI', ok=b'OK', reset=b'RESET'),
@@ -116,16 +118,11 @@ PAYLOAD = {1: 0, 2: 4, 4: 2, 8: 6, 9: 2, 12: 4, 13: 4, 14: 6, 15: 4, 16: 4, 17: 
 KITS_ASM = r"""
 km_open:                                ; fire on the KITS button (playMatchMenu entry 68)
     pushad
-    mov eax, [PM_TEAM1]
-    mov edx, [PM_TEAM2]
-    cmp eax, [SLOTS + 32]
-    jne .fill
-    cmp edx, [SLOTS + SLOT_ + 32]
-    je .show                            ; same match: keep the edits
-.fill:
+    call same_match
+    je .show                            ; same two teams: keep the edits
     mov byte [KM_ACTIVE], 0
     mov byte [KM_TEAM], 0
-    mov esi, eax
+    mov esi, [PM_TEAM1]
     mov edi, SLOTS
     call fill_slot
     mov esi, [PM_TEAM2]
@@ -285,6 +282,36 @@ set_button:                             ; esi -> text of the pre-match button
     jnz .c
     ret
 
+same_match:                             ; ZF = 1: the slots hold this pre-match screen's two teams (by name, either
+    push ecx                            ; order: friendlies reuse the same two team buffers, so pointers do not tell
+    push esi                            ; matches apart); then the slots' team pointers are refreshed
+    push edi
+    cmp dword [SLOTS + 32], 0           ; cleared (cancel, or a match played)
+    je .no
+    mov esi, [PM_TEAM1]
+    call find_slot
+    test edi, edi
+    jz .no
+    mov ecx, edi
+    mov esi, [PM_TEAM2]
+    call find_slot
+    test edi, edi
+    jz .no
+    cmp edi, ecx
+    je .no
+    mov [edi + 32], esi
+    mov esi, [PM_TEAM1]
+    mov [ecx + 32], esi
+    cmp ecx, ecx
+    jmp .out
+.no:
+    test esp, esp
+.out:
+    pop edi
+    pop esi
+    pop ecx
+    ret
+
 find_slot:                              ; esi -> TeamFile; out: edi -> slot with its name, or 0
     push ecx
     mov edi, SLOTS
@@ -336,6 +363,13 @@ pm_show:                                ; replaces `call ShowMenu` in ShowPlayMa
     rep movsb
     mov byte [PM_COPY + E13_UP], KITS_
     mov dword [A6], PM_COPY
+    call same_match                     ; a choice left by a pre-match screen exited without playing belongs to
+    je .keep                            ; that match only (Marco, 3.2.4)
+    mov byte [KM_ACTIVE], 0
+    mov dword [SLOTS + 32], 0
+    mov esi, TXT_AUTO
+    call set_button
+.keep:
     popad
     jmp SHOW_MENU
 

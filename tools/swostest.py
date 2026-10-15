@@ -1716,6 +1716,64 @@ def classic_tourneys():
     return good, '; '.join(out)
 
 
+def walk(s, target, w=3, tries=20):
+    """Select entry `target` (text or number) one key at a time, re-planning after each move (menus where a planned
+    path drifts: two-column lists, moves taken twice), then fire; returns the new screen."""
+    for _ in range(tries):
+        scr = s.screen()
+        i = scr.find(target) if isinstance(target, str) else target
+        if i is None:
+            raise AssertionError(f'{target} not on screen')
+        if scr.selected == i:
+            s.send(f'fire dump:{w}')
+            return s.screen()
+        p = scr.path(i)
+        if not p:
+            raise AssertionError(f'no path to {target} from {scr.selected}')
+        s.send(p[0] + ' dump:0.5')
+    raise AssertionError(f'{target} not reached')
+
+
+def friendly_prematch(s, home, away):
+    """Main menu -> AMICHEVOLE with two Bundesliga clubs (player-controlled) -> pre-match screen."""
+    for t in ('AMICHEVOLE', 'OK', 'SCEGLI SQUADRE', 'SQUADRE CLUB', 'EUROPA', 'GERMANIA', '1. LIGA', home, away):
+        walk(s, t, 2)
+    for _ in range(12):                         # AMICHEVOLE (55) is reached from the list by down, then right (56, 57)
+        scr = s.screen()
+        if scr.selected == 55:
+            s.send('fire dump:4')
+            return s.screen()
+        s.send(('right' if scr.selected in (56, 57) else 'down') + ' dump:0.5')
+    raise AssertionError('AMICHEVOLE not reached')
+
+
+@scenario
+def kits_reset():
+    """3.2.4 (Marco): kits set in a friendly's pre-match screen left without playing must not carry over to the next
+    friendly with other teams (button back to AUTO, SELECT KITS shows the new teams)"""
+    errs = []
+    with Session('kits_reset', builds()['it'], {}, 'dump:3', 400) as s:
+        s.wait()
+        scr = friendly_prematch(s, 'HAMBURG', 'SCHALKE')
+        scr = walk(s, 68)                       # KITS AUTO -> SELECT KITS
+        scr = walk(s, 2, 2)                     # the shown team wears its second kit
+        scr = walk(s, 'OK')
+        check(scr.entries[68][1] == 'MAGLIE FISSE', f'after OK: {scr.entries[68][1]!r}', errs)
+        for _ in range(22):                     # pre-match ESCI: down the rows to VIS. PARTITA, then right
+            s.send('down dump:0.5')
+            if s.screen().selected == 9:
+                break
+        s.send('right dump:0.5')
+        scr = walk(s, 8)
+        check(scr.find('AMICHEVOLE') is not None, 'main menu not reached', errs)
+        scr = friendly_prematch(s, 'BAYERN MUNICH', 'BOR. DORTMUND')
+        check(scr.entries[68][1] == 'MAGLIE AUTO', f'second friendly: button {scr.entries[68][1]!r}', errs)
+        scr = walk(s, 68)
+        names = {scr.entries[1][1], scr.entries[3][1].split(':')[0]}
+        check(names == {'BAYERN MUNICH', 'BOR. DORTMUND'}, f'SELECT KITS teams {names}', errs)
+    return not errs, '; '.join(errs) or 'button AUTO and the new teams after a pre-match left without playing'
+
+
 def run_parallel(names, jobs):
     """run -jN: each scenario in its own process (own run dirs and DOSBox-X, one host core each in turbo); the
     builds are made once here first. Output in the order of the names; exit code 1 on a failure."""

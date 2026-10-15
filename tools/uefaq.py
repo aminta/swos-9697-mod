@@ -518,13 +518,26 @@ uq_daily:                               ; replaces `call cseg_8EA56` at the star
 .x:
     popad
     jmp C8EA56
-.build:                                 ; [A0] = contest -> slot 3 (cseg_8B2D3: buffer + calendar)
-    mov word [D0R], 3
+.build:                                 ; [A0] = contest -> slot 3 (cseg_8B2D3: buffer + calendar). The slot buffer
+    pushad                              ; is cleared first, as a never-used slot: cseg_8B2D3 starts from the old one
+    push es                             ; and the finished tie's state (+55h, +149h ...) would keep cseg_8BC06 from
+    push ds                             ; putting the new round's matches into the calendar (they would be simulated)
+    pop es
+    mov edi, SLOT3
+    mov ecx, 0B52h
+    xor eax, eax
+    cld
+    rep stosb
+    pop es
+    popad
+    mov word [STAGE_G], 0               ; dseg_10EADD: the type-2 stage cseg_8BC06 fills the calendar for (stale
+    mov word [D0R], 3                   ; from the last type-2 contest, the finished tie: its matches never got in)
     mov word [D1R], 0
     mov word [D2R], 0
     pushad
     call C8B2D3
     popad
+    mov word [SLOT3 + 39h], 0FFFFh      ; (no winner yet)
     ret
 
 UQ_HP: dd HOLD_CC, HOLD_CWC, HOLD_UEFA
@@ -540,7 +553,7 @@ UQ_E: dw 0
 
 STRUCTS_AT = 0x2F00             # the 3 contests (obj1, after the C code and the glue in uefaq's three pages)
 QIDS = (0x7C, 0x7D, 0x7E)       # contest ids (mkseason.RESERVED_IDS): CL / EL / UECL qualifying tie
-Q_NAME, Q_LIST = 16, 24         # offsets in a contest: its 2 name dwords, its 2-club list
+Q_NAME, Q_LIST = 0x28, 0x30     # offsets in a contest: its 2 name dwords, its 2-club list
 NAMES = {'it': 'PRELIM. ', 'en': 'QUAL. ', 'fr': 'QUALIF. ', 'de': 'QUALI. '}
 CUPS = (b'CHAMPIONS LEAGUE', b'EUROPA LEAGUE', b'CONFERENCE LEAGUE')
 STRUCTS = []
@@ -553,18 +566,21 @@ ROUNDS = ['CL LS', 'CL PO', 'CL POnc', 'CL Q3', 'CL Q3nc', 'CL Q2', 'CL Q2nc', '
 
 
 def structs(p, area, lang, at):
-    """The career club's qualifying tie, one contest per competition: a type-1 cup of 2 clubs, one round of two
-    legs (as sacups' Intercontinental), list empty until a season end puts the club and its opponent in."""
+    """The career club's qualifying tie, one contest per competition: a type-2 cup (the layout of careerworld's
+    league-phase cups: built in slot 3 during a season, its matches reach the calendar; a type-1 cup's do not) with
+    one knockout stage of 2 clubs, two legs, extra time and penalties, no away goals (abolished in 2021); its
+    2-club list empty until a season end puts the club and its opponent in."""
     import sacups
-    d2 = p.le.obj_bytes(2)
-    cwc = sacups.unique(d2, sacups.CWC_HDR)
     out = []
     for cid, cup in zip(QIDS, CUPS):
-        body = sacups.knockout16(d2[cwc:cwc + 28], cid, 2, (0x94,))
-        body[3], body[4] = WIN['Q1'], WIN['Q1'] + 2
-        assert len(body) == Q_NAME and body[5] + 5 == Q_NAME and body[7] + 7 == Q_LIST
+        h = bytearray(Q_NAME)
+        h[0], h[1], h[2], h[3], h[4] = cid, 2, 0xFF, WIN['Q1'], WIN['Q1'] + 2
+        h[5], h[7] = Q_NAME - 5, Q_LIST - 7
+        h[8], h[9], h[10], h[11], h[12], h[13] = 1, 0, 0, 1, 3, 0x35
+        stages = bytes([1, 2, 0, 2, 1])
+        h[0x0E:0x28] = stages + bytes(20 - len(stages)) + bytes([0x94]) + bytes(5)
         rel = area.add(NAMES[lang].encode() + cup + b'\0') - sacups.STR_BASE
-        p.put(1, at, bytes(body) + struct.pack('<II', rel, rel) + bytes(4))
+        p.put(1, at, bytes(h) + struct.pack('<II', rel, rel) + bytes(4))
         out.append(at)
         at += Q_LIST + 4
     STRUCTS[:] = out
@@ -596,6 +612,9 @@ def patch(p, at, limit, sites):
     assert len(hits) == 1, hits
     site = hits[0]
     c8ea56 = site + 5 + struct.unpack_from('<i', d1, site + 1)[0]
+    hits = [m.group(1) for m in re.finditer(          # cseg_2573C: 10EA8C = 1; call; 10EAE1 = 0; 10EADD = 0; 10EEAB = 0
+        rb'\x66\xc7\x05.{4}\x01\x00\xe8.{4}\x66\xc7\x05.{4}\x00\x00\x66\xc7\x05(.{4})\x00\x00\x66\xc7\x05.{4}\x00\x00', d1, re.S)]
+    stage_g = struct.unpack('<I', hits[0])[0]          # (the first of two: cseg_2573C precedes the other one)
     q = sites['qual']
     symbols = {k: (0, v) for k, v in lay.items()}
     symbols.update({'UQ_IN': syms['UQ_IN'], 'UQ_OUT': syms['UQ_OUT'], 'uq_season': syms['uq_season'],
@@ -615,7 +634,7 @@ def patch(p, at, limit, sites):
                     'D0R': (2, sites['a0'] - 32), 'D1R': (2, sites['a0'] - 28), 'D2R': (2, sites['a0'] - 24),
                     'QID0': (0, QIDS[0]), 'D7_BASE': (0, D7_BASE[0]),
                     'WCC': (2, sites['bss'] + cw.B_CUPS), 'WCWC': (2, sites['bss'] + cw.B_CUPS + 160),
-                    'WUEFA': (2, sites['bss'] + cw.B_CUPS + 320), 'C8EA56': (1, c8ea56)})
+                    'WUEFA': (2, sites['bss'] + cw.B_CUPS + 320), 'C8EA56': (1, c8ea56), 'STAGE_G': (2, stage_g)})
     symbols.update({k: (0, v) for k, v in slay.items()})
     glue = (end + 15) & ~15
     code, fix = nasmcave.assemble(ASM, glue, symbols)
@@ -630,6 +649,8 @@ def patch(p, at, limit, sites):
         a = cw.LABELS[stub]
         p.put(1, a, b'\xe9' + rel(a, lab[target]))
     p.put(1, site + 1, rel(site, lab['uq_daily']))     # (a relative call: no fixup to move)
+    print(f"exe: uefaq state obj2+{symbols['STATE'][1]:#x} (k +{slay['S_K']:#x}, res +{slay['S_RES']:#x}), slot 3 "
+          f"obj2+{sites['slot3']:#x}, uq_daily {lab['uq_daily']:#x}")
     print('exe: uefaq labels ' + ' '.join(f'{k} {lab[k]:#x}' for k in ('uq_country', 'uq_fill', 'uq_fill.ran', 'uq_fill.done', 'uq_post')))
     print(f'exe: UEFA qualifying rounds: C obj1+{at:#x}..{end:#x}, glue ..{glue + len(code):#x}, '
           f'bss obj2+{bss_at:#x} ({bss} B + {cw.UQ_RECS} records)')

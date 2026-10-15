@@ -139,8 +139,8 @@ every 5-10 s that is 4-8 hours, once per season, resumable (each page cached as 
      existing one, listed in the build log.
    - `names.csv`: overrides (known short names: 'VINICIUS JUNIOR', 'RODRI'), then `swos_name` (NFKD -> ASCII,
      ß -> SS, upper, 22 max, 'J. SURNAME' when longer).
-   - `faces.csv`: skin per player only by an explicit, reviewable list (Transfermarkt has no such field; no SWOS 2020
-     faces); default light.
+   - `faces.csv`: skin from FC 27 (skin tone, red hair -> ginger) where the player exists, plus correction lists;
+     default light (Transfermarkt has no such field; no SWOS 2020 faces).
 5. **Skills** (proposal, Transfermarkt data only):
    - **Level**: target skill sum S from market value on a log scale, corrected per league (the same value means
      more in a weak league) and by age (young players' values are inflated), fitted so the world's distribution
@@ -152,7 +152,10 @@ every 5-10 s that is 4-8 hours, once per season, resumable (each page cached as 
      id, no RNG) keeps players of one role from being identical. Rounded to 0-7 with the sum preserved; key skills =
      the 2 of the profile (as the original).
    - **Goalkeepers**: skills 0, price = S of the same curve. **Price = S** for everyone (the engine's own rule).
-   - Optional later (open question): finer per-player profiles from EA FC 27 attributes where a player exists.
+   - **EA FC 27** (Davide, 2026-10-16) where the player exists: pa = short passing / vision, ve = shot power / long
+     shots, he = heading accuracy / jumping, ta = standing / sliding tackle / interceptions, co = ball control /
+     dribbling, sp = sprint speed / acceleration, fi = finishing; S still from the same level curve (FC overall
+     blended with the Transfermarkt value), split by the player's own attribute profile; key skills = his 2 best.
 6. **Calibration** (the mod's rule): per club print the first-11 skill sum and price next to the real 2025-26
    table (and the 2026-27 one as it grows); adjust the curve per league (never by whole skill levels with a small price shift: that was the
    1947-48 flaw); then simulated seasons in the harness for ~5 leagues (champion and bottom clubs roughly right).
@@ -168,13 +171,19 @@ every 5-10 s that is 4-8 hours, once per season, resumable (each page cached as 
 
 ## Open questions for Davide
 Settled 2026-10-16: season 2026-27, Transfermarkt at the end of the summer 2026 window, no SWOS 2020, real shirt
-numbers (1-99, mod 3.2.5).
-1. Squad size of the managed club: 25 (UEFA list size) or up to 28-30? CPU clubs stay 16 — OK?
-2. Ask Transfermarkt for written consent before the release (their terms forbid automated copying)?
-3. Skin: an explicit hand-made list, default light — OK, or another source?
-4. Key skills: 2 per player as the original 96/97, or none?
-5. Foreign market: a 2026-27 POOLPLYR.DAT per world (900 real players of clubs outside the world)?
-6. Optional: EA FC 27 attributes for finer skill profiles, or Transfermarkt only?
+numbers (1-99, mod 3.2.5). Davide's answers (2026-10-16):
+1. Managed club: **25 players** (16 in the record + 9 in XTRA). CPU clubs 16 (call-ups: section 3).
+2. Written consent from Transfermarkt: **Davide asks**.
+3. Skin: see below (a hand list for ~37,000 players is not realistic).
+4. Key skills: **2 per player, as the original**.
+5. **Yes**: a 2026-27 POOLPLYR.DAT per world.
+6. **EA FC 27 too**: attributes for the skill profiles (and skin, below) where the player exists; Transfermarkt
+   value/league/age model for the others. Private use, credit EA SPORTS FC 27.
+
+Skin (open): FC 27's player data carry a skin tone and a hair colour per player -> light / dark / ginger for the
+~17,000 FC players, matched to Transfermarkt by name + birth date + club. The others (clubs outside FC: about half
+of the world) default to light, with optional per-league correction lists that Davide or players who know a league
+can send (a small CSV: Transfermarkt id, skin). No guessing from nationality or photos.
 
 ## Estimate (sessions)
 | Part | Sessions |

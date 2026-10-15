@@ -761,6 +761,12 @@ def league_phase_cups():
     return out
 
 
+def league_phase_worlds():
+    """Contest ids (the game's cups: 0 Champions Cup, 1 Cup Winners' Cup) that some world plays as a league phase."""
+    import careerworld
+    return sorted({k for w in world_defs() for k, key in ((0, 'cc'), (1, 'cwc')) if w['cups'][key][0] == careerworld.LP_ROUNDS})
+
+
 def tourneys():
     """The tourney packs' competitions for historic.patch (CLASSIC TOURNEYS after the hand-made ones): [{id, names,
     win_points, file, base, stages, pairs, coin}]."""
@@ -853,6 +859,11 @@ def world_defs():
             size = len(clubs)
             _need(size == len(w['places'][key]) + 1,
                   f'world {n}: {key}: {size} clubs in the first season, {len(w["places"][key])} places + the holder')
+            if wc.get(key, {}).get('format') == 'league_phase':     # UEFA league phase (lp36): 36 clubs, type 2
+                _need(key in ('cc', 'cwc') and size == 36, f'world {n}: {key}: a league phase has 36 clubs ({size})')
+                w['cups'][key] = (careerworld.LP_ROUNDS, [pk.where[c] for pk, c in clubs])
+                w['clubs'][key] = clubs
+                continue
             _need(2 <= size <= careerworld.MAX[key] and size & (size - 1) == 0,
                   f'world {n}: {key} has {size} clubs (a power of 2, at most {careerworld.MAX[key]})')
             rounds = wc.get(key, {}).get('rounds') or ['two_legs'] * (size.bit_length() - 2) + ['single']

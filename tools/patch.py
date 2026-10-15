@@ -51,7 +51,6 @@ CAREER_DATA = 0xa8000        # 8th + 9th added pages (same builds): the career p
 HIST2_PAGE = 0x1000          # 3.2: one more page after the others (0xa6000, or 0xaa000 with a world): tourney packs'
                              # contests and the ESCI fix (historic.patch; the world cave was nearly full)
 ARG_LOAD_HOOK = True
-LP_OFF = 0x700               # league phase (lp36) in the historic page, after historic's code
 
 LEAGUES_OLD = bytes.fromhex('3c00144020150000000202033512')
 TEAM_BASES = struct.pack('<16H', 0, 16, 26, 44, 60, 72, 86, 102, 114, 207, 207, 221, 233, 245, 287, 333)
@@ -160,7 +159,8 @@ def patch_exe(src, dst, remap, lang='it'):
     grown = dst + '.tmp'
     data = open(src, 'rb').read()
     worlds = bool(mkseason.worlds())
-    for _ in range(10 if worlds else 6):
+    lpb = bool(mkseason.league_phase_cups() or mkseason.league_phase_worlds())
+    for _ in range((10 if worlds else 6) + lpb):  # (+1: the UEFA league phase's code page, lp36)
         data = add_object_page(data, 1)
     mkseason.CAREER_CAVE[0] = CAREER_CAVE if worlds else None
     mkseason.CAREER_DATA[0] = CAREER_DATA if worlds else None
@@ -173,7 +173,7 @@ def patch_exe(src, dst, remap, lang='it'):
     o2pages = 2 if worlds else 1   # career packs: one more obj2 page (their strings)
     if worlds:
         data = add_object_page(data, 2)
-    if mkseason.league_phase_cups():   # UEFA league phase: its draw's work buffers
+    if mkseason.league_phase_cups() or mkseason.league_phase_worlds():   # UEFA league phase: the draw's buffers
         o2pages += 1
         data = add_object_page(data, 2)
     open(grown, 'wb').write(data)
@@ -210,11 +210,12 @@ def patch_exe(src, dst, remap, lang='it'):
     world, pack_leagues = mkseason.patch(p, lang, area, world)   # season packs (2.6: DDR 1988-89), CLASSIC SEASONS
     hist2 = OBJ1_NEW_VSIZE + (0x4000 if worlds else 0)
     lp = None
-    if mkseason.league_phase_cups():               # UEFA league phase prototype (PROTO36 test builds)
+    if mkseason.league_phase_cups() or mkseason.league_phase_worlds():   # UEFA league phase (lp36)
         import lp36
-        lp_end, lp_draw, lp_id = lp36.patch(p, hist2 + LP_OFF, mkseason.league_phase_cups(), area, lang)
-        assert lp_end <= hist2 + HIST2_PAGE, hex(lp_end)
-        lp = (lp_draw, lp_id)
+        lp_end, lp_chk, lp_draw = lp36.patch(p, hist2 + HIST2_PAGE, mkseason.league_phase_cups(), area, lang,
+                                             mkseason.league_phase_worlds())
+        assert lp_end <= hist2 + HIST2_PAGE + 0x1000, hex(lp_end)
+        lp = (lp_chk, lp_draw)
     world = historic.patch(p, lang, area, world, lib_pre, pack_leagues, cave2=hist2, lp=lp)
     nz_end = nz97.shootout(p, NZ_CAVE)            # 2.1: NSSL shoot-out after every draw, +1 point to its winner
     arg_end = arg97.patch(p, area, sacups.STR_BASE, ARG_CAVE, nz97.SITE_B, os.path.join(ROOT, 'orig/DATA'))   # 2.1: Apertura / Clausura
@@ -249,7 +250,7 @@ def patch_exe(src, dst, remap, lang='it'):
     world = cafcups.intl_list(p, caf, world)
     assert world <= NZ_CAVE and nz_end <= FIN_CAVE and fin_end <= ARG_CAVE and arg_end <= OBJ1_NEW_VSIZE, \
         (hex(world), hex(nz_end), hex(fin_end), hex(arg_end))
-    p.set_vsize(1, OBJ1_NEW_VSIZE + (0x4000 if worlds else 0) + HIST2_PAGE)
+    p.set_vsize(1, OBJ1_NEW_VSIZE + (0x4000 if worlds else 0) + HIST2_PAGE + 0x1000 * lpb)
     p.set_vsize(2, obj2_free + o2pages * p.le.page_size + (careerworld.BSS_SIZE if bigw else 0),
                 bss=careerworld.BSS_SIZE if bigw else 0)
     p.add_flags(1, 0x2)            # writable: season end rewrites the SA cup team lists in the cave

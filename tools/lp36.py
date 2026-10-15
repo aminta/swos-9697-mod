@@ -169,19 +169,41 @@ def check(cal, countries):
 
 
 ASM = '''
-lp_days:                                ; replaces `call cseg_260A9` in cseg_2573C (stage days -> months)
-    cmp byte [DIYCOPY + 2Dh], LP_ID
-    jne .go
+%macro LP_IDS 1                        ; ZF = 1 if the contest id byte %1 is one of the league-phase ids
+%if LP_TID
+    cmp byte %1, LP_ID                  ; (a tourney pack's)
+    je %%r
+%endif
+%if LP_W0
+    cmp byte %1, 0                      ; (a world's Champions Cup)
+    je %%r
+%endif
+%if LP_W1
+    cmp byte %1, 1                      ; (a world's Cup Winners' Cup slot: Europa League)
+    je %%r
+%endif
+    cmp esp, 0                          ; ZF = 0
+%%r:
+%endmacro
+
+lp_copy_ours:                           ; ZF = 1: diyFileBufferCopy is a league-phase contest (any stage)
+    LP_IDS [DIYCOPY + 2Dh]
+    jne .r
     cmp word [DIYCOPY + 15Dh], 2        ; stage 1: 2 groups ...
-    jne .go
+    jne .r
     cmp word [DIYCOPY + 16Bh], 18       ; ... of 18
+.r:
+    ret
+
+lp_days:                                ; replaces `call cseg_260A9` in cseg_2573C (stage days -> months)
+    call lp_copy_ours
     jne .go
     mov word [DIYCOPY + 173h], 8        ; 8 matchdays (not 17)
 .go:
     jmp C260A9
 
 lp_ours:                                ; ZF = 1: DIY_competitionStart is our league phase
-    cmp byte [DIY + 2Dh], LP_ID
+    LP_IDS [DIY + 2Dh]
     jne .r
     cmp word [DIY + 4Fh], 2
     jne .r
@@ -191,7 +213,7 @@ lp_ours:                                ; ZF = 1: DIY_competitionStart is our le
 
 lp_start:                               ; replaces `call cseg_2653B` in cseg_258E4 (league start of a group stage)
     call C2653B
-    cmp byte [DIYCOPY + 2Dh], LP_ID     ; (cseg_258E4 copies the id into DIY+2Dh only at its end)
+    call lp_copy_ours                   ; (cseg_258E4 copies the id into DIY+2Dh only at its end)
     jne .r
     cmp word [DIY + 4Fh], 2
     jne .r
@@ -200,6 +222,9 @@ lp_start:                               ; replaces `call cseg_2653B` in cseg_258
     mov word [DIY + 69h], 72            ; pair indices per cycle (2 groups: 144 matches)
     mov word [DIY + 6Bh], 72
     mov word [DIY + 1C3h], 8            ; matchdays
+    pushad
+    call C2730A                         ; the month of each matchday again (cseg_2653B spread 17 of them)
+    popad
     push edi
     push ecx
     push eax
@@ -541,11 +566,13 @@ lp_mkdraw:
     pushad
     xor ecx, ecx
 .ct:
-%if LP_FIXED
-    mov al, [LP_CTRYS + ecx]
-%else
     movzx ebx, byte [DIYCOPY + 59h + ecx]
-    mov al, [DIYCOPY + 99h + ebx*2]
+    mov al, [DIYCOPY + 99h + ebx*2]     ; a career: the club's team file = its country
+%if LP_TID
+    cmp byte [DIYCOPY + 2Dh], LP_ID     ; a tourney pack (one team file): its clubs' countries
+    jne .c1
+    mov al, [LP_CTRYS + ecx]
+.c1:
 %endif
     mov [W_CTRY + ecx], al
     inc ecx
@@ -942,6 +969,11 @@ def _sites(p):
     st = [x for x in range(c258e4, c258e4 + 0x800) if d1[x] == 0xE8 and call_to(x) in cand]
     assert [x - c258e4 for x in st][:1] == [0x2E7], ([hex(x - c258e4) for x in st], cand)   # (+635h: the cup one)
     s['start'], s['C2653B'] = st[0], call_to(st[0])
+    s['C2730A'] = call_to(s['C2653B'] + 0x217 - 0x10000 + 0x10000) if d1[s['C2653B'] + 0x217] == 0xE8 else None
+    if s['C2730A'] is None:            # (ITA offsets differ a little: the last call before the 2 words stored)
+        k = [x for x in range(s['C2653B'], s['C2653B'] + 0x300) if d1[x] == 0xE8]
+        s['C2730A'] = [call_to(x) for x in k if d1[call_to(x):call_to(x) + 2] == b'\xc7\x05'
+                       and d1[call_to(x) + 2:call_to(x) + 6] == A(a0) and d1[call_to(x) + 6:call_to(x) + 10] == A(diy)][0]
     s['pair'] = one(rb'\xc7\x05' + re.escape(A(a0) + A(diy)) + rb'\x8b\x35' + re.escape(A(a0)) + rb'\x66\x8b\x46\x5b',
                     'cseg_89758')
     s['sort'] = one(rb'\xc7\x05' + re.escape(A(a0 + 16) + A(diy)) + rb'\x8b\x35' + re.escape(A(a0 + 16))
@@ -983,21 +1015,25 @@ def _sites(p):
 HEADERS = {'it': 'CLASSIFICA', 'en': 'STANDINGS', 'fr': 'CLASSEMENT', 'de': 'TABELLE'}
 
 
-def patch(p, cave, cups, area, lang='it'):
-    """cups = [(contest id, countries in contest order)] (one prototype contest). Returns (end, lp_draw, id)."""
+def patch(p, cave, cups, area, lang='it', world_ids=()):
+    """cups = [(contest id, countries in contest order)]: at most one tourney pack (CLASSIC TOURNEYS test); world_ids =
+    the game's cups (0 Champions Cup, 1 Cup Winners' Cup) some career world plays as a league phase.
+    Returns (end, lp_copy_ours, lp_draw): historic.hist_draw calls lp_draw when lp_copy_ours gives ZF = 1."""
     import nasmcave
-    assert len(cups) == 1, cups
-    lp_id, countries = cups[0]
+    assert len(cups) <= 1 and (cups or world_ids), (cups, world_ids)
+    lp_id, countries = cups[0] if cups else (0xFF, [f'c{i}' for i in range(N)])
     assert len(countries) == N, len(countries)
-    cal = draw(countries)
+    cal = draw(countries)                       # the fallback draw (the game draws at every stage start)
     check(cal, countries)
     s = _sites(p)
     a0 = s['A0']
     db = lambda b: 'db ' + ', '.join(str(x) for x in b)
     symbols = {'DIYCOPY': (2, s['DIYCOPY']), 'DIY': (2, s['DIY']), 'A0': (2, a0), 'A1': (2, a0 + 4), 'A2': (2, a0 + 8),
                'A3': (2, a0 + 12), 'A4': (2, a0 + 16), 'D1': (2, s['D1']), 'D2': (2, s['D2']),
-               'LP_ID': (0, lp_id), 'AWAY_GF': (0, AWAY_GF), 'CAL_OFF': (0, CAL_OFF),
+               'LP_ID': (0, lp_id), 'AWAY_GF': (0, AWAY_GF), 'CAL_OFF': (0, CAL_OFF), 'LP_TID': (0, int(bool(cups))),
+               'LP_W0': (0, int(0 in world_ids)), 'LP_W1': (0, int(1 in world_ids)),
                'C260A9': (1, s['C260A9']), 'C2653B': (1, s['C2653B']), 'C8A2CE': (1, s['C8A2CE']),
+               'C2730A': (1, s['C2730A']),
                'C89758_NEXT': (1, s['pair'] + 10), 'C883DD_NEXT': (1, s['sort'] + 10),
                'PO_BYTES': (0, db(playoff_slots())),
                'R16_BYTES': (0, db(R16_SEEDS))}
@@ -1012,7 +1048,6 @@ def patch(p, cave, cups, area, lang='it'):
     symbols['D0'] = (2, a0 - 32)
     symbols['LP_CAL'] = (2, area.add(bytes(b for m in cal for b in m)))      # fallback draw (by position)
     codes = sorted(set(countries))
-    symbols['LP_FIXED'] = (0, 1)                                         # tourney pack: countries from the pack
     symbols['LP_CTRYS'] = (2, area.add(bytes(codes.index(c) for c in countries)))
     w = area.add(bytes(WORK_DRAW + 4))
     w = (w + 3) & ~3
@@ -1048,4 +1083,4 @@ def patch(p, cave, cups, area, lang='it'):
     print(f'exe: league phase {lp_id:#x}: code obj1+{cave:#x}..{cave + len(code):#x}, sites ' +
           ', '.join(f'{k} {v:#x}' for k, v in s.items() if k in ('days', 'start', 'pair', 'sort', 'res')) +
           f"; day 1 {days[0][:3]}...; labels " + ' '.join(f'{k} {v:#x}' for k, v in lab.items() if k.startswith('lp_')))
-    return cave + len(code), lab['lp_draw'], lp_id
+    return cave + len(code), lab['lp_copy_ours'], lab['lp_draw']

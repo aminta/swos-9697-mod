@@ -24,7 +24,9 @@ COPY = {'cc': 79, 'cwc': 92, 'uefa': 92}           # in-save struct copies
 SMALL = {'cc': 16, 'cwc': 32, 'uefa': 32}           # what fits the in-save copies and the 80 records
 MAX = {'cc': 32, 'cwc': 32, 'uefa': 64}             # big worlds (euro 128): a type-1 cup holds 64 clubs at most
 TOTAL_MAX = 128
-BIGCOPY = {'cc': 92, 'cwc': 92, 'uefa': 160}        # CWC layout: 22 + rounds + 2 B per club
+BIGCOPY = {'cc': 92, 'cwc': 92, 'uefa': 160}        # CWC layout: 22 + rounds + 2 B per club (W1 block)
+BIGROOM = {'cc': 120, 'cwc': 120, 'uefa': 160}      # room of each cup buffer (160 apart); a league-phase cup (120 B)
+                                                    # keeps bytes 92..119 after the W1 records (old saves unchanged)
 WORLD_BYTE = 1845                                    # someLeaguesTable index (+1 = balance byte)
 REC = 52                                             # world record: 8 dwords, 5 words, year byte, pad, 2 dwords
 # Big world (more than 80 European clubs or a cup above SMALL): the 128 records, the 3 cups and the 3 working place
@@ -48,12 +50,14 @@ B_SAVE, SAVE_SIZE = 0x16000, 2 + 100 * TEAM_SIZE
 assert B_LISTS + 224 <= B_SAVE and B_SAVE + SAVE_SIZE <= B_TFB and B_TFB + TFB_SIZE <= BSS_SIZE
 VAROFF = [4, 22, 25] + [76 + 38 * k + x for k in range(16) for x in (1, 27, 33, 34, 35, 36)]
 WMARK = 0x3157                                       # 'W1'
-WBLOCK = 2 + sum(BIGCOPY.values()) + TOTAL_MAX * (2 + len(VAROFF))   # in the fixed part's 80-record area
+WBLOCK = 2 + sum(BIGCOPY.values()) + TOTAL_MAX * (2 + len(VAROFF)) + 2 * 28   # in the fixed part's 80-record area
 assert WBLOCK <= 80 * TEAM_SIZE
 LABELS = {}
 
 
 def big(w):
+    if any(w['cups'][k][0] == LP_ROUNDS for k in ('cc', 'cwc')):
+        return True                                 # league-phase cups: 120-B structs in the obj2 tail
     tot = sum(len(w['cups'][k][1]) for k in ('cc', 'cwc', 'uefa'))
     return tot > 80 or any(len(w['cups'][k][1]) > SMALL[k] for k in SMALL)
 NEW_NATS = {'it': ['RDT', 'URS', 'RFT'], 'en': ['GDR', 'URS', 'FRG'],   # 3.1: player nationalities after the game's
@@ -1264,11 +1268,36 @@ def nat_table(game, counts, w):
     return b''.join(groups[0] + groups[1] + groups[2]), (n1, n2, n2 + len(groups[2]))
 
 
+LP_ROUNDS = b'LP'                                    # a world cup with the UEFA league phase (lp36): 36 clubs
+LP_SIZE = 0x28 + 8 + 2 * 36                         # its struct: 120 B (the W1 block saves bytes 92.. at its end)
+# type 2 (euroCup layout, header 0x28 as historic's tourneys): stages from +0Eh = (36, 2 groups, 18), play-offs 16,
+# round of 16, QF, SF, final; legs from +22h: groups, then two legs with extra time and penalties, a single final
+LP_STAGES = bytes([6, 36, 2, 18, 16, 0, 16, 16, 0, 16, 8, 0, 8, 4, 0, 4, 2, 0, 2, 1]) + bytes([0, 0x94, 0x94, 0x94, 0x94, 0x14])
+
+
+def lp_struct(d, clubs, size):
+    """A world's league-phase cup: the original cup's id, months and names (d), type 2, fixed list (the draw is
+    lp36's), shuffle path for the knockout draws (lp36.lp_draw keeps the orders), no away goals, one meeting, 3 points."""
+    assert len(clubs) == 36, len(clubs)
+    h = bytearray(0x28)
+    h[0], h[1], h[2], h[3], h[4] = d[0], 2, 0xff, d[3], d[4]
+    h[5] = 0x28 - 5                     # names at +28h
+    h[7] = 0x30 - 7                     # clubs at +30h
+    h[8], h[9], h[10], h[11], h[12], h[13] = 1, 0, 0, 1, 3, 0x35
+    h[0x0e:0x28] = LP_STAGES
+    names = d[5 + d[5]:5 + d[5] + 8]
+    body = bytes(h) + names + b''.join(bytes(c) for c in clubs)
+    assert len(body) == LP_SIZE and (size or 0) >= LP_SIZE, (len(body), size)
+    return body.ljust(size, b'\0')
+
+
 def struct_for(p, key, euro, rounds, clubs, size=None):
     """World European cup struct: CWC layout (header, rounds, 0, name dwords, (file, ordinal) pairs) with the
     original cup's id, dates and names, padded to the in-save copy size (size: a big world's buffer)."""
     obj, off = euro
     d = bytes(p.get(obj, off, 100))
+    if rounds == LP_ROUNDS:
+        return lp_struct(d, clubs, size)
     import sacups
     d2 = p.le.obj_bytes(2)
     cwc = d2[sacups.unique(d2, sacups.CWC_HDR):][:14]
@@ -1303,7 +1332,8 @@ def patch(p, worlds, at, nasmcave, comp, ct, cont_rec):
         nrec += 1
         tot = sum(len(w['cups'][k][1]) for k in ('cc', 'cwc', 'uefa'))
         bw = big(w)
-        assert tot <= TOTAL_MAX and all(len(w['cups'][k][1]) <= (MAX if bw else SMALL)[k] for k in MAX), (n, tot)
+        assert tot <= TOTAL_MAX and all(len(w['cups'][k][1]) <= (MAX if bw else SMALL)[k] or w['cups'][k][0] == LP_ROUNDS
+                                        for k in MAX), (n, tot)
         data.append(f'    dd W{n}_CC, W{n}_CWC, W{n}_UEFA, W{n}_TMD, W{n}_LIST, W{n}_TCC, W{n}_TCWC, W{n}_TUEFA')
         data.append('    dw %d, %d, %d, %d, %d' % (tot, len(w['cups']['cc'][1]), len(w['cups']['cwc'][1]),
                                                   len(w['cups']['uefa'][1]), tot - 3))   # before the 3 holders
@@ -1315,7 +1345,7 @@ def patch(p, worlds, at, nasmcave, comp, ct, cont_rec):
         extra.append('    db ' + ', '.join(map(str, view + [0xff])))
         for key, euro in zip(('cc', 'cwc', 'uefa'), s['euro']):
             rounds, clubs = w['cups'][key]
-            body = struct_for(p, key, euro, rounds, clubs, BIGCOPY[key] if bw else None)
+            body = struct_for(p, key, euro, rounds, clubs, BIGROOM[key] if bw else None)
             extra.append(f'W{n}_{key.upper()}: db ' + ', '.join(map(str, body)))
             pl = w['places'][key]               # one group: every listed place is taken (n = take)
             extra.append(f'W{n}_T{key.upper()}: dd W{n}_P{key.upper()}')
@@ -1548,6 +1578,12 @@ w_save_tail:                            ; SaveCareerFile after save_trailer (tra
     inc dword [WI]
     cmp dword [WI], 128
     jb .rec
+    mov esi, WCC + 92                   ; league-phase cups (120 B): their last 28 bytes
+    mov ecx, 28
+    call w_copy
+    mov esi, WCWC + 92
+    mov ecx, 28
+    call w_copy
     popad
     jmp WRITEFILE
 
@@ -1575,7 +1611,7 @@ w_load_tail:                            ; LoadCareerFile after load_trailer (tra
 .rec:                                   ; every record from its TEAM file + the saved bytes
     movzx eax, word [CFB]
     cmp [WI], eax
-    jae .x
+    jae .tails
     mov esi, [WPTR]
     movzx eax, word [esi]
     mov [WPAIR], eax
@@ -1615,6 +1651,14 @@ w_load_tail:                            ; LoadCareerFile after load_trailer (tra
     add dword [WPTR], 2 + VARN
     inc dword [WI]
     jmp .rec
+.tails:                                 ; league-phase cups (120 B): their last 28 bytes after the 128 records
+    mov esi, TMDBUF + 2 + 92 + 92 + 160 + 128 * (2 + VARN)
+    mov edi, WCC + 92
+    mov ecx, 28
+    call w_copy
+    mov edi, WCWC + 92
+    mov ecx, 28
+    call w_copy
 .x:
     mov word [TEAMSLOADED], 0           ; teamFileBuffer holds another file now: force a reload
     popad
@@ -1799,28 +1843,62 @@ def late(p, at, nasmcave):
                 i += 1
             assert i < at + 0x200
         return out
-    cc, cw = calls(c92d55, 6), calls(c9307a, 6)
+    c9339d = tgt(orig, site + 10)
+    cc, cw, cu = calls(c92d55, 6), calls(c9307a, 6), calls(c9339d, 6)
     assert [t for _, t in cc[:2]] == [t for _, t in cw[:2]] and cc[4][1] == cw[4][1], (cc, cw)
+    assert [t for _, t in cu] == [t for _, t in cw[:2]] + [cw[2][1], cu[3][1], cw[4][1], cw[5][1]], (cu, cw)
     play_site, sim_site = cc[2][0], cc[5][0]
     assert tgt(d1, play_site) == cc[2][1] and tgt(d1, sim_site) == cc[5][1], 'cseg_92D55 calls already hooked'
+    import sacups
+    a4r = sacups.regs(orig)['A4']
+    # A world's cup is a knockout (type 1, 1984-85) or a league phase + knockout (type 2, 2025-26: lp36): the cup's
+    # struct (A4 = its copy) says which play-out / simulation the season end runs, for the three cups alike.
     src = '''
-w_cc_play:                              ; cseg_92D55: the player's Champions Cup -> knockout play-out in a world
+w_cc_play:                              ; cseg_92D55 / 9307A / 9339D: the player's cup -> play-out by its type in a world
     push ebx
     call w_rec
     pop ebx
     jz .n
+    mov eax, [A4R]
+    cmp byte [eax + 1], 2
+    je .n
     jmp KO_PLAY
 .n:
     jmp GROUP_PLAY
 
-w_cc_sim:                               ; cseg_92D55: a simulated Champions Cup -> knockout simulation in a world
+w_ko_play:                              ; (CWC / UEFA Cup: the 1996-97 world and type-1 cups keep the knockout)
+    push ebx
+    call w_rec
+    pop ebx
+    jz .k
+    mov eax, [A4R]
+    cmp byte [eax + 1], 2
+    je w_cc_play.n
+.k:
+    jmp KO_PLAY
+
+w_cc_sim:                               ; the same for a simulated cup
     push ebx
     call w_rec
     pop ebx
     jz .n
+    mov eax, [A4R]
+    cmp byte [eax + 1], 2
+    je .n
     jmp KO_SIM
 .n:
     jmp GROUP_SIM
+
+w_ko_sim:
+    push ebx
+    call w_rec
+    pop ebx
+    jz .k
+    mov eax, [A4R]
+    cmp byte [eax + 1], 2
+    je w_cc_sim.n
+.k:
+    jmp KO_SIM
 
 w_season_end:                           ; replaces `call arg_agg` (-> sa_qualify -> cseg_92D55) at the season end
     push ebx
@@ -1832,7 +1910,7 @@ w_season_end:                           ; replaces `call arg_agg` (-> sa_qualify
     jmp CUR
 '''
     sym = {'w_rec': (1, LABELS['w_rec']), 'C92D55': (1, c92d55), 'CUR': (1, cur), 'KO_PLAY': (1, cw[2][1]),
-           'GROUP_PLAY': (1, cc[2][1]), 'KO_SIM': (1, cw[5][1]), 'GROUP_SIM': (1, cc[5][1])}
+           'GROUP_PLAY': (1, cc[2][1]), 'KO_SIM': (1, cw[5][1]), 'GROUP_SIM': (1, cc[5][1]), 'A4R': (2, a4r)}
     code, fix = nasmcave.assemble(src, at, sym)
     lab = nasmcave.labels(src, at, sym)
     p.put(1, at, code)
@@ -1841,6 +1919,10 @@ w_season_end:                           ; replaces `call arg_agg` (-> sa_qualify
     p.put(1, site + 1, struct.pack('<i', lab['w_season_end'] - (site + 5)))
     p.put(1, play_site + 1, struct.pack('<i', lab['w_cc_play'] - (play_site + 5)))
     p.put(1, sim_site + 1, struct.pack('<i', lab['w_cc_sim'] - (sim_site + 5)))
+    for k in (cw, cu):
+        assert tgt(d1, k[2][0]) == k[2][1] and tgt(d1, k[5][0]) == k[5][1], 'cseg_9307A / 9339D calls already hooked'
+        p.put(1, k[2][0] + 1, struct.pack('<i', lab['w_ko_play'] - (k[2][0] + 5)))
+        p.put(1, k[5][0] + 1, struct.pack('<i', lab['w_ko_sim'] - (k[5][0] + 5)))
     print(f'exe: career worlds skip the 1996-97 qualifier simulations: call obj1+{site:#x} -> obj1+{at:#x}')
     return (at + len(code) + 3) & ~3
 

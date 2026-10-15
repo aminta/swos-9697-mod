@@ -1195,7 +1195,7 @@ def euro_draws():
 def checkw1(path):
     """internal/career-test/checkw1.py on a world save (DATA next to it); returns (ok, its output)."""
     r = subprocess.run([sys.executable, os.path.join(MAIN, 'internal', 'career-test', 'checkw1.py'), path],
-                       capture_output=True, text=True)
+                       capture_output=True, text=True, env=dict(os.environ, CHECKW1_TOOLS=os.path.join(ROOT, 'tools')))
     out = (r.stdout + r.stderr).strip()
     if os.environ.get('W8485_SMALL'):              # a world with small cups (<= 80 European clubs): no W1 block
         return 'trailer end ok: True' in out and 'table sum mod 256 0' in out, out
@@ -1204,7 +1204,7 @@ def checkw1(path):
         if line.startswith(('CC ', 'CWC ', 'UEFA ')):
             ok = ok and line.endswith('dups 0')
     m = re.search(r'table sum mod 256 (\d+)', out)
-    ok = ok and 'euro records k=128' in out and re.search(rf"world byte {os.environ.get('W8485_WNUM', '4')}\b", out) is not None
+    ok = ok and f"euro records k={os.environ.get('W8485_K', '128')}" in out and re.search(rf"world byte {os.environ.get('W8485_WNUM', '4')}\b", out) is not None
     return ok and m is not None and m.group(1) == '0', out
 
 
@@ -1240,6 +1240,8 @@ def world8485():
 
             def stop(scr):                             # the player's European cup: no same-country tie in rounds 1-2
                 rnd, cid, ties = slot_ties(s.result, 32)
+                if struct.unpack_from('<H', s.result.obj2(SLOT, 2))[0] == 2:   # a league phase (type 2): no ties
+                    return season_over(scr)
                 title = scr.entries[0][1] if scr.entries else ''
                 k = {0: 'PRIMO TURNO', 1: 'SECONDO TURNO'}.get(rnd)
                 if cid <= 2 and k and k in title and (season, rnd) not in seen and any(a or b for a, b in ties):

@@ -241,7 +241,7 @@ hist_draw:                              ; replaces `call cseg_27F08` in cseg_26D
     mov edi, [A3]
     movzx ecx, word [edi + 161h]
 %if LP_ON
-    cmp al, LP_ID                       ; UEFA league phase (lp36 prototype): its own orders, never the game's draw
+    call LP_CHK                         ; UEFA league phase (lp36): its own orders, never the game's draw
     jne .nlp
     call LP_DRAW
     popad
@@ -832,8 +832,8 @@ def patch(p, lang, area, cave, draw_pre=None, leagues=(), cave2=None, lp=None):
                'DIYCOPY': (2, coin['diycopy']), 'RAND2': (1, coin['rand2']), 'D5': (2, a0 - 12), 'D6': (2, a0 - 8),
                'D7': (2, a0 - 4), 'D1': (2, a0 - 28), 'SKIP': (2, coin['skip']), 'DIYCOMP': (2, coin['diycomp']),
                'ESCI_FIX': (1, elab['esci_fix']), 'EF_VARS': (1, elab['EF_VARS']),
-               'LP_ON': (0, int(lp is not None)), 'LP_ID': (0, lp[1] if lp else 0),
-               'LP_DRAW': (1, lp[0]) if lp else (0, 'draw_pre_none')}
+               'LP_ON': (0, int(lp is not None)), 'LP_CHK': (1, lp[0]) if lp else (0, 'draw_pre_none'),
+               'LP_DRAW': (1, lp[1]) if lp else (0, 'draw_pre_none')}
     src = ASM
     extra = ''.join(f'    je .r\n    cmp byte [DIYCOPY + 2Dh], {cid:#x}\n' for cid in coin_ids)   # tourney packs
     src = src.replace('    cmp byte [DIYCOPY + 2Dh], FA_ID_\n.r:', '    cmp byte [DIYCOPY + 2Dh], FA_ID_\n' + extra + '.r:')
@@ -847,7 +847,7 @@ def patch(p, lang, area, cave, draw_pre=None, leagues=(), cave2=None, lp=None):
             break
         at2 += 4
     labels = nasmcave.labels(src, at2, symbols)
-    assert at2 + len(code) <= cave2 + (0x700 if lp else 0x1000), hex(at2 + len(code))   # lp36 code after 0x700 (patch.LP_OFF)
+    assert at2 + len(code) <= cave2 + 0x1000, hex(at2 + len(code))
     p.put(1, at2, code)
     for off, tobj, toff in fix:
         p.add_ptr(1, at2 + off, tobj, toff)

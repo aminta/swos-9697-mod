@@ -174,7 +174,8 @@ def patch_exe(src, dst, remap, lang='it'):
     if worlds:
         data = add_object_page(data, 2)
     if mkseason.league_phase_cups() or mkseason.league_phase_worlds():   # UEFA league phase: the draw's buffers
-        o2pages += 1
+        o2pages += 2
+        data = add_object_page(data, 2)
         data = add_object_page(data, 2)
     open(grown, 'wb').write(data)
     p = LEPatch(grown)

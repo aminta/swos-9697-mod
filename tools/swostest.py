@@ -1827,6 +1827,31 @@ def lp36_tourney():
                       f'final {rounds.get("FINALE")}; ' + '; '.join(errs))
 
 
+@scenario
+def world2526():
+    """World 2025-26 with the UEFA league phases (private converter internal/world2526, LP=1: CL / EL / UECL of 36, the
+    real 2025-26 clubs in season 1, the 2025-26 qualifier cascade): career at Arsenal, two seasons as world8485"""
+    run = os.path.join(MAIN, 'internal', 'world2526', 'run.sh')
+    if not os.path.exists(run):
+        return True, 'SKIP: private converter internal/world2526 missing'
+    out = os.path.join(WORK, 'builds', 'world2526')
+    r = subprocess.run(['sh', run], env=dict(os.environ, LP='1', OUT=out, TOOLS=os.path.join(ROOT, 'tools')),
+                       capture_output=True, text=True)
+    if r.returncode or not os.path.exists(os.path.join(out, 'ITALIAN.EXE')):
+        return False, f'build: {(r.stdout + r.stderr)[-300:]}'
+    keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K')}
+    os.environ.update(W8485_BUILD=out, W8485_WORLD='WORLD 2025-26', W8485_TEAM='EUROPA,ENGLAND,ENGLAND DIV 1,ARSENAL',
+                      W8485_WNUM='5', W8485_K='108')
+    try:
+        return world8485()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+
+
 def run_parallel(names, jobs):
     """run -jN: each scenario in its own process (own run dirs and DOSBox-X, one host core each in turbo); the
     builds are made once here first. Output in the order of the names; exit code 1 on a failure."""

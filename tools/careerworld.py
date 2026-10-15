@@ -56,7 +56,7 @@ LABELS = {}
 
 
 def big(w):
-    if any(w['cups'][k][0] == LP_ROUNDS for k in ('cc', 'cwc')):
+    if any(w['cups'][k][0] == LP_ROUNDS for k in ('cc', 'cwc', 'uefa')):
         return True                                 # league-phase cups: 120-B structs in the obj2 tail
     tot = sum(len(w['cups'][k][1]) for k in ('cc', 'cwc', 'uefa'))
     return tot > 80 or any(len(w['cups'][k][1]) > SMALL[k] for k in SMALL)
@@ -165,11 +165,11 @@ w_cups:                                 ; replaces `mov word [teamsLoaded], 0` a
 .big:                                   ; big world: the cups live in the obj2 tail (the copies stay unused)
     mov esi, [ebx]
     mov edi, WCC
-    mov ecx, 92
+    mov ecx, 120                        ; (BIGROOM: a league-phase cup is 120 B)
     call w_copy
     mov esi, [ebx + 4]
     mov edi, WCWC
-    mov ecx, 92
+    mov ecx, 120
     call w_copy
     mov esi, [ebx + 8]
     mov edi, WUEFA
@@ -1909,13 +1909,24 @@ w_season_end:                           ; replaces `call arg_agg` (-> sa_qualify
 .n:
     jmp CUR
 '''
+    import mkseason
+    lpw = bool(mkseason.league_phase_worlds())   # (QUAL_ASM: ~40 fixups; only builds with a league-phase world, so
+    if lpw:                                       # the harness still has room for its page in the others)
+        src += QUAL_ASM
     sym = {'w_rec': (1, LABELS['w_rec']), 'C92D55': (1, c92d55), 'CUR': (1, cur), 'KO_PLAY': (1, cw[2][1]),
            'GROUP_PLAY': (1, cc[2][1]), 'KO_SIM': (1, cw[5][1]), 'GROUP_SIM': (1, cc[5][1]), 'A4R': (2, a4r)}
+    if lpw:
+        sym.update({k: v for k, v in _qual_sites(orig, p).items() if not k.startswith('call_')})
     code, fix = nasmcave.assemble(src, at, sym)
     lab = nasmcave.labels(src, at, sym)
     p.put(1, at, code)
     for off, tobj, toff in fix:
         p.add_ptr(1, at + off, tobj, toff)
+    if lpw:
+        q = _qual_sites(orig, p)
+        for site_, lbl in ((q['call_cl'], 'w_q_cl'), (q['call_el'], 'w_q_el'), (q['call_cwchk'], 'w_q_inlists')):
+            assert tgt(d1, site_) == tgt(orig, site_), 'qualifier call already hooked'
+            p.put(1, site_ + 1, struct.pack('<i', lab[lbl] - (site_ + 5)))
     p.put(1, site + 1, struct.pack('<i', lab['w_season_end'] - (site + 5)))
     p.put(1, play_site + 1, struct.pack('<i', lab['w_cc_play'] - (play_site + 5)))
     p.put(1, sim_site + 1, struct.pack('<i', lab['w_cc_sim'] - (sim_site + 5)))
@@ -1923,8 +1934,165 @@ w_season_end:                           ; replaces `call arg_agg` (-> sa_qualify
         assert tgt(d1, k[2][0]) == k[2][1] and tgt(d1, k[5][0]) == k[5][1], 'cseg_9307A / 9339D calls already hooked'
         p.put(1, k[2][0] + 1, struct.pack('<i', lab['w_ko_play'] - (k[2][0] + 5)))
         p.put(1, k[5][0] + 1, struct.pack('<i', lab['w_ko_sim'] - (k[5][0] + 5)))
-    print(f'exe: career worlds skip the 1996-97 qualifier simulations: call obj1+{site:#x} -> obj1+{at:#x}')
+    print(f'exe: career worlds skip the 1996-97 qualifier simulations: call obj1+{site:#x} -> obj1+{at:#x}; '
+          + ' '.join(f'{k} {v:#x}' for k, v in lab.items() if k.startswith('w_q') or k == 'w_lpw'))
     return (at + len(code) + 3) & ~3
+
+
+# The season-end qualifiers of a world with league-phase cups (2025-26 access, no qualifying rounds): per country
+# (cseg_93974) the game gives the Champions Cup only its champion (cseg_939C9), the Cup Winners' Cup only its cup
+# winner (cseg_939FE), the UEFA Cup the next league clubs (cseg_93A60). A league-phase world: Champions League =
+# the top N of the league (N = the country's places), Europa League = the cup winner unless already in, then the
+# next league clubs, UEFA Cup slot = the next ones (also skipping Champions League clubs). Holders are skipped (they
+# play their own cup as holders, as before). Standings: the top 9 records from dseg_1807C2, the cup's from 181D22+2ACh.
+QUAL_ASM = """
+w_lpw:                                  ; ZF = 1 in a world whose Champions Cup is a league phase (type 2)
+    push ebx
+    call w_rec
+    jz .no
+    mov ebx, [ebx]                      ; the world's CC struct (template)
+    cmp byte [ebx + 1], 2
+    pop ebx
+    ret
+.no:
+    pop ebx
+    cmp esp, 0
+    ret
+
+w_q_skip:                               ; ZF = 1 if the club [D0] is a holder or already in one of the 3 lists
+    mov ax, [D0]
+    cmp ax, [HOLD_CC]
+    je .y
+    cmp ax, [HOLD_CWC]
+    je .y
+    cmp ax, [HOLD_UEFA]
+    je .y
+    mov dword [A1R], LIST_CC
+    mov dword [A3R], CNT_CC
+    call C93D0B
+    jz .y
+    call C93B9C                         ; (in the CWC list)
+    jz .y
+    call C93BB5                         ; (in the UEFA Cup list)
+.y:
+    ret
+
+w_q_next:                               ; [A5] = the next standings record (top 9) not to skip; CF = 1: none left
+    inc dword [W_QI]
+    cmp dword [W_QI], 9
+    ja .none
+    mov eax, [W_QI]
+    dec eax
+    imul eax, eax, 2ACh
+    add eax, STAND
+    mov [A5R], eax
+    mov esi, eax
+    mov ax, [esi]
+    mov [D0], ax
+    call w_q_skip
+    jz w_q_next
+    clc
+    ret
+.none:
+    stc
+    ret
+
+w_q_cl:                                 ; replaces `call cseg_939C9` in cseg_93974
+    call w_lpw
+    je .lp
+    jmp C939C9
+.lp:
+    mov dword [A0R], WORK_CC            ; one more place of this country in the CC list?
+    call C93B30
+    jnz .r
+    mov dword [W_QI], 0
+    call w_q_next
+    jc .lp                              ; (no club left: the place stays empty)
+    call C93BCE
+    call C93C19
+    jmp .lp
+.r:
+    ret
+
+w_q_el:                                 ; replaces `call cseg_939FE` (Cup Winners' Cup slot = Europa League)
+    call w_lpw
+    je .lp
+    jmp C939FE
+.lp:
+    mov byte [W_QF], 1
+.p:
+    mov dword [A0R], WORK_CWC
+    call C93B30
+    jnz .r
+    cmp byte [W_QF], 0
+    je .league
+    mov byte [W_QF], 0
+    mov eax, CUPREC + 2ACh              ; the cup winner
+    mov [A5R], eax
+    mov ax, [eax]
+    mov [D0], ax
+    call w_q_skip
+    je .league
+    jmp .add
+.league:
+    mov dword [W_QI], 0
+    call w_q_next
+    jc .p
+.add:
+    call C93BCE
+    call C93C3C
+    jmp .p
+.r:
+    ret
+
+w_q_inlists:                            ; replaces `call cseg_93B9C` in cseg_93A60 (UEFA Cup: skip CWC clubs and,
+    call C93B9C                         ; in a league-phase world, Champions League clubs too)
+    jz .r
+    call w_lpw
+    jne .r
+    mov dword [A1R], LIST_CC
+    mov dword [A3R], CNT_CC
+    jmp C93D0B
+.r:
+    ret
+
+W_QI: dd 0
+W_QF: db 0
+"""
+
+
+def _qual_sites(orig, p):
+    """Addresses for QUAL_ASM: the three calls in cseg_93974, the routines they use, the season-end variables (the
+    dseg block's addresses = the English names + one delta)."""
+    import re as _re
+    import sacups
+    tgt = lambda i: i + 5 + struct.unpack_from('<i', orig, i + 1)[0]
+    m = [x.start() for x in _re.finditer(rb'\x80\x3e\x00\x75\x0f\xe8.{4}\xe8.{4}\xe8.{4}\xc3', orig, _re.S)]
+    assert len(m) == 1, m
+    a = m[0] + 5
+    c_cl, c_el, c_ue = tgt(a), tgt(a + 5), tgt(a + 10)
+    calls = lambda at, n: [i for i in range(at, at + 0x120) if orig[i] == 0xe8][:n]
+    cl, ue = calls(c_cl, 3), calls(c_ue, 5)       # cl: 93B30, 93BCE, 93C19; ue: 93B30, 93B9C, 93BB5, 93BCE, 93C5F
+    el = calls(c_el, 3)                           # 93B30, 93BCE, 93C3C
+    c93b9c = tgt(ue[1])
+    assert orig[c93b9c + 20] == 0xe9, hex(orig[c93b9c + 20])
+    c93d0b = c93b9c + 25 + struct.unpack_from('<i', orig, c93b9c + 21)[0]
+    imm = lambda i: struct.unpack_from('<I', orig, i)[0]     # (obj2 offsets: the original exe's immediates)
+    delta = imm(c_cl + 6) - 0x18072F               # dseg_18072F (CC working list) in this exe
+    assert imm(c_el + 6) - 0x180740 == delta and imm(c_cl + 0x17) - 0x1807C2 == delta, hex(delta)
+    d = lambda eng: (2, eng + delta)
+    regs = sacups.regs(orig)
+    a0 = regs['A0']
+    return {'call_cl': a, 'call_el': a + 5, 'call_cwchk': ue[1],
+            'C939C9': (1, c_cl), 'C939FE': (1, c_el), 'C93B30': (1, tgt(cl[0])), 'C93BCE': (1, tgt(cl[1])),
+            'C93C19': (1, tgt(cl[2])), 'C93C3C': (1, tgt(el[2])), 'C93B9C': (1, c93b9c), 'C93BB5': (1, tgt(ue[2])),
+            'C93D0B': (1, c93d0b), 'STAND': d(0x1807C2),
+            # the working place lists (CC 17 B in the game): moved to the obj2 tail in a build with a big world
+            'WORK_CC': (2, BSS[0] + B_LISTS) if BSS[0] is not None else d(0x18072F),
+            'WORK_CWC': (2, BSS[0] + B_LISTS + 64) if BSS[0] is not None else d(0x180740),
+            'CUPREC': d(0x181D22), 'HOLD_CC': d(0x18070F), 'HOLD_CWC': d(0x180711), 'HOLD_UEFA': d(0x180713),
+            'LIST_CC': d(0x18078A), 'CNT_CC': d(0x180784), 'D0': (2, a0 - 32), 'A0R': (2, a0), 'A1R': (2, a0 + 4),
+            'A3R': (2, a0 + 12), 'A5R': (2, a0 + 20)}
 
 
 DRAW_ASM = '''

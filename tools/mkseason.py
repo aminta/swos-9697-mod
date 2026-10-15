@@ -762,9 +762,11 @@ def league_phase_cups():
 
 
 def league_phase_worlds():
-    """Contest ids (the game's cups: 0 Champions Cup, 1 Cup Winners' Cup) that some world plays as a league phase."""
+    """Contest ids (the game's cups: 0 Champions Cup, 1 Cup Winners' Cup, 2 UEFA Cup) some world plays as a league
+    phase (2: the Conference League format, 6 matches)."""
     import careerworld
-    return sorted({k for w in world_defs() for k, key in ((0, 'cc'), (1, 'cwc')) if w['cups'][key][0] == careerworld.LP_ROUNDS})
+    return sorted({k for w in world_defs() for k, key in ((0, 'cc'), (1, 'cwc'), (2, 'uefa'))
+                   if w['cups'][key][0] == careerworld.LP_ROUNDS})
 
 
 def tourneys():
@@ -847,8 +849,13 @@ def world_defs():
         w['nations'] = nat[0].nations if nat else {}
         w['natcomp'] = nat[0].competitions() if nat else None
         w['codes'] = {pk.clubs[pk.league_clubs[0]]['country']: pk.files[pk.league['clubs']][0] for pk in pks}
+        lpw = any(wc.get(k, {}).get('format') == 'league_phase' for k in ('cc', 'cwc', 'uefa'))
         for pk in pks:                          # cseg_93974: the champion, the cup winner, then the top 9's next clubs
             pl = pk.meta.get('europe_places', {})
+            if lpw:                             # league-phase world (careerworld.QUAL_ASM): top N, cup winner + next
+                _need(pl.get('cc', 0) <= 5 and pl.get('cwc', 0) <= 3 and pl.get('uefa', 0) <= 6 and sum(pl.values()) <= 9,
+                      f"{pk.meta['id']}: europe_places at most cc 5, cwc 3, uefa 6, 9 in all (the top 9 of the league)")
+                continue
             _need(pl.get('cc', 0) <= 1 and pl.get('cwc', 0) <= 1 and pl.get('uefa', 0) <= 6,
                   f"{pk.meta['id']}: europe_places at most cc 1, cwc 1, uefa 6")
         first = {id(pk): _first_europe(pk, pk is roots[0]) for pk in pks}
@@ -860,7 +867,7 @@ def world_defs():
             _need(size == len(w['places'][key]) + 1,
                   f'world {n}: {key}: {size} clubs in the first season, {len(w["places"][key])} places + the holder')
             if wc.get(key, {}).get('format') == 'league_phase':     # UEFA league phase (lp36): 36 clubs, type 2
-                _need(key in ('cc', 'cwc') and size == 36, f'world {n}: {key}: a league phase has 36 clubs ({size})')
+                _need(size == 36, f'world {n}: {key}: a league phase has 36 clubs ({size})')
                 w['cups'][key] = (careerworld.LP_ROUNDS, [pk.where[c] for pk, c in clubs])
                 w['clubs'][key] = clubs
                 continue

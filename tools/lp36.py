@@ -168,6 +168,120 @@ def check(cal, countries):
         assert max(sum(countries[o] == k for o in opps) for k in set(countries)) <= 2
 
 
+def draw6(countries, seed=2025):
+    """Conference League: 36 clubs in 6 pots of 6, one opponent from every pot (own pot included), 3 home / 3 away,
+    the country rules; 6 matchdays of 18. Model of the asm (lp_mkdraw, 6-pot branch)."""
+    rng = random.Random(seed)
+    for attempt in range(1000):
+        adj = [[0] * N for _ in range(N)]
+        opp = {c: [] for c in range(N)}
+
+        def fits(p, q):
+            return (p != q and not adj[p][q] and countries[p] != countries[q]
+                    and sum(countries[x] == countries[q] for x in opp[p]) < 2
+                    and sum(countries[x] == countries[p] for x in opp[q]) < 2)
+
+        def link(p, q, on):
+            adj[p][q] = adj[q][p] = on
+            if on:
+                opp[p].append(q); opp[q].append(p)
+            else:
+                opp[p].remove(q); opp[q].remove(p)
+
+        def match(P, Q):                    # a perfect matching P x Q (P == Q: inside the pot)
+            free = [x for x in range(6 * P, 6 * P + 6)]
+            used = set()
+
+            def go():
+                left = [x for x in free if x not in used]
+                if not left:
+                    return True
+                p = left[0]
+                cand = [q for q in range(6 * Q, 6 * Q + 6) if q not in used and q != p and fits(p, q)]
+                if P == Q:
+                    cand = [q for q in cand if q in left]
+                rng.shuffle(cand)
+                for q in cand:
+                    used.update((p, q)) if P == Q else used.add(p)
+                    if P != Q:
+                        usedq.add(q)
+                    link(p, q, 1)
+                    if go():
+                        return True
+                    link(p, q, 0)
+                    used.discard(p)
+                    if P == Q:
+                        used.discard(q)
+                    else:
+                        usedq.discard(q)
+                return False
+            usedq = set()
+            if P != Q:                          # q must also be unused on the Q side
+                old_fits = fits
+
+                def go2():
+                    left = [x for x in free if x not in used]
+                    if not left:
+                        return True
+                    p = left[0]
+                    cand = [q for q in range(6 * Q, 6 * Q + 6) if q not in usedq and old_fits(p, q)]
+                    rng.shuffle(cand)
+                    for q in cand:
+                        used.add(p); usedq.add(q); link(p, q, 1)
+                        if go2():
+                            return True
+                        link(p, q, 0); used.discard(p); usedq.discard(q)
+                    return False
+                return go2()
+            return go()
+
+        pairs = [(P, Q) for P in range(6) for Q in range(P, 6)]
+        rng.shuffle(pairs)
+        if not all(match(P, Q) for P, Q in pairs):
+            continue
+        rem = [row[:] for row in adj]           # Euler walks: every club 3 home, 3 away
+        home = []
+        for v in range(N):
+            while any(rem[v]):
+                cur = v
+                while True:
+                    ws = [w for w in range(N) if rem[cur][w]]
+                    if not ws:
+                        break
+                    w = ws[0]
+                    rem[cur][w] = rem[w][cur] = 0
+                    home.append((cur, w))
+                    cur = w
+        days = None
+        for _ in range(50):
+            left, days = home[:], []
+            for d in range(6):
+                day = _matching(rng, left)
+                if day is None:
+                    break
+                days.append(day)
+                left = [m for m in left if m not in day]
+            if len(days) == 6:
+                return [m for d in days for m in d]
+    raise RuntimeError('no draw')
+
+
+def check6(cal, countries):
+    assert len(cal) == 108
+    for d in range(6):
+        day = cal[18 * d:18 * d + 18]
+        assert sorted(x for m in day for x in m) == list(range(N)), d
+    for c in range(N):
+        h = [a for x, a in cal if x == c]
+        a = [x for x, y in cal if y == c]
+        assert len(h) == 3 and len(a) == 3, c
+        opps = h + a
+        assert sorted(o // 6 for o in opps) == list(range(6)), c
+        assert len(set(opps)) == 6
+        assert all(countries[o] != countries[c] for o in opps)
+        assert max(sum(countries[o] == k for o in opps) for k in set(countries)) <= 2
+
+
 ASM = '''
 %macro LP_IDS 1                        ; ZF = 1 if the contest id byte %1 is one of the league-phase ids
 %if LP_TID
@@ -182,9 +296,29 @@ ASM = '''
     cmp byte %1, 1                      ; (a world's Cup Winners' Cup slot: Europa League)
     je %%r
 %endif
+%if LP_W2
+    cmp byte %1, 2                      ; (a world's UEFA Cup slot: Conference League)
+    je %%r
+%endif
     cmp esp, 0                          ; ZF = 0
 %%r:
 %endmacro
+
+lp_fmt:                                 ; al = contest id -> the format: Champions / Europa League 144 matches, 8 days,
+    mov dword [W_NM], 144               ; 4 pots of 9 (at most 3 clubs of a country per pot); Conference League (id 2 of
+    mov dword [W_ND], 8                 ; a world) 108 matches, 6 days, 6 pots of 6 (at most 2 per pot)
+    mov dword [W_PS], 9
+    mov dword [W_CAP], 3
+%if LP_W2
+    cmp al, 2
+    jne .r
+    mov dword [W_NM], 108
+    mov dword [W_ND], 6
+    mov dword [W_PS], 6
+    mov dword [W_CAP], 2
+.r:
+%endif
+    ret
 
 lp_copy_ours:                           ; ZF = 1: diyFileBufferCopy is a league-phase contest (any stage)
     LP_IDS [DIYCOPY + 2Dh]
@@ -198,7 +332,12 @@ lp_copy_ours:                           ; ZF = 1: diyFileBufferCopy is a league-
 lp_days:                                ; replaces `call cseg_260A9` in cseg_2573C (stage days -> months)
     call lp_copy_ours
     jne .go
-    mov word [DIYCOPY + 173h], 8        ; 8 matchdays (not 17)
+    push eax
+    mov al, [DIYCOPY + 2Dh]
+    call lp_fmt
+    mov eax, [W_ND]
+    mov [DIYCOPY + 173h], ax            ; 8 (6) matchdays, not 17
+    pop eax
 .go:
     jmp C260A9
 
@@ -219,9 +358,16 @@ lp_start:                               ; replaces `call cseg_2653B` in cseg_258
     jne .r
     cmp word [DIY + 51h], 18
     jne .r
-    mov word [DIY + 69h], 72            ; pair indices per cycle (2 groups: 144 matches)
-    mov word [DIY + 6Bh], 72
-    mov word [DIY + 1C3h], 8            ; matchdays
+    push eax
+    mov al, [DIYCOPY + 2Dh]
+    call lp_fmt
+    mov eax, [W_NM]
+    shr eax, 1
+    mov [DIY + 69h], ax                 ; pair indices per cycle (2 groups: 144 or 108 matches)
+    mov [DIY + 6Bh], ax
+    mov eax, [W_ND]
+    mov [DIY + 1C3h], ax                ; matchdays
+    pop eax
     pushad
     call C2730A                         ; the month of each matchday again (cseg_2653B spread 17 of them)
     popad
@@ -249,8 +395,16 @@ lp_pair:                                ; replaces the first instruction of cseg
     add eax, eax
     movzx edx, word [DIY + 5Bh]
     add eax, edx
-    cmp eax, 144
+    push eax
+    mov al, [DIY + 2Dh]
+    call lp_fmt
+    pop eax
+    cmp eax, [W_NM]
     jae .bad
+    movzx edx, byte [DIY + CAL_OFF + eax*2]
+    call lp_fresh
+    movzx edx, byte [DIY + CAL_OFF + eax*2 + 1]
+    call lp_fresh
     movzx edx, byte [DIY + CAL_OFF + eax*2]  ; home row
     imul edx, edx, 18
     add edx, DIY
@@ -267,6 +421,39 @@ lp_pair:                                ; replaces the first instruction of cseg
     pop eax
 .orig:
     jmp C89758_NEXT
+
+lp_fresh:                               ; the team pointer of row edx again (VerifyTeamLoaded, as cseg_27227 does at the
+    pushad                              ; stage start): 72 European clubs + a world's league and cup overflow the team
+    mov esi, D0                         ; cache, so the pointers of the stage start go stale (the career calendar showed
+    mov edi, LP_SAVE                    ; wrong opponents). The game's pseudo registers D0..A6 are kept.
+    mov ecx, 15
+.s:
+    mov eax, [esi]
+    mov [edi], eax
+    add esi, 4
+    add edi, 4
+    dec ecx
+    jnz .s
+    mov [LP_ROW], edx
+    movzx eax, word [DIY + 12Dh + edx*2]    ; team number of index edx
+    mov [D0], eax
+    call VERIFY
+    mov eax, [A0]
+    sub eax, [SELTEAMS]
+    imul edx, [LP_ROW], 18
+    mov [DIY + edx + 2B3h], eax
+    mov esi, LP_SAVE
+    mov edi, D0
+    mov ecx, 15
+.r:
+    mov eax, [esi]
+    mov [edi], eax
+    add esi, 4
+    add edi, 4
+    dec ecx
+    jnz .r
+    popad
+    ret
 
 lp_res:                                 ; replaces `mov ax, [D1]; mov esi, [A3]` before the goals are added in cseg_88A12
     call lp_ours
@@ -302,6 +489,8 @@ lp_sort:                                ; replaces the first instruction of cseg
 
 lp_rank:                                ; LP_ORD = rows best first, written into DIY+6Dh
     pushad
+    mov al, [DIY + 2Dh]
+    call lp_fmt
     xor ecx, ecx
 .z:
     mov dword [LP_OPP + ecx*4], 0       ; opponents' points / GD / GF (3 x 36 dwords)
@@ -316,7 +505,7 @@ lp_rank:                                ; LP_ORD = rows best first, written into
     xchg esi, edi
     call .acc
     inc ecx
-    cmp ecx, 144
+    cmp ecx, [W_NM]
     jb .m
     xor ecx, ecx                        ; keys
 .k:
@@ -564,16 +753,136 @@ lp_rand:                                ; eax = random 0..ecx-1 (ecx <= 256); th
 
 lp_mkdraw:
     pushad
-    xor ecx, ecx
-.ct:
+    mov al, [DIYCOPY + 2Dh]
+    call lp_fmt
+    xor ecx, ecx                        ; W_CP[p] = country of list position p
+.cp:
     movzx ebx, byte [DIYCOPY + 59h + ecx]
-    mov al, [DIYCOPY + 99h + ebx*2]     ; a career: the club's team file = its country
+    mov al, [DIY + 12Dh + ebx*2]        ; a career: the club's team file = its country (DIY's team numbers, as
+                                        ; cseg_27227 reads them: diyFileBufferCopy+99h is not kept in a career)
 %if LP_TID
     cmp byte [DIYCOPY + 2Dh], LP_ID     ; a tourney pack (one team file): its clubs' countries
-    jne .c1
+    jne .cp1
     mov al, [LP_CTRYS + ecx]
-.c1:
+.cp1:
 %endif
+    mov [W_CP + ecx], al
+    inc ecx
+    cmp ecx, 36
+    jb .cp
+    xor ecx, ecx                        ; W_POS[q] = the list position drawn as q (pots = q / 9)
+.i:
+    mov [W_POS + ecx], cl
+    inc ecx
+    cmp ecx, 36
+    jb .i
+%if LP_TID
+    cmp byte [DIYCOPY + 2Dh], LP_ID     ; a tourney pack: the list is in pot order
+    je .sorted
+%endif
+    xor ecx, ecx                        ; a career: pots by strength (the 16 players' value; the club coefficients
+.v:                                     ; later), the list comes country by country from the season end
+    movzx edx, byte [DIYCOPY + 59h + ecx]
+    call lp_fresh
+    imul eax, edx, 18
+    mov esi, [DIY + eax + 2B3h]
+    add esi, [SELTEAMS]
+    xor eax, eax
+    xor ebx, ebx
+.pv:
+    movzx edi, byte [esi + 76 + 32]     ; player price byte
+    add eax, edi
+    add esi, 38
+    inc ebx
+    cmp ebx, 16
+    jb .pv
+    mov [W_STR + ecx*4], eax
+    inc ecx
+    cmp ecx, 36
+    jb .v
+    mov ecx, 1                          ; insertion sort, strongest first (stable)
+.s1:
+    cmp ecx, 36
+    jae .cap
+    mov bl, [W_POS + ecx]
+    mov edx, ecx
+.s2:
+    test edx, edx
+    jz .s3
+    movzx esi, byte [W_POS + edx - 1]
+    movzx edi, bl
+    mov eax, [W_STR + esi*4]
+    cmp eax, [W_STR + edi*4]
+    jae .s3
+    mov al, [W_POS + edx - 1]
+    mov [W_POS + edx], al
+    dec edx
+    jmp .s2
+.s3:
+    mov [W_POS + edx], bl
+    inc ecx
+    jmp .s1
+.cap:                                   ; pots in strength order with at most 3 clubs of a country per pot (a pot
+    mov edi, W_USED2                    ; of 5 English clubs would make the draw impossible)
+    mov ecx, 36
+    xor eax, eax
+    rep stosb
+    xor ebx, ebx                        ; q
+.pot:
+    mov edi, W_CNT
+    mov ecx, 256
+    xor eax, eax
+    rep stosb
+.slot:
+    xor ecx, ecx
+.find:
+    cmp ecx, 36
+    jae .any
+    cmp byte [W_USED2 + ecx], 0
+    jne .nf
+    movzx eax, byte [W_POS + ecx]
+    movzx eax, byte [W_CP + eax]
+    movzx eax, byte [W_CNT + eax]
+    cmp eax, [W_CAP]
+    jb .take
+.nf:
+    inc ecx
+    jmp .find
+.any:                                   ; (only clubs of full countries left: the strongest of them)
+    xor ecx, ecx
+.a1:
+    cmp byte [W_USED2 + ecx], 0
+    je .take
+    inc ecx
+    jmp .a1
+.take:
+    mov byte [W_USED2 + ecx], 1
+    movzx eax, byte [W_POS + ecx]
+    mov [W_POS2 + ebx], al
+    movzx eax, byte [W_CP + eax]
+    inc byte [W_CNT + eax]
+    inc ebx
+    cmp ebx, 36
+    jae .capped
+    mov eax, ebx
+    xor edx, edx
+    div dword [W_PS]
+    test edx, edx
+    jnz .slot
+    jmp .pot
+.capped:
+    xor ecx, ecx
+.c2:
+    mov al, [W_POS2 + ecx]
+    mov [W_POS + ecx], al
+    inc ecx
+    cmp ecx, 36
+    jb .c2
+.sorted:
+    xor ecx, ecx
+.ct:
+    movzx ebx, byte [W_POS + ecx]
+    mov al, [W_CP + ebx]
     mov [W_CTRY + ecx], al
     inc ecx
     cmp ecx, 36
@@ -588,6 +897,8 @@ lp_mkdraw:
     rep stosb
     mov dword [W_NE], 0
     mov dword [W_STEPS], 0
+    cmp dword [W_PS], 6
+    je .six
     mov ecx, 16
     call lp_rand
     mov [W_R0], eax
@@ -616,7 +927,8 @@ lp_mkdraw:
     inc dword [W_T]
     cmp dword [W_T], 16
     jb .pair
-    mov dword [W_STRY], 20              ; 144 matches: now the matchdays
+.sched:
+    mov dword [W_STRY], 20              ; 144 (108) matches: now the matchdays
 .sch:
     dec dword [W_STRY]
     js .att
@@ -634,7 +946,8 @@ lp_mkdraw:
     call lp_match
     jnc .sch
     inc dword [W_D]
-    cmp dword [W_D], 8
+    mov eax, [W_D]
+    cmp eax, [W_ND]
     jb .day
     xor edx, edx                        ; write the calendar: matchday 1 first, rows = list[position]
     xor ecx, ecx
@@ -644,32 +957,105 @@ lp_mkdraw:
     cmp [W_DAY + ebx], cl
     jne .w2
     movzx eax, byte [W_EH + ebx]
+    movzx eax, byte [W_POS + eax]
     mov al, [DIYCOPY + 59h + eax]
     mov [DIY + CAL_OFF + edx*2], al
     movzx eax, byte [W_EA + ebx]
+    movzx eax, byte [W_POS + eax]
     mov al, [DIYCOPY + 59h + eax]
     mov [DIY + CAL_OFF + edx*2 + 1], al
     inc edx
 .w2:
     inc ebx
-    cmp ebx, 144
+    cmp ebx, [W_NM]
     jb .w1
     inc ecx
-    cmp ecx, 8
+    cmp ecx, [W_ND]
     jb .w0
     popad
     ret
 .fallback:                              ; (never seen in tests) the build's draw, by position
+    mov esi, LP_CAL
+    cmp dword [W_PS], 6
+    jne .f0
+    mov esi, LP_CAL6
+.f0:
+    mov edx, [W_NM]
+    add edx, edx
     xor ecx, ecx
 .f1:
-    movzx eax, byte [LP_CAL + ecx]
+    movzx eax, byte [esi + ecx]
+    movzx eax, byte [W_POS + eax]
     mov al, [DIYCOPY + 59h + eax]
     mov [DIY + CAL_OFF + ecx], al
     inc ecx
-    cmp ecx, 288
+    cmp ecx, edx
     jb .f1
     popad
     ret
+.six:                                   ; Conference League: a perfect matching for each of the 21 pot pairs
+    mov ecx, 21                         ; (own pot included: one opponent per pot), then home / away by Euler
+    call lp_rand                        ; walks (every club 3 home, 3 away)
+    mov [W_R0], eax
+    mov dword [W_T], 0
+.p6:
+    mov eax, [W_T]
+    add eax, [W_R0]
+    xor edx, edx
+    mov ecx, 21
+    div ecx
+    movzx eax, byte [LP_PAIRS6 + edx*2]
+    imul eax, eax, 6
+    mov [W_P], eax
+    movzx eax, byte [LP_PAIRS6 + edx*2 + 1]
+    imul eax, eax, 6
+    mov [W_Q], eax
+    mov edi, W_USED
+    mov ecx, 36
+    xor eax, eax
+    rep stosb
+    call lp_m6
+    jnc .att
+    inc dword [W_T]
+    cmp dword [W_T], 21
+    jb .p6
+    mov dword [W_NE], 0                 ; Euler walks over W_ADJ (consumed): cur -> w = cur at home
+    xor ebx, ebx                        ; v
+.e0:
+    imul esi, ebx, 36
+    xor ecx, ecx
+.e1:
+    cmp byte [W_ADJ + esi + ecx], 0
+    jne .e2
+    inc ecx
+    cmp ecx, 36
+    jb .e1
+    inc ebx                             ; v has no edge left
+    cmp ebx, 36
+    jb .e0
+    jmp .sched
+.e2:
+    mov edx, ebx                        ; cur = v
+.e3:
+    imul esi, edx, 36
+    xor ecx, ecx
+.e4:
+    cmp byte [W_ADJ + esi + ecx], 0
+    jne .e5
+    inc ecx
+    cmp ecx, 36
+    jb .e4
+    jmp .e0                             ; the walk is back at v (even degrees)
+.e5:
+    mov byte [W_ADJ + esi + ecx], 0
+    imul eax, ecx, 36
+    mov byte [W_ADJ + eax + edx], 0
+    mov eax, [W_NE]
+    mov [W_EH + eax], dl
+    mov [W_EA + eax], cl
+    inc dword [W_NE]
+    mov edx, ecx
+    jmp .e3
 
 lp_fits:                                ; CF = 1 if position esi may host / meet edi
     cmp esi, edi
@@ -788,6 +1174,68 @@ lp_bij:                                 ; ebx = i (0..9); CF = 1: the rest of th
     stc
     ret
 
+lp_m6:                                  ; Conference League: matching of pot W_P with pot W_Q (the same pot too):
+    inc dword [W_STEPS]                 ; CF = 1 when every club of W_P has its opponent of W_Q
+    cmp dword [W_STEPS], 20000
+    ja .fail
+    mov esi, [W_P]                      ; first free club of pot P
+    mov ecx, 6
+.f:
+    cmp byte [W_USED + esi], 0
+    je .got
+    inc esi
+    dec ecx
+    jnz .f
+    stc
+    ret
+.got:
+    mov ecx, 6
+    call lp_rand
+    push eax                            ; [esp+4] = r, [esp] = k
+    push dword 0
+.k:
+    mov eax, [esp]
+    add eax, [esp + 4]
+    xor edx, edx
+    mov ecx, 6
+    div ecx
+    mov edi, edx
+    add edi, [W_Q]                      ; q
+    cmp byte [W_USED + edi], 0
+    jne .next
+    call lp_fits
+    jnc .next
+    mov byte [W_USED + esi], 1
+    mov byte [W_USED + edi], 1
+    imul eax, esi, 36
+    mov byte [W_ADJ + eax + edi], 1
+    imul eax, edi, 36
+    mov byte [W_ADJ + eax + esi], 1
+    push esi
+    push edi
+    call lp_m6
+    pop edi
+    pop esi
+    jc .ok
+    mov byte [W_USED + esi], 0
+    mov byte [W_USED + edi], 0
+    imul eax, esi, 36
+    mov byte [W_ADJ + eax + edi], 0
+    imul eax, edi, 36
+    mov byte [W_ADJ + eax + esi], 0
+.next:
+    inc dword [esp]
+    cmp dword [esp], 6
+    jb .k
+    add esp, 8
+.fail:
+    clc
+    ret
+.ok:
+    add esp, 8
+    stc
+    ret
+
 lp_match:                               ; one matchday W_D: CF = 1 if every free club got a match
     inc dword [W_STEPS]
     cmp dword [W_STEPS], 5000
@@ -802,16 +1250,16 @@ lp_match:                               ; one matchday W_D: CF = 1 if every free
     stc
     ret
 .got:
-    mov ecx, 144
+    mov ecx, [W_NM]
     call lp_rand
     push eax                            ; [esp+4] = r, [esp] = k
     push dword 0
 .k:
     mov eax, [esp]
     add eax, [esp + 4]
-    cmp eax, 144
+    cmp eax, [W_NM]
     jb .e
-    sub eax, 144
+    sub eax, [W_NM]
 .e:
     mov ebx, eax                        ; match e
     cmp byte [W_DAY + ebx], 0FFh
@@ -844,7 +1292,8 @@ lp_match:                               ; one matchday W_D: CF = 1 if every free
     mov byte [W_DAY + ebx], 0FFh
 .next:
     inc dword [esp]
-    cmp dword [esp], 144
+    mov eax, [W_NM]
+    cmp [esp], eax
     jb .k
     add esp, 8
 .fail:
@@ -909,13 +1358,15 @@ lp_col:                                 ; replaces `mov ax, [dseg_11F41C]` at cs
 
 LP_HDR: dd LP_S1, LP_S2
 
+LP_PAIRS6: PAIRS6_BYTES
 LP_PO: PO_BYTES
 LP_R16: R16_BYTES
 '''
 WORK = 36 * 16 + 108 * 4 + 36           # LP_KEY, LP_OPP, LP_ORD: work buffers in obj2 (the obj1 page is full)
 W_LAYOUT, _at = {}, 0                   # the draw's work area (obj2, not saved: the result is in DIY + CAL_OFF)
 for _n, _sz in (('W_TRY', 4), ('W_NE', 4), ('W_STEPS', 4), ('W_R0', 4), ('W_T', 4), ('W_P', 4), ('W_Q', 4), ('W_ROT', 4),
-                ('W_STRY', 4), ('W_D', 4), ('W_CTRY', 36), ('W_ADJ', 36 * 36), ('W_USED', 36), ('W_FREE', 36),
+                ('W_STRY', 4), ('W_D', 4), ('LP_SAVE', 60), ('LP_ROW', 4), ('W_STR', 144), ('W_POS', 36), ('W_POS2', 36), ('W_CP', 36), ('W_USED2', 36),
+                ('W_CNT', 256), ('W_NM', 4), ('W_ND', 4), ('W_PS', 4), ('W_CAP', 4), ('W_CTRY', 36), ('W_ADJ', 36 * 36), ('W_USED', 36), ('W_FREE', 36),
                 ('W_DAY', 144), ('W_EH', 144), ('W_EA', 144)):
     W_LAYOUT[_n], _at = _at, _at + _sz
 WORK_DRAW = _at
@@ -1036,6 +1487,8 @@ def patch(p, cave, cups, area, lang='it', world_ids=()):
                'C2730A': (1, s['C2730A']),
                'C89758_NEXT': (1, s['pair'] + 10), 'C883DD_NEXT': (1, s['sort'] + 10),
                'PO_BYTES': (0, db(playoff_slots())),
+               'PAIRS6_BYTES': (0, db(b for P in range(6) for Q in range(P, 6) for b in (P, Q))),
+               'LP_W2': (0, int(2 in world_ids)),
                'R16_BYTES': (0, db(R16_SEEDS))}
     for k, t in enumerate(('1-18', '19-36')):
         symbols[f'LP_S{k + 1}'] = (2, area.add(f'{HEADERS[lang]} {t}'.encode() + b'\0'))
@@ -1046,7 +1499,14 @@ def patch(p, cave, cups, area, lang='it', world_ids=()):
     symbols['RAND2'] = (1, historic._coin_sites(p, draw_orig)['rand2'])
     symbols['SELTEAMS'] = p.target(1, s['selteams'])
     symbols['D0'] = (2, a0 - 32)
-    symbols['LP_CAL'] = (2, area.add(bytes(b for m in cal for b in m)))      # fallback draw (by position)
+    c27227 = s['C2653B'] + 5 + struct.unpack_from('<i', p.le.obj_bytes(1), s['C2653B'] + 1)[0]
+    d1 = p.le.obj_bytes(1)
+    vcall = [x for x in range(c27227, c27227 + 0x200) if d1[x] == 0xE8][0]   # its first call: VerifyTeamLoaded
+    symbols['VERIFY'] = (1, vcall + 5 + struct.unpack_from('<i', d1, vcall + 1)[0])
+    symbols['LP_CAL'] = (2, area.add(bytes(b for m in cal for b in m)))      # fallback draws (by position)
+    cal6 = draw6([f'c{i}' for i in range(N)])
+    check6(cal6, [f'c{i}' for i in range(N)])
+    symbols['LP_CAL6'] = (2, area.add(bytes(b for m in cal6 for b in m)))
     codes = sorted(set(countries))
     symbols['LP_CTRYS'] = (2, area.add(bytes(codes.index(c) for c in countries)))
     w = area.add(bytes(WORK_DRAW + 4))

@@ -81,7 +81,7 @@ COUNTRY.update({'CRO': 4, 'CZE': 6, 'GER': 14, 'EST': 10, 'FRO': 11, 'ISR': 19, 
                 'RSA': 69, 'URU': 71, 'USA': 73, 'QAT': 75, 'VEN': 77, 'EGY': 79})   # world 2025-26 (phase-0 prototype)   # code -> game country (team file whose clubs give templates)
 COUNTRY.update({'RUS': 31, 'KAZ': 31, 'AZE': 31, 'ARM': 31, 'GEO': 31, 'MDA': 30, 'BIH': 41, 'KOS': 0, 'MKD': 41,
                 'MNE': 41, 'AND': 35, 'GIB': 8, 'CAN': 73, 'KOR': 55, 'CHN': 55, 'IRN': 67, 'UAE': 67, 'MAR': 42,
-                'TUN': 42})                                    # world 2026-27 (Transfermarkt): the countries it adds
+                'TUN': 42, 'LIE': 37})                         # world 2026-27 (Transfermarkt): the countries it adds
 ROLES = 'GDMA'
 BORROW = {'G': 'G', 'D': 'DMA', 'M': 'MDA', 'A': 'AMD'}   # slot role -> roles its player may come from
 

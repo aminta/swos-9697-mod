@@ -1370,7 +1370,7 @@ def patch(p, worlds, at, nasmcave, comp, ct, cont_rec):
         data.append(f'    dd W{n}_CONT, {int(bw)}')
         extra.append(f'W{n}_CONT: dd ' + ('WCC, WCWC, WUEFA' if bw else 'CCCOPY, CWCCOPY, UEFACOPY') + ', -1')
         import mkseason                         # world 2025-26: several continents -> VIEW WORLD / foreign browser
-        view = [c for c, _ in mkseason.WCONT_IDS.get(n, [])] or w['countries']    # list them, then their countries
+        view = [c for c, _, top in mkseason.WCONT_IDS.get(n, []) if top] or w['countries']   # the continents, then theirs
         extra.append('    db ' + ', '.join(map(str, view + [0xff])))
         for key, euro in zip(('cc', 'cwc', 'uefa'), s['euro']):
             rounds, clubs = w['cups'][key]

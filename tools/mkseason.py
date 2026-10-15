@@ -48,9 +48,10 @@ SEASONS_REC = [None]                    # obj2 offset of its countriesTable reco
 CAREERS = 98                            # pseudo-continent 'classic careers' of the career team selector
 CAREERS_NAMES = {'it': b'CARR. STORICHE', 'en': b'CLASSIC CAREERS', 'fr': b"CARR. D'ANTAN", 'de': b'KLASS. KARRIERE'}
 CAREERS_REC = [None]
-WCONT_IDS = {}                          # world 2025-26: world n -> [(continent menu id, [country files])] when the world
+WCONT_IDS = {}                          # world 2025-26: world n -> [(menu id, [country files], top level)] when the world
 CONT_ORDER = ['europe', 'south_america', 'north_america', 'asia', 'africa', 'oceania']   # spans several continents
-WCONT_MAX = 44                           # countries a continent list of a world holds (more exits to DOS)
+OTHER_NAMES = {'it': b'ALTRE NAZIONI', 'en': b'OTHER NATIONS', 'fr': b'AUTRES PAYS', 'de': b'WEITERE LAENDER'}
+WCONT_MAX = int(os.environ.get('WCONT_MAX', 44))                             # countries a continent list of a world holds (more exits to DOS)
 CONT_NAT = {'europe': 80, 'africa': 81, 'south_america': 82, 'north_america': 83, 'asia': 84, 'oceania': 85}
 WMENU = 200                             # a world's entry in the CLASSIC CAREERS list: pseudo-continent 200 + world number
                                         # (its countries), named by the root pack's world_cups.name
@@ -996,11 +997,8 @@ WMENU_ASM = '''
 w_lvl:                                  ; replaces `cmp word [numSelectedTeams], 2` (SelectTeamsFinalMenu shows a
     cmp word [NST], 2                   ; country's leagues at depth 2 only): depth 3 too when the parent list is a
     je .r                               ; world of CLASSIC CAREERS (top of countryStack = WMENU + n)
-    cmp word [NST], 3
-    je .w
-    cmp word [NST], 4                   ; depth 4: CLASSIC CAREERS > world > continent > country (world 2025-26)
-    jne .r
-.w:
+    cmp word [NST], 3                   ; depth 3+: CLASSIC CAREERS > world (> continent (> OTHER NATIONS ...)) >
+    jb .r                               ; country, whenever the parent list is one of a world's (id >= WMENU)
     push eax
     mov eax, [CSP]
     cmp byte [eax - 1], WMENU_N
@@ -1308,33 +1306,41 @@ def patch(p, lang, area, cave):
                 wconts.setdefault(pk.meta.get('continent', 'europe'), []).append(pk.files[pk.league['clubs']][0])
             if len(wconts) > 1:
                 ids, cid = [], 251
-                # a continent of more than WCONT_MAX countries (a longer list exits to DOS) is split into lists of
-                # equal size in pack order, the later ones named '<continent> 2', '<continent> 3' (world 2026-27)
-                parts = []
-                for c in sorted(wconts, key=CONT_ORDER.index):
-                    k = -(-len(wconts[c]) // WCONT_MAX)
-                    size = -(-len(wconts[c]) // k)
-                    parts += [(c, j, wconts[c][j * size:(j + 1) * size]) for j in range(k)]
-                for c, j, files in parts:
+                # a continent of more than WCONT_MAX countries (a longer list exits to DOS): its list holds the first
+                # WCONT_MAX - 1 (pack order = the UEFA ranking for Europe) and an OTHER NATIONS entry, a list of the
+                # rest (chained again if needed). Davide 2026-10-16: one list per continent + ALTRE NAZIONI.
+                def take_id():
+                    nonlocal cid
                     while ct + 4 * cid in fx2 or comp + 4 * cid in fx2 or cid in wmenus or any(
-                            cid == x for v in WCONT_IDS.values() for x, _ in v):
+                            cid == e[0] for v in WCONT_IDS.values() for e in v) or cid in [e[0] for e in ids]:
                         cid -= 1
                     _need(cid > WMENU + max(worlds()), f'world {n}: no free continent menu id')
-                    cobj, coff = p.target(2, ct + 4 * CONT_NAT[c])
-                    if j == 0:
-                        p.add_ptr(2, ct + 4 * cid, cobj, coff)
-                    else:
-                        cname = p.get(cobj, coff + 1, 32).split(b'\0')[0] + b' %d' % (j + 1)
-                        p.add_ptr(2, ct + 4 * cid, 2, area.add(bytes((countries.CONTINENT[c],)) + cname + b'\0'
-                                                               + cname + b'\0'))
-                    cl = struct.pack('<i', -1) + bytes(files) + b'\xff'
-                    p.put(1, at, cl)
-                    p.add_ptr(2, comp + 4 * cid, 1, at)
-                    at = (at + len(cl) + 3) & ~3
-                    ids.append((cid, files))
                     cid -= 1
+                    return cid + 1
+
+                def put_list(lid, entries):
+                    nonlocal at
+                    cl = struct.pack('<i', -1) + bytes(entries) + b'\xff'
+                    p.put(1, at, cl)
+                    p.add_ptr(2, comp + 4 * lid, 1, at)
+                    at = (at + len(cl) + 3) & ~3
+                for c in sorted(wconts, key=CONT_ORDER.index):
+                    files, lid, top = wconts[c], take_id(), True
+                    p.add_ptr(2, ct + 4 * lid, *p.target(2, ct + 4 * CONT_NAT[c]))
+                    while True:
+                        if len(files) <= WCONT_MAX:
+                            put_list(lid, files)
+                            ids.append((lid, files, top))
+                            break
+                        more = take_id()
+                        oname = OTHER_NAMES[lang]
+                        p.add_ptr(2, ct + 4 * more, 2, area.add(bytes((countries.CONTINENT[c],)) + oname + b'\0'
+                                                                + oname + b'\0'))
+                        put_list(lid, files[:WCONT_MAX - 1] + [more])
+                        ids.append((lid, files[:WCONT_MAX - 1], top))
+                        files, lid, top = files[WCONT_MAX - 1:], more, False
                 WCONT_IDS[n] = ids
-                wl = struct.pack('<i', -1) + bytes(x for x, _ in ids) + b'\xff'
+                wl = struct.pack('<i', -1) + bytes(x for x, _, top in ids if top) + b'\xff'
             else:
                 wl = struct.pack('<i', -1) + bytes(pk.files[pk.league['clubs']][0] for pk in pks) + b'\xff'
             p.put(1, at, wl)
@@ -1371,8 +1377,8 @@ def patch(p, lang, area, cave):
             src = src.replace('cont_check:', 'cont_check:\n    cmp word [D7REG], 99\n    je CONT_WORLD')
         for wid in wmenus:                                # the worlds of the CLASSIC CAREERS list
             src = src.replace('cont_check:', f'cont_check:\n    cmp word [D7REG], {wid}\n    je CONT_WORLD')
-        for ids in WCONT_IDS.values():                    # a world's continents (world 2025-26)
-            for cid, _ in ids:
+        for ids in WCONT_IDS.values():                    # a world's continents and OTHER NATIONS lists
+            for cid, _, _ in ids:
                 src = src.replace('cont_check:', f'cont_check:\n    cmp word [D7REG], {cid}\n    je CONT_WORLD')
         if wmenus:
             lvl, nst, csp = _level_site(p)

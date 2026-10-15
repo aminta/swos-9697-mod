@@ -1980,3 +1980,18 @@ Left for 2.5: (a) NSL/NSSL finals series (type-1 design) or declare them postpon
   (world8485 rerun alone in runs325: the suite's run collided with the world 2025-26 session using runs/world8485_1;
   world8485_nat passed this time). Patcher 3.2.5 (old v3.2.4 added): Node test all OK, outputs = c/REL325.
 - Untested: the booked-player number (same code path), SWOS++ in a match.
+
+## Release 3.2.6 (prepared 2026-10-15): shirt numbers with SWOS++ (Marco)
+- Marco (3.2.5, English + SWOS++): booked player over 16 without a number; the sprite column still seen. SWOS++
+  (sources github.com/zlatkok/swospp, main/pdata.asm) draws 0 and 17+ itself: SetPlayerNumber replaces our add at
+  DrawControlledPlayerNumbers+0x184 (= our site, EN obj1 0x5f867) and FixPlayerBooking (BookPlayer+0x165, before our
+  booked site) adds 9000; its DrawSprites+0x65 hook prints sprites over 9000 with PrintSmallNumber. 3.2.5's stub took
+  9000+n for invalid -> booked number hidden.
+- shirtnum: pick() (number -> sprite or -1); num_sprite turns 9000+17..99 into our sprites, keeps the mark for 0 /
+  100+; new fix_d0 replaces the mov ax, [D0] after the add (SWOS++ does not touch it) and maps 9000+1187+17..99 to
+  our sprites, so no sprite over 9000 is left for those numbers. SWOS++ path untested in the harness.
+- The UEFA round title '%a WIN %0-%1 ON PENS' seen with the English exe = an Italian save (JUVE2) loaded in English:
+  careers save contest name offsets of their exe's string table (IT 0x5d9d "COPPA EUFA" = EN "%a WIN..."). Not a bug.
+- Column: cause still unknown (not reproduced; SWOS++ suspected). Build c/REL326: SWOS IT 189d70bd EN 5d0931fc
+  FR c7d88ac7 DE c6b553cb; gog IT c9b2891a EN 6efb25fe FR 9815971b DE 073ef189; SWOS++ 10982ef2 / bbaeea89.
+  Suite 13/13 PASS (runs326). Patcher 3.2.6 (old v3.2.5 added): Node test all OK.

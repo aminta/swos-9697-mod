@@ -7,11 +7,17 @@ the replay frames), seen in matches of teams with edited numbers (a tall column 
 player).
 
 Both sites read `mov word [D0], 1187 / mov ax, [D1] / add [D0], ax / mov ax, [D0]`: the `add` (7 bytes, an absolute
-operand with its fixup) becomes `call num_sprite; nop; nop`:
+operand with its fixup) becomes `call num_sprite; nop; nop`, the `mov ax, [D0]` (6 bytes) `call fix_d0; nop`:
 - 1..16: as the game (1187 + number);
 - 17..99: sprite NEWBASE + number - 17, built once by build_numbers the first time one is needed in a match (the
   bench sprites are loaded then): two digits side by side, made from the game's own digit sprites (2..9 as they are,
   the narrow 1 and the 0 cut from the "10" sprite, as the game writes 10..16), 1 pixel apart, centred like 10..16;
+- SWOS++ (3.2.6; 3.2.5 hid the booked player's number under it, Marco): its FixPlayerBooking adds 9000 to 0 and 17+
+  before the booked player's site, and its own hook replaces our `add` at the controlled player's site
+  (DrawControlledPlayerNumbers+0x184) with the same mark; its DrawSprites hook then prints any sprite over 9000 itself.
+  num_sprite and fix_d0 (which SWOS++ does not overwrite) turn 9000 + 17..99 into our sprites, so no sprite number
+  over 9000 is left for those (one less thing that can reach a drawing path SWOS++ does not hook); 0 and 100+ keep
+  SWOS++'s mark;
 - anything else (0, 100+, or the 16-colour EGA mode, whose sprites have another layout): no sprite (-1); mkseason
   renumbers pack players outside 1..99, so only teams edited by the players can meet this.
 In memory a game sprite is a 24-byte SpriteGraphics header + 4-bit pixels, 2 per byte, high nibble first, wquads * 8
@@ -28,12 +34,44 @@ NEWBASE = 1335                  # first new sprite index (spritesIndex has 1335 
 BSS_SIZE = 0x3000               # flag + digit table (256 B) + 83 sprites x 96 B (header 24 + 8 lines x 8 B)
 
 ASM = r"""
-num_sprite:                             ; ax = shirt number (sign-extended); [D0] = 1187
+num_sprite:                             ; replaces `add [D0], ax`: ax = shirt number (sign-extended), [D0] = 1187
+    cmp ax, 9000                        ; SWOS++'s FixPlayerBooking marks 0 and 17+ as 9000 + number
+    jae .swospp
+    call pick
+    mov [D0], ax
+    ret
+.swospp:
+    push eax
+    sub ax, 9000
+    call pick
+    cmp ax, -1
+    je .keep
+    add esp, 4
+    mov [D0], ax
+    ret
+.keep:                                  ; 0, 100+: SWOS++ draws them itself (its DrawSprites hook)
+    pop eax
+    add [D0], ax
+    ret
+
+fix_d0:                                 ; replaces `mov ax, [D0]` after it: SWOS++'s own hook of the controlled
+    mov ax, [D0]                        ; player's site (DrawControlledPlayerNumbers+0x184) leaves 9000 + 1187 + n
+    cmp ax, 9000 + 1187 + 17
+    jb .r
+    cmp ax, 9000 + 1187 + 99
+    ja .r
+    sub ax, 9000 + 1187
+    call pick
+    mov [D0], ax
+.r:
+    ret
+
+pick:                                   ; ax = shirt number -> ax = its sprite, or -1 (none)
     cmp ax, 1
     jl .none
     cmp ax, 16
     jg .big
-    add [D0], ax
+    add ax, 1187
     ret
 .big:
     cmp ax, 99
@@ -47,10 +85,9 @@ num_sprite:                             ; ax = shirt number (sign-extended); [D0
     cmp byte [NUMBUF], 1
     jne .none
     add ax, NEWBASE_ - 17
-    mov [D0], ax
     ret
 .none:
-    mov word [D0], -1                   ; no sprite: the number is not drawn
+    mov ax, -1                          ; no sprite: the number is not drawn
     ret
 
 get_nib:                                ; esi -> sprite, edx = line, ecx = column -> al = pixel (0..15)
@@ -301,11 +338,14 @@ def patch(p, at, bss):
     p.put(1, at, code)
     for o, t_obj, t_off in fix:
         p.add_ptr(1, at + o, t_obj, t_off)
+    lab = nasmcave.labels(ASM, at, sym)
     for s in sites:
-        add = s + 15
-        assert p.get(1, add, 7) == d1[add:add + 7], 'another module patched the number sprite code'
+        add, mov = s + 15, s + 22
+        assert p.get(1, add, 13) == d1[add:add + 13], 'another module patched the number sprite code'
         p.remove(1, add + 3)
-        p.put(1, add, b'\xE8' + (at - (add + 5)).to_bytes(4, 'little', signed=True) + b'\x90\x90')
+        p.put(1, add, b'\xE8' + (lab['num_sprite'] - (add + 5)).to_bytes(4, 'little', signed=True) + b'\x90\x90')
+        p.remove(1, mov + 2)
+        p.put(1, mov, b'\xE8' + (lab['fix_d0'] - (mov + 5)).to_bytes(4, 'little', signed=True) + b'\x90')
     print(f'exe: shirt numbers: 17..99 built from the digits (obj1+{sites[0]:#x}, +{sites[1]:#x} -> obj1+{at:#x}, '
           f'{len(code)} B; sprites obj2+{bss:#x}, spritesIndex obj2+{spr:#x})')
     return at + len(code)

@@ -12,9 +12,9 @@ Read this first; then the tail of `notes/STATUS.md` (latest work) and, before an
 - Names of countries, worlds and menus always per exe language (the game's own spelling), never English-only.
 
 ## State (2026-10-15)
-- Released: **v3.2.3**. 3.0 Europe 1984-85 career world, 3.1 its national teams + faster harness,
+- Released: **v3.2.4**. 3.0 Europe 1984-85 career world, 3.1 its national teams + faster harness,
   3.2 tourney packs + World Cup 1934 + menu alignment, 3.2.1 ESCI arrow links, 3.2.2 patcher "Download all",
-  3.2.3 KITS button aligned with the names in the English exe.
+  3.2.3 KITS button aligned with the names in the English exe, 3.2.4 kits carry-over fix + world UEFA places.
 - Release notes: `release/notes-<version>.md`; the patcher page `release/swos-9697-mod-patcher.html`.
 
 ## Layout

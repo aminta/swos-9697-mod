@@ -1944,3 +1944,21 @@ Left for 2.5: (a) NSL/NSSL finals series (type-1 design) or declare them postpon
   DE, TEAM files identical to 3.2.2, so the harness suite, which runs the IT exe, was not rerun). Patcher 3.2.3 (old
   patcher v3.2.2 in orig/old-patchers): Node test of the page's code: originals CD/GOG, 3.2.2 exes/GOG/SWOS++,
   3.2, 3.1, vanilla+SWOS++, TEAM.020 all OK, outputs = c/REL323.
+
+## Release 3.2.4 (2026-10-15): kits carry-over fix (Marco) + world UEFA places
+- Marco's video: kits set in a friendly's pre-match screen, EXIT without playing, another friendly with other teams
+  -> button still KITS SET and SELECT KITS showed the old teams. Cause: KM_ACTIVE stayed armed, and km_open told
+  matches apart by team pointers (friendlies reuse the same two team buffers). Fix (kitcolors same_match): pm_show and
+  km_open keep the choice only for the same two teams by name (either order, slot pointers refreshed), else disarm and
+  button AUTO. Harness scenario kits_reset (friendly HAMBURG-SCHALKE kits OK, ESCI, BAYERN-DORTMUND): FAIL on 3.2.3,
+  PASS on 3.2.4; helpers walk() / friendly_prematch().
+- World place lists FF-terminated (careerworld, commit 3c84031 from the world 2025-26 session): from season 2 the
+  manager's country took the last UEFA place of the list (1984-85: Yugoslavia).
+- Build c/REL324: SWOS IT 271ce374 EN abbc0c04 FR 4917b14e DE 6d3f5e56; gog IT 017d19f1 EN fe6b9c0f FR e8558ae3 DE 5e170334; SWOS++
+  8e454911 / GOG 139ca63b; DATA identical to 3.2.3. Suite: 11/12 PASS; world8485_nat FAILs the same way on the published
+  3.2.3 build (WC 1990 qualifying, step 38: national squad screen without VIS. RISULTATI and no red row found) =
+  a harness problem, not this release; to look at.
+- Patcher 3.2.4 (old patcher v3.2.3 in orig/old-patchers): Node test: originals CD/GOG, 3.2.3 (exe, GOG, SWOS++),
+  3.2.2, 3.1, vanilla+SWOS++, TEAM.020 all OK, outputs = c/REL324.
+- Open: Davide's video of a one-off sprite column in a match (shirt numbers + sprite blocks at the right touchline,
+  ~5 frames, at a goal kick): cause unknown, waiting for platform / exe / repeatability.

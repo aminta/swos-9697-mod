@@ -1196,6 +1196,8 @@ def checkw1(path):
     r = subprocess.run([sys.executable, os.path.join(MAIN, 'internal', 'career-test', 'checkw1.py'), path],
                        capture_output=True, text=True)
     out = (r.stdout + r.stderr).strip()
+    if os.environ.get('W8485_SMALL'):              # a world with small cups (<= 80 European clubs): no W1 block
+        return 'trailer end ok: True' in out and 'table sum mod 256 0' in out, out
     ok = r.returncode == 0 and 'W1 block: True' in out and 'bad pairs 0' in out
     for line in out.splitlines():
         if line.startswith(('CC ', 'CWC ', 'UEFA ')):

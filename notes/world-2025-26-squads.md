@@ -1,9 +1,14 @@
-# World 2025-26 — real squads: bigger career squads and our own squad pipeline (study, 2026-10-15)
+# World 2026-27 — real squads: bigger career squads and our own squad pipeline (study, 2026-10-15/16)
 
 Study only (feasibility, design, estimate); nothing implemented. Two questions from Davide:
 1. can the club managed in a career have 22-30 **real** players instead of 16 + generated ones?
-2. can the 2025-26 squads come from our own sources (Transfermarkt or similar) instead of the SWOS 2020 team files,
-   with a tool that can be re-run for 2026-27?
+2. can the squads come from our own sources instead of the SWOS 2020 team files, with a deterministic tool that can
+   be re-run for the next season?
+
+**Decision (Davide, 2026-10-16):** the historic career world is **season 2026-27** (branch and file names keep
+'2025-26'); squads from **Transfermarkt at the end of the summer 2026 window**, fully independent of SWOS 2020 (no
+SWOS 2020 records, kits, ratings or faces); coaches from Transfermarkt, kits from Wikipedia infoboxes (other
+session); fetch politely, raw data only in `internal/`, Transfermarkt credited. Part 2 below follows this decision.
 
 Terms: **record** = one 684-byte club entry of a TEAM.nnn file (16 players of 38 bytes from +76); **managed club** =
 the club the human manages in the career; **CPU club** = every other club; **filler** = a player the game invents.
@@ -37,8 +42,8 @@ Addresses are labels of `ref/swos.asm` (ITA/ENG offsets differ; find them with `
   `homeMarketPlayers` (max 25) with random players of other clubs of the same country in the managed club's price
   range (`AddCareerTeamPlayer` -> `AddPlayerToCareerContest`). The *foreign* list comes from `POOLPLYR.DAT`
   (`LoadPoolplyrDat`, 52200 B = 900 `PoolPlayer` of 58 B: team id, ordinal, team name, PlayerFile;
-  `AddRandomForeignMarketPlayer`). The world 2025-26 still uses the 1996 POOLPLYR.DAT (SWOS 2020 ships a 2025_26
-  one): 1996 players on the foreign market are the other 'fake' players a 2025-26 manager sees.
+  `AddRandomForeignMarketPlayer`). The world still uses the 1996 POOLPLYR.DAT: 1996 players on the foreign market
+  are the other 'fake' players a 2026-27 manager sees (-> a POOLPLYR built from Transfermarkt, below).
 - **Changing club drops slots 16-31.** `cseg_5A6A1` (from `cseg_942F2` <- `ContinueCareerNextSeason` when a job offer
   was accepted) writes the first 16 of the career order back into the old club's record (`cseg_94193` -> tmd buffer)
   and sets `careerNumPlayers = 16`. A managed club's extra players live only while the human manages it.
@@ -82,16 +87,17 @@ leaves room for purchases).
 
 ## 2. Our own squads (independent of SWOS 2020)
 
-### What the game needs per player (measured on the 1996-97 files and SWOS 2020 2025-26, ~25,000 players each)
+### What the game needs per player (measured on the 1996-97 files, ~25,000 players)
 | Byte | Meaning | Rule |
 |---|---|---|
 | 0 | nationality | game number 0-152 (`shortCountryNames`, 153 entries) |
-| 2 | shirt number | the files hold 1-16 (squad slot); the vanilla game swaps numbers with players (line ~52066), real numbers only make sense with SWOS++ (0-255) |
+| 2 | shirt number | the 1996 files hold 1-16; real numbers 1-99 are drawn in matches since mod 3.2.5 (the 1984-85 career uses them) -> Transfermarkt numbers, a free number when missing or > 99 |
 | 3-25 | name | upper-case ASCII, no accents (none in either data set), 22 chars max, full name ('BUKAYO SAKA'); long ones shortened ('M. DAL COMPARE', `c1c2.swos_name`) |
 | 26 | position bits 5-7, skin bits 3-4 | G RB LB D RW LW M A; skin 0 light, 1 ginger, 2 dark (the game has only these 3 faces, no hair) |
 | 28-31 | 7 skills | nibbles pa / ve he / ta co / sp fi, value 0-7, bit 3 = key skill |
 | 32 | price | **outfield: price = sum of the 7 skills, in 100% of the records of both sets** (so <= 49). Goalkeepers: skills 0, price = keeper quality (mean 11) |
 
+- (Measured on the 1996-97 files and, for comparison only, SWOS 2020; nothing of SWOS 2020 is used.)
 - Mix per 16: G 2.3, RB 1.2, LB 1.2, D 3.5, RW 1.1, LW 1.1, M 4.0, A 3.7 (1996-97).
 - Skill profile of the original (mean value, key skill share): RB/LB tackling + speed (key 97/89%), D heading +
   tackling, RW/LW ball control + speed, M passing + tackling, A heading + finishing; the others ~1. The original gives
@@ -99,47 +105,56 @@ leaves room for purchases).
 - Price distribution (1996-97, step 5): 0-4 14%, 5-9 20%, 10-14 30%, 15-19 22%, 20-24 8%, 25-29 3%, 30+ 3%; SWOS 2020
   2025-26 is a bit stronger (30+ 7%).
 
-### Sources
-| Source | Coverage 2025-26 | Data | Licence / terms | Use |
+### Sources (decided: Transfermarkt)
+| Source | Coverage | Data | Licence / terms | Use |
 |---|---|---|---|---|
-| Transfermarkt (site) | every league we need (all ~1300-1600 clubs) | name, sub-position (Centre-Back, Right Winger...), shirt number, nationality (+2nd), birth date, market value, minutes | terms forbid bots / automated copying and redistribution without written consent; no public API | best data; **only with written permission** (Davide asks); without it only small manual saves (as MLS 1997, 10 pages) |
-| dcaribou/transfermarkt-datasets (GitHub, Kaggle) | ~40 competitions, ~400 clubs (big European leagues + cups), weekly | players (position, sub_position, citizenship, value, birth date), appearances, valuations | tagged CC0, but the data are scraped from Transfermarkt | big-league strength (values, minutes); ask/credit both the author and Transfermarkt |
-| Wikipedia club pages ('Current squad') | nearly all top flights, most 2nd tiers; weaker for Serie C groups, NPL, Central America | name, number, GK/DF/MF/FW, nationality flag, coach | CC BY-SA 4.0 (facts + attribution); API allowed with user agent and rate limit | **primary for names/roles/numbers**: the revision at a fixed date makes it deterministic |
-| EA SPORTS FC 26 (ea.com ratings, sofifa, Kaggle dumps) | 17,000+ players, ~750 licensed clubs | overall + ~30 attributes (pace, passing, heading, tackling, ball control, finishing...) | EA's data; Kaggle 'CC0' labels cannot grant EA's rights | **best skill source**: used privately to compute SWOS skills (derived values, the raw data never shipped); credit EA / sofifa; Davide decides |
-| FBref | big leagues | minutes, starts | Sports Reference terms limit bots; stats partly Opta | optional: squad order |
-| SWOS 2020 2025-26 | 1282 league clubs | full SWOS records | community DB, used today with credit | cross-check only (independence); faces could be kept by name if Davide agrees |
+| **Transfermarkt** (site) | every league of the world (~1300-1600 clubs) | squad page per club ('detailed' view): name, shirt number, sub-position (Centre-Back, Right Winger...), birth date, nationality (+2nd), foot, height, contract, market value; squad stats page: appearances / minutes; coach | terms forbid bots / automated copying and redistribution without written consent; no public API | **chosen by Davide**: polite fetch (one pass, cache, delay between pages, clear user agent), raw pages only in `internal/`, credit Transfermarkt; asking them for written consent is still advisable before a release |
+| Wikipedia club infoboxes | nearly all clubs | kits | CC BY-SA 4.0 | kits (other session); squads only as a cross-check if Transfermarkt lacks a club |
+| dcaribou/transfermarkt-datasets | ~40 competitions, ~400 clubs | same Transfermarkt fields, weekly | tagged CC0, data scraped from Transfermarkt | not needed; at most a check of our parser on the big leagues |
+| EA SPORTS FC 27 ratings | ~750 licensed clubs | ~30 attributes | EA's data | not in the decision; optional open question (finer skill profiles) |
+| SWOS 2020 | — | — | — | **not used** (decision 2026-10-16) |
+
+Pages: ~1500 clubs x 2 (squad + squad stats) = ~3000 pages, plus competition pages for the club lists; at one page
+every 5-10 s that is 4-8 hours, once per season, resumable (each page cached as soon as it is fetched).
 
 ### Chosen pipeline (private converter, deterministic)
 `internal/world2526/squads/` (nothing of it in the repo): `fetch.py`, `build.py`, `maps/`, `raw/`, `out/`.
-1. **Snapshot**: one parameter `--season 2025-26 --as-of 2025-09-02` (day after the summer window). Every fetch
-   goes to `raw/<source>/<as-of>/...` and is never fetched again; Wikipedia by revision id at the date (`oldid`
-   recorded in a manifest with hashes). The build reads only `raw/`: same input -> byte-identical output.
-   **2026-27 = a new `--as-of 2026-09-01` snapshot + rerun** (plus a diff report: transfers, new clubs).
-2. **Club mapping**: `maps/clubs.csv` world club key (from mkworld2526) -> Wikipedia title, Transfermarkt id, FC
-   team id. Built once by name matching + hand fixes (the slow part, ~1500 rows); reused every season.
-3. **Players**: merge sources by (club, normalised name, birth date): names/numbers/roles from Wikipedia (or
-   Transfermarkt with permission), fine position from Transfermarkt sub-position or FC position, strength from FC
-   (else market value), order by minutes (2024-25, or 2025-26 up to the snapshot) / FC overall.
+1. **Snapshot**: one parameter `--season 2026-27 --as-of 2026-09-02` (after the summer 2026 window). Every fetch
+   goes to `raw/transfermarkt/<season>/<as-of>/...` with the date it was taken and is never fetched again (a manifest
+   with URL, date, hash). Transfermarkt shows the current squad, so the snapshot IS the fetch date: fetch in a few
+   days after the window closes. The build reads only `raw/`: same input -> byte-identical output. **Next season =
+   a new snapshot + rerun** (plus a diff report: transfers, new clubs). Calendar-year leagues (Brazil, Argentina,
+   MLS, Scandinavia, Japan...) are mid-season on that date: their squad is the one of that day.
+2. **Club list and mapping**: the world's clubs come from the Transfermarkt competition pages of the snapshot
+   (league members 2026-27); `maps/clubs.csv` world club key -> Transfermarkt id (+ Wikipedia title for kits).
+   Built once by name matching + hand fixes (~1500 rows); reused every season.
+3. **Players**: everything from the Transfermarkt squad page (name, number, sub-position, nationality, birth date,
+   market value) + minutes of the previous season from the squad stats page; order = importance (minutes, then
+   market value).
 4. **Mapping tables** (`maps/`, versioned with the converter):
    - `positions.csv`: Goalkeeper G; Right-Back RB; Left-Back LB; Centre-Back D; Right Winger / Right Midfield RW;
      Left Winger / Left Midfield LW; Defensive / Central / Attacking Midfield M; Centre-Forward / Second Striker A.
-     Wikipedia-only (GK/DF/MF/FW): G/D/M/A, full-backs and wingers taken from FC, else from the template's slots.
+     A bare 'Defender' / 'Midfield' / 'Attack' (no sub-position) -> D / M / A.
    - `nations.csv`: FIFA code -> game number (0-152); first (sporting) nationality; a missing nation -> the closest
      existing one, listed in the build log.
    - `names.csv`: overrides (known short names: 'VINICIUS JUNIOR', 'RODRI'), then `swos_name` (NFKD -> ASCII,
      ß -> SS, upper, 22 max, 'J. SURNAME' when longer).
-   - `faces.csv`: skin per player only by explicit list (FC face data if available, else hand-made overrides);
-     default light. Kept as a separate, reviewable file.
-5. **Skills** (proposal, FC attributes):
-   pa = short passing / vision; ve (shooting) = shot power / long shots; he = heading accuracy (+ jumping);
-   ta = standing / sliding tackle, interceptions; co = ball control / dribbling; sp = sprint speed / acceleration;
-   fi = finishing. Each player: target skill sum S = f(overall) (piecewise linear, fitted so the 2025-26 world's
-   distribution matches the game's: mean ~13, top stars 38-45, cap 49), split over the 7 skills in proportion to the
-   player's own attribute profile, rounded to 0-7 with the sum preserved; key skills = the player's 2 best (as the
-   original). Goalkeepers: skills 0, price = f(GK overall). Price = S. No FC data: S from market value (log scale,
-   per league) with the same curve; no value either: mkseason `calibrate` from the club's strength.
+   - `faces.csv`: skin per player only by an explicit, reviewable list (Transfermarkt has no such field; no SWOS 2020
+     faces); default light.
+5. **Skills** (proposal, Transfermarkt data only):
+   - **Level**: target skill sum S from market value on a log scale, corrected per league (the same value means
+     more in a weak league) and by age (young players' values are inflated), fitted so the world's distribution
+     matches the game's (outfield mean ~13, stars 38-45, cap 49). No value: the club's median minus a step.
+   - **Profile**: S is split over the 7 skills with the original game's profile of the player's sub-position
+     (RB/LB tackling + speed, D heading + tackling, RW/LW ball control + speed, M passing + tackling, A heading +
+     finishing; Defensive Midfield leans to tackling, Attacking Midfield to passing / ball control, Second Striker to
+     ball control / finishing); height adds heading, a deterministic per-player variation (hash of the Transfermarkt
+     id, no RNG) keeps players of one role from being identical. Rounded to 0-7 with the sum preserved; key skills =
+     the 2 of the profile (as the original).
+   - **Goalkeepers**: skills 0, price = S of the same curve. **Price = S** for everyone (the engine's own rule).
+   - Optional later (open question): finer per-player profiles from EA FC 27 attributes where a player exists.
 6. **Calibration** (the mod's rule): per club print the first-11 skill sum and price next to the real 2024-25 /
-   2025-26 table; adjust the curve per league (never by whole skill levels with a small price shift: that was the
+   2026-27 table; adjust the curve per league (never by whole skill levels with a small price shift: that was the
    1947-48 flaw); then simulated seasons in the harness for ~5 leagues (champion and bottom clubs roughly right).
 7. **Output**: the world pack in mkseason's `explicit` format (players.csv with position, number, nat, skin, the 7
    skills, price; 16 rows -> the record, rows 17-30 -> XTRA when extended squads exist) + a per-world POOLPLYR.DAT.
@@ -148,18 +163,18 @@ leaves room for purchases).
 ### Legal and credits
 - Raw pages, dumps and ratings stay in `internal/`; the repo gets only the converted packs (as for DaniSwos'
   1984-85 database) and only after Davide's ok.
-- Davide asks permission where needed (Transfermarkt; the dcaribou author; EA data use) and credits every source in
-  the release notes and README: 'Wikipedia contributors (CC BY-SA 4.0)', Transfermarkt, dcaribou/transfermarkt-
-  datasets, 'ratings derived from EA SPORTS FC 26 (sofifa.com)', SWOS 2020 if faces are reused.
+- Credits in the release notes and README: Transfermarkt (squads, coaches), 'Wikipedia contributors (CC BY-SA 4.0)'
+  (kits); EA only if Q6 says yes. Written consent from Transfermarkt is advisable before publishing (open question 2).
 
 ## Open questions for Davide
+Settled 2026-10-16: season 2026-27, Transfermarkt at the end of the summer 2026 window, no SWOS 2020, real shirt
+numbers (1-99, mod 3.2.5).
 1. Squad size of the managed club: 25 (UEFA list size) or up to 28-30? CPU clubs stay 16 — OK?
-2. Sources: ask Transfermarkt for written permission? Use EA FC 26 ratings for the skills (privately, credited)?
-3. Snapshot date: start of season (2025-09-02, after the window) or end of season?
-4. Skin: only from an explicit list (FC faces / hand overrides), default light — or keep SWOS 2020 faces by name?
-5. Shirt numbers: slot numbers 1-16 (vanilla) or real numbers (meaningful only with SWOS++)?
-6. Key skills: 2 per player as the original 96/97, or none as SWOS 2020?
-7. Foreign market: a 2025-26 POOLPLYR.DAT per world (900 real players of clubs outside the world)?
+2. Ask Transfermarkt for written consent before the release (their terms forbid automated copying)?
+3. Skin: an explicit hand-made list, default light — OK, or another source?
+4. Key skills: 2 per player as the original 96/97, or none?
+5. Foreign market: a 2026-27 POOLPLYR.DAT per world (900 real players of clubs outside the world)?
+6. Optional: EA FC 27 attributes for finer skill profiles, or Transfermarkt only?
 
 ## Estimate (sessions)
 | Part | Sessions |
@@ -167,14 +182,14 @@ leaves room for purchases).
 | 1a. Trace the squad-load point (new career, new job), wage table size, purchase cap | 1 |
 | 1b. XTRA format in mkseason, hook stub, harness scenario (squad of 28 shown, match, save/load, job change, return) | 1-2 |
 | 1c. Per-world POOLPLYR.DAT (builder + file-name patch + harness) | 1 |
-| 2a. Fetch/cache layer + manifest (Wikipedia revisions; TM/FC once permitted) | 1 |
+| 2a. Polite fetch/cache layer + manifest + Transfermarkt parser (squad, stats, coach) | 1 |
 | 2b. Club mapping ~1500 clubs (matching + hand fixes) | 2 |
 | 2c. Mapping tables (nations, positions, names, faces) | 1 |
-| 2d. Skill model + calibration against the game's distributions | 1-2 |
+| 2d. Skill model (value/league/age/sub-position) + calibration against the game's distributions | 1-2 |
 | 2e. Pack output (explicit + XTRA), mkworld2526 switch | 1 |
 | 2f. Strength check (tables + simulated seasons) | 1-2 |
 | **Total** | **10-13** (part 1: 3-4; part 2: 7-9) |
-| Later: 2026-27 (new snapshot, rerun, new clubs in the mapping, strength check) | ~1-2 |
+| Later: next season (new snapshot, rerun, new clubs in the mapping, strength check) | ~1-2 |
 
 ## 3. Every club with 24+ players (follow-up question, 2026-10-15)
 Davide: can ALL clubs have 24 (e.g. a classic tourney 'Serie A 2023-24' with every real squad)?

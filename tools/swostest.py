@@ -372,6 +372,10 @@ class Dosbox:
         while True:
             n = self.pump(0.25, b'')
             if n < 0 or not self.alive():
+                for _ in range(20):                    # keep how DOSBox-X ended (exit code / signal) for the log
+                    if not self.alive() or getattr(self, 'status', None):
+                        break
+                    time.sleep(0.1)
                 return self.stat('run', t, 'exit')
             if n:
                 m = BREAK.search(self.screen, mark)    # the debugger's code view redrawn on an int 3 (CD03)

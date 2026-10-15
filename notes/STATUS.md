@@ -1962,3 +1962,21 @@ Left for 2.5: (a) NSL/NSSL finals series (type-1 design) or declare them postpon
   3.2.2, 3.1, vanilla+SWOS++, TEAM.020 all OK, outputs = c/REL324.
 - Open: Davide's video of a one-off sprite column in a match (shirt numbers + sprite blocks at the right touchline,
   ~5 frames, at a goal kick): cause unknown, waiting for platform / exe / repeatability.
+
+## Release 3.2.5 (prepared 2026-10-15): shirt numbers 17..99 (Marco)
+- Marco's video (DOSBox-Staging, edited Man Utd / Arsenal numbers): a column of sprites at the touchline. Cause: the
+  number over the controlled / booked player is one sprite, 1187 + number, and BENCH.DAT has 1..16 only (17 player
+  mark, 18-19 goal parts, 20 grid, 21+ replay frames); confirmed in the harness (number 30 -> a green bar). The Europe
+  1984-85 packs have ~790 players numbered 17..41.
+- tools/shirtnum.py: both sites call num_sprite: 1..16 as the game, 17..99 sprites 1335..1417 built once per run from
+  the digit sprites (narrow 1 and 0 cut from "10", width 5 or 7, centre as 10..16), others and EGA mode not drawn.
+  Sprites in a zero-filled obj2 tail (BSS_SIZE 0x3000, after careerworld's); pointers extend spritesIndex into the
+  3072 bytes after it (dead save stack of cseg_9A9E1/9A9FD: no calls, no pointers, all four exes). Code (590 B) in the
+  world cave (end 0xa35be < 0xa4000). mkseason renumbers pack players outside 1..99 (none). SWOS++ install: no clash.
+- Harness: Session(match=True); scenario shirt_numbers (friendly, human HAMBURG 17..32: 17/20/41/99 pixel-exact,
+  sprites read from memory). All 83 sprites checked by eye from a dump.
+- Build c/REL325: SWOS IT b72403fc EN 960bb827 FR c8deda17 DE bdeeb1ac; gog IT 9205105b
+  EN 6c7d05fc FR 7fb51204 DE 9c2fe63c; SWOS++ 68290d0b / GOG 8f680356; DATA = 3.2.4. Suite 13/13 PASS
+  (world8485 rerun alone in runs325: the suite's run collided with the world 2025-26 session using runs/world8485_1;
+  world8485_nat passed this time). Patcher 3.2.5 (old v3.2.4 added): Node test all OK, outputs = c/REL325.
+- Untested: the booked-player number (same code path), SWOS++ in a match.

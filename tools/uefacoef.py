@@ -25,9 +25,9 @@ PREV, FIN = 0x76D0, 0x773C                             # 3 x (dd count + 16 dw),
 SIZE = 0x7748
 assert CB_OFF + SIZE <= 80 * 684
 
-LP_CLN = [5, 5, 4, 4, 3, 2, 2, 2] + [1] * 8            # places per rank: Champions League (35 + the holder)
-LP_ELN = [2] * 12 + [1] * 11                           # Europa League (35 + the holder)
-LP_UEN = [1] * 35                                      # Conference League (35 + the holder)
+LP_CLN = [5, 5, 4, 4, 3, 2, 2, 2] + [1] * 7            # places per rank: Champions League (34 + its holder + the EL winner)
+LP_ELN = [2] * 12 + [1] * 11                           # Europa League (35 + the Conference League winner)
+LP_UEN = [1] * 36                                      # Conference League (36)
 
 ASM = '''
 uc_ok:                                  ; al = contest id: ZF = 1 for a cup (0..2) of a league-phase world career
@@ -476,14 +476,86 @@ uc_final:                               ; careerworld w_q_cb: the first qualifie
     inc ecx
     jmp .s1
 .w:
+    mov esi, UC_CLN                     ; places per rank and cup (UC_A: CL, EL, UECL x 64 ranks)
+    mov edi, UC_A
+    mov ecx, 192
+.w0:
+    mov al, [esi]
+    mov [edi], al
+    inc esi
+    inc edi
+    dec ecx
+    jnz .w0
+    xor ecx, ecx                        ; capacity per rank: the top 9 of a league minus its clubs among the
+.cp:                                    ; three holders (they are skipped by the qualifiers)
+    mov al, [UC_C + ecx]
+    mov dl, 9
+    xor ebx, ebx
+.cp1:
+    mov si, [UC_HOLD + ebx*2]
+    movzx esi, si
+    cmp al, [HOLD_CC + esi]             ; (the holder word's low byte = its country file)
+    jne .cp2
+    dec dl
+.cp2:
+    inc ebx
+    cmp ebx, 3
+    jb .cp1
+    mov [UC_CAP + ecx], dl
+    inc ecx
+    cmp ecx, 64
+    jb .cp
+    xor ecx, ecx                        ; too many places for a country: the excess (UECL first, then EL, CL)
+.x0:                                    ; goes to the next ranked country with room, same cup
+    cmp ecx, [UC_N]
+    jae .xd
+.x1:
+    movzx eax, byte [UC_A + ecx]
+    movzx edx, byte [UC_A + 64 + ecx]
+    add eax, edx
+    movzx edx, byte [UC_A + 128 + ecx]
+    add eax, edx
+    movzx edx, byte [UC_CAP + ecx]
+    cmp eax, edx
+    jbe .x5
+    mov ebx, 128                        ; take one place from the last cup that has one
+.x2:
+    cmp byte [UC_A + ebx + ecx], 0
+    jne .x3
+    sub ebx, 64
+    jns .x2
+    jmp .x5
+.x3:
+    dec byte [UC_A + ebx + ecx]
+    lea edi, [ecx + 1]
+.x4:
+    cmp edi, [UC_N]
+    jae .x1                             ; (no room anywhere: the place is lost)
+    movzx eax, byte [UC_A + edi]
+    movzx edx, byte [UC_A + 64 + edi]
+    add eax, edx
+    movzx edx, byte [UC_A + 128 + edi]
+    add eax, edx
+    movzx edx, byte [UC_CAP + edi]
+    cmp eax, edx
+    jb .x4a
+    inc edi
+    jmp .x4
+.x4a:
+    inc byte [UC_A + ebx + edi]
+    jmp .x1
+.x5:
+    inc ecx
+    jmp .x0
+.xd:
     mov esi, WORK_CC                    ; rewrite the working lists: places per rank (same lengths, FF-terminated)
-    mov edi, UC_CLN
+    mov edi, UC_A
     call .fill
     mov esi, WORK_CWC
-    mov edi, UC_ELN
+    mov edi, UC_A + 64
     call .fill
     mov esi, WORK_UEFA
-    mov edi, UC_UEN
+    mov edi, UC_A + 128
     call .fill
 .x:
     popad
@@ -493,9 +565,14 @@ uc_final:                               ; careerworld w_q_cb: the first qualifie
 .f3:
     cmp byte [esi], 0FFh
     je .f5
+    cmp ecx, 64
+    jae .f5
     movzx edx, byte [edi + ecx]
     test edx, edx
-    jz .f5
+    jnz .f3a
+    inc ecx                             ; (a rank without places in this cup: the next one)
+    jmp .f3
+.f3a:
     mov al, [UC_C + ecx]
 .f4:
     cmp byte [esi], 0FFh
@@ -511,9 +588,11 @@ uc_final:                               ; careerworld w_q_cb: the first qualifie
 
 UC_RB: db 12, 8, 4                      ; knockout round reached (units)
 UC_HOLD: dw 0, HOLD_CWC - HOLD_CC, HOLD_UEFA - HOLD_CC
-UC_CLN: CLN_BYTES
+UC_CLN: CLN_BYTES                       ; (64 ranks each, contiguous: copied into UC_A)
 UC_ELN: ELN_BYTES
 UC_UEN: UEN_BYTES
+UC_A: times 192 db 0
+UC_CAP: times 64 db 0
 align 4
 UC_N: dd 0
 UC_T: times 64 dd 0
@@ -557,10 +636,10 @@ def patch(p, cave, worlds, sites):
                'D2R': (2, a0 - 24), 'LP_ORD': sites['lp_ord'], 'W_LPW': (1, cw.LABELS['w_lpw']),
                'W_REC': (1, cw.LABELS['w_rec']), 'W_CUPS': (1, cw.LABELS['w_cups']),
                'MARK': (0, MARK), 'RING': (0, RING), 'DONE': (0, DONE), 'WORK_CC': q['WORK_CC'],
-               'WORK_CWC': q['WORK_CWC'], 'WORK_UEFA': (q['WORK_CWC'][0], q['WORK_CWC'][1] + 64), 'CTEAMS': (0, CTEAMS), 'CPTS': (0, CPTS), 'CHIST': (0, CHIST),
+               'WORK_CWC': q['WORK_CWC'], 'WORK_UEFA': q['WORK_UEFA'], 'CTEAMS': (0, CTEAMS), 'CPTS': (0, CPTS), 'CHIST': (0, CHIST),
                'KPTS': (0, KPTS), 'KHIST': (0, KHIST), 'PREV': (0, PREV), 'FIN': (0, FIN), 'SIZE': (0, SIZE),
-               'CLN_BYTES': (0, db(LP_CLN + [0])), 'ELN_BYTES': (0, db(LP_ELN + [0])),
-               'UEN_BYTES': (0, db(LP_UEN + [0])), 'SEEDC_BYTES': (0, db(seedc)), 'SEEDK_BYTES': (0, db(seedk))}
+               'CLN_BYTES': (0, db((LP_CLN + [0] * 64)[:64])), 'ELN_BYTES': (0, db((LP_ELN + [0] * 64)[:64])),
+               'UEN_BYTES': (0, db((LP_UEN + [0] * 64)[:64])), 'SEEDC_BYTES': (0, db(seedc)), 'SEEDK_BYTES': (0, db(seedk))}
     code, fix = nasmcave.assemble(ASM, cave, symbols)
     lab = nasmcave.labels(ASM, cave, symbols)
     p.put(1, cave, code)

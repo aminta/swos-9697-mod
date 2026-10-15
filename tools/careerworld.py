@@ -741,6 +741,11 @@ w_holders:                              ; replaces `call cseg_92BBF`: in a world
 .w:
     pushad
     mov esi, HOLDTAB                    ; per cup: holder, list start pointer, counter, saved holder record
+    call w_rec
+    mov eax, [ebx]                      ; a world whose Champions Cup is a league phase (2025-26 rules): the
+    cmp byte [eax + 1], 2               ; Europa League winner plays the Champions League, the Conference League
+    jne .c                              ; winner the Europa League
+    mov esi, HOLDTAB_LP
 .c:
     mov ebx, [esi]
     cmp ebx, -1
@@ -914,6 +919,11 @@ HOLDTAB:
     dd HOLD_CC, LIST_CC, CNT_CC, BUF_CC
     dd HOLD_CWC, LIST_CWC, CNT_CWC, BUF_CWC
     dd HOLD_UEFA, LIST_UEFA, CNT_UEFA, BUF_UEFA
+    dd -1
+HOLDTAB_LP:
+    dd HOLD_CC, LIST_CC, CNT_CC, BUF_CC
+    dd HOLD_CWC, LIST_CC, CNT_CC, BUF_CWC
+    dd HOLD_UEFA, LIST_CWC, CNT_CWC, BUF_UEFA
     dd -1
 WVIEW:
     dd VIEWFIRST, -1
@@ -1924,7 +1934,8 @@ w_season_end:                           ; replaces `call arg_agg` (-> sa_qualify
         p.add_ptr(1, at + off, tobj, toff)
     if lpw:
         q = _qual_sites(orig, p)
-        for site_, lbl in ((q['call_cl'], 'w_q_cl'), (q['call_el'], 'w_q_el'), (q['call_cwchk'], 'w_q_inlists')):
+        for site_, lbl in ((q['call_cl'], 'w_q_cl'), (q['call_el'], 'w_q_el'), (q['call_ue'], 'w_q_ue'),
+                           (q['call_cwchk'], 'w_q_inlists')):
             assert tgt(d1, site_) == tgt(orig, site_), 'qualifier call already hooked'
             p.put(1, site_ + 1, struct.pack('<i', lab[lbl] - (site_ + 5)))
     p.put(1, site + 1, struct.pack('<i', lab['w_season_end'] - (site + 5)))
@@ -1978,8 +1989,8 @@ w_q_skip:                               ; ZF = 1 if the club [D0] is a holder or
 .y:
     ret
 
-w_q_next:                               ; [A5] = the next standings record (top 9) not to skip; CF = 1: none left
-    inc dword [W_QI]
+w_q_next:                               ; [A5] = the next record not to skip (the top 9 of the league); CF = 1: none
+    inc dword [W_QI]                    ; left
     cmp dword [W_QI], 9
     ja .none
     mov eax, [W_QI]
@@ -1990,6 +2001,10 @@ w_q_next:                               ; [A5] = the next standings record (top 
     mov esi, eax
     mov ax, [esi]
     mov [D0], ax
+    test ax, ax                         ; (an empty record)
+    jz w_q_next
+    cmp ax, 0FFFFh
+    je w_q_next
     call w_q_skip
     jz w_q_next
     clc
@@ -2048,6 +2063,23 @@ w_q_el:                                 ; replaces `call cseg_939FE` (Cup Winner
 .r:
     ret
 
+w_q_ue:                                 ; replaces `call cseg_93A60` (UEFA Cup slot = Conference League): the next
+    call w_lpw                          ; clubs not qualified yet (the game's loop would take an empty record of
+    je .lp                              ; the standings once many clubs are skipped)
+    jmp C93A60
+.lp:
+    mov dword [A0R], WORK_UEFA
+    call C93B30
+    jnz .r
+    mov dword [W_QI], 0
+    call w_q_next
+    jc .lp
+    call C93BCE
+    call C93C5F
+    jmp .lp
+.r:
+    ret
+
 w_q_inlists:                            ; replaces `call cseg_93B9C` in cseg_93A60 (UEFA Cup: skip CWC clubs and,
     call C93B9C                         ; in a league-phase world, Champions League clubs too)
     jz .r
@@ -2089,13 +2121,15 @@ def _qual_sites(orig, p):
     d = lambda eng: (2, eng + delta)
     regs = sacups.regs(orig)
     a0 = regs['A0']
-    return {'call_cl': a, 'call_el': a + 5, 'call_cwchk': ue[1],
+    return {'call_cl': a, 'call_el': a + 5, 'call_ue': a + 10, 'call_cwchk': ue[1], 'C93A60': (1, c_ue),
+            'C93C5F': (1, tgt(ue[4])),
             'C939C9': (1, c_cl), 'C939FE': (1, c_el), 'C93B30': (1, tgt(cl[0])), 'C93BCE': (1, tgt(cl[1])),
             'C93C19': (1, tgt(cl[2])), 'C93C3C': (1, tgt(el[2])), 'C93B9C': (1, c93b9c), 'C93BB5': (1, tgt(ue[2])),
             'C93D0B': (1, c93d0b), 'STAND': d(0x1807C2),
             # the working place lists (CC 17 B in the game): moved to the obj2 tail in a build with a big world
             'WORK_CC': (2, BSS[0] + B_LISTS) if BSS[0] is not None else d(0x18072F),
             'WORK_CWC': (2, BSS[0] + B_LISTS + 64) if BSS[0] is not None else d(0x180740),
+            'WORK_UEFA': (2, BSS[0] + B_LISTS + 128) if BSS[0] is not None else d(0x180761),
             'CUPREC': d(0x181D22), 'HOLD_CC': d(0x18070F), 'HOLD_CWC': d(0x180711), 'HOLD_UEFA': d(0x180713),
             'LIST_CC': d(0x18078A), 'CNT_CC': d(0x180784), 'D0': (2, a0 - 32), 'A0R': (2, a0), 'A1R': (2, a0 + 4),
             'A3R': (2, a0 + 12), 'A5R': (2, a0 + 20)}

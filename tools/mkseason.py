@@ -50,6 +50,7 @@ CAREERS_NAMES = {'it': b'CARR. STORICHE', 'en': b'CLASSIC CAREERS', 'fr': b"CARR
 CAREERS_REC = [None]
 WCONT_IDS = {}                          # world 2025-26: world n -> [(continent menu id, [country files])] when the world
 CONT_ORDER = ['europe', 'south_america', 'north_america', 'asia', 'africa', 'oceania']   # spans several continents
+WCONT_MAX = 44                           # countries a continent list of a world holds (more exits to DOS)
 CONT_NAT = {'europe': 80, 'africa': 81, 'south_america': 82, 'north_america': 83, 'asia': 84, 'oceania': 85}
 WMENU = 200                             # a world's entry in the CLASSIC CAREERS list: pseudo-continent 200 + world number
                                         # (its countries), named by the root pack's world_cups.name
@@ -76,6 +77,9 @@ COUNTRY.update({'CRO': 4, 'CZE': 6, 'GER': 14, 'EST': 10, 'FRO': 11, 'ISR': 19, 
                 'BOL': 45, 'BRA': 46, 'CRC': 47, 'CHI': 48, 'COL': 49, 'ECU': 50, 'SLV': 51, 'GUA': 51, 'HON': 51,
                 'PAN': 51, 'JPN': 55, 'MEX': 60, 'NZL': 62, 'FIJ': 62, 'SOL': 62, 'PAR': 64, 'PER': 65, 'KSA': 67,
                 'RSA': 69, 'URU': 71, 'USA': 73, 'QAT': 75, 'VEN': 77, 'EGY': 79})   # world 2025-26 (phase-0 prototype)   # code -> game country (team file whose clubs give templates)
+COUNTRY.update({'RUS': 31, 'KAZ': 31, 'AZE': 31, 'ARM': 31, 'GEO': 31, 'MDA': 30, 'BIH': 41, 'KOS': 0, 'MKD': 41,
+                'MNE': 41, 'AND': 35, 'GIB': 8, 'CAN': 73, 'KOR': 55, 'CHN': 55, 'IRN': 67, 'UAE': 67, 'MAR': 42,
+                'TUN': 42})                                    # world 2026-27 (Transfermarkt): the countries it adds
 ROLES = 'GDMA'
 BORROW = {'G': 'G', 'D': 'DMA', 'M': 'MDA', 'A': 'AMD'}   # slot role -> roles its player may come from
 
@@ -808,13 +812,13 @@ def worlds():
     return out
 
 
-def _first_europe(pk, holder=False):
+def _first_europe(pk, holders=None):
     """First-season European clubs of a world country per cup: pack.json first_europe, else the league order
-    (Champions Cup first, then Cup Winners' Cup, then UEFA Cup). holder: the world's root pack also fills the place
-    the holders take from season 2 on (one more club per cup)."""
+    (Champions Cup first, then Cup Winners' Cup, then UEFA Cup). holders ({cup: n}, the world's root pack): it also
+    fills the places the holders take from season 2 on."""
     pl, fe = dict(pk.meta.get('europe_places', {})), pk.meta.get('first_europe', {})
-    if holder:
-        pl = {k: pl.get(k, 0) + 1 for k in ('cc', 'cwc', 'uefa')}
+    if holders:
+        pl = {k: pl.get(k, 0) + holders[k] for k in ('cc', 'cwc', 'uefa')}
     order = iter(sorted(pk.league_clubs, key=lambda k: pk.division[k]))   # top division first, table order
     taken = {c for v in fe.values() for c in v}
     out = {}
@@ -858,14 +862,18 @@ def world_defs():
                 continue
             _need(pl.get('cc', 0) <= 1 and pl.get('cwc', 0) <= 1 and pl.get('uefa', 0) <= 6,
                   f"{pk.meta['id']}: europe_places at most cc 1, cwc 1, uefa 6")
-        first = {id(pk): _first_europe(pk, pk is roots[0]) for pk in pks}
+        # holders' places per cup: one each (the game's rule); a league-phase world (2025-26 rules): the Champions
+        # League takes its holder and the Europa League winner, the Europa League the Conference League winner
+        holders = {'cc': 2, 'cwc': 1, 'uefa': 0} if lpw else {'cc': 1, 'cwc': 1, 'uefa': 1}
+        first = {id(pk): _first_europe(pk, holders if pk is roots[0] else None) for pk in pks}
         for key in ('cc', 'cwc', 'uefa'):
             w['places'][key] = [pk.files[pk.league['clubs']][0] for pk in pks
                                 for _ in range(pk.meta.get('europe_places', {}).get(key, 0))]
             clubs = [(pk, c) for pk in pks for c in first[id(pk)][key]]
             size = len(clubs)
-            _need(size == len(w['places'][key]) + 1,
-                  f'world {n}: {key}: {size} clubs in the first season, {len(w["places"][key])} places + the holder')
+            _need(size == len(w['places'][key]) + holders[key],
+                  f'world {n}: {key}: {size} clubs in the first season, {len(w["places"][key])} places + '
+                  f'{holders[key]} holder place(s)')
             if wc.get(key, {}).get('format') == 'league_phase':     # UEFA league phase (lp36): 36 clubs, type 2
                 _need(size == 36, f'world {n}: {key}: a league phase has 36 clubs ({size})')
                 w['cups'][key] = (careerworld.LP_ROUNDS, [pk.where[c] for pk, c in clubs])
@@ -1299,17 +1307,30 @@ def patch(p, lang, area, cave):
                 wconts.setdefault(pk.meta.get('continent', 'europe'), []).append(pk.files[pk.league['clubs']][0])
             if len(wconts) > 1:
                 ids, cid = [], 251
+                # a continent of more than WCONT_MAX countries (a longer list exits to DOS) is split into lists of
+                # equal size in pack order, the later ones named '<continent> 2', '<continent> 3' (world 2026-27)
+                parts = []
                 for c in sorted(wconts, key=CONT_ORDER.index):
+                    k = -(-len(wconts[c]) // WCONT_MAX)
+                    size = -(-len(wconts[c]) // k)
+                    parts += [(c, j, wconts[c][j * size:(j + 1) * size]) for j in range(k)]
+                for c, j, files in parts:
                     while ct + 4 * cid in fx2 or comp + 4 * cid in fx2 or cid in wmenus or any(
                             cid == x for v in WCONT_IDS.values() for x, _ in v):
                         cid -= 1
                     _need(cid > WMENU + max(worlds()), f'world {n}: no free continent menu id')
-                    p.add_ptr(2, ct + 4 * cid, *p.target(2, ct + 4 * CONT_NAT[c]))
-                    cl = struct.pack('<i', -1) + bytes(wconts[c]) + b'\xff'
+                    cobj, coff = p.target(2, ct + 4 * CONT_NAT[c])
+                    if j == 0:
+                        p.add_ptr(2, ct + 4 * cid, cobj, coff)
+                    else:
+                        cname = p.get(cobj, coff + 1, 32).split(b'\0')[0] + b' %d' % (j + 1)
+                        p.add_ptr(2, ct + 4 * cid, 2, area.add(bytes((countries.CONTINENT[c],)) + cname + b'\0'
+                                                               + cname + b'\0'))
+                    cl = struct.pack('<i', -1) + bytes(files) + b'\xff'
                     p.put(1, at, cl)
                     p.add_ptr(2, comp + 4 * cid, 1, at)
                     at = (at + len(cl) + 3) & ~3
-                    ids.append((cid, wconts[c]))
+                    ids.append((cid, files))
                     cid -= 1
                 WCONT_IDS[n] = ids
                 wl = struct.pack('<i', -1) + bytes(x for x, _ in ids) + b'\xff'
@@ -1416,7 +1437,8 @@ def main(argv):
             for w in world_defs():
                 print(f"== world {w['n']}: from {w['year']}, countries {w['countries']}")
                 for key in ('cc', 'cwc', 'uefa'):
-                    print(f"{key}: {len(w['cups'][key][1])} clubs = {len(w['places'][key])} places + holder; "
+                    print(f"{key}: {len(w['cups'][key][1])} clubs = {len(w['places'][key])} places + "
+                          f"{len(w['cups'][key][1]) - len(w['places'][key])} holder place(s); "
                           f"season 1: {', '.join(pk.clubs[c]['name'] for pk, c in w['clubs'][key])}")
         except PackError as e:
             sys.exit(f'ERROR: {e}')

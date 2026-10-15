@@ -153,8 +153,8 @@ every 5-10 s that is 4-8 hours, once per season, resumable (each page cached as 
      the 2 of the profile (as the original).
    - **Goalkeepers**: skills 0, price = S of the same curve. **Price = S** for everyone (the engine's own rule).
    - Optional later (open question): finer per-player profiles from EA FC 27 attributes where a player exists.
-6. **Calibration** (the mod's rule): per club print the first-11 skill sum and price next to the real 2024-25 /
-   2026-27 table; adjust the curve per league (never by whole skill levels with a small price shift: that was the
+6. **Calibration** (the mod's rule): per club print the first-11 skill sum and price next to the real 2025-26
+   table (and the 2026-27 one as it grows); adjust the curve per league (never by whole skill levels with a small price shift: that was the
    1947-48 flaw); then simulated seasons in the harness for ~5 leagues (champion and bottom clubs roughly right).
 7. **Output**: the world pack in mkseason's `explicit` format (players.csv with position, number, nat, skin, the 7
    skills, price; 16 rows -> the record, rows 17-30 -> XTRA when extended squads exist) + a per-world POOLPLYR.DAT.

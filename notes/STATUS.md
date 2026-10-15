@@ -1963,7 +1963,7 @@ Left for 2.5: (a) NSL/NSSL finals series (type-1 design) or declare them postpon
 - Open: Davide's video of a one-off sprite column in a match (shirt numbers + sprite blocks at the right touchline,
   ~5 frames, at a goal kick): cause unknown, waiting for platform / exe / repeatability.
 
-## Release 3.2.5 (prepared 2026-10-15): shirt numbers 17..99 (Marco)
+## Release 3.2.5 (2026-10-15): shirt numbers 17..99 (Marco)
 - Marco's video (DOSBox-Staging, edited Man Utd / Arsenal numbers): a column of sprites at the touchline. Cause: the
   number over the controlled / booked player is one sprite, 1187 + number, and BENCH.DAT has 1..16 only (17 player
   mark, 18-19 goal parts, 20 grid, 21+ replay frames); confirmed in the harness (number 30 -> a green bar). The Europe

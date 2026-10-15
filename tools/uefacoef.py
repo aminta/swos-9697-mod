@@ -17,6 +17,8 @@ association coefficients (5 seasons) and the clubs' coefficients at the 2025-26 
 """
 import struct
 
+LABELS = {}                     # (uefaq.py: UC_C, UC_N, uc_g, CB)
+
 CB_OFF = 0x3800                 # in tmdFileBuffer (the W1 block ends at 0x3482)
 MARK, RING, DONE = 0, 2, 3
 CTEAMS, CPTS, CHIST = 0x10, 0x110, 0x510               # 256 B, 256 dd, 5 x 256 dd (thousandths of points)
@@ -642,6 +644,7 @@ def patch(p, cave, worlds, sites):
                'UEN_BYTES': (0, db((LP_UEN + [0] * 64)[:64])), 'SEEDC_BYTES': (0, db(seedc)), 'SEEDK_BYTES': (0, db(seedk))}
     code, fix = nasmcave.assemble(ASM, cave, symbols)
     lab = nasmcave.labels(ASM, cave, symbols)
+    LABELS.update(lab)
     p.put(1, cave, code)
     for off, tobj, toff in fix:
         p.add_ptr(1, cave + off, tobj, toff)

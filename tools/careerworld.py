@@ -40,6 +40,9 @@ BSS_SIZE = 0x27000 + 0x1A000                         # + the big team-file buffe
 # World 2025-26 (phase 0): a country may hold more than 93 clubs (Italy A + B + C = 100): teamFileBuffer (64014 B,
 # LoadFile reads the whole file there before checking 64000 -> FatalError) moves to the obj2 tail, 106496 B (155 clubs).
 B_TFB, TFB_SIZE = 0x27000, 0x1A000
+# UEFA qualifying rounds (uefaq.py, league-phase worlds only: BSS_SIZE grows then): the C code's .bss, then the
+# season end's copies of the clubs' records (55 associations x (top 9 + cup winner) + 3)
+B_UQ, UQ_BSS, UQ_RECS = 0x41000, 0x6000, 563
 B_TMD, B_CUPS, B_LISTS = 0, 128 * TEAM_SIZE, 128 * TEAM_SIZE + 3 * 160      # cups 160 B apart, lists 64 / 64 / 96
 # SaveSelectedTeams / RestoreSelectedTeams park the career's team cache while a contest is simulated (season end):
 # the game keeps only its first 32 records (21888 B in DOS memory at dosMemOfs60c00h), the simulated contest reuses
@@ -785,6 +788,13 @@ w_holders:                              ; replaces `call cseg_92BBF`: in a world
     popad
     ret
 
+w_q_fill:                               ; patched to `jmp uq_fill` by uefaq.py
+    ret
+    times 4 nop
+w_chk_tot0q:                            ; the record count before the holders: in a league-phase world the
+    call w_q_fill                       ; qualifying rounds' clubs go into the lists first (uefaq)
+    jmp w_chk_tot0
+
 w_isholder:                             ; ZF = 1 when word [D0] is one of the three holders or already in a list
     push eax                            ; (a club skipped by one cup must not be taken twice by the next)
     push esi
@@ -994,7 +1004,7 @@ def sites(p):
              rb'\x66\x83\x3d(.{4})\x10\x75.\x66\x83\x3d(.{4})\x20\x75.\x66\x83\x3d(.{4})\x20\x75.'
              rb'\x66\x83\x3d' + cfb + rb'\x50\x75', tail, 'checks')
     b = s['list'] + m.start()
-    s['chk'] = [(b, 'w_chk_tot0'), (b + 29, 'w_chk_cc'), (b + 39, 'w_chk_cwc'), (b + 49, 'w_chk_uefa'),
+    s['chk'] = [(b, 'w_chk_tot0q'), (b + 29, 'w_chk_cc'), (b + 39, 'w_chk_cwc'), (b + 49, 'w_chk_uefa'),
                 (b + 59, 'w_chk_tot')]
     s['cnt'] = [struct.unpack('<I', m.group(k))[0] for k in (1, 2, 3)]
     # cseg_936C0: the static place tables are 0x42 / 0x91 / 0xE0 after the original seasonEndList (obj2)
@@ -2019,6 +2029,8 @@ w_q_cl:                                 ; replaces `call cseg_939C9` in cseg_939
     jmp C939C9
 .lp0:
     call w_q_cb                         ; (uefacoef: the season's coefficients and the places, once per season end)
+    call w_q_cq                         ; (uefaq: the qualifying rounds take this country's clubs: nothing here)
+    jc .r
 .lp:
     mov dword [A0R], WORK_CC            ; one more place of this country in the CC list?
     call C93B30
@@ -2037,6 +2049,8 @@ w_q_el:                                 ; replaces `call cseg_939FE` (Cup Winner
     je .lp
     jmp C939FE
 .lp:
+    cmp byte [w_qon], 0
+    jne .r
     mov byte [W_QF], 1
 .p:
     mov dword [A0R], WORK_CWC
@@ -2068,6 +2082,8 @@ w_q_ue:                                 ; replaces `call cseg_93A60` (UEFA Cup s
     je .lp                              ; the standings once many clubs are skipped)
     jmp C93A60
 .lp:
+    cmp byte [w_qon], 0
+    jne .r
     mov dword [A0R], WORK_UEFA
     call C93B30
     jnz .r
@@ -2094,6 +2110,11 @@ w_q_inlists:                            ; replaces `call cseg_93B9C` in cseg_93A
 w_q_cb:                                 ; patched to `jmp uc_final` by uefacoef.py
     ret
     times 4 nop
+w_q_cq:                                 ; patched to `jmp uq_country` by uefaq.py (CF = 1: the country is taken)
+    clc
+    ret
+    times 3 nop
+w_qon: db 0                             ; (uefaq: 1 from the first country to the holders)
 W_QI: dd 0
 W_QF: db 0
 """

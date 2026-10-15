@@ -253,6 +253,22 @@ uq_fill:                                ; careerworld w_q_fill (before the seaso
     cmp ecx, 553
     jb .sd
     mov [UQ_IN], eax
+    mov ax, [SEL]                       ; the career club (its index, if seen) and the test builds' forced round
+    xor ecx, ecx
+.ms:
+    imul edi, ecx, CSZ
+    cmp ax, [UQ_IN + L_CLUB + edi]
+    je .mf
+    inc ecx
+    cmp ecx, 550
+    jb .ms
+    jmp .mn
+.mf:
+    inc ecx
+    mov [UQ_IN + L_MANAGER], cx
+.mn:
+    mov al, [UQ_FORCE]
+    mov [UQ_IN + L_FORCE], al
     cld
     call uq_season
 .ran:
@@ -300,15 +316,116 @@ uq_fill:                                ; careerworld w_q_fill (before the seaso
     cmp ebx, 3
     jb .o
 .done:
+    xor ebx, ebx                        ; the qualifying ties' contests: no tie (their lists are scanned by the
+.q0:                                    ; slot-3 chain at the season start)
+    mov edi, [UQ_QS + ebx*4]
+    mov dword [edi + Q_LIST], 0
+    inc ebx
+    cmp ebx, 3
+    jb .q0
+    cmp byte [UQ_OUT + O_MT_N], 0
+    je .qx
+    movzx eax, byte [UQ_OUT + O_MT_ROUND]       ; the first tie of the career club
+    xor ebx, ebx                        ; its competition: CL rounds 0..7, EL 8..13, UECL 14..
+    cmp eax, 8
+    jb .q1
+    inc ebx
+    cmp eax, 14
+    jb .q1
+    inc ebx
+.q1:
+    mov edi, [UQ_QS + ebx*4]
+    mov dl, [UQ_WIN + eax]              ; the two legs' dates (eighths of a month)
+    mov [edi + 3], dl
+    add dl, 2
+    mov [edi + 4], dl
+    mov ax, [SEL]
+    mov [edi + Q_LIST], ax
+    movzx eax, word [UQ_OUT + O_MT_OPP]
+    dec eax
+    imul esi, eax, CSZ
+    mov si, [UQ_IN + L_CLUB + esi]
+    mov [edi + Q_LIST + 2], si
+    inc eax                             ; its record after the season end's checks (w_q_post), unless the
+    xor ebx, ebx                        ; opponent is in a league phase already
+.q2:
+    movzx ecx, byte [UQ_OUT + O_N + ebx]
+    imul esi, ebx, 80
+    lea esi, [UQ_OUT + O_LS + esi]
+.q3:
+    test ecx, ecx
+    jz .q4
+    cmp ax, [esi]
+    je .qx
+    add esi, 2
+    dec ecx
+    jmp .q3
+.q4:
+    inc ebx
+    cmp ebx, 3
+    jb .q2
+    mov [UQ_PEND], ax
+.qx:
     pop es
     popad
 .r0:
     ret
 
+uq_post:                                ; careerworld w_q_post (after the season end's last record count check):
+    cmp word [UQ_PEND], 0               ; the record of the career club's first opponent
+    je .r
+    pushad
+    movzx eax, word [UQ_PEND]
+    mov word [UQ_PEND], 0
+    dec eax
+    imul eax, eax, 2ACh
+    add eax, UQREC
+    mov [A0R], eax
+    call ADDREC
+    popad
+.r:
+    ret
+
 UQ_HP: dd HOLD_CC, HOLD_CWC, HOLD_UEFA
+UQ_QS: dd QS0, QS1, QS2
+UQ_PEND: dw 0
+UQ_FORCE: db FORCE
+UQ_WIN: WIN_BYTES
 UQ_V: dd 0, 0
 UQ_E: dw 0
 '''
+
+
+STRUCTS_AT = 0x1F00             # the 3 contests (obj1, after the C code and the glue in uefaq's two pages)
+QIDS = (0x7C, 0x7D, 0x7E)       # contest ids (mkseason.RESERVED_IDS): CL / EL / UECL qualifying tie
+Q_NAME, Q_LIST = 16, 24         # offsets in a contest: its 2 name dwords, its 2-club list
+NAMES = {'it': 'PRELIM. ', 'en': 'QUAL. ', 'fr': 'QUALIF. ', 'de': 'QUALI. '}
+CUPS = (b'CHAMPIONS LEAGUE', b'EUROPA LEAGUE', b'CONFERENCE LEAGUE')
+STRUCTS = []
+# the legs' dates per round (eighths of a month from January; the second leg 2 later): Q1 early July, Q2 late
+# July, Q3 early August, play-off late August (the league phases start in September)
+WIN = {'Q1': 0x31, 'Q2': 0x35, 'Q3': 0x39, 'PO': 0x3C}
+ROUNDS = ['CL LS', 'CL PO', 'CL POnc', 'CL Q3', 'CL Q3nc', 'CL Q2', 'CL Q2nc', 'CL Q1', 'EL LS', 'EL PO', 'EL Q3',
+          'EL Q3ch', 'EL Q2', 'EL Q1', 'CO LS', 'CO PO', 'CO POch', 'CO Q3', 'CO Q3ch', 'CO Q2', 'CO Q2ch', 'CO Q1']
+
+
+def structs(p, area, lang, at):
+    """The career club's qualifying tie, one contest per competition: a type-1 cup of 2 clubs, one round of two
+    legs (as sacups' Intercontinental), list empty until a season end puts the club and its opponent in."""
+    import sacups
+    d2 = p.le.obj_bytes(2)
+    cwc = sacups.unique(d2, sacups.CWC_HDR)
+    out = []
+    for cid, cup in zip(QIDS, CUPS):
+        body = sacups.knockout16(d2[cwc:cwc + 28], cid, 2, (0x94,))
+        body[3], body[4] = WIN['Q1'], WIN['Q1'] + 2
+        assert len(body) == Q_NAME and body[5] + 5 == Q_NAME and body[7] + 7 == Q_LIST
+        rel = area.add(NAMES[lang].encode() + cup + b'\0') - sacups.STR_BASE
+        p.put(1, at, bytes(body) + struct.pack('<II', rel, rel) + bytes(4))
+        out.append(at)
+        at += Q_LIST + 4
+    STRUCTS[:] = out
+    return out
 
 
 def patch(p, at, limit, sites):
@@ -321,9 +438,9 @@ def patch(p, at, limit, sites):
     bss_at = sites['bss'] + cw.B_UQ
     syms, end, bss = cobj.link(p, obj, at, (2, bss_at), limit=limit)
     assert bss <= cw.UQ_BSS, hex(bss)
-    lay = struct.unpack('<13I', p.get(1, syms['UQ_LAYOUT'][1], 52))
+    lay = struct.unpack('<20I', p.get(1, syms['UQ_LAYOUT'][1], 80))
     keys = ('L_PRESENT', 'L_EPS', 'L_HOLD', 'L_NCLUB', 'L_LEAGUE', 'L_CUP', 'L_CLUB', 'CSZ', 'O_N', 'O_LS', 'O_STATUS',
-            'IN_SIZE', 'NC')
+            'IN_SIZE', 'NC', 'L_MANAGER', 'L_FORCE', 'O_MT_N', 'O_MT_ROUND', 'O_MT_OPP', 'O_MT_WIN', 'O_STANDIN')
     lay = dict(zip(keys, lay))
     assert lay['IN_SIZE'] % 4 == 0 and lay['CSZ'] == 12 and lay['NC'] >= 553, lay
     q = sites['qual']
@@ -335,7 +452,10 @@ def patch(p, at, limit, sites):
                     'ADDREC': (1, cw.LABELS['sites']['addrec']), 'W_QON': (1, cw.LABELS['w_qon']),
                     'UC_N': (1, uc.LABELS['UC_N']), 'UC_C': (1, uc.LABELS['UC_C']), 'UC_G': (1, uc.LABELS['uc_g']),
                     'CB': (2, sites['tmd'] + uc.CB_OFF), 'KHIST': (0, uc.KHIST), 'CHIST': (0, uc.CHIST),
-                    'RING': (0, uc.RING)})
+                    'RING': (0, uc.RING), 'SEL': (2, sites['sel']), 'Q_LIST': (0, Q_LIST),
+                    'QS0': (1, STRUCTS[0]), 'QS1': (1, STRUCTS[1]), 'QS2': (1, STRUCTS[2]),
+                    'FORCE': (0, ROUNDS.index(os.environ['UEFAQ_FORCE']) if os.environ.get('UEFAQ_FORCE') else 0),
+                    'WIN_BYTES': (0, 'db ' + ', '.join(str(WIN.get(r.split()[1][:2], 0)) for r in ROUNDS))})
     glue = (end + 15) & ~15
     code, fix = nasmcave.assemble(ASM, glue, symbols)
     lab = nasmcave.labels(ASM, glue, symbols)
@@ -345,10 +465,10 @@ def patch(p, at, limit, sites):
     for off, tobj, toff in fix:
         cobj.add_ptr(p, glue + off, tobj, toff)
     rel = lambda a, to: struct.pack('<i', to - (a + 5))
-    for stub, target in (('w_q_cq', 'uq_country'), ('w_q_fill', 'uq_fill')):
+    for stub, target in (('w_q_cq', 'uq_country'), ('w_q_fill', 'uq_fill'), ('w_q_post', 'uq_post')):
         a = cw.LABELS[stub]
         p.put(1, a, b'\xe9' + rel(a, lab[target]))
-    print('exe: uefaq labels ' + ' '.join(f'{k} {lab[k]:#x}' for k in ('uq_country', 'uq_fill', 'uq_fill.ran', 'uq_fill.done')))
+    print('exe: uefaq labels ' + ' '.join(f'{k} {lab[k]:#x}' for k in ('uq_country', 'uq_fill', 'uq_fill.ran', 'uq_fill.done', 'uq_post')))
     print(f'exe: UEFA qualifying rounds: C obj1+{at:#x}..{end:#x}, glue ..{glue + len(code):#x}, '
           f'bss obj2+{bss_at:#x} ({bss} B + {cw.UQ_RECS} records)')
     return glue + len(code)

@@ -794,6 +794,15 @@ w_q_fill:                               ; patched to `jmp uq_fill` by uefaq.py
 w_chk_tot0q:                            ; the record count before the holders: in a league-phase world the
     call w_q_fill                       ; qualifying rounds' clubs go into the lists first (uefaq)
     jmp w_chk_tot0
+w_chk_totq:                             ; the last record count check, then (uefaq) the record of the career
+    call w_chk_tot                      ; club's qualifying-tie opponent
+    pushfd
+    call w_q_post
+    popfd
+    ret
+w_q_post:                               ; patched to `jmp uq_post` by uefaq.py
+    ret
+    times 4 nop
 
 w_isholder:                             ; ZF = 1 when word [D0] is one of the three holders or already in a list
     push eax                            ; (a club skipped by one cup must not be taken twice by the next)
@@ -1005,7 +1014,7 @@ def sites(p):
              rb'\x66\x83\x3d' + cfb + rb'\x50\x75', tail, 'checks')
     b = s['list'] + m.start()
     s['chk'] = [(b, 'w_chk_tot0q'), (b + 29, 'w_chk_cc'), (b + 39, 'w_chk_cwc'), (b + 49, 'w_chk_uefa'),
-                (b + 59, 'w_chk_tot')]
+                (b + 59, 'w_chk_totq')]
     s['cnt'] = [struct.unpack('<I', m.group(k))[0] for k in (1, 2, 3)]
     # cseg_936C0: the static place tables are 0x42 / 0x91 / 0xE0 after the original seasonEndList (obj2)
     o2 = countries.tables(p)[2]

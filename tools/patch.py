@@ -223,6 +223,11 @@ def patch_exe(src, dst, remap, lang='it'):
     nz_end = nz97.shootout(p, NZ_CAVE)            # 2.1: NSSL shoot-out after every draw, +1 point to its winner
     arg_end = arg97.patch(p, area, sacups.STR_BASE, ARG_CAVE, nz97.SITE_B, os.path.join(ROOT, 'orig/DATA'))   # 2.1: Apertura / Clausura
     info = cafcups.career_info(caf)
+    if mkseason.league_phase_worlds():          # UEFA qualifying ties of the career club (uefaq): 3 contests in the
+        import uefaq                            # slot-3 chain (D7 / E092F after the CAF / CONCACAF ones)
+        q = uefaq.structs(p, area, lang, hist2 + HIST2_PAGE + 0x2000 + uefaq.STRUCTS_AT)
+        info['structs'] += q
+        info['kinds'] += [0, 1, 2]
     info['new_career_ptr'] = world              # dword filled below: sacups is assembled before the trailer code
     world += 4
     cave = sacups.patch(p, pool, SA_CAVE, info)
@@ -260,7 +265,8 @@ def patch_exe(src, dst, remap, lang='it'):
         assert uc_end <= hist2 + HIST2_PAGE + 0x2000, hex(uc_end)
         import uefaq                            # UEFA qualifying rounds (C code, tools/uefaq.c; 2 pages)
         cs['bss'] = careerworld.BSS[0]
-        uefaq.patch(p, hist2 + HIST2_PAGE + 0x2000, hist2 + HIST2_PAGE + 0x4000, cs)
+        cs['sel'] = sacups.SEL_ADDR[0]
+        uefaq.patch(p, hist2 + HIST2_PAGE + 0x2000, hist2 + HIST2_PAGE + 0x2000 + uefaq.STRUCTS_AT, cs)
         careerworld.BSS_SIZE = (careerworld.B_UQ + careerworld.UQ_BSS + careerworld.UQ_RECS * 684 + 0xFFF) & ~0xFFF
     assert cave <= WORLD_CAVE, hex(cave)
     print(f'exe: caves: world end {world:#x} (limit {NZ_CAVE:#x}), arg end {arg_end:#x} (limit {OBJ1_NEW_VSIZE:#x})')

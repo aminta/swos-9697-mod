@@ -102,6 +102,8 @@ struct uq_in {
     u16 league[NA][NL - 1];             /* club indices + 1, league order (0 = none) */
     u16 cup[NA];                        /* the cup winner: club index + 1 (0 = none) */
     struct { u16 id; u8 rank; u8 pad; u32 coef; u32 str; } club[NC];
+    u16 manager;                        /* the manager's club: index + 1 (0 = none / not seen) */
+    u8 force;                           /* test builds: the manager's club enters this round (0 = its place) */
 };
 /* output */
 struct uq_out {
@@ -111,15 +113,22 @@ struct uq_out {
     u8 nent;                            /* places of the season's list (after the rebalancing) */
     u8 round_of[NC];                    /* the club's first round (NR = none) */
     u8 last[NC];                        /* the last round played (NR = none) */
+    u8 mt_n;                            /* the manager's ties (in the simulation): round, opponent, won */
+    u8 mt_round[6];
+    u16 mt_opp[6];
+    u8 mt_win[6];
+    u16 standin;                        /* the club in the manager's league-phase place until its ties are played */
 };
 
 struct uq_in UQ_IN;
 struct uq_out UQ_OUT;
-#define OFF(t, f) ((u32) & ((struct t *) 0)->f)
+#define OFF(t, f) ((u32) __builtin_offsetof(struct t, f))
 /* for the asm (uefaq.py): offsets in UQ_IN / UQ_OUT, the club record's size */
 const u32 UQ_LAYOUT[] = { OFF(uq_in, present), OFF(uq_in, eps), OFF(uq_in, hold), OFF(uq_in, nclub),
                           OFF(uq_in, league), OFF(uq_in, cup), OFF(uq_in, club), sizeof(UQ_IN.club[0]),
-                          OFF(uq_out, n), OFF(uq_out, ls), OFF(uq_out, status), sizeof(struct uq_in), NC };
+                          OFF(uq_out, n), OFF(uq_out, ls), OFF(uq_out, status), sizeof(struct uq_in), NC,
+                          OFF(uq_in, manager), OFF(uq_in, force), OFF(uq_out, mt_n), OFF(uq_out, mt_round),
+                          OFF(uq_out, mt_opp), OFF(uq_out, mt_win), OFF(uq_out, standin) };
 
 static struct { u8 rank, round, code, pad; } E[NE];
 static int ne;
@@ -350,6 +359,12 @@ static void play(int r) {
         u32 pa = sq(a), pb = sq(b);
         int w = below(1000) < pa * 1000 / (pa + pb) ? a : b, l = w == a ? b : a;
         UQ_OUT.last[a - 1] = UQ_OUT.last[b - 1] = r;
+        if ((a == UQ_IN.manager || b == UQ_IN.manager) && UQ_OUT.mt_n < 6) {
+            int k = UQ_OUT.mt_n++;
+            UQ_OUT.mt_round[k] = r;
+            UQ_OUT.mt_opp[k] = a == UQ_IN.manager ? b : a;
+            UQ_OUT.mt_win[k] = w == UQ_IN.manager;
+        }
         if (WIN[r] != OUT) add(WIN[r], w);
         if (LOSE[r] == SPLIT)
             add(RN[CO_Q2ch] < x_split ? CO_Q2ch : CO_Q3ch, l);
@@ -391,6 +406,16 @@ void uq_season(void) {
                 add(E[i].round, CLUB[i]);
                 UQ_OUT.round_of[CLUB[i] - 1] = E[i].round;
             }
+    int m = UQ_IN.manager;
+    if (m && UQ_IN.force && UQ_IN.force < NR) {   /* (test builds) the manager's club into another round */
+        for (int r = 0; r < NR; r++)
+            for (int i = 0; i < RN[r]; i++)
+                if (RL[r][i] == m) RL[r][i] = RL[r][--RN[r]];
+        add(UQ_IN.force, m);
+        UQ_OUT.round_of[m - 1] = UQ_IN.force;
+    }
+    UQ_OUT.mt_n = 0;
+    UQ_OUT.standin = 0;
     static const u8 HR[3] = { CL_LS, CL_LS, EL_LS };
     for (int h = 0; h < 3; h++)
         if (own[h]) { add(HR[h], own[h]); UQ_OUT.round_of[own[h] - 1] = HR[h]; }
@@ -414,6 +439,17 @@ void uq_season(void) {
         }
         int n = RN[r] < 36 ? RN[r] : 36;
         UQ_OUT.n[c] = n;
+        /* the manager's club still has its ties to play: a stand-in holds its place (the best club by coefficient
+           in no league phase, with a record: index < 550) until the qualifying rounds are over */
+        if (m && UQ_OUT.mt_n && UQ_OUT.round_of[m - 1] != CL_LS && UQ_OUT.round_of[m - 1] != EL_LS &&
+            UQ_OUT.round_of[m - 1] != CO_LS)
+            for (int i = 0; i < n; i++)
+                if (RL[r][i] == m) {
+                    int b = 0;
+                    for (int k = 1; k <= 550 && k <= UQ_IN.nclub; k++)
+                        if (!taken[k] && UQ_IN.club[k - 1].id && (!b || seed_less(k, b))) b = k;
+                    if (b) { taken[b] = 1; RL[r][i] = b; UQ_OUT.standin = b; }
+                }
         for (int i = 0; i < n; i++) UQ_OUT.ls[c][i] = RL[r][i];
     }
 }

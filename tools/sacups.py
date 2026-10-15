@@ -226,6 +226,7 @@ SAVED_GLOBAL = 1740      # 1.0/1.1 saves: someLeaguesTable[1740..1842]: 'S2' + 3
                          # (cseg_9487A: sum must be 0); session-12 saves: 'SA' + 3 lists + balance byte (1740..1838);
                          # global numbers 1730..1849 belong to no team
 LISTS_OUT = [None]       # career code's lists_out, called at season end
+SEL_ADDR = [None]        # obj2 offset of selTeamNumber (the career club's word), set by career_hooks
 
 # ITA bytes (obj-relative offsets as stored in the file), see notes/STATUS.md
 
@@ -587,6 +588,7 @@ def career_hooks(p, cups, cave, cups_all=None, caf=None):
     saved_copy = copies_base + SAVED_GLOBAL
     defaults = b''.join(p.get(1, off, n) for off, n in ((lib + 47, 2 * LIB_N), (sup + 27, 32), (con + 27, 32))) + p.get(1, cups_all[3] + 24, 4)
     sel = struct.unpack_from('<I', d1, check + 0x2d + 2)[0]               # cseg_8D661: mov ax,[selTeamNumber]
+    SEL_ADDR[0] = sel                                                     # (uefaq.py: the manager's club)
     assert d1[check + 0x2d:check + 0x2f] == b'\x66\xa1'
 
     # cseg_8ECAE: cmp dword [D8CBA],0; jz out; mov eax,[D8CC0]; mov [A6],eax; mov [A5],offset list; mov [A4],offset slot4

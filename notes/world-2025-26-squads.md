@@ -217,3 +217,17 @@ football; the other players wait in an extension table outside the record.
 | 'SQUAD 24' screen for the human club (season/tourney) | 2-3 |
 | Real per-round call-ups for a historic tourney (data + file format) | 1-2 |
 | Career worlds: table for every club (~1500 x 8-14 x 38 = 0.45-0.8 MB), job change, .CAR trailer | 2-3 |
+
+### Bench: 5 is the engine's maximum (follow-up: 'today 9-12 sit on the bench')
+- `MaxSubstitutes` cycles 0..5 (= players on the bench), `MinSubstitutes` <= it (= substitutions allowed);
+  `InitializeInGameTeamsAndStartGame` gets both (D1/D2) and the match squad is 11 + bench (`RotatePlayersLeft`:
+  `add D0, 11`), drawn from the record's 16 through `playerNumbers`. So 5 substitutions with a bench of 5 already work.
+- In the match everything is sized for 16 per team: one PlayerInfo per player (`InitInGamePlayer`), the saved teams
+  of replays / highlights (`topTeamSaved` / `bottomTeamSaved db 1704`), the bench screen (`DrawSubstitutesMenu`,
+  5 rows, `BenchCheckControls`, `SubstitutePlayer`, `SetBenchPlayersNumbers`), and SWOS++ patches the same sites
+  (DrawSubstitutesMenuEntry 8 sites, BenchCheckControls+0x78F).
+- A bench of 7-12 = match squad 18-23 = the record limit again plus the match engine, replay/highlight formats and
+  SWOS++ compatibility: the most fragile part of the game. Not recommended (estimate 15-25 sessions, high risk).
+- What the call-up design gives instead: squad of 24-30, before each match the human picks the 11 + the 5 he may
+  bring on (all 5 usable, as the 5-substitution rule); CPU clubs by rule or real call-ups. The only loss vs reality:
+  the 5 substitutes are chosen before kick-off, not among 9-12 during the match. The '3 windows' rule is not modelled.

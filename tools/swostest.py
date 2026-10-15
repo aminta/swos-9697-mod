@@ -45,7 +45,7 @@ WORK = os.path.join(MAIN, 'internal', 'swostest')
 RUNS = os.environ.get('SWOSTEST_RUNS') or os.path.join(WORK, 'runs')   # run dirs (another one = a parallel suite)
 DOSBOX = '/Applications/dosbox-x.app/Contents/MacOS/dosbox-x'
 ISO = os.path.join(MAIN, 'orig', 'swos9697ita.iso')
-BREAK = re.compile(rb'[0-9A-F]{4}:([0-9A-F]{8}) +CD03')
+BREAK = re.compile(rb'[0-9A-F]{4}:([0-9A-F]{8}) +(?:CD03|CC\s)')   # mod traps CD 03, the game's own int 3 CC
 
 CONF = """[sdl]
 output=surface

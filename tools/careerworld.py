@@ -1316,7 +1316,10 @@ def patch(p, worlds, at, nasmcave, comp, ct, cont_rec):
             extra.append(f'W{n}_T{key.upper()}: dd W{n}_P{key.upper()}')
             extra.append(f'    dw {len(pl)}, {len(pl)}')
             extra.append('    dd -1')
-            extra.append(f'W{n}_P{key.upper()}: db ' + ', '.join(map(str, pl)))
+            # FF-terminated: cseg_936C0 counts the manager's country in the UEFA list up to FF (without it the scan
+            # ran on into W_LIST, which holds every world country: the manager's country then took the last UEFA
+            # place, a non-European one left it empty -> cseg_91428's 'int 3; jmp $' at the season end)
+            extra.append(f'W{n}_P{key.upper()}: db ' + ', '.join(map(str, pl + [0xff])))
         extra.append(f'W{n}_LIST: db ' + ', '.join(map(str, w['countries'] + [0xff])))
         extra.append(f'W{n}_TMD: db "data\\\\{w["tmd"].lower()}", 0')
     wnat = [0] * (max(w['n'] for w in worlds) + 1)  # physical file standing for TEAM.080 per world (0 = the game's)

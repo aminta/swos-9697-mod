@@ -1889,6 +1889,49 @@ def world2526():
                 os.environ[k] = v
 
 
+@scenario
+def world2526q():
+    """World 2025-26 test world (LP=1) built with UEFAQ_FORCE='CL Q1' (the career club enters the CL qualifying):
+    Arsenal two seasons, no sacking; season 2 must open with at least two qualifying ties played by the manager
+    ('PRELIM.' contests, rounds named by their qualifying round, not FINALE)"""
+    run = os.path.join(MAIN, 'internal', 'world2526', 'run.sh')
+    if not os.path.exists(run):
+        return True, 'SKIP: private converter internal/world2526 missing'
+    out = os.path.join(WORK, 'builds', 'world2526q')
+    r = subprocess.run(['sh', run], env=dict(os.environ, LP='1', OUT=out, TOOLS=os.path.join(ROOT, 'tools'),
+                                             UEFAQ_FORCE='CL Q1'), capture_output=True, text=True)
+    if r.returncode or not os.path.exists(os.path.join(out, 'ITALIAN.EXE')):
+        return False, f'build: {(r.stdout + r.stderr)[-300:]}'
+    keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK')
+    keep = {k: os.environ.get(k) for k in keys}
+    os.environ.update(W8485_BUILD=out, W8485_WORLD='WORLD 2025-26', W8485_TEAM='EUROPA,ENGLAND,ENGLAND DIV 1,ARSENAL',
+                      W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1')
+    try:
+        ok, msg = world8485()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    log = os.path.join(RUNS, 'world8485_2', 'session.log')
+    ties, bad = [], []
+    if os.path.exists(log):
+        for line in open(log, errors='replace'):
+            if not line.startswith('[') or 'PRELIM.' not in line.split('|')[0]:
+                continue
+            f = [x.strip() for x in line.split('|')]
+            title = f[0].split(']', 1)[1].strip()
+            if 'FINALE' in title:
+                bad.append(title)
+            if '- PARTITA -' in f:                     # a leg the manager could play: one tie per round name
+                key = title.split(' TURNO')[0] + ' TURNO' if ' TURNO' in title else title
+                if key not in ties:
+                    ties.append(key)
+    ok = ok and len(ties) >= 2 and not bad
+    return ok, f'{msg}; ties played {ties}; FINALE titles {bad[:2]}'
+
+
 def run_parallel(names, jobs):
     """run -jN: each scenario in its own process (own run dirs and DOSBox-X, one host core each in turbo); the
     builds are made once here first. Output in the order of the names; exit code 1 on a failure."""

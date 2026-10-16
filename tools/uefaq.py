@@ -133,21 +133,9 @@ uq_country:                             ; careerworld w_q_cq (w_q_cl in a league
     jb .s
     mov [edi + 8], eax
     mov esi, [esp + 4]
-    movzx eax, word [esi]               ; club coefficient: 5 seasons (units)
-    call UC_G
-    xor edx, edx
-    cmp eax, 2000
-    jae .k2
-    xor ecx, ecx
-.k:
-    imul esi, ecx, 4000
-    movzx esi, word [CB + KHIST + esi + eax*2]
-    add edx, esi
-    inc ecx
-    cmp ecx, 5
-    jb .k
-.k2:
-    mov [edi + 4], edx
+    movzx eax, word [esi]               ; club coefficient (5 seasons, units; the association floor included)
+    call UC_KC
+    mov [edi + 4], eax
     lea eax, [ebx + 1]
     pop edi
     pop esi
@@ -701,7 +689,7 @@ def patch(p, at, limit, sites):
                     'HOLD_CC': q['HOLD_CC'], 'HOLD_CWC': q['HOLD_CWC'], 'HOLD_UEFA': q['HOLD_UEFA'],
                     'A0R': q['A0R'], 'HOLDTAB': (1, cw.LABELS['HOLDTAB']),
                     'ADDREC': (1, cw.LABELS['sites']['addrec']), 'W_QON': (1, cw.LABELS['w_qon']),
-                    'UC_N': (1, uc.LABELS['UC_N']), 'UC_C': (1, uc.LABELS['UC_C']), 'UC_G': (1, uc.LABELS['uc_g']),
+                    'UC_N': (1, uc.LABELS['UC_N']), 'UC_C': (1, uc.LABELS['UC_C']), 'UC_G': (1, uc.LABELS['uc_g']), 'UC_KC': (1, uc.LABELS['uc_kc']),
                     'CB': (2, sites['tmd'] + uc.CB_OFF), 'KHIST': (0, uc.KHIST), 'CHIST': (0, uc.CHIST),
                     'RING': (0, uc.RING), 'SEL': (2, sites['sel']), 'Q_LIST': (0, Q_LIST),
                     'QS0': (1, STRUCTS[0]), 'QS1': (1, STRUCTS[1]), 'QS2': (1, STRUCTS[2]),
@@ -730,9 +718,9 @@ def patch(p, at, limit, sites):
         a = cw.LABELS[stub]
         p.put(1, a, b'\xe9' + rel(a, lab[target]))
     p.put(1, site + 1, rel(site, lab['uq_daily']))     # (a relative call: no fixup to move)
-    for at, stub in ((r280c0, 'uq_rn1'), (r283bd, 'uq_rn2')):     # `sub word [Dn], 1` (8 B, a fixup) -> jmp
-        p.remove(1, at + 3)
-        p.put(1, at, b'\xe9' + rel(at, lab[stub]) + b'\x90' * 3)
+    for hk, stub in ((r280c0, 'uq_rn1'), (r283bd, 'uq_rn2')):     # `sub word [Dn], 1` (8 B, a fixup) -> jmp
+        p.remove(1, hk + 3)
+        p.put(1, hk, b'\xe9' + rel(hk, lab[stub]) + b'\x90' * 3)
     print(f"exe: uefaq state obj2+{symbols['STATE'][1]:#x} (k +{slay['S_K']:#x}, res +{slay['S_RES']:#x}), slot 3 "
           f"obj2+{sites['slot3']:#x}, uq_daily {lab['uq_daily']:#x}")
     print('exe: uefaq labels ' + ' '.join(f'{k} {lab[k]:#x}' for k in ('uq_country', 'uq_fill', 'uq_fill.ran', 'uq_fill.done', 'uq_post')))

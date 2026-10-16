@@ -263,7 +263,7 @@ def patch_exe(src, dst, remap, lang='it'):
         s36 = lp36._sites(p)
         cs = {'tmd': careerworld.LABELS['sites']['tmd'], 'tcn': countries.tables(p)[1], 'diy': s36['DIY'],
               'diycopy': s36['DIYCOPY'], 'qual': careerworld._qual_sites(p.le.obj_bytes(1), p), 'a0': a0,
-              'lp_ord': lp36.LABELS['LP_ORD']}
+              'lp_ord': lp36.LABELS['LP_ORD'], 'area': area}
         uc_end = uefacoef.patch(p, hist2 + h2 + 0x1000, mkseason.world_defs(), cs)
         assert uc_end <= hist2 + h2 + 0x2000, hex(uc_end)
         import uefaq                            # UEFA qualifying rounds (C code, tools/uefaq.c; 3 pages)

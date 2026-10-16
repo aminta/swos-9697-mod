@@ -309,6 +309,47 @@ uc_draw:                                ; lp36 lp_cb_draw (jumped to at lp_draw'
     popad
     ret
 
+uc_kc:                                  ; eax = team word -> eax = its club coefficient (units, 5 seasons): its own
+    push ebx                            ; points or 20 % of its association's coefficient, the higher (UEFA's rule
+    push ecx                            ; for 2024-27: newly promoted clubs and clubs without seeds get the floor)
+    push edx
+    push esi
+    movzx esi, al                       ; the association (country file)
+    call uc_g
+    xor ebx, ebx
+    cmp eax, 2000
+    jae .f
+    xor ecx, ecx
+.k:
+    imul edx, ecx, 4000
+    movzx edx, word [CB + KHIST + edx + eax*2]
+    add ebx, edx
+    inc ecx
+    cmp ecx, 5
+    jb .k
+.f:
+    xor eax, eax                        ; 5 seasons, thousandths of points: / 5 (20 %) / 1000 * 8 (units) = / 625
+    xor ecx, ecx
+.c:
+    imul edx, ecx, 256
+    add edx, esi
+    add eax, [CB + CHIST + edx*4]
+    inc ecx
+    cmp ecx, 5
+    jb .c
+    xor edx, edx
+    mov ecx, 625
+    div ecx
+    cmp eax, ebx
+    jae .x
+    mov eax, ebx
+.x:
+    pop esi
+    pop edx
+    pop ecx
+    pop ebx
+    ret
+
 uc_str:                                 ; lp36 lp_cb_str: eax = squad value, edx = team index -> eax = the pot key
     push edx
     push ebx
@@ -328,20 +369,8 @@ uc_str:                                 ; lp36 lp_cb_str: eax = squad value, edx
     mov eax, 0FFFFFFFFh
     jmp .x
 .c:
-    call uc_g
-    cmp eax, 2000
-    jae .plain
-    mov ebp, CB
-    xor ecx, ecx
-    xor ebx, ebx
-.s:
-    imul edx, ecx, 4000
-    add edx, ebp
-    movzx edx, word [edx + KHIST + eax*2]
-    add ebx, edx
-    inc ecx
-    cmp ecx, 5
-    jb .s
+    call uc_kc                          ; (its club coefficient, the association floor included)
+    mov ebx, eax
     shl ebx, 10
     cmp esi, 1023
     jbe .v
@@ -601,7 +630,6 @@ UC_N: dd 0
 UC_T: times 64 dd 0
 UC_C: times 64 db 0
 UC_SEEDC: SEEDC_BYTES
-UC_SEEDK: SEEDK_BYTES
 '''
 
 
@@ -642,7 +670,7 @@ def patch(p, cave, worlds, sites):
                'WORK_CWC': q['WORK_CWC'], 'WORK_UEFA': q['WORK_UEFA'], 'CTEAMS': (0, CTEAMS), 'CPTS': (0, CPTS), 'CHIST': (0, CHIST),
                'KPTS': (0, KPTS), 'KHIST': (0, KHIST), 'PREV': (0, PREV), 'FIN': (0, FIN), 'SIZE': (0, SIZE),
                'CLN_BYTES': (0, db((LP_CLN + [0] * 64)[:64])), 'ELN_BYTES': (0, db((LP_ELN + [0] * 64)[:64])),
-               'UEN_BYTES': (0, db((LP_UEN + [0] * 64)[:64])), 'SEEDC_BYTES': (0, db(seedc)), 'SEEDK_BYTES': (0, db(seedk))}
+               'UEN_BYTES': (0, db((LP_UEN + [0] * 64)[:64])), 'SEEDC_BYTES': (0, db(seedc)), 'UC_SEEDK': (2, sites['area'].add(seedk))}   # (obj2: any number of clubs)
     code, fix = nasmcave.assemble(ASM, cave, symbols)
     lab = nasmcave.labels(ASM, cave, symbols)
     LABELS.update(lab)

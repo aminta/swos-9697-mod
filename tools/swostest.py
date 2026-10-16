@@ -621,8 +621,8 @@ class Session:
             while ...: scr = s.screen(); s.send('keys ... dump:1')
     """
 
-    def __init__(self, name, exe_dir, cars, keys, timeout=60, shots=0):
-        self.run, self.info = prepare(name, exe_dir, cars, steps_of(keys))
+    def __init__(self, name, exe_dir, cars, keys, timeout=60, shots=0, match=False):
+        self.run, self.info = prepare(name, exe_dir, cars, steps_of(keys), match)
         self.timeout = timeout
         self.box = Dosbox(self.run, timeout, shots)
         self.result = None
@@ -1930,6 +1930,122 @@ def world2526q():
                     ties.append(key)
     ok = ok and len(ties) >= 2 and not bad
     return ok, f'{msg}; ties played {ties}; FINALE titles {bad[:2]}'
+
+
+def walk(s, target, w=3, tries=20):
+    """Select entry `target` (text or number) one key at a time, re-planning after each move (menus where a planned
+    path drifts: two-column lists, moves taken twice), then fire; returns the new screen."""
+    for _ in range(tries):
+        scr = s.screen()
+        i = scr.find(target) if isinstance(target, str) else target
+        if i is None:
+            raise AssertionError(f'{target} not on screen')
+        if scr.selected == i:
+            s.send(f'fire dump:{w}')
+            return s.screen()
+        p = scr.path(i)
+        if not p:
+            raise AssertionError(f'no path to {target} from {scr.selected}')
+        s.send(p[0] + ' dump:0.5')
+    raise AssertionError(f'{target} not reached')
+
+
+def friendly_prematch(s, home, away):
+    """Main menu -> AMICHEVOLE with two Bundesliga clubs (player-controlled) -> pre-match screen."""
+    for t in ('AMICHEVOLE', 'OK', 'SCEGLI SQUADRE', 'SQUADRE CLUB', 'EUROPA', 'GERMANIA', '1. LIGA', home, away):
+        walk(s, t, 2)
+    for _ in range(12):                         # AMICHEVOLE (55) is reached from the list by down, then right (56, 57)
+        scr = s.screen()
+        if scr.selected == 55:
+            s.send('fire dump:4')
+            return s.screen()
+        s.send(('right' if scr.selected in (56, 57) else 'down') + ' dump:0.5')
+    raise AssertionError('AMICHEVOLE not reached')
+
+
+@scenario
+def kits_reset():
+    """3.2.4 (Marco): kits set in a friendly's pre-match screen left without playing must not carry over to the next
+    friendly with other teams (button back to AUTO, SELECT KITS shows the new teams)"""
+    errs = []
+    with Session('kits_reset', builds()['it'], {}, 'dump:3', 400) as s:
+        s.wait()
+        scr = friendly_prematch(s, 'HAMBURG', 'SCHALKE')
+        scr = walk(s, 68)                       # KITS AUTO -> SELECT KITS
+        scr = walk(s, 2, 2)                     # the shown team wears its second kit
+        scr = walk(s, 'OK')
+        check(scr.entries[68][1] == 'MAGLIE FISSE', f'after OK: {scr.entries[68][1]!r}', errs)
+        for _ in range(22):                     # pre-match ESCI: down the rows to VIS. PARTITA, then right
+            s.send('down dump:0.5')
+            if s.screen().selected == 9:
+                break
+        s.send('right dump:0.5')
+        scr = walk(s, 8)
+        check(scr.find('AMICHEVOLE') is not None, 'main menu not reached', errs)
+        scr = friendly_prematch(s, 'BAYERN MUNICH', 'BOR. DORTMUND')
+        check(scr.entries[68][1] == 'MAGLIE AUTO', f'second friendly: button {scr.entries[68][1]!r}', errs)
+        scr = walk(s, 68)
+        names = {scr.entries[1][1], scr.entries[3][1].split(':')[0]}
+        check(names == {'BAYERN MUNICH', 'BOR. DORTMUND'}, f'SELECT KITS teams {names}', errs)
+    return not errs, '; '.join(errs) or 'button AUTO and the new teams after a pre-match left without playing'
+
+
+SHIRT_EXPECT = {17: '#.###|#...#|#...#|#...#|#...#', 20: '###.###|..#.#.#|###.#.#|#...#.#|###.###',
+                41: '#...#|#...#|#.#.#|###.#|..#.#', 99: '###.###|#.#.#.#|###.###|..#...#|###.###'}
+
+
+@scenario
+def shirt_numbers():
+    """3.2.5 (Marco): shirt numbers 17..99 over the controlled player, built from the game's digits (friendly, human
+    HAMBURG numbered 17..32, goal kicks): sprites 1335..1417 in spritesIndex, 17 / 20 / 41 / 99 pixel-exact"""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import lepatch
+    import shirtnum
+    b = builds()['it']
+    src = os.path.join(b, 'DATA', 'TEAM.014')
+    d = bytearray(open(src if os.path.exists(src) else os.path.join(MAIN, 'orig', 'DATA', 'TEAM.014'), 'rb').read())
+    for t in range(struct.unpack('>H', d[:2])[0]):
+        o = 2 + t * 684
+        if d[o + 5:o + 22].split(b'\0')[0] == b'HAMBURG':
+            for k in range(16):
+                d[o + 76 + k * 38 + 2] = 17 + k
+    team = os.path.join(WORK, 'saves', 'TEAM014_HAMBURG17.BIN')
+    os.makedirs(os.path.dirname(team), exist_ok=True)
+    open(team, 'wb').write(d)
+    spr = shirtnum.spr_index(lepatch.LEPatch(os.path.join(b, 'ITALIAN.EXE')))
+    errs = []
+    with Session('shirt_numbers', b, {'DATA/TEAM.014': team}, 'dump:3', 300, match=True) as s:
+        s.wait()
+        for t in ('AMICHEVOLE', 'OK', 'SCEGLI SQUADRE', 'SQUADRE CLUB', 'EUROPA', 'GERMANIA', '1. LIGA', 'HAMBURG'):
+            walk(s, t, 2)
+        s.send('fire dump:2')                   # HAMBURG: COMPUTER -> GIOCA-ALLENA (human)
+        walk(s, 'SCHALKE', 2)
+        for _ in range(12):
+            scr = s.screen()
+            if scr.selected == 55:
+                s.send('fire dump:4')
+                break
+            s.send(('right' if scr.selected in (56, 57) else 'down') + ' dump:0.5')
+        for _ in range(22):                     # pre-match: down the rows to VIS. PARTITA
+            s.send('down dump:0.5')
+            if s.screen().selected == 9:
+                break
+        r = s.send('fire ' + 'fire:3 ' * 30 + 'dump:2')     # into the match: fire for the kicks
+        check(r.outcome == 'dump', f'match: {r}', errs)
+        if r.outcome == 'dump':
+            ptrs = struct.unpack('<83I', r.read(r.base2 + spr + shirtnum.NEWBASE * 4, 83 * 4))
+            check(all(ptrs) and ptrs[1] - ptrs[0] == 96, f'spritesIndex[1335..] {ptrs[:3]}', errs)
+            if all(ptrs):
+                m = r.read(ptrs[0] - 256, 256 + 83 * 96)
+                check(m[0] == 1, f'build flag {m[0]}', errs)
+                for n, want in SHIRT_EXPECT.items():
+                    h = m[256 + (n - 17) * 96:]
+                    w, nl = struct.unpack_from('<hh', h, 10)
+                    rows = '|'.join(''.join('#' if h[24 + y * 8 + x // 2] >> (0 if x & 1 else 4) & 15 else '.'
+                                            for x in range(w)) for y in range(nl))
+                    ordn = struct.unpack_from('<h', h, 22)[0]
+                    check(rows == want and ordn == shirtnum.NEWBASE + n - 17, f'{n}: {rows} #{ordn}', errs)
+    return not errs, '; '.join(errs) or 'numbers 17..99 built (17, 20, 41, 99 pixel-exact) in a match'
 
 
 def run_parallel(names, jobs):

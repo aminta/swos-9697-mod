@@ -75,8 +75,9 @@ def patch(p):
 # 1. The packed playMatchMenu (obj2, ends with dw -999) is copied into the obj1 cave with one more entry, 68, appended
 #    (the game's indices do not change; its fixups are replicated). ShowPlayMatchMenu's `call ShowMenu` goes through
 #    pm_show, which refreshes the copy from the original first (SWOS++ patches the original in memory at start-up: its
-#    onReturn and an entry pointer, swospp.bin+0x10eee/+0x10f67) and shows the copy. Entry 68: screen x 30..88, y 1..11, the free top-left corner between the check/X sprite (entry 0) and
-#    the team name (entry 1); entry 13 (first player) gets up -> 68. Its text is a fixed buffer (KITS AUTO / KITS SET),
+#    onReturn and an entry pointer, swospp.bin+0x10eee/+0x10f67) and shows the copy. Entry 68: screen y 0..10, x from
+#    the player names' left edge (25 IT/FR/DE, 31 EN) to 88, between the check/X sprite (entry 0) and the team name
+#    (entry 1); entry 13 (first player) gets up -> 68. Its text is a fixed buffer (KITS AUTO / KITS SET),
 #    so a re-unpacked menu keeps it. (A first attempt recycled the "COACH:" entry 4: it is the coach name at run time.)
 # 2. Fire on 68 opens a new menu built around the game's own kit editor: entries 4..19 of editTeamsMenu (first and
 #    second kit: big shirt, shorts, socks, the four shirt types), copied byte for byte at the SAME indices, because
@@ -87,6 +88,8 @@ def patch(p):
 # 3. OK arms the choice. The jump at the start of SetInGameTeamsPrimaryColors finds each team's slot by name (A2 top,
 #    A3 bottom), loads the kit it wears into topTeamInGame / bottomTeamInGame with ConvertTeamKitColors, skips the
 #    automatic choice and disarms (one match only; the button shows AUTO again). Nothing is written to the team files.
+#    A pre-match screen exited without playing leaves the choice armed: pm_show (every new pre-match screen) and km_open
+#    keep it only for the same two teams by name (same_match), else it is dropped and the button reads AUTO (3.2.4).
 TEXTS = {
     'it': dict(auto=b'MAGLIE AUTO', set=b'MAGLIE FISSE', title=b'SELEZIONA MAGLIE', wears=b'IN CAMPO: ',
                k1=b'PRIMA TENUTA', k2=b'SECONDA TENUTA', cancel=b'ESCI', ok=b'OK', reset=b'RESET'),
@@ -98,8 +101,9 @@ TEXTS = {
                k1=b'HEIMTRIKOT', k2=b'AUSWAERTS', cancel=b'ABBRUCH', ok=b'OK', reset=b'RESET'),
 }
 KITS_ENTRY = 68
-BUTTON = (17, 20, 63, 10)       # packed x, y, width, height (screen = x + 8, y - 20): x 25..88, y 0..10 (3.2, Marco:
-                                # left edge = the player rows', top = the team name's)
+BUTTON = (20, 10, 88)           # packed y, height; screen right edge (team name at 90). Left edge = the player names'
+                                # (entry 13: packed x 23 + the menu origin before it, -6 in IT/FR/DE, 0 in EN), so the
+                                # button lines up with the names and clears the X sprite (3.3, Marco); screen = x + 8
 BUTTON_COLOR = 8                # as USE MATCH TEAM: blue to black, grey frame
 SLOT = 36                       # name 18, kits 10 (+18), worn kit (+28), team pointer (+32)
 
@@ -114,16 +118,11 @@ PAYLOAD = {1: 0, 2: 4, 4: 2, 8: 6, 9: 2, 12: 4, 13: 4, 14: 6, 15: 4, 16: 4, 17: 
 KITS_ASM = r"""
 km_open:                                ; fire on the KITS button (playMatchMenu entry 68)
     pushad
-    mov eax, [PM_TEAM1]
-    mov edx, [PM_TEAM2]
-    cmp eax, [SLOTS + 32]
-    jne .fill
-    cmp edx, [SLOTS + SLOT_ + 32]
-    je .show                            ; same match: keep the edits
-.fill:
+    call same_match
+    je .show                            ; same two teams: keep the edits
     mov byte [KM_ACTIVE], 0
     mov byte [KM_TEAM], 0
-    mov esi, eax
+    mov esi, [PM_TEAM1]
     mov edi, SLOTS
     call fill_slot
     mov esi, [PM_TEAM2]
@@ -283,6 +282,36 @@ set_button:                             ; esi -> text of the pre-match button
     jnz .c
     ret
 
+same_match:                             ; ZF = 1: the slots hold this pre-match screen's two teams (by name, either
+    push ecx                            ; order: friendlies reuse the same two team buffers, so pointers do not tell
+    push esi                            ; matches apart); then the slots' team pointers are refreshed
+    push edi
+    cmp dword [SLOTS + 32], 0           ; cleared (cancel, or a match played)
+    je .no
+    mov esi, [PM_TEAM1]
+    call find_slot
+    test edi, edi
+    jz .no
+    mov ecx, edi
+    mov esi, [PM_TEAM2]
+    call find_slot
+    test edi, edi
+    jz .no
+    cmp edi, ecx
+    je .no
+    mov [edi + 32], esi
+    mov esi, [PM_TEAM1]
+    mov [ecx + 32], esi
+    cmp ecx, ecx
+    jmp .out
+.no:
+    test esp, esp
+.out:
+    pop edi
+    pop esi
+    pop ecx
+    ret
+
 find_slot:                              ; esi -> TeamFile; out: edi -> slot with its name, or 0
     push ecx
     mov edi, SLOTS
@@ -334,6 +363,13 @@ pm_show:                                ; replaces `call ShowMenu` in ShowPlayMa
     rep movsb
     mov byte [PM_COPY + E13_UP], KITS_
     mov dword [A6], PM_COPY
+    call same_match                     ; a choice left by a pre-match screen exited without playing belongs to
+    je .keep                            ; that match only (Marco, 3.2.4)
+    mov byte [KM_ACTIVE], 0
+    mov dword [SLOTS + 32], 0
+    mov esi, TXT_AUTO
+    call set_button
+.keep:
     popad
     jmp SHOW_MENU
 
@@ -568,7 +604,11 @@ def button(p, at, lang, area):
     e13 = pmc.find(PM_ENTRY13)
     assert e13 > 0 and pmc.count(PM_ENTRY13) == 1
     pmc[e13 + 12] = KITS_ENTRY                                           # first player: up -> KITS
-    x_, y_, w_, h_ = BUTTON
+    org = pmc.rfind(struct.pack('<h', -998), 0, e13)                    # the menu origin entry 13 is placed from
+    x_ = struct.unpack_from('<h', pmc, org + 2)[0] + struct.unpack_from('<h', PM_ENTRY13)[0]
+    assert x_ in (17, 23), x_
+    y_, h_, right = BUTTON
+    w_ = right - 8 - x_
     ent = struct.pack('<hhh', -998, 0, -20) + struct.pack('<hhhhH', x_, y_, w_, h_, 2) + bytes((0xFF, 0xFF, 0xFF, 13))
     ent += struct.pack('<HHHH', 4, BUTTON_COLOR, 8, 0)
     buf_at = len(pmc) + len(ent)

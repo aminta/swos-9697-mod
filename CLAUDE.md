@@ -11,9 +11,11 @@ Read this first; then the tail of `notes/STATUS.md` (latest work) and, before an
   feedback (e.g. Marco) are credited by first name only.
 - Names of countries, worlds and menus always per exe language (the game's own spelling), never English-only.
 
-## State (2026-10-14)
-- Released: **v3.2.2** (main `a84c59b`). 3.0 Europe 1984-85 career world, 3.1 its national teams + faster harness,
-  3.2 tourney packs + World Cup 1934 + menu alignment, 3.2.1 ESCI arrow links, 3.2.2 patcher "Download all".
+## State (2026-10-15)
+- Released: **v3.2.6**. 3.0 Europe 1984-85 career world, 3.1 its national teams + faster harness,
+  3.2 tourney packs + World Cup 1934 + menu alignment, 3.2.1 ESCI arrow links, 3.2.2 patcher "Download all",
+  3.2.3 KITS button aligned with the names in the English exe, 3.2.4 kits carry-over fix + world UEFA places,
+  3.2.5 shirt numbers 17..99, 3.2.6 the same with SWOS++.
 - Release notes: `release/notes-<version>.md`; the patcher page `release/swos-9697-mod-patcher.html`.
 
 ## Layout
@@ -44,6 +46,7 @@ SWOSTEST_BUILD=~/swos-mod/c/RELxx/SWOS W8485_BUILD=~/swos-mod/c/RELxx/SWOS pytho
 - Test shortcuts: smallest league (Malta) unless a specific one is needed; force rare events by pokes of the game's
   own switches; cache slow saves (`nat_offer_save`).
 - Never run `config -wcd` inside DOSBox-X (it overwrote Davide's DOSBox-X preferences once).
+- Parallel sessions: give every suite its own SWOSTEST_RUNS dir (two harnesses in one run dir break each other).
 - If the harness cannot add its page (`add_object_page` assertion), the LE header padding ran out: keep new stubs'
   absolute references few (one base register), or move code to a page of its own.
 

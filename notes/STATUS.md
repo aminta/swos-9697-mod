@@ -1932,3 +1932,66 @@ Left for 2.5: (a) NSL/NSSL finals series (type-1 design) or declare them postpon
   (crc32, local headers, central directory), paths as in the game folder, SWOS++ exe under SWOS++/. Tested in Node with
   the page's own code (unzip -t, extracted files identical) and a DOM stub (button hidden with 1 file, labels IT/EN).
   Game files unchanged from 3.2.1; patcher upgrade test as 3.2.1 (old patcher v3.2.1 added).
+
+## Release 3.2.3 (2026-10-15): KITS button aligned in English (Marco)
+- Marco's photo (ENGLISH.EXE): the KITS AUTO button stuck out left of the player names and touched the X sprite. Cause:
+  the packed playMatchMenu places the player rows from a menu origin of x -6 in IT/FR/DE but 0 in EN, so the names
+  start at screen x 25 (IT/FR/DE) or 31 (EN), while the button was fixed at 25. kitcolors now takes the button's left
+  edge from entry 13's own origin (right edge 88, before the team name at 90; text centred): EN 31..88, the others
+  unchanged (IT/FR/DE exes byte-identical to 3.2.2; EN differs in 2 bytes). Checked with a Session screenshot (EN, IT,
+  DE: entry 68 x = entry 13 x).
+- Build c/REL323 = c/REL32 (3.2.2) + new EN exes: CD f465313b, GOG 09433819, SWOS++ 53204b97 / GOG cbd6045a (IT, FR,
+  DE, TEAM files identical to 3.2.2, so the harness suite, which runs the IT exe, was not rerun). Patcher 3.2.3 (old
+  patcher v3.2.2 in orig/old-patchers): Node test of the page's code: originals CD/GOG, 3.2.2 exes/GOG/SWOS++,
+  3.2, 3.1, vanilla+SWOS++, TEAM.020 all OK, outputs = c/REL323.
+
+## Release 3.2.4 (2026-10-15): kits carry-over fix (Marco) + world UEFA places
+- Marco's video: kits set in a friendly's pre-match screen, EXIT without playing, another friendly with other teams
+  -> button still KITS SET and SELECT KITS showed the old teams. Cause: KM_ACTIVE stayed armed, and km_open told
+  matches apart by team pointers (friendlies reuse the same two team buffers). Fix (kitcolors same_match): pm_show and
+  km_open keep the choice only for the same two teams by name (either order, slot pointers refreshed), else disarm and
+  button AUTO. Harness scenario kits_reset (friendly HAMBURG-SCHALKE kits OK, ESCI, BAYERN-DORTMUND): FAIL on 3.2.3,
+  PASS on 3.2.4; helpers walk() / friendly_prematch().
+- World place lists FF-terminated (careerworld, commit 3c84031 from the world 2025-26 session): from season 2 the
+  manager's country took the last UEFA place of the list (1984-85: Yugoslavia).
+- Build c/REL324: SWOS IT 271ce374 EN abbc0c04 FR 4917b14e DE 6d3f5e56; gog IT 017d19f1 EN fe6b9c0f FR e8558ae3 DE 5e170334; SWOS++
+  8e454911 / GOG 139ca63b; DATA identical to 3.2.3. Suite: 11/12 PASS; world8485_nat FAILs the same way on the published
+  3.2.3 build (WC 1990 qualifying, step 38: national squad screen without VIS. RISULTATI and no red row found) =
+  a harness problem, not this release; to look at.
+- Patcher 3.2.4 (old patcher v3.2.3 in orig/old-patchers): Node test: originals CD/GOG, 3.2.3 (exe, GOG, SWOS++),
+  3.2.2, 3.1, vanilla+SWOS++, TEAM.020 all OK, outputs = c/REL324.
+- Open: Davide's video of a one-off sprite column in a match (shirt numbers + sprite blocks at the right touchline,
+  ~5 frames, at a goal kick): cause unknown, waiting for platform / exe / repeatability.
+
+## Release 3.2.5 (2026-10-15): shirt numbers 17..99 (Marco)
+- Marco's video (DOSBox-Staging, edited Man Utd / Arsenal numbers): a column of sprites at the touchline. Cause: the
+  number over the controlled / booked player is one sprite, 1187 + number, and BENCH.DAT has 1..16 only (17 player
+  mark, 18-19 goal parts, 20 grid, 21+ replay frames); confirmed in the harness (number 30 -> a green bar). The Europe
+  1984-85 packs have ~790 players numbered 17..41.
+- tools/shirtnum.py: both sites call num_sprite: 1..16 as the game, 17..99 sprites 1335..1417 built once per run from
+  the digit sprites (narrow 1 and 0 cut from "10", width 5 or 7, centre as 10..16), others and EGA mode not drawn.
+  Sprites in a zero-filled obj2 tail (BSS_SIZE 0x3000, after careerworld's); pointers extend spritesIndex into the
+  3072 bytes after it (dead save stack of cseg_9A9E1/9A9FD: no calls, no pointers, all four exes). Code (590 B) in the
+  world cave (end 0xa35be < 0xa4000). mkseason renumbers pack players outside 1..99 (none). SWOS++ install: no clash.
+- Harness: Session(match=True); scenario shirt_numbers (friendly, human HAMBURG 17..32: 17/20/41/99 pixel-exact,
+  sprites read from memory). All 83 sprites checked by eye from a dump.
+- Build c/REL325: SWOS IT b72403fc EN 960bb827 FR c8deda17 DE bdeeb1ac; gog IT 9205105b
+  EN 6c7d05fc FR 7fb51204 DE 9c2fe63c; SWOS++ 68290d0b / GOG 8f680356; DATA = 3.2.4. Suite 13/13 PASS
+  (world8485 rerun alone in runs325: the suite's run collided with the world 2025-26 session using runs/world8485_1;
+  world8485_nat passed this time). Patcher 3.2.5 (old v3.2.4 added): Node test all OK, outputs = c/REL325.
+- Untested: the booked-player number (same code path), SWOS++ in a match.
+
+## Release 3.2.6 (2026-10-15): shirt numbers with SWOS++ (Marco)
+- Marco (3.2.5, English + SWOS++): booked player over 16 without a number; the sprite column still seen. SWOS++
+  (sources github.com/zlatkok/swospp, main/pdata.asm) draws 0 and 17+ itself: SetPlayerNumber replaces our add at
+  DrawControlledPlayerNumbers+0x184 (= our site, EN obj1 0x5f867) and FixPlayerBooking (BookPlayer+0x165, before our
+  booked site) adds 9000; its DrawSprites+0x65 hook prints sprites over 9000 with PrintSmallNumber. 3.2.5's stub took
+  9000+n for invalid -> booked number hidden.
+- shirtnum: pick() (number -> sprite or -1); num_sprite turns 9000+17..99 into our sprites, keeps the mark for 0 /
+  100+; new fix_d0 replaces the mov ax, [D0] after the add (SWOS++ does not touch it) and maps 9000+1187+17..99 to
+  our sprites, so no sprite over 9000 is left for those numbers. SWOS++ path untested in the harness.
+- The UEFA round title '%a WIN %0-%1 ON PENS' seen with the English exe = an Italian save (JUVE2) loaded in English:
+  careers save contest name offsets of their exe's string table (IT 0x5d9d "COPPA EUFA" = EN "%a WIN..."). Not a bug.
+- Column: cause still unknown (not reproduced; SWOS++ suspected). Build c/REL326: SWOS IT 189d70bd EN 5d0931fc
+  FR c7d88ac7 DE c6b553cb; gog IT c9b2891a EN 6efb25fe FR 9815971b DE 073ef189; SWOS++ 10982ef2 / bbaeea89.
+  Suite 13/13 PASS (runs326). Patcher 3.2.6 (old v3.2.5 added): Node test all OK.

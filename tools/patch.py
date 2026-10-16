@@ -194,7 +194,7 @@ def patch_exe(src, dst, remap, lang='it'):
     if mkseason.multi_ns():
         o2pages += 1
         data = add_object_page(data, 2)
-    for _ in range(-(-len(historic.draw_table()) // 0x1000)):   # historic's fixed draws (real cup brackets)
+    for _ in range(-(-len(historic.draw_table()) // 0x1000) if mkseason.multi_ns() else 0):   # several worlds: draws in obj2
         o2pages += 1
         data = add_object_page(data, 2)
     if mkseason.league_phase_cups() or mkseason.league_phase_worlds():   # UEFA league phase: the draw's buffers

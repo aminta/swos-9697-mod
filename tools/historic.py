@@ -332,8 +332,12 @@ hist_draw:                              ; replaces `call cseg_27F08` in cseg_26D
 
 draw_pre_none:
     ret
-DRAW_TMP: times 64 db 0
+%if WD_ON
 DRAW_W: db 0
+%else
+DRAW_TABLE: DRAW_BYTES
+%endif
+DRAW_TMP: times 64 db 0
 
 ; Coin toss (Mitropa 1934, FA Cup 1871-72). These contests have no extra time and no penalties (legs byte), so a draw
 ; means a replay. coin_draw replaces the 'draw -> replay' marking in cseg_2AE97 (simulated AND played matches both end
@@ -712,9 +716,11 @@ def _draw_call(p):
 
 def draw_table():
     """hist_draw's fixed draws: [id, teams | sort flag, perm...] per round; each career world's after a filter
-    record [1, 0, world] (its cup ids are its own); 0 ends."""
+    record [1, 0, world] (its cup ids are its own); 0 ends. One world: no filter records (the table of 3.3)."""
     drec = lambda d: bytes((d[0], len(d[1]) | (0x80 if d[2:] and d[2] else 0))) + bytes(d[1])
     wdraws = mkseason.world_draws()
+    if not mkseason.multi_ns():
+        return b''.join(map(drec, DRAWS + [d for ds in wdraws.values() for d in ds])) + b'\0'
     assert all(d[0] > 1 for d in DRAWS) and all(d[0] > 1 for ds in wdraws.values() for d in ds)
     return b''.join(map(drec, DRAWS)) + b''.join(bytes((1, 0, w)) + b''.join(map(drec, ds))
                                                  for w, ds in sorted(wdraws.items()) if ds) + b'\0'
@@ -853,13 +859,14 @@ def patch(p, lang, area, cave, draw_pre=None, leagues=(), cave2=None, lp=None, c
     regs = sacups.regs(p.le.obj_bytes(1))
     a0 = regs['D7'] + 4
     tbl = draw_table()
-    wd = any(mkseason.world_draws().values())
+    wd = mkseason.multi_ns() and any(mkseason.world_draws().values())   # several worlds: own cup ids
     if wd:
         import careerworld
         slt = careerworld.SITES['slt']        # careerworld.patch ran first (mkseason.patch, before historic)
     symbols = {'COMP254': (2, comp + 4 * 254), 'WORLD_PRESET': (1, wpre), 'SELECT': (1, select),
                'A2': (2, a0 + 8), 'A3': (2, a0 + 12), 'DRAW_ORIG': (1, draw_orig),
-               'DRAW_TABLE': (2, area.add(tbl)),   # obj2 (patch.py adds pages for it): two worlds' brackets
+               **({'DRAW_TABLE': (2, area.add(tbl))} if wd else   # several worlds: obj2 (patch.py adds pages)
+                  {'DRAW_BYTES': (0, 'db ' + ', '.join(str(b) for b in tbl))}),
                'DRAW_PRE': (1, draw_pre) if draw_pre is not None else (0, 'draw_pre_none'),
                'D0': (2, a0 - 32), 'A0': (2, a0), 'SET_COUNTRY_NAMES': (1, set_names), 'CALC_ENTRY': (1, calc_entry),
                'CLASSICS_NAME': (2, rec + 1), 'SEASONS_NAME': (2, mkseason.SEASONS_REC[0] + 1), 'MENU_COLOR': (0, MENU_COLOR), 'MENU_GAP': (0, MENU_GAP),

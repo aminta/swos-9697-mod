@@ -1928,6 +1928,53 @@ def purple_kits():
     return not errs, '; '.join(errs + info) if errs else 'purple in the editor (maroon for Inter) and vs Inter; ' + '; '.join(info)
 
 
+@scenario
+def blond_faces():
+    """3.3.0: face 3 = black skin + blond hair: FIORENTINA's outfield players set to face 3 (test copy of TEAM.020);
+    pre-match face icon 189 built (yellow hair), in the match the new sprite set 1418.. is registered and has hair in
+    entry 15 (yellow) and dark skin (no entry 5)"""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import lepatch
+    import shirtnum
+    import blond
+    b = builds()['it']
+    d = bytearray(open(os.path.join(b, 'DATA', 'TEAM.020'), 'rb').read())
+    for t in range(struct.unpack('>H', d[:2])[0]):
+        o = 2 + t * 684
+        if d[o + 5:o + 22].split(b'\0')[0] == b'FIORENTINA':
+            for j in range(16):
+                if d[o + 76 + j * 38 + 26] >> 5:
+                    d[o + 76 + j * 38 + 26] |= 0x18
+    team = os.path.join(WORK, 'saves', 'TEAM020_BLOND.BIN')
+    os.makedirs(os.path.dirname(team), exist_ok=True)
+    open(team, 'wb').write(d)
+    spr = shirtnum.spr_index(lepatch.LEPatch(os.path.join(b, 'ITALIAN.EXE')))
+    errs = []
+    nib = lambda data: [x >> 4 for x in data] + [x & 15 for x in data]
+    with Session('blond_faces', b, {'DATA/TEAM.020': team}, 'dump:3', 300, match=True) as s:
+        s.wait()
+        italy_friendly(s, 'FIORENTINA', 'INTER MILAN')
+        r = s.result
+        p189 = struct.unpack('<I', r.read(r.base2 + spr + 189 * 4, 4))[0]
+        icon = r.read(struct.unpack('<I', r.read(p189, 4))[0], 64) if p189 else b''
+        check(15 in nib(icon[:24]), f'face icon 189 without yellow hair ({icon[:24].hex()})', errs)
+        for _ in range(22):
+            s.send('down dump:0.5')
+            if s.screen().selected == 9:
+                break
+        r = s.send('fire ' + 'fire:3 ' * 8 + 'dump:2')
+        check(r.outcome == 'dump', f'match {r}', errs)
+        if r.outcome == 'dump':
+            ptrs = struct.unpack('<202I', r.read(r.base2 + spr + blond.NEW1 * 4, 202 * 4))
+            check(all(ptrs), 'sprite set not registered', errs)
+            if all(ptrs):
+                h = r.read(ptrs[0], 24)
+                w, nl, wq = struct.unpack_from('<hhh', h, 10)
+                px = nib(r.read(struct.unpack('<I', h[:4])[0], wq * 8 * nl))
+                check(15 in px and 5 not in px, f'set 1418 frame 0: yellow {15 in px}, light skin 5 {5 in px}', errs)
+    return not errs, '; '.join(errs) or 'blond face icon in the pre-match screen; sprite set 1418.. yellow hair, dark skin'
+
+
 def run_parallel(names, jobs):
     """run -jN: each scenario in its own process (own run dirs and DOSBox-X, one host core each in turbo); the
     builds are made once here first. Output in the order of the names; exit code 1 on a failure."""

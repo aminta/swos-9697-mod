@@ -116,10 +116,11 @@ real bracket.
   - `game`: each club on its own record of the 1996-97 game when it has one, else a club of its country; players
     already in the game keep their ratings.
   - `explicit`: every byte comes from the pack (no source file, nothing estimated). `clubs.csv` adds `tactic`
-    (0–15), `kit1` and `kit2` (5 numbers each: kit type, shirt, stripes, shorts, socks colours) and `lineup` (16
+    (0–15), `kit1` and `kit2` (5 numbers each: kit type, shirt, stripes, shorts, socks colours; colours 0 grey, 1 white,
+    2 black, 3 orange, 4 red, 5 blue, 6 maroon, 7 light blue, 8 green, 9 yellow, 10 purple from 3.3.0) and `lineup` (16
     numbers 0–15: which player takes each line-up place). `players.csv` lists exactly 16 players per club in record
     order and adds `position` (`G RB LB D RW LW M A`, matching the role), `number`, `nat` (the game's nationality
-    number), `skin` (`light`, `dark`, `ginger`), the 7 skills `pa ve he ta co sp fi` (passing, shooting, heading,
+    number), `skin` (`light`, `dark`, `ginger`, from 3.3.0 `darkblond`: dark skin, blond hair), the 7 skills `pa ve he ta co sp fi` (passing, shooting, heading,
     tackling, ball control, speed, finishing: 0–7, a trailing `*` marks a key skill) and `price` (0–49).
   - `seed`: random seed of the fillers (part of the determinism).
 

@@ -95,6 +95,22 @@ lib_bye:                                ; replaces `call cseg_2573C` at the end 
 .go:
     jmp CSEG_2573C
 
+nc_bye:                                 ; replaces `mov esi, [A5]` before the round-1 draw of a national cup (obj1
+    pushad                              ; 0x77BF4, contest type 1: careers and seasons; not cseg_24DFA): with byes,
+    mov al, [NCW + 2Dh]                 ; round 1 = (N - b) / 2 matches between the first N - b clubs (the draw
+    mov cx, [NCW + 31h]                 ; cseg_27F84 shuffles only those); the b others wait in the list for lib_pre
+    call bye_find
+    jc .x
+    movzx eax, byte [esi + 2]
+    movzx ebx, byte [esi + 3]
+    sub eax, ebx
+    shr eax, 1
+    mov [NCW + 4Fh], ax
+.x:
+    popad
+    mov esi, [A5]
+    ret
+
 bye_find:                               ; al = contest id, cx = its clubs -> CF = 0, esi = its BYE_TAB entry
     mov esi, BYE_TAB                    ; (id, world, clubs, byes); world 0 = any (one-world builds: ids unique)
     mov edx, BYE_NT
@@ -232,7 +248,12 @@ def _sites(p):
     m = [x.start() for x in re.finditer(re.escape(b'\x8b\x35' + struct.pack('<I', a0) + b'\x66\x8b\x86\xcb\x01\x00\x00'), d1)]
     m = [x for x in m if d1[x + 13:x + 15] == b'\x66\xa3']
     assert len(m) == 1, [hex(x) for x in m]
-    return a0, bye_call, c2573c, diycopy, m[0]
+    # national cup set-up (obj1 0x77BF4, type 1), its end: mov esi, [A5]; mov al, [esi+8]; or al, al; jnz +5;
+    # call cseg_27F84 (round-1 draw); ret
+    a5 = struct.pack('<I', r['A0'] + 20)
+    m2 = [x.start() for x in re.finditer(rb'\x8b\x35' + re.escape(a5) + rb'\x8a\x46\x08\x0a\xc0\x75\x05\xe8.{4}\xc3', d1, re.S)]
+    assert len(m2) == 1, [hex(x) for x in m2]
+    return a0, bye_call, c2573c, diycopy, m[0], m2[0]
 
 
 def patch(p, cave, fin_pre):
@@ -244,10 +265,11 @@ def patch(p, cave, fin_pre):
         import careerworld
         slt = careerworld.SITES['slt']
     """Returns (cave end, lib_pre offset) — lib_pre is called by historic.hist_draw."""
-    a0, bye_call, c2573c, diycopy, cal_site = _sites(p)
+    a0, bye_call, c2573c, diycopy, cal_site, nc_site = _sites(p)
     symbols = {'DIYCOPY': (2, diycopy), 'LIB_ID': (0, sacups.LIB_ID), 'LIB_N': (0, sacups.LIB_N),
                'LIB_GROUPS': (0, LIB_GROUPS), 'CSEG_2573C': (1, c2573c), 'A0': (2, a0), 'A3': (2, a0 + 12),
                'BYE_NT': (0, len(bc)), 'BYE_BYTES': (0, 'db ' + ', '.join(str(x) for e in bc for x in e)),
+               'A5': (2, a0 + 20), 'NCW': (2, diycopy + 0x41F),     # the contest work buffer (DIY layout)
                'BW_ON': (0, int(bw)), 'WORLDB': (slt[0], slt[1] + careerworld.WORLD_BYTE) if bw else (0, 0),
                'FIN_PRE': (1, fin_pre),
                'CAL_BYTES': (0, 'db ' + ', '.join(str(b) for b in calendar_bytes()))}
@@ -257,9 +279,12 @@ def patch(p, cave, fin_pre):
     for off, tobj, toff in fix:
         p.add_ptr(1, cave + off, tobj, toff)
     p.put(1, bye_call + 1, struct.pack('<i', labels['lib_bye'] - (bye_call + 5)))
+    p.remove(1, nc_site + 2)                                      # mov esi, [A5] (6 B) -> call nc_bye; nop
+    p.put(1, nc_site, b'\xe8' + struct.pack('<i', labels['nc_bye'] - (nc_site + 5)) + b'\x90')
     p.remove(1, cal_site + 2)                                     # mov esi, [A0] (6 B) -> call lib_cal; nop
     p.put(1, cal_site, b'\xe8' + struct.pack('<i', labels['lib_cal'] - (cal_site + 5)) + b'\x90')
-    print(f'exe: Libertadores 1997: bye call obj1+{bye_call:#x} (lib_bye {labels["lib_bye"]:#x}, BYE_TAB {len(bc)}), '
+    print(f'exe: Libertadores 1997: bye call obj1+{bye_call:#x} (lib_bye {labels["lib_bye"]:#x}, BYE_TAB {len(bc)}, '
+          f'national cups obj1+{nc_site:#x}), '
           f'calendar obj1+{cal_site:#x}, code @ obj1+{cave:#x} '
           f'(diyFileBufferCopy obj2+{diycopy:#x})')
     return (cave + len(code) + 3) & ~3, labels['lib_pre']

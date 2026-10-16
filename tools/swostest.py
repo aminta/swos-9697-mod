@@ -401,6 +401,7 @@ class Dosbox:
                     k = re.search(rb'Memory breakpoint[^\n]*->', seg)
                     if k:
                         m = re.compile(rb'0160:([0-9A-F]{8})\s').search(seg, k.end())
+                        self.memhit = m is not None
                 if not m and self.watch:               # or on one of our breakpoints (Session.bp)
                     seg = ANSI.sub(b' ', self.screen[mark:])
                     for w in re.finditer(rb'0160:([0-9A-F]{8})\s', seg):
@@ -692,6 +693,14 @@ class Session:
                 o = int(off, 16)
                 self.bp(base1 + o, lambda r, o=o: (self.bp_hits.__setitem__(o, self.bp_hits.get(o, 0) + 1),
                                                    self.log.append(f'BP obj1+{o:X} hit {self.bp_hits[o]}' + bp_str(r))))
+        while outcome == 'break' and getattr(b, 'memhit', False) and os.environ.get('SWOSTEST_BPLM_GO'):
+            b.memhit = False                           # SWOSTEST_BPLM_GO: log the writer's EIP, re-arm, go on
+            r = self.paused('bplm', b.eip)
+            self.log.append(f'BPLM obj1+{b.eip - r.base1:X}' + bp_str(r))
+            r.box = None
+            for off in filter(None, os.environ.get('SWOSTEST_BPLM', '').split(',')):
+                b.cmd(f'BPLM {r.base2 + int(off, 16):08X}', 0.3)
+            outcome = b.go_on()
         while outcome == 'break' and b.eip in getattr(self, 'bps', {}):
             r = self.paused('bp', b.eip)
             self.bps[b.eip](r)

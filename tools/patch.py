@@ -280,6 +280,8 @@ def patch_exe(src, dst, remap, lang='it'):
     world = shirtnum.patch(p, world, num_bss)    # 3.2.5: shirt numbers 17..99 over the players (built from the digits)
     assert world <= NZ_CAVE and nz_end <= FIN_CAVE and fin_end <= ARG_CAVE and arg_end <= OBJ1_NEW_VSIZE, \
         (hex(world), hex(nz_end), hex(fin_end), hex(arg_end))
+    if bigw:
+        careerworld.big_sel_buffer(p)           # the team cache: 160 teams in a big world (100 in the game)
     p.set_vsize(1, OBJ1_NEW_VSIZE + (0x4000 + 0x1000 * cdp if worlds else 0) + h2 + 0x1000 * lpb)
     tail = (careerworld.BSS_SIZE if bigw else 0) + shirtnum.BSS_SIZE     # zero-filled obj2 tail: world lists, numbers
     p.set_vsize(2, obj2_free + o2pages * p.le.page_size + tail, bss=tail)

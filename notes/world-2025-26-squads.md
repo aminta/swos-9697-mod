@@ -90,6 +90,11 @@ Recommendation: A for Davide's 25 (he wants them visible), plus B's hook as the 
 enough, the game's filler takes the next real player not yet in the squad instead of a random name with zero skills.
 Both read the same per-world roster file, so the 1984-85 world (DaniSwos DB, full squads) can use it too.
 
+### Resources already taken (mod 3.3.0, main 400a9e6)
+`PlayerInfoHeader+49` (`field_31`) = blond flag (`blond.py`); `spritesIndex` extension entries 1335..1619 = shirt
+numbers 17-99 + blond sets (`shirtnum.py`, `blond.py`). Any squad hook must not reuse them; rebase on main before
+building.
+
 ### Risks
 - Returning to a club later re-adds its XTRA players, even ones the human sold while there (keep a small per-world
   'sold' list in the .CAR trailer, or accept it).
@@ -106,7 +111,7 @@ Both read the same per-world roster file, so the 1984-85 world (DaniSwos DB, ful
 | 0 | nationality | game number 0-152 (`shortCountryNames`, 153 entries) |
 | 2 | shirt number | the 1996 files hold 1-16; real numbers 1-99 are drawn in matches since mod 3.2.5 (the 1984-85 career uses them) -> Transfermarkt numbers, a free number when missing or > 99 |
 | 3-25 | name | upper-case ASCII, no accents (none in either data set), 22 chars max, full name ('BUKAYO SAKA'); long ones shortened ('M. DAL COMPARE', `c1c2.swos_name`) |
-| 26 | position bits 5-7, skin bits 3-4 | G RB LB D RW LW M A; skin 0 light, 1 ginger, 2 dark (the game has only these 3 faces, no hair) |
+| 26 | position bits 5-7, face bits 3-4 | G RB LB D RW LW M A; face 0 light, 1 ginger, 2 dark, 3 dark skin + blond hair (mod 3.3.0, `tools/blond.py`, pack skin `darkblond`); no other hair |
 | 28-31 | 7 skills | nibbles pa / ve he / ta co / sp fi, value 0-7, bit 3 = key skill |
 | 32 | price | **outfield: price = sum of the 7 skills, in 100% of the records of both sets** (so <= 49). Goalkeepers: skills 0, price = keeper quality (mean 11) |
 
@@ -152,7 +157,8 @@ every 5-10 s that is 4-8 hours, once per season, resumable (each page cached as 
      existing one, listed in the build log.
    - `names.csv`: overrides (known short names: 'VINICIUS JUNIOR', 'RODRI'), then `swos_name` (NFKD -> ASCII,
      ß -> SS, upper, 22 max, 'J. SURNAME' when longer).
-   - `faces.csv`: skin from FC 27 (skin tone, red hair -> ginger) where the player exists, plus correction lists;
+   - `faces.csv`: face from FC 27 (skin tone + hair colour -> light / ginger / dark / darkblond) where the player
+     exists, plus correction lists;
      default light (Transfermarkt has no such field; no SWOS 2020 faces).
 5. **Skills** (proposal, Transfermarkt data only):
    - **Level**: target skill sum S from market value on a log scale, corrected per league (the same value means
@@ -193,7 +199,8 @@ numbers (1-99, mod 3.2.5). Davide's answers (2026-10-16):
 6. **EA FC 27 too**: attributes for the skill profiles (and skin, below) where the player exists; Transfermarkt
    value/league/age model for the others. Private use, credit EA SPORTS FC 27.
 
-Skin (open): FC 27's player data carry a skin tone and a hair colour per player -> light / dark / ginger for the
+Skin (open): FC 27's player data carry a skin tone and a hair colour per player -> light / ginger (red hair) /
+dark / darkblond (dark skin, blond hair; mod 3.3.0) for the
 ~17,000 FC players, matched to Transfermarkt by name + birth date + club. The others (clubs outside FC: about half
 of the world) default to light, with optional per-league correction lists that Davide or players who know a league
 can send (a small CSV: Transfermarkt id, skin). No guessing from nationality or photos.

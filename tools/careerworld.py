@@ -36,21 +36,31 @@ REC = 52                                             # world record: 8 dwords, 5
 # C7 trailer: a world career caches ~92 teams, so the 68400-B room is nearly full.) Normal careers never take these
 # paths.
 BSS = [None]
-BSS_SIZE = 0x27000 + 0x1A000                         # + the big team-file buffer (B_TFB)
 # World 2025-26 (phase 0): a country may hold more than 93 clubs (Italy A + B + C = 100): teamFileBuffer (64014 B,
 # LoadFile reads the whole file there before checking 64000 -> FatalError) moves to the obj2 tail, 106496 B (155 clubs).
-B_TFB, TFB_SIZE = 0x27000, 0x1A000
+B_TFB, TFB_SIZE = 0x31000, 0x1A000
+# The game's team cache g_selectedTeams holds 100 teams (68400 B) and the pseudo registers D0..A6 follow it: a 101st
+# team overwrites them (A0 = a player name -> LoadFile on garbage -> exit to DOS; world 2026-27: an English
+# 2nd-division club's 64-club cup + a 36-club league phase). A big world's cache moves to B_SEL (SEL_N teams, every
+# fixup into the old one retargeted, big_sel_buffer); the .CAR keeps its layout (fixed part + N records + trailer), so
+# SaveCareerFile writes it from B_STAGE (fixed part copied before the records) and LoadCareerFile reads it there
+# (trailer.LOADCOPY -> w_loadcopy spreads it). Old saves (N <= 100) load unchanged.
+SEL_N = 160
+B_SEL, SEL_ROOM = 0x4B000, SEL_N * TEAM_SIZE + 0x1000          # (+ the trailer's block after the records)
+B_STAGE = 0x67000                                    # 95153 (fixed part) + SEL_ROOM
 # UEFA qualifying rounds (uefaq.py, league-phase worlds only: BSS_SIZE grows then): the C code's .bss, then the
 # season end's copies of the clubs' records (55 associations x (top 9 + cup winner) + 3)
-B_UQ, UQ_BSS, UQ_RECS = 0x41000, 0x6000, 563
+B_UQ, UQ_BSS, UQ_RECS = 0x9A000, 0x6000, 563
+BSS_SIZE = B_UQ                                      # (big worlds; + the qualifying rounds' area in league-phase ones)
 B_TMD, B_CUPS, B_LISTS = 0, 128 * TEAM_SIZE, 128 * TEAM_SIZE + 3 * 160      # cups 160 B apart, lists 64 / 64 / 96
 # SaveSelectedTeams / RestoreSelectedTeams park the career's team cache while a contest is simulated (season end):
 # the game keeps only its first 32 records (21888 B in DOS memory at dosMemOfs60c00h), the simulated contest reuses
 # the cache, so records 32+ come back as the simulated clubs (a 64-club national cup lost its second half -> the
-# season end's VerifyTeamLoaded on a finalist -> exit to DOS; world 1984-85, 2026-10-10). A big world parks all 100
-# records (count word + 68400 B) at B_SAVE.
-B_SAVE, SAVE_SIZE = 0x16000, 2 + 100 * TEAM_SIZE
-assert B_LISTS + 224 <= B_SAVE and B_SAVE + SAVE_SIZE <= B_TFB and B_TFB + TFB_SIZE <= BSS_SIZE
+# season end's VerifyTeamLoaded on a finalist -> exit to DOS; world 1984-85, 2026-10-10). A big world parks all its
+# records (count word + SEL_N x 684 B) at B_SAVE.
+B_SAVE, SAVE_SIZE = 0x16000, 2 + SEL_N * TEAM_SIZE
+assert B_LISTS + 224 <= B_SAVE and B_SAVE + SAVE_SIZE <= B_TFB and B_TFB + TFB_SIZE <= B_SEL
+assert B_SEL + SEL_ROOM <= B_STAGE and B_STAGE + 95153 + SEL_ROOM <= B_UQ
 VAROFF = [4, 22, 25] + [76 + 38 * k + x for k in range(16) for x in (1, 27, 33, 34, 35, 36)]
 WMARK = 0x3157                                       # 'W1'
 WBLOCK = 2 + sum(BIGCOPY.values()) + TOTAL_MAX * (2 + len(VAROFF)) + 2 * 28   # in the fixed part's 80-record area
@@ -1613,8 +1623,39 @@ w_save_tail:                            ; SaveCareerFile after save_trailer (tra
     mov esi, WCWC + 92
     mov ecx, 28
     call w_copy
+    mov esi, CAREER                     ; the file from the stage: the fixed part, then the records and the trailer
+    mov edi, STAGE                      ; (in the cache, elsewhere in a big world)
+    mov ecx, FIXED
+    call w_copy
+    mov ecx, [D1R]
+    sub ecx, FIXED
+    jbe .ns
+    mov esi, NEWSEL
+    call w_copy
+.ns:
+    mov dword [A1R], STAGE
     popad
     jmp WRITEFILE
+
+w_loadcopy:                             ; trailer LOADCOPY (big world): LoadCareerFile read the file into the stage:
+    pushad                              ; the fixed part to careerFileBuffer, the records + trailer to the cache
+    mov esi, STAGE
+    mov edi, CAREER
+    mov ecx, FIXED
+    call w_copy
+    mov ecx, [D1R]                      ; (bytes read)
+    sub ecx, FIXED
+    jbe .x
+    cmp ecx, SEL_ROOM
+    jbe .c
+    mov ecx, SEL_ROOM
+.c:
+    mov esi, STAGE + FIXED
+    mov edi, NEWSEL
+    call w_copy
+.x:
+    popad
+    ret
 
 w_load_tail:                            ; LoadCareerFile after load_trailer (trailer.LOAD_TAIL)
     call w_big
@@ -1822,7 +1863,8 @@ def patch_tails(p, at, nasmcave):
            'w_big': (1, LABELS['w_big']), 'w_copy': (1, LABELS['w_copy']), 'w_dcopy': (1, LABELS['w_dcopy'])}
     b = BSS[0]
     sym.update({'WTMD': (2, b + B_TMD), 'WCC': (2, b + B_CUPS), 'WCWC': (2, b + B_CUPS + 160),
-                'WUEFA': (2, b + B_CUPS + 320)})
+                'WUEFA': (2, b + B_CUPS + 320), 'STAGE': (2, b + B_STAGE), 'NEWSEL': (2, b + B_SEL),
+                'SEL_ROOM': (0, SEL_ROOM), 'A1R': (2, A0 + 4)})
     src = TAILS_ASM
     if os.environ.get('DIAG'):                   # diagnostic build: int 3 handler writes DIAG.BIN
         src = '%define DIAG\n' + src.replace('.w:\n    pushad\n    mov esi, TMDBUF', '.w:\n    call diag_install\n    pushad\n    mov esi, TMDBUF')
@@ -1836,6 +1878,8 @@ def patch_tails(p, at, nasmcave):
     save_dd, load_dd = t['tails']
     p.retarget(1, save_dd, 1, labels['w_save_tail'])
     p.retarget(1, load_dd, 1, labels['w_load_tail'])
+    p.retarget(1, t['loadcopy'], 1, labels['w_loadcopy'])        # the file read into the stage is spread first
+    p.put(1, t['roomv'], struct.pack('<I', SEL_ROOM))             # room after the records: the big cache's
     print(f'exe: big world .CAR block W1 ({WBLOCK} B, in the 80-record area) @ obj1+{at:#x}, records moved to obj2+{b:#x}')
     return (at + len(code) + 3) & ~3
 
@@ -2414,6 +2458,31 @@ def euro_draw(p, at, nasmcave):
     p.put(1, copy_site, b'\xe8' + struct.pack('<i', lab['w_draw2'] - (copy_site + 5)) + b'\x90' * 8)
     print(f'exe: European cups: no same-country ties in rounds 1-2, code obj1+{at:#x} ({len(code)} B)')
     return (at + len(code) + 3) & ~3
+
+
+def big_sel_buffer(p):
+    """Big worlds, after every other patch: the team cache g_selectedTeams (68400 B, 100 teams) -> BSS + B_SEL (every
+    fixup into it keeps its offset inside it: selTeamsPtr's initial value, ProcessCareerFile, the trailer); the
+    career file is read into BSS + B_STAGE (LoadCareerFile's careerFileBuffer immediate)."""
+    import trailer
+    t = trailer.INFO
+    old = t['SELBUF'][1]
+    n = 0
+    for objn in (1, 2):                          # the current fixups (the modules' own included), single-source ones
+        o, ps = p.le.obj(objn), p.le.page_size
+        for k in range(o.npages):
+            for r in list(p.recs[o.page_idx - 1 + k]):
+                po = struct.unpack_from('<h', r, 2)[0]
+                if r[0] != 0x07 or r[1] & 0x03 or po < 0:   # 32-bit offsets to an internal target only
+                    continue
+                tobj, toff = p.target(objn, k * ps + po)
+                if tobj == 2 and old <= toff < old + 68400:
+                    p.retarget(objn, k * ps + po, 2, BSS[0] + B_SEL + toff - old)
+                    n += 1
+    assert p.target(1, t['load_a1']) == t['CAREER'], p.target(1, t['load_a1'])
+    p.retarget(1, t['load_a1'], 2, BSS[0] + B_STAGE)
+    print(f'exe: big world: team cache obj2+{old:#x} -> obj2+{BSS[0] + B_SEL:#x} ({SEL_N} teams, {n} fixups), '
+          f'.CAR read / written through obj2+{BSS[0] + B_STAGE:#x}')
 
 
 def big_team_buffer(p):

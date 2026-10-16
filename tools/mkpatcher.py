@@ -32,6 +32,14 @@ FILES = [  # (id, original path, patched path, file name in the game folder)
     ('TEAM.044', 'orig/DATA/TEAM.044', 'c/SWOS/DATA/TEAM.044', 'DATA/TEAM.044'),
     ('TEAM.062', 'orig/DATA/TEAM.062', 'c/SWOS/DATA/TEAM.062', 'DATA/TEAM.062'),
     ('TEAM.073', 'orig/DATA/TEAM.073', 'c/SWOS/DATA/TEAM.073', 'DATA/TEAM.073'),
+    # 3.3.0: purple clubs (kit colour 10) in original team files the mod did not change before
+    ('TEAM.001', 'orig/DATA/TEAM.001', 'c/SWOS/DATA/TEAM.001', 'DATA/TEAM.001'),
+    ('TEAM.002', 'orig/DATA/TEAM.002', 'c/SWOS/DATA/TEAM.002', 'DATA/TEAM.002'),
+    ('TEAM.013', 'orig/DATA/TEAM.013', 'c/SWOS/DATA/TEAM.013', 'DATA/TEAM.013'),
+    ('TEAM.035', 'orig/DATA/TEAM.035', 'c/SWOS/DATA/TEAM.035', 'DATA/TEAM.035'),
+    ('TEAM.047', 'orig/DATA/TEAM.047', 'c/SWOS/DATA/TEAM.047', 'DATA/TEAM.047'),
+    ('TEAM.055', 'orig/DATA/TEAM.055', 'c/SWOS/DATA/TEAM.055', 'DATA/TEAM.055'),
+    ('TEAM.071', 'orig/DATA/TEAM.071', 'c/SWOS/DATA/TEAM.071', 'DATA/TEAM.071'),
     # Roadmap 2 (1.1): new African countries (africa.py), shipped whole (orig None): produced together with TEAM.020
     ('TEAM.052', None, 'c/SWOS/DATA/TEAM.052', 'DATA/TEAM.052'),
     ('TEAM.053', None, 'c/SWOS/DATA/TEAM.053', 'DATA/TEAM.053'),

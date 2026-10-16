@@ -27,6 +27,7 @@ PURPLE = 10                     # the new kit colour
 SLOT = 12                       # the palette entry it borrows (maroon's)
 RGB = (24, 8, 34)               # 6-bit VGA purple (Fiorentina's viola)
 MAROON = 6
+MENU_MAROON = (27, 0, 9)        # entry 12 of the menu palettes (FILL.256, STAD.256)
 
 ASM = r"""
 pk_mark:                                ; replaces `mov al, [D0]` at the start of ConvertTeamKitColors
@@ -90,6 +91,50 @@ pk_pal:                                 ; replaces `mov ecx, 768 / rep movsb` (e
 .done:
     pop eax
     ret
+
+pk_edit:                                ; replaces `mov dword [A6], editTeamsTeam` at the start of Primary- and
+    mov dword [A6], EDITTEAM            ; SecondaryKitColorConversion (the Edit Teams / SELECT KITS kit sprites)
+    pushad
+    mov esi, EDITTEAM
+    xor ecx, ecx
+    lea ebx, [esi + 26]                 ; first kit: type, shirt, stripes, shorts, socks
+    call kitchk
+    lea ebx, [esi + 31]                 ; second kit
+    call kitchk
+    mov edi, WORKING
+    mov al, R_
+    mov ah, G_
+    mov dl, B_
+    cmp cl, 1                           ; purple, no maroon: entry 12 purple, else the menus' maroon
+    je .set
+    mov al, MR_
+    mov ah, MG_
+    mov dl, MB_
+.set:
+    mov [edi + SLOT_ * 3], al
+    mov [edi + SLOT_ * 3 + 1], ah
+    mov [edi + SLOT_ * 3 + 2], dl
+    mov edi, FADE
+    mov [edi + SLOT_ * 3], al
+    mov [edi + SLOT_ * 3 + 1], ah
+    mov [edi + SLOT_ * 3 + 2], dl
+    mov esi, WORKING
+    call SETPAL
+    popad
+    ret
+
+kitchk:                                 ; ebx -> kit (type, shirt, stripes, shorts, socks) -> cl |= 1 purple, 2 maroon
+    mov al, [ebx + 1]
+    call pk_mark.chk
+    cmp byte [ebx], 0
+    je .ns
+    mov al, [ebx + 2]
+    call pk_mark.chk
+.ns:
+    mov al, [ebx + 3]
+    call pk_mark.chk
+    mov al, [ebx + 4]
+    jmp pk_mark.chk
 """
 
 
@@ -164,11 +209,27 @@ def patch(p, area, at):
     assert len(gl) == 1, [hex(x) for x in gl]
     copies = [gl[0] + 10, st[0] + 11]                    # the `mov ecx, 768` of each
 
+    # 5. the kit editor: Primary/SecondaryKitColorConversion start `mov dword [A6], editTeamsTeam / mov [A2], .. /
+    #    mov [A3], kTeamColorsTable`; SetPalette, g_workingPalette, g_fadePalette from FillPalettes
+    edits = [o - 26 for o in krefs if d1[o - 26:o - 24] == b'\xC7\x05' and d1[o - 16:o - 14] == b'\xC7\x05'
+             and d1[o - 6:o - 4] == b'\xC7\x05']
+    assert len(edits) == 2, edits
+    a6, et = p.target(1, edits[0] + 2), p.target(1, edits[0] + 6)
+    assert all(p.target(1, e + 2) == a6 and p.target(1, e + 6) == et for e in edits)
+    fp = re.search(rb'\xbf....\xbe....\xb9\x0f\x00\x00\x00', d1, re.S)
+    fade = p.target(1, fp.start() + 1)
+    assert p.target(1, fp.start() + 6) == (2, working[1])
+    q = d1.find(b'\xBE', fp.end())
+    assert p.target(1, q + 1) == (2, working[1]) and d1[q + 5] == 0xE8
+    setpal = q + 10 + struct.unpack('<i', d1[q + 6:q + 10])[0]
+
     marks = area.add(b'\0\0\0\0')
     at = (at + 15) & ~15
     sym = {'D0': (2, D0), 'A1': (2, A0 + 4), 'TOP': info['top'], 'BOTTOM': info['bottom'], 'MARKS': (2, marks),
            'PURPLE_': (0, PURPLE), 'MAROON_': (0, MAROON), 'SLOT_': (0, SLOT),
-           'R_': (0, RGB[0]), 'G_': (0, RGB[1]), 'B_': (0, RGB[2])}
+           'R_': (0, RGB[0]), 'G_': (0, RGB[1]), 'B_': (0, RGB[2]),
+           'MR_': (0, MENU_MAROON[0]), 'MG_': (0, MENU_MAROON[1]), 'MB_': (0, MENU_MAROON[2]),
+           'A6': a6, 'EDITTEAM': et, 'WORKING': working, 'FADE': fade, 'SETPAL': (1, setpal)}
     code, cfix = nasmcave.assemble(ASM, at, sym)
     lab = nasmcave.labels(ASM, at, sym)
     assert not any(p.get(1, at, len(code)))
@@ -177,9 +238,32 @@ def patch(p, area, at):
         p.add_ptr(1, at + o, t_obj, t_off)
     p.remove(1, conv + 1)
     p.put(1, conv, b'\xE8' + struct.pack('<i', lab['pk_mark'] - (conv + 5)))
+    for e in edits:
+        p.remove(1, e + 2)
+        p.remove(1, e + 6)
+        p.put(1, e, b'\xE8' + struct.pack('<i', lab['pk_edit'] - (e + 5)) + b'\x90' * 5)
     for c in copies:
         assert p.get(1, c, 7) == b'\xB9\x00\x03\x00\x00\xF3\xA4'
         p.put(1, c, b'\xE8' + struct.pack('<i', lab['pk_pal'] - (c + 5)) + b'\x90\x90')
     print(f'exe: purple kits: colour {PURPLE} -> palette {SLOT} when no maroon (code obj1+{at:#x}, {len(code)} B; '
           f'ConvertTeamKitColors obj1+{conv:#x}, palette copies obj1+{copies[0]:#x}, +{copies[1]:#x})')
     return at + len(code)
+
+# Clubs the game (and the mod's packs) dressed in maroon for want of purple: their kit colour 6 becomes 10.
+CLUBS = {b'FIORENTINA', b'AUSTRIA VIENNA', b'AUSTRIA WIEN', b'ANDERLECHT', b'TOULOUSE', b'VALLADOLID',
+         b'SAPRISSA DEPORTO', b'SON HIROSHIMA', b'DEFENSOR SPORT', b'AUSTRIA SALZBURG'}
+VANILLA_FILES = (1, 2, 13, 35, 47, 55, 71)   # original team files with such a club and nothing else changed by the mod
+TEAM_SIZE = 684
+
+
+def recolor(data, header=True):
+    """Team file bytes (header: the 2-byte count first) -> (bytes, clubs recoloured): CLUBS' kit colour 6 -> 10."""
+    d, n, o0 = bytearray(data), 0, 2 if header else 0
+    for k in range((len(d) - o0) // TEAM_SIZE):
+        o = o0 + k * TEAM_SIZE
+        if bytes(d[o + 5:o + 22]).split(b'\0')[0] in CLUBS:
+            for at in (27, 28, 29, 30, 32, 33, 34, 35):             # shirt, stripes, shorts, socks of both kits
+                if d[o + at] == MAROON:
+                    d[o + at] = PURPLE
+            n += 1
+    return bytes(d), n

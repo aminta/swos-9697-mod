@@ -282,7 +282,7 @@ def patch_teams(src, dst):
     out = [team(r, i, r[25]) for i, r in enumerate(out)]
     counts = [sum(1 for r in out if r[25] == lg) for lg in range(4)]
     assert counts == [18, 20, 18, 18] and len(out) <= 93, counts
-    open(dst, 'wb').write(struct.pack('>H', len(out)) + b''.join(out))
+    open(dst, 'wb').write(purple.recolor(struct.pack('>H', len(out)) + b''.join(out))[0])   # 3.3.0: purple clubs
     print(f'TEAM.020: {len(out)} teams, A/B/C1/C2 = {counts}')
     new_idx = {r[5:22]: i for i, r in enumerate(out)}
     return {i: new_idx[r[5:22]] for i, r in enumerate(recs) if r[5:22] in new_idx}
@@ -326,7 +326,7 @@ def write_new_teams(src_dir, dst_dir):
             assert g < 2000 and (mkseason.shares_base(n) or mkseason.career_file(n) or g not in taken), (n, g, taken.get(g))
             if n not in hist:
                 taken[g] = n
-        open(os.path.join(dst_dir, 'TEAM.%03d' % n), 'wb').write(data)
+        open(os.path.join(dst_dir, 'TEAM.%03d' % n), 'wb').write(purple.recolor(data)[0])
         print(f'TEAM.{n:03d}: {k} teams, global numbers {base}..{base + k - 1}')
     for mod in (nsl97, nz97, mls97):                  # 2.1: Australia (54 records), New Zealand (40), MLS 1997
         data = mod.build(src_dir)
@@ -335,11 +335,16 @@ def write_new_teams(src_dir, dst_dir):
             g = bases[r[0]] + r[1]
             assert g < 2000 and g not in taken, (mod.FILE, g, taken.get(g))   # word +2 is recomputed by the game
             taken[g] = mod.FILE
-        open(os.path.join(dst_dir, 'TEAM.%03d' % mod.FILE), 'wb').write(data)
+        open(os.path.join(dst_dir, 'TEAM.%03d' % mod.FILE), 'wb').write(purple.recolor(data)[0])
     print(f'TEAM.{nsl97.FILE:03d}/{nz97.FILE:03d}/{mls97.FILE:03d}: Australia and New Zealand 1996-97, MLS 1997')
     for name, data in mkseason.world_files().items():  # career packs: first-season European clubs of each world
-        open(os.path.join(dst_dir, name), 'wb').write(data)
+        open(os.path.join(dst_dir, name), 'wb').write(purple.recolor(data, header=False)[0])
         print(f'{name}: {len(data) // TEAM_SIZE} European clubs')
+    for n in purple.VANILLA_FILES:                    # 3.3.0: original team files whose purple clubs wore maroon
+        data, k = purple.recolor(open(os.path.join(src_dir, 'TEAM.%03d' % n), 'rb').read())
+        assert k, n
+        open(os.path.join(dst_dir, 'TEAM.%03d' % n), 'wb').write(data)
+    print(f'purple clubs: TEAM.{", ".join("%03d" % n for n in purple.VANILLA_FILES)} recoloured')
 
 
 if __name__ == '__main__':

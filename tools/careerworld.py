@@ -123,6 +123,15 @@ w_dcopy:                                ; ecx dwords esi -> edi
 w_load1:                                ; replaces the first `call LoadSomeEuroCup` (euroCup) in InitCareer
     push esi
     push eax
+%ifdef NS
+    movzx eax, byte [WSEL]              ; several worlds: the club's country in the namespace the selector showed
+    movzx esi, byte [WCUR]
+    shl esi, 5
+    bt [WNSB + esi], eax
+    jnc .none
+    mov al, [WCUR]
+    jmp .world
+%else
     mov al, [WSEL]
     mov esi, WMAP                       ; country, world pairs + FF
 .l:
@@ -132,14 +141,20 @@ w_load1:                                ; replaces the first `call LoadSomeEuroC
     je .found
     add esi, 2
     jmp .l
+%endif
 .none:
     mov byte [SLT + WORLD_BYTE], 0
     mov byte [SLTCOPY + WORLD_BYTE], 0
+%ifdef NS
+    xor eax, eax                        ; a 1996-97 career: the base namespace
+    call w_ns_set
+%endif
     pop eax
     pop esi
     jmp LOADEURO
 .found:
     mov al, [esi + 1]
+.world:
     mov [SLT + WORLD_BYTE], al          ; also in leaguesTableCopy: InitializeNewSeason (cseg_8CC4E) copies it back
     mov [SLTCOPY + WORLD_BYTE], al      ; over someLeaguesTable, like the 'S3' mark (trailer.set_mark)
     neg al
@@ -359,6 +374,9 @@ w_tfile:                                ; replaces `and dword [D0], 0FFh` before
     call w_tmap
     mov [D0R], eax
     mov [WTPHYS], al                    ; the physical file now in teamFileBuffer
+%ifdef NS
+    call w_ns_stem
+%endif
     pop eax
     ret
 
@@ -964,7 +982,149 @@ WVIEW:
     dd VIEWFIRST, -1
     db WCONT, 0xff
 WSEL: db 0
+
+%ifdef NS
+; ---- several worlds: a country namespace per world (numbers 101..251 reused). The rows of world w (NSWT[w]) hold
+; for every namespace number (NSLIST) its countriesTable and competitionsTable entries (obj-tagged offsets) and its
+; teamsCountryNumbers word; WCUR = the world whose rows are in the tables (the base world at start); WNSB = per world a
+; 256-bit set of its team files, named data/<WSTEM>.nnn while that world is current.
+w_ns_set:                               ; al = world (0 = the base world): its namespace into the 3 tables
+    pushad
+    movzx eax, al
+    test eax, eax
+    jnz .w
+    mov al, NSBASE
+.w:
+    cmp al, [WCUR]
+    je .r
+    mov [WCUR], al
+    mov word [TEAMSLOADED], 0           ; teamFileBuffer may hold the other world's file of the same number
+    mov esi, [NSWT + eax * 4]
+    test esi, esi
+    jnz .t
+    mov esi, [NSWT + NSBASE * 4]        ; (a world not in this exe)
+.t:
+    mov edi, NSLIST
+    mov ecx, NSN
+.l:
+    movzx ebx, byte [edi]
+    mov eax, [esi]
+    call w_ns_ptr
+    mov [CTAB + ebx * 4], eax
+    mov eax, [esi + 4]
+    call w_ns_ptr
+    mov [COMPT + ebx * 4], eax
+    mov ax, [esi + 8]
+    mov [TCNT + ebx * 2], ax
+    add esi, 10
+    inc edi
+    dec ecx
+    jnz .l
+.r:
+    popad
+    ret
+
+w_ns_ptr:                               ; eax = tagged offset -> pointer (bit 31: obj2, bit 30: obj1, 0 = none)
+    btr eax, 31
+    jc .o2
+    btr eax, 30
+    jnc .r
+    mov edx, OBJ1Z
+    add eax, edx
+.r:
+    ret
+.o2:
+    mov edx, OBJ2Z
+    add eax, edx
+    ret
+
+w_ns_stem:                              ; eax = physical team file: data/team.nnn, or the current world's stem
+    push esi
+    push edx
+    movzx esi, byte [WCUR]
+    mov edx, 'team'
+    shl esi, 5
+    bt [WNSB + esi], eax
+    jnc .w
+    shr esi, 3
+    mov edx, [WSTEM + esi]
+.w:
+    mov [TEAMNAME + 5], edx
+    pop edx
+    pop esi
+    ret
+
+w_ns_menu:                              ; replaces `and word [D7], 0FFh` at the top of SelectTeamsFinalMenu's list loop:
+    and word [D7R], 0FFh                ; in the CLASSIC CAREERS selector the namespace of the world entry on the path
+    pushad                              ; (countries stack or the list itself), else the base one
+    cmp dword [COMP254], CAREER_WORLD
+    jne .r
+    xor ecx, ecx
+    movzx eax, byte [D7R]
+    call .isw
+    mov esi, CSTACK
+    mov edi, [CSPTR]
+.s:
+    cmp esi, edi
+    jae .d
+    movzx eax, byte [esi]
+    call .isw
+    inc esi
+    jmp .s
+.d:
+    mov eax, ecx
+    call w_ns_set
+.r:
+    popad
+    ret
+.isw:
+    cmp eax, WMENU_N + 1
+    jb .n
+    cmp eax, WMENU_N + NSMAXW
+    ja .n
+    lea ecx, [eax - WMENU_N]
+.n:
+    ret
+
+w_ns_ld:                                ; LoadCareerFile, before the trailer: the save's world namespace (the
+    pushad                              ; team files ProcessCareerFile loads are that world's)
+    mov al, [SLT + WORLD_BYTE]
+    call w_ns_set
+    popad
+    jmp [NSNEXT]
+align 4
+NSNEXT: dd 0
+WCUR: db NSBASE
+%endif
 '''
+
+
+NS = {}                                              # mkseason (several worlds): {'info': namespaces, 'menu_site'}
+
+
+def _ns_sites(p, s):
+    """Namespace symbols: data/team.nnn (obj2), the countries stack of SelectTeamsFinalMenu and its list loop's
+    `and word [D7], 0FFh` (after `mov [countryStackPtr], offset countriesStack`)."""
+    import mkseason
+    d1, d2 = p.le.obj_bytes(1), p.le.obj_bytes(2)
+    k = d2.find(b'data/team.nnn\0')
+    assert k > 0 and d2.find(b'data/team.nnn\0', k + 1) < 0
+    _, _, csp = mkseason._level_site(p)
+    pk = lambda x: re.escape(struct.pack('<I', x))
+    m = _one(rb'\xc7\x05' + pk(csp[1]) + rb'(.{4})\x66\x81\x25' + pk(s['regs']['D7R']) + rb'\xff\x00', d1,
+             'SelectTeamsFinalMenu list loop')
+    NS['menu_site'] = m.start() + 10
+    return {'TEAMNAME': (2, k), 'CSTACK': p.target(1, m.start() + 6), 'CSPTR': csp}
+
+
+def ns_load(p, call):
+    """LoadCareerFile's call of the trailer loader (arg97.LOAD_CALL, already wrapped by arg97): w_ns_ld first."""
+    if not NS.get('info'):
+        return
+    tgt = call + 5 + struct.unpack('<i', bytes(p.get(1, call + 1, 4)))[0]
+    p.add_ptr(1, LABELS['NSNEXT'], 1, tgt)
+    p.put(1, call + 1, struct.pack('<i', LABELS['w_ns_ld'] - (call + 5)))
+    print(f'exe: country namespaces: career load obj1+{call:#x} -> w_ns_ld -> obj1+{tgt:#x}')
 
 
 def _one(pat, d, what):
@@ -1488,7 +1648,25 @@ def patch(p, worlds, at, nasmcave, comp, ct, cont_rec):
     b = BSS[0] or 0
     bsym.update({'WTMD': (2, b + B_TMD), 'WCC': (2, b + B_CUPS), 'WCWC': (2, b + B_CUPS + 160),
                  'WUEFA': (2, b + B_CUPS + 320)})
+    ns = NS.get('info')                          # several worlds: a country namespace each (mkseason.ns_emit)
+    if ns:
+        maxw = max(w['n'] for w in worlds)
+        bits = bytearray(32 * (maxw + 1))
+        for w in worlds:
+            for f in ns['files'][w['n']]:
+                bits[32 * w['n'] + f // 8] |= 1 << f % 8
+        extra.append('WNSB: db ' + ', '.join(map(str, bits)))
+        extra.append('align 4')
+        extra.append('WSTEM: db ' + ', '.join(map(str, b''.join(ns['stems'].get(n, 'team').encode() for n in range(maxw + 1)))))
     src = ASM + '\n'.join(stubs + data + extra) + '\n'
+    if ns:
+        src = '%define NS\n' + src
+        sym_ns = _ns_sites(p, s)
+        bsym.update(sym_ns)
+        bsym.update({'NSLIST': (1, ns['list_at']), 'NSWT': (1, ns['wt_at']), 'NSN': (0, len(ns['numbers'])),
+                     'NSBASE': (0, ns['base']), 'NSMAXW': (0, maxw), 'CTAB': (2, ct), 'COMPT': (2, comp),
+                     'TCNT': (2, ns['tcn']), 'OBJ1Z': (1, 0), 'OBJ2Z': (2, 0), 'CAREER_WORLD': (1, ns['cworld']),
+                     'WMENU_N': (0, ns['wmenu'])})
     if os.environ.get('DIAG'):
         src = '%define DIAG\n' + src
     vobj, vtab = p.target(2, comp + 4 * 254)
@@ -1570,6 +1748,8 @@ def patch(p, worlds, at, nasmcave, comp, ct, cont_rec):
     p.put(1, s['nat_wrap'][0], bytes((63 + len(MENU_NATS),)))
     p.put(1, s['nat_wrap'][1], bytes((64 + len(MENU_NATS),)))
     hook(s['tcache'], 5, 'w_tcache', (1,))
+    if ns:
+        hook(NS['menu_site'], 9, 'w_ns_menu', (3,))
     for site, name, _ in s['pick']:
         hook(site, 5, name, ())
     for site, name in hooks:                     # euro 128 (big worlds only)

@@ -51,9 +51,9 @@ NZ_CAVE = 0xa4000            # fourth added page (2.1): NSSL shoot-out (the worl
 FIN_CAVE = 0xa4300           # 2.1: finals series (finals97.fin_pre)
 FINALS = True                # NSL / NSSL play-offs, option B: native 4-club type-1 cup (session 28s)
 ARG_CAVE = 0xa4400           # 2.1: Argentina Apertura/Clausura, aggregate, promedio (arg97)
-CAREER_CAVE = 0xa6000        # 6th + 7th added pages (3.1: two), only in builds with a historic career world (careerworld.py)
-CAREER_CAVE_SIZE = mkseason.CAREER_CAVE_SIZE
-CAREER_DATA = 0xa8000        # 8th + 9th added pages (same builds): the career packs' structs (mkseason)
+CAREER_CAVE = 0xa6000        # 6th + 7th added pages (3.1: two; three with several worlds: cave_pages), only in builds
+                             # with a historic career world (careerworld.py)
+CAREER_DATA = 0xa8000        # 8th + 9th added pages (same builds; after the cave): the career packs' structs (mkseason)
 HIST2_PAGE = 0x1000          # 3.2: one more page after the others (0xa6000, or 0xaa000 with a world): tourney packs'
                              # contests and the ESCI fix (historic.patch; the world cave was nearly full)
 ARG_LOAD_HOOK = True
@@ -161,6 +161,13 @@ def remap_italian_cup_teams(p, remap):
     print(f'exe: {n} Italian clubs in euro cup lists remapped')
 
 
+def cave_pages():
+    """obj1 pages of the career world code (CAREER_CAVE): 2, 3 with several worlds (their tables overflowed 2)."""
+    cp = 3 if mkseason.multi_ns() else 2
+    mkseason.CAREER_CAVE_SIZE = 0x1000 * cp
+    return cp
+
+
 def patch_exe(src, dst, remap, lang='it'):
     grown = dst + '.tmp'
     data = open(src, 'rb').read()
@@ -170,18 +177,22 @@ def patch_exe(src, dst, remap, lang='it'):
     lpb += 3 * bool(mkseason.league_phase_worlds())   # (+3: the UEFA qualifying rounds, uefaq: C code + glue)
     cdp = mkseason.career_data_pages() - 2 if worlds else 0   # a big world: a 3rd career data page and a 2nd
     h2 = HIST2_PAGE * (1 + cdp)                                # historic page (its cups' fixed draws)
-    for _ in range((10 if worlds else 6) + 2 * cdp + lpb):  # (+1: the UEFA league phase's code page, lp36)
+    cp = cave_pages()                                          # career world code: 2 pages, 3 with several worlds
+    for _ in range((6 + cp + 2 + 2 * cdp if worlds else 6) + lpb):  # (+1: the UEFA league phase's code page, lp36)
         data = add_object_page(data, 1)
     mkseason.CAREER_CAVE[0] = CAREER_CAVE if worlds else None
-    mkseason.CAREER_DATA[0] = CAREER_DATA if worlds else None
+    mkseason.CAREER_DATA[0] = CAREER_DATA + 0x1000 * (cp - 2) if worlds else None
     bigw = worlds and any(careerworld.big(w) for w in mkseason.world_defs())   # euro 128: obj2 tail + .CAR W1 block
     while True:                    # obj2: zero pages over the old BSS/stack tail, then one free page
         data = add_object_page(data, 2)
         le2 = LE(data)
         if (le2.obj(2).npages - 1) * le2.page_size >= le2.obj(2).vsize:
             break
-    o2pages = 2 if worlds else 1   # career packs: one more obj2 page (their strings)
+    o2pages = 2 if worlds else 1   # career packs: one more obj2 page (their strings; two with several worlds)
     if worlds:
+        data = add_object_page(data, 2)
+    if mkseason.multi_ns():
+        o2pages += 1
         data = add_object_page(data, 2)
     for _ in range(-(-len(historic.draw_table()) // 0x1000)):   # historic's fixed draws (real cup brackets)
         o2pages += 1
@@ -222,7 +233,7 @@ def patch_exe(src, dst, remap, lang='it'):
     fin_end = finals97.cal_rounds(p, fin_end)     # 2.5: NSL/NSSL play-offs: semi-finals AND final get dates
     world, lib_pre = lib97.patch(p, world, fin_pre)  # Libertadores 1997: bye, real calendar (hist_draw calls lib_pre)
     world, pack_leagues = mkseason.patch(p, lang, area, world)   # season packs (2.6: DDR 1988-89), CLASSIC SEASONS
-    hist2 = OBJ1_NEW_VSIZE + (0x4000 + 0x1000 * cdp if worlds else 0)
+    hist2 = OBJ1_NEW_VSIZE + (0x1000 * (cp + 2 + cdp) if worlds else 0)
     lp = None
     if mkseason.league_phase_cups() or mkseason.league_phase_worlds():   # UEFA league phase (lp36)
         import lp36
@@ -258,10 +269,11 @@ def patch_exe(src, dst, remap, lang='it'):
         if bigw:
             end = careerworld.patch_tails(p, end, nasmcave)
         end = worldpool.patch(p, end, nasmcave, [(w['n'], w['pool'][0]) for w in mkseason.world_defs() if w['pool']])
-        assert end <= CAREER_CAVE + CAREER_CAVE_SIZE, hex(end)
+        assert end <= CAREER_CAVE + mkseason.CAREER_CAVE_SIZE, hex(end)
     p.add_ptr(1, info['new_career_ptr'], 1, new_career)
     if ARG_LOAD_HOOK:
         arg_end = arg97.load_hook(p, arg_end)     # 2.1: Apertura/Clausura names after loading a career
+        careerworld.ns_load(p, arg97.LOAD_CALL[0])   # several worlds: the save's namespace before the trailer
     arg_end = finals97.rec_playoff(p, arg_end)    # 2.5: the play-off winner is the champion in the record (FIN cave full)
     arg_end = careerworld.euro_draw(p, arg_end, nasmcave)   # 2.7.x: no same-country ties in rounds 1-2 of the
                                                   # European cups of a career (1996-97 CWC / UEFA, worlds)
@@ -294,7 +306,8 @@ def patch_exe(src, dst, remap, lang='it'):
         world = xtra.patch(p, world)                             # XTRA_HOOK=1: test builds): DATA\XTRA.nnn players
     assert world <= NZ_CAVE and nz_end <= FIN_CAVE and fin_end <= ARG_CAVE and arg_end <= OBJ1_NEW_VSIZE, \
         (hex(world), hex(nz_end), hex(fin_end), hex(arg_end))
-    p.set_vsize(1, OBJ1_NEW_VSIZE + (0x4000 + 0x1000 * cdp if worlds else 0) + h2 + 0x1000 * lpb)
+    mkseason.ns_emit(p)                          # several worlds: the namespaces' rows, the base one static
+    p.set_vsize(1, OBJ1_NEW_VSIZE + (0x1000 * (cp + 2 + cdp) if worlds else 0) + h2 + 0x1000 * lpb)
     tail = (careerworld.BSS_SIZE if bigw else 0) + shirtnum.BSS_SIZE + blond.BSS_SIZE   # zero-filled obj2 tail
     p.set_vsize(2, obj2_free + o2pages * p.le.page_size + tail, bss=tail)
     p.add_flags(1, 0x2)            # writable: season end rewrites the SA cup team lists in the cave
@@ -395,6 +408,11 @@ def write_new_teams(src_dir, dst_dir):
     for n, data in mkseason.xtra_files().items():      # extended career squads: players beyond 16 (xtra.py)
         open(os.path.join(dst_dir, 'XTRA.%03d' % n), 'wb').write(data)
         print(f'XTRA.{n:03d}: up to {data[2]} more players for {struct.unpack(">H", data[:2])[0]} clubs')
+    for name, data in mkseason.ns_team_files().items():   # several worlds: the team files of a namespace of its own
+        k = struct.unpack('>H', data[:2])[0]
+        assert k * TEAM_SIZE + 2 <= 106496, name
+        open(os.path.join(dst_dir, name), 'wb').write(data)
+        print(f'{name}: {k} teams')
     for name, data in mkseason.world_files().items():  # career packs: first-season European clubs of each world
         open(os.path.join(dst_dir, name), 'wb').write(team_fix(data, header=False))
         print(f'{name}: {len(data) // TEAM_SIZE} European clubs')

@@ -626,6 +626,9 @@ def patch(p, area, str_base, at, site_b, src_dir):
     return (at + len(code) + 15) & ~15
 
 
+LOAD_CALL = [None]                       # obj1 offset of the wrapped call (careerworld.ns_load chains in front)
+
+
 def load_hook(p, at):
     """After trailer.patch: wrap the LoadCareerFile -> ProcessCareerFile call (now trailer's load_trailer)."""
     import sacups
@@ -645,6 +648,7 @@ def load_hook(p, at):
     for off, tobj, toff in fix:
         p.add_ptr(1, at + off, tobj, toff)
     p.put(1, call + 1, struct.pack('<i', at - (call + 5)))
+    LOAD_CALL[0] = call
     print(f'exe: Argentina: career load call obj1+{call:#x} -> obj1+{at:#x}')
     return (at + len(code) + 15) & ~15
 

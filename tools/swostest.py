@@ -1276,7 +1276,22 @@ def world8485():
                 return False, f'START: no first pause ({s.result})'
             if season == 1:
                 team = os.environ.get('W8485_TEAM', 'INGHILTERRA,FIRST DIVISION,LIVERPOOL').split(',')
-                for t in ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', os.environ.get('W8485_WORLD', 'EUROPA 1984-85')] + team:
+                path = ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', os.environ.get('W8485_WORLD', 'EUROPA 1984-85')] + team
+                if os.environ.get('W8485_PATH'):              # the whole selector path; '<back>' = ESCI until the
+                    path = ['CARRIERA', 'SCEGLI SQUADRA'] + os.environ['W8485_PATH'].split(',')   # next step shows
+                for k, t in enumerate(path):
+                    if t == '<back>':
+                        for _ in range(6):
+                            if s.screen().find(path[k + 1], exact=True) is not None:
+                                break
+                            for _ in range(40):              # (ESCI has no menu links the BFS knows: walk down)
+                                scr = s.screen()
+                                if any(e[0] == scr.selected and e[1] == 'ESCI' for e in scr.entries):
+                                    break
+                                s.send('down dump:0.5')
+                            if s.send('fire dump:2').outcome != 'dump':
+                                return False, f'new career: ESCI ({s.result})'
+                        continue
                     if press(s, s.screen(), t) is None or s.result.outcome != 'dump':
                         return False, f'new career: {t} not reached ({s.result})'
                 if os.environ.get('W8485_START') == '1':          # menu check only: the career has started

@@ -63,9 +63,14 @@ def career_data_pages():
     """obj1 pages of the career packs' structs: 2, or 3 when the worlds hold more than ~75 country packs (~105 B
     each; world 2026-27: 87)."""
     n = sum(len(pks) for pks in worlds().values())
-    return 3 if n * 105 > 0x2000 else 2
+    if not multi_ns():
+        return 3 if n * 105 > 0x2000 else 2
+    ns = len(worlds()) * 151 * 10 + 512         # several worlds: + the namespaces' rows (ns_emit)
+    return max(2, -(-(n * 105 + ns) // 0x1000))
+
+
 CAREER_CAVE = [None]                    # obj1 page of the career world code (patch.py adds it when worlds exist)
-CAREER_CAVE_SIZE = 0x2000               # 3.1: two pages (patch.py)
+CAREER_CAVE_SIZE = 0x2000               # 3.1: two pages (patch.py; three with several worlds, cave_pages)
 ROUND = {'two_legs': 0x94, 'single': 0x14, 'single_et': 0x54}   # knockout round byte: two legs (away goals),
                                                                  # single match, single match + extra time/penalties
 # tourney packs (3.2, CLASSIC TOURNEYS): matches of a knockout stage = the legs byte of a worldCup-layout stage (as the
@@ -819,9 +824,11 @@ def packs():
 
 
 def team_files():
+    """{file number: TEAM.nnn data} of the packs outside worlds and of the worlds named 'team' (ns_stem)."""
     out = {}
     for pk in packs() + nationals():
-        out.update(pk.team_files())
+        if pk.world is None or ns_stem(pk.world) == 'team':
+            out.update(pk.team_files())
     return out
 
 
@@ -833,6 +840,41 @@ def xtra_files():
             pk.team_files()
         out.update(pk.xtra)
     return out
+
+
+def ns_team_files():
+    """{'TMWn.nnn': data}: the team files of the worlds with a namespace of their own (several worlds in the build)."""
+    out = {}
+    for pk in packs() + nationals():
+        if pk.world is not None and ns_stem(pk.world) != 'team':
+            for n, data in pk.team_files().items():
+                out['%s.%03d' % (ns_stem(pk.world).upper(), n)] = data
+    return out
+
+
+def multi_ns():
+    """Several career worlds in the build: each has its own country namespace (numbers 101..251 per world, swapped
+    into countriesTable / competitionsTable / teamsCountryNumbers by careerworld w_ns_set)."""
+    return len(worlds()) > 1
+
+
+def ns_base():
+    """The world whose namespace is in the exe's static tables (the lowest; its team files keep the name TEAM.nnn)."""
+    return min(worlds()) if worlds() else None
+
+
+def ns_stem(w):
+    """Team file name stem of world w (8.3: data/<stem>.nnn): 'team' for the base world (and for a build with one
+    world: old installs and saves stay valid), 'tmwN' for the other worlds of a multi-world build."""
+    if not multi_ns() or w == ns_base():
+        return 'team'
+    _need(w <= 9, f'world {w}: team file stem tmw{w} (worlds 1..9 only)')
+    return 'tmw%d' % w
+
+
+def ns_files(w):
+    """Team file numbers of world w (its packs and its national pack): the files named by its stem."""
+    return sorted({f for pk in packs() + nationals() if pk.world == w for f, _ in pk.files.values()})
 
 
 def draws():
@@ -894,8 +936,10 @@ def file_numbers():
 
 
 def base_of(n):
-    """First global number of a pack team file (None if n is not one)."""
+    """First global number of a pack team file named TEAM.nnn (None if n is not one)."""
     for pk in packs() + nationals():
+        if pk.world is not None and ns_stem(pk.world) != 'team':
+            continue
         for f, b in pk.files.values():
             if f == n:
                 return b
@@ -1010,9 +1054,12 @@ def world_defs():
 def world_files():
     """{'WORLDnn.TMD': first-season European clubs of world nn (team-file records, the game sets word +2),
     'POOLnn.DAT': its foreign-market pool when the root pack names one (pack.json 'pool')}."""
-    files = team_files()
     out = {}
     for w in world_defs():
+        files = {}
+        for pk in packs() + nationals():
+            if pk.world == w['n']:
+                files.update(pk.team_files())
         recs = []
         for key in ('cc', 'cwc', 'uefa'):
             for pk, c in w['clubs'][key]:
@@ -1235,6 +1282,73 @@ def _tourney_leagues(p, lang, area, at, env):
     return at, out
 
 
+POOL_IDS = range(190, 200)              # pseudo-countries of the worlds' foreign-market pools (worldpool.py): no world file
+NS = {}                                 # several worlds: world -> {country number: {'ct': (obj, off), 'comp': (obj, off),
+NS_INFO = {}                            # 'tcn': base}} (its namespace); NS_INFO: where patch() put the tables (ns_emit)
+
+
+def _tab(p, env, w, kind, n, *val):
+    """A country entry (kind 'ct' / 'comp' = countriesTable / competitionsTable pointer, 'tcn' = teamsCountryNumbers
+    word): written into the exe, or with several worlds into world w's namespace (ns_emit writes them)."""
+    d2, ct, tcn, comp, fx2 = env
+    if w is None or not multi_ns():
+        if kind == 'tcn':
+            p.put(2, tcn + 2 * n, struct.pack('<H', val[0]))
+        else:
+            p.add_ptr(2, (ct if kind == 'ct' else comp) + 4 * n, *val)
+        return
+    _need(n < 252 and n not in (SEASONS, CAREERS, 99) and not WMENU <= n <= WMENU + 9 and n not in POOL_IDS,
+          f'world {w}: country {n} is a menu id or a pool pseudo-country')
+    row = NS.setdefault(w, {}).setdefault(n, {})
+    _need(kind == 'tcn' or kind not in row, f'world {w}: country {n} is already used')
+    row[kind] = val[0] if kind == 'tcn' else val
+
+
+def _has_fix(p, objn, off):
+    try:
+        p.target(objn, off)
+        return True
+    except AssertionError:
+        return False
+
+
+def ns_emit(p):
+    """Several worlds (after every other patch, before save): per world a row per namespace number (countriesTable
+    and competitionsTable entries as obj-tagged offsets: bit 30 = obj1, bit 31 = obj2, 0 = none; teamsCountryNumbers
+    word) = its own entry, else the build's global one; the base world's rows into the static tables."""
+    if not NS_INFO:
+        return
+    ct, tcn, comp, nums = NS_INFO['ct'], NS_INFO['tcn'], NS_INFO['comp'], NS_INFO['numbers']
+
+    def cur(off):
+        if _has_fix(p, 2, off):
+            obj, t = p.target(2, off)
+            assert obj in (1, 2) and t < 1 << 30
+            return obj << 30 | t
+        assert bytes(p.get(2, off, 4)) == bytes(4), hex(off)
+        return 0
+    glob = {n: (cur(ct + 4 * n), cur(comp + 4 * n), struct.unpack('<H', bytes(p.get(2, tcn + 2 * n, 2)))[0]) for n in nums}
+    p.put(1, NS_INFO['list_at'], bytes(nums))
+    for w, at in NS_INFO['rows_at'].items():
+        p.add_ptr(1, NS_INFO['wt_at'] + 4 * w, 1, at)
+        rows = b''
+        for n in nums:
+            r, (gct, gcomp, gtcn) = NS[w].get(n, {}), glob[n]
+            for kind, g in (('ct', gct), ('comp', gcomp)):
+                _need(kind not in r or g == 0, f'world {w}: country {n} is also a global {kind} entry')
+            rows += struct.pack('<IIH', r['ct'][0] << 30 | r['ct'][1] if 'ct' in r else gct,
+                                r['comp'][0] << 30 | r['comp'][1] if 'comp' in r else gcomp, r.get('tcn', gtcn))
+        p.put(1, at, rows)
+    for n, r in NS[ns_base()].items():            # the static tables = the base world's namespace
+        for kind, tab in (('ct', ct), ('comp', comp)):
+            if kind in r:
+                p.add_ptr(2, tab + 4 * n, *r[kind])
+        if 'tcn' in r:
+            p.put(2, tcn + 2 * n, struct.pack('<H', r['tcn']))
+    print(f"exe: country namespaces of worlds {sorted(NS)}: {len(nums)} numbers ({nums[0]}..{nums[-1]}), "
+          f"base world {ns_base()}, rows @ obj1+{min(NS_INFO['rows_at'].values()):#x}")
+
+
 def _patch_pack(pk, p, lang, area, at, env):
     """One pack: country entries, competition structs, country table. Returns (cave end, info for the shared part)."""
     import countries
@@ -1251,11 +1365,10 @@ def _patch_pack(pk, p, lang, area, at, env):
     own = sorted(v for v in pk.files.values() if not shares_base(v[0]))
     for f, base in own + sorted(v for v in pk.files.values() if shares_base(v[0])):
         _need(ct + 4 * f not in fx2 and comp + 4 * f not in fx2, f'{pk.meta["id"]}: country {f} is already used')
-        p.add_ptr(2, ct + 4 * f, 2, rec)
-        p.put(2, tcn + 2 * f, struct.pack('<H', base))
+        _tab(p, env, pk.world, 'ct', f, 2, rec)
+        _tab(p, env, pk.world, 'tcn', f, base)
         if (f, base) == own[-1]:
-            p.put(2, tcn + 2 * (f + 1),
-                  struct.pack('<H', base + pk.count[next(k for k, v in pk.files.items() if v[0] == f)]))
+            _tab(p, env, pk.world, 'tcn', f + 1, base + pk.count[next(k for k, v in pk.files.items() if v[0] == f)])
 
     ptr = {}
     for c in pk.comps:
@@ -1304,7 +1417,7 @@ def _patch_pack(pk, p, lang, area, at, env):
         at += 4
     p.put(1, at, struct.pack('<i', -1))
     at += 4
-    p.add_ptr(2, comp + 4 * lfile, 1, table)
+    _tab(p, env, pk.world, 'comp', lfile, 1, table)
     emap = bytearray(len(pk.league_clubs))
     for club, cup in s.get('europe', {}).items():
         emap[pk.league_clubs.index(club)] = europe.index(cup) + 1
@@ -1357,6 +1470,16 @@ def patch(p, lang, area, cave):
         else:
             at, info = _patch_pack(pk, p, lang, area, at, env)
         infos.append(info)
+    if multi_ns():                              # several worlds: their namespaces' rows (filled by ns_emit)
+        nums = sorted(set().union(*NS.values()))
+        NS_INFO.update(ct=ct, tcn=tcn, comp=comp, numbers=nums, list_at=cat, rows_at={})
+        cat = (cat + len(nums) + 3) & ~3
+        NS_INFO['wt_at'] = cat                  # dd per world number: its rows (0 = not in the build)
+        cat += 4 * (max(worlds()) + 1)
+        for w in sorted(NS):
+            NS_INFO['rows_at'][w] = cat
+            cat += 10 * len(nums)
+        cat = (cat + 3) & ~3
     if cat is not None:
         _need(cat <= CAREER_DATA[0] + 0x1000 * career_data_pages(), f'career packs overflow their pages ({cat:#x})')
     at, tleagues = _tourney_leagues(p, lang, area, at, env)
@@ -1420,7 +1543,8 @@ def patch(p, lang, area, cave):
                 def take_id():
                     nonlocal cid
                     while ct + 4 * cid in fx2 or comp + 4 * cid in fx2 or cid in wmenus or any(
-                            cid == e[0] for v in WCONT_IDS.values() for e in v) or cid in [e[0] for e in ids]:
+                            cid == e[0] for v in WCONT_IDS.values() for e in v) or cid in [e[0] for e in ids] or \
+                            any(cid in v for v in NS.values()):     # (a global id: no world may use it)
                         cid -= 1
                     _need(cid > WMENU + max(worlds()), f'world {n}: no free continent menu id')
                     cid -= 1
@@ -1521,6 +1645,9 @@ def patch(p, lang, area, cave):
         import careerworld
         cave = CAREER_CAVE[0]
         careerworld.LANG[0] = lang
+        if multi_ns():
+            careerworld.NS['info'] = dict(NS_INFO, files={n: ns_files(n) for n in worlds()}, base=ns_base(),
+                                          stems={n: ns_stem(n) for n in worlds()}, cworld=cworld, wmenu=WMENU)
         end = careerworld.patch(p, world_defs(), cave, nasmcave, comp, ct, (2, CAREERS_REC[0]))
         _need(end <= cave + CAREER_CAVE_SIZE, f'career world code overflows its pages ({end:#x})')
     return at, [x for i in infos for x in i['classic']] + tleagues

@@ -575,21 +575,26 @@ class Screen:
                 return i
         return None
 
-    def path(self, target):
-        """Keys from the selected entry to entry `target` (BFS on the entries' left/right/up/down links)."""
+    def path(self, target, bad=frozenset(), steps=False):
+        """Keys from the selected entry to entry `target` (BFS on the entries' left/right/up/down links); bad = moves
+        (entry, key) seen to go elsewhere in the game; steps: [(key, expected entry)] instead of the keys."""
         if self.selected is None:
             return None
         prev, todo = {self.selected: None}, [self.selected]
         while todo:
             cur = todo.pop(0)
             if cur == target:
-                keys = []
+                out = []
                 while prev[cur]:
-                    cur, k = prev[cur]
-                    keys.append(k)
-                return keys[::-1]
+                    p, k = prev[cur]
+                    out.append((k, cur))
+                    cur = p
+                out = out[::-1]
+                return out if steps else [k for k, _ in out]
             links, skips = self.nav[cur] if cur < len(self.nav) else ((), ())
             for d, (k, nxt, alt) in enumerate(zip(('left', 'right', 'up', 'down'), links, skips)):
+                if (cur, k) in bad:
+                    continue
                 if nxt < len(self.entries) and self.entries[nxt][2] and alt < len(self.entries):
                     nxt = alt                            # invisible neighbour: the game takes the skip entry
                 hops = 0
@@ -734,15 +739,24 @@ def press(s, scr, text, wait=2, exact=True):
     i = text if isinstance(text, int) else scr.find(text, exact=exact)
     if i is None:
         return None
-    for _ in range(4):
+    bad = set()
+    for attempt in range(40):
         if scr.selected == i:
             return s.send(f'fire dump:{wait}')
-        keys = scr.path(i)
-        if not keys:
+        steps = scr.path(i, bad, steps=True)
+        if not steps:
             return None
-        if s.send(' '.join(keys) + ' dump:0.5').outcome != 'dump':
+        if attempt < 2 and not bad:                    # the whole path at once (the usual case)
+            if s.send(' '.join(k for k, _ in steps) + ' dump:0.5').outcome != 'dump':
+                return s.result
+            scr = s.screen()
+            continue
+        cur, (k, want) = scr.selected, steps[0]        # it went astray: one key at a time, and a move that lands
+        if s.send(k + ' dump:0.5').outcome != 'dump':  # elsewhere (a link the model reads wrong) is not tried again
             return s.result
         scr = s.screen()
+        if scr.selected != want:
+            bad.add((cur, k))
     return None
 
 

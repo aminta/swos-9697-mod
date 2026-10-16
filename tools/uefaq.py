@@ -518,8 +518,26 @@ uq_daily:                               ; replaces `call cseg_8EA56` at the star
 .x:
     popad
     jmp C8EA56
-.build:                                 ; [A0] = contest -> slot 3 (cseg_8B2D3: buffer + calendar). The slot buffer
-    pushad                              ; is cleared first, as a never-used slot: cseg_8B2D3 starts from the old one
+.build:                                 ; [A0] = contest -> slot 3 (cseg_8B2D3: buffer + calendar). The calendar
+    pushad                              ; entries already played of slot 3 get round FFh: cseg_8BC06 puts a round's
+    mov esi, CAL                        ; matches into the FIRST entry of (slot, round, leg) from the calendar's
+    movzx ecx, word [CAL_CUR]           ; start, which would be the finished tie's (the new one's stay empty and
+    add ecx, esi                        ; are played as computer ties)
+.c0:
+    cmp esi, ecx
+    jae .c1
+    cmp byte [esi], 3
+    jne .c2
+    mov byte [esi + 7], 0FFh
+.c2:
+    movzx eax, word [esi + 2]
+    test eax, eax
+    jz .c1
+    add esi, eax
+    jmp .c0
+.c1:
+    popad
+    pushad                              ; the slot buffer is cleared, as a never-used slot: cseg_8B2D3 starts from the old one
     push es                             ; and the finished tie's state (+55h, +149h ...) would keep cseg_8BC06 from
     push ds                             ; putting the new round's matches into the calendar (they would be simulated)
     pop es
@@ -612,6 +630,8 @@ def patch(p, at, limit, sites):
     assert len(hits) == 1, hits
     site = hits[0]
     c8ea56 = site + 5 + struct.unpack_from('<i', d1, site + 1)[0]
+    assert d1[c8ea56:c8ea56 + 2] == b'\xc7\x05' and d1[c8ea56 + 10:c8ea56 + 12] == b'\x66\xa1', d1[c8ea56:c8ea56 + 12].hex()
+    cal, cal_cur = struct.unpack_from('<II', d1, c8ea56 + 6)[0], struct.unpack_from('<I', d1, c8ea56 + 12)[0]
     hits = [m.group(1) for m in re.finditer(          # cseg_2573C: 10EA8C = 1; call; 10EAE1 = 0; 10EADD = 0; 10EEAB = 0
         rb'\x66\xc7\x05.{4}\x01\x00\xe8.{4}\x66\xc7\x05.{4}\x00\x00\x66\xc7\x05(.{4})\x00\x00\x66\xc7\x05.{4}\x00\x00', d1, re.S)]
     stage_g = struct.unpack('<I', hits[0])[0]          # (the first of two: cseg_2573C precedes the other one)
@@ -634,7 +654,7 @@ def patch(p, at, limit, sites):
                     'D0R': (2, sites['a0'] - 32), 'D1R': (2, sites['a0'] - 28), 'D2R': (2, sites['a0'] - 24),
                     'QID0': (0, QIDS[0]), 'D7_BASE': (0, D7_BASE[0]),
                     'WCC': (2, sites['bss'] + cw.B_CUPS), 'WCWC': (2, sites['bss'] + cw.B_CUPS + 160),
-                    'WUEFA': (2, sites['bss'] + cw.B_CUPS + 320), 'C8EA56': (1, c8ea56), 'STAGE_G': (2, stage_g)})
+                    'WUEFA': (2, sites['bss'] + cw.B_CUPS + 320), 'C8EA56': (1, c8ea56), 'STAGE_G': (2, stage_g), 'CAL': (2, cal), 'CAL_CUR': (2, cal_cur)})
     symbols.update({k: (0, v) for k, v in slay.items()})
     glue = (end + 15) & ~15
     code, fix = nasmcave.assemble(ASM, glue, symbols)

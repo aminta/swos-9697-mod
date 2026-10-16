@@ -25,7 +25,13 @@ Addresses are labels of `ref/swos.asm` (ITA/ENG offsets differ; find them with `
 - **CPU clubs have 16, always.** `GetPlayerAtIndex`: the managed club goes through `currentMatchPlayers`, the current
   match team through `playerPositions`, any other club through `TeamFile.playerNumbers` and an index >= 16 hits the
   game's `int 3; jmp $` trap. CPU records only exist as 684-byte records (team files, `tmdFileBuffer` in the .CAR).
-- **Where the 'fake' players come from** (not a pool file): `cseg_52588`, called by `ShowPlayMatchMenu` and
+- **Where the 'fake' players come from (corrected 2026-10-16, seen in the harness):** a new club (new career or new
+  job, `stayingInOldClub == 0`) gets **10 invented reserves** at once: `InitializeNewSeason` -> `cseg_64A65` ->
+  `cseg_64B80` x 10 (positions LB RB LW RW D D M M A A, random names by `cseg_56615`, flag byte 37 = 154 'reserve',
+  wage 66%) -> 16 + 10 = 26 players. Reserves may leave (`CheckPlayersLeavingComing`, 2 in 256), and while the squad
+  is under 30 a **trial player** (flag 155, wage 33%) may join mid-season (`AddTrialPlayer`, same routine).
+  Implemented on branch squads-xtra (xtra.py): the XTRA players replace the 10 invented reserves.
+- Also (emergencies only): `cseg_52588`, called by `ShowPlayMatchMenu` and
   `PlayTrainingGame` (not for a national selector):
   - counts available goalkeepers (`cseg_3A110`) and fit outfield players (`cseg_3A2CE`) over `careerNumPlayers`;
   - fewer than 2 goalkeepers -> adds a goalkeeper; fewer fit outfield players than 11 + subs - 2 (22 + subs - 2 in

@@ -284,6 +284,15 @@ script:
             'anchor': (anchor, d2[anchor:anchor + 64])}
 
 
+def bp_str(r):
+    """SWOSTEST_BP_STR = obj2 offset of a pointer (e.g. the A0 pseudo register): the string it points to."""
+    off = os.environ.get('SWOSTEST_BP_STR')
+    if not off:
+        return ''
+    p = struct.unpack('<I', r.obj2(int(off, 16), 4))[0]
+    return ' ' + r.read(p, 24).split(b'\0')[0].decode('latin-1')
+
+
 ANSI = re.compile(rb'\x1b\[[0-9;?]*[a-zA-Z]|\x1b\(B')
 MEMSIZE = 0x2000000                                   # memsize=32: linear 0..32 MB
 
@@ -294,6 +303,8 @@ class Dosbox:
     def __init__(self, run, timeout, shots=0, exe='ITALIAN.EXE'):
         self.run, self.timeout, self.shots = run, timeout, shots
         conf = CONF if not os.environ.get('SWOSTEST_NOEXIT') else CONF.replace('{exe}\nexit\n', '{exe}\n')
+        if os.environ.get('SWOSTEST_MEMSIZE'):         # (experiments: DOSBox-X memory in MB; dumps still read 32 MB)
+            conf = conf.replace('memsize=32', 'memsize=' + os.environ['SWOSTEST_MEMSIZE'])
         conf = conf.format(cycles=os.environ.get('CYCLES', 'max'), core=os.environ.get('CORE', 'dynamic'), iso=ISO,
                            exe=exe, turbo='false' if os.environ.get('TURBO') == '0' else 'true')
         open(os.path.join(run, 'test.conf'), 'w').write(conf)
@@ -667,7 +678,7 @@ class Session:
             for off in os.environ['SWOSTEST_BP'].split(','):     # counting breakpoints (use CORE=normal)
                 o = int(off, 16)
                 self.bp(base1 + o, lambda r, o=o: (self.bp_hits.__setitem__(o, self.bp_hits.get(o, 0) + 1),
-                                                   self.log.append(f'BP obj1+{o:X} hit {self.bp_hits[o]}')))
+                                                   self.log.append(f'BP obj1+{o:X} hit {self.bp_hits[o]}' + bp_str(r))))
         while outcome == 'break' and b.eip in getattr(self, 'bps', {}):
             r = self.paused('bp', b.eip)
             self.bps[b.eip](r)

@@ -76,8 +76,8 @@ first 43 UEFA associations by ranking, the others are under OTHER NATIONS).
 - Extras of the managed club (25-man squads): each of the 9 reserves keeps his real name, role, nationality and face,
   but his skill total is at most the weakest of the club's 16 (outfield vs outfield, keeper vs keeper) and his price
   = his skill total, so the extras never make the managed club stronger or richer than the game's invented reserves.
-- National cups: the bracket has no byes (the engine allows a bye in one season-pack cup only): it starts from the
-  power of two at or below the clubs still in, keeping the clubs of the real drawn ties and then the strongest squads
+- National cups: the bracket has no byes (a career's national cup cannot have first-round byes in the engine): it
+  starts from the power of two at or below the clubs still in, keeping the clubs of the real drawn ties and then the strongest squads
   (when the clubs still in are nearer the next power of two, the country's best clubs already out take the free
   places); the mod draws the rounds not drawn yet. Every match is played by the game, so the real results of the
   rounds already played are not imposed.
@@ -191,8 +191,8 @@ federazioni UEFA per ranking, le altre sono in ALTRE NAZIONI).
   somma delle sue abilità non supera quella del più debole dei 16 del club (giocatori di movimento con giocatori di
   movimento, portieri con portieri) e il suo prezzo è uguale a quella somma: le riserve non rendono il club allenato
   più forte o più ricco delle riserve inventate dal gioco.
-- Coppe nazionali: il tabellone non ha turni di riposo (il motore ne consente uno in una sola coppa dei pacchetti):
-  parte dalla potenza di 2 pari o inferiore ai club ancora in corsa, tenendo i club delle coppie sorteggiate davvero e
+- Coppe nazionali: il tabellone non ha turni di riposo (nel motore una coppa nazionale di carriera non può avere
+  turni di riposo al primo turno): parte dalla potenza di 2 pari o inferiore ai club ancora in corsa, tenendo i club delle coppie sorteggiate davvero e
   poi le rose più forti (quando i club in corsa sono più vicini alla potenza di 2 successiva, i posti liberi vanno ai
   migliori club della nazione già eliminati); i turni non ancora sorteggiati li sorteggia la mod. Ogni partita la gioca
   il gioco, quindi i risultati veri dei turni già giocati non sono imposti.

@@ -56,7 +56,14 @@ CONT_NAT = {'europe': 80, 'africa': 81, 'south_america': 82, 'north_america': 83
 WMENU = 200                             # a world's entry in the CLASSIC CAREERS list: pseudo-continent 200 + world number
                                         # (its countries), named by the root pack's world_cups.name
 CAREER_DATA = [None]                    # obj1 pages of the career packs' structs (patch.py, only with worlds)
-CAREER_DATA_SIZE = 0x2000
+CAREER_DATA_SIZE = 0x2000                # grows to 3 pages for a big world (career_data_pages)
+
+
+def career_data_pages():
+    """obj1 pages of the career packs' structs: 2, or 3 when the worlds hold more than ~75 country packs (~105 B
+    each; world 2026-27: 87)."""
+    n = sum(len(pks) for pks in worlds().values())
+    return 3 if n * 105 > 0x2000 else 2
 CAREER_CAVE = [None]                    # obj1 page of the career world code (patch.py adds it when worlds exist)
 CAREER_CAVE_SIZE = 0x2000               # 3.1: two pages (patch.py)
 ROUND = {'two_legs': 0x94, 'single': 0x14, 'single_et': 0x54}   # knockout round byte: two legs (away goals),
@@ -1250,7 +1257,7 @@ def patch(p, lang, area, cave):
             at, info = _patch_pack(pk, p, lang, area, at, env)
         infos.append(info)
     if cat is not None:
-        _need(cat <= CAREER_DATA[0] + CAREER_DATA_SIZE, f'career packs overflow their pages ({cat:#x})')
+        _need(cat <= CAREER_DATA[0] + 0x1000 * career_data_pages(), f'career packs overflow their pages ({cat:#x})')
     at, tleagues = _tourney_leagues(p, lang, area, at, env)
     if any(dv['teams'] % 2 for pk in packs() for dv in pk.divisions()) or \
             any(pk.count[c['clubs']] % 2 for pk in packs() if pk.kind == 'tourney' for c in pk.comps if c['type'] == 'league'):

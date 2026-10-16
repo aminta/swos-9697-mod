@@ -162,7 +162,9 @@ def patch_exe(src, dst, remap, lang='it'):
     lpb = bool(mkseason.league_phase_cups() or mkseason.league_phase_worlds())
     lpb += bool(mkseason.league_phase_worlds())   # (+1 more: the UEFA coefficients, uefacoef)
     lpb += 3 * bool(mkseason.league_phase_worlds())   # (+3: the UEFA qualifying rounds, uefaq: C code + glue)
-    for _ in range((10 if worlds else 6) + lpb):  # (+1: the UEFA league phase's code page, lp36)
+    cdp = mkseason.career_data_pages() - 2 if worlds else 0   # a big world: a 3rd career data page and a 2nd
+    h2 = HIST2_PAGE * (1 + cdp)                                # historic page (its cups' fixed draws)
+    for _ in range((10 if worlds else 6) + 2 * cdp + lpb):  # (+1: the UEFA league phase's code page, lp36)
         data = add_object_page(data, 1)
     mkseason.CAREER_CAVE[0] = CAREER_CAVE if worlds else None
     mkseason.CAREER_DATA[0] = CAREER_DATA if worlds else None
@@ -211,21 +213,21 @@ def patch_exe(src, dst, remap, lang='it'):
     fin_end = finals97.cal_rounds(p, fin_end)     # 2.5: NSL/NSSL play-offs: semi-finals AND final get dates
     world, lib_pre = lib97.patch(p, world, fin_pre)  # Libertadores 1997: bye, real calendar (hist_draw calls lib_pre)
     world, pack_leagues = mkseason.patch(p, lang, area, world)   # season packs (2.6: DDR 1988-89), CLASSIC SEASONS
-    hist2 = OBJ1_NEW_VSIZE + (0x4000 if worlds else 0)
+    hist2 = OBJ1_NEW_VSIZE + (0x4000 + 0x1000 * cdp if worlds else 0)
     lp = None
     if mkseason.league_phase_cups() or mkseason.league_phase_worlds():   # UEFA league phase (lp36)
         import lp36
-        lp_end, lp_chk, lp_draw = lp36.patch(p, hist2 + HIST2_PAGE, mkseason.league_phase_cups(), area, lang,
+        lp_end, lp_chk, lp_draw = lp36.patch(p, hist2 + h2, mkseason.league_phase_cups(), area, lang,
                                              mkseason.league_phase_worlds())
-        assert lp_end <= hist2 + HIST2_PAGE + 0x1000, hex(lp_end)
+        assert lp_end <= hist2 + h2 + 0x1000, hex(lp_end)
         lp = (lp_chk, lp_draw)
-    world = historic.patch(p, lang, area, world, lib_pre, pack_leagues, cave2=hist2, lp=lp)
+    world = historic.patch(p, lang, area, world, lib_pre, pack_leagues, cave2=hist2, lp=lp, cave2_size=h2)
     nz_end = nz97.shootout(p, NZ_CAVE)            # 2.1: NSSL shoot-out after every draw, +1 point to its winner
     arg_end = arg97.patch(p, area, sacups.STR_BASE, ARG_CAVE, nz97.SITE_B, os.path.join(ROOT, 'orig/DATA'))   # 2.1: Apertura / Clausura
     info = cafcups.career_info(caf)
     if mkseason.league_phase_worlds():          # UEFA qualifying ties of the career club (uefaq): 3 contests in the
         import uefaq                            # slot-3 chain (D7 / E092F after the CAF / CONCACAF ones)
-        q = uefaq.structs(p, area, lang, hist2 + HIST2_PAGE + 0x2000 + uefaq.STRUCTS_AT)
+        q = uefaq.structs(p, area, lang, hist2 + h2 + 0x2000 + uefaq.STRUCTS_AT)
         uefaq.D7_BASE[0] = 6 + len(info['structs'])     # (sacups: D7 / E092F = 6 + index in the chain)
         info['structs'] += q
         info['kinds'] += [0, 1, 2]
@@ -262,20 +264,20 @@ def patch_exe(src, dst, remap, lang='it'):
         cs = {'tmd': careerworld.LABELS['sites']['tmd'], 'tcn': countries.tables(p)[1], 'diy': s36['DIY'],
               'diycopy': s36['DIYCOPY'], 'qual': careerworld._qual_sites(p.le.obj_bytes(1), p), 'a0': a0,
               'lp_ord': lp36.LABELS['LP_ORD']}
-        uc_end = uefacoef.patch(p, hist2 + HIST2_PAGE + 0x1000, mkseason.world_defs(), cs)
-        assert uc_end <= hist2 + HIST2_PAGE + 0x2000, hex(uc_end)
+        uc_end = uefacoef.patch(p, hist2 + h2 + 0x1000, mkseason.world_defs(), cs)
+        assert uc_end <= hist2 + h2 + 0x2000, hex(uc_end)
         import uefaq                            # UEFA qualifying rounds (C code, tools/uefaq.c; 3 pages)
         cs['bss'] = careerworld.BSS[0]
         cs['sel'] = sacups.SEL_ADDR[0]
         cs.update(sacups.SITES)
-        uefaq.patch(p, hist2 + HIST2_PAGE + 0x2000, hist2 + HIST2_PAGE + 0x2000 + uefaq.STRUCTS_AT, cs)
+        uefaq.patch(p, hist2 + h2 + 0x2000, hist2 + h2 + 0x2000 + uefaq.STRUCTS_AT, cs)
         careerworld.BSS_SIZE = (careerworld.B_UQ + careerworld.UQ_BSS + careerworld.UQ_RECS * 684 + 0xFFF) & ~0xFFF
     assert cave <= WORLD_CAVE, hex(cave)
     print(f'exe: caves: world end {world:#x} (limit {NZ_CAVE:#x}), arg end {arg_end:#x} (limit {OBJ1_NEW_VSIZE:#x})')
     world = cafcups.intl_list(p, caf, world)
     assert world <= NZ_CAVE and nz_end <= FIN_CAVE and fin_end <= ARG_CAVE and arg_end <= OBJ1_NEW_VSIZE, \
         (hex(world), hex(nz_end), hex(fin_end), hex(arg_end))
-    p.set_vsize(1, OBJ1_NEW_VSIZE + (0x4000 if worlds else 0) + HIST2_PAGE + 0x1000 * lpb)
+    p.set_vsize(1, OBJ1_NEW_VSIZE + (0x4000 + 0x1000 * cdp if worlds else 0) + h2 + 0x1000 * lpb)
     p.set_vsize(2, obj2_free + o2pages * p.le.page_size + (careerworld.BSS_SIZE if bigw else 0),
                 bss=careerworld.BSS_SIZE if bigw else 0)
     p.add_flags(1, 0x2)            # writable: season end rewrites the SA cup team lists in the cave

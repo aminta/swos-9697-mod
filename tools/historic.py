@@ -689,7 +689,7 @@ def _draw_call(p):
     return [c for c, _ in sites], sites[0][1]
 
 
-def patch(p, lang, area, cave, draw_pre=None, leagues=(), cave2=None, lp=None):
+def patch(p, lang, area, cave, draw_pre=None, leagues=(), cave2=None, lp=None, cave2_size=0x1000):
     """Register CLASSICS and the World Cup 1982; returns the new cave end."""
     d2 = p.le.obj_bytes(2)
     ct, tcn, _, _ = countries.tables(p)
@@ -792,7 +792,7 @@ def patch(p, lang, area, cave, draw_pre=None, leagues=(), cave2=None, lp=None):
         print(f"exe: historic: tourney {long} id {t['id']:#x} @ obj1+{at2:#x}, {len(t['pairs']) // 2} teams, "
               f"file {t['file']}{', coin toss' if t['coin'] else ''}")
         at2 = (at2 + len(blob) + 3) & ~3
-    assert at2 <= cave2 + 0x1000, hex(at2)
+    assert at2 <= cave2 + cave2_size, hex(at2)
     at2 = (at2 + 15) & ~15
 
     table = at                                             # CLASSICS: [leagues..., -2, WC82, M34, FA, tourneys..., -1]
@@ -847,7 +847,7 @@ def patch(p, lang, area, cave, draw_pre=None, leagues=(), cave2=None, lp=None):
             break
         at2 += 4
     labels = nasmcave.labels(src, at2, symbols)
-    assert at2 + len(code) <= cave2 + 0x1000, hex(at2 + len(code))
+    assert at2 + len(code) <= cave2 + cave2_size, hex(at2 + len(code))
     p.put(1, at2, code)
     for off, tobj, toff in fix:
         p.add_ptr(1, at2 + off, tobj, toff)

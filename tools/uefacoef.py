@@ -10,7 +10,7 @@ its clubs (in thousandths, truncated), its coefficient = 5 seasons.
 Block (saved: the .CAR fixed part's 80-record area, unused by a big world after the W1 block): CB = tmdFileBuffer +
 0x3800. Season end (cseg_91428: cseg_936C0 expands the place lists, then the three cups end, simulations included,
 then the qualifiers country by country): at the first qualifier (careerworld w_q_cb) the finals, the season values,
-the 5-season ring, the ranking of the world's UEFA countries (those of the UEFA-slot place list) and the three
+the 5-season ring, the ranking of the world's UEFA associations (those with seeds: pack.json uefa_coef) and the three
 working place lists rewritten by rank (LP_CLN / LP_ELN / LP_UEN places per rank). Pots (lp36 lp_mkdraw): the clubs'
 coefficients (the squad value breaks ties), the Champions League holder first. Seeds at career start: the real
 association coefficients (5 seasons) and the clubs' coefficients at the 2025-26 draws (pack.json uefa_coef).
@@ -425,15 +425,16 @@ uc_final:                               ; careerworld w_q_cb: the first qualifie
     xor ebx, ebx
 .rg:
     mov [ebp + RING], bl
-    call W_REC                          ; ebx = the world record: [[ebx+28]] = the UEFA-slot place list (its countries)
-    mov esi, [ebx + 28]
-    mov esi, [esi]
-    xor ecx, ecx                        ; the UEFA countries (each once in the UEFA-slot list), in its order
-.u:
-    mov al, [esi + ecx]
-    cmp al, 0FFh
-    je .u1
+    mov esi, UC_SEEDC                   ; the world's UEFA associations = those with seeds (pack.json uefa_coef),
+    xor ecx, ecx                        ; in pack order: also those without direct places (they enter the
+.u:                                     ; qualifying rounds); a suspended one (Russia) has none
+    mov al, [esi]
+    test al, al
+    jz .u1
+    cmp ecx, 64
+    jae .u1
     mov [UC_C + ecx], al
+    add esi, 21
     inc ecx
     jmp .u
 .u1:

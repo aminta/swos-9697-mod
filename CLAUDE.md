@@ -12,13 +12,14 @@ Read this first; then the tail of `notes/STATUS.md` (latest work) and, before an
 - Names of countries, worlds and menus always per exe language (the game's own spelling), never English-only.
 
 ## State (2026-10-15)
-- Released: **v3.3.1**. 3.0 Europe 1984-85 career world, 3.1 its national teams + faster harness,
+- Released: **v3.3.2**. 3.0 Europe 1984-85 career world, 3.1 its national teams + faster harness,
   3.2 tourney packs + World Cup 1934 + menu alignment, 3.2.1 ESCI arrow links, 3.2.2 patcher "Download all",
   3.2.3 KITS button aligned with the names in the English exe, 3.2.4 kits carry-over fix + world UEFA places,
   3.2.5 shirt numbers 17..99, 3.2.6 the same with SWOS++,
   3.2.7 season-end crash for careers spanning 128+ weeks (Indian clubs, Brazilian clubs in the mod SA cups),
   3.3.0 purple kits (tools/purple.py) and dark skin / blond hair (tools/blond.py),
-  3.3.1 purple on the line-ups screen, purple vs maroon in the automatic kit choice, SELECT KITS opens on it.
+  3.3.1 purple on the line-ups screen, purple vs maroon in the automatic kit choice, SELECT KITS opens on it,
+  3.3.2 no purple vs maroon with kits set by hand either.
 - Release notes: `release/notes-<version>.md`; the patcher page `release/swos-9697-mod-patcher.html`.
 
 ## Layout

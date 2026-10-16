@@ -42,7 +42,13 @@ first 43 UEFA associations by ranking, the others are under OTHER NATIONS).
 - **Foreign market**: real players of clubs outside the world (the tiers just below its divisions: Primera
   Federacion, FNL, Challenger Pro League, NordicBet Liga, OBOS-ligaen, Superettan, Challenge League, National, League
   Two ...), 900 of them, instead of the game's 1996 players.
-- [TODO namespace session: the world's own team files / country numbers.]
+- **Two historic career worlds in one game**: Europe 1984-85 and World 2026-27 sit side by side under CLASSIC
+  CAREERS. Each world has its own countries, leagues and cups, so neither takes anything from the other.
+- World 2026-27 has its own team files, DATA/TMW5.nnn (players, kits, squads). The 1984-85 world keeps its
+  DATA/TEAM.nnn files unchanged.
+- Saves: a career save knows its world and reopens it. 1984-85 careers saved with earlier versions load and play as
+  before. You can switch between the two worlds' careers in the same session.
+- Other game modes (friendlies, seasons, tourneys, the 1996-97 career) are unchanged.
 
 **Mod rules of this world**
 - Extras of the managed club (25-man squads): each of the 9 reserves keeps his real name, role, nationality and face,
@@ -119,7 +125,14 @@ federazioni UEFA per ranking, le altre sono in ALTRE NAZIONI).
 - **Mercato estero**: giocatori veri di club fuori dal mondo (le serie subito sotto le sue divisioni: Primera
   Federacion, FNL, Challenger Pro League, NordicBet Liga, OBOS-ligaen, Superettan, Challenge League, National, League
   Two ...), 900, al posto dei giocatori del 1996 del gioco.
-- [TODO sessione namespace: i file squadra / numeri di nazione propri del mondo.]
+- **Due mondi di carriera storica nello stesso gioco**: Europa 1984-85 e Mondo 2026-27 stanno affiancati in CARR.
+  STORICHE. Ogni mondo ha i suoi paesi, campionati e coppe, quindi nessuno dei due toglie qualcosa all'altro.
+- Il Mondo 2026-27 ha i suoi file squadra, DATA/TMW5.nnn (giocatori, divise, rose). Il mondo 1984-85 tiene i suoi
+  DATA/TEAM.nnn invariati.
+- Salvataggi: una carriera salvata sa a quale mondo appartiene e lo riapre. Le carriere 1984-85 salvate con le
+  versioni precedenti si caricano e si giocano come prima. Nella stessa sessione si può passare da una carriera di un
+  mondo a quella dell'altro.
+- Le altre modalità (amichevoli, stagioni, tornei, carriera 1996-97) non cambiano.
 
 **Regole della mod per questo mondo**
 - Riserve del club allenato (rose da 25): ognuna delle 9 riserve tiene nome, ruolo, nazionalità e volto veri, ma la

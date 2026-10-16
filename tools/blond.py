@@ -16,8 +16,8 @@ reach the next team's sprites. Here:
   them with the team's colour table and face 3;
 - InitializePlayerSpriteFrameIndices: a flagged player gets frameOffset NEW1 - 341 (NEW2 - 644);
 - menus: face icon 189 (an empty 8x8 sprite after the three faces 186-188) is rebuilt from 188 with its hair (colour
-  3 in the top three rows) yellow whenever a face icon is set (SetMenuEntryPlayerFace, InitEditTeamsMenu, the Edit Teams
-  face button, whose cycle now runs 0..3).
+  3 in the top three rows) yellow whenever a face icon is set (all six `add word [Dx], 186`: squad screens cseg_13A55 /
+  cseg_13DFB, SetMenuEntryPlayerFace, InitEditTeamsMenu, the Edit Teams face button, whose cycle now runs 0..3).
 Goalkeepers flagged blond are drawn as black (their sprites follow team*GoalieFaces, kept at 0..2).
 """
 import re
@@ -237,14 +237,14 @@ def patch(p, area, at, bss, spr):
     cyc = one(rb'\x66\x83\x05....\x01\x66\x83\x3D....\x03\x75')
     assert None not in (face, copy, c1, c2, f1, f2, cyc), (face, copy, c1, c2, f1, f2, cyc)
     icons = [m.start() for m in re.finditer(rb'\x66\x81\x05....\xBA\x00', d1, re.S)]
-    icons = [s for s in icons if (d1[s - 8:s - 5] == b'\x66\xC1\x2D' and d1[s - 1] == 3) or cyc < s < cyc + 0x80]
-    assert len(icons) == 3, [hex(s) for s in icons]
+    assert len(icons) == 6, [hex(s) for s in icons]       # every `add word [Dx], 186`: a face icon (squad screens,
+                                                          # SetMenuEntryPlayerFace, Edit Teams list and face button)
 
     D0 = t(face + 3)[1]
     assert t(face + 9) == (2, D0)
     A6 = t(face + 15)[1]
     A0 = A6 - 24
-    D1 = t([s for s in icons if cyc < s][0] + 3)[1]
+    D1 = t([s for s in icons if cyc < s < cyc + 0x80][0] + 3)[1]
     assert D1 == D0 + 4 and t(copy + 3) == (2, D0)
     face_off = d1[face + 21]                              # mov [esi+face], al: disp8
     t1tab = t(copy + 15)[1]
@@ -287,7 +287,9 @@ def patch(p, area, at, bss, spr):
     hook(f1, 18, 'fo1', (2,))                             # mov ax,[D0] / mov bx,442 / sub bx,341 / mul bx
     hook(f2, 18, 'fo2', (2,))
     for s in icons:
-        hook(s, 9, 'icon_d1' if cyc < s else 'icon_d0', (3,))
+        reg = t(s + 3)
+        assert reg in ((2, D0), (2, D1)), (hex(s), reg)
+        hook(s, 9, 'icon_d1' if reg == (2, D1) else 'icon_d0', (3,))
     assert p.get(1, cyc + 15, 1) == b'\x03'
     p.put(1, cyc + 15, b'\x04')                           # Edit Teams face button: 0..3
     print(f'exe: blond hair: face 3 (sets {NEW1}.., {NEW2}.., obj2+{bss:#x}; code obj1+{at:#x}, {len(code)} B)')

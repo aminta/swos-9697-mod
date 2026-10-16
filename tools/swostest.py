@@ -1832,6 +1832,31 @@ def shirt_numbers():
     return not errs, '; '.join(errs) or 'numbers 17..99 built (17, 20, 41, 99 pixel-exact) in a match'
 
 
+@scenario
+def india_season():
+    """3.2.7 (Pietro): new career at EAST BENGAL (India, in the mod's Asian cups: season events up to week 128), whole
+    season by results, FINISCI STAGIONE -> season-end menu -> next season saved (3.2.6: divide overflow, exit to DOS)"""
+    with Session('india_season', builds()['it'], {}, 'dump:3', 500) as s:
+        s.wait()
+        for t in ('CARRIERA', 'SCEGLI SQUADRA', 'ASIA', 'INDIA', 'EAST BENGAL'):
+            walk(s, t, 3)
+        ok, msg = advance(s, season_over, 900)
+        if not ok:
+            return False, 'advance: ' + msg
+        scr = s.screen()
+        if scr.find('FINISCI STAGIONE', exact=True) is not None:
+            press(s, scr, 'FINISCI STAGIONE', wait=3)
+        for _ in range(30):
+            if s.result.outcome != 'dump':
+                return False, f'season end: {s.result}'
+            scr = s.screen()
+            if scr.find('CONTINUA CARRIERA', exact=True) is not None:
+                break
+            s.send('fire dump:2')
+        path = next_season_save(s, 'IND2')
+    return path.endswith('.CAR'), f'{msg}; next season {os.path.basename(path)}'
+
+
 def run_parallel(names, jobs):
     """run -jN: each scenario in its own process (own run dirs and DOSBox-X, one host core each in turbo); the
     builds are made once here first. Output in the order of the names; exit code 1 on a failure."""

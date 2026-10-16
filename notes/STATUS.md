@@ -1995,3 +1995,18 @@ Left for 2.5: (a) NSL/NSSL finals series (type-1 design) or declare them postpon
 - Column: cause still unknown (not reproduced; SWOS++ suspected). Build c/REL326: SWOS IT 189d70bd EN 5d0931fc
   FR c7d88ac7 DE c6b553cb; gog IT c9b2891a EN 6efb25fe FR 9815971b DE 073ef189; SWOS++ 10982ef2 / bbaeea89.
   Suite 13/13 PASS (runs326). Patcher 3.2.6 (old v3.2.5 added): Node test all OK.
+
+## Release 3.2.7 (2026-10-16): season-end crash, career week span >= 128 (Pietro)
+- Pietro (GOG + mod, career at an Indian club): exit to DOS at FINISCI STAGIONE. Reproduced (EAST BENGAL, harness):
+  DOS/4GW page fault 1:0004B629 (IT), EAX FFFFFE00, in cseg_5B705 (job offers): (week [E0048] - first week [DB3E6+1])
+  as a signed byte (cbw) * 4 -> -512 -> word div overflow. The season events (DB3E6, 22-byte records, byte 1 = week;
+  IT obj2 0x1b52c count / 0x1b530 list) of an Indian club end at week 0x80: the mod's Asian club cups (cloned from the
+  CWC) at weeks 0x40..0x80. Vanilla India (no Asian cups) ends at 24: no crash.
+- Scan of 99 careers (33 non-European countries x 3 clubs, 3.2.6): span >= 128 only for India (all clubs) and Brazilian
+  clubs in a mod SA cup (ATLETICO MINEIRO 0..128); vanilla Brazil max 40. Some vanilla calendars reach week 128+ (Mexico,
+  Argentina, Paraguay, Algeria, Ghana...) but start late: span < 128 (vanilla Paraguay season end: no crash).
+- tools/weeks.py: both cbw (cseg_3CCF0, cseg_5B705; IT obj1 0x2cbba / 0x4b600) -> xor ah, ah; 4 bytes per exe.
+  Harness scenario india_season (FAIL on 3.2.6 = exit, PASS on 3.2.7); IND1.CAR saved before the crash finishes the
+  season with 3.2.7.
+- Build c/REL327: SWOS IT d2df2c1a EN fa053310 FR 700b2c7b DE 00e42740; gog IT df671d7e EN 85b321b1 FR 92e48718 DE 9c3f0dcd; SWOS++ 91c95b2c / e20fae6f;
+  DATA = 3.2.6. Suite 14/14 PASS (runs327). Patcher 3.2.7 (old v3.2.6 added): Node test all OK.

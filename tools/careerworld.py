@@ -999,6 +999,18 @@ w_ns_set:                               ; al = world (0 = the base world): its n
     je .r
     mov [WCUR], al
     mov word [TEAMSLOADED], 0           ; teamFileBuffer may hold the other world's file of the same number
+    mov edx, [NSXP]                     ; xtra.py's XTRA_NAMEP (0: no XTRA hook in this build; bound by ns_xtra)
+    test edx, edx
+    jz .nx
+    mov ebx, [NSXDEF]                   ; its own 'data\\xtra.000' for a world named 'team'
+    cmp dword [WSTEM + eax * 4], 'team'
+    je .xs
+    mov cl, [WSTEM + eax * 4 + 3]       ; 'tmwN' -> 'data\\xtwN.000'
+    mov [XNAMEW + 8], cl
+    mov ebx, XNAMEW
+.xs:
+    mov [edx], ebx
+.nx:
     mov esi, [NSWT + eax * 4]
     test esi, esi
     jnz .t
@@ -1094,6 +1106,9 @@ w_ns_ld:                                ; LoadCareerFile, before the trailer: th
     jmp [NSNEXT]
 align 4
 NSNEXT: dd 0
+NSXP: dd 0
+NSXDEF: dd 0
+XNAMEW: db 'data\\xtw0.000', 0
 WCUR: db NSBASE
 %endif
 '''
@@ -1115,6 +1130,16 @@ def _ns_sites(p, s):
              'SelectTeamsFinalMenu list loop')
     NS['menu_site'] = m.start() + 10
     return {'TEAMNAME': (2, k), 'CSTACK': p.target(1, m.start() + 6), 'CSPTR': csp}
+
+
+def ns_xtra(p, namep):
+    """xtra.py's XTRA_NAMEP (obj1 offset of the dd holding the XTRA file name's address, None without the hook):
+    w_ns_set points it at data\\xtwN.nnn for a world named tmwN, back to its default for the base world."""
+    if not NS.get('info') or namep is None:
+        return
+    p.add_ptr(1, LABELS['NSXP'], 1, namep)
+    p.add_ptr(1, LABELS['NSXDEF'], *p.target(1, namep))
+    print(f'exe: country namespaces: XTRA file names through obj1+{namep:#x}')
 
 
 def ns_load(p, call):

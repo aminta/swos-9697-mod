@@ -136,6 +136,33 @@ def _shirt_numbers(data):
     return bytes(d), n
 
 
+def _xtra_cap(q, r):
+    """An extra player (XTRA.nnn) no better than the weakest of his club's 16 (Davide 2026-10-16: the managed club
+    must not be favoured): goalkeeper price <= the lowest keeper price of the record; outfield skill sum and price
+    <= the lowest outfield price of the record (skills scaled down in proportion, key-skill marks kept; price = sum)."""
+    ps = [r[76 + j * 38:76 + (j + 1) * 38] for j in range(16)]
+    gk = q[26] >> 5 == 0
+    same = [p[32] for p in ps if (p[26] >> 5 == 0) == gk] or [p[32] for p in ps]
+    cap = min(same)
+    if gk:
+        q[32] = min(q[32], cap)
+        return q
+    nib = [q[28] & 15] + [q[29 + i // 2] >> (4 * (1 - i % 2)) & 15 for i in range(6)]
+    val = [v & 7 for v in nib]
+    tot = sum(val)
+    if tot > cap:                                  # scaled in proportion: the player's profile stays his own
+        exact = [v * cap / tot for v in val]
+        val = [int(x) for x in exact]
+        for i in sorted(range(7), key=lambda i: (val[i] - exact[i], i))[:cap - sum(val)]:
+            val[i] += 1
+    nib = [(n & 8) | v for n, v in zip(nib, val)]
+    q[28] = (q[28] & 0xF0) | nib[0]
+    for i in range(3):
+        q[29 + i] = nib[1 + 2 * i] << 4 | nib[2 + 2 * i]
+    q[32] = min(q[32], sum(val))
+    return q
+
+
 def _csv(path):
     with open(path, encoding='utf-8', newline='') as f:
         return list(csv.DictReader(f))
@@ -595,7 +622,7 @@ class Pack:
                       + (f' + at most {extra} more (squads "extra")' if extra else '') + f' ({len(rows)})')
                 for j, row in enumerate(rows[:16]):
                     r[76 + j * 38:76 + (j + 1) * 38] = self._explicit_player(row)
-                more = [bytearray(self._explicit_player(row)) for row in rows[16:]]
+                more = [_xtra_cap(bytearray(self._explicit_player(row)), r) for row in rows[16:]]
                 used = {r[76 + j * 38 + 2] for j in range(16)}
                 for q in more:                         # extras: numbers 1..99 (shirtnum), else a free one from 17
                     if not 1 <= q[2] <= 99 or q[2] in used:

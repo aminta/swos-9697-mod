@@ -129,7 +129,10 @@ ripropone il tabellone vero.
     **Rose più grandi in carriera**: `"extra": 9` (1–16) nella voce di squads permette a un club di elencare fino a
     16 + 9 giocatori; dalla riga 17 in poi vanno in `XTRA.nnn` (accanto a `TEAM.nnn`) e il club gestito in carriera
     parte con tutti loro invece delle 10 riserve che il gioco inventa per un club nuovo (i club del computer giocano
-    sempre con i 16 del record). I numeri fuori da 1–99 o già usati nel club diventano un numero libero da 17.
+    sempre con i 16 del record). I numeri fuori da 1–99 o già usati nel club diventano un numero libero da 17. Un
+    extra non è mai migliore del più debole dei 16 del club (per non favorire il club gestito): prezzo del portiere
+    al massimo il prezzo minimo dei portieri, abilità di movimento abbassate fino al prezzo minimo dei giocatori di
+    movimento (prezzo = somma delle abilità).
   - `seed`: il seme casuale dei giocatori inventati (fa parte del determinismo).
 
 ### Abilità: tre strade, nessuna obbligatoria

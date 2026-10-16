@@ -125,7 +125,9 @@ real bracket.
     **Bigger career squads**: `"extra": 9` (1–16) in the squads entry lets a club list up to 16 + 9 players; rows 17
     and on go to `XTRA.nnn` (next to `TEAM.nnn`) and the club a human manages in a career starts with all of them
     instead of the 10 reserves the game invents for a new club (computer clubs always play with the 16 of the record).
-    Numbers outside 1–99 or already used in the club get a free one from 17.
+    Numbers outside 1–99 or already used in the club get a free one from 17. An extra is never better than the
+    weakest of the club's 16 (so the managed club is not favoured): keeper price capped at the lowest keeper price,
+    outfield skills lowered to the lowest outfield price (price = skill sum).
   - `seed`: random seed of the fillers (part of the determinism).
 
 ### Ratings: three ways, none required

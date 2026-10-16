@@ -1857,6 +1857,164 @@ def india_season():
     return path.endswith('.CAR'), f'{msg}; next season {os.path.basename(path)}'
 
 
+XTRA_CLUB, XTRA_FILE, XTRA_ORD = 'HAMBURG', 14, 17
+
+
+def xtra_build():
+    """The build under test when it has the XTRA hook (a world with "extra" squads), else a test build with XTRA_HOOK."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import lepatch
+    import xtra
+    b = builds()['it']
+    if xtra.hooked(lepatch.LEPatch(os.path.join(b, 'ITALIAN.EXE'))):
+        return b
+    if not hasattr(xtra_build, 'cache'):
+        xtra_build.cache = build('xtra_hook', env={'XTRA_HOOK': '1'})
+    return xtra_build.cache
+
+
+def xtra_test_file(path, extra=9):
+    """Test DATA/XTRA.014: HAMBURG (ordinal 17) gets 9 players = BAYERN MUNICH's first 9 renamed XTRA TEST 1..9."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import xtra
+    d = open(os.path.join(ROOT, 'orig', 'DATA', 'TEAM.%03d' % XTRA_FILE), 'rb').read()
+    k = struct.unpack('>H', d[:2])[0]
+    bay = next(2 + i * 684 for i in range(k) if d[2 + i * 684 + 5:2 + i * 684 + 22].split(b'\0')[0] == b'BAYERN MUNICH')
+    pl = []
+    for j in range(extra):
+        q = bytearray(d[bay + 76 + j * 38:bay + 76 + (j + 1) * 38])
+        q[3:26] = f'XTRA TEST {j + 1}'.encode().ljust(23, b'\0')
+        q[2] = 30 + j
+        pl.append(bytes(q))
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    open(path, 'wb').write(xtra.build({XTRA_ORD: pl}, k, extra))
+    return pl
+
+
+@scenario
+def xtra_squad():
+    """Extended career squads (xtra.py): a new career at HAMBURG with a test DATA/XTRA.014 starts with 16 + 9 real
+    players (careerNumPlayers 25, slots 16..24 = the file's players, squad order 16..24) instead of the game's 10
+    invented reserves, also after save + load; control: HANSA ROSTOCK (no block) gets 16 + 10 reserves = 26"""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import lepatch
+    import xtra
+    b = xtra_build()
+    _, cnp, ct, cmp, sel = xtra.sites(lepatch.LEPatch(os.path.join(b, 'ITALIAN.EXE')))
+    path = os.path.join(WORK, 'saves', 'XTRA014_TEST.BIN')
+    pl = xtra_test_file(path)
+    errs, info = [], []
+    with Session('xtra_squad', b, {'DATA/XTRA.%03d' % XTRA_FILE: path}, 'dump:3', 300) as s:
+        s.wait()
+        for t in ('CARRIERA', 'SCEGLI SQUADRA', 'EUROPA', 'GERMANIA'):
+            walk(s, t, 3)
+        if s.screen().find('1. LIGA') is not None:
+            walk(s, '1. LIGA', 3)
+        scr = walk(s, XTRA_CLUB, 4)
+        r = s.result
+        team = struct.unpack('<H', r.obj2(sel, 2))[0]
+        n = struct.unpack('<H', r.obj2(cnp, 2))[0]
+        order = list(r.obj2(cmp, 32))
+        names = [r.obj2(ct + 76 + j * 38 + 3, 23).split(b'\0')[0].decode('latin1') for j in range(32)]
+        info.append(f'team {team:#x}, {n} players, order {order[:n]}, slot 16 {names[16]!r}, slot 24 {names[24]!r}')
+        check(team == XTRA_ORD << 8 | XTRA_FILE, f'managed team {team:#x}', errs)
+        check(n == 25, f'careerNumPlayers {n}', errs)
+        check(order[16:25] == list(range(16, 25)), f'squad order {order[16:25]}', errs)
+        check(names[16:25] == [f'XTRA TEST {j + 1}' for j in range(9)], f'slots 16..24 {names[16:25]}', errs)
+        check(r.obj2(ct + 684, 9 * 38) == b''.join(pl), 'slots 16..24 differ from the file', errs)
+        for _ in range(10):                         # chairman's letter -> career menu
+            scr = s.screen()
+            if 'TRASFERIMENTI' in scr.texts():
+                break
+            press(s, scr, 'CONTINUA') or s.send('fire dump:2')
+        r = s.result
+        n = struct.unpack('<H', r.obj2(cnp, 2))[0]
+        check(n == 25 and list(r.obj2(cmp, 25))[16:] == list(range(16, 25)),
+              f'career menu: {n} players (the 10 invented reserves must not be added)', errs)
+        press(s, s.screen(), 'ESCI', wait=3)
+        if press(s, s.screen(), 'SALVA CARRIERA') is None:
+            return False, f'no SALVA CARRIERA on {s.screen()}'
+        s.send(name_entry('XTRA1') + ' dump:3')
+        car = os.path.join(s.run, 'SWOS', 'XTRA1.CAR')
+        if not os.path.exists(car):
+            return False, f'XTRA1.CAR not written ({s.result}); ' + '; '.join(info)
+        keep = os.path.join(WORK, 'saves', 'XTRA1.CAR')
+        shutil.copy(car, keep)
+    with Session('xtra_squad_load', b, {'XTRA1.CAR': keep}, 'dump:2', 120) as s:
+        s.wait()
+        s.send('down down down down down fire dump:2')      # CARICA VECCHIA COMPETIZIONE -> the only save
+        r = s.send('fire dump:3')
+        n2 = struct.unpack('<H', r.obj2(cnp, 2))[0]
+        names2 = [r.obj2(ct + 76 + j * 38 + 3, 23).split(b'\0')[0].decode('latin1') for j in range(32)]
+        check(n2 == 25 and names2[16:25] == names[16:25], f'after load: {n2} players, slot 16 {names2[16]!r}', errs)
+        info.append(f'reloaded XTRA1.CAR: {n2} players; menu: ' + ', '.join(s.screen().texts())[:160])
+    with Session('xtra_squad_ctl', b, {'DATA/XTRA.%03d' % XTRA_FILE: path}, 'dump:3', 300) as s:
+        s.wait()                                # control: a club without an XTRA block keeps the game's reserves
+        for t in ('CARRIERA', 'SCEGLI SQUADRA', 'EUROPA', 'GERMANIA'):
+            walk(s, t, 3)
+        if s.screen().find('1. LIGA') is not None:
+            walk(s, '1. LIGA', 3)
+        walk(s, 'HANSA ROSTOCK', 4)
+        for _ in range(10):
+            scr = s.screen()
+            if 'TRASFERIMENTI' in scr.texts():
+                break
+            press(s, scr, 'CONTINUA') or s.send('fire dump:2')
+        n3 = struct.unpack('<H', s.result.obj2(cnp, 2))[0]
+        check(n3 == 26, f'HANSA ROSTOCK: {n3} players (16 + 10 reserves expected)', errs)
+        info.append(f'HANSA ROSTOCK {n3} players')
+    return not errs, '; '.join(errs + info)
+
+
+@scenario
+def xtra_season():
+    """Extended career squads: XTRA1.CAR (HAMBURG with 25 players, made by xtra_squad) played to the season end by
+    results, season-end menu, next season saved: no trap, at most 32 players, the real extras still in the squad"""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import lepatch
+    import xtra
+    b = xtra_build()
+    _, cnp, ct, cmp, sel = xtra.sites(lepatch.LEPatch(os.path.join(b, 'ITALIAN.EXE')))
+    keep = os.path.join(WORK, 'saves', 'XTRA1.CAR')
+    if not os.path.exists(keep):
+        ok, msg = xtra_squad()
+        if not ok:
+            return False, 'xtra_squad: ' + msg
+    errs, info = [], []
+    with Session('xtra_season', b, {'XTRA1.CAR': keep}, 'dump:2', 900) as s:
+        s.wait()
+        s.send('down down down down down fire dump:2')
+        s.send('fire dump:3')
+        ok, msg = advance(s, season_over, 900)
+        if not ok:
+            return False, 'advance: ' + msg
+        r = s.result
+        n = struct.unpack('<H', r.obj2(cnp, 2))[0]
+        names = [r.obj2(ct + 76 + j * 38 + 3, 23).split(b'\0')[0].decode('latin1') for j in range(32)]
+        order = list(r.obj2(cmp, 32))[:n]
+        real = sum(1 for j in order if names[j].startswith('XTRA TEST'))
+        check(16 <= n <= 32, f'season end: {n} players', errs)
+        check(real >= 5, f'only {real} of the 9 real extras still in the squad', errs)
+        info.append(f'season end: {n} players, {real} XTRA TEST in the squad; {msg}')
+        scr = s.screen()
+        if scr.find('FINISCI STAGIONE', exact=True) is not None:
+            press(s, scr, 'FINISCI STAGIONE', wait=3)
+        for _ in range(30):
+            if s.result.outcome != 'dump':
+                return False, f'season end: {s.result}; ' + '; '.join(info)
+            scr = s.screen()
+            if scr.find('CONTINUA CARRIERA', exact=True) is not None:
+                break
+            s.send('fire dump:2')
+        path = next_season_save(s, 'XTRA2')
+        check(path.endswith('.CAR'), f'next season: {path}', errs)
+        if path.endswith('.CAR'):
+            n2 = struct.unpack('<H', s.result.obj2(cnp, 2))[0]
+            info.append(f'next season saved, {n2} players')
+            check(n2 <= 32, f'next season: {n2} players', errs)
+    return not errs, '; '.join(errs + info)
+
+
 PURPLE_RGB, MAROON_MENU = (24, 8, 34), (27, 0, 9)
 
 

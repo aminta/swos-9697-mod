@@ -122,6 +122,10 @@ real bracket.
     order and adds `position` (`G RB LB D RW LW M A`, matching the role), `number`, `nat` (the game's nationality
     number), `skin` (`light`, `dark`, `ginger`, from 3.3.0 `darkblond`: dark skin, blond hair), the 7 skills `pa ve he ta co sp fi` (passing, shooting, heading,
     tackling, ball control, speed, finishing: 0–7, a trailing `*` marks a key skill) and `price` (0–49).
+    **Bigger career squads**: `"extra": 9` (1–16) in the squads entry lets a club list up to 16 + 9 players; rows 17
+    and on go to `XTRA.nnn` (next to `TEAM.nnn`) and the club a human manages in a career starts with all of them
+    instead of the 10 reserves the game invents for a new club (computer clubs always play with the 16 of the record).
+    Numbers outside 1–99 or already used in the club get a free one from 17.
   - `seed`: random seed of the fillers (part of the determinism).
 
 ### Ratings: three ways, none required

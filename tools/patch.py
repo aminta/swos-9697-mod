@@ -26,6 +26,7 @@ import shirtnum
 import weeks
 import purple
 import blond
+import xtra
 import mkseason
 import careerworld
 import nsl97
@@ -244,6 +245,8 @@ def patch_exe(src, dst, remap, lang='it'):
     weeks.patch(p)                               # 3.2.7: career weeks 128+ (mod cups outside Europe) in the job offers
     world = purple.patch(p, area, world)        # 3.3.0: kit colour 10 = purple (palette entry 12 when no maroon)
     world = blond.patch(p, area, world, num_bss + shirtnum.BSS_SIZE, shirtnum.spr_index(p))   # 3.3.0: face 3
+    if mkseason.xtra_files() or os.environ.get('XTRA_HOOK'):    # extended career squads (packs with "extra";
+        world = xtra.patch(p, world)                             # XTRA_HOOK=1: test builds): DATA\XTRA.nnn players
     assert world <= NZ_CAVE and nz_end <= FIN_CAVE and fin_end <= ARG_CAVE and arg_end <= OBJ1_NEW_VSIZE, \
         (hex(world), hex(nz_end), hex(fin_end), hex(arg_end))
     p.set_vsize(1, OBJ1_NEW_VSIZE + (0x4000 if worlds else 0) + HIST2_PAGE)
@@ -344,6 +347,9 @@ def write_new_teams(src_dir, dst_dir):
             taken[g] = mod.FILE
         open(os.path.join(dst_dir, 'TEAM.%03d' % mod.FILE), 'wb').write(team_fix(data))
     print(f'TEAM.{nsl97.FILE:03d}/{nz97.FILE:03d}/{mls97.FILE:03d}: Australia and New Zealand 1996-97, MLS 1997')
+    for n, data in mkseason.xtra_files().items():      # extended career squads: players beyond 16 (xtra.py)
+        open(os.path.join(dst_dir, 'XTRA.%03d' % n), 'wb').write(data)
+        print(f'XTRA.{n:03d}: up to {data[2]} more players for {struct.unpack(">H", data[:2])[0]} clubs')
     for name, data in mkseason.world_files().items():  # career packs: first-season European clubs of each world
         open(os.path.join(dst_dir, name), 'wb').write(team_fix(data, header=False))
         print(f'{name}: {len(data) // TEAM_SIZE} European clubs')

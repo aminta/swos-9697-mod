@@ -217,13 +217,14 @@ numbers (1-99, mod 3.2.5). Davide's answers (2026-10-16):
    value/league/age model for the others. Private use, credit EA SPORTS FC 27.
 
 Skin (update 2026-10-16): EA's public ratings feed has NO skin-tone / hair fields (converter session), and it still
-holds FC 26-era rosters (8,141 of 25,001 players of the 16s matched). Faces are therefore faces_fix.csv (hand list),
-default light; a guess from EA portrait images was tried and switched off (TM_FACE_PORTRAIT=1 only with Davide's
-explicit ok). Original plan: FC 27's player data carry a skin tone and a hair colour per player -> light / ginger (red hair) /
+holds FC 26-era rosters (8,141 of 25,001 players of the 16s matched). Faces: **Davide's decision (2026-10-16, in the converter
+session): nationality rule** = dark when any of the player's nationalities is in the converter's dark-nation list,
+else light; faces_fix.csv (hand list) wins over it. The guess from EA portrait images stays off (images deleted).
+This replaces the earlier 'no guessing from nationality' line. Original plan: FC 27's player data carry a skin tone and a hair colour per player -> light / ginger (red hair) /
 dark / darkblond (dark skin, blond hair; mod 3.3.0) for the
 ~17,000 FC players, matched to Transfermarkt by name + birth date + club. The others (clubs outside FC: about half
 of the world) default to light, with optional per-league correction lists that Davide or players who know a league
-can send (a small CSV: Transfermarkt id, skin). No guessing from nationality or photos.
+can send (a small CSV: Transfermarkt id, skin). (Superseded: see the nationality rule above.)
 
 ## Estimate (sessions)
 | Part | Sessions |

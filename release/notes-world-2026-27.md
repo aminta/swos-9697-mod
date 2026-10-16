@@ -20,7 +20,8 @@ first 43 UEFA associations by ranking, the others are under OTHER NATIONS).
   not hold come last, by squad value.
 - **Squads**: Transfermarkt squads, 16 per club in the team files. **The club you manage has 25**: when you start a
   career or take a new job, its 16 are joined by 9 real reserves (the club's next players on Transfermarkt) instead
-  of the 10 reserves the game invents for a new club; the 25 are saved with the career. As in the original game,
+  of the 10 reserves the game invents for a new club; the 25 are saved with the career. The 9 are paid like the
+  game's reserves (66% of a regular wage) but stay regular players: they never leave by themselves. As in the original game,
   trial players may still join during the season while the squad is under 30. Computer clubs always play with their
   16. Real shirt numbers, nationality (the game's closest nation where the game has none: Kosovo -> Albania,
   Montenegro / Serbia -> Yugoslavia, Kazakhstan -> Russia ...). Coaches from Transfermarkt.
@@ -131,7 +132,8 @@ federazioni UEFA per ranking, le altre sono in ALTRE NAZIONI).
 - **Rose**: rose Transfermarkt, 16 per club nei file squadra. **Il club che alleni ne ha 25**: quando inizi una
   carriera o accetti un nuovo incarico, ai suoi 16 si aggiungono 9 riserve vere (i giocatori successivi del club su
   Transfermarkt) al posto delle 10 riserve che il gioco inventa per un club nuovo; i 25 vengono salvati con la
-  carriera. Come nel gioco originale, durante la stagione possono ancora arrivare giocatori in prova finché la rosa
+  carriera. I 9 prendono lo stipendio delle riserve del gioco (66% di quello normale) ma restano giocatori normali: non
+  se ne vanno da soli. Come nel gioco originale, durante la stagione possono ancora arrivare giocatori in prova finché la rosa
   ha meno di 30 giocatori. I club del computer giocano sempre con i loro 16.
   Numeri di maglia reali, nazionalità (la nazione più vicina del gioco dove il gioco non ce l'ha: Kosovo -> Albania,
   Montenegro / Serbia -> Jugoslavia, Kazakistan -> Russia ...). Allenatori da Transfermarkt.

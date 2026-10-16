@@ -1874,15 +1874,17 @@ def xtra_build():
 
 
 def xtra_test_file(path, extra=9):
-    """Test DATA/XTRA.014: HAMBURG (ordinal 17) gets 9 players = BAYERN MUNICH's first 9 renamed XTRA TEST 1..9."""
+    """Test DATA/XTRA.014: HAMBURG (ordinal 17) gets 9 players = copies of its own first 9 renamed XTRA TEST 1..9
+    (same skills and price: an extra's wage = the reserve rate of his twin's)."""
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import xtra
     d = open(os.path.join(ROOT, 'orig', 'DATA', 'TEAM.%03d' % XTRA_FILE), 'rb').read()
     k = struct.unpack('>H', d[:2])[0]
-    bay = next(2 + i * 684 for i in range(k) if d[2 + i * 684 + 5:2 + i * 684 + 22].split(b'\0')[0] == b'BAYERN MUNICH')
+    ham = 2 + XTRA_ORD * 684
+    assert d[ham + 5:ham + 22].split(b'\0')[0] == XTRA_CLUB.encode()
     pl = []
     for j in range(extra):
-        q = bytearray(d[bay + 76 + j * 38:bay + 76 + (j + 1) * 38])
+        q = bytearray(d[ham + 76 + j * 38:ham + 76 + (j + 1) * 38])
         q[3:26] = f'XTRA TEST {j + 1}'.encode().ljust(23, b'\0')
         q[2] = 30 + j
         pl.append(bytes(q))
@@ -1931,6 +1933,13 @@ def xtra_squad():
         n = struct.unpack('<H', r.obj2(cnp, 2))[0]
         check(n == 25 and list(r.obj2(cmp, 25))[16:] == list(range(16, 25)),
               f'career menu: {n} players (the 10 invented reserves must not be added)', errs)
+        form = [r.obj2(ct + 76 + j * 38 + 37, 1)[0] for j in range(16, 25)]
+        check(form == [q[37] for q in pl], f'extras byte 37 (form) {form} changed', errs)
+        wages = struct.unpack('<32I', r.obj2(xtra.wage_table(lepatch.LEPatch(os.path.join(b, 'ITALIAN.EXE'))), 128))
+        prices = [r.obj2(ct + 76 + j * 38 + 32, 1)[0] for j in range(32)]
+        ratio = [round(wages[16 + j] / wages[j], 2) for j in range(9) if wages[j]]
+        check(len(ratio) == 9 and all(0.6 <= x <= 0.7 for x in ratio), f'extra / twin wage {ratio} (66% expected)', errs)
+        info.append(f'extra / twin wage {ratio}')
         press(s, s.screen(), 'ESCI', wait=3)
         if press(s, s.screen(), 'SALVA CARRIERA') is None:
             return False, f'no SALVA CARRIERA on {s.screen()}'
@@ -1981,10 +1990,15 @@ def xtra_season():
         if not ok:
             return False, 'xtra_squad: ' + msg
     errs, info = [], []
-    with Session('xtra_season', b, {'XTRA1.CAR': keep}, 'dump:2', 900) as s:
+    xpath = os.path.join(WORK, 'saves', 'XTRA014_TEST.BIN')
+    xtra_test_file(xpath)                       # the career's data file: the game reads it again for the wages
+    with Session('xtra_season', b, {'XTRA1.CAR': keep, 'DATA/XTRA.%03d' % XTRA_FILE: xpath}, 'dump:2', 900) as s:
         s.wait()
         s.send('down down down down down fire dump:2')
         s.send('fire dump:3')
+        ns = globals().get('nosack_off')         # the chairman never sacks (when this harness knows the switch)
+        if ns:
+            s.poke(s.result.base2 + ns(os.path.join(b, 'ITALIAN.EXE')), b'\x01\x00')
         ok, msg = advance(s, season_over, 900)
         if not ok:
             return False, 'advance: ' + msg
@@ -2006,12 +2020,31 @@ def xtra_season():
             if scr.find('CONTINUA CARRIERA', exact=True) is not None:
                 break
             s.send('fire dump:2')
+        r = s.result                            # twins again before the season start recomputes the wages: each extra
+        twin = [r.obj2(ct + 76 + j * 38, 38) for j in range(9)]          # gets bytes 25..37 (form, skills, price) of
+        for j in range(9):                                               # the record player he was copied from
+            q = r.obj2(ct + 76 + (16 + j) * 38, 38)
+            if q[3:26].split(b'\0')[0] == f'XTRA TEST {j + 1}'.encode():
+                s.poke(r.base2 + ct + 76 + (16 + j) * 38 + 25, twin[j][25:38])
         path = next_season_save(s, 'XTRA2')
         check(path.endswith('.CAR'), f'next season: {path}', errs)
         if path.endswith('.CAR'):
-            n2 = struct.unpack('<H', s.result.obj2(cnp, 2))[0]
+            r = s.result
+            n2 = struct.unpack('<H', r.obj2(cnp, 2))[0]
             info.append(f'next season saved, {n2} players')
             check(n2 <= 32, f'next season: {n2} players', errs)
+            team = struct.unpack('<H', r.obj2(sel, 2))[0]
+            if team != XTRA_ORD << 8 | XTRA_FILE:      # sacked: another club, no extras to check
+                info.append(f'next season at another club ({team:#x}): wage check skipped')
+                return not errs, '; '.join(errs + info)
+            wages = struct.unpack('<32I', r.obj2(xtra.wage_table(lepatch.LEPatch(os.path.join(b, 'ITALIAN.EXE'))), 128))
+            names = [r.obj2(ct + 76 + j * 38 + 3, 23).split(b'\0')[0].decode('latin1') for j in range(32)]
+            d = open(os.path.join(ROOT, 'orig', 'DATA', 'TEAM.%03d' % XTRA_FILE), 'rb').read()
+            twin = [d[2 + XTRA_ORD * 684 + 76 + j * 38 + 3:][:23].split(b'\0')[0].decode('latin1') for j in range(9)]
+            ratio = [round(wages[16 + j] / wages[j], 2) for j in range(9)
+                     if names[16 + j] == f'XTRA TEST {j + 1}' and names[j] == twin[j] and wages[j]]
+            check(ratio and all(0.6 <= x <= 0.7 for x in ratio), f'next season: extra / twin wage {ratio}', errs)
+            info.append(f'next season extra / twin wage {ratio}')
     return not errs, '; '.join(errs + info)
 
 

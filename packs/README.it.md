@@ -132,7 +132,8 @@ ripropone il tabellone vero.
     sempre con i 16 del record). I numeri fuori da 1–99 o già usati nel club diventano un numero libero da 17. Un
     extra non è mai migliore del più debole dei 16 del club (per non favorire il club gestito): prezzo del portiere
     al massimo il prezzo minimo dei portieri, abilità di movimento abbassate fino al prezzo minimo dei giocatori di
-    movimento (prezzo = somma delle abilità).
+    movimento (prezzo = somma delle abilità). Gli extra prendono lo stipendio delle riserve del gioco (66%) ma restano
+    giocatori normali: non se ne vanno da soli.
   - `seed`: il seme casuale dei giocatori inventati (fa parte del determinismo).
 
 ### Abilità: tre strade, nessuna obbligatoria

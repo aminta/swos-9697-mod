@@ -89,8 +89,8 @@ Rare events are **forced** and slow parts are **done once and saved**:
 | classic_wc34 | 3.2 tourney pack: World Cup 1934 in CLASSIC TOURNEYS: round 1 = ties.csv, every later tie = the winners of two adjacent ties (also after replays), coin tosses, third place, final | ~30 s |
 | classic_groups | 3.2 tourney pack with groups (the template, in a test build with SEASON_PACKS): 2 groups of 4, crossed semi-finals, third place, final; its round robin (5 clubs, home and away: 20 matches) | ~1 min + build |
 | classic_tourneys | World Cup 1982, Mitropa Cup 1934 (real bracket also after play-offs), FA Cup 1871-72 played to the final | ~2.5 min |
-| xtra_squad | extended career squads (xtra.py): new career at HAMBURG with a test DATA/XTRA.014 = 16 + 9 real players, no invented reserves, 25 after save + load; HANSA ROSTOCK (no block) = 16 + 10 reserves | ~40 s |
-| xtra_season | XTRA1.CAR (HAMBURG, 25) played to the season end by results, next season saved: at most 32 players, the real extras still there | ~3 min |
+| xtra_squad | extended career squads (xtra.py): new career at HAMBURG with a test DATA/XTRA.014 = 16 + 9 real players (copies of its own first 9), no invented reserves, each extra's wage 66% of his twin's, form byte untouched, 25 after save + load; HANSA ROSTOCK (no block) = 16 + 10 reserves | ~40 s |
+| xtra_season | XTRA1.CAR (HAMBURG, 25) played to the season end by results (no sacking when the harness has nosack_off), next season saved: at most 32 players, the real extras still there, wages recomputed at the season start = 66% of the twins' (twins' bytes 25-37 copied in at the season end) | ~4 min |
 
 Preset competitions are driven by `play_preset(s, button)`: COMP. PREDEFINITA > TORNEI STORICI > button > TORNEO,
 then VIS. RISULTATI / REPLAY / PROSS. PARTITA / PROSSIMO TURNO / TURNO RITORNO until only STAT and ESCI are left;

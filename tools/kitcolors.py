@@ -182,6 +182,10 @@ auto_wear:                              ; worn kits of the two slots <- the auto
 km_measure:                             ; MeasureTeamKitsSimilarity; purple.py points it at pk_sim
     jmp MEASURE
 
+km_fix:                                 ; ebx -> top slot, edi -> bottom slot; purple.py: jmp pk_fix
+    ret
+    times 4 nop
+
 fill_slot:                              ; esi -> TeamFile, edi -> slot
     mov [edi + 32], esi
     push esi
@@ -436,6 +440,7 @@ kit_colors:                             ; replaces `mov eax, [A2]` at the start 
     jz .none
     test edi, edi
     jz .none
+    call km_fix                         ; purple.py: no purple vs maroon even by hand (Marco, 3.3.2)
     push edi
     mov edi, ebx
     mov ecx, TOP_TEAM
@@ -691,6 +696,7 @@ def button(p, at, lang, area):
     code, fix = nasmcave.assemble(KITS_ASM, at, sym)
     lab = nasmcave.labels(KITS_ASM, at, sym)
     INFO['km_measure'] = lab['km_measure']          # purple.py: jmp pk_sim (purple vs maroon)
+    INFO['km_fix'] = lab['km_fix']                  # purple.py: jmp pk_fix (manual kits)
     assert not any(d[at:at + len(code)])
     p.put(1, at, code)
     for o, t_obj, t_off in fix:

@@ -160,6 +160,100 @@ pk_sim:                                 ; replaces `call MeasureTeamKitsSimilari
     popad
     ret
 
+pk_fix:                                 ; kits set by hand (kitcolors km_fix): ebx -> top slot, edi -> bottom slot
+    pushad                              ; (kits at +18, 5 bytes each; worn kit at +28). Purple vs maroon: the
+    mov esi, ebx                        ; maroon team takes its other kit; else maroon in it (then in its own)
+    mov al, [esi + 28]                  ; becomes the shirt colour; else the purple team takes its other kit
+    mov ah, [edi + 28]
+    call pf_clash
+    jz .done
+    mov al, [edi + 28]
+    xchg esi, edi
+    call pf_bits                        ; bottom slot's worn kit
+    xchg esi, edi
+    test cl, 2
+    jnz .roles                          ; bottom wears maroon: esi = purple team, edi = maroon team
+    xchg esi, edi
+.roles:
+    mov al, [esi + 28]                  ; 1. maroon team: other kit
+    mov ah, [edi + 28]
+    xor ah, 1
+    call pf_clash
+    jnz .recolor
+    xor byte [edi + 28], 1
+    jmp .done
+.recolor:
+    mov al, [edi + 28]                  ; 2. its other kit without maroon
+    xor al, 1
+    push eax
+    call pf_recolor
+    pop eax
+    jc .own
+    mov [edi + 28], al
+    jmp .done
+.own:
+    mov al, [edi + 28]                  ; 3. the kit it wears without maroon
+    call pf_recolor
+    jnc .done
+    xor byte [esi + 28], 1              ; 4. the purple team's other kit
+.done:
+    popad
+    ret
+
+pf_bits:                                ; esi -> slot, al = kit -> cl: 1 purple, 2 maroon (eax, ebx changed)
+    movzx eax, al
+    imul eax, eax, 5
+    lea ebx, [esi + eax + 18]
+    xor ecx, ecx
+    jmp kitchk
+
+pf_clash:                               ; al = kit of slot esi, ah = kit of slot edi -> ZF = 0: purple vs maroon
+    push edx
+    mov dh, ah
+    call pf_bits
+    mov dl, cl
+    mov al, dh
+    xchg esi, edi
+    call pf_bits
+    xchg esi, edi
+    mov al, cl                          ; the other side's bits swapped: purple <-> maroon
+    and al, 1
+    add al, al
+    shr cl, 1
+    and cl, 1
+    or al, cl
+    test al, dl
+    pop edx
+    ret
+
+pf_recolor:                             ; edi -> slot, al = kit: maroon parts -> the shirt colour (CF = 1: the
+    movzx eax, al                       ; shirt itself is maroon, nothing changed)
+    imul eax, eax, 5
+    lea ebx, [edi + eax + 18]
+    mov dl, [ebx + 1]
+    cmp dl, MAROON_
+    jne .have
+    cmp byte [ebx], 0
+    je .fail
+    mov dl, [ebx + 2]
+    cmp dl, MAROON_
+    je .fail
+.have:
+    mov ecx, 1
+.part:
+    cmp byte [ebx + ecx], MAROON_
+    jne .next
+    mov [ebx + ecx], dl
+.next:
+    inc ecx
+    cmp ecx, 5
+    jb .part
+    clc
+    ret
+.fail:
+    stc
+    ret
+
 kitchk:                                 ; ebx -> kit (type, shirt, stripes, shorts, socks) -> cl |= 1 purple, 2 maroon
     mov al, [ebx + 1]
     call pk_mark.chk
@@ -300,6 +394,9 @@ def patch(p, area, at):
     km = info['km_measure']                         # SELECT KITS' automatic start (kitcolors auto_wear) too
     assert p.get(1, km, 1) == b'\xE9' and km + 5 + struct.unpack('<i', p.get(1, km + 1, 4))[0] == meas[0]
     p.put(1, km, b'\xE9' + struct.pack('<i', lab['pk_sim'] - (km + 5)))
+    kf = info['km_fix']                             # kits set by hand (3.3.2): jmp pk_fix
+    assert p.get(1, kf, 5) == b'\xC3\x90\x90\x90\x90'
+    p.put(1, kf, b'\xE9' + struct.pack('<i', lab['pk_fix'] - (kf + 5)))
     for c in copies:
         assert p.get(1, c, 7) == b'\xB9\x00\x03\x00\x00\xF3\xA4'
         p.put(1, c, b'\xE8' + struct.pack('<i', lab['pk_pal'] - (c + 5)) + b'\x90\x90')

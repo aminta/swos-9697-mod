@@ -1946,6 +1946,49 @@ def purple_kits():
 
 
 @scenario
+def purple_manual():
+    """3.3.2 (Marco): kits set by hand never put purple against maroon. Fiorentina-Roma with Roma forced into its maroon
+    first kit: Roma plays its green second kit; against Zenit's kits (maroon / white with maroon shorts) forced into the
+    first kit: the second kit with white shorts. Fiorentina stays purple in both"""
+    errs, info = [], []
+    b = builds()['it']
+    d = bytearray(open(os.path.join(b, 'DATA', 'TEAM.020'), 'rb').read())
+    for t in range(struct.unpack('>H', d[:2])[0]):
+        o = 2 + t * 684
+        if d[o + 5:o + 22].split(b'\0')[0] == b'ROMA':
+            d[o + 26:o + 36] = bytes([0, 6, 6, 1, 6, 0, 1, 1, 6, 1])     # ZENIT's kits
+    zenit = os.path.join(WORK, 'saves', 'TEAM020_ZENIT.BIN')
+    os.makedirs(os.path.dirname(zenit), exist_ok=True)
+    open(zenit, 'wb').write(d)
+    for tag, cars in (('roma', {}), ('zenit', {'DATA/TEAM.020': zenit})):
+        with Session('purple_manual_' + tag, b, cars, 'dump:3', 300, match=True) as s:
+            s.wait()
+            italy_friendly(s, 'FIORENTINA', 'ROMA')
+            scr = walk(s, 68, 3)                # SELECT KITS: both teams in their first kits, by hand
+            for _ in range(2):
+                if 'IN CAMPO: SECONDA TENUTA' in scr.texts():
+                    scr = walk(s, 2, 3)
+                scr = walk(s, 1, 3)             # the other team
+            t = scr.texts()
+            check('IN CAMPO: PRIMA TENUTA' in t and 'ROMA: PRIMA TENUTA' in t + ['FIORENTINA: PRIMA TENUTA']
+                  and not any(x.endswith('SECONDA TENUTA') for x in t), f'{tag}: not both first kits: {t[:5]}', errs)
+            walk(s, 21, 3)                      # OK
+            for _ in range(22):
+                s.send('down dump:0.5')
+                if s.screen().selected == 9:
+                    break
+            r = s.send('fire ' + 'fire:3 ' * 8 + 'dump:2')
+            check(r.outcome == 'dump', f'{tag}: match {r}', errs)
+            if r.outcome == 'dump':
+                o2 = r.read(r.base2, 0x100000)
+                m = o2.find(b'PKMK')
+                marks = tuple(o2[m + 4:m + 6]) if m >= 0 else None
+                check(marks is not None and (marks[0] | marks[1]) == 1, f'{tag}: marks {marks} (want purple only)', errs)
+                info.append(f'{tag}: marks {marks}')
+    return not errs, '; '.join(errs + info) if errs else 'manual kits: purple kept, no maroon (' + '; '.join(info) + ')'
+
+
+@scenario
 def purple_stadium():
     """3.3.1: the line-ups screen before the match (ShowStadiumInit) keeps Fiorentina purple: palette entry 12 purple
     after the screen's second copy of the stad.256 palette (breakpoints: normal core)"""

@@ -18,8 +18,11 @@ first 43 UEFA associations by ranking, the others are under OTHER NATIONS).
 - **Club order**: each division in the order of its 2025-26 final table (2025 for calendar-year leagues): the clubs
   that stayed by final position, then the relegated, then the promoted; promoted clubs from a tier the world does
   not hold come last, by squad value.
-- **Squads**: Transfermarkt squads (16 per club; [TODO squads session] the managed club gets 25: 16 + 9 real
-  reserves). Real shirt numbers, nationality (the game's closest nation where the game has none: Kosovo -> Albania,
+- **Squads**: Transfermarkt squads, 16 per club in the team files. **The club you manage has 25**: when you start a
+  career or take a new job, its 16 are joined by 9 real reserves (the club's next players on Transfermarkt) instead
+  of the 10 reserves the game invents for a new club; the 25 are saved with the career. As in the original game,
+  trial players may still join during the season while the squad is under 30. Computer clubs always play with their
+  16. Real shirt numbers, nationality (the game's closest nation where the game has none: Kosovo -> Albania,
   Montenegro / Serbia -> Yugoslavia, Kazakhstan -> Russia ...). Coaches from Transfermarkt.
 - **Skills**: each player's level comes from his market value (corrected for age) mapped onto the original game's own
   distribution of player prices, blended with his EA SPORTS FC overall rating where he exists in EA's ratings; the 7
@@ -59,7 +62,10 @@ first 43 UEFA associations by ranking, the others are under OTHER NATIONS).
 - EA's public ratings still held FC 26-era rosters when this world was built (2026-10-16): attributes are matched by
   player (name and birth date), not by club, so they are a year old; they will be refreshed when EA publishes FC 27.
 - About a third of the players are in EA's ratings (most of the big leagues, few of the small ones).
-- [TODO integrator / squads: engine limits (team cache, cups, per-world contest ids), the manager's club results in
+- Squads (engine): at most 32 players in the managed club (25 + up to 7 purchases or trial players; at 32 pending
+  purchases are cancelled), 5 substitutes on the bench, 16 per computer club. If you leave a club, the 9 reserves stay
+  behind (the club keeps its first 16); if you come back later, they join again, also any you had sold.
+- [TODO integrator: engine limits (team cache, cups, per-world contest ids), the manager's club results in
   'view results' seasons.]
 
 **Data and credits**
@@ -86,7 +92,11 @@ federazioni UEFA per ranking, le altre sono in ALTRE NAZIONI).
 - **Ordine dei club**: ogni divisione nell'ordine della sua classifica finale 2025-26 (2025 per i campionati ad anno
   solare): prima i club rimasti, per posizione, poi le retrocesse, poi le promosse; le promosse da una serie che il
   mondo non contiene vanno in fondo, per valore della rosa.
-- **Rose**: rose Transfermarkt (16 per club; [TODO sessione rose] il club allenato ne ha 25: 16 + 9 riserve vere).
+- **Rose**: rose Transfermarkt, 16 per club nei file squadra. **Il club che alleni ne ha 25**: quando inizi una
+  carriera o accetti un nuovo incarico, ai suoi 16 si aggiungono 9 riserve vere (i giocatori successivi del club su
+  Transfermarkt) al posto delle 10 riserve che il gioco inventa per un club nuovo; i 25 vengono salvati con la
+  carriera. Come nel gioco originale, durante la stagione possono ancora arrivare giocatori in prova finché la rosa
+  ha meno di 30 giocatori. I club del computer giocano sempre con i loro 16.
   Numeri di maglia reali, nazionalità (la nazione più vicina del gioco dove il gioco non ce l'ha: Kosovo -> Albania,
   Montenegro / Serbia -> Jugoslavia, Kazakistan -> Russia ...). Allenatori da Transfermarkt.
 - **Abilità**: il livello di ogni giocatore viene dal suo valore di mercato (corretto per l'età) riportato sulla
@@ -132,8 +142,12 @@ federazioni UEFA per ranking, le altre sono in ALTRE NAZIONI).
   gli attributi sono abbinati per giocatore (nome e data di nascita), non per club, quindi sono vecchi di un anno;
   verranno aggiornati quando EA pubblicherà FC 27.
 - Circa un terzo dei giocatori è nelle valutazioni EA (gran parte dei campionati maggiori, pochi di quelli minori).
-- [TODO integratore / rose: limiti del motore (cache squadre, coppe, id delle competizioni per mondo), i risultati del
-  club allenato nelle stagioni giocate solo coi risultati.]
+- Rose (motore): al massimo 32 giocatori nel club allenato (25 + fino a 7 acquisti o giocatori in prova; a 32 gli
+  acquisti in sospeso vengono annullati), 5 sostituti in panchina, 16 per ogni club del computer. Se lasci un club, le
+  9 riserve restano lì (il club tiene i suoi primi 16); se ci torni più avanti, rientrano tutte, anche quelle che avevi
+  venduto.
+- [TODO integratore: limiti del motore (cache squadre, coppe, id delle competizioni per mondo), i risultati del club
+  allenato nelle stagioni giocate solo coi risultati.]
 
 **Dati e crediti**
 - Rose, valori di mercato, allenatori, partecipanti 2026-27 e classifiche 2025-26: **Transfermarkt**

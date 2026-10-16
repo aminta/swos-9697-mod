@@ -396,6 +396,11 @@ class Dosbox:
                 return self.stat('run', t, 'exit')
             if n:
                 m = BREAK.search(self.screen, mark)    # the debugger's code view redrawn on an int 3 (CD03)
+                if not m and getattr(self, 'memwatch', False):   # SWOSTEST_BPLM: a memory breakpoint's hit, then
+                    seg = ANSI.sub(b' ', self.screen[mark:])     # the code view (EIP after the writing instruction)
+                    k = re.search(rb'Memory breakpoint[^\n]*->', seg)
+                    if k:
+                        m = re.compile(rb'0160:([0-9A-F]{8})\s').search(seg, k.end())
                 if not m and self.watch:               # or on one of our breakpoints (Session.bp)
                     seg = ANSI.sub(b' ', self.screen[mark:])
                     for w in re.finditer(rb'0160:([0-9A-F]{8})\s', seg):
@@ -680,6 +685,9 @@ class Session:
         if os.environ.get('SWOSTEST_BP') and not getattr(self, 'bps', None) and outcome == 'break':
             base1 = self.paused('x', b.eip).base1
             self.bp_hits = {}
+            for off in filter(None, os.environ.get('SWOSTEST_BPLM', '').split(',')):   # memory watches (obj2 offsets,
+                b.cmd(f'BPLM {self.paused("x", b.eip).base2 + int(off, 16):08X}', 0.3)   # CORE=normal): a change
+                b.memwatch = True                                                    # stops as a trap at its EIP
             for off in os.environ['SWOSTEST_BP'].split(','):     # counting breakpoints (use CORE=normal)
                 o = int(off, 16)
                 self.bp(base1 + o, lambda r, o=o: (self.bp_hits.__setitem__(o, self.bp_hits.get(o, 0) + 1),

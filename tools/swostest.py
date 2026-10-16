@@ -906,7 +906,8 @@ def substitute(s, scr, tries=40):
         fit = [(n, r, v) for n, r, v, f in pool if f and n]
         rank = lambda c: ((c[1] == need) if need else 1,           # the slot's role first (G: keepers only)
                           c[2] > 0, c[2] >= 0, c[2])               # real players, then RIS, trial players last
-        cand = [c for c in fit if need != 'G' or c[1] == 'G'] if k in (0, 11) else fit
+        cand = [c for c in fit if need != 'G' or c[1] == 'G'] if k in (0, 11) else \
+            ([c for c in fit if c[1] != 'G'] or fit)          # a keeper in an outfield slot only as a last resort
         if not cand:
             return f'no fit reserve for row {k + 1}'
         best = max(cand, key=rank)

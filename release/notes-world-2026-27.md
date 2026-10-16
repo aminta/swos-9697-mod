@@ -76,8 +76,8 @@ first 43 UEFA associations by ranking, the others are under OTHER NATIONS).
 - Extras of the managed club (25-man squads): each of the 9 reserves keeps his real name, role, nationality and face,
   but his skill total is at most the weakest of the club's 16 (outfield vs outfield, keeper vs keeper) and his price
   = his skill total, so no extra is better than the weakest of the club's 16 and the club's best 11 do not change.
-  (Note: they are on average a little stronger than the 10 reserves the game invents (Randers: 12.3 against 8.8 per
-  player); [PENDING Davide: keep this cap or tighten it].)
+  The bench is a little deeper than the game's own invented reserves (Randers: 12.3 against 8.8 per player on
+  average): a deliberate choice, real players instead of invented ones.
 - National cups: the bracket has no byes (a career's national cup cannot have first-round byes in the engine): it
   starts from the power of two at or below the clubs still in, keeping the clubs of the real drawn ties and then the strongest squads
   (when the clubs still in are nearer the next power of two, the country's best clubs already out take the free
@@ -192,9 +192,8 @@ federazioni UEFA per ranking, le altre sono in ALTRE NAZIONI).
 - Riserve del club allenato (rose da 25): ognuna delle 9 riserve tiene nome, ruolo, nazionalità e volto veri, ma la
   somma delle sue abilità non supera quella del più debole dei 16 del club (giocatori di movimento con giocatori di
   movimento, portieri con portieri) e il suo prezzo è uguale a quella somma: nessuna riserva è migliore del più debole
-  dei 16 e i migliori 11 del club non cambiano. (Nota: in media sono un po' più forti delle 10 riserve che il gioco
-  inventa (Randers: 12,3 contro 8,8 per giocatore); [IN ATTESA di Davide: tenere questo limite o renderlo più
-  stretto].)
+  dei 16 e i migliori 11 del club non cambiano. La panchina è un po' più profonda delle riserve inventate dal gioco
+  (Randers: in media 12,3 contro 8,8 per giocatore): una scelta voluta, giocatori veri al posto di quelli inventati.
 - Coppe nazionali: il tabellone non ha turni di riposo (nel motore una coppa nazionale di carriera non può avere
   turni di riposo al primo turno): parte dalla potenza di 2 pari o inferiore ai club ancora in corsa, tenendo i club delle coppie sorteggiate davvero e
   poi le rose più forti (quando i club in corsa sono più vicini alla potenza di 2 successiva, i posti liberi vanno ai

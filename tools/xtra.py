@@ -24,6 +24,7 @@ import nasmcave
 
 PLAYER = 38
 MAX_EXTRA = 16                         # 16 + 16 = the 32 slots of careerTeam
+LABELS = {}                            # obj1 offsets after patch(): XTRA_NAMEP = the dd holding the file name's address
 
 ASM = r"""
 xtra_load:
@@ -34,18 +35,19 @@ xtra_load:
     movzx eax, byte [SEL]               ; team file number
     cmp al, 100                         ; CUSTOMS.EDT
     je .out
+    mov edi, [xtra_namep]               ; the file name (another session may point it at a per-world name)
     xor edx, edx
     mov ecx, 100
     div ecx
     add al, '0'
-    mov [xname + 10], al
+    mov [edi + 10], al
     mov eax, edx
     mov cl, 10
     div cl                              ; al = tens, ah = units
     add ax, 3030h
-    mov [xname + 11], ax
+    mov [edi + 11], ax
     mov ax, 3D00h                       ; open, read only
-    mov edx, xname
+    mov edx, edi
     int 21h
     jc .out
     movzx ebx, ax
@@ -112,6 +114,8 @@ xtra_reserves:                          ; replaces InitializeNewSeason's call of
     mov byte [xadded], 0                ; the club's real players instead of the invented reserves
     ret
 
+align 4
+xtra_namep: dd xname                    ; -> 'data\xtra.nnn' (digits at +10..+12); LABELS['XTRA_NAMEP']
 xname: db 'data\xtra.000', 0
 xadded: db 0
 xhead: db 0, 0, 0
@@ -177,6 +181,7 @@ def patch(p, at):
     lab = nasmcave.labels(ASM, at, sym)
     assert not any(p.get(1, at, len(code)))
     p.put(1, at, code)
+    LABELS['XTRA_NAMEP'] = lab['xtra_namep']
     for o, t_obj, t_off in fix:
         p.add_ptr(1, at + o, t_obj, t_off)
     p.remove(1, s + 3)

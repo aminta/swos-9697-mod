@@ -303,7 +303,7 @@ class Dosbox:
             os.chdir(run)
             os.environ['TERM'] = 'xterm'
             os.execv(DOSBOX, [DOSBOX, '-conf', 'test.conf', '-fastlaunch', '-break-start',
-                              '-time-limit', '14400'])  # the runner kills it; sessions run long
+                              '-time-limit', '100000000'])  # the runner kills it; the limit counts EMULATED
 
     def pump(self, t, until=None, start=None):
         """Read the debugger's output for up to t s; returns early once `until` (bytes regex, b'' = any output) shows

@@ -105,11 +105,84 @@ nc_bye:                                 ; replaces `mov esi, [A5]` before the ro
     movzx ebx, byte [esi + 3]
     sub eax, ebx
     shr eax, 1
-    mov [NCW + 4Fh], ax
+    mov [NCW + 4Fh], ax                 ; round 1's matches ([4Fh], [51h], as obj1 0x16711 sets N / 2)
+    mov [NCW + 51h], ax
+    add eax, ebx                        ; round 2's clubs (a power of 2): rounds = 1 + log2 of it ([59h])
+    mov ecx, 1
+.r:
+    inc ecx
+    shr eax, 1
+    cmp eax, 1
+    ja .r
+    mov [NCW + 59h], cx
+    mov ecx, 12                         ; the cup's dates ([333h], the table +337h) again for those rounds
+    mov esi, PREG                       ; (cseg_2740F, which uses the game's D0..A3: kept)
+.p:
+    push dword [esi]
+    add esi, 4
+    loop .p
+    call C1740F
+    mov ecx, 12
+    mov esi, PREG + 44
+.q:
+    pop dword [esi]
+    sub esi, 4
+    loop .q
 .x:
     popad
     mov esi, [A5]
     ret
+
+nc_adv:                                 ; replaces `call 0x194A4` in the knockout round advance (obj1 0x18376; it
+    call nc_adv_call                    ; compacts round 1's winners to the list +2CDh and draws them): then a cup
+    cmp word [NCW + 57h], 0             ; with byes leaving round 1 puts its b clubs (list[N - b ..], untouched)
+    jne .r                              ; after the w winners, the game's draw (cseg_27F84) mixes the w + b, and
+    pushad                              ; [4Fh] = w + b (the advance then halves it: round 2's matches)
+    mov al, [NCW + 2Dh]
+    mov cx, [NCW + 31h]
+    call bye_find
+    jc .x
+    movzx eax, byte [esi + 2]
+    movzx ebx, byte [esi + 3]
+    sub eax, ebx                        ; N - b: the first club left out of round 1
+    mov edx, eax
+    shr edx, 1                          ; w
+    cmp [NCW + 4Fh], dx
+    jne .x
+    lea ecx, [edx + ebx]
+    push ecx
+.c:
+    mov cl, [NCW + 2CDh + eax]          ; (target < source: an ascending copy is safe)
+    mov [NCW + 2CDh + edx], cl
+    inc eax
+    inc edx
+    dec ebx
+    jnz .c
+    pop ecx
+    push ecx
+    shr ecx, 1
+    mov [NCW + 4Fh], cx                 ; (cseg_27F84 shuffles 2 x [4Fh] entries)
+    mov ecx, 12
+    mov esi, PREG
+.p:
+    push dword [esi]
+    add esi, 4
+    loop .p
+    call C27F84
+    mov ecx, 12
+    mov esi, PREG + 44
+.q:
+    pop dword [esi]
+    sub esi, 4
+    loop .q
+    pop ecx
+    mov [NCW + 4Fh], cx
+.x:
+    popad
+.r:
+    ret
+nc_adv_call:
+    jmp C194A4                          ; (chain_adv: the call's target after careerworld.euro_draw hooked it)
 
 bye_find:                               ; al = contest id, cx = its clubs -> CF = 0, esi = its BYE_TAB entry
     mov esi, BYE_TAB                    ; (id, world, clubs, byes); world 0 = any (one-world builds: ids unique)
@@ -251,9 +324,35 @@ def _sites(p):
     # national cup set-up (obj1 0x77BF4, type 1), its end: mov esi, [A5]; mov al, [esi+8]; or al, al; jnz +5;
     # call cseg_27F84 (round-1 draw); ret
     a5 = struct.pack('<I', r['A0'] + 20)
-    m2 = [x.start() for x in re.finditer(rb'\x8b\x35' + re.escape(a5) + rb'\x8a\x46\x08\x0a\xc0\x75\x05\xe8.{4}\xc3', d1, re.S)]
-    assert len(m2) == 1, [hex(x) for x in m2]
-    return a0, bye_call, c2573c, diycopy, m[0], m2[0]
+    m2 = [x for x in re.finditer(rb'\x8b\x35' + re.escape(a5) + rb'\x8a\x46\x08\x0a\xc0\x75\x05\xe8(.{4})\xc3', d1, re.S)]
+    assert len(m2) == 1, [hex(x.start()) for x in m2]
+    c27f84 = m2[0].end() - 1 + struct.unpack('<i', m2[0].group(1))[0]
+    m2 = [m2[0].start()]
+    # knockout round advance (obj1 0x18376): mov ax, [esi+32Dh]; or ax, ax; jnz ...; call 0x194A4 (round 1's winners
+    # -> the next round's draw)
+    m3 = [x for x in re.finditer(rb'\x66\x8b\x86\x2d\x03\x00\x00\x66\x0b\xc0\x0f\x85.{4}\xe8(.{4})', d1, re.S)]
+    assert len(m3) == 1, [hex(x.start()) for x in m3]
+    c194a4 = m3[0].end() + struct.unpack('<i', m3[0].group(1))[0]
+    m3 = [m3[0].end() - 5]
+    # the cup's dates (obj1 0x1740F, called once from the round set-up 0x16711): mov [A0], NCW; mov eax, [A0];
+    # add eax, 65h; mov [A1], eax; mov eax, [A0]; add eax, 7Dh
+    pk = lambda x: re.escape(struct.pack('<I', x))
+    m4 = [x.start() for x in re.finditer(rb'\xc7\x05' + pk(a0) + pk(diycopy + 0x41F) + rb'\xa1' + pk(a0) +
+                                         rb'\x83\xc0\x65\xa3' + pk(a0 + 4) + rb'\xa1' + pk(a0) + rb'\x83\xc0\x7d', d1)]
+    assert len(m4) == 1, [hex(x) for x in m4]
+    return a0, bye_call, c2573c, diycopy, m[0], m2[0], m3[0], c194a4, m4[0], c27f84
+
+
+LABELS = {}
+
+
+def chain_adv(p):
+    """After careerworld.euro_draw (it hooks the same `call 0x194A4`): the round advance calls nc_adv (byes),
+    which then jumps to whatever that call reached."""
+    site, j = LABELS['adv_site'], LABELS['nc_adv_call']
+    t = site + 5 + struct.unpack('<i', p.get(1, site + 1, 4))[0]
+    p.put(1, j + 1, struct.pack('<i', t - (j + 5)))
+    p.put(1, site + 1, struct.pack('<i', LABELS['nc_adv'] - (site + 5)))   # (relative call and jmp: no fixups)
 
 
 def patch(p, cave, fin_pre):
@@ -265,11 +364,12 @@ def patch(p, cave, fin_pre):
         import careerworld
         slt = careerworld.SITES['slt']
     """Returns (cave end, lib_pre offset) — lib_pre is called by historic.hist_draw."""
-    a0, bye_call, c2573c, diycopy, cal_site, nc_site = _sites(p)
+    a0, bye_call, c2573c, diycopy, cal_site, nc_site, adv_site, c194a4, c1740f, c27f84 = _sites(p)
     symbols = {'DIYCOPY': (2, diycopy), 'LIB_ID': (0, sacups.LIB_ID), 'LIB_N': (0, sacups.LIB_N),
                'LIB_GROUPS': (0, LIB_GROUPS), 'CSEG_2573C': (1, c2573c), 'A0': (2, a0), 'A3': (2, a0 + 12),
                'BYE_NT': (0, len(bc)), 'BYE_BYTES': (0, 'db ' + ', '.join(str(x) for e in bc for x in e)),
                'A5': (2, a0 + 20), 'NCW': (2, diycopy + 0x41F),     # the contest work buffer (DIY layout)
+               'C194A4': (1, c194a4), 'C1740F': (1, c1740f), 'PREG': (2, a0 - 32), 'C27F84': (1, c27f84),
                'BW_ON': (0, int(bw)), 'WORLDB': (slt[0], slt[1] + careerworld.WORLD_BYTE) if bw else (0, 0),
                'FIN_PRE': (1, fin_pre),
                'CAL_BYTES': (0, 'db ' + ', '.join(str(b) for b in calendar_bytes()))}
@@ -279,12 +379,13 @@ def patch(p, cave, fin_pre):
     for off, tobj, toff in fix:
         p.add_ptr(1, cave + off, tobj, toff)
     p.put(1, bye_call + 1, struct.pack('<i', labels['lib_bye'] - (bye_call + 5)))
+    LABELS.update(nc_adv=labels['nc_adv'], nc_adv_call=labels['nc_adv_call'], adv_site=adv_site)   # (chain_adv)
     p.remove(1, nc_site + 2)                                      # mov esi, [A5] (6 B) -> call nc_bye; nop
     p.put(1, nc_site, b'\xe8' + struct.pack('<i', labels['nc_bye'] - (nc_site + 5)) + b'\x90')
     p.remove(1, cal_site + 2)                                     # mov esi, [A0] (6 B) -> call lib_cal; nop
     p.put(1, cal_site, b'\xe8' + struct.pack('<i', labels['lib_cal'] - (cal_site + 5)) + b'\x90')
     print(f'exe: Libertadores 1997: bye call obj1+{bye_call:#x} (lib_bye {labels["lib_bye"]:#x}, BYE_TAB {len(bc)}, '
-          f'national cups obj1+{nc_site:#x}), '
+          f'national cups obj1+{nc_site:#x}, round advance obj1+{adv_site:#x}), '
           f'calendar obj1+{cal_site:#x}, code @ obj1+{cave:#x} '
           f'(diyFileBufferCopy obj2+{diycopy:#x})')
     return (cave + len(code) + 3) & ~3, labels['lib_pre']

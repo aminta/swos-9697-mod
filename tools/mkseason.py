@@ -873,7 +873,11 @@ def world_defs():
         _need(len(roots) == 1, f'world {n}: exactly one pack must have world_cups')
         wc = roots[0].meta['world_cups']
         w = {'n': n, 'countries': [pk.files[pk.league['clubs']][0] for pk in pks], 'places': {}, 'cups': {},
-             'clubs': {}, 'tmd': 'WORLD%02d.TMD' % n}
+             'clubs': {}, 'tmd': 'WORLD%02d.TMD' % n, 'pool': None}
+        if roots[0].meta.get('pool'):                     # its foreign market (worldpool.py): POOLnn.DAT
+            src = os.path.join(roots[0].path, roots[0].meta['pool'])
+            _need(os.path.getsize(src) == 900 * 58, f'world {n}: pool {src}: 900 records of 58 bytes needed')
+            w['pool'] = ('POOL%02d.DAT' % n, src)
         _need(isinstance(wc.get('start_year'), int) and 1900 < wc["start_year"] < 2100,
               f'world {n}: world_cups.start_year (first season, e.g. 1984) is needed')
         w['year'] = wc['start_year']
@@ -935,7 +939,8 @@ def world_defs():
 
 
 def world_files():
-    """{'WORLDnn.TMD': first-season European clubs of world nn (team-file records, the game sets word +2)}."""
+    """{'WORLDnn.TMD': first-season European clubs of world nn (team-file records, the game sets word +2),
+    'POOLnn.DAT': its foreign-market pool when the root pack names one (pack.json 'pool')}."""
     files = team_files()
     out = {}
     for w in world_defs():
@@ -945,6 +950,8 @@ def world_files():
                 f, i = pk.where[c]
                 recs.append(files[f][2 + i * TEAM_SIZE:2 + (i + 1) * TEAM_SIZE])
         out[w['tmd']] = b''.join(recs)
+        if w['pool']:
+            out[w['pool'][0]] = open(w['pool'][1], 'rb').read()
     return out
 
 

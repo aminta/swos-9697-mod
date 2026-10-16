@@ -59,6 +59,7 @@ As for season packs, you do not need to care about `files` (file numbers and glo
 | `europe_places` | places of this country in the European Cup (`cc`), Cup Winners' Cup (`cwc`) and UEFA Cup (`uefa`) |
 | `first_europe` | optional: the clubs that play each European cup in the **first** season (club keys of this country). Default: the clubs in league order, top division first (Champions Cup first, then Cup Winners' Cup, then UEFA Cup) |
 | `world_cups` | in **one** pack of the world only (the *root* country): `start_year` (the first season, e.g. `1984` for 1984-85), `name` (the world's entry in the CLASSIC CAREERS list, also per language: `{"it": "EUROPA 1984-85", "en": "EUROPE 1984-85"}`; default `1984-85`) and optionally the `rounds` of each cup, e.g. `{"cc": {"rounds": ["two_legs", "two_legs", "two_legs", "two_legs", "single"]}}`. Default rounds: two legs, single-match final |
+| `pool` | optional, root pack only: the world's own foreign market, a file in the pack folder in the game's POOLPLYR.DAT layout (900 records of 58 bytes: team file, club, player ordinal, club name 17, player 38). Installed as `DATA/POOLnn.DAT` (nn = the world number); a career in that world loads it instead of the 1996-97 `poolplyr.dat` (tools/worldpool.py). Use team-file numbers that are not files of the world for its clubs |
 
 **Leagues with divisions.** A country can have several divisions with promotion and relegation: in the league
 competition, `divisions` lists them from the top (`teams`, `promoted`, `relegated`, `names`), and `clubs.csv` gets a

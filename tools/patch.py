@@ -28,6 +28,7 @@ import purple
 import blond
 import mkseason
 import careerworld
+import worldpool
 import nsl97
 import nz97
 import finals97
@@ -252,6 +253,7 @@ def patch_exe(src, dst, remap, lang='it'):
         end = careerworld.late(p, careerworld.LABELS['end'], nasmcave)
         if bigw:
             end = careerworld.patch_tails(p, end, nasmcave)
+        end = worldpool.patch(p, end, nasmcave, [(w['n'], w['pool'][0]) for w in mkseason.world_defs() if w['pool']])
         assert end <= CAREER_CAVE + CAREER_CAVE_SIZE, hex(end)
     p.add_ptr(1, info['new_career_ptr'], 1, new_career)
     if ARG_LOAD_HOOK:

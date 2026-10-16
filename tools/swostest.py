@@ -666,7 +666,8 @@ class Session:
             self.bp_hits = {}
             for off in os.environ['SWOSTEST_BP'].split(','):     # counting breakpoints (use CORE=normal)
                 o = int(off, 16)
-                self.bp(base1 + o, lambda r, o=o: self.bp_hits.__setitem__(o, self.bp_hits.get(o, 0) + 1))
+                self.bp(base1 + o, lambda r, o=o: (self.bp_hits.__setitem__(o, self.bp_hits.get(o, 0) + 1),
+                                                   self.log.append(f'BP obj1+{o:X} hit {self.bp_hits[o]}')))
         while outcome == 'break' and b.eip in getattr(self, 'bps', {}):
             r = self.paused('bp', b.eip)
             self.bps[b.eip](r)
@@ -1280,6 +1281,8 @@ def world8485():
                 if nosack is not None and season not in poked:   # W8485_NOSACK: the game's 'no sacking' word
                     s.poke(s.result.base2 + nosack, b'\x01\x00')   # (dseg_D6B62, cleared at every season start)
                     poked.add(season)
+                if peek is not None:                   # W8485_PEEK: the largest word seen at an obj2 offset
+                    peek[1] = max(peek[1], struct.unpack_from('<H', s.result.obj2(peek[0], 2))[0])
                 rnd, cid, ties = slot_ties(s.result, 32)
                 if struct.unpack_from('<H', s.result.obj2(SLOT, 2))[0] == 2:   # a league phase (type 2): no ties
                     return season_over(scr)
@@ -1292,11 +1295,12 @@ def world8485():
                     check(not same, f'season {season} cup {cid} round {rnd + 1}: same-country ties {same}', errs)
                 return season_over(scr) or (r2only and (season, 1) in seen)
             r2only = os.environ.get('W8485_R2') == '1'         # stop once the player's round 2 is checked
+            peek = [int(os.environ['W8485_PEEK'], 0), 0] if os.environ.get('W8485_PEEK') else None
             ok, msg = advance(s, stop, 900)
             if r2only:
                 return (season, 1) in seen and not errs, f"season {season}: {msg}; {'; '.join(errs) or 'ok'}"
 
-            msg += f', euro rounds checked {sorted(seen)}'
+            msg += f', euro rounds checked {sorted(seen)}' + (f', peek max {peek[1]}' if peek else '')
             if not ok or errs:
                 return False, f"season {season}: {msg}; {'; '.join(errs)}"
             if s.screen().find('FINISCI STAGIONE', exact=True) is not None:

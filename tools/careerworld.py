@@ -50,7 +50,7 @@ B_SEL, SEL_ROOM = 0x4B000, SEL_N * TEAM_SIZE + 0x1000          # (+ the trailer'
 B_STAGE = 0x67000                                    # 95153 (fixed part) + SEL_ROOM
 # UEFA qualifying rounds (uefaq.py, league-phase worlds only: BSS_SIZE grows then): the C code's .bss, then the
 # season end's copies of the clubs' records (55 associations x (top 9 + cup winner) + 3)
-B_UQ, UQ_BSS, UQ_RECS = 0x9A000, 0x6000, 563
+B_UQ, UQ_BSS, UQ_RECS = 0x9A000, 0x7000, 563
 BSS_SIZE = B_UQ                                      # (big worlds; + the qualifying rounds' area in league-phase ones)
 B_TMD, B_CUPS, B_LISTS = 0, 128 * TEAM_SIZE, 128 * TEAM_SIZE + 3 * 160      # cups 160 B apart, lists 64 / 64 / 96
 # SaveSelectedTeams / RestoreSelectedTeams park the career's team cache while a contest is simulated (season end):

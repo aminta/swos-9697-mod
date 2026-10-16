@@ -603,6 +603,32 @@ UQ_FORCE: db FORCE
 UQ_WIN: WIN_BYTES
 UQ_V: dd 0, 0
 UQ_E: dw 0
+uq_cpts:                                ; uefacoef uc_final (UC_QPTS, ebp = CB): the qualifying ties' points (this
+    pushad                              ; season's bracket, before uq_fill replaces it)
+    push es
+    push ds
+    pop es
+    mov dword [UQ_S], STATE
+    cld
+    call uq_coef
+    xor ebx, ebx
+.l:
+    cmp ebx, [UQ_NCP]
+    jae .x
+    movzx eax, word [UQ_CP + ebx*4]
+    movzx ecx, byte [UQ_CP + ebx*4 + 2]
+    call UC_ADD
+    cmp byte [UQ_CP + ebx*4 + 3], 0
+    je .n
+    movzx eax, al
+    inc byte [CB + CTEAMS + eax]        ; a club of the association's divisor (no league phase)
+.n:
+    inc ebx
+    jmp .l
+.x:
+    pop es
+    popad
+    ret
 '''
 
 
@@ -696,6 +722,8 @@ def patch(p, at, limit, sites):
                     'FORCE': (0, ROUNDS.index(os.environ['UEFAQ_FORCE']) if os.environ.get('UEFAQ_FORCE') else 0),
                     'WIN_BYTES': (0, 'db ' + ', '.join(str(WIN.get(r.split()[1][:2], 0)) for r in ROUNDS)),
                     'UQ_S': syms['UQ_S'], 'UQ_R': syms['UQ_R'], 'uq_resolve': syms['uq_resolve'],
+                    'uq_coef': syms['uq_coef'], 'UQ_CP': syms['UQ_CP'], 'UQ_NCP': syms['UQ_NCP'],
+                    'UC_ADD': (1, uc.LABELS['uc_add']), 'CTEAMS': (0, uc.CTEAMS),
                     'STATE': (2, sites['tmd'] + uc.CB_OFF + uc.SIZE), 'SLOT3': (2, sites['slot3']),
                     'E092F': (2, sites['e092f']), 'CUP_KIND': (2, sites['cup_kind']), 'C8B2D3': (1, sites['c8b2d3']),
                     'D0R': (2, sites['a0'] - 32), 'D1R': (2, sites['a0'] - 28), 'D2R': (2, sites['a0'] - 24),
@@ -717,13 +745,15 @@ def patch(p, at, limit, sites):
     for stub, target in (('w_q_cq', 'uq_country'), ('w_q_fill', 'uq_fill'), ('w_q_post', 'uq_post')):
         a = cw.LABELS[stub]
         p.put(1, a, b'\xe9' + rel(a, lab[target]))
+    p.retarget(1, uc.LABELS['UC_QPTS'], 1, lab['uq_cpts'])       # (uefacoef uc_final)
     p.put(1, site + 1, rel(site, lab['uq_daily']))     # (a relative call: no fixup to move)
     for hk, stub in ((r280c0, 'uq_rn1'), (r283bd, 'uq_rn2')):     # `sub word [Dn], 1` (8 B, a fixup) -> jmp
         p.remove(1, hk + 3)
         p.put(1, hk, b'\xe9' + rel(hk, lab[stub]) + b'\x90' * 3)
     print(f"exe: uefaq state obj2+{symbols['STATE'][1]:#x} (k +{slay['S_K']:#x}, res +{slay['S_RES']:#x}), slot 3 "
           f"obj2+{sites['slot3']:#x}, uq_daily {lab['uq_daily']:#x}")
-    print('exe: uefaq labels ' + ' '.join(f'{k} {lab[k]:#x}' for k in ('uq_country', 'uq_fill', 'uq_fill.ran', 'uq_fill.done', 'uq_post')))
+    print('exe: uefaq labels ' + ' '.join(f'{k} {lab[k]:#x}' for k in ('uq_country', 'uq_fill', 'uq_fill.ran', 'uq_fill.done', 'uq_post',
+                                                                         'uq_cpts')) + f" UC_QPTS {uc.LABELS['UC_QPTS']:#x}")
     print(f'exe: UEFA qualifying rounds: C obj1+{at:#x}..{end:#x}, glue ..{glue + len(code):#x}, '
           f'bss obj2+{bss_at:#x} ({bss} B + {cw.UQ_RECS} records)')
     return glue + len(code)

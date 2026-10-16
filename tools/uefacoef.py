@@ -4,7 +4,8 @@ Points in eighths (units): a win 16, a draw 8 (league phase); Champions League l
 league-phase ranking bonus (place 24 up: CL / EL 0.25 a place = 2 units; Conference League 0.125 for places 9-24,
 then 0.25); each knockout round reached from the round of 16: CL 1.5, EL 1, UECL 0.5 (12 / 8 / 4 units).
 Knockout matches are not seen one by one: a tie gives its winner 3 points and its loser 1 (two legs), the final's
-winner 2. A club's coefficient = its points of the last 5 seasons; an association's season = its clubs' points /
+winner 2. Qualifying ties (uefaq uq_coef, at the season end): half points (real rule for the associations), winner
+1.5, loser 0.5; a club out in the qualifying counts in its association's divisor. A club's coefficient = its points of the last 5 seasons; an association's season = its clubs' points /
 its clubs (in thousandths, truncated), its coefficient = 5 seasons.
 
 Block (saved: the .CAR fixed part's 80-record area, unused by a big world after the W1 block): CB = tmdFileBuffer +
@@ -388,6 +389,10 @@ uc_str:                                 ; lp36 lp_cb_str: eax = squad value, edx
     pop edx
     ret
 
+UC_QPTS: dd uc_noq                      ; (uefaq.py: uq_cpts)
+uc_noq:
+    ret
+
 uc_final:                               ; careerworld w_q_cb: the first qualifier of the season end (cseg_93974: the
     pushad                              ; cups are over, simulations included; cseg_936C0 has expanded the place lists
     mov al, 0                           ; into the working lists, nothing taken yet)
@@ -418,6 +423,7 @@ uc_final:                               ; careerworld w_q_cb: the first qualifie
     inc ebx
     cmp ebx, 3
     jb .f
+    call [UC_QPTS]                      ; (uefaq: the qualifying ties' points, before the ring)
     movzx ebx, byte [ebp + RING]        ; the season's values into the ring
     xor ecx, ecx
 .c:

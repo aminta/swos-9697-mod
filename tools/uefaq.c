@@ -608,3 +608,51 @@ void uq_resolve(void) {
         }
     #undef PHI
 }
+
+/* uq_coef(): the coefficient points of the season's qualifying ties (season end, before uq_season replaces the
+   bracket, emptied here). Real rule (2024-27): qualifying points count half for the association. The game does not see the
+   simulated ties' matches: a tie gives its winner 1.5 points and its loser 0.5 (half of the knockout ties' 3 / 1),
+   the career club's ties by its real results. UQ_CP: (team word, units in eighths, 1 = a club the association's
+   divisor counts here: it played qualifying and reached no league phase). */
+struct uq_cp { u16 team; u8 units, count; };
+struct uq_cp UQ_CP[2 * NBR];
+u32 UQ_NCP;
+void uq_coef(void) {
+    struct uq_state *S = UQ_S;
+    static u16 from[16], to[16];
+    int nm = 0, j = 0;
+    UQ_NCP = 0;
+    if (!S || !S->nbr) return;          /* (mark: 0 once the career club's ties are over; nbr: 0 = counted) */
+    uq_resolve();
+    u16 m = S->m;
+    #define PHI(x) phi(x, from, to, nm)
+    for (int t = 0; t < S->nbr; t++) {
+        u16 a = PHI(S->br[t].a), b = PHI(S->br[t].b), w = S->br[t].aw ? a : b;
+        if (a == m || b == m) {
+            u16 opp = a == m ? b : a;
+            int simwon = (a == m) == S->br[t].aw, won = j < S->k ? S->res >> j & 1 : simwon;
+            w = won ? m : opp;
+            if (simwon != won && nm < 15) {
+                u16 bm = a == m ? S->br[t].a : S->br[t].b, bo = a == m ? S->br[t].b : S->br[t].a;
+                setphi(bm, opp, from, to, &nm);
+                setphi(bo, m, from, to, &nm);
+            }
+            j++;
+        }
+        for (int s = 0; s < 2; s++) {
+            u16 c = s ? b : a;
+            int cnt = 0;
+            if (UQ_R.done) {            /* counted once: its first tie, when no league phase has it */
+                cnt = 1;
+                for (u32 i = 0; i < UQ_NCP && cnt; i++) if (UQ_CP[i].team == c) cnt = 0;
+                for (int l = 0; l < 3 && cnt; l++)
+                    for (int i = 0; i < 36; i++) if (UQ_R.gl[l][i] == c) { cnt = 0; break; }
+            }
+            UQ_CP[UQ_NCP].team = c;
+            UQ_CP[UQ_NCP].units = c == w ? 12 : 4;
+            UQ_CP[UQ_NCP++].count = cnt;
+        }
+    }
+    S->nbr = 0;                         /* (once: uq_season writes the next bracket) */
+    #undef PHI
+}

@@ -223,7 +223,7 @@ def patch(p, area, at):
     assert p.target(1, q + 1) == (2, working[1]) and d1[q + 5] == 0xE8
     setpal = q + 10 + struct.unpack('<i', d1[q + 6:q + 10])[0]
 
-    marks = area.add(b'\0\0\0\0')
+    marks = area.add(b'PKMK\0\0\0\0') + 4             # tag: the harness finds the marks by it
     at = (at + 15) & ~15
     sym = {'D0': (2, D0), 'A1': (2, A0 + 4), 'TOP': info['top'], 'BOTTOM': info['bottom'], 'MARKS': (2, marks),
            'PURPLE_': (0, PURPLE), 'MAROON_': (0, MAROON), 'SLOT_': (0, SLOT),

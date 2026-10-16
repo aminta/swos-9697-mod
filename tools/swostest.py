@@ -1857,6 +1857,77 @@ def india_season():
     return path.endswith('.CAR'), f'{msg}; next season {os.path.basename(path)}'
 
 
+PURPLE_RGB, MAROON_MENU = (24, 8, 34), (27, 0, 9)
+
+
+def italy_friendly(s, home, away):
+    """Main menu -> AMICHEVOLE, ITALIA SERIE A: home (human) and away (computer) -> pre-match screen of home."""
+    for t in ('AMICHEVOLE', 'OK', 'SCEGLI SQUADRE', 'SQUADRE CLUB', 'EUROPA'):
+        walk(s, t, 2)
+    for _ in range(30):                         # ITALIA (49): one key at a time down the middle column
+        sel = s.screen().selected
+        if sel == 49:
+            break
+        s.send(('down' if sel < 49 else 'up') + ' dump:0.5')
+    s.send('fire dump:3')
+    walk(s, 'SERIE A', 2)
+    walk(s, home, 2)
+    s.send('fire dump:2')                       # home: COMPUTER -> GIOCA-ALLENA
+    walk(s, away, 2)
+    for _ in range(12):
+        scr = s.screen()
+        i = scr.find('AMICHEVOLE', exact=True)
+        if scr.selected == i:
+            s.send('fire dump:4')
+            return s.screen()
+        s.send(('right' if scr.selected in (i + 1, i + 2) else 'down') + ' dump:0.5')
+    raise AssertionError('AMICHEVOLE not reached')
+
+
+@scenario
+def purple_kits():
+    """3.3.0: kit colour 10 = purple (Fiorentina): palette entry 12 purple in the SELECT KITS editor for Fiorentina and
+    maroon for Inter, purple in the match Fiorentina-Inter and Fiorentina-Roma (Roma's maroon kit clashes: green away)"""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import lepatch
+    b = builds()['it']
+    p = lepatch.LEPatch(os.path.join(b, 'ITALIAN.EXE'))
+    import re as _re
+    fp = _re.search(rb'\xbf....\xbe....\xb9\x0f\x00\x00\x00', p.le.obj_bytes(1), _re.S)
+    working = p.target(1, fp.start() + 6)[1]
+    errs, info = [], []
+    for away, kits in (('INTER MILAN', True), ('ROMA', False)):
+        with Session('purple_kits_' + away[:5], b, {}, 'dump:3', 300, match=True) as s:
+            s.wait()
+            italy_friendly(s, 'FIORENTINA', away)
+            if kits:
+                scr = walk(s, 68, 3)
+                pal = s.result.read(s.result.base2 + working + 36, 3)
+                check(scr.entries[1][1] == 'FIORENTINA' and tuple(pal) == PURPLE_RGB, f'editor {scr.entries[1][1]} {tuple(pal)}', errs)
+                walk(s, 1, 3)                   # the other team
+                pal = s.result.read(s.result.base2 + working + 36, 3)
+                check(tuple(pal) == MAROON_MENU, f'editor {s.screen().entries[1][1]} {tuple(pal)}', errs)
+                walk(s, 20, 3)                  # ESCI
+            for _ in range(22):
+                s.send('down dump:0.5')
+                if s.screen().selected == 9:
+                    break
+            r = s.send('fire ' + 'fire:3 ' * 8 + 'dump:2')
+            check(r.outcome == 'dump', f'{away}: match {r}', errs)
+            if r.outcome == 'dump':
+                pal = tuple(r.read(r.base2 + working + 36, 3))
+                o2 = r.read(r.base2, 0x100000)
+                m = o2.find(b'PKMK')
+                marks = tuple(o2[m + 4:m + 6]) if m >= 0 else None
+                worn = (marks[0] | marks[1]) if marks else None     # bit 0 purple, bit 1 maroon worn
+                want = PURPLE_RGB if worn == 1 else (25, 0, 8)
+                check(marks is not None and pal == want and worn != 3, f'match vs {away}: marks {marks}, entry 12 {pal}', errs)
+                info.append(f'{away}: marks {marks}')
+                if away == 'INTER MILAN':
+                    check(worn == 1, f'Fiorentina-Inter: purple not worn ({marks})', errs)
+    return not errs, '; '.join(errs + info) if errs else 'purple in the editor (maroon for Inter) and vs Inter; ' + '; '.join(info)
+
+
 def run_parallel(names, jobs):
     """run -jN: each scenario in its own process (own run dirs and DOSBox-X, one host core each in turbo); the
     builds are made once here first. Output in the order of the names; exit code 1 on a failure."""

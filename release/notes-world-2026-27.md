@@ -69,8 +69,9 @@ first 43 UEFA associations by ranking, the others are under OTHER NATIONS).
   player (name and birth date), not by club, so they are a year old; they will be refreshed when EA publishes FC 27.
 - About a third of the players are in EA's ratings (most of the big leagues, few of the small ones).
 - Squads (engine): at most 32 players in the managed club (25 + up to 7 purchases or trial players; at 32 pending
-  purchases are cancelled), 5 substitutes on the bench, 16 per computer club. If you leave a club, the 9 reserves stay
-  behind (the club keeps its first 16); if you come back later, they join again, also any you had sold.
+  purchases are cancelled), 5 substitutes on the bench, 16 per computer club. When you leave a club, it keeps the first 16
+  of your squad order (as in the original game) and the others are dropped; if you come back later, its 9 reserves
+  join again, also any you had sold, and a reserve you had moved into the first 16 can then appear twice.
 - [TODO integrator: engine limits (team cache, cups, per-world contest ids), the manager's club results in
   'view results' seasons.]
 
@@ -156,9 +157,10 @@ federazioni UEFA per ranking, le altre sono in ALTRE NAZIONI).
   verranno aggiornati quando EA pubblicherà FC 27.
 - Circa un terzo dei giocatori è nelle valutazioni EA (gran parte dei campionati maggiori, pochi di quelli minori).
 - Rose (motore): al massimo 32 giocatori nel club allenato (25 + fino a 7 acquisti o giocatori in prova; a 32 gli
-  acquisti in sospeso vengono annullati), 5 sostituti in panchina, 16 per ogni club del computer. Se lasci un club, le
-  9 riserve restano lì (il club tiene i suoi primi 16); se ci torni più avanti, rientrano tutte, anche quelle che avevi
-  venduto.
+  acquisti in sospeso vengono annullati), 5 sostituti in panchina, 16 per ogni club del computer. Quando lasci un club,
+  questo tiene i primi 16 del tuo ordine di rosa (come nel gioco originale) e gli altri vengono tolti; se ci torni più
+  avanti, le sue 9 riserve rientrano, anche quelle che avevi venduto, e una riserva che avevi portato tra i primi 16
+  può comparire due volte.
 - [TODO integratore: limiti del motore (cache squadre, coppe, id delle competizioni per mondo), i risultati del club
   allenato nelle stagioni giocate solo coi risultati.]
 

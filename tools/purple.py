@@ -14,7 +14,8 @@ and when the kits worn in the match have purple and no maroon, entry 12 becomes 
   `mov al, [D0]` becomes `call pk_mark`, which records for that team whether shirt, stripes (not on a plain shirt),
   shorts or socks are purple or maroon.
 - the match palette: GameLoop's `mov ecx, 768 / rep movsb` (savedPalette -> g_workingPalette, before the upper half is
-  darkened from it) and the stadium screen's copy of the stad.256 palette (ShowStadiumInit) become `call pk_pal`: the
+  darkened from it) and the stadium screen's two copies of the stad.256 palette (ShowStadiumInit, the line-ups before
+  the match; 3.3.1: the second copy, which the screen keeps, was missed) become `call pk_pal`: the
   same copy, then entry 12 = purple when a team wears purple and none wears maroon.
 """
 import re
@@ -207,7 +208,12 @@ def patch(p, area, at):
     working = p.target(1, st[0] + 7)
     gl = [x for x in gl if p.target(1, x + 6) == working]
     assert len(gl) == 1, [hex(x) for x in gl]
-    copies = [gl[0] + 10, st[0] + 11]                    # the `mov ecx, 768` of each
+    # ShowStadiumInit loads stad.256 twice and copies its palette after each load: the second copy (followed by
+    # `push D0`) is the one the screen keeps, so both are hooked
+    st2 = [x.start() for x in re.finditer(rb'\x81\xC6\x00\xFA\x00\x00\xBF....\xB9\x00\x03\x00\x00\xF3\xA4\xFF\x35', d1, re.S)]
+    st2 = [x for x in st2 if 0 < x - st[0] < 0x80 and p.target(1, x + 7) == working]
+    assert len(st2) == 1, st2
+    copies = [gl[0] + 10, st[0] + 11, st2[0] + 11]       # the `mov ecx, 768` of each
 
     # 5. the kit editor: Primary/SecondaryKitColorConversion start `mov dword [A6], editTeamsTeam / mov [A2], .. /
     #    mov [A3], kTeamColorsTable`; SetPalette, g_workingPalette, g_fadePalette from FillPalettes
@@ -246,7 +252,7 @@ def patch(p, area, at):
         assert p.get(1, c, 7) == b'\xB9\x00\x03\x00\x00\xF3\xA4'
         p.put(1, c, b'\xE8' + struct.pack('<i', lab['pk_pal'] - (c + 5)) + b'\x90\x90')
     print(f'exe: purple kits: colour {PURPLE} -> palette {SLOT} when no maroon (code obj1+{at:#x}, {len(code)} B; '
-          f'ConvertTeamKitColors obj1+{conv:#x}, palette copies obj1+{copies[0]:#x}, +{copies[1]:#x})')
+          f'ConvertTeamKitColors obj1+{conv:#x}, palette copies ' + ', '.join(f'obj1+{c:#x}' for c in copies) + ')')
     return at + len(code)
 
 # Clubs the game (and the mod's packs) dressed in maroon for want of purple: their kit colour 6 becomes 10.

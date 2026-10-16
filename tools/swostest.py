@@ -1929,6 +1929,36 @@ def purple_kits():
 
 
 @scenario
+def purple_stadium():
+    """3.3.1: the line-ups screen before the match (ShowStadiumInit) keeps Fiorentina purple: palette entry 12 purple
+    after the screen's second copy of the stad.256 palette (breakpoints: normal core)"""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import lepatch
+    import re as _re
+    os.environ['CORE'] = 'normal'               # one process per scenario: only this one runs the slower core
+    b = builds()['it']
+    p = lepatch.LEPatch(os.path.join(b, 'ITALIAN.EXE'))
+    d1 = p.le.obj_bytes(1)
+    m = _re.search(rb'\x81\xC6\x00\xFA\x00\x00\xBF....(?:\xB9\x00\x03\x00\x00\xF3\xA4|\xE8....\x90\x90)\xFF\x35', d1, _re.S)
+    after = m.end() - 2                         # the `push D0` after the copy the screen keeps (hooked or not)
+    fp = _re.search(rb'\xbf....\xbe....\xb9\x0f\x00\x00\x00', d1, _re.S)
+    working = p.target(1, fp.start() + 6)[1]
+    got = []
+    with Session('purple_stadium', b, {}, 'dump:3', 300, match=True) as s:
+        s.wait()
+        italy_friendly(s, 'INTER MILAN', 'FIORENTINA')
+        base1, base2 = s.result.base1, s.result.base2
+        s.bp(base1 + after, lambda r: got.append(tuple(r.read(base2 + working + 36, 3))))
+        for _ in range(22):
+            s.send('down dump:0.5')
+            if s.screen().selected == 9:
+                break
+        r = s.send('fire ' + 'fire:3 ' * 4 + 'dump:2')
+    ok = r.outcome == 'dump' and got and got[0] == PURPLE_RGB
+    return ok, f'line-ups screen entry 12 {got} ({r.outcome})'
+
+
+@scenario
 def blond_faces():
     """3.3.0: face 3 = black skin + blond hair: FIORENTINA's outfield players set to face 3 (test copy of TEAM.020);
     pre-match face icon 189 built (yellow hair), in the match the new sprite set 1418.. is registered and has hair in

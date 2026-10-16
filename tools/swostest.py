@@ -285,12 +285,17 @@ script:
 
 
 def bp_str(r):
-    """SWOSTEST_BP_STR = obj2 offset of a pointer (e.g. the A0 pseudo register): the string it points to."""
+    """SWOSTEST_BP_STR = obj2 offset of a pointer (e.g. the A0 pseudo register): the string it points to;
+    SWOSTEST_BP_HEX = obj2 offset:bytes,...: those bytes."""
+    out = ''
+    for a in filter(None, os.environ.get('SWOSTEST_BP_HEX', '').split(',')):   # obj2 offset:bytes, logged in hex
+        o, n = a.split(':')
+        out += f' {o}:{r.obj2(int(o, 16), int(n)).hex()}'
     off = os.environ.get('SWOSTEST_BP_STR')
     if not off:
-        return ''
+        return out
     p = struct.unpack('<I', r.obj2(int(off, 16), 4))[0]
-    return ' ' + r.read(p, 24).split(b'\0')[0].decode('latin-1')
+    return out + ' ' + r.read(p, 24).split(b'\0')[0].decode('latin-1')
 
 
 ANSI = re.compile(rb'\x1b\[[0-9;?]*[a-zA-Z]|\x1b\(B')

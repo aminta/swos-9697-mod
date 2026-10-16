@@ -279,7 +279,7 @@ script:
     fixed = next(o for o in range(0x1000, len(c), 16)            # 48 code bytes with no fixup: finds obj1 in a dump
                  if not any(o - 3 <= f < o + 48 for f in range(o - 3, o + 48) if f in fx) and len(set(c[o:o + 48])) > 8)
     lab = nasmcave.labels(src, 0, sym)
-    return {'page': page, 'size2': le.obj(2).vsize, 'calls': page + lab['calls'], 'code': (fixed, c[fixed:fixed + 48]), 'menu': curmenu[1],
+    return {'page': page, 'size2': min(le.obj(2).vsize, le.obj(2).npages * le.page_size), 'calls': page + lab['calls'], 'code': (fixed, c[fixed:fixed + 48]), 'menu': curmenu[1],
             'brk': page + code.index(b'\xcd\x03'), 'ptr': page + lab['ptr'], 'script': page + lab['script'],
             'anchor': (anchor, d2[anchor:anchor + 64])}
 
@@ -468,7 +468,8 @@ class Result:
                 self.base1 = self._mem.find(chunk) - off
                 off, chunk = info['anchor']
                 self.base2 = self._mem.find(chunk) - off
-        if bases and box:                              # one dump: the stub's page + obj2 (adjacent; menus, slots)
+        if bases and box:                              # one dump: the stub's page + obj2's pages (adjacent; menus,
+                                                       # slots; a big world's zero-filled tail is read on demand)
             lo, hi = self.base1 + info['page'], self.base2 + info['size2']
             if 0 < hi - lo <= 0x200000:
                 self.read(lo, hi - lo)
@@ -807,14 +808,17 @@ def substitute(s, scr, tries=16):
         ry = cur.geom[reserve][1]
         face = next((i for i, (l, r) in enumerate(cur.nav) if l[1] == reserve and cur.geom[i][0] < 25), None)
         bad = [(k, i) for k, (i, un) in enumerate(rows[:16]) if un]
+        if not bad and 'VIS. RISULTATI' not in cur.texts() and pos_of(cur, cur.geom[rows[0][0]][1]) != 'P':
+            bad = [(0, rows[0][0])]             # no goalkeeper in goal (the game's squad changes: the keeper hurt,
+                                                # an outfield player moved there): a fit one from the reserves
         if not bad:
             return None if 'VIS. RISULTATI' in cur.texts() else f'squad screen without VIS. RISULTATI, no unavailable row'
         if face is None:
             return f'squad screen: no face entry for the 17th row'
         k, i = bad[0]
         if k == 0:                              # the goalkeeper: a fit one from the bench?
-            gk = rows[11][0] if not rows[11][1] else None   # row 12 = the reserve goalkeeper (SWOS squads; the rows'
-                                                            # positions are drawn, not menu entries)
+            gk = rows[11][0] if not rows[11][1] and pos_of(cur, cur.geom[rows[11][0]][1]) == 'P' else None
+                                                            # row 12 = the reserve goalkeeper in SWOS squads
             if gk is not None:
                 press(s, cur, i, wait=1)
                 press(s, s.screen(), gk, wait=1)
@@ -1864,6 +1868,23 @@ def lp36_tourney():
                       f'final {rounds.get("FINALE")}; ' + '; '.join(errs))
 
 
+def world_lock():
+    """An exclusive lock around internal/world2526/run.sh: it rewrites its converter output (world5/) every time, so
+    two builds at once (world2526 and world2526q in a parallel suite) would break each other."""
+    import contextlib
+    import fcntl
+
+    @contextlib.contextmanager
+    def lock():
+        with open(os.path.join(WORK, 'world2526.lock'), 'w') as f:
+            fcntl.flock(f, fcntl.LOCK_EX)
+            try:
+                yield
+            finally:
+                fcntl.flock(f, fcntl.LOCK_UN)
+    return lock()
+
+
 @scenario
 def world2526():
     """World 2025-26 with the UEFA league phases (private converter internal/world2526, LP=1: CL / EL / UECL of 36, the
@@ -1872,8 +1893,9 @@ def world2526():
     if not os.path.exists(run):
         return True, 'SKIP: private converter internal/world2526 missing'
     out = os.path.join(WORK, 'builds', 'world2526')
-    r = subprocess.run(['sh', run], env=dict(os.environ, LP='1', OUT=out, TOOLS=os.path.join(ROOT, 'tools')),
-                       capture_output=True, text=True)
+    with world_lock():                         # (world2526q builds from the same converter output dir)
+        r = subprocess.run(['sh', run], env=dict(os.environ, LP='1', OUT=out, TOOLS=os.path.join(ROOT, 'tools')),
+                           capture_output=True, text=True)
     if r.returncode or not os.path.exists(os.path.join(out, 'ITALIAN.EXE')):
         return False, f'build: {(r.stdout + r.stderr)[-300:]}'
     keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K')}
@@ -1899,8 +1921,9 @@ def world2526q():
     if not os.path.exists(run):
         return True, 'SKIP: private converter internal/world2526 missing'
     out = os.path.join(WORK, 'builds', 'world2526q')
-    r = subprocess.run(['sh', run], env=dict(os.environ, LP='1', OUT=out, TOOLS=os.path.join(ROOT, 'tools'),
-                                             UEFAQ_FORCE='CL Q1'), capture_output=True, text=True)
+    with world_lock():
+        r = subprocess.run(['sh', run], env=dict(os.environ, LP='1', OUT=out, TOOLS=os.path.join(ROOT, 'tools'),
+                                                 UEFAQ_FORCE='CL Q1'), capture_output=True, text=True)
     if r.returncode or not os.path.exists(os.path.join(out, 'ITALIAN.EXE')):
         return False, f'build: {(r.stdout + r.stderr)[-300:]}'
     keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK')

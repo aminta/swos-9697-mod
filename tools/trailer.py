@@ -42,8 +42,8 @@ save_trailer:
     pushad
     movzx eax, word [NUMSEL]
     imul eax, eax, TEAM_SIZE
-    mov edi, eax                        ; after the records: g_selectedTeams + N*684 (= careerFileBuffer + [D1];
-    add edi, SELBUF                     ; a big world's cache is elsewhere, careerworld.big_sel_buffer)
+    mov edi, eax                        ; after the records: the career's cache + N*684 (g_selectedTeams =
+    add edi, [SELBASEV]                 ; careerFileBuffer + [D1], or a league-phase world's big cache, careerworld)
     add eax, BLOCK
     cmp eax, [ROOMV]
     ja .skip
@@ -99,7 +99,8 @@ load_trailer:
 .trailer:
     movzx eax, word [NUMSEL]
     imul eax, eax, TEAM_SIZE
-    lea esi, [eax + SELBUF]             ; after the records (g_selectedTeams + N*684)
+    mov esi, eax                        ; after the records (the career's cache + N*684)
+    add esi, [SELBASEV]
     add eax, FIXED                      ; trailer offset in the file
     mov ebx, eax
     mov edx, ITEMS
@@ -183,6 +184,7 @@ lt_ret:
     ret
 align 4
 ROOMV: dd ROOM                          ; room for the records + this block (careerworld: a big world's cache)
+SELBASEV: dd SELBUF                     ; the career's team cache (careerworld: a league-phase world's is bigger)
 LOADCOPY: dd lt_ret
 
 items_in:                               ; esi -> ebp items starting at [edx] (dd address, dd size)
@@ -290,7 +292,7 @@ def patch(p, cave, items, tails=False):
     INFO.clear()
     INFO.update({k: symbols[k] for k in ('NUMSEL', 'CAREER', 'D1', 'WRITEFILE', 'PROCESS', 'BLOCK', 'FIXED', 'ROOM',
                                          'MARK', 'SELBUF')})
-    INFO.update(load_a1=load_a1, roomv=labels['ROOMV'], loadcopy=labels['LOADCOPY'])
+    INFO.update(load_a1=load_a1, roomv=labels['ROOMV'], loadcopy=labels['LOADCOPY'], selbasev=labels['SELBASEV'])
     if tails:
         INFO['tails'] = (labels['SAVE_TAIL'], labels['LOAD_TAIL'])
     print(f'exe: .CAR trailer C7 ({block} B) @ obj1+{cave:#x}, SaveCareerFile call obj1+{save_call:#x}, '

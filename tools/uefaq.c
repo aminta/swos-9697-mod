@@ -371,7 +371,10 @@ static void play(int r) {
         t[j] = c;
     }
     int k = 0;
-    if (n & 1) {                                /* a bye for the best club */
+    if (n & 1) {                                /* a bye for the best club (a small world's odd round) */
+        if (t[0] == UQ_IN.manager && n > 1) {   /* (not the career club: it plays its ties) */
+            u16 x = t[0]; t[0] = t[1]; t[1] = x;
+        }
         UQ_OUT.last[t[0] - 1] = r;
         if (WIN[r] != OUT) add(WIN[r], t[0]);
         k = 1;

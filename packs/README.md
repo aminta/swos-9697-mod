@@ -127,7 +127,8 @@ real bracket.
     instead of the 10 reserves the game invents for a new club (computer clubs always play with the 16 of the record).
     Numbers outside 1–99 or already used in the club get a free one from 17. An extra is never better than the
     weakest of the club's 16 (so the managed club is not favoured): keeper price capped at the lowest keeper price,
-    outfield skills lowered to the lowest outfield price (price = skill sum).
+    outfield skills lowered to the lowest outfield price (price = skill sum). Extras are paid like the game's reserves
+    (66% of the wage) but stay regular players: they never leave by themselves.
   - `seed`: random seed of the fillers (part of the determinism).
 
 ### Ratings: three ways, none required

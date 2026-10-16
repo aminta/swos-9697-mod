@@ -49,9 +49,20 @@ Addresses are labels of `ref/swos.asm` (ITA/ENG offsets differ; find them with `
   and sets `careerNumPlayers = 16`. A managed club's extra players live only while the human manages it.
 - **Limits:** buffer 32 slots; fillers stop at 30; `cseg_547AC` (from `RemovePlayerFromTeam`, transfers) tests 32.
   The squad screens already scroll past 16 (squads grow by transfers in the original game).
-- Not traced in this study: the exact point where the managed club's 16 are first copied into `careerTeam` for a new
-  career and for a new job (callers at swos.asm lines ~25056-25133 / 38195 / 54359-54403 are the candidates), the
-  size of `dseg_D6BA6` (must be 32 dwords) and the transfer purchase cap.
+- **Squad load point (traced 2026-10-16): `cseg_5DB56`** (in: D0 = team number, D1 = starting balance), called by
+  `InitCareer+1D1` (new career) and by the tail `jmp` of `cseg_942F2` (new job). It copies the club's 684-byte
+  record into `careerTeam` and `g_selectedTeams[0]` (342 words), copies the record's `playerNumbers` into
+  `currentMatchPlayers`, sets `careerNumPlayers = 16`, `teamsLoaded = 0`. It does NOT run on a .CAR load or at a
+  season start, so a hook at its end needs no 'already added' flag. Slots 16-31 are not cleared (a previous club's
+  extras stay there as dead bytes).
+- Team number: low byte = team file number (TEAM.nnn, `LoadTeamFile`; 100 = CUSTOMS.EDT), high byte = the
+  club's ordinal in the file.
+- **Wages:** `dseg_D6BA6 dd 32 dup` (32 slots). Both callers of `cseg_5DB56` go on to `InitializeNewSeason`, whose
+  `cseg_5DEB9` (+96B) computes the wage of every player 0..careerNumPlayers-1 -> the hook does not compute wages.
+- **Purchase cap:** `cseg_547AC` (transfers): when `careerNumPlayers >= 32` the pending purchase offers are dropped;
+  32 = full. With 25 players there is room for 7 purchases (fillers stop at 30).
+- File I/O from a stub: plain `int 21h` (3Dh / 42h / 3Fh / 3Eh) with flat 32-bit pointers works under DOS/4GW (the
+  mod's diag code in careerworld.py writes files this way).
 
 ### Verdict
 **Feasible, for the managed club only.** A CPU club stays at 16 (no engine room; making CPU records bigger would

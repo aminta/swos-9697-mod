@@ -37,8 +37,30 @@ first 43 UEFA associations by ranking, the others are under OTHER NATIONS).
   the real drawn ties are kept in the first round; the rounds not drawn yet are drawn by the mod (see the rules below).
   Cups not started yet (FA Cup proper, among others) are drawn by the mod from the league clubs.
 - **European cups**: the first season's Champions League, Europa League and Conference League are the real 2026-27
-  league phases (36 clubs each). [TODO integrator: league phase format, exact qualifying rounds, simulated UEFA
-  coefficients (association and club rankings from 2021-22 .. 2025-26), places by association rank, holders.]
+  league phases (36 clubs each). The format is UEFA's since 2024-25:
+  - **League phase**: one table of 36. The draw is made by the game at the start of every season, in four pots by club
+    coefficient (the Champions League holder first): two opponents from each pot, one at home and one away, never a
+    club of the same association and at most two of one association. 8 matchdays; table order by points, goal
+    difference, goals, away goals, wins, away wins, then the opponents' points, goal difference and goals (UEFA's
+    rules, the disciplinary points aside). Places 1-8 go to the round of 16, 9-24 play the knockout play-offs (two
+    legs, 9-16 seeded), 25-36 are out; the round of 16 and the bracket to the final follow UEFA's fixed shape.
+  - **Qualifying rounds** (from the second season): the real access list of 2024-27 (as for 2026-27) for all three
+    competitions: first to fourth qualifying round of the Champions League (champions and league paths), Europa
+    League and Conference League (with its champions path), the losers dropping into the next competition as in
+    reality. Draws seeded by club coefficient, never two clubs of one association; two-leg ties. Your club plays its
+    own ties (PRELIM. CHAMPIONS LEAGUE, rounds named first to fourth); the other ties are decided by the strength of
+    the squads.
+  - **Simulated UEFA coefficients**: they start from the real association coefficients (5 seasons, 2021-22 ..
+    2025-26) and the real club coefficients at the 2025-26 draws; then every season adds the points of the world's
+    own European results (league phase: a win 2, a draw 1; Champions League participation 6; the league-phase place
+    bonus; each knockout round reached; a knockout tie gives its winner 3 and its loser 1, a qualifying tie half of
+    that). An association's season = its clubs' points / its clubs (those out in the qualifying included); a club's
+    coefficient = its 5 seasons, at least 20% of its association's. Both rankings set the next season's pots and seeds.
+  - **Places by association rank**: each season the access list is filled by the simulated association ranking
+    (places per rank as in 2024-27), plus the 2 European Performance Spots (the 2 best associations of the season).
+  - **Holders**: the Champions League holder and the Europa League winner enter the Champions League league phase,
+    the Conference League winner the Europa League league phase; when a holder already qualifies through its league,
+    the access list is rebalanced as UEFA does.
 - **Foreign market**: real players of clubs outside the world (the tiers just below its divisions: Primera
   Federacion, FNL, Challenger Pro League, NordicBet Liga, OBOS-ligaen, Superettan, Challenge League, National, League
   Two ...), 900 of them, instead of the game's 1996 players.
@@ -72,8 +94,13 @@ first 43 UEFA associations by ranking, the others are under OTHER NATIONS).
   purchases are cancelled), 5 substitutes on the bench, 16 per computer club. When you leave a club, it keeps the first 16
   of your squad order (as in the original game) and the others are dropped; if you come back later, its 9 reserves
   join again, also any you had sold, and a reserve you had moved into the first 16 can then appear twice.
-- [TODO integrator: engine limits (team cache, cups, per-world contest ids), the manager's club results in
-  'view results' seasons.]
+- Team cache (engine): the game keeps at most 100 different clubs in memory during a season; a career in this world
+  uses a bigger cache of 160 (an English lower-division club in a European league phase needs about 130). Other
+  careers and modes keep the game's own.
+- National cups (engine): a career's national cup cannot have first-round byes (hence the power-of-two brackets
+  above); the qualifying ties and the league phases are the mod's own and need none.
+- European results that the game does not play match by match (the computer's knockout ties, the qualifying ties
+  between computer clubs) count for the coefficients as whole ties (winner 3 / loser 1, qualifying half of that).
 
 **Data and credits**
 - Squads, market values, coaches, league members 2026-27 and tables 2025-26: **Transfermarkt** (transfermarkt.com).
@@ -121,8 +148,32 @@ federazioni UEFA per ranking, le altre sono in ALTRE NAZIONI).
   coppie già sorteggiate restano al primo turno; i turni non ancora sorteggiati li sorteggia la mod (vedi le regole
   sotto). Le coppe non ancora iniziate (tra cui la FA Cup) le sorteggia la mod tra i club del campionato.
 - **Coppe europee**: Champions League, Europa League e Conference League della prima stagione sono le vere fasi
-  campionato 2026-27 (36 club ciascuna). [TODO integratore: formato fase campionato, turni preliminari esatti,
-  coefficienti UEFA simulati (ranking federazioni e club dal 2021-22 al 2025-26), posti per ranking, detentori.]
+  campionato 2026-27 (36 club ciascuna). Il formato è quello UEFA dal 2024-25:
+  - **Fase campionato**: una sola classifica da 36. Il sorteggio lo fa il gioco all'inizio di ogni stagione, in
+    quattro fasce per coefficiente dei club (prima il detentore della Champions League): due avversarie per fascia,
+    una in casa e una fuori, mai un club della stessa federazione e al massimo due della stessa federazione.
+    8 giornate; classifica per punti, differenza reti, gol fatti, gol fuori casa, vittorie, vittorie fuori casa, poi
+    punti, differenza reti e gol delle avversarie (regole UEFA, esclusi i punti disciplinari). I posti 1-8 vanno agli
+    ottavi, i 9-24 giocano gli spareggi (andata e ritorno, 9-16 teste di serie), i 25-36 sono eliminati; ottavi e
+    tabellone fino alla finale seguono lo schema fisso UEFA.
+  - **Turni preliminari** (dalla seconda stagione): la vera lista di accesso 2024-27 (come per il 2026-27) per tutte e
+    tre le competizioni: dal primo al quarto turno preliminare della Champions League (percorso campioni e percorso
+    piazzate), Europa League e Conference League (con il suo percorso campioni), con le eliminate che scendono nella
+    competizione successiva come nella realtà. Sorteggi con teste di serie per coefficiente dei club, mai due club
+    della stessa federazione; sfide di andata e ritorno. Il tuo club gioca le sue sfide (PRELIM. CHAMPIONS LEAGUE,
+    turni dal primo al quarto); le altre sfide le decide la forza delle rose.
+  - **Coefficienti UEFA simulati**: partono dai veri coefficienti delle federazioni (5 stagioni, dal 2021-22 al
+    2025-26) e dai veri coefficienti dei club ai sorteggi 2025-26; poi ogni stagione aggiunge i punti dei risultati
+    europei del mondo (fase campionato: vittoria 2, pareggio 1; partecipazione alla Champions League 6; il bonus per il
+    piazzamento nella fase campionato; ogni turno a eliminazione raggiunto; una sfida a eliminazione dà 3 a chi passa
+    e 1 a chi esce, una sfida preliminare la metà). La stagione di una federazione = punti dei suoi club / suoi club
+    (compresi quelli usciti nei preliminari); il coefficiente di un club = le sue 5 stagioni, almeno il 20% di quello
+    della sua federazione. I due ranking decidono fasce e teste di serie della stagione dopo.
+  - **Posti per ranking**: ogni stagione la lista di accesso si riempie secondo il ranking simulato delle federazioni
+    (posti per posizione come nel 2024-27), più i 2 European Performance Spots (le 2 federazioni migliori della stagione).
+  - **Detentori**: il detentore della Champions League e la vincitrice dell'Europa League entrano nella fase campionato
+    della Champions League, la vincitrice della Conference League in quella dell'Europa League; quando un detentore si
+    qualifica già col suo campionato, la lista di accesso viene ribilanciata come fa la UEFA.
 - **Mercato estero**: giocatori veri di club fuori dal mondo (le serie subito sotto le sue divisioni: Primera
   Federacion, FNL, Challenger Pro League, NordicBet Liga, OBOS-ligaen, Superettan, Challenge League, National, League
   Two ...), 900, al posto dei giocatori del 1996 del gioco.
@@ -161,8 +212,15 @@ federazioni UEFA per ranking, le altre sono in ALTRE NAZIONI).
   questo tiene i primi 16 del tuo ordine di rosa (come nel gioco originale) e gli altri vengono tolti; se ci torni più
   avanti, le sue 9 riserve rientrano, anche quelle che avevi venduto, e una riserva che avevi portato tra i primi 16
   può comparire due volte.
-- [TODO integratore: limiti del motore (cache squadre, coppe, id delle competizioni per mondo), i risultati del club
-  allenato nelle stagioni giocate solo coi risultati.]
+- Cache delle squadre (motore): il gioco tiene in memoria al massimo 100 club diversi durante una stagione; una
+  carriera in questo mondo usa una cache più grande, da 160 (un club inglese di serie minore in una fase campionato
+  europea ne richiede circa 130). Le altre carriere e modalità tengono quella del gioco.
+- Coppe nazionali (motore): la coppa nazionale di una carriera non può avere turni di riposo al primo turno (da qui i
+  tabelloni a potenza di 2 descritti sopra); le sfide preliminari e le fasi campionato sono della mod e non ne hanno
+  bisogno.
+- I risultati europei che il gioco non gioca partita per partita (le sfide a eliminazione del computer, le sfide
+  preliminari tra club del computer) contano per i coefficienti come sfide intere (3 a chi passa, 1 a chi esce, la
+  metà nei preliminari).
 
 **Dati e crediti**
 - Rose, valori di mercato, allenatori, partecipanti 2026-27 e classifiche 2025-26: **Transfermarkt**

@@ -1995,3 +1995,43 @@ Left for 2.5: (a) NSL/NSSL finals series (type-1 design) or declare them postpon
 - Column: cause still unknown (not reproduced; SWOS++ suspected). Build c/REL326: SWOS IT 189d70bd EN 5d0931fc
   FR c7d88ac7 DE c6b553cb; gog IT c9b2891a EN 6efb25fe FR 9815971b DE 073ef189; SWOS++ 10982ef2 / bbaeea89.
   Suite 13/13 PASS (runs326). Patcher 3.2.6 (old v3.2.5 added): Node test all OK.
+
+## Release 3.2.7 (2026-10-16): season-end crash, career week span >= 128 (Pietro)
+- Pietro (GOG + mod, career at an Indian club): exit to DOS at FINISCI STAGIONE. Reproduced (EAST BENGAL, harness):
+  DOS/4GW page fault 1:0004B629 (IT), EAX FFFFFE00, in cseg_5B705 (job offers): (week [E0048] - first week [DB3E6+1])
+  as a signed byte (cbw) * 4 -> -512 -> word div overflow. The season events (DB3E6, 22-byte records, byte 1 = week;
+  IT obj2 0x1b52c count / 0x1b530 list) of an Indian club end at week 0x80: the mod's Asian club cups (cloned from the
+  CWC) at weeks 0x40..0x80. Vanilla India (no Asian cups) ends at 24: no crash.
+- Scan of 99 careers (33 non-European countries x 3 clubs, 3.2.6): span >= 128 only for India (all clubs) and Brazilian
+  clubs in a mod SA cup (ATLETICO MINEIRO 0..128); vanilla Brazil max 40. Some vanilla calendars reach week 128+ (Mexico,
+  Argentina, Paraguay, Algeria, Ghana...) but start late: span < 128 (vanilla Paraguay season end: no crash).
+- tools/weeks.py: both cbw (cseg_3CCF0, cseg_5B705; IT obj1 0x2cbba / 0x4b600) -> xor ah, ah; 4 bytes per exe.
+  Harness scenario india_season (FAIL on 3.2.6 = exit, PASS on 3.2.7); IND1.CAR saved before the crash finishes the
+  season with 3.2.7.
+- Build c/REL327: SWOS IT d2df2c1a EN fa053310 FR 700b2c7b DE 00e42740; gog IT df671d7e EN 85b321b1 FR 92e48718 DE 9c3f0dcd; SWOS++ 91c95b2c / e20fae6f;
+  DATA = 3.2.6. Suite 14/14 PASS (runs327). Patcher 3.2.7 (old v3.2.6 added): Node test all OK.
+
+## 3.3.0 in progress (branch v3.3.0-purple, 2026-10-16): purple kits + hair/skin (user requests)
+- Study: in a match sprites use palette entries 0..15, all taken (0/7/8/9 pitch, 1-3 grey/white/black, 4-6 skin, 10-15
+  kit colours; kit colour 6 "brown" is maroon (25,0,8)). shirtColorTable / kTeamColorsTable map kit colours 0..9 to
+  1,2,3,6,10..15. Hair/skin: 3 sprite sets per team (white = black hair, ginger = hair as skin, i.e. bald-looking,
+  black = black hair) built from skinAndHairColorConversionTable; face 2 bits (1 free value).
+- tools/purple.py (done, in-match tested): kit colour 10 = purple -> palette 12; per-team marks at ConvertTeamKitColors
+  (pk_mark); GameLoop + ShowStadiumInit palette copies (pk_pal) set entry 12 = (24,8,34) when purple is worn and no
+  maroon; conflict tables 11 rows (purple clashes with purple/maroon: Fiorentina-Roma -> Roma green away kit, tested);
+  kTeamColorsTable 11 words; kit editor cycles 0..10. Harness shots: Fiorentina all-purple vs Inter, vs Roma.
+- TODO 3.3.0: (1) menus show purple: palette entry 12 swap when a menu shows a purple kit (Edit Teams, SELECT KITS,
+  pre-match) - check the menu palette (FILL.256) low 16 entries; (2) data: Fiorentina (and Anderlecht, Austria Wien,
+  Valladolid...) purple in TEAM files / packs (pack kit values 0..10, mkseason checks); (3) harness scenario purple_kits;
+  (4) hair: black skin + blond hair as face value 3 (4th sprite set per team, 15+ index sites, GK, bench, menu faces);
+  (5) docs/notes, full suite, release; then tell the other sessions (Davide).
+
+## Release 3.3.0 (2026-10-16): purple kits + dark skin / blond hair (user requests)
+- tools/purple.py (kit colour 10, palette entry 12 per match / per edited team, 11-row conflict tables, editor 0..10,
+  recolor of the purple clubs in every team file the build writes + 7 original files shipped by the patcher) and
+  tools/blond.py (face 3: 5th sprite set per team 1418.. / 1519.. copied raw and converted per match, frameOffset hook,
+  in-game face 2 + flag PlayerInfoHeader+49, face icon 189 built from 188, 6 icon sites, editor face cycle 0..3,
+  4-entry skin/hair table; Carlos Valderrama). Packs: skin `darkblond`, kit colour 10.
+- Build c/REL330: SWOS IT 21b1b198 EN 98ce196e FR 3fa4754e DE a70dcc59; gog IT 331d3fd7 EN 0335e11b; SWOS++ 2b3ca650. Suite 16/16 PASS
+  (runs330, new purple_kits, blond_faces). Patcher 3.3.0 (old v3.2.7 added): Node test all OK incl. the 7 original files.
+- Known limits: blond goalkeepers drawn with dark hair; tactics menu little players of a purple team look maroon.

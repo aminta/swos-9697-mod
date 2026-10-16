@@ -95,7 +95,7 @@ BORROW = {'G': 'G', 'D': 'DMA', 'M': 'MDA', 'A': 'AMD'}   # slot role -> roles i
 
 EXPLICIT_POS = ['G', 'RB', 'LB', 'D', 'RW', 'LW', 'M', 'A']        # player byte 26, bits 5-7
 EXPLICIT_ROLE = {'G': 'G', 'RB': 'D', 'LB': 'D', 'D': 'D', 'RW': 'M', 'LW': 'M', 'M': 'M', 'A': 'A'}
-EXPLICIT_SKIN = {'light': 0, 'ginger': 1, 'dark': 2}                 # bits 3-4
+EXPLICIT_SKIN = {'light': 0, 'ginger': 1, 'dark': 2, 'darkblond': 3}   # bits 3-4 (3: 3.3.0, blond.py)
 EXPLICIT_SKILLS = ['pa', 've', 'he', 'ta', 'co', 'sp', 'fi']          # passing, shooting, heading, tackling, ball
                                                                       # control, speed, finishing: nibbles 1-7 of +28
 

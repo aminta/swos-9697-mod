@@ -120,10 +120,11 @@ ripropone il tabellone vero.
     giocatori già presenti nel gioco tengono le loro abilità.
   - `explicit`: ogni byte viene dal pacchetto (nessun file di partenza, niente stimato). `clubs.csv` aggiunge
     `tactic` (0–15), `kit1` e `kit2` (5 numeri ciascuno: tipo di maglia, colori di maglia, strisce, pantaloncini,
-    calzettoni) e `lineup` (16 numeri 0–15: quale giocatore occupa ogni posto della formazione). `players.csv` elenca
+    calzettoni; colori 0 grigio, 1 bianco, 2 nero, 3 arancio, 4 rosso, 5 blu, 6 amaranto, 7 azzurro, 8 verde,
+    9 giallo, 10 viola dalla 3.3.0) e `lineup` (16 numeri 0–15: quale giocatore occupa ogni posto della formazione). `players.csv` elenca
     esattamente 16 giocatori per club nell'ordine del record e aggiunge `position` (`G RB LB D RW LW M A`, coerente
     con il ruolo), `number`, `nat` (il numero di nazionalità del gioco), `skin` (`light` chiara, `dark` scura,
-    `ginger` rossa), le 7 abilità `pa ve he ta co sp fi` (passaggio, tiro, colpo di testa, contrasto, controllo di
+    `ginger` rossa, dalla 3.3.0 `darkblond`: pelle scura e capelli biondi), le 7 abilità `pa ve he ta co sp fi` (passaggio, tiro, colpo di testa, contrasto, controllo di
     palla, velocità, finalizzazione: 0–7, un `*` finale indica un'abilità chiave) e `price` (prezzo, 0–49).
   - `seed`: il seme casuale dei giocatori inventati (fa parte del determinismo).
 

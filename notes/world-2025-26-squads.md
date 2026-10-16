@@ -73,9 +73,22 @@ leaves room for purchases).
   most-used players, so CPU clubs play with their real first choices.
 - **POOLPLYR.DAT per world:** same pipeline, 900 real players of clubs outside the world (Russia, Canada, Korea, ...),
   under a per-world file name (string patch in `LoadPoolplyrDat`, which only runs in career).
-- Cheaper variant (1 session, not recommended): hook `cseg_52A3E` so a filler takes the next real reserve of the
-  club (name, nationality, skills, price from XTRA) instead of a random name with zero skills. Real reserves then
-  appear only in emergencies and vanish again.
+- Variant B (fillers become real players): see 'Two ways to the 25' below.
+
+### Two ways to the 25 (Alex's request via the 3.2.6 session, 2026-10-16)
+The 3.2.6 release session suggests hooking the game's trial-player routine (here `cseg_52956` / `cseg_52A3E`,
+'AddTrialPlayer' in its map) so each invented player is the next unused real player of an extended roster, with the
+used ones remembered in the .CAR trailer and random names as the fallback. Same data as XTRA, different moment:
+| | A. XTRA at squad set-up (recommended) | B. Real trial players |
+|---|---|---|
+| When | new career / new job: the 25 are there at once | only when injuries / suspensions leave the squad short |
+| Squad screen | 25 to choose from from day one | 16, grows only in emergencies, shrinks again (`cseg_52EA6`) |
+| Skills | real (from the roster) | real instead of 0 |
+| Hook | one, after the squad load (point still to trace) | one, in the filler routine (already traced) |
+| State | 'extras loaded' flag | list of used players in the .CAR trailer |
+Recommendation: A for Davide's 25 (he wants them visible), plus B's hook as the fallback: when the 25 are not
+enough, the game's filler takes the next real player not yet in the squad instead of a random name with zero skills.
+Both read the same per-world roster file, so the 1984-85 world (DaniSwos DB, full squads) can use it too.
 
 ### Risks
 - Returning to a club later re-adds its XTRA players, even ones the human sold while there (keep a small per-world

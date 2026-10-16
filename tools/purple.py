@@ -297,6 +297,9 @@ def patch(p, area, at):
         p.put(1, e, b'\xE8' + struct.pack('<i', lab['pk_edit'] - (e + 5)) + b'\x90' * 5)
     assert p.get(1, calls[0], 5) == d1[calls[0]:calls[0] + 5]
     p.put(1, calls[0], b'\xE8' + struct.pack('<i', lab['pk_sim'] - (calls[0] + 5)))
+    km = info['km_measure']                         # SELECT KITS' automatic start (kitcolors auto_wear) too
+    assert p.get(1, km, 1) == b'\xE9' and km + 5 + struct.unpack('<i', p.get(1, km + 1, 4))[0] == meas[0]
+    p.put(1, km, b'\xE9' + struct.pack('<i', lab['pk_sim'] - (km + 5)))
     for c in copies:
         assert p.get(1, c, 7) == b'\xB9\x00\x03\x00\x00\xF3\xA4'
         p.put(1, c, b'\xE8' + struct.pack('<i', lab['pk_pal'] - (c + 5)) + b'\x90\x90')

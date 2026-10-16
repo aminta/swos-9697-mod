@@ -129,6 +129,7 @@ km_open:                                ; fire on the KITS button (playMatchMenu
     mov esi, [PM_TEAM2]
     mov edi, SLOTS + SLOT_
     call fill_slot
+    call auto_wear                      ; start from the game's automatic choice (Marco, 3.3.1)
 .show:
     popad
     push dword [A6]
@@ -136,6 +137,50 @@ km_open:                                ; fire on the KITS button (playMatchMenu
     call SHOW_MENU
     pop dword [A6]
     ret
+
+auto_wear:                              ; worn kits of the two slots <- the automatic choice: the first of
+    pushad                              ; home-home, home-away, away-home, away-away the kit measure scores
+    sub esp, 44                         ; below 11 (so the visitor changes first); none: both first kits
+    mov esi, D0                         ; the game's D0..D7, A0..A2 are memory: keep them
+    mov edi, esp
+    mov ecx, 8
+    rep movsd
+    mov esi, A0
+    mov ecx, 3
+    rep movsd
+    mov eax, [PM_TEAM1]
+    mov [A0], eax
+    mov eax, [PM_TEAM2]
+    mov [A0 + 4], eax
+    call km_measure
+    xor edx, edx
+.pick:
+    cmp byte [SIMS + edx], 11
+    jb .found
+    inc edx
+    cmp edx, 4
+    jb .pick
+    jmp .restore
+.found:
+    mov eax, edx
+    shr eax, 1
+    mov [SLOTS + 28], al
+    and edx, 1
+    mov [SLOTS + SLOT_ + 28], dl
+.restore:
+    mov esi, esp
+    mov edi, D0
+    mov ecx, 8
+    rep movsd
+    mov edi, A0
+    mov ecx, 3
+    rep movsd
+    add esp, 44
+    popad
+    ret
+
+km_measure:                             ; MeasureTeamKitsSimilarity; purple.py points it at pk_sim
+    jmp MEASURE
 
 fill_slot:                              ; esi -> TeamFile, edi -> slot
     mov [edi + 32], esi
@@ -481,6 +526,9 @@ def button(p, at, lang, area):
     sitpc = m[0]
     A2 = u32(d, sitpc + 1)
     assert A2 == A0 + 8 and u32(d, sitpc + 6) == A0
+    measure = _rel(d, sitpc + 56)                   # MeasureTeamKitsSimilarity: mov dword [A2], teamKitsSimilarity
+    assert d[sitpc + 56] == 0xE8 and d[measure:measure + 2] == b'\xC7\x05' and u32(d, measure + 2) == A2
+    sims = p.target(1, measure + 6)
     j = re.compile(rb'\x66\xC7\x05(....)\x00\x00\x8B\x35(....)\x80\x3E\x0B\xFF\x05....\x0F\x82', re.S).search(d, sitpc, sitpc + 0x100)
     assert u32(d, j.start() + 3) == D0 + 28 and u32(d, j.start() + 11) == A0 + 24    # D7, A6
     set_colors = j.end() + 4 + struct.unpack('<i', d[j.end():j.end() + 4])[0]
@@ -638,9 +686,11 @@ def button(p, at, lang, area):
            'TXT_AUTO': (2, base + off['auto']), 'TXT_SET': (2, base + off['set']),
            'TXT_WEAR1': (2, base + off['wear1']), 'TXT_WEAR2': (2, base + off['wear2']),
            'TXT_K1': (2, base + off['k1']), 'TXT_K2': (2, base + off['k2']),
-           'PM_COPY': (1, mat), 'PM_LEN': (0, pm_len), 'E13_UP': (0, e13 + 12), 'KITS_': (0, KITS_ENTRY)}
+           'PM_COPY': (1, mat), 'PM_LEN': (0, pm_len), 'E13_UP': (0, e13 + 12), 'KITS_': (0, KITS_ENTRY),
+           'MEASURE': (1, measure), 'SIMS': sims}
     code, fix = nasmcave.assemble(KITS_ASM, at, sym)
     lab = nasmcave.labels(KITS_ASM, at, sym)
+    INFO['km_measure'] = lab['km_measure']          # purple.py: jmp pk_sim (purple vs maroon)
     assert not any(d[at:at + len(code)])
     p.put(1, at, code)
     for o, t_obj, t_off in fix:

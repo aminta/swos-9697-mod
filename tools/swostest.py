@@ -1888,7 +1888,8 @@ def italy_friendly(s, home, away):
 def purple_kits():
     """3.3.0: kit colour 10 = purple (Fiorentina): palette entry 12 purple in the SELECT KITS editor for Fiorentina and
     maroon for Inter, purple in the match Fiorentina-Inter and Fiorentina-Roma (Roma's maroon kit clashes: green away);
-    3.3.1: Inter in Barcelona's kits (blue and maroon stripes): the automatic choice avoids purple vs maroon"""
+    3.3.1: Inter in Barcelona's kits (blue and maroon stripes): the automatic choice avoids purple vs maroon; SELECT KITS
+    opens on the automatic choice (Fiorentina-Roma: Roma second kit) and OK plays it"""
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import lepatch
     b = builds()['it']
@@ -1918,6 +1919,11 @@ def purple_kits():
                 pal = s.result.read(s.result.base2 + working + 36, 3)
                 check(tuple(pal) == MAROON_MENU, f'editor {s.screen().entries[1][1]} {tuple(pal)}', errs)
                 walk(s, 20, 3)                  # ESCI
+            elif away == 'ROMA':                # 3.3.1 (Marco): SELECT KITS opens on the automatic choice (Roma's
+                scr = walk(s, 68, 3)            # maroon vs purple: Roma in its second kit), and OK keeps it
+                t = scr.texts()
+                check('IN CAMPO: PRIMA TENUTA' in t and 'ROMA: SECONDA TENUTA' in t, f'SELECT KITS opens on {t[:5]}', errs)
+                walk(s, 21, 3)                  # OK: the match is played in these kits
             for _ in range(22):
                 s.send('down dump:0.5')
                 if s.screen().selected == 9:

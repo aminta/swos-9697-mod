@@ -1892,7 +1892,8 @@ def world2526():
 @scenario
 def world2526q():
     """World 2025-26 test world (LP=1) built with UEFAQ_FORCE='CL Q1' (the career club enters the CL qualifying):
-    Arsenal two seasons, no sacking; season 2 must open with at least two qualifying ties played by the manager
+    Ajax two seasons, no sacking (a small country: an English club's 64-club cup + a league phase can fill the
+    game's 100-team cache); season 2 must open with at least two qualifying ties played by the manager
     ('PRELIM.' contests, rounds named by their qualifying round, not FINALE)"""
     run = os.path.join(MAIN, 'internal', 'world2526', 'run.sh')
     if not os.path.exists(run):
@@ -1904,7 +1905,7 @@ def world2526q():
         return False, f'build: {(r.stdout + r.stderr)[-300:]}'
     keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK')
     keep = {k: os.environ.get(k) for k in keys}
-    os.environ.update(W8485_BUILD=out, W8485_WORLD='WORLD 2025-26', W8485_TEAM='EUROPA,ENGLAND,ENGLAND DIV 1,ARSENAL',
+    os.environ.update(W8485_BUILD=out, W8485_WORLD='WORLD 2025-26', W8485_TEAM='EUROPA,HOLLAND,HOLLAND DIV 1,AJAX',
                       W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1')
     try:
         ok, msg = world8485()

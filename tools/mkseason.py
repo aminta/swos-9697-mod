@@ -157,6 +157,33 @@ def _shirt_numbers(data):
     return bytes(d), n
 
 
+def _xtra_cap(q, r):
+    """An extra player (XTRA.nnn) no better than the weakest of his club's 16 (Davide 2026-10-16: the managed club
+    must not be favoured): goalkeeper price <= the lowest keeper price of the record; outfield skill sum and price
+    <= the lowest outfield price of the record (skills scaled down in proportion, key-skill marks kept; price = sum)."""
+    ps = [r[76 + j * 38:76 + (j + 1) * 38] for j in range(16)]
+    gk = q[26] >> 5 == 0
+    same = [p[32] for p in ps if (p[26] >> 5 == 0) == gk] or [p[32] for p in ps]
+    cap = min(same)
+    if gk:
+        q[32] = min(q[32], cap)
+        return q
+    nib = [q[28] & 15] + [q[29 + i // 2] >> (4 * (1 - i % 2)) & 15 for i in range(6)]
+    val = [v & 7 for v in nib]
+    tot = sum(val)
+    if tot > cap:                                  # scaled in proportion: the player's profile stays his own
+        exact = [v * cap / tot for v in val]
+        val = [int(x) for x in exact]
+        for i in sorted(range(7), key=lambda i: (val[i] - exact[i], i))[:cap - sum(val)]:
+            val[i] += 1
+    nib = [(n & 8) | v for n, v in zip(nib, val)]
+    q[28] = (q[28] & 0xF0) | nib[0]
+    for i in range(3):
+        q[29 + i] = nib[1 + 2 * i] << 4 | nib[2 + 2 * i]
+    q[32] = min(q[32], sum(val))
+    return q
+
+
 def _csv(path):
     with open(path, encoding='utf-8', newline='') as f:
         return list(csv.DictReader(f))
@@ -289,6 +316,7 @@ class Pack:
     # --- TEAM files --------------------------------------------------------------------------------------------------
     def team_files(self):
         out = {}
+        self.xtra = {}                                  # file number -> XTRA bytes (explicit squads with "extra")
         for sq in self.meta['squads']:
             builder = {'calibrate': self._calibrate, 'game': self._game, 'explicit': self._explicit,
                        'records': self._records}[sq['method']]
@@ -599,10 +627,13 @@ class Pack:
 
     def _explicit(self, sq):
         """Every byte from the pack: clubs.csv tactic, kit1, kit2, lineup; players.csv (16 per club, in record order)
-        number, position, nat, skin, the 7 skills and price (see EXPLICIT_*)."""
+        number, position, nat, skin, the 7 skills and price (see EXPLICIT_*). squads "extra": E (1..16): rows 17..16+E
+        of a club go to XTRA.nnn, the players the managed club of a career gets beyond its 16 (xtra.py)."""
         out = {}
+        extra = sq.get('extra', 0)
+        _need(isinstance(extra, int) and 0 <= extra <= 16, 'squads "extra" must be 0..16')
         for fk in sq['files']:
-            recs = []
+            recs, blocks = [], {}
             for key, c in self.clubs.items():
                 if c['file'] != fk:
                     continue
@@ -616,32 +647,49 @@ class Pack:
                 _need(sorted(lineup) == list(range(16)), f'{where}: lineup must list 0..15 once each')
                 r[60:76] = bytes(lineup)
                 rows = self.prows[key]
-                _need(len(rows) == 16, f'players.csv: {key}: explicit squads need exactly 16 players ({len(rows)})')
-                for j, row in enumerate(rows):
-                    w = f"players.csv: {key} {row['name']}"
-                    p = 76 + j * 38
-                    pos = row.get('position', '')
-                    _need(pos in EXPLICIT_POS, f'{w}: position must be one of {" ".join(EXPLICIT_POS)}')
-                    _need(EXPLICIT_ROLE[pos] == row['role'], f"{w}: position {pos} is not role {row['role']}")
-                    _need(row.get('skin', '') in EXPLICIT_SKIN, f'{w}: skin must be one of {" ".join(EXPLICIT_SKIN)}')
-                    r[p] = _num(row, 'nat', 0, 255, w)
-                    r[p + 2] = _num(row, 'number', 1, 255, w)
-                    r[p + 3:p + 26] = _sn(row['name']).encode('latin1').ljust(23, b'\0')[:23]
-                    r[p + 26] = EXPLICIT_POS.index(pos) << 5 | EXPLICIT_SKIN[row['skin']] << 3
-                    nib = [0]
-                    for sk in EXPLICIT_SKILLS:
-                        v = row.get(sk, '').strip()
-                        key_skill = v.endswith('*')
-                        v = v.rstrip('*')
-                        _need(v.isdigit() and int(v) <= 7, f'{w}: {sk} must be 0..7 (a trailing * marks a key skill)')
-                        nib.append(int(v) | (8 if key_skill else 0))
-                    for i in range(4):
-                        r[p + 28 + i] = nib[2 * i] << 4 | nib[2 * i + 1]
-                    r[p + 32] = _num(row, 'price', 0, 49, w)
+                _need(16 <= len(rows) <= 16 + extra, f'players.csv: {key}: explicit squads need 16 players'
+                      + (f' + at most {extra} more (squads "extra")' if extra else '') + f' ({len(rows)})')
+                for j, row in enumerate(rows[:16]):
+                    r[76 + j * 38:76 + (j + 1) * 38] = self._explicit_player(row)
+                more = [_xtra_cap(bytearray(self._explicit_player(row)), r) for row in rows[16:]]
+                used = {r[76 + j * 38 + 2] for j in range(16)}
+                for q in more:                         # extras: numbers 1..99 (shirtnum), else a free one from 17
+                    if not 1 <= q[2] <= 99 or q[2] in used:
+                        q[2] = min(set(range(17, 100)) - used)
+                    used.add(q[2])
+                if more:
+                    blocks[r[1]] = [bytes(q) for q in more]
                 recs.append(bytes(r))
             out[self.files[fk][0]] = struct.pack('>H', len(recs)) + b''.join(recs)
+            if blocks:                             # XTRA.nnn only for a file with extra players
+                import xtra
+                self.xtra[self.files[fk][0]] = xtra.build(blocks, len(recs), extra)
         self.log(f"{'+'.join(sq['files'])}: {sum(self.count[f] for f in sq['files'])} clubs, explicit records")
         return out
+
+    def _explicit_player(self, row):
+        """38 bytes of one explicit players.csv row."""
+        w = f"players.csv: {row['club']} {row['name']}"
+        q = bytearray(38)
+        pos = row.get('position', '')
+        _need(pos in EXPLICIT_POS, f'{w}: position must be one of {" ".join(EXPLICIT_POS)}')
+        _need(EXPLICIT_ROLE[pos] == row['role'], f"{w}: position {pos} is not role {row['role']}")
+        _need(row.get('skin', '') in EXPLICIT_SKIN, f'{w}: skin must be one of {" ".join(EXPLICIT_SKIN)}')
+        q[0] = _num(row, 'nat', 0, 255, w)
+        q[2] = _num(row, 'number', 1, 255, w)
+        q[3:26] = _sn(row['name']).encode('latin1').ljust(23, b'\0')[:23]
+        q[26] = EXPLICIT_POS.index(pos) << 5 | EXPLICIT_SKIN[row['skin']] << 3
+        nib = [0]
+        for sk in EXPLICIT_SKILLS:
+            v = row.get(sk, '').strip()
+            key_skill = v.endswith('*')
+            v = v.rstrip('*')
+            _need(v.isdigit() and int(v) <= 7, f'{w}: {sk} must be 0..7 (a trailing * marks a key skill)')
+            nib.append(int(v) | (8 if key_skill else 0))
+        for i in range(4):
+            q[28 + i] = nib[2 * i] << 4 | nib[2 * i + 1]
+        q[32] = _num(row, 'price', 0, 49, w)
+        return bytes(q)
 
     def log(self, s):
         print(f"pack {self.meta['id']}: {s}")
@@ -774,6 +822,16 @@ def team_files():
     out = {}
     for pk in packs() + nationals():
         out.update(pk.team_files())
+    return out
+
+
+def xtra_files():
+    """XTRA.nnn of the packs whose explicit squads have "extra" players: {file number: bytes}."""
+    out = {}
+    for pk in packs():
+        if not hasattr(pk, 'xtra'):
+            pk.team_files()
+        out.update(pk.xtra)
     return out
 
 

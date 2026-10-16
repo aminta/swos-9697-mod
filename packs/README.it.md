@@ -126,6 +126,13 @@ ripropone il tabellone vero.
     con il ruolo), `number`, `nat` (il numero di nazionalità del gioco), `skin` (`light` chiara, `dark` scura,
     `ginger` rossa, dalla 3.3.0 `darkblond`: pelle scura e capelli biondi), le 7 abilità `pa ve he ta co sp fi` (passaggio, tiro, colpo di testa, contrasto, controllo di
     palla, velocità, finalizzazione: 0–7, un `*` finale indica un'abilità chiave) e `price` (prezzo, 0–49).
+    **Rose più grandi in carriera**: `"extra": 9` (1–16) nella voce di squads permette a un club di elencare fino a
+    16 + 9 giocatori; dalla riga 17 in poi vanno in `XTRA.nnn` (accanto a `TEAM.nnn`) e il club gestito in carriera
+    parte con tutti loro invece delle 10 riserve che il gioco inventa per un club nuovo (i club del computer giocano
+    sempre con i 16 del record). I numeri fuori da 1–99 o già usati nel club diventano un numero libero da 17. Un
+    extra non è mai migliore del più debole dei 16 del club (per non favorire il club gestito): prezzo del portiere
+    al massimo il prezzo minimo dei portieri, abilità di movimento abbassate fino al prezzo minimo dei giocatori di
+    movimento (prezzo = somma delle abilità).
   - `seed`: il seme casuale dei giocatori inventati (fa parte del determinismo).
 
 ### Abilità: tre strade, nessuna obbligatoria

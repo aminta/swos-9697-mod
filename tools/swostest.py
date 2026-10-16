@@ -1887,7 +1887,8 @@ def italy_friendly(s, home, away):
 @scenario
 def purple_kits():
     """3.3.0: kit colour 10 = purple (Fiorentina): palette entry 12 purple in the SELECT KITS editor for Fiorentina and
-    maroon for Inter, purple in the match Fiorentina-Inter and Fiorentina-Roma (Roma's maroon kit clashes: green away)"""
+    maroon for Inter, purple in the match Fiorentina-Inter and Fiorentina-Roma (Roma's maroon kit clashes: green away);
+    3.3.1: Inter in Barcelona's kits (blue and maroon stripes): the automatic choice avoids purple vs maroon"""
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import lepatch
     b = builds()['it']
@@ -1896,8 +1897,17 @@ def purple_kits():
     fp = _re.search(rb'\xbf....\xbe....\xb9\x0f\x00\x00\x00', p.le.obj_bytes(1), _re.S)
     working = p.target(1, fp.start() + 6)[1]
     errs, info = [], []
-    for away, kits in (('INTER MILAN', True), ('ROMA', False)):
-        with Session('purple_kits_' + away[:5], b, {}, 'dump:3', 300, match=True) as s:
+    d = bytearray(open(os.path.join(b, 'DATA', 'TEAM.020'), 'rb').read())
+    for t in range(struct.unpack('>H', d[:2])[0]):          # 3.3.1: INTER MILAN in Barcelona's kits (blue and
+        o = 2 + t * 684                                      # maroon stripes / light blue): purple vs maroon stripes
+        if d[o + 5:o + 22].split(b'\0')[0] == b'INTER MILAN':
+            d[o + 26:o + 36] = bytes([2, 5, 6, 5, 5, 0, 7, 7, 7, 7])
+    barca = os.path.join(WORK, 'saves', 'TEAM020_BARCA.BIN')
+    os.makedirs(os.path.dirname(barca), exist_ok=True)
+    open(barca, 'wb').write(d)
+    for away, kits, cars in (('INTER MILAN', True, {}), ('ROMA', False, {}),
+                             ('INTER MILAN', False, {'DATA/TEAM.020': barca})):
+        with Session('purple_kits_' + away[:5] + ('_barca' if cars else ''), b, cars, 'dump:3', 300, match=True) as s:
             s.wait()
             italy_friendly(s, 'FIORENTINA', away)
             if kits:
@@ -1922,8 +1932,8 @@ def purple_kits():
                 worn = (marks[0] | marks[1]) if marks else None     # bit 0 purple, bit 1 maroon worn
                 want = PURPLE_RGB if worn == 1 else (25, 0, 8)
                 check(marks is not None and pal == want and worn != 3, f'match vs {away}: marks {marks}, entry 12 {pal}', errs)
-                info.append(f'{away}: marks {marks}')
-                if away == 'INTER MILAN':
+                info.append(f"{away}{' (Barcelona kits)' if cars else ''}: marks {marks}")
+                if away == 'INTER MILAN' and not cars:
                     check(worn == 1, f'Fiorentina-Inter: purple not worn ({marks})', errs)
     return not errs, '; '.join(errs + info) if errs else 'purple in the editor (maroon for Inter) and vs Inter; ' + '; '.join(info)
 

@@ -124,6 +124,42 @@ pk_edit:                                ; replaces `mov dword [A6], editTeamsTea
     popad
     ret
 
+pk_sim:                                 ; replaces `call MeasureTeamKitsSimilarity` in SetInGameTeamsPrimaryColors
+    call MEASURE                        ; teamKitsSimilarity[i] (i = A0 kit * 2 + A1 kit, < 11 = the kits may meet)
+    pushad
+    mov esi, [A0V]
+    mov edi, [A1V]
+    xor edx, edx
+.combo:                                 ; purple worn by one team and maroon by the other: they cannot share
+    mov eax, edx                        ; palette entry 12, so that pair of kits counts as clashing (99)
+    shr eax, 1
+    lea eax, [eax * 4 + eax]
+    lea ebx, [esi + eax + 26]
+    xor ecx, ecx
+    call kitchk
+    mov ebp, ecx
+    mov eax, edx
+    and eax, 1
+    lea eax, [eax * 4 + eax]
+    lea ebx, [edi + eax + 26]
+    xor ecx, ecx
+    call kitchk
+    mov eax, ecx                        ; swap the other team's bits: purple <-> maroon
+    and eax, 1
+    add eax, eax
+    shr ecx, 1
+    and ecx, 1
+    or eax, ecx
+    test eax, ebp
+    jz .next
+    mov byte [SIM + edx], 99
+.next:
+    inc edx
+    cmp edx, 4
+    jb .combo
+    popad
+    ret
+
 kitchk:                                 ; ebx -> kit (type, shirt, stripes, shorts, socks) -> cl |= 1 purple, 2 maroon
     mov al, [ebx + 1]
     call pk_mark.chk
@@ -229,13 +265,24 @@ def patch(p, area, at):
     assert p.target(1, q + 1) == (2, working[1]) and d1[q + 5] == 0xE8
     setpal = q + 10 + struct.unpack('<i', d1[q + 6:q + 10])[0]
 
+    # 6. the game's automatic kit choice (SetInGameTeamsPrimaryColors) only sees similar-looking kits: its single
+    #    `call MeasureTeamKitsSimilarity`, which starts `mov A2, offset teamKitsSimilarity`, becomes `call pk_sim`
+    #    (3.3.1: Fiorentina in purple vs Barcelona's blue and maroon stripes was drawn maroon)
+    calls = [m.end() - 1 for m in re.finditer(rb'\xA1....\xA3....\xA1....\xA3....(?:\xFF\x35....){6}\xE8', d1, re.S)
+             if d1[m.start() + 1:m.start() + 5] == struct.pack('<I', A0 + 8)        # (kitcolors hooked its
+             and d1[m.start() + 6:m.start() + 10] == struct.pack('<I', A0)]          # first instruction)
+    meas = [c + 5 + struct.unpack('<i', d1[c + 1:c + 5])[0] for c in calls]
+    assert len(calls) == 1 and d1[meas[0]:meas[0] + 2] == b'\xC7\x05' and p.target(1, meas[0] + 2) == (2, A0 + 8), calls
+    sim = p.target(1, meas[0] + 6)
+
     marks = area.add(b'PKMK\0\0\0\0') + 4             # tag: the harness finds the marks by it
     at = (at + 15) & ~15
     sym = {'D0': (2, D0), 'A1': (2, A0 + 4), 'TOP': info['top'], 'BOTTOM': info['bottom'], 'MARKS': (2, marks),
            'PURPLE_': (0, PURPLE), 'MAROON_': (0, MAROON), 'SLOT_': (0, SLOT),
            'R_': (0, RGB[0]), 'G_': (0, RGB[1]), 'B_': (0, RGB[2]),
            'MR_': (0, MENU_MAROON[0]), 'MG_': (0, MENU_MAROON[1]), 'MB_': (0, MENU_MAROON[2]),
-           'A6': a6, 'EDITTEAM': et, 'WORKING': working, 'FADE': fade, 'SETPAL': (1, setpal)}
+           'A6': a6, 'EDITTEAM': et, 'WORKING': working, 'FADE': fade, 'SETPAL': (1, setpal),
+           'MEASURE': (1, meas[0]), 'A0V': (2, A0), 'A1V': (2, A0 + 4), 'SIM': sim}
     code, cfix = nasmcave.assemble(ASM, at, sym)
     lab = nasmcave.labels(ASM, at, sym)
     assert not any(p.get(1, at, len(code)))
@@ -248,11 +295,13 @@ def patch(p, area, at):
         p.remove(1, e + 2)
         p.remove(1, e + 6)
         p.put(1, e, b'\xE8' + struct.pack('<i', lab['pk_edit'] - (e + 5)) + b'\x90' * 5)
+    assert p.get(1, calls[0], 5) == d1[calls[0]:calls[0] + 5]
+    p.put(1, calls[0], b'\xE8' + struct.pack('<i', lab['pk_sim'] - (calls[0] + 5)))
     for c in copies:
         assert p.get(1, c, 7) == b'\xB9\x00\x03\x00\x00\xF3\xA4'
         p.put(1, c, b'\xE8' + struct.pack('<i', lab['pk_pal'] - (c + 5)) + b'\x90\x90')
     print(f'exe: purple kits: colour {PURPLE} -> palette {SLOT} when no maroon (code obj1+{at:#x}, {len(code)} B; '
-          f'ConvertTeamKitColors obj1+{conv:#x}, palette copies ' + ', '.join(f'obj1+{c:#x}' for c in copies) + ')')
+          f'ConvertTeamKitColors obj1+{conv:#x}, kit choice obj1+{calls[0]:#x}, palette copies ' + ', '.join(f'obj1+{c:#x}' for c in copies) + ')')
     return at + len(code)
 
 # Clubs the game (and the mod's packs) dressed in maroon for want of purple: their kit colour 6 becomes 10.

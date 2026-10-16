@@ -558,6 +558,55 @@ uq_daily:                               ; replaces `call cseg_8EA56` at the star
     mov word [SLOT3 + 39h], 0FFFFh      ; (no winner yet)
     ret
 
+uq_rn1:                                 ; the first instruction of cseg_280C0 (round name index, D0): our ties are
+    call uq_tie_round                   ; named by their qualifying round, not 'final' (a 2-club stage)
+    jc .r
+    sub word [D1R], 1
+    jmp R280C0 + 8
+.r:
+    ret
+uq_rn2:                                 ; the same, cseg_283BD (also the calendar entries' round name)
+    call uq_tie_round
+    jc .r
+    sub word [D2R], 1
+    jmp R283BD + 8
+.r:
+    ret
+uq_tie_round:                           ; CF = 1 and D0 = 0..3 (FIRST .. FOURTH ROUND = Q1, Q2, Q3, play-off) when
+    push eax                            ; the contest loaded is one of our ties (diyFileBufferCopy +2Dh; DIY +2Dh the
+    mov al, [DIYCOPY + 2Dh]             ; same, or 0 while it is being built: not a type-1 cup loaded since)
+    sub al, QID0
+    cmp al, 2
+    ja .no
+    mov al, [DIY + 2Dh]
+    test al, al
+    jz .y
+    sub al, QID0
+    cmp al, 2
+    ja .no
+.y:
+    mov al, [DIYCOPY + 37h]             ; its first leg's date: the round
+    xor ah, ah
+    cmp al, 35h
+    jb .d
+    inc ah
+    cmp al, 39h
+    jb .d
+    inc ah
+    cmp al, 3Ch
+    jb .d
+    inc ah
+.d:
+    movzx eax, ah
+    mov [D0R], ax
+    pop eax
+    stc
+    ret
+.no:
+    pop eax
+    clc
+    ret
+
 UQ_HP: dd HOLD_CC, HOLD_CWC, HOLD_UEFA
 UQ_QS: dd QS0, QS1, QS2
 UQ_PEND: db 0
@@ -632,6 +681,16 @@ def patch(p, at, limit, sites):
     c8ea56 = site + 5 + struct.unpack_from('<i', d1, site + 1)[0]
     assert d1[c8ea56:c8ea56 + 2] == b'\xc7\x05' and d1[c8ea56 + 10:c8ea56 + 12] == b'\x66\xa1', d1[c8ea56:c8ea56 + 12].hex()
     cal, cal_cur = struct.unpack_from('<II', d1, c8ea56 + 6)[0], struct.unpack_from('<I', d1, c8ea56 + 12)[0]
+    import sacups
+    D = [sites['a0'] - 32 + 4 * i for i in range(8)]   # cseg_280C0 / cseg_283BD (round name index): their entries
+    r1 = [m.start() for m in re.finditer(re.escape(b'\x66\x83\x2d' + struct.pack('<I', D[1]) + b'\x01\x66\xa1'
+                                                    + struct.pack('<I', D[0])), d1)]
+    r2 = [m.start() for m in re.finditer(re.escape(b'\x66\x83\x2d' + struct.pack('<I', D[2]) + b'\x01\x66\xa1'
+                                                    + struct.pack('<I', D[1]) + b'\x66\x0b\xc0\x74'), d1)]
+    calls = lambda t: [i for i in range(len(d1) - 5) if d1[i] == 0xE8 and i + 5 + struct.unpack_from('<i', d1, i + 1)[0] == t]
+    r1 = [x for x in r1 if calls(x)]
+    assert len(r1) == 1 and len(r2) == 1 and calls(r2[0]), (r1, r2)
+    r280c0, r283bd = r1[0], r2[0]
     hits = [m.group(1) for m in re.finditer(          # cseg_2573C: 10EA8C = 1; call; 10EAE1 = 0; 10EADD = 0; 10EEAB = 0
         rb'\x66\xc7\x05.{4}\x01\x00\xe8.{4}\x66\xc7\x05.{4}\x00\x00\x66\xc7\x05(.{4})\x00\x00\x66\xc7\x05.{4}\x00\x00', d1, re.S)]
     stage_g = struct.unpack('<I', hits[0])[0]          # (the first of two: cseg_2573C precedes the other one)
@@ -654,7 +713,9 @@ def patch(p, at, limit, sites):
                     'D0R': (2, sites['a0'] - 32), 'D1R': (2, sites['a0'] - 28), 'D2R': (2, sites['a0'] - 24),
                     'QID0': (0, QIDS[0]), 'D7_BASE': (0, D7_BASE[0]),
                     'WCC': (2, sites['bss'] + cw.B_CUPS), 'WCWC': (2, sites['bss'] + cw.B_CUPS + 160),
-                    'WUEFA': (2, sites['bss'] + cw.B_CUPS + 320), 'C8EA56': (1, c8ea56), 'STAGE_G': (2, stage_g), 'CAL': (2, cal), 'CAL_CUR': (2, cal_cur)})
+                    'WUEFA': (2, sites['bss'] + cw.B_CUPS + 320), 'C8EA56': (1, c8ea56), 'STAGE_G': (2, stage_g), 'CAL': (2, cal), 'CAL_CUR': (2, cal_cur),
+                    'R280C0': (1, r280c0), 'R283BD': (1, r283bd), 'DIY': (2, sites['diy']),
+                    'DIYCOPY': (2, sites['diycopy'])})
     symbols.update({k: (0, v) for k, v in slay.items()})
     glue = (end + 15) & ~15
     code, fix = nasmcave.assemble(ASM, glue, symbols)
@@ -669,6 +730,9 @@ def patch(p, at, limit, sites):
         a = cw.LABELS[stub]
         p.put(1, a, b'\xe9' + rel(a, lab[target]))
     p.put(1, site + 1, rel(site, lab['uq_daily']))     # (a relative call: no fixup to move)
+    for at, stub in ((r280c0, 'uq_rn1'), (r283bd, 'uq_rn2')):     # `sub word [Dn], 1` (8 B, a fixup) -> jmp
+        p.remove(1, at + 3)
+        p.put(1, at, b'\xe9' + rel(at, lab[stub]) + b'\x90' * 3)
     print(f"exe: uefaq state obj2+{symbols['STATE'][1]:#x} (k +{slay['S_K']:#x}, res +{slay['S_RES']:#x}), slot 3 "
           f"obj2+{sites['slot3']:#x}, uq_daily {lab['uq_daily']:#x}")
     print('exe: uefaq labels ' + ' '.join(f'{k} {lab[k]:#x}' for k in ('uq_country', 'uq_fill', 'uq_fill.ran', 'uq_fill.done', 'uq_post')))

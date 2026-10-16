@@ -545,12 +545,13 @@ class Screen:
         out = [p for p in ptrs if p and not r.cached(p, 40)]
         if out and max(out) - min(out) < 0x100000:     # texts outside the cached ranges: one dump for all
             r.read(min(out), max(out) + 40 - min(out))
-        self.entries, self.nav, self.geom = [], [], []
+        self.entries, self.nav, self.geom, self.colors = [], [], [], []
         for i in range(n):
             e = 0x16 + i * 0x38
             inv, dis = struct.unpack_from('<HH', mem, e + 4)
             self.nav.append((tuple(mem[e + 8:e + 12]), tuple(mem[e + 16:e + 20])))   # l/r/u/d, skip l/r/u/d
             self.geom.append(struct.unpack_from('<4h', mem, e + 0x14))                # x, y, width, height
+            self.colors.append(struct.unpack_from('<H', mem, e + 0x1E)[0])            # bg.backAndFrameColor
             text = ''
             if ptrs[i]:
                 raw = r.read(ptrs[i], 40).split(b'\0')[0]
@@ -1890,7 +1891,8 @@ def purple_kits():
     """3.3.0: kit colour 10 = purple (Fiorentina): palette entry 12 purple in the SELECT KITS editor for Fiorentina and
     maroon for Inter, purple in the match Fiorentina-Inter and Fiorentina-Roma (Roma's maroon kit clashes: green away);
     3.3.1: Inter in Barcelona's kits (blue and maroon stripes): the automatic choice avoids purple vs maroon; SELECT KITS
-    opens on the automatic choice (Fiorentina-Roma: Roma second kit) and OK plays it"""
+    opens on the automatic choice (Fiorentina-Roma: Roma second kit) and OK plays it; 3.3.3: the team name box in the
+    colour of who controls the team (purple player, red computer)"""
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import lepatch
     b = builds()['it']
@@ -1916,7 +1918,9 @@ def purple_kits():
                 scr = walk(s, 68, 3)
                 pal = s.result.read(s.result.base2 + working + 36, 3)
                 check(scr.entries[1][1] == 'FIORENTINA' and tuple(pal) == PURPLE_RGB, f'editor {scr.entries[1][1]} {tuple(pal)}', errs)
-                walk(s, 1, 3)                   # the other team
+                check(scr.colors[1] == 11, f'team name box {scr.colors[1]} for the human player (want 11, purple)', errs)
+                scr = walk(s, 1, 3)             # the other team
+                check(scr.colors[1] == 10, f'team name box {scr.colors[1]} for the computer (want 10, red)', errs)
                 pal = s.result.read(s.result.base2 + working + 36, 3)
                 check(tuple(pal) == MAROON_MENU, f'editor {s.screen().entries[1][1]} {tuple(pal)}', errs)
                 walk(s, 20, 3)                  # ESCI

@@ -698,6 +698,10 @@ class Session:
             r = self.paused('bplm', b.eip)
             self.log.append(f'BPLM obj1+{b.eip - r.base1:X}' + bp_str(r))
             r.box = None
+            b.cmd('BPDEL *', 0.3)                      # (a memory breakpoint keeps firing once hit: all anew)
+            b.cmd('BPINT 3', 0.2)
+            for lin in getattr(self, 'bps', {}):
+                b.cmd(f'BP 0160:{lin:08X}', 0.2)
             for off in filter(None, os.environ.get('SWOSTEST_BPLM', '').split(',')):
                 b.cmd(f'BPLM {r.base2 + int(off, 16):08X}', 0.3)
             outcome = b.go_on()

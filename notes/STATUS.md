@@ -2025,3 +2025,13 @@ Left for 2.5: (a) NSL/NSSL finals series (type-1 design) or declare them postpon
   Valladolid...) purple in TEAM files / packs (pack kit values 0..10, mkseason checks); (3) harness scenario purple_kits;
   (4) hair: black skin + blond hair as face value 3 (4th sprite set per team, 15+ index sites, GK, bench, menu faces);
   (5) docs/notes, full suite, release; then tell the other sessions (Davide).
+
+## Release 3.3.0 (2026-10-16): purple kits + dark skin / blond hair (user requests)
+- tools/purple.py (kit colour 10, palette entry 12 per match / per edited team, 11-row conflict tables, editor 0..10,
+  recolor of the purple clubs in every team file the build writes + 7 original files shipped by the patcher) and
+  tools/blond.py (face 3: 5th sprite set per team 1418.. / 1519.. copied raw and converted per match, frameOffset hook,
+  in-game face 2 + flag PlayerInfoHeader+49, face icon 189 built from 188, 6 icon sites, editor face cycle 0..3,
+  4-entry skin/hair table; Carlos Valderrama). Packs: skin `darkblond`, kit colour 10.
+- Build c/REL330: SWOS IT 21b1b198 EN 98ce196e FR 3fa4754e DE a70dcc59; gog IT 331d3fd7 EN 0335e11b; SWOS++ 2b3ca650. Suite 16/16 PASS
+  (runs330, new purple_kits, blond_faces). Patcher 3.3.0 (old v3.2.7 added): Node test all OK incl. the 7 original files.
+- Known limits: blond goalkeepers drawn with dark hair; tactics menu little players of a purple team look maroon.

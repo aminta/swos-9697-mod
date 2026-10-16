@@ -834,12 +834,16 @@ def team_files():
 
 
 def xtra_files():
-    """XTRA.nnn of the packs whose explicit squads have "extra" players: {file number: bytes}."""
+    """The XTRA files of the packs whose explicit squads have "extra" players: {name: bytes}, name = XTRA.nnn (nnn =
+    the club's team file), XTWn.nnn for a world with a namespace of its own (ns_stem; careerworld w_ns_set points
+    xtra.py's XTRA_NAMEP at data\\xtwN.nnn while that world is current)."""
     out = {}
     for pk in packs():
         if not hasattr(pk, 'xtra'):
             pk.team_files()
-        out.update(pk.xtra)
+        stem = 'XTRA' if pk.world is None or ns_stem(pk.world) == 'team' else 'XTW%d' % pk.world
+        for n, data in pk.xtra.items():
+            out['%s.%03d' % (stem, n)] = data
     return out
 
 

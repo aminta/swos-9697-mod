@@ -396,6 +396,11 @@ class Dosbox:
                 return self.stat('run', t, 'exit')
             if n:
                 m = BREAK.search(self.screen, mark)    # the debugger's code view redrawn on an int 3 (CD03)
+                if not m and getattr(self, 'memwatch', False):   # SWOSTEST_BPLM: a memory breakpoint's hit, then
+                    seg = ANSI.sub(b' ', self.screen[mark:])     # the code view (EIP after the writing instruction)
+                    k = re.search(rb'Memory breakpoint[^\n]*->', seg)
+                    if k:
+                        m = re.compile(rb'0160:([0-9A-F]{8})\s').search(seg, k.end())
                 if not m and self.watch:               # or on one of our breakpoints (Session.bp)
                     seg = ANSI.sub(b' ', self.screen[mark:])
                     for w in re.finditer(rb'0160:([0-9A-F]{8})\s', seg):
@@ -680,6 +685,9 @@ class Session:
         if os.environ.get('SWOSTEST_BP') and not getattr(self, 'bps', None) and outcome == 'break':
             base1 = self.paused('x', b.eip).base1
             self.bp_hits = {}
+            for off in filter(None, os.environ.get('SWOSTEST_BPLM', '').split(',')):   # memory watches (obj2 offsets,
+                b.cmd(f'BPLM {self.paused("x", b.eip).base2 + int(off, 16):08X}', 0.3)   # CORE=normal): a change
+                b.memwatch = True                                                    # stops as a trap at its EIP
             for off in os.environ['SWOSTEST_BP'].split(','):     # counting breakpoints (use CORE=normal)
                 o = int(off, 16)
                 self.bp(base1 + o, lambda r, o=o: (self.bp_hits.__setitem__(o, self.bp_hits.get(o, 0) + 1),
@@ -809,14 +817,58 @@ def squad_rows(s, scr, tag):
     return out
 
 
-def substitute(s, scr, tries=16):
-    """Squad screen without VIS. RISULTATI (Davide): an unavailable player (red row or red icon) among the first 16
-    is swapped with a fit player beyond the 16th: fire on his row, fire on the 17th row's face until its player is
-    fit (and a goalkeeper, P, for row 1), fire on the 17th row's name. Row 1 first tries a fit goalkeeper of the bench
-    (rows 12-16: a national squad may have only one goalkeeper beyond the 16th). Returns an error string or None."""
-    pos_of = lambda cur, y: next((t for j, t, inv, _ in cur.entries if t and not inv and cur.geom[j][1] == y
-                                  and 95 <= cur.geom[j][0] <= 125), '')     # the position text of the row at y
-    for _ in range(8):                          # one swap per round, then look again
+SLOT_ROLE = 'GDDDDMMMMAAGDMA'                     # record order of a SWOS squad: G RB LB D D RW LW M M A A, bench G D M A
+POS_ROLE = {'P': 'G', 'TD': 'D', 'TS': 'D', 'D': 'D', 'MD': 'M', 'MS': 'M', 'M': 'M', 'A': 'A'}
+
+
+def reserve_info(cur, y):
+    """The 17th squad row (the reserve shown, the only row with texts): (name, role G/D/M/A or '', value)."""
+    t = sorted((cur.geom[j][0], tx) for j, tx, inv, _ in cur.entries if tx and not inv and cur.geom[j][1] == y
+               and cur.geom[j][0] < 180)
+    name = next((tx for x, tx in t if x == 25), '')
+    role = next((POS_ROLE.get(tx, '') for x, tx in t if 95 <= x <= 125), '')
+    price = next((tx for x, tx in t if x >= 138), '')
+    m = re.fullmatch(r'L([0-9.]+)(K|MN|MD)', price)
+    value = (float(m.group(1)) * {'K': 0.001, 'MN': 1, 'MD': 1000}[m.group(2)] if m else
+             -1 if price == 'PROVA' else 0)          # RIS (the game's invented reserves) 0, trial players -1
+    return name, role, value
+
+
+def substitute(s, scr, tries=40):
+    """Squad screen (Davide, 2026-10-16: the harness used to put any fit reserve - a defender up front, a trial player -
+    in place of a starter and leave him there). Two passes on the 17th row (the reserve shown; its face cycles through
+    the reserves beyond the 16th):
+    1. restore: a starter swapped out earlier (s.subs: slot -> (starter, stand-in)) who is fit again goes back to his
+       slot;
+    2. an unavailable player (red row / red icon) among the first 16: the best fit reserve of the slot's role (record
+       order G D D D D M M M M A A, bench G D M A), by value; another role, the game's invented reserves (RIS) and
+       trial players (PROVA) only when nothing better is there. Row 1 must be a goalkeeper (P): a fit one of the
+       bench (row 12) first. Returns an error string or None."""
+    subs = s.__dict__.setdefault('subs', {})
+
+    def cycle(face, ry):                                # every reserve once: [(name, role, value, fit)]
+        seen = []
+        for _ in range(tries):
+            c2 = s.screen()
+            name, role, value = reserve_info(c2, ry)
+            if seen and name == seen[0][0]:
+                break
+            seen.append((name, role, value, not squad_rows(s, c2, f'sq{len(s.log):03d}')[-1][1]))
+            press(s, c2, face, wait=1)
+        return seen
+
+    def bring(face, ry, want):                          # cycle the 17th row to the reserve named want
+        for _ in range(tries):
+            if reserve_info(s.screen(), ry)[0] == want:
+                return True
+            press(s, s.screen(), face, wait=1)
+        return False
+
+    def swap(slot_entry, reserve):                      # select the row, then the reserve's name: they change places
+        press(s, s.screen(), slot_entry, wait=1)
+        press(s, s.screen(), reserve, wait=1)
+
+    for _ in range(10):                                 # one swap per round, then look again
         cur = s.screen()
         rows = squad_rows(s, cur, f'sq{len(s.log):03d}')
         if len(rows) != 17:
@@ -824,32 +876,58 @@ def substitute(s, scr, tries=16):
         reserve = rows[-1][0]
         ry = cur.geom[reserve][1]
         face = next((i for i, (l, r) in enumerate(cur.nav) if l[1] == reserve and cur.geom[i][0] < 25), None)
-        bad = [(k, i) for k, (i, un) in enumerate(rows[:16]) if un]
-        if not bad and 'VIS. RISULTATI' not in cur.texts() and pos_of(cur, cur.geom[rows[0][0]][1]) != 'P':
-            bad = [(0, rows[0][0])]             # no goalkeeper in goal (the game's squad changes: the keeper hurt,
-                                                # an outfield player moved there): a fit one from the reserves
-        if not bad:
-            return None if 'VIS. RISULTATI' in cur.texts() else f'squad screen without VIS. RISULTATI, no unavailable row'
         if face is None:
-            return f'squad screen: no face entry for the 17th row'
-        k, i = bad[0]
-        if k == 0:                              # the goalkeeper: a fit one from the bench?
-            gk = rows[11][0] if not rows[11][1] and pos_of(cur, cur.geom[rows[11][0]][1]) == 'P' else None
-                                                            # row 12 = the reserve goalkeeper in SWOS squads
-            if gk is not None:
-                press(s, cur, i, wait=1)
-                press(s, s.screen(), gk, wait=1)
-                continue
-        press(s, cur, i, wait=1)
-        for _ in range(tries):
-            press(s, s.screen(), face, wait=1)
-            c2 = s.screen()
-            if not squad_rows(s, c2, f'sq{len(s.log):03d}')[-1][1] and (pos_of(c2, ry) == 'P') == (k == 0):
-                break
-        else:
+            return 'squad screen: no face entry for the 17th row'
+        if s.__dict__.get('gk_swap') and not rows[11][1] and not rows[0][1]:   # the first keeper fit again
+            swap(rows[0][0], rows[11][0])
+            s.gk_swap = False
+            s.log.append('[subs] slot 1: the first keeper back')
+            continue
+        pool = cycle(face, ry) if subs or any(un for _, un in rows[:16]) else []
+        back = next(((k, st) for k, (st, _) in sorted(subs.items())
+                     if any(n == st and fit for n, _, _, fit in pool) and not rows[k][1]), None)
+        if back is None:                                # restore also over an unavailable stand-in
+            back = next(((k, st) for k, (st, _) in sorted(subs.items())
+                         if any(n == st and fit for n, _, _, fit in pool)), None)
+        if back is not None:                            # 1. a starter fit again: back to his slot
+            k, st = back
+            if bring(face, ry, st):
+                swap(rows[k][0], reserve)
+                s.log.append(f'[subs] slot {k + 1}: {st} back')
+            del subs[k]
+            continue
+        for k in [k for k, st in list(subs.items()) if not any(n == st[0] for n, _, _, _ in pool)]:
+            del subs[k]                                 # the starter left the squad (sold, the game's changes)
+        bad = [k for k, (i, un) in enumerate(rows[:16]) if un]
+        if not bad and 'VIS. RISULTATI' not in cur.texts():
+            bad = [0]                                   # no goalkeeper in goal (the game's own squad changes)
+        if not bad:
+            return None if 'VIS. RISULTATI' in cur.texts() else 'squad screen without VIS. RISULTATI, no unavailable row'
+        k = bad[0]
+        need = SLOT_ROLE[k] if k < len(SLOT_ROLE) else ''
+        if k == 0 and not rows[11][1] and not s.__dict__.get('gk_swap'):   # the goalkeeper: row 12 is the
+            swap(rows[0][0], rows[11][0])               # bench keeper in SWOS squads (drawn rows have no texts)
+            s.gk_swap = True
+            s.log.append('[subs] slot 1: the bench keeper (row 12) in')
+            continue
+        pool = pool or cycle(face, ry)
+        fit = [(n, r, v) for n, r, v, f in pool if f and n]
+        rank = lambda c: ((c[1] == need) if need else 1,           # the slot's role first (G: keepers only)
+                          c[2] > 0, c[2] >= 0, c[2])               # real players, then RIS, trial players last
+        cand = [c for c in fit if need != 'G' or c[1] == 'G'] if k in (0, 11) else \
+            ([c for c in fit if c[1] != 'G'] or fit)          # a keeper in an outfield slot only as a last resort
+        if not cand:
             return f'no fit reserve for row {k + 1}'
-        press(s, s.screen(), reserve, wait=1)
-    return 'squad screen: still unavailable players after 8 swaps'
+        best = max(cand, key=rank)
+        if not bring(face, ry, best[0]):
+            return f'row {k + 1}: reserve {best[0]} not found again'
+        stand_in = best[0]
+        swap(rows[k][0], reserve)
+        out = reserve_info(s.screen(), ry)[0]           # the one who left the 16 is now the 17th row
+        if k not in subs:
+            subs[k] = (out, stand_in)
+        s.log.append(f'[subs] slot {k + 1} ({need or "any"}): {out} out, {stand_in} ({best[1] or "?"}, {best[2]}) in')
+    return 'squad screen: still unavailable players after 10 swaps'
 
 
 def nat_callups(s, limit=120):
@@ -937,7 +1015,13 @@ def advance(s, stop, max_steps=400):
         if stop(scr):
             return True, f'{step} steps'
         texts = scr.texts()
-        if 'VIS. RISULTATI' in texts:
+        if 'VIS. RISULTATI' in texts and 'MOD. TATTICA' in texts and (getattr(s, 'subs', None) or
+                                                                     getattr(s, 'gk_swap', False)):
+            err = substitute(s, scr)                     # stand-ins in the 16: bring fit starters back first
+            if err:
+                return False, f'step {step}: {err}'
+            press(s, s.screen(), 'VIS. RISULTATI') or s.send('fire dump:2')
+        elif 'VIS. RISULTATI' in texts:
             press(s, scr, 'VIS. RISULTATI') or s.send('fire dump:2')
         elif 'AMICHEVOLE' in texts and 'CONTINUA CARRIERA' in texts:     # main menu (after a save)
             press(s, scr, 'CONTINUA CARRIERA') or s.send('fire dump:2')
@@ -1091,6 +1175,25 @@ def ndiff(a, b):
     return sum(x != y for x, y in zip(a, b)) + abs(len(a) - len(b))
 
 
+def menu_check(s, tag):
+    """Main menu after a career (Davide, 2026-10-16: once its buttons showed an in-match frame instead of their
+    FILL.256 texture): screenshot it and compare the MOD. TATTICA button with the game's gradient (a smooth dark
+    blue left to right). A corrupted texture is noted in the session log as '[menu] CORRUPTED' (no failure)."""
+    try:
+        from PIL import Image
+        s.box.shot('menu_' + tag)
+        path = os.path.join(s.run, 'shots', 'menu_' + tag + '.png')
+        im = Image.open(path).convert('RGB')
+        w, h = im.size
+        top = h - w * 400 // 640
+        y = int(top + 92 * (h - top) / 200)              # the button's middle row (game y 92), x 22..150
+        row = [im.getpixel((int(x * w / 320), y)) for x in range(22, 150, 2)]
+        jumps = sum(abs(a[0] - b[0]) + abs(a[1] - b[1]) + abs(a[2] - b[2]) > 60 for a, b in zip(row, row[1:]))
+        s.log.append(f'[menu] {tag}: ' + ('CORRUPTED' if jumps > 20 else 'clean') + f' ({jumps} jumps)')
+    except Exception as e:                           # never let the check break a run
+        s.log.append(f'[menu] {tag}: check failed {e}')
+
+
 def next_season_save(s, name):
     """Season-end menu -> CONTINUA CARRIERA -> (messages) -> new season's career menu -> ESCI -> SALVA CARRIERA -> name.
     Returns the save path or an error string."""
@@ -1135,6 +1238,7 @@ def next_season_save(s, name):
     else:
         return 'career menu of the new season not reached'
     press(s, s.screen(), 'ESCI', wait=3)
+    menu_check(s, 'season_end')                  # the main menu after a career: corrupted buttons? (Davide)
     if press(s, s.screen(), 'SALVA CARRIERA') is None:
         return f'no SALVA CARRIERA on {s.screen()}'
     s.send(name_entry(name) + ' dump:3')

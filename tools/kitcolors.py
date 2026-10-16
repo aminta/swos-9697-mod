@@ -21,6 +21,7 @@ import struct
 import kitsim
 
 TABLE_BYTES = 20
+INFO = {}                       # button(): in-game team structs, ConvertTeamKitColors, D0 / A0 (purple.py)
 
 
 def patch(p):
@@ -488,6 +489,7 @@ def button(p, at, lang, area):
     tb = list(a1.finditer(d, set_colors, set_colors + 0x200))[:2]
     top, bottom = (p.target(1, x.start() + 6) for x in tb)
     convert = _rel(d, tb[0].end() - 1)
+    INFO.update(top=top, bottom=bottom, convert=convert, D0=D0, A0=A0)   # for purple.py
     assert convert == _rel(d, tb[1].end() - 1)
     # ShowPlayMatchMenu: mov eax,[A1]; mov [playMatchTeam1Ptr],eax; mov eax,[A2]; mov [playMatchTeam2Ptr],eax; ...
     # mov dword [A6], playMatchMenu; call ShowMenu

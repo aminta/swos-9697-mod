@@ -2010,3 +2010,18 @@ Left for 2.5: (a) NSL/NSSL finals series (type-1 design) or declare them postpon
   season with 3.2.7.
 - Build c/REL327: SWOS IT d2df2c1a EN fa053310 FR 700b2c7b DE 00e42740; gog IT df671d7e EN 85b321b1 FR 92e48718 DE 9c3f0dcd; SWOS++ 91c95b2c / e20fae6f;
   DATA = 3.2.6. Suite 14/14 PASS (runs327). Patcher 3.2.7 (old v3.2.6 added): Node test all OK.
+
+## 3.3.0 in progress (branch v3.3.0-purple, 2026-10-16): purple kits + hair/skin (user requests)
+- Study: in a match sprites use palette entries 0..15, all taken (0/7/8/9 pitch, 1-3 grey/white/black, 4-6 skin, 10-15
+  kit colours; kit colour 6 "brown" is maroon (25,0,8)). shirtColorTable / kTeamColorsTable map kit colours 0..9 to
+  1,2,3,6,10..15. Hair/skin: 3 sprite sets per team (white = black hair, ginger = hair as skin, i.e. bald-looking,
+  black = black hair) built from skinAndHairColorConversionTable; face 2 bits (1 free value).
+- tools/purple.py (done, in-match tested): kit colour 10 = purple -> palette 12; per-team marks at ConvertTeamKitColors
+  (pk_mark); GameLoop + ShowStadiumInit palette copies (pk_pal) set entry 12 = (24,8,34) when purple is worn and no
+  maroon; conflict tables 11 rows (purple clashes with purple/maroon: Fiorentina-Roma -> Roma green away kit, tested);
+  kTeamColorsTable 11 words; kit editor cycles 0..10. Harness shots: Fiorentina all-purple vs Inter, vs Roma.
+- TODO 3.3.0: (1) menus show purple: palette entry 12 swap when a menu shows a purple kit (Edit Teams, SELECT KITS,
+  pre-match) - check the menu palette (FILL.256) low 16 entries; (2) data: Fiorentina (and Anderlecht, Austria Wien,
+  Valladolid...) purple in TEAM files / packs (pack kit values 0..10, mkseason checks); (3) harness scenario purple_kits;
+  (4) hair: black skin + blond hair as face value 3 (4th sprite set per team, 15+ index sites, GK, bench, menu faces);
+  (5) docs/notes, full suite, release; then tell the other sessions (Davide).

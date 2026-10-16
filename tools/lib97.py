@@ -78,20 +78,15 @@ def calendar_bytes():
 
 ASM = '''
 lib_bye:                                ; replaces `call cseg_2573C` at the end of cseg_24DFA
-    cmp byte [DIYCOPY + 2Dh], CC_ID     ; season-pack cup with a bye (mkseason.bye_cups; 2.6: Champions Cup 1988-89): round 1 without the holder (the 31st)
-    jne .fa
-    cmp word [DIYCOPY + 161h], CC_N
-    jne .go
-    mov word [DIYCOPY + 161h], CC_N - 1
-    jmp .go
-.fa:
-    cmp byte [DIYCOPY + 2Dh], FA_ID     ; FA Cup 1871-72 (historic.py): round 1 without the bye club (the 15th)
-    jne .lib
-    cmp word [DIYCOPY + 161h], FA_N
-    jne .go
-    mov word [DIYCOPY + 161h], FA_N - 1
-    jmp .go
-.lib:
+    pushad
+    mov al, [DIYCOPY + 2Dh]             ; a cup with first-round byes (BYE_TAB: season / world packs with byes in
+    mov cx, [DIYCOPY + 161h]            ; ties.csv, FA Cup 1871-72): round 1 = its clubs but the b last ones
+    call bye_find
+    jc .nb
+    movzx eax, byte [esi + 3]
+    sub [DIYCOPY + 161h], ax
+.nb:
+    popad
     cmp byte [DIYCOPY + 2Dh], LIB_ID
     jne .go
     cmp word [DIYCOPY + 161h], LIB_N    ; round 1 = every club of the contest...
@@ -100,27 +95,64 @@ lib_bye:                                ; replaces `call cseg_2573C` at the end 
 .go:
     jmp CSEG_2573C
 
+bye_find:                               ; al = contest id, cx = its clubs -> CF = 0, esi = its BYE_TAB entry
+    mov esi, BYE_TAB                    ; (id, world, clubs, byes); world 0 = any (one-world builds: ids unique)
+    mov edx, BYE_NT
+.l:
+    test edx, edx
+    jz .no
+    cmp [esi], al
+    jne .n
+    test ch, ch
+    jnz .n
+    cmp [esi + 2], cl
+    jne .n
+%if BW_ON
+    cmp byte [esi + 1], 0
+    je .ok
+    push eax
+    mov al, [WORLDB]                    ; the running career's world (several worlds: cup ids per world)
+    cmp [esi + 1], al
+    pop eax
+    jne .n
+%endif
+.ok:
+    clc
+    ret
+.n:
+    add esi, 4
+    dec edx
+    jmp .l
+.no:
+    stc
+    ret
+
 lib_pre:                                ; hist_draw, before the permutation: esi = DIY buffer, ecx = clubs in the round
     call FIN_PRE                        ; 2.1: NSL / NSSL finals series (finals97.fin_pre)
-    cmp byte [esi + 2Dh], CC_ID         ; Champions Cup 1988-89: the holder (list[30]) takes place 16 of round 2
-    jne .fa                             ; (the fixed draw then puts it in its bracket slot)
-    cmp ecx, 16
-    jne .r
-    cmp word [esi + 31h], CC_N
-    jne .r
-    mov al, [esi + 59h + CC_N - 1]
-    mov [esi + 59h + 15], al
-    ret
-.fa:
-    cmp byte [esi + 2Dh], FA_ID         ; FA Cup 1871-72: the bye club (list[14], untouched by round 1) takes the
-    jne .lib                            ; 8th place of round 2 (7 winners + 1)
-    cmp ecx, 8
-    jne .r
-    cmp word [esi + 31h], FA_N
-    jne .r
-    mov al, [esi + 59h + FA_N - 1]
-    mov [esi + 59h + 7], al
-    ret
+    pushad                              ; a cup with byes, round 2 (its (N - b) / 2 winners + b): the b clubs left
+    mov ebp, esi                        ; out of round 1 (list[N - b ..], untouched) follow the winners (the fixed
+    mov edi, ecx                        ; draw then puts them in their bracket slots)
+    mov al, [ebp + 2Dh]
+    mov cx, [ebp + 31h]
+    call bye_find
+    jc .nb
+    movzx ebx, byte [esi + 3]
+    movzx eax, byte [esi + 2]
+    sub eax, ebx                        ; N - b: the first one left out
+    mov edx, eax
+    shr edx, 1                          ; the winners
+    lea ecx, [edx + ebx]
+    cmp ecx, edi
+    jne .nb
+.c:
+    mov cl, [ebp + 59h + eax]           ; (target < source: an ascending copy is safe)
+    mov [ebp + 59h + edx], cl
+    inc eax
+    inc edx
+    dec ebx
+    jnz .c
+.nb:
+    popad
 .lib:
     cmp byte [esi + 2Dh], LIB_ID
     jne .r
@@ -179,6 +211,7 @@ lib_cal:                                ; replaces `mov esi, [A0]` in cseg_89758
     ret
 
 LIB_CAL: CAL_BYTES
+BYE_TAB: BYE_BYTES
 '''
 
 
@@ -204,15 +237,18 @@ def _sites(p):
 
 def patch(p, cave, fin_pre):
     import mkseason
-    bc = mkseason.bye_cups()
-    assert len(bc) == 1, bc                                 # lib_bye handles one season-pack cup with a bye
-    BYE_CUP = bc[0]
+    bc = [(0xC3, 0, 15, 1)] + mkseason.bye_cups()           # historic.FA_ID: FA Cup 1871-72 (15 clubs, 1 bye)
+    assert all(0 < b and n <= 255 and (n - b) % 2 == 0 for _, _, n, b in bc), bc
+    bw = mkseason.multi_ns() and any(w for _, w, _, _ in bc)  # several worlds: a world's cup ids are its own
+    if bw:
+        import careerworld
+        slt = careerworld.SITES['slt']
     """Returns (cave end, lib_pre offset) — lib_pre is called by historic.hist_draw."""
     a0, bye_call, c2573c, diycopy, cal_site = _sites(p)
     symbols = {'DIYCOPY': (2, diycopy), 'LIB_ID': (0, sacups.LIB_ID), 'LIB_N': (0, sacups.LIB_N),
                'LIB_GROUPS': (0, LIB_GROUPS), 'CSEG_2573C': (1, c2573c), 'A0': (2, a0), 'A3': (2, a0 + 12),
-               'FA_ID': (0, 0xC3), 'FA_N': (0, 15),                    # historic.FA_ID, FA Cup 1871-72 clubs
-               'CC_ID': (0, BYE_CUP[0]), 'CC_N': (0, BYE_CUP[1]),       # season-pack cup with its holder's bye
+               'BYE_NT': (0, len(bc)), 'BYE_BYTES': (0, 'db ' + ', '.join(str(x) for e in bc for x in e)),
+               'BW_ON': (0, int(bw)), 'WORLDB': (slt[0], slt[1] + careerworld.WORLD_BYTE) if bw else (0, 0),
                'FIN_PRE': (1, fin_pre),
                'CAL_BYTES': (0, 'db ' + ', '.join(str(b) for b in calendar_bytes()))}
     code, fix = nasmcave.assemble(ASM, cave, symbols)
@@ -223,6 +259,7 @@ def patch(p, cave, fin_pre):
     p.put(1, bye_call + 1, struct.pack('<i', labels['lib_bye'] - (bye_call + 5)))
     p.remove(1, cal_site + 2)                                     # mov esi, [A0] (6 B) -> call lib_cal; nop
     p.put(1, cal_site, b'\xe8' + struct.pack('<i', labels['lib_cal'] - (cal_site + 5)) + b'\x90')
-    print(f'exe: Libertadores 1997: bye call obj1+{bye_call:#x}, calendar obj1+{cal_site:#x}, code @ obj1+{cave:#x} '
+    print(f'exe: Libertadores 1997: bye call obj1+{bye_call:#x} (lib_bye {labels["lib_bye"]:#x}, BYE_TAB {len(bc)}), '
+          f'calendar obj1+{cal_site:#x}, code @ obj1+{cave:#x} '
           f'(diyFileBufferCopy obj2+{diycopy:#x})')
     return (cave + len(code) + 3) & ~3, labels['lib_pre']

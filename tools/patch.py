@@ -180,7 +180,7 @@ def patch_exe(src, dst, remap, lang='it'):
     xtra_on = bool(mkseason.xtra_files() or os.environ.get('XTRA_HOOK'))
     pg_tabs = mkseason.parallel_tables()               # parallel groups of one level (Serie C 3 x 20)
     dp_tabs = mkseason.dplay_tables() if mkseason.worlds() else []   # Italian play-offs (dplay.py)
-    lpb += bool(dp_tabs)                               # (+1: their code page, before the extra one)
+    lpb += 2 * bool(dp_tabs)                           # (+2: their code pages, before the extra one)
     xtra_pg = bool((xtra_on or pg_tabs) and mkseason.worlds())   # (+1: an extra code page in a build with worlds,
     lpb += xtra_pg                                     # whose world cave is full: 3.3.x purple + blond + a big world)
     cdp = mkseason.career_data_pages() - 2 if worlds else 0   # a big world: a 3rd career data page and a 2nd
@@ -303,10 +303,10 @@ def patch_exe(src, dst, remap, lang='it'):
         cs.update(sacups.SITES)
         uefaq.patch(p, hist2 + h2 + 0x2000, hist2 + h2 + 0x2000 + uefaq.STRUCTS_AT, cs)
         careerworld.BSS_SIZE = (careerworld.B_UQ + careerworld.UQ_BSS + careerworld.UQ_RECS * 684 + 0xFFF) & ~0xFFF
-    if dp_tabs:                                 # Italian play-offs at the season end (C, tools/dplay.c; own page,
+    if dp_tabs:                                 # Italian play-offs (C, tools/dplay.c; own 2 pages,
         import dplay                            # its .bss after the career BSS)
-        dp_at = hist2 + h2 + 0x1000 * (lpb - 1 - xtra_pg)
-        dplay.patch(p, dp_at, dp_at + 0x1000, dp_tabs, careerworld.BSS[0] + careerworld.BSS_SIZE)
+        dp_at = hist2 + h2 + 0x1000 * (lpb - 2 - xtra_pg)
+        dplay.patch(p, dp_at, dp_at + 0x2000, dp_tabs, careerworld.BSS[0] + careerworld.BSS_SIZE, area)
         careerworld.BSS_SIZE += 0x1000
     assert cave <= WORLD_CAVE, hex(cave)
     print(f'exe: caves: world end {world:#x} (limit {NZ_CAVE:#x}), arg end {arg_end:#x} (limit {OBJ1_NEW_VSIZE:#x})')

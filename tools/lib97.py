@@ -115,6 +115,27 @@ nc_bye:                                 ; replaces `mov esi, [A5]` before the ro
     cmp eax, 1
     ja .r
     mov [NCW + 59h], cx
+    mov esi, [A5]                       ; the rounds' legs / extra time / penalties words from the header's round
+    xor edx, edx                        ; bytes (+0Eh) for all of them: the game decodes as many as its halving of
+.rb:                                    ; the clubs gives (6 clubs: 2 of 3)
+    mov al, [esi + 0Eh + edx]
+    test al, al
+    jz .rbx
+    movzx ebx, al
+    shr ebx, 6
+    mov [NCW + 65h + edx * 2], bx
+    movzx ebx, al
+    shr ebx, 4
+    and ebx, 3
+    mov [NCW + 71h + edx * 2], bx
+    movzx ebx, al
+    shr ebx, 2
+    and ebx, 3
+    mov [NCW + 7Dh + edx * 2], bx
+    inc edx
+    cmp edx, ecx
+    jb .rb
+.rbx:
     mov ecx, 12                         ; the cup's dates ([333h], the table +337h) again for those rounds
     mov esi, PREG                       ; (cseg_2740F, which uses the game's D0..A3: kept)
 .p:
@@ -263,6 +284,11 @@ nc_adv:                                 ; replaces `call 0x194A4` in the knockou
 .fx:
     mov ecx, [NC_W]
     add ecx, [NC_B]                     ; the next round's clubs
+    cmp dword [NC_DPP], 0               ; dplay's play-off: its own bracket (dplay.dp_perm)
+    je .ndp
+    call [NC_DPP]
+    jnc .set
+.ndp:
 %if FD_ON
     call nc_first
     jc .rnd
@@ -437,6 +463,7 @@ NC_B: dd 0
 NC_W: dd 0
 NC_T: times 64 db 0
 NC_DTAB: dd 0                           ; (chain_adv: historic's draw table)
+NC_DPP: dd 0                            ; (dplay.dp_perm, or 0)
 NC_WREC: dd 0                           ; (chain_adv: careerworld.w_rec)
 NC_WDON: db 0
 NC_DW: db 0
@@ -504,7 +531,10 @@ def chain_adv(p):
 
 def patch(p, cave, fin_pre):
     import mkseason
+    import dplay
     bc = [(0xC3, 0, 15, 1)] + mkseason.bye_cups()           # historic.FA_ID: FA Cup 1871-72 (15 clubs, 1 bye)
+    if mkseason.worlds():
+        bc += dplay.bye_cups(mkseason.dplay_tables())        # the Serie B play-off (the 3rd and 4th wait)
     assert all(0 < b and n <= 255 and (n - b) % 2 == 0 for _, _, n, b in bc), bc
     bw = mkseason.multi_ns() and any(w for _, w, _, _ in bc)  # several worlds: a world's cup ids are its own
     fd = bool(mkseason.worlds())                             # career worlds: their cups' fixed draws (first season)
@@ -530,7 +560,8 @@ def patch(p, cave, fin_pre):
         p.add_ptr(1, cave + off, tobj, toff)
     p.put(1, bye_call + 1, struct.pack('<i', labels['lib_bye'] - (bye_call + 5)))
     LABELS.update(nc_adv=labels['nc_adv'], nc_adv_call=labels['nc_adv_call'], adv_site=adv_site,   # (chain_adv)
-                  NC_DTAB=labels['NC_DTAB'], NC_WDON=labels['NC_WDON'], NC_WREC=labels['NC_WREC'], fd=fd)
+                  NC_DTAB=labels['NC_DTAB'], NC_WDON=labels['NC_WDON'], NC_WREC=labels['NC_WREC'], fd=fd,
+                  NC_T=labels['NC_T'], NC_DPP=labels['NC_DPP'])
     p.remove(1, nc_site + 2)                                      # mov esi, [A5] (6 B) -> call nc_bye; nop
     p.put(1, nc_site, b'\xe8' + struct.pack('<i', labels['nc_bye'] - (nc_site + 5)) + b'\x90')
     p.remove(1, cal_site + 2)                                     # mov esi, [A0] (6 B) -> call lib_cal; nop

@@ -638,6 +638,8 @@ Q_NAME, Q_LIST = 0x28, 0x30     # offsets in a contest: its 2 name dwords, its 2
 NAMES = {'it': 'PRELIM. ', 'en': 'QUAL. ', 'fr': 'QUALIF. ', 'de': 'QUALI. '}
 CUPS = (b'CHAMPIONS LEAGUE', b'EUROPA LEAGUE', b'CONFERENCE LEAGUE')
 STRUCTS = []
+STATE_END = [None]
+LABELS = {}                     # (dplay: the round-name hooks)
 D7_BASE = [None]                # sacups' chain value of the first contest (patch.py)
 # the legs' dates per round (eighths of a month from January; the second leg 2 later): Q1 early July, Q2 late
 # July, Q3 early August, play-off late August (the league phases start in September)
@@ -687,6 +689,7 @@ def patch(p, at, limit, sites):
     slay = dict(zip(('S_M', 'S_K', 'S_RES', 'S_GN', 'S_GL', 'S_SIZE', 'R_DONE', 'R_R', 'R_OPP', 'R_DEST', 'R_GL',
                      'R_NPOT', 'R_POT'), struct.unpack('<13I', p.get(1, syms['UQ_SLAYOUT'][1], 52))))
     assert uc.CB_OFF + uc.SIZE + slay['S_SIZE'] <= 80 * 684, slay
+    STATE_END[0] = uc.CB_OFF + uc.SIZE + slay['S_SIZE']       # (tmdFileBuffer offset: dplay's state follows)
     d1 = p.le.obj_bytes(1)                      # cseg_8E3DA: `call cseg_8EA56` after the careerFinished test
     hits = [m.start() + 9 for m in re.finditer(
         rb'\x66\x0b\xc0\x0f\x85.{4}\xe8.{4}\x8b\x35.{4}\x8a\x46\x06\x0a\xc0\x78.\x75.', d1, re.S)]
@@ -737,6 +740,7 @@ def patch(p, at, limit, sites):
     code, fix = nasmcave.assemble(ASM, glue, symbols)
     lab = nasmcave.labels(ASM, glue, symbols)
     lab.update(_locals(ASM, glue, symbols, ('uq_fill.ran', 'uq_fill.done')))
+    LABELS.update(lab)
     assert glue + len(code) <= limit, hex(glue + len(code))
     p.put(1, glue, code)
     for off, tobj, toff in fix:

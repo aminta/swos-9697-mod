@@ -1456,6 +1456,12 @@ def world8485():
                     poked.add(season)
                 if peek is not None:                   # W8485_PEEK: the largest word seen at an obj2 offset
                     peek[1] = max(peek[1], struct.unpack_from('<H', s.result.obj2(peek[0], 2))[0])
+                for a in filter(None, os.environ.get('W8485_HEX', '').split(',')):   # obj2 offset:bytes, logged
+                    o, n = a.split(':')                                                # when they change
+                    v = s.result.obj2(int(o, 16), int(n)).hex()
+                    if hexseen.get(o) != v:
+                        hexseen[o] = v
+                        s.log.append(f'HEX {o} {v}')
                 rnd, cid, ties = slot_ties(s.result, 32)
                 if struct.unpack_from('<H', s.result.obj2(SLOT, 2))[0] == 2:   # a league phase (type 2): no ties
                     return season_over(scr)
@@ -1467,6 +1473,7 @@ def world8485():
                     same = [ties[j] for j in range(n) if ties[j][0] == ties[j][1]]
                     check(not same, f'season {season} cup {cid} round {rnd + 1}: same-country ties {same}', errs)
                 return season_over(scr) or (r2only and (season, 1) in seen)
+            hexseen = {}
             r2only = os.environ.get('W8485_R2') == '1'         # stop once the player's round 2 is checked
             peek = [int(os.environ['W8485_PEEK'], 0), 0] if os.environ.get('W8485_PEEK') else None
             ok, msg = advance(s, stop, 900)
@@ -1476,10 +1483,18 @@ def world8485():
             msg += f', euro rounds checked {sorted(seen)}' + (f', peek max {peek[1]}' if peek else '')
             if not ok or errs:
                 return False, f"season {season}: {msg}; {'; '.join(errs)}"
-            if s.screen().find('FINISCI STAGIONE', exact=True) is not None:
-                press(s, s.screen(), 'FINISCI STAGIONE', wait=3)
-            if s.result.outcome != 'dump':
-                return False, f'season {season} FINISCI STAGIONE: {s.result}'
+            for _ in range(8):                         # FINISCI STAGIONE with the career club's matches still in
+                if s.screen().find('FINISCI STAGIONE', exact=True) is not None:   # the calendar (a play-off of
+                    press(s, s.screen(), 'FINISCI STAGIONE', wait=3)               # dplay: no 'manager' flag on
+                if s.result.outcome != 'dump':                                     # its entries) plays them first
+                    return False, f'season {season} FINISCI STAGIONE: {s.result}'
+                texts = s.screen().texts()
+                if not ('MOD. TATTICA' in texts and 'AVVERSARI' in texts):
+                    break
+                ok, m2 = advance(s, lambda scr: season_over(scr) and 'MOD. TATTICA' not in scr.texts(), 200)
+                msg += f', after FINISCI STAGIONE: {m2}'
+                if not ok:
+                    return False, f"season {season}: {msg}" 
             path = next_season_save(s, 'W84' + 'AB'[season - 1])
             if not path.endswith('.CAR'):
                 return False, f'season {season}: {path}'
@@ -2935,6 +2950,54 @@ def world_playoffs():
     check(mv['B', 'A'] == 3 and mv['A', 'B'] == 3 and mv['B', 'C'] == 4 and mv['C', 'B'] == 4 and not mv['C-C'],
           f'moves {dict(mv)}', errs)
     return not errs, '; '.join(errs) or f'{msg}; divisions {sorted(cnt.items())}; moves {dict(mv)}'
+
+
+@scenario
+def world_dplay_b():
+    """The career club's Serie B play-off, played (dplay step 2): the world 2026-27 (private data internal/world2526/
+    world5tm, 'playoffs': 'ita') built with DPLAY_FORCE=5 (at the league end the career club takes 5th place); a
+    season at MODENA: the PLAY-OFF SERIE B contest is built in slot 4 after the last league day and played to its
+    end (the season log in W84A.CAR: kind 1, the 6 clubs with MODENA 5th in the order 5th 8th 6th 7th 3rd 4th, a
+    winner among them), and that winner is the club Serie B sends up besides the first two"""
+    src = os.path.join(MAIN, 'internal', 'world2526', 'world5tm')
+    if not os.path.isdir(src):
+        return True, 'SKIP: private data internal/world2526/world5tm missing'
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    env = {'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]), 'DPLAY_FORCE': '5'}
+    exe = build('world_dplay_b', env=env)
+    keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K',
+                                            'W8485_NOSACK', 'W8485_HEX')}
+    os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM='EUROPA,ITALIA,SERIE B,MODENA',
+                      W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1')
+    os.environ.setdefault('W8485_HEX', '156d8:48,18e04:4,19dca:6,19dec:12,1b528:6')   # (the session log: state, slot 4)
+    try:
+        ok, msg = world8485()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    car = os.path.join(RUNS, 'world8485_1', 'SWOS', 'W84A.CAR')
+    if not os.path.exists(car):
+        return False, f'no season-1 save: {msg}'
+    d = open(car, 'rb').read()
+    k = d.find(b'DPLG')
+    errs = []
+    check(ok, msg, errs)
+    if k < 0:
+        return False, f'{msg}; no dplay log in W84A.CAR'
+    magic, res, kind, n = struct.unpack_from('<HHBB', d, k + 4)
+    teams = struct.unpack_from('<6H', d, k + 4 + 8)
+    places = d[k + 4 + 32:k + 4 + 38]
+    nmv = d[k + 4 + 48]                                      # (the state: 48 B, then dp_out's head: nmv, ntie, ..)
+    mv = [struct.unpack_from('<HHb', d, k + 4 + 48 + 4 + 8 * i) for i in range(min(nmv, 4))]
+    check(magic == 0x5044 and kind == 1 and n == 6, f'state magic {magic:#x} kind {kind} n {n}', errs)
+    check(list(places) == [4, 7, 5, 6, 2, 3], f'places {list(places)}', errs)
+    check(res in teams, f'winner {res:#x} not among {[hex(t) for t in teams]}', errs)
+    check(any(t == res and dl == -1 for _, t, dl in mv), f'winner {res:#x} not moved up: moves {mv}', errs)
+    return not errs, '; '.join(errs) or (f'{msg}; play-off clubs {[hex(t) for t in teams]}, winner {res:#x} '
+                                         f'(place {places[teams.index(res)] + 1}), moves {mv}')
 
 def run_parallel(names, jobs):
     """run -jN: each scenario in its own process (own run dirs and DOSBox-X, one host core each in turbo); the

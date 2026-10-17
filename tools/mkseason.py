@@ -78,9 +78,10 @@ ROUND = {'two_legs': 0x94, 'single': 0x14, 'single_et': 0x54}   # knockout round
 # replay is decided by a coin toss (historic coin_draw): those tourneys use no penalties at all.
 MATCHES = {'single': 0x14, 'single_et': 0x54, 'two_legs': 0x94, 'single_replay': 0x00, 'two_legs_replay': 0x80}
 REPLAY = ('single_replay', 'two_legs_replay')
-RESERVED_IDS = {0xAD, 0xC1, 0xC2, 0xC3, 0xC4, 0xC5} | set(range(0x6c, 0x7f))   # hand-made contests (historic, finals97,
+RESERVED_IDS = {0xAD, 0xC1, 0xC2, 0xC3, 0xC4, 0xC5, 0xFC, 0xFD, 0xFE} | set(range(0x6c, 0x7f))   # hand-made contests (historic, finals97,
                                                                                # sacups, cafcups, Australian cup,
-                                                                               # uefaq's qualifying ties 7C..7E)
+                                                                               # uefaq's qualifying ties 7C..7E,
+                                                                               # dplay's play-offs FC..FE)
 AU_CUP_SIG = bytes((0xAD, 1, 0x2C, 0x28, 0x50))   # SWOS's Australian cup: layout of a 'national' cup
 COUNTRY = {'ALB': 0, 'AUT': 1, 'BEL': 2, 'BUL': 3, 'CYP': 5, 'TCH': 6, 'DEN': 7, 'ENG': 8, 'FIN': 12, 'FRA': 13, 'GDR': 14,
            'FRG': 14, 'GRE': 15, 'HUN': 16, 'ISL': 17, 'IRL': 18, 'ITA': 20, 'LUX': 23, 'MLT': 24, 'NED': 25,
@@ -287,7 +288,7 @@ class Pack:
         if not lg or self.world is None or lg.get('playoffs') != 'ita' or not lg.get('parallel'):
             return None
         par = lg['parallel']
-        return self.world, int(lg['id'], 16), par['upper'], par['first'], par['count']
+        return self.world, int(lg['id'], 16), par['upper'], par['first'], par['count'], self.files[lg['clubs']][0]
 
     def parallel(self):
         """pgroups table: None, or (world, upper, first, [group sizes], [(global number, base division, area group)])

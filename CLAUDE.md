@@ -23,6 +23,8 @@ Read this first; then the tail of `notes/STATUS.md` (latest work) and, before an
   3.3.3 team cache of 160 in big-world careers (1984-85 data/team.254 exit), real 1984-85 national-cup brackets in
   careers, SELECT KITS name box colour.
 - Release notes: `release/notes-<version>.md`; the patcher page `release/swos-9697-mod-patcher.html`.
+- Version plan (Davide, 2026-10-17): 4.0 = Champions Cup group draw (real 1996-97 groups, then random by country),
+  European Supercup, Intertoto (session "4.0"); 5.0 = the 2026-27 world (branch world-2025-26).
 
 ## Layout
 - `tools/patch.py it|en|fr|de` builds an exe + team files into `c/SWOS` from the originals in `orig/` (git-ignored,

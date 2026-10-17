@@ -258,6 +258,20 @@ Lengjubikarinn, Finland Liigacup, Chile and Peru Copa de la Liga. -->
   Presidente, last 2017-18), Guatemala and Panama play their league only. Peru's only cup for its Liga 1 clubs, the
   Copa de la Liga, takes the national cup's place. South Africa's Nedbank Cup and Carling Knockout keep their
   sponsors' names (no other name is in use).
+<!-- DATA STAGED (publish with the engine's formats): - Formats from the last documented season, where no 2026-27
+  source exists (an approximation; these are one-division countries in the world, so only the format counts):
+  - Korea: the split after 33 matchdays as in 2025.
+  - Czech Republic: the 7th-10th placement knockout of single matches, as in 2025-26.
+  - Bolivia: one double round-robin of 30 matchdays, as in 2025-26.
+  - Guatemala: the top 8 in two-legged quarter-finals, semi-finals and final, as in the Clausura 2026.
+  - Honduras: the 2026-27 groups and liguilla as announced, the final in two legs as in the Clausura 2026.
+  - Serbia: the top and bottom halves in single round-robins with points kept, as in 2025-26.
+  - Bulgaria: the three 2026-27 groups with the 2025-26 rules (points kept).
+  - Albania: the Final Four of the top 4 with halved points, as in 2025-26.
+  - Kazakhstan: one double round-robin of 30 matchdays, as in 2025.
+  - Moldova: phase II of the top 6 from their halved head-to-head points, as in 2025-26.
+  - Andorra: a triple round-robin, as in 2025-26.
+  - San Marino: one table of 30 matchdays and the Conference play-off of 2nd-11th, as in 2025-26. -->
 - Odd leagues lose their last club (the engine needs an even number): Gibraltar, New Zealand (11 -> 10).
 
 **Known limits**
@@ -539,6 +553,21 @@ Non una formula uguale per tutti: ogni campionato gioca la stagione come l'ha sc
   Honduras (Copa Presidente, ultima 2017-18), Guatemala e Panama giocano solo il campionato. L'unica coppa del Perù
   per i club della Liga 1, la Copa de la Liga, prende il posto della coppa nazionale. La Nedbank Cup e la Carling
   Knockout del Sudafrica tengono il nome dello sponsor (non ne esiste un altro in uso).
+<!-- DATA STAGED (da pubblicare con le formule del motore): - Formule dell'ultima stagione documentata, dove per il
+  2026-27 non c'è una fonte (un'approssimazione; sono nazioni con una sola divisione nel mondo, quindi conta solo la
+  formula):
+  - Corea: lo split dopo 33 giornate come nel 2025.
+  - Repubblica Ceca: lo spareggio a eliminazione diretta in gara unica per il 7°-10° posto, come nel 2025-26.
+  - Bolivia: un girone all'italiana di andata e ritorno di 30 giornate, come nel 2025-26.
+  - Guatemala: le prime 8 in quarti, semifinali e finale di andata e ritorno, come nel Clausura 2026.
+  - Honduras: i gironi e la liguilla 2026-27 come annunciati, la finale di andata e ritorno come nel Clausura 2026.
+  - Serbia: la metà alta e la metà bassa in gironi di sola andata con i punti mantenuti, come nel 2025-26.
+  - Bulgaria: i tre gruppi 2026-27 con le regole del 2025-26 (punti mantenuti).
+  - Albania: la Final Four delle prime 4 con i punti dimezzati, come nel 2025-26.
+  - Kazakistan: un girone di andata e ritorno di 30 giornate, come nel 2025.
+  - Moldavia: la seconda fase delle prime 6 dai punti degli scontri diretti dimezzati, come nel 2025-26.
+  - Andorra: un girone a tre turni, come nel 2025-26.
+  - San Marino: una classifica di 30 giornate e il play-off di Conference dal 2° all'11° posto, come nel 2025-26. -->
 - I campionati con un numero dispari di club perdono l'ultimo (il motore vuole un numero pari): Gibilterra, Nuova
   Zelanda (11 -> 10).
 

@@ -116,10 +116,160 @@ rn_round:                               ; uq_rn1 / uq_rn2: CF = 1 and D0 = the n
     clc
     ret
 
+; Titles (cseg_45D92: '<contest name> <round> [<leg>]' into a menu entry's text, which shows 40 characters): when
+; longer, a national contest drops its country prefix first ('ITALIA PLAY-OFF SERIE B' -> 'PLAY-OFF SERIE B'), then
+; the medium round name ('OTTAVI', 'T. PRELIM.') is used; still longer, the first word goes and then the end is cut.
+rn_t1:                                  ; its `call cseg_284AB` (type-2 rounds)
+    call C284AB
+    jmp rn_tfit
+rn_t2:                                  ; its two `call cseg_28049` (type-1 rounds)
+    call C28049
+rn_tfit:                                ; A0 = the round's long name, D0 = its index x 4, A1 = after '<name> '
+    pushad
+    mov esi, DIY + 4                    ; (the contest's name, copied first)
+    call rn_len
+    lea edx, [ecx + 1]
+    mov eax, [A1R]
+    sub eax, edx
+    mov [RN_TS], eax                    ; the title's start
+    mov esi, [A0R]
+    call rn_len
+    add edx, ecx
+    cmp word [DIY + 14Bh], 2            ; (+ ' <leg>' of a two-legged round, or ' DRAW')
+    jne .w
+    add edx, 8
+.w:
+    cmp edx, 40
+    jbe .x
+    mov al, [DIY + 2Dh]                 ; a national contest ('<country> <name>'): its country prefix goes first
+    mov ebx, RN_LPIDS                   ; (not the UEFA cups nor their qualifying ties)
+.u:
+    cmp [ebx], al
+    je .med
+    inc ebx
+    cmp ebx, RN_LPIDS + 3
+    jb .u
+    cmp al, QID_LO
+    jb .nat
+    cmp al, QID_HI
+    jbe .med
+.nat:
+    mov byte [RN_DROP], 1
+    mov esi, DIY + 4                    ; (its first word + the space)
+.fw:
+    lodsb
+    test al, al
+    jz .med
+    dec edx
+    cmp al, ' '
+    jne .fw
+    cmp edx, 40
+    jbe .x
+.med:
+    movzx eax, word [D0R]
+    mov eax, [MEDTAB + eax]
+    mov [A0R], eax
+.x:
+    popad
+    ret
+
+rn_len:                                 ; esi = a string -> ecx = its shown characters (the '*' fill is not shown)
+    xor ecx, ecx
+.l:
+    mov al, [esi]
+    inc esi
+    test al, al
+    jz .r
+    cmp al, '*'
+    je .l
+    inc ecx
+    jmp .l
+.r:
+    ret
+
+rn_tend:                                ; replaces `mov esi, [A1]` at cseg_45D92's end (then `mov byte [esi], 0`)
+    pushad
+    mov ebx, [RN_TS]
+    test ebx, ebx
+    jz .x
+    mov dword [RN_TS], 0
+    mov edi, [A1R]
+    mov byte [edi], 0
+    mov esi, ebx
+    call rn_len
+    cmp byte [RN_DROP], 0
+    mov byte [RN_DROP], 0
+    jne .d
+    cmp ecx, 40
+    jbe .x
+.d:
+    mov esi, ebx                        ; drop the first word
+.f:
+    cmp esi, edi
+    jae .x
+    lodsb
+    cmp al, ' '
+    jne .f
+    mov edx, ebx
+.c:
+    mov al, [esi]
+    mov [edx], al
+    inc esi
+    inc edx
+    test al, al
+    jnz .c
+    dec edx
+    mov [A1R], edx
+    mov esi, ebx
+    call rn_len
+    cmp ecx, 40
+    jbe .x
+    xor ecx, ecx                        ; still longer: cut after 40 shown characters
+    mov esi, ebx
+.k:
+    mov al, [esi]
+    cmp al, '*'
+    je .n
+    inc ecx
+    cmp ecx, 40
+    ja .cut
+.n:
+    inc esi
+    jmp .k
+.cut:
+    mov [A1R], esi
+.x:
+    popad
+    mov esi, [A1R]
+    ret
+RN_TS: dd 0
+RN_DROP: db 0
+
 RN_LPMAP: db LP_I, KO_I, R16_I
 RN_LPIDS: LPID_BYTES
 RN_NUMB: NUMB_BYTES
 '''
+
+
+def _title_sites(p, r):
+    """cseg_45D92 (a cup round's title): its `call cseg_284AB`, its two `call cseg_28049` (each followed by `call
+    StringCopy`), its end `mov esi, [A1]; mov byte [esi], 0; retn`; cseg_28049 and cseg_284AB."""
+    d1 = p.le.obj_bytes(1)
+    pk = lambda x: re.escape(struct.pack('<I', x))
+    fs = [m.start() for m in re.finditer(rb'\xe8.{4}\x66\xc1\x25' + pk(r['A0'] - 32) + rb'\x02\xc7\x05' + pk(r['A0']), d1, re.S)]
+    assert len(fs) == 2, fs
+    tgt = lambda a: a + 5 + struct.unpack_from('<i', d1, a + 1)[0]
+    c28049, c284ab = sorted(fs, key=lambda f: d1[tgt(f):tgt(f) + 3] != b'\x66\x83\x2d')   # (280C0: sub word [D1], 1)
+    ends = [m.start() for m in re.finditer(rb'\x8b\x35' + pk(r['A0'] + 4) + rb'\xc6\x06\x00\xc3', d1)]
+    calls = lambda t: [i for i in range(len(d1) - 5) if d1[i] == 0xE8 and tgt(i) == t]
+    for e in ends:                              # the end with one 284AB call and two 28049 calls before it
+        a = [c for c in calls(c284ab) if 0 < e - c < 0x200]
+        b = [c for c in calls(c28049) if 0 < e - c < 0x200]
+        if len(a) == 1 and len(b) == 2:
+            for c in a + b:
+                assert d1[c + 5] == 0xE8, hex(c)
+            return e, a[0], b, c28049, c284ab
+    raise AssertionError('cseg_45D92 not found')
 
 
 def _tables(p):
@@ -180,12 +330,21 @@ def patch(p, at, limit, lang, area, lp_ids, numbered):
            'LP_I': (0, LP), 'KO_I': (0, KO), 'R16_I': (0, R16), 'QPO_I': (0, QPO), 'PRE_I': (0, PRE),
            'LPID_BYTES': (0, 'db ' + ', '.join(str(x) for x in lp_ids)),
            'NUMB_BYTES': (0, 'db ' + ', '.join(str(x) for x in list(numbered) + [0]))}
+    end, s284, s280, c28049, c284ab = _title_sites(p, sacups.regs(p.le.obj_bytes(1)))
+    sym.update({'QID_LO': (0, min(uefaq.QIDS)), 'QID_HI': (0, max(uefaq.QIDS)), 'C28049': (1, c28049), 'C284AB': (1, c284ab), 'MEDTAB': (1, tab + 4 * n), 'A0R': (2, a0),
+                'A1R': (2, a0 + 4)})
     code, fix = nasmcave.assemble(ASM, code_at, sym)
     lab = nasmcave.labels(ASM, code_at, sym)
     assert code_at + len(code) <= limit, hex(code_at + len(code))
     p.put(1, code_at, code)
     for off, tobj, toff in fix:
         p.add_ptr(1, code_at + off, tobj, toff)
+    rel = lambda a, t: struct.pack('<i', lab[t] - (a + 5))
+    p.put(1, s284 + 1, rel(s284, 'rn_t1'))      # (relative calls: no fixups)
+    for c in s280:
+        p.put(1, c + 1, rel(c, 'rn_t2'))
+    p.remove(1, end + 2)                        # mov esi, [A1] (6 B) -> call rn_tend; nop
+    p.put(1, end, b'\xe8' + rel(end, 'rn_tend') + b'\x90')
     for rn in ('uq_rn1', 'uq_rn2'):             # their `call uq_tie_round` (dplay may have moved it) -> rn_round
         a = ul[rn]
         assert p.get(1, a, 1) == b'\xe8'

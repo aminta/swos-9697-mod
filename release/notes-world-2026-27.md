@@ -173,9 +173,9 @@ Lengjubikarinn, Finland Liigacup, Chile and Peru Copa de la Liga. -->
   through. A cup already down to its last rounds (the quarter-finals or later have been played) restarts from its last
   round of 8 or more world clubs, with that round's real ties; a cup not started yet is drawn by the mod (the weakest
   clubs play round 1, the others a bye). A cup's group stage is not a knockout: while it is played all its clubs are
-  still in, once it is over only the clubs that reached the knockout are. At most 64 clubs per cup (the engine's limit): the FA Cup leaves out its 4
-  weakest clubs. The mod draws the rounds not drawn yet. Every match is played by the game, so the real results of
-  the rounds already played are not imposed.
+  still in, once it is over only the clubs that reached the knockout are. At most 64 clubs per cup (the engine's
+  limit): the FA Cup leaves out its 4 weakest clubs. The mod draws the rounds not drawn yet. Every match is played by
+  the game, so the real results of the rounds already played are not imposed.
 - Serie C: the three groups (A North, B Centre, C South) are the real 2026-27 ones; from season 2
   every club that comes down to Serie C joins the group of its region (a fixed geography table: Lombardy, Piedmont,
   Aosta Valley, Trentino-Alto Adige, Veneto, Friuli-Venezia Giulia -> A; Emilia-Romagna, Liguria, Tuscany, Umbria,
@@ -381,9 +381,9 @@ L'obiettivo di questo mondo: il calcio di oggi com'è davvero, fino alle regole 
   Una coppa già agli ultimi turni (quarti o oltre già giocati) riparte dal suo ultimo turno con almeno 8 club del mondo,
   con le vere coppie di quel turno; una coppa non ancora iniziata la sorteggia la mod (i club più deboli giocano il primo
   turno, gli altri sono esentati). La fase a gironi di una coppa non è a eliminazione: mentre si gioca tutti i suoi
-  club sono ancora in corsa, a gironi finiti solo quelli arrivati all'eliminazione diretta. Al massimo 64 club per coppa (il limite del motore): la FA Cup lascia fuori i suoi 4
-  club più deboli. I turni non ancora sorteggiati li sorteggia la mod. Ogni partita la gioca il gioco, quindi i
-  risultati veri dei turni già giocati non sono imposti.
+  club sono ancora in corsa, a gironi finiti solo quelli arrivati all'eliminazione diretta. Al massimo 64 club per
+  coppa (il limite del motore): la FA Cup lascia fuori i suoi 4 club più deboli. I turni non ancora sorteggiati li
+  sorteggia la mod. Ogni partita la gioca il gioco, quindi i risultati veri dei turni già giocati non sono imposti.
 - Serie C: i tre gironi (A Nord, B Centro, C Sud) sono quelli veri 2026-27; dalla seconda stagione
   ogni club che scende in Serie C va nel girone della sua regione (una tabella geografica fissa: Lombardia, Piemonte,
   Valle d'Aosta, Trentino-Alto Adige, Veneto, Friuli-Venezia Giulia -> A; Emilia-Romagna, Liguria, Toscana, Umbria,

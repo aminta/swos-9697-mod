@@ -1881,6 +1881,10 @@ w_loadcopy:                             ; trailer LOADCOPY: LoadCareerFile read 
     mov edi, CAREER
     mov ecx, FIXED
     call w_copy
+%if NS_ON
+    mov al, [SLTW]                      ; several worlds: the save's namespace again (w_ns_ld ran before this copy,
+    call W_NS_SET                       ; on the previous career's world byte)
+%endif
     call w_setbase
     mov ecx, [D1R]                      ; (bytes read)
     sub ecx, FIXED
@@ -1921,6 +1925,14 @@ w_switch:                               ; InitCareer's start (w_entry): a club o
     pushad                              ; takes the big cache, before any team is loaded
     mov dword [SELBASEV], OLDSEL
     mov dword [ROOMV], OLDROOM
+%if NS_ON
+    movzx eax, byte [WSEL]              ; several worlds: the club's country in the namespace the selector showed
+    movzx esi, byte [WCURV]             ; (as w_load1; country numbers repeat across worlds, WMAP is ambiguous)
+    shl esi, 5
+    bt [WNSBV + esi], eax
+    jnc .s
+    movzx ebx, byte [WCURV]
+%else
     mov al, [WSEL]
     mov esi, WMAP
 .l:
@@ -1932,6 +1944,7 @@ w_switch:                               ; InitCareer's start (w_entry): a club o
     jmp .l
 .f:
     movzx ebx, byte [esi + 1]
+%endif
     imul ebx, ebx, REC
     add ebx, WTAB - REC
     cmp byte [ebx + 48], 0              ; (w_big's test)
@@ -2205,6 +2218,11 @@ def patch_tails(p, at, nasmcave):
                 'BIGC': (0, BIGC), 'BIGC_AT': (0, BIGC_AT), 'UPGRADE_N': (0, UPGRADE_N)})
     sym['W_LPW'] = (1, LABELS['w_lpw']) if 'w_lpw' in LABELS else (0, 0)
     sym['LPW_ON'] = (0, int('w_lpw' in LABELS))
+    sym['NS_ON'] = (0, int('w_ns_set' in LABELS))
+    sym['W_NS_SET'] = (1, LABELS['w_ns_set']) if 'w_ns_set' in LABELS else (0, 0)
+    sym['SLTW'] = (s['slt'][0], s['slt'][1] + WORLD_BYTE)
+    sym['WCURV'] = (1, LABELS['WCUR']) if 'WCUR' in LABELS else (0, 0)
+    sym['WNSBV'] = (1, LABELS['WNSB']) if 'WNSB' in LABELS else (0, 0)
     src = TAILS_ASM
     if os.environ.get('DIAG'):                   # diagnostic build: int 3 handler writes DIAG.BIN
         src = '%define DIAG\n' + src.replace('.w:\n    pushad\n    mov esi, TMDBUF', '.w:\n    call diag_install\n    pushad\n    mov esi, TMDBUF')

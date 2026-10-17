@@ -54,7 +54,8 @@ The point of this world: today's football as it really is, down to rules most pl
   ahead**, otherwise the play-out 16th v 17th, two legs, first leg at the 17th's; level -> the 16th stays up, except
   clubs level on league points: extra time and penalties.
 - **Serie C in three groups of 20** (A North, B Centre, C South): the three group winners are promoted; the clubs
-  relegated from Serie B go into the group of their area, balanced to 20 per group, as the Lega Pro does.
+  relegated from Serie B go into the group of their region, balanced to 20 per group, as the real 2026-27 groups
+  are drawn.
 - **Serie C play-off of 28 clubs** (2nd-10th of each group + the Coppa Italia Serie C winner) for the fourth
   promotion:
   - group phase, round 1: 5th v 10th, 6th v 9th, 7th v 8th, single match at the better placed's, a draw -> the
@@ -69,13 +70,23 @@ The point of this world: today's football as it really is, down to rules most pl
     of lots.
 
 *National cups 2026-27*
-- **Every club still in at the start of the season**, each from **its real round**: clubs that enter later have
-  byes (Coppa Italia from the real round of 16, the Copa del Rey with 10 ties and 22 byes ...); the real drawn ties
-  and the real bracket are played round by round in the first season.
+- **Every club still in when the data was taken (October 2026)**, each from **its real round**: clubs entering later
+  have first-round byes (Coppa Italia from its real round of 16, the Copa del Rey with 10 ties and 22 byes ...); the
+  ties already drawn are played as drawn, the rounds not drawn yet are drawn by the mod (fixed for the first season);
+  group stages count as group stages (a defeat there is no exit).
 
+<!-- REGIA STAGED (add when the integrator lands the league-cup slot): League cups 2026-27: EFL Cup from its real 4th
+round (two-legged semi-finals, penalties without extra time before the final; winner -> UECL play-off in reality);
+Coppa Italia Serie C from its real round of 16 (Serie C clubs not in the Coppa Italia proper; two-legged semis and
+final; winner -> the Serie C play-off); Taca da Liga in its real 8-club format (previous Liga top 6 + the 2 promoted,
+QF 1-8 2-7 3-6 4-5, fixed semi-final pairing, penalties without extra time); Scottish League Cup from its 2nd round;
+J.League Cup with two-legged QF and SF; NIR League Cup from its 1st round; Egypt / Qatar league cups from their group
+stages; UAE League Cup two-legged up to the semis; Carling Knockout (RSA) 16 PSL clubs; Welsh League Cup; Iceland
+Lengjubikarinn, Finland Liigacup, Chile and Peru Copa de la Liga. -->
 *Leagues, calendars and clubs*
-- **Belgium 2026-27: 18 clubs, no play-offs**, as the new format; calendar-year leagues (Brazil, Argentina, MLS,
-  Japan ...) play their **2026** season.
+- **Belgium 2026-27: 18 clubs, 34 matchdays, no play-offs**, the new format; calendar-year leagues (Brazil,
+  Argentina, the MLS, Korea, China, the Nordic countries ...) play their **2026** season, **Japan already its first
+  August-May season, 2026-27**.
 - Clubs in the order of their **2025-26 final table**; squads at the **end of the summer 2026 window**; real shirt
   numbers, coaches, kits (stripes and hoops, purple where worn).
 - **Foreign market of 2026-27**: 900 real players of the tiers just below the world's divisions.
@@ -251,7 +262,7 @@ L'obiettivo di questo mondo: il calcio di oggi com'è davvero, fino alle regole 
   vantaggio**, altrimenti play-out 16ª contro 17ª, andata e ritorno, andata in casa della 17ª; a parità si salva la
   16ª, tranne a pari punti in campionato: supplementari e rigori.
 - **Serie C su tre gironi da 20** (A Nord, B Centro, C Sud): salgono le tre vincitrici; le retrocesse dalla B vanno
-  nel girone della loro zona, bilanciato a 20, come fa la Lega Pro.
+  nel girone della loro regione, bilanciato a 20, come sono composti i gironi veri 2026-27.
 - **Play-off di Serie C a 28 squadre** (dalla 2ª alla 10ª di ogni girone + la vincente della Coppa Italia Serie C)
   per la quarta promozione:
   - fase dei gironi, primo turno: 5ª-10ª, 6ª-9ª, 7ª-8ª, gara secca in casa della meglio piazzata, a parità passa la
@@ -267,13 +278,15 @@ L'obiettivo di questo mondo: il calcio di oggi com'è davvero, fino alle regole 
     sorteggio.
 
 *Coppe nazionali 2026-27*
-- **Tutte le squadre ancora in corsa a inizio stagione**, ognuna dal **suo turno vero**: chi entra più tardi è
-  esente (Coppa Italia dagli ottavi veri, Copa del Rey con 10 sfide e 22 esenti ...); nella prima stagione si
-  giocano gli accoppiamenti e il tabellone veri, turno per turno.
+- **Tutte le squadre ancora in corsa quando sono stati presi i dati (ottobre 2026)**, ognuna dal **suo turno vero**:
+  chi entra più tardi è esente al primo turno (Coppa Italia dagli ottavi veri, Copa del Rey con 10 sfide e 22
+  esenti ...); le sfide già sorteggiate si giocano come sono, i turni non ancora sorteggiati li sorteggia la mod
+  (fissi per la prima stagione); le fasi a gironi restano fasi a gironi (una sconfitta lì non elimina).
 
 *Campionati, calendari e club*
-- **Belgio 2026-27: 18 club, senza play-off**, come il nuovo formato; i campionati ad anno solare (Brasile,
-  Argentina, MLS, Giappone ...) giocano la stagione **2026**.
+- **Belgio 2026-27: 18 club, 34 giornate, senza play-off**, il nuovo formato; i campionati ad anno solare (Brasile,
+  Argentina, MLS, Corea, Cina, i paesi nordici ...) giocano la stagione **2026**, **il Giappone già la sua prima
+  stagione agosto-maggio, 2026-27**.
 - Club nell'ordine della **classifica finale 2025-26**; rose di **fine mercato estivo 2026**; numeri di maglia,
   allenatori e maglie veri (righe e cerchi, viola dove c'è).
 - **Mercato estero 2026-27**: 900 giocatori veri delle serie subito sotto quelle del mondo.

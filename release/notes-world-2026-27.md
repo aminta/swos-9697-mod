@@ -15,6 +15,7 @@ first 43 UEFA associations by ranking, the others are under OTHER NATIONS).
 The point of this world: today's football as it really is, down to rules most players never notice.
 
 *European cups (UEFA 2026-27)*
+- **The current official names**: UEFA Champions League, UEFA Europa League, UEFA Conference League, on every screen.
 - **League phase of 36** in the Champions League and the Europa League: 4 pots of 9, **8 matches** against
   **2 opponents from each pot, one at home and one away**; never a club of its own country, **at most 2 opponents
   from one country**; the draw is made by the game every season with these constraints.
@@ -236,6 +237,7 @@ federazioni UEFA per ranking, le altre sono in ALTRE NAZIONI).
 L'obiettivo di questo mondo: il calcio di oggi com'è davvero, fino alle regole che quasi nessun giocatore nota.
 
 *Coppe europee (UEFA 2026-27)*
+- **I nomi ufficiali di oggi**: UEFA Champions League, UEFA Europa League, UEFA Conference League, su ogni schermata.
 - **Fase campionato a 36** in Champions League ed Europa League: 4 fasce da 9, **8 partite** contro **2 avversari per
   fascia, uno in casa e uno fuori**; mai un club della stessa nazione, **al massimo 2 avversari della stessa
   nazione**; il sorteggio lo fa il gioco ogni stagione con questi vincoli.

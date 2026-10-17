@@ -2955,7 +2955,7 @@ def world_playoffs():
 
 
 @scenario
-def world_dplay_b(force='5'):
+def world_dplay_b(force='5', team='EUROPA,ITALIA,SERIE B,MODENA'):
     """The career club's Serie B play-off, played (dplay step 2): the world 2026-27 (private data internal/world2526/
     world5tm, 'playoffs': 'ita') built with DPLAY_FORCE=5 (at the league end the career club takes 5th place); a
     season at MODENA: the PLAY-OFF SERIE B contest is built in slot 4 after the last league day and played to its
@@ -2969,9 +2969,9 @@ def world_dplay_b(force='5'):
     exe = build('world_dplay_' + force, env=env)
     keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K',
                                             'W8485_NOSACK', 'W8485_HEX')}
-    os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM='EUROPA,ITALIA,SERIE B,MODENA',
+    os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=team,
                       W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1')
-    os.environ.setdefault('W8485_HEX', '156d8:48,18e04:4,19dca:6,19dec:12,1b528:6')   # (the session log: state, slot 4)
+    os.environ.setdefault('W8485_HEX', '156d8:16,18e04:4,1b528:6')   # (the session log: the state's head, slot 4)
     try:
         ok, msg = world8485()
     finally:
@@ -2989,16 +2989,46 @@ def world_dplay_b(force='5'):
     check(ok, msg, errs)
     if k < 0:
         return False, f'{msg}; no dplay log in W84A.CAR'
-    magic, res, kind, n = struct.unpack_from('<HHBB', d, k + 4)
-    teams = struct.unpack_from('<6H', d, k + 4 + 8)
-    places = d[k + 4 + 32:k + 4 + 38]
-    nmv = d[k + 4 + 48]                                      # (the state: 48 B, then dp_out's head: nmv, ntie, ..)
-    mv = [struct.unpack_from('<HHb', d, k + 4 + 48 + 4 + 8 * i) for i in range(min(nmv, 4))]
-    out = force in ('16', '17')
-    check(magic == 0x5044 and kind == (2 if out else 1) and n == (2 if out else 6), f'state magic {magic:#x} kind {kind} n {n}', errs)
-    check(list(places[:n]) == ([16, 15] if out else [4, 7, 5, 6, 2, 3]), f'places {list(places[:n])}', errs)
+    magic, res, kind, n = struct.unpack_from('<HHBB', d, k + 4)      # dplay.c dp_save (912 B)
+    teams = struct.unpack_from('<28H', d, k + 4 + 8)
+    places = d[k + 4 + 120:k + 4 + 148]
+    groups = d[k + 4 + 148:k + 4 + 176]
+    nmv = d[k + 4 + 912]                                     # (then dp_out's head: nmv, ntie, ..)
+    mv = [struct.unpack_from('<HHb', d, k + 4 + 912 + 4 + 8 * i) for i in range(min(nmv, 4))]
+    out, cpo = force in ('16', '17'), int(force) > 100
+    want = (3, 28) if cpo else (2, 2) if out else (1, 6)
+    check(magic == 0x5044 and (kind, n) == want, f'state magic {magic:#x} kind {kind} n {n}', errs)
+    if cpo:                                                  # 5th v 10th, 6th v 9th, 7th v 8th per group, 4ths, 3rds,
+        check(list(places[:18]) == [4, 9, 5, 8, 6, 7] * 3 and list(places[18:24]) == [3] * 3 + [2] * 3 and places[24] == 10
+              and list(places[25:]) == [1] * 3 and list(groups[:18]) == [g for g in (1, 2, 3) for _ in range(6)],
+              f'places {list(places)} groups {list(groups)}', errs)   # the best 11th, 2nds
+    else:
+        check(list(places[:n]) == ([16, 15] if out else [4, 7, 5, 6, 2, 3]), f'places {list(places[:n])}', errs)
     check(res in teams[:n], f'winner {res:#x} not among {[hex(t) for t in teams[:n]]}', errs)
-    if out:                                                  # the play-out's loser goes down
+    if cpo:
+        check(any(t == res and dl == -1 for _, t, dl in mv), f'C winner {res:#x} not moved up: moves {mv}', errs)
+        sys.path.insert(0, os.path.join(ROOT, 'tools'))      # the two groups simulated at the league end: their
+        old = os.environ.get('SEASON_PACKS')                   # winners then (the state's tables) = the clubs the
+        os.environ['SEASON_PACKS'] = env['SEASON_PACKS']       # season end promoted from them
+        import mkseason
+        pk = [p for p in mkseason.packs() if p.parallel()][0]
+        if old is None:
+            os.environ.pop('SEASON_PACKS')
+        else:
+            os.environ['SEASON_PACKS'] = old
+        glob = {}
+        for key in pk.league_clubs:
+            fl, i = pk.where[key]
+            base = next(b for fk, (ff, b) in pk.files.items() if ff == fl)
+            glob[fl | (i << 8)] = base + i
+        slt = d[0xE8DC:0xE8DC + 2000]
+        sg = d[k + 4 + 270:k + 4 + 272]
+        for j in range(2):
+            win = struct.unpack_from('<H', d, k + 4 + 272 + 320 * j)[0]
+            g = glob.get(win)
+            check(sg[j] and g is not None and sg[j] + struct.unpack('b', slt[g:g + 1])[0] == 1,   # (-> Serie B, pgroups)
+                  f'group division {sg[j]}: early winner {win:#x} (global {g}) not promoted', errs)
+    elif out:                                                # the play-out's loser goes down
         lose = teams[1] if res == teams[0] else teams[0]
         check(any(t == lose and dl == 1 for _, t, dl in mv), f'loser {lose:#x} not moved down: moves {mv}', errs)
     else:
@@ -3013,6 +3043,15 @@ def world_dplay_out():
     at the league end, the play-out held whatever the points): PLAY-OUT SERIE B 17th v 16th in slot 4, two legs, the
     loser down"""
     return world_dplay_b('17')
+
+
+@scenario
+def world_dplay_c():
+    """The career club's Serie C play-off, played (dplay step 3): as world_dplay_b with DPLAY_FORCE=105 at RENATE
+    (Serie C group A, 5th at its league end): the other two groups simulated at once, PLAY-OFF SERIE C (28 clubs) in
+    slot 4 - group rounds, national rounds with seeds, Final Four - played to its end; its winner promoted (the
+    season log: kind 3, the 28 clubs in place order, the winner moved up)"""
+    return world_dplay_b('105', 'EUROPA,ITALIA,SERIE C GIRONE A,RENATE')
 
 
 def run_parallel(names, jobs):

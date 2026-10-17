@@ -31,9 +31,10 @@ import os
 import re
 import struct
 
-DP_PO, DP_OUT = 0xFD, 0xFE      # contest ids (mkseason.RESERVED_IDS)
-NAMES = (b'PLAY-OFF SERIE B', b'PLAY-OUT SERIE B')
+DP_CPO, DP_PO, DP_OUT = 0xFC, 0xFD, 0xFE      # contest ids (mkseason.RESERVED_IDS)
+NAMES = (b'PLAY-OFF SERIE B', b'PLAY-OUT SERIE B', b'PLAY-OFF SERIE C')
 SAVE_AT = 0xC000                # dp_save in tmdFileBuffer (the 80-record area; after uefaq's state, before BIGC)
+LOG_AT = 0x400                  # (+ SAVE_AT) the season's log: 'DPLG', the state, dp_out's head and moves
 
 ASM = '''
 dp_find:                                ; edx = a league struct -> esi = its DP_TAB entry in the running world, or ZF = 1
@@ -128,12 +129,18 @@ dp_end:                                 ; replaces `call cseg_9228D` (the play-o
     mov [DP_IN], al                     ; ng
     xor eax, eax                        ; the career club's play-off / play-out played in slot 4
     mov [DP_IN + O_PO], eax
+    mov [DP_IN + O_CPO], ax
     call dp_sync
     jne .s
     mov ax, [DP_ST + 2]
     cmp byte [DP_ST + SV_KIND], 2
     je .so
+    cmp byte [DP_ST + SV_KIND], 3
+    je .sc
     mov [DP_IN + O_PO], ax
+    jmp .lg
+.sc:
+    mov [DP_IN + O_CPO], ax
     jmp .lg
 .so:
     mov [DP_IN + O_PO + 2], ax
@@ -210,12 +217,105 @@ dp_lend:                                ; replaces `call cseg_8ECAE` (the career
     jz .nat
     call dp_find
     jz .nat
-    movzx eax, byte [esi + 2]
-    cmp ax, [D6CDC]                     ; (the career club's division: Serie B)
-    jne .nat
-    xor eax, eax
+    movzx eax, word [D6CDC]             ; the career club's division: Serie B (0) or a Serie C group (1 ..)
+    movzx ecx, byte [esi + 2]
+    sub eax, ecx
+    jb .nat
+    movzx ecx, byte [esi + 4]
+    cmp eax, ecx
+    ja .nat
+    mov [DP_IN + O_MDIV], al
+    mov [DP_IN], cl                     ; (ng)
+    mov byte [DP_ST + SV_SG], 0
+    mov byte [DP_ST + SV_SG + 1], 0
+    push esi
     mov ebp, CFB
+    call dp_rows                        ; its own final table
+    pop esi
+    cmp byte [DP_IN + O_MDIV], 0
+    je .own
+    movzx ebx, byte [esi + 3]           ; a group: the other groups simulated now (as cseg_8ECAE does for another
+    movzx ecx, byte [esi + 4]           ; division's play-off clubs), their tables kept for the season end
+    add ecx, ebx
+    xor edi, edi                        ; (k: the snapshot)
+.sim:
+    cmp ebx, ecx
+    jae .own
+    cmp bx, [D6CDC]
+    je .sn
+    pushad
+    mov [DP_ST + SV_SG + edi], bl
+    mov esi, D0R                        ; the game's pseudo registers kept
+    mov edi, DP_REGS
+    mov ecx, 15
+.ps:
+    mov eax, [esi]
+    mov [edi], eax
+    add esi, 4
+    add edi, 4
+    loop .ps
+    mov word [F846], 1
+    call SAVESEL
+    mov edx, [D8CAA]
+    mov [A0R], edx
+    mov [D0R], bx
+    call C3ABB2                         ; the whole division simulated (cseg_3ABB2) into DIY
+    call RESTSEL
+    mov word [F846], 0
+    mov esi, DP_REGS
+    mov edi, D0R
+    mov ecx, 15
+.pr:
+    mov eax, [esi]
+    mov [edi], eax
+    add esi, 4
+    add edi, 4
+    loop .pr
+    popad
+    pushad
+    push edi
+    push ebx                            ; its table into DP_IN
+    mov edx, [D8CAA]
+    call dp_find
+    pop eax
+    movzx ecx, byte [esi + 2]
+    sub eax, ecx
+    mov ebp, DIY
     call dp_rows
+    pop edi
+    imul edi, edi, SR_N * SRSZ          ; and its rows, place by place, into the state (dp_restore)
+    add edi, DP_ST + SV_SROW
+    xor ebx, ebx
+.sr:
+    cmp bx, [DIY + 31h]
+    jae .se
+    cmp ebx, SR_N
+    jae .se
+    movzx esi, word [DIY + 6Dh + ebx * 2]
+    mov eax, esi
+    xor edx, edx
+    mov ecx, 12h
+    div ecx
+    mov ax, [DIY + 12Dh + eax * 2]
+    mov [edi], ax
+    mov ecx, 7
+    lea esi, [DIY + esi + 2B7h]
+.sw:
+    mov ax, [esi]
+    mov [edi + 2], ax
+    add esi, 2
+    add edi, 2
+    loop .sw
+    add edi, 2
+    inc ebx
+    jmp .sr
+.se:
+    popad
+    inc edi
+.sn:
+    inc ebx
+    jmp .sim
+.own:
     mov ax, [CAREERTEAM]
     mov [DP_IN + O_MGR], ax
     movzx eax, word [CAL_CUR]           ; the week of the match day just played (its calendar entry +1)
@@ -233,26 +333,27 @@ dp_lend:                                ; replaces `call cseg_8ECAE` (the career
     mov edi, DP_SAVE
     mov ecx, SV_SIZE
     rep movsb
+    mov edi, DP_IN + O_N                ; (the tables were for this)
+    mov ecx, NDIV
+    xor eax, eax
+    rep stosb
     pop es
-    mov byte [DP_IN + O_N], 0
     cmp word [DP_ST], 5044h
     jne .x
-    mov edi, DP_C0                      ; the contest: its weeks, round bytes
-    cmp byte [DP_ST + SV_KIND], 1
-    je .k
-    mov edi, DP_C1
-.k:
-    mov al, [DP_ST + SV_RB + 3]
+    movzx ebx, byte [DP_ST + SV_KIND]   ; the contest: its weeks, round bytes
+    mov edi, [DP_CS + ebx * 4 - 4]
+    mov al, [DP_ST + SV_RB + 8]
     mov [edi + 3], al
-    mov al, [DP_ST + SV_RB + 4]
+    mov al, [DP_ST + SV_RB + 9]
     mov [edi + 4], al
-    mov al, [DP_ST + SV_RB]           ; round bytes from header +0Eh (the play-off's 3rd: dp_perm)
-    mov [edi + 14], al
-    cmp byte [DP_ST + SV_KIND], 1
-    jne .b
-    mov ax, [DP_ST + SV_RB + 1]
-    mov [edi + 15], ax
-.b:
+    movzx ecx, byte [DP_NRB + ebx]
+    xor edx, edx
+.rb:
+    mov al, [DP_ST + SV_RB + edx]
+    mov [edi + 14 + edx], al
+    inc edx
+    cmp edx, ecx
+    jb .rb
     push edi
     push es
     push ds
@@ -290,11 +391,49 @@ dp_lend:                                ; replaces `call cseg_8ECAE` (the career
 .nat:
     popad
     jmp C8ECAE
+DP_CS: dd DP_C0, DP_C1, DP_C2
+DP_NRB: db 0, 3, 1, 6
+align 4
+DP_REGS: times 15 dd 0
+
+dp_ssim:                                ; replaces `call cseg_915ED` (a division simulated at the season end) in
+    call C915ED                         ; cseg_91D4D: a Serie C group simulated early for the career club's play-off
+    pushad                              ; gets that simulation's results back (dp_restore)
+    mov edx, [A4R]
+    call dp_find
+    jz .x
+    call dp_sync
+    jne .x
+    cmp byte [DP_ST + SV_KIND], 3
+    jne .x
+    mov al, [D7R]
+    xor ebx, ebx
+.k:
+    cmp [DP_ST + SV_SG + ebx], al
+    je .r
+    inc ebx
+    cmp ebx, 2
+    jb .k
+    jmp .x
+.r:
+    mov [DP_PR], ebx
+    mov dword [DP_DIYP], DIY
+    push es
+    push ds
+    pop es
+    cld
+    call dp_restore
+    pop es
+.x:
+    popad
+    ret
 
 dp_ours:                                ; ZF = 1 if DIY holds our contest and the state runs
     call dp_sync
     jne .r
     cmp byte [DIY + 2Dh], DPID_PO
+    je .r
+    cmp byte [DIY + 2Dh], DPID_CPO
     je .r
     cmp byte [DIY + 2Dh], DPID_OUT
 .r:
@@ -356,11 +495,11 @@ dp_draw:                                ; at cseg_2AE97's 'draw -> replay' mark 
     mov esi, [A1R]                      ; the better placed of the match's two clubs goes through
     mov ax, [esi]
     call dp_idx
-    mov cl, [DP_ST + SV_PLACE + ebx]
+    mov cl, [DP_ST + SV_PRIO + ebx]
     mov esi, [A2R]
     mov ax, [esi]
     call dp_idx
-    mov ch, [DP_ST + SV_PLACE + ebx]
+    mov ch, [DP_ST + SV_PRIO + ebx]
     and byte [D7R], 0FEh
     or byte [D7R], 2
     cmp ch, cl
@@ -396,49 +535,47 @@ dp_rec:                                 ; replaces `mov ax, [dseg_11F9CC]` at cs
     ret
 
 dp_perm:                                ; lib97 nc_adv: ecx = the next round's clubs, NC_T = the winners in tie order
-    cmp byte [NCW + 2Dh], DPID_PO       ; (+ the byes) -> CF = 0: list +2CDh written
+    cmp byte [NCW + 2Dh], DPID_PO       ; (+ the byes) -> CF = 0: list +2CDh and ecx = the next round's clubs
+    je .ours
+    cmp byte [NCW + 2Dh], DPID_CPO
     jne .no
+.ours:
     pushad
     call dp_sync
-    cmp ecx, 4
-    jne .f
-    mov eax, [NC_T]                     ; [W5v8, W6v7, 3rd, 4th] -> [W6v7, 3rd, W5v8, 4th]
-    mov [NCW + 2CDh], ah
-    shr eax, 16
-    mov [NCW + 2CEh], al
-    mov [NCW + 2D0h], ah
-    mov al, [NC_T]
-    mov [NCW + 2CFh], al
-    jmp .x
-.f:
-    cmp ecx, 2
-    jne .x
-    movzx eax, byte [NC_T]              ; the final: the first leg at the worse placed's
-    movzx ebx, byte [NC_T + 1]
-    mov dl, [DP_ST + SV_PLACE + eax]
-    cmp dl, [DP_ST + SV_PLACE + ebx]
-    jb .sw
-    mov [NCW + 2CDh], al
-    mov [NCW + 2CEh], bl
-    jmp .et
-.sw:
-    mov [NCW + 2CDh], bl
-    mov [NCW + 2CEh], al
-.et:
-    mov dx, [DP_ST + SV_PTS + eax * 2]    ; level on points: extra time and penalties in the return
-    cmp dx, [DP_ST + SV_PTS + ebx * 2]
-    sete dl
-    movzx edx, dl
-    mov word [NCW + 65h + 4], 2         ; (round 3: the game decodes 2 round bytes for 6 clubs)
-    mov [NCW + 71h + 4], dx
-    mov [NCW + 7Dh + 4], dx
-.x:
+    push es
+    push ds
+    pop es
+    cld
+    mov esi, NC_T
+    mov edi, DP_PT
+    mov ecx, 64
+    rep movsb
+    movzx eax, word [NCW + 57h]
+    inc eax
+    mov [DP_PR], eax
+    call dp_perm_c                      ; (C: the next round's list into DP_PL, its clubs)
+    mov [DP_NC], eax
+    mov ecx, eax
+    mov esi, DP_PL
+    mov edi, NCW + 2CDh
+    rep movsb
+    pop es
+    cmp dword [DP_ETP], 0               ; (the Serie B final between clubs level on points: e.t. + penalties)
+    je .e
+    mov eax, [DP_PR]
+    mov word [NCW + 71h + eax * 2], 1
+    mov word [NCW + 7Dh + eax * 2], 1
+.e:
     popad
+    mov ecx, [DP_NC]
+    test ecx, ecx
+    jz .no
     clc
     ret
 .no:
     stc
     ret
+DP_NC: dd 0
 
 DP_TAB: TAB_BYTES
 '''
@@ -509,7 +646,21 @@ def _play_sites(p, r):
     assert len(m) == 1, m
     rec = m[0].start() + 14
     w11f9cc = struct.unpack('<I', m[0].group(1))[0]
-    return dict(lend=lend, c8ecae=c8ecae, tail=tail, d8caa=d8cba - 16, list4=list4, slot4=slot4, cfb=cfb,
+    m = re.search(rb'\x66\xc7\x05(.{4})\x01\x00', body, re.S)  # cseg_8ECAE: mov [10E846], 1; SaveSelectedTeams;
+    f846 = struct.unpack('<I', m.group(1))[0]                    # cseg_3ABB2; RestoreSelectedTeams (its 3 calls)
+    cs, i = [], m.end()
+    while len(cs) < 3:
+        j = body.index(b'\xe8', i)
+        cs.append(c8ecae + j + 5 + struct.unpack_from('<i', body, j + 1)[0])
+        i = j + 5
+    savesel, c3abb2, restsel = cs
+    k = d1.find(b'\xa1' + pk(r['A0'] + 16) + b'\xa3' + pk(r['A0']) + b'\x66\xa1' + pk(r['D7']) + b'\x66\xa3' + pk(r['A0'] - 32))
+    c915ed = k - 5                                               # cseg_915ED: call nullsub; mov [A0], [A4]; [D0] = [D7]
+    assert d1[c915ed] == 0xE8, hex(c915ed)
+    ssim = [i for i in range(len(d1) - 5) if d1[i] == 0xE8 and i + 5 + struct.unpack_from('<i', d1, i + 1)[0] == c915ed]
+    assert len(ssim) == 1, ssim
+    return dict(lend=lend, c8ecae=c8ecae, tail=tail, d8caa=d8cba - 16, f846=f846, savesel=savesel, c3abb2=c3abb2,
+                restsel=restsel, c915ed=c915ed, ssim=ssim[0], list4=list4, slot4=slot4, cfb=cfb,
                 d6cdc=d6cdc, cal=cal, cal_cur=cal_cur, rec=rec, w11f9cc=w11f9cc, draw=sites[0])
 
 
@@ -522,8 +673,9 @@ def table_bytes(tables):
 
 
 def bye_cups(tables):
-    """lib97 BYE_TAB entries: the play-off's 6 clubs, 2 byes (the 3rd and the 4th)."""
-    return [(DP_PO, world, 6, 2) for world, *_ in tables]
+    """lib97 BYE_TAB entries: the Serie B play-off's 6 clubs, 2 byes (the 3rd and the 4th); the Serie C play-off's 28,
+    10 waiting after round 1 (the 4ths, 3rds, the cup winner, 2nds: dp_perm_c brings them in)."""
+    return [x for world, *_ in tables for x in ((DP_PO, world, 6, 2), (DP_CPO, world, 28, 10))]
 
 
 def _contests(p, area, lfile):
@@ -534,7 +686,7 @@ def _contests(p, area, lfile):
     lo = d2.find(mkseason.AU_CUP_SIG)
     assert lo >= 0 and d2.count(mkseason.AU_CUP_SIG) == 1
     out = []
-    for cid, n, rounds, name in ((DP_PO, 6, 3, NAMES[0]), (DP_OUT, 2, 1, NAMES[1])):
+    for cid, n, rounds, name in ((DP_PO, 6, 3, NAMES[0]), (DP_OUT, 2, 1, NAMES[1]), (DP_CPO, 28, 6, NAMES[2])):
         h = bytearray(d2[lo:lo + 14])
         h[0], h[2], h[8], h[10], h[11], h[13] = cid, lfile, 1, n, 0, 1    # no draw, no away goals
         h += bytes(rounds) + b'\0'
@@ -560,21 +712,22 @@ def patch(p, at, limit, tables, bss_at, area):
     import uefaq
     cap, c9221f, end_site, c9228d, diy, ct, rel, pro, r = _sites(p)
     ps = _play_sites(p, r)
-    for s in (cap, end_site, *ps['lend']):
+    for s in (cap, end_site, ps['ssim'], *ps['lend']):
         assert p.get(1, s, 5) == p.le.obj_bytes(1)[s:s + 5], f'obj1+{s:#x} already hooked'
     assert p.get(1, ps['draw'], 1) == b'\xe8', 'historic coin_draw expected at the draw mark'
     coin = ps['draw'] + 5 + struct.unpack('<i', p.get(1, ps['draw'] + 1, 4))[0]
     assert lib97.LABELS.get('NC_DPP') and lib97.LABELS.get('NC_T'), 'lib97 without the dplay slot'
     se = uefaq.STATE_END[0] or 0
-    assert se <= SAVE_AT and SAVE_AT + 256 <= careerworld.BIGC_AT, (hex(se), hex(SAVE_AT))
+    assert se <= SAVE_AT and SAVE_AT + LOG_AT + 0x500 <= careerworld.BIGC_AT, (hex(se), hex(SAVE_AT))
     force = int(os.environ.get('DPLAY_FORCE') or 0)          # (test builds: the career club's Serie B place)
     obj = cobj.compile_c(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'dplay.c'), [f'-DDP_FORCE={force}'])
     syms, cend, bss = cobj.link(p, obj, at, (2, bss_at), limit=limit)
     assert bss <= 0x1000, hex(bss)
     keys = ('IN_SIZE', 'OUT_SIZE', 'RSZ', 'NT', 'O_N', 'O_T', 'O_MV', 'MSZ', 'O_PO', 'O_MGR', 'SV_SIZE', 'SV_KIND',
-            'SV_TEAM', 'SV_PTS', 'SV_PLACE', 'SV_RB')
+            'SV_TEAM', 'SV_PTS', 'SV_PRIO', 'SV_RB', 'O_CPO', 'O_MDIV', 'SV_SG', 'SV_SROW', 'SRSZ')
     lay = dict(zip(keys, struct.unpack(f'<{len(keys)}I', p.get(1, syms['DP_LAYOUT'][1], 4 * len(keys)))))
-    assert lay['RSZ'] == 12 and lay['MSZ'] == 8 and lay['SV_SIZE'] <= 64 and lay['SV_KIND'] == 4, lay
+    assert lay['RSZ'] == 12 and lay['MSZ'] == 8 and lay['SV_SIZE'] <= LOG_AT - 4 and lay['SV_KIND'] == 4, lay
+    assert lay['SRSZ'] == 16 and lay['SV_SIZE'] == 912, lay           # (swostest world_dplay_b reads the log)
     sel = mkseason._hook_sites(p)[3]
     s = careerworld.SITES
     tmd = careerworld.LABELS['sites']['tmd']
@@ -591,34 +744,40 @@ def patch(p, at, limit, tables, bss_at, area):
                     'C8B2D3': (1, sacups.SITES['c8b2d3']), 'D8CAA': (2, ps['d8caa']), 'D6CDC': (2, ps['d6cdc']),
                     'CFB': (2, ps['cfb']), 'CAL': (2, ps['cal']), 'CAL_CUR': (2, ps['cal_cur']), 'SLOT4': (2, ps['slot4']), 'LIST4': (2, ps['list4']),
                     'W11F9CC': (2, ps['w11f9cc']), 'COIN_DRAW': (1, coin), 'NC_T': (1, lib97.LABELS['NC_T']),
-                    'DP_ST': syms['DP_ST'], 'SEASONPLAYING': (2, s['season']),
-                    'DP_SAVE': (2, tmd + SAVE_AT), 'DP_LOG': (2, tmd + SAVE_AT + 64), 'DPID_PO': (0, DP_PO), 'DPID_OUT': (0, DP_OUT),
+                    'DP_ST': syms['DP_ST'], 'SEASONPLAYING': (2, s['season']), 'SR_N': (0, 20),
+                    'DP_PT': syms['DP_PT'], 'DP_PL': syms['DP_PL'], 'DP_PR': syms['DP_PR'], 'DP_ETP': syms['DP_ETP'],
+                    'DP_DIYP': syms['DP_DIYP'], 'dp_perm_c': syms['dp_perm_c'], 'dp_restore': syms['dp_restore'],
+                    'DPID_CPO': (0, DP_CPO), 'F846': (2, ps['f846']), 'SAVESEL': (1, ps['savesel']),
+                    'RESTSEL': (1, ps['restsel']), 'C3ABB2': (1, ps['c3abb2']), 'C915ED': (1, ps['c915ed']),
+                    'DP_SAVE': (2, tmd + SAVE_AT), 'DP_LOG': (2, tmd + SAVE_AT + LOG_AT), 'DPID_PO': (0, DP_PO), 'DPID_OUT': (0, DP_OUT),
                     'TAB_BYTES': (0, 'db ' + ', '.join(str(b) for b in table_bytes(tables)))})
     glue = (cend + 15) & ~15
     # the two contests after the glue (their address known after a first assembly)
-    symbols.update({'DP_C0': (1, 0), 'DP_C1': (1, 0)})
+    symbols.update({'DP_C0': (1, 0), 'DP_C1': (1, 0), 'DP_C2': (1, 0)})
     code, _ = nasmcave.assemble(ASM, glue, symbols)
     c0 = (glue + len(code) + 15) & ~15
     c1 = (c0 + len(cps[0]) + 3) & ~3
-    symbols.update({'DP_C0': (1, c0), 'DP_C1': (1, c1)})
+    c2 = (c1 + len(cps[1]) + 3) & ~3
+    symbols.update({'DP_C0': (1, c0), 'DP_C1': (1, c1), 'DP_C2': (1, c2)})
     code, fix = nasmcave.assemble(ASM, glue, symbols)
     lab = nasmcave.labels(ASM, glue, symbols)
-    assert c0 >= glue + len(code) and c1 + len(cps[1]) <= limit, hex(c1 + len(cps[1]))
+    assert c0 >= glue + len(code) and c2 + len(cps[2]) <= limit, hex(c2 + len(cps[2]))
     p.put(1, glue, code)
     for off, tobj, toff in fix:
         cobj.add_ptr(p, glue + off, tobj, toff)
     p.put(1, c0, cps[0])
     p.put(1, c1, cps[1])
+    p.put(1, c2, cps[2])
     for site, target in ((cap, 'dp_cap'), (end_site, 'dp_end'), (ps['lend'][0], 'dp_lend'), (ps['lend'][1], 'dp_lend'),
-                         (ps['draw'], 'dp_draw')):           # (relative calls: no fixups)
+                         (ps['draw'], 'dp_draw'), (ps['ssim'], 'dp_ssim')):    # (relative calls: no fixups)
         p.put(1, site + 1, struct.pack('<i', lab[target] - (site + 5)))
     p.remove(1, ps['rec'] + 2)                               # mov ax, [dseg_11F9CC] (6 B) -> call dp_rec; nop
     p.put(1, ps['rec'], b'\xe8' + struct.pack('<i', lab['dp_rec'] - (ps['rec'] + 5)) + b'\x90')
     p.add_ptr(1, lib97.LABELS['NC_DPP'], 1, lab['dp_perm'])  # (lib97 nc_adv's slot)
-    LABELS.update(lab, diy=diy, a0=r['A0'], DP_IN=syms['DP_IN'], DP_OUT=syms['DP_OUT'], layout=lay, contests=(c0, c1), save=tmd + SAVE_AT,
+    LABELS.update(lab, diy=diy, a0=r['A0'], DP_IN=syms['DP_IN'], DP_OUT=syms['DP_OUT'], layout=lay, contests=(c0, c1, c2), save=tmd + SAVE_AT,
                   sites=ps)
     print(f"exe: Italian play-offs (dplay): {len(tables)} leagues, C obj1+{at:#x}..{cend:#x}, glue ..{glue + len(code):#x}, "
-          f"contests obj1+{c0:#x} / +{c1:#x}, DP_IN obj2+{syms['DP_IN'][1]:#x}, state obj2+{tmd + SAVE_AT:#x}, "
+          f"contests obj1+{c0:#x} / +{c1:#x} / +{c2:#x}, DP_IN obj2+{syms['DP_IN'][1]:#x}, state obj2+{tmd + SAVE_AT:#x}, "
           f"hooks obj1+{cap:#x} / +{end_site:#x}, league end +{ps['lend'][0]:#x} / +{ps['lend'][1]:#x}, "
           f"draw +{ps['draw']:#x}, result +{ps['rec']:#x}")
     return c1 + len(cps[1])

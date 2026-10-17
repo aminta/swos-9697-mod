@@ -107,13 +107,13 @@ nc_bye:                                 ; replaces `mov esi, [A5]` before the ro
     shr eax, 1
     mov [NCW + 4Fh], ax                 ; round 1's matches ([4Fh], [51h], as obj1 0x16711 sets N / 2)
     mov [NCW + 51h], ax
-    add eax, ebx                        ; round 2's clubs (a power of 2): rounds = 1 + log2 of it ([59h])
+    add eax, ebx                        ; round 2's clubs: rounds = 1 + log2 of it rounded up ([59h]; a power of 2
+    dec eax                             ; as the game's cups, else a later bracket of the hook's: dplay's Serie C)
     mov ecx, 1
 .r:
     inc ecx
     shr eax, 1
-    cmp eax, 1
-    ja .r
+    jnz .r
     mov [NCW + 59h], cx
     mov esi, [A5]                       ; the rounds' legs / extra time / penalties words from the header's round
     xor edx, edx                        ; bytes (+0Eh) for all of them: the game decodes as many as its halving of

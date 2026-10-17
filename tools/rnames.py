@@ -2,14 +2,15 @@
 'PRIMO TURNO' .. 'FINALE', medium 'TURNO 1' .. for the career game list and the calendar, short 'T 1' ..), indexed
 by cseg_280C0 (type-1 cups: rounds left 1 / 2 / 3 = final / semi / quarter, else the round's number) and
 cseg_283BD (type-2 stages: the stage's number, or quarter / semi / final by the stage's clubs). The three tables
-(12 dwords each, contiguous in obj2) move to obj1 with 5 more entries per language: league phase, knockout
-play-offs, round of 16, the qualifying play-off round, the preliminary round. rn_round (through uefaq's uq_rn1 /
+(12 dwords each, contiguous in obj2) move to obj1 with 9 more entries per language: league phase, knockout
+play-offs, round of 16, the qualifying play-off round, the preliminary round, the Serie C play-off's 4 rounds. rn_round (through uefaq's uq_rn1 /
 uq_rn2, which call it instead of uq_tie_round) picks them in a league-phase world only (careerworld w_lpw):
 - the world's UEFA cups (type 2, the league-phase layout of lp36): stage 0 = LEAGUE PHASE, 1 = KNOCKOUT PLAY-OFFS,
   2 = ROUND OF 16 (then the game's quarter / semi / final);
 - uefaq's qualifying ties: its play-off round (D0 = 3) = PLAY-OFF ROUND (Q1-Q3 keep FIRST / SECOND / THIRD ROUND
   after 'PRELIM. <cup>');
-- dplay's Serie B play-off: round 0 = PRELIMINARY ROUND; the play-out = the game's FINAL;
+- dplay's Serie B play-off: round 0 = PRELIMINARY ROUND; the play-out = the game's FINAL; its Serie C play-off: rounds
+  0-3 = GROUP PHASE ROUND 1 / 2, NATIONAL ROUND 1 / 2 (then the game's SEMI-FINAL / FINAL);
 - any other cup of the world: the round with 16 clubs (4 rounds left) = ROUND OF 16, except the cups of
   NUMBERED (pack.json cup 'round_names': 'numbered': England's FA Cup fifth round ...).
 """
@@ -20,19 +21,27 @@ import struct
 NAMES = {
     'it': [('FASE CAMPIONATO', 'FASE CAMP.', 'F CMP'), ('SPAREGGI', 'SPAREGGI', 'SPR'),
            ('OTTAVI DI FINALE', 'OTTAVI', 'O F'), ('SPAREGGI', 'SPAREGGI', 'SPR'),
-           ('TURNO PRELIMINARE', 'T. PRELIM.', 'T P')],
+           ('TURNO PRELIMINARE', 'T. PRELIM.', 'T P'),
+           ('PRIMO TURNO GIRONE', 'T. GIRONE 1', 'G 1'), ('SECONDO TURNO GIRONE', 'T. GIRONE 2', 'G 2'),
+           ('PRIMO TURNO NAZIONALE', 'T. NAZ. 1', 'N 1'), ('SECONDO TURNO NAZIONALE', 'T. NAZ. 2', 'N 2')],
     'en': [('LEAGUE PHASE', 'LEAGUE PH.', 'LP'), ('KNOCKOUT PLAY-OFFS', 'PLAY-OFFS', 'P/O'),
            ('ROUND OF 16', 'LAST 16', 'R16'), ('PLAY-OFF ROUND', 'PLAY-OFF', 'P/O'),
-           ('PRELIMINARY ROUND', 'PRELIMINARY', 'PRE')],
+           ('PRELIMINARY ROUND', 'PRELIMINARY', 'PRE'),
+           ('GROUP PHASE ROUND 1', 'GROUP RND 1', 'GR1'), ('GROUP PHASE ROUND 2', 'GROUP RND 2', 'GR2'),
+           ('NATIONAL ROUND 1', 'NAT. RND 1', 'NR1'), ('NATIONAL ROUND 2', 'NAT. RND 2', 'NR2')],
     'fr': [('PHASE DE LIGUE', 'PH. LIGUE', 'LIG'), ('BARRAGES', 'BARRAGES', 'BAR'),
            ('HUITIEMES DE FINALE', '1/8 FINALE', '1/8'), ('BARRAGES', 'BARRAGES', 'BAR'),
-           ('TOUR PRELIMINAIRE', 'T. PRELIM.', 'T P')],
+           ('TOUR PRELIMINAIRE', 'T. PRELIM.', 'T P'),
+           ('1ER TOUR DE GROUPE', 'T1 GROUPE', 'G 1'), ('2E TOUR DE GROUPE', 'T2 GROUPE', 'G 2'),
+           ('1ER TOUR NATIONAL', 'T1 NATIONAL', 'N 1'), ('2E TOUR NATIONAL', 'T2 NATIONAL', 'N 2')],
     'de': [('LIGAPHASE', 'LIGAPHASE', 'LIGA'), ('K.O.-PLAYOFFS', 'PLAYOFFS', 'P/O'),
            ('ACHTELFINALE', 'ACHTELF.', 'A/F'), ('PLAYOFF-RUNDE', 'PLAYOFFS', 'P/O'),
-           ('VORRUNDE', 'VORRUNDE', 'VR')],
+           ('VORRUNDE', 'VORRUNDE', 'VR'),
+           ('GRUPPENRUNDE 1', 'GR.-RUNDE 1', 'GR1'), ('GRUPPENRUNDE 2', 'GR.-RUNDE 2', 'GR2'),
+           ('NATIONALE RUNDE 1', 'NAT. RUNDE 1', 'NR1'), ('NATIONALE RUNDE 2', 'NAT. RUNDE 2', 'NR2')],
 }
 N_OLD = 12
-LP, KO, R16, QPO, PRE = range(N_OLD, N_OLD + 5)
+LP, KO, R16, QPO, PRE, CG1, CG2, CN1, CN2 = range(N_OLD, N_OLD + 9)
 
 ASM = '''
 rn_round:                               ; uq_rn1 / uq_rn2: CF = 1 and D0 = the name index, else CF = 0 (the game's)
@@ -49,6 +58,14 @@ rn_round:                               ; uq_rn1 / uq_rn2: CF = 1 and D0 = the n
     je .pre
     cmp al, DPID_OUT
     je .game
+    cmp al, DPID_CPO                    ; dplay's Serie C play-off: group rounds 1 / 2, national rounds 1 / 2
+    jne .nc
+    movzx eax, word [D0R]
+    cmp eax, 4
+    jae .game
+    add eax, CG1_I
+    jmp .set
+.nc:
     mov ebx, RN_LPIDS                   ; the world's three UEFA cups (type 2; ids 0 .. 2 in the game)
 .l:
     cmp ebx, RN_LPIDS + 3
@@ -326,6 +343,7 @@ def patch(p, at, limit, lang, area, lp_ids, numbered):
     diy, a0 = dplay._sites(p)[4], sacups.regs(p.le.obj_bytes(1))['A0']
     sym = {'W_LPW': (1, careerworld.LABELS['w_lpw']), 'DIY': (2, diy), 'DIYCOPY': (2, diy - 0x41F),
            'D0R': (2, a0 - 32), 'D1R': (2, a0 - 28), 'DPID_PO': (0, dplay.DP_PO), 'DPID_OUT': (0, dplay.DP_OUT),
+           'DPID_CPO': (0, dplay.DP_CPO), 'CG1_I': (0, CG1),
            'UQ_TIE_ROUND': (1, ul['uq_tie_round']), 'R280C0_RET': (1, ul['uq_rn1'] + 5),
            'LP_I': (0, LP), 'KO_I': (0, KO), 'R16_I': (0, R16), 'QPO_I': (0, QPO), 'PRE_I': (0, PRE),
            'LPID_BYTES': (0, 'db ' + ', '.join(str(x) for x in lp_ids)),

@@ -23,6 +23,12 @@
    (strength ~ points + 20, squared, as uefaq's ties; home side +10%): single matches level after extra time 22% of
    the time, two-legged ties level on aggregate 12%. */
 
+#ifndef DP_FORCE
+#define DP_FORCE 0
+#endif
+/* (test builds, DPLAY_FORCE >= 16: the play-out is held whatever the points) */
+#define OUT_HELD(t) ((t)[15].pts <= (t)[16].pts + 4 || DP_FORCE >= 16)
+
 typedef unsigned char u8;
 typedef unsigned short u16;
 typedef unsigned int u32;
@@ -157,7 +163,7 @@ static void serie_b(void) {
             if (t[k].team == DP_IN.po_win) w = k;
         move(w, -1);
     }
-    if (t[15].pts > t[16].pts + 4) {
+    if (!OUT_HELD(t)) {
         DP_OUT.tie[DP_OUT.ntie++] = (struct dp_tie){ K_DIRECT, 15, 16, 15, H_PLAY, {0} };
         move(16, 1);
     } else {
@@ -211,9 +217,6 @@ static void serie_c(void) {
     }
 }
 
-#ifndef DP_FORCE
-#define DP_FORCE 0
-#endif
 /* test builds (DPLAY_FORCE=k): the career club takes Serie B place k (its team and global number swapped with the
    club there), at the league end and again at the season end */
 static int force_place(int m) {
@@ -262,7 +265,7 @@ void dp_lend(void) {
         for (int i = 0; i < 6; i++) v->place[i] = po[i];
         v->rb[0] = 0x10; v->rb[1] = 0x80; v->rb[2] = 0x80;  /* (the final's e.t. / penalties: dp_perm) */
         v->d1 = DP_IN.week + 1; v->d2 = DP_IN.week + 5;
-    } else if ((m == 15 || m == 16) && t[15].pts <= t[16].pts + 4) {
+    } else if ((m == 15 || m == 16) && OUT_HELD(t)) {
         v->kind = 2; v->n = 2;
         v->place[0] = 16; v->place[1] = 15;
         v->rb[0] = t[15].pts == t[16].pts ? 0x94 : 0x80;

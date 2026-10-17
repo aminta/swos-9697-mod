@@ -36,7 +36,8 @@ first 43 UEFA associations by ranking, the others are under OTHER NATIONS).
 - **Kits**: from the Wikipedia infobox of each club (home and away colours; stripes and hoops read from the kit
   pattern images; purple where the club wears it).
 - **National cups 2026-27**: where the cup has already started, the clubs already knocked out in reality stay out and
-  the real drawn ties are kept in the first round; the rounds not drawn yet are drawn by the mod (see the rules below).
+  the real drawn ties are kept in the first round, the clubs that enter later have a first-round bye; the rounds not
+  drawn yet are drawn by the mod (see the rules below).
   Cups not started yet (FA Cup proper, among others) are drawn by the mod from the league clubs.
 - **European cups**: the first season's Champions League, Europa League and Conference League are the real 2026-27
   league phases (36 clubs each). The format is UEFA's since 2024-25:
@@ -80,11 +81,24 @@ first 43 UEFA associations by ranking, the others are under OTHER NATIONS).
   = his skill total, so no extra is better than the weakest of the club's 16 and the club's best 11 do not change.
   The bench is a little deeper than the game's own invented reserves (Randers: 12.3 against 8.8 per player on
   average): a deliberate choice, real players instead of invented ones.
-- National cups: the bracket has no byes (a career's national cup cannot have first-round byes in the engine): it
-  starts from the power of two at or below the clubs still in, keeping the clubs of the real drawn ties and then the strongest squads
-  (when the clubs still in are nearer the next power of two, the country's best clubs already out take the free
-  places); the mod draws the rounds not drawn yet. Every match is played by the game, so the real results of the
-  rounds already played are not imposed.
+- National cups: every club still in at the snapshot plays (no club cut, none of those already out brought back),
+  each entering in its real round: round 1 holds the real drawn ties, the clubs that enter later (the top divisions'
+  clubs, as in Italy's round of 16 or Spain's round of 32) have a first-round **bye** and join the round-1 winners in
+  round 2. Round 2 must be a power of two (the game halves every round): when the real round's numbers do not give one,
+  the mod adds round-1 ties among the clubs already in, lower divisions and weaker squads first (and a real tie is left
+  undrawn only when there are more of them than the round can hold); a club drawn against a club outside the world goes
+  through. A cup already down to its last rounds (the quarter-finals or later have been played) restarts from its last
+  round of 8 or more world clubs, with that round's real ties; a cup not started yet is drawn by the mod (the weakest
+  clubs play round 1, the others a bye). At most 64 clubs per cup (the engine's limit): the FA Cup leaves out its 4
+  weakest clubs. The mod draws the rounds not drawn yet. Every match is played by the game, so the real results of
+  the rounds already played are not imposed.
+- Serie C: the three groups (A North, B Centre, C South) are the real 2026-27 ones; from season 2
+  every club that comes down to Serie C joins the group of its region (a fixed geography table: Lombardy, Piedmont,
+  Aosta Valley, Trentino-Alto Adige, Veneto, Friuli-Venezia Giulia -> A; Emilia-Romagna, Liguria, Tuscany, Umbria,
+  Marche, Lazio, Abruzzo, Molise, Sardinia -> B; Campania, Apulia, Basilicata, Calabria, Sicily -> C; Serie C clubs
+  keep their own group), then the groups are balanced to 20 clubs each. No club is relegated from Serie C and there are
+  no Serie C play-outs (as in the original game's lowest English division: the world has no Serie D). The Serie B and
+  Serie C play-offs and the Serie B play-out are playable (see the engine notes).
 - Players without a Transfermarkt value get an estimate (from their club's and division's values); in the lowest
   divisions (Scotland's League One and Two) the squads are so close that a simulated season does not follow the real
   table closely.
@@ -149,7 +163,8 @@ federazioni UEFA per ranking, le altre sono in ALTRE NAZIONI).
 - **Maglie**: dall'infobox Wikipedia di ogni club (colori di casa e trasferta; righe e cerchi letti dalle immagini dei
   motivi delle maglie; viola dove il club lo veste).
 - **Coppe nazionali 2026-27**: dove la coppa è già iniziata, i club già eliminati nella realtà restano fuori e le
-  coppie già sorteggiate restano al primo turno; i turni non ancora sorteggiati li sorteggia la mod (vedi le regole
+  coppie già sorteggiate restano al primo turno, i club che entrano dopo sono esentati dal primo turno; i turni non
+  ancora sorteggiati li sorteggia la mod (vedi le regole
   sotto). Le coppe non ancora iniziate (tra cui la FA Cup) le sorteggia la mod tra i club del campionato.
 - **Coppe europee**: Champions League, Europa League e Conference League della prima stagione sono le vere fasi
   campionato 2026-27 (36 club ciascuna). Il formato è quello UEFA dal 2024-25:
@@ -196,11 +211,25 @@ federazioni UEFA per ranking, le altre sono in ALTRE NAZIONI).
   movimento, portieri con portieri) e il suo prezzo è uguale a quella somma: nessuna riserva è migliore del più debole
   dei 16 e i migliori 11 del club non cambiano. La panchina è un po' più profonda delle riserve inventate dal gioco
   (Randers: in media 12,3 contro 8,8 per giocatore): una scelta voluta, giocatori veri al posto di quelli inventati.
-- Coppe nazionali: il tabellone non ha turni di riposo (nel motore una coppa nazionale di carriera non può avere
-  turni di riposo al primo turno): parte dalla potenza di 2 pari o inferiore ai club ancora in corsa, tenendo i club delle coppie sorteggiate davvero e
-  poi le rose più forti (quando i club in corsa sono più vicini alla potenza di 2 successiva, i posti liberi vanno ai
-  migliori club della nazione già eliminati); i turni non ancora sorteggiati li sorteggia la mod. Ogni partita la gioca
-  il gioco, quindi i risultati veri dei turni già giocati non sono imposti.
+- Coppe nazionali: giocano tutti i club ancora in corsa al momento della fotografia (nessun club tagliato, nessuno dei
+  già eliminati ripescato), ciascuno dal suo turno reale: al primo turno ci sono le vere coppie sorteggiate, i club che
+  entrano dopo (quelli delle serie maggiori, come negli ottavi della Coppa Italia o nei sedicesimi della Copa del Rey)
+  sono **esentati** dal primo turno e raggiungono i vincitori del primo turno al secondo. Il secondo turno deve essere una
+  potenza di 2 (il gioco dimezza ogni turno): quando i numeri del turno reale non la danno, la mod aggiunge partite del
+  primo turno tra i club già in gara, prima le serie inferiori e le rose più deboli (e una vera coppia resta fuori solo
+  se sono più di quelle che il turno può contenere); un club sorteggiato contro un club fuori dal mondo passa il turno.
+  Una coppa già agli ultimi turni (quarti o oltre già giocati) riparte dal suo ultimo turno con almeno 8 club del mondo,
+  con le vere coppie di quel turno; una coppa non ancora iniziata la sorteggia la mod (i club più deboli giocano il primo
+  turno, gli altri sono esentati). Al massimo 64 club per coppa (il limite del motore): la FA Cup lascia fuori i suoi 4
+  club più deboli. I turni non ancora sorteggiati li sorteggia la mod. Ogni partita la gioca il gioco, quindi i
+  risultati veri dei turni già giocati non sono imposti.
+- Serie C: i tre gironi (A Nord, B Centro, C Sud) sono quelli veri 2026-27; dalla seconda stagione
+  ogni club che scende in Serie C va nel girone della sua regione (una tabella geografica fissa: Lombardia, Piemonte,
+  Valle d'Aosta, Trentino-Alto Adige, Veneto, Friuli-Venezia Giulia -> A; Emilia-Romagna, Liguria, Toscana, Umbria,
+  Marche, Lazio, Abruzzo, Molise, Sardegna -> B; Campania, Puglia, Basilicata, Calabria, Sicilia -> C; i club di
+  Serie C restano nel loro girone), poi i gironi vengono bilanciati a 20 club ciascuno. Nessun club retrocede dalla
+  Serie C e non ci sono play-out di Serie C (come nell'ultima divisione inglese del gioco originale: nel mondo non c'è
+  la Serie D). I play-off di Serie B e di Serie C e il play-out di Serie B si giocano (vedi le note del motore).
 - I giocatori senza valore su Transfermarkt ricevono una stima (dai valori del club e della divisione); nelle divisioni
   più basse (League One e League Two scozzesi) le rose sono così vicine che una stagione simulata non segue da vicino la
   classifica vera.

@@ -15,8 +15,9 @@ Engine facts used here (see the hex manual, chapter 17):
 - a country's team count = teamsCountryNumbers[n+1] - [n]: a single-league country must hold exactly its league, so
   cup-only clubs live in their own file ('cuponly');
 - Season menu: CLASSIC SEASONS = pseudo-continent 97, listing the packs' countries;
-- InitNewSeason: the country table [league, -2, cup, <European cup>, -1] fills slot 0, 1, 2; euro_slot2 swaps slot 2
-  for the cup of the first human-controlled club of the league that played in Europe (or skips it);
+- InitNewSeason: the country table [league, -2, cup, <European cup> or <league cup>, -1] fills slot 0, 1, 2;
+  euro_slot2 swaps slot 2 for the cup of the first human-controlled club of the league that played in Europe (or skips
+  it); a league cup (season.league_cup) is the game's own slot-2 contest (England 1996-97), its season end cseg_91AD0;
 - cups are fixed team lists with fixed draws per round (historic.DRAWS): the real bracket if the real winners win.
 
 Usage:
@@ -264,6 +265,7 @@ class Pack:
         for c in self.comps:
             if c['type'] == 'cup':
                 self.bracket(c)          # validates
+                _need(c.get('first_round', 1) in range(1, 7), f"{c['key']}: first_round 1..6 (the first round's number)")
                 _need(c.get('round_names') in (None, 'numbered'),
                       f"{c['key']}: round_names 'numbered' (FA Cup style: no ROUND OF 16 name, rnames.py) or absent")
             _need(not c.get('classic_tourney') or c['type'] == 'league',
@@ -281,6 +283,11 @@ class Pack:
                 for c in clubs:
                     _need(c in self.league_clubs, f'first_europe.{key}: {c} is not a league club')
         _need(m['season'].get('cup') or not m['season'].get('europe'), 'season: European cups need a national cup')
+        lc = m['season'].get('league_cup')         # the league cup: the country table's slot 2 (the game's own, as
+        if lc:                                     # England's 1996-97 one; the season end's cseg_91AD0)
+            _need(m['season'].get('cup') and not m['season'].get('europe') and lc != m['season']['cup'],
+                  'season.league_cup needs a national cup (slot 1) and no season.europe (slot 2)')
+            _need(any(c['key'] == lc and c['type'] == 'cup' for c in self.comps), f'season.league_cup: no cup {lc}')
         for club, cup in m['season'].get('europe', {}).items():
             _need(club in self.league_clubs, f'season.europe: {club} is not a league club')
             _need(club in self.bracket(self.comp(cup))['clubs'], f'season.europe: {club} does not play {cup}')
@@ -292,7 +299,9 @@ class Pack:
         if not lg or self.world is None or lg.get('playoffs') != 'ita' or not lg.get('parallel'):
             return None
         par = lg['parallel']
-        return self.world, int(lg['id'], 16), par['upper'], par['first'], par['count'], self.files[lg['clubs']][0]
+        lc = self.meta['season'].get('league_cup')        # (its winner: the Coppa Italia Serie C winner's place)
+        return (self.world, int(lg['id'], 16), par['upper'], par['first'], par['count'], self.files[lg['clubs']][0],
+                int(self.comp(lc)['id'], 16) if lc else 0)
 
     def parallel(self):
         """pgroups table: None, or (world, upper, first, [group sizes], [(global number, base division, area group)])
@@ -940,6 +949,13 @@ def world_draws():
     return out
 
 
+def league_cup_europe_files():
+    """uefaq: the league files of the world countries whose league cup winner takes their last UECL place
+    (pack.json season 'league_cup_europe': true; England's EFL Cup)."""
+    return [pk.files[pk.league['clubs']][0] for pk in packs() if pk.world is not None and pk.meta['season'].get('league_cup')
+            and pk.meta['season'].get('league_cup_europe')]
+
+
 def numbered_cups():
     """rnames: the contest ids of the world cups whose rounds keep their numbers (cup 'round_names': 'numbered')."""
     return [int(c['id'], 16) for pk in packs() if pk.world is not None for c in pk.comps
@@ -1464,8 +1480,9 @@ def _patch_pack(pk, p, lang, area, at, env):
                 cobj, gcup = p.target(gobj, gtab + k)
                 gc = p.le.obj_bytes(cobj)[gcup:gcup + 5]
                 h[2], h[3], h[4] = lfile, gc[3], gc[4]
-                h[13] = 1                       # first round name: PRIMO TURNO (the Australian cup's 2 = SECONDO TURNO:
-                                                # the round name = round + [5Bh] - 1 unless quarter / semi / final)
+                h[13] = c.get('first_round', 1)  # first round name: PRIMO TURNO (the Australian cup's 2 = SECONDO TURNO:
+                                                # the round name = round + [5Bh] - 1 unless quarter / semi / final);
+                                                # a cup taken up later (EFL Cup from its 4th round): first_round 4
             else:
                 h = bytearray(d2[sacups.unique(d2, sacups.CWC_HDR):][:14])
             h[0], h[10] = int(c['id'], 16), len(br['clubs'])
@@ -1489,6 +1506,9 @@ def _patch_pack(pk, p, lang, area, at, env):
         at += 4
     if s.get('europe'):
         p.add_ptr(1, at, 1, ptr[s['europe_placeholder']])
+        at += 4
+    elif s.get('league_cup'):                   # [league, -2, cup, league cup, -1]
+        p.add_ptr(1, at, 1, ptr[s['league_cup']])
         at += 4
     p.put(1, at, struct.pack('<i', -1))
     at += 4

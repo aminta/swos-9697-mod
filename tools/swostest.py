@@ -3054,6 +3054,57 @@ def world_dplay_c():
     return world_dplay_b('105', 'EUROPA,ITALIA,SERIE C GIRONE A,RENATE')
 
 
+
+@scenario
+def world_leaguecup():
+    """League cups in a career world (the country table's slot 2, the game's own league-cup slot): the world 2026-27
+    (private data internal/world2526/world5tm) with England's staged EFL Cup (world5tm-lc/eng, id F0 for the test,
+    season.league_cup) merged in; a season at BRADFORD CITY (League One, in the round of 16): the EFL CUP rounds are played (their titles seen) and
+    the season ends and saves (checkw1)"""
+    import json
+    import shutil
+    src = os.path.join(MAIN, 'internal', 'world2526', 'world5tm')
+    lc = os.path.join(MAIN, 'internal', 'world2526', 'world5tm-lc', 'eng')
+    if not (os.path.isdir(src) and os.path.isdir(lc)):
+        return True, 'SKIP: private data internal/world2526/world5tm(-lc) missing'
+    w = os.path.join(WORK, 'world_leaguecup')
+    shutil.rmtree(w, ignore_errors=True)
+    shutil.copytree(src, os.path.join(w, 'world5tm'))
+    eng = os.path.join(w, 'world5tm', 'eng')
+    d = json.load(open(os.path.join(eng, 'pack.json')))
+    if not any(c['key'] == 'league_cup' for c in d['competitions']):
+        c = json.load(open(os.path.join(lc, 'competition.json')))
+        c.setdefault('id', 'F0')
+        d['competitions'].append(c)
+        d['season']['league_cup'] = c['key']
+        d['season']['league_cup_europe'] = True        # (its winner: England's last UECL place, uefaq)
+        json.dump(d, open(os.path.join(eng, 'pack.json'), 'w'), indent=1, ensure_ascii=False)
+        rows = open(os.path.join(lc, 'ties.csv')).read().splitlines()[1:]
+        with open(os.path.join(eng, 'ties.csv'), 'a') as t:
+            t.write('\n'.join(rows) + '\n')
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    env = {'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(w, 'world5tm', x) for x in order])}
+    exe = build('world_leaguecup', env=env)
+    keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K',
+                                            'W8485_NOSACK')}
+    os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM='EUROPA,INGHILTERRA,EFL LEAGUE ONE,BRADFORD CITY',
+                      W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1')
+    try:
+        ok, msg = world8485()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    log = open(os.path.join(RUNS, 'world8485_1', 'session.log'), errors='replace').read()
+    titles = sorted(set(re.findall(r'EFL CUP[A-Z0-9 ./-]*', log)))
+    errs = []
+    check(ok, msg, errs)
+    check(titles, 'no EFL CUP screen in season 1', errs)
+    return not errs, '; '.join(errs) or f'{msg}; {titles[:8]}'
+
+
 def run_parallel(names, jobs):
     """run -jN: each scenario in its own process (own run dirs and DOSBox-X, one host core each in turbo); the
     builds are made once here first. Output in the order of the names; exit code 1 on a failure."""

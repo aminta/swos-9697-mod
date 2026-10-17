@@ -37,7 +37,7 @@ typedef signed char s8;
 enum { NT = 24, NDIV = 5 };
 struct dp_row { u16 team, glob, won, gf, ga, pts; };            /* a place of a final table (12 B) */
 struct dp_in {
-    u8 ng, cupw, pad[2];                /* C groups; cupw: 0 = the best 11th stands in for the cup winner */
+    u8 ng, pad[3];                      /* C groups */
     u8 n[NDIV], pad2[3];                /* clubs per table (0 = not captured) */
     struct dp_row t[NDIV][NT];          /* t[0] Serie B, t[1..ng] the groups */
     u16 po_win, out_win;                /* the career club's play-off / play-out played in slot 4: its winner's team
@@ -45,6 +45,7 @@ struct dp_in {
     u16 mgr, week;                      /* dp_lend: the career club's team number, the league's last week */
     u16 cpo_win;                        /* the career club's Serie C play-off: its winner (0 = simulated) */
     u8 mdiv, pad3;                      /* dp_lend: the career club's table (0 Serie B, 1.. the groups) */
+    u16 cupw;                           /* the Coppa Italia Serie C winner (a played final: dp_cupw), 0 = unknown */
 };
 /* the career club's play-off / play-out (Serie B) or play-off (Serie C) in slot 4 (dp_lend; saved with the career,
    tmdFileBuffer): its clubs in the contest's team list order */
@@ -85,7 +86,7 @@ const u32 DP_LAYOUT[] = { sizeof(struct dp_in), sizeof(struct dp_out), sizeof(st
                           __builtin_offsetof(struct dp_save, prio), __builtin_offsetof(struct dp_save, rb),
                           __builtin_offsetof(struct dp_in, cpo_win), __builtin_offsetof(struct dp_in, mdiv),
                           __builtin_offsetof(struct dp_save, sg), __builtin_offsetof(struct dp_save, srow),
-                          sizeof(struct dp_srow) };
+                          sizeof(struct dp_srow), __builtin_offsetof(struct dp_in, cupw) };
 
 static u32 rng;
 static u32 below(u32 n) {
@@ -187,6 +188,18 @@ static void serie_b(void) {
     }
 }
 
+/* the Coppa Italia Serie C winner's play-off place: the winner itself when it finished 11th or lower, the 11th of
+   its group when it is promoted or already in (2nd-10th); unknown (its final not played in this career): the best
+   11th of the groups */
+static int cup_place(int ng) {
+    int e[4];
+    for (int g = 1; g <= ng && DP_IN.cupw; g++)
+        for (int k = 0; k < DP_IN.n[g]; k++)
+            if (DP_IN.t[g][k].team == DP_IN.cupw) return g * NT + (k >= 10 ? k : 10);
+    for (int g = 0; g < ng; g++) e[g] = (g + 1) * NT + 10;
+    return best_of(e, ng);
+}
+
 static void serie_c(void) {
     int ng = DP_IN.ng, q[8], nq = 0, thirds[4], seconds[4], cup, nr1[5], nr1o[5], w1[5], s2[4], o2[4], w2[4];
     if (ng < 2 || ng > 4) return;
@@ -201,11 +214,7 @@ static void serie_c(void) {
         thirds[g - 1] = b + 2;
         seconds[g - 1] = b + 1;
     }
-    {                                   /* the cup winner's place (temporary: the best 11th) */
-        int e[4];
-        for (int g = 0; g < ng; g++) e[g] = (g + 1) * NT + 10;
-        cup = best_of(e, ng);
-    }
+    cup = cup_place(ng);                /* the cup winner's place */
     /* national R1: seeds = the thirds, the cup winner, the best group qualifier; the others drawn */
     {
         int bq = best_of(q, nq), ns = 0, no = 0;
@@ -317,20 +326,19 @@ void dp_lend(void) {
 static void c_lend(void) {
     static const u8 r1[6] = { 4, 9, 5, 8, 6, 7 };
     struct dp_save *v = DP_SVP;
-    int g0 = DP_IN.mdiv, ng = DP_IN.ng, m = -1, i = 0, e[4], cup;
+    int g0 = DP_IN.mdiv, ng = DP_IN.ng, m = -1, i = 0, cup;
     if (ng != 3) return;
     for (int g = 1; g <= ng; g++) if (DP_IN.n[g] < 11) return;
     for (int k = 0; k < DP_IN.n[g0]; k++) if (DP_IN.t[g0][k].team == DP_IN.mgr) m = k;
     if (m < 0) return;
     m = force_place(m);
     for (int k = 0; k < NDIV * NT; k++) lot[k] = (u8)(DP_IN.t[k / NT][k % NT].glob * 37 + 11);
-    for (int g = 0; g < ng; g++) e[g] = (g + 1) * NT + 10;
-    cup = best_of(e, ng);
-    if (!(m >= 1 && m <= 9) && !(m == 10 && cup == g0 * NT + 10)) return;
+    cup = cup_place(ng);
+    if (!(m >= 1 && m <= 9) && cup != g0 * NT + m) return;
     for (int g = 1; g <= ng; g++) for (int k = 0; k < 6; k++) { v->place[i] = r1[k]; v->group[i++] = g; }
     for (int p = 3; p >= 1; p--) {
         for (int g = 1; g <= ng; g++) { v->place[i] = p; v->group[i++] = g; }
-        if (p == 2) { v->place[i] = 10; v->group[i++] = cup / NT; }
+        if (p == 2) { v->place[i] = cup % NT; v->group[i++] = cup / NT; }
     }
     v->kind = 3; v->n = SN; v->cup = 24;
     for (int k = 0; k < SN; k++) {

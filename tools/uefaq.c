@@ -104,6 +104,9 @@ struct uq_in {
     struct { u16 id; u8 rank; u8 pad; u32 coef; u32 str; } club[NC];
     u16 manager;                        /* the manager's club: index + 1 (0 = none / not seen) */
     u8 force;                           /* test builds: the manager's club enters this round (0 = its place) */
+    u8 pad3;
+    u16 lcup[NA];                       /* the league cup winner of an association whose league cup gives its last
+                                           UECL place (England's EFL Cup): club index + 1 (0 = none / not seen) */
 };
 /* output */
 struct uq_out {
@@ -166,7 +169,7 @@ const u32 UQ_LAYOUT[] = { OFF(uq_in, present), OFF(uq_in, eps), OFF(uq_in, hold)
                           OFF(uq_out, n), OFF(uq_out, ls), OFF(uq_out, status), sizeof(struct uq_in), NC,
                           OFF(uq_in, manager), OFF(uq_in, force), OFF(uq_out, mt_n), OFF(uq_out, mt_round),
                           OFF(uq_out, mt_opp), OFF(uq_out, mt_win), OFF(uq_out, standin), OFF(uq_out, gn),
-                          OFF(uq_out, gl) };
+                          OFF(uq_out, gl), OFF(uq_in, lcup) };
 
 static struct { u8 rank, round, code, pad; } E[NE];
 static int ne;
@@ -333,12 +336,18 @@ static void assign(const u16 *skip) {
         for (int c = 0; c <= UQ_IN.nclub; c++) taken[c] = 0;
         for (int h = 0; h < 3; h++) if (skip[h]) taken[skip[h]] = 1;
         const u16 *lg = UQ_IN.league[rk];
+        int lce = -1;                           /* the league cup winner's place: the association's last UECL one */
+        if (UQ_IN.lcup[rk])
+            for (int j = 0; j < n; j++)
+                if (COMP(E[ord[j]].round) == 2 && (lce < 0 || E[ord[j]].code > E[lce].code)) lce = ord[j];
         for (int j = 0; j < n; j++) {
             int i = ord[j], club = 0;
             if (E[i].code == 0 && lg[0] && !taken[lg[0]])
                 club = lg[0];
             else if (E[i].code == 1 && UQ_IN.cup[rk] && !taken[UQ_IN.cup[rk]])
                 club = UQ_IN.cup[rk];
+            else if (i == lce && !taken[UQ_IN.lcup[rk]])  /* (already qualified: the next league club) */
+                club = UQ_IN.lcup[rk];
             else
                 for (int l = 0; l < NL - 1; l++)
                     if (lg[l] && !taken[lg[l]]) { club = lg[l]; break; }

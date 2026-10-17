@@ -27,6 +27,7 @@ uq_country:                             ; careerworld w_q_cq (w_q_cl in a league
     cld
     rep stosd
 .on:
+    xor ebp, ebp                        ; (rank: 0 = not found yet)
     xor ebx, ebx                        ; the country = the file of the first club of its standings
 .f:
     cmp ebx, 9
@@ -47,6 +48,7 @@ uq_country:                             ; careerworld w_q_cq (w_q_cl in a league
     inc ecx
     jmp .r
 .rk:
+    mov [UQ_CF], al
     lea ebp, [ecx + 1]                  ; ebp = rank (1..)
     cmp ebp, 55
     ja .x
@@ -74,9 +76,9 @@ uq_country:                             ; careerworld w_q_cq (w_q_cl in a league
     mov esi, CUPREC + 2ACh              ; the cup winner (a league club already: the same index)
     mov ax, [esi]
     test ax, ax
-    jz .x
+    jz .lc
     cmp ax, 0FFFFh
-    je .x
+    je .lc
     xor ecx, ecx
 .c:
     cmp ecx, edx
@@ -98,6 +100,37 @@ uq_country:                             ; careerworld w_q_cq (w_q_cl in a league
     call .club
 .cw:
     mov [UQ_IN + L_CUP + ebp*2], ax
+.lc:                                    ; the league cup winner of a country whose league cup gives a UECL place
+    test ebp, ebp                       ; (pack season.league_cup_europe; one of the clubs seen, else none)
+    jz .x
+    mov al, [UQ_CF]
+    mov esi, UQ_LCEU
+.le:
+    cmp byte [esi], 0FFh
+    je .x
+    cmp [esi], al
+    je .lw
+    inc esi
+    jmp .le
+.lw:
+    mov ax, [LCWIN]                     ; (dseg_18072D: set by cseg_92A63 at its season end, else FFFF)
+    cmp ax, 0FFFFh
+    je .x
+    xor ecx, ecx
+.lk:
+    cmp ecx, 10
+    jae .x
+    imul edi, ebp, 10
+    lea edi, [edi + ecx - 10]
+    imul edi, edi, CSZ
+    cmp ax, [UQ_IN + L_CLUB + edi]
+    je .lf
+    inc ecx
+    jmp .lk
+.lf:
+    imul eax, ebp, 10
+    lea eax, [eax + ecx - 9]
+    mov [UQ_IN + L_LCUP + ebp*2], ax
 .x:
     pop es
     popad
@@ -595,6 +628,8 @@ uq_tie_round:                           ; CF = 1 and D0 = 0..3 (FIRST .. FOURTH 
     clc
     ret
 
+UQ_CF: db 0
+UQ_LCEU: LCEU_BYTES
 UQ_HP: dd HOLD_CC, HOLD_CWC, HOLD_UEFA
 UQ_QS: dd QS0, QS1, QS2
 UQ_PEND: db 0
@@ -680,10 +715,10 @@ def patch(p, at, limit, sites):
     bss_at = sites['bss'] + cw.B_UQ
     syms, end, bss = cobj.link(p, obj, at, (2, bss_at), limit=limit)
     assert bss <= cw.UQ_BSS, hex(bss)
-    lay = struct.unpack('<22I', p.get(1, syms['UQ_LAYOUT'][1], 88))
+    lay = struct.unpack('<23I', p.get(1, syms['UQ_LAYOUT'][1], 92))
     keys = ('L_PRESENT', 'L_EPS', 'L_HOLD', 'L_NCLUB', 'L_LEAGUE', 'L_CUP', 'L_CLUB', 'CSZ', 'O_N', 'O_LS', 'O_STATUS',
             'IN_SIZE', 'NC', 'L_MANAGER', 'L_FORCE', 'O_MT_N', 'O_MT_ROUND', 'O_MT_OPP', 'O_MT_WIN', 'O_STANDIN', 'O_GN',
-            'O_GL')
+            'O_GL', 'L_LCUP')
     lay = dict(zip(keys, lay))
     assert lay['IN_SIZE'] % 4 == 0 and lay['CSZ'] == 12 and lay['NC'] >= 553, lay
     slay = dict(zip(('S_M', 'S_K', 'S_RES', 'S_GN', 'S_GL', 'S_SIZE', 'R_DONE', 'R_R', 'R_OPP', 'R_DEST', 'R_GL',
@@ -734,7 +769,8 @@ def patch(p, at, limit, sites):
                     'WCC': (2, sites['bss'] + cw.B_CUPS), 'WCWC': (2, sites['bss'] + cw.B_CUPS + 160),
                     'WUEFA': (2, sites['bss'] + cw.B_CUPS + 320), 'C8EA56': (1, c8ea56), 'STAGE_G': (2, stage_g), 'CAL': (2, cal), 'CAL_CUR': (2, cal_cur),
                     'R280C0': (1, r280c0), 'R283BD': (1, r283bd), 'DIY': (2, sites['diy']),
-                    'DIYCOPY': (2, sites['diycopy'])})
+                    'DIYCOPY': (2, sites['diycopy']), 'LCWIN': (2, _lcwin(p)),
+                    'LCEU_BYTES': (0, 'db ' + ', '.join(str(x) for x in sites.get('lceu', []) + [0xFF]))})
     symbols.update({k: (0, v) for k, v in slay.items()})
     glue = (end + 15) & ~15
     code, fix = nasmcave.assemble(ASM, glue, symbols)
@@ -761,6 +797,16 @@ def patch(p, at, limit, sites):
     print(f'exe: UEFA qualifying rounds: C obj1+{at:#x}..{end:#x}, glue ..{glue + len(code):#x}, '
           f'bss obj2+{bss_at:#x} ({bss} B + {cw.UQ_RECS} records)')
     return glue + len(code)
+
+
+def _lcwin(p):
+    """dseg_18072D, the league cup winner's team number (cseg_93A60: mov [A5], offset its record; cmp word [it], -1)."""
+    import sacups
+    d1 = p.le.obj_bytes(1)
+    a5 = struct.pack('<I', sacups.regs(d1)['A0'] + 20)
+    m = list(re.finditer(rb'\xc7\x05' + re.escape(a5) + rb'.{4}\x66\x83\x3d(.{4})\xff', d1, re.S))
+    assert len(m) == 1, m
+    return struct.unpack('<I', m[0].group(1))[0]
 
 
 def _locals(src, org, symbols, names):

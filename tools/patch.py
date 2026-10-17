@@ -299,6 +299,7 @@ def patch_exe(src, dst, remap, lang='it'):
         assert uc_end <= hist2 + h2 + 0x2000, hex(uc_end)
         import uefaq                            # UEFA qualifying rounds (C code, tools/uefaq.c; 3 pages)
         cs['bss'] = careerworld.BSS[0]
+        cs['lceu'] = mkseason.league_cup_europe_files()
         cs['sel'] = sacups.SEL_ADDR[0]
         cs.update(sacups.SITES)
         uq_end = uefaq.patch(p, hist2 + h2 + 0x2000, hist2 + h2 + 0x2000 + uefaq.STRUCTS_AT, cs)

@@ -46,7 +46,7 @@ dp_find:                                ; edx = a league struct -> esi = its DP_
     je .no
     cmp [esi], ax                       ; (world, league id)
     je .yes
-    add esi, 5
+    add esi, 6
     jmp .l
 .yes:
     or esi, esi                         ; (ZF = 0)
@@ -130,6 +130,7 @@ dp_end:                                 ; replaces `call cseg_9228D` (the play-o
     xor eax, eax                        ; the career club's play-off / play-out played in slot 4
     mov [DP_IN + O_PO], eax
     mov [DP_IN + O_CPO], ax
+    call dp_cupin
     call dp_sync
     jne .s
     mov ax, [DP_ST + 2]
@@ -316,6 +317,7 @@ dp_lend:                                ; replaces `call cseg_8ECAE` (the career
     inc ebx
     jmp .sim
 .own:
+    call dp_cupin
     mov ax, [CAREERTEAM]
     mov [DP_IN + O_MGR], ax
     movzx eax, word [CAL_CUR]           ; the week of the match day just played (its calendar entry +1)
@@ -395,6 +397,19 @@ DP_CS: dd DP_C0, DP_C1, DP_C2
 DP_NRB: db 0, 3, 1, 6
 align 4
 DP_REGS: times 15 dd 0
+
+dp_cupin:                               ; the Coppa Italia Serie C winner of this season (dp_cupw) into DP_IN, or 0
+    push eax
+    xor eax, eax
+    mov ah, [SEASONPLAYING]
+    cmp ah, [DP_SAVE + CUPW_AT + 2]
+    mov ax, [DP_SAVE + CUPW_AT]
+    je .s
+    xor eax, eax
+.s:
+    mov [DP_IN + O_CUPW], ax
+    pop eax
+    ret
 
 dp_ssim:                                ; replaces `call cseg_915ED` (a division simulated at the season end) in
     call C915ED                         ; cseg_91D4D: a Serie C group simulated early for the career club's play-off
@@ -511,6 +526,7 @@ dp_draw:                                ; at cseg_2AE97's 'draw -> replay' mark 
 
 dp_rec:                                 ; replaces `mov ax, [dseg_11F9CC]` at cseg_2AE97's end (the match's result)
     pushad
+    call dp_cupw
     call dp_ours
     jne .x
     call dp_decisive
@@ -532,6 +548,37 @@ dp_rec:                                 ; replaces `mov ax, [dseg_11F9CC]` at cs
 .x:
     popad
     mov ax, [W11F9CC]
+    ret
+
+dp_cupw:                                ; the Coppa Italia Serie C's final decided (the career's league cup in an
+    mov edx, [D8CAA]                    ; Italian career: its slot 2): the winner kept for the Serie C play-off
+    test edx, edx
+    jz .r
+    call dp_find
+    jz .r
+    mov al, [esi + 5]
+    test al, al
+    jz .r
+    cmp [DIY + 2Dh], al
+    jne .r
+    call dp_decisive
+    jz .r
+    test byte [D7R], 2
+    jz .r
+    mov ax, [DIY + 57h]                 ; (the last round)
+    inc eax
+    cmp ax, [DIY + 59h]
+    jne .r
+    mov esi, [A1R]
+    test byte [D7R], 1
+    jz .w
+    mov esi, [A2R]
+.w:
+    mov ax, [esi]
+    mov [DP_SAVE + CUPW_AT], ax
+    mov al, [SEASONPLAYING]
+    mov [DP_SAVE + CUPW_AT + 2], al
+.r:
     ret
 
 dp_perm:                                ; lib97 nc_adv: ecx = the next round's clubs, NC_T = the winners in tie order
@@ -665,10 +712,11 @@ def _play_sites(p, r):
 
 
 def table_bytes(tables):
+    """per league: world, league id, Serie B, first group, groups, the league cup's id (Coppa Italia Serie C; 0)."""
     out = bytearray()
-    for world, lid, u, f, ng, _ in tables:
+    for world, lid, u, f, ng, _, lc in tables:
         assert 1 <= world <= 255 and f == u + 1 and 2 <= ng <= 4, (world, u, f, ng)
-        out += bytes((world, lid, u, f, ng))
+        out += bytes((world, lid, u, f, ng, lc))
     return bytes(out + b'\0')
 
 
@@ -724,7 +772,7 @@ def patch(p, at, limit, tables, bss_at, area):
     syms, cend, bss = cobj.link(p, obj, at, (2, bss_at), limit=limit)
     assert bss <= 0x1000, hex(bss)
     keys = ('IN_SIZE', 'OUT_SIZE', 'RSZ', 'NT', 'O_N', 'O_T', 'O_MV', 'MSZ', 'O_PO', 'O_MGR', 'SV_SIZE', 'SV_KIND',
-            'SV_TEAM', 'SV_PTS', 'SV_PRIO', 'SV_RB', 'O_CPO', 'O_MDIV', 'SV_SG', 'SV_SROW', 'SRSZ')
+            'SV_TEAM', 'SV_PTS', 'SV_PRIO', 'SV_RB', 'O_CPO', 'O_MDIV', 'SV_SG', 'SV_SROW', 'SRSZ', 'O_CUPW')
     lay = dict(zip(keys, struct.unpack(f'<{len(keys)}I', p.get(1, syms['DP_LAYOUT'][1], 4 * len(keys)))))
     assert lay['RSZ'] == 12 and lay['MSZ'] == 8 and lay['SV_SIZE'] <= LOG_AT - 4 and lay['SV_KIND'] == 4, lay
     assert lay['SRSZ'] == 16 and lay['SV_SIZE'] == 912, lay           # (swostest world_dplay_b reads the log)
@@ -744,7 +792,7 @@ def patch(p, at, limit, tables, bss_at, area):
                     'C8B2D3': (1, sacups.SITES['c8b2d3']), 'D8CAA': (2, ps['d8caa']), 'D6CDC': (2, ps['d6cdc']),
                     'CFB': (2, ps['cfb']), 'CAL': (2, ps['cal']), 'CAL_CUR': (2, ps['cal_cur']), 'SLOT4': (2, ps['slot4']), 'LIST4': (2, ps['list4']),
                     'W11F9CC': (2, ps['w11f9cc']), 'COIN_DRAW': (1, coin), 'NC_T': (1, lib97.LABELS['NC_T']),
-                    'DP_ST': syms['DP_ST'], 'SEASONPLAYING': (2, s['season']), 'SR_N': (0, 20),
+                    'DP_ST': syms['DP_ST'], 'SEASONPLAYING': (2, s['season']), 'SR_N': (0, 20), 'CUPW_AT': (0, 0x3F0),
                     'DP_PT': syms['DP_PT'], 'DP_PL': syms['DP_PL'], 'DP_PR': syms['DP_PR'], 'DP_ETP': syms['DP_ETP'],
                     'DP_DIYP': syms['DP_DIYP'], 'dp_perm_c': syms['dp_perm_c'], 'dp_restore': syms['dp_restore'],
                     'DPID_CPO': (0, DP_CPO), 'F846': (2, ps['f846']), 'SAVESEL': (1, ps['savesel']),

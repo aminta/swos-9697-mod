@@ -27,6 +27,7 @@ import weeks
 import purple
 import blond
 import xtra
+import pgroups
 import mkseason
 import careerworld
 import worldpool
@@ -176,8 +177,9 @@ def patch_exe(src, dst, remap, lang='it'):
     lpb += bool(mkseason.league_phase_worlds())   # (+1 more: the UEFA coefficients, uefacoef)
     lpb += 3 * bool(mkseason.league_phase_worlds())   # (+3: the UEFA qualifying rounds, uefaq: C code + glue)
     xtra_on = bool(mkseason.xtra_files() or os.environ.get('XTRA_HOOK'))
-    xtra_pg = bool(xtra_on and mkseason.worlds())      # (+1: extended squads' code in a build with worlds, whose world
-    lpb += xtra_pg                                     # cave is full: 3.3.x purple + blond + a big world)
+    pg_tabs = mkseason.parallel_tables()               # parallel groups of one level (Serie C 3 x 20)
+    xtra_pg = bool((xtra_on or pg_tabs) and mkseason.worlds())   # (+1: an extra code page in a build with worlds,
+    lpb += xtra_pg                                     # whose world cave is full: 3.3.x purple + blond + a big world)
     cdp = mkseason.career_data_pages() - 2 if worlds else 0   # a big world: a 3rd career data page and a 2nd
     h2 = HIST2_PAGE * (1 + cdp)                                # historic page (its cups' fixed draws)
     cp = cave_pages()                                          # career world code: 2 pages, 3 with several worlds
@@ -308,7 +310,10 @@ def patch_exe(src, dst, remap, lang='it'):
     world = blond.patch(p, area, world, num_bss + shirtnum.BSS_SIZE, shirtnum.spr_index(p))   # 3.3.0: face 3
     if xtra_pg:                                                  # extended career squads (packs with "extra";
         xp = hist2 + h2 + 0x1000 * (lpb - 1)                     # XTRA_HOOK=1: test builds): DATA\XTRA.nnn players;
-        assert xtra.patch(p, xp) <= xp + 0x1000                  # a page of their own in a build with worlds
+        xe = xtra.patch(p, xp) if xtra_on else xp                # the extra page in a build with worlds, with the
+        if pg_tabs:                                              # parallel groups' season-end fix (pgroups.py)
+            xe = pgroups.patch(p, (xe + 15) & ~15, pg_tabs)
+        assert xe <= xp + 0x1000, hex(xe)
     elif xtra_on:
         world = xtra.patch(p, world)
     assert world <= NZ_CAVE and nz_end <= FIN_CAVE and fin_end <= ARG_CAVE and arg_end <= OBJ1_NEW_VSIZE, \

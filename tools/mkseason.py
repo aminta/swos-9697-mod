@@ -249,6 +249,14 @@ class Pack:
             n = sum(1 for k in self.league_clubs if self.division[k] == d)
             _need(n == dv['teams'], f"{self.league['key']}: division {d + 1} has {n} clubs in clubs.csv, {dv['teams']} in pack.json")
         _need(sum(dv['teams'] for dv in divs) == len(self.league_clubs), f"{self.league['key']}: clubs outside the divisions")
+        par = self.league.get('parallel')          # parallel groups of one level (Serie C 3 x 20): pgroups.py
+        if par:
+            u, f, n = par.get('upper'), par.get('first'), par.get('count')
+            _need(isinstance(u, int) and f == u + 1 and isinstance(n, int) and 2 <= n <= 4 and f + n == len(divs),
+                  'league.parallel: {upper, first = upper + 1, count 2..4}, the groups being the last divisions')
+            for k in self.league_clubs:
+                a = self.clubs[k].get('area') or ''
+                _need(a == '' or a in 'ABCD'[:n], f"clubs.csv: {k}: area must be one of {'ABCD'[:n]} (a group of the level)")
         for c in self.comps:
             if c['type'] == 'cup':
                 self.bracket(c)          # validates
@@ -270,6 +278,25 @@ class Pack:
         for club, cup in m['season'].get('europe', {}).items():
             _need(club in self.league_clubs, f'season.europe: {club} is not a league club')
             _need(club in self.bracket(self.comp(cup))['clubs'], f'season.europe: {club} does not play {cup}')
+
+    def parallel(self):
+        """pgroups table: None, or (world, upper, first, [group sizes], [(global number, base division, area group)])
+        for every league club (any of them may reach the level). Area: clubs.csv 'area' (A, B, ...), else the club's
+        own group, else the middle group."""
+        par = self.league.get('parallel') if self.league else None
+        if not par or self.world is None:
+            return None
+        u, f, n = par['upper'], par['first'], par['count']
+        divs = self.divisions()
+        out = []
+        for k in self.league_clubs:
+            c = self.clubs[k]
+            fl, i = self.where[k]
+            base = next(b for fk, (ff, b) in self.files.items() if ff == fl)
+            d = self.division[k]
+            a = 'ABCD'.index(c['area']) if c.get('area') else d - f if d >= f else n // 2
+            out.append((base + i, d, a))
+        return self.world, u, f, [divs[f + g]['teams'] for g in range(n)], out
 
     def divisions(self):
         """League divisions: pack.json 'divisions' [{teams, promoted, relegated, names}], or one division."""
@@ -895,6 +922,11 @@ def world_draws():
         if pk.world is not None:
             out.setdefault(pk.world, []).extend(pk.draws())
     return out
+
+
+def parallel_tables():
+    """pgroups: the countries of the worlds with parallel groups (Pack.parallel)."""
+    return [t for pk in packs() for t in [pk.parallel()] if t]
 
 
 def bye_cups():

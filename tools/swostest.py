@@ -2718,6 +2718,78 @@ def world_byes():
     return not errs, '; '.join(errs) or f'{msg}; cup matches {titles}; round 2 list {seen[0]}'
 
 
+
+@scenario
+def world_groups():
+    """Parallel groups of one level (pgroups.py): the world 2026-27 (private data internal/world2526/world5tm) with
+    Italy's Serie C as 3 groups of 20 below Serie B ('parallel', groups promote their winner only, B's 3 relegated
+    clubs spread over the groups by area); a season at RENATE (Serie C): after it every Italian division holds 20,
+    the 3 group winners are in B, B's 3 relegated clubs are in the groups, no club moved between groups"""
+    import collections
+    import json
+    import shutil
+    src = os.path.join(MAIN, 'internal', 'world2526', 'world5tm')
+    if not os.path.isdir(src):
+        return True, 'SKIP: private data internal/world2526/world5tm missing'
+    w = os.path.join(WORK, 'world_groups')
+    shutil.rmtree(w, ignore_errors=True)
+    shutil.copytree(src, os.path.join(w, 'world5tm'))
+    f = os.path.join(w, 'world5tm', 'ita', 'pack.json')
+    d = json.load(open(f))
+    lg = next(c for c in d['competitions'] if c['type'] == 'league')
+    dv = lg['divisions']
+    dv[1]['promoted'], dv[1]['relegated'] = 3, 3
+    for g in (2, 3, 4):
+        dv[g]['promoted'], dv[g]['relegated'] = 1, 0
+    lg['parallel'] = {'upper': 1, 'first': 2, 'count': 3}
+    json.dump(d, open(f, 'w'), indent=1, ensure_ascii=False)
+    packs = sorted(os.path.join(w, 'world5tm', x) for x in os.listdir(os.path.join(w, 'world5tm'))
+                   if os.path.isfile(os.path.join(w, 'world5tm', x, 'pack.json')))
+    env = {'SEASON_PACKS': ','.join(['ddr-1988-89'] + packs)}
+    exe = build('world_groups', env=env)
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    old = os.environ.get('SEASON_PACKS')
+    os.environ['SEASON_PACKS'] = env['SEASON_PACKS']
+    import mkseason
+    pk = [p for p in mkseason.packs() if p.parallel()][0]
+    if old is None:
+        os.environ.pop('SEASON_PACKS')
+    else:
+        os.environ['SEASON_PACKS'] = old
+    _, u, first, sizes, clubs = pk.parallel()
+    keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K',
+                                            'W8485_NOSACK', 'W8485_SEASONS')}
+    os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM='EUROPA,ITALIA,SERIE C GIRONE A,RENATE',
+                      W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1')
+    try:
+        ok, msg = world8485()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    car = os.path.join(RUNS, 'world8485_1', 'SWOS', 'W84A.CAR')
+    if not os.path.exists(car):
+        return False, f'no season-1 save: {msg}'
+    slt = open(car, 'rb').read()[0xE8DC:0xE8DC + 2000]           # someLeaguesTable (ITA save offset)
+    cnt, ups, downs, side = collections.Counter(), 0, 0, 0
+    for g, base, _ in clubs:
+        new = base + struct.unpack('b', slt[g:g + 1])[0]
+        cnt[new] += 1
+        if base >= first and new == u:
+            ups += 1
+        elif base == u and new >= first:
+            downs += 1
+        elif base >= first and new >= first and new != base:
+            side += 1
+    errs = []
+    check(ok, msg, errs)
+    check(all(cnt[first + i] == n for i, n in enumerate(sizes)) and cnt[u] == 20, f'divisions {sorted(cnt.items())}', errs)
+    check(ups == len(sizes) and downs == 3 and side == 0, f'group winners up {ups}, B down {downs}, group to group {side}', errs)
+    return not errs, '; '.join(errs) or f'{msg}; divisions {sorted(cnt.items())}; up {ups}, down {downs}'
+
+
 def run_parallel(names, jobs):
     """run -jN: each scenario in its own process (own run dirs and DOSBox-X, one host core each in turbo); the
     builds are made once here first. Output in the order of the names; exit code 1 on a failure."""

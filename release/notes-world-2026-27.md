@@ -42,14 +42,31 @@ The point of this world: today's football as it really is, down to rules most pl
 - Places per association, entry rounds and pots follow the simulated ranking every season.
 
 *Italian football*
-- **Serie C as three groups of 20** (A North, B Centre, C South); from season 2 the groups are formed by region and
-  balanced to 20, as the Lega Pro does.
-- **Serie B play-off**: 3rd to 8th; **the 3rd goes up directly when it leads the 4th by more than 14 points**;
-  preliminary 5v8 and 6v7 (single match at the better placed, extra time, then the better placed), two-leg semis and
-  final with the real tie rules.
-- **Serie B play-out**: 16th v 17th, two legs, **only when they are 4 points or less apart**; the 16th stays on a tie.
-- **Serie C play-off of 28**: 2nd to 10th of each group plus the Coppa Italia Serie C winner (until the league cups
-  are in: the best 11th), group phase, national phase with seeds, Final Four.
+- **Serie B**: 1st and 2nd promoted directly; **the 3rd is promoted directly if it finishes more than 14 points
+  ahead of the 4th**, otherwise the play-off among the 3rd-8th decides the third promoted club.
+- **Serie B play-off, preliminary round**: 5th v 8th and 6th v 7th, single match at the better placed club's ground;
+  a draw goes to extra time, still level -> the better placed club goes through (no penalties).
+- **Serie B play-off semi-finals**: 3rd v the winner of 6th-7th, 4th v the winner of 5th-8th, two legs, return at
+  the 3rd's / 4th's; level on points and goal difference -> the better placed club (no extra time).
+- **Serie B play-off final**: two legs, return at the better placed club's; level -> the better placed club,
+  **except clubs level on league points: extra time and penalties** in the return.
+- **Serie B relegation**: 18th-20th down; **the 17th goes down directly if the 16th finishes more than 4 points
+  ahead**, otherwise the play-out 16th v 17th, two legs, first leg at the 17th's; level -> the 16th stays up, except
+  clubs level on league points: extra time and penalties.
+- **Serie C in three groups of 20** (A North, B Centre, C South): the three group winners are promoted; the clubs
+  relegated from Serie B go into the group of their area, balanced to 20 per group, as the Lega Pro does.
+- **Serie C play-off of 28 clubs** (2nd-10th of each group + the Coppa Italia Serie C winner) for the fourth
+  promotion:
+  - group phase, round 1: 5th v 10th, 6th v 9th, 7th v 8th, single match at the better placed's, a draw -> the
+    better placed; round 2: the three winners + the 4th, best v worst and the other two, same rules;
+  - national phase, round 1: the 6 group-phase winners + the three 3rd-placed clubs + the Coppa Italia Serie C winner;
+    seeds = the 3rd-placed clubs, the cup winner and the best-placed group-phase qualifier; seeded draw, two legs,
+    return at the seed's, level -> the seed; round 2: the 5 winners + the three 2nd-placed clubs, seeds = the
+    2nd-placed and the best-placed round-1 winner, same rules;
+  - **Final Four**: free draw, semi-finals and final over two legs, level -> extra time and penalties; the winner
+    goes up to Serie B;
+  - 'better placed' between clubs of different groups: league position, then points, wins, goals scored, drawing
+    of lots.
 
 *National cups 2026-27*
 - **Every club still in at the start of the season**, each from **its real round**: clubs that enter later have
@@ -221,15 +238,33 @@ L'obiettivo di questo mondo: il calcio di oggi com'è davvero, fino alle regole 
 - Posti per federazione, turno d'ingresso e fasce seguono il ranking simulato ogni stagione.
 
 *Calcio italiano*
-- **Serie C su tre gironi da 20** (A Nord, B Centro, C Sud); dalla seconda stagione i gironi si formano per regione
-  e si bilanciano a 20, come fa la Lega Pro.
-- **Play-off di Serie B**: dalla 3ª all'8ª; **la 3ª sale direttamente se ha più di 14 punti sulla 4ª**; turno
-  preliminare 5ª-8ª e 6ª-7ª (gara secca in casa della meglio piazzata, supplementari, poi la meglio piazzata),
-  semifinali e finale di andata e ritorno con le regole vere di parità.
-- **Play-out di Serie B**: 16ª contro 17ª, andata e ritorno, **solo se separate da 4 punti o meno**; a parità si
-  salva la 16ª.
-- **Play-off di Serie C a 28**: dalla 2ª alla 10ª di ogni girone più la vincente della Coppa Italia Serie C (finché
-  non ci sono le coppe di lega: la migliore 11ª), fase dei gironi, fase nazionale con teste di serie, Final Four.
+- **Serie B**: 1ª e 2ª promosse direttamente; **la 3ª sale direttamente se chiude con più di 14 punti sulla 4ª**,
+  altrimenti i play-off tra 3ª e 8ª decidono la terza promossa.
+- **Play-off di Serie B, turno preliminare**: 5ª contro 8ª e 6ª contro 7ª, gara secca in casa della meglio
+  piazzata; in caso di parità supplementari, e se resta la parità passa la meglio piazzata (niente rigori).
+- **Semifinali dei play-off di B**: 3ª contro la vincente di 6ª-7ª, 4ª contro la vincente di 5ª-8ª, andata e
+  ritorno, ritorno in casa della 3ª / 4ª; a parità di punti e differenza reti passa la meglio piazzata (niente
+  supplementari).
+- **Finale dei play-off di B**: andata e ritorno, ritorno in casa della meglio piazzata; a parità passa la meglio
+  piazzata, **tranne se le due hanno chiuso il campionato a pari punti: supplementari e rigori** nel ritorno.
+- **Retrocessioni dalla B**: 18ª-20ª in C; **la 17ª retrocede direttamente se la 16ª ha più di 4 punti di
+  vantaggio**, altrimenti play-out 16ª contro 17ª, andata e ritorno, andata in casa della 17ª; a parità si salva la
+  16ª, tranne a pari punti in campionato: supplementari e rigori.
+- **Serie C su tre gironi da 20** (A Nord, B Centro, C Sud): salgono le tre vincitrici; le retrocesse dalla B vanno
+  nel girone della loro zona, bilanciato a 20, come fa la Lega Pro.
+- **Play-off di Serie C a 28 squadre** (dalla 2ª alla 10ª di ogni girone + la vincente della Coppa Italia Serie C)
+  per la quarta promozione:
+  - fase dei gironi, primo turno: 5ª-10ª, 6ª-9ª, 7ª-8ª, gara secca in casa della meglio piazzata, a parità passa la
+    meglio piazzata; secondo turno: le tre vincenti + la 4ª, la migliore contro la peggiore e le altre due, stesse
+    regole;
+  - fase nazionale, primo turno: le 6 vincenti della fase dei gironi + le tre terze + la vincente della Coppa Italia
+    Serie C; teste di serie le terze, la vincente della coppa e la migliore delle qualificate; sorteggio con teste di
+    serie, andata e ritorno, ritorno in casa della testa di serie, a parità passa la testa di serie; secondo turno: le
+    5 vincenti + le tre seconde, teste di serie le seconde e la migliore vincente del primo turno, stesse regole;
+  - **Final Four**: sorteggio libero, semifinali e finale di andata e ritorno, a parità supplementari e rigori; la
+    vincente sale in Serie B;
+  - "meglio piazzata" tra squadre di gironi diversi: posizione in classifica, poi punti, vittorie, gol fatti,
+    sorteggio.
 
 *Coppe nazionali 2026-27*
 - **Tutte le squadre ancora in corsa a inizio stagione**, ognuna dal **suo turno vero**: chi entra più tardi è

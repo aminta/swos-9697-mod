@@ -714,6 +714,9 @@ def _draw_call(p):
     return [c for c, _ in sites], sites[0][1]
 
 
+TABLE = [None, False]           # the fixed draws' table (obj, offset) and whether it has world filter records
+
+
 def draw_table():
     """hist_draw's fixed draws: [id, teams | sort flag, perm...] per round; each career world's after a filter
     record [1, 0, world] (its cup ids are its own); 0 ends. One world: no filter records (the table of 3.3)."""
@@ -911,4 +914,5 @@ def patch(p, lang, area, cave, draw_pre=None, leagues=(), cave2=None, lp=None, c
     print(f'exe: historic: {name.decode()} = country {CLASSICS}, {full.decode()} id {WC82_ID:#x} @ obj1+{wc82:#x}, '
           f'preset call obj1+{pre_call:#x} -> obj1+{labels["hist_preset"]:#x} (season call obj1+{season_call:#x} untouched)')
     print(f'exe: historic: code obj1+{at2:#x}..{at2 + len(code):#x} (page {cave2:#x})')
+    TABLE[:] = [symbols['DRAW_TABLE'] if wd else (1, labels['DRAW_TABLE']), wd]   # (lib97.chain_adv: career cups)
     return at

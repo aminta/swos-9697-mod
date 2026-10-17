@@ -2669,8 +2669,8 @@ def blond_faces():
 def world_byes():
     """National-cup first-round byes in a career (lib97 nc_bye / nc_adv): the template world (packs/_template_world)
     with the ALPHA cup cut to 6 clubs, 2 of them with a bye (ALPHA ROVERS, ALPHA ATHLETIC); career at ALPHA ROVERS:
-    it plays no round 1, after round 1 both bye clubs are in round 2's list (with the 2 winners), it plays its
-    semi-final, the season ends"""
+    it plays no round 1, round 1 is ties.csv's (fixed draw, first season), round 2 the fixed draw (ALPHA ROVERS v
+    ALPHA ATHLETIC = its a3 v a4), it plays its semi-final, the season ends"""
     import csv
     import shutil
     pk = os.path.join(WORK, 'packs', 'world-byes')
@@ -2698,6 +2698,7 @@ def world_byes():
         if not hits:
             return False, 'ALPHA cup slot not found'
         slot[0] = hits[0]
+        start = list(s.result.obj2(slot[0] + 0x2CD, 6))   # round 1 in ties.csv order (fixed draw, first season)
 
         def stop(scr):
             t = scr.entries[0][1] if scr.entries else ''
@@ -2714,8 +2715,10 @@ def world_byes():
         ok = True
     check(ok, msg, errs)
     check(semi, f'ALPHA ROVERS cup matches {titles} (first must be the semi-final)', errs)
-    check(seen and {4, 5} <= set(seen[0]), f'round 2 list {seen} (must hold the bye clubs 4 and 5)', errs)
-    return not errs, '; '.join(errs) or f'{msg}; cup matches {titles}; round 2 list {seen[0]}'
+    check(start[:4] == [0, 1, 2, 3], f'round 1 list {start} (ties.csv order: 0 1 2 3, byes 4 5 left out)', errs)
+    check(seen and seen[0][0] in (2, 3) and seen[0][1] in (0, 1) and seen[0][2:4] == [4, 5],
+          f'round 2 list {seen} (fixed draw: winner of tie 2 v winner of tie 1, then 4 v 5 = ties.csv a2-a1, a3-a4)', errs)
+    return not errs, '; '.join(errs) or f'{msg}; cup matches {titles}; round 1 {start[:4]}, round 2 list {seen[0]}'
 
 
 

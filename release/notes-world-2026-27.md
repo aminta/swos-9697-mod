@@ -84,6 +84,10 @@ J.League Cup with two-legged QF and SF; NIR League Cup from its 1st round; Egypt
 stages; UAE League Cup two-legged up to the semis; Carling Knockout (RSA) 16 PSL clubs; Welsh League Cup; Iceland
 Lengjubikarinn, Finland Liigacup, Chile and Peru Copa de la Liga. -->
 *Leagues, calendars and clubs*
+- **Every league, national cup and league cup under its real 2026-27 name, without title sponsors**: COPPA ITALIA,
+  FA CUP, EFL CUP, DFB-POKAL, TURKIYE KUPASI, KING'S CUP, EMPEROR'S CUP, PARVA PROFESIONALNA LIGA for the efbet Liga
+  ...; Latin-script countries in their own language (BEKER VAN BELGIE, DBU POKALEN, CUPA ROMANIEI), the others under
+  the official English name (GREEK CUP, RUSSIAN CUP).
 - **Belgium 2026-27: 18 clubs, 34 matchdays, no play-offs**, the new format; calendar-year leagues (Brazil,
   Argentina, the MLS, Korea, China, the Nordic countries ...) play their **2026** season, **Japan already its first
   August-May season, 2026-27**.
@@ -288,6 +292,10 @@ L'obiettivo di questo mondo: il calcio di oggi com'è davvero, fino alle regole 
   (fissi per la prima stagione); le fasi a gironi restano fasi a gironi (una sconfitta lì non elimina).
 
 *Campionati, calendari e club*
+- **Ogni campionato, coppa nazionale e coppa di lega col suo nome vero 2026-27, senza lo sponsor**: COPPA ITALIA,
+  FA CUP, EFL CUP, DFB-POKAL, TURKIYE KUPASI, KING'S CUP, EMPEROR'S CUP, PARVA PROFESIONALNA LIGA per la efbet Liga
+  ...; i paesi ad alfabeto latino nella loro lingua (BEKER VAN BELGIE, DBU POKALEN, CUPA ROMANIEI), gli altri col
+  nome ufficiale inglese (GREEK CUP, RUSSIAN CUP).
 - **Belgio 2026-27: 18 club, 34 giornate, senza play-off**, il nuovo formato; i campionati ad anno solare (Brasile,
   Argentina, MLS, Corea, Cina, i paesi nordici ...) giocano la stagione **2026**, **il Giappone già la sua prima
   stagione agosto-maggio, 2026-27**.

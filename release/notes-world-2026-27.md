@@ -148,6 +148,8 @@ Lengjubikarinn, Finland Liigacup, Chile and Peru Copa de la Liga. -->
 - **Fixed squad numbers, as today**: every player keeps his own number all season, on the bench too (the original
   game renumbers the bench 12-16 and swaps numbers with the places); new signings, reserves and trial players take a
   free number, never a duplicate. The computer's clubs too.
+- **Faces**: skin by nationality, **blond hair from the players' official EA SPORTS FC portraits** (and black skin
+  with blond hair, as Osimhen), plus a hand list.
 - **Foreign market of 2026-27**: 900 real players of the tiers just below the world's divisions.
 
 ### What is in the world
@@ -447,6 +449,8 @@ Non una formula uguale per tutti: ogni campionato gioca la stagione come l'ha sc
 - **Numeri di maglia fissi, come oggi**: ogni giocatore tiene il suo numero per tutta la stagione, anche in panchina
   (il gioco originale rinumera la panchina da 12 a 16 e scambia i numeri con i posti); acquisti, riserve e giocatori
   in prova prendono un numero libero, mai un doppione. Anche le squadre del computer.
+- **Visi**: pelle secondo la nazionalità, **capelli biondi dalle foto ufficiali EA SPORTS FC dei giocatori** (anche
+  pelle scura e capelli biondi, come Osimhen), più un elenco a mano.
 - **Mercato estero 2026-27**: 900 giocatori veri delle serie subito sotto quelle del mondo.
 
 ### Cosa c'è nel mondo

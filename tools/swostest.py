@@ -2484,7 +2484,9 @@ def italy_friendly(s, home, away):
 @scenario
 def purple_kits():
     """3.3.0: kit colour 10 = purple (Fiorentina): palette entry 12 purple in the SELECT KITS editor for Fiorentina and
-    maroon for Inter, purple in the match Fiorentina-Inter and Fiorentina-Roma (Roma's maroon kit clashes: green away)"""
+    maroon for Inter, purple in the match Fiorentina-Inter and Fiorentina-Roma (Roma's maroon kit clashes: green away);
+    3.3.1: Inter in Barcelona's kits (blue and maroon stripes): the automatic choice avoids purple vs maroon; SELECT KITS
+    opens on the automatic choice (Fiorentina-Roma: Roma second kit) and OK plays it"""
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import lepatch
     b = builds()['it']
@@ -2493,8 +2495,17 @@ def purple_kits():
     fp = _re.search(rb'\xbf....\xbe....\xb9\x0f\x00\x00\x00', p.le.obj_bytes(1), _re.S)
     working = p.target(1, fp.start() + 6)[1]
     errs, info = [], []
-    for away, kits in (('INTER MILAN', True), ('ROMA', False)):
-        with Session('purple_kits_' + away[:5], b, {}, 'dump:3', 300, match=True) as s:
+    d = bytearray(open(os.path.join(b, 'DATA', 'TEAM.020'), 'rb').read())
+    for t in range(struct.unpack('>H', d[:2])[0]):          # 3.3.1: INTER MILAN in Barcelona's kits (blue and
+        o = 2 + t * 684                                      # maroon stripes / light blue): purple vs maroon stripes
+        if d[o + 5:o + 22].split(b'\0')[0] == b'INTER MILAN':
+            d[o + 26:o + 36] = bytes([2, 5, 6, 5, 5, 0, 7, 7, 7, 7])
+    barca = os.path.join(WORK, 'saves', 'TEAM020_BARCA.BIN')
+    os.makedirs(os.path.dirname(barca), exist_ok=True)
+    open(barca, 'wb').write(d)
+    for away, kits, cars in (('INTER MILAN', True, {}), ('ROMA', False, {}),
+                             ('INTER MILAN', False, {'DATA/TEAM.020': barca})):
+        with Session('purple_kits_' + away[:5] + ('_barca' if cars else ''), b, cars, 'dump:3', 300, match=True) as s:
             s.wait()
             italy_friendly(s, 'FIORENTINA', away)
             if kits:
@@ -2505,6 +2516,11 @@ def purple_kits():
                 pal = s.result.read(s.result.base2 + working + 36, 3)
                 check(tuple(pal) == MAROON_MENU, f'editor {s.screen().entries[1][1]} {tuple(pal)}', errs)
                 walk(s, 20, 3)                  # ESCI
+            elif away == 'ROMA':                # 3.3.1 (Marco): SELECT KITS opens on the automatic choice (Roma's
+                scr = walk(s, 68, 3)            # maroon vs purple: Roma in its second kit), and OK keeps it
+                t = scr.texts()
+                check('IN CAMPO: PRIMA TENUTA' in t and 'ROMA: SECONDA TENUTA' in t, f'SELECT KITS opens on {t[:5]}', errs)
+                walk(s, 21, 3)                  # OK: the match is played in these kits
             for _ in range(22):
                 s.send('down dump:0.5')
                 if s.screen().selected == 9:
@@ -2519,10 +2535,83 @@ def purple_kits():
                 worn = (marks[0] | marks[1]) if marks else None     # bit 0 purple, bit 1 maroon worn
                 want = PURPLE_RGB if worn == 1 else (25, 0, 8)
                 check(marks is not None and pal == want and worn != 3, f'match vs {away}: marks {marks}, entry 12 {pal}', errs)
-                info.append(f'{away}: marks {marks}')
-                if away == 'INTER MILAN':
+                info.append(f"{away}{' (Barcelona kits)' if cars else ''}: marks {marks}")
+                if away == 'INTER MILAN' and not cars:
                     check(worn == 1, f'Fiorentina-Inter: purple not worn ({marks})', errs)
     return not errs, '; '.join(errs + info) if errs else 'purple in the editor (maroon for Inter) and vs Inter; ' + '; '.join(info)
+
+
+@scenario
+def purple_manual():
+    """3.3.2 (Marco): kits set by hand never put purple against maroon. Fiorentina-Roma with Roma forced into its maroon
+    first kit: Roma plays its green second kit; against Zenit's kits (maroon / white with maroon shorts) forced into the
+    first kit: the second kit with white shorts. Fiorentina stays purple in both"""
+    errs, info = [], []
+    b = builds()['it']
+    d = bytearray(open(os.path.join(b, 'DATA', 'TEAM.020'), 'rb').read())
+    for t in range(struct.unpack('>H', d[:2])[0]):
+        o = 2 + t * 684
+        if d[o + 5:o + 22].split(b'\0')[0] == b'ROMA':
+            d[o + 26:o + 36] = bytes([0, 6, 6, 1, 6, 0, 1, 1, 6, 1])     # ZENIT's kits
+    zenit = os.path.join(WORK, 'saves', 'TEAM020_ZENIT.BIN')
+    os.makedirs(os.path.dirname(zenit), exist_ok=True)
+    open(zenit, 'wb').write(d)
+    for tag, cars in (('roma', {}), ('zenit', {'DATA/TEAM.020': zenit})):
+        with Session('purple_manual_' + tag, b, cars, 'dump:3', 300, match=True) as s:
+            s.wait()
+            italy_friendly(s, 'FIORENTINA', 'ROMA')
+            scr = walk(s, 68, 3)                # SELECT KITS: both teams in their first kits, by hand
+            for _ in range(2):
+                if 'IN CAMPO: SECONDA TENUTA' in scr.texts():
+                    scr = walk(s, 2, 3)
+                scr = walk(s, 1, 3)             # the other team
+            t = scr.texts()
+            check('IN CAMPO: PRIMA TENUTA' in t and 'ROMA: PRIMA TENUTA' in t + ['FIORENTINA: PRIMA TENUTA']
+                  and not any(x.endswith('SECONDA TENUTA') for x in t), f'{tag}: not both first kits: {t[:5]}', errs)
+            walk(s, 21, 3)                      # OK
+            for _ in range(22):
+                s.send('down dump:0.5')
+                if s.screen().selected == 9:
+                    break
+            r = s.send('fire ' + 'fire:3 ' * 8 + 'dump:2')
+            check(r.outcome == 'dump', f'{tag}: match {r}', errs)
+            if r.outcome == 'dump':
+                o2 = r.read(r.base2, 0x100000)
+                m = o2.find(b'PKMK')
+                marks = tuple(o2[m + 4:m + 6]) if m >= 0 else None
+                check(marks is not None and (marks[0] | marks[1]) == 1, f'{tag}: marks {marks} (want purple only)', errs)
+                info.append(f'{tag}: marks {marks}')
+    return not errs, '; '.join(errs + info) if errs else 'manual kits: purple kept, no maroon (' + '; '.join(info) + ')'
+
+
+@scenario
+def purple_stadium():
+    """3.3.1: the line-ups screen before the match (ShowStadiumInit) keeps Fiorentina purple: palette entry 12 purple
+    after the screen's second copy of the stad.256 palette (breakpoints: normal core)"""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import lepatch
+    import re as _re
+    os.environ['CORE'] = 'normal'               # one process per scenario: only this one runs the slower core
+    b = builds()['it']
+    p = lepatch.LEPatch(os.path.join(b, 'ITALIAN.EXE'))
+    d1 = p.le.obj_bytes(1)
+    m = _re.search(rb'\x81\xC6\x00\xFA\x00\x00\xBF....(?:\xB9\x00\x03\x00\x00\xF3\xA4|\xE8....\x90\x90)\xFF\x35', d1, _re.S)
+    after = m.end() - 2                         # the `push D0` after the copy the screen keeps (hooked or not)
+    fp = _re.search(rb'\xbf....\xbe....\xb9\x0f\x00\x00\x00', d1, _re.S)
+    working = p.target(1, fp.start() + 6)[1]
+    got = []
+    with Session('purple_stadium', b, {}, 'dump:3', 300, match=True) as s:
+        s.wait()
+        italy_friendly(s, 'INTER MILAN', 'FIORENTINA')
+        base1, base2 = s.result.base1, s.result.base2
+        s.bp(base1 + after, lambda r: got.append(tuple(r.read(base2 + working + 36, 3))))
+        for _ in range(22):
+            s.send('down dump:0.5')
+            if s.screen().selected == 9:
+                break
+        r = s.send('fire ' + 'fire:3 ' * 4 + 'dump:2')
+    ok = r.outcome == 'dump' and got and got[0] == PURPLE_RGB
+    return ok, f'line-ups screen entry 12 {got} ({r.outcome})'
 
 
 @scenario

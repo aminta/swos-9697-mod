@@ -2035,3 +2035,30 @@ Left for 2.5: (a) NSL/NSSL finals series (type-1 design) or declare them postpon
 - Build c/REL330: SWOS IT 21b1b198 EN 98ce196e FR 3fa4754e DE a70dcc59; gog IT 331d3fd7 EN 0335e11b; SWOS++ 2b3ca650. Suite 16/16 PASS
   (runs330, new purple_kits, blond_faces). Patcher 3.3.0 (old v3.2.7 added): Node test all OK incl. the 7 original files.
 - Known limits: blond goalkeepers drawn with dark hair; tactics menu little players of a purple team look maroon.
+
+## Release 3.3.1 (2026-10-16): purple kits, three fixes (Marco)
+- Line-ups screen (ShowStadiumInit) loads stad.256 twice and copies its palette after each load: 3.3.0 hooked only the
+  first copy, so Fiorentina showed maroon there. Both copies -> pk_pal. Scenario purple_stadium (breakpoint after the
+  second copy, CORE=normal; FAIL on 3.3.0).
+- Automatic kit choice: GetTeamKitsSimilarityFactor needs both shirt colours to clash, so purple vs Barcelona's blue +
+  maroon stripes met in home kits (both worn -> entry 12 maroon). The `call MeasureTeamKitsSimilarity` in
+  SetInGameTeamsPrimaryColors -> pk_sim: every pair with purple on one side and maroon on the other (shirt, stripes
+  unless plain, shorts, socks) scores 99. purple_kits: third match, Inter in Barcelona's kits (FAIL on 3.3.0).
+- SELECT KITS opened with both first kits, so OK forced Torino maroon vs Fiorentina purple: km_open -> auto_wear runs
+  the measure (km_measure: jmp pk_sim) and preselects the first combination < 11 (home-home, home-away, away-home,
+  away-away). purple_kits checks Fiorentina-Roma (Roma second kit, OK plays it).
+- Harness: DOSBox-X -time-limit counts EMULATED seconds; 14400 ended turbo runs after ~4.5 real minutes (world8485
+  'exit' at random steps, also on 3.3.0). Now 100000000, as on world-2025-26 (1983eb9).
+- Build c/REL331: SWOS IT 64b7715c EN b8492716 FR ca49f2fa DE 93c92747; gog IT 918841ec EN 281a694e FR a69d7d39 DE d6fd5671; SWOS++ a6d929ff;
+  DATA = 3.3.0. Suite 17/17 PASS (runs331 + world8485 rerun after the time-limit fix). Patcher 3.3.1 md5 81007749 (old
+  v3.3.0 added): Node test all OK (originals CD/GOG, 3.2.7, 3.3.0, SWOS++, the 8 team files).
+
+## Release 3.3.2 (2026-10-16): purple never against maroon with kits set by hand (Marco)
+- kitcolors kit_colors (SELECT KITS choice armed) calls km_fix (ret + 4 nops) before applying the two slots; purple.py
+  makes it jmp pk_fix: purple vs maroon -> 1. maroon team's other kit; 2. that kit with its maroon parts in the shirt
+  colour (the 2nd colour if the shirt itself is maroon and striped); 3. the same on the worn kit; 4. the purple team's
+  other kit. Only the per-match slot copy changes. 38 clubs have maroon in both kits (Zenit: white away + maroon shorts).
+- Scenario purple_manual: Fiorentina-Roma with both first kits set by hand (Roma -> green), and Roma in Zenit's kits
+  (-> white away with white shorts): purple only (FAIL on 3.3.1).
+- Build c/REL332: SWOS IT 2b8cdf85 EN 3c6e6766 FR ab5fb6dd DE f52af857; gog IT 0540f997 EN 4dbe9e8a FR fa98f064 DE ec5fe069; SWOS++ c7bc6c89;
+  DATA = 3.3.0. Suite 18/18 PASS (runs332). Patcher 3.3.2 md5 17dc2de4 (old v3.3.1 added): Node test all OK.

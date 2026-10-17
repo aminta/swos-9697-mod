@@ -14,7 +14,8 @@ and when the kits worn in the match have purple and no maroon, entry 12 becomes 
   `mov al, [D0]` becomes `call pk_mark`, which records for that team whether shirt, stripes (not on a plain shirt),
   shorts or socks are purple or maroon.
 - the match palette: GameLoop's `mov ecx, 768 / rep movsb` (savedPalette -> g_workingPalette, before the upper half is
-  darkened from it) and the stadium screen's copy of the stad.256 palette (ShowStadiumInit) become `call pk_pal`: the
+  darkened from it) and the stadium screen's two copies of the stad.256 palette (ShowStadiumInit, the line-ups before
+  the match; 3.3.1: the second copy, which the screen keeps, was missed) become `call pk_pal`: the
   same copy, then entry 12 = purple when a team wears purple and none wears maroon.
 """
 import re
@@ -123,6 +124,136 @@ pk_edit:                                ; replaces `mov dword [A6], editTeamsTea
     popad
     ret
 
+pk_sim:                                 ; replaces `call MeasureTeamKitsSimilarity` in SetInGameTeamsPrimaryColors
+    call MEASURE                        ; teamKitsSimilarity[i] (i = A0 kit * 2 + A1 kit, < 11 = the kits may meet)
+    pushad
+    mov esi, [A0V]
+    mov edi, [A1V]
+    xor edx, edx
+.combo:                                 ; purple worn by one team and maroon by the other: they cannot share
+    mov eax, edx                        ; palette entry 12, so that pair of kits counts as clashing (99)
+    shr eax, 1
+    lea eax, [eax * 4 + eax]
+    lea ebx, [esi + eax + 26]
+    xor ecx, ecx
+    call kitchk
+    mov ebp, ecx
+    mov eax, edx
+    and eax, 1
+    lea eax, [eax * 4 + eax]
+    lea ebx, [edi + eax + 26]
+    xor ecx, ecx
+    call kitchk
+    mov eax, ecx                        ; swap the other team's bits: purple <-> maroon
+    and eax, 1
+    add eax, eax
+    shr ecx, 1
+    and ecx, 1
+    or eax, ecx
+    test eax, ebp
+    jz .next
+    mov byte [SIM + edx], 99
+.next:
+    inc edx
+    cmp edx, 4
+    jb .combo
+    popad
+    ret
+
+pk_fix:                                 ; kits set by hand (kitcolors km_fix): ebx -> top slot, edi -> bottom slot
+    pushad                              ; (kits at +18, 5 bytes each; worn kit at +28). Purple vs maroon: the
+    mov esi, ebx                        ; maroon team takes its other kit; else maroon in it (then in its own)
+    mov al, [esi + 28]                  ; becomes the shirt colour; else the purple team takes its other kit
+    mov ah, [edi + 28]
+    call pf_clash
+    jz .done
+    mov al, [edi + 28]
+    xchg esi, edi
+    call pf_bits                        ; bottom slot's worn kit
+    xchg esi, edi
+    test cl, 2
+    jnz .roles                          ; bottom wears maroon: esi = purple team, edi = maroon team
+    xchg esi, edi
+.roles:
+    mov al, [esi + 28]                  ; 1. maroon team: other kit
+    mov ah, [edi + 28]
+    xor ah, 1
+    call pf_clash
+    jnz .recolor
+    xor byte [edi + 28], 1
+    jmp .done
+.recolor:
+    mov al, [edi + 28]                  ; 2. its other kit without maroon
+    xor al, 1
+    push eax
+    call pf_recolor
+    pop eax
+    jc .own
+    mov [edi + 28], al
+    jmp .done
+.own:
+    mov al, [edi + 28]                  ; 3. the kit it wears without maroon
+    call pf_recolor
+    jnc .done
+    xor byte [esi + 28], 1              ; 4. the purple team's other kit
+.done:
+    popad
+    ret
+
+pf_bits:                                ; esi -> slot, al = kit -> cl: 1 purple, 2 maroon (eax, ebx changed)
+    movzx eax, al
+    imul eax, eax, 5
+    lea ebx, [esi + eax + 18]
+    xor ecx, ecx
+    jmp kitchk
+
+pf_clash:                               ; al = kit of slot esi, ah = kit of slot edi -> ZF = 0: purple vs maroon
+    push edx
+    mov dh, ah
+    call pf_bits
+    mov dl, cl
+    mov al, dh
+    xchg esi, edi
+    call pf_bits
+    xchg esi, edi
+    mov al, cl                          ; the other side's bits swapped: purple <-> maroon
+    and al, 1
+    add al, al
+    shr cl, 1
+    and cl, 1
+    or al, cl
+    test al, dl
+    pop edx
+    ret
+
+pf_recolor:                             ; edi -> slot, al = kit: maroon parts -> the shirt colour (CF = 1: the
+    movzx eax, al                       ; shirt itself is maroon, nothing changed)
+    imul eax, eax, 5
+    lea ebx, [edi + eax + 18]
+    mov dl, [ebx + 1]
+    cmp dl, MAROON_
+    jne .have
+    cmp byte [ebx], 0
+    je .fail
+    mov dl, [ebx + 2]
+    cmp dl, MAROON_
+    je .fail
+.have:
+    mov ecx, 1
+.part:
+    cmp byte [ebx + ecx], MAROON_
+    jne .next
+    mov [ebx + ecx], dl
+.next:
+    inc ecx
+    cmp ecx, 5
+    jb .part
+    clc
+    ret
+.fail:
+    stc
+    ret
+
 kitchk:                                 ; ebx -> kit (type, shirt, stripes, shorts, socks) -> cl |= 1 purple, 2 maroon
     mov al, [ebx + 1]
     call pk_mark.chk
@@ -207,7 +338,12 @@ def patch(p, area, at):
     working = p.target(1, st[0] + 7)
     gl = [x for x in gl if p.target(1, x + 6) == working]
     assert len(gl) == 1, [hex(x) for x in gl]
-    copies = [gl[0] + 10, st[0] + 11]                    # the `mov ecx, 768` of each
+    # ShowStadiumInit loads stad.256 twice and copies its palette after each load: the second copy (followed by
+    # `push D0`) is the one the screen keeps, so both are hooked
+    st2 = [x.start() for x in re.finditer(rb'\x81\xC6\x00\xFA\x00\x00\xBF....\xB9\x00\x03\x00\x00\xF3\xA4\xFF\x35', d1, re.S)]
+    st2 = [x for x in st2 if 0 < x - st[0] < 0x80 and p.target(1, x + 7) == working]
+    assert len(st2) == 1, st2
+    copies = [gl[0] + 10, st[0] + 11, st2[0] + 11]       # the `mov ecx, 768` of each
 
     # 5. the kit editor: Primary/SecondaryKitColorConversion start `mov dword [A6], editTeamsTeam / mov [A2], .. /
     #    mov [A3], kTeamColorsTable`; SetPalette, g_workingPalette, g_fadePalette from FillPalettes
@@ -223,13 +359,24 @@ def patch(p, area, at):
     assert p.target(1, q + 1) == (2, working[1]) and d1[q + 5] == 0xE8
     setpal = q + 10 + struct.unpack('<i', d1[q + 6:q + 10])[0]
 
+    # 6. the game's automatic kit choice (SetInGameTeamsPrimaryColors) only sees similar-looking kits: its single
+    #    `call MeasureTeamKitsSimilarity`, which starts `mov A2, offset teamKitsSimilarity`, becomes `call pk_sim`
+    #    (3.3.1: Fiorentina in purple vs Barcelona's blue and maroon stripes was drawn maroon)
+    calls = [m.end() - 1 for m in re.finditer(rb'\xA1....\xA3....\xA1....\xA3....(?:\xFF\x35....){6}\xE8', d1, re.S)
+             if d1[m.start() + 1:m.start() + 5] == struct.pack('<I', A0 + 8)        # (kitcolors hooked its
+             and d1[m.start() + 6:m.start() + 10] == struct.pack('<I', A0)]          # first instruction)
+    meas = [c + 5 + struct.unpack('<i', d1[c + 1:c + 5])[0] for c in calls]
+    assert len(calls) == 1 and d1[meas[0]:meas[0] + 2] == b'\xC7\x05' and p.target(1, meas[0] + 2) == (2, A0 + 8), calls
+    sim = p.target(1, meas[0] + 6)
+
     marks = area.add(b'PKMK\0\0\0\0') + 4             # tag: the harness finds the marks by it
     at = (at + 15) & ~15
     sym = {'D0': (2, D0), 'A1': (2, A0 + 4), 'TOP': info['top'], 'BOTTOM': info['bottom'], 'MARKS': (2, marks),
            'PURPLE_': (0, PURPLE), 'MAROON_': (0, MAROON), 'SLOT_': (0, SLOT),
            'R_': (0, RGB[0]), 'G_': (0, RGB[1]), 'B_': (0, RGB[2]),
            'MR_': (0, MENU_MAROON[0]), 'MG_': (0, MENU_MAROON[1]), 'MB_': (0, MENU_MAROON[2]),
-           'A6': a6, 'EDITTEAM': et, 'WORKING': working, 'FADE': fade, 'SETPAL': (1, setpal)}
+           'A6': a6, 'EDITTEAM': et, 'WORKING': working, 'FADE': fade, 'SETPAL': (1, setpal),
+           'MEASURE': (1, meas[0]), 'A0V': (2, A0), 'A1V': (2, A0 + 4), 'SIM': sim}
     code, cfix = nasmcave.assemble(ASM, at, sym)
     lab = nasmcave.labels(ASM, at, sym)
     assert not any(p.get(1, at, len(code)))
@@ -242,11 +389,19 @@ def patch(p, area, at):
         p.remove(1, e + 2)
         p.remove(1, e + 6)
         p.put(1, e, b'\xE8' + struct.pack('<i', lab['pk_edit'] - (e + 5)) + b'\x90' * 5)
+    assert p.get(1, calls[0], 5) == d1[calls[0]:calls[0] + 5]
+    p.put(1, calls[0], b'\xE8' + struct.pack('<i', lab['pk_sim'] - (calls[0] + 5)))
+    km = info['km_measure']                         # SELECT KITS' automatic start (kitcolors auto_wear) too
+    assert p.get(1, km, 1) == b'\xE9' and km + 5 + struct.unpack('<i', p.get(1, km + 1, 4))[0] == meas[0]
+    p.put(1, km, b'\xE9' + struct.pack('<i', lab['pk_sim'] - (km + 5)))
+    kf = info['km_fix']                             # kits set by hand (3.3.2): jmp pk_fix
+    assert p.get(1, kf, 5) == b'\xC3\x90\x90\x90\x90'
+    p.put(1, kf, b'\xE9' + struct.pack('<i', lab['pk_fix'] - (kf + 5)))
     for c in copies:
         assert p.get(1, c, 7) == b'\xB9\x00\x03\x00\x00\xF3\xA4'
         p.put(1, c, b'\xE8' + struct.pack('<i', lab['pk_pal'] - (c + 5)) + b'\x90\x90')
     print(f'exe: purple kits: colour {PURPLE} -> palette {SLOT} when no maroon (code obj1+{at:#x}, {len(code)} B; '
-          f'ConvertTeamKitColors obj1+{conv:#x}, palette copies obj1+{copies[0]:#x}, +{copies[1]:#x})')
+          f'ConvertTeamKitColors obj1+{conv:#x}, kit choice obj1+{calls[0]:#x}, palette copies ' + ', '.join(f'obj1+{c:#x}' for c in copies) + ')')
     return at + len(code)
 
 # Clubs the game (and the mod's packs) dressed in maroon for want of purple: their kit colour 6 becomes 10.

@@ -2540,6 +2540,79 @@ def xtra_season():
     return not errs, '; '.join(errs + info)
 
 
+BENCH_PATH = 'CARRIERA,SCEGLI SQUADRA,CARR. STORICHE,MONDO 2026-27,EUROPA,DANIMARCA,RANDERS'
+
+
+@scenario
+def bench_numbers():
+    """World 2026-27 ('squad_numbers' world, benchnum.py): RANDERS keeps every real shirt number. New career (16 + 9
+    XTRA players): the squad screen and the pre-match screen (both run SetBenchPlayersNumbers) leave the bench players'
+    numbers as they were (not 12..16); then a season by results (the harness substitutions swap starters with bench /
+    reserve players, XTRA ones included): every player still at the club has his first number, new players (trial
+    players, reserves) got free ones, no number twice in the squad (at the start and at the end).
+    Build: BENCH_BUILD (a world 2026-27 build with the hooks), default internal/swostest/builds/w2627-latest;
+    BENCH_CONTROL=1 runs it on a build without them (negative control: it must fail)."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import lepatch
+    import xtra
+    import benchnum
+    b = os.environ.get('BENCH_BUILD') or os.path.join(WORK, 'builds', 'w2627-latest')
+    exe = os.path.join(b, 'ITALIAN.EXE')
+    bench = benchnum.sites(lepatch.LEPatch(os.path.join(MAIN, 'orig', 'ITALIAN.EXE')))[0]
+    if lepatch.LEPatch(exe).get(1, bench, 1) != b'\xe8' and not os.environ.get('BENCH_CONTROL'):
+        return False, f'{b}: no benchnum hook (a world 2026-27 build with squad_numbers is needed)'
+    _, cnp, ct, cmp, sel = xtra.sites(lepatch.LEPatch(exe))
+    errs, info = [], []
+
+    def squad(r):
+        n = struct.unpack('<H', r.obj2(cnp, 2))[0]
+        order = list(r.obj2(cmp, 32))[:n]
+        rec = [r.obj2(ct + 76 + j * 38, 38) for j in order]
+        return [(q[3:26].split(b'\0')[0].decode('latin1'), q[2]) for q in rec]
+
+    with Session('bench_numbers', b, {}, 'dump:3', 900) as s:
+        s.wait()
+        for t in BENCH_PATH.split(','):
+            if press(s, s.screen(), t) is None or s.result.outcome != 'dump':
+                return False, f'new career: {t} not reached ({s.result})'
+        for _ in range(10):
+            scr = s.screen()
+            if 'TRASFERIMENTI' in scr.texts():
+                break
+            press(s, scr, 'CONTINUA') or s.send('fire dump:2')
+        first = squad(s.result)
+        num = dict(first)
+        bench = [x for x in first[11:16]]
+        info.append(f'{len(first)} players; bench {bench}')
+        check(len(first) == 25, f'{len(first)} players (16 + 9 XTRA expected)', errs)
+        dup = lambda sq: sorted({k for _, k in sq if [x for _, x in sq].count(k) > 1})
+        check(not dup(first), f'start: duplicate numbers {dup(first)}', errs)
+        check([x[1] for x in bench] != list(range(12, 17)), f'bench already 12..16: {bench}', errs)
+        ns = globals().get('nosack_off')
+        if ns:
+            s.poke(s.result.base2 + ns(exe), b'\x01\x00')
+        for entry in ('SQUADRA', 'PARTITA'):     # squad screen / pre-match screen: SetBenchPlayersNumbers
+            press(s, s.screen(), entry, wait=3)
+            now = squad(s.result)
+            check(now == first, f'after {entry}: {[x for x in now if num.get(x[0]) != x[1]]}', errs)
+            for _ in range(4):
+                if 'TRASFERIMENTI' in s.screen().texts():
+                    break
+                press(s, s.screen(), 'ESCI', wait=2) or s.send('escape dump:2')
+        ok, msg = advance(s, season_over, 900)
+        if not ok:
+            return False, 'advance: ' + msg + '; ' + '; '.join(errs + info)
+        end = squad(s.result)
+        moved = [(n, num[n], k) for n, k in end if n in num and num[n] != k]
+        check(not moved, f'season end: numbers changed {moved}', errs)
+        check(not dup(end), f'season end: duplicate numbers {dup(end)} in {end}', errs)
+        new = [(n, k) for n, k in end if n not in num]
+        info.append(f'new players {new}')
+        info.append(f'season end: {len(end)} players, {sum(1 for n, _ in end if n in num)} of the first squad, '
+                    f'{len(moved)} numbers changed; {msg}')
+    return not errs, '; '.join(errs + info)
+
+
 PURPLE_RGB, MAROON_MENU = (24, 8, 34), (27, 0, 9)
 
 

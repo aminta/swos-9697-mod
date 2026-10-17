@@ -1067,6 +1067,7 @@ def world_defs():
         wc = roots[0].meta['world_cups']
         w = {'n': n, 'countries': [pk.files[pk.league['clubs']][0] for pk in pks], 'places': {}, 'cups': {},
              'clubs': {}, 'tmd': 'WORLD%02d.TMD' % n, 'pool': None}
+        w['squad_numbers'] = bool(roots[0].meta.get('squad_numbers'))   # benchnum.py: real numbers on the bench
         if roots[0].meta.get('pool'):                     # its foreign market (worldpool.py): POOLnn.DAT
             src = os.path.join(roots[0].path, roots[0].meta['pool'])
             _need(os.path.getsize(src) == 900 * 58, f'world {n}: pool {src}: 900 records of 58 bytes needed')

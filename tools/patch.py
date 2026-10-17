@@ -31,6 +31,7 @@ import pgroups
 import mkseason
 import careerworld
 import worldpool
+import benchnum
 import nsl97
 import nz97
 import finals97
@@ -277,6 +278,7 @@ def patch_exe(src, dst, remap, lang='it'):
         if bigw:
             end = careerworld.patch_tails(p, end, nasmcave)
         end = worldpool.patch(p, end, nasmcave, [(w['n'], w['pool'][0]) for w in mkseason.world_defs() if w['pool']])
+        end = benchnum.patch(p, end, nasmcave, [w['n'] for w in mkseason.world_defs() if w['squad_numbers']])
         assert end <= CAREER_CAVE + mkseason.CAREER_CAVE_SIZE, hex(end)
     p.add_ptr(1, info['new_career_ptr'], 1, new_career)
     if ARG_LOAD_HOOK:

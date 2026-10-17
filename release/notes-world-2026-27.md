@@ -89,7 +89,8 @@ first 43 UEFA associations by ranking, the others are under OTHER NATIONS).
   undrawn only when there are more of them than the round can hold); a club drawn against a club outside the world goes
   through. A cup already down to its last rounds (the quarter-finals or later have been played) restarts from its last
   round of 8 or more world clubs, with that round's real ties; a cup not started yet is drawn by the mod (the weakest
-  clubs play round 1, the others a bye). At most 64 clubs per cup (the engine's limit): the FA Cup leaves out its 4
+  clubs play round 1, the others a bye). A cup's group stage is not a knockout: while it is played all its clubs are
+  still in, once it is over only the clubs that reached the knockout are. At most 64 clubs per cup (the engine's limit): the FA Cup leaves out its 4
   weakest clubs. The mod draws the rounds not drawn yet. Every match is played by the game, so the real results of
   the rounds already played are not imposed.
 - Serie C: the three groups (A North, B Centre, C South) are the real 2026-27 ones; from season 2
@@ -123,6 +124,9 @@ first 43 UEFA associations by ranking, the others are under OTHER NATIONS).
 - Player attributes: **EA SPORTS FC** ratings (ea.com), FC 26-era data.
 - Kits: **Wikipedia contributors** (CC BY-SA 4.0); club to article links from **Wikidata** (CC0).
 - UEFA association and club coefficients: Bert Kassies' UEFA coefficients site (kassiesa.net).
+- National cups 2026-27 (rounds played and drawn): **Transfermarkt**.
+- The game files hold derived data only: the squads, skills and prices are computed from these sources (the game's
+  own price scale); no market values, ratings or source pages are shipped.
 
 ## Italiano
 
@@ -220,7 +224,8 @@ federazioni UEFA per ranking, le altre sono in ALTRE NAZIONI).
   se sono più di quelle che il turno può contenere); un club sorteggiato contro un club fuori dal mondo passa il turno.
   Una coppa già agli ultimi turni (quarti o oltre già giocati) riparte dal suo ultimo turno con almeno 8 club del mondo,
   con le vere coppie di quel turno; una coppa non ancora iniziata la sorteggia la mod (i club più deboli giocano il primo
-  turno, gli altri sono esentati). Al massimo 64 club per coppa (il limite del motore): la FA Cup lascia fuori i suoi 4
+  turno, gli altri sono esentati). La fase a gironi di una coppa non è a eliminazione: mentre si gioca tutti i suoi
+  club sono ancora in corsa, a gironi finiti solo quelli arrivati all'eliminazione diretta. Al massimo 64 club per coppa (il limite del motore): la FA Cup lascia fuori i suoi 4
   club più deboli. I turni non ancora sorteggiati li sorteggia la mod. Ogni partita la gioca il gioco, quindi i
   risultati veri dei turni già giocati non sono imposti.
 - Serie C: i tre gironi (A Nord, B Centro, C Sud) sono quelli veri 2026-27; dalla seconda stagione
@@ -259,3 +264,6 @@ federazioni UEFA per ranking, le altre sono in ALTRE NAZIONI).
 - Attributi dei giocatori: valutazioni **EA SPORTS FC** (ea.com), dati dell'era FC 26.
 - Maglie: **contributori di Wikipedia** (CC BY-SA 4.0); collegamenti club -> voce da **Wikidata** (CC0).
 - Coefficienti UEFA di federazioni e club: il sito sui coefficienti UEFA di Bert Kassies (kassiesa.net).
+- Coppe nazionali 2026-27 (turni giocati e sorteggiati): **Transfermarkt**.
+- I file del gioco contengono solo dati derivati: rose, abilità e prezzi sono calcolati da queste fonti (sulla scala
+  di prezzi del gioco); non vengono distribuiti valori di mercato, valutazioni o pagine delle fonti.

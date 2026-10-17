@@ -1429,6 +1429,8 @@ def _patch_pack(pk, p, lang, area, at, env):
                 cobj, gcup = p.target(gobj, gtab + k)
                 gc = p.le.obj_bytes(cobj)[gcup:gcup + 5]
                 h[2], h[3], h[4] = lfile, gc[3], gc[4]
+                h[13] = 1                       # first round name: PRIMO TURNO (the Australian cup's 2 = SECONDO TURNO:
+                                                # the round name = round + [5Bh] - 1 unless quarter / semi / final)
             else:
                 h = bytearray(d2[sacups.unique(d2, sacups.CWC_HDR):][:14])
             h[0], h[10] = int(c['id'], 16), len(br['clubs'])

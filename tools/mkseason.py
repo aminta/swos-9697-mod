@@ -264,6 +264,8 @@ class Pack:
         for c in self.comps:
             if c['type'] == 'cup':
                 self.bracket(c)          # validates
+                _need(c.get('round_names') in (None, 'numbered'),
+                      f"{c['key']}: round_names 'numbered' (FA Cup style: no ROUND OF 16 name, rnames.py) or absent")
             _need(not c.get('classic_tourney') or c['type'] == 'league',
                   f"{c['key']}: classic_tourney is for leagues (a cup or a tournament: a tourney pack, see packs/README.md)")
         self.world = m.get('world')
@@ -936,6 +938,12 @@ def world_draws():
         if pk.world is not None:
             out.setdefault(pk.world, []).extend(pk.draws())
     return out
+
+
+def numbered_cups():
+    """rnames: the contest ids of the world cups whose rounds keep their numbers (cup 'round_names': 'numbered')."""
+    return [int(c['id'], 16) for pk in packs() if pk.world is not None for c in pk.comps
+            if c['type'] == 'cup' and c.get('round_names') == 'numbered']
 
 
 def dplay_tables():

@@ -301,7 +301,10 @@ def patch_exe(src, dst, remap, lang='it'):
         cs['bss'] = careerworld.BSS[0]
         cs['sel'] = sacups.SEL_ADDR[0]
         cs.update(sacups.SITES)
-        uefaq.patch(p, hist2 + h2 + 0x2000, hist2 + h2 + 0x2000 + uefaq.STRUCTS_AT, cs)
+        uq_end = uefaq.patch(p, hist2 + h2 + 0x2000, hist2 + h2 + 0x2000 + uefaq.STRUCTS_AT, cs)
+        import rnames                           # the real round names (league phase, round of 16 ...): in uefaq's
+        lp_ids = [p.get(o, a, 1)[0] for o, a in careerworld.SITES['euro']]          # pages, before its structs
+        rnames.patch(p, uq_end, hist2 + h2 + 0x2000 + uefaq.STRUCTS_AT, lang, area, lp_ids, mkseason.numbered_cups())
         careerworld.BSS_SIZE = (careerworld.B_UQ + careerworld.UQ_BSS + careerworld.UQ_RECS * 684 + 0xFFF) & ~0xFFF
     if dp_tabs:                                 # Italian play-offs (C, tools/dplay.c; own 2 pages,
         import dplay                            # its .bss after the career BSS)

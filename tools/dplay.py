@@ -25,8 +25,7 @@ The career club's own Serie B play-off or play-out is played (step 2), as the ga
 - dp_draw (after historic's coin_draw at cseg_2AE97's 'draw -> replay' mark): a level tie of ours -> the better
   placed club (the 16th in the play-out); dp_rec (cseg_2AE97's end): the last round's winner into the state;
 - dp_end: the state's winner instead of the simulated one. (cseg_91D4D runs for every country at the season end; the
-  state is used and cleared by Italy's.) Round names: the game's (the preliminary round shows as the first round, no
-  'TURNO PRELIMINARE' in its table), dp_round through uefaq's uq_rn1 / uq_rn2.
+  state is used and cleared by Italy's.) Round names: rnames.py (PRELIMINARY ROUND for the play-off's first round).
 """
 import os
 import re
@@ -441,35 +440,6 @@ dp_perm:                                ; lib97 nc_adv: ecx = the next round's c
     stc
     ret
 
-dp_round:                               ; uefaq uq_rn1 / uq_rn2 (cseg_280C0 / cseg_283BD, D0 = the round): CF = 1 and
-    push eax                            ; D0 = the name (PRIMO TURNO 0 .. SEMIFINALE 7, FINALE 8) for ours, else
-    mov al, [DIY + 2Dh]                 ; uefaq's own test (the contest in DIY, or the copy's)
-    cmp al, DPID_OUT
-    je .f
-    cmp al, DPID_PO
-    je .p
-    mov al, [DIYCOPY + 2Dh]
-    cmp al, DPID_OUT
-    je .f
-    cmp al, DPID_PO
-    jne .no
-.p:
-    movzx eax, word [D0R]
-    mov al, [DP_RN + eax]
-    jmp .s
-.f:
-    mov al, 8
-.s:
-    movzx eax, al
-    mov [D0R], ax
-    pop eax
-    stc
-    ret
-.no:
-    pop eax
-    jmp UQ_TIE_ROUND
-DP_RN: db 0, 7, 8, 8                    ; (the preliminary round: the game has no such name)
-
 DP_TAB: TAB_BYTES
 '''
 
@@ -620,7 +590,7 @@ def patch(p, at, limit, tables, bss_at, area):
                     'C9221F': (1, c9221f), 'C9228D': (1, c9228d), 'C8ECAE': (1, ps['c8ecae']), 'C8EE5D': (1, ps['tail']),
                     'C8B2D3': (1, sacups.SITES['c8b2d3']), 'D8CAA': (2, ps['d8caa']), 'D6CDC': (2, ps['d6cdc']),
                     'CFB': (2, ps['cfb']), 'CAL': (2, ps['cal']), 'CAL_CUR': (2, ps['cal_cur']), 'SLOT4': (2, ps['slot4']), 'LIST4': (2, ps['list4']),
-                    'W11F9CC': (2, ps['w11f9cc']), 'DIYCOPY': (2, diy - 0x41F), 'UQ_TIE_ROUND': (1, uefaq.LABELS['uq_tie_round']), 'COIN_DRAW': (1, coin), 'NC_T': (1, lib97.LABELS['NC_T']),
+                    'W11F9CC': (2, ps['w11f9cc']), 'COIN_DRAW': (1, coin), 'NC_T': (1, lib97.LABELS['NC_T']),
                     'DP_ST': syms['DP_ST'], 'SEASONPLAYING': (2, s['season']),
                     'DP_SAVE': (2, tmd + SAVE_AT), 'DP_LOG': (2, tmd + SAVE_AT + 64), 'DPID_PO': (0, DP_PO), 'DPID_OUT': (0, DP_OUT),
                     'TAB_BYTES': (0, 'db ' + ', '.join(str(b) for b in table_bytes(tables)))})
@@ -645,11 +615,7 @@ def patch(p, at, limit, tables, bss_at, area):
     p.remove(1, ps['rec'] + 2)                               # mov ax, [dseg_11F9CC] (6 B) -> call dp_rec; nop
     p.put(1, ps['rec'], b'\xe8' + struct.pack('<i', lab['dp_rec'] - (ps['rec'] + 5)) + b'\x90')
     p.add_ptr(1, lib97.LABELS['NC_DPP'], 1, lab['dp_perm'])  # (lib97 nc_adv's slot)
-    for rn in ('uq_rn1', 'uq_rn2'):                          # their `call uq_tie_round` -> dp_round
-        a = uefaq.LABELS[rn]
-        assert p.get(1, a, 1) == b'\xe8' and a + 5 + struct.unpack('<i', p.get(1, a + 1, 4))[0] == uefaq.LABELS['uq_tie_round']
-        p.put(1, a + 1, struct.pack('<i', lab['dp_round'] - (a + 5)))
-    LABELS.update(lab, DP_IN=syms['DP_IN'], DP_OUT=syms['DP_OUT'], layout=lay, contests=(c0, c1), save=tmd + SAVE_AT,
+    LABELS.update(lab, diy=diy, a0=r['A0'], DP_IN=syms['DP_IN'], DP_OUT=syms['DP_OUT'], layout=lay, contests=(c0, c1), save=tmd + SAVE_AT,
                   sites=ps)
     print(f"exe: Italian play-offs (dplay): {len(tables)} leagues, C obj1+{at:#x}..{cend:#x}, glue ..{glue + len(code):#x}, "
           f"contests obj1+{c0:#x} / +{c1:#x}, DP_IN obj2+{syms['DP_IN'][1]:#x}, state obj2+{tmd + SAVE_AT:#x}, "

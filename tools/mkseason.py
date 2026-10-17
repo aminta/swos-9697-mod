@@ -324,6 +324,7 @@ class Pack:
         _need(all(x['away'] for r in range(2, nr + 1) for x in by[r]), f'{key}: byes only in round 1')
         clubs = [x[s] for x in by[1] if x['away'] for s in ('home', 'away')] + byes
         _need(len(set(clubs)) == len(clubs), f'{key}: a club plays twice in round 1')
+        _need(len(clubs) <= 64, f'{key}: {len(clubs)} clubs, at most 64 (a cup buffer: team words +24Dh, round list +2CDh)')
         draws, prev = [], None
         for r in range(1, nr + 1):
             ties = [x for x in by[r] if x['away']]

@@ -74,6 +74,8 @@ The point of this world: today's football as it really is, down to rules most pl
   have first-round byes (Coppa Italia from its real round of 16, the Copa del Rey with 10 ties and 22 byes ...); the
   ties already drawn are played as drawn, the rounds not drawn yet are drawn by the mod (fixed for the first season);
   group stages count as group stages (a defeat there is no exit).
+- **No national cup where none is played in 2026-27** (Mexico, Honduras, Guatemala, Panama: league only); Peru's
+  cup is its real Copa de la Liga 2026.
 
 <!-- REGIA STAGED (add when the integrator lands the league-cup slot): League cups 2026-27: EFL Cup from its real 4th
 round (two-legged semi-finals, penalties without extra time before the final; winner -> UECL play-off in reality);
@@ -290,6 +292,8 @@ L'obiettivo di questo mondo: il calcio di oggi com'è davvero, fino alle regole 
   chi entra più tardi è esente al primo turno (Coppa Italia dagli ottavi veri, Copa del Rey con 10 sfide e 22
   esenti ...); le sfide già sorteggiate si giocano come sono, i turni non ancora sorteggiati li sorteggia la mod
   (fissi per la prima stagione); le fasi a gironi restano fasi a gironi (una sconfitta lì non elimina).
+- **Nessuna coppa nazionale dove nel 2026-27 non si gioca** (Messico, Honduras, Guatemala, Panamá: solo il
+  campionato); la coppa del Perù è la sua vera Copa de la Liga 2026.
 
 *Campionati, calendari e club*
 - **Ogni campionato, coppa nazionale e coppa di lega col suo nome vero 2026-27, senza lo sponsor**: COPPA ITALIA,

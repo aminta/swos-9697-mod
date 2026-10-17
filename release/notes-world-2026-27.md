@@ -53,6 +53,9 @@ The point of this world: today's football as it really is, down to rules most pl
 - **Serie B relegation**: 18th-20th down; **the 17th goes down directly if the 16th finishes more than 4 points
   ahead**, otherwise the play-out 16th v 17th, two legs, first leg at the 17th's; level -> the 16th stays up, except
   clubs level on league points: extra time and penalties.
+- **Played by your club**: when the career club takes part, it plays its Serie B play-off or play-out ties itself
+  (the 6-club bracket with the 3rd and 4th waiting for the semi-finals; the play-out 17th v 16th), under exactly
+  these rules.
 - **Serie C in three groups of 20** (A North, B Centre, C South): the three group winners are promoted; the clubs
   relegated from Serie B go into the group of their region, balanced to 20 per group, as the real 2026-27 groups
   are drawn.
@@ -271,6 +274,9 @@ L'obiettivo di questo mondo: il calcio di oggi com'è davvero, fino alle regole 
 - **Retrocessioni dalla B**: 18ª-20ª in C; **la 17ª retrocede direttamente se la 16ª ha più di 4 punti di
   vantaggio**, altrimenti play-out 16ª contro 17ª, andata e ritorno, andata in casa della 17ª; a parità si salva la
   16ª, tranne a pari punti in campionato: supplementari e rigori.
+- **Giocati dalla tua squadra**: se la squadra della carriera ne fa parte, gioca lei le sue partite dei play-off o
+  del play-out di Serie B (il tabellone a 6 con 3ª e 4ª che aspettano le semifinali; il play-out 17ª contro 16ª),
+  esattamente con queste regole.
 - **Serie C su tre gironi da 20** (A Nord, B Centro, C Sud): salgono le tre vincitrici; le retrocesse dalla B vanno
   nel girone della loro regione, bilanciato a 20, come sono composti i gironi veri 2026-27.
 - **Play-off di Serie C a 28 squadre** (dalla 2ª alla 10ª di ogni girone + la vincente della Coppa Italia Serie C)

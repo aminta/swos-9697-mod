@@ -178,8 +178,10 @@ Lengjubikarinn, Finland Liigacup, Chile and Peru Copa de la Liga. -->
   skills follow his EA attributes (passing, shooting, heading, tackling, ball control, speed, finishing; the 2 best are
   the key skills) or, for players not in EA, the profile of his position. The clubs of a division are then moved
   toward the strength their 2025-26 final position suggests, so a simulated season resembles the real table.
-- **Faces**: dark or light by nationality (dark when any of the player's nationalities is in the game's list of
-  dark-face nations), with a hand-made correction list; Transfermarkt and EA's public ratings have no such field.
+- **Faces**: skin dark or light by nationality (dark when any of the player's nationalities is in the game's list of
+  dark-face nations); **blond hair from the players' official EA SPORTS FC portraits** (the game's fair-haired face,
+  and black skin with blond hair for players like Osimhen), plus a hand-made correction list (Haaland, De Bruyne,
+  Neuer, Odegaard ...). Transfermarkt and EA's public ratings have no skin or hair field.
 - **Kits**: from the Wikipedia infobox of each club (home and away colours; stripes and hoops read from the kit
   pattern images; purple where the club wears it).
 - **National cups 2026-27**: where the cup has already started, the clubs already knocked out in reality stay out and
@@ -257,6 +259,10 @@ Lengjubikarinn, Finland Liigacup, Chile and Peru Copa de la Liga. -->
 - Players without a Transfermarkt value get an estimate (from their club's and division's values); in the lowest
   divisions (Scotland's League One and Two) the squads are so close that a simulated season does not follow the real
   table closely.
+- Hair: blond hair is read from the official portraits where a player has one (about two of every three blonds are
+  recognised, and never a dark-haired player made blond, measured on 200 portraits); the others keep dark hair unless
+  they are on the hand list. The list is open: Davide or testers (credited by first name) can report more blonds.
+  The portraits are only read while the world is built: they are not part of the mod.
 - No national cup where there is none in 2026-27: Mexico (the Copa MX was last played in 2019-20), Honduras (Copa
   Presidente, last 2017-18), Guatemala and Panama play their league only. Peru's only cup for its Liga 1 clubs, the
   Copa de la Liga, takes the national cup's place. South Africa's Nedbank Cup and Carling Knockout keep their
@@ -471,9 +477,11 @@ Non una formula uguale per tutti: ogni campionato gioca la stagione come l'ha sc
   controllo di palla, velocità, finalizzazione; le 2 migliori sono le abilità chiave) oppure, per chi non è in EA, il
   profilo del suo ruolo. I club di ogni divisione vengono poi avvicinati alla forza che suggerisce la loro posizione
   finale 2025-26, così una stagione simulata somiglia alla classifica vera.
-- **Volti**: scuri o chiari secondo la nazionalità (scuro quando una delle nazionalità del giocatore è nell'elenco
-  delle nazioni a volto scuro del gioco), con una lista di correzioni a mano; Transfermarkt e le valutazioni pubbliche
-  EA non hanno questo dato.
+- **Volti**: pelle scura o chiara secondo la nazionalità (scura quando una delle nazionalità del giocatore è
+  nell'elenco delle nazioni a volto scuro del gioco); **capelli biondi dai ritratti ufficiali EA SPORTS FC dei
+  giocatori** (il volto biondo del gioco, e pelle scura con capelli biondi per giocatori come Osimhen), più una lista
+  di correzioni a mano (Haaland, De Bruyne, Neuer, Odegaard ...). Transfermarkt e le valutazioni pubbliche EA non
+  hanno un dato su pelle o capelli.
 - **Maglie**: dall'infobox Wikipedia di ogni club (colori di casa e trasferta; righe e cerchi letti dalle immagini dei
   motivi delle maglie; viola dove il club lo veste).
 - **Coppe nazionali 2026-27**: dove la coppa è già iniziata, i club già eliminati nella realtà restano fuori e le
@@ -555,6 +563,10 @@ Non una formula uguale per tutti: ogni campionato gioca la stagione come l'ha sc
 - I giocatori senza valore su Transfermarkt ricevono una stima (dai valori del club e della divisione); nelle divisioni
   più basse (League One e League Two scozzesi) le rose sono così vicine che una stagione simulata non segue da vicino la
   classifica vera.
+- Capelli: i capelli biondi vengono letti dai ritratti ufficiali dove un giocatore ne ha uno (circa due biondi su tre
+  riconosciuti, e mai un giocatore dai capelli scuri reso biondo, misurato su 200 ritratti); gli altri restano con i
+  capelli scuri se non sono nella lista a mano. La lista è aperta: Davide o i tester (citati per nome) possono
+  segnalarne altri. I ritratti si leggono solo mentre si costruisce il mondo: non fanno parte della mod.
 - Nessuna coppa nazionale dove nel 2026-27 non c'è: Messico (la Copa MX si è giocata l'ultima volta nel 2019-20),
   Honduras (Copa Presidente, ultima 2017-18), Guatemala e Panama giocano solo il campionato. L'unica coppa del Perù
   per i club della Liga 1, la Copa de la Liga, prende il posto della coppa nazionale. La Nedbank Cup e la Carling

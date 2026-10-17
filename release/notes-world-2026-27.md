@@ -3,7 +3,7 @@
 
 ## English
 
-**SWOS 96/97 Mod: World 2026-27 career** (DRAFT)
+**SWOS 96/97 Mod 5.0: World 2026-27 career** (DRAFT)
 
 A historic career world of the **2026-27 season**: 87 countries, 1,562 clubs, real squads at the end of the summer
 2026 transfer window. In CLASSIC CAREERS choose WORLD 2026-27, then the continent and the country (EUROPE lists the
@@ -13,6 +13,35 @@ first 43 UEFA associations by ranking, the others are under OTHER NATIONS).
 <!-- REGIA: kept up to date by the regia session at each milestone (Davide, 2026-10-17: "per far capire come, punto per
      punto, abbiamo ricostruito ESATTAMENTE ... le competizioni calcistiche di oggi"). One line per real-world rule. -->
 The point of this world: today's football as it really is, down to rules most players never notice.
+
+<!-- REGIA STAGED, the 5.0 headline (Davide 2026-10-17: the league formats in a prominent place of the 5.0 changelog).
+Uncomment the subsection's lines one by one as the engine implements each format (facts final: internal formats2627.md).
+*Every league in its real 2026-27 format*
+Not one fixed formula for everybody: each league plays the season the way its own federation wrote it for 2026-27.
+- **Scotland**: 33 matchdays, then the split into top six and bottom six for 5 more; the Premiership play-off
+  (Championship 3rd v 4th, the winner v the 2nd, the winner v the Premiership 11th, all over two legs); the
+  Championship and League One play-offs with the division below.
+- **England**: the Championship play-offs with 6 clubs, new in 2026-27: eliminators 5th v 8th and 6th v 7th, then
+  two-legged semi-finals with the 3rd and the 4th, final at Wembley.
+- **Austria 2026-27**: championship and qualification groups after 22 matchdays, and the points are **no longer
+  halved** (the clubs' 2025 vote); the Europacup play-off (qualification group 1st v 2nd, the winner v the
+  championship group's 5th over two legs).
+- **Switzerland**: 33 matchdays + 5 after the split; the barrage 11th v the Challenge League 2nd, home order drawn.
+- **Denmark**: 22 + 10 with the points kept; the European play-off 4th v 7th at the 4th's ground.
+- **Argentina 2026** (the official LPF regulation): Apertura and Clausura in two zones of 15, the clasico matchday,
+  octavos 1A v 8B ... 4B v 5A, a fixed bracket to a neutral final; the annual table (Campeon de Liga, international
+  places); relegation by the three-year promedio and by the annual table; the Trofeo de Campeones.
+- **Greece**: 26 matchdays, then the 1-4, 5-8 (points halved, rounded up) and 9-14 groups. **Romania**: play-off and
+  play-out with the points halved, rounded up. **Israel and Cyprus**: 6 + 8. **Czech Republic**: three groups after
+  30 matchdays. **Slovakia, Finland, Iceland**: 6 + 6.
+- **Northern Ireland**: 33 + 5, the split fixtures reversing rounds 23-33; the UECL play-off 3rd-7th. **Wales
+  2026-27**: 16 clubs, 30 matchdays, then three groups (1-6, 7-10, 11-16); the UECL play-off 2nd-7th.
+- **Netherlands**: the 16th in the promotion / relegation play-offs, the European play-off 5th-8th. **Brazil Serie
+  B**: 2 up directly + 3rd v 6th / 4th v 5th play-offs. **Colombia**: the Apertura knockout, the Finalizacion's
+  cuadrangulares. **Peru**: Apertura, Clausura and the 4-club play-offs. **MLS**: two conferences, the Supporters'
+  Shield, the play-offs with the wild cards. **Canada**: the CPL top-4 play-offs. **A-League**: the top-6 finals
+  series.
+-->
 
 *European cups (UEFA 2026-27)*
 - **The current official names**: UEFA Champions League, UEFA Europa League, UEFA Conference League, on every screen.
@@ -232,7 +261,7 @@ Lengjubikarinn, Finland Liigacup, Chile and Peru Copa de la Liga. -->
 
 ## Italiano
 
-**SWOS 96/97 Mod: carriera Mondo 2026-27** (BOZZA)
+**SWOS 96/97 Mod 5.0: carriera Mondo 2026-27** (BOZZA)
 
 Un mondo di carriera storica della **stagione 2026-27**: 87 nazioni, 1.562 club, rose reali alla fine del mercato
 estivo 2026. In CARR. STORICHE scegli MONDO 2026-27, poi il continente e la nazione (EUROPA elenca le prime 43
@@ -240,6 +269,33 @@ federazioni UEFA per ranking, le altre sono in ALTRE NAZIONI).
 
 ### Ricostruito esattamente, punto per punto
 L'obiettivo di questo mondo: il calcio di oggi com'è davvero, fino alle regole che quasi nessun giocatore nota.
+
+<!-- REGIA STAGED, il titolo della 5.0 (vedi la parte inglese).
+*Ogni campionato nel suo formato vero 2026-27*
+Non una formula uguale per tutti: ogni campionato gioca la stagione come l'ha scritta la sua federazione per il 2026-27.
+- **Scozia**: 33 giornate, poi lo split tra le prime sei e le ultime sei per altre 5; lo spareggio della Premiership
+  (3ª contro 4ª della Championship, la vincente contro la 2ª, la vincente contro l'11ª della Premiership, tutto
+  andata e ritorno); i play-off di Championship e League One con la serie sotto.
+- **Inghilterra**: i play-off di Championship a 6 squadre, novità del 2026-27: 5ª-8ª e 6ª-7ª, poi semifinali di
+  andata e ritorno con la 3ª e la 4ª, finale a Wembley.
+- **Austria 2026-27**: gruppo per il titolo e gruppo di qualificazione dopo 22 giornate, e i punti **non si dimezzano
+  più** (voto dei club del 2025); lo spareggio europeo (1ª contro 2ª del gruppo di qualificazione, la vincente
+  contro la 5ª del gruppo per il titolo, andata e ritorno).
+- **Svizzera**: 33 giornate + 5 dopo lo split; lo spareggio 11ª contro 2ª della Challenge League, campo sorteggiato.
+- **Danimarca**: 22 + 10 con i punti mantenuti; lo spareggio europeo 4ª contro 7ª in casa della 4ª.
+- **Argentina 2026** (regolamento ufficiale LPF): Apertura e Clausura in due zone da 15, la giornata dei clasicos,
+  ottavi 1A-8B ... 4B-5A, tabellone fisso fino alla finale in campo neutro; la classifica annuale (Campeon de Liga,
+  posti internazionali); retrocessioni per promedio di tre stagioni e per classifica annuale; il Trofeo de Campeones.
+- **Grecia**: 26 giornate, poi i gruppi 1-4, 5-8 (punti dimezzati, arrotondati per eccesso) e 9-14. **Romania**:
+  play-off e play-out con i punti dimezzati per eccesso. **Israele e Cipro**: 6 + 8. **Repubblica Ceca**: tre gruppi
+  dopo 30 giornate. **Slovacchia, Finlandia, Islanda**: 6 + 6.
+- **Irlanda del Nord**: 33 + 5, il calendario dello split inverte le giornate 23-33; spareggio UECL 3ª-7ª.
+  **Galles 2026-27**: 16 club, 30 giornate, poi tre gruppi (1-6, 7-10, 11-16); spareggio UECL 2ª-7ª.
+- **Olanda**: la 16ª agli spareggi promozione / retrocessione, lo spareggio europeo 5ª-8ª. **Brasile Serie B**:
+  2 promosse dirette + play-off 3ª-6ª / 4ª-5ª. **Colombia**: l'Apertura a eliminazione, i cuadrangulares della
+  Finalizacion. **Perù**: Apertura, Clausura e i play-off a 4. **MLS**: due conference, il Supporters' Shield, i
+  play-off con le wild card. **Canada**: i play-off a 4 della CPL. **A-League**: la fase finale a 6.
+-->
 
 *Coppe europee (UEFA 2026-27)*
 - **I nomi ufficiali di oggi**: UEFA Champions League, UEFA Europa League, UEFA Conference League, su ogni schermata.

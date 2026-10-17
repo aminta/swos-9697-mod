@@ -39,8 +39,17 @@ Not one fixed formula for everybody: each league plays the season the way its ow
 - **Netherlands**: the 16th in the promotion / relegation play-offs, the European play-off 5th-8th. **Brazil Serie
   B**: 2 up directly + 3rd v 6th / 4th v 5th play-offs. **Colombia**: the Apertura knockout, the Finalizacion's
   cuadrangulares. **Peru**: Apertura, Clausura and the 4-club play-offs. **MLS**: two conferences, the Supporters'
-  Shield, the play-offs with the wild cards. **Canada**: the CPL top-4 play-offs. **A-League**: the top-6 finals
-  series.
+  Shield, the play-offs of 9 per conference with the wild card and the best-of-three first round. **Canada**: the CPL
+  top-4 play-offs. **A-League**: the top-6 finals series (3rd v 6th, 4th v 5th, two-legged semi-finals, the Grand
+  Final at the higher placed club's ground).
+- **Mexico**: Apertura and Clausura with the liguilla of eight (1st v 8th ..., two legs; no play-in since 2026).
+  **Uruguay**: Apertura, Intermedio, Clausura and the annual table, then semi-final and final. **Ecuador**: after 30
+  matchdays the title hexagonal, the Sudamericana quadrangular and the relegation hexagonal. **Paraguay**: Apertura
+  and Clausura, no play-offs, relegation by promedio. **Chile**: 30 matchdays, 2 down. **Costa Rica**: the Gran
+  Final. **Honduras**: two geographic groups.
+- **Turkey 1. Lig**: 2 up directly, the 3rd straight into the play-off final, 4th v 7th and 5th v 6th, neutral final.
+  **Serbia**: 4 down. **Bulgaria**: groups of 4, 5 and 5. **Malta**: two rounds with the points reset and a Final
+  Four.
 -->
 
 *European cups (UEFA 2026-27)*
@@ -311,7 +320,17 @@ Non una formula uguale per tutti: ogni campionato gioca la stagione come l'ha sc
 - **Olanda**: la 16ª agli spareggi promozione / retrocessione, lo spareggio europeo 5ª-8ª. **Brasile Serie B**:
   2 promosse dirette + play-off 3ª-6ª / 4ª-5ª. **Colombia**: l'Apertura a eliminazione, i cuadrangulares della
   Finalizacion. **Perù**: Apertura, Clausura e i play-off a 4. **MLS**: due conference, il Supporters' Shield, i
-  play-off con le wild card. **Canada**: i play-off a 4 della CPL. **A-League**: la fase finale a 6.
+  play-off a 9 per conference con la wild card e il primo turno al meglio delle tre. **Canada**: i play-off a 4 della
+  CPL. **A-League**: la fase finale a 6 (3ª-6ª, 4ª-5ª, semifinali di andata e ritorno, Grand Final in casa della
+  meglio piazzata).
+- **Messico**: Apertura e Clausura con la liguilla a otto (1ª-8ª ..., andata e ritorno; niente play-in dal 2026).
+  **Uruguay**: Apertura, Intermedio, Clausura e classifica annuale, poi semifinale e finale. **Ecuador**: dopo 30
+  giornate l'esagonale per il titolo, il quadrangolare per la Sudamericana e l'esagonale per la salvezza.
+  **Paraguay**: Apertura e Clausura, niente play-off, retrocessione per promedio. **Cile**: 30 giornate, 2
+  retrocesse. **Costa Rica**: la Gran Final. **Honduras**: due gironi geografici.
+- **Turchia 1. Lig**: 2 promosse dirette, la 3ª direttamente in finale play-off, 4ª-7ª e 5ª-6ª, finale in campo
+  neutro. **Serbia**: 4 retrocesse. **Bulgaria**: gruppi da 4, 5 e 5. **Malta**: due fasi con i punti azzerati e una
+  Final Four.
 -->
 
 *Coppe europee (UEFA 2026-27)*

@@ -271,6 +271,8 @@ Lengjubikarinn, Finland Liigacup, Chile and Peru Copa de la Liga. -->
 - Kits: **Wikipedia contributors** (CC BY-SA 4.0); club to article links from **Wikidata** (CC0).
 - UEFA association and club coefficients: Bert Kassies' UEFA coefficients site (kassiesa.net).
 - National cups 2026-27 (rounds played and drawn): **Transfermarkt**.
+- League and cup formats: the competitions' own regulations (e.g. the Liga Profesional's 2026 regulation, the FAW's
+  2026-27 Cymru Premier format, the Austrian Bundesliga's 2026-27 decisions) and their **Wikipedia** season pages.
 - The game files hold derived data only: the squads, skills and prices are computed from these sources (the game's
   own price scale); no market values, ratings or source pages are shipped.
 
@@ -545,5 +547,8 @@ Non una formula uguale per tutti: ogni campionato gioca la stagione come l'ha sc
 - Maglie: **contributori di Wikipedia** (CC BY-SA 4.0); collegamenti club -> voce da **Wikidata** (CC0).
 - Coefficienti UEFA di federazioni e club: il sito sui coefficienti UEFA di Bert Kassies (kassiesa.net).
 - Coppe nazionali 2026-27 (turni giocati e sorteggiati): **Transfermarkt**.
+- Formule di campionati e coppe: i regolamenti delle competizioni (per esempio il regolamento 2026 della Liga
+  Profesional, la formula 2026-27 della Cymru Premier della FAW, le decisioni 2026-27 della Bundesliga austriaca) e le
+  loro pagine stagionali di **Wikipedia**.
 - I file del gioco contengono solo dati derivati: rose, abilità e prezzi sono calcolati da queste fonti (sulla scala
   di prezzi del gioco); non vengono distribuiti valori di mercato, valutazioni o pagine delle fonti.

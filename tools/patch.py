@@ -163,8 +163,9 @@ def remap_italian_cup_teams(p, remap):
 
 
 def cave_pages():
-    """obj1 pages of the career world code (CAREER_CAVE): 2, 3 with several worlds (their tables overflowed 2)."""
-    cp = 3 if mkseason.multi_ns() else 2
+    """obj1 pages of the career world code (CAREER_CAVE): 3 (several worlds' tables, then 3.3.3's team cache switch
+    in every big-world build overflowed 2)."""
+    cp = 3
     mkseason.CAREER_CAVE_SIZE = 0x1000 * cp
     return cp
 

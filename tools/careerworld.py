@@ -52,8 +52,25 @@ B_STAGE = 0x67000                                    # 95153 (fixed part) + SEL_
 # UEFA qualifying rounds (uefaq.py, league-phase worlds only: BSS_SIZE grows then): the C code's .bss, then the
 # season end's copies of the clubs' records (55 associations x (top 9 + cup winner) + 3)
 B_UQ, UQ_BSS, UQ_RECS = 0x9A000, 0x7000, 563
+# 3.3.3 (main): a big world's new career uses the big cache too; its saves carry BIGC (the last dword of the
+# 80-record area, after the W1 block); a save without BIGC loads into the game's cache, or into the big one when
+# it caches more than UPGRADE_N teams or belongs to a league-phase world (this branch's saves before the merge)
+UPGRADE_N = 90
+BIGC = 0x43474942                                    # 'BIGC'
+BIGC_AT = 80 * TEAM_SIZE - 4                         # in the fixed part's 80-record area (tmdFileBuffer)
 BSS_SIZE = B_UQ                                      # (big worlds; + the qualifying rounds' area in league-phase ones)
 B_TMD, B_CUPS, B_LISTS = 0, 128 * TEAM_SIZE, 128 * TEAM_SIZE + 3 * 160      # cups 160 B apart, lists 64 / 64 / 96
+# The game's team cache g_selectedTeams holds 100 teams (68400 B) and the pseudo registers D0..A6 follow it: a 101st
+# team overwrites them (A3 / D0 garbage -> LoadTeamFile builds data/team.254 -> exit to DOS; world 1984-85: an English
+# club in the FA Cup (64 clubs, 42 of them cup-only) and the UEFA Cup (64) caches ~124 teams at the season end; also
+# FRG, NOR, GRE). Big-world careers use a cache of SEL_N teams at B_SEL (3.3.3, from world-2025-26 4cb687b): the .CAR
+# keeps its layout (fixed part + N records + trailer), so SaveCareerFile writes it from B_STAGE (fixed part copied
+# before the records) and LoadCareerFile reads it there (trailer.LOADCOPY -> w_loadcopy spreads it). A new career in a
+# big world takes the big cache and its saves carry BIGC (the last dword of the 80-record area, after the W1 block); a
+# save without BIGC (3.0 .. 3.3.2) loads into the game's cache as before, or into the big one when it caches more than
+# UPGRADE_N teams (then saved with BIGC). After a load only selTeamsPtr points into the cache (scan of the game's memory,
+# W84E_TEAM254.CAR), and w_pcf sets it.
+# (world-2025-26 keeps its own offsets above: B_TFB, B_SEL 0x4B000, B_STAGE 0x67000, B_UQ.)
 # SaveSelectedTeams / RestoreSelectedTeams park the career's team cache while a contest is simulated (season end):
 # the game keeps only its first 32 records (21888 B in DOS memory at dosMemOfs60c00h), the simulated contest reuses
 # the cache, so records 32+ come back as the simulated clubs (a 64-club national cup lost its second half -> the
@@ -65,7 +82,7 @@ assert B_SEL + SEL_ROOM <= B_STAGE and B_STAGE + 95153 + SEL_ROOM <= B_UQ
 VAROFF = [4, 22, 25] + [76 + 38 * k + x for k in range(16) for x in (1, 27, 33, 34, 35, 36)]
 WMARK = 0x3157                                       # 'W1'
 WBLOCK = 2 + sum(BIGCOPY.values()) + TOTAL_MAX * (2 + len(VAROFF)) + 2 * 28   # in the fixed part's 80-record area
-assert WBLOCK <= 80 * TEAM_SIZE
+assert WBLOCK <= BIGC_AT
 LABELS = {}
 
 
@@ -107,7 +124,7 @@ w_big:                                  ; ZF = 0 in a big world (records, cups a
     ret
 
 align 4
-w_switch_dd: dd w_switch_ret            ; (patch_tails: w_switch in a build with a league-phase world)
+w_switch_dd: dd w_switch_ret            ; (patch_tails: w_switch in a build with a big world)
 w_switch_ret:
     ret
 
@@ -1839,8 +1856,10 @@ w_save_tail:                            ; SaveCareerFile after save_trailer (tra
     mov esi, WCWC + 92
     mov ecx, 28
     call w_copy
-    cmp dword [SELBASEV], NEWSEL        ; a league-phase world's career: the file from the stage (its cache is not
-    jne .plain                          ; after the fixed part): the fixed part, then the records and the trailer
+    mov dword [TMDBUF + BIGC_AT], 0     ; BIGC: this career uses the big cache (3.3.3)
+    cmp dword [SELBASEV], NEWSEL        ; a big-cache career: the file from the stage (its cache is not after the
+    jne .plain                          ; fixed part): the fixed part, then the records and the trailer
+    mov dword [TMDBUF + BIGC_AT], BIGC
     mov esi, CAREER
     mov edi, STAGE
     mov ecx, FIXED
@@ -1856,10 +1875,9 @@ w_save_tail:                            ; SaveCareerFile after save_trailer (tra
     popad
     jmp WRITEFILE
 
-;LPCACHE_BEGIN
-w_loadcopy:                             ; trailer LOADCOPY (a build with a league-phase world): LoadCareerFile read
-    pushad                              ; the file into the stage: the fixed part to careerFileBuffer, the records +
-    mov esi, STAGE                      ; trailer to the career's cache (its world's)
+w_loadcopy:                             ; trailer LOADCOPY: LoadCareerFile read the file into the stage: the fixed part
+    pushad                              ; to careerFileBuffer, the records + trailer to the career's cache
+    mov esi, STAGE
     mov edi, CAREER
     mov ecx, FIXED
     call w_copy
@@ -1878,20 +1896,29 @@ w_loadcopy:                             ; trailer LOADCOPY (a build with a leagu
     popad
     ret
 
-w_setbase:                              ; the career's team cache from its world: a league-phase world's is the big
-    push eax                            ; one (SEL_N teams), any other world's the game's (100 teams)
-    mov dword [SELBASEV], OLDSEL
+w_setbase:                              ; a loaded career's cache: the big one for a big world's save marked BIGC, a
+    push eax                            ; league-phase world's, or one caching more than UPGRADE_N teams (upgraded:
+    mov dword [SELBASEV], OLDSEL        ; saved with BIGC from now on); else the game's (100 teams)
     mov dword [ROOMV], OLDROOM
+    call w_big
+    jz .r
+%if LPW_ON
     call W_LPW
-    jne .r
+    je .n
+%endif
+    cmp dword [TMDBUF + BIGC_AT], BIGC
+    je .n
+    cmp word [NUMSEL], UPGRADE_N
+    jbe .r
+.n:
     mov dword [SELBASEV], NEWSEL
     mov dword [ROOMV], SEL_ROOM
 .r:
     pop eax
     ret
 
-w_switch:                               ; InitCareer's start (w_entry): the chosen club's world (its country in
-    pushad                              ; WMAP) gives the career's cache, before any team is loaded
+w_switch:                               ; InitCareer's start (w_entry): a club of a big world (its country in WMAP)
+    pushad                              ; takes the big cache, before any team is loaded
     mov dword [SELBASEV], OLDSEL
     mov dword [ROOMV], OLDROOM
     mov al, [WSEL]
@@ -1907,9 +1934,8 @@ w_switch:                               ; InitCareer's start (w_entry): the chos
     movzx ebx, byte [esi + 1]
     imul ebx, ebx, REC
     add ebx, WTAB - REC
-    mov ebx, [ebx]                      ; the world's Champions Cup struct: type 2 = a league phase
-    cmp byte [ebx + 1], 2
-    jne .s
+    cmp byte [ebx + 48], 0              ; (w_big's test)
+    je .s
     mov dword [SELBASEV], NEWSEL
     mov dword [ROOMV], SEL_ROOM
 .s:
@@ -1937,8 +1963,6 @@ w_mmi:                                  ; SWOSMainMenuInit's first instruction: 
     mov word [CTN], -1                  ; (DIY / preset files are the memory after competitionFileBuffer)
     mov dword [SELPTR], OLDSEL
     ret
-
-;LPCACHE_END
 
 w_load_tail:                            ; LoadCareerFile after load_trailer (trailer.LOAD_TAIL)
     call w_big
@@ -2124,6 +2148,32 @@ VAROFFS: VAROFF_WORDS
 '''
 
 
+def sel_sites(p, d0):
+    """The team cache g_selectedTeams (D0 - 68400: the pseudo registers follow it), selTeamsPtr and the three hook
+    sites of the cache switch: ProcessCareerFile `mov selTeamsPtr, offset g_selectedTeams` (10 B), CareerMenu `mov ax,
+    currentTick` (6 B), SWOSMainMenuInit `mov currentTeamNumber, -1` (9 B); 'fix' = their fixup offsets.
+    (world-2025-26 4cb687b)"""
+    d1 = p.le.obj_bytes(1)
+    pk = lambda x: re.escape(struct.pack('<I', x))
+    old = d0 - 68400
+    m = _one(rb'\xc7\x05(.{4})' + pk(old), d1, 'ProcessCareerFile selTeamsPtr')
+    selptr, pcf = struct.unpack('<I', m.group(1))[0], m.start()
+    ms = [m for m in re.finditer(rb'\x66\xa1(.{4})\x66\xa3(.{4})\x66\xc7\x05(.{4})\x00\x00\xc7\x05', d1, re.S)
+          if d1.find(b'\x66\xc7\x05' + struct.pack('<I', d0) + b'\x0a\x00', m.end(), m.end() + 0x80) > 0]
+    assert len(ms) == 3, ('competition / season / career menus (seed, ..., mov word [D0], 10: continue)', len(ms))
+    m = ms[2]                                    # (in code order: CareerMenu is the third one, every language)
+    assert m.group(2) == m.group(3), 'CareerMenu seed'
+    ctick, cmenu = struct.unpack('<I', m.group(1))[0], m.start()
+    m = _one(rb'\xe8(.{4})\x75\x01\xc3\xcc\xe8.{4}\xe8.{4}\xcc', d1, 'VerifyTeamLoaded')   # call FindTeamInCache
+    ftic = m.start() + 5 + struct.unpack('<i', m.group(1))[0]
+    assert d1[ftic:ftic + 2] == b'\x66\xa1', d1[ftic:ftic + 8].hex()            # mov ax, currentTeamNumber
+    ctn = struct.unpack_from('<I', d1, ftic + 2)[0]
+    m = _one(rb'\x66\xc7\x05' + pk(ctn) + rb'\xff\xff\xe8.{4}\xe8.{4}\xeb\x00', d1, 'SWOSMainMenuInit')
+    mmi = m.start()
+    return {'old': old, 'selptr': selptr, 'ctick': ctick, 'ctn': ctn, 'pcf': pcf, 'cmenu': cmenu, 'mmi': mmi,
+            'fix': {pcf: (pcf + 2, pcf + 6), cmenu: (cmenu + 2,), mmi: (mmi + 3,)}}
+
+
 def patch_tails(p, at, nasmcave):
     """Big worlds: the save / load tails of the .CAR trailer ('W1' block after C7). Call after trailer.patch(tails=True).
     Returns the cave end."""
@@ -2145,20 +2195,17 @@ def patch_tails(p, at, nasmcave):
            'TEAMBUF': (team_buf[0], team_buf[1] - 2), 'TEAMSLOADED': (2, s['teamsloaded']),
            'w_big': (1, LABELS['w_big']), 'w_copy': (1, LABELS['w_copy']), 'w_dcopy': (1, LABELS['w_dcopy'])}
     b = BSS[0]
-    lpw = 'w_lpw' in LABELS                      # (the cache switch: builds with a league-phase world)
     hs = sel_sites(p, D0)
     sym.update({'WTMD': (2, b + B_TMD), 'WCC': (2, b + B_CUPS), 'WCWC': (2, b + B_CUPS + 160),
                 'WUEFA': (2, b + B_CUPS + 320), 'STAGE': (2, b + B_STAGE), 'NEWSEL': (2, b + B_SEL),
                 'SEL_ROOM': (0, SEL_ROOM), 'A1R': (2, A0 + 4), 'OLDSEL': (2, hs['old']), 'OLDROOM': (0, 68400),
                 'SELPTR': (2, hs['selptr']), 'CTICK': (2, hs['ctick']), 'CTN': (2, hs['ctn']),
                 'SELBASEV': (1, t['selbasev']), 'ROOMV': (1, t['roomv']), 'WSEL': (1, LABELS['WSEL']),
-                'WMAP': (1, LABELS['WMAP']), 'WTAB': (1, LABELS['WTAB']), 'REC': (0, REC)})
-    sym['W_LPW'] = (1, LABELS['w_lpw']) if lpw else None
+                'WMAP': (1, LABELS['WMAP']), 'WTAB': (1, LABELS['WTAB']), 'REC': (0, REC),
+                'BIGC': (0, BIGC), 'BIGC_AT': (0, BIGC_AT), 'UPGRADE_N': (0, UPGRADE_N)})
+    sym['W_LPW'] = (1, LABELS['w_lpw']) if 'w_lpw' in LABELS else (0, 0)
+    sym['LPW_ON'] = (0, int('w_lpw' in LABELS))
     src = TAILS_ASM
-    if not lpw:                                  # (no league-phase world: the game's cache only, no switch code)
-        i, j = src.index(';LPCACHE_BEGIN'), src.index(';LPCACHE_END')
-        src = src[:i] + src[j:]
-        del sym['W_LPW']
     if os.environ.get('DIAG'):                   # diagnostic build: int 3 handler writes DIAG.BIN
         src = '%define DIAG\n' + src.replace('.w:\n    pushad\n    mov esi, TMDBUF', '.w:\n    call diag_install\n    pushad\n    mov esi, TMDBUF')
         sym.update({'DREGS': (2, D0 - 0), 'AREGS': (2, A0), 'HOLDREG': (2, s['hold'][0][0] - 0x10),
@@ -2171,15 +2218,15 @@ def patch_tails(p, at, nasmcave):
     save_dd, load_dd = t['tails']
     p.retarget(1, save_dd, 1, labels['w_save_tail'])
     p.retarget(1, load_dd, 1, labels['w_load_tail'])
-    if lpw:                                      # a league-phase world's careers use a cache of SEL_N teams
-        p.retarget(1, t['loadcopy'], 1, labels['w_loadcopy'])    # (.CAR read into the stage, then spread)
-        assert p.target(1, t['load_a1']) == t['CAREER'], p.target(1, t['load_a1'])
-        p.retarget(1, t['load_a1'], 2, b + B_STAGE)
-        for at_, n_, stub in ((hs['pcf'], 10, 'w_pcf'), (hs['cmenu'], 6, 'w_cmenu'), (hs['mmi'], 9, 'w_mmi')):
-            for fo in hs['fix'][at_]:
-                p.remove(1, fo)
-            p.put(1, at_, b'\xe8' + struct.pack('<i', labels[stub] - (at_ + 5)) + b'\x90' * (n_ - 5))
-        p.retarget(1, LABELS['w_switch_dd'], 1, labels['w_switch'])
+    p.retarget(1, t['loadcopy'], 1, labels['w_loadcopy'])    # (.CAR read into the stage, then spread: 3.3.3)
+    assert p.target(1, t['load_a1']) == t['CAREER'], p.target(1, t['load_a1'])
+    p.retarget(1, t['load_a1'], 2, b + B_STAGE)
+    for at_, n_, stub in ((hs['pcf'], 10, 'w_pcf'), (hs['cmenu'], 6, 'w_cmenu'), (hs['mmi'], 9, 'w_mmi')):
+        for fo in hs['fix'][at_]:
+            p.remove(1, fo)
+        p.put(1, at_, b'\xe8' + struct.pack('<i', labels[stub] - (at_ + 5)) + b'\x90' * (n_ - 5))
+    p.retarget(1, LABELS['w_switch_dd'], 1, labels['w_switch'])
+    print(f'exe: big world: team cache of {SEL_N} at obj2+{b + B_SEL:#x} (stage obj2+{b + B_STAGE:#x}, mark BIGC)')
     print(f'exe: big world .CAR block W1 ({WBLOCK} B, in the 80-record area) @ obj1+{at:#x}, records moved to obj2+{b:#x}')
     return (at + len(code) + 3) & ~3
 

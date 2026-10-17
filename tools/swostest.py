@@ -578,12 +578,13 @@ class Screen:
         out = [p for p in ptrs if p and not r.cached(p, 40)]
         if out and max(out) - min(out) < 0x100000:     # texts outside the cached ranges: one dump for all
             r.read(min(out), max(out) + 40 - min(out))
-        self.entries, self.nav, self.geom = [], [], []
+        self.entries, self.nav, self.geom, self.colors = [], [], [], []
         for i in range(n):
             e = 0x16 + i * 0x38
             inv, dis = struct.unpack_from('<HH', mem, e + 4)
             self.nav.append((tuple(mem[e + 8:e + 12]), tuple(mem[e + 16:e + 20])))   # l/r/u/d, skip l/r/u/d
             self.geom.append(struct.unpack_from('<4h', mem, e + 0x14))                # x, y, width, height
+            self.colors.append(struct.unpack_from('<H', mem, e + 0x1E)[0])            # bg.backAndFrameColor
             text = ''
             if ptrs[i]:
                 raw = r.read(ptrs[i], 40).split(b'\0')[0]
@@ -1799,6 +1800,64 @@ def world_roundtrip():
     return not errs, f"{'; '.join(errs) or 'ok'} (vs W128B as written by its own build: {ndiff(src, x1)} bytes differ)"
 
 
+@scenario
+def w84_cache():
+    """3.3.3: the 1984-85 world's team cache. W84E_TEAM254.CAR (Liverpool 1984-85, season end: league 22 + FA Cup 64
+    + UEFA Cup 64 = 124 cached teams; 3.3.2 exits to DOS with data/team.254) -> CONTINUA CARRIERA -> the next season
+    saved in the big cache (more than 100 records, BIGC); that save reloaded and saved twice: equal, BIGC kept; an old
+    save (W84A.CAR, 3.0) reloaded and saved twice: equal, no BIGC (the game's cache)"""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import careerworld
+    b = builds()['it']
+    errs, info = [], []
+    car = os.path.join(WORK, 'saves', 'W84E_TEAM254.CAR')     # (repro by the world 2025-26 sessions)
+    with Session('w84_cache', b, {'W84E.CAR': car}, 'dump:2', 300) as s:
+        s.wait()
+        s.send(LOAD1 + ' dump:3')
+        path = next_season_save(s, 'W84F')
+    if not path.endswith('.CAR'):
+        return False, f'next season: {path}'
+    d = open(path, 'rb').read()
+    n = struct.unpack_from('<H', d, CAR_FIXED)[0]
+    mark = struct.pack('<I', careerworld.BIGC) in d[:CAR_FIXED]
+    check(n > 100 and mark, f'next season: {n} records, BIGC {mark}', errs)
+    info.append(f'next season {n} records')
+    for tag, src, big in (('new', path, True), ('old', os.path.join(WORK, 'saves', 'W84A.CAR'), False)):
+        err, x1, x2 = two_saves('w84_cache_' + tag, b, src, 150)
+        if err:
+            errs.append(f'{tag}: {err}')
+            continue
+        d1, d2 = open(x1, 'rb').read(), open(x2, 'rb').read()
+        m = struct.pack('<I', careerworld.BIGC) in d2[:CAR_FIXED]
+        n2 = struct.unpack_from('<H', d2, CAR_FIXED)[0]
+        check(ndiff(x1, x2) == 0 and m == big, f'{tag}: save 1 vs 2 {ndiff(x1, x2)} bytes, BIGC {m}, {n2} records', errs)
+        info.append(f'{tag}: {n2} records, BIGC {m}, vs source {ndiff(src, x1)} bytes')
+    return not errs, '; '.join(errs + info) if errs else '; '.join(info)
+
+
+@scenario
+def w84_cupdraw():
+    """3.3.3 (lib97 nc_bye / nc_adv from world-2025-26): a new 1984-85 career at LIVERPOOL: the FA Cup (id CC, 64 clubs)
+    keeps the real first-round bracket of ties.csv in its first season (round-1 list at slot +2CDh = 0..63, the
+    contest order); 3.3.2 shuffled it (the cup header's byte 8 was 0)"""
+    errs = []
+    with Session('w84_cupdraw', builds()['it'], {}, 'dump:2', 240) as s:
+        if s.wait().outcome != 'dump':
+            return False, f'START: {s.result}'
+        for t in ('CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'EUROPA 1984-85', 'INGHILTERRA', 'FIRST DIVISION',
+                  'LIVERPOOL'):
+            if press(s, s.screen(), t) is None or s.result.outcome != 'dump':
+                return False, f'new career: {t} not reached ({s.result})'
+        r = s.result
+        d = r.read(r.base2, 0x100000)
+        hits = [i - 0x2D for i in range(0x2D, len(d) - 0x443) if d[i] == 0xCC and d[i + 4:i + 6] == b'\x40\x00']
+        if not hits:
+            return False, 'FA Cup slot (id CC, 64 clubs) not found'
+        start = list(d[hits[0] + 0x2CD:hits[0] + 0x2CD + 64])
+    check(start == list(range(64)), f'round 1 list {start[:16]}... (ties.csv order: 0..63)', errs)
+    return not errs, '; '.join(errs) or f'FA Cup round 1 = ties.csv (slot obj2+{hits[0]:#x})'
+
+
 def world_build():
     """World 3 (internal/career-test/mkworld3.py, not the DERBY variant), generated into internal/swostest/worlds."""
     d = os.path.join(WORK, 'worlds')
@@ -2489,7 +2548,8 @@ def purple_kits():
     """3.3.0: kit colour 10 = purple (Fiorentina): palette entry 12 purple in the SELECT KITS editor for Fiorentina and
     maroon for Inter, purple in the match Fiorentina-Inter and Fiorentina-Roma (Roma's maroon kit clashes: green away);
     3.3.1: Inter in Barcelona's kits (blue and maroon stripes): the automatic choice avoids purple vs maroon; SELECT KITS
-    opens on the automatic choice (Fiorentina-Roma: Roma second kit) and OK plays it"""
+    opens on the automatic choice (Fiorentina-Roma: Roma second kit) and OK plays it; 3.3.3: the team name box in the
+    colour of who controls the team (purple player, red computer)"""
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import lepatch
     b = builds()['it']
@@ -2515,7 +2575,9 @@ def purple_kits():
                 scr = walk(s, 68, 3)
                 pal = s.result.read(s.result.base2 + working + 36, 3)
                 check(scr.entries[1][1] == 'FIORENTINA' and tuple(pal) == PURPLE_RGB, f'editor {scr.entries[1][1]} {tuple(pal)}', errs)
-                walk(s, 1, 3)                   # the other team
+                check(scr.colors[1] == 11, f'team name box {scr.colors[1]} for the human player (want 11, purple)', errs)
+                scr = walk(s, 1, 3)             # the other team
+                check(scr.colors[1] == 10, f'team name box {scr.colors[1]} for the computer (want 10, red)', errs)
                 pal = s.result.read(s.result.base2 + working + 36, 3)
                 check(tuple(pal) == MAROON_MENU, f'editor {s.screen().entries[1][1]} {tuple(pal)}', errs)
                 walk(s, 20, 3)                  # ESCI

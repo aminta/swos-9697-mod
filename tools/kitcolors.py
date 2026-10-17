@@ -239,6 +239,18 @@ km_init:                                ; SELECT KITS menu: init, and after ever
     mov esi, [A0]
     mov edi, [esp]
     mov [esi + 26h], edi
+    mov eax, [edi + 32]                 ; its box in the colour of who controls the team, as the game's menus
+    mov al, [eax + 4]                   ; (teamControls): red computer, blue coach, purple player (Marco, 3.3.3)
+    mov dx, 11
+    cmp al, 1
+    jne .coach
+    mov dl, 10
+.coach:
+    cmp al, 3
+    jne .color
+    mov dl, 13
+.color:
+    mov [esi + 30], dx                  ; MenuEntry.bg.backAndFrameColor
     mov dword [D0], 2                   ; kit worn
     call CALC
     mov esi, [A0]

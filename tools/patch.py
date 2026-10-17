@@ -277,6 +277,7 @@ def patch_exe(src, dst, remap, lang='it'):
     arg_end = finals97.rec_playoff(p, arg_end)    # 2.5: the play-off winner is the champion in the record (FIN cave full)
     arg_end = careerworld.euro_draw(p, arg_end, nasmcave)   # 2.7.x: no same-country ties in rounds 1-2 of the
                                                   # European cups of a career (1996-97 CWC / UEFA, worlds)
+    lib97.chain_adv(p)                           # national-cup byes before the round advance's draw (euro_draw's hook)
     arg_end = kitcolors.button(p, arg_end, lang, area)  # KITS button + SELECT KITS menu (pre-match screen)
     if mkseason.league_phase_worlds():          # UEFA coefficients of a league-phase world (own page after lp36's)
         import uefacoef

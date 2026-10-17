@@ -1417,7 +1417,7 @@ def _sites(p):
     d1 = p.le.obj_bytes(1)
     r = sacups.regs(d1)
     a0 = r['A0']
-    _, bye_call, c2573c, diycopy, _ = lib97._sites(p)
+    _, bye_call, c2573c, diycopy, _, _, _, _, _, _ = lib97._sites(p)
     diy = diycopy + 0x41F
     A = lambda x: struct.pack('<I', x)
 

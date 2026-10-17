@@ -708,8 +708,9 @@ class Pack:
         return [(int(c['id'], 16), perm) for c in self.comps if c['type'] == 'cup' for perm in self.bracket(c)['draws']]
 
     def bye_cups(self):
-        return [(int(c['id'], 16), len(self.bracket(c)['clubs'])) for c in self.comps
-                if c['type'] == 'cup' and self.bracket(c)['byes']]
+        """[(contest id, world or 0, clubs, byes)] of the cups with first-round byes (lib97 BYE_TAB)."""
+        return [(int(c['id'], 16), self.world or 0, len(self.bracket(c)['clubs']), self.bracket(c)['byes'])
+                for c in self.comps if c['type'] == 'cup' and self.bracket(c)['byes']]
 
     def team_bytes(self, clubs):
         return b''.join(bytes(self.where[k]) for k in clubs)

@@ -1400,7 +1400,7 @@ def season_over(scr):
 @scenario
 def world8485():
     """Europe 1984-85 world (world 4): new career at Liverpool, two seasons (save, reload, save), checkw1 on both"""
-    exe = os.environ.get('W8485_BUILD', os.path.join(WORK, 'builds', 'w8485'))
+    exe = os.environ.get('W8485_BUILD') or builds()['it']       # (builds/w8485 was a stale 3.0-era build)
     out, msgs = [], []
     first = os.environ.get('W8485_FROM')                   # resume from a season-1 save (W84A.CAR)
     if first:
@@ -1610,7 +1610,7 @@ def world8485_nat():
     """Europe 1984-85 world, national teams (England's job by the debug switch; saves W84NAT / W84NAT3 made once per
     build): the real Euro 88 qualifying groups and Euro 88's 8 (host + 7 group winners); with the season index poked
     to the next cycle, the Italia 90 qualifying draw (host out) and its 24 (holder, host, 13 European, direct)"""
-    exe = os.environ.get('W8485_BUILD', os.path.join(WORK, 'builds', 'w8485'))
+    exe = os.environ.get('W8485_BUILD') or builds()['it']       # (builds/w8485 was a stale 3.0-era build)
     off, names = nat_offsets(os.path.join(exe, 'ITALIAN.EXE')), nat_names(exe)
     nm = lambda ws: [names.get(w, hex(w)) for w in ws]
     errs, notes = [], []
@@ -2570,6 +2570,56 @@ def blond_faces():
                 px = nib(r.read(struct.unpack('<I', h[:4])[0], wq * 8 * nl))
                 check(15 in px and 5 not in px, f'set 1418 frame 0: yellow {15 in px}, light skin 5 {5 in px}', errs)
     return not errs, '; '.join(errs) or 'blond face icon in the pre-match screen; sprite set 1418.. yellow hair, dark skin'
+
+
+
+@scenario
+def world_byes():
+    """National-cup first-round byes in a career (lib97 nc_bye / nc_adv): the template world (packs/_template_world)
+    with the ALPHA cup cut to 6 clubs, 2 of them with a bye (ALPHA ROVERS, ALPHA ATHLETIC); career at ALPHA ROVERS:
+    it plays no round 1, after round 1 both bye clubs are in round 2's list (with the 2 winners), it plays its
+    semi-final, the season ends"""
+    import csv
+    import shutil
+    pk = os.path.join(WORK, 'packs', 'world-byes')
+    shutil.rmtree(pk, ignore_errors=True)
+    shutil.copytree(os.path.join(ROOT, 'packs', '_template_world'), pk)
+    f = os.path.join(pk, 'alpha', 'ties.csv')
+    rows = list(csv.DictReader(open(f)))
+    r1 = [r for r in rows if r['round'] == '1']
+    byes = [{'competition': r['competition'], 'round': '1', 'home': r['winner'], 'away': '', 'winner': ''} for r in r1[2:]]
+    with open(f, 'w', newline='') as fh:
+        w = csv.DictWriter(fh, fieldnames=['competition', 'round', 'home', 'away', 'winner'])
+        w.writeheader()
+        w.writerows(r1[:2] + byes + [r for r in rows if r['round'] != '1'])
+    exe = build('world_byes', env={'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(pk, x) for x in ('alpha', 'beta')])})
+    errs, titles, slot, seen = [], [], [None], []
+    with Session('world_byes', exe, {}, 'dump:2', 900) as s:
+        if s.wait().outcome != 'dump':
+            return False, f'START: {s.result}'
+        for t in ('CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', '1984-85', 'ALPHA', 'ALPHA LEAGUE', 'ALPHA ROVERS'):
+            if press(s, s.screen(), t) is None or s.result.outcome != 'dump':
+                return False, f'new career: {t} not reached ({s.result})'
+        d = s.result.obj2(0, 0x100000)                  # the ALPHA cup's slot (id D3, 6 clubs)
+        hits = [i - 0x2D for i in range(0x2D, len(d) - 0x443) if d[i] == 0xD3 and d[i + 4:i + 6] == b'\x06\x00'
+                and d[i - 0x2D + 0x59] == 3]
+        if not hits:
+            return False, 'ALPHA cup slot not found'
+        slot[0] = hits[0]
+
+        def stop(scr):
+            t = scr.entries[0][1] if scr.entries else ''
+            if 'ALPHA CUP' in t and t not in titles:
+                titles.append(t)
+            c = s.result.obj2(slot[0], 0x443)
+            if c[0x57] == 1 and not seen:
+                seen.append(list(c[0x2CD:0x2CD + 4]))
+            return season_over(scr)
+        ok, msg = advance(s, stop, 300)
+    check(ok, msg, errs)
+    check(titles and 'SEMIFINALE' in titles[0], f'ALPHA ROVERS cup matches {titles} (first must be the semi-final)', errs)
+    check(seen and {4, 5} <= set(seen[0]), f'round 2 list {seen} (must hold the bye clubs 4 and 5)', errs)
+    return not errs, '; '.join(errs) or f'{msg}; cup matches {titles}; round 2 list {seen[0]}'
 
 
 def run_parallel(names, jobs):

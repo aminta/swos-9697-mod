@@ -681,6 +681,9 @@ def _draw_call(p):
     return [c for c, _ in sites], sites[0][1]
 
 
+TABLE = [None, False]           # the fixed draws' table (obj, offset) and whether it has world filter records
+
+
 def patch(p, lang, area, cave, draw_pre=None, leagues=(), cave2=None):
     """Register CLASSICS and the World Cup 1982; returns the new cave end."""
     d2 = p.le.obj_bytes(2)
@@ -858,4 +861,5 @@ def patch(p, lang, area, cave, draw_pre=None, leagues=(), cave2=None):
     print(f'exe: historic: {name.decode()} = country {CLASSICS}, {full.decode()} id {WC82_ID:#x} @ obj1+{wc82:#x}, '
           f'preset call obj1+{pre_call:#x} -> obj1+{labels["hist_preset"]:#x} (season call obj1+{season_call:#x} untouched)')
     print(f'exe: historic: code obj1+{at2:#x}..{at2 + len(code):#x} (page {cave2:#x})')
+    TABLE[:] = [(1, labels['DRAW_TABLE']), False]    # (lib97.chain_adv: career cups; one world, no filter records)
     return at

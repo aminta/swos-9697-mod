@@ -129,36 +129,168 @@ nc_bye:                                 ; replaces `mov esi, [A5]` before the ro
     sub esi, 4
     loop .q
 .x:
+%if FD_ON
+    call nc_first                       ; a world's fixed round 1 (its draw table has the round: the contest order =
+    sbb bl, bl                          ; ties.csv's) in the career's first season: header byte 8 = 1 = no draw;
+    not bl                              ; 0 = the game's random draw (every later season)
+    and bl, 1
+    mov al, [NCW + 2Dh]
+    movzx ecx, word [NCW + 4Fh]
+    shl ecx, 1                          ; (round 1's clubs: 2 x its matches, byes left out)
+    mov ah, 0
+    call dt_find
+    jc .y
+    mov esi, [A5]
+    mov [esi + 8], bl
+.y:
+%endif
     popad
     mov esi, [A5]
     ret
 
+%if FD_ON
+nc_first:                               ; CF = 0: a world career in its first season
+    push eax
+    push ebx
+    call [NC_WREC]                      ; (careerworld.w_rec, set by chain_adv)
+    jz .no
+    mov al, [ebx + 42]
+    cmp al, [SEASONPLAYING]
+    jne .no
+    pop ebx
+    pop eax
+    clc
+    ret
+.no:
+    pop ebx
+    pop eax
+    stc
+    ret
+
+dt_find:                                ; al = contest id, ecx = clubs of the round, ah = the round (0 = round 1)
+    push ebx                            ; -> CF = 0, edx = its fixed permutation (historic's draw table: a cup's
+    mov [NC_RD], ah                     ; rounds in order, world filter records [1, 0, w])
+    mov edx, [NC_DTAB]
+    mov byte [NC_DW], 0
+.f:
+    cmp byte [edx], 0
+    je .no
+    cmp byte [NC_WDON], 0
+    je .rec
+    cmp byte [edx], 1
+    jne .rec
+    mov bl, [edx + 2]
+    mov [NC_DW], bl
+    add edx, 3
+    jmp .f
+.rec:
+    movzx ebx, byte [edx + 1]
+    and bl, 7Fh
+    cmp [edx], al
+    jne .n
+    cmp byte [NC_DW], 0
+    je .w
+    push eax
+    mov al, [NC_DW]
+    cmp al, [WORLDB]
+    pop eax
+    jne .n
+.w:
+    cmp byte [NC_RD], 0                 ; this cup's k-th entry = its round k
+    je .k
+    dec byte [NC_RD]
+    jmp .n
+.k:
+    cmp ebx, ecx
+    jne .no
+    add edx, 2
+    pop ebx
+    clc
+    ret
+.n:
+    lea edx, [edx + ebx + 2]
+    jmp .f
+.no:
+    pop ebx
+    stc
+    ret
+%endif
+
 nc_adv:                                 ; replaces `call 0x194A4` in the knockout round advance (obj1 0x18376; it
-    call nc_adv_call                    ; compacts round 1's winners to the list +2CDh and draws them): then a cup
-    cmp word [NCW + 57h], 0             ; with byes leaving round 1 puts its b clubs (list[N - b ..], untouched)
-    jne .r                              ; after the w winners, the game's draw (cseg_27F84) mixes the w + b, and
-    pushad                              ; [4Fh] = w + b (the advance then halves it: round 2's matches)
-    mov al, [NCW + 2Dh]
-    mov cx, [NCW + 31h]
+    call nc_adv_call                    ; compacts the round's w winners to the list +2CDh in tie order and draws
+    pushad                              ; them: list[k] = winners[perm[k]], perm at +30Dh); then:
+    mov al, [NCW + 2Dh]                 ; - a cup with byes leaving round 1: its b clubs (list[N - b ..], untouched)
+    mov cx, [NCW + 31h]                 ;   join the w winners; [4Fh] = w + b (the advance halves it);
+    xor ebx, ebx                        ; - a world's fixed draw for the round (first season): the winners back in
+    cmp word [NCW + 57h], 0             ;   tie order (+ the byes) through that permutation; else (byes) the
+    jne .nb                             ;   game's draw cseg_27F84 over the w + b
     call bye_find
-    jc .x
+    jc .nb
+    movzx ebx, byte [esi + 3]           ; b
     movzx eax, byte [esi + 2]
-    movzx ebx, byte [esi + 3]
-    sub eax, ebx                        ; N - b: the first club left out of round 1
-    mov edx, eax
-    shr edx, 1                          ; w
-    cmp [NCW + 4Fh], dx
-    jne .x
-    lea ecx, [edx + ebx]
-    push ecx
-.c:
-    mov cl, [NCW + 2CDh + eax]          ; (target < source: an ascending copy is safe)
-    mov [NCW + 2CDh + edx], cl
+    sub eax, ebx
+    shr eax, 1
+    cmp [NCW + 4Fh], ax
+    je .nb
+    xor ebx, ebx                        ; (not round 1's w: no byes)
+.nb:
+    mov [NC_B], ebx
+    movzx edx, word [NCW + 4Fh]         ; w
+    mov [NC_W], edx
+    xor ecx, ecx                        ; tie-order winners: T[perm[k]] = list[k]
+.t:
+    cmp ecx, edx
+    jae .tb
+    movzx eax, byte [NCW + 30Dh + ecx]
+    mov bl, [NCW + 2CDh + ecx]
+    mov [NC_T + eax], bl
+    inc ecx
+    jmp .t
+.tb:
+    mov ebx, [NC_B]                     ; + the byes: T[w ..] = list[N - b ..]
+    movzx eax, word [NCW + 31h]
+    sub eax, ebx
+    xor ecx, ecx
+.tc:
+    cmp ecx, ebx
+    jae .fx
+    mov dl, [NCW + 2CDh + eax + ecx]
+    mov esi, [NC_W]
+    add esi, ecx
+    mov [NC_T + esi], dl
+    inc ecx
+    jmp .tc
+.fx:
+    mov ecx, [NC_W]
+    add ecx, [NC_B]                     ; the next round's clubs
+%if FD_ON
+    call nc_first
+    jc .rnd
+    mov al, [NCW + 2Dh]
+    mov ah, [NCW + 57h]                 ; (the round just played: the next one's index = + 1)
+    inc ah
+    call dt_find
+    jc .rnd
+    xor eax, eax                        ; list[k] = T[fixed[k]]
+.fk:
+    movzx ebx, byte [edx + eax]
+    mov bl, [NC_T + ebx]
+    mov [NCW + 2CDh + eax], bl
     inc eax
-    inc edx
-    dec ebx
-    jnz .c
-    pop ecx
+    cmp eax, ecx
+    jb .fk
+    jmp .set
+.rnd:
+%endif
+    cmp dword [NC_B], 0
+    je .x
+    xor eax, eax                        ; byes, no fixed draw: T (winners + byes) drawn by the game
+.ck:
+    mov bl, [NC_T + eax]
+    mov [NCW + 2CDh + eax], bl
+    inc eax
+    cmp eax, ecx
+    jb .ck
     push ecx
     shr ecx, 1
     mov [NCW + 4Fh], cx                 ; (cseg_27F84 shuffles 2 x [4Fh] entries)
@@ -176,10 +308,10 @@ nc_adv:                                 ; replaces `call 0x194A4` in the knockou
     sub esi, 4
     loop .q
     pop ecx
-    mov [NCW + 4Fh], cx
+.set:
+    mov [NCW + 4Fh], cx                 ; w + b (the advance halves it)
 .x:
     popad
-.r:
     ret
 nc_adv_call:
     jmp C194A4                          ; (chain_adv: the call's target after careerworld.euro_draw hooked it)
@@ -301,6 +433,14 @@ lib_cal:                                ; replaces `mov esi, [A0]` in cseg_89758
 
 LIB_CAL: CAL_BYTES
 BYE_TAB: BYE_BYTES
+NC_B: dd 0
+NC_W: dd 0
+NC_T: times 64 db 0
+NC_DTAB: dd 0                           ; (chain_adv: historic's draw table)
+NC_WREC: dd 0                           ; (chain_adv: careerworld.w_rec)
+NC_WDON: db 0
+NC_DW: db 0
+NC_RD: db 0
 '''
 
 
@@ -353,6 +493,13 @@ def chain_adv(p):
     t = site + 5 + struct.unpack('<i', p.get(1, site + 1, 4))[0]
     p.put(1, j + 1, struct.pack('<i', t - (j + 5)))
     p.put(1, site + 1, struct.pack('<i', LABELS['nc_adv'] - (site + 5)))   # (relative call and jmp: no fixups)
+    import historic
+    tobj, toff = historic.TABLE[0]                    # the fixed draws (nc_bye / nc_adv, a world's first season)
+    p.add_ptr(1, LABELS['NC_DTAB'], tobj, toff)
+    p.put(1, LABELS['NC_WDON'], bytes((int(historic.TABLE[1]),)))
+    if LABELS['fd']:
+        import careerworld
+        p.add_ptr(1, LABELS['NC_WREC'], 1, careerworld.LABELS['w_rec'])
 
 
 def patch(p, cave, fin_pre):
@@ -360,9 +507,11 @@ def patch(p, cave, fin_pre):
     bc = [(0xC3, 0, 15, 1)] + mkseason.bye_cups()           # historic.FA_ID: FA Cup 1871-72 (15 clubs, 1 bye)
     assert all(0 < b and n <= 255 and (n - b) % 2 == 0 for _, _, n, b in bc), bc
     bw = mkseason.multi_ns() and any(w for _, w, _, _ in bc)  # several worlds: a world's cup ids are its own
-    if bw:
+    fd = bool(mkseason.worlds())                             # career worlds: their cups' fixed draws (first season)
+    if bw or fd:
         import careerworld
-        slt = careerworld.SITES['slt']
+        cws = careerworld.sites(p)                           # (careerworld.patch runs after: its patterns intact)
+        slt = cws['slt']
     """Returns (cave end, lib_pre offset) — lib_pre is called by historic.hist_draw."""
     a0, bye_call, c2573c, diycopy, cal_site, nc_site, adv_site, c194a4, c1740f, c27f84 = _sites(p)
     symbols = {'DIYCOPY': (2, diycopy), 'LIB_ID': (0, sacups.LIB_ID), 'LIB_N': (0, sacups.LIB_N),
@@ -370,7 +519,8 @@ def patch(p, cave, fin_pre):
                'BYE_NT': (0, len(bc)), 'BYE_BYTES': (0, 'db ' + ', '.join(str(x) for e in bc for x in e)),
                'A5': (2, a0 + 20), 'NCW': (2, diycopy + 0x41F),     # the contest work buffer (DIY layout)
                'C194A4': (1, c194a4), 'C1740F': (1, c1740f), 'PREG': (2, a0 - 32), 'C27F84': (1, c27f84),
-               'BW_ON': (0, int(bw)), 'WORLDB': (slt[0], slt[1] + careerworld.WORLD_BYTE) if bw else (0, 0),
+               'BW_ON': (0, int(bw)), 'WORLDB': (slt[0], slt[1] + careerworld.WORLD_BYTE) if bw or fd else (0, 0),
+               'FD_ON': (0, int(fd)), 'SEASONPLAYING': (2, cws['season']) if fd else (0, 0),
                'FIN_PRE': (1, fin_pre),
                'CAL_BYTES': (0, 'db ' + ', '.join(str(b) for b in calendar_bytes()))}
     code, fix = nasmcave.assemble(ASM, cave, symbols)
@@ -379,7 +529,8 @@ def patch(p, cave, fin_pre):
     for off, tobj, toff in fix:
         p.add_ptr(1, cave + off, tobj, toff)
     p.put(1, bye_call + 1, struct.pack('<i', labels['lib_bye'] - (bye_call + 5)))
-    LABELS.update(nc_adv=labels['nc_adv'], nc_adv_call=labels['nc_adv_call'], adv_site=adv_site)   # (chain_adv)
+    LABELS.update(nc_adv=labels['nc_adv'], nc_adv_call=labels['nc_adv_call'], adv_site=adv_site,   # (chain_adv)
+                  NC_DTAB=labels['NC_DTAB'], NC_WDON=labels['NC_WDON'], NC_WREC=labels['NC_WREC'], fd=fd)
     p.remove(1, nc_site + 2)                                      # mov esi, [A5] (6 B) -> call nc_bye; nop
     p.put(1, nc_site, b'\xe8' + struct.pack('<i', labels['nc_bye'] - (nc_site + 5)) + b'\x90')
     p.remove(1, cal_site + 2)                                     # mov esi, [A0] (6 B) -> call lib_cal; nop

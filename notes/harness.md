@@ -89,6 +89,7 @@ Rare events are **forced** and slow parts are **done once and saved**:
 | classic_wc34 | 3.2 tourney pack: World Cup 1934 in CLASSIC TOURNEYS: round 1 = ties.csv, every later tie = the winners of two adjacent ties (also after replays), coin tosses, third place, final | ~30 s |
 | classic_groups | 3.2 tourney pack with groups (the template, in a test build with SEASON_PACKS): 2 groups of 4, crossed semi-finals, third place, final; its round robin (5 clubs, home and away: 20 matches) | ~1 min + build |
 | classic_tourneys | World Cup 1982, Mitropa Cup 1934 (real bracket also after play-offs), FA Cup 1871-72 played to the final | ~2.5 min |
+| menu_numbers | 3.3.4: tactics editor (MOD. TATTICA > UTN A; English MENU_PATH='EDIT TACTICS,USER_A') with LEICESTER poked to 17..32: the pitch's little numbers 12..99 are menunum's sprites 1620.., each = tens + 1 px + units of the menu's own digits (pixel-exact); screenshot | ~20 s |
 
 Preset competitions are driven by `play_preset(s, button)`: COMP. PREDEFINITA > TORNEI STORICI > button > TORNEO,
 then VIS. RISULTATI / REPLAY / PROSS. PARTITA / PROSSIMO TURNO / TURNO RITORNO until only STAT and ESCI are left;

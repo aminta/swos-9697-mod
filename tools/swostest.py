@@ -2016,6 +2016,81 @@ def india_season():
     return path.endswith('.CAR'), f'{msg}; next season {os.path.basename(path)}'
 
 
+def menu_glyphs(r, spr):
+    """The menu's small digits as menunum / shirtnum build them: {digit: [columns of pixels]} from sprites 162..171."""
+    def sprite(i):
+        ptr = struct.unpack('<I', r.read(r.base2 + spr + i * 4, 4))[0]
+        h = r.read(ptr, 24)
+        nl = struct.unpack_from('<h', h, 12)[0]
+        px = r.read(struct.unpack('<I', h[:4])[0], nl * 8)
+        return [[(px[y * 8 + x // 2] >> (0 if x & 1 else 4)) & 15 for x in range(16)] for y in range(nl)]
+    cols = lambda g: [x for x in range(16) if any(row[x] for row in g)]
+    out = {}
+    for dgt in range(2, 10):
+        g = sprite(161 + dgt)
+        c = cols(g)
+        out[dgt] = [[row[x] for row in g] for x in range(c[0], c[-1] + 1)]
+    one = sprite(162)                   # the menu's "10" has no gap: 1 = its own sprite, 0 = "10" after that width
+    c = cols(one)
+    out[1] = [[row[x] for row in one] for x in range(c[0], c[-1] + 1)]
+    ten = sprite(171)
+    c = cols(ten)
+    z = [x for x in c if x >= c[0] + len(out[1])]
+    out[0] = [[row[x] for row in ten] for x in range(z[0], z[-1] + 1)]
+    return out
+
+
+@scenario
+def menu_numbers():
+    """3.3.4: shirt numbers 17..99 in the menus. MOD. TATTICA > UTN A (LEICESTER CITY's squad): its players poked to
+    17..32, the pitch redrawn: the little numbers 12..99 are the new sprites 1620.. (menunum; the game's small numbers
+    are 1..11 only), each one = tens digit, 1 pixel, units digit of the menu's own small digits (rebuilt here from
+    sprites 162..171). MENU_PATH: the menu entries in another language (English: 'EDIT TACTICS,USER_A')"""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import lepatch
+    import shirtnum
+    import menunum
+    b = builds()['it']
+    exe = next(os.path.join(b, x) for x in ('ITALIAN.EXE', 'ENGLISH.EXE') if os.path.exists(os.path.join(b, x)))
+    spr = shirtnum.spr_index(lepatch.LEPatch(exe))
+    d = open(os.path.join(MAIN, 'orig', 'DATA', 'TEAM.008'), 'rb').read()
+    lei = next(2 + i * 684 for i in range(struct.unpack('>H', d[:2])[0])
+               if d[2 + i * 684 + 5:2 + i * 684 + 22].split(b'\0')[0] == b'LEICESTER CITY')
+    first = d[lei + 76 + 3:lei + 76 + 26]
+    errs, info = [], []
+    with Session('menu_numbers', b, {}, 'dump:3', 300) as s:
+        s.wait()
+        for t in os.environ.get('MENU_PATH', 'MOD. TATTICA,UTN A').split(','):    # English: EDIT TACTICS,USER_A
+            press(s, s.screen(), t, wait=3)
+        r = s.result
+        mem = r.mem
+        recs = [m.start() - 3 - 76 for m in re.finditer(re.escape(first), mem)]
+        recs = [x for x in recs if mem[x + 5:x + 19] == b'LEICESTER CITY']
+        check(recs, 'LEICESTER CITY record not found in memory', errs)
+        for x in recs:
+            for k in range(16):
+                s.poke(x + 76 + k * 38 + 2, bytes((17 + k,)))
+        s.send('down dump:1')
+        s.send('up dump:2')
+        s.box.shot('menu_numbers')
+        r = s.result
+        ptrs = struct.unpack('<88I', r.read(r.base2 + spr + menunum.NEWBASE * 4, 88 * 4))
+        check(all(ptrs), f'spritesIndex[{menunum.NEWBASE}..] not filled ({sum(1 for x in ptrs if x)} of 88)', errs)
+        if all(ptrs):
+            g = menu_glyphs(r, spr)
+            for n in (12, 17, 20, 23, 32, 41, 99):
+                h = r.read(ptrs[n - 12], 24)
+                w, nl = struct.unpack_from('<hh', h, 10)
+                px = r.read(struct.unpack('<I', h[:4])[0], nl * 8)
+                got = [[(px[y * 8 + x // 2] >> (0 if x & 1 else 4)) & 15 for y in range(nl)] for x in range(w)]
+                want = g[n // 10] + [[0] * nl] + g[n % 10]
+                check(got == want and struct.unpack_from('<h', h, 22)[0] == menunum.NEWBASE + n - 12,
+                      f'{n}: sprite differs from tens + gap + units', errs)
+            info.append(f'{len(recs)} copies of LEICESTER poked to 17..32; sprites 12..99 built, checked 12 17 20 23 32 '
+                        f'41 99')
+    return not errs, '; '.join(errs + info) + f' (screenshot runs/menu_numbers/shots/menu_numbers.png)'
+
+
 PURPLE_RGB, MAROON_MENU = (24, 8, 34), (27, 0, 9)
 
 

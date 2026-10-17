@@ -190,10 +190,10 @@ Lengjubikarinn, Finland Liigacup, Chile and Peru Copa de la Liga. -->
 - Players without a Transfermarkt value get an estimate (from their club's and division's values); in the lowest
   divisions (Scotland's League One and Two) the squads are so close that a simulated season does not follow the real
   table closely.
-- Competition names: four countries have no national cup in 2026-27 (Mexico: Copa MX, last 2019-20; Honduras: Copa
-  Presidente, last 2017-18; Guatemala; Panama): the mod's cup carries the name of the last one. South Africa's
-  Nedbank Cup and Carling Knockout keep their sponsors' names (no other name is in use). Peru's only cup for its
-  Liga 1 clubs, the Copa de la Liga, takes the national cup's place.
+- No national cup where there is none in 2026-27: Mexico (the Copa MX was last played in 2019-20), Honduras (Copa
+  Presidente, last 2017-18), Guatemala and Panama play their league only. Peru's only cup for its Liga 1 clubs, the
+  Copa de la Liga, takes the national cup's place. South Africa's Nedbank Cup and Carling Knockout keep their
+  sponsors' names (no other name is in use).
 - Odd leagues lose their last club (the engine needs an even number): Gibraltar, New Zealand (11 -> 10).
 
 **Known limits**
@@ -406,10 +406,10 @@ L'obiettivo di questo mondo: il calcio di oggi com'è davvero, fino alle regole 
 - I giocatori senza valore su Transfermarkt ricevono una stima (dai valori del club e della divisione); nelle divisioni
   più basse (League One e League Two scozzesi) le rose sono così vicine che una stagione simulata non segue da vicino la
   classifica vera.
-- Nomi delle competizioni: quattro nazioni non hanno una coppa nazionale nel 2026-27 (Messico: Copa MX, ultima
-  2019-20; Honduras: Copa Presidente, ultima 2017-18; Guatemala; Panama): la coppa della mod porta il nome dell'ultima.
-  La Nedbank Cup e la Carling Knockout del Sudafrica tengono il nome dello sponsor (non ne esiste un altro in uso).
-  L'unica coppa del Perù per i club della Liga 1, la Copa de la Liga, prende il posto della coppa nazionale.
+- Nessuna coppa nazionale dove nel 2026-27 non c'è: Messico (la Copa MX si è giocata l'ultima volta nel 2019-20),
+  Honduras (Copa Presidente, ultima 2017-18), Guatemala e Panama giocano solo il campionato. L'unica coppa del Perù
+  per i club della Liga 1, la Copa de la Liga, prende il posto della coppa nazionale. La Nedbank Cup e la Carling
+  Knockout del Sudafrica tengono il nome dello sponsor (non ne esiste un altro in uso).
 - I campionati con un numero dispari di club perdono l'ultimo (il motore vuole un numero pari): Gibilterra, Nuova
   Zelanda (11 -> 10).
 

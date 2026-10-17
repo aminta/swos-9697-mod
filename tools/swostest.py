@@ -2743,8 +2743,8 @@ def world_groups():
         dv[g]['promoted'], dv[g]['relegated'] = 1, 0
     lg['parallel'] = {'upper': 1, 'first': 2, 'count': 3}
     json.dump(d, open(f, 'w'), indent=1, ensure_ascii=False)
-    packs = sorted(os.path.join(w, 'world5tm', x) for x in os.listdir(os.path.join(w, 'world5tm'))
-                   if os.path.isfile(os.path.join(w, 'world5tm', x, 'pack.json')))
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]   # (the converter's file order)
+    packs = [os.path.join(w, 'world5tm', x) for x in order]
     env = {'SEASON_PACKS': ','.join(['ddr-1988-89'] + packs)}
     exe = build('world_groups', env=env)
     sys.path.insert(0, os.path.join(ROOT, 'tools'))

@@ -115,6 +115,9 @@ Not one fixed formula for everybody: each league plays the season the way its ow
     goes up to Serie B;
   - 'better placed' between clubs of different groups: league position, then points, wins, goals scored, drawing
     of lots.
+- **The Serie C play-off is played by your club too**: group phase, national phase and Final Four under exactly
+  these rules; while you play it the other two groups are already over (simulated when your group ends), and the
+  season end keeps their results.
 
 *National cups 2026-27*
 - **Every club still in when the data was taken (October 2026)**, each from **its real round**: clubs entering later
@@ -410,6 +413,9 @@ Non una formula uguale per tutti: ogni campionato gioca la stagione come l'ha sc
     vincente sale in Serie B;
   - "meglio piazzata" tra squadre di gironi diversi: posizione in classifica, poi punti, vittorie, gol fatti,
     sorteggio.
+- **Anche il play-off di Serie C lo gioca la tua squadra**: fase dei gironi, fase nazionale e Final Four esattamente
+  con queste regole; mentre lo giochi gli altri due gironi sono già finiti (simulati quando finisce il tuo), e la
+  fine della stagione ne tiene i risultati.
 
 *Coppe nazionali 2026-27*
 - **Tutte le squadre ancora in corsa quando sono stati presi i dati (ottobre 2026)**, ognuna dal **suo turno vero**:

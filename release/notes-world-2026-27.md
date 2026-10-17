@@ -9,6 +9,61 @@ A historic career world of the **2026-27 season**: 87 countries, 1,562 clubs, re
 2026 transfer window. In CLASSIC CAREERS choose WORLD 2026-27, then the continent and the country (EUROPE lists the
 first 43 UEFA associations by ranking, the others are under OTHER NATIONS).
 
+### Rebuilt exactly, point by point
+<!-- REGIA: kept up to date by the regia session at each milestone (Davide, 2026-10-17: "per far capire come, punto per
+     punto, abbiamo ricostruito ESATTAMENTE ... le competizioni calcistiche di oggi"). One line per real-world rule. -->
+The point of this world: today's football as it really is, down to rules most players never notice.
+
+*European cups (UEFA 2026-27)*
+- **League phase of 36** in the Champions League and the Europa League: 4 pots of 9, **8 matches** against
+  **2 opponents from each pot, one at home and one away**; never a club of its own country, **at most 2 opponents
+  from one country**; the draw is made by the game every season with these constraints.
+- **Conference League**: 36 clubs, **6 matches**, 6 pots of 6, one opponent per pot, 3 at home and 3 away.
+- **One table of 36**, ranked by points, goal difference, goals scored, away goals, wins, away wins, then the
+  opponents' points, goal difference and goals; places 1-8 straight to the round of 16, 9-24 to the knockout
+  play-offs (**9/10 v 23/24, 11/12 v 21/22, 13/14 v 19/20, 15/16 v 17/18**, seeded club at home in the 2nd leg),
+  25-36 out.
+- **Round of 16 on the fixed seeded bracket** (1/2 against the winners of 15/16 v 17/18, and so on), then fixed
+  quarter- and semi-finals, **single-match final**.
+- **Qualifying rounds as in the 2026-27 access list**: Champions Path and League Path, first qualifying round to
+  play-off, the losers dropping into the Europa League and Conference League rounds as the regulations say;
+  **title-holder rebalancing**, **2 European Performance Spots**, **Russia suspended**. Your club plays every one of
+  its qualifying ties in July and August, with the real round names.
+- **Holders as in reality**: the Champions League holder and the Europa League winner enter the Champions League,
+  the Conference League winner the Europa League.
+- **First season = the real 2026-27 entrants**, in their real pots.
+
+*UEFA coefficients (simulated from season 2)*
+- **Association and club coefficients over 5 seasons**, seeded with the real values up to 2025-26.
+- Points as UEFA counts them: **win 2, draw 1**; league-phase participation and **ranking bonus** (CL / EL 0.25 a
+  place from 24th, UECL 0.125 then 0.25); a bonus for each knockout round reached; **qualifying matches at half
+  points** (1.5 / 0.5 a tie); clubs knocked out in qualifying count in their association's divisor; a club's
+  coefficient never below **20% of its association's**.
+- Places per association, entry rounds and pots follow the simulated ranking every season.
+
+*Italian football*
+- **Serie C as three groups of 20** (A North, B Centre, C South); from season 2 the groups are formed by region and
+  balanced to 20, as the Lega Pro does.
+- **Serie B play-off**: 3rd to 8th; **the 3rd goes up directly when it leads the 4th by more than 14 points**;
+  preliminary 5v8 and 6v7 (single match at the better placed, extra time, then the better placed), two-leg semis and
+  final with the real tie rules.
+- **Serie B play-out**: 16th v 17th, two legs, **only when they are 4 points or less apart**; the 16th stays on a tie.
+- **Serie C play-off of 28**: 2nd to 10th of each group plus the Coppa Italia Serie C winner (until the league cups
+  are in: the best 11th), group phase, national phase with seeds, Final Four.
+
+*National cups 2026-27*
+- **Every club still in at the start of the season**, each from **its real round**: clubs that enter later have
+  byes (Coppa Italia from the real round of 16, the Copa del Rey with 10 ties and 22 byes ...); the real drawn ties
+  and the real bracket are played round by round in the first season.
+
+*Leagues, calendars and clubs*
+- **Belgium 2026-27: 18 clubs, no play-offs**, as the new format; calendar-year leagues (Brazil, Argentina, MLS,
+  Japan ...) play their **2026** season.
+- Clubs in the order of their **2025-26 final table**; squads at the **end of the summer 2026 window**; real shirt
+  numbers, coaches, kits (stripes and hoops, purple where worn).
+- **Foreign market of 2026-27**: 900 real players of the tiers just below the world's divisions.
+
+### What is in the world
 - **Countries and leagues**: all 54 playing UEFA associations, each a real country (Liechtenstein, which has no league
   of its own, plays a mini league of its 6 first teams), and Russia (league only: no European places while suspended);
   England on 3 levels, Scotland on 4, Italy with Serie A, B and the three Serie C groups, the second tiers of Spain,
@@ -136,6 +191,59 @@ Un mondo di carriera storica della **stagione 2026-27**: 87 nazioni, 1.562 club,
 estivo 2026. In CARR. STORICHE scegli MONDO 2026-27, poi il continente e la nazione (EUROPA elenca le prime 43
 federazioni UEFA per ranking, le altre sono in ALTRE NAZIONI).
 
+### Ricostruito esattamente, punto per punto
+L'obiettivo di questo mondo: il calcio di oggi com'è davvero, fino alle regole che quasi nessun giocatore nota.
+
+*Coppe europee (UEFA 2026-27)*
+- **Fase campionato a 36** in Champions League ed Europa League: 4 fasce da 9, **8 partite** contro **2 avversari per
+  fascia, uno in casa e uno fuori**; mai un club della stessa nazione, **al massimo 2 avversari della stessa
+  nazione**; il sorteggio lo fa il gioco ogni stagione con questi vincoli.
+- **Conference League**: 36 club, **6 partite**, 6 fasce da 6, un avversario per fascia, 3 in casa e 3 fuori.
+- **Classifica unica a 36**: punti, differenza reti, gol fatti, gol in trasferta, vittorie, vittorie in trasferta,
+  poi punti, differenza reti e gol degli avversari; 1ª-8ª agli ottavi, 9ª-24ª agli spareggi (**9/10 contro 23/24,
+  11/12 contro 21/22, 13/14 contro 19/20, 15/16 contro 17/18**, ritorno in casa della testa di serie), 25ª-36ª fuori.
+- **Ottavi sul tabellone fisso con le teste di serie** (1/2 contro le vincenti di 15/16-17/18 e così via), poi
+  quarti e semifinali fissi, **finale secca**.
+- **Turni preliminari come nella lista d'accesso 2026-27**: percorso campioni e percorso piazzate, dal primo turno
+  agli spareggi, con le eliminate che scendono nei turni di Europa e Conference League come da regolamento;
+  **ribilanciamento per la detentrice**, **2 posti "European Performance Spot"**, **Russia sospesa**. Il tuo club
+  gioca tutte le sue sfide preliminari a luglio e agosto, con i nomi veri dei turni.
+- **Detentori come nella realtà**: chi vince Champions ed Europa League entra in Champions, chi vince la Conference
+  entra in Europa League.
+- **Prima stagione = le partecipanti vere 2026-27**, nelle loro fasce vere.
+
+*Coefficienti UEFA (simulati dalla seconda stagione)*
+- **Coefficienti di federazioni e club su 5 stagioni**, partendo dai valori veri fino al 2025-26.
+- Punti come li conta la UEFA: **vittoria 2, pareggio 1**; partecipazione alla fase campionato e **bonus di
+  classifica** (CL / EL 0,25 a posizione dalla 24ª, UECL 0,125 poi 0,25); un bonus per ogni turno a eliminazione
+  raggiunto; **preliminari a punti dimezzati** (1,5 / 0,5 a sfida); i club eliminati nei preliminari contano nel
+  divisore della federazione; il coefficiente di un club mai sotto il **20% di quello della sua federazione**.
+- Posti per federazione, turno d'ingresso e fasce seguono il ranking simulato ogni stagione.
+
+*Calcio italiano*
+- **Serie C su tre gironi da 20** (A Nord, B Centro, C Sud); dalla seconda stagione i gironi si formano per regione
+  e si bilanciano a 20, come fa la Lega Pro.
+- **Play-off di Serie B**: dalla 3ª all'8ª; **la 3ª sale direttamente se ha più di 14 punti sulla 4ª**; turno
+  preliminare 5ª-8ª e 6ª-7ª (gara secca in casa della meglio piazzata, supplementari, poi la meglio piazzata),
+  semifinali e finale di andata e ritorno con le regole vere di parità.
+- **Play-out di Serie B**: 16ª contro 17ª, andata e ritorno, **solo se separate da 4 punti o meno**; a parità si
+  salva la 16ª.
+- **Play-off di Serie C a 28**: dalla 2ª alla 10ª di ogni girone più la vincente della Coppa Italia Serie C (finché
+  non ci sono le coppe di lega: la migliore 11ª), fase dei gironi, fase nazionale con teste di serie, Final Four.
+
+*Coppe nazionali 2026-27*
+- **Tutte le squadre ancora in corsa a inizio stagione**, ognuna dal **suo turno vero**: chi entra più tardi è
+  esente (Coppa Italia dagli ottavi veri, Copa del Rey con 10 sfide e 22 esenti ...); nella prima stagione si
+  giocano gli accoppiamenti e il tabellone veri, turno per turno.
+
+*Campionati, calendari e club*
+- **Belgio 2026-27: 18 club, senza play-off**, come il nuovo formato; i campionati ad anno solare (Brasile,
+  Argentina, MLS, Giappone ...) giocano la stagione **2026**.
+- Club nell'ordine della **classifica finale 2025-26**; rose di **fine mercato estivo 2026**; numeri di maglia,
+  allenatori e maglie veri (righe e cerchi, viola dove c'è).
+- **Mercato estero 2026-27**: 900 giocatori veri delle serie subito sotto quelle del mondo.
+
+### Cosa c'è nel mondo
 - **Nazioni e campionati**: tutte le 54 federazioni UEFA che giocano, ognuna come nazione vera (il Liechtenstein, che
   non ha un campionato suo, gioca un mini campionato con le sue 6 prime squadre), e la Russia (solo campionato:
   nessun posto europeo finché è sospesa); Inghilterra su 3 livelli, Scozia su 4, Italia con Serie A, B e i tre gironi

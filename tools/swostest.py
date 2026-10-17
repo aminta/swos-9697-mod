@@ -2814,6 +2814,7 @@ def world_groups():
     for g in (2, 3, 4):
         dv[g]['promoted'], dv[g]['relegated'] = 1, 0
     lg['parallel'] = {'upper': 1, 'first': 2, 'count': 3}
+    lg.pop('playoffs', None)                    # (pgroups alone: no dplay moves; world_playoffs has them)
     json.dump(d, open(f, 'w'), indent=1, ensure_ascii=False)
     order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]   # (the converter's file order)
     packs = [os.path.join(w, 'world5tm', x) for x in order]

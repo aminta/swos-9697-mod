@@ -101,8 +101,6 @@ first 43 UEFA associations by ranking, the others are under OTHER NATIONS).
 - Team cache (engine): the game keeps at most 100 different clubs in memory during a season; a career in this world
   uses a bigger cache of 160 (an English lower-division club in a European league phase needs about 130). Other
   careers and modes keep the game's own.
-- National cups (engine): a career's national cup cannot have first-round byes (hence the power-of-two brackets
-  above); the qualifying ties and the league phases are the mod's own and need none.
 - European results that the game does not play match by match (the computer's knockout ties, the qualifying ties
   between computer clubs) count for the coefficients as whole ties (winner 3 / loser 1, qualifying half of that).
 
@@ -222,9 +220,6 @@ federazioni UEFA per ranking, le altre sono in ALTRE NAZIONI).
 - Cache delle squadre (motore): il gioco tiene in memoria al massimo 100 club diversi durante una stagione; una
   carriera in questo mondo usa una cache più grande, da 160 (un club inglese di serie minore in una fase campionato
   europea ne richiede circa 130). Le altre carriere e modalità tengono quella del gioco.
-- Coppe nazionali (motore): la coppa nazionale di una carriera non può avere turni di riposo al primo turno (da qui i
-  tabelloni a potenza di 2 descritti sopra); le sfide preliminari e le fasi campionato sono della mod e non ne hanno
-  bisogno.
 - I risultati europei che il gioco non gioca partita per partita (le sfide a eliminazione del computer, le sfide
   preliminari tra club del computer) contano per i coefficienti come sfide intere (3 a chi passa, 1 a chi esce, la
   metà nei preliminari).

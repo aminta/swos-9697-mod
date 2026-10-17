@@ -2862,6 +2862,79 @@ def world_groups():
     return not errs, '; '.join(errs) or f'{msg}; divisions {sorted(cnt.items())}; up {ups}, down {downs}'
 
 
+
+@scenario
+def world_playoffs():
+    """Italian play-offs at the season end (dplay.py): the world 2026-27 (private data internal/world2526/world5tm)
+    with Serie B promoted 2 / relegated 3, the Serie C groups promoted 1 / relegated 0 and league 'playoffs': 'ita';
+    a season at RENATE (Serie C, Serie B simulated): after it every Italian division holds 20, Serie B sent 3 up and
+    4 down, the groups sent 4 up (3 winners + the play-off winner), no club moved between groups"""
+    import collections
+    import json
+    import shutil
+    src = os.path.join(MAIN, 'internal', 'world2526', 'world5tm')
+    if not os.path.isdir(src):
+        return True, 'SKIP: private data internal/world2526/world5tm missing'
+    w = os.path.join(WORK, 'world_playoffs')
+    shutil.rmtree(w, ignore_errors=True)
+    shutil.copytree(src, os.path.join(w, 'world5tm'))
+    f = os.path.join(w, 'world5tm', 'ita', 'pack.json')
+    d = json.load(open(f))
+    lg = next(c for c in d['competitions'] if c['type'] == 'league')
+    dv = lg['divisions']
+    dv[1]['promoted'], dv[1]['relegated'] = 2, 3
+    for g in (2, 3, 4):
+        dv[g]['promoted'], dv[g]['relegated'] = 1, 0
+    lg['parallel'] = {'upper': 1, 'first': 2, 'count': 3}
+    lg['playoffs'] = 'ita'
+    json.dump(d, open(f, 'w'), indent=1, ensure_ascii=False)
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]   # (the converter's file order)
+    packs = [os.path.join(w, 'world5tm', x) for x in order]
+    env = {'SEASON_PACKS': ','.join(['ddr-1988-89'] + packs)}
+    exe = build('world_playoffs', env=env)
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    old = os.environ.get('SEASON_PACKS')
+    os.environ['SEASON_PACKS'] = env['SEASON_PACKS']
+    import mkseason
+    pk = [p for p in mkseason.packs() if p.parallel()][0]
+    if old is None:
+        os.environ.pop('SEASON_PACKS')
+    else:
+        os.environ['SEASON_PACKS'] = old
+    _, u, first, sizes, clubs = pk.parallel()
+    keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K',
+                                            'W8485_NOSACK', 'W8485_SEASONS')}
+    os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM='EUROPA,ITALIA,SERIE C GIRONE A,RENATE',
+                      W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1')
+    try:
+        ok, msg = world8485()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    car = os.path.join(RUNS, 'world8485_1', 'SWOS', 'W84A.CAR')
+    if not os.path.exists(car):
+        return False, f'no season-1 save: {msg}'
+    slt = open(car, 'rb').read()[0xE8DC:0xE8DC + 2000]           # someLeaguesTable (ITA save offset)
+    cnt, mv = collections.Counter(), collections.Counter()
+    for g, base, _ in clubs:
+        new = base + struct.unpack('b', slt[g:g + 1])[0]
+        cnt[new] += 1
+        if new != base:
+            mv['A' if base == 0 else 'B' if base == u else 'C', 'A' if new == 0 else 'B' if new == u else
+               'C' if new >= first else '?'] += 1
+            if base >= first and new >= first:
+                mv['C-C'] += 1
+    errs = []
+    check(ok, msg, errs)
+    check(all(cnt[first + i] == n for i, n in enumerate(sizes)) and cnt[u] == 20 and cnt[0] == 20,
+          f'divisions {sorted(cnt.items())}', errs)
+    check(mv['B', 'A'] == 3 and mv['A', 'B'] == 3 and mv['B', 'C'] == 4 and mv['C', 'B'] == 4 and not mv['C-C'],
+          f'moves {dict(mv)}', errs)
+    return not errs, '; '.join(errs) or f'{msg}; divisions {sorted(cnt.items())}; moves {dict(mv)}'
+
 def run_parallel(names, jobs):
     """run -jN: each scenario in its own process (own run dirs and DOSBox-X, one host core each in turbo); the
     builds are made once here first. Output in the order of the names; exit code 1 on a failure."""

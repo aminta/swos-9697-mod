@@ -254,6 +254,7 @@ class Pack:
             u, f, n = par.get('upper'), par.get('first'), par.get('count')
             _need(isinstance(u, int) and f == u + 1 and isinstance(n, int) and 2 <= n <= 4 and f + n == len(divs),
                   'league.parallel: {upper, first = upper + 1, count 2..4}, the groups being the last divisions')
+            _need(self.league.get('playoffs') in (None, 'ita'), "league.playoffs: 'ita' (the Italian play-offs, dplay.py)")
             for k in self.league_clubs:
                 a = self.clubs[k].get('area') or ''
                 _need(a == '' or a in 'ABCD'[:n], f"clubs.csv: {k}: area must be one of {'ABCD'[:n]} (a group of the level)")
@@ -278,6 +279,15 @@ class Pack:
         for club, cup in m['season'].get('europe', {}).items():
             _need(club in self.league_clubs, f'season.europe: {club} is not a league club')
             _need(club in self.bracket(self.comp(cup))['clubs'], f'season.europe: {club} does not play {cup}')
+
+    def dplay(self):
+        """dplay table: None, or (world, league id, upper, first, groups) of a league with 'playoffs': 'ita' (Serie B
+        play-off / play-out and the Serie C play-off at the season end; needs 'parallel')."""
+        lg = self.league
+        if not lg or self.world is None or lg.get('playoffs') != 'ita' or not lg.get('parallel'):
+            return None
+        par = lg['parallel']
+        return self.world, int(lg['id'], 16), par['upper'], par['first'], par['count']
 
     def parallel(self):
         """pgroups table: None, or (world, upper, first, [group sizes], [(global number, base division, area group)])
@@ -923,6 +933,11 @@ def world_draws():
         if pk.world is not None:
             out.setdefault(pk.world, []).extend(pk.draws())
     return out
+
+
+def dplay_tables():
+    """dplay: the leagues of the worlds with the Italian play-offs (Pack.dplay)."""
+    return [t for pk in packs() for t in [pk.dplay()] if t]
 
 
 def parallel_tables():

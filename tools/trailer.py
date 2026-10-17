@@ -42,11 +42,11 @@ save_trailer:
     pushad
     movzx eax, word [NUMSEL]
     imul eax, eax, TEAM_SIZE
+    mov edi, eax                        ; after the records: the career's cache + N*684 (g_selectedTeams =
+    add edi, [SELBASEV]                 ; careerFileBuffer + [D1], or a league-phase world's big cache, careerworld)
     add eax, BLOCK
-    cmp eax, ROOM
+    cmp eax, [ROOMV]
     ja .skip
-    mov edi, [D1]
-    add edi, CAREER
     mov word [edi], MARK
     add edi, 2
     mov edx, ITEMS
@@ -70,6 +70,7 @@ save_trailer:
     jmp WRITEFILE
 
 load_trailer:
+    call [LOADCOPY]                     ; (a big world: the file read into its stage, out to the fixed part + cache)
     pushad
     mov word [LIBOLD], 0FFFFh           ; no old Libertadores list read (yet)
     mov dword [LIBOLD_N], OLD_LIB
@@ -98,9 +99,10 @@ load_trailer:
 .trailer:
     movzx eax, word [NUMSEL]
     imul eax, eax, TEAM_SIZE
+    mov esi, eax                        ; after the records (the career's cache + N*684)
+    add esi, [SELBASEV]
     add eax, FIXED                      ; trailer offset in the file
     mov ebx, eax
-    lea esi, [eax + CAREER]
     mov edx, ITEMS
     mov ebp, NITEMS
     mov ecx, BLOCK
@@ -178,6 +180,13 @@ set_mark:                               ; 'S3' + balance: the table still adds u
     mov byte [MARK3_COPY + 2], MARK3_BAL
     ret
 
+lt_ret:
+    ret
+align 4
+ROOMV: dd ROOM                          ; room for the records + this block (careerworld: a big world's cache)
+SELBASEV: dd SELBUF                     ; the career's team cache (careerworld: a league-phase world's is bigger)
+LOADCOPY: dd lt_ret
+
 items_in:                               ; esi -> ebp items starting at [edx] (dd address, dd size)
     mov edi, [edx]
     mov ecx, [edx + 4]
@@ -221,6 +230,7 @@ def patch(p, cave, items, tails=False):
     assert len(m) == 1, len(m)
     career = struct.unpack('<I', m[0].group(1))[0]
     load_call = m[0].end() - 5
+    load_a1 = m[0].start() + 6                            # (its careerFileBuffer immediate: a big world's stage)
     process = m[0].end() + struct.unpack('<i', m[0].group(2))[0]
     # SaveCareerFile: mov A1, offset careerFileBuffer; mov eax, A1; sub D1, eax; call WriteFile
     m = [x for x in re.finditer(rb'\xc7\x05' + A1 + re.escape(struct.pack('<I', career)) + rb'\xa1' + A1 +
@@ -241,6 +251,7 @@ def patch(p, cave, items, tails=False):
     defaults = b''.join(p.get(1, off, n) for off, n in items)
     bal = -(sa.MARK3 & 0xff) - (sa.MARK3 >> 8) & 0xff
     symbols = {'NUMSEL': (2, numsel), 'CAREER': (2, career), 'D1': (2, dreg1), 'WRITEFILE': (1, writefile),
+               'SELBUF': (2, numsel + 2),
                'PROCESS': (1, process), 'MARK': (0, MARK), 'S2': (0, S2), 'SA': (0, SA),
                'TEAM_SIZE': (0, TEAM_SIZE), 'ROOM': (0, SELECTED_ROOM), 'BLOCK': (0, block),
                'FIXED': (0, numsel - career + 2), 'NITEMS': (0, len(items)), 'NSA': (0, NSA), 'OLD_SIZE': (0, OLD_SIZE),
@@ -280,7 +291,8 @@ def patch(p, cave, items, tails=False):
     p.put(1, load_call + 1, struct.pack('<i', labels['load_trailer'] - (load_call + 5)))
     INFO.clear()
     INFO.update({k: symbols[k] for k in ('NUMSEL', 'CAREER', 'D1', 'WRITEFILE', 'PROCESS', 'BLOCK', 'FIXED', 'ROOM',
-                                         'MARK')})
+                                         'MARK', 'SELBUF')})
+    INFO.update(load_a1=load_a1, roomv=labels['ROOMV'], loadcopy=labels['LOADCOPY'], selbasev=labels['SELBASEV'])
     if tails:
         INFO['tails'] = (labels['SAVE_TAIL'], labels['LOAD_TAIL'])
     print(f'exe: .CAR trailer C7 ({block} B) @ obj1+{cave:#x}, SaveCareerFile call obj1+{save_call:#x}, '

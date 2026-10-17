@@ -1675,6 +1675,41 @@ def world_roundtrip():
     return not errs, f"{'; '.join(errs) or 'ok'} (vs W128B as written by its own build: {ndiff(src, x1)} bytes differ)"
 
 
+@scenario
+def w84_cache():
+    """3.3.3: the 1984-85 world's team cache. W84E_TEAM254.CAR (Liverpool 1984-85, season end: league 22 + FA Cup 64
+    + UEFA Cup 64 = 124 cached teams; 3.3.2 exits to DOS with data/team.254) -> CONTINUA CARRIERA -> the next season
+    saved in the big cache (more than 100 records, BIGC); that save reloaded and saved twice: equal, BIGC kept; an old
+    save (W84A.CAR, 3.0) reloaded and saved twice: equal, no BIGC (the game's cache)"""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import careerworld
+    b = builds()['it']
+    errs, info = [], []
+    car = os.path.join(WORK, 'saves', 'W84E_TEAM254.CAR')     # (repro by the world 2025-26 sessions)
+    with Session('w84_cache', b, {'W84E.CAR': car}, 'dump:2', 300) as s:
+        s.wait()
+        s.send(LOAD1 + ' dump:3')
+        path = next_season_save(s, 'W84F')
+    if not path.endswith('.CAR'):
+        return False, f'next season: {path}'
+    d = open(path, 'rb').read()
+    n = struct.unpack_from('<H', d, CAR_FIXED)[0]
+    mark = struct.pack('<I', careerworld.BIGC) in d[:CAR_FIXED]
+    check(n > 100 and mark, f'next season: {n} records, BIGC {mark}', errs)
+    info.append(f'next season {n} records')
+    for tag, src, big in (('new', path, True), ('old', os.path.join(WORK, 'saves', 'W84A.CAR'), False)):
+        err, x1, x2 = two_saves('w84_cache_' + tag, b, src, 150)
+        if err:
+            errs.append(f'{tag}: {err}')
+            continue
+        d1, d2 = open(x1, 'rb').read(), open(x2, 'rb').read()
+        m = struct.pack('<I', careerworld.BIGC) in d2[:CAR_FIXED]
+        n2 = struct.unpack_from('<H', d2, CAR_FIXED)[0]
+        check(ndiff(x1, x2) == 0 and m == big, f'{tag}: save 1 vs 2 {ndiff(x1, x2)} bytes, BIGC {m}, {n2} records', errs)
+        info.append(f'{tag}: {n2} records, BIGC {m}, vs source {ndiff(src, x1)} bytes')
+    return not errs, '; '.join(errs + info) if errs else '; '.join(info)
+
+
 def world_build():
     """World 3 (internal/career-test/mkworld3.py, not the DERBY variant), generated into internal/swostest/worlds."""
     d = os.path.join(WORK, 'worlds')

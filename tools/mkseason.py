@@ -757,6 +757,12 @@ def bye_cups():
     return [b for pk in packs() for b in pk.bye_cups()]
 
 
+def multi_ns():
+    """Several career worlds with their own country namespaces (world-2025-26): never on main (one world with cups of
+    its own, the 1984-85 one), so lib97's byes / fixed-draw table needs no world filter records."""
+    return False
+
+
 def tourneys():
     """The tourney packs' competitions for historic.patch (CLASSIC TOURNEYS after the hand-made ones): [{id, names,
     win_points, file, base, stages, pairs, coin}]."""

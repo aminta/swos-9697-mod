@@ -1710,6 +1710,29 @@ def w84_cache():
     return not errs, '; '.join(errs + info) if errs else '; '.join(info)
 
 
+@scenario
+def w84_cupdraw():
+    """3.3.3 (lib97 nc_bye / nc_adv from world-2025-26): a new 1984-85 career at LIVERPOOL: the FA Cup (id CC, 64 clubs)
+    keeps the real first-round bracket of ties.csv in its first season (round-1 list at slot +2CDh = 0..63, the
+    contest order); 3.3.2 shuffled it (the cup header's byte 8 was 0)"""
+    errs = []
+    with Session('w84_cupdraw', builds()['it'], {}, 'dump:2', 240) as s:
+        if s.wait().outcome != 'dump':
+            return False, f'START: {s.result}'
+        for t in ('CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'EUROPA 1984-85', 'INGHILTERRA', 'FIRST DIVISION',
+                  'LIVERPOOL'):
+            if press(s, s.screen(), t) is None or s.result.outcome != 'dump':
+                return False, f'new career: {t} not reached ({s.result})'
+        r = s.result
+        d = r.read(r.base2, 0x100000)
+        hits = [i - 0x2D for i in range(0x2D, len(d) - 0x443) if d[i] == 0xCC and d[i + 4:i + 6] == b'\x40\x00']
+        if not hits:
+            return False, 'FA Cup slot (id CC, 64 clubs) not found'
+        start = list(d[hits[0] + 0x2CD:hits[0] + 0x2CD + 64])
+    check(start == list(range(64)), f'round 1 list {start[:16]}... (ties.csv order: 0..63)', errs)
+    return not errs, '; '.join(errs) or f'FA Cup round 1 = ties.csv (slot obj2+{hits[0]:#x})'
+
+
 def world_build():
     """World 3 (internal/career-test/mkworld3.py, not the DERBY variant), generated into internal/swostest/worlds."""
     d = os.path.join(WORK, 'worlds')

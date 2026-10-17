@@ -131,6 +131,33 @@ BUILD = os.environ.get('PATCHER_BUILD')   # e.g. c/REL30: built files read from 
 if BUILD:
     FILES = [(i, o, BUILD + '/' + p[2:] if p.startswith('c/') else p, t) for i, o, p, t in FILES]
 SWOSPP_BASE = {'ENGLISH.EXE + SWOS++': 'ENGLISH.EXE', 'ENGLISH.EXE + SWOS++ (GOG)': 'ENGLISH.EXE (GOG)'}
+# Career worlds' own files, named by mkseason from the build's packs instead of listed by hand: the team files of a
+# world with a namespace of its own (TMWn.nnn, several worlds in one exe), the managed club's extra players (XTRA.nnn /
+# XTWn.nnn), a world's first-season European clubs (WORLDnn.TMD) and foreign-market pool (POOLnn.DAT). Not a listing of
+# the DATA folder: release dirs keep stale test files (WORLD01.TMD, WORLD03.TMD). New files: produced with TEAM.020.
+
+
+def world_entries(data_dir=None):
+    """FILES rows for the per-world files the build writes (mkseason, the release packs or SEASON_PACKS) and the list
+    above lacks; each must exist in the build's DATA."""
+    import sys
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import mkseason
+    data_dir = data_dir or os.path.join(ROOT, BUILD or 'c', 'SWOS', 'DATA')
+    listed = {t for _, _, _, t in FILES}
+    import contextlib
+    import io
+    with contextlib.redirect_stdout(io.StringIO()):          # (the packs' build logs)
+        names = sorted(set(mkseason.ns_team_files()) | set(mkseason.xtra_files()) | set(mkseason.world_files()))
+    rows = [(n, None, os.path.relpath(os.path.join(data_dir, n), ROOT), 'DATA/' + n) for n in names
+            if 'DATA/' + n not in listed]
+    missing = [r[0] for r in rows if not os.path.exists(os.path.join(ROOT, r[2]))]
+    assert not missing, f'per-world files missing in {data_dir}: {missing}'
+    return rows
+
+
+_k = next(i for i, f in enumerate(FILES) if f[0].endswith('(GOG)'))
+FILES[_k:_k] = world_entries()
 
 
 def varint(n):

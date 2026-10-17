@@ -13,9 +13,13 @@ reserves (positions LB RB LW RW D D M M A A, random names, flag 154) -> 26 playe
 XTRA added players, that call is skipped once (else 25 + 10 would overrun the 32 slots and the variables after
 careerTeam). Mid-season trial players (CheckPlayersLeavingComing -> AddTrialPlayer, while careerNumPlayers < 30) stay.
 
-XTRA.nnn: word (big endian) k = clubs (as the team file), byte E = players per block (1..16), then k blocks of
-E x 38 bytes (PlayerFile, as in a record); block i = the club with ordinal i in TEAM.nnn; empty name = no player
-(the players of a block come first). No file, an ordinal >= k or a bad header: the squad stays at 16.
+Wages (Davide 2026-10-17, option 3): the extras are paid like the game's reserves (66%) but stay normal players (they
+never leave). PlayerFile byte 37 (someFlag) is not free: the game keeps a regular player's form there (signed, read by
+cseg_94C7E for his value and wage) and marks trial (9Bh, 33% wage) / reserve (9Ah, 66% wage, may leave or become a
+regular) players with it. So the extras are recognised by name instead: the wage routine's `cmp someFlag, 9Ah`
+(cseg_5E345) becomes 'reserve, or a name of the managed club's XTRA block' (xtra_wage); the block is cached in xblock
+and read again when the managed club or the file name (XTRA_NAMEP, per world) changes, so it works after a .CAR load.
+The season's wages (InitializeNewSeason -> cseg_5DEB9) are computed after xtra_load, so the extras start at 66%.
 """
 import re
 import struct
@@ -32,9 +36,41 @@ xtra_load:
     mov byte [xadded], 0
     pushfd
     pushad
+    call xtra_read                      ; the club's block -> xblock (eax = players with a name)
+    test eax, eax
+    jz .out
+    mov esi, xblock                     ; -> slots 16..
+    mov edi, CT + 684
+    mov ecx, [xsize]
+    rep movsb
+    xor ecx, ecx
+.order:
+    lea edx, [ecx + 16]
+    mov [CMP + 16 + ecx], dl            ; squad order: position 16 + i = slot 16 + i
+    inc ecx
+    cmp ecx, eax
+    jb .order
+    add [CNP], ax
+    mov [xadded], al
+.out:
+    popad
+    popfd
+    ret
+
+xtra_read:                              ; [SEL]'s block of the XTRA file -> xblock, zero-filled; eax = players
+    mov word [xteam], -1
+    mov edi, xblock
+    mov ecx, MAXE_ * PLAYER_
+    xor eax, eax
+    rep stosb
+    mov byte [xcount], 0
+    mov eax, [xtra_namep]
+    mov [xnamecache], eax
+    mov ax, [SEL]
+    mov [xteam], ax
     movzx eax, byte [SEL]               ; team file number
     cmp al, 100                         ; CUSTOMS.EDT
-    je .out
+    je .none
     mov edi, [xtra_namep]               ; the file name (another session may point it at a per-world name)
     xor edx, edx
     mov ecx, 100
@@ -49,7 +85,7 @@ xtra_load:
     mov ax, 3D00h                       ; open, read only
     mov edx, edi
     int 21h
-    jc .out
+    jc .none
     movzx ebx, ax
     mov ah, 3Fh
     mov ecx, 3
@@ -80,32 +116,32 @@ xtra_load:
     jc .close
     mov ah, 3Fh
     mov ecx, [xsize]
-    mov edx, CT + 684
+    mov edx, xblock
     int 21h
     jc .close
     cmp eax, [xsize]
     jne .close
     movzx ecx, byte [xhead + 2]
     xor eax, eax
-    mov edi, CT + 684 + 3               ; first name byte of slot 16
+    mov edi, xblock + 3                 ; first name byte
 .count:
     cmp byte [edi], 0
     je .done
-    lea edx, [eax + 16]
-    mov [CMP + 16 + eax], dl            ; squad order: position 16 + i = slot 16 + i
     inc eax
     add edi, PLAYER_
     cmp eax, ecx
     jb .count
 .done:
-    add [CNP], ax
-    mov [xadded], al
+    mov [xcount], al
 .close:
+    push eax
     mov ah, 3Eh
     int 21h
-.out:
-    popad
-    popfd
+    pop eax
+    movzx eax, byte [xcount]
+    ret
+.none:
+    xor eax, eax
     ret
 
 xtra_reserves:                          ; replaces InitializeNewSeason's call of cseg_64A65 (new club: 10 reserves)
@@ -114,13 +150,55 @@ xtra_reserves:                          ; replaces InitializeNewSeason's call of
     mov byte [xadded], 0                ; the club's real players instead of the invented reserves
     ret
 
+xtra_wage:                              ; replaces `mov esi, [A0] / cmp byte [esi+71h], 9Ah` in cseg_5E345
+    mov esi, [REGS + 32]                ; A0 = the player (- 4Ch)
+    cmp byte [esi + 71h], 9Ah           ; reserve: 66%
+    je .r
+    pushad
+    mov ax, [SEL]                       ; the cached block is the managed club's (and the current world's)?
+    cmp ax, [xteam]
+    jne .reload
+    mov eax, [xtra_namep]
+    cmp eax, [xnamecache]
+    je .cached
+.reload:
+    call xtra_read
+.cached:
+    mov byte [xres], 0
+    movzx ebp, byte [xcount]
+    mov ebx, xblock + 3
+.name:
+    test ebp, ebp
+    jz .end
+    mov esi, [REGS + 32]
+    add esi, 4Fh                        ; the player's name
+    mov edi, ebx
+    mov ecx, 23
+    repe cmpsb
+    je .extra
+    add ebx, PLAYER_
+    dec ebp
+    jmp .name
+.extra:
+    mov byte [xres], 1
+.end:
+    popad
+    cmp byte [xres], 1                  ; an extra (XTRA): 66% too; he stays a normal player (form, never leaves)
+.r:
+    ret
+
 align 4
 xtra_namep: dd xname                    ; -> 'data\xtra.nnn' (digits at +10..+12); LABELS['XTRA_NAMEP']
+xnamecache: dd 0
+xsize: dd 0
+xteam: dw -1
 xname: db 'data\xtra.000', 0
 xadded: db 0
+xcount: db 0
+xres: db 0
 xhead: db 0, 0, 0
 align 4
-xsize: dd 0
+xblock: times MAXE_ * PLAYER_ db 0
 """
 
 
@@ -170,13 +248,51 @@ def reserves_site(p):
     return calls[0]
 
 
+def wage_sites(p):
+    """(site of `mov esi, [A0] / cmp byte [esi+71h], 9Ah` in cseg_5E345, cseg_5E345, D0 = the pseudo registers' base)."""
+    import sacups
+    d1 = p.le.obj_bytes(1)
+    r = sacups.regs(d1)
+    a0 = r['A0']
+    w = [m.start() for m in re.finditer(rb'\x8b\x35' + re.escape(struct.pack('<I', a0)) +
+                                       rb'\x80\x7e\x71\x9a\x75.\x66\xa1....\x66\xbb\x42\x00', d1, re.S)]
+    assert len(w) == 1, w
+    _, cnp, *_ = sites(p)
+    fn = []                                        # cseg_5DEB9: mov ax,[careerNumPlayers] ... call GetPlayerAtIndex;
+    for m in re.finditer(rb'\x66\xa1' + re.escape(struct.pack('<I', cnp)) + rb'\x66\xa3....\x66\x83\x2d', d1, re.S):
+        calls = [m.start() + c.start() + 5 + struct.unpack('<i', c.group(1))[0]   # call cseg_5E345 (the wage routine)
+                 for c in re.finditer(rb'\xe8(....)', d1[m.start():m.start() + 0x60], re.S)]
+        fn += [t for t in calls[1:2] if t < w[0] < t + 0x200]
+    assert len(set(fn)) == 1, fn
+    return w[0], fn[0], r['D7'] - 28
+
+
+def wage_table(p):
+    """obj2 offset of the managed club's wage table (dseg_D6BA6, one dword per slot): the first `mov [A0], table`
+    after the wage site of cseg_5E345 (original exe, or a built one where the site calls xtra_wage)."""
+    d1 = p.get(1, 0, len(p.le.obj_bytes(1)))
+    m = [x.start() for x in re.finditer(rb'\xe8....\x90{5}\x75.\x66\xa1....\x66\xbb\x42\x00', d1, re.S)]
+    if m:                                          # built exe: xtra_wage starts with mov esi, [A0]
+        ws = m[0]
+        stub = ws + 5 + struct.unpack('<i', d1[ws + 1:ws + 5])[0]
+        a0 = p.target(1, stub + 2)[1]
+    else:
+        import sacups
+        ws, _, _ = wage_sites(p)
+        a0 = sacups.regs(d1)['A0']
+    t = [x.start() for x in re.finditer(rb'\xc7\x05' + re.escape(struct.pack('<I', a0)), d1[ws:ws + 0x200])]
+    assert t, 'wage table'
+    return p.target(1, ws + t[0] + 6)[1]
+
+
 def patch(p, at):
     """Code at obj1:at; returns the code end."""
     s, cnp, ct, cmp, sel = sites(p)
     rs, reserves = reserves_site(p)
+    ws, wage, regs = wage_sites(p)
     at = (at + 15) & ~15
     sym = {'CNP': (2, cnp), 'CT': (2, ct), 'CMP': (2, cmp), 'SEL': (2, sel), 'RESERVES': (1, reserves),
-           'PLAYER_': (0, PLAYER), 'MAXE_': (0, MAX_EXTRA)}
+           'WAGE': (1, wage), 'REGS': (2, regs), 'PLAYER_': (0, PLAYER), 'MAXE_': (0, MAX_EXTRA)}
     code, fix = nasmcave.assemble(ASM, at, sym)
     lab = nasmcave.labels(ASM, at, sym)
     assert not any(p.get(1, at, len(code)))
@@ -187,6 +303,8 @@ def patch(p, at):
     p.remove(1, s + 3)
     p.put(1, s, b'\xE8' + struct.pack('<i', lab['xtra_load'] - (s + 5)) + b'\x90' * 4)
     p.put(1, rs, b'\xE8' + struct.pack('<i', lab['xtra_reserves'] - (rs + 5)))      # relative call: no fixup
+    p.remove(1, ws + 2)                                                               # mov esi, [A0]
+    p.put(1, ws, b'\xE8' + struct.pack('<i', lab['xtra_wage'] - (ws + 5)) + b'\x90' * 5)
     print(f'exe: extended career squads (DATA\\XTRA.nnn) at obj1+{s:#x}, code obj1+{at:#x}, {len(code)} B')
     return at + len(code)
 

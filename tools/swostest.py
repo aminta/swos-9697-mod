@@ -664,6 +664,19 @@ class Session:
         open(os.path.join(self.run, 'debugger.raw'), 'wb').write(self.box.screen)
         open(os.path.join(self.run, 'session.log'), 'w').write('\n'.join(self.log) + '\n')
 
+    def bp_stack(self, r):
+        """SWOSTEST_BP_STACK=1: the obj1 return addresses in the 0x200 bytes above ESP at a breakpoint hit."""
+        if not os.environ.get('SWOSTEST_BP_STACK'):
+            return ''
+        path = os.path.join(self.run, 'MEMDUMP.BIN')
+        if os.path.exists(path):
+            os.remove(path)
+        self.box.cmd('MEMDUMPBIN 168:ESP 200', 2)
+        if not os.path.exists(path):
+            return ' stack ?'
+        v = struct.unpack('<128I', open(path, 'rb').read()[:512])
+        return ' stack ' + ' '.join(f'{x - r.base1:X}' for x in v if r.base1 <= x < r.base1 + 0xB3000)
+
     def bp(self, lin, callback):
         """Debugger breakpoint at a linear address; callback(result) runs at each hit, then the game goes on."""
         self.box.cmd(f'BP 0160:{lin:08X}', 0.3)
@@ -692,13 +705,14 @@ class Session:
             for off in os.environ['SWOSTEST_BP'].split(','):     # counting breakpoints (use CORE=normal)
                 o = int(off, 16)
                 self.bp(base1 + o, lambda r, o=o: (self.bp_hits.__setitem__(o, self.bp_hits.get(o, 0) + 1),
-                                                   self.log.append(f'BP obj1+{o:X} hit {self.bp_hits[o]}' + bp_str(r))))
+                                                   self.log.append(f'BP obj1+{o:X} hit {self.bp_hits[o]}' + bp_str(r)
+                                                                   + self.bp_stack(r))))
         while outcome == 'break' and getattr(b, 'memhit', False) and os.environ.get('SWOSTEST_BPLM_GO'):
-            b.memhit = False                           # SWOSTEST_BPLM_GO: log the writer's EIP, re-arm, go on
+            b.memhit = False                           # SWOSTEST_BPLM_GO: log the writer's EIP (+ stack), re-arm, go on
             r = self.paused('bplm', b.eip)
-            self.log.append(f'BPLM obj1+{b.eip - r.base1:X}' + bp_str(r))
+            self.log.append(f'BPLM obj1+{b.eip - r.base1:X}' + bp_str(r) + self.bp_stack(r))
             r.box = None
-            b.cmd('BPDEL *', 0.3)                      # (a memory breakpoint keeps firing once hit: all anew)
+            b.cmd('BPDEL *', 0.3)
             b.cmd('BPINT 3', 0.2)
             for lin in getattr(self, 'bps', {}):
                 b.cmd(f'BP 0160:{lin:08X}', 0.2)
@@ -2266,15 +2280,17 @@ def xtra_build():
 
 
 def xtra_test_file(path, extra=9):
-    """Test DATA/XTRA.014: HAMBURG (ordinal 17) gets 9 players = BAYERN MUNICH's first 9 renamed XTRA TEST 1..9."""
+    """Test DATA/XTRA.014: HAMBURG (ordinal 17) gets 9 players = copies of its own first 9 renamed XTRA TEST 1..9
+    (same skills and price: an extra's wage = the reserve rate of his twin's)."""
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import xtra
     d = open(os.path.join(ROOT, 'orig', 'DATA', 'TEAM.%03d' % XTRA_FILE), 'rb').read()
     k = struct.unpack('>H', d[:2])[0]
-    bay = next(2 + i * 684 for i in range(k) if d[2 + i * 684 + 5:2 + i * 684 + 22].split(b'\0')[0] == b'BAYERN MUNICH')
+    ham = 2 + XTRA_ORD * 684
+    assert d[ham + 5:ham + 22].split(b'\0')[0] == XTRA_CLUB.encode()
     pl = []
     for j in range(extra):
-        q = bytearray(d[bay + 76 + j * 38:bay + 76 + (j + 1) * 38])
+        q = bytearray(d[ham + 76 + j * 38:ham + 76 + (j + 1) * 38])
         q[3:26] = f'XTRA TEST {j + 1}'.encode().ljust(23, b'\0')
         q[2] = 30 + j
         pl.append(bytes(q))
@@ -2323,6 +2339,13 @@ def xtra_squad():
         n = struct.unpack('<H', r.obj2(cnp, 2))[0]
         check(n == 25 and list(r.obj2(cmp, 25))[16:] == list(range(16, 25)),
               f'career menu: {n} players (the 10 invented reserves must not be added)', errs)
+        form = [r.obj2(ct + 76 + j * 38 + 37, 1)[0] for j in range(16, 25)]
+        check(form == [q[37] for q in pl], f'extras byte 37 (form) {form} changed', errs)
+        wages = struct.unpack('<32I', r.obj2(xtra.wage_table(lepatch.LEPatch(os.path.join(b, 'ITALIAN.EXE'))), 128))
+        prices = [r.obj2(ct + 76 + j * 38 + 32, 1)[0] for j in range(32)]
+        ratio = [round(wages[16 + j] / wages[j], 2) for j in range(9) if wages[j]]
+        check(len(ratio) == 9 and all(0.6 <= x <= 0.7 for x in ratio), f'extra / twin wage {ratio} (66% expected)', errs)
+        info.append(f'extra / twin wage {ratio}')
         press(s, s.screen(), 'ESCI', wait=3)
         if press(s, s.screen(), 'SALVA CARRIERA') is None:
             return False, f'no SALVA CARRIERA on {s.screen()}'
@@ -2373,10 +2396,15 @@ def xtra_season():
         if not ok:
             return False, 'xtra_squad: ' + msg
     errs, info = [], []
-    with Session('xtra_season', b, {'XTRA1.CAR': keep}, 'dump:2', 900) as s:
+    xpath = os.path.join(WORK, 'saves', 'XTRA014_TEST.BIN')
+    xtra_test_file(xpath)                       # the career's data file: the game reads it again for the wages
+    with Session('xtra_season', b, {'XTRA1.CAR': keep, 'DATA/XTRA.%03d' % XTRA_FILE: xpath}, 'dump:2', 900) as s:
         s.wait()
         s.send('down down down down down fire dump:2')
         s.send('fire dump:3')
+        ns = globals().get('nosack_off')         # the chairman never sacks (when this harness knows the switch)
+        if ns:
+            s.poke(s.result.base2 + ns(os.path.join(b, 'ITALIAN.EXE')), b'\x01\x00')
         ok, msg = advance(s, season_over, 900)
         if not ok:
             return False, 'advance: ' + msg
@@ -2398,12 +2426,31 @@ def xtra_season():
             if scr.find('CONTINUA CARRIERA', exact=True) is not None:
                 break
             s.send('fire dump:2')
+        r = s.result                            # twins again before the season start recomputes the wages: each extra
+        twin = [r.obj2(ct + 76 + j * 38, 38) for j in range(9)]          # gets bytes 25..37 (form, skills, price) of
+        for j in range(9):                                               # the record player he was copied from
+            q = r.obj2(ct + 76 + (16 + j) * 38, 38)
+            if q[3:26].split(b'\0')[0] == f'XTRA TEST {j + 1}'.encode():
+                s.poke(r.base2 + ct + 76 + (16 + j) * 38 + 25, twin[j][25:38])
         path = next_season_save(s, 'XTRA2')
         check(path.endswith('.CAR'), f'next season: {path}', errs)
         if path.endswith('.CAR'):
-            n2 = struct.unpack('<H', s.result.obj2(cnp, 2))[0]
+            r = s.result
+            n2 = struct.unpack('<H', r.obj2(cnp, 2))[0]
             info.append(f'next season saved, {n2} players')
             check(n2 <= 32, f'next season: {n2} players', errs)
+            team = struct.unpack('<H', r.obj2(sel, 2))[0]
+            if team != XTRA_ORD << 8 | XTRA_FILE:      # sacked: another club, no extras to check
+                info.append(f'next season at another club ({team:#x}): wage check skipped')
+                return not errs, '; '.join(errs + info)
+            wages = struct.unpack('<32I', r.obj2(xtra.wage_table(lepatch.LEPatch(os.path.join(b, 'ITALIAN.EXE'))), 128))
+            names = [r.obj2(ct + 76 + j * 38 + 3, 23).split(b'\0')[0].decode('latin1') for j in range(32)]
+            d = open(os.path.join(ROOT, 'orig', 'DATA', 'TEAM.%03d' % XTRA_FILE), 'rb').read()
+            twin = [d[2 + XTRA_ORD * 684 + 76 + j * 38 + 3:][:23].split(b'\0')[0].decode('latin1') for j in range(9)]
+            ratio = [round(wages[16 + j] / wages[j], 2) for j in range(9)
+                     if names[16 + j] == f'XTRA TEST {j + 1}' and names[j] == twin[j] and wages[j]]
+            check(ratio and all(0.6 <= x <= 0.7 for x in ratio), f'next season: extra / twin wage {ratio}', errs)
+            info.append(f'next season extra / twin wage {ratio}')
     return not errs, '; '.join(errs + info)
 
 
@@ -2595,6 +2642,185 @@ def run_parallel(names, jobs):
                 del running[n]
     print(f'{len(names)} scenarios, {jobs} at a time: {time.time() - t0:.0f} s', flush=True)
     return 1 if any(rc for rc, _ in out.values()) else 0
+
+
+NS_W4 = ('EUROPA 1984-85', 'MALTA', 131)             # world_ns: Malta 1984-85 (TEAM.131) and Cyprus 2025-26 (TMW5.131,
+NS_W5 = ('WORLD 2025-26', 'CYPRUS', 131)             # the test world generated from file 112): one team word, two worlds
+
+
+def world_ns_build():
+    """Build 'world_ns': the default packs + Europe 1984-85 (world 4, TEAM.101-145) + a 20-country test world 5 from the
+    private SWOS 2020 converter (FIRST_FILE=112: its files 112-131 reuse 1984-85 numbers, TMW5.nnn), XTRA hook on;
+    plus test XTRA files for ordinal 0 of file 131 in both worlds. Returns (build, {dos name: path}) or None."""
+    conv = os.path.join(MAIN, 'internal', 'world2526', 'mkworld2526.py')
+    src = os.path.join(MAIN, 'orig', 'swos2020', '2025_26')
+    if not (os.path.exists(conv) and os.path.isdir(src)):
+        return None
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import xtra
+    wdir = os.path.join(WORK, 'world_ns')
+    shutil.rmtree(os.path.join(wdir, 'w5'), ignore_errors=True)
+    r = subprocess.run([sys.executable, '-I', conv, src, os.path.join(wdir, 'w5'), 'first20'], capture_output=True,
+                       text=True, env=dict(os.environ, FIRST_FILE='112'), check=True)
+    w5 = [os.path.join(wdir, 'w5', ln.split()[0].lower()) for ln in r.stdout.splitlines() if ' file ' in ln]
+    w4 = os.path.join(ROOT, 'packs', 'europe-1984-85')
+    packs = ['ddr-1988-89', 'italia-1947-48', 'world-cup-1934'] + \
+        [os.path.join(w4, c) for c in sorted(os.listdir(w4)) if not c.startswith('.')] + w5
+    b = build('world_ns', env={'SEASON_PACKS': ','.join(packs), 'XTRA_HOOK': '1'})
+    files = {}
+    for team, dos, tag in (('TEAM.131', 'XTRA.131', 'W4'), ('TMW5.131', 'XTW5.131', 'W5')):
+        d = open(os.path.join(b, 'DATA', team), 'rb').read()
+        k = struct.unpack('>H', d[:2])[0]
+        pl = []
+        for j in range(9):                       # ordinal 0 gets club 1's first 9 players, renamed XTRA <world> j
+            q = bytearray(d[2 + 684 + 76 + j * 38:2 + 684 + 76 + (j + 1) * 38])
+            q[3:26] = f'XTRA {tag} {j + 1}'.encode().ljust(23, b'\0')
+            q[2] = 30 + j
+            pl.append(bytes(q))
+        path = os.path.join(wdir, dos)
+        open(path, 'wb').write(xtra.build({0: pl}, k, 9))
+        files['DATA/' + dos] = path
+    return b, files
+
+
+def ns_new_career(s, path, club, tag, save, info, errs):
+    """Main menu -> CARRIERA -> SCEGLI SQUADRA -> path ('<back>' = ESCI until the next step shows) -> club (ordinal 0
+    of file 131): check the managed team word, the 25 players with XTRA <tag>, save as `save` from the main menu."""
+    import xtra
+    import lepatch
+    _, cnp, ct, _, sel = xtra.sites(lepatch.LEPatch(os.path.join(s.run, 'SWOS', 'ITALIAN.EXE')))
+    path = ['CARRIERA', 'SCEGLI SQUADRA'] + path + [club]
+    for k, t in enumerate(path):
+        if t == '<back>':
+            for _ in range(6):
+                if s.screen().find(path[k + 1], exact=True) is not None:
+                    break
+                ns_exit(s)
+            continue
+        walk(s, t, 3)
+        if t == 'CARRIERA' and 'SCEGLI SQUADRA' not in s.screen().texts() and 'CONTINUA' in s.screen().texts():
+            walk(s, 'CONTINUA', 3)               # a career is running: start a new one
+    r = s.result
+    team = struct.unpack('<H', r.obj2(sel, 2))[0]
+    n = struct.unpack('<H', r.obj2(cnp, 2))[0]
+    names = [r.obj2(ct + 76 + j * 38 + 3, 23).split(b'\0')[0].decode('latin1') for j in range(25)]
+    info.append(f'{club}: team {team:#x}, {n} players, {names[0]!r} / {names[16]!r}')
+    check(team == 131, f'{club}: team word {team:#x}', errs)
+    check(n == 25 and names[16:25] == [f'XTRA {tag} {j + 1}' for j in range(9)], f'{club}: extras {n} {names[16:18]}', errs)
+    for _ in range(10):                          # chairman's letter -> career menu
+        scr = s.screen()
+        if 'TRASFERIMENTI' in scr.texts():
+            break
+        press(s, scr, 'CONTINUA') or s.send('fire dump:2')
+    press(s, s.screen(), 'ESCI', wait=3)
+    if press(s, s.screen(), 'SALVA CARRIERA') is None:
+        return f'no SALVA CARRIERA on {s.screen()}'
+    scr = s.screen()                             # the cursor starts on SALVA or (a new career after a save) on the
+    k = [e[0] for e in scr.entries].index(scr.find('NOME FILE:', exact=True))      # name field: edit the field
+    walk(s, scr.entries[k + 1][0], 1)
+    s.send('bspace ' * 8 + ' '.join(save.lower()) + ' enter:1 dump:3')
+    car = os.path.join(s.run, 'SWOS', save + '.CAR')
+    return car if os.path.exists(car) else f'{save}.CAR not written ({s.result})'
+
+
+def ns_load(s, name):
+    """Main menu -> CARICA VECCHIA COMPETIZIONE -> name -> the career menu; returns its texts."""
+    press(s, s.screen(), 'CARICA VECCHIA COMPETIZIONE')
+    for _ in range(8):
+        scr = s.screen()
+        if 'TRASFERIMENTI' in scr.texts():
+            return scr.texts()
+        if scr.texts()[:1] == ['CARICA VECCHIA COMPETIZIONE'] and scr.find(name, exact=True) is not None:
+            walk(s, name, 3)                     # the save list (the cursor may start on the last one loaded)
+            continue
+        if press(s, scr, 'CONTINUA') is None:   # no blind fire here (it could start a match): wait for the menu
+            s.send('dump:2')
+    return s.screen().texts()
+
+
+def mkseason_careers_name():
+    return 'CARR. STORICHE'                     # (the IT exe: careerworld WCONT is named as CLASSIC CAREERS)
+
+
+def ns_view(s):
+    """Career menu -> VISUALIZZA MONDO: the texts of the world's list (the swapped countriesTable), then back."""
+    press(s, s.screen(), 'VISUALIZZA MONDO', wait=3)
+    if s.screen().find(mkseason_careers_name(), exact=True) is not None:   # [-1, 99]: the world's own continent
+        press(s, s.screen(), mkseason_careers_name(), wait=3)
+    texts = s.screen().texts()
+    for _ in range(6):
+        if 'TRASFERIMENTI' in s.screen().texts():
+            break
+        ns_exit(s)
+    return texts
+
+
+def ns_exit(s):
+    """Fire the list's ESCI / ABBANDONA (team-selector lists: no menu links the BFS knows, walk down to it)."""
+    for _ in range(60):
+        scr = s.screen()
+        if any(e[0] == scr.selected and e[1] in ('ESCI', 'ABBANDONA') for e in scr.entries):
+            break
+        s.send('down dump:0.5')
+    s.send('fire dump:2')
+
+
+@scenario
+def world_ns():
+    """Two career worlds in one exe, each with its own country namespace (1984-85 + a 20-country 2025-26 test world
+    on the same numbers 112-131): new careers at Valletta 1984-85 (after a detour into world 5's club list) and AEK
+    Larnaca 2025-26 = the same team word 0x83 with each world's XTRA extras; then each save loaded after the other
+    world's in one session (VIEW WORLD lists the right world), its season played to the end and saved, checkw1"""
+    bf = world_ns_build()
+    if bf is None:
+        return True, 'SKIP: private converter internal/world2526 or orig/swos2020 missing'
+    b, files = bf
+    errs, info = [], []
+    with Session('world_ns_new', b, files, 'dump:2', 240) as s:
+        if s.wait().outcome != 'dump':
+            return False, f'START: no first pause ({s.result})'
+        car5 = ns_new_career(s, ['CARR. STORICHE', NS_W5[0], NS_W5[1]], 'AEK LARNACA', 'W5', 'NSW5', info, errs)
+        car4 = ns_new_career(s, ['CARR. STORICHE', NS_W5[0], 'ENGLAND', 'ENGLAND DIV 1', '<back>', NS_W4[0], NS_W4[1]],
+                             'VALLETTA', 'W4', 'NSW4', info, errs)
+    for c in (car5, car4):
+        if not c.endswith('.CAR'):
+            return False, f'{c}; ' + '; '.join(info + errs)
+    for first, then, want, other, cw in ((car5, car4, 'INGHILTERRA', 'ENGLAND', ('4', '128', '')),
+                                         (car4, car5, 'ENGLAND', 'INGHILTERRA', ('5', '64', '1'))):
+        tag = os.path.basename(then)[:-4]
+        cars = dict(files, **{'NSW5.CAR': car5, 'NSW4.CAR': car4})
+        with Session(f'world_ns_{tag}', b, cars, 'dump:2', 240) as s:
+            if s.wait().outcome != 'dump':
+                return False, f'START: no first pause ({s.result})'
+            ns_load(s, os.path.basename(first)[:-4])
+            press(s, s.screen(), 'ESCI', wait=3)
+            texts = ns_load(s, tag)
+            check('TRASFERIMENTI' in texts, f'{tag}: career menu not reached after the other world ({texts[:4]})', errs)
+            view = ns_view(s)
+            check(want in view and other not in view, f'{tag} after the other world: VIEW WORLD {view[:8]}', errs)
+            check('TRASFERIMENTI' in s.screen().texts(), f'{tag}: back from VIEW WORLD: {s.screen().texts()[:4]}', errs)
+            ok, msg = advance(s, season_over, 900)
+            if not ok:
+                return False, f'{tag}: {msg}; ' + '; '.join(info + errs)
+            if s.screen().find('FINISCI STAGIONE', exact=True) is not None:
+                press(s, s.screen(), 'FINISCI STAGIONE', wait=3)
+            path = next_season_save(s, tag + 'B')
+            if not path.endswith('.CAR'):
+                return False, f'{tag}: {path}'
+        keep = {k: os.environ.get(k) for k in ('W8485_WNUM', 'W8485_K', 'W8485_SMALL')}
+        os.environ.update(W8485_WNUM=cw[0], W8485_K=cw[1])
+        if cw[2]:
+            os.environ['W8485_SMALL'] = '1'
+        else:
+            os.environ.pop('W8485_SMALL', None)
+        try:
+            good, report = checkw1(path)
+        finally:
+            for k, v in keep.items():
+                os.environ.pop(k, None) if v is None else os.environ.__setitem__(k, v)
+        info.append(f'{tag}: season played after the other world, {msg}, checkw1 {"ok" if good else "FAIL"}')
+        check(good, f'{tag}: checkw1\n{report}', errs)
+    return not errs, '; '.join(info + errs)
 
 
 def main(argv):

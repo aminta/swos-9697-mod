@@ -115,6 +115,33 @@ in Croatia's, the USSR in Russia's); the world's career loads these files instea
 The Europe 1984-85 national teams are built by a converter from the same database as the clubs (players of each
 nationality, internationals first) and checked with the automatic test `world8485_nat`.
 
+## Fields for modern worlds (World 2026-27, 5.0)
+
+Fields the World 2026-27 uses; any world can use them.
+
+| Where | Field | Meaning |
+|---|---|---|
+| league competition | `parallel` | `{"upper": 1, "first": 2, "count": 3}`: the last `count` divisions are **groups of one level** (Italy's Serie C girone A / B / C below Serie B). Each group promotes its winner (`promoted` 1), none relegates (`relegated` 0: the world's lowest level). From season 2 the groups are formed again by area and balanced to their sizes |
+| `clubs.csv` | `area` | with `parallel`: the group (`A`, `B`, …) a club joins when it comes down to that level (Italy: Serie C clubs their real 2026-27 girone, Serie A and B clubs the group of their region) |
+| league competition | `playoffs` | `"ita"`: the Italian play-offs at the season end (Serie B play-off and play-out, the Serie C play-off of 28); needs `parallel` |
+| cup competition | `round_names` | `"numbered"`: the cup keeps the game's numbered rounds where its federation numbers them (FA Cup **fifth round**); without it a world's 16-club round is called ROUND OF 16 / OTTAVI DI FINALE |
+| `ties.csv` | bye rows | a club with no away club in round 1 starts in round 2: see [README.md](README.md). Round 2 must be a power of 2; at most 64 clubs a cup |
+| `season` | no `cup` | a country with no national cup (Mexico, Honduras, Guatemala, Panama in 2026-27) has only its league |
+
+## The World 2026-27: sources and rebuilding
+
+- **Sources**: squads, coaches, league members 2026-27, the 2025-26 tables and the national cups' rounds from
+  **Transfermarkt** (transfermarkt.com); player attributes from **EA SPORTS FC** ratings (FC 26 era); kits from the
+  **Wikipedia** infoboxes (contributors, CC BY-SA 4.0) via **Wikidata** (CC0); UEFA coefficients from Bert Kassies'
+  site (kassiesa.net); league formats from the leagues' regulations and their Wikipedia season pages.
+- **Shipped data are derived only**: the packs hold the game's own fields (names, skills on the game's 0-7 scale,
+  prices on its scale, positions, kits); no market values, ratings or pages of the sources.
+- **What is private**: the converter and its cache of source pages (fetched once, politely) stay with the maintainer;
+  they are never in this repository or the patcher. The packs of the world are compiled into the release.
+- **Rebuilding**: the maintainer re-runs the converter on a newer snapshot (new transfer window, EA's FC 27 ratings)
+  and rebuilds; every build records its data date and versions. A contributor who wants another season can still
+  send a world as described above, built from any source they may use.
+
 ## What a contributor sends us
 
 For each country of the world, at the start season:

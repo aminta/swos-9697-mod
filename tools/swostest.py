@@ -893,7 +893,10 @@ def substitute(s, scr, tries=40):
             if reserve_info(s.screen(), ry)[0] == want:
                 return True
             press(s, s.screen(), face, wait=1)
-        return False
+            if s.result.outcome != 'dump':
+                return False
+        s.send('dump:1')                                # one more look after a pause (redraw)
+        return reserve_info(s.screen(), ry)[0] == want
 
     def swap(slot_entry, reserve):                      # select the row, then the reserve's name: they change places
         press(s, s.screen(), slot_entry, wait=1)
@@ -945,13 +948,17 @@ def substitute(s, scr, tries=40):
         fit = [(n, r, v) for n, r, v, f in pool if f and n]
         rank = lambda c: ((c[1] == need) if need else 1,           # the slot's role first (G: keepers only)
                           c[2] > 0, c[2] >= 0, c[2])               # real players, then RIS, trial players last
-        cand = [c for c in fit if need != 'G' or c[1] == 'G'] if k in (0, 11) else \
-            ([c for c in fit if c[1] != 'G'] or fit)          # a keeper in an outfield slot only as a last resort
-        if not cand:
+        cand = ([c for c in fit if c[1] == 'G'] or fit) if k in (0, 11) else \
+            ([c for c in fit if c[1] != 'G'] or fit)          # out of role only as a last resort (the game itself
+        if not cand:                                          # puts an outfield player in goal when it must)
             return f'no fit reserve for row {k + 1}'
-        best = max(cand, key=rank)
-        if not bring(face, ry, best[0]):
-            return f'row {k + 1}: reserve {best[0]} not found again'
+        best = None
+        for c in sorted(cand, key=rank, reverse=True):        # the best one that the cycle shows again (a read
+            if bring(face, ry, c[0]):                         # before the row's redraw can miss a name)
+                best = c
+                break
+        if best is None:
+            return f'row {k + 1}: no candidate found again in the reserves ({[c[0] for c in cand][:6]})'
         stand_in = best[0]
         swap(rows[k][0], reserve)
         out = reserve_info(s.screen(), ry)[0]           # the one who left the 16 is now the 17th row

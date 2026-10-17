@@ -912,7 +912,8 @@ def substitute(s, scr, tries=40):
         face = next((i for i, (l, r) in enumerate(cur.nav) if l[1] == reserve and cur.geom[i][0] < 25), None)
         if face is None:
             return 'squad screen: no face entry for the 17th row'
-        if s.__dict__.get('gk_swap') and not rows[11][1] and not rows[0][1]:   # the first keeper fit again
+        # the first keeper fit again; row 12 must still be him (11 in subs: he left the 16, a stand-in is there)
+        if s.__dict__.get('gk_swap') and 11 not in subs and not rows[11][1] and not rows[0][1]:
             swap(rows[0][0], rows[11][0])
             s.gk_swap = False
             s.log.append('[subs] slot 1: the first keeper back')
@@ -939,8 +940,9 @@ def substitute(s, scr, tries=40):
             return None if 'VIS. RISULTATI' in cur.texts() else 'squad screen without VIS. RISULTATI, no unavailable row'
         k = bad[0]
         need = SLOT_ROLE[k] if k < len(SLOT_ROLE) else ''
-        if k == 0 and not rows[11][1] and not s.__dict__.get('gk_swap'):   # the goalkeeper: row 12 is the
-            swap(rows[0][0], rows[11][0])               # bench keeper in SWOS squads (drawn rows have no texts)
+        if k == 0 and not rows[11][1] and not s.__dict__.get('gk_swap') and 11 not in subs:   # the keeper: row 12
+            swap(rows[0][0], rows[11][0])               # is the bench keeper in SWOS squads (drawn rows have no
+                                                        # texts) unless a stand-in took his place
             s.gk_swap = True
             s.log.append('[subs] slot 1: the bench keeper (row 12) in')
             continue

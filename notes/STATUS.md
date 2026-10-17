@@ -2083,3 +2083,15 @@ Left for 2.5: (a) NSL/NSSL finals series (type-1 design) or declare them postpon
 - SELECT KITS entry 1 background from teamControls (10 computer, 13 coach, 11 player; Marco); Screen.colors.
 - Build c/REL333: SWOS IT a288261d EN 0004dc88 FR 96505310 DE 60759d18; gog IT c3f8e77c EN 9f4f23ba FR b0f55a59 DE 465c7f37; SWOS++ 0d95c2bb;
   DATA = 3.3.0. Suite 20/20 PASS (runs333; menu_check clean x10). Patcher 3.3.3 md5 c6805370 (old v3.3.2 added): Node OK.
+
+## 3.3.4 in progress (branch v3.3.4, PAUSED 2026-10-18: weekly usage 77%, resets 22 Oct; resume on Davide's go)
+- Done: era shirt numbers (pack.json "numbers": "place", mkseason._place_numbers: starters keep a historic 1..11,
+  bench 12..16; all mod packs; 1984-85: TEAM.101-136 + WORLD04.TMD change, ~790 players 17..41 renumbered, Baresi 6);
+  menunum.py (bench menu text 0..99, tactics pitch sprites 12..99 = 1620..1707; cherry-pick of dc6e24c); harness
+  substitute() fixes 5306c14 + 7f1cbc2 (world8485_nat 'no fit reserve for row 12'). Build c/REL334 (all languages),
+  patcher 3.3.4 (old v3.3.3 saved) Node OK, release/notes-3.3.4.md IT/EN.
+- Suite on REL334: 17/21 PASS (incl. menu_numbers). italy_advance, india_season, world8485, world8485_nat stopped by
+  screencapture failing (Mac screen locked overnight), not by the game; rerun only those 4 (with the harness fixes) with
+  the screen unlocked.
+- Still open: Davide / Marco playtest of SWOS++ English (tactics pitch 12+) and the bench menu text 20+ (edited team);
+  STATUS / CLAUDE.md release lines; Davide's ok to publish; 12bit packages + MiSTer after release.

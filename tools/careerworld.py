@@ -1522,7 +1522,7 @@ LP_SIZE = 0x28 + 8 + 2 * 36                         # its struct: 120 B (the W1 
 LP_STAGES = bytes([6, 36, 2, 18, 16, 0, 16, 16, 0, 16, 8, 0, 8, 4, 0, 4, 2, 0, 2, 1]) + bytes([0, 0x94, 0x94, 0x94, 0x94, 0x14])
 
 
-def lp_struct(d, clubs, size):
+def lp_struct(d, clubs, size, names=None):
     """A world's league-phase cup: the original cup's id, months and names (d), type 2, fixed list (the draw is
     lp36's), shuffle path for the knockout draws (lp36.lp_draw keeps the orders), no away goals, one meeting, 3 points."""
     assert len(clubs) == 36, len(clubs)
@@ -1532,19 +1532,19 @@ def lp_struct(d, clubs, size):
     h[7] = 0x30 - 7                     # clubs at +30h
     h[8], h[9], h[10], h[11], h[12], h[13] = 1, 0, 0, 1, 3, 0x35
     h[0x0e:0x28] = LP_STAGES
-    names = d[5 + d[5]:5 + d[5] + 8]
+    names = struct.pack('<II', *names) if names else d[5 + d[5]:5 + d[5] + 8]
     body = bytes(h) + names + b''.join(bytes(c) for c in clubs)
     assert len(body) == LP_SIZE and (size or 0) >= LP_SIZE, (len(body), size)
     return body.ljust(size, b'\0')
 
 
-def struct_for(p, key, euro, rounds, clubs, size=None):
+def struct_for(p, key, euro, rounds, clubs, size=None, names=None):
     """World European cup struct: CWC layout (header, rounds, 0, name dwords, (file, ordinal) pairs) with the
     original cup's id, dates and names, padded to the in-save copy size (size: a big world's buffer)."""
     obj, off = euro
     d = bytes(p.get(obj, off, 100))
     if rounds == LP_ROUNDS:
-        return lp_struct(d, clubs, size)
+        return lp_struct(d, clubs, size, names)
     import sacups
     d2 = p.le.obj_bytes(2)
     cwc = d2[sacups.unique(d2, sacups.CWC_HDR):][:14]
@@ -1556,7 +1556,7 @@ def struct_for(p, key, euro, rounds, clubs, size=None):
     h += bytes(rounds) + b'\0'
     h[5] = len(h) - 5
     h[7] = len(h) + 8 - 7
-    names = d[5 + d[5]:5 + d[5] + 8]
+    names = struct.pack('<II', *names) if names else d[5 + d[5]:5 + d[5] + 8]   # (a world's own: long, short)
     body = bytes(h) + names + b''.join(bytes(c) for c in clubs)
     size = size or COPY[key]
     assert len(body) <= size, (key, len(body))
@@ -1593,7 +1593,7 @@ def patch(p, worlds, at, nasmcave, comp, ct, cont_rec):
         extra.append('    db ' + ', '.join(map(str, view + [0xff])))
         for key, euro in zip(('cc', 'cwc', 'uefa'), s['euro']):
             rounds, clubs = w['cups'][key]
-            body = struct_for(p, key, euro, rounds, clubs, BIGROOM[key] if bw else None)
+            body = struct_for(p, key, euro, rounds, clubs, BIGROOM[key] if bw else None, w.get('cupnames', {}).get(key))
             extra.append(f'W{n}_{key.upper()}: db ' + ', '.join(map(str, body)))
             pl = w['places'][key]               # one group: every listed place is taken (n = take)
             extra.append(f'W{n}_T{key.upper()}: dd W{n}_P{key.upper()}')

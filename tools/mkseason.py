@@ -78,6 +78,8 @@ ROUND = {'two_legs': 0x94, 'single': 0x14, 'single_et': 0x54}   # knockout round
 # replay is decided by a coin toss (historic coin_draw): those tourneys use no penalties at all.
 MATCHES = {'single': 0x14, 'single_et': 0x54, 'two_legs': 0x94, 'single_replay': 0x00, 'two_legs_replay': 0x80}
 REPLAY = ('single_replay', 'two_legs_replay')
+UEFA_NAMES = {'cc': ('UEFA CHAMPIONS LEAGUE', 'CHAMPIONS LEAGUE'), 'cwc': ('UEFA EUROPA LEAGUE', 'EUROPA LEAGUE'),
+              'uefa': ('UEFA CONFERENCE LEAGUE', 'CONF. LEAGUE')}     # a league-phase world's cups (official)
 RESERVED_IDS = {0xAD, 0xC1, 0xC2, 0xC3, 0xC4, 0xC5, 0xFC, 0xFD, 0xFE} | set(range(0x6c, 0x7f))   # hand-made contests (historic, finals97,
                                                                                # sacups, cafcups, Australian cup,
                                                                                # uefaq's qualifying ties 7C..7E,
@@ -1055,6 +1057,15 @@ def world_defs():
         w['natcomp'] = nat[0].competitions() if nat else None
         w['codes'] = {pk.clubs[pk.league_clubs[0]]['country']: pk.files[pk.league['clubs']][0] for pk in pks}
         lpw = any(wc.get(k, {}).get('format') == 'league_phase' for k in ('cc', 'cwc', 'uefa'))
+        # the cups' names: world_cups.<cup>.names [long, short] (the game's own when absent); a league-phase world's
+        # default = UEFA's official names (English in every language), not the 1996-97 game's
+        w['cupnames'] = {}
+        for k in ('cc', 'cwc', 'uefa'):
+            nm = wc.get(k, {}).get('names') or (UEFA_NAMES[k] if lpw else None)
+            if nm:
+                _need(len(nm) == 2 and len(nm[0]) <= 30 and len(nm[1]) <= 16,
+                      f'world {n}: world_cups.{k}.names = [long (<= 30), short (<= 16)]')
+                w['cupnames'][k] = tuple(nm)
         for pk in pks:                          # cseg_93974: the champion, the cup winner, then the top 9's next clubs
             pl = pk.meta.get('europe_places', {})
             if lpw:                             # league-phase world (careerworld.QUAL_ASM): top N, cup winner + next
@@ -1704,7 +1715,12 @@ def patch(p, lang, area, cave):
         if multi_ns():
             careerworld.NS['info'] = dict(NS_INFO, files={n: ns_files(n) for n in worlds()}, base=ns_base(),
                                           stems={n: ns_stem(n) for n in worlds()}, cworld=cworld, wmenu=WMENU)
-        end = careerworld.patch(p, world_defs(), cave, nasmcave, comp, ct, (2, CAREERS_REC[0]))
+        import sacups
+        wd = world_defs()
+        for w in wd:                                       # the European cups' own names (official ones in a
+            w['cupnames'] = {k: tuple(area.add(x.encode('latin1') + b'\0') - sacups.STR_BASE for x in names)
+                             for k, names in w['cupnames'].items()}   # league-phase world): long, short
+        end = careerworld.patch(p, wd, cave, nasmcave, comp, ct, (2, CAREERS_REC[0]))
         _need(end <= cave + CAREER_CAVE_SIZE, f'career world code overflows its pages ({end:#x})')
     return at, [x for i in infos for x in i['classic']] + tleagues
 

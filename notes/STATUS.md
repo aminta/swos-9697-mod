@@ -2063,7 +2063,7 @@ Left for 2.5: (a) NSL/NSSL finals series (type-1 design) or declare them postpon
 - Build c/REL332: SWOS IT 2b8cdf85 EN 3c6e6766 FR ab5fb6dd DE f52af857; gog IT 0540f997 EN 4dbe9e8a FR fa98f064 DE ec5fe069; SWOS++ c7bc6c89;
   DATA = 3.3.0. Suite 18/18 PASS (runs332). Patcher 3.3.2 md5 17dc2de4 (old v3.3.1 added): Node test all OK.
 
-## Release 3.3.3 (2026-10-17): team cache of 160 in big worlds (data/team.254); SELECT KITS name box colour
+## Release 3.3.3 (2026-10-17): team cache of 160 in big worlds (data/team.254); real national-cup brackets in 1984-85 careers; SELECT KITS name box colour
 - data/team.254 (found by the world 2025-26 harness with role-based substitutions: a strong Liverpool 1984-85): the season
   end (InitializeNewSeason -> cseg_8D661 -> cseg_8B2D3 -> cseg_31F58 -> cseg_32E15) caches every club of the manager's
   competitions; league 22 + FA Cup 64 (42 cup-only) + UEFA 64 = ~124 > g_selectedTeams' 100, record 101 overwrote the
@@ -2074,8 +2074,12 @@ Left for 2.5: (a) NSL/NSSL finals series (type-1 design) or declare them postpon
   w_pcf / w_cmenu / w_mmi, parking length by SELPTR; trailer.py SELBASEV / ROOMV / LOADCOPY from world-2025-26). Mark
   BIGC = last dword of the 80-record area (written only for big-cache careers; plain saves byte-identical). Upgrade:
   no BIGC and NUMSEL > 90 -> big cache. After a load only selTeamsPtr points into the cache (memory scan).
+- Career national cups (world-2025-26 f9d0f30, 2434bc5, cad0525, d68d00d, 6799304; lib97 BYE_TAB / nc_bye / nc_adv /
+  chain_adv, historic.TABLE, mkseason.bye_cups; main: mkseason.multi_ns() = False, no lp36 / BPLM harness): a 1984-85
+  career's first season follows ties.csv (cup header byte 8 = 1 + the fixed permutations at the round advance); round 1
+  named PRIMO TURNO (header byte 13 = 1). Scenario w84_cupdraw (FA Cup slot +2CDh = 0..63; FAIL on 3.3.2).
 - Scenario w84_cache (W84E_TEAM254.CAR from the world sessions; FAIL on 3.3.2). Harness from world-2025-26: role-based
-  substitute() + menu_check (a1f7a00, 20cbd68): world8485 now reaches FA Cup + UEFA careers.
+  substitute() + menu_check (a1f7a00, 20cbd68); DOSBox-X time limit fix already in 3.3.1.
 - SELECT KITS entry 1 background from teamControls (10 computer, 13 coach, 11 player; Marco); Screen.colors.
-- Build c/REL333: SWOS IT e6f9b7aa EN 0479812b FR f9dd4622 DE ed7aa2a1; gog IT bb0db193 EN 16cbcd7c FR 4c65612b DE cddc00ab; SWOS++ 9feae960;
-  DATA = 3.3.0. Suite 19/19 PASS (runs333; menu_check clean x10). Patcher 3.3.3 md5 5404bf8b (old v3.3.2 added): Node OK.
+- Build c/REL333: SWOS IT a288261d EN 0004dc88 FR 96505310 DE 60759d18; gog IT c3f8e77c EN 9f4f23ba FR b0f55a59 DE 465c7f37; SWOS++ 0d95c2bb;
+  DATA = 3.3.0. Suite 20/20 PASS (runs333; menu_check clean x10). Patcher 3.3.3 md5 c6805370 (old v3.3.2 added): Node OK.

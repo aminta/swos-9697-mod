@@ -20,7 +20,8 @@ Read this first; then the tail of `notes/STATUS.md` (latest work) and, before an
   3.3.0 purple kits (tools/purple.py) and dark skin / blond hair (tools/blond.py),
   3.3.1 purple on the line-ups screen, purple vs maroon in the automatic kit choice, SELECT KITS opens on it,
   3.3.2 no purple vs maroon with kits set by hand either,
-  3.3.3 team cache of 160 in big-world careers (1984-85 data/team.254 exit), SELECT KITS name box colour.
+  3.3.3 team cache of 160 in big-world careers (1984-85 data/team.254 exit), real 1984-85 national-cup brackets in
+  careers, SELECT KITS name box colour.
 - Release notes: `release/notes-<version>.md`; the patcher page `release/swos-9697-mod-patcher.html`.
 
 ## Layout

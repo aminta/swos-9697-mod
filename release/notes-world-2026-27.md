@@ -141,7 +141,15 @@ Lengjubikarinn, Finland Liigacup, Chile and Peru Copa de la Liga. -->
   England on 3 levels, Scotland on 4, Italy with Serie A, B and the three Serie C groups, the second tiers of Spain,
   Germany (and 3. Liga), France, Netherlands, Portugal, Turkey; Brazil Serie A and B, the full MLS, Canada, Mexico,
   Central America, every CONMEBOL country, Saudi Arabia, Qatar, UAE, Iran, Japan, Korea, China, Australia, Egypt,
-  Morocco, Tunisia, Algeria, South Africa, New Zealand. Calendar-year leagues play their 2026 season.
+  Morocco, Tunisia, Algeria, South Africa, New Zealand. Calendar-year leagues play their 2026 season (Japan already
+  its first August-May season, 2026-27).
+- **Real names**: every league and cup under its official 2026-27 name, without title sponsors, as the original game
+  did (SERIE A, LALIGA, FA CUP, EFL CUP, DFB-POKAL, TURKIYE KUPASI, KING'S CUP, EMPEROR'S CUP ...): the country's own
+  language where it is written in the Latin alphabet, the official English name otherwise.
+<!-- DATA STAGED (publish with the engine's formats): - **League formats**: every league in its real 2026-27 format:
+  Scotland's split after 33 matchdays and its play-offs, Austria's championship and qualification groups (points no
+  longer halved), Switzerland's split and barrage, Denmark's and Greece's groups, Argentina's Apertura and Clausura,
+  the Italian, English, Dutch and Brazilian play-offs and the others listed in 'Rebuilt exactly'. -->
 - **Club order**: each division in the order of its 2025-26 final table (2025 for calendar-year leagues): the clubs
   that stayed by final position, then the relegated, then the promoted; promoted clubs from a tier the world does
   not hold come last, by squad value.
@@ -165,7 +173,14 @@ Lengjubikarinn, Finland Liigacup, Chile and Peru Copa de la Liga. -->
 - **National cups 2026-27**: where the cup has already started, the clubs already knocked out in reality stay out and
   the real drawn ties are kept in the first round, the clubs that enter later have a first-round bye; the rounds not
   drawn yet are drawn by the mod (see the rules below).
-  Cups not started yet (FA Cup proper, among others) are drawn by the mod from the league clubs.
+  Cups not started yet (FA Cup proper, among others) are drawn by the mod from the league clubs. Mexico, Honduras,
+  Guatemala and Panama have no national cup in 2026-27, so they play their league only; Peru's cup is its real Copa
+  de la Liga 2026. The round of 16 is called ROUND OF 16 (OTTAVI DI FINALE ...), except where the federation numbers
+  it (FA Cup fifth round, Scottish Cup, Irish Cup, Chatham Cup and 6 more).
+<!-- DATA STAGED (publish with the engine's league cups): - **League cups 2026-27**: the EFL Cup from its real fourth
+  round, the Coppa Italia Serie C from its real round of 16 (its winner into the Serie C play-off), the Scottish
+  League Cup, the Taca da Liga in its real 8-club format, the J.League Cup, the Irish League Cup and the league cups of
+  Egypt, Qatar, the UAE, Wales, South Africa, Iceland, Finland and Chile, each in its real format. -->
 - **European cups**: the first season's Champions League, Europa League and Conference League are the real 2026-27
   league phases (36 clubs each). The format is UEFA's since 2024-25:
   - **League phase**: one table of 36. The draw is made by the game at the start of every season, in four pots by club
@@ -388,7 +403,15 @@ Non una formula uguale per tutti: ogni campionato gioca la stagione come l'ha sc
   di Serie C, le seconde serie di Spagna, Germania (e 3. Liga), Francia, Olanda, Portogallo, Turchia; Brasile Serie A
   e B, tutta la MLS, Canada, Messico, Centro America, tutte le nazioni CONMEBOL, Arabia Saudita, Qatar, Emirati, Iran,
   Giappone, Corea, Cina, Australia, Egitto, Marocco, Tunisia, Algeria, Sudafrica, Nuova Zelanda. I campionati ad anno
-  solare giocano la loro stagione 2026.
+  solare giocano la loro stagione 2026 (il Giappone già la sua prima stagione agosto-maggio, 2026-27).
+- **Nomi veri**: ogni campionato e ogni coppa con il suo nome ufficiale 2026-27, senza sponsor, come faceva il gioco
+  originale (SERIE A, LALIGA, FA CUP, EFL CUP, DFB-POKAL, TURKIYE KUPASI, KING'S CUP, EMPEROR'S CUP ...): nella lingua
+  della nazione dove si scrive in alfabeto latino, altrimenti il nome ufficiale inglese.
+<!-- DATA STAGED (da pubblicare con le formule del motore): - **Formule dei campionati**: ogni campionato con la sua
+  vera formula 2026-27: lo split della Scozia dopo 33 giornate e i suoi play-off, i gruppi per il titolo e per la
+  qualificazione dell'Austria (punti non più dimezzati), split e spareggio della Svizzera, i gruppi di Danimarca e
+  Grecia, Apertura e Clausura dell'Argentina, i play-off di Italia, Inghilterra, Olanda e Brasile e gli altri elencati
+  in 'Ricostruito esattamente'. -->
 - **Ordine dei club**: ogni divisione nell'ordine della sua classifica finale 2025-26 (2025 per i campionati ad anno
   solare): prima i club rimasti, per posizione, poi le retrocesse, poi le promosse; le promosse da una serie che il
   mondo non contiene vanno in fondo, per valore della rosa.
@@ -415,7 +438,14 @@ Non una formula uguale per tutti: ogni campionato gioca la stagione come l'ha sc
 - **Coppe nazionali 2026-27**: dove la coppa è già iniziata, i club già eliminati nella realtà restano fuori e le
   coppie già sorteggiate restano al primo turno, i club che entrano dopo sono esentati dal primo turno; i turni non
   ancora sorteggiati li sorteggia la mod (vedi le regole
-  sotto). Le coppe non ancora iniziate (tra cui la FA Cup) le sorteggia la mod tra i club del campionato.
+  sotto). Le coppe non ancora iniziate (tra cui la FA Cup) le sorteggia la mod tra i club del campionato. Messico,
+  Honduras, Guatemala e Panama non hanno una coppa nazionale nel 2026-27, quindi giocano solo il campionato; la coppa
+  del Perù è la sua vera Copa de la Liga 2026. Il turno a 16 club si chiama OTTAVI DI FINALE, tranne dove la
+  federazione lo numera (quinto turno della FA Cup, Scottish Cup, Irish Cup, Chatham Cup e altre 6).
+<!-- DATA STAGED (da pubblicare con le coppe di lega del motore): - **Coppe di lega 2026-27**: la EFL Cup dal suo vero
+  quarto turno, la Coppa Italia Serie C dai suoi veri ottavi (la vincitrice ai play-off di Serie C), la Scottish
+  League Cup, la Taca da Liga nella sua vera formula a 8 club, la J.League Cup, la Irish League Cup e le coppe di lega di
+  Egitto, Qatar, Emirati, Galles, Sudafrica, Islanda, Finlandia e Cile, ognuna con la sua vera formula. -->
 - **Coppe europee**: Champions League, Europa League e Conference League della prima stagione sono le vere fasi
   campionato 2026-27 (36 club ciascuna). Il formato è quello UEFA dal 2024-25:
   - **Fase campionato**: una sola classifica da 36. Il sorteggio lo fa il gioco all'inizio di ogni stagione, in

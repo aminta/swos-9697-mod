@@ -136,6 +136,32 @@ def _shirt_numbers(data):
     return bytes(d), n
 
 
+def _place_numbers(data):
+    """Team file bytes with the shirt numbers of the era before squad numbers (3.3.4, Davide: in 1984-85 the starters
+    wore 1..11 and the substitutes 12..16, and a player kept his historic number, Franco Baresi the 6 at Milan): the
+    11 starters (line-up places 1..11, record bytes 60..75) keep a number of 1..11 that no other starter wears, the 5
+    substitutes one of 12..16; everyone else gets the free numbers of his group in line-up order. The game keeps it:
+    SetBenchPlayersNumbers numbers the bench 12..16 and a squad-screen swap exchanges the two numbers.
+    Returns (bytes, count changed)."""
+    d, n = bytearray(data), 0
+    for k in range(struct.unpack('>H', d[:2])[0]):
+        r = 2 + k * TEAM_SIZE
+        at = [r + 76 + j * 38 + 2 for j in d[r + 60:r + 76]]          # number byte of the player at each place
+        for places, nums in ((range(0, 11), range(1, 12)), (range(11, 16), range(12, 17))):
+            keep, used = {}, set()
+            for i in places:
+                if d[at[i]] in nums and d[at[i]] not in used:
+                    keep[i] = d[at[i]]
+                    used.add(d[at[i]])
+            free = [x for x in nums if x not in used]
+            for i in places:
+                v = keep[i] if i in keep else free.pop(0)
+                if d[at[i]] != v:
+                    d[at[i]] = v
+                    n += 1
+    return bytes(d), n
+
+
 def _csv(path):
     with open(path, encoding='utf-8', newline='') as f:
         return list(csv.DictReader(f))
@@ -278,6 +304,12 @@ class Pack:
             fixed += n
         if fixed:
             self.log(f'{fixed} shirt numbers outside 1..99 renumbered (shirtnum draws 1..99)')
+        if self.meta.get('numbers') == 'place':
+            moved = 0
+            for k in out:
+                out[k], n = _place_numbers(out[k])
+                moved += n
+            self.log(f'shirt numbers by place (1..11 starters, 12..16 bench): {moved} changed')
         return out
 
     def _empty_record(self, key, template):

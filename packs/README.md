@@ -101,6 +101,10 @@ real bracket.
 ```
 
 - `button`: the text of the country button in CLASSIC SEASONS (same in every language).
+- `numbers` (optional, from 3.3.4): `"place"` for seasons before squad numbers (before 1993-95): the starters wear
+  1–11 and the substitutes 12–16. A player keeps his `number` when it fits his group and no team-mate of the
+  group has it (Franco Baresi the 6 at Milan); the others get the free numbers of the group in line-up order. Used by
+  every pack of the mod (DDR 1988-89, Italy 1947-48, World Cup 1934, Europe 1984-85).
 - `files`: the team files of the pack (`file` = file number, TEAM.0nn) and the first **global number** of each
   (the game's id of a club, 0–1999: base + position in the file). The league must be alone in its file (the game
   counts a country's clubs from these bases), so clubs that only play the cup get a file of their own.

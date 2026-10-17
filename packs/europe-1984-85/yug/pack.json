@@ -1,6 +1,7 @@
 {
  "format": 1,
  "id": "europe-1984-85-yug",
+ "numbers": "place",
  "kind": "career",
  "button": "YUGOSLAVIA",
  "button_names": {"it": "JUGOSLAVIA", "en": "YUGOSLAVIA", "fr": "YOUGOSLAVIE", "de": "JUGOSLAWIEN"},

@@ -1,6 +1,7 @@
 {
  "format": 1,
  "id": "europe-1984-85-fra",
+ "numbers": "place",
  "kind": "career",
  "button": "FRANCE",
  "button_names": {"it": "FRANCIA", "en": "FRANCE", "fr": "FRANCE", "de": "FRANKREICH"},

@@ -1,6 +1,7 @@
 {
  "format": 1,
  "id": "europe-1984-85-sui",
+ "numbers": "place",
  "kind": "career",
  "button": "SWITZERLAND",
  "button_names": {"it": "SVIZZERA", "en": "SWITZERLAND", "fr": "SUISSE", "de": "SCHWEIZ"},

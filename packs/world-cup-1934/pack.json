@@ -1,6 +1,7 @@
 {
   "format": 1,
   "id": "world-cup-1934",
+  "numbers": "place",
   "kind": "tourney",
   "sources": ["Squads, ratings, kits and coaches: SWOS 2020 DLC \"1934 FIFA WORLD CUP (Italy)\" by Insane (sensiblesoccer.de), used with permission (orig/swos2020/x_wc34/CUSTOMS.EDT, not in the repository)",
               "Bracket: en.wikipedia, 1934 FIFA World Cup; RSSSF"],

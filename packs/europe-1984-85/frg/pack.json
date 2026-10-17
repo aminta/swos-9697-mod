@@ -1,6 +1,7 @@
 {
  "format": 1,
  "id": "europe-1984-85-frg",
+ "numbers": "place",
  "kind": "career",
  "button": "WEST GERMANY",
  "button_names": {"it": "GERMANIA OVEST", "en": "WEST GERMANY", "fr": "RFA", "de": "BRD"},

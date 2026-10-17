@@ -1,6 +1,7 @@
 {
  "format": 1,
  "id": "europe-1984-85-aut",
+ "numbers": "place",
  "kind": "career",
  "button": "AUSTRIA",
  "button_names": {"it": "AUSTRIA", "en": "AUSTRIA", "fr": "AUTRICHE", "de": "OSTERREICH"},

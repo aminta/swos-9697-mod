@@ -1,6 +1,7 @@
 {
  "format": 1,
  "id": "europe-1984-85-den",
+ "numbers": "place",
  "kind": "career",
  "button": "DENMARK",
  "button_names": {"it": "DANIMARCA", "en": "DENMARK", "fr": "DANEMARK", "de": "DANEMARK"},

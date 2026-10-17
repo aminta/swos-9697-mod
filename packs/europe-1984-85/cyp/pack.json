@@ -1,6 +1,7 @@
 {
  "format": 1,
  "id": "europe-1984-85-cyp",
+ "numbers": "place",
  "kind": "career",
  "button": "CYPRUS",
  "button_names": {"it": "CIPRO", "en": "CYPRUS", "fr": "CHYPRE", "de": "ZYPERN"},

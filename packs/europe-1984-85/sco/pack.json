@@ -1,6 +1,7 @@
 {
  "format": 1,
  "id": "europe-1984-85-sco",
+ "numbers": "place",
  "kind": "career",
  "button": "SCOTLAND",
  "button_names": {"it": "SCOZIA", "en": "SCOTLAND", "fr": "ECOSSE", "de": "SCHOTTLAND"},

@@ -104,6 +104,11 @@ ripropone il tabellone vero.
 ```
 
 - `button`: il testo del pulsante della nazione in STAG. STORICHE (uguale in tutte le lingue).
+- `numbers` (facoltativo, dalla 3.3.4): `"place"` per le stagioni prima dei numeri fissi di rosa (prima del
+  1993-95): i titolari vestono 1–11 e le riserve 12–16. Un giocatore tiene il suo `number` se rientra nel suo
+  gruppo e nessun compagno del gruppo lo ha già (Franco Baresi il 6 nel Milan); gli altri prendono i numeri liberi
+  del gruppo in ordine di formazione. Lo usano tutti i pacchetti della mod (DDR 1988-89, Italia 1947-48, Mondiale
+  1934, Europa 1984-85).
 - `files`: i file squadre del pacchetto (`file` = numero del file, TEAM.0nn) e il primo **numero globale** di
   ciascuno (l'identificativo di un club nel gioco, 0–1999: base + posizione nel file). Il campionato deve stare da
   solo nel suo file (il gioco conta i club di una nazione da queste basi), quindi i club che giocano solo la coppa

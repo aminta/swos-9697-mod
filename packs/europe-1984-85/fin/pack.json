@@ -1,6 +1,7 @@
 {
  "format": 1,
  "id": "europe-1984-85-fin",
+ "numbers": "place",
  "kind": "career",
  "button": "FINLAND",
  "button_names": {"it": "FINLANDIA", "en": "FINLAND", "fr": "FINLANDE", "de": "FINNLAND"},

@@ -1,6 +1,7 @@
 {
  "format": 1,
  "id": "europe-1984-85-gre",
+ "numbers": "place",
  "kind": "career",
  "button": "GREECE",
  "button_names": {"it": "GRECIA", "en": "GREECE", "fr": "GRECE", "de": "GRIECHENLAND"},

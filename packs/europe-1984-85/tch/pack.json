@@ -1,6 +1,7 @@
 {
  "format": 1,
  "id": "europe-1984-85-tch",
+ "numbers": "place",
  "kind": "career",
  "button": "CZECHOSLOVAKIA",
  "button_names": {"it": "CECOSLOVACCHIA", "en": "CZECHOSLOVAKIA", "fr": "TCHECOSLOVAQUIE", "de": "TSCHECHOSLOWAKEI"},

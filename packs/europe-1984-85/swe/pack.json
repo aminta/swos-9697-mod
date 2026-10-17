@@ -1,6 +1,7 @@
 {
  "format": 1,
  "id": "europe-1984-85-swe",
+ "numbers": "place",
  "kind": "career",
  "button": "SWEDEN",
  "button_names": {"it": "SVEZIA", "en": "SWEDEN", "fr": "SUEDE", "de": "SCHWEDEN"},

@@ -145,6 +145,9 @@ Lengjubikarinn, Finland Liigacup, Chile and Peru Copa de la Liga. -->
   August-May season, 2026-27**.
 - Clubs in the order of their **2025-26 final table**; squads at the **end of the summer 2026 window**; real shirt
   numbers, coaches, kits (stripes and hoops, purple where worn).
+- **Fixed squad numbers, as today**: every player keeps his own number all season, on the bench too (the original
+  game renumbers the bench 12-16 and swaps numbers with the places); new signings, reserves and trial players take a
+  free number, never a duplicate. The computer's clubs too.
 - **Foreign market of 2026-27**: 900 real players of the tiers just below the world's divisions.
 
 ### What is in the world
@@ -441,6 +444,9 @@ Non una formula uguale per tutti: ogni campionato gioca la stagione come l'ha sc
   stagione agosto-maggio, 2026-27**.
 - Club nell'ordine della **classifica finale 2025-26**; rose di **fine mercato estivo 2026**; numeri di maglia,
   allenatori e maglie veri (righe e cerchi, viola dove c'è).
+- **Numeri di maglia fissi, come oggi**: ogni giocatore tiene il suo numero per tutta la stagione, anche in panchina
+  (il gioco originale rinumera la panchina da 12 a 16 e scambia i numeri con i posti); acquisti, riserve e giocatori
+  in prova prendono un numero libero, mai un doppione. Anche le squadre del computer.
 - **Mercato estero 2026-27**: 900 giocatori veri delle serie subito sotto quelle del mondo.
 
 ### Cosa c'è nel mondo

@@ -880,7 +880,10 @@ def substitute(s, scr, tries=40):
             name, role, value = reserve_info(c2, ry)
             if seen and name == seen[0][0]:
                 break
-            seen.append((name, role, value, not squad_rows(s, c2, f'sq{len(s.log):03d}')[-1][1]))
+            rows2 = squad_rows(s, c2, f'sq{len(s.log):03d}')
+            if len(rows2) != 17:                        # not the squad screen any more (a message, a shot
+                break                                   # that failed): stop cycling, the caller looks again
+            seen.append((name, role, value, not rows2[-1][1]))
             press(s, c2, face, wait=1)
         return seen
 

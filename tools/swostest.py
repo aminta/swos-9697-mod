@@ -401,6 +401,7 @@ class Dosbox:
                     k = re.search(rb'Memory breakpoint[^\n]*->', seg)
                     if k:
                         m = re.compile(rb'0160:([0-9A-F]{8})\s').search(seg, k.end())
+                        self.memhit = m is not None
                 if not m and self.watch:               # or on one of our breakpoints (Session.bp)
                     seg = ANSI.sub(b' ', self.screen[mark:])
                     for w in re.finditer(rb'0160:([0-9A-F]{8})\s', seg):
@@ -663,6 +664,19 @@ class Session:
         open(os.path.join(self.run, 'debugger.raw'), 'wb').write(self.box.screen)
         open(os.path.join(self.run, 'session.log'), 'w').write('\n'.join(self.log) + '\n')
 
+    def bp_stack(self, r):
+        """SWOSTEST_BP_STACK=1: the obj1 return addresses in the 0x200 bytes above ESP at a breakpoint hit."""
+        if not os.environ.get('SWOSTEST_BP_STACK'):
+            return ''
+        path = os.path.join(self.run, 'MEMDUMP.BIN')
+        if os.path.exists(path):
+            os.remove(path)
+        self.box.cmd('MEMDUMPBIN 168:ESP 200', 2)
+        if not os.path.exists(path):
+            return ' stack ?'
+        v = struct.unpack('<128I', open(path, 'rb').read()[:512])
+        return ' stack ' + ' '.join(f'{x - r.base1:X}' for x in v if r.base1 <= x < r.base1 + 0xB3000)
+
     def bp(self, lin, callback):
         """Debugger breakpoint at a linear address; callback(result) runs at each hit, then the game goes on."""
         self.box.cmd(f'BP 0160:{lin:08X}', 0.3)
@@ -691,7 +705,20 @@ class Session:
             for off in os.environ['SWOSTEST_BP'].split(','):     # counting breakpoints (use CORE=normal)
                 o = int(off, 16)
                 self.bp(base1 + o, lambda r, o=o: (self.bp_hits.__setitem__(o, self.bp_hits.get(o, 0) + 1),
-                                                   self.log.append(f'BP obj1+{o:X} hit {self.bp_hits[o]}' + bp_str(r))))
+                                                   self.log.append(f'BP obj1+{o:X} hit {self.bp_hits[o]}' + bp_str(r)
+                                                                   + self.bp_stack(r))))
+        while outcome == 'break' and getattr(b, 'memhit', False) and os.environ.get('SWOSTEST_BPLM_GO'):
+            b.memhit = False                           # SWOSTEST_BPLM_GO: log the writer's EIP (+ stack), re-arm, go on
+            r = self.paused('bplm', b.eip)
+            self.log.append(f'BPLM obj1+{b.eip - r.base1:X}' + bp_str(r) + self.bp_stack(r))
+            r.box = None
+            b.cmd('BPDEL *', 0.3)
+            b.cmd('BPINT 3', 0.2)
+            for lin in getattr(self, 'bps', {}):
+                b.cmd(f'BP 0160:{lin:08X}', 0.2)
+            for off in filter(None, os.environ.get('SWOSTEST_BPLM', '').split(',')):
+                b.cmd(f'BPLM {r.base2 + int(off, 16):08X}', 0.3)
+            outcome = b.go_on()
         while outcome == 'break' and b.eip in getattr(self, 'bps', {}):
             r = self.paused('bp', b.eip)
             self.bps[b.eip](r)

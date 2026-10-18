@@ -14,10 +14,32 @@ first 43 UEFA associations by ranking, the others are under OTHER NATIONS).
      punto, abbiamo ricostruito ESATTAMENTE ... le competizioni calcistiche di oggi"). One line per real-world rule. -->
 The point of this world: today's football as it really is, down to rules most players never notice.
 
-<!-- REGIA STAGED, the 5.0 headline (Davide 2026-10-17: the league formats in a prominent place of the 5.0 changelog).
-Uncomment the subsection's lines one by one as the engine implements each format (facts final: internal formats2627.md).
 *Every league in its real 2026-27 format*
 Not one fixed formula for everybody: each league plays the season the way its own federation wrote it for 2026-27.
+- **Promotion and relegation play-offs as in reality** (Scotland's three, England's Championship, League One and
+  League Two play-offs, the 17 countries with knockout play-offs): the real entrants by final place, the real ties,
+  one or two legs, the real hosts and tie-break rules.
+- **European play-offs** (Denmark, Austria, the Netherlands, Wales, Northern Ireland, Romania, San Marino ...): the
+  winner takes the country's last Conference League place.
+- **Parallel regional groups on more than one level** (Serie C, El Salvador's Segunda and Tercera zones): every club
+  promoted or relegated goes to the group of its own area.
+- **League cups in the game's own league-cup slot**, with their European place: the EFL Cup from its real 4th round
+  (two-legged semi-finals; the winner takes England's last Conference League place), the Coppa Italia Serie C from
+  its real round of 16 (the winner into the Serie C play-off), the Taca da Liga in its real 8-club format, the
+  Scottish League Cup, the J.League Cup, and the league cups of Northern Ireland, Egypt, Qatar, the UAE, South Africa,
+  Wales, Iceland, Finland, Chile and Peru.
+
+*At least everything the original game had*
+- **Never fewer leagues or divisions than SWOS 96/97**: England's four divisions, with League Two and its 4th-7th
+  play-offs; Argentina's Primera Nacional in two zones of 18; Mexico's Liga de Expansion, closed like the Liga MX;
+  Uruguay's Segunda with three promotions; Japan's J2 with the 3rd-6th play-offs; New Zealand's National League with
+  the Northern, Central and Southern Leagues; Australia's A-League with the NPL of New South Wales, Victoria and
+  Queensland, closed as in reality; El Salvador's Primera, Segunda in two zones and Tercera; and Suriname, Taiwan,
+  India and Ghana, back with their real leagues and cups.
+
+<!-- REGIA STAGED, the 5.0 headline (Davide 2026-10-17: the league formats in a prominent place of the 5.0 changelog).
+Uncomment the subsection's lines one by one as the engine implements each format (facts final: internal formats2627.md).
+(still to come, to move into the section above format by format)
 - **Scotland**: 33 matchdays, then the split into top six and bottom six for 5 more; the Premiership play-off
   (Championship 3rd v 4th, the winner v the 2nd, the winner v the Premiership 11th, all over two legs); the
   Championship and League One play-offs with the division below.
@@ -50,6 +72,9 @@ Not one fixed formula for everybody: each league plays the season the way its ow
 - **Turkey 1. Lig**: 2 up directly, the 3rd straight into the play-off final, 4th v 7th and 5th v 6th, neutral final.
   **Serbia**: 4 down. **Bulgaria**: groups of 4, 5 and 5. **Malta**: two rounds with the points reset and a Final
   Four.
+- **Romania** (detail): on equal points after the halving, the points before rounding come first. **Moldova**: after
+  the triple round robin (21), the top 6 play a double round robin (10 more) from half the points won against each
+  other, rounded down; 7th-8th are done.
 -->
 
 *European cups (UEFA 2026-27)*
@@ -127,14 +152,6 @@ Not one fixed formula for everybody: each league plays the season the way its ow
 - **No national cup where none is played in 2026-27** (Mexico, Honduras, Guatemala, Panama: league only); Peru's
   cup is its real Copa de la Liga 2026.
 
-<!-- REGIA STAGED (add when the integrator lands the league-cup slot): League cups 2026-27: EFL Cup from its real 4th
-round (two-legged semi-finals, penalties without extra time before the final; winner -> UECL play-off in reality);
-Coppa Italia Serie C from its real round of 16 (Serie C clubs not in the Coppa Italia proper; two-legged semis and
-final; winner -> the Serie C play-off); Taca da Liga in its real 8-club format (previous Liga top 6 + the 2 promoted,
-QF 1-8 2-7 3-6 4-5, fixed semi-final pairing, penalties without extra time); Scottish League Cup from its 2nd round;
-J.League Cup with two-legged QF and SF; NIR League Cup from its 1st round; Egypt / Qatar league cups from their group
-stages; UAE League Cup two-legged up to the semis; Carling Knockout (RSA) 16 PSL clubs; Welsh League Cup; Iceland
-Lengjubikarinn, Finland Liigacup, Chile and Peru Copa de la Liga. -->
 *Leagues, calendars and clubs*
 - **Every league, national cup and league cup under its real 2026-27 name, without title sponsors**: COPPA ITALIA,
   FA CUP, EFL CUP, DFB-POKAL, TURKIYE KUPASI, KING'S CUP, EMPEROR'S CUP, PARVA PROFESIONALNA LIGA for the efbet Liga
@@ -151,6 +168,8 @@ Lengjubikarinn, Finland Liigacup, Chile and Peru Copa de la Liga. -->
 - **Faces**: skin by nationality, **blond hair from the players' official EA SPORTS FC portraits** (and black skin
   with blond hair, as Osimhen), plus a hand list.
 - **Foreign market of 2026-27**: 900 real players of the tiers just below the world's divisions.
+- **Strength**: each club's skills are built from its real squad; checked against the real 2025-26 tables (mean rank
+  correlation 0.93 over 104 divisions) and in simulated seasons (top flights 0.70-0.94).
 
 ### What is in the world
 - **Countries and leagues**: all 54 playing UEFA associations, each a real country (Liechtenstein, which has no league
@@ -343,9 +362,31 @@ federazioni UEFA per ranking, le altre sono in ALTRE NAZIONI).
 ### Ricostruito esattamente, punto per punto
 L'obiettivo di questo mondo: il calcio di oggi com'è davvero, fino alle regole che quasi nessun giocatore nota.
 
-<!-- REGIA STAGED, il titolo della 5.0 (vedi la parte inglese).
 *Ogni campionato nel suo formato vero 2026-27*
 Non una formula uguale per tutti: ogni campionato gioca la stagione come l'ha scritta la sua federazione per il 2026-27.
+- **Play-off promozione e retrocessione come nella realtà** (i tre scozzesi; quelli di Championship, League One e
+  League Two; i 17 paesi con play-off a eliminazione): partecipanti per piazzamento reale, accoppiamenti reali, gara
+  secca o andata e ritorno, campo e spareggi secondo le regole vere.
+- **Play-off europei** (Danimarca, Austria, Olanda, Galles, Irlanda del Nord, Romania, San Marino ...): chi vince
+  prende l'ultimo posto in Conference League del paese.
+- **Gironi regionali paralleli su più livelli** (Serie C, le zone di Segunda e Tercera di El Salvador): chi sale o
+  scende va nel girone della sua area.
+- **Coppe di lega nello spazio di coppa di lega del gioco originale**, con il loro posto europeo: la EFL Cup dal suo
+  vero quarto turno (semifinali di andata e ritorno; chi vince prende l'ultimo posto in Conference League
+  dell'Inghilterra), la Coppa Italia Serie C dai suoi veri ottavi (la vincente ai play-off di Serie C), la Taça da
+  Liga nel suo vero formato a 8 squadre, la Scottish League Cup, la J.League Cup e le coppe di lega di Irlanda del
+  Nord, Egitto, Qatar, Emirati, Sudafrica, Galles, Islanda, Finlandia, Cile e Perù.
+
+*Almeno tutto quello che aveva il gioco originale*
+- **Mai meno campionati o divisioni di SWOS 96/97**: le quattro divisioni inglesi, con la League Two e i suoi play-off
+  dalla 4ª alla 7ª; la Primera Nacional argentina in due zone da 18; la Liga de Expansión messicana, chiusa come la
+  Liga MX; la Segunda uruguaiana con tre promozioni; la J2 giapponese con i play-off dalla 3ª alla 6ª; la National
+  League neozelandese con le Northern, Central e Southern League; la A-League australiana con le NPL di New South
+  Wales, Victoria e Queensland, chiuse come nella realtà; Primera, Segunda in due zone e Tercera di El Salvador; e
+  Suriname, Taiwan, India e Ghana, di nuovo con i loro veri campionati e coppe.
+
+<!-- REGIA STAGED, il titolo della 5.0 (vedi la parte inglese).
+(ancora da fare, da spostare nella sezione sopra formato per formato)
 - **Scozia**: 33 giornate, poi lo split tra le prime sei e le ultime sei per altre 5; lo spareggio della Premiership
   (3ª contro 4ª della Championship, la vincente contro la 2ª, la vincente contro l'11ª della Premiership, tutto
   andata e ritorno); i play-off di Championship e League One con la serie sotto.
@@ -378,6 +419,9 @@ Non una formula uguale per tutti: ogni campionato gioca la stagione come l'ha sc
 - **Turchia 1. Lig**: 2 promosse dirette, la 3ª direttamente in finale play-off, 4ª-7ª e 5ª-6ª, finale in campo
   neutro. **Serbia**: 4 retrocesse. **Bulgaria**: gruppi da 4, 5 e 5. **Malta**: due fasi con i punti azzerati e una
   Final Four.
+- **Romania** (dettaglio): a pari punti dopo il dimezzamento contano prima i punti prima dell'arrotondamento.
+  **Moldavia**: dopo il triplo girone (21) le prime 6 giocano andata e ritorno (altre 10) partendo da metà dei punti
+  fatti negli scontri diretti, arrotondata per difetto; 7ª e 8ª hanno finito.
 -->
 
 *Coppe europee (UEFA 2026-27)*
@@ -471,6 +515,8 @@ Non una formula uguale per tutti: ogni campionato gioca la stagione come l'ha sc
 - **Visi**: pelle secondo la nazionalità, **capelli biondi dalle foto ufficiali EA SPORTS FC dei giocatori** (anche
   pelle scura e capelli biondi, come Osimhen), più un elenco a mano.
 - **Mercato estero 2026-27**: 900 giocatori veri delle serie subito sotto quelle del mondo.
+- **Forza**: le abilità di ogni club nascono dalla sua rosa reale; verificate sulle classifiche reali 2025-26
+  (correlazione media 0,93 su 104 divisioni) e in stagioni simulate (massime serie 0,70-0,94).
 
 ### Cosa c'è nel mondo
 - **Nazioni e campionati**: tutte le 54 federazioni UEFA che giocano, ognuna come nazione vera (il Liechtenstein, che

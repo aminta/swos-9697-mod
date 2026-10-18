@@ -32,6 +32,9 @@ enum { HOST_LISTED, HOST_BETTER, HOST_DRAWN, HOST_NEUTRAL, HOST_SKIP_SAME = 0x80
 enum { LV_BETTER, LV_ET_PENS, LV_ET_BETTER, LV_PENS, LV_AWAY_PENS, LV_AWAY_BETTER };
 enum { K_TITLE = 5, K_CONT = 6, K_PROM = 7, GS = 2, BEST_LOSER = 0x3F };
 struct gp_row { u16 team, glob, won, gf, ga, pts; };
+static void rcopy(struct gp_row *d, const struct gp_row *s) {   /* (no memcpy in the exe: field by field) */
+    d->team = s->team; d->glob = s->glob; d->won = s->won; d->gf = s->gf; d->ga = s->ga; d->pts = s->pts;
+}
 struct gp_in {
     u8 nd, pad[3];
     u8 n[GD], pad2[2];                  /* clubs per division (0 = not captured) */
@@ -219,7 +222,7 @@ void gp_stage(const u8 *diy, const u8 *sel, u32 k, u32 annual) {
     if (!annual || k == 0 || GP_SS.n[0] != n) return;
     struct gp_row *a = GP_SS.r[2], tmp;
     for (int i = 0; i < n; i++) {
-        a[i] = GP_SS.r[0][i];
+        rcopy(&a[i], &GP_SS.r[0][i]);
         for (int j = 0; j < n; j++) if (o[j].glob == a[i].glob) {
             a[i].won += o[j].won; a[i].gf += o[j].gf; a[i].ga += o[j].ga; a[i].pts += o[j].pts;
         }
@@ -228,7 +231,7 @@ void gp_stage(const u8 *diy, const u8 *sel, u32 k, u32 annual) {
         for (int j = i; j > 0; j--) {
             int dp = a[j].pts - a[j - 1].pts, dd = (a[j].gf - a[j].ga) - (a[j - 1].gf - a[j - 1].ga);
             if (dp > 0 || (dp == 0 && (dd > 0 || (dd == 0 && a[j].gf > a[j - 1].gf)))) {
-                tmp = a[j]; a[j] = a[j - 1]; a[j - 1] = tmp;
+                rcopy(&tmp, &a[j]); rcopy(&a[j], &a[j - 1]); rcopy(&a[j - 1], &tmp);
             } else break;
         }
     GP_SS.n[2] = n;
@@ -296,16 +299,21 @@ static void promedio(int d, int mnow, int ldiv) {
     int c1 = pr_row(d, a[down1].glob), c2 = pr_row(d, a[down2].glob);
     if (c1 >= 0) move(c1, ldiv - d);
     if (c2 >= 0) move(c2, ldiv - d);
-    struct pr_state nx;                         /* next season's history: this season and the one before */
-    nx.init = 1; nx.n = 0;
-    for (int i = 0; i < n && nx.n < PR_N; i++) {
+    static struct pr_club nx[PR_N];             /* next season's history: this season and the one before */
+    int nn = 0;
+    for (int i = 0; i < n && nn < PR_N; i++) {
         if (i == down1 || i == down2) continue;
-        struct pr_club *c = pr_find(a[i].glob), *o = &nx.c[nx.n++];
+        struct pr_club *c = pr_find(a[i].glob), *o = &nx[nn++];
         o->glob = a[i].glob;
         o->p[0] = c ? c->p[1] : 0; o->m[0] = c ? c->m[1] : 0;
         o->p[1] = a[i].pts; o->m[1] = mnow;
     }
-    PR_STATE = nx;
+    for (int i = 0; i < nn; i++) {
+        struct pr_club *o = &PR_STATE.c[i];
+        o->glob = nx[i].glob; o->p[0] = nx[i].p[0]; o->p[1] = nx[i].p[1]; o->m[0] = nx[i].m[0]; o->m[1] = nx[i].m[1];
+    }
+    PR_STATE.n = nn;
+    PR_STATE.init = 1;
 }
 
 void gp_season(void) {

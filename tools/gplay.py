@@ -12,27 +12,35 @@ the move of a winner_div entrant that does not win (to loser_div). Not playable 
 slot 4: dplay's mechanism, to come); the European play-offs are uefaq's.
 
 pack.json league "ko_playoffs": [{ "key", "names": {lang: [long, short]},
-  "kind": "promotion" | "europe" | "placement" | "playout" (the last round's losers go down to loser_div),
-  "entrants": [[div, place] | {"div": d, "best_without_europe": true} | {"league_cup_winner": true, "if_places": [a, b]}],
+  "kind": "promotion" | "europe" | "placement" | "playout" (the last round's losers go down to loser_div) |
+          "title" (the champion = the last tie's winner, or the final group's 1st) | "continental" (its winner and
+          runner-up take the continental places; the champion stays the table's 1st),
+  "entrants": [[div, place] | {"div": d, "best_without_europe": true} | {"league_cup_winner": true, "if_places": [a, b]}
+               | {"stage_place": s, "place": a, "div": d} (place a of split stage s's kept table, e.g. an Apertura)],
   "rounds": [{"ties": [[a, b], ...] | (with "pairing": "best_worst", "clubs": [...]), "legs": 1 | 2,
               "host": "listed" | "better" | "drawn" | "neutral", "level": "better" | "et_pens" | "et_better" | "pens",
-              "gap": g (a tie of clubs g+ points apart is not played: the better placed goes through)}
+              "gap": g (a tie of clubs g+ points apart is not played: the better placed goes through),
+              "skip_if_same": bool (a tie of one club with itself is not played: it goes through)}
              | {"group": {"rounds": 1..4, "bonus": [points per member], "host": "listed" | "neutral"},
                 "members": [...]} (a round robin; its placings P<k>, numbered across the group rounds)],
   "winner_div": d, "loser_div": d2 | "reserve" (out of the league), "skip_qualified": bool,
   "winners": w (a promotion play-off ending with a group: its top w go to winner_div) }]   (0-based divisions,
   1-based places; members: an entrant index, "W<k>" / "L<k>" the winner / loser of tie k, ties numbered in order
-  across rounds, "P<k>" the k-th placing of the group rounds)
+  across rounds, "P<k>" the k-th placing of the group rounds, "BL" the best placed loser of the previous knockout
+  round); levels also "away_pens" / "away_better" (away goals, then penalties / the better placed: simulated as
+  et_pens / better)
 """
 import os
 import re
 import struct
 
 RS_SIZE = 8 * 132                   # gplay.c RS_STATE: struct rs_state {u8 init, n, pad[2]; u16 q[64];} x RC 8
-KINDS = {'promotion': 1, 'europe': 2, 'placement': 3, 'playout': 4}
+KINDS = {'promotion': 1, 'europe': 2, 'placement': 3, 'playout': 4, 'title': 5, 'continental': 6}
 RESERVE = 0xFE                  # loser_div 'reserve': out of every division (gplay.c)
 HOSTS = {'listed': 0, 'better': 1, 'drawn': 2, 'neutral': 3}
-LEVELS = {'better': 0, 'et_pens': 1, 'et_better': 2, 'pens': 3}
+LEVELS = {'better': 0, 'et_pens': 1, 'et_better': 2, 'pens': 3, 'away_pens': 4, 'away_better': 5}
+SKIP_SAME = 0x80                # host byte bit 7: a tie of one club with itself is not played (4.0 package 6)
+BEST_LOSER = 0x3F               # member 'BL': the best placed loser of the previous round (entrants are 0..62)
 
 
 def compile_spec(pos, ndiv):
@@ -52,6 +60,11 @@ def compile_spec(pos, ndiv):
                 ents.append((0, d, p, 0))
             elif isinstance(e, dict) and e.get('best_without_europe'):
                 ents.append((1, e['div'], 0, 0))
+            elif isinstance(e, dict) and 'stage_place' in e:   # place of a split stage's kept table (title)
+                d, s, a = e.get('div', 0), e['stage_place'], e.get('place', 1)
+                if not (0 <= d < ndiv and 0 <= s < 2 and a >= 1):
+                    raise ValueError(f'{key}: entrant {e}')
+                ents.append((3, d, a, s))
             elif isinstance(e, dict) and e.get('league_cup_winner'):
                 a, b = e.get('if_places', [0, 0])
                 ents.append((2, 0, a, b))
@@ -61,6 +74,10 @@ def compile_spec(pos, ndiv):
             raise ValueError(f'{key}: 2..63 entrants')
         rounds, nt, npl = bytearray(), 0, 0
         def code(m):
+            if m == 'BL':
+                if not nt:
+                    raise ValueError(f'{key}: BL (the best loser) needs an earlier knockout round')
+                return BEST_LOSER
             if isinstance(m, int):
                 if not 0 <= m < len(ents):
                     raise ValueError(f'{key}: member {m}')
@@ -98,7 +115,8 @@ def compile_spec(pos, ndiv):
             gap = rd.get('gap', 0)
             if not (isinstance(gap, int) and 0 <= gap < 256):
                 raise ValueError(f'{key}: gap 0..255 points')
-            rounds += bytes((ties, legs, HOSTS[rd.get('host', 'listed')], LEVELS[rd.get('level', 'et_pens')], pairing,
+            host = HOSTS[rd.get('host', 'listed')] | (SKIP_SAME if rd.get('skip_if_same') else 0)
+            rounds += bytes((ties, legs, host, LEVELS[rd.get('level', 'et_pens')], pairing,
                              gap))
             rounds += bytes(codes)
             nt += ties

@@ -156,7 +156,6 @@ def patch(p, at, bss, tabs, world_file_name):
            'RI_REGS': (2, bss + ORIG_SIZE + POOL_SIZE), 'D0R': (2, r['D7'] - 28), 'A0R': (2, r['A0']),
            'A1R': (2, r['A0'] + 4), 'LOADFILE': (1, loadfile), 'SETGLOBALS': (1, setglobals),
            'RI_APPLY': gplay.LABELS['ri_apply'], 'RI_CACHE': gplay.LABELS['ri_cache'],
-
            'NUMSEL': trailer.INFO['NUMSEL'], 'SELBASEV': (1, trailer.INFO['selbasev']),
            'TEAMSLOADED': (2, s['teamsloaded']), 'LASTEXT': s['lastext'],
            'RI_FNAME': (0, '"%s"' % world_file_name)}

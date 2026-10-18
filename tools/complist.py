@@ -227,7 +227,7 @@ def from_packs(dirs, approx=None, staged=None, since=None, modes=('career',)):
 
 def _league(lg, clubs):
     divs = lg.get('divisions') or [{'teams': sum(1 for r in clubs if r['file'] == lg['clubs']
-                                                and r['division'] != 'reserve'),
+                                                and r['division'] not in ('reserve', '')),
                                     'promoted': 0, 'relegated': lg.get('relegated', 0), 'names': lg['names']}]
     par = lg.get('parallel')
     pars = par if isinstance(par, list) else ([par] if par else [])

@@ -4061,6 +4061,7 @@ def world_gplay_reserve(force='20', team='EUROPA,ITALIA,SERIE C GIRONE A,RENATE'
     reserve_out); sacked with no job offer left, the career ends (the game's own way) instead of a next season in the
     reserve (which trapped in cseg_3283C)"""
     src = src or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-reserve')
+    src = src.rstrip('/')
     if not os.path.isdir(src):
         return True, f'SKIP: private data {src} missing'
     order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
@@ -4103,6 +4104,10 @@ def world_gplay_reserve(force='20', team='EUROPA,ITALIA,SERIE C GIRONE A,RENATE'
         check(all(x != 255 for x in ko['tw']), f"play-out not over: winners {ko['tw']}", errs)   # club's tie)
     how = how + ('' if ko['slot'] else '; the club\'s tie decided by the gap, no contest')
     check(sacked == lost, f'play-out {"lost" if lost else "won"}, sacked {sacked}', errs)
+    car = os.path.join(RUNS, w84_tag() + '_1', 'SWOS', 'W84A.CAR')
+    if 'res1' in src and os.path.exists(car):                # (an off-file pool: no club left in the reserve)
+        left, cnt = reserve_left(car, src)
+        check(not left, f'clubs left in the reserve division: {left}', errs)
     return not errs, '; '.join(errs) or f'{msg}; play-out {"lost: sacked (" + how + ")" if lost else "won: kept the job"}'
 
 
@@ -4110,6 +4115,35 @@ def world_gplay_reserve(force='20', team='EUROPA,ITALIA,SERIE C GIRONE A,RENATE'
 def world_gplay_reserve_out():
     """world_gplay_reserve with the career club forced 17th: its play-out (17th v 18th) played, sacked if lost"""
     return world_gplay_reserve('17')
+
+
+def reserve_left(car, src, country='ita'):
+    """After a season (W84A.CAR): the country's clubs whose division (base + someLeaguesTable) is past its last one,
+    i.e. left in the reserve division (an off-file pool swaps every relegated club out but the manager's), and the
+    clubs per division."""
+    import collections
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    old = os.environ.get('SEASON_PACKS')
+    os.environ['SEASON_PACKS'] = ','.join([os.path.join(src, x) for x in order])
+    import mkseason
+    pk = next(p for p in mkseason.packs() if p.meta.get('id', '').endswith('-' + country))
+    if old is None:
+        os.environ.pop('SEASON_PACKS')
+    else:
+        os.environ['SEASON_PACKS'] = old
+    nd = len(pk.divisions())
+    slt = open(car, 'rb').read()[0xE8DC:0xE8DC + 2000]
+    left, cnt = [], collections.Counter()
+    for key in pk.league_clubs:
+        fl, i = pk.where[key]
+        base = next(b for fk, (ff, b) in pk.files.items() if ff == fl)
+        g = base + i
+        dv = pk.division[key] + struct.unpack('b', slt[g:g + 1])[0]
+        cnt[dv] += 1
+        if dv >= nd:
+            left.append((key, dv))
+    return left, cnt
 
 
 @scenario

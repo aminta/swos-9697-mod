@@ -1337,6 +1337,43 @@ def season_over(scr):
 
 
 @scenario
+def season4748():
+    """3.3.5: CLASSIC SEASONS Italy 1947-48 (21 clubs, all computer): the first 6 match days, 10 matches each with 20
+    different clubs and one at rest (oddtables.py; before, a club played twice on some match days)"""
+    b = builds()['it']
+    days = 6                                    # the 3.3.4 table: days 5, 6, 8, 9, 11..21 irregular
+    with Session('season4748', b, {}, 'dump:2', 400) as s:
+        s.wait()
+        for t in ('STAGIONE', 'STAG. STORICHE', 'ITALIA 1947-48'):
+            if press(s, s.screen(), t, 2) is None:
+                return False, f'{t} not reached ({s.result})'
+        for _ in range(12):                     # the STAGIONE button (76), right of ABBANDONA (75)
+            scr = s.screen()
+            if scr.entries[scr.selected][1] == 'STAGIONE':
+                break
+            s.send(('right' if scr.entries[scr.selected][1] == 'ABBANDONA' else 'down') + ' dump:0.5')
+        s.send('fire dump:3')
+        matches = []
+        for _ in range(days * 10 * 3):
+            scr = s.screen()
+            if s.result.outcome != 'dump':
+                return False, f'after {len(matches)} matches: {s.result}'
+            pair = (scr.entries[12][1], scr.entries[13][1]) if len(scr.entries) > 13 else None
+            if pair and scr.entries[11][1] == 'C' and pair[0] and pair[1]:    # a match before its result
+                matches.append(pair)
+                if len(matches) == days * 10:
+                    break
+            s.send('fire dump:2')
+    errs = []
+    for d in range(days):
+        day = matches[d * 10:d * 10 + 10]
+        clubs = [c for m in day for c in m]
+        check(len(day) == 10 and len(set(clubs)) == 20, f'day {d + 1}: {len(day)} matches, {len(set(clubs))} clubs '
+              f'{sorted(c for c in set(clubs) if clubs.count(c) > 1)} twice', errs)
+    return not errs, '; '.join(errs) or f'{days} match days of 10 matches, 20 clubs each (first: {matches[:2]})'
+
+
+@scenario
 def w84_lowprice():
     """3.3.4 (Daniele): a 1984-85 career at Volsungur (Iceland), whose 16 players are all worth the minimum: the team
     screen divided by the average player price (0) and the game stopped (DOS/4GW divide error); avgprice.py"""

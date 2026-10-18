@@ -109,6 +109,9 @@ def _site(p):
     return calls[0], back[0], s
 
 
+LABELS = {}             # obj1 offsets other modules link to (RS_TAB: gplay.c's sacking check, gplay.link_reserve)
+
+
 def patch(p, at, tables, pg_season, rs_tables=(), rs_season=None):
     """Glue + tables at obj1:at (the fix itself: gplay.c pg_season, (1, offset)); returns the end."""
     import bigtables
@@ -127,6 +130,7 @@ def patch(p, at, tables, pg_season, rs_tables=(), rs_season=None):
     for off, tobj, toff in fix:
         p.add_ptr(1, at + off, tobj, toff)
     p.put(1, site + 1, struct.pack('<i', lab['pg_fix'] - (site + 5)))   # (a relative call: no fixup)
+    LABELS['RS_TAB'] = lab['RS_TAB']
     print(f'exe: parallel groups: {len(tables)} countries, reserves {len(rs_tables)}, copy-back call obj1+{site:#x}, code obj1+{at:#x}..'
           f'{at + len(code):#x}')
     return at + len(code)

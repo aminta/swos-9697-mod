@@ -802,6 +802,16 @@ def entry(world, file, div, n, spec, table):
     return body + b'\0' * (length - len(body)), d1, d2
 
 
+def pages(splits):
+    """obj1 pages for the code + SP_TAB (0 without splits)."""
+    if not splits:
+        return 0
+    size = 0x900                                   # the code (~1.8 KB)
+    for world, file, div, n, spec in splits:
+        size += len(entry(world, file, div, n, spec, [(a, b) for a in range(n) for b in range(a + 1, n)])[0])
+    return (size + 0xFFF) // 0x1000
+
+
 def sites(p):
     """Sites on the original bytes (obj1 offsets) and variables (obj2)."""
     import lib97

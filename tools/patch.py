@@ -198,7 +198,8 @@ def patch_exe(src, dst, remap, lang='it'):
     cdp = mkseason.career_data_pages() - 2 if worlds else 0   # a big world: a 3rd career data page and a 2nd
     h2 = HIST2_PAGE * (1 + cdp)                                # historic page (its cups' fixed draws)
     cp = cave_pages()                                          # career world code: 2 pages, 3 with several worlds
-    for _ in range((6 + cp + 2 + 2 * cdp if worlds else 6) + lpb):  # (+1: the UEFA league phase's code page, lp36)
+    sp_pg = split.pages(mkseason.splits()) if worlds else 0   # mid-season splits: own pages after all the others
+    for _ in range((6 + cp + 2 + 2 * cdp if worlds else 6) + lpb + sp_pg):  # (+1: the UEFA league phase's page, lp36)
         data = add_object_page(data, 1)
     mkseason.CAREER_CAVE[0] = CAREER_CAVE if worlds else None
     mkseason.CAREER_DATA[0] = CAREER_DATA + 0x1000 * (cp - 2) if worlds else None
@@ -301,7 +302,6 @@ def patch_exe(src, dst, remap, lang='it'):
             end = careerworld.patch_tails(p, end, nasmcave)
         end = worldpool.patch(p, end, nasmcave, [(w['n'], w['pool'][0]) for w in mkseason.world_defs() if w['pool']])
         end = benchnum.patch(p, end, nasmcave, [w['n'] for w in mkseason.world_defs() if w['squad_numbers']])
-        end = split.patch(p, end, nasmcave, mkseason.splits())     # mid-season splits (World 2026-27)
         assert end <= CAREER_CAVE + mkseason.CAREER_CAVE_SIZE, hex(end)
     p.add_ptr(1, info['new_career_ptr'], 1, new_career)
     if ARG_LOAD_HOOK:
@@ -372,7 +372,11 @@ def patch_exe(src, dst, remap, lang='it'):
         (hex(world), hex(nz_end), hex(fin_end), hex(arg_end))
     careerworld.ns_xtra(p, xtra.LABELS['XTRA_NAMEP'] if xtra_on else None)   # several worlds: XTWn.nnn names
     mkseason.ns_emit(p)                          # several worlds: the namespaces' rows, the base one static
-    p.set_vsize(1, OBJ1_NEW_VSIZE + (0x1000 * (cp + 2 + cdp) if worlds else 0) + h2 + 0x1000 * lpb)
+    if sp_pg:                                    # World 2026-27: mid-season splits (split.py), after lpb's pages
+        sp_at = hist2 + h2 + 0x1000 * lpb
+        sp_end = split.patch(p, sp_at, nasmcave, mkseason.splits())
+        assert sp_end <= sp_at + 0x1000 * sp_pg, hex(sp_end)
+    p.set_vsize(1, OBJ1_NEW_VSIZE + (0x1000 * (cp + 2 + cdp) if worlds else 0) + h2 + 0x1000 * (lpb + sp_pg))
     tail = (careerworld.BSS_SIZE if bigw else 0) + shirtnum.BSS_SIZE + blond.BSS_SIZE + menunum.BSS_SIZE   # obj2 tail
     p.set_vsize(2, obj2_free + o2pages * p.le.page_size + tail, bss=tail)
     p.add_flags(1, 0x2)            # writable: season end rewrites the SA cup team lists in the cave

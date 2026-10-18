@@ -3288,6 +3288,19 @@ SPLITS = {   # world_split kinds: country, career path (ITA), the 'split' of its
     'h2h': ('mda', 'EUROPA,MOLDAVIA,PETROCUB',
             {'after': 21, 'groups': [{'places': [1, 6], 'rounds': 'double', 'points': 'h2h_half'},
                                      {'places': [7, 8], 'rounds': 'none'}]}),
+    'reverse3': ('nir', 'EUROPA,ALTRE NAZIONI,IRLANDA DEL NORD,BANGOR',
+                 {'after': 33, 'home': 'reverse3', 'groups': [{'places': [1, 6], 'rounds': 'single'},
+                                                              {'places': [7, 12], 'rounds': 'single'}]}),
+    'odd': ('bul', 'EUROPA,BULGARIA,LOKOMOTIV SOFIA',
+            {'after': 26, 'groups': [{'places': [1, 4], 'rounds': 'double'}, {'places': [5, 9], 'rounds': 'double'},
+                                     {'places': [10, 14], 'rounds': 'single'}]}),
+    'three': ('gre', 'EUROPA,GRECIA,VOLOS',
+              {'after': 26, 'groups': [{'places': [1, 4], 'rounds': 'double'},
+                                       {'places': [5, 8], 'rounds': 'double', 'points': 'half_up'},
+                                       {'places': [9, 14], 'rounds': 'double'}]}),
+    'none': ('cze', 'EUROPA,REP. CECA,PARDUBICE',
+             {'after': 30, 'groups': [{'places': [1, 6], 'rounds': 'single'}, {'places': [7, 10], 'rounds': 'none'},
+                                      {'places': [11, 16], 'rounds': 'single'}]}),
     'halved': ('rou', 'EUROPA,ROMANIA,BOTOSANI',
                {'after': 30, 'groups': [{'places': [1, 6], 'rounds': 'double', 'points': 'half_up'},
                                         {'places': [7, 16], 'rounds': 'single', 'points': 'half_up'}]}),
@@ -3455,6 +3468,34 @@ def world_split_h2h():
     won against each other, rounded down; 7th-8th done) at PETROCUB: 31 days, the top 6's points = half their
     head-to-head points + the later ones"""
     return world_split('h2h')
+
+
+@scenario
+def world_split_reverse3():
+    """Mid-season split, 'reverse3' home rule: Northern Ireland (33 + 5, Section A / B; home = the club away in their
+    3rd meeting) at BANGOR"""
+    return world_split('reverse3')
+
+
+@scenario
+def world_split_odd():
+    """Mid-season split, odd groups: Bulgaria 26 + groups 1-4 / 5-9 (double, byes) / 10-14 (single, byes) at
+    LOKOMOTIV SOFIA: 6 / 4 / 2 matches a day"""
+    return world_split('odd')
+
+
+@scenario
+def world_split_three():
+    """Mid-season split, three groups: Greece 26 + 1-4 / 5-8 (points halved, rounded up) / 9-14, all double, at
+    VOLOS"""
+    return world_split('three')
+
+
+@scenario
+def world_split_none():
+    """Mid-season split with a group that stops: Czech Republic 30 + 1-6 / 7-10 (no more league matches: their
+    placement knockout is a play-off item) / 11-16 at PARDUBICE"""
+    return world_split('none')
 
 
 @scenario

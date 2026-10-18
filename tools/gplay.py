@@ -33,6 +33,8 @@ pack.json league "ko_playoffs": [{ "key", "names": {lang: [long, short]},
                | {"stage_place": s, "place": a, "div": d} (place a of split stage s's kept table, e.g. an Apertura)],
   "rounds": [{"ties": [[a, b], ...] | (with "pairing": "best_worst", "clubs": [...]), "legs": 1 | 2,
               "series": 3 (best of three single matches, games 1 and 3 at the better placed's; not the last round),
+              "pairing": "draw" + "clubs" (the clubs drawn into ties; a club {"best_of": [P..]}: the best of those
+              placings by their own groups' points, goal difference, goals - a ranking round before),
               "host": "listed" | "better" | "drawn" | "neutral", "level": "better" | "et_pens" | "et_better" | "pens",
               "gap": g (a tie of clubs g+ points apart is not played: the better placed goes through),
               "skip_if_same": bool (a tie of one club with itself is not played: it goes through)}
@@ -109,7 +111,19 @@ def compile_spec(pos, ndiv):
             if not mm or int(mm.group(2)) >= (npl if mm.group(1) == 'P' else nt):
                 raise ValueError(f'{key}: member {m} (W<k> / L<k> of an earlier tie, P<k> an earlier placing)')
             return {'W': 0x80, 'L': 0xC0, 'P': 0x40}[mm.group(1)] | int(mm.group(2))
+        nrd = 0
         for rd in po['rounds']:
+            for c in list(rd.get('clubs') or []):  # {'best_of': [P..]}: a ranking round first (a group of 0 meetings:
+                if isinstance(c, dict) and 'best_of' in c:   # the placings by their own groups' figures), its 1st
+                    bo = c['best_of']
+                    if not (2 <= len(bo) <= 24 and all(re.fullmatch(r'P\d+', str(m)) for m in bo)):
+                        raise ValueError(f'{key}: best_of: 2..24 earlier placings P<k>')
+                    rounds += bytes((len(bo), 0x80, HOSTS['neutral'], 0, 0, 0)) + bytes(code(m) for m in bo)
+                    rounds += bytes(len(bo))
+                    rd = dict(rd, clubs=[f'P{npl}' if x is c else x for x in rd['clubs']])
+                    npl += len(bo)
+                    nrd += 1
+            nrd += 1
             if 'group' in rd:           # a round robin: (members, 0x80 | meetings, host, 0, 0, 0) codes, bonuses
                 g, mem = rd['group'], rd['members']
                 meet, bonus = g.get('rounds', 2), g.get('bonus', [0] * len(mem))
@@ -124,13 +138,13 @@ def compile_spec(pos, ndiv):
             # a best_worst block: the round itself, or its first tie entry {pairing, clubs}; other ties as listed
             tl = list(rd.get('ties') or [])
             blk = rd if rd.get('pairing') else (tl.pop(0) if tl and isinstance(tl[0], dict) else None)
-            if blk is not None and (blk.get('pairing') != 'best_worst' or len(blk['clubs']) % 2):
-                raise ValueError(f'{key}: pairing best_worst with an even number of clubs')
+            if blk is not None and (blk.get('pairing') not in ('best_worst', 'draw') or len(blk['clubs']) % 2):
+                raise ValueError(f'{key}: pairing best_worst / draw with an even number of clubs')
             if any(isinstance(t, dict) for t in tl):
                 raise ValueError(f'{key}: a best_worst block only as the first tie of a round')
             bm = list(blk['clubs']) if blk is not None else []
             mem = bm + [m for t in tl for m in t]
-            ties, pairing = len(mem) // 2, len(bm)
+            ties, pairing = len(mem) // 2, len(bm) | (0x80 if blk is not None and blk.get('pairing') == 'draw' else 0)
             codes = [code(m) for m in mem]
             legs = rd.get('legs', 1)
             if rd.get('series'):                # best of three: legs byte 3 (single matches, the first to 2 wins)
@@ -159,7 +173,7 @@ def compile_spec(pos, ndiv):
         if rounds and po['rounds'][-1].get('series'):
             raise ValueError(f'{key}: a best-of-three ("series": 3) not as the last round')
         flags = (1 if po.get('skip_qualified') else 0) | ((win if win > 1 else 0) << 4)
-        out += bytes((kind, len(ents), len(po['rounds']), wd, ld, flags))
+        out += bytes((kind, len(ents), nrd, wd, ld, flags))
         out += b''.join(bytes(e) for e in ents) + rounds
     out = bytes(out + b'\0')
     SPEC_NAMES[out] = [(po.get('names') or {}, po.get('key', '?')) for po in pos]
@@ -837,7 +851,7 @@ def table_lines(tables):
 LABELS = {}
 GP_PAGES = 6             # obj1 pages for the C code + glue + specs (World 2026-27's 20 countries; gplay-play)
 GP_ST_SIZE = 1996       # (sizeof struct gp_state: the engine block's item 'GP', patch.py)
-GP_BSS = 0x4000          # the C .bss pages (obj2 after careerworld's BSS): GP_IN at GD 16, RS_STATE, the squads' GP_ST
+GP_BSS = 0x5000          # the C .bss pages (obj2 after careerworld's BSS): GP_IN at GT 32 / GD 16, GP_SS, PR, RS, GP_ST, RI, PS
 
 
 def _sack_sites(p):

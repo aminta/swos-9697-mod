@@ -1518,6 +1518,16 @@ def world8485():
                     if hexseen.get(o) != v:
                         hexseen[o] = v
                         s.log.append(f'HEX {o} {v}')
+                if diy is not None:                    # W8485_DIY (world_split): the split league's DIY when its
+                    b = s.result.obj2(diy[0], 0x733)    # day / freeze changes, the calendar once frozen
+                    if b[diy[1]:diy[1] + 2] == b'\xfeP' and b[0:2] == b'\0\0' and \
+                            diyseen.get('k') != (b[0x1C1:0x1C3], b[diy[1] + 4]):
+                        diyseen['k'] = (b[0x1C1:0x1C3], b[diy[1] + 4])
+                        s.log.append(f'DIY {b.hex()}')
+                        open(os.path.join(s.run, 'diy.log'), 'a').write(f'DIY {b.hex()}\n')   # (live, for long runs)
+                        if b[diy[1] + 4] and 'cal' not in diyseen:
+                            diyseen['cal'] = 1
+                            s.log.append(f'CAL {s.result.obj2(diy[2], 1870).hex()}')
                 rnd, cid, ties = slot_ties(s.result, 32)
                 if struct.unpack_from('<H', s.result.obj2(SLOT, 2))[0] == 2:   # a league phase (type 2): no ties
                     return season_over(scr)
@@ -1529,7 +1539,8 @@ def world8485():
                     same = [ties[j] for j in range(n) if ties[j][0] == ties[j][1]]
                     check(not same, f'season {season} cup {cid} round {rnd + 1}: same-country ties {same}', errs)
                 return season_over(scr) or (r2only and (season, 1) in seen)
-            hexseen = {}
+            hexseen, diyseen = {}, {}
+            diy = [int(x, 16) for x in os.environ['W8485_DIY'].split(',')] if os.environ.get('W8485_DIY') else None
             r2only = os.environ.get('W8485_R2') == '1'         # stop once the player's round 2 is checked
             peek = [int(os.environ['W8485_PEEK'], 0), 0] if os.environ.get('W8485_PEEK') else None
             ok, msg = advance(s, stop, 900)
@@ -1551,6 +1562,16 @@ def world8485():
                 msg += f', after FINISCI STAGIONE: {m2}'
                 if not ok:
                     return False, f"season {season}: {msg}" 
+            if diy is not None:                        # (the split league once the season is over: its last days
+                b = s.result.obj2(diy[0], 0x733)       # may come after the career club's last match)
+                if b[diy[1]:diy[1] + 2] == b'\xfeP' and b[0:2] == b'\0\0':
+                    s.log.append(f'DIY {b.hex()}')
+            if os.environ.get('W8485_SAVE_END'):      # (debug) a save at the season-end menu, before CONTINUA
+                nm = os.environ['W8485_SAVE_END']
+                if press(s, s.screen(), 'SALVA CARRIERA') is None:
+                    return False, f'season {season}: no SALVA CARRIERA on {s.screen()}'
+                s.send(name_entry(nm) + ' dump:3')
+                return True, f'season {season}: saved {os.path.join(s.run, "SWOS", nm + ".CAR")}'
             path = next_season_save(s, 'W84' + 'AB'[season - 1])
             if not path.endswith('.CAR'):
                 return False, f'season {season}: {path}'
@@ -3256,6 +3277,192 @@ def world_dplay_b(force='5', team='EUROPA,ITALIA,SERIE B,MODENA'):
     return not errs, '; '.join(errs) or (f'{msg}; clubs {[hex(t) for t in teams[:n]]}, winner {res:#x} '
                                          f'(place {places[teams.index(res)] + 1}), moves {mv}')
 
+
+
+SPLITS = {   # world_split kinds: country, career path (ITA), the 'split' of its first division (formats2627.md)
+    'single': ('sco', 'EUROPA,SCOZIA,SCOTTISH PREMIERSHIP,ST. MIRREN',
+               {'after': 33, 'home': 'balance', 'groups': [{'places': [1, 6], 'rounds': 'single'},
+                                                            {'places': [7, 12], 'rounds': 'single'}]}),
+    'double': ('aut', 'EUROPA,AUSTRIA,HARTBERG',
+               {'after': 22, 'groups': [{'places': [1, 6], 'rounds': 'double'}, {'places': [7, 12], 'rounds': 'double'}]}),
+    'h2h': ('mda', 'EUROPA,MOLDAVIA,PETROCUB',
+            {'after': 21, 'groups': [{'places': [1, 6], 'rounds': 'double', 'points': 'h2h_half'},
+                                     {'places': [7, 8], 'rounds': 'none'}]}),
+    'halved': ('rou', 'EUROPA,ROMANIA,BOTOSANI',
+               {'after': 30, 'groups': [{'places': [1, 6], 'rounds': 'double', 'points': 'half_up'},
+                                        {'places': [7, 16], 'rounds': 'single', 'points': 'half_up'}]}),
+}
+
+
+def split_build():
+    """The world 2026-27 (private data internal/world2526/world5tm) with the three SPLITS; SPLIT_BUILD reuses one."""
+    import json
+    if os.environ.get('SPLIT_BUILD'):
+        return os.environ['SPLIT_BUILD']
+    src = os.path.join(MAIN, 'internal', 'world2526', 'world5tm')
+    w = os.path.join(WORK, 'world_split')
+    shutil.rmtree(w, ignore_errors=True)
+    shutil.copytree(src, os.path.join(w, 'world5tm'))
+    for c, _, sp in SPLITS.values():
+        f = os.path.join(w, 'world5tm', c, 'pack.json')
+        d = json.load(open(f))
+        lg = next(x for x in d['competitions'] if x['type'] == 'league')
+        (lg['divisions'][0] if 'divisions' in lg else lg)['split'] = sp
+        json.dump(d, open(f, 'w'), indent=1, ensure_ascii=False)
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    return build('world_split', env={'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(w, 'world5tm', x)
+                                                                                for x in order])})
+
+
+def split_check(log, key, slots_table):
+    """The split league's snapshots (session log 'DIY' / 'CAL' lines of world8485 with W8485_DIY) against the pack
+    key (converted as mkseason.splits does)."""
+    import split
+    rnd = {'none': 0, 'single': 1, 'double': 2}
+    gs = key['groups']
+    spec = {'groups': [g['places'][1] - g['places'][0] + 1 for g in gs], 'rounds': [rnd[g.get('rounds', 'single')] for g in gs],
+            'points': [g.get('points', 'full') for g in gs], 'home': key.get('home', 'seeded'), 'after': key['after']}
+    diys = [b for b in (bytes.fromhex(ln[4:]) for ln in log if ln.startswith('DIY ')) if b[0:2] == b'\0\0']   # leagues
+    cal = [bytes.fromhex(ln[4:]) for ln in log if ln.startswith('CAL ')]
+    if not diys:
+        return False, 'no snapshot of the split league'
+    clubs = lambda b: sorted(b[0x12D:0x12D + 2 * struct.unpack_from('<H', b, 0x31)[0]])
+    diys = [b for b in diys if clubs(b) == clubs(diys[0])]      # (not another country's split league)
+    st = split.ST
+    n = struct.unpack_from('<H', diys[-1], 0x31)[0]
+    d1 = spec['after']
+    spec['games'] = d1 // split.days_before(n, 1)
+    days = split.schedule(spec['groups'], spec['rounds'])
+    d2 = len(days)
+    last = diys[-1]
+    errs = []
+    w = lambda b, o: struct.unpack_from('<H', b, o)[0]
+    day = w(last, 0x1C1)
+    check(w(last, 0x1C3) == d1 + d2, f'days {w(last, 0x1C3)} != {d1} + {d2}', errs)
+    check(day == d1 + d2 and w(last, 0x5F) == 0, f'last snapshot: day {day}, cycles left {w(last, 0x5F)}', errs)
+    fz = split.OFF['frozen']
+    check(any(not b[st + fz] and w(b, 0x1C1) < d1 for b in diys), 'no snapshot before the split', errs)
+    fr = [b for b in diys if b[st + fz]]
+    check(fr and all(w(b, 0x1C1) >= d1 for b in fr), f'frozen before day {d1}', errs)
+    row = lambda o: o // 18
+    order = [row(w(last, 0x6D + 2 * i)) for i in range(n)]
+    p2r = list(last[st + split.OFF['p2r']:st + split.OFF['p2r'] + n])
+    grp = last[st + split.OFF['grp']:st + split.OFF['grp'] + n]
+    pre = [w(last, st + split.OFF['pre'] + 2 * r) for r in range(n)]
+    rec = lambda r: struct.unpack_from('<I7H', last, 0x2B3 + 18 * r)   # team, played, won, drawn, lost, gf, ga, pts
+    full = (n - 1) * spec['games']
+    before = next((b for b in diys if not b[st + split.OFF['frozen']] and all(struct.unpack_from('<H', b, 0x2B3 + 18 * r + 4)[0] == full
+                                                             for r in range(n))), None)   # (all pre-split played)
+    rounds = spec['rounds']
+    sizes, start = spec['groups'], 0
+    pts_rule = spec.get('points', ['full'] * len(sizes))
+    for g, m in enumerate(sizes):
+        rows = order[start:start + m]
+        check(sorted(rows) == sorted(p2r[start:start + m]) and all(grp[r] == g for r in rows),
+              f'group {g + 1}: final places {start + 1}-{start + m} rows {rows}, frozen {p2r[start:start + m]}', errs)
+        games = (n - 1) * spec['games'] + (m - 1) * rounds[g]
+        for r in rows:
+            t = rec(r)
+            want = 3 * t[2] + t[3]
+            if pts_rule[g] in ('half_up', 'half_down'):
+                half = (pre[r] + 1) // 2 if pts_rule[g] == 'half_up' else pre[r] // 2
+                want = want - pre[r] + half
+            elif pts_rule[g] in ('reset', 'h2h_half'):          # the points after the split, from the snapshot
+                if before is None:                               # with every pre-split match played
+                    continue
+                b = struct.unpack_from('<I7H', before, 0x2B3 + 18 * r)
+                want = 3 * (t[2] - b[2]) + (t[3] - b[3]) + (pre[r] // 2 if pts_rule[g] == 'h2h_half' else 0)
+            check(t[1] == games and t[2] + t[3] + t[4] == games, f'row {r}: played {t[1]} (W{t[2]} D{t[3]} L{t[4]}), '
+                  f'{games} wanted', errs)
+            check(t[7] == want, f'row {r}: points {t[7]}, {want} wanted (points before the split {pre[r]})', errs)
+        key = [(rec(r)[7], pre[r] if pts_rule[g] not in ('full', 'reset') else 0) for r in rows]
+        check(all(key[i][:2] >= key[i + 1][:2] for i in range(m - 1)), f'group {g + 1} not in order: {key}', errs)
+        start += m
+    if cal and spec.get('home') in ('balance', 'reverse3'):    # the career club's post-split fixtures: home side by
+        c = cal[0]                                             # the matrix of the slots (the engine's own fixtures)
+        mat = split.matrix(slots_table(n), n, spec['games'], spec['games'] + 1, spec['home'])
+        slot = {last[0xED + i]: i for i in range(n)}
+        words = {}
+        o, k, seen = 0, 0, 0
+        while o + 0x10 <= len(c) and seen < 400:
+            seen += 1
+            size = w(c, o + 2)
+            if not size:
+                break
+            if c[o] == last[0x2B]:
+                if d1 <= k < d1 + d2 and c[o + 5]:
+                    words.setdefault('fx', []).append((w(c, o + 0xC), w(c, o + 0xE)))
+                k += 1
+            o += size
+        fx = words.get('fx', [])
+        me = set.intersection(*[{a, b} for a, b in fx]) if fx else set()
+        check(len(me) == 1 and any(len(fx) == (m - 1) * r for m, r in zip(sizes, rounds)),
+              f'career club post-split fixtures {fx}', errs)
+        row = {w(last, 0x12D + 2 * r): r for r in range(n)}           # team number -> row -> slot
+        bad = [(hex(a), hex(b)) for a, b in fx if a in row and b in row
+               and mat[slot[row[a]] * n + slot[row[b]]] == 0]
+        check(not bad, f'home side against the {spec["home"]} rule: {bad}', errs)
+        log.append(f'post-split fixtures {[(hex(a), hex(b)) for a, b in words.get("fx", [])]}')
+    return not errs, '; '.join(errs[:6]) or f'days {d1} + {d2}, final order {order}, groups {sizes}'
+
+
+def world_split(kind):
+    c, team, spec = SPLITS[kind]
+    exe = split_build()
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import split
+    import lepatch
+    po = lepatch.LEPatch(os.path.join(MAIN, 'orig', 'ITALIAN.EXE'))
+    sa = split.sites(po)
+    keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K',
+                                            'W8485_NOSACK', 'W8485_DIY', 'W8485_FROM')}
+    os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5', W8485_K='108+',
+                      W8485_NOSACK='1', W8485_DIY=f"{sa['DIY']:x},{split.ST:x},{sa['CAL']:x}")
+    try:
+        ok, msg = world8485()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    log = open(os.path.join(RUNS, 'world8485_1', 'session.log')).read().splitlines()
+    good, rep = split_check(log, spec, lambda n: split.pair_table(po, sa, n))
+    open(os.path.join(RUNS, 'world8485_1', 'split.txt'), 'w').write(rep + '\n' + '\n'.join(
+        x for x in log if x.startswith('post-split')) + '\n')
+    return ok and good, f'{rep}; {msg}'
+
+
+@scenario
+def world_split_single():
+    """Mid-season split, single round robin (split.py): Scotland (Premiership 33 + 5, top 6 / bottom 6, the
+    pair-balance home rule) in the world 2026-27 with SPLITS; a season at ST. MIRREN played to its end: 38 days,
+    everyone 38 matches, the final table = the frozen groups in order (points in full), the career club's 5 fixtures
+    after the split at home by the balance of the engine's first 33 days"""
+    return world_split('single')
+
+
+@scenario
+def world_split_double():
+    """Mid-season split, double round robin: Austria (22 + 10, Meistergruppe / Qualifikationsgruppe, points in full)
+    at HARTBERG: 32 days, 32 matches each, the groups in order"""
+    return world_split('double')
+
+
+@scenario
+def world_split_h2h():
+    """Mid-season split, head-to-head points: Moldova (21 + the top 6 double round robin (10) from half the points
+    won against each other, rounded down; 7th-8th done) at PETROCUB: 31 days, the top 6's points = half their
+    head-to-head points + the later ones"""
+    return world_split('h2h')
+
+
+@scenario
+def world_split_halved():
+    """Mid-season split, halved points: Romania (30 + play-off 6 double (10) / play-out 10 single (9), points halved
+    rounded up, 'points before rounding' first tie-break) at BOTOSANI: 40 days, 40 / 39 matches, points = the halved
+    split points + the later ones, groups in order"""
+    return world_split('halved')
 
 @scenario
 def world_dplay_out():

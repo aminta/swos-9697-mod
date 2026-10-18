@@ -35,7 +35,8 @@ import re
 import struct
 
 N, POT, DAYS = 36, 9, 8
-FIXTURES = {}                   # contest id -> (groups, clubs per group, days, [(home row, away row)] in day order): a
+DC_CLUB = 0x2F                  # diyFileBufferCopy: its team list's first club (file, ordinal) [to verify in game]
+FIXTURES = {}                   # (contest id, first club) -> (groups, clubs per group, days, [(home row, away row)]): a
                                 # type-2 contest's first group stage played from a fixed calendar (e.g. a state
                                 # championship's cross-group round robin); the game's own per-group tables
 LABELS = {}                     # lp36 labels (uefacoef.py patches the lp_cb_* callbacks)
@@ -1559,9 +1560,10 @@ _GROUP = {0: 3, 1: 3, 2: 2, 3: 2, 4: 1, 5: 1, 6: 0, 7: 0}     # seeded place -> 
 
 
 FX_ASM = '''
-; --- fixture contests (FIXTURES): FX_TAB entries of 16 bytes: db id, groups, clubs per group, 0; dd matches; dd days;
-; dd calendar (obj2: (home row, away row) bytes in day order)
-fx_find:                                ; al = contest id, cx = groups, dx = clubs per group -> esi = its entry, ZF = 1
+; --- fixture contests (FIXTURES): FX_TAB entries of 20 bytes: db id, groups, clubs per group, 0; dd matches; dd days;
+; dd calendar (obj2: (home row, away row) bytes in day order); dw first club (file, ordinal: several state championships
+; share one contest id), 0
+fx_find:                                ; al = id, cx = groups, dx = clubs per group, bx = first club -> esi, ZF = 1
     mov esi, FX_TAB
 .l:
     cmp esi, FX_END
@@ -1571,9 +1573,11 @@ fx_find:                                ; al = contest id, cx = groups, dx = clu
     cmp cl, [esi + 1]
     jne .n
     cmp dl, [esi + 2]
+    jne .n
+    cmp bx, [esi + 16]
     je .r
 .n:
-    add esi, 16
+    add esi, 20
     jmp .l
 .no:
     cmp esp, 0                          ; ZF = 0
@@ -1582,39 +1586,51 @@ fx_find:                                ; al = contest id, cx = groups, dx = clu
 
 fx_copy:                                ; diyFileBufferCopy's first stage -> esi = its fixture entry, ZF = 1
     push eax
+    push ebx
     push ecx
     push edx
     mov al, [DIYCOPY + 2Dh]
+    mov bx, [DIYCOPY + DC_CLUB]         ; (its team list's first club)
     mov cx, [DIYCOPY + 15Dh]
     mov dx, [DIYCOPY + 16Bh]
     call fx_find
     pop edx
     pop ecx
+    pop ebx
     pop eax
     ret
 
 fx_ours:                                ; the running stage (DIY_competitionStart) -> esi = its entry, ZF = 1
-    push eax
+    push eax                            ; (fx_start: the id still in DIYCOPY, cseg_258E4 copies it at its end)
+    push ebx
     push ecx
     push edx
     mov al, [DIY + 2Dh]
+    cmp byte [DIY], 0                   ; (a league layout: a group stage running)
+    jne .x
+.id:
+    mov bx, [DIY + 12Dh]                ; the team table's row 0
     mov cx, [DIY + 4Fh]
     mov dx, [DIY + 51h]
     call fx_find
+.x:
     pop edx
     pop ecx
+    pop ebx
     pop eax
     ret
 
+fx_start_find:                          ; as fx_ours, the id from DIYCOPY
+    push eax
+    mov al, [DIYCOPY + 2Dh]
+    push ebx
+    push ecx
+    push edx
+    jmp fx_ours.id
+
 fx_start:                               ; (after cseg_2653B) a fixture contest's stage: pair indices per cycle =
     pushad                              ; matches / groups, its days, the months again
-    call fx_copy                        ; (the id is in DIYCOPY: cseg_258E4 copies it into DIY+2Dh at its end)
-    jne .r
-    movzx ecx, byte [esi + 1]
-    cmp [DIY + 4Fh], cx
-    jne .r
-    movzx ecx, byte [esi + 2]
-    cmp [DIY + 51h], cx
+    call fx_start_find                  ; (the id is in DIYCOPY: cseg_258E4 copies it into DIY+2Dh at its end)
     jne .r
     mov eax, [esi + 4]
     xor edx, edx
@@ -1874,10 +1890,11 @@ def fx_patch(p, at, area):
         return at
     symbols = dict(LABELS['symbols'], LP_FRESH=(1, LABELS['lp_fresh']))
     rows = []
-    for cid, (ng, size, nd, cal_) in sorted(FIXTURES.items()):
+    symbols['DC_CLUB'] = (0, DC_CLUB)
+    for k, ((cid, first), (ng, size, nd, cal_)) in enumerate(sorted(FIXTURES.items())):
         assert len(cal_) % ng == 0 and len(cal_) % nd == 0 and all(max(m) < ng * size for m in cal_), cid
-        symbols[f'FXC{cid}'] = (2, area.add(bytes(b for m in cal_ for b in m)))
-        rows.append(f'    db {cid}, {ng}, {size}, 0\n    dd {len(cal_)}, {nd}, FXC{cid}')
+        symbols[f'FXC{k}'] = (2, area.add(bytes(b for m in cal_ for b in m)))
+        rows.append(f'    db {cid}, {ng}, {size}, 0\n    dd {len(cal_)}, {nd}, FXC{k}\n    dw {first[0] | first[1] << 8}, 0')
     asm = FX_ASM + 'align 4\nFX_TAB:\n' + '\n'.join(rows) + '\nFX_END:\n'
     code, fix = nasmcave.assemble(asm, at, symbols)
     lab = nasmcave.labels(asm, at, symbols)
@@ -1887,5 +1904,5 @@ def fx_patch(p, at, area):
     for vec, fn in (('FX_COPY_V', 'fx_copy'), ('FX_START_V', 'fx_start'), ('FX_PAIR_V', 'fx_pair')):
         p.retarget(1, LABELS[vec], 1, lab[fn])
         p.put(1, LABELS[vec], struct.pack('<I', lab[fn]))
-    print(f'exe: fixture contests {sorted(FIXTURES)}: obj1+{at:#x}..{at + len(code):#x}')
+    print(f'exe: fixture contests {[(hex(c), f) for c, f in sorted(FIXTURES)]}: obj1+{at:#x}..{at + len(code):#x}')
     return (at + len(code) + 3) & ~3

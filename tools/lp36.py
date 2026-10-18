@@ -35,6 +35,9 @@ import re
 import struct
 
 N, POT, DAYS = 36, 9, 8
+FIXTURES = {}                   # contest id -> (groups, clubs per group, days, [(home row, away row)] in day order): a
+                                # type-2 contest's first group stage played from a fixed calendar (e.g. a state
+                                # championship's cross-group round robin); the game's own per-group tables
 LABELS = {}                     # lp36 labels (uefacoef.py patches the lp_cb_* callbacks)
 ROW = 0x2B3                     # team row r = DIY + ROW + 18 * r (+0 team dword, +4 played .. +16 points)
 CAL_OFF = ROW + 18 * 36         # the season's draw: 144 (home row, away row), matchday order (rows 36..51: unused by a
@@ -345,6 +348,14 @@ lp_copy_ours:                           ; ZF = 1: diyFileBufferCopy is a league-
     ret
 
 lp_days:                                ; replaces `call cseg_260A9` in cseg_2573C (stage days -> months)
+    call fx_copy
+    jne .lp
+    push eax
+    mov eax, [esi + 8]
+    mov [DIYCOPY + 173h], ax            ; a fixture contest: its days
+    pop eax
+    jmp .go
+.lp:
     call lp_copy_ours
     jne .go
     push eax
@@ -367,6 +378,7 @@ lp_ours:                                ; ZF = 1: DIY_competitionStart is our le
 
 lp_start:                               ; replaces `call cseg_2653B` in cseg_258E4 (league start of a group stage)
     call C2653B
+    call fx_start
     call lp_copy_ours                   ; (cseg_258E4 copies the id into DIY+2Dh only at its end)
     jne .r
     cmp word [DIY + 4Fh], 2
@@ -403,6 +415,8 @@ lp_start:                               ; replaces `call cseg_2653B` in cseg_258
 
 lp_pair:                                ; replaces the first instruction of cseg_89758 (mov [A0], offset DIY)
     mov dword [A0], DIY
+    call fx_pair
+    jz .done
     call lp_ours
     jne .orig
     push eax
@@ -437,6 +451,118 @@ lp_pair:                                ; replaces the first instruction of cseg
     pop eax
 .orig:
     jmp C89758_NEXT
+.done:
+    ret
+
+; --- fixture contests (FIXTURES): FX_TAB entries of 16 bytes: db id, groups, clubs per group, 0; dd matches; dd days;
+; dd calendar (obj2: (home row, away row) bytes in day order)
+fx_find:                                ; al = contest id, cx = groups, dx = clubs per group -> esi = its entry, ZF = 1
+    mov esi, FX_TAB
+.l:
+    cmp esi, FX_END
+    jae .no
+    cmp al, [esi]
+    jne .n
+    cmp cl, [esi + 1]
+    jne .n
+    cmp dl, [esi + 2]
+    je .r
+.n:
+    add esi, 16
+    jmp .l
+.no:
+    cmp esp, 0                          ; ZF = 0
+.r:
+    ret
+
+fx_copy:                                ; diyFileBufferCopy's first stage -> esi = its fixture entry, ZF = 1
+    push eax
+    push ecx
+    push edx
+    mov al, [DIYCOPY + 2Dh]
+    mov cx, [DIYCOPY + 15Dh]
+    mov dx, [DIYCOPY + 16Bh]
+    call fx_find
+    pop edx
+    pop ecx
+    pop eax
+    ret
+
+fx_ours:                                ; the running stage (DIY_competitionStart) -> esi = its entry, ZF = 1
+    push eax
+    push ecx
+    push edx
+    mov al, [DIY + 2Dh]
+    mov cx, [DIY + 4Fh]
+    mov dx, [DIY + 51h]
+    call fx_find
+    pop edx
+    pop ecx
+    pop eax
+    ret
+
+fx_start:                               ; (after cseg_2653B) a fixture contest's stage: pair indices per cycle =
+    pushad                              ; matches / groups, its days, the months again
+    call fx_copy                        ; (the id is in DIYCOPY: cseg_258E4 copies it into DIY+2Dh at its end)
+    jne .r
+    movzx ecx, byte [esi + 1]
+    cmp [DIY + 4Fh], cx
+    jne .r
+    movzx ecx, byte [esi + 2]
+    cmp [DIY + 51h], cx
+    jne .r
+    mov eax, [esi + 4]
+    xor edx, edx
+    movzx ecx, byte [esi + 1]
+    div ecx
+    mov [DIY + 69h], ax
+    mov [DIY + 6Bh], ax
+    mov eax, [esi + 8]
+    mov [DIY + 1C3h], ax
+    call C2730A
+.r:
+    popad
+    ret
+
+fx_pair:                                ; ZF = 1: the pairing done from the calendar (A1 = home row, A2 = away row)
+    call fx_ours
+    jne .r
+    push eax
+    push ecx
+    push edx
+    movzx eax, word [DIY + 1CBh]        ; match m = groups * pair index + group
+    movzx ecx, byte [esi + 1]
+    mul ecx
+    movzx edx, word [DIY + 5Bh]
+    add eax, edx
+    cmp eax, [esi + 4]
+    jae .bad
+    mov ecx, [esi + 12]
+    lea ecx, [ecx + eax * 2]
+    movzx edx, byte [ecx]
+    call lp_fresh
+    movzx edx, byte [ecx + 1]
+    call lp_fresh
+    movzx edx, byte [ecx]
+    imul edx, edx, 18
+    add edx, DIY
+    mov [A1], edx
+    movzx edx, byte [ecx + 1]
+    imul edx, edx, 18
+    add edx, DIY
+    mov [A2], edx
+    pop edx
+    pop ecx
+    pop eax
+    cmp eax, eax                        ; ZF = 1
+    ret
+.bad:
+    pop edx
+    pop ecx
+    pop eax
+    cmp esp, 0
+.r:
+    ret
 
 lp_fresh:                               ; the team pointer of row edx again (VerifyTeamLoaded, as cseg_27227 does at the
     pushad                              ; stage start): 72 European clubs + a world's league and cup overflow the team
@@ -1692,8 +1818,15 @@ def patch(p, cave, cups, area, lang='it', world_ids=()):
     symbols.update(LP_KEY=(2, work), LP_OPP=(2, work + 576), LP_ORD=(2, work + 576 + 432))
     game, st = _game_sites(p, a0)                       # criterion 9: the engine's played match and its statistics
     symbols.update(GAMET1=st[2], T1STATS=st[0], T2STATS=st[1])
-    code, fix = nasmcave.assemble(ASM, cave, symbols)
-    lab = nasmcave.labels(ASM, cave, symbols)
+    fx = []                                     # fixture contests: FX_TAB rows, their calendars in obj2
+    for cid, (ng, size, nd, cal_) in sorted(FIXTURES.items()):
+        assert len(cal_) % ng == 0 and len(cal_) % nd == 0 and all(max(m) < ng * size for m in cal_), cid
+        at_ = area.add(bytes(b for m in cal_ for b in m))
+        symbols[f'FXC{cid}'] = (2, at_)
+        fx.append(f'    db {cid}, {ng}, {size}, 0\n    dd {len(cal_)}, {nd}, FXC{cid}')
+    asm = ASM + 'align 4\nFX_TAB:\n' + '\n'.join(fx) + '\nFX_END:\n'
+    code, fix = nasmcave.assemble(asm, cave, symbols)
+    lab = nasmcave.labels(asm, cave, symbols)
     p.put(1, cave, code)
     for off, tobj, toff in fix:
         p.add_ptr(1, cave + off, tobj, toff)

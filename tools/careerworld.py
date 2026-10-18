@@ -294,6 +294,33 @@ w_copy:                                 ; ecx bytes esi -> edi (no string instru
 W_YEAR w_year96, 1996
 W_YEAR w_year95, 1995
 
+w_mrec:                                 ; replaces `add word [D1], 1996; add word [D2], 97` in FillManagementRecordInfo
+    push ebx                            ; (REGISTRO GESTIONE: D1 = D2 = the shown season's number from the career's
+    call w_rec                          ; start): in a world its first season is the world's first year, not 1996
+    jz .o
+    push eax
+    push ecx
+    push edx
+    movzx eax, byte [ebx + 42]
+    add eax, 1900
+    add [D0R + 4], ax                   ; D1 = the first year + n
+    movzx eax, word [D0R + 4]
+    inc eax
+    xor edx, edx
+    mov ecx, 100
+    div ecx
+    mov [D0R + 8], dx                   ; D2 = the next year's last two digits
+    pop edx
+    pop ecx
+    pop eax
+    pop ebx
+    ret
+.o:
+    add word [D0R + 4], 1996
+    add word [D0R + 8], 97
+    pop ebx
+    ret
+
 %macro W_SWAP 2                         ; replaces `call %2`: in a world, competitionsTable[254] = [.., -1, 99] and
 %1:                                     ; [99] = the world's continent (its countries, its cups = the in-save copies)
     push ebx
@@ -1042,6 +1069,8 @@ def sites(p):
     s['season'] = struct.unpack('<I', m.group(1))[0]
     s['y96'] = _one(rb'\x66\x81\x3d' + pk(D0) + rb'\xcc\x07', d1, '1996').start()
     s['y95'] = _one(rb'\x66\x81\x3d' + pk(D0) + rb'\xcb\x07', d1, '1995').start()
+    # FillManagementRecordInfo: add word [D1], 1996; add word [D2], 97 (the record's season years)
+    s['mrec'] = _one(rb'\x66\x81\x05' + pk(D0 + 4) + rb'\xcc\x07\x66\x83\x05' + pk(D0 + 8) + rb'\x61', d1, 'mrec').start()
     # ViewWorldMenu: call ChooseCompetitionMenu; mov ax,[chooseTeamsResult]; or ax,ax; jz; mov eax,[selectedContest]
     m = _one(rb'\xe8(.{4})\x66\xa1.{4}\x66\x0b\xc0\x74.\xa1.{4}\xa3' + pk(A0) + rb'\x66\xa1.{4}\x66\xa3' + pk(D0)
              + rb'\xe8', d1, 'ViewWorldMenu')
@@ -1487,6 +1516,7 @@ def patch(p, worlds, at, nasmcave, comp, ct, cont_rec):
     hook(s['holders_call'], 5, 'w_holders', ())
     hook(s['y96'], 9, 'w_year96', (3,))
     hook(s['y95'], 9, 'w_year95', (3,))
+    hook(s['mrec'], 17, 'w_mrec', (3, 12))
     hook(s['view'], 5, 'w_view', ())
     hook(s['buy'], 5, 'w_buy', ())
     hook(s['nat'], 12, 'w_nat', (2, 8))

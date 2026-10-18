@@ -68,19 +68,18 @@ Not one fixed formula for everybody: each league plays the season the way its ow
 
 <!-- REGIA STAGED: formats still to come (facts final: internal formats2627.md); move each into the section above
 when the engine lands it.
-- **Switzerland**: the barrage 11th v the Challenge League 2nd, two legs, home order drawn. **Malta**: the Final Four
-  for the title from the Opening Round's table.
+- **Malta**: the Final Four for the title from the Opening Round's table. **Champions decided by play-offs**:
+  Canada's CPL top-4 play-offs; the A-League's top-6 finals series (3rd v 6th, 4th v 5th, re-seeded two-legged
+  semi-finals, the Grand Final at the higher placed club's ground); Costa Rica's semi-finals, final and Gran Final.
 - **Argentina 2026** (the official LPF regulation): Apertura and Clausura in two zones of 15, the clasico matchday,
   octavos 1A v 8B ... 4B v 5A, a fixed bracket to a neutral final; the annual table (Campeon de Liga, international
   places); relegation by the three-year promedio and by the annual table; the Trofeo de Campeones.
 - **MLS**: 34 matches incl. the other conference, the Supporters' Shield, the play-offs of 9 per conference with the
-  wild card and the best-of-three first round. **Canada**: the CPL top-4 play-offs. **A-League**: the top-6 finals
-  series (3rd v 6th, 4th v 5th, two-legged semi-finals, the Grand Final at the higher placed club's ground).
+  wild card and the best-of-three first round.
 - **Mexico**: Apertura and Clausura with the liguilla of eight (1st v 8th ..., two legs; no play-in since 2026).
   **Uruguay**: Apertura, Intermedio, Clausura and the annual table, then semi-final and final. **Paraguay**: Apertura
   and Clausura, no play-offs, relegation by promedio. **Colombia**: the Apertura knockout, the Finalizacion's
-  cuadrangulares. **Peru**: Apertura, Clausura and the 4-club play-offs. **Costa Rica**: the Gran Final.
-  **Honduras**: two geographic groups.
+  cuadrangulares. **Peru**: Apertura, Clausura and the 4-club play-offs. **Honduras**: two geographic groups.
 -->
 
 *European cups (UEFA 2026-27)*
@@ -441,19 +440,18 @@ Non una formula uguale per tutti: ogni campionato gioca la stagione come l'ha sc
   Suriname, Taiwan, India e Ghana, di nuovo con i loro veri campionati e coppe.
 
 <!-- REGIA STAGED: formati ancora da fare (vedi la parte inglese).
-- **Svizzera**: lo spareggio 11ª contro 2ª della Challenge League, andata e ritorno, campo sorteggiato. **Malta**: la
-  Final Four per il titolo dalla classifica dell'Opening Round.
+- **Malta**: la Final Four per il titolo dalla classifica dell'Opening Round. **Campioni decisi dai play-off**: i
+  play-off a 4 della CPL canadese; la fase finale a 6 dell'A-League (3ª-6ª, 4ª-5ª, semifinali di andata e ritorno
+  con nuovo abbinamento, Grand Final in casa della meglio piazzata); semifinali, finale e Gran Final della Costa Rica.
 - **Argentina 2026** (regolamento ufficiale LPF): Apertura e Clausura in due zone da 15, la giornata dei clasicos,
   ottavi 1A-8B ... 4B-5A, tabellone fisso fino alla finale in campo neutro; la classifica annuale (Campeon de Liga,
   posti internazionali); retrocessioni per promedio di tre stagioni e per classifica annuale; il Trofeo de Campeones.
 - **MLS**: 34 partite anche contro l'altra conference, il Supporters' Shield, i play-off a 9 per conference con la
-  wild card e il primo turno al meglio delle tre. **Canada**: i play-off a 4 della CPL. **A-League**: la fase finale
-  a 6 (3ª-6ª, 4ª-5ª, semifinali di andata e ritorno, Grand Final in casa della meglio piazzata).
+  wild card e il primo turno al meglio delle tre.
 - **Messico**: Apertura e Clausura con la liguilla a otto (1ª-8ª ..., andata e ritorno; niente play-in dal 2026).
   **Uruguay**: Apertura, Intermedio, Clausura e classifica annuale, poi semifinale e finale. **Paraguay**: Apertura e
   Clausura, niente play-off, retrocessione per promedio. **Colombia**: l'Apertura a eliminazione, i cuadrangulares
-  della Finalizacion. **Perù**: Apertura, Clausura e i play-off a 4. **Costa Rica**: la Gran Final. **Honduras**: due
-  gironi geografici.
+  della Finalizacion. **Perù**: Apertura, Clausura e i play-off a 4. **Honduras**: due gironi geografici.
 -->
 
 *Coppe europee (UEFA 2026-27)*

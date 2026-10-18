@@ -1217,6 +1217,8 @@ def odd_leagues(p):
     assert len(ms) == 1, len(ms)
     p.put(1, ms[0].end() - 5, b'\xeb')
     print(f'exe: odd league sizes allowed (trap obj1+{ms[0].end() - 3:#x})')
+    import oddtables                   # the game's odd pair tables are no rounds (a club twice on some days)
+    oddtables.patch(p)
 
 
 def patch(p, lang, area, cave):

@@ -180,10 +180,16 @@ static int gs_before(const struct gs *x, const struct gs *y) {   /* points, goal
     return better(x->c, y->c);
 }
 
-/* a group round: mem[0..m) round robin `meet` times (home and away alternate), start bonus points; placings -> out */
-static void group(const int *mem, int m, int meet, int neutral, const u8 *bonus, int *out) {
+/* a group round: mem[0..m) round robin `meet` times (home and away alternate), start bonus points; placings -> out,
+   their figures -> outs. meet 0 = a ranking round (pack 'best_of'): the members, earlier placings, ranked by the
+   figures of their own groups (ins) */
+static void group(const int *mem, int m, int meet, int neutral, const u8 *bonus, int *out, const struct gs *ins,
+                  struct gs *outs) {
     struct gs t[GT];                    /* (at most 24 members: compile_spec)  */
-    for (int i = 0; i < m; i++) { t[i].c = mem[i]; t[i].pts = bonus[i]; t[i].gd = 0; t[i].gf = 0; }
+    for (int i = 0; i < m; i++) {
+        t[i].c = mem[i]; t[i].pts = bonus[i]; t[i].gd = 0; t[i].gf = 0;
+        if (!meet) { t[i].pts = ins[i].pts; t[i].gd = ins[i].gd; t[i].gf = ins[i].gf; }
+    }
     for (int k = 0; k < meet; k++)
         for (int i = 0; i < m; i++)
             for (int j = i + 1; j < m; j++) {
@@ -197,8 +203,10 @@ static void group(const int *mem, int m, int meet, int neutral, const u8 *bonus,
         while (j > 0 && gs_before(&x, &t[j - 1])) { t[j] = t[j - 1]; j--; }
         t[j] = x;
     }
-    for (int i = 0; i < m; i++) out[i] = t[i].c;
+    for (int i = 0; i < m; i++) { out[i] = t[i].c; outs[i] = t[i]; }
 }
+
+static struct gs PS[GN], ms[GT];       /* (gp_season: the placings' figures; a round's members' (static: the stack)) */
 
 /* split's kept stage table (gp_cap, every captured division; split.py's freeze sets the 'kept' byte at ST+5 when a
    'keep' stage froze the table before it: rows by place at S_KEEP, their points at S_KEEP+22): into GP_IN.st[k] in the
@@ -390,7 +398,7 @@ void gp_season(void) {
                     for (int t = lastr; t < lastr + nlast && t < nt; t++)   /* (still the previous round's) */
                         if (v < 0 || better(L[t], v)) v = L[t];
                 } else if (c < 0x40) v = c < n ? club[c] : -1;
-                else if (c < 0x80) v = (c & 0x3F) < np ? P[c & 0x3F] : -1;
+                else if (c < 0x80) { v = (c & 0x3F) < np ? P[c & 0x3F] : -1; if (v >= 0 && i < GT) ms[i] = PS[c & 0x3F]; }
                 else if (c < 0xC0) v = (c & 0x3F) < nt ? W[c & 0x3F] : -1;
                 else v = (c & 0x3F) < nt ? L[c & 0x3F] : -1;
                 mem[i] = v;
@@ -398,7 +406,7 @@ void gp_season(void) {
             }
             if (legs & 0x80) {                  /* a group round */
                 if (ok && ties <= GT && np + ties <= GN) {
-                    group(mem, ties, legs & 0x7F, host == HOST_NEUTRAL, m + ties, P + np);
+                    group(mem, ties, legs & 0x7F, host == HOST_NEUTRAL, m + ties, P + np, ms, PS + np);
                     glast = np;
                 }
                 np += ties;
@@ -406,7 +414,10 @@ void gp_season(void) {
                 r = m + 2 * ties;
                 continue;
             }
-            if (ok && pairing) {            /* best v worst: sorted, then 1st v last, 2nd v second last ... */
+            if (ok && (pairing & 0x80)) {   /* a draw (pack 'pairing': 'draw'): the first p members shuffled, paired */
+                int pn = (pairing & 0x7F) <= 2 * ties ? pairing & 0x7F : 2 * ties;
+                for (int i = pn - 1; i > 0; i--) { int j = below(i + 1), x = mem[i]; mem[i] = mem[j]; mem[j] = x; }
+            } else if (ok && pairing) {     /* best v worst: sorted, then 1st v last, 2nd v second last ... */
                 int pn = pairing <= 2 * ties ? pairing : 2 * ties;
                 for (int i = 1; i < pn; i++) {
                     int x = mem[i], j = i;
@@ -532,11 +543,11 @@ static int ent_club(const u8 *e) {     /* an entrant -> its club (division * GT 
     return e[1] * GT + e[2] - 1;
 }
 
-static int playable(const u8 *s) {      /* knockouts only (promotion, playout, title, continental), entrants [div, place]
+static int playable(const u8 *s) {      /* knockouts only (promotion, placement, playout, title, continental), entrants [div, place]
                                            or stage places, members entrants / W / L */
     int n = s[1], nr = s[2], nt = 0;
     const u8 *e = s + 6, *r = e + 4 * n;
-    if ((s[0] != 1 && s[0] != 4 && s[0] != K_TITLE && s[0] != K_CONT) || n > KN || nr > KR || nr < 1) return 0;
+    if ((s[0] < 1 || s[0] > 6 || s[0] == 2) || n > KN || nr > KR || nr < 1) return 0;   /* (not 'europe': uefaq's) */
     for (int i = 0; i < n; i++)
         if (e[4 * i] != 0 && e[4 * i] != 3) return 0;
     for (int k = 0; k < nr; k++) {
@@ -674,7 +685,10 @@ static int build_game(struct gp_ko *k, int g) {
         mem[i] = member(k, k->rc[2 * t0 + i]);
         if (mem[i] < 0) return 0;
     }
-    if (pairing) {                      /* best v worst: sorted, the worst first */
+    if (pairing & 0x80) {               /* a draw: the first p members shuffled */
+        int pn = (pairing & 0x7F) <= 2 * ties ? pairing & 0x7F : 2 * ties;
+        for (int i = pn - 1; i > 0; i--) { int j = below(i + 1), x = mem[i]; mem[i] = mem[j]; mem[j] = x; }
+    } else if (pairing) {               /* best v worst: sorted, the worst first */
         int pn = pairing <= 2 * ties ? pairing : 2 * ties, tmp[2 * KT];
         for (int i = 1; i < pn; i++) {
             int x = mem[i], j = i;

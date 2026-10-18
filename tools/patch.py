@@ -206,6 +206,10 @@ def patch_exe(src, dst, remap, lang='it'):
     dp_tabs = mkseason.dplay_tables() if mkseason.worlds() else []   # Italian play-offs (dplay.py)
     lpb += 2 * bool(dp_tabs)                           # (+2: their code pages, before the extra one)
     gp_tabs = (mkseason.gplay_tables() if mkseason.worlds() else []) + engine.gplay_tables()   # knockout play-offs
+    if gp_tabs and mkseason.worlds():                  # the played ones' state (GP_ST) in the .CAR engine block, its
+        import gplay as gp_mod                         # contest pointers back after a load (gp_sync)
+        engine.save_item('GP', gp_mod.GP_ST_SIZE)
+        engine.after_load('gp_sync')
     gp_on = bool((gp_tabs or pg_tabs or rs_tabs or ri_tabs) and mkseason.worlds())         # (gplay.c also holds the parallel groups' fix)
     import gplay as gp_mod
     lpb += gp_mod.GP_PAGES * gp_on                     # (its pages, after dplay's: C + glue + specs)
@@ -381,7 +385,7 @@ def patch_exe(src, dst, remap, lang='it'):
     if gp_on:                                   # knockout play-offs (C, tools/gplay.c; chained after dplay's hooks)
         import gplay                            # and the parallel groups' season-end fix (pg_season, pgroups.py)
         gp_at = hist2 + h2 + 0x1000 * (lpb - cos_pg - gplay.GP_PAGES - xtra_pg)
-        gplay.patch(p, gp_at, gp_at + 0x1000 * gplay.GP_PAGES, gp_tabs, careerworld.BSS[0] + careerworld.BSS_SIZE)
+        gplay.patch(p, gp_at, gp_at + 0x1000 * gplay.GP_PAGES, gp_tabs, careerworld.BSS[0] + careerworld.BSS_SIZE, area, lang)
         if rs_tabs:
             engine.ITEM_AT['RS'] = gplay.LABELS['RS_STATE']
         if ri_tabs:
@@ -390,6 +394,8 @@ def patch_exe(src, dst, remap, lang='it'):
             engine.ITEM_AT['SS'] = gplay.LABELS['GP_SS']
         if pr_on:
             engine.ITEM_AT['PR'] = gplay.LABELS['PR_STATE']
+        engine.ITEM_AT['GP'] = gplay.LABELS['GP_ST']    # (the played play-offs' state; its pointers after a load)
+        engine.CALL_AT['gp_sync'] = (1, gplay.LABELS['gp_sync'])
         pgroups.relax_file_check(p)             # (moves of several divisions: cseg_9487A's per-file sum check)
         careerworld.BSS_SIZE += gplay.GP_BSS
     if ri_tabs:                                 # the off-file pool's buffers (Italy's file as read, the pool's file)
@@ -424,6 +430,7 @@ def patch_exe(src, dst, remap, lang='it'):
         if pg_tabs or rs_tabs or ri_tabs:                        # parallel groups' / reserves' season end (pgroups.py)
             xe = pgroups.patch(p, (xe + 15) & ~15, pg_tabs, gplay.LABELS['pg_season'], rs_tabs, gplay.LABELS['rs_season'],
                                ri=ri)
+            gplay.link_reserve(p)                                # (the reserve: gp_sack's table)
         if bigtables.ON[0]:                                      # the .CAR's 2000 bytes <-> the moved tables,
             xe = bigtables.hooks(p, (xe + 15) & ~15)             # numbers 2000+ (after every finder of the tables)
         assert xe <= xp + 0x1000, hex(xe)

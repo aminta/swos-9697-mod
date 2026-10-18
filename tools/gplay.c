@@ -35,6 +35,7 @@ struct gp_row { u16 team, glob, won, gf, ga, pts; };
 static void rcopy(struct gp_row *d, const struct gp_row *s) {   /* (no memcpy in the exe: field by field) */
     d->team = s->team; d->glob = s->glob; d->won = s->won; d->gf = s->gf; d->ga = s->ga; d->pts = s->pts;
 }
+enum { KT = 24, SD = 2 };
 struct gp_in {
     u8 nd, pad[3];
     u8 n[GD], pad2[2];                  /* clubs per division (0 = not captured) */
@@ -42,6 +43,11 @@ struct gp_in {
     const u8 *spec;
     u8 nst[GS], pad3[2];                /* kept stage tables (split 'keep'), rows by place */
     struct gp_row st[GS][GT];
+    /* the playable play-offs (gp_lend / gp_end) */
+    u16 mgr, week;                      /* the career club's team word, the league's last week */
+    u8 mdiv, gtype, pl_pi, pad4;        /* its division, g_gameType; gp_end: the played play-off (index + 1) */
+    u8 pi[2], sim[SD];                  /* gp_need: the play-offs to play (spec index, 0xFF), divisions simulated early */
+    u16 pl_w[KT];                       /* gp_end: the played play-off's tie winners (team words, 0 = not played) */
 };
 struct gp_mv { u16 glob, team; s8 delta; u8 pad[3]; };
 struct gp_res { u8 kind, div; u16 team[2], glob[2]; };     /* title: [0] the champion; continental: winner, loser */
@@ -102,6 +108,31 @@ static int tie(int a, int b, int legs, int host, int level) {
     }
     w = below(sh + so) < sh ? h : o;
     return w;
+}
+
+static int series(int a, int b, int level) {   /* best of three: games 1 and 3 at the better placed's */
+    int h = better(a, b) ? a : b, o = h == a ? b : a, wh = 0, wo = 0;
+    for (int g = 0; g < 3 && wh < 2 && wo < 2; g++)
+        if (tie(g == 1 ? o : h, g == 1 ? h : o, 1, HOST_LISTED, level) == h) wh++; else wo++;
+    return wh == 2 ? h : o;
+}
+
+#ifndef GP_FORCE
+#define GP_FORCE 0
+#endif
+/* test builds (GPLAY_FORCE=k): the career club takes place k of its division (team and global number swapped with
+   the club there), at the league end and again at the season end */
+static int gp_force(void) {
+    if (!GP_FORCE || !GP_IN.mgr) return -1;
+    for (int d = 0; d < GP_IN.nd && d < GD; d++)
+        for (int k = 0; k < GP_IN.n[d]; k++)
+            if (GP_IN.t[d][k].team == GP_IN.mgr && GP_FORCE <= GP_IN.n[d]) {
+                struct gp_row *t = GP_IN.t[d], x = t[k];
+                t[k].team = t[GP_FORCE - 1].team; t[k].glob = t[GP_FORCE - 1].glob;
+                t[GP_FORCE - 1].team = x.team; t[GP_FORCE - 1].glob = x.glob;
+                return GP_FORCE - 1;
+            }
+    return -1;
 }
 
 static void move(int c, int delta) {
@@ -325,7 +356,8 @@ void gp_season(void) {
     GP_OUT.nmv = 0;
     GP_OUT.nres = 0;
     int prev_loser = -1;                        /* the last tie's loser of the play-off before (entrant type 4) */
-    while (s && *s) {
+    gp_force();
+    for (int pidx = 0; s && *s; pidx++) {
         int kind = s[0], n = s[1], nr = s[2], wdiv = s[3], ldiv = s[4];
         const u8 *e = s + 6, *r = e + 4 * n;
         if (kind == K_PROM) {                   /* (no entrants, no rounds) */
@@ -391,7 +423,9 @@ void gp_season(void) {
                     int a = mem[2 * i], b = mem[2 * i + 1], d = (int)row(a)->pts - (int)row(b)->pts;
                     int w = a == b && skip ? a                                         /* (one club: no tie) */
                           : gap && (d >= gap || -d >= gap) ? (better(a, b) ? a : b)   /* (too far apart: no tie) */
-                                                           : tie(a, b, legs, host, level);
+                          : legs == 3 ? series(a, b, level) : tie(a, b, legs, host, level);
+                    if (GP_IN.pl_pi == pidx + 1 && nt < KT && GP_IN.pl_w[nt])    /* (played in slot 4: its result) */
+                        w = row(b)->team == GP_IN.pl_w[nt] ? b : row(a)->team == GP_IN.pl_w[nt] ? a : w;
                     W[nt] = w; L[nt] = w == mem[2 * i] ? mem[2 * i + 1] : mem[2 * i];
                     last = nt; glast = -1;
                 }
@@ -428,6 +462,491 @@ void gp_season(void) {
         s = r;
     }
 }
+
+/* ---- The playable play-offs (gp_lend .. gp_end in gplay.py): the career club's play-off or play-out is played in
+   slot 4 (Season mode: the chosen division's play-off and play-out, slots 4 and 3), as dplay does the Italian ones.
+   A contest of the game's type 1 (a national cup, no draw): its team list = the entrants, round 1's ties first (the
+   home club / the first leg's first), then the clubs that wait (lib97 byes: gp_bye); every later round is listed
+   by gp_perm_c from the spec's member codes; a best-of-three ('series': 3, legs byte 3) is three single-match rounds
+   (games 1 and 3 at the better placed's), a game 3 nobody needs is skipped (the contest's rounds - 1). The results:
+   gp_rec_c (every decisive match), gp_draw_c (a level tie without penalties: the better placed); the season end
+   (gp_played_c) gives gp_season the played winners. The state GP_ST is saved with the career (the engine's save
+   block); its season byte makes an old state void. */
+enum { KN = 24, KG = 12, KP = 40, KR = 8, KC = 96, MAGIC = 0x4B47, NOC = 0xFF };
+enum { LV_BITS_BETTER = 0, LV_BITS_ET_PENS = 0x14, LV_BITS_ET = 0x10, LV_BITS_PENS = 0x04 };
+struct gp_srow { u16 team; u8 played, won, drawn, lost, gf, ga; u16 pts; };   /* a place of an early-simulated table */
+struct gp_ko {
+    u16 magic; u8 season, slot;         /* 'GK' while it runs, its season, slot 4 / 3 */
+    u8 cid, pi, kind, n;                /* contest id, play-off index in the country's spec, kind, entrants */
+    u8 nrs, ngr, gcur, ntie;            /* spec rounds, game rounds, the game round being played, ties */
+    u8 lfile, d1, d2, ldiv;             /* team file, first / last week, the spec's loser_div */
+    u8 rs[KR][6];                       /* spec rounds: ties, legs (3 = best of three), host, level, pairing, gap */
+    u8 rc[2 * KT];                      /* member codes in spec order */
+    u8 gt0[KR + 1];                     /* the first tie of each spec round */
+    u8 rb[KG], gsr[KG], gno[KG];        /* game rounds: round byte, spec round, game number in a series */
+    u8 gp0[KG + 1];                     /* the first pair of each game round */
+    u8 pa[KP], pb[KP], pw[KP], ptie[KP];    /* pairs (list indices, home first), winner, spec tie */
+    u8 tw[KT], tl[KT];                  /* spec ties: winner, loser (list indices, NOC) */
+    u16 code[KN];                       /* list index -> division * GT + place (GP_IN.t) */
+    u8 ient[KN], prio[KN];              /* entrant -> list index; list index -> rank (the better placed: lower) */
+    u16 team[KN], pts[KN];
+    u8 bye[8];                          /* lib97 bye_find entry: id, 0FFh, clubs, byes, game rounds */
+    u8 con[KC];                         /* the contest (type 1) */
+};
+struct gp_state {
+    u16 magic; u8 season, nsim;         /* the early simulations: */
+    u8 sdiv[SD], pad[2];
+    struct gp_srow srow[SD][GT];
+    struct gp_ko ko[2];
+};
+struct gp_state GP_ST;
+struct gp_log { u32 tag; u8 seas, stseas, pl_pi, pad; struct gp_ko ko; struct gp_out out; } GP_LOG;
+                                        /* the last season end's (harness): its season, the state's, the played one */
+/* set by the glue */
+u8 GP_HDR[14] = { 0xAD };               /* (gplay.py: the game's Australian cup header, no draw, no away goals) */
+const u32 *GP_NM;                       /* the country's names: per play-off dd long, short (relative) */
+u8 *GP_DIYP;
+u32 GP_K, GP_W, GP_SKIP, GP_RB;
+u16 GP_A, GP_B;
+u8 GP_CID, GP_SEAS, GP_DIV, GP_PT[64], GP_PL[64];
+
+#define KDV(k, i) ((k)->code[i] / GT)
+#define KPL(k, i) ((k)->code[i] % GT)
+static int kbetter(const struct gp_ko *k, int a, int b) { return k->prio[a] < k->prio[b]; }
+
+static const u8 *po_at(int pi) {        /* the country's play-off pi in GP_IN.spec */
+    const u8 *s = GP_IN.spec;
+    for (; s && *s; pi--) {
+        if (!pi) return s;
+        int n = s[1], nr = s[2];
+        const u8 *r = s + 6 + 4 * n;
+        for (int k = 0; k < nr; k++) r += 6 + 2 * r[0];
+        s = r;
+    }
+    return 0;
+}
+
+static int ent_club(const u8 *e) {     /* an entrant -> its club (division * GT + place), or -1 */
+    if (e[0] == 3) return stage_club(e[1], e[3], e[2]);
+    if (e[0] || e[1] >= GP_IN.nd || e[1] >= GD || e[2] < 1 || e[2] > GP_IN.n[e[1]]) return -1;
+    return e[1] * GT + e[2] - 1;
+}
+
+static int playable(const u8 *s) {      /* knockouts only (promotion, playout, title, continental), entrants [div, place]
+                                           or stage places, members entrants / W / L */
+    int n = s[1], nr = s[2], nt = 0;
+    const u8 *e = s + 6, *r = e + 4 * n;
+    if ((s[0] != 1 && s[0] != 4 && s[0] != K_TITLE && s[0] != K_CONT) || n > KN || nr > KR || nr < 1) return 0;
+    for (int i = 0; i < n; i++)
+        if (e[4 * i] != 0 && e[4 * i] != 3) return 0;
+    for (int k = 0; k < nr; k++) {
+        if (r[1] < 1 || r[1] > 3 || (r[1] == 3 && k == nr - 1)) return 0;   /* (no group round; a series: not last) */
+        for (int i = 0; i < 2 * r[0]; i++)
+            if ((r[6 + i] >= BEST_LOSER && r[6 + i] < 0x80) || (k == 0 && r[6 + i] >= 0x80)) return 0;
+        nt += r[0];
+        r += 6 + 2 * r[0];
+    }
+    return nt <= KT;
+}
+
+/* the career club's league has ended (GP_IN.t[mdiv] its table, mgr, week, gtype): the play-offs it plays (pi[]) and
+   the divisions to simulate now for their entrants (sim[]); returns how many */
+u32 gp_need(void) {
+    int m = -1, d0 = GP_IN.mdiv, cnt = 0, ns = 0;
+    GP_IN.pi[0] = GP_IN.pi[1] = GP_IN.sim[0] = GP_IN.sim[1] = NOC;
+    GP_ST.nsim = 0;
+    for (int k = 0; k < GP_IN.n[d0]; k++) if (GP_IN.t[d0][k].team == GP_IN.mgr) m = k;
+    if (GP_FORCE) { int f = gp_force(); if (f >= 0) m = f; }
+    if (GP_IN.gtype == 4 && m < 0) return 0;
+    for (int pi = 0; cnt < (GP_IN.gtype == 4 ? 1 : 2); pi++) {
+        const u8 *s = po_at(pi), *e = s ? s + 6 : 0;
+        if (!s) break;
+        if (!playable(s)) continue;
+        int in = 0, all = 1;
+        for (int i = 0; i < s[1]; i++) {
+            int c = ent_club(e + 4 * i);
+            if (e[4 * i] == 0 ? e[4 * i + 1] == d0 && e[4 * i + 2] == m + 1 : c == d0 * GT + m) in = 1;
+            if (e[4 * i + 1] != d0) all = 0;
+        }
+        if (GP_IN.gtype == 4 ? !in : !all) continue;    /* (Season: the division's own play-offs, no other loaded) */
+        int ok = 1;
+        for (int i = 0; i < s[1] && ok; i++) {          /* the other divisions: simulated now (at most SD) */
+            int d = e[4 * i + 1], j = 0;
+            if (d == d0) continue;
+            while (j < ns && GP_IN.sim[j] != d) j++;
+            if (j == ns) { if (ns < SD) GP_IN.sim[ns++] = d; else ok = 0; }
+        }
+        if (ok) GP_IN.pi[cnt++] = pi;
+    }
+    return cnt;
+}
+
+/* early simulation of division GP_DIV (DIY at GP_DIYP): its rows into the state, place by place */
+void gp_simkeep(void) {
+    const u8 *d = GP_DIYP;
+    int n = *(const u16 *)(d + 0x31), j = GP_ST.nsim;
+    if (j >= SD) return;
+    GP_ST.sdiv[j] = GP_DIV;
+    GP_ST.nsim = j + 1;
+    for (int k = 0; k < GT; k++) {
+        struct gp_srow *s = &GP_ST.srow[j][k];
+        s->team = 0;
+        if (k >= n) continue;
+        int off = *(const u16 *)(d + 0x6D + 2 * k), i = off / 0x12;
+        const u16 *r = (const u16 *)(d + off + 0x2B7);
+        s->team = *(const u16 *)(d + 0x12D + 2 * i);
+        s->played = r[0]; s->won = r[1]; s->drawn = r[2]; s->lost = r[3]; s->gf = r[4]; s->ga = r[5]; s->pts = r[6];
+    }
+}
+
+/* the season end simulated division GP_DIV again (DIY at GP_DIYP): an early one gets its results back */
+void gp_restore(void) {
+    u8 *d = GP_DIYP;
+    int n = *(u16 *)(d + 0x31);
+    if (GP_ST.magic != MAGIC || GP_ST.season != GP_SEAS) return;
+    for (int j = 0; j < GP_ST.nsim && j < SD; j++) {
+        if (GP_ST.sdiv[j] != GP_DIV) continue;
+        const struct gp_srow *s = GP_ST.srow[j];
+        for (int k = 0; k < n && k < GT; k++)
+            for (int i = 0; i < n; i++)
+                if (*(u16 *)(d + 0x12D + 2 * i) == s[k].team) {
+                    u16 *r = (u16 *)(d + 0x2B7 + 0x12 * i);
+                    r[0] = s[k].played; r[1] = s[k].won; r[2] = s[k].drawn; r[3] = s[k].lost;
+                    r[4] = s[k].gf; r[5] = s[k].ga; r[6] = s[k].pts;
+                    *(u16 *)(d + 0x6D + 2 * k) = 0x12 * i;
+                }
+    }
+}
+
+static int member(const struct gp_ko *k, int c) {      /* a member code -> list index, or -1 (not decided yet) */
+    if (c < BEST_LOSER) return c < k->n ? k->ient[c] : -1;
+    if (c < 0x80) return -1;            /* (group placings, the best loser: not played here) */
+    int t = c & 0x3F;
+    if (t >= k->ntie) return -1;
+    int v = c & 0x40 ? k->tl[t] : k->tw[t];
+    return v == NOC ? -1 : v;
+}
+
+static void resolve(struct gp_ko *k) {  /* ties decided by their pairs: the last one's winner, a series' 2 wins */
+    for (int t = 0; t < k->ntie; t++) {
+        int w = NOC, c[2] = { NOC, NOC }, x[2] = { 0, 0 };
+        if (k->tw[t] != NOC) continue;
+        for (int p = 0; p < k->gp0[k->gcur + 1]; p++) {
+            if (k->ptie[p] != t || k->pw[p] == NOC) continue;
+            if (c[0] == NOC) { c[0] = k->pa[p]; c[1] = k->pb[p]; }
+            x[k->pw[p] == c[1]]++;
+            w = k->pw[p];
+        }
+        int sr = 0;
+        while (sr + 1 < k->nrs && k->gt0[sr + 1] <= t) sr++;
+        if (k->rs[sr][1] == 3) w = x[0] >= 2 ? c[0] : x[1] >= 2 ? c[1] : NOC;
+        if (w == NOC) continue;
+        k->tw[t] = w;
+        k->tl[t] = w == c[0] ? c[1] : c[0];
+    }
+}
+
+static u32 hseed(const struct gp_ko *k, int g) {
+    u32 h = g * 7919u + k->pi;
+    for (int i = 0; i < k->n; i++) h = h * 31 + k->team[i];
+    return h;
+}
+
+/* game round g's pairs (from k->gp0[g]); returns how many (0: nothing to play) */
+static int build_game(struct gp_ko *k, int g) {
+    int r = k->gsr[g], ties = k->rs[r][0], legs = k->rs[r][1], host = k->rs[r][2] & 0x7F, pairing = k->rs[r][4];
+    int t0 = k->gt0[r], np = k->gp0[g], mem[2 * KT];
+    rng = hseed(k, g);
+    if (k->gno[g]) {                    /* a series' game 2 / 3: the ties not decided yet */
+        for (int i = 0; i < ties; i++) {
+            int t = t0 + i, a = NOC, b = NOC;
+            if (k->tw[t] != NOC) continue;
+            for (int p = 0; p < np; p++) if (k->ptie[p] == t) { a = k->pa[p]; b = k->pb[p]; }
+            if (a == NOC || np >= KP) continue;
+            if (kbetter(k, b, a)) { int x = a; a = b; b = x; }      /* (a = the better placed) */
+            k->pa[np] = k->gno[g] == 1 ? b : a; k->pb[np] = k->gno[g] == 1 ? a : b;
+            k->pw[np] = NOC; k->ptie[np++] = t;
+        }
+        k->gp0[g + 1] = np;
+        return np - k->gp0[g];
+    }
+    for (int i = 0; i < 2 * ties; i++) {
+        mem[i] = member(k, k->rc[2 * t0 + i]);
+        if (mem[i] < 0) return 0;
+    }
+    if (pairing) {                      /* best v worst: sorted, the worst first */
+        int pn = pairing <= 2 * ties ? pairing : 2 * ties, tmp[2 * KT];
+        for (int i = 1; i < pn; i++) {
+            int x = mem[i], j = i;
+            while (j > 0 && kbetter(k, x, mem[j - 1])) { mem[j] = mem[j - 1]; j--; }
+            mem[j] = x;
+        }
+        for (int i = 0; i < pn / 2; i++) { tmp[2 * i] = mem[pn - 1 - i]; tmp[2 * i + 1] = mem[i]; }
+        for (int i = 0; i < pn; i++) mem[i] = tmp[i];
+    }
+    for (int i = 0; i < ties; i++) {
+        int t = t0 + i, a = mem[2 * i], b = mem[2 * i + 1], gap = k->rs[r][5];
+        if (k->tw[t] != NOC) continue;  /* (decided by the gap rule) */
+        if (a == b) { k->tw[t] = k->tl[t] = a; continue; }      /* (skip_if_same: one club, no tie) */
+        if (g == 0 && gap) {
+            int d = (int)k->pts[a] - (int)k->pts[b];
+            if (d >= gap || -d >= gap) { k->tw[t] = kbetter(k, a, b) ? a : b; k->tl[t] = k->tw[t] == a ? b : a; continue; }
+        }
+        int bt = kbetter(k, a, b) ? a : b, wo = bt == a ? b : a;
+        if (legs == 3 || host == HOST_NEUTRAL) { a = bt; b = wo; }   /* (no neutral grounds: the better placed's) */
+        else if (host == HOST_BETTER) { a = legs == 2 ? wo : bt; b = legs == 2 ? bt : wo; }
+        else if (host == HOST_DRAWN && below(2)) { int x = a; a = b; b = x; }
+        if (np >= KP) break;
+        k->pa[np] = a; k->pb[np] = b; k->pw[np] = NOC; k->ptie[np++] = t;
+    }
+    k->gp0[g + 1] = np;
+    return np - k->gp0[g];
+}
+
+static u8 rbyte(int legs, int level) {  /* (away goals: the contest's header, gp_lend_c) */
+    static const u8 lv[6] = { LV_BITS_BETTER, LV_BITS_ET_PENS, LV_BITS_ET, LV_BITS_PENS, LV_BITS_ET_PENS,
+                              LV_BITS_BETTER };
+    return (legs == 2 ? 0x80 : 0x01) | lv[level < 6 ? level : 1];
+}
+
+/* a contest for play-off pi in slot `slot` (id cid): k filled, 1 if there is something to play */
+static int ko_build(struct gp_ko *k, int pi, int slot, int cid) {
+    const u8 *s = po_at(pi), *e = s + 6, *r = e + 4 * s[1];
+    int n = s[1];
+    k->magic = 0;
+    k->slot = slot; k->cid = cid; k->pi = pi; k->kind = s[0]; k->n = n; k->nrs = s[2]; k->ldiv = s[4];
+    k->ntie = 0; k->ngr = 0; k->gcur = 0;
+    for (int i = 0; i < KT; i++) k->tw[i] = k->tl[i] = NOC;
+    for (int j = 0; j < k->nrs; j++) {
+        for (int i = 0; i < 6; i++) k->rs[j][i] = r[i];
+        k->gt0[j] = k->ntie;
+        for (int i = 0; i < 2 * r[0]; i++) k->rc[2 * k->ntie + i] = r[6 + i];
+        k->ntie += r[0];
+        int games = r[1] == 3 ? 3 : 1;
+        for (int g = 0; g < games && k->ngr < KG; g++) {
+            k->gsr[k->ngr] = j; k->gno[k->ngr] = g;
+            k->rb[k->ngr++] = rbyte(r[1] == 3 ? 1 : r[1], r[3]);
+        }
+        r += 6 + 2 * r[0];
+    }
+    k->gt0[k->nrs] = k->ntie;
+    /* the list: round 1's members in tie order, then the others in entrant order */
+    for (int i = 0; i < n; i++) {
+        int c = ent_club(e + 4 * i);
+        if (c < 0) return 0;
+        k->ient[i] = i; k->code[i] = c;
+        k->prio[i] = e[4 * i] == 3 ? e[4 * i + 2] - 1 : c > 255 ? 255 : c;   /* (stage entrants: the stage place) */
+        k->team[i] = row(c)->team; k->pts[i] = row(c)->pts;
+    }
+    k->gp0[0] = 0;
+    int np0 = build_game(k, 0);             /* (entrant indices for now: the list order next) */
+    if (np0 <= 0) {                         /* (every tie decided by the gap: nothing to play, the results kept) */
+        for (int i = 0; i < n; i++) k->team[i] = row(k->code[i])->team;
+        k->slot = 0; k->cid = 0; k->season = GP_SEAS; k->magic = MAGIC;
+        return 0;
+    }
+    u8 used[KN], order[KN], pr[KN];
+    u16 cd[KN];
+    for (int i = 0; i < n; i++) { cd[i] = k->code[i]; pr[i] = k->prio[i]; }
+    int m = 0;
+    for (int i = 0; i < n; i++) used[i] = 0;
+    for (int p = 0; p < k->gp0[1]; p++) {
+        order[m++] = k->pa[p]; used[k->pa[p]] = 1;
+        order[m++] = k->pb[p]; used[k->pb[p]] = 1;
+    }
+    int np1 = m;
+    for (int i = 0; i < n; i++) if (!used[i]) order[m++] = i;
+    for (int j = 0; j < n; j++) {       /* list index j = entrant order[j] */
+        int i = order[j];
+        k->ient[i] = j;
+        k->code[j] = cd[i]; k->prio[j] = pr[i];
+        const struct gp_row *w = row(cd[i]);
+        k->team[j] = w->team; k->pts[j] = w->pts;
+    }
+    for (int p = 0; p < k->gp0[1]; p++) { k->pa[p] = k->ient[k->pa[p]]; k->pb[p] = k->ient[k->pb[p]]; }
+    for (int t = 0; t < k->ntie; t++) {         /* (gap-decided ties, entrant indices too) */
+        if (k->tw[t] != NOC) { k->tw[t] = k->ient[k->tw[t]]; k->tl[t] = k->ient[k->tl[t]]; }
+    }
+    int me = 0;                         /* a career: the club must play round 1 (a slot-4 contest without it stops the
+                                           season); else no contest, its gap-decided tie kept (gp_sack, gp_played_c) */
+    for (int p = 0; p < k->gp0[1]; p++) me |= k->team[k->pa[p]] == GP_IN.mgr || k->team[k->pb[p]] == GP_IN.mgr;
+    int days = 0;
+    for (int g = 0; g < k->ngr; g++) days += (k->rb[g] & 0xC0) == 0x80 ? 2 : 1;
+    k->lfile = k->team[0] & 0xFF;
+    k->d1 = GP_IN.week + 1; k->d2 = GP_IN.week + days > 255 ? 255 : GP_IN.week + days;
+    k->bye[0] = cid; k->bye[1] = 0xFF; k->bye[2] = n; k->bye[3] = n - np1; k->bye[4] = k->ngr;
+    /* the contest: the game's header, round bytes, names, the team words */
+    u8 *c = k->con;
+    int len = 14;
+    for (int i = 0; i < 14; i++) c[i] = GP_HDR[i];
+    c[0] = cid; c[2] = k->lfile; c[3] = k->d1; c[4] = k->d2; c[10] = n;
+    for (int j = 0; j < k->nrs; j++)    /* away goals (levels away_pens / away_better): the whole contest's */
+        if (k->rs[j][3] == LV_AWAY_PENS || k->rs[j][3] == LV_AWAY_BETTER) c[13] = 0;
+    for (int g = 0; g < k->ngr; g++) c[len++] = k->rb[g];
+    c[len++] = 0;
+    c[5] = len - 5;
+    c[7] = len + 8 - 7;
+    for (int i = 0; i < 8; i++) c[len + i] = ((const u8 *)GP_NM)[8 * pi + i];
+    len += 8;
+    for (int j = 0; j < n; j++) { c[len++] = k->team[j]; c[len++] = k->team[j] >> 8; }
+    k->season = GP_SEAS;
+    k->magic = MAGIC;
+    if (GP_IN.gtype == 4 && !me) { k->slot = 0; k->cid = 0; return 0; }
+    return 1;
+}
+
+/* after gp_need and the early simulations: the contests (ko[0]: slot 4, id FE; Season's second: slot 3, FC) */
+u32 gp_lend_c(void) {
+    u32 built = 0;
+    GP_ST.magic = MAGIC;
+    GP_ST.season = GP_SEAS;
+    for (int i = 0; i < 2; i++) {
+        GP_ST.ko[i].magic = 0;
+        if (GP_IN.pi[i] != NOC && ko_build(&GP_ST.ko[i], GP_IN.pi[i], i ? 3 : 4, i ? 0xFC : 0xFE)) built |= 1 << i;
+    }
+    return built;
+}
+
+/* gp_build (mid-season): play-off GP_BPIC of the spec into slot 4 when its entrants' tables are captured */
+u32 GP_BPIC;
+u32 gp_build_c(void) {
+    const u8 *s = po_at(GP_BPIC);
+    if (!s || !playable(s)) return 0;
+    for (int i = 0; i < s[1]; i++) {
+        const u8 *e = s + 6 + 4 * i;
+        if (e[2] > GP_IN.n[e[1]]) return 0;
+    }
+    GP_ST.nsim = 0;
+    GP_IN.pi[0] = GP_BPIC; GP_IN.pi[1] = NOC;
+    return gp_lend_c() & 1;
+}
+
+/* the contest in DIY (id GP_CID) is ours: its ko index, else -1 */
+int gp_ours_c(void) {
+    if (GP_ST.magic != MAGIC || GP_ST.season != GP_SEAS) return -1;
+    for (int i = 0; i < 2; i++)
+        if (GP_ST.ko[i].magic == MAGIC && GP_ST.ko[i].slot && GP_ST.ko[i].cid == GP_CID && GP_ST.ko[i].season == GP_SEAS)
+            return i;
+    return -1;
+}
+
+static int kidx(const struct gp_ko *k, u16 team) {
+    for (int i = 0; i < k->n; i++) if (k->team[i] == team) return i;
+    return NOC;
+}
+
+/* lib97 nc_adv (gp_perm): GP_PT = the winners of the round just played in tie order -> GP_PL = the next round's
+   list, GP_RB its round byte, GP_SKIP game rounds skipped (a game 3 nobody needs); returns its clubs (0: none) */
+u32 gp_perm_c(void) {
+    struct gp_ko *k = &GP_ST.ko[GP_K];
+    int g = k->gcur, p0 = k->gp0[g], np = k->gp0[g + 1] - p0, c = 0;
+    for (int i = 0; i < np && i < 64; i++) k->pw[p0 + i] = GP_PT[i];
+    resolve(k);
+    GP_SKIP = 0;
+    for (;;) {
+        if (++g >= k->ngr) return 0;
+        c = build_game(k, g);
+        if (c > 0) break;
+        GP_SKIP++;
+    }
+    k->gcur = g;
+    for (int i = 0; i < c; i++) { GP_PL[2 * i] = k->pa[k->gp0[g] + i]; GP_PL[2 * i + 1] = k->pb[k->gp0[g] + i]; }
+    GP_RB = k->rb[g];
+    return 2 * c;
+}
+
+/* a decisive match of ours (GP_A v GP_B, GP_W = 1: the second won): its pair's winner */
+void gp_rec_c(void) {
+    struct gp_ko *k = &GP_ST.ko[GP_K];
+    int a = kidx(k, GP_A), b = kidx(k, GP_B), g = k->gcur;
+    for (int p = k->gp0[g]; p < k->gp0[g + 1]; p++)
+        if ((k->pa[p] == a && k->pb[p] == b) || (k->pa[p] == b && k->pb[p] == a)) k->pw[p] = GP_W ? b : a;
+    resolve(k);
+}
+
+/* a level tie of ours with no penalties: 1 if the second club (GP_B) goes through, the better placed */
+u32 gp_draw_c(void) {
+    const struct gp_ko *k = &GP_ST.ko[GP_K];
+    int a = kidx(k, GP_A), b = kidx(k, GP_B);
+    return a != NOC && b != NOC && kbetter(k, b, a);
+}
+
+/* the season end, before gp_season: the career club's played play-off (ko 0) -> GP_IN.pl_*; and the log */
+void gp_played_c(void) {
+    struct gp_ko *k = &GP_ST.ko[0];
+    GP_IN.pl_pi = 0;
+    if (GP_ST.magic != MAGIC || GP_ST.season != GP_SEAS || k->magic != MAGIC || k->season != GP_SEAS) return;
+    resolve(k);
+    GP_IN.pl_pi = k->pi + 1;
+    for (int t = 0; t < KT; t++) GP_IN.pl_w[t] = t < k->ntie && k->tw[t] != NOC ? k->team[k->tw[t]] : 0;
+}
+
+void gp_end_c(void) {                   /* after gp_season: the log, the state void */
+    const u8 *s = (const u8 *)&GP_ST.ko[0];
+    u8 *d = (u8 *)&GP_LOG.ko;
+    if (GP_ST.magic == MAGIC || GP_IN.pl_pi) {
+        for (u32 i = 0; i < sizeof GP_LOG.ko; i++) d[i] = s[i];
+        s = (const u8 *)&GP_OUT; d = (u8 *)&GP_LOG.out;
+        for (u32 i = 0; i < sizeof GP_LOG.out; i++) d[i] = s[i];
+        GP_LOG.seas = GP_SEAS; GP_LOG.stseas = GP_ST.season; GP_LOG.pl_pi = GP_IN.pl_pi;
+        GP_LOG.tag = 0x474C5047;        /* 'GPLG' */
+    }
+    GP_ST.magic = 0;
+    GP_ST.nsim = 0;
+    GP_ST.ko[0].magic = GP_ST.ko[1].magic = 0;
+    GP_IN.pl_pi = 0;
+}
+
+/* SeasonFinished's contract check (gp_sack): the career club relegated into the reserve (loser_div 'reserve', the
+   reserve below the lowest level: pgroups' RS_TAB) is sacked, with job offers - directly (a reserve country's club
+   in a division >= its lowest level, placed below teams - relegated) or by the played play-out it lost. */
+const u8 *GP_CFB, *GP_LG, *GP_RST;      /* the league's final table, its struct, RS_TAB (0: no reserves) */
+const s8 *GP_SLT;                       /* someLeaguesTable (the clubs' divisions: base + delta) */
+u32 GP_SEL;                             /* selTeamsPtr */
+u16 GP_MGR;
+u8 GP_WORLD;
+
+u32 gp_sack_c(void) {
+    const struct gp_ko *k = &GP_ST.ko[0];
+    if (GP_ST.magic == MAGIC && GP_ST.season == GP_SEAS && k->magic == MAGIC && k->season == GP_SEAS && k->kind == 4
+        && k->ldiv == RESERVE) {        /* (a play-out into the reserve, played: its last round's losers) */
+        int r = k->nrs - 1;
+        for (int t = k->gt0[r]; t < k->gt0[r + 1]; t++)
+            if (k->tl[t] != NOC && k->team[k->tl[t]] == GP_MGR) return 1;
+    }
+    if (!GP_RST || !GP_CFB || !GP_LG) return 0;
+    const u8 *d = GP_CFB;
+    int n = *(const u16 *)(d + 0x31), m = -1, off = 0;
+    for (int j = 0; j < n && j < GT; j++) {
+        int o = *(const u16 *)(d + 0x6D + 2 * j);
+        if (*(const u16 *)(d + 0x12D + 2 * (o / 0x12)) == GP_MGR) { m = j; off = o; }
+    }
+    if (m < 0) return 0;
+    if (GP_FORCE) m = GP_FORCE - 1;
+    u16 g = *(const u16 *)(*(const u32 *)(d + off + 0x2B3) + GP_SEL + 2);
+    const u8 *t = GP_RST;
+    for (int cnt = *t++; cnt > 0; cnt--) {
+        int w = t[0], nd = t[1], low = t[2], nc = t[3] | t[4] << 8;
+        const u8 *c = t + 5, *pl = c + 3 * nc;
+        t = pl + 1 + 2 * pl[0];
+        if (w != GP_WORLD) continue;
+        for (int i = 0; i < nc; i++)
+            if ((c[3 * i] | c[3 * i + 1] << 8) == g) {     /* its division now: base + someLeaguesTable[g] */
+                int dv = c[3 * i + 2] + GP_SLT[g];
+                return dv >= low && dv < nd && m >= n - GP_LG[13 + 6 * dv + 3];   /* (among its relegated) */
+            }
+    }
+    return 0;
+}
+
+const u32 GP_LAYOUT2[] = { __builtin_offsetof(struct gp_in, mgr), __builtin_offsetof(struct gp_in, week),
+                           __builtin_offsetof(struct gp_in, mdiv), __builtin_offsetof(struct gp_in, gtype),
+                           __builtin_offsetof(struct gp_in, sim), sizeof(struct gp_ko),
+                           __builtin_offsetof(struct gp_state, ko), __builtin_offsetof(struct gp_ko, season),
+                           __builtin_offsetof(struct gp_ko, cid), __builtin_offsetof(struct gp_ko, n),
+                           __builtin_offsetof(struct gp_ko, team), __builtin_offsetof(struct gp_ko, bye),
+                           __builtin_offsetof(struct gp_ko, con), sizeof(struct gp_state), sizeof(struct gp_log),
+                           __builtin_offsetof(struct gp_ko, slot) };
 
 /* Parallel groups at the season end (pgroups.py: InitializeNewSeason's copy-back, leaguesTableCopy -> someLeaguesTable).
    The table: db count; per country db world, levels; per level db first division, groups, sizes[groups] (top-down,

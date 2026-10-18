@@ -51,6 +51,15 @@ def save_item(name, size, clear=True):
     SAVE_ITEMS[name] = (size, clear)
 
 
+def after_stage(name):
+    """A routine called (pushad / popad, D0..A6 saved) right after the last league day of a split stage whose spec
+    says then: name (not in the season-end simulation of a league): e.g. the 4.0 session's Argentine knockout build.
+    The owner sets CALL_AT[name] = (obj, offset) before patch_exe ends (split.late binds it)."""
+    import split
+    if name not in split.CALLBACKS:
+        split.CALLBACKS.append(name)
+
+
 def after_load(name):
     """Call CALL_AT[name] (pushad / popad around it, no arguments) after a career load, once the engine block's items
     are read or cleared (an older save): to rebuild derived state, e.g. contest pointers. The owner sets CALL_AT[name]

@@ -146,6 +146,8 @@ def league_text(div, win, t, names=None, lang='it', lowest=False, rest_note=True
     sp = div.get('split')
     if sp:
         for st in sp.get('stages') or [sp]:
+            if 'fixtures' in st:                # (a fixture-list stage, e.g. Argentina's zones: no places groups)
+                continue
             lines.append(t['split'].format(a=st['after']))
             for gr in st['groups']:
                 a, b = gr['places']

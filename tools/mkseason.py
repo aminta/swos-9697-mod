@@ -288,8 +288,10 @@ class Pack:
         for d, dv in enumerate(divs):
             n = sum(1 for k in self.league_clubs if self.division[k] == d)
             _need(n == dv['teams'], f"{self.league['key']}: division {d + 1} has {n} clubs in clubs.csv, {dv['teams']} in pack.json")
-            _need(n <= 24, f"{self.meta['id']}: {self.league['key']}: division {d + 1} has {n} clubs: at most 24 (the game's "
-                  'round-robin pairing; more = fixtures past the team list, team 0, VerifyTeamLoaded int 3 at the season end)')
+            fx = any('fixtures' in st for st in ((dv.get('split') or {}).get('stages') or []))
+            _need(n <= (split_nmax() if fx else 24), f"{self.meta['id']}: {self.league['key']}: division {d + 1} has {n} clubs: at most 24 (the game's "
+                  'round-robin pairing; more = fixtures past the team list, team 0, VerifyTeamLoaded int 3 at the season end; '
+                  'a split with a fixture list from day 0: up to split.NMAX)')
         _need(sum(dv['teams'] for dv in divs) == len(self.league_clubs) - len(self.reserve_clubs),
               f"{self.league['key']}: clubs outside the divisions")
         rs = self.league.get('reserve')
@@ -428,6 +430,22 @@ class Pack:
         order = list(rs.get('first') or []) + [k for k in self.reserve_clubs if k not in (rs.get('first') or [])]
         return (self.world, len(divs), low, [(glob[k], self.division[k]) for k in self.league_clubs],
                 [glob[k] for k in order])
+
+    def promedio(self):
+        """gplay.c promedio's history (Argentina, ko_playoffs kind 'promedio'): None, or [(global, points y-2, matches
+        y-2, points y-1, matches y-1)] from league 'promedio_history': [[club key, p, m, p, m], ...] (0 / 0 = not in
+        the top flight that season: promoted clubs count only their own seasons)."""
+        h = self.league.get('promedio_history') if self.league else None
+        if not h or self.world is None:
+            return None
+        out = []
+        for e in h:
+            _need(isinstance(e, list) and len(e) == 5 and e[0] in self.league_clubs and all(isinstance(x, int) and
+                  0 <= x < (65536 if i % 2 == 0 else 256) for i, x in enumerate(e[1:])),
+                  f"{self.meta['id']}: promedio_history: [club key, points, matches, points, matches] ({e})")
+            fl, i = self.where[e[0]]
+            out.append((next(b for fk, (ff, b) in self.files.items() if ff == fl) + i, *e[1:]))
+        return out
 
     def parallel(self):
         """pgroups table: None, or (world, [(first division, [sizes])] top-down over the chain, [(global number, base
@@ -1112,6 +1130,14 @@ def dplay_tables():
     return [t for pk in packs() for t in [pk.dplay()] if t]
 
 
+def promedio_table():
+    """gplay.c GP_PROM: dw count, count x (dw global, dw points, db matches, dw points, db matches)."""
+    import struct
+    rows = [r for pk in packs() for t in [pk.promedio()] if t for r in t]
+    _need(len(rows) <= 48, f'promedio_history: {len(rows)} clubs (at most 48, gplay.c PR_N)')
+    return struct.pack('<H', len(rows)) + b''.join(struct.pack('<HHBHB', *r) for r in rows)
+
+
 def reserve_tables():
     """gplay.c rs_season: the world leagues with a reserve (Pack.reserve)."""
     return [t for pk in packs() for t in [pk.reserve()] if t]
@@ -1144,6 +1170,11 @@ def league_phase_worlds():
                    if w['cups'][key][0] == careerworld.LP_ROUNDS})
 
 
+def split_nmax():
+    import split
+    return split.NMAX
+
+
 def splits():
     """Mid-season splits and per-division meetings of the career worlds (split.py): [(world, team file, division,
     clubs, spec)]. A division (or the league: its first division) may carry
@@ -1173,12 +1204,41 @@ def splits():
             _need(n <= split.NMAX, f'{w}: at most {split.NMAX} clubs')
             spec = {'stages': []}
             stages = (sp.get('stages') or [sp]) if sp else []
-            _need(not sp or set(sp) <= {'after', 'home', 'groups', 'tiebreak'} or set(sp) == {'stages'},
-                  f'{w}.split: keys after, home, groups, tiebreak (or stages)')
+            _need(not sp or set(sp) <= {'after', 'home', 'groups', 'tiebreak'} or set(sp) <= {'stages', 'weeks'},
+                  f'{w}.split: keys after, home, groups, tiebreak (or stages, weeks)')
+            rows = [k for k in pk.league_clubs if pk.division[k] == d]      # the division's table rows (team-file order)
             per = split.days_before(n, 1)
             day = None
             for i, st in enumerate(stages):
                 ws = f'{w}.split' + (f'.stages[{i}]' if 'stages' in sp else '')
+                if 'fixtures' in st:                # a fixture list by club (Argentina: zones, clasicos, interzonals)
+                    _need(set(st) <= {'after', 'fixtures', 'zones', 'reset', 'then', 'table', 'annual'},
+                          f'{ws}: keys after, fixtures, zones, reset, then, table, annual')
+                    if i == 0:
+                        _need(st.get('after') == 0, f'{ws}.after: 0 (a fixture list from the first day)')
+                        games, day = 0, 0
+                    _need(st.get('after') == day, f'{ws}.after: {day} (the previous stage ends then)')
+                    fxd = []
+                    for dd in st['fixtures']:
+                        _need(all(isinstance(pr, list) and len(pr) == 2 and all(c in rows for c in pr) for pr in dd)
+                              and len({c for pr in dd for c in pr}) == 2 * len(dd), f'{ws}.fixtures: [home, away] keys of '
+                              f'the division, each club once a day ({dd})')
+                        fxd.append([(rows.index(a), rows.index(b)) for a, b in dd])
+                    mem = None
+                    if st.get('zones'):
+                        zs = st['zones']
+                        _need(sorted(c for z in zs for c in z) == sorted(rows) and 2 <= len(zs) <= 4,
+                              f'{ws}.zones: 2..4 lists covering the division')
+                        mem = [next(g for g, z in enumerate(zs) if c in z) for c in rows]
+                    if st.get('then'):
+                        import engine
+                        engine.after_stage(st['then'])
+                    _need(st.get('table') in (None, 0, 1, 2), f'{ws}.table: 0..2 (GP_SS: stage_place 4..6)')
+                    spec['stages'].append({'after': day, 'fixtures': fxd, 'members': mem, 'reset': bool(st.get('reset')),
+                                           'then': st.get('then'), 'table': st.get('table'),
+                                           'annual': bool(st.get('annual')), 'groups': [len(z) for z in st.get('zones') or [rows]]})
+                    day += len(fxd)
+                    continue
                 _need(set(st) <= {'after', 'home', 'groups', 'tiebreak', 'reset', 'keep'},
                       f'{ws}: keys after, home, groups, tiebreak, reset, keep')
                 if i == 0:
@@ -1204,10 +1264,16 @@ def splits():
                        'reset': bool(st.get('reset')), 'keep': st.get('keep')}
                 spec['stages'].append(one)
                 day += len(split.schedule(one['groups'], one['rounds']))
-            _need(games in (1, 2, 3, 4), f'{w}.games: 1..4 meetings')
+            _need(games in (1, 2, 3, 4) or (games == 0 and stages and 'fixtures' in stages[0]),
+                  f'{w}.games: 1..4 meetings')
             spec['games'] = games
             days = day if stages else split.days_before(n, games)
             _need(days <= split.MAXDAYS, f'{w}: {days} match days (at most {split.MAXDAYS})')
+            if sp and sp.get('weeks'):              # the days' dates ('dd/mm', a year later: 'dd/mm+1'): the weeks
+                wk = sp['weeks']
+                _need(len(wk) == days, f'{w}.split.weeks: one date per match day ({days})')
+                spec['weeks'] = [split.week_of(x) for x in wk]
+                _need(spec['weeks'] == sorted(spec['weeks']), f'{w}.split.weeks: in order')
             out.append((pk.world, file, d, n, spec))
     keys = [x[:3] for x in out]
     _need(len(keys) == len(set(keys)), 'split: one entry per division')

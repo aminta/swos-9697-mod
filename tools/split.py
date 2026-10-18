@@ -38,7 +38,7 @@ import struct
 
 WEEKS = 0x1CD                   # DIY: the match days' weeks, a byte per day (cseg_2730A), up to +2B3h (the rows)
 import os as _os
-NMAX = int(_os.environ.get("SPLIT_NMAX", 24))   # (the state's layout follows it; SPLIT_NMAX=32: probe of 30-club leagues)
+NMAX = int(_os.environ.get("SPLIT_NMAX", 30))   # (the state's layout follows it: 30 = Argentina's 30 rows, MAXDAYS 40)
 OFF = dict(magic=0, entry=2, frozen=4, kept=5, p2r=6, grp=6 + NMAX, pre=6 + 2 * NMAX, h2h=6 + 4 * NMAX)
 ST_SIZE = OFF['h2h'] + 64       # (24: 166)
 ST = 0x2B3 - ST_SIZE            # our state: the end of the weeks table (a split league has at most MAXDAYS days);
@@ -63,12 +63,15 @@ ASM = r"""
 %define E_PAIRS  12
 %define E_LEN    14
 %define E_STG    16
-%define SR_      20
+%define SR_      28
 
 ; entry: +0 world, +1 team file, +2 division, +3 clubs, +4 cycles, +5 days before, +6 days after, +7 stages,
 ;        +8 word days' counts, +10 word days' first pair, +12 word pairs, +14 word entry length (offsets from the
 ;        entry), +16 the stages, 20 bytes each: first day after the split, groups, flags (1 reset, 2 keep), -,
-;        (first place, size, points) x 4, word matrix (0 = none)
+;        (first place, size, points) x 4, word matrix (0 = none), word -, word members (0 = groups by places),
+;        db callback (1+: SP_CB, after the stage's last day; not in a simulation), db table (1+: GP_SS index,
+;        gplay.c gp_stage), db annual, -, word weeks (stage 0 only: a byte per day, the days' weeks; 0 = the
+;        game's spread); flags 1 reset, 2 keep, 4 rows (pairs are table rows: a fixture list), 8 members
 
 sp_init:                                ; replaces `call cseg_2653B` at the end of cseg_8F1F2 (A5 struct; the division
                                         ; from its start, sp_div8f)
@@ -126,6 +129,18 @@ sp_init:                                ; replaces `call cseg_2653B` at the end 
     call sp_saveregs
     call C2730A                         ; the days' weeks again
     call sp_restregs
+    movzx esi, word [edi + E_STG + 26]  ; our own weeks (a calendar with breaks: Argentina's knockout weeks)
+    test esi, esi
+    jz .x
+    add esi, edi
+    movzx ecx, word [ebx + 1C3h]
+    xor eax, eax
+.wk:
+    mov dl, [esi + eax]
+    mov [ebx + 1CDh + eax], dl
+    inc eax
+    cmp eax, ecx
+    jb .wk
 .x:
     popad
     ret
@@ -212,6 +227,8 @@ sp_rows:                                ; ecx = day after the split, ebx = match
     cmp [esi + S_FROZEN], bl
     movzx ebx, byte [edi + 1]
     jne .places
+    test byte [ebp + 2], 4              ; a fixture list: the pairs are rows already
+    jnz .places
     movzx eax, byte [esi + S_P2R + eax]
     movzx ebx, byte [esi + S_P2R + ebx]
 .places:
@@ -364,6 +381,23 @@ sp_freeze:                              ; esi = DIY, edx = entry, eax = stage, e
     mov ecx, NMAX_
     mov al, 0FFh
     rep stosb
+    mov ebp, [sp_rec]
+    test byte [ebp + 2], 8              ; groups by membership (Argentina's zones): the row's group from the entry
+    jz .byplace
+    movzx edi, word [ebp + 20]
+    add edi, edx
+    xor ecx, ecx
+.mb:
+    mov al, [edi + ecx]
+    mov [esi + S_GRP + ecx], al
+    imul eax, ecx, 18
+    mov ax, [esi + eax + 2C3h]
+    mov [esi + S_PRE + ecx * 2], ax
+    inc ecx
+    cmp ecx, [sp_n]
+    jb .mb
+    jmp .done
+.byplace:
     xor ebx, ebx                        ; group
 .g:
     mov ebp, [sp_rec]
@@ -555,6 +589,7 @@ sp_count:                               ; replaces `mov esi, [A0]` in cseg_8922B
     mov al, [esi + 1CDh + eax]
     mov [esi + 2Eh], al
     mov [WEEK], al
+    call sp_stage_end
     inc ecx
     cmp cl, [edx + 6]
     jb .ret
@@ -566,6 +601,58 @@ sp_count:                               ; replaces `mov esi, [A0]` in cseg_8922B
 .game:
     popad
     mov esi, [A0]
+    ret
+
+sp_stage_end:                           ; ecx = the day just over (after the split), esi = DIY, edx = entry: the last
+    pushad                              ; day of its stage -> its table into GP_SS (gplay.c gp_stage), its callback
+    call sp_stage                       ; eax = stage, ebp = its record
+    lea ebx, [eax + 1]
+    movzx edi, byte [edx + 7]
+    cmp ebx, edi
+    jae .last
+    imul ebx, ebx, SR_
+    movzx ebx, byte [edx + E_STG + ebx] ; the next stage's first day
+    jmp .cmp
+.last:
+    movzx ebx, byte [edx + 6]
+.cmp:
+    lea edi, [ecx + 1]
+    cmp edi, ebx
+    jne .r
+    movzx eax, byte [ebp + 23]
+    test eax, eax
+    jz .cb
+    pushad
+    call sp_saveregs
+    call C883DD                         ; (the last results in the table's order)
+    call sp_restregs
+    popad
+    pushad
+    dec eax
+    movzx ebx, byte [ebp + 24]
+    push ebx
+    push eax
+    push dword [SELTEAMS]
+    push dword DIY
+    push es
+    push ds
+    pop es
+    cld
+    call GP_STAGE
+    pop es
+    add esp, 16
+    popad
+.cb:
+    movzx eax, byte [ebp + 22]
+    test eax, eax
+    jz .r
+    cmp word [SIMFLAG], 0               ; (the season-end simulation of a league: tables only)
+    jne .r
+    call sp_saveregs
+    call [SP_CB + eax * 4 - 4]
+    call sp_restregs
+.r:
+    popad
     ret
 
 sp_cpu:                                 ; replaces cseg_8EF7B's first `call cseg_89758` (the computer's matches up to
@@ -791,8 +878,24 @@ sp_G: db 0
 sp_div: dd 0
 sp_tmp: times NMAX_ dw 0
 align 4
+SP_CB: SP_CB_ENTRIES
+sp_nostage:
+    ret
+align 4
 SP_TAB:
 """
+
+
+MONTH_DAYS = (31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31)
+
+
+def week_of(date):
+    """'dd/mm' (or 'dd/mm+1': the next calendar year) -> the career calendar's week byte: 8 a month from January of
+    the season's first year (cseg_2730A spreads a contest's days between its header weeks; a year = 96)."""
+    d, m = date.split('+')[0].split('/')
+    y = int(date.split('+')[1]) if '+' in date else 0
+    d, m = int(d), int(m)
+    return 96 * y + 8 * (m - 1) + (d - 1) * 8 // MONTH_DAYS[m - 1]
 
 
 def days_before(n, games):
@@ -911,11 +1014,30 @@ def matrix(table, n, games, cycles, home):
 
 
 HOMES = ('seeded', 'balance', 'reverse1', 'reverse3')
-SR = 20                                             # a stage's record (ASM SR_)
+SR = 28                                             # a stage's record (ASM SR_)
+
+
+CALLBACKS = []          # after-stage routines by name (engine.after_stage; their addresses bound by late())
+LATE = []               # (name, obj1 offset of its SP_CB dword) still to bind
+
+
+def late(p):
+    """End of patch_exe: bind the after-stage routines set in engine.CALL_AT after split.patch."""
+    import engine
+    for name, off, nostage in LATE:
+        at = engine.CALL_AT.get(name)
+        if at is None:                              # (its owner's code not in this build: a no-op routine)
+            print(f'split: after-stage {name}: no routine in this build (engine.CALL_AT): skipped')
+            at = (1, nostage)
+        p.retarget(1, off, at[0], at[1])
+        p.put(1, off, struct.pack('<I', at[1]))
+    LATE.clear()
 
 
 def entry(world, file, div, n, spec, table):
-    """One SP_TAB entry (see ASM). spec: games, stages [{after, groups, rounds, points, home, reset, keep}]."""
+    """One SP_TAB entry (see ASM). spec: games, stages [{after, groups, rounds, points, home, reset, keep}], or a
+    fixture stage {after, fixtures: [[(home row, away row), ...] per day], members: [group of each row] (optional),
+    reset, then: callback name, table: GP_SS index, annual}; weeks: [week byte per day] (optional, all the days)."""
     games = spec['games']
     stages = spec.get('stages') or []
     assert n <= NMAX and len(stages) <= 8, (n, len(stages))
@@ -923,6 +1045,20 @@ def entry(world, file, div, n, spec, table):
     cycles = games + (1 if stages else 0)
     days, recs = [], []
     for st in stages:
+        extra = (st.get('members'), CALLBACKS.index(st['then']) + 1 if st.get('then') else 0,
+                 st['table'] + 1 if st.get('table') is not None else 0, int(bool(st.get('annual'))))
+        if 'fixtures' in st:                        # a fixture list by rows (Argentina: zones + clasicos)
+            mem = st.get('members')
+            assert st['after'] - d1 == len(days), f"stage at {st['after']}: day {d1 + len(days)} expected"
+            assert mem is None or len(mem) == n, (len(mem), n)
+            groups = [mem.count(g) for g in range(max(mem) + 1)] if mem else [n]
+            assert len(groups) <= 4 and all(groups), groups
+            for d in st['fixtures']:
+                assert len({x for pr in d for x in pr}) == 2 * len(d) and all(0 <= x < n for pr in d for x in pr), d
+            flags = (1 if st.get('reset') else 0) | 4 | (8 if mem else 0)
+            recs.append((len(days), groups, ['full'] * len(groups), flags, b'') + extra)
+            days += [[(a, b, 0) for a, b in d] for d in st['fixtures']]
+            continue
         groups, rounds = st['groups'], st['rounds']
         points = st.get('points') or ['full'] * len(groups)
         assert len(groups) <= 4 and sum(groups) == n, (n, groups)
@@ -933,7 +1069,8 @@ def entry(world, file, div, n, spec, table):
         home = st.get('home', 'seeded')
         mat = matrix(table, n, games, cycles, home) if home != 'seeded' and single else b''
         sd = schedule(groups, rounds)
-        recs.append((len(days), groups, points, (1 if st.get('reset') else 0) | (2 if st.get('keep') else 0), mat))
+        recs.append((len(days), groups, points, (1 if st.get('reset') else 0) | (2 if st.get('keep') else 0), mat)
+                    + extra)
         days += [[(a, b, 1 if mat and g in single else 0) for a, b, g in d] for d in sd]
     assert not any(r[3] & 2 for r in recs) or all(POINTS[x] != 4 for st in stages for x in st.get('points') or []), \
         "'keep' and head-to-head points share their bytes"
@@ -950,7 +1087,9 @@ def entry(world, file, div, n, spec, table):
     o_pairs = o_firsts + len(firsts)
     o = o_pairs + len(pairs)
     srec, mats = b'', b''
-    for j0, groups, points, flags, mat in recs:
+    weeks = bytes(spec['weeks']) if spec.get('weeks') else b''
+    assert not weeks or len(weeks) == d1 + d2, (len(weeks), d1 + d2)
+    for k, (j0, groups, points, flags, mat, mem, cb, tb, ann) in enumerate(recs):
         g, start = b'', 0
         for i in range(4):
             if i < len(groups):
@@ -960,6 +1099,11 @@ def entry(world, file, div, n, spec, table):
                 g += b'\0\0\0'
         srec += bytes((j0, len(groups), flags, 0)) + g + struct.pack('<HH', o + len(mats) if mat else 0, 0)
         mats += mat
+        mo = o + len(mats) if mem else 0
+        mats += bytes(mem) if mem else b''
+        wo = o + len(mats) if weeks and k == 0 else 0
+        mats += weeks if weeks and k == 0 else b''
+        srec += struct.pack('<HBBBBH', mo, cb, tb, ann, 0, wo)
     length = o + len(mats)
     length += -length & 3
     head = bytes((world, file, div, n, cycles, d1, d2, len(recs)))
@@ -1097,10 +1241,10 @@ def patch(p, cave, nasmcave, splits):
     tab = b''
     log = []
     for world, file, div, n, spec in splits:
-        body, d1, d2 = entry(world, file, div, n, spec, pair_table(p, s, n))
+        body, d1, d2 = entry(world, file, div, n, spec, pair_table(p, s, n) if n <= 24 else [])
         tab += body
         log.append(f'w{world} f{file} d{div}: {n} clubs, {d1} + {d2} days, '
-                   + ' / '.join(str(st['groups']) for st in spec.get('stages') or []))
+                   + ' / '.join(str(st.get('groups', 'fixtures')) for st in spec.get('stages') or []))
     tab += b'\0' * 16                          # (end: an entry of length 0)
     src = ASM + ''.join(f'    db {", ".join(str(b) for b in tab[i:i + 32])}\n' for i in range(0, len(tab), 32))
     sym = {'D0': (2, s['A0'] - 32), 'A0': (2, s['A0']), 'A1': (2, s['A0'] + 4), 'A2': (2, s['A0'] + 8), 'A5': (2, s['A0'] + 20),
@@ -1111,9 +1255,23 @@ def patch(p, cave, nasmcave, splits):
            'C883DD': (1, s['sort_start']), 'C88420': (1, s['C88420']), 'BUILDER_RET': (1, s['BUILDER_RET']),
            'CAL': (2, s['CAL']), 'CALN': (2, s['CALN']), 'SELTEAMS': (2, s['SELTEAMS']), 'WEEK': (2, s['WEEK']),
            'SIMFLAG': (2, s['SIMFLAG']), 'C89758': (1, s['pair']), 'C88A12': (1, s['C88A12'])}
+    import engine
+    import gplay
+    if gplay.LABELS.get('gp_stage'):                # the stage tables (GP_SS): gplay.c, built before us
+        sym['GP_STAGE'] = gplay.LABELS['gp_stage']
+    else:
+        src = src.replace('call GP_STAGE', 'call sp_nostage')
+    late = []
+    for k, name in enumerate(CALLBACKS):            # after-stage routines (engine.after_stage)
+        at = engine.CALL_AT.get(name)
+        sym[f'CB{k}'] = at or (1, cave)
+        if at is None:
+            late.append((name, 4 * k))
+    src = src.replace('SP_CB_ENTRIES', 'dd ' + ', '.join(f'CB{k}' for k in range(len(CALLBACKS))) if CALLBACKS else 'dd 0')
     cave = (cave + 3) & ~3
     code, fix = nasmcave.assemble(src, cave, sym)
     lab = nasmcave.labels(src, cave, sym)
+    LATE[:] = [(name, lab['SP_CB'] + off, lab['sp_nostage']) for name, off in late]
     assert not any(p.get(1, cave, len(code)))
     p.put(1, cave, code)
     for off, tobj, toff in fix:

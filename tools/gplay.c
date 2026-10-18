@@ -27,10 +27,10 @@ typedef unsigned short u16;
 typedef unsigned int u32;
 typedef signed char s8;
 
-enum { GT = 24, GD = 16, GN = 64, RESERVE = 0xFE };   /* (GD: Italy 2026-27 has 14 divisions) */
+enum { GT = 32, GD = 16, GN = 64, RESERVE = 0xFE };   /* (GD: Italy 2026-27 has 14 divisions; GT: Argentina's 30) */
 enum { HOST_LISTED, HOST_BETTER, HOST_DRAWN, HOST_NEUTRAL, HOST_SKIP_SAME = 0x80 };
 enum { LV_BETTER, LV_ET_PENS, LV_ET_BETTER, LV_PENS, LV_AWAY_PENS, LV_AWAY_BETTER };
-enum { K_TITLE = 5, K_CONT = 6, GS = 2, BEST_LOSER = 0x3F };
+enum { K_TITLE = 5, K_CONT = 6, K_PROM = 7, GS = 2, BEST_LOSER = 0x3F };
 struct gp_row { u16 team, glob, won, gf, ga, pts; };
 struct gp_in {
     u8 nd, pad[3];
@@ -45,6 +45,11 @@ struct gp_res { u8 kind, div; u16 team[2], glob[2]; };     /* title: [0] the cha
 struct gp_out { u8 nmv, nres, pad[2]; struct gp_mv mv[32]; struct gp_res res[4]; };
 struct gp_in GP_IN;
 struct gp_out GP_OUT;
+enum { SS_N = 3, SS_BASE = 4 };      /* stage tables of a league with fixture stages (split 'table'): entrant
+                                        'stage_place' s = SS_BASE + k (Argentina: 4 Apertura, 5 Clausura, 6 the
+                                        annual table); saved with the career (engine item 'SS') */
+struct gp_ss { u8 n[SS_N], pad; struct gp_row r[SS_N][GT]; };
+struct gp_ss GP_SS;
 const u32 GP_LAYOUT[] = { sizeof(struct gp_row), GT, __builtin_offsetof(struct gp_in, n),
                           __builtin_offsetof(struct gp_in, t), __builtin_offsetof(struct gp_in, spec),
                           __builtin_offsetof(struct gp_out, mv), sizeof(struct gp_mv), GD,
@@ -113,8 +118,14 @@ static void result(int kind, int w, int l) {
 }
 
 static int stage_club(int d, int s, int a) {   /* place a of kept stage s -> its row of division d, or -1 */
-    if (s >= GS || a < 1 || a > GP_IN.nst[s] || d >= GP_IN.nd) return -1;
-    u16 g = GP_IN.st[s][a - 1].glob;
+    u16 g;
+    if (s >= SS_BASE && s < SS_BASE + SS_N) {
+        if (a < 1 || a > GP_SS.n[s - SS_BASE] || d >= GP_IN.nd) return -1;
+        g = GP_SS.r[s - SS_BASE][a - 1].glob;
+    } else {
+        if (s >= GS || a < 1 || a > GP_IN.nst[s] || d >= GP_IN.nd) return -1;
+        g = GP_IN.st[s][a - 1].glob;
+    }
     for (int k = 0; k < GP_IN.n[d]; k++) if (GP_IN.t[d][k].glob == g) return d * GT + k;
     return -1;
 }
@@ -186,6 +197,117 @@ void gp_keep(const u8 *diy, u32 st, u32 keep, const u8 *sel, u32 div, u32 magic)
     GP_IN.nst[gp_kn++] = n;
 }
 
+/* split's stage end (sp_stage_end, a fixture stage with 'table'): the DIY table in its order (+6Dh, the groups
+   partitioned by sp_sort: Argentina's zone A then zone B) into GP_SS.r[k]; annual: GP_SS.r[2] = r[0] + r[1] by club,
+   by points, goal difference, goals (the earlier stage's order on a tie). */
+void gp_stage(const u8 *diy, const u8 *sel, u32 k, u32 annual) {
+    int n = diy[0x31] | diy[0x32] << 8;
+    if (k >= SS_N || n < 1 || n > GT) return;
+    struct gp_row *o = GP_SS.r[k];
+    for (int i = 0; i < n; i++) {
+        int off = diy[0x6D + 2 * i] | diy[0x6E + 2 * i] << 8, r = off / 18;
+        const u8 *row = diy + 0x2B3 + off;
+        u32 t = row[0] | row[1] << 8 | (u32)row[2] << 16 | (u32)row[3] << 24;
+        o[i].team = diy[0x12D + 2 * r] | diy[0x12E + 2 * r] << 8;
+        o[i].glob = sel[t + 2] | sel[t + 3] << 8;
+        o[i].won = row[6] | row[7] << 8;
+        o[i].gf = row[12] | row[13] << 8;
+        o[i].ga = row[14] | row[15] << 8;
+        o[i].pts = row[16] | row[17] << 8;
+    }
+    GP_SS.n[k] = n;
+    if (!annual || k == 0 || GP_SS.n[0] != n) return;
+    struct gp_row *a = GP_SS.r[2], tmp;
+    for (int i = 0; i < n; i++) {
+        a[i] = GP_SS.r[0][i];
+        for (int j = 0; j < n; j++) if (o[j].glob == a[i].glob) {
+            a[i].won += o[j].won; a[i].gf += o[j].gf; a[i].ga += o[j].ga; a[i].pts += o[j].pts;
+        }
+    }
+    for (int i = 1; i < n; i++)                 /* insertion sort: stable */
+        for (int j = i; j > 0; j--) {
+            int dp = a[j].pts - a[j - 1].pts, dd = (a[j].gf - a[j].ga) - (a[j - 1].gf - a[j - 1].ga);
+            if (dp > 0 || (dp == 0 && (dd > 0 || (dd == 0 && a[j].gf > a[j - 1].gf)))) {
+                tmp = a[j]; a[j] = a[j - 1]; a[j - 1] = tmp;
+            } else break;
+        }
+    GP_SS.n[2] = n;
+}
+
+/* Argentina's relegation (LPF reglamento 2026 art. 26, AFA statute art. 93): kind 7 'promedio' (n = 0, no rounds;
+   winner_div byte = the season's matches counted, loser_div = where the relegated go): the last of the promedios
+   (points per match over this season's annual table and the two before, top-flight seasons only) and the last of
+   the annual table (GP_SS 2) go down; a tie in a relegation place -> a play-off match at a neutral ground. History
+   per club in PR_STATE (engine item 'PR', the build's GP_PROM table at a new career: dw count; count x (dw global,
+   dw points y-2, db matches y-2, dw points y-1, db matches y-1)), shifted after every season end. */
+enum { PR_N = 48 };
+struct pr_club { u16 glob, p[2]; u8 m[2]; };
+struct pr_state { u8 init, n, pad[2]; struct pr_club c[PR_N]; };
+struct pr_state PR_STATE;
+extern const u8 GP_PROM_TAB[];
+
+static struct pr_club *pr_find(u16 g) {
+    for (int i = 0; i < PR_STATE.n; i++) if (PR_STATE.c[i].glob == g) return &PR_STATE.c[i];
+    return 0;
+}
+
+static void pr_seed(void) {
+    const u8 *t = GP_PROM_TAB;
+    PR_STATE.n = 0;
+    for (int k = t[0] | t[1] << 8, i = 0; i < k && i < PR_N; i++) {
+        const u8 *e = t + 2 + 8 * i;
+        struct pr_club *c = &PR_STATE.c[PR_STATE.n++];
+        c->glob = e[0] | e[1] << 8; c->p[0] = e[2] | e[3] << 8; c->m[0] = e[4]; c->p[1] = e[5] | e[6] << 8; c->m[1] = e[7];
+    }
+    PR_STATE.init = 1;
+}
+
+static int pr_row(int d, u16 g) {               /* a global number -> its row of division d's table, or -1 */
+    for (int k = 0; k < GP_IN.n[d]; k++) if (GP_IN.t[d][k].glob == g) return d * GT + k;
+    return -1;
+}
+
+static void promedio(int d, int mnow, int ldiv) {
+    if (!PR_STATE.init) pr_seed();
+    int n = GP_SS.n[2];
+    if (n < 3 || n != GP_IN.n[d]) return;
+    const struct gp_row *a = GP_SS.r[2];
+    u32 P[GT], M[GT];
+    for (int i = 0; i < n; i++) {
+        struct pr_club *c = pr_find(a[i].glob);
+        P[i] = a[i].pts + (c ? c->p[0] + c->p[1] : 0);
+        M[i] = mnow + (c ? c->m[0] + c->m[1] : 0);
+    }
+    int w = 0, w2 = -1;                         /* the worst promedio (P / M), then the next worst */
+    for (int i = 1; i < n; i++) if (P[i] * M[w] < P[w] * M[i] || (P[i] * M[w] == P[w] * M[i] && i > w)) w = i;
+    for (int i = 0; i < n; i++) if (i != w && (w2 < 0 || P[i] * M[w2] < P[w2] * M[i])) w2 = i;
+    int down1 = w;
+    if (w2 >= 0 && P[w2] * M[w] == P[w] * M[w2]) {          /* level: a play-off match, the loser goes down */
+        int ca = pr_row(d, a[w].glob), cb = pr_row(d, a[w2].glob);
+        if (ca >= 0 && cb >= 0) down1 = tie(ca, cb, 1, HOST_NEUTRAL, LV_ET_PENS) == ca ? w2 : w;
+    }
+    int l = n - 1;                              /* the annual table's last, the promedio's relegated apart */
+    if (l == down1) l--;
+    int l2 = l - 1 == down1 ? l - 2 : l - 1, down2 = l;
+    if (l2 >= 0 && a[l2].pts == a[l].pts) {
+        int ca = pr_row(d, a[l].glob), cb = pr_row(d, a[l2].glob);
+        if (ca >= 0 && cb >= 0) down2 = tie(ca, cb, 1, HOST_NEUTRAL, LV_ET_PENS) == ca ? l2 : l;
+    }
+    int c1 = pr_row(d, a[down1].glob), c2 = pr_row(d, a[down2].glob);
+    if (c1 >= 0) move(c1, ldiv - d);
+    if (c2 >= 0) move(c2, ldiv - d);
+    struct pr_state nx;                         /* next season's history: this season and the one before */
+    nx.init = 1; nx.n = 0;
+    for (int i = 0; i < n && nx.n < PR_N; i++) {
+        if (i == down1 || i == down2) continue;
+        struct pr_club *c = pr_find(a[i].glob), *o = &nx.c[nx.n++];
+        o->glob = a[i].glob;
+        o->p[0] = c ? c->p[1] : 0; o->m[0] = c ? c->m[1] : 0;
+        o->p[1] = a[i].pts; o->m[1] = mnow;
+    }
+    PR_STATE = nx;
+}
+
 void gp_season(void) {
     const u8 *s = GP_IN.spec;
     u32 h = 0;
@@ -194,9 +316,15 @@ void gp_season(void) {
     rng = h;
     GP_OUT.nmv = 0;
     GP_OUT.nres = 0;
+    int prev_loser = -1;                        /* the last tie's loser of the play-off before (entrant type 4) */
     while (s && *s) {
         int kind = s[0], n = s[1], nr = s[2], wdiv = s[3], ldiv = s[4];
         const u8 *e = s + 6, *r = e + 4 * n;
+        if (kind == K_PROM) {                   /* (no entrants, no rounds) */
+            promedio(0, wdiv, ldiv);
+            s = r;
+            continue;
+        }
         int club[GN], ok = kind == 1 || kind == 4 || kind == K_TITLE || kind == K_CONT;
         int W[GN], L[GN], nt = 0, last = -1, lastr = 0, nlast = 0;
         int P[GN], np = 0, glast = -1, winners = s[5] >> 4 ? s[5] >> 4 : 1;
@@ -204,6 +332,9 @@ void gp_season(void) {
             int ty = e[4 * i], d = e[4 * i + 1], p = e[4 * i + 2];
             if (ty == 3) {
                 club[i] = stage_club(d, e[4 * i + 3], p);
+                if (club[i] < 0) ok = 0;
+            } else if (ty == 4) {               /* the previous play-off's final loser (Primera Nacional's reducido) */
+                club[i] = prev_loser;
                 if (club[i] < 0) ok = 0;
             } else if (ty != 0 || d >= GP_IN.nd || p < 1 || p > GP_IN.n[d]) ok = 0;
             else club[i] = d * GT + p - 1;
@@ -285,6 +416,7 @@ void gp_season(void) {
                 move(c, to - DV(c));
             }
         }
+        prev_loser = ok && last >= 0 ? L[last] : -1;
         s = r;
     }
 }

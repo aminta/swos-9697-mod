@@ -209,6 +209,13 @@ def patch_exe(src, dst, remap, lang='it'):
     cp = cave_pages()                                          # career world code: 2 pages, 3 with several worlds
     sp_tabs = (mkseason.splits() if worlds else []) + engine.split_tables()   # mid-season splits (worlds; world 0)
     sp_pg = split.pages(sp_tabs) if worlds else 0      # (own pages after all the others)
+    ss_on = any(st.get('table') is not None for *_, sp in sp_tabs for st in sp.get('stages') or [])
+    if ss_on:                                          # stage tables (GP_SS, gplay.c gp_stage: Argentina's Apertura /
+        engine.save_item('SS', 4 + 3 * 32 * 12)        # Clausura / annual) in the .CAR engine block
+    pr_on = any(t and any(po.get('kind') == 'promedio' for po in pk.league.get('ko_playoffs') or [])
+                for pk in mkseason.packs() if pk.world is not None and pk.league for t in [True])
+    if pr_on:                                          # Argentina's promedio history (gplay.c PR_STATE)
+        engine.save_item('PR', 4 + 48 * 8)
     sc_pg = int(bool(statecup.ENTRIES))                # state championships (statecup.py): one page after split's
     for _ in range((6 + cp + 2 + 2 * cdp if worlds else 6) + lpb + sp_pg + sc_pg):  # (+1: the UEFA league phase's page, lp36)
         data = add_object_page(data, 1)
@@ -368,6 +375,10 @@ def patch_exe(src, dst, remap, lang='it'):
         gplay.patch(p, gp_at, gp_at + 0x1000 * gplay.GP_PAGES, gp_tabs, careerworld.BSS[0] + careerworld.BSS_SIZE)
         if rs_tabs:
             engine.ITEM_AT['RS'] = gplay.LABELS['RS_STATE']
+        if ss_on:
+            engine.ITEM_AT['SS'] = gplay.LABELS['GP_SS']
+        if pr_on:
+            engine.ITEM_AT['PR'] = gplay.LABELS['PR_STATE']
         pgroups.relax_file_check(p)             # (moves of several divisions: cseg_9487A's per-file sum check)
         careerworld.BSS_SIZE += gplay.GP_BSS
     assert cave <= WORLD_CAVE, hex(cave)
@@ -417,6 +428,7 @@ def patch_exe(src, dst, remap, lang='it'):
     tail = (careerworld.BSS_SIZE if bigw else 0) + shirtnum.BSS_SIZE + blond.BSS_SIZE + menunum.BSS_SIZE + fmtpage.BSS_SIZE   # obj2 tail
     p.set_vsize(2, obj2_free + o2pages * p.le.page_size + tail, bss=tail)
     p.add_flags(1, 0x2)            # writable: season end rewrites the SA cup team lists in the cave
+    split.late(p)                                # split's after-stage routines (engine.after_stage)
     trailer.late(p)                              # the engine block's late addresses (RS_STATE ...)
     delta, shift = p.save(dst)
     print(f'exe: fixups +{delta} bytes, data pages moved {shift:#x}, caves used up to obj1+{cave:#x} / +{world:#x}')

@@ -35,7 +35,7 @@ import re
 import struct
 
 RS_SIZE = 8 * 132                   # gplay.c RS_STATE: struct rs_state {u8 init, n, pad[2]; u16 q[64];} x RC 8
-KINDS = {'promotion': 1, 'europe': 2, 'placement': 3, 'playout': 4, 'title': 5, 'continental': 6}
+KINDS = {'promotion': 1, 'europe': 2, 'placement': 3, 'playout': 4, 'title': 5, 'continental': 6, 'promedio': 7}
 RESERVE = 0xFE                  # loser_div 'reserve': out of every division (gplay.c)
 HOSTS = {'listed': 0, 'better': 1, 'drawn': 2, 'neutral': 3}
 LEVELS = {'better': 0, 'et_pens': 1, 'et_better': 2, 'pens': 3, 'away_pens': 4, 'away_better': 5}
@@ -51,6 +51,12 @@ def compile_spec(pos, ndiv):
         kind = KINDS.get(po.get('kind'))
         if not kind:
             raise ValueError(f'{key}: kind {" / ".join(KINDS)}')
+        if kind == 7:                           # Argentina: {kind promedio, matches: this season's, loser_div}
+            m, ld = po.get('matches'), po.get('loser_div')
+            if not (isinstance(m, int) and 1 <= m < 256 and isinstance(ld, int) and 0 < ld < ndiv):
+                raise ValueError(f'{key}: promedio needs matches 1..255 and loser_div 1..{ndiv - 1}')
+            out += bytes((7, 0, 0, m, ld, 0))
+            continue
         ents = []
         for e in po['entrants']:
             if isinstance(e, list) and len(e) == 2:
@@ -62,9 +68,11 @@ def compile_spec(pos, ndiv):
                 ents.append((1, e['div'], 0, 0))
             elif isinstance(e, dict) and 'stage_place' in e:   # place of a split stage's kept table (title)
                 d, s, a = e.get('div', 0), e['stage_place'], e.get('place', 1)
-                if not (0 <= d < ndiv and 0 <= s < 2 and a >= 1):
+                if not (0 <= d < ndiv and (0 <= s < 2 or 4 <= s < 7) and a >= 1):   # (4..6: GP_SS)
                     raise ValueError(f'{key}: entrant {e}')
                 ents.append((3, d, a, s))
+            elif isinstance(e, dict) and e.get('loser_of_previous'):   # the play-off before's final loser
+                ents.append((4, 0, 0, 0))
             elif isinstance(e, dict) and e.get('league_cup_winner'):
                 a, b = e.get('if_places', [0, 0])
                 ents.append((2, 0, a, b))
@@ -316,7 +324,7 @@ def table_lines(tables):
 
 LABELS = {}
 GP_PAGES = 5             # obj1 pages for the C code + glue + specs (World 2026-27's 20 countries; gplay-play)
-GP_BSS = 0x3000          # the C .bss pages (obj2 after careerworld's BSS): GP_IN at GD 16, RS_STATE, the squads' GP_ST
+GP_BSS = 0x4000          # the C .bss pages (obj2 after careerworld's BSS): GP_IN at GD 16, RS_STATE, the squads' GP_ST
 
 
 def patch(p, at, limit, tables, bss_at):
@@ -331,8 +339,13 @@ def patch(p, at, limit, tables, bss_at):
     cap, c9221f, end_site, c9228d, diy, ct, rel, pro, r = dplay._sites(p)
     tgt = lambda a: a + 5 + struct.unpack('<i', p.get(1, a + 1, 4))[0]   # (the current targets: dplay's, or the game's)
     assert p.get(1, cap, 1) == b'\xe8' and p.get(1, end_site, 1) == b'\xe8'
+    import mkseason as mks
+    prom = mks.promedio_table()                     # Argentina's promedio history (GP_PROM_TAB) before the C code
+    assert not any(p.get(1, at, len(prom)))
+    p.put(1, at, prom)
+    prom_at, at = at, (at + len(prom) + 15) & ~15
     obj = cobj.compile_c(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'gplay.c'))
-    syms, cend, bss = cobj.link(p, obj, at, (2, bss_at), limit=limit)
+    syms, cend, bss = cobj.link(p, obj, at, (2, bss_at), externs={'GP_PROM_TAB': (1, prom_at)}, limit=limit)
     assert bss <= GP_BSS, hex(bss)                  # (patch.py: GP_BSS: the reserves' state, GD 16, GP_ST)
     keys = ('RSZ', 'GT_N', 'O_N', 'O_T', 'O_SPEC', 'O_MV', 'MSZ', 'GD_N')
     lay = dict(zip(keys, struct.unpack(f'<{len(keys)}I', p.get(1, syms['GP_LAYOUT'][1], 4 * len(keys)))))
@@ -363,7 +376,7 @@ def patch(p, at, limit, tables, bss_at):
     if uefaq.LABELS.get('UQ_EPP') and tables:              # a league-phase world: its European play-offs (uefaq.c ep_run)
         p.add_ptr(1, uefaq.LABELS['UQ_EPP'], 1, lab['GP_EPT'])
     assert struct.unpack('<I', p.get(1, syms['RS_STATE_SIZE'][1], 4))[0] == RS_SIZE   # (the engine block's 'RS')
-    LABELS.update(lab, GP_IN=syms['GP_IN'], GP_OUT=syms['GP_OUT'], layout=lay, pg_season=syms['pg_season'], pg_place=syms['pg_place'], rs_season=syms['rs_season'],
+    LABELS.update(lab, GP_IN=syms['GP_IN'], GP_OUT=syms['GP_OUT'], layout=lay, pg_season=syms['pg_season'], pg_place=syms['pg_place'], rs_season=syms['rs_season'], gp_stage=syms['gp_stage'], GP_SS=syms['GP_SS'], PR_STATE=syms['PR_STATE'],
                   RS_STATE=syms['RS_STATE'])
     print(f"exe: knockout play-offs (gplay): {len(tables)} countries, C obj1+{at:#x}..{cend:#x}, glue ..{glue + len(code):#x}, "
           f"GP_IN obj2+{syms['GP_IN'][1]:#x}")

@@ -60,7 +60,7 @@ static const struct gp_dec *stage_dec(int k);   /* (GP_ST's, this season's, or 0
 enum { SS_N = 3, SS_BASE = 4 };      /* stage tables of a league with fixture stages (split 'table'): entrant
                                         'stage_place' s = SS_BASE + k (Argentina: 4 Apertura, 5 Clausura, 6 the
                                         annual table); saved with the career (engine item 'SS') */
-struct gp_ss { u8 n[SS_N], pad; struct gp_row r[SS_N][GT]; };
+struct gp_ss { u8 n[SS_N], fresh; struct gp_row r[SS_N][GT]; };   /* fresh: r[2] written this season (promedio) */
 struct gp_ss GP_SS;
 const u32 GP_LAYOUT[] = { sizeof(struct gp_row), GT, __builtin_offsetof(struct gp_in, n),
                           __builtin_offsetof(struct gp_in, t), __builtin_offsetof(struct gp_in, spec),
@@ -291,6 +291,7 @@ void gp_stage(const u8 *diy, const u8 *sel, u32 k, u32 annual) {
             } else break;
         }
     GP_SS.n[2] = n;
+    GP_SS.fresh = 1;
 }
 
 /* Argentina's relegation (LPF reglamento 2026 art. 26, AFA statute art. 93): kind 7 'promedio' (n = 0, no rounds;
@@ -329,8 +330,13 @@ static int pr_row(int d, u16 g) {               /* a global number -> its row of
 static void promedio(int d, int mnow, int ldiv) {
     if (!PR_STATE.init) pr_seed();
     int n = GP_SS.n[2];
-    if (n < 3 || n != GP_IN.n[d]) return;
     const struct gp_row *a = GP_SS.r[2];
+    if (!GP_SS.fresh || n != GP_IN.n[d]) {      /* (no annual table this season: the league's final table) */
+        n = GP_IN.n[d];
+        a = GP_IN.t[d];
+    }
+    GP_SS.fresh = 0;
+    if (n < 3) return;
     u32 P[GT], M[GT];
     for (int i = 0; i < n; i++) {
         struct pr_club *c = pr_find(a[i].glob);

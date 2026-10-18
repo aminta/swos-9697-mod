@@ -2084,7 +2084,7 @@ Left for 2.5: (a) NSL/NSSL finals series (type-1 design) or declare them postpon
 - Build c/REL333: SWOS IT a288261d EN 0004dc88 FR 96505310 DE 60759d18; gog IT c3f8e77c EN 9f4f23ba FR b0f55a59 DE 465c7f37; SWOS++ 0d95c2bb;
   DATA = 3.3.0. Suite 20/20 PASS (runs333; menu_check clean x10). Patcher 3.3.3 md5 c6805370 (old v3.3.2 added): Node OK.
 
-## 3.3.4 in progress (branch v3.3.4, PAUSED 2026-10-18: weekly usage 77%, resets 22 Oct; resume on Davide's go)
+## 3.3.4 (2026-10-18): era shirt numbers + numbers above 11 in the menus (resumed on Davide's go, Max plan)
 - Done: era shirt numbers (pack.json "numbers": "place", mkseason._place_numbers: starters keep a historic 1..11,
   bench 12..16; all mod packs; 1984-85: TEAM.101-136 + WORLD04.TMD change, ~790 players 17..41 renumbered, Baresi 6);
   menunum.py (bench menu text 0..99, tactics pitch sprites 12..99 = 1620..1707; cherry-pick of dc6e24c); harness

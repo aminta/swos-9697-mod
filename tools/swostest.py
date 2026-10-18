@@ -1311,6 +1311,26 @@ def season_over(scr):
 
 
 @scenario
+def w84_lowprice():
+    """3.3.4 (Daniele): a 1984-85 career at Volsungur (Iceland), whose 16 players are all worth the minimum: the team
+    screen divided by the average player price (0) and the game stopped (DOS/4GW divide error); avgprice.py"""
+    exe = os.environ.get('W8485_BUILD', os.path.join(WORK, 'builds', 'w8485'))
+    with Session('w84_lowprice', exe, {}, 'dump:2', 240) as s:
+        if s.wait().outcome != 'dump':
+            return False, f'START: no first pause ({s.result})'
+        for t in ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'EUROPA 1984-85', 'ISLANDA', 'VOLSUNGUR']:
+            if press(s, s.screen(), t) is None or s.result.outcome != 'dump':
+                return False, f'new career: {t} not reached ({s.result})'
+        seen = []
+        for _ in range(6):                      # the team screen and on (VIS. RISULTATI, back...)
+            r = s.send('fire dump:2')
+            if r.outcome != 'dump':
+                return False, f'after {seen}: {r}'
+            seen.append(s.screen().entries[0][1] if s.screen().entries else '?')
+        return True, 'Volsungur career: ' + ' > '.join(seen)
+
+
+@scenario
 def world8485():
     """Europe 1984-85 world (world 4): new career at Liverpool, two seasons (save, reload, save), checkw1 on both"""
     exe = os.environ.get('W8485_BUILD', os.path.join(WORK, 'builds', 'w8485'))
@@ -2133,7 +2153,8 @@ def purple_kits():
     maroon for Inter, purple in the match Fiorentina-Inter and Fiorentina-Roma (Roma's maroon kit clashes: green away);
     3.3.1: Inter in Barcelona's kits (blue and maroon stripes): the automatic choice avoids purple vs maroon; SELECT KITS
     opens on the automatic choice (Fiorentina-Roma: Roma second kit) and OK plays it; 3.3.3: the team name box in the
-    colour of who controls the team (purple player, red computer)"""
+    colour of who controls the team (purple player, red computer); 3.3.4 (Marco): purple has palette entry 4 of its
+    own in the editor and entry 12 stays maroon, so a maroon part of Fiorentina's second kit leaves the first purple"""
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import lepatch
     b = builds()['it']
@@ -2147,24 +2168,37 @@ def purple_kits():
         o = 2 + t * 684                                      # maroon stripes / light blue): purple vs maroon stripes
         if d[o + 5:o + 22].split(b'\0')[0] == b'INTER MILAN':
             d[o + 26:o + 36] = bytes([2, 5, 6, 5, 5, 0, 7, 7, 7, 7])
+    fio = bytearray(open(os.path.join(b, 'DATA', 'TEAM.020'), 'rb').read())
+    for t in range(struct.unpack('>H', fio[:2])[0]):        # 3.3.4 (Marco): Fiorentina's second kit with maroon
+        o = 2 + t * 684                                      # shorts: the purple first kit stays purple in SELECT KITS
+        if fio[o + 5:o + 22].split(b'\0')[0] == b'FIORENTINA':
+            fio[o + 34] = 6
+    fiom = os.path.join(WORK, 'saves', 'TEAM020_FIOMAROON.BIN')
     barca = os.path.join(WORK, 'saves', 'TEAM020_BARCA.BIN')
     os.makedirs(os.path.dirname(barca), exist_ok=True)
     open(barca, 'wb').write(d)
-    for away, kits, cars in (('INTER MILAN', True, {}), ('ROMA', False, {}),
+    open(fiom, 'wb').write(fio)
+    for away, kits, cars in (('INTER MILAN', True, {'DATA/TEAM.020': fiom}), ('ROMA', False, {}),
                              ('INTER MILAN', False, {'DATA/TEAM.020': barca})):
-        with Session('purple_kits_' + away[:5] + ('_barca' if cars else ''), b, cars, 'dump:3', 300, match=True) as s:
+        with Session('purple_kits_' + away[:5] + ('_barca' if cars and not kits else ''), b, cars, 'dump:3', 300, match=True) as s:
             s.wait()
             italy_friendly(s, 'FIORENTINA', away)
             if kits:
                 scr = walk(s, 68, 3)
-                pal = s.result.read(s.result.base2 + working + 36, 3)
-                check(scr.entries[1][1] == 'FIORENTINA' and tuple(pal) == PURPLE_RGB, f'editor {scr.entries[1][1]} {tuple(pal)}', errs)
+                pal = s.result.read(s.result.base2 + working + 36, 3)      # 3.3.4: purple has entry 120 of its
+                own = s.result.read(s.result.base2 + working + 12, 3)      # own, entry 12 stays the menus' maroon
+                check(scr.entries[1][1] == 'FIORENTINA' and tuple(own) == PURPLE_RGB and tuple(pal) == MAROON_MENU,
+                      f'editor {scr.entries[1][1]} entry 4 {tuple(own)} entry 12 {tuple(pal)}', errs)
+                s.box.shot('purple_kits_editor')        # Fiorentina: purple first kit, maroon second shorts
                 check(scr.colors[1] == 11, f'team name box {scr.colors[1]} for the human player (want 11, purple)', errs)
                 scr = walk(s, 1, 3)             # the other team
                 check(scr.colors[1] == 10, f'team name box {scr.colors[1]} for the computer (want 10, red)', errs)
                 pal = s.result.read(s.result.base2 + working + 36, 3)
                 check(tuple(pal) == MAROON_MENU, f'editor {s.screen().entries[1][1]} {tuple(pal)}', errs)
                 walk(s, 20, 3)                  # ESCI
+                s.screen()                      # entry 4 back to the menus' skin brown outside the editor
+                after = tuple(s.result.read(s.result.base2 + working + 12, 3))
+                check(after == (27, 9, 0), f'entry 4 after SELECT KITS {after} (want 27, 9, 0)', errs)
             elif away == 'ROMA':                # 3.3.1 (Marco): SELECT KITS opens on the automatic choice (Roma's
                 scr = walk(s, 68, 3)            # maroon vs purple: Roma in its second kit), and OK keeps it
                 t = scr.texts()
@@ -2184,8 +2218,8 @@ def purple_kits():
                 worn = (marks[0] | marks[1]) if marks else None     # bit 0 purple, bit 1 maroon worn
                 want = PURPLE_RGB if worn == 1 else (25, 0, 8)
                 check(marks is not None and pal == want and worn != 3, f'match vs {away}: marks {marks}, entry 12 {pal}', errs)
-                info.append(f"{away}{' (Barcelona kits)' if cars else ''}: marks {marks}")
-                if away == 'INTER MILAN' and not cars:
+                info.append(f"{away}{' (Barcelona kits)' if cars and not kits else ''}: marks {marks}")
+                if away == 'INTER MILAN' and kits:
                     check(worn == 1, f'Fiorentina-Inter: purple not worn ({marks})', errs)
     return not errs, '; '.join(errs + info) if errs else 'purple in the editor (maroon for Inter) and vs Inter; ' + '; '.join(info)
 

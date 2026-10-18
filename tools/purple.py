@@ -9,7 +9,10 @@ and when the kits worn in the match have purple and no maroon, entry 12 becomes 
 - conflictingBasicTeamColorsTable / conflictingShortsTeamColorsTable (10 words each, adjacent; rows as kitcolors.py
   leaves them) -> 11-row copies: purple clashes with purple and maroon (and maroon with purple), so the game's own kit
   choice gives one of them its other kit when they meet (Fiorentina-Torino).
-- kTeamColorsTable (the menus' kit sprites, same palette entries) -> 11 words; the Edit Teams kit editor cycles 0..10.
+- kTeamColorsTable (the kit sprites of the two kit editors, Edit Teams and SELECT KITS; palette entries 0..15 only)
+  -> 11 words; the Edit Teams kit editor cycles 0..10. 3.3.4 (Marco): purple draws with entry 4 (a skin brown the kit
+  sprites never use), purple in the editor's menu only (pk_edit records it; pk_menu, on the two `call UnpackMenu` of
+  ActivateMenu / RestorePreviousMenu, puts the brown back in every other menu), so purple and maroon show together.
 - ConvertTeamKitColors (writes the kit a team wears into topTeamInGame / bottomTeamInGame): its first instruction
   `mov al, [D0]` becomes `call pk_mark`, which records for that team whether shirt, stripes (not on a plain shirt),
   shorts or socks are purple or maroon.
@@ -29,6 +32,9 @@ SLOT = 12                       # the palette entry it borrows (maroon's)
 RGB = (24, 8, 34)               # 6-bit VGA purple (Fiorentina's viola)
 MAROON = 6
 MENU_MAROON = (27, 0, 9)        # entry 12 of the menu palettes (FILL.256, STAD.256)
+MENU_SLOT = 4                   # purple in the two kit editors (3.3.4): menu sprites draw with entries 0..15 only;
+                                # 4 is a skin brown the big kit sprites never use
+MENU_SKIN = (27, 9, 0)          # entry 4 of the menu palettes
 
 ASM = r"""
 pk_mark:                                ; replaces `mov al, [D0]` at the start of ConvertTeamKitColors
@@ -95,33 +101,49 @@ pk_pal:                                 ; replaces `mov ecx, 768 / rep movsb` (e
 
 pk_edit:                                ; replaces `mov dword [A6], editTeamsTeam` at the start of Primary- and
     mov dword [A6], EDITTEAM            ; SecondaryKitColorConversion (the Edit Teams / SELECT KITS kit sprites)
-    pushad
-    mov esi, EDITTEAM
+    pushad                              ; 3.3.4: purple draws with entry MSLOT_ of its own (kTeamColorsTable), so
+    mov eax, [CURMENU]                  ; purple and maroon show together (Marco: maroon shorts on the second kit
+    mov [PKMENU], eax                   ; turned the purple first kit maroon); the entry is purple in this menu only
+    mov cl, 1
+    call pk_setpal
+    popad
+    ret
+
+pk_menu:                                ; replaces `call UnpackMenu` in ActivateMenu and RestorePreviousMenu
+    pushad                              ; (A0 -> the menu shown next): MSLOT_ purple in the kit editor's menu, the
+    mov eax, [A0V]                      ; menus' skin brown elsewhere
     xor ecx, ecx
-    lea ebx, [esi + 26]                 ; first kit: type, shirt, stripes, shorts, socks
-    call kitchk
-    lea ebx, [esi + 31]                 ; second kit
-    call kitchk
+    cmp eax, [PKMENU]
+    sete cl
+    call pk_setpal
+    popad
+    jmp UNPACK
+
+pk_setpal:                              ; cl = 1 purple, 0 brown in MSLOT_ (and the menus' maroon in SLOT_)
+    cmp cl, [PKON]
+    je .out
+    mov [PKON], cl
     mov edi, WORKING
-    mov al, R_
-    mov ah, G_
-    mov dl, B_
-    cmp cl, 1                           ; purple, no maroon: entry 12 purple, else the menus' maroon
-    je .set
-    mov al, MR_
-    mov ah, MG_
-    mov dl, MB_
-.set:
-    mov [edi + SLOT_ * 3], al
-    mov [edi + SLOT_ * 3 + 1], ah
-    mov [edi + SLOT_ * 3 + 2], dl
+    call .set
     mov edi, FADE
-    mov [edi + SLOT_ * 3], al
-    mov [edi + SLOT_ * 3 + 1], ah
-    mov [edi + SLOT_ * 3 + 2], dl
+    call .set
     mov esi, WORKING
     call SETPAL
-    popad
+.out:
+    ret
+.set:
+    mov eax, MB_ << 16 | MG_ << 8 | MR_
+    mov [edi + SLOT_ * 3], ax
+    shr eax, 16
+    mov [edi + SLOT_ * 3 + 2], al
+    mov eax, BB_ << 16 | BG_ << 8 | BR_
+    test cl, cl
+    jz .put
+    mov eax, B_ << 16 | G_ << 8 | R_
+.put:
+    mov [edi + MSLOT_ * 3], ax
+    shr eax, 16
+    mov [edi + MSLOT_ * 3 + 2], al
     ret
 
 pk_sim:                                 ; replaces `call MeasureTeamKitsSimilarity` in SetInGameTeamsPrimaryColors
@@ -306,8 +328,8 @@ def patch(p, area, at):
     kt = d2.find(struct.pack('<10H', *old) + bytes([70, 71]))
     krefs = [o for so, o, ty, to, tt, *_ in fix if so == 1 and to == 2 and tt == kt]
     assert kt >= 0 and len(krefs) == 6, krefs
-    ktab = area.add(struct.pack('<11H', *old, SLOT))
-    for o in krefs:
+    ktab = area.add(struct.pack('<11H', *old, MENU_SLOT))         # 3.3.4: purple -> an entry of its own (pk_edit)
+    for o in krefs:                                                 # (shirt, shorts and socks of both editors)
         _retarget(p, o, ktab)
 
     # 2c. the Edit Teams kit editor cycles 0..9: wrap down `sub byte [D0], 1 / jns / mov byte [D0], 9` -> 10,
@@ -370,13 +392,28 @@ def patch(p, area, at):
     sim = p.target(1, meas[0] + 6)
 
     marks = area.add(b'PKMK\0\0\0\0') + 4             # tag: the harness finds the marks by it
+    pkmenu = area.add(b'\0' * 8)                      # the kit editor's menu, entry MSLOT_ purple (0/1)
+
+    # 7. menu changes (3.3.4): ActivateMenu's `mov eax, A6 / mov g_currentMenuPtr, eax / mov eax, A6 / mov A0, eax /
+    #    mov A1, offset g_currentMenu / push D0 / call UnpackMenu` and RestorePreviousMenu's other call of it
+    am = [m for m in re.finditer(rb'\xA1(....)\xA3....\xA1(....)\xA3....\xC7\x05........\xFF\x35....\xE8', d1, re.S)
+          if m.group(1) == m.group(2) and p.target(1, m.start() + 16) == (2, A0)]
+    assert len(am) == 1, am
+    ucall = am[0].end() - 1
+    unpack = ucall + 5 + struct.unpack('<i', d1[ucall + 1:ucall + 5])[0]
+    ucalls = [j.start() for j in re.finditer(rb'\xE8', d1) if j.start() + 5 <= len(d1)
+              and j.start() + 5 + struct.unpack('<i', d1[j.start() + 1:j.start() + 5])[0] == unpack]
+    assert len(ucalls) == 2 and ucall in ucalls, ucalls
+    curmenu = p.target(1, am[0].start() + 6)
     at = (at + 15) & ~15
     sym = {'D0': (2, D0), 'A1': (2, A0 + 4), 'TOP': info['top'], 'BOTTOM': info['bottom'], 'MARKS': (2, marks),
-           'PURPLE_': (0, PURPLE), 'MAROON_': (0, MAROON), 'SLOT_': (0, SLOT),
+           'PURPLE_': (0, PURPLE), 'MAROON_': (0, MAROON), 'SLOT_': (0, SLOT), 'MSLOT_': (0, MENU_SLOT),
            'R_': (0, RGB[0]), 'G_': (0, RGB[1]), 'B_': (0, RGB[2]),
            'MR_': (0, MENU_MAROON[0]), 'MG_': (0, MENU_MAROON[1]), 'MB_': (0, MENU_MAROON[2]),
            'A6': a6, 'EDITTEAM': et, 'WORKING': working, 'FADE': fade, 'SETPAL': (1, setpal),
-           'MEASURE': (1, meas[0]), 'A0V': (2, A0), 'A1V': (2, A0 + 4), 'SIM': sim}
+           'MEASURE': (1, meas[0]), 'A0V': (2, A0), 'A1V': (2, A0 + 4), 'SIM': sim,
+           'CURMENU': curmenu, 'PKMENU': (2, pkmenu), 'PKON': (2, pkmenu + 4), 'UNPACK': (1, unpack),
+           'BR_': (0, MENU_SKIN[0]), 'BG_': (0, MENU_SKIN[1]), 'BB_': (0, MENU_SKIN[2])}
     code, cfix = nasmcave.assemble(ASM, at, sym)
     lab = nasmcave.labels(ASM, at, sym)
     assert not any(p.get(1, at, len(code)))
@@ -397,6 +434,9 @@ def patch(p, area, at):
     kf = info['km_fix']                             # kits set by hand (3.3.2): jmp pk_fix
     assert p.get(1, kf, 5) == b'\xC3\x90\x90\x90\x90'
     p.put(1, kf, b'\xE9' + struct.pack('<i', lab['pk_fix'] - (kf + 5)))
+    for c in ucalls:
+        assert p.get(1, c, 5) == d1[c:c + 5]
+        p.put(1, c, b'\xE8' + struct.pack('<i', lab['pk_menu'] - (c + 5)))
     for c in copies:
         assert p.get(1, c, 7) == b'\xB9\x00\x03\x00\x00\xF3\xA4'
         p.put(1, c, b'\xE8' + struct.pack('<i', lab['pk_pal'] - (c + 5)) + b'\x90\x90')

@@ -602,6 +602,11 @@ assert blk[:2] == b'S2' and sum(blk) % 256 == 0</code></pre>
 <li><strong>Niente panchine delle nazionali (M3).</strong> La coda di <code>cseg_8D7B4</code> scrive −1 in <code>lastNationalityCall</code> in un mondo (−1 = nessuna offerta in <code>cseg_5B705</code>).</li>
 <li><strong>Detentori con un posto loro (M3).</strong> <code>cseg_93BCE</code> azzera un detentore qualificato dal campionato e <code>cseg_92C4D</code> sostituisce una qualificata a caso: con un posto in più per il detentore la coppa restava con un club in meno (blocco). In un mondo le tre <code>call cseg_93BCE</code> (campione di <code>cseg_939C9</code>, i cicli di Coppe e UEFA) saltano ogni detentore e ogni club già in una lista (il posto va al club successivo della classifica), e <code>call cseg_92BBF</code> aggiunge in coda i tre detentori con i loro record salvati (<code>cseg_94193</code>). Posti = dimensione della coppa − 1; i controlli prima dei detentori usano il totale − 3. Il codice dei mondi sta in una sesta pagina di obj1 (0xA6000), aggiunta solo nelle build con un mondo.</li>
 </ul>
+<h3>Numeri di maglia d'epoca (3.3.4)</h3>
+<ul>
+<li><strong>Numeri per posizione.</strong> Prima dei numeri fissi di rosa (1993-95) il numero di maglia indicava il posto nella formazione. Un pacchetto con <code>"numbers": "place"</code> (tutti i pacchetti storici della mod, Europa 1984-85 compresa) è rinumerato da <code>mkseason._place_numbers</code>: gli 11 titolari tengono un 1..11 che hanno già, se unico (Baresi 6 nel Milan), e gli altri prendono quelli liberi; la panchina (posti 12..16) fa lo stesso con 12..16; tutti gli altri prendono i numeri liberi sopra il 16 nell'ordine della formazione.</li>
+<li><strong>Menu oltre l'11.</strong> <code>tools/menunum.py</code>: il testo della panchina nei menu della rosa stampa 0..99 (si fermava a 19) e il campo della tattica ha gli sprite per 12..99 (1620..1707), così anche nei menu le squadre modificate e le rose moderne con numeri oltre l'11 li mostrano giusti.</li>
+</ul>
 
 <!-- 24 -->
 <h2 id="swospp"><span class="n">24</span>SWOS++ (2.7)</h2>

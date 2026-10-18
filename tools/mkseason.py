@@ -311,8 +311,8 @@ class Pack:
                 nxt = f + n
             _need(isinstance(par, list) or nxt == len(divs), 'league.parallel: one level of groups must be the last '
                   'divisions (several levels: a list)')
-            _need(self.league.get('playoffs') in (None, 'ita') and (not isinstance(par, list) or
-                  not self.league.get('playoffs')), "league.playoffs: 'ita' (the Italian play-offs, dplay.py; one level)")
+            _need(self.league.get('playoffs') in (None, 'ita'), "league.playoffs: 'ita' (the Italian play-offs, dplay.py: "
+                  'on the first level of groups, Serie C)')
             n = max(q['count'] for q in pars)
             for k in self.league_clubs:
                 a = self.clubs[k].get('area') or ''
@@ -391,6 +391,7 @@ class Pack:
         if not lg or self.world is None or lg.get('playoffs') != 'ita' or not lg.get('parallel'):
             return None
         par = lg['parallel']
+        par = par[0] if isinstance(par, list) else par     # (Serie C; Serie D below it: pgroups)
         lc = self.meta['season'].get('league_cup')        # (its winner: the Coppa Italia Serie C winner's place)
         return (self.world, int(lg['id'], 16), par['upper'], par['first'], par['count'], self.files[lg['clubs']][0],
                 int(self.comp(lc)['id'], 16) if lc else 0)

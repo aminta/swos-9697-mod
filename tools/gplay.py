@@ -263,6 +263,7 @@ def table_lines(tables):
 
 
 LABELS = {}
+GP_BSS = 0x3000          # the C .bss pages (obj2 after careerworld's BSS): GP_IN at GD 16, RS_STATE, the squads' GP_ST
 
 
 def patch(p, at, limit, tables, bss_at):
@@ -279,7 +280,7 @@ def patch(p, at, limit, tables, bss_at):
     assert p.get(1, cap, 1) == b'\xe8' and p.get(1, end_site, 1) == b'\xe8'
     obj = cobj.compile_c(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'gplay.c'))
     syms, cend, bss = cobj.link(p, obj, at, (2, bss_at), limit=limit)
-    assert bss <= 0x2000, hex(bss)                  # (patch.py: two BSS pages: + the reserves' state)
+    assert bss <= GP_BSS, hex(bss)                  # (patch.py: GP_BSS: the reserves' state, GD 16, GP_ST)
     keys = ('RSZ', 'GT_N', 'O_N', 'O_T', 'O_SPEC', 'O_MV', 'MSZ', 'GD_N')
     lay = dict(zip(keys, struct.unpack(f'<{len(keys)}I', p.get(1, syms['GP_LAYOUT'][1], 4 * len(keys)))))
     import mkseason

@@ -354,7 +354,7 @@ def patch_exe(src, dst, remap, lang='it'):
         gp_at = hist2 + h2 + 0x1000 * (lpb - cos_pg - 2 - xtra_pg)
         gplay.patch(p, gp_at, gp_at + 0x2000, gp_tabs, careerworld.BSS[0] + careerworld.BSS_SIZE)
         pgroups.relax_file_check(p)             # (moves of several divisions: cseg_9487A's per-file sum check)
-        careerworld.BSS_SIZE += 0x2000
+        careerworld.BSS_SIZE += gplay.GP_BSS
     assert cave <= WORLD_CAVE, hex(cave)
     print(f'exe: caves: world end {world:#x} (limit {NZ_CAVE:#x}), arg end {arg_end:#x} (limit {OBJ1_NEW_VSIZE:#x})')
     world = cafcups.intl_list(p, caf, world)

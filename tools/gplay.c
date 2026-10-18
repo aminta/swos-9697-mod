@@ -17,7 +17,7 @@ typedef unsigned short u16;
 typedef unsigned int u32;
 typedef signed char s8;
 
-enum { GT = 24, GD = 8, GN = 64, RESERVE = 0xFE };
+enum { GT = 24, GD = 16, GN = 64, RESERVE = 0xFE };   /* (GD: Italy 2026-27 has 14 divisions) */
 enum { HOST_LISTED, HOST_BETTER, HOST_DRAWN, HOST_NEUTRAL };
 enum { LV_BETTER, LV_ET_PENS, LV_ET_BETTER, LV_PENS };
 struct gp_row { u16 team, glob, won, gf, ga, pts; };

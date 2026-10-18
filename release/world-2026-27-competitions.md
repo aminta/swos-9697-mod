@@ -480,11 +480,13 @@
 ### Oceania
 
 **New Zealand**
-- NEW ZEALAND NATIONAL LEAGUE: 11 clubs; double round robin, 22 matchdays; one club rests each matchday; 3 down
-- NORTHERN LEAGUE / CENTRAL LEAGUE / SOUTHERN LEAGUE: 3 parallel groups of 7 + 6 + 8 (each club in the group of its area; promoted and relegated clubs join the group of their area); double round robin, 14 matchdays; one club rests each matchday; 1 up; the lowest division of the world: nobody goes down
+- NORTHERN LEAGUE: 12 clubs; double round robin, 22 matchdays; no promotion or relegation
+- CENTRAL LEAGUE: 10 clubs; double round robin, 18 matchdays; no promotion or relegation
+- SOUTHERN LEAGUE: 10 clubs; double round robin, 18 matchdays; no promotion or relegation
 - CHATHAM CUP (Cup): 12 clubs; from the round of 16; the clubs still in the real 2026 cup, all 4 first-round pairs as really drawn; 4 byes into the 2nd round; single matches, extra time and penalties; final: single match, extra time and penalties; rounds numbered as in reality
-- *Declared approximation*: promotion: each regional league's winner goes up and the National League's last 3 go down; in reality the National League is formed each year from the regional leagues' best clubs.
+- *Declared approximation*: for now the season is the three regional leagues only (closed); the National League Championship (their top clubs + the A-League reserves, Sep-Dec) comes as a second competition of the season
 - *Declared approximation*: the A-League reserves play no Chatham Cup (no regulation found, Davide's choice)
+<!-- Being built: National League Championship 2026 (after the regional leagues): 4 clubs from the Northern League, 3 from the Central, 2 from the Southern + the Auckland FC and Wellington Phoenix reserves (automatic; if a reserve team is in its league's qualifying places the next club qualifies) = 11, single round robin (10), the top two in the grand final (no reserve team); the winner to the OFC Champions League. -->
 
 ### Africa
 
@@ -996,11 +998,13 @@
 ### Oceania
 
 **Nuova Zelanda**
-- NEW ZEALAND NATIONAL LEAGUE: 11 squadre; girone di andata e ritorno, 22 giornate; a ogni giornata una squadra riposa; 3 retrocesse
-- NORTHERN LEAGUE / CENTRAL LEAGUE / SOUTHERN LEAGUE: 3 gironi paralleli da 7 + 6 + 8 (ogni club nel girone della sua area; promosse e retrocesse vanno nel girone della loro area); girone di andata e ritorno, 14 giornate; a ogni giornata una squadra riposa; 1 promossa; l'ultima divisione del mondo: nessuna retrocessione
+- NORTHERN LEAGUE: 12 squadre; girone di andata e ritorno, 22 giornate; niente promozioni né retrocessioni
+- CENTRAL LEAGUE: 10 squadre; girone di andata e ritorno, 18 giornate; niente promozioni né retrocessioni
+- SOUTHERN LEAGUE: 10 squadre; girone di andata e ritorno, 18 giornate; niente promozioni né retrocessioni
 - CHATHAM CUP (Coppa): 12 squadre; dagli ottavi di finale; le squadre ancora in corsa nella vera coppa 2026, tutti e 4 accoppiamenti del primo turno come nel sorteggio vero; 4 esenti fino al 2° turno; gara unica, supplementari e rigori; finale: gara unica, supplementari e rigori; turni numerati come nella realtà
-- *Approssimazione dichiarata*: promozione: sale la vincente di ogni lega regionale e scendono le ultime 3 della National League; nella realtà la National League si forma ogni anno con i migliori club delle leghe regionali.
+- *Approssimazione dichiarata*: per ora la stagione è solo quella dei tre campionati regionali (chiusi); il National League Championship (le loro prime + le riserve della A-League, set-dic) arriverà come seconda competizione della stagione
 - *Approssimazione dichiarata*: le riserve della A-League non giocano la Chatham Cup (nessun regolamento trovato, scelta di Davide)
+<!-- In costruzione: National League Championship 2026 (dopo i campionati regionali): 4 squadre della Northern League, 3 della Central, 2 della Southern + le riserve di Auckland FC e Wellington Phoenix (di diritto; se una riserva è nei posti di qualificazione del suo campionato si qualifica la seguente) = 11, girone di sola andata (10), le prime due in finale (nessuna riserva); la vincente in OFC Champions League. -->
 
 ### Africa
 

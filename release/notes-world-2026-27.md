@@ -805,7 +805,7 @@ Non una formula uguale per tutti: ogni campionato gioca la stagione come l'ha sc
   di prezzi del gioco); non vengono distribuiti valori di mercato, valutazioni o pagine delle fonti.
 
 <!-- complist:begin -->
-91 countries, 128 league divisions, 87 national cups, 14 league cups: every playable competition and its format, generated from the release build: [world-2026-27-competitions.md](world-2026-27-competitions.md).
+91 countries, 127 league divisions, 87 national cups, 14 league cups: every playable competition and its format, generated from the release build: [world-2026-27-competitions.md](world-2026-27-competitions.md).
 
-91 nazioni, 128 divisioni, 87 coppe nazionali, 14 coppe di lega: ogni competizione giocabile e la sua formula, generate dalla build della release: [world-2026-27-competitions.md](world-2026-27-competitions.md).
+91 nazioni, 127 divisioni, 87 coppe nazionali, 14 coppe di lega: ogni competizione giocabile e la sua formula, generate dalla build della release: [world-2026-27-competitions.md](world-2026-27-competitions.md).
 <!-- complist:end -->

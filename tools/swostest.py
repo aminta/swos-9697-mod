@@ -1658,6 +1658,12 @@ def world8485():
                             if s.send('fire dump:2').outcome != 'dump':
                                 return False, f'new career: ESCI ({s.result})'
                         continue
+                    scr = s.screen()                      # a group of a level (menulevels): its level first
+                    lvl = None if scr.find(t, exact=True) is not None else \
+                        next((x for i, x, inv, _ in scr.entries if 11 <= i <= 20 and x and not inv and
+                              t.startswith(x + ' ')), None)
+                    if lvl and press(s, scr, lvl) is None:
+                        return False, f'new career: level {lvl} of {t} not reached ({s.result})'
                     if press(s, s.screen(), t) is None or s.result.outcome != 'dump':
                         return False, f'new career: {t} not reached ({s.result})'
                 if os.environ.get('W8485_START') == '1':          # menu check only: the career has started

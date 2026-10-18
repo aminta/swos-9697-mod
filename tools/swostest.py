@@ -3415,9 +3415,9 @@ def world_split(kind):
     po = lepatch.LEPatch(os.path.join(MAIN, 'orig', 'ITALIAN.EXE'))
     sa = split.sites(po)
     keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K',
-                                            'W8485_NOSACK', 'W8485_DIY', 'W8485_FROM')}
+                                            'W8485_NOSACK', 'W8485_DIY', 'W8485_FROM', 'W8485_TMO')}
     os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5', W8485_K='108+',
-                      W8485_NOSACK='1', W8485_DIY=f"{sa['DIY']:x},{split.ST:x},{sa['CAL']:x}")
+                      W8485_NOSACK='1', W8485_DIY=f"{sa['DIY']:x},{split.ST:x},{sa['CAL']:x}", W8485_TMO='600')
     try:
         ok, msg = world8485()
     finally:
@@ -3426,9 +3426,9 @@ def world_split(kind):
                 os.environ.pop(k, None)
             else:
                 os.environ[k] = v
-    log = open(os.path.join(RUNS, 'world8485_1', 'session.log')).read().splitlines()
+    log = open(os.path.join(RUNS, f'{w84_tag()}_1', 'session.log')).read().splitlines()
     good, rep = split_check(log, spec, lambda n: split.pair_table(po, sa, n))
-    open(os.path.join(RUNS, 'world8485_1', 'split.txt'), 'w').write(rep + '\n' + '\n'.join(
+    open(os.path.join(RUNS, f'{w84_tag()}_1', 'split.txt'), 'w').write(rep + '\n' + '\n'.join(
         x for x in log if x.startswith('post-split')) + '\n')
     return ok and good, f'{rep}; {msg}'
 

@@ -129,6 +129,8 @@ sp_init:                                ; replaces `call cseg_2653B` at the end 
     call sp_saveregs
     call C2730A                         ; the days' weeks again
     call sp_restregs
+    cmp byte [edi + 7], 0               ; (no stages: a meetings-only entry has no stage record)
+    je .x
     movzx esi, word [edi + E_STG + 26]  ; our own weeks (a calendar with breaks: Argentina's knockout weeks)
     test esi, esi
     jz .x

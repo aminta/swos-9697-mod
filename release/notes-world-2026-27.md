@@ -300,13 +300,18 @@ when the engine lands it.
 - Nobody goes down from a country's lowest division in the world, and play-offs against a tier outside the world are
   not played: e.g. Switzerland's 11th does not meet the Challenge League's 2nd, Korea's 10th and 11th play no K
   League 2 club.
+- Second teams (B / II / U21 / U23 / reserves) play no national cup, as in their countries' rules; where no rule was
+  found the mod keeps them out too (Davide): New Zealand's A-League reserves (Chatham Cup) and the Australian A-League
+  academy teams (Australia Cup).
 <!-- DATA STAGED (second-team rules: to come, the integrator's engine; Davide 2026-10-18): - Second teams (Juventus
   Next Gen, Atalanta U23, Inter U23, Real Sociedad B, Stuttgart II, Hoffenheim II, the Jong / U21 teams of PSV, Ajax,
   AZ and Utrecht, Benfica B, Porto B, Sporting B, the Auckland FC and Wellington Phoenix reserves) follow their
   countries' rules: never promoted into or above their first team's division, the promotion or play-off place passing
   to the next club; Italy's U23 teams may go up to Serie B and play the Serie C play-offs; a first team relegated into
-  its second team's division sends the second team down; New Zealand's reserves cannot win the National League. They
-  play no national cup (already in the data). -->
+  its second team's division sends the second team down; New Zealand's reserves cannot win the National League.
+  Portugal's B teams follow the Spanish / German rule (the place passes on, the B team goes down when its first team
+  drops into Liga 2: no regulation found, Davide). If a second team wins the Serie C play-off while its first team is in
+  Serie B, the losing finalist goes up (no rule found). -->
 - Players without a Transfermarkt value get an estimate (from their club's and division's values); in the lowest
   divisions (Scotland's League One and Two) the squads are so close that a simulated season does not follow the real
   table closely.
@@ -693,13 +698,18 @@ Non una formula uguale per tutti: ogni campionato gioca la stagione come l'ha sc
 - Nessuna squadra retrocede dall'ultima divisione di una nazione nel mondo, e gli spareggi contro una serie fuori dal
   mondo non si giocano: per esempio l'11ª svizzera non affronta la 2ª della Challenge League, la 10ª e l'11ª coreane
   non giocano contro club della K League 2.
+- Le seconde squadre (B / II / U21 / U23 / riserve) non giocano coppe nazionali, come da regolamento delle loro nazioni;
+  dove non si è trovata una regola la mod le tiene fuori comunque (Davide): le riserve neozelandesi della A-League
+  (Chatham Cup) e le squadre giovanili australiane della A-League (Australia Cup).
 <!-- DATA STAGED (regole delle seconde squadre: in arrivo, motore dell'integratore; Davide 2026-10-18): - Le seconde
   squadre (Juventus Next Gen, Atalanta U23, Inter U23, Real Sociedad B, Stoccarda II, Hoffenheim II, le Jong / U21 di
   PSV, Ajax, AZ e Utrecht, Benfica B, Porto B, Sporting B, le riserve di Auckland FC e Wellington Phoenix) seguono le
   regole delle loro nazioni: mai promosse nella divisione della prima squadra o sopra, il posto promozione o play-off
   passa alla squadra seguente; le U23 italiane possono salire in Serie B e giocano i play-off di Serie C; una prima
   squadra che retrocede nella divisione della seconda la fa scendere; le riserve neozelandesi non possono vincere la
-  National League. Non giocano coppe nazionali (già nei dati). -->
+  National League. Le squadre B portoghesi seguono la regola spagnola / tedesca (il posto passa alla seguente, la B
+  scende se la prima squadra cade in Liga 2: nessun regolamento trovato, Davide). Se una seconda squadra vince i play-off
+  di Serie C mentre la prima squadra è in Serie B, sale la finalista sconfitta (nessuna regola trovata). -->
 - I giocatori senza valore su Transfermarkt ricevono una stima (dai valori del club e della divisione); nelle divisioni
   più basse (League One e League Two scozzesi) le rose sono così vicine che una stagione simulata non segue da vicino la
   classifica vera.

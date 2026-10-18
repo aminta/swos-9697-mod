@@ -20,6 +20,10 @@ Squads session, 2026-10-18. Branch `split` from world-2025-26. The spec is in th
     - `reverse3`: the club that was away in their 3rd meeting (Northern Ireland);
     - `seeded` (default): a balanced calendar, the extra home games to the better placed.
     A double round is that calendar mirrored.
+- `stages` (Malta): `{"stages": [split, split, ...]}`. Each stage is a split of the table at its `after` day
+  (cumulative), plus `"reset": true` (every figure from 0: played, W/D/L, goals, points) and `"keep": "opening"`
+  (the table just before the reset stays in the state for the title play-offs: the row by place at DIY+20Dh+102,
+  then the points by place, words, at +22).
 - `games` on a division: its own meetings in the season. The league struct has one `games` byte for every division
   (Scotland's lower divisions: 4).
 - Even divisions of at most 24 clubs. At most 64 match days per split league (the state lives at the end of the
@@ -45,10 +49,19 @@ Squads session, 2026-10-18. Branch `split` from world-2025-26. The spec is in th
 | cseg_89758, before its home / away test | sp_pair | From day `after`: our calendar (places to rows). The first such call, unless from the calendar builder, freezes the groups from +6Dh, applies the points rule, sorts and rewrites the career calendar's post-split blocks. |
 | cseg_8922B, after the played counts | sp_count | Day counters for any number of matches a day (groups of different sizes, byes); the stage ends after the last day. |
 | cseg_883DD's last `jns` | sp_sort | After the engine's sort: a stable partition into the groups, then the "points before rounding" tie-break. +6Dh is always the final table in place order, so dplay / gplay read it unchanged. |
+| cseg_8EF7B's first `call cseg_89758` | sp_cpu | When the career club plays no more on this day after the split (a bye in an odd group, a shorter group), only the rest of the day is played. Otherwise cseg_8EF7B ran on into the next day up to the career club's match, its block was then played twice, and the season stuck on its last league block. |
 | cseg_88CBB `add word [esi+1BDh], 1` | sp_res | Head-to-head points per pair before the split. Installed only with `h2h_half` groups. |
 
 The state (166 bytes) sits at DIY+20Dh, the end of the weeks table: magic FEh 50h, entry, frozen, place to row,
 group of each row, points before the split, head-to-head. It is saved with the league slot (733h).
+
+## Odd leagues (tools/oddtables.py, its own commit, main-able)
+- The game's pair tables for an odd size (5..23 clubs) are not rounds. The engine counts n // 2 pairs as a day,
+  and many of those days have a club twice.
+- In careers the calendar builder then wrote two of the career club's matches into one block, which overran the
+  next one: int 3 at cseg_8B8D9+A0 at the next season. Italy 1947-48 had irregular match days.
+- The tables are rewritten in place as rounds: one club at rest each round, at most 3 home or away running.
+  It runs with mkseason.odd_leagues, so no hooks are needed.
 
 ## Bugs met (do not repeat)
 - Not in the rows. cseg_26395 clears the rows' figures but not their team dword, and some routines walk all
@@ -59,6 +72,9 @@ group of each row, points before the split, head-to-head. It is saved with the l
 - A cup copied into DIY (443h) leaves the league's tail: every hook checks DIY+0 = 0 (a league).
 
 ## Tests (swostest, private data internal/world2526/world5tm)
+- `world_split_reverse3` (Northern Ireland), `world_split_odd` (Bulgaria: groups of 5 with byes),
+  `world_split_three` (Greece), `world_split_none` (Czech Republic), `world_split_stages` (Malta), `world_odd_league`
+  (New Zealand 11 on a full odd build: 22 days, 20 matches each, two seasons).
 - `world_split_single` (Scotland 33 + 5, balance, at ST. MIRREN), `world_split_double` (Austria 22 + 10, at
   HARTBERG), `world_split_halved` (Romania 30 + 10, half_up, at BOTOSANI), `world_split_h2h` (Moldova 21 + 10,
   h2h_half, at PETROCUB). SPLIT_BUILD reuses a build.

@@ -17,6 +17,7 @@ import re
 import struct
 
 ORIG_SIZE, POOL_SIZE = 0x2B000, 0x10000         # BSS: Italy's file as read (256 x 684 + 2), the pool (<= 95 records)
+assert ORIG_SIZE >= 256 * 684 + 2                 # (Italy's 256 records + the count: 175106 B)
 BSS_NEED = ORIG_SIZE + POOL_SIZE + 0x100
 RI_SIZE = 4 + 2 * 256 + 2 * 64                  # gplay.c struct ri_state: the engine item 'RI'
 LABELS = {}

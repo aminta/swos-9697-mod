@@ -73,7 +73,7 @@ def career_data_pages():
 LEAGUE_AT = {}                          # (world, league file) -> obj1 offset of its league struct (patch)
 CAREER_CAVE = [None]                    # obj1 page of the career world code (patch.py adds it when worlds exist)
 CAREER_CAVE_SIZE = 0x2000               # 3.1: two pages (patch.py; three with several worlds, cave_pages)
-ROUND = {'two_legs': 0x94, 'single': 0x14, 'single_et': 0x54}   # knockout round byte: two legs (away goals),
+ROUND = {'two_legs': 0x94, 'two_legs_pens': 0x84, 'single': 0x14, 'single_et': 0x54}   # knockout round byte: two legs (away goals),
                                                                  # single match, single match + extra time/penalties
 # tourney packs (3.2, CLASSIC TOURNEYS): matches of a knockout stage = the legs byte of a worldCup-layout stage (as the
 # World Cup 1982 / Mitropa 1934 / FA Cup 1871-72 of historic.py). *_replay: a draw (on aggregate) is replayed, a drawn

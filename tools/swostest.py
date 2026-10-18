@@ -1549,38 +1549,46 @@ def fmt_lines(build, title, lang='it', world=0):
 
 @scenario
 def format_page():
-    """5.0 / 4.0: the FORMAT page (fmtpage.py). Season DDR 1988-89: FORMULA of the Oberliga and of the FDGB-Pokal
-    (DATA\\FMTIT.DAT); a new 1984-85 career at Liverpool: the First Division (world 4: FMTIT4.DAT). Each page shows
-    the competition's title and the file's lines; NEXT PAGE and EXIT work"""
+    """5.0 / 4.0: the FORMAT page (fmtpage.py), in the exe language FMT_LANG (it, en, fr, de; SWOSTEST_BUILD = a build
+    of that language). Season > classic seasons > DDR 1988-89 (by entry number, the same menus in every language):
+    FORMAT of the Oberliga and of the FDGB-Pokal (DATA\\FMTxx.DAT); Italian: also a new 1984-85 career at Liverpool,
+    the First Division (world 4: FMTIT4.DAT). Each page shows the competition's title and the file's lines"""
     b = builds()['it']
+    lang = os.environ.get('FMT_LANG', 'it')
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import fmtgame
+    ddr = fmtgame.from_pack(os.path.join(ROOT, 'packs', 'ddr-1988-89'))
     errs, info = [], []
     def check_page(scr, title, world):
-        want = fmt_lines(b, title, 'it', world)
+        want = fmt_lines(b, title, lang, world)
         got = [e[1] for e in scr.entries[1:1 + len(want or [])]] if want else None
         check(scr.entries[0][1] == title and want and got == want, f'{title}: shown {scr.entries[0][1]!r} {got} '
               f'want {want}', errs)
         info.append(f'{title}: {len(want or [])} lines')
-    with Session('format_season', b, {}, 'dump:2', 300) as s:
+    with Session('format_season_' + lang, b, {}, 'dump:2', 300) as s:
         s.wait()
-        for t in ('STAGIONE', 'STAG. STORICHE', 'DDR 1988-89'):
-            press(s, s.screen(), t, 2)
-        for _ in range(12):
-            scr = s.screen()
-            if scr.entries[scr.selected][1] == 'STAGIONE':
+        walk(s, 8, 2)                                   # SEASON
+        import mkseason
+        press(s, s.screen(), mkseason.SEASONS_NAMES[lang].decode('latin-1'), 2)   # classic seasons
+        press(s, s.screen(), 'DDR 1988-89', 2)
+        for _ in range(12):                             # the start button (76), right of the abandon one (75)
+            if s.screen().selected == 76:
                 break
-            s.send(('right' if scr.entries[scr.selected][1] == 'ABBANDONA' else 'down') + ' dump:0.5')
+            s.send(('right' if s.screen().selected == 75 else 'down') + ' dump:0.5')
         s.send('fire dump:3')
-        walk(s, 18, 3)                                  # VISUAL. COMPETIZ. (the season menu's entry 18)
-        for k, title in ((1, 'DDR 1988-89 OBERLIGA 1988-89'), (2, 'DDR 1988-89 FDGB-POKAL 1988-89')):
+        walk(s, 18, 3)                                  # VIEW COMPETITIONS (the season menu's entry 18)
+        for k, item in ((1, ddr[0]), (2, ddr[1])):
             walk(s, k, 3)
-            walk(s, s.screen().find('STAT', exact=True), 3)
-            walk(s, s.screen().find('FORMULA', exact=True), 3)
+            walk(s, 9, 3)                               # STAT
+            walk(s, 5, 3)                               # FORMAT
             scr = s.screen()
-            check_page(scr, title, 0)
-            s.shot(f'format_{k}')
-            walk(s, scr.find('ESCI', exact=True), 3)    # -> statistics
-            walk(s, s.screen().find('ESCI', exact=True), 3)   # -> the competition
-            walk(s, s.screen().find('ESCI', exact=True), 3)   # -> the list
+            check_page(scr, item[2][lang], 0)
+            s.shot(f'format_{lang}_{k}')
+            walk(s, 16, 3)                              # EXIT -> statistics
+            walk(s, 4, 3)                               # EXIT -> the competition
+            walk(s, 10, 3)                              # EXIT -> the list
+    if lang != 'it':
+        return not errs, '; '.join(errs + info) if errs else 'FORMAT pages drawn: ' + '; '.join(info)
     with Session('format_w84', b, {}, 'dump:2', 300) as s:
         s.wait()
         for t in ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'EUROPA 1984-85', 'INGHILTERRA', 'FIRST DIVISION',

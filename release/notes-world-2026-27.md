@@ -7,7 +7,7 @@
 <!-- REGIA STAGED, the release payoff (Davide 2026-10-18, for the final release of the whole work):
 *Football competitions, global and local, that no other game has, has ever had, or probably ever will.* -->
 
-A historic career world of the **2026-27 season**: 87 countries, 1,562 clubs, real squads at the end of the summer
+A historic career world of the **2026-27 season**: 91 countries, 1,847 clubs (+ 9 Serie D clubs waiting below Serie C), real squads at the end of the summer
 2026 transfer window. In CLASSIC CAREERS choose WORLD 2026-27, then the continent and the country (EUROPE lists the
 first 43 UEFA associations by ranking, the others are under OTHER NATIONS).
 
@@ -188,11 +188,12 @@ when the engine lands it.
 ### What is in the world
 - **Countries and leagues**: all 54 playing UEFA associations, each a real country (Liechtenstein, which has no league
   of its own, plays a mini league of its 6 first teams), and Russia (league only: no European places while suspended);
-  England on 3 levels, Scotland on 4, Italy with Serie A, B and the three Serie C groups, the second tiers of Spain,
+  England on 4 levels (League Two included), Scotland on 4, Italy with Serie A, B and the three Serie C groups, the second tiers of Spain,
   Germany (and 3. Liga), France, Netherlands, Portugal, Turkey; Brazil Serie A and B, the full MLS, Canada, Mexico,
   Central America, every CONMEBOL country, Saudi Arabia, Qatar, UAE, Iran, Japan, Korea, China, Australia, Egypt,
-  Morocco, Tunisia, Algeria, South Africa, New Zealand. Calendar-year leagues play their 2026 season (Japan already
-  its first August-May season, 2026-27).
+  Morocco, Tunisia, Algeria, South Africa, New Zealand, Suriname, Taiwan, India, Ghana, and every league and division
+  of the original game (see the Mod rules). Calendar-year leagues play their 2026 season (Japan already its first
+  August-May season, 2026-27).
 - **Real names**: every league and cup under its official 2026-27 name, without title sponsors, as the original game
   did (SERIE A, LALIGA, FA CUP, EFL CUP, DFB-POKAL, TURKIYE KUPASI, KING'S CUP, EMPEROR'S CUP ...): the country's own
   language where it is written in the Latin alphabet, the official English name otherwise.
@@ -239,7 +240,7 @@ when the engine lands it.
     coefficient (the Champions League holder first): two opponents from each pot, one at home and one away, never a
     club of the same association and at most two of one association. 8 matchdays; table order by points, goal
     difference, goals, away goals, wins, away wins, then the opponents' points, goal difference and goals (UEFA's
-    rules, the disciplinary points aside). Places 1-8 go to the round of 16, 9-24 play the knockout play-offs (two
+    rules, all ten criteria: the disciplinary points and the club coefficient included). Places 1-8 go to the round of 16, 9-24 play the knockout play-offs (two
     legs, 9-16 seeded), 25-36 are out; the round of 16 and the bracket to the final follow UEFA's fixed shape.
   - **Qualifying rounds** (from the second season): the real access list of 2024-27 (as for 2026-27) for all three
     competitions: first to fourth qualifying round of the Champions League (champions and league paths), Europa
@@ -291,11 +292,9 @@ when the engine lands it.
   every club that comes down to Serie C joins the group of its region (a fixed geography table: Lombardy, Piedmont,
   Aosta Valley, Trentino-Alto Adige, Veneto, Friuli-Venezia Giulia -> A; Emilia-Romagna, Liguria, Tuscany, Umbria,
   Marche, Lazio, Abruzzo, Molise, Sardinia -> B; Campania, Apulia, Basilicata, Calabria, Sicily -> C; Serie C clubs
-  keep their own group), then the groups are balanced to 20 clubs each. No club is relegated from Serie C and there are
-  no Serie C play-outs (as in the original game's lowest English division: the world has no Serie D). The Serie B and
+  keep their own group), then the groups are balanced to 20 clubs each. The Serie B and
   Serie C play-offs and the Serie B play-out are playable (see the engine notes).
-<!-- DATA STAGED (publish with the reserve engine, TM_RESERVE; replaces the two sentences above on no relegation from
-  Serie C - Davide 2026-10-18): - Serie C relegates as in reality: in each group the 20th goes down and the 16th-19th
+- Serie C relegates as in reality: in each group the 20th goes down and the 16th-19th
   play the play-out (16th v 19th, 17th v 18th, two legs, the return leg at the better placed club; level on aggregate:
   the better placed stays; no play-out when the two clubs are 8 or more points apart: the worse placed goes down).
   The 9 relegated clubs leave the world for the Serie D, and 9 come up into the group of their area. In season 1 the
@@ -303,8 +302,8 @@ when the engine lands it.
   leaders of the Serie D on 18 October 2026 (Alessandria, Nibbiano & Valtidone, Luparense, Pistoiese, Prato,
   L'Aquila, Sarnese, Virtus Francavilla, Reggina), a provisional choice to be replaced by the real 9. From season 2 the
   relegated clubs come back up in turn, the longest in the Serie D first. Your club relegated to the Serie D is sacked
-  (job offers). [With this: the next bullet gets "except Serie C, relegated to the Serie D reserve".] -->
-- Nobody goes down from a country's lowest division in the world, and play-offs against a tier outside the world are
+  (job offers).
+- Nobody goes down from a country's lowest division in the world (except Serie C, relegated to the Serie D reserve), and play-offs against a tier outside the world are
   not played: e.g. Switzerland's 11th does not meet the Challenge League's 2nd, Korea's 10th and 11th play no K
   League 2 club.
 <!-- DATA STAGED (second-team rules: to come, the integrator's engine; Davide 2026-10-18): - Second teams (Juventus
@@ -339,7 +338,7 @@ when the engine lands it.
   - Moldova: phase II of the top 6 from their halved head-to-head points, as in 2025-26.
   - Andorra: a triple round-robin, as in 2025-26.
   - San Marino: one table of 30 matchdays and the Conference play-off of 2nd-11th, as in 2025-26. -->
-<!-- DATA STAGED (publish with the full world, TM_FULL): - Every league and division of the original SWOS 96/97 is
+- Every league and division of the original SWOS 96/97 is
   in the world (Davide): England's League Two, Argentina's Primera Nacional (two zones), Mexico's Liga de Expansion,
   Uruguay's Segunda, Japan's J2, New Zealand's Northern / Central / Southern Leagues, Australia's NPL New South Wales /
   Victoria / Queensland, El Salvador's Segunda and Tercera, and Suriname, Taiwan (two tiers), India (two tiers) and
@@ -349,9 +348,6 @@ when the engine lands it.
   promoted to the 2026-27 Segunda, in two zones. Mexico's and Australia's leagues are closed (no promotion or
   relegation), as in reality. Promotion and relegation keep every level's size:
   - England: League One relegates 4, as in reality: League Two's 3 direct places + its play-off winner.
-  - Argentina: the Liga Profesional relegates 2, as in 2026 (the last on promedio and the last of the annual table).
-    The two Primera Nacional zone winners go up. In reality the zone winners play a final for one place and a
-    'reducido' play-off decides the second (an approximation).
   - El Salvador: the two Segunda zone winners play a single final at a neutral venue for the one place in the
     Primera. Each Segunda zone sends its last club down, each Tercera zone its winner up. In the zones' new line-ups
     from season 2, a club goes to its own area (A = Centro Occidente, B = Centro Oriente; Primera clubs by their
@@ -359,15 +355,13 @@ when the engine lands it.
   - New Zealand: the season is, for now, its three regional leagues at their real sizes (Northern 12, Central 10,
     Southern 10; no moves between them). The National League Championship that their top clubs and the A-League
     reserves play after them (September-December) comes as a second competition of the season, with Brazil's state
-    championships. -->
-- Leagues with an odd number of clubs keep their real size, one club resting each matchday: Gibraltar 11, New
-  Zealand 11.
+    championships.
+- Leagues with an odd number of clubs keep their real size, one club resting each matchday: Gibraltar 11, India's
+  Super League 13 and Football League 11, Taiwan's Division 2 7, El Salvador's Tercera occidente 9.
 <!-- INTERNAL (not public, regia 2026-10-18): Argentina's Liga Profesional and the MLS are two closed divisions of 15
   for now (the game pairs at most 24 clubs): no promotion / relegation in Argentina, no interzonal / cross-conference
   matches. To be replaced before the release by the integrator's two-tournament season (zones + clasico, annual table,
   promedio; MLS 34 matches, Supporters' Shield, play-offs). If still interim at release time: decide with Davide. -->
-<!-- DATA STAGED (with the full world, TM_FULL): also India's Super League 13 and Football League 11, Taiwan's
-  Division 2 7, El Salvador's Tercera occidente 9. -->
 
 **Known limits**
 - EA's public ratings still held FC 26-era rosters when this world was built (2026-10-16): attributes are matched by
@@ -400,7 +394,7 @@ when the engine lands it.
 <!-- REGIA STAGED, il payoff del rilascio (Davide 2026-10-18, per il rilascio finale di tutto il lavoro):
 *Le competizioni di calcio, globali e locali, che nessun altro gioco ha, ha mai avuto e probabilmente avrà.* -->
 
-Un mondo di carriera storica della **stagione 2026-27**: 87 nazioni, 1.562 club, rose reali alla fine del mercato
+Un mondo di carriera storica della **stagione 2026-27**: 91 nazioni, 1.847 club (+ 9 di Serie D in attesa sotto la Serie C), rose reali alla fine del mercato
 estivo 2026. In CARR. STORICHE scegli MONDO 2026-27, poi il continente e la nazione (EUROPA elenca le prime 43
 federazioni UEFA per ranking, le altre sono in ALTRE NAZIONI).
 
@@ -582,11 +576,12 @@ Non una formula uguale per tutti: ogni campionato gioca la stagione come l'ha sc
 ### Cosa c'è nel mondo
 - **Nazioni e campionati**: tutte le 54 federazioni UEFA che giocano, ognuna come nazione vera (il Liechtenstein, che
   non ha un campionato suo, gioca un mini campionato con le sue 6 prime squadre), e la Russia (solo campionato:
-  nessun posto europeo finché è sospesa); Inghilterra su 3 livelli, Scozia su 4, Italia con Serie A, B e i tre gironi
+  nessun posto europeo finché è sospesa); Inghilterra su 4 livelli (League Two compresa), Scozia su 4, Italia con Serie A, B e i tre gironi
   di Serie C, le seconde serie di Spagna, Germania (e 3. Liga), Francia, Olanda, Portogallo, Turchia; Brasile Serie A
   e B, tutta la MLS, Canada, Messico, Centro America, tutte le nazioni CONMEBOL, Arabia Saudita, Qatar, Emirati, Iran,
-  Giappone, Corea, Cina, Australia, Egitto, Marocco, Tunisia, Algeria, Sudafrica, Nuova Zelanda. I campionati ad anno
-  solare giocano la loro stagione 2026 (il Giappone già la sua prima stagione agosto-maggio, 2026-27).
+  Giappone, Corea, Cina, Australia, Egitto, Marocco, Tunisia, Algeria, Sudafrica, Nuova Zelanda, Suriname, Taiwan, India,
+  Ghana, e ogni campionato e divisione del gioco originale (vedi le regole della mod). I campionati ad anno solare
+  giocano la loro stagione 2026 (il Giappone già la sua prima stagione agosto-maggio, 2026-27).
 - **Nomi veri**: ogni campionato e ogni coppa con il suo nome ufficiale 2026-27, senza sponsor, come faceva il gioco
   originale (SERIE A, LALIGA, FA CUP, EFL CUP, DFB-POKAL, TURKIYE KUPASI, KING'S CUP, EMPEROR'S CUP ...): nella lingua
   della nazione dove si scrive in alfabeto latino, altrimenti il nome ufficiale inglese.
@@ -637,7 +632,7 @@ Non una formula uguale per tutti: ogni campionato gioca la stagione come l'ha sc
     quattro fasce per coefficiente dei club (prima il detentore della Champions League): due avversarie per fascia,
     una in casa e una fuori, mai un club della stessa federazione e al massimo due della stessa federazione.
     8 giornate; classifica per punti, differenza reti, gol fatti, gol fuori casa, vittorie, vittorie fuori casa, poi
-    punti, differenza reti e gol delle avversarie (regole UEFA, esclusi i punti disciplinari). I posti 1-8 vanno agli
+    punti, differenza reti e gol delle avversarie (regole UEFA, tutti e dieci i criteri: punti disciplinari e coefficiente del club compresi). I posti 1-8 vanno agli
     ottavi, i 9-24 giocano gli spareggi (andata e ritorno, 9-16 teste di serie), i 25-36 sono eliminati; ottavi e
     tabellone fino alla finale seguono lo schema fisso UEFA.
   - **Turni preliminari** (dalla seconda stagione): la vera lista di accesso 2024-27 (come per il 2026-27) per tutte e
@@ -693,11 +688,8 @@ Non una formula uguale per tutti: ogni campionato gioca la stagione come l'ha sc
   ogni club che scende in Serie C va nel girone della sua regione (una tabella geografica fissa: Lombardia, Piemonte,
   Valle d'Aosta, Trentino-Alto Adige, Veneto, Friuli-Venezia Giulia -> A; Emilia-Romagna, Liguria, Toscana, Umbria,
   Marche, Lazio, Abruzzo, Molise, Sardegna -> B; Campania, Puglia, Basilicata, Calabria, Sicilia -> C; i club di
-  Serie C restano nel loro girone), poi i gironi vengono bilanciati a 20 club ciascuno. Nessun club retrocede dalla
-  Serie C e non ci sono play-out di Serie C (come nell'ultima divisione inglese del gioco originale: nel mondo non c'è
-  la Serie D). I play-off di Serie B e di Serie C e il play-out di Serie B si giocano (vedi le note del motore).
-<!-- DATA STAGED (da pubblicare con il motore della riserva, TM_RESERVE; sostituisce le due frasi sopra sulla Serie C
-  senza retrocessioni - Davide 2026-10-18): - La Serie C retrocede come nella realtà: in ogni girone la 20ª scende e
+  Serie C restano nel loro girone), poi i gironi vengono bilanciati a 20 club ciascuno. I play-off di Serie B e di Serie C e il play-out di Serie B si giocano (vedi le note del motore).
+- La Serie C retrocede come nella realtà: in ogni girone la 20ª scende e
   dalla 16ª alla 19ª si gioca il play-out (16ª contro 19ª, 17ª contro 18ª, andata e ritorno, ritorno in casa della
   meglio piazzata; in parità nel totale resta la meglio piazzata; niente play-out se le due squadre sono a 8 o più
   punti di distanza: scende la peggio piazzata). Le 9 retrocesse lasciano il mondo per la Serie D e ne salgono 9, nel
@@ -705,9 +697,9 @@ Non una formula uguale per tutti: ogni campionato gioca la stagione come l'ha sc
   note solo a maggio 2027: sono le 9 capoliste dei gironi di Serie D al 18 ottobre 2026 (Alessandria, Nibbiano &
   Valtidone, Luparense, Pistoiese, Prato, L'Aquila, Sarnese, Virtus Francavilla, Reggina), una scelta provvisoria da
   sostituire con le 9 vere. Dalla seconda stagione le retrocesse risalgono a turno, prima quella in Serie D da più
-  tempo. Se la tua squadra retrocede in Serie D vieni esonerato (offerte di lavoro). [Con questo: la voce seguente
-  diventa "tranne la Serie C, che retrocede nella riserva di Serie D".] -->
-- Nessuna squadra retrocede dall'ultima divisione di una nazione nel mondo, e gli spareggi contro una serie fuori dal
+  tempo. Se la tua squadra retrocede in Serie D vieni esonerato (offerte di lavoro).
+- Nessuna squadra retrocede dall'ultima divisione di una nazione nel mondo (tranne la Serie C, che retrocede nella
+  riserva di Serie D), e gli spareggi contro una serie fuori dal
   mondo non si giocano: per esempio l'11ª svizzera non affronta la 2ª della Challenge League, la 10ª e l'11ª coreane
   non giocano contro club della K League 2.
 <!-- DATA STAGED (regole delle seconde squadre: in arrivo, motore dell'integratore; Davide 2026-10-18): - Le seconde
@@ -743,7 +735,7 @@ Non una formula uguale per tutti: ogni campionato gioca la stagione come l'ha sc
   - Moldavia: la seconda fase delle prime 6 dai punti degli scontri diretti dimezzati, come nel 2025-26.
   - Andorra: un girone a tre turni, come nel 2025-26.
   - San Marino: una classifica di 30 giornate e il play-off di Conference dal 2° all'11° posto, come nel 2025-26. -->
-<!-- DATA STAGED (da pubblicare con il mondo completo, TM_FULL): - Tutti i campionati e le divisioni dello SWOS 96/97
+- Tutti i campionati e le divisioni dello SWOS 96/97
   originale sono nel mondo (Davide): la League Two inglese, la Primera Nacional argentina (due zone), la Liga de
   Expansion messicana, la Segunda uruguaiana, la J2 giapponese, le Northern / Central / Southern League neozelandesi, le
   NPL australiane del New South Wales, del Victoria e del Queensland, la Segunda e la Tercera del Salvador, e Suriname,
@@ -755,9 +747,6 @@ Non una formula uguale per tutti: ogni campionato gioca la stagione come l'ha sc
   mantengono la dimensione di ogni livello:
   - Inghilterra: la League One retrocede 4 squadre, come nella realtà: i 3 posti diretti della League Two più la
     vincente dei suoi play-off.
-  - Argentina: la Liga Profesional retrocede 2 squadre, come nel 2026 (l'ultima del promedio e l'ultima della
-    classifica annuale). Salgono le vincenti delle due zone della Primera Nacional. Nella realtà le vincenti di zona
-    giocano una finale per un posto e il secondo lo decide un 'reducido' (un'approssimazione).
   - El Salvador: le vincenti delle due zone della Segunda giocano una finale secca in campo neutro per l'unico posto
     in Primera. Ogni zona della Segunda retrocede l'ultima, ogni zona della Tercera promuove la prima. Quando dalla
     seconda stagione si riformano le zone, ogni club va nella sua area (A = Centro Occidente, B = Centro Oriente; i
@@ -765,14 +754,13 @@ Non una formula uguale per tutti: ogni campionato gioca la stagione come l'ha sc
   - Nuova Zelanda: per ora la stagione è quella dei suoi tre campionati regionali nella dimensione reale (Northern
     12, Central 10, Southern 10; nessun passaggio tra loro). Il National League Championship che giocano dopo le loro
     prime e le riserve della A-League (settembre-dicembre) arriverà come seconda competizione della stagione, insieme
-    ai campionati statali brasiliani. -->
+    ai campionati statali brasiliani.
 - I campionati con un numero dispari di club mantengono la dimensione reale, con una squadra a riposo a ogni
-  giornata: Gibilterra 11, Nuova Zelanda 11.
+  giornata: Gibilterra 11, la Super League indiana 13 e la Football League 11, la Division 2 di Taiwan 7, la Tercera
+  occidente del Salvador 9.
 <!-- INTERNO (non pubblico, regia 2026-10-18): la Liga Profesional argentina e la MLS sono per ora due divisioni
   chiuse da 15 (il gioco accoppia al massimo 24 club): niente promozioni / retrocessioni in Argentina, niente partite
   interzonali / tra conference. Da sostituire prima della release con la stagione a due tornei dell'integratore. -->
-<!-- DATA STAGED (con il mondo completo, TM_FULL): anche la Super League indiana 13 e la Football League 11, la
-  Division 2 di Taiwan 7, la Tercera occidente del Salvador 9. -->
 
 **Limiti noti**
 - Quando questo mondo è stato costruito (16-10-2026) le valutazioni pubbliche EA avevano ancora le rose dell'era FC 26:

@@ -1394,6 +1394,28 @@ def w84_lowprice():
 
 
 @scenario
+def w84_record():
+    """3.3.6: REGISTRO GESTIONE in a 1984-85 career shows the world's seasons (FillManagementRecordInfo added 1996 to
+    the season number: '1998/99' in the career's third season). W84B_MREC.CAR (world8485's W84B: Darlington, season
+    1986/87) loaded: the record's season line is 1986/87 (careerworld w_mrec)"""
+    car = os.path.join(WORK, 'saves', 'W84B_MREC.CAR')
+    if not os.path.exists(car):
+        return True, 'SKIP: no saves/W84B_MREC.CAR (a world8485 run\'s W84B.CAR)'
+    exe = os.environ.get('W8485_BUILD', os.path.join(WORK, 'builds', 'w8485'))
+    with Session('w84_record', exe, {'W84B.CAR': car}, 'dump:2', 300) as s:
+        s.wait()
+        s.send(LOAD1 + ' dump:3')
+        scr = s.screen()
+        season = scr.entries[2][1]                    # CAMP. 1986/87
+        walk(s, scr.find('VISUAL. COMPETIZ.', exact=True), 3)
+        walk(s, s.screen().find('REGISTRO GESTIONE', exact=True), 3)
+        t = s.screen().texts()
+        line = next((x for x in t if 'STAGIONE' in x), None)
+    ok = line is not None and season.endswith('1986/87') and line.startswith('1986/87')
+    return ok, f'{season}: record line {line!r}'
+
+
+@scenario
 def world8485():
     """Europe 1984-85 world (world 4): new career at Liverpool, two seasons (save, reload, save), checkw1 on both"""
     exe = os.environ.get('W8485_BUILD', os.path.join(WORK, 'builds', 'w8485'))

@@ -95,8 +95,12 @@ when the engine lands it.
   **2 opponents from each pot, one at home and one away**; never a club of its own country, **at most 2 opponents
   from one country**; the draw is made by the game every season with these constraints.
 - **Conference League**: 36 clubs, **6 matches**, 6 pots of 6, one opponent per pot, 3 at home and 3 away.
-- **One table of 36**, ranked by points, goal difference, goals scored, away goals, wins, away wins, then the
-  opponents' points, goal difference and goals; places 1-8 straight to the round of 16, 9-24 to the knockout
+- **One table of 36**, with **all ten UEFA 2026-27 tie-breakers** (art. 18.01) in order: points, goal difference,
+  goals, away goals, wins, away wins, then the opponents' points, goal difference and goals, disciplinary points
+  (yellow 1, red or second yellow 3) and the club coefficient (5 seasons, with UEFA's 20% association floor);
+  matchdays 1-7 use the first five, then alphabetical order. The game gives no cards in simulated matches, so these
+  get yellow and red cards at the real Champions League rates (2025-26: 1.90 yellows and 0.12 dismissals per club
+  per match). Places 1-8 straight to the round of 16, 9-24 to the knockout
   play-offs (**9/10 v 23/24, 11/12 v 21/22, 13/14 v 19/20, 15/16 v 17/18**, seeded club at home in the 2nd leg),
   25-36 out.
 - **Round of 16 on the fixed seeded bracket** (1/2 against the winners of 15/16 v 17/18, and so on), then fixed
@@ -484,8 +488,13 @@ Non una formula uguale per tutti: ogni campionato gioca la stagione come l'ha sc
   fascia, uno in casa e uno fuori**; mai un club della stessa nazione, **al massimo 2 avversari della stessa
   nazione**; il sorteggio lo fa il gioco ogni stagione con questi vincoli.
 - **Conference League**: 36 club, **6 partite**, 6 fasce da 6, un avversario per fascia, 3 in casa e 3 fuori.
-- **Classifica unica a 36**: punti, differenza reti, gol fatti, gol in trasferta, vittorie, vittorie in trasferta,
-  poi punti, differenza reti e gol degli avversari; 1ª-8ª agli ottavi, 9ª-24ª agli spareggi (**9/10 contro 23/24,
+- **Classifica unica a 36**, con **tutti e dieci i criteri UEFA 2026-27** (art. 18.01) nell'ordine: punti,
+  differenza reti, gol, gol in trasferta, vittorie, vittorie in trasferta, poi punti, differenza reti e gol degli
+  avversari, punti disciplinari (giallo 1, rosso o doppio giallo 3) e coefficiente del club (5 stagioni, con la
+  soglia UEFA del 20% del coefficiente della federazione); dalla 1ª alla 7ª giornata contano i primi cinque, poi
+  l'ordine alfabetico. Il gioco non dà cartellini nelle partite simulate: lì gialli e rossi arrivano con le medie
+  reali della Champions League (2025-26: 1,90 gialli e 0,12 espulsioni per squadra a partita). 1ª-8ª agli ottavi,
+  9ª-24ª agli spareggi (**9/10 contro 23/24,
   11/12 contro 21/22, 13/14 contro 19/20, 15/16 contro 17/18**, ritorno in casa della testa di serie), 25ª-36ª fuori.
 - **Ottavi sul tabellone fisso con le teste di serie** (1/2 contro le vincenti di 15/16-17/18 e così via), poi
   quarti e semifinali fissi, **finale secca**.

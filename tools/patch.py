@@ -188,12 +188,13 @@ def patch_exe(src, dst, remap, lang='it'):
     bigtables.ON[0] = worlds and bigtables.needed()    # a world numbering its clubs 2000+ (World 5.0)
     bigtables.MOVED.clear()
     pg_tabs = mkseason.parallel_tables() + engine.parallel_tables()   # parallel groups (worlds' packs; world 0: engine)
+    rs_tabs = mkseason.reserve_tables() + engine.reserve_tables()     # reserves below the lowest level (gplay.c)
     dp_tabs = mkseason.dplay_tables() if mkseason.worlds() else []   # Italian play-offs (dplay.py)
     lpb += 2 * bool(dp_tabs)                           # (+2: their code pages, before the extra one)
     gp_tabs = (mkseason.gplay_tables() if mkseason.worlds() else []) + engine.gplay_tables()   # knockout play-offs
-    gp_on = bool((gp_tabs or pg_tabs) and mkseason.worlds())         # (gplay.c also holds the parallel groups' fix)
+    gp_on = bool((gp_tabs or pg_tabs or rs_tabs) and mkseason.worlds())         # (gplay.c also holds the parallel groups' fix)
     lpb += 2 * gp_on                                   # (+2: its pages, after dplay's)
-    xtra_pg = bool((xtra_on or pg_tabs or bigtables.ON[0]) and mkseason.worlds())   # (+1: an extra code page in a build with worlds,
+    xtra_pg = bool((xtra_on or pg_tabs or rs_tabs or bigtables.ON[0]) and mkseason.worlds())   # (+1: an extra code page in a build with worlds,
     lpb += xtra_pg                                     # whose world cave is full: 3.3.x purple + blond + a big world)
     cos_pg = int(worlds)                               # (+1, the top one: blond + menunum + avgprice in a build with
     lpb += cos_pg                                      # worlds, whose world cave 3.3.4's purple pk_menu filled)
@@ -217,6 +218,9 @@ def patch_exe(src, dst, remap, lang='it'):
         data = add_object_page(data, 2)
     if mkseason.multi_ns():
         o2pages += 1
+        data = add_object_page(data, 2)
+    if worlds:                                       # the FORMAT page's menu and texts (fmtpage.py, 5.0): the
+        o2pages += 1                                 # area of a world build has no room left for them
         data = add_object_page(data, 2)
     nclubs = max((sum(len(pk.clubs) for pk in w) for w in mkseason.worlds().values()), default=0)
     for _ in range(max(0, -(-(nclubs - 1600) // 500))):   # a world of more than 1600 clubs (5.0, ~1850): its
@@ -242,6 +246,11 @@ def patch_exe(src, dst, remap, lang='it'):
     assert o2.vsize <= obj2_free and p.le.esp_obj == 2 and p.le.esp <= obj2_free
     if bigw:
         careerworld.big_team_buffer(p)     # world 2025-26: countries above 93 clubs (Italy A + B + C)
+    import glob as _glob                   # (any team file above the game's 64000 B, e.g. 4.0's Italy of 146 clubs:
+    tsz = max((os.path.getsize(f) for f in _glob.glob(os.path.join(os.path.dirname(dst), 'DATA', 'TEAM.*'))), default=0)
+    assert tsz <= 64000 or bigw and tsz <= careerworld.TFB_SIZE - 14, \
+        f'a team file of {tsz} B: above 64000 needs the big team buffer (a big world in the build), at most ' \
+        f'{careerworld.TFB_SIZE - 14}'          # the big team buffer, which a big world in the build brings)
     kitcolors.patch(p)             # automatic home/away kit choice (DaniSwos's analysis)
     cfg = LANGS[lang]
     sacups.NAMES[sacups.INT_ID] = cfg['int']
@@ -345,7 +354,7 @@ def patch_exe(src, dst, remap, lang='it'):
         gp_at = hist2 + h2 + 0x1000 * (lpb - cos_pg - 2 - xtra_pg)
         gplay.patch(p, gp_at, gp_at + 0x2000, gp_tabs, careerworld.BSS[0] + careerworld.BSS_SIZE)
         pgroups.relax_file_check(p)             # (moves of several divisions: cseg_9487A's per-file sum check)
-        careerworld.BSS_SIZE += 0x1000
+        careerworld.BSS_SIZE += 0x2000
     assert cave <= WORLD_CAVE, hex(cave)
     print(f'exe: caves: world end {world:#x} (limit {NZ_CAVE:#x}), arg end {arg_end:#x} (limit {OBJ1_NEW_VSIZE:#x})')
     world = cafcups.intl_list(p, caf, world)
@@ -366,8 +375,8 @@ def patch_exe(src, dst, remap, lang='it'):
     if xtra_pg:                                                  # extended career squads (packs with "extra";
         xp = hist2 + h2 + 0x1000 * (lpb - cos_pg - 1)            # XTRA_HOOK=1: test builds): DATA\XTRA.nnn players;
         xe = xtra.patch(p, xp) if xtra_on else xp                # the extra page in a build with worlds, with the
-        if pg_tabs:                                              # parallel groups' season-end fix (pgroups.py)
-            xe = pgroups.patch(p, (xe + 15) & ~15, pg_tabs, gplay.LABELS['pg_season'])
+        if pg_tabs or rs_tabs:                                   # parallel groups' / reserves' season end (pgroups.py)
+            xe = pgroups.patch(p, (xe + 15) & ~15, pg_tabs, gplay.LABELS['pg_season'], rs_tabs, gplay.LABELS['rs_season'])
         if bigtables.ON[0]:                                      # the .CAR's 2000 bytes <-> the moved tables,
             xe = bigtables.hooks(p, (xe + 15) & ~15)             # numbers 2000+ (after every finder of the tables)
         assert xe <= xp + 0x1000, hex(xe)

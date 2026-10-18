@@ -3948,6 +3948,7 @@ def full_season(country, team):
         for x in range(d, d + pars.get(d, 1)):
             level[x] = lv
         d, lv = d + pars.get(d, 1), lv + 1
+    level[n] = lv                               # (the reserve, out of every division: one level below the last)
     clubs = []
     for key in pk.league_clubs:
         fl, i = pk.where[key]

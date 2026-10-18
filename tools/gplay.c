@@ -223,3 +223,51 @@ void pg_season(const u8 *t, const s8 *slt, s8 *copy, int world) {
     for (int k = *t++; k > 0; k--)
         t = pg_one(t, slt, copy, t[0] == world);
 }
+
+/* The reserve (gplay loser_div 'reserve', pack.json league 'reserve', engine.reserve): a pool of clubs out of every
+   division (division nd). At the season end (pg_fix, before pg_season places the new clubs by area) every club that
+   went down from the lowest level (the game's relegation, gplay's play-out) leaves for the reserve, and as many come
+   back from it to the lowest level: the longest out first (the queue: the pool's first order, then each season's
+   relegated at its end). Table: db count; per country db world, nd, low (the lowest level's first division); dw clubs;
+   clubs x (dw global, db base division); db pool; pool x dw global. State RS_STATE (saved by the engine block):
+   per country db init, n, -, -; dw q[RQ]. */
+enum { RQ = 64, RC = 8 };
+struct rs_state { u8 init, n, pad[2]; u16 q[RQ]; };
+struct rs_state RS_STATE[RC];
+
+static int rs_base(const u8 *c, int nc, int g) {
+    for (int i = 0; i < nc; i++) if ((c[3 * i] | c[3 * i + 1] << 8) == g) return c[3 * i + 2];
+    return -1;
+}
+
+void rs_season(const u8 *t, const s8 *slt, s8 *copy, int world) {
+    int cnt = *t++;
+    for (int k = 0; k < cnt; k++) {
+        int w = t[0], nd = t[1], low = t[2], nc = t[3] | t[4] << 8;
+        const u8 *c = t + 5, *pl = c + 3 * nc, *pg = pl + 1;
+        int np = pl[0];
+        t = pg + 2 * np;
+        if (w != world || k >= RC) continue;
+        struct rs_state *st = &RS_STATE[k];
+        if (!st->init) {                        /* (a new career: the pool's first order) */
+            st->n = 0;
+            for (int i = 0; i < np && i < RQ; i++) st->q[st->n++] = pg[2 * i] | pg[2 * i + 1] << 8;
+            st->init = 1;
+        }
+        u16 out[RQ];
+        int no = 0;
+        for (int i = 0; i < nc; i++) {          /* down from the lowest level: out, to the reserve */
+            int g = c[3 * i] | c[3 * i + 1] << 8, base = c[3 * i + 2];
+            int o = base + slt[g], n = base + copy[g];
+            if (o >= low && o < nd && n > o && no < RQ) { out[no++] = g; copy[g] = nd - base; }
+        }
+        int up = no < st->n ? no : st->n, m = 0;
+        for (int i = 0; i < up; i++) {          /* back: to the lowest level's first division (pg_season: by area) */
+            int g = st->q[i], base = rs_base(c, nc, g);
+            if (base >= 0) copy[g] = low - base;
+        }
+        for (int i = up; i < st->n; i++) st->q[m++] = st->q[i];
+        for (int i = 0; i < no && m < RQ; i++) st->q[m++] = out[i];
+        st->n = m;
+    }
+}

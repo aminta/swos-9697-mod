@@ -23,6 +23,9 @@ pg_fix:                                 ; replaces `call cseg_7CAA2` (leaguesTab
     push eax
     push dword SLTCOPY
     push dword SLT
+    push dword RS_TAB                   ; the reserve first (gplay.c rs_season: who leaves the lowest level, who
+    call RS_SEASON                      ; comes back), then the levels' groups (pg_season places the new clubs)
+    add esp, 4
     push dword PG_TAB
     call PG_SEASON
     add esp, 16
@@ -37,6 +40,7 @@ pg_fix:                                 ; replaces `call cseg_7CAA2` (leaguesTab
     popad
     jmp C7CAA2
 PG_TAB: TAB_BYTES
+RS_TAB: RS_BYTES
 '''
 
 
@@ -54,6 +58,18 @@ def relax_file_check(p):
     assert len(ms) == 2 and 0 < ms[1] - ms[0] < 0x100, [hex(x) for x in ms]
     p.put(1, ms[1] + 3, b'\xeb')
     print(f'exe: season end: the team file sum check relaxed (obj1+{ms[1] + 3:#x})')
+
+
+def reserve_bytes(tables):
+    """db count; per country (world, nd, low, [(global, base)], [pool globals]): gplay.c rs_season."""
+    out = bytearray((len(tables),))
+    for world, nd, low, clubs, pool in tables:
+        assert len(pool) <= 64 and len(tables) <= 8
+        out += bytes((world, nd, low)) + struct.pack('<H', len(clubs))
+        for g, base in clubs:
+            out += struct.pack('<HB', g, base)
+        out += bytes((len(pool),)) + b''.join(struct.pack('<H', g) for g in pool)
+    return bytes(out)
 
 
 def table_bytes(tables):
@@ -93,14 +109,15 @@ def _site(p):
     return calls[0], back[0], s
 
 
-def patch(p, at, tables, pg_season):
+def patch(p, at, tables, pg_season, rs_tables=(), rs_season=None):
     """Glue + tables at obj1:at (the fix itself: gplay.c pg_season, (1, offset)); returns the end."""
     import bigtables
     import careerworld
     site, c7caa2, s = _site(p)
     assert p.get(1, site, 5) == p.le.obj_bytes(1)[site:site + 5], 'the copy-back call is already hooked'
     sym = {'SLT': s['slt'], 'SLTCOPY': s['sltcopy'], 'WORLD_BYTE': (0, careerworld.WORLD_BYTE),
-           'C7CAA2': (1, c7caa2), 'PG_SEASON': pg_season, 'BAL': (0, BALANCE),
+           'C7CAA2': (1, c7caa2), 'PG_SEASON': pg_season, 'BAL': (0, BALANCE), 'RS_SEASON': rs_season,
+           'RS_BYTES': (0, 'db ' + ', '.join(str(b) for b in reserve_bytes(list(rs_tables)))),
            'NSUM': (0, bigtables.LIMIT if bigtables.ON[0] else 2000),
            'TAB_BYTES': (0, 'db ' + ', '.join(str(b) for b in table_bytes(tables)))}
     code, fix = nasmcave.assemble(ASM, at, sym)
@@ -110,6 +127,6 @@ def patch(p, at, tables, pg_season):
     for off, tobj, toff in fix:
         p.add_ptr(1, at + off, tobj, toff)
     p.put(1, site + 1, struct.pack('<i', lab['pg_fix'] - (site + 5)))   # (a relative call: no fixup)
-    print(f'exe: parallel groups: {len(tables)} countries, copy-back call obj1+{site:#x}, code obj1+{at:#x}..'
+    print(f'exe: parallel groups: {len(tables)} countries, reserves {len(rs_tables)}, copy-back call obj1+{site:#x}, code obj1+{at:#x}..'
           f'{at + len(code):#x}')
     return at + len(code)

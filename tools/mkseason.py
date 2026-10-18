@@ -272,7 +272,7 @@ class Pack:
         _need(self.kind in ('season', 'career', 'tourney'), "pack.json: kind must be 'season', 'career' or 'tourney'")
         self.world = None
         if self.kind == 'tourney':              # 3.2: CLASSIC TOURNEYS only (no league, no Season / Career entry)
-            self.league, self.league_clubs, self.division = None, [], {}
+            self.league, self.league_clubs, self.division, self.reserve_clubs = None, [], {}, []
             _need(self.comps and all(c['type'] in ('tourney', 'league') for c in self.comps),
                   "a tourney pack holds competitions of type 'tourney' or 'league' only")
             for c in self.comps:
@@ -280,14 +280,24 @@ class Pack:
             return
         self.league = next(c for c in self.comps if c['key'] == m['season']['league'])
         self.league_clubs = [k for k, c in self.clubs.items() if c['file'] == self.league['clubs']]
-        self.division = {k: int(self.clubs[k].get('division') or 0) for k in self.league_clubs}
+        nd = len(self.divisions())                 # (a club of the 'reserve' (gplay loser_div 'reserve', league
+        self.division = {k: nd if self.clubs[k].get('division') == 'reserve' else   # 'reserve'): out of every
+                         int(self.clubs[k].get('division') or 0) for k in self.league_clubs}   # division, = nd)
+        self.reserve_clubs = [k for k in self.league_clubs if self.division[k] == nd]
         divs = self.divisions()
         for d, dv in enumerate(divs):
             n = sum(1 for k in self.league_clubs if self.division[k] == d)
             _need(n == dv['teams'], f"{self.league['key']}: division {d + 1} has {n} clubs in clubs.csv, {dv['teams']} in pack.json")
             _need(n <= 24, f"{self.meta['id']}: {self.league['key']}: division {d + 1} has {n} clubs: at most 24 (the game's "
                   'round-robin pairing; more = fixtures past the team list, team 0, VerifyTeamLoaded int 3 at the season end)')
-        _need(sum(dv['teams'] for dv in divs) == len(self.league_clubs), f"{self.league['key']}: clubs outside the divisions")
+        _need(sum(dv['teams'] for dv in divs) == len(self.league_clubs) - len(self.reserve_clubs),
+              f"{self.league['key']}: clubs outside the divisions")
+        rs = self.league.get('reserve')
+        _need(not self.reserve_clubs or rs, f"{self.league['key']}: clubs.csv has 'reserve' clubs but no league 'reserve'")
+        if rs:
+            pool, first = rs.get('pool') or [], rs.get('first') or []
+            _need(set(pool) == set(self.reserve_clubs) and set(first) <= set(pool) and rs.get('then', 'rotation') == 'rotation',
+                  f"{self.league['key']}: reserve {{first, pool = every 'reserve' club of clubs.csv, then: 'rotation'}}")
         par = self.league.get('parallel')          # parallel groups (Serie C 3 x 20; several levels): pgroups.py
         if par:
             pars = par if isinstance(par, list) else [par]
@@ -397,6 +407,27 @@ class Pack:
             _need(False, f"{self.meta['id']}: ko_playoffs: {e}")
         return self.world, self.files[lg['clubs']][0], spec
 
+    def reserve(self):
+        """Reserve table (gplay.c rs_season): None, or (world, nd = the reserve's division, the lowest level's first
+        division, [(global, base division)] every league club, [globals] the pool in its first order: 'first', then
+        the rest as clubs.csv lists them)."""
+        rs = self.league.get('reserve') if self.league else None
+        if not rs or self.world is None:
+            return None
+        divs = self.divisions()
+        par = self.league.get('parallel')
+        pars = {q['first']: q['count'] for q in (par if isinstance(par, list) else [par] if par else [])}
+        low, d = 0, 0
+        while d < len(divs):
+            low, d = d, d + pars.get(d, 1)
+        glob = {}
+        for k in self.league_clubs:
+            fl, i = self.where[k]
+            glob[k] = next(b for fk, (ff, b) in self.files.items() if ff == fl) + i
+        order = list(rs.get('first') or []) + [k for k in self.reserve_clubs if k not in (rs.get('first') or [])]
+        return (self.world, len(divs), low, [(glob[k], self.division[k]) for k in self.league_clubs],
+                [glob[k] for k in order])
+
     def parallel(self):
         """pgroups table: None, or (world, [(first division, [sizes])] top-down over the chain, [(global number, base
         division, area)]) for every league club (any of them may reach a level). Area: clubs.csv 'area' (A, B, ...),
@@ -421,7 +452,7 @@ class Pack:
             d = self.division[k]
             a = c.get('area') or ''
             out.append((base + i, d, ['ABCDEF'.index(x) for x in a.split('/')] if '/' in a else
-                        'ABCDEF'.index(a) if a else own[d]))
+                        'ABCDEF'.index(a) if a else own.get(d, 0xFF)))      # (a reserve club: division nd)
         return self.world, levels, out
 
     def divisions(self):
@@ -1078,6 +1109,11 @@ def gplay_tables():
 def dplay_tables():
     """dplay: the leagues of the worlds with the Italian play-offs (Pack.dplay)."""
     return [t for pk in packs() for t in [pk.dplay()] if t]
+
+
+def reserve_tables():
+    """gplay.c rs_season: the world leagues with a reserve (Pack.reserve)."""
+    return [t for pk in packs() for t in [pk.reserve()] if t]
 
 
 def parallel_tables():

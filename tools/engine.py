@@ -22,11 +22,12 @@ LEAGUE_AT = {}          # key -> obj1 offset of a world-0 league struct (set by 
 GPLAY = []              # (key, ko_playoffs, ndiv)
 PGROUPS = []            # (levels, clubs)
 SPLITS = []             # (team file, division, clubs, spec)
+RESERVES = []           # (nd, low, [(global, base division)], [pool globals, first order])
 
 
 def clear():
     LEAGUE_AT.clear()
-    del GPLAY[:], PGROUPS[:], SPLITS[:]
+    del GPLAY[:], PGROUPS[:], SPLITS[:], RESERVES[:]
 
 
 def gplay(key, ko_playoffs, ndiv):
@@ -41,6 +42,17 @@ def pgroups(levels, clubs):
 
 def split(team_file, division, clubs, spec):
     SPLITS.append((team_file, division, clubs, spec))
+
+
+def reserve(nd, low, clubs, pool):
+    """A reserve below the lowest level (gplay.c rs_season): nd = the division out of the league (the number of
+    divisions), low = the lowest level's first division, clubs = every league club (global, base division; the pool's
+    with base nd), pool = the reserve's globals in the order they come back (the first season's promoted first)."""
+    RESERVES.append((nd, low, clubs, pool))
+
+
+def reserve_tables():
+    return [(0, nd, low, clubs, pool) for nd, low, clubs, pool in RESERVES]
 
 
 def gplay_tables():

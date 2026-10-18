@@ -347,6 +347,11 @@ gp_lend:                                ; replaces `call cseg_8ECAE` (the career
     pushad                              ; dplay's dp_lend (or the game's): in a country of GP_TAB the career club's
     call gp_setup                       ; play-off (Season: the division's play-off and play-out) into slot 4 (3)
     jz .next
+%if FORCE_ON
+    mov dword [GP_CFB], CFB             ; (GPLAY_FORCE test builds: the league's own table too)
+    mov eax, gp_forcecfb
+    call gp_c
+%endif
     mov eax, gp_need
     call gp_c
     test eax, eax
@@ -1003,7 +1008,8 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
     symbols.update({k: (2, sk[k]) for k in ('CURMSG', 'SACKED')})
     symbols.update({'MSG_NORENEW': (0, sk['msg']), 'SHOWCHAIR': (1, sk['show']), 'C3C07C': (1, sk['c3c07c'])})
     symbols.update({k: syms[k] for k in ('GP_CFB', 'GP_LG', 'GP_RST', 'GP_RIT', 'GP_SEL', 'GP_MGR', 'GP_WORLD', 'GP_SLT',
-                                         'gp_sack_c')})
+                                         'gp_sack_c', 'gp_forcecfb')})
+    symbols['FORCE_ON'] = (0, int(bool(force)))
     rec_dp = p.get(1, ps['rec'], 1) == b'\xe8'                # dplay's `call dp_rec; nop` there, or the game's mov
     symbols['GP_REC_NEXT'] = (1, tgt(ps['rec'])) if rec_dp else (0, 0)
     after = {}                                              # 4.0 ARG: a stage title's knockout built after its stage

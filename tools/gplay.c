@@ -555,6 +555,7 @@ struct gp_state {
     struct gp_dec dec[3];               /* 4.0 ARG: the stage titles decided mid-season (by stage: 0, 1, 2) */
 };
 struct gp_state GP_ST;
+extern const u8 *GP_CFB;
 struct gp_log { u32 tag; u8 seas, stseas, pl_pi, pad; struct gp_ko ko; struct gp_out out; } GP_LOG;
                                         /* the last season end's (harness): its season, the state's, the played one */
 /* set by the glue */
@@ -605,6 +606,21 @@ static int playable(const u8 *s) {      /* knockouts only (promotion, placement,
         r += 6 + 2 * r[0];
     }
     return nt <= KT;
+}
+
+/* test builds (GPLAY_FORCE=k): the league's own final table too (competitionFileBuffer at GP_CFB, before gp_need): the
+   career club's row and place k's swap their figures and places, so the game's own moves see the forced place */
+void gp_forcecfb(void) {
+    u8 *d = (u8 *)GP_CFB;
+    int n = *(u16 *)(d + 0x31), m = -1;
+    if (!GP_FORCE || GP_FORCE > n) return;
+    for (int j = 0; j < n; j++)
+        if (*(u16 *)(d + 0x12D + 2 * (*(u16 *)(d + 0x6D + 2 * j) / 0x12)) == GP_IN.mgr) m = j;
+    if (m < 0 || m == GP_FORCE - 1) return;
+    u16 *pa = (u16 *)(d + 0x6D + 2 * m), *pb = (u16 *)(d + 0x6D + 2 * (GP_FORCE - 1));
+    u16 *ra = (u16 *)(d + *pa + 0x2B7), *rb = (u16 *)(d + *pb + 0x2B7), x;
+    for (int i = 0; i < 7; i++) { x = ra[i]; ra[i] = rb[i]; rb[i] = x; }
+    x = *pa; *pa = *pb; *pb = x;
 }
 
 /* the career club's league has ended (GP_IN.t[mdiv] its table, mgr, week, gtype): the play-offs it plays (pi[]) and

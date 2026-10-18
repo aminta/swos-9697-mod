@@ -28,7 +28,11 @@ pg_fix:                                 ; replaces `call cseg_7CAA2` (leaguesTab
     add esp, 4
 %if RI_ON
     movzx eax, word [CAREERTEAM + 2]    ; the off-file pool (gplay.c ri_season): relegated slots of the lowest level
-    mov [RI_MGR], eax                   ; swap identities with the pool (never the manager's club)
+    cmp word [SACKED], 0                ; swap identities with the pool (never the manager's club; a sacked manager's
+    je .mgr                             ; old club swaps like any other: gplay's gp_sack)
+    or eax, -1
+.mgr:
+    mov [RI_MGR], eax
     push dword RI_TAB
     call RI_SEASON
     add esp, 4
@@ -135,6 +139,9 @@ def patch(p, at, tables, pg_season, rs_tables=(), rs_season=None, ri=None):
            'NSUM': (0, bigtables.LIMIT if bigtables.ON[0] else 2000),
            'TAB_BYTES': (0, 'db ' + ', '.join(str(b) for b in table_bytes(tables))), 'RI_ON': (0, int(bool(ri)))}
     sym.update(ri or {})
+    if ri:                                              # (youreSacked: gplay's gp_sack sites)
+        import gplay
+        sym['SACKED'] = (2, gplay._sack_sites(p)['SACKED'])
     code, fix = nasmcave.assemble(ASM, at, sym)
     lab = nasmcave.labels(ASM, at, sym)
     assert not any(p.get(1, at, len(code)))

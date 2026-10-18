@@ -11,16 +11,20 @@ Facts (notes/state-championships-design.md on v4.0-worldphases, probes 1-3 and t
 - The slot-1 contest is the country's cup 1 (competitionsTable [leagues, -2, cup 1, cup 2, -1]); pick() replaces it, at
   the slot-1 set-up (career: the career club; STAGIONE: the first club not the computer's) and at a career load (by
   the saved slot-1 id), by the club's own state contest; a club outside every state gets cup 2 in slot 1 (slot 2 then
-  empty), or no slot-1 contest at all when there is no cup 2.
+  empty), or no slot-1 contest at all when there is no cup 2. (The load: by the career club too; the saved id only tells
+  a state contest from cup 2.)
 
 Use (before patch_exe sizes its pages: at import of the caller's module):
     statecup.register(world, cup1_id, team_file, states)
-        states = [{'id': contest id, 'members': [team-file ordinals choosing it], 'struct': obj1 offset or None}]
+        states = [{'id': contest id, 'members': [team-file ordinals choosing it], 'struct': None,
+                   'first': (file, ordinal) of its first club (the key when states share an id)}]
     statecup.contest_bytes(...)   -> a type-2 struct (the Champions Cup layout) for the caller to place
-and in patch_exe: statecup.set_struct(world, id, (obj, off)) once a contest is placed, then statecup.patch(p, at)
+and in patch_exe: statecup.set_struct(world, id, (obj, off), first=(file, ordinal)) once a contest is placed, then statecup.patch(p, at)
 (after sacups.patch: its career symbols) and statecup.slot_types / cup_end_types (idempotent, natcups may have run).
 A world entry is recognised at run time by the running world byte (career: someLeaguesTable + WORLD_BYTE; else 0) and
-the cup's id byte (ids are unique per world), never by the struct pointer (careerworld's w_swap copies the lists).
+the cup's id byte, never by the struct pointer (careerworld's w_swap copies the lists). The states of a world may share
+one contest id (2026-10-19: world ids ran out): the id only says 'a state contest of this world', and the career load
+picks the struct by the career club's state, as the set-up does (by the saved id only between a state and cup 2).
 Limits (2026-10-19): STAGIONE's human clubs come from a division's club list, so a state-only club (no league) is never
 the one that picks; cseg_91857 returns for a group cup at the season end, so the state champion reaches neither the
 CWC list (none wanted) nor, beyond the game's own record line (+1Ah, the contest's name), a result line: a
@@ -29,24 +33,35 @@ finals97.rec_playoff-style path is needed for that (not in this version).
 import re
 import struct
 
-ENTRIES = []            # {world, cup1, file, states: [{'id', 'members', 'struct'}]}
+ENTRIES = []            # {world, cup1, file, states: [{'id', 'members', 'struct', 'first'?: (file, ordinal)}]}
 TEAM = 684
 
 
 def register(world, cup1_id, team_file, states):
     for e in ENTRIES:
         assert (e['world'], e['cup1']) != (world, cup1_id), (world, cup1_id)
+    firsts = [tuple(s['first']) for s in states if s.get('first')]
+    assert len(firsts) == len(set(firsts)), (world, firsts)
+    seen = {}
+    for s in states:                                    # (a club picks one state: the members lists decide)
+        for m in s['members']:
+            assert m not in seen, (world, m, seen.get(m), s['id'])
+            seen[m] = s['id']
     ENTRIES.append({'world': world, 'cup1': cup1_id, 'file': team_file, 'states': [dict(s) for s in states]})
 
 
-def set_struct(world, contest_id, at):
-    """at = (obj, offset) of a registered state contest's struct."""
+def set_struct(world, contest_id, at, first=None):
+    """at = (obj, offset) of a registered state contest's struct. Several states with one id: the one registered with
+    'first' = first (its first club, (file, ordinal)), else the first of that id still without a struct."""
     for e in ENTRIES:
+        if e['world'] != world:
+            continue
         for s in e['states']:
-            if e['world'] == world and s['id'] == contest_id:
+            if s['id'] == contest_id and (tuple(s.get('first') or ()) == tuple(first) if first is not None
+                                          else s.get('struct') is None):
                 s['struct'] = at
                 return
-    raise KeyError((world, contest_id))
+    raise KeyError((world, contest_id, first))
 
 
 def contest_bytes(cc_header, cid, team_file, months, meetings, points, stages, stage_bytes, clubs, names):
@@ -127,20 +142,22 @@ sc_pick:
     add esi, TEAM_
     loop .s
     jmp .chosen
-.load:                                  ; career load: by the slot-1 contest's id
-    mov al, [SLOT1 + 2Dh]
+.load:                                  ; career load: a saved state contest (any state's id: they may share one)
+    mov al, [SLOT1 + 2Dh]               ; -> the career club's state, as at the set-up; else cup 2 / nothing
     movzx ecx, byte [edi + 3]
     movzx edx, word [edi + 4]
     lea esi, [edi + 8 + edx]
-    xor edx, edx
 .l:
-    cmp edx, ecx
-    jae .lx
+    jecxz .lx
     cmp al, [esi]
-    je .chosen
+    je .lc
     add esi, 5
-    inc edx
+    dec ecx
     jmp .l
+.lc:
+    mov ax, [SEL]
+    call .state
+    jmp .chosen
 .lx:
     mov dl, 0FFh
     test al, al
@@ -337,31 +354,37 @@ import os
 TEST = os.environ.get('STATECUP_TEST') == '1'
 TEST_ID, TEST_FILE = 0xF1, 46           # (0xF1: free in world 0)
 if TEST:
-    register(0, TEST_ID, TEST_FILE, [{'id': TEST_ID, 'members': list(range(24)), 'struct': None}])
+    register(0, TEST_ID, TEST_FILE, [{'id': TEST_ID, 'members': list(range(12)), 'struct': None, 'first': (46, 0)},
+                                     {'id': TEST_ID, 'members': list(range(12, 24)), 'struct': None,
+                                      'first': (46, 12)}])     # (two states sharing one id: 12 and 8 clubs)
 
 
 def test_contest(p, at):
-    """The test contest (1 group of 16 Brazilian clubs, single round robin, January - June) at obj1 at and Brazil's
-    competitionsTable entry [league, -2, it, -1] (world 0). Returns the end."""
+    """Two test states sharing id F1 (A: Brazilian clubs 0-11, 12 clubs; B: 12-19, 8 clubs; single round robin,
+    January - June) at obj1 at and Brazil's competitionsTable entry [league, -2, A, -1] (world 0). Returns the end."""
     import countries
     import sacups
     d2 = p.le.obj_bytes(2)
     cc = bytes(d2[sacups.unique(d2, sacups.EUROCUP_HDR):][:0x27])
     sup = sacups.NAME_SITES[1][1] if len(sacups.NAME_SITES) > 1 else None   # (reuse the Supercopa's name offsets)
     names = bytes(p.get(1, sup, 8)) if sup else bytes(8)
-    body = contest_bytes(cc, TEST_ID, TEST_FILE, (0x00, 0x28), 1, 3, [(1, 16, 1)], [0],
-                         [(TEST_FILE, i) for i in range(16)], names)
-    p.put(1, at, body)
-    set_struct(0, TEST_ID, (1, at))
+    first = None
+    for lo, n in ((0, 12), (12, 8)):
+        body = contest_bytes(cc, TEST_ID, TEST_FILE, (0x00, 0x28), 1, 3, [(1, n, 1)], [0],
+                             [(TEST_FILE, i) for i in range(lo, lo + n)], names)
+        p.put(1, at, body)
+        set_struct(0, TEST_ID, (1, at), first=(TEST_FILE, lo))
+        first = first if first is not None else at
+        print(f'exe: statecup TEST: state {TEST_ID:#x} first club {lo} ({n} clubs) obj1+{at:#x}')
+        at = (at + len(body) + 3) & ~3
     comp = countries.COMP[0]
     tobj, t = p.target(2, comp + 4 * TEST_FILE)
     league = p.target(tobj, t)
-    tab = (at + len(body) + 3) & ~3
+    tab = at
     p.add_ptr(1, tab, *league)
     p.put(1, tab + 4, struct.pack('<i', -2))
-    p.add_ptr(1, tab + 8, 1, at)
+    p.add_ptr(1, tab + 8, 1, first)
     p.put(1, tab + 12, struct.pack('<i', -1))
     p.retarget(2, comp + 4 * TEST_FILE, 1, tab)
     p.put(2, comp + 4 * TEST_FILE, struct.pack('<I', tab))
-    print(f'exe: statecup TEST: Brazil cup 1 = test contest {TEST_ID:#x} (16 clubs) obj1+{at:#x}')
     return tab + 16

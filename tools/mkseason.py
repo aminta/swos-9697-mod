@@ -319,8 +319,8 @@ class Pack:
                 if a == 'reserve':
                     continue
                 parts = a.split('/') if '/' in a else [a]
-                _need(a == '' or all(x and x in 'ABCDEF'[:n] for x in parts) and len(parts) in (1, len(pars)),
-                      f"clubs.csv: {k}: area A..{'ABCDEF'[n - 1]} (a group, every level) or one per level of groups "
+                _need(a == '' or all(x and x in 'ABCDEFGHI'[:n] for x in parts) and len(parts) in (1, len(pars)),
+                      f"clubs.csv: {k}: area A..{'ABCDEFGHI'[n - 1]} (a group, every level) or one per level of groups "
                       f"(A/B...: {len(pars)} levels)")
         if (self.league and len(divs) > 1 and self.league.get('playoffs') != 'ita'   # (Italy: dplay's own counts;
                 and not os.environ.get('MKSEASON_NOBALANCE')):                       # harness: a build as it is)
@@ -452,8 +452,8 @@ class Pack:
             base = next(b for fk, (ff, b) in self.files.items() if ff == fl)
             d = self.division[k]
             a = c.get('area') or ''
-            out.append((base + i, d, ['ABCDEF'.index(x) for x in a.split('/')] if '/' in a else
-                        'ABCDEF'.index(a) if a else own.get(d, 0xFF)))      # (a reserve club: division nd)
+            out.append((base + i, d, ['ABCDEFGHI'.index(x) for x in a.split('/')] if '/' in a else
+                        'ABCDEFGHI'.index(a) if a else own.get(d, 0xFF)))      # (a reserve club: division nd)
         return self.world, levels, out
 
     def divisions(self):

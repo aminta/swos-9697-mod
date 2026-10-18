@@ -32,6 +32,10 @@ FILES = [  # (id, original path, patched path, file name in the game folder)
     ('TEAM.044', 'orig/DATA/TEAM.044', 'c/SWOS/DATA/TEAM.044', 'DATA/TEAM.044'),
     ('TEAM.062', 'orig/DATA/TEAM.062', 'c/SWOS/DATA/TEAM.062', 'DATA/TEAM.062'),
     ('TEAM.073', 'orig/DATA/TEAM.073', 'c/SWOS/DATA/TEAM.073', 'DATA/TEAM.073'),
+    # 4.0: INTER MILAN -> INTER, AC MILAN -> MILAN (patch.rename_clubs): changed original files
+    ('EUROCUP.TMD', 'orig/DATA/EUROCUP.TMD', 'c/SWOS/DATA/EUROCUP.TMD', 'DATA/EUROCUP.TMD'),
+    ('UEFACUP.TMD', 'orig/DATA/UEFACUP.TMD', 'c/SWOS/DATA/UEFACUP.TMD', 'DATA/UEFACUP.TMD'),
+    ('POOLPLYR.DAT', 'orig/DATA/POOLPLYR.DAT', 'c/SWOS/DATA/POOLPLYR.DAT', 'DATA/POOLPLYR.DAT'),
     # 3.3.0: purple clubs (kit colour 10) in original team files the mod did not change before
     ('TEAM.001', 'orig/DATA/TEAM.001', 'c/SWOS/DATA/TEAM.001', 'DATA/TEAM.001'),
     ('TEAM.002', 'orig/DATA/TEAM.002', 'c/SWOS/DATA/TEAM.002', 'DATA/TEAM.002'),

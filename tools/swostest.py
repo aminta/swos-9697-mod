@@ -2954,7 +2954,7 @@ def purple_kits():
     d = bytearray(open(os.path.join(b, 'DATA', 'TEAM.020'), 'rb').read())
     for t in range(struct.unpack('>H', d[:2])[0]):          # 3.3.1: INTER MILAN in Barcelona's kits (blue and
         o = 2 + t * 684                                      # maroon stripes / light blue): purple vs maroon stripes
-        if d[o + 5:o + 22].split(b'\0')[0] == b'INTER MILAN':
+        if d[o + 5:o + 22].split(b'\0')[0] == b'INTER':
             d[o + 26:o + 36] = bytes([2, 5, 6, 5, 5, 0, 7, 7, 7, 7])
     fio = bytearray(open(os.path.join(b, 'DATA', 'TEAM.020'), 'rb').read())
     for t in range(struct.unpack('>H', fio[:2])[0]):        # 3.3.4 (Marco): Fiorentina's second kit with maroon
@@ -2966,8 +2966,8 @@ def purple_kits():
     os.makedirs(os.path.dirname(barca), exist_ok=True)
     open(barca, 'wb').write(d)
     open(fiom, 'wb').write(fio)
-    for away, kits, cars in (('INTER MILAN', True, {'DATA/TEAM.020': fiom}), ('ROMA', False, {}),
-                             ('INTER MILAN', False, {'DATA/TEAM.020': barca})):
+    for away, kits, cars in (('INTER', True, {'DATA/TEAM.020': fiom}), ('ROMA', False, {}),
+                             ('INTER', False, {'DATA/TEAM.020': barca})):
         with Session('purple_kits_' + away[:5] + ('_barca' if cars and not kits else ''), b, cars, 'dump:3', 300, match=True) as s:
             s.wait()
             italy_friendly(s, 'FIORENTINA', away)
@@ -3007,7 +3007,7 @@ def purple_kits():
                 want = PURPLE_RGB if worn == 1 else (25, 0, 8)
                 check(marks is not None and pal == want and worn != 3, f'match vs {away}: marks {marks}, entry 12 {pal}', errs)
                 info.append(f"{away}{' (Barcelona kits)' if cars and not kits else ''}: marks {marks}")
-                if away == 'INTER MILAN' and kits:
+                if away == 'INTER' and kits:
                     check(worn == 1, f'Fiorentina-Inter: purple not worn ({marks})', errs)
     return not errs, '; '.join(errs + info) if errs else 'purple in the editor (maroon for Inter) and vs Inter; ' + '; '.join(info)
 
@@ -3073,7 +3073,7 @@ def purple_stadium():
     got = []
     with Session('purple_stadium', b, {}, 'dump:3', 300, match=True) as s:
         s.wait()
-        italy_friendly(s, 'INTER MILAN', 'FIORENTINA')
+        italy_friendly(s, 'INTER', 'FIORENTINA')
         base1, base2 = s.result.base1, s.result.base2
         s.bp(base1 + after, lambda r: got.append(tuple(r.read(base2 + working + 36, 3))))
         for _ in range(22):
@@ -3110,7 +3110,7 @@ def blond_faces():
     nib = lambda data: [x >> 4 for x in data] + [x & 15 for x in data]
     with Session('blond_faces', b, {'DATA/TEAM.020': team}, 'dump:3', 300, match=True) as s:
         s.wait()
-        italy_friendly(s, 'FIORENTINA', 'INTER MILAN')
+        italy_friendly(s, 'FIORENTINA', 'INTER')
         r = s.result
         p189 = struct.unpack('<I', r.read(r.base2 + spr + 189 * 4, 4))[0]
         icon = r.read(struct.unpack('<I', r.read(p189, 4))[0], 64) if p189 else b''
@@ -4119,6 +4119,24 @@ def lp36_tie():
         check(place[h] in (23 - 2 * j, 24 - 2 * j), f'play-off {h} ({place[h]}) - {a} ({place[a]})', errs)
     info.append(f'play-offs {[(h, place[h], a, place[a]) for h, a in po]}')
     return not errs, '; '.join(info + errs)
+
+
+@scenario
+def club_renames():
+    """4.0 (Davide): INTER MILAN / INTERNAZIONALE -> INTER, AC MILAN -> MILAN in every DATA file of the build
+    (patch.rename_clubs: 1996-97, the historic packs and worlds, the European cup tourneys, the transfer pool);
+    no game run"""
+    b = builds()['it']
+    d = os.path.join(b, 'DATA')
+    old = [n for n in sorted(os.listdir(d)) if re.search(rb'(?<![A-Z0-9 .])(INTER MILAN|AC MILAN|INTERNAZIONALE)\x00',
+                                                          open(os.path.join(d, n), 'rb').read())]
+    t20 = open(os.path.join(d, 'TEAM.020'), 'rb').read()
+    want = {'INTER', 'MILAN'} <= {t20[2 + i * 684 + 5:2 + i * 684 + 22].split(b'\0')[0].decode('latin1')
+                                  for i in range(struct.unpack('>H', t20[:2])[0])}
+    hist = [n for n in ('TEAM.105', 'TEAM.145') if b'INTER\0' not in open(os.path.join(d, n), 'rb').read()]
+    ok = not old and want and not hist
+    return ok, f'old names in {old}; INTER + MILAN in TEAM.020 {want}; INTER missing in {hist}' if not ok else \
+        'no old name in DATA; TEAM.020 INTER + MILAN; TEAM.105 / TEAM.145 INTER'
 
 
 def run_parallel(names, jobs):

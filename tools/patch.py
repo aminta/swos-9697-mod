@@ -10,6 +10,7 @@ Patches:
  3. TEAM.020: non-league teams become C1, placeholders fill C1/C2 to 18 each.
 """
 import os
+import re
 import random
 import struct
 import sys
@@ -518,6 +519,37 @@ def write_new_teams(src_dir, dst_dir):
     items = [x for e in mkseason.ENABLED for x in fmtgame.from_pack(e if os.sep in e else os.path.join(mkseason.PACKS, e))] + fmtgame.EXTRA
     for name, k in fmtgame.write(dst_dir, items):
         print(f'{name}: FORMAT pages of {k} competitions')
+    rename_clubs(src_dir, dst_dir)
+
+
+# 4.0 (Davide, 2026-10-18): the Milan clubs by the names they go by. Name fields are zero padded: the shorter name +
+# zeros, the rest of the record unchanged. Every team file the build wrote (1996-97, the historic packs and worlds,
+# which take some names from the 1996-97 records) and the original files that hold them (European cup tourneys, the
+# transfer pool), all languages (the DATA files are shared).
+CLUB_NAMES = {b'INTER MILAN': b'INTER', b'AC MILAN': b'MILAN', b'INTERNAZIONALE': b'INTER'}   # (the last: historic packs)
+RENAMED_ORIGINALS = ('EUROCUP.TMD', 'UEFACUP.TMD', 'POOLPLYR.DAT')
+
+
+def rename_names(data):
+    pat = re.compile(rb'(?<![A-Z0-9 .])(' + b'|'.join(re.escape(k) for k in CLUB_NAMES) + rb')\x00')
+    return pat.sub(lambda m: CLUB_NAMES[m.group(1)] + b'\0' * (len(m.group(1)) - len(CLUB_NAMES[m.group(1)]) + 1),
+                   data), len(pat.findall(data))
+
+
+def rename_clubs(src_dir, dst_dir):
+    done = []
+    for name in sorted(os.listdir(dst_dir)):
+        if re.fullmatch(r'TEAM\.\d{3}|TMW\d\.\d{3}|.*\.TMD', name):
+            data, k = rename_names(open(os.path.join(dst_dir, name), 'rb').read())
+            if k:
+                open(os.path.join(dst_dir, name), 'wb').write(data)
+                done.append(f'{name} {k}')
+    for name in RENAMED_ORIGINALS:
+        data, k = rename_names(open(os.path.join(src_dir, name), 'rb').read())
+        assert k, name
+        open(os.path.join(dst_dir, name), 'wb').write(data)
+        done.append(f'{name} {k}')
+    print('INTER / MILAN: ' + ', '.join(done))
 
 
 if __name__ == '__main__':

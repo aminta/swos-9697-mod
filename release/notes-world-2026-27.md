@@ -324,7 +324,10 @@ Uncomment the subsection's lines one by one as the engine implements each format
     department).
   - New Zealand: the National League relegates 3 and each regional league's winner goes up. In reality the National
     League is formed each year from the regional leagues' best clubs (an approximation). -->
-- Odd leagues lose their last club (the engine needs an even number): Gibraltar, New Zealand (11 -> 10).
+- Odd leagues lose their last club for now (the engine needs an even number; a temporary approximation, the real
+  lists are kept for an engine with a rest day): Gibraltar (11 -> 10), New Zealand (11 -> 10).
+<!-- DATA STAGED (with the full world, TM_FULL): also India's Super League (13 -> 12) and Football League (11 -> 10),
+  Taiwan's Division 2 (7 -> 6), El Salvador's Tercera occidente (9 -> 8). -->
 
 **Known limits**
 - EA's public ratings still held FC 26-era rosters when this world was built (2026-10-16): attributes are matched by
@@ -682,8 +685,11 @@ Non una formula uguale per tutti: ogni campionato gioca la stagione come l'ha sc
     club di Primera secondo il loro dipartimento).
   - Nuova Zelanda: la National League retrocede 3 squadre e sale la vincente di ogni lega regionale. Nella realtà la
     National League si forma ogni anno con i migliori club delle leghe regionali (un'approssimazione). -->
-- I campionati con un numero dispari di club perdono l'ultimo (il motore vuole un numero pari): Gibilterra, Nuova
-  Zelanda (11 -> 10).
+- Per ora i campionati con un numero dispari di club perdono l'ultimo (il motore vuole un numero pari;
+  un'approssimazione temporanea, le liste reali sono pronte per un motore con il turno di riposo): Gibilterra
+  (11 -> 10), Nuova Zelanda (11 -> 10).
+<!-- DATA STAGED (con il mondo completo, TM_FULL): anche la Super League indiana (13 -> 12) e la Football League
+  (11 -> 10), la Division 2 di Taiwan (7 -> 6), la Tercera occidente del Salvador (9 -> 8). -->
 
 **Limiti noti**
 - Quando questo mondo è stato costruito (16-10-2026) le valutazioni pubbliche EA avevano ancora le rose dell'era FC 26:

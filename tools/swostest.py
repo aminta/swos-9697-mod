@@ -5,7 +5,7 @@
         -jN = N scenarios at a time (own processes and run dirs; -j = 4)
   python3 tools/swostest.py keys EXE CAR|- 'KEYS' [-shots S] [-t T] [-name NAME] [-match] [-timer]
         ad-hoc run: EXE = a build dir (ITALIAN.EXE + DATA) or an .EXE file (DATA from c/SWOS); CAR = a save to copy
-        in (or -); KEYS = the script below; window screenshots every S s into runs/NAME/shots; T = timeout (s);
+        in (or -); KEYS = the script below; window screenshots every S s into runs/NAME/shots (with SWOSTEST_SCREENCAPTURE=1); T = timeout (s);
         -timer = feed from the timer (70 Hz) instead of GetKey: for SWOS++, which re-patches the menu input code;
         waits are then game time, not menu frames (allow for loading);
         -name NAME = run dir (default keys); -match = the feeder also types during matches, replays and
@@ -46,7 +46,8 @@ RUNS = os.environ.get('SWOSTEST_RUNS') or os.path.join(WORK, 'runs')   # run dir
 DOSBOX = '/Applications/dosbox-x.app/Contents/MacOS/dosbox-x'
 ISO = os.path.join(MAIN, 'orig', 'swos9697ita.iso')
 BREAK = re.compile(rb'[0-9A-F]{4}:([0-9A-F]{8}) +' + (rb'[0-9A-F]{2}' if os.environ.get('SWOSTEST_BP4C') else
-                                                     rb'(?:CD03|CC\s)'))   # mod traps CD 03, the game's own CC
+                                                     rb'(?:CD03|CC(?:\s|\x1b))'))   # mod traps CD 03, the game's own CC
+                                                     # (the code view puts an ANSI erase right after 'CC')
 
 CONF = """[sdl]
 output=surface
@@ -279,7 +280,11 @@ script:
     fixed = next(o for o in range(0x1000, len(c), 16)            # 48 code bytes with no fixup: finds obj1 in a dump
                  if not any(o - 3 <= f < o + 48 for f in range(o - 3, o + 48) if f in fx) and len(set(c[o:o + 48])) > 8)
     lab = nasmcave.labels(src, 0, sym)
-    return {'page': page, 'size2': min(le.obj(2).vsize, le.obj(2).npages * le.page_size), 'calls': page + lab['calls'], 'code': (fixed, c[fixed:fixed + 48]), 'menu': curmenu[1],
+    # g_workingPalette (obj2): ShowStadiumInit's `add esi, 64000 / mov edi, g_workingPalette / mov ecx, 768 / rep movsb`;
+    # the menus' palette as the DAC has it once faded in (frames are rebuilt from memory, no screencapture)
+    st = re.search(rb'\x81\xC6\x00\xFA\x00\x00\xBF....\xB9\x00\x03\x00\x00\xF3\xA4', c, re.S).start()
+    assert fx[st + 7][0] == 2, 'g_workingPalette'
+    return {'pal': fx[st + 7][1], 'page': page, 'size2': min(le.obj(2).vsize, le.obj(2).npages * le.page_size), 'calls': page + lab['calls'], 'code': (fixed, c[fixed:fixed + 48]), 'menu': curmenu[1],
             'brk': page + code.index(b'\xcd\x03'), 'ptr': page + lab['ptr'], 'script': page + lab['script'],
             'anchor': (anchor, d2[anchor:anchor + 64])}
 
@@ -442,41 +447,42 @@ class Dosbox:
         self.stat('dump', t)
         return data
 
-    def shot(self, tag):
+    def shot(self, tag, pal=None, vga=None):
+        """A frame of the game: runs/<name>/shots/<tag>.png. Paused game (pal = the palette, 768 bytes of VGA 6-bit
+        values): 320x200, one pixel per game pixel, from the video memory at A0000 (vga = those 64000 bytes when
+        already read). Running game (periodic shots, a timeout): a screencapture of the window, only with
+        SWOSTEST_SCREENCAPTURE=1 (Davide, 2026-10-18: it made macOS ask for screen recording over and over)."""
+        path = os.path.join(self.run, 'shots', tag + '.png')
+        if pal is not None:
+            from PIL import Image
+            if vga is None:
+                vga = self.dump(0xA0000, 64000)
+            im = Image.frombytes('P', (320, 200), bytes(vga[:64000]))
+            im.putpalette(bytes((v & 63) * 255 // 63 for v in pal[:768]))
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            im.save(path)
+            return
+        if not os.environ.get('SWOSTEST_SCREENCAPTURE'):
+            return
         exe = os.path.join(WORK, 'bin', 'winid')            # window id of a pid (screencapture -l needs it)
         if not os.path.exists(exe):
             os.makedirs(os.path.dirname(exe), exist_ok=True)
             subprocess.run(['swiftc', '-O', os.path.join(ROOT, 'tools', 'swostest_winid.swift'), '-o', exe], check=True)
         win = subprocess.run([exe, str(self.pid)], capture_output=True, text=True)
         wid = win.stdout.strip()
-        if wid and wid != '0' and os.environ.get('SWOSTEST_VGASHOT') != 'force':
+        if wid and wid != '0':
             os.makedirs(os.path.join(self.run, 'shots'), exist_ok=True)
-            subprocess.run(['screencapture', '-x', '-o', '-l', wid, os.path.join(self.run, 'shots', tag + '.png')],
-                           capture_output=True)
-        path = os.path.join(self.run, 'shots', tag + '.png')
-        if not os.path.exists(path) and os.environ.get('SWOSTEST_VGASHOT', '1') != '0':
-            self.vga_shot(path)
+            subprocess.run(['screencapture', '-x', '-o', '-l', wid, path], capture_output=True)
 
-    def vga_shot(self, path):
-        """The screen rebuilt from VGA memory (mode 13h, A0000) and the menu palette (FILL.256): for when macOS
-        cannot capture windows (2026-10-18 03:39: 'could not create image from display' for every process). 640x400,
-        no title bar (squad_rows: top = h - w * 400 / 640 = 0)."""
-        try:
-            from PIL import Image
-            pix = self.dump(0xA0000, 64000)[:64000]
-            pal = open(os.path.join(self.run, 'SWOS', 'FILL.256'), 'rb').read()[64000:64768]
-            im = Image.frombytes('P', (320, 200), pix)
-            im.putpalette(bytes(min(255, x * 4 + (x >> 4)) for x in pal))
-            os.makedirs(os.path.dirname(path), exist_ok=True)
-            im.convert('RGB').resize((640, 400), Image.NEAREST).save(path)
-        except Exception as e:
-            print(f'vga_shot: {e}', file=sys.stderr)
-
-    def post_mortem(self, shot=True):
-        """After a break: full memory dump (MEMDUMP.BIN = linear 0..32 MB, read by Result); returns the break EIP."""
-        if shot:
-            self.shot('final')
-        self.dump(0, MEMSIZE)
+    def post_mortem(self, shot=True, info=None):
+        """After a break: full memory dump (MEMDUMP.BIN = linear 0..32 MB, read by Result) and, with the run's info
+        (obj2 found in the dump), the frame 'final' from it; returns the break EIP."""
+        mem = self.dump(0, MEMSIZE)
+        if shot and info:
+            off, chunk = info['anchor']
+            base2 = mem.find(chunk) - off
+            if base2 >= 0:
+                self.shot('final', mem[base2 + info['pal']:base2 + info['pal'] + 768], mem[0xA0000:0xA0000 + 64000])
         return self.eip
 
     def kill(self):
@@ -571,7 +577,7 @@ def run_case(name, exe_dir, cars, keys, timeout, shots=0, match=False, timer=Fal
     try:
         outcome = box.go()
         if outcome == 'break':
-            eip = box.post_mortem()
+            eip = box.post_mortem(info=info)
             outcome = 'trap'                           # Result turns it into 'dump' when EIP is in the stub
         elif outcome == 'timeout':
             box.shot('final')
@@ -754,7 +760,7 @@ class Session:
         if outcome == 'break':
             self.result = self.paused('trap', b.eip)   # Result turns it into 'dump' when EIP is in the stub
             if self.result.outcome != 'dump' and self.result._mem is None:
-                b.post_mortem()                        # a real trap: full dump + screenshot for the post-mortem
+                b.post_mortem(info=self.info)          # a real trap: full dump + frame for the post-mortem
                 self.result = Result(self.run, 'trap', b.eip, self.info)
         else:
             if outcome == 'timeout':
@@ -773,6 +779,11 @@ class Session:
             self.bases = (r.base1, r.base2)
             return r
         return Result(self.run, outcome, eip, self.info, self.box, self.bases)
+
+    def shot(self, tag):
+        """Frame of the paused game (Dosbox.shot from memory: video memory + g_workingPalette)."""
+        assert self.result.outcome == 'dump', str(self.result)
+        self.box.shot(tag, self.result.obj2(self.info['pal'], 768))
 
     def screen(self):
         assert self.result.outcome == 'dump', str(self.result)
@@ -837,7 +848,9 @@ def press(s, scr, text, wait=2, exact=True):
 # in the first 16: he must be swapped with one beyond the 16th (face of the player -> left, then fire on the name).
 
 
-RED = lambda c: c[0] > 180 and c[1] < 90 and c[2] < 90   # red rows (237,76,61), red cards; not skin (255,109,0)
+# red on the frames built from memory (the game's palette, no colour management): the red row gradient (255,36,36)..
+# (255,101,101) and the injury / red card red (255,0,0); not skin (182,72,0), (255,109,0) nor the shirts' maroon
+RED = lambda c: c[0] >= 240 and c[1] <= 101 and abs(c[1] - c[2]) <= 8
 
 
 def squad_rows(s, scr, tag):
@@ -846,22 +859,10 @@ def squad_rows(s, scr, tag):
     from PIL import Image
     rows = sorted((g[1], i) for i, g in enumerate(scr.geom)
                   if (g[0], g[2], g[3]) == (25, 82, 8) and not scr.entries[i][1])   # drawn rows, not text copies
-    path = os.path.join(s.run, 'shots', tag + '.png')
-    for _ in range(10):                                # the window can be briefly uncapturable (display, Space)
-        s.box.shot(tag)
-        if os.path.exists(path):
-            break
-        time.sleep(3)
-    if not os.path.exists(path):                        # (no window: say whether DOSBox-X is still there)
-        try:
-            pid, st = os.waitpid(s.box.pid, os.WNOHANG)
-        except ChildProcessError:
-            pid, st = s.box.pid, -1
-        raise RuntimeError(f'{tag}: no screenshot; DOSBox-X ' + (f'exited (status {st})' if pid else 'alive')
-                           + f', eip {s.box.eip}, tail {s.box.screen[-300:]!r}')
-    im = Image.open(path).convert('RGB')
+    s.shot(tag)
+    im = Image.open(os.path.join(s.run, 'shots', tag + '.png')).convert('RGB')
     w, h = im.size
-    top = h - w * 400 // 640                           # window title bar
+    top = h - w * 400 // 640                           # window title bar (0: frames built from memory)
     px = lambda x, y: im.getpixel((min(w - 1, int(x * w / 320)), min(h - 1, int(top + y * (h - top) / 200))))
     out = []
     for y, i in rows:
@@ -1246,7 +1247,7 @@ def menu_check(s, tag):
     blue left to right). A corrupted texture is noted in the session log as '[menu] CORRUPTED' (no failure)."""
     try:
         from PIL import Image
-        s.box.shot('menu_' + tag)
+        s.shot('menu_' + tag)
         path = os.path.join(s.run, 'shots', 'menu_' + tag + '.png')
         im = Image.open(path).convert('RGB')
         w, h = im.size

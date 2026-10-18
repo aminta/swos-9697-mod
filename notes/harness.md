@@ -50,7 +50,7 @@ breakpoints), `W84NAT_REDO=1` (remake the cached national-team saves).
 - `advance(s, stop)`: the results-only career loop Davide uses (PARTITA → VIS. RISULTATI → ESCI …): message screens,
   cup round screens, the squad screen. Special cases:
   - squad screen without VIS. RISULTATI (an injured/suspended player in the first 16): `substitute()` takes a
-    window screenshot, finds the red rows, swaps them with fit reserves (a goalkeeper for row 1);
+    frame of the screen, finds the red rows, swaps them with fit reserves (a goalkeeper for row 1);
   - injured goalkeeper: first the reserve goalkeeper of row 12 (the rows' positions are drawn, not menu entries);
   - national team: menu without TRASFERIMENTI, PARTITA disabled until the squad is called up: `nat_callups()` adds
     players from the home leagues (enabled player rows = eligible) until "SCEGLI ALTRI 0".
@@ -122,11 +122,15 @@ it returns the rounds (title, ties shown: at most 6 per screen) and the coin-tos
 
 ## 8. Troubleshooting
 
-- `timeout` with no trap: the script went astray; `runs/<name>/session.log` lists every screen and the keys sent,
-  `shots/final.png` the last screen.
+- Frames (`shots/*.png`) are built from the paused game's memory, not captured from the window (since 2026-10-18:
+  macOS asked for screen recording again and again): video memory at A0000 + `g_workingPalette`, 320x200, one pixel
+  per game pixel (`Session.shot(tag)`; a trap writes `final.png` from its full dump). A running game cannot be read,
+  so periodic shots and the `final.png` of a timeout need `SWOSTEST_SCREENCAPTURE=1` (window screencapture as before).
+- `timeout` with no trap: the script went astray; `runs/<name>/session.log` lists every screen and the keys sent
+  (with `SWOSTEST_SCREENCAPTURE=1`, `shots/final.png` the last screen).
 - DOSBox-X windows open on screen and can take the focus: keys or a Cmd+Q meant for another application can end a
   run (`DOSBox-X ended: ...` in session.log); `SWOSTEST_NOEXIT=1` keeps DOSBox-X at the DOS prompt when the game
-  exits to DOS, so shots/final shows its message.
+  exits to DOS, so its message stays on screen.
 - `DOSBox-X ended: exit code 0` after a few minutes of a long run (fixed 2026-10-15): DOSBox-X's `-time-limit` counts
   EMULATED seconds; the old 14400 ran out after ~4.5 real minutes in turbo. Keep it huge (the runner kills DOSBox-X).
 - `MEMDUMPBIN ...: no file`: the debugger lost a typed command (the dump is retried 3 times; if it still fails, DOSBox

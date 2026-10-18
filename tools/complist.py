@@ -167,6 +167,11 @@ KEEP_UP = {'MLS', 'CPL', 'EFL', 'FA', 'SFL', 'ISL', 'IFL', 'AFC', 'KNVB', 'DFB',
            'SVB', 'UEFA', 'MX', 'USL', 'PSV', 'AZ', 'NK', 'FK', 'SK', 'IF', 'BK', 'IK', 'AIK', 'CSKA', 'HJK', 'KuPS'}
 
 
+def _cname(s):
+    """A competition's name as the game shows it (upper case keeps every acronym: LALIGA, POKAL NZS, LOI ...)."""
+    return s
+
+
 def _title(s):
     """'SCOTTISH PREMIERSHIP' -> 'Scottish Premiership'; abbreviations (FC, BC, MLS ...) stay upper case."""
     if not s.isupper():
@@ -321,7 +326,7 @@ def _who(po, names, t, lang):
         rng = t['ord'](pls[0]) if len(pls) == 1 else \
             t['places_rng'].format(a=t['ord'](pls[0]), b=t['ord'](pls[-1])) if pls == list(range(pls[0], pls[-1] + 1)) \
             else ', '.join(t['ord'](p) for p in pls)
-        txt.append(t['place'].format(div=_title(_nm(names[dv], lang)), places=rng))
+        txt.append(t['place'].format(div=_cname(_nm(names[dv], lang)), places=rng))
     return ' + '.join(txt) or '-'
 
 
@@ -340,10 +345,10 @@ def _po(po, names, t, lang):
     else:
         rounds = '; '.join(t['round_k'].format(a=i + 1, r=x) for i, x in enumerate(rs))
     kind = t['kind'].get(po.get('kind', 'promotion'), po.get('kind'))
-    s = t['po'].format(name=f"{_title(_nm(po['names'], lang))} ({kind})", who=_who(po, names, t, lang), rounds=rounds)
+    s = t['po'].format(name=f"{_cname(_nm(po['names'], lang))} ({kind})", who=_who(po, names, t, lang), rounds=rounds)
     wd, ld = po.get('winner_div'), po.get('loser_div')
     if po.get('kind') == 'promotion' and wd is not None:
-        s += '; ' + t['winner_to'].format(div=_title(_nm(names[wd], lang)))
+        s += '; ' + t['winner_to'].format(div=_cname(_nm(names[wd], lang)))
     if ld == 'reserve':
         s += '; ' + t['loser_to'].format(div=t['reserve'])
     return s
@@ -434,13 +439,13 @@ def render(model, lang, heading='##', show_modes=False):
                 for k, lv in enumerate(comp['levels']):
                     low = k == nlv - 1
                     if len(lv) > 1 and not (k == 0 and comp['closed']):
-                        nm = ' / '.join(_title(_nm(d['name'], lang)) for d in lv)
+                        nm = ' / '.join(_cname(_nm(d['name'], lang)) for d in lv)
                         sizes = ' + '.join(str(d['clubs']) for d in lv)
                         out.append(f'- {nm}: ' + t['groups'].format(k=len(lv), sizes=sizes) + '; '
                                    + _div_line(lv[0], comp, t, lang, low, head=False) + tail)
                     else:
                         for d in lv:
-                            out.append(f"- {_title(_nm(d['name'], lang))}: " + _div_line(d, comp, t, lang, low) + tail)
+                            out.append(f"- {_cname(_nm(d['name'], lang))}: " + _div_line(d, comp, t, lang, low) + tail)
                     for d in lv:
                         for po in d['playoffs']:
                             out.append('  - ' + _po(po, names, t, lang))
@@ -448,7 +453,7 @@ def render(model, lang, heading='##', show_modes=False):
                     out.append('  - ' + sp[lang])
             else:
                 lab = t['cupw'] if comp['kind'] == 'cup' else t['lcup']
-                out.append(f"- {_title(_nm(comp['name'], lang))} ({lab}): " + _cup_line(comp, t) + tail)
+                out.append(f"- {_cname(_nm(comp['name'], lang))} ({lab}): " + _cup_line(comp, t) + tail)
             s = _src(comp, lang, t)
             if s:
                 out.append(s)

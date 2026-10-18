@@ -86,7 +86,8 @@ RESERVED_IDS = {0xAD, 0xC1, 0xC2, 0xC3, 0xC4, 0xC5, 0xFC, 0xFD, 0xFE} | set(rang
                                                                                # sacups, cafcups, Australian cup,
                                                                                # uefaq's qualifying ties 7C..7E,
                                                                                # dplay's play-offs FC..FE)
-WORLD0_IDS = set(range(0xF2, 0xFA)) | {0xFF, 0xBF, 0xC0, 0x87, 0xA1, 0xA2, 0x8B}   # 4.0 package 7 (+ its real draws)
+WORLD0_IDS = set(range(0xF2, 0xFA)) | {0xFF, 0xBF, 0xC0, 0x87, 0xA1, 0xA2, 0x8B} \
+    | {0x2F, 0x30, 0x38, 0x4A}   # 4.0 package 7 (+ its real draws); package 6: Brazilian state championships
 # contests hand-made for world 0, the original 1996-97 world (4.0: its national cups, state
                         # championships ...): refused in non-world packs (seasons, tourneys) only; the career worlds'
                         # packs may reuse them (a world career never loads world 0's contests)

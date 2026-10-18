@@ -305,7 +305,12 @@ sp_pair:                                ; replaces `mov esi, [A0]` before cseg_8
     ret
 
 sp_freeze:                              ; esi = DIY, edx = entry, eax = stage, ebp = its record: the groups
-    mov [sp_rec], ebp                   ; from the table now, its points rules
+    pushad                              ; from the table now, its points rules. The table sorted first: the last
+    call sp_saveregs                    ; day's last results may not be in its order yet (Malta: the kept table and
+    call C883DD                         ; the groups a match behind); the previous stage's groups still partition it
+    call sp_restregs
+    popad
+    mov [sp_rec], ebp
     mov [sp_stg], al
     movzx ecx, byte [edx + 3]
     mov [sp_n], ecx

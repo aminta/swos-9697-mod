@@ -771,7 +771,10 @@ def patch(p, at, limit, tables, bss_at, area):
     coin = ps['draw'] + 5 + struct.unpack('<i', p.get(1, ps['draw'] + 1, 4))[0]
     assert lib97.LABELS.get('NC_DPP') and lib97.LABELS.get('NC_T'), 'lib97 without the dplay slot'
     se = uefaq.STATE_END[0] or 0
-    assert se <= SAVE_AT and SAVE_AT + LOG_AT + 0x500 <= careerworld.BIGC_AT, (hex(se), hex(SAVE_AT))
+    import bigtables
+    save_at = SAVE_AT if se <= SAVE_AT else (se + 15) & ~15      # (global numbers 2000+: uefacoef's block is longer)
+    top = bigtables.ext_off() if bigtables.ON[0] else careerworld.BIGC_AT
+    assert save_at + LOG_AT + 0x500 <= top, (hex(se), hex(save_at), hex(top))
     force = int(os.environ.get('DPLAY_FORCE') or 0)          # (test builds: the career club's Serie B place)
     obj = cobj.compile_c(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'dplay.c'), [f'-DDP_FORCE={force}'])
     syms, cend, bss = cobj.link(p, obj, at, (2, bss_at), limit=limit)
@@ -803,7 +806,7 @@ def patch(p, at, limit, tables, bss_at, area):
                     'DP_DIYP': syms['DP_DIYP'], 'dp_perm_c': syms['dp_perm_c'], 'dp_restore': syms['dp_restore'],
                     'DPID_CPO': (0, DP_CPO), 'F846': (2, ps['f846']), 'SAVESEL': (1, ps['savesel']),
                     'RESTSEL': (1, ps['restsel']), 'C3ABB2': (1, ps['c3abb2']), 'C915ED': (1, ps['c915ed']),
-                    'DP_SAVE': (2, tmd + SAVE_AT), 'DP_LOG': (2, tmd + SAVE_AT + LOG_AT), 'DPID_PO': (0, DP_PO), 'DPID_OUT': (0, DP_OUT),
+                    'DP_SAVE': (2, tmd + save_at), 'DP_LOG': (2, tmd + save_at + LOG_AT), 'DPID_PO': (0, DP_PO), 'DPID_OUT': (0, DP_OUT),
                     })
     symbols.update(tab_syms)
     glue = (cend + 15) & ~15
@@ -830,10 +833,10 @@ def patch(p, at, limit, tables, bss_at, area):
     p.remove(1, ps['rec'] + 2)                               # mov ax, [dseg_11F9CC] (6 B) -> call dp_rec; nop
     p.put(1, ps['rec'], b'\xe8' + struct.pack('<i', lab['dp_rec'] - (ps['rec'] + 5)) + b'\x90')
     p.add_ptr(1, lib97.LABELS['NC_DPP'], 1, lab['dp_perm'])  # (lib97 nc_adv's slot)
-    LABELS.update(lab, diy=diy, a0=r['A0'], DP_IN=syms['DP_IN'], DP_OUT=syms['DP_OUT'], layout=lay, contests=(c0, c1, c2), save=tmd + SAVE_AT,
+    LABELS.update(lab, diy=diy, a0=r['A0'], DP_IN=syms['DP_IN'], DP_OUT=syms['DP_OUT'], layout=lay, contests=(c0, c1, c2), save=tmd + save_at,
                   sites=ps)
     print(f"exe: Italian play-offs (dplay): {len(tables)} leagues, C obj1+{at:#x}..{cend:#x}, glue ..{glue + len(code):#x}, "
-          f"contests obj1+{c0:#x} / +{c1:#x} / +{c2:#x}, DP_IN obj2+{syms['DP_IN'][1]:#x}, state obj2+{tmd + SAVE_AT:#x}, "
+          f"contests obj1+{c0:#x} / +{c1:#x} / +{c2:#x}, DP_IN obj2+{syms['DP_IN'][1]:#x}, state obj2+{tmd + save_at:#x}, "
           f"hooks obj1+{cap:#x} / +{end_site:#x}, league end +{ps['lend'][0]:#x} / +{ps['lend'][1]:#x}, "
           f"draw +{ps['draw']:#x}, result +{ps['rec']:#x}")
     return c1 + len(cps[1])

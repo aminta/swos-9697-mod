@@ -32,7 +32,7 @@ assert CB_OFF + SIZE <= 80 * 684
 
 def layout():
     """The block's layout for this build: NG = 2000, or bigtables.LIMIT when a world numbers clubs 2000+ (the
-    block then ends before bigtables.EXT_OFF, the save's numbers 2000+)."""
+    block then ends before bigtables.ext_off(), the save's numbers 2000+)."""
     global NG, KHIST, PREV, FIN, SIZE
     import bigtables
     NG = bigtables.LIMIT if bigtables.ON[0] else 2000
@@ -40,7 +40,7 @@ def layout():
     PREV = KHIST + 10 * NG
     FIN = PREV + 0x6C
     SIZE = FIN + 0xC
-    assert CB_OFF + SIZE <= (bigtables.EXT_OFF if bigtables.ON[0] else 80 * 684), hex(CB_OFF + SIZE)
+    assert CB_OFF + SIZE <= (bigtables.ext_off() if bigtables.ON[0] else 80 * 684), hex(CB_OFF + SIZE)
 
 LP_CLN = [5, 5, 4, 4, 3, 2, 2, 2] + [1] * 7            # places per rank: Champions League (34 + its holder + the EL winner)
 LP_ELN = [2] * 12 + [1] * 11                           # Europa League (35 + the Conference League winner)

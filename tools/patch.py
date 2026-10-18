@@ -442,7 +442,7 @@ def write_new_teams(src_dir, dst_dir):
         k = struct.unpack('>H', data[:2])[0]
         base = tcn.get(n) or hist_base(n)
         for g in range(base, base + k):
-            assert g < (bigtables.LIMIT if bigtables.ON[0] else 2000) and \
+            assert g < (bigtables.LIMIT if mkseason.worlds() and bigtables.needed() else 2000) and \
                 (mkseason.shares_base(n) or mkseason.career_file(n) or g not in taken), (n, g, taken.get(g))
             assert not (mkseason.career_file(n) and sacups.SAVED_GLOBAL <= g <= sacups.MARK3_GLOBAL + 2), \
                 (n, g, f'world clubs must skip the reserved global numbers {sacups.SAVED_GLOBAL}..{sacups.MARK3_GLOBAL + 2} '

@@ -10,7 +10,8 @@ club numbered 2000+ wrote over live career state. In a build whose career worlds
 - the .CAR keeps its layout: the old 2000 bytes in the fixed part are written from the new table before a save
   (bt_save, in front of trailer's save_trailer) and read back after a load (bt_load, after w_loadcopy's copy of the
   fixed part from its stage, before it reads the world byte); bytes 2000..LIMIT-1 go to the 80-record area of the
-  fixed part (tmdFileBuffer + EXT_OFF, after the W1 block and the UEFA coefficients' block) when the career's world
+  fixed part (tmdFileBuffer + ext_off(): under the BIGC mark, after the W1 block, the UEFA coefficients, uefaq's and
+  dplay's states) when the career's world
   is big (careerworld.w_big), else they are cleared. Old saves load unchanged (their numbers are < 2000).
 The mod's own code finds both tables through the retargeted fixups (careerworld.sites, worldpool, benchnum: p.target)
 or through sacups.TABLES (moved()); globals 1730..1849 stay reserved (career marks, world byte).
@@ -18,8 +19,14 @@ or through sacups.TABLES (moved()); globals 1730..1849 stay reserved (career mar
 import re
 import struct
 
-LIMIT = 2560                    # global numbers 0..2559 (the UEFA coefficients' per-club block fits 2560 in the .CAR)
-EXT_OFF = 0xCA00                # tmdFileBuffer + EXT_OFF: table[2000..LIMIT) in a big world's save
+LIMIT = 2400                    # global numbers 0..2399: what the 80-record area of a big world's save holds (W1 block,
+                                # UEFA coefficients for LIMIT clubs, uefaq's state, dplay's state, these 400 bytes)
+
+
+def ext_off():
+    """tmdFileBuffer + ext_off(): table[2000..LIMIT) in a big world's save, right under careerworld's BIGC mark."""
+    import careerworld
+    return (careerworld.BIGC_AT - (LIMIT - 2000)) & ~3
 ON = [False]
 MOVED = {}                      # old obj2 offset -> new obj2 offset (someLeaguesTable, leaguesTableCopy)
 SITES = {}
@@ -172,7 +179,7 @@ def hooks(p, at):
     w_copy = lc + k + 5 + struct.unpack_from('<i', cur, k + 1)[0]
     assert w_copy == careerworld.LABELS['w_copy'], (hex(w_copy), hex(careerworld.LABELS['w_copy']))
     tmd = careerworld.LABELS['sites']['tmd']
-    sym = {'NEWT': SITES['new'], 'OLDT': SITES['old'], 'EXT': (2, tmd + EXT_OFF), 'LIMIT': (0, LIMIT),
+    sym = {'NEWT': SITES['new'], 'OLDT': SITES['old'], 'EXT': (2, tmd + ext_off()), 'LIMIT': (0, LIMIT),
            'W_BIG': (1, careerworld.LABELS['w_big']), 'W_COPY': (1, w_copy)}
     code, fix = nasmcave.assemble(ASM, at, sym)
     lab = nasmcave.labels(ASM, at, sym)
@@ -186,5 +193,5 @@ def hooks(p, at):
     p.put(1, save_call + 1, struct.pack('<i', lab['bt_save'] - (save_call + 5)))
     p.put(1, lc + k + 1, struct.pack('<i', lab['bt_load'] - (lc + k + 5)))
     print(f'exe: global numbers: save obj1+{save_call:#x} -> bt_save -> obj1+{nxt:#x}; w_loadcopy obj1+{lc + k:#x} '
-          f'-> bt_load; numbers 2000+ at tmdFileBuffer+{EXT_OFF:#x} ({LIMIT - 2000} B)')
+          f'-> bt_load; numbers 2000+ at tmdFileBuffer+{ext_off():#x} ({LIMIT - 2000} B)')
     return (at + len(code) + 3) & ~3

@@ -53,7 +53,8 @@ def _site(p):
     r = sacups.regs(d1)
     s = careerworld.SITES                   # (careerworld.patch ran first; its patterns are hooked by now)
     pk = lambda x: re.escape(struct.pack('<I', x))
-    slt = struct.pack('<I', s['slt'][1])
+    import bigtables
+    slt = struct.pack('<I', bigtables.SITES.get('old', s['slt'])[1])   # (the original bytes: the table's old address)
     starts = [x.start() - 9 for x in re.finditer(rb'\xc7\x05' + pk(r['A0']) + re.escape(slt) + rb'\xc7\x05' +
                                                  pk(r['A0'] + 4), d1)]
     # the copy back: reads [A1] (leaguesTableCopy) first: mov esi, [A1] right after the three set-ups

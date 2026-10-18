@@ -1440,7 +1440,7 @@ def season_over(scr):
 def w84_lowprice():
     """3.3.4 (Daniele): a 1984-85 career at Volsungur (Iceland), whose 16 players are all worth the minimum: the team
     screen divided by the average player price (0) and the game stopped (DOS/4GW divide error); avgprice.py"""
-    exe = os.environ.get('W8485_BUILD', os.path.join(WORK, 'builds', 'w8485'))
+    exe = os.environ.get('W8485_BUILD') or builds()['it']       # (as world8485: builds/w8485 is a stale build)
     with Session('w84_lowprice', exe, {}, 'dump:2', 240) as s:
         if s.wait().outcome != 'dump':
             return False, f'START: no first pause ({s.result})'

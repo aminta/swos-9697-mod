@@ -61,10 +61,10 @@ P = {
                cup_gen='every club of the league, drawn by the game',
                byes='{n} byes into the 2nd round',
                rounds={'single': 'single matches (a draw: penalties)', 'single_et': 'single matches, extra time and '
-                       'penalties', 'two_legs': 'two legs (away goals, then extra time and penalties)'},
+                       'penalties', 'two_legs': 'two legs (aggregate, then extra time and penalties)', 'two_legs_ag': 'two legs (away goals, then extra time and penalties)'},
                final='final: {r}', numbered='rounds numbered as in reality',
                finals={'single': 'single match (a draw: penalties)', 'single_et': 'single match, extra time and '
-                       'penalties', 'two_legs': 'two legs (away goals, then extra time and penalties)'},
+                       'penalties', 'two_legs': 'two legs (aggregate, then extra time and penalties)', 'two_legs_ag': 'two legs (away goals, then extra time and penalties)'},
                rounds_k='rounds {a}-{b}: {r}', round_k='round {a}: {r}', same='{k} rounds of {r}',
                modes={'career': 'career', 'season': 'season', 'preset': 'preset competitions'},
                only='only in: {m}', new='new in {v}', src='source: {s}', ueuro='The European cups',
@@ -110,10 +110,10 @@ P = {
                cup_gen='tutti i club del campionato, sorteggiati dal gioco',
                byes='{n} esenti fino al 2° turno',
                rounds={'single': 'gara unica (in parità: rigori)', 'single_et': 'gara unica, supplementari e rigori',
-                       'two_legs': 'andata e ritorno (gol in trasferta, poi supplementari e rigori)'},
+                       'two_legs': 'andata e ritorno (somma dei gol, poi supplementari e rigori)', 'two_legs_ag': 'andata e ritorno (gol in trasferta, poi supplementari e rigori)'},
                final='finale: {r}', numbered='turni numerati come nella realtà',
                finals={'single': 'gara unica (in parità: rigori)', 'single_et': 'gara unica, supplementari e rigori',
-                       'two_legs': 'andata e ritorno (gol in trasferta, poi supplementari e rigori)'},
+                       'two_legs': 'andata e ritorno (somma dei gol, poi supplementari e rigori)', 'two_legs_ag': 'andata e ritorno (gol in trasferta, poi supplementari e rigori)'},
                rounds_k='turni {a}-{b}: {r}', round_k='turno {a}: {r}', same='{k} turni: {r}',
                modes={'career': 'carriera', 'season': 'stagione', 'preset': 'competizioni predefinite'},
                only='solo in: {m}', new='novità della {v}', src='fonte: {s}', ueuro='Le coppe europee',
@@ -261,7 +261,7 @@ def _cup(cp, ties, kind, info):
     return dict(kind=kind, name=cp['names'], clubs=2 * len(pairs) + byes if pairs else size, size=size, rounds=rounds,
                 byes=byes, src=info.get('source', 'real' if pairs else 'generated'), real_pairs=info.get('real_pairs'),
                 ties=info.get('ties', len(pairs)), season=info.get('season', ''), numbered=cp.get('round_names') == 'numbered',
-                first_round=cp.get('first_round', 1), europe=cp.get('europe'))
+                first_round=cp.get('first_round', 1), europe=cp.get('europe'), away_goals=bool(cp.get('away_goals')))
 
 
 # ---------------------------------------------------------------------------------------------------- renderer
@@ -387,7 +387,7 @@ def _cup_line(cp, t):
         bits.append(t['cup_real0'].format(season=season))
     if cp['byes']:
         bits.append(t['byes'].format(n=cp['byes']))
-    rs = cp['rounds']
+    rs = [r + '_ag' if r == 'two_legs' and cp.get('away_goals') else r for r in cp['rounds']]
     if len(rs) > 1:
         bits.append(_runs(rs[:-1], t, t['rounds']))
     if rs:

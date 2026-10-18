@@ -41,8 +41,10 @@ def _find(p):
 
 def patch(p, area):
     ptrs, nums = _find(p)
-    new_p = (area.add(bytes(SLOTS * 4 + 4)) + 3) & ~3
+    at = area.add(bytes(SLOTS * 4 + SLOTS * 2 + 4))      # both tables (+ 4: the dword alignment)
+    new_p = (at + 3) & ~3
     new_n = new_p + SLOTS * 4
+    assert new_n + SLOTS * 2 <= at + SLOTS * 6 + 4
     n = 0
     for f in p.le.fixups():
         if f[0] != 1 or f[3] != 2 or f[4] is None:

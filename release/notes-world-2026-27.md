@@ -75,6 +75,13 @@ Uncomment the subsection's lines one by one as the engine implements each format
 - **Romania** (detail): on equal points after the halving, the points before rounding come first. **Moldova**: after
   the triple round robin (21), the top 6 play a double round robin (10 more) from half the points won against each
   other, rounded down; 7th-8th are done.
+- **Malta** (detail): Opening Round of 11 matchdays, then top 6 and bottom 6 once more; the Closing Round starts again
+  from 0 points (the Opening's return legs), then top 6 / bottom 6 again; the Opening Round's table is kept for the
+  title play-offs. **Bulgaria** (detail): after 26 matchdays, championship group 1-4 (double), Conference group 5-9
+  (double) and relegation group 10-14 (single), with rest days in the 5-club groups. **Northern Ireland** (detail):
+  after 33 matchdays, Section A / B; the home club of each split match is the club that was away in their 3rd meeting.
+- **Odd-sized leagues**: real rounds with one club resting each matchday (the game's own tables for odd sizes were not
+  rounds).
 -->
 
 *European cups (UEFA 2026-27)*
@@ -442,6 +449,14 @@ Non una formula uguale per tutti: ogni campionato gioca la stagione come l'ha sc
 - **Romania** (dettaglio): a pari punti dopo il dimezzamento contano prima i punti prima dell'arrotondamento.
   **Moldavia**: dopo il triplo girone (21) le prime 6 giocano andata e ritorno (altre 10) partendo da metà dei punti
   fatti negli scontri diretti, arrotondata per difetto; 7ª e 8ª hanno finito.
+- **Malta** (dettaglio): Opening Round di 11 giornate, poi prime 6 e ultime 6 ancora una volta; il Closing Round
+  riparte da 0 punti (ritorno delle gare dell'Opening), poi di nuovo prime 6 / ultime 6; la classifica dell'Opening
+  resta per gli spareggi del titolo. **Bulgaria** (dettaglio): dopo 26 giornate, gruppo per il titolo 1-4 (andata e
+  ritorno), gruppo Conference 5-9 (andata e ritorno) e gruppo salvezza 10-14 (sola andata), con turni di riposo nei
+  gruppi da 5. **Irlanda del Nord** (dettaglio): dopo 33 giornate, Section A / B; in ogni partita dopo lo split gioca
+  in casa il club che era in trasferta nel terzo incontro.
+- **Campionati con numero dispari di squadre**: giornate vere con un club a riposo per turno (le tabelle originali del
+  gioco per le dimensioni dispari non erano giornate).
 -->
 
 *Coppe europee (UEFA 2026-27)*

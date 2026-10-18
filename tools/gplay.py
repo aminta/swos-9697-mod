@@ -997,7 +997,9 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
     if uefaq.LABELS.get('UQ_EPP') and tables:              # a league-phase world: its European play-offs (uefaq.c ep_run)
         p.add_ptr(1, uefaq.LABELS['UQ_EPP'], 1, lab['GP_EPT'])
     assert struct.unpack('<I', p.get(1, syms['RS_STATE_SIZE'][1], 4))[0] == RS_SIZE   # (the engine block's 'RS')
-    LABELS.update(lab, GP_IN=syms['GP_IN'], GP_OUT=syms['GP_OUT'], GP_ST=syms['GP_ST'], GP_LOG=syms['GP_LOG'], layout=lay, pg_season=syms['pg_season'], pg_place=syms['pg_place'], rs_season=syms['rs_season'], gp_stage=syms['gp_stage'], GP_SS=syms['GP_SS'], PR_STATE=syms['PR_STATE'],
+    kolay = dict(zip(('st_ko', 'size', 'slot', 'ntie', 'tw', 'tl', 'team', 'n'),
+                     struct.unpack('<8I', p.get(1, syms['GP_KOLAY'][1], 32))))   # (4.0's gp_build glue: GP_ST.ko[0])
+    LABELS.update(lab, GP_KOLAY=kolay, GP_IN=syms['GP_IN'], GP_OUT=syms['GP_OUT'], GP_ST=syms['GP_ST'], GP_LOG=syms['GP_LOG'], layout=lay, pg_season=syms['pg_season'], pg_place=syms['pg_place'], rs_season=syms['rs_season'], gp_stage=syms['gp_stage'], GP_SS=syms['GP_SS'], PR_STATE=syms['PR_STATE'],
                   RS_STATE=syms['RS_STATE'])
     print(f"exe: knockout play-offs (gplay): {len(tables)} countries, C obj1+{at:#x}..{cend:#x}, glue ..{glue + len(code):#x}, "
           f"GP_IN obj2+{syms['GP_IN'][1]:#x}, state GP_ST obj2+{syms['GP_ST'][1]:#x} ({lay['ST_SIZE']} B), "

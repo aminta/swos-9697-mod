@@ -807,6 +807,25 @@ u32 gp_lend_c(void) {
     return built;
 }
 
+/* a knockout not built (the career club not in round 1): every tie simulated now with gplay's tie rules (4.0's
+   gp_build: the champion = team[tw[last tie]], the runner-up team[tl[...]] at once) */
+static void ko_sim(struct gp_ko *k) {
+    int g = 0;
+    for (;;) {
+        for (int p = k->gp0[g]; p < k->gp0[g + 1]; p++) {
+            if (k->pw[p] != NOC) continue;
+            int r = k->gsr[g], a = k->code[k->pa[p]], b = k->code[k->pb[p]];
+            int w = tie(a, b, k->rs[r][1] == 2 ? 2 : 1, HOST_LISTED, k->rs[r][3]);
+            k->pw[p] = w == a ? k->pa[p] : k->pb[p];
+        }
+        k->gcur = g;
+        resolve(k);
+        while (++g < k->ngr && build_game(k, g) <= 0)
+            ;
+        if (g >= k->ngr) break;
+    }
+}
+
 /* gp_build (mid-season): play-off GP_BPIC of the spec into slot 4 when its entrants' tables are captured */
 u32 GP_BPIC;
 u32 gp_build_c(void) {
@@ -818,8 +837,14 @@ u32 gp_build_c(void) {
     }
     GP_ST.nsim = 0;
     GP_IN.pi[0] = GP_BPIC; GP_IN.pi[1] = NOC;
-    return gp_lend_c() & 1;
+    u32 b = gp_lend_c() & 1;
+    if (!b && GP_ST.ko[0].magic == MAGIC) ko_sim(&GP_ST.ko[0]);
+    return b;
 }
+const u32 GP_KOLAY[] = { __builtin_offsetof(struct gp_state, ko), sizeof(struct gp_ko),
+                         __builtin_offsetof(struct gp_ko, slot), __builtin_offsetof(struct gp_ko, ntie),
+                         __builtin_offsetof(struct gp_ko, tw), __builtin_offsetof(struct gp_ko, tl),
+                         __builtin_offsetof(struct gp_ko, team), __builtin_offsetof(struct gp_ko, n) };
 
 /* the contest in DIY (id GP_CID) is ours: its ko index, else -1 */
 int gp_ours_c(void) {

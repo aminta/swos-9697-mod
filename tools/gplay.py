@@ -192,7 +192,7 @@ gp_end:                                 ; replaces `call cseg_9228D` (after dpla
     xor ebx, ebx
 .m:
     cmp ebx, ecx
-    jae .clr
+    jae .bal
     imul esi, ebx, MSZ
     add esi, GP_OUT + O_MV
     movzx eax, word [esi]
@@ -210,6 +210,15 @@ gp_end:                                 ; replaces `call cseg_9228D` (after dpla
 .nm:
     inc ebx
     jmp .m
+.bal:                                   ; (cseg_9487A checks the table's 8-bit sum at every country's season end:
+    xor eax, eax                        ; a move of several divisions breaks the game's +1 / -1 pairs, so the
+    mov esi, SLTCOPY                    ; balance byte BAL takes the difference, as pgroups' pg_fix does)
+    mov ecx, NSUM
+.s:
+    add al, [esi]
+    inc esi
+    loop .s
+    sub [SLTCOPY + BAL], al
 .clr:
     xor eax, eax
     mov ecx, GD_N
@@ -244,9 +253,11 @@ LABELS = {}
 
 def patch(p, at, limit, tables, bss_at):
     """tables: mkseason.gplay_tables(). C + glue + specs in obj1 at..limit, the C .bss at obj2 bss_at. Returns the end."""
+    import bigtables
     import careerworld
     import cobj
     import dplay
+    import pgroups
     import nasmcave
     cap, c9221f, end_site, c9228d, diy, ct, rel, pro, r = dplay._sites(p)
     tgt = lambda a: a + 5 + struct.unpack('<i', p.get(1, a + 1, 4))[0]   # (the current targets: dplay's, or the game's)
@@ -266,7 +277,8 @@ def patch(p, at, limit, tables, bss_at):
                     'A4R': (2, r['A0'] + 16), 'D7R': (2, r['D7']), 'SLT': s['slt'], 'SLTCOPY': s['sltcopy'],
                     'WORLD_BYTE': (0, careerworld.WORLD_BYTE), 'DIY': (2, diy), 'SELTEAMS': (2, sel),
                     'CAREERTEAM': (2, ct), 'ANIM_REL': (2, rel), 'ANIM_PRO': (2, pro),
-                    'GP_CAP_NEXT': (1, tgt(cap)), 'GP_END_NEXT': (1, tgt(end_site))})
+                    'GP_CAP_NEXT': (1, tgt(cap)), 'GP_END_NEXT': (1, tgt(end_site)),
+                    'BAL': (0, pgroups.BALANCE), 'NSUM': (0, bigtables.LIMIT if bigtables.ON[0] else 2000)})
     asm = ASM + tab_src + '\n'
     glue = (cend + 15) & ~15
     code, fix = nasmcave.assemble(asm, glue, symbols)

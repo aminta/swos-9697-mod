@@ -26,10 +26,34 @@ pg_fix:                                 ; replaces `call cseg_7CAA2` (leaguesTab
     push dword PG_TAB
     call PG_SEASON
     add esp, 16
+    xor eax, eax                        ; cseg_9487A traps unless leaguesTableCopy adds up to 0 (8 bits): a move of
+    mov esi, SLTCOPY                    ; several divisions (a group winner up two levels of groups, a club down into
+    mov ecx, NSUM                       ; a farther group) breaks the game's +1 / -1 pairs: the balance byte BAL
+.s:                                     ; (a global number of no club) takes the difference
+    add al, [esi]
+    inc esi
+    loop .s
+    sub [SLTCOPY + BAL], al
     popad
     jmp C7CAA2
 PG_TAB: TAB_BYTES
 '''
+
+
+BALANCE = 1844                  # someLeaguesTable / leaguesTableCopy index of no club (careerworld: 1818..1846 free of
+                                # clubs; 1845 world byte): the moves' balance byte
+
+
+def relax_file_check(p):
+    """cseg_9487A (every country's season end) also traps unless the loaded team file's clubs' deltas in
+    leaguesTableCopy add up to 0: true while every division keeps its size, but between the season end's moves (the
+    game's +1 / -1 chain, gplay's play-off moves of several divisions) and pg_fix (InitializeNewSeason) a level of
+    groups is briefly off, and a file's range has no club-free byte to balance. The second check's `jz` becomes
+    `jmp` (the whole table's sum, the first check, stays: BALANCE keeps it 0)."""
+    ms = [m.start() for m in re.finditer(rb'\x66\x0b\xc0\x74.\xcc\xeb\xfe', p.le.obj_bytes(1), re.S)]
+    assert len(ms) == 2 and 0 < ms[1] - ms[0] < 0x100, [hex(x) for x in ms]
+    p.put(1, ms[1] + 3, b'\xeb')
+    print(f'exe: season end: the team file sum check relaxed (obj1+{ms[1] + 3:#x})')
 
 
 def table_bytes(tables):
@@ -67,11 +91,13 @@ def _site(p):
 
 def patch(p, at, tables, pg_season):
     """Glue + tables at obj1:at (the fix itself: gplay.c pg_season, (1, offset)); returns the end."""
+    import bigtables
     import careerworld
     site, c7caa2, s = _site(p)
     assert p.get(1, site, 5) == p.le.obj_bytes(1)[site:site + 5], 'the copy-back call is already hooked'
     sym = {'SLT': s['slt'], 'SLTCOPY': s['sltcopy'], 'WORLD_BYTE': (0, careerworld.WORLD_BYTE),
-           'C7CAA2': (1, c7caa2), 'PG_SEASON': pg_season,
+           'C7CAA2': (1, c7caa2), 'PG_SEASON': pg_season, 'BAL': (0, BALANCE),
+           'NSUM': (0, bigtables.LIMIT if bigtables.ON[0] else 2000),
            'TAB_BYTES': (0, 'db ' + ', '.join(str(b) for b in table_bytes(tables)))}
     code, fix = nasmcave.assemble(ASM, at, sym)
     lab = nasmcave.labels(ASM, at, sym)

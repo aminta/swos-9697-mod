@@ -873,7 +873,7 @@ def table_lines(tables):
 
 
 LABELS = {}
-GP_PAGES = 6             # obj1 pages for the C code + glue + specs (World 2026-27's 20 countries; gplay-play)
+GP_PAGES = 7             # obj1 pages for the C code + glue + specs (World 2026-27's 20 countries; gplay-play; 4.0 ARG: 7)
 GP_ST_SIZE = 2032       # (sizeof struct gp_state: the engine block's item 'GP', patch.py)
 GP_BSS = 0x5000          # the C .bss pages (obj2 after careerworld's BSS): GP_IN at GT 32 / GD 16, GP_SS, PR, RS, GP_ST, RI, PS
 

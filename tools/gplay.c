@@ -330,7 +330,9 @@ void pg_season(const u8 *t, const s8 *slt, s8 *copy, int world) {
 /* A save from before the groups (3.x: pgroups.py's table on a chain the save's divisions don't know). Every club of
    the table: its division now (base + slt), through map (old division -> new, 0xFF = the same), to its level on the
    new chain; a single division as it is, a level of groups to the group of its area, else the nearest with room (the
-   clubs with an area first, so every group keeps its size). copy = the result (not slt: slt is read again). */
+   clubs with an area first, so every group keeps its size). A map value 0x80 | division pins the club to exactly
+   that division (4.0: a 3.x career's live 18-club league kept together for its current season), counted before the
+   others are placed. copy = the result (not slt: slt is read again). */
 static const u8 *pl_one(const u8 *t, const u8 *map, const s8 *slt, s8 *copy, int run) {
     int nl = t[1];
     u8 first[PL], cnt[PL], occ[PL][PG], pidx[PL];
@@ -349,11 +351,15 @@ static const u8 *pl_one(const u8 *t, const u8 *map, const s8 *slt, s8 *copy, int
             const u8 *e = c + rs * i;
             int g = e[0] | e[1] << 8, base = e[2];
             if (g >= 8 * (int)sizeof pg_pend) continue;
-            int d = slt[g] + base;
-            if (d >= 0 && d < 256 && map[d] != 0xFF) d = map[d];
+            int d = slt[g] + base, pin = 0;
+            if (d >= 0 && d < 256 && map[d] != 0xFF) { pin = map[d] & 0x80; d = map[d] & 0x7F; }
             int l = pg_level(d, nl, first, cnt);
             if (l >= nl) { if (pass == 0) copy[g] = d - base; continue; }    /* (the reserve: as it is) */
             if (cnt[l] == 1) { if (pass == 0) copy[g] = first[l] - base; continue; }
+            if (pin) {                          /* pinned (map 0x80 | division): exactly that group, counted first */
+                if (pass == 0) { copy[g] = d - base; if (d - first[l] < PG) occ[l][d - first[l]]++; }
+                continue;
+            }
             if (pass == 0) { pg_pend[g >> 3] |= 1 << (g & 7); continue; }
             if (!PEND(g)) continue;
             int area = pidx[l] < npar ? e[3 + pidx[l]] : 0xFF, to = -1;

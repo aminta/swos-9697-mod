@@ -375,8 +375,9 @@ def patch_exe(src, dst, remap, lang='it'):
     num_bss = obj2_free + o2pages * p.le.page_size + (careerworld.BSS_SIZE if bigw else 0)
     world = shirtnum.patch(p, world, num_bss)    # 3.2.5: shirt numbers 17..99 over the players (built from the digits)
     weeks.patch(p)                               # 3.2.7: career weeks 128+ (mod cups outside Europe) in the job offers
-    world = purple.patch(p, area, world)        # 3.3.0: kit colour 10 = purple (palette entry 12 when no maroon)
     cos = hist2 + h2 + 0x1000 * (lpb - 1) if cos_pg else world   # (worlds: their own page)
+    cos = purple.patch(p, area, cos)            # 3.3.0: kit colour 10 = purple (palette entry 12 when no maroon; in
+                                                # the cosmetics page with worlds: the world cave is full, 2026-27)
     cos = blond.patch(p, area, cos, num_bss + shirtnum.BSS_SIZE, shirtnum.spr_index(p))   # 3.3.0: face 3
     cos = menunum.patch(p, cos, num_bss + shirtnum.BSS_SIZE + blond.BSS_SIZE)   # 3.3.4: menu numbers 17..99
     cos = avgprice.patch(p, cos)                 # 3.3.4: average player price >= 1 (divide error, 1984-85 Iceland)

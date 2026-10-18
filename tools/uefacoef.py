@@ -403,6 +403,29 @@ uc_str:                                 ; lp36 lp_cb_str: eax = squad value, edx
     pop edx
     ret
 
+uc_coef:                                ; lp36 lp_cb_coef (criterion 10): edx = row, eax = fallback -> its club coefficient
+    push edx
+    push ebx
+    push ecx
+    push esi
+    push ebp
+    mov esi, eax
+    mov al, [DIYCOPY + 2Dh]
+    call uc_ok
+    jne .plain
+    movzx eax, word [DIY + 12Dh + edx*2]
+    call uc_kc                          ; (the association floor included: UEFA Annex D)
+    jmp .x
+.plain:
+    mov eax, esi
+.x:
+    pop ebp
+    pop esi
+    pop ecx
+    pop ebx
+    pop edx
+    ret
+
 UC_QPTS: dd uc_noq                      ; (uefaq.py: uq_cpts)
 uc_noq:
     ret
@@ -700,7 +723,8 @@ def patch(p, cave, worlds, sites):
         p.add_ptr(1, cave + off, tobj, toff)
     rel = lambda at, to: struct.pack('<i', to - (at + 5))
     for cb, target in (('lp_cb_start', 'uc_start'), ('lp_cb_res', 'uc_res'), ('lp_cb_gend', 'uc_gend'),
-                       ('lp_cb_draw', 'uc_draw'), ('lp_cb_str', 'uc_str')):
+                       ('lp_cb_draw', 'uc_draw'), ('lp_cb_str', 'uc_str'),
+                       ('lp_cb_coef', 'uc_coef')):
         at = lp36.LABELS[cb]
         p.put(1, at, b'\xe9' + rel(at, lab[target]))
     d1 = bytes(p.get(1, 0, len(p.le.obj_bytes(1))))

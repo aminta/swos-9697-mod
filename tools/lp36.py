@@ -39,6 +39,20 @@ LABELS = {}                     # lp36 labels (uefacoef.py patches the lp_cb_* c
 ROW = 0x2B3                     # team row r = DIY + ROW + 18 * r (+0 team dword, +4 played .. +16 points)
 CAL_OFF = ROW + 18 * 36         # the season's draw: 144 (home row, away row), matchday order (rows 36..51: unused by a
 AWAY_GF = CAL_OFF + 288         # 36-club stage, saved with the slot); then away goals (36 bytes), away wins (36 bytes)
+DISC = AWAY_GF + 72             # then disciplinary points (36 bytes, criterion 9: yellow 1, expulsion 3; rows 56+)
+# Cards of a match the engine did not play (simulated): Poisson per club and match, UEFA Champions League 2025-26 (189
+# matches, 718 yellow cards, 45 red cards; kickoff.co.uk referee tables): 1.90 yellows and 0.119 expulsions per club.
+YELLOW_RATE, RED_RATE = 718 / 189 / 2, 45 / 189 / 2
+
+
+def poisson_cum(lam, n):
+    """Thresholds in 1/256 (a random byte below t[k] -> k events), for k = 0 .. n - 1; above the last: n."""
+    import math
+    out, acc = [], 0.0
+    for k in range(n):
+        acc += math.exp(-lam) * lam ** k / math.factorial(k)
+        out.append(min(255, round(acc * 256)))
+    return out
 
 
 def draw(countries, seed=2025):
@@ -376,7 +390,7 @@ lp_start:                               ; replaces `call cseg_2653B` in cseg_258
     push ecx
     push eax
     lea edi, [DIY + AWAY_GF]
-    mov ecx, 72
+    mov ecx, 108                        ; away goals, away wins, disciplinary points
     xor eax, eax
     rep stosb
     pop eax
@@ -469,12 +483,22 @@ lp_res:                                 ; replaces `mov ax, [D1]; mov esi, [A3]`
     div ecx
     cmp eax, 36
     jae .x
+    mov ebx, eax                        ; away row
     mov dl, [D2]                        ; away goals
     add [DIY + AWAY_GF + eax], dl
     mov cx, [D2]
     cmp cx, [D1]
-    jbe .x
+    jbe .d
     inc byte [DIY + AWAY_GF + 36 + eax] ; away win
+.d:
+    mov eax, [A3]                       ; home row
+    sub eax, DIY
+    xor edx, edx
+    mov ecx, 18
+    div ecx
+    cmp eax, 36
+    jae .x
+    call lp_disc
 .x:
     popad
 .r:
@@ -482,8 +506,100 @@ lp_res:                                 ; replaces `mov ax, [D1]; mov esi, [A3]`
     mov esi, [A3]
     ret
 
+lp_disc:                                ; eax = home row, ebx = away row: the match's disciplinary points (criterion 9)
+    mov esi, eax
+    cmp byte [LP_GPLAY], 0              ; the engine played a match: are these its two clubs?
+    je .sim
+    mov ecx, esi
+    call lp_tptr
+    mov edx, eax                        ; home team
+    mov ecx, ebx
+    call lp_tptr                        ; eax = away team
+    mov edi, T1STATS
+    mov ecx, T2STATS
+    cmp edx, [LP_G1]
+    jne .sw
+    cmp eax, [LP_G2]
+    je .pl
+.sw:
+    xchg edi, ecx
+    cmp edx, [LP_G2]
+    jne .sim
+    cmp eax, [LP_G1]
+    jne .sim
+.pl:                                    ; statistics of the played match: bookings = yellow cards that were not a
+    mov byte [LP_GPLAY], 0              ; second one, sendingsOff = expulsions (second yellow or red): 1 and 3 points
+    movzx eax, word [edi + 6]
+    movzx edx, word [edi + 8]
+    lea eax, [eax + edx*2]
+    add eax, edx
+    mov edx, esi
+    call lp_dadd
+    movzx eax, word [ecx + 6]
+    movzx edx, word [ecx + 8]
+    lea eax, [eax + edx*2]
+    add eax, edx
+    mov edx, ebx
+    jmp lp_dadd
+.sim:                                   ; a simulated match: cards drawn with the real rates
+    mov edx, esi
+    call .one
+    mov edx, ebx
+.one:
+    push edx
+    mov ecx, 256
+    call lp_rand
+    mov edi, LP_YCUM                    ; yellows: k = the first threshold above the random byte
+    call .cnt
+    push eax
+    mov ecx, 256
+    call lp_rand
+    mov edi, LP_RCUM
+    call .cnt
+    lea edx, [eax + eax*2]              ; 3 points per expulsion
+    pop eax
+    add eax, edx
+    pop edx
+    jmp lp_dadd
+.cnt:                                   ; eax = random byte, edi = thresholds (FF-ended) -> eax = their count below it
+    xor edx, edx
+.c1:
+    cmp byte [edi + edx], 0FFh
+    je .c2
+    cmp al, [edi + edx]
+    jb .c2
+    inc edx
+    jmp .c1
+.c2:
+    mov eax, edx
+    ret
+
+lp_dadd:                                ; DISC[edx] += eax (at most 255)
+    add al, [DIY + DISC + edx]
+    jnc .s
+    mov al, 0FFh
+.s:
+    mov [DIY + DISC + edx], al
+    ret
+
+lp_tptr:                                ; ecx = row -> eax = its team record
+    imul eax, ecx, 18
+    mov eax, [DIY + eax + 2B3h]
+    add eax, [SELTEAMS]
+    ret
+
+lp_game:                                ; replaces `mov eax, [A1]; mov [gameTeam1], eax` in InitializeInGameTeamsAndStartGame:
+    mov eax, [A2]                       ; the engine plays a match between these two clubs (lp_disc takes its
+    mov [LP_G2], eax                    ; statistics when the result is added)
+    mov eax, [A1]
+    mov [LP_G1], eax
+    mov byte [LP_GPLAY], 1
+    mov [GAMET1], eax
+    ret
+
 ; key per row (4 dwords, compared from the first): points | goal difference; goals | away goals | wins | away
-; wins; opponents' points | opponents' goal difference | opponents' goals; 255 - contest order. Then the row.
+; wins; opponents' points | opponents' goal difference | opponents' goals; 255 - disciplinary points | club coefficient
+; (uefacoef; else 255 - contest order). UEFA 2026-27 art. 18.01, criteria 1-10. Then the row.
 lp_sort:                                ; replaces the first instruction of cseg_883DD (mov [A4], offset DIY)
     mov dword [A4], DIY
     call lp_ours
@@ -545,11 +661,23 @@ lp_rank:                                ; LP_ORD = rows best first, written into
     or eax, edx
     mov [edi + 8], eax
     mov eax, 255
-    sub eax, ecx                        ; then the contest order (= the club coefficients' order)
+    sub eax, ecx                        ; criterion 10: the club coefficient (uefacoef), else the contest order
     cmp word [DIY + 5Fh], 0             ; phase still running (UEFA: only criteria 1-5, then the names)
-    je .k3
+    je .fin
     mov dword [edi + 8], 0
     call .alpha
+    jmp .k3
+.fin:
+    mov edx, ecx
+    call lp_cb_coef
+    cmp eax, 0FFFFFFh
+    jbe .f1
+    mov eax, 0FFFFFFh
+.f1:
+    movzx edx, byte [DIY + DISC + ecx]  ; criterion 9: fewer disciplinary points first
+    not dl
+    shl edx, 24
+    or eax, edx
 .k3:
     mov [edi + 12], eax
     mov [LP_ORD + ecx], cl
@@ -1379,6 +1507,12 @@ lp_cb_draw:
 lp_cb_str:
     ret
     times 4 nop
+lp_cb_coef:                             ; edx = row, eax = fallback -> eax = its club coefficient
+    ret
+    times 4 nop
+
+LP_YCUM: YCUM_BYTES
+LP_RCUM: RCUM_BYTES
 
 LP_PAIRS6: PAIRS6_BYTES
 LP_PO: PO_BYTES
@@ -1389,7 +1523,7 @@ W_LAYOUT, _at = {}, 0                   # the draw's work area (obj2, not saved:
 for _n, _sz in (('W_TRY', 4), ('W_NE', 4), ('W_STEPS', 4), ('W_R0', 4), ('W_T', 4), ('W_P', 4), ('W_Q', 4), ('W_ROT', 4),
                 ('W_STRY', 4), ('W_D', 4), ('LP_SAVE', 60), ('LP_ROW', 4), ('W_STR', 144), ('W_POS', 36), ('W_POS2', 36), ('W_CP', 36), ('W_USED2', 36),
                 ('W_CNT', 256), ('W_NM', 4), ('W_ND', 4), ('W_PS', 4), ('W_CAP', 4), ('W_CTRY', 36), ('W_ADJ', 36 * 36), ('W_USED', 36), ('W_FREE', 36),
-                ('W_DAY', 144), ('W_EH', 144), ('W_EA', 144)):
+                ('W_DAY', 144), ('W_EH', 144), ('W_EA', 144), ('LP_G1', 4), ('LP_G2', 4), ('LP_GPLAY', 4)):
     W_LAYOUT[_n], _at = _at, _at + _sz
 WORK_DRAW = _at
 
@@ -1488,6 +1622,22 @@ def _sites(p):
 HEADERS = {'it': 'CLASSIFICA', 'en': 'STANDINGS', 'fr': 'CLASSEMENT', 'de': 'TABELLE'}
 
 
+def _game_sites(p, a0):
+    """(InitializeInGameTeamsAndStartGame's `mov eax, [A1]; mov [gameTeam1], eax`, (team1StatsData, team2StatsData,
+    gameTeam1)): the stats from InitGameRestoreTeams' resets (mov [A0], offset tNStatsData; mov esi, [A0]; three
+    word fields cleared)."""
+    d1 = p.le.obj_bytes(1)
+    pk = lambda x: re.escape(struct.pack('<I', x))
+    m = [x for x in re.finditer(rb'\xa1' + pk(a0 + 4) + rb'\xa3(.{4})\xa1' + pk(a0 + 8) + rb'\xa3.{4}\xa1' + pk(a0 + 4)
+                                + rb'\xa3' + pk(a0), d1, re.S)]
+    assert len(m) == 1, len(m)
+    game = m[0].start()
+    st = [x.start(1) for x in re.finditer(rb'\xc7\x05' + pk(a0) + rb'(.{4})\x8b\x35' + pk(a0)
+                                          + rb'\x66\xc7\x06\x00\x00\x66\xc7\x46\x02\x00\x00', d1, re.S)]
+    assert len(st) == 2, len(st)
+    return game, (p.target(1, st[0]), p.target(1, st[1]), p.target(1, game + 6))
+
+
 def patch(p, cave, cups, area, lang='it', world_ids=()):
     """cups = [(contest id, countries in contest order)]: at most one tourney pack (CLASSIC TOURNEYS test); world_ids =
     the game's cups (0 Champions Cup, 1 Cup Winners' Cup) some career world plays as a league phase.
@@ -1503,7 +1653,7 @@ def patch(p, cave, cups, area, lang='it', world_ids=()):
     db = lambda b: 'db ' + ', '.join(str(x) for x in b)
     symbols = {'DIYCOPY': (2, s['DIYCOPY']), 'DIY': (2, s['DIY']), 'A0': (2, a0), 'A1': (2, a0 + 4), 'A2': (2, a0 + 8),
                'A3': (2, a0 + 12), 'A4': (2, a0 + 16), 'D1': (2, s['D1']), 'D2': (2, s['D2']),
-               'LP_ID': (0, lp_id), 'AWAY_GF': (0, AWAY_GF), 'CAL_OFF': (0, CAL_OFF), 'LP_TID': (0, int(bool(cups))),
+               'LP_ID': (0, lp_id), 'AWAY_GF': (0, AWAY_GF), 'DISC': (0, DISC), 'CAL_OFF': (0, CAL_OFF), 'LP_TID': (0, int(bool(cups))),
                'LP_W0': (0, int(0 in world_ids)), 'LP_W1': (0, int(1 in world_ids)),
                'C260A9': (1, s['C260A9']), 'C2653B': (1, s['C2653B']), 'C8A2CE': (1, s['C8A2CE']),
                'C2730A': (1, s['C2730A']),
@@ -1511,7 +1661,9 @@ def patch(p, cave, cups, area, lang='it', world_ids=()):
                'PO_BYTES': (0, db(playoff_slots())),
                'PAIRS6_BYTES': (0, db(b for P in range(6) for Q in range(P, 6) for b in (P, Q))),
                'LP_W2': (0, int(2 in world_ids)),
-               'R16_BYTES': (0, db(R16_SEEDS))}
+               'R16_BYTES': (0, db(R16_SEEDS)),
+               'YCUM_BYTES': (0, db(poisson_cum(YELLOW_RATE, 7) + [255])),
+               'RCUM_BYTES': (0, db(poisson_cum(RED_RATE, 2) + [255]))}
     for k, t in enumerate(('1-18', '19-36')):
         symbols[f'LP_S{k + 1}'] = (2, area.add(f'{HEADERS[lang]} {t}'.encode() + b'\0'))
     symbols.update(C49E7A=p.target(1, s['hdr'] + 6), C11F41C=p.target(1, s['col'] + 2),
@@ -1538,6 +1690,8 @@ def patch(p, cave, cups, area, lang='it', world_ids=()):
     work = area.add(bytes(WORK + 4))
     work = (work + 3) & ~3
     symbols.update(LP_KEY=(2, work), LP_OPP=(2, work + 576), LP_ORD=(2, work + 576 + 432))
+    game, st = _game_sites(p, a0)                       # criterion 9: the engine's played match and its statistics
+    symbols.update(GAMET1=st[2], T1STATS=st[0], T2STATS=st[1])
     code, fix = nasmcave.assemble(ASM, cave, symbols)
     lab = nasmcave.labels(ASM, cave, symbols)
     p.put(1, cave, code)
@@ -1561,6 +1715,9 @@ def patch(p, cave, cups, area, lang='it', world_ids=()):
     p.remove(1, s['res'] + 2)                                    # mov ax, [D1]; mov esi, [A3] (12 B) -> call; nops
     p.remove(1, s['res'] + 8)
     p.put(1, s['res'], b'\xe8' + rel(s['res'], lab['lp_res']) + b'\x90' * 7)
+    p.remove(1, game + 1)                                        # mov eax, [A1]; mov [gameTeam1], eax (10 B) -> call
+    p.remove(1, game + 6)
+    p.put(1, game, b'\xe8' + rel(game, lab['lp_game']) + b'\x90' * 5)
     days = [cal[18 * d:18 * d + 18] for d in range(DAYS)]
     print(f'exe: league phase {lp_id:#x}: code obj1+{cave:#x}..{cave + len(code):#x}, sites ' +
           ', '.join(f'{k} {v:#x}' for k, v in s.items() if k in ('days', 'start', 'pair', 'sort', 'res')) +

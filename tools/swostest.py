@@ -1076,6 +1076,9 @@ def advance(s, stop, max_steps=400):
             return False, f'step {step}: {r}'
         scr = s.screen()
         s.log.append(f'[{step}] {scr}')
+        if os.environ.get('SWOSTEST_FILL') and fill_check(s, f'step {step}') is False and not getattr(s, 'fill_bad', 0):
+            s.fill_bad = 1                               # (investigation: the menu texture at every step; the first
+            s.log.append(f'[fill] FIRST CHANGE at step {step}, after: {recent[-1] if recent else "-"}')   # change)
         recent.append(str(scr))                          # stuck: the last 16 screens are 1 or 2 alternating ones
         if len(recent) >= 16 and len(set(recent[-16:])) <= 2:
             return False, f'step {step}: stuck on {" / ".join(sorted(set(recent[-16:])))[:300]}'
@@ -1242,6 +1245,35 @@ def ndiff(a, b):
     return sum(x != y for x, y in zip(a, b)) + abs(len(a) - len(b))
 
 
+def fill_check(s, tag):
+    """The menu buttons' texture: FILL.256 lives at linAdr384k + 65536 (64000 pixels) while the menus run; a match draws
+    its virtual pitch over the whole 384k buffer, and GameLoop / highlights / animations reload it (LoadFillAndSwtitle)
+    before the menus come back. Compares that memory with the game folder's FILL.256 and logs '[fill] <tag>: intact' or
+    'CHANGED' (differing bytes, the first offset). The address of linAdr384k: LoadFillAndSwtitle's `mov eax,
+    [linAdr384k]; add eax, 65536; mov [A1], eax`. Returns True when intact (None if it could not be read)."""
+    try:
+        if not hasattr(fill_check, 'off'):
+            sys.path.insert(0, os.path.join(ROOT, 'tools'))
+            from le import LE
+            import sacups
+            d1 = LE(open(os.path.join(ROOT, 'orig', 'ITALIAN.EXE'), 'rb').read()).obj_bytes(1)
+            a1 = struct.pack('<I', sacups.regs(d1)['A0'] + 4)
+            offs = {struct.unpack('<I', m.group(1))[0] for m in
+                    re.finditer(rb'\xa1(.{4})\x05\x00\x00\x01\x00\xa3' + re.escape(a1), d1, re.S)}
+            assert len(offs) == 1, offs
+            fill_check.off = offs.pop()
+            fill_check.ref = open(os.path.join(s.run, 'SWOS', 'FILL.256'), 'rb').read()[:64000]
+        lin = struct.unpack('<I', s.result.obj2(fill_check.off, 4))[0] + 65536
+        mem = s.result.read(lin, 64000)
+        diff = [i for i in range(0, 64000, 16) if mem[i:i + 16] != fill_check.ref[i:i + 16]]
+        s.log.append(f'[fill] {tag}: ' + ('intact' if not diff else
+                                          f'CHANGED ({len(diff)} of 4000 blocks, first +{diff[0] * 16:#x})'))
+        return not diff
+    except Exception as e:                           # never let the check break a run
+        s.log.append(f'[fill] {tag}: check failed {e}')
+        return None
+
+
 def menu_check(s, tag):
     """Main menu after a career (Davide, 2026-10-16: once its buttons showed an in-match frame instead of their
     FILL.256 texture): screenshot it and compare the MOD. TATTICA button with the game's gradient (a smooth dark
@@ -1257,6 +1289,7 @@ def menu_check(s, tag):
         row = [im.getpixel((int(x * w / 320), y)) for x in range(22, 150, 2)]
         jumps = sum(abs(a[0] - b[0]) + abs(a[1] - b[1]) + abs(a[2] - b[2]) > 60 for a, b in zip(row, row[1:]))
         s.log.append(f'[menu] {tag}: ' + ('CORRUPTED' if jumps > 20 else 'clean') + f' ({jumps} jumps)')
+        fill_check(s, tag)
     except Exception as e:                           # never let the check break a run
         s.log.append(f'[menu] {tag}: check failed {e}')
 
@@ -2163,7 +2196,7 @@ def lp36_tourney():
     op = _P()
     op.le = LE(open(os.path.join(ROOT, 'orig', 'ITALIAN.EXE'), 'rb').read())
     diy = lib97._sites(op)[3] + 0x41F
-    errs, cal, rows, aw, rounds, heads = [], None, None, None, {}, set()
+    errs, cal, rows, aw, rounds, heads, disc = [], None, None, None, {}, set(), None
     with Session('lp36_tourney', exe, {}, 'dump:2', 1800) as s:
         s.wait()
         for t in ('COMP. PREDEFINITA', 'TORNEI STORICI', 'CHAMPIONS LEAGUE 2025-26', 'TORNEO'):
@@ -2182,6 +2215,7 @@ def lp36_tourney():
                     cal = [(b[lp36.CAL_OFF + 2 * i], b[lp36.CAL_OFF + 2 * i + 1]) for i in range(144)]
                 rows = [struct.unpack_from('<7H', b, lp36.ROW + 4 + 18 * r) for r in range(36)]
                 aw = (b[lp36.AWAY_GF:lp36.AWAY_GF + 36], b[lp36.AWAY_GF + 36:lp36.AWAY_GF + 72])
+                disc = b[lp36.DISC:lp36.DISC + 36]
             key = title.split()[0] + (' ' + title.split()[1] if title.split()[0] in ('SECONDO', 'TERZO') else '')
             for j in range(len(vis) - 2):
                 if vis[j] in ('C', '-') and vis[j + 1] in names and vis[j + 2] in names:
@@ -2211,7 +2245,7 @@ def lp36_tourney():
         opp[h].append(a)
         opp[a].append(h)
     key = lambda r: (pts[r], gd[r], rows[r][4], aw[0][r], rows[r][1], aw[1][r], sum(pts[o] for o in opp[r]),
-                     sum(gd[o] for o in opp[r]), sum(rows[o][4] for o in opp[r]), -r)
+                     sum(gd[o] for o in opp[r]), sum(rows[o][4] for o in opp[r]), -disc[r], -r)
     rank = sorted(range(36), key=key, reverse=True)
     place = {names[r]: k + 1 for k, r in enumerate(rank)}
     po = rounds.get('SECONDO TURNO', [])
@@ -3906,6 +3940,113 @@ def world_full_arg():
 def world_full_usa():
     """Full 5.0 world (full_season): a season at PHILADELPHIA (USA, MLS EASTERN CONFERENCE, 15 clubs, rest days)"""
     return full_season('usa', 'NORDAMERICA,USA,MLS EASTERN CONFERENCE,PHILADELPHIA')
+
+@scenario
+def lp36_tie():
+    """League-phase tie-breakers 9-10 (UEFA 2026-27 art. 18.01; tools/lp36.py, lp36 test pack in CLASSIC TOURNEYS):
+    (a) a match the engine played: its statistics poked (home 2 yellows + 1 expulsion = 5 points) and lp_game's
+    record poked for matchday 1's first fixture -> that club's disciplinary points are 5, its opponent's 0; (b) after
+    the last matchday every row is made equal on criteria 1-8 (all zero) with disciplinary points (35 - row) // 2:
+    the play-offs (places 9-24) must follow fewer points first, then the contest order (criterion 10's fallback)"""
+    import csv
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import lib97
+    import lp36
+    import lepatch
+    from le import LE
+    pack = os.path.join(MAIN, 'internal', 'world2526', 'lp36')
+    if not os.path.isdir(pack):
+        return True, 'SKIP: private pack internal/world2526/lp36 missing'
+    names = [c['name'] for c in csv.DictReader(open(os.path.join(pack, 'clubs.csv')))]
+    exe = build('lp36tie', env={'PROTO36': '1', 'SEASON_PACKS': 'ddr-1988-89,world-cup-1934,' + pack})
+    op = lepatch.LEPatch(os.path.join(ROOT, 'orig', 'ITALIAN.EXE'))
+    diy = lib97._sites(op)[3] + 0x41F
+    a0 = __import__('sacups').regs(op.le.obj_bytes(1))['A0']
+    game, (t1, t2, _) = lp36._game_sites(op, a0)
+    d1 = LE(open(os.path.join(exe, 'ITALIAN.EXE'), 'rb').read()).obj_bytes(1)
+    lg = game + 5 + struct.unpack_from('<i', d1, game + 1)[0]          # lp_game: A1 A2 / A3 G2 / A1 A1 / A3 G1 / C6 05 F 01
+    assert d1[game] == 0xE8 and d1[lg] == 0xA1 and d1[lg + 15] == 0xA3 and d1[lg + 20:lg + 22] == b'\xc6\x05', d1[lg:lg + 30].hex()
+    g2, g1, gplay = (struct.unpack_from('<I', d1, x)[0] for x in (lg + 6, lg + 16, lg + 22))
+    m = re.search(rb"\x6b\xc1\x12\x8b\x80.{4}\x03\x05(.{4})", d1, re.S)      # lp_tptr: + [SELTEAMS]
+    selt = struct.unpack('<I', m.group(1))[0]
+    errs, info, rounds, done = [], [], {}, set()
+
+    def poke(s, lin, data):                    # (short SM commands, the debugger's echo read after each: many
+        for k in range(0, len(data), 16):      # pokes in a row filled the pty and both sides waited forever)
+            s.poke(lin + k, data[k:k + 16])
+            s.box.pump(0.05)
+
+    def mark(s, text):                         # progress, written at once (the session log comes at the end)
+        open(os.path.join(s.run, 'progress.txt'), 'a').write(text + '\n')
+    with Session('lp36_tie', exe, {}, 'dump:2', 1800) as s:
+        s.wait()
+        for t in ('COMP. PREDEFINITA', 'TORNEI STORICI', 'CHAMPIONS LEAGUE 2025-26', 'TORNEO'):
+            if press(s, s.screen(), t) is None or s.result.outcome != 'dump':
+                return False, f'{t} not reached ({s.result})'
+        u32 = lambda off: struct.unpack('<I', s.result.obj2(off, 4))[0]
+        for k in range(600):
+            if s.result.outcome != 'dump':
+                return False, f'{s.result} at step {k}; ' + '; '.join(info + errs)
+            scr = s.screen()
+            vis = [t for _, t, inv, _ in scr.entries if t and not inv]
+            title = vis[0].replace('CHAMPIONS LEAGUE 2025-26', '').strip()
+            mark(s, f'{k} {title[:40]} done {sorted(done)}')
+            if title.startswith('PRIMO'):
+                b = s.result.obj2(diy, 0x733)
+                played = [struct.unpack_from('<H', b, lp36.ROW + 4 + 18 * r)[0] for r in range(36)]
+                mark(s, f'   played {sorted(set(played))}')
+                cal = [(b[lp36.CAL_OFF + 2 * i], b[lp36.CAL_OFF + 2 * i + 1]) for i in range(144)]
+                if 'a' not in done and set(played) == {0}:             # (a) before matchday 1
+                    h, a = cal[0]
+                    ptr = lambda r: (struct.unpack_from('<I', b, lp36.ROW + 18 * r)[0] + u32(selt)) & 0xFFFFFFFF
+                    poke(s, s.result.base2 + g1, struct.pack('<I', ptr(h)))
+                    poke(s, s.result.base2 + g2, struct.pack('<I', ptr(a)))
+                    poke(s, s.result.base2 + gplay, b'\x01')
+                    poke(s, s.result.base2 + t1[1] + 6, struct.pack('<HH', 2, 1))     # bookings 2, sendings-off 1
+                    poke(s, s.result.base2 + t2[1] + 6, struct.pack('<HH', 0, 0))
+                    done.add('a')
+                    first = (h, a)
+                elif 'a' in done and 'a2' not in done and set(played) == {1}:
+                    h, a = first
+                    disc = b[lp36.DISC:lp36.DISC + 36]
+                    info.append(f'matchday 1: {names[h]} {disc[h]} points, {names[a]} {disc[a]}; all {list(disc)}')
+                    check(disc[h] == 5 and disc[a] == 0, f'played match: disciplinary points {disc[h]} / {disc[a]}', errs)
+                    check(s.result.obj2(gplay, 1) == b'\0', 'lp_game record not taken', errs)
+                    check(sum(disc) - 5 > 0, 'simulated matches gave no cards', errs)
+                    done.add('a2')
+                elif 'b' not in done and set(played) == {8} and struct.unpack_from('<H', b, 0x5F)[0] == 0:
+                    for r in range(36):                                 # (b) criteria 1-8 equal, 9 = (35 - r) // 2
+                        poke(s, s.result.base2 + diy + lp36.ROW + 4 + 18 * r, struct.pack('<7H', 8, 0, 0, 0, 0, 0, 0))
+                    poke(s, s.result.base2 + diy + lp36.AWAY_GF, bytes(72))
+                    poke(s, s.result.base2 + diy + lp36.DISC, bytes((35 - r) // 2 for r in range(36)))
+                    done.add('b')
+            if title.startswith('TERZO') or title.startswith('QUARTI'):
+                break
+            key = title.split()[0] + (' ' + title.split()[1] if title.split()[0] in ('SECONDO', 'TERZO') else '')
+            for j in range(len(vis) - 2):
+                if vis[j] in ('C', '-') and vis[j + 1] in names and vis[j + 2] in names:
+                    r = rounds.setdefault(key, [])
+                    p = (vis[j + 1], vis[j + 2])
+                    if p not in r and p[::-1] not in r:
+                        r.append(p)
+            for want in ('VIS. RISULTATI', 'PROSS. PARTITA', 'PROSSIMO TURNO', 'TURNO RITORNO', 'CONTINUA', 'OK'):
+                i = scr.find(want, exact=True)
+                if i is not None:
+                    break
+            else:
+                break
+            press(s, scr, i, wait=3)
+    check(done >= {'a', 'a2', 'b'}, f'steps done {sorted(done)}', errs)
+    rank = sorted(range(36), key=lambda r: ((35 - r) // 2, r))               # fewer points, then the contest order
+    place = {names[r]: k + 1 for k, r in enumerate(rank)}
+    po = rounds.get('SECONDO TURNO', [])
+    check(len(po) == 8 and sorted(place[x] for t in po for x in t) == list(range(9, 25)),
+          f'play-off clubs {[(x, place[x]) for t in po for x in t]}', errs)
+    for h, a in po:                          # unseeded (23/24 ..) at home first v seeded (9/10 ..) of the same pair
+        j = (place[a] - 9) // 2
+        check(place[h] in (23 - 2 * j, 24 - 2 * j), f'play-off {h} ({place[h]}) - {a} ({place[a]})', errs)
+    info.append(f'play-offs {[(h, place[h], a, place[a]) for h, a in po]}')
+    return not errs, '; '.join(info + errs)
 
 
 def run_parallel(names, jobs):

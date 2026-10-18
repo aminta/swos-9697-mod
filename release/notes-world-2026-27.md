@@ -271,6 +271,9 @@ when the engine lands it.
 - Other game modes (friendlies, seasons, tourneys, the 1996-97 career) are unchanged.
 
 **Mod rules of this world**
+- The two Milan clubs are called INTER and MILAN (the game had INTER MILAN and AC MILAN), also in the Europe 1984-85
+  world (its INTERNAZIONALE) and in the transfer pool. A career saved with an earlier version keeps the names it was
+  saved with.
 - Extras of the managed club (25-man squads): each of the 9 reserves keeps his real name, role, nationality and face,
   but his skill total is at most the weakest of the club's 16 (outfield vs outfield, keeper vs keeper) and his price
   = his skill total, so no extra is better than the weakest of the club's 16 and the club's best 11 do not change.
@@ -666,6 +669,9 @@ Non una formula uguale per tutti: ogni campionato gioca la stagione come l'ha sc
 - Le altre modalità (amichevoli, stagioni, tornei, carriera 1996-97) non cambiano.
 
 **Regole della mod per questo mondo**
+- Le due squadre di Milano si chiamano INTER e MILAN (il gioco aveva INTER MILAN e AC MILAN), anche nel mondo Europa
+  1984-85 (dove era INTERNAZIONALE) e nel mercato dei giocatori. Una carriera salvata con una versione precedente tiene
+  i nomi con cui è stata salvata.
 - Riserve del club allenato (rose da 25): ognuna delle 9 riserve tiene nome, ruolo, nazionalità e volto veri, ma la
   somma delle sue abilità non supera quella del più debole dei 16 del club (giocatori di movimento con giocatori di
   movimento, portieri con portieri) e il suo prezzo è uguale a quella somma: nessuna riserva è migliore del più debole

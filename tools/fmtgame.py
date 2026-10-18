@@ -264,11 +264,18 @@ def from_pack(d):
 
 def write(out_dir, items):
     """FMTxx[world].DAT per language and world from [(world, cid, titles, texts)]."""
-    by = {}
+    by, keys = {}, {}
     for world, cid, titles, texts in items:
         for lang in LANGS:
             body = [x for line in texts[lang] for x in wrap(ascii_up(line, lang))]
-            by.setdefault((lang, world), []).append((cid, titles[lang][:fmtpage.NAME], pages(body)))
+            key = titles[lang][:fmtpage.NAME - 1]
+            k = (lang, world, key)
+            if k in keys:                       # the same title twice (two divisions with one name): one page,
+                keys[k].extend([''] + body)     # both descriptions
+                continue
+            keys[k] = body
+            by.setdefault((lang, world), []).append((cid, key, None))
+    by = {lw: [(cid, key, pages(keys[(lw[0], lw[1], key)])) for cid, key, _ in lst] for lw, lst in by.items()}
     files = []
     for (lang, world), lst in sorted(by.items()):
         name = f'FMT{lang.upper()}{world or ""}.DAT'

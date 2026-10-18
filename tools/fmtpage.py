@@ -83,13 +83,17 @@ WORLD_FILE
     xor ecx, ecx
 .cmp:
     mov al, [esi + ecx + 1]
+    test al, al
+    jz .kend
     cmp al, [edi + ecx]
     jne .ne
-    test al, al
-    jz .eq
     inc ecx
-    cmp ecx, NAME_
+    cmp ecx, NAME_ - 1
     jb .cmp
+    jmp .eq                             ; a key of 40 characters: the title starts with it (a longer one cut)
+.kend:
+    cmp byte [edi + ecx], 0             ; a shorter key: the whole title
+    jne .ne
 .eq:
     pop edi
     pop ecx
@@ -368,7 +372,7 @@ def build(path, pages):
     for cid, name, pp in pages:
         txt = '\x0c'.join('\n'.join(l.upper() for l in pg[:LINES]) for pg in pp).encode('ascii')
         assert len(txt) < TXTMAX, (name, len(txt))
-        nm = name.encode('latin-1')[:NAME]
+        nm = name.encode('latin-1')[:NAME - 1]
         idx += struct.pack('<B', 0xFF if cid is None else cid) + nm + b'\0' * (NAME - len(nm))
         idx += struct.pack('<IH', head + len(body), len(txt))
         idx += b'\0' * (-len(idx) % ENTRY)

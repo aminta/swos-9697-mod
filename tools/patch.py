@@ -185,10 +185,13 @@ def patch_exe(src, dst, remap, lang='it'):
     lpb += bool(mkseason.league_phase_worlds())   # (+1 more: the UEFA coefficients, uefacoef)
     lpb += 4 * bool(mkseason.league_phase_worlds())   # (+4: the UEFA qualifying rounds, uefaq: C code + glue)
     xtra_on = bool(mkseason.xtra_files() or os.environ.get('XTRA_HOOK'))
-    bigtables.ON[0] = worlds and bigtables.needed()    # a world numbering its clubs 2000+ (World 5.0)
+    bigtables.ON[0] = bigtables.needed()         # a world numbering its clubs 2000+ (World 5.0; 4.0's world 0)
     bigtables.MOVED.clear()
     pg_tabs = mkseason.parallel_tables() + engine.parallel_tables()   # parallel groups (worlds' packs; world 0: engine)
     rs_tabs = mkseason.reserve_tables() + engine.reserve_tables()     # reserves below the lowest level (gplay.c)
+    if rs_tabs:                                        # their queues (RS_STATE) in the .CAR engine block: cleared on
+        import gplay as gp_mod                         # a new career or an old save (init 0: seeded from the pool)
+        engine.save_item('RS', gp_mod.RS_SIZE)
     dp_tabs = mkseason.dplay_tables() if mkseason.worlds() else []   # Italian play-offs (dplay.py)
     lpb += 2 * bool(dp_tabs)                           # (+2: their code pages, before the extra one)
     gp_tabs = (mkseason.gplay_tables() if mkseason.worlds() else []) + engine.gplay_tables()   # knockout play-offs
@@ -353,6 +356,8 @@ def patch_exe(src, dst, remap, lang='it'):
         import gplay                            # and the parallel groups' season-end fix (pg_season, pgroups.py)
         gp_at = hist2 + h2 + 0x1000 * (lpb - cos_pg - 2 - xtra_pg)
         gplay.patch(p, gp_at, gp_at + 0x2000, gp_tabs, careerworld.BSS[0] + careerworld.BSS_SIZE)
+        if rs_tabs:
+            engine.ITEM_AT['RS'] = gplay.LABELS['RS_STATE']
         pgroups.relax_file_check(p)             # (moves of several divisions: cseg_9487A's per-file sum check)
         careerworld.BSS_SIZE += gplay.GP_BSS
     assert cave <= WORLD_CAVE, hex(cave)
@@ -394,6 +399,7 @@ def patch_exe(src, dst, remap, lang='it'):
     tail = (careerworld.BSS_SIZE if bigw else 0) + shirtnum.BSS_SIZE + blond.BSS_SIZE + menunum.BSS_SIZE + fmtpage.BSS_SIZE   # obj2 tail
     p.set_vsize(2, obj2_free + o2pages * p.le.page_size + tail, bss=tail)
     p.add_flags(1, 0x2)            # writable: season end rewrites the SA cup team lists in the cave
+    trailer.late(p)                              # the engine block's late addresses (RS_STATE ...)
     delta, shift = p.save(dst)
     print(f'exe: fixups +{delta} bytes, data pages moved {shift:#x}, caves used up to obj1+{cave:#x} / +{world:#x}')
 

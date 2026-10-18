@@ -8,9 +8,19 @@
      n x (type, div, a, b): type 0 = [div, place a], 1 = the best of div without Europe, 2 = the league cup winner;
      rounds x (ties, legs, host, level, pairing, gap) + 2 x ties member codes: 0..63 an entrant, 0x80|k the winner of
      tie k, 0xC0|k its loser (ties numbered across rounds); pairing p > 0 = the first p members best v worst, re-paired;
-   gap g > 0: a tie whose clubs are g+ points apart is not played, the better placed goes through; ended by a 0.
+   gap g > 0: a tie whose clubs are g+ points apart is not played, the better placed goes through;
+   a GROUP round (a round robin): (members m, 0x80 | meetings, host, 0, 0, 0) + m member codes + m start bonus points;
+   its final placings are appended to the placings list (numbered across the group rounds), member code 0x40|k = the
+   k-th placing; flags bits 4-7 = 'winners' (a promotion play-off ending with a group: its top w go to winner_div,
+   the other winner_div clubs to loser_div; 0 = 1); ended by a 0.
    Only the promotion / playout play-offs whose entrants are all [div, place] are played here: promotion = the
-   winner to winner_div, another winner_div entrant to loser_div; playout = the last round's losers to loser_div. */
+   winner to winner_div, another winner_div entrant to loser_div; playout = the last round's losers to loser_div.
+   4.0 package 6 ('title' / 'continental', world byte 0 and 5.0): kind 5 title = the champion is the last tie's
+   winner (GP_OUT.res: team / global number), kind 6 continental = the continental places go to the last tie's winner
+   and loser (the champion stays the table's 1st); entrant type 3 = place a of stage b's kept table (GP_IN.st[b],
+   split's 'keep'), resolved to its row of division div's final table by the global number; host byte bit 7 =
+   skip_if_same (a tie of one club with itself is not played: it goes through); levels 4 away_pens / 5 away_better
+   (away goals are not simulated: as et_pens / better); member 0x3F = the best placed loser of the previous round. */
 
 typedef unsigned char u8;
 typedef unsigned short u16;
@@ -18,22 +28,29 @@ typedef unsigned int u32;
 typedef signed char s8;
 
 enum { GT = 24, GD = 16, GN = 64, RESERVE = 0xFE };   /* (GD: Italy 2026-27 has 14 divisions) */
-enum { HOST_LISTED, HOST_BETTER, HOST_DRAWN, HOST_NEUTRAL };
-enum { LV_BETTER, LV_ET_PENS, LV_ET_BETTER, LV_PENS };
+enum { HOST_LISTED, HOST_BETTER, HOST_DRAWN, HOST_NEUTRAL, HOST_SKIP_SAME = 0x80 };
+enum { LV_BETTER, LV_ET_PENS, LV_ET_BETTER, LV_PENS, LV_AWAY_PENS, LV_AWAY_BETTER };
+enum { K_TITLE = 5, K_CONT = 6, GS = 2, BEST_LOSER = 0x3F };
 struct gp_row { u16 team, glob, won, gf, ga, pts; };
 struct gp_in {
     u8 nd, pad[3];
     u8 n[GD], pad2[2];                  /* clubs per division (0 = not captured) */
     struct gp_row t[GD][GT];
     const u8 *spec;
+    u8 nst[GS], pad3[2];                /* kept stage tables (split 'keep'), rows by place */
+    struct gp_row st[GS][GT];
 };
 struct gp_mv { u16 glob, team; s8 delta; u8 pad[3]; };
-struct gp_out { u8 nmv, pad[3]; struct gp_mv mv[32]; };
+struct gp_res { u8 kind, div; u16 team[2], glob[2]; };     /* title: [0] the champion; continental: winner, loser */
+struct gp_out { u8 nmv, nres, pad[2]; struct gp_mv mv[32]; struct gp_res res[4]; };
 struct gp_in GP_IN;
 struct gp_out GP_OUT;
 const u32 GP_LAYOUT[] = { sizeof(struct gp_row), GT, __builtin_offsetof(struct gp_in, n),
                           __builtin_offsetof(struct gp_in, t), __builtin_offsetof(struct gp_in, spec),
-                          __builtin_offsetof(struct gp_out, mv), sizeof(struct gp_mv), GD };
+                          __builtin_offsetof(struct gp_out, mv), sizeof(struct gp_mv), GD,
+                          __builtin_offsetof(struct gp_in, nst), __builtin_offsetof(struct gp_in, st), GS,
+                          __builtin_offsetof(struct gp_out, nres), __builtin_offsetof(struct gp_out, res),
+                          sizeof(struct gp_res) };
 
 static u32 rng;
 static u32 below(u32 n) {
@@ -71,7 +88,7 @@ static int tie(int a, int b, int legs, int host, int level) {
     u32 sh = str2(h, adv == h), so = str2(o, adv == o);
     if (below(100) < (legs == 1 ? 22u : 12u)) {             /* level after the regulation time */
         int bp = better(h, o) ? h : o;
-        if (level == LV_BETTER || level == LV_ET_BETTER) return bp;
+        if (level == LV_BETTER || level == LV_ET_BETTER || level == LV_AWAY_BETTER) return bp;
         u32 x = str2(h, 0), y = str2(o, 0);                   /* e.t. + penalties: close to a coin toss */
         sh = 2 * x + y; so = x + 2 * y;
     }
@@ -87,6 +104,57 @@ static void move(int c, int delta) {
 
 static int sbetter_cmp(int a, int b) { return better(a, b); }
 
+static void result(int kind, int w, int l) {
+    if (GP_OUT.nres >= 4) return;
+    struct gp_res *x = &GP_OUT.res[GP_OUT.nres++];
+    x->kind = kind; x->div = DV(w);
+    x->team[0] = row(w)->team; x->glob[0] = row(w)->glob;
+    x->team[1] = l >= 0 ? row(l)->team : 0xFFFF; x->glob[1] = l >= 0 ? row(l)->glob : 0xFFFF;
+}
+
+static int stage_club(int d, int s, int a) {   /* place a of kept stage s -> its row of division d, or -1 */
+    if (s >= GS || a < 1 || a > GP_IN.nst[s] || d >= GP_IN.nd) return -1;
+    u16 g = GP_IN.st[s][a - 1].glob;
+    for (int k = 0; k < GP_IN.n[d]; k++) if (GP_IN.t[d][k].glob == g) return d * GT + k;
+    return -1;
+}
+
+/* a group match: goals by strength (draws ~ 1 in 4), home advantage unless neutral */
+static void gmatch(int h, int a, int neutral, int *gh, int *ga) {
+    u32 sh = str2(h, !neutral), sa = str2(a, 0);
+    if (below(100) < 26) { int g = below(3); *gh = g; *ga = g; return; }
+    int w = below(sh + sa) < sh, gw = 1 + below(3), gl = below(gw);
+    *gh = w ? gw : gl; *ga = w ? gl : gw;
+}
+
+struct gs { int c, pts, gd, gf; };
+static int gs_before(const struct gs *x, const struct gs *y) {   /* points, goal difference, goals, the better place */
+    if (x->pts != y->pts) return x->pts > y->pts;
+    if (x->gd != y->gd) return x->gd > y->gd;
+    if (x->gf != y->gf) return x->gf > y->gf;
+    return better(x->c, y->c);
+}
+
+/* a group round: mem[0..m) round robin `meet` times (home and away alternate), start bonus points; placings -> out */
+static void group(const int *mem, int m, int meet, int neutral, const u8 *bonus, int *out) {
+    struct gs t[GT];                    /* (at most 24 members: compile_spec)  */
+    for (int i = 0; i < m; i++) { t[i].c = mem[i]; t[i].pts = bonus[i]; t[i].gd = 0; t[i].gf = 0; }
+    for (int k = 0; k < meet; k++)
+        for (int i = 0; i < m; i++)
+            for (int j = i + 1; j < m; j++) {
+                int h = (k & 1) ? j : i, a = (k & 1) ? i : j, gh, ga;
+                gmatch(t[h].c, t[a].c, neutral, &gh, &ga);
+                t[h].gf += gh; t[a].gf += ga; t[h].gd += gh - ga; t[a].gd += ga - gh;
+                if (gh > ga) t[h].pts += 3; else if (gh < ga) t[a].pts += 3; else { t[h].pts++; t[a].pts++; }
+            }
+    for (int i = 1; i < m; i++) {
+        struct gs x = t[i]; int j = i;
+        while (j > 0 && gs_before(&x, &t[j - 1])) { t[j] = t[j - 1]; j--; }
+        t[j] = x;
+    }
+    for (int i = 0; i < m; i++) out[i] = t[i].c;
+}
+
 void gp_season(void) {
     const u8 *s = GP_IN.spec;
     u32 h = 0;
@@ -94,26 +162,47 @@ void gp_season(void) {
         for (int k = 0; k < GP_IN.n[d]; k++) h = h * 31 + GP_IN.t[d][k].glob + (GP_IN.t[d][k].pts << 9);
     rng = h;
     GP_OUT.nmv = 0;
+    GP_OUT.nres = 0;
     while (s && *s) {
         int kind = s[0], n = s[1], nr = s[2], wdiv = s[3], ldiv = s[4];
         const u8 *e = s + 6, *r = e + 4 * n;
-        int club[GN], ok = kind == 1 || kind == 4, W[GN], L[GN], nt = 0, last = -1, lastr = 0, nlast = 0;
+        int club[GN], ok = kind == 1 || kind == 4 || kind == K_TITLE || kind == K_CONT;
+        int W[GN], L[GN], nt = 0, last = -1, lastr = 0, nlast = 0;
+        int P[GN], np = 0, glast = -1, winners = s[5] >> 4 ? s[5] >> 4 : 1;
         for (int i = 0; i < n && i < GN; i++) {
-            int d = e[4 * i + 1], p = e[4 * i + 2];
-            if (e[4 * i] != 0 || d >= GP_IN.nd || p < 1 || p > GP_IN.n[d]) ok = 0;
+            int ty = e[4 * i], d = e[4 * i + 1], p = e[4 * i + 2];
+            if (ty == 3) {
+                club[i] = stage_club(d, e[4 * i + 3], p);
+                if (club[i] < 0) ok = 0;
+            } else if (ty != 0 || d >= GP_IN.nd || p < 1 || p > GP_IN.n[d]) ok = 0;
             else club[i] = d * GT + p - 1;
         }
         for (int k = 0; k < nr; k++) {          /* walk the rounds (also to skip a play-off not played here) */
-            int ties = r[0], legs = r[1], host = r[2], level = r[3], pairing = r[4], gap = r[5];
+            int ties = r[0], legs = r[1], host = r[2] & 0x7F, skip = r[2] & HOST_SKIP_SAME, level = r[3];
+            int pairing = r[4], gap = r[5];
             const u8 *m = r + 6;
-            int mem[2 * GN];
-            for (int i = 0; i < 2 * ties; i++) {
+            int mem[2 * GN], gm = legs & 0x80 ? ties : 2 * ties;     /* (a group round: ties = its members) */
+            for (int i = 0; i < gm; i++) {
                 int c = m[i], v = -1;
-                if (c < 0x80) v = c < n ? club[c] : -1;
+                if (c == BEST_LOSER) {          /* the best placed loser of the previous round */
+                    for (int t = lastr; t < lastr + nlast && t < nt; t++)   /* (still the previous round's) */
+                        if (v < 0 || better(L[t], v)) v = L[t];
+                } else if (c < 0x40) v = c < n ? club[c] : -1;
+                else if (c < 0x80) v = (c & 0x3F) < np ? P[c & 0x3F] : -1;
                 else if (c < 0xC0) v = (c & 0x3F) < nt ? W[c & 0x3F] : -1;
                 else v = (c & 0x3F) < nt ? L[c & 0x3F] : -1;
                 mem[i] = v;
                 if (v < 0) ok = 0;
+            }
+            if (legs & 0x80) {                  /* a group round */
+                if (ok && ties <= GT && np + ties <= GN) {
+                    group(mem, ties, legs & 0x7F, host == HOST_NEUTRAL, m + ties, P + np);
+                    glast = np;
+                }
+                np += ties;
+                last = -1;
+                r = m + 2 * ties;
+                continue;
             }
             if (ok && pairing) {            /* best v worst: sorted, then 1st v last, 2nd v second last ... */
                 int pn = pairing <= 2 * ties ? pairing : 2 * ties;
@@ -130,17 +219,31 @@ void gp_season(void) {
             for (int i = 0; i < ties; i++) {
                 if (ok && nt < GN) {
                     int a = mem[2 * i], b = mem[2 * i + 1], d = (int)row(a)->pts - (int)row(b)->pts;
-                    int w = gap && (d >= gap || -d >= gap) ? (better(a, b) ? a : b)   /* (too far apart: no tie) */
+                    int w = a == b && skip ? a                                         /* (one club: no tie) */
+                          : gap && (d >= gap || -d >= gap) ? (better(a, b) ? a : b)   /* (too far apart: no tie) */
                                                            : tie(a, b, legs, host, level);
                     W[nt] = w; L[nt] = w == mem[2 * i] ? mem[2 * i + 1] : mem[2 * i];
-                    last = nt;
+                    last = nt; glast = -1;
                 }
                 nt++;
             }
             r = m + 2 * ties;
         }
         if (ldiv == RESERVE) ldiv = GP_IN.nd;   /* (the reserve: out of every division) */
-        if (ok && last >= 0 && kind == 4) {     /* playout: the last round's losers down */
+        if (ok && (kind == K_TITLE || kind == K_CONT) && glast >= 0) {     /* a final group: its 1st (and 2nd) */
+            result(kind, P[glast], np - glast > 1 ? P[glast + 1] : -1);
+        } else if (ok && (kind == K_TITLE || kind == K_CONT) && last >= 0) {   /* the last tie's winner (loser) */
+            result(kind, W[last], L[last] == W[last] ? -1 : L[last]);
+        } else if (ok && glast >= 0 && kind == 1) {    /* a final group: its top `winners` to winner_div, the other
+                                                   winner_div clubs to loser_div, the rest stay */
+            for (int i = 0; i < n; i++) {
+                int c = club[i], to = DV(c), top = 0;
+                for (int k = 0; k < winners; k++) if (P[glast + k] == c) top = 1;
+                if (top) to = wdiv;
+                else if (DV(c) == wdiv) to = ldiv;
+                move(c, to - DV(c));
+            }
+        } else if (ok && last >= 0 && kind == 4) {     /* playout: the last round's losers down */
             for (int t = lastr; t < lastr + nlast && t < GN; t++) move(L[t], ldiv - DV(L[t]));
         } else if (ok && last >= 0) {           /* the winner to winner_div; another winner_div entrant down */
             int w = W[last];
@@ -227,7 +330,9 @@ void pg_season(const u8 *t, const s8 *slt, s8 *copy, int world) {
 /* A save from before the groups (3.x: pgroups.py's table on a chain the save's divisions don't know). Every club of
    the table: its division now (base + slt), through map (old division -> new, 0xFF = the same), to its level on the
    new chain; a single division as it is, a level of groups to the group of its area, else the nearest with room (the
-   clubs with an area first, so every group keeps its size). copy = the result (not slt: slt is read again). */
+   clubs with an area first, so every group keeps its size). A map value 0x80 | division pins the club to exactly
+   that division (4.0: a 3.x career's live 18-club league kept together for its current season), counted before the
+   others are placed. copy = the result (not slt: slt is read again). */
 static const u8 *pl_one(const u8 *t, const u8 *map, const s8 *slt, s8 *copy, int run) {
     int nl = t[1];
     u8 first[PL], cnt[PL], occ[PL][PG], pidx[PL];
@@ -246,11 +351,15 @@ static const u8 *pl_one(const u8 *t, const u8 *map, const s8 *slt, s8 *copy, int
             const u8 *e = c + rs * i;
             int g = e[0] | e[1] << 8, base = e[2];
             if (g >= 8 * (int)sizeof pg_pend) continue;
-            int d = slt[g] + base;
-            if (d >= 0 && d < 256 && map[d] != 0xFF) d = map[d];
+            int d = slt[g] + base, pin = 0;
+            if (d >= 0 && d < 256 && map[d] != 0xFF) { pin = map[d] & 0x80; d = map[d] & 0x7F; }
             int l = pg_level(d, nl, first, cnt);
             if (l >= nl) { if (pass == 0) copy[g] = d - base; continue; }    /* (the reserve: as it is) */
             if (cnt[l] == 1) { if (pass == 0) copy[g] = first[l] - base; continue; }
+            if (pin) {                          /* pinned (map 0x80 | division): exactly that group, counted first */
+                if (pass == 0) { copy[g] = d - base; if (d - first[l] < PG) occ[l][d - first[l]]++; }
+                continue;
+            }
             if (pass == 0) { pg_pend[g >> 3] |= 1 << (g & 7); continue; }
             if (!PEND(g)) continue;
             int area = pidx[l] < npar ? e[3 + pidx[l]] : 0xFF, to = -1;
@@ -287,6 +396,7 @@ void pg_place(const u8 *t, const u8 *map, const s8 *slt, s8 *copy, int world) {
 enum { RQ = 64, RC = 8 };
 struct rs_state { u8 init, n, pad[2]; u16 q[RQ]; };
 struct rs_state RS_STATE[RC];
+const u32 RS_STATE_SIZE = sizeof RS_STATE;          /* (gplay.RS_SIZE: the engine block item 'RS') */
 
 static int rs_base(const u8 *c, int nc, int g) {
     for (int i = 0; i < nc; i++) if ((c[3 * i] | c[3 * i + 1] << 8) == g) return c[3 * i + 2];

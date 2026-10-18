@@ -12,22 +12,35 @@ the move of a winner_div entrant that does not win (to loser_div). Not playable 
 slot 4: dplay's mechanism, to come); the European play-offs are uefaq's.
 
 pack.json league "ko_playoffs": [{ "key", "names": {lang: [long, short]},
-  "kind": "promotion" | "europe" | "placement" | "playout" (the last round's losers go down to loser_div),
-  "entrants": [[div, place] | {"div": d, "best_without_europe": true} | {"league_cup_winner": true, "if_places": [a, b]}],
+  "kind": "promotion" | "europe" | "placement" | "playout" (the last round's losers go down to loser_div) |
+          "title" (the champion = the last tie's winner, or the final group's 1st) | "continental" (its winner and
+          runner-up take the continental places; the champion stays the table's 1st),
+  "entrants": [[div, place] | {"div": d, "best_without_europe": true} | {"league_cup_winner": true, "if_places": [a, b]}
+               | {"stage_place": s, "place": a, "div": d} (place a of split stage s's kept table, e.g. an Apertura)],
   "rounds": [{"ties": [[a, b], ...] | (with "pairing": "best_worst", "clubs": [...]), "legs": 1 | 2,
               "host": "listed" | "better" | "drawn" | "neutral", "level": "better" | "et_pens" | "et_better" | "pens",
-              "gap": g (a tie of clubs g+ points apart is not played: the better placed goes through)}],
-  "winner_div": d, "loser_div": d2 | "reserve" (out of the league), "skip_qualified": bool }]   (0-based divisions, 1-based places; tie members:
-  an entrant index, "W<k>" / "L<k>" the winner / loser of tie k, ties numbered in order across rounds)
+              "gap": g (a tie of clubs g+ points apart is not played: the better placed goes through),
+              "skip_if_same": bool (a tie of one club with itself is not played: it goes through)}
+             | {"group": {"rounds": 1..4, "bonus": [points per member], "host": "listed" | "neutral"},
+                "members": [...]} (a round robin; its placings P<k>, numbered across the group rounds)],
+  "winner_div": d, "loser_div": d2 | "reserve" (out of the league), "skip_qualified": bool,
+  "winners": w (a promotion play-off ending with a group: its top w go to winner_div) }]   (0-based divisions,
+  1-based places; members: an entrant index, "W<k>" / "L<k>" the winner / loser of tie k, ties numbered in order
+  across rounds, "P<k>" the k-th placing of the group rounds, "BL" the best placed loser of the previous knockout
+  round); levels also "away_pens" / "away_better" (away goals, then penalties / the better placed: simulated as
+  et_pens / better)
 """
 import os
 import re
 import struct
 
-KINDS = {'promotion': 1, 'europe': 2, 'placement': 3, 'playout': 4}
+RS_SIZE = 8 * 132                   # gplay.c RS_STATE: struct rs_state {u8 init, n, pad[2]; u16 q[64];} x RC 8
+KINDS = {'promotion': 1, 'europe': 2, 'placement': 3, 'playout': 4, 'title': 5, 'continental': 6}
 RESERVE = 0xFE                  # loser_div 'reserve': out of every division (gplay.c)
 HOSTS = {'listed': 0, 'better': 1, 'drawn': 2, 'neutral': 3}
-LEVELS = {'better': 0, 'et_pens': 1, 'et_better': 2, 'pens': 3}
+LEVELS = {'better': 0, 'et_pens': 1, 'et_better': 2, 'pens': 3, 'away_pens': 4, 'away_better': 5}
+SKIP_SAME = 0x80                # host byte bit 7: a tie of one club with itself is not played (4.0 package 6)
+BEST_LOSER = 0x3F               # member 'BL': the best placed loser of the previous round (entrants are 0..62)
 
 
 def compile_spec(pos, ndiv):
@@ -47,6 +60,11 @@ def compile_spec(pos, ndiv):
                 ents.append((0, d, p, 0))
             elif isinstance(e, dict) and e.get('best_without_europe'):
                 ents.append((1, e['div'], 0, 0))
+            elif isinstance(e, dict) and 'stage_place' in e:   # place of a split stage's kept table (title)
+                d, s, a = e.get('div', 0), e['stage_place'], e.get('place', 1)
+                if not (0 <= d < ndiv and 0 <= s < 2 and a >= 1):
+                    raise ValueError(f'{key}: entrant {e}')
+                ents.append((3, d, a, s))
             elif isinstance(e, dict) and e.get('league_cup_winner'):
                 a, b = e.get('if_places', [0, 0])
                 ents.append((2, 0, a, b))
@@ -54,8 +72,32 @@ def compile_spec(pos, ndiv):
                 raise ValueError(f'{key}: entrant {e}')
         if not 2 <= len(ents) <= 63:
             raise ValueError(f'{key}: 2..63 entrants')
-        rounds, nt = bytearray(), 0
+        rounds, nt, npl = bytearray(), 0, 0
+        def code(m):
+            if m == 'BL':
+                if not nt:
+                    raise ValueError(f'{key}: BL (the best loser) needs an earlier knockout round')
+                return BEST_LOSER
+            if isinstance(m, int):
+                if not 0 <= m < len(ents):
+                    raise ValueError(f'{key}: member {m}')
+                return m
+            mm = re.fullmatch(r'([WLP])(\d+)', str(m))
+            if not mm or int(mm.group(2)) >= (npl if mm.group(1) == 'P' else nt):
+                raise ValueError(f'{key}: member {m} (W<k> / L<k> of an earlier tie, P<k> an earlier placing)')
+            return {'W': 0x80, 'L': 0xC0, 'P': 0x40}[mm.group(1)] | int(mm.group(2))
         for rd in po['rounds']:
+            if 'group' in rd:           # a round robin: (members, 0x80 | meetings, host, 0, 0, 0) codes, bonuses
+                g, mem = rd['group'], rd['members']
+                meet, bonus = g.get('rounds', 2), g.get('bonus', [0] * len(mem))
+                if not (2 <= len(mem) <= 24 and meet in (1, 2, 3, 4) and len(bonus) == len(mem)
+                        and all(0 <= b < 256 for b in bonus) and g.get('host', 'listed') in ('listed', 'neutral')):
+                    raise ValueError(f'{key}: group of 2..24 members, rounds 1..4, a bonus per member, host '
+                                     f'listed / neutral')
+                rounds += bytes((len(mem), 0x80 | meet, HOSTS[g.get('host', 'listed')], 0, 0, 0))
+                rounds += bytes(code(m) for m in mem) + bytes(bonus)
+                npl += len(mem)
+                continue
             # a best_worst block: the round itself, or its first tie entry {pairing, clubs}; other ties as listed
             tl = list(rd.get('ties') or [])
             blk = rd if rd.get('pairing') else (tl.pop(0) if tl and isinstance(tl[0], dict) else None)
@@ -66,34 +108,28 @@ def compile_spec(pos, ndiv):
             bm = list(blk['clubs']) if blk is not None else []
             mem = bm + [m for t in tl for m in t]
             ties, pairing = len(mem) // 2, len(bm)
-            codes = []
-            for m in mem:
-                if isinstance(m, int):
-                    if not 0 <= m < len(ents):
-                        raise ValueError(f'{key}: member {m}')
-                    codes.append(m)
-                else:
-                    mm = re.fullmatch(r'([WL])(\d+)', str(m))
-                    if not mm or int(mm.group(2)) >= nt:
-                        raise ValueError(f'{key}: member {m} (W<k> / L<k> of an earlier tie)')
-                    codes.append((0x80 if mm.group(1) == 'W' else 0xC0) | int(mm.group(2)))
+            codes = [code(m) for m in mem]
             legs = rd.get('legs', 1)
             if legs not in (1, 2) or rd.get('host', 'listed') not in HOSTS or rd.get('level', 'et_pens') not in LEVELS:
                 raise ValueError(f'{key}: legs 1 / 2, host {sorted(HOSTS)}, level {sorted(LEVELS)}')
             gap = rd.get('gap', 0)
             if not (isinstance(gap, int) and 0 <= gap < 256):
                 raise ValueError(f'{key}: gap 0..255 points')
-            rounds += bytes((ties, legs, HOSTS[rd.get('host', 'listed')], LEVELS[rd.get('level', 'et_pens')], pairing,
+            host = HOSTS[rd.get('host', 'listed')] | (SKIP_SAME if rd.get('skip_if_same') else 0)
+            rounds += bytes((ties, legs, host, LEVELS[rd.get('level', 'et_pens')], pairing,
                              gap))
             rounds += bytes(codes)
             nt += ties
-        if nt > 63:
-            raise ValueError(f'{key}: at most 63 ties')
+        if nt > 63 or npl > 64:
+            raise ValueError(f'{key}: at most 63 ties, 64 group placings')
+        win = po.get('winners', 1)
+        if not 1 <= win <= 15:
+            raise ValueError(f'{key}: winners 1..15')
         wd, ld = po.get('winner_div', 0), po.get('loser_div', 0)
         ld = RESERVE if ld == 'reserve' else ld
         if kind in (1, 4) and not (0 <= wd < ndiv and (0 <= ld < ndiv or ld == RESERVE)):
             raise ValueError(f'{key}: winner_div / loser_div (a division, or "reserve")')
-        flags = 1 if po.get('skip_qualified') else 0
+        flags = (1 if po.get('skip_qualified') else 0) | ((win if win > 1 else 0) << 4)
         out += bytes((kind, len(ents), len(po['rounds']), wd, ld, flags))
         out += b''.join(bytes(e) for e in ents) + rounds
     return bytes(out + b'\0')
@@ -250,7 +286,8 @@ def table_lines(tables):
     import engine
     for i, (world, lfile, spec) in enumerate(tables):
         lines.append(f'    dd GPL{i}\n    db {world}\n    dd GPS{i}')
-        syms[f'GPL{i}'] = (1, engine.LEAGUE_AT[lfile[1]] if isinstance(lfile, tuple) else mkseason.LEAGUE_AT[(world, lfile)])
+        at = engine.LEAGUE_AT[lfile[1]] if isinstance(lfile, tuple) else mkseason.LEAGUE_AT[(world, lfile)]
+        syms[f'GPL{i}'] = at if isinstance(at, tuple) else (1, at)   # (world 0's structs: (obj, offset), often obj2)
     lines.append('    dd 0\n    db 0\n    dd 0')
     lines.append('GP_EPT:')                    # (uefaq UQ_EPP: per country file its specs, for the European ones)
     for i, (world, lfile, spec) in enumerate(tables):
@@ -308,6 +345,7 @@ def patch(p, at, limit, tables, bss_at):
     import uefaq
     if uefaq.LABELS.get('UQ_EPP') and tables:              # a league-phase world: its European play-offs (uefaq.c ep_run)
         p.add_ptr(1, uefaq.LABELS['UQ_EPP'], 1, lab['GP_EPT'])
+    assert struct.unpack('<I', p.get(1, syms['RS_STATE_SIZE'][1], 4))[0] == RS_SIZE   # (the engine block's 'RS')
     LABELS.update(lab, GP_IN=syms['GP_IN'], GP_OUT=syms['GP_OUT'], layout=lay, pg_season=syms['pg_season'], pg_place=syms['pg_place'], rs_season=syms['rs_season'],
                   RS_STATE=syms['RS_STATE'])
     print(f"exe: knockout play-offs (gplay): {len(tables)} countries, C obj1+{at:#x}..{cend:#x}, glue ..{glue + len(code):#x}, "

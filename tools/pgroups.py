@@ -51,9 +51,6 @@ pg_fix:                                 ; replaces `call cseg_7CAA2` (leaguesTab
     jmp C7CAA2
 PG_TAB: TAB_BYTES
 RS_TAB: RS_BYTES
-%if RI_ON
-RI_TAB: RI_BYTES
-%endif
 '''
 
 
@@ -127,7 +124,7 @@ LABELS = {}             # obj1 offsets other modules link to (RS_TAB: gplay's sa
 
 def patch(p, at, tables, pg_season, rs_tables=(), rs_season=None, ri=None):
     """Glue + tables at obj1:at (the fix itself: gplay.c pg_season, (1, offset)); returns the end. ri: the off-file pool
-    (ripool.symbols(): RI_TAB bytes, gplay.c ri_season / RI_MGR, ripool's ri_after, careerTeam), or None."""
+    (ripool.patch's symbols: RI_TAB its table's address, gplay.c ri_season / RI_MGR, ripool's ri_after, careerTeam), or None."""
     import bigtables
     import careerworld
     site, c7caa2, s = _site(p)

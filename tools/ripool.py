@@ -168,10 +168,11 @@ def patch(p, at, bss, tabs, world_file_name):
     LABELS.update(lab)
     print(f'exe: off-file pool (world {world}, file {fl}, {world_file_name}): LoadTeamFile obj1+{call:#x} -> ri_load '
           f'obj1+{at:#x}, buffers obj2+{bss:#x}')
-    end = (at + len(code) + 15) & ~15
+    tab = (at + len(code) + 15) & ~15           # the table (gplay.c ri_season reads it; pgroups' pg_fix passes it)
+    tb = table_bytes(tabs)
+    p.put(1, tab, tb)
     import dplay
     ct = dplay._sites(p)[5]                     # careerTeam (obj2), as gplay
-    return end, {'RI_BYTES': (0, 'db ' + ', '.join(str(b) for b in table_bytes(tabs))),
-                 'RI_SEASON': gplay.LABELS['ri_season'], 'RI_MGR': gplay.LABELS['RI_MGR'],
-                 'RI_AFTER': (1, lab['ri_after']), 'CAREERTEAM': (2, ct)}
-
+    return (tab + len(tb) + 15) & ~15, {'RI_TAB': (1, tab), 'RI_SEASON': gplay.LABELS['ri_season'],
+                                         'RI_MGR': gplay.LABELS['RI_MGR'], 'RI_AFTER': (1, lab['ri_after']),
+                                         'CAREERTEAM': (2, ct)}

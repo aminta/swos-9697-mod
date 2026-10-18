@@ -49,6 +49,7 @@ import arg97
 import lib97
 import sacups
 import trailer
+import menutab
 import nasmcave
 from strpool import StrPool
 
@@ -303,6 +304,7 @@ def patch_exe(src, dst, remap, lang='it'):
     if bigtables.ON[0]:
         assert bigw, 'a world numbering clubs 2000+ is a big world (careerworld.big)'
         bigtables.retarget(p, area)             # before every user of someLeaguesTable / leaguesTableCopy
+    menutab.patch(p, area)                      # 4.0: the team-choice list of > 10 competitions (Italy 2026-27: 14)
     world, caf = cafcups.structs(p, area, WORLD_CAVE)
     world = countries.patch(p, lang, area, world, cafcups.continents(caf))
     fin_end, fin_pre = finals97.code(p, FIN_CAVE)  # 2.1: NSL/NSSL finals (lib_pre calls fin_pre)

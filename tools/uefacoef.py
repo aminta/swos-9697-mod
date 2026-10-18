@@ -23,10 +23,24 @@ LABELS = {}                     # (uefaq.py: UC_C, UC_N, uc_g, CB)
 CB_OFF = 0x3800                 # in tmdFileBuffer (the W1 block ends at 0x3482)
 MARK, RING, DONE = 0, 2, 3
 CTEAMS, CPTS, CHIST = 0x10, 0x110, 0x510               # 256 B, 256 dd, 5 x 256 dd (thousandths of points)
-KPTS, KHIST = 0x1910, 0x28B0                           # 2000 dw, 5 x 2000 dw (units)
+NG = 2000                                              # global numbers per club array (bigtables: LIMIT)
+KPTS, KHIST = 0x1910, 0x28B0                           # NG dw, 5 x NG dw (units)
 PREV, FIN = 0x76D0, 0x773C                             # 3 x (dd count + 16 dw), 3 x 2 dw
 SIZE = 0x7748
 assert CB_OFF + SIZE <= 80 * 684
+
+
+def layout():
+    """The block's layout for this build: NG = 2000, or bigtables.LIMIT when a world numbers clubs 2000+ (the
+    block then ends before bigtables.EXT_OFF, the save's numbers 2000+)."""
+    global NG, KHIST, PREV, FIN, SIZE
+    import bigtables
+    NG = bigtables.LIMIT if bigtables.ON[0] else 2000
+    KHIST = KPTS + 2 * NG
+    PREV = KHIST + 10 * NG
+    FIN = PREV + 0x6C
+    SIZE = FIN + 0xC
+    assert CB_OFF + SIZE <= (bigtables.EXT_OFF if bigtables.ON[0] else 80 * 684), hex(CB_OFF + SIZE)
 
 LP_CLN = [5, 5, 4, 4, 3, 2, 2, 2] + [1] * 7            # places per rank: Champions League (34 + its holder + the EL winner)
 LP_ELN = [2] * 12 + [1] * 11                           # Europa League (35 + the Conference League winner)
@@ -65,7 +79,7 @@ uc_add:                                 ; eax = team word, ecx = units: this sea
     movzx edx, al
     add [ebp + CPTS + edx*4], ecx
     call uc_g
-    cmp eax, 2000
+    cmp eax, NG
     jae .x
     add [ebp + KPTS + eax*2], cx
 .x:
@@ -107,12 +121,12 @@ uc_init:                                ; zero the block, the seeds (5 seasons o
     test eax, eax
     jz .x
     call uc_g
-    cmp eax, 2000
+    cmp eax, NG
     jae .k3
     mov dx, [esi + 2]                   ; units per season
     xor ecx, ecx
 .k2:
-    imul ebx, ecx, 4000
+    imul ebx, ecx, NG * 2
     add ebx, ebp
     mov [ebx + KHIST + eax*2], dx
     inc ecx
@@ -318,11 +332,11 @@ uc_kc:                                  ; eax = team word -> eax = its club coef
     movzx esi, al                       ; the association (country file)
     call uc_g
     xor ebx, ebx
-    cmp eax, 2000
+    cmp eax, NG
     jae .f
     xor ecx, ecx
 .k:
-    imul edx, ecx, 4000
+    imul edx, ecx, NG * 2
     movzx edx, word [CB + KHIST + edx + eax*2]
     add ebx, edx
     inc ecx
@@ -444,7 +458,7 @@ uc_final:                               ; careerworld w_q_cb: the first qualifie
     inc ecx
     cmp ecx, 256
     jb .c
-    imul edi, ebx, 4000
+    imul edi, ebx, NG * 2
     add edi, ebp
     xor ecx, ecx
 .k:
@@ -452,7 +466,7 @@ uc_final:                               ; careerworld w_q_cb: the first qualifie
     mov [edi + KHIST + ecx*2], ax
     mov word [ebp + KPTS + ecx*2], 0
     inc ecx
-    cmp ecx, 2000
+    cmp ecx, NG
     jb .k
     inc ebx
     cmp ebx, 5
@@ -644,6 +658,7 @@ def patch(p, cave, worlds, sites):
     the lp36 / careerworld addresses. Returns the cave end."""
     import nasmcave
     import lp36
+    layout()
     import careerworld as cw
     lpw = [w for w in worlds if any(w['cups'][k][0] == cw.LP_ROUNDS for k in ('cc', 'cwc', 'uefa'))]
     assert len(lpw) == 1, len(lpw)
@@ -674,7 +689,7 @@ def patch(p, cave, worlds, sites):
                'W_REC': (1, cw.LABELS['w_rec']), 'W_CUPS': (1, cw.LABELS['w_cups']),
                'MARK': (0, MARK), 'RING': (0, RING), 'DONE': (0, DONE), 'WORK_CC': q['WORK_CC'],
                'WORK_CWC': q['WORK_CWC'], 'WORK_UEFA': q['WORK_UEFA'], 'CTEAMS': (0, CTEAMS), 'CPTS': (0, CPTS), 'CHIST': (0, CHIST),
-               'KPTS': (0, KPTS), 'KHIST': (0, KHIST), 'PREV': (0, PREV), 'FIN': (0, FIN), 'SIZE': (0, SIZE),
+               'KPTS': (0, KPTS), 'KHIST': (0, KHIST), 'PREV': (0, PREV), 'FIN': (0, FIN), 'SIZE': (0, SIZE), 'NG': (0, NG),
                'CLN_BYTES': (0, db((LP_CLN + [0] * 64)[:64])), 'ELN_BYTES': (0, db((LP_ELN + [0] * 64)[:64])),
                'UEN_BYTES': (0, db((LP_UEN + [0] * 64)[:64])), 'SEEDC_BYTES': (0, db(seedc)), 'UC_SEEDK': (2, sites['area'].add(seedk))}   # (obj2: any number of clubs)
     code, fix = nasmcave.assemble(ASM, cave, symbols)

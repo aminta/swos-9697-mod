@@ -87,6 +87,9 @@ LABELS = {}
 
 
 def big(w):
+    import bigtables
+    if bigtables.world_maxg(w['n']) > 2000:
+        return True                                 # global numbers 2000+ (bigtables: saved in the 80-record area)
     if any(w['cups'][k][0] == LP_ROUNDS for k in ('cc', 'cwc', 'uefa')):
         return True                                 # league-phase cups: 120-B structs in the obj2 tail
     tot = sum(len(w['cups'][k][1]) for k in ('cc', 'cwc', 'uefa'))

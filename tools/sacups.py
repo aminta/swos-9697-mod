@@ -579,11 +579,13 @@ def career_hooks(p, cups, cave, cups_all=None, caf=None):
     # InitCareer: mov [A0], offset someLeaguesTable; mov word [D0], 1999 (clear loop)
     m = [x for x in re.finditer(rb'\xc7\x05' + struct.pack('<I', a0) + rb'(.{4})\x66\xc7\x05.{4}\xcf\x07', d1, re.S)]
     assert len(m) == 1, len(m)
-    table = struct.unpack('<I', m[0].group(1))[0]
+    import bigtables
+    table_raw = struct.unpack('<I', m[0].group(1))[0]
+    table = bigtables.moved(table_raw)                  # (global numbers 2000+: the table moved, bigtables.retarget)
     saved = table + SAVED_GLOBAL
     # cseg_8CC0A: mov [D0], 1999; mov [A0], offset someLeaguesTable; mov [A1], offset leaguesTableCopy
-    m = [x for x in re.finditer(rb'\xc7\x05' + struct.pack('<I', a0) + struct.pack('<I', table) + rb'\xc7\x05.{4}(.{4})', d1, re.S)]
-    copies = {struct.unpack('<I', x.group(1))[0] for x in m}
+    m = [x for x in re.finditer(rb'\xc7\x05' + struct.pack('<I', a0) + struct.pack('<I', table_raw) + rb'\xc7\x05.{4}(.{4})', d1, re.S)]
+    copies = {bigtables.moved(struct.unpack('<I', x.group(1))[0]) for x in m}
     assert len(copies) == 1, copies
     copies_base = copies.pop()
     saved_copy = copies_base + SAVED_GLOBAL

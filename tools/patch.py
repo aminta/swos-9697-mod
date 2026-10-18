@@ -30,6 +30,7 @@ import xtra
 import pgroups
 import mkseason
 import careerworld
+import bigtables
 import worldpool
 import benchnum
 import nsl97
@@ -179,13 +180,15 @@ def patch_exe(src, dst, remap, lang='it'):
     lpb += bool(mkseason.league_phase_worlds())   # (+1 more: the UEFA coefficients, uefacoef)
     lpb += 4 * bool(mkseason.league_phase_worlds())   # (+4: the UEFA qualifying rounds, uefaq: C code + glue)
     xtra_on = bool(mkseason.xtra_files() or os.environ.get('XTRA_HOOK'))
+    bigtables.ON[0] = worlds and bigtables.needed()    # a world numbering its clubs 2000+ (World 5.0)
+    bigtables.MOVED.clear()
     pg_tabs = mkseason.parallel_tables()               # parallel groups of one level (Serie C 3 x 20)
     dp_tabs = mkseason.dplay_tables() if mkseason.worlds() else []   # Italian play-offs (dplay.py)
     lpb += 2 * bool(dp_tabs)                           # (+2: their code pages, before the extra one)
     gp_tabs = mkseason.gplay_tables() if mkseason.worlds() else []   # knockout play-offs of the formats (gplay.py)
     gp_on = bool((gp_tabs or pg_tabs) and mkseason.worlds())         # (gplay.c also holds the parallel groups' fix)
     lpb += 2 * gp_on                                   # (+2: its pages, after dplay's)
-    xtra_pg = bool((xtra_on or pg_tabs) and mkseason.worlds())   # (+1: an extra code page in a build with worlds,
+    xtra_pg = bool((xtra_on or pg_tabs or bigtables.ON[0]) and mkseason.worlds())   # (+1: an extra code page in a build with worlds,
     lpb += xtra_pg                                     # whose world cave is full: 3.3.x purple + blond + a big world)
     cdp = mkseason.career_data_pages() - 2 if worlds else 0   # a big world: a 3rd career data page and a 2nd
     h2 = HIST2_PAGE * (1 + cdp)                                # historic page (its cups' fixed draws)
@@ -217,6 +220,10 @@ def patch_exe(src, dst, remap, lang='it'):
         o2pages += 2
         data = add_object_page(data, 2)
         data = add_object_page(data, 2)
+    if bigtables.ON[0]:                         # the two tables of LIMIT global numbers (bigtables.retarget)
+        o2pages += 2
+        data = add_object_page(data, 2)
+        data = add_object_page(data, 2)
     open(grown, 'wb').write(data)
     p = LEPatch(grown)
     os.remove(grown)
@@ -242,6 +249,9 @@ def patch_exe(src, dst, remap, lang='it'):
     cave = patch_italy(p, pool)
     assert cave <= SA_CAVE
     area = countries.Obj2Area(p, obj2_free, obj2_free + o2pages * p.le.page_size)
+    if bigtables.ON[0]:
+        assert bigw, 'a world numbering clubs 2000+ is a big world (careerworld.big)'
+        bigtables.retarget(p, area)             # before every user of someLeaguesTable / leaguesTableCopy
     world, caf = cafcups.structs(p, area, WORLD_CAVE)
     world = countries.patch(p, lang, area, world, cafcups.continents(caf))
     fin_end, fin_pre = finals97.code(p, FIN_CAVE)  # 2.1: NSL/NSSL finals (lib_pre calls fin_pre)
@@ -339,6 +349,8 @@ def patch_exe(src, dst, remap, lang='it'):
         xe = xtra.patch(p, xp) if xtra_on else xp                # the extra page in a build with worlds, with the
         if pg_tabs:                                              # parallel groups' season-end fix (pgroups.py)
             xe = pgroups.patch(p, (xe + 15) & ~15, pg_tabs, gplay.LABELS['pg_season'])
+        if bigtables.ON[0]:                                      # the .CAR's 2000 bytes <-> the moved tables,
+            xe = bigtables.hooks(p, (xe + 15) & ~15)             # numbers 2000+ (after every finder of the tables)
         assert xe <= xp + 0x1000, hex(xe)
     elif xtra_on:
         world = xtra.patch(p, world)
@@ -430,7 +442,8 @@ def write_new_teams(src_dir, dst_dir):
         k = struct.unpack('>H', data[:2])[0]
         base = tcn.get(n) or hist_base(n)
         for g in range(base, base + k):
-            assert g < 2000 and (mkseason.shares_base(n) or mkseason.career_file(n) or g not in taken), (n, g, taken.get(g))
+            assert g < (bigtables.LIMIT if bigtables.ON[0] else 2000) and \
+                (mkseason.shares_base(n) or mkseason.career_file(n) or g not in taken), (n, g, taken.get(g))
             assert not (mkseason.career_file(n) and sacups.SAVED_GLOBAL <= g <= sacups.MARK3_GLOBAL + 2), \
                 (n, g, f'world clubs must skip the reserved global numbers {sacups.SAVED_GLOBAL}..{sacups.MARK3_GLOBAL + 2} '
                  '(the saved SA block, the world byte, the career mark: someLeaguesTable)')

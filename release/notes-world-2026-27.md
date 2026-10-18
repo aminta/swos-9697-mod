@@ -280,6 +280,16 @@ Uncomment the subsection's lines one by one as the engine implements each format
   keep their own group), then the groups are balanced to 20 clubs each. No club is relegated from Serie C and there are
   no Serie C play-outs (as in the original game's lowest English division: the world has no Serie D). The Serie B and
   Serie C play-offs and the Serie B play-out are playable (see the engine notes).
+<!-- DATA STAGED (publish with the reserve engine, TM_RESERVE; replaces the two sentences above on no relegation from
+  Serie C - Davide 2026-10-18): - Serie C relegates as in reality: in each group the 20th goes down and the 16th-19th
+  play the play-out (16th v 19th, 17th v 18th, two legs, the return leg at the better placed club; level on aggregate:
+  the better placed stays; no play-out when the two clubs are 8 or more points apart: the worse placed goes down).
+  The 9 relegated clubs leave the world for the Serie D, and 9 come up into the group of their area. In season 1 the
+  9 that come up stand in for the 2026-27 Serie D winners, who are known only in May 2027: they are the 9 group
+  leaders of the Serie D on 18 October 2026 (Alessandria, Nibbiano & Valtidone, Luparense, Pistoiese, Prato,
+  L'Aquila, Sarnese, Virtus Francavilla, Reggina), a provisional choice to be replaced by the real 9. From season 2 the
+  relegated clubs come back up in turn, the longest in the Serie D first. Your club relegated to the Serie D is sacked
+  (job offers). -->
 - Players without a Transfermarkt value get an estimate (from their club's and division's values); in the lowest
   divisions (Scotland's League One and Two) the squads are so close that a simulated season does not follow the real
   table closely.
@@ -638,6 +648,16 @@ Non una formula uguale per tutti: ogni campionato gioca la stagione come l'ha sc
   Serie C restano nel loro girone), poi i gironi vengono bilanciati a 20 club ciascuno. Nessun club retrocede dalla
   Serie C e non ci sono play-out di Serie C (come nell'ultima divisione inglese del gioco originale: nel mondo non c'è
   la Serie D). I play-off di Serie B e di Serie C e il play-out di Serie B si giocano (vedi le note del motore).
+<!-- DATA STAGED (da pubblicare con il motore della riserva, TM_RESERVE; sostituisce le due frasi sopra sulla Serie C
+  senza retrocessioni - Davide 2026-10-18): - La Serie C retrocede come nella realtà: in ogni girone la 20ª scende e
+  dalla 16ª alla 19ª si gioca il play-out (16ª contro 19ª, 17ª contro 18ª, andata e ritorno, ritorno in casa della
+  meglio piazzata; in parità nel totale resta la meglio piazzata; niente play-out se le due squadre sono a 8 o più
+  punti di distanza: scende la peggio piazzata). Le 9 retrocesse lasciano il mondo per la Serie D e ne salgono 9, nel
+  girone della loro area. Nella prima stagione le 9 che salgono fanno le veci delle vincitrici della Serie D 2026-27,
+  note solo a maggio 2027: sono le 9 capoliste dei gironi di Serie D al 18 ottobre 2026 (Alessandria, Nibbiano &
+  Valtidone, Luparense, Pistoiese, Prato, L'Aquila, Sarnese, Virtus Francavilla, Reggina), una scelta provvisoria da
+  sostituire con le 9 vere. Dalla seconda stagione le retrocesse risalgono a turno, prima quella in Serie D da più
+  tempo. Se la tua squadra retrocede in Serie D vieni esonerato (offerte di lavoro). -->
 - I giocatori senza valore su Transfermarkt ricevono una stima (dai valori del club e della divisione); nelle divisioni
   più basse (League One e League Two scozzesi) le rose sono così vicine che una stagione simulata non segue da vicino la
   classifica vera.

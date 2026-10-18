@@ -286,6 +286,15 @@ Lengjubikarinn, Finland Liigacup, Chile and Peru Copa de la Liga. -->
   - Moldova: phase II of the top 6 from their halved head-to-head points, as in 2025-26.
   - Andorra: a triple round-robin, as in 2025-26.
   - San Marino: one table of 30 matchdays and the Conference play-off of 2nd-11th, as in 2025-26. -->
+<!-- DATA STAGED (publish with the full world, TM_FULL): - Every league and division of the original SWOS 96/97 is
+  in the world (Davide): England's League Two, Argentina's Primera Nacional (two zones), Mexico's Liga de Expansion,
+  Uruguay's Segunda, Japan's J2, New Zealand's Northern / Central / Southern Leagues, Australia's NPL New South Wales /
+  Victoria / Queensland, El Salvador's Segunda and Tercera, and Suriname, Taiwan (two tiers), India (two tiers) and
+  Ghana. Where Transfermarkt has no squads (El Salvador's Segunda and Tercera, Suriname, NPL Queensland) the squads are
+  generated: real club names, players' names drawn from the world's players of that nationality, strength on the
+  level's scale. El Salvador's 2026-27 Tercera is not published yet: its clubs are the 2025-26 Tercera clubs not
+  promoted to the 2026-27 Segunda, in two zones. Mexico's and Australia's leagues are closed (no promotion or
+  relegation), as in reality. -->
 - Odd leagues lose their last club (the engine needs an even number): Gibraltar, New Zealand (11 -> 10).
 
 **Known limits**
@@ -596,6 +605,15 @@ Non una formula uguale per tutti: ogni campionato gioca la stagione come l'ha sc
   - Moldavia: la seconda fase delle prime 6 dai punti degli scontri diretti dimezzati, come nel 2025-26.
   - Andorra: un girone a tre turni, come nel 2025-26.
   - San Marino: una classifica di 30 giornate e il play-off di Conference dal 2° all'11° posto, come nel 2025-26. -->
+<!-- DATA STAGED (da pubblicare con il mondo completo, TM_FULL): - Tutti i campionati e le divisioni dello SWOS 96/97
+  originale sono nel mondo (Davide): la League Two inglese, la Primera Nacional argentina (due zone), la Liga de
+  Expansion messicana, la Segunda uruguaiana, la J2 giapponese, le Northern / Central / Southern League neozelandesi, le
+  NPL australiane del New South Wales, del Victoria e del Queensland, la Segunda e la Tercera del Salvador, e Suriname,
+  Taiwan (due serie), India (due serie) e Ghana. Dove Transfermarkt non ha le rose (Segunda e Tercera del Salvador,
+  Suriname, NPL Queensland) le rose sono generate: nomi veri dei club, nomi dei giocatori presi dai giocatori del mondo
+  di quella nazionalità, forza sulla scala del livello. La Tercera 2026-27 del Salvador non è ancora pubblicata: i suoi
+  club sono quelli della Tercera 2025-26 non promossi nella Segunda 2026-27, in due zone. I campionati di Messico e
+  Australia sono chiusi (niente promozioni né retrocessioni), come nella realtà. -->
 - I campionati con un numero dispari di club perdono l'ultimo (il motore vuole un numero pari): Gibilterra, Nuova
   Zelanda (11 -> 10).
 

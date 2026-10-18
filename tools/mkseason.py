@@ -326,6 +326,8 @@ class Pack:
                 and not os.environ.get('MKSEASON_NOBALANCE')):                       # harness: a build as it is)
             self._balance(divs)
         for c in self.comps:
+            if c['type'] == 'state':     # a state championship (statespec.py / statecup.py)
+                self.state(c)            # validates
             if c['type'] == 'cup':
                 self.bracket(c)          # validates
                 _need(c.get('first_round', 1) in range(1, 7), f"{c['key']}: first_round 1..6 (the first round's number)")
@@ -464,6 +466,18 @@ class Pack:
         if 'divisions' in lg:
             return lg['divisions']
         return [{'teams': len(self.league_clubs), 'promoted': 0, 'relegated': lg['relegated'], 'names': lg['names']}]
+
+    def state(self, c):
+        """A 'state' competition (statespec.py): the compiled contest + its clubs' (file, ordinal)."""
+        import statespec
+        clubs = c.get('clubs') or []
+        _need(clubs and all(k in self.clubs for k in clubs) and len(set(clubs)) == len(clubs),
+              f"{c['key']}: clubs = distinct club keys of the pack")
+        _need(self.world is not None or self.kind == 'career', f"{c['key']}: state championships in career packs")
+        out = statespec.compile_state(c, len(clubs))
+        out['clubs'] = [self.where[k] for k in clubs]
+        out['members'] = [self.where[k][1] for k in clubs if self.clubs[k]['file'] == self.league['clubs']]
+        return out
 
     def comp(self, key):
         return next(c for c in self.comps if c['key'] == key)
@@ -897,7 +911,8 @@ class Pack:
         if self.kind == 'tourney':
             return [(int(c['id'], 16), pm, srt) for c in self.comps if c['type'] == 'tourney'
                     for pm, srt in self.tourney(c)['draws']]
-        return [(int(c['id'], 16), perm) for c in self.comps if c['type'] == 'cup' for perm in self.bracket(c)['draws']]
+        return [(int(c['id'], 16), perm) for c in self.comps if c['type'] == 'cup' for perm in self.bracket(c)['draws']] \
+            + [(int(c['id'], 16), pm, srt) for c in self.comps if c['type'] == 'state' for pm, srt in self.state(c)['draws']]
 
     def bye_cups(self):
         """[(contest id, world or 0, clubs, byes)] of the cups with first-round byes (lib97 BYE_TAB)."""
@@ -1077,6 +1092,29 @@ def ns_files(w):
 def draws():
     """Fixed draws of the packs outside career worlds (one contest id each in the whole build)."""
     return [d for pk in packs() if pk.world is None for d in pk.draws()]
+
+
+def register_states():
+    """Before patch_exe sizes its pages: every world pack's state championships into statecup (cup 1 = the pack's
+    first state; members = the league clubs of each state) and their cross-group calendars into lp36.FIXTURES."""
+    import statecup
+    import lp36
+    for pk in packs():
+        sts = [c for c in pk.comps if c['type'] == 'state'] if pk.world is not None else []
+        if not sts:
+            continue
+        lfile = pk.files[pk.league['clubs']][0]
+        if any(e['world'] == pk.world and e['cup1'] == int(sts[0]['id'], 16) for e in statecup.ENTRIES):
+            continue                            # (patch_exe per language: once)
+        entries = []
+        for c in sts:
+            sp = pk.state(c)
+            entries.append({'id': int(c['id'], 16), 'members': sp['members'], 'struct': None})
+            if sp['fixture']:
+                g, size, days, cal = sp['fixture']
+                assert int(c['id'], 16) not in lp36.FIXTURES, c['id']
+                lp36.FIXTURES[int(c['id'], 16)] = (g, size, days, cal)
+        statecup.register(pk.world, int(sts[0]['id'], 16), lfile, entries)
 
 
 def world_draws():
@@ -1685,6 +1723,14 @@ def _patch_pack(pk, p, lang, area, at, env):
         names = c['names'].get(lang) or c['names']['*']
         if c['type'] == 'league':
             body = _league_body(p, lang, area, comp, c, lfile, pk.divisions())
+        elif c['type'] == 'state':                      # a state championship (statecup.py: slot 1 by the club's state)
+            import statecup
+            sp = pk.state(c)
+            rel = [area.add(x.encode('latin1') + b'\0') - sacups.STR_BASE for x in names]
+            cc = bytes(d2[sacups.unique(d2, sacups.EUROCUP_HDR):][:0x27])
+            body = statecup.contest_bytes(cc, int(c['id'], 16), lfile, sp['months'], sp['meetings'], sp['points'],
+                                          sp['stages'], sp['stage_bytes'], sp['clubs'], struct.pack('<II', *rel))
+            statecup.set_struct(pk.world, int(c['id'], 16), (1, at))
         else:
             br = pk.bracket(c)
             rounds = bytes(ROUND[x] for x in c['rounds'])
@@ -1724,6 +1770,10 @@ def _patch_pack(pk, p, lang, area, at, env):
     p.put(1, at + 4, struct.pack('<i', -2))     # no national cup (Italy 1947-48): [league, -2, -1], like Costa Rica
     table = at
     at += 8
+    states = [c['key'] for c in pk.comps if c['type'] == 'state']
+    if states:                                  # state championships: [league, -2, a state (statecup's cup 1: the
+        p.add_ptr(1, at, 1, ptr[states[0]])     # club's own state at the slot-1 set-up), national cup, -1]
+        at += 4
     if s.get('cup'):
         p.add_ptr(1, at, 1, ptr[s['cup']])
         at += 4

@@ -209,6 +209,7 @@ def patch_exe(src, dst, remap, lang='it'):
     cp = cave_pages()                                          # career world code: 2 pages, 3 with several worlds
     sp_tabs = (mkseason.splits() if worlds else []) + engine.split_tables()   # mid-season splits (worlds; world 0)
     sp_pg = split.pages(sp_tabs) if worlds else 0      # (own pages after all the others)
+    mkseason.register_states()                         # the career worlds' state championships (statespec.py)
     sc_pg = int(bool(statecup.ENTRIES))                # state championships (statecup.py): one page after split's
     for _ in range((6 + cp + 2 + 2 * cdp if worlds else 6) + lpb + sp_pg + sc_pg):  # (+1: the UEFA league phase's page, lp36)
         data = add_object_page(data, 1)

@@ -374,6 +374,10 @@ class Pack:
         down = [sum(divs[x].get('relegated', 0) for x in ds) for ds in lv]
         extra = [0] * len(lv)                      # play-off moves: + into a level, - out of it
         for po in self.league.get('ko_playoffs') or []:
+            if po.get('kind') == 'promedio':         # Argentina: 2 down from division 0 (promedio + annual table)
+                extra[lvl[0]] -= 2
+                extra[lvl[po.get('loser_div', 1)]] += 2
+                continue
             if po.get('kind') != 'promotion':
                 continue
             ents = [e for e in po['entrants'] if isinstance(e, list)]

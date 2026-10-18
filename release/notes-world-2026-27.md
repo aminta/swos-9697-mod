@@ -5,7 +5,7 @@
 
 **SWOS 96/97 Mod 5.0: World 2026-27 career** (DRAFT)
 <!-- REGIA STAGED, the release payoff (Davide 2026-10-18, for the final release of the whole work):
-*Every football competition, global and local: the ones it has, the ones it had, and the ones it probably will.* -->
+*Football competitions, global and local, that no other game has, has ever had, or probably ever will.* -->
 
 A historic career world of the **2026-27 season**: 87 countries, 1,562 clubs, real squads at the end of the summer
 2026 transfer window. In CLASSIC CAREERS choose WORLD 2026-27, then the continent and the country (EUROPE lists the
@@ -382,7 +382,7 @@ when the engine lands it.
 
 **SWOS 96/97 Mod 5.0: carriera Mondo 2026-27** (BOZZA)
 <!-- REGIA STAGED, il payoff del rilascio (Davide 2026-10-18, per il rilascio finale di tutto il lavoro):
-*Tutte le competizioni del calcio, globali e locali: quelle che ha, quelle che ha avuto e quelle che probabilmente avrà.* -->
+*Le competizioni di calcio, globali e locali, che nessun altro gioco ha, ha mai avuto e probabilmente avrà.* -->
 
 Un mondo di carriera storica della **stagione 2026-27**: 87 nazioni, 1.562 club, rose reali alla fine del mercato
 estivo 2026. In CARR. STORICHE scegli MONDO 2026-27, poi il continente e la nazione (EUROPA elenca le prime 43

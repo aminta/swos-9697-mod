@@ -2123,6 +2123,11 @@ def main(argv):
                               f"{' > '.join(str(x.get('teams', 2)) + ' ' + x['type'] for x in c['stages'])}, "
                               f"{'replays + coin toss' if t['coin'] else 'no replays'}")
                         continue
+                    if c['type'] == 'state':     # (statespec: groups / fixtures, then knockouts; no ties.csv)
+                        sp = pk.state(c)
+                        print(f"{c['key']}: state, {len(sp['clubs'])} clubs, stages {sp['stages']}"
+                              f"{', fixed calendar' if sp['fixture'] else ''}, {len(sp['members'])} members")
+                        continue
                     n = len(pk.league_clubs) if c['type'] == 'league' else len(pk.bracket(c)['clubs'])
                     print(f"{c['key']}: {c['type']}, {n} clubs")
                 short = [k for k, v in pk.players.items() if len(v) < 16 and pk.kind != 'tourney']

@@ -187,6 +187,13 @@ def compile_spec(pos, ndiv):
         flags = (1 if po.get('skip_qualified') else 0) | ((win if win > 1 else 0) << 4)
         out += bytes((kind, len(ents), nrd, wd, ld, flags))
         out += b''.join(bytes(e) for e in ents) + rounds
+    stages = set()                              # 4.0 ARG: the Trofeo's entrants (type 5) read GP_OUT.sres of the stage
+    for po in pos:                              # titles 0 and 1, filled earlier in the same gp_season pass
+        if KINDS.get(po.get('kind')) == 8:
+            stages.add(po.get('stage'))
+        if any(isinstance(e, dict) and 'stage_title' in e for e in po.get('entrants', [])) and not {0, 1} <= stages:
+            raise ValueError(f"{po.get('key', '?')}: a 'stage_title' entrant needs the stage_title play-offs of stages 0 and "
+                             f"1 before it")
     out = bytes(out + b'\0')
     SPEC_NAMES[out] = [(po.get('names') or {}, po.get('key', '?')) for po in pos]
     BUILD_AFTER[out] = [(i, po['build_after']) for i, po in enumerate(pos) if po.get('build_after')]

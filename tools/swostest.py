@@ -1677,6 +1677,9 @@ def world8485():
                         hexseen[o] = v
                         s.log.append(f'HEX {o} {v}')
 
+            mid = os.environ.get('W8485_MIDSAVE', '').split(':') if season == 1 else ['']   # obj2 off:byte:dumps:
+            midc = [0]                                 # a career save mid-season once the byte held that long
+
             def stop(scr):                             # the player's European cup: no same-country tie in rounds 1-2
                 if nosack is not None and season not in poked:   # W8485_NOSACK: the game's 'no sacking' word
                     s.poke(s.result.base2 + nosack, b'\x01\x00')   # (dseg_D6B62, cleared at every season start)
@@ -1684,6 +1687,10 @@ def world8485():
                 if peek is not None:                   # W8485_PEEK: the largest word seen at an obj2 offset
                     peek[1] = max(peek[1], struct.unpack_from('<H', s.result.obj2(peek[0], 2))[0])
                 hexlog()
+                if mid[0] and s.result.obj2(int(mid[0], 16), 1)[0] == int(mid[1], 0):
+                    midc[0] += 1
+                    if midc[0] >= int(mid[2]):
+                        return True
                 if diy is not None:                    # W8485_DIY (world_split): the split league's DIY when its
                     b = s.result.obj2(diy[0], 0x733)    # day / freeze changes, the calendar once frozen
                     if diy_league(b) and diyseen.get('k') != (b[0x1C1:0x1C3], b[diy[1] + 4]):
@@ -1712,6 +1719,13 @@ def world8485():
             r2only = os.environ.get('W8485_R2') == '1'         # stop once the player's round 2 is checked
             peek = [int(os.environ['W8485_PEEK'], 0), 0] if os.environ.get('W8485_PEEK') else None
             ok, msg = advance(s, stop, 900)
+            if mid[0] and midc[0] >= int(mid[2]):          # W8485_MIDSAVE: ESCI -> SALVA CARRIERA -> W84A, mid-season
+                press(s, s.screen(), 'ESCI', wait=3)
+                if press(s, s.screen(), 'SALVA CARRIERA') is None:
+                    return False, f'mid-season save: no SALVA CARRIERA on {s.screen()}'
+                s.send(name_entry('W84A') + ' dump:3')
+                path = os.path.join(s.run, 'SWOS', 'W84A.CAR')
+                return os.path.exists(path), f'saved mid-season: {path}'
             if r2only:
                 return (season, 1) in seen and not errs, f"season {season}: {msg}; {'; '.join(errs) or 'ok'}"
 
@@ -4117,6 +4131,28 @@ def world_gplay_reserve_out():
     return world_gplay_reserve('17')
 
 
+def club_divisions(car, src, country, words):
+    """After a season (W84A.CAR): team word (file | ordinal << 8) -> its division (base + someLeaguesTable)."""
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    old = os.environ.get('SEASON_PACKS')
+    os.environ['SEASON_PACKS'] = ','.join([os.path.join(src, x) for x in order])
+    import mkseason
+    pk = next(p for p in mkseason.packs() if p.meta.get('id', '').endswith('-' + country))
+    if old is None:
+        os.environ.pop('SEASON_PACKS')
+    else:
+        os.environ['SEASON_PACKS'] = old
+    slt = open(car, 'rb').read()[0xE8DC:0xE8DC + 2000]
+    out = {}
+    for key in pk.league_clubs:
+        fl, i = pk.where[key]
+        if (fl | i << 8) in words:
+            g = next(b for fk, (ff, b) in pk.files.items() if ff == fl) + i
+            out[fl | i << 8] = pk.division[key] + struct.unpack('b', slt[g:g + 1])[0]
+    return out
+
+
 def reserve_left(car, src, country='ita'):
     """After a season (W84A.CAR): the country's clubs whose division (base + someLeaguesTable) is past its last one,
     i.e. left in the reserve division (an off-file pool swaps every relegated club out but the manager's), and the
@@ -4213,27 +4249,17 @@ def world_gplay_seried(force='3', team='EUROPA,ITALIA,SERIE D GIRONE A,LIGORNA',
 @scenario
 def world_gplay_poule(force='1', team='EUROPA,ITALIA,SERIE D GIRONE A,LIGORNA'):
     """The Poule Scudetto played (gplay: a group contest as the game's type 2 in slot 3): the data session's snapshot
-    world5tm-e0b89822 with formats_data.POULE_D added to Italy's play-offs; LIGORNA forced 1st of Serie D girone A at
+    world5tm-poule (TM_RESERVE=1 TM_POULE=1: POULE_D in Italy's play-offs); LIGORNA forced 1st of Serie D girone A at
     the league end -> the other 8 groups simulated now, the 9 winners in 3 triangulars, the 3 winners + the best
-    runner-up, two-legged semis, the final; the season end's title result = the contest's real champion"""
+    runner-up, two-legged semis, the final; the season end's title result = the contest's real champion, and the 9
+    clubs are in Serie C after the season (the early-simulated groups restored at the season end)"""
     import json
     import shutil
-    src = os.environ.get('W2627D_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-e0b89822')
+    src = os.environ.get('W2627P_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-poule')
     if not os.path.isdir(src):
-        return True, f'SKIP: private data {src} missing'
-    sys.path.insert(0, os.path.join(MAIN, 'internal', 'world2526'))
-    import formats_data
-    w = os.path.join(WORK, 'world_gplay_poule')
-    shutil.rmtree(w, ignore_errors=True)
-    shutil.copytree(src, os.path.join(w, 'world5tm'))
-    f = os.path.join(w, 'world5tm', 'ita', 'pack.json')
-    d = json.load(open(f))
-    lg = next(c for c in d['competitions'] if c['type'] == 'league')
-    lg['ko_playoffs'] = [po for po in lg.get('ko_playoffs', []) if po.get('key') != 'poule_scudetto'] + [formats_data.POULE_D]
-    json.dump(d, open(f, 'w'), indent=1, ensure_ascii=False)
+        return True, f'SKIP: private data {src} missing (the data session\'s TM_POULE=1 snapshot)'
     order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
-    env = {'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(w, 'world5tm', x) for x in order]),
-           'GPLAY_FORCE': force}
+    env = {'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]), 'GPLAY_FORCE': force}
     exe = os.environ.get('GPLAY_BUILD') or build('world_gplay_poule', env=env)
     log_at, st_at, log_n, st_n = gp_ptrs(exe)
     keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K',
@@ -4270,7 +4296,59 @@ def world_gplay_poule(force='1', team='EUROPA,ITALIA,SERIE D GIRONE A,LIGORNA'):
     res = [struct.unpack_from('<BBHHHH', lg_, 942 + 10 * i) for i in range(min(nres, 4))]
     check(lg_[6] == kl['pi'] + 1 and champ is not None, f'season end: played {lg_[6]}, champion {champ}', errs)
     check(any(r[0] == 5 and r[2] == champ for r in res), f'title result {res} not the champion {champ}', errs)
+    car = os.path.join(RUNS, w84_tag() + '_1', 'SWOS', 'W84A.CAR')    # (the 9 group winners: up into Serie C, the
+    if os.path.exists(car):                                               # early tables restored at the season end)
+        dv = club_divisions(car, src, 'ita', set(kl['team']))
+        check(len(dv) == 9 and all(2 <= x <= 4 for x in dv.values()), f'Poule clubs after the season: {dv}', errs)
     return not errs, '; '.join(errs) or f"{msg}; Poule clubs {[hex(t) for t in kl['team']]}, champion {champ:#x}, res {res}"
+
+
+@scenario
+def world_gplay_poule_save():
+    """world_gplay_poule with a career save inside the Poule (W8485_MIDSAVE: once its slot-3 contest is built and a
+    few match days on) and a fresh session loading it: the Poule goes on to its end and the title = its champion
+    (GP_ST / GP_GS from the engine block, gp_sync's slot pointers)"""
+    src = os.environ.get('W2627P_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-poule')
+    if not os.path.isdir(src):
+        return True, f'SKIP: private data {src} missing'
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    env = {'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]), 'GPLAY_FORCE': '1'}
+    exe = os.environ.get('GPLAY_BUILD') or build('world_gplay_poule', env=env)
+    log_at, st_at, log_n, st_n = gp_ptrs(exe)
+    keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_HEX',
+            'W8485_ONE', 'W8485_MIDSAVE', 'W8485_FROM')
+    keep = {k: os.environ.get(k) for k in keys}
+    base = dict(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM='EUROPA,ITALIA,SERIE D GIRONE A,LIGORNA',
+                W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1', W8485_HEX=f'{log_at:x}:{log_n},{st_at:x}:{st_n}')
+    try:
+        os.environ.update(base, W8485_ONE='1', W8485_MIDSAVE=f'{st_at + GP_STKO + 3:x}:3:6')
+        ok, msg = world8485()
+        if not ok:
+            return False, f'first session: {msg}'
+        path = msg.split(': ', 1)[1]
+        os.environ.pop('W8485_MIDSAVE')
+        os.environ.update(base, W8485_FROM=path)
+        ok2, msg2 = world8485()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    lines = open(os.path.join(RUNS, w84_tag() + '_2', 'session.log'), errors='replace').read().splitlines()
+    errs = []
+    check(ok2, msg2, errs)
+    logs = [bytes.fromhex(ln.split()[2]) for ln in lines if ln.startswith(f'HEX {log_at:x} ')]
+    logs = [b for b in logs if b[:4] == b'GPLG']
+    if not logs:
+        return False, f'{msg2}; no season-end log after the reload'
+    lg_ = logs[-1]
+    kl = gp_ko(lg_[8:])
+    champ = kl['team'][kl['tw'][0]] if kl['tw'] and kl['tw'][0] < kl['n'] else None
+    res = [struct.unpack_from('<BBHHHH', lg_, 942 + 10 * i) for i in range(min(lg_[683], 4))]
+    check(kl['slot'] == 3 and kl['n'] == 9 and champ is not None, f'after the reload: slot {kl["slot"]}, champion {champ}', errs)
+    check(any(r[0] == 5 and r[2] == champ for r in res), f'title result {res} not the champion {champ}', errs)
+    return not errs, '; '.join(errs) or f"{msg}; reloaded: {msg2}; champion {champ:#x}"
 
 
 def full_season(country, team):

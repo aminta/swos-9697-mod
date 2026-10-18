@@ -338,6 +338,16 @@ class Pack:
         if (self.league and len(divs) > 1 and self.league.get('playoffs') != 'ita'   # (Italy: dplay's own counts;
                 and not os.environ.get('MKSEASON_NOBALANCE')):                       # harness: a build as it is)
             self._balance(divs)
+        if self.league and m.get('world') is not None and len(divs) > 1:
+            par = self.league.get('parallel')
+            pars = {q['first']: q['count'] for q in (par if isinstance(par, list) else [par] if par else [])}
+            low, d = 0, 0
+            while d < len(divs):
+                low, d = d, d + pars.get(d, 1)
+            _need(not any(dv.get('relegated', 0) for dv in divs[low:]) or self.league.get('ko_playoffs'),
+                  f"{self.meta['id']}: {self.league['key']}: the lowest level relegates ('relegated' > 0) but the league "
+                  "has no 'ko_playoffs': only gplay's season end balances those moves (cseg_9487A traps); relegate "
+                  "through a play-out with loser_div 'reserve', or add one ko_playoffs entry")
         for c in self.comps:
             if c['type'] == 'state':     # a state championship (statespec.py / statecup.py)
                 self.state(c)            # validates

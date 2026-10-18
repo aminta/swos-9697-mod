@@ -2120,3 +2120,8 @@ Left for 2.5: (a) NSL/NSSL finals series (type-1 design) or declare them postpon
   Private converter division_name: a name over 16 keeps its trailing number as initials + number, else first words as
   initials until it fits. Audit: no other duplicate division title in the 32 countries.
 - Build c/REL336 (all languages, CD + GOG), DATA = 3.3.5 (names live in the exe).
+- menumusic.py (Marco, SWOS++): InitMainMenu's `mov al, 2 / call CDROM_Seek` (menu music on, driver on) -> mm_cd:
+  TryMidiPlay, then the same seek; relative calls only (a fixup there broke the world test build's LE padding).
+  Not reproduced on Marco's exact setup (a SWOSPP.XML with menuMusic=1 already played in DOSBox-X); notes ask him.
+- Build c/REL336: SWOS IT 372524d1 EN e00c5dc4 FR 49095d32 DE e3ca0b32; gog IT 0b0d9628 EN 17ce221f FR 32fdb905 DE fb0a7340;
+  SWOS++ 6ccc9e51. Suite 24/24 PASS (runs336 + runs336b). Patcher md5 45d7b998: Node OK.

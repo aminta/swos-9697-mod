@@ -133,8 +133,13 @@ def _runs(codes, t):
 def league_text(div, win, t, names=None, lang='it', lowest=False, rest_note=True):
     n, g = div['clubs'], div['games']
     days = (n if n % 2 else n - 1) * g
-    lines = [f"{t['clubs'].format(n=n)}, {t['rr'].get(g, '')}", t['days'].format(n=days)]
-    if n % 2 and rest_note:
+    fx = [st for st in ((div.get('split') or {}).get('stages') or []) if 'fixtures' in st]
+    if fx:                                      # (a fixture-list league: Argentina's two tournaments of 16 days)
+        days = sum(len(st['fixtures']) for st in fx)
+        lines = [t['clubs'].format(n=n), t['days'].format(n=days)]
+    else:
+        lines = [f"{t['clubs'].format(n=n)}, {t['rr'].get(g, '')}", t['days'].format(n=days)]
+    if n % 2 and rest_note and not fx:
         lines.append(t['rest'])
     lines.append(t['pts'].format(w=win))
     if div.get('up'):
@@ -251,7 +256,8 @@ def from_pack(d):
                     for lang in LANGS:
                         nm = complist._nm(div['name'], lang)
                         titles[lang] = title(lang, nm)
-                        low = lg['closed'] or lv is lg['levels'][-1]
+                        low = (lg['closed'] or lv is lg['levels'][-1]) and not any(
+                            po.get('kind') == 'promedio' for po in comp.get('ko_playoffs') or [])
                         texts[lang] = league_text(div, win, T[lang], lg['names'], lang, low) + \
                             (T[lang]['ita'] if lg['special'] and k == min(1, len(lg['names']) - 1) else [])
                     out.append((world, cid, titles, texts))

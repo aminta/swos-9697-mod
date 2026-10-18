@@ -274,6 +274,8 @@ class Pack:
             for k in self.league_clubs:
                 a = self.clubs[k].get('area') or ''
                 _need(a == '' or a in 'ABCDEF'[:n], f"clubs.csv: {k}: area must be one of {'ABCDEF'[:n]} (a group of the level)")
+        if self.league and len(divs) > 1 and self.league.get('playoffs') != 'ita':   # (Italy: dplay's own counts)
+            self._balance(divs)
         for c in self.comps:
             if c['type'] == 'cup':
                 self.bracket(c)          # validates
@@ -303,6 +305,35 @@ class Pack:
         for club, cup in m['season'].get('europe', {}).items():
             _need(club in self.league_clubs, f'season.europe: {club} is not a league club')
             _need(club in self.bracket(self.comp(cup))['clubs'], f'season.europe: {club} does not play {cup}')
+
+    def _balance(self, divs):
+        """Every level of the chain (a division, or a level of parallel groups) keeps its size at the season end: the
+        clubs relegated from the level above + promoted from the one below = the level's own promoted + relegated;
+        a promotion play-off ('ko_playoffs') with no entrant from winner_div sends one more club up."""
+        par = self.league.get('parallel')
+        pars = {q['first']: q['count'] for q in (par if isinstance(par, list) else [par] if par else [])}
+        lv, d = [], 0
+        while d < len(divs):
+            lv.append(list(range(d, d + pars.get(d, 1))))
+            d += pars.get(d, 1)
+        lvl = {dv: i for i, ds in enumerate(lv) for dv in ds}
+        up = [sum(divs[x].get('promoted', 0) for x in ds) for ds in lv]
+        down = [sum(divs[x].get('relegated', 0) for x in ds) for ds in lv]
+        extra = [0] * len(lv)                      # play-off moves: + into a level, - out of it
+        for po in self.league.get('ko_playoffs') or []:
+            if po.get('kind') != 'promotion':
+                continue
+            ents = [e for e in po['entrants'] if isinstance(e, list)]
+            wd = po.get('winner_div', 0)
+            if ents and not any(e[0] == wd for e in ents):
+                extra[lvl[wd]] += 1
+                extra[lvl[ents[0][0]]] -= 1
+        for i in range(len(lv)):
+            gain = (down[i - 1] if i else 0) + (up[i + 1] if i + 1 < len(lv) else 0) + extra[i]
+            lose = (up[i] if i else 0) + (down[i] if i + 1 < len(lv) else 0)
+            _need(gain == lose, f"{self.meta['id']}: {self.league['key']}: level {i + 1} (divisions {lv[i][0] + 1}..{lv[i][-1] + 1}) gets "
+                  f"{gain} clubs at the season end and loses {lose} (promoted / relegated counts, play-offs): it "
+                  'would not keep its size')
 
     def dplay(self):
         """dplay table: None, or (world, league id, upper, first, groups) of a league with 'playoffs': 'ita' (Serie B

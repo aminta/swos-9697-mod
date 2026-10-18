@@ -139,6 +139,9 @@ when the engine lands it.
 - **Serie C in three groups of 20** (A North, B Centre, C South): the three group winners are promoted; the clubs
   relegated from Serie B go into the group of their region, balanced to 20 per group, as the real 2026-27 groups
   are drawn.
+- **Serie C relegates for real**: the 20th of each group and the two play-out losers (16th v 19th, 17th v 18th; no
+  play-out when 8+ points apart) go down to the Serie D, and nine clubs come up from it, each into the group of its
+  area. A relegated club comes back after the others ahead of it.
 - **Serie C play-off of 28 clubs** (2nd-10th of each group + the Coppa Italia Serie C winner) for the fourth
   promotion:
   - group phase, round 1: 5th v 10th, 6th v 9th, 7th v 8th, single match at the better placed's, a draw -> the
@@ -353,8 +356,10 @@ when the engine lands it.
     Primera. Each Segunda zone sends its last club down, each Tercera zone its winner up. In the zones' new line-ups
     from season 2, a club goes to its own area (A = Centro Occidente, B = Centro Oriente; Primera clubs by their
     department).
-  - New Zealand: the National League relegates 3 and each regional league's winner goes up. In reality the National
-    League is formed each year from the regional leagues' best clubs (an approximation). -->
+  - New Zealand: the season is, for now, its three regional leagues at their real sizes (Northern 12, Central 10,
+    Southern 10; no moves between them). The National League Championship that their top clubs and the A-League
+    reserves play after them (September-December) comes as a second competition of the season, with Brazil's state
+    championships. -->
 - Leagues with an odd number of clubs keep their real size, one club resting each matchday: Gibraltar 11, New
   Zealand 11.
 <!-- INTERNAL (not public, regia 2026-10-18): Argentina's Liga Profesional and the MLS are two closed divisions of 15
@@ -527,6 +532,9 @@ Non una formula uguale per tutti: ogni campionato gioca la stagione come l'ha sc
   esattamente con queste regole.
 - **Serie C su tre gironi da 20** (A Nord, B Centro, C Sud): salgono le tre vincitrici; le retrocesse dalla B vanno
   nel girone della loro regione, bilanciato a 20, come sono composti i gironi veri 2026-27.
+- **In Serie C si retrocede davvero**: la 20ª di ogni girone e le due perdenti dei play-out (16ª-19ª e 17ª-18ª;
+  niente play-out con 8 o più punti di distacco) scendono in Serie D, e ne salgono nove, ognuna nel girone della sua
+  area. Chi retrocede torna dopo quelle scese prima di lui.
 - **Play-off di Serie C a 28 squadre** (dalla 2ª alla 10ª di ogni girone + la vincente della Coppa Italia Serie C)
   per la quarta promozione:
   - fase dei gironi, primo turno: 5ª-10ª, 6ª-9ª, 7ª-8ª, gara secca in casa della meglio piazzata, a parità passa la
@@ -754,8 +762,10 @@ Non una formula uguale per tutti: ogni campionato gioca la stagione come l'ha sc
     in Primera. Ogni zona della Segunda retrocede l'ultima, ogni zona della Tercera promuove la prima. Quando dalla
     seconda stagione si riformano le zone, ogni club va nella sua area (A = Centro Occidente, B = Centro Oriente; i
     club di Primera secondo il loro dipartimento).
-  - Nuova Zelanda: la National League retrocede 3 squadre e sale la vincente di ogni lega regionale. Nella realtà la
-    National League si forma ogni anno con i migliori club delle leghe regionali (un'approssimazione). -->
+  - Nuova Zelanda: per ora la stagione è quella dei suoi tre campionati regionali nella dimensione reale (Northern
+    12, Central 10, Southern 10; nessun passaggio tra loro). Il National League Championship che giocano dopo le loro
+    prime e le riserve della A-League (settembre-dicembre) arriverà come seconda competizione della stagione, insieme
+    ai campionati statali brasiliani. -->
 - I campionati con un numero dispari di club mantengono la dimensione reale, con una squadra a riposo a ogni
   giornata: Gibilterra 11, Nuova Zelanda 11.
 <!-- INTERNO (non pubblico, regia 2026-10-18): la Liga Profesional argentina e la MLS sono per ora due divisioni

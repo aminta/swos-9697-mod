@@ -3976,6 +3976,15 @@ def gp_ptrs(exe):
     return struct.unpack_from('<4I', d1, k + 8) if k >= 0 else None
 
 
+def gp_eu(exe):
+    """obj2 offsets of D8CB6 (the slot-3 contest) and the euro cup won flags D6C64 / D6C66 / D6C68 (GPLOGPTR)."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    from le import LE
+    d1 = LE(open(os.path.join(exe, 'ITALIAN.EXE'), 'rb').read()).obj_bytes(1)
+    k = d1.find(b'GPLOGPTR')
+    return struct.unpack_from('<4I', d1, k + 24)
+
+
 def gp_ko(b):
     """A gp_ko's fields (gp_log / GP_ST bytes from its offset)."""
     f = {k: b[v] for k, v in GP_KO.items() if k not in ('rs', 'rb', 'gp0', 'pa', 'pb', 'pw', 'ptie', 'tw', 'tl', 'code',
@@ -4262,10 +4271,12 @@ def world_gplay_poule(force='1', team='EUROPA,ITALIA,SERIE D GIRONE A,LIGORNA'):
     env = {'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]), 'GPLAY_FORCE': force}
     exe = os.environ.get('GPLAY_BUILD') or build('world_gplay_poule', env=env)
     log_at, st_at, log_n, st_n = gp_ptrs(exe)
+    eu = gp_eu(exe)
     keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K',
                                             'W8485_NOSACK', 'W8485_HEX', 'W8485_ONE')}
     os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5', W8485_K='108+',
-                      W8485_NOSACK='1', W8485_HEX=f'{log_at:x}:{log_n},{st_at:x}:{st_n}', W8485_ONE='1')
+                      W8485_NOSACK='1', W8485_HEX=f'{log_at:x}:{log_n},{st_at:x}:{st_n},' + ','.join(
+                          f'{a:x}:{4 if i == 0 else 2}' for i, a in enumerate(eu)), W8485_ONE='1')
     try:
         ok, msg = world8485()
     finally:
@@ -4296,6 +4307,13 @@ def world_gplay_poule(force='1', team='EUROPA,ITALIA,SERIE D GIRONE A,LIGORNA'):
     res = [struct.unpack_from('<BBHHHH', lg_, 942 + 10 * i) for i in range(min(nres, 4))]
     check(lg_[6] == kl['pi'] + 1 and champ is not None, f'season end: played {lg_[6]}, champion {champ}', errs)
     check(any(r[0] == 5 and r[2] == champ for r in res), f'title result {res} not the champion {champ}', errs)
+    last = {}                                                             # (no European cup credited: the season
+    for ln in lines:                                                      # review's D8CB6 cleared by gp_sack, the
+        p_ = ln.split()                                                   # won flags 0)
+        if len(p_) == 3 and p_[0] == 'HEX':
+            last[int(p_[1], 16)] = bytes.fromhex(p_[2])
+    flags = [struct.unpack('<H', last.get(a, bytes(2))[:2])[0] for a in eu[1:]]
+    check(not any(flags), f'a European cup credited: flags {flags}', errs)
     car = os.path.join(RUNS, w84_tag() + '_1', 'SWOS', 'W84A.CAR')    # (the 9 group winners: up into Serie C, the
     if os.path.exists(car):                                               # early tables restored at the season end)
         dv = club_divisions(car, src, 'ita', set(kl['team']))

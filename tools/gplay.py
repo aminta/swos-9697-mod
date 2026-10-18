@@ -638,6 +638,18 @@ gp_sync:                                ; after a career / .SEA load (the engine
 
 gp_sack:                                ; replaces SeasonFinished's `call cseg_3C07C` (a club career's season-end
     pushad                              ; screens; cseg_3E55C, the contract check, runs for national selectors only):
+    mov eax, [D8CAA + 12]               ; (our slot-3 contest, the Poule, is no European cup for the season review:
+    test eax, eax                       ; cseg_3D7CB credits the slot-3 cup's winner with D8CBE's trophy) D8CB6 = 0
+    jz .e
+    lea ebx, [GP_ST + ST_KO + KO_CON]
+    cmp eax, ebx
+    je .ec
+    add ebx, KO_SIZE
+    cmp eax, ebx
+    jne .e
+.ec:
+    mov dword [D8CAA + 12], 0
+.e:
     cmp word [GAMETYPE], 4              ; the career club relegated into the reserve (directly, or by a played
     jne .game                           ; play-out) is sacked first, as cseg_3E55C sacks (CONTINUA CARRIERA off,
     cmp word [SACKED], 0                ; job offers)
@@ -695,8 +707,9 @@ GP_BUILT: dd 0
 GP_PNEXT: dd 0                          ; (dplay's dp_perm, or gp_stc)
 GP_RSTP: dd 0                           ; (pgroups' RS_TAB: link_reserve, or 0)
 GP_RITP: dd 0                           ; (ripool's RI_TAB: link_reserve, or 0)
-    db 'GPLOGPTR'                       ; (the harness: GP_LOG, GP_ST in obj2, their sizes)
-    dd GP_LOG, GP_ST, LOG_SIZE, ST_SIZE
+    db 'GPLOGPTR'                       ; (the harness: GP_LOG, GP_ST in obj2, their sizes; D8CB6, the euro cup won
+    dd GP_LOG, GP_ST, LOG_SIZE, ST_SIZE ; flags D6C64 / D6C66 / D6C68)
+    dd D8CAA + 12, EUW0, EUW1, EUW2
 '''
 
 
@@ -930,7 +943,11 @@ def _sack_sites(p):
     assert k > 0, hex(c55c)
     site = k + 6
     u = lambda g: struct.unpack('<I', m.group(g))[0]
-    return dict(c3e55c=h, site=site, c3c07c=site + 5 + struct.unpack_from('<i', d1, site + 1)[0],
+    e = [x for x in re.finditer(rb'\x66\x83\x3d(.{4})\x00\x74.\x66\x83\x3d\1\x02\x74.\x66\xc7\x05(.{4})\x01\x00\xeb.'
+                                rb'\x66\xc7\x05(.{4})\x01\x00\xeb.\x66\xc7\x05(.{4})\x01\x00', d1, re.S)]
+    assert len(e) == 1, len(e)                  # cseg_3D7CB: the slot-3 cup's winner -> the euro cup won flags by D8CBE
+    eu = [struct.unpack('<I', e[0].group(g))[0] for g in (3, 2, 4)]   # (D6C64 EC, D6C66 CWC, D6C68 UEFA)
+    return dict(c3e55c=h, site=site, c3c07c=site + 5 + struct.unpack_from('<i', d1, site + 1)[0], euw=eu,
                 msg=struct.unpack('<H', m.group(2))[0], show=m.end(3) + struct.unpack('<i', m.group(3))[0],
                 CURMSG=u(1), SACKED=u(4))
 
@@ -1031,6 +1048,7 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
     sk = _sack_sites(p)
     symbols.update({k: (2, sk[k]) for k in ('CURMSG', 'SACKED')})
     symbols.update({'MSG_NORENEW': (0, sk['msg']), 'SHOWCHAIR': (1, sk['show']), 'C3C07C': (1, sk['c3c07c'])})
+    symbols.update({f'EUW{i}': (2, a) for i, a in enumerate(sk['euw'])})
     symbols.update({k: syms[k] for k in ('GP_CFB', 'GP_LG', 'GP_RST', 'GP_RIT', 'GP_SEL', 'GP_MGR', 'GP_WORLD', 'GP_SLT',
                                          'gp_sack_c', 'gp_forcecfb')})
     symbols['FORCE_ON'] = (0, int(bool(force)))

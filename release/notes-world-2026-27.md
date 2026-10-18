@@ -3,7 +3,7 @@
 
 ## English
 
-**SWOS 96/97 Mod 5.0: World 2026-27 career** (DRAFT)
+**SWOS 96/97 Mod 4.0: the World 2026-27 career and the 1996-97 game as it really was** (DRAFT)
 <!-- REGIA STAGED, the release payoff (Davide 2026-10-18, for the final release of the whole work):
 *Football competitions, global and local, that no other game has, has ever had, or probably ever will.* -->
 
@@ -390,7 +390,7 @@ when the engine lands it.
 
 ## Italiano
 
-**SWOS 96/97 Mod 5.0: carriera Mondo 2026-27** (BOZZA)
+**SWOS 96/97 Mod 4.0: la carriera Mondo 2026-27 e il gioco 1996-97 com'era davvero** (BOZZA)
 <!-- REGIA STAGED, il payoff del rilascio (Davide 2026-10-18, per il rilascio finale di tutto il lavoro):
 *Le competizioni di calcio, globali e locali, che nessun altro gioco ha, ha mai avuto e probabilmente avrà.* -->
 

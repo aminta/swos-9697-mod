@@ -49,14 +49,14 @@ P = {
                      'playout': 'play-out', 'title': 'title play-off'},
                place='{div} {places}', places_one='{a}', places_rng='{a}-{b}', ord=lambda n: f'{n}{_sfx(n)}',
                legs={1: 'single match', 2: 'two legs'},
-               host={'listed': 'the first named at home', 'better': 'the better placed at home (2nd leg)',
+               host={'listed': 'home order as in the real schedule', 'better': 'the better placed at home (2nd leg)',
                      'drawn': 'home order drawn', 'neutral': 'neutral ground'},
                level={'better': 'level: the better placed goes through', 'et_pens': 'extra time and penalties',
                       'et_better': 'extra time, then the better placed', 'pens': 'penalties'},
                gap='not played when the two clubs are {n}+ points apart', winner_to='the winner to {div}',
                loser_to='the loser to {div}', reserve='the reserve (out of the world)',
-               cup='{n} clubs', cup_from='from the {rnd}', cup_real='the clubs still in the real 2026-27 cup, {k} of '
-               'the {t} first-round pairs as really drawn', cup_real0='the clubs still in the real 2026-27 cup',
+               cup='{n} clubs', cup_from='from the {rnd}', cup_real='the clubs still in the real {season} cup, {k} of '
+               'the {t} first-round pairs as really drawn', cup_real0='the clubs still in the real {season} cup',
                cup_gen='every club of the league, drawn by the game',
                byes='{n} byes into the 2nd round',
                rounds={'single': 'single matches (a draw: penalties)', 'single_et': 'single matches, extra time and '
@@ -97,15 +97,15 @@ P = {
                      'playout': 'play-out', 'title': 'play-off scudetto'},
                place='{div} {places}', places_one='{a}', places_rng='{a}-{b}', ord=lambda n: f'{n}ª',
                legs={1: 'gara unica', 2: 'andata e ritorno'},
-               host={'listed': 'in casa la prima nominata', 'better': 'in casa la meglio piazzata (al ritorno)',
+               host={'listed': 'ordine in casa come nel calendario vero', 'better': 'in casa la meglio piazzata (al ritorno)',
                      'drawn': 'ordine in casa sorteggiato', 'neutral': 'campo neutro'},
                level={'better': 'in parità passa la meglio piazzata', 'et_pens': 'supplementari e rigori',
                       'et_better': 'supplementari, poi la meglio piazzata', 'pens': 'rigori'},
                gap='non si gioca se le due squadre sono a {n} o più punti', winner_to='la vincente in {div}',
                loser_to='la perdente in {div}', reserve='la riserva (fuori dal mondo)',
                cup='{n} squadre', cup_from='dal turno: {rnd}', cup_real='le squadre ancora in corsa nella vera coppa '
-               '2026-27, {k} dei {t} accoppiamenti del primo turno come nel sorteggio vero',
-               cup_real0='le squadre ancora in corsa nella vera coppa 2026-27',
+               '{season}, {k} dei {t} accoppiamenti del primo turno come nel sorteggio vero',
+               cup_real0='le squadre ancora in corsa nella vera coppa {season}',
                cup_gen='tutti i club del campionato, sorteggiati dal gioco',
                byes='{n} esenti fino al 2° turno',
                rounds={'single': 'gara unica (in parità: rigori)', 'single_et': 'gara unica, supplementari e rigori',
@@ -185,13 +185,15 @@ def from_packs(dirs, approx=None, staged=None, since=None, modes=('career',)):
                 c['comps'].append(dict(_league(comp, clubs), **common))
             elif comp['type'] == 'cup':
                 k = 'league_cup' if comp['key'] == 'league_cup' else 'cup'
-                c['comps'].append(dict(_cup(comp, ties, k, info.get(k, {})), **common))
+                c['comps'].append(dict(_cup(comp, ties, k, dict(info.get(k, {}), season=info.get('season'))),
+                                       **common))
         lcd = os.path.join(os.path.dirname(d) + '-lc', os.path.basename(d))   # (staged league cups)
         if not any(x['kind'] == 'league_cup' for x in c['comps']) and os.path.exists(os.path.join(lcd, 'competition.json')):
             lt = os.path.join(lcd, 'ties.csv')
             lties = list(csv.DictReader(open(lt, encoding='utf-8'))) if os.path.exists(lt) else []
             c['comps'].append(dict(_cup(json.load(open(os.path.join(lcd, 'competition.json'))), lties, 'league_cup',
-                                        info.get('league_cup', {})), **common, staged_lc=True))
+                                        dict(info.get('league_cup', {}), season=info.get('season'))), **common,
+                                   staged_lc=True))
         fe = m.get('first_europe')
         if fe is not None:
             names = {r['key']: r['name'] for r in clubs}
@@ -242,7 +244,7 @@ def _cup(cp, ties, kind, info):
     byes = len([t for t in r1 if not t.get('away')]) or (max(0, size // 2 - len(pairs)) if pairs else 0)
     return dict(kind=kind, name=cp['names'], clubs=2 * len(pairs) + byes if pairs else size, size=size, rounds=rounds,
                 byes=byes, src=info.get('source', 'real' if pairs else 'generated'), real_pairs=info.get('real_pairs'),
-                ties=info.get('ties', len(pairs)), numbered=cp.get('round_names') == 'numbered',
+                ties=info.get('ties', len(pairs)), season=info.get('season', ''), numbered=cp.get('round_names') == 'numbered',
                 first_round=cp.get('first_round', 1), europe=cp.get('europe'))
 
 
@@ -360,7 +362,8 @@ def _cup_line(cp, t):
     bits = [t['cup'].format(n=cp['clubs'])]
     if cp['size'] in t['rnd'] and cp['src'] == 'real':
         bits.append(t['cup_from'].format(rnd=t['rnd'][cp['size']]))
-    bits.append((t['cup_real'] if cp['real_pairs'] is not None else t['cup_real0']).format(k=cp['real_pairs'], t=cp['ties'])
+    bits.append((t['cup_real'] if cp['real_pairs'] is not None else t['cup_real0']).format(
+                k=cp['real_pairs'], t=cp['ties'], season=cp.get('season') or '2026-27')
                 if cp['src'] == 'real' else t['cup_gen'])
     if cp['byes']:
         bits.append(t['byes'].format(n=cp['byes']))

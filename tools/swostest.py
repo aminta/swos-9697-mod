@@ -1453,7 +1453,7 @@ def world8485():
         out, msgs = [first], [f'season 1: from {first}']
     for season in ((2,) if first else (1, 2)):
         cars = {} if season == 1 else {'W84A.CAR': out[0]}
-        with Session(f'{w84_tag()}_{season}', exe, cars, 'dump:2', 240, int(os.environ.get('W8485_SHOTS', 0))) as s:
+        with Session(f'{w84_tag()}_{season}', exe, cars, 'dump:2', int(os.environ.get('W8485_TMO', 240)), int(os.environ.get('W8485_SHOTS', 0))) as s:
             if s.wait().outcome != 'dump':
                 return False, f'START: no first pause ({s.result})'
             if season == 1:
@@ -3308,7 +3308,7 @@ def full_season(country, team):
     import collections
     import glob
     bdir = os.environ.get('W2627FULL') or (sorted(glob.glob(os.path.join(WORK, 'builds', 'w2627full-*'))) or [''])[-1]
-    data = os.path.join(MAIN, 'internal', 'world2526', 'world5tm-full-lc')
+    data = os.environ.get('W2627FULL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-full-lc')
     if not os.path.isdir(bdir) or not os.path.isdir(data):
         return True, 'SKIP: no full build (W2627FULL) or private data internal/world2526/world5tm-full-lc'
     order = [ln.split()[0].lower() for ln in open(data.replace('-lc', '') + '.txt') if ' file ' in ln]
@@ -3323,11 +3323,11 @@ def full_season(country, team):
         os.environ['SEASON_PACKS'] = old
     par = pk.league.get('parallel')
     pars = {q['first']: q['count'] for q in (par if isinstance(par, list) else [par] if par else [])}
-    level, d, n = {}, 0, len(pk.divisions())
+    level, d, n, lv = {}, 0, len(pk.divisions()), 0
     while d < n:
         for x in range(d, d + pars.get(d, 1)):
-            level[x] = len(set(level.values()))
-        d += pars.get(d, 1)
+            level[x] = lv
+        d, lv = d + pars.get(d, 1), lv + 1
     clubs = []
     for key in pk.league_clubs:
         fl, i = pk.where[key]
@@ -3336,7 +3336,7 @@ def full_season(country, team):
     sizes = collections.Counter(dv for _, dv in clubs)
     keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK')
     keep = {k: os.environ.get(k) for k in keys}
-    os.environ.update(W8485_BUILD=bdir, W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5',
+    os.environ.update(W8485_BUILD=bdir, W8485_WORLD='MONDO 2026-27', W8485_TEAM=os.environ.get('W2627FULL_TEAM', team), W8485_WNUM='5',
                       W8485_K='108+', W8485_NOSACK='1')
     try:
         ok, msg = world8485()

@@ -1710,7 +1710,7 @@ def patch(p, worlds, at, nasmcave, comp, ct, cont_rec):
                      'TCNT': (2, ns['tcn']), 'OBJ1Z': (1, 0), 'OBJ2Z': (2, 0), 'CAREER_WORLD': (1, ns['cworld']),
                      'WMENU_N': (0, ns['wmenu'])})
     if os.environ.get('DIAG'):
-        src = '%define DIAG\n' + src
+        src = f"%define DIAG\n%define DIAG_TICKS {int(os.environ.get('DIAG_TICKS', 364))}\n" + src
     vobj, vtab = p.target(2, comp + 4 * 254)
     assert ct + 4 * WCONT not in {f[1] for f in p.le.fixups() if f[0] == 2} and p.get(2, comp + 4 * WCONT, 4) == bytes(4)
     p.add_ptr(2, ct + 4 * WCONT, *cont_rec)        # continent button name (the CLASSIC CAREERS record)
@@ -2105,7 +2105,7 @@ diag8:
     cmp byte [DG_ARMED], 0
     je .c
     inc dword [DG_TICKS]
-    cmp dword [DG_TICKS], 364           ; ~20 s after the season end started
+    cmp dword [DG_TICKS], DIAG_TICKS    ; (364: ~20 s after the season end started; env DIAG_TICKS)
     jne .c
     mov eax, [esp + 40]
     mov byte [DGEIP + 8], 8
@@ -2225,7 +2225,7 @@ def patch_tails(p, at, nasmcave):
     sym['WNSBV'] = (1, LABELS['WNSB']) if 'WNSB' in LABELS else (0, 0)
     src = TAILS_ASM
     if os.environ.get('DIAG'):                   # diagnostic build: int 3 handler writes DIAG.BIN
-        src = '%define DIAG\n' + src.replace('.w:\n    pushad\n    mov esi, TMDBUF', '.w:\n    call diag_install\n    pushad\n    mov esi, TMDBUF')
+        src = f"%define DIAG\n%define DIAG_TICKS {int(os.environ.get('DIAG_TICKS', 364))}\n" + src.replace('.w:\n    pushad\n    mov esi, TMDBUF', '.w:\n    ' + ('times 5 nop' if os.environ.get('DIAG_NOINST') else 'call diag_install') + '\n    pushad\n    mov esi, TMDBUF')   # (DIAG_NOINST: the same layout, no handlers)
         sym.update({'DREGS': (2, D0 - 0), 'AREGS': (2, A0), 'HOLDREG': (2, s['hold'][0][0] - 0x10),
                     'DG_TICKS': (1, LABELS['DG_TICKS']), 'DG_ARMED': (1, LABELS['DG_ARMED'])})
     code, fix = nasmcave.assemble(src, at, sym)

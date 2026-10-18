@@ -43,7 +43,7 @@ P = {
                home={'balance': 'home order: the club that hosted the other fewer times',
                      'reverse1': 'home order: the return legs of the first meeting',
                      'reverse3': 'home order: the club that was away in their 3rd meeting', 'seeded': ''},
-               reset='points and figures reset to 0', keep='(the Opening table is kept)',
+               reset='points and figures reset to 0', keep='(the Opening Round table is kept)',
                stage='stage {k}: ', po='{name}: {who}; {rounds}',
                kind={'promotion': 'promotion play-off', 'europe': 'European play-off', 'placement': 'placement play-off',
                      'playout': 'play-out', 'title': 'title play-off'},
@@ -55,8 +55,9 @@ P = {
                       'et_better': 'extra time, then the better placed', 'pens': 'penalties'},
                gap='not played when the two clubs are {n}+ points apart', winner_to='the winner to {div}',
                loser_to='the loser to {div}', reserve='the reserve (out of the world)',
-               cup='{n} clubs', cup_from='from the {rnd}', cup_real='the clubs still in the real {season} cup, {k} of '
-               'the {t} first-round pairs as really drawn', cup_real0='the clubs still in the real {season} cup',
+               cup='{n} clubs', cup_from='from the {rnd}', cup_real=lambda k, t, season: 'the clubs still in the real '
+               f'{season} cup, ' + ('all ' + str(t) if k == t and t > 1 else 'the only' if k == t else f'{k} of the {t}')
+               + (' first-round pairs' if t > 1 else ' first-round pair') + ' as really drawn', cup_real0='the clubs still in the real {season} cup',
                cup_gen='every club of the league, drawn by the game',
                byes='{n} byes into the 2nd round',
                rounds={'single': 'single matches (a draw: penalties)', 'single_et': 'single matches, extra time and '
@@ -91,7 +92,7 @@ P = {
                home={'balance': 'ordine in casa: chi ha ospitato l\'altra meno volte',
                      'reverse1': 'ordine in casa: il ritorno del primo incontro',
                      'reverse3': 'ordine in casa: chi era in trasferta nel 3° incontro', 'seeded': ''},
-               reset='punti e statistiche azzerati', keep='(la classifica dell\'Apertura resta salvata)',
+               reset='punti e statistiche azzerati', keep='(la classifica dell\'Opening Round resta salvata)',
                stage='fase {k}: ', po='{name}: {who}; {rounds}',
                kind={'promotion': 'play-off promozione', 'europe': 'play-off europeo', 'placement': 'spareggio piazzamenti',
                      'playout': 'play-out', 'title': 'play-off scudetto'},
@@ -103,8 +104,8 @@ P = {
                       'et_better': 'supplementari, poi la meglio piazzata', 'pens': 'rigori'},
                gap='non si gioca se le due squadre sono a {n} o più punti', winner_to='la vincente in {div}',
                loser_to='la perdente in {div}', reserve='la riserva (fuori dal mondo)',
-               cup='{n} squadre', cup_from='dal turno: {rnd}', cup_real='le squadre ancora in corsa nella vera coppa '
-               '{season}, {k} dei {t} accoppiamenti del primo turno come nel sorteggio vero',
+               cup='{n} squadre', cup_from='{rnd}', cup_real=lambda k, t, season: 'le squadre ancora in corsa nella '
+               f'vera coppa {season}, ' + _it_pairs(k, t) + ' del primo turno come nel sorteggio vero',
                cup_real0='le squadre ancora in corsa nella vera coppa {season}',
                cup_gen='tutti i club del campionato, sorteggiati dal gioco',
                byes='{n} esenti fino al 2° turno',
@@ -116,10 +117,10 @@ P = {
                rounds_k='turni {a}-{b}: {r}', round_k='turno {a}: {r}', same='{k} turni: {r}',
                modes={'career': 'carriera', 'season': 'stagione', 'preset': 'competizioni predefinite'},
                only='solo in: {m}', new='novità della {v}', src='fonte: {s}', ueuro='Le coppe europee',
-               rnd={2: 'finale', 4: 'semifinali', 8: 'quarti di finale', 16: 'ottavi di finale',
-                    32: 'sedicesimi di finale', 64: 'trentaduesimi di finale'},
-               lcup_europe='la vincente {e}', europe='Europa', eu_first='stagione 1: i veri club 2026-27 delle fasi a '
-               'campionato ({lst})', eu_none='stagione 1: nessun club nelle fasi a campionato',
+               rnd={2: 'dalla finale', 4: 'dalle semifinali', 8: 'dai quarti di finale', 16: 'dagli ottavi di finale',
+                    32: 'dai sedicesimi di finale', 64: 'dai trentaduesimi di finale'},
+               lcup_europe='la vincente {e}', europe='Europa', eu_first='stagione 1: i veri club 2026-27 delle fasi '
+               'campionato ({lst})', eu_none='stagione 1: nessun club nelle fasi campionato',
                eu_later='dalla stagione 2: {places} secondo i coefficienti per federazione simulati',
                eu_cup={'cc': 'Champions League', 'cwc': 'Europa League', 'uefa': 'Conference League'},
                approx='Approssimazione dichiarata', staged='In costruzione', league='Campionato', cupw='Coppa',
@@ -137,6 +138,20 @@ ITA_PO = {'en': 'Serie B play-offs (3rd-8th: preliminary 5v8, 6v7 at the better 
                 'per la quarta promozione'}
 
 
+
+
+def _it_art(n):
+    """The Italian article before a number: gli 8, gli 11, i 16 (vowel sound: otto, undici, ottanta...)."""
+    w = str(n)
+    return 'gli' if w[0] == '8' or w == '11' else 'i'
+
+
+def _it_pairs(k, t):
+    if k == t == 1:
+        return "l'unico accoppiamento"
+    if k == t:
+        return f"tutti {'e' if t <= 10 else _it_art(t)} {t} accoppiamenti"
+    return f"{k} {'degli' if _it_art(t) == 'gli' else 'dei'} {t} accoppiamenti"
 
 
 def _sfx(n):
@@ -197,7 +212,8 @@ def from_packs(dirs, approx=None, staged=None, since=None, modes=('career',)):
         fe = m.get('first_europe')
         if fe is not None:
             names = {r['key']: r['name'] for r in clubs}
-            c['europe'] = dict(first={k: [names.get(x, x) for x in v] for k, v in fe.items()},
+            un = info.get('europe_names') or {}           # the UEFA names (Inter, Atalanta, Atleti ...)
+            c['europe'] = dict(first={k: [un.get(x) or _title(names.get(x, x)) for x in v] for k, v in fe.items()},
                                places=m.get('europe_places', {}))
         out.append(c)
     out.sort(key=lambda c: (CONTINENTS.index(c['continent']), c['order']))
@@ -362,9 +378,13 @@ def _cup_line(cp, t):
     bits = [t['cup'].format(n=cp['clubs'])]
     if cp['size'] in t['rnd'] and cp['src'] == 'real':
         bits.append(t['cup_from'].format(rnd=t['rnd'][cp['size']]))
-    bits.append((t['cup_real'] if cp['real_pairs'] is not None else t['cup_real0']).format(
-                k=cp['real_pairs'], t=cp['ties'], season=cp.get('season') or '2026-27')
-                if cp['src'] == 'real' else t['cup_gen'])
+    season = cp.get('season') or '2026-27'
+    if cp['src'] != 'real':
+        bits.append(t['cup_gen'])
+    elif cp['real_pairs'] is not None:
+        bits.append(t['cup_real'](cp['real_pairs'], cp['ties'], season))
+    else:
+        bits.append(t['cup_real0'].format(season=season))
     if cp['byes']:
         bits.append(t['byes'].format(n=cp['byes']))
     rs = cp['rounds']
@@ -434,7 +454,7 @@ def render(model, lang, heading='##', show_modes=False):
                 out.append(s)
         e = c.get('europe')
         if e is not None:
-            first = '; '.join(f"{t['eu_cup'][k]} " + ', '.join(_title(x) for x in v) for k, v in e['first'].items() if v)
+            first = '; '.join(f"{t['eu_cup'][k]} " + ', '.join(v) for k, v in e['first'].items() if v)
             later = ', '.join(f"{t['eu_cup'][k]} {n}" for k, n in e['places'].items() if n)
             out.append(f"- {t['europe']}: " + (t['eu_first'].format(lst=first) if first else t['eu_none'])
                        + ('; ' + t['eu_later'].format(places=later) if later else ''))

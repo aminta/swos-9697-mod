@@ -198,7 +198,8 @@ def patch_exe(src, dst, remap, lang='it'):
     lpb += 2 * bool(dp_tabs)                           # (+2: their code pages, before the extra one)
     gp_tabs = (mkseason.gplay_tables() if mkseason.worlds() else []) + engine.gplay_tables()   # knockout play-offs
     gp_on = bool((gp_tabs or pg_tabs or rs_tabs) and mkseason.worlds())         # (gplay.c also holds the parallel groups' fix)
-    lpb += 2 * gp_on                                   # (+2: its pages, after dplay's)
+    import gplay as gp_mod
+    lpb += gp_mod.GP_PAGES * gp_on                     # (its pages, after dplay's: C + glue + specs)
     xtra_pg = bool((xtra_on or pg_tabs or rs_tabs or bigtables.ON[0]) and mkseason.worlds())   # (+1: an extra code page in a build with worlds,
     lpb += xtra_pg                                     # whose world cave is full: 3.3.x purple + blond + a big world)
     cos_pg = int(worlds)                               # (+1, the top one: blond + menunum + avgprice in a build with
@@ -358,13 +359,13 @@ def patch_exe(src, dst, remap, lang='it'):
         careerworld.BSS_SIZE = (careerworld.B_UQ + careerworld.UQ_BSS + careerworld.UQ_RECS * 684 + 0xFFF) & ~0xFFF
     if dp_tabs:                                 # Italian play-offs (C, tools/dplay.c; own 2 pages,
         import dplay                            # its .bss after the career BSS)
-        dp_at = hist2 + h2 + 0x1000 * (lpb - cos_pg - 2 - 2 * gp_on - xtra_pg)
+        dp_at = hist2 + h2 + 0x1000 * (lpb - cos_pg - 2 - gp_mod.GP_PAGES * gp_on - xtra_pg)
         dplay.patch(p, dp_at, dp_at + 0x2000, dp_tabs, careerworld.BSS[0] + careerworld.BSS_SIZE, area)
         careerworld.BSS_SIZE += 0x1000
     if gp_on:                                   # knockout play-offs (C, tools/gplay.c; chained after dplay's hooks)
         import gplay                            # and the parallel groups' season-end fix (pg_season, pgroups.py)
-        gp_at = hist2 + h2 + 0x1000 * (lpb - cos_pg - 2 - xtra_pg)
-        gplay.patch(p, gp_at, gp_at + 0x2000, gp_tabs, careerworld.BSS[0] + careerworld.BSS_SIZE)
+        gp_at = hist2 + h2 + 0x1000 * (lpb - cos_pg - gplay.GP_PAGES - xtra_pg)
+        gplay.patch(p, gp_at, gp_at + 0x1000 * gplay.GP_PAGES, gp_tabs, careerworld.BSS[0] + careerworld.BSS_SIZE)
         if rs_tabs:
             engine.ITEM_AT['RS'] = gplay.LABELS['RS_STATE']
         pgroups.relax_file_check(p)             # (moves of several divisions: cseg_9487A's per-file sum check)

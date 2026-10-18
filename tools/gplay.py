@@ -315,6 +315,7 @@ def table_lines(tables):
 
 
 LABELS = {}
+GP_PAGES = 5             # obj1 pages for the C code + glue + specs (World 2026-27's 20 countries; gplay-play)
 GP_BSS = 0x3000          # the C .bss pages (obj2 after careerworld's BSS): GP_IN at GD 16, RS_STATE, the squads' GP_ST
 
 

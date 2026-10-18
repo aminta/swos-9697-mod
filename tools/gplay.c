@@ -163,7 +163,7 @@ void gp_season(void) {
    single division as it is, into a level of groups to the group of the club's area for that level, else the nearest
    one with room (each group keeps its size). A division past the chain (the reserve, gplay's 'reserve') is a level of
    its own below the last one. */
-enum { PL = 8, PG = 6 };
+enum { PL = 8, PG = 9 };                    /* (Serie D 2026-27: 9 groups) */
 static u8 pg_pend[4096 / 8];                      /* (bits, by global number) */
 #define PEND(g) (pg_pend[(g) >> 3] & (1 << ((g) & 7)))
 

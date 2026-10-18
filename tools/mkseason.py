@@ -305,8 +305,8 @@ class Pack:
             for q in pars:
                 u, f, n = q.get('upper'), q.get('first'), q.get('count')
                 _need(isinstance(f, int) and f >= nxt and (u is None or u == f - 1) and isinstance(n, int)
-                      and 2 <= n <= 6 and f + n <= len(divs),
-                      'league.parallel: {upper, first = upper + 1, count 2..6} (or a list of them, top-down, not '
+                      and 2 <= n <= 9 and f + n <= len(divs),
+                      'league.parallel: {upper, first = upper + 1, count 2..9} (or a list of them, top-down, not '
                       'overlapping), the groups being divisions of the chain')
                 nxt = f + n
             _need(isinstance(par, list) or nxt == len(divs), 'league.parallel: one level of groups must be the last '

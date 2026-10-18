@@ -1540,9 +1540,9 @@ def fmt_lines(build, title, lang='it', world=0):
     path = os.path.join(build, 'DATA', f'FMT{lang.upper()}{world or ""}.DAT')
     d = open(path, 'rb').read()
     for i in range(struct.unpack_from('<H', d, 4)[0]):
-        e = d[8 + 40 * i:48 + 40 * i]
-        if e[1:32].split(b'\0')[0].decode('latin-1') == title:
-            off, ln = struct.unpack_from('<IH', e, 32)
+        e = d[8 + 48 * i:56 + 48 * i]
+        if e[1:42].split(b'\0')[0].decode('latin-1') == title:
+            off, ln = struct.unpack_from("<IH", e, 42)
             return d[off:off + ln].decode('latin-1').split('\x0c')[0].split('\n')
     return None
 

@@ -9,8 +9,8 @@ Texts: DATA\\FMTxx.DAT (xx = the exe language: IT, EN, FR, DE), read only when t
 own (the game's LoadFile ends the program on a missing file; a missing file or key shows NONE): into a BSS buffer of
 BSS_SIZE bytes, nothing resident.
   header  'FMT1', u16 entries, u16 0
-  entry   40 bytes: u8 contest id (the slot's byte +2Dh; 0FFh = any), 31 bytes name (the slot's name: the title
-          the game shows, e.g. ITALIA 1947-48 SERIE A 1947-48, NUL padded), u32 file offset of the text, u16 its length, u16 0
+  entry   48 bytes: u8 contest id (the slot's byte +2Dh; 0FFh = any), 41 bytes name (the slot's name: the title
+          the game shows, e.g. ITALIA 1947-48 SERIE A 1947-48, NUL padded), u32 file offset of the text, u16 its length
   text    lines separated by LF, pages by FF; upper case, the game's font (no accents).
 build(path, pages) writes such a file: pages = [(id or None, name, [page = [line, ...], ...]), ...].
 """
@@ -21,11 +21,11 @@ import nasmcave
 
 LINES = 14
 LINE_W = 42                     # buffer per line (41 characters + NUL); the renderer wraps at 40
-IDXMAX = 0x6000                 # header + index read at once (614 entries)
+IDXMAX = 0x6000                 # header + index read at once (511 entries)
 TXTMAX = 0x2000                 # one competition's text
 BSS_SIZE = IDXMAX + TXTMAX
-ENTRY = 40
-NAME = 31                       # the slot's name: the title the game shows (country + competition)
+ENTRY = 48
+NAME = 41                       # the slot's name (+4 .. +2Ch, before the contest id): the title the game shows
 
 TEXTS = {
     'it': dict(btn=b'FORMULA', next=b'PAG. SUCC.', none=b'NESSUNA DESCRIZIONE', file=b'data/fmtit'),
@@ -41,7 +41,7 @@ fp_open:                                ; FORMULA (fire): the page of the compet
     mov byte [FOUND], 0
     mov esi, [DIYNAME]
     mov edi, TITLE
-    mov ecx, 31
+    mov ecx, NAME_ - 1
 .title:
     lodsb
     stosb
@@ -277,7 +277,7 @@ def patch(p, at, lang, area, bss, world=None):
     for k in ('btn', 'next', 'none'):
         put(k, T[k])
     put('file', T['file'], 20)
-    put('title', b'', 32)
+    put('title', b'', NAME + 1)
     put('lines', b'', LINES * LINE_W)
     put('vars', b'', 8)                                  # page (dword), found (byte)
     while len(data) % 4:
@@ -370,6 +370,7 @@ def build(path, pages):
         assert len(txt) < TXTMAX, (name, len(txt))
         nm = name.encode('latin-1')[:NAME]
         idx += struct.pack('<B', 0xFF if cid is None else cid) + nm + b'\0' * (NAME - len(nm))
-        idx += struct.pack('<IHH', head + len(body), len(txt), 0)
+        idx += struct.pack('<IH', head + len(body), len(txt))
+        idx += b'\0' * (-len(idx) % ENTRY)
         body += txt
     open(path, 'wb').write(b'FMT1' + struct.pack('<HH', len(pages), 0) + idx + body)

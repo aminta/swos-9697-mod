@@ -22,7 +22,8 @@ W = 40
 LANGS = ('it', 'en', 'fr', 'de')
 
 T = {
-    'it': dict(teams='{n} SQUADRE', clubs='{n} SQUADRE', rr={1: 'GIRONE DI SOLA ANDATA', 2: 'ANDATA E RITORNO', 3: 'TRE GIRONI',
+    'it': dict(po_kind={'promotion': 'PLAY-OFF PROMOZIONE', 'europe': 'PLAY-OFF EUROPEO', 'placement': 'SPAREGGIO', 'playout': 'PLAY-OUT', 'title': 'PLAY-OFF SCUDETTO'}, better='IN PARITA PASSA LA MEGLIO PIAZZATA', et_better='SUPPLEMENTARI, POI LA MEGLIO PIAZZATA', gap='NON SI GIOCA SE C SONO {n}+ PUNTI DI DISTACCO', win_to='LA VINCENTE IN {d}', ita=['PLAY-OFF B: 3A-8A, PLAY-OUT: 16A-17A', 'PLAY-OFF C A 28 SQUADRE: 4A PROMOSSA'],
+               teams='{n} SQUADRE', clubs='{n} SQUADRE', rr={1: 'GIRONE DI SOLA ANDATA', 2: 'ANDATA E RITORNO', 3: 'TRE GIRONI',
                                         4: 'QUATTRO GIRONI'},
                days='{n} GIORNATE', rest='UNA SQUADRA RIPOSA OGNI GIORNATA', pts='VITTORIA {w} PUNTI, PAREGGIO 1',
                up='PROMOSSE: {n}', down='RETROCESSE: {n}', none_down='NESSUNA RETROCESSIONE',
@@ -33,7 +34,8 @@ T = {
                gen='SORTEGGIO DEL GIOCO', groups='{k} GIRONI PARALLELI DA {s}', split='DOPO {a} GIORNATE:',
                grp='{a}-{b}: {rr}', grp0='{a}-{b}: NIENT ALTRO', half=', PUNTI DIMEZZATI', reset=', DA 0 PUNTI',
                po='{name}: {who}', third='FINALE 3. POSTO', ord=lambda n: f'{n}A'),
-    'en': dict(teams='{n} TEAMS', clubs='{n} CLUBS', rr={1: 'SINGLE ROUND ROBIN', 2: 'HOME AND AWAY', 3: 'TRIPLE ROUND ROBIN',
+    'en': dict(po_kind={'promotion': 'PROMOTION PLAY-OFF', 'europe': 'EUROPEAN PLAY-OFF', 'placement': 'PLACEMENT PLAY-OFF', 'playout': 'PLAY-OUT', 'title': 'TITLE PLAY-OFF'}, better='LEVEL: THE BETTER PLACED GOES THROUGH', et_better='EXTRA TIME, THEN THE BETTER PLACED', gap='NOT PLAYED WITH A {n}+ POINT GAP', win_to='THE WINNER TO {d}', ita=['SERIE B PLAY-OFF 3RD-8TH, PLAY-OUT 16-17', 'SERIE C PLAY-OFF OF 28 CLUBS: 4TH UP'],
+               teams='{n} TEAMS', clubs='{n} CLUBS', rr={1: 'SINGLE ROUND ROBIN', 2: 'HOME AND AWAY', 3: 'TRIPLE ROUND ROBIN',
                                       4: 'QUADRUPLE ROUND ROBIN'},
                days='{n} MATCHDAYS', rest='ONE CLUB RESTS EACH MATCHDAY', pts='WIN {w} POINTS, DRAW 1',
                up='PROMOTED: {n}', down='RELEGATED: {n}', none_down='NO RELEGATION',
@@ -44,7 +46,8 @@ T = {
                gen='DRAWN BY THE GAME', groups='{k} PARALLEL GROUPS OF {s}', split='AFTER {a} MATCHDAYS:',
                grp='{a}-{b}: {rr}', grp0='{a}-{b}: NO MORE MATCHES', half=', POINTS HALVED', reset=', FROM 0 POINTS',
                po='{name}: {who}', third='THIRD PLACE MATCH', ord=lambda n: f'{n}{complist._sfx(n).upper()}'),
-    'fr': dict(teams='{n} EQUIPES', clubs='{n} CLUBS', rr={1: 'MATCHS ALLER', 2: 'MATCHS ALLER ET RETOUR', 3: 'TROIS TOURS',
+    'fr': dict(po_kind={'promotion': 'BARRAGES DE MONTEE', 'europe': 'BARRAGES EUROPEENS', 'placement': 'BARRAGES DE CLASSEMENT', 'playout': 'BARRAGES DE MAINTIEN', 'title': 'PLAY-OFF DU TITRE'}, better='NUL: LE MIEUX CLASSE PASSE', et_better='PROLONGATION, PUIS LE MIEUX CLASSE', gap='PAS JOUE AVEC {n}+ POINTS D ECART', win_to='LE VAINQUEUR EN {d}', ita=['BARRAGES SERIE B 3E-8E, MAINTIEN 16E-17E', 'BARRAGES SERIE C A 28 CLUBS: 4E PROMU'],
+               teams='{n} EQUIPES', clubs='{n} CLUBS', rr={1: 'MATCHS ALLER', 2: 'MATCHS ALLER ET RETOUR', 3: 'TROIS TOURS',
                                       4: 'QUATRE TOURS'},
                days='{n} JOURNEES', rest='UN CLUB AU REPOS A CHAQUE JOURNEE', pts='VICTOIRE {w} POINTS, NUL 1',
                up='PROMUS: {n}', down='RELEGUES: {n}', none_down='PAS DE RELEGATION',
@@ -56,7 +59,8 @@ T = {
                grp='{a}-{b}: {rr}', grp0='{a}-{b}: PLUS DE MATCHS', half=', POINTS DIVISES PAR 2',
                reset=', A PARTIR DE 0 POINT', po='{name}: {who}', third='MATCH POUR LA 3E PLACE',
                ord=lambda n: f'{n}E'),
-    'de': dict(teams='{n} MANNSCHAFTEN', clubs='{n} VEREINE', rr={1: 'EINFACHRUNDE', 2: 'HIN- UND RUECKRUNDE', 3: 'DREI RUNDEN',
+    'de': dict(po_kind={'promotion': 'AUFSTIEGSPLAYOFFS', 'europe': 'EUROPAPOKAL-PLAYOFFS', 'placement': 'PLATZIERUNGSSPIELE', 'playout': 'ABSTIEGSPLAYOFFS', 'title': 'MEISTER-PLAYOFFS'}, better='REMIS: DER BESSER PLATZIERTE', et_better='VERLAENGERUNG, DANN DER BESSER PLATZIERTE', gap='NICHT GESPIELT BEI {n}+ PUNKTEN ABSTAND', win_to='DER SIEGER IN DIE {d}', ita=['SERIE B: PLAYOFFS 3.-8., PLAYOUT 16.-17.', 'SERIE C: PLAYOFFS MIT 28 VEREINEN: 4. AUF'],
+               teams='{n} MANNSCHAFTEN', clubs='{n} VEREINE', rr={1: 'EINFACHRUNDE', 2: 'HIN- UND RUECKRUNDE', 3: 'DREI RUNDEN',
                                         4: 'VIER RUNDEN'},
                days='{n} SPIELTAGE', rest='JEDEN SPIELTAG HAT EIN VEREIN FREI', pts='SIEG {w} PUNKTE, REMIS 1',
                up='AUFSTEIGER: {n}', down='ABSTEIGER: {n}', none_down='KEIN ABSTIEG',
@@ -120,7 +124,7 @@ def _runs(codes, t):
     return out
 
 
-def league_text(div, win, t, rest_note=True):
+def league_text(div, win, t, names=None, lang='it', lowest=False, rest_note=True):
     n, g = div['clubs'], div['games']
     days = (n if n % 2 else n - 1) * g
     lines = [f"{t['clubs'].format(n=n)}, {t['rr'].get(g, '')}", t['days'].format(n=days)]
@@ -129,7 +133,10 @@ def league_text(div, win, t, rest_note=True):
     lines.append(t['pts'].format(w=win))
     if div.get('up'):
         lines.append(t['up'].format(n=div['up']))
-    lines.append(t['down'].format(n=div['down']) if div.get('down') else t['none_down'])
+    if div.get('down'):
+        lines.append(t['down'].format(n=div['down']))
+    elif lowest:
+        lines.append(t['none_down'])
     sp = div.get('split')
     if sp:
         for st in sp.get('stages') or [sp]:
@@ -140,7 +147,47 @@ def league_text(div, win, t, rest_note=True):
                 s = t['grp0'].format(a=a, b=b) if not r else t['grp'].format(a=a, b=b, rr=t['rr'][r])
                 s += {'half_up': t['half'], 'half_down': t['half'], 'reset': t['reset']}.get(gr.get('points', 'full'), '')
                 lines.append(s)
+    for po in div.get('playoffs') or []:
+        lines += po_text(po, names, t, lang)
     return lines
+
+
+def _rule(r, t):
+    legs, lvl = r.get('legs', 1), r.get('level', 'et_pens')
+    if legs == 2:
+        base = t['r']['two_legs']
+    else:
+        base = t['r']['single_et' if lvl in ('et_pens', 'et_better') else 'single']
+    if lvl == 'better':
+        base = (t['r']['two_legs'] if legs == 2 else t['r']['single'].split(',')[0]) + ', ' + t['better']
+    elif lvl == 'et_better':
+        base = t['r']['single'].split(',')[0] + ', ' + t['et_better']
+    return base
+
+
+def po_text(po, names, t, lang):
+    by = {}
+    for e in po.get('entrants', []):
+        if isinstance(e, list):
+            by.setdefault(e[0], []).append(e[1])
+    who = []
+    for dv, pls in sorted(by.items()):
+        pls = sorted(pls)
+        rng = t['ord'](pls[0]) if len(pls) == 1 else (f"{t['ord'](pls[0])}-{t['ord'](pls[-1])}"
+                                                      if pls == list(range(pls[0], pls[-1] + 1)) else
+                                                      ', '.join(t['ord'](p) for p in pls))
+        who.append((complist._nm(names[dv], lang) + ' ' if len(by) > 1 and names else '') + rng)
+    out = [f"{t['po_kind'].get(po.get('kind', 'promotion'), 'PLAY-OFF')}: {' + '.join(who)}"]
+    rs = [_rule(r, t) for r in po['rounds']]
+    if all(x == rs[0] for x in rs):
+        out.append(rs[0])
+    else:
+        out += [t['r1'].format(a=i + 1) + x for i, x in enumerate(rs)]
+    if any(r.get('gap') for r in po['rounds']):
+        out.append(t['gap'].format(n=max(r.get('gap') or 0 for r in po['rounds'])))
+    if po.get('kind') == 'promotion' and po.get('winner_div') is not None and names:
+        out.append(t['win_to'].format(d=complist._nm(names[po['winner_div']], lang)))
+    return out
 
 
 def cup_text(cp, t):
@@ -194,7 +241,9 @@ def from_pack(d):
                     for lang in LANGS:
                         nm = complist._nm(div['name'], lang)
                         titles[lang] = title(lang, nm)
-                        texts[lang] = league_text(div, win, T[lang])
+                        low = lg['closed'] or lv is lg['levels'][-1]
+                        texts[lang] = league_text(div, win, T[lang], lg['names'], lang, low) + \
+                            (T[lang]['ita'] if lg['special'] and k == min(1, len(lg['names']) - 1) else [])
                     out.append((world, cid, titles, texts))
                     k += 1
         elif comp['type'] == 'cup':

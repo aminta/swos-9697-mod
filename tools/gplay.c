@@ -60,7 +60,8 @@ static const struct gp_dec *stage_dec(int k);   /* (GP_ST's, this season's, or 0
 enum { SS_N = 3, SS_BASE = 4 };      /* stage tables of a league with fixture stages (split 'table'): entrant
                                         'stage_place' s = SS_BASE + k (Argentina: 4 Apertura, 5 Clausura, 6 the
                                         annual table); saved with the career (engine item 'SS') */
-struct gp_ss { u8 n[SS_N], fresh; struct gp_row r[SS_N][GT]; };   /* fresh: r[2] written this season (promedio) */
+struct gp_ss { u8 n[SS_N], fresh; struct gp_row r[SS_N][GT]; };   /* fresh: bit k = r[k] written this season */
+static int ss_used;                     /* (a play-off read GP_SS this season end: fresh cleared after) */
 struct gp_ss GP_SS;
 const u32 GP_LAYOUT[] = { sizeof(struct gp_row), GT, __builtin_offsetof(struct gp_in, n),
                           __builtin_offsetof(struct gp_in, t), __builtin_offsetof(struct gp_in, spec),
@@ -157,8 +158,15 @@ static void result(int kind, int w, int l) {
 static int stage_club(int d, int s, int a) {   /* place a of kept stage s -> its row of division d, or -1 */
     u16 g;
     if (s >= SS_BASE && s < SS_BASE + SS_N) {
-        if (a < 1 || a > GP_SS.n[s - SS_BASE] || d >= GP_IN.nd) return -1;
-        g = GP_SS.r[s - SS_BASE][a - 1].glob;
+        int k = s - SS_BASE;
+        ss_used = 1;
+        if (!(GP_SS.fresh & 1 << k)) {          /* (not written this season: a simulated league skips split's stage
+                                                   end -> the division's final table, its places as the stage's) */
+            if (d >= GP_IN.nd || a < 1 || a > GP_IN.n[d]) return -1;
+            return d * GT + a - 1;
+        }
+        if (a < 1 || a > GP_SS.n[k] || d >= GP_IN.nd) return -1;
+        g = GP_SS.r[k][a - 1].glob;
     } else {
         if (s >= GS || a < 1 || a > GP_IN.nst[s] || d >= GP_IN.nd) return -1;
         g = GP_IN.st[s][a - 1].glob;
@@ -275,6 +283,7 @@ void gp_stage(const u8 *diy, const u8 *sel, u32 k, u32 annual) {
         o[i].pts = row[16] | row[17] << 8;
     }
     GP_SS.n[k] = n;
+    GP_SS.fresh |= 1 << k;
     if (!annual || k == 0 || GP_SS.n[0] != n) return;
     struct gp_row *a = GP_SS.r[2], tmp;
     for (int i = 0; i < n; i++) {
@@ -291,7 +300,7 @@ void gp_stage(const u8 *diy, const u8 *sel, u32 k, u32 annual) {
             } else break;
         }
     GP_SS.n[2] = n;
-    GP_SS.fresh = 1;
+    GP_SS.fresh |= 4;
 }
 
 /* Argentina's relegation (LPF reglamento 2026 art. 26, AFA statute art. 93): kind 7 'promedio' (n = 0, no rounds;
@@ -331,11 +340,11 @@ static void promedio(int d, int mnow, int ldiv) {
     if (!PR_STATE.init) pr_seed();
     int n = GP_SS.n[2];
     const struct gp_row *a = GP_SS.r[2];
-    if (!GP_SS.fresh || n != GP_IN.n[d]) {      /* (no annual table this season: the league's final table) */
+    if (!(GP_SS.fresh & 4) || n != GP_IN.n[d]) {   /* (no annual table this season: the league's final table) */
         n = GP_IN.n[d];
         a = GP_IN.t[d];
     }
-    GP_SS.fresh = 0;
+    ss_used = 1;
     if (n < 3) return;
     u32 P[GT], M[GT];
     for (int i = 0; i < n; i++) {
@@ -391,6 +400,7 @@ void gp_season(void) {
         GP_OUT.sres[k].team[0] = GP_OUT.sres[k].team[1] = GP_OUT.sres[k].glob[0] = GP_OUT.sres[k].glob[1] = 0xFFFF;
     }
     int prev_loser = -1;                        /* the last tie's loser of the play-off before (entrant type 4) */
+    ss_used = 0;
     gp_force();
     for (int pidx = 0; s && *s; pidx++) {
         int kind = s[0], n = s[1], nr = s[2], wdiv = s[3], ldiv = s[4];
@@ -515,6 +525,7 @@ void gp_season(void) {
         prev_loser = ok && last >= 0 ? L[last] : -1;
         s = r;
     }
+    if (ss_used) GP_SS.fresh = 0;              /* (this league's stage tables used: next season's are new ones) */
 }
 
 /* ---- The playable play-offs (gp_lend .. gp_end in gplay.py): the career club's play-off or play-out is played in

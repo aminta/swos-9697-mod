@@ -4210,6 +4210,69 @@ def world_gplay_seried(force='3', team='EUROPA,ITALIA,SERIE D GIRONE A,LIGORNA',
     return not errs, '; '.join(errs) or f"{msg}; play-off codes {ko['code']}, winner code {win}"
 
 
+@scenario
+def world_gplay_poule(force='1', team='EUROPA,ITALIA,SERIE D GIRONE A,LIGORNA'):
+    """The Poule Scudetto played (gplay: a group contest as the game's type 2 in slot 3): the data session's snapshot
+    world5tm-e0b89822 with formats_data.POULE_D added to Italy's play-offs; LIGORNA forced 1st of Serie D girone A at
+    the league end -> the other 8 groups simulated now, the 9 winners in 3 triangulars, the 3 winners + the best
+    runner-up, two-legged semis, the final; the season end's title result = the contest's real champion"""
+    import json
+    import shutil
+    src = os.environ.get('W2627D_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-e0b89822')
+    if not os.path.isdir(src):
+        return True, f'SKIP: private data {src} missing'
+    sys.path.insert(0, os.path.join(MAIN, 'internal', 'world2526'))
+    import formats_data
+    w = os.path.join(WORK, 'world_gplay_poule')
+    shutil.rmtree(w, ignore_errors=True)
+    shutil.copytree(src, os.path.join(w, 'world5tm'))
+    f = os.path.join(w, 'world5tm', 'ita', 'pack.json')
+    d = json.load(open(f))
+    lg = next(c for c in d['competitions'] if c['type'] == 'league')
+    lg['ko_playoffs'] = [po for po in lg.get('ko_playoffs', []) if po.get('key') != 'poule_scudetto'] + [formats_data.POULE_D]
+    json.dump(d, open(f, 'w'), indent=1, ensure_ascii=False)
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    env = {'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(w, 'world5tm', x) for x in order]),
+           'GPLAY_FORCE': force}
+    exe = os.environ.get('GPLAY_BUILD') or build('world_gplay_poule', env=env)
+    log_at, st_at, log_n, st_n = gp_ptrs(exe)
+    keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K',
+                                            'W8485_NOSACK', 'W8485_HEX', 'W8485_ONE')}
+    os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5', W8485_K='108+',
+                      W8485_NOSACK='1', W8485_HEX=f'{log_at:x}:{log_n},{st_at:x}:{st_n}', W8485_ONE='1')
+    try:
+        ok, msg = world8485()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    lines = open(os.path.join(RUNS, w84_tag() + '_1', 'session.log'), errors='replace').read().splitlines()
+    errs = []
+    check(ok, msg, errs)
+    sts = [bytes.fromhex(ln.split()[2]) for ln in lines if ln.startswith(f'HEX {st_at:x} ')]
+    sts = [b for b in sts if b[:2] == b'GK']
+    if not sts:
+        return False, f'{msg}; the Poule never ran (no GP_ST seen)'
+    ko = gp_ko(sts[-1][GP_STKO:])
+    t2 = sts[-1][GP_STKO + 570 + 7]
+    check(ko['kind'] == 5 and ko['n'] == 9 and ko['slot'] == 3 and t2 == 1 and 5 * GP_GT in ko['code'],
+          f"Poule kind {ko['kind']} n {ko['n']} slot {ko['slot']} t2 {t2} codes {ko['code']}", errs)
+    logs = [bytes.fromhex(ln.split()[2]) for ln in lines if ln.startswith(f'HEX {log_at:x} ')]
+    logs = [b for b in logs if b[:4] == b'GPLG']
+    if not logs:
+        return False, f"{msg}; no season-end log; last state {ko}"
+    lg_ = logs[-1]
+    kl = gp_ko(lg_[8:])
+    champ = kl['team'][kl['tw'][0]] if kl['tw'] and kl['tw'][0] < kl['n'] else None
+    nres = lg_[683]
+    res = [struct.unpack_from('<BBHHHH', lg_, 942 + 10 * i) for i in range(min(nres, 4))]
+    check(lg_[6] == kl['pi'] + 1 and champ is not None, f'season end: played {lg_[6]}, champion {champ}', errs)
+    check(any(r[0] == 5 and r[2] == champ for r in res), f'title result {res} not the champion {champ}', errs)
+    return not errs, '; '.join(errs) or f"{msg}; Poule clubs {[hex(t) for t in kl['team']]}, champion {champ:#x}, res {res}"
+
+
 def full_season(country, team):
     country = os.environ.get('W2627FULL_COUNTRY', country)
     """A season of the full 5.0 world (91 countries, TM_FULL; the data session's staged build: W2627FULL = its build

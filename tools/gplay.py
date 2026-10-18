@@ -196,6 +196,8 @@ def compile_spec(pos, ndiv):
                              f"1 before it")
     out = bytes(out + b'\0')
     SPEC_NAMES[out] = [(po.get('names') or {}, po.get('key', '?')) for po in pos]
+    if any(po.get('kind') == 'title' and po['rounds'] and 'group' in po['rounds'][0] for po in pos):
+        T2_SPECS.add(out)               # (a group contest played in a career: the engine block's item 'GS')
     BUILD_AFTER[out] = [(i, po['build_after']) for i, po in enumerate(pos) if po.get('build_after')]
     for i, name in BUILD_AFTER[out]:
         if KINDS.get(pos[i].get('kind')) != 8 or not isinstance(name, str):
@@ -298,9 +300,18 @@ gp_setup:                               ; ZF = 0 if the career league (D8CAA) is
     xor eax, eax
     ret
 
-gp_install:                             ; GP_BUILT (gp_lend_c): ko 0 into slot 4, ko 1 into slot 3
-    test byte [GP_BUILT], 1
-    jz .s3
+gp_install:                             ; GP_BUILT (gp_lend_c): each ko built into its slot (4, or 3: Season's second,
+    xor ebx, ebx                        ; a career's group contest)
+.k:
+    cmp ebx, 2
+    jae .x
+    bt dword [GP_BUILT], ebx
+    jnc .n
+    imul esi, ebx, KO_SIZE
+    add esi, GP_ST + ST_KO
+    cmp byte [esi + KO_SLOT], 4
+    jne .s3
+    pushad
     push es                             ; slot 4 cleared, as never used this season
     push ds
     pop es
@@ -310,17 +321,18 @@ gp_install:                             ; GP_BUILT (gp_lend_c): ko 0 into slot 4
     cld
     rep stosb
     pop es
-    mov dword [A0R], GP_ST + ST_KO + KO_CON   ; slot 4: buffer + calendar (cseg_8B2D3, as cseg_8DAC3 at a season
-    mov word [D0R], 4                         ; start)
+    lea eax, [esi + KO_CON]             ; slot 4: buffer + calendar (cseg_8B2D3, as cseg_8DAC3 at a season start)
+    mov [A0R], eax
+    mov word [D0R], 4
     mov word [D1R], 0
     mov word [D2R], 0
     pushad
     call C8B2D3
     popad
-    movzx ecx, byte [GP_ST + ST_KO + KO_N]
+    movzx ecx, byte [esi + KO_N]
     xor ebx, ebx
 .t:
-    mov ax, [GP_ST + ST_KO + KO_TEAM + ebx * 2]   ; its clubs, as cseg_8ECAE's loop lists them
+    mov ax, [esi + KO_TEAM + ebx * 2]   ; its clubs, as cseg_8ECAE's loop lists them
     mov [LIST4 + ebx * 2], ax
     inc ebx
     cmp ebx, ecx
@@ -330,16 +342,20 @@ gp_install:                             ; GP_BUILT (gp_lend_c): ko 0 into slot 4
     pushad
     call C8EE5D
     popad
+    popad
+    jmp .n
 .s3:
-    test byte [GP_BUILT], 2             ; (Season: the second one in slot 3, its clubs from the contest's list)
-    jz .x
-    mov dword [A0R], GP_ST + ST_KO + KO_SIZE + KO_CON
+    pushad                              ; slot 3: its clubs from the contest's list (cseg_8B2D3 D0 = 3, D2 = 0)
+    lea eax, [esi + KO_CON]
+    mov [A0R], eax
     mov word [D0R], 3
     mov word [D1R], 0
     mov word [D2R], 0
-    pushad
     call C8B2D3
     popad
+.n:
+    inc ebx
+    jmp .k
 .x:
     ret
 
@@ -358,7 +374,7 @@ gp_lend:                                ; replaces `call cseg_8ECAE` (the career
     jz .none
     xor ebx, ebx                        ; the other divisions of its entrants simulated now (as cseg_8ECAE does for
 .sim:                                   ; a native play-off's clubs), their tables kept for the season end
-    cmp ebx, SD_N
+    cmp ebx, SDX_N
     jae .built
     movzx ecx, byte [GP_IN + O_SIM + ebx]
     cmp ecx, 0FFh
@@ -469,6 +485,8 @@ gp_draw:                                ; at cseg_2AE97's 'draw -> replay' mark 
     call gp_pair
     mov eax, gp_draw_c
     call gp_c
+    test eax, eax                       ; (a type-2 contest: the game's rules)
+    js .x
     and byte [D7R], 0FEh
     or byte [D7R], 2
     or [D7R], al                        ; (1: the second club)
@@ -573,6 +591,8 @@ gp_bye:                                 ; lib97 bye_find's hook: al = contest id
     jne .n
     cmp byte [esi + KO_SLOT], 0         ; (built: not a play-off decided without a match)
     je .n
+    cmp byte [esi + KO_BYE + 7], 0      ; (a type-2 contest: no byes of ours)
+    jne .n
     cmp [esi + KO_CID], al
     jne .n
     test ch, ch
@@ -852,6 +872,8 @@ gp_end:                                 ; replaces `call cseg_9228D` (after dpla
 
 
 BUILD_AFTER = {}         # compile_spec's output -> [(play-off index, split stage 'then' name)]: built by gp_build there
+T2_SPECS = set()         # compile_spec's outputs with a group contest (the Poule Scudetto): GP_GS saved ('GS')
+GS_SIZE = 7 + 1 + 7 * 20 * 10   # (sizeof struct gp_gs)
 SPEC_NAMES = {}          # compile_spec's output -> the play-offs' names ({lang: [long, short]}), for the contests
 
 
@@ -979,6 +1001,8 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
     h = bytearray(d2[lo:lo + 14])
     h[8], h[11], h[13] = 1, 0, 1                            # (no draw, no away goals)
     p.put(*syms['GP_HDR'], bytes(h))
+    import sacups
+    p.put(*syms['GP_HDR2'], bytes(d2[sacups.unique(d2, sacups.EUROCUP_HDR):][:0x27]))   # (group contests: type 2)
     s = careerworld.SITES
     tab_src, tab_syms = table_lines(tables)
     symbols = {k: (0, v) for k, v in lay.items()}
@@ -1001,7 +1025,7 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
                     'D6CDC': (2, ps['d6cdc']), 'CFB': (2, ps['cfb']), 'CAL': (2, ps['cal']), 'CAL_CUR': (2, ps['cal_cur']),
                     'SLOT4': (2, ps['slot4']), 'LIST4': (2, ps['list4']), 'W11F9CC': (2, ps['w11f9cc']),
                     'F846': (2, ps['f846']), 'SAVESEL': (1, ps['savesel']), 'RESTSEL': (1, ps['restsel']),
-                    'C3ABB2': (1, ps['c3abb2']), 'NC_T': (1, lib97.LABELS['NC_T']), 'SD_N': (0, 2),
+                    'C3ABB2': (1, ps['c3abb2']), 'NC_T': (1, lib97.LABELS['NC_T']), 'SDX_N': (0, 9),
                     'SEASONPLAYING': (2, s['season']),
                     'BAL': (0, pgroups.BALANCE), 'GAMETYPE': split.sites(p)['GAMETYPE'], 'NSUM': (0, bigtables.LIMIT if bigtables.ON[0] else 2000)})
     sk = _sack_sites(p)
@@ -1059,7 +1083,7 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
     assert struct.unpack('<I', p.get(1, syms['RS_STATE_SIZE'][1], 4))[0] == RS_SIZE   # (the engine block's 'RS')
     kolay = dict(zip(('st_ko', 'size', 'slot', 'ntie', 'tw', 'tl', 'team', 'n'),
                      struct.unpack('<8I', p.get(1, syms['GP_KOLAY'][1], 32))))   # (4.0's gp_build glue: GP_ST.ko[0])
-    LABELS.update(lab, GP_KOLAY=kolay, GP_IN=syms['GP_IN'], GP_OUT=syms['GP_OUT'], GP_ST=syms['GP_ST'], GP_LOG=syms['GP_LOG'], layout=lay, pg_season=syms['pg_season'], pg_place=syms['pg_place'], rs_season=syms['rs_season'], gp_stage=syms['gp_stage'], GP_SS=syms['GP_SS'], PR_STATE=syms['PR_STATE'],
+    LABELS.update(lab, GP_GS=syms['GP_GS'], GP_KOLAY=kolay, GP_IN=syms['GP_IN'], GP_OUT=syms['GP_OUT'], GP_ST=syms['GP_ST'], GP_LOG=syms['GP_LOG'], layout=lay, pg_season=syms['pg_season'], pg_place=syms['pg_place'], rs_season=syms['rs_season'], gp_stage=syms['gp_stage'], GP_SS=syms['GP_SS'], PR_STATE=syms['PR_STATE'],
                   RS_STATE=syms['RS_STATE'], ri_season=syms['ri_season'], ri_apply=syms['ri_apply'],
                   ri_cache=syms['ri_cache'], RI_STATE=syms['RI_STATE'], RI_MGR=syms['RI_MGR'])
     print(f"exe: knockout play-offs (gplay): {len(tables)} countries, C obj1+{at:#x}..{cend:#x}, glue ..{glue + len(code):#x}, "

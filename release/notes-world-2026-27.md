@@ -294,7 +294,17 @@ Lengjubikarinn, Finland Liigacup, Chile and Peru Copa de la Liga. -->
   generated: real club names, players' names drawn from the world's players of that nationality, strength on the
   level's scale. El Salvador's 2026-27 Tercera is not published yet: its clubs are the 2025-26 Tercera clubs not
   promoted to the 2026-27 Segunda, in two zones. Mexico's and Australia's leagues are closed (no promotion or
-  relegation), as in reality. -->
+  relegation), as in reality. Promotion and relegation keep every level's size:
+  - England: League One relegates 4, as in reality: League Two's 3 direct places + its play-off winner.
+  - Argentina: the Liga Profesional relegates 2, as in 2026 (the last on promedio and the last of the annual table).
+    The two Primera Nacional zone winners go up. In reality the zone winners play a final for one place and a
+    'reducido' play-off decides the second (an approximation).
+  - El Salvador: the two Segunda zone winners play a single final at a neutral venue for the one place in the
+    Primera. Each Segunda zone sends its last club down, each Tercera zone its winner up. In the zones' new line-ups
+    from season 2, a club goes to its own area (A = Centro Occidente, B = Centro Oriente; Primera clubs by their
+    department).
+  - New Zealand: the National League relegates 3 and each regional league's winner goes up. In reality the National
+    League is formed each year from the regional leagues' best clubs (an approximation). -->
 - Odd leagues lose their last club (the engine needs an even number): Gibraltar, New Zealand (11 -> 10).
 
 **Known limits**
@@ -613,7 +623,19 @@ Non una formula uguale per tutti: ogni campionato gioca la stagione come l'ha sc
   Suriname, NPL Queensland) le rose sono generate: nomi veri dei club, nomi dei giocatori presi dai giocatori del mondo
   di quella nazionalità, forza sulla scala del livello. La Tercera 2026-27 del Salvador non è ancora pubblicata: i suoi
   club sono quelli della Tercera 2025-26 non promossi nella Segunda 2026-27, in due zone. I campionati di Messico e
-  Australia sono chiusi (niente promozioni né retrocessioni), come nella realtà. -->
+  Australia sono chiusi (niente promozioni né retrocessioni), come nella realtà. Promozioni e retrocessioni
+  mantengono la dimensione di ogni livello:
+  - Inghilterra: la League One retrocede 4 squadre, come nella realtà: i 3 posti diretti della League Two più la
+    vincente dei suoi play-off.
+  - Argentina: la Liga Profesional retrocede 2 squadre, come nel 2026 (l'ultima del promedio e l'ultima della
+    classifica annuale). Salgono le vincenti delle due zone della Primera Nacional. Nella realtà le vincenti di zona
+    giocano una finale per un posto e il secondo lo decide un 'reducido' (un'approssimazione).
+  - El Salvador: le vincenti delle due zone della Segunda giocano una finale secca in campo neutro per l'unico posto
+    in Primera. Ogni zona della Segunda retrocede l'ultima, ogni zona della Tercera promuove la prima. Quando dalla
+    seconda stagione si riformano le zone, ogni club va nella sua area (A = Centro Occidente, B = Centro Oriente; i
+    club di Primera secondo il loro dipartimento).
+  - Nuova Zelanda: la National League retrocede 3 squadre e sale la vincente di ogni lega regionale. Nella realtà la
+    National League si forma ogni anno con i migliori club delle leghe regionali (un'approssimazione). -->
 - I campionati con un numero dispari di club perdono l'ultimo (il motore vuole un numero pari): Gibilterra, Nuova
   Zelanda (11 -> 10).
 

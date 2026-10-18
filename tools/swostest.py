@@ -3921,6 +3921,7 @@ def world_gplay():
 
 
 def full_season(country, team):
+    country = os.environ.get('W2627FULL_COUNTRY', country)
     """A season of the full 5.0 world (91 countries, TM_FULL; the data session's staged build: W2627FULL = its build
     dir, default the newest internal/swostest/builds/w2627full-*) at team ('CONTINENT,COUNTRY,DIVISION,CLUB'): after
     it every division of the country keeps its size and every club moved exactly one level of its chain (a division,

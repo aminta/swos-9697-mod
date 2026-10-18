@@ -47,11 +47,12 @@ B_TFB, TFB_SIZE = 0x31000, 0x1A000
 # SaveCareerFile writes it from B_STAGE (fixed part copied before the records) and LoadCareerFile reads it there
 # (trailer.LOADCOPY -> w_loadcopy spreads it). Old saves (N <= 100) load unchanged.
 SEL_N = 160
-B_SEL, SEL_ROOM = 0x4B000, SEL_N * TEAM_SIZE + 0x1000          # (+ the trailer's block after the records)
+B_SEL, SEL_ROOM = 0x4B000, SEL_N * TEAM_SIZE + 0x1480          # (+ the trailer's blocks after the records: the main
+                                                               # one + the engine block 'EN', ~4.3 KB at 160 teams)
 B_STAGE = 0x67000                                    # 95153 (fixed part) + SEL_ROOM
 # UEFA qualifying rounds (uefaq.py, league-phase worlds only: BSS_SIZE grows then): the C code's .bss, then the
 # season end's copies of the clubs' records (55 associations x (top 9 + cup winner) + 3)
-B_UQ, UQ_BSS, UQ_RECS = 0x9A000, 0x7000, 563
+B_UQ, UQ_BSS, UQ_RECS = 0x9B000, 0x7000, 563
 # 3.3.3 (main): a big world's new career uses the big cache too; its saves carry BIGC (the last dword of the
 # 80-record area, after the W1 block); a save without BIGC loads into the game's cache, or into the big one when
 # it caches more than UPGRADE_N teams or belongs to a league-phase world (this branch's saves before the merge)

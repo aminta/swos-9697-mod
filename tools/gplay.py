@@ -626,6 +626,8 @@ gp_sack:                                ; replaces SeasonFinished's `call cseg_3
     mov [GP_SEL], eax
     mov eax, [GP_RSTP]
     mov [GP_RST], eax
+    mov eax, [GP_RITP]
+    mov [GP_RIT], eax
     mov al, [SLT + WORLD_BYTE]
     mov [GP_WORLD], al
     mov ax, [CAREERTEAM]
@@ -667,6 +669,7 @@ GP_NC: dd 0
 GP_BUILT: dd 0
 GP_PNEXT: dd 0                          ; (dplay's dp_perm, or gp_stc)
 GP_RSTP: dd 0                           ; (pgroups' RS_TAB: link_reserve, or 0)
+GP_RITP: dd 0                           ; (ripool's RI_TAB: link_reserve, or 0)
     db 'GPLOGPTR'                       ; (the harness: GP_LOG, GP_ST in obj2, their sizes)
     dd GP_LOG, GP_ST, LOG_SIZE, ST_SIZE
 '''
@@ -905,12 +908,15 @@ def _sack_sites(p):
                 CURMSG=u(1), SACKED=u(4))
 
 
-def link_reserve(p):
-    """After pgroups.patch: gp_sack's reserves table (pgroups.LABELS['RS_TAB'], obj1; none: GP_RSTP stays 0)."""
+def link_reserve(p, ri=None):
+    """After pgroups.patch (and ripool.patch): gp_sack's reserve tables, pgroups.LABELS['RS_TAB'] and the off-file
+    pool's RI_TAB (ri: ripool.patch's labels); none: their pointers stay 0."""
     import pgroups
     rs = getattr(pgroups, 'LABELS', {}).get('RS_TAB')
     if rs is not None and LABELS.get('GP_RSTP'):
         p.add_ptr(1, LABELS['GP_RSTP'], 1, rs)
+    if ri and ri.get('RI_TAB') and LABELS.get('GP_RITP'):
+        p.add_ptr(1, LABELS['GP_RITP'], *ri['RI_TAB'])
 
 
 def names_lines(tables, area, lang):
@@ -996,7 +1002,7 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
     sk = _sack_sites(p)
     symbols.update({k: (2, sk[k]) for k in ('CURMSG', 'SACKED')})
     symbols.update({'MSG_NORENEW': (0, sk['msg']), 'SHOWCHAIR': (1, sk['show']), 'C3C07C': (1, sk['c3c07c'])})
-    symbols.update({k: syms[k] for k in ('GP_CFB', 'GP_LG', 'GP_RST', 'GP_SEL', 'GP_MGR', 'GP_WORLD', 'GP_SLT',
+    symbols.update({k: syms[k] for k in ('GP_CFB', 'GP_LG', 'GP_RST', 'GP_RIT', 'GP_SEL', 'GP_MGR', 'GP_WORLD', 'GP_SLT',
                                          'gp_sack_c')})
     rec_dp = p.get(1, ps['rec'], 1) == b'\xe8'                # dplay's `call dp_rec; nop` there, or the game's mov
     symbols['GP_REC_NEXT'] = (1, tgt(ps['rec'])) if rec_dp else (0, 0)

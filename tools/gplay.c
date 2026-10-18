@@ -1007,7 +1007,7 @@ void gp_end_c(void) {                   /* after gp_season: the log, the state v
 /* SeasonFinished's contract check (gp_sack): the career club relegated into the reserve (loser_div 'reserve', the
    reserve below the lowest level: pgroups' RS_TAB) is sacked, with job offers - directly (a reserve country's club
    in a division >= its lowest level, placed below teams - relegated) or by the played play-out it lost. */
-const u8 *GP_CFB, *GP_LG, *GP_RST;      /* the league's final table, its struct, RS_TAB (0: no reserves) */
+const u8 *GP_CFB, *GP_LG, *GP_RST, *GP_RIT;   /* the league's final table, its struct, RS_TAB, RI_TAB (0: none) */
 const s8 *GP_SLT;                       /* someLeaguesTable (the clubs' divisions: base + delta) */
 u32 GP_SEL;                             /* selTeamsPtr */
 u16 GP_MGR;
@@ -1021,7 +1021,7 @@ u32 gp_sack_c(void) {
         for (int t = k->gt0[r]; t < k->gt0[r + 1]; t++)
             if (k->tl[t] != NOC && k->team[k->tl[t]] == GP_MGR) return 1;
     }
-    if (!GP_RST || !GP_CFB || !GP_LG) return 0;
+    if ((!GP_RST && !GP_RIT) || !GP_CFB || !GP_LG) return 0;
     const u8 *d = GP_CFB;
     int n = *(const u16 *)(d + 0x31), m = -1, off = 0;
     for (int j = 0; j < n && j < GT; j++) {
@@ -1031,8 +1031,17 @@ u32 gp_sack_c(void) {
     if (m < 0) return 0;
     if (GP_FORCE) m = GP_FORCE - 1;
     u16 g = *(const u16 *)(*(const u32 *)(d + off + 0x2B3) + GP_SEL + 2);
-    const u8 *t = GP_RST;
-    for (int cnt = *t++; cnt > 0; cnt--) {
+    const u8 *t = GP_RIT;                /* the off-file pool (ripool: RI_TAB; its swap never takes the manager's club) */
+    if (t && *t++ && t[0] == GP_WORLD) {
+        int low = t[2], ns = t[3] | t[4] << 8;
+        for (int i = 0; i < ns; i++)
+            if ((t[5 + 4 * i] | t[6 + 4 * i] << 8) == g) {
+                int dv = t[7 + 4 * i] + GP_SLT[g];
+                return dv >= low && dv < GD && m >= n - GP_LG[13 + 6 * dv + 3];
+            }
+    }
+    t = GP_RST;
+    for (int cnt = t ? *t++ : 0; cnt > 0; cnt--) {
         int w = t[0], nd = t[1], low = t[2], nc = t[3] | t[4] << 8;
         const u8 *c = t + 5, *pl = c + 3 * nc;
         t = pl + 1 + 2 * pl[0];

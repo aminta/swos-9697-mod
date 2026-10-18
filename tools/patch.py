@@ -435,7 +435,7 @@ def patch_exe(src, dst, remap, lang='it'):
         if pg_tabs or rs_tabs or ri_tabs:                        # parallel groups' / reserves' season end (pgroups.py)
             xe = pgroups.patch(p, (xe + 15) & ~15, pg_tabs, gplay.LABELS['pg_season'], rs_tabs, gplay.LABELS['rs_season'],
                                ri=ri)
-            gplay.link_reserve(p)                                # (the reserve: gp_sack's table)
+            gplay.link_reserve(p, ri)                            # (the reserves: gp_sack's tables)
         if bigtables.ON[0]:                                      # the .CAR's 2000 bytes <-> the moved tables,
             xe = bigtables.hooks(p, (xe + 15) & ~15)             # numbers 2000+ (after every finder of the tables)
         assert xe <= xp + 0x1000 * xpg, hex(xe)

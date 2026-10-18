@@ -49,6 +49,9 @@ Not one fixed formula for everybody: each league plays the season the way its ow
 - **European play-offs**: the winner takes the country's last Conference League place (Denmark 4th v 7th at the
   4th's ground; Austria, the qualification group's 1st v 2nd, the winner v the championship group's 5th over two
   legs; the Netherlands 5th-8th; Wales 2nd-7th; Northern Ireland 3rd-7th; Romania; San Marino ...).
+- **Argentina 2026**: the Liga Profesional of 30 in two zones of 15, Apertura and Clausura (16 matchdays each: the
+  zone round robin, the clasico on the free day, a drawn interzonal day), the annual table, relegation by promedio
+  (3 seasons) and by the annual table.
 - **Leagues with an odd number of clubs play real rounds**: one club rests each matchday, as in the real
   competitions (El Salvador's Tercera, Gibraltar, New Zealand, India, Taiwan ...); the original game's tables for odd
   sizes were not rounds.
@@ -448,6 +451,9 @@ Non una formula uguale per tutti: ogni campionato gioca la stagione come l'ha sc
   della 4ª; Austria, 1ª contro 2ª del gruppo di qualificazione, la vincente contro la 5ª del gruppo per il titolo,
   andata e ritorno; Olanda dalla 5ª all'8ª; Galles dalla 2ª alla 7ª; Irlanda del Nord dalla 3ª alla 7ª; Romania; San
   Marino ...).
+- **Argentina 2026**: la Liga Profesional a 30 in due zone da 15, Apertura e Clausura (16 giornate ciascuno: girone di
+  zona, il clasico nel giorno di riposo, una giornata interzonale sorteggiata), la classifica annuale, retrocessione
+  per promedio (3 stagioni) e per classifica annuale.
 - **I campionati con un numero dispari di squadre giocano giornate vere**: a ogni turno una squadra riposa, come nelle
   competizioni reali (la Tercera di El Salvador, Gibilterra, Nuova Zelanda, India, Taiwan ...); le tabelle originali
   del gioco per le dimensioni dispari non erano giornate.

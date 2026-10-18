@@ -7,6 +7,8 @@ club numbered 2000+ wrote over live career state. In a build whose career worlds
   `mov [Ax], offset leaguesTableCopy` move; UnpackMenu's 4 references stay: there `offset leaguesTableCopy` is only
   the end of the menu buffer g_currentMenu); the 4 loops over them (InitCareer's clear, cseg_8CC0A / cseg_8CC4E's
   copies, cseg_9487A's sum check: `mov word [D0], 1999`) run over LIMIT bytes;
+- world 0 (4.0: euro97 / counts97 / seriec files above 2000) turns it on too (needed()); its bytes 2000..LIMIT-1 go
+  into the .CAR's engine block 'EN' (engine.save_item 'BT_EXT', trailer.py), in a big world's save as well;
 - the .CAR keeps its layout: the old 2000 bytes in the fixed part are written from the new table before a save
   (bt_save, in front of trailer's save_trailer) and read back after a load (bt_load, after w_loadcopy's copy of the
   fixed part from its stage, before it reads the world byte); bytes 2000..LIMIT-1 go to the 80-record area of the
@@ -43,9 +45,26 @@ def world_maxg(n):
     return out
 
 
+def world0_bases():
+    """Global bases of world 0's own team files (4.0: counts97, euro97, seriec with SERIEC=1, brstates96; none elsewhere)."""
+    import importlib
+    out = []
+    for name in ('counts97', 'euro97', 'seriec', 'brstates96'):   # (4.0 packages 3, 5, 2, 6)
+        try:
+            m = importlib.import_module(name)
+        except ImportError:                     # (a branch without the 4.0 modules: world-2025-26)
+            continue
+        if name == 'seriec':
+            out += list(m.BASES_40.values()) if m.ON else []
+        else:
+            out += list(m.BASES.values())
+    return out
+
+
 def needed():
+    """A career world, or world 0 (4.0's moved files), numbers clubs 2000+."""
     import mkseason
-    return any(world_maxg(n) > 2000 for n in mkseason.worlds())
+    return any(world_maxg(n) > 2000 for n in mkseason.worlds()) or any(b >= 2000 for b in world0_bases())
 
 
 def moved(off):
@@ -94,6 +113,9 @@ def retarget(p, area):
     loops = [k for k in loops if any(abs(f[1] - k) < 24 for f in fx)]
     assert len(loops) == 4, [hex(k) for k in loops]
     MOVED.update({table[1]: new_t, copy[1]: new_c})
+    import engine                               # world 0 (not a big world): numbers 2000+ in the .CAR engine block;
+    engine.save_item('BT_EXT', LIMIT - 2000, clear=False)   # a big world keeps them in its 80-record area too, and
+    engine.ITEM_AT['BT_EXT'] = (2, new_t + 2000)            # bt_load already set them (no 'EN': left as loaded)
     SITES.update(old=table, new=(2, new_t), newcopy=(2, new_c), loops=loops)   # (the loops' 1999 -> LIMIT - 1 in
                                                 # hooks(): careerworld / worldpool / benchnum find the tables by them)
     print(f'exe: global numbers up to {LIMIT - 1}: someLeaguesTable obj2+{table[1]:#x} -> +{new_t:#x}, '

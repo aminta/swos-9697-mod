@@ -348,6 +348,7 @@ void pg_place(const u8 *t, const u8 *map, const s8 *slt, s8 *copy, int world) {
 enum { RQ = 64, RC = 8 };
 struct rs_state { u8 init, n, pad[2]; u16 q[RQ]; };
 struct rs_state RS_STATE[RC];
+const u32 RS_STATE_SIZE = sizeof RS_STATE;          /* (gplay.RS_SIZE: the engine block item 'RS') */
 
 static int rs_base(const u8 *c, int nc, int g) {
     for (int i = 0; i < nc; i++) if ((c[3 * i] | c[3 * i + 1] << 8) == g) return c[3 * i + 2];

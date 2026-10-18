@@ -28,6 +28,7 @@ import os
 import re
 import struct
 
+RS_SIZE = 8 * 132                   # gplay.c RS_STATE: struct rs_state {u8 init, n, pad[2]; u16 q[64];} x RC 8
 KINDS = {'promotion': 1, 'europe': 2, 'placement': 3, 'playout': 4}
 RESERVE = 0xFE                  # loser_div 'reserve': out of every division (gplay.c)
 HOSTS = {'listed': 0, 'better': 1, 'drawn': 2, 'neutral': 3}
@@ -325,6 +326,7 @@ def patch(p, at, limit, tables, bss_at):
     import uefaq
     if uefaq.LABELS.get('UQ_EPP') and tables:              # a league-phase world: its European play-offs (uefaq.c ep_run)
         p.add_ptr(1, uefaq.LABELS['UQ_EPP'], 1, lab['GP_EPT'])
+    assert struct.unpack('<I', p.get(1, syms['RS_STATE_SIZE'][1], 4))[0] == RS_SIZE   # (the engine block's 'RS')
     LABELS.update(lab, GP_IN=syms['GP_IN'], GP_OUT=syms['GP_OUT'], layout=lay, pg_season=syms['pg_season'], pg_place=syms['pg_place'], rs_season=syms['rs_season'],
                   RS_STATE=syms['RS_STATE'])
     print(f"exe: knockout play-offs (gplay): {len(tables)} countries, C obj1+{at:#x}..{cend:#x}, glue ..{glue + len(code):#x}, "

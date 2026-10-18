@@ -16,11 +16,40 @@ The point of this world: today's football as it really is, down to rules most pl
 
 *Every league in its real 2026-27 format*
 Not one fixed formula for everybody: each league plays the season the way its own federation wrote it for 2026-27.
-- **Promotion and relegation play-offs as in reality** (Scotland's three, England's Championship, League One and
-  League Two play-offs, the 17 countries with knockout play-offs): the real entrants by final place, the real ties,
-  one or two legs, the real hosts and tie-break rules.
-- **European play-offs** (Denmark, Austria, the Netherlands, Wales, Northern Ireland, Romania, San Marino ...): the
-  winner takes the country's last Conference League place.
+- **Mid-season splits, as the regulations say** (22 leagues): after the real number of matchdays the table splits
+  into the real groups, with the real fixtures for the rest of the season and the points kept, halved or reset:
+  - **Scotland**: 33 matchdays, then top six and bottom six for 5 more; in the lower divisions the clubs meet 4 times.
+  - **Austria 2026-27**: Meistergruppe 1-6 and Qualifikationsgruppe 7-12 after 22 matchdays, each a double round
+    robin (10 more, 32), and the points are **no longer halved** (the clubs' 2025 vote).
+  - **Switzerland**: 33 matchdays + 5 after the split. **Denmark**: 22 + 10, points kept.
+  - **Greece**: 26 matchdays, then the 1-4, 5-8 (points halved, rounded up) and 9-14 groups.
+  - **Romania**: after 30 matchdays, play-off 1-6 (double round, 10) and play-out 7-16 (single round, 9), points
+    halved and rounded up; on equal points, the points before rounding come first.
+  - **Moldova**: after the triple round robin (21), the top 6 play a double round robin (10 more) starting from half
+    the points won against each other, rounded down; 7th and 8th are done.
+  - **Malta**: Opening Round of 11 matchdays, then top 6 and bottom 6 once more; the Closing Round starts again from
+    0 points (the Opening's return legs), then top 6 / bottom 6 again; the Opening Round's table is kept.
+  - **Bulgaria**: after 26 matchdays, championship group 1-4 (double), Conference group 5-9 (double) and relegation
+    group 10-14 (single), with rest days in the 5-club groups.
+  - **Northern Ireland**: after 33 matchdays, Section A / B; each split match is at the ground of the club that was
+    away in their 3rd meeting. **Wales 2026-27**: 16 clubs, 30 matchdays, then the 1-6, 7-10 and 11-16 groups.
+  - **Israel and Cyprus**: groups of 6 and 8. **Czech Republic**: three groups after 30 matchdays. **Slovakia,
+    Finland, Iceland**: 6 + 6. **Ecuador**: after 30 matchdays the title hexagonal, the Sudamericana quadrangular and
+    the relegation hexagonal. **Serbia, Korea, Gibraltar, Albania**: their real second phases.
+- **Promotion and relegation play-offs as in reality** (17 countries): the real entrants by final place, the real
+  ties, one or two legs, the real hosts and tie-break rules. Among them **England's Championship play-offs with 6
+  clubs, new in 2026-27** (5th v 8th and 6th v 7th, then two-legged semi-finals with the 3rd and the 4th, final at
+  Wembley) and those of League One and League Two; **Scotland's three**, with the Premiership play-off (Championship
+  3rd v 4th, the winner v the 2nd, the winner v the Premiership 11th, all over two legs); Germany, Spain, France,
+  Portugal, the Netherlands (the 16th), **Brazil's Serie B** (2 up + 3rd v 6th / 4th v 5th), **Turkey's 1. Lig** (2
+  up, the 3rd straight into the final, 4th v 7th and 5th v 6th, neutral final), Austria, Bulgaria, the Czech
+  Republic, Denmark, Northern Ireland, Romania, Wales and San Marino; **Japan's J2** with its 3rd-6th play-offs.
+- **European play-offs**: the winner takes the country's last Conference League place (Denmark 4th v 7th at the
+  4th's ground; Austria, the qualification group's 1st v 2nd, the winner v the championship group's 5th over two
+  legs; the Netherlands 5th-8th; Wales 2nd-7th; Northern Ireland 3rd-7th; Romania; San Marino ...).
+- **Leagues with an odd number of clubs play real rounds**: one club rests each matchday, as in the real
+  competitions (El Salvador's Tercera, Gibraltar, New Zealand, India, Taiwan ...); the original game's tables for odd
+  sizes were not rounds.
 - **Parallel regional groups on more than one level** (Serie C, El Salvador's Segunda and Tercera zones): every club
   promoted or relegated goes to the group of its own area.
 - **League cups in the game's own league-cup slot**, with their European place: the EFL Cup from its real 4th round
@@ -37,51 +66,21 @@ Not one fixed formula for everybody: each league plays the season the way its ow
   Queensland, closed as in reality; El Salvador's Primera, Segunda in two zones and Tercera; and Suriname, Taiwan,
   India and Ghana, back with their real leagues and cups.
 
-<!-- REGIA STAGED, the 5.0 headline (Davide 2026-10-17: the league formats in a prominent place of the 5.0 changelog).
-Uncomment the subsection's lines one by one as the engine implements each format (facts final: internal formats2627.md).
-(still to come, to move into the section above format by format)
-- **Scotland**: 33 matchdays, then the split into top six and bottom six for 5 more; the Premiership play-off
-  (Championship 3rd v 4th, the winner v the 2nd, the winner v the Premiership 11th, all over two legs); the
-  Championship and League One play-offs with the division below.
-- **England**: the Championship play-offs with 6 clubs, new in 2026-27: eliminators 5th v 8th and 6th v 7th, then
-  two-legged semi-finals with the 3rd and the 4th, final at Wembley.
-- **Austria 2026-27**: championship and qualification groups after 22 matchdays, and the points are **no longer
-  halved** (the clubs' 2025 vote); the Europacup play-off (qualification group 1st v 2nd, the winner v the
-  championship group's 5th over two legs).
-- **Switzerland**: 33 matchdays + 5 after the split; the barrage 11th v the Challenge League 2nd, home order drawn.
-- **Denmark**: 22 + 10 with the points kept; the European play-off 4th v 7th at the 4th's ground.
+<!-- REGIA STAGED: formats still to come (facts final: internal formats2627.md); move each into the section above
+when the engine lands it.
+- **Switzerland**: the barrage 11th v the Challenge League 2nd, two legs, home order drawn. **Malta**: the Final Four
+  for the title from the Opening Round's table.
 - **Argentina 2026** (the official LPF regulation): Apertura and Clausura in two zones of 15, the clasico matchday,
   octavos 1A v 8B ... 4B v 5A, a fixed bracket to a neutral final; the annual table (Campeon de Liga, international
   places); relegation by the three-year promedio and by the annual table; the Trofeo de Campeones.
-- **Greece**: 26 matchdays, then the 1-4, 5-8 (points halved, rounded up) and 9-14 groups. **Romania**: play-off and
-  play-out with the points halved, rounded up. **Israel and Cyprus**: 6 + 8. **Czech Republic**: three groups after
-  30 matchdays. **Slovakia, Finland, Iceland**: 6 + 6.
-- **Northern Ireland**: 33 + 5, the split fixtures reversing rounds 23-33; the UECL play-off 3rd-7th. **Wales
-  2026-27**: 16 clubs, 30 matchdays, then three groups (1-6, 7-10, 11-16); the UECL play-off 2nd-7th.
-- **Netherlands**: the 16th in the promotion / relegation play-offs, the European play-off 5th-8th. **Brazil Serie
-  B**: 2 up directly + 3rd v 6th / 4th v 5th play-offs. **Colombia**: the Apertura knockout, the Finalizacion's
-  cuadrangulares. **Peru**: Apertura, Clausura and the 4-club play-offs. **MLS**: two conferences, the Supporters'
-  Shield, the play-offs of 9 per conference with the wild card and the best-of-three first round. **Canada**: the CPL
-  top-4 play-offs. **A-League**: the top-6 finals series (3rd v 6th, 4th v 5th, two-legged semi-finals, the Grand
-  Final at the higher placed club's ground).
+- **MLS**: 34 matches incl. the other conference, the Supporters' Shield, the play-offs of 9 per conference with the
+  wild card and the best-of-three first round. **Canada**: the CPL top-4 play-offs. **A-League**: the top-6 finals
+  series (3rd v 6th, 4th v 5th, two-legged semi-finals, the Grand Final at the higher placed club's ground).
 - **Mexico**: Apertura and Clausura with the liguilla of eight (1st v 8th ..., two legs; no play-in since 2026).
-  **Uruguay**: Apertura, Intermedio, Clausura and the annual table, then semi-final and final. **Ecuador**: after 30
-  matchdays the title hexagonal, the Sudamericana quadrangular and the relegation hexagonal. **Paraguay**: Apertura
-  and Clausura, no play-offs, relegation by promedio. **Chile**: 30 matchdays, 2 down. **Costa Rica**: the Gran
-  Final. **Honduras**: two geographic groups.
-- **Turkey 1. Lig**: 2 up directly, the 3rd straight into the play-off final, 4th v 7th and 5th v 6th, neutral final.
-  **Serbia**: 4 down. **Bulgaria**: groups of 4, 5 and 5. **Malta**: two rounds with the points reset and a Final
-  Four.
-- **Romania** (detail): on equal points after the halving, the points before rounding come first. **Moldova**: after
-  the triple round robin (21), the top 6 play a double round robin (10 more) from half the points won against each
-  other, rounded down; 7th-8th are done.
-- **Malta** (detail): Opening Round of 11 matchdays, then top 6 and bottom 6 once more; the Closing Round starts again
-  from 0 points (the Opening's return legs), then top 6 / bottom 6 again; the Opening Round's table is kept for the
-  title play-offs. **Bulgaria** (detail): after 26 matchdays, championship group 1-4 (double), Conference group 5-9
-  (double) and relegation group 10-14 (single), with rest days in the 5-club groups. **Northern Ireland** (detail):
-  after 33 matchdays, Section A / B; the home club of each split match is the club that was away in their 3rd meeting.
-- **Odd-sized leagues**: real rounds with one club resting each matchday (the game's own tables for odd sizes were not
-  rounds).
+  **Uruguay**: Apertura, Intermedio, Clausura and the annual table, then semi-final and final. **Paraguay**: Apertura
+  and Clausura, no play-offs, relegation by promedio. **Colombia**: the Apertura knockout, the Finalizacion's
+  cuadrangulares. **Peru**: Apertura, Clausura and the 4-club play-offs. **Costa Rica**: the Gran Final.
+  **Honduras**: two geographic groups.
 -->
 
 *European cups (UEFA 2026-27)*
@@ -388,11 +387,43 @@ L'obiettivo di questo mondo: il calcio di oggi com'è davvero, fino alle regole 
 
 *Ogni campionato nel suo formato vero 2026-27*
 Non una formula uguale per tutti: ogni campionato gioca la stagione come l'ha scritta la sua federazione per il 2026-27.
-- **Play-off promozione e retrocessione come nella realtà** (i tre scozzesi; quelli di Championship, League One e
-  League Two; i 17 paesi con play-off a eliminazione): partecipanti per piazzamento reale, accoppiamenti reali, gara
-  secca o andata e ritorno, campo e spareggi secondo le regole vere.
-- **Play-off europei** (Danimarca, Austria, Olanda, Galles, Irlanda del Nord, Romania, San Marino ...): chi vince
-  prende l'ultimo posto in Conference League del paese.
+- **Split a metà stagione, come dicono i regolamenti** (22 campionati): dopo il numero vero di giornate la classifica
+  si divide nei gruppi veri, con il calendario vero per il resto della stagione e i punti tenuti, dimezzati o azzerati:
+  - **Scozia**: 33 giornate, poi prime sei e ultime sei per altre 5; nelle serie minori le squadre si incontrano 4
+    volte.
+  - **Austria 2026-27**: Meistergruppe 1-6 e Qualifikationsgruppe 7-12 dopo 22 giornate, ciascuno andata e ritorno
+    (altre 10, 32), e i punti **non si dimezzano più** (voto dei club del 2025).
+  - **Svizzera**: 33 giornate + 5 dopo lo split. **Danimarca**: 22 + 10, punti mantenuti.
+  - **Grecia**: 26 giornate, poi i gruppi 1-4, 5-8 (punti dimezzati, arrotondati per eccesso) e 9-14.
+  - **Romania**: dopo 30 giornate play-off 1-6 (andata e ritorno, 10) e play-out 7-16 (sola andata, 9), punti
+    dimezzati arrotondati per eccesso; a pari punti contano prima i punti prima dell'arrotondamento.
+  - **Moldavia**: dopo il triplo girone (21) le prime 6 giocano andata e ritorno (altre 10) partendo da metà dei punti
+    fatti negli scontri diretti, arrotondata per difetto; 7ª e 8ª hanno finito.
+  - **Malta**: Opening Round di 11 giornate, poi prime 6 e ultime 6 ancora una volta; il Closing Round riparte da 0
+    punti (ritorno delle gare dell'Opening), poi di nuovo prime 6 / ultime 6; la classifica dell'Opening resta.
+  - **Bulgaria**: dopo 26 giornate, gruppo per il titolo 1-4 (andata e ritorno), gruppo Conference 5-9 (andata e
+    ritorno) e gruppo salvezza 10-14 (sola andata), con turni di riposo nei gruppi da 5.
+  - **Irlanda del Nord**: dopo 33 giornate, Section A / B; in ogni partita dopo lo split gioca in casa il club che era
+    in trasferta nel terzo incontro. **Galles 2026-27**: 16 club, 30 giornate, poi i gruppi 1-6, 7-10 e 11-16.
+  - **Israele e Cipro**: gruppi da 6 e da 8. **Repubblica Ceca**: tre gruppi dopo 30 giornate. **Slovacchia,
+    Finlandia, Islanda**: 6 + 6. **Ecuador**: dopo 30 giornate l'esagonale per il titolo, il quadrangolare per la
+    Sudamericana e l'esagonale per la salvezza. **Serbia, Corea, Gibilterra, Albania**: le loro vere seconde fasi.
+- **Play-off promozione e retrocessione come nella realtà** (17 paesi): partecipanti per piazzamento reale,
+  accoppiamenti reali, gara secca o andata e ritorno, campo e spareggi secondo le regole vere. Tra questi **i play-off
+  di Championship a 6 squadre, novità del 2026-27** (5ª-8ª e 6ª-7ª, poi semifinali di andata e ritorno con la 3ª e la
+  4ª, finale a Wembley) e quelli di League One e League Two; **i tre scozzesi**, con lo spareggio della Premiership (3ª
+  contro 4ª della Championship, la vincente contro la 2ª, la vincente contro l'11ª della Premiership, tutto andata e
+  ritorno); Germania, Spagna, Francia, Portogallo, Olanda (la 16ª), **la Serie B brasiliana** (2 promosse + 3ª-6ª /
+  4ª-5ª), **la 1. Lig turca** (2 promosse, la 3ª direttamente in finale, 4ª-7ª e 5ª-6ª, finale in campo neutro),
+  Austria, Bulgaria, Repubblica Ceca, Danimarca, Irlanda del Nord, Romania, Galles e San Marino; **la J2 giapponese**
+  con i suoi play-off dalla 3ª alla 6ª.
+- **Play-off europei**: chi vince prende l'ultimo posto in Conference League del paese (Danimarca 4ª contro 7ª in casa
+  della 4ª; Austria, 1ª contro 2ª del gruppo di qualificazione, la vincente contro la 5ª del gruppo per il titolo,
+  andata e ritorno; Olanda dalla 5ª all'8ª; Galles dalla 2ª alla 7ª; Irlanda del Nord dalla 3ª alla 7ª; Romania; San
+  Marino ...).
+- **I campionati con un numero dispari di squadre giocano giornate vere**: a ogni turno una squadra riposa, come nelle
+  competizioni reali (la Tercera di El Salvador, Gibilterra, Nuova Zelanda, India, Taiwan ...); le tabelle originali
+  del gioco per le dimensioni dispari non erano giornate.
 - **Gironi regionali paralleli su più livelli** (Serie C, le zone di Segunda e Tercera di El Salvador): chi sale o
   scende va nel girone della sua area.
 - **Coppe di lega nello spazio di coppa di lega del gioco originale**, con il loro posto europeo: la EFL Cup dal suo
@@ -409,51 +440,20 @@ Non una formula uguale per tutti: ogni campionato gioca la stagione come l'ha sc
   Wales, Victoria e Queensland, chiuse come nella realtà; Primera, Segunda in due zone e Tercera di El Salvador; e
   Suriname, Taiwan, India e Ghana, di nuovo con i loro veri campionati e coppe.
 
-<!-- REGIA STAGED, il titolo della 5.0 (vedi la parte inglese).
-(ancora da fare, da spostare nella sezione sopra formato per formato)
-- **Scozia**: 33 giornate, poi lo split tra le prime sei e le ultime sei per altre 5; lo spareggio della Premiership
-  (3ª contro 4ª della Championship, la vincente contro la 2ª, la vincente contro l'11ª della Premiership, tutto
-  andata e ritorno); i play-off di Championship e League One con la serie sotto.
-- **Inghilterra**: i play-off di Championship a 6 squadre, novità del 2026-27: 5ª-8ª e 6ª-7ª, poi semifinali di
-  andata e ritorno con la 3ª e la 4ª, finale a Wembley.
-- **Austria 2026-27**: gruppo per il titolo e gruppo di qualificazione dopo 22 giornate, e i punti **non si dimezzano
-  più** (voto dei club del 2025); lo spareggio europeo (1ª contro 2ª del gruppo di qualificazione, la vincente
-  contro la 5ª del gruppo per il titolo, andata e ritorno).
-- **Svizzera**: 33 giornate + 5 dopo lo split; lo spareggio 11ª contro 2ª della Challenge League, campo sorteggiato.
-- **Danimarca**: 22 + 10 con i punti mantenuti; lo spareggio europeo 4ª contro 7ª in casa della 4ª.
+<!-- REGIA STAGED: formati ancora da fare (vedi la parte inglese).
+- **Svizzera**: lo spareggio 11ª contro 2ª della Challenge League, andata e ritorno, campo sorteggiato. **Malta**: la
+  Final Four per il titolo dalla classifica dell'Opening Round.
 - **Argentina 2026** (regolamento ufficiale LPF): Apertura e Clausura in due zone da 15, la giornata dei clasicos,
   ottavi 1A-8B ... 4B-5A, tabellone fisso fino alla finale in campo neutro; la classifica annuale (Campeon de Liga,
   posti internazionali); retrocessioni per promedio di tre stagioni e per classifica annuale; il Trofeo de Campeones.
-- **Grecia**: 26 giornate, poi i gruppi 1-4, 5-8 (punti dimezzati, arrotondati per eccesso) e 9-14. **Romania**:
-  play-off e play-out con i punti dimezzati per eccesso. **Israele e Cipro**: 6 + 8. **Repubblica Ceca**: tre gruppi
-  dopo 30 giornate. **Slovacchia, Finlandia, Islanda**: 6 + 6.
-- **Irlanda del Nord**: 33 + 5, il calendario dello split inverte le giornate 23-33; spareggio UECL 3ª-7ª.
-  **Galles 2026-27**: 16 club, 30 giornate, poi tre gruppi (1-6, 7-10, 11-16); spareggio UECL 2ª-7ª.
-- **Olanda**: la 16ª agli spareggi promozione / retrocessione, lo spareggio europeo 5ª-8ª. **Brasile Serie B**:
-  2 promosse dirette + play-off 3ª-6ª / 4ª-5ª. **Colombia**: l'Apertura a eliminazione, i cuadrangulares della
-  Finalizacion. **Perù**: Apertura, Clausura e i play-off a 4. **MLS**: due conference, il Supporters' Shield, i
-  play-off a 9 per conference con la wild card e il primo turno al meglio delle tre. **Canada**: i play-off a 4 della
-  CPL. **A-League**: la fase finale a 6 (3ª-6ª, 4ª-5ª, semifinali di andata e ritorno, Grand Final in casa della
-  meglio piazzata).
+- **MLS**: 34 partite anche contro l'altra conference, il Supporters' Shield, i play-off a 9 per conference con la
+  wild card e il primo turno al meglio delle tre. **Canada**: i play-off a 4 della CPL. **A-League**: la fase finale
+  a 6 (3ª-6ª, 4ª-5ª, semifinali di andata e ritorno, Grand Final in casa della meglio piazzata).
 - **Messico**: Apertura e Clausura con la liguilla a otto (1ª-8ª ..., andata e ritorno; niente play-in dal 2026).
-  **Uruguay**: Apertura, Intermedio, Clausura e classifica annuale, poi semifinale e finale. **Ecuador**: dopo 30
-  giornate l'esagonale per il titolo, il quadrangolare per la Sudamericana e l'esagonale per la salvezza.
-  **Paraguay**: Apertura e Clausura, niente play-off, retrocessione per promedio. **Cile**: 30 giornate, 2
-  retrocesse. **Costa Rica**: la Gran Final. **Honduras**: due gironi geografici.
-- **Turchia 1. Lig**: 2 promosse dirette, la 3ª direttamente in finale play-off, 4ª-7ª e 5ª-6ª, finale in campo
-  neutro. **Serbia**: 4 retrocesse. **Bulgaria**: gruppi da 4, 5 e 5. **Malta**: due fasi con i punti azzerati e una
-  Final Four.
-- **Romania** (dettaglio): a pari punti dopo il dimezzamento contano prima i punti prima dell'arrotondamento.
-  **Moldavia**: dopo il triplo girone (21) le prime 6 giocano andata e ritorno (altre 10) partendo da metà dei punti
-  fatti negli scontri diretti, arrotondata per difetto; 7ª e 8ª hanno finito.
-- **Malta** (dettaglio): Opening Round di 11 giornate, poi prime 6 e ultime 6 ancora una volta; il Closing Round
-  riparte da 0 punti (ritorno delle gare dell'Opening), poi di nuovo prime 6 / ultime 6; la classifica dell'Opening
-  resta per gli spareggi del titolo. **Bulgaria** (dettaglio): dopo 26 giornate, gruppo per il titolo 1-4 (andata e
-  ritorno), gruppo Conference 5-9 (andata e ritorno) e gruppo salvezza 10-14 (sola andata), con turni di riposo nei
-  gruppi da 5. **Irlanda del Nord** (dettaglio): dopo 33 giornate, Section A / B; in ogni partita dopo lo split gioca
-  in casa il club che era in trasferta nel terzo incontro.
-- **Campionati con numero dispari di squadre**: giornate vere con un club a riposo per turno (le tabelle originali del
-  gioco per le dimensioni dispari non erano giornate).
+  **Uruguay**: Apertura, Intermedio, Clausura e classifica annuale, poi semifinale e finale. **Paraguay**: Apertura e
+  Clausura, niente play-off, retrocessione per promedio. **Colombia**: l'Apertura a eliminazione, i cuadrangulares
+  della Finalizacion. **Perù**: Apertura, Clausura e i play-off a 4. **Costa Rica**: la Gran Final. **Honduras**: due
+  gironi geografici.
 -->
 
 *Coppe europee (UEFA 2026-27)*

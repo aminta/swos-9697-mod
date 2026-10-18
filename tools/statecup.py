@@ -21,6 +21,10 @@ and in patch_exe: statecup.set_struct(world, id, (obj, off)) once a contest is p
 (after sacups.patch: its career symbols) and statecup.slot_types / cup_end_types (idempotent, natcups may have run).
 A world entry is recognised at run time by the running world byte (career: someLeaguesTable + WORLD_BYTE; else 0) and
 the cup's id byte (ids are unique per world), never by the struct pointer (careerworld's w_swap copies the lists).
+Limits (2026-10-19): STAGIONE's human clubs come from a division's club list, so a state-only club (no league) is never
+the one that picks; cseg_91857 returns for a group cup at the season end, so the state champion reaches neither the
+CWC list (none wanted) nor, beyond the game's own record line (+1Ah, the contest's name), a result line: a
+finals97.rec_playoff-style path is needed for that (not in this version).
 """
 import re
 import struct

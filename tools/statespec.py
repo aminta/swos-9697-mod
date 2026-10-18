@@ -19,6 +19,8 @@ the country is a key of it, the state-only clubs in a shared-base file):
 - 'cross': k on the first group stage = the clubs are k blocks of equal size in list order and play only the clubs of
   the OTHER blocks, once (a fixed calendar: lp36.FIXTURES); groups = cross: each block is a group (its own table:
   Paranaense, Catarinense), groups = 1: one table for all (Goiano, Paraense);
+- 'fixtures' (the first stage, groups 1, no cross): a drawn league phase (Paulista 2026: 8 matches each) = days of
+  [home, away] club indices (the clubs list), every club once a day (lp36.FIXTURES, one table);
 - 'months': first and last month of the contest (1 = January).
 The contest's champion = its final's winner (the game's national-cup trophy line).
 """
@@ -133,6 +135,18 @@ def compile_state(c, n_clubs):
                       f'{sw} cross k: the first stage, k equal blocks, groups 1 or k, one meeting, even teams')
                 cal, days = cross_calendar(n, cr)
                 fixture = (g, n // g, days, cal)
+            fx = x.get('fixtures')
+            if fx:
+                _need(i == 0 and not cr and g == 1 and mt == 1 and n % 2 == 0,
+                      f'{sw} fixtures: the first stage, one group, one meeting, even teams, no cross')
+                seen = set()
+                for d, day in enumerate(fx):
+                    clubs = [v for pr in day for v in pr]
+                    _need(sorted(clubs) == list(range(n)), f'{sw} fixtures day {d + 1}: every club once')
+                    for a, b in day:
+                        _need((min(a, b), max(a, b)) not in seen, f'{sw} fixtures: {a} v {b} twice')
+                        seen.add((min(a, b), max(a, b)))
+                fixture = (1, n, len(fx), [(a, b) for day in fx for a, b in day])
             nxt = st[i + 1]['teams'] if i + 1 < len(st) else 1
             trip.append((g, n // g, nxt))
             sb.append(0)

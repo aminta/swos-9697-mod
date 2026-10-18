@@ -35,7 +35,7 @@ import re
 import struct
 
 N, POT, DAYS = 36, 9, 8
-DC_CLUB = 0x2F                  # diyFileBufferCopy: its team list's first club (file, ordinal) [to verify in game]
+DC_CLUB = 0x99                  # diyFileBufferCopy: its team list's first club (file, ordinal; measured in a career)
 FIXTURES = {}                   # (contest id, first club) -> (groups, clubs per group, days, [(home row, away row)]): a
                                 # type-2 contest's first group stage played from a fixed calendar (e.g. a state
                                 # championship's cross-group round robin); the game's own per-group tables
@@ -1574,6 +1574,8 @@ fx_find:                                ; al = id, cx = groups, dx = clubs per g
     jne .n
     cmp dl, [esi + 2]
     jne .n
+    cmp word [esi + 16], 0FFFFh         ; (any first club)
+    je .r
     cmp bx, [esi + 16]
     je .r
 .n:

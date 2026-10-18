@@ -211,6 +211,8 @@ def patch_exe(src, dst, remap, lang='it'):
     lpb += gp_mod.GP_PAGES * gp_on                     # (its pages, after dplay's: C + glue + specs)
     xtra_pg = bool((xtra_on or pg_tabs or rs_tabs or ri_tabs or bigtables.ON[0]) and mkseason.worlds())   # (+1: an extra code page in a build with worlds,
     lpb += xtra_pg                                     # whose world cave is full: 3.3.x purple + blond + a big world)
+    ri_pg = int(bool(ri_tabs and mkseason.worlds()))   # (+1: the off-file pool's code + table: 256 slots + the pool)
+    lpb += ri_pg
     cos_pg = 1                                         # (+1, the top one: purple + blond + menunum + avgprice + the
     lpb += cos_pg                                      # FORMAT page: every build; without worlds too, e.g. PROTO36)
     cdp = mkseason.career_data_pages() - 2 if worlds else 0   # a big world: a 3rd career data page and a 2nd
@@ -375,12 +377,12 @@ def patch_exe(src, dst, remap, lang='it'):
         careerworld.BSS_SIZE = (careerworld.B_UQ + careerworld.UQ_BSS + careerworld.UQ_RECS * 684 + 0xFFF) & ~0xFFF
     if dp_tabs:                                 # Italian play-offs (C, tools/dplay.c; own 2 pages,
         import dplay                            # its .bss after the career BSS)
-        dp_at = hist2 + h2 + 0x1000 * (lpb - cos_pg - 2 - gp_mod.GP_PAGES * gp_on - xtra_pg)
+        dp_at = hist2 + h2 + 0x1000 * (lpb - cos_pg - 2 - gp_mod.GP_PAGES * gp_on - xtra_pg - ri_pg)
         dplay.patch(p, dp_at, dp_at + 0x2000, dp_tabs, careerworld.BSS[0] + careerworld.BSS_SIZE, area)
         careerworld.BSS_SIZE += 0x1000
     if gp_on:                                   # knockout play-offs (C, tools/gplay.c; chained after dplay's hooks)
         import gplay                            # and the parallel groups' season-end fix (pg_season, pgroups.py)
-        gp_at = hist2 + h2 + 0x1000 * (lpb - cos_pg - gplay.GP_PAGES - xtra_pg)
+        gp_at = hist2 + h2 + 0x1000 * (lpb - cos_pg - gplay.GP_PAGES - xtra_pg - ri_pg)
         gplay.patch(p, gp_at, gp_at + 0x1000 * gplay.GP_PAGES, gp_tabs, careerworld.BSS[0] + careerworld.BSS_SIZE)
         if rs_tabs:
             engine.ITEM_AT['RS'] = gplay.LABELS['RS_STATE']
@@ -416,11 +418,13 @@ def patch_exe(src, dst, remap, lang='it'):
     else:
         world = cos
     if xtra_pg:                                                  # extended career squads (packs with "extra";
-        xp = hist2 + h2 + 0x1000 * (lpb - cos_pg - 1)            # XTRA_HOOK=1: test builds): DATA\XTRA.nnn players;
+        xp = hist2 + h2 + 0x1000 * (lpb - cos_pg - ri_pg - 1)    # XTRA_HOOK=1: test builds): DATA\XTRA.nnn players;
         xe = xtra.patch(p, xp) if xtra_on else xp                # the extra page in a build with worlds, with the
         ri = None
-        if ri_tabs:                                              # the off-file pool (Eccellenza): loads + new careers
-            xe, ri = ripool.patch(p, (xe + 15) & ~15, ri_bss, ri_tabs, 'data/rs%d%03d.dat' % ri_tabs[0][:2])
+        if ri_tabs:                                              # the off-file pool (Eccellenza): its own page
+            rp = hist2 + h2 + 0x1000 * (lpb - cos_pg - 1)
+            re_, ri = ripool.patch(p, rp, ri_bss, ri_tabs, 'data/rs%d%03d.dat' % ri_tabs[0][:2])
+            assert re_ <= rp + 0x1000, hex(re_)
         if pg_tabs or rs_tabs or ri_tabs:                        # parallel groups' / reserves' season end (pgroups.py)
             xe = pgroups.patch(p, (xe + 15) & ~15, pg_tabs, gplay.LABELS['pg_season'], rs_tabs, gplay.LABELS['rs_season'],
                                ri=ri)

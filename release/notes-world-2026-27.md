@@ -311,7 +311,7 @@ when the engine lands it.
   its second team's division sends the second team down; New Zealand's reserves cannot win the National League.
   Portugal's B teams follow the Spanish / German rule (the place passes on, the B team goes down when its first team
   drops into Liga 2: no regulation found, Davide). If a second team wins the Serie C play-off while its first team is in
-  Serie B, the losing finalist goes up (no rule found). -->
+  Serie B, the losing finalist goes up (no rule found, Davide). -->
 - Players without a Transfermarkt value get an estimate (from their club's and division's values); in the lowest
   divisions (Scotland's League One and Two) the squads are so close that a simulated season does not follow the real
   table closely.
@@ -709,7 +709,7 @@ Non una formula uguale per tutti: ogni campionato gioca la stagione come l'ha sc
   squadra che retrocede nella divisione della seconda la fa scendere; le riserve neozelandesi non possono vincere la
   National League. Le squadre B portoghesi seguono la regola spagnola / tedesca (il posto passa alla seguente, la B
   scende se la prima squadra cade in Liga 2: nessun regolamento trovato, Davide). Se una seconda squadra vince i play-off
-  di Serie C mentre la prima squadra è in Serie B, sale la finalista sconfitta (nessuna regola trovata). -->
+  di Serie C mentre la prima squadra è in Serie B, sale la finalista sconfitta (nessuna regola trovata, Davide). -->
 - I giocatori senza valore su Transfermarkt ricevono una stima (dai valori del club e della divisione); nelle divisioni
   più basse (League One e League Two scozzesi) le rose sono così vicine che una stagione simulata non segue da vicino la
   classifica vera.

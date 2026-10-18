@@ -1097,13 +1097,15 @@ def league_phase_worlds():
 
 def splits():
     """Mid-season splits and per-division meetings of the career worlds (split.py): [(world, team file, division,
-    clubs, spec)]. A division (or a one-division league) may carry
+    clubs, spec)]. A division (or the league: its first division) may carry
       'games': 3                        a division's meetings in the season (the league struct's 'games' is one
                                         for every division; 'split' sets its own from 'after');
-      'split': {'after': 33, 'home': 'balance' | 'reverse3' | 'seeded',
+      'split': {'after': 33, 'home': 'balance' | 'reverse1' | 'reverse3' | 'seeded',
                 'groups': [{'places': [1, 6], 'rounds': 'single' | 'double' | 'none',
-                            'points': 'full' | 'half_up' | 'half_down'}, ...], 'tiebreak': ...}
-    ('after' = the match days before the split; groups = consecutive places of the table at the split)."""
+                            'points': 'full' | 'half_up' | 'half_down' | 'reset' | 'h2h_half'}, ...], 'tiebreak': ...}
+               or {'stages': [split, split, ...]} (Malta: Opening Round, Closing Round), a stage adding
+               'reset': true (every figure from 0) and 'keep': 'opening' (the table before it kept in the save)
+    ('after' = the match days before the split / the stage; groups = consecutive places of the table then)."""
     import split
     out = []
     rnd = {'none': 0, 'single': 1, 'double': 2}
@@ -1112,37 +1114,49 @@ def splits():
         if pk.world is None or not lg:
             continue
         file = pk.files[lg['clubs']][0]
-        one = 'divisions' not in lg
         for d, dv in enumerate(pk.divisions()):
             sp = dv.get('split') or (lg.get('split') if d == 0 else None)   # (the league's: its first division)
-            games = dv.get('games') if not one else None
+            games = dv.get('games') if 'divisions' in lg else None
             if not sp and games is None:
                 continue
-            w = f"{pk.meta['id']} division {d + 1}"
             n = dv['teams']
-            _need(n <= split.NMAX and n % 2 == 0, f'{w}: an even division of at most {split.NMAX} clubs')
-            spec = {}
-            if sp:
-                _need(set(sp) <= {'after', 'home', 'groups', 'tiebreak'}, f'{w}.split: keys after, home, groups, tiebreak')
-                per = split.days_before(n, 1)
-                _need(isinstance(sp.get('after'), int) and sp['after'] % per == 0 and 1 <= sp['after'] // per <= 4,
-                      f'{w}.split.after: {per} x the meetings (1..4)')
-                games = sp['after'] // per
-                places, gs = 1, sp.get('groups') or []
+            w = f"{pk.meta['id']} division {d + 1}"
+            _need(n <= split.NMAX, f'{w}: at most {split.NMAX} clubs')
+            spec = {'stages': []}
+            stages = (sp.get('stages') or [sp]) if sp else []
+            _need(not sp or set(sp) <= {'after', 'home', 'groups', 'tiebreak'} or set(sp) == {'stages'},
+                  f'{w}.split: keys after, home, groups, tiebreak (or stages)')
+            per = split.days_before(n, 1)
+            day = None
+            for i, st in enumerate(stages):
+                ws = f'{w}.split' + (f'.stages[{i}]' if 'stages' in sp else '')
+                _need(set(st) <= {'after', 'home', 'groups', 'tiebreak', 'reset', 'keep'},
+                      f'{ws}: keys after, home, groups, tiebreak, reset, keep')
+                if i == 0:
+                    _need(isinstance(st.get('after'), int) and st['after'] % per == 0 and 1 <= st['after'] // per <= 4,
+                          f'{ws}.after: {per} x the meetings (1..4)')
+                    games = st['after'] // per
+                    day = st['after']
+                _need(st.get('after') == day, f'{ws}.after: {day} (the previous stage ends then)')
+                places, gs = 1, st.get('groups') or []
                 for g in gs:
                     _need(set(g) <= {'places', 'rounds', 'points', 'neutral'} and g.get('places', [0])[0] == places
-                          and g['places'][1] >= places + 1, f'{w}.split.groups: consecutive places from 1')
+                          and g['places'][1] >= places + 1, f'{ws}.groups: consecutive places from 1')
                     _need(g.get('rounds', 'single') in rnd and g.get('points', 'full') in split.POINTS,
-                          f'{w}.split.groups: rounds single / double / none, points full / half_up / half_down')
+                          f'{ws}.groups: rounds single / double / none, points ' + ' / '.join(split.POINTS))
                     places = g['places'][1] + 1
-                _need(places == n + 1 and 2 <= len(gs) <= 4, f'{w}.split.groups: 2..4 groups covering places 1-{n}')
-                _need(sp.get('home', 'seeded') in ('seeded', 'balance', 'reverse3'), f'{w}.split.home: seeded, balance, reverse3')
-                spec = {'groups': [g['places'][1] - g['places'][0] + 1 for g in gs],
-                        'rounds': [rnd[g.get('rounds', 'single')] for g in gs],
-                        'points': [g.get('points', 'full') for g in gs], 'home': sp.get('home', 'seeded')}
+                _need(places == n + 1 and 1 <= len(gs) <= 4, f'{ws}.groups: 1..4 groups covering places 1-{n}')
+                _need(st.get('home', 'seeded') in split.HOMES, f'{ws}.home: ' + ', '.join(split.HOMES))
+                _need(st.get('keep') in (None, 'opening'), f"{ws}.keep: 'opening'")
+                one = {'after': st['after'], 'groups': [g['places'][1] - g['places'][0] + 1 for g in gs],
+                       'rounds': [rnd[g.get('rounds', 'single')] for g in gs],
+                       'points': [g.get('points', 'full') for g in gs], 'home': st.get('home', 'seeded'),
+                       'reset': bool(st.get('reset')), 'keep': st.get('keep')}
+                spec['stages'].append(one)
+                day += len(split.schedule(one['groups'], one['rounds']))
             _need(games in (1, 2, 3, 4), f'{w}.games: 1..4 meetings')
             spec['games'] = games
-            days = split.days_before(n, games) + (len(split.schedule(spec['groups'], spec['rounds'])) if sp else 0)
+            days = day if stages else split.days_before(n, games)
             _need(days <= split.MAXDAYS, f'{w}: {days} match days (at most {split.MAXDAYS})')
             out.append((pk.world, file, d, n, spec))
     keys = [x[:3] for x in out]

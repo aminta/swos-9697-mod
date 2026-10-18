@@ -55,9 +55,18 @@ ASM = r"""
 %define S_PRE    ST_ + 54
 %define S_H2H    ST_ + 102
 
-; entry: +0 world, +1 team file, +2 division, +3 clubs, +4 cycles, +5 days before, +6 days after, +7 groups,
-;        +8 (start, size, points) x 4, +20 word days' counts, +22 word days' first pair, +24 word pairs, +26 word
-;        matrix (0 = none), +28 word entry length (offsets from the entry)
+%define S_KEEP   ST_ + 102              ; (the head-to-head bytes: never in one league with a 'keep' stage)
+%define E_CNT    8
+%define E_FIRST  10
+%define E_PAIRS  12
+%define E_LEN    14
+%define E_STG    16
+%define SR_      20
+
+; entry: +0 world, +1 team file, +2 division, +3 clubs, +4 cycles, +5 days before, +6 days after, +7 stages,
+;        +8 word days' counts, +10 word days' first pair, +12 word pairs, +14 word entry length (offsets from the
+;        entry), +16 the stages, 20 bytes each: first day after the split, groups, flags (1 reset, 2 keep), -,
+;        (first place, size, points) x 4, word matrix (0 = none)
 
 sp_init:                                ; replaces `call cseg_2653B` at the end of cseg_8F1F2 (A5 struct; the division
                                         ; from its start, sp_div8f)
@@ -82,7 +91,7 @@ sp_init:                                ; replaces `call cseg_2653B` at the end 
     cmp [edi + 2], dl
     je .found
 .next:
-    movzx ecx, word [edi + 28]
+    movzx ecx, word [edi + E_LEN]
     add edi, ecx
     jmp .find
 .found:
@@ -162,27 +171,48 @@ sp_entry:                               ; -> edx = the DIY league's entry, esi =
     xor eax, eax                        ; (ZF = 1)
     ret
 
+sp_stage:                               ; ecx = day after the split -> eax = its stage, ebp = the stage's record
+    movzx eax, byte [edx + 7]
+.l:
+    dec eax
+    js .first
+    imul ebp, eax, SR_
+    lea ebp, [edx + E_STG + ebp]
+    cmp cl, [ebp]
+    jb .l
+    ret
+.first:
+    xor eax, eax
+    lea ebp, [edx + E_STG]
+    ret
+
 sp_rows:                                ; ecx = day after the split, ebx = match of the day -> eax = home row,
-    push esi                            ; ebx = away row (esi = DIY, edx = entry); the places of the frozen table
-    push edi                            ; (before the split, in the calendar builder: places = rows)
-    movzx edi, word [edx + 22]
+    push esi                            ; ebx = away row (esi = DIY, edx = entry); the places of the table frozen
+    push edi                            ; for that day's stage (else, in the calendar builder: places = rows)
+    push ebp
+    call sp_stage
+    push eax
+    movzx edi, word [edx + E_FIRST]
     add edi, edx
     movzx eax, word [edi + ecx * 2]     ; the day's first pair
     add ebx, eax
     lea ebx, [ebx + ebx * 2]
-    movzx edi, word [edx + 24]
+    movzx edi, word [edx + E_PAIRS]
     add edi, edx
     add edi, ebx                        ; the pair: home place, away place, flags
+    pop ebx
+    inc ebx
     movzx eax, byte [edi]
+    cmp [esi + S_FROZEN], bl
     movzx ebx, byte [edi + 1]
-    cmp byte [esi + S_FROZEN], 0
-    je .places
+    jne .places
     movzx eax, byte [esi + S_P2R + eax]
     movzx ebx, byte [esi + S_P2R + ebx]
 .places:
     test byte [edi + 2], 1
     jz .r
-    push ecx                            ; home by the matrix of the slots (the fixtures before the split)
+    movzx edi, word [ebp + 16]          ; this stage's matrix of the slots (the fixtures before the split)
+    push ecx
     push ebp
     call sp_slot                        ; ebp = slot of the first row
     mov ecx, ebp
@@ -193,8 +223,7 @@ sp_rows:                                ; ecx = day after the split, ebx = match
     movzx eax, byte [edx + 3]
     imul eax, ecx
     add eax, ebp
-    movzx ecx, word [edx + 26]
-    add eax, ecx
+    add eax, edi
     mov cl, [edx + eax]                 ; 1 = the first at home, 0 = the second, 2 = the calendar's
     pop eax
     test cl, cl
@@ -204,6 +233,7 @@ sp_rows:                                ; ecx = day after the split, ebx = match
     pop ebp
     pop ecx
 .r:
+    pop ebp
     pop edi
     pop esi
     ret
@@ -236,12 +266,16 @@ sp_pair:                                ; replaces `mov esi, [A0]` before cseg_8
 .after:
     cmp cl, [edx + 6]
     jae .game                           ; (the stage is over)
-    cmp byte [esi + S_FROZEN], 0
-    jne .frozen
-    cmp dword [esp + 36], BUILDER_RET   ; the calendar builder at the season start: no freeze
-    je .frozen
     push ecx
+    call sp_stage                       ; this day's stage: its table frozen?
+    inc eax
+    cmp [esi + S_FROZEN], al
+    je .fz
+    cmp dword [esp + 40], BUILDER_RET   ; the calendar builder at the season start: no freeze
+    je .fz
+    dec eax
     call sp_freeze
+.fz:
     pop ecx
 .frozen:
     xor ebx, ebx
@@ -264,9 +298,46 @@ sp_pair:                                ; replaces `mov esi, [A0]` before cseg_8
     mov esi, [A0]
     ret
 
-sp_freeze:                              ; esi = DIY, edx = entry: the groups from the table, points halved
+sp_freeze:                              ; esi = DIY, edx = entry, eax = stage, ebp = its record: the groups
+    mov [sp_rec], ebp                   ; from the table now, its points rules
+    mov [sp_stg], al
+    movzx ecx, byte [edx + 3]
+    mov [sp_n], ecx
+    test byte [ebp + 2], 2              ; keep: the table before this stage (row by place, then its points)
+    jz .nokeep
     xor ecx, ecx
+.keep:
+    movzx eax, word [esi + 6Dh + ecx * 2]
+    mov bx, [esi + eax + 2C3h]
+    mov [esi + S_KEEP + 22 + ecx * 2], bx
+    push edx
+    push ecx
+    xor edx, edx
+    mov ecx, 18
+    div ecx
+    pop ecx
+    pop edx
+    mov [esi + S_KEEP + ecx], al
+    inc ecx
+    cmp ecx, [sp_n]
+    jb .keep
+.nokeep:
+    test byte [ebp + 2], 1              ; reset: every figure from 0 (played .. points)
+    jz .p2r
+    xor ecx, ecx
+.zero:
+    imul eax, ecx, 18
+    lea edi, [esi + eax + 2B7h]
+    mov dword [edi], 0
+    mov dword [edi + 4], 0
+    mov dword [edi + 8], 0
+    mov word [edi + 12], 0
+    inc ecx
+    cmp ecx, [sp_n]
+    jb .zero
 .p2r:
+    xor ecx, ecx
+.pr:
     movzx eax, word [esi + 6Dh + ecx * 2]
     push edx
     xor edx, edx
@@ -275,102 +346,91 @@ sp_freeze:                              ; esi = DIY, edx = entry: the groups fro
     pop edx
     mov [esi + S_P2R + ecx], al
     inc ecx
-    cmp cl, [edx + 3]
-    jb .p2r
+    cmp ecx, [sp_n]
+    jb .pr
     lea edi, [esi + S_GRP]
     mov ecx, NMAX_
     mov al, 0FFh
-    push edi
     rep stosb
-    pop edi
     xor ebx, ebx                        ; group
 .g:
-    cmp bl, [edx + 7]
+    mov ebp, [sp_rec]
+    cmp bl, [ebp + 1]
     jae .done
-    lea ebp, [ebx + ebx * 2]
-    movzx ecx, byte [edx + 8 + ebp]     ; start
-    movzx eax, byte [edx + 9 + ebp]     ; size
-    add eax, ecx
-    push eax
+    lea eax, [ebx + ebx * 2]
+    movzx ecx, byte [ebp + 4 + eax]     ; its first place
+    mov [sp_first], ecx
+    movzx edi, byte [ebp + 5 + eax]
+    add edi, ecx                        ; its end
+    mov al, [ebp + 6 + eax]
+    mov [sp_rule], al
+    push edi
 .pl:
     cmp ecx, [esp]
     jae .gn
-    movzx eax, byte [esi + S_P2R + ecx]
-    mov [edi + eax], bl
-    imul eax, eax, 18
-    movzx ebp, word [esi + eax + 2C3h]  ; points
-    push eax
-    movzx eax, byte [esi + S_P2R + ecx]
-    mov [esi + S_PRE + eax * 2], bp
-    pop eax
-    push ebx
-    lea ebx, [ebx + ebx * 2]
-    mov bl, [edx + 10 + ebx]            ; points rule
-    cmp bl, 1
+    movzx eax, byte [esi + S_P2R + ecx] ; the place's row
+    mov [esi + S_GRP + eax], bl
+    imul edi, eax, 18
+    movzx ebp, word [esi + edi + 2C3h]  ; its points
+    mov [esi + S_PRE + eax * 2], bp     ; (the first tie-break)
+    mov al, [sp_rule]
+    cmp al, 1
     jne .down
-    inc ebp
+    inc ebp                             ; half_up
     shr ebp, 1
     jmp .set
 .down:
-    cmp bl, 2
+    cmp al, 2
     jne .reset
-    shr ebp, 1
+    shr ebp, 1                          ; half_down
     jmp .set
 .reset:
-    cmp bl, 3
+    cmp al, 3
     jne .h2h
-    xor ebp, ebp                        ; (Malta: from 0; no tie-break by the old points)
-    jmp .setpre
+    xor ebp, ebp                        ; reset (points only; a stage's reset flag clears every figure)
+    movzx eax, byte [esi + S_P2R + ecx]
+    mov word [esi + S_PRE + eax * 2], 0
+    jmp .set
 .h2h:
-    cmp bl, 4
-    jne .keep
-    push ecx                            ; Moldova: half the points won against the group's clubs, rounded down
-    push edi
-    movzx edi, byte [esi + S_P2R + ecx]
-    movzx ebp, byte [edx + 3]
-    imul edi, ebp                       ; its row of the head-to-head table
+    cmp al, 4
+    jne .next
+    push ecx                            ; h2h_half: half the points won against the group's clubs, rounded down
+    push edx
+    movzx eax, byte [esi + S_P2R + ecx]
+    imul eax, [sp_n]                    ; its line of the head-to-head table
     xor ebp, ebp
-    mov ebx, [esp + 8]                  ; (the group, pushed above)
-    lea ebx, [ebx + ebx * 2]
-    movzx ecx, byte [edx + 8 + ebx]     ; the group's first place
+    mov ecx, [sp_first]
 .hq:
-    cmp ecx, [esp + 12]                 ; (its end, pushed at .g)
+    cmp ecx, [esp + 8]
     jae .hd
-    movzx ebx, byte [esi + S_P2R + ecx]
-    add ebx, edi
-    movzx ebx, byte [esi + S_H2H + ebx]
-    add ebp, ebx
+    movzx edx, byte [esi + S_P2R + ecx]
+    add edx, eax
+    movzx edx, byte [esi + S_H2H + edx]
+    add ebp, edx
     inc ecx
     jmp .hq
 .hd:
-    pop edi
+    pop edx
     pop ecx
-    push eax
     movzx eax, byte [esi + S_P2R + ecx]
     mov [esi + S_PRE + eax * 2], bp     ; (tie-break: the head-to-head points before rounding)
-    pop eax
     shr ebp, 1
-    jmp .set
-.setpre:
-    push eax
-    movzx eax, byte [esi + S_P2R + ecx]
-    mov word [esi + S_PRE + eax * 2], 0
-    pop eax
 .set:
-    mov [esi + eax + 2C3h], bp
-.keep:
-    pop ebx
+    mov [esi + edi + 2C3h], bp
+.next:
     inc ecx
     jmp .pl
 .gn:
-    pop eax
+    pop edi
     inc ebx
     jmp .g
 .done:
-    mov byte [esi + S_FROZEN], 1
+    mov al, [sp_stg]
+    inc al
+    mov [esi + S_FROZEN], al
     pushad                              ; (the game's sort uses every register)
     call sp_saveregs
-    call C883DD                         ; the table with the groups (and the halved points) now
+    call C883DD                         ; the table with the groups (and the points rules) now
     call sp_restregs
     popad
     cmp word [SIMFLAG], 0               ; the season-end simulation (cseg_3ABB2): no calendar
@@ -396,6 +456,9 @@ sp_calendar:                            ; the career calendar's blocks of the da
     jb .skip
     cmp cl, [edx + 6]
     jae .skip
+    mov eax, [sp_rec]
+    cmp cl, [eax]                       ; (from this stage's first day)
+    jb .skip
     call sp_block
 .skip:
     pop ecx
@@ -411,7 +474,7 @@ sp_calendar:                            ; the career calendar's blocks of the da
 sp_block:                               ; edi = block, ecx = day after the split
     mov byte [edi + 5], 0
     mov byte [edi + 6], 0
-    movzx eax, word [edx + 20]
+    movzx eax, word [edx + E_CNT]
     add eax, edx
     movzx eax, byte [eax + ecx]         ; matches that day
     push eax
@@ -469,7 +532,7 @@ sp_count:                               ; replaces `mov esi, [A0]` in cseg_8922B
     mov word [esi + 1C9h], 0
 .c:
     inc word [esi + 1C9h]
-    movzx eax, word [edx + 20]
+    movzx eax, word [edx + E_CNT]
     add eax, edx
     movzx eax, byte [eax + ecx]
     cmp [esi + 1C9h], ax
@@ -493,6 +556,64 @@ sp_count:                               ; replaces `mov esi, [A0]` in cseg_8922B
     mov esi, [A0]
     ret
 
+sp_cpu:                                 ; replaces cseg_8EF7B's first `call cseg_89758` (the computer's matches up to
+    pushad                              ; the career club's): when the career club plays no more on this day after
+    call sp_entry                       ; the split (byes of odd groups, shorter groups), only the rest of this day
+    jz .game                            ; (else the next day's matches up to its own: its block then played twice)
+    movzx ecx, word [esi + 1C1h]
+    movzx eax, byte [edx + 5]
+    sub ecx, eax
+    jb .game
+    cmp cl, [edx + 6]
+    jae .game
+    xor ebx, ebx
+    cmp word [esi + 1BFh], 0
+    jne .first
+    movzx ebx, word [esi + 1C9h]
+.first:
+    movzx eax, word [edx + E_CNT]
+    add eax, edx
+    movzx eax, byte [eax + ecx]
+    push eax                            ; the day's matches
+.m:
+    cmp ebx, [esp]
+    jae .idle
+    push ebx
+    push ecx
+    call sp_rows
+    imul eax, eax, 18
+    mov eax, [esi + eax + 2B3h]
+    add eax, [SELTEAMS]
+    imul ebx, ebx, 18
+    mov ebx, [esi + ebx + 2B3h]
+    add ebx, [SELTEAMS]
+    cmp byte [eax + 4], 1
+    jne .plays
+    cmp byte [ebx + 4], 1
+    jne .plays
+    pop ecx
+    pop ebx
+    inc ebx
+    jmp .m
+.plays:
+    pop ecx
+    pop ebx
+    pop eax
+.game:
+    popad
+    jmp C89758                          ; (the game's: its call returns to cseg_8EF7B)
+.idle:
+    pop eax
+    popad
+.loop:                                  ; the rest of the day, then out of cseg_8EF7B
+    mov word [D7], 0
+    call C88A12
+    mov esi, DIY
+    cmp word [esi + 1BFh], 0
+    je .loop
+    add esp, 4
+    ret
+
 sp_res:                                 ; replaces `add word [esi+1BDh], 1` in cseg_88A12 (a result into the rows):
     add word [esi + 1BDh], 1            ; before the split, the points of each pair (head-to-head groups only)
     pushad
@@ -502,10 +623,10 @@ sp_res:                                 ; replaces `add word [esi+1BDh], 1` in c
     jne .x
     xor ecx, ecx
 .g:
-    cmp cl, [edx + 7]
+    cmp cl, [edx + E_STG + 1]           ; (the first stage's groups)
     jae .x
     lea eax, [ecx + ecx * 2]
-    cmp byte [edx + 10 + eax], 4
+    cmp byte [edx + E_STG + 6 + eax], 4
     je .rec
     inc ecx
     jmp .g
@@ -552,12 +673,16 @@ sp_sort:                                ; replaces cseg_883DD's last `jns` (the 
     pushad
     call sp_entry
     jz .x
-    cmp byte [esi + S_FROZEN], 0
-    je .x
+    movzx eax, byte [esi + S_FROZEN]
+    dec eax
+    js .x
+    imul eax, eax, SR_
+    mov al, [edx + E_STG + 1 + eax]     ; the frozen stage's groups
+    mov [sp_G], al
     xor ebx, ebx                        ; group
     xor edi, edi                        ; out count
 .g:
-    cmp bl, [edx + 7]
+    cmp bl, [sp_G]
     jae .copy
     xor ecx, ecx
 .p:
@@ -645,6 +770,12 @@ sp_sort:                                ; replaces cseg_883DD's last `jns` (the 
     ret
 
 sp_regs: times 15 dd 0
+sp_rec: dd 0
+sp_n: dd 0
+sp_first: dd 0
+sp_stg: db 0
+sp_rule: db 0
+sp_G: db 0
 sp_div: dd 0
 sp_tmp: times NMAX_ dw 0
 align 4
@@ -754,51 +885,69 @@ def matrix(table, n, games, cycles, home):
             ha, hb = h.get((a, b), []), h.get((b, a), [])
             if home == 'balance':
                 out[a * n + b] = 1 if len(ha) < len(hb) else 0 if len(ha) > len(hb) else 2
-            else:                                   # reverse3: the club away in the 3rd meeting hosts
-                assert games >= 3, 'reverse3 needs 3 meetings before the split'
-                out[a * n + b] = 1 if 2 in hb else 0
+            else:                                   # reverseK: the club away in the K-th meeting hosts
+                k = int(home[7:]) - 1
+                assert games > k, f'{home} needs {k + 1} meetings before the split'
+                out[a * n + b] = 1 if k in hb else 0
     return bytes(out)
 
 
+HOMES = ('seeded', 'balance', 'reverse1', 'reverse3')
+SR = 20                                             # a stage's record (ASM SR_)
+
+
 def entry(world, file, div, n, spec, table):
-    """One SP_TAB entry (see ASM)."""
+    """One SP_TAB entry (see ASM). spec: games, stages [{after, groups, rounds, points, home, reset, keep}]."""
     games = spec['games']
-    groups = spec.get('groups') or []
-    rounds = spec.get('rounds') or [1] * len(groups)
-    points = spec.get('points') or ['full'] * len(groups)
-    home = spec.get('home', 'seeded')
-    assert n <= NMAX and len(groups) <= 4 and sum(groups) in (0, n), (n, groups)
-    assert n <= H2H_NMAX or all(POINTS[x] != 4 for x in points), 'head-to-head points: at most 8 clubs'
+    stages = spec.get('stages') or []
+    assert n <= NMAX and len(stages) <= 8, (n, len(stages))
     d1 = days_before(n, games)
-    days = schedule(groups, rounds) if groups else []
+    cycles = games + (1 if stages else 0)
+    days, recs = [], []
+    for st in stages:
+        groups, rounds = st['groups'], st['rounds']
+        points = st.get('points') or ['full'] * len(groups)
+        assert len(groups) <= 4 and sum(groups) == n, (n, groups)
+        assert st['after'] - d1 == len(days), f"stage at {st['after']}: day {d1 + len(days)} expected"
+        assert n <= H2H_NMAX or all(POINTS[x] != 4 for x in points), 'head-to-head points: at most 8 clubs'
+        assert not st.get('keep') or 3 * n <= 64, "'keep': at most 21 clubs"
+        single = {g for g, r in enumerate(rounds) if r == 1}
+        home = st.get('home', 'seeded')
+        mat = matrix(table, n, games, cycles, home) if home != 'seeded' and single else b''
+        sd = schedule(groups, rounds)
+        recs.append((len(days), groups, points, (1 if st.get('reset') else 0) | (2 if st.get('keep') else 0), mat))
+        days += [[(a, b, 1 if mat and g in single else 0) for a, b, g in d] for d in sd]
+    assert not any(r[3] & 2 for r in recs) or all(POINTS[x] != 4 for st in stages for x in st.get('points') or []), \
+        "'keep' and head-to-head points share their bytes"
     d2 = len(days)
-    cycles = games + (1 if d2 else 0)
-    head = bytearray((world, file, div, n, cycles, d1, d2, len(groups)))
-    start = 0
-    for g in range(4):
-        if g < len(groups):
-            head += bytes((start, groups[g], POINTS[points[g]]))
-            start += groups[g]
-        else:
-            head += b'\0\0\0'
-    single = {g for g, r in enumerate(rounds) if r == 1}
-    mat = matrix(table, n, games, cycles, home) if d2 and home in ('balance', 'reverse3') and single else b''
     counts = bytes(len(d) for d in days)
     firsts, pairs, k = b'', b'', 0
     for d in days:
         firsts += struct.pack('<H', k)
-        for a, b, g in d:
-            pairs += bytes((a, b, 1 if mat and g in single else 0))
+        for a, b, f in d:
+            pairs += bytes((a, b, f))
             k += 1
-    o_counts = 30
+    o_counts = 16 + SR * len(recs)
     o_firsts = o_counts + len(counts) + (len(counts) & 1)
     o_pairs = o_firsts + len(firsts)
-    o_mat = o_pairs + len(pairs)
-    length = o_mat + len(mat)
+    o = o_pairs + len(pairs)
+    srec, mats = b'', b''
+    for j0, groups, points, flags, mat in recs:
+        g, start = b'', 0
+        for i in range(4):
+            if i < len(groups):
+                g += bytes((start, groups[i], POINTS[points[i]]))
+                start += groups[i]
+            else:
+                g += b'\0\0\0'
+        srec += bytes((j0, len(groups), flags, 0)) + g + struct.pack('<HH', o + len(mats) if mat else 0, 0)
+        mats += mat
+    length = o + len(mats)
     length += -length & 3
-    body = (bytes(head) + struct.pack('<5H', o_counts, o_firsts, o_pairs, o_mat if mat else 0, length)
-            + counts + b'\0' * (len(counts) & 1) + firsts + pairs + mat)
-    assert len(head) == 20 and len(body) <= length and d1 + d2 <= MAXDAYS, (d1, d2)
+    head = bytes((world, file, div, n, cycles, d1, d2, len(recs)))
+    body = (head + struct.pack('<4H', o_counts, o_firsts, o_pairs, length) + srec + counts
+            + b'\0' * (len(counts) & 1) + firsts + pairs + mats)
+    assert len(body) <= length and d1 + d2 <= MAXDAYS, (len(body), length, d1, d2)
     return body + b'\0' * (length - len(body)), d1, d2
 
 
@@ -831,6 +980,7 @@ def sites(p):
 
     s = {'A0': a0, 'DIY': diy}
     pair = one(rb'\xc7\x05' + A(a0) + A(diy) + rb'\x8b\x35' + A(a0) + rb'\x66\x8b\x46\x5b', 'cseg_89758').start()
+    s['pair'] = pair
     s['swap'] = one(rb'\x8b\x35' + A(a0) + rb'\xf6\x46\x5f\x01\x74.\xa1' + A(a0 + 4), 'cseg_89758 swap').start()
     assert 0 < s['swap'] - pair < 0x300
     tab = [x for x in re.finditer(rb'\xc7\x05' + A(a0 + 12), d1[pair:s['swap']])]
@@ -846,6 +996,20 @@ def sites(p):
     s['sort_start'] = sort
     s['C88420'] = s['sort'] + 6 + struct.unpack('<i', se[0].group(1))[0]
     # cseg_88CBB: mov [A0], offset DIY; mov esi, [A0]; add word [esi+1BDh], 1 (then the result into the rows)
+    # cseg_8EF7B: call cseg_89758; mov esi, [A1]; mov eax, [esi+2B3h]; mov [A0], eax ... mov word [D7], 0;
+    # call cseg_88A12; jmp short cseg_8EF7B
+    cpu = [x.start() for x in re.finditer(rb'\xe8(....)\x8b\x35' + A(a0 + 4) + rb'\x8b\x86\xb3\x02\x00\x00\xa3' + A(a0),
+                                         d1, re.S) if x.start() + 5 + struct.unpack('<i', x.group(1))[0] == pair]
+    tails = [(x, re.search(rb'\x66\xc7\x05' + A(a0 - 4) + rb'\x00\x00\xe8(....)\xeb(.)', d1[x:x + 0x80], re.S))
+             for x in cpu]
+    tails = [(x, m) for x, m in tails if m and x + m.end() + struct.unpack('b', m.group(2))[0] == x]
+    assert len(tails) == 1, 'cseg_8EF7B'
+    x, m = tails[0]
+    s['cpu'], s['C88A12'] = x, x + m.start() + 11 + struct.unpack('<i', m.group(1))[0]
+    c = [i for i in range(len(d1) - 5) if d1[i] == 0xE8 and i + 5 + struct.unpack_from('<i', d1, i + 1)[0] == x]
+    assert len(c) == 1, 'cseg_8E796'                # (its mov [A0], offset arrayOfPointers: the contests' slot
+    k = d1.rfind(b'\xc7\x05' + struct.pack('<I', a0), c[0] - 0x80, c[0])   # buffers, 0 = the league; the harness)
+    s['SLOTS'] = p.target(1, k + 6)[1]
     s['res'] = one(rb'\xc7\x05' + A(a0) + A(diy) + rb'\x8b\x35' + A(a0) + rb'\x66\x83\x86\xbd\x01\x00\x00\x01',
                    'cseg_88CBB').start() + 16
     # calendar builder cseg_8B8D9: push [A6]; call cseg_89758 (the return address is on the stack in sp_pair)
@@ -902,7 +1066,7 @@ def pair_table(p, s, n):
     """The engine's pairs of an n-club group: dseg_11F356[n - 2] -> [(slot, slot)] x n(n-1)/2."""
     tobj, toff = p.target(1, s['table'])
     eobj, eoff = p.target(tobj, toff + 4 * (n - 2))
-    raw = p.le.obj_bytes(eobj)[eoff:eoff + n * (n - 1)]
+    raw = p.get(eobj, eoff, n * (n - 1))               # (as patched: oddtables rewrites the odd sizes)
     return [(raw[2 * i], raw[2 * i + 1]) for i in range(n * (n - 1) // 2)]
 
 
@@ -917,7 +1081,8 @@ def patch(p, cave, nasmcave, splits):
     for world, file, div, n, spec in splits:
         body, d1, d2 = entry(world, file, div, n, spec, pair_table(p, s, n))
         tab += body
-        log.append(f'w{world} f{file} d{div}: {n} clubs, {d1} + {d2} days, groups {spec.get("groups")}')
+        log.append(f'w{world} f{file} d{div}: {n} clubs, {d1} + {d2} days, '
+                   + ' / '.join(str(st['groups']) for st in spec.get('stages') or []))
     tab += b'\0'
     src = ASM + ''.join(f'    db {", ".join(str(b) for b in tab[i:i + 32])}\n' for i in range(0, len(tab), 32))
     sym = {'D0': (2, s['A0'] - 32), 'A0': (2, s['A0']), 'A1': (2, s['A0'] + 4), 'A2': (2, s['A0'] + 8), 'A5': (2, s['A0'] + 20),
@@ -927,7 +1092,7 @@ def patch(p, cave, nasmcave, splits):
            'WORLD_BYTE': (0, careerworld.WORLD_BYTE), 'C2653B': (1, s['C2653B']), 'C2730A': (1, s['C2730A']),
            'C883DD': (1, s['sort_start']), 'C88420': (1, s['C88420']), 'BUILDER_RET': (1, s['BUILDER_RET']),
            'CAL': (2, s['CAL']), 'CALN': (2, s['CALN']), 'SELTEAMS': (2, s['SELTEAMS']), 'WEEK': (2, s['WEEK']),
-           'SIMFLAG': (2, s['SIMFLAG'])}
+           'SIMFLAG': (2, s['SIMFLAG']), 'C89758': (1, s['pair']), 'C88A12': (1, s['C88A12'])}
     cave = (cave + 3) & ~3
     code, fix = nasmcave.assemble(src, cave, sym)
     lab = nasmcave.labels(src, cave, sym)
@@ -935,7 +1100,7 @@ def patch(p, cave, nasmcave, splits):
     p.put(1, cave, code)
     for off, tobj, toff in fix:
         p.add_ptr(1, cave + off, tobj, toff)
-    hooks = [(s['div'], 'sp_div8f', 6), (s['init'], 'sp_init', 5), (s['swap'], 'sp_pair', 6), (s['count'], 'sp_count', 6), (s['sort'], 'sp_sort', 6)]
+    hooks = [(s['div'], 'sp_div8f', 6), (s['init'], 'sp_init', 5), (s['cpu'], 'sp_cpu', 5), (s['swap'], 'sp_pair', 6), (s['count'], 'sp_count', 6), (s['sort'], 'sp_sort', 6)]
     if any(POINTS[x] == 4 for _, _, _, _, sp in splits for x in sp.get('points') or []):
         hooks.append((s['res'], 'sp_res', 8))              # (only with head-to-head groups: the result path)
     for site, label, n in hooks:

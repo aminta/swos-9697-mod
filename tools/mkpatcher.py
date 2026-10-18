@@ -133,7 +133,8 @@ if BUILD:
 SWOSPP_BASE = {'ENGLISH.EXE + SWOS++': 'ENGLISH.EXE', 'ENGLISH.EXE + SWOS++ (GOG)': 'ENGLISH.EXE (GOG)'}
 # Career worlds' own files, named by mkseason from the build's packs instead of listed by hand: the team files of a
 # world with a namespace of its own (TMWn.nnn, several worlds in one exe), the managed club's extra players (XTRA.nnn /
-# XTWn.nnn), a world's first-season European clubs (WORLDnn.TMD) and foreign-market pool (POOLnn.DAT). Not a listing of
+# XTWn.nnn), a world's first-season European clubs (WORLDnn.TMD) and foreign-market pool (POOLnn.DAT), the FORMAT
+# pages' texts (FMTxx[world].DAT, fmtgame.py). Not a listing of
 # the DATA folder: release dirs keep stale test files (WORLD01.TMD, WORLD03.TMD). New files: produced with TEAM.020.
 
 
@@ -149,6 +150,9 @@ def world_entries(data_dir=None):
     import io
     with contextlib.redirect_stdout(io.StringIO()):          # (the packs' build logs)
         names = sorted(set(mkseason.ns_team_files()) | set(mkseason.xtra_files()) | set(mkseason.world_files()))
+        import fmtgame                                       # the FORMAT page's texts (fmtpage.py), per world
+        names = sorted(set(names) | set(fmtgame.file_names([e if os.sep in e else os.path.join(mkseason.PACKS, e)
+                                                            for e in mkseason.ENABLED])))
     rows = [(n, None, os.path.relpath(os.path.join(data_dir, n), ROOT), 'DATA/' + n) for n in names
             if 'DATA/' + n not in listed]
     missing = [r[0] for r in rows if not os.path.exists(os.path.join(ROOT, r[2]))]

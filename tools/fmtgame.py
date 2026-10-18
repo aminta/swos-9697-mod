@@ -19,6 +19,8 @@ import complist
 import fmtpage
 
 W = 40
+EXTRA = []      # [(world, contest id or None, {lang: title}, {lang: [lines]})] from readers other than the packs:
+                # 4.0's from_build9697 (the 1996-97 base game, the worlds' generated European cups, with 4.0's names)
 LANGS = ('it', 'en', 'fr', 'de')
 
 T = {
@@ -269,6 +271,12 @@ def write(out_dir, items):
         fmtpage.build(os.path.join(out_dir, name), lst)
         files.append((name, len(lst)))
     return files
+
+
+def file_names(pack_dirs):
+    """The FMTxx[world].DAT names write() makes for these packs (mkpatcher: the files to ship)."""
+    worlds = sorted({w for d in pack_dirs for w, *_ in from_pack(d)} | {w for w, *_ in EXTRA})
+    return [f'FMT{lang.upper()}{w or ""}.DAT' for w in worlds for lang in LANGS]
 
 
 def main(argv):

@@ -912,7 +912,8 @@ class Pack:
             return [(int(c['id'], 16), pm, srt) for c in self.comps if c['type'] == 'tourney'
                     for pm, srt in self.tourney(c)['draws']]
         return [(int(c['id'], 16), perm) for c in self.comps if c['type'] == 'cup' for perm in self.bracket(c)['draws']] \
-            + [(int(c['id'], 16), pm, srt) for c in self.comps if c['type'] == 'state' for pm, srt in self.state(c)['draws']]
+            + [(int(c['id'], 16), pm, srt, self.state(c)['clubs'][0]) for c in self.comps if c['type'] == 'state'
+               for pm, srt in self.state(c)['draws']]      # (states may share one id: filtered by their first club)
 
     def bye_cups(self):
         """[(contest id, world or 0, clubs, byes)] of the cups with first-round byes (lib97 BYE_TAB)."""
@@ -1109,11 +1110,16 @@ def register_states():
         entries = []
         for c in sts:
             sp = pk.state(c)
-            entries.append({'id': int(c['id'], 16), 'members': sp['members'], 'struct': None})
+            entries.append({'id': int(c['id'], 16), 'members': sp['members'], 'struct': None,
+                            'first': tuple(sp['clubs'][0])})
             if sp['fixture']:
                 g, size, days, cal = sp['fixture']
-                assert int(c['id'], 16) not in lp36.FIXTURES, c['id']
-                lp36.FIXTURES[int(c['id'], 16)] = (g, size, days, cal)
+                key = (int(c['id'], 16), tuple(sp['clubs'][0]))
+                assert key not in lp36.FIXTURES, key
+                lp36.FIXTURES[key] = (g, size, days, cal)
+        firsts = [tuple(pk.state(c)['clubs'][0]) for c in sts]
+        _need(len(set(firsts)) == len(firsts), f"{pk.meta['id']}: every state contest needs a different first club "
+                                               f"(several share one contest id: fixtures / draws keyed by it)")
         statecup.register(pk.world, int(sts[0]['id'], 16), lfile, entries)
 
 
@@ -1730,7 +1736,7 @@ def _patch_pack(pk, p, lang, area, at, env):
             cc = bytes(d2[sacups.unique(d2, sacups.EUROCUP_HDR):][:0x27])
             body = statecup.contest_bytes(cc, int(c['id'], 16), lfile, sp['months'], sp['meetings'], sp['points'],
                                           sp['stages'], sp['stage_bytes'], sp['clubs'], struct.pack('<II', *rel))
-            statecup.set_struct(pk.world, int(c['id'], 16), (1, at))
+            statecup.set_struct(pk.world, int(c['id'], 16), (1, at), first=tuple(sp['clubs'][0]))
         else:
             br = pk.bracket(c)
             rounds = bytes(ROUND[x] for x in c['rounds'])

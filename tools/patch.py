@@ -183,7 +183,11 @@ def patch_exe(src, dst, remap, lang='it'):
     grown = dst + '.tmp'
     data = open(src, 'rb').read()
     worlds = bool(mkseason.worlds())
-    lpb = bool(mkseason.league_phase_cups() or mkseason.league_phase_worlds())
+    mkseason.register_states()                         # the career worlds' state championships (statespec.py)
+    import statespec
+    statespec.register_test()                          # STATESPEC_TEST=1: a world-0 test state (harness)
+    import lp36
+    lpb = bool(mkseason.league_phase_cups() or mkseason.league_phase_worlds() or lp36.FIXTURES)
     lpb += bool(mkseason.league_phase_worlds())   # (+1 more: the UEFA coefficients, uefacoef)
     lpb += 4 * bool(mkseason.league_phase_worlds())   # (+4: the UEFA qualifying rounds, uefaq: C code + glue)
     xtra_on = bool(mkseason.xtra_files() or os.environ.get('XTRA_HOOK'))
@@ -209,7 +213,6 @@ def patch_exe(src, dst, remap, lang='it'):
     cp = cave_pages()                                          # career world code: 2 pages, 3 with several worlds
     sp_tabs = (mkseason.splits() if worlds else []) + engine.split_tables()   # mid-season splits (worlds; world 0)
     sp_pg = split.pages(sp_tabs) if worlds else 0      # (own pages after all the others)
-    mkseason.register_states()                         # the career worlds' state championships (statespec.py)
     sc_pg = int(bool(statecup.ENTRIES))                # state championships (statecup.py): one page after split's
     for _ in range((6 + cp + 2 + 2 * cdp if worlds else 6) + lpb + sp_pg + sc_pg):  # (+1: the UEFA league phase's page, lp36)
         data = add_object_page(data, 1)
@@ -290,7 +293,7 @@ def patch_exe(src, dst, remap, lang='it'):
     world, pack_leagues = mkseason.patch(p, lang, area, world)   # season packs (2.6: DDR 1988-89), CLASSIC SEASONS
     hist2 = OBJ1_NEW_VSIZE + (0x1000 * (cp + 2 + cdp) if worlds else 0)
     lp = None
-    if mkseason.league_phase_cups() or mkseason.league_phase_worlds():   # UEFA league phase (lp36)
+    if mkseason.league_phase_cups() or mkseason.league_phase_worlds() or lp36.FIXTURES:   # UEFA league phase (lp36), fixture contests
         import lp36
         lp_end, lp_chk, lp_draw = lp36.patch(p, hist2 + h2, mkseason.league_phase_cups(), area, lang,
                                              mkseason.league_phase_worlds())
@@ -410,6 +413,8 @@ def patch_exe(src, dst, remap, lang='it'):
     if sc_pg:                                    # state championships in career / Season slot 1 (statecup.py)
         sc_at = hist2 + h2 + 0x1000 * (lpb + sp_pg)
         sc_end = statecup.test_contest(p, sc_at) if statecup.TEST else sc_at   # (STATECUP_TEST=1 builds)
+        sc_end = statespec.test_contest(p, sc_end) if statespec.TEST else sc_end   # (STATESPEC_TEST=1 builds)
+        sc_end = lp36.fx_patch(p, sc_end, area)    # fixture contests (cross-group round robins) on this page
         sc_end = statecup.slot_types(p, sc_end)
         statecup.cup_end_types(p)
         sc_end = statecup.patch(p, sc_end)

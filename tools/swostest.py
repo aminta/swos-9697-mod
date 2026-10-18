@@ -4340,6 +4340,84 @@ def world_ns():
     return not errs, '; '.join(info + errs)
 
 
+
+
+def new_career(s, country, league, team, continent='EUROPA'):
+    """Main menu -> CARRIERA -> SCEGLI SQUADRA -> continent -> country -> league -> team -> the
+    chairman's note -> career menu."""
+    for t in ('CARRIERA', 'SCEGLI SQUADRA', continent):
+        walk(s, t, 3)
+    for _ in range(60):                         # the countries (columns): one key at a time by the geometry, fire
+        scr = s.screen()                        # only on a selection still there one pause later (a move can be
+        i = scr.find(country, exact=True)       # taken twice)
+        if scr.selected == i:
+            s.send('dump:1')
+            if s.screen().selected == i:
+                break
+            continue
+        (x, y, _, _), (tx, ty, _, _) = scr.geom[scr.selected], scr.geom[i]
+        key = 'right' if x < tx else 'left' if x > tx else 'down' if y < ty else 'up'
+        s.send(key + ' dump:0.5')
+    else:
+        raise AssertionError(f'{country} not reached')
+    s.send('fire dump:3')
+    if league:                                  # (None: a one-division country, the clubs come at once)
+        walk(s, league, 3)
+    if team is None:                            # its first club: the first visible entry that has links
+        scr = s.screen()
+        team = next(i for i, t, inv, _ in scr.entries if t and not inv and i and scr.path(i) is not None)
+    walk(s, team, 3)
+    s.send('fire dump:3')
+
+
+def league_table(r, base, n):
+    """Rows (played, won, drawn, lost, for, against, points) of a league slot's table (18-byte rows from +2B3h, in
+    the order of the team words)."""
+    d = r.read(r.base2 + base + 0x2B3, 18 * n)
+    return [struct.unpack_from('<7H', d, 18 * k + 4) for k in range(n)]
+
+def contest_tables(r, cid, groups, size):
+    """Every buffer of contest `cid` running a group stage of `groups` x `size` (DIY layout: id +2Dh, groups +4Fh,
+    clubs per group +51h): [rows (played, won, drawn, lost, for, against, points) of groups * size rows]."""
+    d = r.read(r.base2, 0x100000)
+    out = []
+    for i in range(len(d) - 0x2B3 - 18 * 24):
+        if d[i + 0x2D] == cid and struct.unpack_from('<H', d, i + 0x4F)[0] == groups and \
+                struct.unpack_from('<H', d, i + 0x51)[0] == size and d[i] == 0:
+            out.append(league_table(r, i, groups * size))
+    return out
+
+
+@scenario
+def statespec_test():
+    """State championships (statespec.py, STATESPEC_TEST=1 build: world 0's Brazil gets a Paranaense-shaped test state,
+    id F1): a career at ATL PARANAENSE plays it in slot 1: 12 clubs in 2 blocks of 6 playing only the OTHER block
+    (lp36 fixture contest, 6 days of 6): at every pause of the group stage every row has played the same number of
+    matches and block A's goals for = block B's goals against (and the reverse; a round robin inside the groups
+    would give A's for = A's against); points 3W + D; the season to its end (knockout 8, 4, 2; the league)"""
+    b = os.environ.get('STATESPEC_BUILD') or builds()['it']
+    errs, snaps = [], {}
+    with Session('statespec_test', b, {}, 'dump:2', 1800) as s:
+        s.wait()
+        new_career(s, 'BRASILE', None, 'ATL PARANAENSE', 'SUDAMERICA')
+
+        def stop(scr):
+            for rows in contest_tables(s.result, 0xF1, 2, 6):
+                pl = {x[0] for x in rows}
+                if len(pl) == 1 and pl != {0}:
+                    snaps[pl.pop()] = rows
+            return season_over(scr)
+        ok, msg = advance(s, stop, 1700)
+    check(ok, f'season: {msg}', errs)
+    check(len(snaps) >= 3 and max(snaps) <= 6, f'group-stage snapshots after days {sorted(snaps)}', errs)
+    for d, rows in sorted(snaps.items()):
+        a, bb = rows[:6], rows[6:]
+        gf = lambda rs: sum(x[4] for x in rs)
+        ga = lambda rs: sum(x[5] for x in rs)
+        check(gf(a) == ga(bb) and ga(a) == gf(bb), f'day {d}: A for/against {gf(a)}/{ga(a)}, B {gf(bb)}/{ga(bb)}', errs)
+        check(all(x[6] == 3 * x[1] + x[2] for x in rows), f'day {d}: points 3W + D', errs)
+    return not errs, '; '.join(errs + [f'{msg}; snapshots {sorted(snaps)}, last {snaps.get(max(snaps)) if snaps else None}'])
+
 def main(argv):
     if not argv or argv[0] == 'list':
         for k, f in SCENARIOS.items():

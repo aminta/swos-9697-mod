@@ -224,6 +224,59 @@ void pg_season(const u8 *t, const s8 *slt, s8 *copy, int world) {
         t = pg_one(t, slt, copy, t[0] == world);
 }
 
+/* A save from before the groups (3.x: pgroups.py's table on a chain the save's divisions don't know). Every club of
+   the table: its division now (base + slt), through map (old division -> new, 0xFF = the same), to its level on the
+   new chain; a single division as it is, a level of groups to the group of its area, else the nearest with room (the
+   clubs with an area first, so every group keeps its size). copy = the result (not slt: slt is read again). */
+static const u8 *pl_one(const u8 *t, const u8 *map, const s8 *slt, s8 *copy, int run) {
+    int nl = t[1];
+    u8 first[PL], cnt[PL], occ[PL][PG], pidx[PL];
+    const u8 *sz[PL], *p = t + 2;
+    int np = 0;
+    for (int l = 0; l < nl; l++) {
+        if (l < PL) { first[l] = p[0]; cnt[l] = p[1] > PG ? PG : p[1]; sz[l] = p + 2; pidx[l] = p[1] > 1 ? np++ : 0xFF;
+                      for (int g = 0; g < PG; g++) occ[l][g] = 0; }
+        p += 2 + p[1];
+    }
+    int npar = p[0], nc = p[1] | p[2] << 8, rs = 3 + npar;
+    const u8 *c = p + 3;
+    if (!run || nl > PL) return c + rs * nc;
+    for (int pass = 0; pass < 3; pass++)        /* 0: single divisions, 1: groups of the area, 2: the nearest */
+        for (int i = 0; i < nc; i++) {
+            const u8 *e = c + rs * i;
+            int g = e[0] | e[1] << 8, base = e[2];
+            if (g >= 8 * (int)sizeof pg_pend) continue;
+            int d = slt[g] + base;
+            if (d >= 0 && d < 256 && map[d] != 0xFF) d = map[d];
+            int l = pg_level(d, nl, first, cnt);
+            if (l >= nl) { if (pass == 0) copy[g] = d - base; continue; }    /* (the reserve: as it is) */
+            if (cnt[l] == 1) { if (pass == 0) copy[g] = first[l] - base; continue; }
+            if (pass == 0) { pg_pend[g >> 3] |= 1 << (g & 7); continue; }
+            if (!PEND(g)) continue;
+            int area = pidx[l] < npar ? e[3 + pidx[l]] : 0xFF, to = -1;
+            if (pass == 1) {
+                if (area < cnt[l] && occ[l][area] < sz[l][area]) to = area;
+            } else {
+                int a = area < cnt[l] ? area : cnt[l] / 2;
+                for (int k = 0; k < PG && to < 0; k++) {
+                    if (a + k < cnt[l] && occ[l][a + k] < sz[l][a + k]) to = a + k;
+                    else if (a - k >= 0 && occ[l][a - k] < sz[l][a - k]) to = a - k;
+                }
+                if (to < 0) to = a;             /* (more clubs than room: the area's group) */
+            }
+            if (to < 0) continue;
+            pg_pend[g >> 3] &= ~(1 << (g & 7));
+            occ[l][to]++;
+            copy[g] = first[l] + to - base;
+        }
+    return c + rs * nc;
+}
+
+void pg_place(const u8 *t, const u8 *map, const s8 *slt, s8 *copy, int world) {
+    for (int k = *t++; k > 0; k--)
+        t = pl_one(t, map, slt, copy, t[0] == world);
+}
+
 /* The reserve (gplay loser_div 'reserve', pack.json league 'reserve', engine.reserve): a pool of clubs out of every
    division (division nd). At the season end (pg_fix, before pg_season places the new clubs by area) every club that
    went down from the lowest level (the game's relegation, gplay's play-out) leaves for the reserve, and as many come

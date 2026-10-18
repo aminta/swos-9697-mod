@@ -307,7 +307,7 @@ def patch(p, at, limit, tables, bss_at):
     import uefaq
     if uefaq.LABELS.get('UQ_EPP') and tables:              # a league-phase world: its European play-offs (uefaq.c ep_run)
         p.add_ptr(1, uefaq.LABELS['UQ_EPP'], 1, lab['GP_EPT'])
-    LABELS.update(lab, GP_IN=syms['GP_IN'], GP_OUT=syms['GP_OUT'], layout=lay, pg_season=syms['pg_season'], rs_season=syms['rs_season'],
+    LABELS.update(lab, GP_IN=syms['GP_IN'], GP_OUT=syms['GP_OUT'], layout=lay, pg_season=syms['pg_season'], pg_place=syms['pg_place'], rs_season=syms['rs_season'],
                   RS_STATE=syms['RS_STATE'])
     print(f"exe: knockout play-offs (gplay): {len(tables)} countries, C obj1+{at:#x}..{cend:#x}, glue ..{glue + len(code):#x}, "
           f"GP_IN obj2+{syms['GP_IN'][1]:#x}")

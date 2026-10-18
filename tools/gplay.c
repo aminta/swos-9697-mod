@@ -8,7 +8,11 @@
      n x (type, div, a, b): type 0 = [div, place a], 1 = the best of div without Europe, 2 = the league cup winner;
      rounds x (ties, legs, host, level, pairing, gap) + 2 x ties member codes: 0..63 an entrant, 0x80|k the winner of
      tie k, 0xC0|k its loser (ties numbered across rounds); pairing p > 0 = the first p members best v worst, re-paired;
-   gap g > 0: a tie whose clubs are g+ points apart is not played, the better placed goes through; ended by a 0.
+   gap g > 0: a tie whose clubs are g+ points apart is not played, the better placed goes through;
+   a GROUP round (a round robin): (members m, 0x80 | meetings, host, 0, 0, 0) + m member codes + m start bonus points;
+   its final placings are appended to the placings list (numbered across the group rounds), member code 0x40|k = the
+   k-th placing; flags bits 4-7 = 'winners' (a promotion play-off ending with a group: its top w go to winner_div,
+   the other winner_div clubs to loser_div; 0 = 1); ended by a 0.
    Only the promotion / playout play-offs whose entrants are all [div, place] are played here: promotion = the
    winner to winner_div, another winner_div entrant to loser_div; playout = the last round's losers to loser_div. */
 
@@ -87,6 +91,42 @@ static void move(int c, int delta) {
 
 static int sbetter_cmp(int a, int b) { return better(a, b); }
 
+/* a group match: goals by strength (draws ~ 1 in 4), home advantage unless neutral */
+static void gmatch(int h, int a, int neutral, int *gh, int *ga) {
+    u32 sh = str2(h, !neutral), sa = str2(a, 0);
+    if (below(100) < 26) { int g = below(3); *gh = g; *ga = g; return; }
+    int w = below(sh + sa) < sh, gw = 1 + below(3), gl = below(gw);
+    *gh = w ? gw : gl; *ga = w ? gl : gw;
+}
+
+struct gs { int c, pts, gd, gf; };
+static int gs_before(const struct gs *x, const struct gs *y) {   /* points, goal difference, goals, the better place */
+    if (x->pts != y->pts) return x->pts > y->pts;
+    if (x->gd != y->gd) return x->gd > y->gd;
+    if (x->gf != y->gf) return x->gf > y->gf;
+    return better(x->c, y->c);
+}
+
+/* a group round: mem[0..m) round robin `meet` times (home and away alternate), start bonus points; placings -> out */
+static void group(const int *mem, int m, int meet, int neutral, const u8 *bonus, int *out) {
+    struct gs t[GT];                    /* (at most 24 members: compile_spec)  */
+    for (int i = 0; i < m; i++) { t[i].c = mem[i]; t[i].pts = bonus[i]; t[i].gd = 0; t[i].gf = 0; }
+    for (int k = 0; k < meet; k++)
+        for (int i = 0; i < m; i++)
+            for (int j = i + 1; j < m; j++) {
+                int h = (k & 1) ? j : i, a = (k & 1) ? i : j, gh, ga;
+                gmatch(t[h].c, t[a].c, neutral, &gh, &ga);
+                t[h].gf += gh; t[a].gf += ga; t[h].gd += gh - ga; t[a].gd += ga - gh;
+                if (gh > ga) t[h].pts += 3; else if (gh < ga) t[a].pts += 3; else { t[h].pts++; t[a].pts++; }
+            }
+    for (int i = 1; i < m; i++) {
+        struct gs x = t[i]; int j = i;
+        while (j > 0 && gs_before(&x, &t[j - 1])) { t[j] = t[j - 1]; j--; }
+        t[j] = x;
+    }
+    for (int i = 0; i < m; i++) out[i] = t[i].c;
+}
+
 void gp_season(void) {
     const u8 *s = GP_IN.spec;
     u32 h = 0;
@@ -98,6 +138,7 @@ void gp_season(void) {
         int kind = s[0], n = s[1], nr = s[2], wdiv = s[3], ldiv = s[4];
         const u8 *e = s + 6, *r = e + 4 * n;
         int club[GN], ok = kind == 1 || kind == 4, W[GN], L[GN], nt = 0, last = -1, lastr = 0, nlast = 0;
+        int P[GN], np = 0, glast = -1, winners = s[5] >> 4 ? s[5] >> 4 : 1;
         for (int i = 0; i < n && i < GN; i++) {
             int d = e[4 * i + 1], p = e[4 * i + 2];
             if (e[4 * i] != 0 || d >= GP_IN.nd || p < 1 || p > GP_IN.n[d]) ok = 0;
@@ -106,14 +147,25 @@ void gp_season(void) {
         for (int k = 0; k < nr; k++) {          /* walk the rounds (also to skip a play-off not played here) */
             int ties = r[0], legs = r[1], host = r[2], level = r[3], pairing = r[4], gap = r[5];
             const u8 *m = r + 6;
-            int mem[2 * GN];
-            for (int i = 0; i < 2 * ties; i++) {
+            int mem[2 * GN], gm = legs & 0x80 ? ties : 2 * ties;     /* (a group round: ties = its members) */
+            for (int i = 0; i < gm; i++) {
                 int c = m[i], v = -1;
-                if (c < 0x80) v = c < n ? club[c] : -1;
+                if (c < 0x40) v = c < n ? club[c] : -1;
+                else if (c < 0x80) v = (c & 0x3F) < np ? P[c & 0x3F] : -1;
                 else if (c < 0xC0) v = (c & 0x3F) < nt ? W[c & 0x3F] : -1;
                 else v = (c & 0x3F) < nt ? L[c & 0x3F] : -1;
                 mem[i] = v;
                 if (v < 0) ok = 0;
+            }
+            if (legs & 0x80) {                  /* a group round */
+                if (ok && ties <= GT && np + ties <= GN) {
+                    group(mem, ties, legs & 0x7F, host == HOST_NEUTRAL, m + ties, P + np);
+                    glast = np;
+                }
+                np += ties;
+                last = -1;
+                r = m + 2 * ties;
+                continue;
             }
             if (ok && pairing) {            /* best v worst: sorted, then 1st v last, 2nd v second last ... */
                 int pn = pairing <= 2 * ties ? pairing : 2 * ties;
@@ -133,14 +185,23 @@ void gp_season(void) {
                     int w = gap && (d >= gap || -d >= gap) ? (better(a, b) ? a : b)   /* (too far apart: no tie) */
                                                            : tie(a, b, legs, host, level);
                     W[nt] = w; L[nt] = w == mem[2 * i] ? mem[2 * i + 1] : mem[2 * i];
-                    last = nt;
+                    last = nt; glast = -1;
                 }
                 nt++;
             }
             r = m + 2 * ties;
         }
         if (ldiv == RESERVE) ldiv = GP_IN.nd;   /* (the reserve: out of every division) */
-        if (ok && last >= 0 && kind == 4) {     /* playout: the last round's losers down */
+        if (ok && glast >= 0 && kind == 1) {    /* a final group: its top `winners` to winner_div, the other
+                                                   winner_div clubs to loser_div, the rest stay */
+            for (int i = 0; i < n; i++) {
+                int c = club[i], to = DV(c), top = 0;
+                for (int k = 0; k < winners; k++) if (P[glast + k] == c) top = 1;
+                if (top) to = wdiv;
+                else if (DV(c) == wdiv) to = ldiv;
+                move(c, to - DV(c));
+            }
+        } else if (ok && last >= 0 && kind == 4) {     /* playout: the last round's losers down */
             for (int t = lastr; t < lastr + nlast && t < GN; t++) move(L[t], ldiv - DV(L[t]));
         } else if (ok && last >= 0) {           /* the winner to winner_div; another winner_div entrant down */
             int w = W[last];

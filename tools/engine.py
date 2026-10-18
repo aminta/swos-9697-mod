@@ -13,12 +13,13 @@ patch_teams or at import:
 
 and, once it has built the league struct (its obj1 offset known), before gplay.patch runs:
 
-    engine.LEAGUE_AT['ita'] = obj1 offset of Italy's league struct
+    engine.LEAGUE_AT['ita'] = obj1 offset of Italy's league struct (or (obj, offset): e.g. (2, off) in obj2)
 
 World 0 runs in careers of the original world (world byte 0) and in Season mode (one division, one year: gameType 3;
 split and gplay look up world 0 there). Moves of several divisions keep cseg_9487A's checks (pgroups.BALANCE).
 """
-LEAGUE_AT = {}          # key -> obj1 offset of a world-0 league struct (set by the 4.0 code during patch_exe)
+LEAGUE_AT = {}          # key -> obj1 offset, or (obj, offset), of a world-0 league struct (set by the 4.0 code
+                        # during patch_exe; the game's own league structs are in obj2)
 GPLAY = []              # (key, ko_playoffs, ndiv)
 PGROUPS = []            # (levels, clubs)
 SPLITS = []             # (team file, division, clubs, spec)

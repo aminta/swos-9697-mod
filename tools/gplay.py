@@ -16,9 +16,13 @@ pack.json league "ko_playoffs": [{ "key", "names": {lang: [long, short]},
   "entrants": [[div, place] | {"div": d, "best_without_europe": true} | {"league_cup_winner": true, "if_places": [a, b]}],
   "rounds": [{"ties": [[a, b], ...] | (with "pairing": "best_worst", "clubs": [...]), "legs": 1 | 2,
               "host": "listed" | "better" | "drawn" | "neutral", "level": "better" | "et_pens" | "et_better" | "pens",
-              "gap": g (a tie of clubs g+ points apart is not played: the better placed goes through)}],
-  "winner_div": d, "loser_div": d2 | "reserve" (out of the league), "skip_qualified": bool }]   (0-based divisions, 1-based places; tie members:
-  an entrant index, "W<k>" / "L<k>" the winner / loser of tie k, ties numbered in order across rounds)
+              "gap": g (a tie of clubs g+ points apart is not played: the better placed goes through)}
+             | {"group": {"rounds": 1..4, "bonus": [points per member], "host": "listed" | "neutral"},
+                "members": [...]} (a round robin; its placings P<k>, numbered across the group rounds)],
+  "winner_div": d, "loser_div": d2 | "reserve" (out of the league), "skip_qualified": bool,
+  "winners": w (a promotion play-off ending with a group: its top w go to winner_div) }]   (0-based divisions,
+  1-based places; members: an entrant index, "W<k>" / "L<k>" the winner / loser of tie k, ties numbered in order
+  across rounds, "P<k>" the k-th placing of the group rounds)
 """
 import os
 import re
@@ -54,8 +58,28 @@ def compile_spec(pos, ndiv):
                 raise ValueError(f'{key}: entrant {e}')
         if not 2 <= len(ents) <= 63:
             raise ValueError(f'{key}: 2..63 entrants')
-        rounds, nt = bytearray(), 0
+        rounds, nt, npl = bytearray(), 0, 0
+        def code(m):
+            if isinstance(m, int):
+                if not 0 <= m < len(ents):
+                    raise ValueError(f'{key}: member {m}')
+                return m
+            mm = re.fullmatch(r'([WLP])(\d+)', str(m))
+            if not mm or int(mm.group(2)) >= (npl if mm.group(1) == 'P' else nt):
+                raise ValueError(f'{key}: member {m} (W<k> / L<k> of an earlier tie, P<k> an earlier placing)')
+            return {'W': 0x80, 'L': 0xC0, 'P': 0x40}[mm.group(1)] | int(mm.group(2))
         for rd in po['rounds']:
+            if 'group' in rd:           # a round robin: (members, 0x80 | meetings, host, 0, 0, 0) codes, bonuses
+                g, mem = rd['group'], rd['members']
+                meet, bonus = g.get('rounds', 2), g.get('bonus', [0] * len(mem))
+                if not (2 <= len(mem) <= 24 and meet in (1, 2, 3, 4) and len(bonus) == len(mem)
+                        and all(0 <= b < 256 for b in bonus) and g.get('host', 'listed') in ('listed', 'neutral')):
+                    raise ValueError(f'{key}: group of 2..24 members, rounds 1..4, a bonus per member, host '
+                                     f'listed / neutral')
+                rounds += bytes((len(mem), 0x80 | meet, HOSTS[g.get('host', 'listed')], 0, 0, 0))
+                rounds += bytes(code(m) for m in mem) + bytes(bonus)
+                npl += len(mem)
+                continue
             # a best_worst block: the round itself, or its first tie entry {pairing, clubs}; other ties as listed
             tl = list(rd.get('ties') or [])
             blk = rd if rd.get('pairing') else (tl.pop(0) if tl and isinstance(tl[0], dict) else None)
@@ -66,17 +90,7 @@ def compile_spec(pos, ndiv):
             bm = list(blk['clubs']) if blk is not None else []
             mem = bm + [m for t in tl for m in t]
             ties, pairing = len(mem) // 2, len(bm)
-            codes = []
-            for m in mem:
-                if isinstance(m, int):
-                    if not 0 <= m < len(ents):
-                        raise ValueError(f'{key}: member {m}')
-                    codes.append(m)
-                else:
-                    mm = re.fullmatch(r'([WL])(\d+)', str(m))
-                    if not mm or int(mm.group(2)) >= nt:
-                        raise ValueError(f'{key}: member {m} (W<k> / L<k> of an earlier tie)')
-                    codes.append((0x80 if mm.group(1) == 'W' else 0xC0) | int(mm.group(2)))
+            codes = [code(m) for m in mem]
             legs = rd.get('legs', 1)
             if legs not in (1, 2) or rd.get('host', 'listed') not in HOSTS or rd.get('level', 'et_pens') not in LEVELS:
                 raise ValueError(f'{key}: legs 1 / 2, host {sorted(HOSTS)}, level {sorted(LEVELS)}')
@@ -87,13 +101,16 @@ def compile_spec(pos, ndiv):
                              gap))
             rounds += bytes(codes)
             nt += ties
-        if nt > 63:
-            raise ValueError(f'{key}: at most 63 ties')
+        if nt > 63 or npl > 64:
+            raise ValueError(f'{key}: at most 63 ties, 64 group placings')
+        win = po.get('winners', 1)
+        if not 1 <= win <= 15:
+            raise ValueError(f'{key}: winners 1..15')
         wd, ld = po.get('winner_div', 0), po.get('loser_div', 0)
         ld = RESERVE if ld == 'reserve' else ld
         if kind in (1, 4) and not (0 <= wd < ndiv and (0 <= ld < ndiv or ld == RESERVE)):
             raise ValueError(f'{key}: winner_div / loser_div (a division, or "reserve")')
-        flags = 1 if po.get('skip_qualified') else 0
+        flags = (1 if po.get('skip_qualified') else 0) | ((win if win > 1 else 0) << 4)
         out += bytes((kind, len(ents), len(po['rounds']), wd, ld, flags))
         out += b''.join(bytes(e) for e in ents) + rounds
     return bytes(out + b'\0')
@@ -250,7 +267,8 @@ def table_lines(tables):
     import engine
     for i, (world, lfile, spec) in enumerate(tables):
         lines.append(f'    dd GPL{i}\n    db {world}\n    dd GPS{i}')
-        syms[f'GPL{i}'] = (1, engine.LEAGUE_AT[lfile[1]] if isinstance(lfile, tuple) else mkseason.LEAGUE_AT[(world, lfile)])
+        at = engine.LEAGUE_AT[lfile[1]] if isinstance(lfile, tuple) else mkseason.LEAGUE_AT[(world, lfile)]
+        syms[f'GPL{i}'] = at if isinstance(at, tuple) else (1, at)   # (world 0's structs: (obj, offset), often obj2)
     lines.append('    dd 0\n    db 0\n    dd 0')
     lines.append('GP_EPT:')                    # (uefaq UQ_EPP: per country file its specs, for the European ones)
     for i, (world, lfile, spec) in enumerate(tables):

@@ -637,6 +637,7 @@ assert blk[:2] == b'S2' and sum(blk) % 256 == 0</code></pre>
 <li><strong>Holders.</strong> Normal careers: a Champions' Cup holder that did not qualify takes the place of a club of another country (<code>cseg_92C4D</code> compared the ordinal instead of the country). Worlds: the holders play in addition; a league champion holding the CWC or the UEFA Cup plays the Champions' Cup and its holder place goes to the next club of its table (<code>w_pick_cc</code>, <code>WH_SAVE</code>).</li>
 <li><strong>Intercontinental.</strong> Fixed the bug (since 2.5) that put a Champions' Cup winner playing the Intercontinental into the Cup Winners' Cup: <code>sacups.euro_found</code> stores the cup type before <code>cseg_8B2D3</code> clobbers D7.</li>
 <li><strong>National teams.</strong> In 3.0 the national-team offers were disabled in a world (the game's national teams are the 1996 ones); 3.1 brings the era national teams: chapter 27.</li>
+<li><strong>Management record (3.3.6).</strong> <code>FillManagementRecordInfo</code> adds 1996 / 97 to the season number; in a world <code>w_mrec</code> adds the world's first year instead (1984/85, 1985/86 ...). Scenario <code>w84_record</code>.</li>
 </ul>
 
 <!-- 27 -->

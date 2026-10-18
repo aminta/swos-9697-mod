@@ -644,6 +644,7 @@ assert blk[:2] == b'S2' and sum(blk) % 256 == 0</code></pre>
 <li><strong>Detentori.</strong> Normali carriere: il detentore della Coppa dei Campioni che non si è qualificato prende il posto di un club di un altro paese (<code>cseg_92C4D</code> confrontava l'ordinale invece del paese). Mondi: i detentori giocano in più; un campione nazionale che detiene la Coppa delle Coppe o la UEFA gioca la Coppa dei Campioni e il suo posto da detentore va al club successivo della sua classifica (<code>w_pick_cc</code>, <code>WH_SAVE</code>).</li>
 <li><strong>Intercontinentale.</strong> Corretto il bug (dalla 2.5) per cui il vincitore della Coppa dei Campioni che giocava l'Intercontinentale ripartiva in Coppa delle Coppe: <code>sacups.euro_found</code> salva il tipo di coppa prima che <code>cseg_8B2D3</code> sporchi D7.</li>
 <li><strong>Nazionali.</strong> Nella 3.0 le offerte delle nazionali erano disattivate in un mondo (le nazionali del gioco sono quelle del 1996); la 3.1 porta le nazionali dell'epoca: capitolo 27.</li>
+<li><strong>Registro gestione (3.3.6).</strong> <code>FillManagementRecordInfo</code> aggiunge 1996 / 97 al numero della stagione; in un mondo <code>w_mrec</code> aggiunge invece il primo anno del mondo (1984/85, 1985/86 ...). Scenario <code>w84_record</code>.</li>
 </ul>
 
 <!-- 27 -->

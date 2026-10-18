@@ -33,6 +33,7 @@ import engine
 import menunum
 import avgprice
 import fmtpage
+import menumusic
 import mkseason
 import careerworld
 import bigtables
@@ -397,6 +398,7 @@ def patch_exe(src, dst, remap, lang='it'):
     cos = blond.patch(p, area, cos, num_bss + shirtnum.BSS_SIZE, shirtnum.spr_index(p))   # 3.3.0: face 3
     cos = menunum.patch(p, cos, num_bss + shirtnum.BSS_SIZE + blond.BSS_SIZE)   # 3.3.4: menu numbers 17..99
     cos = avgprice.patch(p, cos)                 # 3.3.4: average player price >= 1 (divide error, 1984-85 Iceland)
+    cos = menumusic.patch(p, cos)                # 3.3.6: menu music when the main menu opens (SWOS++ options load late)
     cos = fmtpage.patch(p, cos, lang, area, num_bss + shirtnum.BSS_SIZE + blond.BSS_SIZE + menunum.BSS_SIZE,
                          careerworld.SITES if worlds else None)   # FORMAT page (5.0)
     if cos_pg:

@@ -12,7 +12,7 @@ Read this first; then the tail of `notes/STATUS.md` (latest work) and, before an
 - Names of countries, worlds and menus always per exe language (the game's own spelling), never English-only.
 
 ## State (2026-10-18)
-- Released: **v3.3.5**. 3.0 Europe 1984-85 career world, 3.1 its national teams + faster harness,
+- Released: **v3.3.6**. 3.0 Europe 1984-85 career world, 3.1 its national teams + faster harness,
   3.2 tourney packs + World Cup 1934 + menu alignment, 3.2.1 ESCI arrow links, 3.2.2 patcher "Download all",
   3.2.3 KITS button aligned with the names in the English exe, 3.2.4 kits carry-over fix + world UEFA places,
   3.2.5 shirt numbers 17..99, 3.2.6 the same with SWOS++,
@@ -25,7 +25,8 @@ Read this first; then the tail of `notes/STATUS.md` (latest work) and, before an
   3.3.4 era shirt numbers in the historic packs (pack.json "numbers": "place"; starters 1..11, bench 12..16) and
   numbers above 11 in the bench / tactics menus (tools/menunum.py), purple + maroon together in the kit editors,
   average player price >= 1 (tools/avgprice.py: divide error with weak career clubs, keep it in 4.0 / 5.0),
-  3.3.5 real match days for odd leagues (tools/oddtables.py: Italy 1947-48).
+  3.3.5 real match days for odd leagues (tools/oddtables.py: Italy 1947-48),
+  3.3.6 the 1984-85 management record's seasons (careerworld w_mrec), Hungary NB I / NB II, L. OF IRELAND.
 - Release notes: `release/notes-<version>.md`; the patcher page `release/swos-9697-mod-patcher.html`.
 - Version plan (Davide, 2026-10-17): 4.0 = Champions Cup group draw (real 1996-97 groups, then random by country),
   European Supercup, Intertoto (session "4.0"); 5.0 = the 2026-27 world (branch world-2025-26).

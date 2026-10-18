@@ -254,6 +254,8 @@ class Pack:
         for d, dv in enumerate(divs):
             n = sum(1 for k in self.league_clubs if self.division[k] == d)
             _need(n == dv['teams'], f"{self.league['key']}: division {d + 1} has {n} clubs in clubs.csv, {dv['teams']} in pack.json")
+            _need(n <= 24, f"{self.meta['id']}: {self.league['key']}: division {d + 1} has {n} clubs: at most 24 (the game's "
+                  'round-robin pairing; more = fixtures past the team list, team 0, VerifyTeamLoaded int 3 at the season end)')
         _need(sum(dv['teams'] for dv in divs) == len(self.league_clubs), f"{self.league['key']}: clubs outside the divisions")
         par = self.league.get('parallel')          # parallel groups (Serie C 3 x 20; several levels): pgroups.py
         if par:

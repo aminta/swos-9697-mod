@@ -368,6 +368,11 @@ when the engine lands it.
   for now (the game pairs at most 24 clubs): no promotion / relegation in Argentina, no interzonal / cross-conference
   matches. To be replaced before the release by the integrator's two-tournament season (zones + clasico, annual table,
   promedio; MLS 34 matches, Supporters' Shield, play-offs). If still interim at release time: decide with Davide. -->
+<!-- DATA STAGED (with the exact Argentina, TM_ARG_EXACT; the integrator's engine): - Argentina: the Primera Nacional's
+  reducido pairs its first round across the two zones by place (2nd A v 8th B ... 8th A v 2nd B) and a level two-legged
+  tie goes to the better placed club; the zone winners' final at a neutral ground has extra time and penalties; the Liga
+  Profesional's matchdays are weekly from 22 January (Apertura) and 18 July (Clausura): the regulation published none
+  of these details. -->
 
 **Known limits**
 - EA's public ratings still held FC 26-era rosters when this world was built (2026-10-16): attributes are matched by
@@ -774,6 +779,11 @@ Non una formula uguale per tutti: ogni campionato gioca la stagione come l'ha sc
 <!-- INTERNO (non pubblico, regia 2026-10-18): la Liga Profesional argentina e la MLS sono per ora due divisioni
   chiuse da 15 (il gioco accoppia al massimo 24 club): niente promozioni / retrocessioni in Argentina, niente partite
   interzonali / tra conference. Da sostituire prima della release con la stagione a due tornei dell'integratore. -->
+<!-- DATA STAGED (con l'Argentina esatta, TM_ARG_EXACT; motore dell'integratore): - Argentina: il primo turno del
+  reducido della Primera Nacional incrocia le due zone per posizione (2ª A contro 8ª B ... 8ª A contro 2ª B) e un doppio
+  confronto in parità va alla meglio piazzata; la finale tra le vincenti di zona in campo neutro ha supplementari e
+  rigori; le giornate della Liga Profesional sono settimanali dal 22 gennaio (Apertura) e dal 18 luglio (Clausura): il
+  regolamento pubblicato non dà questi dettagli. -->
 
 **Limiti noti**
 - Quando questo mondo è stato costruito (16-10-2026) le valutazioni pubbliche EA avevano ancora le rose dell'era FC 26:
@@ -806,7 +816,7 @@ Non una formula uguale per tutti: ogni campionato gioca la stagione come l'ha sc
   di prezzi del gioco); non vengono distribuiti valori di mercato, valutazioni o pagine delle fonti.
 
 <!-- complist:begin -->
-91 countries, 127 league divisions, 87 national cups, 14 league cups: every playable competition and its format, generated from the release build: [world-2026-27-competitions.md](world-2026-27-competitions.md).
+91 countries, 136 league divisions, 87 national cups, 14 league cups: every playable competition and its format, generated from the release build: [world-2026-27-competitions.md](world-2026-27-competitions.md).
 
-91 nazioni, 127 divisioni, 87 coppe nazionali, 14 coppe di lega: ogni competizione giocabile e la sua formula, generate dalla build della release: [world-2026-27-competitions.md](world-2026-27-competitions.md).
+91 nazioni, 136 divisioni, 87 coppe nazionali, 14 coppe di lega: ogni competizione giocabile e la sua formula, generate dalla build della release: [world-2026-27-competitions.md](world-2026-27-competitions.md).
 <!-- complist:end -->

@@ -816,16 +816,18 @@ def _orient(m, rounds):
     want = [lo + (1 if p < extra else 0) for p in range(m)]
     flat = [pr for rd in rounds for pr in rd]
     rnd = [r for r, rd in enumerate(rounds) for _ in rd]
-    best = [None]
+    best, nodes = [None], [0]
 
     def dfs(i, home, last, run, cost, out):
-        if best[0] is not None and cost >= best[0][0]:
-            return
+        nodes[0] += 1
+        if best[0] is not None and (cost >= best[0][0] or nodes[0] > 300000):   # 11+ clubs: no exhaustive search,
+            return                                                               # the best orientation found so far
         if i == len(flat):
             best[0] = (cost, list(out))
             return
         a, b = flat[i]
         left = {p: sum(1 for x in flat[i:] if p in x) for p in (a, b)}
+        opts = []
         for h, v in ((a, b), (b, a)):
             if home[h] + 1 > want[h] or (left[v] - 1) < want[v] - home[v]:
                 continue
@@ -836,6 +838,8 @@ def _orient(m, rounds):
                 nl[t] = side
                 if nr[t] >= 3:
                     c += 1
+            opts.append((c, sum(nr[t] for t in (h, v)), h, v, nl, nr))
+        for c, _, h, v, nl, nr in sorted(opts, key=lambda o: o[:2] if m > 10 else 0):   # 11+: the cheaper side first
             home[h] += 1
             out.append((h, v))
             dfs(i + 1, home, nl, nr, c, out)

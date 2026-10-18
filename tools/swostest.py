@@ -1635,7 +1635,7 @@ def world8485():
     first = os.environ.get('W8485_FROM')                   # resume from a season-1 save (W84A.CAR)
     if first:
         out, msgs = [first], [f'season 1: from {first}']
-    for season in ((2,) if first else (1, 2)):
+    for season in ((2,) if first else (1,) if os.environ.get('W8485_ONE') == '1' else (1, 2)):
         cars = {} if season == 1 else {'W84A.CAR': out[0]}
         with Session(f'{w84_tag()}_{season}', exe, cars, 'dump:2', int(os.environ.get('W8485_TMO', 240)), int(os.environ.get('W8485_SHOTS', 0))) as s:
             if s.wait().outcome != 'dump':
@@ -1673,6 +1673,12 @@ def world8485():
                 if nosack is not None and season not in poked:   # W8485_NOSACK: the game's 'no sacking' word
                     s.poke(s.result.base2 + nosack, b'\x01\x00')   # (dseg_D6B62, cleared at every season start)
                     poked.add(season)
+                if fill and season not in filled:      # W8485_FILL 'obj2 off:byte:count' (hex, hex, dec), once per
+                    o, v, n = fill.split(':')          # session (world_full_draw: simdraw's table, not in the save)
+                    for k in range(0, int(n), 16):     # (short SM commands, as lp36_tie's poke)
+                        s.poke(s.result.base2 + int(o, 16) + k, bytes([int(v, 16)]) * min(16, int(n) - k))
+                        s.box.pump(0.05)
+                    filled.add(season)
                 if peek is not None:                   # W8485_PEEK: the largest word seen at an obj2 offset
                     peek[1] = max(peek[1], struct.unpack_from('<H', s.result.obj2(peek[0], 2))[0])
                 for a in filter(None, os.environ.get('W8485_HEX', '').split(',')):   # obj2 offset:bytes, logged
@@ -1702,6 +1708,7 @@ def world8485():
                     check(not same, f'season {season} cup {cid} round {rnd + 1}: same-country ties {same}', errs)
                 return season_over(scr) or (r2only and (season, 1) in seen)
             hexseen, diyseen = {}, {}
+            fill, filled = os.environ.get('W8485_FILL'), set()
             diy = [int(x, 16) for x in os.environ['W8485_DIY'].split(',')] if os.environ.get('W8485_DIY') else None
             diy_league = lambda b: b[0:2] == b'\0\0' and (b[diy[1]:diy[1] + 2] == b'\xfeP' if len(diy) < 4 else
                                                             struct.unpack_from('<H', b, 0x31)[0] == diy[3])   # (a split
@@ -4006,6 +4013,49 @@ def full_season(country, team):
     bad = {k: v for k, v in mv.items() if k[1] not in level or abs(level[k[0]] - level[k[1]]) != 1}
     check(not bad, f'moves not of one level: {bad}', errs)
     return not errs, '; '.join(errs) or f'{msg}; divisions {sorted(cnt.items())}; moves {dict(mv)}'
+
+
+@scenario
+def world_full_draw():
+    """Full 5.0 world, forced draw (regia 2026-10-19): simdraw's score table (3072 bytes, stronger goals << 4 | weaker
+    goals; found by content) poked to 0x11 at the career start, so every simulated match ends 1-1; one season at
+    PALMEIRAS: every Copa do Brasil tie decided on penalties must say 'VINCE a-b AI RIG' (two_legs_pens / single
+    with no extra time: 1-1, 1-1, straight to penalties), never 'D.T.S.' (after extra time)"""
+    import collections
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import simdraw
+    from le import LE
+    bdir = os.environ.get('W2627FULL') or os.path.join(WORK, 'builds', 'w2627-latest')
+    if not os.path.isdir(bdir):
+        return True, 'SKIP: no world 2026-27 build (W2627FULL)'
+    d2 = LE(open(os.path.join(bdir, 'ITALIAN.EXE'), 'rb').read()).obj_bytes(2)
+    tab = simdraw.table()
+    at = [m.start() for m in re.finditer(re.escape(tab), d2)]
+    if len(at) != 1:
+        return False, f'simdraw table found {len(at)} times in {bdir}'
+    keep = {k: os.environ.get(k) for k in ('W2627FULL', 'W2627FULL_COUNTRY', 'W2627FULL_TEAM', 'W8485_FILL', 'W8485_ONE')}
+    os.environ.update(W2627FULL=bdir, W2627FULL_COUNTRY='bra', W8485_ONE='1', W8485_FILL=f'{at[0]:x}:11:{len(tab)}',
+                      W2627FULL_TEAM='SUDAMERICA,BRASILE,CAMPEONATO BRASILEIRO SERIE A,PALMEIRAS')
+    try:
+        ok, msg = full_season('bra', '')
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    errs, pens, tot = [], collections.Counter(), collections.Counter()
+    log = os.path.join(RUNS, w84_tag() + '_1', 'session.log')
+    for ln in (open(log, errors='replace') if os.path.exists(log) else []):
+        title = ln.split('] ', 1)[-1].split(' | ')[0]
+        if not title.startswith('COPA DO BRASIL'):
+            continue
+        for t in re.findall(r'VINCE (\d+-\d+) (AI RIG(?: D\.T)?|IN TO)', ln):
+            (pens if t[1].startswith('AI RIG') else tot)[title[15:], t[1]] += 1
+    check(ok, msg, errs)
+    check(any(k[1] == 'AI RIG' for k in pens), f'no Copa do Brasil tie on penalties ({log})', errs)
+    check(not [k for k in pens if 'D.T' in k[1]], f'penalties after extra time: {dict(pens)}', errs)
+    return not errs, '; '.join(errs) or f'table obj2 {at[0]:#x}; penalties {dict(pens)}; on aggregate {dict(tot)}'
 
 
 @scenario

@@ -189,7 +189,7 @@ when the engine lands it.
   language where it is written in the Latin alphabet, the official English name otherwise.
 <!-- DATA STAGED (publish with the engine's formats): - **League formats**: every league in its real 2026-27 format:
   Scotland's split after 33 matchdays and its play-offs, Austria's championship and qualification groups (points no
-  longer halved), Switzerland's split and barrage, Denmark's and Greece's groups, Argentina's Apertura and Clausura,
+  longer halved), Switzerland's split, Denmark's and Greece's groups, Argentina's Apertura and Clausura,
   the Italian, English, Dutch and Brazilian play-offs and the others listed in 'Rebuilt exactly'. -->
 - **Club order**: each division in the order of its 2025-26 final table (2025 for calendar-year leagues): the clubs
   that stayed by final position, then the relegated, then the promoted; promoted clubs from a tier the world does
@@ -294,7 +294,10 @@ when the engine lands it.
   leaders of the Serie D on 18 October 2026 (Alessandria, Nibbiano & Valtidone, Luparense, Pistoiese, Prato,
   L'Aquila, Sarnese, Virtus Francavilla, Reggina), a provisional choice to be replaced by the real 9. From season 2 the
   relegated clubs come back up in turn, the longest in the Serie D first. Your club relegated to the Serie D is sacked
-  (job offers). -->
+  (job offers). [With this: the next bullet gets "except Serie C, relegated to the Serie D reserve".] -->
+- Nobody goes down from a country's lowest division in the world, and play-offs against a tier outside the world are
+  not played: e.g. Switzerland's 11th does not meet the Challenge League's 2nd, Korea's 10th and 11th play no K
+  League 2 club.
 - Players without a Transfermarkt value get an estimate (from their club's and division's values); in the lowest
   divisions (Scotland's League One and Two) the squads are so close that a simulated season does not follow the real
   table closely.
@@ -561,7 +564,7 @@ Non una formula uguale per tutti: ogni campionato gioca la stagione come l'ha sc
   della nazione dove si scrive in alfabeto latino, altrimenti il nome ufficiale inglese.
 <!-- DATA STAGED (da pubblicare con le formule del motore): - **Formule dei campionati**: ogni campionato con la sua
   vera formula 2026-27: lo split della Scozia dopo 33 giornate e i suoi play-off, i gruppi per il titolo e per la
-  qualificazione dell'Austria (punti non più dimezzati), split e spareggio della Svizzera, i gruppi di Danimarca e
+  qualificazione dell'Austria (punti non più dimezzati), split della Svizzera, i gruppi di Danimarca e
   Grecia, Apertura e Clausura dell'Argentina, i play-off di Italia, Inghilterra, Olanda e Brasile e gli altri elencati
   in 'Ricostruito esattamente'. -->
 - **Ordine dei club**: ogni divisione nell'ordine della sua classifica finale 2025-26 (2025 per i campionati ad anno
@@ -674,7 +677,11 @@ Non una formula uguale per tutti: ogni campionato gioca la stagione come l'ha sc
   note solo a maggio 2027: sono le 9 capoliste dei gironi di Serie D al 18 ottobre 2026 (Alessandria, Nibbiano &
   Valtidone, Luparense, Pistoiese, Prato, L'Aquila, Sarnese, Virtus Francavilla, Reggina), una scelta provvisoria da
   sostituire con le 9 vere. Dalla seconda stagione le retrocesse risalgono a turno, prima quella in Serie D da più
-  tempo. Se la tua squadra retrocede in Serie D vieni esonerato (offerte di lavoro). -->
+  tempo. Se la tua squadra retrocede in Serie D vieni esonerato (offerte di lavoro). [Con questo: la voce seguente
+  diventa "tranne la Serie C, che retrocede nella riserva di Serie D".] -->
+- Nessuna squadra retrocede dall'ultima divisione di una nazione nel mondo, e gli spareggi contro una serie fuori dal
+  mondo non si giocano: per esempio l'11ª svizzera non affronta la 2ª della Challenge League, la 10ª e l'11ª coreane
+  non giocano contro club della K League 2.
 - I giocatori senza valore su Transfermarkt ricevono una stima (dai valori del club e della divisione); nelle divisioni
   più basse (League One e League Two scozzesi) le rose sono così vicine che una stagione simulata non segue da vicino la
   classifica vera.

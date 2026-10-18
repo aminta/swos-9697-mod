@@ -334,14 +334,17 @@ Uncomment the subsection's lines one by one as the engine implements each format
     department).
   - New Zealand: the National League relegates 3 and each regional league's winner goes up. In reality the National
     League is formed each year from the regional leagues' best clubs (an approximation). -->
-- Leagues with an odd number of clubs keep their real size: each matchday one club rests (Gibraltar 11, New
-  Zealand 11).
+- Odd leagues lose their last club for now (the engine needs an even number; a temporary approximation, the real
+  lists are kept): Gibraltar (11 -> 10), New Zealand (11 -> 10).
+<!-- DATA STAGED (publish with the odd-league calendar, TM_ODD=1; replaces the bullet above): - Leagues with an odd
+  number of clubs keep their real size: each matchday one club rests (Gibraltar 11, New Zealand 11). -->
 <!-- INTERNAL (not public, regia 2026-10-18): Argentina's Liga Profesional and the MLS are two closed divisions of 15
-  for now (the game pairs at most 24 clubs): no promotion / relegation in Argentina, no interzonal / cross-conference
+  (16 + 14 until the odd-league calendar: every club kept, one moved to the first half) for now (the game pairs at
+  most 24 clubs): no promotion / relegation in Argentina, no interzonal / cross-conference
   matches. To be replaced before the release by the integrator's two-tournament season (zones + clasico, annual table,
   promedio; MLS 34 matches, Supporters' Shield, play-offs). If still interim at release time: decide with Davide. -->
-<!-- DATA STAGED (with the full world, TM_FULL): also India's Super League 13 and Football League 11, Taiwan's
-  Division 2 7, El Salvador's Tercera occidente 9 at their real sizes. -->
+<!-- DATA STAGED (with the full world, TM_FULL): also India's Super League (13 -> 12) and Football League (11 -> 10),
+  Taiwan's Division 2 (7 -> 6), El Salvador's Tercera occidente (9 -> 8); their real sizes with TM_ODD=1. -->
 
 **Known limits**
 - EA's public ratings still held FC 26-era rosters when this world was built (2026-10-16): attributes are matched by
@@ -709,13 +712,17 @@ Non una formula uguale per tutti: ogni campionato gioca la stagione come l'ha sc
     club di Primera secondo il loro dipartimento).
   - Nuova Zelanda: la National League retrocede 3 squadre e sale la vincente di ogni lega regionale. Nella realtà la
     National League si forma ogni anno con i migliori club delle leghe regionali (un'approssimazione). -->
-- I campionati con un numero dispari di club mantengono la dimensione reale: a ogni giornata una squadra riposa
-  (Gibilterra 11, Nuova Zelanda 11).
+- Per ora i campionati con un numero dispari di club perdono l'ultimo (il motore vuole un numero pari;
+  un'approssimazione temporanea, le liste reali sono pronte): Gibilterra (11 -> 10), Nuova Zelanda (11 -> 10).
+<!-- DATA STAGED (da pubblicare con il calendario dei campionati dispari, TM_ODD=1; sostituisce la voce sopra): - I
+  campionati con un numero dispari di club mantengono la dimensione reale: a ogni giornata una squadra riposa
+  (Gibilterra 11, Nuova Zelanda 11). -->
 <!-- INTERNO (non pubblico, regia 2026-10-18): la Liga Profesional argentina e la MLS sono per ora due divisioni
   chiuse da 15 (il gioco accoppia al massimo 24 club): niente promozioni / retrocessioni in Argentina, niente partite
   interzonali / tra conference. Da sostituire prima della release con la stagione a due tornei dell'integratore. -->
-<!-- DATA STAGED (con il mondo completo, TM_FULL): anche la Super League indiana 13 e la Football League 11, la
-  Division 2 di Taiwan 7, la Tercera occidente del Salvador 9 nella loro dimensione reale. -->
+<!-- DATA STAGED (con il mondo completo, TM_FULL): anche la Super League indiana (13 -> 12) e la Football League
+  (11 -> 10), la Division 2 di Taiwan (7 -> 6), la Tercera occidente del Salvador (9 -> 8); dimensioni reali con
+  TM_ODD=1. -->
 
 **Limiti noti**
 - Quando questo mondo è stato costruito (16-10-2026) le valutazioni pubbliche EA avevano ancora le rose dell'era FC 26:

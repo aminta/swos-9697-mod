@@ -3300,6 +3300,84 @@ def world_gplay():
     return not errs, '; '.join(errs) or f'{msg}; divisions {sorted(cnt.items())}; moves {dict(mv)}'
 
 
+def full_season(country, team):
+    """A season of the full 5.0 world (91 countries, TM_FULL; the data session's staged build: W2627FULL = its build
+    dir, default the newest internal/swostest/builds/w2627full-*) at team ('CONTINENT,COUNTRY,DIVISION,CLUB'): after
+    it every division of the country keeps its size and every club moved exactly one level of its chain (a division,
+    or a level of parallel groups)"""
+    import collections
+    import glob
+    bdir = os.environ.get('W2627FULL') or (sorted(glob.glob(os.path.join(WORK, 'builds', 'w2627full-*'))) or [''])[-1]
+    data = os.path.join(MAIN, 'internal', 'world2526', 'world5tm-full-lc')
+    if not os.path.isdir(bdir) or not os.path.isdir(data):
+        return True, 'SKIP: no full build (W2627FULL) or private data internal/world2526/world5tm-full-lc'
+    order = [ln.split()[0].lower() for ln in open(data.replace('-lc', '') + '.txt') if ' file ' in ln]
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    old = os.environ.get('SEASON_PACKS')
+    os.environ['SEASON_PACKS'] = ','.join([os.path.join(data, x) for x in order])
+    import mkseason
+    pk = next(p for p in mkseason.packs() if p.meta.get('id', '').endswith('-' + country))
+    if old is None:
+        os.environ.pop('SEASON_PACKS')
+    else:
+        os.environ['SEASON_PACKS'] = old
+    par = pk.league.get('parallel')
+    pars = {q['first']: q['count'] for q in (par if isinstance(par, list) else [par] if par else [])}
+    level, d, n = {}, 0, len(pk.divisions())
+    while d < n:
+        for x in range(d, d + pars.get(d, 1)):
+            level[x] = len(set(level.values()))
+        d += pars.get(d, 1)
+    clubs = []
+    for key in pk.league_clubs:
+        fl, i = pk.where[key]
+        base = next(b for fk, (ff, b) in pk.files.items() if ff == fl)
+        clubs.append((base + i, pk.division[key]))
+    sizes = collections.Counter(dv for _, dv in clubs)
+    keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK')
+    keep = {k: os.environ.get(k) for k in keys}
+    os.environ.update(W8485_BUILD=bdir, W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5',
+                      W8485_K='108+', W8485_NOSACK='1')
+    try:
+        ok, msg = world8485()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    car = os.path.join(RUNS, w84_tag() + '_1', 'SWOS', 'W84A.CAR')
+    if not os.path.exists(car):
+        return False, f'no season-1 save: {msg}'
+    slt = open(car, 'rb').read()[0xE8DC:0xE8DC + 2000]
+    cnt, mv = collections.Counter(), collections.Counter()
+    for g, base in clubs:
+        new = base + struct.unpack('b', slt[g:g + 1])[0]
+        cnt[new] += 1
+        if new != base:
+            mv[base, new] += 1
+    errs = []
+    check(ok, msg, errs)
+    check(cnt == sizes, f'divisions {sorted(cnt.items())} (were {sorted(sizes.items())})', errs)
+    bad = {k: v for k, v in mv.items() if k[1] not in level or abs(level[k[0]] - level[k[1]]) != 1}
+    check(not bad, f'moves not of one level: {bad}', errs)
+    return not errs, '; '.join(errs) or f'{msg}; divisions {sorted(cnt.items())}; moves {dict(mv)}'
+
+
+@scenario
+def world_full_slv():
+    """Full 5.0 world (full_season): a season at HACHADURA (El Salvador, Tercera occidente): two levels of parallel
+    zones (Segunda, Tercera) keep their sizes, the moves go one level by the clubs' areas (pgroups multi-level)"""
+    return full_season('slv', 'NORDAMERICA,EL SALVADOR,TERCERA DIVISION OCCIDENTE,HACHADURA')
+
+
+@scenario
+def world_full_eng():
+    """Full 5.0 world (full_season): a season at SALFORD CITY (England, League Two): four divisions with the real
+    direct places and the Championship / League One / League Two play-offs (gplay) keep their sizes"""
+    return full_season('eng', 'EUROPA,INGHILTERRA,EFL LEAGUE TWO,SALFORD CITY')
+
+
 def run_parallel(names, jobs):
     """run -jN: each scenario in its own process (own run dirs and DOSBox-X, one host core each in turbo); the
     builds are made once here first. Output in the order of the names; exit code 1 on a failure."""

@@ -274,7 +274,8 @@ class Pack:
             for k in self.league_clubs:
                 a = self.clubs[k].get('area') or ''
                 _need(a == '' or a in 'ABCDEF'[:n], f"clubs.csv: {k}: area must be one of {'ABCDEF'[:n]} (a group of the level)")
-        if self.league and len(divs) > 1 and self.league.get('playoffs') != 'ita':   # (Italy: dplay's own counts)
+        if (self.league and len(divs) > 1 and self.league.get('playoffs') != 'ita'   # (Italy: dplay's own counts;
+                and not os.environ.get('MKSEASON_NOBALANCE')):                       # harness: a build as it is)
             self._balance(divs)
         for c in self.comps:
             if c['type'] == 'cup':

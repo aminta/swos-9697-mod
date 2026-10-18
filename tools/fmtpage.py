@@ -28,10 +28,10 @@ ENTRY = 40
 NAME = 31                       # the slot's name: the title the game shows (country + competition)
 
 TEXTS = {
-    'it': dict(btn=b'FORMULA', next=b'PAG. SUCC.', none=b'NESSUNA DESCRIZIONE', file=b'data/fmtit.dat'),
-    'en': dict(btn=b'FORMAT', next=b'NEXT PAGE', none=b'NO DESCRIPTION', file=b'data/fmten.dat'),
-    'fr': dict(btn=b'FORMULE', next=b'PAGE SUIV.', none=b'PAS DE DESCRIPTION', file=b'data/fmtfr.dat'),
-    'de': dict(btn=b'MODUS', next=b'WEITER', none=b'KEINE BESCHREIBUNG', file=b'data/fmtde.dat'),
+    'it': dict(btn=b'FORMULA', next=b'PAG. SUCC.', none=b'NESSUNA DESCRIZIONE', file=b'data/fmtit'),
+    'en': dict(btn=b'FORMAT', next=b'NEXT PAGE', none=b'NO DESCRIPTION', file=b'data/fmten'),
+    'fr': dict(btn=b'FORMULE', next=b'PAGE SUIV.', none=b'PAS DE DESCRIPTION', file=b'data/fmtfr'),
+    'de': dict(btn=b'MODUS', next=b'WEITER', none=b'KEINE BESCHREIBUNG', file=b'data/fmtde'),
 }
 
 ASM = r"""
@@ -50,6 +50,10 @@ fp_open:                                ; FORMULA (fire): the page of the compet
     loop .title
     mov byte [edi], 0
 .titled:
+    mov edi, FNAME + FN_BASE_           ; data/fmtxx + the career's world number (none: the base world) + .dat
+WORLD_FILE
+    mov dword [edi], 7461642Eh          ; '.dat'
+    mov byte [edi + 4], 0
     mov edx, FNAME
     mov eax, 3D00h                      ; open, read only
     int 21h
@@ -231,8 +235,29 @@ def locate(p):
     return site, menu, name, show, a6
 
 
-def patch(p, at, lang, area, bss):
-    """Code at obj1:at, menus and buffers in obj2 area, the file buffer at obj2:bss (BSS_SIZE). Returns the code end."""
+WORLD_ASM = r"""
+    cmp word [GAMETYPE], 4              ; a career: its world (the save's byte; stale outside a career)
+    jne .w0
+    movzx eax, byte [SLT + WORLD_BYTE_]
+    test eax, eax
+    jz .w0
+    xor edx, edx
+    mov ecx, 10
+    div ecx
+    test eax, eax
+    jz .units
+    add al, '0'
+    stosb
+.units:
+    lea eax, [edx + '0']
+    stosb
+.w0:
+"""
+
+
+def patch(p, at, lang, area, bss, world=None):
+    """Code at obj1:at, menus and buffers in obj2 area, the file buffer at obj2:bss (BSS_SIZE); world = careerworld's
+    sites in a build with career worlds (DATA\\FMTxx<world>.DAT in a career of world 1+). Returns the code end."""
     d, d2 = p.le.obj_bytes(1), p.le.obj_bytes(2)
     site, (mobj, moff), name, show, a6 = locate(p)
     assert mobj == 2 and struct.unpack_from('<IIIIhhhh', d2, moff) == (0, 0, 0, 1, 92, 0, 120, 15), 'competitionStatsMenu'
@@ -249,8 +274,9 @@ def patch(p, at, lang, area, bss):
     def put(key, b, size=None):
         off[key] = len(data)
         data.extend(b + b'\0' * ((size or len(b) + 1) - len(b)))
-    for k in ('btn', 'next', 'none', 'file'):
+    for k in ('btn', 'next', 'none'):
         put(k, T[k])
+    put('file', T['file'], 20)
     put('title', b'', 32)
     put('lines', b'', LINES * LINE_W)
     put('vars', b'', 8)                                  # page (dword), found (byte)
@@ -310,9 +336,13 @@ def patch(p, at, lang, area, bss):
            'TITLE': (2, base + off['title']), 'LINES_BUF': (2, base + off['lines']), 'NONE': (2, base + off['none']),
            'PAGE': (2, base + off['vars']), 'FOUND': (2, base + off['vars'] + 4), 'FMTMENU': (2, base + fm_at),
            'BUF': (2, bss), 'TXT': (2, bss + IDXMAX), 'IDXMAX_': (0, IDXMAX), 'TXTMAX_': (0, TXTMAX),
-           'ENTRY_': (0, ENTRY), 'NAME_': (0, NAME), 'LINES_': (0, LINES), 'LINE_W_': (0, LINE_W)}
-    code, cfix = nasmcave.assemble(ASM, at, sym)
-    lab = nasmcave.labels(ASM, at, sym)
+           'ENTRY_': (0, ENTRY), 'NAME_': (0, NAME), 'LINES_': (0, LINES), 'LINE_W_': (0, LINE_W),
+           'FN_BASE_': (0, len(T['file']))}
+    src = ASM.replace('WORLD_FILE\n', WORLD_ASM if world else '')
+    if world:
+        sym.update({'GAMETYPE': world['gametype'], 'SLT': world['slt'], 'WORLD_BYTE_': (0, 1845)})
+    code, cfix = nasmcave.assemble(src, at, sym)
+    lab = nasmcave.labels(src, at, sym)
     assert not any(p.get(1, at, len(code)))
     p.put(1, at, code)
     for o, t_obj, t_off in cfix:
@@ -326,7 +356,7 @@ def patch(p, at, lang, area, bss):
     p.retarget(1, site + 6, 2, base + sm_at)
     p.put(1, site + 6, struct.pack('<I', base + sm_at))
     print(f'exe: FORMAT page: statistics menu + FORMULA obj2+{base + sm_at:#x}, page obj2+{base + fm_at:#x}, '
-          f'code obj1+{at:#x} ({len(code)} B), file {T["file"].decode()}, buffer obj2+{bss:#x}')
+          f'code obj1+{at:#x} ({len(code)} B), file {T["file"].decode()}[world].dat, buffer obj2+{bss:#x}')
     return at + len(code)
 
 

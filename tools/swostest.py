@@ -3388,7 +3388,7 @@ def split_check_stages(log, key):
     w = lambda b, k: struct.unpack_from('<H', b, k)[0]
     n = w(last, 0x31)
     stg = key['stages']
-    rnd = {'none': 0, 'single': 1, 'double': 2}
+    rnd = {'none': 0, 'single': 1, 'double': 2, 'triple': 3, 'quadruple': 4}
     sizes = [[g['places'][1] - g['places'][0] + 1 for g in x['groups']] for x in stg]
     rounds = [[rnd[g.get('rounds', 'single')] for g in x['groups']] for x in stg]
     total = stg[0]['after'] + sum(len(split.schedule(z, r)) for z, r in zip(sizes, rounds))
@@ -3433,7 +3433,7 @@ def split_check(log, key, slots_table):
     """The split league's snapshots (session log 'DIY' / 'CAL' lines of world8485 with W8485_DIY) against the pack
     key (converted as mkseason.splits does)."""
     import split
-    rnd = {'none': 0, 'single': 1, 'double': 2}
+    rnd = {'none': 0, 'single': 1, 'double': 2, 'triple': 3, 'quadruple': 4}
     gs = key['groups']
     spec = {'groups': [g['places'][1] - g['places'][0] + 1 for g in gs], 'rounds': [rnd[g.get('rounds', 'single')] for g in gs],
             'points': [g.get('points', 'full') for g in gs], 'home': key.get('home', 'seeded'), 'after': key['after']}

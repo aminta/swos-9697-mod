@@ -1112,14 +1112,14 @@ def splits():
       'games': 3                        a division's meetings in the season (the league struct's 'games' is one
                                         for every division; 'split' sets its own from 'after');
       'split': {'after': 33, 'home': 'balance' | 'reverse1' | 'reverse3' | 'seeded',
-                'groups': [{'places': [1, 6], 'rounds': 'single' | 'double' | 'none',
+                'groups': [{'places': [1, 6], 'rounds': 'single' | 'double' | 'triple' | 'quadruple' | 'none',
                             'points': 'full' | 'half_up' | 'half_down' | 'reset' | 'h2h_half'}, ...], 'tiebreak': ...}
                or {'stages': [split, split, ...]} (Malta: Opening Round, Closing Round), a stage adding
                'reset': true (every figure from 0) and 'keep': 'opening' (the table before it kept in the save)
     ('after' = the match days before the split / the stage; groups = consecutive places of the table then)."""
     import split
     out = []
-    rnd = {'none': 0, 'single': 1, 'double': 2}
+    rnd = {'none': 0, 'single': 1, 'double': 2, 'triple': 3, 'quadruple': 4}
     for pk in packs():
         lg = pk.league
         if pk.world is None or not lg:
@@ -1154,7 +1154,8 @@ def splits():
                     _need(set(g) <= {'places', 'rounds', 'points', 'neutral'} and g.get('places', [0])[0] == places
                           and g['places'][1] >= places + 1, f'{ws}.groups: consecutive places from 1')
                     _need(g.get('rounds', 'single') in rnd and g.get('points', 'full') in split.POINTS,
-                          f'{ws}.groups: rounds single / double / none, points ' + ' / '.join(split.POINTS))
+                          f'{ws}.groups: rounds none / single / double / triple / quadruple, points '
+                          + ' / '.join(split.POINTS))
                     places = g['places'][1] + 1
                 _need(places == n + 1 and 1 <= len(gs) <= 4, f'{ws}.groups: 1..4 groups covering places 1-{n}')
                 _need(st.get('home', 'seeded') in split.HOMES, f'{ws}.home: ' + ', '.join(split.HOMES))

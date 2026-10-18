@@ -8,7 +8,8 @@ Squads session, 2026-10-18. Branch `split` from world-2025-26. The spec is in th
   `divisions[i]`: `{"after": 33, "home": "balance", "groups": [{"places": [1, 6], "rounds": "single",
   "points": "full"}, ...]}`.
   - `after`: the match days before the split, a whole number of meetings (Scotland 33 = 3 x 11).
-  - `rounds`: `single`, `double` or `none` per group.
+  - `rounds`: `single`, `double`, `triple`, `quadruple` (Latvia 1996: the bottom 4 meet four more times) or `none`
+    per group; several round robins alternate home and away.
   - `points`:
     - `full`;
     - `half_up` (Romania, Greece 5-8) or `half_down`, both with "points before rounding" as the first tie-break;

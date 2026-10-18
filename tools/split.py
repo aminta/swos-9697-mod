@@ -5,7 +5,7 @@ pack.json, a division of the league competition:
 - games: how many times each pair meets before the split (the division's own; the league struct has one 'games' for
   every division). Alone (no groups) it only sets that division's meetings (Scotland's lower divisions: 4).
 - groups: sizes, top to bottom (the table at the split, places in order); rounds: 0 (no more matches: Czech middle
-  group), 1 (single round robin) or 2 (double) per group; points: "full", "half_up" (Romania, Greece 5-8),
+  group), 1 (single round robin), 2 (double), 3 (triple) or 4 (quadruple: Latvia 1996) per group; points: "full", "half_up" (Romania, Greece 5-8),
   "half_down" per group;
 - home (single round robin after the split): "balance" = the club that hosted the other fewer times before the
   split (Scotland, Switzerland, Korea: every pair ends 2 + 2), "reverse3" = the club that was away in their 3rd
@@ -855,7 +855,9 @@ def schedule(groups, rounds):
     days, start = [], 0
     for g, (m, r) in enumerate(zip(groups, rounds)):
         one = _orient(m, _round_robin(m)) if r else []
-        plan = one + ([[(b, a) for a, b in rd] for rd in one] if r == 2 else [])
+        back = [[(b, a) for a, b in rd] for rd in one]
+        plan = [rd for k in range(r) for rd in (one if k % 2 == 0 else back)]   # r round robins, home / away
+        #                                                                         alternating (4: Latvia 1996)
         for d, rd in enumerate(plan):
             while len(days) <= d:
                 days.append([])

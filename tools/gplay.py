@@ -27,6 +27,8 @@ Test builds: GPLAY_FORCE=k puts the career club on place k of its division at th
 
 pack.json league "ko_playoffs": [{ "key", "names": {lang: [long, short]},
   "kind": "promotion" | "europe" | "placement" | "playout" (the last round's losers go down to loser_div) |
+          "stage_title" (4.0 ARG, + "stage": 0 / 1 a tournament's knockout, 2 the Trofeo: its champion and runner-up
+          in GP_OUT.sres[stage], not the league's champion; built mid-season by gp_build, never by gp_need) |
           "title" (the champion = the last tie's winner, or the final group's 1st) | "continental" (its winner and
           runner-up take the continental places; the champion stays the table's 1st),
   "entrants": [[div, place] | {"div": d, "best_without_europe": true} | {"league_cup_winner": true, "if_places": [a, b]}
@@ -52,7 +54,8 @@ import re
 import struct
 
 RS_SIZE = 8 * 132                   # gplay.c RS_STATE: struct rs_state {u8 init, n, pad[2]; u16 q[64];} x RC 8
-KINDS = {'promotion': 1, 'europe': 2, 'placement': 3, 'playout': 4, 'title': 5, 'continental': 6, 'promedio': 7}
+KINDS = {'promotion': 1, 'europe': 2, 'placement': 3, 'playout': 4, 'title': 5, 'continental': 6, 'promedio': 7,
+         'stage_title': 8}
 RESERVE = 0xFE                  # loser_div 'reserve': out of every division (gplay.c)
 HOSTS = {'listed': 0, 'better': 1, 'drawn': 2, 'neutral': 3}
 LEVELS = {'better': 0, 'et_pens': 1, 'et_better': 2, 'pens': 3, 'away_pens': 4, 'away_better': 5}
@@ -90,6 +93,11 @@ def compile_spec(pos, ndiv):
                 ents.append((3, d, a, s))
             elif isinstance(e, dict) and e.get('loser_of_previous'):   # the play-off before's final loser
                 ents.append((4, 0, 0, 0))
+            elif isinstance(e, dict) and 'stage_title' in e:   # 4.0 ARG: the Trofeo's finalists from the stage titles
+                c, d = e['stage_title'], e.get('div', 0)       # 1 the 1st stage's champion; 2 / 3 the other finalist:
+                if not (c in (1, 2, 3) and 0 <= d < ndiv):     # the 2nd stage's champion, or (the same club won both)
+                    raise ValueError(f'{key}: entrant {e}')    # the two stages' runners-up (2: the 1st's, 3: the 2nd's)
+                ents.append((5, d, c, 0))
             elif isinstance(e, dict) and e.get('league_cup_winner'):
                 a, b = e.get('if_places', [0, 0])
                 ents.append((2, 0, a, b))
@@ -168,6 +176,10 @@ def compile_spec(pos, ndiv):
             raise ValueError(f'{key}: winners 1..15')
         wd, ld = po.get('winner_div', 0), po.get('loser_div', 0)
         ld = RESERVE if ld == 'reserve' else ld
+        if kind == 8:                           # stage_title: winner_div byte = the stage (0, 1; 2 the Trofeo)
+            wd, ld = po.get('stage'), 0
+            if wd not in (0, 1, 2):
+                raise ValueError(f'{key}: stage_title needs "stage" 0 / 1 (the tournaments) or 2 (their champions)')
         if kind in (1, 4) and not (0 <= wd < ndiv and (0 <= ld < ndiv or ld == RESERVE)):
             raise ValueError(f'{key}: winner_div / loser_div (a division, or "reserve")')
         if rounds and po['rounds'][-1].get('series'):
@@ -177,6 +189,10 @@ def compile_spec(pos, ndiv):
         out += b''.join(bytes(e) for e in ents) + rounds
     out = bytes(out + b'\0')
     SPEC_NAMES[out] = [(po.get('names') or {}, po.get('key', '?')) for po in pos]
+    BUILD_AFTER[out] = [(i, po['build_after']) for i, po in enumerate(pos) if po.get('build_after')]
+    for i, name in BUILD_AFTER[out]:
+        if KINDS.get(pos[i].get('kind')) != 8 or not isinstance(name, str):
+            raise ValueError(f"{pos[i].get('key', '?')}: build_after (a split stage's 'then' name) needs kind stage_title")
     return out
 
 
@@ -820,6 +836,7 @@ gp_end:                                 ; replaces `call cseg_9228D` (after dpla
 ''' + PLAY_ASM
 
 
+BUILD_AFTER = {}         # compile_spec's output -> [(play-off index, split stage 'then' name)]: built by gp_build there
 SPEC_NAMES = {}          # compile_spec's output -> the play-offs' names ({lang: [long, short]}), for the contests
 
 
@@ -850,7 +867,7 @@ def table_lines(tables):
 
 LABELS = {}
 GP_PAGES = 6             # obj1 pages for the C code + glue + specs (World 2026-27's 20 countries; gplay-play)
-GP_ST_SIZE = 1996       # (sizeof struct gp_state: the engine block's item 'GP', patch.py)
+GP_ST_SIZE = 2032       # (sizeof struct gp_state: the engine block's item 'GP', patch.py)
 GP_BSS = 0x5000          # the C .bss pages (obj2 after careerworld's BSS): GP_IN at GT 32 / GD 16, GP_SS, PR, RS, GP_ST, RI, PS
 
 
@@ -976,13 +993,23 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
                                          'gp_sack_c')})
     rec_dp = p.get(1, ps['rec'], 1) == b'\xe8'                # dplay's `call dp_rec; nop` there, or the game's mov
     symbols['GP_REC_NEXT'] = (1, tgt(ps['rec'])) if rec_dp else (0, 0)
+    after = {}                                              # 4.0 ARG: a stage title's knockout built after its stage
+    for _, _, spec in tables:                               # (engine.after_stage: split calls it, pushad / popad)
+        for i, name in BUILD_AFTER.get(spec, []):
+            assert after.setdefault(name, i) == i, f'build_after {name}: two play-off indices'
+    symbols['SP_WEEK'] = (2, split.sites(p)['WEEK'])
+    stubs = ''.join(f'ba_{name}:\n    mov dword [GP_BPI], {i}\n    movzx eax, byte [SP_WEEK]\n'
+                    f'    mov [GP_BWEEK], eax\n    jmp gp_build\n' for name, i in sorted(after.items()))
     asm = (ASM.replace('jmp GP_REC_NEXT', 'jmp GP_REC_NEXT' if rec_dp else 'jmp gp_recmov') + tab_src + '\n'
-           + names_lines(tables, area, lang) + '\n')
+           + names_lines(tables, area, lang) + '\n' + stubs)
     glue = (cend + 15) & ~15
     code, fix = nasmcave.assemble(asm, glue, symbols)
     lab = nasmcave.labels(asm, glue, symbols)
     assert glue + len(code) <= limit, hex(glue + len(code))
     p.put(1, glue, code)
+    import engine
+    for name in after:
+        engine.CALL_AT[name] = (1, lab[f'ba_{name}'])         # (split.late binds the stage's callback to it)
     for off, tobj, toff in fix:
         cobj.add_ptr(p, glue + off, tobj, toff)
     for site, target in ((cap, 'gp_cap'), (end_site, 'gp_end')) if tables else ():   # (relative calls: no fixups;

@@ -296,7 +296,18 @@ class Pack:
               f"{self.league['key']}: clubs outside the divisions")
         rs = self.league.get('reserve')
         _need(not self.reserve_clubs or rs, f"{self.league['key']}: clubs.csv has 'reserve' clubs but no league 'reserve'")
-        if rs:
+        self.pool_key, self.pool_clubs = None, []
+        if rs and rs.get('off_file'):           # the off-file pool (Eccellenza: gplay.c ri_season swaps identities):
+            pool, first = rs.get('pool') or [], rs.get('first') or []   # file key 'pool' = a pseudo file
+            self.pool_key = 'pool'
+            self.pool_clubs = [k for k, c in self.clubs.items() if c['file'] == 'pool']
+            _need('pool' in self.files and not self.reserve_clubs and self.pool_clubs and
+                  set(pool) == set(self.pool_clubs) and set(first) <= set(pool) and rs.get('then', 'rotation') == 'rotation',
+                  f"{self.league['key']}: an off-file reserve: files 'pool', clubs.csv rows of file 'pool' = reserve pool, "
+                  "no 'reserve' division")
+            _need(all(v[0] != self.files['pool'][0] for k, v in self.files.items() if k != 'pool'),
+                  f"{self.league['key']}: the pool's file number must differ from every team file")
+        elif rs:
             pool, first = rs.get('pool') or [], rs.get('first') or []
             _need(set(pool) == set(self.reserve_clubs) and set(first) <= set(pool) and rs.get('then', 'rotation') == 'rotation',
                   f"{self.league['key']}: reserve {{first, pool = every 'reserve' club of clubs.csv, then: 'rotation'}}")
@@ -421,7 +432,7 @@ class Pack:
         division, [(global, base division)] every league club, [globals] the pool in its first order: 'first', then
         the rest as clubs.csv lists them)."""
         rs = self.league.get('reserve') if self.league else None
-        if not rs or self.world is None:
+        if not rs or self.world is None or rs.get('off_file'):
             return None
         divs = self.divisions()
         par = self.league.get('parallel')
@@ -452,6 +463,33 @@ class Pack:
             fl, i = self.where[e[0]]
             out.append((next(b for fk, (ff, b) in self.files.items() if ff == fl) + i, *e[1:]))
         return out
+
+    def team_file_items(self):
+        """files without the off-file pool (a pseudo file: no TEAM file, no country entry, no global numbers)."""
+        return [(k, v) for k, v in self.files.items() if k != getattr(self, 'pool_key', None)]
+
+    def off_pool(self):
+        """Off-file pool table (gplay.c ri_season): None, or (world, league file, the lowest level's first division,
+        [(global, base division, D area)] the league's slots in file order, [D area] of the pool records,
+        [pool index] the first order: 'first', then the rest as clubs.csv lists them). D area: the last letter of
+        clubs.csv 'area' (A.. = the group of that region in the lowest level), 0xFF = none."""
+        rs = self.league.get('reserve') if self.league else None
+        if not rs or not rs.get('off_file') or self.world is None:
+            return None
+        divs = self.divisions()
+        par = self.league.get('parallel')
+        pars = {q['first']: q['count'] for q in (par if isinstance(par, list) else [par] if par else [])}
+        low, d = 0, 0
+        while d < len(divs):
+            low, d = d, d + pars.get(d, 1)
+        letters = 'ABCDEFGHIJ'
+        darea = lambda k: letters.index(self.clubs[k]['area'].split('/')[-1]) if self.clubs[k].get('area') else 0xFF
+        fl, base = self.files[self.league['clubs']]
+        slots = sorted(self.league_clubs, key=lambda k: self.where[k][1])
+        first = list(rs.get('first') or [])
+        order = first + [k for k in self.pool_clubs if k not in first]
+        return (self.world, fl, low, [(base + self.where[k][1], self.division[k], darea(k)) for k in slots],
+                [darea(k) for k in self.pool_clubs], [self.pool_clubs.index(k) for k in order])
 
     def parallel(self):
         """pgroups table: None, or (world, [(first division, [sizes])] top-down over the chain, [(global number, base
@@ -560,7 +598,9 @@ class Pack:
                 out[k], n = _place_numbers(out[k])
                 moved += n
             self.log(f'shirt numbers by place (1..11 starters, 12..16 bench): {moved} changed')
-        return out
+        self.pool_data = out.pop(self.files['pool'][0], None) if getattr(self, 'pool_key', None) else None
+        self.xtra.pop(self.files['pool'][0], None) if getattr(self, 'pool_key', None) else None
+        return out                                      # (the off-file pool: rs_files)
 
     def _empty_record(self, key, template):
         c = self.clubs[key]
@@ -1077,6 +1117,24 @@ def xtra_files():
     return out
 
 
+def rs_files():
+    """{'RS<world><league file>.DAT': records}: the off-file pools (gplay.c ri_season), TEAM format (BE count + 684-B
+    records). The world byte's namespace does not matter: the name carries the world."""
+    out = {}
+    for pk in packs():
+        if getattr(pk, 'pool_key', None) and pk.world is not None:
+            if not hasattr(pk, 'pool_data'):
+                pk.team_files()
+            _need(pk.pool_data, f"{pk.meta['id']}: the off-file pool has no records")
+            out['RS%d%03d.DAT' % (pk.world, pk.files[pk.league['clubs']][0])] = pk.pool_data
+    return out
+
+
+def off_pools():
+    """gplay.c ri_season: the world leagues with an off-file pool (Pack.off_pool)."""
+    return [t for pk in packs() for t in [pk.off_pool()] if t]
+
+
 def ns_team_files():
     """{'TMWn.nnn': data}: the team files of the worlds with a namespace of their own (several worlds in the build)."""
     out = {}
@@ -1109,7 +1167,7 @@ def ns_stem(w):
 
 def ns_files(w):
     """Team file numbers of world w (its packs and its national pack): the files named by its stem."""
-    return sorted({f for pk in packs() + nationals() if pk.world == w for f, _ in pk.files.values()})
+    return sorted({f for pk in packs() + nationals() if pk.world == w for _, (f, _) in pk.team_file_items()})
 
 
 def draws():
@@ -1346,7 +1404,7 @@ def tourneys():
 
 
 def file_numbers():
-    return sorted(f for pk in packs() + nationals() for f, _ in pk.files.values())
+    return sorted(f for pk in packs() + nationals() for _, (f, _) in pk.team_file_items())
 
 
 def base_of(n):
@@ -1354,7 +1412,7 @@ def base_of(n):
     for pk in packs() + nationals():
         if pk.world is not None and ns_stem(pk.world) != 'team':
             continue
-        for f, b in pk.files.values():
+        for _, (f, b) in pk.team_file_items():
             if f == n:
                 return b
     return None
@@ -1498,7 +1556,7 @@ def world_files():
 def career_file(n):
     """True for the team files of world career packs: their clubs may reuse 1996-97 European global numbers (a world
     career never loads those files)."""
-    return any(pk.world is not None and n in (f for f, _ in pk.files.values()) for pk in packs() + nationals())
+    return any(pk.world is not None and n in (f for _, (f, _) in pk.team_file_items()) for pk in packs() + nationals())
 
 
 def shares_base(n):
@@ -1786,8 +1844,8 @@ def _patch_pack(pk, p, lang, area, at, env):
     # every pack file is a country entry (a club's country is never null); bases in teamsCountryNumbers; the entry
     # after the last own-base file closes its team count (a country's count = next base - its base); shared-base
     # files last: their bases overwrite that closing entry when they follow it
-    own = sorted(v for v in pk.files.values() if not shares_base(v[0]))
-    for f, base in own + sorted(v for v in pk.files.values() if shares_base(v[0])):
+    own = sorted(v for _, v in pk.team_file_items() if not shares_base(v[0]))
+    for f, base in own + sorted(v for _, v in pk.team_file_items() if shares_base(v[0])):
         _need(ct + 4 * f not in fx2 and comp + 4 * f not in fx2, f'{pk.meta["id"]}: country {f} is already used')
         _tab(p, env, pk.world, 'ct', f, 2, rec)
         _tab(p, env, pk.world, 'tcn', f, base)

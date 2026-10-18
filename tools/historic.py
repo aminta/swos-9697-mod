@@ -249,12 +249,24 @@ hist_draw:                              ; replaces `call cseg_27F08` in cseg_26D
 .nlp:
 %endif
     mov edx, DRAW_TABLE
+%if CF_ON
+    mov word [DRAW_C], 0
+%endif
 %if WD_ON
     mov byte [DRAW_W], 0                ; world filter: 0 = every career / mode
 %endif
 .find:
     cmp byte [edx], 0
     je .orig
+%if CF_ON
+    cmp byte [edx], 2                   ; [2, file, ordinal]: the next draws only for a contest whose first club is
+    jne .cf                             ; that one (several state championships share one contest id); [2, 0, 0]: all
+    mov bx, [edx + 1]
+    mov [DRAW_C], bx
+    add edx, 3
+    jmp .find
+.cf:
+%endif
 %if WD_ON
     cmp byte [edx], 1                   ; [1, 0, w]: the next draws belong to world w (its own cup ids)
     jne .rec
@@ -283,6 +295,16 @@ hist_draw:                              ; replaces `call cseg_27F08` in cseg_26D
     lea edx, [edx + ebx + 2]
     jmp .find
 .perm:
+%if CF_ON
+    cmp word [DRAW_C], 0
+    je .cfok
+    push eax
+    mov ax, [esi + 12Dh]                ; the contest's first club (its team table's row 0)
+    cmp ax, [DRAW_C]
+    pop eax
+    jne .next
+.cfok:
+%endif
     call DRAW_PRE                       ; lib97.lib_pre (Libertadores holder into the round of 16), else ret
     cmp byte [edx + 2], 0FFh            ; 'pre only': the bye club joins, then the game's own random draw
     je .orig
@@ -332,6 +354,9 @@ hist_draw:                              ; replaces `call cseg_27F08` in cseg_26D
 
 draw_pre_none:
     ret
+%if CF_ON
+DRAW_C: dw 0
+%endif
 %if WD_ON
 DRAW_W: db 0
 %else
@@ -720,8 +745,12 @@ TABLE = [None, False]           # the fixed draws' table (obj, offset) and wheth
 def draw_table():
     """hist_draw's fixed draws: [id, teams | sort flag, perm...] per round; each career world's after a filter
     record [1, 0, world] (its cup ids are its own); 0 ends. One world: no filter records (the table of 3.3)."""
-    drec = lambda d: bytes((d[0], len(d[1]) | (0x80 if d[2:] and d[2] else 0))) + bytes(d[1])
+    def drec(d):                        # (id, perm[, sort[, first club]]): a first club = a [2, file, ordinal] filter
+        r = bytes((d[0], len(d[1]) | (0x80 if d[2:] and d[2] else 0))) + bytes(d[1])
+        return (bytes((2,) + tuple(d[3])) + r + bytes((2, 0, 0))) if d[3:] else r
     wdraws = mkseason.world_draws()
+    import statespec
+    DRAWS = globals()['DRAWS'] + statespec.TEST_DRAWS    # (STATESPEC_TEST=1: the world-0 test state's brackets)
     if not mkseason.multi_ns():
         return b''.join(map(drec, DRAWS + [d for ds in wdraws.values() for d in ds])) + b'\0'
     assert all(d[0] > 1 for d in DRAWS) and all(d[0] > 1 for ds in wdraws.values() for d in ds)
@@ -731,6 +760,7 @@ def draw_table():
 
 def patch(p, lang, area, cave, draw_pre=None, leagues=(), cave2=None, lp=None, cave2_size=0x1000):
     """Register CLASSICS and the World Cup 1982; returns the new cave end."""
+    import statespec
     d2 = p.le.obj_bytes(2)
     ct, tcn, _, _ = countries.tables(p)
     comp = countries.COMP[0]
@@ -877,6 +907,7 @@ def patch(p, lang, area, cave, draw_pre=None, leagues=(), cave2=None, lp=None, c
                'DIYCOPY': (2, coin['diycopy']), 'RAND2': (1, coin['rand2']), 'D5': (2, a0 - 12), 'D6': (2, a0 - 8),
                'D7': (2, a0 - 4), 'D1': (2, a0 - 28), 'SKIP': (2, coin['skip']), 'DIYCOMP': (2, coin['diycomp']),
                'ESCI_FIX': (1, elab['esci_fix']), 'EF_VARS': (1, elab['EF_VARS']),
+               'CF_ON': (0, int(any(len(d) > 3 for d in DRAWS + statespec.TEST_DRAWS + [x for ds in mkseason.world_draws().values() for x in ds]))),
                'WD_ON': (0, int(wd)), 'WORLDB': (slt[0], slt[1] + careerworld.WORLD_BYTE) if wd else (0, 0),
                'LP_ON': (0, int(lp is not None)), 'LP_CHK': (1, lp[0]) if lp else (0, 'draw_pre_none'),
                'LP_DRAW': (1, lp[1]) if lp else (0, 'draw_pre_none')}

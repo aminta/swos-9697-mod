@@ -210,11 +210,11 @@ def tourney_text(c, t):
     st = c.get('stages', [])
     ko = [x for x in st if x['type'] == 'knockout']
     lines = [t['ko'].format(n=ko[0]['teams']).replace(t['clubs'].format(n=ko[0]['teams']), t['teams'].format(n=ko[0]['teams']))] if ko else []
-    ms = {x['matches'] for x in st}
+    ms = {x['matches'] for x in st if 'matches' in x}     # (a group stage has no 'matches': lp36's test pack)
     if len(ms) == 1:
         lines.append(t['r'][ms.pop()])
     else:
-        lines += [f"{t['clubs'].format(n=x['teams'])}: {t['r'][x['matches']]}" for x in ko]
+        lines += [f"{t['clubs'].format(n=x['teams'])}: {t['r'][x['matches']]}" for x in ko if 'matches' in x]
     if any(x['type'] == 'third_place' for x in st):
         lines.append(t['third'])
     return lines

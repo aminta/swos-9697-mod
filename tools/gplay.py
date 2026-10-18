@@ -169,6 +169,21 @@ gp_cap:                                 ; replaces `call cseg_9221F` (after dpla
     movzx eax, word [D7R]
     cmp eax, GD_N
     jae .x
+    push eax                            ; split's kept stage table (gplay.c gp_keep: GP_IN.st)
+    push dword SP_MAGIC
+    push eax
+    push dword [SELTEAMS]
+    push dword SP_KEEP
+    push dword SP_ST
+    push dword DIY
+    push es
+    push ds
+    pop es
+    cld
+    call gp_keep
+    pop es
+    add esp, 24
+    pop eax
     movzx ecx, word [DIY + 31h]
     cmp ecx, GT_N
     jbe .n
@@ -326,7 +341,8 @@ def patch(p, at, limit, tables, bss_at):
     tab_src, tab_syms = table_lines(tables)
     symbols = {k: (0, v) for k, v in lay.items()}
     symbols.update(tab_syms)
-    symbols.update({'GP_IN': syms['GP_IN'], 'GP_OUT': syms['GP_OUT'], 'gp_season': syms['gp_season'],
+    symbols.update({'GP_IN': syms['GP_IN'], 'GP_OUT': syms['GP_OUT'], 'gp_season': syms['gp_season'], 'gp_keep': syms['gp_keep'], 'SP_ST': (0, split.ST),
+                    'SP_KEEP': (0, split.OFF['h2h']), 'SP_MAGIC': (0, split.MAGIC),
                     'A4R': (2, r['A0'] + 16), 'D7R': (2, r['D7']), 'SLT': s['slt'], 'SLTCOPY': s['sltcopy'],
                     'WORLD_BYTE': (0, careerworld.WORLD_BYTE), 'DIY': (2, diy), 'SELTEAMS': (2, sel),
                     'CAREERTEAM': (2, ct), 'ANIM_REL': (2, rel), 'ANIM_PRO': (2, pro),

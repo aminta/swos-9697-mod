@@ -155,6 +155,37 @@ static void group(const int *mem, int m, int meet, int neutral, const u8 *bonus,
     for (int i = 0; i < m; i++) out[i] = t[i].c;
 }
 
+/* split's kept stage table (gp_cap, every captured division; split.py's freeze sets the 'kept' byte at ST+5 when a
+   'keep' stage froze the table before it: rows by place at S_KEEP, their points at S_KEEP+22): into GP_IN.st[k] in the
+   order the season end captures them (k = 0 again at each country's division 0). diy = DIY, st = split.ST, keep =
+   S_KEEP - ST, sel = the team cache (a row's team dword is an offset into it: +2 the global number). */
+static u8 gp_kn;
+void gp_keep(const u8 *diy, u32 st, u32 keep, const u8 *sel, u32 div, u32 magic) {
+    if (div == 0) {
+        gp_kn = 0;
+        for (int i = 0; i < GS; i++) GP_IN.nst[i] = 0;
+    }
+    const u8 *s = diy + st, *k = s + keep;
+    int n = diy[0x31] | diy[0x32] << 8;
+    if ((u32)(s[0] | s[1] << 8) != magic || s[5] != 1 || gp_kn >= GS || n < 2 || n > GT || n > 21) return;
+    u32 seen = 0;
+    for (int i = 0; i < n; i++) {
+        if (k[i] >= n || seen & 1u << k[i]) return;
+        seen |= 1u << k[i];
+    }
+    struct gp_row *o = GP_IN.st[gp_kn];
+    for (int i = 0; i < n; i++) {
+        int r = k[i];
+        const u8 *row = diy + 0x2B3 + 18 * r;
+        u32 t = row[0] | row[1] << 8 | (u32)row[2] << 16 | (u32)row[3] << 24;
+        o[i].team = diy[0x12D + 2 * r] | diy[0x12E + 2 * r] << 8;
+        o[i].glob = sel[t + 2] | sel[t + 3] << 8;
+        o[i].won = o[i].gf = o[i].ga = 0;
+        o[i].pts = k[22 + 2 * i] | k[23 + 2 * i] << 8;
+    }
+    GP_IN.nst[gp_kn++] = n;
+}
+
 void gp_season(void) {
     const u8 *s = GP_IN.spec;
     u32 h = 0;

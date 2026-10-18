@@ -37,12 +37,13 @@ import re
 import struct
 
 WEEKS = 0x1CD                   # DIY: the match days' weeks, a byte per day (cseg_2730A), up to +2B3h (the rows)
-ST = 0x2B3 - 166                # our state: the end of the weeks table (a split league has at most MAXDAYS days);
-ST_SIZE = 166                   # never in the rows (some routines walk all 64 rows by their team dword)
-MAXDAYS = ST - WEEKS            # 64
-OFF = dict(magic=0, entry=2, frozen=4, p2r=6, grp=30, pre=54, h2h=102)
+import os as _os
+NMAX = int(_os.environ.get("SPLIT_NMAX", 24))   # (the state's layout follows it; SPLIT_NMAX=32: probe of 30-club leagues)
+OFF = dict(magic=0, entry=2, frozen=4, kept=5, p2r=6, grp=6 + NMAX, pre=6 + 2 * NMAX, h2h=6 + 4 * NMAX)
+ST_SIZE = OFF['h2h'] + 64       # (24: 166)
+ST = 0x2B3 - ST_SIZE            # our state: the end of the weeks table (a split league has at most MAXDAYS days);
+MAXDAYS = ST - WEEKS            # 64     never in the rows (some routines walk all 64 rows by their team dword)
 MAGIC = 0x50FE                  # (FEh: never a week)
-NMAX = 24
 POINTS = {'full': 0, 'half_up': 1, 'half_down': 2, 'reset': 3, 'h2h_half': 4, 'half_down_h2h': 4}
 H2H_NMAX = 8                    # head-to-head points: n x n bytes after the state (rows 48-63 end at ST + 288)
 
@@ -50,12 +51,13 @@ ASM = r"""
 %define S_MAGIC  ST_
 %define S_ENTRY  ST_ + 2
 %define S_FROZEN ST_ + 4
+%define S_KEPT   ST_ + 5                ; 1 = a 'keep' stage's table is in S_KEEP (gplay's gp_cap: GP_IN.st)
 %define S_P2R    ST_ + 6
-%define S_GRP    ST_ + 30
-%define S_PRE    ST_ + 54
-%define S_H2H    ST_ + 102
+%define S_GRP    ST_ + O_GRP
+%define S_PRE    ST_ + O_PRE
+%define S_H2H    ST_ + O_H2H
 
-%define S_KEEP   ST_ + 102              ; (the head-to-head bytes: never in one league with a 'keep' stage)
+%define S_KEEP   ST_ + O_H2H              ; (the head-to-head bytes: never in one league with a 'keep' stage)
 %define E_CNT    8
 %define E_FIRST  10
 %define E_PAIRS  12
@@ -309,6 +311,7 @@ sp_freeze:                              ; esi = DIY, edx = entry, eax = stage, e
     mov [sp_n], ecx
     test byte [ebp + 2], 2              ; keep: the table before this stage (row by place, then its points)
     jz .nokeep
+    mov byte [esi + S_KEPT], 1
     xor ecx, ecx
 .keep:
     movzx eax, word [esi + 6Dh + ecx * 2]
@@ -1093,7 +1096,7 @@ def patch(p, cave, nasmcave, splits):
     src = ASM + ''.join(f'    db {", ".join(str(b) for b in tab[i:i + 32])}\n' for i in range(0, len(tab), 32))
     sym = {'D0': (2, s['A0'] - 32), 'A0': (2, s['A0']), 'A1': (2, s['A0'] + 4), 'A2': (2, s['A0'] + 8), 'A5': (2, s['A0'] + 20),
            'A3': (2, s['A0'] + 12), 'A4': (2, s['A0'] + 16), 'D1': (2, s['A0'] - 28), 'D2': (2, s['A0'] - 24),
-           'D7': (2, s['A0'] - 4), 'REGS': (2, s['A0'] - 32), 'DIY': (2, s['DIY']), 'ST_': (0, ST), 'ST_SIZE': (0, ST_SIZE),
+           'D7': (2, s['A0'] - 4), 'REGS': (2, s['A0'] - 32), 'DIY': (2, s['DIY']), 'ST_': (0, ST), 'ST_SIZE': (0, ST_SIZE), 'O_GRP': (0, OFF['grp']), 'O_PRE': (0, OFF['pre']), 'O_H2H': (0, OFF['h2h']),
            'MAGIC_': (0, MAGIC), 'NMAX_': (0, NMAX), 'GAMETYPE': s['GAMETYPE'], 'SLT': s['SLT'],
            'WORLD_BYTE': (0, careerworld.WORLD_BYTE), 'C2653B': (1, s['C2653B']), 'C2730A': (1, s['C2730A']),
            'C883DD': (1, s['sort_start']), 'C88420': (1, s['C88420']), 'BUILDER_RET': (1, s['BUILDER_RET']),

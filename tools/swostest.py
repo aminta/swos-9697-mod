@@ -4338,6 +4338,82 @@ def club_renames():
         'no old name in DATA; TEAM.020 INTER + MILAN; TEAM.105 / TEAM.145 INTER'
 
 
+def menu_down_to(s, entry, tries=24):
+    """'down' until the entry is selected (the menu skips any number of invisible entries; path() gives up after 8)."""
+    for _ in range(tries):
+        if s.screen().selected == entry:
+            return True
+        s.send('down dump:0.5')
+    return s.screen().selected == entry
+
+
+@scenario
+def menu_levels():
+    """4.0 (menutab + menulevels): team choice of a league with levels of groups, level first then group (Davide):
+    world 2026-27 (MENU14_BUILD, default builds/w2627-latest), career -> ITALIA = SERIE A, B, C, D (the game showed
+    10 of 14 divisions); SERIE D -> its 9 groups; ESCI -> the levels; SERIE D GIRONE I -> its clubs -> a career at
+    TRAPANI starts, its VIEW WORLD lists ITALIA's levels + cups and SERIE D opens its groups; EL SALVADOR: SEGUNDA /
+    TERCERA DIVISION -> OCCIDENTE / ORIENTE"""
+    b = os.path.realpath(os.environ.get('MENU14_BUILD') or os.path.join(WORK, 'builds', 'w2627-latest'))
+    vis = lambda scr: [t for i, t, inv, _ in scr.entries if 11 <= i <= 86 and t and not inv]
+    errs, notes = [], []
+    head = ('CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27')
+    with Session('menu_levels', b, {}, 'dump:2', 600) as s:
+        s.wait()
+        try:
+            for t in head + ('EUROPA',):
+                walk(s, t, 3)
+            walk(s, 'ITALIA', 3)
+            lv = vis(s.screen())
+            check(lv == ['SERIE A', 'SERIE B', 'SERIE C', 'SERIE D'], f'ITALIA levels {lv}', errs)
+            s.shot('levels')
+            walk(s, 'SERIE D', 3)
+            gr = vis(s.screen())
+            check(gr == [f'SERIE D GIRONE {g}' for g in 'ABCDEFGHI'], f'SERIE D groups {gr}', errs)
+            check(menu_down_to(s, 88), 'ESCI not reached from the groups', errs)
+            s.send('fire dump:3')
+            back = vis(s.screen())
+            check(back == lv, f'ESCI -> {back}', errs)
+            walk(s, 'SERIE D', 3)
+            walk(s, 'SERIE D GIRONE I', 3)
+            clubs = vis(s.screen())
+            check('TRAPANI' in clubs and 'SIRACUSA CALCIO' in clubs, f'GIRONE I clubs {clubs}', errs)
+            s.shot('girone_i')
+            walk(s, 'TRAPANI', 3)
+            s.send('fire dump:3')
+            texts = s.screen().texts()
+            check('TRASFERIMENTI' in texts or 'PARTITA' in texts, f'career menu {texts[:8]}', errs)
+            walk(s, 'VISUALIZZA MONDO', 3)              # VIEW WORLD: the same list with the cups (the second pick)
+            for t in ('CARR. STORICHE', 'MONDO 2026-27', 'EUROPA', 'ITALIA'):   # (a world's view: its entry first)
+                if s.screen().find(t, exact=True) is not None:
+                    walk(s, t, 3)
+            wv = vis(s.screen())
+            check(wv[:4] == lv and len(wv) > 4, f'VIEW WORLD ITALIA {wv}', errs)
+            walk(s, 'SERIE D', 3)
+            gr2 = vis(s.screen())
+            check(gr2 == gr, f'VIEW WORLD SERIE D {gr2}', errs)
+            notes.append(f'VIEW WORLD {wv}')
+        except AssertionError as e:
+            return False, f'{e}; {"; ".join(errs)}; screen {s.screen().texts()[:16]}'
+    with Session('menu_levels_slv', b, {}, 'dump:2', 600) as s:
+        s.wait()
+        try:
+            for t in head:
+                walk(s, t, 3)
+            cont = next((c for c in ('NORDAMERICA', 'NORD AMERICA', 'CENTROAMERICA') if s.screen().find(c, exact=True) is not None), None)
+            walk(s, cont, 3)
+            walk(s, 'EL SALVADOR', 3)
+            lv = vis(s.screen())
+            check('SEGUNDA DIVISION' in lv and 'TERCERA DIVISION' in lv, f'EL SALVADOR levels {lv}', errs)
+            walk(s, 'SEGUNDA DIVISION', 3)
+            gr = vis(s.screen())
+            check(gr == ['SEGUNDA DIVISION OCCIDENTE', 'SEGUNDA DIVISION ORIENTE'], f'SEGUNDA groups {gr}', errs)
+            notes.append(f'EL SALVADOR {lv}')
+        except AssertionError as e:
+            return False, f'{e}; {"; ".join(errs)}; screen {s.screen().texts()[:16]}'
+    return not errs, '; '.join(errs) or 'ITALIA: SERIE A, B, C, D -> SERIE D GIRONE A..I -> ESCI -> GIRONE I -> TRAPANI career; ' + '; '.join(notes)
+
+
 def run_parallel(names, jobs):
     """run -jN: each scenario in its own process (own run dirs and DOSBox-X, one host core each in turbo); the
     builds are made once here first. Output in the order of the names; exit code 1 on a failure."""

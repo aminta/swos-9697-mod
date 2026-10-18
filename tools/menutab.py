@@ -17,6 +17,8 @@ import struct
 
 SLOTS = 32
 SITES = 6
+NEW = [None, None]      # obj2 offsets of the moved tables
+ORIG = [None, None]     # and of the game's (p.le.fixups() still lists the original targets: menulevels' picks)
 
 
 def _find(p):
@@ -57,5 +59,7 @@ def patch(p, area):
             continue
         n += 1
     assert n == SITES, n
+    NEW[:] = [new_p, new_n]
+    ORIG[:] = [ptrs, nums]
     print(f'exe: team-choice competition tables obj2+{ptrs:#x} / +{nums:#x} (10) -> obj2+{new_p:#x} / +{new_n:#x} '
           f'({SLOTS}; {n} fixups)')

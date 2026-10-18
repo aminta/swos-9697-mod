@@ -239,6 +239,9 @@ def patch_exe(src, dst, remap, lang='it'):
         o2pages += 2
         data = add_object_page(data, 2)
         data = add_object_page(data, 2)
+    if mkseason.league_phase_worlds():          # simulated results' score table (simdraw.py, 3 KB)
+        o2pages += 1
+        data = add_object_page(data, 2)
     if bigtables.ON[0]:                         # the two tables of LIMIT global numbers (bigtables.retarget)
         o2pages += 2
         data = add_object_page(data, 2)
@@ -339,6 +342,9 @@ def patch_exe(src, dst, remap, lang='it'):
               'diycopy': s36['DIYCOPY'], 'qual': careerworld._qual_sites(p.le.obj_bytes(1), p), 'a0': a0,
               'lp_ord': lp36.LABELS['LP_ORD'], 'area': area}
         uc_end = uefacoef.patch(p, hist2 + h2 + 0x1000, mkseason.world_defs(), cs)
+        import simdraw                          # simulated results: real draws and goals (World 2026-27)
+        uc_end = simdraw.patch(p, uc_end, area, careerworld.LABELS['sites']['gametype'], careerworld.LABELS['w_lpw'],
+                               historic._coin_sites(p, historic._draw_call(p)[1])['rand2'])
         assert uc_end <= hist2 + h2 + 0x2000, hex(uc_end)
         import uefaq                            # UEFA qualifying rounds (C code, tools/uefaq.c; 4 pages)
         cs['bss'] = careerworld.BSS[0]

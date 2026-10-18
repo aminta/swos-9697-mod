@@ -1535,6 +1535,68 @@ def w84_tag():
     return 'world8485' if n in (None, '', 'world8485') else f'{n}_w84'
 
 
+def fmt_lines(build, title, lang='it', world=0):
+    """The FORMAT page's first page for title, as written in the build's DATA\\FMTxx[world].DAT (fmtpage.py)."""
+    path = os.path.join(build, 'DATA', f'FMT{lang.upper()}{world or ""}.DAT')
+    d = open(path, 'rb').read()
+    for i in range(struct.unpack_from('<H', d, 4)[0]):
+        e = d[8 + 40 * i:48 + 40 * i]
+        if e[1:32].split(b'\0')[0].decode('latin-1') == title:
+            off, ln = struct.unpack_from('<IH', e, 32)
+            return d[off:off + ln].decode('latin-1').split('\x0c')[0].split('\n')
+    return None
+
+
+@scenario
+def format_page():
+    """5.0 / 4.0: the FORMAT page (fmtpage.py). Season DDR 1988-89: FORMULA of the Oberliga and of the FDGB-Pokal
+    (DATA\\FMTIT.DAT); a new 1984-85 career at Liverpool: the First Division (world 4: FMTIT4.DAT). Each page shows
+    the competition's title and the file's lines; NEXT PAGE and EXIT work"""
+    b = builds()['it']
+    errs, info = [], []
+    def check_page(scr, title, world):
+        want = fmt_lines(b, title, 'it', world)
+        got = [e[1] for e in scr.entries[1:1 + len(want or [])]] if want else None
+        check(scr.entries[0][1] == title and want and got == want, f'{title}: shown {scr.entries[0][1]!r} {got} '
+              f'want {want}', errs)
+        info.append(f'{title}: {len(want or [])} lines')
+    with Session('format_season', b, {}, 'dump:2', 300) as s:
+        s.wait()
+        for t in ('STAGIONE', 'STAG. STORICHE', 'DDR 1988-89'):
+            press(s, s.screen(), t, 2)
+        for _ in range(12):
+            scr = s.screen()
+            if scr.entries[scr.selected][1] == 'STAGIONE':
+                break
+            s.send(('right' if scr.entries[scr.selected][1] == 'ABBANDONA' else 'down') + ' dump:0.5')
+        s.send('fire dump:3')
+        walk(s, 18, 3)                                  # VISUAL. COMPETIZ. (the season menu's entry 18)
+        for k, title in ((1, 'DDR 1988-89 OBERLIGA 1988-89'), (2, 'DDR 1988-89 FDGB-POKAL 1988-89')):
+            walk(s, k, 3)
+            walk(s, s.screen().find('STAT', exact=True), 3)
+            walk(s, s.screen().find('FORMULA', exact=True), 3)
+            scr = s.screen()
+            check_page(scr, title, 0)
+            s.shot(f'format_{k}')
+            walk(s, scr.find('ESCI', exact=True), 3)    # -> statistics
+            walk(s, s.screen().find('ESCI', exact=True), 3)   # -> the competition
+            walk(s, s.screen().find('ESCI', exact=True), 3)   # -> the list
+    with Session('format_w84', b, {}, 'dump:2', 300) as s:
+        s.wait()
+        for t in ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'EUROPA 1984-85', 'INGHILTERRA', 'FIRST DIVISION',
+                  'LIVERPOOL']:
+            if press(s, s.screen(), t) is None:
+                return False, f'new career: {t} not reached'
+        s.send('fire dump:3')
+        walk(s, 11, 3)                                  # VISUAL. COMPETIZ.
+        walk(s, 1, 3)
+        walk(s, s.screen().find('STAT', exact=True), 3)
+        walk(s, s.screen().find('FORMULA', exact=True), 3)
+        check_page(s.screen(), 'INGHILTERRA FIRST DIVISION', 4)
+        s.shot('format_w84')
+    return not errs, '; '.join(errs + info) if errs else 'FORMAT pages drawn: ' + '; '.join(info)
+
+
 @scenario
 def world8485():
     """Europe 1984-85 world (world 4): new career at Liverpool, two seasons (save, reload, save), checkw1 on both"""

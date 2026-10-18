@@ -17,11 +17,25 @@
 **Italy**
 - SERIE A: 20 clubs; double round robin, 38 matchdays; 3 down
 - SERIE B: 20 clubs; double round robin, 38 matchdays; 2 up; 3 down
-- SERIE C GIRONE A / SERIE C GIRONE B / SERIE C GIRONE C: 3 parallel groups of 20 + 20 + 20 (each club in the group of its area; promoted and relegated clubs join the group of their area); double round robin, 38 matchdays; 1 up; the lowest division of the world: nobody goes down
+- SERIE C GIRONE A / SERIE C GIRONE B / SERIE C GIRONE C: 3 parallel groups of 20 + 20 + 20 (each club in the group of its area; promoted and relegated clubs join the group of their area); double round robin, 38 matchdays; 1 up; 1 down
+  - SERIE C A PLAY-OUT (play-out): SERIE C GIRONE A 16th-19th; two legs, the better placed at home (2nd leg), level: the better placed goes through, not played when the two clubs are 8+ points apart
+  - SERIE C B PLAY-OUT (play-out): SERIE C GIRONE B 16th-19th; two legs, the better placed at home (2nd leg), level: the better placed goes through, not played when the two clubs are 8+ points apart
+  - SERIE C C PLAY-OUT (play-out): SERIE C GIRONE C 16th-19th; two legs, the better placed at home (2nd leg), level: the better placed goes through, not played when the two clubs are 8+ points apart
+- SERIE D GIRONE A / SERIE D GIRONE B / SERIE D GIRONE C / SERIE D GIRONE D / SERIE D GIRONE E / SERIE D GIRONE F / SERIE D GIRONE G / SERIE D GIRONE H / SERIE D GIRONE I: 9 parallel groups of 17 + 17 + 17 + 18 + 17 + 18 + 17 + 17 + 18 (each club in the group of its area; promoted and relegated clubs join the group of their area); double round robin, 34 matchdays; one club rests each matchday; 1 up; the lowest division of the world: nobody goes down
+  - SERIE D A PLAY-OFF (placement play-off): SERIE D GIRONE A 2nd-5th; 2 rounds of single match, the better placed at home (2nd leg), extra time, then the better placed
+  - SERIE D B PLAY-OFF (placement play-off): SERIE D GIRONE B 2nd-5th; 2 rounds of single match, the better placed at home (2nd leg), extra time, then the better placed
+  - SERIE D C PLAY-OFF (placement play-off): SERIE D GIRONE C 2nd-5th; 2 rounds of single match, the better placed at home (2nd leg), extra time, then the better placed
+  - SERIE D D PLAY-OFF (placement play-off): SERIE D GIRONE D 2nd-5th; 2 rounds of single match, the better placed at home (2nd leg), extra time, then the better placed
+  - SERIE D E PLAY-OFF (placement play-off): SERIE D GIRONE E 2nd-5th; 2 rounds of single match, the better placed at home (2nd leg), extra time, then the better placed
+  - SERIE D F PLAY-OFF (placement play-off): SERIE D GIRONE F 2nd-5th; 2 rounds of single match, the better placed at home (2nd leg), extra time, then the better placed
+  - SERIE D G PLAY-OFF (placement play-off): SERIE D GIRONE G 2nd-5th; 2 rounds of single match, the better placed at home (2nd leg), extra time, then the better placed
+  - SERIE D H PLAY-OFF (placement play-off): SERIE D GIRONE H 2nd-5th; 2 rounds of single match, the better placed at home (2nd leg), extra time, then the better placed
+  - SERIE D I PLAY-OFF (placement play-off): SERIE D GIRONE I 2nd-5th; 2 rounds of single match, the better placed at home (2nd leg), extra time, then the better placed
   - Serie B play-offs (3rd-8th: preliminary 5v8, 6v7 at the better placed; two-legged semi-finals and final; level: the better placed) and play-out (16th v 17th, two legs); Serie C play-off of 28 clubs (group phase, national phase, Final Four) for the fourth promotion
 - COPPA ITALIA (Cup): 16 clubs; from the round of 16; the clubs still in the real 2026-27 cup, all 8 first-round pairs as really drawn; rounds 1-2: single matches, extra time and penalties; round 3: two legs (aggregate, then extra time and penalties); final: single match, extra time and penalties
 - COPPA ITALIA SERIE C (League cup): 17 clubs; from the round of 32; the clubs still in the real 2026-27 cup, the only first-round pair as really drawn; 15 byes into the 2nd round; rounds 1-3: single matches, extra time and penalties; round 4: two legs (aggregate, then extra time and penalties); final: two legs (aggregate, then extra time and penalties)
 - Europe: season 1: the real 2026-27 league-phase clubs (Champions League Como, Inter, Roma, Napoli; Europa League Juventus, Milan; Conference League Atalanta); from season 2: Champions League 5, Europa League 2, Conference League 1 by the simulated association coefficients
+- *Declared approximation*: the 9 Serie D clubs that come up at the end of season 1 are the Serie D group leaders of 18 October 2026, standing in for the real winners (known in May 2027)
 
 **Spain**
 - LALIGA: 20 clubs; double round robin, 38 matchdays; 3 down
@@ -535,11 +549,25 @@
 **Italia**
 - SERIE A: 20 squadre; girone di andata e ritorno, 38 giornate; 3 retrocesse
 - SERIE B: 20 squadre; girone di andata e ritorno, 38 giornate; 2 promosse; 3 retrocesse
-- SERIE C GIRONE A / SERIE C GIRONE B / SERIE C GIRONE C: 3 gironi paralleli da 20 + 20 + 20 (ogni club nel girone della sua area; promosse e retrocesse vanno nel girone della loro area); girone di andata e ritorno, 38 giornate; 1 promossa; l'ultima divisione del mondo: nessuna retrocessione
+- SERIE C GIRONE A / SERIE C GIRONE B / SERIE C GIRONE C: 3 gironi paralleli da 20 + 20 + 20 (ogni club nel girone della sua area; promosse e retrocesse vanno nel girone della loro area); girone di andata e ritorno, 38 giornate; 1 promossa; 1 retrocessa
+  - SERIE C A PLAY-OUT (play-out): SERIE C GIRONE A 16ª-19ª; andata e ritorno, in casa la meglio piazzata (al ritorno), in parità passa la meglio piazzata, non si gioca se le due squadre sono a 8 o più punti
+  - SERIE C B PLAY-OUT (play-out): SERIE C GIRONE B 16ª-19ª; andata e ritorno, in casa la meglio piazzata (al ritorno), in parità passa la meglio piazzata, non si gioca se le due squadre sono a 8 o più punti
+  - SERIE C C PLAY-OUT (play-out): SERIE C GIRONE C 16ª-19ª; andata e ritorno, in casa la meglio piazzata (al ritorno), in parità passa la meglio piazzata, non si gioca se le due squadre sono a 8 o più punti
+- SERIE D GIRONE A / SERIE D GIRONE B / SERIE D GIRONE C / SERIE D GIRONE D / SERIE D GIRONE E / SERIE D GIRONE F / SERIE D GIRONE G / SERIE D GIRONE H / SERIE D GIRONE I: 9 gironi paralleli da 17 + 17 + 17 + 18 + 17 + 18 + 17 + 17 + 18 (ogni club nel girone della sua area; promosse e retrocesse vanno nel girone della loro area); girone di andata e ritorno, 34 giornate; a ogni giornata una squadra riposa; 1 promossa; l'ultima divisione del mondo: nessuna retrocessione
+  - SERIE D A PLAY-OFF (spareggio piazzamenti): SERIE D GIRONE A 2ª-5ª; 2 turni: gara unica, in casa la meglio piazzata (al ritorno), supplementari, poi la meglio piazzata
+  - SERIE D B PLAY-OFF (spareggio piazzamenti): SERIE D GIRONE B 2ª-5ª; 2 turni: gara unica, in casa la meglio piazzata (al ritorno), supplementari, poi la meglio piazzata
+  - SERIE D C PLAY-OFF (spareggio piazzamenti): SERIE D GIRONE C 2ª-5ª; 2 turni: gara unica, in casa la meglio piazzata (al ritorno), supplementari, poi la meglio piazzata
+  - SERIE D D PLAY-OFF (spareggio piazzamenti): SERIE D GIRONE D 2ª-5ª; 2 turni: gara unica, in casa la meglio piazzata (al ritorno), supplementari, poi la meglio piazzata
+  - SERIE D E PLAY-OFF (spareggio piazzamenti): SERIE D GIRONE E 2ª-5ª; 2 turni: gara unica, in casa la meglio piazzata (al ritorno), supplementari, poi la meglio piazzata
+  - SERIE D F PLAY-OFF (spareggio piazzamenti): SERIE D GIRONE F 2ª-5ª; 2 turni: gara unica, in casa la meglio piazzata (al ritorno), supplementari, poi la meglio piazzata
+  - SERIE D G PLAY-OFF (spareggio piazzamenti): SERIE D GIRONE G 2ª-5ª; 2 turni: gara unica, in casa la meglio piazzata (al ritorno), supplementari, poi la meglio piazzata
+  - SERIE D H PLAY-OFF (spareggio piazzamenti): SERIE D GIRONE H 2ª-5ª; 2 turni: gara unica, in casa la meglio piazzata (al ritorno), supplementari, poi la meglio piazzata
+  - SERIE D I PLAY-OFF (spareggio piazzamenti): SERIE D GIRONE I 2ª-5ª; 2 turni: gara unica, in casa la meglio piazzata (al ritorno), supplementari, poi la meglio piazzata
   - play-off di Serie B (dalla 3ª all'8ª: turno preliminare 5ª-8ª, 6ª-7ª in casa della meglio piazzata; semifinali e finale di andata e ritorno; in parità passa la meglio piazzata) e play-out (16ª contro 17ª, andata e ritorno); play-off di Serie C a 28 squadre (fase a gironi, fase nazionale, Final Four) per la quarta promozione
 - COPPA ITALIA (Coppa): 16 squadre; dagli ottavi di finale; le squadre ancora in corsa nella vera coppa 2026-27, tutti e 8 accoppiamenti del primo turno come nel sorteggio vero; turni 1-2: gara unica, supplementari e rigori; turno 3: andata e ritorno (somma dei gol, poi supplementari e rigori); finale: gara unica, supplementari e rigori
 - COPPA ITALIA SERIE C (Coppa di lega): 17 squadre; dai sedicesimi di finale; le squadre ancora in corsa nella vera coppa 2026-27, l'unico accoppiamento del primo turno come nel sorteggio vero; 15 esenti fino al 2° turno; turni 1-3: gara unica, supplementari e rigori; turno 4: andata e ritorno (somma dei gol, poi supplementari e rigori); finale: andata e ritorno (somma dei gol, poi supplementari e rigori)
 - Europa: stagione 1: i veri club 2026-27 delle fasi campionato (Champions League Como, Inter, Roma, Napoli; Europa League Juventus, Milan; Conference League Atalanta); dalla stagione 2: Champions League 5, Europa League 2, Conference League 1 secondo i coefficienti per federazione simulati
+- *Approssimazione dichiarata*: le 9 squadre di Serie D che salgono a fine prima stagione sono le capoliste dei gironi di Serie D al 18 ottobre 2026, al posto delle vere vincitrici (note a maggio 2027)
 
 **Spagna**
 - LALIGA: 20 squadre; girone di andata e ritorno, 38 giornate; 3 retrocesse

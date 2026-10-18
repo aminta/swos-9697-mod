@@ -332,7 +332,10 @@ def _who(po, names, t, lang):
 
 def _po(po, names, t, lang):
     def one(r):
-        bits = [t['legs'][r.get('legs', 1)], t['host'].get(r.get('host', 'listed'), ''),
+        h = t['host'].get(r.get('host', 'listed'), '')
+        if r.get('legs', 1) == 1:                        # (a single match: no '2nd leg')
+            h = h.replace(' (2nd leg)', '').replace(' (al ritorno)', '')
+        bits = [t['legs'][r.get('legs', 1)], h,
                 t['level'].get(r.get('level', 'et_pens'), '')]
         if r.get('gap'):
             bits.append(t['gap'].format(n=r['gap']))

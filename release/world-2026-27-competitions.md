@@ -22,15 +22,15 @@
   - SERIE C B PLAY-OUT (play-out): SERIE C GIRONE B 16th-19th; two legs, the better placed at home (2nd leg), level: the better placed goes through, not played when the two clubs are 8+ points apart
   - SERIE C C PLAY-OUT (play-out): SERIE C GIRONE C 16th-19th; two legs, the better placed at home (2nd leg), level: the better placed goes through, not played when the two clubs are 8+ points apart
 - SERIE D GIRONE A / SERIE D GIRONE B / SERIE D GIRONE C / SERIE D GIRONE D / SERIE D GIRONE E / SERIE D GIRONE F / SERIE D GIRONE G / SERIE D GIRONE H / SERIE D GIRONE I: 9 parallel groups of 17 + 17 + 17 + 18 + 17 + 18 + 17 + 17 + 18 (each club in the group of its area; promoted and relegated clubs join the group of their area); double round robin, 34 matchdays; one club rests each matchday; 1 up; the lowest division of the world: nobody goes down
-  - SERIE D A PLAY-OFF (placement play-off): SERIE D GIRONE A 2nd-5th; 2 rounds of single match, the better placed at home (2nd leg), extra time, then the better placed
-  - SERIE D B PLAY-OFF (placement play-off): SERIE D GIRONE B 2nd-5th; 2 rounds of single match, the better placed at home (2nd leg), extra time, then the better placed
-  - SERIE D C PLAY-OFF (placement play-off): SERIE D GIRONE C 2nd-5th; 2 rounds of single match, the better placed at home (2nd leg), extra time, then the better placed
-  - SERIE D D PLAY-OFF (placement play-off): SERIE D GIRONE D 2nd-5th; 2 rounds of single match, the better placed at home (2nd leg), extra time, then the better placed
-  - SERIE D E PLAY-OFF (placement play-off): SERIE D GIRONE E 2nd-5th; 2 rounds of single match, the better placed at home (2nd leg), extra time, then the better placed
-  - SERIE D F PLAY-OFF (placement play-off): SERIE D GIRONE F 2nd-5th; 2 rounds of single match, the better placed at home (2nd leg), extra time, then the better placed
-  - SERIE D G PLAY-OFF (placement play-off): SERIE D GIRONE G 2nd-5th; 2 rounds of single match, the better placed at home (2nd leg), extra time, then the better placed
-  - SERIE D H PLAY-OFF (placement play-off): SERIE D GIRONE H 2nd-5th; 2 rounds of single match, the better placed at home (2nd leg), extra time, then the better placed
-  - SERIE D I PLAY-OFF (placement play-off): SERIE D GIRONE I 2nd-5th; 2 rounds of single match, the better placed at home (2nd leg), extra time, then the better placed
+  - SERIE D A PLAY-OFF (placement play-off): SERIE D GIRONE A 2nd-5th; 2 rounds of single match, the better placed at home, extra time, then the better placed
+  - SERIE D B PLAY-OFF (placement play-off): SERIE D GIRONE B 2nd-5th; 2 rounds of single match, the better placed at home, extra time, then the better placed
+  - SERIE D C PLAY-OFF (placement play-off): SERIE D GIRONE C 2nd-5th; 2 rounds of single match, the better placed at home, extra time, then the better placed
+  - SERIE D D PLAY-OFF (placement play-off): SERIE D GIRONE D 2nd-5th; 2 rounds of single match, the better placed at home, extra time, then the better placed
+  - SERIE D E PLAY-OFF (placement play-off): SERIE D GIRONE E 2nd-5th; 2 rounds of single match, the better placed at home, extra time, then the better placed
+  - SERIE D F PLAY-OFF (placement play-off): SERIE D GIRONE F 2nd-5th; 2 rounds of single match, the better placed at home, extra time, then the better placed
+  - SERIE D G PLAY-OFF (placement play-off): SERIE D GIRONE G 2nd-5th; 2 rounds of single match, the better placed at home, extra time, then the better placed
+  - SERIE D H PLAY-OFF (placement play-off): SERIE D GIRONE H 2nd-5th; 2 rounds of single match, the better placed at home, extra time, then the better placed
+  - SERIE D I PLAY-OFF (placement play-off): SERIE D GIRONE I 2nd-5th; 2 rounds of single match, the better placed at home, extra time, then the better placed
   - Serie B play-offs (3rd-8th: preliminary 5v8, 6v7 at the better placed; two-legged semi-finals and final; level: the better placed) and play-out (16th v 17th, two legs); Serie C play-off of 28 clubs (group phase, national phase, Final Four) for the fourth promotion
 - COPPA ITALIA (Cup): 16 clubs; from the round of 16; the clubs still in the real 2026-27 cup, all 8 first-round pairs as really drawn; rounds 1-2: single matches, extra time and penalties; round 3: two legs (aggregate, then extra time and penalties); final: single match, extra time and penalties
 - COPPA ITALIA SERIE C (League cup): 17 clubs; from the round of 32; the clubs still in the real 2026-27 cup, the only first-round pair as really drawn; 15 byes into the 2nd round; rounds 1-3: single matches, extra time and penalties; round 4: two legs (aggregate, then extra time and penalties); final: two legs (aggregate, then extra time and penalties)
@@ -72,7 +72,7 @@
 **Holland**
 - EREDIVISIE: 18 clubs; double round robin, 34 matchdays; 2 down
   - PLAY-OFFS PROMOTIE/DEGRADATIE (promotion play-off): EERSTE DIVISIE 3rd-8th + EREDIVISIE 16th; round 1: two legs, home order as in the real schedule, extra time and penalties; round 2: two legs, home order as in the real schedule, extra time and penalties; round 3: two legs, the better placed at home (2nd leg), extra time and penalties; round 4: two legs, home order as in the real schedule, extra time and penalties; the winner to EREDIVISIE
-  - PLAY-OFFS EUROPEES VOETBAL (European play-off): EREDIVISIE 5th-8th; 2 rounds of single match, the better placed at home (2nd leg), extra time and penalties
+  - PLAY-OFFS EUROPEES VOETBAL (European play-off): EREDIVISIE 5th-8th; 2 rounds of single match, the better placed at home, extra time and penalties
 - EERSTE DIVISIE: 20 clubs; double round robin, 38 matchdays; 2 up; the lowest division of the world: nobody goes down
 - KNVB BEKER (Cup): 34 clubs; from the round of 64; the clubs still in the real 2026-27 cup, all 2 first-round pairs as really drawn; 30 byes into the 2nd round; single matches, extra time and penalties; final: single match, extra time and penalties
 - Europe: season 1: the real 2026-27 league-phase clubs (Champions League PSV, Feyenoord; Europa League AZ Alkmaar, N.E.C.; Conference League Twente, Ajax); from season 2: Champions League 2, Europa League 2, Conference League 1 by the simulated association coefficients
@@ -91,7 +91,7 @@
 
 **Czech Rep.**
 - 1. CESKA FOTBALOVA LIGA: 16 clubs; double round robin (30 matchdays); after 30 matchdays: 1-6 single round robin, 7-10 no more matches, 11-16 single round robin; 35 matchdays; the lowest division of the world: nobody goes down
-  - SKUPINA O UMISTENI 7-10 (placement play-off): 1. CESKA FOTBALOVA LIGA 7th-10th; 2 rounds of single match, the better placed at home (2nd leg), extra time and penalties
+  - SKUPINA O UMISTENI 7-10 (placement play-off): 1. CESKA FOTBALOVA LIGA 7th-10th; 2 rounds of single match, the better placed at home, extra time and penalties
 - POHAR FACR (Cup): 15 clubs; from the round of 16; the clubs still in the real 2026-27 cup, 6 of the 7 first-round pairs as really drawn; 1 byes into the 2nd round; single matches, extra time and penalties; final: single match, extra time and penalties
 - Europe: season 1: the real 2026-27 league-phase clubs (Champions League Slavia Praha; Europa League Viktoria Plzeň, Sparta Praha; Conference League Jablonec); from season 2: Champions League 1, Europa League 2, Conference League 1 by the simulated association coefficients
 - *Declared approximation*: no 2026-27 regulation found: the 7th-10th placement knockout of single matches as in 2025-26
@@ -291,7 +291,7 @@
 
 **N. Ireland**
 - NIFL PREMIERSHIP: 12 clubs; triple round robin (33 matchdays); after 33 matchdays: 1-6 single round robin, 7-12 single round robin; home order: the club that was away in their 3rd meeting; 38 matchdays; the lowest division of the world: nobody goes down
-  - EUROPA CONFERENCE PLAY-OFF (European play-off): NIFL PREMIERSHIP 4th-7th; 3 rounds of single match, the better placed at home (2nd leg), extra time and penalties
+  - EUROPA CONFERENCE PLAY-OFF (European play-off): NIFL PREMIERSHIP 4th-7th; 3 rounds of single match, the better placed at home, extra time and penalties
 - IRISH CUP (Cup): 12 clubs; every club of the league, drawn by the game; 4 byes into the 2nd round; single matches, extra time and penalties; final: single match, extra time and penalties; rounds numbered as in reality
 - IRISH LEAGUE CUP (League cup): 12 clubs; from the round of 16; the clubs still in the real 2026-27 cup, 2 of the 4 first-round pairs as really drawn; 4 byes into the 2nd round; single matches, extra time and penalties; final: single match, extra time and penalties
 - Europe: season 1: no club in the league phases
@@ -329,14 +329,14 @@
 
 **Wales**
 - CYMRU PREMIER: 16 clubs; double round robin (30 matchdays); after 30 matchdays: 1-6 single round robin, 7-10 single round robin, 11-16 single round robin; 35 matchdays; the lowest division of the world: nobody goes down
-  - EUROPEAN PLAY-OFFS (European play-off): CYMRU PREMIER 2nd-7th; 3 rounds of single match, the better placed at home (2nd leg), extra time and penalties
+  - EUROPEAN PLAY-OFFS (European play-off): CYMRU PREMIER 2nd-7th; 3 rounds of single match, the better placed at home, extra time and penalties
 - WELSH CUP (Cup): 16 clubs; from the round of 16; the clubs still in the real 2026-27 cup, 2 of the 8 first-round pairs as really drawn; single matches, extra time and penalties; final: single match, extra time and penalties; rounds numbered as in reality
 - WELSH LEAGUE CUP (League cup): 16 clubs; every club of the league, drawn by the game; single matches, extra time and penalties; final: single match, extra time and penalties
 - Europe: season 1: no club in the league phases
 
 **San Marino**
 - CAMPIONATO SAMMARINESE: 16 clubs; double round robin, 30 matchdays; the lowest division of the world: nobody goes down
-  - PLAY-OFF CONFERENCE LEAGUE (European play-off): CAMPIONATO SAMMARINESE 2nd-11th; round 1: single match, home order as in the real schedule, level: the better placed goes through; round 2: two legs, the better placed at home (2nd leg), level: the better placed goes through; round 3: two legs, the better placed at home (2nd leg), level: the better placed goes through; round 4: single match, the better placed at home (2nd leg), extra time and penalties
+  - PLAY-OFF CONFERENCE LEAGUE (European play-off): CAMPIONATO SAMMARINESE 2nd-11th; round 1: single match, home order as in the real schedule, level: the better placed goes through; round 2: two legs, the better placed at home (2nd leg), level: the better placed goes through; round 3: two legs, the better placed at home (2nd leg), level: the better placed goes through; round 4: single match, the better placed at home, extra time and penalties
 - COPPA TITANO (Cup): 16 clubs; from the round of 16; the clubs still in the real 2026-27 cup, 7 of the 8 first-round pairs as really drawn; single matches, extra time and penalties; final: single match, extra time and penalties
 - Europe: season 1: no club in the league phases
 - *Declared approximation*: no 2026-27 regulation found: one table of 30 matchdays and the Conference play-off of 2nd-11th, as in 2025-26
@@ -448,7 +448,7 @@
 **Japan**
 - J1 LEAGUE: 20 clubs; double round robin, 38 matchdays; 3 down
 - J2 LEAGUE: 20 clubs; double round robin, 38 matchdays; 2 up; the lowest division of the world: nobody goes down
-  - J1 PROMOTION PLAY-OFFS (promotion play-off): J2 LEAGUE 3rd-6th; 2 rounds of single match, the better placed at home (2nd leg), level: the better placed goes through; the winner to J1 LEAGUE
+  - J1 PROMOTION PLAY-OFFS (promotion play-off): J2 LEAGUE 3rd-6th; 2 rounds of single match, the better placed at home, level: the better placed goes through; the winner to J1 LEAGUE
 - EMPEROR'S CUP (Cup): 16 clubs; from the round of 16; the clubs still in the real 2026-27 cup, 0 of the 8 first-round pairs as really drawn; single matches, extra time and penalties; final: single match, extra time and penalties
 - J.LEAGUE CUP (League cup): 12 clubs; from the round of 16; the clubs still in the real 2026-27 cup, all 4 first-round pairs as really drawn; 4 byes into the 2nd round; round 1: single matches, extra time and penalties; rounds 2-3: two legs (aggregate, then extra time and penalties); final: single match, extra time and penalties
 
@@ -554,15 +554,15 @@
   - SERIE C B PLAY-OUT (play-out): SERIE C GIRONE B 16ª-19ª; andata e ritorno, in casa la meglio piazzata (al ritorno), in parità passa la meglio piazzata, non si gioca se le due squadre sono a 8 o più punti
   - SERIE C C PLAY-OUT (play-out): SERIE C GIRONE C 16ª-19ª; andata e ritorno, in casa la meglio piazzata (al ritorno), in parità passa la meglio piazzata, non si gioca se le due squadre sono a 8 o più punti
 - SERIE D GIRONE A / SERIE D GIRONE B / SERIE D GIRONE C / SERIE D GIRONE D / SERIE D GIRONE E / SERIE D GIRONE F / SERIE D GIRONE G / SERIE D GIRONE H / SERIE D GIRONE I: 9 gironi paralleli da 17 + 17 + 17 + 18 + 17 + 18 + 17 + 17 + 18 (ogni club nel girone della sua area; promosse e retrocesse vanno nel girone della loro area); girone di andata e ritorno, 34 giornate; a ogni giornata una squadra riposa; 1 promossa; l'ultima divisione del mondo: nessuna retrocessione
-  - SERIE D A PLAY-OFF (spareggio piazzamenti): SERIE D GIRONE A 2ª-5ª; 2 turni: gara unica, in casa la meglio piazzata (al ritorno), supplementari, poi la meglio piazzata
-  - SERIE D B PLAY-OFF (spareggio piazzamenti): SERIE D GIRONE B 2ª-5ª; 2 turni: gara unica, in casa la meglio piazzata (al ritorno), supplementari, poi la meglio piazzata
-  - SERIE D C PLAY-OFF (spareggio piazzamenti): SERIE D GIRONE C 2ª-5ª; 2 turni: gara unica, in casa la meglio piazzata (al ritorno), supplementari, poi la meglio piazzata
-  - SERIE D D PLAY-OFF (spareggio piazzamenti): SERIE D GIRONE D 2ª-5ª; 2 turni: gara unica, in casa la meglio piazzata (al ritorno), supplementari, poi la meglio piazzata
-  - SERIE D E PLAY-OFF (spareggio piazzamenti): SERIE D GIRONE E 2ª-5ª; 2 turni: gara unica, in casa la meglio piazzata (al ritorno), supplementari, poi la meglio piazzata
-  - SERIE D F PLAY-OFF (spareggio piazzamenti): SERIE D GIRONE F 2ª-5ª; 2 turni: gara unica, in casa la meglio piazzata (al ritorno), supplementari, poi la meglio piazzata
-  - SERIE D G PLAY-OFF (spareggio piazzamenti): SERIE D GIRONE G 2ª-5ª; 2 turni: gara unica, in casa la meglio piazzata (al ritorno), supplementari, poi la meglio piazzata
-  - SERIE D H PLAY-OFF (spareggio piazzamenti): SERIE D GIRONE H 2ª-5ª; 2 turni: gara unica, in casa la meglio piazzata (al ritorno), supplementari, poi la meglio piazzata
-  - SERIE D I PLAY-OFF (spareggio piazzamenti): SERIE D GIRONE I 2ª-5ª; 2 turni: gara unica, in casa la meglio piazzata (al ritorno), supplementari, poi la meglio piazzata
+  - SERIE D A PLAY-OFF (spareggio piazzamenti): SERIE D GIRONE A 2ª-5ª; 2 turni: gara unica, in casa la meglio piazzata, supplementari, poi la meglio piazzata
+  - SERIE D B PLAY-OFF (spareggio piazzamenti): SERIE D GIRONE B 2ª-5ª; 2 turni: gara unica, in casa la meglio piazzata, supplementari, poi la meglio piazzata
+  - SERIE D C PLAY-OFF (spareggio piazzamenti): SERIE D GIRONE C 2ª-5ª; 2 turni: gara unica, in casa la meglio piazzata, supplementari, poi la meglio piazzata
+  - SERIE D D PLAY-OFF (spareggio piazzamenti): SERIE D GIRONE D 2ª-5ª; 2 turni: gara unica, in casa la meglio piazzata, supplementari, poi la meglio piazzata
+  - SERIE D E PLAY-OFF (spareggio piazzamenti): SERIE D GIRONE E 2ª-5ª; 2 turni: gara unica, in casa la meglio piazzata, supplementari, poi la meglio piazzata
+  - SERIE D F PLAY-OFF (spareggio piazzamenti): SERIE D GIRONE F 2ª-5ª; 2 turni: gara unica, in casa la meglio piazzata, supplementari, poi la meglio piazzata
+  - SERIE D G PLAY-OFF (spareggio piazzamenti): SERIE D GIRONE G 2ª-5ª; 2 turni: gara unica, in casa la meglio piazzata, supplementari, poi la meglio piazzata
+  - SERIE D H PLAY-OFF (spareggio piazzamenti): SERIE D GIRONE H 2ª-5ª; 2 turni: gara unica, in casa la meglio piazzata, supplementari, poi la meglio piazzata
+  - SERIE D I PLAY-OFF (spareggio piazzamenti): SERIE D GIRONE I 2ª-5ª; 2 turni: gara unica, in casa la meglio piazzata, supplementari, poi la meglio piazzata
   - play-off di Serie B (dalla 3ª all'8ª: turno preliminare 5ª-8ª, 6ª-7ª in casa della meglio piazzata; semifinali e finale di andata e ritorno; in parità passa la meglio piazzata) e play-out (16ª contro 17ª, andata e ritorno); play-off di Serie C a 28 squadre (fase a gironi, fase nazionale, Final Four) per la quarta promozione
 - COPPA ITALIA (Coppa): 16 squadre; dagli ottavi di finale; le squadre ancora in corsa nella vera coppa 2026-27, tutti e 8 accoppiamenti del primo turno come nel sorteggio vero; turni 1-2: gara unica, supplementari e rigori; turno 3: andata e ritorno (somma dei gol, poi supplementari e rigori); finale: gara unica, supplementari e rigori
 - COPPA ITALIA SERIE C (Coppa di lega): 17 squadre; dai sedicesimi di finale; le squadre ancora in corsa nella vera coppa 2026-27, l'unico accoppiamento del primo turno come nel sorteggio vero; 15 esenti fino al 2° turno; turni 1-3: gara unica, supplementari e rigori; turno 4: andata e ritorno (somma dei gol, poi supplementari e rigori); finale: andata e ritorno (somma dei gol, poi supplementari e rigori)
@@ -604,7 +604,7 @@
 **Olanda**
 - EREDIVISIE: 18 squadre; girone di andata e ritorno, 34 giornate; 2 retrocesse
   - PLAY-OFFS PROMOTIE/DEGRADATIE (play-off promozione): EERSTE DIVISIE 3ª-8ª + EREDIVISIE 16ª; turno 1: andata e ritorno, ordine in casa come nel calendario vero, supplementari e rigori; turno 2: andata e ritorno, ordine in casa come nel calendario vero, supplementari e rigori; turno 3: andata e ritorno, in casa la meglio piazzata (al ritorno), supplementari e rigori; turno 4: andata e ritorno, ordine in casa come nel calendario vero, supplementari e rigori; la vincente in EREDIVISIE
-  - PLAY-OFFS EUROPEES VOETBAL (play-off europeo): EREDIVISIE 5ª-8ª; 2 turni: gara unica, in casa la meglio piazzata (al ritorno), supplementari e rigori
+  - PLAY-OFFS EUROPEES VOETBAL (play-off europeo): EREDIVISIE 5ª-8ª; 2 turni: gara unica, in casa la meglio piazzata, supplementari e rigori
 - EERSTE DIVISIE: 20 squadre; girone di andata e ritorno, 38 giornate; 2 promosse; l'ultima divisione del mondo: nessuna retrocessione
 - KNVB BEKER (Coppa): 34 squadre; dai trentaduesimi di finale; le squadre ancora in corsa nella vera coppa 2026-27, tutti e 2 accoppiamenti del primo turno come nel sorteggio vero; 30 esenti fino al 2° turno; gara unica, supplementari e rigori; finale: gara unica, supplementari e rigori
 - Europa: stagione 1: i veri club 2026-27 delle fasi campionato (Champions League PSV, Feyenoord; Europa League AZ Alkmaar, N.E.C.; Conference League Twente, Ajax); dalla stagione 2: Champions League 2, Europa League 2, Conference League 1 secondo i coefficienti per federazione simulati
@@ -623,7 +623,7 @@
 
 **Rep. Ceca**
 - 1. CESKA FOTBALOVA LIGA: 16 squadre; girone di andata e ritorno (30 giornate); dopo 30 giornate: 1ª-6ª girone di sola andata, 7ª-10ª nessun'altra partita, 11ª-16ª girone di sola andata; 35 giornate; l'ultima divisione del mondo: nessuna retrocessione
-  - SKUPINA O UMISTENI 7-10 (spareggio piazzamenti): 1. CESKA FOTBALOVA LIGA 7ª-10ª; 2 turni: gara unica, in casa la meglio piazzata (al ritorno), supplementari e rigori
+  - SKUPINA O UMISTENI 7-10 (spareggio piazzamenti): 1. CESKA FOTBALOVA LIGA 7ª-10ª; 2 turni: gara unica, in casa la meglio piazzata, supplementari e rigori
 - POHAR FACR (Coppa): 15 squadre; dagli ottavi di finale; le squadre ancora in corsa nella vera coppa 2026-27, 6 dei 7 accoppiamenti del primo turno come nel sorteggio vero; 1 esenti fino al 2° turno; gara unica, supplementari e rigori; finale: gara unica, supplementari e rigori
 - Europa: stagione 1: i veri club 2026-27 delle fasi campionato (Champions League Slavia Praha; Europa League Viktoria Plzeň, Sparta Praha; Conference League Jablonec); dalla stagione 2: Champions League 1, Europa League 2, Conference League 1 secondo i coefficienti per federazione simulati
 - *Approssimazione dichiarata*: nessun regolamento 2026-27 trovato: lo spareggio a eliminazione diretta in gara unica per il 7°-10° posto come nel 2025-26
@@ -823,7 +823,7 @@
 
 **Irlanda Del Nord**
 - NIFL PREMIERSHIP: 12 squadre; girone a tre turni (33 giornate); dopo 33 giornate: 1ª-6ª girone di sola andata, 7ª-12ª girone di sola andata; ordine in casa: chi era in trasferta nel 3° incontro; 38 giornate; l'ultima divisione del mondo: nessuna retrocessione
-  - EUROPA CONFERENCE PLAY-OFF (play-off europeo): NIFL PREMIERSHIP 4ª-7ª; 3 turni: gara unica, in casa la meglio piazzata (al ritorno), supplementari e rigori
+  - EUROPA CONFERENCE PLAY-OFF (play-off europeo): NIFL PREMIERSHIP 4ª-7ª; 3 turni: gara unica, in casa la meglio piazzata, supplementari e rigori
 - IRISH CUP (Coppa): 12 squadre; tutti i club del campionato, sorteggiati dal gioco; 4 esenti fino al 2° turno; gara unica, supplementari e rigori; finale: gara unica, supplementari e rigori; turni numerati come nella realtà
 - IRISH LEAGUE CUP (Coppa di lega): 12 squadre; dagli ottavi di finale; le squadre ancora in corsa nella vera coppa 2026-27, 2 dei 4 accoppiamenti del primo turno come nel sorteggio vero; 4 esenti fino al 2° turno; gara unica, supplementari e rigori; finale: gara unica, supplementari e rigori
 - Europa: stagione 1: nessun club nelle fasi campionato
@@ -861,14 +861,14 @@
 
 **Galles**
 - CYMRU PREMIER: 16 squadre; girone di andata e ritorno (30 giornate); dopo 30 giornate: 1ª-6ª girone di sola andata, 7ª-10ª girone di sola andata, 11ª-16ª girone di sola andata; 35 giornate; l'ultima divisione del mondo: nessuna retrocessione
-  - EUROPEAN PLAY-OFFS (play-off europeo): CYMRU PREMIER 2ª-7ª; 3 turni: gara unica, in casa la meglio piazzata (al ritorno), supplementari e rigori
+  - EUROPEAN PLAY-OFFS (play-off europeo): CYMRU PREMIER 2ª-7ª; 3 turni: gara unica, in casa la meglio piazzata, supplementari e rigori
 - WELSH CUP (Coppa): 16 squadre; dagli ottavi di finale; le squadre ancora in corsa nella vera coppa 2026-27, 2 degli 8 accoppiamenti del primo turno come nel sorteggio vero; gara unica, supplementari e rigori; finale: gara unica, supplementari e rigori; turni numerati come nella realtà
 - WELSH LEAGUE CUP (Coppa di lega): 16 squadre; tutti i club del campionato, sorteggiati dal gioco; gara unica, supplementari e rigori; finale: gara unica, supplementari e rigori
 - Europa: stagione 1: nessun club nelle fasi campionato
 
 **San Marino**
 - CAMPIONATO SAMMARINESE: 16 squadre; girone di andata e ritorno, 30 giornate; l'ultima divisione del mondo: nessuna retrocessione
-  - PLAY-OFF CONFERENCE LEAGUE (play-off europeo): CAMPIONATO SAMMARINESE 2ª-11ª; turno 1: gara unica, ordine in casa come nel calendario vero, in parità passa la meglio piazzata; turno 2: andata e ritorno, in casa la meglio piazzata (al ritorno), in parità passa la meglio piazzata; turno 3: andata e ritorno, in casa la meglio piazzata (al ritorno), in parità passa la meglio piazzata; turno 4: gara unica, in casa la meglio piazzata (al ritorno), supplementari e rigori
+  - PLAY-OFF CONFERENCE LEAGUE (play-off europeo): CAMPIONATO SAMMARINESE 2ª-11ª; turno 1: gara unica, ordine in casa come nel calendario vero, in parità passa la meglio piazzata; turno 2: andata e ritorno, in casa la meglio piazzata (al ritorno), in parità passa la meglio piazzata; turno 3: andata e ritorno, in casa la meglio piazzata (al ritorno), in parità passa la meglio piazzata; turno 4: gara unica, in casa la meglio piazzata, supplementari e rigori
 - COPPA TITANO (Coppa): 16 squadre; dagli ottavi di finale; le squadre ancora in corsa nella vera coppa 2026-27, 7 degli 8 accoppiamenti del primo turno come nel sorteggio vero; gara unica, supplementari e rigori; finale: gara unica, supplementari e rigori
 - Europa: stagione 1: nessun club nelle fasi campionato
 - *Approssimazione dichiarata*: nessun regolamento 2026-27 trovato: una classifica di 30 giornate e il play-off di Conference dal 2° all'11° posto, come nel 2025-26
@@ -980,7 +980,7 @@
 **Giappone**
 - J1 LEAGUE: 20 squadre; girone di andata e ritorno, 38 giornate; 3 retrocesse
 - J2 LEAGUE: 20 squadre; girone di andata e ritorno, 38 giornate; 2 promosse; l'ultima divisione del mondo: nessuna retrocessione
-  - J1 PROMOTION PLAY-OFFS (play-off promozione): J2 LEAGUE 3ª-6ª; 2 turni: gara unica, in casa la meglio piazzata (al ritorno), in parità passa la meglio piazzata; la vincente in J1 LEAGUE
+  - J1 PROMOTION PLAY-OFFS (play-off promozione): J2 LEAGUE 3ª-6ª; 2 turni: gara unica, in casa la meglio piazzata, in parità passa la meglio piazzata; la vincente in J1 LEAGUE
 - EMPEROR'S CUP (Coppa): 16 squadre; dagli ottavi di finale; le squadre ancora in corsa nella vera coppa 2026-27, 0 degli 8 accoppiamenti del primo turno come nel sorteggio vero; gara unica, supplementari e rigori; finale: gara unica, supplementari e rigori
 - J.LEAGUE CUP (Coppa di lega): 12 squadre; dagli ottavi di finale; le squadre ancora in corsa nella vera coppa 2026-27, tutti e 4 accoppiamenti del primo turno come nel sorteggio vero; 4 esenti fino al 2° turno; turno 1: gara unica, supplementari e rigori; turni 2-3: andata e ritorno (somma dei gol, poi supplementari e rigori); finale: gara unica, supplementari e rigori
 

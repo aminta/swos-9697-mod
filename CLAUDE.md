@@ -23,7 +23,8 @@ Read this first; then the tail of `notes/STATUS.md` (latest work) and, before an
   3.3.3 team cache of 160 in big-world careers (1984-85 data/team.254 exit), real 1984-85 national-cup brackets in
   careers, SELECT KITS name box colour,
   3.3.4 era shirt numbers in the historic packs (pack.json "numbers": "place"; starters 1..11, bench 12..16) and
-  numbers above 11 in the bench / tactics menus (tools/menunum.py).
+  numbers above 11 in the bench / tactics menus (tools/menunum.py), purple + maroon together in the kit editors,
+  average player price >= 1 (tools/avgprice.py: divide error with weak career clubs, keep it in 4.0 / 5.0).
 - Release notes: `release/notes-<version>.md`; the patcher page `release/swos-9697-mod-patcher.html`.
 - Version plan (Davide, 2026-10-17): 4.0 = Champions Cup group draw (real 1996-97 groups, then random by country),
   European Supercup, Intertoto (session "4.0"); 5.0 = the 2026-27 world (branch world-2025-26).

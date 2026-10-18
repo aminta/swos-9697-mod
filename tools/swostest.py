@@ -4052,7 +4052,7 @@ def world_gplay_play(force='2', team='EUROPA,SCOZIA,SCOTTISH LEAGUE TWO,CLYDE', 
 
 
 @scenario
-def world_gplay_reserve(force='20', team='EUROPA,ITALIA,SERIE C GIRONE A,RENATE'):
+def world_gplay_reserve(force='20', team='EUROPA,ITALIA,SERIE C GIRONE A,RENATE', src=None, div=2, direct=20):
     """The career club relegated into the reserve is sacked (gplay gp_sack, SeasonFinished's contract check): the
     world 2026-27 with Italy's reserve (private data internal/world2526/world5tm-reserve: Serie C groups, 20th down
     directly, play-outs 16th-19th into the reserve) built with GPLAY_FORCE (the career club's place in its group at
@@ -4060,12 +4060,12 @@ def world_gplay_reserve(force='20', team='EUROPA,ITALIA,SERIE C GIRONE A,RENATE'
     the play-out (16-19) -> it is played, and the club is sacked if and only if it lost (GPLAY_FORCE=16: world_gplay_
     reserve_out); sacked with no job offer left, the career ends (the game's own way) instead of a next season in the
     reserve (which trapped in cseg_3283C)"""
-    src = os.path.join(MAIN, 'internal', 'world2526', 'world5tm-reserve')
+    src = src or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-reserve')
     if not os.path.isdir(src):
-        return True, 'SKIP: private data internal/world2526/world5tm-reserve missing'
+        return True, f'SKIP: private data {src} missing'
     order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
     env = {'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]), 'GPLAY_FORCE': force}
-    exe = os.environ.get('GPLAY_BUILD') or build('world_gplay_reserve_' + force, env=env)
+    exe = os.environ.get('GPLAY_BUILD') or build(f'world_gplay_reserve_{os.path.basename(src)}_{force}', env=env)
     log_at, st_at, log_n, st_n = gp_ptrs(exe)
     keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K',
                                             'W8485_NOSACK', 'W8485_HEX', 'W8485_ONE')}
@@ -4085,15 +4085,15 @@ def world_gplay_reserve(force='20', team='EUROPA,ITALIA,SERIE C GIRONE A,RENATE'
     errs = []
     check(ok or over, msg, errs)
     how = 'no offer left: career over' if over else 'a job taken, the next season saved'
-    if int(force) == 20:
-        check(sacked, 'forced 20th: not sacked', errs)
-        return not errs, '; '.join(errs) or f'{msg}; 20th: sacked ({how})'
+    if int(force) == direct:
+        check(sacked, f'forced {force}th: not sacked', errs)
+        return not errs, '; '.join(errs) or f'{msg}; {force}th: sacked ({how})'
     sts = [bytes.fromhex(ln.split()[2]) for ln in lines if ln.startswith(f'HEX {st_at:x} ')]
     sts = [b for b in sts if b[:2] == b'GK']
     if not sts:
         return False, f'{msg}; the play-out never ran (no GP_ST seen)'
     ko = gp_ko(sts[-1][GP_STKO:])
-    me = 2 * GP_GT + int(force) - 1
+    me = div * GP_GT + int(force) - 1
     check(ko['kind'] == 4 and ko['n'] == 4 and me in ko['code'], f"play-out kind {ko['kind']} codes {ko['code']}", errs)
     i = ko['code'].index(me) if me in ko['code'] else None
     lost = i is not None and i in ko['tl']
@@ -4113,10 +4113,67 @@ def world_gplay_reserve_out():
 
 
 @scenario
+def world_gplay_seried_res():
+    """world_gplay_reserve in Serie D (the data session's TM_RESERVE=1 snapshot internal/world2526/world5tm-res1: the
+    Eccellenza reserve below Serie D): LIGORNA (girone A, 17 clubs, 2 down directly) forced 17th -> sacked"""
+    return world_gplay_reserve('17', 'EUROPA,ITALIA,SERIE D GIRONE A,LIGORNA',
+                               os.path.join(MAIN, 'internal', 'world2526', 'world5tm-res1'), 5, 17)
+
+
+@scenario
+def world_gplay_seried_out():
+    """As world_gplay_seried_res with LIGORNA forced 13th: its Serie D play-out (13th v 14th, a single match at the
+    better placed's, extra time, then the better placed stays) played, sacked if lost"""
+    return world_gplay_reserve('13', 'EUROPA,ITALIA,SERIE D GIRONE A,LIGORNA',
+                               os.path.join(MAIN, 'internal', 'world2526', 'world5tm-res1'), 5, 17)
+
+
+@scenario
 def world_gplay_reserve_gap():
     """world_gplay_reserve with the career club forced 16th: the 19th 8+ points behind, its play-out tie is not played
     (the gap rule) and no contest is built (the season went on; a slot-4 contest without the club stopped it)"""
     return world_gplay_reserve('16')
+
+
+@scenario
+def world_gplay_seried(force='3', team='EUROPA,ITALIA,SERIE D GIRONE A,LIGORNA', div=5):
+    """A Serie D group play-off played (gplay 'placement', World 2026-27 with Serie D: the data session's snapshot
+    internal/world2526/world5tm-e0b89822, W2627D_DATA): LIGORNA (girone A) forced 3rd at the league end -> the group
+    play-off (2nd v 5th, 3rd v 4th, then the final; single matches at the better placed, extra time, then the better
+    placed) built in slot 4 and played to its end; it moves nobody"""
+    src = os.environ.get('W2627D_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-e0b89822')
+    if not os.path.isdir(src):
+        return True, f'SKIP: private data {src} missing'
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    env = {'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]), 'GPLAY_FORCE': force}
+    exe = os.environ.get('GPLAY_BUILD') or build('world_gplay_seried_' + force, env=env)
+    log_at, st_at, log_n, st_n = gp_ptrs(exe)
+    keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K',
+                                            'W8485_NOSACK', 'W8485_HEX', 'W8485_ONE')}
+    os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5', W8485_K='108+',
+                      W8485_NOSACK='1', W8485_HEX=f'{log_at:x}:{log_n},{st_at:x}:{st_n}', W8485_ONE='1')
+    try:
+        ok, msg = world8485()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    lines = open(os.path.join(RUNS, w84_tag() + '_1', 'session.log'), errors='replace').read().splitlines()
+    errs = []
+    check(ok, msg, errs)
+    sts = [bytes.fromhex(ln.split()[2]) for ln in lines if ln.startswith(f'HEX {st_at:x} ')]
+    sts = [b for b in sts if b[:2] == b'GK']
+    if not sts:
+        return False, f'{msg}; the play-off never ran (no GP_ST seen)'
+    ko = gp_ko(sts[-1][GP_STKO:])
+    me = div * GP_GT + int(force) - 1
+    check(ko['kind'] == 3 and ko['n'] == 4 and ko['slot'] == 4 and me in ko['code'],
+          f"play-off kind {ko['kind']} slot {ko['slot']} codes {ko['code']}", errs)
+    check(ko['ntie'] == 3 and all(x != 255 for x in ko['tw']), f"play-off not over: winners {ko['tw']}", errs)
+    win = ko['code'][ko['tw'][-1]] if ko['tw'] and ko['tw'][-1] < ko['n'] else None
+    return not errs, '; '.join(errs) or f"{msg}; play-off codes {ko['code']}, winner code {win}"
 
 
 def full_season(country, team):

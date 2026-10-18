@@ -28,6 +28,7 @@ import purple
 import blond
 import menunum
 import avgprice
+import menumusic
 import mkseason
 import careerworld
 import nsl97
@@ -249,6 +250,7 @@ def patch_exe(src, dst, remap, lang='it'):
     world = blond.patch(p, area, world, num_bss + shirtnum.BSS_SIZE, shirtnum.spr_index(p))   # 3.3.0: face 3
     world = menunum.patch(p, world, num_bss + shirtnum.BSS_SIZE + blond.BSS_SIZE)   # 3.3.4: menu numbers 17..99
     world = avgprice.patch(p, world)             # 3.3.4: average player price >= 1 (divide error, 1984-85 Iceland)
+    world = menumusic.patch(p, world)            # 3.3.6: menu music when the main menu opens (SWOS++ options load late)
     assert world <= NZ_CAVE and nz_end <= FIN_CAVE and fin_end <= ARG_CAVE and arg_end <= OBJ1_NEW_VSIZE, \
         (hex(world), hex(nz_end), hex(fin_end), hex(arg_end))
     p.set_vsize(1, OBJ1_NEW_VSIZE + (0x4000 if worlds else 0) + HIST2_PAGE)

@@ -3488,6 +3488,20 @@ def world_full_eng():
     return full_season('eng', 'EUROPA,INGHILTERRA,EFL LEAGUE TWO,SALFORD CITY')
 
 
+@scenario
+def world_full_arg():
+    """Full 5.0 world (full_season): a season at BOCA JUNIORS (Argentina, LIGA PROFESIONAL ZONA A, 15 clubs: a rest day
+    each matchday): the season end runs with no 25+-club division (the 30-club table made the season end ask for
+    team 0: VerifyTeamLoaded's int 3); sizes kept"""
+    return full_season('arg', 'SUDAMERICA,ARGENTINA,LIGA PROFESIONAL ZONA A,BOCA JUNIORS')
+
+
+@scenario
+def world_full_usa():
+    """Full 5.0 world (full_season): a season at PHILADELPHIA (USA, MLS EASTERN CONFERENCE, 15 clubs, rest days)"""
+    return full_season('usa', 'NORDAMERICA,USA,MLS EASTERN CONFERENCE,PHILADELPHIA')
+
+
 def run_parallel(names, jobs):
     """run -jN: each scenario in its own process (own run dirs and DOSBox-X, one host core each in turbo); the
     builds are made once here first. Output in the order of the names; exit code 1 on a failure."""

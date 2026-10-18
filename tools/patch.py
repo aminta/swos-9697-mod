@@ -177,11 +177,14 @@ def patch_exe(src, dst, remap, lang='it'):
     worlds = bool(mkseason.worlds())
     lpb = bool(mkseason.league_phase_cups() or mkseason.league_phase_worlds())
     lpb += bool(mkseason.league_phase_worlds())   # (+1 more: the UEFA coefficients, uefacoef)
-    lpb += 3 * bool(mkseason.league_phase_worlds())   # (+3: the UEFA qualifying rounds, uefaq: C code + glue)
+    lpb += 4 * bool(mkseason.league_phase_worlds())   # (+4: the UEFA qualifying rounds, uefaq: C code + glue)
     xtra_on = bool(mkseason.xtra_files() or os.environ.get('XTRA_HOOK'))
     pg_tabs = mkseason.parallel_tables()               # parallel groups of one level (Serie C 3 x 20)
     dp_tabs = mkseason.dplay_tables() if mkseason.worlds() else []   # Italian play-offs (dplay.py)
     lpb += 2 * bool(dp_tabs)                           # (+2: their code pages, before the extra one)
+    gp_tabs = mkseason.gplay_tables() if mkseason.worlds() else []   # knockout play-offs of the formats (gplay.py)
+    gp_on = bool((gp_tabs or pg_tabs) and mkseason.worlds())         # (gplay.c also holds the parallel groups' fix)
+    lpb += 2 * gp_on                                   # (+2: its pages, after dplay's)
     xtra_pg = bool((xtra_on or pg_tabs) and mkseason.worlds())   # (+1: an extra code page in a build with worlds,
     lpb += xtra_pg                                     # whose world cave is full: 3.3.x purple + blond + a big world)
     cdp = mkseason.career_data_pages() - 2 if worlds else 0   # a big world: a 3rd career data page and a 2nd
@@ -202,6 +205,10 @@ def patch_exe(src, dst, remap, lang='it'):
         data = add_object_page(data, 2)
     if mkseason.multi_ns():
         o2pages += 1
+        data = add_object_page(data, 2)
+    nclubs = max((sum(len(pk.clubs) for pk in w) for w in mkseason.worlds().values()), default=0)
+    for _ in range(max(0, -(-(nclubs - 1600) // 500))):   # a world of more than 1600 clubs (5.0, ~1850): its
+        o2pages += 1                                     # strings + uefacoef's seeding table, one page per 500 more
         data = add_object_page(data, 2)
     for _ in range(-(-len(historic.draw_table()) // 0x1000) if mkseason.multi_ns() else 0):   # several worlds: draws in obj2
         o2pages += 1
@@ -299,7 +306,7 @@ def patch_exe(src, dst, remap, lang='it'):
               'lp_ord': lp36.LABELS['LP_ORD'], 'area': area}
         uc_end = uefacoef.patch(p, hist2 + h2 + 0x1000, mkseason.world_defs(), cs)
         assert uc_end <= hist2 + h2 + 0x2000, hex(uc_end)
-        import uefaq                            # UEFA qualifying rounds (C code, tools/uefaq.c; 3 pages)
+        import uefaq                            # UEFA qualifying rounds (C code, tools/uefaq.c; 4 pages)
         cs['bss'] = careerworld.BSS[0]
         cs['lceu'] = mkseason.league_cup_europe_files()
         cs['sel'] = sacups.SEL_ADDR[0]
@@ -311,8 +318,13 @@ def patch_exe(src, dst, remap, lang='it'):
         careerworld.BSS_SIZE = (careerworld.B_UQ + careerworld.UQ_BSS + careerworld.UQ_RECS * 684 + 0xFFF) & ~0xFFF
     if dp_tabs:                                 # Italian play-offs (C, tools/dplay.c; own 2 pages,
         import dplay                            # its .bss after the career BSS)
-        dp_at = hist2 + h2 + 0x1000 * (lpb - 2 - xtra_pg)
+        dp_at = hist2 + h2 + 0x1000 * (lpb - 2 - 2 * gp_on - xtra_pg)
         dplay.patch(p, dp_at, dp_at + 0x2000, dp_tabs, careerworld.BSS[0] + careerworld.BSS_SIZE, area)
+        careerworld.BSS_SIZE += 0x1000
+    if gp_on:                                   # knockout play-offs (C, tools/gplay.c; chained after dplay's hooks)
+        import gplay                            # and the parallel groups' season-end fix (pg_season, pgroups.py)
+        gp_at = hist2 + h2 + 0x1000 * (lpb - 2 - xtra_pg)
+        gplay.patch(p, gp_at, gp_at + 0x2000, gp_tabs, careerworld.BSS[0] + careerworld.BSS_SIZE)
         careerworld.BSS_SIZE += 0x1000
     assert cave <= WORLD_CAVE, hex(cave)
     print(f'exe: caves: world end {world:#x} (limit {NZ_CAVE:#x}), arg end {arg_end:#x} (limit {OBJ1_NEW_VSIZE:#x})')
@@ -326,7 +338,7 @@ def patch_exe(src, dst, remap, lang='it'):
         xp = hist2 + h2 + 0x1000 * (lpb - 1)                     # XTRA_HOOK=1: test builds): DATA\XTRA.nnn players;
         xe = xtra.patch(p, xp) if xtra_on else xp                # the extra page in a build with worlds, with the
         if pg_tabs:                                              # parallel groups' season-end fix (pgroups.py)
-            xe = pgroups.patch(p, (xe + 15) & ~15, pg_tabs)
+            xe = pgroups.patch(p, (xe + 15) & ~15, pg_tabs, gplay.LABELS['pg_season'])
         assert xe <= xp + 0x1000, hex(xe)
     elif xtra_on:
         world = xtra.patch(p, world)
@@ -419,6 +431,9 @@ def write_new_teams(src_dir, dst_dir):
         base = tcn.get(n) or hist_base(n)
         for g in range(base, base + k):
             assert g < 2000 and (mkseason.shares_base(n) or mkseason.career_file(n) or g not in taken), (n, g, taken.get(g))
+            assert not (mkseason.career_file(n) and sacups.SAVED_GLOBAL <= g <= sacups.MARK3_GLOBAL + 2), \
+                (n, g, f'world clubs must skip the reserved global numbers {sacups.SAVED_GLOBAL}..{sacups.MARK3_GLOBAL + 2} '
+                 '(the saved SA block, the world byte, the career mark: someLeaguesTable)')
             if n not in hist:
                 taken[g] = n
         open(os.path.join(dst_dir, 'TEAM.%03d' % n), 'wb').write(team_fix(data))

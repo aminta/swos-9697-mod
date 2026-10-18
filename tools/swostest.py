@@ -449,10 +449,28 @@ class Dosbox:
             subprocess.run(['swiftc', '-O', os.path.join(ROOT, 'tools', 'swostest_winid.swift'), '-o', exe], check=True)
         win = subprocess.run([exe, str(self.pid)], capture_output=True, text=True)
         wid = win.stdout.strip()
-        if wid and wid != '0':
+        if wid and wid != '0' and os.environ.get('SWOSTEST_VGASHOT') != 'force':
             os.makedirs(os.path.join(self.run, 'shots'), exist_ok=True)
             subprocess.run(['screencapture', '-x', '-o', '-l', wid, os.path.join(self.run, 'shots', tag + '.png')],
                            capture_output=True)
+        path = os.path.join(self.run, 'shots', tag + '.png')
+        if not os.path.exists(path) and os.environ.get('SWOSTEST_VGASHOT', '1') != '0':
+            self.vga_shot(path)
+
+    def vga_shot(self, path):
+        """The screen rebuilt from VGA memory (mode 13h, A0000) and the menu palette (FILL.256): for when macOS
+        cannot capture windows (2026-10-18 03:39: 'could not create image from display' for every process). 640x400,
+        no title bar (squad_rows: top = h - w * 400 / 640 = 0)."""
+        try:
+            from PIL import Image
+            pix = self.dump(0xA0000, 64000)[:64000]
+            pal = open(os.path.join(self.run, 'SWOS', 'FILL.256'), 'rb').read()[64000:64768]
+            im = Image.frombytes('P', (320, 200), pix)
+            im.putpalette(bytes(min(255, x * 4 + (x >> 4)) for x in pal))
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            im.convert('RGB').resize((640, 400), Image.NEAREST).save(path)
+        except Exception as e:
+            print(f'vga_shot: {e}', file=sys.stderr)
 
     def post_mortem(self, shot=True):
         """After a break: full memory dump (MEMDUMP.BIN = linear 0..32 MB, read by Result); returns the break EIP."""
@@ -834,6 +852,13 @@ def squad_rows(s, scr, tag):
         if os.path.exists(path):
             break
         time.sleep(3)
+    if not os.path.exists(path):                        # (no window: say whether DOSBox-X is still there)
+        try:
+            pid, st = os.waitpid(s.box.pid, os.WNOHANG)
+        except ChildProcessError:
+            pid, st = s.box.pid, -1
+        raise RuntimeError(f'{tag}: no screenshot; DOSBox-X ' + (f'exited (status {st})' if pid else 'alive')
+                           + f', eip {s.box.eip}, tail {s.box.screen[-300:]!r}')
     im = Image.open(path).convert('RGB')
     w, h = im.size
     top = h - w * 400 // 640                           # window title bar
@@ -2919,7 +2944,9 @@ def world_groups():
         os.environ.pop('SEASON_PACKS')
     else:
         os.environ['SEASON_PACKS'] = old
-    _, u, first, sizes, clubs = pk.parallel()
+    _, levels, clubs = pk.parallel()
+    first, sizes = next((d, sz) for d, sz in levels if len(sz) > 1)
+    u = first - 1
     keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K',
                                             'W8485_NOSACK', 'W8485_SEASONS')}
     os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM='EUROPA,ITALIA,SERIE C GIRONE A,RENATE',
@@ -2992,7 +3019,9 @@ def world_playoffs():
         os.environ.pop('SEASON_PACKS')
     else:
         os.environ['SEASON_PACKS'] = old
-    _, u, first, sizes, clubs = pk.parallel()
+    _, levels, clubs = pk.parallel()
+    first, sizes = next((d, sz) for d, sz in levels if len(sz) > 1)
+    u = first - 1
     keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K',
                                             'W8485_NOSACK', 'W8485_SEASONS')}
     os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM='EUROPA,ITALIA,SERIE C GIRONE A,RENATE',
@@ -3176,6 +3205,91 @@ def world_leaguecup():
     check(ok, msg, errs)
     check(titles, 'no EFL CUP screen in season 1', errs)
     return not errs, '; '.join(errs) or f'{msg}; {titles[:8]}'
+
+
+
+GPLAY_SCO = [   # Scotland 2026-27 (internal/world2526/formats2627.md 1): the three promotion / relegation play-offs
+    {'key': 'prem_po', 'kind': 'promotion', 'entrants': [[1, 3], [1, 4], [1, 2], [0, 11]],
+     'rounds': [{'ties': [[1, 0]], 'legs': 2, 'host': 'listed', 'level': 'et_pens'},
+                {'ties': [['W0', 2]], 'legs': 2, 'host': 'better', 'level': 'et_pens'},
+                {'ties': [['W1', 3]], 'legs': 2, 'host': 'listed', 'level': 'et_pens'}],
+     'winner_div': 0, 'loser_div': 1},
+    {'key': 'champ_po', 'kind': 'promotion', 'entrants': [[1, 9], [2, 4], [2, 2], [2, 3]],
+     'rounds': [{'ties': [[1, 0], [3, 2]], 'legs': 2, 'host': 'better', 'level': 'et_pens'},
+                {'ties': [['W0', 'W1']], 'legs': 2, 'host': 'better', 'level': 'et_pens'}],
+     'winner_div': 1, 'loser_div': 2},
+    {'key': 'l1_po', 'kind': 'promotion', 'entrants': [[2, 9], [3, 4], [3, 2], [3, 3]],
+     'rounds': [{'ties': [[1, 0], [3, 2]], 'legs': 2, 'host': 'better', 'level': 'et_pens'},
+                {'ties': [['W0', 'W1']], 'legs': 2, 'host': 'better', 'level': 'et_pens'}],
+     'winner_div': 2, 'loser_div': 3}]
+
+
+@scenario
+def world_gplay():
+    """Knockout promotion / relegation play-offs at the season end (gplay.py): the world 2026-27 with Scotland's three
+    play-offs (GPLAY_SCO) added to a copy of its pack; a season at CLYDE (League Two): after it every Scottish
+    division keeps its size (12, 10, 10, 10) and the moves between two divisions are the direct ones plus 0 or 1
+    play-off swap each"""
+    import collections
+    import json
+    import shutil
+    src = os.path.join(MAIN, 'internal', 'world2526', 'world5tm')
+    if not os.path.isdir(src):
+        return True, 'SKIP: private data internal/world2526/world5tm missing'
+    w = os.path.join(WORK, 'world_gplay')
+    shutil.rmtree(w, ignore_errors=True)
+    shutil.copytree(src, os.path.join(w, 'world5tm'))
+    f = os.path.join(w, 'world5tm', 'sco', 'pack.json')
+    d = json.load(open(f))
+    lg = next(c for c in d['competitions'] if c['type'] == 'league')
+    lg['ko_playoffs'] = GPLAY_SCO
+    json.dump(d, open(f, 'w'), indent=1, ensure_ascii=False)
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    env = {'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(w, 'world5tm', x) for x in order])}
+    exe = build('world_gplay', env=env)
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    old = os.environ.get('SEASON_PACKS')
+    os.environ['SEASON_PACKS'] = env['SEASON_PACKS']
+    import mkseason
+    pk = next(p for p in mkseason.packs() if p.meta.get('id', '').endswith('-sco'))
+    if old is None:
+        os.environ.pop('SEASON_PACKS')
+    else:
+        os.environ['SEASON_PACKS'] = old
+    clubs = []
+    for key in pk.league_clubs:
+        fl, i = pk.where[key]
+        base = next(b for fk, (ff, b) in pk.files.items() if ff == fl)
+        clubs.append((base + i, pk.division[key]))
+    sizes = collections.Counter(dv for _, dv in clubs)
+    keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K',
+                                            'W8485_NOSACK')}
+    os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM='EUROPA,SCOZIA,SCOTTISH LEAGUE TWO,CLYDE',
+                      W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1')
+    try:
+        ok, msg = world8485()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    car = os.path.join(RUNS, 'world8485_1', 'SWOS', 'W84A.CAR')
+    if not os.path.exists(car):
+        return False, f'no season-1 save: {msg}'
+    slt = open(car, 'rb').read()[0xE8DC:0xE8DC + 2000]
+    cnt, mv = collections.Counter(), collections.Counter()
+    for g, base in clubs:
+        new = base + struct.unpack('b', slt[g:g + 1])[0]
+        cnt[new] += 1
+        if new != base:
+            mv[base, new] += 1
+    errs = []
+    check(ok, msg, errs)
+    check(cnt == sizes, f'divisions {sorted(cnt.items())} (were {sorted(sizes.items())})', errs)
+    for a in range(3):                                       # direct 1 each way (+ 0 or 1 play-off swap)
+        check(mv[a, a + 1] in (1, 2) and mv[a + 1, a] == mv[a, a + 1], f'moves {a}<->{a + 1}: {dict(mv)}', errs)
+    return not errs, '; '.join(errs) or f'{msg}; divisions {sorted(cnt.items())}; moves {dict(mv)}'
 
 
 def run_parallel(names, jobs):

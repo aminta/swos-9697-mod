@@ -70,6 +70,7 @@ def career_data_pages():
     return max(2, -(-(n * 105 + ns) // 0x1000))
 
 
+LEAGUE_AT = {}                          # (world, league file) -> obj1 offset of its league struct (patch)
 CAREER_CAVE = [None]                    # obj1 page of the career world code (patch.py adds it when worlds exist)
 CAREER_CAVE_SIZE = 0x2000               # 3.1: two pages (patch.py; three with several worlds, cave_pages)
 ROUND = {'two_legs': 0x94, 'single': 0x14, 'single_et': 0x54}   # knockout round byte: two legs (away goals),
@@ -98,6 +99,7 @@ COUNTRY.update({'CRO': 4, 'CZE': 6, 'GER': 14, 'EST': 10, 'FRO': 11, 'ISR': 19, 
 COUNTRY.update({'RUS': 31, 'KAZ': 31, 'AZE': 31, 'ARM': 31, 'GEO': 31, 'MDA': 30, 'BIH': 41, 'KOS': 0, 'MKD': 41,
                 'MNE': 41, 'AND': 35, 'GIB': 8, 'CAN': 73, 'KOR': 55, 'CHN': 55, 'IRN': 67, 'UAE': 67, 'MAR': 42,
                 'TUN': 42, 'LIE': 37})                         # world 2026-27 (Transfermarkt): the countries it adds
+COUNTRY.update({'SUR': 66, 'TPE': 67, 'IND': 75, 'GHA': 79})   # 5.0: never fewer countries than the original game
 ROLES = 'GDMA'
 BORROW = {'G': 'G', 'D': 'DMA', 'M': 'MDA', 'A': 'AMD'}   # slot role -> roles its player may come from
 
@@ -253,15 +255,25 @@ class Pack:
             n = sum(1 for k in self.league_clubs if self.division[k] == d)
             _need(n == dv['teams'], f"{self.league['key']}: division {d + 1} has {n} clubs in clubs.csv, {dv['teams']} in pack.json")
         _need(sum(dv['teams'] for dv in divs) == len(self.league_clubs), f"{self.league['key']}: clubs outside the divisions")
-        par = self.league.get('parallel')          # parallel groups of one level (Serie C 3 x 20): pgroups.py
+        par = self.league.get('parallel')          # parallel groups (Serie C 3 x 20; several levels): pgroups.py
         if par:
-            u, f, n = par.get('upper'), par.get('first'), par.get('count')
-            _need(isinstance(u, int) and f == u + 1 and isinstance(n, int) and 2 <= n <= 4 and f + n == len(divs),
-                  'league.parallel: {upper, first = upper + 1, count 2..4}, the groups being the last divisions')
-            _need(self.league.get('playoffs') in (None, 'ita'), "league.playoffs: 'ita' (the Italian play-offs, dplay.py)")
+            pars = par if isinstance(par, list) else [par]
+            nxt = 1
+            for q in pars:
+                u, f, n = q.get('upper'), q.get('first'), q.get('count')
+                _need(isinstance(f, int) and f >= nxt and (u is None or u == f - 1) and isinstance(n, int)
+                      and 2 <= n <= 6 and f + n <= len(divs),
+                      'league.parallel: {upper, first = upper + 1, count 2..6} (or a list of them, top-down, not '
+                      'overlapping), the groups being divisions of the chain')
+                nxt = f + n
+            _need(isinstance(par, list) or nxt == len(divs), 'league.parallel: one level of groups must be the last '
+                  'divisions (several levels: a list)')
+            _need(self.league.get('playoffs') in (None, 'ita') and (not isinstance(par, list) or
+                  not self.league.get('playoffs')), "league.playoffs: 'ita' (the Italian play-offs, dplay.py; one level)")
+            n = max(q['count'] for q in pars)
             for k in self.league_clubs:
                 a = self.clubs[k].get('area') or ''
-                _need(a == '' or a in 'ABCD'[:n], f"clubs.csv: {k}: area must be one of {'ABCD'[:n]} (a group of the level)")
+                _need(a == '' or a in 'ABCDEF'[:n], f"clubs.csv: {k}: area must be one of {'ABCDEF'[:n]} (a group of the level)")
         for c in self.comps:
             if c['type'] == 'cup':
                 self.bracket(c)          # validates
@@ -303,24 +315,42 @@ class Pack:
         return (self.world, int(lg['id'], 16), par['upper'], par['first'], par['count'], self.files[lg['clubs']][0],
                 int(self.comp(lc)['id'], 16) if lc else 0)
 
+    def gplay(self):
+        """gplay table: None, or (world, league file, spec bytes) of a world league with 'ko_playoffs'."""
+        lg = self.league
+        if not lg or self.world is None or not lg.get('ko_playoffs'):
+            return None
+        import gplay
+        try:
+            spec = gplay.compile_spec(lg['ko_playoffs'], len(self.divisions()))
+        except (ValueError, KeyError, TypeError) as e:
+            _need(False, f"{self.meta['id']}: ko_playoffs: {e}")
+        return self.world, self.files[lg['clubs']][0], spec
+
     def parallel(self):
-        """pgroups table: None, or (world, upper, first, [group sizes], [(global number, base division, area group)])
-        for every league club (any of them may reach the level). Area: clubs.csv 'area' (A, B, ...), else the club's
-        own group, else the middle group."""
+        """pgroups table: None, or (world, [(first division, [sizes])] top-down over the chain, [(global number, base
+        division, area)]) for every league club (any of them may reach a level). Area: clubs.csv 'area' (A, B, ...),
+        else the club's own group, else 0xFF (the middle group of the level it goes to)."""
         par = self.league.get('parallel') if self.league else None
         if not par or self.world is None:
             return None
-        u, f, n = par['upper'], par['first'], par['count']
+        pars = {q['first']: q['count'] for q in (par if isinstance(par, list) else [par])}
         divs = self.divisions()
+        levels, own, d = [], {}, 0
+        while d < len(divs):
+            n = pars.get(d, 1)
+            levels.append((d, [divs[d + g]['teams'] for g in range(n)]))
+            for g in range(n):
+                own[d + g] = g if n > 1 else 0xFF
+            d += n
         out = []
         for k in self.league_clubs:
             c = self.clubs[k]
             fl, i = self.where[k]
             base = next(b for fk, (ff, b) in self.files.items() if ff == fl)
             d = self.division[k]
-            a = 'ABCD'.index(c['area']) if c.get('area') else d - f if d >= f else n // 2
-            out.append((base + i, d, a))
-        return self.world, u, f, [divs[f + g]['teams'] for g in range(n)], out
+            out.append((base + i, d, 'ABCDEF'.index(c['area']) if c.get('area') else own[d]))
+        return self.world, levels, out
 
     def divisions(self):
         """League divisions: pack.json 'divisions' [{teams, promoted, relegated, names}], or one division."""
@@ -962,6 +992,11 @@ def numbered_cups():
             if c['type'] == 'cup' and c.get('round_names') == 'numbered']
 
 
+def gplay_tables():
+    """gplay: the world leagues with knockout play-offs (Pack.gplay)."""
+    return [t for pk in packs() for t in [pk.gplay()] if t]
+
+
 def dplay_tables():
     """dplay: the leagues of the worlds with the Italian play-offs (Pack.dplay)."""
     return [t for pk in packs() for t in [pk.dplay()] if t]
@@ -1493,6 +1528,8 @@ def _patch_pack(pk, p, lang, area, at, env):
             rel = [area.add(s.encode('latin1') + b'\0') - sacups.STR_BASE for s in names]
             body = bytes(h) + struct.pack('<II', *rel) + pk.team_bytes(br['clubs'])
         ptr[c['key']] = at
+        if c['type'] == 'league' and pk.world is not None:
+            LEAGUE_AT[(pk.world, lfile)] = at            # (dplay: a world's leagues share one contest id)
         p.put(1, at, body)
         at = (at + len(body) + 3) & ~3
 

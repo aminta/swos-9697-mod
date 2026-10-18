@@ -38,15 +38,17 @@ LOG_AT = 0x400                  # (+ SAVE_AT) the season's log: 'DPLG', the stat
 
 ASM = '''
 dp_find:                                ; edx = a league struct -> esi = its DP_TAB entry in the running world, or ZF = 1
-    mov al, [SLT + WORLD_BYTE]
-    mov ah, [edx]
+    mov al, [SLT + WORLD_BYTE]          ; (by the struct's address: a world's leagues all have one contest id)
     mov esi, DP_TAB
 .l:
-    cmp byte [esi], 0
+    cmp byte [esi + 4], 0
     je .no
-    cmp [esi], ax                       ; (world, league id)
+    cmp [esi], edx
+    jne .n
+    cmp [esi + 4], al
     je .yes
-    add esi, 6
+.n:
+    add esi, 9
     jmp .l
 .yes:
     or esi, esi                         ; (ZF = 0)
@@ -102,10 +104,10 @@ dp_cap:                                 ; replaces `call cseg_9221F` in cseg_91D
     call dp_find
     jz .x
     movzx eax, word [D7R]               ; the division -> table 0 (Serie B) or 1.. (the groups)
-    movzx ecx, byte [esi + 2]
+    movzx ecx, byte [esi + 5]
     sub eax, ecx
     jb .x
-    movzx ecx, byte [esi + 4]
+    movzx ecx, byte [esi + 7]
     cmp eax, ecx
     ja .x
     mov ebp, DIY
@@ -125,7 +127,7 @@ dp_end:                                 ; replaces `call cseg_9228D` (the play-o
     inc eax
     cmp al, [edx + 9]                   ; (the league's last division)
     jne .x
-    mov al, [esi + 4]
+    mov al, [esi + 7]
     mov [DP_IN], al                     ; ng
     xor eax, eax                        ; the career club's play-off / play-out played in slot 4
     mov [DP_IN + O_PO], eax
@@ -219,10 +221,10 @@ dp_lend:                                ; replaces `call cseg_8ECAE` (the career
     call dp_find
     jz .nat
     movzx eax, word [D6CDC]             ; the career club's division: Serie B (0) or a Serie C group (1 ..)
-    movzx ecx, byte [esi + 2]
+    movzx ecx, byte [esi + 5]
     sub eax, ecx
     jb .nat
-    movzx ecx, byte [esi + 4]
+    movzx ecx, byte [esi + 7]
     cmp eax, ecx
     ja .nat
     mov [DP_IN + O_MDIV], al
@@ -235,8 +237,8 @@ dp_lend:                                ; replaces `call cseg_8ECAE` (the career
     pop esi
     cmp byte [DP_IN + O_MDIV], 0
     je .own
-    movzx ebx, byte [esi + 3]           ; a group: the other groups simulated now (as cseg_8ECAE does for another
-    movzx ecx, byte [esi + 4]           ; division's play-off clubs), their tables kept for the season end
+    movzx ebx, byte [esi + 6]           ; a group: the other groups simulated now (as cseg_8ECAE does for another
+    movzx ecx, byte [esi + 7]           ; division's play-off clubs), their tables kept for the season end
     add ecx, ebx
     xor edi, edi                        ; (k: the snapshot)
 .sim:
@@ -279,7 +281,7 @@ dp_lend:                                ; replaces `call cseg_8ECAE` (the career
     mov edx, [D8CAA]
     call dp_find
     pop eax
-    movzx ecx, byte [esi + 2]
+    movzx ecx, byte [esi + 5]
     sub eax, ecx
     mov ebp, DIY
     call dp_rows
@@ -556,7 +558,7 @@ dp_cupw:                                ; the Coppa Italia Serie C's final decid
     jz .r
     call dp_find
     jz .r
-    mov al, [esi + 5]
+    mov al, [esi + 8]
     test al, al
     jz .r
     cmp [DIY + 2Dh], al
@@ -711,13 +713,16 @@ def _play_sites(p, r):
                 d6cdc=d6cdc, cal=cal, cal_cur=cal_cur, rec=rec, w11f9cc=w11f9cc, draw=sites[0])
 
 
-def table_bytes(tables):
-    """per league: world, league id, Serie B, first group, groups, the league cup's id (Coppa Italia Serie C; 0)."""
-    out = bytearray()
-    for world, lid, u, f, ng, _, lc in tables:
+def table_lines(tables):
+    """DP_TAB, per league: dd its struct (obj1, mkseason.LEAGUE_AT), db world, Serie B, first group, groups, the
+    league cup's id (Coppa Italia Serie C; 0); a 0 world ends it."""
+    import mkseason
+    out = []
+    for world, lid, u, f, ng, lfile, lc in tables:
         assert 1 <= world <= 255 and f == u + 1 and 2 <= ng <= 4, (world, u, f, ng)
-        out += bytes((world, lid, u, f, ng, lc))
-    return bytes(out + b'\0')
+        out.append(f'dd LG{len(out)}\n    db {world}, {u}, {f}, {ng}, {lc}')
+    return '\n'.join(out + ['dd 0\n    db 0, 0, 0, 0, 0']), {
+        f'LG{i}': (1, mkseason.LEAGUE_AT[(t[0], t[5])]) for i, t in enumerate(tables)}
 
 
 def bye_cups(tables):
@@ -781,6 +786,7 @@ def patch(p, at, limit, tables, bss_at, area):
     tmd = careerworld.LABELS['sites']['tmd']
     assert len(tables) == 1, 'dplay: one world with the Italian play-offs'
     cps = _contests(p, area, tables[0][5])
+    tab_src, tab_syms = table_lines(tables)
     symbols = {k: (0, v) for k, v in lay.items()}
     symbols.update({'NDIV': (0, 5), 'DP_IN': syms['DP_IN'], 'DP_OUTB': syms['DP_OUT'], 'dp_season': syms['dp_season'],
                     'dp_lend_c': syms['dp_lend'], 'DP_SVP': syms['DP_SVP'], 'A0R': (2, r['A0']), 'A1R': (2, r['A0'] + 4), 'A2R': (2, r['A0'] + 8),
@@ -798,17 +804,19 @@ def patch(p, at, limit, tables, bss_at, area):
                     'DPID_CPO': (0, DP_CPO), 'F846': (2, ps['f846']), 'SAVESEL': (1, ps['savesel']),
                     'RESTSEL': (1, ps['restsel']), 'C3ABB2': (1, ps['c3abb2']), 'C915ED': (1, ps['c915ed']),
                     'DP_SAVE': (2, tmd + SAVE_AT), 'DP_LOG': (2, tmd + SAVE_AT + LOG_AT), 'DPID_PO': (0, DP_PO), 'DPID_OUT': (0, DP_OUT),
-                    'TAB_BYTES': (0, 'db ' + ', '.join(str(b) for b in table_bytes(tables)))})
+                    })
+    symbols.update(tab_syms)
     glue = (cend + 15) & ~15
     # the two contests after the glue (their address known after a first assembly)
     symbols.update({'DP_C0': (1, 0), 'DP_C1': (1, 0), 'DP_C2': (1, 0)})
-    code, _ = nasmcave.assemble(ASM, glue, symbols)
+    asm = ASM.replace('DP_TAB: TAB_BYTES', 'DP_TAB:\n    ' + tab_src)
+    code, _ = nasmcave.assemble(asm, glue, symbols)
     c0 = (glue + len(code) + 15) & ~15
     c1 = (c0 + len(cps[0]) + 3) & ~3
     c2 = (c1 + len(cps[1]) + 3) & ~3
     symbols.update({'DP_C0': (1, c0), 'DP_C1': (1, c1), 'DP_C2': (1, c2)})
-    code, fix = nasmcave.assemble(ASM, glue, symbols)
-    lab = nasmcave.labels(ASM, glue, symbols)
+    code, fix = nasmcave.assemble(asm, glue, symbols)
+    lab = nasmcave.labels(asm, glue, symbols)
     assert c0 >= glue + len(code) and c2 + len(cps[2]) <= limit, hex(c2 + len(cps[2]))
     p.put(1, glue, code)
     for off, tobj, toff in fix:

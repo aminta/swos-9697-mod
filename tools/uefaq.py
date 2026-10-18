@@ -103,6 +103,21 @@ uq_country:                             ; careerworld w_q_cq (w_q_cl in a league
 .lc:                                    ; the league cup winner of a country whose league cup gives a UECL place
     test ebp, ebp                       ; (pack season.league_cup_europe; one of the clubs seen, else none)
     jz .x
+    mov esi, [UQ_EPP]                   ; its knockout play-offs (gplay's table: db file, dd spec; FF ends)
+    test esi, esi
+    jz .le0
+    mov al, [UQ_CF]
+.ep:
+    cmp byte [esi], 0FFh
+    je .le0
+    cmp [esi], al
+    je .ef
+    add esi, 5
+    jmp .ep
+.ef:
+    mov eax, [esi + 1]
+    mov [UQ_IN + L_EPLAY + ebp*4], eax
+.le0:
     mov al, [UQ_CF]
     mov esi, UQ_LCEU
 .le:
@@ -629,6 +644,8 @@ uq_tie_round:                           ; CF = 1 and D0 = 0..3 (FIRST .. FOURTH 
     ret
 
 UQ_CF: db 0
+align 4
+UQ_EPP: dd 0                            ; (gplay.py: its European play-offs' table)
 UQ_LCEU: LCEU_BYTES
 UQ_HP: dd HOLD_CC, HOLD_CWC, HOLD_UEFA
 UQ_QS: dd QS0, QS1, QS2
@@ -667,7 +684,7 @@ uq_cpts:                                ; uefacoef uc_final (UC_QPTS, ebp = CB):
 '''
 
 
-STRUCTS_AT = 0x2F00             # the 3 contests (obj1, after the C code and the glue in uefaq's three pages)
+STRUCTS_AT = 0x3F00             # the 3 contests (obj1, after the C code and the glue in uefaq's four pages)
 QIDS = (0x7C, 0x7D, 0x7E)       # contest ids (mkseason.RESERVED_IDS): CL / EL / UECL qualifying tie
 Q_NAME, Q_LIST = 0x28, 0x30     # offsets in a contest: its 2 name dwords, its 2-club list
 NAMES = {'it': 'PRELIM. ', 'en': 'QUAL. ', 'fr': 'QUALIF. ', 'de': 'QUALI. '}
@@ -715,10 +732,10 @@ def patch(p, at, limit, sites):
     bss_at = sites['bss'] + cw.B_UQ
     syms, end, bss = cobj.link(p, obj, at, (2, bss_at), limit=limit)
     assert bss <= cw.UQ_BSS, hex(bss)
-    lay = struct.unpack('<23I', p.get(1, syms['UQ_LAYOUT'][1], 92))
+    lay = struct.unpack('<24I', p.get(1, syms['UQ_LAYOUT'][1], 96))
     keys = ('L_PRESENT', 'L_EPS', 'L_HOLD', 'L_NCLUB', 'L_LEAGUE', 'L_CUP', 'L_CLUB', 'CSZ', 'O_N', 'O_LS', 'O_STATUS',
             'IN_SIZE', 'NC', 'L_MANAGER', 'L_FORCE', 'O_MT_N', 'O_MT_ROUND', 'O_MT_OPP', 'O_MT_WIN', 'O_STANDIN', 'O_GN',
-            'O_GL', 'L_LCUP')
+            'O_GL', 'L_LCUP', 'L_EPLAY')
     lay = dict(zip(keys, lay))
     assert lay['IN_SIZE'] % 4 == 0 and lay['CSZ'] == 12 and lay['NC'] >= 553, lay
     slay = dict(zip(('S_M', 'S_K', 'S_RES', 'S_GN', 'S_GL', 'S_SIZE', 'R_DONE', 'R_R', 'R_OPP', 'R_DEST', 'R_GL',

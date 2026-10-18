@@ -107,6 +107,8 @@ struct uq_in {
     u8 pad3;
     u16 lcup[NA];                       /* the league cup winner of an association whose league cup gives its last
                                            UECL place (England's EFL Cup): club index + 1 (0 = none / not seen) */
+    u32 eplay[NA];                      /* its knockout play-offs (gplay.py's bytes, a 'europe' one gives the last
+                                           UECL place: Denmark, Austria, Netherlands, Wales ...), 0 = none */
 };
 /* output */
 struct uq_out {
@@ -169,7 +171,7 @@ const u32 UQ_LAYOUT[] = { OFF(uq_in, present), OFF(uq_in, eps), OFF(uq_in, hold)
                           OFF(uq_out, n), OFF(uq_out, ls), OFF(uq_out, status), sizeof(struct uq_in), NC,
                           OFF(uq_in, manager), OFF(uq_in, force), OFF(uq_out, mt_n), OFF(uq_out, mt_round),
                           OFF(uq_out, mt_opp), OFF(uq_out, mt_win), OFF(uq_out, standin), OFF(uq_out, gn),
-                          OFF(uq_out, gl), OFF(uq_in, lcup) };
+                          OFF(uq_out, gl), OFF(uq_in, lcup), OFF(uq_in, eplay) };
 
 static struct { u8 rank, round, code, pad; } E[NE];
 static int ne;
@@ -320,6 +322,81 @@ static u32 skey(int i) {
 static u16 CLUB[NE];                    /* the club (index + 1) of each place, 0 = none */
 static u8 taken[NC + 1];
 
+/* An association's European play-off (the first 'europe' one of UQ_IN.eplay[rk]: gplay.py's format) over its
+   league clubs: an entrant [0, place] = the first club from that place on neither qualified nor already an entrant
+   (the places pass down), 'best without Europe' = the first such club, the league cup winner = itself when it
+   finished within if_places (else as 'best without Europe'); ties by the clubs' strength (as the qualifying ties),
+   a level tie per the round's rule. Its own random sequence (the season's draws stay season.py's). -> club + 1 */
+static u32 erng;
+static u32 ebelow(u32 n) { erng = erng * 1103515245u + 12345u; return ((erng >> 16) * n) >> 16; }
+static u32 sq(int c);
+static int lpos(const u16 *lg, int c) {  /* a club's league place (0 = the champion) */
+    for (int l = 0; l < NL; l++) if (lg[l] == c) return l;
+    return NL;
+}
+
+static int ep_run(int rk, const u8 *taken) {
+    const u8 *s = (const u8 *)UQ_IN.eplay[rk];
+    const u16 *lg = UQ_IN.league[rk];
+    while (s && *s) {
+        int kind = s[0], n = s[1], nr = s[2];
+        const u8 *e = s + 6, *r = e + 4 * n;
+        if (kind == 2 && n <= 16) {
+            int club[16], used[NL] = {0}, W[32], nt = 0, last = -1;
+            erng = 0x45504C59u + rk * 7919u;
+            for (int i = 0; i < n; i++) {
+                int t = e[4 * i], from = t == 0 ? e[4 * i + 2] - 1 : 0, c = 0;
+                if (t == 2 && UQ_IN.lcup[rk])
+                    for (int l = 0; l < NL - 1; l++)
+                        if (lg[l] == UQ_IN.lcup[rk] && l >= e[4 * i + 2] - 1 && l <= e[4 * i + 3] - 1 && !taken[lg[l]])
+                            { c = lg[l]; used[l] = 1; }
+                for (int l = from < 0 ? 0 : from; !c && l < NL - 1; l++)
+                    if (lg[l] && !taken[lg[l]] && !used[l]) { c = lg[l]; used[l] = 1; }
+                club[i] = c;
+                erng = erng * 31 + c;
+            }
+            for (int k = 0; k < nr; k++) {
+                int ties = r[0], legs = r[1], level = r[3], pn = r[4];
+                const u8 *m = r + 5;
+                int v[64];
+                if (ties > 32) ties = 32;
+                for (int i = 0; i < 2 * ties; i++) {
+                    int c = m[i];
+                    v[i] = c < 0x80 ? (c < n ? club[c] : 0) : c < 0xC0 && (c & 0x3F) < nt ? W[c & 0x3F] : 0;
+                }                                   /* (losers' brackets: not in Europe play-offs) */
+                if (pn > 2 * ties) pn = 2 * ties;
+                if (pn) {                           /* best v worst: by league place, 1st v last ... */
+                    int t[64];
+                    for (int i = 1; i < pn; i++) {
+                        int x = v[i], j = i;
+                        while (j > 0 && lpos(lg, x) < lpos(lg, v[j - 1])) { v[j] = v[j - 1]; j--; }
+                        v[j] = x;
+                    }
+                    for (int i = 0; i < pn / 2; i++) { t[2 * i] = v[pn - 1 - i]; t[2 * i + 1] = v[i]; }
+                    for (int i = 0; i < pn; i++) v[i] = t[i];
+                }
+                for (int i = 0; i < ties; i++) {
+                    int a0 = v[2 * i], b0 = v[2 * i + 1];
+                    int w = a0 ? b0 ? 0 : a0 : b0;
+                    if (a0 && b0) {
+                        u32 a = sq(a0), b = sq(b0);
+                        int bp = lpos(lg, a0) < lpos(lg, b0) ? a0 : b0;
+                        if (ebelow(100) < (legs == 1 ? 22u : 12u) && (level == 0 || level == 2)) w = bp;
+                        else w = ebelow(a + b) < a ? a0 : b0;
+                    }
+                    if (nt < 32) { W[nt] = w; last = nt; }
+                    nt++;
+                }
+                r = m + 2 * r[0];
+            }
+            return last >= 0 ? W[last] : 0;
+        }
+        for (int k = 0; k < nr; k++) r += 5 + 2 * r[0];
+        s = r;
+    }
+    return 0;
+}
+
 /* season.py assign() for every association: CLUB[] from E; skip[] = holders taking their own place */
 static void assign(const u16 *skip) {
     static short ord[NE];
@@ -336,17 +413,19 @@ static void assign(const u16 *skip) {
         for (int c = 0; c <= UQ_IN.nclub; c++) taken[c] = 0;
         for (int h = 0; h < 3; h++) if (skip[h]) taken[skip[h]] = 1;
         const u16 *lg = UQ_IN.league[rk];
-        int lce = -1;                           /* the league cup winner's place: the association's last UECL one */
-        if (UQ_IN.lcup[rk])
+        int lce = -1;                           /* the league cup winner's / the European play-off's place: */
+        if (UQ_IN.lcup[rk] || UQ_IN.eplay[rk]) /* the association's last UECL one */
             for (int j = 0; j < n; j++)
                 if (COMP(E[ord[j]].round) == 2 && (lce < 0 || E[ord[j]].code > E[lce].code)) lce = ord[j];
         for (int j = 0; j < n; j++) {
-            int i = ord[j], club = 0;
+            int i = ord[j], club = 0, ep;
             if (E[i].code == 0 && lg[0] && !taken[lg[0]])
                 club = lg[0];
             else if (E[i].code == 1 && UQ_IN.cup[rk] && !taken[UQ_IN.cup[rk]])
                 club = UQ_IN.cup[rk];
-            else if (i == lce && !taken[UQ_IN.lcup[rk]])  /* (already qualified: the next league club) */
+            else if (i == lce && UQ_IN.eplay[rk] && (ep = ep_run(rk, taken)) && !taken[ep])
+                club = ep;                      /* (its European play-off's winner) */
+            else if (i == lce && UQ_IN.lcup[rk] && !taken[UQ_IN.lcup[rk]])  /* (already qualified: the next league club) */
                 club = UQ_IN.lcup[rk];
             else
                 for (int l = 0; l < NL - 1; l++)

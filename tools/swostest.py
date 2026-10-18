@@ -3282,7 +3282,7 @@ def world_gplay():
                 os.environ.pop(k, None)
             else:
                 os.environ[k] = v
-    car = os.path.join(RUNS, 'world8485_1', 'SWOS', 'W84A.CAR')
+    car = os.path.join(RUNS, w84_tag() + '_1', 'SWOS', 'W84A.CAR')
     if not os.path.exists(car):
         return False, f'no season-1 save: {msg}'
     slt = open(car, 'rb').read()[0xE8DC:0xE8DC + 2000]

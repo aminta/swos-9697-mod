@@ -21,10 +21,10 @@ SLOTS = 128
 ROWS = 24
 ORIG_ADV = [0, .25, .5, .5, .5, .75, .75, .75, .75, .75] + [1] * 14     # dseg_1728FF rows 0..23: non-zero slots / 4
 import os
-G0 = float(os.environ.get('SIMDRAW_G0', 2.40))                         # goals per match: G0 + G1 * d (at most GMAX)
+G0 = float(os.environ.get('SIMDRAW_G0', 2.55))                         # goals per match: G0 + G1 * d (at most GMAX)
 G1 = float(os.environ.get('SIMDRAW_G1', 0.06))
 GMAX = 4.2
-K = float(os.environ.get('SIMDRAW_K', 1.0))                            # the original advantage x K (calibration)
+K = float(os.environ.get('SIMDRAW_K', 1.2))                            # the original advantage x K (calibration)
 D0 = float(os.environ.get('SIMDRAW_D0', 0.30))                         # draws at d = 0, then - D1 per step (>= DMIN)
 D1 = float(os.environ.get('SIMDRAW_D1', 0.010))
 DMIN = 0.08

@@ -182,6 +182,9 @@ when the engine lands it.
 - **Faces**: skin by nationality, **blond hair from the players' official EA SPORTS FC portraits** (and black skin
   with blond hair, as Osimhen), plus a hand list.
 - **Foreign market of 2026-27**: 900 real players of the tiers just below the world's divisions.
+- **Simulated matches: real draw rates and scorelines.** The original game's simulation never let the stronger side
+  lose and ended ~45% of matches level. In this world the scores come from a table built on real football: ~27%
+  draws, ~2.7 goals per match, upsets possible, and each strength gap gives the same points advantage as before.
 - **Strength**: each club's skills are built from its real squad; checked against the real 2025-26 tables (mean rank
   correlation 0.93 over 104 divisions) and in simulated seasons (top flights 0.70-0.94).
 
@@ -573,6 +576,10 @@ Non una formula uguale per tutti: ogni campionato gioca la stagione come l'ha sc
 - **Visi**: pelle secondo la nazionalità, **capelli biondi dalle foto ufficiali EA SPORTS FC dei giocatori** (anche
   pelle scura e capelli biondi, come Osimhen), più un elenco a mano.
 - **Mercato estero 2026-27**: 900 giocatori veri delle serie subito sotto quelle del mondo.
+- **Partite simulate: pareggi e punteggi reali.** La simulazione del gioco originale non faceva mai perdere la squadra
+  più forte e finiva in pareggio circa il 45% delle partite. In questo mondo i punteggi vengono da una tabella
+  costruita sul calcio reale: circa il 27% di pareggi, circa 2,7 gol a partita, sorprese possibili, e a ogni
+  differenza di forza lo stesso vantaggio in punti di prima.
 - **Forza**: le abilità di ogni club nascono dalla sua rosa reale; verificate sulle classifiche reali 2025-26
   (correlazione media 0,93 su 104 divisioni) e in stagioni simulate (massime serie 0,70-0,94).
 

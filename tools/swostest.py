@@ -1436,6 +1436,14 @@ def season_over(scr):
 
 
 @scenario
+def w84_tag():
+    """Run dir prefix of world8485()'s two seasons: 'world8485', or '<scenario>_w84' when another scenario runs it, so
+    world8485 and world2526 (... which call world8485()) never share run dirs in one suite (-j2: one overwrote the
+    other's session.log and screenshots)."""
+    n = os.environ.get('SWOSTEST_SCENARIO')
+    return 'world8485' if n in (None, '', 'world8485') else f'{n}_w84'
+
+
 def world8485():
     """Europe 1984-85 world (world 4): new career at Liverpool, two seasons (save, reload, save), checkw1 on both"""
     exe = os.environ.get('W8485_BUILD') or builds()['it']       # (builds/w8485 was a stale 3.0-era build)
@@ -1445,7 +1453,7 @@ def world8485():
         out, msgs = [first], [f'season 1: from {first}']
     for season in ((2,) if first else (1, 2)):
         cars = {} if season == 1 else {'W84A.CAR': out[0]}
-        with Session(f'world8485_{season}', exe, cars, 'dump:2', 240, int(os.environ.get('W8485_SHOTS', 0))) as s:
+        with Session(f'{w84_tag()}_{season}', exe, cars, 'dump:2', 240, int(os.environ.get('W8485_SHOTS', 0))) as s:
             if s.wait().outcome != 'dump':
                 return False, f'START: no first pause ({s.result})'
             if season == 1:
@@ -1528,7 +1536,7 @@ def world8485():
         good, report = checkw1(path)
         out.append(path)
         msgs.append(f'season {season}: {msg}, ' + ('checkw1 ok' if good else 'checkw1 FAIL'))
-        open(os.path.join(RUNS, f'world8485_{season}', 'checkw1.txt'), 'w').write(report + '\n')
+        open(os.path.join(RUNS, f'{w84_tag()}_{season}', 'checkw1.txt'), 'w').write(report + '\n')
         if not good:
             return False, '; '.join(msgs) + '\n' + report
     return True, '; '.join(msgs)
@@ -2215,7 +2223,7 @@ def world2526q():
                 os.environ.pop(k, None)
             else:
                 os.environ[k] = v
-    log = os.path.join(RUNS, 'world8485_2', 'session.log')
+    log = os.path.join(RUNS, w84_tag() + '_2', 'session.log')
     ties, bad = [], []
     if os.path.exists(log):
         for line in open(log, errors='replace'):
@@ -2959,7 +2967,7 @@ def world_groups():
                 os.environ.pop(k, None)
             else:
                 os.environ[k] = v
-    car = os.path.join(RUNS, 'world8485_1', 'SWOS', 'W84A.CAR')
+    car = os.path.join(RUNS, w84_tag() + '_1', 'SWOS', 'W84A.CAR')
     if not os.path.exists(car):
         return False, f'no season-1 save: {msg}'
     slt = open(car, 'rb').read()[0xE8DC:0xE8DC + 2000]           # someLeaguesTable (ITA save offset)
@@ -3034,7 +3042,7 @@ def world_playoffs():
                 os.environ.pop(k, None)
             else:
                 os.environ[k] = v
-    car = os.path.join(RUNS, 'world8485_1', 'SWOS', 'W84A.CAR')
+    car = os.path.join(RUNS, w84_tag() + '_1', 'SWOS', 'W84A.CAR')
     if not os.path.exists(car):
         return False, f'no season-1 save: {msg}'
     slt = open(car, 'rb').read()[0xE8DC:0xE8DC + 2000]           # someLeaguesTable (ITA save offset)
@@ -3082,7 +3090,7 @@ def world_dplay_b(force='5', team='EUROPA,ITALIA,SERIE B,MODENA'):
                 os.environ.pop(k, None)
             else:
                 os.environ[k] = v
-    car = os.path.join(RUNS, 'world8485_1', 'SWOS', 'W84A.CAR')
+    car = os.path.join(RUNS, w84_tag() + '_1', 'SWOS', 'W84A.CAR')
     if not os.path.exists(car):
         return False, f'no season-1 save: {msg}'
     d = open(car, 'rb').read()
@@ -3199,7 +3207,7 @@ def world_leaguecup():
                 os.environ.pop(k, None)
             else:
                 os.environ[k] = v
-    log = open(os.path.join(RUNS, 'world8485_1', 'session.log'), errors='replace').read()
+    log = open(os.path.join(RUNS, w84_tag() + '_1', 'session.log'), errors='replace').read()
     titles = sorted(set(re.findall(r'EFL CUP[A-Z0-9 ./-]*', log)))
     errs = []
     check(ok, msg, errs)
@@ -3515,6 +3523,7 @@ def main(argv):
         bad = 0
         for n in names:
             t = time.time()
+            os.environ['SWOSTEST_SCENARIO'] = n
             ok, msg = SCENARIOS[n]()
             if not ok and msg.startswith('START'):          # rare stall at the main menu (cause unknown): retry once
                 print(f'RETRY {n}: {msg}', flush=True)

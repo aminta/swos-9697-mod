@@ -2102,3 +2102,12 @@ Left for 2.5: (a) NSL/NSSL finals series (type-1 design) or declare them postpon
   DATA: TEAM.101-136 + WORLD04.TMD changed vs 3.3.3. Suite 21/21 + w84_lowprice PASS (runs334f + runs334g).
   Patcher 3.3.4 md5 e56b0471: Node OK. 12bit packages rebuilt (MiSTer disk swos9697_mod334.vhd).
 - Still open: Davide / Marco playtest of SWOS++ English (tactics pitch 12+) and the bench menu text 20+ (edited team).
+
+## 3.3.5 (2026-10-18): real match days for odd leagues (Italy 1947-48)
+- tools/oddtables.py (squads session, 730b50c): the game's odd pair tables (dseg_11F356[n-2], n = 5..23) rewritten in
+  place as real rounds (circle method, one rest per round, home/away at most 3 running); only builds with an odd
+  division (mkseason.odd_leagues): in the released packs only Italy 1947-48 (21). 3.3.4 table: days 5, 6, 8, 9, 11..21
+  irregular. Scenario season4748 (Season > STAG. STORICHE > ITALIA 1947-48, all computer, 6 match days of 10 matches with
+  20 clubs; FAIL on 3.3.4 days 5-6, PASS 3.3.5).
+- Build c/REL335: SWOS IT 11210c6a EN 6a7ca0b1 FR 37e33a70 DE 9f2ce00f; gog IT 168e6d55 EN 978b0c41 FR af35aa03 DE a27e362d;
+  SWOS++ 42a5603e; DATA = 3.3.4. Suite 23/23 PASS (runs335). Patcher 3.3.5 md5 7eac6a60: Node OK.

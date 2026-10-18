@@ -76,15 +76,19 @@ sp_init:                                ; replaces `call cseg_2653B` at the end 
     jne .clean                          ; cover the block: only our mark is cleared)
     mov word [DIY + S_MAGIC], 0
 .clean:
-    cmp word [GAMETYPE], 4
-    jne .x
     mov esi, [A5]
     mov ah, [esi + 2]                   ; the struct's team file
+    xor al, al                          ; a season (one division, one year: 4.0) -> world 0, the original one
+    cmp word [GAMETYPE], 3
+    je .w
+    cmp word [GAMETYPE], 4              ; a career: its world byte
+    jne .x
     mov al, [SLT + WORLD_BYTE]
+.w:
     mov dl, [sp_div]
     mov edi, SP_TAB
 .find:
-    cmp byte [edi], 0
+    cmp word [edi + E_LEN], 0           ; (the table ends with a zero length: world 0 is a world)
     je .x
     cmp [edi], ax
     jne .next
@@ -1083,7 +1087,7 @@ def patch(p, cave, nasmcave, splits):
         tab += body
         log.append(f'w{world} f{file} d{div}: {n} clubs, {d1} + {d2} days, '
                    + ' / '.join(str(st['groups']) for st in spec.get('stages') or []))
-    tab += b'\0'
+    tab += b'\0' * 16                          # (end: an entry of length 0)
     src = ASM + ''.join(f'    db {", ".join(str(b) for b in tab[i:i + 32])}\n' for i in range(0, len(tab), 32))
     sym = {'D0': (2, s['A0'] - 32), 'A0': (2, s['A0']), 'A1': (2, s['A0'] + 4), 'A2': (2, s['A0'] + 8), 'A5': (2, s['A0'] + 20),
            'A3': (2, s['A0'] + 12), 'A4': (2, s['A0'] + 16), 'D1': (2, s['A0'] - 28), 'D2': (2, s['A0'] - 24),

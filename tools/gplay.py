@@ -11,18 +11,21 @@ Data: the divisions' promoted / relegated counts are the direct moves only; the 
 the move of a winner_div entrant that does not win (to loser_div). Not playable yet (the career club's play-off in
 slot 4: dplay's mechanism, to come); the European play-offs are uefaq's.
 
-pack.json league "ko_playoffs": [{ "key", "names": {lang: [long, short]}, "kind": "promotion" | "europe" | "placement",
+pack.json league "ko_playoffs": [{ "key", "names": {lang: [long, short]},
+  "kind": "promotion" | "europe" | "placement" | "playout" (the last round's losers go down to loser_div),
   "entrants": [[div, place] | {"div": d, "best_without_europe": true} | {"league_cup_winner": true, "if_places": [a, b]}],
   "rounds": [{"ties": [[a, b], ...] | (with "pairing": "best_worst", "clubs": [...]), "legs": 1 | 2,
-              "host": "listed" | "better" | "drawn" | "neutral", "level": "better" | "et_pens" | "et_better" | "pens"}],
-  "winner_div": d, "loser_div": d2, "skip_qualified": bool }]   (0-based divisions, 1-based places; tie members:
+              "host": "listed" | "better" | "drawn" | "neutral", "level": "better" | "et_pens" | "et_better" | "pens",
+              "gap": g (a tie of clubs g+ points apart is not played: the better placed goes through)}],
+  "winner_div": d, "loser_div": d2 | "reserve" (out of the league), "skip_qualified": bool }]   (0-based divisions, 1-based places; tie members:
   an entrant index, "W<k>" / "L<k>" the winner / loser of tie k, ties numbered in order across rounds)
 """
 import os
 import re
 import struct
 
-KINDS = {'promotion': 1, 'europe': 2, 'placement': 3}
+KINDS = {'promotion': 1, 'europe': 2, 'placement': 3, 'playout': 4}
+RESERVE = 0xFE                  # loser_div 'reserve': out of every division (gplay.c)
 HOSTS = {'listed': 0, 'better': 1, 'drawn': 2, 'neutral': 3}
 LEVELS = {'better': 0, 'et_pens': 1, 'et_better': 2, 'pens': 3}
 
@@ -34,7 +37,7 @@ def compile_spec(pos, ndiv):
         key = po.get('key', '?')
         kind = KINDS.get(po.get('kind'))
         if not kind:
-            raise ValueError(f'{key}: kind promotion / europe / placement')
+            raise ValueError(f'{key}: kind {" / ".join(KINDS)}')
         ents = []
         for e in po['entrants']:
             if isinstance(e, list) and len(e) == 2:
@@ -77,14 +80,19 @@ def compile_spec(pos, ndiv):
             legs = rd.get('legs', 1)
             if legs not in (1, 2) or rd.get('host', 'listed') not in HOSTS or rd.get('level', 'et_pens') not in LEVELS:
                 raise ValueError(f'{key}: legs 1 / 2, host {sorted(HOSTS)}, level {sorted(LEVELS)}')
-            rounds += bytes((ties, legs, HOSTS[rd.get('host', 'listed')], LEVELS[rd.get('level', 'et_pens')], pairing))
+            gap = rd.get('gap', 0)
+            if not (isinstance(gap, int) and 0 <= gap < 256):
+                raise ValueError(f'{key}: gap 0..255 points')
+            rounds += bytes((ties, legs, HOSTS[rd.get('host', 'listed')], LEVELS[rd.get('level', 'et_pens')], pairing,
+                             gap))
             rounds += bytes(codes)
             nt += ties
         if nt > 63:
             raise ValueError(f'{key}: at most 63 ties')
         wd, ld = po.get('winner_div', 0), po.get('loser_div', 0)
-        if kind == 1 and not (0 <= wd < ndiv and 0 <= ld < ndiv):
-            raise ValueError(f'{key}: winner_div / loser_div')
+        ld = RESERVE if ld == 'reserve' else ld
+        if kind in (1, 4) and not (0 <= wd < ndiv and (0 <= ld < ndiv or ld == RESERVE)):
+            raise ValueError(f'{key}: winner_div / loser_div (a division, or "reserve")')
         flags = 1 if po.get('skip_qualified') else 0
         out += bytes((kind, len(ents), len(po['rounds']), wd, ld, flags))
         out += b''.join(bytes(e) for e in ents) + rounds
@@ -93,10 +101,14 @@ def compile_spec(pos, ndiv):
 
 ASM = '''
 gp_find:                                ; edx = a league struct -> esi = its GP_TAB entry in the running world, or ZF = 1
-    mov al, [SLT + WORLD_BYTE]
+    xor eax, eax                        ; (a season or any other mode: world 0, the original one)
+    cmp word [GAMETYPE], 4
+    jne .w
+    mov al, [SLT + WORLD_BYTE]          ; (a career: its world)
+.w:
     mov esi, GP_TAB
 .l:
-    cmp byte [esi + 4], 0
+    cmp dword [esi], 0                  ; (the table ends with a null struct: world 0 is a world)
     je .no
     cmp [esi], edx
     jne .n
@@ -235,13 +247,15 @@ def table_lines(tables):
     """GP_TAB: per country dd its league struct, db world, dd its spec; a 0 world ends it. Specs after it."""
     import mkseason
     lines, syms = ['GP_TAB:'], {}
+    import engine
     for i, (world, lfile, spec) in enumerate(tables):
         lines.append(f'    dd GPL{i}\n    db {world}\n    dd GPS{i}')
-        syms[f'GPL{i}'] = (1, mkseason.LEAGUE_AT[(world, lfile)])
+        syms[f'GPL{i}'] = (1, engine.LEAGUE_AT[lfile[1]] if isinstance(lfile, tuple) else mkseason.LEAGUE_AT[(world, lfile)])
     lines.append('    dd 0\n    db 0\n    dd 0')
     lines.append('GP_EPT:')                    # (uefaq UQ_EPP: per country file its specs, for the European ones)
     for i, (world, lfile, spec) in enumerate(tables):
-        lines.append(f'    db {lfile}\n    dd GPS{i}')
+        if not isinstance(lfile, tuple):        # (world 0's: no league-phase world, no UEFA qualifiers)
+            lines.append(f'    db {lfile}\n    dd GPS{i}')
     lines.append('    db 0FFh')
     for i, (_, _, spec) in enumerate(tables):
         lines.append(f'GPS{i}: db ' + ', '.join(str(b) for b in spec))
@@ -259,6 +273,7 @@ def patch(p, at, limit, tables, bss_at):
     import dplay
     import pgroups
     import nasmcave
+    import split
     cap, c9221f, end_site, c9228d, diy, ct, rel, pro, r = dplay._sites(p)
     tgt = lambda a: a + 5 + struct.unpack('<i', p.get(1, a + 1, 4))[0]   # (the current targets: dplay's, or the game's)
     assert p.get(1, cap, 1) == b'\xe8' and p.get(1, end_site, 1) == b'\xe8'
@@ -278,7 +293,7 @@ def patch(p, at, limit, tables, bss_at):
                     'WORLD_BYTE': (0, careerworld.WORLD_BYTE), 'DIY': (2, diy), 'SELTEAMS': (2, sel),
                     'CAREERTEAM': (2, ct), 'ANIM_REL': (2, rel), 'ANIM_PRO': (2, pro),
                     'GP_CAP_NEXT': (1, tgt(cap)), 'GP_END_NEXT': (1, tgt(end_site)),
-                    'BAL': (0, pgroups.BALANCE), 'NSUM': (0, bigtables.LIMIT if bigtables.ON[0] else 2000)})
+                    'BAL': (0, pgroups.BALANCE), 'GAMETYPE': split.sites(p)['GAMETYPE'], 'NSUM': (0, bigtables.LIMIT if bigtables.ON[0] else 2000)})
     asm = ASM + tab_src + '\n'
     glue = (cend + 15) & ~15
     code, fix = nasmcave.assemble(asm, glue, symbols)

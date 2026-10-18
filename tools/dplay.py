@@ -38,10 +38,12 @@ LOG_AT = 0x400                  # (+ SAVE_AT) the season's log: 'DPLG', the stat
 
 ASM = '''
 dp_find:                                ; edx = a league struct -> esi = its DP_TAB entry in the running world, or ZF = 1
+    cmp word [GAMETYPE], 4              ; (careers only: a season's someLeaguesTable may hold an old career's world)
+    jne .no
     mov al, [SLT + WORLD_BYTE]          ; (by the struct's address: a world's leagues all have one contest id)
     mov esi, DP_TAB
 .l:
-    cmp byte [esi + 4], 0
+    cmp dword [esi], 0                  ; (the table ends with a null struct)
     je .no
     cmp [esi], edx
     jne .n
@@ -806,7 +808,7 @@ def patch(p, at, limit, tables, bss_at, area):
                     'DP_DIYP': syms['DP_DIYP'], 'dp_perm_c': syms['dp_perm_c'], 'dp_restore': syms['dp_restore'],
                     'DPID_CPO': (0, DP_CPO), 'F846': (2, ps['f846']), 'SAVESEL': (1, ps['savesel']),
                     'RESTSEL': (1, ps['restsel']), 'C3ABB2': (1, ps['c3abb2']), 'C915ED': (1, ps['c915ed']),
-                    'DP_SAVE': (2, tmd + save_at), 'DP_LOG': (2, tmd + save_at + LOG_AT), 'DPID_PO': (0, DP_PO), 'DPID_OUT': (0, DP_OUT),
+                    'GAMETYPE': __import__('split').sites(p)['GAMETYPE'], 'DP_SAVE': (2, tmd + save_at), 'DP_LOG': (2, tmd + save_at + LOG_AT), 'DPID_PO': (0, DP_PO), 'DPID_OUT': (0, DP_OUT),
                     })
     symbols.update(tab_syms)
     glue = (cend + 15) & ~15

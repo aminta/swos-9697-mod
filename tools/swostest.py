@@ -792,7 +792,8 @@ class Session:
     def poke(self, lin, data):
         """Write bytes into the paused game's memory (debugger SM; the next read sees them)."""
         os.write(self.box.fd, f"SM 168:{lin:X} {' '.join(f'{x:X}' for x in data)}\r".encode())
-        if self.result:
+        self.box.pump(0.05)                            # (read the echo: ~90 pokes in one pause filled the pty and
+        if self.result:                                # os.write blocked for good)
             self.result.chunks = []
 
     def send(self, keys):

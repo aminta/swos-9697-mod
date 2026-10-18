@@ -357,7 +357,7 @@ static int ep_run(int rk, const u8 *taken) {
             }
             for (int k = 0; k < nr; k++) {
                 int ties = r[0], legs = r[1], level = r[3], pn = r[4];
-                const u8 *m = r + 5;
+                const u8 *m = r + 6;
                 int v[64];
                 if (ties > 32) ties = 32;
                 for (int i = 0; i < 2 * ties; i++) {
@@ -391,7 +391,7 @@ static int ep_run(int rk, const u8 *taken) {
             }
             return last >= 0 ? W[last] : 0;
         }
-        for (int k = 0; k < nr; k++) r += 5 + 2 * r[0];
+        for (int k = 0; k < nr; k++) r += 6 + 2 * r[0];
         s = r;
     }
     return 0;

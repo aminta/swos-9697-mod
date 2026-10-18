@@ -57,16 +57,20 @@ def relax_file_check(p):
 
 
 def table_bytes(tables):
-    """(world, [(first division, [group sizes])] top-down over the whole chain, [(global, base division, area)])."""
-    out = bytearray()
+    """db count; per country (world, [(first division, [group sizes])] top-down over the whole chain, [(global,
+    base division, area or [areas per level of groups])]): see gplay.c pg_season."""
+    out = bytearray((len(tables),))
     for world, levels, clubs in tables:
+        npar = sum(1 for _, sizes in levels if len(sizes) > 1)
         out += bytes((world, len(levels)))
         for first, sizes in levels:
             out += bytes((first, len(sizes))) + bytes(min(255, x) for x in sizes)
-        out += struct.pack('<H', len(clubs))
+        out += bytes((npar,)) + struct.pack('<H', len(clubs))
         for g, base, area in clubs:
-            out += struct.pack('<HBB', g, base, area)
-    return bytes(out + b'\0')
+            areas = list(area) if isinstance(area, (list, tuple)) else [area] * npar
+            assert len(areas) == npar, (g, areas, npar)
+            out += struct.pack('<HB', g, base) + bytes(areas)
+    return bytes(out)
 
 
 def _site(p):

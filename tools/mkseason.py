@@ -86,6 +86,10 @@ RESERVED_IDS = {0xAD, 0xC1, 0xC2, 0xC3, 0xC4, 0xC5, 0xFC, 0xFD, 0xFE} | set(rang
                                                                                # sacups, cafcups, Australian cup,
                                                                                # uefaq's qualifying ties 7C..7E,
                                                                                # dplay's play-offs FC..FE)
+WORLD0_IDS = set(range(0xF2, 0xFA)) | {0xFF, 0xBF, 0xC0, 0x87, 0xA1, 0xA2, 0x8B}   # 4.0 package 7 (+ its real draws)
+# contests hand-made for world 0, the original 1996-97 world (4.0: its national cups, state
+                        # championships ...): refused in non-world packs (seasons, tourneys) only; the career worlds'
+                        # packs may reuse them (a world career never loads world 0's contests)
 AU_CUP_SIG = bytes((0xAD, 1, 0x2C, 0x28, 0x50))   # SWOS's Australian cup: layout of a 'national' cup
 COUNTRY = {'ALB': 0, 'AUT': 1, 'BEL': 2, 'BUL': 3, 'CYP': 5, 'TCH': 6, 'DEN': 7, 'ENG': 8, 'FIN': 12, 'FRA': 13, 'GDR': 14,
            'FRG': 14, 'GRE': 15, 'HUN': 16, 'ISL': 17, 'IRL': 18, 'ITA': 20, 'LUX': 23, 'MLT': 24, 'NED': 25,
@@ -301,7 +305,12 @@ class Pack:
             n = max(q['count'] for q in pars)
             for k in self.league_clubs:
                 a = self.clubs[k].get('area') or ''
-                _need(a == '' or a in 'ABCDEF'[:n], f"clubs.csv: {k}: area must be one of {'ABCDEF'[:n]} (a group of the level)")
+                if a == 'reserve':
+                    continue
+                parts = a.split('/') if '/' in a else [a]
+                _need(a == '' or all(x and x in 'ABCDEF'[:n] for x in parts) and len(parts) in (1, len(pars)),
+                      f"clubs.csv: {k}: area A..{'ABCDEF'[n - 1]} (a group, every level) or one per level of groups "
+                      f"(A/B...: {len(pars)} levels)")
         if (self.league and len(divs) > 1 and self.league.get('playoffs') != 'ita'   # (Italy: dplay's own counts;
                 and not os.environ.get('MKSEASON_NOBALANCE')):                       # harness: a build as it is)
             self._balance(divs)
@@ -409,7 +418,9 @@ class Pack:
             fl, i = self.where[k]
             base = next(b for fk, (ff, b) in self.files.items() if ff == fl)
             d = self.division[k]
-            out.append((base + i, d, 'ABCDEF'.index(c['area']) if c.get('area') else own[d]))
+            a = c.get('area') or ''
+            out.append((base + i, d, ['ABCDEF'.index(x) for x in a.split('/')] if '/' in a else
+                        'ABCDEF'.index(a) if a else own[d]))
         return self.world, levels, out
 
     def divisions(self):
@@ -604,7 +615,7 @@ class Pack:
         _need(isinstance(c.get('dates_from', 14), int), f'{w} dates_from: a country number')
         c.setdefault('dates_from', 14)
         _need(re.fullmatch(r'[0-9A-F]{2}', c.get('id', '')) and int(c['id'], 16) >= 0x80
-              and int(c['id'], 16) not in RESERVED_IDS, f'{w} id: a free contest id (hex, 80..FE, see packs/README.md)')
+              and int(c['id'], 16) not in RESERVED_IDS | WORLD0_IDS, f'{w} id: a free contest id (hex, 80..FE, see packs/README.md)')
         for lg, nm in c['names'].items():
             _need(len(nm) == 2 and all(x == x.upper() for x in nm) and len(nm[1]) <= 16 and len(nm[0]) <= 30,
                   f'{w} names.{lg}: [long name (<= 30), short name (<= 16)], upper case')
@@ -628,7 +639,7 @@ class Pack:
         _need(isinstance(c.get('win_points'), int) and 1 <= c['win_points'] <= 9, f'{w} win_points 1..9')
         _need(c.get('draw', 'fixed') in ('fixed', 'random'), f"{w} draw must be 'fixed' or 'random'")
         _need(re.fullmatch(r'[0-9A-F]{2}', c.get('id', '')) and int(c['id'], 16) >= 0x80
-              and int(c['id'], 16) not in RESERVED_IDS, f'{w} id: a free contest id (hex, 80..FE, see packs/README.md)')
+              and int(c['id'], 16) not in RESERVED_IDS | WORLD0_IDS, f'{w} id: a free contest id (hex, 80..FE, see packs/README.md)')
         for lg, nm in c['names'].items():
             _need(len(nm) == 2 and all(x == x.upper() for x in nm) and len(nm[1]) <= 16 and len(nm[0]) <= 30,
                   f'{w} names.{lg}: [long name (<= 30), short name (<= 16)], upper case')
@@ -1729,7 +1740,8 @@ def patch(p, lang, area, cave):
             _need(all(s2 is not None and scope is not None and s2 != scope or o == owner for s2, o in users.items())
                   and users.get(scope, owner) == owner, f"contest id {c['id']} used twice")
             users[scope] = owner
-            _need(int(c['id'], 16) not in RESERVED_IDS, f"contest id {c['id']} is used by the mod")
+            _need(int(c['id'], 16) not in RESERVED_IDS | (WORLD0_IDS if pk.world is None else set()),
+                  f"contest id {c['id']} is used by the mod")
     at, infos = cave, []
     cat = CAREER_DATA[0]                       # career packs: own obj1 pages (a world of 30 countries needs ~5 KB)
     for pk in packs():

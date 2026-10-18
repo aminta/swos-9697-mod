@@ -28,6 +28,7 @@ import purple
 import blond
 import xtra
 import pgroups
+import engine
 import menunum
 import avgprice
 import mkseason
@@ -185,10 +186,10 @@ def patch_exe(src, dst, remap, lang='it'):
     xtra_on = bool(mkseason.xtra_files() or os.environ.get('XTRA_HOOK'))
     bigtables.ON[0] = worlds and bigtables.needed()    # a world numbering its clubs 2000+ (World 5.0)
     bigtables.MOVED.clear()
-    pg_tabs = mkseason.parallel_tables()               # parallel groups of one level (Serie C 3 x 20)
+    pg_tabs = mkseason.parallel_tables() + engine.parallel_tables()   # parallel groups (worlds' packs; world 0: engine)
     dp_tabs = mkseason.dplay_tables() if mkseason.worlds() else []   # Italian play-offs (dplay.py)
     lpb += 2 * bool(dp_tabs)                           # (+2: their code pages, before the extra one)
-    gp_tabs = mkseason.gplay_tables() if mkseason.worlds() else []   # knockout play-offs of the formats (gplay.py)
+    gp_tabs = (mkseason.gplay_tables() if mkseason.worlds() else []) + engine.gplay_tables()   # knockout play-offs
     gp_on = bool((gp_tabs or pg_tabs) and mkseason.worlds())         # (gplay.c also holds the parallel groups' fix)
     lpb += 2 * gp_on                                   # (+2: its pages, after dplay's)
     xtra_pg = bool((xtra_on or pg_tabs or bigtables.ON[0]) and mkseason.worlds())   # (+1: an extra code page in a build with worlds,
@@ -198,7 +199,8 @@ def patch_exe(src, dst, remap, lang='it'):
     cdp = mkseason.career_data_pages() - 2 if worlds else 0   # a big world: a 3rd career data page and a 2nd
     h2 = HIST2_PAGE * (1 + cdp)                                # historic page (its cups' fixed draws)
     cp = cave_pages()                                          # career world code: 2 pages, 3 with several worlds
-    sp_pg = split.pages(mkseason.splits()) if worlds else 0   # mid-season splits: own pages after all the others
+    sp_tabs = (mkseason.splits() if worlds else []) + engine.split_tables()   # mid-season splits (worlds; world 0)
+    sp_pg = split.pages(sp_tabs) if worlds else 0      # (own pages after all the others)
     for _ in range((6 + cp + 2 + 2 * cdp if worlds else 6) + lpb + sp_pg):  # (+1: the UEFA league phase's page, lp36)
         data = add_object_page(data, 1)
     mkseason.CAREER_CAVE[0] = CAREER_CAVE if worlds else None
@@ -374,7 +376,7 @@ def patch_exe(src, dst, remap, lang='it'):
     mkseason.ns_emit(p)                          # several worlds: the namespaces' rows, the base one static
     if sp_pg:                                    # World 2026-27: mid-season splits (split.py), after lpb's pages
         sp_at = hist2 + h2 + 0x1000 * lpb
-        sp_end = split.patch(p, sp_at, nasmcave, mkseason.splits())
+        sp_end = split.patch(p, sp_at, nasmcave, sp_tabs)
         assert sp_end <= sp_at + 0x1000 * sp_pg, hex(sp_end)
     p.set_vsize(1, OBJ1_NEW_VSIZE + (0x1000 * (cp + 2 + cdp) if worlds else 0) + h2 + 0x1000 * (lpb + sp_pg))
     tail = (careerworld.BSS_SIZE if bigw else 0) + shirtnum.BSS_SIZE + blond.BSS_SIZE + menunum.BSS_SIZE   # obj2 tail

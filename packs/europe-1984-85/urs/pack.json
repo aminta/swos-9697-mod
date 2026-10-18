@@ -1,6 +1,7 @@
 {
  "format": 1,
  "id": "europe-1984-85-urs",
+ "numbers": "place",
  "kind": "career",
  "button": "SOVIET UNION",
  "button_names": {"it": "URSS", "en": "SOVIET UNION", "fr": "URSS", "de": "UDSSR"},

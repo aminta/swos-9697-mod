@@ -28,6 +28,8 @@ import purple
 import blond
 import xtra
 import pgroups
+import menunum
+import avgprice
 import mkseason
 import careerworld
 import bigtables
@@ -190,6 +192,8 @@ def patch_exe(src, dst, remap, lang='it'):
     lpb += 2 * gp_on                                   # (+2: its pages, after dplay's)
     xtra_pg = bool((xtra_on or pg_tabs or bigtables.ON[0]) and mkseason.worlds())   # (+1: an extra code page in a build with worlds,
     lpb += xtra_pg                                     # whose world cave is full: 3.3.x purple + blond + a big world)
+    cos_pg = int(worlds)                               # (+1, the top one: blond + menunum + avgprice in a build with
+    lpb += cos_pg                                      # worlds, whose world cave 3.3.4's purple pk_menu filled)
     cdp = mkseason.career_data_pages() - 2 if worlds else 0   # a big world: a 3rd career data page and a 2nd
     h2 = HIST2_PAGE * (1 + cdp)                                # historic page (its cups' fixed draws)
     cp = cave_pages()                                          # career world code: 2 pages, 3 with several worlds
@@ -328,12 +332,12 @@ def patch_exe(src, dst, remap, lang='it'):
         careerworld.BSS_SIZE = (careerworld.B_UQ + careerworld.UQ_BSS + careerworld.UQ_RECS * 684 + 0xFFF) & ~0xFFF
     if dp_tabs:                                 # Italian play-offs (C, tools/dplay.c; own 2 pages,
         import dplay                            # its .bss after the career BSS)
-        dp_at = hist2 + h2 + 0x1000 * (lpb - 2 - 2 * gp_on - xtra_pg)
+        dp_at = hist2 + h2 + 0x1000 * (lpb - cos_pg - 2 - 2 * gp_on - xtra_pg)
         dplay.patch(p, dp_at, dp_at + 0x2000, dp_tabs, careerworld.BSS[0] + careerworld.BSS_SIZE, area)
         careerworld.BSS_SIZE += 0x1000
     if gp_on:                                   # knockout play-offs (C, tools/gplay.c; chained after dplay's hooks)
         import gplay                            # and the parallel groups' season-end fix (pg_season, pgroups.py)
-        gp_at = hist2 + h2 + 0x1000 * (lpb - 2 - xtra_pg)
+        gp_at = hist2 + h2 + 0x1000 * (lpb - cos_pg - 2 - xtra_pg)
         gplay.patch(p, gp_at, gp_at + 0x2000, gp_tabs, careerworld.BSS[0] + careerworld.BSS_SIZE)
         careerworld.BSS_SIZE += 0x1000
     assert cave <= WORLD_CAVE, hex(cave)
@@ -343,9 +347,16 @@ def patch_exe(src, dst, remap, lang='it'):
     world = shirtnum.patch(p, world, num_bss)    # 3.2.5: shirt numbers 17..99 over the players (built from the digits)
     weeks.patch(p)                               # 3.2.7: career weeks 128+ (mod cups outside Europe) in the job offers
     world = purple.patch(p, area, world)        # 3.3.0: kit colour 10 = purple (palette entry 12 when no maroon)
-    world = blond.patch(p, area, world, num_bss + shirtnum.BSS_SIZE, shirtnum.spr_index(p))   # 3.3.0: face 3
+    cos = hist2 + h2 + 0x1000 * (lpb - 1) if cos_pg else world   # (worlds: their own page)
+    cos = blond.patch(p, area, cos, num_bss + shirtnum.BSS_SIZE, shirtnum.spr_index(p))   # 3.3.0: face 3
+    cos = menunum.patch(p, cos, num_bss + shirtnum.BSS_SIZE + blond.BSS_SIZE)   # 3.3.4: menu numbers 17..99
+    cos = avgprice.patch(p, cos)                 # 3.3.4: average player price >= 1 (divide error, 1984-85 Iceland)
+    if cos_pg:
+        assert cos <= hist2 + h2 + 0x1000 * lpb, hex(cos)
+    else:
+        world = cos
     if xtra_pg:                                                  # extended career squads (packs with "extra";
-        xp = hist2 + h2 + 0x1000 * (lpb - 1)                     # XTRA_HOOK=1: test builds): DATA\XTRA.nnn players;
+        xp = hist2 + h2 + 0x1000 * (lpb - cos_pg - 1)            # XTRA_HOOK=1: test builds): DATA\XTRA.nnn players;
         xe = xtra.patch(p, xp) if xtra_on else xp                # the extra page in a build with worlds, with the
         if pg_tabs:                                              # parallel groups' season-end fix (pgroups.py)
             xe = pgroups.patch(p, (xe + 15) & ~15, pg_tabs, gplay.LABELS['pg_season'])
@@ -359,7 +370,7 @@ def patch_exe(src, dst, remap, lang='it'):
     careerworld.ns_xtra(p, xtra.LABELS['XTRA_NAMEP'] if xtra_on else None)   # several worlds: XTWn.nnn names
     mkseason.ns_emit(p)                          # several worlds: the namespaces' rows, the base one static
     p.set_vsize(1, OBJ1_NEW_VSIZE + (0x1000 * (cp + 2 + cdp) if worlds else 0) + h2 + 0x1000 * lpb)
-    tail = (careerworld.BSS_SIZE if bigw else 0) + shirtnum.BSS_SIZE + blond.BSS_SIZE   # zero-filled obj2 tail
+    tail = (careerworld.BSS_SIZE if bigw else 0) + shirtnum.BSS_SIZE + blond.BSS_SIZE + menunum.BSS_SIZE   # obj2 tail
     p.set_vsize(2, obj2_free + o2pages * p.le.page_size + tail, bss=tail)
     p.add_flags(1, 0x2)            # writable: season end rewrites the SA cup team lists in the cave
     delta, shift = p.save(dst)

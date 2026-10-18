@@ -1,6 +1,7 @@
 {
  "format": 1,
  "id": "europe-1984-85-gdr",
+ "numbers": "place",
  "kind": "career",
  "button": "EAST GERMANY",
  "button_names": {"it": "GERMANIA EST", "en": "EAST GERMANY", "fr": "RDA", "de": "DDR"},

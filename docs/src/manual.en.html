@@ -595,6 +595,11 @@ assert blk[:2] == b'S2' and sum(blk) % 256 == 0</code></pre>
 <li><strong>No national-team jobs (M3).</strong> The tail of <code>cseg_8D7B4</code> stores −1 in <code>lastNationalityCall</code> in a world (−1 = no offer in <code>cseg_5B705</code>).</li>
 <li><strong>Holders with a place of their own (M3).</strong> <code>cseg_93BCE</code> clears a holder that qualified through its league, and <code>cseg_92C4D</code> replaces a random qualifier: with an extra holder place that left a cup one club short (freeze). In a world the three <code>call cseg_93BCE</code> (<code>cseg_939C9</code> champion, the CWC and UEFA loops) skip every holder and every club already in a list (the place goes to the next club of the table), and <code>call cseg_92BBF</code> appends the three holders and their saved records (<code>cseg_94193</code>). Places = cup size − 1; the checks before the holders use the total − 3. The world code lives on a sixth obj1 page (0xA6000), added only when a build has a world.</li>
 </ul>
+<h3>Era shirt numbers (3.3.4)</h3>
+<ul>
+<li><strong>Numbers by place.</strong> Before fixed squad numbers (1993-95) a shirt number told the place in the line-up. A pack with <code>"numbers": "place"</code> (all the mod's historic packs, Europe 1984-85 included) is renumbered by <code>mkseason._place_numbers</code>: the 11 starters keep a 1..11 they already hold when it is unique (Baresi 6 at Milan) and the others get the free ones; the bench (places 12..16) does the same with 12..16; everyone else gets the free numbers above 16 in line-up order.</li>
+<li><strong>Menus above 11.</strong> <code>tools/menunum.py</code>: the bench text of the squad menus prints 0..99 (it stopped at 19), and the tactics pitch gets sprites for 12..99 (1620..1707), so edited teams and modern squads with numbers above 11 show them right in the menus too.</li>
+</ul>
 
 <!-- 24 -->
 <h2 id="swospp"><span class="n">24</span>SWOS++ (2.7)</h2>

@@ -1,6 +1,7 @@
 {
  "format": 1,
  "id": "europe-1984-85-lux",
+ "numbers": "place",
  "kind": "career",
  "button": "LUXEMBOURG",
  "button_names": {"it": "LUSSEMBURGO", "en": "LUXEMBOURG", "fr": "LUXEMBOURG", "de": "LUXEMBURG"},

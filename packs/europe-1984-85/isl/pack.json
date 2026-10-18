@@ -1,6 +1,7 @@
 {
  "format": 1,
  "id": "europe-1984-85-isl",
+ "numbers": "place",
  "kind": "career",
  "button": "ICELAND",
  "button_names": {"it": "ISLANDA", "en": "ICELAND", "fr": "ISLANDE", "de": "ISLAND"},

@@ -1,6 +1,7 @@
 {
  "format": 1,
  "id": "europe-1984-85-nor",
+ "numbers": "place",
  "kind": "career",
  "button": "NORWAY",
  "button_names": {"it": "NORVEGIA", "en": "NORWAY", "fr": "NORVEGE", "de": "NORWEGEN"},

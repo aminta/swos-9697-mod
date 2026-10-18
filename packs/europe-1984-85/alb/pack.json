@@ -1,6 +1,7 @@
 {
  "format": 1,
  "id": "europe-1984-85-alb",
+ "numbers": "place",
  "kind": "career",
  "button": "ALBANIA",
  "button_names": {"it": "ALBANIA", "en": "ALBANIA", "fr": "ALBANIE", "de": "ALBANIEN"},

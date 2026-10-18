@@ -1,6 +1,7 @@
 {
  "format": 1,
  "id": "europe-1984-85-mlt",
+ "numbers": "place",
  "kind": "career",
  "button": "MALTA",
  "button_names": {"it": "MALTA", "en": "MALTA", "fr": "MALTE", "de": "MALTA"},

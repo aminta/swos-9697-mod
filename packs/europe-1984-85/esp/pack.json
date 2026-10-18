@@ -1,6 +1,7 @@
 {
  "format": 1,
  "id": "europe-1984-85-esp",
+ "numbers": "place",
  "kind": "career",
  "button": "SPAIN",
  "button_names": {"it": "SPAGNA", "en": "SPAIN", "fr": "ESPAGNE", "de": "SPANIEN"},

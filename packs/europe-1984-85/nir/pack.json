@@ -1,6 +1,7 @@
 {
  "format": 1,
  "id": "europe-1984-85-nir",
+ "numbers": "place",
  "kind": "career",
  "button": "N. IRELAND",
  "button_names": {"it": "IRLANDA DEL NORD", "en": "N. IRELAND", "fr": "IRLANDE DU NORD", "de": "NORDIRLAND"},

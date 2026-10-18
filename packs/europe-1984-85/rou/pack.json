@@ -1,6 +1,7 @@
 {
  "format": 1,
  "id": "europe-1984-85-rou",
+ "numbers": "place",
  "kind": "career",
  "button": "ROMANIA",
  "button_names": {"it": "ROMANIA", "en": "ROMANIA", "fr": "ROUMANIE", "de": "RUMANIEN"},

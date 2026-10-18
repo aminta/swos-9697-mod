@@ -1,6 +1,7 @@
 {
   "format": 1,
   "id": "italia-1947-48",
+  "numbers": "place",
   "button": "ITALIA 1947-48",
   "button_names": {"it": "ITALIA 1947-48", "en": "ITALY 1947-48", "fr": "ITALIE 1947-48", "de": "ITALIEN 1947-48"},
   "continent": "europe",

@@ -1,6 +1,7 @@
 {
  "format": 1,
  "id": "europe-1984-85-pol",
+ "numbers": "place",
  "kind": "career",
  "button": "POLAND",
  "button_names": {"it": "POLONIA", "en": "POLAND", "fr": "POLOGNE", "de": "POLEN"},

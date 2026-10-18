@@ -1,6 +1,7 @@
 {
  "format": 1,
  "id": "europe-1984-85-national",
+ "numbers": "place",
  "kind": "national",
  "world": 4,
  "sources": [

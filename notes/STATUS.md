@@ -2083,3 +2083,22 @@ Left for 2.5: (a) NSL/NSSL finals series (type-1 design) or declare them postpon
 - SELECT KITS entry 1 background from teamControls (10 computer, 13 coach, 11 player; Marco); Screen.colors.
 - Build c/REL333: SWOS IT a288261d EN 0004dc88 FR 96505310 DE 60759d18; gog IT c3f8e77c EN 9f4f23ba FR b0f55a59 DE 465c7f37; SWOS++ 0d95c2bb;
   DATA = 3.3.0. Suite 20/20 PASS (runs333; menu_check clean x10). Patcher 3.3.3 md5 c6805370 (old v3.3.2 added): Node OK.
+
+## 3.3.4 (2026-10-18): era shirt numbers + numbers above 11 in the menus (resumed on Davide's go, Max plan)
+- Done: era shirt numbers (pack.json "numbers": "place", mkseason._place_numbers: starters keep a historic 1..11,
+  bench 12..16; all mod packs; 1984-85: TEAM.101-136 + WORLD04.TMD change, ~790 players 17..41 renumbered, Baresi 6);
+  menunum.py (bench menu text 0..99, tactics pitch sprites 12..99 = 1620..1707; cherry-pick of dc6e24c); harness
+  substitute() fixes 5306c14 + 7f1cbc2 (world8485_nat 'no fit reserve for row 12'). Build c/REL334 (all languages),
+  patcher 3.3.4 (old v3.3.3 saved) Node OK, release/notes-3.3.4.md IT/EN.
+- 3.3.4 also: purple and maroon together in the kit editors (Marco: maroon shorts on Fiorentina's second kit turned
+  the purple first kit maroon): kTeamColorsTable purple -> palette entry 4 (menu sprites draw entries 0..15 only; 120
+  was cut to a yellow stripe), purple only in the editor's menu (pk_edit records it, pk_menu on the two calls of
+  UnpackMenu puts the skin brown back). avgprice.py: GetAveragePlayerPrice >= 1 (Daniele: Volsungur, Iceland 1984-85,
+  DOS/4GW divide error at ENGLISH 1:0002C784 = cseg_3C4CE's div by the average price; 30 clubs of the 1984-85 world
+  sum < 16), scenario w84_lowprice (FAIL on 3.3.3, PASS 3.3.4). Harness: 4.0's frames from memory (ff6cb7c) and the CC
+  trap regex (world-2025-26 7c81201). The integrator's VerifyTeamLoaded assert (divisions > 24 clubs) cannot hit 1984-85
+  (largest division 24).
+- Build c/REL334: SWOS IT 50fa149a EN 5b0fb65e FR 7b9a01df DE 25f86578; gog IT 044e4a0e EN f305296c FR 128a13e5 DE cf2c96c6; SWOS++ 45e4fa21;
+  DATA: TEAM.101-136 + WORLD04.TMD changed vs 3.3.3. Suite 21/21 + w84_lowprice PASS (runs334f + runs334g).
+  Patcher 3.3.4 md5 e56b0471: Node OK. 12bit packages rebuilt (MiSTer disk swos9697_mod334.vhd).
+- Still open: Davide / Marco playtest of SWOS++ English (tactics pitch 12+) and the bench menu text 20+ (edited team).

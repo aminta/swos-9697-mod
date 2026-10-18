@@ -1437,6 +1437,25 @@ def season_over(scr):
 
 
 @scenario
+def w84_lowprice():
+    """3.3.4 (Daniele): a 1984-85 career at Volsungur (Iceland), whose 16 players are all worth the minimum: the team
+    screen divided by the average player price (0) and the game stopped (DOS/4GW divide error); avgprice.py"""
+    exe = os.environ.get('W8485_BUILD', os.path.join(WORK, 'builds', 'w8485'))
+    with Session('w84_lowprice', exe, {}, 'dump:2', 240) as s:
+        if s.wait().outcome != 'dump':
+            return False, f'START: no first pause ({s.result})'
+        for t in ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'EUROPA 1984-85', 'ISLANDA', 'VOLSUNGUR']:
+            if press(s, s.screen(), t) is None or s.result.outcome != 'dump':
+                return False, f'new career: {t} not reached ({s.result})'
+        seen = []
+        for _ in range(6):                      # the team screen and on (VIS. RISULTATI, back...)
+            r = s.send('fire dump:2')
+            if r.outcome != 'dump':
+                return False, f'after {seen}: {r}'
+            seen.append(s.screen().entries[0][1] if s.screen().entries else '?')
+        return True, 'Volsungur career: ' + ' > '.join(seen)
+
+
 def w84_tag():
     """Run dir prefix of world8485()'s two seasons: 'world8485', or '<scenario>_w84' when another scenario runs it, so
     world8485 and world2526 (... which call world8485()) never share run dirs in one suite (-j2: one overwrote the
@@ -1445,6 +1464,7 @@ def w84_tag():
     return 'world8485' if n in (None, '', 'world8485') else f'{n}_w84'
 
 
+@scenario
 def world8485():
     """Europe 1984-85 world (world 4): new career at Liverpool, two seasons (save, reload, save), checkw1 on both"""
     exe = os.environ.get('W8485_BUILD') or builds()['it']       # (builds/w8485 was a stale 3.0-era build)
@@ -2647,6 +2667,81 @@ def bench_numbers():
     return not errs, '; '.join(errs + info)
 
 
+def menu_glyphs(r, spr):
+    """The menu's small digits as menunum / shirtnum build them: {digit: [columns of pixels]} from sprites 162..171."""
+    def sprite(i):
+        ptr = struct.unpack('<I', r.read(r.base2 + spr + i * 4, 4))[0]
+        h = r.read(ptr, 24)
+        nl = struct.unpack_from('<h', h, 12)[0]
+        px = r.read(struct.unpack('<I', h[:4])[0], nl * 8)
+        return [[(px[y * 8 + x // 2] >> (0 if x & 1 else 4)) & 15 for x in range(16)] for y in range(nl)]
+    cols = lambda g: [x for x in range(16) if any(row[x] for row in g)]
+    out = {}
+    for dgt in range(2, 10):
+        g = sprite(161 + dgt)
+        c = cols(g)
+        out[dgt] = [[row[x] for row in g] for x in range(c[0], c[-1] + 1)]
+    one = sprite(162)                   # the menu's "10" has no gap: 1 = its own sprite, 0 = "10" after that width
+    c = cols(one)
+    out[1] = [[row[x] for row in one] for x in range(c[0], c[-1] + 1)]
+    ten = sprite(171)
+    c = cols(ten)
+    z = [x for x in c if x >= c[0] + len(out[1])]
+    out[0] = [[row[x] for row in ten] for x in range(z[0], z[-1] + 1)]
+    return out
+
+
+@scenario
+def menu_numbers():
+    """3.3.4: shirt numbers 17..99 in the menus. MOD. TATTICA > UTN A (LEICESTER CITY's squad): its players poked to
+    17..32, the pitch redrawn: the little numbers 12..99 are the new sprites 1620.. (menunum; the game's small numbers
+    are 1..11 only), each one = tens digit, 1 pixel, units digit of the menu's own small digits (rebuilt here from
+    sprites 162..171). MENU_PATH: the menu entries in another language (English: 'EDIT TACTICS,USER_A')"""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import lepatch
+    import shirtnum
+    import menunum
+    b = builds()['it']
+    exe = next(os.path.join(b, x) for x in ('ITALIAN.EXE', 'ENGLISH.EXE') if os.path.exists(os.path.join(b, x)))
+    spr = shirtnum.spr_index(lepatch.LEPatch(exe))
+    d = open(os.path.join(MAIN, 'orig', 'DATA', 'TEAM.008'), 'rb').read()
+    lei = next(2 + i * 684 for i in range(struct.unpack('>H', d[:2])[0])
+               if d[2 + i * 684 + 5:2 + i * 684 + 22].split(b'\0')[0] == b'LEICESTER CITY')
+    first = d[lei + 76 + 3:lei + 76 + 26]
+    errs, info = [], []
+    with Session('menu_numbers', b, {}, 'dump:3', 300) as s:
+        s.wait()
+        for t in os.environ.get('MENU_PATH', 'MOD. TATTICA,UTN A').split(','):    # English: EDIT TACTICS,USER_A
+            press(s, s.screen(), t, wait=3)
+        r = s.result
+        mem = r.mem
+        recs = [m.start() - 3 - 76 for m in re.finditer(re.escape(first), mem)]
+        recs = [x for x in recs if mem[x + 5:x + 19] == b'LEICESTER CITY']
+        check(recs, 'LEICESTER CITY record not found in memory', errs)
+        for x in recs:
+            for k in range(16):
+                s.poke(x + 76 + k * 38 + 2, bytes((17 + k,)))
+        s.send('down dump:1')
+        s.send('up dump:2')
+        s.shot('menu_numbers')
+        r = s.result
+        ptrs = struct.unpack('<88I', r.read(r.base2 + spr + menunum.NEWBASE * 4, 88 * 4))
+        check(all(ptrs), f'spritesIndex[{menunum.NEWBASE}..] not filled ({sum(1 for x in ptrs if x)} of 88)', errs)
+        if all(ptrs):
+            g = menu_glyphs(r, spr)
+            for n in (12, 17, 20, 23, 32, 41, 99):
+                h = r.read(ptrs[n - 12], 24)
+                w, nl = struct.unpack_from('<hh', h, 10)
+                px = r.read(struct.unpack('<I', h[:4])[0], nl * 8)
+                got = [[(px[y * 8 + x // 2] >> (0 if x & 1 else 4)) & 15 for y in range(nl)] for x in range(w)]
+                want = g[n // 10] + [[0] * nl] + g[n % 10]
+                check(got == want and struct.unpack_from('<h', h, 22)[0] == menunum.NEWBASE + n - 12,
+                      f'{n}: sprite differs from tens + gap + units', errs)
+            info.append(f'{len(recs)} copies of LEICESTER poked to 17..32; sprites 12..99 built, checked 12 17 20 23 32 '
+                        f'41 99')
+    return not errs, '; '.join(errs + info) + f' (screenshot runs/menu_numbers/shots/menu_numbers.png)'
+
+
 PURPLE_RGB, MAROON_MENU = (24, 8, 34), (27, 0, 9)
 
 
@@ -2680,7 +2775,8 @@ def purple_kits():
     maroon for Inter, purple in the match Fiorentina-Inter and Fiorentina-Roma (Roma's maroon kit clashes: green away);
     3.3.1: Inter in Barcelona's kits (blue and maroon stripes): the automatic choice avoids purple vs maroon; SELECT KITS
     opens on the automatic choice (Fiorentina-Roma: Roma second kit) and OK plays it; 3.3.3: the team name box in the
-    colour of who controls the team (purple player, red computer)"""
+    colour of who controls the team (purple player, red computer); 3.3.4 (Marco): purple has palette entry 4 of its
+    own in the editor and entry 12 stays maroon, so a maroon part of Fiorentina's second kit leaves the first purple"""
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import lepatch
     b = builds()['it']
@@ -2694,24 +2790,37 @@ def purple_kits():
         o = 2 + t * 684                                      # maroon stripes / light blue): purple vs maroon stripes
         if d[o + 5:o + 22].split(b'\0')[0] == b'INTER MILAN':
             d[o + 26:o + 36] = bytes([2, 5, 6, 5, 5, 0, 7, 7, 7, 7])
+    fio = bytearray(open(os.path.join(b, 'DATA', 'TEAM.020'), 'rb').read())
+    for t in range(struct.unpack('>H', fio[:2])[0]):        # 3.3.4 (Marco): Fiorentina's second kit with maroon
+        o = 2 + t * 684                                      # shorts: the purple first kit stays purple in SELECT KITS
+        if fio[o + 5:o + 22].split(b'\0')[0] == b'FIORENTINA':
+            fio[o + 34] = 6
+    fiom = os.path.join(WORK, 'saves', 'TEAM020_FIOMAROON.BIN')
     barca = os.path.join(WORK, 'saves', 'TEAM020_BARCA.BIN')
     os.makedirs(os.path.dirname(barca), exist_ok=True)
     open(barca, 'wb').write(d)
-    for away, kits, cars in (('INTER MILAN', True, {}), ('ROMA', False, {}),
+    open(fiom, 'wb').write(fio)
+    for away, kits, cars in (('INTER MILAN', True, {'DATA/TEAM.020': fiom}), ('ROMA', False, {}),
                              ('INTER MILAN', False, {'DATA/TEAM.020': barca})):
-        with Session('purple_kits_' + away[:5] + ('_barca' if cars else ''), b, cars, 'dump:3', 300, match=True) as s:
+        with Session('purple_kits_' + away[:5] + ('_barca' if cars and not kits else ''), b, cars, 'dump:3', 300, match=True) as s:
             s.wait()
             italy_friendly(s, 'FIORENTINA', away)
             if kits:
                 scr = walk(s, 68, 3)
-                pal = s.result.read(s.result.base2 + working + 36, 3)
-                check(scr.entries[1][1] == 'FIORENTINA' and tuple(pal) == PURPLE_RGB, f'editor {scr.entries[1][1]} {tuple(pal)}', errs)
+                pal = s.result.read(s.result.base2 + working + 36, 3)      # 3.3.4: purple has entry 120 of its
+                own = s.result.read(s.result.base2 + working + 12, 3)      # own, entry 12 stays the menus' maroon
+                check(scr.entries[1][1] == 'FIORENTINA' and tuple(own) == PURPLE_RGB and tuple(pal) == MAROON_MENU,
+                      f'editor {scr.entries[1][1]} entry 4 {tuple(own)} entry 12 {tuple(pal)}', errs)
+                s.shot('purple_kits_editor')        # Fiorentina: purple first kit, maroon second shorts
                 check(scr.colors[1] == 11, f'team name box {scr.colors[1]} for the human player (want 11, purple)', errs)
                 scr = walk(s, 1, 3)             # the other team
                 check(scr.colors[1] == 10, f'team name box {scr.colors[1]} for the computer (want 10, red)', errs)
                 pal = s.result.read(s.result.base2 + working + 36, 3)
                 check(tuple(pal) == MAROON_MENU, f'editor {s.screen().entries[1][1]} {tuple(pal)}', errs)
                 walk(s, 20, 3)                  # ESCI
+                s.screen()                      # entry 4 back to the menus' skin brown outside the editor
+                after = tuple(s.result.read(s.result.base2 + working + 12, 3))
+                check(after == (27, 9, 0), f'entry 4 after SELECT KITS {after} (want 27, 9, 0)', errs)
             elif away == 'ROMA':                # 3.3.1 (Marco): SELECT KITS opens on the automatic choice (Roma's
                 scr = walk(s, 68, 3)            # maroon vs purple: Roma in its second kit), and OK keeps it
                 t = scr.texts()
@@ -2731,8 +2840,8 @@ def purple_kits():
                 worn = (marks[0] | marks[1]) if marks else None     # bit 0 purple, bit 1 maroon worn
                 want = PURPLE_RGB if worn == 1 else (25, 0, 8)
                 check(marks is not None and pal == want and worn != 3, f'match vs {away}: marks {marks}, entry 12 {pal}', errs)
-                info.append(f"{away}{' (Barcelona kits)' if cars else ''}: marks {marks}")
-                if away == 'INTER MILAN' and not cars:
+                info.append(f"{away}{' (Barcelona kits)' if cars and not kits else ''}: marks {marks}")
+                if away == 'INTER MILAN' and kits:
                     check(worn == 1, f'Fiorentina-Inter: purple not worn ({marks})', errs)
     return not errs, '; '.join(errs + info) if errs else 'purple in the editor (maroon for Inter) and vs Inter; ' + '; '.join(info)
 

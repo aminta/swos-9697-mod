@@ -1,6 +1,7 @@
 {
  "format": 1,
  "id": "europe-1984-85-por",
+ "numbers": "place",
  "kind": "career",
  "button": "PORTUGAL",
  "button_names": {"it": "PORTOGALLO", "en": "PORTUGAL", "fr": "PORTUGAL", "de": "PORTUGAL"},

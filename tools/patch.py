@@ -199,13 +199,17 @@ def patch_exe(src, dst, remap, lang='it'):
     if rs_tabs:                                        # their queues (RS_STATE) in the .CAR engine block: cleared on
         import gplay as gp_mod                         # a new career or an old save (init 0: seeded from the pool)
         engine.save_item('RS', gp_mod.RS_SIZE)
+    ri_tabs = mkseason.off_pools()              # off-file pools: identity swaps (gplay.c ri_season, ripool.py)
+    if ri_tabs:                                        # their identity map + queue (RI_STATE) in the engine block
+        import ripool
+        engine.save_item('RI', ripool.RI_SIZE)
     dp_tabs = mkseason.dplay_tables() if mkseason.worlds() else []   # Italian play-offs (dplay.py)
     lpb += 2 * bool(dp_tabs)                           # (+2: their code pages, before the extra one)
     gp_tabs = (mkseason.gplay_tables() if mkseason.worlds() else []) + engine.gplay_tables()   # knockout play-offs
-    gp_on = bool((gp_tabs or pg_tabs or rs_tabs) and mkseason.worlds())         # (gplay.c also holds the parallel groups' fix)
+    gp_on = bool((gp_tabs or pg_tabs or rs_tabs or ri_tabs) and mkseason.worlds())         # (gplay.c also holds the parallel groups' fix)
     import gplay as gp_mod
     lpb += gp_mod.GP_PAGES * gp_on                     # (its pages, after dplay's: C + glue + specs)
-    xtra_pg = bool((xtra_on or pg_tabs or rs_tabs or bigtables.ON[0]) and mkseason.worlds())   # (+1: an extra code page in a build with worlds,
+    xtra_pg = bool((xtra_on or pg_tabs or rs_tabs or ri_tabs or bigtables.ON[0]) and mkseason.worlds())   # (+1: an extra code page in a build with worlds,
     lpb += xtra_pg                                     # whose world cave is full: 3.3.x purple + blond + a big world)
     cos_pg = 1                                         # (+1, the top one: purple + blond + menunum + avgprice + the
     lpb += cos_pg                                      # FORMAT page: every build; without worlds too, e.g. PROTO36)
@@ -380,12 +384,18 @@ def patch_exe(src, dst, remap, lang='it'):
         gplay.patch(p, gp_at, gp_at + 0x1000 * gplay.GP_PAGES, gp_tabs, careerworld.BSS[0] + careerworld.BSS_SIZE)
         if rs_tabs:
             engine.ITEM_AT['RS'] = gplay.LABELS['RS_STATE']
+        if ri_tabs:
+            engine.ITEM_AT['RI'] = gplay.LABELS['RI_STATE']
         if ss_on:
             engine.ITEM_AT['SS'] = gplay.LABELS['GP_SS']
         if pr_on:
             engine.ITEM_AT['PR'] = gplay.LABELS['PR_STATE']
         pgroups.relax_file_check(p)             # (moves of several divisions: cseg_9487A's per-file sum check)
         careerworld.BSS_SIZE += gplay.GP_BSS
+    if ri_tabs:                                 # the off-file pool's buffers (Italy's file as read, the pool's file)
+        import ripool
+        ri_bss = careerworld.BSS[0] + careerworld.BSS_SIZE
+        careerworld.BSS_SIZE += (ripool.BSS_NEED + 0xFFF) & ~0xFFF
     assert cave <= WORLD_CAVE, hex(cave)
     print(f'exe: caves: world end {world:#x} (limit {NZ_CAVE:#x}), arg end {arg_end:#x} (limit {OBJ1_NEW_VSIZE:#x})')
     world = cafcups.intl_list(p, caf, world)
@@ -408,8 +418,12 @@ def patch_exe(src, dst, remap, lang='it'):
     if xtra_pg:                                                  # extended career squads (packs with "extra";
         xp = hist2 + h2 + 0x1000 * (lpb - cos_pg - 1)            # XTRA_HOOK=1: test builds): DATA\XTRA.nnn players;
         xe = xtra.patch(p, xp) if xtra_on else xp                # the extra page in a build with worlds, with the
-        if pg_tabs or rs_tabs:                                   # parallel groups' / reserves' season end (pgroups.py)
-            xe = pgroups.patch(p, (xe + 15) & ~15, pg_tabs, gplay.LABELS['pg_season'], rs_tabs, gplay.LABELS['rs_season'])
+        ri = None
+        if ri_tabs:                                              # the off-file pool (Eccellenza): loads + new careers
+            xe, ri = ripool.patch(p, (xe + 15) & ~15, ri_bss, ri_tabs, 'data/rs%d%03d.dat' % ri_tabs[0][:2])
+        if pg_tabs or rs_tabs or ri_tabs:                        # parallel groups' / reserves' season end (pgroups.py)
+            xe = pgroups.patch(p, (xe + 15) & ~15, pg_tabs, gplay.LABELS['pg_season'], rs_tabs, gplay.LABELS['rs_season'],
+                               ri=ri)
         if bigtables.ON[0]:                                      # the .CAR's 2000 bytes <-> the moved tables,
             xe = bigtables.hooks(p, (xe + 15) & ~15)             # numbers 2000+ (after every finder of the tables)
         assert xe <= xp + 0x1000, hex(xe)
@@ -536,6 +550,11 @@ def write_new_teams(src_dir, dst_dir):
             taken[g] = mod.FILE
         open(os.path.join(dst_dir, 'TEAM.%03d' % mod.FILE), 'wb').write(team_fix(data))
     print(f'TEAM.{nsl97.FILE:03d}/{nz97.FILE:03d}/{mls97.FILE:03d}: Australia and New Zealand 1996-97, MLS 1997')
+    for name, data in mkseason.rs_files().items():     # off-file pools (ripool.py): their clubs' records
+        k = struct.unpack('>H', data[:2])[0]
+        assert 0 < k <= 95, (name, k)
+        open(os.path.join(dst_dir, name), 'wb').write(team_fix(data))
+        print(f'{name}: {k} off-file pool clubs')
     for name, data in mkseason.xtra_files().items():   # extended career squads: players beyond 16 (xtra.py)
         open(os.path.join(dst_dir, name), 'wb').write(data)
         print(f'{name}: up to {data[2]} more players for {struct.unpack(">H", data[:2])[0]} clubs')

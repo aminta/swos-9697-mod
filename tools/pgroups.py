@@ -26,6 +26,13 @@ pg_fix:                                 ; replaces `call cseg_7CAA2` (leaguesTab
     push dword RS_TAB                   ; the reserve first (gplay.c rs_season: who leaves the lowest level, who
     call RS_SEASON                      ; comes back), then the levels' groups (pg_season places the new clubs)
     add esp, 4
+%if RI_ON
+    movzx eax, word [CAREERTEAM + 2]    ; the off-file pool (gplay.c ri_season): relegated slots of the lowest level
+    mov [RI_MGR], eax                   ; swap identities with the pool (never the manager's club)
+    push dword RI_TAB
+    call RI_SEASON
+    add esp, 4
+%endif
     push dword PG_TAB
     call PG_SEASON
     add esp, 16
@@ -37,10 +44,16 @@ pg_fix:                                 ; replaces `call cseg_7CAA2` (leaguesTab
     inc esi
     loop .s
     sub [SLTCOPY + BAL], al
+%if RI_ON
+    call RI_AFTER                       ; (ripool: the career cache's swapped records, LoadTeamFile's cache cleared)
+%endif
     popad
     jmp C7CAA2
 PG_TAB: TAB_BYTES
 RS_TAB: RS_BYTES
+%if RI_ON
+RI_TAB: RI_BYTES
+%endif
 '''
 
 
@@ -112,8 +125,9 @@ def _site(p):
 LABELS = {}             # obj1 offsets other modules link to (RS_TAB: gplay's sacking check; PG_TAB: pg_place at a 3.x load)
 
 
-def patch(p, at, tables, pg_season, rs_tables=(), rs_season=None):
-    """Glue + tables at obj1:at (the fix itself: gplay.c pg_season, (1, offset)); returns the end."""
+def patch(p, at, tables, pg_season, rs_tables=(), rs_season=None, ri=None):
+    """Glue + tables at obj1:at (the fix itself: gplay.c pg_season, (1, offset)); returns the end. ri: the off-file pool
+    (ripool.symbols(): RI_TAB bytes, gplay.c ri_season / RI_MGR, ripool's ri_after, careerTeam), or None."""
     import bigtables
     import careerworld
     site, c7caa2, s = _site(p)
@@ -122,7 +136,8 @@ def patch(p, at, tables, pg_season, rs_tables=(), rs_season=None):
            'C7CAA2': (1, c7caa2), 'PG_SEASON': pg_season, 'BAL': (0, BALANCE), 'RS_SEASON': rs_season,
            'RS_BYTES': (0, 'db ' + ', '.join(str(b) for b in reserve_bytes(list(rs_tables)))),
            'NSUM': (0, bigtables.LIMIT if bigtables.ON[0] else 2000),
-           'TAB_BYTES': (0, 'db ' + ', '.join(str(b) for b in table_bytes(tables)))}
+           'TAB_BYTES': (0, 'db ' + ', '.join(str(b) for b in table_bytes(tables))), 'RI_ON': (0, int(bool(ri)))}
+    sym.update(ri or {})
     code, fix = nasmcave.assemble(ASM, at, sym)
     lab = nasmcave.labels(ASM, at, sym)
     assert not any(p.get(1, at, len(code)))

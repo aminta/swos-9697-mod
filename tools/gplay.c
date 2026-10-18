@@ -447,6 +447,17 @@ static int pg_level(int d, int nl, const u8 *first, const u8 *cnt) {
     return 0;
 }
 
+/* The off-file pool's swapped slots this season end (ri_season, before pg_season): each enters the lowest level from
+   below the chain (its identity is new) and goes to the group of the NEW identity's area. */
+enum { RIO = 64 };
+static u16 ri_og[RIO];
+static u8 ri_oa[RIO];
+static int ri_no;
+static int ri_over(int g) {
+    for (int i = 0; i < ri_no; i++) if (ri_og[i] == g) return i;
+    return -1;
+}
+
 static const u8 *pg_one(const u8 *t, const s8 *slt, s8 *copy, int run) {
     int nl = t[1];
     u8 first[PL], cnt[PL], occ[PL][PG], pidx[PL];
@@ -469,8 +480,10 @@ static const u8 *pg_one(const u8 *t, const s8 *slt, s8 *copy, int run) {
                 if (!PEND(g)) continue;
                 pg_pend[g >> 3] &= ~(1 << (g & 7));
                 int n = copy[g] + base, o = slt[g] + base;       /* (copy still the game's move) */
+                int ov = ri_over(g);
+                if (ov >= 0) { o = first[nl - 1] + cnt[nl - 1]; n = first[nl - 1]; }   /* (a new identity from below) */
                 int lo = pg_level(o, nl, first, cnt), tl = n < o ? lo - 1 : lo + 1;
-                int area = pidx[tl] < npar ? e[3 + pidx[tl]] : 0xFF;
+                int area = ov >= 0 ? ri_oa[ov] : pidx[tl] < npar ? e[3 + pidx[tl]] : 0xFF;
                 int a = area < cnt[tl] ? area : area == 0xFF ? cnt[tl] / 2 : cnt[tl] - 1, to = a;
                 for (int k = 0; k < PG; k++) {
                     if (a + k < cnt[tl] && occ[tl][a + k] < sz[tl][a + k]) { to = a + k; break; }
@@ -480,7 +493,9 @@ static const u8 *pg_one(const u8 *t, const s8 *slt, s8 *copy, int run) {
                 copy[g] = first[tl] + to - base;
                 continue;
             }
-            int o = slt[g] + base, n = copy[g] + base, lo = pg_level(o, nl, first, cnt);
+            int o = slt[g] + base, n = copy[g] + base;
+            if (ri_over(g) >= 0) { o = first[nl - 1] + cnt[nl - 1]; n = first[nl - 1]; }
+            int lo = pg_level(o, nl, first, cnt);
             int tl = n < o ? lo - 1 : n > o ? lo + 1 : lo;
             if (tl < 0 || tl >= nl) continue;   /* (off the chain, or into the reserve: as moved) */
             if (tl == lo) {                     /* staying: counted in its group */
@@ -603,5 +618,91 @@ void rs_season(const u8 *t, const s8 *slt, s8 *copy, int world) {
         for (int i = up; i < st->n; i++) st->q[m++] = st->q[i];
         for (int i = 0; i < no && m < RQ; i++) st->q[m++] = out[i];
         st->n = m;
+    }
+}
+
+/* The off-file pool (Eccellenza 2026-27: mkseason Pack.off_pool, league 'reserve' off_file): Italy's 256 slots are the
+   whole team file, so the clubs relegated from the lowest level swap IDENTITIES with the pool instead of leaving.
+   Identity: 0..255 = the league's own records (file order), 256 + k = the pool's record k (DATA\RS<world><file>.DAT).
+   RI_STATE (engine item 'RI'): map[slot] = identity + 1 (0 = the slot itself: a cleared item is the start), the queue
+   of identities out (the pool's first order at the first season end; each season's relegated at its tail).
+   Table: db count (0 or 1); db world, file, low (the lowest level's first division); dw slots; slots x (dw global,
+   db base division, db D area); db pool; pool x db D area; pool x db first order (pool indices). */
+enum { RIS = 256, RIQ = 64 };
+struct ri_state { u8 init, n, pad[2]; u16 map[RIS]; u16 q[RIQ]; };
+struct ri_state RI_STATE;
+u8 RI_SWAPPED[RIS / 8];                         /* (this season end's swapped slots: ri_cache) */
+
+int RI_MGR;                                     /* (the manager's club, global number: set by the glue, never swapped) */
+
+void ri_season(const u8 *t, const s8 *slt, s8 *copy, int world) {
+    int manager = RI_MGR;
+    ri_no = 0;
+    for (int i = 0; i < RIS / 8; i++) RI_SWAPPED[i] = 0;
+    if (!*t++) return;
+    int w = t[0], low = t[2], ns = t[3] | t[4] << 8;
+    const u8 *sl = t + 5, *pa = sl + 4 * ns + 1;
+    int np = sl[4 * ns];
+    const u8 *po = pa + np;
+    if (w != world) return;
+    struct ri_state *st = &RI_STATE;
+    if (!st->init) {                            /* (a new career / an older save: the pool's first order) */
+        st->n = 0;
+        for (int i = 0; i < np && i < RIQ; i++) st->q[st->n++] = RIS + po[i];
+        st->init = 1;
+    }
+    u16 out[RIQ];
+    int no = 0;
+    for (int i = 0; i < ns && i < RIS && ri_no < RIO && ri_no < st->n; i++) {
+        const u8 *e = sl + 4 * i;
+        int g = e[0] | e[1] << 8, base = e[2];
+        int o = base + slt[g], n = base + copy[g];
+        if (o < low || n <= o || g == manager) continue;   /* (relegated from the lowest level; never the manager's) */
+        int was = st->map[i] ? st->map[i] - 1 : i, in = st->q[ri_no];
+        out[no++] = was;
+        st->map[i] = in == i ? 0 : in + 1;
+        ri_og[ri_no] = g;
+        ri_oa[ri_no] = in < RIS ? sl[4 * in + 3] : pa[in - RIS];
+        ri_no++;
+        RI_SWAPPED[i >> 3] |= 1 << (i & 7);
+        copy[g] = slt[g];                       /* (the slot stays; pg_season places its new identity by area) */
+    }
+    int m = 0;
+    for (int i = ri_no; i < st->n; i++) st->q[m++] = st->q[i];
+    for (int i = 0; i < no && m < RIQ; i++) st->q[m++] = out[i];
+    st->n = m;
+}
+
+/* A slot's record from its identity: everything but the slot's own bytes (file, ordinal, global number, controls,
+   the 0xFE flags, the league / division). */
+static void ri_copy(u8 *dst, const u8 *src) {
+    for (int b = 0; b < 684; b++)
+        if (b > 4 && b != 23 && b != 25) dst[b] = src[b];
+}
+
+/* After Italy's team file is read (LoadTeamFile): buf = teamFileBuffer (BE count + records), orig = its copy as read,
+   pool = the RS file's buffer (BE count + records). */
+void ri_apply(u8 *buf, const u8 *orig, const u8 *pool) {
+    int n = buf[0] << 8 | buf[1], np = pool ? pool[0] << 8 | pool[1] : 0;
+    for (int i = 0; i < n && i < RIS; i++) {
+        int id = RI_STATE.map[i];
+        if (!id--) continue;
+        if (id < RIS && id < n) ri_copy(buf + 2 + 684 * i, orig + 2 + 684 * id);
+        else if (id >= RIS && id - RIS < np) ri_copy(buf + 2 + 684 * i, pool + 2 + 684 * (id - RIS));
+    }
+}
+
+/* The career's team cache after a swap: every cached record of a swapped slot (team word file | slot << 8) gets its
+   new identity's record. recs = the cache's records, n of them; file = Italy's file; orig / pool as for ri_apply
+   (orig = Italy's file as read). */
+void ri_cache(u8 *recs, int n, int file, const u8 *orig, const u8 *pool) {
+    int nf = orig[0] << 8 | orig[1], np = pool ? pool[0] << 8 | pool[1] : 0;
+    for (int k = 0; k < n; k++) {
+        u8 *r = recs + 684 * k;
+        int i = r[1];
+        if (r[0] != file || !(RI_SWAPPED[i >> 3] & 1 << (i & 7))) continue;
+        int id = RI_STATE.map[i] ? RI_STATE.map[i] - 1 : i;
+        if (id < RIS && id < nf) ri_copy(r, orig + 2 + 684 * id);
+        else if (id >= RIS && id - RIS < np) ri_copy(r, pool + 2 + 684 * (id - RIS));
     }
 }

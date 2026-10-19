@@ -3,7 +3,7 @@
 
 ## English
 
-**SWOS 96/97 Mod 4.0: the World 2026-27 career and the 1996-97 game as it really was** (DRAFT)
+**SWOS 96/97 Mod 4.0: the World 2026-27 career, today's football as it really is** (DRAFT)
 <!-- REGIA STAGED, the release payoff (Davide 2026-10-18, for the final release of the whole work):
 *Football competitions, global and local, that no other game has, has ever had, or probably ever will.* -->
 
@@ -533,9 +533,19 @@ when the engine lands it.
 - The game files hold derived data only: the squads, skills and prices are computed from these sources (the game's
   own price scale); no market values, ratings or source pages are shipped.
 
+<!-- REGIA STAGED (release: fill from the 4.0 dry run, c/REL40rc1):
+**Also in this release**
+- Europe 1984-85 career: league tables in colour (see above), each competition's FORMAT page with its table colours,
+  the European cups' titles without a leading space.
+- The 1996-97 game as it really was (the real 1996-97 groups, Supercup, Intertoto, leagues and cups) comes in 4.1.
+
+**Updating**
+- The patcher upgrades 3.3.6 and every earlier version (CD and GOG, also the English SWOS++ version). [TODO 4.0
+  session: which files change, saves compatibility, the World 2026-27 data files.] -->
+
 ## Italiano
 
-**SWOS 96/97 Mod 4.0: la carriera Mondo 2026-27 e il gioco 1996-97 com'era davvero** (BOZZA)
+**SWOS 96/97 Mod 4.0: la carriera Mondo 2026-27, il calcio di oggi com'è davvero** (BOZZA)
 <!-- REGIA STAGED, il payoff del rilascio (Davide 2026-10-18, per il rilascio finale di tutto il lavoro):
 *Le competizioni di calcio, globali e locali, che nessun altro gioco ha, ha mai avuto e probabilmente avrà.* -->
 
@@ -1091,3 +1101,13 @@ Baiano, Cearense, Pernambucano, Alagoano e Mato-Grossense.
 
 91 nazioni, 136 divisioni, 87 coppe nazionali, 14 coppe di lega: ogni competizione giocabile e la sua formula, generate dalla build della release: [world-2026-27-competitions.md](world-2026-27-competitions.md).
 <!-- complist:end -->
+
+<!-- REGIA STAGED (rilascio: da completare dalla prova della 4.0, c/REL40rc1):
+**Anche in questa versione**
+- Carriera Europa 1984-85: classifiche a colori (vedi sopra), la pagina FORMULA di ogni competizione coi colori della
+  classifica, i titoli delle coppe europee senza lo spazio iniziale.
+- Il gioco 1996-97 com'era davvero (i gironi veri 1996-97, Supercoppa, Intertoto, campionati e coppe) arriva nella 4.1.
+
+**Aggiornamento**
+- Il patcher aggiorna la 3.3.6 e tutte le versioni precedenti (CD e GOG, anche la versione inglese con SWOS++). [TODO
+  sessione 4.0: quali file cambiano, compatibilità dei salvataggi, i file dei dati del Mondo 2026-27.] -->

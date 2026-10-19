@@ -116,8 +116,8 @@ static int pcode(const int *p, int pn, int pg, int c) {   /* code over order p (
 static int knockouts(const u8 **tp) {
     const u8 *t = *tp;
     int ns = *t++, champ = -1;
-    int P[MAXN], pn = n, pg = g, W[MAXN], nw = 0, B[MAXN], nb = 0;
-    for (int i = 0; i < n; i++) { P[i] = order[i]; cgrp[i] = grp[i]; }
+    int P[MAXN], pn = n, pg = g, W[MAXN], nw = 0, B[MAXN], nb = 0, rk[MAXN];
+    for (int i = 0; i < n; i++) { P[i] = order[i]; cgrp[i] = grp[i]; rk[order[i]] = i; }
     for (int st = 0; st < ns; st++) {
         int kind = *t++;
         if (kind == 1) {                                /* a later group stage */
@@ -150,7 +150,8 @@ static int knockouts(const u8 **tp) {
             pn = k2; pg = g2;
             for (int k = 0; k < pn; k++) cgrp[P[k]] = ng[P[k]];
         } else {                                        /* a knockout round */
-            int N = *t++, b = *t++, legs = *t++, mode = *t++;
+            int N = *t++, b = *t++, legs = *t++, mode = *t++, host = mode & 0x80;
+            mode &= 0x7F;
             int L[MAXN];
             for (int k = 0; k < N; k++) {
                 int c = *t++;
@@ -162,7 +163,12 @@ static int knockouts(const u8 **tp) {
             nw = 0;
             for (int k = 0; k + 1 < N - b; k += 2) {
                 if (L[k] < 0 || L[k + 1] < 0) { W[nw++] = L[k] >= 0 ? L[k] : L[k + 1]; continue; }
-                W[nw++] = tie(L[k + 1], L[k], legs, 0);   /* (the first listed at home in the first leg) */
+                if (host) {                                 /* 'host' better: by stage-1 place (rk) */
+                    int sw = legs == 1 ? rk[L[k + 1]] < rk[L[k]] : rk[L[k + 1]] > rk[L[k]];
+                    if (sw) { int x = L[k]; L[k] = L[k + 1]; L[k + 1] = x; }
+                }
+                W[nw++] = legs == 1 ? tie(L[k], L[k + 1], 1, 0)    /* (a single match at the first listed's, */
+                                    : tie(L[k + 1], L[k], legs, 0); /* two legs: the first listed at home first) */
             }
             nb = 0;
             for (int k = N - b; k < N; k++) B[nb++] = L[k];

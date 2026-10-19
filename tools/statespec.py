@@ -129,6 +129,7 @@ def compile_state(c, n_clubs):
     for i, x in enumerate(st):
         t, n = x.get('type'), x.get('teams')
         sw = f'{w} stage {i + 1}:'
+        nko = len(ko)
         _need(t in ('groups', 'knockout'), f'{sw} type groups or knockout')
         _need(isinstance(n, int) and n >= 2, f'{sw} teams')
         if i == 0:
@@ -213,6 +214,13 @@ def compile_state(c, n_clubs):
             draws.append((n, list(range(n)), True))      # tie k = the winners of ties 2k-1, 2k (their contest order)
             if ko and ko[-1][0] == prev['teams']:        # (careers: after a stage of ST_TAB, by the ties it kept)
                 ko.append((n, prev['teams'] // 2, 0, prev['teams'], list(range(n))))
+        if x.get('host') is not None:                    # the better placed of stage 1 at home (a single match) or at
+            _need(x['host'] == 'better' and t == 'knockout', f"{sw} host: 'better' on a knockout stage")   # home in
+            if len(ko) == nko and n == 2 and ko and ko[-1][0] == prev['teams']:   # the second leg (careers: st_ko by
+                ko.append((n, prev['teams'] // 2, 0, prev['teams'], [0, 1]))      # ST_RANK; the final: the SF's
+            _need(len(ko) == nko + 1, f'{sw} host: needs a fixed draw here (from / pairs / merit / after one)')   # winners)
+            q_, b_, g_, sz_, pm_ = ko[-1]
+            ko[-1] = (q_, b_, g_, sz_ | 0x80 | (0x40 if x['matches'].startswith('two_legs') else 0), pm_)
         prev = dict(x, teams=n)
     _need(st[-1]['type'] == 'knockout' and st[-1]['teams'] == 2, f'{w} the last stage must be the final (2)')
     ns = [d[0] for d in draws]
@@ -372,6 +380,9 @@ st_body:
     ret
 %if ST_NB
 .sth:
+    mov al, [ebx + 6]                   ; (size: bit 7 = host by stage-1 place, bit 6 = two legs)
+    and al, 3Fh
+    mov [ST_SZ], al
     cmp byte [ebx + 5], 0               ; g = 0: the stage after one with byes ('pairs')
     je .pairs
     cmp byte [ebx + 5], 0FFh            ; g = 255: positions in the copy's merit-ordered list ('pairing' merit)
@@ -393,7 +404,7 @@ st_body:
     cmp si, [DIYCOPY + 31h]
     jae .sx                             ; (not found: the game's order - never in a built table)
     movzx eax, byte [DIYCOPY + 59h + esi]
-    div byte [ebx + 6]                  ; team index / size = its group
+    div byte [ST_SZ]                    ; team index / size = its group
     cmp al, dh
     jne .sn
     test ebp, ebp
@@ -463,14 +474,77 @@ st_body:
     call .put
     jmp .sx
 .put:                                   ; ST_T[0..ecx) -> the round's list, and kept with the career (EN item
-    xor eax, eax                        ; 'SB'): the next stage finds its winners by their ties, the byes by their
-.pu:                                    ; places
+    call .host                          ; 'SB'): the next stage finds its winners by their ties, the byes by their
+    xor eax, eax                        ; places
+.pu:
     mov dl, [ST_T + eax]
     mov [NCW + 2CDh + eax], dl
     mov [ST_SB + eax], dl
     inc eax
     cmp eax, ecx
     jb .pu
+    ret
+.host:                                  ; 'host': 'better' (size bit 7): each tie of ST_T ordered by the clubs' places
+    test byte [ebx + 6], 80h            ; in ST_RANK block 0 (stage 1's final order, st_rec): a single match the
+    jz .hr                              ; better placed first (at home), two legs (bit 6) the worse placed first
+    pushad                              ; (at home in the first leg)
+    mov edx, ecx
+    mov al, [ebx + 5]
+    test al, al
+    jz .hn
+    cmp al, 0FFh
+    je .hn
+    movzx eax, byte [ebx + 4]           ; (g > 0: the b last wait)
+    sub edx, eax
+.hn:
+    shr edx, 1
+    xor esi, esi
+.hl:
+    cmp esi, edx
+    jae .hx
+    movzx eax, byte [ST_T + esi * 2]
+    call .rank
+    mov ebp, eax
+    movzx eax, byte [ST_T + esi * 2 + 1]
+    call .rank
+    test byte [ebx + 6], 40h
+    jnz .h2
+    cmp eax, ebp                        ; single: swap when the second is better placed
+    jae .hk
+    jmp .hs
+.h2:
+    cmp eax, ebp                        ; two legs: swap when the second is worse placed
+    jbe .hk
+.hs:
+    mov al, [ST_T + esi * 2]
+    mov ah, [ST_T + esi * 2 + 1]
+    mov [ST_T + esi * 2], ah
+    mov [ST_T + esi * 2 + 1], al
+.hk:
+    inc esi
+    jmp .hl
+.hx:
+    popad
+.hr:
+    ret
+.rank:                                  ; eax = team index -> its place in ST_RANK block 0 (FFh: not there)
+    push ecx
+    push edx
+    mov dx, [DIYCOPY + 99h + eax * 2]
+    movzx ecx, byte [ST_RANK + 2]
+    xor eax, eax
+.rl:
+    cmp eax, ecx
+    jae .rn
+    cmp [ST_RANK + 4 + eax * 2], dx
+    je .rf
+    inc eax
+    jmp .rl
+.rn:
+    mov eax, 0FFh
+.rf:
+    pop edx
+    pop ecx
     ret
 %endif
 
@@ -575,6 +649,7 @@ ST_RANK: times SR_SIZE db 0
 ST_TAB: ST_BYTES
 ST_T: times 64 db 0
 ST_MODE: db 0
+ST_SZ: db 0
 ST_SB: times 32 db 0                    ; (EN item 'SB': st_ko's last fixed round [0..16), st_kend's winners [16..24))
 """
 
@@ -753,25 +828,26 @@ def ko_program(c):
             out += bytes([1, g2, n // g2, x.get('meetings', c.get('meetings', 1)) or 1, int(bool(x.get('cross'))), n]
                          + [labels.index(q) for q in frm])
         else:
-            legs = 2 if x.get('matches') == 'two_legs' else 1
+            legs = 2 if x.get('matches', '').startswith('two_legs') else 1
+            hb = 0x80 if x.get('host') == 'better' else 0      # (statesim: the better placed of stage 1 at home)
             b = x.get('byes') or []
             q = n + len(b)
             if prev['type'] == 'groups' and not x.get('from'):   # the first q of the merit order (MG: 3 winners +
                 pm = list(range(q))                                # the best 2nd), 'pairing' merit: 1st v last ...
                 if x.get('pairing') == 'merit':
                     pm = [v for k_ in range(q // 2) for v in (k_, q - 1 - k_)]
-                out += bytes([2, q, len(b), legs, 3] + pm)
+                out += bytes([2, q, len(b), legs, 3 | hb] + pm)
             elif prev['type'] == 'groups':
                 gp = prev.get('groups', 1)
                 labels = [f'{r}{chr(65 + k)}' for r in range(1, -(-q // gp) + 1) for k in range(gp)]
                 frm = x['from'] + b
-                out += bytes([2, q, len(b), legs, 0] + [labels.index(t) for t in frm])
+                out += bytes([2, q, len(b), legs, 0 | hb] + [labels.index(t) for t in frm])
             elif x.get('pairs'):
                 k, bb = prev['teams'] // 2, len(prev.get('byes') or [])
                 toks = [f'W{j + 1}' for j in range(k)] + [f'B{j + 1}' for j in range(bb)]
-                out += bytes([2, n, 0, legs, 1] + [toks.index(t) for t in x['pairs']])
+                out += bytes([2, n, 0, legs, 1 | hb] + [toks.index(t) for t in x['pairs']])
             else:
-                out += bytes([2, n, 0, legs, 2] + list(range(n)))
+                out += bytes([2, n, 0, legs, 2 | hb] + list(range(n)))
         prev = dict(x, teams=n)
     return bytes(out)
 

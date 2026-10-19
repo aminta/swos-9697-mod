@@ -742,7 +742,7 @@ void gp_restore(void) {
 }
 
 static int member(const struct gp_ko *k, int c) {      /* a member code -> list index, or -1 (not decided yet) */
-    if (c < BEST_LOSER) return c < k->n ? k->ient[c] : -1;
+    if (c < BEST_LOSER) return c < KN && k->ient[c] != NOC ? k->ient[c] : -1;
     if (c < 0x80) return -1;            /* (group placings, the best loser: not played here) */
     int t = c & 0x3F;
     if (t >= k->ntie) return -1;
@@ -933,8 +933,26 @@ static int ko_build(struct gp_ko *k, int pi, int slot, int cid) {
         order[m++] = k->pa[p]; used[k->pa[p]] = 1;
         order[m++] = k->pb[p]; used[k->pb[p]] = 1;
     }
-    int np1 = m;
-    for (int i = 0; i < n; i++) if (!used[i]) order[m++] = i;
+    int np1 = m, me0 = GP_IN.gtype != 4;
+    for (int p = k->gp0[g0]; p < k->gp0[g0 + 1]; p++)
+        me0 |= k->team[k->pa[p]] == GP_IN.mgr || k->team[k->pb[p]] == GP_IN.mgr;
+    u8 need[KN];                        /* (a built contest lists only the clubs that can still play: round g0's, and
+                                           the entrants / decided ties' clubs later rounds name; the Trofeo's R2 = R1
+                                           twice was a 3-club contest whose match the career calendar lost) */
+    for (int i = 0; i < n; i++) need[i] = !me0;
+    for (int t = k->gt0[k->gsr[g0] + 1 <= k->nrs ? k->gsr[g0] + 1 : k->nrs]; t < k->ntie; t++)
+        for (int x = 0; x < 2; x++) {
+            int c = k->rc[2 * t + x];
+            if (c < BEST_LOSER && c < n) need[c] = 1;
+            else if (c >= 0x80 && (c & 0x3F) < k->ntie) {
+                int v = c & 0x40 ? k->tl[c & 0x3F] : k->tw[c & 0x3F];
+                if (v != NOC) need[v] = 1;
+            }
+        }
+    for (int i = 0; i < n; i++) if (!used[i] && need[i]) order[m++] = i;
+    for (int i = 0; i < KN; i++) k->ient[i] = NOC;
+    n = m;                              /* (the contest's clubs) */
+    k->n = n;
     for (int j = 0; j < n; j++) {       /* list index j = entrant order[j] */
         int i = order[j];
         k->ient[i] = j;
@@ -944,7 +962,9 @@ static int ko_build(struct gp_ko *k, int pi, int slot, int cid) {
     }
     for (int p = 0; p < k->gp0[g0 + 1]; p++) { k->pa[p] = k->ient[k->pa[p]]; k->pb[p] = k->ient[k->pb[p]]; }
     for (int t = 0; t < k->ntie; t++) {         /* (gap-decided ties, entrant indices too) */
-        if (k->tw[t] != NOC) { k->tw[t] = k->ient[k->tw[t]]; k->tl[t] = k->ient[k->tl[t]]; }
+        if (k->tw[t] != NOC) {
+            k->tw[t] = k->ient[k->tw[t]]; k->tl[t] = k->tl[t] != NOC ? k->ient[k->tl[t]] : NOC;
+        }
     }
     int me = 0;                         /* a career: the club must play round 1 (a slot-4 contest without it stops the
                                            season); else no contest, its gap-decided tie kept (gp_sack, gp_played_c) */

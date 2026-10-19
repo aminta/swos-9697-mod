@@ -111,8 +111,25 @@ def wrap(text, w=W):
 
 
 def pages(lines):
+    """Pages of fmtpage.LINES lines from lines or from paragraphs (lists of wrapped lines): a paragraph is not split
+    across two pages when it fits on one, and one ending with ':' (a heading) goes with the next."""
     n = fmtpage.LINES
-    return [lines[i:i + n] for i in range(0, len(lines), n)] or [[]]
+    paras = [x if isinstance(x, list) else [x] for x in lines]
+    glued = []
+    for pa in paras:
+        if glued and glued[-1] and glued[-1][-1].endswith(':') and len(glued[-1]) + len(pa) <= n:
+            glued[-1] = glued[-1] + pa
+        else:
+            glued.append(list(pa))
+    out = [[]]
+    for pa in glued:
+        if out[-1] and len(out[-1]) + len(pa) > n and len(pa) <= n:
+            out.append([])
+        for line in pa:
+            if len(out[-1]) == n:
+                out.append([])
+            out[-1].append(line)
+    return out
 
 
 def _runs(codes, t):
@@ -232,6 +249,92 @@ def tourney_text(c, t):
     return lines
 
 
+# the table colours (zones.py) and a league-phase top flight's European places (zones.eu_places), as the table shows them
+ZT = {
+    'it': dict(head='COLORI DELLA CLASSIFICA:', col=('AZZURRO', 'VERDE', 'BLU', 'ARANCIONE', 'GRIGIO'),
+               why=dict(cc='COPPA DEI CAMPIONI', uefa='COPPA UEFA', up='PROMOZIONE DIRETTA', po_up='PLAY-OFF PROMOZIONE',
+                        po_eu='PLAY-OFF EUROPEO', po_down='SPAREGGIO SALVEZZA', out='PLAY-OUT', down='RETROCESSIONE DIRETTA',
+                        cl='CHAMPIONS LEAGUE', el='EUROPA LEAGUE', conf='CONFERENCE LEAGUE', eu='COPPE EUROPEE'),
+               eu='POSTI EUROPEI DAL RANKING UEFA DELLA FEDERAZIONE (ACCESS LIST UEFA): CLASSIFICA {y} PER LE COPPE {y2}, '
+                  'RANKING VERO {r}:',
+               cup='VINCITRICE DELLA COPPA: {c}', s2='DALLA STAGIONE DOPO: RANKING SIMULATO',
+               eps='I 2 EUROPEAN PERFORMANCE SPOTS E I POSTI SPOSTATI PER I DETENTORI DEI TITOLI SI DECIDONO A FINE '
+                   'STAGIONE: NON COLORATI IN ANTICIPO'),
+    'en': dict(head='TABLE COLOURS:', col=('LIGHT BLUE', 'GREEN', 'DARK BLUE', 'ORANGE', 'GRAY'),
+               why=dict(cc='CHAMPIONS CUP', uefa='UEFA CUP', up='PROMOTED', po_up='PROMOTION PLAY-OFF',
+                        po_eu='EUROPEAN PLAY-OFF', po_down='RELEGATION PLAY-OFF', out='PLAY-OUT', down='RELEGATED',
+                        cl='CHAMPIONS LEAGUE', el='EUROPA LEAGUE', conf='CONFERENCE LEAGUE', eu='EUROPEAN CUPS'),
+               eu='EUROPEAN PLACES BY THE ASSOCIATION UEFA RANKING (UEFA ACCESS LIST): THE {y} TABLE FOR THE {y2} CUPS, '
+                  'REAL {r} RANKING:',
+               cup='THE CUP WINNER: {c}', s2='FROM THE NEXT SEASON ON: SIMULATED RANKING',
+               eps='THE 2 EUROPEAN PERFORMANCE SPOTS AND THE TITLE HOLDERS REBALANCING ARE DECIDED AT THE SEASON END, '
+                   'NOT COLOURED IN ADVANCE'),
+    'fr': dict(head='COULEURS DU CLASSEMENT:', col=('BLEU CLAIR', 'VERT', 'BLEU FONCE', 'ORANGE', 'GRIS'),
+               why=dict(cc='COUPE DES CHAMPIONS', uefa='COUPE UEFA', up='MONTEE DIRECTE', po_up='BARRAGES DE MONTEE',
+                        po_eu='BARRAGES EUROPEENS', po_down='BARRAGE DE MAINTIEN', out='BARRAGES DE MAINTIEN',
+                        down='DESCENTE DIRECTE', cl='LIGUE DES CHAMPIONS', el='LIGUE EUROPA', conf='LIGUE CONFERENCE',
+                        eu='COUPES D EUROPE'),
+               eu='PLACES EUROPEENNES SELON LE CLASSEMENT UEFA DE L ASSOCIATION (LISTE D ACCES UEFA): CLASSEMENT {y} POUR '
+                  'LES COUPES {y2}, CLASSEMENT UEFA REEL {r}:',
+               cup='VAINQUEUR DE LA COUPE: {c}', s2='DES LA SAISON SUIVANTE: CLASSEMENT SIMULE',
+               eps='LES 2 EUROPEAN PERFORMANCE SPOTS ET LE REEQUILIBRAGE DES TENANTS SONT DECIDES EN FIN DE SAISON: PAS '
+                   'COLORES A L AVANCE'),
+    'de': dict(head='FARBEN DER TABELLE:', col=('HELLBLAU', 'GRUEN', 'DUNKELBLAU', 'ORANGE', 'GRAU'),
+               why=dict(cc='LANDESMEISTERPOKAL', uefa='UEFA-POKAL', up='DIREKTER AUFSTIEG', po_up='AUFSTIEGSPLAYOFFS',
+                        po_eu='EUROPAPOKAL-PLAYOFFS', po_down='RELEGATION', out='ABSTIEGSPLAYOFFS',
+                        down='DIREKTER ABSTIEG', cl='CHAMPIONS LEAGUE', el='EUROPA LEAGUE', conf='CONFERENCE LEAGUE',
+                        eu='EUROPAPOKALE'),
+               eu='EUROPAPOKALPLAETZE NACH DER UEFA-RANGLISTE DES VERBANDS (UEFA-ZUGANGSLISTE): TABELLE {y} FUER DIE '
+                  'POKALE {y2}, ECHTE RANGLISTE {r}:',
+               cup='POKALSIEGER: {c}', s2='AB DER NAECHSTEN SAISON: SIMULIERTE RANGLISTE',
+               eps='DIE 2 EUROPEAN PERFORMANCE SPOTS UND DER AUSGLEICH FUER TITELVERTEIDIGER WERDEN AM SAISONENDE '
+                   'ENTSCHIEDEN: NICHT IM VORAUS GEFAERBT'),
+}
+_ZCTX = []
+
+
+def _zctx():
+    """zones.context over the build's packs (mkseason.ENABLED), keyed by real path."""
+    if not _ZCTX:
+        import mkseason
+        import zones
+        dirs = [e if os.sep in e else os.path.join(mkseason.PACKS, e) for e in mkseason.ENABLED]
+        metas, ranks = zones.context(dirs)
+        _ZCTX.append((metas, {os.path.realpath(d): r for d, r in ranks.items()}))
+    return _ZCTX[0]
+
+
+def zone_text(rw, t, lang, eu=None):
+    """The FORMAT lines of a table's colours: rw = [(first, last, colour, why)] (zones.pack_zones detail); eu =
+    (places, cup winner's cup, season) of a league-phase top flight."""
+    import zones
+    z = ZT[lang]
+    cols = (zones.LIGHT_BLUE, zones.GREEN, zones.DARK_BLUE, zones.ORANGE, zones.RED)
+    ord_ = t['ord']
+    def one(a, b, c, w):
+        rng = ord_(a) if a == b else f'{ord_(a)}-{ord_(b)}'
+        return f"{z['col'][cols.index(c)]} {rng}: {z['why'][w]}"
+    merged = []
+    for a, b, c, w in sorted(rw):
+        if merged and merged[-1][2:] == (c, w) and merged[-1][1] == a - 1:
+            merged[-1] = (merged[-1][0], b, c, w)
+        else:
+            merged.append((a, b, c, w))
+    lines = []
+    if eu:
+        places, cw, y = eu
+        lines.append(z['eu'].format(y=f'{y}-{(y + 1) % 100:02d}', y2=f'{y + 1}-{(y + 2) % 100:02d}', r=y))   # (a table
+        # shows the places of the next season's cups: uefacoef 131f04b, from the 5 seasons up to the year before)
+        lines += [one(*x) for x in places]
+        if cw:
+            lines.append(z['cup'].format(c=z['why'][cw]))
+        lines += [z['s2'], z['eps']]
+    if merged:
+        lines.append(z['head'])
+        lines += [one(*x) for x in merged]
+    return lines
+
+
 TEXTS = T                                  # (from_pack may swap a world's two_legs text)
 NOAWAY = {'it': 'ANDATA E RITORNO, SUPPL. E RIGORI', 'en': 'TWO LEGS, EXTRA TIME, PENALTIES',
           'fr': 'ALLER-RETOUR, PROLONGATION, TAB', 'de': 'HIN- UND RUECKSPIEL, VERL., ELFM.'}
@@ -262,8 +365,15 @@ def from_pack(d):
     if m.get('world') is not None and world_year(m['world']) >= 2021:   # (no away goals: the round's ET / penalties)
         T = {lang: dict(TEXTS[lang], r=dict(TEXTS[lang]['r'], two_legs=NOAWAY[lang])) for lang in TEXTS}
     world = m.get('world', 0) if m.get('kind') == 'career' else 0
+    import zones
+    metas, ranks = _zctx()
+    rank = ranks.get(os.path.realpath(d))
+    lp = zones._lp_world(metas, m.get('world', 0) if m.get('kind') == 'career' else 0)
+    zdet = {lang: {} for lang in LANGS}
+    for lang in LANGS:
+        zones.pack_zones(d, lang, lp, rank, zdet[lang])
     out = []
-    for comp in m.get('competitions', []):
+    for ci, comp in enumerate(m.get('competitions', [])):
         cid = int(comp['id'], 16) if comp.get('id') else None
         euro = comp.get('layout') == 'european' or comp['type'] == 'tourney'
         def title(lang, name):
@@ -276,13 +386,18 @@ def from_pack(d):
             for lv in lg['levels']:
                 for div in lv:
                     titles, texts = {}, {}
+                    eu = None
+                    if lp and rank and lv is lg['levels'][0]:
+                        places, cw = zones.eu_places(rank)
+                        eu = (places, cw, metas.get(m.get('world', 0), {}).get('start_year', 0))
                     for lang in LANGS:
                         nm = complist._nm(div['name'], lang)
                         titles[lang] = title(lang, nm)
                         low = (lg['closed'] or lv is lg['levels'][-1]) and not any(
                             po.get('kind') == 'promedio' for po in comp.get('ko_playoffs') or [])
                         texts[lang] = league_text(div, win, T[lang], lg['names'], lang, low) + \
-                            (T[lang]['ita'] if lg['special'] and k == min(1, len(lg['names']) - 1) else [])
+                            (T[lang]['ita'] if lg['special'] and k == min(1, len(lg['names']) - 1) else []) + \
+                            zone_text(zdet[lang].get((ci, k), []), T[lang], lang, eu)
                     out.append((world, cid, titles, texts))
                     k += 1
         elif comp['type'] == 'cup':
@@ -300,11 +415,11 @@ def write(out_dir, items):
     by, keys = {}, {}
     for world, cid, titles, texts in items:
         for lang in LANGS:
-            body = [x for line in texts[lang] for x in wrap(ascii_up(line, lang))]
+            body = [wrap(ascii_up(line, lang)) for line in texts[lang]]      # (paragraphs: pages())
             key = titles[lang][:fmtpage.NAME - 1]
             k = (lang, world, key)
             if k in keys:                       # the same title twice (two divisions with one name): one page,
-                keys[k].extend([''] + body)     # both descriptions
+                keys[k].extend([['']] + body)     # both descriptions
                 continue
             keys[k] = body
             by.setdefault((lang, world), []).append((cid, key, None))

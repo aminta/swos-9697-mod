@@ -189,6 +189,10 @@ def patch_exe(src, dst, remap, lang='it'):
     mkseason.register_states()                         # the career worlds' state championships (statespec.py)
     import statespec
     statespec.register_test()                          # STATESPEC_TEST=1: a world-0 test state (harness)
+    if statespec.TEST or statespec.TEST2 or any(e['states'] for e in statecup.ENTRIES if e['world']):
+        engine.save_item('SR', statespec.SR_SIZE)      # (statespec.ko_patch: the states' rankings, the last fixed
+        engine.save_item('SB', 32)                     # knockout round and its winners)
+        engine.after_load('st_ovr')                    # (statespec.ov_patch: ripool's overrides on the state lists)
     import lp36
     lpb = bool(mkseason.league_phase_cups() or mkseason.league_phase_worlds() or lp36.FIXTURES)
     lpb += bool(mkseason.league_phase_worlds())   # (+1 more: the UEFA coefficients, uefacoef)
@@ -239,6 +243,7 @@ def patch_exe(src, dst, remap, lang='it'):
     if pr_on:                                          # Argentina's promedio history (gplay.c PR_STATE)
         engine.save_item('PR', 4 + 48 * 8)
     sc_pg = int(bool(statecup.ENTRIES))                # state championships (statecup.py): one page after split's
+    sc_pg += statespec.SIM_PAGES * int(any(e['world'] and e['states'] for e in statecup.ENTRIES))   # (statesim.c)
     for _ in range((6 + cp + 2 + 2 * cdp if worlds else 6) + lpb + sp_pg + sc_pg):  # (+1: the UEFA league phase's page, lp36)
         data = add_object_page(data, 1)
     mkseason.CAREER_CAVE[0] = CAREER_CAVE if worlds else None
@@ -271,6 +276,10 @@ def patch_exe(src, dst, remap, lang='it'):
         data = add_object_page(data, 2)
     if mkseason.league_phase_worlds():          # simulated results' score table (simdraw.py, 3 KB)
         o2pages += 1
+        data = add_object_page(data, 2)
+    if mkseason.league_phase_worlds():          # 4.0's World 2026-27 adds: state fixture calendars (lp36 fx_patch),
+        o2pages += 2                            # play-off round names / title specs' strings (gplay), the MLS (area
+        data = add_object_page(data, 2)         # full with TM_MLS_EXACT or TM_TITLE)
         data = add_object_page(data, 2)
     if bigtables.ON[0]:                         # the two tables of LIMIT global numbers (bigtables.retarget)
         o2pages += 2
@@ -469,12 +478,15 @@ def patch_exe(src, dst, remap, lang='it'):
     if sc_pg:                                    # state championships in career / Season slot 1 (statecup.py)
         sc_at = hist2 + h2 + 0x1000 * (lpb + sp_pg)
         sc_end = statecup.test_contest(p, sc_at) if statecup.TEST else sc_at   # (STATECUP_TEST=1 builds)
-        sc_end = statespec.test_contest(p, sc_end) if statespec.TEST else sc_end   # (STATESPEC_TEST=1 builds)
+        sc_end = statespec.test_contest(p, sc_end) if statespec.TEST or statespec.TEST2 else sc_end   # (STATESPEC_TEST=1 / 2 builds)
         sc_end = lp36.fx_patch(p, sc_end, area)    # fixture contests (cross-group round robins) on this page
         sc_end = statecup.slot_types(p, sc_end)
         statecup.cup_end_types(p)
         sc_end = statecup.patch(p, sc_end)
+        sc_end = statespec.ko_patch(p, sc_end)     # careers' state knockouts + the played state's ranking ('SB', 'SR')
         assert sc_end <= sc_at + 0x1000, hex(sc_end)
+        if sc_pg > 1:
+            statespec.sim_patch(p, sc_at + 0x1000)  # statesim.c: every state's stage 1 + relegation at the season end
     p.set_vsize(1, OBJ1_NEW_VSIZE + (0x1000 * (cp + 2 + cdp) if worlds else 0) + h2 + 0x1000 * (lpb + sp_pg + sc_pg))
     tail = (careerworld.BSS_SIZE if bigw else 0) + shirtnum.BSS_SIZE + blond.BSS_SIZE + menunum.BSS_SIZE + fmtpage.BSS_SIZE   # obj2 tail
     p.set_vsize(2, obj2_free + o2pages * p.le.page_size + tail, bss=tail)

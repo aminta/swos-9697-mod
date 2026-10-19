@@ -111,15 +111,16 @@ def _lp_world(meta_by_world, n):
     return any(wc.get(k, {}).get('format') == 'league_phase' for k in ('cc', 'cwc', 'uefa'))
 
 
-def pack_zones(d, lang, lp=False, rank=None):
-    """[(world, title, [(first, last, colour), ...])] of one pack's league divisions."""
+def pack_zones(d, lang, lp=False, rank=None, detail=None):
+    """[(world, title, [(first, last, colour), ...])] of one pack's league divisions; detail (a dict): {(competition
+    index, division index): [(first, last, colour, why)]} for the FORMAT page (fmtgame.py), why in WHY."""
     m = json.load(open(os.path.join(d, 'pack.json')))
     cl = os.path.join(d, 'clubs.csv')
     clubs = [dict(r, file=r.get('file') or 'league', division=r.get('division') or '0')
              for r in complist.csv.DictReader(open(cl, encoding='utf-8'))] if os.path.exists(cl) else []
     world = m.get('world', 0) if m.get('kind') == 'career' else 0
     out = []
-    for comp in m.get('competitions', []):
+    for ci, comp in enumerate(m.get('competitions', [])):
         if comp['type'] != 'league':
             continue
         lg = complist._league(comp, clubs)
@@ -129,7 +130,7 @@ def pack_zones(d, lang, lp=False, rank=None):
         if isinstance(po, int):
             po = []
         for i, dv in enumerate(divs):
-            n, rng = dv['clubs'], []
+            n, rng, why = dv['clubs'], [], []
             if id(dv) in top:
                 pl = m.get('europe_places', {})
                 if lp:                                   # (run time from uc_rank unless EU_SEASON1_ONLY)
@@ -138,15 +139,19 @@ def pack_zones(d, lang, lp=False, rank=None):
                             rng[-1] = (rng[-1][0], place, col)
                         else:
                             rng.append((place, place, col))
+                            why.append('eu')
                 else:
                     a = 1
                     if pl.get('cc'):
                         rng.append((1, pl['cc'], LIGHT_BLUE))
+                        why.append('cc')
                         a = pl['cc'] + 1
                     if pl.get('uefa'):
                         rng.append((a, a + pl['uefa'] - 1, GREEN))
+                        why.append('uefa')
             if dv['up']:
                 rng.append((1, dv['up'], LIGHT_BLUE))
+                why.append('up')
             for p in po:                                 # pack-level knockout play-offs: [division, place] entrants
                 ent = [e for e in p.get('entrants', []) if isinstance(e, list) and e[0] == i]
                 if not ent:
@@ -155,21 +160,27 @@ def pack_zones(d, lang, lp=False, rank=None):
                 wd = p.get('winner_div')
                 for _, place in ent:
                     if kind in ('europe',):
-                        col = GREEN
+                        col, w = GREEN, 'po_eu'
                     elif kind == 'playout':
-                        col = ORANGE
+                        col, w = ORANGE, 'out'
                     elif kind == 'promotion':
-                        col = GREEN if (wd is None or wd < i) else ORANGE
+                        col, w = (GREEN, 'po_up') if (wd is None or wd < i) else (ORANGE, 'po_down')
                     else:
                         continue
                     rng.append((place, place, col))
+                    why.append(w)
             if lg['special'] and comp.get('playoffs') == 'ita':
                 if i == 1:                               # Serie B
                     rng += [(3, 8, GREEN), (16, 17, ORANGE)]
+                    why += ['po_up', 'out']
                 elif i >= 2:                             # the Serie C groups
                     rng.append((2, 10, GREEN))
+                    why.append('po_up')
             if dv['down']:
                 rng.append((n - dv['down'] + 1, n, RED))
+                why.append('down')
+            if detail is not None:
+                detail[(ci, i)] = [r + (w,) for r, w in zip(rng[:RANGES], why)]
             if rng:
                 kind = ('lp' if lp else 'classic') if id(dv) in top and (m.get('europe_places') or rank) else 'lower'
                 out.append((world, _title(m, lang, complist._nm(dv['name'], lang)), rng[:RANGES], kind,
@@ -180,8 +191,8 @@ def pack_zones(d, lang, lp=False, rank=None):
     return out
 
 
-def table(lang, pack_dirs):
-    """The build's zone table: [(world, title, ranges)] (no two keys alike)."""
+def context(pack_dirs):
+    """({world: world_cups}, {pack dir: season-1 association rank}) of a build's packs."""
     metas = {}
     for d in pack_dirs:
         m = json.load(open(os.path.join(d, 'pack.json')))
@@ -193,6 +204,28 @@ def table(lang, pack_dirs):
         if m.get('uefa_coef', {}).get('country'):
             coef.setdefault(m.get('world', 0), []).append((-sum(m['uefa_coef']['country']), d))
     ranks = {d: k + 1 for w, lst in coef.items() for k, (_, d) in enumerate(sorted(lst))}
+    return metas, ranks
+
+
+def eu_places(rank):
+    """A league-phase top flight's European places in season 1 by its rank, as the table colours them: ([(first,
+    last, colour, 'cl' / 'el' / 'conf')], the cup winner's cup or None); the EPS / title holders' rebalancing aside."""
+    al = access_list().get(rank, [])
+    comp = lambda r: ('cl', LIGHT_BLUE) if r < 8 else ('el', GREEN) if r < 14 else ('conf', DARK_BLUE)
+    out = []
+    for place, r in sorted((1 if c == 0 else c, r) for r, c in al if c != 1):
+        k, col = comp(r)
+        if out and out[-1][3] == k and out[-1][1] == place - 1:
+            out[-1] = (out[-1][0], place, col, k)
+        else:
+            out.append((place, place, col, k))
+    cw = [comp(r)[0] for r, c in al if c == 1]
+    return out, (cw[0] if cw else None)
+
+
+def table(lang, pack_dirs):
+    """The build's zone table: [(world, title, ranges)] (no two keys alike)."""
+    metas, ranks = context(pack_dirs)
     out, seen = [], set()
     for d in pack_dirs:
         m = json.load(open(os.path.join(d, 'pack.json')))

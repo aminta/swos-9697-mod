@@ -390,6 +390,30 @@ w_away4:                                ; replaces its `mov ax, [esi+5Dh]; or ax
     xor ax, ax                          ; (no away goals: jz taken)
     ret
 
+w_pfx:                                  ; replaces cseg_95C18's `mov word [D0], 1` (a contest not in the game's
+    push esi                            ; European list gets '<country> ' before its name): a contest of a country
+    push eax                            ; with no name (a world's continental cups) gets none either - it showed
+    mov esi, [A5R]                      ; ' UEFA CHAMPIONS LEAGUE' / ' COPPA UEFA' (the prefix: the country entry's
+    movzx eax, byte [esi + 2]           ; second string)
+    mov esi, CTAB0
+    mov esi, [esi + eax * 4]
+    inc esi
+.s:
+    mov al, [esi]
+    inc esi
+    test al, al
+    jnz .s
+    cmp byte [esi], 0
+    pop eax
+    pop esi
+    je .none
+    mov word [D0R], 1
+    ret
+.none:
+    add esp, 4                          ; (straight back to cseg_95C18's caller with ZF = 1: no prefix)
+    xor ax, ax
+    ret
+
 w_mrec:                                 ; replaces `add word [D1], 1996; add word [D2], 97` in FillManagementRecordInfo
     push ebx                            ; (REGISTRO GESTIONE: D1 = D2 = the shown season's number from the career's
     call w_rec                          ; start): in a world its first season is the world's first year, not 1996
@@ -1361,6 +1385,10 @@ def sites(p):
     s['season'] = struct.unpack('<I', m.group(1))[0]
     s['y96'] = _one(rb'\x66\x81\x3d' + pk(D0) + rb'\xcc\x07', d1, '1996').start()
     s['y95'] = _one(rb'\x66\x81\x3d' + pk(D0) + rb'\xcb\x07', d1, '1995').start()
+    # cseg_95C18 (a contest in the game's European list dseg_C7136: no '<country> ' prefix in its name): the not-found
+    # tail `mov word [D0], 1; mov ax, 1; or ax, ax; retn` after `cmp [A5], eax; jnz; xor ax, ax; retn`
+    s['pfx'] = _one(rb'\x39\x05' + pk(A0 + 20) + rb'\x75.\x66[\x31\x33]\xc0\xc3\x66\xc7\x05' + pk(D0) +
+                    rb'\x01\x00\x66\xb8\x01\x00\x66[\x0b\x09]\xc0\xc3', d1, 'cseg_95C18').start() + 12
     # FillManagementRecordInfo: add word [D1], 1996; add word [D2], 97 (the record's season years)
     # UpdateTime's two second-leg aggregate blocks (statsTeam2Goals * 2 + team2GoalsFirstLeg ...): before the first
     # `cmp word [playing2ndGame], 1; jz` it, before the second `mov ax, [playing2ndGame]; or ax, ax; jz` (penalties)
@@ -1823,6 +1851,7 @@ def patch(p, worlds, at, nasmcave, comp, ct, cont_rec):
     p.add_ptr(2, ct + 4 * WCONT, *cont_rec)        # continent button name (the CLASSIC CAREERS record)
     sym = {k: (2, v) for k, v in s['regs'].items()}
     sobj, slt = s['slt']
+    sym['CTAB0'] = (2, ct)
     sym.update({'SLT': (sobj, slt), 'SLTCOPY': s['sltcopy'], 'WORLD_BYTE': (0, WORLD_BYTE), 'REC': (0, REC),
                 'LOADEURO': (1, s['loadeuro']), 'KNOWN': (1, s['known']), 'TEAMSLOADED': (2, s['teamsloaded']),
                 'CCCOPY': s['copies'][0][0],
@@ -1875,6 +1904,7 @@ def patch(p, worlds, at, nasmcave, comp, ct, cont_rec):
     hook(s['y96'], 9, 'w_year96', (3,))
     hook(s['y95'], 9, 'w_year95', (3,))
     hook(s['mrec'], 17, 'w_mrec', (3, 12))
+    hook(s['pfx'], 9, 'w_pfx', (3,))
     for site, n in ((s['away1'], 8), (s['away2'], 9), (s['away3'], 5), (s['away4'], 7)):
         assert p.get(1, site, n) == p.le.obj_bytes(1)[site:site + n], ('away goals site already patched', hex(site))
     hook(s['away1'], 8, 'w_away1', (3,))            # no away goals in a world from 2021-22 on: played second legs

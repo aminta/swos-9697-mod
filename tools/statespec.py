@@ -733,6 +733,7 @@ def sim_patch(p, at):
                                 limit=bss_at)
     assert bss <= SIM_BSS, hex(bss)
     LABELS['ss_season'] = syms['ss_season']
+    LABELS['ss_ord'] = syms['ss_ord']
     ov_end = ov_patch(p, (cend + 15) & ~15, at, bss_at)
     print(f'exe: statesim: {tab[0]} states, table obj1+{at:#x} ({len(tab)} B), ss_season obj1+'
           f'{syms["ss_season"][1]:#x}, code ..{cend:#x}, overrides ..{ov_end:#x}, .bss {bss} B at obj1+{bss_at:#x}')
@@ -831,12 +832,10 @@ st_post:                                ; ripool's RI_POST_PTR (pg_fix, after ri
     mov word [ST_RANKW], 0              ; career's start, where pg_fix runs too; not after a load: a mid-season
     ret                                 ; save keeps block 0)
 align 4
-    db 'SSLASTPT'                       ; (swostest: dd ST_RANK, SS_LAST)
-    dd ST_RANKW, SS_LAST
+    db 'SSLASTPT'                       ; (swostest: dd ST_RANK, SS_LAST, statesim's ss_ord)
+    dd ST_RANKW, SS_LAST, SS_ORD
 SS_LAST: times SR_SIZE db 0
-OV_TAB:
-OV_BYTES
-    dw 0, 0
+OV_TAB: OV_BYTES
 """
 
 
@@ -860,28 +859,28 @@ def ov_patch(p, at, tab_at, limit):
         for st in e['states']:
             if st.get('struct') and st.get('first'):
                 structs[(e['world'], st['id'], tuple(st['first']))] = st['struct']
-    rows, ptrs = [], []
+    tb, ptrs = bytearray(), []                            # (one 'db' line: nasmcave's symbols are one-line defines)
     slots = LABELS.get('key_slots', {})
     for key, woff, words, ident in SIM_LAYOUT:
         sobj, soff = structs[ident]
         ks = slots.get(key, [])
-        lab = f'OV{len(rows)}'
-        rows.append(f'{lab}: db {key & 255}, {key >> 8}, {len(words)}, {len(ks)}\n    dd 0, 0\n'
-                    f'    dw {", ".join(str(w) for w in words)}\n' + ''.join('    dd 0\n' for _ in ks))
-        ptrs.append((lab, (sobj, soff + 0x2F), (1, tab_at + woff), ks))
-    sym = {'SR_SIZE': (0, SR_SIZE), 'SS_SEASON': LABELS['ss_season'], 'ST_RANKW': LABELS['ST_RANK'], 'RP': (0, rp), 'RO2': (0, 2 * getattr(ripool, 'RO', 16)), 'RI_KEYS': rl['RI_OVR_KEYS'], 'RI_OVR': rl['RI_OVR'], 'OV_BYTES': (0, '\n'.join(rows))}
+        ptrs.append((len(tb), len(words), (sobj, soff + 0x2F), (1, tab_at + woff), ks))
+        tb += struct.pack('<HBBII', key, len(words), len(ks), 0, 0) + struct.pack(f'<{len(words)}H', *words) \
+            + bytes(4 * len(ks))
+    tb += bytes(4)                                        # (n = 0: the end)
+    sym = {'SR_SIZE': (0, SR_SIZE), 'SS_SEASON': LABELS['ss_season'], 'SS_ORD': LABELS['ss_ord'], 'ST_RANKW': LABELS['ST_RANK'], 'RP': (0, rp), 'RO2': (0, 2 * getattr(ripool, 'RO', 16)), 'RI_KEYS': rl['RI_OVR_KEYS'], 'RI_OVR': rl['RI_OVR'], 'OV_BYTES': (0, 'db ' + ', '.join(str(b) for b in tb))}
     code, fix = nasmcave.assemble(OV_ASM, at, sym)
     lab = nasmcave.labels(OV_ASM, at, sym)
     assert at + len(code) <= limit, (hex(at + len(code)), hex(limit))
     p.put(1, at, code)
     for off, tobj, toff in fix:
         p.add_ptr(1, at + off, tobj, toff)
-    for name, lst, ssw, ks in ptrs:
-        b = lab[name]
+    for off, n_, lst, ssw, ks in ptrs:
+        b = lab['OV_TAB'] + off
         p.add_ptr(1, b + 4, *lst)
         p.add_ptr(1, b + 8, *ssw)
         for i, k in enumerate(ks):
-            p.add_ptr(1, b + 12 + 2 * len(SIM_LAYOUT[int(name[2:])][2]) + 4 * i, 1, k)
+            p.add_ptr(1, b + 12 + 2 * n_ + 4 * i, 1, k)
     LABELS['st_ovr'] = (1, lab['st_ovr'])
     engine.CALL_AT['st_ovr'] = (1, lab['st_ovr'])           # (over ko_patch's bare ret)
     if 'RI_POST_PTR' in rl:

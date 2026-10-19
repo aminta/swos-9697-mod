@@ -26,6 +26,7 @@ extern const u8 SS_TAB[];
 extern u8 ST_RANK[];
 extern const u16 SEASONW;
 
+u8 ss_ord[13 * MAXN];                   /* (the harness: each state's stage-1 order, club indices, table order) */
 static u32 rng;
 static u32 below(u32 n) {
     rng = rng * 1103515245u + 12345u;
@@ -168,6 +169,8 @@ void ss_season(void) {
                 sort(cl, order + at, k - at);
             }
         }
+        if (s < 13)
+            for (int i = 0; i < MAXN; i++) ss_ord[s * MAXN + i] = i < n ? (u8)order[i] : 0xFF;
         int type = *t++;                                /* the relegation phase */
         if (type == 0) {
             for (int i = n - ndown; i < n; i++) if (i >= 0) down[order[i]] = 1;

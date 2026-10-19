@@ -4115,11 +4115,12 @@ def world_statesim(team='SUDAMERICA,BRASILE,CAMPEONATO BRASILEIRO SERIE A,ATHLET
     k = d1.find(b'SSLASTPT')
     if k < 0:
         return False, 'no SSLASTPT block in the exe (statesim not built)'
-    rank_at, last_at = struct.unpack_from('<2I', d1, k + 8)
+    rank_at, last_at, ord_at = struct.unpack_from('<3I', d1, k + 8)
     keep = {x: os.environ.get(x) for x in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K',
                                             'W8485_NOSACK', 'W8485_HEX')}
     os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5', W8485_K='108+',
-                      W8485_NOSACK='1', W8485_HEX=f'o1/{rank_at:x}:470,o1/{last_at:x}:470')
+                      W8485_NOSACK='1', W8485_HEX=f'o1/{rank_at:x}:470,o1/{last_at:x}:470,o1/{ord_at:x}:208')   # (+ ss_ord: each state's
+                                                                              # stage-1 order, club indices)
     try:
         ok, msg = world8485()
     finally:

@@ -29,7 +29,7 @@ T = {
                                         4: 'QUATTRO GIRONI'},
                days='{n} GIORNATE', rest='UNA SQUADRA RIPOSA OGNI GIORNATA', pts='VITTORIA {w} PUNTI, PAREGGIO 1',
                up='PROMOSSE: {n}', down='RETROCESSE: {n}', none_down='NESSUNA RETROCESSIONE',
-               ko='{n} SQUADRE A ELIMINAZIONE DIRETTA', byes='{n} ESENTI FINO AL 2. TURNO',
+               ko='{n} SQUADRE A ELIMINAZIONE DIRETTA', real_cup='COPPA VERA: {n} SQUADRE', real_in='INGRESSI: ', in_game='NEL GIOCO: ', rn=lambda k: {0: 'PRELIM.', 64: 'TRENTADUESIMI', 32: 'SEDICESIMI', 16: 'OTTAVI', 8: 'QUARTI', 4: 'SEMIFINALI'}.get(k, f'{k}. TURNO'), byes='{n} ESENTI FINO AL 2. TURNO',
                r={'single': 'GARA UNICA, IN PARITA RIGORI', 'single_et': 'GARA UNICA, SUPPLEMENTARI E RIGORI',
                   'two_legs': 'ANDATA E RITORNO, GOL IN TRASFERTA', 'single_replay': 'GARA UNICA, IN PARITA RIPETIZIONE',
                   'two_legs_pens': 'ANDATA E RITORNO, POI RIGORI', 'two_legs_replay': 'ANDATA E RITORNO, IN PARITA SPAREGGIO'},
@@ -42,7 +42,7 @@ T = {
                                       4: 'QUADRUPLE ROUND ROBIN'},
                days='{n} MATCHDAYS', rest='ONE CLUB RESTS EACH MATCHDAY', pts='WIN {w} POINTS, DRAW 1',
                up='PROMOTED: {n}', down='RELEGATED: {n}', none_down='NO RELEGATION',
-               ko='{n} CLUBS, KNOCKOUT', byes='{n} BYES TO ROUND 2',
+               ko='{n} CLUBS, KNOCKOUT', real_cup='REAL CUP: {n} CLUBS', real_in='ENTERING: ', in_game='IN THE GAME: ', rn=lambda k: {0: 'PRELIM.', 64: 'LAST 64', 32: 'LAST 32', 16: 'LAST 16', 8: 'QF', 4: 'SF'}.get(k, f'ROUND {k}'), byes='{n} BYES TO ROUND 2',
                r={'single': 'SINGLE MATCH, A DRAW: PENALTIES', 'single_et': 'SINGLE MATCH, EXTRA TIME, PENALTIES',
                   'two_legs': 'TWO LEGS, AWAY GOALS', 'single_replay': 'SINGLE MATCH, A DRAW: REPLAY',
                   'two_legs_pens': 'TWO LEGS, THEN PENALTIES', 'two_legs_replay': 'TWO LEGS, LEVEL: A REPLAY'},
@@ -55,7 +55,7 @@ T = {
                                       4: 'QUATRE TOURS'},
                days='{n} JOURNEES', rest='UN CLUB AU REPOS A CHAQUE JOURNEE', pts='VICTOIRE {w} POINTS, NUL 1',
                up='PROMUS: {n}', down='RELEGUES: {n}', none_down='PAS DE RELEGATION',
-               ko='{n} CLUBS, ELIMINATION DIRECTE', byes='{n} EXEMPTS JUSQU AU 2E TOUR',
+               ko='{n} CLUBS, ELIMINATION DIRECTE', real_cup='VRAIE COUPE: {n} CLUBS', real_in='ENTREES: ', in_game='DANS LE JEU: ', rn=lambda k: {0: 'PRELIM.', 64: '32ES', 32: '16ES', 16: '8ES', 8: 'QUARTS', 4: 'DEMIS'}.get(k, f'TOUR {k}'), byes='{n} EXEMPTS JUSQU AU 2E TOUR',
                r={'single': 'MATCH UNIQUE, NUL: TIRS AU BUT', 'single_et': 'MATCH UNIQUE, PROLONGATION, T.A.B.',
                   'two_legs': 'ALLER-RETOUR, BUTS A L EXTERIEUR', 'single_replay': 'MATCH UNIQUE, NUL: A REJOUER',
                   'two_legs_pens': 'ALLER-RETOUR, PUIS TIRS AU BUT', 'two_legs_replay': 'ALLER-RETOUR, EGALITE: A REJOUER'},
@@ -69,7 +69,7 @@ T = {
                                         4: 'VIER RUNDEN'},
                days='{n} SPIELTAGE', rest='JEDEN SPIELTAG HAT EIN VEREIN FREI', pts='SIEG {w} PUNKTE, REMIS 1',
                up='AUFSTEIGER: {n}', down='ABSTEIGER: {n}', none_down='KEIN ABSTIEG',
-               ko='{n} VEREINE, K.-O.-SYSTEM', byes='{n} FREILOSE BIS RUNDE 2',
+               ko='{n} VEREINE, K.-O.-SYSTEM', real_cup='ECHTER POKAL: {n} VEREINE', real_in='EINSTIEG: ', in_game='IM SPIEL: ', rn=lambda k: {0: 'QUALI', 64: '1/32', 32: '1/16', 16: 'ACHTELF.', 8: 'VIERTELF.', 4: 'HALBF.'}.get(k, f'RUNDE {k}'), byes='{n} FREILOSE BIS RUNDE 2',
                r={'single': 'EIN SPIEL, REMIS: ELFMETER', 'single_et': 'EIN SPIEL, VERLAENGERUNG, ELFMETER',
                   'two_legs': 'HIN- UND RUECKSPIEL, AUSWAERTSTORE', 'single_replay': 'EIN SPIEL, REMIS: WIEDERHOLUNG',
                   'two_legs_pens': 'HIN- UND RUECKSPIEL, DANN ELFMETER', 'two_legs_replay': 'HIN- UND RUECKSPIEL, GLEICHSTAND: WIEDERHOLUNG'},
@@ -228,8 +228,17 @@ def po_text(po, names, t, lang):
     return out
 
 
+RN = {'Qualifying Round': 0, 'Preliminary Round': 0, 'First Round': 1, 'Second Round': 2, 'Third Round': 3,
+      'Fourth Round': 4, '5th round': 5, 'Round of 64': 64, 'Round of 32': 32, 'Round of 16': 16, 'Last 16': 16,
+      'Quarter-Finals': 8, 'Semi-Finals': 4}
+
+
 def cup_text(cp, t):
-    lines = [t['ko'].format(n=cp['clubs'])]
+    real = cp.get('real') and len(cp['real']['rounds']) > 1   # (the real competition first, then the game's slice)
+    lines = [t['real_cup'].format(n=cp['real']['clubs']),
+             t['real_in'] + ', '.join(f"{t['rn'](RN[r['tm']]) if r['tm'] in RN else r['tm'].upper()} {r['new']}"
+                                      for r in cp['real']['rounds'] if r['new'])] if real else []
+    lines += [(t['in_game'] if real else '') + t['ko'].format(n=cp['clubs'])]
     if cp.get('byes'):
         lines.append(t['byes'].format(n=cp['byes']))
     lines += _runs(cp['rounds'], t)
@@ -672,7 +681,9 @@ def from_pack(d):
                     out.append((world, cid, titles, texts))
                     k += 1
         elif comp['type'] == 'cup':
-            cp = complist._cup(comp, ties, 'cup', {})
+            side = os.path.join(d, 'complist.json')     # (the converter's facts: the real cup as TM lists it)
+            info = (json.load(open(side)) if os.path.exists(side) else {}).get(comp['key'], {})
+            cp = complist._cup(comp, ties, 'cup', info if comp['key'] == 'cup' else {})
             titles = {lang: title(lang, complist._nm(comp['names'], lang)) for lang in LANGS}
             out.append((world, cid, titles, {lang: cup_text(cp, T[lang]) for lang in LANGS}))
         elif comp['type'] == 'tourney':

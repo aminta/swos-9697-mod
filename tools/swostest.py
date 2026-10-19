@@ -1627,24 +1627,18 @@ def w84_record():
     return ok, f'{season}: record line {line!r}'
 
 
-def zone_rows(s, tag):
+def zone_rows(s, tag, n):
     """The shown league table's rows in place order: [(row y, zone)] from a memory frame (zones.py colours, sampled in
     the stats columns: lb light blue, gr green, db dark blue, or orange, rd red, pl the game's plain row)."""
     from PIL import Image
     scr = s.screen()
     s.shot(tag)
     im = Image.open(os.path.join(s.run, 'shots', tag + '.png')).convert('RGB')
-    gc = scr.geom[24]                                   # the GC header: the rows follow it, 6 pixels + a dark line
-    rows, y = [], gc[1] + gc[3] + 1
-    while y < 196:
-        h = 0
-        while y + h < 200 and not (im.getpixel((200, y + h))[0] < 20 and im.getpixel((200, y + h))[1] < 20):
-            h += 1
-        if h != 6:
-            break
-        rows.append(y)
-        y += h + 1
-    rows = [y - 3 for y in rows]
+    gc = scr.geom[24]                                   # the GC header: then rows of 6 pixels + a dark line
+    y0 = gc[1] + gc[3] + 1
+    while im.getpixel((200, y0))[0] < 20 and im.getpixel((200, y0))[1] < 20 and im.getpixel((200, y0))[2] < 200:
+        y0 += 1
+    rows = [y0 + 7 * k for k in range(n)]
     def zone(rgb):
         r, g, b = rgb
         if b >= 150 and r < 130 and g >= 120:
@@ -1653,12 +1647,12 @@ def zone_rows(s, tag):
             return 'gr'
         if b >= 100 and r < 80 and g < 80:
             return 'db'
-        if r >= 200 and 70 <= g < 190 and b < 70:
+        if r >= 150 and 70 <= g <= 150 and b < 50:
             return 'or'
         if r >= 200 and g < 90 and b < 90:
             return 'rd'
         return 'pl'
-    return [(y, zone(im.getpixel((200, y + 3)))) for y in rows], scr
+    return [(y, zone(im.getpixel((200, y + 2)))) for y in rows], scr
 
 
 @scenario
@@ -1680,7 +1674,7 @@ def zone_colours():
         walk(s, s.screen().find('VISUAL. COMPETIZ.', exact=True), 3)
         walk(s, 1, 3)
         for k in (1, 2):
-            rows, scr = zone_rows(s, f'zones_{k}')
+            rows, scr = zone_rows(s, f'zones_{k}', len(want))
             got = [z for _, z in rows]
             liv = None
             check(len(got) == 22 and all(a == w or (w == 'pl' and a != w and False) for a, w in zip(got, want)),
@@ -1693,6 +1687,27 @@ def zone_colours():
                 walk(s, s.screen().find('FORMULA', exact=True), 3)
                 walk(s, s.screen().find('ESCI', exact=True), 3)
                 walk(s, s.screen().find('ESCI', exact=True), 3)
+    w27 = os.environ.get('ZONES_W2627')                 # a full 2026-27 build (exe + DATA): two more tables
+    if w27:
+        for path, want27, leg27 in ((('INGHILTERRA', 'PREMIER LEAGUE', 'ARSENAL'),
+                                     ['lb'] * 5 + ['gr', 'db'] + ['pl'] * 10 + ['rd'] * 3, ['CL', 'EL', 'CONF', 'RETR']),
+                                    (('ITALIA', 'SERIE B', 'AVELLINO'),
+                                     ['lb'] * 2 + ['gr'] * 6 + ['pl'] * 7 + ['or'] * 2 + ['rd'] * 3,
+                                     ['PROM', 'P.OFF', 'P.OUT', 'RETR'])):
+            with Session('zone_colours_' + path[1].split()[-1].lower(), w27, {}, 'dump:2', 1500) as s:
+                s.wait()
+                for t in ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27', 'EUROPA'] + list(path):
+                    if press(s, s.screen(), t, 3) is None:
+                        return False, f'2026-27 career: {t} not reached'
+                s.send('fire dump:3')
+                walk(s, s.screen().find('VISUAL. COMPETIZ.', exact=True), 3)
+                walk(s, 1, 3)
+                rows, scr = zone_rows(s, 'zones_' + path[1].split()[-1].lower(), len(want27))
+                got = [z for _, z in rows]
+                check(got == want27, f'{path[1]}: zones {got}', errs)
+                leg = [e[1] for e in scr.entries[-5:] if not e[2]]
+                check(leg == leg27, f'{path[1]}: legend {leg}', errs)
+                info.append(f"{path[1]}: {''.join(z[0] for z in got)}, legend {leg}")
     return not errs, '; '.join(errs + info) if errs else '; '.join(info)
 
 

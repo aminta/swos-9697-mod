@@ -1378,7 +1378,10 @@ HOLDERS = 0xC058B         # CC / CWC / UEFA holder team numbers (words, FFFF non
 
 
 W84_HOOK = None           # world8485: f(session, season, screen) at every step (set by a scenario, then reset)
-SLOTS_PTR = 0x18DF4       # dseg_D8CAA: the contest slots' struct pointers (dword per slot, linear; squads session)
+
+
+AG_STORE = 0x18F08        # obj1: after cseg_28E76's 'mov [esi], al' (DIY+89h+tie = cseg_2AE97's D7; IT exe)
+AG_A3 = 0x315E3           # obj2: A3 (cseg_28E76 points it at DIY_competitionStart)
 
 
 def slot_scores(d):
@@ -4915,7 +4918,7 @@ def world_full_draw():
 @scenario
 def world_away_goals():
     """Away goals (integrator 6b58a43, regia 2026-10-19): a level aggregate with different away goals. (a) Full 2026-27
-    world at INTER (the European slot: the knockouts after the league phase, two legs): simdraw's table at 1-1 and, between the
+    world at KARMIOTISSA (slot 1, Cyprus's cup: two-legged semi-finals, ET + pens): simdraw's table at 1-1 and, between the
     legs, every first leg poked to 2-2 (aggregate 3-3, away goals 2 v 1): no tie may carry the 'won on away goals'
     bit (+89h 10h), each decided by extra time / penalties (04h / 08h). (b) Europe 1984-85 at Liverpool, one season:
     the European slots' two-legged ties must show the away-goals bit at least once (the rule still on there)."""
@@ -4923,17 +4926,31 @@ def world_away_goals():
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import simdraw
     from le import LE
-    seen, errs, info = {}, [], []
+    import split
+    import lepatch
+    sp = split.sites(lepatch.LEPatch(os.path.join(MAIN, 'orig', 'ITALIAN.EXE')))['SLOTS']   # (InitNewSeason's
+    seen, errs, info, bps = {}, [], [], []                     # arrayOfPointers: slots 0-4' buffers; integrator)
+    os.environ['CORE'] = 'normal'               # (the decision breakpoint: the dynamic core skips breakpoints)
+
+    def decided(r):                                           # breakpoint after cseg_28E76 stores cseg_2AE97's D7
+        diy = struct.unpack('<I', r.read(r.base2 + AG_A3, 4))[0]   # (A3 = DIY_competitionStart, the working copy)
+        d = r.read(diy, 0x450)
+        w = lambda o: struct.unpack_from('<H', d, o)[0]
+        t = w(0x63)
+        if w(0x149) and t < 64:                                   # a second leg: the tie's decision
+            team = lambda i: w(0x24D + 2 * i)
+            bps.append((d[0x2D], w(0x57), team(d[0x2CD + 2 * t]), team(d[0x2CD + 2 * t + 1]), d[0x89 + t],
+                        w(0xC9 + 2 * t), w(0x14D + 2 * t)))
 
     def hook(s, season, scr):
         if not seen.get('ptr'):                                 # (the pointer table once, for the layout check)
+            s.bp(s.result.base1 + AG_STORE, decided)
             seen['ptr'] = 1
             open(os.path.join(s.run, 'slots.log'), 'a').write('ptrs ' + ' '.join(
-                hex(struct.unpack('<I', s.result.obj2(SLOTS_PTR + 4 * k, 4))[0]) for k in range(6))
+                hex(struct.unpack('<I', s.result.obj2(sp + 4 * k, 4))[0]) for k in range(5))
                 + f' base2 {s.result.base2:#x}\n')
-        for k in range(7):
-            lin = (struct.unpack('<I', s.result.obj2(SLOTS_PTR + 4 * k, 4))[0] if k < 6 else
-                   s.result.base2 + SLOT)                     # (6: the European slot's fixed buffer, slot_ties')
+        for k in range(5):                                    # (1 national cup, 2 league cup, 3 European, 4 gplay)
+            lin = struct.unpack('<I', s.result.obj2(sp + 4 * k, 4))[0]
             if not lin:
                 continue
             d = s.result.read(lin, 0x450)   # (team words up to +24Dh + 2 x 255)
@@ -4974,26 +4991,28 @@ def world_away_goals():
             keep = {k: os.environ.get(k) for k in ('W2627FULL', 'W2627FULL_COUNTRY', 'W2627FULL_TEAM', 'W8485_FILL',
                                                    'W8485_ONE', 'W8485_BUILD', 'W8485_TEAM', 'W8485_WORLD', 'W8485_WNUM',
                                                    'W8485_K')}
-            os.environ.update(W2627FULL=bdir, W2627FULL_COUNTRY='ita', W8485_ONE='1', W8485_FILL=f'{at[0]:x}:11:{len(tab)}',
-                              W2627FULL_TEAM='EUROPA,ITALIA,SERIE A,INTER')   # (its European slot: the knockouts
+            os.environ.update(W2627FULL=bdir, W2627FULL_COUNTRY='cyp', W8485_ONE='1', W8485_FILL=f'{at[0]:x}:11:{len(tab)}',
+                              W2627FULL_TEAM='EUROPA,CIPRO,KARMIOTISSA')   # (slot 1: Cyprus's cup, two-legged semi-finals
             try:
-                ok, msg = full_season('ita', '')                 # after the league phase, two legs)
+                ok, msg = full_season('cyp', '')                 # with ET + pens; one division)
             finally:
                 for k, v in keep.items():
                     if v is None:
                         os.environ.pop(k, None)
                     else:
                         os.environ[k] = v
-            two = {k: v for k, v in seen.items() if isinstance(v, dict) and v.get('flags')}
-            ag = [(k, t) for k, v in two.items() for t, f in v['flags'].items() if f[0] & 0x10]
-            dec = [(k, t, hex(f[0])) for k, v in two.items() for t, f in v['flags'].items() if f[0] & 0x0C]
-            info.append(f'2026-27: {msg[:120]}; two-legged rounds {sorted(two)}, decided by ET / pens {len(dec)}, '
-                        f'away-goals bit {len(ag)}')
+            lev = [b for b in bps if (b[5] >> 8) + (b[6] & 0xFF) == (b[5] & 0xFF) + (b[6] >> 8)]   # level aggregates
+            ag = [b for b in bps if b[4] & 0x10]
+            dec = [b for b in lev if b[4] & 0x0C]
+            info.append(f'2026-27: {msg[:120]}; second legs {len(bps)}, level {len(lev)}, decided by ET / pens '
+                        f'{len(dec)}, away-goals bit {len(ag)}; ' + ' '.join(f'{b[2]}-{b[3]}:{b[4]:02x}/{b[5]:04x}/{b[6]:04x}'
+                                                                                   for b in bps[:8]))
             check(ok, msg, errs)
-            check(bool(two), 'no two-legged tie seen in the 2026-27 world', errs)
+            check(bool(lev), 'no level-aggregate second leg seen in the 2026-27 world', errs)
             check(not ag, f'2026-27: away goals decided {ag}', errs)
             check(bool(dec), '2026-27: no level aggregate went to extra time / penalties', errs)
         seen.clear()
+        bps.clear()
         FORCE = False                                         # (b) 1984-85: the rule as the engine plays it
         if 'b' in parts:
             keep = {k: os.environ.get(k) for k in ('W8485_ONE', 'W8485_BUILD', 'SWOSTEST_SCENARIO')}
@@ -5008,10 +5027,9 @@ def world_away_goals():
                         os.environ.pop(k, None)
                     else:
                         os.environ[k] = v
-            two = {k: v for k, v in seen.items() if isinstance(v, dict) and v.get('flags')}
-            ag = [(k, t) for k, v in two.items() for t, f in v['flags'].items() if f[0] & 0x10]
-            info.append(f'1984-85: {msg[:120]}; two-legged rounds {len(two)}, ties {sum(len(v["flags"]) for v in two.values())}, '
-                        f'away-goals bit {len(ag)}')
+            ag = [b for b in bps if b[4] & 0x10]
+            info.append(f'1984-85: {msg[:120]}; second legs {len(bps)}, away-goals bit {len(ag)}; '
+                        + ' '.join(f'{b[2]}-{b[3]}:{b[4]:02x}/{b[5]:04x}/{b[6]:04x}' for b in ag[:4]))
             check(ok, msg, errs)
             check(bool(ag), '1984-85: no tie decided on away goals', errs)
     finally:

@@ -1696,6 +1696,11 @@ def world8485():
                 for k, a in enumerate(filter(None, os.environ.get('W8485_POKEIF', '').split(','))):
                     co, cv, po, pv = a.split(':')          # W8485_POKEIF: once obj2 bytes at co == cv, poke pv at po
                     if ('if', k) not in poked and s.result.obj2(int(co, 16), len(cv) // 2).hex() == cv:
+                        if pv.startswith('swap'):              # swap<hex offset>: exchange the bytes at po and there
+                            q = int(pv[4:], 16)
+                            x, y = s.result.obj2(int(po, 16), 1), s.result.obj2(q, 1)
+                            s.poke(s.result.base2 + q, x)
+                            pv = y.hex()
                         s.poke(s.result.base2 + int(po, 16), bytes.fromhex(pv))
                         poked.add(('if', k))
                         s.log.append(f'POKEIF {po} {pv}')

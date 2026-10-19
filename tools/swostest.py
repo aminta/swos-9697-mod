@@ -4050,10 +4050,13 @@ def world_leaguecup():
     the season ends and saves (checkw1)"""
     import json
     import shutil
-    src = os.path.join(MAIN, 'internal', 'world2526', 'world5tm')
-    lc = os.path.join(MAIN, 'internal', 'world2526', 'world5tm-lc', 'eng')
-    if not (os.path.isdir(src) and os.path.isdir(lc)):
-        return True, 'SKIP: private data internal/world2526/world5tm(-lc) missing'
+    src = os.environ.get('W2627FULL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm')
+    lc = os.path.join(MAIN, 'internal', 'world2526', 'world5tm-lc', 'eng')   # (only when the pack has no league cup:
+    if not os.path.isdir(src) or not os.path.exists(src + '.txt'):          # TM_LEAGUE_CUP=1 is the default now)
+        return False, f'private data {src}(.txt) missing (W2627FULL_DATA)'   # (regia: a missing world FAILs)
+    has_lc = any(c['key'] == 'league_cup' for c in json.load(open(os.path.join(src, 'eng', 'pack.json')))['competitions'])
+    if not has_lc and not os.path.isdir(lc):
+        return False, f'{src}/eng has no league cup and {lc} is missing'
     w = os.path.join(WORK, 'world_leaguecup')
     shutil.rmtree(w, ignore_errors=True)
     shutil.copytree(src, os.path.join(w, 'world5tm'))
@@ -4069,9 +4072,9 @@ def world_leaguecup():
         rows = open(os.path.join(lc, 'ties.csv')).read().splitlines()[1:]
         with open(os.path.join(eng, 'ties.csv'), 'a') as t:
             t.write('\n'.join(rows) + '\n')
-    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ln.split()[1:2] == ['file']]
     env = {'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(w, 'world5tm', x) for x in order])}
-    exe = build('world_leaguecup', env=env)
+    exe = os.environ.get('WLC_BUILD') or build('world_leaguecup', env=env)   # (WLC_BUILD: a release build, c/REL40)
     keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K',
                                             'W8485_NOSACK')}
     os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM='EUROPA,INGHILTERRA,EFL LEAGUE ONE,BRADFORD CITY',
@@ -5260,6 +5263,7 @@ def world_away_goals():
     the European slots' two-legged ties must show the away-goals bit at least once (the rule still on there)."""
     global W84_HOOK
     import collections
+    import glob
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import simdraw
     from le import LE
@@ -5362,7 +5366,6 @@ def world_away_goals():
         seen.clear()
         bps.clear()
         FORCE = False                                         # (b) 1984-85: the rule as the engine plays it
-        os.environ['CORE'] = 'normal'                         # (the decision breakpoint: the dynamic core skips it)
         if 'b' in parts:
             keep = {k: os.environ.get(k) for k in ('W8485_ONE', 'W8485_BUILD', 'SWOSTEST_SCENARIO')}
             os.environ['W8485_ONE'] = '1'
@@ -5379,11 +5382,15 @@ def world_away_goals():
                         os.environ.pop(k, None)
                     else:
                         os.environ[k] = v
-            ag = [b for b in bps if b[4] & 0x10]
-            info.append(f'1984-85: {msg[:120]}; second legs {len(bps)}, away-goals bit {len(ag)}; '
-                        + ' '.join(f'{b[2]}-{b[3]}:{b[4]:02x}/{b[5]:04x}/{b[6]:04x}' for b in ag[:4]))
+            res = collections.Counter()                         # the European second legs' result texts (the
+            for d in glob.glob(os.path.join(RUNS, w84_tag() + '_*', 'session.log')):   # fast core: no breakpoint)
+                for ln in open(d, errors='replace'):
+                    if 'RITORNO' in ln:
+                        for t in re.findall(r'VINCE (?:\d+-\d+ )?(AI RIG(?: D\.T)?|IN TOT\.(?: D\.T)?|SU GOL FC)', ln):
+                            res[t] += 1
+            info.append(f'1984-85: {msg[:120]}; second-leg results {dict(res)}')
             check(ok, msg, errs)
-            check(bool(ag), '1984-85: no tie decided on away goals', errs)
+            check(res.get('SU GOL FC', 0) > 0, f'1984-85: no tie won on away goals on the screens {dict(res)}', errs)
     finally:
         W84_HOOK = None
     return not errs, '; '.join(errs + info)

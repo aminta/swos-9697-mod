@@ -116,6 +116,8 @@ when the engine lands it.
 
 *European cups (UEFA 2026-27)*
 - **The current official names**: UEFA Champions League, UEFA Europa League, UEFA Conference League, on every screen.
+- **The league phase's competition info** (STAT > INFO): one table of 36, top 8 to the round of 16, 9th-24th to the
+  play-offs.
 - **No away goals in 2026-27** (UEFA abolished them in 2021-22; every federation's two-legged rounds followed): a
   level aggregate goes to extra time and penalties, or straight to penalties where the regulation says so (Copa do
   Brasil rounds 5-8, EFL Cup semi-finals, the Chilean Copa de la Liga semi-finals), in played and simulated ties
@@ -599,6 +601,8 @@ Non una formula uguale per tutti: ogni campionato gioca la stagione come l'ha sc
 
 *Coppe europee (UEFA 2026-27)*
 - **I nomi ufficiali di oggi**: UEFA Champions League, UEFA Europa League, UEFA Conference League, su ogni schermata.
+- **Info competizione della fase campionato** (STAT > INFO): una classifica da 36, prime 8 agli ottavi, 9ª-24ª agli
+  spareggi.
 - **Niente gol in trasferta nel 2026-27** (aboliti dalla UEFA nel 2021-22, e le federazioni hanno seguito): a parità
   nel totale si va ai supplementari e ai rigori, o direttamente ai rigori dove il regolamento lo prevede (Copa do
   Brasil turni 5-8, semifinali di EFL Cup e della Copa de la Liga cilena), sia nelle sfide giocate sia in quelle

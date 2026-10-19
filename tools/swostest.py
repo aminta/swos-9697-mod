@@ -1377,6 +1377,24 @@ SLOT = 0x1A22C            # player's European slot buffer dseg_DA0E2 (DIY layout
 HOLDERS = 0xC058B         # CC / CWC / UEFA holder team numbers (words, FFFF none), set at the season end, not saved
 
 
+W84_HOOK = None           # world8485: f(session, season, screen) at every step (set by a scenario, then reset)
+
+
+AG_STORE = 0x18F08        # obj1: after cseg_28E76's 'mov [esi], al' (DIY+89h+tie = cseg_2AE97's D7; IT exe)
+AG_A3 = 0x315E3           # obj2: A3 (cseg_28E76 points it at DIY_competitionStart)
+
+
+def slot_scores(d):
+    """A contest struct's current round (squads session's layout, cseg_28E76 / cseg_2AE97): id, round, ties, legs,
+    leg flag, away rule, per tie (team a, team b, flags +89h, this leg's score +C9h, the first leg's +14Dh)."""
+    w = lambda o: struct.unpack_from('<H', d, o)[0]
+    team = lambda i: w(0x24D + 2 * i)
+    n = w(0x51)
+    ties = [(team(d[0x2CD + 2 * k]), team(d[0x2CD + 2 * k + 1]), d[0x89 + k], w(0xC9 + 2 * k), w(0x14D + 2 * k))
+            for k in range(min(n, 64))]
+    return dict(id=d[0x2D], round=w(0x57), n=n, legs=w(0x14B), leg2=w(0x149), away=w(0x5D), ties=ties)
+
+
 def slot_ties(r, n):
     """(round index, contest id, [(country a, country b)] of the first n ties) from the player's European slot."""
     d = r.obj2(SLOT, 0x443)
@@ -1798,6 +1816,14 @@ def world8485():
                 if nosack is not None and season not in poked:   # W8485_NOSACK: the game's 'no sacking' word
                     s.poke(s.result.base2 + nosack, b'\x01\x00')   # (dseg_D6B62, cleared at every season start)
                     poked.add(season)
+                if W84_HOOK is not None:               # a scenario's own per-step check (world_away_goals)
+                    W84_HOOK(s, season, scr)
+                if fill and season not in filled:      # W8485_FILL 'obj2 off:byte:count' (hex, hex, dec), once per
+                    o, v, n = fill.split(':')          # session (world_full_draw: simdraw's table, not in the save)
+                    for k in range(0, int(n), 16):     # (short SM commands, as lp36_tie's poke)
+                        s.poke(s.result.base2 + int(o, 16) + k, bytes([int(v, 16)]) * min(16, int(n) - k))
+                        s.box.pump(0.05)
+                    filled.add(season)
                 if peek is not None:                   # W8485_PEEK: the largest word seen at an obj2 offset
                     peek[1] = max(peek[1], struct.unpack_from('<H', s.result.obj2(peek[0], 2))[0])
                 hexlog()
@@ -1837,6 +1863,7 @@ def world8485():
                     check(not same, f'season {season} cup {cid} round {rnd + 1}: same-country ties {same}', errs)
                 return season_over(scr) or (r2only and (season, 1) in seen)
             hexseen, diyseen = {}, {}
+            fill, filled = os.environ.get('W8485_FILL'), set()
             diy = [int(x, 16) for x in os.environ['W8485_DIY'].split(',')] if os.environ.get('W8485_DIY') else None
             diy_league = lambda b: b[0:2] == b'\0\0' and (b[diy[1]:diy[1] + 2] == b'\xfeP' if len(diy) < 4 else
                                                             struct.unpack_from('<H', b, 0x31)[0] == diy[3])   # (a split
@@ -5100,9 +5127,177 @@ def full_season(country, team):
     errs = []
     check(ok, msg, errs)
     check(cnt == sizes, f'divisions {sorted(cnt.items())} (were {sorted(sizes.items())})', errs)
-    bad = {k: v for k, v in mv.items() if k[1] not in level or abs(level[k[0]] - level[k[1]]) != 1}
-    check(not bad, f'moves not of one level: {bad}', errs)
-    return not errs, '; '.join(errs) or f'{msg}; divisions {sorted(cnt.items())}; moves {dict(mv)}'
+    bad = {k: v for k, v in mv.items() if k[1] not in level or abs(level[k[0]] - level[k[1]]) > 1}
+    side = sum(v for k, v in mv.items() if k[1] in level and level[k[0]] == level[k[1]])   # (parallel groups of one
+    check(not bad, f'moves of more than one level: {bad}', errs)          # level redrawn by area: allowed)
+    return not errs, '; '.join(errs) or (f'{msg}; divisions {sorted(cnt.items())}; moves '
+                                         f'{ {k: v for k, v in mv.items() if level.get(k[0]) != level.get(k[1])} }'
+                                         + (f'; {side} clubs regrouped within a level' if side else ''))
+
+
+@scenario
+def world_full_draw():
+    """Full 5.0 world, forced draw (regia 2026-10-19): simdraw's score table (3072 bytes, stronger goals << 4 | weaker
+    goals; found by content) poked to 0x11 at the career start, so every simulated match ends 1-1; one season at
+    PALMEIRAS: every Copa do Brasil tie decided on penalties must say 'VINCE a-b AI RIG' (two_legs_pens / single
+    with no extra time: 1-1, 1-1, straight to penalties), never 'D.T.S.' (after extra time)"""
+    import collections
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import simdraw
+    from le import LE
+    bdir = os.environ.get('W2627FULL') or os.path.join(WORK, 'builds', 'w2627-latest')
+    if not os.path.isdir(bdir):
+        return True, 'SKIP: no world 2026-27 build (W2627FULL)'
+    d2 = LE(open(os.path.join(bdir, 'ITALIAN.EXE'), 'rb').read()).obj_bytes(2)
+    tab = simdraw.table()
+    at = [m.start() for m in re.finditer(re.escape(tab), d2)]
+    if len(at) != 1:
+        return False, f'simdraw table found {len(at)} times in {bdir}'
+    keep = {k: os.environ.get(k) for k in ('W2627FULL', 'W2627FULL_COUNTRY', 'W2627FULL_TEAM', 'W8485_FILL', 'W8485_ONE')}
+    os.environ.update(W2627FULL=bdir, W2627FULL_COUNTRY='bra', W8485_ONE='1', W8485_FILL=f'{at[0]:x}:11:{len(tab)}',
+                      W2627FULL_TEAM='SUDAMERICA,BRASILE,CAMPEONATO BRASILEIRO SERIE A,PALMEIRAS')
+    try:
+        ok, msg = full_season('bra', '')
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    errs, pens, tot = [], collections.Counter(), collections.Counter()
+    log = os.path.join(RUNS, w84_tag() + '_1', 'session.log')
+    for ln in (open(log, errors='replace') if os.path.exists(log) else []):
+        title = ln.split('] ', 1)[-1].split(' | ')[0]
+        if not title.startswith('COPA DO BRASIL'):
+            continue
+        for t in re.findall(r'VINCE (\d+-\d+) (AI RIG(?: D\.T)?|IN TO)', ln):
+            (pens if t[1].startswith('AI RIG') else tot)[title[15:], t[1]] += 1
+    check(ok, msg, errs)
+    check(any(k[1] == 'AI RIG' for k in pens), f'no Copa do Brasil tie on penalties ({log})', errs)
+    check(not [k for k in pens if 'D.T' in k[1]], f'penalties after extra time: {dict(pens)}', errs)
+    return not errs, '; '.join(errs) or f'table obj2 {at[0]:#x}; penalties {dict(pens)}; on aggregate {dict(tot)}'
+
+
+@scenario
+def world_away_goals():
+    """Away goals (integrator 6b58a43, regia 2026-10-19): a level aggregate with different away goals. (a) Full 2026-27
+    world at KARMIOTISSA (slot 1, Cyprus's cup: two-legged semi-finals, ET + pens): simdraw's table at 1-1 and, between the
+    legs, every first leg poked to 2-2 (aggregate 3-3, away goals 2 v 1): no tie may carry the 'won on away goals'
+    bit (+89h 10h), each decided by extra time / penalties (04h / 08h). (b) Europe 1984-85 at Liverpool, one season:
+    the European slots' two-legged ties must show the away-goals bit at least once (the rule still on there)."""
+    global W84_HOOK
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import simdraw
+    from le import LE
+    import split
+    import lepatch
+    sp = split.sites(lepatch.LEPatch(os.path.join(MAIN, 'orig', 'ITALIAN.EXE')))['SLOTS']   # (InitNewSeason's
+    seen, errs, info, bps = {}, [], [], []                     # arrayOfPointers: slots 0-4' buffers; integrator)
+    os.environ['CORE'] = 'normal'               # (the decision breakpoint: the dynamic core skips breakpoints)
+
+    def decided(r):                                           # breakpoint after cseg_28E76 stores cseg_2AE97's D7
+        diy = struct.unpack('<I', r.read(r.base2 + AG_A3, 4))[0]   # (A3 = DIY_competitionStart, the working copy)
+        d = r.read(diy, 0x450)
+        w = lambda o: struct.unpack_from('<H', d, o)[0]
+        t = w(0x63)
+        if w(0x149) and t < 64:                                   # a second leg: the tie's decision
+            team = lambda i: w(0x24D + 2 * i)
+            bps.append((d[0x2D], w(0x57), team(d[0x2CD + 2 * t]), team(d[0x2CD + 2 * t + 1]), d[0x89 + t],
+                        w(0xC9 + 2 * t), w(0x14D + 2 * t)))
+
+    def hook(s, season, scr):
+        if not seen.get('ptr'):                                 # (the pointer table once, for the layout check)
+            s.bp(s.result.base1 + AG_STORE, decided)
+            seen['ptr'] = 1
+            open(os.path.join(s.run, 'slots.log'), 'a').write('ptrs ' + ' '.join(
+                hex(struct.unpack('<I', s.result.obj2(sp + 4 * k, 4))[0]) for k in range(5))
+                + f' base2 {s.result.base2:#x}\n')
+        for k in range(5):                                    # (1 national cup, 2 league cup, 3 European, 4 gplay)
+            lin = struct.unpack('<I', s.result.obj2(sp + 4 * k, 4))[0]
+            if not lin:
+                continue
+            d = s.result.read(lin, 0x450)   # (team words up to +24Dh + 2 x 255)
+            c = slot_scores(d)
+            hdr = (k, c['id'], c['round'], c['n'], c['legs'], c['leg2'], c['away'], d[0x2D:0x60].hex())
+            if seen.get(('hdr', k)) != hdr:                   # (every slot's header change: the layout check)
+                seen[('hdr', k)] = hdr
+                open(os.path.join(s.run, 'slots.log'), 'a').write(f'{season} hdr {hdr}\n')
+            if c['legs'] != 2 or not 0 < c['n'] <= 64:
+                continue
+            key = (k, c['id'], c['round'])
+            st = seen.setdefault(key, {'poked': False, 'flags': {}})
+            sig = (c['leg2'], tuple(t[2:] for t in c['ties']))
+            if st.get('sig') != sig:                          # (raw, to check the layout: slots.log)
+                st['sig'] = sig
+                open(os.path.join(s.run, 'slots.log'), 'a').write(f"{season} slot {k} {c['id']:#x} r{c['round']} "
+                    f"leg2 {c['leg2']} away {c['away']} " + ' '.join(f'{a}-{b}:{fl:02x}/{sc:04x}/{f1:04x}'
+                                                                   for a, b, fl, sc, f1 in c['ties']) + '\n')
+            if FORCE and c['leg2'] and not st['poked']:      # between the legs: every first leg 2-2
+                for t in range(c['n']):
+                    s.poke(lin + 0x14D + 2 * t, b'\x02\x02')
+                    s.box.pump(0.05)
+                st['poked'] = True
+            for t, (a, b, fl, sc, first) in enumerate(c['ties']):
+                if fl & 0x80 and fl & 0x20:                   # decided after a second leg
+                    st['flags'][(a, b)] = (fl, sc, first)
+    W84_HOOK = hook
+    try:
+        parts = os.environ.get('AG_PART', 'ab')           # (one part alone: AG_PART=a / b)
+        if 'a' in parts:
+            bdir = os.environ.get('W2627FULL') or os.path.join(WORK, 'builds', 'w2627-latest')
+            d2 = LE(open(os.path.join(bdir, 'ITALIAN.EXE'), 'rb').read()).obj_bytes(2)
+            tab = simdraw.table()
+            at = [m.start() for m in re.finditer(re.escape(tab), d2)]
+            if len(at) != 1:
+                return False, f'simdraw table found {len(at)} times in {bdir}'
+            FORCE = True
+            keep = {k: os.environ.get(k) for k in ('W2627FULL', 'W2627FULL_COUNTRY', 'W2627FULL_TEAM', 'W8485_FILL',
+                                                   'W8485_ONE', 'W8485_BUILD', 'W8485_TEAM', 'W8485_WORLD', 'W8485_WNUM',
+                                                   'W8485_K')}
+            os.environ.update(W2627FULL=bdir, W2627FULL_COUNTRY='cyp', W8485_ONE='1', W8485_FILL=f'{at[0]:x}:11:{len(tab)}',
+                              W2627FULL_TEAM='EUROPA,CIPRO,KARMIOTISSA')   # (slot 1: Cyprus's cup, two-legged semi-finals
+            try:
+                ok, msg = full_season('cyp', '')                 # with ET + pens; one division)
+            finally:
+                for k, v in keep.items():
+                    if v is None:
+                        os.environ.pop(k, None)
+                    else:
+                        os.environ[k] = v
+            lev = [b for b in bps if (b[5] >> 8) + (b[6] & 0xFF) == (b[5] & 0xFF) + (b[6] >> 8)]   # level aggregates
+            ag = [b for b in bps if b[4] & 0x10]
+            dec = [b for b in lev if b[4] & 0x0C]
+            info.append(f'2026-27: {msg[:120]}; second legs {len(bps)}, level {len(lev)}, decided by ET / pens '
+                        f'{len(dec)}, away-goals bit {len(ag)}; ' + ' '.join(f'{b[2]}-{b[3]}:{b[4]:02x}/{b[5]:04x}/{b[6]:04x}'
+                                                                                   for b in bps[:8]))
+            check(ok, msg, errs)
+            check(bool(lev), 'no level-aggregate second leg seen in the 2026-27 world', errs)
+            check(not ag, f'2026-27: away goals decided {ag}', errs)
+            check(bool(dec), '2026-27: no level aggregate went to extra time / penalties', errs)
+        seen.clear()
+        bps.clear()
+        FORCE = False                                         # (b) 1984-85: the rule as the engine plays it
+        if 'b' in parts:
+            keep = {k: os.environ.get(k) for k in ('W8485_ONE', 'W8485_BUILD', 'SWOSTEST_SCENARIO')}
+            os.environ['W8485_ONE'] = '1'
+            os.environ['SWOSTEST_SCENARIO'] = 'world_away_goals_8485'    # (its own run dirs: (a)'s logs kept)
+            os.environ.pop('W8485_BUILD', None)
+            try:
+                ok, msg = world8485()
+            finally:
+                for k, v in keep.items():
+                    if v is None:
+                        os.environ.pop(k, None)
+                    else:
+                        os.environ[k] = v
+            ag = [b for b in bps if b[4] & 0x10]
+            info.append(f'1984-85: {msg[:120]}; second legs {len(bps)}, away-goals bit {len(ag)}; '
+                        + ' '.join(f'{b[2]}-{b[3]}:{b[4]:02x}/{b[5]:04x}/{b[6]:04x}' for b in ag[:4]))
+            check(ok, msg, errs)
+            check(bool(ag), '1984-85: no tie decided on away goals', errs)
+    finally:
+        W84_HOOK = None
+    return not errs, '; '.join(errs + info)
 
 
 @scenario

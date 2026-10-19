@@ -1333,7 +1333,9 @@ def fill_check(s, tag):
 def menu_check(s, tag):
     """Main menu after a career (Davide, 2026-10-16: once its buttons showed an in-match frame instead of their
     FILL.256 texture): screenshot it and compare the MOD. TATTICA button with the game's gradient (a smooth dark
-    blue left to right). A corrupted texture is noted in the session log as '[menu] CORRUPTED' (no failure)."""
+    blue left to right). A corrupted texture is noted in the session log as '[menu] CORRUPTED'. 4.0 (regia): the
+    FILL.256 texture in memory changed = garbage graphics (it matched every corrupted season-end frame of 19/10: the
+    30-club tables drawn past the screen) -> returns an error, the scenario FAILs."""
     try:
         from PIL import Image
         s.shot('menu_' + tag)
@@ -1345,7 +1347,8 @@ def menu_check(s, tag):
         row = [im.getpixel((int(x * w / 320), y)) for x in range(22, 150, 2)]
         jumps = sum(abs(a[0] - b[0]) + abs(a[1] - b[1]) + abs(a[2] - b[2]) > 60 for a, b in zip(row, row[1:]))
         s.log.append(f'[menu] {tag}: ' + ('CORRUPTED' if jumps > 20 else 'clean') + f' ({jumps} jumps)')
-        fill_check(s, tag)
+        if fill_check(s, tag) is False:
+            return f'{tag}: the menu graphics are corrupted (FILL.256 texture changed in memory; frame menu_{tag}.png)'
     except Exception as e:                           # never let the check break a run
         s.log.append(f'[menu] {tag}: check failed {e}')
 
@@ -1394,7 +1397,9 @@ def next_season_save(s, name):
     else:
         return 'career menu of the new season not reached'
     press(s, s.screen(), 'ESCI', wait=3)
-    menu_check(s, 'season_end')                  # the main menu after a career: corrupted buttons? (Davide)
+    err = menu_check(s, 'season_end')            # the main menu after a career: corrupted buttons? (Davide)
+    if err:
+        return err
     if press(s, s.screen(), 'SALVA CARRIERA') is None:
         return f'no SALVA CARRIERA on {s.screen()}'
     s.send(name_entry(name) + ' dump:3')

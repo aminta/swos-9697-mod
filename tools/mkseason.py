@@ -293,6 +293,10 @@ class Pack:
             _need(n <= (split_nmax() if fx else 24), f"{self.meta['id']}: {self.league['key']}: division {d + 1} has {n} clubs: at most 24 (the game's "
                   'round-robin pairing; more = fixtures past the team list, team 0, VerifyTeamLoaded int 3 at the season end; '
                   'a split with a fixture list from day 0: up to split.NMAX)')
+            import longtable                    # 4.0: the table screen (longtable.py: 24 rows shown, scrolled) - a bigger
+            _need(n <= longtable.MAX, f"{self.meta['id']}: {self.league['key']}: division {d + 1} has {n} clubs: the "
+                  f"league table screen shows at most {longtable.MAX} (longtable.MAX; more was drawn past the screen, over "
+                  'the font and the menu sprites)')
         _need(sum(dv['teams'] for dv in divs) == len(self.league_clubs) - len(self.reserve_clubs),
               f"{self.league['key']}: clubs outside the divisions")
         rs = self.league.get('reserve')

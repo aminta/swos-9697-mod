@@ -21,6 +21,7 @@ import struct
 import nasmcave
 
 ROWS = 24                       # the game's own largest table (mkseason: at most 24 clubs a division without fixtures)
+MAX = 30                        # the largest table that scrolls (split.NMAX's 30: Argentina, MLS); mkseason refuses more
 LABELS = {}
 
 ASM = """

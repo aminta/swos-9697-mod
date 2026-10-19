@@ -4669,6 +4669,94 @@ def gp_cd(exe):
 CD_SIZE = 1032          # (gplay.CD_SIZE: struct cd_state)
 
 
+def cd_strengths(src):
+    """{team word: strength} of Italy's league file (cupd.strength: the best 11's prices) in a world dir."""
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln] if os.path.exists(src + '.txt') \
+        else sorted(x for x in os.listdir(src) if os.path.isdir(os.path.join(src, x)))
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    old = os.environ.get('SEASON_PACKS')
+    os.environ['SEASON_PACKS'] = ','.join(os.path.join(src, x) for x in order)
+    import mkseason
+    import cupd
+    try:
+        pk = next(p for p in mkseason.packs() if p.meta.get('id', '').endswith('-ita'))
+        lf = pk.files[pk.league['clubs']][0]
+        return {lf | pk.where[k][1] << 8: cupd.strength(pk, k) for k in pk.league_clubs if pk.where[k][0] == lf}
+    finally:
+        if old is None:
+            os.environ.pop('SEASON_PACKS')
+        else:
+            os.environ['SEASON_PACKS'] = old
+
+
+def cd_strength_check(b2, b0, st, ent, gen, np_, mine):
+    """Season 2's generated bracket (CD_ST at the cup's end b2, its start b0): every tie of two clubs with a known
+    identity (no new arrival) not the career club's -> (ties, the stronger through, the model's expectation and
+    variance: gplay.c cd_sim by Monte Carlo)."""
+    import random
+    nr, n1 = 8, 64
+    ns = [np_] + [n1 >> (r - 1) for r in range(1, nr)]
+    first = [sum(ns[:r]) for r in range(nr)]
+    res = b2[8:176]
+    home = b2[176:344]
+    sd = b2[344:348]
+    rnd = lambda t: max(r for r in range(nr) if t >= first[r])
+
+    def raw(t, k):
+        r = rnd(t)
+        if r < 2:
+            return gen[2 * t + k]
+        if r == 6:                                  # (the drawn semi-finals: CD_ST.sd)
+            return (sd[2 * (t - first[r]) + k] << 8) | 0xFF
+        return ((first[r - 1] + 2 * (t - first[r]) + k) << 8) | 0xFF
+
+    def side(t, k):
+        v = raw(t, k)
+        if v & 0xFF != 0xFF:
+            return v
+        i = v >> 8
+        return side(i, res[i] - 1) if res[i] else None
+    rng = random.Random(7)
+
+    def p_a(a, b, legs, h):
+        sa, sb = max(5, st[a]) ** 2, max(5, st[b]) ** 2
+        win = 0
+        for _ in range(400):
+            ga = gb = 0
+            for l in range(legs):
+                ha = (l == 0) == (h == 0)
+                x, y = (sa * 1.21, sb) if ha else (sa, sb * 1.21)
+                if rng.random() < 0.26:
+                    p = q = rng.randrange(3)
+                else:
+                    w = rng.random() * (x + y) < x
+                    gw = 1 + rng.randrange(3)
+                    gl = rng.randrange(gw)
+                    p, q = (gw, gl) if w else (gl, gw)
+                ga += p
+                gb += q
+            win += ga > gb or (ga == gb and rng.random() * 3 * (sa + sb) < 2 * sa + sb)
+        return win / 400
+    legs = [1] * 6 + [2, 2]
+    n = act = 0
+    e = v = 0.0
+    own = {w for x in mine for w in x}
+    for t in range(first[-1] + 1):
+        a, b = side(t, 0), side(t, 1)
+        if not a or not b or not res[t] or a in own and b in own:
+            continue
+        if ent[a >> 8] == 1 or ent[b >> 8] == 1 or a not in st or b not in st or st[a] == st[b]:
+            continue
+        pa = p_a(a, b, legs[rnd(t)], home[t])
+        strong_a = st[a] > st[b]
+        p = pa if strong_a else 1 - pa
+        n += 1
+        act += (res[t] == 1) == strong_a
+        e += p
+        v += p * (1 - p)
+    return n, act, e, v
+
+
 @scenario
 def world_gplay_cupd(team='EUROPA,ITALIA,SERIE D GIRONE A,LIGORNA', two=False):
     """The Coppa Italia Serie D (cupd.py, gplay.c cd_step_c): world5tm-poule with Italy's 'cup_d' = the data session's
@@ -4758,7 +4846,12 @@ def world_gplay_cupd(team='EUROPA,ITALIA,SERIE D GIRONE A,LIGORNA', two=False):
         mine2 = sorted({tuple(k['team']) for k in mine2 if k['kind'] == 9 and k['slot'] == 4})
         check(mine2, 'season 2: no tie of the career club in slot 4', errs)
         rn2 = sorted({ln.split('|')[0].split('SERIE D')[-1].strip() for ln in lines2 if 'COPPA ITALIA SERIE D' in ln})
-        msg2 = (f'; season 2: {np_} preliminary ties, {len(arr)} new arrivals ({nfc} from C, {nfp} from the pool) all '
+        st = cd_strengths(os.path.join(w, 'world5tm'))           # the ties nobody played: by strength (cd_sim)
+        n_s, act, exp_, var = cd_strength_check(b2, b0, st, ent, gen, np_, mine2)
+        check(n_s >= 60 and exp_ > 0.55 * n_s and abs(act - exp_) <= 3 * var ** 0.5 + 1,
+              f'season 2: the stronger club through in {act} of {n_s} ties, the model {exp_:.1f} +- {var ** 0.5:.1f}', errs)
+        msg2 = (f'; season 2: the stronger through in {act} of {n_s} ties (the model {exp_:.1f} +- {var ** 0.5:.1f}); '
+                f'{np_} preliminary ties, {len(arr)} new arrivals ({nfc} from C, {nfp} from the pool) all '
                 f'in the preliminary with the {2 * np_ - len(arr)} lowest placed of {ranked} ranked, '
                 f'the club ties {[tuple(hex(t) for t in x) for x in mine2]} ({rn2}), cup over')
     else:

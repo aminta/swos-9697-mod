@@ -1464,6 +1464,38 @@ static void cd_make(void) {             /* a later season's rounds 0-1 (CD_ST.ge
     CD_ST.efresh = 0;
 }
 
+/* The ties nobody plays, by strength as statespec's statesim: strength = the best 11's prices (CD_DT), squared;
+   the home club's x 1.21; a match drawn 1 in 4 (0-0, 1-1, 2-2), else won by a weighted coin, 1-3 goals to fewer;
+   level after the legs: the penalties, weighted 2:1 to the stronger. */
+int cd_ident(int m, int i);             /* (the RI section: a pooled slot's identity) */
+static u32 cd_below(u32 n) {            /* (below() for n past 65535: the product in 64 bits) */
+    rng = rng * 1103515245u + 12345u;
+    return (u32)(((unsigned long long)(rng >> 16) * n) >> 16);
+}
+static u32 cd_str(u16 w) {
+    const u8 *s = GP_CDD + 260;
+    int i = w >> 8, moff = s[0] | s[1] << 8, nmap = s[2] | s[3] << 8, np = s[4] | s[5] << 8, id = i;
+    if (moff != 0xFFFF && i < nmap) id = cd_ident(moff + i, i);
+    const u8 *p = id < 256 ? s + 6 + 2 * id : id - 256 < np ? s + 6 + 512 + 2 * (id - 256) : 0;
+    u32 v = p ? (u32)(p[0] | p[1] << 8) : 5;
+    if (v < 5) v = 5;
+    return v * v;
+}
+static int cd_sim(u16 a, u16 b, int legs, int h) {     /* h: 0 a hosts (the first leg), 1 b -> 1 a through, 2 b */
+    u32 sa = cd_str(a), sb = cd_str(b);
+    int ga = 0, gb = 0;
+    for (int l = 0; l < legs; l++) {
+        int home_a = (l == 0) == (h == 0);
+        u32 x = home_a ? sa * 121 / 100 : sa, y = home_a ? sb : sb * 121 / 100;
+        int p, q;
+        if (cd_below(100) < 26) { p = cd_below(3); q = p; }
+        else { int w = cd_below(x + y) < x, gw = 1 + cd_below(3), gl = cd_below(gw); p = w ? gw : gl; q = w ? gl : gw; }
+        ga += p; gb += q;
+    }
+    if (ga != gb) return ga > gb ? 1 : 2;
+    return cd_below(3 * (sa + sb)) < 2 * sa + sb ? 1 : 2;
+}
+
 /* the calendar advance: 1 = a tie of the career club built into ko[0] (gp_install it), else 0 */
 u32 cd_step_c(void) {
     if (!GP_CDT) return 0;
@@ -1506,7 +1538,7 @@ u32 cd_step_c(void) {
             }
             if (a == GP_MGR || b == GP_MGR) CD_ST.pad = 0x80 | (a == 0xFFFF || b == 0xFFFF ? 2 : 4);
             int w = GP_CDFIRST ? CDTIE(t)[4] : 0;               /* (the real result, the world's first season) */
-            if (!w) w = !a ? 2 : !b ? 1 : (below(100) < 55) == !h ? 1 : 2;   /* (else 55% to the home club) */
+            if (!w) w = !a ? 2 : !b ? 1 : cd_sim(a, b, legs, h);   /* (else by strength) */
             CD_ST.res[t] = w;
         }
         CD_ST.round = r + 1;
@@ -1979,6 +2011,7 @@ static int ri_swap(struct ri_file *f, int fi, int i, u16 *q, int qn, int m, u16 
 }
 
 static int ri_id(struct ri_file *f, int x) { return f->map[x] ? f->map[x] - 1 : x; }
+int cd_ident(int m, int i) { return m < RMT && RI_STATE.maps[m] ? RI_STATE.maps[m] - 1 : i; }   /* (gplay's Coppa D) */
 static void ri_set(struct ri_file *f, int fi, int x, int id) {
     f->map[x] = id == x ? 0 : id + 1;
     RI_SWAPPED[fi][x >> 3] |= 1 << (x & 7);

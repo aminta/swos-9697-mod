@@ -5530,6 +5530,10 @@ def world_full_uefa():
         h = struct.unpack_from('<3H', s.result.obj2(HOLDERS, 6))
         if all(x not in (0, 0xFFFF) for x in h):
             hold['h'] = h
+        if scr is None and os.environ.get('UQ_BSS'):          # (after the season-end save: uefaq's UQ_IN / UQ_OUT,
+            x = int(os.environ['UQ_BSS'], 16)                  # the patch log's 'bss obj2+X'; integrator)
+            open(os.path.join(s.run, 'uq_in.bin'), 'wb').write(s.result.read(s.result.base2 + x + 0x8, 8732))
+            open(os.path.join(s.run, 'uq_out.bin'), 'wb').write(s.result.read(s.result.base2 + x + 0x222C, 1720))
     W84_HOOK = hook
     keep = {k: os.environ.get(k) for k in ('W8485_ONE', 'W2627FULL_COUNTRY', 'W2627FULL_TEAM')}
     os.environ.update(W8485_ONE='1', W2627FULL_COUNTRY='eng', W2627FULL_TEAM='EUROPA,INGHILTERRA,PREMIER LEAGUE,ARSENAL')

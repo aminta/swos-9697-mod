@@ -432,6 +432,9 @@ def patch_exe(src, dst, remap, lang='it'):
     cos = fmtpage.patch(p, cos, lang, area, num_bss + shirtnum.BSS_SIZE + blond.BSS_SIZE + menunum.BSS_SIZE,
                          careerworld.SITES if worlds else None)   # FORMAT page (5.0)
     cos = menulevels.patch(p, cos, area, lang)   # 4.0: team choice of a league with levels of groups: level, then group
+    import zones                                 # 4.0: zone colours in the league tables (light blue, green, ...)
+    cos = zones.patch(p, cos, area, lang, [e if os.sep in e else os.path.join(mkseason.PACKS, e) for e in mkseason.ENABLED],
+                      careerworld.SITES if worlds else None)
     if cos_pg:
         assert cos <= hist2 + h2 + 0x1000 * lpb, hex(cos)
     else:

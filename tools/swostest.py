@@ -4150,6 +4150,114 @@ def world_gplay_reserve_out():
     return world_gplay_reserve('17')
 
 
+TITLE_TEAMS = {'can': 'NORDAMERICA,CANADA,FORGE',
+               'aus': 'ASIA,AUSTRALIA,A-LEAGUE MEN,NEWCASTLE',
+               'crc': 'NORDAMERICA,COSTA RICA,SAPRISSA'}
+
+
+def world_title(code, force='3'):
+    """A title play-off of the world 2026-27 (formats_data.KO_TITLE, mkworld_tm TM_TITLE=1: Canada's CPL play-offs,
+    the A-League finals series, Costa Rica's semis + final + Gran Final), played: the stable world5tm-poule snapshot
+    with the country's KO_TITLE in its pack, built with GPLAY_FORCE (the career club's place at the league end; one
+    build serves every country: TITLE_BUILD); a season at TITLE_TEAMS[code]: the contest is built in slot 4 with the
+    spec's clubs (the career club among them), every tie is decided (a tie skipped by skip_if_same: its club through)
+    and the season end's champion (GP_OUT.res, kind title) is the last tie's winner"""
+    import json
+    import shutil
+    src = os.environ.get('W2627P_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-poule')
+    fd = os.path.join(MAIN, 'internal', 'world2526')
+    if not os.path.isdir(src) or not os.path.exists(os.path.join(fd, 'formats_data.py')):
+        return True, f'SKIP: private data {src} / formats_data.py missing'
+    sys.path.insert(0, fd)
+    import formats_data
+    spec = formats_data.KO_TITLE[code.upper()]
+    exe = os.environ.get('TITLE_BUILD')
+    if not exe:
+        w = os.path.join(WORK, 'world_title')
+        shutil.rmtree(w, ignore_errors=True)
+        shutil.copytree(src, os.path.join(w, 'world5tm'))
+        order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+        for c, sp in formats_data.KO_TITLE.items():
+            f = os.path.join(w, 'world5tm', c.lower(), 'pack.json')
+            if not os.path.exists(f):
+                continue
+            d = json.load(open(f))
+            lg = next(x for x in d['competitions'] if x['type'] == 'league')
+            lg['ko_playoffs'] = lg.get('ko_playoffs', []) + sp
+            json.dump(d, open(f, 'w'), indent=1, ensure_ascii=False)
+        env = {'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(w, 'world5tm', x) for x in order]),
+               'GPLAY_FORCE': force}
+        exe = build('world_title_' + force, env=env)
+        os.environ['TITLE_BUILD'] = exe                 # (the next country reuses it)
+    log_at, st_at, log_n, st_n = gp_ptrs(exe)
+    keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K',
+                                            'W8485_NOSACK', 'W8485_HEX', 'W8485_ONE')}
+    os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=TITLE_TEAMS[code], W8485_WNUM='5',
+                      W8485_K='108+', W8485_NOSACK='1', W8485_HEX=f'{log_at:x}:{log_n},{st_at:x}:{st_n}',
+                      W8485_ONE='1')
+    try:
+        ok, msg = world8485()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    hexes = {}
+    for ln in open(os.path.join(RUNS, w84_tag() + '_1', 'session.log'), errors='replace'):
+        p = ln.split()
+        if len(p) == 3 and p[0] == 'HEX':
+            hexes.setdefault(int(p[1], 16), []).append(bytes.fromhex(p[2]))
+    errs = []
+    check(ok, msg, errs)
+    sts = [b for b in hexes.get(st_at, []) if b[:2] == b'GK']
+    if not sts:
+        return False, f'{msg}; the title play-off never ran (no GP_ST seen)'
+    run = [gp_ko(b[GP_STKO:]) for b in sts]
+    logs = [b for b in hexes.get(log_at, []) if b[:4] == b'GPLG']
+    if not logs:
+        return False, f'{msg}; no season-end log (GP_LOG); last state {run[-1]}'
+    lg = logs[-1]
+    ko = gp_ko(lg[8:])
+    po = spec[0]
+    nties = sum(len(r['ties']) or len(r.get('clubs', [])) // 2 for r in po['rounds'])
+    me = int(force) - 1                                  # (division 0: code = place - 1)
+    check(ko['magic'] == 0x4B47 and ko['kind'] == 5 and ko['n'] == len(po['entrants']) and me in ko['code'],
+          f"contest kind {ko['kind']} n {ko['n']} codes {ko['code']}", errs)
+    check(ko['ntie'] == nties and all(x != 255 for x in ko['tw']), f"ties {ko['ntie']}/{nties} winners {ko['tw']}",
+          errs)
+    nres = lg[683]
+    res = [struct.unpack_from('<BBHHHH', lg, 682 + 4 + 8 * 32 + 10 * i) for i in range(min(nres, 4))]
+    titles = [r for r in res if r[0] == 5]
+    win = ko['team'][ko['tw'][-1]] if ko['tw'] and ko['tw'][-1] < ko['n'] else None
+    check(len(titles) == 1 and titles[0][2] == win, f'champion {[hex(r[2]) for r in titles]}, last winner '
+          f'{win if win is None else hex(win)}', errs)
+    gw = sorted({r['gcur'] for r in run})
+    return not errs, '; '.join(errs) or (f"{msg}; {po['key']}: clubs {[hex(t) for t in ko['team']]} codes {ko['code']}"
+                                         f", ties {ko['ntie']} winners {ko['tw']}, game rounds seen {gw}, champion "
+                                         f"{win:#x}")
+
+
+@scenario
+def world_title_can():
+    """world_title: Canada's CPL play-offs (1st-4th: semis 1v4 / 2v3 two legs, the final at the better placed's)"""
+    return world_title('can')
+
+
+@scenario
+def world_title_aus():
+    """world_title: the A-League finals series (elimination finals 3v6 / 4v5, semis 1st / 2nd v the lowest / highest
+    survivor two legs, the Grand Final at the better placed's)"""
+    return world_title('aus')
+
+
+@scenario
+def world_title_crc():
+    """world_title: Costa Rica's semis (1v4 / 2v3) and final, two legs, then the Gran Final of the table's 1st and
+    the play-off winner (not played when they are one club)"""
+    return world_title('crc')
+
+
 def club_divisions(car, src, country, words):
     """After a season (W84A.CAR): team word (file | ordinal << 8) -> its division (base + someLeaguesTable)."""
     order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]

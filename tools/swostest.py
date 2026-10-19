@@ -5026,6 +5026,18 @@ def contest_tables(r, cid, groups, size):
     return out
 
 
+def contest_orders(r, cid, groups, size):
+    """As contest_tables, with each buffer's ranking (DIY+6Dh row offsets / 18, group by group): [(rows, order)]."""
+    d = r.read(r.base2, 0x100000)
+    out = []
+    for i in range(len(d) - 0x2B3 - 18 * 24):
+        if d[i + 0x2D] == cid and struct.unpack_from('<H', d, i + 0x4F)[0] == groups and \
+                struct.unpack_from('<H', d, i + 0x51)[0] == size and d[i] == 0:
+            order = [struct.unpack_from('<H', d, i + 0x6D + 2 * k)[0] // 18 for k in range(groups * size)]
+            out.append((league_table(r, i, groups * size), order))
+    return out
+
+
 def state_rounds(r, cid, seen):
     """Knockout snapshots of a type-2 contest cid (statespec): seen['rank'] = the copy's +59h order when its
     first knockout stage starts ([53h] = 1); seen[n] = [the round's list +2CDh (n clubs)], first-seen order."""
@@ -5162,11 +5174,14 @@ def statespec_test():
 
         seen = {}
 
+        orders = {}
+
         def stop(scr):
-            for rows in contest_tables(s.result, 0xF1, 2, 6):
+            for rows, order in contest_orders(s.result, 0xF1, 2, 6):
                 pl = {x[0] for x in rows}
                 if len(pl) == 1 and pl != {0}:
                     snaps[pl.pop()] = rows
+                    orders[max(snaps)] = order
             state_rounds(s.result, 0xF1, seen)
             return season_over(scr)
         ok, msg = advance(s, stop, 1700)
@@ -5192,6 +5207,11 @@ def statespec_test():
         ga = lambda rs: sum(x[5] for x in rs)
         check(gf(a) == ga(bb) and ga(a) == gf(bb), f'day {d}: A for/against {gf(a)}/{ga(a)}, B {gf(bb)}/{ga(bb)}', errs)
         check(all(x[6] == 3 * x[1] + x[2] for x in rows), f'day {d}: points 3W + D', errs)
+        o = orders.get(d)                       # (statespec.st_resort: points, wins, goal difference, goals)
+        if o and sorted(o) == list(range(12)):
+            for gk in (o[:6], o[6:]):
+                ks = [(rows[t][6], rows[t][1], rows[t][4] - rows[t][5], rows[t][4]) for t in gk]
+                check(ks == sorted(ks, reverse=True), f'day {d}: group order {gk} keys {ks}', errs)
     return not errs, '; '.join(errs + [f'{msg}; snapshots {sorted(snaps)}, last {snaps.get(max(snaps)) if snaps else None}'])
 
 def main(argv):

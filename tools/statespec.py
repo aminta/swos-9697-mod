@@ -570,6 +570,107 @@ st_rec:                                 ; lib97.st_ko calls it at a knockout-sta
     ret
 st_noovr:                               ; (engine.after_load 'st_ovr' without ripool's overrides)
     ret
+
+st_isstate:                             ; lp36.lp_sort: ZF = 1 when the running group stage (DIY = NCW) is a state's
+    push eax                            ; (id + its team table's row 0 = a current key of ST_KEYS)
+    push ecx
+    push edx
+    push esi
+    mov al, [NCW + 2Dh]
+    mov dx, [NCW + 12Dh]
+    mov esi, ST_KEYS
+    mov ecx, NKEYS
+.k:
+    cmp [esi], al
+    jne .n
+    cmp [esi + 1], dx
+    je .r
+.n:
+    add esi, 5
+    loop .k
+    cmp esp, 0                          ; ZF = 0
+.r:
+    pop esi
+    pop edx
+    pop ecx
+    pop eax
+    ret
+
+st_resort:                              ; after the game's sort (cseg_883DD): each group's rows (DIY+6Dh: row
+    pushad                              ; offsets, [51h] per group) by points, wins, goal difference, goals (Brazil's
+    movzx ebp, word [NCW + 4Fh]         ; order); level clubs keep the game's order
+    xor edi, edi                        ; group
+.g:
+    cmp edi, ebp
+    jae .x
+    movzx ecx, word [NCW + 51h]
+    mov eax, edi
+    imul eax, ecx
+    lea esi, [NCW + 6Dh + eax * 2]      ; the group's first entry
+    mov ebx, 1                          ; insertion sort
+.i:
+    cmp ebx, ecx
+    jae .ng
+    movzx eax, word [esi + ebx * 2]     ; the row being placed
+    mov edx, ebx
+.j:
+    test edx, edx
+    jz .put
+    push ecx
+    movzx ecx, word [esi + edx * 2 - 2]
+    call .before                        ; CF = 1: row eax ranks before row ecx
+    pop ecx
+    jnc .put
+    push eax
+    mov ax, [esi + edx * 2 - 2]
+    mov [esi + edx * 2], ax
+    pop eax
+    dec edx
+    jmp .j
+.put:
+    mov [esi + edx * 2], ax
+    inc ebx
+    jmp .i
+.ng:
+    inc edi
+    jmp .g
+.x:
+    popad
+    ret
+.before:                                ; rows at NCW + eax / NCW + ecx: CF = 1 if eax's is better
+    push edx
+    push ebx
+    mov dx, [NCW + eax + 2C3h]          ; points
+    cmp dx, [NCW + ecx + 2C3h]
+    jne .d
+    mov dx, [NCW + eax + 2B9h]          ; wins
+    cmp dx, [NCW + ecx + 2B9h]
+    jne .d
+    mov dx, [NCW + eax + 2BFh]          ; goal difference
+    sub dx, [NCW + eax + 2C1h]
+    mov bx, [NCW + ecx + 2BFh]
+    sub bx, [NCW + ecx + 2C1h]
+    cmp dx, bx
+    jne .ds
+    mov dx, [NCW + eax + 2BFh]          ; goals
+    cmp dx, [NCW + ecx + 2BFh]
+    jne .d
+    clc
+    jmp .e
+.ds:
+    jg .y                               ; (signed)
+    clc
+    jmp .e
+.d:
+    ja .y                               ; (unsigned counts)
+    clc
+    jmp .e
+.y:
+    stc
+.e:
+    pop ebx
+    pop edx
+    ret
 ST_KEYS: KEY_BYTES
 ST_RANK: times SR_SIZE db 0
 ST_TAB: ST_BYTES
@@ -661,6 +762,10 @@ def ko_patch(p, at):
     for k in kend:
         p.put(1, k + 1, struct.pack('<i', lab['st_kend'] - (k + 5)))
     p.put(1, grp_site + 1, struct.pack('<i', lab['st_grp'] - (grp_site + 5)))
+    import lp36
+    if 'ST_SORT_V' in lp36.LABELS:                        # (lp36 patched: the group tables' tie-breaks)
+        p.add_ptr(1, lp36.LABELS['ST_SORT_V'], 1, lab['st_isstate'])
+        p.add_ptr(1, lp36.LABELS['ST_RESORT_V'], 1, lab['st_resort'])
     LABELS['ST_RANK'] = (1, lab['ST_RANK'])
     LABELS['key_slots'] = {}                              # first club word -> obj1 offsets of the words keyed by it
     k_at = lab['ST_KEYS']                                 # (ST_KEYS: id, current word, original word)

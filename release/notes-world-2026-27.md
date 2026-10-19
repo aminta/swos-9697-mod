@@ -241,8 +241,9 @@ when the engine lands it.
   association rank (qualifying rounds included), and each league's own promotions, relegations and play-offs (Serie
   B 3rd-8th and 16th-17th, the Serie C groups 2nd-10th). A legend on the header line names the colours each table
   uses. In the Europe 1984-85 world too.
-  <!-- REGIA STAGED (drop when the uc_rank colours land): Known limit unless the lagged ranking lands: European colours in the first season only; from the second season the
-  tables colour promotion, play-offs, play-outs and relegation. -->
+  In the World 2026-27 the European places in every season come from the engine's own UEFA ranking (the one a year
+  old, as UEFA's access list uses) and the real 2026/27 access list; the European Performance Spots and the title
+  holders' rebalancing are decided at the season end and are not coloured in advance.
 
 *Leagues, calendars and clubs*
 - **Every league, national cup and league cup under its real 2026-27 name, without title sponsors**: COPPA ITALIA,
@@ -724,8 +725,9 @@ Non una formula uguale per tutti: ogni campionato gioca la stagione come l'ha sc
   vere: la lista d'accesso UEFA 2026/27 secondo il ranking delle federazioni (preliminari compresi) e le promozioni,
   retrocessioni e spareggi di ogni campionato (Serie B 3ª-8ª e 16ª-17ª, i gironi di Serie C 2ª-10ª). Una legenda
   sulla riga del titolo indica i colori usati in quella classifica. Anche nel mondo Europa 1984-85.
-  <!-- REGIA STAGED (togliere quando arrivano i colori da uc_rank): Limite se non arriva il ranking ritardato: colori europei solo nella prima stagione; dalla seconda le classifiche
-  colorano promozione, play-off, play-out e retrocessione. -->
+  Nel Mondo 2026-27 i posti europei di ogni stagione vengono dal ranking UEFA del gioco (quello dell'anno prima,
+  come nella access list UEFA) e dalla access list vera 2026/27; gli European Performance Spots e i ritocchi per i
+  detentori dei titoli si decidono a fine stagione e non vengono colorati in anticipo.
 
 *Campionati, calendari e club*
 - **Ogni campionato, coppa nazionale e coppa di lega col suo nome vero 2026-27, senza lo sponsor**: COPPA ITALIA,

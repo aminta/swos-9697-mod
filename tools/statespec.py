@@ -338,6 +338,13 @@ st_ko:                                  ; replaces `call 0x16711` (the round's t
 
 st_grp:                                 ; replaces `call 0x16C47` (a group stage's draw, cseg_2572F: the groups =
     mov byte [ST_MODE], 1               ; consecutive blocks of the copy's +59h list): a state's later group stage
+    inc byte [ST_GDBG]                  ; (debug: calls, DIY [31h], copy [53h])
+    push eax
+    mov ax, [NCW + 31h]
+    mov [ST_GDBG + 2], ax
+    mov ax, [DIYCOPY + 53h]
+    mov [ST_GDBG + 4], ax
+    pop eax
     call st_body                        ; with 'from' (b = FEh entries): +59h reordered first (Cearense phase 2)
     mov byte [ST_MODE], 0
     jmp C16C47
@@ -410,6 +417,7 @@ st_body:
     jb .sk
     cmp byte [ebx + 4], 0FEh            ; a group stage: the copy's list itself (its blocks become the groups)
     jne .kp
+    inc byte [ST_GDBG + 1]
     xor eax, eax
 .gp:
     mov dl, [ST_T + eax]
@@ -635,6 +643,24 @@ st_resort:                              ; after the game's sort (cseg_883DD): ea
     inc edi
     jmp .g
 .x:
+    mov esi, NCW + 6Dh                  ; (the harness: this sort's order and the rows' points / wins / for /
+    mov edi, ST_RDBG                    ; against, STRDBGPT)
+    mov ecx, 24
+    rep movsw
+    xor ecx, ecx
+.dr:
+    imul eax, ecx, 18
+    mov dx, [NCW + eax + 2C3h]
+    mov [ST_RDBG + 48 + ecx * 8], dx
+    mov dx, [NCW + eax + 2B9h]
+    mov [ST_RDBG + 50 + ecx * 8], dx
+    mov dx, [NCW + eax + 2BFh]
+    mov [ST_RDBG + 52 + ecx * 8], dx
+    mov dx, [NCW + eax + 2C1h]
+    mov [ST_RDBG + 54 + ecx * 8], dx
+    inc ecx
+    cmp ecx, 24
+    jb .dr
     popad
     ret
 .before:                                ; rows at NCW + eax / NCW + ecx: CF = 1 if eax's is better
@@ -675,7 +701,11 @@ ST_KEYS: KEY_BYTES
 ST_RANK: times SR_SIZE db 0
 ST_TAB: ST_BYTES
 ST_T: times 64 db 0
+    db 'STRDBGPT'
+    dd ST_RDBG
+ST_RDBG: times 240 db 0
 ST_MODE: db 0
+ST_GDBG: times 8 db 0
 ST_SB: times 32 db 0                    ; (EN item 'SB': st_ko's last fixed round [0..16), st_kend's winners [16..24))
 """
 
@@ -789,7 +819,7 @@ def ko_patch(p, at):
         pass
     print(f'exe: state knockouts: st_ko obj1+{lab["st_ko"]:#x} at obj1+{stc:#x}, st_kend at '
           f'{", ".join(f"obj1+{k:#x}" for k in kend)}, {len(st)} fixed draws, ST_RANK obj1+{lab["ST_RANK"]:#x} '
-          f'({len(keys)} states), obj1+{at:#x}..{at + len(code):#x}')
+          f'({len(keys)} states), obj1+{at:#x}..{at + len(code):#x}, ST_GDBG obj1+{lab["ST_GDBG"]:#x}')
     return (at + len(code) + 3) & ~3
 
 

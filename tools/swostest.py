@@ -5452,18 +5452,29 @@ def world_full_uefa():
         if k in base and i + 1 < len(lines) and 'per country' in lines[i + 1]:
             got[k] = collections.Counter(dict(eval(lines[i + 1].split('per country', 1)[1])))
     hcc, hcwc, huefa = (x & 0xFF for x in hold['h'])
-    want = {'CC': base['CC'] + collections.Counter([hcc, hcwc]), 'CWC': base['CWC'] + collections.Counter([huefa]),
-            'UEFA': base['UEFA']}
     notes = [f"holders CL {name.get(hcc, hcc)} / EL {name.get(hcwc, hcwc)} / UECL {name.get(huefa, huefa)}"]
-    for k in ('CC', 'CWC', 'UEFA'):
+    # (integrator, uefacoef: no place on top - a holder's association gets +1 only when the holder is not already
+    # in its league's qualifying places; otherwise that place goes to the next ranked association with room)
+    for k, hs in (('CC', [hcc, hcwc]), ('CWC', [huefa]), ('UEFA', [])):
         g = got.get(k)
         if g is None:
             errs.append(f'{k}: no per-country counts in checkw1')
             continue
-        diff = {name.get(f, f): (g.get(f, 0), want[k].get(f, 0)) for f in set(g) | set(want[k])
-                if g.get(f, 0) != want[k].get(f, 0)}
+        want = collections.Counter(base[k])
+        absorbed = 0
+        for h in hs:
+            if g.get(h, 0) == want.get(h, 0) + 1 + sum(1 for x in hs if x == h) - 1:
+                want[h] += 1
+            else:
+                absorbed += 1
+        nxt = [f for f in rank if not base[k].get(f)]          # (the next ranked associations outside the base list)
+        for f in nxt[:absorbed]:
+            want[f] += 1
+        diff = {name.get(f, f): (g.get(f, 0), want.get(f, 0)) for f in set(g) | set(want)
+                if g.get(f, 0) != want.get(f, 0)}
         check(not diff, f'{k} places (got, want) {diff}', errs)
-        notes.append(f'{k} {sum(g.values())} clubs, {len(g)} associations')
+        notes.append(f'{k} {sum(g.values())} clubs, {len(g)} associations' + (f', {absorbed} holder place(s) passed on'
+                                                                               if absorbed else ''))
     return not errs, '; '.join(errs + notes)
 
 

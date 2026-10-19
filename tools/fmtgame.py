@@ -171,10 +171,13 @@ def _rule(r, t):
         base = t['r']['two_legs']
     else:
         base = t['r']['single_et' if lvl in ('et_pens', 'et_better') else 'single']
+    two = t['r']['two_legs'].split(',')[0]          # ('ANDATA E RITORNO': the level rule follows)
     if lvl == 'better':
-        base = (t['r']['two_legs'] if legs == 2 else t['r']['single'].split(',')[0]) + ', ' + t['better']
+        base = (two if legs == 2 else t['r']['single'].split(',')[0]) + ', ' + t['better']
     elif lvl == 'et_better':
-        base = t['r']['single'].split(',')[0] + ', ' + t['et_better']
+        base = (two if legs == 2 else t['r']['single'].split(',')[0]) + ', ' + t['et_better']
+    elif lvl == 'pens' and legs == 2:
+        base = t['r']['two_legs_pens']
     return base
 
 
@@ -229,6 +232,23 @@ def tourney_text(c, t):
     return lines
 
 
+TEXTS = T                                  # (from_pack may swap a world's two_legs text)
+NOAWAY = {'it': 'ANDATA E RITORNO, SUPPL. E RIGORI', 'en': 'TWO LEGS, EXTRA TIME, PENALTIES',
+          'fr': 'ALLER-RETOUR, PROLONGATION, TAB', 'de': 'HIN- UND RUECKSPIEL, VERL., ELFM.'}
+_YEARS = {}
+
+
+def world_year(w):
+    """A world's first year (its root pack's world_cups.start_year): from 2021-22 on, no away goals (careerworld
+    w_noaway: the engine applies the same rule)."""
+    if not _YEARS:
+        import mkseason
+        for pk in mkseason.packs():
+            if pk.world is not None and 'world_cups' in pk.meta:
+                _YEARS[pk.world] = pk.meta['world_cups'].get('start_year', 0)
+    return _YEARS.get(w, 0)
+
+
 def from_pack(d):
     """[(world, contest id, {lang: title}, {lang: [lines]})] of one pack."""
     m = json.load(open(os.path.join(d, 'pack.json')))
@@ -238,6 +258,9 @@ def from_pack(d):
     tp = os.path.join(d, 'ties.csv')
     ties = list(complist.csv.DictReader(open(tp, encoding='utf-8'))) if os.path.exists(tp) else []
     bn = m.get('button_names') or {}
+    T = TEXTS
+    if m.get('world') is not None and world_year(m['world']) >= 2021:   # (no away goals: the round's ET / penalties)
+        T = {lang: dict(TEXTS[lang], r=dict(TEXTS[lang]['r'], two_legs=NOAWAY[lang])) for lang in TEXTS}
     world = m.get('world', 0) if m.get('kind') == 'career' else 0
     out = []
     for comp in m.get('competitions', []):

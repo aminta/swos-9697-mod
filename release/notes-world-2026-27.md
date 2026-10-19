@@ -518,6 +518,8 @@ when the engine lands it.
   of these details.
 
 **Known limits**
+- The World 2026-27 has no national teams yet: no national team offers a job in this career (planned for a later
+  version).
 - A career saved with one language's executable and loaded with another keeps the first language's competition
   titles, and its league tables show no zone colours and no FORMAT page: continue a career with the language you
   started it in.
@@ -1101,6 +1103,8 @@ Baiano, Cearense, Pernambucano, Alagoano e Mato-Grossense.
   regolamento pubblicato non dà questi dettagli.
 
 **Limiti noti**
+- Il Mondo 2026-27 non ha ancora le nazionali: in questa carriera nessuna nazionale offre un lavoro (previste in una
+  versione successiva).
 - Una carriera salvata con l'eseguibile di una lingua e caricata con quello di un'altra tiene i titoli delle
   competizioni della prima lingua, e le sue classifiche non mostrano né i colori né la pagina FORMULA: continua una
   carriera nella lingua in cui l'hai iniziata.

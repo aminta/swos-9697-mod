@@ -79,6 +79,8 @@ Not one fixed formula for everybody: each league plays the season the way its ow
   third-place match.
   The play-offs' winner is the champion and takes the champion's continental place (e.g. Malta's Final Four winner
   goes to the Champions League).
+  Your club keeps its real table place in the season record and, when it wins the title play-off, gets an extra
+  line with the league's name and WINNERS.
 - **Leagues with an odd number of clubs play real rounds**: one club rests each matchday, as in the real
   competitions (El Salvador's Tercera, Gibraltar, New Zealand, India, Taiwan ...); the original game's tables for odd
   sizes were not rounds.
@@ -622,6 +624,8 @@ Non una formula uguale per tutti: ogni campionato gioca la stagione come l'ha sc
   niente finale per il terzo posto.
   La vincente dei play-off è il campione e prende il posto continentale del campione (per esempio la vincente della
   Final Four maltese va in Champions League).
+  La tua squadra tiene nella storia della stagione il suo posto vero in classifica e, se vince i play-off per il
+  titolo, ha una riga in più col nome del campionato e VINCITORE.
 - **I campionati con un numero dispari di squadre giocano giornate vere**: a ogni turno una squadra riposa, come nelle
   competizioni reali (la Tercera di El Salvador, Gibilterra, Nuova Zelanda, India, Taiwan ...); le tabelle originali
   del gioco per le dimensioni dispari non erano giornate.

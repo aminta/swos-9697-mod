@@ -1714,16 +1714,51 @@ def zone_colours():
                 walk(s, s.screen().find('FORMULA', exact=True), 3)
                 walk(s, s.screen().find('ESCI', exact=True), 3)
                 walk(s, s.screen().find('ESCI', exact=True), 3)
+    langs = os.environ.get('ZONES_LANGS')              # 'en=DIR,fr=DIR,de=DIR': full 2026-27 builds whose ITALIAN.EXE is
+    for item in (langs.split(',') if langs else []):    # that language's exe: Italy's and Germany's tables, the keys
+        lang, d = item.split('=', 1)                    # being the exe language's titles
+        menu = {'en': ['CAREER', 'CHOOSE TEAM', 'CLASSIC CAREERS', 'WORLD 2026-27', 'EUROPE'],
+                'fr': ['CARRIERE', 'CHOISIR UNE EQUIPE', "CARR. D'ANTAN", 'MONDE 2026-27', 'EUROPE'],
+                'de': ['KARRIERE', '#10', 'KLASS. KARRIERE', 'WELT 2026-27', 'EUROPA']}[lang]
+        view = {'en': 'VIEW COMPETITIONS', 'fr': 'AFFICHER COMPET.', 'de': 'WETTBWRBE ANZEIGN'}[lang]
+        sys.path.insert(0, os.path.join(ROOT, 'tools'))
+        import zones
+        L = zones.LABELS[lang]
+        cases = ((({'en': 'ITALY', 'fr': 'ITALIE', 'de': 'ITALIEN'}[lang], 'SERIE A', 'INTER'),
+                  ['lb'] * 4 + ['gr', 'db'] + ['pl'] * 11 + ['gy'] * 3, [L['cl'], L['el'], L['conf'], L['down']]),
+                 (({'en': 'GERMANY', 'fr': 'ALLEMAGNE', 'de': 'DEUTSCHLAND'}[lang], 'BUNDESLIGA', 'BAYERN MUNICH'),
+                  ['lb'] * 4 + ['gr', 'db'] + ['pl'] * 9 + ['or'] + ['gy'] * 2,
+                  [L['cl'], L['el'], L['conf'], L['out'], L['down']]))
+        for path, want_l, leg_l in cases:
+            with Session(f'zone_colours_{lang}_' + path[1].split()[-1].lower(), d, {}, 'dump:2', 1500) as s:
+                s.wait()
+                for t in menu + list(path):
+                    if t.startswith('#'):
+                        walk(s, int(t[1:]), 3)
+                    elif press(s, s.screen(), t, 3) is None:
+                        return False, f'{lang}: {t} not reached'
+                s.send('fire dump:3')
+                walk(s, s.screen().find(view, exact=True), 3)
+                walk(s, 1, 3)
+                rows, scr = zone_rows(s, f'zones_{lang}_' + path[1].split()[-1].lower(), len(want_l))
+                got = [z for _, z in rows]
+                check(got == want_l, f'{lang} {path[0]} {path[1]}: zones {got}', errs)
+                leg = [e[1] for e in scr.entries[-5:] if not e[2]]
+                check(leg == leg_l, f'{lang} {path[0]} {path[1]}: legend {leg}', errs)
+                info.append(f"{lang} {path[0]} {path[1]}: {''.join({'gy': 'x'}.get(z, z[0]) for z in got)}, legend {leg}")
     w27 = os.environ.get('ZONES_W2627')                 # a full 2026-27 build (exe + DATA): two more tables
     if w27:
         for path, want27, leg27 in ((('INGHILTERRA', 'PREMIER LEAGUE', 'ARSENAL'),
                                      ['lb'] * 4 + ['gr', 'db'] + ['pl'] * 11 + ['gy'] * 3, ['CL', 'EL', 'CONF', 'RETR']),
                                     (('ITALIA', 'SERIE B', 'AVELLINO'),
                                      ['lb'] * 2 + ['gr'] * 6 + ['pl'] * 7 + ['or'] * 2 + ['gy'] * 3,
-                                     ['PROM', 'P.OFF', 'P.OUT', 'RETR'])):
+                                     ['PROM', 'P.OFF', 'P.OUT', 'RETR']),
+                                    (('SUDAMERICA', 'BRASILE', 'CAMPEONATO BRASILEIRO SERIE A', 'PALMEIRAS'),
+                                     ['lb'] * 6 + ['gr'] * 6 + ['pl'] * 4 + ['gy'] * 4, ['LIB', 'SUD', 'RETR'])):
             with Session('zone_colours_' + path[1].split()[-1].lower(), w27, {}, 'dump:2', 1500) as s:
                 s.wait()
-                for t in ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27', 'EUROPA'] + list(path):
+                for t in ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27'] + \
+                        ([] if path[0] == 'SUDAMERICA' else ['EUROPA']) + list(path):
                     if press(s, s.screen(), t, 3) is None:
                         return False, f'2026-27 career: {t} not reached'
                 s.send('fire dump:3')

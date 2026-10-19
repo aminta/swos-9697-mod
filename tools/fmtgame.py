@@ -293,6 +293,21 @@ ZT = {
                eps='DIE 2 EUROPEAN PERFORMANCE SPOTS UND DER AUSGLEICH FUER TITELVERTEIDIGER WERDEN AM SAISONENDE '
                    'ENTSCHIEDEN: NICHT IM VORAUS GEFAERBT'),
 }
+CONFED_NAMES = dict(lib='COPA LIBERTADORES', sud='COPA SUDAMERICANA', ccc='CONCACAF CHAMPIONS CUP',
+                    acle='AFC CHAMPIONS LEAGUE ELITE', acl2='AFC CHAMPIONS LEAGUE TWO', cafcl='CAF CHAMPIONS LEAGUE',
+                    cafcc='CAF CONFEDERATION CUP', ofc='OFC CHAMPIONS LEAGUE')
+for _z in ZT.values():
+    _z['why'].update(CONFED_NAMES)
+CONFED_NOTES = {   # zones.continental_all's notes: leagues whose real places are not table positions
+    'it': dict(split='IN REALTA: I CAMPIONI DI APERTURA E CLAUSURA, POI LA CLASSIFICA ANNUALE; QUI LA CLASSIFICA DEL GIOCO',
+               final='IN REALTA: IL CAMPIONE DI UNA FINALE / DEI PLAY-OFF, POI LA CLASSIFICA ANNUALE; QUI LA CLASSIFICA DEL GIOCO'),
+    'en': dict(split='IN REALITY: THE APERTURA AND CLAUSURA CHAMPIONS, THEN THE ANNUAL TABLE; HERE THE GAME S TABLE',
+               final='IN REALITY: THE CHAMPION OF A FINAL / THE PLAY-OFFS, THEN THE ANNUAL TABLE; HERE THE GAME S TABLE'),
+    'fr': dict(split='EN REALITE: LES CHAMPIONS D OUVERTURE ET DE CLOTURE, PUIS LE CLASSEMENT ANNUEL; ICI LE CLASSEMENT DU JEU',
+               final='EN REALITE: LE CHAMPION D UNE FINALE / DES PLAY-OFFS, PUIS LE CLASSEMENT ANNUEL; ICI LE CLASSEMENT DU JEU'),
+    'de': dict(split='IN WIRKLICHKEIT: DIE APERTURA- UND CLAUSURA-MEISTER, DANN DIE JAHRESTABELLE; HIER DIE TABELLE DES SPIELS',
+               final='IN WIRKLICHKEIT: DER MEISTER EINES FINALES / DER PLAYOFFS, DANN DIE JAHRESTABELLE; HIER DIE TABELLE DES SPIELS'),
+}
 _ZCTX = {}
 
 
@@ -317,7 +332,7 @@ def _zctx(d=None, world=None):
     return _ZCTX[par]
 
 
-def zone_text(rw, t, lang, eu=None):
+def zone_text(rw, t, lang, eu=None, confed=None):
     """The FORMAT lines of a table's colours: rw = [(first, last, colour, why)] (zones.pack_zones detail); eu =
     (places, cup winner's cup, season) of a league-phase top flight."""
     import zones
@@ -345,6 +360,11 @@ def zone_text(rw, t, lang, eu=None):
     if merged:
         lines.append(z['head'])
         lines += [one(*x) for x in merged]
+    for e in confed or []:                      # another confederation: the cup winner's place, the real rule
+        if e.get('via') == 'cup':
+            lines.append(z['cup'].format(c=z['why'][e['cup']]))
+        elif e.get('note'):
+            lines.append(CONFED_NOTES[lang][e['note']])
     return lines
 
 
@@ -647,7 +667,8 @@ def from_pack(d):
                             po.get('kind') == 'promedio' for po in comp.get('ko_playoffs') or [])
                         texts[lang] = league_text(div, win, T[lang], lg['names'], lang, low) + \
                             (T[lang]['ita'] if lg['special'] and k == min(1, len(lg['names']) - 1) else []) + \
-                            zone_text(zdet[lang].get((ci, k), []), T[lang], lang, eu)
+                            zone_text(zdet[lang].get((ci, k), []), T[lang], lang, eu,
+                                      zones.continental_all(m) if lv is lg['levels'][0] and not m.get('europe_places') else None)
                     out.append((world, cid, titles, texts))
                     k += 1
         elif comp['type'] == 'cup':

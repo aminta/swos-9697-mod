@@ -92,7 +92,6 @@ Not one fixed formula for everybody: each league plays the season the way its ow
   Scottish League Cup, the J.League Cup, and the league cups of Northern Ireland, Egypt, Qatar, the UAE, South Africa,
   Wales, Iceland, Finland, Chile and Peru.
 
-<!-- REGIA STAGED (Brazil's states: brstates9 final regression + merge; drop this line when merged):
 *Brazil's state championships 2026*
 All 13 of them, each a real contest of your career, played alongside the national league in the first months of
 the season as in Brazil: Paulista, Carioca, Mineiro, Gaucho, Paranaense, Catarinense, Goiano, Paraense, Baiano,
@@ -137,7 +136,7 @@ Cearense, Pernambucano, Alagoano and Mato-Grossense.
   equal points are split by goal difference (real: wins first; the simulated states use the real order); the
   Cearense's six qualifiers are drawn into two groups of three that play each other (real: each group's clubs play
   the other group's); the Catarinense semi-final crossing is assumed; the side trophies (Taca Rio, Taca Farroupilha,
-  Trofeu Inconfidencia, Campeao do Interior) are not played. -->
+  Trofeu Inconfidencia, Campeao do Interior) are not played.
 
 *At least everything the original game had*
 - **Never fewer leagues or divisions than SWOS 96/97**: England's four divisions, with League Two and its 4th-7th
@@ -647,7 +646,6 @@ Non una formula uguale per tutti: ogni campionato gioca la stagione come l'ha sc
   Liga nel suo vero formato a 8 squadre, la Scottish League Cup, la J.League Cup e le coppe di lega di Irlanda del
   Nord, Egitto, Qatar, Emirati, Sudafrica, Galles, Islanda, Finlandia, Cile e Perù.
 
-<!-- REGIA STAGED (statali brasiliani: regressione finale di brstates9 + merge; togliere questa riga col merge):
 *Campionati statali brasiliani 2026*
 Tutti e 13, ognuno una competizione vera della tua carriera, giocati insieme al campionato nazionale nei primi mesi
 della stagione come in Brasile: Paulista, Carioca, Mineiro, Gaucho, Paranaense, Catarinense, Goiano, Paraense,
@@ -692,7 +690,7 @@ Baiano, Cearense, Pernambucano, Alagoano e Mato-Grossense.
   giochi, a pari punti decide la differenza reti (vero: prima le vittorie; gli statali simulati usano l'ordine vero);
   le sei qualificate del Cearense sono sorteggiate in due gironi da tre che giocano tra loro (vero: ogni club gioca
   contro quelli dell'altro girone); l'incrocio delle semifinali del Catarinense è presunto; i trofei minori (Taca
-  Rio, Taca Farroupilha, Trofeu Inconfidencia, Campeao do Interior) non si giocano. -->
+  Rio, Taca Farroupilha, Trofeu Inconfidencia, Campeao do Interior) non si giocano.
 
 *Almeno tutto quello che aveva il gioco originale*
 - **Mai meno campionati o divisioni di SWOS 96/97**: le quattro divisioni inglesi, con la League Two e i suoi play-off

@@ -4109,8 +4109,12 @@ def world_gplay_reserve(force='20', team='EUROPA,ITALIA,SERIE C GIRONE A,RENATE'
     errs = []
     check(ok or over, msg, errs)
     how = 'no offer left: career over' if over else 'a job taken, the next season saved'
+    car = os.path.join(RUNS, w84_tag() + '_1', 'SWOS', 'W84A.CAR')
     if int(force) == direct:
         check(sacked, f'forced {force}th: not sacked', errs)
+        if 'res1' in src and os.path.exists(car):            # (an off-file pool: the sacked manager's old club swapped)
+            left, cnt = reserve_left(car, src)
+            check(not left, f'clubs left in the reserve division: {left}', errs)
         return not errs, '; '.join(errs) or f'{msg}; {force}th: sacked ({how})'
     sts = [bytes.fromhex(ln.split()[2]) for ln in lines if ln.startswith(f'HEX {st_at:x} ')]
     sts = [b for b in sts if b[:2] == b'GK']
@@ -4127,7 +4131,6 @@ def world_gplay_reserve(force='20', team='EUROPA,ITALIA,SERIE C GIRONE A,RENATE'
         check(all(x != 255 for x in ko['tw']), f"play-out not over: winners {ko['tw']}", errs)   # club's tie)
     how = how + ('' if ko['slot'] else '; the club\'s tie decided by the gap, no contest')
     check(sacked == lost, f'play-out {"lost" if lost else "won"}, sacked {sacked}', errs)
-    car = os.path.join(RUNS, w84_tag() + '_1', 'SWOS', 'W84A.CAR')
     if 'res1' in src and os.path.exists(car):                # (an off-file pool: no club left in the reserve)
         left, cnt = reserve_left(car, src)
         check(not left, f'clubs left in the reserve division: {left}', errs)

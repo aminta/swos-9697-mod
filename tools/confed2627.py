@@ -22,7 +22,7 @@ W = 'world-2026-27-'
 PLACES = {
     W + 'bra': [{'cup': 'lib', 'places': [1, 6]}, {'cup': 'sud', 'places': [7, 12]}, {'cup': 'lib', 'via': 'cup'}],
     W + 'arg': [{'cup': 'lib', 'places': [1, 5]}, {'cup': 'sud', 'places': [6, 11]}, {'cup': 'lib', 'via': 'cup'},
-                {'note': 'split'}],
+                {'note': 'annual'}],                                 # (the annual table: STAT > CLASSIFICA GENERALE)
     W + 'bol': [{'cup': 'lib', 'places': [1, 3]}, {'cup': 'sud', 'places': [4, 7]}, {'cup': 'lib', 'via': 'cup'}],
     W + 'chi': [{'cup': 'lib', 'places': [1, 3]}, {'cup': 'sud', 'places': [4, 7]}, {'cup': 'lib', 'via': 'cup'}],
     W + 'col': [{'cup': 'lib', 'places': [1, 4]}, {'cup': 'sud', 'places': [5, 7]}, {'cup': 'sud', 'via': 'cup'},

@@ -422,6 +422,7 @@ EU_ROW
     movzx eax, word [D7]
     shr eax, 1
     inc eax                             ; the row's place 1..
+OV_ROW
     movzx ecx, byte [edi + 1 + NAME_]
     lea esi, [edi + 2 + NAME_]
 .r:
@@ -741,6 +742,22 @@ def patch(p, at, area, lang, pack_dirs, bss, bss_len, world=None):
            'ZFILE': (2, zfile), 'FN_BASE_': (0, len(FILE[lang])), 'BUF': (2, bss), 'BUFLEN_': (0, bss_len),
            'ENTRY_': (0, ENTRY_PAD), 'LEG_': (0, LEG), 'LEG_W_': (0, LEG_W), 'LEGN_': (0, 1 + NAME + 1 + 3 * RANGES),
            'LABS': (2, labs), 'EFLAG_': (0, EFLAG), 'ECODE_': (0, ECODE), 'EU_PLACES_': (0, EU_PLACES), 'LEGBUF': (2, legbuf), 'MENU': cur_menu}
+    import fmtpage
+    import gplay
+    ov = 'on' in fmtpage.OV and 'GP_OV_ANNUAL' in gplay.LABELS
+    src = src.replace('OV_ROW\n', '''    cmp byte [OV_ON], 0                 ; 4.0 the overall table in its annual form (Argentina): the last relegated
+    je .o
+    cmp dword [GP_OV_ANNUAL], 0
+    je .o
+    cmp eax, [GP_OV_N]
+    jne .o
+    mov edx, RED_
+    jmp .apply
+.o:
+''' if ov else '')
+    if ov:
+        sym.update({'OV_ON': (2, fmtpage.OV['on']), 'GP_OV_ANNUAL': gplay.LABELS['GP_OV_ANNUAL'],
+                    'GP_OV_N': gplay.LABELS['GP_OV_N'], 'RED_': (0, RED)})
     if rt:
         zal = area.add(rank_colours())
         zeuc = area.add(bytes(EU_PLACES + 2))

@@ -332,6 +332,64 @@ void gp_keep(const u8 *diy, u32 st, u32 keep, const u8 *sel, u32 div, u32 magic)
     GP_IN.nst[gp_kn++] = n;
 }
 
+/* 4.0 overall tables (longtable.py, STAT > CLASSIFICA GENERALE; display only): the table's rows in GP_OV_ROWS (the
+   DIY row layout: +0 team, +4 played, won, drawn, lost, for, against, points) and their order in GP_OV_ORD (row
+   offsets, best first: points, wins, goal difference, goals). Argentina's annual table: when the Apertura's kept table
+   (GP_SS 0, written this season) holds every club of this one, its figures are added by club (played = apn, the
+   Apertura's match days; drawn from its points). The MLS's Supporters' Shield: the live table, re-sorted. */
+u16 GP_OV_ORD[32];
+u8 GP_OV_ROWS[32 * 18];
+u32 GP_OV_N, GP_OV_ANNUAL;
+static u16 w16(const u8 *b) { return b[0] | b[1] << 8; }
+static void p16(u8 *b, u32 v) { b[0] = v; b[1] = v >> 8; }
+void gp_overall(const u8 *diy, const u8 *sel, u32 apn) {
+    int n = w16(diy + 0x31);
+    if (n < 1 || n > 32) { GP_OV_N = 0; return; }
+    for (int i = 0; i < n * 18; i++) GP_OV_ROWS[i] = diy[0x2B3 + i];
+    int found = 0;
+    if (apn && (GP_SS.fresh & 1) && GP_SS.n[0] == n) {
+        for (int r = 0; r < n; r++) {
+            u8 *row = GP_OV_ROWS + 18 * r;
+            u32 t = row[0] | row[1] << 8 | (u32)row[2] << 16 | (u32)row[3] << 24;
+            u16 g = w16(sel + t + 2);
+            for (int k = 0; k < n; k++) if (GP_SS.r[0][k].glob == g) { found++; break; }
+        }
+    }
+    GP_OV_ANNUAL = found == n;
+    if (GP_OV_ANNUAL)
+        for (int r = 0; r < n; r++) {
+            u8 *row = GP_OV_ROWS + 18 * r;
+            u32 t = row[0] | row[1] << 8 | (u32)row[2] << 16 | (u32)row[3] << 24;
+            u16 g = w16(sel + t + 2);
+            for (int k = 0; k < n; k++) {
+                const struct gp_row *a = &GP_SS.r[0][k];
+                if (a->glob != g) continue;
+                int d = a->pts - 3 * a->won, l = (int)apn - a->won - d;
+                if (d < 0) d = 0;
+                if (l < 0) l = 0;
+                p16(row + 4, w16(row + 4) + apn);
+                p16(row + 6, w16(row + 6) + a->won);
+                p16(row + 8, w16(row + 8) + d);
+                p16(row + 10, w16(row + 10) + l);
+                p16(row + 12, w16(row + 12) + a->gf);
+                p16(row + 14, w16(row + 14) + a->ga);
+                p16(row + 16, w16(row + 16) + a->pts);
+                break;
+            }
+        }
+    for (int i = 0; i < n; i++) GP_OV_ORD[i] = w16(diy + 0x6D + 2 * i);    /* the table's own order first (ties) */
+    for (int i = 1; i < n; i++)                 /* insertion sort, stable */
+        for (int j = i; j > 0; j--) {
+            const u8 *a = GP_OV_ROWS + GP_OV_ORD[j], *b = GP_OV_ROWS + GP_OV_ORD[j - 1];
+            int dp = w16(a + 16) - w16(b + 16), dw = w16(a + 6) - w16(b + 6);
+            int dd = (w16(a + 12) - w16(a + 14)) - (w16(b + 12) - w16(b + 14)), dg = w16(a + 12) - w16(b + 12);
+            if (dp > 0 || (!dp && (dw > 0 || (!dw && (dd > 0 || (!dd && dg > 0)))))) {
+                u16 x = GP_OV_ORD[j]; GP_OV_ORD[j] = GP_OV_ORD[j - 1]; GP_OV_ORD[j - 1] = x;
+            } else break;
+        }
+    GP_OV_N = n;
+}
+
 /* split's stage end (sp_stage_end, a fixture stage with 'table'): the DIY table in its order (+6Dh, the groups
    partitioned by sp_sort: Argentina's zone A then zone B) into GP_SS.r[k]; annual: GP_SS.r[2] = r[0] + r[1] by club,
    by points, goal difference, goals (the earlier stage's order on a tie). */

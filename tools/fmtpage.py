@@ -28,13 +28,31 @@ ENTRY = 48
 NAME = 41                       # the slot's name (+4 .. +2Ch, before the contest id): the title the game shows
 
 TEXTS = {
-    'it': dict(btn=b'FORMULA', next=b'PAG. SUCC.', none=b'NESSUNA DESCRIZIONE', file=b'data/fmtit'),
-    'en': dict(btn=b'FORMAT', next=b'NEXT PAGE', none=b'NO DESCRIPTION', file=b'data/fmten'),
-    'fr': dict(btn=b'FORMULE', next=b'PAGE SUIV.', none=b'PAS DE DESCRIPTION', file=b'data/fmtfr'),
-    'de': dict(btn=b'MODUS', next=b'WEITER', none=b'KEINE BESCHREIBUNG', file=b'data/fmtde'),
+    'it': dict(btn=b'FORMULA', next=b'PAG. SUCC.', none=b'NESSUNA DESCRIZIONE', file=b'data/fmtit', ov=b'CLASSIFICA GENERALE'),
+    'en': dict(btn=b'FORMAT', next=b'NEXT PAGE', none=b'NO DESCRIPTION', file=b'data/fmten', ov=b'OVERALL TABLE'),
+    'fr': dict(btn=b'FORMULE', next=b'PAGE SUIV.', none=b'PAS DE DESCRIPTION', file=b'data/fmtfr', ov=b'CLASSEMENT GENERAL'),
+    'de': dict(btn=b'MODUS', next=b'WEITER', none=b'KEINE BESCHREIBUNG', file=b'data/fmtde', ov=b'GESAMTTABELLE'),
 }
 
+OV = {}                         # 4.0 (longtable.py): the overall-table flag's obj2 offset ('flag')
+
 ASM = r"""
+fp_ov:                                  ; 4.0 CLASSIFICA GENERALE (fire): the table screen's overall mode on / off
+    xor byte [OV_FLAG], 1               ; (longtable.py draws it), then out of STAT as its EXIT does
+    jmp EXIT_FN
+
+fp_ovinit:                              ; the statistics menu's onInit: CLASSIFICA GENERALE only for a table of one
+    pushad                              ; group of more than 24 clubs (World 2026-27: Argentina, the MLS)
+    mov esi, DIY_
+    cmp word [esi + 4Fh], 1
+    jne .hide
+    cmp word [esi + 51h], 24
+    ja .x
+.hide:
+    mov word [MENU_ + 16h + 6 * 38h + 4], 1
+.x: popad
+    ret
+
 fp_open:                                ; FORMULA (fire): the page of the competition the statistics are of
     pushad
     mov dword [PAGE], 0
@@ -278,7 +296,7 @@ def patch(p, at, lang, area, bss, world=None):
     def put(key, b, size=None):
         off[key] = len(data)
         data.extend(b + b'\0' * ((size or len(b) + 1) - len(b)))
-    for k in ('btn', 'next', 'none'):
+    for k in ('btn', 'next', 'none', 'ov'):
         put(k, T[k])
     put('file', T['file'], 20)
     put('title', b'', NAME + 1)
@@ -295,7 +313,8 @@ def patch(p, at, lang, area, bss, world=None):
     e3, e4 = ents[3][1] - moff, ents[4][1] - moff
     assert sm[e3 + 3] == 4 and sm[e4 + 2] == 3, (sm[e3:e3 + 4], sm[e4:e4 + 4])
     sm[e3 + 3] = 5                                       # VIEW SQUADS: down -> FORMULA
-    sm[e4 + 2] = 5                                       # EXIT: up -> FORMULA
+    sm[e4 + 2] = 6                                       # EXIT: up -> CLASSIFICA GENERALE (4.0: FORMULA -> it -> EXIT)
+    ptrs.append((sm_at + 0, 1, 'fp_ovinit'))             # (the menu's onInit: the 7th entry only for long tables)
     exit_text = [t for o, t in ((o, (t_obj, t_off)) for o, t_obj, t_off in fixes) if o == ents[4][0] + 22]
     exit_fn = [t for o, t in ((o, (t_obj, t_off)) for o, t_obj, t_off in fixes) if o == ents[4][0] + 28]
     assert len(exit_text) == 1 and len(exit_fn) == 1, (exit_text, exit_fn)
@@ -315,7 +334,8 @@ def patch(p, at, lang, area, bss, world=None):
             b += b'\0\0\0\0'
         buf.extend(b + b'\0\0')
     tail = bytearray()
-    entry(tail, sm_at + len(sm), 92, 115, 120, 15, nav=(-1, -1, 3, 4), color=0x0E, text=(2, 'btn'), select=(1, 'fp_open'))
+    entry(tail, sm_at + len(sm), 92, 115, 120, 15, nav=(-1, -1, 3, 6), color=0x0E, text=(2, 'btn'), select=(1, 'fp_open'))
+    entry(tail, sm_at + len(sm), 92, 140, 120, 15, nav=(-1, -1, 5, 4), color=0x0E, text=(2, 'ov'), select=(1, 'fp_ov'))
     sm += tail + struct.pack('<h', -999)
     data.extend(sm)
     while len(data) % 4:
@@ -341,7 +361,10 @@ def patch(p, at, lang, area, bss, world=None):
            'PAGE': (2, base + off['vars']), 'FOUND': (2, base + off['vars'] + 4), 'FMTMENU': (2, base + fm_at),
            'BUF': (2, bss), 'TXT': (2, bss + IDXMAX), 'IDXMAX_': (0, IDXMAX), 'TXTMAX_': (0, TXTMAX),
            'ENTRY_': (0, ENTRY), 'NAME_': (0, NAME), 'LINES_': (0, LINES), 'LINE_W_': (0, LINE_W),
-           'FN_BASE_': (0, len(T['file']))}
+           'FN_BASE_': (0, len(T['file'])), 'OV_FLAG': (2, base + off['vars'] + 5), 'EXIT_FN': exit_fn[0],
+           'DIY_': (2, __import__('lp36')._sites(p)['DIY']), 'MENU_': __import__('zones')._current_menu(p)}
+    OV['flag'] = base + off['vars'] + 5
+    OV['on'] = base + off['vars'] + 6           # (longtable: this table drawn in overall mode now)
     src = ASM.replace('WORLD_FILE\n', WORLD_ASM if world else '')
     if world:
         sym.update({'GAMETYPE': world['gametype'], 'SLT': world['slt'], 'WORLD_BYTE_': (0, 1845)})

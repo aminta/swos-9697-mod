@@ -505,6 +505,8 @@ st_rec:                                 ; lib97.st_ko calls it at a knockout-sta
 .x:
     popad
     ret
+st_noovr:                               ; (engine.after_load 'st_ovr' without ripool's overrides)
+    ret
 ST_KEYS: KEY_BYTES
 ST_RANK: times SR_SIZE db 0
 ST_TAB: ST_BYTES
@@ -595,6 +597,7 @@ def ko_patch(p, at):
         LABELS['key_slots'].setdefault(first[0] | first[1] << 8, []).append(off)
     engine.ITEM_AT['SR'] = (1, lab['ST_RANK'])
     engine.ITEM_AT['SB'] = (1, lab['ST_SB'])
+    engine.CALL_AT.setdefault('st_ovr', (1, lab['st_noovr']))   # (ov_patch: the real one)
     try:
         import ripool
         if 'RI_SR_PTR' in getattr(ripool, 'LABELS', {}):
@@ -853,7 +856,7 @@ def ov_patch(p, at, tab_at, limit):
         for i, k in enumerate(ks):
             p.add_ptr(1, b + 12 + 2 * len(SIM_LAYOUT[int(name[2:])][2]) + 4 * i, 1, k)
     LABELS['st_ovr'] = (1, lab['st_ovr'])
-    engine.CALL_AT['st_ovr'] = (1, lab['st_ovr'])
+    engine.CALL_AT['st_ovr'] = (1, lab['st_ovr'])           # (over ko_patch's bare ret)
     if 'RI_POST_PTR' in rl:
         p.add_ptr(*rl['RI_POST_PTR'], 1, lab['st_ovr'])
     return at + len(code)

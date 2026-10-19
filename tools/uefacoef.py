@@ -727,6 +727,7 @@ def patch(p, cave, worlds, sites):
     code, fix = nasmcave.assemble(ASM, cave, symbols)
     lab = nasmcave.labels(ASM, cave, symbols)
     LABELS.update(lab)
+    LABELS['CB_ADDR'] = symbols['CB']           # (zones.py: uc_rank needs ebp = CB)
     p.put(1, cave, code)
     for off, tobj, toff in fix:
         p.add_ptr(1, cave + off, tobj, toff)

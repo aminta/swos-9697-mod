@@ -1375,6 +1375,24 @@ def bye_cups():
     return [b for pk in packs() for b in pk.bye_cups()]
 
 
+def state_draws():
+    """[(contest id, world, round clubs N, b, first club word, g, size, codes)] of the state championships' knockout
+    stages with a fixed draw (statespec.st_ko at the stage start; ST_TAB keyed by id + first club). g > 0: code = band *
+    g + group (b > 0: the b last wait); g = 0: the stage after one with byes, b = its ties, size = its clubs."""
+    import statespec
+    out = list(statespec.ST_DRAWS)
+    for pk in packs():
+        if pk.world is None:
+            continue
+        for c in pk.comps:
+            if c['type'] == 'state':
+                sp = pk.state(c)
+                f = sp['clubs'][0]
+                out += [(int(c['id'], 16), pk.world, n, b, f[0] | f[1] << 8, g, sz, pm)
+                        for n, b, g, sz, pm in sp['ko_draws']]
+    return out
+
+
 def league_phase_cups():
     """[(contest id, countries of the clubs in contest order)] of the tourneys with league_phase (lp36 prototype)."""
     out = []
@@ -1435,8 +1453,10 @@ def splits():
             for i, st in enumerate(stages):
                 ws = f'{w}.split' + (f'.stages[{i}]' if 'stages' in sp else '')
                 if 'fixtures' in st:                # a fixture list by club (Argentina: zones, clasicos, interzonals)
-                    _need(set(st) <= {'after', 'fixtures', 'zones', 'reset', 'then', 'table', 'annual'},
-                          f'{ws}: keys after, fixtures, zones, reset, then, table, annual')
+                    _need(set(st) <= {'after', 'fixtures', 'zones', 'reset', 'then', 'table', 'annual', 'tiebreak'},
+                          f'{ws}: keys after, fixtures, zones, reset, then, table, annual, tiebreak')
+                    _need(st.get('tiebreak') in (None, 'wins'), f"{ws}.tiebreak: 'wins' (MLS: points, wins, then the "
+                          f"game's goal difference, goals) or absent")
                     if i == 0:
                         _need(st.get('after') == 0, f'{ws}.after: 0 (a fixture list from the first day)')
                         games, day = 0, 0
@@ -1456,10 +1476,11 @@ def splits():
                     if st.get('then'):
                         import engine
                         engine.after_stage(st['then'])
-                    _need(st.get('table') in (None, 0, 1, 2), f'{ws}.table: 0..2 (GP_SS: stage_place 4..6)')
+                    _need(st.get('table') in (None, 0, 1, 2, 3), f'{ws}.table: 0..3 (GP_SS: stage_place 4..7)')
                     spec['stages'].append({'after': day, 'fixtures': fxd, 'members': mem, 'reset': bool(st.get('reset')),
                                            'then': st.get('then'), 'table': st.get('table'),
-                                           'annual': bool(st.get('annual')), 'groups': [len(z) for z in st.get('zones') or [rows]]})
+                                           'annual': bool(st.get('annual')), 'wins': st.get('tiebreak') == 'wins',
+                                           'groups': [len(z) for z in st.get('zones') or [rows]]})
                     day += len(fxd)
                     continue
                 _need(set(st) <= {'after', 'home', 'groups', 'tiebreak', 'reset', 'keep'},

@@ -1670,17 +1670,26 @@ def zone_rows(s, tag, n):
         if r >= 200 and g < 90 and b < 90:
             return 'rd'
         return 'pl'
-    return [(y, zone(im.getpixel((200, y + 2)))) for y in rows], scr
+    def row(y):
+        z = zone(im.getpixel((200, y + 2)))
+        if z == 'pl':                                   # relegation: the same stats colour, the name box gray
+            names = [im.getpixel((x, y + 2)) for x in range(70, 130, 3)]
+            gray = sum(1 for r, g, b in names if r < 140 and abs(r - g) < 25 and abs(r - b) < 25 and r > 50)
+            red = sum(1 for r, g, b in names if r > 200 and g < 70)
+            if gray > red:
+                z = 'gy'
+        return z
+    return [(y, row(y)) for y in rows], scr
 
 
 @scenario
 def zone_colours():
     """4.0 zone colours (zones.py): a new 1984-85 career at Liverpool, VISUAL. COMPETIZ. > First Division: place 1 light
-    blue (Champions Cup), 2-5 green (UEFA Cup), 20-22 red, the others plain (pixels of the stats columns); the legend
+    blue (Champions Cup), 2-5 green (UEFA Cup), 20-22 gray, the others plain (pixels of the stats columns); the legend
     CAMP / UEFA / RETR on the header line; STAT > FORMULA > back (the FORMAT page shares the zones' file buffer): the
     same colours again"""
     b = os.environ.get('W8485_BUILD', os.path.join(WORK, 'builds', 'w8485'))
-    want = ['lb'] + ['gr'] * 4 + ['pl'] * 14 + ['rd'] * 3
+    want = ['lb'] + ['gr'] * 4 + ['pl'] * 14 + ['gy'] * 3
     errs, info = [], []
     with Session('zone_colours', b, {}, 'dump:2', 600) as s:
         s.wait()
@@ -1699,7 +1708,7 @@ def zone_colours():
                   f'pass {k}: zones {got}', errs)
             leg = [e[1] for e in scr.entries[-5:] if not e[2]]
             check(leg == ['CAMP', 'UEFA', 'RETR'], f'pass {k}: legend {leg}', errs)
-            info.append(f"pass {k}: {''.join(z[0] for z in got)}, legend {leg}")
+            info.append(f"pass {k}: {''.join({'gy': 'x'}.get(z, z[0]) for z in got)}, legend {leg}")
             if k == 1:                              # the FORMAT page (it reads its own file into the shared buffer)
                 walk(s, scr.find('STAT', exact=True), 3)
                 walk(s, s.screen().find('FORMULA', exact=True), 3)
@@ -1708,9 +1717,9 @@ def zone_colours():
     w27 = os.environ.get('ZONES_W2627')                 # a full 2026-27 build (exe + DATA): two more tables
     if w27:
         for path, want27, leg27 in ((('INGHILTERRA', 'PREMIER LEAGUE', 'ARSENAL'),
-                                     ['lb'] * 5 + ['gr', 'db'] + ['pl'] * 10 + ['rd'] * 3, ['CL', 'EL', 'CONF', 'RETR']),
+                                     ['lb'] * 4 + ['gr', 'db'] + ['pl'] * 11 + ['gy'] * 3, ['CL', 'EL', 'CONF', 'RETR']),
                                     (('ITALIA', 'SERIE B', 'AVELLINO'),
-                                     ['lb'] * 2 + ['gr'] * 6 + ['pl'] * 7 + ['or'] * 2 + ['rd'] * 3,
+                                     ['lb'] * 2 + ['gr'] * 6 + ['pl'] * 7 + ['or'] * 2 + ['gy'] * 3,
                                      ['PROM', 'P.OFF', 'P.OUT', 'RETR'])):
             with Session('zone_colours_' + path[1].split()[-1].lower(), w27, {}, 'dump:2', 1500) as s:
                 s.wait()
@@ -1725,9 +1734,9 @@ def zone_colours():
                 check(got == want27, f'{path[1]}: zones {got}', errs)
                 leg = [e[1] for e in scr.entries[-5:] if not e[2]]
                 check(leg == leg27, f'{path[1]}: legend {leg}', errs)
-                info.append(f"{path[1]}: {''.join(z[0] for z in got)}, legend {leg}")
-                if path[1] == 'PREMIER LEAGUE':         # a later season: no European colours (the engine decides
-                    import lepatch                      # them only at the season end), the relegation kept
+                info.append(f"{path[1]}: {''.join({'gy': 'x'}.get(z, z[0]) for z in got)}, legend {leg}")
+                if path[1] == 'PREMIER LEAGUE':         # another season year, the same ring: the same colours (they
+                    import lepatch                      # come from uc_rank, not from the season)
                     pe = lepatch.LEPatch(os.path.join(w27, 'ITALIAN.EXE'))
                     m = re.search(rb'\x80\x2d(.{4})\x01\xe8', pe.le.obj_bytes(1), re.S)
                     sp = pe.target(1, m.start() + 2)[1]
@@ -1736,8 +1745,8 @@ def zone_colours():
                     rows, scr = zone_rows(s, 'zones_premier_s2', len(want27))
                     got = [z for _, z in rows]
                     leg = [e[1] for e in scr.entries[-5:] if not e[2]]
-                    check(got == ['pl'] * 17 + ['rd'] * 3 and leg == ['RETR'], f'season 2: {got} {leg}', errs)
-                    info.append(f"PREMIER LEAGUE season 2: {''.join(z[0] for z in got)}, legend {leg}")
+                    check(got == want27 and leg == leg27, f'another season: {got} {leg} (uc_rank: the same ring)', errs)
+                    info.append(f"PREMIER LEAGUE season 2: {''.join({'gy': 'x'}.get(z, z[0]) for z in got)}, legend {leg}")
     return not errs, '; '.join(errs + info) if errs else '; '.join(info)
 
 
@@ -1789,10 +1798,13 @@ def world8485():
             nosack, poked = (nosack_off(os.path.join(exe, 'ITALIAN.EXE')) if os.environ.get('W8485_NOSACK') == '1'
                              else None), set()
 
-            def hexlog():                              # W8485_HEX: obj2 offset:bytes, logged when they change
-                for a in filter(None, os.environ.get('W8485_HEX', '').split(',')):
+            def hexlog():                              # W8485_HEX: obj2 offset:bytes (o1/ prefix: obj1),
+                for a in filter(None, os.environ.get('W8485_HEX', '').split(',')):   # logged when they change
                     o, n = a.split(':')
-                    v = s.result.obj2(int(o, 16), int(n)).hex()
+                    if o.startswith('o1/'):
+                        v = s.result.read(s.result.base1 + int(o[3:], 16), int(n)).hex()
+                    else:
+                        v = s.result.obj2(int(o, 16), int(n)).hex()
                     if hexseen.get(o) != v:
                         hexseen[o] = v
                         s.log.append(f'HEX {o} {v}')
@@ -4215,6 +4227,91 @@ def world_gplay_play(force='2', team='EUROPA,SCOZIA,SCOTTISH LEAGUE TWO,CLYDE', 
                                          f"game rounds seen {gw}, winner {win:#x} (code {wcode}), moves {mv}")
 
 
+def sr_blocks(b):
+    """'SR' bytes -> [(key, [team words])] up to the dw 0."""
+    out, k = [], 0
+    while k + 4 <= len(b):
+        key, n = struct.unpack_from('<HB', b, k)
+        if not key:
+            break
+        out.append((key, list(struct.unpack_from(f'<{n}H', b, k + 4))))
+        k += 4 + 2 * n
+    return out
+
+
+@scenario
+def world_statesim(team='SUDAMERICA,BRASILE,CAMPEONATO BRASILEIRO SERIE A,ATHLETICO-PR'):
+    """State championships at the season end (statespec statesim.c + ripool, World 2026-27 private data world5tm):
+    two seasons at ATHLETICO-PR (Paranaense): season 1's SS_LAST (statesim's SR) has one block per state, the
+    Paranaense's = the real stage-1 order seen at its first knockout (ST_RANK block 0, st_rec) with its relegation
+    play-outs applied; season 2's Paranaense list (block 0 again) still holds 12 clubs and no season-1 relegated
+    LEAGUE club (those leave through RI_OVR; a state-only club keeps its word, ripool swaps its identity)"""
+    src = os.path.join(MAIN, 'internal', 'world2526', 'world5tm')
+    if not os.path.isdir(src):
+        return True, 'SKIP: private data internal/world2526/world5tm missing'
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    env = {'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order])}
+    exe = os.environ.get('STATESIM_BUILD') or build('world_statesim' + ('_' + os.environ['SWOSTEST_TAG']
+                                                                         if os.environ.get('SWOSTEST_TAG') else ''),
+                                                      env=env)   # (a tag of its own: parallel sessions)
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    from le import LE
+    d1 = LE(open(os.path.join(exe, 'ITALIAN.EXE'), 'rb').read()).obj_bytes(1)
+    k = d1.find(b'SSLASTPT')
+    if k < 0:
+        return False, 'no SSLASTPT block in the exe (statesim not built)'
+    rank_at, last_at, ord_at = struct.unpack_from('<3I', d1, k + 8)
+    keep = {x: os.environ.get(x) for x in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K',
+                                            'W8485_NOSACK', 'W8485_HEX')}
+    os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5', W8485_K='108+',
+                      W8485_NOSACK='1', W8485_HEX=f'o1/{rank_at:x}:470,o1/{last_at:x}:470,o1/{ord_at:x}:208')   # (+ ss_ord: each state's
+                                                                              # stage-1 order, club indices)
+    try:
+        ok, msg = world8485()
+    finally:
+        for x, v in keep.items():
+            if v is None:
+                os.environ.pop(x, None)
+            else:
+                os.environ[x] = v
+    hexes = {}
+    for sn in (1, 2):                            # (each season's own run)
+        f = os.path.join(RUNS, w84_tag() + f'_{sn}', 'session.log')
+        for ln in open(f, errors='replace') if os.path.exists(f) else []:
+            q = ln.split()
+            if len(q) == 3 and q[0] == 'HEX':
+                hexes.setdefault(q[1], []).append(bytes.fromhex(q[2]))
+    errs = []
+    check(ok, msg, errs)
+    ranks = [sr_blocks(b) for b in hexes.get(f'o1/{rank_at:x}', [])]
+    lasts = [sr_blocks(b) for b in hexes.get(f'o1/{last_at:x}', [])]
+    played = [r[0] for r in ranks if r]                      # block 0 as st_rec wrote it, each season
+    lasts = [x for x in lasts if x]
+    check(len(lasts) >= 1, f'statesim never ran (SS_LAST {len(lasts)} values)', errs)
+    if lasts:                                    # (the first one may be the career's start: pg_fix runs there)
+        L = next((x for x in lasts if played and x[0][0] == played[0][0]), lasts[-1])
+        keys = [kk for kk, _ in L]
+        check(len(L) >= 10 and len(set(keys)) == len(keys), f'season 1: {len(L)} blocks, keys {[hex(x) for x in keys]}',
+              errs)
+        if played:
+            pk, pw = played[0]
+            blk = dict(L).get(pk)
+            check(blk is not None and sorted(blk) == sorted(pw), f'played state {pk:#x}: SR {blk} vs order {pw}', errs)
+            if len(played) >= 2 and blk:
+                p2k, p2w = played[1]                 # (a relegated state-only club keeps its word: ripool swaps
+                gone = [w for w in blk[-2:] if w in p2w and (w & 255) != 0xA1]   # the identity in file 161)
+                check(p2k == pk and len(p2w) == len(pw) and not gone,
+                      f'season 2 list {[hex(x) for x in p2w]}: season-1 relegated {[hex(x) for x in blk[-2:]]} '
+                      f'still in: {[hex(x) for x in gone]}', errs)
+            else:
+                check(False, f'season 2: no block 0 seen ({len(played)} seasons with one)', errs)
+        else:
+            check(False, 'no block 0 (st_rec) seen', errs)
+    return not errs, '; '.join(errs + [f"{msg}; SR seasons {len(played)}, statesim runs {len(lasts)}; "
+                                        f"played {[(hex(kk), [hex(x) for x in w]) for kk, w in played]}; "
+                                        f"last {[(hex(kk), [hex(x) for x in w[-2:]]) for kk, w in (lasts[0] if lasts else [])]}"])
+
+
 @scenario
 def world_gplay_reserve(force='20', team='EUROPA,ITALIA,SERIE C GIRONE A,RENATE', src=None, div=2, direct=20):
     """The career club relegated into the reserve is sacked (gplay gp_sack, SeasonFinished's contract check): the
@@ -4294,6 +4391,14 @@ TITLE_TEAMS = {'can': 'NORDAMERICA,CANADA,FORGE', 'mlt': 'EUROPA,MALTA,HAMRUN SP
                'crc': 'NORDAMERICA,COSTA RICA,SAPRISSA'}
 
 
+GP_LOG_TOP = 1012          # gplay.c struct gp_log: top[9] (cseg_927A2's team words after gp_champ) after gp_out
+
+
+def title_top(lg):
+    """The qualifiers' top-9 list of the career club's country after gp_champ (GP_LOG.top), or None (older exe)."""
+    return list(struct.unpack_from('<9H', lg, GP_LOG_TOP)) if len(lg) >= GP_LOG_TOP + 18 else None
+
+
 def world_title(code, force='3'):
     """A title play-off of the world 2026-27 (formats_data.KO_TITLE, mkworld_tm TM_TITLE=1: Canada's CPL play-offs,
     the A-League finals series, Costa Rica's semis + final + Gran Final), played: the stable world5tm-poule snapshot
@@ -4358,7 +4463,10 @@ def world_title(code, force='3'):
         res = [struct.unpack_from('<BBHHHH', lg, 682 + 4 + 8 * 32 + 10 * i) for i in range(min(lg[683], 4))]
         titles = [r for r in res if r[0] == 5]
         check(len(titles) == 1, f'no match played and champions {titles}', errs)
-        return not errs, '; '.join(errs) or f'{msg}; one club won both rounds: champion {titles[0][2]:#x}, no match'
+        top = title_top(lg)
+        check(titles and top and top[0] == titles[0][2], f'top-9 list {top}', errs)
+        return not errs, '; '.join(errs) or (f'{msg}; one club won both rounds: champion {titles[0][2]:#x} (first '
+                                             'in the top-9 list), no match')
     if not sts:
         return False, f'{msg}; the title play-off never ran (no GP_ST seen)'
     run = [gp_ko(b[GP_STKO:]) for b in sts]
@@ -4369,7 +4477,8 @@ def world_title(code, force='3'):
     po = spec[0]
     nties = sum(len(r['ties']) or len(r.get('clubs', [])) // 2 for r in po['rounds'])
     me = int(force) - 1                                  # (division 0: code = place - 1)
-    check(ko['magic'] == 0x4B47 and ko['kind'] == 5 and ko['n'] == len(po['entrants']) and me in ko['code'],
+    check(ko['magic'] == 0x4B47 and ko['kind'] == 5 and ko['n'] <= len(po['entrants']) and me in ko['code'],   # (one
+                                                     # club as two entrants, Malta's split seeds: listed once)
           f"contest kind {ko['kind']} n {ko['n']} codes {ko['code']}", errs)
     check(ko['ntie'] == nties and all(x != 255 for x in ko['tw']), f"ties {ko['ntie']}/{nties} winners {ko['tw']}",
           errs)
@@ -4379,10 +4488,12 @@ def world_title(code, force='3'):
     win = ko['team'][ko['tw'][-1]] if ko['tw'] and ko['tw'][-1] < ko['n'] else None
     check(len(titles) == 1 and titles[0][2] == win, f'champion {[hex(r[2]) for r in titles]}, last winner '
           f'{win if win is None else hex(win)}', errs)
+    top = title_top(lg)                                  # (gp_champ: the qualifiers' champion place)
+    check(top and top[0] == win, f"top-9 list {top and [hex(t) for t in top]}, champion {win and hex(win)}", errs)
     gw = sorted({r['gcur'] for r in run})
     return not errs, '; '.join(errs) or (f"{msg}; {po['key']}: clubs {[hex(t) for t in ko['team']]} codes {ko['code']}"
                                          f", ties {ko['ntie']} winners {ko['tw']}, game rounds seen {gw}, champion "
-                                         f"{win:#x}")
+                                         f"{win:#x} (first of the top-9 list {[hex(t) for t in top]})")
 
 
 @scenario
@@ -4417,7 +4528,6 @@ def gplay_split_seed():
     test = r"""
 #include "%s"
 #include <stdio.h>
-const unsigned char GP_PROM_TAB[256];
 static int cp[12] = {30,28,26,24,22,20,18,16,14,12,10,8}, op[12] = {35,30,25,20,15,12,10,8,6,4,2,1};
 static void run(const char *open) {         /* the Closing table A..L in order; the Opening's order */
     GP_IN.nd = 1; GP_IN.n[0] = 12; GP_IN.nst[0] = 12;
@@ -4436,8 +4546,15 @@ int main(void) {
     want = 'AAAA BAAB CAAC BCAB CADB'    # (aggregates: B 63 / A 60; C 61 / A 60; C 56 / A 31; C 61 A 55 D 54 B 48)
     with tempfile.TemporaryDirectory() as d:
         open(os.path.join(d, 't.c'), 'w').write(test)
-        r = subprocess.run(['cc', '-w', '-o', os.path.join(d, 't'), os.path.join(d, 't.c')], capture_output=True,
-                           text=True)
+        stub = ''
+        for _ in range(2):                      # (the exe's externs, never used here: stubs in a unit of their own
+            open(os.path.join(d, 's.c'), 'w').write(stub)                  # for those the linker misses)
+            r = subprocess.run(['cc', '-w', '-o', os.path.join(d, 't'), os.path.join(d, 't.c'), os.path.join(d, 's.c')],
+                               capture_output=True, text=True)
+            miss = sorted(set(re.findall(r'"_(\w+)", referenced from', r.stderr)))
+            if not r.returncode or not miss:
+                break
+            stub += ''.join(f'unsigned char {m}[65536] __attribute__((aligned(8)));\n' for m in miss)
         if r.returncode:
             return False, f'cc: {r.stderr[:300]}'
         got = subprocess.run([os.path.join(d, 't')], capture_output=True, text=True).stdout.strip()
@@ -4696,6 +4813,94 @@ def gp_cd(exe):
 CD_SIZE = 1032          # (gplay.CD_SIZE: struct cd_state)
 
 
+def cd_strengths(src):
+    """{team word: strength} of Italy's league file (cupd.strength: the best 11's prices) in a world dir."""
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln] if os.path.exists(src + '.txt') \
+        else sorted(x for x in os.listdir(src) if os.path.isdir(os.path.join(src, x)))
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    old = os.environ.get('SEASON_PACKS')
+    os.environ['SEASON_PACKS'] = ','.join(os.path.join(src, x) for x in order)
+    import mkseason
+    import cupd
+    try:
+        pk = next(p for p in mkseason.packs() if p.meta.get('id', '').endswith('-ita'))
+        lf = pk.files[pk.league['clubs']][0]
+        return {lf | pk.where[k][1] << 8: cupd.strength(pk, k) for k in pk.league_clubs if pk.where[k][0] == lf}
+    finally:
+        if old is None:
+            os.environ.pop('SEASON_PACKS')
+        else:
+            os.environ['SEASON_PACKS'] = old
+
+
+def cd_strength_check(b2, b0, st, ent, gen, np_, mine):
+    """Season 2's generated bracket (CD_ST at the cup's end b2, its start b0): every tie of two clubs with a known
+    identity (no new arrival) not the career club's -> (ties, the stronger through, the model's expectation and
+    variance: gplay.c cd_sim by Monte Carlo)."""
+    import random
+    nr, n1 = 8, 64
+    ns = [np_] + [n1 >> (r - 1) for r in range(1, nr)]
+    first = [sum(ns[:r]) for r in range(nr)]
+    res = b2[8:176]
+    home = b2[176:344]
+    sd = b2[344:348]
+    rnd = lambda t: max(r for r in range(nr) if t >= first[r])
+
+    def raw(t, k):
+        r = rnd(t)
+        if r < 2:
+            return gen[2 * t + k]
+        if r == 6:                                  # (the drawn semi-finals: CD_ST.sd)
+            return (sd[2 * (t - first[r]) + k] << 8) | 0xFF
+        return ((first[r - 1] + 2 * (t - first[r]) + k) << 8) | 0xFF
+
+    def side(t, k):
+        v = raw(t, k)
+        if v & 0xFF != 0xFF:
+            return v
+        i = v >> 8
+        return side(i, res[i] - 1) if res[i] else None
+    rng = random.Random(7)
+
+    def p_a(a, b, legs, h):
+        sa, sb = max(5, st[a]) ** 2, max(5, st[b]) ** 2
+        win = 0
+        for _ in range(400):
+            ga = gb = 0
+            for l in range(legs):
+                ha = (l == 0) == (h == 0)
+                x, y = (sa * 1.21, sb) if ha else (sa, sb * 1.21)
+                if rng.random() < 0.26:
+                    p = q = rng.randrange(3)
+                else:
+                    w = rng.random() * (x + y) < x
+                    gw = 1 + rng.randrange(3)
+                    gl = rng.randrange(gw)
+                    p, q = (gw, gl) if w else (gl, gw)
+                ga += p
+                gb += q
+            win += ga > gb or (ga == gb and rng.random() * 3 * (sa + sb) < 2 * sa + sb)
+        return win / 400
+    legs = [1] * 6 + [2, 2]
+    n = act = 0
+    e = v = 0.0
+    own = {w for x in mine for w in x}
+    for t in range(first[-1] + 1):
+        a, b = side(t, 0), side(t, 1)
+        if not a or not b or not res[t] or a in own and b in own:
+            continue
+        if ent[a >> 8] == 1 or ent[b >> 8] == 1 or a not in st or b not in st or st[a] == st[b]:
+            continue
+        pa = p_a(a, b, legs[rnd(t)], home[t])
+        strong_a = st[a] > st[b]
+        p = pa if strong_a else 1 - pa
+        n += 1
+        act += (res[t] == 1) == strong_a
+        e += p
+        v += p * (1 - p)
+    return n, act, e, v
+
+
 @scenario
 def world_gplay_cupd(team='EUROPA,ITALIA,SERIE D GIRONE A,LIGORNA', two=False):
     """The Coppa Italia Serie D (cupd.py, gplay.c cd_step_c): world5tm-poule with Italy's 'cup_d' = the data session's
@@ -4785,7 +4990,12 @@ def world_gplay_cupd(team='EUROPA,ITALIA,SERIE D GIRONE A,LIGORNA', two=False):
         mine2 = sorted({tuple(k['team']) for k in mine2 if k['kind'] == 9 and k['slot'] == 4})
         check(mine2, 'season 2: no tie of the career club in slot 4', errs)
         rn2 = sorted({ln.split('|')[0].split('SERIE D')[-1].strip() for ln in lines2 if 'COPPA ITALIA SERIE D' in ln})
-        msg2 = (f'; season 2: {np_} preliminary ties, {len(arr)} new arrivals ({nfc} from C, {nfp} from the pool) all '
+        st = cd_strengths(os.path.join(w, 'world5tm'))           # the ties nobody played: by strength (cd_sim)
+        n_s, act, exp_, var = cd_strength_check(b2, b0, st, ent, gen, np_, mine2)
+        check(n_s >= 60 and exp_ > 0.55 * n_s and abs(act - exp_) <= 3 * var ** 0.5 + 1,
+              f'season 2: the stronger club through in {act} of {n_s} ties, the model {exp_:.1f} +- {var ** 0.5:.1f}', errs)
+        msg2 = (f'; season 2: the stronger through in {act} of {n_s} ties (the model {exp_:.1f} +- {var ** 0.5:.1f}); '
+                f'{np_} preliminary ties, {len(arr)} new arrivals ({nfc} from C, {nfp} from the pool) all '
                 f'in the preliminary with the {2 * np_ - len(arr)} lowest placed of {ranked} ranked, '
                 f'the club ties {[tuple(hex(t) for t in x) for x in mine2]} ({rn2}), cup over')
     else:
@@ -4793,6 +5003,49 @@ def world_gplay_cupd(team='EUROPA,ITALIA,SERIE D GIRONE A,LIGORNA', two=False):
     return not errs, '; '.join(errs) or (f"{msg}; the club's ties in slot 4: {[tuple(hex(t) for t in x) for x in ties]}, "
                                          f"{len(screens)} cup screens {sorted(set(names), key=names.index)}; the cup "
                                          f"over (round {rnd})" + msg2)
+
+
+@scenario
+def world_cup_prefix():
+    """The continental cups' names without the empty country's prefix (careerworld w_pfx: cseg_95C18): a World
+    2026-27 career at INTER (world5tm-poule) and a 1984-85 one at LIVERPOOL - VISUAL. COMPETIZ. lists 'UEFA CHAMPIONS
+    LEAGUE' / the European cup with no leading space, its screen's title starts with it, the national contests keep
+    their country ('ITALIA SERIE A')"""
+    src = os.environ.get('W2627P_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-poule')
+    if not os.path.isdir(src):
+        return True, 'SKIP: private data (world5tm-poule) missing'
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    env = {'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order])}
+    errs, info = [], []
+    for tag, exe, path, cup in (
+            ('w2627', os.environ.get('GPLAY_BUILD') or build('world_cup_prefix', env=env),
+             ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27', 'EUROPA', 'ITALIA', 'SERIE A', 'INTER'],
+             'UEFA CHAMPIONS LEAGUE'),
+            ('w8485', os.environ.get('W8485_BUILD') or builds()['it'],
+             ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'EUROPA 1984-85', 'INGHILTERRA', 'FIRST DIVISION',
+              'LIVERPOOL'], 'COPPA CAMPIONI EUROPEA')):
+        with Session('cup_prefix_' + tag, exe, {}, 'dump:2', 900) as s:
+            s.wait()
+            for t in path:
+                scr = s.screen()
+                lvl = None if scr.find(t, exact=True) is not None else next(
+                    (x for i, x, inv, _ in scr.entries if 11 <= i <= 20 and x and not inv and t.startswith(x + ' ')), None)
+                if lvl:
+                    press(s, scr, lvl, 3)
+                if press(s, s.screen(), t, 3) is None:
+                    return False, f'{tag}: {t} not reached'
+            s.send('fire dump:3')
+            walk(s, s.screen().find('VISUAL. COMPETIZ.', exact=True), 3)
+            comps = [e[1] for e in s.screen().entries if e[1] and not e[2]]
+            mine = [c for c in comps if cup in c]
+            check(mine == [cup], f'{tag}: the cup listed as {mine} (all: {comps})', errs)
+            check(any(c.startswith(('ITALIA ', 'INGHILTERRA ')) for c in comps), f'{tag}: a national contest lost its country: {comps}', errs)
+            if mine:
+                walk(s, s.screen().find(mine[0], exact=True), 3)
+                title = next((e[1] for e in s.screen().entries if e[1] and not e[2]), '')
+                check(title.startswith(cup), f'{tag}: the title of the cup screen {title!r}', errs)
+                info.append(f'{tag}: listed {mine[0]!r}, title {title!r}')
+    return not errs, '; '.join(errs + info)
 
 
 @scenario
@@ -5518,6 +5771,62 @@ def contest_tables(r, cid, groups, size):
     return out
 
 
+def state_rounds(r, cid, seen):
+    """Knockout snapshots of a type-2 contest cid (statespec): seen['rank'] = the copy's +59h order when its
+    first knockout stage starts ([53h] = 1); seen[n] = [the round's list +2CDh (n clubs)], first-seen order."""
+    d = r.read(r.base2, 0x100000)
+    for i in range(len(d) - 0x41F):
+        if d[i + 0x2D] != cid:
+            continue
+        n = struct.unpack_from('<H', d, i + 0x31)[0]
+        if d[i] == 2 and struct.unpack_from('<H', d, i + 0x53)[0] == 1 and 'rank' not in seen:
+            seen['rank'] = list(d[i + 0x59:i + 0x59 + n])
+        elif d[i] == 1 and n in (2, 4, 6, 8, 16):
+            lst = list(d[i + 0x2CD:i + 0x2CD + n])
+            ties = struct.unpack_from('<H', d, i + 0x4F)[0]
+            if (lst, ties) not in seen.setdefault(n, []):
+                seen[n].append((lst, ties))
+
+
+def tie_sets(lst, ties):
+    return [frozenset(lst[2 * k:2 * k + 2]) for k in range(ties)]
+
+
+@scenario
+def statespec_byes():
+    """State knockout byes (lib97.st_ko / st_kend, STATESPEC_TEST=2 build: a Pernambucano-shaped world-0 test state
+    F1 at ATL PARANAENSE: 8 clubs, single round robin; 3rd-6th play the QF (6v3, 5v4), 1st-2nd wait; SF W(5v4) v 1st,
+    W(6v3) v 2nd; final): the QF round has 2 ties of exactly those pairs, the SF one tie per bye with the winner of
+    its own QF tie, the final one SF winner of each tie"""
+    b = os.environ.get('STATESPEC_BUILD2') or builds()['it']
+    errs, seen = [], {}
+    with Session('statespec_byes', b, {}, 'dump:2', 1800) as s:
+        s.wait()
+        new_career(s, 'BRASILE', None, 'ATL PARANAENSE', 'SUDAMERICA')
+
+        def stop(scr):
+            state_rounds(s.result, 0xF1, seen)
+            return season_over(scr)
+        ok, msg = advance(s, stop, 1700)
+    check(ok, f'season: {msg}', errs)
+    R = seen.get('rank')
+    check(R is not None and len(R) == 8, f'group ranking {R}', errs)
+    if R and seen.get(6) and seen.get(4) and seen.get(2):
+        qf, qt = seen[6][0]
+        check(qt == 2 and tie_sets(qf, 2) == [frozenset((R[5], R[2])), frozenset((R[4], R[3]))]
+              and qf[4:6] == [R[0], R[1]], f'QF {qf} ties {qt} (ranking {R})', errs)
+        sf, st = seen[4][0]
+        a, c = tie_sets(sf, 2)
+        check(st == 2 and R[0] in a and len(a & {R[4], R[3]}) == 1 and R[1] in c and len(c & {R[5], R[2]}) == 1,
+              f'SF {sf}', errs)
+        fin = set(seen[2][0][0])
+        check(len(fin & a) == 1 and len(fin & c) == 1, f'final {sorted(fin)}', errs)
+    else:
+        check(False, f'rounds seen {sorted(k for k in seen if k != "rank")}', errs)
+    return not errs, '; '.join(errs + [f'{msg}; ranking {R}, rounds ' + ', '.join(
+        f'{n}: {v[0]}' for n, v in sorted((k, v) for k, v in seen.items() if k != 'rank'))])
+
+
 @scenario
 def statespec_test():
     """State championships (statespec.py, STATESPEC_TEST=1 build: world 0's Brazil gets a Paranaense-shaped test state,
@@ -5531,14 +5840,31 @@ def statespec_test():
         s.wait()
         new_career(s, 'BRASILE', None, 'ATL PARANAENSE', 'SUDAMERICA')
 
+        seen = {}
+
         def stop(scr):
             for rows in contest_tables(s.result, 0xF1, 2, 6):
                 pl = {x[0] for x in rows}
                 if len(pl) == 1 and pl != {0}:
                     snaps[pl.pop()] = rows
+            state_rounds(s.result, 0xF1, seen)
             return season_over(scr)
         ok, msg = advance(s, stop, 1700)
     check(ok, f'season: {msg}', errs)
+    R = seen.get('rank')                         # (knockout: QF 4X v 1X, 3X v 2X inside each group, lib97.st_ko;
+    if R and seen.get(8) and seen.get(4):        # SF the winners of the same group's two ties, st_kend)
+        grp = lambda t: t // 6
+        order = {g: [t for t in R if grp(t) == g] for g in (0, 1)}
+        want = [frozenset((order[g][3], order[g][0])) for g in (0, 1)] + \
+               [frozenset((order[g][2], order[g][1])) for g in (0, 1)]
+        qf = tie_sets(*seen[8][0])
+        check(sorted(map(sorted, qf)) == sorted(map(sorted, want)), f'QF {seen[8][0][0]} (ranking {R})', errs)
+        for t in tie_sets(*seen[4][0]):
+            check(len({grp(x) for x in t}) == 1 and all(any(x in q for q in qf) for x in t)
+                  and len({next(k for k, q in enumerate(qf) if x in q) for x in t}) == 2,
+                  f'SF tie {sorted(t)} (QF {[sorted(q) for q in qf]})', errs)
+    else:
+        check(False, f'knockout rounds seen {sorted(k for k in seen if k != "rank")}', errs)
     check(len(snaps) >= 3 and max(snaps) <= 6, f'group-stage snapshots after days {sorted(snaps)}', errs)
     for d, rows in sorted(snaps.items()):
         a, bb = rows[:6], rows[6:]

@@ -260,9 +260,9 @@ def patch_exe(src, dst, remap, lang='it'):
     if mkseason.multi_ns():
         o2pages += 1
         data = add_object_page(data, 2)
-    if worlds:                                       # the FORMAT page's menu and texts (fmtpage.py, 5.0): the
-        o2pages += 1                                 # area of a world build has no room left for them
-        data = add_object_page(data, 2)
+    o2pages += 1                                     # the FORMAT page's menu and texts (fmtpage.py) and the zones'
+    data = add_object_page(data, 2)                  # menu copy (zones.py): every build shape (a world-less season /
+                                                     # tourney pack build too: its one page was full, classic_groups)
     nclubs = max((sum(len(pk.clubs) for pk in w) for w in mkseason.worlds().values()), default=0)
     for _ in range(max(0, -(-(nclubs - 1600) // 500))):   # a world of more than 1600 clubs (5.0, ~1850): its
         o2pages += 1                                     # strings + uefacoef's seeding table, one page per 500 more

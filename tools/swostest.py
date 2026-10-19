@@ -1699,7 +1699,7 @@ def zone_colours():
     w27 = os.environ.get('ZONES_W2627')                 # a full 2026-27 build (exe + DATA): two more tables
     if w27:
         for path, want27, leg27 in ((('INGHILTERRA', 'PREMIER LEAGUE', 'ARSENAL'),
-                                     ['lb'] * 5 + ['gr', 'db'] + ['pl'] * 10 + ['gy'] * 3, ['CL', 'EL', 'CONF', 'RETR']),
+                                     ['lb'] * 4 + ['gr', 'db'] + ['pl'] * 11 + ['gy'] * 3, ['CL', 'EL', 'CONF', 'RETR']),
                                     (('ITALIA', 'SERIE B', 'AVELLINO'),
                                      ['lb'] * 2 + ['gr'] * 6 + ['pl'] * 7 + ['or'] * 2 + ['gy'] * 3,
                                      ['PROM', 'P.OFF', 'P.OUT', 'RETR'])):
@@ -1717,8 +1717,8 @@ def zone_colours():
                 leg = [e[1] for e in scr.entries[-5:] if not e[2]]
                 check(leg == leg27, f'{path[1]}: legend {leg}', errs)
                 info.append(f"{path[1]}: {''.join(z[0] for z in got)}, legend {leg}")
-                if path[1] == 'PREMIER LEAGUE':         # a later season: no European colours (the engine decides
-                    import lepatch                      # them only at the season end), the relegation kept
+                if path[1] == 'PREMIER LEAGUE':         # another season year, the same ring: the same colours (they
+                    import lepatch                      # come from uc_rank, not from the season)
                     pe = lepatch.LEPatch(os.path.join(w27, 'ITALIAN.EXE'))
                     m = re.search(rb'\x80\x2d(.{4})\x01\xe8', pe.le.obj_bytes(1), re.S)
                     sp = pe.target(1, m.start() + 2)[1]
@@ -1727,7 +1727,7 @@ def zone_colours():
                     rows, scr = zone_rows(s, 'zones_premier_s2', len(want27))
                     got = [z for _, z in rows]
                     leg = [e[1] for e in scr.entries[-5:] if not e[2]]
-                    check(got == ['pl'] * 17 + ['gy'] * 3 and leg == ['RETR'], f'season 2: {got} {leg}', errs)
+                    check(got == want27 and leg == leg27, f'another season: {got} {leg} (uc_rank: the same ring)', errs)
                     info.append(f"PREMIER LEAGUE season 2: {''.join(z[0] for z in got)}, legend {leg}")
     return not errs, '; '.join(errs + info) if errs else '; '.join(info)
 

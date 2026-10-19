@@ -49,6 +49,22 @@ def access_list():
     return out
 
 
+def rank_colours(nranks=56):
+    """[rank 1..nranks-1 (index rank - 1)] -> EU_PLACES colours of places 1..EU_PLACES (0 = none): the access list (the
+    cup winner's place aside; the European Performance Spots are decided at the season end: not shown)."""
+    out = bytearray()
+    for r in range(1, nranks):
+        col = [0] * EU_PLACES
+        for rnd, code in access_list().get(r, []):
+            if code == 1:
+                continue
+            place = 1 if code == 0 else code
+            if place <= EU_PLACES:
+                col[place - 1] = LIGHT_BLUE if rnd < 8 else GREEN if rnd < 14 else DARK_BLUE
+        out += bytes(col)
+    return bytes(out)
+
+
 def lp_places(rank, cc):
     """[(place, colour)] of a league-phase world's top flight in season 1: the access list of its rank (the cup
     winner's place aside), the pack's own Champions League count when larger (the European Performance Spots)."""
@@ -66,10 +82,12 @@ NAME = 41                       # the slot's name field (as fmtpage.NAME)
 RANGES = 8
 LEG = 5                         # legend boxes (the colours a table uses, in place order)
 ENTRY = 1 + NAME + 1 + 3 * RANGES + 1 + 2 * LEG   # world, title, n, ranges, n legend, (colour, label) * LEG = 78
-ENTRY_PAD = 80
+ENTRY_PAD = 84
+ECODE = 80                      # a league-phase top flight: its association's code (the league's team file, uefacoef)
+EU_PLACES = 10                  # the access list's places looked at per rank (the top 9 + 1)
 EFLAG = 78                      # 1: a league-phase world's top flight (its European places: season 1 only)
-EU_SEASON1_ONLY = True          # the engine decides a season's European places at its end (uefacoef uc_final):
-                                # from season 2 no European colours (False: always, e.g. once uc_final lags a season)
+EU_SEASON1_ONLY = False         # (True: season-1 colours in season 1 only; False: every season from uc_rank, the
+                                # ranking a year old that decides the next season's places, uefacoef 131f04b)
 LEG_W, LEG_TXT = 30, 8
 FILE = {'it': b'data/zonit', 'en': b'data/zonen', 'fr': b'data/zonfr', 'de': b'data/zonde'}          # a legend box's width (5 small-font characters), its text buffer
 # legend labels (<= 5 characters): top flight of a league-phase world, of a classic world, a lower division
@@ -114,8 +132,8 @@ def pack_zones(d, lang, lp=False, rank=None):
             n, rng = dv['clubs'], []
             if id(dv) in top:
                 pl = m.get('europe_places', {})
-                if lp and rank:
-                    for place, col in lp_places(rank, pl.get('cc', 0)):
+                if lp:                                   # (run time from uc_rank unless EU_SEASON1_ONLY)
+                    for place, col in (lp_places(rank, pl.get('cc', 0)) if rank and EU_SEASON1_ONLY else []):
                         if rng and rng[-1][2] == col and rng[-1][1] == place - 1:
                             rng[-1] = (rng[-1][0], place, col)
                         else:
@@ -154,7 +172,11 @@ def pack_zones(d, lang, lp=False, rank=None):
                 rng.append((n - dv['down'] + 1, n, RED))
             if rng:
                 kind = ('lp' if lp else 'classic') if id(dv) in top and (m.get('europe_places') or rank) else 'lower'
-                out.append((world, _title(m, lang, complist._nm(dv['name'], lang)), rng[:RANGES], kind))
+                out.append((world, _title(m, lang, complist._nm(dv['name'], lang)), rng[:RANGES], kind,
+                            m['files'][comp['clubs']]['file'] if kind == 'lp' else 0))
+            elif lp and rank and id(dv) in top and not EU_SEASON1_ONLY:   # European colours only at run time
+                out.append((world, _title(m, lang, complist._nm(dv['name'], lang)), [], 'lp',
+                            m['files'][comp['clubs']]['file']))
     return out
 
 
@@ -175,10 +197,11 @@ def table(lang, pack_dirs):
     for d in pack_dirs:
         m = json.load(open(os.path.join(d, 'pack.json')))
         w = m.get('world', 0) if m.get('kind') == 'career' else 0
-        for world, title, rng, kind in pack_zones(d, lang, _lp_world(metas, w), ranks.get(d)):
+        for world, title, rng, kind, code in pack_zones(d, lang, _lp_world(metas, w), ranks.get(d)):
             assert (world, title) not in seen, (world, title)
             seen.add((world, title))
-            out.append((world, title, rng, legend(rng, kind), kind, metas.get(world, {}).get('start_year', 1900) - 1900))
+            out.append((world, title, rng, legend(rng, kind), kind, metas.get(world, {}).get('start_year', 1900) - 1900,
+                        code))
     return out
 
 
@@ -218,7 +241,7 @@ def legend(rng, kind):
 
 def blob(rows):
     b = bytearray(struct.pack('<I', len(rows)))
-    for world, title, rng, leg, kind, year in rows:
+    for world, title, rng, leg, kind, year, code in rows:
         t = title.encode('latin-1')[:NAME - 1]
         e = bytes([world]) + t + b'\0' * (NAME - len(t)) + bytes([len(rng)])
         for a, z, c in rng:
@@ -226,7 +249,7 @@ def blob(rows):
         e += b'\0' * (1 + NAME + 1 + 3 * RANGES - len(e)) + bytes([len(leg)])
         for c, k in leg:
             e += bytes([LEG_COLOUR.get(c, c), KEYS.index(k)])
-        e += b'\0' * (EFLAG - len(e)) + bytes([1 if kind == 'lp' else 0, year % 256])
+        e += b'\0' * (EFLAG - len(e)) + bytes([1 if kind == 'lp' else 0, year % 256, code])
         b += e + b'\0' * (ENTRY_PAD - len(e))
     return bytes(b)
 
@@ -326,13 +349,15 @@ WORLD_BYTE
     jmp .e
 .hit:
     mov edi, [ZHIT]
-    cmp word [D7], 0                    ; the first row: the legend boxes
+    cmp word [D7], 0                    ; the first row: the European places (run time), the legend boxes
     jne .nl
+RANK_CALL
     call zn_leg
 .nl:
     test edi, edi
     jz .x
-    call zn_eu                          ; bh = 1: no European colours (a later season of a league-phase world)
+    call zn_eu                          ; bh = 1: no European colours (EU_SEASON1_ONLY, a later season)
+EU_ROW
     movzx eax, word [D7]
     shr eax, 1
     inc eax                             ; the row's place 1..
@@ -347,6 +372,7 @@ WORLD_BYTE
     movzx edx, byte [esi + 2]           ; the zone's colour
     call zn_iseu
     je .rn
+.apply:
     mov [D3], dx
     mov esi, [A1]                       ; club (team file record): a computer club's name in the row colour
     cmp byte [esi + 4], 1
@@ -378,8 +404,10 @@ zn_leg:                                 ; edi = the table's entry or 0: the lege
     call zn_eu
     mov [ZEU], bh
     pop ebx
-    xor ecx, ecx                        ; ecx = box, esi = item
-    xor esi, esi
+    xor ecx, ecx                        ; ecx = box
+EU_LEG
+.d:
+    xor esi, esi                        ; esi = the entry's legend item
 .l:
     cmp ecx, LEG_
     jae .o
@@ -396,17 +424,36 @@ zn_leg:                                 ; edi = the table's entry or 0: the lege
     inc esi
     jmp .it
 .take:
+    mov al, [edi + LEGN_ + 1 + esi * 2]
+    mov ah, [edi + LEGN_ + 2 + esi * 2]
+    inc esi
+    call zn_box
+    jmp .l
+.h:
+    mov word [ebx + 4], 1
+    add ebx, 38h
+    inc ecx
+    jmp .l
+.o:
+    popad
+    ret
+
+zn_box:                                 ; ebx = a legend box, ecx = its number, dx = y, al = colour, ah = label:
+    push eax                            ; shown; ebx and ecx to the next one
+    push esi
+    push edi
     mov word [ebx + 4], 0
+    push eax
     imul eax, ecx, LEG_W_ + 1
     add eax, 8
     mov [ebx + 14h], ax
+    pop eax
     mov [ebx + 16h], dx
     push eax
-    movzx eax, byte [edi + LEGN_ + 1 + esi * 2]
+    movzx eax, al
     mov [ebx + 1Eh], ax
-    movzx eax, byte [edi + LEGN_ + 2 + esi * 2]
-    push esi
-    push edi
+    pop eax
+    movzx eax, ah
     lea esi, [LABS + eax * 8]
     lea edi, [LEGBUF + ecx * 8]
     movsd
@@ -414,16 +461,8 @@ zn_leg:                                 ; edi = the table's entry or 0: the lege
     pop edi
     pop esi
     pop eax
-    inc esi
-    jmp .n
-.h:
-    mov word [ebx + 4], 1
-.n:
     add ebx, 38h
     inc ecx
-    jmp .l
-.o:
-    popad
     ret
 
 zn_eu:                                  ; edi = the entry (or 0) -> bh = 1 when its European colours are off
@@ -508,6 +547,98 @@ def _current_menu(p):
     return p.target(1, m[0].start() + 26)
 
 
+RANK_ASM = r"""
+zn_rank:                                ; edi = a league-phase top flight's entry: ZEUC = its places' colours by the
+    pushad                              ; association's rank in uc_rank (the ranking a year old: the one that
+    xor eax, eax                        ; decides the next season's places, uefacoef 131f04b)
+    mov [ZEUC], eax
+    mov [ZEUC + 4], eax
+    mov [ZEUC + 8], ax
+    mov ebp, CBV
+    call UC_RANK
+    mov al, [edi + ECODE_]
+    xor ecx, ecx
+.f:
+    cmp ecx, [UC_N]
+    jae .o
+    cmp al, [UC_C + ecx]
+    je .g
+    inc ecx
+    jmp .f
+.g:
+    cmp ecx, ZRANKS_
+    jae .o
+    imul esi, ecx, EU_PLACES_
+    add esi, ZAL
+    mov edi, ZEUC
+    mov ecx, EU_PLACES_
+    rep movsb
+.o:
+    popad
+    ret
+"""
+RANK_CALL = """    test edi, edi
+    jz .lg
+    cmp byte [edi + EFLAG_], 0
+    je .lg
+    call zn_rank
+.lg:
+"""
+EU_ROW = """    cmp byte [edi + EFLAG_], 0          ; a league-phase top flight: places 1..EU_PLACES_ from ZEUC
+    je .eur
+    movzx eax, word [D7]
+    shr eax, 1
+    cmp eax, EU_PLACES_
+    jae .eur
+    movzx edx, byte [ZEUC + eax]
+    test edx, edx
+    jnz .apply
+.eur:
+"""
+EU_LEG = """    test edi, edi                       ; a league-phase top flight: its European colours first, in place
+    jz .d                               ; order, one box each (Conference: the framed dark blue)
+    cmp byte [edi + EFLAG_], 0
+    je .d
+    mov byte [ZSEEN], 0
+    xor esi, esi
+.e:
+    cmp esi, EU_PLACES_
+    jae .d
+    mov al, [ZEUC + esi]
+    inc esi
+    mov ah, 0
+    cmp al, 0Dh
+    je .e0
+    mov ah, 1
+    cmp al, 0Eh
+    je .e0
+    mov ah, 2
+    cmp al, 08h
+    je .e0
+    jmp .e
+.e0:
+    push ecx
+    mov cl, ah
+    mov ch, 1
+    shl ch, cl
+    test [ZSEEN], ch
+    jnz .e1
+    or [ZSEEN], ch
+    pop ecx
+    cmp ecx, LEG_
+    jae .o
+    cmp al, 08h
+    jne .e2
+    mov al, 13h
+.e2:
+    call zn_box
+    jmp .e
+.e1:
+    pop ecx
+    jmp .e
+"""
+
+
 def patch(p, at, area, lang, pack_dirs, bss, bss_len, world=None):
     """Code at obj1:at, small data in obj2 area; the tables in DATA\\ZONxx[world].DAT (write()), read into the shared
     buffer obj2:bss (bss_len bytes, fmtpage's) when the table changes; world = careerworld's sites in a world build."""
@@ -531,6 +662,12 @@ def patch(p, at, area, lang, pack_dirs, bss, bss_len, world=None):
     first = ('    call LP_COL\n' if lp else '    mov ax, [C11]\n')
     src = ASM.replace('FIRST\n', first)
     src = src.replace('LP_SKIP\n', '    call LP_OURS\n    je .x\n' if lp else '')
+    import uefacoef
+    rt = lp and world is not None and not EU_SEASON1_ONLY and 'uc_rank' in uefacoef.LABELS
+    src = src.replace('RANK_CALL\n', RANK_CALL if rt else '').replace('EU_ROW\n', EU_ROW if rt else '')
+    src = src.replace('EU_LEG\n', EU_LEG if rt else '')
+    if rt:
+        src += RANK_ASM
     src = src.replace('SEASON_TEST\n', '    mov bl, [SEASONP]\n    cmp bl, [edi + EFLAG_ + 1]\n    je .r\n    mov bh, 1\n'
                       if world and EU_SEASON1_ONLY else '')
     src = src.replace('WORLD_BYTE\n', '''    cmp word [GAMETYPE], 4
@@ -542,7 +679,13 @@ def patch(p, at, area, lang, pack_dirs, bss, bss_len, world=None):
            **({'C11': c11} if c11 else {}), 'ZHIT': (2, keys), 'ZEU': (2, keys + 47), 'ZKEY': (2, keys + 4), 'NAME_': (0, NAME), 'ZENT': (2, zent),
            'ZFILE': (2, zfile), 'FN_BASE_': (0, len(FILE[lang])), 'BUF': (2, bss), 'BUFLEN_': (0, bss_len),
            'ENTRY_': (0, ENTRY_PAD), 'LEG_': (0, LEG), 'LEG_W_': (0, LEG_W), 'LEGN_': (0, 1 + NAME + 1 + 3 * RANGES),
-           'LABS': (2, labs), 'EFLAG_': (0, EFLAG), 'LEGBUF': (2, legbuf), 'MENU': cur_menu}
+           'LABS': (2, labs), 'EFLAG_': (0, EFLAG), 'ECODE_': (0, ECODE), 'EU_PLACES_': (0, EU_PLACES), 'LEGBUF': (2, legbuf), 'MENU': cur_menu}
+    if rt:
+        zal = area.add(rank_colours())
+        zeuc = area.add(bytes(EU_PLACES + 2))
+        sym.update({'UC_RANK': (1, uefacoef.LABELS['uc_rank']), 'UC_N': (1, uefacoef.LABELS['UC_N']),
+                    'UC_C': (1, uefacoef.LABELS['UC_C']), 'CBV': uefacoef.LABELS['CB_ADDR'], 'ZAL': (2, zal),
+                    'ZEUC': (2, zeuc), 'ZSEEN': (2, zeuc + EU_PLACES + 1), 'ZRANKS_': (0, 55)})
     if lp:
         sym.update({'LP_COL': (1, site + 5 + struct.unpack('<i', cur[1:5])[0]), 'LP_OURS': (1, lp36.LABELS['lp_ours'])})
     if world:

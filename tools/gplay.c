@@ -578,6 +578,7 @@ struct gp_state {
 };
 struct gp_state GP_ST;
 extern const u8 *GP_CFB;
+extern u16 GP_MGR;
 struct gp_gs { u8 sdiv[GSD], pad; struct gp_srow srow[GSD][GSR]; };   /* the early tables beyond SD (a group contest:
                                            the Poule's 8 other groups; the engine block's item 'GS') */
 struct gp_gs GP_GS;
@@ -1061,6 +1062,128 @@ static void stage_done(const struct gp_ko *k) {   /* a stage title's knockout de
 }
 
 u32 GP_WK;                              /* (the glue: the current calendar entry's week) */
+
+/* ---- The Coppa Italia Serie D (cupd.py: CD_TAB; state CD_ST, the engine block's item 'CD'). At every calendar
+   advance (gp_adv -> cd_step_c), each round whose week is next (or past): the career club's tie is built in slot 4
+   (a 1-tie contest, its result back through gp_rec_c -> cd_done), every other tie decided now (the world's first
+   season: its real result when known; else 55% to the home club). Hosts: listed, drawn, or 'alternate' (the club
+   away in its previous tie hosts; both home / both away: drawn). A 'draw' round pairs the previous round's winners
+   at random. Later seasons: no table yet (the bracket is the world's first season's). */
+enum { K_CUPD = 9, CDT = 168 };
+struct cd_state { u16 magic; u8 season, round, built, bt, drawn, pad; u8 res[CDT], home[CDT]; u8 sd[4]; };
+struct cd_state CD_ST;
+const u8 *GP_CDT;                       /* (the glue: CD_TAB of the running world, or 0) */
+const u32 *GP_CDNM;                     /* (its names: dd long, short) */
+u32 GP_CDFIRST;                         /* (the career's first season in the world) */
+#define CDREC(r) (GP_CDT + 4 + 8 * (r))
+#define CDTIE(t) (GP_CDT + 4 + 8 * GP_CDT[1] + 6 * (t))
+
+static u16 cd_side(int t, int sd) {     /* tie t's side sd (0 a, 1 b): a team word, 0 (off-file), FFFFh undecided */
+    const u8 *x = CDTIE(t);
+    u16 v = x[2 * sd] | x[2 * sd + 1] << 8;
+    if (!(v & 0x8000)) return v;
+    int i = v & 0x7FFF;
+    if (i == 0x7FFF) {                  /* (a drawn round: its k-th tie = the previous round's sd[2k], sd[2k+1]) */
+        int r = CD_ST.round, first = CDREC(r)[6] | CDREC(r)[7] << 8;
+        i = CD_ST.sd[2 * (t - first) + sd];
+    }
+    if (i >= CDT || !CD_ST.res[i]) return 0xFFFF;
+    return cd_side(i, CD_ST.res[i] - 1);
+}
+
+static int cd_hosted(int t, u16 club) { /* the club hosted tie t (two legs: the first leg) */
+    int h = CD_ST.home[t];
+    return cd_side(t, h) == club;
+}
+
+static void cd_ko(struct gp_ko *k, u16 home, u16 away, int w1, int w2, int legs) {
+    k->magic = 0;
+    k->slot = 4; k->cid = 0xFE; k->pi = 0xFF; k->kind = K_CUPD; k->n = 2; k->nrs = 1; k->ldiv = 0;
+    k->ntie = 1; k->ngr = 1; k->gcur = 0;
+    for (int i = 0; i < KT; i++) k->tw[i] = k->tl[i] = NOC;
+    for (int i = 0; i < 8; i++) k->bye[i] = 0;
+    k->rs[0][0] = 1; k->rs[0][1] = legs; k->rs[0][2] = HOST_LISTED; k->rs[0][3] = LV_PENS; k->rs[0][4] = 0;
+    k->rs[0][5] = 0;
+    k->rc[0] = 0; k->rc[1] = 1; k->gt0[0] = 0; k->gt0[1] = 1;
+    k->rb[0] = rbyte(legs, LV_PENS); k->gsr[0] = 0; k->gno[0] = 0;
+    k->gp0[0] = 0; k->gp0[1] = 1; k->pa[0] = 0; k->pb[0] = 1; k->pw[0] = NOC; k->ptie[0] = 0;
+    k->team[0] = home; k->team[1] = away; k->code[0] = 0; k->code[1] = 1; k->prio[0] = 0; k->prio[1] = 1;
+    k->ient[0] = 0; k->ient[1] = 1; k->pts[0] = k->pts[1] = 0;
+    k->lfile = GP_CDT[2];
+    k->d1 = w1 > (int)GP_WK ? w1 : GP_WK + 1;
+    k->d2 = legs == 2 ? (w2 > k->d1 ? w2 : k->d1 + 1) : k->d1;
+    k->bye[0] = 0xFE; k->bye[1] = 0xFF; k->bye[2] = 2; k->bye[3] = 0; k->bye[4] = 1;
+    u8 *c = k->con;
+    int len = 14;
+    for (int i = 0; i < 14; i++) c[i] = GP_HDR[i];
+    c[0] = 0xFE; c[2] = k->lfile; c[3] = k->d1; c[4] = k->d2; c[10] = 2;
+    c[len++] = k->rb[0];
+    c[len++] = 0;
+    c[5] = len - 5;
+    c[7] = len + 8 - 7;
+    for (int i = 0; i < 8; i++) c[len + i] = ((const u8 *)GP_CDNM)[i];
+    len += 8;
+    for (int j = 0; j < 2; j++) { c[len++] = k->team[j]; c[len++] = k->team[j] >> 8; }
+    k->season = GP_SEAS;
+    k->magic = MAGIC;
+    GP_ST.magic = MAGIC;
+    GP_ST.season = GP_SEAS;
+}
+
+/* the calendar advance: 1 = a tie of the career club built into ko[0] (gp_install it), else 0 */
+u32 cd_step_c(void) {
+    if (!GP_CDT) return 0;
+    if (CD_ST.magic != 0x4443 || CD_ST.season != GP_SEAS) {     /* (a new season: the cup from its start) */
+        u8 *p = (u8 *)&CD_ST;
+        for (u32 i = 0; i < sizeof CD_ST; i++) p[i] = 0;
+        CD_ST.magic = 0x4443; CD_ST.season = GP_SEAS;
+    }
+    if (!GP_CDFIRST) return 0;          /* (later seasons: no bracket yet) */
+    while (CD_ST.round < GP_CDT[1]) {
+        int r = CD_ST.round;
+        const u8 *rec = CDREC(r);
+        int w1 = rec[0], w2 = rec[1], legs = rec[2], host = rec[3], n = rec[4], first = rec[6] | rec[7] << 8;
+        if ((int)GP_WK + 1 < w1 || CD_ST.built) return 0;
+        rng = GP_SEAS * 7919u + r * 131u + first;
+        if ((rec[5] & 1) && CD_ST.drawn != r + 1) {             /* (the pairs drawn: the previous round's ties) */
+            int pf = CDREC(r - 1)[6] | CDREC(r - 1)[7] << 8, pn = CDREC(r - 1)[4];
+            for (int i = 0; i < 4 && i < pn; i++) CD_ST.sd[i] = pf + i;
+            for (int i = (pn < 4 ? pn : 4) - 1; i > 0; i--) { int j = below(i + 1); u8 x = CD_ST.sd[i];
+                                                                  CD_ST.sd[i] = CD_ST.sd[j]; CD_ST.sd[j] = x; }
+            CD_ST.drawn = r + 1;
+        }
+        for (int q = 0; q < n; q++) {
+            int t = first + q;
+            if (CD_ST.res[t]) continue;
+            u16 a = cd_side(t, 0), b = cd_side(t, 1);
+            const u8 *x = CDTIE(t);
+            int h = 0;                  /* (0: a hosts, 1: b hosts) */
+            if (host == 2) h = below(2);
+            else if (host == 4) {
+                int pa_ = (x[1] & 0x80) ? (x[0] | (x[1] & 0x7F) << 8) : -1, pb_ = (x[3] & 0x80) ? (x[2] | (x[3] & 0x7F) << 8) : -1;
+                int ha = pa_ >= 0 && pa_ < CDT && cd_hosted(pa_, a), hb = pb_ >= 0 && pb_ < CDT && cd_hosted(pb_, b);
+                h = ha && !hb ? 1 : !ha && hb ? 0 : below(2);
+            }
+            CD_ST.home[t] = h;
+            if ((a == GP_MGR || b == GP_MGR) && a && b && a != 0xFFFF && b != 0xFFFF) {   /* the career club's */
+                cd_ko(&GP_ST.ko[0], h ? b : a, h ? a : b, w1, w2, legs);
+                CD_ST.built = 1; CD_ST.bt = t;
+                return 1;
+            }
+            int w = GP_CDFIRST ? x[4] : 0;                      /* (the real result, the world's first season) */
+            if (!w) w = !a ? 2 : !b ? 1 : (below(100) < 55) == !h ? 1 : 2;   /* (else 55% to the home club) */
+            CD_ST.res[t] = w;
+        }
+        CD_ST.round = r + 1;
+    }
+    return 0;
+}
+
+static void cd_done(struct gp_ko *k) {  /* gp_rec_c: our CD tie decided -> its result */
+    if (!CD_ST.built || k->tw[0] == NOC) return;
+    CD_ST.res[CD_ST.bt] = k->team[k->tw[0]] == cd_side(CD_ST.bt, 0) ? 1 : 2;
+    CD_ST.built = 0;
+}
 static void set_pend(int then, int week) {   /* 'then_build': the next play-off at the calendar advance from week on */
     GP_ST.pend = then; GP_ST.pweek = week > 255 ? 255 : week; GP_ST.pseas = GP_SEAS;
 }
@@ -1148,6 +1271,7 @@ void gp_rec_c(void) {
     for (int p = k->gp0[g]; p < k->gp0[g + 1]; p++)
         if ((k->pa[p] == a && k->pb[p] == b) || (k->pa[p] == b && k->pb[p] == a)) k->pw[p] = GP_W ? b : a;
     resolve(k);
+    if (k->kind == K_CUPD) { cd_done(k); return; }
     if (k->bye[5] && k->ntie && k->tw[k->ntie - 1] != NOC) {   /* (its final decided: the next one, once, from the
                                            week after: the advance right after the final still has slot 4's contest
                                            in hand, a build there was lost - 4.0's Trofeo) */
@@ -1169,6 +1293,7 @@ void gp_played_c(void) {
     struct gp_ko *k = &GP_ST.ko[0];
     GP_IN.pl_pi = 0;
     GP_IN.pl_t2 = 0;
+    if (k->kind == K_CUPD) return;      /* (a Coppa Italia Serie D tie: not a play-off of the spec) */
     if (GP_ST.magic != MAGIC || GP_ST.season != GP_SEAS || k->magic != MAGIC || k->season != GP_SEAS) return;
     GP_IN.pl_pi = k->pi + 1;
     GP_IN.pl_t2 = KT2(k);

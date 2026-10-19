@@ -202,6 +202,8 @@ when the engine lands it.
     Eccellenza) play the preliminary round, filled up with the lowest-placed clubs of each group; the others enter at
     the primo turno.
   - **Played by your club**, with the real round names (TURNO PRELIMINARE, PRIMO TURNO, TRENTADUESIMI ... FINALE).
+  - The ties your club does not play are decided by the clubs' strength (their best 11, as every other simulated
+    result), home advantage included.
 
 *National cups 2026-27*
 - **Every club still in when the data was taken (October 2026)**, each from **its real round**: clubs entering later
@@ -656,6 +658,8 @@ Non una formula uguale per tutti: ogni campionato gioca la stagione come l'ha sc
     dall'Eccellenza) giocano il turno preliminare, completato con le peggio piazzate di ogni girone; le altre entrano
     al primo turno.
   - **La gioca la tua squadra**, coi nomi veri dei turni (TURNO PRELIMINARE, PRIMO TURNO, TRENTADUESIMI ... FINALE).
+  - Le sfide che non giochi si decidono con la forza dei club (i migliori 11, come ogni altro risultato simulato),
+    compreso il vantaggio del campo.
 
 *Coppe nazionali 2026-27*
 - **Tutte le squadre ancora in corsa quando sono stati presi i dati (ottobre 2026)**, ognuna dal **suo turno vero**:

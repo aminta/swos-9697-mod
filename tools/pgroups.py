@@ -33,7 +33,13 @@ pg_fix:                                 ; replaces `call cseg_7CAA2` (leaguesTab
     or eax, -1
 .mgr:
     mov [RI_MGR], eax
-    push dword RI_SR                    ; (statespec's stage-1 ranking, the 'SR' item, or 0)
+    cmp dword [RI_PRE_PTR], 0           ; statesim (statecup): the rankings of every state first, when hooked
+    je .nopre
+    pushad
+    call [RI_PRE_PTR]
+    popad
+.nopre:
+    push dword [RI_SR_PTR]              ; (every state's ranking, statespec's 'SR' item: its address, or 0)
     movzx eax, byte [SLT + WORLD_BYTE]
     push eax
     push dword SLTCOPY
@@ -41,6 +47,12 @@ pg_fix:                                 ; replaces `call cseg_7CAA2` (leaguesTab
     push dword RI_TAB
     call RI_SEASON
     add esp, 20
+    cmp dword [RI_POST_PTR], 0          ; statecup: the overrides (RI_OVR) into the state contests, when hooked
+    je .nopost
+    pushad
+    call [RI_POST_PTR]
+    popad
+.nopost:
 %endif
     push dword PG_TAB
     call PG_SEASON

@@ -551,8 +551,15 @@ when the engine lands it.
 - The 1996-97 game as it really was (the real 1996-97 groups, Supercup, Intertoto, leagues and cups) comes in 4.1.
 
 **Updating**
-- The patcher upgrades 3.3.6 and every earlier version (CD and GOG, also the English SWOS++ version). [TODO 4.0
-  session: which files change, saves compatibility, the World 2026-27 data files.] -->
+- The patcher upgrades every published version (1.0.1 to 3.3.6, CD and GOG, also the English SWOS++ version) and the
+  original game, checking every file before and after (an old file goes back to the original, then to 4.0). Drop your
+  executable and DATA files as usual: 15 files change (the executables, TEAM.020, TEAM.096, TEAM.105, TEAM.145,
+  WORLD04.TMD) and 213 are new (the World 2026-27's team files TMW5.101-218 and their squads beyond 16, its world
+  and pool files, the FORMAT texts and the table colours in 4 languages, and the renamed EUROCUP.TMD, UEFACUP.TMD
+  and POOLPLYR.DAT). Copy the new files into DATA too. The patcher page now needs a recent browser (Chrome 103+,
+  Safari 16.4+, Firefox 113+).
+- Saves: careers of the 1996-97 game saved with 3.3.6 and earlier load and play on. [REGIA: Europe 1984-85 careers
+  saved with 3.x: fixed or 'must be restarted', decided ~21:45.] -->
 
 ## Italiano
 
@@ -1133,5 +1140,12 @@ Baiano, Cearense, Pernambucano, Alagoano e Mato-Grossense.
 - Il gioco 1996-97 com'era davvero (i gironi veri 1996-97, Supercoppa, Intertoto, campionati e coppe) arriva nella 4.1.
 
 **Aggiornamento**
-- Il patcher aggiorna la 3.3.6 e tutte le versioni precedenti (CD e GOG, anche la versione inglese con SWOS++). [TODO
-  sessione 4.0: quali file cambiano, compatibilità dei salvataggi, i file dei dati del Mondo 2026-27.] -->
+- Il patcher aggiorna tutte le versioni pubblicate (dalla 1.0.1 alla 3.3.6, CD e GOG, anche la versione inglese con
+  SWOS++) e il gioco originale, controllando ogni file prima e dopo (un file vecchio torna all'originale, poi alla
+  4.0). Trascina come sempre l'eseguibile e i file di DATA: cambiano 15 file (gli eseguibili, TEAM.020, TEAM.096,
+  TEAM.105, TEAM.145, WORLD04.TMD) e ne arrivano 213 nuovi (i file delle squadre del Mondo 2026-27 TMW5.101-218 e le
+  loro rose oltre i 16, i file del mondo e della riserva, i testi FORMULA e i colori delle classifiche nelle 4 lingue,
+  e i rinominati EUROCUP.TMD, UEFACUP.TMD e POOLPLYR.DAT). Copia anche i file nuovi in DATA. La pagina del patcher ora
+  richiede un browser recente (Chrome 103+, Safari 16.4+, Firefox 113+).
+- Salvataggi: le carriere del gioco 1996-97 salvate con la 3.3.6 e precedenti si caricano e continuano. [REGIA:
+  carriere Europa 1984-85 salvate con la 3.x: corrette o 'da ricominciare', si decide verso le 21:45.] -->

@@ -1906,5 +1906,7 @@ def fx_patch(p, at, area):
     for vec, fn in (('FX_COPY_V', 'fx_copy'), ('FX_START_V', 'fx_start'), ('FX_PAIR_V', 'fx_pair')):
         p.retarget(1, LABELS[vec], 1, lab[fn])
         p.put(1, LABELS[vec], struct.pack('<I', lab[fn]))
+    LABELS['FX_ROWS'] = {k: lab['FX_TAB'] + 20 * i + 16 for i, k in enumerate(sorted(FIXTURES))}   # (statespec's
+                                                                    # overrides: a state's first club changes)
     print(f'exe: fixture contests {[(hex(c), f) for c, f in sorted(FIXTURES)]}: obj1+{at:#x}..{at + len(code):#x}')
     return (at + len(code) + 3) & ~3

@@ -1780,10 +1780,13 @@ def world8485():
             nosack, poked = (nosack_off(os.path.join(exe, 'ITALIAN.EXE')) if os.environ.get('W8485_NOSACK') == '1'
                              else None), set()
 
-            def hexlog():                              # W8485_HEX: obj2 offset:bytes, logged when they change
-                for a in filter(None, os.environ.get('W8485_HEX', '').split(',')):
+            def hexlog():                              # W8485_HEX: obj2 offset:bytes (o1/ prefix: obj1),
+                for a in filter(None, os.environ.get('W8485_HEX', '').split(',')):   # logged when they change
                     o, n = a.split(':')
-                    v = s.result.obj2(int(o, 16), int(n)).hex()
+                    if o.startswith('o1/'):
+                        v = s.result.read(s.result.base1 + int(o[3:], 16), int(n)).hex()
+                    else:
+                        v = s.result.obj2(int(o, 16), int(n)).hex()
                     if hexseen.get(o) != v:
                         hexseen[o] = v
                         s.log.append(f'HEX {o} {v}')
@@ -4197,6 +4200,91 @@ def world_gplay_play(force='2', team='EUROPA,SCOZIA,SCOTTISH LEAGUE TWO,CLYDE', 
                                          f"game rounds seen {gw}, winner {win:#x} (code {wcode}), moves {mv}")
 
 
+def sr_blocks(b):
+    """'SR' bytes -> [(key, [team words])] up to the dw 0."""
+    out, k = [], 0
+    while k + 4 <= len(b):
+        key, n = struct.unpack_from('<HB', b, k)
+        if not key:
+            break
+        out.append((key, list(struct.unpack_from(f'<{n}H', b, k + 4))))
+        k += 4 + 2 * n
+    return out
+
+
+@scenario
+def world_statesim(team='SUDAMERICA,BRASILE,CAMPEONATO BRASILEIRO SERIE A,ATHLETICO-PR'):
+    """State championships at the season end (statespec statesim.c + ripool, World 2026-27 private data world5tm):
+    two seasons at ATHLETICO-PR (Paranaense): season 1's SS_LAST (statesim's SR) has one block per state, the
+    Paranaense's = the real stage-1 order seen at its first knockout (ST_RANK block 0, st_rec) with its relegation
+    play-outs applied; season 2's Paranaense list (block 0 again) still holds 12 clubs and no season-1 relegated
+    LEAGUE club (those leave through RI_OVR; a state-only club keeps its word, ripool swaps its identity)"""
+    src = os.path.join(MAIN, 'internal', 'world2526', 'world5tm')
+    if not os.path.isdir(src):
+        return True, 'SKIP: private data internal/world2526/world5tm missing'
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    env = {'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order])}
+    exe = os.environ.get('STATESIM_BUILD') or build('world_statesim' + ('_' + os.environ['SWOSTEST_TAG']
+                                                                         if os.environ.get('SWOSTEST_TAG') else ''),
+                                                      env=env)   # (a tag of its own: parallel sessions)
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    from le import LE
+    d1 = LE(open(os.path.join(exe, 'ITALIAN.EXE'), 'rb').read()).obj_bytes(1)
+    k = d1.find(b'SSLASTPT')
+    if k < 0:
+        return False, 'no SSLASTPT block in the exe (statesim not built)'
+    rank_at, last_at, ord_at = struct.unpack_from('<3I', d1, k + 8)
+    keep = {x: os.environ.get(x) for x in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K',
+                                            'W8485_NOSACK', 'W8485_HEX')}
+    os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5', W8485_K='108+',
+                      W8485_NOSACK='1', W8485_HEX=f'o1/{rank_at:x}:470,o1/{last_at:x}:470,o1/{ord_at:x}:208')   # (+ ss_ord: each state's
+                                                                              # stage-1 order, club indices)
+    try:
+        ok, msg = world8485()
+    finally:
+        for x, v in keep.items():
+            if v is None:
+                os.environ.pop(x, None)
+            else:
+                os.environ[x] = v
+    hexes = {}
+    for sn in (1, 2):                            # (each season's own run)
+        f = os.path.join(RUNS, w84_tag() + f'_{sn}', 'session.log')
+        for ln in open(f, errors='replace') if os.path.exists(f) else []:
+            q = ln.split()
+            if len(q) == 3 and q[0] == 'HEX':
+                hexes.setdefault(q[1], []).append(bytes.fromhex(q[2]))
+    errs = []
+    check(ok, msg, errs)
+    ranks = [sr_blocks(b) for b in hexes.get(f'o1/{rank_at:x}', [])]
+    lasts = [sr_blocks(b) for b in hexes.get(f'o1/{last_at:x}', [])]
+    played = [r[0] for r in ranks if r]                      # block 0 as st_rec wrote it, each season
+    lasts = [x for x in lasts if x]
+    check(len(lasts) >= 1, f'statesim never ran (SS_LAST {len(lasts)} values)', errs)
+    if lasts:                                    # (the first one may be the career's start: pg_fix runs there)
+        L = next((x for x in lasts if played and x[0][0] == played[0][0]), lasts[-1])
+        keys = [kk for kk, _ in L]
+        check(len(L) >= 10 and len(set(keys)) == len(keys), f'season 1: {len(L)} blocks, keys {[hex(x) for x in keys]}',
+              errs)
+        if played:
+            pk, pw = played[0]
+            blk = dict(L).get(pk)
+            check(blk is not None and sorted(blk) == sorted(pw), f'played state {pk:#x}: SR {blk} vs order {pw}', errs)
+            if len(played) >= 2 and blk:
+                p2k, p2w = played[1]                 # (a relegated state-only club keeps its word: ripool swaps
+                gone = [w for w in blk[-2:] if w in p2w and (w & 255) != 0xA1]   # the identity in file 161)
+                check(p2k == pk and len(p2w) == len(pw) and not gone,
+                      f'season 2 list {[hex(x) for x in p2w]}: season-1 relegated {[hex(x) for x in blk[-2:]]} '
+                      f'still in: {[hex(x) for x in gone]}', errs)
+            else:
+                check(False, f'season 2: no block 0 seen ({len(played)} seasons with one)', errs)
+        else:
+            check(False, 'no block 0 (st_rec) seen', errs)
+    return not errs, '; '.join(errs + [f"{msg}; SR seasons {len(played)}, statesim runs {len(lasts)}; "
+                                        f"played {[(hex(kk), [hex(x) for x in w]) for kk, w in played]}; "
+                                        f"last {[(hex(kk), [hex(x) for x in w[-2:]]) for kk, w in (lasts[0] if lasts else [])]}"])
+
+
 @scenario
 def world_gplay_reserve(force='20', team='EUROPA,ITALIA,SERIE C GIRONE A,RENATE', src=None, div=2, direct=20):
     """The career club relegated into the reserve is sacked (gplay gp_sack, SeasonFinished's contract check): the
@@ -5445,6 +5533,62 @@ def contest_tables(r, cid, groups, size):
     return out
 
 
+def state_rounds(r, cid, seen):
+    """Knockout snapshots of a type-2 contest cid (statespec): seen['rank'] = the copy's +59h order when its
+    first knockout stage starts ([53h] = 1); seen[n] = [the round's list +2CDh (n clubs)], first-seen order."""
+    d = r.read(r.base2, 0x100000)
+    for i in range(len(d) - 0x41F):
+        if d[i + 0x2D] != cid:
+            continue
+        n = struct.unpack_from('<H', d, i + 0x31)[0]
+        if d[i] == 2 and struct.unpack_from('<H', d, i + 0x53)[0] == 1 and 'rank' not in seen:
+            seen['rank'] = list(d[i + 0x59:i + 0x59 + n])
+        elif d[i] == 1 and n in (2, 4, 6, 8, 16):
+            lst = list(d[i + 0x2CD:i + 0x2CD + n])
+            ties = struct.unpack_from('<H', d, i + 0x4F)[0]
+            if (lst, ties) not in seen.setdefault(n, []):
+                seen[n].append((lst, ties))
+
+
+def tie_sets(lst, ties):
+    return [frozenset(lst[2 * k:2 * k + 2]) for k in range(ties)]
+
+
+@scenario
+def statespec_byes():
+    """State knockout byes (lib97.st_ko / st_kend, STATESPEC_TEST=2 build: a Pernambucano-shaped world-0 test state
+    F1 at ATL PARANAENSE: 8 clubs, single round robin; 3rd-6th play the QF (6v3, 5v4), 1st-2nd wait; SF W(5v4) v 1st,
+    W(6v3) v 2nd; final): the QF round has 2 ties of exactly those pairs, the SF one tie per bye with the winner of
+    its own QF tie, the final one SF winner of each tie"""
+    b = os.environ.get('STATESPEC_BUILD2') or builds()['it']
+    errs, seen = [], {}
+    with Session('statespec_byes', b, {}, 'dump:2', 1800) as s:
+        s.wait()
+        new_career(s, 'BRASILE', None, 'ATL PARANAENSE', 'SUDAMERICA')
+
+        def stop(scr):
+            state_rounds(s.result, 0xF1, seen)
+            return season_over(scr)
+        ok, msg = advance(s, stop, 1700)
+    check(ok, f'season: {msg}', errs)
+    R = seen.get('rank')
+    check(R is not None and len(R) == 8, f'group ranking {R}', errs)
+    if R and seen.get(6) and seen.get(4) and seen.get(2):
+        qf, qt = seen[6][0]
+        check(qt == 2 and tie_sets(qf, 2) == [frozenset((R[5], R[2])), frozenset((R[4], R[3]))]
+              and qf[4:6] == [R[0], R[1]], f'QF {qf} ties {qt} (ranking {R})', errs)
+        sf, st = seen[4][0]
+        a, c = tie_sets(sf, 2)
+        check(st == 2 and R[0] in a and len(a & {R[4], R[3]}) == 1 and R[1] in c and len(c & {R[5], R[2]}) == 1,
+              f'SF {sf}', errs)
+        fin = set(seen[2][0][0])
+        check(len(fin & a) == 1 and len(fin & c) == 1, f'final {sorted(fin)}', errs)
+    else:
+        check(False, f'rounds seen {sorted(k for k in seen if k != "rank")}', errs)
+    return not errs, '; '.join(errs + [f'{msg}; ranking {R}, rounds ' + ', '.join(
+        f'{n}: {v[0]}' for n, v in sorted((k, v) for k, v in seen.items() if k != 'rank'))])
+
+
 @scenario
 def statespec_test():
     """State championships (statespec.py, STATESPEC_TEST=1 build: world 0's Brazil gets a Paranaense-shaped test state,
@@ -5458,14 +5602,31 @@ def statespec_test():
         s.wait()
         new_career(s, 'BRASILE', None, 'ATL PARANAENSE', 'SUDAMERICA')
 
+        seen = {}
+
         def stop(scr):
             for rows in contest_tables(s.result, 0xF1, 2, 6):
                 pl = {x[0] for x in rows}
                 if len(pl) == 1 and pl != {0}:
                     snaps[pl.pop()] = rows
+            state_rounds(s.result, 0xF1, seen)
             return season_over(scr)
         ok, msg = advance(s, stop, 1700)
     check(ok, f'season: {msg}', errs)
+    R = seen.get('rank')                         # (knockout: QF 4X v 1X, 3X v 2X inside each group, lib97.st_ko;
+    if R and seen.get(8) and seen.get(4):        # SF the winners of the same group's two ties, st_kend)
+        grp = lambda t: t // 6
+        order = {g: [t for t in R if grp(t) == g] for g in (0, 1)}
+        want = [frozenset((order[g][3], order[g][0])) for g in (0, 1)] + \
+               [frozenset((order[g][2], order[g][1])) for g in (0, 1)]
+        qf = tie_sets(*seen[8][0])
+        check(sorted(map(sorted, qf)) == sorted(map(sorted, want)), f'QF {seen[8][0][0]} (ranking {R})', errs)
+        for t in tie_sets(*seen[4][0]):
+            check(len({grp(x) for x in t}) == 1 and all(any(x in q for q in qf) for x in t)
+                  and len({next(k for k, q in enumerate(qf) if x in q) for x in t}) == 2,
+                  f'SF tie {sorted(t)} (QF {[sorted(q) for q in qf]})', errs)
+    else:
+        check(False, f'knockout rounds seen {sorted(k for k in seen if k != "rank")}', errs)
     check(len(snaps) >= 3 and max(snaps) <= 6, f'group-stage snapshots after days {sorted(snaps)}', errs)
     for d, rows in sorted(snaps.items()):
         a, bb = rows[:6], rows[6:]

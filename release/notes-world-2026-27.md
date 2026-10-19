@@ -532,6 +532,8 @@ when the engine lands it.
 **Also in this release**
 - Europe 1984-85 career: league tables in colour (see above), each competition's FORMAT page with its table colours,
   the European cups' titles without a leading space.
+- CLASSIC CAREERS no longer lists ALBANIA as an entry of its own (since 3.0 the first country of the Europe 1984-85
+  world also appeared next to the world).
 - The 1996-97 game as it really was (the real 1996-97 groups, Supercup, Intertoto, leagues and cups) comes in 4.1.
 
 **Updating**
@@ -1097,6 +1099,8 @@ Baiano, Cearense, Pernambucano, Alagoano e Mato-Grossense.
 **Anche in questa versione**
 - Carriera Europa 1984-85: classifiche a colori (vedi sopra), la pagina FORMULA di ogni competizione coi colori della
   classifica, i titoli delle coppe europee senza lo spazio iniziale.
+- CARR. STORICHE non elenca più ALBANIA come voce a sé (dalla 3.0 la prima nazione del mondo Europa 1984-85
+  compariva anche accanto al mondo).
 - Il gioco 1996-97 com'era davvero (i gironi veri 1996-97, Supercoppa, Intertoto, campionati e coppe) arriva nella 4.1.
 
 **Aggiornamento**

@@ -63,7 +63,6 @@ Not one fixed formula for everybody: each league plays the season the way its ow
     and Conference Finals, single matches at the higher seed; the MLS Cup at the club with the better record. Extra
     time and penalties from the Conference Semifinals. Playable by your club, with the real round names.
   Declared: the tables are the two conferences; the Supporters' Shield is not shown as a separate table.
-<!-- REGIA STAGED (title play-offs, branch titlepo; publish when merged + TM_TITLE=1 + the champion applied):
 - **Title play-offs where the champion is decided after the table**:
   - **Canada** (CPL): the top 4, semi-finals 1st v 4th and 2nd v 3rd over two legs (the better placed hosts the
     return), a single final at the better placed's ground.
@@ -77,7 +76,9 @@ Not one fixed formula for everybody: each league plays the season the way its ow
     rounds, a decider or a Final Four seeded by aggregate points.
   Extra time and penalties where the tie is level. Declared for Malta: single matches at a neutral ground (the
   rules give no format); equal season points in the Final Four seeding are split by the Closing Round place; no
-  third-place match. -->
+  third-place match.
+  The play-offs' winner is the champion and takes the champion's continental place (e.g. Malta's Final Four winner
+  goes to the Champions League).
 - **Leagues with an odd number of clubs play real rounds**: one club rests each matchday, as in the real
   competitions (El Salvador's Tercera, Gibraltar, New Zealand, India, Taiwan ...); the original game's tables for odd
   sizes were not rounds.
@@ -536,7 +537,6 @@ Non una formula uguale per tutti: ogni campionato gioca la stagione come l'ha sc
 - **Argentina 2026**: la Liga Profesional a 30 in due zone da 15, Apertura e Clausura (16 giornate ciascuno: girone di
   zona, il clasico nel giorno di riposo, una giornata interzonale sorteggiata), la classifica annuale, retrocessione
   per promedio (3 stagioni) e per classifica annuale.
-<!-- REGIA STAGED (play-off per il titolo, ramo titlepo; da pubblicare col merge + TM_TITLE=1 + campione applicato):
 - **Major League Soccer 2026**: 30 club nelle Conference Est e Ovest (15 + 15), il calendario vero di 34 partite
   (28 nella propria conference e 6 contro l'altra) nelle giornate e date vere, pausa per i Mondiali compresa. A
   parità di punti contano le vittorie, poi la differenza reti, poi i gol fatti; il club col miglior record assoluto
@@ -560,7 +560,9 @@ Non una formula uguale per tutti: ogni campionato gioca la stagione come l'ha sc
     spareggio o una Final Four ordinata per punti complessivi.
   Supplementari e rigori in caso di parità. Dichiarato per Malta: partite secche in campo neutro (il regolamento
   non dice il formato); a parità di punti nella stagione, l'ordine della Final Four segue il posto nel Closing Round;
-  niente finale per il terzo posto. -->
+  niente finale per il terzo posto.
+  La vincente dei play-off è il campione e prende il posto continentale del campione (per esempio la vincente della
+  Final Four maltese va in Champions League).
 - **I campionati con un numero dispari di squadre giocano giornate vere**: a ogni turno una squadra riposa, come nelle
   competizioni reali (la Tercera di El Salvador, Gibilterra, Nuova Zelanda, India, Taiwan ...); le tabelle originali
   del gioco per le dimensioni dispari non erano giornate.

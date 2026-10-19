@@ -1690,7 +1690,7 @@ def zone_colours():
                   f'pass {k}: zones {got}', errs)
             leg = [e[1] for e in scr.entries[-5:] if not e[2]]
             check(leg == ['CAMP', 'UEFA', 'RETR'], f'pass {k}: legend {leg}', errs)
-            info.append(f"pass {k}: {''.join(z[0] for z in got)}, legend {leg}")
+            info.append(f"pass {k}: {''.join({'gy': 'x'}.get(z, z[0]) for z in got)}, legend {leg}")
             if k == 1:                              # the FORMAT page (it reads its own file into the shared buffer)
                 walk(s, scr.find('STAT', exact=True), 3)
                 walk(s, s.screen().find('FORMULA', exact=True), 3)
@@ -1716,7 +1716,7 @@ def zone_colours():
                 check(got == want27, f'{path[1]}: zones {got}', errs)
                 leg = [e[1] for e in scr.entries[-5:] if not e[2]]
                 check(leg == leg27, f'{path[1]}: legend {leg}', errs)
-                info.append(f"{path[1]}: {''.join(z[0] for z in got)}, legend {leg}")
+                info.append(f"{path[1]}: {''.join({'gy': 'x'}.get(z, z[0]) for z in got)}, legend {leg}")
                 if path[1] == 'PREMIER LEAGUE':         # another season year, the same ring: the same colours (they
                     import lepatch                      # come from uc_rank, not from the season)
                     pe = lepatch.LEPatch(os.path.join(w27, 'ITALIAN.EXE'))
@@ -1728,7 +1728,7 @@ def zone_colours():
                     got = [z for _, z in rows]
                     leg = [e[1] for e in scr.entries[-5:] if not e[2]]
                     check(got == want27 and leg == leg27, f'another season: {got} {leg} (uc_rank: the same ring)', errs)
-                    info.append(f"PREMIER LEAGUE season 2: {''.join(z[0] for z in got)}, legend {leg}")
+                    info.append(f"PREMIER LEAGUE season 2: {''.join({'gy': 'x'}.get(z, z[0]) for z in got)}, legend {leg}")
     return not errs, '; '.join(errs + info) if errs else '; '.join(info)
 
 

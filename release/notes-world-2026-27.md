@@ -169,6 +169,16 @@ when the engine lands it.
 - **No national cup where none is played in 2026-27** (Mexico, Honduras, Guatemala, Panama: league only); Peru's
   cup is its real Copa de la Liga 2026.
 
+<!-- REGIA STAGED (zone colours, session 3.3.6, branch zone-colours; publish when merged + Davide's final OK):
+*League tables in colour*
+- **Every league table shows its end-of-season zones**, as on TV: Champions League (or the European Cup) and direct
+  promotion light blue; Europa League (or the UEFA Cup), promotion and European play-offs green; Conference League
+  dark blue; play-out orange; relegation red. The places follow the real rules: the UEFA 2026/27 access list by
+  association rank (qualifying rounds included), and each league's own promotions, relegations and play-offs (Serie
+  B 3rd-8th and 16th-17th, the Serie C groups 2nd-10th). A legend on the header line names the colours each table
+  uses. In the Europe 1984-85 world too.
+  Known limit unless phase 2 lands: from the second season the European colours follow the first season's ranking. -->
+
 *Leagues, calendars and clubs*
 - **Every league, national cup and league cup under its real 2026-27 name, without title sponsors**: COPPA ITALIA,
   FA CUP, EFL CUP, DFB-POKAL, TURKIYE KUPASI, KING'S CUP, EMPEROR'S CUP, PARVA PROFESIONALNA LIGA for the efbet Liga
@@ -570,6 +580,16 @@ Non una formula uguale per tutti: ogni campionato gioca la stagione come l'ha sc
   (fissi per la prima stagione); le fasi a gironi restano fasi a gironi (una sconfitta lì non elimina).
 - **Nessuna coppa nazionale dove nel 2026-27 non si gioca** (Messico, Honduras, Guatemala, Panamá: solo il
   campionato); la coppa del Perù è la sua vera Copa de la Liga 2026.
+
+<!-- REGIA STAGED (zone colorate, sessione 3.3.6; da pubblicare col merge e l'OK finale di Davide):
+*Classifiche a colori*
+- **Ogni classifica di campionato mostra le sue zone di fine stagione**, come in TV: Champions League (o Coppa dei
+  Campioni) e promozione diretta in azzurro; Europa League (o Coppa UEFA), play-off promozione e spareggi europei in
+  verde; Conference League in blu scuro; play-out in arancione; retrocessione in rosso. I posti seguono le regole
+  vere: la lista d'accesso UEFA 2026/27 secondo il ranking delle federazioni (preliminari compresi) e le promozioni,
+  retrocessioni e spareggi di ogni campionato (Serie B 3ª-8ª e 16ª-17ª, i gironi di Serie C 2ª-10ª). Una legenda
+  sulla riga del titolo indica i colori usati in quella classifica. Anche nel mondo Europa 1984-85.
+  Limite se la fase 2 non arriva: dalla seconda stagione i colori europei seguono il ranking della prima. -->
 
 *Campionati, calendari e club*
 - **Ogni campionato, coppa nazionale e coppa di lega col suo nome vero 2026-27, senza lo sponsor**: COPPA ITALIA,

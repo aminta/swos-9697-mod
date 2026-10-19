@@ -504,6 +504,8 @@ when the engine lands it.
   of these details.
 
 **Known limits**
+- A career saved with one language's executable and loaded with another keeps the first language's competition
+  titles, and its league tables show no zone colours: continue a career with the language you started it in.
 - EA's public ratings still held FC 26-era rosters when this world was built (2026-10-16): attributes are matched by
   player (name and birth date), not by club, so they are a year old; they will be refreshed when EA publishes FC 27.
 - About a third of the players are in EA's ratings (most of the big leagues, few of the small ones).
@@ -1060,6 +1062,9 @@ Baiano, Cearense, Pernambucano, Alagoano e Mato-Grossense.
   regolamento pubblicato non dà questi dettagli.
 
 **Limiti noti**
+- Una carriera salvata con l'eseguibile di una lingua e caricata con quello di un'altra tiene i titoli delle
+  competizioni della prima lingua e le sue classifiche non mostrano i colori: continua una carriera nella lingua in cui
+  l'hai iniziata.
 - Quando questo mondo è stato costruito (16-10-2026) le valutazioni pubbliche EA avevano ancora le rose dell'era FC 26:
   gli attributi sono abbinati per giocatore (nome e data di nascita), non per club, quindi sono vecchi di un anno;
   verranno aggiornati quando EA pubblicherà FC 27.

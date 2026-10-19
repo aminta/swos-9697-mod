@@ -565,8 +565,7 @@ when the engine lands it.
   and POOLPLYR.DAT). Copy the new files into DATA too. The patcher page now needs a recent browser (Chrome 103+,
   Safari 16.4+, Firefox 113+).
 - Saves: careers of the 1996-97 game saved with 3.3.6 and earlier load and play on. Careers of the Europe 1984-85 world saved with
-  a 3.x version must be restarted in 4.0 (a fix is planned for 4.0.1); careers started with 4.0 save and load
-  normally. -->
+  3.x load and play on too. -->
 
 ## Italiano
 
@@ -1162,6 +1161,5 @@ Baiano, Cearense, Pernambucano, Alagoano e Mato-Grossense.
   loro rose oltre i 16, i file del mondo e della riserva, i testi FORMULA e i colori delle classifiche nelle 4 lingue,
   e i rinominati EUROCUP.TMD, UEFACUP.TMD e POOLPLYR.DAT). Copia anche i file nuovi in DATA. La pagina del patcher ora
   richiede un browser recente (Chrome 103+, Safari 16.4+, Firefox 113+).
-- Salvataggi: le carriere del gioco 1996-97 salvate con la 3.3.6 e precedenti si caricano e continuano. Le carriere del mondo
-  Europa 1984-85 salvate con una versione 3.x vanno ricominciate nella 4.0 (una correzione è prevista per la 4.0.1);
-  le carriere iniziate con la 4.0 si salvano e si caricano normalmente. -->
+- Salvataggi: le carriere del gioco 1996-97 salvate con la 3.3.6 e precedenti si caricano e continuano. Anche le carriere del mondo
+  Europa 1984-85 salvate con la 3.x si caricano e continuano. -->

@@ -188,6 +188,20 @@ when the engine lands it.
 - **The Serie C play-off is played by your club too**: group phase, national phase and Final Four under exactly
   these rules; while you play it the other two groups are already over (simulated when your group ends), and the
   season end keeps their results.
+- **Coppa Italia Serie D 2026-27**, on its real bracket: every Serie D club, the real pairings of the turno
+  preliminare (34 ties) and the primo turno (64), and the real paths through the sedicesimi, ottavi and quarti; ties
+  already played in reality keep their real winners in the first season.
+  - Each round on its real date (23 Aug, 30 Aug, 7 Oct, 28 Oct, 18 Nov, 9 Dec; semi-finals 20 Jan / 3 Feb; final 17
+    Feb / 3 Mar). **No extra time anywhere** (LND official notice no. 1): a single match level after 90 minutes goes
+    straight to penalties; two-legged ties (semi-finals, final) level on aggregate also go straight to penalties, and
+    away goals do not count double.
+  - Hosts drawn up to the trentaduesimi; from the sedicesimi, the club that played away in its previous tie hosts
+    (both home or both away: drawn). The semi-final pairs are drawn when the semi-finals are reached; the final is
+    over two legs.
+  - From the second season (LND art. 1-2), the clubs new to the Serie D (relegated from Serie C, promoted from the
+    Eccellenza) play the preliminary round, filled up with the lowest-placed clubs of each group; the others enter at
+    the primo turno.
+  - **Played by your club**, with the real round names (TURNO PRELIMINARE, PRIMO TURNO, TRENTADUESIMI ... FINALE).
 
 *National cups 2026-27*
 - **Every club still in when the data was taken (October 2026)**, each from **its real round**: clubs entering later
@@ -629,6 +643,20 @@ Non una formula uguale per tutti: ogni campionato gioca la stagione come l'ha sc
 - **Anche il play-off di Serie C lo gioca la tua squadra**: fase dei gironi, fase nazionale e Final Four esattamente
   con queste regole; mentre lo giochi gli altri due gironi sono già finiti (simulati quando finisce il tuo), e la
   fine della stagione ne tiene i risultati.
+- **Coppa Italia Serie D 2026-27** sul suo tabellone vero: tutti i club di Serie D, gli accoppiamenti veri del turno
+  preliminare (34 sfide) e del primo turno (64), e i percorsi veri attraverso sedicesimi, ottavi e quarti; le sfide
+  già giocate nella realtà tengono nella prima stagione i loro vincitori veri.
+  - Ogni turno nella sua data vera (23 agosto, 30 agosto, 7 ottobre, 28 ottobre, 18 novembre, 9 dicembre; semifinali
+    20 gennaio / 3 febbraio; finale 17 febbraio / 3 marzo). **Mai supplementari** (C.U. LND n. 1): una gara secca
+    pari dopo 90 minuti va subito ai rigori; anche le sfide di andata e ritorno (semifinali, finale) in parità vanno
+    subito ai rigori, e i gol in trasferta non valgono doppio.
+  - Campo sorteggiato fino ai trentaduesimi; dai sedicesimi gioca in casa chi aveva giocato fuori nel turno prima
+    (entrambe in casa o entrambe fuori: sorteggio). Le semifinali si sorteggiano quando ci si arriva; la finale è di
+    andata e ritorno.
+  - Dalla seconda stagione (LND art. 1-2) le nuove arrivate in Serie D (retrocesse dalla Serie C, promosse
+    dall'Eccellenza) giocano il turno preliminare, completato con le peggio piazzate di ogni girone; le altre entrano
+    al primo turno.
+  - **La gioca la tua squadra**, coi nomi veri dei turni (TURNO PRELIMINARE, PRIMO TURNO, TRENTADUESIMI ... FINALE).
 
 *Coppe nazionali 2026-27*
 - **Tutte le squadre ancora in corsa quando sono stati presi i dati (ottobre 2026)**, ognuna dal **suo turno vero**:

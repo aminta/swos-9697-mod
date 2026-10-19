@@ -562,6 +562,8 @@ struct gp_state {
     struct gp_srow srow[SD][GT];
     struct gp_ko ko[2];
     struct gp_dec dec[3];               /* 4.0 ARG: the stage titles decided mid-season (by stage: 0, 1, 2) */
+    u8 pend, pweek, pseas, pad3;        /* 'then_build': play-off pend - 1 to build at the calendar advance from week
+                                           pweek on (gp_adv), this season's */
 };
 struct gp_state GP_ST;
 extern const u8 *GP_CFB;
@@ -572,7 +574,8 @@ struct gp_log { u32 tag; u8 seas, stseas, pl_pi, pad; struct gp_ko ko; struct gp
                                         /* the last season end's (harness): its season, the state's, the played one */
 /* set by the glue */
 u8 GP_HDR[14] = { 0xAD };               /* (gplay.py: the game's Australian cup header, no draw, no away goals) */
-const u32 *GP_NM;                       /* the country's names: per play-off dd long, short (relative) */
+const u32 *GP_NM;                       /* the country's names: per play-off dd long, short, record (relative) */
+const u8 *GP_TH;                        /* the country's 'then_build': per play-off the next one's index + 1, or 0 */
 u8 *GP_DIYP;
 u32 GP_K, GP_W, GP_SKIP, GP_RB;
 u16 GP_A, GP_B;
@@ -912,7 +915,9 @@ static int ko_build(struct gp_ko *k, int pi, int slot, int cid) {
         k->team[i] = row(c)->team; k->pts[i] = row(c)->pts;
     }
     k->gp0[0] = 0;
-    int np0 = build_game(k, 0);             /* (entrant indices for now: the list order next) */
+    int g0 = 0, np0 = build_game(k, 0);     /* (entrant indices for now: the list order next) */
+    while (np0 <= 0 && g0 + 1 < k->ngr && k->gno[g0 + 1] == 0) np0 = build_game(k, ++g0);   /* (a round decided
+                                               without a match, skip_if_same / gap: the first with one is round 1) */
     if (np0 <= 0) {                         /* (every tie decided by the gap: nothing to play, the results kept) */
         for (int i = 0; i < n; i++) k->team[i] = row(k->code[i])->team;
         k->slot = 0; k->cid = 0; k->season = GP_SEAS; k->magic = MAGIC;
@@ -923,7 +928,7 @@ static int ko_build(struct gp_ko *k, int pi, int slot, int cid) {
     for (int i = 0; i < n; i++) { cd[i] = k->code[i]; pr[i] = k->prio[i]; }
     int m = 0;
     for (int i = 0; i < n; i++) used[i] = 0;
-    for (int p = 0; p < k->gp0[1]; p++) {
+    for (int p = k->gp0[g0]; p < k->gp0[g0 + 1]; p++) {
         order[m++] = k->pa[p]; used[k->pa[p]] = 1;
         order[m++] = k->pb[p]; used[k->pb[p]] = 1;
     }
@@ -936,18 +941,21 @@ static int ko_build(struct gp_ko *k, int pi, int slot, int cid) {
         const struct gp_row *w = row(cd[i]);
         k->team[j] = w->team; k->pts[j] = w->pts;
     }
-    for (int p = 0; p < k->gp0[1]; p++) { k->pa[p] = k->ient[k->pa[p]]; k->pb[p] = k->ient[k->pb[p]]; }
+    for (int p = 0; p < k->gp0[g0 + 1]; p++) { k->pa[p] = k->ient[k->pa[p]]; k->pb[p] = k->ient[k->pb[p]]; }
     for (int t = 0; t < k->ntie; t++) {         /* (gap-decided ties, entrant indices too) */
         if (k->tw[t] != NOC) { k->tw[t] = k->ient[k->tw[t]]; k->tl[t] = k->ient[k->tl[t]]; }
     }
     int me = 0;                         /* a career: the club must play round 1 (a slot-4 contest without it stops the
                                            season); else no contest, its gap-decided tie kept (gp_sack, gp_played_c) */
-    for (int p = 0; p < k->gp0[1]; p++) me |= k->team[k->pa[p]] == GP_IN.mgr || k->team[k->pb[p]] == GP_IN.mgr;
+    for (int p = k->gp0[g0]; p < k->gp0[g0 + 1]; p++)
+        me |= k->team[k->pa[p]] == GP_IN.mgr || k->team[k->pb[p]] == GP_IN.mgr;
     int days = 0;
-    for (int g = 0; g < k->ngr; g++) days += (k->rb[g] & 0xC0) == 0x80 ? 2 : 1;
+    for (int g = g0; g < k->ngr; g++) days += (k->rb[g] & 0xC0) == 0x80 ? 2 : 1;
+    k->gcur = g0;
+    k->bye[5] = GP_TH ? GP_TH[pi] : 0;  /* (pack 'then_build': the play-off built when this one ends, index + 1) */
     k->lfile = k->team[0] & 0xFF;
     k->d1 = GP_IN.week + 1; k->d2 = GP_IN.week + days > 255 ? 255 : GP_IN.week + days;
-    k->bye[0] = cid; k->bye[1] = 0xFF; k->bye[2] = n; k->bye[3] = n - np1; k->bye[4] = k->ngr;
+    k->bye[0] = cid; k->bye[1] = 0xFF; k->bye[2] = n; k->bye[3] = n - np1; k->bye[4] = k->ngr - g0;
     /* the contest: the game's header, round bytes, names, the team words */
     u8 *c = k->con;
     int len = 14;
@@ -955,7 +963,7 @@ static int ko_build(struct gp_ko *k, int pi, int slot, int cid) {
     c[0] = cid; c[2] = k->lfile; c[3] = k->d1; c[4] = k->d2; c[10] = n;
     for (int j = 0; j < k->nrs; j++)    /* away goals (levels away_pens / away_better): the whole contest's */
         if (k->rs[j][3] == LV_AWAY_PENS || k->rs[j][3] == LV_AWAY_BETTER) c[13] = 0;
-    for (int g = 0; g < k->ngr; g++) c[len++] = k->rb[g];
+    for (int g = g0; g < k->ngr; g++) c[len++] = k->rb[g];
     c[len++] = 0;
     c[5] = len - 5;
     c[7] = len + 8 - 7;
@@ -1018,6 +1026,11 @@ static void stage_done(const struct gp_ko *k) {   /* a stage title's knockout de
     x->team[1] = l != NOC ? k->team[l] : 0xFFFF; x->glob[1] = l != NOC ? team_glob(k->team[l]) : 0xFFFF;
 }
 
+u32 GP_WK;                              /* (the glue: the current calendar entry's week) */
+static void set_pend(int then, int week) {   /* 'then_build': the next play-off at the calendar advance from week on */
+    GP_ST.pend = then; GP_ST.pweek = week > 255 ? 255 : week; GP_ST.pseas = GP_SEAS;
+}
+
 u32 gp_build_c(void) {
     const u8 *s = po_at(GP_BPIC);
     stage_done(&GP_ST.ko[0]);                   /* (the previous stage's knockout, played: before ko[0] is rebuilt) */
@@ -1032,7 +1045,8 @@ u32 gp_build_c(void) {
     if (!b && GP_ST.ko[0].magic == MAGIC) {
         ko_sim(&GP_ST.ko[0]);
         stage_done(&GP_ST.ko[0]);               /* (simulated at once: decided now) */
-    }
+        if (GP_ST.ko[0].bye[5]) { set_pend(GP_ST.ko[0].bye[5], GP_ST.ko[0].d2); GP_ST.ko[0].bye[5] = 0; }
+    }                                           /* ('then_build' after the simulated final's week) */
     return b;
 }
 const u32 GP_KOLAY[] = { __builtin_offsetof(struct gp_state, ko), sizeof(struct gp_ko),
@@ -1076,6 +1090,16 @@ u32 gp_perm_c(void) {
 }
 
 /* a decisive match of ours (GP_A v GP_B, GP_W = 1: the second won): its pair's winner */
+
+/* the calendar advance (gp_adv, cseg_8EA82's callers): a pending 'then_build' due -> its play-off index + 1 (then
+   gp_build with GP_BWEEK = this week), else 0 */
+u32 gp_adv_c(void) {
+    if (!GP_ST.pend || GP_ST.pseas != GP_SEAS || GP_WK < GP_ST.pweek) return 0;
+    u32 t = GP_ST.pend;
+    GP_ST.pend = 0;
+    return t;
+}
+
 void gp_rec_c(void) {
     struct gp_ko *k = &GP_ST.ko[GP_K];
     int a = kidx(k, GP_A), b = kidx(k, GP_B), g = k->gcur;
@@ -1086,6 +1110,10 @@ void gp_rec_c(void) {
     for (int p = k->gp0[g]; p < k->gp0[g + 1]; p++)
         if ((k->pa[p] == a && k->pb[p] == b) || (k->pa[p] == b && k->pb[p] == a)) k->pw[p] = GP_W ? b : a;
     resolve(k);
+    if (k->bye[5] && k->ntie && k->tw[k->ntie - 1] != NOC) {   /* (its final decided: the next one, once) */
+        set_pend(k->bye[5], GP_WK);
+        k->bye[5] = 0;
+    }
 }
 
 /* a level tie of ours with no penalties: 1 if the second club (GP_B) goes through, the better placed */

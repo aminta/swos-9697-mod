@@ -196,6 +196,11 @@ def compile_spec(pos, ndiv):
                              f"1 before it")
     out = bytes(out + b'\0')
     SPEC_NAMES[out] = [(po.get('names') or {}, po.get('key', '?'), po.get('record')) for po in pos]
+    keys = [po.get('key') for po in pos]
+    for po in pos:                      # 'then_build': the key of the play-off built when this one ends
+        if po.get('then_build') is not None and po['then_build'] not in keys:
+            raise ValueError(f"{po.get('key', '?')}: then_build {po['then_build']!r}: no such play-off key")
+    THEN[out] = bytes(keys.index(po['then_build']) + 1 if po.get('then_build') is not None else 0 for po in pos)
     if any(po.get('kind') == 'title' and po['rounds'] and 'group' in po['rounds'][0] for po in pos):
         T2_SPECS.add(out)               # (a group contest played in a career: the engine block's item 'GS')
     BUILD_AFTER[out] = [(i, po['build_after']) for i, po in enumerate(pos) if po.get('build_after')]
@@ -258,8 +263,12 @@ gp_setup:                               ; ZF = 0 if the career league (D8CAA) is
     xor edx, edx
     mov ecx, 9
     div ecx
+    push eax
     mov eax, [GP_NMT + eax * 4]
     mov [GP_NM], eax
+    pop eax
+    mov eax, [GP_THT + eax * 4]
+    mov [GP_TH], eax
     mov edx, [D8CAA]
     mov al, [edx + 9]
     mov [GP_IN], al                     ; (nd)
@@ -506,6 +515,7 @@ gp_rec:                                 ; at cseg_2AE97's end (the match's resul
     movzx eax, byte [D7R]
     and eax, 1
     mov [GP_W], eax
+    call gp_week
     mov eax, gp_rec_c
     call gp_c
 .x:
@@ -705,6 +715,34 @@ gp_sack:                                ; replaces SeasonFinished's `call cseg_3
 .game:
     popad
     jmp C3C07C
+
+gp_week:                                ; GP_WK = the current calendar entry's week
+    push eax
+    movzx eax, word [CAL_CUR]
+    movzx eax, byte [CAL + eax + 1]
+    mov [GP_WK], eax
+    pop eax
+    ret
+
+gp_adv:                                 ; replaces the 4 `call cseg_8EA82` (the calendar advance, after an event is
+    pushad                              ; done): a pending 'then_build' (a played or simulated knockout ended) due ->
+    mov al, [SEASONPLAYING]             ; gp_build of its next play-off from this week (slot 4 free: its contest over)
+    mov [GP_SEAS], al
+    call gp_week
+    mov eax, gp_adv_c
+    call gp_c
+    test eax, eax
+    jz .x
+    dec eax
+    mov [GP_BPI], eax
+    mov eax, [GP_WK]
+    mov [GP_BWEEK], eax
+    popad
+    pushad
+    call gp_build
+.x:
+    popad
+    jmp C8EA82
 
 gp_ssim:                                ; replaces `call cseg_915ED` (a division simulated at the season end; after
     call GP_SSIM_NEXT                   ; dplay's dp_ssim): a division simulated early for the career club's
@@ -908,6 +946,7 @@ gp_end:                                 ; replaces `call cseg_9228D` (after dpla
 
 
 BUILD_AFTER = {}         # compile_spec's output -> [(play-off index, split stage 'then' name)]: built by gp_build there
+THEN = {}                # compile_spec's output -> per play-off its 'then_build' target's index + 1, or 0
 T2_SPECS = set()         # compile_spec's outputs with a group contest (the Poule Scudetto): GP_GS saved ('GS')
 GS_SIZE = 7 + 1 + 7 * 20 * 10   # (sizeof struct gp_gs)
 SPEC_NAMES = {}          # compile_spec's output -> the play-offs' names ({lang: [long, short]}), for the contests
@@ -940,7 +979,7 @@ def table_lines(tables):
 
 LABELS = {}
 GP_PAGES = 7             # obj1 pages for the C code + glue + specs (World 2026-27's 20 countries; gplay-play; 4.0 ARG: 7)
-GP_ST_SIZE = 2032       # (sizeof struct gp_state: the engine block's item 'GP', patch.py)
+GP_ST_SIZE = 2036       # (sizeof struct gp_state: the engine block's item 'GP', patch.py)
 GP_BSS = 0x5000          # the C .bss pages (obj2 after careerworld's BSS): GP_IN at GT 32 / GD 16, GP_SS, PR, RS, GP_ST, RI, PS
 
 
@@ -984,6 +1023,19 @@ def _sack_sites(p):
                 CURMSG=u(1), SACKED=u(4))
 
 
+def _adv_sites(p):
+    """cseg_8EA82 (the career calendar advance: gameType 4 -> counters, cseg_94DB1) and its 4 callers."""
+    import split
+    d1 = p.le.obj_bytes(1)
+    gt = struct.pack('<I', split.sites(p)['GAMETYPE'][1])
+    m = [x.start() for x in re.finditer(rb'\x66\x83\x3d' + re.escape(gt) + rb'\x04\x75.\x66\x83\x05.{4}\x01\x66\x83\x05.{4}'
+                                         rb'\x01\x66\x83\x05.{4}\x01\xff\x35', d1, re.S)]
+    assert len(m) == 1, m
+    calls = [i for i in range(len(d1) - 5) if d1[i] == 0xE8 and i + 5 + struct.unpack_from('<i', d1, i + 1)[0] == m[0]]
+    assert len(calls) == 4, calls
+    return m[0], calls
+
+
 def link_reserve(p, ri=None):
     """After pgroups.patch (and ripool.patch): gp_sack's reserve tables, pgroups.LABELS['RS_TAB'] and the off-file
     pool's RI_TAB (ri: ripool.patch's labels); none: their pointers stay 0."""
@@ -1008,6 +1060,9 @@ def names_lines(tables, area, lang):
             rl, rs, rr = (area.add(x + b'\0') - sacups.STR_BASE if area else 0 for x in (long_, short, record))
             lines.append(f'    dd {rl}, {rs}, {rr}')
         lines.append('    dd 0, 0, 0')
+    lines += ['GP_THT:'] + [f'    dd GPT{i}' for i in range(len(tables))]      # ('then_build' per play-off)
+    for i, (_, _, spec) in enumerate(tables):
+        lines.append(f'GPT{i}: db ' + ', '.join(str(b) for b in (THEN.get(spec) or b'') + b'\0'))
     return '\n'.join(lines)
 
 
@@ -1080,12 +1135,14 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
                     'SEASONPLAYING': (2, s['season']),
                     'BAL': (0, pgroups.BALANCE), 'GAMETYPE': split.sites(p)['GAMETYPE'], 'NSUM': (0, bigtables.LIMIT if bigtables.ON[0] else 2000)})
     sk = _sack_sites(p)
+    adv, adv_calls = _adv_sites(p)
+    symbols['C8EA82'] = (1, adv)
     symbols.update({k: (2, sk[k]) for k in ('CURMSG', 'SACKED')})
     symbols.update({'MSG_NORENEW': (0, sk['msg']), 'SHOWCHAIR': (1, sk['show']), 'C3C07C': (1, sk['c3c07c'])})
     symbols.update({f'EUW{i}': (2, a) for i, a in enumerate(sk['euw'])})
     symbols.update({'DA11B': (2, sk['da11b']), 'GETSEASON': (1, sk['getseason']), 'SEASREC': (2, sk['seasrec'])})
     symbols.update({k: syms[k] for k in ('GP_CFB', 'GP_LG', 'GP_RST', 'GP_RIT', 'GP_SEL', 'GP_MGR', 'GP_WORLD', 'GP_SLT',
-                                         'gp_sack_c', 'gp_forcecfb', 'gp_pwin_c')})
+                                         'gp_sack_c', 'gp_forcecfb', 'gp_pwin_c', 'gp_adv_c', 'GP_WK', 'GP_TH')})
     symbols['FORCE_ON'] = (0, int(bool(force)))
     rec_dp = p.get(1, ps['rec'], 1) == b'\xe8'                # dplay's `call dp_rec; nop` there, or the game's mov
     symbols['GP_REC_NEXT'] = (1, tgt(ps['rec'])) if rec_dp else (0, 0)
@@ -1128,6 +1185,9 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
         p.add_ptr(1, dpp, 1, lab['gp_perm'])
         p.add_ptr(1, lab['GP_PNEXT'], *nxt)
         p.add_ptr(1, lib97.LABELS['NC_BYEP'], 1, lab['gp_bye'])   # (bye_find: our contest's byes, its rounds)
+        for a in adv_calls:                                  # (the calendar advance: 'then_build')
+            assert p.get(1, a, 5) == p.le.obj_bytes(1)[a:a + 5], f'obj1+{a:#x} already hooked'
+            p.put(1, a + 1, struct.pack('<i', lab['gp_adv'] - (a + 5)))
         assert p.get(1, sk['site'], 5) == p.le.obj_bytes(1)[sk['site']:sk['site'] + 5], 'the season-end call is hooked'
         p.put(1, sk['site'] + 1, struct.pack('<i', lab['gp_sack'] - (sk['site'] + 5)))   # (the reserve: sacked)
     import uefaq

@@ -30,7 +30,7 @@ u8 ss_ord[13 * MAXN];                   /* (the harness: each state's stage-1 or
 static u32 rng;
 static u32 below(u32 n) {
     rng = rng * 1103515245u + 12345u;
-    return ((rng >> 16) * n) >> 16;
+    return (u32)(((unsigned long long)(rng >> 16) * n) >> 16);   /* (64-bit product: n = squared strengths) */
 }
 
 struct club { int pts, gd, gf, w; };
@@ -44,6 +44,7 @@ static u16 rd16(const u8 *p) { return (u16)(p[0] | p[1] << 8); }
 static u32 str2(int c, int home) {
     u32 s = rd16((const u8 *)&strv[c]);
     if (s < 5) s = 5;
+    if (s > 4000) s = 4000;                             /* (the squares and their sums stay in 32 bits) */
     if (home) s = s * 11 / 10;
     return s * s;
 }

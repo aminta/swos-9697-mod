@@ -407,7 +407,7 @@ def patch_exe(src, dst, remap, lang='it'):
     if ri_tabs:                                 # the off-file pool's buffers (Italy's file as read, the pool's file)
         import ripool
         ri_bss = careerworld.BSS[0] + careerworld.BSS_SIZE
-        careerworld.BSS_SIZE += (ripool.BSS_NEED + 0xFFF) & ~0xFFF
+        careerworld.BSS_SIZE += (ripool.bss_need(ri_tabs) + 0xFFF) & ~0xFFF
     assert cave <= WORLD_CAVE, hex(cave)
     print(f'exe: caves: world end {world:#x} (limit {NZ_CAVE:#x}), arg end {arg_end:#x} (limit {OBJ1_NEW_VSIZE:#x})')
     world = cafcups.intl_list(p, caf, world)
@@ -434,7 +434,7 @@ def patch_exe(src, dst, remap, lang='it'):
         ri = None
         if ri_tabs:                                              # the off-file pool (Eccellenza): its own page
             rp = hist2 + h2 + 0x1000 * (lpb - cos_pg - 1)
-            re_, ri = ripool.patch(p, rp, ri_bss, ri_tabs, 'data/rs%d%03d.dat' % ri_tabs[0][:2])
+            re_, ri = ripool.patch(p, rp, ri_bss, ri_tabs)
             assert re_ <= rp + 0x1000, hex(re_)
         if pg_tabs or rs_tabs or ri_tabs:                        # parallel groups' / reserves' season end (pgroups.py)
             xe = pgroups.patch(p, (xe + 15) & ~15, pg_tabs, gplay.LABELS['pg_season'], rs_tabs, gplay.LABELS['rs_season'],

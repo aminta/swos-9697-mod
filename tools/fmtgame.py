@@ -256,7 +256,7 @@ ZT = {
                         po_eu='PLAY-OFF EUROPEO', po_down='SPAREGGIO SALVEZZA', out='PLAY-OUT', down='RETROCESSIONE DIRETTA',
                         cl='CHAMPIONS LEAGUE', el='EUROPA LEAGUE', conf='CONFERENCE LEAGUE', eu='COPPE EUROPEE'),
                eu='POSTI EUROPEI: DAL RANKING UEFA DELLA FEDERAZIONE DELL ANNO PRIMA (ACCESS LIST UEFA); {y}:',
-               cup='VINCITRICE DELLA COPPA: {c}', s2='DALLA 2A STAGIONE: DAL RANKING SIMULATO',
+               cup='VINCITRICE DELLA COPPA: {c}', s2='{y2}: DAL RANKING REALE {r}; DALLA 3A STAGIONE: DAL RANKING SIMULATO',
                eps='I 2 EUROPEAN PERFORMANCE SPOTS E I POSTI SPOSTATI PER I DETENTORI DEI TITOLI SI DECIDONO A FINE '
                    'STAGIONE: NON COLORATI IN ANTICIPO'),
     'en': dict(head='TABLE COLOURS:', col=('LIGHT BLUE', 'GREEN', 'DARK BLUE', 'ORANGE', 'GRAY'),
@@ -264,7 +264,7 @@ ZT = {
                         po_eu='EUROPEAN PLAY-OFF', po_down='RELEGATION PLAY-OFF', out='PLAY-OUT', down='RELEGATED',
                         cl='CHAMPIONS LEAGUE', el='EUROPA LEAGUE', conf='CONFERENCE LEAGUE', eu='EUROPEAN CUPS'),
                eu='EUROPEAN PLACES: FROM THE UEFA RANKING OF THE ASSOCIATION A YEAR BEFORE (UEFA ACCESS LIST); {y}:',
-               cup='THE CUP WINNER: {c}', s2='FROM SEASON 2: BY THE SIMULATED RANKING',
+               cup='THE CUP WINNER: {c}', s2='{y2}: BY THE REAL {r} RANKING; FROM SEASON 3: BY THE SIMULATED RANKING',
                eps='THE 2 EUROPEAN PERFORMANCE SPOTS AND THE TITLE HOLDERS REBALANCING ARE DECIDED AT THE SEASON END, '
                    'NOT COLOURED IN ADVANCE'),
     'fr': dict(head='COULEURS DU CLASSEMENT:', col=('BLEU CLAIR', 'VERT', 'BLEU FONCE', 'ORANGE', 'GRIS'),
@@ -274,7 +274,7 @@ ZT = {
                         eu='COUPES D EUROPE'),
                eu='PLACES EUROPEENNES: SELON LE CLASSEMENT UEFA DE L ASSOCIATION DE L ANNEE PRECEDENTE (LISTE D ACCES '
                   'UEFA); {y}:',
-               cup='VAINQUEUR DE LA COUPE: {c}', s2='DES LA 2E SAISON: SELON LE CLASSEMENT SIMULE',
+               cup='VAINQUEUR DE LA COUPE: {c}', s2='{y2}: SELON LE CLASSEMENT REEL {r}; DES LA 3E SAISON: SELON LE CLASSEMENT SIMULE',
                eps='LES 2 EUROPEAN PERFORMANCE SPOTS ET LE REEQUILIBRAGE DES TENANTS SONT DECIDES EN FIN DE SAISON: PAS '
                    'COLORES A L AVANCE'),
     'de': dict(head='FARBEN DER TABELLE:', col=('HELLBLAU', 'GRUEN', 'DUNKELBLAU', 'ORANGE', 'GRAU'),
@@ -283,7 +283,7 @@ ZT = {
                         down='DIREKTER ABSTIEG', cl='CHAMPIONS LEAGUE', el='EUROPA LEAGUE', conf='CONFERENCE LEAGUE',
                         eu='EUROPAPOKALE'),
                eu='EUROPAPOKALPLAETZE: NACH DER UEFA-RANGLISTE DES VERBANDS AUS DEM VORJAHR (UEFA-ZUGANGSLISTE); {y}:',
-               cup='POKALSIEGER: {c}', s2='AB DER 2. SAISON: NACH DER SIMULIERTEN RANGLISTE',
+               cup='POKALSIEGER: {c}', s2='{y2}: NACH DER ECHTEN RANGLISTE {r}; AB DER 3. SAISON: NACH DER SIMULIERTEN RANGLISTE',
                eps='DIE 2 EUROPEAN PERFORMANCE SPOTS UND DER AUSGLEICH FUER TITELVERTEIDIGER WERDEN AM SAISONENDE '
                    'ENTSCHIEDEN: NICHT IM VORAUS GEFAERBT'),
 }
@@ -324,7 +324,8 @@ def zone_text(rw, t, lang, eu=None):
         lines += [one(*x) for x in places]
         if cw:
             lines.append(z['cup'].format(c=z['why'][cw]))
-        lines += [z['s2'], z['eps']]
+        lines += [z['s2'].format(y2=f'{y + 1}-{(y + 2) % 100:02d}', r=y), z['eps']]   # (uefacoef 131f04b: season
+        # N+1's places from the 5 seasons up to N-1: season 2's still from the real ranking of the start year)
     if merged:
         lines.append(z['head'])
         lines += [one(*x) for x in merged]

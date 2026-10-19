@@ -4272,7 +4272,8 @@ def world_statesim(team='SUDAMERICA,BRASILE,CAMPEONATO BRASILEIRO SERIE A,ATHLET
             check(blk is not None and sorted(blk) == sorted(pw), f'played state {pk:#x}: SR {blk} vs order {pw}', errs)
             if len(played) >= 2 and blk:
                 p2k, p2w = played[1]                 # (a relegated state-only club keeps its word: ripool swaps
-                gone = [w for w in blk[-2:] if w in p2w and (w & 255) != 0xA1]   # the identity in file 161)
+                sf = max(w & 255 for w in pw)            # (the states' file: the highest of the block's files)
+                gone = [w for w in blk[-2:] if w in p2w and (w & 255) != sf]   # the identity in the states' file)
                 check(p2k == pk and len(p2w) == len(pw) and not gone,
                       f'season 2 list {[hex(x) for x in p2w]}: season-1 relegated {[hex(x) for x in blk[-2:]]} '
                       f'still in: {[hex(x) for x in gone]}', errs)

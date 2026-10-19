@@ -142,6 +142,12 @@ def _matching(rng, n, edges):
     return out if go() else None
 
 
+GRP_ON = False      # st_grp (a later group stage by 'from'): off - the game spreads the qualifiers over the groups
+                    # its own way (not the +59h blocks; seen 2026-10-19, Cearense phase 2): declared until known
+RESORT_ON = False   # st_resort (wins before goal difference): off - DIY+6Dh is in place bands at the stage's end,
+                    # not group blocks (2026-10-19): sorting blocks would mix the groups
+
+
 def compile_state(c, n_clubs):
     """pack.json 'state' comp -> {'stages': [(groups, per group, qualifiers)], 'stage_bytes', 'meetings', 'points',
     'months': (b3, b4), 'draws': [(perm, sort)], 'fixture': (groups, per group, days, calendar) or None}."""
@@ -217,7 +223,7 @@ def compile_state(c, n_clubs):
             _need(sorted(frm + b) == sorted(labels), f"{sw} from + byes must list {' '.join(labels)} once each")
             draws.append((q, [labels.index(x_) for x_ in frm + b], False))   # (the byes at the end: they wait)
             if x['type'] != 'knockout':                  # (careers: the group stage after the first, st_grp:
-                if i == 1:                               # b = FEh; later ones stay the game's)
+                if i == 1 and GRP_ON:                    # b = FEh; later ones stay the game's)
                     ko.append((q, 0xFE, g, prev['teams'] // g, draws[-1][1]))
             elif i == 1 or g == 1:                       # (careers: groups = team-list blocks: the first stage's;
                                                          # code = place * g + group)
@@ -917,7 +923,7 @@ def ko_patch(p, at):
         p.put(1, k + 1, struct.pack('<i', lab['st_kend'] - (k + 5)))
     p.put(1, grp_site + 1, struct.pack('<i', lab['st_grp'] - (grp_site + 5)))
     import lp36
-    if 'ST_SORT_V' in lp36.LABELS:                        # (lp36 patched: the group tables' tie-breaks)
+    if RESORT_ON and 'ST_SORT_V' in lp36.LABELS:          # (lp36 patched: the group tables' tie-breaks)
         p.add_ptr(1, lp36.LABELS['ST_SORT_V'], 1, lab['st_isstate'])
         p.add_ptr(1, lp36.LABELS['ST_RESORT_V'], 1, lab['st_resort'])
     LABELS['ST_RANK'] = (1, lab['ST_RANK'])

@@ -5200,23 +5200,6 @@ def statespec_test():
             return season_over(scr)
         ok, msg = advance(s, stop, 1700)
     check(ok, f'season: {msg}', errs)
-    from le import LE                            # the final group tables (statespec.st_resort's last sort,
-    d1 = LE(open(b, 'rb').read()).obj_bytes(1)    # STRDBGPT): each group by points, wins, goal difference, goals
-    k = d1.find(b'STRDBGPT')
-    fin = hexes_final = None
-    if k >= 0 and resort[0]:
-        fb = resort[0]
-        order = [struct.unpack_from('<H', fb, 2 * j)[0] // 18 for j in range(12)]
-        keys = {t: struct.unpack_from('<4H', fb, 48 + 8 * t) for t in range(12)}
-        for gk in (order[:6], order[6:]):
-            ks = [(keys[t][0], keys[t][1], keys[t][2] - keys[t][3], keys[t][2]) for t in gk]
-            check(ks == sorted(ks, reverse=True), f'final group order {gk} keys {ks}', errs)
-        Rg = [t for t in (seen.get('rank') or [])]
-        if Rg:
-            for gi, gk in enumerate((order[:6], order[6:])):
-                check([t for t in Rg if t // 6 == gi] == gk, f'group {gi}: ranking {Rg} v final order {gk}', errs)
-    else:
-        check(False, 'no st_resort debug block (STRDBGPT)', errs)
     R = seen.get('rank')                         # (knockout: QF 4X v 1X, 3X v 2X inside each group, lib97.st_ko;
     if R and seen.get(8) and seen.get(4):        # SF the winners of the same group's two ties, st_kend)
         grp = lambda t: t // 6

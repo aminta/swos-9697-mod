@@ -952,8 +952,12 @@ w_holders:                              ; replaces `call cseg_92BBF`: in a world
 w_q_fill:                               ; patched to `jmp uq_fill` by uefaq.py
     ret
     times 4 nop
+w_ct_fill:                              ; patched to `jmp ct_fill` by conti.py (the other confederations' cups)
+    ret
+    times 4 nop
 w_chk_tot0q:                            ; the record count before the holders: in a league-phase world the
     call w_q_fill                       ; qualifying rounds' clubs go into the lists first (uefaq)
+    call w_ct_fill                      ; (conti: the other confederations' editions, world-wide)
     jmp w_chk_tot0
 w_chk_totq:                             ; the last record count check, then (uefaq) the record of the career
     call w_chk_tot                      ; club's qualifying-tie opponent

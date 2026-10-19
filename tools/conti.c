@@ -16,12 +16,16 @@ typedef unsigned short u16;
 typedef unsigned int u32;
 typedef int s32;
 
+/* the compiler's own calls (zeroing / copying loops): freestanding, no library in the exe */
+void *memset(void *d, int c, unsigned n) { u8 *p = d; while (n--) *p++ = (u8)c; return d; }
+void *memcpy(void *d, const void *s, unsigned n) { u8 *p = d; const u8 *q = s; while (n--) *p++ = *q++; return d; }
+
 #define NA 48                           /* associations (countries) of the confederations in the world */
 #define NL 16                           /* league clubs kept per association (the final table's top 16) */
 #define NC 640                          /* clubs seen */
 #define NCUP 16
 #define NRD 12                          /* rounds per cup */
-#define NE 64                           /* entrants of a round */
+#define NE 48                           /* entrants of a round (the world's rounds: 32 at most, 48 kept) */
 #define RB 24                           /* bytes per round in the spec */
 #define OUT 0xFF
 #define CHAMP 0xFE
@@ -72,6 +76,9 @@ static const u8 *acc;                   /* access entries: assoc, cup, round, co
 static u16 nacc;
 static const u8 *hol;                   /* holders: src cup, dst cup, dst round */
 static u8 nhol;
+static const u8 *afile;                 /* each association's league team file */
+static const u8 *rk;                    /* ranking: team word, points (u16 each) */
+static u16 nrk;
 #define RND(c, r) (cupr[c] + (r) * RB)
 
 static void parse(void) {
@@ -88,6 +95,11 @@ static void parse(void) {
     p += 2 + 4 * nacc;
     nhol = p[0];
     hol = p + 1;
+    p += 1 + 3 * nhol;
+    afile = p;
+    p += na;
+    nrk = p[0] | p[1] << 8;
+    rk = p + 2;
 }
 
 /* --- random, strength -------------------------------------------------------------------------------------------- */
@@ -383,7 +395,6 @@ static void ct_round(int c, int r) {
     if (R[0] == K_GROUPS) {
         int ng = R[6], gs = R[7];
         /* every group, then each place's clubs ranked across the groups by record (the rank keys of the next draw) */
-        static int PL[NCUP][8][16];
         static u16 byplace[8][16];
         static s32 key[8][16];
         for (int g = 0; g < ng; g++) {
@@ -393,7 +404,6 @@ static void ct_round(int c, int r) {
                 byplace[q][g] = D[g * gs + P[q]];
                 key[q][g] = P[8 + q];
                 CT_OUT.res[c][r][g * gs + P[q]] = q + 1;
-                PL[c][q][g] = P[q];
             }
         }
         for (int q = 0; q < gs && q < 4; q++) {
@@ -424,6 +434,73 @@ static void ct_round(int c, int r) {
         route(c, R[11], los, i / 2 + 1);
     }
     if (n & 1) route(c, R[10], D[n - 1], 0x7F);         /* (an odd one goes through) */
+}
+
+/* --- the season end's input (the game's records) ------------------------------------------------------------------ */
+void ct_season(void);
+#define REC 0x2AC                       /* a club record: team word at 0, the 16 players from 76, 38 bytes each */
+static u16 TAB[NL];                     /* the last top division's final order (ct_table) */
+static u8 ntab;
+static u32 rstr(const u8 *rec) { u32 s = 0; for (int i = 0; i < 16; i++) s += rec[76 + 38 * i + 32]; return s; }
+static u32 rpts(u16 id) {
+    for (int i = 0; i < nrk; i++) if ((rk[4 * i] | rk[4 * i + 1] << 8) == id) return rk[4 * i + 2] | rk[4 * i + 3] << 8;
+    return 0;
+}
+static int add_club(u16 id, int a, u32 str) {
+    for (int i = 0; i < CT_IN.nclub; i++) if (CT_IN.club[i].id == id) return i + 1;
+    if (CT_IN.nclub >= NC) return 0;
+    int i = CT_IN.nclub++;
+    CT_IN.club[i].id = id; CT_IN.club[i].assoc = a; CT_IN.club[i].str = str; CT_IN.club[i].pts = rpts(id);
+    return i + 1;
+}
+/* cseg_927A2's input (DIY: +31h clubs, +6Dh rows in place order (offsets, 18 bytes each), +12Dh team words) */
+void ct_table(const u8 *diy) {
+    int n = diy[0x31] | diy[0x32] << 8;
+    if (n > NL) n = NL;
+    for (int i = 0; i < n; i++) {
+        int row = (diy[0x6D + 2 * i] | diy[0x6E + 2 * i] << 8) / 18;
+        TAB[i] = diy[0x12D + 2 * row] | diy[0x12E + 2 * row] << 8;
+    }
+    ntab = n;
+}
+void ct_begin(void) {
+    u8 *b = (u8 *)&CT_IN;
+    for (u32 i = 0; i < sizeof(CT_IN); i++) b[i] = 0;
+    ntab = 0;
+}
+/* one country of the season end (after its season: the top 9 records in stand, the cup winner's record) */
+void ct_country(const u8 *stand, const u8 *cuprec) {
+    if (!CT_SPEC) return;
+    parse();
+    u16 champ = stand[0] | stand[1] << 8;
+    if (!champ || champ == 0xFFFF) return;
+    int a = -1;
+    for (int i = 0; i < na; i++) if (afile[i] == (champ & 0xFF)) a = i;
+    if (a < 0) return;
+    u32 last = 0;
+    int n = ntab;
+    if (!n || TAB[0] != champ) {        /* (no table of this division seen: the top 9 records alone) */
+        n = 0;
+        for (int k = 0; k < 9; k++) { u16 w = stand[k * REC] | stand[k * REC + 1] << 8; if (!w || w == 0xFFFF) break; TAB[n++] = w; }
+    }
+    for (int k = 0; k < n && k < NL; k++) {
+        u32 s = last * 15 / 16;         /* (below the 9th: no record here, a little weaker than the one above) */
+        if (k < 9 && (stand[k * REC] | stand[k * REC + 1] << 8) == TAB[k]) s = rstr(stand + k * REC);
+        last = s;
+        CT_IN.league[a][k] = add_club(TAB[k], a, s);
+    }
+    u16 cw = cuprec[0] | cuprec[1] << 8;
+    if (cw && cw != 0xFFFF && (cw & 0xFF) == (champ & 0xFF))
+        CT_IN.cup[a] = add_club(cw, a, rstr(cuprec));
+    ntab = 0;
+}
+/* the season end, every country seen: the editions (seed, the career club's team word) */
+void ct_go(u32 manager, u32 seed) {
+    if (!CT_SPEC) return;
+    CT_IN.seed = seed ^ (CT_ST.season * 7919u);
+    CT_IN.manager = 0;
+    for (int i = 0; i < CT_IN.nclub; i++) if (CT_IN.club[i].id == (u16)manager) CT_IN.manager = i + 1;
+    ct_season();
 }
 
 /* --- the season --------------------------------------------------------------------------------------------------- */

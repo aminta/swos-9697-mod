@@ -589,6 +589,34 @@ def run_case(name, exe_dir, cars, keys, timeout, shots=0, match=False, timer=Fal
     return Result(run, outcome, eip, info)
 
 
+# SWOSTEST_UI=en: the harness drives the ENGLISH exe (run as ITALIAN.EXE) with its Italian menu logic: each screen
+# text is translated to the Italian one the scenarios look for (world8485 / advance: a career's season loop, the
+# season end); other texts stay as shown. Prefixes / suffixes: '<club> SQUAD' -> 'SQUADRA DEL <club>', '... END SEASON'
+# -> 'FINE CAMP. ...'.
+UI_EN = {'CAREER': 'CARRIERA', 'CHOOSE TEAM': 'SCEGLI SQUADRA', 'CLASSIC CAREERS': 'CARR. STORICHE',
+         'WORLD 2026-27': 'MONDO 2026-27', 'EUROPE 1984-85': 'EUROPA 1984-85', 'EUROPE': 'EUROPA',
+         'SOUTH AMERICA': 'SUDAMERICA', 'NORTH AMERICA': 'NORDAMERICA', 'ENGLAND': 'INGHILTERRA', 'ITALY': 'ITALIA',
+         'CONTINUE': 'CONTINUA', 'CONTINUE CAREER': 'CONTINUA CARRIERA', 'EXIT': 'ESCI', 'FINISH SEASON': 'FINISCI STAGIONE',
+         'EDIT TACTICS': 'MOD. TATTICA', 'VIEW OPPO': 'AVVERSARI', 'FIRST ROUND': 'PRIMO TURNO',
+         'SECOND ROUND': 'SECONDO TURNO', 'SAVE CAREER': 'SALVA CARRIERA', 'FRIENDLY': 'AMICHEVOLE', 'PLAY MATCH': 'PARTITA',
+         'TRANSFERS': 'TRASFERIMENTI', 'VIEW RESULT': 'VIS. RISULTATI', 'VIEW WORLD': 'VISUALIZZA MONDO',
+         'SEASON': 'STAGIONE', 'CLASSIC SEASONS': 'STAG. STORICHE', 'VIEW COMPETITIONS': 'VISUAL. COMPETIZ.',
+         '- MATCH -': '- PARTITA -', '- RESULT -': '- RISULTATO -', 'NEXT MATCH': 'PROSS. PARTITA', 'SQUAD': 'SQUADRA',
+         'ADD INTERNATIONAL PLAYER (HOME)': 'AGGIUNGI GIOCA. INTERNAZIONALE (CASA)', 'STATS': 'STAT', 'FORMAT': 'FORMULA'}
+
+
+def ui_it(text):
+    if os.environ.get('SWOSTEST_UI') != 'en' or not text:
+        return text
+    if text in UI_EN:
+        return UI_EN[text]
+    if text.endswith(' SQUAD') and text != 'SQUAD':
+        return 'SQUADRA DEL ' + text[:-6]
+    if 'END SEASON' in text:
+        return 'FINE CAMP. ' + text
+    return text
+
+
 class Screen:
     """The current menu read from a dump: entries [(index, text, invisible, disabled)], selected index."""
 
@@ -616,7 +644,7 @@ class Screen:
                 raw = r.read(ptrs[i], 40).split(b'\0')[0]
                 if raw and all(32 <= b < 127 for b in raw):
                     text = raw.decode()
-            self.entries.append((i, text, inv, dis))
+            self.entries.append((i, ui_it(text), inv, dis))
 
     def find(self, text, visible=True, exact=False):
         """Index of the first entry whose text starts with (exact: is) `text`, visible ones only by default."""
@@ -861,7 +889,8 @@ def squad_rows(s, scr, tag):
     Unavailable = red row background (x=100) or red pixels in the face/icon column (x 2-11): red card / injury."""
     from PIL import Image
     rows = sorted((g[1], i) for i, g in enumerate(scr.geom)
-                  if (g[0], g[2], g[3]) == (25, 82, 8) and not scr.entries[i][1])   # drawn rows, not text copies
+                  if (g[0], g[2], g[3]) in ((25, 82, 8), (31, 82, 8)) and not scr.entries[i][1])   # drawn rows, not
+    dx = scr.geom[rows[0][1]][0] - 25 if rows else 0     # text copies (the ENGLISH exe's layout: 6 px to the right)
     s.shot(tag)
     im = Image.open(os.path.join(s.run, 'shots', tag + '.png')).convert('RGB')
     w, h = im.size
@@ -869,25 +898,27 @@ def squad_rows(s, scr, tag):
     px = lambda x, y: im.getpixel((min(w - 1, int(x * w / 320)), min(h - 1, int(top + y * (h - top) / 200))))
     out = []
     for y, i in rows:
-        icon = sum(RED(px(x, y + dy)) for x in range(2, 12) for dy in range(1, 8))
-        out.append((i, RED(px(100, y + 4)) or icon >= 16))     # faces have ~6 reddish points, red icons 20+
+        icon = sum(RED(px(x + dx, y + dy)) for x in range(2, 12) for dy in range(1, 8))
+        out.append((i, RED(px(100 + dx, y + 4)) or icon >= 16))     # faces have ~6 reddish points, red icons 20+
     return out
 
 
 SLOT_ROLE = 'GDDDDMMMMAAGDMA'                     # record order of a SWOS squad: G RB LB D D RW LW M M A A, bench G D M A
-POS_ROLE = {'P': 'G', 'TD': 'D', 'TS': 'D', 'D': 'D', 'MD': 'M', 'MS': 'M', 'M': 'M', 'A': 'A'}
+POS_ROLE = {'P': 'G', 'TD': 'D', 'TS': 'D', 'D': 'D', 'MD': 'M', 'MS': 'M', 'M': 'M', 'A': 'A',
+            'G': 'G', 'RB': 'D', 'LB': 'D', 'RW': 'M', 'LW': 'M'}    # (+ the ENGLISH exe's codes)
 
 
 def reserve_info(cur, y):
     """The 17th squad row (the reserve shown, the only row with texts): (name, role G/D/M/A or '', value)."""
     t = sorted((cur.geom[j][0], tx) for j, tx, inv, _ in cur.entries if tx and not inv and cur.geom[j][1] == y
                and cur.geom[j][0] < 180)
-    name = next((tx for x, tx in t if x == 25), '')
-    role = next((POS_ROLE.get(tx, '') for x, tx in t if 95 <= x <= 125), '')
+    x0 = min((x for x, tx in t), default=25)            # the name column: 25 (31 in the ENGLISH exe)
+    name = next((tx for x, tx in t if x == x0), '')
+    role = next((POS_ROLE.get(tx, '') for x, tx in t if 95 + x0 - 25 <= x <= 125 + x0 - 25), '')
     price = next((tx for x, tx in t if x >= 138), '')
     m = re.fullmatch(r'L([0-9.]+)(K|MN|MD)', price)
     value = (float(m.group(1)) * {'K': 0.001, 'MN': 1, 'MD': 1000}[m.group(2)] if m else
-             -1 if price == 'PROVA' else 0)          # RIS (the game's invented reserves) 0, trial players -1
+             -1 if price in ('PROVA', 'TRIAL') else 0)          # RIS (the game's invented reserves) 0, trial players -1
     return name, role, value
 
 
@@ -1308,11 +1339,13 @@ def fill_check(s, tag):
     'CHANGED' (differing bytes, the first offset). The address of linAdr384k: LoadFillAndSwtitle's `mov eax,
     [linAdr384k]; add eax, 65536; mov [A1], eax`. Returns True when intact (None if it could not be read)."""
     try:
-        if not hasattr(fill_check, 'off'):
+        exe = os.path.join(ROOT, 'orig', 'ENGLISH.EXE' if os.environ.get('SWOSTEST_UI') == 'en' else 'ITALIAN.EXE')
+        if getattr(fill_check, 'exe', None) != exe:       # (the original of the exe under test: its linAdr384k)
+            fill_check.exe = exe
             sys.path.insert(0, os.path.join(ROOT, 'tools'))
             from le import LE
             import sacups
-            d1 = LE(open(os.path.join(ROOT, 'orig', 'ITALIAN.EXE'), 'rb').read()).obj_bytes(1)
+            d1 = LE(open(exe, 'rb').read()).obj_bytes(1)
             a1 = struct.pack('<I', sacups.regs(d1)['A0'] + 4)
             offs = {struct.unpack('<I', m.group(1))[0] for m in
                     re.finditer(rb'\xa1(.{4})\x05\x00\x00\x01\x00\xa3' + re.escape(a1), d1, re.S)}
@@ -1333,7 +1366,9 @@ def fill_check(s, tag):
 def menu_check(s, tag):
     """Main menu after a career (Davide, 2026-10-16: once its buttons showed an in-match frame instead of their
     FILL.256 texture): screenshot it and compare the MOD. TATTICA button with the game's gradient (a smooth dark
-    blue left to right). A corrupted texture is noted in the session log as '[menu] CORRUPTED' (no failure)."""
+    blue left to right). A corrupted texture is noted in the session log as '[menu] CORRUPTED'. 4.0 (regia): the
+    FILL.256 texture in memory changed = garbage graphics (it matched every corrupted season-end frame of 19/10: the
+    30-club tables drawn past the screen) -> returns an error, the scenario FAILs."""
     try:
         from PIL import Image
         s.shot('menu_' + tag)
@@ -1344,8 +1379,12 @@ def menu_check(s, tag):
         y = int(top + 92 * (h - top) / 200)              # the button's middle row (game y 92), x 22..150
         row = [im.getpixel((int(x * w / 320), y)) for x in range(22, 150, 2)]
         jumps = sum(abs(a[0] - b[0]) + abs(a[1] - b[1]) + abs(a[2] - b[2]) > 60 for a, b in zip(row, row[1:]))
-        s.log.append(f'[menu] {tag}: ' + ('CORRUPTED' if jumps > 20 else 'clean') + f' ({jumps} jumps)')
-        fill_check(s, tag)
+        if os.environ.get('SWOSTEST_UI') == 'en':      # (the ENGLISH menu: other buttons on that row, flat fills:
+            s.log.append(f'[menu] {tag}: ({jumps} jumps, not judged: ENGLISH layout)')   # the FILL.256 check decides)
+        else:
+            s.log.append(f'[menu] {tag}: ' + ('CORRUPTED' if jumps > 20 else 'clean') + f' ({jumps} jumps)')
+        if fill_check(s, tag) is False:
+            return f'{tag}: the menu graphics are corrupted (FILL.256 texture changed in memory; frame menu_{tag}.png)'
     except Exception as e:                           # never let the check break a run
         s.log.append(f'[menu] {tag}: check failed {e}')
 
@@ -1394,7 +1433,9 @@ def next_season_save(s, name):
     else:
         return 'career menu of the new season not reached'
     press(s, s.screen(), 'ESCI', wait=3)
-    menu_check(s, 'season_end')                  # the main menu after a career: corrupted buttons? (Davide)
+    err = menu_check(s, 'season_end')            # the main menu after a career: corrupted buttons? (Davide)
+    if err:
+        return err
     if press(s, s.screen(), 'SALVA CARRIERA') is None:
         return f'no SALVA CARRIERA on {s.screen()}'
     s.send(name_entry(name) + ' dump:3')
@@ -5375,7 +5416,9 @@ def world_away_goals():
     import lepatch
     sp = split.sites(lepatch.LEPatch(os.path.join(MAIN, 'orig', 'ITALIAN.EXE')))['SLOTS']   # (InitNewSeason's
     seen, errs, info, bps = {}, [], [], []                     # arrayOfPointers: slots 0-4' buffers; integrator)
-    os.environ.setdefault('W8485_TMO', '1800')  # (the slower core: long steps; the run stops once the evidence is in)
+
+    class Enough(Exception):                                   # (the evidence is in: no need to finish the season under
+        pass                                                   # the slow core - its season end takes hours)
 
     def decided(r):                                           # breakpoint after cseg_28E76 stores cseg_2AE97's D7
         diy = struct.unpack('<I', r.read(r.base2 + AG_A3, 4))[0]   # (A3 = DIY_competitionStart, the working copy)
@@ -5386,9 +5429,8 @@ def world_away_goals():
             team = lambda i: w(0x24D + 2 * i)
             bps.append((d[0x2D], w(0x57), team(d[0x2CD + 2 * t]), team(d[0x2CD + 2 * t + 1]), d[0x89 + t],
                         w(0xC9 + 2 * t), w(0x14D + 2 * t)))
-
-    class Enough(Exception):                                   # (the evidence is in: no need to finish the season under
-        pass                                                   # the slow core - its season end takes hours)
+            if not FORCE and d[0x89 + t] & 0x10:           # (1984-85: the first away-goals decision is the evidence:
+                raise Enough                               # stop at once, not at the next screen)
 
     def hook(s, season, scr):
         if not FORCE and any(b[4] & 0x10 for b in bps):
@@ -5470,6 +5512,9 @@ def world_away_goals():
         seen.clear()
         bps.clear()
         FORCE = False                                         # (b) 1984-85: the rule as the engine plays it
+        os.environ['CORE'] = 'normal'                         # (the decision breakpoint: the dynamic core skips it;
+        os.environ['W8485_TMO'] = os.environ.get('AG_TMO', '3600')   # a loaded Mac: long steps; it stops at the
+                                                              # first away-goals decision)
         if 'b' in parts:
             keep = {k: os.environ.get(k) for k in ('W8485_ONE', 'W8485_BUILD', 'SWOSTEST_SCENARIO')}
             os.environ['W8485_ONE'] = '1'
@@ -5486,15 +5531,11 @@ def world_away_goals():
                         os.environ.pop(k, None)
                     else:
                         os.environ[k] = v
-            res = collections.Counter()                         # the European second legs' result texts (the
-            for d in glob.glob(os.path.join(RUNS, w84_tag() + '_*', 'session.log')):   # fast core: no breakpoint)
-                for ln in open(d, errors='replace'):
-                    if 'RITORNO' in ln:
-                        for t in re.findall(r'VINCE (?:\d+-\d+ )?(AI RIG(?: D\.T)?|IN TOT\.(?: D\.T)?|SU GOL FC)', ln):
-                            res[t] += 1
-            info.append(f'1984-85: {msg[:120]}; second-leg results {dict(res)}')
+            ag = [b for b in bps if b[4] & 0x10]
+            info.append(f'1984-85: {msg[:120]}; second legs {len(bps)}, away-goals bit {len(ag)}; '
+                        + ' '.join(f'{b[2]}-{b[3]}:{b[4]:02x}/{b[5]:04x}/{b[6]:04x}' for b in ag[:4]))
             check(ok, msg, errs)
-            check(res.get('SU GOL FC', 0) > 0, f'1984-85: no tie won on away goals on the screens {dict(res)}', errs)
+            check(bool(ag), '1984-85: no tie decided on away goals', errs)
     finally:
         W84_HOOK = None
     return not errs, '; '.join(errs + info)
@@ -5505,8 +5546,9 @@ def world_full_uefa():
     """UEFA places 2027/28 (integrator 131f04b: the places from the ranking a year old = the seed, the real 2026
     ranking; regia 2026-10-19): one season of the full 2026-27 world at ARSENAL, then each association's clubs in the
     new CL / EL / UECL lists (checkw1 CHECKW1_COUNTS) = uefacoef's places per rank (LP_CLN / LP_ELN / LP_UEN) applied to
-    the seed ranking (pack.json uefa_coef country: 5 seasons summed), + the holders explicitly (read after the season
-    end: the CL holder and the EL winner one more CL place each, the UECL winner one more EL place)"""
+    the seed ranking (pack.json uefa_coef country: 5 seasons summed): 36 / 36 / 36, every association's DIRECT
+    league-phase places by uefaq.c's access list (AL) present, more only from a qualifying entry, a holder (read after
+    the season end) or the 2 European Performance Spots"""
     global W84_HOOK
     import collections
     import json
@@ -5556,18 +5598,44 @@ def world_full_uefa():
         if k in base and i + 1 < len(lines) and 'per country' in lines[i + 1]:
             got[k] = collections.Counter(dict(eval(lines[i + 1].split('per country', 1)[1])))
     hcc, hcwc, huefa = (x & 0xFF for x in hold['h'])
-    want = {'CC': base['CC'] + collections.Counter([hcc, hcwc]), 'CWC': base['CWC'] + collections.Counter([huefa]),
-            'UEFA': base['UEFA']}
     notes = [f"holders CL {name.get(hcc, hcc)} / EL {name.get(hcwc, hcwc)} / UECL {name.get(huefa, huefa)}"]
-    for k in ('CC', 'CWC', 'UEFA'):
-        g = got.get(k)
+    # (integrator 2026-10-19: the lists are uefaq.c's uq_season - the access list's direct places, the 2 EPS, the
+    # simulated qualifying rounds, then the holders; not uefacoef's places per rank) - the access list AL by seed rank
+    src = open(os.path.join(ROOT, 'tools', 'uefaq.c')).read()
+    al = [int(x) for x in re.search(r'static const u8 AL\[\] = \{(.*?)\};', src, re.S).group(1).replace('\n', ' ').split(',')
+          if x.strip()]
+    entries, k = {}, 0
+    while al[k]:
+        rk, n = al[k], al[k + 1]
+        entries[rk] = [(al[k + 2 + 2 * e], al[k + 3 + 2 * e]) for e in range(n)]
+        k += 2 + 2 * n
+    LS = {'CC': 0, 'CWC': 8, 'UEFA': 14}
+    QUAL = {'CC': range(1, 8), 'CWC': range(1, 14), 'UEFA': range(1, 22)}   # (a cup's qualifiers + those dropping into it)
+    direct = {c: collections.Counter() for c in LS}
+    qual = {c: set() for c in LS}
+    for r, f in enumerate(rank, 1):
+        for rnd, code in entries.get(r, []):
+            for c in LS:
+                if rnd == LS[c]:
+                    direct[c][f] += 1
+                elif rnd in QUAL[c]:
+                    qual[c].add(f)
+    holders = {'CC': {hcc, hcwc}, 'CWC': {huefa}, 'UEFA': set()}
+    for c in ('CC', 'CWC', 'UEFA'):
+        g = got.get(c)
         if g is None:
-            errs.append(f'{k}: no per-country counts in checkw1')
+            errs.append(f'{c}: no per-country counts in checkw1')
             continue
-        diff = {name.get(f, f): (g.get(f, 0), want[k].get(f, 0)) for f in set(g) | set(want[k])
-                if g.get(f, 0) != want[k].get(f, 0)}
-        check(not diff, f'{k} places (got, want) {diff}', errs)
-        notes.append(f'{k} {sum(g.values())} clubs, {len(g)} associations')
+        check(sum(g.values()) == 36, f'{c}: {sum(g.values())} clubs, not 36', errs)
+        short = {name.get(f, f): (g.get(f, 0), n) for f, n in direct[c].items() if g.get(f, 0) < n}
+        check(not short, f'{c}: direct places missing (got, direct) {short}', errs)          # (the release check)
+        extra = {f: g[f] - direct[c].get(f, 0) for f in g if g[f] > direct[c].get(f, 0)}
+        odd = {name.get(f, f): x for f, x in extra.items() if f not in qual[c] and f not in holders[c]}
+        eps = [f for f in odd if c == 'CC']
+        check(len(odd) <= (2 if c == 'CC' else 0), f'{c}: places beyond the direct ones without a qualifying '
+              f'entry or a holder {odd}', errs)                                                  # (CC: the 2 EPS)
+        notes.append(f"{c} 36 = direct {sum(direct[c].values())} + {sum(extra.values())} more "
+                     f"({', '.join(f'{name.get(f, f)} +{x}' for f, x in sorted(extra.items(), key=lambda t: -t[1]))})")
     return not errs, '; '.join(errs + notes)
 
 

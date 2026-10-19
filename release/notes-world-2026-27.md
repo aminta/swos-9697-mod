@@ -65,7 +65,8 @@ Not one fixed formula for everybody: each league plays the season the way its ow
     match; otherwise a Finalissima between the two round winners, or, with three or four clubs in the top two of the
     rounds, a decider or a Final Four seeded by aggregate points.
   Extra time and penalties where the tie is level. Declared for Malta: single matches at a neutral ground (the
-  rules give no format), no third-place match. -->
+  rules give no format); equal season points in the Final Four seeding are split by the Closing Round place; no
+  third-place match. -->
 - **Leagues with an odd number of clubs play real rounds**: one club rests each matchday, as in the real
   competitions (El Salvador's Tercera, Gibraltar, New Zealand, India, Taiwan ...); the original game's tables for odd
   sizes were not rounds.
@@ -491,7 +492,8 @@ Non una formula uguale per tutti: ogni campionato gioca la stagione come l'ha sc
     altrimenti la Finalissima tra le due vincitrici o, con tre o quattro club nei primi due posti dei due round, uno
     spareggio o una Final Four ordinata per punti complessivi.
   Supplementari e rigori in caso di parità. Dichiarato per Malta: partite secche in campo neutro (il regolamento
-  non dice il formato), niente finale per il terzo posto. -->
+  non dice il formato); a parità di punti nella stagione, l'ordine della Final Four segue il posto nel Closing Round;
+  niente finale per il terzo posto. -->
 - **I campionati con un numero dispari di squadre giocano giornate vere**: a ogni turno una squadra riposa, come nelle
   competizioni reali (la Tercera di El Salvador, Gibilterra, Nuova Zelanda, India, Taiwan ...); le tabelle originali
   del gioco per le dimensioni dispari non erano giornate.

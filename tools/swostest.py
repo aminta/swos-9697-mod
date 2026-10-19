@@ -6012,7 +6012,7 @@ def statespec_test():
 
         orders, resort = {}, [None]
         from le import LE
-        _d1 = LE(open(b, 'rb').read()).obj_bytes(1)
+        _d1 = LE(open(os.path.join(b, 'ITALIAN.EXE') if os.path.isdir(b) else b, 'rb').read()).obj_bytes(1)
         _k = _d1.find(b'STRDBGPT')
         rd_at = struct.unpack_from('<I', _d1, _k + 8)[0] if _k >= 0 else None
 

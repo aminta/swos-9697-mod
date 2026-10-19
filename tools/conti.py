@@ -54,6 +54,11 @@ def _draw(rd):
     return DRAW['order'], rule
 
 
+def main_round(c):
+    """The round a career club plays as the game's own contest (slot 3): the first group stage, else the first round."""
+    return next((j for j, r in enumerate(c['rounds']) if r['kind'] == 'groups'), 0)
+
+
 def load(confs, files=None, words=None):
     """-> (spec bytes, [association pack keys], [(conf, cup key)]). files: {association key: its league team file}
     (the game's build; the tests: 100 + index), words: {club key: team word} (the ranking's clubs)."""
@@ -95,6 +100,7 @@ def load(confs, files=None, words=None):
                 b[6], b[7], b[8] = rd['groups'], rd['size'], rd.get('rounds', 2)
                 b[16] = 1 if (rd.get('draw') or {}).get('holder') else 0
             b[9] = rd.get('month') or (rd.get('months') or [8])[0]
+            b[17] = 1 if j == main_round(c) else 0
             b[10] = CHAMP if j == len(rounds) - 1 else (ci << 4 | (j + 1))
             b[11] = OUT
             for q in range(4):
@@ -118,7 +124,13 @@ def load(confs, files=None, words=None):
                 rk = ALIAS.get(rk, rk) if rk not in rkey[ci] else rk
                 k = CODE[code] if isinstance(code, str) else (0 if code <= 1 else code)
                 access.append((assocs.index(ak), ci, rkey[ci][rk], k))
-    spec = bytes((len(cups), len(assocs), 0, 0)) + body
+    force = (0xFF, 0xFF)                                # CONTI_FORCE=<cup>:<round> (test builds only): the
+    if os.environ.get('CONTI_FORCE'):                   # career club enters that round at every season end
+        fk, fr = os.environ['CONTI_FORCE'].split(':')
+        fc = next(i for i, (_, c, _) in enumerate(cups) if c['key'] == fk)
+        force = (fc, rkey[fc][fr])
+        print(f'exe: CONTI_FORCE={fk}:{fr} (test build)')
+    spec = bytes((len(cups), len(assocs)) + force) + body
     spec += struct.pack('<H', len(access)) + b''.join(bytes(x) for x in access)
     spec += bytes((len(holders),)) + b''.join(bytes(x) for x in holders)
     spec += bytes((files or {}).get(a, 100 + i) & 0xFF for i, a in enumerate(assocs))
@@ -252,6 +264,7 @@ ct_fill:                                ; careerworld w_ct_fill (the season end'
     push ds
     pop es
     cld
+    ;CT_LP
     movzx eax, word [SEL]
     push dword [STAND]                  ; (a seed: changes every season)
     push eax
@@ -315,9 +328,17 @@ def patch(p, at, limit, bss_at, area):
                'SEL': (2, sacups.SEL_ADDR[0]), 'SPEC': (2, area.add(spec)), 'C927A2': (1, t927[0]),
                'C93974': (1, t939[0]), 'CT_SPEC': syms['CT_SPEC'], 'CT_TABLE': syms['ct_table'],
                'CT_BEGIN': syms['ct_begin'], 'CT_COUNTRY': syms['ct_country'], 'CT_GO': syms['ct_go']}
+    lp = []
+    for ci, off, lst, n in STRUCTS:                     # the contests' lists (conti.c writes the main rounds there)
+        symbols[f'LIST{ci}'] = (1, lst)
+        lp.append(f'    mov dword [CT_LP + {4 * ci}], LIST{ci}')
+    symbols['CT_LP'] = syms['CT_LP']
+    asm = GLUE.replace("    ;CT_LP", "\n".join(lp))
+    bad = {k: v for k, v in symbols.items() if not (isinstance(v, tuple) and isinstance(v[1], int))}
+    assert not bad, bad
     glue = (end + 15) & ~15
-    code, fix = nasmcave.assemble(GLUE, glue, symbols)
-    lab = nasmcave.labels(GLUE, glue, symbols)
+    code, fix = nasmcave.assemble(asm, glue, symbols)
+    lab = nasmcave.labels(asm, glue, symbols)
     assert glue + len(code) <= limit, hex(glue + len(code))
     p.put(1, glue, code)
     for off, tobj, toff in fix:
@@ -336,3 +357,72 @@ def patch(p, at, limit, bss_at, area):
           f'{len(assocs)} associations, spec {len(spec)} B; C obj1+{at:#x}..{end:#x}, glue ..{glue + len(code):#x}, '
           f'bss obj2+{bss_at:#x} ({bss} B)')
     return glue + len(code)
+
+
+# --- the career club's contests (the slot-3 chain) --------------------------------------------------------------------
+IDS = [0xC6, 0xC7, 0xC8, 0xC9, 0xCA, 0xD0, 0xD1, 0xDA, 0xDD, 0xDE, 0xDF, 0xEC, 0xED, 0xEE, 0xEF]   # (mkseason.RESERVED_IDS)
+STRUCTS = []                            # [(cup index, struct offset, team list offset, list length)]
+
+
+def _legs(rd):
+    """The game's round byte: bits 7-6 legs (2), 5-4 extra time, 3-2 penalties."""
+    if rd.get('legs', 2) == 2:
+        return 0x94 if rd.get('level') == 'et_pens' else 0x84
+    return 0x14
+
+
+def _month(m):                          # the contest's months: x 8 from January, a season's Jan-Jul in the next year
+    return (m - 1 + (12 if m < 8 else 0)) * 8
+
+
+def structs(p, area, lang, at):
+    """The career club's contests (one per cup: its main round as the game's own contest) at obj1:at; returns (end,
+    [(1, struct offset)], [euro rank per struct]) for sacups' slot-3 chain (D7 / E092F = 6 + index)."""
+    import sacups
+    import mkseason
+    confs = ready()
+    used = {int(str(c['id']), 16) for pk in mkseason.packs() if pk.meta.get('id', '').startswith('world-2026-27-')
+            for c in pk.meta.get('competitions', []) if c.get('id')}
+    assert not used & set(IDS), ('conti: World 2026-27 packs use its contest ids', sorted(used & set(IDS)))
+    d2 = p.le.obj_bytes(2)
+    euro = sacups.unique(d2, sacups.EUROCUP_HDR)
+    cwc = sacups.unique(d2, sacups.CWC_HDR)
+    out, kinds = [], []
+    STRUCTS.clear()
+    ci = 0
+    for conf in confs:
+        for k, c in enumerate(_read(conf, 'format')['cups']):
+            assert ci < len(IDS), 'conti: more cups than ids'
+            cid, j0 = IDS[ci], main_round(c)
+            rd, rounds = c['rounds'][j0], c['rounds']
+            nm = (c['names'].get(lang) or c['names']['en'])[0].upper().encode('latin1')[:30]
+            rel = area.add(nm + b'\0') - sacups.STR_BASE
+            last = rounds[-1].get('month') or 5
+            if rd['kind'] == 'groups':
+                body = bytearray(d2[euro:euro + 47])
+                body[0] = cid
+                n = rd['groups'] * rd['size']
+                ko = [r for r in rounds[j0 + 1:] if r['kind'] == 'ko'][-4:]
+                st = [5, n, rd['groups'], rd['size'], 16, 0, 16, 8, 0, 8, 4, 0, 4, 2, 0, 2, 1, 0, 0, 0, 0] + [_legs(r) for r in ko]
+                assert len(st) == 0x27 - 0x0e and len(ko) == 4, (c['key'], len(ko))
+                body[0x0e:0x27] = bytes(st)
+                body[9] = 0                                 # (every round through the game's own draw: our list order)
+                body[3], body[4] = _month((rd.get('months') or [10])[0]), _month(last)
+                name_at = 39
+            else:
+                ko = rounds[j0:]
+                n = 2 ** len(ko)
+                body = sacups.knockout16(d2[cwc:cwc + 28], cid, n, tuple(_legs(r) for r in ko))
+                body[3], body[4] = _month(rd.get('month') or 8), _month(last)
+                name_at = len(body)
+            body[0x0a] = 1 if any(r.get('level') == 'away_pens' for r in rounds) else 0   # (away goals after 90')
+            blob = bytes(body[:name_at]) + struct.pack('<II', rel, rel) + struct.pack('<H', 0xFFFF) * n
+            assert blob[5] + 5 == name_at and blob[7] + 7 == name_at + 8, c['key']
+            p.put(1, at, blob)
+            STRUCTS.append((ci, at, at + name_at + 8, n))
+            out.append(at)
+            kinds.append(min(k, 2))                         # (the trophy's rank: the first cup as the Champions Cup)
+            at += (len(blob) + 3) & ~3
+            ci += 1
+    print(f'exe: other confederations\' contests (slot-3 chain): {len(out)} at obj1+{out[0] if out else at:#x}')
+    return at, out, kinds

@@ -64,12 +64,14 @@ struct ct_out {
 };
 
 const u8 *CT_SPEC;
+u16 *CT_LP[NCUP];                       /* each cup's contest team list in the exe (its main round, drawn order: the
+                                           slot-3 chain finds the career club there at the next season start), 0 = none */
 struct ct_in CT_IN;
 struct ct_state CT_ST;
 struct ct_out CT_OUT;
 
 /* --- the spec ----------------------------------------------------------------------------------------------------- */
-static u8 ncup, na;
+static u8 ncup, na, fcup, frnd;         /* (test builds, CONTI_FORCE: the career club into this cup's round) */
 static const u8 *cupr[NCUP];            /* first round of each cup */
 static u8 nrd[NCUP];
 static const u8 *acc;                   /* access entries: assoc, cup, round, code */
@@ -83,7 +85,7 @@ static u16 nrk;
 
 static void parse(void) {
     const u8 *p = CT_SPEC;
-    ncup = p[0]; na = p[1];
+    ncup = p[0]; na = p[1]; fcup = p[2]; frnd = p[3];
     p += 4;
     for (int c = 0; c < ncup; c++) {
         nrd[c] = p[0];
@@ -181,6 +183,10 @@ static void access(void) {
             CT_IN.club[k - 1].str = CT_ST.hold[s].str; CT_IN.club[k - 1].pts = CT_ST.hold[s].pts;
         }
         if (k) { enter(e[1], e[2], k, 0, 0); taken[k] = 1; }   /* (a holder may hold places in two cups: the Recopa) */
+    }
+    if (fcup < ncup && CT_IN.manager && !taken[CT_IN.manager]) {   /* (test builds: the forced place) */
+        enter(fcup, frnd, CT_IN.manager, 0, 0);
+        taken[CT_IN.manager] = 1;
     }
     for (int i = 0; i < nacc; i++) {
         const u8 *e = acc + 4 * i;
@@ -392,6 +398,10 @@ static void ct_round(int c, int r) {
     if (R[0] == K_GROUPS) draw_groups(c, r, R); else draw_ko(c, r, R);
     CT_OUT.nent[c][r] = n;
     for (int i = 0; i < n && i < NE; i++) { CT_OUT.ent[c][r][i] = D[i]; if (D[i]) reached(D[i], c, r); }
+    if (R[17] && CT_LP[c]) {            /* the main round: the game's contest plays it with the career club */
+        int m = R[0] == K_GROUPS ? R[6] * R[7] : n;
+        for (int i = 0; i < m && i < 32; i++) CT_LP[c][i] = D[i] && i < n + (m - n) ? CT_IN.club[D[i] - 1].id : 0xFFFF;
+    }
     if (R[0] == K_GROUPS) {
         int ng = R[6], gs = R[7];
         /* every group, then each place's clubs ranked across the groups by record (the rank keys of the next draw) */

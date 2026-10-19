@@ -352,6 +352,11 @@ def patch_exe(src, dst, remap, lang='it'):
         uefaq.D7_BASE[0] = 6 + len(info['structs'])     # (sacups: D7 / E092F = 6 + index in the chain)
         info['structs'] += q
         info['kinds'] += [0, 1, 2]
+    if ct_pg:                                   # the other confederations' contests: after uefaq's in the slot-3 chain
+        ct_at = hist2 + h2 + 0x1000 * (lpb + sp_pg + sc_pg)
+        ct_code, cq, ck = conti.structs(p, area, lang, ct_at)
+        info['structs'] += cq
+        info['kinds'] += ck
     info['new_career_ptr'] = world              # dword filled below: sacups is assembled before the trailer code
     world += 4
     cave = sacups.patch(p, pool, SA_CAVE, info)
@@ -500,8 +505,7 @@ def patch_exe(src, dst, remap, lang='it'):
         if sc_pg > 1:
             statespec.sim_patch(p, sc_at + 0x1000)  # statesim.c: every state's stage 1 + relegation at the season end
     if ct_pg:                                    # the other confederations' cups (conti.c): after statecup's pages
-        ct_at = hist2 + h2 + 0x1000 * (lpb + sp_pg + sc_pg)
-        conti.patch(p, ct_at, ct_at + 0x1000 * ct_pg, ct_bss, area)
+        conti.patch(p, ct_code, ct_at + 0x1000 * ct_pg, ct_bss, area)
     p.set_vsize(1, OBJ1_NEW_VSIZE + (0x1000 * (cp + 2 + cdp) if worlds else 0) + h2 + 0x1000 * (lpb + sp_pg + sc_pg + ct_pg))
     tail = (careerworld.BSS_SIZE if bigw else 0) + shirtnum.BSS_SIZE + blond.BSS_SIZE + menunum.BSS_SIZE + fmtpage.BSS_SIZE   # obj2 tail
     p.set_vsize(2, obj2_free + o2pages * p.le.page_size + tail, bss=tail)

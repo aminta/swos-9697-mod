@@ -2092,6 +2092,8 @@ def patch(p, lang, area, cave):
     import sacups
     ct, tcn, _, _ = countries.tables(p)
     comp = countries.COMP[0]
+    NS.clear()                                 # (several worlds: this exe's namespaces; a release builds 8 exes in one run)
+    NS_INFO.clear()
     env = (p.le.obj_bytes(2), ct, tcn, comp, {f[1] for f in p.le.fixups() if f[0] == 2})
     ids = {}                                   # a league id may be shared by the packs of one career world, and
     for pk in packs():                         # every world has its own ids (worlds never run together: their cups'

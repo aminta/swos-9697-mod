@@ -400,7 +400,7 @@ EX = {
         drawn='ACCOPPIAMENTI SORTEGGIATI', neutral='IN CAMPO NEUTRO',
         st_byes='{who} ESENTI, ENTRANO AL TURNO DOPO', st_down='RETROCESSE: {n}', 
         state='CAMPIONATO STATALE: {n} SQUADRE', st_grp='{g} GIRONI DA {s}, SOLA ANDATA', st_grp1='GIRONE UNICO DA {s}, SOLA ANDATA',
-        st_cross=' (CONTRO LE SQUADRE DELL ALTRO GIRONE)', st_grp2='POI {g} GIRONI DA {s}', st_ko='{n} SQUADRE: {r}',
+        st_cross=' (CONTRO LE SQUADRE DELL ALTRO GIRONE)', st_cross_n=' (CONTRO LE SQUADRE DEGLI ALTRI GIRONI)', st_grp2='POI {g} GIRONI DA {s}', st_ko='{n} SQUADRE: {r}',
         ita_b=['TERZA PROMOSSA DI SERIE B: 3A-8A', 'TURNO PRELIMINARE: 5A-8A E 6A-7A, GARA UNICA IN CASA DELLA MEGLIO PIAZZATA, SUPPLEMENTARI, POI LA MEGLIO PIAZZATA',
                'SEMIFINALI: 3A E 4A CONTRO LE VINCENTI, ANDATA E RITORNO, IN PARITA LA MEGLIO PIAZZATA',
                'FINALE: ANDATA E RITORNO, IN PARITA LA MEGLIO PIAZZATA; A PARI PUNTI IN CAMPIONATO SUPPLEMENTARI E RIGORI',
@@ -433,7 +433,7 @@ EX = {
         drawn='TIES DRAWN', neutral='AT A NEUTRAL GROUND',
         st_byes='{who} WITH A BYE TO THE NEXT ROUND', st_down='RELEGATED: {n}', 
         state='STATE CHAMPIONSHIP: {n} CLUBS', st_grp='{g} GROUPS OF {s}, SINGLE ROUND', st_grp1='ONE GROUP OF {s}, SINGLE ROUND',
-        st_cross=' (AGAINST THE OTHER GROUP S CLUBS)', st_grp2='THEN {g} GROUPS OF {s}', st_ko='{n} CLUBS: {r}',
+        st_cross=' (AGAINST THE OTHER GROUP S CLUBS)', st_cross_n=' (AGAINST THE OTHER GROUPS CLUBS)', st_grp2='THEN {g} GROUPS OF {s}', st_ko='{n} CLUBS: {r}',
         ita_b=['SERIE B THIRD PROMOTED CLUB: 3RD-8TH', 'PRELIMINARY ROUND: 5TH V 8TH, 6TH V 7TH, SINGLE MATCH AT THE BETTER PLACED, EXTRA TIME, THEN THE BETTER PLACED',
                'SEMI-FINALS: 3RD AND 4TH V THE WINNERS, TWO LEGS, LEVEL: THE BETTER PLACED',
                'FINAL: TWO LEGS, LEVEL: THE BETTER PLACED; LEVEL ON LEAGUE POINTS: EXTRA TIME AND PENALTIES',
@@ -465,7 +465,7 @@ EX = {
         drawn='AFFICHES TIREES AU SORT', neutral='SUR TERRAIN NEUTRE',
         st_byes='{who} EXEMPTES JUSQU AU TOUR SUIVANT', st_down='RELEGUES: {n}', 
         state='CHAMPIONNAT D ETAT: {n} CLUBS', st_grp='{g} GROUPES DE {s}, MATCHS SIMPLES', st_grp1='UN GROUPE DE {s}, MATCHS SIMPLES',
-        st_cross=' (CONTRE LES CLUBS DE L AUTRE GROUPE)', st_grp2='PUIS {g} GROUPES DE {s}', st_ko='{n} CLUBS: {r}',
+        st_cross=' (CONTRE LES CLUBS DE L AUTRE GROUPE)', st_cross_n=' (CONTRE LES CLUBS DES AUTRES GROUPES)', st_grp2='PUIS {g} GROUPES DE {s}', st_ko='{n} CLUBS: {r}',
         ita_b=['3E PROMU DE SERIE B: 3E-8E', 'TOUR PRELIMINAIRE: 5E-8E ET 6E-7E, UN MATCH CHEZ LE MIEUX CLASSE, PROLONGATION, PUIS LE MIEUX CLASSE',
                'DEMI-FINALES: 3E ET 4E CONTRE LES VAINQUEURS, ALLER-RETOUR, EGALITE: LE MIEUX CLASSE',
                'FINALE: ALLER-RETOUR, EGALITE: LE MIEUX CLASSE; A EGALITE DE POINTS EN CHAMPIONNAT PROLONGATION ET TAB',
@@ -498,7 +498,7 @@ EX = {
         drawn='PAARUNGEN AUSGELOST', neutral='AUF NEUTRALEM PLATZ',
         st_byes='{who} MIT FREILOS IN DIE NAECHSTE RUNDE', st_down='ABSTEIGER: {n}', 
         state='STAATSMEISTERSCHAFT: {n} VEREINE', st_grp='{g} GRUPPEN ZU {s}, EINFACHE RUNDE', st_grp1='EINE GRUPPE ZU {s}, EINFACHE RUNDE',
-        st_cross=' (GEGEN DIE VEREINE DER ANDEREN GRUPPE)', st_grp2='DANN {g} GRUPPEN ZU {s}', st_ko='{n} VEREINE: {r}',
+        st_cross=' (GEGEN DIE VEREINE DER ANDEREN GRUPPE)', st_cross_n=' (GEGEN DIE VEREINE DER ANDEREN GRUPPEN)', st_grp2='DANN {g} GRUPPEN ZU {s}', st_ko='{n} VEREINE: {r}',
         ita_b=['DRITTER AUFSTEIGER DER SERIE B: 3.-8.', 'VORRUNDE: 5.-8. UND 6.-7., EIN SPIEL BEIM BESSER PLATZIERTEN, VERLAENGERUNG, DANN DER BESSER PLATZIERTE',
                'HALBFINALE: 3. UND 4. GEGEN DIE SIEGER, HIN- UND RUECKSPIEL, GLEICHSTAND: DER BESSER PLATZIERTE',
                'FINALE: HIN- UND RUECKSPIEL, GLEICHSTAND: DER BESSER PLATZIERTE; BEI GLEICHEN LIGAPUNKTEN VERLAENGERUNG UND ELFMETER',
@@ -590,7 +590,7 @@ def state_text(c, t, lang):
             if first:
                 s = (e['st_grp1'].format(s=n) if g == 1 else e['st_grp'].format(g=g, s=n // g))
                 if st.get('cross') and g > 1:
-                    s += e['st_cross']
+                    s += e['st_cross'] if g == 2 else e['st_cross_n']
             else:
                 s = e['st_grp2'].format(g=g, s=n // g)
             lines.append(s)

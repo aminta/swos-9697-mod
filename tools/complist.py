@@ -53,9 +53,11 @@ P = {
                      'drawn': 'home order drawn', 'neutral': 'neutral ground'},
                level={'better': 'level: the better placed goes through', 'et_pens': 'extra time and penalties',
                       'et_better': 'extra time, then the better placed', 'pens': 'penalties'},
-               gap='not played when the two clubs are {n}+ points apart', winner_to='the winner to {div}',
+               gap='not played when the two clubs are {n}+ points apart', same_club='not played if one club is on both sides',
+               seeds='the {a}-{b} seeds of the season\'s rounds', winner_to='the winner to {div}',
                loser_to='the loser to {div}', reserve='the reserve (out of the world)',
-               cup='{n} clubs', cup_from='from the {rnd}', cup_real=lambda k, t, season: 'the clubs still in the real '
+               cup='{n} clubs', cup_from='from the {rnd}', real_cup='the real cup: {n} clubs (entering: {ins})',
+               in_game='in the game:', cup_real=lambda k, t, season: 'the clubs still in the real '
                f'{season} cup, ' + ('all ' + str(t) if k == t and t > 1 else 'the only' if k == t else f'{k} of the {t}')
                + (' first-round pairs' if t > 1 else ' first-round pair') + ' as really drawn', cup_real0='the clubs still in the real {season} cup',
                cup_gen='every club of the league, drawn by the game',
@@ -102,9 +104,11 @@ P = {
                      'drawn': 'ordine in casa sorteggiato', 'neutral': 'campo neutro'},
                level={'better': 'in parità passa la meglio piazzata', 'et_pens': 'supplementari e rigori',
                       'et_better': 'supplementari, poi la meglio piazzata', 'pens': 'rigori'},
-               gap='non si gioca se le due squadre sono a {n} o più punti', winner_to='la vincente in {div}',
+               gap='non si gioca se le due squadre sono a {n} o più punti', same_club='non si gioca se la stessa squadra è da entrambe le parti',
+               seeds='le teste di serie {a}-{b} delle fasi della stagione', winner_to='la vincente in {div}',
                loser_to='la perdente in {div}', reserve='la riserva (fuori dal mondo)',
-               cup='{n} squadre', cup_from='{rnd}', cup_real=lambda k, t, season: 'le squadre ancora in corsa nella '
+               cup='{n} squadre', cup_from='{rnd}', real_cup='la coppa vera: {n} squadre (ingressi: {ins})',
+               in_game='nel gioco:', cup_real=lambda k, t, season: 'le squadre ancora in corsa nella '
                f'vera coppa {season}, ' + _it_pairs(k, t) + ' del primo turno come nel sorteggio vero',
                cup_real0='le squadre ancora in corsa nella vera coppa {season}',
                cup_gen='tutti i club del campionato, sorteggiati dal gioco',
@@ -266,7 +270,8 @@ def _cup(cp, ties, kind, info):
     return dict(kind=kind, name=cp['names'], clubs=2 * len(pairs) + byes if pairs else size, size=size, rounds=rounds,
                 byes=byes, src=info.get('source', 'real' if pairs else 'generated'), real_pairs=info.get('real_pairs'),
                 ties=info.get('ties', len(pairs)), season=info.get('season', ''), numbered=cp.get('round_names') == 'numbered',
-                first_round=cp.get('first_round', 1), europe=cp.get('europe'), away_goals=bool(cp.get('away_goals')))
+                first_round=cp.get('first_round', 1), europe=cp.get('europe'), away_goals=bool(cp.get('away_goals')),
+                real=info.get('real'))
 
 
 # ---------------------------------------------------------------------------------------------------- renderer
@@ -320,7 +325,8 @@ def _who(po, names, t, lang):
     for e in po.get('entrants', []):
         if isinstance(e, list):
             by.setdefault(e[0], []).append(e[1])
-    txt = []
+    seeds = sorted(e['split_seed'] for e in po.get('entrants', []) if isinstance(e, dict) and 'split_seed' in e)
+    txt = [t['seeds'].format(a=seeds[0], b=seeds[-1])] if seeds else []
     for dv, pls in by.items():
         pls = sorted(pls)
         rng = t['ord'](pls[0]) if len(pls) == 1 else \
@@ -339,6 +345,8 @@ def _po(po, names, t, lang):
                 t['level'].get(r.get('level', 'et_pens'), '')]
         if r.get('gap'):
             bits.append(t['gap'].format(n=r['gap']))
+        if r.get('skip_if_same'):
+            bits.append(t['same_club'])
         return ', '.join(b for b in bits if b)
     rs = [one(r) for r in po['rounds']]
     if len(rs) == 1:
@@ -382,8 +390,24 @@ def _div_line(dv, lg, t, lang, lowest, head=True):
     return '; '.join(bits)
 
 
+REAL_RN = {   # Transfermarkt's round names -> (EN, IT) in the real cup's line
+    'Qualifying Round': ('qualifying round', 'turno preliminare'), 'Preliminary Round': ('preliminary round', 'turno preliminare'),
+    'First Round': ('1st round', '1° turno'), 'Second Round': ('2nd round', '2° turno'), 'Third Round': ('3rd round', '3° turno'),
+    'Fourth Round': ('4th round', '4° turno'), '5th round': ('5th round', '5° turno'), 'Round of 64': ('round of 64', 'trentaduesimi'),
+    'Round of 32': ('round of 32', 'sedicesimi'), 'Round of 16': ('round of 16', 'ottavi'), 'Last 16': ('round of 16', 'ottavi'),
+    'Quarter-Finals': ('quarter-finals', 'quarti'), 'Semi-Finals': ('semi-finals', 'semifinali'), 'Final': ('final', 'finale')}
+
+
+def _real_cup(real, t):
+    """The real competition (regia 2026-10-19): its clubs and where they enter, as Transfermarkt lists it."""
+    k = 1 if t['cup'].endswith('squadre') else 0
+    ins = [f"{REAL_RN.get(r['tm'], (r['tm'].lower(),) * 2)[k]} {r['new']}" for r in real['rounds'] if r['new']]
+    return t['real_cup'].format(n=real['clubs'], ins=', '.join(ins))
+
+
 def _cup_line(cp, t):
-    bits = [t['cup'].format(n=cp['clubs'])]
+    real = cp.get('real') and len(cp['real']['rounds']) > 1
+    bits = ([_real_cup(cp['real'], t)] if real else []) + [(t['in_game'] + ' ' if real else '') + t['cup'].format(n=cp['clubs'])]
     if cp['size'] in t['rnd'] and cp['src'] == 'real':
         bits.append(t['cup_from'].format(rnd=t['rnd'][cp['size']]))
     season = cp.get('season') or '2026-27'

@@ -105,20 +105,34 @@ class LEPatch:
         gp, i = self._find(objn, off)
         r = self.recs[gp][i]
         assert not r[1] & 0x40
-        self.recs[gp][i] = self._record(r[0], struct.unpack_from('<h', r, 2)[0], tobj, toff)
+        po = struct.unpack_from('<h', r, 2)[0]
+        self.recs[gp][i] = self._record(r[0], po, tobj, toff)
+        if po > self.le.page_size - 4:      # (a straddling one: its next page's record too)
+            for k, q in enumerate(self.recs[gp + 1]):
+                if not q[0] & 0x20 and struct.unpack_from('<h', q, 2)[0] == po - self.le.page_size:
+                    self.recs[gp + 1][k] = self._record(q[0], po - self.le.page_size, tobj, toff)
 
     def remove(self, objn, off):
         """Drop the fixup at objn:off (before overwriting the instruction holding it)."""
         gp, i = self._find(objn, off)
+        po = struct.unpack_from('<h', self.recs[gp][i], 2)[0]
         del self.recs[gp][i]
+        if po > self.le.page_size - 4:      # (a straddling one: its next page's record too, negative offset)
+            nxt = [k for k, r in enumerate(self.recs[gp + 1])
+                   if not r[0] & 0x20 and struct.unpack_from('<h', r, 2)[0] == po - self.le.page_size]
+            assert len(nxt) == 1, (objn, hex(off))
+            del self.recs[gp + 1][nxt[0]]
 
     def add_ptr(self, objn, off, tobj, toff):
         """Add a 32-bit offset fixup at objn:off and store the offset there."""
         gp, po = self._page(objn, off)
-        assert po <= self.le.page_size - 4, 'pointer straddles a page'
         assert not any(not r[0] & 0x20 and struct.unpack_from('<h', r, 2)[0] == po
                        for r in self.recs[gp])
         self.recs[gp].append(self._record(0x07, po, tobj, toff))
+        if po > self.le.page_size - 4:      # a pointer across two pages (4.0: the two-world career code): the LE way,
+            o = self.le.obj(objn)           # one record in each page, the next page's at a negative source offset
+            assert off // self.le.page_size + 1 < o.npages, 'pointer straddles the object end'
+            self.recs[gp + 1].append(self._record(0x07, po - self.le.page_size, tobj, toff))
         self.put(objn, off, struct.pack('<I', toff))
 
     # --- output ------------------------------------------------------------

@@ -281,6 +281,9 @@ def patch_exe(src, dst, remap, lang='it'):
         o2pages += 2                            # play-off round names / title specs' strings (gplay), the MLS (area
         data = add_object_page(data, 2)         # full with TM_MLS_EXACT or TM_TITLE)
         data = add_object_page(data, 2)
+    if statespec.TEST or statespec.TEST2:       # STATESPEC_TEST builds (harness): the test state + zones' menu copy
+        o2pages += 1                            # (world 0's area was full)
+        data = add_object_page(data, 2)
     if bigtables.ON[0]:                         # the two tables of LIMIT global numbers (bigtables.retarget)
         o2pages += 2
         data = add_object_page(data, 2)
@@ -599,9 +602,12 @@ def write_new_teams(src_dir, dst_dir):
     for name, data in mkseason.xtra_files().items():   # extended career squads: players beyond 16 (xtra.py)
         open(os.path.join(dst_dir, name), 'wb').write(data)
         print(f'{name}: up to {data[2]} more players for {struct.unpack(">H", data[:2])[0]} clubs')
+    import careerworld as cw_                         # (a big world: teamFileBuffer is careerworld's TFB_SIZE one,
+    tfb = (cw_.TFB_SIZE - 14 if any(cw_.big(w) for w in mkseason.world_defs())   # 257 clubs: the
+           else 106496)                               # 4.0 build's TMW5.102 = Italy 2026-27's 256)
     for name, data in mkseason.ns_team_files().items():   # several worlds: the team files of a namespace of its own
         k = struct.unpack('>H', data[:2])[0]
-        assert k * TEAM_SIZE + 2 <= 106496, name
+        assert k * TEAM_SIZE + 2 <= tfb, (name, k)
         open(os.path.join(dst_dir, name), 'wb').write(team_fix(data))   # (3.3.0 purple clubs, blond players)
         print(f'{name}: {k} teams')
     for name, data in mkseason.world_files().items():  # career packs: first-season European clubs of each world

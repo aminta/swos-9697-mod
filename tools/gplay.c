@@ -497,25 +497,25 @@ void sec_post(void) {                                   /* gp_end, after the mov
             int db = DV(rb), lb = sec_lvl(ct, db), nb = sec_newlvl(ct, db, gb);
             int rf = gf == 0xFFFF ? -1 : sec_row(gf), nf = rf >= 0 ? sec_newlvl(ct, DV(rf), gf) : -1;
             int lowest = sec_lvl(ct, db) == sec_lvl(ct, ct[0] - 1);
-            int coupled = rf >= 0 && nf >= (nb < lb ? lb : nb) && nb <= lb;
+            int coupled = rf >= 0 && nf >= (nb < lb ? lb : nb) && nb <= lb, dl = SEC_COPY[gb] - SEC_SLT[gb];
             if (coupled && (!lowest || (e[5] & SEC_EXIT))) {   /* the first team in its level: one down */
                 SEC_COPY[gb] = SEC_SLT[gb] + (lowest ? ct[0] - db : 1);
-                if (lowest) continue;                   /* (out of the world: a pool identity takes its slot) */
-                for (int k = 0; k < GP_IN.n[db]; k++) {    /* the best placed relegated of its division stays */
-                    int g = GP_IN.t[db][k].glob;
-                    if (g != gb && SEC_COPY[g] > SEC_SLT[g]) { SEC_COPY[g] = SEC_SLT[g]; break; }
-                }
-            } else if (nb < lb && (coupled || sec_up_bad(ct, e, db))) {   /* up, not allowed: held, the next club up
-                                                                              (coupled, no pool: it stays, declared) */
-                int dl = SEC_COPY[gb] - SEC_SLT[gb];
-                SEC_COPY[gb] = SEC_SLT[gb];
+                if (!lowest)                            /* (out of the world: a pool identity takes its slot) */
+                    for (int k = 0; k < GP_IN.n[db]; k++) {    /* the best placed relegated of its division stays */
+                        int g = GP_IN.t[db][k].glob;
+                        if (g != gb && SEC_COPY[g] > SEC_SLT[g]) { SEC_COPY[g] = SEC_SLT[g]; break; }
+                    }
+            } else if (nb < lb && (coupled || sec_up_bad(ct, e, db)))   /* up, not allowed: held (coupled, no pool: */
+                SEC_COPY[gb] = SEC_SLT[gb];                             /* it stays, declared) */
+            else
+                continue;
+            if (nb < lb)                                /* its promotion: the next club of its division */
                 for (int k = 0; k < GP_IN.n[db]; k++) {
                     int g = GP_IN.t[db][k].glob, r = db * GT + k;
-                    if (g == gb || SEC_COPY[g] < SEC_SLT[g] || SEC_COPY[g] > SEC_SLT[g] || sec_inelig(r)) continue;
+                    if (g == gb || SEC_COPY[g] != SEC_SLT[g] || sec_inelig(r)) continue;
                     SEC_COPY[g] = SEC_SLT[g] + dl;
                     break;
                 }
-            }
         }
     }
 }
@@ -1590,10 +1590,11 @@ void rs_season(const u8 *t, const s8 *slt, s8 *copy, int world) {
    statecup (package 5) after every load and at the season start. A marker at the queue's head brings its league
    club back (its spare's identity moves to the slot that goes down, or the spare passes to the entry that goes down).
    No spare free: that league club stays (declared approximation). File header: db world, file, pools; dw base;
-   db spares; spares x db ordinal. */
-enum { RIS = 256, RF = 2, RP = 16, RQT = 192, RO = 16 };
-struct ri_file { u8 init, pad[3]; u16 map[RIS]; };
-struct ri_state { struct ri_file f[RF]; u8 qn[RP]; u16 q[RQT]; u16 ovr[RP][RO]; };
+   dw map offset (words in RI_STATE.maps), dw slots (the file's records); db spares; spares x db ordinal. */
+enum { RIS = 256, RF = 8, RP = 20, RQT = 192, RO = 16, RMT = 640 };
+struct ri_state { u8 init[RF]; u8 qn[RP]; u16 q[RQT]; u16 ovr[RP][RO]; u16 maps[RMT]; };   /* (maps: per file its
+                                                   slots only, from the table's map offset) */
+struct ri_file { u8 *init; u16 *map; int n; };   /* (a file's view of RI_STATE) */
 struct ri_state RI_STATE;
 u8 RI_SWAPPED[RF][RIS / 8];                     /* (this season end's swapped slots: ri_cache) */
 int RI_MGR;                                     /* (the manager's club, global number: set by the glue, never swapped) */
@@ -1645,7 +1646,7 @@ static const u8 *ri_pool(const u8 *e, struct ri_file *f, int fi, u16 *q, u8 *qn,
         int low = p[0], ns = p[1] | p[2] << 8;
         const u8 *sl = p + 3, *pa = sl + 4 * ns;
         order = pa + n;
-        if (run && f->init == 1) {
+        if (run && *f->init == 1) {
             for (int i = 0; i < n; i++) q[i] = RIS + order[i];
             *qn = n;
         }
@@ -1666,7 +1667,7 @@ static const u8 *ri_pool(const u8 *e, struct ri_file *f, int fi, u16 *q, u8 *qn,
         int ne = ps[n];
         order = en + 2 * ne;
         u16 *ovr = RI_STATE.ovr[pi < RP ? pi : RP - 1];
-        if (run && f->init == 1) {
+        if (run && *f->init == 1) {
             for (int i = 0; i < n; i++) q[i] = RIS + order[i];
             *qn = n;
             for (int j = 0; j < RO; j++) ovr[j] = 0;
@@ -1767,14 +1768,14 @@ void ri_season(const u8 *t, const s8 *slt, s8 *copy, int world, u8 *sr) {
     for (int fi = 0; fi < nf; fi++) {
         int w = t[0], np = t[2];
         RI_FILES_FILE[fi] = t[1];
-        struct ri_file *f = &RI_STATE.f[fi < RF ? fi : RF - 1];
-        int run = w == world && fi < RF;
-        if (run && !f->init) {                  /* (a new career / an older save: identities, the pools' first order) */
-            for (int i = 0; i < RIS; i++) f->map[i] = 0;
-            f->init = 1;
+        int base = t[3] | t[4] << 8, moff = t[5] | t[6] << 8, nmap = t[7] | t[8] << 8, nsp = t[9];
+        struct ri_file fv = { &RI_STATE.init[fi < RF ? fi : RF - 1], RI_STATE.maps + moff, nmap }, *f = &fv;
+        int run = w == world && fi < RF && moff + nmap <= RMT;
+        if (run && !*f->init) {                 /* (a new career / an older save: identities, the pools' first order) */
+            for (int i = 0; i < nmap; i++) f->map[i] = 0;
+            *f->init = 1;
         }
-        int base = t[3] | t[4] << 8, nsp = t[5];
-        const u8 *sp = t + 6;
+        const u8 *sp = t + 10;
         t = sp + nsp;
         int p0 = pi;
         for (int k = 0; k < np; k++) {
@@ -1784,7 +1785,7 @@ void ri_season(const u8 *t, const s8 *slt, s8 *copy, int world, u8 *sr) {
             qo += n;
             pi++;
         }
-        if (run) f->init = 2;
+        if (run) *f->init = 2;
     }
     if (sr) sr[0] = sr[1] = 0;                  /* (the rankings used: a season end without any has none) */
 }
@@ -1798,10 +1799,10 @@ static void ri_copy(u8 *dst, const u8 *src) {
 
 /* After a pooled team file is read (LoadTeamFile): buf = teamFileBuffer (BE count + records), orig = its copy as
    read, pool = its RS file's buffer (BE count + records), fi = its index in the table. */
-void ri_apply(u8 *buf, const u8 *orig, const u8 *pool, int fi) {
+void ri_apply(u8 *buf, const u8 *orig, const u8 *pool, int fi, int moff) {
     int n = buf[0] << 8 | buf[1], np = pool ? pool[0] << 8 | pool[1] : 0;
-    for (int i = 0; i < n && i < RIS; i++) {
-        int id = RI_STATE.f[fi].map[i];
+    for (int i = 0; i < n && i < RIS && moff + i < RMT; i++) {
+        int id = RI_STATE.maps[moff + i];
         if (!id--) continue;
         if (id < RIS && id < n) ri_copy(buf + 2 + 684 * i, orig + 2 + 684 * id);
         else if (id >= RIS && id - RIS < np) ri_copy(buf + 2 + 684 * i, pool + 2 + 684 * (id - RIS));
@@ -1811,13 +1812,14 @@ void ri_apply(u8 *buf, const u8 *orig, const u8 *pool, int fi) {
 /* The career's team cache after a swap: every cached record of a swapped slot (team word file | slot << 8) gets its
    new identity's record. recs = the cache's records, n of them; file = the team file; orig / pool / fi as for
    ri_apply. */
-void ri_cache(u8 *recs, int n, int file, const u8 *orig, const u8 *pool, int fi) {
+void ri_cache(u8 *recs, int n, int file, const u8 *orig, const u8 *pool, int fi, int moff) {
     int nf = orig[0] << 8 | orig[1], np = pool ? pool[0] << 8 | pool[1] : 0;
     for (int k = 0; k < n; k++) {
         u8 *r = recs + 684 * k;
         int i = r[1];
         if (r[0] != file || !(RI_SWAPPED[fi][i >> 3] & 1 << (i & 7))) continue;
-        int id = RI_STATE.f[fi].map[i] ? RI_STATE.f[fi].map[i] - 1 : i;
+        if (moff + i >= RMT) continue;
+        int id = RI_STATE.maps[moff + i] ? RI_STATE.maps[moff + i] - 1 : i;
         if (id < RIS && id < nf) ri_copy(r, orig + 2 + 684 * id);
         else if (id >= RIS && id - RIS < np) ri_copy(r, pool + 2 + 684 * (id - RIS));
     }

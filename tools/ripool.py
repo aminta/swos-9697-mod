@@ -17,17 +17,28 @@ import os
 import re
 import struct
 
-ORIG_SIZE, POOL_SIZE = 0x2B000, 0x10000         # BSS per file: the file as read (256 x 684 + 2), its pool (<= 95)
-assert ORIG_SIZE >= 256 * 684 + 2                 # (Italy's 256 records + the count: 175106 B)
-RF = 2                                          # gplay.c RF / RP / RQT: files, pools, queue words
-RP, RQT = 16, 192
-RO = 16                                         # contest entries per state (gplay.c RO)
-RI_SIZE = RF * (4 + 2 * 256) + RP + 2 * RQT + 2 * RP * RO   # gplay.c struct ri_state: the engine item 'RI'
-OVR_AT = RF * (4 + 2 * 256) + RP + 2 * RQT      # (+ RI_STATE: ovr[RP][RO], statecup applies them: RI_OVR)
+RF = 8                                          # gplay.c RF / RP / RQT / RO / RMT: files, pools, queue words, contest
+RP, RQT, RO, RMT = 20, 192, 16, 640             # entries per state, map words (each file: its own slots)
+RI_SIZE = RF + RP + 2 * RQT + 2 * RP * RO + 2 * RMT  # gplay.c struct ri_state: the engine item 'RI'
+OVR_AT = RF + RP + 2 * RQT                      # (+ RI_STATE: ovr[RP][RO], statecup applies them: RI_OVR)
+
+
+def layout(tabs):
+    """Per pooled file (map offset, map words = its records, its ORIG buffer's size, its POOL buffer's size, the ORIG
+    buffer's offset in the BSS); and the BSS size."""
+    out, moff, b = [], 0, 0
+    for world, fl, pools, base, spares, nrec, npool in tabs:
+        osz, psz = (nrec * 684 + 2 + 15) & ~15, (npool * 684 + 2 + 15) & ~15   # (the file as read: Italy 175106 B)
+        assert osz >= nrec * 684 + 2 and psz >= npool * 684 + 2
+        out.append((moff, nrec, osz, psz, b))
+        moff += nrec
+        b += osz + psz
+    assert moff <= RMT, f'{moff} pooled slots (gplay.c RMT {RMT})'
+    return out, b + 0x100
 
 
 def bss_need(tabs):
-    return len(tabs) * (ORIG_SIZE + POOL_SIZE) + 0x100
+    return layout(tabs)[1]
 LABELS = {}
 
 
@@ -41,8 +52,8 @@ def table_bytes(tabs):
     assert len(tabs) <= RF, f'at most {RF} pooled team files (gplay.c RF)'
     out = bytearray([len(tabs)])
     npools = nq = 0
-    for world, fl, pools, base, spares in tabs:
-        out += bytes((world, fl, len(pools))) + struct.pack('<HB', base, len(spares)) + bytes(spares)
+    for (world, fl, pools, base, spares, nrec, npool), (moff, nmap, *_) in zip(tabs, layout(tabs)[0]):
+        out += bytes((world, fl, len(pools))) + struct.pack('<HHHB', base, moff, nmap, len(spares)) + bytes(spares)
         for pl in pools:
             if pl[0] == 'league':
                 _, low, slots, areas, order = pl
@@ -68,7 +79,7 @@ def table_bytes(tabs):
 def keys_bytes(tabs):
     """RI_OVR_KEYS: RP x dw, each pool's state key (its contest's original first club; 0 = a league pool / none), in
     RI_STATE.ovr's order."""
-    ks = [pl[1] if pl[0] == 'state' else 0 for _, _, pools, _, _ in tabs for pl in pools]
+    ks = [pl[1] if pl[0] == 'state' else 0 for _, _, pools, *_ in tabs for pl in pools]
     return b''.join(struct.pack('<H', k) for k in (ks + [0] * RP)[:RP])
 
 
@@ -85,9 +96,9 @@ def _asm(nf):
     xchg cl, ch
     imul ecx, ecx, 684
     add ecx, 2
-    cmp ecx, ORIG_SIZE
+    cmp ecx, RI_OSZ{k}
     jbe .c{k}
-    mov ecx, ORIG_SIZE
+    mov ecx, RI_OSZ{k}
 .c{k}:
     mov edi, RI_ORIG{k}
     call ri_copyb
@@ -109,12 +120,13 @@ def _asm(nf):
     mov ecx, 60
     call ri_copyb
 .a{k}:
+    push dword RI_MOFF{k}
     push dword {k}
     push dword RI_POOL{k}
     push dword RI_ORIG{k}
     push dword TEAMBUF
     call RI_APPLY
-    add esp, 16
+    add esp, 20
     jmp .x
 .n{k}:''')
         after.append(f'''
@@ -122,6 +134,7 @@ def _asm(nf):
     jne .n{k}
     cmp word [RI_ORIG{k}], 0            ; (the file never read: none of its records cached)
     je .n{k}
+    push dword RI_MOFF{k}
     push dword {k}
     push dword RI_POOL{k}
     push dword RI_ORIG{k}
@@ -130,7 +143,7 @@ def _asm(nf):
     push eax
     push dword [SELBASEV]
     call RI_CACHE
-    add esp, 24
+    add esp, 28
 .n{k}:''')
     names = ''.join(f'RI_NAME{k}: db RI_FNAME{k}, 0\n' for k in range(nf))
     return f'''
@@ -196,18 +209,18 @@ def patch(p, at, bss, tabs):
     setglobals = call + 5 + struct.unpack('<i', bytes(p.get(1, call + 1, 4)))[0]
     s = careerworld.SITES
     sym = {'GAMETYPE': split.sites(p)['GAMETYPE'], 'SLT': s['slt'], 'WORLD_BYTE': (0, careerworld.WORLD_BYTE),
-           'WTPHYS': (1, careerworld.LABELS['WTPHYS']), 'TEAMBUF': teambuf, 'ORIG_SIZE': (0, ORIG_SIZE),
-           'RI_REGS': (2, bss + len(tabs) * (ORIG_SIZE + POOL_SIZE)), 'D0R': (2, r['D7'] - 28), 'A0R': (2, r['A0']),
+           'WTPHYS': (1, careerworld.LABELS['WTPHYS']), 'TEAMBUF': teambuf,
+           'RI_REGS': (2, bss + layout(tabs)[1] - 0x100), 'D0R': (2, r['D7'] - 28), 'A0R': (2, r['A0']),
            'A1R': (2, r['A0'] + 4), 'LOADFILE': (1, loadfile), 'SETGLOBALS': (1, setglobals),
            'RI_APPLY': gplay.LABELS['ri_apply'], 'RI_CACHE': gplay.LABELS['ri_cache'],
            'NUMSEL': trailer.INFO['NUMSEL'], 'SELBASEV': (1, trailer.INFO['selbasev']),
            'TEAMSLOADED': (2, s['teamsloaded']), 'LASTEXT': s['lastext']}
     names = []
-    for k, (world, fl, *_) in enumerate(tabs):
-        o = bss + k * (ORIG_SIZE + POOL_SIZE)
+    for k, ((world, fl, *_), (moff, nmap, osz, psz, bo)) in enumerate(zip(tabs, layout(tabs)[0])):
+        o = bss + bo
         names.append('data/rs%d%03d.dat' % (world, fl))
-        sym.update({f'RI_W{k}': (0, world), f'RI_F{k}': (0, fl), f'RI_ORIG{k}': (2, o),
-                    f'RI_POOL{k}': (2, o + ORIG_SIZE), f'RI_FNAME{k}': (0, '"%s"' % names[-1])})
+        sym.update({f'RI_W{k}': (0, world), f'RI_F{k}': (0, fl), f'RI_ORIG{k}': (2, o), f'RI_OSZ{k}': (0, osz),
+                    f'RI_POOL{k}': (2, o + osz), f'RI_MOFF{k}': (0, moff), f'RI_FNAME{k}': (0, '"%s"' % names[-1])})
     src = _asm(len(tabs))
     code, fix = nasmcave.assemble(src, at, sym)
     lab = nasmcave.labels(src, at, sym)

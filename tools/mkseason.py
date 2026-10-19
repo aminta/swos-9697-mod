@@ -500,6 +500,10 @@ class Pack:
         """files without the off-file pool (a pseudo file: no TEAM file, no country entry, no global numbers)."""
         return [(k, v) for k, v in self.files.items() if k != getattr(self, 'pool_key', None)]
 
+    def _nrec(self, fl):
+        """Records of team file fl in this pack (its clubs of every file key with that number)."""
+        return sum(1 for k, c in self.clubs.items() if self.files.get(c['file'], (None,))[0] == fl)
+
     def off_pool(self):
         """Off-file pools (gplay.c ri_season, ripool.table_bytes): None, or (world, team file, pools) with pools
         ('league', low = the lowest level's first division, [(global, base division, D area)] the league's slots in
@@ -526,7 +530,7 @@ class Pack:
             order = first + [k for k in self.pool_clubs if k not in first]
             return (self.world, fl, [('league', low, [(base + self.where[k][1], self.division[k], darea(k)) for k in slots],
                                       [darea(k) for k in self.pool_clubs], [self.pool_clubs.index(k) for k in order])],
-                    base, [])
+                    base, [], self._nrec(fl), len(self.pool_clubs))
         if not hasattr(self, '_tf'):
             self._tf = self.team_files()
         recs = dict(self._tf)
@@ -548,7 +552,7 @@ class Pack:
                           sc[len(own):], [self.pool_clubs.index(k) for k in order],
                           [self.where[k][0] | self.where[k][1] << 8 for k in c['clubs']]))
         spares = [self.where[k][1] for k in self.meta.get('state_spares') or []]
-        return (self.world, self.pool_file, pools, base, spares) if pools else None
+        return (self.world, self.pool_file, pools, base, spares, self._nrec(self.pool_file), len(self.pool_clubs)) if pools else None
 
     def parallel(self):
         """pgroups table: None, or (world, [(first division, [sizes])] top-down over the chain, [(global number, base

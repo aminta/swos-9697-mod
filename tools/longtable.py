@@ -20,12 +20,17 @@ import struct
 
 import nasmcave
 
+TITLES = {'it': (b'CLASSIFICA ANNUALE', b"SUPPORTERS' SHIELD"), 'en': (b'ANNUAL TABLE', b"SUPPORTERS' SHIELD"),
+          'fr': (b'CLASSEMENT ANNUEL', b"SUPPORTERS' SHIELD"), 'de': (b'JAHRESTABELLE', b"SUPPORTERS' SHIELD")}
 ROWS = 24                       # the game's own largest table (mkseason: at most 24 clubs a division without fixtures)
 MAX = 30                        # the largest table that scrolls (split.NMAX's 30: Argentina, MLS); mkseason refuses more
 LABELS = {}
 
 ASM = """
 lt_d3:                                  ; esi = DIY_competitionStart
+%if OV_
+    call lt_ov
+%endif
     mov ax, [esi + 51h]
     cmp word [esi + 4Fh], 1
     jne .s
@@ -105,13 +110,81 @@ lt_arrows:                              ; flags for OnRestore's jnz (arrows show
     pop eax
     ret
 
+%if OV_
+lt_init:                                ; DIYLeagueTournamentInit's `mov currentDiyLine, 0`: a fresh table screen is
+    mov word [CURLINE], 0               ; never in overall mode
+    mov byte [OV_FLAG], 0
+    mov byte [OV_ON], 0
+    ret
+
+lt_ov:                                  ; (OnRestore) STAT > CLASSIFICA GENERALE on: gplay.c gp_overall's order and
+    pushad                              ; figures for this table; the title shown = the overall table's
+    mov byte [OV_ON], 0
+    cmp byte [OV_FLAG], 0
+    je .x
+    cmp word [esi + 4Fh], 1
+    jne .x
+    cmp word [esi + 51h], ROWS_
+    jbe .x
+    push es
+    push ds
+    pop es
+    cld
+    push dword APN_
+    push dword [SELTEAMS]
+    push esi
+    call GP_OVERALL
+    add esp, 12
+    pop es
+    cmp dword [GP_OV_N], 0
+    je .x
+    mov byte [OV_ON], 1
+    mov esi, OV_ANNUAL                  ; the title: the annual table (Argentina: the Apertura added, or this
+    cmp dword [GP_OV_ANNUAL], 0         ; season's first stage itself while it is played) or the Supporters' Shield
+    jne .t
+    mov edi, [esp + 4]                  ; (pushad's esi: DIY) the competition's name = the annual league's?
+    add edi, 4
+    mov ebx, OV_KEY
+.k: mov al, [edi]
+    cmp al, [ebx]
+    jne .s
+    inc edi
+    inc ebx
+    test al, al
+    jnz .k
+    jmp .t
+.s: mov esi, OV_SHIELD
+    jmp .u
+.t: mov byte [OV_ON], 2                 ; (2: the annual table, zones.py grays its last place)
+.u: mov [MENU_ + 16h + 26h], esi        ; entry 0's text: the unpacked menu's pointer only (the competition's own
+.x: popad                               ; name is left as it is; the next unpack restores it)
+    ret
+
+lt_row:                                 ; the row loop's `mov esi, A6 / movzx ebx, D7` (then mov ax, [esi+ebx+6Dh]):
+    mov esi, [A6]                       ; the overall order instead of the table's
+    movzx ebx, word [D7]
+    cmp byte [OV_ON], 0
+    je .r
+    mov esi, GP_OV_ORD - 6Dh
+.r: ret
+
+lt_a4:                                  ; its `mov A4, eax` (A4 = DIY + row offset): the overall figures' row
+    cmp byte [OV_ON], 0
+    je .r
+    sub eax, [A6]
+    add eax, GP_OV_ROWS - 2B3h
+.r: mov [A4], eax
+    ret
+
+%endif
+
 align 2
 LT_END: dw 0
 """
 
 
-def patch(p, at):
-    """Code at obj1:at; returns its end."""
+def patch(p, at, area=None, lang='it'):
+    """Code at obj1:at; returns its end. area / lang: the overall tables' titles (STAT > CLASSIFICA GENERALE)."""
     import lp36
     d1 = p.le.obj_bytes(1)
     a0 = lp36._sites(p)['A0']                     # the pseudo registers: Dn = A0 - 32 + 4n
@@ -147,10 +220,30 @@ def patch(p, at):
     d0, d3, d7 = a0 - 32, a0 - 20, a0 - 4
     assert p.target(1, h2 + 3) == (2, d5) and p.target(1, h3 + 7) == (2, d5) and p.target(1, h1 + 6) == (2, d3)
     assert p.target(1, h4 + 9) == (2, d0) and p.target(1, h5 + 9) == (2, d0)
+    import fmtpage
+    import gplay
+    ov = bool(fmtpage.OV.get('flag')) and 'gp_overall' in gplay.LABELS and area is not None
     sym = {'D0': (2, d0), 'D3': (2, d3), 'D5': (2, d5), 'D7': (2, d7), 'DIY': (2, lp36._sites(p)['DIY']),
            'CURLINE': p.target(1, curline + 2), 'MODE': p.target(1, mode + 2), 'GROUPS': p.target(1, h4 + 2),
-           'NUMRES': p.target(1, h5 + 2), 'ROWS_': (0, ROWS)}
-    for site, n in ((h1, 10), (h2, 9), (h3, 11), (h4, 13), (h5, 13)):     # (no other hook there: the patched bytes = the original)
+           'NUMRES': p.target(1, h5 + 2), 'ROWS_': (0, ROWS), 'OV_': (0, int(ov))}
+    if ov:
+        import split
+        import zones
+        t1, t2 = TITLES[lang]
+        sym.update({'OV_FLAG': (2, fmtpage.OV['flag']), 'OV_ON': (2, fmtpage.OV['on']), 'GP_OVERALL': gplay.LABELS['gp_overall'],
+                    'GP_OV_ORD': gplay.LABELS['GP_OV_ORD'], 'GP_OV_ROWS': gplay.LABELS['GP_OV_ROWS'],
+                    'GP_OV_N': gplay.LABELS['GP_OV_N'], 'GP_OV_ANNUAL': gplay.LABELS['GP_OV_ANNUAL'],
+                    'SELTEAMS': (2, split.sites(p)['SELTEAMS']), 'MENU_': zones._current_menu(p),
+                    'A6': (2, a0 + 24), 'A4': (2, a0 + 16), 'APN_': (0, apn()),
+                    'OV_KEY': (2, area.add(annual_key(lang) + b'\0')), 'OV_ANNUAL': (2, area.add(t1 + b'\0')), 'OV_SHIELD': (2, area.add(t2 + b'\0'))})
+    init = 0x483D2 - B                                                      # DIYLeagueTournamentInit: mov currentDiyLine, 0
+    init = _find(d1, rb'\x66\xc7\x05....\x00\x00\x66\xc7\x05....\x00\x00\xe8', init - 0x40, 0x80)
+    assert p.target(1, init + 3) == p.target(1, curline + 2), 'Init clears currentDiyLine'
+    row = h2 + 9                                                            # cseg_498FA: mov esi, A6 / movzx ebx, D7
+    assert d1[row:row + 2] == b'\x8b\x35' and d1[row + 6:row + 9] == b'\x0f\xb7\x1d' and d1[row + 13:row + 18] == b'\x66\x8b\x44\x1e\x6d'
+    a4 = row + 38                                                           # ... add eax, ebx / mov A4, eax
+    assert d1[a4 - 2:a4 + 1] == b'\x03\xc3\xa3', d1[a4 - 2:a4 + 5].hex()
+    for site, n in ((h1, 10), (h2, 9), (h3, 11), (h4, 13), (h5, 13)) + (((init, 9), (row, 13), (a4, 5)) if ov else ()):     # (no other hook there: the patched bytes = the original)
         assert bytes(p.get(1, site, n)) == d1[site:site + n], hex(site)
     at = (at + 15) & ~15
     code, cfix = nasmcave.assemble(ASM, at, sym)
@@ -169,10 +262,41 @@ def patch(p, at):
     hook(h3, 11, 'lt_end', (7,))
     hook(h4, 13, 'lt_down', (2, 9))
     hook(h5, 13, 'lt_arrows', (2, 9))
+    if ov:
+        hook(init, 9, 'lt_init', (3,))
+        hook(row, 13, 'lt_row', (2, 9))
+        hook(a4, 5, 'lt_a4', (1,))
     LABELS.update(lab)
     print(f'exe: league tables over {ROWS} clubs scroll ({ROWS} rows shown; OnRestore obj1+{h1:#x}, row loop '
-          f'obj1+{h2:#x} / {h3:#x}, ScrollDown obj1+{h4:#x}; code obj1+{at:#x}, {len(code)} B)')
+          f'obj1+{h2:#x} / {h3:#x}, ScrollDown obj1+{h4:#x}; code obj1+{at:#x}, {len(code)} B' +
+          (f'; overall tables: Init obj1+{init:#x}, Apertura {apn()} days)' if ov else
+           f'; no overall tables: flag {fmtpage.OV.get("flag")}, gp_overall {"gp_overall" in gplay.LABELS})'))
     return at + len(code)
+
+
+def annual_key(lang):
+    """The annual-table league's competition name as the table holds it (DIY+4: zones.py's key), b'' without one."""
+    import mkseason
+    import zones
+    for pk in mkseason.packs():
+        for d, dv in enumerate(pk.divisions()):
+            lg = pk.league or {}
+            sp = dv.get('split') or (lg.get('split') if d == 0 else None)
+            if sp and any(s.get('annual') for s in sp.get('stages') or []):
+                ent = [e for e in zones.pack_zones(pk.path, lang) if e[0] == (pk.world or 0)]
+                return ent[d][1].encode('latin-1') if d < len(ent) else b''
+    return b''
+
+
+def apn():
+    """The Apertura's match days (Argentina: the stage before the one with 'annual'), 0 without such a league."""
+    import mkseason
+    for *_, spec in mkseason.splits():
+        st = spec.get('stages') or []
+        for k, s in enumerate(st):
+            if s.get('annual') and k and st[k - 1].get('fixtures'):
+                return len(st[k - 1]['fixtures'])
+    return 0
 
 
 def _find(d, pat, start, span):

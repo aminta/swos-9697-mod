@@ -214,13 +214,15 @@ def patch_exe(src, dst, remap, lang='it'):
         engine.after_load('gp_sync')
         if any(t[2] in gp_mod.T2_SPECS for t in gp_tabs):   # (a group contest played: the early tables beyond 2)
             engine.save_item('GS', gp_mod.GS_SIZE)
+        if mkseason.cupd_tables():                     # (the Coppa Italia Serie D's state)
+            engine.save_item('CD', gp_mod.CD_SIZE)
     gp_on = bool((gp_tabs or pg_tabs or rs_tabs or ri_tabs) and mkseason.worlds())         # (gplay.c also holds the parallel groups' fix)
     import gplay as gp_mod
     lpb += gp_mod.GP_PAGES * gp_on                     # (its pages, after dplay's: C + glue + specs)
     xtra_pg = bool((xtra_on or pg_tabs or rs_tabs or ri_tabs or bigtables.ON[0]) and mkseason.worlds())   # (+1: an extra code page in a build with worlds,
     xpg = 2 * xtra_pg                                  # (2 pages: xtra + pgroups + bigtables filled one in the full
     lpb += xpg                                         # world 2026-27; whose world cave is full)
-    ri_pg = int(bool(ri_tabs and mkseason.worlds()))   # (+1: the off-file pool's code + table: 256 slots + the pool)
+    ri_pg = 2 * bool(ri_tabs and mkseason.worlds())    # (+2: the off-file pools' code + table, up to 8 files)
     lpb += ri_pg
     cos_pg = 1                                         # (+1, the top one: purple + blond + menunum + avgprice + the
     lpb += cos_pg                                      # FORMAT page: every build; without worlds too, e.g. PROTO36)
@@ -231,7 +233,7 @@ def patch_exe(src, dst, remap, lang='it'):
     sp_pg = split.pages(sp_tabs) if worlds else 0      # (own pages after all the others)
     ss_on = any(st.get('table') is not None for *_, sp in sp_tabs for st in sp.get('stages') or [])
     if ss_on:                                          # stage tables (GP_SS, gplay.c gp_stage: Argentina's Apertura /
-        engine.save_item('SS', 4 + 3 * 32 * 12)        # Clausura / annual) in the .CAR engine block
+        engine.save_item('SS', 6 + 4 * 32 * 12)        # Clausura / annual, the MLS season) in the .CAR engine block
     pr_on = any(t and any(po.get('kind') == 'promedio' for po in pk.league.get('ko_playoffs') or [])
                 for pk in mkseason.packs() if pk.world is not None and pk.league for t in [True])
     if pr_on:                                          # Argentina's promedio history (gplay.c PR_STATE)
@@ -405,6 +407,8 @@ def patch_exe(src, dst, remap, lang='it'):
         engine.ITEM_AT['GP'] = gplay.LABELS['GP_ST']    # (the played play-offs' state; its pointers after a load)
         if 'GS' in engine.SAVE_ITEMS:
             engine.ITEM_AT['GS'] = gplay.LABELS['GP_GS']
+        if 'CD' in engine.SAVE_ITEMS:
+            engine.ITEM_AT['CD'] = gplay.LABELS['CD_ST']
         engine.CALL_AT['gp_sync'] = (1, gplay.LABELS['gp_sync'])
         pgroups.relax_file_check(p)             # (moves of several divisions: cseg_9487A's per-file sum check)
         careerworld.BSS_SIZE += gplay.GP_BSS
@@ -428,6 +432,10 @@ def patch_exe(src, dst, remap, lang='it'):
     cos = fmtpage.patch(p, cos, lang, area, num_bss + shirtnum.BSS_SIZE + blond.BSS_SIZE + menunum.BSS_SIZE,
                          careerworld.SITES if worlds else None)   # FORMAT page (5.0)
     cos = menulevels.patch(p, cos, area, lang)   # 4.0: team choice of a league with levels of groups: level, then group
+    import zones                                 # 4.0: zone colours in the league tables (light blue, green, ...)
+    cos = zones.patch(p, cos, area, lang, [e if os.sep in e else os.path.join(mkseason.PACKS, e) for e in mkseason.ENABLED],
+                      num_bss + shirtnum.BSS_SIZE + blond.BSS_SIZE + menunum.BSS_SIZE, fmtpage.BSS_SIZE,
+                      careerworld.SITES if worlds else None)   # (the FORMAT page's buffer, shared)
     if cos_pg:
         assert cos <= hist2 + h2 + 0x1000 * lpb, hex(cos)
     else:
@@ -437,12 +445,13 @@ def patch_exe(src, dst, remap, lang='it'):
         xe = xtra.patch(p, xp) if xtra_on else xp                # the extra page in a build with worlds, with the
         ri = None
         if ri_tabs:                                              # the off-file pool (Eccellenza): its own page
-            rp = hist2 + h2 + 0x1000 * (lpb - cos_pg - 1)
+            rp = hist2 + h2 + 0x1000 * (lpb - cos_pg - ri_pg)
             re_, ri = ripool.patch(p, rp, ri_bss, ri_tabs)
-            assert re_ <= rp + 0x1000, hex(re_)
+            assert re_ <= rp + 0x1000 * ri_pg, hex(re_)
         if pg_tabs or rs_tabs or ri_tabs:                        # parallel groups' / reserves' season end (pgroups.py)
             xe = pgroups.patch(p, (xe + 15) & ~15, pg_tabs, gplay.LABELS['pg_season'], rs_tabs, gplay.LABELS['rs_season'],
-                               ri=ri)
+                               ri=ri, cd={'CD_SEASON': gplay.LABELS['cd_season'], 'CD_TAB': (1, gplay.LABELS['CD_TAB']),
+                                          'CD_DT': (1, gplay.LABELS['CD_DT'])} if 'CD_DT' in gplay.LABELS else None)
             gplay.link_reserve(p, ri)                            # (the reserves: gp_sack's tables)
         if bigtables.ON[0]:                                      # the .CAR's 2000 bytes <-> the moved tables,
             xe = bigtables.hooks(p, (xe + 15) & ~15)             # numbers 2000+ (after every finder of the tables)
@@ -595,6 +604,9 @@ def write_new_teams(src_dir, dst_dir):
     items = [x for e in mkseason.ENABLED for x in fmtgame.from_pack(e if os.sep in e else os.path.join(mkseason.PACKS, e))] + fmtgame.EXTRA
     for name, k in fmtgame.write(dst_dir, items):
         print(f'{name}: FORMAT pages of {k} competitions')
+    import zones                                      # 4.0: the league tables' zone colours, per world
+    for name, k in zones.write(dst_dir, [e if os.sep in e else os.path.join(mkseason.PACKS, e) for e in mkseason.ENABLED]):
+        print(f'{name}: zone colours of {k} league tables')
     rename_clubs(src_dir, dst_dir)
 
 

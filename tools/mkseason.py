@@ -459,6 +459,11 @@ class Pack:
             _need(False, f"{self.meta['id']}: ko_playoffs: {e}")
         return self.world, self.files[lg['clubs']][0], spec
 
+    def cupd(self):
+        """Coppa Italia Serie D table (cupd.py): None, or (world, team file, table, rounds, ties, names)."""
+        import cupd
+        return cupd.pack_table(self)
+
     def reserve(self):
         """Reserve table (gplay.c rs_season): None, or (world, nd = the reserve's division, the lowest level's first
         division, [(global, base division)] every league club, [globals] the pool in its first order: 'first', then
@@ -500,6 +505,10 @@ class Pack:
         """files without the off-file pool (a pseudo file: no TEAM file, no country entry, no global numbers)."""
         return [(k, v) for k, v in self.files.items() if k != getattr(self, 'pool_key', None)]
 
+    def _nrec(self, fl):
+        """Records of team file fl in this pack (its clubs of every file key with that number)."""
+        return sum(1 for k, c in self.clubs.items() if self.files.get(c['file'], (None,))[0] == fl)
+
     def off_pool(self):
         """Off-file pools (gplay.c ri_season, ripool.table_bytes): None, or (world, team file, pools) with pools
         ('league', low = the lowest level's first division, [(global, base division, D area)] the league's slots in
@@ -526,7 +535,7 @@ class Pack:
             order = first + [k for k in self.pool_clubs if k not in first]
             return (self.world, fl, [('league', low, [(base + self.where[k][1], self.division[k], darea(k)) for k in slots],
                                       [darea(k) for k in self.pool_clubs], [self.pool_clubs.index(k) for k in order])],
-                    base, [])
+                    base, [], self._nrec(fl), len(self.pool_clubs))
         if not hasattr(self, '_tf'):
             self._tf = self.team_files()
         recs = dict(self._tf)
@@ -548,7 +557,7 @@ class Pack:
                           sc[len(own):], [self.pool_clubs.index(k) for k in order],
                           [self.where[k][0] | self.where[k][1] << 8 for k in c['clubs']]))
         spares = [self.where[k][1] for k in self.meta.get('state_spares') or []]
-        return (self.world, self.pool_file, pools, base, spares) if pools else None
+        return (self.world, self.pool_file, pools, base, spares, self._nrec(self.pool_file), len(self.pool_clubs)) if pools else None
 
     def parallel(self):
         """pgroups table: None, or (world, [(first division, [sizes])] top-down over the chain, [(global number, base
@@ -1290,6 +1299,11 @@ def gplay_tables():
     return [t for pk in packs() for t in [pk.gplay()] if t]
 
 
+def cupd_tables():
+    """cupd: the world leagues with a 'cup_d' (Pack.cupd)."""
+    return [t for pk in packs() for t in [pk.cupd()] if t]
+
+
 def dplay_tables():
     """dplay: the leagues of the worlds with the Italian play-offs (Pack.dplay)."""
     return [t for pk in packs() for t in [pk.dplay()] if t]
@@ -1301,6 +1315,50 @@ def promedio_table():
     rows = [r for pk in packs() for t in [pk.promedio()] if t for r in t]
     _need(len(rows) <= 48, f'promedio_history: {len(rows)} clubs (at most 48, gplay.c PR_N)')
     return struct.pack('<H', len(rows)) + b''.join(struct.pack('<HHBHB', *r) for r in rows)
+
+
+SECOND_RULES = {          # league 'second_teams': {'rules': code} -> (top level a B team may reach (0xFF: any; the
+                          # first team's level is always a bound), play-offs allowed) - formats2627.md 'Second teams'
+    'ita': (1, True),     # up to Serie B; the Serie C play-offs too
+    'esp': (0xFF, False), # never into / above the first team's division; no LaLiga 2 play-off
+    'ger': (2, False),    # never to the 2. Bundesliga; no relegation play-off
+    'ned': (1, False),    # never to the Eredivisie; no play-offs
+    'por': (0xFF, False), # never into the first team's division; no play-off (Davide 2026-10-18)
+}
+
+
+def second_table():
+    """gplay.c SEC_TAB: db countries; per country db nd, nd x db level, db n, n x (dw B global, dw first team global
+    (0xFFFF: another country), db top, db flags: 1 play-offs allowed, 2 may leave the world (an off-file league pool))."""
+    import struct
+    out, nc = bytearray(), 0
+    for pk in packs():
+        st = (pk.league or {}).get('second_teams') if pk.world is not None else None
+        if not st or st.get('rules') not in SECOND_RULES:
+            continue
+        top, po = SECOND_RULES[st['rules']]
+        divs = pk.divisions()
+        par = pk.league.get('parallel')
+        pars = {q['first']: q['count'] for q in (par if isinstance(par, list) else [par] if par else [])}
+        lv, d, l = [], 0, 0
+        while d < len(divs):
+            lv += [l] * pars.get(d, 1)
+            d += pars.get(d, 1)
+            l += 1
+        glob = lambda k: next(b for f, b in pk.files.values() if f == pk.where[k][0]) + pk.where[k][1]
+        sec = [(k, c['second_of']) for k, c in pk.clubs.items() if c.get('second_of')]
+        rs = pk.league.get('reserve') or {}
+        ex = 2 if rs.get('off_file') else 0
+        rows = []
+        for k, f in sec:
+            _need(k in pk.league_clubs, f"{pk.meta['id']}: second team {k} not a league club")
+            gf = glob(f) if f in pk.clubs and f in pk.league_clubs else 0xFFFF
+            rows.append(struct.pack('<HHBB', glob(k), gf, top, (1 if po else 0) | ex))
+        if not rows:
+            continue
+        out += bytes((len(lv),)) + bytes(lv) + bytes((len(rows),)) + b''.join(rows)
+        nc += 1
+    return bytes((nc,)) + bytes(out)
 
 
 def reserve_tables():
@@ -1377,8 +1435,10 @@ def splits():
             for i, st in enumerate(stages):
                 ws = f'{w}.split' + (f'.stages[{i}]' if 'stages' in sp else '')
                 if 'fixtures' in st:                # a fixture list by club (Argentina: zones, clasicos, interzonals)
-                    _need(set(st) <= {'after', 'fixtures', 'zones', 'reset', 'then', 'table', 'annual'},
-                          f'{ws}: keys after, fixtures, zones, reset, then, table, annual')
+                    _need(set(st) <= {'after', 'fixtures', 'zones', 'reset', 'then', 'table', 'annual', 'tiebreak'},
+                          f'{ws}: keys after, fixtures, zones, reset, then, table, annual, tiebreak')
+                    _need(st.get('tiebreak') in (None, 'wins'), f"{ws}.tiebreak: 'wins' (MLS: points, wins, then the "
+                          f"game's goal difference, goals) or absent")
                     if i == 0:
                         _need(st.get('after') == 0, f'{ws}.after: 0 (a fixture list from the first day)')
                         games, day = 0, 0
@@ -1398,10 +1458,11 @@ def splits():
                     if st.get('then'):
                         import engine
                         engine.after_stage(st['then'])
-                    _need(st.get('table') in (None, 0, 1, 2), f'{ws}.table: 0..2 (GP_SS: stage_place 4..6)')
+                    _need(st.get('table') in (None, 0, 1, 2, 3), f'{ws}.table: 0..3 (GP_SS: stage_place 4..7)')
                     spec['stages'].append({'after': day, 'fixtures': fxd, 'members': mem, 'reset': bool(st.get('reset')),
                                            'then': st.get('then'), 'table': st.get('table'),
-                                           'annual': bool(st.get('annual')), 'groups': [len(z) for z in st.get('zones') or [rows]]})
+                                           'annual': bool(st.get('annual')), 'wins': st.get('tiebreak') == 'wins',
+                                           'groups': [len(z) for z in st.get('zones') or [rows]]})
                     day += len(fxd)
                     continue
                 _need(set(st) <= {'after', 'home', 'groups', 'tiebreak', 'reset', 'keep'},

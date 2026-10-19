@@ -524,6 +524,9 @@ sp_calendar:                            ; the career calendar's blocks of the da
 sp_block:                               ; edi = block, ecx = day after the split
     mov byte [edi + 5], 0
     mov byte [edi + 6], 0
+    mov dword [edi + 0Ah], 0            ; its entry cleared (12 bytes): a rest day's block as the builder leaves it
+    mov dword [edi + 0Eh], 0            ; (the pre-split calendar's entry was left in it)
+    mov dword [edi + 12h], 0
     movzx eax, word [edx + E_CNT]
     add eax, edx
     movzx eax, byte [eax + ecx]         ; matches that day
@@ -573,7 +576,23 @@ sp_count:                               ; replaces `mov esi, [A0]` in cseg_8922B
     movzx ecx, word [esi + 1C1h]
     movzx eax, byte [edx + 5]
     sub ecx, eax
-    jb .game
+    jae .post
+    cmp ecx, -1                         ; the last day before the split: its last match -> the split's freeze now
+    jne .game                           ; (the engine's day end: (1BFh ? 0 : 1C9h) + 1 = 1C7h)
+    cmp dword [esp + 36], CNT_BLD_RET   ; (not in the calendar builder's walk)
+    je .game
+    movzx eax, word [esi + 1C9h]
+    cmp word [esi + 1BFh], 0
+    je .pa
+    xor eax, eax
+.pa:
+    inc eax
+    cmp ax, [esi + 1C7h]
+    jne .game
+    xor ecx, ecx
+    call sp_early
+    jmp .game
+.post:
     cmp cl, [edx + 6]
     jae .game
     cmp word [esi + 1BFh], 0
@@ -584,10 +603,22 @@ sp_count:                               ; replaces `mov esi, [A0]` in cseg_8922B
     inc word [esi + 1C9h]
     movzx eax, word [edx + E_CNT]
     add eax, edx
+    movzx ebx, byte [eax + ecx + 1]     ; (the next day's matches; after the last day n / 2, as the engine's)
+    lea edi, [ecx + 1]
+    push eax
+    movzx eax, byte [edx + 6]           ; (days after the split)
+    cmp edi, eax
+    pop eax
+    jb .nx
+    movzx ebx, byte [edx + 3]
+    shr ebx, 1
+.nx:
     movzx eax, byte [eax + ecx]
-    cmp [esi + 1C9h], ax
-    jb .ret
+    mov [esi + 1C7h], ax                ; [1C7h] = this day's matches: the game plays a day as [1C7h] matches (n / 2:
+    cmp [esi + 1C9h], ax                ; a shorter day ran into the next one, the league got ahead of the career
+    jb .ret                             ; calendar, its club's last matches never came - the season stuck)
     mov word [esi + 1BFh], 1            ; the day is over
+    mov [esi + 1C7h], bx                ; (the next day's count, for a loop started before its first match)
     inc word [esi + 1C1h]
     movzx eax, word [esi + 1C1h]
     mov al, [esi + 1CDh + eax]
@@ -595,6 +626,10 @@ sp_count:                               ; replaces `mov esi, [A0]` in cseg_8922B
     mov [WEEK], al
     call sp_stage_end
     inc ecx
+    cmp dword [esp + 36], CNT_BLD_RET   ; (a stage starting tomorrow: frozen now, before the game shows its first
+    je .nb                              ; calendar block)
+    call sp_early
+.nb:
     cmp cl, [edx + 6]
     jb .ret
     mov word [esi + 5Fh], 0             ; the last day: the stage is over
@@ -605,6 +640,23 @@ sp_count:                               ; replaces `mov esi, [A0]` in cseg_8922B
 .game:
     popad
     mov esi, [A0]
+    ret
+
+sp_early:                               ; ecx = the day after the split that starts next (esi = DIY, edx = entry):
+    pushad                              ; the first day of a stage not yet frozen -> its freeze (the groups, the
+    movzx eax, byte [edx + 6]           ; career calendar's blocks) before the game takes that day's block for the
+    cmp ecx, eax                        ; career club's match (frozen at its first match, a rest day's block had
+    jae .r                              ; been taken for a match: the league a day ahead, the season stuck)
+    call sp_stage
+    movzx ebx, byte [ebp]
+    cmp ecx, ebx
+    jne .r
+    lea ebx, [eax + 1]
+    cmp [esi + S_FROZEN], bl
+    je .r
+    call sp_freeze
+.r:
+    popad
     ret
 
 sp_stage_end:                           ; ecx = the day just over (after the split), esi = DIY, edx = entry: the last
@@ -1001,23 +1053,17 @@ def _orient(m, rounds):
 
 def schedule(groups, rounds):
     """The calendar after the split: [[(home place, away place, group), ...] per day], places 0-based global."""
-    plans = []
-    for m, r in zip(groups, rounds):
+    days, start = [], 0
+    for g, (m, r) in enumerate(zip(groups, rounds)):
         one = _orient(m, _round_robin(m)) if r else []
         back = [[(b, a) for a, b in rd] for rd in one]
-        plans.append([rd for k in range(r) for rd in (one if k % 2 == 0 else back)])   # r round robins, home /
-    n_days = max((len(x) for x in plans), default=0)                                 # away alternating (4: Latvia)
-    days, start = [[] for _ in range(n_days)], 0
-    for g, (m, plan) in enumerate(zip(groups, plans)):
-        # a group with fewer rounds than the stage's days: its rounds spread over them, the last on the stage's last
-        # day (its free days among its own: after its last match the career league screen had no command but STAT /
-        # ESCI, the season stuck - 4.0 rc1, Bulgaria 1-4 6 days v 5-9 10)
-        k = len(plan)
-        at = [n_days - 1] if k == 1 else [(i * (n_days - 1) + (k - 1) // 2) // (k - 1) for i in range(k)]
-        for d, rd in zip(at, plan):
+        plan = [rd for k in range(r) for rd in (one if k % 2 == 0 else back)]   # r round robins, home / away
+        #                                                                         alternating (4: Latvia 1996)
+        for d, rd in enumerate(plan):
+            while len(days) <= d:
+                days.append([])
             days[d] += [(start + a, start + b, g) for a, b in rd]
         start += m
-    assert all(days), 'a day with no match'
     return days
 
 
@@ -1218,6 +1264,12 @@ def sites(p):
     bl = [x for x in calls_to(pair) if d1[x - 6:x] == b'\xff\x35' + struct.pack('<I', a0 + 24)]
     assert len(bl) == 1, 'calendar builder'
     s['BUILDER_RET'] = bl[0] + 5
+    # the same builder's `call cseg_8922B` (the day counters; sp_count's caller check): the count routine's call
+    # after BUILDER_RET
+    cb = [x for x in range(bl[0], bl[0] + 0x200) if d1[x] == 0xE8 and
+          s['count'] - 0x40 < x + 5 + struct.unpack_from('<i', d1, x + 1)[0] <= s['count']]
+    assert len(cb) == 1, 'builder: call cseg_8922B'
+    s['CNT_BLD_RET'] = cb[0] + 5
     m = [x for x in re.finditer(rb'\xc7\x05' + A(a0 + 16) + rb'(.{4})\x66\xa1(.{4})\x66\xa3' + A(a0 - 4), d1, re.S)
          if 0 < bl[0] - x.start() < 0x100]
     assert len(m) == 1, 'calendar'
@@ -1293,6 +1345,7 @@ def patch(p, cave, nasmcave, splits):
            'MAGIC_': (0, MAGIC), 'NMAX_': (0, NMAX), 'GAMETYPE': s['GAMETYPE'], 'SLT': s['SLT'],
            'WORLD_BYTE': (0, careerworld.WORLD_BYTE), 'C2653B': (1, s['C2653B']), 'C2730A': (1, s['C2730A']),
            'C883DD': (1, s['sort_start']), 'C88420': (1, s['C88420']), 'BUILDER_RET': (1, s['BUILDER_RET']),
+           'CNT_BLD_RET': (1, s['CNT_BLD_RET']),
            'CAL': (2, s['CAL']), 'CALN': (2, s['CALN']), 'SELTEAMS': (2, s['SELTEAMS']), 'WEEK': (2, s['WEEK']),
            'SIMFLAG': (2, s['SIMFLAG']), 'C89758': (1, s['pair']), 'C88A12': (1, s['C88A12'])}
     import engine

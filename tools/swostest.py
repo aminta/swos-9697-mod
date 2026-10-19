@@ -5100,6 +5100,10 @@ def statespec_ce():
     test state F1 at ATL PARANAENSE: 2 groups of 5 (a fixed calendar inside each: the groups = the list blocks),
     then C = the top 3 of A, D = the top 3 of B, 2 groups of 3): the second stage's group rows (DIY+6Dh) are
     exactly those clubs, group by group (stage 1's final order: st_resort's STRDBGPT block at stage 2's start)"""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import statespec
+    if not statespec.GRP_ON:
+        return True, 'SKIP: statespec.GRP_ON is off (Cearense phase 2: the game draws the groups)'
     b = os.environ.get('STATESPEC_BUILD3') or builds()['it']
     from le import LE
     d1 = LE(open(b, 'rb').read()).obj_bytes(1)

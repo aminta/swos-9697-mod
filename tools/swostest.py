@@ -4388,6 +4388,62 @@ def contest_tables(r, cid, groups, size):
     return out
 
 
+def state_rounds(r, cid, seen):
+    """Knockout snapshots of a type-2 contest cid (statespec): seen['rank'] = the copy's +59h order when its
+    first knockout stage starts ([53h] = 1); seen[n] = [the round's list +2CDh (n clubs)], first-seen order."""
+    d = r.read(r.base2, 0x100000)
+    for i in range(len(d) - 0x41F):
+        if d[i + 0x2D] != cid:
+            continue
+        n = struct.unpack_from('<H', d, i + 0x31)[0]
+        if d[i] == 2 and struct.unpack_from('<H', d, i + 0x53)[0] == 1 and 'rank' not in seen:
+            seen['rank'] = list(d[i + 0x59:i + 0x59 + n])
+        elif d[i] == 1 and n in (2, 4, 6, 8, 16):
+            lst = list(d[i + 0x2CD:i + 0x2CD + n])
+            ties = struct.unpack_from('<H', d, i + 0x4F)[0]
+            if (lst, ties) not in seen.setdefault(n, []):
+                seen[n].append((lst, ties))
+
+
+def tie_sets(lst, ties):
+    return [frozenset(lst[2 * k:2 * k + 2]) for k in range(ties)]
+
+
+@scenario
+def statespec_byes():
+    """State knockout byes (lib97.st_ko / st_kend, STATESPEC_TEST=2 build: a Pernambucano-shaped world-0 test state
+    F1 at ATL PARANAENSE: 8 clubs, single round robin; 3rd-6th play the QF (6v3, 5v4), 1st-2nd wait; SF W(5v4) v 1st,
+    W(6v3) v 2nd; final): the QF round has 2 ties of exactly those pairs, the SF one tie per bye with the winner of
+    its own QF tie, the final one SF winner of each tie"""
+    b = os.environ.get('STATESPEC_BUILD2') or builds()['it']
+    errs, seen = [], {}
+    with Session('statespec_byes', b, {}, 'dump:2', 1800) as s:
+        s.wait()
+        new_career(s, 'BRASILE', None, 'ATL PARANAENSE', 'SUDAMERICA')
+
+        def stop(scr):
+            state_rounds(s.result, 0xF1, seen)
+            return season_over(scr)
+        ok, msg = advance(s, stop, 1700)
+    check(ok, f'season: {msg}', errs)
+    R = seen.get('rank')
+    check(R is not None and len(R) == 8, f'group ranking {R}', errs)
+    if R and seen.get(6) and seen.get(4) and seen.get(2):
+        qf, qt = seen[6][0]
+        check(qt == 2 and tie_sets(qf, 2) == [frozenset((R[5], R[2])), frozenset((R[4], R[3]))]
+              and qf[4:6] == [R[0], R[1]], f'QF {qf} ties {qt} (ranking {R})', errs)
+        sf, st = seen[4][0]
+        a, c = tie_sets(sf, 2)
+        check(st == 2 and R[0] in a and len(a & {R[4], R[3]}) == 1 and R[1] in c and len(c & {R[5], R[2]}) == 1,
+              f'SF {sf}', errs)
+        fin = set(seen[2][0][0])
+        check(len(fin & a) == 1 and len(fin & c) == 1, f'final {sorted(fin)}', errs)
+    else:
+        check(False, f'rounds seen {sorted(k for k in seen if k != "rank")}', errs)
+    return not errs, '; '.join(errs + [f'{msg}; ranking {R}, rounds ' + ', '.join(
+        f'{n}: {v[0]}' for n, v in sorted((k, v) for k, v in seen.items() if k != 'rank'))])
+
+
 @scenario
 def statespec_test():
     """State championships (statespec.py, STATESPEC_TEST=1 build: world 0's Brazil gets a Paranaense-shaped test state,
@@ -4401,14 +4457,31 @@ def statespec_test():
         s.wait()
         new_career(s, 'BRASILE', None, 'ATL PARANAENSE', 'SUDAMERICA')
 
+        seen = {}
+
         def stop(scr):
             for rows in contest_tables(s.result, 0xF1, 2, 6):
                 pl = {x[0] for x in rows}
                 if len(pl) == 1 and pl != {0}:
                     snaps[pl.pop()] = rows
+            state_rounds(s.result, 0xF1, seen)
             return season_over(scr)
         ok, msg = advance(s, stop, 1700)
     check(ok, f'season: {msg}', errs)
+    R = seen.get('rank')                         # (knockout: QF 4X v 1X, 3X v 2X inside each group, lib97.st_ko;
+    if R and seen.get(8) and seen.get(4):        # SF the winners of the same group's two ties, st_kend)
+        grp = lambda t: t // 6
+        order = {g: [t for t in R if grp(t) == g] for g in (0, 1)}
+        want = [frozenset((order[g][3], order[g][0])) for g in (0, 1)] + \
+               [frozenset((order[g][2], order[g][1])) for g in (0, 1)]
+        qf = tie_sets(*seen[8][0])
+        check(sorted(map(sorted, qf)) == sorted(map(sorted, want)), f'QF {seen[8][0][0]} (ranking {R})', errs)
+        for t in tie_sets(*seen[4][0]):
+            check(len({grp(x) for x in t}) == 1 and all(any(x in q for q in qf) for x in t)
+                  and len({next(k for k, q in enumerate(qf) if x in q) for x in t}) == 2,
+                  f'SF tie {sorted(t)} (QF {[sorted(q) for q in qf]})', errs)
+    else:
+        check(False, f'knockout rounds seen {sorted(k for k in seen if k != "rank")}', errs)
     check(len(snaps) >= 3 and max(snaps) <= 6, f'group-stage snapshots after days {sorted(snaps)}', errs)
     for d, rows in sorted(snaps.items()):
         a, bb = rows[:6], rows[6:]

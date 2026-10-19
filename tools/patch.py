@@ -186,6 +186,8 @@ def patch_exe(src, dst, remap, lang='it'):
     mkseason.register_states()                         # the career worlds' state championships (statespec.py)
     import statespec
     statespec.register_test()                          # STATESPEC_TEST=1: a world-0 test state (harness)
+    if statespec.TEST or statespec.TEST2 or any(e['states'] for e in statecup.ENTRIES if e['world']):
+        engine.save_item('SR', statespec.SR_SIZE)      # (statespec.rank_patch: the states' rankings)
     import lp36
     lpb = bool(mkseason.league_phase_cups() or mkseason.league_phase_worlds() or lp36.FIXTURES)
     lpb += bool(mkseason.league_phase_worlds())   # (+1 more: the UEFA coefficients, uefacoef)
@@ -424,11 +426,12 @@ def patch_exe(src, dst, remap, lang='it'):
     if sc_pg:                                    # state championships in career / Season slot 1 (statecup.py)
         sc_at = hist2 + h2 + 0x1000 * (lpb + sp_pg)
         sc_end = statecup.test_contest(p, sc_at) if statecup.TEST else sc_at   # (STATECUP_TEST=1 builds)
-        sc_end = statespec.test_contest(p, sc_end) if statespec.TEST else sc_end   # (STATESPEC_TEST=1 builds)
+        sc_end = statespec.test_contest(p, sc_end) if statespec.TEST or statespec.TEST2 else sc_end   # (STATESPEC_TEST=1 / 2 builds)
         sc_end = lp36.fx_patch(p, sc_end, area)    # fixture contests (cross-group round robins) on this page
         sc_end = statecup.slot_types(p, sc_end)
         statecup.cup_end_types(p)
         sc_end = statecup.patch(p, sc_end)
+        sc_end = statespec.rank_patch(p, sc_end)   # the played state's ranking (EN item 'SR', ripool's pools)
         assert sc_end <= sc_at + 0x1000, hex(sc_end)
     p.set_vsize(1, OBJ1_NEW_VSIZE + (0x1000 * (cp + 2 + cdp) if worlds else 0) + h2 + 0x1000 * (lpb + sp_pg + sc_pg))
     tail = (careerworld.BSS_SIZE if bigw else 0) + shirtnum.BSS_SIZE + blond.BSS_SIZE + menunum.BSS_SIZE + fmtpage.BSS_SIZE   # obj2 tail

@@ -5490,15 +5490,11 @@ def world_away_goals():
                         os.environ.pop(k, None)
                     else:
                         os.environ[k] = v
-            res = collections.Counter()                         # the European second legs' result texts (the
-            for d in glob.glob(os.path.join(RUNS, w84_tag() + '_*', 'session.log')):   # fast core: no breakpoint)
-                for ln in open(d, errors='replace'):
-                    if 'RITORNO' in ln:
-                        for t in re.findall(r'VINCE (?:\d+-\d+ )?(AI RIG(?: D\.T)?|IN TOT\.(?: D\.T)?|SU GOL FC)', ln):
-                            res[t] += 1
-            info.append(f'1984-85: {msg[:120]}; second-leg results {dict(res)}')
+            ag = [b for b in bps if b[4] & 0x10]
+            info.append(f'1984-85: {msg[:120]}; second legs {len(bps)}, away-goals bit {len(ag)}; '
+                        + ' '.join(f'{b[2]}-{b[3]}:{b[4]:02x}/{b[5]:04x}/{b[6]:04x}' for b in ag[:4]))
             check(ok, msg, errs)
-            check(res.get('SU GOL FC', 0) > 0, f'1984-85: no tie won on away goals on the screens {dict(res)}', errs)
+            check(bool(ag), '1984-85: no tie decided on away goals', errs)
     finally:
         W84_HOOK = None
     return not errs, '; '.join(errs + info)

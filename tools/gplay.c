@@ -846,6 +846,7 @@ static int ko_t2(struct gp_ko *k, const u8 *s, int pi, int cid, const struct t2s
     for (int i = 0; i < KT; i++) k->tw[i] = k->tl[i] = NOC;
     for (int i = 0; i < 8; i++) k->bye[i] = 0;
     KT2(k) = 1;
+    *(u32 *)k->bye = GP_NM[3 * pi + 2]; /* (its record line's name: a type-2 contest has no byes) */
     for (int i = 0; i < n; i++) {
         int c = ent_club(e + 4 * i);
         if (c < 0) return 0;
@@ -869,7 +870,7 @@ static int ko_t2(struct gp_ko *k, const u8 *s, int pi, int cid, const struct t2s
     for (int i = 0; i < x->nk; i++) { st[ns++] = 0; st[ns++] = 2 * x->kt[i]; st[ns++] = x->kt[i]; }
     for (int i = 0; i < 0x14; i++) c[0x0E + i] = i < ns ? st[i] : 0;
     for (int i = 0; i < 5; i++) c[0x22 + i] = i == 0 || i > x->nk ? 0 : x->kb[i - 1];
-    for (int i = 0; i < 8; i++) c[len + i] = ((const u8 *)GP_NM)[8 * pi + i];
+    for (int i = 0; i < 8; i++) c[len + i] = ((const u8 *)GP_NM)[12 * pi + i];
     len += 8;
     for (int j = 0; j < n; j++) { c[len++] = k->team[j]; c[len++] = k->team[j] >> 8; }
     k->season = GP_SEAS;
@@ -958,7 +959,7 @@ static int ko_build(struct gp_ko *k, int pi, int slot, int cid) {
     c[len++] = 0;
     c[5] = len - 5;
     c[7] = len + 8 - 7;
-    for (int i = 0; i < 8; i++) c[len + i] = ((const u8 *)GP_NM)[8 * pi + i];
+    for (int i = 0; i < 8; i++) c[len + i] = ((const u8 *)GP_NM)[12 * pi + i];
     len += 8;
     for (int j = 0; j < n; j++) { c[len++] = k->team[j]; c[len++] = k->team[j] >> 8; }
     k->season = GP_SEAS;
@@ -1137,6 +1138,19 @@ const s8 *GP_SLT;                       /* someLeaguesTable (the clubs' division
 u32 GP_SEL;                             /* selTeamsPtr */
 u16 GP_MGR;
 u8 GP_WORLD;
+
+/* SeasonFinished (gp_sack, before the season review): the career club won our played group contest (the Poule) ->
+   its record line's name (the season record's 4th line: a Serie D club plays no European cup), else 0. Test builds
+   (GPLAY_FORCE): the club is made the winner (the review's DA11B too: no European trophy for it, gp_sack's guard). */
+u32 gp_pwin_c(void) {
+    struct gp_ko *k = &GP_ST.ko[0];
+    if (GP_ST.magic != MAGIC || GP_ST.season != GP_SEAS || k->magic != MAGIC || k->season != GP_SEAS || !KT2(k))
+        return 0;
+    int me = kidx(k, GP_MGR);
+    if (me == NOC) return 0;
+    if (GP_FORCE) { k->tw[0] = me; k->tl[0] = me ? 0 : 1; }
+    return k->tw[0] == me ? *(u32 *)k->bye : 0;
+}
 
 u32 gp_sack_c(void) {
     const struct gp_ko *k = &GP_ST.ko[0];

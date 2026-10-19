@@ -3977,12 +3977,13 @@ def gp_ptrs(exe):
 
 
 def gp_eu(exe):
-    """obj2 offsets of D8CB6 (the slot-3 contest) and the euro cup won flags D6C64 / D6C66 / D6C68 (GPLOGPTR)."""
+    """obj2 offsets of D8CB6 (the slot-3 contest), the euro cup won flags D6C64 / D6C66 / D6C68 and the season
+    records (106 B each; GPLOGPTR)."""
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     from le import LE
     d1 = LE(open(os.path.join(exe, 'ITALIAN.EXE'), 'rb').read()).obj_bytes(1)
     k = d1.find(b'GPLOGPTR')
-    return struct.unpack_from('<4I', d1, k + 24)
+    return struct.unpack_from('<5I', d1, k + 24)
 
 
 def gp_ko(b):
@@ -4279,7 +4280,7 @@ def world_gplay_poule(force='1', team='EUROPA,ITALIA,SERIE D GIRONE A,LIGORNA'):
                                             'W8485_NOSACK', 'W8485_HEX', 'W8485_ONE')}
     os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5', W8485_K='108+',
                       W8485_NOSACK='1', W8485_HEX=f'{log_at:x}:{log_n},{st_at:x}:{st_n},' + ','.join(
-                          f'{a:x}:{4 if i == 0 else 2}' for i, a in enumerate(eu)), W8485_ONE='1')
+                          f'{a:x}:{4 if i == 0 else 106 if i == 4 else 2}' for i, a in enumerate(eu)), W8485_ONE='1')
     try:
         ok, msg = world8485()
     finally:
@@ -4315,8 +4316,12 @@ def world_gplay_poule(force='1', team='EUROPA,ITALIA,SERIE D GIRONE A,LIGORNA'):
         p_ = ln.split()                                                   # won flags 0)
         if len(p_) == 3 and p_[0] == 'HEX':
             last[int(p_[1], 16)] = bytes.fromhex(p_[2])
-    flags = [struct.unpack('<H', last.get(a, bytes(2))[:2])[0] for a in eu[1:]]
+    flags = [struct.unpack('<H', last.get(a, bytes(2))[:2])[0] for a in eu[1:4]]
     check(not any(flags), f'a European cup credited: flags {flags}', errs)
+    rec = last.get(eu[4], bytes(106))                                     # (the season record: a Poule won by the
+    won = champ is not None and champ == kl['team'][kl['code'].index(5 * GP_GT)] if 5 * GP_GT in kl['code'] else False
+    if won:                                                               # club -> its 4th line, WINNERS)
+        check(struct.unpack_from('<I', rec, 34)[0] and rec[89] == 1, f'record line: {rec[34:38].hex()} {rec[89]}', errs)
     car = os.path.join(RUNS, w84_tag() + '_1', 'SWOS', 'W84A.CAR')    # (the 9 group winners: up into Serie C, the
     if os.path.exists(car):                                               # early tables restored at the season end)
         dv = club_divisions(car, src, 'ita', set(kl['team']))

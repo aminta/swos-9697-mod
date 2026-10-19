@@ -195,7 +195,7 @@ def compile_spec(pos, ndiv):
             raise ValueError(f"{po.get('key', '?')}: a 'stage_title' entrant needs the stage_title play-offs of stages 0 and "
                              f"1 before it")
     out = bytes(out + b'\0')
-    SPEC_NAMES[out] = [(po.get('names') or {}, po.get('key', '?')) for po in pos]
+    SPEC_NAMES[out] = [(po.get('names') or {}, po.get('key', '?'), po.get('record')) for po in pos]
     if any(po.get('kind') == 'title' and po['rounds'] and 'group' in po['rounds'][0] for po in pos):
         T2_SPECS.add(out)               # (a group contest played in a career: the engine block's item 'GS')
     BUILD_AFTER[out] = [(i, po['build_after']) for i, po in enumerate(pos) if po.get('build_after')]
@@ -638,6 +638,29 @@ gp_sync:                                ; after a career / .SEA load (the engine
 
 gp_sack:                                ; replaces SeasonFinished's `call cseg_3C07C` (a club career's season-end
     pushad                              ; screens; cseg_3E55C, the contract check, runs for national selectors only):
+    cmp word [GAMETYPE], 4              ; (a group contest won, the Poule: the season record's 4th line = its record
+    jne .nr                             ; name, result 1 = WINNERS; no trophy flag)
+    mov ax, [CAREERTEAM]
+    mov [GP_MGR], ax
+    mov al, [SEASONPLAYING]
+    mov [GP_SEAS], al
+    mov eax, gp_pwin_c
+    call gp_c
+    test eax, eax
+    jz .nr
+    push eax
+%if FORCE_ON
+    mov ax, [CAREERTEAM]                ; (test builds: the review sees the career club as the slot-3 cup's winner)
+    mov [DA11B], ax
+%endif
+    pushad
+    call GETSEASON                      ; (GetCurrentSeasonPointer: A0)
+    popad
+    pop eax
+    mov esi, [A0R]
+    mov [esi + 34], eax
+    mov byte [esi + 89], 1
+.nr:
     mov eax, [D8CAA + 12]               ; (our slot-3 contest, the Poule, is no European cup for the season review:
     test eax, eax                       ; cseg_3D7CB credits the slot-3 cup's winner with D8CBE's trophy) D8CB6 = 0
     jz .e
@@ -709,7 +732,7 @@ GP_RSTP: dd 0                           ; (pgroups' RS_TAB: link_reserve, or 0)
 GP_RITP: dd 0                           ; (ripool's RI_TAB: link_reserve, or 0)
     db 'GPLOGPTR'                       ; (the harness: GP_LOG, GP_ST in obj2, their sizes; D8CB6, the euro cup won
     dd GP_LOG, GP_ST, LOG_SIZE, ST_SIZE ; flags D6C64 / D6C66 / D6C68)
-    dd D8CAA + 12, EUW0, EUW1, EUW2
+    dd D8CAA + 12, EUW0, EUW1, EUW2, SEASREC   ; (+ the season records, 106 B each)
 '''
 
 
@@ -947,7 +970,16 @@ def _sack_sites(p):
                                 rb'\x66\xc7\x05(.{4})\x01\x00\xeb.\x66\xc7\x05(.{4})\x01\x00', d1, re.S)]
     assert len(e) == 1, len(e)                  # cseg_3D7CB: the slot-3 cup's winner -> the euro cup won flags by D8CBE
     eu = [struct.unpack('<I', e[0].group(g))[0] for g in (3, 2, 4)]   # (D6C64 EC, D6C66 CWC, D6C68 UEFA)
+    w = re.search(rb'\x66\xa1(.{4})\x66\x39\x05(.{4})\x75.$', d1[e[0].start() - 24:e[0].start()], re.S)
+    da11b = struct.unpack('<I', w.group(1))[0]          # (the slot-3 cup's winner, the review's compare)
+    r_ = sacups.regs(d1)
+    pk = lambda x: re.escape(struct.pack('<I', x))
+    gm = [x for x in re.finditer(rb'\xc7\x05' + pk(r_['A0']) + rb'(.{4})\x66\xa1.{4}\x66\xa3' + pk(r_['A0'] - 32)
+                                 + rb'\x66\xa1' + pk(r_['A0'] - 32) + rb'\x66\xbb\x6a\x00', d1, re.S)]
+    assert len(gm) == 1, gm                             # GetCurrentSeasonPointer (A0 = the season record, 106 B)
+    gs = [gm[0].start()]
     return dict(c3e55c=h, site=site, c3c07c=site + 5 + struct.unpack_from('<i', d1, site + 1)[0], euw=eu,
+                da11b=da11b, getseason=gs[0], seasrec=struct.unpack('<I', gm[0].group(1))[0],
                 msg=struct.unpack('<H', m.group(2))[0], show=m.end(3) + struct.unpack('<i', m.group(3))[0],
                 CURMSG=u(1), SACKED=u(4))
 
@@ -964,16 +996,18 @@ def link_reserve(p, ri=None):
 
 
 def names_lines(tables, area, lang):
-    """GP_NMT: per GP_TAB entry dd its names; GPN<i>: per play-off dd long, short (relative to sacups.STR_BASE)."""
+    """GP_NMT: per GP_TAB entry dd its names; GPN<i>: per play-off dd long, short, its record line (pack 'record':
+    {lang: name}, else the long name; relative to sacups.STR_BASE)."""
     import sacups
     lines = ['GP_NMT:'] + [f'    dd GPN{i}' for i in range(len(tables))]
     for i, (_, _, spec) in enumerate(tables):
         lines.append(f'GPN{i}:')
-        for names, key in SPEC_NAMES.get(spec, []):
+        for names, key, rec in SPEC_NAMES.get(spec, []):
             long_, short = _name(names, lang, key)
-            rl, rs = (area.add(x + b'\0') - sacups.STR_BASE if area else 0 for x in (long_, short))
-            lines.append(f'    dd {rl}, {rs}')
-        lines.append('    dd 0, 0')
+            record = _name(rec, lang, key)[0] if rec else long_   # (a group contest won: the season record's line)
+            rl, rs, rr = (area.add(x + b'\0') - sacups.STR_BASE if area else 0 for x in (long_, short, record))
+            lines.append(f'    dd {rl}, {rs}, {rr}')
+        lines.append('    dd 0, 0, 0')
     return '\n'.join(lines)
 
 
@@ -1049,8 +1083,9 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
     symbols.update({k: (2, sk[k]) for k in ('CURMSG', 'SACKED')})
     symbols.update({'MSG_NORENEW': (0, sk['msg']), 'SHOWCHAIR': (1, sk['show']), 'C3C07C': (1, sk['c3c07c'])})
     symbols.update({f'EUW{i}': (2, a) for i, a in enumerate(sk['euw'])})
+    symbols.update({'DA11B': (2, sk['da11b']), 'GETSEASON': (1, sk['getseason']), 'SEASREC': (2, sk['seasrec'])})
     symbols.update({k: syms[k] for k in ('GP_CFB', 'GP_LG', 'GP_RST', 'GP_RIT', 'GP_SEL', 'GP_MGR', 'GP_WORLD', 'GP_SLT',
-                                         'gp_sack_c', 'gp_forcecfb')})
+                                         'gp_sack_c', 'gp_forcecfb', 'gp_pwin_c')})
     symbols['FORCE_ON'] = (0, int(bool(force)))
     rec_dp = p.get(1, ps['rec'], 1) == b'\xe8'                # dplay's `call dp_rec; nop` there, or the game's mov
     symbols['GP_REC_NEXT'] = (1, tgt(ps['rec'])) if rec_dp else (0, 0)

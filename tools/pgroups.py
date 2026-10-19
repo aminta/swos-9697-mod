@@ -33,7 +33,7 @@ pg_fix:                                 ; replaces `call cseg_7CAA2` (leaguesTab
     or eax, -1
 .mgr:
     mov [RI_MGR], eax
-    push dword RI_SR                    ; (statespec's stage-1 ranking, the 'SR' item, or 0)
+    push dword [RI_SR_PTR]              ; (every state's ranking, statespec's 'SR' item: its address, or 0)
     movzx eax, byte [SLT + WORLD_BYTE]
     push eax
     push dword SLTCOPY

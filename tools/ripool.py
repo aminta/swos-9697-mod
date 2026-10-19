@@ -6,8 +6,8 @@ A2 clubs (file 161, the state-only clubs: no free global numbers) swap IDENTITIE
   file's world, when the file read is that file (careerworld WTPHYS), the buffer is copied as read to its ORIG buffer,
   its RS file is read once per DOS session into its POOL buffer (the game's LoadFile, the pseudo registers kept),
   then gplay.c ri_apply gives every remapped slot its identity's record;
-- pg_fix (pgroups.py) calls ri_season before pg_season (with statespec's stage-1 ranking, the 'SR' item, when the
-  build has it) and ri_after after the balance: the career cache's records of the swapped slots get their new
+- pg_fix (pgroups.py) calls ri_season before pg_season (with every state's ranking, statespec's 'SR' item, through
+  RI_SR_PTR, which statecup fills) and ri_after after the balance: the career cache's records of the swapped slots get their new
   identity (ri_cache), LoadTeamFile's own cache is cleared (teamsLoaded = 0, lastLoadedExtNumber = 0FFh) so the next
   load applies the new map;
 - RI_STATE is the engine item 'RI' (saved with the career; cleared for a new career and for a save without it: the
@@ -177,6 +177,7 @@ ri_copyb:                               ; ecx bytes esi -> edi (no string instru
 .r:
     ret
 align 4
+RI_SR_PTR: dd 0                         ; statespec's ST_RANK (statecup.py: p.add_ptr on LABELS['RI_SR_PTR']), or 0
 RI_PLOADED: times {RF} db 0
 {names}'''
 
@@ -239,20 +240,15 @@ def patch(p, at, bss, tabs):
           f'obj1+{call:#x} -> ri_load obj1+{at:#x}, table {len(tb)} B, buffers obj2+{bss:#x}')
     import dplay
     ct = dplay._sites(p)[5]                     # careerTeam (obj2), as gplay
-    sr = (0, 0)
     test = os.environ.get('RIPOOL_TEST_SR')     # (harness builds: a fixed ranking in hex, as the 'SR' item)
     if test:
         b = bytes.fromhex(test)
-        sr = (1, (tab + len(tb) + 15) & ~15)
-        p.put(1, sr[1], b)
-        tb += bytes(sr[1] - tab - len(tb)) + b
-        print(f'exe: off-file pools: TEST ranking {test} at obj1+{sr[1]:#x}')
-    else:
-      try:
-        import statespec                        # every state's ranking (package 5's 'SR' item)
-        sr = statespec.LABELS.get('ST_RANK', sr)
-      except (ImportError, AttributeError):
-        pass
+        at_sr = (tab + len(tb) + 15) & ~15
+        p.put(1, at_sr, b)
+        tb += bytes(at_sr - tab - len(tb)) + b
+        p.add_ptr(1, lab['RI_SR_PTR'], 1, at_sr)
+        print(f'exe: off-file pools: TEST ranking {test} at obj1+{at_sr:#x}')
+    LABELS['RI_SR_PTR'] = (1, lab['RI_SR_PTR'])  # (statecup places ST_RANK later: it fills this dword)
     return (tab + len(tb) + 15) & ~15, {'RI_TAB': (1, tab), 'RI_SEASON': gplay.LABELS['ri_season'],
                                          'RI_MGR': gplay.LABELS['RI_MGR'], 'RI_AFTER': (1, lab['ri_after']),
-                                         'CAREERTEAM': (2, ct), 'RI_SR': sr}
+                                         'CAREERTEAM': (2, ct), 'RI_SR_PTR': (1, lab['RI_SR_PTR'])}

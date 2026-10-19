@@ -79,3 +79,14 @@ Clausura champion places map to the table's 1st / 2nd (declared, 4.0; exact with
 4. CONMEBOL data (package 6 formats, data access lists + season-1 entrants, ranking join) and scenarios (Serie C).
 5. Other confederations: data + formats on the same engine (+ ACL Elite's league stage through lp36's engine).
 6. FIFA Intercontinental (single matches between the confederations' winners) / Club World Cup if in range.
+
+## Davide's decisions (2026-10-20, via the regia)
+1. One edition per world season, named for its end year (2026-27 = Copa Libertadores 2027), spread Aug-May in the
+   real round order; entrants from the previous world season's tables + cups; season 1 = the 2027 editions from the
+   real qualified clubs where known, else the real 2026 tables. The same for every confederation.
+2. Seeding: the real rankings / coefficients, frozen and declared in 4.0 (CONMEBOL: Dec 2025); evolving in 4.0.1.
+3. The Recopa is in 4.0; the FIFA Intercontinental Cup is in 4.0.
+4. Single-table associations: Apertura / Clausura places mapped to table places, declared.
+5. The FIFA Club World Cup moves to 4.1: the engine takes it as data + format then (32 clubs from the confederations'
+   winners and rankings, 8 x 4 groups, knockouts).
+Cut line Thu 29 (anything not PASS -> 4.0.1, declared; CONMEBOL never cut); release Sat 31 Oct.

@@ -1627,6 +1627,75 @@ def w84_record():
     return ok, f'{season}: record line {line!r}'
 
 
+def zone_rows(s, tag):
+    """The shown league table's rows in place order: [(row y, zone)] from a memory frame (zones.py colours, sampled in
+    the stats columns: lb light blue, gr green, db dark blue, or orange, rd red, pl the game's plain row)."""
+    from PIL import Image
+    scr = s.screen()
+    s.shot(tag)
+    im = Image.open(os.path.join(s.run, 'shots', tag + '.png')).convert('RGB')
+    gc = scr.geom[24]                                   # the GC header: the rows follow it, 6 pixels + a dark line
+    rows, y = [], gc[1] + gc[3] + 1
+    while y < 196:
+        h = 0
+        while y + h < 200 and not (im.getpixel((200, y + h))[0] < 20 and im.getpixel((200, y + h))[1] < 20):
+            h += 1
+        if h != 6:
+            break
+        rows.append(y)
+        y += h + 1
+    rows = [y - 3 for y in rows]
+    def zone(rgb):
+        r, g, b = rgb
+        if b >= 150 and r < 130 and g >= 120:
+            return 'lb'
+        if g >= 150 and b < 110 and r < 240:
+            return 'gr'
+        if b >= 100 and r < 80 and g < 80:
+            return 'db'
+        if r >= 200 and 70 <= g < 190 and b < 70:
+            return 'or'
+        if r >= 200 and g < 90 and b < 90:
+            return 'rd'
+        return 'pl'
+    return [(y, zone(im.getpixel((200, y + 3)))) for y in rows], scr
+
+
+@scenario
+def zone_colours():
+    """4.0 zone colours (zones.py): a new 1984-85 career at Liverpool, VISUAL. COMPETIZ. > First Division: place 1 light
+    blue (Champions Cup), 2-5 green (UEFA Cup), 20-22 red, the others plain (pixels of the stats columns); the legend
+    CAMP / UEFA / RETR on the header line; STAT > FORMULA > back (the FORMAT page shares the zones' file buffer): the
+    same colours again"""
+    b = os.environ.get('W8485_BUILD', os.path.join(WORK, 'builds', 'w8485'))
+    want = ['lb'] + ['gr'] * 4 + ['pl'] * 14 + ['rd'] * 3
+    errs, info = [], []
+    with Session('zone_colours', b, {}, 'dump:2', 600) as s:
+        s.wait()
+        for t in ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'EUROPA 1984-85', 'INGHILTERRA', 'FIRST DIVISION',
+                  'LIVERPOOL']:
+            if press(s, s.screen(), t, 3) is None:
+                return False, f'new career: {t} not reached'
+        s.send('fire dump:3')
+        walk(s, s.screen().find('VISUAL. COMPETIZ.', exact=True), 3)
+        walk(s, 1, 3)
+        for k in (1, 2):
+            rows, scr = zone_rows(s, f'zones_{k}')
+            got = [z for _, z in rows]
+            liv = None
+            check(len(got) == 22 and all(a == w or (w == 'pl' and a != w and False) for a, w in zip(got, want)),
+                  f'pass {k}: zones {got}', errs)
+            leg = [e[1] for e in scr.entries[-5:] if not e[2]]
+            check(leg == ['CAMP', 'UEFA', 'RETR'], f'pass {k}: legend {leg}', errs)
+            info.append(f"pass {k}: {''.join(z[0] for z in got)}, legend {leg}")
+            if k == 1:                              # the FORMAT page (it reads its own file into the shared buffer)
+                walk(s, scr.find('STAT', exact=True), 3)
+                walk(s, s.screen().find('FORMULA', exact=True), 3)
+                walk(s, s.screen().find('ESCI', exact=True), 3)
+                walk(s, s.screen().find('ESCI', exact=True), 3)
+    return not errs, '; '.join(errs + info) if errs else '; '.join(info)
+
+
 @scenario
 def world8485():
     """Europe 1984-85 world (world 4): new career at Liverpool, two seasons (save, reload, save), checkw1 on both"""

@@ -78,7 +78,8 @@ ROUND = {'two_legs': 0x94, 'two_legs_pens': 0x84, 'single': 0x14, 'single_et': 0
 # tourney packs (3.2, CLASSIC TOURNEYS): matches of a knockout stage = the legs byte of a worldCup-layout stage (as the
 # World Cup 1982 / Mitropa 1934 / FA Cup 1871-72 of historic.py). *_replay: a draw (on aggregate) is replayed, a drawn
 # replay is decided by a coin toss (historic coin_draw): those tourneys use no penalties at all.
-MATCHES = {'single': 0x14, 'single_et': 0x54, 'two_legs': 0x94, 'single_replay': 0x00, 'two_legs_replay': 0x80}
+MATCHES = {'single': 0x14, 'single_et': 0x54, 'two_legs': 0x94, 'two_legs_pens': 0x84, 'single_replay': 0x00,
+           'two_legs_replay': 0x80}   # (two_legs_pens: no away goals, a level aggregate straight to penalties)
 REPLAY = ('single_replay', 'two_legs_replay')
 UEFA_NAMES = {'cc': ('UEFA CHAMPIONS LEAGUE', 'CHAMPIONS LEAGUE'), 'cwc': ('UEFA EUROPA LEAGUE', 'EUROPA LEAGUE'),
               'uefa': ('UEFA CONFERENCE LEAGUE', 'CONF. LEAGUE')}     # a league-phase world's cups (official)
@@ -454,7 +455,7 @@ class Pack:
             return None
         import gplay
         try:
-            spec = gplay.compile_spec(lg['ko_playoffs'], len(self.divisions()))
+            spec = gplay.compile_spec(lg['ko_playoffs'], len(self.divisions()), lg.get('names'))
         except (ValueError, KeyError, TypeError) as e:
             _need(False, f"{self.meta['id']}: ko_playoffs: {e}")
         return self.world, self.files[lg['clubs']][0], spec
@@ -2091,6 +2092,8 @@ def patch(p, lang, area, cave):
     import sacups
     ct, tcn, _, _ = countries.tables(p)
     comp = countries.COMP[0]
+    NS.clear()                                 # (several worlds: this exe's namespaces; a release builds 8 exes in one run)
+    NS_INFO.clear()
     env = (p.le.obj_bytes(2), ct, tcn, comp, {f[1] for f in p.le.fixups() if f[0] == 2})
     ids = {}                                   # a league id may be shared by the packs of one career world, and
     for pk in packs():                         # every world has its own ids (worlds never run together: their cups'
@@ -2158,7 +2161,8 @@ def patch(p, lang, area, cave):
         CAREERS_REC[0] = crec
         p.add_ptr(2, ct + 4 * CAREERS, 2, crec)
         entries = []                            # a world = one entry (WMENU + n) listing its countries; packs of no
-        for pk, i in zip(packs(), infos):       # world stay countries of the list
+        for pk, i in zip([q for q in packs() if q.kind != 'tourney'], infos):   # world stay countries of the list
+                                                # (infos skips the tourney packs: a plain zip listed ALBANIA, 3.0-4.0)
             if i['kind'] != 'career':
                 continue
             if pk.world is None:

@@ -3,7 +3,7 @@
 
 ## English
 
-**SWOS 96/97 Mod 4.0: the World 2026-27 career and the 1996-97 game as it really was** (DRAFT)
+**SWOS 96/97 Mod 4.0: the World 2026-27 career, today's football as it really is** (DRAFT)
 <!-- REGIA STAGED, the release payoff (Davide 2026-10-18, for the final release of the whole work):
 *Football competitions, global and local, that no other game has, has ever had, or probably ever will.* -->
 
@@ -63,7 +63,6 @@ Not one fixed formula for everybody: each league plays the season the way its ow
     and Conference Finals, single matches at the higher seed; the MLS Cup at the club with the better record. Extra
     time and penalties from the Conference Semifinals. Playable by your club, with the real round names.
   Declared: the tables are the two conferences; the Supporters' Shield is not shown as a separate table.
-<!-- REGIA STAGED (title play-offs, branch titlepo; publish when merged + TM_TITLE=1 + the champion applied):
 - **Title play-offs where the champion is decided after the table**:
   - **Canada** (CPL): the top 4, semi-finals 1st v 4th and 2nd v 3rd over two legs (the better placed hosts the
     return), a single final at the better placed's ground.
@@ -77,7 +76,11 @@ Not one fixed formula for everybody: each league plays the season the way its ow
     rounds, a decider or a Final Four seeded by aggregate points.
   Extra time and penalties where the tie is level. Declared for Malta: single matches at a neutral ground (the
   rules give no format); equal season points in the Final Four seeding are split by the Closing Round place; no
-  third-place match. -->
+  third-place match.
+  The play-offs' winner is the champion and takes the champion's continental place (e.g. Malta's Final Four winner
+  goes to the Champions League).
+  Your club keeps its real table place in the season record and, when it wins the title play-off, gets an extra
+  line with the league's name and WINNERS.
 - **Leagues with an odd number of clubs play real rounds**: one club rests each matchday, as in the real
   competitions (El Salvador's Tercera, Gibraltar, New Zealand, India, Taiwan ...); the original game's tables for odd
   sizes were not rounds.
@@ -88,6 +91,52 @@ Not one fixed formula for everybody: each league plays the season the way its ow
   its real round of 16 (the winner into the Serie C play-off), the Taca da Liga in its real 8-club format, the
   Scottish League Cup, the J.League Cup, and the league cups of Northern Ireland, Egypt, Qatar, the UAE, South Africa,
   Wales, Iceland, Finland, Chile and Peru.
+
+*Brazil's state championships 2026*
+All 13 of them, each a real contest of your career, played alongside the national league in the first months of
+the season as in Brazil: Paulista, Carioca, Mineiro, Gaucho, Paranaense, Catarinense, Goiano, Paraense, Baiano,
+Cearense, Pernambucano, Alagoano and Mato-Grossense.
+- **Every Brazilian club plays its real state**: the clubs of the Serie A-D play both their state and their national
+  division, the real 2026 state-only clubs play only their state.
+- **Each state's real 2026 format**: club list, first stage (one table, groups, or blocks where each club meets only
+  the clubs of the other blocks, on the real fixtures), knockout pairings, byes and legs:
+  - **Paulista** (16): league phase drawn from 4 pots of 4 (the 3 of its own pot + 5 drawn, once), one table, the
+    64 real pairings with their real home sides; quarter-finals 1st v 8th, 4th v 5th, 2nd v 7th, 3rd v 6th, single
+    semi-finals, two-legged final; the bottom 2 down.
+  - **Carioca** (12): Taca Guanabara in two groups of 6, each club against the other group once; quarter-finals
+    inside the group (A1 v A4, A2 v A3 ...), two-legged semi-finals, single final; the Grupo X of the bottom 2 of
+    each group from zero: the last goes down, the 3rd plays a two-legged play-off against Resende, the real 2026
+    Serie A2 runner-up.
+  - **Mineiro** (12): three groups of 4, each club against the other groups once; the 3 group winners and the best
+    runner-up in two-legged semi-finals, best campaign v 4th and 2nd v 3rd; single final; 11th and 12th down.
+  - **Gaucho** (12): two groups of 6 against each other; quarter-finals inside the group, crossed two-legged
+    semi-finals, two-legged final; a relegation quadrangular of the bottom 2 of each group from zero, the last 2 down.
+  - **Paranaense**: two groups of 6 against each other; quarter-finals and semi-finals inside the group, final, all
+    two legs; relegation play-offs 5A v 6B and 6A v 5B.
+  - **Catarinense**: two groups of 6 against each other; quarter-finals inside the group, crossed semi-finals and
+    final, all two legs; the Quadrangular do Descenso of the bottom 2 of each group, only its winner stays up.
+  - **Goiano**: three blocks of 4, each club against the other 8, one table; quarter-finals 1v8, 4v5, 2v7, 3v6,
+    semi-finals and final over two legs; 11th and 12th down, 10th v 11th play-off when within 6 points.
+  - **Paraense**: two blocks of 6 against each other, one table; single quarter- and semi-finals, two-legged final.
+  - **Baiano** (10) and **Alagoano** (8): single round robin, semi-finals 1v4 and 2v3, final.
+  - **Cearense**: two groups of 5, the top 3 of each to a second phase, crossed two-legged semi-finals and final; the
+    Quadrangular da Permanencia of the bottom 2 of each group.
+  - **Pernambucano** (8) and **Mato-Grossense** (10): single round robin, 1st and 2nd straight into the semi-finals,
+    quarter-finals 3v6 and 4v5, then semi-finals and final.
+- **Hosts and ties as in the regulations**: every knockout tie at the better placed club of the first stage (single
+  matches at its ground, two-legged ties with the second leg there); level ties go straight to penalties, no extra
+  time, no away goals.
+- **Real relegations**: each state relegates its real number of clubs through its real phase (bottom places,
+  play-offs, quadrangulars); the relegated state-only clubs are replaced by real clubs of the state's second division
+  (Serie A2) with their squads; a national-league club relegated from its state leaves the state contest.
+- **The states you don't play are simulated at the season end with their real format**: first stage, knockout to a
+  champion and relegation phase, the results by the clubs' strength.
+- Declared: the Paulista's round order is rebuilt (real pairings and home sides, the dates aren't published); the
+  Carioca and Mineiro finals are at the first finalist's ground (real: a neutral ground); in the state you play,
+  equal points are split by goal difference (real: wins first; the simulated states use the real order); the
+  Cearense's six qualifiers are drawn into two groups of three that play each other (real: each group's clubs play
+  the other group's); the Catarinense semi-final crossing is assumed; the Pernambucano's second division clubs are those of 2025; the side trophies (Taca Rio, Taca Farroupilha,
+  Trofeu Inconfidencia, Campeao do Interior) are not played.
 
 *At least everything the original game had*
 - **Never fewer leagues or divisions than SWOS 96/97**: England's four divisions, with League Two and its 4th-7th
@@ -115,6 +164,8 @@ when the engine lands it.
 
 *European cups (UEFA 2026-27)*
 - **The current official names**: UEFA Champions League, UEFA Europa League, UEFA Conference League, on every screen.
+- **The league phase's competition info** (STAT > INFO): one table of 36, top 8 to the round of 16, 9th-24th to the
+  play-offs.
 - **No away goals in 2026-27** (UEFA abolished them in 2021-22; every federation's two-legged rounds followed): a
   level aggregate goes to extra time and penalties, or straight to penalties where the regulation says so (Copa do
   Brasil rounds 5-8, EFL Cup semi-finals, the Chilean Copa de la Liga semi-finals), in played and simulated ties
@@ -244,6 +295,18 @@ when the engine lands it.
   In the World 2026-27 the European places in every season come from the engine's own UEFA ranking (the one a year
   old, as UEFA's access list uses) and the real 2026/27 access list; the European Performance Spots and the title
   holders' rebalancing are decided at the season end and are not coloured in advance.
+- **Continental places outside Europe**: the top flights of the other confederations colour their real club-cup
+  places: light blue for the first cup (Copa Libertadores, Concacaf Champions Cup, AFC Champions League Elite, CAF
+  Champions League, OFC Champions League), green for the second (Copa Sudamericana, AFC Champions League Two, CAF
+  Confederation Cup), following each association's real routes (Libertadores / Sudamericana 2026, ACL Elite / Two
+  2026-27, Concacaf Champions Cup 2027, CAF's allocation, New Zealand's 2 OFC places), with a legend and a line on the
+  FORMAT page that also names the national cup winner's place.
+  Declared: where the real places are not table positions (the Apertura / Clausura champions and the annual table in
+  Argentina, Colombia, Paraguay and Mexico; a final or play-offs in Uruguay, Venezuela, Australia, the USA, Canada and
+  New Zealand) the game colours its own season table and the FORMAT page states the real rule; Ghana, Iran and India
+  follow the general rule (no list of qualified clubs published); Central America and Suriname (qualified through
+  the Central American and Caribbean Cups) and Taiwan (AFC Challenge League) have no colours; the holders' extra
+  places and places passed down are decided by the cups and not coloured.
 
 *Leagues, calendars and clubs*
 - **Every league, national cup and league cup under its real 2026-27 name, without title sponsors**: COPPA ITALIA,
@@ -279,10 +342,10 @@ when the engine lands it.
 - **Real names**: every league and cup under its official 2026-27 name, without title sponsors, as the original game
   did (SERIE A, LALIGA, FA CUP, EFL CUP, DFB-POKAL, TURKIYE KUPASI, KING'S CUP, EMPEROR'S CUP ...): the country's own
   language where it is written in the Latin alphabet, the official English name otherwise.
-<!-- DATA STAGED (publish with the engine's formats): - **League formats**: every league in its real 2026-27 format:
+- **League formats**: every league in its real 2026-27 format:
   Scotland's split after 33 matchdays and its play-offs, Austria's championship and qualification groups (points no
   longer halved), Switzerland's split, Denmark's and Greece's groups, Argentina's Apertura and Clausura,
-  the Italian, English, Dutch and Brazilian play-offs and the others listed in 'Rebuilt exactly'. -->
+  the Italian, English, Dutch and Brazilian play-offs and the others listed in 'Rebuilt exactly'.
 - **Club order**: each division in the order of its 2025-26 final table (2025 for calendar-year leagues): the clubs
   that stayed by final position, then the relegated, then the promoted; promoted clubs from a tier the world does
   not hold come last, by squad value.
@@ -312,10 +375,10 @@ when the engine lands it.
   Guatemala and Panama have no national cup in 2026-27, so they play their league only; Peru's cup is its real Copa
   de la Liga 2026. The round of 16 is called ROUND OF 16 (OTTAVI DI FINALE ...), except where the federation numbers
   it (FA Cup fifth round, Scottish Cup, Irish Cup, Chatham Cup and 6 more).
-<!-- DATA STAGED (publish with the engine's league cups): - **League cups 2026-27**: the EFL Cup from its real fourth
+- **League cups 2026-27**: the EFL Cup from its real fourth
   round, the Coppa Italia Serie C from its real round of 16 (its winner into the Serie C play-off), the Scottish
   League Cup, the Taca da Liga in its real 8-club format, the J.League Cup, the Irish League Cup and the league cups of
-  Egypt, Qatar, the UAE, Wales, South Africa, Iceland, Finland and Chile, each in its real format. -->
+  Egypt, Qatar, the UAE, Wales, South Africa, Iceland, Finland and Chile, each in its real format.
 - **European cups**: the first season's Champions League, Europa League and Conference League are the real 2026-27
   league phases (36 clubs each). The format is UEFA's since 2024-25:
   - **League phase**: one table of 36. The draw is made by the game at the start of every season, in four pots by club
@@ -396,13 +459,12 @@ when the engine lands it.
 - Nobody goes down from a country's lowest division in the world (except the Serie D, relegated to the Eccellenza pool), and play-offs against a tier outside the world are
   not played: e.g. Switzerland's 11th does not meet the Challenge League's 2nd, Korea's 10th and 11th play no K
   League 2 club.
-<!-- DATA STAGED (second-team rules: to come, the integrator's engine; Davide 2026-10-18): - Second teams (Juventus
-  Next Gen, Atalanta U23, Inter U23, Real Sociedad B, Stuttgart II, Hoffenheim II, the Jong / U21 teams of PSV, Ajax,
-  AZ and Utrecht, Benfica B, Porto B, Sporting B, the Auckland FC and Wellington Phoenix reserves) follow their
+- Second teams (Juventus Next Gen, Atalanta U23, Inter U23, Real Sociedad B, Stuttgart II, Hoffenheim II, the Jong / U21 teams of PSV, Ajax,
+  AZ and Utrecht, Benfica B, Porto B, Sporting B) follow their
   countries' rules: never promoted into or above their first team's division, the promotion or play-off place passing
   to the next club; Italy's U23 teams may go up to Serie B and play the Serie C play-offs; a first team relegated into
-  its second team's division sends the second team down; New Zealand's reserves cannot win the National League. They
-  play no national cup (already in the data). -->
+  its second team's division sends the second team down. They play no national
+  cup. New Zealand's Auckland FC and Wellington Phoenix reserves play their regional leagues.
 - Players without a Transfermarkt value get an estimate (from their club's and division's values); in the lowest
   divisions (Scotland's League One and Two) the squads are so close that a simulated season does not follow the real
   table closely.
@@ -414,20 +476,18 @@ when the engine lands it.
   Presidente, last 2017-18), Guatemala and Panama play their league only. Peru's only cup for its Liga 1 clubs, the
   Copa de la Liga, takes the national cup's place. South Africa's Nedbank Cup and Carling Knockout keep their
   sponsors' names (no other name is in use).
-<!-- DATA STAGED (publish with the engine's formats): - Formats from the last documented season, where no 2026-27
+- Formats from the last documented season, where no 2026-27
   source exists (an approximation; these are one-division countries in the world, so only the format counts):
   - Korea: the split after 33 matchdays as in 2025.
   - Czech Republic: the 7th-10th placement knockout of single matches, as in 2025-26.
   - Bolivia: one double round-robin of 30 matchdays, as in 2025-26.
-  - Guatemala: the top 8 in two-legged quarter-finals, semi-finals and final, as in the Clausura 2026.
-  - Honduras: the 2026-27 groups and liguilla as announced, the final in two legs as in the Clausura 2026.
   - Serbia: the top and bottom halves in single round-robins with points kept, as in 2025-26.
   - Bulgaria: the three 2026-27 groups with the 2025-26 rules (points kept).
   - Albania: the Final Four of the top 4 with halved points, as in 2025-26.
   - Kazakhstan: one double round-robin of 30 matchdays, as in 2025.
   - Moldova: phase II of the top 6 from their halved head-to-head points, as in 2025-26.
   - Andorra: a triple round-robin, as in 2025-26.
-  - San Marino: one table of 30 matchdays and the Conference play-off of 2nd-11th, as in 2025-26. -->
+  - San Marino: one table of 30 matchdays and the Conference play-off of 2nd-11th, as in 2025-26.
 - Every league and division of the original SWOS 96/97 is
   in the world (Davide): England's League Two, Argentina's Primera Nacional (two zones), Mexico's Liga de Expansion,
   Uruguay's Segunda, Japan's J2, New Zealand's Northern / Central / Southern Leagues, Australia's NPL New South Wales /
@@ -448,17 +508,16 @@ when the engine lands it.
     championships.
 - Leagues with an odd number of clubs keep their real size, one club resting each matchday: Gibraltar 11, India's
   Super League 13 and Football League 11, Taiwan's Division 2 7, El Salvador's Tercera occidente 9.
-<!-- INTERNAL (not public, regia 2026-10-18): Argentina's Liga Profesional and the MLS are two closed divisions of 15
-  for now (the game pairs at most 24 clubs): no promotion / relegation in Argentina, no interzonal / cross-conference
-  matches. To be replaced before the release by the integrator's two-tournament season (zones + clasico, annual table,
-  promedio; MLS 34 matches, Supporters' Shield, play-offs). If still interim at release time: decide with Davide. -->
-<!-- DATA STAGED (with the exact Argentina, TM_ARG_EXACT; the integrator's engine): - Argentina: the Primera Nacional's
+- Argentina: the Primera Nacional's
   reducido pairs its first round across the two zones by place (2nd A v 8th B ... 8th A v 2nd B) and a level two-legged
   tie goes to the better placed club; the zone winners' final at a neutral ground has extra time and penalties; the Liga
   Profesional's matchdays are weekly from 22 January (Apertura) and 18 July (Clausura): the regulation published none
-  of these details. -->
+  of these details.
 
 **Known limits**
+- A career saved with one language's executable and loaded with another keeps the first language's competition
+  titles, and its league tables show no zone colours and no FORMAT page: continue a career with the language you
+  started it in.
 - EA's public ratings still held FC 26-era rosters when this world was built (2026-10-16): attributes are matched by
   player (name and birth date), not by club, so they are a year old; they will be refreshed when EA publishes FC 27.
 - About a third of the players are in EA's ratings (most of the big leagues, few of the small ones).
@@ -483,9 +542,21 @@ when the engine lands it.
 - The game files hold derived data only: the squads, skills and prices are computed from these sources (the game's
   own price scale); no market values, ratings or source pages are shipped.
 
+<!-- REGIA STAGED (release: fill from the 4.0 dry run, c/REL40rc1):
+**Also in this release**
+- Europe 1984-85 career: league tables in colour (see above), each competition's FORMAT page with its table colours,
+  the European cups' titles without a leading space.
+- CLASSIC CAREERS no longer lists ALBANIA as an entry of its own (since 3.0 the first country of the Europe 1984-85
+  world also appeared next to the world).
+- The 1996-97 game as it really was (the real 1996-97 groups, Supercup, Intertoto, leagues and cups) comes in 4.1.
+
+**Updating**
+- The patcher upgrades 3.3.6 and every earlier version (CD and GOG, also the English SWOS++ version). [TODO 4.0
+  session: which files change, saves compatibility, the World 2026-27 data files.] -->
+
 ## Italiano
 
-**SWOS 96/97 Mod 4.0: la carriera Mondo 2026-27 e il gioco 1996-97 com'era davvero** (BOZZA)
+**SWOS 96/97 Mod 4.0: la carriera Mondo 2026-27, il calcio di oggi com'è davvero** (BOZZA)
 <!-- REGIA STAGED, il payoff del rilascio (Davide 2026-10-18, per il rilascio finale di tutto il lavoro):
 *Le competizioni di calcio, globali e locali, che nessun altro gioco ha, ha mai avuto e probabilmente avrà.* -->
 
@@ -536,7 +607,6 @@ Non una formula uguale per tutti: ogni campionato gioca la stagione come l'ha sc
 - **Argentina 2026**: la Liga Profesional a 30 in due zone da 15, Apertura e Clausura (16 giornate ciascuno: girone di
   zona, il clasico nel giorno di riposo, una giornata interzonale sorteggiata), la classifica annuale, retrocessione
   per promedio (3 stagioni) e per classifica annuale.
-<!-- REGIA STAGED (play-off per il titolo, ramo titlepo; da pubblicare col merge + TM_TITLE=1 + campione applicato):
 - **Major League Soccer 2026**: 30 club nelle Conference Est e Ovest (15 + 15), il calendario vero di 34 partite
   (28 nella propria conference e 6 contro l'altra) nelle giornate e date vere, pausa per i Mondiali compresa. A
   parità di punti contano le vittorie, poi la differenza reti, poi i gol fatti; il club col miglior record assoluto
@@ -560,7 +630,11 @@ Non una formula uguale per tutti: ogni campionato gioca la stagione come l'ha sc
     spareggio o una Final Four ordinata per punti complessivi.
   Supplementari e rigori in caso di parità. Dichiarato per Malta: partite secche in campo neutro (il regolamento
   non dice il formato); a parità di punti nella stagione, l'ordine della Final Four segue il posto nel Closing Round;
-  niente finale per il terzo posto. -->
+  niente finale per il terzo posto.
+  La vincente dei play-off è il campione e prende il posto continentale del campione (per esempio la vincente della
+  Final Four maltese va in Champions League).
+  La tua squadra tiene nella storia della stagione il suo posto vero in classifica e, se vince i play-off per il
+  titolo, ha una riga in più col nome del campionato e VINCITORE.
 - **I campionati con un numero dispari di squadre giocano giornate vere**: a ogni turno una squadra riposa, come nelle
   competizioni reali (la Tercera di El Salvador, Gibilterra, Nuova Zelanda, India, Taiwan ...); le tabelle originali
   del gioco per le dimensioni dispari non erano giornate.
@@ -571,6 +645,52 @@ Non una formula uguale per tutti: ogni campionato gioca la stagione come l'ha sc
   dell'Inghilterra), la Coppa Italia Serie C dai suoi veri ottavi (la vincente ai play-off di Serie C), la Taça da
   Liga nel suo vero formato a 8 squadre, la Scottish League Cup, la J.League Cup e le coppe di lega di Irlanda del
   Nord, Egitto, Qatar, Emirati, Sudafrica, Galles, Islanda, Finlandia, Cile e Perù.
+
+*Campionati statali brasiliani 2026*
+Tutti e 13, ognuno una competizione vera della tua carriera, giocati insieme al campionato nazionale nei primi mesi
+della stagione come in Brasile: Paulista, Carioca, Mineiro, Gaucho, Paranaense, Catarinense, Goiano, Paraense,
+Baiano, Cearense, Pernambucano, Alagoano e Mato-Grossense.
+- **Ogni club brasiliano gioca il suo statale vero**: i club di Serie A-D giocano sia lo statale sia la loro
+  divisione nazionale, i club veri 2026 che giocano solo lo statale giocano solo quello.
+- **La formula vera 2026 di ogni stato**: elenco dei club, prima fase (classifica unica, gironi, o blocchi in cui ogni
+  club affronta solo i club degli altri blocchi, col calendario vero), accoppiamenti, turni liberi e andata/ritorno:
+  - **Paulista** (16): prima fase sorteggiata da 4 fasce da 4 (le 3 della propria fascia + 5 sorteggiate, una volta
+    sola), classifica unica, le 64 partite vere col campo vero; quarti 1ª-8ª, 4ª-5ª, 2ª-7ª, 3ª-6ª, semifinali
+    secche, finale andata e ritorno; retrocedono le ultime 2.
+  - **Carioca** (12): Taca Guanabara in due gironi da 6, ogni club contro l'altro girone una volta; quarti nel girone
+    (A1-A4, A2-A3 ...), semifinali andata e ritorno, finale secca; il Grupo X delle ultime 2 di ogni girone da zero
+    punti: l'ultima retrocede, la 3ª gioca lo spareggio andata e ritorno col Resende, vera seconda della Serie A2 2026.
+  - **Mineiro** (12): tre gironi da 4, ogni club contro gli altri gironi una volta; le 3 vincitrici e la migliore
+    seconda in semifinali andata e ritorno, miglior cammino contro 4ª e 2ª contro 3ª; finale secca; retrocedono 11ª
+    e 12ª.
+  - **Gaucho** (12): due gironi da 6 incrociati; quarti nel girone, semifinali incrociate e finale andata e ritorno;
+    quadrangolare salvezza delle ultime 2 di ogni girone da zero punti, retrocedono le ultime 2.
+  - **Paranaense**: due gironi da 6 incrociati; quarti e semifinali nel girone, finale, tutto andata e ritorno;
+    spareggi salvezza 5A-6B e 6A-5B.
+  - **Catarinense**: due gironi da 6 incrociati; quarti nel girone, semifinali incrociate e finale, tutto andata e
+    ritorno; Quadrangular do Descenso delle ultime 2 di ogni girone, si salva solo la prima.
+  - **Goiano**: tre blocchi da 4, ogni club contro gli altri 8, classifica unica; quarti 1-8, 4-5, 2-7, 3-6,
+    semifinali e finale andata e ritorno; retrocedono 11ª e 12ª, spareggio 10ª-11ª se a 6 punti o meno.
+  - **Paraense**: due blocchi da 6 incrociati, classifica unica; quarti e semifinali secchi, finale andata e ritorno.
+  - **Baiano** (10) e **Alagoano** (8): girone unico di sola andata, semifinali 1-4 e 2-3, finale.
+  - **Cearense**: due gironi da 5, le prime 3 di ognuno alla seconda fase, semifinali incrociate e finale andata e
+    ritorno; Quadrangular da Permanencia delle ultime 2 di ogni girone.
+  - **Pernambucano** (8) e **Mato-Grossense** (10): girone unico di sola andata, 1ª e 2ª direttamente in semifinale,
+    quarti 3-6 e 4-5, poi semifinali e finale.
+- **Campi e parità come nei regolamenti**: ogni sfida a eliminazione in casa della meglio piazzata nella prima fase
+  (gara secca nel suo stadio, ritorno nel suo stadio); in parità subito i rigori, niente supplementari, niente gol in
+  trasferta.
+- **Retrocessioni vere**: ogni stato retrocede il suo numero vero di club con la sua fase vera (ultimi posti,
+  spareggi, quadrangolari); al posto dei club solo statali retrocessi salgono club veri della seconda serie statale
+  (Serie A2) con le loro rose; un club del campionato nazionale retrocesso dal suo statale esce dallo statale.
+- **Gli statali che non giochi vengono simulati a fine stagione con la loro formula vera**: prima fase, fase finale
+  fino al campione e fase salvezza, coi risultati secondo la forza dei club.
+- Dichiarato: l'ordine delle giornate del Paulista è ricostruito (partite e campi veri, le date non sono pubblicate);
+  le finali di Carioca e Mineiro si giocano in casa della prima finalista (vero: campo neutro); nello statale che
+  giochi, a pari punti decide la differenza reti (vero: prima le vittorie; gli statali simulati usano l'ordine vero);
+  le sei qualificate del Cearense sono sorteggiate in due gironi da tre che giocano tra loro (vero: ogni club gioca
+  contro quelli dell'altro girone); l'incrocio delle semifinali del Catarinense è presunto; i club della seconda serie del Pernambucano sono quelli del 2025; i trofei minori (Taca
+  Rio, Taca Farroupilha, Trofeu Inconfidencia, Campeao do Interior) non si giocano.
 
 *Almeno tutto quello che aveva il gioco originale*
 - **Mai meno campionati o divisioni di SWOS 96/97**: le quattro divisioni inglesi, con la League Two e i suoi play-off
@@ -597,6 +717,8 @@ Non una formula uguale per tutti: ogni campionato gioca la stagione come l'ha sc
 
 *Coppe europee (UEFA 2026-27)*
 - **I nomi ufficiali di oggi**: UEFA Champions League, UEFA Europa League, UEFA Conference League, su ogni schermata.
+- **Info competizione della fase campionato** (STAT > INFO): una classifica da 36, prime 8 agli ottavi, 9ª-24ª agli
+  spareggi.
 - **Niente gol in trasferta nel 2026-27** (aboliti dalla UEFA nel 2021-22, e le federazioni hanno seguito): a parità
   nel totale si va ai supplementari e ai rigori, o direttamente ai rigori dove il regolamento lo prevede (Copa do
   Brasil turni 5-8, semifinali di EFL Cup e della Copa de la Liga cilena), sia nelle sfide giocate sia in quelle
@@ -728,6 +850,19 @@ Non una formula uguale per tutti: ogni campionato gioca la stagione come l'ha sc
   Nel Mondo 2026-27 i posti europei di ogni stagione vengono dal ranking UEFA del gioco (quello dell'anno prima,
   come nella access list UEFA) e dalla access list vera 2026/27; gli European Performance Spots e i ritocchi per i
   detentori dei titoli si decidono a fine stagione e non vengono colorati in anticipo.
+- **Posti continentali fuori dall'Europa**: le massime serie delle altre confederazioni colorano i loro posti veri
+  nelle coppe per club: azzurro per la prima coppa (Copa Libertadores, Concacaf Champions Cup, AFC Champions League
+  Elite, CAF Champions League, OFC Champions League), verde per la seconda (Copa Sudamericana, AFC Champions League
+  Two, CAF Confederation Cup), secondo le vie d'accesso vere di ogni federazione (Libertadores / Sudamericana 2026,
+  ACL Elite / Two 2026-27, Concacaf Champions Cup 2027, la ripartizione CAF, i 2 posti OFC della Nuova Zelanda), con
+  legenda e una riga nella pagina FORMULA che indica anche il posto della vincitrice della coppa nazionale.
+  Dichiarato: dove i posti veri non sono posizioni in classifica (i campioni di Apertura e Clausura e la classifica
+  annuale in Argentina, Colombia, Paraguay e Messico; una finale o i play-off in Uruguay, Venezuela, Australia, Stati
+  Uniti, Canada e Nuova Zelanda) il gioco colora la sua classifica della stagione e la pagina FORMULA spiega la regola
+  vera; Ghana, Iran e India seguono la regola generale (non c'è un elenco pubblicato dei qualificati); America
+  Centrale e Suriname (qualificati tramite le coppe centroamericana e caraibica) e Taiwan (AFC Challenge League) non
+  hanno colori; i posti in più dei detentori e quelli che passano alla squadra seguente li decidono le coppe e non
+  vengono colorati.
 
 *Campionati, calendari e club*
 - **Ogni campionato, coppa nazionale e coppa di lega col suo nome vero 2026-27, senza lo sponsor**: COPPA ITALIA,
@@ -764,11 +899,11 @@ Non una formula uguale per tutti: ogni campionato gioca la stagione come l'ha sc
 - **Nomi veri**: ogni campionato e ogni coppa con il suo nome ufficiale 2026-27, senza sponsor, come faceva il gioco
   originale (SERIE A, LALIGA, FA CUP, EFL CUP, DFB-POKAL, TURKIYE KUPASI, KING'S CUP, EMPEROR'S CUP ...): nella lingua
   della nazione dove si scrive in alfabeto latino, altrimenti il nome ufficiale inglese.
-<!-- DATA STAGED (da pubblicare con le formule del motore): - **Formule dei campionati**: ogni campionato con la sua
+- **Formule dei campionati**: ogni campionato con la sua
   vera formula 2026-27: lo split della Scozia dopo 33 giornate e i suoi play-off, i gruppi per il titolo e per la
   qualificazione dell'Austria (punti non più dimezzati), split della Svizzera, i gruppi di Danimarca e
   Grecia, Apertura e Clausura dell'Argentina, i play-off di Italia, Inghilterra, Olanda e Brasile e gli altri elencati
-  in 'Ricostruito esattamente'. -->
+  in 'Ricostruito esattamente'.
 - **Ordine dei club**: ogni divisione nell'ordine della sua classifica finale 2025-26 (2025 per i campionati ad anno
   solare): prima i club rimasti, per posizione, poi le retrocesse, poi le promosse; le promosse da una serie che il
   mondo non contiene vanno in fondo, per valore della rosa.
@@ -801,10 +936,10 @@ Non una formula uguale per tutti: ogni campionato gioca la stagione come l'ha sc
   Honduras, Guatemala e Panama non hanno una coppa nazionale nel 2026-27, quindi giocano solo il campionato; la coppa
   del Perù è la sua vera Copa de la Liga 2026. Il turno a 16 club si chiama OTTAVI DI FINALE, tranne dove la
   federazione lo numera (quinto turno della FA Cup, Scottish Cup, Irish Cup, Chatham Cup e altre 6).
-<!-- DATA STAGED (da pubblicare con le coppe di lega del motore): - **Coppe di lega 2026-27**: la EFL Cup dal suo vero
+- **Coppe di lega 2026-27**: la EFL Cup dal suo vero
   quarto turno, la Coppa Italia Serie C dai suoi veri ottavi (la vincitrice ai play-off di Serie C), la Scottish
   League Cup, la Taca da Liga nella sua vera formula a 8 club, la J.League Cup, la Irish League Cup e le coppe di lega di
-  Egitto, Qatar, Emirati, Galles, Sudafrica, Islanda, Finlandia e Cile, ognuna con la sua vera formula. -->
+  Egitto, Qatar, Emirati, Galles, Sudafrica, Islanda, Finlandia e Cile, ognuna con la sua vera formula.
 - **Coppe europee**: Champions League, Europa League e Conference League della prima stagione sono le vere fasi
   campionato 2026-27 (36 club ciascuna). Il formato è quello UEFA dal 2024-25:
   - **Fase campionato**: una sola classifica da 36. Il sorteggio lo fa il gioco all'inizio di ogni stagione, in
@@ -891,13 +1026,12 @@ Non una formula uguale per tutti: ogni campionato gioca la stagione come l'ha sc
   riserva di Eccellenza), e gli spareggi contro una serie fuori dal
   mondo non si giocano: per esempio l'11ª svizzera non affronta la 2ª della Challenge League, la 10ª e l'11ª coreane
   non giocano contro club della K League 2.
-<!-- DATA STAGED (regole delle seconde squadre: in arrivo, motore dell'integratore; Davide 2026-10-18): - Le seconde
-  squadre (Juventus Next Gen, Atalanta U23, Inter U23, Real Sociedad B, Stoccarda II, Hoffenheim II, le Jong / U21 di
-  PSV, Ajax, AZ e Utrecht, Benfica B, Porto B, Sporting B, le riserve di Auckland FC e Wellington Phoenix) seguono le
+- Le seconde squadre (Juventus Next Gen, Atalanta U23, Inter U23, Real Sociedad B, Stoccarda II, Hoffenheim II, le Jong / U21 di
+  PSV, Ajax, AZ e Utrecht, Benfica B, Porto B, Sporting B) seguono le
   regole delle loro nazioni: mai promosse nella divisione della prima squadra o sopra, il posto promozione o play-off
   passa alla squadra seguente; le U23 italiane possono salire in Serie B e giocano i play-off di Serie C; una prima
-  squadra che retrocede nella divisione della seconda la fa scendere; le riserve neozelandesi non possono vincere la
-  National League. Non giocano coppe nazionali (già nei dati). -->
+  squadra che retrocede nella divisione della seconda la fa scendere. Non giocano coppe nazionali. Le riserve di
+  Auckland FC e Wellington Phoenix giocano i loro campionati regionali neozelandesi.
 - I giocatori senza valore su Transfermarkt ricevono una stima (dai valori del club e della divisione); nelle divisioni
   più basse (League One e League Two scozzesi) le rose sono così vicine che una stagione simulata non segue da vicino la
   classifica vera.
@@ -909,21 +1043,19 @@ Non una formula uguale per tutti: ogni campionato gioca la stagione come l'ha sc
   Honduras (Copa Presidente, ultima 2017-18), Guatemala e Panama giocano solo il campionato. L'unica coppa del Perù
   per i club della Liga 1, la Copa de la Liga, prende il posto della coppa nazionale. La Nedbank Cup e la Carling
   Knockout del Sudafrica tengono il nome dello sponsor (non ne esiste un altro in uso).
-<!-- DATA STAGED (da pubblicare con le formule del motore): - Formule dell'ultima stagione documentata, dove per il
+- Formule dell'ultima stagione documentata, dove per il
   2026-27 non c'è una fonte (un'approssimazione; sono nazioni con una sola divisione nel mondo, quindi conta solo la
   formula):
   - Corea: lo split dopo 33 giornate come nel 2025.
   - Repubblica Ceca: lo spareggio a eliminazione diretta in gara unica per il 7°-10° posto, come nel 2025-26.
   - Bolivia: un girone all'italiana di andata e ritorno di 30 giornate, come nel 2025-26.
-  - Guatemala: le prime 8 in quarti, semifinali e finale di andata e ritorno, come nel Clausura 2026.
-  - Honduras: i gironi e la liguilla 2026-27 come annunciati, la finale di andata e ritorno come nel Clausura 2026.
   - Serbia: la metà alta e la metà bassa in gironi di sola andata con i punti mantenuti, come nel 2025-26.
   - Bulgaria: i tre gruppi 2026-27 con le regole del 2025-26 (punti mantenuti).
   - Albania: la Final Four delle prime 4 con i punti dimezzati, come nel 2025-26.
   - Kazakistan: un girone di andata e ritorno di 30 giornate, come nel 2025.
   - Moldavia: la seconda fase delle prime 6 dai punti degli scontri diretti dimezzati, come nel 2025-26.
   - Andorra: un girone a tre turni, come nel 2025-26.
-  - San Marino: una classifica di 30 giornate e il play-off di Conference dal 2° all'11° posto, come nel 2025-26. -->
+  - San Marino: una classifica di 30 giornate e il play-off di Conference dal 2° all'11° posto, come nel 2025-26.
 - Tutti i campionati e le divisioni dello SWOS 96/97
   originale sono nel mondo (Davide): la League Two inglese, la Primera Nacional argentina (due zone), la Liga de
   Expansion messicana, la Segunda uruguaiana, la J2 giapponese, le Northern / Central / Southern League neozelandesi, le
@@ -947,16 +1079,16 @@ Non una formula uguale per tutti: ogni campionato gioca la stagione come l'ha sc
 - I campionati con un numero dispari di club mantengono la dimensione reale, con una squadra a riposo a ogni
   giornata: Gibilterra 11, la Super League indiana 13 e la Football League 11, la Division 2 di Taiwan 7, la Tercera
   occidente del Salvador 9.
-<!-- INTERNO (non pubblico, regia 2026-10-18): la Liga Profesional argentina e la MLS sono per ora due divisioni
-  chiuse da 15 (il gioco accoppia al massimo 24 club): niente promozioni / retrocessioni in Argentina, niente partite
-  interzonali / tra conference. Da sostituire prima della release con la stagione a due tornei dell'integratore. -->
-<!-- DATA STAGED (con l'Argentina esatta, TM_ARG_EXACT; motore dell'integratore): - Argentina: il primo turno del
+- Argentina: il primo turno del
   reducido della Primera Nacional incrocia le due zone per posizione (2ª A contro 8ª B ... 8ª A contro 2ª B) e un doppio
   confronto in parità va alla meglio piazzata; la finale tra le vincenti di zona in campo neutro ha supplementari e
   rigori; le giornate della Liga Profesional sono settimanali dal 22 gennaio (Apertura) e dal 18 luglio (Clausura): il
-  regolamento pubblicato non dà questi dettagli. -->
+  regolamento pubblicato non dà questi dettagli.
 
 **Limiti noti**
+- Una carriera salvata con l'eseguibile di una lingua e caricata con quello di un'altra tiene i titoli delle
+  competizioni della prima lingua, e le sue classifiche non mostrano né i colori né la pagina FORMULA: continua una
+  carriera nella lingua in cui l'hai iniziata.
 - Quando questo mondo è stato costruito (16-10-2026) le valutazioni pubbliche EA avevano ancora le rose dell'era FC 26:
   gli attributi sono abbinati per giocatore (nome e data di nascita), non per club, quindi sono vecchi di un anno;
   verranno aggiornati quando EA pubblicherà FC 27.
@@ -991,3 +1123,15 @@ Non una formula uguale per tutti: ogni campionato gioca la stagione come l'ha sc
 
 91 nazioni, 136 divisioni, 87 coppe nazionali, 14 coppe di lega: ogni competizione giocabile e la sua formula, generate dalla build della release: [world-2026-27-competitions.md](world-2026-27-competitions.md).
 <!-- complist:end -->
+
+<!-- REGIA STAGED (rilascio: da completare dalla prova della 4.0, c/REL40rc1):
+**Anche in questa versione**
+- Carriera Europa 1984-85: classifiche a colori (vedi sopra), la pagina FORMULA di ogni competizione coi colori della
+  classifica, i titoli delle coppe europee senza lo spazio iniziale.
+- CARR. STORICHE non elenca più ALBANIA come voce a sé (dalla 3.0 la prima nazione del mondo Europa 1984-85
+  compariva anche accanto al mondo).
+- Il gioco 1996-97 com'era davvero (i gironi veri 1996-97, Supercoppa, Intertoto, campionati e coppe) arriva nella 4.1.
+
+**Aggiornamento**
+- Il patcher aggiorna la 3.3.6 e tutte le versioni precedenti (CD e GOG, anche la versione inglese con SWOS++). [TODO
+  sessione 4.0: quali file cambiano, compatibilità dei salvataggi, i file dei dati del Mondo 2026-27.] -->

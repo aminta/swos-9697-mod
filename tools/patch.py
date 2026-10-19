@@ -260,9 +260,9 @@ def patch_exe(src, dst, remap, lang='it'):
     if mkseason.multi_ns():
         o2pages += 1
         data = add_object_page(data, 2)
-    if worlds:                                       # the FORMAT page's menu and texts (fmtpage.py, 5.0): the
-        o2pages += 1                                 # area of a world build has no room left for them
-        data = add_object_page(data, 2)
+    o2pages += 1                                     # the FORMAT page's menu and texts (fmtpage.py) and the zones'
+    data = add_object_page(data, 2)                  # menu copy (zones.py): every build shape (a world-less season /
+                                                     # tourney pack build too: its one page was full, classic_groups)
     nclubs = max((sum(len(pk.clubs) for pk in w) for w in mkseason.worlds().values()), default=0)
     for _ in range(max(0, -(-(nclubs - 1600) // 500))):   # a world of more than 1600 clubs (5.0, ~1850): its
         o2pages += 1                                     # strings + uefacoef's seeding table, one page per 500 more
@@ -280,6 +280,9 @@ def patch_exe(src, dst, remap, lang='it'):
     if mkseason.league_phase_worlds():          # 4.0's World 2026-27 adds: state fixture calendars (lp36 fx_patch),
         o2pages += 2                            # play-off round names / title specs' strings (gplay), the MLS (area
         data = add_object_page(data, 2)         # full with TM_MLS_EXACT or TM_TITLE)
+        data = add_object_page(data, 2)
+    if statespec.TEST or statespec.TEST2:       # STATESPEC_TEST builds (harness): the test state + zones' menu copy
+        o2pages += 1                            # (world 0's area was full)
         data = add_object_page(data, 2)
     if bigtables.ON[0]:                         # the two tables of LIMIT global numbers (bigtables.retarget)
         o2pages += 2
@@ -599,9 +602,12 @@ def write_new_teams(src_dir, dst_dir):
     for name, data in mkseason.xtra_files().items():   # extended career squads: players beyond 16 (xtra.py)
         open(os.path.join(dst_dir, name), 'wb').write(data)
         print(f'{name}: up to {data[2]} more players for {struct.unpack(">H", data[:2])[0]} clubs')
+    import careerworld as cw_                         # (a big world: teamFileBuffer is careerworld's TFB_SIZE one,
+    tfb = (cw_.TFB_SIZE - 14 if any(cw_.big(w) for w in mkseason.world_defs())   # 257 clubs: the
+           else 106496)                               # 4.0 build's TMW5.102 = Italy 2026-27's 256)
     for name, data in mkseason.ns_team_files().items():   # several worlds: the team files of a namespace of its own
         k = struct.unpack('>H', data[:2])[0]
-        assert k * TEAM_SIZE + 2 <= 106496, name
+        assert k * TEAM_SIZE + 2 <= tfb, (name, k)
         open(os.path.join(dst_dir, name), 'wb').write(team_fix(data))   # (3.3.0 purple clubs, blond players)
         print(f'{name}: {k} teams')
     for name, data in mkseason.world_files().items():  # career packs: first-season European clubs of each world
@@ -613,7 +619,7 @@ def write_new_teams(src_dir, dst_dir):
         open(os.path.join(dst_dir, 'TEAM.%03d' % n), 'wb').write(blond.faces(data)[0])
     print(f'purple clubs: TEAM.{", ".join("%03d" % n for n in purple.VANILLA_FILES)} recoloured')
     import fmtgame                                    # 5.0 / 4.0: the FORMAT page's texts (fmtpage.py), per world
-    items = [x for e in mkseason.ENABLED for x in fmtgame.from_pack(e if os.sep in e else os.path.join(mkseason.PACKS, e))] + fmtgame.EXTRA
+    items = [x for e in mkseason.ENABLED for x in fmtgame.from_pack(e if os.sep in e else os.path.join(mkseason.PACKS, e))] + fmtgame.world_items() + fmtgame.EXTRA
     for name, k in fmtgame.write(dst_dir, items):
         print(f'{name}: FORMAT pages of {k} competitions')
     import zones                                      # 4.0: the league tables' zone colours, per world

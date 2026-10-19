@@ -1784,12 +1784,20 @@ u8 GP_WORLD;
    (GPLAY_FORCE): the club is made the winner (the review's DA11B too: no European trophy for it, gp_sack's guard). */
 u32 gp_pwin_c(void) {
     struct gp_ko *k = &GP_ST.ko[0];
-    if (GP_ST.magic != MAGIC || GP_ST.season != GP_SEAS || k->magic != MAGIC || k->season != GP_SEAS || !KT2(k))
+    if (GP_ST.magic != MAGIC || GP_ST.season != GP_SEAS || k->magic != MAGIC || k->season != GP_SEAS)
         return 0;
     int me = kidx(k, GP_MGR);
     if (me == NOC) return 0;
-    if (GP_FORCE) { k->tw[0] = me; k->tl[0] = me ? 0 : 1; }
-    return k->tw[0] == me ? *(u32 *)k->bye : 0;
+    if (KT2(k)) {
+        if (GP_FORCE) { k->tw[0] = me; k->tl[0] = me ? 0 : 1; }
+        return k->tw[0] == me ? *(u32 *)k->bye : 0;
+    }
+    if (k->kind != K_TITLE || !GP_NM || !k->ntie) return 0;   /* a played title play-off (CAN, AUS, CRC, MLT) won:
+                                           its last tie's winner (SeasonFinished comes before the season end's
+                                           gp_season: the contest itself, not GP_OUT); the line: the league's name
+                                           (compile_spec's league_names). The club keeps its table place. */
+    resolve(k);
+    return k->tw[k->ntie - 1] == me ? GP_NM[3 * k->pi + 2] : 0;
 }
 
 /* RI_TAB (ripool.table_bytes): a league pool's slot (kind 0) of world w with global g -> its lowest level's first

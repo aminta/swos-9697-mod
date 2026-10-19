@@ -90,14 +90,17 @@ EU_SEASON1_ONLY = False         # (True: season-1 colours in season 1 only; Fals
                                 # ranking a year old that decides the next season's places, uefacoef 131f04b)
 LEG_W, LEG_TXT = 30, 8
 FILE = {'it': b'data/zonit', 'en': b'data/zonen', 'fr': b'data/zonfr', 'de': b'data/zonde'}          # a legend box's width (5 small-font characters), its text buffer
+CONFED = {'lib': LIGHT_BLUE, 'sud': GREEN, 'ccc': LIGHT_BLUE, 'acle': LIGHT_BLUE, 'acl2': GREEN, 'cafcl': LIGHT_BLUE,
+          'cafcc': GREEN, 'ofc': LIGHT_BLUE}   # the other confederations' club cups: the first light blue, the second green
+CONFED_LAB = dict(lib='LIB', sud='SUD', ccc='CCC', acle='ACLE', acl2='ACL2', cafcl='CAFCL', cafcc='CAFCC', ofc='OFC')
 # legend labels (<= 5 characters): top flight of a league-phase world, of a classic world, a lower division
 LABELS = {
-    'it': dict(cl='CL', el='EL', conf='CONF', cc='CAMP', uefa='UEFA', up='PROM', po='P.OFF', out='P.OUT', down='RETR'),
-    'en': dict(cl='CL', el='EL', conf='CONF', cc='EC', uefa='UEFA', up='UP', po='P.OFF', out='P.OUT', down='DOWN'),
-    'fr': dict(cl='LDC', el='LE', conf='LC', cc='C1', uefa='C3', up='MONT', po='BARR', out='MAINT', down='DESC'),
-    'de': dict(cl='CL', el='EL', conf='CONF', cc='EC', uefa='UEFA', up='AUF', po='AUF-R', out='ABS-R', down='AB'),
+    'it': dict(cl='CL', el='EL', conf='CONF', cc='CAMP', uefa='UEFA', up='PROM', po='P.OFF', out='P.OUT', down='RETR', **CONFED_LAB),
+    'en': dict(cl='CL', el='EL', conf='CONF', cc='EC', uefa='UEFA', up='UP', po='P.OFF', out='P.OUT', down='DOWN', **CONFED_LAB),
+    'fr': dict(cl='LDC', el='LE', conf='LC', cc='C1', uefa='C3', up='MONT', po='BARR', out='MAINT', down='DESC', **CONFED_LAB),
+    'de': dict(cl='CL', el='EL', conf='CONF', cc='EC', uefa='UEFA', up='AUF', po='AUF-R', out='ABS-R', down='AB', **CONFED_LAB),
 }
-KEYS = ('cl', 'el', 'conf', 'cc', 'uefa', 'up', 'po', 'out', 'down')
+KEYS = ('cl', 'el', 'conf', 'cc', 'uefa', 'up', 'po', 'out', 'down', 'lib', 'sud', 'ccc', 'acle', 'acl2', 'cafcl', 'cafcc', 'ofc')
 LEG_COLOUR = {DARK_BLUE: 0x13}  # the legend box: dark blue with a frame (08h alone vanishes on the menu's blue)
 
 
@@ -133,7 +136,11 @@ def pack_zones(d, lang, lp=False, rank=None, detail=None):
             n, rng, why = dv['clubs'], [], []
             if id(dv) in top:
                 pl = m.get('europe_places', {})
-                if lp:                                   # (run time from uc_rank unless EU_SEASON1_ONLY)
+                if not pl and continental(m):            # another confederation: its club cups' places
+                    for e in continental(m):
+                        rng.append((e['places'][0], e['places'][1], CONFED[e['cup']]))
+                        why.append(e['cup'])
+                elif lp:                                 # (run time from uc_rank unless EU_SEASON1_ONLY)
                     for place, col in (lp_places(rank, pl.get('cc', 0)) if rank and EU_SEASON1_ONLY else []):
                         if rng and rng[-1][2] == col and rng[-1][1] == place - 1:
                             rng[-1] = (rng[-1][0], place, col)
@@ -183,6 +190,8 @@ def pack_zones(d, lang, lp=False, rank=None, detail=None):
                 detail[(ci, i)] = [r + (w,) for r, w in zip(rng[:RANGES], why)]
             if rng:
                 kind = ('lp' if lp else 'classic') if id(dv) in top and (m.get('europe_places') or rank) else 'lower'
+                if id(dv) in top and not m.get('europe_places') and continental(m):
+                    kind = 'confed/' + '/'.join(dict.fromkeys(e['cup'] for e in continental(m)))
                 out.append((world, _title(m, lang, complist._nm(dv['name'], lang)), rng[:RANGES], kind,
                             m['files'][comp['clubs']]['file'] if kind == 'lp' else 0))
             elif lp and rank and id(dv) in top and not EU_SEASON1_ONLY:   # European colours only at run time
@@ -259,9 +268,28 @@ def file_names(pack_dirs):
     return [f'ZON{lang.upper()}{w or ""}.DAT' for w in worlds for lang in FILE]
 
 
+def continental(m):
+    """A pack's places in its confederation's club cups: pack.json "continental_places" ([{"cup": key, "places": [first,
+    last]}], keys in CONFED), else confed2627's table by pack id; [] for none."""
+    return [e for e in continental_all(m) if 'places' in e]
+
+
+def continental_all(m):
+    """continental()'s entries with the cup winner's ("via") and the notes ("note")."""
+    if 'continental_places' in m:
+        return m['continental_places'] or []
+    import confed2627
+    return confed2627.PLACES.get(m.get('id'), [])
+
+
 def legend(rng, kind):
     """[(colour, label key)] in place order, one per colour."""
-    names = {'lp': {LIGHT_BLUE: 'cl', GREEN: 'el', DARK_BLUE: 'conf', ORANGE: 'out', RED: 'down'},
+    if kind.startswith('confed/'):
+        cups = kind.split('/')[1:]
+        names = {CONFED[c]: c for c in reversed(cups)}
+        names.update({ORANGE: 'out', RED: 'down'})
+        kind = 'confed'
+    names = names if kind == 'confed' else {'lp': {LIGHT_BLUE: 'cl', GREEN: 'el', DARK_BLUE: 'conf', ORANGE: 'out', RED: 'down'},
              'classic': {LIGHT_BLUE: 'cc', GREEN: 'uefa', ORANGE: 'out', RED: 'down'},
              'lower': {LIGHT_BLUE: 'up', GREEN: 'po', ORANGE: 'out', RED: 'down'}}[kind]
     out, seen = [], set()

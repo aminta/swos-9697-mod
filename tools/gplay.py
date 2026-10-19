@@ -67,8 +67,10 @@ SKIP_SAME = 0x80                # host byte bit 7: a tie of one club with itself
 BEST_LOSER = 0x3F               # member 'BL': the best placed loser of the previous round (entrants are 0..62)
 
 
-def compile_spec(pos, ndiv):
-    """pack.json 'ko_playoffs' -> the bytes gplay.c walks (ended by a 0); raises ValueError on a bad entry."""
+def compile_spec(pos, ndiv, league_names=None):
+    """pack.json 'ko_playoffs' -> the bytes gplay.c walks (ended by a 0); raises ValueError on a bad entry.
+    league_names: the league's names ({lang: [long, short]}): a 'title' play-off's record line by default (the season
+    record's '<league> WINNERS' when the career club wins it, gp_pwin_c)."""
     out = bytearray()
     for po in pos:
         key = po.get('key', '?')
@@ -204,7 +206,8 @@ def compile_spec(pos, ndiv):
             raise ValueError(f"{po.get('key', '?')}: a 'stage_title' entrant needs the stage_title play-offs of stages 0 and "
                              f"1 before it")
     out = bytes(out + b'\0')
-    SPEC_NAMES[out] = [(po.get('names') or {}, po.get('key', '?'), po.get('record')) for po in pos]
+    SPEC_NAMES[out] = [(po.get('names') or {}, po.get('key', '?'),
+                        po.get('record') or (league_names if po.get('kind') == 'title' else None)) for po in pos]
     keys = [po.get('key') for po in pos]
     for po in pos:                      # 'then_build': the key of the play-off built when this one ends
         if po.get('then_build') is not None and po['then_build'] not in keys:
@@ -716,6 +719,18 @@ gp_sack:                                ; replaces SeasonFinished's `call cseg_3
     mov [GP_MGR], ax
     mov al, [SEASONPLAYING]
     mov [GP_SEAS], al
+    mov edx, [D8CAA]                    ; (the career league's names: GP_NM, a title play-off's record line)
+    test edx, edx
+    jz .nr
+    call gp_find
+    jz .nr
+    sub esi, GP_TAB
+    mov eax, esi
+    xor edx, edx
+    mov ecx, 9
+    div ecx
+    mov eax, [GP_NMT + eax * 4]
+    mov [GP_NM], eax
     mov eax, gp_pwin_c
     call gp_c
     test eax, eax
@@ -730,8 +745,15 @@ gp_sack:                                ; replaces SeasonFinished's `call cseg_3
     popad
     pop eax
     mov esi, [A0R]
-    mov [esi + 34], eax
-    mov byte [esi + 89], 1
+    mov ecx, 3                          ; (the 4th line, else the 3rd / 2nd: the first free one - a title play-off's
+.ln:                                    ; club may play a continental cup the same season)
+    cmp dword [esi + 22 + ecx * 4], 0
+    je .put
+    loop .ln
+    jmp .nr
+.put:
+    mov [esi + 22 + ecx * 4], eax
+    mov byte [esi + 86 + ecx], 1
 .nr:
     mov eax, [D8CAA + 12]               ; (our slot-3 contest, the Poule, is no European cup for the season review:
     test eax, eax                       ; cseg_3D7CB credits the slot-3 cup's winner with D8CBE's trophy) D8CB6 = 0
@@ -1144,7 +1166,7 @@ def _top9(p):
                                         rb'\xc7\x05' + pk(r['A0'] + 8), d1, re.S)]
     assert len(m) == 2, m                       # (the first: cseg_927A2; the second: another list of the season end)
     return p.target(1, m[0] + 6), p.target(1, m[0] + 16)
-GP_PAGES = 10            # obj1 pages for the C code + glue + specs (World 2026-27's 20 countries; gplay-play; 4.0 ARG: 7)
+GP_PAGES = 11            # obj1 pages for the C code + glue + specs (World 2026-27's 20 countries; gplay-play; 4.0 ARG: 7)
 GP_ST_SIZE = 2048       # (sizeof struct gp_state: the engine block's item 'GP', patch.py)
 GP_BSS = 0x6000          # the C .bss pages (obj2 after careerworld's BSS): GP_IN at GT 32 / GD 16, GP_SS, PR, RS, GP_ST, RI, PS
 

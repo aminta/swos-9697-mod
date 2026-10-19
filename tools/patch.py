@@ -192,6 +192,7 @@ def patch_exe(src, dst, remap, lang='it'):
     if statespec.TEST or statespec.TEST2 or any(e['states'] for e in statecup.ENTRIES if e['world']):
         engine.save_item('SR', statespec.SR_SIZE)      # (statespec.ko_patch: the states' rankings, the last fixed
         engine.save_item('SB', 32)                     # knockout round and its winners)
+        engine.after_load('st_ovr')                    # (statespec.ov_patch: ripool's overrides on the state lists)
     import lp36
     lpb = bool(mkseason.league_phase_cups() or mkseason.league_phase_worlds() or lp36.FIXTURES)
     lpb += bool(mkseason.league_phase_worlds())   # (+1 more: the UEFA coefficients, uefacoef)

@@ -477,11 +477,12 @@ st_rec:                                 ; lib97.st_ko calls it at a knockout-sta
     cmp [esi + 1], dx
     je .w
 .n:
-    add esi, 3
+    add esi, 5
     loop .k
     jmp .x
 .w:
     mov edi, ST_RANK
+    mov dx, [esi + 3]                   ; (the block's key: the contest's ORIGINAL first club, RI_OVR_KEYS')
     mov [edi], dx
     movzx ecx, word [DIYCOPY + 31h]
     cmp ecx, 16
@@ -542,6 +543,12 @@ def _st_site(p):
     return m[1] + 6 + 6 + 3 + 30
 
 
+def lp36_rows():
+    """[((contest id, first club), obj1 offset of its FX_TAB row's first-club word)] (lp36.fx_patch)."""
+    import lp36
+    return list(lp36.LABELS.get('FX_ROWS', {}).items())
+
+
 def ko_patch(p, at):
     """The states' career knockout code at obj1:at (statecup's page): st_ko on cseg_2572F's knockout-stage start,
     st_kend on both calls of 0x7A613, st_rec + ST_RANK (EN items 'SB', 'SR'; ripool's RI_SR_PTR). Returns the end."""
@@ -565,7 +572,7 @@ def ko_patch(p, at):
            'ST_NB': (0, len(st)), 'NKEYS': (0, len(keys)), 'SR_SIZE': (0, SR_SIZE),
            'ST_BYTES': (0, 'db ' + ', '.join(str(x) for i, _, n, b, f, g, sz, pm in st
                                              for x in (i, f & 255, f >> 8, n, b, g, sz, *pm)) if st else 'db 0'),
-           'KEY_BYTES': (0, 'db ' + ', '.join(str(x) for i, w in keys for x in (i, w & 255, w >> 8)))}
+           'KEY_BYTES': (0, 'db ' + ', '.join(str(x) for i, w in keys for x in (i, w & 255, w >> 8, w & 255, w >> 8)))}
     code, fix = nasmcave.assemble(KO_ASM, at, sym)
     lab = nasmcave.labels(KO_ASM, at, sym)
     p.put(1, at, code)
@@ -575,6 +582,17 @@ def ko_patch(p, at):
     for k in kend:
         p.put(1, k + 1, struct.pack('<i', lab['st_kend'] - (k + 5)))
     LABELS['ST_RANK'] = (1, lab['ST_RANK'])
+    LABELS['key_slots'] = {}                              # first club word -> obj1 offsets of the words keyed by it
+    k_at = lab['ST_KEYS']                                 # (ST_KEYS: id, current word, original word)
+    for i, w in keys:
+        LABELS['key_slots'].setdefault(w, []).append(k_at + 1)
+        k_at += 5
+    t_at = lab['ST_TAB']                                  # (ST_TAB: id, word, N, b, g, size, codes)
+    for i, _, n_, b, f, g_, sz, pm in st:
+        LABELS['key_slots'].setdefault(f, []).append(t_at + 1)
+        t_at += 7 + len(pm)
+    for (cid, first), off in lp36_rows():
+        LABELS['key_slots'].setdefault(first[0] | first[1] << 8, []).append(off)
     engine.ITEM_AT['SR'] = (1, lab['ST_RANK'])
     engine.ITEM_AT['SB'] = (1, lab['ST_SB'])
     try:
@@ -636,11 +654,15 @@ def club_strength(pk, key):
     return max(5, min(0xFFFF, sum(pr[:11])))
 
 
+SIM_LAYOUT = []                         # (original key, offset of its words in SS_TAB, original words, (world, id, first))
+
+
 def sim_table(world=None):
     """statesim.c's SS_TAB bytes for every state of the career world packs (world None = all)."""
     import mkseason
     out = bytearray()
     ns = 0
+    SIM_LAYOUT.clear()
     for pk in mkseason.packs():
         if pk.world is None or (world is not None and pk.world != world):
             continue
@@ -666,6 +688,7 @@ def sim_table(world=None):
             f = sp['clubs'][0]
             words = [a | b << 8 for a, b in sp['clubs']]
             strs = [club_strength(pk, k) for k in c['clubs']]
+            SIM_LAYOUT.append((f[0] | f[1] << 8, 1 + len(out) + 6, words, (pk.world, int(c['id'], 16), tuple(f))))
             out += struct.pack('<HBBBB', f[0] | f[1] << 8, n, g, size, c.get('relegated', 0))
             out += struct.pack(f'<{n}H', *words) + struct.pack(f'<{n}H', *strs)
             out += struct.pack('<H', len(pairs)) + bytes(x for p in pairs for x in p)
@@ -697,6 +720,7 @@ def sim_patch(p, at):
                                 limit=bss_at)
     assert bss <= SIM_BSS, hex(bss)
     LABELS['ss_season'] = syms['ss_season']
+    ov_end = ov_patch(p, (cend + 15) & ~15, at, bss_at)
     try:
         import ripool
         if 'RI_PRE_PTR' in getattr(ripool, 'LABELS', {}):
@@ -704,5 +728,133 @@ def sim_patch(p, at):
     except ImportError:
         pass
     print(f'exe: statesim: {tab[0]} states, table obj1+{at:#x} ({len(tab)} B), ss_season obj1+'
-          f'{syms["ss_season"][1]:#x}, code ..{cend:#x}, .bss {bss} B at obj1+{bss_at:#x}')
+          f'{syms["ss_season"][1]:#x}, code ..{cend:#x}, overrides ..{ov_end:#x}, .bss {bss} B at obj1+{bss_at:#x}')
     return at + 0x1000 * SIM_PAGES
+
+
+OV_ASM = """
+st_ovr:                                 ; ripool's RI_OVR -> each state contest's team list (+2Fh), after ri_season
+    pushad                              ; (RI_POST_PTR) and after a career load (engine.after_load): entry j = the
+    mov esi, OV_TAB                     ; pool's override word, or 0 = the original; a new first club also goes into
+.s:                                     ; every word keyed by it (ST_KEYS, ST_TAB, FX_TAB) and statesim's table
+    movzx ecx, byte [esi + 2]           ; n (0: the end)
+    test ecx, ecx
+    jz .x
+    mov ax, [esi]                       ; the original key -> its pool p (RI_OVR_KEYS), or none
+    xor ebx, ebx
+.p:
+    cmp ebx, RP
+    jae .np
+    cmp [RI_KEYS + ebx * 2], ax
+    je .fp
+    inc ebx
+    jmp .p
+.np:
+    mov ebx, -1
+.fp:
+    mov edi, [esi + 4]                  ; the contest's team list
+    mov ebp, [esi + 8]                  ; statesim's words
+    xor edx, edx
+.j:
+    mov ax, [esi + 12 + edx * 2]        ; the original word
+    cmp ebx, -1
+    je .o
+    push eax
+    mov eax, ebx
+    imul eax, eax, RO2                  ; (RO dw per pool)
+    mov ax, [RI_OVR + eax + edx * 2]
+    test ax, ax
+    jnz .nw
+    pop eax
+    jmp .o
+.nw:
+    add esp, 4
+.o:
+    mov [edi + edx * 2], ax
+    mov [ebp + edx * 2], ax
+    test edx, edx
+    jnz .nx
+    push ecx                            ; entry 0: the keyed words
+    push edx
+    movzx ecx, byte [esi + 3]
+    movzx edx, byte [esi + 2]
+    lea edx, [esi + 12 + edx * 2]       ; (the slots follow the original words)
+.k:
+    test ecx, ecx
+    jz .kx
+    push ebx
+    mov ebx, [edx]
+    mov [ebx], ax
+    pop ebx
+    add edx, 4
+    dec ecx
+    jmp .k
+.kx:
+    pop edx
+    pop ecx
+.nx:
+    inc edx
+    cmp edx, ecx
+    jb .j
+    movzx eax, byte [esi + 3]           ; next: 12 + 2n + 4 slots
+    lea esi, [esi + 12 + ecx * 2]
+    lea esi, [esi + eax * 4]
+    jmp .s
+.x:
+    popad
+    ret
+align 4
+OV_TAB:
+OV_BYTES
+    dw 0, 0
+"""
+
+
+def ov_patch(p, at, tab_at, limit):
+    """st_ovr + OV_TAB at obj1:at (statesim's pages): per state dw original key, db n, db slots, dd its contest's
+    team list, dd its words in SS_TAB, n x dw original words, slots x dd the words keyed by its first club. Bound
+    to ripool's RI_POST_PTR and engine.after_load('st_ovr'). Returns the end."""
+    import engine
+    import nasmcave
+    import statecup
+    try:
+        import ripool
+        rl = getattr(ripool, 'LABELS', {})
+    except ImportError:
+        rl = {}
+    if 'RI_OVR' not in rl or 'RI_OVR_KEYS' not in rl:
+        return at
+    rp = getattr(ripool, 'RP', 20)
+    structs = {}
+    for e in statecup.ENTRIES:
+        for st in e['states']:
+            if st.get('struct') and st.get('first'):
+                structs[(e['world'], st['id'], tuple(st['first']))] = st['struct']
+    rows, ptrs = [], []
+    slots = LABELS.get('key_slots', {})
+    for key, woff, words, ident in SIM_LAYOUT:
+        sobj, soff = structs[ident]
+        ks = slots.get(key, [])
+        lab = f'OV{len(rows)}'
+        rows.append(f'{lab}: db {key & 255}, {key >> 8}, {len(words)}, {len(ks)}\n    dd 0, 0\n'
+                    f'    dw {", ".join(str(w) for w in words)}\n' + ''.join('    dd 0\n' for _ in ks))
+        ptrs.append((lab, (sobj, soff + 0x2F), (1, tab_at + woff), ks))
+    sym = {'RP': (0, rp), 'RO2': (0, 2 * getattr(ripool, 'RO', 16)), 'RI_KEYS': rl['RI_OVR_KEYS'], 'RI_OVR': rl['RI_OVR'], 'OV_BYTES': (0, '\n'.join(rows))}
+    code, fix = nasmcave.assemble(OV_ASM, at, sym)
+    lab = nasmcave.labels(OV_ASM, at, sym)
+    assert at + len(code) <= limit, (hex(at + len(code)), hex(limit))
+    p.put(1, at, code)
+    for off, tobj, toff in fix:
+        p.add_ptr(1, at + off, tobj, toff)
+    for name, lst, ssw, ks in ptrs:
+        b = lab[name]
+        p.add_ptr(1, b + 4, *lst)
+        p.add_ptr(1, b + 8, *ssw)
+        for i, k in enumerate(ks):
+            p.add_ptr(1, b + 12 + 2 * len(SIM_LAYOUT[int(name[2:])][2]) + 4 * i, 1, k)
+    LABELS['st_ovr'] = (1, lab['st_ovr'])
+    engine.CALL_AT['st_ovr'] = (1, lab['st_ovr'])
+    if 'RI_POST_PTR' in rl:
+        p.add_ptr(*rl['RI_POST_PTR'], 1, lab['st_ovr'])
+    return at + len(code)
+

@@ -2030,6 +2030,8 @@ w_loadcopy:                             ; trailer LOADCOPY: LoadCareerFile read 
     call W_NS_SET                       ; on the previous career's world byte)
 %endif
     call w_setbase
+    mov eax, [SELBASEV]                 ; the fixed part holds selTeamsPtr (careerFileBuffer + 0x1739C) as an absolute
+    mov [SELPTR], eax                   ; address: a save of another layout / obj2 base (3.3.x on 4.0) points elsewhere
     mov ecx, [D1R]                      ; (bytes read)
     sub ecx, FIXED
     jbe .x

@@ -30,6 +30,37 @@ import complist
 import nasmcave
 
 LIGHT_BLUE, GREEN, DARK_BLUE, ORANGE, RED = 0x0D, 0x0E, 0x08, 0x0C, 0x0A
+
+
+def access_list():
+    """uefaq.c's AL (the 2026/27 access list by association rank): {rank: [(round, code)]}; round < 8 Champions
+    League, < 14 Europa League, else Conference League; code 0 the champion, 1 the cup winner, k the k-th place."""
+    import re
+    src = open(os.path.join(os.path.dirname(__file__), 'uefaq.c')).read()
+    body = src[src.index('static const u8 AL[] = {'):]
+    body = body[body.index('{') + 1:body.index('};')]
+    v = [int(x) for x in re.findall(r'\d+', re.sub(r'/\*.*?\*/', '', body, flags=re.S))]
+    out, i = {}, 0
+    while v[i]:
+        r, n = v[i], v[i + 1]
+        out[r] = [(v[i + 2 + 2 * k], v[i + 3 + 2 * k]) for k in range(n)]
+        i += 2 + 2 * n
+    return out
+
+
+def lp_places(rank, cc):
+    """[(place, colour)] of a league-phase world's top flight in season 1: the access list of its rank (the cup
+    winner's place aside), the pack's own Champions League count when larger (the European Performance Spots)."""
+    al = access_list().get(rank, [])
+    comps = [r for r, code in sorted(((c if c else 1, r) for r, c in al if c != 1), key=lambda x: x[0])
+             for _ in [0]]
+    comps = [r for _, r in sorted((c if c else 1, r) for r, c in al if c != 1)]
+    cols = [LIGHT_BLUE if r < 8 else GREEN if r < 14 else DARK_BLUE for r in comps]
+    ncl = sum(1 for c in cols if c == LIGHT_BLUE)
+    while ncl < cc:
+        cols.insert(ncl, LIGHT_BLUE)
+        ncl += 1
+    return [(k + 1, c) for k, c in enumerate(cols)]
 NAME = 41                       # the slot's name field (as fmtpage.NAME)
 RANGES = 8
 LEG = 5                         # legend boxes (the colours a table uses, in place order)
@@ -57,7 +88,7 @@ def _lp_world(meta_by_world, n):
     return any(wc.get(k, {}).get('format') == 'league_phase' for k in ('cc', 'cwc', 'uefa'))
 
 
-def pack_zones(d, lang, lp=False):
+def pack_zones(d, lang, lp=False, rank=None):
     """[(world, title, [(first, last, colour), ...])] of one pack's league divisions."""
     m = json.load(open(os.path.join(d, 'pack.json')))
     cl = os.path.join(d, 'clubs.csv')
@@ -78,13 +109,12 @@ def pack_zones(d, lang, lp=False):
             n, rng = dv['clubs'], []
             if id(dv) in top:
                 pl = m.get('europe_places', {})
-                if lp:
-                    a = 1
-                    for k, col, cnt in (('cc', LIGHT_BLUE, pl.get('cc', 0)), ('cwc', GREEN, max(0, pl.get('cwc', 0) - 1)),
-                                        ('uefa', DARK_BLUE, pl.get('uefa', 0))):
-                        if cnt:
-                            rng.append((a, a + cnt - 1, col))
-                            a += cnt
+                if lp and rank:
+                    for place, col in lp_places(rank, pl.get('cc', 0)):
+                        if rng and rng[-1][2] == col and rng[-1][1] == place - 1:
+                            rng[-1] = (rng[-1][0], place, col)
+                        else:
+                            rng.append((place, place, col))
                 else:
                     a = 1
                     if pl.get('cc'):
@@ -118,7 +148,7 @@ def pack_zones(d, lang, lp=False):
             if dv['down']:
                 rng.append((n - dv['down'] + 1, n, RED))
             if rng:
-                kind = ('lp' if lp else 'classic') if id(dv) in top and m.get('europe_places') else 'lower'
+                kind = ('lp' if lp else 'classic') if id(dv) in top and (m.get('europe_places') or rank) else 'lower'
                 out.append((world, _title(m, lang, complist._nm(dv['name'], lang)), rng[:RANGES], kind))
     return out
 
@@ -130,11 +160,17 @@ def table(lang, pack_dirs):
         m = json.load(open(os.path.join(d, 'pack.json')))
         if m.get('kind') == 'career' and m.get('world_cups'):
             metas[m.get('world', 0)] = m['world_cups']
+    coef = {}                                            # season-1 association ranks: 5 seasons' coefficients
+    for d in pack_dirs:
+        m = json.load(open(os.path.join(d, 'pack.json')))
+        if m.get('uefa_coef', {}).get('country'):
+            coef.setdefault(m.get('world', 0), []).append((-sum(m['uefa_coef']['country']), d))
+    ranks = {d: k + 1 for w, lst in coef.items() for k, (_, d) in enumerate(sorted(lst))}
     out, seen = [], set()
     for d in pack_dirs:
         m = json.load(open(os.path.join(d, 'pack.json')))
         w = m.get('world', 0) if m.get('kind') == 'career' else 0
-        for world, title, rng, kind in pack_zones(d, lang, _lp_world(metas, w)):
+        for world, title, rng, kind in pack_zones(d, lang, _lp_world(metas, w), ranks.get(d)):
             assert (world, title) not in seen, (world, title)
             seen.add((world, title))
             out.append((world, title, rng, legend(rng, kind)))

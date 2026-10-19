@@ -339,6 +339,34 @@ lp_fmt:                                 ; al = contest id -> the format: Champio
 %endif
     ret
 
+lp_info1:                               ; DesignDIYTournamentOnDraw (STAT > INFO SU COMPETIZIONE): replaces `mov [A0],
+    mov dword [A0], INFO_GROUPS         ; offset '%0 GROUPS OF %1'`: the league phase's stage = 1 group of 36
+    call lp_info_ours
+    jne .r
+    mov dword [A0], LP_INFO1
+.r:
+    ret
+
+lp_info2:                               ; replaces `mov [A0], offset '(TOP %0 IN EACH GROUP QUALIFY)'`: its qualifiers
+    mov dword [A0], INFO_TOP
+    call lp_info_ours
+    jne .r
+    mov dword [A0], LP_INFO2
+.r:
+    ret
+
+lp_info_ours:                           ; ZF = 1: the stage shown ([A2]) is a league phase of ours: 2 groups of 18
+    push esi
+    LP_IDS [DIYCOPY + 2Dh]
+    jne .r
+    mov esi, [A2]
+    cmp word [esi + 169h], 2
+    jne .r
+    cmp word [esi + 16Bh], 18
+.r:
+    pop esi
+    ret
+
 lp_copy_ours:                           ; ZF = 1: diyFileBufferCopy is a league-phase contest (any stage)
     LP_IDS [DIYCOPY + 2Dh]
     jne .r
@@ -1776,6 +1804,26 @@ def _sites(p):
 
 
 HEADERS = {'it': 'CLASSIFICA', 'en': 'STANDINGS', 'fr': 'CLASSEMENT', 'de': 'TABELLE'}
+# STAT > INFO SU COMPETIZIONE (DesignDIYTournamentOnDraw): the league phase's stage line (the exe's own '1 GROUP OF %1'
+# with 36) and its qualifiers (<= 40 columns)
+INFO_Q = {'it': '(PRIME 8 AGLI OTTAVI, 9-24 AI SPAREGGI)', 'en': '(TOP 8 TO THE LAST 16, 9-24 PLAY-OFFS)',
+          'fr': '(8 PREMIERS EN 8ES, 9-24 EN BARRAGES)', 'de': '(TOP 8 ACHTELFINALE, 9-24 PLAYOFFS)'}
+
+
+def _info_sites(p, a0):
+    """DesignDIYTournamentOnDraw: `mov [A0], offset '%0 GROUPS OF %1'` before `mov esi, [A2]; mov ax, [esi+169h]`,
+    the 1-group string set just after it, and `mov [A0], offset '(TOP %0 IN EACH GROUP QUALIFY)'` before `mov ax, [D1];
+    or ax, ax; jz`."""
+    d1 = p.le.obj_bytes(1)
+    pk = lambda x: re.escape(struct.pack('<I', x))
+    s1 = [x.start() for x in re.finditer(rb'\xc7\x05' + pk(a0) + rb'.{4}\x8b\x35' + pk(a0 + 8) + rb'\x66\x8b\x86\x69\x01'
+                                         rb'\x00\x00', d1, re.S)]
+    s2 = [x.start() for x in re.finditer(rb'\xc7\x05' + pk(a0) + rb'.{4}\x66\xa1' + pk(a0 - 28) + rb'\x66\x0b\xc0\x74', d1,
+                                         re.S)]
+    assert len(s1) == 1 and len(s2) == 1, (s1, s2)
+    one = [s1[0] + x.start() for x in re.finditer(rb'\xc7\x05' + pk(a0) + rb'.{4}', d1[s1[0] + 10:s1[0] + 0x60], re.S)]
+    assert len(one) == 1, one
+    return s1[0], s2[0], one[0] + 10
 
 
 def _game_sites(p, a0):
@@ -1848,6 +1896,14 @@ def patch(p, cave, cups, area, lang='it', world_ids=()):
     symbols.update(LP_KEY=(2, work), LP_OPP=(2, work + 576), LP_ORD=(2, work + 576 + 432))
     game, st = _game_sites(p, a0)                       # criterion 9: the engine's played match and its statistics
     symbols.update(GAMET1=st[2], T1STATS=st[0], T2STATS=st[1])
+    i1, i2, i_one = _info_sites(p, a0)                  # STAT > INFO SU COMPETIZIONE of a league phase
+    symbols.update(INFO_GROUPS=p.target(1, i1 + 6), INFO_TOP=p.target(1, i2 + 6))
+    o, off = p.target(1, i_one + 6)
+    one = p.le.obj_bytes(o)[off:p.le.obj_bytes(o).index(b'\0', off)]
+    assert b'%1' in one, one
+    q = INFO_Q[lang].encode()
+    assert len(q) <= 40, q
+    symbols.update(LP_INFO1=(2, area.add(one.replace(b'%1', b'36').rstrip(b'* ') + b'\0')), LP_INFO2=(2, area.add(q + b'\0')))
     code, fix = nasmcave.assemble(ASM, cave, symbols)
     lab = nasmcave.labels(ASM, cave, symbols)
     p.put(1, cave, code)
@@ -1871,6 +1927,10 @@ def patch(p, cave, cups, area, lang='it', world_ids=()):
     p.remove(1, s['res'] + 2)                                    # mov ax, [D1]; mov esi, [A3] (12 B) -> call; nops
     p.remove(1, s['res'] + 8)
     p.put(1, s['res'], b'\xe8' + rel(s['res'], lab['lp_res']) + b'\x90' * 7)
+    for site, name in ((i1, 'lp_info1'), (i2, 'lp_info2')):     # mov [A0], offset (10 B) -> call; nops
+        p.remove(1, site + 2)
+        p.remove(1, site + 6)
+        p.put(1, site, b'\xe8' + rel(site, lab[name]) + b'\x90' * 5)
     p.remove(1, game + 1)                                        # mov eax, [A1]; mov [gameTeam1], eax (10 B) -> call
     p.remove(1, game + 6)
     p.put(1, game, b'\xe8' + rel(game, lab['lp_game']) + b'\x90' * 5)

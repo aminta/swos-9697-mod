@@ -52,6 +52,32 @@ Not one fixed formula for everybody: each league plays the season the way its ow
 - **Argentina 2026**: the Liga Profesional of 30 in two zones of 15, Apertura and Clausura (16 matchdays each: the
   zone round robin, the clasico on the free day, a drawn interzonal day), the annual table, relegation by promedio
   (3 seasons) and by the annual table.
+<!-- REGIA STAGED (MLS exact, branch 4.0-mls; publish when merged + TM_MLS_EXACT=1):
+- **Major League Soccer 2026**: 30 clubs in the Eastern and Western Conference (15 + 15), the real 34-match schedule
+  (28 conference + 6 cross-conference games per club) on the real match days and dates, the World Cup break
+  included. Equal points are ranked by wins, then goal difference, then goals scored; the club with the best record
+  overall (the Supporters' Shield) hosts the MLS Cup.
+  - **MLS Cup Playoffs**: the top 9 of each conference. Wild Card 8th v 9th (single match at the 8th, a draw goes
+    straight to penalties); Round One best-of-three, 1st v the Wild Card, 2nd v 7th, 3rd v 6th, 4th v 5th (the
+    higher seed hosts games 1 and 3, a drawn game goes to penalties, game 3 only if needed); Conference Semifinals
+    and Conference Finals, single matches at the higher seed; the MLS Cup at the club with the better record. Extra
+    time and penalties from the Conference Semifinals. Playable by your club, with the real round names.
+  Declared: the tables are the two conferences; the Supporters' Shield is not shown as a separate table. -->
+<!-- REGIA STAGED (title play-offs, branch titlepo; publish when merged + TM_TITLE=1 + the champion applied):
+- **Title play-offs where the champion is decided after the table**:
+  - **Canada** (CPL): the top 4, semi-finals 1st v 4th and 2nd v 3rd over two legs (the better placed hosts the
+    return), a single final at the better placed's ground.
+  - **Australia** (A-League Men finals series): the top 6, single elimination finals 3rd v 6th and 4th v 5th,
+    two-legged semi-finals re-seeded (the 1st meets the lowest survivor), a single Grand Final at the better
+    placed's ground.
+  - **Costa Rica**: semi-finals 1st v 4th and 2nd v 3rd and a final, two legs each, then the two-legged Gran Final
+    between the table's leader and the play-off winner, not played when they are the same club.
+  - **Malta**: the champion comes from the Opening and Closing Rounds: one club winning both is champion with no
+    match; otherwise a Finalissima between the two round winners, or, with three or four clubs in the top two of the
+    rounds, a decider or a Final Four seeded by aggregate points.
+  Extra time and penalties where the tie is level. Declared for Malta: single matches at a neutral ground (the
+  rules give no format); equal season points in the Final Four seeding are split by the Closing Round place; no
+  third-place match. -->
 - **Leagues with an odd number of clubs play real rounds**: one club rests each matchday, as in the real
   competitions (El Salvador's Tercera, Gibraltar, New Zealand, India, Taiwan ...); the original game's tables for odd
   sizes were not rounds.
@@ -168,6 +194,17 @@ when the engine lands it.
   group stages count as group stages (a defeat there is no exit).
 - **No national cup where none is played in 2026-27** (Mexico, Honduras, Guatemala, Panama: league only); Peru's
   cup is its real Copa de la Liga 2026.
+
+<!-- REGIA STAGED (zone colours, session 3.3.6, branch zone-colours; publish when merged + Davide's final OK):
+*League tables in colour*
+- **Every league table shows its end-of-season zones**, as on TV: Champions League (or the European Cup) and direct
+  promotion light blue; Europa League (or the UEFA Cup), promotion and European play-offs green; Conference League
+  dark blue; play-out orange; relegation red. The places follow the real rules: the UEFA 2026/27 access list by
+  association rank (qualifying rounds included), and each league's own promotions, relegations and play-offs (Serie
+  B 3rd-8th and 16th-17th, the Serie C groups 2nd-10th). A legend on the header line names the colours each table
+  uses. In the Europe 1984-85 world too.
+  Known limit unless the lagged ranking lands: European colours in the first season only; from the second season the
+  tables colour promotion, play-offs, play-outs and relegation. -->
 
 *Leagues, calendars and clubs*
 - **Every league, national cup and league cup under its real 2026-27 name, without title sponsors**: COPPA ITALIA,
@@ -454,6 +491,32 @@ Non una formula uguale per tutti: ogni campionato gioca la stagione come l'ha sc
 - **Argentina 2026**: la Liga Profesional a 30 in due zone da 15, Apertura e Clausura (16 giornate ciascuno: girone di
   zona, il clasico nel giorno di riposo, una giornata interzonale sorteggiata), la classifica annuale, retrocessione
   per promedio (3 stagioni) e per classifica annuale.
+<!-- REGIA STAGED (play-off per il titolo, ramo titlepo; da pubblicare col merge + TM_TITLE=1 + campione applicato):
+<!-- REGIA STAGED (MLS esatta, ramo 4.0-mls; da pubblicare col merge + TM_MLS_EXACT=1):
+- **Major League Soccer 2026**: 30 club nelle Conference Est e Ovest (15 + 15), il calendario vero di 34 partite
+  (28 nella propria conference e 6 contro l'altra) nelle giornate e date vere, pausa per i Mondiali compresa. A
+  parità di punti contano le vittorie, poi la differenza reti, poi i gol fatti; il club col miglior record assoluto
+  (il Supporters' Shield) ospita la MLS Cup.
+  - **Play-off della MLS Cup**: le prime 9 di ogni conference. Wild Card 8ª contro 9ª (gara secca in casa
+    dell'8ª, in caso di pareggio subito i rigori); primo turno al meglio delle tre, 1ª contro la vincente della Wild
+    Card, 2ª-7ª, 3ª-6ª, 4ª-5ª (la meglio piazzata gioca in casa gara 1 e gara 3, una gara pari va ai rigori, gara 3
+    solo se serve); semifinali e finali di conference in gara secca in casa della meglio piazzata; la MLS Cup in
+    casa del club col record migliore. Supplementari e rigori dalle semifinali di conference. Giocabili dal tuo
+    club, coi nomi veri dei turni.
+  Dichiarato: le classifiche sono le due conference; il Supporters' Shield non ha una classifica a parte. -->
+- **Play-off per il titolo dove il campione si decide dopo la classifica**:
+  - **Canada** (CPL): le prime 4, semifinali 1ª-4ª e 2ª-3ª andata e ritorno (ritorno in casa della meglio
+    piazzata), finale secca in casa della meglio piazzata.
+  - **Australia** (A-League Men): le prime 6, eliminatorie secche 3ª-6ª e 4ª-5ª, semifinali andata e ritorno con
+    nuovi accoppiamenti (la 1ª contro la peggio piazzata rimasta), Grand Final secca in casa della meglio piazzata.
+  - **Costa Rica**: semifinali 1ª-4ª e 2ª-3ª e finale, andata e ritorno, poi la Gran Final andata e ritorno tra la
+    prima in classifica e la vincitrice dei play-off, non giocata se sono lo stesso club.
+  - **Malta**: il campione esce dall'Opening e dal Closing Round: chi li vince entrambi è campione senza giocare;
+    altrimenti la Finalissima tra le due vincitrici o, con tre o quattro club nei primi due posti dei due round, uno
+    spareggio o una Final Four ordinata per punti complessivi.
+  Supplementari e rigori in caso di parità. Dichiarato per Malta: partite secche in campo neutro (il regolamento
+  non dice il formato); a parità di punti nella stagione, l'ordine della Final Four segue il posto nel Closing Round;
+  niente finale per il terzo posto. -->
 - **I campionati con un numero dispari di squadre giocano giornate vere**: a ogni turno una squadra riposa, come nelle
   competizioni reali (la Tercera di El Salvador, Gibilterra, Nuova Zelanda, India, Taiwan ...); le tabelle originali
   del gioco per le dimensioni dispari non erano giornate.
@@ -570,6 +633,17 @@ Non una formula uguale per tutti: ogni campionato gioca la stagione come l'ha sc
   (fissi per la prima stagione); le fasi a gironi restano fasi a gironi (una sconfitta lì non elimina).
 - **Nessuna coppa nazionale dove nel 2026-27 non si gioca** (Messico, Honduras, Guatemala, Panamá: solo il
   campionato); la coppa del Perù è la sua vera Copa de la Liga 2026.
+
+<!-- REGIA STAGED (zone colorate, sessione 3.3.6; da pubblicare col merge e l'OK finale di Davide):
+*Classifiche a colori*
+- **Ogni classifica di campionato mostra le sue zone di fine stagione**, come in TV: Champions League (o Coppa dei
+  Campioni) e promozione diretta in azzurro; Europa League (o Coppa UEFA), play-off promozione e spareggi europei in
+  verde; Conference League in blu scuro; play-out in arancione; retrocessione in rosso. I posti seguono le regole
+  vere: la lista d'accesso UEFA 2026/27 secondo il ranking delle federazioni (preliminari compresi) e le promozioni,
+  retrocessioni e spareggi di ogni campionato (Serie B 3ª-8ª e 16ª-17ª, i gironi di Serie C 2ª-10ª). Una legenda
+  sulla riga del titolo indica i colori usati in quella classifica. Anche nel mondo Europa 1984-85.
+  Limite se non arriva il ranking ritardato: colori europei solo nella prima stagione; dalla seconda le classifiche
+  colorano promozione, play-off, play-out e retrocessione. -->
 
 *Campionati, calendari e club*
 - **Ogni campionato, coppa nazionale e coppa di lega col suo nome vero 2026-27, senza lo sponsor**: COPPA ITALIA,

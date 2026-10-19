@@ -587,3 +587,122 @@ def ko_patch(p, at):
           f'{", ".join(f"obj1+{k:#x}" for k in kend)}, {len(st)} fixed draws, ST_RANK obj1+{lab["ST_RANK"]:#x} '
           f'({len(keys)} states), obj1+{at:#x}..{at + len(code):#x}')
     return (at + len(code) + 3) & ~3
+
+
+# --- statesim.c's table: every state of the world, its stage 1 as a match list, its relegation phase -----------------
+def _code(label, g, w):
+    """'5A' -> code = (place - 1) * g + group."""
+    _need(isinstance(label, str) and len(label) >= 2 and label[:-1].isdigit() and 'A' <= label[-1] < chr(65 + g),
+          f'{w} relegation: label {label!r} (place + group letter, {g} groups)')
+    return (int(label[:-1]) - 1) * g + ord(label[-1]) - 65
+
+
+def relegation_bytes(c, g):
+    """pack.json 'relegation' (with 'relegated' = how many go down) -> statesim.c's program:
+      absent / {"type": "bottom"}: the last `relegated` of the stage-1 order;
+      {"type": "playoffs", "ties": [["5A", "6B"], ...], "legs": 2}: each tie's loser down;
+      {"type": "group", "members": ["5A", "6A", "5B", "6B"], "meetings": 1 | 2, "bonus": {"best": ["5A", "5B"],
+       "points": 1}, "extra": {"place": 3, "strength": s}}: a round robin of those, its last `relegated` down (+ the
+       extra place down if it loses a two-legged tie against an outside club of strength s);
+      {"type": "gap", "places": [10, 11], "gap": 6}: place b plays place a over two legs if within gap points (else
+       down), plus the last relegated - 1."""
+    w = f"{c['key']}:"
+    r = c.get('relegation') or {'type': 'bottom'}
+    t = r.get('type')
+    if t == 'bottom':
+        return bytes([0])
+    if t == 'playoffs':
+        ties = r.get('ties') or []
+        _need(ties and r.get('legs') in (1, 2), f'{w} relegation playoffs: ties + legs 1 / 2')
+        return bytes([1, r['legs'], len(ties)] + [_code(x, g, w) for a, b in ties for x in (a, b)])
+    if t == 'group':
+        mem = [_code(x, g, w) for x in r.get('members') or []]
+        _need(2 <= len(mem) <= 8 and r.get('meetings') in (1, 2), f'{w} relegation group: members + meetings')
+        bo = r.get('bonus') or {}
+        bc = [_code(x, g, w) for x in bo.get('best') or []]
+        ex = r.get('extra') or {}
+        return bytes([2, r['meetings'], len(mem), *mem, len(bc), *bc, bo.get('points', 0), ex.get('place', 0),
+                      min(255, ex.get('strength', 0) // 4)])
+    if t == 'gap':
+        a, b = r.get('places') or (0, 0)
+        _need(1 <= a < b, f'{w} relegation gap: places [a, b]')
+        return bytes([3, a, b, r.get('gap', 0)])
+    _need(False, f'{w} relegation type {t!r}: bottom, playoffs, group or gap')
+
+
+def club_strength(pk, key):
+    """The best 11 players' prices (players.csv), at least 5."""
+    pr = sorted((int(r.get('price') or 0) for r in pk.prows.get(key, [])), reverse=True)
+    return max(5, min(0xFFFF, sum(pr[:11])))
+
+
+def sim_table(world=None):
+    """statesim.c's SS_TAB bytes for every state of the career world packs (world None = all)."""
+    import mkseason
+    out = bytearray()
+    ns = 0
+    for pk in mkseason.packs():
+        if pk.world is None or (world is not None and pk.world != world):
+            continue
+        for c in pk.comps:
+            if c['type'] != 'state':
+                continue
+            sp = pk.state(c)
+            n = len(sp['clubs'])
+            _need(n <= 16, f"{c['key']}: statesim takes up to 16 clubs")
+            g0, size0, _ = sp['stages'][0]
+            g = g0 if not c['stages'][0].get('cross') or g0 > 1 else 1
+            size = size0 if g > 1 else n
+            if sp['fixture']:
+                pairs = list(sp['fixture'][3])
+            else:
+                pairs = []
+                for r in range(sp['meetings']):
+                    for x in range(g0):
+                        mem = list(range(x * size0, (x + 1) * size0))
+                        for i in range(len(mem)):
+                            for j in range(i + 1, len(mem)):
+                                pairs.append((mem[j], mem[i]) if r & 1 else (mem[i], mem[j]))
+            f = sp['clubs'][0]
+            words = [a | b << 8 for a, b in sp['clubs']]
+            strs = [club_strength(pk, k) for k in c['clubs']]
+            out += struct.pack('<HBBBB', f[0] | f[1] << 8, n, g, size, c.get('relegated', 0))
+            out += struct.pack(f'<{n}H', *words) + struct.pack(f'<{n}H', *strs)
+            out += struct.pack('<H', len(pairs)) + bytes(x for p in pairs for x in p)
+            out += relegation_bytes(c, g)
+            ns += 1
+    return bytes([ns]) + bytes(out) if ns else b''
+
+
+SIM_PAGES = 2                           # statesim.c's pages (statecup's after its own): table, code, statics
+SIM_BSS = 0x400                         # (statesim.c's statics: at the end of its pages, zero-filled)
+
+
+def sim_patch(p, at):
+    """statesim.c + its table on its own obj1 pages at `at` (after statecup's page); ss_season is called through
+    ripool's RI_PRE_PTR (pg_fix, before ri_season reads ST_RANK). Returns the end, or at when there is nothing."""
+    import cobj
+    tab = sim_table()
+    if not tab or 'ST_RANK' not in LABELS:
+        return at
+    p.put(1, at, tab)
+    code_at = (at + len(tab) + 15) & ~15
+    bss_at = at + 0x1000 * SIM_PAGES - SIM_BSS
+    obj = cobj.compile_c(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'statesim.c'))
+    m = [x.start() for x in re.finditer(rb'\x80\x2d(.{4})\x01\xe8', p.le.obj_bytes(1), re.S)]   # (InitCareer: `sub
+    assert len(m) == 1, m                                                               # byte [seasonPlaying], 1`)
+    season = struct.unpack('<I', p.le.obj_bytes(1)[m[0] + 2:m[0] + 6])[0]
+    syms, cend, bss = cobj.link(p, obj, code_at, (1, bss_at),
+                                externs={'SS_TAB': (1, at), 'ST_RANK': LABELS['ST_RANK'], 'SEASONW': (2, season)},
+                                limit=bss_at)
+    assert bss <= SIM_BSS, hex(bss)
+    LABELS['ss_season'] = syms['ss_season']
+    try:
+        import ripool
+        if 'RI_PRE_PTR' in getattr(ripool, 'LABELS', {}):
+            p.add_ptr(*ripool.LABELS['RI_PRE_PTR'], *syms['ss_season'])
+    except ImportError:
+        pass
+    print(f'exe: statesim: {tab[0]} states, table obj1+{at:#x} ({len(tab)} B), ss_season obj1+'
+          f'{syms["ss_season"][1]:#x}, code ..{cend:#x}, .bss {bss} B at obj1+{bss_at:#x}')
+    return at + 0x1000 * SIM_PAGES

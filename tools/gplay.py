@@ -427,8 +427,18 @@ gp_lend:                                ; replaces `call cseg_8ECAE` (the career
 .none:
     call gp_clrn
 .next:
+    mov eax, [D8CAA + 16]               ; (D8CBA = one of our contests, e.g. built mid-season by gp_build: the native
+    lea ebx, [GP_ST + ST_KO + KO_CON]   ; division play-off path of cseg_8ECAE would read it as a league record's
+    cmp eax, ebx                        ; play-off, with a stale D8CC0: skip it)
+    je .skip
+    add ebx, KO_SIZE
+    cmp eax, ebx
+    je .skip
     popad
     jmp GP_LEND_NEXT
+.skip:
+    popad
+    ret
 
 gp_build:                               ; mid-season (4.0's engine.after_stage): play-off GP_BPI of the career
     pushad                              ; league's spec into slot 4, its first week GP_BWEEK + 1, its entrants from
@@ -991,7 +1001,7 @@ def table_lines(tables):
 
 
 LABELS = {}
-GP_PAGES = 7             # obj1 pages for the C code + glue + specs (World 2026-27's 20 countries; gplay-play; 4.0 ARG: 7)
+GP_PAGES = 8             # obj1 pages for the C code + glue + specs (World 2026-27's 20 countries; gplay-play; 4.0 ARG: 7)
 GP_ST_SIZE = 2036       # (sizeof struct gp_state: the engine block's item 'GP', patch.py)
 GP_BSS = 0x5000          # the C .bss pages (obj2 after careerworld's BSS): GP_IN at GT 32 / GD 16, GP_SS, PR, RS, GP_ST, RI, PS
 

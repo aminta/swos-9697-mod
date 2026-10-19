@@ -20,7 +20,8 @@
    and loser (the champion stays the table's 1st); entrant type 3 = place a of stage b's kept table (GP_IN.st[b],
    split's 'keep'), resolved to its row of division div's final table by the global number; host byte bit 7 =
    skip_if_same (a tie of one club with itself is not played: it goes through); levels 4 away_pens / 5 away_better
-   (away goals are not simulated: as et_pens / better); member 0x3F = the best placed loser of the previous round. */
+   (away goals are not simulated: as et_pens / better); member 0x3F = the best placed loser of the previous round.
+   Entrant type 6 (4.0, Malta 2026-27) = seed a (1..4) of a split season's title decider (split_seed). */
 
 typedef unsigned char u8;
 typedef unsigned short u16;
@@ -188,6 +189,47 @@ static int title_club(int d, int c) {   /* entrant type 5 (the Trofeo): 1 the 1s
     if (c == 1) return glob_club(d, c0);
     if (c0 != c1) return glob_club(d, c1);
     return glob_club(d, GP_OUT.sres[c - 2].glob[1]);
+}
+
+static int kept_pts(int s, int c) {    /* club c's points in kept stage s (0: not in it) */
+    u16 g = row(c)->glob;
+    if (s >= GS) return 0;
+    for (int k = 0; k < GP_IN.nst[s]; k++) if (GP_IN.st[s][k].glob == g) return GP_IN.st[s][k].pts;
+    return 0;
+}
+
+static int agg_better(int s, int a, int b) {   /* the two rounds' points together, then the final table's place */
+    int x = kept_pts(s, a) + row(a)->pts, y = kept_pts(s, b) + row(b)->pts;
+    return x != y ? x > y : PL(a) < PL(b);
+}
+
+/* entrant type 6 (Malta 2026-27, MFA competition rules): seed a (1..4) of the title decider of division d, from kept
+   stage s (the Opening Round, its 1st / 2nd O1 / O2) and the final table (the Closing Round: C1 / C2), for a bracket
+   1v4, 2v3, then the final, every tie skip_if_same: one club won both rounds -> 4 x O1 (no match: champion); O1 / C1
+   1st and 2nd in reverse order, or one club 2nd in both (it is the runner-up, out of the decider) -> the Finalissima
+   O1 v C1 (seeds A A B B, A the better by aggregate points); three clubs -> the one 1st in a round and 2nd in the
+   other straight to the final (seeds 1 and 4), the other two play for its other place; four clubs -> the Final Four
+   seeded by aggregate points (both rounds' points, then the Closing table's place: the MFA's head-to-head tiebreak
+   is not kept) */
+static int split_seed(int d, int s, int a) {
+    if (d >= GP_IN.nd || GP_IN.n[d] < 2 || a < 1 || a > 4) return -1;
+    int o1 = stage_club(d, s, 1), o2 = stage_club(d, s, 2), c1 = d * GT, c2 = d * GT + 1;
+    if (o1 < 0 || o2 < 0) return -1;
+    if (o1 == c1) return o1;
+    if (o2 == c2 || (o1 == c2 && o2 == c1)) {
+        int x = agg_better(s, o1, c1) ? o1 : c1, y = x == o1 ? c1 : o1;
+        return a == 1 || a == 4 ? x : y;
+    }
+    int x = o1 == c2 ? o1 : c1 == o2 ? c1 : -1;
+    if (x >= 0) {
+        int y = x == o1 ? c1 : o1, z = x == o1 ? o2 : c2;
+        if (agg_better(s, z, y)) { int t = y; y = z; z = t; }
+        return a == 1 || a == 4 ? x : a == 2 ? y : z;
+    }
+    int q[4] = { o1, c1, o2, c2 };
+    for (int i = 1; i < 4; i++)
+        for (int j = i; j > 0 && agg_better(s, q[j], q[j - 1]); j--) { int t = q[j]; q[j] = q[j - 1]; q[j - 1] = t; }
+    return q[a - 1];
 }
 
 /* a group match: goals by strength (draws ~ 1 in 4), home advantage unless neutral */
@@ -433,6 +475,9 @@ void gp_season(void) {
             } else if (ty == 5) {               /* 4.0 ARG: the Trofeo's finalists (title_club) */
                 club[i] = title_club(d, p);
                 if (club[i] < 0) ok = 0;
+            } else if (ty == 6) {               /* 4.0 MLT: a seed of the title decider (split_seed) */
+                club[i] = split_seed(d, e[4 * i + 3], p);
+                if (club[i] < 0) ok = 0;
             } else if (ty != 0 || d >= GP_IN.nd || p < 1 || p > GP_IN.n[d]) ok = 0;
             else club[i] = d * GT + p - 1;
         }
@@ -613,6 +658,7 @@ static const u8 *po_at(int pi) {        /* the country's play-off pi in GP_IN.sp
 
 static int ent_club(const u8 *e) {     /* an entrant -> its club (division * GT + place), or -1 */
     if (e[0] == 3) return stage_club(e[1], e[3], e[2]);
+    if (e[0] == 6) return split_seed(e[1], e[3], e[2]);
     if (e[0] || e[1] >= GP_IN.nd || e[1] >= GD || e[2] < 1 || e[2] > GP_IN.n[e[1]]) return -1;
     return e[1] * GT + e[2] - 1;
 }
@@ -623,7 +669,7 @@ static int playable(const u8 *s) {      /* knockouts only (promotion, placement,
     const u8 *e = s + 6, *r = e + 4 * n;
     if ((s[0] < 1 || (s[0] > 6 && s[0] != K_STAGE) || s[0] == 2) || n > KN || nr > KR || nr < 1) return 0;   /* (not 'europe': uefaq's) */
     for (int i = 0; i < n; i++)
-        if (e[4 * i] != 0 && e[4 * i] != 3) return 0;     /* (type 5, the Trofeo: at the season end only) */
+        if (e[4 * i] != 0 && e[4 * i] != 3 && e[4 * i] != 6) return 0;     /* (type 5, the Trofeo: at the season end only) */
     for (int k = 0; k < nr; k++) {
         if (r[1] < 1 || r[1] > 3 || (r[1] == 3 && k == nr - 1)) return 0;   /* (no group round; a series: not last) */
         for (int i = 0; i < 2 * r[0]; i++)

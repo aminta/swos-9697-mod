@@ -587,6 +587,30 @@ void sec_post(void) {                                   /* gp_end, after the mov
     }
 }
 
+/* The league champion from a 'title' play-off (GP_OUT.res kind 5): the season end's top-9 list of the country's top
+   division (cseg_927A2: GP_TOPW = their team words, GP_TOPR = their 684-byte records), which the qualifiers read for
+   the 'champion' place (the game's cseg_93974 / uefaq's uq_country), gets the play-off's winner first, the clubs
+   above it one place down. A winner outside the top 9: as it is (the table's 1st stays). */
+extern u16 GP_TOPW[9];
+extern u8 GP_TOPR[9 * 684];
+static u8 ch_tmp[684];
+void gp_champ(void) {
+    for (int k = 0; k < GP_OUT.nres; k++) {
+        if (GP_OUT.res[k].kind != K_TITLE) continue;
+        u16 w = GP_OUT.res[k].team[0];
+        int j = 0;
+        while (j < 9 && GP_TOPW[j] != w) j++;
+        if (j == 0 || j >= 9) continue;
+        for (int b = 0; b < 684; b++) ch_tmp[b] = GP_TOPR[684 * j + b];
+        for (int i = j; i > 0; i--) {
+            GP_TOPW[i] = GP_TOPW[i - 1];
+            for (int b = 0; b < 684; b++) GP_TOPR[684 * i + b] = GP_TOPR[684 * (i - 1) + b];
+        }
+        GP_TOPW[0] = w;
+        for (int b = 0; b < 684; b++) GP_TOPR[b] = ch_tmp[b];
+    }
+}
+
 void gp_season(void) {
     const u8 *s = GP_IN.spec;
     u32 h = 0;

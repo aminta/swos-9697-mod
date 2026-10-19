@@ -4016,9 +4016,9 @@ def world_gplay_play(force='2', team='EUROPA,SCOZIA,SCOTTISH LEAGUE TWO,CLYDE', 
     moves its real winner up (or keeps the League One 9th, the loser of the final down)"""
     import json
     import shutil
-    src = os.path.join(MAIN, 'internal', 'world2526', 'world5tm')
-    if not os.path.isdir(src):
-        return True, 'SKIP: private data internal/world2526/world5tm missing'
+    src = os.environ.get('W2627P_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-poule')   # (a stable
+    if not os.path.isdir(src):                                                    # snapshot: world5tm is regenerated)
+        return True, f'SKIP: private data {src} missing'
     w = os.path.join(WORK, 'world_gplay_play')
     shutil.rmtree(w, ignore_errors=True)
     shutil.copytree(src, os.path.join(w, 'world5tm'))

@@ -459,6 +459,11 @@ class Pack:
             _need(False, f"{self.meta['id']}: ko_playoffs: {e}")
         return self.world, self.files[lg['clubs']][0], spec
 
+    def cupd(self):
+        """Coppa Italia Serie D table (cupd.py): None, or (world, team file, table, rounds, ties, names)."""
+        import cupd
+        return cupd.pack_table(self)
+
     def reserve(self):
         """Reserve table (gplay.c rs_season): None, or (world, nd = the reserve's division, the lowest level's first
         division, [(global, base division)] every league club, [globals] the pool in its first order: 'first', then
@@ -1288,6 +1293,11 @@ def numbered_cups():
 def gplay_tables():
     """gplay: the world leagues with knockout play-offs (Pack.gplay)."""
     return [t for pk in packs() for t in [pk.gplay()] if t]
+
+
+def cupd_tables():
+    """cupd: the world leagues with a 'cup_d' (Pack.cupd)."""
+    return [t for pk in packs() for t in [pk.cupd()] if t]
 
 
 def dplay_tables():

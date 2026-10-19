@@ -4383,6 +4383,125 @@ def world_gplay_poule_save():
     return not errs, '; '.join(errs) or f"{msg}; reloaded: {msg2}; champion {champ:#x}"
 
 
+def gp_cd(exe):
+    """obj2 offset of gplay's CD_ST (the Coppa Italia Serie D's state; GPLOGPTR's 10th dword)."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    from le import LE
+    d1 = LE(open(os.path.join(exe, 'ITALIAN.EXE'), 'rb').read()).obj_bytes(1)
+    k = d1.find(b'GPLOGPTR')
+    return struct.unpack_from('<I', d1, k + 8 + 36)[0]
+
+
+CD_SIZE = 1032          # (gplay.CD_SIZE: struct cd_state)
+
+
+@scenario
+def world_gplay_cupd(team='EUROPA,ITALIA,SERIE D GIRONE A,LIGORNA', two=False):
+    """The Coppa Italia Serie D (cupd.py, gplay.c cd_step_c): world5tm-poule with Italy's 'cup_d' = the data session's
+    real 2026-27 bracket (internal/world2526/formats/coppa_italia_serie_d_2627.json); a season at LIGORNA (it enters
+    at the PRIMO TURNO, away at Sestri Levante): its ties built in slot 4 at their weeks and played, every other tie
+    decided at the calendar advances (the real results where known), the cup over by the season end"""
+    import json
+    import shutil
+    src = os.environ.get('W2627P_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-poule')
+    br = os.path.join(MAIN, 'internal', 'world2526', 'formats', 'coppa_italia_serie_d_2627.json')
+    if not (os.path.isdir(src) and os.path.exists(br)):
+        return True, 'SKIP: private data (world5tm-poule, the Coppa D bracket) missing'
+    w = os.path.join(WORK, 'world_gplay_cupd')
+    shutil.rmtree(w, ignore_errors=True)
+    shutil.copytree(src, os.path.join(w, 'world5tm'))
+    shutil.copy(br, os.path.join(w, 'world5tm', 'ita', 'cupd.json'))
+    f = os.path.join(w, 'world5tm', 'ita', 'pack.json')
+    d = json.load(open(f))
+    lg = next(c for c in d['competitions'] if c['type'] == 'league')
+    lg['cup_d'] = {'file': 'cupd.json', 'names': {'*': ['COPPA ITALIA SERIE D', 'COPPA IT. SERIE D']}}
+    json.dump(d, open(f, 'w'), indent=1, ensure_ascii=False)
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    env = {'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(w, 'world5tm', x) for x in order])}
+    if two:                             # (the club stays in Serie D: 10th of its group at both season ends)
+        env['GPLAY_FORCE'] = '10'
+    exe = os.environ.get('GPLAY_BUILD') or build('world_gplay_cupd2' if two else 'world_gplay_cupd', env=env)
+    log_at, st_at, log_n, st_n = gp_ptrs(exe)
+    cd_at = gp_cd(exe)
+    keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K',
+                                            'W8485_NOSACK', 'W8485_HEX', 'W8485_ONE')}
+    os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5', W8485_K='108+',
+                      W8485_NOSACK='1', W8485_HEX=f'{st_at:x}:{st_n},{cd_at:x}:{CD_SIZE}', W8485_ONE='0' if two else '1')
+    try:
+        ok, msg = world8485()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    lines = open(os.path.join(RUNS, w84_tag() + '_1', 'session.log'), errors='replace').read().splitlines()
+    errs = []
+    check(ok, msg, errs)
+    cds = [bytes.fromhex(ln.split()[2]) for ln in lines if ln.startswith(f'HEX {cd_at:x} ')]
+    cds = [b for b in cds if b[:2] == b'CD']
+    if not cds:
+        return False, f'{msg}; the cup never ran (no CD_ST seen)'
+    last = cds[-1]
+    rnd, res = last[3], last[8:8 + 161]
+    check(rnd == 8 and all(res), f'cup not over: round {rnd}, undecided ties {[i for i in range(161) if not res[i]][:10]}', errs)
+    sts = [bytes.fromhex(ln.split()[2]) for ln in lines if ln.startswith(f'HEX {st_at:x} ')]
+    kos = [gp_ko(b[GP_STKO:]) for b in sts if b[GP_STKO:GP_STKO + 2] == b'GK']
+    mine = [k for k in kos if k['kind'] == 9 and k['n'] == 2 and k['slot'] == 4]
+    check(mine, 'no tie of the career club built in slot 4', errs)
+    ties = sorted({tuple(k['team']) for k in mine})
+    screens = [ln for ln in lines if 'COPPA ITALIA SERIE D' in ln]
+    names = [ln.split('SERIE D', 1)[1].split('|')[0].strip() for ln in screens]
+    check(names and names[0] == 'PRIMO TURNO' and 'FINALE' not in names[:-2],
+          f'the tie screens without the real round names (PRIMO TURNO first): {names}', errs)
+    if two:                             # season 2: the bracket generated from the season's real Serie D
+        lines2 = open(os.path.join(RUNS, w84_tag() + '_2', 'session.log'), errors='replace').read().splitlines()
+        cd2 = [bytes.fromhex(ln.split()[2]) for ln in lines2 if ln.startswith(f'HEX {cd_at:x} ')]
+        cd2 = [b for b in cd2 if b[:2] == b'CD' and b[2] != last[2]]
+        if not cd2:
+            return False, '; '.join(errs + ['season 2: the cup never ran'])
+        b2 = cd2[-1]                    # (the cup's end; its entry: the first state with the bracket generated, ent
+        b0 = next((b for b in cd2 if b[605] == 1), b2)   # then the order used - the season end rewrites it)
+        np_, nfc, nfp = b0[606], b0[607], b0[608]
+        ent = b0[348:604]
+        gen = struct.unpack_from(f'<{2 * (41 + 64)}H', b0, 612)
+        ranked = sum(1 for e in ent if 2 <= e < 0x40)
+        check(ranked > 90, f'season 2: only {ranked} Serie D clubs with last season\'s place (cd_rank: {b0[611]} '
+                           f'calls, {b0[610]} clubs placed)', errs)
+        arr = {i for i, e in enumerate(ent) if e == 1}
+        pre = {w >> 8 for w in gen[:2 * np_]}
+        nties = np_ + 127
+        check(b2[605] == 1 and b2[3] == 8 and all(b2[8:8 + nties]),
+              f'season 2: gen {b2[605]}, round {b2[3]}, undecided {[i for i in range(nties) if not b2[8 + i]][:10]}', errs)
+        d_in = [ent[i] for i in range(256) if ent[i] and i not in pre]
+        p_old = [ent[i] for i in pre if ent[i] != 1]
+        check(not p_old or not d_in or max(p_old) <= min(d_in),
+              f'season 2: the preliminary\'s old clubs not the lowest placed ({max(p_old)} > {min(d_in)})', errs)
+        check(nfc > 0 and nfp > 0 and arr and arr <= pre,
+              f'season 2: arrivals from C {nfc}, from the pool {nfp}, not in the preliminary {sorted(arr - pre)}', errs)
+        sts2 = [bytes.fromhex(ln.split()[2]) for ln in lines2 if ln.startswith(f'HEX {st_at:x} ')]
+        mine2 = [gp_ko(b[GP_STKO:]) for b in sts2 if b[GP_STKO:GP_STKO + 2] == b'GK']
+        mine2 = sorted({tuple(k['team']) for k in mine2 if k['kind'] == 9 and k['slot'] == 4})
+        check(mine2, 'season 2: no tie of the career club in slot 4', errs)
+        rn2 = sorted({ln.split('|')[0].split('SERIE D')[-1].strip() for ln in lines2 if 'COPPA ITALIA SERIE D' in ln})
+        msg2 = (f'; season 2: {np_} preliminary ties, {len(arr)} new arrivals ({nfc} from C, {nfp} from the pool) all '
+                f'in the preliminary with the {2 * np_ - len(arr)} lowest placed of {ranked} ranked, '
+                f'the club ties {[tuple(hex(t) for t in x) for x in mine2]} ({rn2}), cup over')
+    else:
+        msg2 = ''
+    return not errs, '; '.join(errs) or (f"{msg}; the club's ties in slot 4: {[tuple(hex(t) for t in x) for x in ties]}, "
+                                         f"{len(screens)} cup screens {sorted(set(names), key=names.index)}; the cup "
+                                         f"over (round {rnd})" + msg2)
+
+
+@scenario
+def world_gplay_cupd2():
+    """world_gplay_cupd over two seasons: season 2's Coppa D bracket generated (gplay.c cd_season / cd_make) from the
+    real Serie D of that season - the new arrivals (relegated from Serie C, promoted from the off-file Eccellenza pool)
+    all in the preliminary round, the career club's ties played in slot 4, the cup over by the season end"""
+    return world_gplay_cupd(two=True)
+
+
 def full_season(country, team):
     country = os.environ.get('W2627FULL_COUNTRY', country)
     """A season of the full 5.0 world (91 countries, TM_FULL; the data session's staged build: W2627FULL = its build

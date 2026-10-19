@@ -45,6 +45,16 @@ pg_fix:                                 ; replaces `call cseg_7CAA2` (leaguesTab
     push dword PG_TAB
     call PG_SEASON
     add esp, 16
+%if CD_ON
+    movzx eax, byte [SLT + WORLD_BYTE]  ; the Coppa Italia Serie D's next entry order (gplay.c cd_season: the moves
+    push eax                            ; done, the season's tables still in GP_IN)
+    push dword SLTCOPY
+    push dword SLT
+    push dword CD_DT
+    push dword CD_TAB
+    call CD_SEASON
+    add esp, 20
+%endif
     xor eax, eax                        ; cseg_9487A traps unless leaguesTableCopy adds up to 0 (8 bits): a move of
     mov esi, SLTCOPY                    ; several divisions (a group winner up two levels of groups, a club down into
     mov ecx, NSUM                       ; a farther group) breaks the game's +1 / -1 pairs: the balance byte BAL
@@ -131,9 +141,10 @@ def _site(p):
 LABELS = {}             # obj1 offsets other modules link to (RS_TAB: gplay's sacking check; PG_TAB: pg_place at a 3.x load)
 
 
-def patch(p, at, tables, pg_season, rs_tables=(), rs_season=None, ri=None):
+def patch(p, at, tables, pg_season, rs_tables=(), rs_season=None, ri=None, cd=None):
     """Glue + tables at obj1:at (the fix itself: gplay.c pg_season, (1, offset)); returns the end. ri: the off-file pool
-    (ripool.patch's symbols: RI_TAB its table's address, gplay.c ri_season / RI_MGR, ripool's ri_after, careerTeam), or None."""
+    (ripool.patch's symbols: RI_TAB its table's address, gplay.c ri_season / RI_MGR, ripool's ri_after, careerTeam), or None.
+    cd: the Coppa Italia Serie D (CD_SEASON = gplay.c cd_season, CD_TAB, CD_DT), or None."""
     import bigtables
     import careerworld
     site, c7caa2, s = _site(p)
@@ -144,6 +155,8 @@ def patch(p, at, tables, pg_season, rs_tables=(), rs_season=None, ri=None):
            'NSUM': (0, bigtables.LIMIT if bigtables.ON[0] else 2000),
            'TAB_BYTES': (0, 'db ' + ', '.join(str(b) for b in table_bytes(tables))), 'RI_ON': (0, int(bool(ri)))}
     sym.update(ri or {})
+    sym['CD_ON'] = (0, int(bool(cd)))
+    sym.update(cd or {})
     if ri:                                              # (youreSacked: gplay's gp_sack sites)
         import gplay
         sym['SACKED'] = (2, gplay._sack_sites(p)['SACKED'])

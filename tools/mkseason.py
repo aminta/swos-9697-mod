@@ -2161,7 +2161,8 @@ def patch(p, lang, area, cave):
         CAREERS_REC[0] = crec
         p.add_ptr(2, ct + 4 * CAREERS, 2, crec)
         entries = []                            # a world = one entry (WMENU + n) listing its countries; packs of no
-        for pk, i in zip(packs(), infos):       # world stay countries of the list
+        for pk, i in zip([q for q in packs() if q.kind != 'tourney'], infos):   # world stay countries of the list
+                                                # (infos skips the tourney packs: a plain zip listed ALBANIA, 3.0-4.0)
             if i['kind'] != 'career':
                 continue
             if pk.world is None:

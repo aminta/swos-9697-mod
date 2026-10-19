@@ -2441,6 +2441,29 @@ def classic_tourneys():
 
 
 @scenario
+def careers_list():
+    """CARRIERA > SCEGLI SQUADRA > CARR. STORICHE lists the career worlds only, one entry each (since 3.0 a tourney pack
+    shifted mkseason's pack / info pairing: 'ALBANIA', the 1984-85 world's first country, showed as an entry of its
+    own); expected = the build's worlds' names (world_cups.name, else the start years)"""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import mkseason
+    want = []
+    for n, pks in sorted(mkseason.worlds().items()):
+        root = [pk for pk in pks if 'world_cups' in pk.meta][0].meta['world_cups']
+        name = root.get('name', f"{root['start_year']}-{(root['start_year'] + 1) % 100:02d}")
+        name = (name.get('it') or name.get('*') or next(iter(name.values()))) if isinstance(name, dict) else name
+        want.append(name.upper())
+    with Session('careers_list', builds()['it'], {}, 'dump:2', 300) as s:
+        s.wait()
+        for t in ('CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE'):
+            if press(s, s.screen(), t) is None or s.result.outcome != 'dump':
+                return False, f'{t} not reached ({s.result})'
+        got = [t for _, t, inv, _ in s.screen().entries if t and not inv][1:]
+        got = [t for t in got if t != 'ESCI']
+    return got == want, f'CARR. STORICHE: {got} (expected {want})'
+
+
+@scenario
 def lp36_tourney():
     """UEFA league phase (tools/lp36.py; private test pack internal/world2526/lp36, PROTO36 build): the 36 clubs of the
     2025-26 Champions League in CLASSIC TOURNEYS. The game's own draw (calendar read in memory: every UEFA rule),

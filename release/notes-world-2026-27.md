@@ -52,6 +52,17 @@ Not one fixed formula for everybody: each league plays the season the way its ow
 - **Argentina 2026**: the Liga Profesional of 30 in two zones of 15, Apertura and Clausura (16 matchdays each: the
   zone round robin, the clasico on the free day, a drawn interzonal day), the annual table, relegation by promedio
   (3 seasons) and by the annual table.
+<!-- REGIA STAGED (MLS exact, branch 4.0-mls; publish when merged + TM_MLS_EXACT=1):
+- **Major League Soccer 2026**: 30 clubs in the Eastern and Western Conference (15 + 15), the real 34-match schedule
+  (28 conference + 6 cross-conference games per club) on the real match days and dates, the World Cup break
+  included. Equal points are ranked by wins, then goal difference, then goals scored; the club with the best record
+  overall (the Supporters' Shield) hosts the MLS Cup.
+  - **MLS Cup Playoffs**: the top 9 of each conference. Wild Card 8th v 9th (single match at the 8th, a draw goes
+    straight to penalties); Round One best-of-three, 1st v the Wild Card, 2nd v 7th, 3rd v 6th, 4th v 5th (the
+    higher seed hosts games 1 and 3, a drawn game goes to penalties, game 3 only if needed); Conference Semifinals
+    and Conference Finals, single matches at the higher seed; the MLS Cup at the club with the better record. Extra
+    time and penalties from the Conference Semifinals. Playable by your club, with the real round names.
+  Declared: the tables are the two conferences; the Supporters' Shield is not shown as a separate table. -->
 <!-- REGIA STAGED (title play-offs, branch titlepo; publish when merged + TM_TITLE=1 + the champion applied):
 - **Title play-offs where the champion is decided after the table**:
   - **Canada** (CPL): the top 4, semi-finals 1st v 4th and 2nd v 3rd over two legs (the better placed hosts the
@@ -481,6 +492,18 @@ Non una formula uguale per tutti: ogni campionato gioca la stagione come l'ha sc
   zona, il clasico nel giorno di riposo, una giornata interzonale sorteggiata), la classifica annuale, retrocessione
   per promedio (3 stagioni) e per classifica annuale.
 <!-- REGIA STAGED (play-off per il titolo, ramo titlepo; da pubblicare col merge + TM_TITLE=1 + campione applicato):
+<!-- REGIA STAGED (MLS esatta, ramo 4.0-mls; da pubblicare col merge + TM_MLS_EXACT=1):
+- **Major League Soccer 2026**: 30 club nelle Conference Est e Ovest (15 + 15), il calendario vero di 34 partite
+  (28 nella propria conference e 6 contro l'altra) nelle giornate e date vere, pausa per i Mondiali compresa. A
+  parità di punti contano le vittorie, poi la differenza reti, poi i gol fatti; il club col miglior record assoluto
+  (il Supporters' Shield) ospita la MLS Cup.
+  - **Play-off della MLS Cup**: le prime 9 di ogni conference. Wild Card 8ª contro 9ª (gara secca in casa
+    dell'8ª, in caso di pareggio subito i rigori); primo turno al meglio delle tre, 1ª contro la vincente della Wild
+    Card, 2ª-7ª, 3ª-6ª, 4ª-5ª (la meglio piazzata gioca in casa gara 1 e gara 3, una gara pari va ai rigori, gara 3
+    solo se serve); semifinali e finali di conference in gara secca in casa della meglio piazzata; la MLS Cup in
+    casa del club col record migliore. Supplementari e rigori dalle semifinali di conference. Giocabili dal tuo
+    club, coi nomi veri dei turni.
+  Dichiarato: le classifiche sono le due conference; il Supporters' Shield non ha una classifica a parte. -->
 - **Play-off per il titolo dove il campione si decide dopo la classifica**:
   - **Canada** (CPL): le prime 4, semifinali 1ª-4ª e 2ª-3ª andata e ritorno (ritorno in casa della meglio
     piazzata), finale secca in casa della meglio piazzata.

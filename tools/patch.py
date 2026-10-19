@@ -190,7 +190,8 @@ def patch_exe(src, dst, remap, lang='it'):
     import statespec
     statespec.register_test()                          # STATESPEC_TEST=1: a world-0 test state (harness)
     if statespec.TEST or statespec.TEST2 or any(e['states'] for e in statecup.ENTRIES if e['world']):
-        engine.save_item('SR', statespec.SR_SIZE)      # (statespec.rank_patch: the states' rankings)
+        engine.save_item('SR', statespec.SR_SIZE)      # (statespec.ko_patch: the states' rankings, the last fixed
+        engine.save_item('SB', 32)                     # knockout round and its winners)
     import lp36
     lpb = bool(mkseason.league_phase_cups() or mkseason.league_phase_worlds() or lp36.FIXTURES)
     lpb += bool(mkseason.league_phase_worlds())   # (+1 more: the UEFA coefficients, uefacoef)
@@ -467,7 +468,7 @@ def patch_exe(src, dst, remap, lang='it'):
         sc_end = statecup.slot_types(p, sc_end)
         statecup.cup_end_types(p)
         sc_end = statecup.patch(p, sc_end)
-        sc_end = statespec.rank_patch(p, sc_end)   # the played state's ranking (EN item 'SR', ripool's pools)
+        sc_end = statespec.ko_patch(p, sc_end)     # careers' state knockouts + the played state's ranking ('SB', 'SR')
         assert sc_end <= sc_at + 0x1000, hex(sc_end)
     p.set_vsize(1, OBJ1_NEW_VSIZE + (0x1000 * (cp + 2 + cdp) if worlds else 0) + h2 + 0x1000 * (lpb + sp_pg + sc_pg))
     tail = (careerworld.BSS_SIZE if bigw else 0) + shirtnum.BSS_SIZE + blond.BSS_SIZE + menunum.BSS_SIZE + fmtpage.BSS_SIZE   # obj2 tail

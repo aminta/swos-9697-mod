@@ -343,153 +343,6 @@ nc_adv:                                 ; replaces `call 0x194A4` in the knockou
 .x:
     popad
     ret
-st_ko:                                  ; replaces `call 0x16711` (the round's ties from its clubs) at the end of a
-    call C16711                         ; type-2 contest's knockout-stage start (cseg_2572F; DIY = NCW, its id still
-    cmp dword [ST_REC], 0               ; (statespec.st_rec: the state's final group-stage order, EN item 'SR')
-    je .nr
-    call [ST_REC]
-.nr:
-%if ST_NB                               ; FFh: the copy's; the stage's clubs in the copy's +59h order): a state's
-    pushad                              ; fixed draw (ST_TAB: id, first club word, N, b, g, size, code[N]).
-    mov ebx, ST_TAB                     ; g > 0: the copy's list comes in bands of g (the 1sts, the 2nds ...: merit
-    mov edx, ST_NB                      ; order inside a band); code = band * g + group: list[k] = the club of that
-.st:                                    ; band whose team index / size = group (groups = team-list blocks of size);
-    mov al, [DIYCOPY + 2Dh]             ; b > 0: the b last wait, the N - b first play (N - b) / 2 ties (the list
-    cmp [ebx], al                       ; kept in SB). g = 0: the stage after it, b = its ties k: code < k = the
-    jne .stn                            ; winner of that tie, else a bye (the game's list there: winners, losers,
-    mov ax, [DIYCOPY + 99h]             ; byes). (States share one id: told apart by their first club.)
-    cmp [ebx + 1], ax
-    jne .stn
-    movzx ecx, byte [ebx + 3]
-    cmp [NCW + 31h], cx
-    je .sth
-.stn:
-    movzx ecx, byte [ebx + 3]
-    lea ebx, [ebx + ecx + 7]
-    dec edx
-    jnz .st
-.sx:
-    popad
-%endif
-    ret
-%if ST_NB
-.sth:
-    cmp byte [ebx + 5], 0               ; g = 0: the stage after one with byes ('pairs')
-    je .pairs
-    xor edi, edi                        ; k
-.sk:
-    movzx eax, byte [ebx + 7 + edi]     ; code -> band (al), group (ah)
-    div byte [ebx + 5]
-    mov dh, ah
-    mul byte [ebx + 5]                  ; band * g: the band's first position
-    mov esi, eax
-    movzx ebp, byte [ebx + 5]           ; g candidates
-.sj:
-    movzx eax, byte [DIYCOPY + 59h + esi]
-    div byte [ebx + 6]                  ; team index / size = its group
-    cmp al, dh
-    je .sf
-    inc esi
-    dec ebp
-    jnz .sj
-    jmp .sx                             ; (not found: the game's order - never in a built table)
-.sf:
-    mov al, [DIYCOPY + 59h + esi]
-    mov [NC_T + edi], al
-    inc edi
-    cmp edi, ecx
-    jb .sk
-    call .put
-    movzx edx, byte [ebx + 4]
-    test edx, edx
-    jz .sx
-    sub ecx, edx
-    shr ecx, 1
-    mov [NCW + 4Fh], cx
-    mov [NCW + 51h], cx
-    jmp .sx
-.pairs:                                 ; [ebx + 4] = the stage before's ties k, [ebx + 6] its clubs N'; code c < k:
-    xor edi, edi                        ; the winner of tie c, else
-.pk:                                    ; bye c - k
-    movzx eax, byte [ebx + 7 + edi]
-    movzx edx, byte [ebx + 4]
-    cmp eax, edx
-    jae .pb
-    mov al, [ST_SB + 16 + eax]          ; the winner of tie c (st_kend, at the stage before's end)
-    jmp .pf
-.pb:
-    add eax, edx                        ; bye c - k at SB[2k + c - k]: the byes follow the 2k clubs of the ties
-    mov al, [ST_SB + eax]
-.pf:
-    mov [NC_T + edi], al
-    inc edi
-    cmp edi, ecx
-    jb .pk
-    call .put
-    jmp .sx
-.put:                                   ; NC_T[0..ecx) -> the round's list, and kept with the career (EN item
-    xor eax, eax                        ; 'SB'): the next stage finds its winners by their ties, the byes by their
-.pu:                                    ; places
-    mov dl, [NC_T + eax]
-    mov [NCW + 2CDh + eax], dl
-    mov [ST_SB + eax], dl
-    inc eax
-    cmp eax, ecx
-    jb .pu
-    ret
-%endif
-
-st_kend:                                ; replaces `call 0x7A613` (a stage's end, not a group stage: the round's
-%if ST_NB                               ; winners first into the copy's +59h, unless [163h] = 1 and [57h] says
-    pushad                              ; otherwise): a state contest with fixed draws -> SB[16 + k] = the winner of
-    mov ebx, ST_TAB                     ; tie k, from the round's list and its result bits (DIY+89h + k, bit 0:
-    mov edx, ST_NB                      ; the second club won; as 0x1AAF9 reads them)
-.k:
-    mov al, [DIYCOPY + 2Dh]
-    cmp [ebx], al
-    jne .n
-    mov ax, [DIYCOPY + 99h]
-    cmp [ebx + 1], ax
-    je .w
-.n:
-    movzx ecx, byte [ebx + 3]
-    lea ebx, [ebx + ecx + 7]
-    dec edx
-    jnz .k
-    jmp .x
-.w:
-    movzx ecx, word [NCW + 4Fh]
-    cmp ecx, 8
-    ja .x
-    xor ebx, ebx
-.t:
-    test ecx, ecx
-    jz .x
-    movzx eax, byte [NCW + 89h + ebx]
-    and eax, 1
-    lea eax, [eax + ebx * 2]
-    mov al, [NCW + 2CDh + eax]          ; tie k's winner -> SB[16 + c], c = its tie in SB (the list may have
-    xor edx, edx                        ; changed order since: second legs swap the clubs)
-.c:
-    cmp al, [ST_SB + edx * 2]
-    je .f
-    cmp al, [ST_SB + edx * 2 + 1]
-    je .f
-    inc edx
-    cmp edx, 8
-    jb .c
-    jmp .nx
-.f:
-    mov [ST_SB + 16 + edx], al
-.nx:
-    inc ebx
-    dec ecx
-    jmp .t
-.x:
-    popad
-%endif
-    jmp C7A613
-
 nc_adv_call:
     jmp C194A4                          ; (chain_adv: the call's target after careerworld.euro_draw hooked it)
 
@@ -616,9 +469,6 @@ lib_cal:                                ; replaces `mov esi, [A0]` in cseg_89758
 
 LIB_CAL: CAL_BYTES
 BYE_TAB: BYE_BYTES
-%if ST_NB
-ST_TAB: ST_BYTES
-%endif
 NC_B: dd 0
 NC_W: dd 0
 NC_T: times 64 db 0
@@ -627,8 +477,6 @@ NC_DPP: dd 0                            ; (dplay.dp_perm, or 0)
 NC_BYEP: dd 0                           ; (gplay.gp_bye, or 0)
 NC_WREC: dd 0                           ; (chain_adv: careerworld.w_rec)
 NC_WDON: db 0
-ST_SB: times 32 db 0                    ; (EN item 'SB': st_ko's last fixed round [0..16), st_kend's winners [16..24))
-ST_REC: dd 0                            ; (statespec.st_rec, or 0)
 NC_DW: db 0
 NC_RD: db 0
 '''
@@ -676,36 +524,6 @@ def _sites(p):
 LABELS = {}
 
 
-def _kend_sites(p):
-    """The two calls of a stage's end for a contest stage that is not a group stage (0x7A613: the game's two
-    callers next to cseg_8A2CE's, both after `mov ax, [esi+15Dh]; or ax, ax; jz`)."""
-    import lp36
-    d = p.le.obj_bytes(1)
-    c8a2ce = lp36._sites(p)['C8A2CE']
-    out, tgt = [], set()
-    for g in lp36._sites(p)['gend']:
-        j = d.find(b'\xe8', g + 5, g + 0x60)
-        while j > 0:
-            t = j + 5 + struct.unpack_from('<i', d, j + 1)[0]
-            if t != c8a2ce and 0x70000 < t < 0x90000:
-                out.append(j)
-                tgt.add(t)
-                break
-            j = d.find(b'\xe8', j + 1, g + 0x60)
-    assert len(out) == 2 and len(tgt) == 1, ([hex(x) for x in out], [hex(x) for x in tgt])
-    return out, tgt.pop()
-
-
-def _st_site(p):
-    """The `call 0x16711` (a round's ties from its clubs) of cseg_2572F's knockout-stage start (obj1 0x15D64): after
-    `mov al, [esi+175h]; mov esi, [x]; mov [esi+37h], al` and five pushes."""
-    d = p.le.obj_bytes(1)
-    m = [x.start() for x in re.finditer(rb'\x8a\x86\x75\x01\x00\x00\x8b\x35.{4}\x88\x46\x37(?:\xff\x35.{4}){5}\xe8',
-                                       d, re.S)]
-    assert len(m) == 2 and m[1] - m[0] < 0x400, [hex(x) for x in m]   # (the group-stage start, then the knockout's)
-    return m[1] + 6 + 6 + 3 + 30
-
-
 def chain_adv(p):
     """After careerworld.euro_draw (it hooks the same `call 0x194A4`): the round advance calls nc_adv (byes),
     which then jumps to whatever that call reached."""
@@ -728,10 +546,6 @@ def patch(p, cave, fin_pre):
     bc = [(0xC3, 0, 15, 1)] + mkseason.bye_cups()           # historic.FA_ID: FA Cup 1871-72 (15 clubs, 1 bye)
     if mkseason.worlds():
         bc += dplay.bye_cups(mkseason.dplay_tables())        # the Serie B play-off (the 3rd and 4th wait)
-    st = mkseason.state_draws()                             # [(id, world, N, b, first club word, perm)]
-    if st:
-        import engine
-        engine.save_item('SB', 32)
     assert all(0 < b and n <= 255 and (n - b) % 2 == 0 for _, _, n, b in bc), bc
     bw = mkseason.multi_ns() and any(w for _, w, _, _ in bc)  # several worlds: a world's cup ids are its own
     fd = bool(mkseason.worlds())                             # career worlds: their cups' fixed draws (first season)
@@ -741,24 +555,14 @@ def patch(p, cave, fin_pre):
         slt = cws['slt']
     """Returns (cave end, lib_pre offset) — lib_pre is called by historic.hist_draw."""
     a0, bye_call, c2573c, diycopy, cal_site, nc_site, adv_site, c194a4, c1740f, c27f84 = _sites(p)
-    stc = _st_site(p)
-    c16711 = stc + 5 + struct.unpack('<i', p.get(1, stc + 1, 4))[0]
-    kend, _ = _kend_sites(p)
-    cur = {k + 5 + struct.unpack('<i', p.get(1, k + 1, 4))[0] for k in kend}   # (chained: whatever they reach now)
-    assert len(cur) == 1, [hex(x) for x in cur]
-    c7a613 = cur.pop()
     symbols = {'DIYCOPY': (2, diycopy), 'LIB_ID': (0, sacups.LIB_ID), 'LIB_N': (0, sacups.LIB_N),
                'LIB_GROUPS': (0, LIB_GROUPS), 'CSEG_2573C': (1, c2573c), 'A0': (2, a0), 'A3': (2, a0 + 12),
                'BYE_NT': (0, len(bc)), 'BYE_BYTES': (0, 'db ' + ', '.join(str(x) for e in bc for x in e)),
                'A5': (2, a0 + 20), 'NCW': (2, diycopy + 0x41F),     # the contest work buffer (DIY layout)
-               'C16711': (1, c16711), 'C7A613': (1, c7a613),
                'C194A4': (1, c194a4), 'C1740F': (1, c1740f), 'PREG': (2, a0 - 32), 'C27F84': (1, c27f84),
                'BW_ON': (0, int(bw)), 'WORLDB': (slt[0], slt[1] + careerworld.WORLD_BYTE) if bw or fd else (0, 0),
                'FD_ON': (0, int(fd)), 'SEASONPLAYING': (2, cws['season']) if fd else (0, 0),
                'FIN_PRE': (1, fin_pre),
-               'ST_NB': (0, len(st)), 'ST_BYTES': (0, 'db ' + ', '.join(
-                   str(x) for i, _, n, b, f, g, sz, pm in st for x in (i, f & 255, f >> 8, n, b, g, sz, *pm))
-                   if st else 'db 0'),
                'CAL_BYTES': (0, 'db ' + ', '.join(str(b) for b in calendar_bytes()))}
     code, fix = nasmcave.assemble(ASM, cave, symbols)
     labels = nasmcave.labels(ASM, cave, symbols)
@@ -768,21 +572,11 @@ def patch(p, cave, fin_pre):
     p.put(1, bye_call + 1, struct.pack('<i', labels['lib_bye'] - (bye_call + 5)))
     LABELS.update(nc_adv=labels['nc_adv'], nc_adv_call=labels['nc_adv_call'], adv_site=adv_site,   # (chain_adv)
                   NC_DTAB=labels['NC_DTAB'], NC_WDON=labels['NC_WDON'], NC_WREC=labels['NC_WREC'], fd=fd,
-                  NC_T=labels['NC_T'], NC_DPP=labels['NC_DPP'], NC_BYEP=labels['NC_BYEP'], ST_SB=labels['ST_SB'],
-                  ST_REC=labels['ST_REC'])
-    if st:
-        import engine
-        engine.ITEM_AT['SB'] = (1, labels['ST_SB'])
-    p.put(1, stc + 1, struct.pack('<i', labels['st_ko'] - (stc + 5)))   # (relative call: no fixup)
-    if st:
-        for k in kend:
-            p.put(1, k + 1, struct.pack('<i', labels['st_kend'] - (k + 5)))
+                  NC_T=labels['NC_T'], NC_DPP=labels['NC_DPP'], NC_BYEP=labels['NC_BYEP'])
     p.remove(1, nc_site + 2)                                      # mov esi, [A5] (6 B) -> call nc_bye; nop
     p.put(1, nc_site, b'\xe8' + struct.pack('<i', labels['nc_bye'] - (nc_site + 5)) + b'\x90')
     p.remove(1, cal_site + 2)                                     # mov esi, [A0] (6 B) -> call lib_cal; nop
     p.put(1, cal_site, b'\xe8' + struct.pack('<i', labels['lib_cal'] - (cal_site + 5)) + b'\x90')
-    print(f"exe: state knockout draws: st_ko obj1+{labels['st_ko']:#x} at obj1+{stc:#x}, st_kend at "
-          f"{', '.join(f'obj1+{k:#x}' for k in kend)}, {len(st)} entries")
     print(f'exe: Libertadores 1997: bye call obj1+{bye_call:#x} (lib_bye {labels["lib_bye"]:#x}, BYE_TAB {len(bc)}, '
           f'national cups obj1+{nc_site:#x}, round advance obj1+{adv_site:#x}), '
           f'calendar obj1+{cal_site:#x}, code @ obj1+{cave:#x} '

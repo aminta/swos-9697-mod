@@ -1319,7 +1319,7 @@ def bye_cups():
 
 def state_draws():
     """[(contest id, world, round clubs N, b, first club word, g, size, codes)] of the state championships' knockout
-    stages with a fixed draw (lib97.st_ko at the stage start; ST_TAB keyed by id + first club). g > 0: code = band *
+    stages with a fixed draw (statespec.st_ko at the stage start; ST_TAB keyed by id + first club). g > 0: code = band *
     g + group (b > 0: the b last wait); g = 0: the stage after one with byes, b = its ties, size = its clubs."""
     import statespec
     out = list(statespec.ST_DRAWS)

@@ -27,16 +27,17 @@ the country is a key of it, the state-only clubs in a shared-base file):
 - 'months': first and last month of the contest (1 = January).
 The contest's champion = its final's winner (the game's national-cup trophy line).
 
-Careers: the knockout draws ('from', 'byes', 'pairs', the fixed brackets after them) are lib97.st_ko's at each
+Careers: the knockout draws ('from', 'byes', 'pairs', the fixed brackets after them) are st_ko's (ko_patch) at each
 knockout stage's start (ST_TAB, keyed by contest id + first club; historic.hist_draw is tourney mode only):
 - the copy's +59h at that point = the clubs best first, in bands of g groups (the 1sts, the 2nds ...; merit order
   inside a band): a label kX = the club of band k whose team index lies in group X's block (groups = blocks of the
   team list: only the FIRST group stage; a later group stage's 'from' / a draw after it stay the game's);
 - byes: the round's (N - b) / 2 ties, the b last clubs wait; the round's list is kept with the career (EN item 'SB')
-  and lib97.st_kend reads each tie's winner at the stage's end (DIY+89h result bits, as 0x1AAF9) for the next stage;
-- st_ko also freezes the first stage's final order (statespec.st_rec -> ST_RANK, EN item 'SR', ripool's pools).
+  and st_kend reads each tie's winner at the stage's end (DIY+89h result bits, as 0x1AAF9) for the next stage;
+- st_ko also freezes the first stage's final order (st_rec -> ST_RANK, EN item 'SR', ripool's pools).
 """
 import random
+import re
 import struct
 
 from mkseason import MATCHES, _need
@@ -302,7 +303,152 @@ def test_contest(p, at):
 # --- the played state's final group-stage ranking (EN item 'SR', read by ripool at the season end) ------------------
 SR_SIZE = 13 * (4 + 16 * 2) + 2         # blocks: dw key (first club word), db n, db 0, n x dw team words; dw 0
 LABELS = {}
-RANK_ASM = """
+KO_ASM = """
+st_ko:                                  ; replaces `call 0x16711` (the round's ties from its clubs) at the end of a
+    call C16711                         ; type-2 contest's knockout-stage start (cseg_2572F; DIY = NCW, its id still
+    call st_rec                         ; (the state's final group-stage order, EN item 'SR')
+%if ST_NB                               ; FFh: the copy's; the stage's clubs in the copy's +59h order): a state's
+    pushad                              ; fixed draw (ST_TAB: id, first club word, N, b, g, size, code[N]).
+    mov ebx, ST_TAB                     ; g > 0: the copy's list comes in bands of g (the 1sts, the 2nds ...: merit
+    mov edx, ST_NB                      ; order inside a band); code = band * g + group: list[k] = the club of that
+.st:                                    ; band whose team index / size = group (groups = team-list blocks of size);
+    mov al, [DIYCOPY + 2Dh]             ; b > 0: the b last wait, the N - b first play (N - b) / 2 ties (the list
+    cmp [ebx], al                       ; kept in SB). g = 0: the stage after it, b = its ties k: code < k = the
+    jne .stn                            ; winner of that tie, else a bye (the game's list there: winners, losers,
+    mov ax, [DIYCOPY + 99h]             ; byes). (States share one id: told apart by their first club.)
+    cmp [ebx + 1], ax
+    jne .stn
+    movzx ecx, byte [ebx + 3]
+    cmp [NCW + 31h], cx
+    je .sth
+.stn:
+    movzx ecx, byte [ebx + 3]
+    lea ebx, [ebx + ecx + 7]
+    dec edx
+    jnz .st
+.sx:
+    popad
+%endif
+    ret
+%if ST_NB
+.sth:
+    cmp byte [ebx + 5], 0               ; g = 0: the stage after one with byes ('pairs')
+    je .pairs
+    xor edi, edi                        ; k
+.sk:
+    movzx eax, byte [ebx + 7 + edi]     ; code -> band (al), group (ah)
+    div byte [ebx + 5]
+    mov dh, ah
+    mul byte [ebx + 5]                  ; band * g: the band's first position
+    mov esi, eax
+    movzx ebp, byte [ebx + 5]           ; g candidates
+.sj:
+    movzx eax, byte [DIYCOPY + 59h + esi]
+    div byte [ebx + 6]                  ; team index / size = its group
+    cmp al, dh
+    je .sf
+    inc esi
+    dec ebp
+    jnz .sj
+    jmp .sx                             ; (not found: the game's order - never in a built table)
+.sf:
+    mov al, [DIYCOPY + 59h + esi]
+    mov [ST_T + edi], al
+    inc edi
+    cmp edi, ecx
+    jb .sk
+    call .put
+    movzx edx, byte [ebx + 4]
+    test edx, edx
+    jz .sx
+    sub ecx, edx
+    shr ecx, 1
+    mov [NCW + 4Fh], cx
+    mov [NCW + 51h], cx
+    jmp .sx
+.pairs:                                 ; [ebx + 4] = the stage before's ties k, [ebx + 6] its clubs N'; code c < k:
+    xor edi, edi                        ; the winner of tie c, else
+.pk:                                    ; bye c - k
+    movzx eax, byte [ebx + 7 + edi]
+    movzx edx, byte [ebx + 4]
+    cmp eax, edx
+    jae .pb
+    mov al, [ST_SB + 16 + eax]          ; the winner of tie c (st_kend, at the stage before's end)
+    jmp .pf
+.pb:
+    add eax, edx                        ; bye c - k at SB[2k + c - k]: the byes follow the 2k clubs of the ties
+    mov al, [ST_SB + eax]
+.pf:
+    mov [ST_T + edi], al
+    inc edi
+    cmp edi, ecx
+    jb .pk
+    call .put
+    jmp .sx
+.put:                                   ; ST_T[0..ecx) -> the round's list, and kept with the career (EN item
+    xor eax, eax                        ; 'SB'): the next stage finds its winners by their ties, the byes by their
+.pu:                                    ; places
+    mov dl, [ST_T + eax]
+    mov [NCW + 2CDh + eax], dl
+    mov [ST_SB + eax], dl
+    inc eax
+    cmp eax, ecx
+    jb .pu
+    ret
+%endif
+
+st_kend:                                ; replaces `call 0x7A613` (a stage's end, not a group stage: the round's
+%if ST_NB                               ; winners first into the copy's +59h, unless [163h] = 1 and [57h] says
+    pushad                              ; otherwise): a state contest with fixed draws -> SB[16 + k] = the winner of
+    mov ebx, ST_TAB                     ; tie k, from the round's list and its result bits (DIY+89h + k, bit 0:
+    mov edx, ST_NB                      ; the second club won; as 0x1AAF9 reads them)
+.k:
+    mov al, [DIYCOPY + 2Dh]
+    cmp [ebx], al
+    jne .n
+    mov ax, [DIYCOPY + 99h]
+    cmp [ebx + 1], ax
+    je .w
+.n:
+    movzx ecx, byte [ebx + 3]
+    lea ebx, [ebx + ecx + 7]
+    dec edx
+    jnz .k
+    jmp .x
+.w:
+    movzx ecx, word [NCW + 4Fh]
+    cmp ecx, 8
+    ja .x
+    xor ebx, ebx
+.t:
+    test ecx, ecx
+    jz .x
+    movzx eax, byte [NCW + 89h + ebx]
+    and eax, 1
+    lea eax, [eax + ebx * 2]
+    mov al, [NCW + 2CDh + eax]          ; tie k's winner -> SB[16 + c], c = its tie in SB (the list may have
+    xor edx, edx                        ; changed order since: second legs swap the clubs)
+.c:
+    cmp al, [ST_SB + edx * 2]
+    je .f
+    cmp al, [ST_SB + edx * 2 + 1]
+    je .f
+    inc edx
+    cmp edx, 8
+    jb .c
+    jmp .nx
+.f:
+    mov [ST_SB + 16 + edx], al
+.nx:
+    inc ebx
+    dec ecx
+    jmp .t
+.x:
+    popad
+%endif
+    jmp C7A613
+
+
 st_rec:                                 ; lib97.st_ko calls it at a knockout-stage start: after a state contest's
     pushad                              ; first stage (id and first club in ST_KEYS; [53h] = 1), the copy's +59h =
     cmp word [DIYCOPY + 53h], 1         ; its clubs in final order -> ST_RANK block 0 (ripool takes the bottom
@@ -346,38 +492,84 @@ st_rec:                                 ; lib97.st_ko calls it at a knockout-sta
     ret
 ST_KEYS: KEY_BYTES
 ST_RANK: times SR_SIZE db 0
+ST_TAB: ST_BYTES
+ST_T: times 64 db 0
+ST_SB: times 32 db 0                    ; (EN item 'SB': st_ko's last fixed round [0..16), st_kend's winners [16..24))
 """
 
 
-def rank_patch(p, at):
-    """st_rec at obj1:at (lib97.st_ko calls it); ST_RANK = EN item 'SR' (+ ripool's RI_SR_PTR). Returns the end."""
+def _kend_sites(p):
+    """The two calls of a stage's end for a contest stage that is not a group stage (0x7A613: the game's two
+    callers next to cseg_8A2CE's, both after `mov ax, [esi+15Dh]; or ax, ax; jz`)."""
+    import lp36
+    d = p.le.obj_bytes(1)
+    c8a2ce = lp36._sites(p)['C8A2CE']
+    out, tgt = [], set()
+    for g in lp36._sites(p)['gend']:
+        j = d.find(b'\xe8', g + 5, g + 0x60)
+        while j > 0:
+            t = j + 5 + struct.unpack_from('<i', d, j + 1)[0]
+            if t != c8a2ce and 0x70000 < t < 0x90000:
+                out.append(j)
+                tgt.add(t)
+                break
+            j = d.find(b'\xe8', j + 1, g + 0x60)
+    assert len(out) == 2 and len(tgt) == 1, ([hex(x) for x in out], [hex(x) for x in tgt])
+    return out, tgt.pop()
+
+
+def _st_site(p):
+    """The `call 0x16711` (a round's ties from its clubs) of cseg_2572F's knockout-stage start (obj1 0x15D64): after
+    `mov al, [esi+175h]; mov esi, [x]; mov [esi+37h], al` and five pushes."""
+    d = p.le.obj_bytes(1)
+    m = [x.start() for x in re.finditer(rb'\x8a\x86\x75\x01\x00\x00\x8b\x35.{4}\x88\x46\x37(?:\xff\x35.{4}){5}\xe8',
+                                       d, re.S)]
+    assert len(m) == 2 and m[1] - m[0] < 0x400, [hex(x) for x in m]   # (the group-stage start, then the knockout's)
+    return m[1] + 6 + 6 + 3 + 30
+
+
+def ko_patch(p, at):
+    """The states' career knockout code at obj1:at (statecup's page): st_ko on cseg_2572F's knockout-stage start,
+    st_kend on both calls of 0x7A613, st_rec + ST_RANK (EN items 'SB', 'SR'; ripool's RI_SR_PTR). Returns the end."""
     import engine
     import lib97
     import mkseason
     import nasmcave
-    keys = sorted({(int(c['id'], 16), f[0] | f[1] << 8) for pk in mkseason.packs() if pk.world is not None
+    st = mkseason.state_draws()                             # [(id, world, N, b, first club word, g, size, codes)]
+    keys = sorted({(i, f) for i, _, _, _, f, _, _, _ in st} |
+                  {(int(c['id'], 16), f[0] | f[1] << 8) for pk in mkseason.packs() if pk.world is not None
                    for c in pk.comps if c['type'] == 'state' for f in [pk.state(c)['clubs'][0]]})
-    if TEST or TEST2:
-        keys.append((TEST_ID, TEST_FILE))
     if not keys:
         return at
     diycopy = lib97._sites(p)[3]
-    sym = {'DIYCOPY': (2, diycopy), 'NKEYS': (0, len(keys)), 'SR_SIZE': (0, SR_SIZE),
+    stc = _st_site(p)
+    c16711 = stc + 5 + struct.unpack('<i', p.get(1, stc + 1, 4))[0]
+    kend, _ = _kend_sites(p)
+    cur = {k + 5 + struct.unpack('<i', p.get(1, k + 1, 4))[0] for k in kend}   # (chained: whatever they reach now)
+    assert len(cur) == 1, [hex(x) for x in cur]
+    sym = {'DIYCOPY': (2, diycopy), 'NCW': (2, diycopy + 0x41F), 'C16711': (1, c16711), 'C7A613': (1, cur.pop()),
+           'ST_NB': (0, len(st)), 'NKEYS': (0, len(keys)), 'SR_SIZE': (0, SR_SIZE),
+           'ST_BYTES': (0, 'db ' + ', '.join(str(x) for i, _, n, b, f, g, sz, pm in st
+                                             for x in (i, f & 255, f >> 8, n, b, g, sz, *pm)) if st else 'db 0'),
            'KEY_BYTES': (0, 'db ' + ', '.join(str(x) for i, w in keys for x in (i, w & 255, w >> 8)))}
-    code, fix = nasmcave.assemble(RANK_ASM, at, sym)
-    lab = nasmcave.labels(RANK_ASM, at, sym)
+    code, fix = nasmcave.assemble(KO_ASM, at, sym)
+    lab = nasmcave.labels(KO_ASM, at, sym)
     p.put(1, at, code)
     for off, tobj, toff in fix:
         p.add_ptr(1, at + off, tobj, toff)
-    p.add_ptr(1, lib97.LABELS['ST_REC'], 1, lab['st_rec'])
+    p.put(1, stc + 1, struct.pack('<i', lab['st_ko'] - (stc + 5)))      # (relative calls: no fixups)
+    for k in kend:
+        p.put(1, k + 1, struct.pack('<i', lab['st_kend'] - (k + 5)))
     LABELS['ST_RANK'] = (1, lab['ST_RANK'])
     engine.ITEM_AT['SR'] = (1, lab['ST_RANK'])
+    engine.ITEM_AT['SB'] = (1, lab['ST_SB'])
     try:
         import ripool
-        if 'RI_SR_PTR' in ripool.LABELS:
+        if 'RI_SR_PTR' in getattr(ripool, 'LABELS', {}):
             p.add_ptr(*ripool.LABELS['RI_SR_PTR'], 1, lab['ST_RANK'])
     except ImportError:
         pass
-    print(f'exe: state rankings: st_rec obj1+{lab["st_rec"]:#x}, ST_RANK obj1+{lab["ST_RANK"]:#x} ({len(keys)} states)')
+    print(f'exe: state knockouts: st_ko obj1+{lab["st_ko"]:#x} at obj1+{stc:#x}, st_kend at '
+          f'{", ".join(f"obj1+{k:#x}" for k in kend)}, {len(st)} fixed draws, ST_RANK obj1+{lab["ST_RANK"]:#x} '
+          f'({len(keys)} states), obj1+{at:#x}..{at + len(code):#x}')
     return (at + len(code) + 3) & ~3
-

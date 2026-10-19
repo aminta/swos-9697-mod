@@ -4357,7 +4357,7 @@ def menu_down_to(s, entry, tries=24):
 def menu_levels():
     """4.0 (menutab + menulevels): team choice of a league with levels of groups, level first then group (Davide):
     world 2026-27 (MENU14_BUILD, default builds/w2627-latest), career -> ITALIA = SERIE A, B, C, D (the game showed
-    10 of 14 divisions); SERIE D -> its 9 groups; ESCI -> the levels; SERIE D GIRONE I -> its clubs -> a career at
+    10 of 14 divisions); SERIE D -> its 9 groups, title '... - ITALIA SERIE D'; ESCI -> the levels; SERIE D GIRONE I -> its clubs -> a career at
     TRAPANI starts, its VIEW WORLD lists ITALIA's levels + cups and SERIE D opens its groups; EL SALVADOR: SEGUNDA /
     TERCERA DIVISION -> OCCIDENTE / ORIENTE"""
     b = os.path.realpath(os.environ.get('MENU14_BUILD') or os.path.join(WORK, 'builds', 'w2627-latest'))
@@ -4376,6 +4376,9 @@ def menu_levels():
             walk(s, 'SERIE D', 3)
             gr = vis(s.screen())
             check(gr == [f'SERIE D GIRONE {g}' for g in 'ABCDEFGHI'], f'SERIE D groups {gr}', errs)
+            title = s.screen().texts()[0]
+            check(title.endswith('ITALIA SERIE D'), f'title {title!r}', errs)
+            s.shot('groups')
             check(menu_down_to(s, 88), 'ESCI not reached from the groups', errs)
             s.send('fire dump:3')
             back = vis(s.screen())

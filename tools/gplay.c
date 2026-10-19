@@ -958,6 +958,8 @@ static int ko_build(struct gp_ko *k, int pi, int slot, int cid) {
                                            the entrants / decided ties' clubs later rounds name; the Trofeo's R2 = R1
                                            twice was a 3-club contest whose match the career calendar lost) */
     for (int i = 0; i < n; i++) need[i] = !me0;
+    for (int t = 0; t < k->ntie; t++)   /* (a decided tie's clubs stay: its result is kept, gp_played_c / gp_sack) */
+        if (k->tw[t] != NOC) { need[k->tw[t]] = 1; if (k->tl[t] != NOC) need[k->tl[t]] = 1; }
     for (int t = k->gt0[k->gsr[g0] + 1 <= k->nrs ? k->gsr[g0] + 1 : k->nrs]; t < k->ntie; t++)
         for (int x = 0; x < 2; x++) {
             int c = k->rc[2 * t + x];

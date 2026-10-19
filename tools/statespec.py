@@ -216,7 +216,164 @@ def compile_state(c, n_clubs):
             labels = [f'{r}{chr(65 + k)}' for r in range(1, q // g + 1) for k in range(g)]
             _need(sorted(frm + b) == sorted(labels), f"{sw} from + byes must list {' '.join(labels)} once each")
             draws.append((q, [labels.index(x_) for x_ in frm + b], False))   # (the byes at the end: they wait)
-            if x['type'] != 'knockout':                  # (careers: the group stage after the first, st_grp:                                 ; replaces `call 0x16C47` (a group stage's draw: for a later stage
+            if x['type'] != 'knockout':                  # (careers: the group stage after the first, st_grp:
+                if i == 1:                               # b = FEh; later ones stay the game's)
+                    ko.append((q, 0xFE, g, prev['teams'] // g, draws[-1][1]))
+            elif i == 1 or g == 1:                       # (careers: groups = team-list blocks: the first stage's;
+                                                         # code = place * g + group)
+                ko.append((q, len(b), g, prev['teams'] // g, draws[-1][1]))
+            else:
+                _need(not b, f'{sw} byes after a second group stage of several groups: not in careers yet')
+        elif x.get('pairs'):                             # after a stage with byes: W<k> the winner of tie k, B<k> bye k
+            _need(prev.get('byes'), f'{sw} pairs: only after a stage with byes')
+            k, bb = prev['teams'] // 2, len(prev['byes'])
+            toks = [f'W{j + 1}' for j in range(k)] + [f'B{j + 1}' for j in range(bb)]
+            _need(sorted(x['pairs']) == sorted(toks), f"{sw} pairs must list {' '.join(toks)} once each")
+            draws.append((n, [toks.index(t_) for t_ in x['pairs']], False))
+            ko.append((n, k, 0, prev['teams'] + bb, draws[-1][1]))   # (g = 0: winners of the k ties, then byes)
+        elif x.get('pairing') == 'merit':                # after a group stage: the qualifiers in merit order (the
+            _need(i > 0 and prev['type'] == 'groups' and x['type'] == 'knockout',   # engine's), 1st v last, 2nd v
+                  f'{sw} pairing merit: a knockout after a group stage')            # last but one ... (Mineiro)
+            pm = [v for k_ in range(n // 2) for v in (k_, n - 1 - k_)]
+            draws.append((n, pm, False))
+            ko.append((n, 0, 255, 0, pm))                # (g = 255: positions in the copy's +59h)
+        elif i == 0:
+            draws.append((n, list(range(n)), False))     # the clubs into the groups in list order
+        elif prev['type'] != 'groups' and n > 2:
+            draws.append((n, list(range(n)), True))      # tie k = the winners of ties 2k-1, 2k (their contest order)
+            if ko and ko[-1][0] == prev['teams']:        # (careers: after a stage of ST_TAB, by the ties it kept)
+                ko.append((n, prev['teams'] // 2, 0, prev['teams'], list(range(n))))
+        if x.get('host') is not None:                    # the better placed of stage 1 at home (a single match) or at
+            _need(x['host'] == 'better' and t == 'knockout', f"{sw} host: 'better' on a knockout stage")   # home in
+            if len(ko) == nko and n == 2 and ko and ko[-1][0] == prev['teams']:   # the second leg (careers: st_ko by
+                ko.append((n, prev['teams'] // 2, 0, prev['teams'], [0, 1]))      # ST_RANK; the final: the SF's
+            _need(len(ko) == nko + 1, f'{sw} host: needs a fixed draw here (from / pairs / merit / after one)')   # winners)
+            q_, b_, g_, sz_, pm_ = ko[-1]
+            ko[-1] = (q_, b_, g_, sz_ | 0x80 | (0x40 if x['matches'].startswith('two_legs') else 0), pm_)
+        prev = dict(x, teams=n)
+    _need(st[-1]['type'] == 'knockout' and st[-1]['teams'] == 2, f'{w} the last stage must be the final (2)')
+    ns = [d[0] for d in draws]
+    _need(len(set(ns)) == len(ns), f'{w} two stages with {ns} teams: a fixed order needs different team counts')
+    return {'stages': trip, 'stage_bytes': sb, 'meetings': meet or 1, 'points': c['win_points'],
+            'months': (8 * (m1 - 1), 8 * (m2 - 1)), 'draws': [(pm, srt) for _, pm, srt in draws], 'fixture': fixture,
+            'byes': byes, 'ko_draws': ko}     # (careers: lib97.st_draw; tourney mode: historic.hist_draw)
+
+
+# --- harness test (STATESPEC_TEST=1 builds only): world 0's Brazil (TEAM.046) gets a Paranaense-shaped test state ----
+import os
+TEST = os.environ.get('STATESPEC_TEST') == '1'
+TEST_ID, TEST_FILE = 0xF1, 46           # (world 0: never with statecup's own STATECUP_TEST, the same id)
+TEST_SPEC = {'key': 'test', 'type': 'state', 'id': 'F1', 'win_points': 3, 'months': [1, 6],
+             'names': {'*': ['CAMPEONATO TESTE', 'TESTE']},
+             'stages': [{'type': 'groups', 'teams': 12, 'groups': 2, 'meetings': 1, 'cross': 2},
+                        {'type': 'knockout', 'teams': 8, 'matches': 'two_legs',
+                         'from': ['4A', '1A', '3A', '2A', '4B', '1B', '3B', '2B']},
+                        {'type': 'knockout', 'teams': 4, 'matches': 'two_legs'},
+                        {'type': 'knockout', 'teams': 2, 'matches': 'two_legs'}]}
+
+
+def register_test():
+    if TEST2:
+        import statecup
+        if not any(e['world'] == 0 and e['cup1'] == TEST_ID for e in statecup.ENTRIES):
+            statecup.register(0, TEST_ID, TEST_FILE, [{'id': TEST_ID, 'members': list(range(24)), 'struct': None,
+                                                       'first': (TEST_FILE, 0)}])
+            n2 = TEST2_SPEC['stages'][0]['teams']
+            sp = compile_state(dict(TEST2_SPEC, clubs=list(range(n2))), n2)
+            TEST_DRAWS[:] = [(TEST_ID, pm, srt, (TEST_FILE, 0)) for pm, srt in sp['draws']]
+            ST_DRAWS[:] = [(TEST_ID, 0, n, b, TEST_FILE, g, sz, pm) for n, b, g, sz, pm in sp['ko_draws']]
+            if sp['fixture']:
+                import lp36
+                lp36.FIXTURES[(TEST_ID, (TEST_FILE, 0))] = sp['fixture']
+        return
+    if not TEST:
+        return
+    import statecup
+    import lp36
+    assert not statecup.TEST, 'STATESPEC_TEST and STATECUP_TEST share the test id'
+    if any(e['world'] == 0 and e['cup1'] == TEST_ID for e in statecup.ENTRIES):
+        return
+    sp = compile_state(dict(TEST_SPEC, clubs=list(range(12))), 12)
+    statecup.register(0, TEST_ID, TEST_FILE, [{'id': TEST_ID, 'members': list(range(24)), 'struct': None,
+                                               'first': (TEST_FILE, 0)}])
+    g, size, days, cal = sp['fixture']
+    lp36.FIXTURES[(TEST_ID, (TEST_FILE, 0))] = (g, size, days, cal)
+    TEST_DRAWS[:] = [(TEST_ID, pm, srt, (TEST_FILE, 0)) for pm, srt in sp['draws']]
+    ST_DRAWS[:] = [(TEST_ID, 0, n, b, TEST_FILE, g, sz, pm) for n, b, g, sz, pm in sp['ko_draws']]
+
+
+TEST_DRAWS = []                         # historic.DRAWS entries of the test state (patch.py adds them)
+ST_DRAWS = []                           # (id, world, N, b, first club word, perm): the test state's knockout
+                                        # draws in careers (mkseason.state_draws adds the packs' own)
+
+
+TEST2 = os.environ.get('STATESPEC_TEST') in ('2', '3', '4')   # (2: byes, Pernambucano; 3: Cearense; 4: Mineiro)
+TEST2_SPEC = {'key': 'test2', 'type': 'state', 'id': 'F1', 'win_points': 3, 'months': [1, 6],
+              'names': {'*': ['CAMPEONATO TESTE', 'TESTE']},
+              'stages': [{'type': 'groups', 'teams': 8, 'groups': 1, 'meetings': 1},
+                         {'type': 'knockout', 'teams': 4, 'matches': 'two_legs', 'from': ['6A', '3A', '5A', '4A'],
+                          'byes': ['1A', '2A']},
+                         {'type': 'knockout', 'teams': 4, 'matches': 'two_legs', 'pairs': ['W2', 'B1', 'W1', 'B2']},
+                         {'type': 'knockout', 'teams': 2, 'matches': 'two_legs'}]}
+TEST3_SPEC = {'key': 'test3', 'type': 'state', 'id': 'F1', 'win_points': 3, 'months': [1, 6],
+              'names': {'*': ['CAMPEONATO TESTE', 'TESTE']},
+              'stages': [{'type': 'groups', 'teams': 10, 'groups': 2, 'meetings': 1},
+                         {'type': 'groups', 'teams': 6, 'groups': 2, 'from': ['1A', '2A', '3A', '1B', '2B', '3B']},
+                         {'type': 'knockout', 'teams': 4, 'matches': 'two_legs', 'from': ['2B', '1A', '2A', '1B']},
+                         {'type': 'knockout', 'teams': 2, 'matches': 'two_legs'}]}
+TEST4_SPEC = {'key': 'test4', 'type': 'state', 'id': 'F1', 'win_points': 3, 'months': [1, 6],
+              'names': {'*': ['CAMPEONATO TESTE', 'TESTE']},
+              'stages': [{'type': 'groups', 'teams': 12, 'groups': 3, 'meetings': 1, 'cross': 3},
+                         {'type': 'knockout', 'teams': 4, 'matches': 'two_legs', 'pairing': 'merit'},
+                         {'type': 'knockout', 'teams': 2, 'matches': 'single'}]}
+if os.environ.get('STATESPEC_TEST') == '3':
+    TEST2_SPEC = TEST3_SPEC
+if os.environ.get('STATESPEC_TEST') == '4':
+    TEST2_SPEC = TEST4_SPEC
+
+
+def test_contest(p, at):
+    """The test state at obj1 at and Brazil's world-0 competitionsTable entry [league, -2, it, -1]. Returns the end."""
+    import countries
+    import sacups
+    import statecup
+    d2 = p.le.obj_bytes(2)
+    cc = bytes(d2[sacups.unique(d2, sacups.EUROCUP_HDR):][:0x27])
+    sp = compile_state(dict(TEST_SPEC, clubs=list(range(12))), 12)
+    sup = sacups.NAME_SITES[1][1] if len(sacups.NAME_SITES) > 1 else None
+    names = bytes(p.get(1, sup, 8)) if sup else bytes(8)
+    n = 12
+    if TEST2:                           # Pernambucano shape: 8 clubs; 3rd-6th QF, 1st-2nd wait; SF; final
+        n = TEST2_SPEC['stages'][0]['teams']
+        sp = compile_state(dict(TEST2_SPEC, clubs=list(range(n))), n)
+    body = statecup.contest_bytes(cc, TEST_ID, TEST_FILE, sp['months'], sp['meetings'], sp['points'], sp['stages'],
+                                  sp['stage_bytes'], [(TEST_FILE, i) for i in range(n)], names)
+    p.put(1, at, body)
+    statecup.set_struct(0, TEST_ID, (1, at), first=(TEST_FILE, 0))
+    comp = countries.COMP[0]
+    tobj, t = p.target(2, comp + 4 * TEST_FILE)
+    league = p.target(tobj, t)
+    tab = (at + len(body) + 3) & ~3
+    p.add_ptr(1, tab, *league)
+    p.put(1, tab + 4, struct.pack('<i', -2))
+    p.add_ptr(1, tab + 8, 1, at)
+    p.put(1, tab + 12, struct.pack('<i', -1))
+    p.retarget(2, comp + 4 * TEST_FILE, 1, tab)
+    p.put(2, comp + 4 * TEST_FILE, struct.pack('<I', tab))
+    print(f'exe: STATESPEC_TEST: test state {TEST_ID:#x} (12 Brazilian clubs, cross groups, knockout) obj1+{at:#x}')
+    return tab + 16
+
+
+# --- the played state's final group-stage ranking (EN item 'SR', read by ripool at the season end) ------------------
+SR_SIZE = 13 * (4 + 16 * 2) + 2         # blocks: dw key (first club word), db n, db 0, n x dw team words; dw 0
+LABELS = {}
+KO_ASM = """
+st_ko:                                  ; replaces `call 0x16711` (the round's ties from its clubs) at the end of a
+    call C16711                         ; type-2 contest's knockout-stage start (cseg_2572F; DIY = NCW, its id still
+    call st_rec                         ; (the state's final group-stage order, EN item 'SR')
+    jmp st_body
+
+st_grp:                                 ; replaces `call 0x16C47` (a group stage's draw: for a later stage
     pushad                              ; 0x17D53 shuffles the copy's +59h, whose blocks then become the groups): a
     mov esi, DIYCOPY + 59h              ; state's later group stage with 'from' (b = FEh): the draw, then the
     mov edi, ST_PRE                     ; merit list back and reordered by the labels (Cearense phase 2); the

@@ -4979,6 +4979,49 @@ def world_gplay_cupd(team='EUROPA,ITALIA,SERIE D GIRONE A,LIGORNA', two=False):
 
 
 @scenario
+def world_cup_prefix():
+    """The continental cups' names without the empty country's prefix (careerworld w_pfx: cseg_95C18): a World
+    2026-27 career at INTER (world5tm-poule) and a 1984-85 one at LIVERPOOL - VISUAL. COMPETIZ. lists 'UEFA CHAMPIONS
+    LEAGUE' / the European cup with no leading space, its screen's title starts with it, the national contests keep
+    their country ('ITALIA SERIE A')"""
+    src = os.environ.get('W2627P_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-poule')
+    if not os.path.isdir(src):
+        return True, 'SKIP: private data (world5tm-poule) missing'
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    env = {'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order])}
+    errs, info = [], []
+    for tag, exe, path, cup in (
+            ('w2627', os.environ.get('GPLAY_BUILD') or build('world_cup_prefix', env=env),
+             ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27', 'EUROPA', 'ITALIA', 'SERIE A', 'INTER'],
+             'UEFA CHAMPIONS LEAGUE'),
+            ('w8485', os.environ.get('W8485_BUILD') or builds()['it'],
+             ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'EUROPA 1984-85', 'INGHILTERRA', 'FIRST DIVISION',
+              'LIVERPOOL'], 'COPPA CAMPIONI EUROPEA')):
+        with Session('cup_prefix_' + tag, exe, {}, 'dump:2', 900) as s:
+            s.wait()
+            for t in path:
+                scr = s.screen()
+                lvl = None if scr.find(t, exact=True) is not None else next(
+                    (x for i, x, inv, _ in scr.entries if 11 <= i <= 20 and x and not inv and t.startswith(x + ' ')), None)
+                if lvl:
+                    press(s, scr, lvl, 3)
+                if press(s, s.screen(), t, 3) is None:
+                    return False, f'{tag}: {t} not reached'
+            s.send('fire dump:3')
+            walk(s, s.screen().find('VISUAL. COMPETIZ.', exact=True), 3)
+            comps = [e[1] for e in s.screen().entries if e[1] and not e[2]]
+            mine = [c for c in comps if cup in c]
+            check(mine == [cup], f'{tag}: the cup listed as {mine} (all: {comps})', errs)
+            check(any(c.startswith(('ITALIA ', 'INGHILTERRA ')) for c in comps), f'{tag}: a national contest lost its country: {comps}', errs)
+            if mine:
+                walk(s, s.screen().find(mine[0], exact=True), 3)
+                title = next((e[1] for e in s.screen().entries if e[1] and not e[2]), '')
+                check(title.startswith(cup), f'{tag}: the title of the cup screen {title!r}', errs)
+                info.append(f'{tag}: listed {mine[0]!r}, title {title!r}')
+    return not errs, '; '.join(errs + info)
+
+
+@scenario
 def world_gplay_cupd2():
     """world_gplay_cupd over two seasons: season 2's Coppa D bracket generated (gplay.c cd_season / cd_make) from the
     real Serie D of that season - the new arrivals (relegated from Serie C, promoted from the off-file Eccellenza pool)

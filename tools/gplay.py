@@ -1026,6 +1026,22 @@ THEN = {}                # compile_spec's output -> per play-off its 'then_build
 T2_SPECS = set()         # compile_spec's outputs with a group contest (the Poule Scudetto): GP_GS saved ('GS')
 GS_SIZE = 7 + 1 + 7 * 20 * 10   # (sizeof struct gp_gs)
 CD_SIZE = 8 + 2 * 168 + 4       # (sizeof struct cd_state: the engine block's item 'CD')
+CD_RNAME = '''
+cd_rname:                               ; rnames' rn_round (an FE contest): a Coppa Italia Serie D tie in slot 4 ->
+    cmp word [GP_ST + ST_KO], 4B47h     ; CF = 1, al = its round's name (rnames.CD_NAMES by CD_ST's round), else CF = 0
+    jne .no
+    cmp byte [GP_ST + ST_KO + 6], 9     ; (gp_ko.kind: K_CUPD)
+    jne .no
+    movzx eax, byte [CD_ST + 3]
+    cmp eax, 8
+    jae .no
+    mov al, [CD_RN + eax]
+    stc
+    ret
+.no:
+    clc
+    ret
+'''
 SPEC_NAMES = {}          # compile_spec's output -> the play-offs' names ({lang: [long, short]}), for the contests
 
 
@@ -1244,8 +1260,10 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
         symbols['W_REC'] = (1, cw_.LABELS['w_rec'])
         long_, short = _name(cnames, lang, 'cup_d')
         rl, rs = (area.add(x + b'\0') - sacups.STR_BASE if area else 0 for x in (long_, short))
+        import rnames
         cd_src = (f'CD_TAB: db {world}, {nr}, {lfile}, 0\n    db ' + ', '.join(str(b) for b in tab)
-                  + f'\nCD_NM: dd {rl}, {rs}\n')
+                  + f'\nCD_NM: dd {rl}, {rs}\nCD_RN: db ' + ', '.join(str(x) for x in rnames.CD_NAMES) + '\n'
+                  + CD_RNAME)
     asm = (ASM.replace('jmp GP_REC_NEXT', 'jmp GP_REC_NEXT' if rec_dp else 'jmp gp_recmov') + tab_src + '\n'
            + names_lines(tables, area, lang) + '\n' + stubs + cd_src)
     glue = (cend + 15) & ~15
@@ -1278,6 +1296,9 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
         p.add_ptr(1, dpp, 1, lab['gp_perm'])
         p.add_ptr(1, lab['GP_PNEXT'], *nxt)
         p.add_ptr(1, lib97.LABELS['NC_BYEP'], 1, lab['gp_bye'])   # (bye_find: our contest's byes, its rounds)
+        import rnames
+        if 'cd_rname' in lab and rnames.LABELS.get('RN_CDP'):   # (the Coppa D's round names)
+            p.add_ptr(1, rnames.LABELS['RN_CDP'], 1, lab['cd_rname'])
         for a in adv_calls:                                  # (the calendar advance: 'then_build')
             assert p.get(1, a, 5) == p.le.obj_bytes(1)[a:a + 5], f'obj1+{a:#x} already hooked'
             p.put(1, a + 1, struct.pack('<i', lab['gp_adv'] - (a + 5)))

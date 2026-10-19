@@ -4446,6 +4446,8 @@ def world_gplay_cupd(team='EUROPA,ITALIA,SERIE D GIRONE A,LIGORNA'):
     check(mine, 'no tie of the career club built in slot 4', errs)
     ties = sorted({tuple(k['team']) for k in mine})
     screens = [ln for ln in lines if 'COPPA ITALIA SERIE D' in ln]
+    check(screens and all('COPPA ITALIA SERIE D PRIMO TURNO' in ln for ln in screens),
+          f'the tie screens without the round name (PRIMO TURNO): {[ln[:60] for ln in screens]}', errs)
     return not errs, '; '.join(errs) or (f"{msg}; the club's ties in slot 4: {[tuple(hex(t) for t in x) for x in ties]}, "
                                          f"{len(screens)} cup screens; the cup over (round {rnd})")
 

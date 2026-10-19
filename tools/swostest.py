@@ -1708,6 +1708,18 @@ def zone_colours():
                 leg = [e[1] for e in scr.entries[-5:] if not e[2]]
                 check(leg == leg27, f'{path[1]}: legend {leg}', errs)
                 info.append(f"{path[1]}: {''.join(z[0] for z in got)}, legend {leg}")
+                if path[1] == 'PREMIER LEAGUE':         # a later season: no European colours (the engine decides
+                    import lepatch                      # them only at the season end), the relegation kept
+                    pe = lepatch.LEPatch(os.path.join(w27, 'ITALIAN.EXE'))
+                    m = re.search(rb'\x80\x2d(.{4})\x01\xe8', pe.le.obj_bytes(1), re.S)
+                    sp = pe.target(1, m.start() + 2)[1]
+                    s.poke(s.result.base2 + sp, [1])
+                    s.send('dump:1')
+                    rows, scr = zone_rows(s, 'zones_premier_s2', len(want27))
+                    got = [z for _, z in rows]
+                    leg = [e[1] for e in scr.entries[-5:] if not e[2]]
+                    check(got == ['pl'] * 17 + ['rd'] * 3 and leg == ['RETR'], f'season 2: {got} {leg}', errs)
+                    info.append(f"PREMIER LEAGUE season 2: {''.join(z[0] for z in got)}, legend {leg}")
     return not errs, '; '.join(errs + info) if errs else '; '.join(info)
 
 

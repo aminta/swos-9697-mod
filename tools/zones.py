@@ -66,6 +66,9 @@ RANGES = 8
 LEG = 5                         # legend boxes (the colours a table uses, in place order)
 ENTRY = 1 + NAME + 1 + 3 * RANGES + 1 + 2 * LEG   # world, title, n, ranges, n legend, (colour, label) * LEG = 78
 ENTRY_PAD = 80
+EFLAG = 78                      # 1: a league-phase world's top flight (its European places: season 1 only)
+EU_SEASON1_ONLY = True          # the engine decides a season's European places at its end (uefacoef uc_final):
+                                # from season 2 no European colours (False: always, e.g. once uc_final lags a season)
 LEG_W, LEG_TXT = 30, 8
 FILE = {'it': b'data/zonit', 'en': b'data/zonen', 'fr': b'data/zonfr', 'de': b'data/zonde'}          # a legend box's width (5 small-font characters), its text buffer
 # legend labels (<= 5 characters): top flight of a league-phase world, of a classic world, a lower division
@@ -174,7 +177,7 @@ def table(lang, pack_dirs):
         for world, title, rng, kind in pack_zones(d, lang, _lp_world(metas, w), ranks.get(d)):
             assert (world, title) not in seen, (world, title)
             seen.add((world, title))
-            out.append((world, title, rng, legend(rng, kind)))
+            out.append((world, title, rng, legend(rng, kind), kind, metas.get(world, {}).get('start_year', 1900) - 1900))
     return out
 
 
@@ -214,7 +217,7 @@ def legend(rng, kind):
 
 def blob(rows):
     b = bytearray(struct.pack('<I', len(rows)))
-    for world, title, rng, leg in rows:
+    for world, title, rng, leg, kind, year in rows:
         t = title.encode('latin-1')[:NAME - 1]
         e = bytes([world]) + t + b'\0' * (NAME - len(t)) + bytes([len(rng)])
         for a, z, c in rng:
@@ -222,6 +225,7 @@ def blob(rows):
         e += b'\0' * (1 + NAME + 1 + 3 * RANGES - len(e)) + bytes([len(leg)])
         for c, k in leg:
             e += bytes([LEG_COLOUR.get(c, c), KEYS.index(k)])
+        e += b'\0' * (EFLAG - len(e)) + bytes([1 if kind == 'lp' else 0, year % 256])
         b += e + b'\0' * (ENTRY_PAD - len(e))
     return bytes(b)
 
@@ -327,6 +331,7 @@ WORLD_BYTE
 .nl:
     test edi, edi
     jz .x
+    call zn_eu                          ; bh = 1: no European colours (a later season of a league-phase world)
     movzx eax, word [D7]
     shr eax, 1
     inc eax                             ; the row's place 1..
@@ -339,6 +344,8 @@ WORLD_BYTE
     cmp al, [esi + 1]
     ja .rn
     movzx edx, byte [esi + 2]           ; the zone's colour
+    call zn_iseu
+    je .rn
     mov [D3], dx
     mov esi, [A1]                       ; club (team file record): a computer club's name in the row colour
     cmp byte [esi + 4], 1
@@ -366,26 +373,47 @@ zn_leg:                                 ; edi = the table's entry or 0: the lege
     imul ebx, ecx, 38h
     add ebx, MENU + 16h
     mov dx, [MENU + 16h + 24 * 38h + 16h]
-    xor ecx, ecx
+    push ebx
+    call zn_eu
+    mov [ZEU], bh
+    pop ebx
+    xor ecx, ecx                        ; ecx = box, esi = item
+    xor esi, esi
 .l:
     cmp ecx, LEG_
     jae .o
-    cmp ecx, ebp
+.it:
+    cmp esi, ebp
     jae .h
+    cmp byte [ZEU], 0
+    je .take
+    push edx
+    movzx edx, byte [edi + LEGN_ + 2 + esi * 2]     ; a European label (cl, el, conf, cc, uefa): skip it
+    cmp edx, 4
+    pop edx
+    ja .take
+    inc esi
+    jmp .it
+.take:
     mov word [ebx + 4], 0
     imul eax, ecx, LEG_W_ + 1
     add eax, 8
     mov [ebx + 14h], ax
     mov [ebx + 16h], dx
-    movzx eax, byte [edi + LEGN_ + 1 + ecx * 2]
+    push eax
+    movzx eax, byte [edi + LEGN_ + 1 + esi * 2]
     mov [ebx + 1Eh], ax
-    movzx eax, byte [edi + LEGN_ + 2 + ecx * 2]
+    movzx eax, byte [edi + LEGN_ + 2 + esi * 2]
+    push esi
     push edi
     lea esi, [LABS + eax * 8]
     lea edi, [LEGBUF + ecx * 8]
     movsd
     movsd
     pop edi
+    pop esi
+    pop eax
+    inc esi
     jmp .n
 .h:
     mov word [ebx + 4], 1
@@ -395,6 +423,35 @@ zn_leg:                                 ; edi = the table's entry or 0: the lege
     jmp .l
 .o:
     popad
+    ret
+
+zn_eu:                                  ; edi = the entry (or 0) -> bh = 1 when its European colours are off
+    push eax                            ; (seasonPlaying = the year - 1900: the world's first season = its start year)
+    mov al, bl
+    xor bh, bh
+    test edi, edi
+    jz .r
+    cmp byte [edi + EFLAG_], 0
+    je .r
+SEASON_TEST
+.r:
+    mov bl, al
+    pop eax
+    ret
+
+zn_iseu:                                ; dl = a colour, bh = 1 -> ZF = 1 when it is a European one to drop
+    test bh, bh
+    jz .no
+    cmp dl, 0Dh
+    je .r
+    cmp dl, 0Eh
+    je .r
+    cmp dl, 08h
+    je .r
+.no:
+    or bh, 0                            ; (bh != 0 here or the jz above: ZF = 0)
+    cmp bh, 0FFh
+.r:
     ret
 """
 
@@ -473,20 +530,22 @@ def patch(p, at, area, lang, pack_dirs, bss, bss_len, world=None):
     first = ('    call LP_COL\n' if lp else '    mov ax, [C11]\n')
     src = ASM.replace('FIRST\n', first)
     src = src.replace('LP_SKIP\n', '    call LP_OURS\n    je .x\n' if lp else '')
+    src = src.replace('SEASON_TEST\n', '    mov bl, [SEASONP]\n    cmp bl, [edi + EFLAG_ + 1]\n    je .r\n    mov bh, 1\n'
+                      if world and EU_SEASON1_ONLY else '')
     src = src.replace('WORLD_BYTE\n', '''    cmp word [GAMETYPE], 4
     jne .w
     mov bl, [SLT + 1845]
 .w:
 ''' if world else '')
     sym = {'D3': (2, a0 - 20), 'D7': (2, a0 - 4), 'A1': (2, a0 + 4), 'A5': (2, a0 + 20), 'DIY': (2, diy),
-           **({'C11': c11} if c11 else {}), 'ZHIT': (2, keys), 'ZKEY': (2, keys + 4), 'NAME_': (0, NAME), 'ZENT': (2, zent),
+           **({'C11': c11} if c11 else {}), 'ZHIT': (2, keys), 'ZEU': (2, keys + 47), 'ZKEY': (2, keys + 4), 'NAME_': (0, NAME), 'ZENT': (2, zent),
            'ZFILE': (2, zfile), 'FN_BASE_': (0, len(FILE[lang])), 'BUF': (2, bss), 'BUFLEN_': (0, bss_len),
            'ENTRY_': (0, ENTRY_PAD), 'LEG_': (0, LEG), 'LEG_W_': (0, LEG_W), 'LEGN_': (0, 1 + NAME + 1 + 3 * RANGES),
-           'LABS': (2, labs), 'LEGBUF': (2, legbuf), 'MENU': cur_menu}
+           'LABS': (2, labs), 'EFLAG_': (0, EFLAG), 'LEGBUF': (2, legbuf), 'MENU': cur_menu}
     if lp:
         sym.update({'LP_COL': (1, site + 5 + struct.unpack('<i', cur[1:5])[0]), 'LP_OURS': (1, lp36.LABELS['lp_ours'])})
     if world:
-        sym.update({'GAMETYPE': world['gametype'], 'SLT': world['slt']})
+        sym.update({'GAMETYPE': world['gametype'], 'SLT': world['slt'], 'SEASONP': (2, world['season'])})
     at = (at + 15) & ~15
     code, cfix = nasmcave.assemble(src, at, sym)
     lab = nasmcave.labels(src, at, sym)

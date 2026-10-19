@@ -148,7 +148,9 @@ when the engine lands it.
   place from 24th, UECL 0.125 then 0.25); a bonus for each knockout round reached; **qualifying matches at half
   points** (1.5 / 0.5 a tie); clubs knocked out in qualifying count in their association's divisor; a club's
   coefficient never below **20% of its association's**.
-- Places per association, entry rounds and pots follow the simulated ranking every season.
+- Places per association, entry rounds and pots follow the simulated ranking every season, **a year old as in
+  UEFA's access list**: the 2027/28 places come from the 2026 ranking, the season just played counts from the
+  following one; the clubs' coefficients for the seeding include the season just finished.
 
 *Italian football*
 - **Serie B**: 1st and 2nd promoted directly; **the 3rd is promoted directly if it finishes more than 14 points
@@ -586,7 +588,9 @@ Non una formula uguale per tutti: ogni campionato gioca la stagione come l'ha sc
   classifica** (CL / EL 0,25 a posizione dalla 24ª, UECL 0,125 poi 0,25); un bonus per ogni turno a eliminazione
   raggiunto; **preliminari a punti dimezzati** (1,5 / 0,5 a sfida); i club eliminati nei preliminari contano nel
   divisore della federazione; il coefficiente di un club mai sotto il **20% di quello della sua federazione**.
-- Posti per federazione, turno d'ingresso e fasce seguono il ranking simulato ogni stagione.
+- Posti per federazione, turno d'ingresso e fasce seguono il ranking simulato ogni stagione, **quello dell'anno
+  prima come nella access list UEFA**: i posti 2027/28 vengono dal ranking 2026, la stagione appena giocata conta
+  dalla successiva; i coefficienti dei club per le fasce comprendono la stagione appena finita.
 
 *Calcio italiano*
 - **Serie B**: 1ª e 2ª promosse direttamente; **la 3ª sale direttamente se chiude con più di 14 punti sulla 4ª**,

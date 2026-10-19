@@ -11,6 +11,8 @@ Italy's 14 divisions lost the last four). Three hooks:
   career / Season pick and the VIEW WORLD one): a level number opens the level: the country pushed on the menu's
   country's competition list rebuilt at the same menu depth (cseg_4B500, D7 = the country, isCountryNumber 0: a
   push would make the game take it for a division's team list), filtered to the level;
+  the header's country name (curCountryStr, set again by every rebuild's GetCountryName) becomes '<country>
+  <level>', or '<level>' (cut) when the header's 40 characters have no room (SELEZ. SQ. DA DIRIGERE - ITALIA SERIE D);
 - ml_esc (@@no_league_selected, ESCI) with a level open at this depth: closes it, the levels again;
 - ml_load (@@load_team, the career's team choice: leagueNumber = the entry's index): the number from the table
   (a level opens; a cup keeps the index);
@@ -59,6 +61,54 @@ ml_list:                                ; A1 = a league struct, its divisions ab
     movzx edx, byte [LVL]
     lea esi, [esi + 2 * edx]
     lea esi, [esi + 4 * edx]
+    push esi                            ; the title in the header's country slot (a menu entry shows 40
+    push ebp
+    mov ebp, [esi + 2]                  ; characters): '<country> <level>' if it fits, else '<level>' (cut)
+    mov esi, [HDR1]
+    or esi, esi
+    jnz .h
+    mov esi, DEFHDR
+.h:
+    call slen
+    mov ebx, eax
+    mov esi, [GTS]
+    or esi, esi
+    jz .h2
+    call slen
+    add ebx, eax
+.h2:
+    mov eax, 37                         ; 40 - ' - '
+    sub eax, ebx
+    jle .tdone
+    mov ebx, eax                        ; ebx = room
+    mov esi, [CURCOUNTRY]
+    call slen
+    mov ecx, eax
+    mov esi, ebp
+    call slen
+    mov edx, eax
+    mov edi, TITLE
+    lea eax, [ecx + edx + 1]
+    cmp eax, ebx
+    ja .lonly
+    mov esi, [CURCOUNTRY]
+    rep movsb
+    mov al, ' '
+    stosb
+    jmp .lev
+.lonly:
+    cmp edx, ebx
+    jbe .lev
+    mov edx, ebx
+.lev:
+    mov esi, ebp
+    mov ecx, edx
+    rep movsb
+    mov byte [edi], 0
+    mov dword [CURCOUNTRY], TITLE
+.tdone:
+    pop ebp
+    pop esi
     movzx ebx, byte [esi]
     movzx ecx, byte [esi + 1]
 .g:
@@ -95,6 +145,16 @@ ml_list:                                ; A1 = a league struct, its divisions ab
     movzx eax, byte [eax + 9]
     mov [NUMLEAGUES], ax
     jmp CUR_NEXT
+
+slen:                                   ; esi = a string -> eax = its length
+    xor eax, eax
+.l:
+    cmp byte [esi + eax], 0
+    je .x
+    inc eax
+    jmp .l
+.x:
+    ret
 
 emit_div:                               ; ebx = division: its name as the game's loop takes it
     mov eax, [A1]
@@ -195,6 +255,7 @@ LVL_LAST: dd 0
 LVL_STRUCT: dd 0
 LVL_DEPTH: dd 0
 LVL_COUNTRY: dd 0
+TITLE: times 52 db 0
 LV_TAB: LV_BYTES
     dd 0
 '''
@@ -276,6 +337,17 @@ def _sites(p):
     pushc, setsel, rebuild = rel(0), rel(5), rel(31)
     iscn, cn = p.target(1, k + 13), p.target(1, k + 27)
     csp = p.target(1, pushc + 1)
+    a0 = re.escape(struct.pack('<I', A0))
+    m = re.search(rb'\xa1(.{4})\xa3' + a0 + rb'\x83\x3d' + a0 + rb'\x00\x75.\xc7\x05' + a0 + rb'(.{4})', d1, re.S)
+    hdr1, defhdr = p.target(1, m.start(1)), p.target(1, m.start(2))    # SelectTeamsReinit: the header's first part
+    k = m.end()
+    m = re.search(rb'\xa1(.{4})\xa3' + a0 + rb'\x83\x3d' + a0 + rb'\x00\x74', d1[k:k + 0x60], re.S)
+    gts = p.target(1, k + m.start(1))                            # ... then gameTypeStr
+    gcn = rebuild + d1[rebuild:rebuild + 0x40].find(b'\xe8')    # cseg_4B500's first call: GetCountryName
+    gcn = gcn + 5 + struct.unpack_from('<i', d1, gcn + 1)[0]
+    k = d1.find(b'\xc3', gcn, gcn + 0x60)                         # ... mov [curCountryStr], eax; retn
+    assert d1[k - 5] == 0xa3, d1[gcn:k + 1].hex()
+    curcountry = p.target(1, k - 4)
     m = list(re.finditer(rb'\x66\xc7\x05(.{4})\x00\x00\xc7\x05' + pk(A0) + rb'(.{4})\x8b\x35' + pk(A0) + rb'\xc6\x46\x09\x03',
                          d1, re.S))
     assert len(m) == 1, len(m)
@@ -289,7 +361,7 @@ def _sites(p):
     assert len(m) == 1, len(m)
     esc, numsel = m[0].start(), p.target(1, m[0].start(1))    # @@no_league_selected: mov ax, [numSelectedTeams]
     return dict(loop=loop, divtab=divtab, numl=numl, cur_next=cur_next, no_more=no_more, picks=sorted(picks), pushc=pushc, setsel=setsel,
-                rebuild=rebuild, iscn=iscn, cn=cn, csp=csp, reset=reset, leaguenum=leaguenum, load=load, esc=esc, numsel=numsel,
+                rebuild=rebuild, iscn=iscn, cn=cn, csp=csp, reset=reset, leaguenum=leaguenum, load=load, esc=esc, numsel=numsel, curcountry=curcountry, hdr1=hdr1, defhdr=defhdr, gts=gts,
                 regs=dict(D0=D0, D1=D1, D6=D6, A1=A1, A2=A2, A3=A3, A4=A4))
 
 
@@ -317,7 +389,8 @@ def patch(p, at, area, lang):
                 'BACK1': (1, s['picks'][0] + 6), 'BACK2': (1, s['picks'][1] + 6), 'PUSHC': (1, s['pushc']),
                 'SETSEL': (1, s['setsel']), 'REBUILD': (1, s['rebuild']), 'BACK3': (1, s['load'] + 12),
                 'NUMS': (2, menutab.NEW[1]), 'D7': (2, s['regs']['D6'] + 4), 'NUMSEL': s['numsel'],
-                'ESC_BACK': (1, s['esc'] + 6)})
+                'ESC_BACK': (1, s['esc'] + 6), 'CURCOUNTRY': s['curcountry'], 'HDR1': s['hdr1'],
+                'DEFHDR': s['defhdr'], 'GTS': s['gts']})
     body = []
     for k, ((obj, off), levels, rows) in enumerate(lv):
         sym[f'S{k}'] = (obj, off)

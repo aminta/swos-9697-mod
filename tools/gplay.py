@@ -744,6 +744,19 @@ gp_adv:                                 ; replaces the 4 `call cseg_8EA82` (the 
     popad
     jmp C8EA82
 
+gp_defer:                               ; 4.0's ba_<name> (split's after_stage, inside the league's match-day
+    pushad                              ; processing: DIY holds the league, slot 4 can't be built there): play-off
+    mov al, [SEASONPLAYING]             ; GP_BPI pending from week GP_BWEEK, built by gp_adv at the calendar advance
+    mov [GP_SEAS], al
+    mov eax, [GP_BPI]
+    mov [GP_BPIC], eax
+    mov eax, [GP_BWEEK]
+    mov [GP_WK], eax
+    mov eax, gp_defer_c
+    call gp_c
+    popad
+    ret
+
 gp_ssim:                                ; replaces `call cseg_915ED` (a division simulated at the season end; after
     call GP_SSIM_NEXT                   ; dplay's dp_ssim): a division simulated early for the career club's
     pushad                              ; play-off gets that simulation's results back (gp_restore)
@@ -1142,7 +1155,8 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
     symbols.update({f'EUW{i}': (2, a) for i, a in enumerate(sk['euw'])})
     symbols.update({'DA11B': (2, sk['da11b']), 'GETSEASON': (1, sk['getseason']), 'SEASREC': (2, sk['seasrec'])})
     symbols.update({k: syms[k] for k in ('GP_CFB', 'GP_LG', 'GP_RST', 'GP_RIT', 'GP_SEL', 'GP_MGR', 'GP_WORLD', 'GP_SLT',
-                                         'gp_sack_c', 'gp_forcecfb', 'gp_pwin_c', 'gp_adv_c', 'GP_WK', 'GP_TH')})
+                                         'gp_sack_c', 'gp_forcecfb', 'gp_pwin_c', 'gp_adv_c', 'GP_WK', 'GP_TH',
+                                         'gp_defer_c')})
     symbols['FORCE_ON'] = (0, int(bool(force)))
     rec_dp = p.get(1, ps['rec'], 1) == b'\xe8'                # dplay's `call dp_rec; nop` there, or the game's mov
     symbols['GP_REC_NEXT'] = (1, tgt(ps['rec'])) if rec_dp else (0, 0)
@@ -1152,7 +1166,9 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
             assert after.setdefault(name, i) == i, f'build_after {name}: two play-off indices'
     symbols['SP_WEEK'] = (2, split.sites(p)['WEEK'])
     stubs = ''.join(f'ba_{name}:\n    mov dword [GP_BPI], {i}\n    movzx eax, byte [SP_WEEK]\n'
-                    f'    mov [GP_BWEEK], eax\n    jmp gp_build\n' for name, i in sorted(after.items()))
+                    f'    mov [GP_BWEEK], eax\n    jmp gp_defer\n' for name, i in sorted(after.items()))
+                                                            # (deferred to the calendar advance, gp_adv: after_stage
+                                                            # runs inside the league's match day, DIY = the league)
     asm = (ASM.replace('jmp GP_REC_NEXT', 'jmp GP_REC_NEXT' if rec_dp else 'jmp gp_recmov') + tab_src + '\n'
            + names_lines(tables, area, lang) + '\n' + stubs)
     glue = (cend + 15) & ~15

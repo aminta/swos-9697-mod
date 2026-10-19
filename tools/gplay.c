@@ -1091,6 +1091,10 @@ u32 gp_perm_c(void) {
 
 /* a decisive match of ours (GP_A v GP_B, GP_W = 1: the second won): its pair's winner */
 
+void gp_defer_c(void) {                 /* (gp_defer: play-off GP_BPIC built at the calendar advance from week GP_WK on) */
+    set_pend(GP_BPIC + 1, GP_WK);
+}
+
 /* the calendar advance (gp_adv, cseg_8EA82's callers): a pending 'then_build' due -> its play-off index + 1 (then
    gp_build with GP_BWEEK = this week), else 0 */
 u32 gp_adv_c(void) {

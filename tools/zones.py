@@ -745,10 +745,8 @@ def patch(p, at, area, lang, pack_dirs, bss, bss_len, world=None):
     import fmtpage
     import gplay
     ov = 'on' in fmtpage.OV and 'GP_OV_ANNUAL' in gplay.LABELS
-    src = src.replace('OV_ROW\n', '''    cmp byte [OV_ON], 0                 ; 4.0 the overall table in its annual form (Argentina): the last relegated
-    je .o
-    cmp dword [GP_OV_ANNUAL], 0
-    je .o
+    src = src.replace('OV_ROW\n', '''    cmp byte [OV_ON], 2                 ; 4.0 the overall table in its annual form (Argentina): the last relegated
+    jne .o
     cmp eax, [GP_OV_N]
     jne .o
     mov edx, RED_
@@ -756,7 +754,7 @@ def patch(p, at, area, lang, pack_dirs, bss, bss_len, world=None):
 .o:
 ''' if ov else '')
     if ov:
-        sym.update({'OV_ON': (2, fmtpage.OV['on']), 'GP_OV_ANNUAL': gplay.LABELS['GP_OV_ANNUAL'],
+        sym.update({'OV_ON': (2, fmtpage.OV['on']),
                     'GP_OV_N': gplay.LABELS['GP_OV_N'], 'RED_': (0, RED)})
     if rt:
         zal = area.add(rank_colours())

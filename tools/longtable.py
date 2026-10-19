@@ -139,11 +139,24 @@ lt_ov:                                  ; (OnRestore) STAT > CLASSIFICA GENERALE
     cmp dword [GP_OV_N], 0
     je .x
     mov byte [OV_ON], 1
-    mov esi, OV_SHIELD                  ; the title: the annual table (Argentina) or the Supporters' Shield (MLS)
-    cmp dword [GP_OV_ANNUAL], 0
-    je .t
-    mov esi, OV_ANNUAL
-.t: mov [MENU_ + 16h + 26h], esi        ; entry 0's text: the unpacked menu's pointer only (the competition's own
+    mov esi, OV_ANNUAL                  ; the title: the annual table (Argentina: the Apertura added, or this
+    cmp dword [GP_OV_ANNUAL], 0         ; season's first stage itself while it is played) or the Supporters' Shield
+    jne .t
+    mov edi, [esp + 4]                  ; (pushad's esi: DIY) the competition's name = the annual league's?
+    add edi, 4
+    mov ebx, OV_KEY
+.k: mov al, [edi]
+    cmp al, [ebx]
+    jne .s
+    inc edi
+    inc ebx
+    test al, al
+    jnz .k
+    jmp .t
+.s: mov esi, OV_SHIELD
+    jmp .u
+.t: mov byte [OV_ON], 2                 ; (2: the annual table, zones.py grays its last place)
+.u: mov [MENU_ + 16h + 26h], esi        ; entry 0's text: the unpacked menu's pointer only (the competition's own
 .x: popad                               ; name is left as it is; the next unpack restores it)
     ret
 
@@ -222,7 +235,7 @@ def patch(p, at, area=None, lang='it'):
                     'GP_OV_N': gplay.LABELS['GP_OV_N'], 'GP_OV_ANNUAL': gplay.LABELS['GP_OV_ANNUAL'],
                     'SELTEAMS': (2, split.sites(p)['SELTEAMS']), 'MENU_': zones._current_menu(p),
                     'A6': (2, a0 + 24), 'A4': (2, a0 + 16), 'APN_': (0, apn()),
-                    'OV_ANNUAL': (2, area.add(t1 + b'\0')), 'OV_SHIELD': (2, area.add(t2 + b'\0'))})
+                    'OV_KEY': (2, area.add(annual_key(lang) + b'\0')), 'OV_ANNUAL': (2, area.add(t1 + b'\0')), 'OV_SHIELD': (2, area.add(t2 + b'\0'))})
     init = 0x483D2 - B                                                      # DIYLeagueTournamentInit: mov currentDiyLine, 0
     init = _find(d1, rb'\x66\xc7\x05....\x00\x00\x66\xc7\x05....\x00\x00\xe8', init - 0x40, 0x80)
     assert p.target(1, init + 3) == p.target(1, curline + 2), 'Init clears currentDiyLine'
@@ -259,6 +272,20 @@ def patch(p, at, area=None, lang='it'):
           (f'; overall tables: Init obj1+{init:#x}, Apertura {apn()} days)' if ov else
            f'; no overall tables: flag {fmtpage.OV.get("flag")}, gp_overall {"gp_overall" in gplay.LABELS})'))
     return at + len(code)
+
+
+def annual_key(lang):
+    """The annual-table league's competition name as the table holds it (DIY+4: zones.py's key), b'' without one."""
+    import mkseason
+    import zones
+    for pk in mkseason.packs():
+        for d, dv in enumerate(pk.divisions()):
+            lg = pk.league or {}
+            sp = dv.get('split') or (lg.get('split') if d == 0 else None)
+            if sp and any(s.get('annual') for s in sp.get('stages') or []):
+                ent = [e for e in zones.pack_zones(pk.path, lang) if e[0] == (pk.world or 0)]
+                return ent[d][1].encode('latin-1') if d < len(ent) else b''
+    return b''
 
 
 def apn():

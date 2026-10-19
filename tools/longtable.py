@@ -115,13 +115,27 @@ def patch(p, at):
     import lp36
     d1 = p.le.obj_bytes(1)
     a0 = lp36._sites(p)['A0']                     # the pseudo registers: Dn = A0 - 32 + 4n
-    B = 0x101AC                         # (ref/swos.asm cseg_XXXXX labels = obj1 offset + B)
+    d5 = a0 - 12
+    # the row loop (BeforeDraw): `mov ax, [esi+51h]; cmp [D5], ax; jbe cseg_498FA`, cseg_498FA right after
+    # `mov word [D5], 1` - found anywhere: its distance from the IT layout (ref/swos.asm labels = obj1 offset + B)
+    # moves every other site of this language's exe (EN / FR: the code shifted)
+    import re
+    loop = []
+    for x in re.finditer(rb'\x66\x8b\x46\x51\x66\x39\x05' + re.escape(struct.pack('<I', d5)) + rb'\x0f\x86', d1):
+        t = x.end() + 4 + struct.unpack_from('<i', d1, x.end())[0]
+        if d1[t - 9:t - 6] == b'\x66\xc7\x05' and d1[t - 2:t] == b'\x01\x00':
+            loop.append((x.start(), t - 9))
+    assert len(loop) == 1, loop
+    B = 0x101AC                         # (ref/swos.asm cseg_XXXXX labels = obj1 offset + B, Italian exe)
+    sh = loop[0][1] - (0x498FA - B - 9)                                     # (this exe's shift from the Italian one)
+    B -= sh
     h1 = _find(d1, rb'\x66\x8b\x46\x51\x66\xa3', 0x4882A - B, 0x80)          # OnRestore: D3 = rows x height
     h2 = 0x498FA - B - 9                                                    # BeforeDraw: mov D5, 1 / cseg_498FA:
     h3 = _find(d1, rb'\x66\x8b\x46\x51\x66\x39\x05', 0x49B65 - B, 0x400)    # the loop's end
     h4 = _find(d1, rb'\x66\xa1....\x66\x39\x05....\x73', 0x49E7A - B, 0x80)  # ScrollDown: mov ax, groups / cmp D0, ax
     h5 = _find(d1, rb'\x66\x8b\x46\x4f\x66\xa3....\x66\x0b\xc0\x66\xa1....\x66\x39\x05....\x75',
                0x48A13 - B, 0x100) + 13                                     # OnRestore: the arrows (entries 40, 41)
+    assert (h3, h2) == loop[0], (hex(h3), hex(h2), loop)
     assert d1[h2:h2 + 3] == b'\x66\xc7\x05' and d1[h2 + 7:h2 + 9] == b'\x01\x00', d1[h2:h2 + 9].hex()
     assert d1[h3 + 11:h3 + 13] == b'\x0f\x86'
     j = h3 + 11
@@ -130,7 +144,7 @@ def patch(p, at):
     assert d1[mode:mode + 2] == b'\x66\xa1'
     curline = h4 - 25                                                       # ScrollDown: mov ax, currentDiyLine
     assert d1[curline:curline + 2] == b'\x66\xa1', d1[curline:curline + 8].hex()
-    d0, d3, d5, d7 = a0 - 32, a0 - 20, a0 - 12, a0 - 4
+    d0, d3, d7 = a0 - 32, a0 - 20, a0 - 4
     assert p.target(1, h2 + 3) == (2, d5) and p.target(1, h3 + 7) == (2, d5) and p.target(1, h1 + 6) == (2, d3)
     assert p.target(1, h4 + 9) == (2, d0) and p.target(1, h5 + 9) == (2, d0)
     sym = {'D0': (2, d0), 'D3': (2, d3), 'D5': (2, d5), 'D7': (2, d7), 'DIY': (2, lp36._sites(p)['DIY']),

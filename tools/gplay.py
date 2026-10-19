@@ -32,7 +32,9 @@ pack.json league "ko_playoffs": [{ "key", "names": {lang: [long, short]},
           "title" (the champion = the last tie's winner, or the final group's 1st) | "continental" (its winner and
           runner-up take the continental places; the champion stays the table's 1st),
   "entrants": [[div, place] | {"div": d, "best_without_europe": true} | {"league_cup_winner": true, "if_places": [a, b]}
-               | {"stage_place": s, "place": a, "div": d} (place a of split stage s's kept table, e.g. an Apertura)],
+               | {"stage_place": s, "place": a, "div": d} (place a of split stage s's kept table, e.g. an Apertura)
+               | {"split_seed": k, "stage": s, "div": d} (Malta: seed k 1..4 of the title decider of kept stage s and
+                 the final table, for a 1v4 / 2v3 / final bracket with skip_if_same; gplay.c split_seed)],
   "rounds": [{"ties": [[a, b], ...] | (with "pairing": "best_worst", "clubs": [...]), "legs": 1 | 2,
               "series": 3 (best of three single matches, games 1 and 3 at the better placed's; not the last round),
               "pairing": "draw" + "clubs" (the clubs drawn into ties; a club {"best_of": [P..]}: the best of those
@@ -91,6 +93,11 @@ def compile_spec(pos, ndiv):
                 if not (0 <= d < ndiv and (0 <= s < 2 or 4 <= s < 7) and a >= 1):   # (4..6: GP_SS)
                     raise ValueError(f'{key}: entrant {e}')
                 ents.append((3, d, a, s))
+            elif isinstance(e, dict) and 'split_seed' in e:   # 4.0 MLT: seed k of the title decider (gplay.c
+                d, s_, k = e.get('div', 0), e.get('stage', 0), e['split_seed']   # split_seed: kept stage s, final table)
+                if not (0 <= d < ndiv and 0 <= s_ < 2 and 1 <= k <= 4):
+                    raise ValueError(f'{key}: entrant {e}')
+                ents.append((6, d, k, s_))
             elif isinstance(e, dict) and e.get('loser_of_previous'):   # the play-off before's final loser
                 ents.append((4, 0, 0, 0))
             elif isinstance(e, dict) and 'stage_title' in e:   # 4.0 ARG: the Trofeo's finalists from the stage titles

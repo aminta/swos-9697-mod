@@ -4257,7 +4257,12 @@ def world_gplay_reserve_out():
     return world_gplay_reserve('17')
 
 
-TITLE_TEAMS = {'can': 'NORDAMERICA,CANADA,FORGE',
+TITLE_MLT = [   # Malta 2026-27 (MFA competition rules; the data session's formats_data.KO_TITLE once applied): the title
+    {'key': 'final_four', 'names': {'*': ['PREMIER LEAGUE FINAL FOUR', 'FINAL FOUR']}, 'kind': 'title',   # decider of
+     'entrants': [{'split_seed': k, 'stage': 0} for k in (1, 2, 3, 4)],   # the Opening (kept) and Closing Rounds:
+     'rounds': [{'ties': [[0, 3], [1, 2]], 'legs': 1, 'host': 'neutral', 'level': 'et_pens', 'skip_if_same': True},
+                {'ties': [['W0', 'W1']], 'legs': 1, 'host': 'neutral', 'level': 'et_pens', 'skip_if_same': True}]}]
+TITLE_TEAMS = {'can': 'NORDAMERICA,CANADA,FORGE', 'mlt': 'EUROPA,MALTA,HAMRUN SPARTANS',
                'aus': 'ASIA,AUSTRALIA,A-LEAGUE MEN,NEWCASTLE',
                'crc': 'NORDAMERICA,COSTA RICA,SAPRISSA'}
 
@@ -4277,14 +4282,16 @@ def world_title(code, force='3'):
         return True, f'SKIP: private data {src} / formats_data.py missing'
     sys.path.insert(0, fd)
     import formats_data
-    spec = formats_data.KO_TITLE[code.upper()]
-    exe = os.environ.get('TITLE_BUILD')
+    ko_title = dict(formats_data.KO_TITLE, **({} if 'MLT' in formats_data.KO_TITLE else {'MLT': TITLE_MLT}))
+    spec = ko_title[code.upper()]
+    benv = 'TITLE_BUILD' + ('' if force == '3' else force)
+    exe = os.environ.get(benv)
     if not exe:
         w = os.path.join(WORK, 'world_title')
         shutil.rmtree(w, ignore_errors=True)
         shutil.copytree(src, os.path.join(w, 'world5tm'))
         order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
-        for c, sp in formats_data.KO_TITLE.items():
+        for c, sp in ko_title.items():
             f = os.path.join(w, 'world5tm', c.lower(), 'pack.json')
             if not os.path.exists(f):
                 continue
@@ -4295,7 +4302,7 @@ def world_title(code, force='3'):
         env = {'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(w, 'world5tm', x) for x in order]),
                'GPLAY_FORCE': force}
         exe = build('world_title_' + force, env=env)
-        os.environ['TITLE_BUILD'] = exe                 # (the next country reuses it)
+        os.environ[benv] = exe                          # (the next country reuses it)
     log_at, st_at, log_n, st_n = gp_ptrs(exe)
     keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K',
                                             'W8485_NOSACK', 'W8485_HEX', 'W8485_ONE')}
@@ -4318,10 +4325,16 @@ def world_title(code, force='3'):
     errs = []
     check(ok, msg, errs)
     sts = [b for b in hexes.get(st_at, []) if b[:2] == b'GK']
+    logs = [b for b in hexes.get(log_at, []) if b[:4] == b'GPLG']
+    if not sts and code == 'mlt' and logs:              # (one club won both rounds: champion, nothing to play)
+        lg = logs[-1]
+        res = [struct.unpack_from('<BBHHHH', lg, 682 + 4 + 8 * 32 + 10 * i) for i in range(min(lg[683], 4))]
+        titles = [r for r in res if r[0] == 5]
+        check(len(titles) == 1, f'no match played and champions {titles}', errs)
+        return not errs, '; '.join(errs) or f'{msg}; one club won both rounds: champion {titles[0][2]:#x}, no match'
     if not sts:
         return False, f'{msg}; the title play-off never ran (no GP_ST seen)'
     run = [gp_ko(b[GP_STKO:]) for b in sts]
-    logs = [b for b in hexes.get(log_at, []) if b[:4] == b'GPLG']
     if not logs:
         return False, f'{msg}; no season-end log (GP_LOG); last state {run[-1]}'
     lg = logs[-1]
@@ -4356,6 +4369,52 @@ def world_title_aus():
     """world_title: the A-League finals series (elimination finals 3v6 / 4v5, semis 1st / 2nd v the lowest / highest
     survivor two legs, the Grand Final at the better placed's)"""
     return world_title('aus')
+
+
+@scenario
+def world_title_mlt():
+    """world_title: Malta's title decider (the Opening Round's kept table and the Closing Round's: one winner of both
+    = champion; the Finalissima; three clubs; the Final Four by aggregate points; gplay split_seed), the club forced
+    1st of the Closing Round (TITLE_BUILD1)"""
+    return world_title('mlt', '1')
+
+
+@scenario
+def gplay_split_seed():
+    """gplay.c split_seed (Malta 2026-27's title decider) compiled on the host (cc), its four cases: one winner of
+    both rounds (4 x it: no match), the Finalissima (Opening / Closing 1st-2nd in reverse, or one club 2nd in both:
+    seeds A B B A by aggregate points), three clubs (the one 1st and 2nd straight to the final: seeds 1 and 4), the
+    Final Four by aggregate points"""
+    import subprocess
+    import tempfile
+    test = r"""
+#include "%s"
+#include <stdio.h>
+const unsigned char GP_PROM_TAB[256];
+static int cp[12] = {30,28,26,24,22,20,18,16,14,12,10,8}, op[12] = {35,30,25,20,15,12,10,8,6,4,2,1};
+static void run(const char *open) {         /* the Closing table A..L in order; the Opening's order */
+    GP_IN.nd = 1; GP_IN.n[0] = 12; GP_IN.nst[0] = 12;
+    for (int i = 0; i < 12; i++) {
+        GP_IN.t[0][i].glob = 100 + i; GP_IN.t[0][i].team = i; GP_IN.t[0][i].pts = cp[i];
+        GP_IN.st[0][i].glob = 100 + open[i] - 'A'; GP_IN.st[0][i].pts = op[i];
+    }
+    for (int a = 1; a <= 4; a++) { int c = split_seed(0, 0, a); putchar(c < 0 ? '-' : 'A' + GP_IN.t[0][c].team); }
+    putchar(' ');
+}
+int main(void) {
+    run("ACBDEFGHIJKL"); run("BACDEFGHIJKL"); run("CBDEFGHIJKLA"); run("BCDEFGHIJKLA"); run("CDABEFGHIJKL");
+    return 0;
+}
+""" % os.path.join(ROOT, 'tools', 'gplay.c')
+    want = 'AAAA BAAB CAAC BCAB CADB'    # (aggregates: B 63 / A 60; C 61 / A 60; C 56 / A 31; C 61 A 55 D 54 B 48)
+    with tempfile.TemporaryDirectory() as d:
+        open(os.path.join(d, 't.c'), 'w').write(test)
+        r = subprocess.run(['cc', '-w', '-o', os.path.join(d, 't'), os.path.join(d, 't.c')], capture_output=True,
+                           text=True)
+        if r.returncode:
+            return False, f'cc: {r.stderr[:300]}'
+        got = subprocess.run([os.path.join(d, 't')], capture_output=True, text=True).stdout.strip()
+    return got == want, f'seeds {got} (expected {want})'
 
 
 @scenario

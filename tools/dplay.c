@@ -261,6 +261,25 @@ static int force_place(int m) {        /* (DP_FORCE 1..20: Serie B place; 101..1
     return DP_FORCE - 1;
 }
 
+/* test builds: the league's own final table too (competitionFileBuffer at DP_CFB, at the league end before dp_rows):
+   the career club's row and the forced place's swap their figures and places (as gplay's gp_forcecfb), so the game's
+   own moves see the forced place. Without it a club really 18th-20th, forced 17th, went down twice (the game's direct
+   relegation + the play-out loser's move) and the real 17th stayed up: one relegation lost, swostest world_dplay_out
+   trapped in cseg_3283C a season later (Serie B 21, a Serie C group 19) */
+u8 *DP_CFB;
+void dp_forcecfb(void) {
+    u8 *d = DP_CFB;
+    int n = *(u16 *)(d + 0x31), m = -1, k = DP_FORCE > 100 ? DP_FORCE - 100 : DP_FORCE;
+    if (!DP_FORCE || (DP_FORCE > 100) != (DP_IN.mdiv > 0) || k > n) return;
+    for (int j = 0; j < n; j++)
+        if (*(u16 *)(d + 0x12D + 2 * (*(u16 *)(d + 0x6D + 2 * j) / 0x12)) == DP_IN.mgr) m = j;
+    if (m < 0 || m == k - 1) return;
+    u16 *pa = (u16 *)(d + 0x6D + 2 * m), *pb = (u16 *)(d + 0x6D + 2 * (k - 1));
+    u16 *ra = (u16 *)(d + *pa + 0x2B7), *rb = (u16 *)(d + *pb + 0x2B7), x;
+    for (int i = 0; i < 7; i++) { x = ra[i]; ra[i] = rb[i]; rb[i] = x; }
+    x = *pa; *pa = *pb; *pb = x;
+}
+
 void dp_season(void) {
     u32 h = 0;
     for (int d = 0; d < NDIV; d++)      /* the seed: the tables (a save gives the same results) */

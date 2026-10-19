@@ -3454,9 +3454,10 @@ def world_groups():
     import collections
     import json
     import shutil
-    src = os.path.join(MAIN, 'internal', 'world2526', 'world5tm')
+    src = (os.environ.get('W2627G_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-formats')).rstrip('/')
+                                     # (a snapshot with Italy in 5 divisions: world5tm's has 14, 'parallel' a list)
     if not os.path.isdir(src):
-        return True, 'SKIP: private data internal/world2526/world5tm missing'
+        return True, f'SKIP: private data {src} missing'
     w = os.path.join(WORK, 'world_groups')
     shutil.rmtree(w, ignore_errors=True)
     shutil.copytree(src, os.path.join(w, 'world5tm'))
@@ -3529,9 +3530,10 @@ def world_playoffs():
     import collections
     import json
     import shutil
-    src = os.path.join(MAIN, 'internal', 'world2526', 'world5tm')
+    src = (os.environ.get('W2627G_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-formats')).rstrip('/')
+                                     # (a snapshot with Italy in 5 divisions: world5tm's has 14, 'parallel' a list)
     if not os.path.isdir(src):
-        return True, 'SKIP: private data internal/world2526/world5tm missing'
+        return True, f'SKIP: private data {src} missing'
     w = os.path.join(WORK, 'world_playoffs')
     shutil.rmtree(w, ignore_errors=True)
     shutil.copytree(src, os.path.join(w, 'world5tm'))
@@ -3598,16 +3600,17 @@ def world_playoffs():
 @scenario
 def world_dplay_b(force='5', team='EUROPA,ITALIA,SERIE B,MODENA'):
     """The career club's Serie B play-off, played (dplay step 2): the world 2026-27 (private data internal/world2526/
-    world5tm, 'playoffs': 'ita') built with DPLAY_FORCE=5 (at the league end the career club takes 5th place); a
-    season at MODENA: the PLAY-OFF SERIE B contest is built in slot 4 after the last league day and played to its
-    end (the season log in W84A.CAR: kind 1, the 6 clubs with MODENA 5th in the order 5th 8th 6th 7th 3rd 4th, a
-    winner among them), and that winner is the club Serie B sends up besides the first two"""
-    src = os.path.join(MAIN, 'internal', 'world2526', 'world5tm')
+    world5tm, 'playoffs': 'ita'; W2627D_DATA: another snapshot) built with DPLAY_FORCE=5 (at the league end the
+    career club takes 5th place); a season at MODENA: the PLAY-OFF SERIE B contest is built in slot 4 after the last
+    league day and played to its end (the season log in W84A.CAR: kind 1, the 6 clubs with MODENA 5th in the order 5th
+    8th 6th 7th 3rd 4th, a winner among them), and that winner is the club Serie B sends up besides the first two"""
+    src = (os.environ.get('W2627D_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm')).rstrip('/')
     if not os.path.isdir(src):
         return True, 'SKIP: private data internal/world2526/world5tm missing'
     order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
     env = {'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]), 'DPLAY_FORCE': force}
-    exe = build('world_dplay_' + force, env=env)
+    exe = build('world_dplay_' + force + ('_' + os.path.basename(src) if os.environ.get('W2627D_DATA') else ''),
+                env=env)                                     # (another snapshot: its own build dir)
     keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K',
                                             'W8485_NOSACK', 'W8485_HEX')}
     os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=team,

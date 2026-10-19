@@ -233,6 +233,19 @@ dp_lend:                                ; replaces `call cseg_8ECAE` (the career
     mov [DP_IN], cl                     ; (ng)
     mov byte [DP_ST + SV_SG], 0
     mov byte [DP_ST + SV_SG + 1], 0
+%if DP_FORCE_ON
+    pushad                              ; (DPLAY_FORCE test builds: the league's own table too, before its rows)
+    mov ax, [CAREERTEAM]
+    mov [DP_IN + O_MGR], ax
+    mov dword [DP_CFBP], CFB
+    push es
+    push ds
+    pop es
+    cld
+    call dp_forcecfb_c
+    pop es
+    popad
+%endif
     push esi
     mov ebp, CFB
     call dp_rows                        ; its own final table
@@ -794,7 +807,8 @@ def patch(p, at, limit, tables, bss_at, area):
     tab_src, tab_syms = table_lines(tables)
     symbols = {k: (0, v) for k, v in lay.items()}
     symbols.update({'NDIV': (0, 5), 'DP_IN': syms['DP_IN'], 'DP_OUTB': syms['DP_OUT'], 'dp_season': syms['dp_season'],
-                    'dp_lend_c': syms['dp_lend'], 'DP_SVP': syms['DP_SVP'], 'A0R': (2, r['A0']), 'A1R': (2, r['A0'] + 4), 'A2R': (2, r['A0'] + 8),
+                    'dp_lend_c': syms['dp_lend'], 'DP_SVP': syms['DP_SVP'], 'DP_FORCE_ON': (0, int(bool(force))),
+                    'DP_CFBP': syms['DP_CFB'], 'dp_forcecfb_c': syms['dp_forcecfb'], 'A0R': (2, r['A0']), 'A1R': (2, r['A0'] + 4), 'A2R': (2, r['A0'] + 8),
                     'A4R': (2, r['A0'] + 16), 'D7R': (2, r['D7']), 'D0R': (2, r['A0'] - 32), 'D1R': (2, r['A0'] - 28),
                     'D2R': (2, r['A0'] - 24), 'SLT': s['slt'], 'SLTCOPY': s['sltcopy'],
                     'WORLD_BYTE': (0, careerworld.WORLD_BYTE), 'DIY': (2, diy), 'NCW': (2, diy), 'SELTEAMS': (2, sel),

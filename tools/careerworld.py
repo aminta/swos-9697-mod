@@ -2031,7 +2031,26 @@ w_loadcopy:                             ; trailer LOADCOPY: LoadCareerFile read 
 %endif
     call w_setbase
     mov eax, [SELBASEV]                 ; the fixed part holds selTeamsPtr (careerFileBuffer + 0x1739C) as an absolute
-    mov [SELPTR], eax                   ; address: a save of another layout / obj2 base (3.3.x on 4.0) points elsewhere
+    mov [SELPTR], eax                   ; address: a save of another layout / obj2 base (3.3.x on 4.0) points elsewhere;
+    mov edx, [STAGE + 1739Ch]           ; the competitions (careerFileBuffer + 0xF77E .. + 0x16ABC: the 5 buffers of
+    mov esi, CAREER + 0F77Eh            ; ProcessCareerFile's arrayOfPointers) keep each club as an offset from it:
+    mov ecx, 16ABCh - 0F77Eh            ; careerTeam's (the player's club) is negative and moves with the cache ->
+.ct:                                    ; any dword that the save's selTeamsPtr turns into careerTeam (same page
+    mov eax, [esi]                      ; offset, obj2 bases at most 1 MB apart; no cached record's offset is one)
+    add eax, edx                        ; = careerTeam - the cache now
+    sub eax, CAREER + 0DB80h
+    test eax, 0FFFh
+    jnz .cn
+    add eax, 100000h
+    cmp eax, 200000h
+    jae .cn
+    mov eax, CAREER + 0DB80h
+    sub eax, [SELBASEV]
+    mov [esi], eax
+.cn:
+    inc esi
+    dec ecx
+    jnz .ct
     mov ecx, [D1R]                      ; (bytes read)
     sub ecx, FIXED
     jbe .x

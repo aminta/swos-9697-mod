@@ -138,6 +138,14 @@ static int series(int a, int b, int level) {   /* best of three: games 1 and 3 a
    the club there), at the league end and again at the season end */
 static int gp_force(void) {
     if (!GP_FORCE || !GP_IN.mgr) return -1;
+    for (int s = 0; s < SS_N; s++)              /* (a stage table written this season: the same place there) */
+        if (GP_SS.fresh & 1 << s && GP_FORCE <= GP_SS.n[s])
+            for (int k = 0; k < GP_SS.n[s]; k++)
+                if (GP_SS.r[s][k].team == GP_IN.mgr && k != GP_FORCE - 1) {
+                    struct gp_row x, *r = GP_SS.r[s];
+                    rcopy(&x, &r[k]); rcopy(&r[k], &r[GP_FORCE - 1]); rcopy(&r[GP_FORCE - 1], &x);
+                    break;
+                }
     for (int d = 0; d < GP_IN.nd && d < GD; d++)
         for (int k = 0; k < GP_IN.n[d]; k++)
             if (GP_IN.t[d][k].team == GP_IN.mgr && GP_FORCE <= GP_IN.n[d]) {

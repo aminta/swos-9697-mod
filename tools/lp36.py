@@ -501,8 +501,6 @@ fx_none:                                ; the fixture vectors' default: no fixtu
     cmp esp, 0
     ret
 align 4
-ST_SORT_V: dd 0                         ; (statespec: st_isstate / st_resort, or 0)
-ST_RESORT_V: dd 0
 FX_COPY_V: dd fx_none
 FX_START_V: dd fx_none
 FX_PAIR_V: dd fx_none
@@ -673,12 +671,6 @@ lp_sort:                                ; replaces the first instruction of cseg
     mov dword [A4], DIY
     call lp_ours
     je lp_rank
-    cmp dword [ST_SORT_V], 0            ; a state championship (statespec.st_isstate, ZF = 1): the game's sort, then
-    je .g                               ; its tie-breaks (st_resort: points, wins, goal difference, goals)
-    call [ST_SORT_V]
-    jne .g
-    push dword [ST_RESORT_V]            ; (the game's ret goes there, st_resort's to the caller)
-.g:
     jmp C883DD_NEXT
 
 lp_rank:                                ; LP_ORD = rows best first, written into DIY+6Dh

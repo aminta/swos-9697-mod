@@ -48,12 +48,12 @@ B_TFB, TFB_SIZE = 0x31000, 0x2B000
 # SaveCareerFile writes it from B_STAGE (fixed part copied before the records) and LoadCareerFile reads it there
 # (trailer.LOADCOPY -> w_loadcopy spreads it). Old saves (N <= 100) load unchanged.
 SEL_N = 160
-B_SEL, SEL_ROOM = 0x5C000, SEL_N * TEAM_SIZE + 0x2800          # (+ the trailer's blocks after the records: the main
-                                                               # one + the engine block 'EN': RS 1056, RI ~700, GP 1740 ...)
-B_STAGE = 0x7A000                                    # 95153 (fixed part) + SEL_ROOM
+B_SEL, SEL_ROOM = 0x5C000, SEL_N * TEAM_SIZE + 0x3800          # (+ the trailer's blocks after the records: the main
+                                                               # one + the engine block 'EN': GP, GS, PR, RI, SS, CD ... ~9-10 KB)
+B_STAGE = 0x7B000                                    # 95153 (fixed part) + SEL_ROOM
 # UEFA qualifying rounds (uefaq.py, league-phase worlds only: BSS_SIZE grows then): the C code's .bss, then the
 # season end's copies of the clubs' records (55 associations x (top 9 + cup winner) + 3)
-B_UQ, UQ_BSS, UQ_RECS = 0xAF000, 0x7000, 563
+B_UQ, UQ_BSS, UQ_RECS = 0xB1000, 0x7000, 563
 # 3.3.3 (main): a big world's new career uses the big cache too; its saves carry BIGC (the last dword of the
 # 80-record area, after the W1 block); a save without BIGC loads into the game's cache, or into the big one when
 # it caches more than UPGRADE_N teams or belongs to a league-phase world (this branch's saves before the merge)
@@ -72,7 +72,7 @@ B_TMD, B_CUPS, B_LISTS = 0, 128 * TEAM_SIZE, 128 * TEAM_SIZE + 3 * 160      # cu
 # save without BIGC (3.0 .. 3.3.2) loads into the game's cache as before, or into the big one when it caches more than
 # UPGRADE_N teams (then saved with BIGC). After a load only selTeamsPtr points into the cache (scan of the game's memory,
 # W84E_TEAM254.CAR), and w_pcf sets it.
-# (world-2025-26 keeps its own offsets above: B_TFB, B_SEL 0x5C000, B_STAGE 0x7A000, B_UQ.)
+# (world-2025-26 keeps its own offsets above: B_TFB, B_SEL 0x5C000, B_STAGE 0x7B000, B_UQ.)
 # SaveSelectedTeams / RestoreSelectedTeams park the career's team cache while a contest is simulated (season end):
 # the game keeps only its first 32 records (21888 B in DOS memory at dosMemOfs60c00h), the simulated contest reuses
 # the cache, so records 32+ come back as the simulated clubs (a 64-club national cup lost its second half -> the

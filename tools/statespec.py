@@ -381,6 +381,8 @@ st_ko:                                  ; replaces `call 0x16711` (the round's t
     jmp st_body
 
 st_grp:                                 ; replaces `call 0x16C47` (a group stage's draw: for a later stage
+    call st_gsort                       ; (a second group stage right after the first, Cearense: the real-campaign
+    call st_rec                         ; order and ST_RANK block 0 here, before the draw; st_ko's never come at [53h] 1)
     pushad                              ; 0x17D53 shuffles the copy's +59h, whose blocks then become the groups): a
     mov esi, DIYCOPY + 59h              ; state's later group stage with 'from' (b = FEh): the draw, then the
     mov edi, ST_PRE                     ; merit list back and reordered by the labels (Cearense phase 2); the

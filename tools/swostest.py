@@ -4108,7 +4108,9 @@ def world_statesim(team='SUDAMERICA,BRASILE,CAMPEONATO BRASILEIRO SERIE A,ATHLET
         return True, 'SKIP: private data internal/world2526/world5tm missing'
     order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
     env = {'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order])}
-    exe = os.environ.get('STATESIM_BUILD') or build('world_statesim', env=env)
+    exe = os.environ.get('STATESIM_BUILD') or build('world_statesim' + ('_' + os.environ['SWOSTEST_TAG']
+                                                                         if os.environ.get('SWOSTEST_TAG') else ''),
+                                                      env=env)   # (a tag of its own: parallel sessions)
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     from le import LE
     d1 = LE(open(os.path.join(exe, 'ITALIAN.EXE'), 'rb').read()).obj_bytes(1)

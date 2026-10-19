@@ -1675,10 +1675,13 @@ def world8485():
             nosack, poked = (nosack_off(os.path.join(exe, 'ITALIAN.EXE')) if os.environ.get('W8485_NOSACK') == '1'
                              else None), set()
 
-            def hexlog():                              # W8485_HEX: obj2 offset:bytes, logged when they change
-                for a in filter(None, os.environ.get('W8485_HEX', '').split(',')):
+            def hexlog():                              # W8485_HEX: obj2 offset:bytes (o1/ prefix: obj1),
+                for a in filter(None, os.environ.get('W8485_HEX', '').split(',')):   # logged when they change
                     o, n = a.split(':')
-                    v = s.result.obj2(int(o, 16), int(n)).hex()
+                    if o.startswith('o1/'):
+                        v = s.result.read(s.result.base1 + int(o[3:], 16), int(n)).hex()
+                    else:
+                        v = s.result.obj2(int(o, 16), int(n)).hex()
                     if hexseen.get(o) != v:
                         hexseen[o] = v
                         s.log.append(f'HEX {o} {v}')
@@ -4079,6 +4082,86 @@ def world_gplay_play(force='2', team='EUROPA,SCOZIA,SCOTTISH LEAGUE TWO,CLYDE', 
     gw = sorted({r['gcur'] for r in run})
     return not errs, '; '.join(errs) or (f"{msg}; contest clubs {[hex(t) for t in ko['team']]} codes {ko['code']}, "
                                          f"game rounds seen {gw}, winner {win:#x} (code {wcode}), moves {mv}")
+
+
+def sr_blocks(b):
+    """'SR' bytes -> [(key, [team words])] up to the dw 0."""
+    out, k = [], 0
+    while k + 4 <= len(b):
+        key, n = struct.unpack_from('<HB', b, k)
+        if not key:
+            break
+        out.append((key, list(struct.unpack_from(f'<{n}H', b, k + 4))))
+        k += 4 + 2 * n
+    return out
+
+
+@scenario
+def world_statesim(team='SUDAMERICA,BRASILE,CAMPEONATO BRASILEIRO SERIE A,ATHLETICO-PR'):
+    """State championships at the season end (statespec statesim.c + ripool, World 2026-27 private data world5tm):
+    two seasons at ATHLETICO-PR (Paranaense): season 1's SS_LAST (statesim's SR) has one block per state, the
+    Paranaense's = the real stage-1 order seen at its first knockout (ST_RANK block 0, st_rec) with its relegation
+    play-outs applied; season 2's Paranaense list (block 0 again) no longer holds the season-1 relegated words
+    unless they were league clubs replaced as per ripool, and still holds 12 clubs"""
+    src = os.path.join(MAIN, 'internal', 'world2526', 'world5tm')
+    if not os.path.isdir(src):
+        return True, 'SKIP: private data internal/world2526/world5tm missing'
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    env = {'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order])}
+    exe = os.environ.get('STATESIM_BUILD') or build('world_statesim', env=env)
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    from le import LE
+    d1 = LE(open(os.path.join(exe, 'ITALIAN.EXE'), 'rb').read()).obj_bytes(1)
+    k = d1.find(b'SSLASTPT')
+    if k < 0:
+        return False, 'no SSLASTPT block in the exe (statesim not built)'
+    rank_at, last_at = struct.unpack_from('<2I', d1, k + 8)
+    keep = {x: os.environ.get(x) for x in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K',
+                                            'W8485_NOSACK', 'W8485_HEX')}
+    os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5', W8485_K='108+',
+                      W8485_NOSACK='1', W8485_HEX=f'o1/{rank_at:x}:470,o1/{last_at:x}:470')
+    try:
+        ok, msg = world8485()
+    finally:
+        for x, v in keep.items():
+            if v is None:
+                os.environ.pop(x, None)
+            else:
+                os.environ[x] = v
+    hexes = {}
+    for ln in open(os.path.join(RUNS, w84_tag() + '_1', 'session.log'), errors='replace'):
+        q = ln.split()
+        if len(q) == 3 and q[0] == 'HEX':
+            hexes.setdefault(q[1], []).append(bytes.fromhex(q[2]))
+    errs = []
+    check(ok, msg, errs)
+    ranks = [sr_blocks(b) for b in hexes.get(f'o1/{rank_at:x}', [])]
+    lasts = [sr_blocks(b) for b in hexes.get(f'o1/{last_at:x}', [])]
+    played = [r[0] for r in ranks if r]                      # block 0 as st_rec wrote it, each season
+    lasts = [x for x in lasts if x]
+    check(len(lasts) >= 1, f'statesim never ran (SS_LAST {len(lasts)} values)', errs)
+    if lasts:                                    # (the first one may be the career's start: pg_fix runs there)
+        L = next((x for x in lasts if played and x[0][0] == played[0][0]), lasts[-1])
+        keys = [kk for kk, _ in L]
+        check(len(L) >= 10 and len(set(keys)) == len(keys), f'season 1: {len(L)} blocks, keys {[hex(x) for x in keys]}',
+              errs)
+        if played:
+            pk, pw = played[0]
+            blk = dict(L).get(pk)
+            check(blk is not None and sorted(blk) == sorted(pw), f'played state {pk:#x}: SR {blk} vs order {pw}', errs)
+            if len(played) >= 2 and blk:
+                p2k, p2w = played[1]
+                gone = [w for w in blk[-2:] if w in p2w]
+                check(p2k == pk and len(p2w) == len(pw) and not gone,
+                      f'season 2 list {[hex(x) for x in p2w]}: season-1 relegated {[hex(x) for x in blk[-2:]]} '
+                      f'still in: {[hex(x) for x in gone]}', errs)
+            else:
+                check(False, f'season 2: no block 0 seen ({len(played)} seasons with one)', errs)
+        else:
+            check(False, 'no block 0 (st_rec) seen', errs)
+    return not errs, '; '.join(errs + [f"{msg}; SR seasons {len(played)}, statesim runs {len(lasts)}; "
+                                        f"played {[(hex(kk), [hex(x) for x in w]) for kk, w in played]}; "
+                                        f"last {[(hex(kk), [hex(x) for x in w[-2:]]) for kk, w in (lasts[0] if lasts else [])]}"])
 
 
 @scenario

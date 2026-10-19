@@ -746,6 +746,12 @@ ss_entry:                               ; ripool's RI_PRE_PTR (pg_fix, before ri
     pop es
     cld
     call SS_SEASON
+    pushad                              ; (the harness: a copy of this season end's SR in SS_LAST)
+    mov esi, ST_RANKW
+    mov edi, SS_LAST
+    mov ecx, SR_SIZE
+    rep movsb
+    popad
     pop es
     ret
 
@@ -825,6 +831,9 @@ st_post:                                ; ripool's RI_POST_PTR (pg_fix, after ri
     mov word [ST_RANKW], 0              ; career's start, where pg_fix runs too; not after a load: a mid-season
     ret                                 ; save keeps block 0)
 align 4
+    db 'SSLASTPT'                       ; (swostest: dd ST_RANK, SS_LAST)
+    dd ST_RANKW, SS_LAST
+SS_LAST: times SR_SIZE db 0
 OV_TAB:
 OV_BYTES
     dw 0, 0
@@ -860,7 +869,7 @@ def ov_patch(p, at, tab_at, limit):
         rows.append(f'{lab}: db {key & 255}, {key >> 8}, {len(words)}, {len(ks)}\n    dd 0, 0\n'
                     f'    dw {", ".join(str(w) for w in words)}\n' + ''.join('    dd 0\n' for _ in ks))
         ptrs.append((lab, (sobj, soff + 0x2F), (1, tab_at + woff), ks))
-    sym = {'SS_SEASON': LABELS['ss_season'], 'ST_RANKW': LABELS['ST_RANK'], 'RP': (0, rp), 'RO2': (0, 2 * getattr(ripool, 'RO', 16)), 'RI_KEYS': rl['RI_OVR_KEYS'], 'RI_OVR': rl['RI_OVR'], 'OV_BYTES': (0, '\n'.join(rows))}
+    sym = {'SR_SIZE': (0, SR_SIZE), 'SS_SEASON': LABELS['ss_season'], 'ST_RANKW': LABELS['ST_RANK'], 'RP': (0, rp), 'RO2': (0, 2 * getattr(ripool, 'RO', 16)), 'RI_KEYS': rl['RI_OVR_KEYS'], 'RI_OVR': rl['RI_OVR'], 'OV_BYTES': (0, '\n'.join(rows))}
     code, fix = nasmcave.assemble(OV_ASM, at, sym)
     lab = nasmcave.labels(OV_ASM, at, sym)
     assert at + len(code) <= limit, (hex(at + len(code)), hex(limit))

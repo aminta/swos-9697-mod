@@ -234,7 +234,8 @@ def register_test():
         if not any(e['world'] == 0 and e['cup1'] == TEST_ID for e in statecup.ENTRIES):
             statecup.register(0, TEST_ID, TEST_FILE, [{'id': TEST_ID, 'members': list(range(24)), 'struct': None,
                                                        'first': (TEST_FILE, 0)}])
-            sp = compile_state(dict(TEST2_SPEC, clubs=list(range(8))), 8)
+            n2 = TEST2_SPEC['stages'][0]['teams']
+            sp = compile_state(dict(TEST2_SPEC, clubs=list(range(n2))), n2)
             TEST_DRAWS[:] = [(TEST_ID, pm, srt, (TEST_FILE, 0)) for pm, srt in sp['draws']]
             ST_DRAWS[:] = [(TEST_ID, 0, n, b, TEST_FILE, g, sz, pm) for n, b, g, sz, pm in sp['ko_draws']]
         return
@@ -259,7 +260,7 @@ ST_DRAWS = []                           # (id, world, N, b, first club word, per
                                         # draws in careers (mkseason.state_draws adds the packs' own)
 
 
-TEST2 = os.environ.get('STATESPEC_TEST') == '2'    # (byes: a Pernambucano shape)
+TEST2 = os.environ.get('STATESPEC_TEST') in ('2', '3')   # (2: byes, a Pernambucano shape; 3: a Cearense shape)
 TEST2_SPEC = {'key': 'test2', 'type': 'state', 'id': 'F1', 'win_points': 3, 'months': [1, 6],
               'names': {'*': ['CAMPEONATO TESTE', 'TESTE']},
               'stages': [{'type': 'groups', 'teams': 8, 'groups': 1, 'meetings': 1},
@@ -267,6 +268,14 @@ TEST2_SPEC = {'key': 'test2', 'type': 'state', 'id': 'F1', 'win_points': 3, 'mon
                           'byes': ['1A', '2A']},
                          {'type': 'knockout', 'teams': 4, 'matches': 'two_legs', 'pairs': ['W2', 'B1', 'W1', 'B2']},
                          {'type': 'knockout', 'teams': 2, 'matches': 'two_legs'}]}
+TEST3_SPEC = {'key': 'test3', 'type': 'state', 'id': 'F1', 'win_points': 3, 'months': [1, 6],
+              'names': {'*': ['CAMPEONATO TESTE', 'TESTE']},
+              'stages': [{'type': 'groups', 'teams': 10, 'groups': 2, 'meetings': 1},
+                         {'type': 'groups', 'teams': 6, 'groups': 2, 'from': ['1A', '2A', '3A', '1B', '2B', '3B']},
+                         {'type': 'knockout', 'teams': 4, 'matches': 'two_legs', 'from': ['2B', '1A', '2A', '1B']},
+                         {'type': 'knockout', 'teams': 2, 'matches': 'two_legs'}]}
+if os.environ.get('STATESPEC_TEST') == '3':
+    TEST2_SPEC = TEST3_SPEC
 
 
 def test_contest(p, at):
@@ -281,8 +290,8 @@ def test_contest(p, at):
     names = bytes(p.get(1, sup, 8)) if sup else bytes(8)
     n = 12
     if TEST2:                           # Pernambucano shape: 8 clubs; 3rd-6th QF, 1st-2nd wait; SF; final
-        n = 8
-        sp = compile_state(dict(TEST2_SPEC, clubs=list(range(8))), 8)
+        n = TEST2_SPEC['stages'][0]['teams']
+        sp = compile_state(dict(TEST2_SPEC, clubs=list(range(n))), n)
     body = statecup.contest_bytes(cc, TEST_ID, TEST_FILE, sp['months'], sp['meetings'], sp['points'], sp['stages'],
                                   sp['stage_bytes'], [(TEST_FILE, i) for i in range(n)], names)
     p.put(1, at, body)
@@ -561,7 +570,8 @@ def ko_patch(p, at):
     st = mkseason.state_draws()                             # [(id, world, N, b, first club word, g, size, codes)]
     keys = sorted({(i, f) for i, _, _, _, f, _, _, _ in st} |
                   {(int(c['id'], 16), f[0] | f[1] << 8) for pk in mkseason.packs() if pk.world is not None
-                   for c in pk.comps if c['type'] == 'state' for f in [pk.state(c)['clubs'][0]]})
+                   for c in pk.comps if c['type'] == 'state' for f in [pk.state(c)['clubs'][0]]} |
+                  ({(TEST_ID, TEST_FILE)} if TEST or TEST2 else set()))
     if not keys:
         return at
     diycopy = lib97._sites(p)[3]
@@ -724,18 +734,21 @@ def sim_patch(p, at):
     assert bss <= SIM_BSS, hex(bss)
     LABELS['ss_season'] = syms['ss_season']
     ov_end = ov_patch(p, (cend + 15) & ~15, at, bss_at)
-    try:
-        import ripool
-        if 'RI_PRE_PTR' in getattr(ripool, 'LABELS', {}):
-            p.add_ptr(*ripool.LABELS['RI_PRE_PTR'], *syms['ss_season'])
-    except ImportError:
-        pass
     print(f'exe: statesim: {tab[0]} states, table obj1+{at:#x} ({len(tab)} B), ss_season obj1+'
           f'{syms["ss_season"][1]:#x}, code ..{cend:#x}, overrides ..{ov_end:#x}, .bss {bss} B at obj1+{bss_at:#x}')
     return at + 0x1000 * SIM_PAGES
 
 
 OV_ASM = """
+ss_entry:                               ; ripool's RI_PRE_PTR (pg_fix, before ri_season): statesim.c's ss_season
+    push es                             ; with es = ds, cld (as gplay's gp_c)
+    push ds
+    pop es
+    cld
+    call SS_SEASON
+    pop es
+    ret
+
 st_ovr:                                 ; ripool's RI_OVR -> each state contest's team list (+2Fh), after ri_season
     pushad                              ; (RI_POST_PTR) and after a career load (engine.after_load): entry j = the
     mov esi, OV_TAB                     ; pool's override word, or 0 = the original; a new first club also goes into
@@ -806,6 +819,11 @@ st_ovr:                                 ; ripool's RI_OVR -> each state contest'
 .x:
     popad
     ret
+
+st_post:                                ; ripool's RI_POST_PTR (pg_fix, after ri_season): the overrides, and SR used
+    call st_ovr                         ; up: void until the next played state's group stage ends (also at a
+    mov word [ST_RANKW], 0              ; career's start, where pg_fix runs too; not after a load: a mid-season
+    ret                                 ; save keeps block 0)
 align 4
 OV_TAB:
 OV_BYTES
@@ -842,7 +860,7 @@ def ov_patch(p, at, tab_at, limit):
         rows.append(f'{lab}: db {key & 255}, {key >> 8}, {len(words)}, {len(ks)}\n    dd 0, 0\n'
                     f'    dw {", ".join(str(w) for w in words)}\n' + ''.join('    dd 0\n' for _ in ks))
         ptrs.append((lab, (sobj, soff + 0x2F), (1, tab_at + woff), ks))
-    sym = {'RP': (0, rp), 'RO2': (0, 2 * getattr(ripool, 'RO', 16)), 'RI_KEYS': rl['RI_OVR_KEYS'], 'RI_OVR': rl['RI_OVR'], 'OV_BYTES': (0, '\n'.join(rows))}
+    sym = {'SS_SEASON': LABELS['ss_season'], 'ST_RANKW': LABELS['ST_RANK'], 'RP': (0, rp), 'RO2': (0, 2 * getattr(ripool, 'RO', 16)), 'RI_KEYS': rl['RI_OVR_KEYS'], 'RI_OVR': rl['RI_OVR'], 'OV_BYTES': (0, '\n'.join(rows))}
     code, fix = nasmcave.assemble(OV_ASM, at, sym)
     lab = nasmcave.labels(OV_ASM, at, sym)
     assert at + len(code) <= limit, (hex(at + len(code)), hex(limit))
@@ -858,6 +876,8 @@ def ov_patch(p, at, tab_at, limit):
     LABELS['st_ovr'] = (1, lab['st_ovr'])
     engine.CALL_AT['st_ovr'] = (1, lab['st_ovr'])           # (over ko_patch's bare ret)
     if 'RI_POST_PTR' in rl:
-        p.add_ptr(*rl['RI_POST_PTR'], 1, lab['st_ovr'])
+        p.add_ptr(*rl['RI_POST_PTR'], 1, lab['st_post'])
+    if 'RI_PRE_PTR' in rl:
+        p.add_ptr(*rl['RI_PRE_PTR'], 1, lab['ss_entry'])
     return at + len(code)
 

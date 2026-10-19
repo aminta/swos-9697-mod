@@ -29,9 +29,10 @@ The contest's champion = its final's winner (the game's national-cup trophy line
 
 Careers: the knockout draws ('from', 'byes', 'pairs', the fixed brackets after them) are st_ko's (ko_patch) at each
 knockout stage's start (ST_TAB, keyed by contest id + first club; historic.hist_draw is tourney mode only):
-- the copy's +59h at that point = the clubs best first, in bands of g groups (the 1sts, the 2nds ...; merit order
-  inside a band): a label kX = the club of band k whose team index lies in group X's block (groups = blocks of the
-  team list: only the FIRST group stage; a later group stage's 'from' / a draw after it stay the game's);
+- the copy's +59h at that point = the clubs best first (in bands of the 1sts, the 2nds ... or in one overall merit
+  order: both seen; each group's own order is kept): a label kX = the k-th club of group X in that list, X = the
+  block of the team list its index lies in (only the FIRST group stage; a later group stage's 'from' / a draw after
+  it stay the game's);
 - byes: the round's (N - b) / 2 ties, the b last clubs wait; the round's list is kept with the career (EN item 'SB')
   and st_kend reads each tie's winner at the stage's end (DIY+89h result bits, as 0x1AAF9) for the next stage;
 - st_ko also freezes the first stage's final order (st_rec -> ST_RANK, EN item 'SR', ripool's pools).
@@ -187,11 +188,11 @@ def compile_state(c, n_clubs):
             draws.append((q, [labels.index(x_) for x_ in frm + b], False))   # (the byes at the end: they wait)
             if x['type'] != 'knockout':                  # (careers: a later group stage's draw is the game's:
                 pass                                     # historic.hist_draw is tourney mode only)
-            elif i == 1 or g == 1:                       # (careers: groups = team-list blocks: the first stage's)
+            elif i == 1 or g == 1:                       # (careers: groups = team-list blocks: the first stage's;
+                                                         # code = place * g + group)
                 ko.append((q, len(b), g, prev['teams'] // g, draws[-1][1]))
             else:
-                _need(not b, f'{sw} byes after a second group stage of several groups: not in careers yet')   # (codes = band * g + group: the groups are
-                                                                              # team-list blocks, a band is in merit order)
+                _need(not b, f'{sw} byes after a second group stage of several groups: not in careers yet')
         elif x.get('pairs'):                             # after a stage with byes: W<k> the winner of tie k, B<k> bye k
             _need(prev.get('byes'), f'{sw} pairs: only after a stage with byes')
             k, bb = prev['teams'] // 2, len(prev['byes'])
@@ -309,9 +310,9 @@ st_ko:                                  ; replaces `call 0x16711` (the round's t
     call st_rec                         ; (the state's final group-stage order, EN item 'SR')
 %if ST_NB                               ; FFh: the copy's; the stage's clubs in the copy's +59h order): a state's
     pushad                              ; fixed draw (ST_TAB: id, first club word, N, b, g, size, code[N]).
-    mov ebx, ST_TAB                     ; g > 0: the copy's list comes in bands of g (the 1sts, the 2nds ...: merit
-    mov edx, ST_NB                      ; order inside a band); code = band * g + group: list[k] = the club of that
-.st:                                    ; band whose team index / size = group (groups = team-list blocks of size);
+    mov ebx, ST_TAB                     ; g > 0: code = place * g + group: list[k] = the place-th club of that group
+    mov edx, ST_NB                      ; in the copy's merit-ordered list (team index / size = group: groups =
+.st:                                    ; team-list blocks of size);
     mov al, [DIYCOPY + 2Dh]             ; b > 0: the b last wait, the N - b first play (N - b) / 2 ties (the list
     cmp [ebx], al                       ; kept in SB). g = 0: the stage after it, b = its ties k: code < k = the
     jne .stn                            ; winner of that tie, else a bye (the game's list there: winners, losers,
@@ -334,23 +335,32 @@ st_ko:                                  ; replaces `call 0x16711` (the round's t
 .sth:
     cmp byte [ebx + 5], 0               ; g = 0: the stage after one with byes ('pairs')
     je .pairs
+    mov edi, ST_SB                      ; (SB = FFh until this round's list is known: a stage after it finds no
+    push ecx                            ; winners and keeps the game's order)
+    mov ecx, 32
+    mov al, 0FFh
+    rep stosb
+    pop ecx
     xor edi, edi                        ; k
 .sk:
-    movzx eax, byte [ebx + 7 + edi]     ; code -> band (al), group (ah)
-    div byte [ebx + 5]
-    mov dh, ah
-    mul byte [ebx + 5]                  ; band * g: the band's first position
-    mov esi, eax
-    movzx ebp, byte [ebx + 5]           ; g candidates
+    movzx eax, byte [ebx + 7 + edi]     ; code -> place k (al), group (ah): the k-th club of that group in the
+    div byte [ebx + 5]                  ; copy's list (merit order: banded, or the overall order - the groups' own
+    mov dh, ah                          ; orders are kept either way)
+    movzx ebp, al
+    xor esi, esi
 .sj:
+    cmp si, [DIYCOPY + 31h]
+    jae .sx                             ; (not found: the game's order - never in a built table)
     movzx eax, byte [DIYCOPY + 59h + esi]
     div byte [ebx + 6]                  ; team index / size = its group
     cmp al, dh
-    je .sf
-    inc esi
+    jne .sn
+    test ebp, ebp
+    jz .sf
     dec ebp
-    jnz .sj
-    jmp .sx                             ; (not found: the game's order - never in a built table)
+.sn:
+    inc esi
+    jmp .sj
 .sf:
     mov al, [DIYCOPY + 59h + esi]
     mov [ST_T + edi], al
@@ -374,10 +384,14 @@ st_ko:                                  ; replaces `call 0x16711` (the round's t
     cmp eax, edx
     jae .pb
     mov al, [ST_SB + 16 + eax]          ; the winner of tie c (st_kend, at the stage before's end)
+    cmp al, 0FFh
+    je .sx                              ; (none: the game's order)
     jmp .pf
 .pb:
     add eax, edx                        ; bye c - k at SB[2k + c - k]: the byes follow the 2k clubs of the ties
     mov al, [ST_SB + eax]
+    cmp al, 0FFh
+    je .sx
 .pf:
     mov [ST_T + edi], al
     inc edi

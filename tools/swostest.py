@@ -13,7 +13,9 @@
   Env: SWOSTEST_NOEXIT=1 = DOSBox-X stays at the DOS prompt when the game exits (see its last message: shots/final);
        SWOSTEST_BUILD = build dir under test, else SWOSTEST_BRANCH = git branch/commit to build, else this checkout;
        SWOSTEST_RUNS = run dirs (default internal/swostest/runs; another one = a second suite at the same time);
-       TURBO=0 = real-time speed (default: DOSBox-X turbo, the emulated machine runs as fast as the host allows).
+       TURBO=0 = real-time speed (default: DOSBox-X turbo, the emulated machine runs as fast as the host allows);
+       SWOSTEST_LINEUP=full = the career squad screen's best-reserve search (substitute); default min = an unavailable
+       starter swaps with the first fit reserve, nothing more (substitute_min: ~half of a long career's pauses saved).
 
 Key script: space-separated keys fire up down left right esc enter space bspace a-z 0-9, and 'dump'; 'fire+right'
 = both held (fire typed), for the entries with input-function control masks (kit colours). 'key:s' waits
@@ -900,6 +902,8 @@ def substitute(s, scr, tries=40):
        trial players (PROVA) only when nothing better is there. Row 1 must be a goalkeeper (P): a fit one of the
        bench (row 12) first. Returns an error string or None."""
     subs = s.__dict__.setdefault('subs', {})
+    if os.environ.get('SWOSTEST_LINEUP', 'min') != 'full':   # (the default: substitute_min; full = the best-reserve
+        return substitute_min(s, tries)                      # search below, for a scenario that judges the club's results)
 
     def cycle(face, ry):                                # every reserve once: [(name, role, value, fit)]
         seen = []
@@ -995,6 +999,58 @@ def substitute(s, scr, tries=40):
             subs[k] = (out, stand_in)
         s.log.append(f'[subs] slot {k + 1} ({need or "any"}): {out} out, {stand_in} ({best[1] or "?"}, {best[2]}) in')
     return 'squad screen: still unavailable players after 10 swaps'
+
+
+def substitute_min(s, tries=40):
+    """The default line-up handling (SWOSTEST_LINEUP=min; Davide 2026-10-19: flow / calendar / save-load runs, where
+    the line-up's quality does not matter; SWOSTEST_LINEUP=full = substitute's best-reserve search): only
+    what the game needs to show VIS. RISULTATI - an unavailable player among the first 16 changes places with the
+    first fit reserve the 17th row shows (cycled only while it shows an unavailable one), the keeper's slot with the
+    bench keeper (row 12) first; no best-reserve search, no starter brought back later (substitute's two cycles over
+    every reserve per squad screen were ~50-60% of a long career's pauses). Returns an error string or None."""
+    for _ in range(12):
+        cur = s.screen()
+        rows = squad_rows(s, cur, f'sq{len(s.log):03d}')
+        if len(rows) != 17:
+            return f'squad screen: {len(rows)} rows'
+        bad = [k for k, (i, un) in enumerate(rows[:16]) if un]
+        if not bad and 'VIS. RISULTATI' not in cur.texts():
+            bad = [0]                                   # no goalkeeper in goal (the game's own squad changes)
+        if not bad:
+            return None if 'VIS. RISULTATI' in cur.texts() else 'squad screen without VIS. RISULTATI, no unavailable row'
+        k = bad[0]
+        if k == 0 and not rows[11][1]:                  # the keeper: row 12 is the bench keeper in SWOS squads
+            press(s, cur, rows[0][0], wait=1)
+            press(s, s.screen(), rows[11][0], wait=1)
+            s.log.append('[subs] slot 1: the bench keeper (row 12) in (min)')
+            continue
+        reserve = rows[-1][0]
+        ry = cur.geom[reserve][1]
+        face = next((i for i, (l, r) in enumerate(cur.nav) if l[1] == reserve and cur.geom[i][0] < 25), None)
+        if face is None:
+            return 'squad screen: no face entry for the 17th row'
+        fit = not rows[-1][1]
+        first = reserve_info(cur, ry)[0]
+        for _ in range(tries):                          # the first fit reserve the 17th row shows
+            if fit:
+                break
+            press(s, s.screen(), face, wait=1)
+            if s.result.outcome != 'dump':
+                return f'squad screen: {s.result}'
+            c2 = s.screen()
+            rows2 = squad_rows(s, c2, f'sq{len(s.log):03d}')
+            if len(rows2) != 17:
+                break
+            fit = not rows2[-1][1]
+            if reserve_info(c2, ry)[0] == first:        # (every reserve seen: none fit)
+                break
+        if not fit:
+            return f'no fit reserve for row {k + 1}'
+        stand_in = reserve_info(s.screen(), ry)[0]
+        press(s, s.screen(), rows[k][0], wait=1)
+        press(s, s.screen(), reserve, wait=1)
+        s.log.append(f'[subs] slot {k + 1}: {stand_in} in (min)')
+    return 'squad screen: still unavailable players after 12 swaps'
 
 
 def nat_callups(s, limit=120):
@@ -1949,6 +2005,8 @@ def world8485():
             path = next_season_save(s, 'W84' + 'AB'[season - 1])
             if s.result.outcome == 'dump':             # (after the season end: its logs)
                 hexlog()
+            if W84_HOOK is not None and s.result.outcome == 'dump':   # (once more in the new season: the holders
+                W84_HOOK(s, season, None)                                # are set by now)
             if not path.endswith('.CAR'):
                 return False, f'season {season}: {path}'
         good, report = checkw1(path)
@@ -4048,10 +4106,13 @@ def world_leaguecup():
     the season ends and saves (checkw1)"""
     import json
     import shutil
-    src = os.path.join(MAIN, 'internal', 'world2526', 'world5tm')
-    lc = os.path.join(MAIN, 'internal', 'world2526', 'world5tm-lc', 'eng')
-    if not (os.path.isdir(src) and os.path.isdir(lc)):
-        return True, 'SKIP: private data internal/world2526/world5tm(-lc) missing'
+    src = os.environ.get('W2627FULL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm')
+    lc = os.path.join(MAIN, 'internal', 'world2526', 'world5tm-lc', 'eng')   # (only when the pack has no league cup:
+    if not os.path.isdir(src) or not os.path.exists(src + '.txt'):          # TM_LEAGUE_CUP=1 is the default now)
+        return False, f'private data {src}(.txt) missing (W2627FULL_DATA)'   # (regia: a missing world FAILs)
+    has_lc = any(c['key'] == 'league_cup' for c in json.load(open(os.path.join(src, 'eng', 'pack.json')))['competitions'])
+    if not has_lc and not os.path.isdir(lc):
+        return False, f'{src}/eng has no league cup and {lc} is missing'
     w = os.path.join(WORK, 'world_leaguecup')
     shutil.rmtree(w, ignore_errors=True)
     shutil.copytree(src, os.path.join(w, 'world5tm'))
@@ -4067,9 +4128,9 @@ def world_leaguecup():
         rows = open(os.path.join(lc, 'ties.csv')).read().splitlines()[1:]
         with open(os.path.join(eng, 'ties.csv'), 'a') as t:
             t.write('\n'.join(rows) + '\n')
-    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ln.split()[1:2] == ['file']]
     env = {'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(w, 'world5tm', x) for x in order])}
-    exe = build('world_leaguecup', env=env)
+    exe = os.environ.get('WLC_BUILD') or build('world_leaguecup', env=env)   # (WLC_BUILD: a release build, c/REL40)
     keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K',
                                             'W8485_NOSACK')}
     os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM='EUROPA,INGHILTERRA,EFL LEAGUE ONE,BRADFORD CITY',
@@ -4381,6 +4442,54 @@ def world_statesim(team='SUDAMERICA,BRASILE,CAMPEONATO BRASILEIRO SERIE A,ATHLET
     return not errs, '; '.join(errs + [f"{msg}; SR seasons {len(played)}, statesim runs {len(lasts)}; "
                                         f"played {[(hex(kk), [hex(x) for x in w]) for kk, w in played]}; "
                                         f"last {[(hex(kk), [hex(x) for x in w[-2:]]) for kk, w in (lasts[0] if lasts else [])]}"])
+
+
+@scenario
+def world_state_career():
+    """One season of a career in a state (4.0 release check): STATESIM_BUILD (a World 2026-27 build dir), STATE_TEAM
+    (the W8485_TEAM path, e.g. 'SUDAMERICA,BRASILE,CAMPEONATO BRASILEIRO SERIE A,ATHLETICO-PR'), STATE_N (its state's
+    clubs): the season ends without a trap, the state's stage-1 order (ST_RANK block 0, st_rec) has STATE_N clubs,
+    and statesim at the career's start gave every state of the world a block of real words"""
+    exe = os.environ.get('STATESIM_BUILD')
+    team = os.environ.get('STATE_TEAM')
+    if not exe or not team:
+        return True, 'SKIP: STATESIM_BUILD / STATE_TEAM not set'
+    want = int(os.environ.get('STATE_N', '0'))
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    from le import LE
+    d1 = LE(open(os.path.join(exe, 'ITALIAN.EXE'), 'rb').read()).obj_bytes(1)
+    k = d1.find(b'SSLASTPT')
+    if k < 0:
+        return False, 'no SSLASTPT block in the exe'
+    rank_at, last_at = struct.unpack_from('<2I', d1, k + 8)
+    keep = {x: os.environ.get(x) for x in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K',
+                                            'W8485_NOSACK', 'W8485_HEX', 'W8485_ONE')}
+    os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5', W8485_K='108+',
+                      W8485_NOSACK='1', W8485_HEX=f'o1/{rank_at:x}:470,o1/{last_at:x}:470', W8485_ONE='1')
+    try:
+        ok, msg = world8485()
+    finally:
+        for x, v in keep.items():
+            if v is None:
+                os.environ.pop(x, None)
+            else:
+                os.environ[x] = v
+    hexes = {}
+    f = os.path.join(RUNS, w84_tag() + '_1', 'session.log')
+    for ln in open(f, errors='replace') if os.path.exists(f) else []:
+        q = ln.split()
+        if len(q) == 3 and q[0] == 'HEX':
+            hexes.setdefault(q[1], []).append(bytes.fromhex(q[2]))
+    errs = []
+    check(ok, msg, errs)
+    played = [r[0] for r in (sr_blocks(b) for b in hexes.get(f'o1/{rank_at:x}', [])) if r]
+    lasts = [x for x in (sr_blocks(b) for b in hexes.get(f'o1/{last_at:x}', [])) if x]
+    check(played and len(played[0][1]) == want, f'state order {[(hex(a), len(w)) for a, w in played]} (want {want})',
+          errs)
+    check(lasts and len(lasts[0]) >= 13 and all(w and all(w) for _, w in lasts[0]),
+          f'statesim blocks {[(hex(a), len(w)) for a, w in (lasts[0] if lasts else [])]}', errs)
+    return not errs, '; '.join(errs + [f"{msg}; played {[(hex(a), len(w)) for a, w in played]}, statesim "
+                                        f"{len(lasts[0]) if lasts else 0} blocks"])
 
 
 @scenario
@@ -5252,11 +5361,13 @@ def world_full_draw():
 @scenario
 def world_away_goals():
     """Away goals (integrator 6b58a43, regia 2026-10-19): a level aggregate with different away goals. (a) Full 2026-27
-    world at KARMIOTISSA (slot 1, Cyprus's cup: two-legged semi-finals, ET + pens): simdraw's table at 1-1 and, between the
+    world at PALMEIRAS (slot 1, the Copa do Brasil's two-legged rounds): simdraw's table at 1-1 and, between the
     legs, every first leg poked to 2-2 (aggregate 3-3, away goals 2 v 1): no tie may carry the 'won on away goals'
     bit (+89h 10h), each decided by extra time / penalties (04h / 08h). (b) Europe 1984-85 at Liverpool, one season:
     the European slots' two-legged ties must show the away-goals bit at least once (the rule still on there)."""
     global W84_HOOK
+    import collections
+    import glob
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import simdraw
     from le import LE
@@ -5264,7 +5375,7 @@ def world_away_goals():
     import lepatch
     sp = split.sites(lepatch.LEPatch(os.path.join(MAIN, 'orig', 'ITALIAN.EXE')))['SLOTS']   # (InitNewSeason's
     seen, errs, info, bps = {}, [], [], []                     # arrayOfPointers: slots 0-4' buffers; integrator)
-    os.environ['CORE'] = 'normal'               # (the decision breakpoint: the dynamic core skips breakpoints)
+    os.environ.setdefault('W8485_TMO', '1800')  # (the slower core: long steps; the run stops once the evidence is in)
 
     def decided(r):                                           # breakpoint after cseg_28E76 stores cseg_2AE97's D7
         diy = struct.unpack('<I', r.read(r.base2 + AG_A3, 4))[0]   # (A3 = DIY_competitionStart, the working copy)
@@ -5276,7 +5387,12 @@ def world_away_goals():
             bps.append((d[0x2D], w(0x57), team(d[0x2CD + 2 * t]), team(d[0x2CD + 2 * t + 1]), d[0x89 + t],
                         w(0xC9 + 2 * t), w(0x14D + 2 * t)))
 
+    class Enough(Exception):                                   # (the evidence is in: no need to finish the season under
+        pass                                                   # the slow core - its season end takes hours)
+
     def hook(s, season, scr):
+        if not FORCE and any(b[4] & 0x10 for b in bps):
+            raise Enough
         if not seen.get('ptr'):                                 # (the pointer table once, for the layout check)
             s.bp(s.result.base1 + AG_STORE, decided)
             seen['ptr'] = 1
@@ -5325,26 +5441,32 @@ def world_away_goals():
             keep = {k: os.environ.get(k) for k in ('W2627FULL', 'W2627FULL_COUNTRY', 'W2627FULL_TEAM', 'W8485_FILL',
                                                    'W8485_ONE', 'W8485_BUILD', 'W8485_TEAM', 'W8485_WORLD', 'W8485_WNUM',
                                                    'W8485_K')}
-            os.environ.update(W2627FULL=bdir, W2627FULL_COUNTRY='cyp', W8485_ONE='1', W8485_FILL=f'{at[0]:x}:11:{len(tab)}',
-                              W2627FULL_TEAM='EUROPA,CIPRO,KARMIOTISSA')   # (slot 1: Cyprus's cup, two-legged semi-finals
+            os.environ.update(W2627FULL=bdir, W2627FULL_COUNTRY='bra', W8485_ONE='1', W8485_FILL=f'{at[0]:x}:11:{len(tab)}',
+                              W2627FULL_TEAM='SUDAMERICA,BRASILE,CAMPEONATO BRASILEIRO SERIE A,PALMEIRAS')   # (slot 1:
+            # the Copa do Brasil from its two-legged quarter-finals, the career club always in them: the screens show
+            # every tie's result; two_legs_pens, but cseg_2AE97 checks the away rule before the round byte)
             try:
-                ok, msg = full_season('cyp', '')                 # with ET + pens; one division)
+                try:
+                    ok, msg = full_season('bra', '')
+                except Enough:
+                    ok, msg = True, 'stopped once the level ties were decided'
             finally:
                 for k, v in keep.items():
                     if v is None:
                         os.environ.pop(k, None)
                     else:
                         os.environ[k] = v
-            lev = [b for b in bps if (b[5] >> 8) + (b[6] & 0xFF) == (b[5] & 0xFF) + (b[6] >> 8)]   # level aggregates
-            ag = [b for b in bps if b[4] & 0x10]
-            dec = [b for b in lev if b[4] & 0x0C]
-            info.append(f'2026-27: {msg[:120]}; second legs {len(bps)}, level {len(lev)}, decided by ET / pens '
-                        f'{len(dec)}, away-goals bit {len(ag)}; ' + ' '.join(f'{b[2]}-{b[3]}:{b[4]:02x}/{b[5]:04x}/{b[6]:04x}'
-                                                                                   for b in bps[:8]))
+            res = collections.Counter()                         # the SF screens' result texts (the dynamic core:
+            log = os.path.join(RUNS, w84_tag() + '_1', 'session.log')   # no breakpoint; the other SF tie's line)
+            for ln in (open(log, errors='replace') if os.path.exists(log) else []):
+                if 'COPA DO BRASIL' in ln and 'RITORNO' in ln:
+                    for t in re.findall(r'VINCE (?:\d+-\d+ )?(AI RIG(?: D\.T)?|IN TOT\.(?: D\.T)?|SU GOL FC)', ln):
+                        res[t] += 1
+            info.append(f'2026-27: {msg[:120]}; second-leg results {dict(res)}; slot-1 pokes {sum(1 for v in seen.values() if isinstance(v, dict) and v.get("poked"))}')
             check(ok, msg, errs)
-            check(bool(lev), 'no level-aggregate second leg seen in the 2026-27 world', errs)
-            check(not ag, f'2026-27: away goals decided {ag}', errs)
-            check(bool(dec), '2026-27: no level aggregate went to extra time / penalties', errs)
+            check(bool(res), 'no Copa do Brasil second-leg result seen', errs)
+            check(not res.get('SU GOL FC'), f'2026-27: a tie won on away goals {dict(res)}', errs)
+            check(any(k.startswith('AI RIG') for k in res), f'2026-27: no level tie decided by penalties {dict(res)}', errs)
         seen.clear()
         bps.clear()
         FORCE = False                                         # (b) 1984-85: the rule as the engine plays it
@@ -5354,21 +5476,99 @@ def world_away_goals():
             os.environ['SWOSTEST_SCENARIO'] = 'world_away_goals_8485'    # (its own run dirs: (a)'s logs kept)
             os.environ.pop('W8485_BUILD', None)
             try:
-                ok, msg = world8485()
+                try:
+                    ok, msg = world8485()
+                except Enough:
+                    ok, msg = True, 'stopped at the first away-goals decision'
             finally:
                 for k, v in keep.items():
                     if v is None:
                         os.environ.pop(k, None)
                     else:
                         os.environ[k] = v
-            ag = [b for b in bps if b[4] & 0x10]
-            info.append(f'1984-85: {msg[:120]}; second legs {len(bps)}, away-goals bit {len(ag)}; '
-                        + ' '.join(f'{b[2]}-{b[3]}:{b[4]:02x}/{b[5]:04x}/{b[6]:04x}' for b in ag[:4]))
+            res = collections.Counter()                         # the European second legs' result texts (the
+            for d in glob.glob(os.path.join(RUNS, w84_tag() + '_*', 'session.log')):   # fast core: no breakpoint)
+                for ln in open(d, errors='replace'):
+                    if 'RITORNO' in ln:
+                        for t in re.findall(r'VINCE (?:\d+-\d+ )?(AI RIG(?: D\.T)?|IN TOT\.(?: D\.T)?|SU GOL FC)', ln):
+                            res[t] += 1
+            info.append(f'1984-85: {msg[:120]}; second-leg results {dict(res)}')
             check(ok, msg, errs)
-            check(bool(ag), '1984-85: no tie decided on away goals', errs)
+            check(res.get('SU GOL FC', 0) > 0, f'1984-85: no tie won on away goals on the screens {dict(res)}', errs)
     finally:
         W84_HOOK = None
     return not errs, '; '.join(errs + info)
+
+
+@scenario
+def world_full_uefa():
+    """UEFA places 2027/28 (integrator 131f04b: the places from the ranking a year old = the seed, the real 2026
+    ranking; regia 2026-10-19): one season of the full 2026-27 world at ARSENAL, then each association's clubs in the
+    new CL / EL / UECL lists (checkw1 CHECKW1_COUNTS) = uefacoef's places per rank (LP_CLN / LP_ELN / LP_UEN) applied to
+    the seed ranking (pack.json uefa_coef country: 5 seasons summed), + the holders explicitly (read after the season
+    end: the CL holder and the EL winner one more CL place each, the UECL winner one more EL place)"""
+    global W84_HOOK
+    import collections
+    import json
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import uefacoef
+    data = os.environ.get('W2627FULL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm')
+    order = [ln.split()[0].lower() for ln in open(data + '.txt') if ln.split()[1:2] == ['file']]
+    seeds = []
+    for k, cc in enumerate(order):
+        m = json.load(open(os.path.join(data, cc, 'pack.json')))
+        if m.get('uefa_coef'):
+            seeds.append((-sum(m['uefa_coef']['country']), k, m['files']['league']['file'], cc))
+    rank = [f for _, _, f, _ in sorted(seeds)]
+    name = {f: cc for _, _, f, cc in seeds}
+    base = {key: collections.Counter({f: tab[r] for r, f in enumerate(rank) if r < len(tab)})
+            for key, tab in (('CC', uefacoef.LP_CLN), ('CWC', uefacoef.LP_ELN), ('UEFA', uefacoef.LP_UEN))}
+    hold = {}
+
+    def hook(s, season, scr):
+        h = struct.unpack_from('<3H', s.result.obj2(HOLDERS, 6))
+        if all(x not in (0, 0xFFFF) for x in h):
+            hold['h'] = h
+    W84_HOOK = hook
+    keep = {k: os.environ.get(k) for k in ('W8485_ONE', 'W2627FULL_COUNTRY', 'W2627FULL_TEAM')}
+    os.environ.update(W8485_ONE='1', W2627FULL_COUNTRY='eng', W2627FULL_TEAM='EUROPA,INGHILTERRA,PREMIER LEAGUE,ARSENAL')
+    try:
+        ok, msg = full_season('eng', '')
+    finally:
+        W84_HOOK = None
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    errs = []
+    check(ok, msg, errs)
+    car = os.path.join(RUNS, w84_tag() + '_1', 'SWOS', 'W84A.CAR')
+    if not os.path.exists(car) or 'h' not in hold:
+        return False, '; '.join(errs + [f'no season-1 save or no holders read ({car})'])
+    r = subprocess.run([sys.executable, os.path.join(MAIN, 'internal', 'career-test', 'checkw1.py'), car],
+                       capture_output=True, text=True, env=dict(os.environ, CHECKW1_TOOLS=os.path.join(ROOT, 'tools'),
+                                                                CHECKW1_COUNTS='1'))
+    lines = r.stdout.splitlines()
+    got = {}
+    for i, ln in enumerate(lines):
+        k = ln.split(' ')[0]
+        if k in base and i + 1 < len(lines) and 'per country' in lines[i + 1]:
+            got[k] = collections.Counter(dict(eval(lines[i + 1].split('per country', 1)[1])))
+    hcc, hcwc, huefa = (x & 0xFF for x in hold['h'])
+    want = {'CC': base['CC'] + collections.Counter([hcc, hcwc]), 'CWC': base['CWC'] + collections.Counter([huefa]),
+            'UEFA': base['UEFA']}
+    notes = [f"holders CL {name.get(hcc, hcc)} / EL {name.get(hcwc, hcwc)} / UECL {name.get(huefa, huefa)}"]
+    for k in ('CC', 'CWC', 'UEFA'):
+        g = got.get(k)
+        if g is None:
+            errs.append(f'{k}: no per-country counts in checkw1')
+            continue
+        diff = {name.get(f, f): (g.get(f, 0), want[k].get(f, 0)) for f in set(g) | set(want[k])
+                if g.get(f, 0) != want[k].get(f, 0)}
+        check(not diff, f'{k} places (got, want) {diff}', errs)
+        notes.append(f'{k} {sum(g.values())} clubs, {len(g)} associations')
+    return not errs, '; '.join(errs + notes)
 
 
 @scenario

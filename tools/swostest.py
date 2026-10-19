@@ -4384,6 +4384,54 @@ def world_statesim(team='SUDAMERICA,BRASILE,CAMPEONATO BRASILEIRO SERIE A,ATHLET
 
 
 @scenario
+def world_state_career():
+    """One season of a career in a state (4.0 release check): STATESIM_BUILD (a World 2026-27 build dir), STATE_TEAM
+    (the W8485_TEAM path, e.g. 'SUDAMERICA,BRASILE,CAMPEONATO BRASILEIRO SERIE A,ATHLETICO-PR'), STATE_N (its state's
+    clubs): the season ends without a trap, the state's stage-1 order (ST_RANK block 0, st_rec) has STATE_N clubs,
+    and statesim at the career's start gave every state of the world a block of real words"""
+    exe = os.environ.get('STATESIM_BUILD')
+    team = os.environ.get('STATE_TEAM')
+    if not exe or not team:
+        return True, 'SKIP: STATESIM_BUILD / STATE_TEAM not set'
+    want = int(os.environ.get('STATE_N', '0'))
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    from le import LE
+    d1 = LE(open(os.path.join(exe, 'ITALIAN.EXE'), 'rb').read()).obj_bytes(1)
+    k = d1.find(b'SSLASTPT')
+    if k < 0:
+        return False, 'no SSLASTPT block in the exe'
+    rank_at, last_at = struct.unpack_from('<2I', d1, k + 8)
+    keep = {x: os.environ.get(x) for x in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K',
+                                            'W8485_NOSACK', 'W8485_HEX', 'W8485_ONE')}
+    os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5', W8485_K='108+',
+                      W8485_NOSACK='1', W8485_HEX=f'o1/{rank_at:x}:470,o1/{last_at:x}:470', W8485_ONE='1')
+    try:
+        ok, msg = world8485()
+    finally:
+        for x, v in keep.items():
+            if v is None:
+                os.environ.pop(x, None)
+            else:
+                os.environ[x] = v
+    hexes = {}
+    f = os.path.join(RUNS, w84_tag() + '_1', 'session.log')
+    for ln in open(f, errors='replace') if os.path.exists(f) else []:
+        q = ln.split()
+        if len(q) == 3 and q[0] == 'HEX':
+            hexes.setdefault(q[1], []).append(bytes.fromhex(q[2]))
+    errs = []
+    check(ok, msg, errs)
+    played = [r[0] for r in (sr_blocks(b) for b in hexes.get(f'o1/{rank_at:x}', [])) if r]
+    lasts = [x for x in (sr_blocks(b) for b in hexes.get(f'o1/{last_at:x}', [])) if x]
+    check(played and len(played[0][1]) == want, f'state order {[(hex(a), len(w)) for a, w in played]} (want {want})',
+          errs)
+    check(lasts and len(lasts[0]) >= 13 and all(w and all(w) for _, w in lasts[0]),
+          f'statesim blocks {[(hex(a), len(w)) for a, w in (lasts[0] if lasts else [])]}', errs)
+    return not errs, '; '.join(errs + [f"{msg}; played {[(hex(a), len(w)) for a, w in played]}, statesim "
+                                        f"{len(lasts[0]) if lasts else 0} blocks"])
+
+
+@scenario
 def world_gplay_reserve(force='20', team='EUROPA,ITALIA,SERIE C GIRONE A,RENATE', src=None, div=2, direct=20):
     """The career club relegated into the reserve is sacked (gplay gp_sack, SeasonFinished's contract check): the
     world 2026-27 with Italy's reserve (private data internal/world2526/world5tm-reserve: Serie C groups, 20th down

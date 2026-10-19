@@ -7,8 +7,9 @@
 <!-- REGIA STAGED, the release payoff (Davide 2026-10-18, for the final release of the whole work):
 *Football competitions, global and local, that no other game has, has ever had, or probably ever will.* -->
 
-A historic career world of the **2026-27 season**: 91 countries, 1,847 clubs (+ 9 Serie D clubs waiting below Serie C), real squads at the end of the summer
-2026 transfer window. In CLASSIC CAREERS choose WORLD 2026-27, then the continent and the country (EUROPE lists the
+A historic career world of the **2026-27 season**: 91 countries, 2,378 clubs (Italy down to the real Serie D: 156 clubs in 9 groups), plus 97 clubs waiting outside
+the world (the Eccellenza, Brazil's state second divisions, the clubs below the B teams' leagues), real squads at the
+end of the summer 2026 transfer window. In CLASSIC CAREERS choose WORLD 2026-27, then the continent and the country (EUROPE lists the
 first 43 UEFA associations by ranking, the others are under OTHER NATIONS).
 
 ### Rebuilt exactly, point by point
@@ -174,8 +175,25 @@ when the engine lands it.
   relegated from Serie B go into the group of their region, balanced to 20 per group, as the real 2026-27 groups
   are drawn.
 - **Serie C relegates for real**: the 20th of each group and the two play-out losers (16th v 19th, 17th v 18th; no
-  play-out when 8+ points apart) go down to the Serie D, and nine clubs come up from it, each into the group of its
-  area. A relegated club comes back after the others ahead of it.
+  play-out when 8+ points apart) go down to the Serie D, and its nine group winners come up, each into the group of
+  its area.
+- **Serie D 2026-27, the real one**: the real 9 groups (Girone A-I), each club in its real group (156 of the real
+  162, see the Mod rules).
+  - Each group winner is promoted to Serie C (9 clubs).
+  - **Play-offs**: 2nd v 5th and 3rd v 4th in each group, single match at the better placed club's ground; a draw
+    goes to extra time, then the better placed club goes through; the final between the two winners the same way.
+    As in reality they promote nobody: they rank the repechage list.
+  - **Play-outs**: 13th v 16th and 14th v 15th (in the 17-club groups 12th v 15th and 13th v 14th), single match at
+    the better placed club's ground; a draw goes to extra time, then the better placed club stays up; not played
+    when the two clubs are 8 or more points apart (the lower one goes down). The two losers go down.
+  - **Relegation**: the last two of each group go down directly; with the play-out losers, 4 per group, 36 in all,
+    go down to the Eccellenza, and 36 clubs come up from it each season, as in reality.
+  - **Poule Scudetto** (title "Campione d'Italia Dilettanti", the 2025-26 rules, as the 2026-27 text isn't out):
+    the 9 group winners in 3 triangulars by group (A-B-C, D-E-F, G-H-I), single round robin; the 3 triangular
+    winners and the best runner-up in drawn two-legged semi-finals (points, then goals, no away goals, then
+    penalties, no extra time); the final a single match at a neutral ground, no extra time, penalties.
+  - **Played by your club**: the play-offs, the play-outs and the Poule Scudetto when you win your group; the
+    winner's season record shows ITALIAN AMATEUR CHAMPIONS.
 - **Serie C play-off of 28 clubs** (2nd-10th of each group + the Coppa Italia Serie C winner) for the fourth
   promotion:
   - group phase, round 1: 5th v 10th, 6th v 9th, 7th v 8th, single match at the better placed's, a draw -> the
@@ -363,13 +381,18 @@ when the engine lands it.
 - Serie C relegates as in reality: in each group the 20th goes down and the 16th-19th
   play the play-out (16th v 19th, 17th v 18th, two legs, the return leg at the better placed club; level on aggregate:
   the better placed stays; no play-out when the two clubs are 8 or more points apart: the worse placed goes down).
-  The 9 relegated clubs leave the world for the Serie D, and 9 come up into the group of their area. In season 1 the
-  9 that come up stand in for the 2026-27 Serie D winners, who are known only in May 2027: they are the 9 group
-  leaders of the Serie D on 18 October 2026 (Alessandria, Nibbiano & Valtidone, Luparense, Pistoiese, Prato,
-  L'Aquila, Sarnese, Virtus Francavilla, Reggina), a provisional choice to be replaced by the real 9. From season 2 the
-  relegated clubs come back up in turn, the longest in the Serie D first. Your club relegated to the Serie D is sacked
-  (job offers).
-- Nobody goes down from a country's lowest division in the world (except Serie C, relegated to the Serie D reserve), and play-offs against a tier outside the world are
+  The 9 relegated clubs go down to the Serie D and the 9 Serie D group winners come up into the group of their area.
+- Serie D, 156 of 162: Italy's team file holds 256 clubs (20 + 20 + 60 + 156), so 6 of the real 162 Serie D clubs
+  wait outside: the weakest newly promoted squads (Lascaris, Pavonese, Virtus Bolzano, Grassina, Citta di Anagni,
+  Melfi). They are the first clubs of the Eccellenza pool and come up to the Serie D at the first season end. In 4.1:
+  all 162.
+- The Eccellenza pool: 42 real clubs outside the team file, with real squads (the 6 above, then the 36 relegated from
+  the Serie D in 2025-26, in order of their finish). Each season the 36 clubs relegated from the Serie D leave the
+  world into the pool and the next 36 of the pool come up in their place, each into the Serie D group of its area
+  (the groups keep their sizes); the pool turns over, so a relegated club can come back later. Each season the Serie
+  D groups are re-formed by area, as in reality, so a club can move to a neighbouring group.
+- Your club relegated from the Serie D to the Eccellenza is sacked (job offers).
+- Nobody goes down from a country's lowest division in the world (except the Serie D, relegated to the Eccellenza pool), and play-offs against a tier outside the world are
   not played: e.g. Switzerland's 11th does not meet the Challenge League's 2nd, Korea's 10th and 11th play no K
   League 2 club.
 <!-- DATA STAGED (second-team rules: to come, the integrator's engine; Davide 2026-10-18): - Second teams (Juventus
@@ -465,8 +488,9 @@ when the engine lands it.
 <!-- REGIA STAGED, il payoff del rilascio (Davide 2026-10-18, per il rilascio finale di tutto il lavoro):
 *Le competizioni di calcio, globali e locali, che nessun altro gioco ha, ha mai avuto e probabilmente avrà.* -->
 
-Un mondo di carriera storica della **stagione 2026-27**: 91 nazioni, 1.847 club (+ 9 di Serie D in attesa sotto la Serie C), rose reali alla fine del mercato
-estivo 2026. In CARR. STORICHE scegli MONDO 2026-27, poi il continente e la nazione (EUROPA elenca le prime 43
+Un mondo di carriera storica della **stagione 2026-27**: 91 nazioni, 2.378 club (l'Italia fino alla Serie D vera: 156 club in 9 gironi), più 97 club in attesa fuori dal
+mondo (l'Eccellenza, le seconde divisioni statali brasiliane, i club sotto i campionati delle squadre B), rose reali
+alla fine del mercato estivo 2026. In CARR. STORICHE scegli MONDO 2026-27, poi il continente e la nazione (EUROPA elenca le prime 43
 federazioni UEFA per ranking, le altre sono in ALTRE NAZIONI).
 
 ### Ricostruito esattamente, punto per punto
@@ -632,8 +656,26 @@ Non una formula uguale per tutti: ogni campionato gioca la stagione come l'ha sc
 - **Serie C su tre gironi da 20** (A Nord, B Centro, C Sud): salgono le tre vincitrici; le retrocesse dalla B vanno
   nel girone della loro regione, bilanciato a 20, come sono composti i gironi veri 2026-27.
 - **In Serie C si retrocede davvero**: la 20ª di ogni girone e le due perdenti dei play-out (16ª-19ª e 17ª-18ª;
-  niente play-out con 8 o più punti di distacco) scendono in Serie D, e ne salgono nove, ognuna nel girone della sua
-  area. Chi retrocede torna dopo quelle scese prima di lui.
+  niente play-out con 8 o più punti di distacco) scendono in Serie D, e salgono le nove vincitrici dei gironi di
+  Serie D, ognuna nel girone della sua area.
+- **Serie D 2026-27, quella vera**: i 9 gironi veri (Girone A-I), ogni club nel suo girone vero (156 dei 162 veri,
+  vedi le regole della mod).
+  - La vincitrice di ogni girone sale in Serie C (9 club).
+  - **Play-off**: 2ª-5ª e 3ª-4ª in ogni girone, gara secca in casa della meglio piazzata; in caso di pareggio
+    supplementari, poi passa la meglio piazzata; la finale tra le due vincenti allo stesso modo. Come nella realtà
+    non promuovono nessuno: formano la graduatoria dei ripescaggi.
+  - **Play-out**: 13ª-16ª e 14ª-15ª (nei gironi da 17: 12ª-15ª e 13ª-14ª), gara secca in casa della meglio
+    piazzata; in caso di pareggio supplementari, poi si salva la meglio piazzata; non si gioca con 8 o più punti di
+    distacco (scende la peggio piazzata). Le due perdenti retrocedono.
+  - **Retrocessioni**: le ultime due di ogni girone scendono direttamente; con le perdenti dei play-out, 4 per
+    girone, 36 in tutto, scendono in Eccellenza, e ogni stagione ne salgono 36, come nella realtà.
+  - **Poule Scudetto** (titolo di Campione d'Italia Dilettanti, regole 2025-26, il testo 2026-27 non è ancora
+    uscito): le 9 vincitrici dei gironi in 3 triangolari per gironi (A-B-C, D-E-F, G-H-I), sola andata; le 3
+    vincitrici dei triangolari e la migliore seconda in semifinali sorteggiate di andata e ritorno (punti, poi gol,
+    niente gol in trasferta, poi rigori, niente supplementari); finale secca in campo neutro, niente supplementari,
+    rigori.
+  - **La gioca la tua squadra**: play-off, play-out e la Poule Scudetto se vinci il girone; nella storia della
+    stagione della vincitrice compare CAMPIONE D'ITALIA DILETTANTI.
 - **Play-off di Serie C a 28 squadre** (dalla 2ª alla 10ª di ogni girone + la vincente della Coppa Italia Serie C)
   per la quarta promozione:
   - fase dei gironi, primo turno: 5ª-10ª, 6ª-9ª, 7ª-8ª, gara secca in casa della meglio piazzata, a parità passa la
@@ -830,14 +872,21 @@ Non una formula uguale per tutti: ogni campionato gioca la stagione come l'ha sc
 - La Serie C retrocede come nella realtà: in ogni girone la 20ª scende e
   dalla 16ª alla 19ª si gioca il play-out (16ª contro 19ª, 17ª contro 18ª, andata e ritorno, ritorno in casa della
   meglio piazzata; in parità nel totale resta la meglio piazzata; niente play-out se le due squadre sono a 8 o più
-  punti di distanza: scende la peggio piazzata). Le 9 retrocesse lasciano il mondo per la Serie D e ne salgono 9, nel
-  girone della loro area. Nella prima stagione le 9 che salgono fanno le veci delle vincitrici della Serie D 2026-27,
-  note solo a maggio 2027: sono le 9 capoliste dei gironi di Serie D al 18 ottobre 2026 (Alessandria, Nibbiano &
-  Valtidone, Luparense, Pistoiese, Prato, L'Aquila, Sarnese, Virtus Francavilla, Reggina), una scelta provvisoria da
-  sostituire con le 9 vere. Dalla seconda stagione le retrocesse risalgono a turno, prima quella in Serie D da più
-  tempo. Se la tua squadra retrocede in Serie D vieni esonerato (offerte di lavoro).
-- Nessuna squadra retrocede dall'ultima divisione di una nazione nel mondo (tranne la Serie C, che retrocede nella
-  riserva di Serie D), e gli spareggi contro una serie fuori dal
+  punti di distanza: scende la peggio piazzata). Le 9 retrocesse scendono in Serie D e salgono le 9 vincitrici dei
+  gironi di Serie D, nel girone della loro area.
+- Serie D, 156 su 162: il file delle squadre italiane contiene 256 club (20 + 20 + 60 + 156), quindi 6 dei 162 club
+  veri di Serie D aspettano fuori: le neopromosse con la rosa più debole (Lascaris, Pavonese, Virtus Bolzano,
+  Grassina, Città di Anagni, Melfi). Sono le prime della riserva di Eccellenza e salgono in Serie D alla fine della
+  prima stagione. Nella 4.1: tutti e 162.
+- La riserva di Eccellenza: 42 club veri fuori dal file delle squadre, con rose vere (i 6 qui sopra, poi le 36
+  retrocesse dalla Serie D nel 2025-26 nell'ordine di classifica). Ogni stagione le 36 retrocesse dalla Serie D
+  lasciano il mondo per la riserva e le 36 successive della riserva salgono al loro posto, ognuna nel girone di Serie
+  D della sua area (i gironi tengono le loro dimensioni); la riserva gira, quindi una retrocessa può tornare più
+  avanti. Ogni stagione i gironi di Serie D si ricompongono per area, come nella realtà, quindi un club può passare a
+  un girone vicino.
+- Se la tua squadra retrocede dalla Serie D in Eccellenza vieni esonerato (offerte di lavoro).
+- Nessuna squadra retrocede dall'ultima divisione di una nazione nel mondo (tranne la Serie D, che retrocede nella
+  riserva di Eccellenza), e gli spareggi contro una serie fuori dal
   mondo non si giocano: per esempio l'11ª svizzera non affronta la 2ª della Challenge League, la 10ª e l'11ª coreane
   non giocano contro club della K League 2.
 <!-- DATA STAGED (regole delle seconde squadre: in arrivo, motore dell'integratore; Davide 2026-10-18): - Le seconde

@@ -52,7 +52,6 @@ Not one fixed formula for everybody: each league plays the season the way its ow
 - **Argentina 2026**: the Liga Profesional of 30 in two zones of 15, Apertura and Clausura (16 matchdays each: the
   zone round robin, the clasico on the free day, a drawn interzonal day), the annual table, relegation by promedio
   (3 seasons) and by the annual table.
-<!-- REGIA STAGED (MLS exact, branch 4.0-mls; publish when merged + TM_MLS_EXACT=1):
 - **Major League Soccer 2026**: 30 clubs in the Eastern and Western Conference (15 + 15), the real 34-match schedule
   (28 conference + 6 cross-conference games per club) on the real match days and dates, the World Cup break
   included. Equal points are ranked by wins, then goal difference, then goals scored; the club with the best record
@@ -62,7 +61,7 @@ Not one fixed formula for everybody: each league plays the season the way its ow
     higher seed hosts games 1 and 3, a drawn game goes to penalties, game 3 only if needed); Conference Semifinals
     and Conference Finals, single matches at the higher seed; the MLS Cup at the club with the better record. Extra
     time and penalties from the Conference Semifinals. Playable by your club, with the real round names.
-  Declared: the tables are the two conferences; the Supporters' Shield is not shown as a separate table. -->
+  Declared: the tables are the two conferences; the Supporters' Shield is not shown as a separate table.
 <!-- REGIA STAGED (title play-offs, branch titlepo; publish when merged + TM_TITLE=1 + the champion applied):
 - **Title play-offs where the champion is decided after the table**:
   - **Canada** (CPL): the top 4, semi-finals 1st v 4th and 2nd v 3rd over two legs (the better placed hosts the
@@ -115,6 +114,10 @@ when the engine lands it.
 
 *European cups (UEFA 2026-27)*
 - **The current official names**: UEFA Champions League, UEFA Europa League, UEFA Conference League, on every screen.
+- **No away goals in 2026-27** (UEFA abolished them in 2021-22; every federation's two-legged rounds followed): a
+  level aggregate goes to extra time and penalties, or straight to penalties where the regulation says so (Copa do
+  Brasil rounds 5-8, EFL Cup semi-finals, the Chilean Copa de la Liga semi-finals), in played and simulated ties
+  alike. The historic worlds (1984-85) keep the away-goals rule, as it was then.
 - **Every round under its real name, in every language**: league phase, knockout play-offs, round of 16 (then
   quarter-finals, semi-finals, final), the qualifying play-off round; also the Serie B play-off's preliminary round
   and the national cups' round of 16, except the cups whose federations number their rounds: the FA Cup and the
@@ -509,7 +512,6 @@ Non una formula uguale per tutti: ogni campionato gioca la stagione come l'ha sc
   zona, il clasico nel giorno di riposo, una giornata interzonale sorteggiata), la classifica annuale, retrocessione
   per promedio (3 stagioni) e per classifica annuale.
 <!-- REGIA STAGED (play-off per il titolo, ramo titlepo; da pubblicare col merge + TM_TITLE=1 + campione applicato):
-<!-- REGIA STAGED (MLS esatta, ramo 4.0-mls; da pubblicare col merge + TM_MLS_EXACT=1):
 - **Major League Soccer 2026**: 30 club nelle Conference Est e Ovest (15 + 15), il calendario vero di 34 partite
   (28 nella propria conference e 6 contro l'altra) nelle giornate e date vere, pausa per i Mondiali compresa. A
   parità di punti contano le vittorie, poi la differenza reti, poi i gol fatti; il club col miglior record assoluto
@@ -520,7 +522,7 @@ Non una formula uguale per tutti: ogni campionato gioca la stagione come l'ha sc
     solo se serve); semifinali e finali di conference in gara secca in casa della meglio piazzata; la MLS Cup in
     casa del club col record migliore. Supplementari e rigori dalle semifinali di conference. Giocabili dal tuo
     club, coi nomi veri dei turni.
-  Dichiarato: le classifiche sono le due conference; il Supporters' Shield non ha una classifica a parte. -->
+  Dichiarato: le classifiche sono le due conference; il Supporters' Shield non ha una classifica a parte.
 - **Play-off per il titolo dove il campione si decide dopo la classifica**:
   - **Canada** (CPL): le prime 4, semifinali 1ª-4ª e 2ª-3ª andata e ritorno (ritorno in casa della meglio
     piazzata), finale secca in casa della meglio piazzata.
@@ -570,6 +572,10 @@ Non una formula uguale per tutti: ogni campionato gioca la stagione come l'ha sc
 
 *Coppe europee (UEFA 2026-27)*
 - **I nomi ufficiali di oggi**: UEFA Champions League, UEFA Europa League, UEFA Conference League, su ogni schermata.
+- **Niente gol in trasferta nel 2026-27** (aboliti dalla UEFA nel 2021-22, e le federazioni hanno seguito): a parità
+  nel totale si va ai supplementari e ai rigori, o direttamente ai rigori dove il regolamento lo prevede (Copa do
+  Brasil turni 5-8, semifinali di EFL Cup e della Copa de la Liga cilena), sia nelle sfide giocate sia in quelle
+  simulate. I mondi storici (1984-85) mantengono la regola dei gol in trasferta, com'era allora.
 - **Ogni turno col suo nome vero, in ogni lingua**: fase campionato, spareggi, ottavi di finale (poi quarti,
   semifinali, finale), gli spareggi delle qualificazioni; anche il turno preliminare dei play-off di Serie B e gli
   ottavi delle coppe nazionali, tranne le coppe che le federazioni numerano per turni: FA Cup e Scottish Cup

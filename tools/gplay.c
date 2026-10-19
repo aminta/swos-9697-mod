@@ -1133,8 +1133,10 @@ void gp_rec_c(void) {
     for (int p = k->gp0[g]; p < k->gp0[g + 1]; p++)
         if ((k->pa[p] == a && k->pb[p] == b) || (k->pa[p] == b && k->pb[p] == a)) k->pw[p] = GP_W ? b : a;
     resolve(k);
-    if (k->bye[5] && k->ntie && k->tw[k->ntie - 1] != NOC) {   /* (its final decided: the next one, once) */
-        set_pend(k->bye[5], GP_WK);
+    if (k->bye[5] && k->ntie && k->tw[k->ntie - 1] != NOC) {   /* (its final decided: the next one, once, from the
+                                           week after: the advance right after the final still has slot 4's contest
+                                           in hand, a build there was lost - 4.0's Trofeo) */
+        set_pend(k->bye[5], GP_WK + 1);
         k->bye[5] = 0;
     }
 }

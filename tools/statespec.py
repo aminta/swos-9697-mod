@@ -1092,7 +1092,7 @@ def sim_table(world=None):
     return bytes([ns]) + bytes(out) if ns else b''
 
 
-SIM_PAGES = 2                           # statesim.c's pages (statecup's after its own): table, code, statics
+SIM_PAGES = 3                           # statesim.c's pages (statecup's after its own): table, code, statics
 SIM_BSS = 0x400                         # (statesim.c's statics: at the end of its pages, zero-filled)
 
 

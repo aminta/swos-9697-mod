@@ -805,7 +805,8 @@ extern u16 GP_MGR;
 struct gp_gs { u8 sdiv[GSD], pad; struct gp_srow srow[GSD][GSR]; };   /* the early tables beyond SD (a group contest:
                                            the Poule's 8 other groups; the engine block's item 'GS') */
 struct gp_gs GP_GS;
-struct gp_log { u32 tag; u8 seas, stseas, pl_pi, pad; struct gp_ko ko; struct gp_out out; } GP_LOG;
+struct gp_log { u32 tag; u8 seas, stseas, pl_pi, pad; struct gp_ko ko; struct gp_out out;
+                u16 top[9]; } GP_LOG;    /* top: the qualifiers' top-9 list after gp_champ (harness: world_title) */
                                         /* the last season end's (harness): its season, the state's, the played one */
 /* set by the glue */
 u8 GP_HDR[14] = { 0xAD };               /* (gplay.py: the game's Australian cup header, no draw, no away goals) */
@@ -1760,6 +1761,7 @@ void gp_end_c(void) {                   /* after gp_season: the log, the state v
         s = (const u8 *)&GP_OUT; d = (u8 *)&GP_LOG.out;
         for (u32 i = 0; i < sizeof GP_LOG.out; i++) d[i] = s[i];
         GP_LOG.seas = GP_SEAS; GP_LOG.stseas = GP_ST.season; GP_LOG.pl_pi = GP_IN.pl_pi;
+        for (int i = 0; i < 9; i++) GP_LOG.top[i] = GP_TOPW[i];
         GP_LOG.tag = 0x474C5047;        /* 'GPLG' */
     }
     if (GP_CDT && GP_CDD) cd_rank();          /* (the Coppa D: the Serie D groups' final places) */

@@ -4276,6 +4276,14 @@ TITLE_TEAMS = {'can': 'NORDAMERICA,CANADA,FORGE', 'mlt': 'EUROPA,MALTA,HAMRUN SP
                'crc': 'NORDAMERICA,COSTA RICA,SAPRISSA'}
 
 
+GP_LOG_TOP = 1012          # gplay.c struct gp_log: top[9] (cseg_927A2's team words after gp_champ) after gp_out
+
+
+def title_top(lg):
+    """The qualifiers' top-9 list of the career club's country after gp_champ (GP_LOG.top), or None (older exe)."""
+    return list(struct.unpack_from('<9H', lg, GP_LOG_TOP)) if len(lg) >= GP_LOG_TOP + 18 else None
+
+
 def world_title(code, force='3'):
     """A title play-off of the world 2026-27 (formats_data.KO_TITLE, mkworld_tm TM_TITLE=1: Canada's CPL play-offs,
     the A-League finals series, Costa Rica's semis + final + Gran Final), played: the stable world5tm-poule snapshot
@@ -4340,7 +4348,10 @@ def world_title(code, force='3'):
         res = [struct.unpack_from('<BBHHHH', lg, 682 + 4 + 8 * 32 + 10 * i) for i in range(min(lg[683], 4))]
         titles = [r for r in res if r[0] == 5]
         check(len(titles) == 1, f'no match played and champions {titles}', errs)
-        return not errs, '; '.join(errs) or f'{msg}; one club won both rounds: champion {titles[0][2]:#x}, no match'
+        top = title_top(lg)
+        check(titles and top and top[0] == titles[0][2], f'top-9 list {top}', errs)
+        return not errs, '; '.join(errs) or (f'{msg}; one club won both rounds: champion {titles[0][2]:#x} (first '
+                                             'in the top-9 list), no match')
     if not sts:
         return False, f'{msg}; the title play-off never ran (no GP_ST seen)'
     run = [gp_ko(b[GP_STKO:]) for b in sts]
@@ -4351,7 +4362,8 @@ def world_title(code, force='3'):
     po = spec[0]
     nties = sum(len(r['ties']) or len(r.get('clubs', [])) // 2 for r in po['rounds'])
     me = int(force) - 1                                  # (division 0: code = place - 1)
-    check(ko['magic'] == 0x4B47 and ko['kind'] == 5 and ko['n'] == len(po['entrants']) and me in ko['code'],
+    check(ko['magic'] == 0x4B47 and ko['kind'] == 5 and ko['n'] <= len(po['entrants']) and me in ko['code'],   # (one
+                                                     # club as two entrants, Malta's split seeds: listed once)
           f"contest kind {ko['kind']} n {ko['n']} codes {ko['code']}", errs)
     check(ko['ntie'] == nties and all(x != 255 for x in ko['tw']), f"ties {ko['ntie']}/{nties} winners {ko['tw']}",
           errs)
@@ -4361,10 +4373,12 @@ def world_title(code, force='3'):
     win = ko['team'][ko['tw'][-1]] if ko['tw'] and ko['tw'][-1] < ko['n'] else None
     check(len(titles) == 1 and titles[0][2] == win, f'champion {[hex(r[2]) for r in titles]}, last winner '
           f'{win if win is None else hex(win)}', errs)
+    top = title_top(lg)                                  # (gp_champ: the qualifiers' champion place)
+    check(top and top[0] == win, f"top-9 list {top and [hex(t) for t in top]}, champion {win and hex(win)}", errs)
     gw = sorted({r['gcur'] for r in run})
     return not errs, '; '.join(errs) or (f"{msg}; {po['key']}: clubs {[hex(t) for t in ko['team']]} codes {ko['code']}"
                                          f", ties {ko['ntie']} winners {ko['tw']}, game rounds seen {gw}, champion "
-                                         f"{win:#x}")
+                                         f"{win:#x} (first of the top-9 list {[hex(t) for t in top]})")
 
 
 @scenario
@@ -4399,7 +4413,6 @@ def gplay_split_seed():
     test = r"""
 #include "%s"
 #include <stdio.h>
-const unsigned char GP_PROM_TAB[256];
 static int cp[12] = {30,28,26,24,22,20,18,16,14,12,10,8}, op[12] = {35,30,25,20,15,12,10,8,6,4,2,1};
 static void run(const char *open) {         /* the Closing table A..L in order; the Opening's order */
     GP_IN.nd = 1; GP_IN.n[0] = 12; GP_IN.nst[0] = 12;
@@ -4418,8 +4431,15 @@ int main(void) {
     want = 'AAAA BAAB CAAC BCAB CADB'    # (aggregates: B 63 / A 60; C 61 / A 60; C 56 / A 31; C 61 A 55 D 54 B 48)
     with tempfile.TemporaryDirectory() as d:
         open(os.path.join(d, 't.c'), 'w').write(test)
-        r = subprocess.run(['cc', '-w', '-o', os.path.join(d, 't'), os.path.join(d, 't.c')], capture_output=True,
-                           text=True)
+        stub = ''
+        for _ in range(2):                      # (the exe's externs, never used here: stubs in a unit of their own
+            open(os.path.join(d, 's.c'), 'w').write(stub)                  # for those the linker misses)
+            r = subprocess.run(['cc', '-w', '-o', os.path.join(d, 't'), os.path.join(d, 't.c'), os.path.join(d, 's.c')],
+                               capture_output=True, text=True)
+            miss = sorted(set(re.findall(r'"_(\w+)", referenced from', r.stderr)))
+            if not r.returncode or not miss:
+                break
+            stub += ''.join(f'unsigned char {m}[65536] __attribute__((aligned(8)));\n' for m in miss)
         if r.returncode:
             return False, f'cc: {r.stderr[:300]}'
         got = subprocess.run([os.path.join(d, 't')], capture_output=True, text=True).stdout.strip()

@@ -427,8 +427,18 @@ gp_lend:                                ; replaces `call cseg_8ECAE` (the career
 .none:
     call gp_clrn
 .next:
+    mov eax, [D8CAA + 16]               ; (D8CBA = one of our contests, e.g. built mid-season by gp_build: the native
+    lea ebx, [GP_ST + ST_KO + KO_CON]   ; division play-off path of cseg_8ECAE would read it as a league record's
+    cmp eax, ebx                        ; play-off, with a stale D8CC0: skip it)
+    je .skip
+    add ebx, KO_SIZE
+    cmp eax, ebx
+    je .skip
     popad
     jmp GP_LEND_NEXT
+.skip:
+    popad
+    ret
 
 gp_build:                               ; mid-season (4.0's engine.after_stage): play-off GP_BPI of the career
     pushad                              ; league's spec into slot 4, its first week GP_BWEEK + 1, its entrants from

@@ -280,6 +280,8 @@ sp_slot:                                ; eax = row -> ebp = its slot in the slo
 
 sp_pair:                                ; replaces `mov esi, [A0]` before cseg_89758's home / away test
     pushad
+    cmp dword [esp + 36], BUILDER_RET   ; (the career calendar's builder walking the days: sp_stage_end idle)
+    sete byte [sp_bld]
     call sp_entry
     jz .game
     movzx ecx, word [esi + 1C1h]
@@ -621,6 +623,8 @@ sp_stage_end:                           ; ecx = the day just over (after the spl
     lea edi, [ecx + 1]
     cmp edi, ebx
     jne .r
+    cmp byte [sp_bld], 0                ; (the calendar builder's walk at the season start: not a stage end)
+    jne .r
     xor edi, edi                        ; a real stage end: matches played (the career calendar's builder walks
     movzx ebx, word [esi + 31h]         ; every day at the season start with nothing played: no table, no callback)
 .pl:
@@ -886,6 +890,7 @@ sp_rec: dd 0
 sp_n: dd 0
 sp_first: dd 0
 sp_stg: db 0
+sp_bld: db 0
 sp_rule: db 0
 sp_G: db 0
 sp_div: dd 0

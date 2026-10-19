@@ -245,7 +245,11 @@ def patch_exe(src, dst, remap, lang='it'):
         engine.save_item('PR', 4 + 48 * 8)
     sc_pg = int(bool(statecup.ENTRIES))                # state championships (statecup.py): one page after split's
     sc_pg += statespec.SIM_PAGES * int(any(e['world'] and e['states'] for e in statecup.ENTRIES))   # (statesim.c)
-    for _ in range((6 + cp + 2 + 2 * cdp if worlds else 6) + lpb + sp_pg + sc_pg):  # (+1: the UEFA league phase's page, lp36)
+    import conti                                       # the other confederations' cups (conti.c): own pages after
+    ct_pg = conti.PAGES * int(bool(mkseason.league_phase_worlds() and conti.enabled()))   # statecup's, a save item
+    if ct_pg:
+        engine.save_item('CT', conti.ST_SIZE)
+    for _ in range((6 + cp + 2 + 2 * cdp if worlds else 6) + lpb + sp_pg + sc_pg + ct_pg):  # (+1: the UEFA league phase's page, lp36)
         data = add_object_page(data, 1)
     mkseason.CAREER_CAVE[0] = CAREER_CAVE if worlds else None
     mkseason.CAREER_DATA[0] = CAREER_DATA + 0x1000 * (cp - 2) if worlds else None
@@ -429,6 +433,9 @@ def patch_exe(src, dst, remap, lang='it'):
         import ripool
         ri_bss = careerworld.BSS[0] + careerworld.BSS_SIZE
         careerworld.BSS_SIZE += (ripool.bss_need(ri_tabs) + 0xFFF) & ~0xFFF
+    if ct_pg:                                   # conti.c's .bss (the other confederations' cups)
+        ct_bss = careerworld.BSS[0] + careerworld.BSS_SIZE
+        careerworld.BSS_SIZE += conti.BSS
     assert cave <= WORLD_CAVE, hex(cave)
     print(f'exe: caves: world end {world:#x} (limit {NZ_CAVE:#x}), arg end {arg_end:#x} (limit {OBJ1_NEW_VSIZE:#x})')
     world = cafcups.intl_list(p, caf, world)
@@ -492,7 +499,10 @@ def patch_exe(src, dst, remap, lang='it'):
         assert sc_end <= sc_at + 0x1000, hex(sc_end)
         if sc_pg > 1:
             statespec.sim_patch(p, sc_at + 0x1000)  # statesim.c: every state's stage 1 + relegation at the season end
-    p.set_vsize(1, OBJ1_NEW_VSIZE + (0x1000 * (cp + 2 + cdp) if worlds else 0) + h2 + 0x1000 * (lpb + sp_pg + sc_pg))
+    if ct_pg:                                    # the other confederations' cups (conti.c): after statecup's pages
+        ct_at = hist2 + h2 + 0x1000 * (lpb + sp_pg + sc_pg)
+        conti.patch(p, ct_at, ct_at + 0x1000 * ct_pg, ct_bss, area)
+    p.set_vsize(1, OBJ1_NEW_VSIZE + (0x1000 * (cp + 2 + cdp) if worlds else 0) + h2 + 0x1000 * (lpb + sp_pg + sc_pg + ct_pg))
     tail = (careerworld.BSS_SIZE if bigw else 0) + shirtnum.BSS_SIZE + blond.BSS_SIZE + menunum.BSS_SIZE + fmtpage.BSS_SIZE   # obj2 tail
     p.set_vsize(2, obj2_free + o2pages * p.le.page_size + tail, bss=tail)
     p.add_flags(1, 0x2)            # writable: season end rewrites the SA cup team lists in the cave

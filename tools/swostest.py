@@ -1057,6 +1057,12 @@ def substitute(s, scr, tries=40, full=False):
     return 'squad screen: still unavailable players after 10 swaps'
 
 
+def vis_ok(s):
+    """VIS. RISULTATI shown after a redraw (a swap's screen is read before the game re-checks the line-up)."""
+    s.send('dump:1')
+    return s.result.outcome == 'dump' and 'VIS. RISULTATI' in s.screen().texts()
+
+
 def keeper_from_reserves(s, cur, rows, tries=40):
     """Row 1 without a fit goalkeeper: cycle the 17th row (the reserve shown) to a fit G / P and swap him into row 1.
     Returns an error string or None."""
@@ -1100,6 +1106,8 @@ def substitute_min(s, tries=40):
             return f'squad screen: {len(rows)} rows'
         bad = [k for k, (i, un) in enumerate(rows[:16]) if un]
         if not bad and 'VIS. RISULTATI' not in cur.texts():
+            if vis_ok(s):                               # (only not redrawn yet)
+                return None
             bad = [0]                                   # no goalkeeper in goal (the game's own squad changes)
         if not bad:
             return None if 'VIS. RISULTATI' in cur.texts() else 'squad screen without VIS. RISULTATI, no unavailable row'
@@ -1107,7 +1115,7 @@ def substitute_min(s, tries=40):
         if k == 0 and (keeper or rows[11][1]):          # no fit keeper in goal (row 12 is not always one: an outfield
             err = keeper_from_reserves(s, cur, rows, tries)   # player in goal keeps VIS. RISULTATI hidden): a fit
             if err:                                           # keeper (P / G) of the reserves, the 17th row cycled
-                return err
+                return fallback_full(s, tries, err)
             continue
         if k == 0:                                      # the keeper: row 12 is the bench keeper in SWOS squads
             press(s, cur, rows[0][0], wait=1)
@@ -1120,9 +1128,11 @@ def substitute_min(s, tries=40):
         face = next((i for i, (l, r) in enumerate(cur.nav) if l[1] == reserve and cur.geom[i][0] < row_x(cur)), None)
         if face is None:
             return 'squad screen: no face entry for the 17th row'
-        fit = not rows[-1][1]
-        first = reserve_info(cur, ry)[0]
-        for _ in range(tries):                          # the first fit reserve the 17th row shows
+        # the first fit reserve the 17th row shows with a real value; the game's invented reserves (RIS, value 0:
+        # a red '?' once in the 16, VIS. RISULTATI hidden) and trial players (-1) only on a second lap
+        name, _, value = reserve_info(cur, ry)
+        first, lap, fit = name, 0, not rows[-1][1] and value > 0
+        for _ in range(2 * tries):
             if fit:
                 break
             press(s, s.screen(), face, wait=1)
@@ -1132,17 +1142,54 @@ def substitute_min(s, tries=40):
             rows2 = squad_rows(s, c2, f'sq{len(s.log):03d}')
             if len(rows2) != 17:
                 break
-            fit = not rows2[-1][1]
-            if reserve_info(c2, ry)[0] == first:        # (every reserve seen: none fit)
-                break
-        if not fit:
-            return f'no fit reserve for row {k + 1}'
+            name, _, value = reserve_info(c2, ry)
+            if name == first:                           # (every reserve seen once)
+                lap += 1
+                if lap == 2:
+                    break
+            fit = not rows2[-1][1] and (value > 0 or lap == 1)
+        if not fit:                                     # (no fit reserve: the game may still allow the match, else
+            return fallback_full(s, tries, f'no fit reserve for row {k + 1}')   # the full search, once)
         stand_in = reserve_info(s.screen(), ry)[0]
         press(s, s.screen(), rows[k][0], wait=1)
         press(s, s.screen(), reserve, wait=1)
+        out = reserve_info(s.screen(), ry)[0]           # (the one who left the 16: now the 17th row; recorded as the
+        subs = s.__dict__.setdefault('subs', {})        # full search does, so its fallback can bring him back)
+        if k not in subs:
+            subs[k] = (out, stand_in)
         s.log.append(f'[subs] slot {k + 1}: {stand_in} in (min)')
-    s.log.append('[subs] 12 swaps without VIS. RISULTATI - the full search (min)')
-    return substitute(s, s.screen(), tries, full=True)
+    return fallback_full(s, tries, '12 swaps without VIS. RISULTATI')
+
+
+def fallback_full(s, tries, why):
+    """The minimal line-up stuck: VIS. RISULTATI after a redraw is enough (the game allows the match), else the full
+    best-reserve search for this screen; its error only if that fails too."""
+    if vis_ok(s):
+        s.log.append(f'[subs] {why}, but VIS. RISULTATI shown (min)')
+        return None
+    s.log.append(f'[subs] {why} - the full search for this screen (min)')
+    err = substitute(s, s.screen(), tries, full=True)
+    if err and vis_ok(s):
+        return None
+    if err:                                             # no fit reserve at all: an unavailable starter (rows 1-11)
+        cur = s.screen()                                # to the bench, a fit bench player (rows 12-16) in his place
+        rows = squad_rows(s, cur, f'sq{len(s.log):03d}')
+        if len(rows) == 17:
+            fitb = [k for k in range(11, 16) if not rows[k][1]]
+            for k in [k for k in range(11) if rows[k][1]]:
+                if not fitb:
+                    break
+                b = fitb.pop(0)
+                press(s, s.screen(), rows[k][0], wait=1)
+                press(s, s.screen(), rows[b][0], wait=1)
+                s.log.append(f'[subs] slot {k + 1}: unavailable, to the bench (row {b + 1}) (min)')
+            if vis_ok(s):
+                return None
+    if err and s.screen().find('ESCI', exact=True) is not None:   # nothing more to fix: leave the squad screen
+        s.log.append(f'[subs] {err}: ESCI, the season loop goes on (min)')   # (advance's stuck check still applies)
+        press(s, s.screen(), 'ESCI', wait=2)
+        return None
+    return err
 
 
 def nat_callups(s, limit=120):
@@ -4165,8 +4212,8 @@ def world_split_stages():
 def world_odd_league():
     """A league with an odd number of clubs (mkseason.odd_leagues: the engine's own rest day, no phantom club): the
     full world with the real odd sizes (ODD_BUILD, default the newest internal/swostest/builds/w2627odd-*), a
-    season at AUCKLAND CITY (New Zealand, 11 clubs): 22 days of 5 matches, every club 20 matches and 2 rests, the
-    season ended and the next one started"""
+    season at DEMPO (India's Football League, the 2nd division, 11 clubs; the NZ National League is gone from the
+    final data): 22 days of 5 matches, every club 20 matches and 2 rests, the season ended and the next one started"""
     import glob
     b = os.environ.get('ODD_BUILD') or (sorted(glob.glob(os.path.join(WORK, 'builds', 'w2627odd-*'))) or [None])[-1]
     if not b:
@@ -4179,7 +4226,7 @@ def world_odd_league():
     keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K',
                                             'W8485_NOSACK', 'W8485_DIY', 'W8485_TMO', 'W8485_SLOTS')}
     os.environ.update(W8485_BUILD=b, W8485_WORLD='MONDO 2026-27', W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1',
-                      W8485_TEAM=os.environ.get('ODD_TEAM', 'OCEANIA,NUOVA ZELANDA,NEW ZEALAND NATIONAL LEAGUE,AUCKLAND CITY'),
+                      W8485_TEAM=os.environ.get('ODD_TEAM', 'ASIA,INDIA,INDIAN FOOTBALL LEAGUE,DEMPO'),
                       W8485_DIY=f"{sa['DIY']:x},{split.ST:x},{sa['CAL']:x},{n:x}", W8485_TMO='600',
                       W8485_SLOTS=f"{sa['SLOTS']:x}")
     try:

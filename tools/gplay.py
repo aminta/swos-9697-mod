@@ -257,6 +257,62 @@ gp_cal:                                 ; 4.0: replaces the career calendar's le
     ret
 %endif
 
+gp_after:                               ; 4.0 after a career load (arg97's arg_load, after ProcessCareerFile)
+    call gp_sync
+    mov al, [SEASONPLAYING]
+    mov [GP_SEAS], al
+    xor ebp, ebp                        ; (the career country's play-off names, as gp_sack finds them)
+    mov edx, [D8CAA]
+    test edx, edx
+    jz .nm
+    call gp_find
+    jz .nm
+    sub esi, GP_TAB
+    mov eax, esi
+    xor edx, edx
+    mov ecx, 9
+    div ecx
+    mov ebp, [GP_NMT + eax * 4]
+.nm:
+    push dword 0
+    call gp_fixload                     ; (phase 0: the knockouts' contest names)
+    add esp, 4
+    call gp_repoint
+    push dword 1
+    call gp_fixload                     ; (phase 1: the season records' league lines)
+    add esp, 4
+    ret
+
+gp_fixload:                             ; [esp + 4] = the phase, ebp = GP_NM or 0
+    push es
+    push ds
+    pop es
+    cld
+    push dword [esp + 8]
+    push dword SLOTS_
+    push dword STR_BASE_
+    push dword SEASREC
+    push ebp
+    call gp_fixload_c
+    add esp, 20
+    pop es
+    ret
+
+gp_repoint:                             ; 4.0 after a career load (gp_after): the slot buffers' long-name
+    push es                             ; pointers and titles from this exe's contest structs (gp_repoint_c)
+    push ds
+    pop es
+    cld
+    movzx eax, word [CAR_DIV]
+    push eax
+    push dword STR_BASE_
+    push dword D8CAA
+    push dword SLOTS_
+    call gp_repoint_c
+    add esp, 16
+    pop es
+    ret
+
 gp_c:                                   ; eax = a C function: called with es = ds, cld (C may use string ops)
     push es
     push ds
@@ -1197,6 +1253,15 @@ GP_ST_SIZE = 2048       # (sizeof struct gp_state: the engine block's item 'GP',
 GP_BSS = 0x6000          # the C .bss pages (obj2 after careerworld's BSS): GP_IN at GT 32 / GD 16, GP_SS, PR, RS, GP_ST, RI, PS
 
 
+def _cardiv(p):
+    """dseg_D6CDC: the career club's division (CareerGameListCommon's league row: [names + D6CDC * 8 + 4])."""
+    d1 = p.le.obj_bytes(1)
+    m = [x.start() for x in re.finditer(rb'\x66\xa1....\x66\xa3....\x66\xc1\x25....\x03\x8b\x35....\x0f\xb7\x1d....'
+                                     rb'\x8b\x44\x1e\x04', d1, re.S)]
+    assert len(m) == 1, ('the league row: mov ax, [D6CDC] ... mov eax, [esi+ebx+4]', [hex(x) for x in m])
+    return p.target(1, m[0] + 2)[1]
+
+
 def _sack_sites(p):
     """SeasonFinished: its call of cseg_3E55C (the contract check, national selectors only; its tail: currentMessage =
     WE_DIDNT_RENEW_YOUR_CONTRACT, call ShowChairmanMessage, youreSacked = 1, ret) and, after it, a club career's
@@ -1369,7 +1434,7 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
     symbols.update({'DA11B': (2, sk['da11b']), 'GETSEASON': (1, sk['getseason']), 'SEASREC': (2, sk['seasrec'])})
     symbols.update({k: syms[k] for k in ('GP_CFB', 'GP_LG', 'GP_RST', 'GP_RIT', 'GP_SEL', 'GP_MGR', 'GP_WORLD', 'GP_SLT',
                                          'gp_sack_c', 'gp_forcecfb', 'gp_pwin_c', 'gp_adv_c', 'GP_ADVWK', 'GP_WK', 'GP_TH', 'GP_RN',
-                                         'gp_defer_c', 'cd_step_c', 'gp_scal_c', 'CD_ST', 'GP_CDT', 'GP_CDNM', 'GP_CDD',
+                                         'gp_defer_c', 'cd_step_c', 'gp_scal_c', 'gp_repoint_c', 'gp_fixload_c', 'CD_ST', 'GP_CDT', 'GP_CDNM', 'GP_CDD',
                                          'GP_CDFIRST')})
     symbols['FORCE_ON'] = (0, int(bool(force)))
     import longtable                                          # 4.0 stage titles (table, calendar): the table in area
@@ -1389,6 +1454,8 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
         symbols.update({'STG_TAB': (2, stg_tab), 'SLOTS_': (2, split.sites(p)['SLOTS']), 'A6R': (2, r['A0'] + 24)})
         LABELS['STG_TAB'] = (2, stg_tab)
     symbols['STG_ON'] = (0, int(bool(stg)))
+    import sacups
+    symbols.update({'SLOTS_': (2, split.sites(p)['SLOTS']), 'STR_BASE_': (2, sacups.STR_BASE), 'CAR_DIV': (2, _cardiv(p))})
     rec_dp = p.get(1, ps['rec'], 1) == b'\xe8'                # dplay's `call dp_rec; nop` there, or the game's mov
     symbols['GP_REC_NEXT'] = (1, tgt(ps['rec'])) if rec_dp else (0, 0)
     after = {}                                              # 4.0 ARG: a stage title's knockout built after its stage

@@ -135,7 +135,7 @@ Cearense, Pernambucano, Alagoano and Mato-Grossense.
   Carioca and Mineiro finals are at the first finalist's ground (real: a neutral ground); in the state you play,
   equal points are split by goal difference (real: wins first; the simulated states use the real order); the
   Cearense's six qualifiers are drawn into two groups of three that play each other (real: each group's clubs play
-  the other group's); the Catarinense semi-final crossing is assumed; the side trophies (Taca Rio, Taca Farroupilha,
+  the other group's); the Catarinense semi-final crossing is assumed; the Pernambucano's second division clubs are those of 2025; the side trophies (Taca Rio, Taca Farroupilha,
   Trofeu Inconfidencia, Campeao do Interior) are not played.
 
 *At least everything the original game had*
@@ -689,7 +689,7 @@ Baiano, Cearense, Pernambucano, Alagoano e Mato-Grossense.
   le finali di Carioca e Mineiro si giocano in casa della prima finalista (vero: campo neutro); nello statale che
   giochi, a pari punti decide la differenza reti (vero: prima le vittorie; gli statali simulati usano l'ordine vero);
   le sei qualificate del Cearense sono sorteggiate in due gironi da tre che giocano tra loro (vero: ogni club gioca
-  contro quelli dell'altro girone); l'incrocio delle semifinali del Catarinense è presunto; i trofei minori (Taca
+  contro quelli dell'altro girone); l'incrocio delle semifinali del Catarinense è presunto; i club della seconda serie del Pernambucano sono quelli del 2025; i trofei minori (Taca
   Rio, Taca Farroupilha, Trofeu Inconfidencia, Campeao do Interior) non si giocano.
 
 *Almeno tutto quello che aveva il gioco originale*

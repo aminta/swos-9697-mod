@@ -886,7 +886,7 @@ def ov_patch(p, at, tab_at, limit):
     engine.CALL_AT['st_ovr'] = (1, lab['st_ovr'])           # (over ko_patch's bare ret)
     if 'RI_POST_PTR' in rl:
         p.add_ptr(*rl['RI_POST_PTR'], 1, lab['st_post'])
-    if 'RI_PRE_PTR' in rl:
-        p.add_ptr(*rl['RI_PRE_PTR'], 1, lab['ss_entry'])
+    if 'RI_PRE_PTR' in rl and not os.environ.get('STATESIM_NOPRE'):   # (STATESIM_NOPRE=1: test builds with a
+        p.add_ptr(*rl['RI_PRE_PTR'], 1, lab['ss_entry'])                # fixed SR of ripool's: overrides only)
     return at + len(code)
 

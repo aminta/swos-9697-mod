@@ -272,6 +272,10 @@ def patch_exe(src, dst, remap, lang='it'):
     if mkseason.league_phase_worlds():          # simulated results' score table (simdraw.py, 3 KB)
         o2pages += 1
         data = add_object_page(data, 2)
+    if mkseason.league_phase_worlds():          # 4.0's World 2026-27 adds: state fixture calendars (lp36 fx_patch),
+        o2pages += 2                            # play-off round names / title specs' strings (gplay), the MLS (area
+        data = add_object_page(data, 2)         # full with TM_MLS_EXACT or TM_TITLE)
+        data = add_object_page(data, 2)
     if bigtables.ON[0]:                         # the two tables of LIMIT global numbers (bigtables.retarget)
         o2pages += 2
         data = add_object_page(data, 2)

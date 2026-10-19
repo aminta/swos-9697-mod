@@ -341,6 +341,7 @@ LABELS = {}
 KO_ASM = """
 st_ko:                                  ; replaces `call 0x16711` (the round's ties from its clubs) at the end of a
     call C16711                         ; type-2 contest's knockout-stage start (cseg_2572F; DIY = NCW, its id still
+    call st_gsort                       ; (the stage start reorders the copy's +59h: st_gend's merit order again)
     call st_rec                         ; (the state's final group-stage order, EN item 'SR')
     jmp st_body
 
@@ -644,7 +645,191 @@ st_rec:                                 ; lib97.st_ko calls it at a knockout-sta
     ret
 st_noovr:                               ; (engine.after_load 'st_ovr' without ripool's overrides)
     ret
+
+st_gsort:                               ; st_ko: the first knockout stage's start ([53h] = 1) of the contest whose
+    pushad                              ; figures st_gend kept -> the copy's +59h [0, q) and [q, n) by merit again
+    cmp byte [ST_GV], 0
+    je .x
+    cmp word [DIYCOPY + 53h], 1
+    jne .x
+    mov al, [DIYCOPY + 2Dh]
+    cmp al, [ST_GID]
+    jne .x
+    mov ax, [DIYCOPY + 99h]
+    cmp ax, [ST_GW]
+    jne .x
+    mov byte [ST_GV], 0
+    movzx ebx, byte [ST_GQ]
+    movzx edx, byte [ST_GN]
+    xor eax, eax
+    call st_gend.sort
+    mov eax, ebx
+    mov ebx, edx
+    call st_gend.sort
+.x:
+    popad
+    ret
+
+st_gend:                                ; replaces the calls of cseg_8A2CE (a group stage's end: the qualifiers
+    pushad                              ; first in the copy's +59h): a state's FIRST stage -> its qualifiers [0, q)
+    mov byte [ST_GF], 0                 ; and the others [q, n) each sorted by the whole table (points, wins, goal
+    cmp word [DIYCOPY + 53h], 0         ; difference, goals: the Brazilian order; stable, so every group keeps its
+    jne .p                              ; own order and the set of qualifiers stays the engine's) - the 'merit'
+    mov al, [DIYCOPY + 2Dh]             ; pairing, 'host' and the bottom places then follow the real campaign.
+    mov dx, [DIYCOPY + 99h]             ; The figures are taken BEFORE cseg_8A2CE: it overwrites the qualifiers'
+    mov esi, ST_KEYS                    ; points with its own sort keys
+    xor ecx, ecx
+.k:
+    cmp ecx, NKEYS
+    jae .p
+    cmp [esi], al
+    jne .n
+    cmp [esi + 1], dx
+    je .w
+.n:
+    add esi, 5
+    inc ecx
+    jmp .k
+.w:
+    movzx ebx, byte [ST_Q + ecx]        ; q (0: leave it)
+    test ebx, ebx
+    jz .p
+    movzx edx, word [DIYCOPY + 31h]     ; n
+    cmp ebx, edx
+    jae .p
+    cmp edx, 16
+    ja .p
+    mov [ST_GQ], bl
+    mov [ST_GN], dl
+    mov byte [ST_GF], 1
+    mov byte [ST_GV], 1
+    mov al, [DIYCOPY + 2Dh]             ; (whose figures: st_gsort checks them)
+    mov [ST_GID], al
+    mov ax, [DIYCOPY + 99h]
+    mov [ST_GW], ax
+    xor ecx, ecx                        ; ST_GST: the n rows' figures (played .. points, 14 bytes each)
+.g1:
+    imul esi, ecx, 18
+    imul edi, ecx, 14
+    push ecx
+    mov ecx, 14
+.g2:
+    mov al, [NCW + esi + 2B7h]
+    mov [ST_GST + edi], al
+    inc esi
+    inc edi
+    loop .g2
+    pop ecx
+    inc ecx
+    cmp ecx, edx
+    jb .g1
+.p:
+    popad
+    call C8A2CE
+    pushad
+    cmp byte [ST_GF], 0
+    je .x
+    mov byte [ST_GF], 0
+    movzx ebx, byte [ST_GQ]
+    movzx edx, byte [ST_GN]
+    xor ecx, ecx                        ; (the engine's list, for the harness)
+.g3:
+    mov al, [DIYCOPY + 59h + ecx]
+    mov [ST_GST + 16 * 14 + ecx], al
+    inc ecx
+    cmp ecx, edx
+    jb .g3
+    xor eax, eax
+    call .sort                          ; [0, q)
+    mov eax, ebx
+    mov ebx, edx
+    call .sort                          ; [q, n)
+    xor ecx, ecx                        ; (the sorted list, for the harness)
+.g4:
+    mov al, [DIYCOPY + 59h + ecx]
+    mov [ST_GST + 16 * 14 + 16 + ecx], al
+    inc ecx
+    cmp ecx, edx
+    jb .g4
+.x:
+    popad
+    ret
+.sort:                                  ; insertion sort of +59h[eax, ebx), the better first
+    pushad
+    mov ebp, eax                        ; start
+    lea esi, [eax + 1]                  ; i
+.si:
+    cmp esi, ebx
+    jae .sx
+    mov edi, esi                        ; j
+.sj:
+    cmp edi, ebp
+    jbe .sn
+    movzx eax, byte [DIYCOPY + 59h + edi]
+    movzx edx, byte [DIYCOPY + 59h + edi - 1]
+    call .better                        ; CF = 1: club eax before club edx
+    jnc .sn
+    mov [DIYCOPY + 59h + edi - 1], al
+    mov [DIYCOPY + 59h + edi], dl
+    dec edi
+    jmp .sj
+.sn:
+    inc esi
+    jmp .si
+.sx:
+    popad
+    ret
+.better:                                ; clubs eax, edx (ST_GST: played, won, drawn, lost, for, against, points
+    push eax                            ; words) -> CF = 1 when eax is strictly better
+    push ebx
+    push ecx
+    push edx
+    imul eax, eax, 14
+    imul edx, edx, 14
+    mov cx, [ST_GST + eax + 12]         ; points
+    cmp cx, [ST_GST + edx + 12]
+    jne .bd
+    mov cx, [ST_GST + eax + 2]          ; wins
+    cmp cx, [ST_GST + edx + 2]
+    jne .bd
+    movsx ecx, word [ST_GST + eax + 8]  ; goal difference
+    movsx ebx, word [ST_GST + eax + 10]
+    sub ecx, ebx
+    movsx ebx, word [ST_GST + edx + 8]
+    push edx
+    movsx edx, word [ST_GST + edx + 10]
+    sub ebx, edx
+    pop edx
+    cmp ecx, ebx
+    jne .bs
+    mov cx, [ST_GST + eax + 8]          ; goals for
+    cmp cx, [ST_GST + edx + 8]
+    jne .bd
+    clc
+    jmp .br
+.bs:
+    setg cl                             ; (signed)
+    jmp .bc
+.bd:
+    seta cl                             ; (unsigned words)
+.bc:
+    cmp cl, 1
+    cmc                                 ; CF = 1 when cl = 1
+.br:
+    pop edx
+    pop ecx
+    pop ebx
+    pop eax
+    ret
 ST_KEYS: KEY_BYTES
+ST_Q: Q_BYTES
+ST_GST: times 16 * 14 + 32 db 0
+ST_GF: db 0
+ST_GQ: db 0
+ST_GN: db 0
+ST_GV: db 0
+ST_GID: db 0
+ST_GW: dw 0
 ST_RANK: times SR_SIZE db 0
 ST_TAB: ST_BYTES
 ST_T: times 64 db 0
@@ -722,7 +907,23 @@ def ko_patch(p, at):
     c16c47 = grp_site + 5 + struct.unpack('<i', p.get(1, grp_site + 1, 4))[0]
     cur = {k + 5 + struct.unpack('<i', p.get(1, k + 1, 4))[0] for k in kend}   # (chained: whatever they reach now)
     assert len(cur) == 1, [hex(x) for x in cur]
+    import lp36
+    gend = lp36._sites(p)['gend']                           # (chained: lp36.lp_gend, or cseg_8A2CE itself)
+    gcur = {g + 5 + struct.unpack('<i', p.get(1, g + 1, 4))[0] for g in gend}
+    assert len(gcur) == 1, [hex(x) for x in gcur]
+    qs = {}                                                 # (id, first club word) -> stage 1's qualifiers
+    for pk in mkseason.packs():
+        if pk.world is not None:
+            for c in pk.comps:
+                if c['type'] == 'state':
+                    sp = pk.state(c)
+                    qs[(int(c['id'], 16), sp['clubs'][0][0] | sp['clubs'][0][1] << 8)] = sp['stages'][0][2]
+    if TEST or TEST2:
+        spec = TEST2_SPEC if TEST2 else TEST_SPEC
+        nt = spec['stages'][0]['teams']
+        qs[(TEST_ID, TEST_FILE)] = compile_state(dict(spec, clubs=list(range(nt))), nt)['stages'][0][2]
     sym = {'DIYCOPY': (2, diycopy), 'NCW': (2, diycopy + 0x41F), 'C16711': (1, c16711), 'C16C47': (1, c16c47), 'C7A613': (1, cur.pop()),
+           'C8A2CE': (1, gcur.pop()), 'Q_BYTES': (0, 'db ' + ', '.join(str(min(255, qs.get(k, 0))) for k in keys)),
            'ST_NB': (0, len(st)), 'NKEYS': (0, len(keys)), 'SR_SIZE': (0, SR_SIZE),
            'ST_BYTES': (0, 'db ' + ', '.join(str(x) for i, _, n, b, f, g, sz, pm in st
                                              for x in (i, f & 255, f >> 8, n, b, g, sz, *pm)) if st else 'db 0'),
@@ -736,7 +937,10 @@ def ko_patch(p, at):
     for k in kend:
         p.put(1, k + 1, struct.pack('<i', lab['st_kend'] - (k + 5)))
     p.put(1, grp_site + 1, struct.pack('<i', lab['st_grp'] - (grp_site + 5)))
+    for g in gend:
+        p.put(1, g + 1, struct.pack('<i', lab['st_gend'] - (g + 5)))
     LABELS['ST_RANK'] = (1, lab['ST_RANK'])
+    LABELS['ST_GST'] = (1, lab['ST_GST'])
     LABELS['key_slots'] = {}                              # first club word -> obj1 offsets of the words keyed by it
     k_at = lab['ST_KEYS']                                 # (ST_KEYS: id, current word, original word)
     for i, w in keys:
@@ -759,6 +963,7 @@ def ko_patch(p, at):
         pass
     print(f'exe: state knockouts: st_ko obj1+{lab["st_ko"]:#x} at obj1+{stc:#x}, st_kend at '
           f'{", ".join(f"obj1+{k:#x}" for k in kend)}, {len(st)} fixed draws, ST_RANK obj1+{lab["ST_RANK"]:#x} '
+          f'ST_GST obj1+{lab["ST_GST"]:#x} st_gend at {", ".join(f"obj1+{g:#x}" for g in gend)}, '
           f'({len(keys)} states), obj1+{at:#x}..{at + len(code):#x}')
     return (at + len(code) + 3) & ~3
 
@@ -892,8 +1097,9 @@ def sim_table(world=None):
             f = sp['clubs'][0]
             words = [a | b << 8 for a, b in sp['clubs']]
             strs = [club_strength(pk, k) for k in c['clubs']]
-            SIM_LAYOUT.append((f[0] | f[1] << 8, 1 + len(out) + 6, words, (pk.world, int(c['id'], 16), tuple(f))))
-            out += struct.pack('<HBBBB', f[0] | f[1] << 8, n, g, size, c.get('relegated', 0))
+            SIM_LAYOUT.append((f[0] | f[1] << 8, 1 + len(out) + 7, words, (pk.world, int(c['id'], 16), tuple(f))))
+            out += struct.pack('<HBBBBB', f[0] | f[1] << 8, n, g, size, c.get('relegated', 0),
+                               min(255, sp['stages'][0][2]))   # (q: stage 1's qualifiers, st_gend's split)
             out += struct.pack(f'<{n}H', *words) + struct.pack(f'<{n}H', *strs)
             out += struct.pack('<H', len(pairs)) + bytes(x for p in pairs for x in p)
             out += relegation_bytes(c, g, pk)

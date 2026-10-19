@@ -7,7 +7,7 @@
      calendars; strength = its best 11's prices), then the same relegation phase; one block each.
    Blocks: dw key (the contest's first club word), db n, db 0, n x dw team words; the list ends with dw 0. ripool
    takes the last 'relegated' words of a block.
-   Table (SS_TAB): db states; per state: dw key, db n, g, size, down; n x dw word; n x dw strength; dw matches,
+   Table (SS_TAB): db states; per state: dw key, db n, g, size, down, q (stage 1's qualifiers); n x dw word; n x dw strength; dw matches,
    matches x (db home, away); the relegation program: db type
      0 bottom: the last `down` of the order
      1 playoffs: db legs, ties, ties x (db code a, code b): each loser down
@@ -207,8 +207,8 @@ void ss_season(void) {
     for (int s = 0; s < ns; s++) {
         u16 key = rd16(t);
         n = t[2]; g = t[3]; size = t[4];
-        int ndown = t[5];
-        t += 6;
+        int ndown = t[5], q = t[6];
+        t += 7;
         const u16 *words = (const u16 *)t; t += 2 * n;
         strv = (const u16 *)t; t += 2 * n;
         int nm = rd16(t); t += 2;
@@ -243,6 +243,10 @@ void ss_season(void) {
                 int at = k;
                 for (int i = 0; i < n; i++) if (pos[i] == p) order[k++] = i;
                 sort(cl, order + at, k - at);
+            }
+            if (q > 0 && q < n) {                       /* as st_gend: the qualifiers (the first q, place-major) */
+                sort(cl, order, q);                     /* and the others each by the whole table */
+                sort(cl, order + q, n - q);
             }
         }
         if (s < 13)

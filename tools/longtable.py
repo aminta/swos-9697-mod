@@ -22,7 +22,8 @@ import nasmcave
 
 TITLES = {'it': (b'CLASSIFICA ANNUALE', b"SUPPORTERS' SHIELD"), 'en': (b'ANNUAL TABLE', b"SUPPORTERS' SHIELD"),
           'fr': (b'CLASSEMENT ANNUEL', b"SUPPORTERS' SHIELD"), 'de': (b'JAHRESTABELLE', b"SUPPORTERS' SHIELD")}
-ROWS = 24                       # the game's own largest table (mkseason: at most 24 clubs a division without fixtures)
+ROWS = 22                       # rows shown (the game lays out up to 22 rows with the full 14-px title bar; 23-24 squeeze it to
+                                # 9 px, the title on its edge: Davide 2026-10-20)
 MAX = 30                        # the largest table that scrolls (split.NMAX's 30: Argentina, MLS); mkseason refuses more
 LABELS = {}
 
@@ -262,6 +263,9 @@ def patch(p, at, area=None, lang='it'):
     hook(h3, 11, 'lt_end', (7,))
     hook(h4, 13, 'lt_down', (2, 9))
     hook(h5, 13, 'lt_arrows', (2, 9))
+    cmp22 = _find(d1, rb'\x66\x83\x7e\x51\x16\x0f\x86', 0x4868D - B - 0x40, 0x80)  # OnRestore: over 22 clubs -> the
+    assert bytes(p.get(1, cmp22 + 5, 2)) == b'\x0f\x86'               # compact layout (9-px title bar): never, the
+    p.put(1, cmp22 + 5, b'\x90\xe9')                                 # table shows ROWS (22) rows and scrolls
     if ov:
         hook(init, 9, 'lt_init', (3,))
         hook(row, 13, 'lt_row', (2, 9))

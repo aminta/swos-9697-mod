@@ -980,7 +980,7 @@ gp_end:                                 ; replaces `call cseg_9228D` (after dpla
     xor ebx, ebx
 .m:
     cmp ebx, ecx
-    jae .bal
+    jae .sec
     imul esi, ebx, MSZ
     add esi, GP_OUT + O_MV
     movzx eax, word [esi]
@@ -998,6 +998,9 @@ gp_end:                                 ; replaces `call cseg_9228D` (after dpla
 .nm:
     inc ebx
     jmp .m
+.sec:
+    mov eax, sec_post                   ; the second teams (gplay.c): holds, next clubs, B teams down
+    call gp_c
 .bal:                                   ; (cseg_9487A checks the table's 8-bit sum at every country's season end:
     xor eax, eax                        ; a move of several divisions breaks the game's +1 / -1 pairs, so the
     mov esi, SLTCOPY                    ; balance byte BAL takes the difference, as pgroups' pg_fix does)
@@ -1167,8 +1170,15 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
     assert not any(p.get(1, at, len(prom)))
     p.put(1, at, prom)
     prom_at, at = at, (at + len(prom) + 15) & ~15
-    obj = cobj.compile_c(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'gplay.c'), [f'-DGP_FORCE={force}'])
-    syms, cend, bss = cobj.link(p, obj, at, (2, bss_at), externs={'GP_PROM_TAB': (1, prom_at)}, limit=limit)
+    sec = mks.second_table()                        # the second teams' table (SEC_TAB) before the C code
+    assert not any(p.get(1, at, len(sec)))
+    p.put(1, at, sec)
+    sec_at, at = at, (at + len(sec) + 15) & ~15
+    obj = cobj.compile_c(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'gplay.c'), [f'-DGP_FORCE={force}', f"-DSEC_FORCE={int(os.environ.get('SEC_FORCE') or 0)}",
+                                f"-DSEC_FORCE_B={int(os.environ.get('SEC_FORCE_B') or 0xFFFF)}"])
+    syms, cend, bss = cobj.link(p, obj, at, (2, bss_at), externs={'GP_PROM_TAB': (1, prom_at), 'SEC_TAB': (1, sec_at),
+                                                                   'SEC_SLT': careerworld.SITES['slt'],
+                                                                   'SEC_COPY': careerworld.SITES['sltcopy']}, limit=limit)
     assert bss <= GP_BSS, hex(bss)                  # (patch.py: GP_BSS: the reserves' state, GD 16, GP_ST)
     keys = ('RSZ', 'GT_N', 'O_N', 'O_T', 'O_SPEC', 'O_MV', 'MSZ', 'GD_N')
     lay = dict(zip(keys, struct.unpack(f'<{len(keys)}I', p.get(1, syms['GP_LAYOUT'][1], 4 * len(keys)))))
@@ -1194,7 +1204,7 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
                                          'GP_W', 'GP_SKIP', 'GP_RB', 'GP_A', 'GP_B', 'GP_CID', 'GP_SEAS', 'GP_DIV',
                                          'GP_PT', 'GP_PL', 'gp_need', 'gp_simkeep', 'gp_restore', 'gp_lend_c', 'gp_ours_c',
                                          'gp_perm_c', 'gp_rec_c', 'gp_draw_c', 'gp_played_c', 'gp_end_c',
-                                         'gp_build_c', 'GP_BPIC')})
+                                         'gp_build_c', 'GP_BPIC', 'sec_post')})
     symbols.update({'A0R': (2, r['A0']), 'A1R': (2, r['A0'] + 4), 'A2R': (2, r['A0'] + 8),
                     'A4R': (2, r['A0'] + 16), 'D7R': (2, r['D7']), 'D0R': (2, r['A0'] - 32), 'D1R': (2, r['A0'] - 28),
                     'D2R': (2, r['A0'] - 24), 'SLT': s['slt'], 'SLTCOPY': s['sltcopy'],

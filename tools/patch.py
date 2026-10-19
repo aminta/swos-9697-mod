@@ -222,7 +222,7 @@ def patch_exe(src, dst, remap, lang='it'):
     xtra_pg = bool((xtra_on or pg_tabs or rs_tabs or ri_tabs or bigtables.ON[0]) and mkseason.worlds())   # (+1: an extra code page in a build with worlds,
     xpg = 2 * xtra_pg                                  # (2 pages: xtra + pgroups + bigtables filled one in the full
     lpb += xpg                                         # world 2026-27; whose world cave is full)
-    ri_pg = int(bool(ri_tabs and mkseason.worlds()))   # (+1: the off-file pool's code + table: 256 slots + the pool)
+    ri_pg = 2 * bool(ri_tabs and mkseason.worlds())    # (+2: the off-file pools' code + table, up to 8 files)
     lpb += ri_pg
     cos_pg = 1                                         # (+1, the top one: purple + blond + menunum + avgprice + the
     lpb += cos_pg                                      # FORMAT page: every build; without worlds too, e.g. PROTO36)
@@ -441,9 +441,9 @@ def patch_exe(src, dst, remap, lang='it'):
         xe = xtra.patch(p, xp) if xtra_on else xp                # the extra page in a build with worlds, with the
         ri = None
         if ri_tabs:                                              # the off-file pool (Eccellenza): its own page
-            rp = hist2 + h2 + 0x1000 * (lpb - cos_pg - 1)
+            rp = hist2 + h2 + 0x1000 * (lpb - cos_pg - ri_pg)
             re_, ri = ripool.patch(p, rp, ri_bss, ri_tabs)
-            assert re_ <= rp + 0x1000, hex(re_)
+            assert re_ <= rp + 0x1000 * ri_pg, hex(re_)
         if pg_tabs or rs_tabs or ri_tabs:                        # parallel groups' / reserves' season end (pgroups.py)
             xe = pgroups.patch(p, (xe + 15) & ~15, pg_tabs, gplay.LABELS['pg_season'], rs_tabs, gplay.LABELS['rs_season'],
                                ri=ri)

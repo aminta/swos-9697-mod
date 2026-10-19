@@ -78,7 +78,8 @@ ROUND = {'two_legs': 0x94, 'two_legs_pens': 0x84, 'single': 0x14, 'single_et': 0
 # tourney packs (3.2, CLASSIC TOURNEYS): matches of a knockout stage = the legs byte of a worldCup-layout stage (as the
 # World Cup 1982 / Mitropa 1934 / FA Cup 1871-72 of historic.py). *_replay: a draw (on aggregate) is replayed, a drawn
 # replay is decided by a coin toss (historic coin_draw): those tourneys use no penalties at all.
-MATCHES = {'single': 0x14, 'single_et': 0x54, 'two_legs': 0x94, 'single_replay': 0x00, 'two_legs_replay': 0x80}
+MATCHES = {'single': 0x14, 'single_et': 0x54, 'two_legs': 0x94, 'two_legs_pens': 0x84, 'single_replay': 0x00,
+           'two_legs_replay': 0x80}   # (two_legs_pens: no away goals, a level aggregate straight to penalties)
 REPLAY = ('single_replay', 'two_legs_replay')
 UEFA_NAMES = {'cc': ('UEFA CHAMPIONS LEAGUE', 'CHAMPIONS LEAGUE'), 'cwc': ('UEFA EUROPA LEAGUE', 'EUROPA LEAGUE'),
               'uefa': ('UEFA CONFERENCE LEAGUE', 'CONF. LEAGUE')}     # a league-phase world's cups (official)

@@ -186,8 +186,9 @@ def compile_state(c, n_clubs):
             labels = [f'{r}{chr(65 + k)}' for r in range(1, q // g + 1) for k in range(g)]
             _need(sorted(frm + b) == sorted(labels), f"{sw} from + byes must list {' '.join(labels)} once each")
             draws.append((q, [labels.index(x_) for x_ in frm + b], False))   # (the byes at the end: they wait)
-            if x['type'] != 'knockout':                  # (careers: a later group stage's draw is the game's:
-                pass                                     # historic.hist_draw is tourney mode only)
+            if x['type'] != 'knockout':                  # (careers: the group stage after the first, st_grp:
+                if i == 1:                               # b = FEh; later ones stay the game's)
+                    ko.append((q, 0xFE, g, prev['teams'] // g, draws[-1][1]))
             elif i == 1 or g == 1:                       # (careers: groups = team-list blocks: the first stage's;
                                                          # code = place * g + group)
                 ko.append((q, len(b), g, prev['teams'] // g, draws[-1][1]))
@@ -333,6 +334,15 @@ KO_ASM = """
 st_ko:                                  ; replaces `call 0x16711` (the round's ties from its clubs) at the end of a
     call C16711                         ; type-2 contest's knockout-stage start (cseg_2572F; DIY = NCW, its id still
     call st_rec                         ; (the state's final group-stage order, EN item 'SR')
+    jmp st_body
+
+st_grp:                                 ; replaces `call 0x16C47` (a group stage's draw, cseg_2572F: the groups =
+    mov byte [ST_MODE], 1               ; consecutive blocks of the copy's +59h list): a state's later group stage
+    call st_body                        ; with 'from' (b = FEh entries): +59h reordered first (Cearense phase 2)
+    mov byte [ST_MODE], 0
+    jmp C16C47
+
+st_body:
 %if ST_NB                               ; FFh: the copy's; the stage's clubs in the copy's +59h order): a state's
     pushad                              ; fixed draw (ST_TAB: id, first club word, N, b, g, size, code[N]).
     mov ebx, ST_TAB                     ; g > 0: code = place * g + group: list[k] = the place-th club of that group
@@ -346,6 +356,10 @@ st_ko:                                  ; replaces `call 0x16711` (the round's t
     jne .stn
     movzx ecx, byte [ebx + 3]
     cmp [NCW + 31h], cx
+    jne .stn
+    cmp byte [ebx + 4], 0FEh            ; (a group-stage entry only at st_grp, the others only at st_ko)
+    sete al
+    cmp al, [ST_MODE]
     je .sth
 .stn:
     movzx ecx, byte [ebx + 3]
@@ -394,6 +408,17 @@ st_ko:                                  ; replaces `call 0x16711` (the round's t
     inc edi
     cmp edi, ecx
     jb .sk
+    cmp byte [ebx + 4], 0FEh            ; a group stage: the copy's list itself (its blocks become the groups)
+    jne .kp
+    xor eax, eax
+.gp:
+    mov dl, [ST_T + eax]
+    mov [DIYCOPY + 59h + eax], dl
+    inc eax
+    cmp eax, ecx
+    jb .gp
+    jmp .sx
+.kp:
     call .put
     movzx edx, byte [ebx + 4]
     test edx, edx
@@ -549,6 +574,7 @@ ST_KEYS: KEY_BYTES
 ST_RANK: times SR_SIZE db 0
 ST_TAB: ST_BYTES
 ST_T: times 64 db 0
+ST_MODE: db 0
 ST_SB: times 32 db 0                    ; (EN item 'SB': st_ko's last fixed round [0..16), st_kend's winners [16..24))
 """
 
@@ -571,6 +597,16 @@ def _kend_sites(p):
             j = d.find(b'\xe8', j + 1, g + 0x60)
     assert len(out) == 2 and len(tgt) == 1, ([hex(x) for x in out], [hex(x) for x in tgt])
     return out, tgt.pop()
+
+
+def _grp_site(p):
+    """cseg_2572F's group-stage branch: the `call 0x16C47` (the groups' draw) after the copy of the team words
+    (obj1 0x159A9): the call right after `add eax, 12Dh ... jns` + five pushes, before `call 0x16386`."""
+    d = p.le.obj_bytes(1)
+    s = _st_site(p)
+    m = [x.start() for x in re.finditer(rb'\x79\xd7(?:\xff\x35.{4}){5}\xe8', d[s - 0x500:s], re.S)]
+    assert len(m) == 2, [hex(s - 0x500 + x) for x in m]     # (the group branch's, then the knockout's 0x168C3)
+    return s - 0x500 + m[0] + 2 + 30
 
 
 def _st_site(p):
@@ -607,9 +643,11 @@ def ko_patch(p, at):
     stc = _st_site(p)
     c16711 = stc + 5 + struct.unpack('<i', p.get(1, stc + 1, 4))[0]
     kend, _ = _kend_sites(p)
+    grp_site = _grp_site(p)
+    c16c47 = grp_site + 5 + struct.unpack('<i', p.get(1, grp_site + 1, 4))[0]
     cur = {k + 5 + struct.unpack('<i', p.get(1, k + 1, 4))[0] for k in kend}   # (chained: whatever they reach now)
     assert len(cur) == 1, [hex(x) for x in cur]
-    sym = {'DIYCOPY': (2, diycopy), 'NCW': (2, diycopy + 0x41F), 'C16711': (1, c16711), 'C7A613': (1, cur.pop()),
+    sym = {'DIYCOPY': (2, diycopy), 'NCW': (2, diycopy + 0x41F), 'C16711': (1, c16711), 'C16C47': (1, c16c47), 'C7A613': (1, cur.pop()),
            'ST_NB': (0, len(st)), 'NKEYS': (0, len(keys)), 'SR_SIZE': (0, SR_SIZE),
            'ST_BYTES': (0, 'db ' + ', '.join(str(x) for i, _, n, b, f, g, sz, pm in st
                                              for x in (i, f & 255, f >> 8, n, b, g, sz, *pm)) if st else 'db 0'),
@@ -622,6 +660,7 @@ def ko_patch(p, at):
     p.put(1, stc + 1, struct.pack('<i', lab['st_ko'] - (stc + 5)))      # (relative calls: no fixups)
     for k in kend:
         p.put(1, k + 1, struct.pack('<i', lab['st_kend'] - (k + 5)))
+    p.put(1, grp_site + 1, struct.pack('<i', lab['st_grp'] - (grp_site + 5)))
     LABELS['ST_RANK'] = (1, lab['ST_RANK'])
     LABELS['key_slots'] = {}                              # first club word -> obj1 offsets of the words keyed by it
     k_at = lab['ST_KEYS']                                 # (ST_KEYS: id, current word, original word)
@@ -657,13 +696,14 @@ def _code(label, g, w):
     return (int(label[:-1]) - 1) * g + ord(label[-1]) - 65
 
 
-def relegation_bytes(c, g):
+def relegation_bytes(c, g, pk=None):
     """pack.json 'relegation' (with 'relegated' = how many go down) -> statesim.c's program:
       absent / {"type": "bottom"}: the last `relegated` of the stage-1 order;
       {"type": "playoffs", "ties": [["5A", "6B"], ...], "legs": 2}: each tie's loser down;
       {"type": "group", "members": ["5A", "6A", "5B", "6B"], "meetings": 1 | 2, "bonus": {"best": ["5A", "5B"],
-       "points": 1}, "extra": {"place": 3, "strength": s}}: a round robin of those, its last `relegated` down (+ the
-       extra place down if it loses a two-legged tie against an outside club of strength s);
+       "points": 1}, "extra": {"place": 3, "strength": s | "club": key}}: a round robin of those, its last
+       `relegated` down (+ the extra place down if it loses a two-legged tie against an outside club of strength s, or
+       that pack club's own);
       {"type": "gap", "places": [10, 11], "gap": 6}: place b plays place a over two legs if within gap points (else
        down), plus the last relegated - 1."""
     w = f"{c['key']}:"
@@ -681,8 +721,12 @@ def relegation_bytes(c, g):
         bo = r.get('bonus') or {}
         bc = [_code(x, g, w) for x in bo.get('best') or []]
         ex = r.get('extra') or {}
+        xs = ex.get('strength', 0)
+        if ex.get('club'):                               # (a real club of the pack, e.g. the A2 runner-up: its own
+            _need(pk is not None and ex['club'] in pk.prows, f"{w} relegation extra club {ex['club']!r}")   # strength)
+            xs = club_strength(pk, ex['club'])
         return bytes([2, r['meetings'], len(mem), *mem, len(bc), *bc, bo.get('points', 0), ex.get('place', 0),
-                      min(255, ex.get('strength', 0) // 4)])
+                      min(255, xs // 4)])
     if t == 'gap':
         a, b = r.get('places') or (0, 0)
         _need(1 <= a < b, f'{w} relegation gap: places [a, b]')
@@ -776,7 +820,7 @@ def sim_table(world=None):
             out += struct.pack('<HBBBB', f[0] | f[1] << 8, n, g, size, c.get('relegated', 0))
             out += struct.pack(f'<{n}H', *words) + struct.pack(f'<{n}H', *strs)
             out += struct.pack('<H', len(pairs)) + bytes(x for p in pairs for x in p)
-            out += relegation_bytes(c, g)
+            out += relegation_bytes(c, g, pk)
             out += ko_program(c)
             ns += 1
     return bytes([ns]) + bytes(out) if ns else b''

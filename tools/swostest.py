@@ -5083,6 +5083,41 @@ def statespec_byes():
 
 
 @scenario
+def statespec_ce():
+    """A state's second group stage by 'from' (statespec.st_grp, STATESPEC_TEST=3 build: a Cearense-shaped world-0
+    test state F1 at ATL PARANAENSE: 2 groups of 5, then C = the top 3 of A, D = the top 3 of B, 2 groups of 3):
+    the second stage's group rows (DIY+6Dh) are exactly those clubs, group by group"""
+    b = os.environ.get('STATESPEC_BUILD3') or builds()['it']
+    errs, seen = [], {}
+    with Session('statespec_ce', b, {}, 'dump:2', 1800) as s:
+        s.wait()
+        new_career(s, 'BRASILE', None, 'ATL PARANAENSE', 'SUDAMERICA')
+
+        def stop(scr):
+            d = s.result.read(s.result.base2, 0x100000)
+            for i in range(0, len(d) - 0x41F):
+                if d[i + 0x2D] != 0xF1 or d[i] not in (0, 2):
+                    continue
+                w = lambda o: struct.unpack_from('<H', d, i + o)[0]
+                if d[i] == 2 and w(0x53) == 1 and 'rank' not in seen:
+                    seen['rank'] = list(d[i + 0x59:i + 0x59 + 10])
+                if d[i] == 0 and w(0x31) == 6 and w(0x4F) == 2 and w(0x51) == 3 and 'rows' not in seen:
+                    seen['rows'] = [w(0x6D + 2 * k) // 18 for k in range(6)]
+            return season_over(scr)
+        ok, msg = advance(s, stop, 1700)
+    check(ok, f'season: {msg}', errs)
+    R, rows = seen.get('rank'), seen.get('rows')
+    if R and rows:
+        a = [t for t in R if t < 5][:3]
+        bb = [t for t in R if t >= 5][:3]
+        check(set(rows[:3]) == set(a) and set(rows[3:]) == set(bb), f'phase 2 groups {rows[:3]} / {rows[3:]}, '
+              f'want {a} / {bb} (ranking {R})', errs)
+    else:
+        check(False, f'ranking {R}, phase-2 rows {rows}', errs)
+    return not errs, '; '.join(errs + [f'{msg}; ranking {R}, phase 2 {rows}'])
+
+
+@scenario
 def statespec_merit():
     """State knockout by merit (statespec 'pairing': 'merit', statespec.st_ko positions; STATESPEC_TEST=4 build: a
     Mineiro-shaped world-0 test state F1 at ATL PARANAENSE: 3 cross blocks of 4, the engine's 4 qualifiers (3

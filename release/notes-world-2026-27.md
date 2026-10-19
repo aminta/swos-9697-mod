@@ -296,6 +296,18 @@ when the engine lands it.
   In the World 2026-27 the European places in every season come from the engine's own UEFA ranking (the one a year
   old, as UEFA's access list uses) and the real 2026/27 access list; the European Performance Spots and the title
   holders' rebalancing are decided at the season end and are not coloured in advance.
+- **Continental places outside Europe**: the top flights of the other confederations colour their real club-cup
+  places: light blue for the first cup (Copa Libertadores, Concacaf Champions Cup, AFC Champions League Elite, CAF
+  Champions League, OFC Champions League), green for the second (Copa Sudamericana, AFC Champions League Two, CAF
+  Confederation Cup), following each association's real routes (Libertadores / Sudamericana 2026, ACL Elite / Two
+  2026-27, Concacaf Champions Cup 2027, CAF's allocation, New Zealand's 2 OFC places), with a legend and a line on the
+  FORMAT page that also names the national cup winner's place.
+  Declared: where the real places are not table positions (the Apertura / Clausura champions and the annual table in
+  Argentina, Colombia, Paraguay and Mexico; a final or play-offs in Uruguay, Venezuela, Australia, the USA, Canada and
+  New Zealand) the game colours its own season table and the FORMAT page states the real rule; Ghana, Iran and India
+  follow the general rule (no list of qualified clubs published); Central America and Suriname (qualified through
+  the Central American and Caribbean Cups) and Taiwan (AFC Challenge League) have no colours; the holders' extra
+  places and places passed down are decided by the cups and not coloured.
 
 *Leagues, calendars and clubs*
 - **Every league, national cup and league cup under its real 2026-27 name, without title sponsors**: COPPA ITALIA,
@@ -840,6 +852,19 @@ Baiano, Cearense, Pernambucano, Alagoano e Mato-Grossense.
   Nel Mondo 2026-27 i posti europei di ogni stagione vengono dal ranking UEFA del gioco (quello dell'anno prima,
   come nella access list UEFA) e dalla access list vera 2026/27; gli European Performance Spots e i ritocchi per i
   detentori dei titoli si decidono a fine stagione e non vengono colorati in anticipo.
+- **Posti continentali fuori dall'Europa**: le massime serie delle altre confederazioni colorano i loro posti veri
+  nelle coppe per club: azzurro per la prima coppa (Copa Libertadores, Concacaf Champions Cup, AFC Champions League
+  Elite, CAF Champions League, OFC Champions League), verde per la seconda (Copa Sudamericana, AFC Champions League
+  Two, CAF Confederation Cup), secondo le vie d'accesso vere di ogni federazione (Libertadores / Sudamericana 2026,
+  ACL Elite / Two 2026-27, Concacaf Champions Cup 2027, la ripartizione CAF, i 2 posti OFC della Nuova Zelanda), con
+  legenda e una riga nella pagina FORMULA che indica anche il posto della vincitrice della coppa nazionale.
+  Dichiarato: dove i posti veri non sono posizioni in classifica (i campioni di Apertura e Clausura e la classifica
+  annuale in Argentina, Colombia, Paraguay e Messico; una finale o i play-off in Uruguay, Venezuela, Australia, Stati
+  Uniti, Canada e Nuova Zelanda) il gioco colora la sua classifica della stagione e la pagina FORMULA spiega la regola
+  vera; Ghana, Iran e India seguono la regola generale (non c'è un elenco pubblicato dei qualificati); America
+  Centrale e Suriname (qualificati tramite le coppe centroamericana e caraibica) e Taiwan (AFC Challenge League) non
+  hanno colori; i posti in più dei detentori e quelli che passano alla squadra seguente li decidono le coppe e non
+  vengono colorati.
 
 *Campionati, calendari e club*
 - **Ogni campionato, coppa nazionale e coppa di lega col suo nome vero 2026-27, senza lo sponsor**: COPPA ITALIA,

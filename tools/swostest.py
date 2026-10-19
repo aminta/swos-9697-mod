@@ -3833,6 +3833,24 @@ def split_build():
                                                                                 for x in order])})
 
 
+def split_tables_ok(diys, n, full_points, errs):
+    """Every snapshot of a split league: each row's W + D + L = played, the goals for = against over the table,
+    points = 3W + D when every rule is 'full' (a stage frozen before the day's last result was in: 3538d41's
+    W + D + L > played, Malta)."""
+    for b in diys:
+        day = struct.unpack_from('<H', b, 0x1C1)[0]
+        rows = [struct.unpack_from('<I7H', b, 0x2B3 + 18 * r) for r in range(n)]
+        bad = [r for r, t in enumerate(rows) if t[2] + t[3] + t[4] != t[1]]
+        check(not bad, f'day {day}: W + D + L != played in rows {bad[:4]}', errs)
+        check(sum(t[5] for t in rows) == sum(t[6] for t in rows), f'day {day}: goals for {sum(t[5] for t in rows)} '
+              f'!= against {sum(t[6] for t in rows)}', errs)
+        if full_points:
+            badp = [r for r, t in enumerate(rows) if t[7] != 3 * t[2] + t[3]]
+            check(not badp, f'day {day}: points != 3W + D in rows {badp[:4]}', errs)
+        if errs:
+            return
+
+
 def split_check_stages(log, key):
     """A chain of stages (Malta): days, every stage frozen, the figures since the last reset, the last stage's
     groups in place order, the 'keep' table (rows by place, points by place)."""
@@ -3851,6 +3869,7 @@ def split_check_stages(log, key):
     rounds = [[rnd[g.get('rounds', 'single')] for g in x['groups']] for x in stg]
     total = stg[0]['after'] + sum(len(split.schedule(z, r)) for z, r in zip(sizes, rounds))
     errs = []
+    split_tables_ok(diys, n, all(g.get('points', 'full') == 'full' for x in stg for g in x['groups']), errs)
     check(w(last, 0x1C3) == total and w(last, 0x1C1) == total and w(last, 0x5F) == 0,
           f'days {w(last, 0x1C3)} / day {w(last, 0x1C1)} / cycles {w(last, 0x5F)}, {total} wanted', errs)
     check(last[st + o['frozen']] == len(stg), f'frozen stage {last[st + o["frozen"]]}, {len(stg)} wanted', errs)
@@ -3916,6 +3935,7 @@ def split_check(log, key, slots_table):
     fz = split.OFF['frozen']
     check(any(not b[st + fz] and w(b, 0x1C1) < d1 for b in diys), 'no snapshot before the split', errs)
     fr = [b for b in diys if b[st + fz]]
+    split_tables_ok(diys, n, all(x == 'full' for x in spec['points']), errs)
     check(fr and all(w(b, 0x1C1) >= d1 for b in fr), f'frozen before day {d1}', errs)
     row = lambda o: o // 18
     order = [row(w(last, 0x6D + 2 * i)) for i in range(n)]
@@ -3929,6 +3949,14 @@ def split_check(log, key, slots_table):
     rounds = spec['rounds']
     sizes, start = spec['groups'], 0
     pts_rule = spec.get('points', ['full'] * len(sizes))
+    if before is not None:                     # the frozen table = the whole pre-split table: the points before the
+        g0 = 0                                 # split (halved / head-to-head rules) as after the last pre-split match
+        for g, m in enumerate(sizes):
+            if pts_rule[g] in ('half_up', 'half_down', 'h2h_half'):
+                for r in p2r[g0:g0 + m]:
+                    t = struct.unpack_from('<I7H', before, 0x2B3 + 18 * r)
+                    check(pre[r] == t[7], f'row {r}: points before the split {pre[r]}, the pre-split table {t[7]}', errs)
+            g0 += m
     for g, m in enumerate(sizes):
         rows = order[start:start + m]
         check(sorted(rows) == sorted(p2r[start:start + m]) and all(grp[r] == g for r in rows),

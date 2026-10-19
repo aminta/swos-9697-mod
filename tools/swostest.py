@@ -4165,8 +4165,8 @@ def world_split_stages():
 def world_odd_league():
     """A league with an odd number of clubs (mkseason.odd_leagues: the engine's own rest day, no phantom club): the
     full world with the real odd sizes (ODD_BUILD, default the newest internal/swostest/builds/w2627odd-*), a
-    season at AUCKLAND CITY (New Zealand, 11 clubs): 22 days of 5 matches, every club 20 matches and 2 rests, the
-    season ended and the next one started"""
+    season at DEMPO (India's Football League, the 2nd division, 11 clubs; the NZ National League is gone from the
+    final data): 22 days of 5 matches, every club 20 matches and 2 rests, the season ended and the next one started"""
     import glob
     b = os.environ.get('ODD_BUILD') or (sorted(glob.glob(os.path.join(WORK, 'builds', 'w2627odd-*'))) or [None])[-1]
     if not b:
@@ -4179,7 +4179,7 @@ def world_odd_league():
     keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K',
                                             'W8485_NOSACK', 'W8485_DIY', 'W8485_TMO', 'W8485_SLOTS')}
     os.environ.update(W8485_BUILD=b, W8485_WORLD='MONDO 2026-27', W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1',
-                      W8485_TEAM=os.environ.get('ODD_TEAM', 'OCEANIA,NUOVA ZELANDA,NEW ZEALAND NATIONAL LEAGUE,AUCKLAND CITY'),
+                      W8485_TEAM=os.environ.get('ODD_TEAM', 'ASIA,INDIA,INDIAN FOOTBALL LEAGUE,DEMPO'),
                       W8485_DIY=f"{sa['DIY']:x},{split.ST:x},{sa['CAL']:x},{n:x}", W8485_TMO='600',
                       W8485_SLOTS=f"{sa['SLOTS']:x}")
     try:

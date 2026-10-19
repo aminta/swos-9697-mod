@@ -26,7 +26,8 @@ extern const u8 SS_TAB[];
 extern u8 ST_RANK[];
 extern const u16 SEASONW;
 
-u8 ss_ord[13 * MAXN];                   /* (the harness: each state's stage-1 order, club indices, table order) */
+u8 ss_ord[13 * MAXN];
+u16 ss_champ[13];                       /* (each simulated state's champion word, 0 = the played one / none) */                   /* (the harness: each state's stage-1 order, club indices, table order) */
 static u32 rng;
 static u32 below(u32 n) {
     rng = rng * 1103515245u + 12345u;
@@ -102,6 +103,73 @@ static int tie(int a, int b, int legs, u32 sb_out) {
     }
     if (ga != gb) return ga > gb ? a : b;
     return below(3 * (sa + sb)) < 2 * sa + sb ? a : b;
+}
+
+/* the stages after the first (statespec.ko_program), for a simulated state: the champion's club, or -1 */
+static int cgrp[MAXN];
+static int pcode(const int *p, int pn, int pg, int c) {   /* code over order p (groups pg, cgrp) -> club */
+    int pl = c / pg, x = c % pg;
+    for (int i = 0; i < pn; i++)
+        if (cgrp[p[i]] == x && pl-- == 0) return p[i];
+    return -1;
+}
+static int knockouts(const u8 **tp) {
+    const u8 *t = *tp;
+    int ns = *t++, champ = -1;
+    int P[MAXN], pn = n, pg = g, W[MAXN], nw = 0, B[MAXN], nb = 0;
+    for (int i = 0; i < n; i++) { P[i] = order[i]; cgrp[i] = grp[i]; }
+    for (int st = 0; st < ns; st++) {
+        int kind = *t++;
+        if (kind == 1) {                                /* a later group stage */
+            int g2 = *t++, sz = *t++, meet = *t++, cross = *t++, q = *t++;
+            int L[MAXN], ng[MAXN];
+            for (int k = 0; k < q; k++) L[k] = pcode(P, pn, pg, *t++);
+            struct club q2[MAXN];
+            for (int i = 0; i < n; i++) q2[i].pts = q2[i].gd = q2[i].gf = q2[i].w = 0;
+            for (int k = 0; k < q; k++) if (L[k] >= 0) ng[L[k]] = k / (sz ? sz : 1);
+            for (int r = 0; r < meet; r++)
+                for (int i = 0; i < q; i++)
+                    for (int j = i + 1; j < q; j++) {
+                        if (L[i] < 0 || L[j] < 0) continue;
+                        int same = ng[L[i]] == ng[L[j]];
+                        if (cross ? same : !same) continue;
+                        if (r & 1) play(q2, L[j], L[i]); else play(q2, L[i], L[j]);
+                    }
+            int k2 = 0, gv[MAXN], pos[MAXN];
+            for (int x = 0; x < g2; x++) {
+                int m = 0;
+                for (int k = 0; k < q; k++) if (L[k] >= 0 && ng[L[k]] == x) gv[m++] = L[k];
+                sort(q2, gv, m);
+                for (int i = 0; i < m; i++) pos[gv[i]] = i;
+            }
+            for (int p = 0; p < q && k2 < q; p++) {
+                int at = k2;
+                for (int k = 0; k < q; k++) if (L[k] >= 0 && pos[L[k]] == p) P[k2++] = L[k];
+                sort(q2, P + at, k2 - at);
+            }
+            pn = k2; pg = g2;
+            for (int k = 0; k < pn; k++) cgrp[P[k]] = ng[P[k]];
+        } else {                                        /* a knockout round */
+            int N = *t++, b = *t++, legs = *t++, mode = *t++;
+            int L[MAXN];
+            for (int k = 0; k < N; k++) {
+                int c = *t++;
+                if (mode == 0) L[k] = pcode(P, pn, pg, c);
+                else if (mode == 1) L[k] = c < nw ? W[c] : (c - nw < nb ? B[c - nw] : -1);
+                else L[k] = c < nw ? W[c] : -1;
+            }
+            nw = 0;
+            for (int k = 0; k + 1 < N - b; k += 2) {
+                if (L[k] < 0 || L[k + 1] < 0) { W[nw++] = L[k] >= 0 ? L[k] : L[k + 1]; continue; }
+                W[nw++] = tie(L[k + 1], L[k], legs, 0);   /* (the first listed at home in the first leg) */
+            }
+            nb = 0;
+            for (int k = N - b; k < N; k++) B[nb++] = L[k];
+            if (nw == 1 && !nb) champ = W[0];
+        }
+    }
+    *tp = t;
+    return champ;
 }
 
 static void block(u8 *out, u16 key, const u16 *words, int is_played) {
@@ -220,6 +288,9 @@ void ss_season(void) {
                 else down[b] = 1;
             }
         }
+        int ch = knockouts(&t);                         /* (parsed for every state; the played one's is the
+                                                           game's own) */
+        if (s < 13) ss_champ[s] = (!played && ch >= 0) ? rd16((const u8 *)&words[ch]) : 0;
         if (played) block(first, key, words, 1);
         else { block(next, key, words, 0); next += 4 + 2 * n; }
     }

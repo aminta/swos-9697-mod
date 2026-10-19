@@ -4117,11 +4117,11 @@ def world_statesim(team='SUDAMERICA,BRASILE,CAMPEONATO BRASILEIRO SERIE A,ATHLET
     k = d1.find(b'SSLASTPT')
     if k < 0:
         return False, 'no SSLASTPT block in the exe (statesim not built)'
-    rank_at, last_at, ord_at = struct.unpack_from('<3I', d1, k + 8)
+    rank_at, last_at, ord_at, champ_at = struct.unpack_from('<4I', d1, k + 8)
     keep = {x: os.environ.get(x) for x in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K',
                                             'W8485_NOSACK', 'W8485_HEX')}
     os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5', W8485_K='108+',
-                      W8485_NOSACK='1', W8485_HEX=f'o1/{rank_at:x}:470,o1/{last_at:x}:470,o1/{ord_at:x}:208')   # (+ ss_ord: each state's
+                      W8485_NOSACK='1', W8485_HEX=f'o1/{rank_at:x}:470,o1/{last_at:x}:470,o1/{ord_at:x}:208,o1/{champ_at:x}:26')   # (+ ss_ord: each state's
                                                                               # stage-1 order, club indices)
     try:
         ok, msg = world8485()
@@ -4164,6 +4164,14 @@ def world_statesim(team='SUDAMERICA,BRASILE,CAMPEONATO BRASILEIRO SERIE A,ATHLET
                 check(False, f'season 2: no block 0 seen ({len(played)} seasons with one)', errs)
         else:
             check(False, 'no block 0 (st_rec) seen', errs)
+        champs = [struct.unpack('<13H', b) for b in hexes.get(f'o1/{champ_at:x}', []) if any(b)]
+        if champs:                               # (statesim's champions: one of each simulated state's clubs)
+            byk = [ws for _, ws in L]
+            order = sorted(byk, key=lambda ws: 0)
+            check(all(c == 0 or any(c in ws for ws in byk) for c in champs[-1]) and sum(1 for c in champs[-1] if c)
+                  >= len(L) - 1, f'champions {[hex(c) for c in champs[-1]]}', errs)
+        else:
+            check(False, 'no statesim champions seen', errs)
     return not errs, '; '.join(errs + [f"{msg}; SR seasons {len(played)}, statesim runs {len(lasts)}; "
                                         f"played {[(hex(kk), [hex(x) for x in w]) for kk, w in played]}; "
                                         f"last {[(hex(kk), [hex(x) for x in w[-2:]]) for kk, w in (lasts[0] if lasts else [])]}"])

@@ -661,6 +661,44 @@ def relegation_bytes(c, g):
     _need(False, f'{w} relegation type {t!r}: bottom, playoffs, group or gap')
 
 
+def ko_program(c):
+    """statesim.c's stages after the first: db stages; group: 1, g, size, meetings, cross, q, q x code (over the
+    previous order); knockout: 2, N, b, legs, mode (0 codes over the previous order, 1 pairs: W<k> = k, bye j = ties
+    + j, 2 the winners in tie order), N x code. A code = place * groups + group of the order before."""
+    w = f"{c['key']}:"
+    st = c['stages']
+    out = bytearray([len(st) - 1])
+    prev = dict(st[0], teams=st[0]['teams'])
+    for i, x in enumerate(st[1:], 1):
+        n = x['teams']
+        if x['type'] == 'groups':
+            g2 = x.get('groups', 1)
+            gp = prev.get('groups', 1) if prev['type'] == 'groups' else 1
+            frm = x.get('from')
+            _need(frm and prev['type'] == 'groups', f'{w} statesim: a later group stage needs from')
+            labels = [f'{r}{chr(65 + k)}' for r in range(1, -(-n // gp) + 1) for k in range(gp)]
+            out += bytes([1, g2, n // g2, x.get('meetings', c.get('meetings', 1)) or 1, int(bool(x.get('cross'))), n]
+                         + [labels.index(q) for q in frm])
+        else:
+            legs = 2 if x.get('matches') == 'two_legs' else 1
+            b = x.get('byes') or []
+            q = n + len(b)
+            if prev['type'] == 'groups':
+                gp = prev.get('groups', 1)
+                labels = [f'{r}{chr(65 + k)}' for r in range(1, -(-q // gp) + 1) for k in range(gp)]
+                frm = (x.get('from') or labels[:n]) + b   # (no from: the first n of the merit order, e.g. MG's
+                _need(len(frm) == q, f'{w} statesim: {q} clubs for stage {i + 1}')   # 3 winners + a 2nd)
+                out += bytes([2, q, len(b), legs, 0] + [labels.index(t) for t in frm])
+            elif x.get('pairs'):
+                k, bb = prev['teams'] // 2, len(prev.get('byes') or [])
+                toks = [f'W{j + 1}' for j in range(k)] + [f'B{j + 1}' for j in range(bb)]
+                out += bytes([2, n, 0, legs, 1] + [toks.index(t) for t in x['pairs']])
+            else:
+                out += bytes([2, n, 0, legs, 2] + list(range(n)))
+        prev = dict(x, teams=n)
+    return bytes(out)
+
+
 def club_strength(pk, key):
     """The best 11 players' prices (players.csv), at least 5."""
     pr = sorted((int(r.get('price') or 0) for r in pk.prows.get(key, [])), reverse=True)
@@ -706,6 +744,7 @@ def sim_table(world=None):
             out += struct.pack(f'<{n}H', *words) + struct.pack(f'<{n}H', *strs)
             out += struct.pack('<H', len(pairs)) + bytes(x for p in pairs for x in p)
             out += relegation_bytes(c, g)
+            out += ko_program(c)
             ns += 1
     return bytes([ns]) + bytes(out) if ns else b''
 
@@ -734,6 +773,7 @@ def sim_patch(p, at):
     assert bss <= SIM_BSS, hex(bss)
     LABELS['ss_season'] = syms['ss_season']
     LABELS['ss_ord'] = syms['ss_ord']
+    LABELS['ss_champ'] = syms['ss_champ']
     ov_end = ov_patch(p, (cend + 15) & ~15, at, bss_at)
     print(f'exe: statesim: {tab[0]} states, table obj1+{at:#x} ({len(tab)} B), ss_season obj1+'
           f'{syms["ss_season"][1]:#x}, code ..{cend:#x}, overrides ..{ov_end:#x}, .bss {bss} B at obj1+{bss_at:#x}')
@@ -832,8 +872,8 @@ st_post:                                ; ripool's RI_POST_PTR (pg_fix, after ri
     mov word [ST_RANKW], 0              ; career's start, where pg_fix runs too; not after a load: a mid-season
     ret                                 ; save keeps block 0)
 align 4
-    db 'SSLASTPT'                       ; (swostest: dd ST_RANK, SS_LAST, statesim's ss_ord)
-    dd ST_RANKW, SS_LAST, SS_ORD
+    db 'SSLASTPT'                       ; (swostest: dd ST_RANK, SS_LAST, statesim's ss_ord, ss_champ)
+    dd ST_RANKW, SS_LAST, SS_ORD, SS_CHAMP
 SS_LAST: times SR_SIZE db 0
 OV_TAB: OV_BYTES
 """
@@ -868,7 +908,7 @@ def ov_patch(p, at, tab_at, limit):
         tb += struct.pack('<HBBII', key, len(words), len(ks), 0, 0) + struct.pack(f'<{len(words)}H', *words) \
             + bytes(4 * len(ks))
     tb += bytes(4)                                        # (n = 0: the end)
-    sym = {'SR_SIZE': (0, SR_SIZE), 'SS_SEASON': LABELS['ss_season'], 'SS_ORD': LABELS['ss_ord'], 'ST_RANKW': LABELS['ST_RANK'], 'RP': (0, rp), 'RO2': (0, 2 * getattr(ripool, 'RO', 16)), 'RI_KEYS': rl['RI_OVR_KEYS'], 'RI_OVR': rl['RI_OVR'], 'OV_BYTES': (0, 'db ' + ', '.join(str(b) for b in tb))}
+    sym = {'SR_SIZE': (0, SR_SIZE), 'SS_SEASON': LABELS['ss_season'], 'SS_ORD': LABELS['ss_ord'], 'SS_CHAMP': LABELS['ss_champ'], 'ST_RANKW': LABELS['ST_RANK'], 'RP': (0, rp), 'RO2': (0, 2 * getattr(ripool, 'RO', 16)), 'RI_KEYS': rl['RI_OVR_KEYS'], 'RI_OVR': rl['RI_OVR'], 'OV_BYTES': (0, 'db ' + ', '.join(str(b) for b in tb))}
     code, fix = nasmcave.assemble(OV_ASM, at, sym)
     lab = nasmcave.labels(OV_ASM, at, sym)
     assert at + len(code) <= limit, (hex(at + len(code)), hex(limit))

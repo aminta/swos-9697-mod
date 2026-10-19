@@ -621,6 +621,17 @@ sp_stage_end:                           ; ecx = the day just over (after the spl
     lea edi, [ecx + 1]
     cmp edi, ebx
     jne .r
+    xor edi, edi                        ; a real stage end: matches played (the career calendar's builder walks
+    movzx ebx, word [esi + 31h]         ; every day at the season start with nothing played: no table, no callback)
+.pl:
+    imul eax, edi, 18
+    cmp word [esi + eax + 2B7h], 0
+    jne .played
+    inc edi
+    cmp edi, ebx
+    jb .pl
+    jmp .r
+.played:
     movzx eax, byte [ebp + 23]
     test eax, eax
     jz .cb

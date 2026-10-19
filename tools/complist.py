@@ -182,6 +182,74 @@ FIT_NAMES = {   # hand-picked forms (regia / Davide 2026-10-20): (original long 
 }
 
 
+CAL_PX = 70         # the career calendar's label: x 8 .. 78, where the home / away marker (C) / (F) starts (Davide 2026-10-20)
+SMALL_W = dict({c: 6 for c in 'ABCDEFGHJKLMNOPQRSTUVWXYZ023456789!"#$%&*+/<=>?@'},
+               **{'I': 2, '1': 2, "'": 2, '(': 3, ')': 3, ',': 2, '-': 4, '.': 2, ':': 2, ' ': 3})   # the menus' small
+                    # font (smallCharsTable: sprite pixWidth, no spacing, space 3), as the game's GetTextWidth adds them
+
+
+def px(s):
+    """s's width in the small font (pixels)."""
+    return sum(SMALL_W.get(c, 6) for c in s.upper())
+
+
+FIT_SHORT = {(k, '*'): v for k, v in {   # hand-picked calendar labels (else ABBR / the cut): short name -> the label
+    'AUSTRALIA CUP': 'AUST. CUP', 'BULGARIAN CUP': 'BULG. CUP', "EMPEROR'S CUP": 'EMPEROR CUP', 'PUCHAR POLSKI': 'PUCHAR POL.',
+    'SCHWEIZER CUP': 'SCHWEIZ. CUP', 'RELEGATION 1/2': 'RELEG. 1/2', 'RELEGATION 2/3': 'RELEG. 2/3', 'SEGUNDA FINAL': 'SEG. FINAL',
+    'LANDESMEISTER': 'LANDESMEIST.', 'CAMPIONATO SMR': 'CAMP. SMR', 'BEKER VAN BELGIE': 'BEKER BELGIE',
+    'COPA COSTA RICA': 'COPA C. RICA', 'CUP WINNERS CUP': 'CUP W. CUP', 'GHANA PREM. LGE': 'GHANA PREM.',
+    'EGYPT LEAGUE CUP': 'EGY LGE CUP', 'LIGA DE PRIMERA': 'LIGA PRIMERA', 'COPA DE LA LIGA': 'COPA LIGA',
+    'P.NACIONAL FINAL': 'P. NAC. FINAL', 'CUPA MOLDOVEI': 'CUPA MOLDOVA', 'MALTA PREMIER': 'MALTA PREM.',
+    'COPA COLOMBIA': 'COPA COL.', 'CYMRU PREMIER': 'CYMRU PREM.', 'LIGA PORTUGAL': 'LIGA PORT.',
+}.items()}
+ABBR = {'LEAGUE': 'LGE', 'DIVISION': 'DIV.', 'DIVISIO': 'DIV.', 'DIVISAO': 'DIV.', 'PREMIER': 'PREM.',
+        'PROFESIONAL': 'PROF.', 'CHAMPIONS': 'CHAMP.', 'CHAMPIONNAT': 'CHAMP.', 'CAMPIONI': 'CAMP.', 'CAMPEONATO': 'CAMP.',
+        'GIRONE': 'GIR.', 'GRUPO': 'GR.', 'NATIONAL': 'NAT.', 'NACIONAL': 'NAC.', 'NATIONALLIGA': 'NATIONALL.',
+        'PLAY-OFFS': 'P-OFFS', 'PLAY-OFF': 'P-OFF', 'COUPE': 'C.', 'COPPA': 'C.', 'PRESIDENT': 'PRES.',
+        "PRESIDENT'S": "PRES.", 'CONSTITUCIO': 'CONST.', 'SUPERIORE': 'SUP.', 'KNOCKOUT': 'K.O.', 'NORTHERN': 'NORTH.',
+        'SOUTHERN': 'SOUTH.', 'CENTRAL': 'CENT.', 'OCCIDENTE': 'OCC.', 'OCCIDENT': 'OCC.', 'ORIENTE': 'OR.',
+        'EXPANSION': 'EXP.', 'QUEENSLAND': 'QLD', 'LUXEMBOURG': 'LUX.', 'LUXEMB.': 'LUX.', 'PORTUGAL': 'PORT.',
+        'URUGUAY': 'URU.', 'VENEZUELA': 'VEN.', 'COLOMBIA': 'COL.', 'PARAGUAY': 'PAR.', 'ARGENTINA': 'ARG.',
+        'BRASIL': 'BRA.', 'TUNISIE': 'TUN.', "D'ALGERIE": "D'ALG.", 'SHQIPERISE': 'SHQ.', 'SHQIPERIS': 'SHQ.',
+        'SVENSKA': 'SV.', 'SCOTTISH': 'SCOT.', 'IRISH': 'IR.', 'WELSH': 'WELSH', 'BELARUSIAN': 'BLR',
+        'MACEDONIAN': 'MKD', 'AZERBAIJAN': 'AZE', 'KAZAKHSTAN': 'KAZ', 'CANADIAN': 'CAN.', 'CHAMP.': 'CH.'}
+
+
+def fit_short(s, lang='*'):
+    """A short name that fits the career calendar's label (CAL_PX): a hand-picked form, else the longest words
+    abbreviated (their first letters + '.'), else cut."""
+    s = s.upper()
+    x = FIT_SHORT.get((s, lang)) or FIT_SHORT.get((s, '*'))
+    if x:
+        return x
+    if px(s) <= CAL_PX:
+        return s
+    words = s.split()
+    for i in range(len(words) - 1, -1, -1):         # the standard abbreviations, last word first
+        if px(' '.join(words)) <= CAL_PX:
+            return ' '.join(words)
+        if words[i] in ABBR:
+            words[i] = ABBR[words[i]]
+    for _ in range(12):
+        if px(' '.join(words)) <= CAL_PX:
+            return ' '.join(words)
+        cand = [i for i, w in enumerate(words) if len(w.rstrip('.')) > 4 and not w[0].isdigit()]
+        if not cand:
+            break
+        i = max(cand, key=lambda k: px(words[k]))
+        w = words[i].rstrip('.')
+        n = len(w) - 1
+        while n > 3 and px(' '.join(words[:i] + [w[:n] + '.'] + words[i + 1:])) > CAL_PX:
+            n -= 1
+        words[i] = w[:max(n, 3)] + '.'
+    out = ''
+    for c in ' '.join(words):
+        if px(out + c) > CAL_PX:
+            break
+        out += c
+    return out.rstrip(' .') + ('.' if px(out.rstrip(' .') + '.') <= CAL_PX and out != ' '.join(words) else '')
+
+
 LANG = ['it']
 
 
@@ -221,8 +289,9 @@ def fit_titles(m):
             short = v[1] if len(v) > 1 else v[0]
             LANG[0] = lang
             f = _fit(country, long_.upper(), short.upper()) if len(country) + 1 + len(long_) > TITLE_MAX else None
-            if f is not None and f != long_.upper():
-                names[lang] = [f] + list(v[1:])
+            sh = fit_short(short, lang) if len(v) > 1 else None
+            if (f is not None and f != long_.upper()) or (sh is not None and sh != short.upper()):
+                names[lang] = [f or long_] + ([sh] if sh is not None else []) + list(v[2:])
     for c in m.get('competitions', []) or []:
         fix(c.get('names'))
         for dv in c.get('divisions', []) or []:
@@ -253,6 +322,8 @@ def check_titles(m, clubs=()):
             country = (bn.get(lang) or m.get('button') or '').upper()
             if len(country) + 1 + len(v[0]) > TITLE_MAX:
                 bad.append(f"{m.get('id')} {where} {lang}: title over {TITLE_MAX}: {country} {v[0]}")
+            if len(v) > 1 and px(v[1]) > CAL_PX:
+                bad.append(f"{m.get('id')} {where} {lang}: short name over {CAL_PX} px (the calendar label): {v[1]}")
             for x in [country] + list(v):
                 odd = sorted(set(x.upper()) - FONT)
                 if odd:
@@ -274,8 +345,8 @@ def check_titles(m, clubs=()):
                 if not isinstance(v, list) or len(v) != 2:
                     bad.append(f"{m.get('id')} {where} {lang}: split title not [long, short]: {v}")
                     continue
-                if len(v[1]) > 16:
-                    bad.append(f"{m.get('id')} {where} {lang}: split title short over 16 (the calendar column): {v[1]}")
+                if px(v[1]) > CAL_PX:
+                    bad.append(f"{m.get('id')} {where} {lang}: split title short over {CAL_PX} px (the calendar label): {v[1]}")
                 for s in v:
                     odd = sorted(set(s.upper()) - FONT)
                     if odd:

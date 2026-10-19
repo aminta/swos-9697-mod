@@ -548,11 +548,14 @@ def world_items():
                 else:
                     texts[lang] = cup_text(dict(clubs=len(clubs), rounds=[CODES[b] for b in rounds]), T[lang])
             out.append((n, None, titles, texts))
+            out.append((n, None, {lang: t[1:] for lang, t in titles.items()}, texts))   # (careerworld w_pfx, 4.0:
+            # a contest of a country with no name gets no '<country> ' prefix, no space either; the old key kept)
         if any(r == __import__('careerworld').LP_ROUNDS for r, _ in w['cups'].values()):
             import uefaq
             for cid, cup in zip(uefaq.QIDS, uefaq.CUPS):
                 titles = {lang: ' ' + uefaq.NAMES[lang] + cup.decode() for lang in LANGS}
                 out.append((n, cid, titles, {lang: list(EX[lang]['q']) for lang in LANGS}))
+                out.append((n, cid, {lang: t[1:] for lang, t in titles.items()}, {lang: list(EX[lang]['q']) for lang in LANGS}))
     return out
 
 

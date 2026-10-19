@@ -1682,6 +1682,33 @@ u32 gp_pwin_c(void) {
     return k->tw[0] == me ? *(u32 *)k->bye : 0;
 }
 
+/* RI_TAB (ripool.table_bytes): a league pool's slot (kind 0) of world w with global g -> its lowest level's first
+   division and base division (gp_sack_c) */
+static int ri_league_slot(const u8 *t, int w, int g, int *low, int *base) {
+    int nf = *t++;
+    for (int fi = 0; fi < nf; fi++) {
+        int world = t[0], np = t[2], nsp = t[9];
+        t += 10 + nsp;
+        for (int k = 0; k < np; k++) {
+            int kind = t[0], n = t[1];
+            const u8 *p = t + 2;
+            if (kind == 0) {
+                int lw = p[0], ns = p[1] | p[2] << 8;
+                const u8 *sl = p + 3;
+                for (int i = 0; world == w && i < ns; i++)
+                    if ((sl[4 * i] | sl[4 * i + 1] << 8) == g) { *low = lw; *base = sl[4 * i + 2]; return 1; }
+                t = sl + 4 * ns + n + n;
+            } else {
+                int ns = p[3];
+                const u8 *ps = p + 4 + 4 * ns;
+                int ne = ps[n];
+                t = ps + n + 1 + 2 * ne + n;
+            }
+        }
+    }
+    return 0;
+}
+
 u32 gp_sack_c(void) {
     const struct gp_ko *k = &GP_ST.ko[0];
     if (GP_ST.magic == MAGIC && GP_ST.season == GP_SEAS && k->magic == MAGIC && k->season == GP_SEAS && k->kind == 4
@@ -1700,16 +1727,12 @@ u32 gp_sack_c(void) {
     if (m < 0) return 0;
     if (GP_FORCE) m = GP_FORCE - 1;
     u16 g = *(const u16 *)(*(const u32 *)(d + off + 0x2B3) + GP_SEL + 2);
-    const u8 *t = GP_RIT;                /* the off-file pool (ripool: RI_TAB; its swap never takes the manager's club) */
-    if (t && *t++ && t[0] == GP_WORLD) {
-        int low = t[2], ns = t[3] | t[4] << 8;
-        for (int i = 0; i < ns; i++)
-            if ((t[5 + 4 * i] | t[6 + 4 * i] << 8) == g) {
-                int dv = t[7 + 4 * i] + GP_SLT[g];
-                return dv >= low && dv < GD && m >= n - GP_LG[13 + 6 * dv + 3];
-            }
+    int low, base;                       /* the off-file pools (ripool: RI_TAB; a swap never takes the manager's club) */
+    if (GP_RIT && ri_league_slot(GP_RIT, GP_WORLD, g, &low, &base)) {
+        int dv = base + GP_SLT[g];
+        return dv >= low && dv < GD && m >= n - GP_LG[13 + 6 * dv + 3];
     }
-    t = GP_RST;
+    const u8 *t = GP_RST;
     for (int cnt = t ? *t++ : 0; cnt > 0; cnt--) {
         int w = t[0], nd = t[1], low = t[2], nc = t[3] | t[4] << 8;
         const u8 *c = t + 5, *pl = c + 3 * nc;

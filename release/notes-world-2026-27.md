@@ -339,6 +339,9 @@ when the engine lands it.
   Morocco, Tunisia, Algeria, South Africa, New Zealand, Suriname, Taiwan, India, Ghana, and every league and division
   of the original game (see the Mod rules). Calendar-year leagues play their 2026 season (Japan already its first
   August-May season, 2026-27).
+- **Club names as their own papers and leagues write them**: Italy from the Gazzetta dello Sport (Serie A and B),
+  the Lega Serie C and the LND (Serie D); the top flights of Germany (kicker), Spain (Marca), France (L'Equipe) and
+  England (BBC Sport); elsewhere the legal forms (FC, SC, CD ...) dropped where the plain name is free.
 - **Real names**: every league and cup under its official 2026-27 name, without title sponsors, as the original game
   did (SERIE A, LALIGA, FA CUP, EFL CUP, DFB-POKAL, TURKIYE KUPASI, KING'S CUP, EMPEROR'S CUP ...): the country's own
   language where it is written in the Latin alphabet, the official English name otherwise.
@@ -904,6 +907,10 @@ Baiano, Cearense, Pernambucano, Alagoano e Mato-Grossense.
   Giappone, Corea, Cina, Australia, Egitto, Marocco, Tunisia, Algeria, Sudafrica, Nuova Zelanda, Suriname, Taiwan, India,
   Ghana, e ogni campionato e divisione del gioco originale (vedi le regole della mod). I campionati ad anno solare
   giocano la loro stagione 2026 (il Giappone già la sua prima stagione agosto-maggio, 2026-27).
+- **Nomi dei club come li scrivono i giornali e le leghe dei loro paesi**: Italia dalla Gazzetta dello Sport (Serie
+  A e B), dalla Lega Serie C e dalla LND (Serie D); le massime serie di Germania (kicker), Spagna (Marca), Francia
+  (L'Equipe) e Inghilterra (BBC Sport); altrove tolte le forme societarie (FC, SC, CD ...) dove il nome semplice è
+  libero.
 - **Nomi veri**: ogni campionato e ogni coppa con il suo nome ufficiale 2026-27, senza sponsor, come faceva il gioco
   originale (SERIE A, LALIGA, FA CUP, EFL CUP, DFB-POKAL, TURKIYE KUPASI, KING'S CUP, EMPEROR'S CUP ...): nella lingua
   della nazione dove si scrive in alfabeto latino, altrimenti il nome ufficiale inglese.

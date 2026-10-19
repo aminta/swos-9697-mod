@@ -13,7 +13,9 @@
   Env: SWOSTEST_NOEXIT=1 = DOSBox-X stays at the DOS prompt when the game exits (see its last message: shots/final);
        SWOSTEST_BUILD = build dir under test, else SWOSTEST_BRANCH = git branch/commit to build, else this checkout;
        SWOSTEST_RUNS = run dirs (default internal/swostest/runs; another one = a second suite at the same time);
-       TURBO=0 = real-time speed (default: DOSBox-X turbo, the emulated machine runs as fast as the host allows).
+       TURBO=0 = real-time speed (default: DOSBox-X turbo, the emulated machine runs as fast as the host allows);
+       SWOSTEST_LINEUP=full = the career squad screen's best-reserve search (substitute); default min = an unavailable
+       starter swaps with the first fit reserve, nothing more (substitute_min: ~half of a long career's pauses saved).
 
 Key script: space-separated keys fire up down left right esc enter space bspace a-z 0-9, and 'dump'; 'fire+right'
 = both held (fire typed), for the entries with input-function control masks (kit colours). 'key:s' waits
@@ -900,6 +902,8 @@ def substitute(s, scr, tries=40):
        trial players (PROVA) only when nothing better is there. Row 1 must be a goalkeeper (P): a fit one of the
        bench (row 12) first. Returns an error string or None."""
     subs = s.__dict__.setdefault('subs', {})
+    if os.environ.get('SWOSTEST_LINEUP', 'min') != 'full':   # (the default: substitute_min; full = the best-reserve
+        return substitute_min(s, tries)                      # search below, for a scenario that judges the club's results)
 
     def cycle(face, ry):                                # every reserve once: [(name, role, value, fit)]
         seen = []
@@ -995,6 +999,58 @@ def substitute(s, scr, tries=40):
             subs[k] = (out, stand_in)
         s.log.append(f'[subs] slot {k + 1} ({need or "any"}): {out} out, {stand_in} ({best[1] or "?"}, {best[2]}) in')
     return 'squad screen: still unavailable players after 10 swaps'
+
+
+def substitute_min(s, tries=40):
+    """The default line-up handling (SWOSTEST_LINEUP=min; Davide 2026-10-19: flow / calendar / save-load runs, where
+    the line-up's quality does not matter; SWOSTEST_LINEUP=full = substitute's best-reserve search): only
+    what the game needs to show VIS. RISULTATI - an unavailable player among the first 16 changes places with the
+    first fit reserve the 17th row shows (cycled only while it shows an unavailable one), the keeper's slot with the
+    bench keeper (row 12) first; no best-reserve search, no starter brought back later (substitute's two cycles over
+    every reserve per squad screen were ~50-60% of a long career's pauses). Returns an error string or None."""
+    for _ in range(12):
+        cur = s.screen()
+        rows = squad_rows(s, cur, f'sq{len(s.log):03d}')
+        if len(rows) != 17:
+            return f'squad screen: {len(rows)} rows'
+        bad = [k for k, (i, un) in enumerate(rows[:16]) if un]
+        if not bad and 'VIS. RISULTATI' not in cur.texts():
+            bad = [0]                                   # no goalkeeper in goal (the game's own squad changes)
+        if not bad:
+            return None if 'VIS. RISULTATI' in cur.texts() else 'squad screen without VIS. RISULTATI, no unavailable row'
+        k = bad[0]
+        if k == 0 and not rows[11][1]:                  # the keeper: row 12 is the bench keeper in SWOS squads
+            press(s, cur, rows[0][0], wait=1)
+            press(s, s.screen(), rows[11][0], wait=1)
+            s.log.append('[subs] slot 1: the bench keeper (row 12) in (min)')
+            continue
+        reserve = rows[-1][0]
+        ry = cur.geom[reserve][1]
+        face = next((i for i, (l, r) in enumerate(cur.nav) if l[1] == reserve and cur.geom[i][0] < 25), None)
+        if face is None:
+            return 'squad screen: no face entry for the 17th row'
+        fit = not rows[-1][1]
+        first = reserve_info(cur, ry)[0]
+        for _ in range(tries):                          # the first fit reserve the 17th row shows
+            if fit:
+                break
+            press(s, s.screen(), face, wait=1)
+            if s.result.outcome != 'dump':
+                return f'squad screen: {s.result}'
+            c2 = s.screen()
+            rows2 = squad_rows(s, c2, f'sq{len(s.log):03d}')
+            if len(rows2) != 17:
+                break
+            fit = not rows2[-1][1]
+            if reserve_info(c2, ry)[0] == first:        # (every reserve seen: none fit)
+                break
+        if not fit:
+            return f'no fit reserve for row {k + 1}'
+        stand_in = reserve_info(s.screen(), ry)[0]
+        press(s, s.screen(), rows[k][0], wait=1)
+        press(s, s.screen(), reserve, wait=1)
+        s.log.append(f'[subs] slot {k + 1}: {stand_in} in (min)')
+    return 'squad screen: still unavailable players after 12 swaps'
 
 
 def nat_callups(s, limit=120):
@@ -4389,6 +4445,54 @@ def world_statesim(team='SUDAMERICA,BRASILE,CAMPEONATO BRASILEIRO SERIE A,ATHLET
 
 
 @scenario
+def world_state_career():
+    """One season of a career in a state (4.0 release check): STATESIM_BUILD (a World 2026-27 build dir), STATE_TEAM
+    (the W8485_TEAM path, e.g. 'SUDAMERICA,BRASILE,CAMPEONATO BRASILEIRO SERIE A,ATHLETICO-PR'), STATE_N (its state's
+    clubs): the season ends without a trap, the state's stage-1 order (ST_RANK block 0, st_rec) has STATE_N clubs,
+    and statesim at the career's start gave every state of the world a block of real words"""
+    exe = os.environ.get('STATESIM_BUILD')
+    team = os.environ.get('STATE_TEAM')
+    if not exe or not team:
+        return True, 'SKIP: STATESIM_BUILD / STATE_TEAM not set'
+    want = int(os.environ.get('STATE_N', '0'))
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    from le import LE
+    d1 = LE(open(os.path.join(exe, 'ITALIAN.EXE'), 'rb').read()).obj_bytes(1)
+    k = d1.find(b'SSLASTPT')
+    if k < 0:
+        return False, 'no SSLASTPT block in the exe'
+    rank_at, last_at = struct.unpack_from('<2I', d1, k + 8)
+    keep = {x: os.environ.get(x) for x in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K',
+                                            'W8485_NOSACK', 'W8485_HEX', 'W8485_ONE')}
+    os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5', W8485_K='108+',
+                      W8485_NOSACK='1', W8485_HEX=f'o1/{rank_at:x}:470,o1/{last_at:x}:470', W8485_ONE='1')
+    try:
+        ok, msg = world8485()
+    finally:
+        for x, v in keep.items():
+            if v is None:
+                os.environ.pop(x, None)
+            else:
+                os.environ[x] = v
+    hexes = {}
+    f = os.path.join(RUNS, w84_tag() + '_1', 'session.log')
+    for ln in open(f, errors='replace') if os.path.exists(f) else []:
+        q = ln.split()
+        if len(q) == 3 and q[0] == 'HEX':
+            hexes.setdefault(q[1], []).append(bytes.fromhex(q[2]))
+    errs = []
+    check(ok, msg, errs)
+    played = [r[0] for r in (sr_blocks(b) for b in hexes.get(f'o1/{rank_at:x}', [])) if r]
+    lasts = [x for x in (sr_blocks(b) for b in hexes.get(f'o1/{last_at:x}', [])) if x]
+    check(played and len(played[0][1]) == want, f'state order {[(hex(a), len(w)) for a, w in played]} (want {want})',
+          errs)
+    check(lasts and len(lasts[0]) >= 13 and all(w and all(w) for _, w in lasts[0]),
+          f'statesim blocks {[(hex(a), len(w)) for a, w in (lasts[0] if lasts else [])]}', errs)
+    return not errs, '; '.join(errs + [f"{msg}; played {[(hex(a), len(w)) for a, w in played]}, statesim "
+                                        f"{len(lasts[0]) if lasts else 0} blocks"])
+
+
+@scenario
 def world_gplay_reserve(force='20', team='EUROPA,ITALIA,SERIE C GIRONE A,RENATE', src=None, div=2, direct=20):
     """The career club relegated into the reserve is sacked (gplay gp_sack, SeasonFinished's contract check): the
     world 2026-27 with Italy's reserve (private data internal/world2526/world5tm-reserve: Serie C groups, 20th down
@@ -5386,11 +5490,15 @@ def world_away_goals():
                         os.environ.pop(k, None)
                     else:
                         os.environ[k] = v
-            ag = [b for b in bps if b[4] & 0x10]
-            info.append(f'1984-85: {msg[:120]}; second legs {len(bps)}, away-goals bit {len(ag)}; '
-                        + ' '.join(f'{b[2]}-{b[3]}:{b[4]:02x}/{b[5]:04x}/{b[6]:04x}' for b in ag[:4]))
+            res = collections.Counter()                         # the European second legs' result texts (the
+            for d in glob.glob(os.path.join(RUNS, w84_tag() + '_*', 'session.log')):   # fast core: no breakpoint)
+                for ln in open(d, errors='replace'):
+                    if 'RITORNO' in ln:
+                        for t in re.findall(r'VINCE (?:\d+-\d+ )?(AI RIG(?: D\.T)?|IN TOT\.(?: D\.T)?|SU GOL FC)', ln):
+                            res[t] += 1
+            info.append(f'1984-85: {msg[:120]}; second-leg results {dict(res)}')
             check(ok, msg, errs)
-            check(bool(ag), '1984-85: no tie decided on away goals', errs)
+            check(res.get('SU GOL FC', 0) > 0, f'1984-85: no tie won on away goals on the screens {dict(res)}', errs)
     finally:
         W84_HOOK = None
     return not errs, '; '.join(errs + info)

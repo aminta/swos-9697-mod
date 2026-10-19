@@ -1001,17 +1001,23 @@ def _orient(m, rounds):
 
 def schedule(groups, rounds):
     """The calendar after the split: [[(home place, away place, group), ...] per day], places 0-based global."""
-    days, start = [], 0
-    for g, (m, r) in enumerate(zip(groups, rounds)):
+    plans = []
+    for m, r in zip(groups, rounds):
         one = _orient(m, _round_robin(m)) if r else []
         back = [[(b, a) for a, b in rd] for rd in one]
-        plan = [rd for k in range(r) for rd in (one if k % 2 == 0 else back)]   # r round robins, home / away
-        #                                                                         alternating (4: Latvia 1996)
-        for d, rd in enumerate(plan):
-            while len(days) <= d:
-                days.append([])
+        plans.append([rd for k in range(r) for rd in (one if k % 2 == 0 else back)])   # r round robins, home /
+    n_days = max((len(x) for x in plans), default=0)                                 # away alternating (4: Latvia)
+    days, start = [[] for _ in range(n_days)], 0
+    for g, (m, plan) in enumerate(zip(groups, plans)):
+        # a group with fewer rounds than the stage's days: its rounds spread over them, the last on the stage's last
+        # day (its free days among its own: after its last match the career league screen had no command but STAT /
+        # ESCI, the season stuck - 4.0 rc1, Bulgaria 1-4 6 days v 5-9 10)
+        k = len(plan)
+        at = [n_days - 1] if k == 1 else [(i * (n_days - 1) + (k - 1) // 2) // (k - 1) for i in range(k)]
+        for d, rd in zip(at, plan):
             days[d] += [(start + a, start + b, g) for a, b in rd]
         start += m
+    assert all(days), 'a day with no match'
     return days
 
 

@@ -1693,6 +1693,12 @@ def world8485():
                 if peek is not None:                   # W8485_PEEK: the largest word seen at an obj2 offset
                     peek[1] = max(peek[1], struct.unpack_from('<H', s.result.obj2(peek[0], 2))[0])
                 hexlog()
+                for k, a in enumerate(filter(None, os.environ.get('W8485_POKEIF', '').split(','))):
+                    co, cv, po, pv = a.split(':')          # W8485_POKEIF: once obj2 bytes at co == cv, poke pv at po
+                    if ('if', k) not in poked and s.result.obj2(int(co, 16), len(cv) // 2).hex() == cv:
+                        s.poke(s.result.base2 + int(po, 16), bytes.fromhex(pv))
+                        poked.add(('if', k))
+                        s.log.append(f'POKEIF {po} {pv}')
                 if mid[0] and s.result.obj2(int(mid[0], 16), 1)[0] == int(mid[1], 0):
                     midc[0] += 1
                     if midc[0] >= int(mid[2]):

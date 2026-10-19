@@ -573,9 +573,17 @@ gp_perm:                                ; lib97 nc_adv's slot (NC_DPP; dplay's d
     mov ecx, 64
     rep movsb
     pop es
+    mov ax, [CAREERTEAM]
+    mov [GP_MGR], ax
     mov eax, gp_perm_c
     call gp_c
     mov [GP_NC], eax
+    mov eax, [GP_ALIVE]                 ; (the human-clubs count +4Bh by series, not by game: gp_perm_c)
+    cmp eax, -1
+    je .na
+    mov [NCW + 4Bh], ax
+.na:
+    mov eax, [GP_NC]
     test eax, eax
     jz .x
     push es
@@ -1162,7 +1170,7 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
     symbols = {k: (0, v) for k, v in lay.items()}
     symbols.update(tab_syms)
     symbols.update({k: syms[k] for k in ('GP_IN', 'GP_OUT', 'gp_season', 'gp_keep', 'GP_ST', 'GP_LOG', 'GP_NM', 'GP_DIYP', 'GP_K',
-                                         'GP_W', 'GP_SKIP', 'GP_RB', 'GP_A', 'GP_B', 'GP_CID', 'GP_SEAS', 'GP_DIV',
+                                         'GP_W', 'GP_SKIP', 'GP_RB', 'GP_ALIVE', 'GP_A', 'GP_B', 'GP_CID', 'GP_SEAS', 'GP_DIV',
                                          'GP_PT', 'GP_PL', 'gp_need', 'gp_simkeep', 'gp_restore', 'gp_lend_c', 'gp_ours_c',
                                          'gp_perm_c', 'gp_rec_c', 'gp_draw_c', 'gp_played_c', 'gp_end_c',
                                          'gp_build_c', 'GP_BPIC')})

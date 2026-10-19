@@ -606,7 +606,8 @@ u8 GP_HDR[14] = { 0xAD };               /* (gplay.py: the game's Australian cup 
 const u32 *GP_NM;                       /* the country's names: per play-off dd long, short, record (relative) */
 const u8 *GP_TH;                        /* the country's 'then_build': per play-off the next one's index + 1, or 0 */
 u8 *GP_DIYP;
-u32 GP_K, GP_W, GP_SKIP, GP_RB;
+u32 GP_K, GP_W, GP_SKIP, GP_RB, GP_ALIVE;
+u16 GP_MGR;                             /* (the career club: CAREERTEAM, set by the glue before the call) */
 u16 GP_A, GP_B;
 u8 GP_CID, GP_SEAS, GP_DIV, GP_PT[64], GP_PL[64];
 static const struct gp_dec *stage_dec(int k) {
@@ -1145,10 +1146,18 @@ static int kidx(const struct gp_ko *k, u16 team) {
    list, GP_RB its round byte, GP_SKIP game rounds skipped (a game 3 nobody needs); returns its clubs (0: none) */
 u32 gp_perm_c(void) {
     struct gp_ko *k = &GP_ST.ko[GP_K];
+    GP_ALIVE = 0xFFFFFFFF;
     if (KT2(k)) return 0;               /* (a type-2 contest: the game's own stages) */
     int g = k->gcur, p0 = k->gp0[g], np = k->gp0[g + 1] - p0, c = 0;
     for (int i = 0; i < np && i < 64; i++) k->pw[p0 + i] = GP_PT[i];
     resolve(k);
+    int me = kidx(k, GP_MGR);           /* the contest's human-clubs count (+4Bh): the game takes 1 off for every
+                                           match a human club loses (cseg_2ABF0), a series' lost game 1 too -> a
+                                           later elimination left it FFFFh, the next round's entry 'still in' (FFh)
+                                           and PARTITA without a match hung (MLS): ours, the club still in the bracket */
+    GP_ALIVE = me != NOC;
+    for (int t = 0; t < k->ntie && GP_ALIVE; t++)
+        if (k->tw[t] != NOC && k->tl[t] == me && k->tw[t] != me) GP_ALIVE = 0;
     GP_SKIP = 0;
     for (;;) {
         if (++g >= k->ngr) return 0;
@@ -1243,7 +1252,6 @@ void gp_end_c(void) {                   /* after gp_season: the log, the state v
 const u8 *GP_CFB, *GP_LG, *GP_RST, *GP_RIT;   /* the league's final table, its struct, RS_TAB, RI_TAB (0: none) */
 const s8 *GP_SLT;                       /* someLeaguesTable (the clubs' divisions: base + delta) */
 u32 GP_SEL;                             /* selTeamsPtr */
-u16 GP_MGR;
 u8 GP_WORLD;
 
 /* SeasonFinished (gp_sack, before the season review): the career club won our played group contest (the Poule) ->

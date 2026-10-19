@@ -4155,6 +4155,11 @@ SPLITS = {   # world_split kinds: country, career path (ITA), the 'split' of its
                             'groups': [{'places': [1, 12], 'rounds': 'single'}]},
                            {'after': 27, 'groups': [{'places': [1, 6], 'rounds': 'single'},
                                                     {'places': [7, 12], 'rounds': 'single'}]}]}),
+    'places': ('uru', 'SUDAMERICA,URUGUAY,CAMPEONATO URUGUAYO,DANUBIO',     # (Uruguay 2026: Apertura 15, the
+               {'_games': 1, 'stages': [                                  # Intermedio's snake groups, Clausura 15)
+                   {'after': 15, 'places_snake': True, 'reset': True, 'keep': 'opening',
+                    'groups': [{'rounds': 'single'}, {'rounds': 'single'}]},
+                   {'after': 22, 'reset': True, 'groups': [{'places': [1, 16], 'rounds': 'single'}]}]}),
     'halved': ('rou', 'EUROPA,ROMANIA,BOTOSANI',
                {'after': 30, 'groups': [{'places': [1, 6], 'rounds': 'double', 'points': 'half_up'},
                                         {'places': [7, 16], 'rounds': 'single', 'points': 'half_up'}]}),
@@ -4174,7 +4179,10 @@ def split_build():
         f = os.path.join(w, 'world5tm', c, 'pack.json')
         d = json.load(open(f))
         lg = next(x for x in d['competitions'] if x['type'] == 'league')
-        (lg['divisions'][0] if 'divisions' in lg else lg)['split'] = sp
+        tgt = lg['divisions'][0] if 'divisions' in lg else lg
+        tgt['split'] = {k: v for k, v in sp.items() if k != '_games'}
+        if '_games' in sp:
+            tgt['games'] = sp['_games']
         json.dump(d, open(f, 'w'), indent=1, ensure_ascii=False)
     order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
     return build('world_split', env={'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(w, 'world5tm', x)
@@ -4197,6 +4205,40 @@ def split_tables_ok(diys, n, full_points, errs):
             check(not badp, f'day {day}: points != 3W + D in rows {badp[:4]}', errs)
         if errs:
             return
+
+
+def split_check_places(log, key):
+    """Explicit / snake places (Uruguay's Intermedio): at every snapshot of the snake stage (1 frozen stage), each
+    row's group = the snake group of its place in the kept table (the Apertura, rows by place); every row 7 matches
+    in that stage; then the Clausura from 0 (15 each at the end)."""
+    import split
+    diys = [b for b in (bytes.fromhex(ln[4:]) for ln in log if ln.startswith('DIY ')) if b[0:2] == b'\0\0']
+    if not diys:
+        return False, 'no snapshot of the split league'
+    clubs = lambda b: sorted(b[0x12D:0x12D + 2 * struct.unpack_from('<H', b, 0x31)[0]])
+    diys = [b for b in diys if clubs(b) == clubs(diys[0])]
+    st, o = split.ST, split.OFF
+    w = lambda b, k: struct.unpack_from('<H', b, k)[0]
+    n = w(diys[-1], 0x31)
+    snake = [k for b in range(n // 2) for k in ((0, 1) if b % 2 == 0 else (1, 0))]
+    mid = [b for b in diys if b[st + o['frozen']] == 1]
+    errs, info = [], []
+    check(mid, 'no snapshot inside the snake stage', errs)
+    for b in mid[-1:]:
+        kept = list(b[st + o['h2h']:st + o['h2h'] + n])          # rows by Apertura place
+        grp = list(b[st + o['grp']:st + o['grp'] + n])
+        want = {kept[p]: snake[p] for p in range(n)}
+        bad = [r for r in range(n) if grp[r] != want[r]]
+        check(not bad, f'rows in the wrong group: {[(r, grp[r], want[r]) for r in bad]}', errs)
+        info.append('A = Apertura places ' + ' '.join(str(p + 1) for p in range(n) if snake[p] == 0))
+        rec = lambda r: struct.unpack_from('<I7H', b, 0x2B3 + 18 * r)
+        info.append(f'snake-stage played {sorted({rec(r)[1] for r in range(n)})}')
+    last = diys[-1]
+    rec = lambda r: struct.unpack_from('<I7H', last, 0x2B3 + 18 * r)
+    check(last[st + o['frozen']] == 2 and w(last, 0x1C1) == w(last, 0x1C3) == 37 and w(last, 0x5F) == 0,
+          f'end: frozen {last[st + o["frozen"]]}, day {w(last, 0x1C1)} / {w(last, 0x1C3)} (37), cycles {w(last, 0x5F)}', errs)
+    check(all(rec(r)[1] == 15 for r in range(n)), f'Clausura played {[rec(r)[1] for r in range(n)]} (15)', errs)
+    return not errs, '; '.join(errs + info)
 
 
 def split_check_stages(log, key):
@@ -4377,7 +4419,8 @@ def world_split(kind):
             else:
                 os.environ[k] = v
     log = open(os.path.join(RUNS, f'{w84_tag()}_1', 'session.log')).read().splitlines()
-    good, rep = (split_check_stages(log, spec) if 'stages' in spec else
+    good, rep = (split_check_places(log, spec) if kind == 'places' else
+                 split_check_stages(log, spec) if 'stages' in spec else
                  split_check(log, spec, lambda n: split.pair_table(po, sa, n)))
     open(os.path.join(RUNS, f'{w84_tag()}_1', 'split.txt'), 'w').write(rep + '\n' + '\n'.join(
         x for x in log if x.startswith('post-split')) + '\n')
@@ -4587,6 +4630,14 @@ def world_odd_league():
           f'played {[t[1] for t in rows]}, {2 * (n - 1)} wanted', errs)
     check(ok, msg, errs)
     return not errs, '; '.join(errs) or f'{n} clubs, {2 * n} days, every club {2 * (n - 1)} matches; {msg}'
+
+
+@scenario
+def world_split_places():
+    """Explicit places (split 'places' / 'places_snake'): Uruguay 2026 (Apertura 15 days; the Intermedio's two
+    groups of 8 = the Apertura's places 1 4 5 8 9 12 13 16 / 2 3 6 7 10 11 14 15, 7 days, from 0, the Apertura
+    table kept; the Clausura 15 days from 0) at DANUBIO: every row in its snake group, 37 days"""
+    return world_split('places')
 
 
 @scenario

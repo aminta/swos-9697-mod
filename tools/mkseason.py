@@ -1509,6 +1509,18 @@ def splits():
                     day = st['after']
                 _need(st.get('after') == day, f'{ws}.after: {day} (the previous stage ends then)')
                 places, gs = 1, st.get('groups') or []
+                expl = st.get('places')                 # explicit places per group (Uruguay's Intermedio: a snake)
+                if st.get('places_snake'):              # (sugar: groups of equal size, places dealt 1 2 .. g g .. 1)
+                    _need(expl is None and gs and n % len(gs) == 0, f'{ws}.places_snake: equal groups')
+                    order = [k for b in range(n // len(gs)) for k in (range(len(gs)) if b % 2 == 0
+                                                                    else reversed(range(len(gs))))]
+                    expl = [[p + 1 for p, k in enumerate(order) if k == x] for x in range(len(gs))]
+                if expl is not None:
+                    _need(len(expl) == len(gs) and sorted(p for g in expl for p in g) == list(range(1, n + 1))
+                          and all(not g_.get('places') for g_ in gs), f'{ws}.places: one list per group, places 1-{n} '
+                          f'once each (groups without places)')
+                    gs = [dict(g_, places=[places_ + 1, places_ + len(e)]) for g_, e, places_ in
+                          zip(gs, expl, [sum(len(e) for e in expl[:k]) for k in range(len(expl))])]
                 for g in gs:
                     _need(set(g) <= {'places', 'rounds', 'points', 'neutral', 'title'} and g.get('places', [0])[0] == places
                           and g['places'][1] >= places + 1, f'{ws}.groups: consecutive places from 1')
@@ -1523,6 +1535,8 @@ def splits():
                        'rounds': [rnd[g.get('rounds', 'single')] for g in gs],
                        'points': [g.get('points', 'full') for g in gs], 'home': st.get('home', 'seeded'),
                        'reset': bool(st.get('reset')), 'keep': st.get('keep')}
+                if expl is not None:                    # (split.entry: new place k = the old place perm[k], 0-based)
+                    one['perm'] = [p - 1 for e in expl for p in e]
                 spec['stages'].append(one)
                 day += len(split.schedule(one['groups'], one['rounds']))
             _need(games in (1, 2, 3, 4) or (games == 0 and stages and 'fixtures' in stages[0]),

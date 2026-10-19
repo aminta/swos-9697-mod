@@ -309,6 +309,27 @@ gp_setup:                               ; ZF = 0 if the career league (D8CAA) is
     xor eax, eax
     ret
 
+gp_calold:                              ; al = a slot: its calendar entries (an earlier contest's, e.g. the Apertura's
+    pushad                              ; knockout before the Clausura's) get round byte FEh: cseg_8BC06 finds a round's
+    movzx ecx, word [CAL - 4]           ; entry by (slot, round) from the start, and wrote the new contest's career
+    mov edi, CAL                        ; match into the old one (the Trofeo never played; a later quit)
+.l:
+    test ecx, ecx
+    jz .x
+    cmp [edi], al
+    jne .n
+    mov byte [edi + 7], 0FEh
+.n:
+    movzx edx, word [edi + 2]
+    test edx, edx
+    jz .x
+    add edi, edx
+    dec ecx
+    jmp .l
+.x:
+    popad
+    ret
+
 gp_install:                             ; GP_BUILT (gp_lend_c): each ko built into its slot (4, or 3: Season's second,
     xor ebx, ebx                        ; a career's group contest)
 .k:
@@ -318,6 +339,8 @@ gp_install:                             ; GP_BUILT (gp_lend_c): each ko built in
     jnc .n
     imul esi, ebx, KO_SIZE
     add esi, GP_ST + ST_KO
+    mov al, [esi + KO_SLOT]
+    call gp_calold
     cmp byte [esi + KO_SLOT], 4
     jne .s3
     pushad

@@ -5932,7 +5932,7 @@ def statespec_ce():
         return True, 'SKIP: statespec.GRP_ON is off (Cearense phase 2: the game draws the groups)'
     b = os.environ.get('STATESPEC_BUILD3') or builds()['it']
     from le import LE
-    d1 = LE(open(b, 'rb').read()).obj_bytes(1)
+    d1 = LE(open(os.path.join(b, 'ITALIAN.EXE') if os.path.isdir(b) else b, 'rb').read()).obj_bytes(1)
     k = d1.find(b'STRDBGPT')
     if k < 0:
         return False, 'no STRDBGPT block'

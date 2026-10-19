@@ -167,15 +167,40 @@ TITLE_MAX = 34      # the game's title '<country> <long name>' (DIY+4): a 35-byt
 LANGS = ('it', 'en', 'fr', 'de')
 
 
+FIT_NAMES = {   # hand-picked forms (regia / Davide 2026-10-20): (original long name, language or '*') -> the long name used
+    ('SEGUNDA DIVISION OCCIDENTE', '*'): 'SEGUNDA OCCIDENTE', ('SEGUNDA DIVISION ORIENTE', '*'): 'SEGUNDA ORIENTE',
+    ('TERCERA DIVISION OCCIDENTE', '*'): 'TERCERA OCCIDENTE', ('TERCERA DIVISION ORIENTE', '*'): 'TERCERA ORIENTE',
+    ('CAMPEONATO BRASILEIRO SERIE A', '*'): 'BRASILEIRAO SERIE A', ('CAMPEONATO BRASILEIRO SERIE B', '*'): 'BRASILEIRAO SERIE B',
+    ('PLAY-OFF CONFERENCE LEAGUE', '*'): 'PLAY-OFF CONFERENCE',
+    ('EUROPA CONFERENCE PLAY-OFF', '*'): 'PLAY-OFF CONFERENCE', ('EUROPA CONFERENCE PLAY-OFF', 'it'): 'PLAY-OFF CONF.', ('EUROPA CONFERENCE PLAY-OFF', 'fr'): 'PLAY-OFF CONF.',
+    ('RELEGATION 2. BUNDESLIGA', '*'): 'RELEGATION 2./3. LIGA',
+    ('SKUPINA O UMISTENI 7-10', 'it'): 'POSTI 7-10', ('SKUPINA O UMISTENI 7-10', 'en'): 'PLACES 7-10',
+    ('SKUPINA O UMISTENI 7-10', 'fr'): 'PLACES 7-10', ('SKUPINA O UMISTENI 7-10', 'de'): 'PLATZ 7-10',
+    ('TAIWAN FOOTBALL PREMIER LEAGUE', '*'): 'PREMIER LEAGUE',
+    ('TAIWAN FOOTBALL LEAGUE DIV. 2', 'it'): 'SECONDA DIVISIONE', ('TAIWAN FOOTBALL LEAGUE DIV. 2', 'en'): '2ND DIVISION',
+    ('TAIWAN FOOTBALL LEAGUE DIV. 2', 'fr'): 'DEUXIEME DIVISION', ('TAIWAN FOOTBALL LEAGUE DIV. 2', 'de'): '2. LIGA',
+}
+
+
+LANG = ['it']
+
+
 def _fit(country, long_, short):
     """A long name that fits '<country> <long>' in TITLE_MAX: the long one, else the short one, else the longer of the
     two cut at a word (then at the limit)."""
     room = TITLE_MAX - len(country) - 1
-    for x in (long_, short):
+    for x in (FIT_NAMES.get((long_, LANG[0])), FIT_NAMES.get((long_, '*')), long_, short):
+        if x and len(x) <= room:
+            return x
+    for x in ():
         if len(x) <= room:
             return x
-    w = (short or long_)[:room + 1].rsplit(' ', 1)[0] if ' ' in (short or long_)[:room + 1] else (short or long_)[:room]
-    return w.rstrip(' -.') or (short or long_)[:room]
+    words, w = long_.split(), ''
+    for x in words:                                 # (whole words only: never a cut inside a word)
+        if len(w) + (1 if w else 0) + len(x) > room:
+            break
+        w = f'{w} {x}' if w else x
+    return w or short[:room]
 
 
 def fit_titles(m):
@@ -194,6 +219,7 @@ def fit_titles(m):
             country = (bn.get(lang) or m.get('button') or '').upper()
             long_ = v[0]
             short = v[1] if len(v) > 1 else v[0]
+            LANG[0] = lang
             f = _fit(country, long_.upper(), short.upper()) if len(country) + 1 + len(long_) > TITLE_MAX else None
             if f is not None and f != long_.upper():
                 names[lang] = [f] + list(v[1:])

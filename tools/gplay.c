@@ -1752,8 +1752,11 @@ u32 gp_perm_c(void) {
 
 /* a decisive match of ours (GP_A v GP_B, GP_W = 1: the second won): its pair's winner */
 
+u32 GP_DEFWK, GP_ADVWK;                 /* 4.0: a deferred stage build's week (its stage's last day), the week gp_adv builds
+                                           from (the advance's own week is already the next league day's) */
 void gp_defer_c(void) {                 /* (gp_defer: play-off GP_BPIC built at the calendar advance from week GP_WK on) */
     set_pend(GP_BPIC + 1, GP_WK);
+    GP_DEFWK = GP_WK + 1;
 }
 
 /* the calendar advance (gp_adv, cseg_8EA82's callers): a pending 'then_build' due -> its play-off index + 1 (then
@@ -1762,6 +1765,8 @@ u32 gp_adv_c(void) {
     if (!GP_ST.pend || GP_ST.pseas != GP_SEAS || GP_WK < GP_ST.pweek) return 0;
     u32 t = GP_ST.pend;
     GP_ST.pend = 0;
+    GP_ADVWK = GP_DEFWK ? GP_DEFWK - 1 : GP_WK;
+    GP_DEFWK = 0;
     return t;
 }
 
@@ -1780,6 +1785,7 @@ void gp_rec_c(void) {
                                            week after: the advance right after the final still has slot 4's contest
                                            in hand, a build there was lost - 4.0's Trofeo) */
         set_pend(k->bye[5], GP_WK + 1);
+        GP_DEFWK = 0;
         k->bye[5] = 0;
     }
 }
@@ -1840,30 +1846,52 @@ u8 GP_WORLD;
 /* SeasonFinished (gp_sack, before the season review): the career club won our played group contest (the Poule) ->
    its record line's name (the season record's 4th line: a Serie D club plays no European cup), else 0. Test builds
    (GPLAY_FORCE): the club is made the winner (the review's DA11B too: no European trophy for it, gp_sack's guard). */
-/* 4.0 longtable lt_stage (a table's OnRestore): the title of a staged / split league's current stage or the career
-   club's group. tab: dw n; dw S_MAGIC, S_FROZEN, S_GRP offsets (split's state in the DIY), dw its magic; dd the career
-   team word's address; n records: key (41 B: the DIY+4 title) + pad, [5 stages][4 groups] dw offsets from tab
-   (0 = none). Returns the title's address or 0. */
-u32 gp_stitle_c(const u8 *diy, const u8 *tab) {
-    int n = w16(tab), sm = w16(tab + 2), sf = w16(tab + 4), sg = w16(tab + 6);
-    if (w16(diy + sm) != w16(tab + 8)) return 0;
-    int s = diy[sf];
-    if (s >= 5) return 0;
-    const u16 *ct = *(const u16 * const *)(tab + 10);
-    const u8 *r = tab + 14;
-    for (int i = 0; i < n; i++, r += 42 + 40) {
+/* 4.0 stage titles (longtable.stage_table): tab: dw n; dw S_MAGIC, S_FROZEN, S_GRP offsets (split's state in a league
+   buffer), dw its magic; dd the career team word's address; dw the weeks table's offset; n records of 128 B: key (41 B:
+   the DIY+4 title) + pad, [5 stages][4 groups] dw long-title offsets from tab, the same for the short ones (0 = none),
+   5 db the stage's first day (255 = none) + pad. */
+static const u8 *st_rec(const u8 *lg, const u8 *tab) {      /* lg's record, or 0 */
+    if (w16(lg + w16(tab + 2)) != w16(tab + 8)) return 0;
+    const u8 *r = tab + 16;
+    for (int i = 0, n = w16(tab); i < n; i++, r += 128) {
         int k = 0;
-        while (k < 41 && diy[4 + k] == r[k] && r[k]) k++;
-        if (k < 41 && (diy[4 + k] != r[k])) continue;
-        int g = 0, nc = w16(diy + 0x31);
-        for (int j = 0; j < nc && j < 64; j++)
-            if (w16(diy + 0x12D + 2 * j) == *ct) { g = diy[sg + j]; break; }
-        const u8 *row = r + 42 + 8 * s;
-        int o = g < 4 ? w16(row + 2 * g) : 0;
-        if (!o) o = w16(row);
-        return o ? (u32)(tab + o) : 0;
+        while (k < 41 && lg[4 + k] == r[k] && r[k]) k++;
+        if (k == 41 || lg[4 + k] == r[k]) return r;
     }
     return 0;
+}
+static int st_grp(const u8 *lg, const u8 *tab) {           /* the career club's group in lg (0 if none) */
+    const u16 *ct = *(const u16 * const *)(tab + 10);
+    for (int j = 0, nc = w16(lg + 0x31); j < nc && j < 64; j++)
+        if (w16(lg + 0x12D + 2 * j) == *ct) return lg[w16(tab + 6) + j] & 3;
+    return 0;
+}
+/* longtable lt_stage (a table's OnRestore): the table title of diy's current stage / the career club's group */
+u32 gp_stitle_c(const u8 *diy, const u8 *tab) {
+    const u8 *r = st_rec(diy, tab);
+    if (!r) return 0;
+    int s = diy[w16(tab + 4)];
+    if (s >= 5) return 0;
+    const u8 *row = r + 42 + 8 * s;
+    int g = st_grp(diy, tab), o = w16(row + 2 * g);
+    if (!o) o = w16(row);
+    return o ? (u32)(tab + o) : 0;
+}
+/* gp_cal (the career calendar's league row): the short title of the league day in week wk (lg = slot 0's buffer) */
+u32 gp_scal_c(const u8 *lg, const u8 *tab, u32 wk) {
+    if (!lg || !tab) return 0;
+    const u8 *r = st_rec(lg, tab);
+    if (!r) return 0;
+    const u8 *weeks = lg + w16(tab + 14);
+    int d = -1;
+    for (int i = 0; i < 64; i++) if (weeks[i] == (u8)wk) { d = i; break; }
+    if (d < 0) return 0;
+    int s = 0;
+    for (int k = 1; k < 5; k++) if (r[122 + k] != 255 && d >= r[122 + k]) s = k;
+    const u8 *row = r + 82 + 8 * s;
+    int g = s ? st_grp(lg, tab) : 0, o = w16(row + 2 * g);
+    if (!o) o = w16(row);
+    return o ? (u32)(tab + o) : 0;
 }
 
 u32 gp_pwin_c(void) {

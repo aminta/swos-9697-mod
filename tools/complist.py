@@ -263,6 +263,27 @@ def check_titles(m, clubs=()):
             chk((dv or {}).get('names'), f"{c.get('key')} division {i}")
         for po in c.get('ko_playoffs', []) if isinstance(c.get('ko_playoffs'), list) else []:
             chk((po or {}).get('names'), po.get('key') if isinstance(po, dict) else '?')
+    def stage_titles(sp, where):                # split 'title' fields: [long, short]; short = the career calendar's label
+        if not isinstance(sp, dict):
+            return
+        tl = [sp.get('title')] + [s.get('title') for s in sp.get('stages') or [sp]] + \
+             [g.get('title') for s in sp.get('stages') or [sp] for g in s.get('groups') or []]
+        for x in filter(None, tl):
+            for lang in LANGS:
+                v = x.get(lang) or x.get('*')
+                if not isinstance(v, list) or len(v) != 2:
+                    bad.append(f"{m.get('id')} {where} {lang}: split title not [long, short]: {v}")
+                    continue
+                if len(v[1]) > 16:
+                    bad.append(f"{m.get('id')} {where} {lang}: split title short over 16 (the calendar column): {v[1]}")
+                for s in v:
+                    odd = sorted(set(s.upper()) - FONT)
+                    if odd:
+                        bad.append(f"{m.get('id')} {where} {lang}: characters {odd} in {s!r}")
+    for c in m.get('competitions', []) or []:
+        stage_titles(c.get('split'), c.get('key'))
+        for i, dv in enumerate(c.get('divisions', []) or []):
+            stage_titles((dv or {}).get('split'), f"{c.get('key')} division {i}")
     for name in clubs:
         odd = sorted(set(name.upper()) - FONT)
         if odd:

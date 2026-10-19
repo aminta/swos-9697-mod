@@ -249,17 +249,12 @@ def patch(p, at, area=None, lang='it'):
     sym = {'D0': (2, d0), 'D3': (2, d3), 'D5': (2, d5), 'D7': (2, d7), 'DIY': (2, lp36._sites(p)['DIY']),
            'CURLINE': p.target(1, curline + 2), 'MODE': p.target(1, mode + 2), 'GROUPS': p.target(1, h4 + 2),
            'NUMRES': p.target(1, h5 + 2), 'ROWS_': (0, ROWS), 'OV_': (0, int(ov))}
-    stg = stage_table(lang) if area is not None else None
+    import gplay
+    stg = gplay.LABELS.get('STG_TAB') if area is not None else None
     sym['STG_'] = (0, int(bool(stg)))
     if stg:
-        import split
         import zones
-        import dplay
-        import gplay
-        tab = area.add(stg[:2] + struct.pack('<4HI', split.ST, split.ST + split.OFF['frozen'], split.ST + split.OFF['grp'],
-                                             split.MAGIC, 0) + stg[2:])
-        p.add_ptr(2, tab + 10, 2, dplay._sites(p)[5])            # (the header's career-team pointer)
-        sym.update({'STG_TAB': (2, tab), 'GP_STITLE': gplay.LABELS['gp_stitle_c'], 'MENU_': zones._current_menu(p)})
+        sym.update({'STG_TAB': stg, 'GP_STITLE': gplay.LABELS['gp_stitle_c'], 'MENU_': zones._current_menu(p)})
     if ov:
         import split
         import zones
@@ -328,11 +323,17 @@ def annual_key(lang):
 MAXS, MAXG = 5, 4                       # stage titles: the title before the first stage + 4 stages, 4 groups each
 
 
-def stage_table(lang):
+REC = 42 + 4 * MAXS * MAXG + MAXS + 1   # a stage-title record (gplay.c gp_stitle_c / gp_scal_c)
+HEAD = 16                               # the table's header (gplay builds it: split's offsets, the career team word's address)
+
+
+def stage_table(lang, head=b'\0' * HEAD):
     """The staged leagues' titles (pack split specs: 'title' before the first stage, a stage's 'title' or its groups'
-    'title', each {lang | '*': [long, short]}): dw count, then per league key (41 B, the table's DIY+4 title) + pad,
-    [MAXS][MAXG] dw offsets from the table's start (0 = none), then the strings: '<league long> <stage>' (the short
-    league name when longer than 40; the country prefix goes). None without any."""
+    'title', each {lang | '*': [long, short]}): head (HEAD bytes: dw count, then gplay's), per league: key (41 B, the
+    table's DIY+4 title) + pad, [MAXS][MAXG] dw long-title offsets from the table's start, the same for the short ones
+    (0 = none), MAXS db the stage's first day (255 = none) + pad; then the strings. Long: '<league long> <stage>' (the
+    league's short name when longer than 40); short: the stage's short name (the career calendar's second line). None
+    without any."""
     import complist
     import mkseason
     import zones
@@ -349,33 +350,40 @@ def stage_table(lang):
                                                   for st in stages][:MAXS - 1]
             if not any(x for row in grid for x in row):
                 continue
+            starts = [0] + [st.get('after', 0) for st in stages][:MAXS - 1]
             nm = dv.get('names') or lg.get('names') or {}
             v = nm.get(lang) or nm.get('*') or [complist._nm(nm, lang)]
             key = zones._title(pk.meta, lang, v[0]).encode('latin-1')
-            recs.append((key, [[(complist._nm(x, lang) if x else None) for x in row[:MAXG]] for row in grid], v))
+            names = [[((x.get(lang) or x.get('*')) if x else None) for x in row[:MAXG]] for row in grid]
+            recs.append((key, names, v, starts))
     if not recs:
         return None
-    rec_len = 42 + 2 * MAXS * MAXG
-    head = 2 + 12 + rec_len * len(recs)               # (count, the runtime header: gp_stitle_c)
+    base = HEAD + REC * len(recs)
     strings, pool = b'', {}
-    out = bytearray(struct.pack('<H', len(recs)))
-    for key, grid, v in recs:
+
+    def put(s):
+        nonlocal strings
+        s = s.upper()[:40].encode('latin-1')
+        if s not in pool:
+            pool[s] = base + len(strings)
+            strings += s + b'\0'
+        return pool[s]
+    out = bytearray(struct.pack('<H', len(recs)) + head[2:HEAD])
+    for key, names, v, starts in recs:
         r = bytearray(key[:41].ljust(42, b'\0'))
+        longs, shorts = b'', b''
         for s in range(MAXS):
-            row = grid[s] if s < len(grid) else []
+            row = names[s] if s < len(names) else []
             for g in range(MAXG):
                 x = row[g] if g < len(row) else None
                 if not x:
-                    r += b'\0\0'
+                    longs += b'\0\0'
+                    shorts += b'\0\0'
                     continue
-                title = f'{v[0]} {x}'.upper()
-                if len(title) > 40:
-                    title = f'{v[-1]} {x}'.upper()
-                title = title[:40].encode('latin-1')
-                if title not in pool:
-                    pool[title] = head + len(strings)
-                    strings += title + b'\0'
-                r += struct.pack('<H', pool[title])
+                title = f'{v[0]} {x[0]}' if len(v[0]) + 1 + len(x[0]) <= 40 else f'{v[-1]} {x[0]}'
+                longs += struct.pack('<H', put(title))
+                shorts += struct.pack('<H', put(x[-1]))
+        r += longs + shorts + bytes(min(255, starts[s]) if s < len(starts) else 255 for s in range(MAXS)) + b'\0'
         out += r
     return bytes(out + strings)
 

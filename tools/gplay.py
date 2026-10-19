@@ -231,6 +231,32 @@ def compile_spec(pos, ndiv, league_names=None):
 
 
 PLAY_ASM = '''
+%if STG_ON
+gp_cal:                                 ; 4.0: replaces the career calendar's league row `mov word [esi + 4], 1` (its
+    mov word [esi + 4], 1               ; second line hidden): the league day's stage / group short title as its first
+                                        ; line (gp_scal_c; the pack title's short form, <= 16 like LIGA PROFESIONAL)
+    pushad
+    push es
+    push ds
+    pop es
+    cld
+    mov eax, [A6R]                      ; (the row: +1 its week)
+    movzx eax, byte [eax + 1]
+    push eax
+    push dword STG_TAB
+    mov eax, [SLOTS_]                   ; (slot 0: the league)
+    push eax
+    call gp_scal_c
+    add esp, 12
+    pop es
+    test eax, eax
+    jz .x
+    mov esi, [esp + 4]
+    mov [esi - 56 + 38], eax            ; (the first line: the league's short name -> the stage's; the second stays hidden)
+.x: popad
+    ret
+%endif
+
 gp_c:                                   ; eax = a C function: called with es = ds, cld (C may use string ops)
     push es
     push ds
@@ -850,7 +876,7 @@ gp_adv:                                 ; replaces the 4 `call cseg_8EA82` (the 
     jz .x
     dec eax
     mov [GP_BPI], eax
-    mov eax, [GP_WK]
+    mov eax, [GP_ADVWK]
     mov [GP_BWEEK], eax
     popad
     pushad
@@ -1342,10 +1368,27 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
     symbols.update({f'EUW{i}': (2, a) for i, a in enumerate(sk['euw'])})
     symbols.update({'DA11B': (2, sk['da11b']), 'GETSEASON': (1, sk['getseason']), 'SEASREC': (2, sk['seasrec'])})
     symbols.update({k: syms[k] for k in ('GP_CFB', 'GP_LG', 'GP_RST', 'GP_RIT', 'GP_SEL', 'GP_MGR', 'GP_WORLD', 'GP_SLT',
-                                         'gp_sack_c', 'gp_forcecfb', 'gp_pwin_c', 'gp_adv_c', 'GP_WK', 'GP_TH', 'GP_RN',
-                                         'gp_defer_c', 'cd_step_c', 'CD_ST', 'GP_CDT', 'GP_CDNM', 'GP_CDD',
+                                         'gp_sack_c', 'gp_forcecfb', 'gp_pwin_c', 'gp_adv_c', 'GP_ADVWK', 'GP_WK', 'GP_TH', 'GP_RN',
+                                         'gp_defer_c', 'cd_step_c', 'gp_scal_c', 'CD_ST', 'GP_CDT', 'GP_CDNM', 'GP_CDD',
                                          'GP_CDFIRST')})
     symbols['FORCE_ON'] = (0, int(bool(force)))
+    import longtable                                          # 4.0 stage titles (table, calendar): the table in area
+    stg = longtable.stage_table(lang, b'\0' * 2 + struct.pack('<4HIH', split.ST, split.ST + split.OFF['frozen'],
+                                                                  split.ST + split.OFF['grp'], split.MAGIC, 0,
+                                                                  split.WEEKS)) if area is not None else None
+    cal_site = None
+    if stg:
+        import dplay
+        stg_tab = area.add(stg)
+        p.add_ptr(2, stg_tab + 10, 2, dplay._sites(p)[5])     # (the header's career-team pointer)
+        d1 = p.le.obj_bytes(1)
+        hits = [m.start() + 11 for m in re.finditer(rb'\x66\x83\x46\x16\x08\x8b\x35....\x66\xc7\x46\x04\x01\x00', d1, re.S)]
+        assert len(hits) == 2, ('career calendar rows', hits)
+        cal_site = hits[:1]                                   # (CareerGameListCommon's league row, cseg_362DE; the
+                                                              # second is another row kind: its esi - 56 is a team)
+        symbols.update({'STG_TAB': (2, stg_tab), 'SLOTS_': (2, split.sites(p)['SLOTS']), 'A6R': (2, r['A0'] + 24)})
+        LABELS['STG_TAB'] = (2, stg_tab)
+    symbols['STG_ON'] = (0, int(bool(stg)))
     rec_dp = p.get(1, ps['rec'], 1) == b'\xe8'                # dplay's `call dp_rec; nop` there, or the game's mov
     symbols['GP_REC_NEXT'] = (1, tgt(ps['rec'])) if rec_dp else (0, 0)
     after = {}                                              # 4.0 ARG: a stage title's knockout built after its stage
@@ -1353,8 +1396,20 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
         for i, name in BUILD_AFTER.get(spec, []):
             assert after.setdefault(name, i) == i, f'build_after {name}: two play-off indices'
     symbols['SP_WEEK'] = (2, split.sites(p)['WEEK'])
-    stubs = ''.join(f'ba_{name}:\n    mov dword [GP_BPI], {i}\n    movzx eax, byte [SP_WEEK]\n'
+    symbols.update({'SP_MAGIC': (0, split.ST), 'SP_MAGIC_': (0, split.MAGIC), 'SP_WEEKS': (0, split.WEEKS)})
+    stubs = ''.join(f'ba_{name}:\n    mov dword [GP_BPI], {i}\n    call gp_lastwk\n'
                     f'    mov [GP_BWEEK], eax\n    jmp gp_defer\n' for name, i in sorted(after.items()))
+    stubs += '''gp_lastwk:                              ; 4.0: eax = the week of the league's last played day (split's weeks table in
+    movzx eax, byte [SP_WEEK]           ; DIY: ARG's Apertura knockout starts in the gap before the Clausura, not after
+    push ecx                            ; its first day - Davide 2026-10-20), else the game's week
+    cmp word [DIY + SP_MAGIC], SP_MAGIC_
+    jne .x
+    movzx ecx, word [DIY + 1C1h]
+    jecxz .x
+    movzx eax, byte [DIY + SP_WEEKS + ecx - 1]
+.x: pop ecx
+    ret
+'''
                                                             # (deferred to the calendar advance, gp_adv: after_stage
                                                             # runs inside the league's match day, DIY = the league)
     cds = mkseason.cupd_tables() if mkseason.worlds() else []
@@ -1412,6 +1467,9 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
             p.put(1, a + 1, struct.pack('<i', lab['gp_adv'] - (a + 5)))
         assert p.get(1, sk['site'], 5) == p.le.obj_bytes(1)[sk['site']:sk['site'] + 5], 'the season-end call is hooked'
         p.put(1, sk['site'] + 1, struct.pack('<i', lab['gp_sack'] - (sk['site'] + 5)))   # (the reserve: sacked)
+    for cs in cal_site or []:                                 # (6 bytes, no address: no fixup)
+        assert bytes(p.get(1, cs, 6)) == b'\x66\xc7\x46\x04\x01\x00'
+        p.put(1, cs, b'\xe8' + struct.pack('<i', lab['gp_cal'] - (cs + 5)) + b'\x90')
     import uefaq
     if uefaq.LABELS.get('UQ_EPP') and tables:              # a league-phase world: its European play-offs (uefaq.c ep_run)
         p.add_ptr(1, uefaq.LABELS['UQ_EPP'], 1, lab['GP_EPT'])

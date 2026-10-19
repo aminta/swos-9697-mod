@@ -1652,17 +1652,26 @@ def zone_rows(s, tag, n):
         if r >= 200 and g < 90 and b < 90:
             return 'rd'
         return 'pl'
-    return [(y, zone(im.getpixel((200, y + 2)))) for y in rows], scr
+    def row(y):
+        z = zone(im.getpixel((200, y + 2)))
+        if z == 'pl':                                   # relegation: the same stats colour, the name box gray
+            names = [im.getpixel((x, y + 2)) for x in range(70, 130, 3)]
+            gray = sum(1 for r, g, b in names if r < 140 and abs(r - g) < 25 and abs(r - b) < 25 and r > 50)
+            red = sum(1 for r, g, b in names if r > 200 and g < 70)
+            if gray > red:
+                z = 'gy'
+        return z
+    return [(y, row(y)) for y in rows], scr
 
 
 @scenario
 def zone_colours():
     """4.0 zone colours (zones.py): a new 1984-85 career at Liverpool, VISUAL. COMPETIZ. > First Division: place 1 light
-    blue (Champions Cup), 2-5 green (UEFA Cup), 20-22 red, the others plain (pixels of the stats columns); the legend
+    blue (Champions Cup), 2-5 green (UEFA Cup), 20-22 gray, the others plain (pixels of the stats columns); the legend
     CAMP / UEFA / RETR on the header line; STAT > FORMULA > back (the FORMAT page shares the zones' file buffer): the
     same colours again"""
     b = os.environ.get('W8485_BUILD', os.path.join(WORK, 'builds', 'w8485'))
-    want = ['lb'] + ['gr'] * 4 + ['pl'] * 14 + ['rd'] * 3
+    want = ['lb'] + ['gr'] * 4 + ['pl'] * 14 + ['gy'] * 3
     errs, info = [], []
     with Session('zone_colours', b, {}, 'dump:2', 600) as s:
         s.wait()
@@ -1690,9 +1699,9 @@ def zone_colours():
     w27 = os.environ.get('ZONES_W2627')                 # a full 2026-27 build (exe + DATA): two more tables
     if w27:
         for path, want27, leg27 in ((('INGHILTERRA', 'PREMIER LEAGUE', 'ARSENAL'),
-                                     ['lb'] * 5 + ['gr', 'db'] + ['pl'] * 10 + ['rd'] * 3, ['CL', 'EL', 'CONF', 'RETR']),
+                                     ['lb'] * 5 + ['gr', 'db'] + ['pl'] * 10 + ['gy'] * 3, ['CL', 'EL', 'CONF', 'RETR']),
                                     (('ITALIA', 'SERIE B', 'AVELLINO'),
-                                     ['lb'] * 2 + ['gr'] * 6 + ['pl'] * 7 + ['or'] * 2 + ['rd'] * 3,
+                                     ['lb'] * 2 + ['gr'] * 6 + ['pl'] * 7 + ['or'] * 2 + ['gy'] * 3,
                                      ['PROM', 'P.OFF', 'P.OUT', 'RETR'])):
             with Session('zone_colours_' + path[1].split()[-1].lower(), w27, {}, 'dump:2', 1500) as s:
                 s.wait()
@@ -1718,7 +1727,7 @@ def zone_colours():
                     rows, scr = zone_rows(s, 'zones_premier_s2', len(want27))
                     got = [z for _, z in rows]
                     leg = [e[1] for e in scr.entries[-5:] if not e[2]]
-                    check(got == ['pl'] * 17 + ['rd'] * 3 and leg == ['RETR'], f'season 2: {got} {leg}', errs)
+                    check(got == ['pl'] * 17 + ['gy'] * 3 and leg == ['RETR'], f'season 2: {got} {leg}', errs)
                     info.append(f"PREMIER LEAGUE season 2: {''.join(z[0] for z in got)}, legend {leg}")
     return not errs, '; '.join(errs + info) if errs else '; '.join(info)
 

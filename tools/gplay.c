@@ -1194,23 +1194,62 @@ u32 GP_WK;                              /* (the glue: the current calendar entry
    (a 1-tie contest, its result back through gp_rec_c -> cd_done), every other tie decided now (the world's first
    season: its real result when known; else 55% to the home club). Hosts: listed, drawn, or 'alternate' (the club
    away in its previous tie hosts; both home / both away: drawn). A 'draw' round pairs the previous round's winners
-   at random. Later seasons: no table yet (the bracket is the world's first season's). */
-enum { K_CUPD = 9, CDT = 168 };
-struct cd_state { u16 magic; u8 season, round, built, bt, drawn, pad; u8 res[CDT], home[CDT]; u8 sd[4]; };
+   at random. Later seasons (the data session's entry rule, LND art. 1-2 in the game's terms): the season's Serie D
+   clubs of the team file (CD_DT); the preliminary round = the first 2 x (N - 128) of an entry order (the new
+   arrivals: relegated from Serie C, promoted from the pool; then the clubs of each group from the bottom of last
+   season's table up), the others enter at the first round; both rounds paired within a group where possible, else
+   at random; from the 3rd round on a fixed bracket (tie k = the winners of ties 2k, 2k + 1), the round records'
+   weeks, hosts and drawn semi-finals as the table's. */
+enum { K_CUPD = 9, CDT = 168, CDP = 41, CD1 = 64 };   /* (CDP: preliminary ties at most, CDP + 2 x CD1 - 1 <= CDT) */
+struct cd_state { u16 magic; u8 season, round, built, bt, drawn, pad; u8 res[CDT], home[CDT]; u8 sd[4];
+                  u8 ent[256];          /* cd_season (the season end): per ordinal of the file, the entry order's key
+                                           for the season to come (0 not in Serie D, 1 a new arrival, 2 + places from
+                                           the bottom of last season's group, 40h unknown) */
+                  u8 efresh, gen_on, np, nfc, nfp, ranked, nrk, nrc;   /* (ent written; this season's bracket
+                                           generated; its preliminary ties; the new arrivals from Serie C, from the
+                                           pool; ent holds the season's final places: cd_rank, its clubs placed,
+                                           its calls) */
+                  u16 gen[2 * (CDP + CD1)]; };   /* (the generated rounds 0-1: tie t's sides gen[2t], gen[2t + 1]) */
 struct cd_state CD_ST;
+const u32 CD_STSZ = sizeof(struct cd_state);
 const u8 *GP_CDT;                       /* (the glue: CD_TAB of the running world, or 0) */
+const u8 *GP_CDD;                       /* (its CD_DT: db first Serie D division, groups; dw global base; 256 x db
+                                           base division, FFh none) */
 const u32 *GP_CDNM;                     /* (its names: dd long, short) */
 u32 GP_CDFIRST;                         /* (the career's first season in the world) */
 #define CDREC(r) (GP_CDT + 4 + 8 * (r))
 #define CDTIE(t) (GP_CDT + 4 + 8 * GP_CDT[1] + 6 * (t))
+#define CD_REF(i) ((u16)((i) << 8 | 0xFF))      /* (a tie as a side: a team word's file is never 255) */
+#define CD_ISREF(v) (((v) & 0xFF) == 0xFF)
+#define CD_DRAWN 0xFEFF
+extern const s8 *GP_SLT;
+
+static int cd_gen(void) { return !GP_CDFIRST && CD_ST.gen_on; }
+static int cd_n(int r) {                /* round r's ties */
+    if (!cd_gen()) return CDREC(r)[4];
+    return r ? 1 << (GP_CDT[1] - 1 - r) : CD_ST.np;
+}
+static int cd_first(int r) {            /* round r's first tie */
+    if (!cd_gen()) return CDREC(r)[6] | CDREC(r)[7] << 8;
+    int f = 0;
+    for (int i = 0; i < r; i++) f += cd_n(i);
+    return f;
+}
+static u16 cd_raw(int t, int sd) {      /* tie t's side sd as listed: a team word, CD_REF(a tie), CD_DRAWN */
+    if (!cd_gen()) { const u8 *x = CDTIE(t); return x[2 * sd] | x[2 * sd + 1] << 8; }
+    int r = 0;
+    while (r + 1 < GP_CDT[1] && t >= cd_first(r + 1)) r++;
+    if (r < 2) return CD_ST.gen[2 * t + sd];
+    if (CDREC(r)[5] & 1) return CD_DRAWN;
+    return CD_REF(cd_first(r - 1) + 2 * (t - cd_first(r)) + sd);
+}
 
 static u16 cd_side(int t, int sd) {     /* tie t's side sd (0 a, 1 b): a team word, 0 (off-file), FFFFh undecided */
-    const u8 *x = CDTIE(t);
-    u16 v = x[2 * sd] | x[2 * sd + 1] << 8;
-    if (!(v & 0x8000)) return v;
-    int i = v & 0x7FFF;
-    if (i == 0x7FFF) {                  /* (a drawn round: its k-th tie = the previous round's sd[2k], sd[2k+1]) */
-        int r = CD_ST.round, first = CDREC(r)[6] | CDREC(r)[7] << 8;
+    u16 v = cd_raw(t, sd);
+    if (!CD_ISREF(v)) return v;
+    int i = v >> 8;
+    if (v == CD_DRAWN) {                  /* (a drawn round: its k-th tie = the previous round's sd[2k], sd[2k+1]) */
+        int first = cd_first(CD_ST.round);
         i = CD_ST.sd[2 * (t - first) + sd];
     }
     if (i >= CDT || !CD_ST.res[i]) return 0xFFFF;
@@ -1256,23 +1295,138 @@ static void cd_ko(struct gp_ko *k, u16 home, u16 away, int w1, int w2, int legs)
     GP_ST.season = GP_SEAS;
 }
 
+/* The league's end (gp_end_c, the final tables in GP_IN): each Serie D club's place from the bottom of its group
+   into CD_ST.ent (saved with the career: a save before CONTINUA's season end loses GP_IN). */
+static void cd_rank(void) {
+    const u8 *dt = GP_CDD;
+    int df = dt[0], dc = dt[1], lf = GP_CDT[2], n = 0;
+    if (CD_ST.nrc < 255) CD_ST.nrc++;
+    for (int d = df; d < df + dc && d < GD; d++)        /* (GP_IN: the league just ended - another country's: none) */
+        for (int k = 0; k < GP_IN.n[d] && k < GT; k++) if ((GP_IN.t[d][k].team & 0xFF) == lf) n++;
+    if (!n) return;
+    for (int i = 0; i < 256; i++) CD_ST.ent[i] = 0;
+    for (int d = df; d < df + dc && d < GD; d++)
+        for (int k = 0; k < GP_IN.n[d] && k < GT; k++) {
+            u16 t = GP_IN.t[d][k].team;
+            if ((t & 0xFF) == lf) CD_ST.ent[t >> 8] = 2 + (GP_IN.n[d] - 1 - k);
+        }
+    CD_ST.nrk = n;
+    CD_ST.ranked = 1;
+    CD_ST.efresh = 0;
+}
+
+/* The season end (pgroups' pg_fix, after the moves: slt = this season's divisions, copy = the next one's): the entry
+   order's keys of the next season's Serie D clubs (CD_ST.ent). tab = CD_TAB, dt = CD_DT. */
+enum { CD_RF = 8 };                     /* (= the RI section's RF: the off-file pools' files) */
+extern u8 RI_SWAPPED[CD_RF][32];
+extern u8 RI_FILES_FILE[CD_RF];
+void cd_season(const u8 *tab, const u8 *dt, const s8 *slt, const s8 *copy, int world) {
+    if (tab[0] != world) return;
+    int df = dt[0], dc = dt[1], gb = dt[2] | dt[3] << 8, lf = tab[2], moved = 0, fi = -1;
+    for (int i = 0; i < 256; i++) if (dt[4 + i] != 0xFF && copy[gb + i] != slt[gb + i]) moved = 1;
+    if (!moved) return;                 /* (InitializeNewSeason at a career's start: the world's real bracket) */
+    for (int k = 0; k < CD_RF; k++) if (RI_FILES_FILE[k] == lf) fi = k;
+    CD_ST.nfc = CD_ST.nfp = 0;
+    for (int i = 0; i < 256; i++) {
+        int b = dt[4 + i], e = 0;
+        if (b != 0xFF) {
+            int nd = b + copy[gb + i], od = b + slt[gb + i];
+            if (nd >= df && nd < df + dc) {
+                if (fi >= 0 && (RI_SWAPPED[fi][i >> 3] & 1 << (i & 7))) {
+                    e = 1;              /* (a new arrival: a new identity from the pool) */
+                    CD_ST.nfp++;
+                } else if (od < df || od >= df + dc) {
+                    e = 1;              /* (relegated from Serie C) */
+                    CD_ST.nfc++;
+                }
+                else            /* (an old club: its place from the bottom, cd_rank) */
+                    e = CD_ST.ranked && CD_ST.ent[i] >= 2 ? CD_ST.ent[i] : 0x40;
+            }
+        }
+        CD_ST.ent[i] = e;
+    }
+    CD_ST.efresh = 1;
+    CD_ST.ranked = 0;
+}
+
+static void cd_pair(u16 *side, u8 *sg, int m, int at) {   /* m sides -> ties from gen[at]: shuffled, each paired
+                                                                   with the next of its group, else the next */
+    for (int i = m - 1; i > 0; i--) {
+        int j = below(i + 1); u16 x = side[i]; u8 y = sg[i];
+        side[i] = side[j]; side[j] = x; sg[i] = sg[j]; sg[j] = y;
+    }
+    u8 used[256];
+    for (int i = 0; i < m; i++) used[i] = 0;
+    for (int i = 0; i < m; i++) {
+        if (used[i]) continue;
+        int j = -1;
+        for (int k = i + 1; k < m && j < 0; k++) if (!used[k] && sg[k] != 0xFF && sg[k] == sg[i]) j = k;
+        for (int k = i + 1; k < m && j < 0; k++) if (!used[k]) j = k;
+        used[i] = 1;
+        CD_ST.gen[at++] = side[i];
+        if (j >= 0) { used[j] = 1; CD_ST.gen[at++] = side[j]; } else CD_ST.gen[at++] = 0;
+    }
+}
+
+static void cd_make(void) {             /* a later season's rounds 0-1 (CD_ST.gen) */
+    const u8 *dt = GP_CDD;
+    int df = dt[0], dc = dt[1], gb = dt[2] | dt[3] << 8, lf = GP_CDT[2], n = 0;
+    u8 ord[256], grp[256];
+    u16 key[256], side[256];
+    rng = GP_SEAS * 104729u + 17;
+    for (int i = 0; i < 256; i++) {
+        int b = dt[4 + i];
+        if (b == 0xFF || !GP_SLT) continue;
+        int dv = b + GP_SLT[gb + i];
+        if (dv < df || dv >= df + dc) continue;
+        int e = CD_ST.efresh ? CD_ST.ent[i] : 0;
+        ord[n] = i; grp[n] = dv - df; key[n] = (e ? e : 0x40) << 8 | below(256); n++;
+    }
+    for (int i = 1; i < n; i++)         /* (the entry order: insertion sort by key) */
+        for (int j = i; j > 0 && key[j - 1] > key[j]; j--) {
+            u16 k = key[j]; key[j] = key[j - 1]; key[j - 1] = k;
+            u8 o = ord[j]; ord[j] = ord[j - 1]; ord[j - 1] = o; o = grp[j]; grp[j] = grp[j - 1]; grp[j - 1] = o;
+        }
+    int n1 = 1 << (GP_CDT[1] - 2), p = n - 2 * n1, m = 0;
+    if (p < 0) p = 0;
+    if (p > CDP) p = CDP;
+    CD_ST.np = p;
+    u8 sg[256];
+    for (int k = 0; k < 2 * p; k++) { side[m] = lf | ord[k] << 8; sg[m++] = grp[k]; }
+    cd_pair(side, sg, m, 0);
+    u8 pg[CDP];
+    for (int t = 0; t < p; t++) {       /* (a preliminary tie's group: its first side's) */
+        int o = CD_ST.gen[2 * t] >> 8;
+        pg[t] = 0xFF;
+        for (int k = 0; k < 2 * p; k++) if (ord[k] == o) pg[t] = grp[k];
+    }
+    m = 0;
+    for (int t = 0; t < p; t++) { side[m] = CD_REF(t); sg[m++] = pg[t]; }
+    for (int k = 2 * p; k < n && m < 2 * n1; k++) { side[m] = lf | ord[k] << 8; sg[m++] = grp[k]; }
+    while (m < 2 * n1) { side[m] = 0; sg[m++] = 0xFF; }
+    cd_pair(side, sg, m, 2 * p);
+    CD_ST.gen_on = 1;
+    CD_ST.efresh = 0;
+}
+
 /* the calendar advance: 1 = a tie of the career club built into ko[0] (gp_install it), else 0 */
 u32 cd_step_c(void) {
     if (!GP_CDT) return 0;
     if (CD_ST.magic != 0x4443 || CD_ST.season != GP_SEAS) {     /* (a new season: the cup from its start) */
         u8 *p = (u8 *)&CD_ST;
-        for (u32 i = 0; i < sizeof CD_ST; i++) p[i] = 0;
-        CD_ST.magic = 0x4443; CD_ST.season = GP_SEAS;
+        if (CD_ST.magic != 0x4443) CD_ST.efresh = 0;   /* (a new career / an older save: no entry order) */
+        for (u32 i = 0; i < __builtin_offsetof(struct cd_state, ent); i++) p[i] = 0;
+        CD_ST.magic = 0x4443; CD_ST.season = GP_SEAS; CD_ST.gen_on = 0;
+        if (!GP_CDFIRST) cd_make();
     }
-    if (!GP_CDFIRST) return 0;          /* (later seasons: no bracket yet) */
     while (CD_ST.round < GP_CDT[1]) {
         int r = CD_ST.round;
         const u8 *rec = CDREC(r);
-        int w1 = rec[0], w2 = rec[1], legs = rec[2], host = rec[3], n = rec[4], first = rec[6] | rec[7] << 8;
+        int w1 = rec[0], w2 = rec[1], legs = rec[2], host = rec[3], n = cd_n(r), first = cd_first(r);
         if ((int)GP_WK + 1 < w1 || CD_ST.built) return 0;
         rng = GP_SEAS * 7919u + r * 131u + first;
         if ((rec[5] & 1) && CD_ST.drawn != r + 1) {             /* (the pairs drawn: the previous round's ties) */
-            int pf = CDREC(r - 1)[6] | CDREC(r - 1)[7] << 8, pn = CDREC(r - 1)[4];
+            int pf = cd_first(r - 1), pn = cd_n(r - 1);
             for (int i = 0; i < 4 && i < pn; i++) CD_ST.sd[i] = pf + i;
             for (int i = (pn < 4 ? pn : 4) - 1; i > 0; i--) { int j = below(i + 1); u8 x = CD_ST.sd[i];
                                                                   CD_ST.sd[i] = CD_ST.sd[j]; CD_ST.sd[j] = x; }
@@ -1281,22 +1435,22 @@ u32 cd_step_c(void) {
         for (int q = 0; q < n; q++) {
             int t = first + q;
             if (CD_ST.res[t]) continue;
-            u16 a = cd_side(t, 0), b = cd_side(t, 1);
-            const u8 *x = CDTIE(t);
+            u16 a = cd_side(t, 0), b = cd_side(t, 1), ra = cd_raw(t, 0), rb = cd_raw(t, 1);
             int h = 0;                  /* (0: a hosts, 1: b hosts) */
             if (host == 2) h = below(2);
             else if (host == 4) {
-                int pa_ = (x[1] & 0x80) ? (x[0] | (x[1] & 0x7F) << 8) : -1, pb_ = (x[3] & 0x80) ? (x[2] | (x[3] & 0x7F) << 8) : -1;
+                int pa_ = CD_ISREF(ra) && ra != CD_DRAWN ? ra >> 8 : -1, pb_ = CD_ISREF(rb) && rb != CD_DRAWN ? rb >> 8 : -1;
                 int ha = pa_ >= 0 && pa_ < CDT && cd_hosted(pa_, a), hb = pb_ >= 0 && pb_ < CDT && cd_hosted(pb_, b);
                 h = ha && !hb ? 1 : !ha && hb ? 0 : below(2);
             }
             CD_ST.home[t] = h;
             if ((a == GP_MGR || b == GP_MGR) && a && b && a != 0xFFFF && b != 0xFFFF) {   /* the career club's */
                 cd_ko(&GP_ST.ko[0], h ? b : a, h ? a : b, w1, w2, legs);
-                CD_ST.built = 1; CD_ST.bt = t;
+                CD_ST.built = 1; CD_ST.bt = t; CD_ST.pad = 1;   /* (pad: the harness's trace) */
                 return 1;
             }
-            int w = GP_CDFIRST ? x[4] : 0;                      /* (the real result, the world's first season) */
+            if (a == GP_MGR || b == GP_MGR) CD_ST.pad = 0x80 | (a == 0xFFFF || b == 0xFFFF ? 2 : 4);
+            int w = GP_CDFIRST ? CDTIE(t)[4] : 0;               /* (the real result, the world's first season) */
             if (!w) w = !a ? 2 : !b ? 1 : (below(100) < 55) == !h ? 1 : 2;   /* (else 55% to the home club) */
             CD_ST.res[t] = w;
         }
@@ -1309,6 +1463,7 @@ static void cd_done(struct gp_ko *k) {  /* gp_rec_c: our CD tie decided -> its r
     if (!CD_ST.built || k->tw[0] == NOC) return;
     CD_ST.res[CD_ST.bt] = k->team[k->tw[0]] == cd_side(CD_ST.bt, 0) ? 1 : 2;
     CD_ST.built = 0;
+    CD_ST.pad |= 0x40;
 }
 static void set_pend(int then, int week) {   /* 'then_build': the next play-off at the calendar advance from week on */
     GP_ST.pend = then; GP_ST.pweek = week > 255 ? 255 : week; GP_ST.pseas = GP_SEAS;
@@ -1443,6 +1598,7 @@ void gp_end_c(void) {                   /* after gp_season: the log, the state v
         GP_LOG.seas = GP_SEAS; GP_LOG.stseas = GP_ST.season; GP_LOG.pl_pi = GP_IN.pl_pi;
         GP_LOG.tag = 0x474C5047;        /* 'GPLG' */
     }
+    if (GP_CDT && GP_CDD) cd_rank();          /* (the Coppa D: the Serie D groups' final places) */
     GP_ST.magic = 0;
     GP_ST.nsim = 0;
     GP_ST.ko[0].magic = GP_ST.ko[1].magic = 0;
@@ -1739,6 +1895,7 @@ void rs_season(const u8 *t, const s8 *slt, s8 *copy, int world) {
    No spare free: that league club stays (declared approximation). File header: db world, file, pools; dw base;
    dw map offset (words in RI_STATE.maps), dw slots (the file's records); db spares; spares x db ordinal. */
 enum { RIS = 256, RF = 8, RP = 20, RQT = 192, RO = 16, RMT = 640 };
+_Static_assert(RF == CD_RF, "cd_season's view of the pools' files");
 struct ri_state { u8 init[RF]; u8 qn[RP]; u16 q[RQT]; u16 ovr[RP][RO]; u16 maps[RMT]; };   /* (maps: per file its
                                                    slots only, from the table's map offset) */
 struct ri_file { u8 *init; u16 *map; int n; };   /* (a file's view of RI_STATE) */

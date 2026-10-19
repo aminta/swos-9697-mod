@@ -11,9 +11,12 @@ played}]}], clubs [{tm, key, file ('league' | 'pool' | None)}]. A round listing 
 round's are completed from the previous round's unused winners, in order (TM leaves a tie out while one before it is
 undecided).
 
+Later seasons (gplay.c cd_make): CD_DT = db the first Serie D division, its groups; dw the file's global base;
+256 x db each ordinal's base division (FFh: no league club) - the season's Serie D clubs from someLeaguesTable.
+
 Table (CD_TAB, gplay.patch): db world, rounds, team file, -; per round db week1, week2 (two legs, else 0), legs,
 host (0 listed, 2 drawn, 4 alternate), ties, flags (1 = the pairs drawn, 2 = penalties without extra time); dw the
-first tie's index; then per tie dw a, b (a team word, or 8000h | a previous round's tie index, or 0 = a club outside
+first tie's index; then per tie dw a, b (a team word, or REF = index << 8 | FFh: a previous round's tie (a team word's file is never 255; FEFFh = drawn), or 0 = a club outside
 the file: its tie needs a real result), db the real winner (0 unknown, 1 a, 2 b), db -.
 """
 import json
@@ -21,6 +24,12 @@ import os
 import struct
 
 HOST = {'listed': 0, 'drawn': 2, 'alternate': 4}
+DRAWN = 0xFEFF
+
+
+def REF(i):                     # (a previous round's tie: gplay.c CD_REF; not 8000h | i - an ordinal 128+ sets bit 15)
+    assert 0 <= i < 0xFE, i
+    return i << 8 | 0xFF
 MAXT = 168
 
 
@@ -55,7 +64,7 @@ def compile_table(d, word):
                 for side in ('home', 'away'):
                     f, key = m.get(side + '_from'), m.get(side + '_key')
                     if f and ri:
-                        ab.append(0x8000 | (int(f[1:]) + (first - nprev)))
+                        ab.append(REF(int(f[1:]) + (first - nprev)))
                     else:
                         ab.append(word(key) or 0)
                 win = 0
@@ -64,9 +73,9 @@ def compile_table(d, word):
                 ties.append((ab[0], ab[1], win))
             else:                       # (a tie TM leaves out / a drawn round: the previous round's free winners)
                 if draw:
-                    a = b = 0x8000 | 0x7FFF     # (drawn at run time from the previous round's winners)
+                    a = b = DRAWN               # (drawn at run time from the previous round's winners)
                 else:
-                    a, b = (0x8000 | (free.pop(0) + first - nprev)), (0x8000 | (free.pop(0) + first - nprev))
+                    a, b = REF(free.pop(0) + first - nprev), REF(free.pop(0) + first - nprev)
                 ties.append((a, b, 0))
         if r.get('legs', 1) == 2 and not w2:
             w2 = w1 + 2
@@ -83,7 +92,7 @@ def compile_table(d, word):
 
 
 def pack_table(pk):
-    """A pack's 'cup_d' (league key): None, or (world, team file, table bytes, rounds, ties, names)."""
+    """A pack's 'cup_d' (league key): None, or (world, team file, table bytes, rounds, ties, names, CD_DT bytes)."""
     lg = pk.league
     if not lg or pk.world is None or not lg.get('cup_d'):
         return None
@@ -91,6 +100,7 @@ def pack_table(pk):
     d = json.load(open(os.path.join(pk.path, c['file'])))
 
     lfile = pk.files[lg['clubs']][0]
+    assert lfile != 255, 'cup_d: team file 255 (its words would read as tie references)'
 
     def word(key):                      # (a club of the league's own file; the pool's are off-file: 0)
         if not key or key not in pk.where or pk.where[key][0] != lfile:
@@ -98,4 +108,18 @@ def pack_table(pk):
         fl, i = pk.where[key]
         return fl | i << 8
     tab, nr, nt = compile_table(d, word)
-    return pk.world, lfile, tab, nr, nt, c.get('names') or {'*': ['COPPA ITALIA SERIE D', 'COPPA IT SERIE D']}
+    par = lg.get('parallel') or []
+    par = par if isinstance(par, list) else [par]
+    assert par, 'cup_d: the league needs its Serie D level of groups (parallel)'
+    df, dc = par[-1]['first'], par[-1]['count']
+    gbase = next(b for ff, b in pk.files.values() if ff == lfile)
+    base = [0xFF] * 256
+    for k in pk.league_clubs:
+        fl, i = pk.where[k]
+        if fl == lfile:
+            base[i] = pk.division[k]
+    nd = sum(1 for b in base if df <= b < df + dc)
+    assert nr >= 3 and 2 << (nr - 2) < nd <= (2 << (nr - 2)) + 41, f'cup_d: {nd} Serie D clubs for {nr} rounds'
+    dt = bytes((df, dc)) + struct.pack('<H', gbase) + bytes(base)
+    return (pk.world, lfile, tab, nr, nt, c.get('names') or {'*': ['COPPA ITALIA SERIE D', 'COPPA IT SERIE D']},
+            dt)

@@ -771,6 +771,8 @@ gp_adv:                                 ; replaces the 4 `call cseg_8EA82` (the 
     jne .ncd
     mov dword [GP_CDT], CD_TAB
     mov dword [GP_CDNM], CD_NM
+    mov dword [GP_CDD], CD_DT
+    mov dword [GP_SLT], SLT             ; (later seasons: the season's Serie D clubs)
     mov ax, [CAREERTEAM]
     mov [GP_MGR], ax
     mov dword [GP_CDFIRST], 0           ; (the world's first season: the real results)
@@ -1028,7 +1030,23 @@ BUILD_AFTER = {}         # compile_spec's output -> [(play-off index, split stag
 THEN = {}                # compile_spec's output -> per play-off its 'then_build' target's index + 1, or 0
 T2_SPECS = set()         # compile_spec's outputs with a group contest (the Poule Scudetto): GP_GS saved ('GS')
 GS_SIZE = 7 + 1 + 7 * 20 * 10   # (sizeof struct gp_gs)
-CD_SIZE = 8 + 2 * 168 + 4       # (sizeof struct cd_state: the engine block's item 'CD')
+CD_SIZE = 8 + 2 * 168 + 4 + 256 + 8 + 2 * 2 * (41 + 64)   # (sizeof struct cd_state: the engine block's item 'CD')
+CD_RNAME = '''
+cd_rname:                               ; rnames' rn_round (an FE contest): a Coppa Italia Serie D tie in slot 4 ->
+    cmp word [GP_ST + ST_KO], 4B47h     ; CF = 1, al = its round's name (rnames.CD_NAMES by CD_ST's round), else CF = 0
+    jne .no
+    cmp byte [GP_ST + ST_KO + 6], 9     ; (gp_ko.kind: K_CUPD)
+    jne .no
+    movzx eax, byte [CD_ST + 3]
+    cmp eax, 8
+    jae .no
+    mov al, [CD_RN + eax]
+    stc
+    ret
+.no:
+    clc
+    ret
+'''
 SPEC_NAMES = {}          # compile_spec's output -> the play-offs' names ({lang: [long, short]}), for the contests
 
 
@@ -1058,7 +1076,7 @@ def table_lines(tables):
 
 
 LABELS = {}
-GP_PAGES = 9             # obj1 pages for the C code + glue + specs (World 2026-27's 20 countries; gplay-play; 4.0 ARG: 7)
+GP_PAGES = 10            # obj1 pages for the C code + glue + specs (World 2026-27's 20 countries; gplay-play; 4.0 ARG: 7)
 GP_ST_SIZE = 2036       # (sizeof struct gp_state: the engine block's item 'GP', patch.py)
 GP_BSS = 0x6000          # the C .bss pages (obj2 after careerworld's BSS): GP_IN at GT 32 / GD 16, GP_SS, PR, RS, GP_ST, RI, PS
 
@@ -1230,7 +1248,7 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
     symbols.update({'DA11B': (2, sk['da11b']), 'GETSEASON': (1, sk['getseason']), 'SEASREC': (2, sk['seasrec'])})
     symbols.update({k: syms[k] for k in ('GP_CFB', 'GP_LG', 'GP_RST', 'GP_RIT', 'GP_SEL', 'GP_MGR', 'GP_WORLD', 'GP_SLT',
                                          'gp_sack_c', 'gp_forcecfb', 'gp_pwin_c', 'gp_adv_c', 'GP_WK', 'GP_TH',
-                                         'gp_defer_c', 'cd_step_c', 'CD_ST', 'GP_CDT', 'GP_CDNM',
+                                         'gp_defer_c', 'cd_step_c', 'CD_ST', 'GP_CDT', 'GP_CDNM', 'GP_CDD',
                                          'GP_CDFIRST')})
     symbols['FORCE_ON'] = (0, int(bool(force)))
     rec_dp = p.get(1, ps['rec'], 1) == b'\xe8'                # dplay's `call dp_rec; nop` there, or the game's mov
@@ -1249,13 +1267,16 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
     symbols['CD_ON'] = (0, int(bool(cds)))
     cd_src = ''
     if cds:                                                   # (cupd.py: CD_TAB, its names)
-        world, lfile, tab, nr, nt, cnames = cds[0]
+        world, lfile, tab, nr, nt, cnames, cdt = cds[0]
         import careerworld as cw_
         symbols['W_REC'] = (1, cw_.LABELS['w_rec'])
         long_, short = _name(cnames, lang, 'cup_d')
         rl, rs = (area.add(x + b'\0') - sacups.STR_BASE if area else 0 for x in (long_, short))
+        import rnames
         cd_src = (f'CD_TAB: db {world}, {nr}, {lfile}, 0\n    db ' + ', '.join(str(b) for b in tab)
-                  + f'\nCD_NM: dd {rl}, {rs}\n')
+                  + f'\nCD_NM: dd {rl}, {rs}\nCD_DT: db ' + ', '.join(str(b) for b in cdt)
+                  + '\nCD_RN: db ' + ', '.join(str(x) for x in rnames.CD_NAMES) + '\n'
+                  + CD_RNAME)
     asm = (ASM.replace('jmp GP_REC_NEXT', 'jmp GP_REC_NEXT' if rec_dp else 'jmp gp_recmov') + tab_src + '\n'
            + names_lines(tables, area, lang) + '\n' + stubs + cd_src)
     glue = (cend + 15) & ~15
@@ -1288,6 +1309,9 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
         p.add_ptr(1, dpp, 1, lab['gp_perm'])
         p.add_ptr(1, lab['GP_PNEXT'], *nxt)
         p.add_ptr(1, lib97.LABELS['NC_BYEP'], 1, lab['gp_bye'])   # (bye_find: our contest's byes, its rounds)
+        import rnames
+        if 'cd_rname' in lab and rnames.LABELS.get('RN_CDP'):   # (the Coppa D's round names)
+            p.add_ptr(1, rnames.LABELS['RN_CDP'], 1, lab['cd_rname'])
         for a in adv_calls:                                  # (the calendar advance: 'then_build')
             assert p.get(1, a, 5) == p.le.obj_bytes(1)[a:a + 5], f'obj1+{a:#x} already hooked'
             p.put(1, a + 1, struct.pack('<i', lab['gp_adv'] - (a + 5)))
@@ -1304,7 +1328,9 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
     LABELS.update(lab, CD_ST=syms['CD_ST'], GP_GS=syms['GP_GS'], GP_KOLAY=kolay, GP_IN=syms['GP_IN'], GP_OUT=syms['GP_OUT'], GP_ST=syms['GP_ST'], GP_LOG=syms['GP_LOG'], layout=lay, pg_season=syms['pg_season'], pg_place=syms['pg_place'], rs_season=syms['rs_season'], gp_stage=syms['gp_stage'], GP_SS=syms['GP_SS'], PR_STATE=syms['PR_STATE'],
                   RS_STATE=syms['RS_STATE'], ri_season=syms['ri_season'], ri_apply=syms['ri_apply'],
                   ri_cache=syms['ri_cache'], RI_STATE=syms['RI_STATE'], RI_MGR=syms['RI_MGR'],
-                  RI_RULE=syms['RI_RULE'])
+                  RI_RULE=syms['RI_RULE'], cd_season=syms['cd_season'])
+    if cds:
+        assert struct.unpack('<I', p.get(1, syms['CD_STSZ'][1], 4))[0] == CD_SIZE   # (the engine block's 'CD')
     print(f"exe: knockout play-offs (gplay): {len(tables)} countries, C obj1+{at:#x}..{cend:#x}, glue ..{glue + len(code):#x}, "
           f"GP_IN obj2+{syms['GP_IN'][1]:#x}, state GP_ST obj2+{syms['GP_ST'][1]:#x} ({lay['ST_SIZE']} B), "
           f"log obj2+{syms['GP_LOG'][1]:#x}, .bss {bss:#x}")

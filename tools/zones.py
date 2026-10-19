@@ -76,6 +76,7 @@ LABELS = {
     'de': dict(cl='CL', el='EL', conf='CONF', cc='EC', uefa='UEFA', up='AUF', po='AUF-R', out='ABS-R', down='AB'),
 }
 KEYS = ('cl', 'el', 'conf', 'cc', 'uefa', 'up', 'po', 'out', 'down')
+LEG_COLOUR = {DARK_BLUE: 0x13}  # the legend box: dark blue with a frame (08h alone vanishes on the menu's blue)
 
 
 def _title(pk_meta, lang, name):
@@ -220,7 +221,7 @@ def blob(rows):
             e += bytes([a, z, c])
         e += b'\0' * (1 + NAME + 1 + 3 * RANGES - len(e)) + bytes([len(leg)])
         for c, k in leg:
-            e += bytes([c, KEYS.index(k)])
+            e += bytes([LEG_COLOUR.get(c, c), KEYS.index(k)])
         b += e + b'\0' * (ENTRY_PAD - len(e))
     return bytes(b)
 

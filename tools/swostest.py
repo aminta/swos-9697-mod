@@ -5505,8 +5505,9 @@ def world_full_uefa():
     """UEFA places 2027/28 (integrator 131f04b: the places from the ranking a year old = the seed, the real 2026
     ranking; regia 2026-10-19): one season of the full 2026-27 world at ARSENAL, then each association's clubs in the
     new CL / EL / UECL lists (checkw1 CHECKW1_COUNTS) = uefacoef's places per rank (LP_CLN / LP_ELN / LP_UEN) applied to
-    the seed ranking (pack.json uefa_coef country: 5 seasons summed), + the holders explicitly (read after the season
-    end: the CL holder and the EL winner one more CL place each, the UECL winner one more EL place)"""
+    the seed ranking (pack.json uefa_coef country: 5 seasons summed): 36 / 36 / 36, every association's DIRECT
+    league-phase places by uefaq.c's access list (AL) present, more only from a qualifying entry, a holder (read after
+    the season end) or the 2 European Performance Spots"""
     global W84_HOOK
     import collections
     import json
@@ -5557,28 +5558,43 @@ def world_full_uefa():
             got[k] = collections.Counter(dict(eval(lines[i + 1].split('per country', 1)[1])))
     hcc, hcwc, huefa = (x & 0xFF for x in hold['h'])
     notes = [f"holders CL {name.get(hcc, hcc)} / EL {name.get(hcwc, hcwc)} / UECL {name.get(huefa, huefa)}"]
-    # (integrator, uefacoef: no place on top - a holder's association gets +1 only when the holder is not already
-    # in its league's qualifying places; otherwise that place goes to the next ranked association with room)
-    for k, hs in (('CC', [hcc, hcwc]), ('CWC', [huefa]), ('UEFA', [])):
-        g = got.get(k)
+    # (integrator 2026-10-19: the lists are uefaq.c's uq_season - the access list's direct places, the 2 EPS, the
+    # simulated qualifying rounds, then the holders; not uefacoef's places per rank) - the access list AL by seed rank
+    src = open(os.path.join(ROOT, 'tools', 'uefaq.c')).read()
+    al = [int(x) for x in re.search(r'static const u8 AL\[\] = \{(.*?)\};', src, re.S).group(1).replace('\n', ' ').split(',')
+          if x.strip()]
+    entries, k = {}, 0
+    while al[k]:
+        rk, n = al[k], al[k + 1]
+        entries[rk] = [(al[k + 2 + 2 * e], al[k + 3 + 2 * e]) for e in range(n)]
+        k += 2 + 2 * n
+    LS = {'CC': 0, 'CWC': 8, 'UEFA': 14}
+    QUAL = {'CC': range(1, 8), 'CWC': range(1, 14), 'UEFA': range(1, 22)}   # (a cup's qualifiers + those dropping into it)
+    direct = {c: collections.Counter() for c in LS}
+    qual = {c: set() for c in LS}
+    for r, f in enumerate(rank, 1):
+        for rnd, code in entries.get(r, []):
+            for c in LS:
+                if rnd == LS[c]:
+                    direct[c][f] += 1
+                elif rnd in QUAL[c]:
+                    qual[c].add(f)
+    holders = {'CC': {hcc, hcwc}, 'CWC': {huefa}, 'UEFA': set()}
+    for c in ('CC', 'CWC', 'UEFA'):
+        g = got.get(c)
         if g is None:
-            errs.append(f'{k}: no per-country counts in checkw1')
+            errs.append(f'{c}: no per-country counts in checkw1')
             continue
-        want = collections.Counter(base[k])
-        absorbed = 0
-        for h in hs:
-            if g.get(h, 0) == want.get(h, 0) + 1 + sum(1 for x in hs if x == h) - 1:
-                want[h] += 1
-            else:
-                absorbed += 1
-        nxt = [f for f in rank if not base[k].get(f)]          # (the next ranked associations outside the base list)
-        for f in nxt[:absorbed]:
-            want[f] += 1
-        diff = {name.get(f, f): (g.get(f, 0), want.get(f, 0)) for f in set(g) | set(want)
-                if g.get(f, 0) != want.get(f, 0)}
-        check(not diff, f'{k} places (got, want) {diff}', errs)
-        notes.append(f'{k} {sum(g.values())} clubs, {len(g)} associations' + (f', {absorbed} holder place(s) passed on'
-                                                                               if absorbed else ''))
+        check(sum(g.values()) == 36, f'{c}: {sum(g.values())} clubs, not 36', errs)
+        short = {name.get(f, f): (g.get(f, 0), n) for f, n in direct[c].items() if g.get(f, 0) < n}
+        check(not short, f'{c}: direct places missing (got, direct) {short}', errs)          # (the release check)
+        extra = {f: g[f] - direct[c].get(f, 0) for f in g if g[f] > direct[c].get(f, 0)}
+        odd = {name.get(f, f): x for f, x in extra.items() if f not in qual[c] and f not in holders[c]}
+        eps = [f for f in odd if c == 'CC']
+        check(len(odd) <= (2 if c == 'CC' else 0), f'{c}: places beyond the direct ones without a qualifying '
+              f'entry or a holder {odd}', errs)                                                  # (CC: the 2 EPS)
+        notes.append(f"{c} 36 = direct {sum(direct[c].values())} + {sum(extra.values())} more "
+                     f"({', '.join(f'{name.get(f, f)} +{x}' for f, x in sorted(extra.items(), key=lambda t: -t[1]))})")
     return not errs, '; '.join(errs + notes)
 
 

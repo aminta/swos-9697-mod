@@ -233,7 +233,7 @@ def patch_exe(src, dst, remap, lang='it'):
     sp_pg = split.pages(sp_tabs) if worlds else 0      # (own pages after all the others)
     ss_on = any(st.get('table') is not None for *_, sp in sp_tabs for st in sp.get('stages') or [])
     if ss_on:                                          # stage tables (GP_SS, gplay.c gp_stage: Argentina's Apertura /
-        engine.save_item('SS', 4 + 3 * 32 * 12)        # Clausura / annual) in the .CAR engine block
+        engine.save_item('SS', 6 + 4 * 32 * 12)        # Clausura / annual, the MLS season) in the .CAR engine block
     pr_on = any(t and any(po.get('kind') == 'promedio' for po in pk.league.get('ko_playoffs') or [])
                 for pk in mkseason.packs() if pk.world is not None and pk.league for t in [True])
     if pr_on:                                          # Argentina's promedio history (gplay.c PR_STATE)

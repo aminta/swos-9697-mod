@@ -180,6 +180,7 @@ align 4
 RI_SR_PTR: dd 0                         ; statespec's ST_RANK (statecup.py: p.add_ptr on LABELS['RI_SR_PTR']), or 0
 RI_PRE_PTR: dd 0                        ; statesim's entry, called by pg_fix before ri_season (statecup.py: add_ptr), or 0
 RI_POST_PTR: dd 0                       ; statecup's RI_OVR apply, called by pg_fix after ri_season, or 0
+RI_SR_DUMMY: dd 0                       ; (RIPOOL_TEST_SR builds: statespec's ST_RANK pointer lands here, unused)
 RI_PLOADED: times {RF} db 0
 {names}'''
 
@@ -250,7 +251,8 @@ def patch(p, at, bss, tabs):
         tb += bytes(at_sr - tab - len(tb)) + b
         p.add_ptr(1, lab['RI_SR_PTR'], 1, at_sr)
         print(f'exe: off-file pools: TEST ranking {test} at obj1+{at_sr:#x}')
-    LABELS['RI_SR_PTR'] = (1, lab['RI_SR_PTR'])  # (statecup places ST_RANK later: it fills this dword)
+    LABELS['RI_SR_PTR'] = (1, lab['RI_SR_DUMMY' if test else 'RI_SR_PTR'])   # (statecup places ST_RANK later: it
+                                                # fills this dword; a test ranking keeps its own)
     LABELS['RI_PRE_PTR'] = (1, lab['RI_PRE_PTR'])    # (statesim: every state's ranking before ri_season)
     LABELS['RI_POST_PTR'] = (1, lab['RI_POST_PTR'])  # (statecup: the contest overrides applied after it)
     return (tab + len(tb) + 15) & ~15, {'RI_TAB': (1, tab), 'RI_SEASON': gplay.LABELS['ri_season'],

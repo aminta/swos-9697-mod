@@ -12,7 +12,10 @@ round's are completed from the previous round's unused winners, in order (TM lea
 undecided).
 
 Later seasons (gplay.c cd_make): CD_DT = db the first Serie D division, its groups; dw the file's global base;
-256 x db each ordinal's base division (FFh: no league club) - the season's Serie D clubs from someLeaguesTable.
+256 x db each ordinal's base division (FFh: no league club) - the season's Serie D clubs from someLeaguesTable;
+then the strengths (gplay.c cd_str, the ties nobody plays): dw the file's off-file pool map offset in RI_STATE.maps
+(FFFFh: none), its map words, the pool's records; 256 x dw each ordinal's strength; pool records x dw theirs. A
+strength = the best 11 players' prices (players.csv), at least 5, as statespec's statesim.
 
 Table (CD_TAB, gplay.patch): db world, rounds, team file, -; per round db week1, week2 (two legs, else 0), legs,
 host (0 listed, 2 drawn, 4 alternate), ties, flags (1 = the pairs drawn, 2 = penalties without extra time); dw the
@@ -91,6 +94,33 @@ def compile_table(d, word):
     return bytes(out), len(rounds), len(ties)
 
 
+def strength(pk, key):
+    """The best 11 players' prices (players.csv), at least 5 (statespec.club_strength's rule)."""
+    pr = sorted((int(r.get('price') or 0) for r in pk.prows.get(key, [])), reverse=True)
+    return max(5, min(0xFFFF, sum(pr[:11])))
+
+
+def strengths(pk, lfile):
+    """CD_DT's strength part: the pool map's offset / words / pool records (ripool.layout), the file's 256 ordinals,
+    the pool records (an identity >= 256 = pool record id - 256, ripool's order: pk.pool_clubs)."""
+    import mkseason
+    import ripool
+    tabs = mkseason.off_pools()
+    lay = ripool.layout(tabs)[0] if tabs else []
+    moff, nmap = 0xFFFF, 0
+    for (world, fl, *_), (mo, nm, *_r) in zip(tabs, lay):
+        if world == pk.world and fl == lfile:
+            moff, nmap = mo, nm
+    pool = list(pk.pool_clubs) if moff != 0xFFFF else []
+    st = [5] * 256
+    for k in pk.clubs:
+        fl, i = pk.where.get(k, (None, None))
+        if fl == lfile and i < 256:
+            st[i] = strength(pk, k)
+    return (struct.pack('<HHH', moff, nmap, len(pool)) + struct.pack('<256H', *st)
+            + b''.join(struct.pack('<H', strength(pk, k)) for k in pool))
+
+
 def pack_table(pk):
     """A pack's 'cup_d' (league key): None, or (world, team file, table bytes, rounds, ties, names, CD_DT bytes)."""
     lg = pk.league
@@ -120,6 +150,6 @@ def pack_table(pk):
             base[i] = pk.division[k]
     nd = sum(1 for b in base if df <= b < df + dc)
     assert nr >= 3 and 2 << (nr - 2) < nd <= (2 << (nr - 2)) + 41, f'cup_d: {nd} Serie D clubs for {nr} rounds'
-    dt = bytes((df, dc)) + struct.pack('<H', gbase) + bytes(base)
+    dt = bytes((df, dc)) + struct.pack('<H', gbase) + bytes(base) + strengths(pk, lfile)
     return (pk.world, lfile, tab, nr, nt, c.get('names') or {'*': ['COPPA ITALIA SERIE D', 'COPPA IT SERIE D']},
             dt)

@@ -4,7 +4,7 @@
     green      0Eh  the second way up: Europa League / UEFA Cup places, a promotion or European play-off
     dark blue  08h  the third European cup: Conference League places (league-phase worlds)
     orange     0Ch  play-out / relegation play-off
-    red        0Ah  direct relegation
+    gray       02h  direct relegation (red was the plain rows' own computer-club name colour: Davide)
     the game's own alternating rows (7 / 9) elsewhere; computer clubs' names in the row colour (as lp36), so the
     human club's name box keeps its player / coach colour.
 
@@ -29,7 +29,8 @@ import struct
 import complist
 import nasmcave
 
-LIGHT_BLUE, GREEN, DARK_BLUE, ORANGE, RED = 0x0D, 0x0E, 0x08, 0x0C, 0x0A
+LIGHT_BLUE, GREEN, DARK_BLUE, ORANGE, RED = 0x0D, 0x0E, 0x08, 0x0C, 0x02   # RED: relegation, gray (Davide: red
+                                                                         # was the computer clubs' own name colour)
 
 
 def access_list():

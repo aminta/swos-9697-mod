@@ -434,7 +434,8 @@ def patch_exe(src, dst, remap, lang='it'):
     cos = menulevels.patch(p, cos, area, lang)   # 4.0: team choice of a league with levels of groups: level, then group
     import zones                                 # 4.0: zone colours in the league tables (light blue, green, ...)
     cos = zones.patch(p, cos, area, lang, [e if os.sep in e else os.path.join(mkseason.PACKS, e) for e in mkseason.ENABLED],
-                      careerworld.SITES if worlds else None)
+                      num_bss + shirtnum.BSS_SIZE + blond.BSS_SIZE + menunum.BSS_SIZE, fmtpage.BSS_SIZE,
+                      careerworld.SITES if worlds else None)   # (the FORMAT page's buffer, shared)
     if cos_pg:
         assert cos <= hist2 + h2 + 0x1000 * lpb, hex(cos)
     else:
@@ -603,6 +604,9 @@ def write_new_teams(src_dir, dst_dir):
     items = [x for e in mkseason.ENABLED for x in fmtgame.from_pack(e if os.sep in e else os.path.join(mkseason.PACKS, e))] + fmtgame.EXTRA
     for name, k in fmtgame.write(dst_dir, items):
         print(f'{name}: FORMAT pages of {k} competitions')
+    import zones                                      # 4.0: the league tables' zone colours, per world
+    for name, k in zones.write(dst_dir, [e if os.sep in e else os.path.join(mkseason.PACKS, e) for e in mkseason.ENABLED]):
+        print(f'{name}: zone colours of {k} league tables')
     rename_clubs(src_dir, dst_dir)
 
 

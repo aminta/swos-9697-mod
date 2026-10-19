@@ -32,8 +32,19 @@ import nasmcave
 LIGHT_BLUE, GREEN, DARK_BLUE, ORANGE, RED = 0x0D, 0x0E, 0x08, 0x0C, 0x0A
 NAME = 41                       # the slot's name field (as fmtpage.NAME)
 RANGES = 8
-ENTRY = 1 + NAME + 1 + 3 * RANGES   # world, title, n, (first, last, colour) * RANGES = 67
-ENTRY_PAD = 68
+LEG = 5                         # legend boxes (the colours a table uses, in place order)
+ENTRY = 1 + NAME + 1 + 3 * RANGES + 1 + 2 * LEG   # world, title, n, ranges, n legend, (colour, label) * LEG = 78
+ENTRY_PAD = 80
+LEG_W, LEG_TXT = 30, 8
+FILE = {'it': b'data/zonit', 'en': b'data/zonen', 'fr': b'data/zonfr', 'de': b'data/zonde'}          # a legend box's width (5 small-font characters), its text buffer
+# legend labels (<= 5 characters): top flight of a league-phase world, of a classic world, a lower division
+LABELS = {
+    'it': dict(cl='CL', el='EL', conf='CONF', cc='CAMP', uefa='UEFA', up='PROM', po='P.OFF', out='P.OUT', down='RETR'),
+    'en': dict(cl='CL', el='EL', conf='CONF', cc='EC', uefa='UEFA', up='UP', po='P.OFF', out='P.OUT', down='DOWN'),
+    'fr': dict(cl='LDC', el='LE', conf='LC', cc='C1', uefa='C3', up='MONT', po='BARR', out='MAINT', down='DESC'),
+    'de': dict(cl='CL', el='EL', conf='CONF', cc='EC', uefa='UEFA', up='AUF', po='AUF-R', out='ABS-R', down='AB'),
+}
+KEYS = ('cl', 'el', 'conf', 'cc', 'uefa', 'up', 'po', 'out', 'down')
 
 
 def _title(pk_meta, lang, name):
@@ -107,7 +118,8 @@ def pack_zones(d, lang, lp=False):
             if dv['down']:
                 rng.append((n - dv['down'] + 1, n, RED))
             if rng:
-                out.append((world, _title(m, lang, complist._nm(dv['name'], lang)), rng[:RANGES]))
+                kind = ('lp' if lp else 'classic') if id(dv) in top and m.get('europe_places') else 'lower'
+                out.append((world, _title(m, lang, complist._nm(dv['name'], lang)), rng[:RANGES], kind))
     return out
 
 
@@ -122,20 +134,57 @@ def table(lang, pack_dirs):
     for d in pack_dirs:
         m = json.load(open(os.path.join(d, 'pack.json')))
         w = m.get('world', 0) if m.get('kind') == 'career' else 0
-        for world, title, rng in pack_zones(d, lang, _lp_world(metas, w)):
+        for world, title, rng, kind in pack_zones(d, lang, _lp_world(metas, w)):
             assert (world, title) not in seen, (world, title)
             seen.add((world, title))
-            out.append((world, title, rng))
+            out.append((world, title, rng, legend(rng, kind)))
     return out
+
+
+def write(out_dir, pack_dirs):
+    """DATA\\ZONxx[world].DAT for every language and world: [(name, tables)]."""
+    files = []
+    for lang in FILE:
+        by = {}
+        for row in table(lang, pack_dirs):
+            by.setdefault(row[0], []).append(row)
+        for w, rows in sorted(by.items()):
+            name = f'ZON{lang.upper()}{w or ""}.DAT'
+            data = blob(rows)
+            assert len(data) <= 0x8000, (name, len(data))
+            open(os.path.join(out_dir, name), 'wb').write(data)
+            files.append((name, len(rows)))
+    return files
+
+
+def file_names(pack_dirs):
+    worlds = sorted({row[0] for row in table('it', pack_dirs)})
+    return [f'ZON{lang.upper()}{w or ""}.DAT' for w in worlds for lang in FILE]
+
+
+def legend(rng, kind):
+    """[(colour, label key)] in place order, one per colour."""
+    names = {'lp': {LIGHT_BLUE: 'cl', GREEN: 'el', DARK_BLUE: 'conf', ORANGE: 'out', RED: 'down'},
+             'classic': {LIGHT_BLUE: 'cc', GREEN: 'uefa', ORANGE: 'out', RED: 'down'},
+             'lower': {LIGHT_BLUE: 'up', GREEN: 'po', ORANGE: 'out', RED: 'down'}}[kind]
+    out, seen = [], set()
+    for a, z, c in sorted(rng):
+        if c not in seen and c in names:
+            seen.add(c)
+            out.append((c, names[c]))
+    return out[:LEG]
 
 
 def blob(rows):
     b = bytearray(struct.pack('<I', len(rows)))
-    for world, title, rng in rows:
+    for world, title, rng, leg in rows:
         t = title.encode('latin-1')[:NAME - 1]
         e = bytes([world]) + t + b'\0' * (NAME - len(t)) + bytes([len(rng)])
         for a, z, c in rng:
             e += bytes([a, z, c])
+        e += b'\0' * (1 + NAME + 1 + 3 * RANGES - len(e)) + bytes([len(leg)])
+        for c, k in leg:
+            e += bytes([c, KEYS.index(k)])
         b += e + b'\0' * (ENTRY_PAD - len(e))
     return bytes(b)
 
@@ -162,7 +211,7 @@ WORLD_BYTE
     jb .cc
     jmp .hit
 .look:
-    mov [ZKEY], bl                      ; search ZTAB, cache the key and the entry (0 = none)
+    mov [ZKEY], bl                      ; read DATA\ZONxx[world].DAT, cache the key and the entry (none: ZHIT 0)
     xor ecx, ecx
 .ck:
     mov al, [esi + ecx]
@@ -171,8 +220,42 @@ WORLD_BYTE
     cmp ecx, NAME_
     jb .ck
     mov dword [ZHIT], 0
-    mov edi, ZTAB + 4
-    mov edx, [ZTAB]
+    mov edi, ZFILE + FN_BASE_           ; the file name: data/zonxx + the world number + .dat
+    movzx eax, bl
+    test eax, eax
+    jz .fn
+    xor edx, edx
+    mov ecx, 10
+    div ecx
+    test eax, eax
+    jz .u
+    add al, '0'
+    stosb
+.u:
+    lea eax, [edx + '0']
+    stosb
+.fn:
+    mov dword [edi], 7461642Eh          ; '.dat'
+    mov byte [edi + 4], 0
+    mov edx, ZFILE
+    mov eax, 3D00h
+    int 21h
+    jc .hit
+    mov ebp, eax                        ; (bl: the world, kept)
+    push ebx
+    mov ebx, ebp
+    mov edx, BUF
+    mov ecx, BUFLEN_
+    mov ah, 3Fh
+    int 21h
+    pushfd
+    mov ah, 3Eh
+    int 21h
+    popfd
+    pop ebx
+    jc .hit
+    mov edi, BUF + 4
+    mov edx, [BUF]
 .e:
     test edx, edx
     jz .hit
@@ -189,7 +272,11 @@ WORLD_BYTE
     cmp ecx, NAME_
     jb .t
 .f:
-    mov [ZHIT], edi
+    mov esi, edi                        ; the entry -> ZENT (the buffer is shared with the FORMAT page)
+    mov edi, ZENT
+    mov ecx, ENTRY_ / 4
+    rep movsd
+    mov dword [ZHIT], ZENT
     jmp .hit
 .n:
     add edi, ENTRY_
@@ -197,6 +284,10 @@ WORLD_BYTE
     jmp .e
 .hit:
     mov edi, [ZHIT]
+    cmp word [D7], 0                    ; the first row: the legend boxes
+    jne .nl
+    call zn_leg
+.nl:
     test edi, edi
     jz .x
     movzx eax, word [D7]
@@ -225,11 +316,106 @@ WORLD_BYTE
 .x:
     popad
     ret
+
+zn_leg:                                 ; edi = the table's entry or 0: the legend boxes (the menu's last LEG_
+    pushad                              ; entries), on the GC header's line, the colours the table uses
+    xor ebp, ebp
+    test edi, edi
+    jz .c
+    movzx ebp, byte [edi + LEGN_]
+.c:
+    movzx ecx, word [MENU + 10h]
+    sub ecx, LEG_
+    imul ebx, ecx, 38h
+    add ebx, MENU + 16h
+    mov dx, [MENU + 16h + 24 * 38h + 16h]
+    xor ecx, ecx
+.l:
+    cmp ecx, LEG_
+    jae .o
+    cmp ecx, ebp
+    jae .h
+    mov word [ebx + 4], 0
+    imul eax, ecx, LEG_W_ + 1
+    add eax, 8
+    mov [ebx + 14h], ax
+    mov [ebx + 16h], dx
+    movzx eax, byte [edi + LEGN_ + 1 + ecx * 2]
+    mov [ebx + 1Eh], ax
+    movzx eax, byte [edi + LEGN_ + 2 + ecx * 2]
+    push edi
+    lea esi, [LABS + eax * 8]
+    lea edi, [LEGBUF + ecx * 8]
+    movsd
+    movsd
+    pop edi
+    jmp .n
+.h:
+    mov word [ebx + 4], 1
+.n:
+    add ebx, 38h
+    inc ecx
+    jmp .l
+.o:
+    popad
+    ret
 """
 
 
-def patch(p, at, area, lang, pack_dirs, world=None):
-    """Code at obj1:at, the table in obj2 area; world = careerworld's sites in a build with career worlds."""
+def _menu_copy(p, area, legbuf):
+    """DIY_leagueTournamentMenu (its init DIYLeagueTournamentInit: mov word [..], 0 / mov word [..], 0 / call) copied
+    whole into area (its pointers moved along) with LEG legend boxes after its last entry (invisible until zn_leg
+    shows them; x, y, colour and text set there). Returns (the copy, the obj1 site of `mov [A6], offset menu`)."""
+    import re
+    d2 = p.le.obj_bytes(2)
+    hdr = struct.pack('<hhhhHHHH', 0, 0, 304, 14, 4, 0x17, 8, 0) + b'\xff' * 4 + b'\0\0' + struct.pack('<hhhh', 0, 188, 202, 12)
+    fx = list(p.le.fixups())
+    d1 = p.le.obj_bytes(1)
+    starts = []
+    for m in re.finditer(re.escape(hdr), d2):
+        st = m.start() - 16
+        init = p.target(2, st)
+        if init[0] == 1 and re.match(rb'\x66\xc7\x05....\x00\x00\x66\xc7\x05....\x00\x00\xe8', d1[init[1]:init[1] + 23], re.S):
+            starts.append(st)
+    assert len(starts) == 1, starts
+    st = starts[0]
+    tgt = {f[1]: (f[3], f[4]) for f in fx if f[0] == 2}
+    end = st + 16
+    while not (d2[end:end + 2] == b'\x19\xfc' and (end + 2) in tgt):   # -999, then the next menu's header
+        end += 2
+        assert end < st + 0x2000
+    body = bytearray(d2[st:end])
+    ptrs = [(o - st, t) for o, t in tgt.items() if st <= o < end]
+    for k in range(LEG):
+        e = struct.pack('<hhhh', 8 + k * (LEG_W + 1), 0, LEG_W, 8) + struct.pack('<H', 1) + struct.pack('<HH', 4, 7)
+        e += struct.pack('<HH', 8, 0)
+        ptrs.append((len(body) + len(e), (2, legbuf + k * LEG_TXT)))
+        body += e + b'\0\0\0\0' + b'\0\0'
+    body += struct.pack('<h', -999)
+    base = area.add(bytes(body))
+    for o, (t_obj, t_off) in ptrs:
+        assert (base + o) // 0x1000 == (base + o + 3) // 0x1000, 'a pointer straddles a page'
+        p.add_ptr(2, base + o, t_obj, t_off)
+    refs = [f[1] for f in fx if f[0] == 1 and (f[3], f[4]) == (2, st)]
+    assert len(refs) == 1, refs
+    return base, refs[0]
+
+
+def _current_menu(p):
+    """g_currentMenu (the unpacked menu): ActivateMenu's `mov A1, offset g_currentMenu` (as purple.py finds it)."""
+    import re
+    import sacups
+    d1 = p.le.obj_bytes(1)
+    a0 = sacups.regs(d1)['A0']
+    m = [x for x in re.finditer(rb'\xA1(....)\xA3....\xA1(....)\xA3....\xC7\x05(....)(....)\xFF\x35....\xE8', d1, re.S)
+         if x.group(1) == x.group(2) and struct.unpack('<I', x.group(3))[0] == a0 + 4]
+    assert len(m) == 1, len(m)
+    return p.target(1, m[0].start() + 26)
+
+
+def patch(p, at, area, lang, pack_dirs, bss, bss_len, world=None):
+    """Code at obj1:at, small data in obj2 area; the tables in DATA\\ZONxx[world].DAT (write()), read into the shared
+    buffer obj2:bss (bss_len bytes, fmtpage's) when the table changes; world = careerworld's sites in a world build."""
     import lp36
     s = lp36._sites(p)
     site, a0, diy = s['col'], s['A0'], s['DIY']
@@ -239,8 +425,14 @@ def patch(p, at, area, lang, pack_dirs, world=None):
     cur = bytes(p.get(1, site, 6))
     lp = cur[0] == 0xE8                                   # lp36's lp_col is there
     rows = table(lang, pack_dirs)
-    base = area.add(blob(rows))
     keys = area.add(bytes(4 + 1 + NAME + 3))             # ZHIT, ZKEY (world + title)
+    zent = area.add(bytes(ENTRY_PAD))
+    zfile = area.add(FILE[lang] + bytes(12))
+    L = LABELS[lang]
+    labs = area.add(b''.join(L[k].encode('latin-1')[:LEG_TXT - 1].ljust(LEG_TXT, b'\0') for k in KEYS))
+    legbuf = area.add(bytes(LEG * LEG_TXT))
+    menu_new, menu_ref = _menu_copy(p, area, legbuf)
+    cur_menu = _current_menu(p)
     first = ('    call LP_COL\n' if lp else '    mov ax, [C11]\n')
     src = ASM.replace('FIRST\n', first)
     src = src.replace('LP_SKIP\n', '    call LP_OURS\n    je .x\n' if lp else '')
@@ -250,8 +442,10 @@ def patch(p, at, area, lang, pack_dirs, world=None):
 .w:
 ''' if world else '')
     sym = {'D3': (2, a0 - 20), 'D7': (2, a0 - 4), 'A1': (2, a0 + 4), 'A5': (2, a0 + 20), 'DIY': (2, diy),
-           'C11': c11, 'ZTAB': (2, base), 'ZHIT': (2, keys), 'ZKEY': (2, keys + 4), 'NAME_': (0, NAME),
-           'ENTRY_': (0, ENTRY_PAD)}
+           'C11': c11, 'ZHIT': (2, keys), 'ZKEY': (2, keys + 4), 'NAME_': (0, NAME), 'ZENT': (2, zent),
+           'ZFILE': (2, zfile), 'FN_BASE_': (0, len(FILE[lang])), 'BUF': (2, bss), 'BUFLEN_': (0, bss_len),
+           'ENTRY_': (0, ENTRY_PAD), 'LEG_': (0, LEG), 'LEG_W_': (0, LEG_W), 'LEGN_': (0, 1 + NAME + 1 + 3 * RANGES),
+           'LABS': (2, labs), 'LEGBUF': (2, legbuf), 'MENU': cur_menu}
     if lp:
         sym.update({'LP_COL': (1, site + 5 + struct.unpack('<i', cur[1:5])[0]), 'LP_OURS': (1, lp36.LABELS['lp_ours'])})
     if world:
@@ -263,9 +457,11 @@ def patch(p, at, area, lang, pack_dirs, world=None):
     p.put(1, at, code)
     for o, t_obj, t_off in cfix:
         p.add_ptr(1, at + o, t_obj, t_off)
+    p.retarget(1, menu_ref, 2, menu_new)
+    p.put(1, menu_ref, struct.pack('<I', menu_new))
     if not lp:
         p.remove(1, site + 2)
     p.put(1, site, b'\xE8' + struct.pack('<i', lab['zn_col'] - (site + 5)) + b'\x90')
-    print(f'exe: zone colours: {len(rows)} league tables, code obj1+{at:#x} ({len(code)} B), '
+    print(f'exe: zone colours: {len(rows)} league tables (DATA\\ZON{lang.upper()}*.DAT), code obj1+{at:#x} ({len(code)} B), '
           f'{"after lp36 lp_col" if lp else "alone"}')
     return at + len(code)

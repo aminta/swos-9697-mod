@@ -421,9 +421,9 @@ def patch(p, at, area, lang, pack_dirs, bss, bss_len, world=None):
     site, a0, diy = s['col'], s['A0'], s['DIY']
     d1 = p.le.obj_bytes(1)
     assert d1[site:site + 2] == b'\x66\xa1'
-    c11 = p.target(1, site + 2)
     cur = bytes(p.get(1, site, 6))
-    lp = cur[0] == 0xE8                                   # lp36's lp_col is there
+    lp = cur[0] == 0xE8                                   # lp36's lp_col is there (its fixup at site + 2 is gone)
+    c11 = None if lp else p.target(1, site + 2)
     rows = table(lang, pack_dirs)
     keys = area.add(bytes(4 + 1 + NAME + 3))             # ZHIT, ZKEY (world + title)
     zent = area.add(bytes(ENTRY_PAD))
@@ -442,7 +442,7 @@ def patch(p, at, area, lang, pack_dirs, bss, bss_len, world=None):
 .w:
 ''' if world else '')
     sym = {'D3': (2, a0 - 20), 'D7': (2, a0 - 4), 'A1': (2, a0 + 4), 'A5': (2, a0 + 20), 'DIY': (2, diy),
-           'C11': c11, 'ZHIT': (2, keys), 'ZKEY': (2, keys + 4), 'NAME_': (0, NAME), 'ZENT': (2, zent),
+           **({'C11': c11} if c11 else {}), 'ZHIT': (2, keys), 'ZKEY': (2, keys + 4), 'NAME_': (0, NAME), 'ZENT': (2, zent),
            'ZFILE': (2, zfile), 'FN_BASE_': (0, len(FILE[lang])), 'BUF': (2, bss), 'BUFLEN_': (0, bss_len),
            'ENTRY_': (0, ENTRY_PAD), 'LEG_': (0, LEG), 'LEG_W_': (0, LEG_W), 'LEGN_': (0, 1 + NAME + 1 + 3 * RANGES),
            'LABS': (2, labs), 'LEGBUF': (2, legbuf), 'MENU': cur_menu}

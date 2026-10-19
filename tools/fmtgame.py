@@ -290,18 +290,28 @@ ZT = {
                eps='DIE 2 EUROPEAN PERFORMANCE SPOTS UND DER AUSGLEICH FUER TITELVERTEIDIGER WERDEN AM SAISONENDE '
                    'ENTSCHIEDEN: NICHT IM VORAUS GEFAERBT'),
 }
-_ZCTX = []
+_ZCTX = {}
 
 
-def _zctx():
-    """zones.context over the build's packs (mkseason.ENABLED), keyed by real path."""
-    if not _ZCTX:
+def _zctx(d=None, world=None):
+    """zones.context over the build's packs (mkseason.ENABLED), keyed by real path; a career pack whose world is not
+    among them (fmtgame.py run on a data dir, or a test build) gets its own world's context from its sibling packs
+    (the world's root has world_cups: league phase, start year), so a world never falls back to the classic cups."""
+    import zones
+    if None not in _ZCTX:
         import mkseason
-        import zones
         dirs = [e if os.sep in e else os.path.join(mkseason.PACKS, e) for e in mkseason.ENABLED]
         metas, ranks = zones.context(dirs)
-        _ZCTX.append((metas, {os.path.realpath(d): r for d, r in ranks.items()}))
-    return _ZCTX[0]
+        _ZCTX[None] = (metas, {os.path.realpath(x): r for x, r in ranks.items()})
+    metas, ranks = _ZCTX[None]
+    if d is None or world is None or world in metas:
+        return metas, ranks
+    par = os.path.dirname(os.path.realpath(d))
+    if par not in _ZCTX:
+        sib = [os.path.join(par, x) for x in sorted(os.listdir(par)) if os.path.exists(os.path.join(par, x, 'pack.json'))]
+        m2, r2 = zones.context(sib)
+        _ZCTX[par] = ({**metas, **m2}, {**ranks, **{os.path.realpath(x): r for x, r in r2.items()}})
+    return _ZCTX[par]
 
 
 def zone_text(rw, t, lang, eu=None):
@@ -576,14 +586,16 @@ def state_text(c, t, lang):
 
 
 
-def world_year(w):
+def world_year(w, d=None):
     """A world's first year (its root pack's world_cups.start_year): from 2021-22 on, no away goals (careerworld
-    w_noaway: the engine applies the same rule)."""
+    w_noaway: the engine applies the same rule). d: a pack of that world (its siblings when not in the build)."""
     if not _YEARS:
         import mkseason
         for pk in mkseason.packs():
             if pk.world is not None and 'world_cups' in pk.meta:
                 _YEARS[pk.world] = pk.meta['world_cups'].get('start_year', 0)
+    if w not in _YEARS and d is not None:
+        return _zctx(d, w)[0].get(w, {}).get('start_year', 0)
     return _YEARS.get(w, 0)
 
 
@@ -597,11 +609,11 @@ def from_pack(d):
     ties = list(complist.csv.DictReader(open(tp, encoding='utf-8'))) if os.path.exists(tp) else []
     bn = m.get('button_names') or {}
     T = TEXTS
-    if m.get('world') is not None and world_year(m['world']) >= 2021:   # (no away goals: the round's ET / penalties)
+    if m.get('world') is not None and world_year(m['world'], d) >= 2021:   # (no away goals: the round's ET / penalties)
         T = {lang: dict(TEXTS[lang], r=dict(TEXTS[lang]['r'], two_legs=NOAWAY[lang])) for lang in TEXTS}
     world = m.get('world', 0) if m.get('kind') == 'career' else 0
     import zones
-    metas, ranks = _zctx()
+    metas, ranks = _zctx(d, m.get('world', 0) if m.get('kind') == 'career' else None)
     rank = ranks.get(os.path.realpath(d))
     lp = zones._lp_world(metas, m.get('world', 0) if m.get('kind') == 'career' else 0)
     zdet = {lang: {} for lang in LANGS}
@@ -695,14 +707,22 @@ def file_names(pack_dirs):
 
 
 def main(argv):
+    """The packs given (pack dirs or dirs of packs) are the build (mkseason.ENABLED): their worlds' league phase, start
+    year, European cups and qualifying ties as in patch.py's build."""
     out, dirs = argv[0], argv[1:]
-    items = []
+    pk = []
     for d in dirs:
         if os.path.exists(os.path.join(d, 'pack.json')):
-            items += from_pack(d)
+            pk.append(d)
         else:
-            items += [x for s in sorted(os.listdir(d)) if os.path.exists(os.path.join(d, s, 'pack.json'))
-                      for x in from_pack(os.path.join(d, s))]
+            pk += [os.path.join(d, s) for s in sorted(os.listdir(d)) if os.path.exists(os.path.join(d, s, 'pack.json'))]
+    import mkseason
+    mkseason.ENABLED = [os.path.abspath(d) for d in pk if os.path.basename(d.rstrip(os.sep)) != mkseason.NATIONAL]
+    items = [x for d in pk for x in from_pack(d)]
+    try:
+        items += world_items()
+    except Exception as e:                      # (packs that are no full world: no European cups)
+        print(f'(no European cups: {e})')
     for name, n in write(out, items):
         print(f'{name}: {n} competitions')
 

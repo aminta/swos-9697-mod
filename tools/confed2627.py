@@ -13,8 +13,9 @@ Sudamericana) and their domestic routes. The holders' extra places are not shown
 AFC: the 2026-27 ACL Elite / ACL Two qualified teams (wiki 2026-27_AFC_Champions_League_Elite / _Two): the league
 routes per association (the preliminary-stage places as ACL Elite; places moved down by holders or ineligible clubs
 counted back). CAF: the standard allocation of the top 12 associations (2 Champions League: champion and runner-up;
-2 Confederation Cup: 3rd and the cup winner), Ghana 1 + 1. CONCACAF / OFC: see each entry (approximations listed in
-APPROX, to confirm).
+2 Confederation Cup: 3rd and the cup winner), Ghana 1 + 1. CONCACAF: the 2027 Champions Cup qualified clubs (concacaf.com:
+Liga MX 6, MLS 5, CPL 2, Canadian Championship, U.S. Open Cup; the Central American / Caribbean leagues through the
+Central American / Caribbean Cups). OFC: New Zealand's 2 places (a developed association). DECLARED: see below.
 """
 
 W = 'world-2026-27-'
@@ -36,13 +37,13 @@ PLACES = {
     # AFC (2026-27 routes)
     W + 'jpn': [{'cup': 'acle', 'places': [1, 3]}, {'cup': 'acl2', 'via': 'cup'}],
     W + 'ksa': [{'cup': 'acle', 'places': [1, 5]}, {'cup': 'acl2', 'places': [6, 6]}],
-    W + 'kor': [{'cup': 'acle', 'places': [1, 4]}, {'cup': 'acl2', 'places': [5, 5]}, {'cup': 'acle', 'via': 'cup'}],
+    W + 'kor': [{'cup': 'acle', 'places': [1, 3]}, {'cup': 'acl2', 'places': [4, 4]}, {'cup': 'acle', 'via': 'cup'}],   # 3 + 1 play-off (2026-27: champion = cup winner, Gimcheon ineligible)
     W + 'uae': [{'cup': 'acle', 'places': [1, 4]}, {'cup': 'acl2', 'places': [5, 5]}, {'cup': 'acle', 'via': 'cup'}],
     W + 'qat': [{'cup': 'acle', 'places': [1, 2]}, {'cup': 'acl2', 'places': [3, 3]}, {'cup': 'acle', 'via': 'cup'}],
-    W + 'irn': [{'cup': 'acle', 'places': [1, 2]}, {'cup': 'acl2', 'places': [3, 4]}],
+    W + 'irn': [{'cup': 'acle', 'places': [1, 2]}, {'cup': 'acl2', 'places': [3, 3]}, {'cup': 'acl2', 'via': 'cup'}],
     W + 'chn': [{'cup': 'acle', 'places': [1, 1]}, {'cup': 'acl2', 'places': [2, 2]}, {'cup': 'acle', 'via': 'cup'}],
-    W + 'aus': [{'cup': 'acle', 'places': [1, 2]}, {'cup': 'acl2', 'places': [3, 4]}, {'note': 'final'}],
-    W + 'ind': [{'cup': 'acl2', 'places': [1, 1]}],
+    W + 'aus': [{'cup': 'acle', 'places': [1, 2]}, {'cup': 'acl2', 'places': [3, 3]}, {'note': 'final'}],   # premiers + runners-up (play-off)
+    W + 'ind': [{'cup': 'acl2', 'places': [1, 1]}, {'cup': 'acl2', 'via': 'cup'}],   # ISL champion, Super Cup winner (preliminary)
     # CAF
     W + 'egy': [{'cup': 'cafcl', 'places': [1, 2]}, {'cup': 'cafcc', 'places': [3, 3]}, {'cup': 'cafcc', 'via': 'cup'}],
     W + 'mar': [{'cup': 'cafcl', 'places': [1, 2]}, {'cup': 'cafcc', 'places': [3, 3]}, {'cup': 'cafcc', 'via': 'cup'}],
@@ -52,11 +53,13 @@ PLACES = {
     W + 'gha': [{'cup': 'cafcl', 'places': [1, 1]}, {'cup': 'cafcc', 'via': 'cup'}],
     # CONCACAF (Champions Cup through the league; the Central American and Caribbean leagues qualify through the
     # Central American / Caribbean Cups: no colours)
-    W + 'mex': [{'cup': 'ccc', 'places': [1, 6]}, {'note': 'split'}],
-    W + 'usa': [{'cup': 'ccc', 'places': [1, 4]}, {'cup': 'ccc', 'via': 'cup'}, {'note': 'final'}],
-    W + 'can': [{'cup': 'ccc', 'places': [1, 1]}, {'cup': 'ccc', 'via': 'cup'}, {'note': 'final'}],
+    W + 'mex': [{'cup': 'ccc', 'places': [1, 6]}, {'note': 'split'}],   # Apertura / Clausura champions and runners-up + 2 aggregate
+    W + 'usa': [{'cup': 'ccc', 'places': [1, 3]}, {'cup': 'ccc', 'via': 'cup'}, {'note': 'final'}],   # Shield + next 2; MLS Cup, the other conference's leader
+    W + 'can': [{'cup': 'ccc', 'places': [1, 1]}, {'cup': 'ccc', 'via': 'cup'}, {'note': 'final'}],   # CPL Shield + league (final) winner
     # OFC
-    W + 'nzl': [{'cup': 'ofc', 'places': [1, 2]}, {'note': 'final'}],
+    W + 'nzl': [{'cup': 'ofc', 'places': [1, 2]}, {'note': 'final'}],   # 2 places (developed association), via the National League
 }
-# entries not taken from a qualified-teams list (the regulation's general rule or the game's single table): to confirm
-APPROX = ('kor', 'irn', 'aus', 'ind', 'gha', 'mex', 'usa', 'can', 'nzl')
+# declared in the release notes: places by the game's single table where the real ones are not table positions
+# (Apertura / Clausura champions, play-off finals, conference leaders) or from the general rule (Ghana, Iran's cup)
+DECLARED = {'split': ('arg', 'col', 'par', 'mex'), 'final': ('uru', 'ven', 'aus', 'usa', 'can', 'nzl'),
+            'rule': ('gha', 'irn', 'ind')}

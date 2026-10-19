@@ -148,7 +148,9 @@ when the engine lands it.
   place from 24th, UECL 0.125 then 0.25); a bonus for each knockout round reached; **qualifying matches at half
   points** (1.5 / 0.5 a tie); clubs knocked out in qualifying count in their association's divisor; a club's
   coefficient never below **20% of its association's**.
-- Places per association, entry rounds and pots follow the simulated ranking every season.
+- Places per association, entry rounds and pots follow the simulated ranking every season, **a year old as in
+  UEFA's access list**: the 2027/28 places come from the 2026 ranking, the season just played counts from the
+  following one; the clubs' coefficients for the seeding include the season just finished.
 
 *Italian football*
 - **Serie B**: 1st and 2nd promoted directly; **the 3rd is promoted directly if it finishes more than 14 points
@@ -186,6 +188,20 @@ when the engine lands it.
 - **The Serie C play-off is played by your club too**: group phase, national phase and Final Four under exactly
   these rules; while you play it the other two groups are already over (simulated when your group ends), and the
   season end keeps their results.
+- **Coppa Italia Serie D 2026-27**, on its real bracket: every Serie D club, the real pairings of the turno
+  preliminare (34 ties) and the primo turno (64), and the real paths through the sedicesimi, ottavi and quarti; ties
+  already played in reality keep their real winners in the first season.
+  - Each round on its real date (23 Aug, 30 Aug, 7 Oct, 28 Oct, 18 Nov, 9 Dec; semi-finals 20 Jan / 3 Feb; final 17
+    Feb / 3 Mar). **No extra time anywhere** (LND official notice no. 1): a single match level after 90 minutes goes
+    straight to penalties; two-legged ties (semi-finals, final) level on aggregate also go straight to penalties, and
+    away goals do not count double.
+  - Hosts drawn up to the trentaduesimi; from the sedicesimi, the club that played away in its previous tie hosts
+    (both home or both away: drawn). The semi-final pairs are drawn when the semi-finals are reached; the final is
+    over two legs.
+  - From the second season (LND art. 1-2), the clubs new to the Serie D (relegated from Serie C, promoted from the
+    Eccellenza) play the preliminary round, filled up with the lowest-placed clubs of each group; the others enter at
+    the primo turno.
+  - **Played by your club**, with the real round names (TURNO PRELIMINARE, PRIMO TURNO, TRENTADUESIMI ... FINALE).
 
 *National cups 2026-27*
 - **Every club still in when the data was taken (October 2026)**, each from **its real round**: clubs entering later
@@ -195,15 +211,14 @@ when the engine lands it.
 - **No national cup where none is played in 2026-27** (Mexico, Honduras, Guatemala, Panama: league only); Peru's
   cup is its real Copa de la Liga 2026.
 
-<!-- REGIA STAGED (zone colours, session 3.3.6, branch zone-colours; publish when merged + Davide's final OK):
 *League tables in colour*
 - **Every league table shows its end-of-season zones**, as on TV: Champions League (or the European Cup) and direct
   promotion light blue; Europa League (or the UEFA Cup), promotion and European play-offs green; Conference League
-  dark blue; play-out orange; relegation red. The places follow the real rules: the UEFA 2026/27 access list by
+  dark blue; play-out orange; relegation gray. The places follow the real rules: the UEFA 2026/27 access list by
   association rank (qualifying rounds included), and each league's own promotions, relegations and play-offs (Serie
   B 3rd-8th and 16th-17th, the Serie C groups 2nd-10th). A legend on the header line names the colours each table
   uses. In the Europe 1984-85 world too.
-  Known limit unless the lagged ranking lands: European colours in the first season only; from the second season the
+  <!-- REGIA STAGED (drop when the uc_rank colours land): Known limit unless the lagged ranking lands: European colours in the first season only; from the second season the
   tables colour promotion, play-offs, play-outs and relegation. -->
 
 *Leagues, calendars and clubs*
@@ -586,7 +601,9 @@ Non una formula uguale per tutti: ogni campionato gioca la stagione come l'ha sc
   classifica** (CL / EL 0,25 a posizione dalla 24ª, UECL 0,125 poi 0,25); un bonus per ogni turno a eliminazione
   raggiunto; **preliminari a punti dimezzati** (1,5 / 0,5 a sfida); i club eliminati nei preliminari contano nel
   divisore della federazione; il coefficiente di un club mai sotto il **20% di quello della sua federazione**.
-- Posti per federazione, turno d'ingresso e fasce seguono il ranking simulato ogni stagione.
+- Posti per federazione, turno d'ingresso e fasce seguono il ranking simulato ogni stagione, **quello dell'anno
+  prima come nella access list UEFA**: i posti 2027/28 vengono dal ranking 2026, la stagione appena giocata conta
+  dalla successiva; i coefficienti dei club per le fasce comprendono la stagione appena finita.
 
 *Calcio italiano*
 - **Serie B**: 1ª e 2ª promosse direttamente; **la 3ª sale direttamente se chiude con più di 14 punti sulla 4ª**,
@@ -625,6 +642,20 @@ Non una formula uguale per tutti: ogni campionato gioca la stagione come l'ha sc
 - **Anche il play-off di Serie C lo gioca la tua squadra**: fase dei gironi, fase nazionale e Final Four esattamente
   con queste regole; mentre lo giochi gli altri due gironi sono già finiti (simulati quando finisce il tuo), e la
   fine della stagione ne tiene i risultati.
+- **Coppa Italia Serie D 2026-27** sul suo tabellone vero: tutti i club di Serie D, gli accoppiamenti veri del turno
+  preliminare (34 sfide) e del primo turno (64), e i percorsi veri attraverso sedicesimi, ottavi e quarti; le sfide
+  già giocate nella realtà tengono nella prima stagione i loro vincitori veri.
+  - Ogni turno nella sua data vera (23 agosto, 30 agosto, 7 ottobre, 28 ottobre, 18 novembre, 9 dicembre; semifinali
+    20 gennaio / 3 febbraio; finale 17 febbraio / 3 marzo). **Mai supplementari** (C.U. LND n. 1): una gara secca
+    pari dopo 90 minuti va subito ai rigori; anche le sfide di andata e ritorno (semifinali, finale) in parità vanno
+    subito ai rigori, e i gol in trasferta non valgono doppio.
+  - Campo sorteggiato fino ai trentaduesimi; dai sedicesimi gioca in casa chi aveva giocato fuori nel turno prima
+    (entrambe in casa o entrambe fuori: sorteggio). Le semifinali si sorteggiano quando ci si arriva; la finale è di
+    andata e ritorno.
+  - Dalla seconda stagione (LND art. 1-2) le nuove arrivate in Serie D (retrocesse dalla Serie C, promosse
+    dall'Eccellenza) giocano il turno preliminare, completato con le peggio piazzate di ogni girone; le altre entrano
+    al primo turno.
+  - **La gioca la tua squadra**, coi nomi veri dei turni (TURNO PRELIMINARE, PRIMO TURNO, TRENTADUESIMI ... FINALE).
 
 *Coppe nazionali 2026-27*
 - **Tutte le squadre ancora in corsa quando sono stati presi i dati (ottobre 2026)**, ognuna dal **suo turno vero**:
@@ -634,15 +665,14 @@ Non una formula uguale per tutti: ogni campionato gioca la stagione come l'ha sc
 - **Nessuna coppa nazionale dove nel 2026-27 non si gioca** (Messico, Honduras, Guatemala, Panamá: solo il
   campionato); la coppa del Perù è la sua vera Copa de la Liga 2026.
 
-<!-- REGIA STAGED (zone colorate, sessione 3.3.6; da pubblicare col merge e l'OK finale di Davide):
 *Classifiche a colori*
 - **Ogni classifica di campionato mostra le sue zone di fine stagione**, come in TV: Champions League (o Coppa dei
   Campioni) e promozione diretta in azzurro; Europa League (o Coppa UEFA), play-off promozione e spareggi europei in
-  verde; Conference League in blu scuro; play-out in arancione; retrocessione in rosso. I posti seguono le regole
+  verde; Conference League in blu scuro; play-out in arancione; retrocessione in grigio. I posti seguono le regole
   vere: la lista d'accesso UEFA 2026/27 secondo il ranking delle federazioni (preliminari compresi) e le promozioni,
   retrocessioni e spareggi di ogni campionato (Serie B 3ª-8ª e 16ª-17ª, i gironi di Serie C 2ª-10ª). Una legenda
   sulla riga del titolo indica i colori usati in quella classifica. Anche nel mondo Europa 1984-85.
-  Limite se non arriva il ranking ritardato: colori europei solo nella prima stagione; dalla seconda le classifiche
+  <!-- REGIA STAGED (togliere quando arrivano i colori da uc_rank): Limite se non arriva il ranking ritardato: colori europei solo nella prima stagione; dalla seconda le classifiche
   colorano promozione, play-off, play-out e retrocessione. -->
 
 *Campionati, calendari e club*

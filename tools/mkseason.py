@@ -1453,7 +1453,7 @@ def splits():
             _need(n <= split.NMAX, f'{w}: at most {split.NMAX} clubs')
             spec = {'stages': []}
             stages = (sp.get('stages') or [sp]) if sp else []
-            _need(not sp or set(sp) <= {'after', 'home', 'groups', 'tiebreak'} or set(sp) <= {'stages', 'weeks'},
+            _need(not sp or set(sp) <= {'after', 'home', 'groups', 'tiebreak', 'title'} or set(sp) <= {'stages', 'weeks', 'title'},
                   f'{w}.split: keys after, home, groups, tiebreak (or stages, weeks)')
             rows = [k for k in pk.league_clubs if pk.division[k] == d]      # the division's table rows (team-file order)
             per = split.days_before(n, 1)
@@ -1461,8 +1461,8 @@ def splits():
             for i, st in enumerate(stages):
                 ws = f'{w}.split' + (f'.stages[{i}]' if 'stages' in sp else '')
                 if 'fixtures' in st:                # a fixture list by club (Argentina: zones, clasicos, interzonals)
-                    _need(set(st) <= {'after', 'fixtures', 'zones', 'reset', 'then', 'table', 'annual', 'tiebreak'},
-                          f'{ws}: keys after, fixtures, zones, reset, then, table, annual, tiebreak')
+                    _need(set(st) <= {'after', 'fixtures', 'zones', 'reset', 'then', 'table', 'annual', 'tiebreak', 'title'},
+                          f'{ws}: keys after, fixtures, zones, reset, then, table, annual, tiebreak, title')
                     _need(st.get('tiebreak') in (None, 'wins'), f"{ws}.tiebreak: 'wins' (MLS: points, wins, then the "
                           f"game's goal difference, goals) or absent")
                     if i == 0:
@@ -1491,7 +1491,7 @@ def splits():
                                            'groups': [len(z) for z in st.get('zones') or [rows]]})
                     day += len(fxd)
                     continue
-                _need(set(st) <= {'after', 'home', 'groups', 'tiebreak', 'reset', 'keep'},
+                _need(set(st) <= {'after', 'home', 'groups', 'tiebreak', 'reset', 'keep', 'title'},
                       f'{ws}: keys after, home, groups, tiebreak, reset, keep')
                 if i == 0:
                     _need(isinstance(st.get('after'), int) and st['after'] % per == 0 and 1 <= st['after'] // per <= 4,
@@ -1501,7 +1501,7 @@ def splits():
                 _need(st.get('after') == day, f'{ws}.after: {day} (the previous stage ends then)')
                 places, gs = 1, st.get('groups') or []
                 for g in gs:
-                    _need(set(g) <= {'places', 'rounds', 'points', 'neutral'} and g.get('places', [0])[0] == places
+                    _need(set(g) <= {'places', 'rounds', 'points', 'neutral', 'title'} and g.get('places', [0])[0] == places
                           and g['places'][1] >= places + 1, f'{ws}.groups: consecutive places from 1')
                     _need(g.get('rounds', 'single') in rnd and g.get('points', 'full') in split.POINTS,
                           f'{ws}.groups: rounds none / single / double / triple / quadruple, points '

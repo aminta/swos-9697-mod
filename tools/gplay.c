@@ -1840,6 +1840,32 @@ u8 GP_WORLD;
 /* SeasonFinished (gp_sack, before the season review): the career club won our played group contest (the Poule) ->
    its record line's name (the season record's 4th line: a Serie D club plays no European cup), else 0. Test builds
    (GPLAY_FORCE): the club is made the winner (the review's DA11B too: no European trophy for it, gp_sack's guard). */
+/* 4.0 longtable lt_stage (a table's OnRestore): the title of a staged / split league's current stage or the career
+   club's group. tab: dw n; dw S_MAGIC, S_FROZEN, S_GRP offsets (split's state in the DIY), dw its magic; dd the career
+   team word's address; n records: key (41 B: the DIY+4 title) + pad, [5 stages][4 groups] dw offsets from tab
+   (0 = none). Returns the title's address or 0. */
+u32 gp_stitle_c(const u8 *diy, const u8 *tab) {
+    int n = w16(tab), sm = w16(tab + 2), sf = w16(tab + 4), sg = w16(tab + 6);
+    if (w16(diy + sm) != w16(tab + 8)) return 0;
+    int s = diy[sf];
+    if (s >= 5) return 0;
+    const u16 *ct = *(const u16 * const *)(tab + 10);
+    const u8 *r = tab + 14;
+    for (int i = 0; i < n; i++, r += 42 + 40) {
+        int k = 0;
+        while (k < 41 && diy[4 + k] == r[k] && r[k]) k++;
+        if (k < 41 && (diy[4 + k] != r[k])) continue;
+        int g = 0, nc = w16(diy + 0x31);
+        for (int j = 0; j < nc && j < 64; j++)
+            if (w16(diy + 0x12D + 2 * j) == *ct) { g = diy[sg + j]; break; }
+        const u8 *row = r + 42 + 8 * s;
+        int o = g < 4 ? w16(row + 2 * g) : 0;
+        if (!o) o = w16(row);
+        return o ? (u32)(tab + o) : 0;
+    }
+    return 0;
+}
+
 u32 gp_pwin_c(void) {
     struct gp_ko *k = &GP_ST.ko[0];
     if (GP_ST.magic != MAGIC || GP_ST.season != GP_SEAS || k->magic != MAGIC || k->season != GP_SEAS)

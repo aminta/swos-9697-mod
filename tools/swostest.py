@@ -14,6 +14,8 @@
        SWOSTEST_BUILD = build dir under test, else SWOSTEST_BRANCH = git branch/commit to build, else this checkout;
        SWOSTEST_RUNS = run dirs (default internal/swostest/runs; another one = a second suite at the same time);
        TURBO=0 = real-time speed (default: DOSBox-X turbo, the emulated machine runs as fast as the host allows);
+       SWOSTEST_UI=en | fr | de (alias SWOSTEST_LANG) = the exe under test is that language's (a career started in
+       it): its menu texts are read back in Italian (UI_EN + tools/swostest_lang.json), the scenarios run unchanged;
        SWOSTEST_LINEUP=full = the career squad screen's best-reserve search (substitute); default min = an unavailable
        starter swaps with the first fit reserve, nothing more (substitute_min: ~half of a long career's pauses saved).
 
@@ -39,7 +41,7 @@ How it works
   ones on demand; debugger commands are typed in one go, short forms (~1 ms per char), no fixed sleeps.
 - Oracles: saves written by the game, checked in Python (car_info, W1 block, cup lists), the outcome, the dump.
 """
-import hashlib, os, pty, re, select, shutil, signal, struct, subprocess, sys, time
+import hashlib, json, os, pty, re, select, shutil, signal, struct, subprocess, sys, time
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 MAIN = os.path.expanduser('~/swos-mod')               # main checkout: c/, orig/, internal/ live there
@@ -605,14 +607,27 @@ UI_EN = {'CAREER': 'CARRIERA', 'CHOOSE TEAM': 'SCEGLI SQUADRA', 'CLASSIC CAREERS
          'ADD INTERNATIONAL PLAYER (HOME)': 'AGGIUNGI GIOCA. INTERNAZIONALE (CASA)', 'STATS': 'STAT', 'FORMAT': 'FORMULA'}
 
 
+UI = os.environ.get('SWOSTEST_UI') or os.environ.get('SWOSTEST_LANG') or 'it'   # (SWOSTEST_LANG: an alias)
+if UI != 'it':
+    os.environ['SWOSTEST_UI'] = UI                 # (one switch for every check below)
+# en / fr / de: tools/swostest_lang.json, the REL40 menus' labels per language collected from the same screens by
+# index (club names never: they are not translated); umlauts / accents read as '?' for a known label
+UI_MAP = json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'swostest_lang.json'))).get(UI, {}) \
+    if UI != 'it' else {}
+UI_ORIG = {'it': 'ITALIAN', 'en': 'ENGLISH', 'fr': 'FRENCH', 'de': 'GERMAN'}.get(UI, 'ITALIAN') + '.EXE'
+COLLECT = os.environ.get('SWOSTEST_COLLECT') == '1'    # (collecting the labels: raw texts, umlauts as '?')
+
+
 def ui_it(text):
-    if os.environ.get('SWOSTEST_UI') != 'en' or not text:
+    if UI == 'it' or not text or COLLECT:
         return text
-    if text in UI_EN:
+    if UI == 'en' and text in UI_EN:
         return UI_EN[text]
-    if text.endswith(' SQUAD') and text != 'SQUAD':
+    if text in UI_MAP:
+        return UI_MAP[text]
+    if UI == 'en' and text.endswith(' SQUAD') and text != 'SQUAD':
         return 'SQUADRA DEL ' + text[:-6]
-    if 'END SEASON' in text:
+    if UI == 'en' and 'END SEASON' in text:
         return 'FINE CAMP. ' + text
     return text
 
@@ -644,6 +659,9 @@ class Screen:
                 raw = r.read(ptrs[i], 40).split(b'\0')[0]
                 if raw and all(32 <= b < 127 for b in raw):
                     text = raw.decode()
+                elif raw and (UI_MAP or COLLECT) and all(b >= 32 for b in raw):   # (another language's umlauts /
+                    q = ''.join(chr(b) if b < 127 else '?' for b in raw)   # accents: '?', only a known label: the
+                    text = q if q in UI_MAP or COLLECT else ''             # squad rows' drawn texts stay empty)
             self.entries.append((i, ui_it(text), inv, dis))
 
     def find(self, text, visible=True, exact=False):
@@ -888,9 +906,10 @@ def squad_rows(s, scr, tag):
     """Screenshot of the paused game -> [(entry, unavailable)] for the squad rows (entries 25,y,82,8 sorted by y).
     Unavailable = red row background (x=100) or red pixels in the face/icon column (x 2-11): red card / injury."""
     from PIL import Image
+    rx = row_x(scr)
     rows = sorted((g[1], i) for i, g in enumerate(scr.geom)
-                  if (g[0], g[2], g[3]) in ((25, 82, 8), (31, 82, 8)) and not scr.entries[i][1])   # drawn rows, not
-    dx = scr.geom[rows[0][1]][0] - 25 if rows else 0     # text copies (the ENGLISH exe's layout: 6 px to the right)
+                  if (g[0], g[2], g[3]) == (rx, 82, 8) and not scr.entries[i][1])   # drawn rows, not text copies
+    dx = rx - 25                                         # (the ENGLISH exe's layout: 6 px to the right)
     s.shot(tag)
     im = Image.open(os.path.join(s.run, 'shots', tag + '.png')).convert('RGB')
     w, h = im.size
@@ -906,6 +925,12 @@ def squad_rows(s, scr, tag):
 SLOT_ROLE = 'GDDDDMMMMAAGDMA'                     # record order of a SWOS squad: G RB LB D D RW LW M M A A, bench G D M A
 POS_ROLE = {'P': 'G', 'TD': 'D', 'TS': 'D', 'D': 'D', 'MD': 'M', 'MS': 'M', 'M': 'M', 'A': 'A',
             'G': 'G', 'RB': 'D', 'LB': 'D', 'RW': 'M', 'LW': 'M'}    # (+ the ENGLISH exe's codes)
+
+
+def row_x(scr):
+    """The squad rows' x (25 in the Italian exe, 31 in the English one): the drawn 82 x 8 rows without text."""
+    xs = [g[0] for i, g in enumerate(scr.geom) if (g[2], g[3]) == (82, 8) and not scr.entries[i][1]]
+    return max(set(xs), key=xs.count) if xs else 25
 
 
 def reserve_info(cur, y):
@@ -971,7 +996,7 @@ def substitute(s, scr, tries=40):
             return f'squad screen: {len(rows)} rows'
         reserve = rows[-1][0]
         ry = cur.geom[reserve][1]
-        face = next((i for i, (l, r) in enumerate(cur.nav) if l[1] == reserve and cur.geom[i][0] < 25), None)
+        face = next((i for i, (l, r) in enumerate(cur.nav) if l[1] == reserve and cur.geom[i][0] < row_x(cur)), None)
         if face is None:
             return 'squad screen: no face entry for the 17th row'
         # the first keeper fit again; row 12 must still be him (11 in subs: he left the 16, a stand-in is there)
@@ -1057,7 +1082,7 @@ def substitute_min(s, tries=40):
             continue
         reserve = rows[-1][0]
         ry = cur.geom[reserve][1]
-        face = next((i for i, (l, r) in enumerate(cur.nav) if l[1] == reserve and cur.geom[i][0] < 25), None)
+        face = next((i for i, (l, r) in enumerate(cur.nav) if l[1] == reserve and cur.geom[i][0] < row_x(cur)), None)
         if face is None:
             return 'squad screen: no face entry for the 17th row'
         fit = not rows[-1][1]
@@ -1231,8 +1256,10 @@ FINISH = 'fire:2'                                 # career menu: FINISCI STAGION
 
 
 def name_entry(name):
-    """Save screen (cursor on SALVA): NOME FILE field, clear it, type name, Enter (= save)."""
-    return 'up:2 fire:1 ' + 'bspace ' * 8 + ' '.join(name.lower()) + ' enter:1'
+    """Save screen (cursor on SALVA): NOME FILE field, clear it, type name, Enter (= save). The French exe reads the
+    keys as AZERTY (a <-> q, w <-> z: 'w84a' was saved as Z84Q), the German one as QWERTZ (y <-> z)."""
+    lay = {'fr': {'a': 'q', 'q': 'a', 'w': 'z', 'z': 'w'}, 'de': {'y': 'z', 'z': 'y'}}.get(UI, {})
+    return 'up:2 fire:1 ' + 'bspace ' * 8 + ' '.join(lay.get(c, c) for c in name.lower()) + ' enter:1'
 
 
 def save_as(name):
@@ -1339,7 +1366,7 @@ def fill_check(s, tag):
     'CHANGED' (differing bytes, the first offset). The address of linAdr384k: LoadFillAndSwtitle's `mov eax,
     [linAdr384k]; add eax, 65536; mov [A1], eax`. Returns True when intact (None if it could not be read)."""
     try:
-        exe = os.path.join(ROOT, 'orig', 'ENGLISH.EXE' if os.environ.get('SWOSTEST_UI') == 'en' else 'ITALIAN.EXE')
+        exe = os.path.join(ROOT, 'orig', UI_ORIG)
         if getattr(fill_check, 'exe', None) != exe:       # (the original of the exe under test: its linAdr384k)
             fill_check.exe = exe
             sys.path.insert(0, os.path.join(ROOT, 'tools'))
@@ -1379,8 +1406,8 @@ def menu_check(s, tag):
         y = int(top + 92 * (h - top) / 200)              # the button's middle row (game y 92), x 22..150
         row = [im.getpixel((int(x * w / 320), y)) for x in range(22, 150, 2)]
         jumps = sum(abs(a[0] - b[0]) + abs(a[1] - b[1]) + abs(a[2] - b[2]) > 60 for a, b in zip(row, row[1:]))
-        if os.environ.get('SWOSTEST_UI') == 'en':      # (the ENGLISH menu: other buttons on that row, flat fills:
-            s.log.append(f'[menu] {tag}: ({jumps} jumps, not judged: ENGLISH layout)')   # the FILL.256 check decides)
+        if UI != 'it':                                 # (another language's menu: other buttons on that row, flat
+            s.log.append(f'[menu] {tag}: ({jumps} jumps, not judged: {UI} layout)')   # fills: FILL.256 decides)
         else:
             s.log.append(f'[menu] {tag}: ' + ('CORRUPTED' if jumps > 20 else 'clean') + f' ({jumps} jumps)')
         if fill_check(s, tag) is False:
@@ -1983,6 +2010,8 @@ def world8485():
                         if b[diy[1] + 4] and 'cal' not in diyseen:
                             diyseen['cal'] = 1
                             s.log.append(f'CAL {s.result.obj2(diy[2], 1870).hex()}')
+                if UI != 'it':                         # (another language's exe: SLOT is the Italian exe's offset)
+                    return season_over(scr)
                 rnd, cid, ties = slot_ties(s.result, 32)
                 if struct.unpack_from('<H', s.result.obj2(SLOT, 2))[0] == 2:   # a league phase (type 2): no ties
                     return season_over(scr)

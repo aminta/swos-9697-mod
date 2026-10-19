@@ -1845,7 +1845,11 @@ def world8485():
             peek = [int(os.environ['W8485_PEEK'], 0), 0] if os.environ.get('W8485_PEEK') else None
             ok, msg = advance(s, stop, 900)
             if mid[0] and midc[0] >= int(mid[2]):          # W8485_MIDSAVE: ESCI -> SALVA CARRIERA -> W84A, mid-season
-                press(s, s.screen(), 'ESCI', wait=3)
+                for _ in range(5):                     # (ESCI up to the career's exit menu: a results screen, a
+                    scr = s.screen()                   # chairman's note first)
+                    press(s, scr, 'CONTINUA' if scr.find('CONTINUA', exact=True) is not None else 'ESCI', wait=3)
+                    if s.screen().find('SALVA CARRIERA', exact=True) is not None:
+                        break
                 if press(s, s.screen(), 'SALVA CARRIERA') is None:
                     return False, f'mid-season save: no SALVA CARRIERA on {s.screen()}'
                 s.send(name_entry('W84A') + ' dump:3')

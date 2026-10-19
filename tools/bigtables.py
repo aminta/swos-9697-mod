@@ -21,8 +21,8 @@ or through sacups.TABLES (moved()); globals 1730..1849 stay reserved (career mar
 import re
 import struct
 
-LIMIT = 2400                    # global numbers 0..2399: what the 80-record area of a big world's save holds (W1 block,
-                                # UEFA coefficients for LIMIT clubs, uefaq's state, dplay's state, these 400 bytes)
+LIMIT = 2409                    # global numbers 0..2408: what the 80-record area of a big world's save holds (W1 block,
+                                # UEFA coefficients for LIMIT clubs, uefaq's state, dplay's state, these LIMIT - 2000 bytes)
 
 
 def ext_off():

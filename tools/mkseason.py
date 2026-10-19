@@ -327,6 +327,12 @@ class Pack:
             for c in st_res:
                 _need(isinstance(c.get('relegated'), int) and 0 <= c['relegated'] <= len(c['reserve']['pool']),
                       f"{c['key']}: 'relegated' n (0 .. its pool's size)")
+                _need(len(c['clubs']) <= 16, f"{c['key']}: at most 16 clubs in a state contest with a pool (gplay.c RO)")
+            sp = m.get('state_spares') or []
+            inc = {k for c in self.comps if c['type'] == 'state' for k in c['clubs']}
+            _need(all(k in self.clubs and self.files.get(self.clubs[k]['file'], (None,))[0] == self.pool_file
+                      and k not in inc for k in sp) and len(set(sp)) == len(sp),
+                  f"{self.meta['id']}: state_spares = distinct clubs of the states' file, in no state contest")
         par = self.league.get('parallel')          # parallel groups (Serie C 3 x 20; several levels): pgroups.py
         if par:
             pars = par if isinstance(par, list) else [par]
@@ -519,7 +525,8 @@ class Pack:
             first = list(rs.get('first') or [])
             order = first + [k for k in self.pool_clubs if k not in first]
             return (self.world, fl, [('league', low, [(base + self.where[k][1], self.division[k], darea(k)) for k in slots],
-                                      [darea(k) for k in self.pool_clubs], [self.pool_clubs.index(k) for k in order])])
+                                      [darea(k) for k in self.pool_clubs], [self.pool_clubs.index(k) for k in order])],
+                    base, [])
         if not hasattr(self, '_tf'):
             self._tf = self.team_files()
         recs = dict(self._tf)
@@ -538,8 +545,10 @@ class Pack:
             sc = [max(1, min(255, x * 255 // top)) for x in raw]
             pools.append(('state', f0 | o0 << 8, c['relegated'],
                           [(self.where[k][1], base + self.where[k][1], s) for k, s in zip(own, sc)],
-                          sc[len(own):], [self.pool_clubs.index(k) for k in order]))
-        return (self.world, self.pool_file, pools) if pools else None
+                          sc[len(own):], [self.pool_clubs.index(k) for k in order],
+                          [self.where[k][0] | self.where[k][1] << 8 for k in c['clubs']]))
+        spares = [self.where[k][1] for k in self.meta.get('state_spares') or []]
+        return (self.world, self.pool_file, pools, base, spares) if pools else None
 
     def parallel(self):
         """pgroups table: None, or (world, [(first division, [sizes])] top-down over the chain, [(global number, base

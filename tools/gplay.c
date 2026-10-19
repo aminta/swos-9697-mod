@@ -1272,11 +1272,19 @@ void rs_season(const u8 *t, const s8 *slt, s8 *copy, int world) {
    Table: db files; per file: db world, file, pools; per pool: db kind, n (pool records), then
      kind 0: db low; dw slots; slots x (dw global, db base division, db D area); n x db D area;
      kind 1: dw key (the state's first club's team word); db relegated; db slots; slots x (db ordinal, dw global,
-             db strength); n x db strength;
-     then n x db RS record (the pool's first order). */
-enum { RIS = 256, RF = 2, RP = 16, RQT = 192 };
+             db strength); n x db strength; db entries; entries x dw the contest's original team words;
+     then n x db RS record (the pool's first order).
+   Exact state relegation (Davide 2026-10-19): a LEAGUE club relegated from its state leaves the state contest (its
+   national place kept) and waits in the queue as a marker 0x8000 | its entry; the A2 club coming in takes a free
+   SPARE slot of the file (pack.json "state_spares": the file's last ordinals, in no contest), and the contest's entry
+   points to it: RI_STATE.ovr[pool][entry] = the new team word (0 = the original), applied to the contest list by
+   statecup (package 5) after every load and at the season start. A marker at the queue's head brings its league
+   club back (its spare's identity moves to the slot that goes down, or the spare passes to the entry that goes down).
+   No spare free: that league club stays (declared approximation). File header: db world, file, pools; dw base;
+   db spares; spares x db ordinal. */
+enum { RIS = 256, RF = 2, RP = 16, RQT = 192, RO = 16 };
 struct ri_file { u8 init, pad[3]; u16 map[RIS]; };
-struct ri_state { struct ri_file f[RF]; u8 qn[RP]; u16 q[RQT]; };
+struct ri_state { struct ri_file f[RF]; u8 qn[RP]; u16 q[RQT]; u16 ovr[RP][RO]; };
 struct ri_state RI_STATE;
 u8 RI_SWAPPED[RF][RIS / 8];                     /* (this season end's swapped slots: ri_cache) */
 int RI_MGR;                                     /* (the manager's club, global number: set by the glue, never swapped) */
@@ -1301,8 +1309,25 @@ static int ri_swap(struct ri_file *f, int fi, int i, u16 *q, int qn, int m, u16 
     return in;
 }
 
+static int ri_id(struct ri_file *f, int x) { return f->map[x] ? f->map[x] - 1 : x; }
+static void ri_set(struct ri_file *f, int fi, int x, int id) {
+    f->map[x] = id == x ? 0 : id + 1;
+    RI_SWAPPED[fi][x >> 3] |= 1 << (x & 7);
+}
+
+/* a free spare of the file (pools p0 .. p0 + np - 1 of it hold its overrides), or -1 */
+static int ri_spare(const u8 *sp, int ns, int file, int p0, int np) {
+    for (int s = 0; s < ns; s++) {
+        int w = file | sp[s] << 8, used = 0;
+        for (int p = p0; p < p0 + np && p < RP; p++)
+            for (int j = 0; j < RO; j++) if (RI_STATE.ovr[p][j] == w) used = 1;
+        if (!used) return sp[s];
+    }
+    return -1;
+}
+
 static const u8 *ri_pool(const u8 *e, struct ri_file *f, int fi, u16 *q, u8 *qn, const s8 *slt, s8 *copy,
-                         const u8 *sr, int run) {
+                         const u8 *sr, int run, int pi, int base, const u8 *sp, int nsp, int p0, int np) {
     int kind = e[0], n = e[1], manager = RI_MGR;
     const u8 *p = e + 2, *order;
     u16 out[64];
@@ -1327,43 +1352,44 @@ static const u8 *ri_pool(const u8 *e, struct ri_file *f, int fi, u16 *q, u8 *qn,
             copy[g] = slt[g];                   /* (the slot stays; pg_season places its new identity by area) */
         }
     } else {
-        int key = p[0] | p[1] << 8, rel = p[2], ns = p[3];
-        const u8 *sl = p + 4, *ps = sl + 4 * ns;
-        order = ps + n;
+        int key = p[0] | p[1] << 8, rel = p[2], ns = p[3], file = RI_FILES_FILE[fi];
+        const u8 *sl = p + 4, *ps = sl + 4 * ns, *en = ps + n + 1;
+        int ne = ps[n];
+        order = en + 2 * ne;
+        u16 *ovr = RI_STATE.ovr[pi < RP ? pi : RP - 1];
         if (run && f->init == 1) {
             for (int i = 0; i < n; i++) q[i] = RIS + order[i];
             *qn = n;
+            for (int j = 0; j < RO; j++) ovr[j] = 0;
         }
-        u8 pick[RIS / 8];
-        for (int i = 0; i < RIS / 8; i++) pick[i] = 0;
-        int got = 0;
-        if (run && sr && (sr[0] | sr[1] << 8) == key && sr[2]) {    /* played: the bottom state-only clubs */
-            for (int k = sr[2] - 1; k >= 0 && got < rel; k--) {
-                int w = sr[4 + 2 * k] | sr[5 + 2 * k] << 8;
-                for (int i = 0; i < ns; i++)
-                    if ((w & 0xFF) == RI_FILES_FILE[fi] && (w >> 8) == sl[4 * i] &&
-                        (sl[4 * i + 1] | sl[4 * i + 2] << 8) != manager) {
-                        int o = sl[4 * i];
-                        if (!(pick[o >> 3] & 1 << (o & 7))) { pick[o >> 3] |= 1 << (o & 7); got++; }
-                        break;
-                    }
+        u16 rw[16];                             /* the relegated, as the contest's current team words */
+        int nr = 0;
+        const u8 *b = sr;
+        while (run && b && (b[0] | b[1] << 8)) {    /* statespec's rankings ('SR'): this state's last 'rel' */
+            int nb = b[2];
+            if ((b[0] | b[1] << 8) == key) {
+                for (int k = nb - rel < 0 ? 0 : nb - rel; k < nb && nr < 16; k++) rw[nr++] = b[4 + 2 * k] | b[5 + 2 * k] << 8;
+                break;
             }
-        } else if (run && RI_RULE) {            /* not played: the weakest, or a draw weighted by weakness */
-            u8 st[RIS];
+            b += 4 + 2 * nb;
+        }
+        if (run && !(b && (b[0] | b[1] << 8)) && RI_RULE) {    /* no ranking: the fallback among the state-only */
+            u8 st[RIS], pick[RIS / 8];
             int smax = 0;
+            for (int i = 0; i < RIS / 8; i++) pick[i] = 0;
             for (int i = 0; i < ns; i++) {
-                int o = sl[4 * i], id = f->map[o] ? f->map[o] - 1 : o, s = 0;
-                for (int j = 0; id < RIS && j < ns; j++) if (sl[4 * j] == id) s = sl[4 * j + 3];
-                for (int j = 0; id >= RIS && j < n; j++) if (order[j] == id - RIS) s = ps[j];
+                int id = ri_id(f, sl[4 * i]), s = 0;
+                for (int jj = 0; id < RIS && jj < ns; jj++) if (sl[4 * jj] == id) s = sl[4 * jj + 3];
+                for (int jj = 0; id >= RIS && jj < n; jj++) if (order[jj] == id - RIS) s = ps[jj];
                 st[i] = s;
                 if (s > smax) smax = s;
             }
-            for (int r = 0; r < rel; r++) {
+            for (int r = 0; r < rel && nr < 16; r++) {
                 u32 tot = 0;
                 int best = -1;
                 for (int i = 0; i < ns; i++) {
                     int o = sl[4 * i];
-                    if ((pick[o >> 3] & 1 << (o & 7)) || (sl[4 * i + 1] | sl[4 * i + 2] << 8) == manager) continue;
+                    if (pick[o >> 3] & 1 << (o & 7)) continue;
                     u32 wgt = smax + 1 - st[i];
                     if (RI_RULE == 1) { if (best < 0 || st[i] < st[best]) best = i; }
                     else tot += wgt * wgt;
@@ -1372,7 +1398,7 @@ static const u8 *ri_pool(const u8 *e, struct ri_file *f, int fi, u16 *q, u8 *qn,
                     u32 x = ri_rand(tot);
                     for (int i = 0; i < ns; i++) {
                         int o = sl[4 * i];
-                        if ((pick[o >> 3] & 1 << (o & 7)) || (sl[4 * i + 1] | sl[4 * i + 2] << 8) == manager) continue;
+                        if (pick[o >> 3] & 1 << (o & 7)) continue;
                         u32 wgt = smax + 1 - st[i];
                         if (x < wgt * wgt) { best = i; break; }
                         x -= wgt * wgt;
@@ -1381,11 +1407,33 @@ static const u8 *ri_pool(const u8 *e, struct ri_file *f, int fi, u16 *q, u8 *qn,
                 if (best < 0) break;
                 int o = sl[4 * best];
                 pick[o >> 3] |= 1 << (o & 7);
+                rw[nr++] = file | o << 8;
             }
         }
-        for (int i = 0; run && i < ns && no < 64; i++) {
-            int o = sl[4 * i];
-            if (pick[o >> 3] & 1 << (o & 7)) ri_swap(f, fi, o, q, *qn, m++, out, &no);
+        for (int r = 0; r < nr && m < *qn && no < 64; r++) {
+            int j = -1;
+            for (int k = 0; k < ne && k < RO; k++)
+                if ((ovr[k] ? ovr[k] : (en[2 * k] | en[2 * k + 1] << 8)) == rw[r]) j = k;
+            if (j < 0) continue;
+            int cur = ovr[j] ? ovr[j] : (en[2 * j] | en[2 * j + 1] << 8);
+            int league = (cur & 0xFF) != file, x = cur >> 8;
+            if (!league && base + x == manager) continue;   /* (never the manager's club) */
+            int in = q[m], outid = league ? 0x8000 | j : ri_id(f, x);
+            if (in & 0x8000) {                  /* a league club comes back: its spare's identity / the spare */
+                int k = in & 0xFF, sw = ovr[k];
+                if (k >= RO || !sw) continue;
+                ovr[k] = 0;
+                if (league) ovr[j] = sw;
+                else ri_set(f, fi, x, ri_id(f, sw >> 8));
+            } else if (league) {                /* a league club goes: the A2 club into a free spare */
+                int s = ri_spare(sp, nsp, file, p0, np);
+                if (s < 0) continue;
+                ri_set(f, fi, s, in);
+                ovr[j] = file | s << 8;
+            } else
+                ri_set(f, fi, x, in);
+            out[no++] = outid;
+            m++;
         }
     }
     if (run && m) {                             /* the queue: drop the taken, append the outs */
@@ -1402,8 +1450,10 @@ void ri_season(const u8 *t, const s8 *slt, s8 *copy, int world, u8 *sr) {
     for (int fi = 0; fi < RF; fi++)
         for (int i = 0; i < RIS / 8; i++) RI_SWAPPED[fi][i] = 0;
     u32 h = 0x9E3779B9u;                        /* (the draw: the season's own table as seed) */
-    for (int g = 0; g < 2000; g++) h = h * 31 + (u8)slt[g];
+    int moved = 0;
+    for (int g = 0; g < 2000; g++) { h = h * 31 + (u8)slt[g]; if (copy[g] != slt[g]) moved = 1; }
     ri_rng = h;
+    if (!moved) return;                         /* (InitializeNewSeason at a career's start: no season end yet) */
     int nf = *t++, qo = 0, pi = 0;
     for (int fi = 0; fi < nf; fi++) {
         int w = t[0], np = t[2];
@@ -1414,17 +1464,20 @@ void ri_season(const u8 *t, const s8 *slt, s8 *copy, int world, u8 *sr) {
             for (int i = 0; i < RIS; i++) f->map[i] = 0;
             f->init = 1;
         }
-        t += 3;
+        int base = t[3] | t[4] << 8, nsp = t[5];
+        const u8 *sp = t + 6;
+        t = sp + nsp;
+        int p0 = pi;
         for (int k = 0; k < np; k++) {
             int n = t[1];
             t = ri_pool(t, f, fi, RI_STATE.q + qo, RI_STATE.qn + pi, slt, copy, sr,
-                        run && pi < RP && qo + n <= RQT);
+                        run && pi < RP && qo + n <= RQT, pi, base, sp, nsp, p0, np);
             qo += n;
             pi++;
         }
         if (run) f->init = 2;
     }
-    if (sr) sr[2] = 0;                          /* (the ranking used: a season without a played state has none) */
+    if (sr) sr[0] = sr[1] = 0;                  /* (the rankings used: a season end without any has none) */
 }
 
 /* A slot's record from its identity: everything but the slot's own bytes (file, ordinal, global number, controls,

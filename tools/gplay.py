@@ -43,6 +43,8 @@ pack.json league "ko_playoffs": [{ "key", "names": {lang: [long, short]},
              | {"group": {"rounds": 1..4, "bonus": [points per member], "host": "listed" | "neutral"},
                 "members": [...]} (a round robin; its placings P<k>, numbered across the group rounds)],
   "winner_div": d, "loser_div": d2 | "reserve" (out of the league), "skip_qualified": bool,
+  "host_by_record": bool (4.0 MLS: 'better' = the better record in the division's table - points, wins, goal
+  difference, goals - not the better place: conference tables in one division, the MLS Cup at the better record),
   "winners": w (a promotion play-off ending with a group: its top w go to winner_div) }]   (0-based divisions,
   1-based places; members: an entrant index, "W<k>" / "L<k>" the winner / loser of tie k, ties numbered in order
   across rounds, "P<k>" the k-th placing of the group rounds, "BL" the best placed loser of the previous knockout
@@ -88,7 +90,7 @@ def compile_spec(pos, ndiv):
                 ents.append((1, e['div'], 0, 0))
             elif isinstance(e, dict) and 'stage_place' in e:   # place of a split stage's kept table (title)
                 d, s, a = e.get('div', 0), e['stage_place'], e.get('place', 1)
-                if not (0 <= d < ndiv and (0 <= s < 2 or 4 <= s < 7) and a >= 1):   # (4..6: GP_SS)
+                if not (0 <= d < ndiv and (0 <= s < 2 or 4 <= s < 8) and a >= 1):   # (4..7: GP_SS)
                     raise ValueError(f'{key}: entrant {e}')
                 ents.append((3, d, a, s))
             elif isinstance(e, dict) and e.get('loser_of_previous'):   # the play-off before's final loser
@@ -184,7 +186,7 @@ def compile_spec(pos, ndiv):
             raise ValueError(f'{key}: winner_div / loser_div (a division, or "reserve")')
         if rounds and po['rounds'][-1].get('series'):
             raise ValueError(f'{key}: a best-of-three ("series": 3) not as the last round')
-        flags = (1 if po.get('skip_qualified') else 0) | ((win if win > 1 else 0) << 4)
+        flags = (1 if po.get('skip_qualified') else 0) | (2 if po.get('host_by_record') else 0) | ((win if win > 1 else 0) << 4)
         out += bytes((kind, len(ents), nrd, wd, ld, flags))
         out += b''.join(bytes(e) for e in ents) + rounds
     stages = set()                              # 4.0 ARG: the Trofeo's entrants (type 5) read GP_OUT.sres of the stage

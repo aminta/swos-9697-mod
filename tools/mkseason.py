@@ -1398,7 +1398,7 @@ def splits():
                     if st.get('then'):
                         import engine
                         engine.after_stage(st['then'])
-                    _need(st.get('table') in (None, 0, 1, 2), f'{ws}.table: 0..2 (GP_SS: stage_place 4..6)')
+                    _need(st.get('table') in (None, 0, 1, 2, 3), f'{ws}.table: 0..3 (GP_SS: stage_place 4..7)')
                     spec['stages'].append({'after': day, 'fixtures': fxd, 'members': mem, 'reset': bool(st.get('reset')),
                                            'then': st.get('then'), 'table': st.get('table'),
                                            'annual': bool(st.get('annual')), 'groups': [len(z) for z in st.get('zones') or [rows]]})

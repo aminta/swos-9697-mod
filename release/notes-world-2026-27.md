@@ -52,6 +52,20 @@ Not one fixed formula for everybody: each league plays the season the way its ow
 - **Argentina 2026**: the Liga Profesional of 30 in two zones of 15, Apertura and Clausura (16 matchdays each: the
   zone round robin, the clasico on the free day, a drawn interzonal day), the annual table, relegation by promedio
   (3 seasons) and by the annual table.
+<!-- REGIA STAGED (title play-offs, branch titlepo; publish when merged + TM_TITLE=1 + the champion applied):
+- **Title play-offs where the champion is decided after the table**:
+  - **Canada** (CPL): the top 4, semi-finals 1st v 4th and 2nd v 3rd over two legs (the better placed hosts the
+    return), a single final at the better placed's ground.
+  - **Australia** (A-League Men finals series): the top 6, single elimination finals 3rd v 6th and 4th v 5th,
+    two-legged semi-finals re-seeded (the 1st meets the lowest survivor), a single Grand Final at the better
+    placed's ground.
+  - **Costa Rica**: semi-finals 1st v 4th and 2nd v 3rd and a final, two legs each, then the two-legged Gran Final
+    between the table's leader and the play-off winner, not played when they are the same club.
+  - **Malta**: the champion comes from the Opening and Closing Rounds: one club winning both is champion with no
+    match; otherwise a Finalissima between the two round winners, or, with three or four clubs in the top two of the
+    rounds, a decider or a Final Four seeded by aggregate points.
+  Extra time and penalties where the tie is level. Declared for Malta: single matches at a neutral ground (the
+  rules give no format), no third-place match. -->
 - **Leagues with an odd number of clubs play real rounds**: one club rests each matchday, as in the real
   competitions (El Salvador's Tercera, Gibraltar, New Zealand, India, Taiwan ...); the original game's tables for odd
   sizes were not rounds.
@@ -465,6 +479,19 @@ Non una formula uguale per tutti: ogni campionato gioca la stagione come l'ha sc
 - **Argentina 2026**: la Liga Profesional a 30 in due zone da 15, Apertura e Clausura (16 giornate ciascuno: girone di
   zona, il clasico nel giorno di riposo, una giornata interzonale sorteggiata), la classifica annuale, retrocessione
   per promedio (3 stagioni) e per classifica annuale.
+<!-- REGIA STAGED (play-off per il titolo, ramo titlepo; da pubblicare col merge + TM_TITLE=1 + campione applicato):
+- **Play-off per il titolo dove il campione si decide dopo la classifica**:
+  - **Canada** (CPL): le prime 4, semifinali 1ª-4ª e 2ª-3ª andata e ritorno (ritorno in casa della meglio
+    piazzata), finale secca in casa della meglio piazzata.
+  - **Australia** (A-League Men): le prime 6, eliminatorie secche 3ª-6ª e 4ª-5ª, semifinali andata e ritorno con
+    nuovi accoppiamenti (la 1ª contro la peggio piazzata rimasta), Grand Final secca in casa della meglio piazzata.
+  - **Costa Rica**: semifinali 1ª-4ª e 2ª-3ª e finale, andata e ritorno, poi la Gran Final andata e ritorno tra la
+    prima in classifica e la vincitrice dei play-off, non giocata se sono lo stesso club.
+  - **Malta**: il campione esce dall'Opening e dal Closing Round: chi li vince entrambi è campione senza giocare;
+    altrimenti la Finalissima tra le due vincitrici o, con tre o quattro club nei primi due posti dei due round, uno
+    spareggio o una Final Four ordinata per punti complessivi.
+  Supplementari e rigori in caso di parità. Dichiarato per Malta: partite secche in campo neutro (il regolamento
+  non dice il formato), niente finale per il terzo posto. -->
 - **I campionati con un numero dispari di squadre giocano giornate vere**: a ogni turno una squadra riposa, come nelle
   competizioni reali (la Tercera di El Salvador, Gibilterra, Nuova Zelanda, India, Taiwan ...); le tabelle originali
   del gioco per le dimensioni dispari non erano giornate.

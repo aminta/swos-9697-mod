@@ -24,7 +24,7 @@ EXTRA = []      # [(world, contest id or None, {lang: title}, {lang: [lines]})] 
 LANGS = ('it', 'en', 'fr', 'de')
 
 T = {
-    'it': dict(promedio=['GIU: ULTIMO PROMEDIO (3 STAGIONI)', 'E ULTIMO DELLA CLASSIFICA ANNUALE;', 'PARI: SPAREGGIO IN CAMPO NEUTRO'], po_kind={'promotion': 'PLAY-OFF PROMOZIONE', 'europe': 'PLAY-OFF EUROPEO', 'placement': 'SPAREGGIO', 'playout': 'PLAY-OUT', 'title': 'PLAY-OFF SCUDETTO'}, better='IN PARITA PASSA LA MEGLIO PIAZZATA', et_better='SUPPLEMENTARI, POI LA MEGLIO PIAZZATA', gap='NON SI GIOCA SE C SONO {n}+ PUNTI DI DISTACCO', win_to='LA VINCENTE IN {d}', ita=['PLAY-OFF B: 3A-8A, PLAY-OUT: 16A-17A', 'PLAY-OFF C A 28 SQUADRE: 4A PROMOSSA'],
+    'it': dict(promedio=['GIU: ULTIMO PROMEDIO (3 STAGIONI)', 'E ULTIMO DELLA CLASSIFICA ANNUALE;', 'PARI: SPAREGGIO IN CAMPO NEUTRO'], po_kind={'promotion': 'PLAY-OFF PROMOZIONE', 'europe': 'PLAY-OFF EUROPEO', 'placement': 'SPAREGGIO', 'playout': 'PLAY-OUT', 'title': 'PLAY-OFF SCUDETTO'}, better='IN PARITA PASSA LA MEGLIO PIAZZATA', et_better='SUPPLEMENTARI, POI LA MEGLIO PIAZZATA', gap='NON SI GIOCA SE C SONO {n}+ PUNTI DI DISTACCO', same='NON SI GIOCA SE E LA STESSA SQUADRA', seeds='TESTE DI SERIE {a}-{b} DELLE FASI', win_to='LA VINCENTE IN {d}', ita=['PLAY-OFF B: 3A-8A, PLAY-OUT: 16A-17A', 'PLAY-OFF C A 28 SQUADRE: 4A PROMOSSA'],
                teams='{n} SQUADRE', clubs='{n} SQUADRE', rr={1: 'GIRONE DI SOLA ANDATA', 2: 'ANDATA E RITORNO', 3: 'TRE GIRONI',
                                         4: 'QUATTRO GIRONI'},
                days='{n} GIORNATE', rest='UNA SQUADRA RIPOSA OGNI GIORNATA', pts='VITTORIA {w} PUNTI, PAREGGIO 1',
@@ -37,7 +37,7 @@ T = {
                gen='SORTEGGIO DEL GIOCO', groups='{k} GIRONI PARALLELI DA {s}', split='DOPO {a} GIORNATE:',
                grp='{a}-{b}: {rr}', grp0='{a}-{b}: NIENT ALTRO', half=', PUNTI DIMEZZATI', reset=', DA 0 PUNTI',
                po='{name}: {who}', third='FINALE 3. POSTO', ord=lambda n: f'{n}A'),
-    'en': dict(promedio=['DOWN: THE LAST 3-SEASON PROMEDIO', 'AND THE LAST OF THE ANNUAL TABLE;', 'LEVEL: A PLAY-OFF, NEUTRAL GROUND'], po_kind={'promotion': 'PROMOTION PLAY-OFF', 'europe': 'EUROPEAN PLAY-OFF', 'placement': 'PLACEMENT PLAY-OFF', 'playout': 'PLAY-OUT', 'title': 'TITLE PLAY-OFF'}, better='LEVEL: THE BETTER PLACED GOES THROUGH', et_better='EXTRA TIME, THEN THE BETTER PLACED', gap='NOT PLAYED WITH A {n}+ POINT GAP', win_to='THE WINNER TO {d}', ita=['SERIE B PLAY-OFF 3RD-8TH, PLAY-OUT 16-17', 'SERIE C PLAY-OFF OF 28 CLUBS: 4TH UP'],
+    'en': dict(promedio=['DOWN: THE LAST 3-SEASON PROMEDIO', 'AND THE LAST OF THE ANNUAL TABLE;', 'LEVEL: A PLAY-OFF, NEUTRAL GROUND'], po_kind={'promotion': 'PROMOTION PLAY-OFF', 'europe': 'EUROPEAN PLAY-OFF', 'placement': 'PLACEMENT PLAY-OFF', 'playout': 'PLAY-OUT', 'title': 'TITLE PLAY-OFF'}, better='LEVEL: THE BETTER PLACED GOES THROUGH', et_better='EXTRA TIME, THEN THE BETTER PLACED', gap='NOT PLAYED WITH A {n}+ POINT GAP', same='NOT PLAYED IF ONE CLUB IS ON BOTH SIDES', seeds="SEEDS {a}-{b} OF THE SEASON'S ROUNDS", win_to='THE WINNER TO {d}', ita=['SERIE B PLAY-OFF 3RD-8TH, PLAY-OUT 16-17', 'SERIE C PLAY-OFF OF 28 CLUBS: 4TH UP'],
                teams='{n} TEAMS', clubs='{n} CLUBS', rr={1: 'SINGLE ROUND ROBIN', 2: 'HOME AND AWAY', 3: 'TRIPLE ROUND ROBIN',
                                       4: 'QUADRUPLE ROUND ROBIN'},
                days='{n} MATCHDAYS', rest='ONE CLUB RESTS EACH MATCHDAY', pts='WIN {w} POINTS, DRAW 1',
@@ -50,7 +50,7 @@ T = {
                gen='DRAWN BY THE GAME', groups='{k} PARALLEL GROUPS OF {s}', split='AFTER {a} MATCHDAYS:',
                grp='{a}-{b}: {rr}', grp0='{a}-{b}: NO MORE MATCHES', half=', POINTS HALVED', reset=', FROM 0 POINTS',
                po='{name}: {who}', third='THIRD PLACE MATCH', ord=lambda n: f'{n}{complist._sfx(n).upper()}'),
-    'fr': dict(promedio=['DESCENTE: DERNIER PROMEDIO (3 ANS)', 'ET DERNIER DU CLASSEMENT ANNUEL;', 'EGALITE: BARRAGE, TERRAIN NEUTRE'], po_kind={'promotion': 'BARRAGES DE MONTEE', 'europe': 'BARRAGES EUROPEENS', 'placement': 'BARRAGES DE CLASSEMENT', 'playout': 'BARRAGES DE MAINTIEN', 'title': 'PLAY-OFF DU TITRE'}, better='NUL: LE MIEUX CLASSE PASSE', et_better='PROLONGATION, PUIS LE MIEUX CLASSE', gap='PAS JOUE AVEC {n}+ POINTS D ECART', win_to='LE VAINQUEUR EN {d}', ita=['BARRAGES SERIE B 3E-8E, MAINTIEN 16E-17E', 'BARRAGES SERIE C A 28 CLUBS: 4E PROMU'],
+    'fr': dict(promedio=['DESCENTE: DERNIER PROMEDIO (3 ANS)', 'ET DERNIER DU CLASSEMENT ANNUEL;', 'EGALITE: BARRAGE, TERRAIN NEUTRE'], po_kind={'promotion': 'BARRAGES DE MONTEE', 'europe': 'BARRAGES EUROPEENS', 'placement': 'BARRAGES DE CLASSEMENT', 'playout': 'BARRAGES DE MAINTIEN', 'title': 'PLAY-OFF DU TITRE'}, better='NUL: LE MIEUX CLASSE PASSE', et_better='PROLONGATION, PUIS LE MIEUX CLASSE', gap='PAS JOUE AVEC {n}+ POINTS D ECART', same='PAS JOUE SI LE MEME CLUB DES DEUX COTES', seeds='TETES DE SERIE {a}-{b} DES PHASES', win_to='LE VAINQUEUR EN {d}', ita=['BARRAGES SERIE B 3E-8E, MAINTIEN 16E-17E', 'BARRAGES SERIE C A 28 CLUBS: 4E PROMU'],
                teams='{n} EQUIPES', clubs='{n} CLUBS', rr={1: 'MATCHS ALLER', 2: 'MATCHS ALLER ET RETOUR', 3: 'TROIS TOURS',
                                       4: 'QUATRE TOURS'},
                days='{n} JOURNEES', rest='UN CLUB AU REPOS A CHAQUE JOURNEE', pts='VICTOIRE {w} POINTS, NUL 1',
@@ -64,7 +64,7 @@ T = {
                grp='{a}-{b}: {rr}', grp0='{a}-{b}: PLUS DE MATCHS', half=', POINTS DIVISES PAR 2',
                reset=', A PARTIR DE 0 POINT', po='{name}: {who}', third='MATCH POUR LA 3E PLACE',
                ord=lambda n: f'{n}E'),
-    'de': dict(promedio=['ABSTIEG: LETZTER PROMEDIO (3 SAISONS)', 'UND LETZTER DER JAHRESTABELLE;', 'GLEICH: ENTSCHEIDUNGSSPIEL, NEUTRAL'], po_kind={'promotion': 'AUFSTIEGSPLAYOFFS', 'europe': 'EUROPAPOKAL-PLAYOFFS', 'placement': 'PLATZIERUNGSSPIELE', 'playout': 'ABSTIEGSPLAYOFFS', 'title': 'MEISTER-PLAYOFFS'}, better='REMIS: DER BESSER PLATZIERTE', et_better='VERLAENGERUNG, DANN DER BESSER PLATZIERTE', gap='NICHT GESPIELT BEI {n}+ PUNKTEN ABSTAND', win_to='DER SIEGER IN DIE {d}', ita=['SERIE B: PLAYOFFS 3.-8., PLAYOUT 16.-17.', 'SERIE C: PLAYOFFS MIT 28 VEREINEN: 4. AUF'],
+    'de': dict(promedio=['ABSTIEG: LETZTER PROMEDIO (3 SAISONS)', 'UND LETZTER DER JAHRESTABELLE;', 'GLEICH: ENTSCHEIDUNGSSPIEL, NEUTRAL'], po_kind={'promotion': 'AUFSTIEGSPLAYOFFS', 'europe': 'EUROPAPOKAL-PLAYOFFS', 'placement': 'PLATZIERUNGSSPIELE', 'playout': 'ABSTIEGSPLAYOFFS', 'title': 'MEISTER-PLAYOFFS'}, better='REMIS: DER BESSER PLATZIERTE', et_better='VERLAENGERUNG, DANN DER BESSER PLATZIERTE', gap='NICHT GESPIELT BEI {n}+ PUNKTEN ABSTAND', same='ENTFAELLT BEI GLEICHEM VEREIN', seeds='SETZPLAETZE {a}-{b} DER RUNDEN', win_to='DER SIEGER IN DIE {d}', ita=['SERIE B: PLAYOFFS 3.-8., PLAYOUT 16.-17.', 'SERIE C: PLAYOFFS MIT 28 VEREINEN: 4. AUF'],
                teams='{n} MANNSCHAFTEN', clubs='{n} VEREINE', rr={1: 'EINFACHRUNDE', 2: 'HIN- UND RUECKRUNDE', 3: 'DREI RUNDEN',
                                         4: 'VIER RUNDEN'},
                days='{n} SPIELTAGE', rest='JEDEN SPIELTAG HAT EIN VEREIN FREI', pts='SIEG {w} PUNKTE, REMIS 1',
@@ -183,7 +183,8 @@ def po_text(po, names, t, lang):
     for e in po.get('entrants', []):
         if isinstance(e, list):
             by.setdefault(e[0], []).append(e[1])
-    who = []
+    seeds = sorted(e['split_seed'] for e in po.get('entrants', []) if isinstance(e, dict) and 'split_seed' in e)
+    who = [t['seeds'].format(a=seeds[0], b=seeds[-1])] if seeds else []
     for dv, pls in sorted(by.items()):
         pls = sorted(pls)
         rng = t['ord'](pls[0]) if len(pls) == 1 else (f"{t['ord'](pls[0])}-{t['ord'](pls[-1])}"
@@ -200,6 +201,8 @@ def po_text(po, names, t, lang):
         out += [t['r1'].format(a=i + 1) + x for i, x in enumerate(rs)]
     if any(r.get('gap') for r in po['rounds']):
         out.append(t['gap'].format(n=max(r.get('gap') or 0 for r in po['rounds'])))
+    if any(r.get('skip_if_same') for r in po['rounds']):
+        out.append(t['same'])
     if po.get('kind') == 'promotion' and po.get('winner_div') is not None and names:
         out.append(t['win_to'].format(d=complist._nm(names[po['winner_div']], lang)))
     return out

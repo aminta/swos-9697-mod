@@ -53,7 +53,8 @@ P = {
                      'drawn': 'home order drawn', 'neutral': 'neutral ground'},
                level={'better': 'level: the better placed goes through', 'et_pens': 'extra time and penalties',
                       'et_better': 'extra time, then the better placed', 'pens': 'penalties'},
-               gap='not played when the two clubs are {n}+ points apart', winner_to='the winner to {div}',
+               gap='not played when the two clubs are {n}+ points apart', same_club='not played if one club is on both sides',
+               seeds='the {a}-{b} seeds of the season\'s rounds', winner_to='the winner to {div}',
                loser_to='the loser to {div}', reserve='the reserve (out of the world)',
                cup='{n} clubs', cup_from='from the {rnd}', cup_real=lambda k, t, season: 'the clubs still in the real '
                f'{season} cup, ' + ('all ' + str(t) if k == t and t > 1 else 'the only' if k == t else f'{k} of the {t}')
@@ -102,7 +103,8 @@ P = {
                      'drawn': 'ordine in casa sorteggiato', 'neutral': 'campo neutro'},
                level={'better': 'in parità passa la meglio piazzata', 'et_pens': 'supplementari e rigori',
                       'et_better': 'supplementari, poi la meglio piazzata', 'pens': 'rigori'},
-               gap='non si gioca se le due squadre sono a {n} o più punti', winner_to='la vincente in {div}',
+               gap='non si gioca se le due squadre sono a {n} o più punti', same_club='non si gioca se la stessa squadra è da entrambe le parti',
+               seeds='le teste di serie {a}-{b} delle fasi della stagione', winner_to='la vincente in {div}',
                loser_to='la perdente in {div}', reserve='la riserva (fuori dal mondo)',
                cup='{n} squadre', cup_from='{rnd}', cup_real=lambda k, t, season: 'le squadre ancora in corsa nella '
                f'vera coppa {season}, ' + _it_pairs(k, t) + ' del primo turno come nel sorteggio vero',
@@ -320,7 +322,8 @@ def _who(po, names, t, lang):
     for e in po.get('entrants', []):
         if isinstance(e, list):
             by.setdefault(e[0], []).append(e[1])
-    txt = []
+    seeds = sorted(e['split_seed'] for e in po.get('entrants', []) if isinstance(e, dict) and 'split_seed' in e)
+    txt = [t['seeds'].format(a=seeds[0], b=seeds[-1])] if seeds else []
     for dv, pls in by.items():
         pls = sorted(pls)
         rng = t['ord'](pls[0]) if len(pls) == 1 else \
@@ -339,6 +342,8 @@ def _po(po, names, t, lang):
                 t['level'].get(r.get('level', 'et_pens'), '')]
         if r.get('gap'):
             bits.append(t['gap'].format(n=r['gap']))
+        if r.get('skip_if_same'):
+            bits.append(t['same_club'])
         return ', '.join(b for b in bits if b)
     rs = [one(r) for r in po['rounds']]
     if len(rs) == 1:

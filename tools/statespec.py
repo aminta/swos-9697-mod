@@ -200,6 +200,12 @@ def compile_state(c, n_clubs):
             _need(sorted(x['pairs']) == sorted(toks), f"{sw} pairs must list {' '.join(toks)} once each")
             draws.append((n, [toks.index(t_) for t_ in x['pairs']], False))
             ko.append((n, k, 0, prev['teams'] + bb, draws[-1][1]))   # (g = 0: winners of the k ties, then byes)
+        elif x.get('pairing') == 'merit':                # after a group stage: the qualifiers in merit order (the
+            _need(i > 0 and prev['type'] == 'groups' and x['type'] == 'knockout',   # engine's), 1st v last, 2nd v
+                  f'{sw} pairing merit: a knockout after a group stage')            # last but one ... (Mineiro)
+            pm = [v for k_ in range(n // 2) for v in (k_, n - 1 - k_)]
+            draws.append((n, pm, False))
+            ko.append((n, 0, 255, 0, pm))                # (g = 255: positions in the copy's +59h)
         elif i == 0:
             draws.append((n, list(range(n)), False))     # the clubs into the groups in list order
         elif prev['type'] != 'groups' and n > 2:
@@ -238,6 +244,9 @@ def register_test():
             sp = compile_state(dict(TEST2_SPEC, clubs=list(range(n2))), n2)
             TEST_DRAWS[:] = [(TEST_ID, pm, srt, (TEST_FILE, 0)) for pm, srt in sp['draws']]
             ST_DRAWS[:] = [(TEST_ID, 0, n, b, TEST_FILE, g, sz, pm) for n, b, g, sz, pm in sp['ko_draws']]
+            if sp['fixture']:
+                import lp36
+                lp36.FIXTURES[(TEST_ID, (TEST_FILE, 0))] = sp['fixture']
         return
     if not TEST:
         return
@@ -260,7 +269,7 @@ ST_DRAWS = []                           # (id, world, N, b, first club word, per
                                         # draws in careers (mkseason.state_draws adds the packs' own)
 
 
-TEST2 = os.environ.get('STATESPEC_TEST') in ('2', '3')   # (2: byes, a Pernambucano shape; 3: a Cearense shape)
+TEST2 = os.environ.get('STATESPEC_TEST') in ('2', '3', '4')   # (2: byes, Pernambucano; 3: Cearense; 4: Mineiro)
 TEST2_SPEC = {'key': 'test2', 'type': 'state', 'id': 'F1', 'win_points': 3, 'months': [1, 6],
               'names': {'*': ['CAMPEONATO TESTE', 'TESTE']},
               'stages': [{'type': 'groups', 'teams': 8, 'groups': 1, 'meetings': 1},
@@ -274,8 +283,15 @@ TEST3_SPEC = {'key': 'test3', 'type': 'state', 'id': 'F1', 'win_points': 3, 'mon
                          {'type': 'groups', 'teams': 6, 'groups': 2, 'from': ['1A', '2A', '3A', '1B', '2B', '3B']},
                          {'type': 'knockout', 'teams': 4, 'matches': 'two_legs', 'from': ['2B', '1A', '2A', '1B']},
                          {'type': 'knockout', 'teams': 2, 'matches': 'two_legs'}]}
+TEST4_SPEC = {'key': 'test4', 'type': 'state', 'id': 'F1', 'win_points': 3, 'months': [1, 6],
+              'names': {'*': ['CAMPEONATO TESTE', 'TESTE']},
+              'stages': [{'type': 'groups', 'teams': 12, 'groups': 3, 'meetings': 1, 'cross': 3},
+                         {'type': 'knockout', 'teams': 4, 'matches': 'two_legs', 'pairing': 'merit'},
+                         {'type': 'knockout', 'teams': 2, 'matches': 'single'}]}
 if os.environ.get('STATESPEC_TEST') == '3':
     TEST2_SPEC = TEST3_SPEC
+if os.environ.get('STATESPEC_TEST') == '4':
+    TEST2_SPEC = TEST4_SPEC
 
 
 def test_contest(p, at):
@@ -344,6 +360,8 @@ st_ko:                                  ; replaces `call 0x16711` (the round's t
 .sth:
     cmp byte [ebx + 5], 0               ; g = 0: the stage after one with byes ('pairs')
     je .pairs
+    cmp byte [ebx + 5], 0FFh            ; g = 255: positions in the copy's merit-ordered list ('pairing' merit)
+    je .pos
     mov edi, ST_SB                      ; (SB = FFh until this round's list is known: a stage after it finds no
     push ecx                            ; winners and keeps the game's order)
     mov ecx, 32
@@ -384,6 +402,17 @@ st_ko:                                  ; replaces `call 0x16711` (the round's t
     shr ecx, 1
     mov [NCW + 4Fh], cx
     mov [NCW + 51h], cx
+    jmp .sx
+.pos:
+    xor edi, edi
+.po:
+    movzx eax, byte [ebx + 7 + edi]
+    mov al, [DIYCOPY + 59h + eax]
+    mov [ST_T + edi], al
+    inc edi
+    cmp edi, ecx
+    jb .po
+    call .put
     jmp .sx
 .pairs:                                 ; [ebx + 4] = the stage before's ties k, [ebx + 6] its clubs N'; code c < k:
     xor edi, edi                        ; the winner of tie c, else
@@ -683,11 +712,15 @@ def ko_program(c):
             legs = 2 if x.get('matches') == 'two_legs' else 1
             b = x.get('byes') or []
             q = n + len(b)
-            if prev['type'] == 'groups':
+            if prev['type'] == 'groups' and not x.get('from'):   # the first q of the merit order (MG: 3 winners +
+                pm = list(range(q))                                # the best 2nd), 'pairing' merit: 1st v last ...
+                if x.get('pairing') == 'merit':
+                    pm = [v for k_ in range(q // 2) for v in (k_, q - 1 - k_)]
+                out += bytes([2, q, len(b), legs, 3] + pm)
+            elif prev['type'] == 'groups':
                 gp = prev.get('groups', 1)
                 labels = [f'{r}{chr(65 + k)}' for r in range(1, -(-q // gp) + 1) for k in range(gp)]
-                frm = (x.get('from') or labels[:n]) + b   # (no from: the first n of the merit order, e.g. MG's
-                _need(len(frm) == q, f'{w} statesim: {q} clubs for stage {i + 1}')   # 3 winners + a 2nd)
+                frm = x['from'] + b
                 out += bytes([2, q, len(b), legs, 0] + [labels.index(t) for t in frm])
             elif x.get('pairs'):
                 k, bb = prev['teams'] // 2, len(prev.get('byes') or [])

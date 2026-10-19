@@ -155,6 +155,7 @@ static int knockouts(const u8 **tp) {
             for (int k = 0; k < N; k++) {
                 int c = *t++;
                 if (mode == 0) L[k] = pcode(P, pn, pg, c);
+                else if (mode == 3) L[k] = c < pn ? P[c] : -1;     /* (positions in the merit order) */
                 else if (mode == 1) L[k] = c < nw ? W[c] : (c - nw < nb ? B[c - nw] : -1);
                 else L[k] = c < nw ? W[c] : -1;
             }

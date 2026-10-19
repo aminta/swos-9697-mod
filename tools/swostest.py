@@ -5083,6 +5083,36 @@ def statespec_byes():
 
 
 @scenario
+def statespec_merit():
+    """State knockout by merit (statespec 'pairing': 'merit', statespec.st_ko positions; STATESPEC_TEST=4 build: a
+    Mineiro-shaped world-0 test state F1 at ATL PARANAENSE: 3 cross blocks of 4, the engine's 4 qualifiers (3
+    winners + the best 2nd, merit order): SF 1st v 4th, 2nd v 3rd; final)"""
+    b = os.environ.get('STATESPEC_BUILD4') or builds()['it']
+    errs, seen = [], {}
+    with Session('statespec_merit', b, {}, 'dump:2', 1800) as s:
+        s.wait()
+        new_career(s, 'BRASILE', None, 'ATL PARANAENSE', 'SUDAMERICA')
+
+        def stop(scr):
+            state_rounds(s.result, 0xF1, seen)
+            return season_over(scr)
+        ok, msg = advance(s, stop, 1700)
+    check(ok, f'season: {msg}', errs)
+    R = seen.get('rank')
+    if R and seen.get(4) and seen.get(2):
+        sf, st = seen[4][0]
+        check(st == 2 and tie_sets(sf, 2) == [frozenset((R[0], R[3])), frozenset((R[1], R[2]))],
+              f'SF {sf} (ranking {R})', errs)
+        fin = set(seen[2][0][0])
+        a, c = tie_sets(sf, 2)
+        check(len(fin & a) == 1 and len(fin & c) == 1, f'final {sorted(fin)}', errs)
+    else:
+        check(False, f'ranking {R}, rounds {sorted(k for k in seen if k != "rank")}', errs)
+    return not errs, '; '.join(errs + [f'{msg}; ranking {R}, rounds ' + ', '.join(
+        f'{n}: {v[0]}' for n, v in sorted((k, v) for k, v in seen.items() if k != 'rank'))])
+
+
+@scenario
 def statespec_test():
     """State championships (statespec.py, STATESPEC_TEST=1 build: world 0's Brazil gets a Paranaense-shaped test state,
     id F1): a career at ATL PARANAENSE plays it in slot 1: 12 clubs in 2 blocks of 6 playing only the OTHER block

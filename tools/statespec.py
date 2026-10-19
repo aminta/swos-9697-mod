@@ -44,6 +44,32 @@ import struct
 from mkseason import MATCHES, _need
 
 
+def group_calendar(g, size, meetings=1):
+    """A round robin inside each of g groups of size (lp36.FIXTURES: match m = g * pair index + group; a group's
+    pairs in day order, floor(size / 2) a day, a bye when size is odd; the second meeting the return matches).
+    Returns (calendar [(home, away) club indices], days)."""
+    rounds = []
+    for x in range(g):
+        mem = list(range(x * size, (x + 1) * size)) + ([None] if size % 2 else [])
+        m = len(mem)
+        days = []
+        for r in range(m - 1):
+            day = []
+            for k in range(m // 2):
+                a, b = mem[k], mem[m - 1 - k]
+                if a is None or b is None:
+                    continue
+                day.append((a, b) if (r + k) % 2 == 0 else (b, a))
+            days.append(day)
+            mem = [mem[0]] + [mem[-1]] + mem[1:-1]
+        if meetings == 2:
+            days += [[(b, a) for a, b in d] for d in days]
+        rounds.append([pr for d in days for pr in d])
+    npairs = len(rounds[0])
+    cal = [rounds[x][q] for q in range(npairs) for x in range(g)]
+    return cal, (size - 1 + size % 2) * meetings
+
+
 def cross_calendar(n, blocks, seed=2026):
     """n clubs in `blocks` equal blocks (list order): every pair of different blocks once, in rounds where every club
     plays (n even); home sides balanced (each club home ceil / floor of half its matches). [(home, away)] by day."""
@@ -152,6 +178,9 @@ def compile_state(c, n_clubs):
                       f'{sw} cross k: the first stage, k equal blocks, groups 1 or k, one meeting, even teams')
                 cal, days = cross_calendar(n, cr)
                 fixture = (g, n // g, days, cal)
+            if i == 0 and not cr and g > 1 and not x.get('fixtures'):   # (careers: a fixed calendar inside each
+                cal, days = group_calendar(g, n // g, mt)          # group, so the groups are the clubs' list blocks
+                fixture = (g, n // g, days, cal)                    # - the game's own draw scatters them: Cearense)
             fx = x.get('fixtures')
             if fx:
                 _need(i == 0 and not cr and g == 1 and mt == 1 and n % 2 == 0,

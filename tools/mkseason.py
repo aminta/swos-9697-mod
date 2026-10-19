@@ -1165,6 +1165,8 @@ def packs():
     if not hasattr(packs, 'cache'):
         packs.cache = [Pack(x if os.sep in x else os.path.join(PACKS, x)) for x in ENABLED
                        if os.path.basename(x.rstrip(os.sep)) != NATIONAL]
+        bad = [b for pk in packs.cache for b in complist.check_titles(pk.meta, [r.get('name', '') for r in pk.clubs.values()])]
+        _need(not bad, 'names the game cannot show: ' + '; '.join(bad[:10]))
     return packs.cache
 
 

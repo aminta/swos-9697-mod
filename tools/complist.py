@@ -208,6 +208,42 @@ def fit_titles(m):
     return m
 
 
+FONT = set(" &'()-./0123456789:,!?+ABCDEFGHIJKLMNOPQRSTUVWXYZ")   # the characters the game's menu fonts draw (4.0)
+
+
+def check_titles(m, clubs=()):
+    """Problems of pack.json m (after fit_titles): a title '<country> <long>' over TITLE_MAX, or a character outside FONT in
+    any name (competitions, divisions, play-offs, clubs). Davide: no stray characters may ever ship."""
+    bad = []
+    bn = m.get('button_names') or {}
+
+    def chk(names, where):
+        if not isinstance(names, dict):
+            return
+        for lang in LANGS:
+            v = names.get(lang) or names.get('*') or next(iter(names.values()), None)
+            if not isinstance(v, list):
+                continue
+            country = (bn.get(lang) or m.get('button') or '').upper()
+            if len(country) + 1 + len(v[0]) > TITLE_MAX:
+                bad.append(f"{m.get('id')} {where} {lang}: title over {TITLE_MAX}: {country} {v[0]}")
+            for x in [country] + list(v):
+                odd = sorted(set(x.upper()) - FONT)
+                if odd:
+                    bad.append(f"{m.get('id')} {where} {lang}: characters {odd} in {x!r}")
+    for c in m.get('competitions', []) or []:
+        chk(c.get('names'), c.get('key'))
+        for i, dv in enumerate(c.get('divisions', []) or []):
+            chk((dv or {}).get('names'), f"{c.get('key')} division {i}")
+        for po in c.get('ko_playoffs', []) if isinstance(c.get('ko_playoffs'), list) else []:
+            chk((po or {}).get('names'), po.get('key') if isinstance(po, dict) else '?')
+    for name in clubs:
+        odd = sorted(set(name.upper()) - FONT)
+        if odd:
+            bad.append(f"{m.get('id')} club {name!r}: characters {odd}")
+    return bad
+
+
 def load_pack(d):
     """pack.json of directory d, its titles fitted (fit_titles)."""
     return fit_titles(json.load(open(os.path.join(d, 'pack.json'), encoding='utf-8')))

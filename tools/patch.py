@@ -49,6 +49,8 @@ import arg97
 import lib97
 import sacups
 import trailer
+import menulevels
+import menutab
 import nasmcave
 from strpool import StrPool
 
@@ -305,6 +307,7 @@ def patch_exe(src, dst, remap, lang='it'):
     if bigtables.ON[0]:
         assert bigw, 'a world numbering clubs 2000+ is a big world (careerworld.big)'
         bigtables.retarget(p, area)             # before every user of someLeaguesTable / leaguesTableCopy
+    menutab.patch(p, area)                      # 4.0: the team-choice list of > 10 competitions (Italy 2026-27: 14)
     world, caf = cafcups.structs(p, area, WORLD_CAVE)
     world = countries.patch(p, lang, area, world, cafcups.continents(caf))
     fin_end, fin_pre = finals97.code(p, FIN_CAVE)  # 2.1: NSL/NSSL finals (lib_pre calls fin_pre)
@@ -408,7 +411,7 @@ def patch_exe(src, dst, remap, lang='it'):
     if ri_tabs:                                 # the off-file pool's buffers (Italy's file as read, the pool's file)
         import ripool
         ri_bss = careerworld.BSS[0] + careerworld.BSS_SIZE
-        careerworld.BSS_SIZE += (ripool.BSS_NEED + 0xFFF) & ~0xFFF
+        careerworld.BSS_SIZE += (ripool.bss_need(ri_tabs) + 0xFFF) & ~0xFFF
     assert cave <= WORLD_CAVE, hex(cave)
     print(f'exe: caves: world end {world:#x} (limit {NZ_CAVE:#x}), arg end {arg_end:#x} (limit {OBJ1_NEW_VSIZE:#x})')
     world = cafcups.intl_list(p, caf, world)
@@ -424,6 +427,7 @@ def patch_exe(src, dst, remap, lang='it'):
     cos = menumusic.patch(p, cos)                # 3.3.6: menu music when the main menu opens (SWOS++ options load late)
     cos = fmtpage.patch(p, cos, lang, area, num_bss + shirtnum.BSS_SIZE + blond.BSS_SIZE + menunum.BSS_SIZE,
                          careerworld.SITES if worlds else None)   # FORMAT page (5.0)
+    cos = menulevels.patch(p, cos, area, lang)   # 4.0: team choice of a league with levels of groups: level, then group
     if cos_pg:
         assert cos <= hist2 + h2 + 0x1000 * lpb, hex(cos)
     else:
@@ -434,7 +438,7 @@ def patch_exe(src, dst, remap, lang='it'):
         ri = None
         if ri_tabs:                                              # the off-file pool (Eccellenza): its own page
             rp = hist2 + h2 + 0x1000 * (lpb - cos_pg - 1)
-            re_, ri = ripool.patch(p, rp, ri_bss, ri_tabs, 'data/rs%d%03d.dat' % ri_tabs[0][:2])
+            re_, ri = ripool.patch(p, rp, ri_bss, ri_tabs)
             assert re_ <= rp + 0x1000, hex(re_)
         if pg_tabs or rs_tabs or ri_tabs:                        # parallel groups' / reserves' season end (pgroups.py)
             xe = pgroups.patch(p, (xe + 15) & ~15, pg_tabs, gplay.LABELS['pg_season'], rs_tabs, gplay.LABELS['rs_season'],

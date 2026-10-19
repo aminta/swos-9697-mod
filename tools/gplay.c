@@ -61,7 +61,8 @@ static const struct gp_dec *stage_dec(int k);   /* (GP_ST's, this season's, or 0
 enum { SS_N = 3, SS_BASE = 4 };      /* stage tables of a league with fixture stages (split 'table'): entrant
                                         'stage_place' s = SS_BASE + k (Argentina: 4 Apertura, 5 Clausura, 6 the
                                         annual table); saved with the career (engine item 'SS') */
-struct gp_ss { u8 n[SS_N], fresh; struct gp_row r[SS_N][GT]; };   /* fresh: r[2] written this season (promedio) */
+struct gp_ss { u8 n[SS_N], fresh; struct gp_row r[SS_N][GT]; };   /* fresh: bit k = r[k] written this season */
+static int ss_used;                     /* (a play-off read GP_SS this season end: fresh cleared after) */
 struct gp_ss GP_SS;
 const u32 GP_LAYOUT[] = { sizeof(struct gp_row), GT, __builtin_offsetof(struct gp_in, n),
                           __builtin_offsetof(struct gp_in, t), __builtin_offsetof(struct gp_in, spec),
@@ -158,8 +159,15 @@ static void result(int kind, int w, int l) {
 static int stage_club(int d, int s, int a) {   /* place a of kept stage s -> its row of division d, or -1 */
     u16 g;
     if (s >= SS_BASE && s < SS_BASE + SS_N) {
-        if (a < 1 || a > GP_SS.n[s - SS_BASE] || d >= GP_IN.nd) return -1;
-        g = GP_SS.r[s - SS_BASE][a - 1].glob;
+        int k = s - SS_BASE;
+        ss_used = 1;
+        if (!(GP_SS.fresh & 1 << k)) {          /* (not written this season: a simulated league skips split's stage
+                                                   end -> the division's final table, its places as the stage's) */
+            if (d >= GP_IN.nd || a < 1 || a > GP_IN.n[d]) return -1;
+            return d * GT + a - 1;
+        }
+        if (a < 1 || a > GP_SS.n[k] || d >= GP_IN.nd) return -1;
+        g = GP_SS.r[k][a - 1].glob;
     } else {
         if (s >= GS || a < 1 || a > GP_IN.nst[s] || d >= GP_IN.nd) return -1;
         g = GP_IN.st[s][a - 1].glob;
@@ -276,6 +284,7 @@ void gp_stage(const u8 *diy, const u8 *sel, u32 k, u32 annual) {
         o[i].pts = row[16] | row[17] << 8;
     }
     GP_SS.n[k] = n;
+    GP_SS.fresh |= 1 << k;
     if (!annual || k == 0 || GP_SS.n[0] != n) return;
     struct gp_row *a = GP_SS.r[2], tmp;
     for (int i = 0; i < n; i++) {
@@ -292,7 +301,7 @@ void gp_stage(const u8 *diy, const u8 *sel, u32 k, u32 annual) {
             } else break;
         }
     GP_SS.n[2] = n;
-    GP_SS.fresh = 1;
+    GP_SS.fresh |= 4;
 }
 
 /* Argentina's relegation (LPF reglamento 2026 art. 26, AFA statute art. 93): kind 7 'promedio' (n = 0, no rounds;
@@ -332,11 +341,11 @@ static void promedio(int d, int mnow, int ldiv) {
     if (!PR_STATE.init) pr_seed();
     int n = GP_SS.n[2];
     const struct gp_row *a = GP_SS.r[2];
-    if (!GP_SS.fresh || n != GP_IN.n[d]) {      /* (no annual table this season: the league's final table) */
+    if (!(GP_SS.fresh & 4) || n != GP_IN.n[d]) {   /* (no annual table this season: the league's final table) */
         n = GP_IN.n[d];
         a = GP_IN.t[d];
     }
-    GP_SS.fresh = 0;
+    ss_used = 1;
     if (n < 3) return;
     u32 P[GT], M[GT];
     for (int i = 0; i < n; i++) {
@@ -398,6 +407,7 @@ void gp_season(void) {
         GP_OUT.sres[k].team[0] = GP_OUT.sres[k].team[1] = GP_OUT.sres[k].glob[0] = GP_OUT.sres[k].glob[1] = 0xFFFF;
     }
     int prev_loser = -1;                        /* the last tie's loser of the play-off before (entrant type 4) */
+    ss_used = 0;
     gp_force();
     for (int pidx = 0; s && *s; pidx++) {
         int kind = s[0], n = s[1], nr = s[2], wdiv = s[3], ldiv = s[4];
@@ -524,6 +534,7 @@ void gp_season(void) {
         prev_loser = ok && last >= 0 ? L[last] : -1;
         s = r;
     }
+    if (ss_used) GP_SS.fresh = 0;              /* (this league's stage tables used: next season's are new ones) */
 }
 
 /* ---- The playable play-offs (gp_lend .. gp_end in gplay.py): the career club's play-off or play-out is played in
@@ -1427,56 +1438,173 @@ void rs_season(const u8 *t, const s8 *slt, s8 *copy, int world) {
     }
 }
 
-/* The off-file pool (Eccellenza 2026-27: mkseason Pack.off_pool, league 'reserve' off_file): Italy's 256 slots are the
-   whole team file, so the clubs relegated from the lowest level swap IDENTITIES with the pool instead of leaving.
-   Identity: 0..255 = the league's own records (file order), 256 + k = the pool's record k (DATA\RS<world><file>.DAT).
-   RI_STATE (engine item 'RI'): map[slot] = identity + 1 (0 = the slot itself: a cleared item is the start), the queue
-   of identities out (the pool's first order at the first season end; each season's relegated at its tail).
-   Table: db count (0 or 1); db world, file, low (the lowest level's first division); dw slots; slots x (dw global,
-   db base division, db D area); db pool; pool x db D area; pool x db first order (pool indices). */
-enum { RIS = 256, RIQ = 64 };
-struct ri_state { u8 init, n, pad[2]; u16 map[RIS]; u16 q[RIQ]; };
+/* Off-file pools (mkseason Pack.off_pools): a team file's slots swap IDENTITIES with an off-file pool instead of
+   clubs leaving the world. Per team file (up to RF; one RS file each, DATA\RS<world><file>.DAT): identity 0..255 = the
+   file's own records (file order), 256 + k = the RS file's record k; map[slot] = identity + 1 (0 = the slot itself: a
+   cleared item is the start). Per pool (up to RP) a queue of identities out: the pool's first order at the first
+   season end, each season's relegated at its tail (rotation: its length stays the pool's size).
+   - kind 0, a league's lowest level (Eccellenza: Italy's 256 slots are the whole file): every slot relegated from
+     the lowest level (o in it, n below) keeps its slot and its level; pg_season places the new identity by area;
+   - kind 1, a state championship (Brazil 2026: the state-only clubs of file 161): its n relegated = the bottom state-
+     only clubs of the state's stage-1 ranking (RI_SR, statespec's 'SR' item: dw first club, db n, db 0, n x dw team
+     word, best first) when the career played it; else by RI_RULE (0 none, 1 the weakest n, 2 a draw weighted by
+     weakness). Never the manager's club (RI_MGR, global number).
+   Table: db files; per file: db world, file, pools; per pool: db kind, n (pool records), then
+     kind 0: db low; dw slots; slots x (dw global, db base division, db D area); n x db D area;
+     kind 1: dw key (the state's first club's team word); db relegated; db slots; slots x (db ordinal, dw global,
+             db strength); n x db strength;
+     then n x db RS record (the pool's first order). */
+enum { RIS = 256, RF = 2, RP = 16, RQT = 192 };
+struct ri_file { u8 init, pad[3]; u16 map[RIS]; };
+struct ri_state { struct ri_file f[RF]; u8 qn[RP]; u16 q[RQT]; };
 struct ri_state RI_STATE;
-u8 RI_SWAPPED[RIS / 8];                         /* (this season end's swapped slots: ri_cache) */
-
+u8 RI_SWAPPED[RF][RIS / 8];                     /* (this season end's swapped slots: ri_cache) */
 int RI_MGR;                                     /* (the manager's club, global number: set by the glue, never swapped) */
+int RI_RULE = 2;
+u8 RI_FILES_FILE[RF];                           /* (each table file's team file number, set by ri_season) */
+const u32 RI_STATE_SIZE = sizeof(struct ri_state);   /* (the engine item 'RI': ripool.RI_SIZE) */
+static u32 ri_rng;
 
-void ri_season(const u8 *t, const s8 *slt, s8 *copy, int world) {
-    int manager = RI_MGR;
+static u32 ri_rand(u32 n) {
+    ri_rng = ri_rng * 1103515245u + 12345u;
+    return n ? (ri_rng >> 8) % n : 0;
+}
+
+/* one swap: slot i of file fi takes the queue head of the pool (q = its queue, *qn its length, m = this season's
+   takes so far), its identity goes out */
+static int ri_swap(struct ri_file *f, int fi, int i, u16 *q, int qn, int m, u16 *out, int *no) {
+    if (m >= qn) return -1;
+    int was = f->map[i] ? f->map[i] - 1 : i, in = q[m];
+    out[(*no)++] = was;
+    f->map[i] = in == i ? 0 : in + 1;
+    RI_SWAPPED[fi][i >> 3] |= 1 << (i & 7);
+    return in;
+}
+
+static const u8 *ri_pool(const u8 *e, struct ri_file *f, int fi, u16 *q, u8 *qn, const s8 *slt, s8 *copy,
+                         const u8 *sr, int run) {
+    int kind = e[0], n = e[1], manager = RI_MGR;
+    const u8 *p = e + 2, *order;
+    u16 out[64];
+    int no = 0, m = 0;
+    if (kind == 0) {
+        int low = p[0], ns = p[1] | p[2] << 8;
+        const u8 *sl = p + 3, *pa = sl + 4 * ns;
+        order = pa + n;
+        if (run && f->init == 1) {
+            for (int i = 0; i < n; i++) q[i] = RIS + order[i];
+            *qn = n;
+        }
+        for (int i = 0; run && i < ns && i < RIS && ri_no < RIO && m < *qn && no < 64; i++) {
+            const u8 *s = sl + 4 * i;
+            int g = s[0] | s[1] << 8, base = s[2];
+            int o = base + slt[g], nn = base + copy[g];
+            if (o < low || nn <= o || g == manager) continue;   /* (relegated from the lowest level; never the manager's) */
+            int in = ri_swap(f, fi, i, q, *qn, m++, out, &no);
+            ri_og[ri_no] = g;
+            ri_oa[ri_no] = in < RIS ? sl[4 * in + 3] : pa[in - RIS];
+            ri_no++;
+            copy[g] = slt[g];                   /* (the slot stays; pg_season places its new identity by area) */
+        }
+    } else {
+        int key = p[0] | p[1] << 8, rel = p[2], ns = p[3];
+        const u8 *sl = p + 4, *ps = sl + 4 * ns;
+        order = ps + n;
+        if (run && f->init == 1) {
+            for (int i = 0; i < n; i++) q[i] = RIS + order[i];
+            *qn = n;
+        }
+        u8 pick[RIS / 8];
+        for (int i = 0; i < RIS / 8; i++) pick[i] = 0;
+        int got = 0;
+        if (run && sr && (sr[0] | sr[1] << 8) == key && sr[2]) {    /* played: the bottom state-only clubs */
+            for (int k = sr[2] - 1; k >= 0 && got < rel; k--) {
+                int w = sr[4 + 2 * k] | sr[5 + 2 * k] << 8;
+                for (int i = 0; i < ns; i++)
+                    if ((w & 0xFF) == RI_FILES_FILE[fi] && (w >> 8) == sl[4 * i] &&
+                        (sl[4 * i + 1] | sl[4 * i + 2] << 8) != manager) {
+                        int o = sl[4 * i];
+                        if (!(pick[o >> 3] & 1 << (o & 7))) { pick[o >> 3] |= 1 << (o & 7); got++; }
+                        break;
+                    }
+            }
+        } else if (run && RI_RULE) {            /* not played: the weakest, or a draw weighted by weakness */
+            u8 st[RIS];
+            int smax = 0;
+            for (int i = 0; i < ns; i++) {
+                int o = sl[4 * i], id = f->map[o] ? f->map[o] - 1 : o, s = 0;
+                for (int j = 0; id < RIS && j < ns; j++) if (sl[4 * j] == id) s = sl[4 * j + 3];
+                for (int j = 0; id >= RIS && j < n; j++) if (order[j] == id - RIS) s = ps[j];
+                st[i] = s;
+                if (s > smax) smax = s;
+            }
+            for (int r = 0; r < rel; r++) {
+                u32 tot = 0;
+                int best = -1;
+                for (int i = 0; i < ns; i++) {
+                    int o = sl[4 * i];
+                    if ((pick[o >> 3] & 1 << (o & 7)) || (sl[4 * i + 1] | sl[4 * i + 2] << 8) == manager) continue;
+                    u32 wgt = smax + 1 - st[i];
+                    if (RI_RULE == 1) { if (best < 0 || st[i] < st[best]) best = i; }
+                    else tot += wgt * wgt;
+                }
+                if (RI_RULE == 2 && tot) {
+                    u32 x = ri_rand(tot);
+                    for (int i = 0; i < ns; i++) {
+                        int o = sl[4 * i];
+                        if ((pick[o >> 3] & 1 << (o & 7)) || (sl[4 * i + 1] | sl[4 * i + 2] << 8) == manager) continue;
+                        u32 wgt = smax + 1 - st[i];
+                        if (x < wgt * wgt) { best = i; break; }
+                        x -= wgt * wgt;
+                    }
+                }
+                if (best < 0) break;
+                int o = sl[4 * best];
+                pick[o >> 3] |= 1 << (o & 7);
+            }
+        }
+        for (int i = 0; run && i < ns && no < 64; i++) {
+            int o = sl[4 * i];
+            if (pick[o >> 3] & 1 << (o & 7)) ri_swap(f, fi, o, q, *qn, m++, out, &no);
+        }
+    }
+    if (run && m) {                             /* the queue: drop the taken, append the outs */
+        int k = 0;
+        for (int i = m; i < *qn; i++) q[k++] = q[i];
+        for (int i = 0; i < no && k < n; i++) q[k++] = out[i];
+    }
+    if (run) *qn = n;
+    return order + n;
+}
+
+void ri_season(const u8 *t, const s8 *slt, s8 *copy, int world, u8 *sr) {
     ri_no = 0;
-    for (int i = 0; i < RIS / 8; i++) RI_SWAPPED[i] = 0;
-    if (!*t++) return;
-    int w = t[0], low = t[2], ns = t[3] | t[4] << 8;
-    const u8 *sl = t + 5, *pa = sl + 4 * ns + 1;
-    int np = sl[4 * ns];
-    const u8 *po = pa + np;
-    if (w != world) return;
-    struct ri_state *st = &RI_STATE;
-    if (!st->init) {                            /* (a new career / an older save: the pool's first order) */
-        st->n = 0;
-        for (int i = 0; i < np && i < RIQ; i++) st->q[st->n++] = RIS + po[i];
-        st->init = 1;
+    for (int fi = 0; fi < RF; fi++)
+        for (int i = 0; i < RIS / 8; i++) RI_SWAPPED[fi][i] = 0;
+    u32 h = 0x9E3779B9u;                        /* (the draw: the season's own table as seed) */
+    for (int g = 0; g < 2000; g++) h = h * 31 + (u8)slt[g];
+    ri_rng = h;
+    int nf = *t++, qo = 0, pi = 0;
+    for (int fi = 0; fi < nf; fi++) {
+        int w = t[0], np = t[2];
+        RI_FILES_FILE[fi] = t[1];
+        struct ri_file *f = &RI_STATE.f[fi < RF ? fi : RF - 1];
+        int run = w == world && fi < RF;
+        if (run && !f->init) {                  /* (a new career / an older save: identities, the pools' first order) */
+            for (int i = 0; i < RIS; i++) f->map[i] = 0;
+            f->init = 1;
+        }
+        t += 3;
+        for (int k = 0; k < np; k++) {
+            int n = t[1];
+            t = ri_pool(t, f, fi, RI_STATE.q + qo, RI_STATE.qn + pi, slt, copy, sr,
+                        run && pi < RP && qo + n <= RQT);
+            qo += n;
+            pi++;
+        }
+        if (run) f->init = 2;
     }
-    u16 out[RIQ];
-    int no = 0;
-    for (int i = 0; i < ns && i < RIS && ri_no < RIO && ri_no < st->n; i++) {
-        const u8 *e = sl + 4 * i;
-        int g = e[0] | e[1] << 8, base = e[2];
-        int o = base + slt[g], n = base + copy[g];
-        if (o < low || n <= o || g == manager) continue;   /* (relegated from the lowest level; never the manager's) */
-        int was = st->map[i] ? st->map[i] - 1 : i, in = st->q[ri_no];
-        out[no++] = was;
-        st->map[i] = in == i ? 0 : in + 1;
-        ri_og[ri_no] = g;
-        ri_oa[ri_no] = in < RIS ? sl[4 * in + 3] : pa[in - RIS];
-        ri_no++;
-        RI_SWAPPED[i >> 3] |= 1 << (i & 7);
-        copy[g] = slt[g];                       /* (the slot stays; pg_season places its new identity by area) */
-    }
-    int m = 0;
-    for (int i = ri_no; i < st->n; i++) st->q[m++] = st->q[i];
-    for (int i = 0; i < no && m < RIQ; i++) st->q[m++] = out[i];
-    st->n = m;
+    if (sr) sr[2] = 0;                          /* (the ranking used: a season without a played state has none) */
 }
 
 /* A slot's record from its identity: everything but the slot's own bytes (file, ordinal, global number, controls,
@@ -1486,12 +1614,12 @@ static void ri_copy(u8 *dst, const u8 *src) {
         if (b > 4 && b != 23 && b != 25) dst[b] = src[b];
 }
 
-/* After Italy's team file is read (LoadTeamFile): buf = teamFileBuffer (BE count + records), orig = its copy as read,
-   pool = the RS file's buffer (BE count + records). */
-void ri_apply(u8 *buf, const u8 *orig, const u8 *pool) {
+/* After a pooled team file is read (LoadTeamFile): buf = teamFileBuffer (BE count + records), orig = its copy as
+   read, pool = its RS file's buffer (BE count + records), fi = its index in the table. */
+void ri_apply(u8 *buf, const u8 *orig, const u8 *pool, int fi) {
     int n = buf[0] << 8 | buf[1], np = pool ? pool[0] << 8 | pool[1] : 0;
     for (int i = 0; i < n && i < RIS; i++) {
-        int id = RI_STATE.map[i];
+        int id = RI_STATE.f[fi].map[i];
         if (!id--) continue;
         if (id < RIS && id < n) ri_copy(buf + 2 + 684 * i, orig + 2 + 684 * id);
         else if (id >= RIS && id - RIS < np) ri_copy(buf + 2 + 684 * i, pool + 2 + 684 * (id - RIS));
@@ -1499,15 +1627,15 @@ void ri_apply(u8 *buf, const u8 *orig, const u8 *pool) {
 }
 
 /* The career's team cache after a swap: every cached record of a swapped slot (team word file | slot << 8) gets its
-   new identity's record. recs = the cache's records, n of them; file = Italy's file; orig / pool as for ri_apply
-   (orig = Italy's file as read). */
-void ri_cache(u8 *recs, int n, int file, const u8 *orig, const u8 *pool) {
+   new identity's record. recs = the cache's records, n of them; file = the team file; orig / pool / fi as for
+   ri_apply. */
+void ri_cache(u8 *recs, int n, int file, const u8 *orig, const u8 *pool, int fi) {
     int nf = orig[0] << 8 | orig[1], np = pool ? pool[0] << 8 | pool[1] : 0;
     for (int k = 0; k < n; k++) {
         u8 *r = recs + 684 * k;
         int i = r[1];
-        if (r[0] != file || !(RI_SWAPPED[i >> 3] & 1 << (i & 7))) continue;
-        int id = RI_STATE.map[i] ? RI_STATE.map[i] - 1 : i;
+        if (r[0] != file || !(RI_SWAPPED[fi][i >> 3] & 1 << (i & 7))) continue;
+        int id = RI_STATE.f[fi].map[i] ? RI_STATE.f[fi].map[i] - 1 : i;
         if (id < RIS && id < nf) ri_copy(r, orig + 2 + 684 * id);
         else if (id >= RIS && id - RIS < np) ri_copy(r, pool + 2 + 684 * (id - RIS));
     }

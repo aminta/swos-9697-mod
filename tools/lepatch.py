@@ -184,10 +184,14 @@ def add_object_page(data, objn):
     setu(0x30, u(0x30) + 4)                                     # fixup section size
     setu(0x38, u(0x38) + 8)                                     # loader section size
     # the 8 inserted bytes come out of the padding before the data pages
-    data_pages = u(0x80)
+    data_pages = u(0x80)                                        # (the old offset: the pages now start 8 later)
     end = h + u(0x70)
-    assert end <= data_pages and not any(d[end:data_pages])
-    del d[data_pages - 8:data_pages]
+    if end + 8 <= data_pages and not any(d[end:data_pages]):
+        del d[data_pages - 8:data_pages]                        # the 8 bytes from the padding: the pages stay put
+    else:                                                       # padding used up (a full world's German exe): the
+        new = (end + HARNESS_ROOM + ALIGN - 1) // ALIGN * ALIGN  # pages move down, 512-byte aligned, as save()
+        d[data_pages + 8:data_pages + 8] = bytes(new - (data_pages + 8))   # does (no non-resident names / debug
+        setu(0x80, new)                                         # info after them)
     setu(0x14, npages + 1)
     objs[objn - 1][4] += 1
     for o in objs[objn:]:

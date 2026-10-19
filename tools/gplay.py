@@ -278,19 +278,19 @@ gp_setup:                               ; ZF = 0 if the career league (D8CAA) is
     jae .no
     mov [GP_IN + O_MDIV], al
     push eax                            ; (split's kept stage table too: GP_IN.st, stage_place entrants)
+    push es                             ; (es first: the C code's arguments right above the return address)
+    push ds
+    pop es
+    cld
     push dword SP_MAGIC
     push eax
     push dword [SELTEAMS]
     push dword SP_KEEP
     push dword SP_ST
     push dword CFB
-    push es
-    push ds
-    pop es
-    cld
     call gp_keep
-    pop es
     add esp, 24
+    pop es
     pop eax
     mov ebp, CFB
     call gp_rows
@@ -822,19 +822,19 @@ gp_cap:                                 ; replaces `call cseg_9221F` (after dpla
     cmp eax, GD_N
     jae .x
     push eax                            ; split's kept stage table (gplay.c gp_keep: GP_IN.st)
+    push es                             ; (es first: the C code's arguments right above the return address)
+    push ds
+    pop es
+    cld
     push dword SP_MAGIC
     push eax
     push dword [SELTEAMS]
     push dword SP_KEEP
     push dword SP_ST
     push dword DIY
-    push es
-    push ds
-    pop es
-    cld
     call gp_keep
-    pop es
     add esp, 24
+    pop es
     pop eax
     mov ebp, DIY
     call gp_rows
@@ -1210,11 +1210,14 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
     if uefaq.LABELS.get('UQ_EPP') and tables:              # a league-phase world: its European play-offs (uefaq.c ep_run)
         p.add_ptr(1, uefaq.LABELS['UQ_EPP'], 1, lab['GP_EPT'])
     assert struct.unpack('<I', p.get(1, syms['RS_STATE_SIZE'][1], 4))[0] == RS_SIZE   # (the engine block's 'RS')
+    import ripool
+    assert struct.unpack('<I', p.get(1, syms['RI_STATE_SIZE'][1], 4))[0] == ripool.RI_SIZE   # (the engine block's 'RI')
     kolay = dict(zip(('st_ko', 'size', 'slot', 'ntie', 'tw', 'tl', 'team', 'n'),
                      struct.unpack('<8I', p.get(1, syms['GP_KOLAY'][1], 32))))   # (4.0's gp_build glue: GP_ST.ko[0])
     LABELS.update(lab, GP_GS=syms['GP_GS'], GP_KOLAY=kolay, GP_IN=syms['GP_IN'], GP_OUT=syms['GP_OUT'], GP_ST=syms['GP_ST'], GP_LOG=syms['GP_LOG'], layout=lay, pg_season=syms['pg_season'], pg_place=syms['pg_place'], rs_season=syms['rs_season'], gp_stage=syms['gp_stage'], GP_SS=syms['GP_SS'], PR_STATE=syms['PR_STATE'],
                   RS_STATE=syms['RS_STATE'], ri_season=syms['ri_season'], ri_apply=syms['ri_apply'],
-                  ri_cache=syms['ri_cache'], RI_STATE=syms['RI_STATE'], RI_MGR=syms['RI_MGR'])
+                  ri_cache=syms['ri_cache'], RI_STATE=syms['RI_STATE'], RI_MGR=syms['RI_MGR'],
+                  RI_RULE=syms['RI_RULE'])
     print(f"exe: knockout play-offs (gplay): {len(tables)} countries, C obj1+{at:#x}..{cend:#x}, glue ..{glue + len(code):#x}, "
           f"GP_IN obj2+{syms['GP_IN'][1]:#x}, state GP_ST obj2+{syms['GP_ST'][1]:#x} ({lay['ST_SIZE']} B), "
           f"log obj2+{syms['GP_LOG'][1]:#x}, .bss {bss:#x}")

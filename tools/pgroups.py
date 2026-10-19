@@ -33,9 +33,14 @@ pg_fix:                                 ; replaces `call cseg_7CAA2` (leaguesTab
     or eax, -1
 .mgr:
     mov [RI_MGR], eax
+    push dword RI_SR                    ; (statespec's stage-1 ranking, the 'SR' item, or 0)
+    movzx eax, byte [SLT + WORLD_BYTE]
+    push eax
+    push dword SLTCOPY
+    push dword SLT
     push dword RI_TAB
     call RI_SEASON
-    add esp, 4
+    add esp, 20
 %endif
     push dword PG_TAB
     call PG_SEASON

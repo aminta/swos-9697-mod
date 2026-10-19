@@ -311,6 +311,22 @@ class Pack:
             pool, first = rs.get('pool') or [], rs.get('first') or []
             _need(set(pool) == set(self.reserve_clubs) and set(first) <= set(pool) and rs.get('then', 'rotation') == 'rotation',
                   f"{self.league['key']}: reserve {{first, pool = every 'reserve' club of clubs.csv, then: 'rotation'}}")
+        self.pool_file = self.files[self.league['clubs']][0] if self.pool_key else None
+        st_res = [c for c in self.comps if c['type'] == 'state' and (c.get('reserve') or {}).get('off_file')]
+        if st_res:                              # state championships' off-file pools (Brazil 2026: the A2 clubs)
+            _need(not self.pool_key, f"{self.meta['id']}: one off-file pool kind per pack (league or states)")
+            self.pool_key = 'pool'
+            self.pool_clubs = [k for k, c in self.clubs.items() if c['file'] == 'pool']
+            allp = [k for c in st_res for k in c['reserve'].get('pool') or []]
+            _need('pool' in self.files and self.pool_clubs and sorted(allp) == sorted(self.pool_clubs),
+                  f"{self.meta['id']}: state reserves: files 'pool'; every clubs.csv row of file 'pool' in exactly one "
+                  "state's reserve.pool")
+            sf = {self.clubs[k]['file'] for c in st_res for k in c['clubs']} - {self.league['clubs'], 'pool'}
+            _need(len(sf) == 1, f"{self.meta['id']}: the states' own clubs in one team file ({sorted(sf)})")
+            self.pool_file = self.files[sf.pop()][0]
+            for c in st_res:
+                _need(isinstance(c.get('relegated'), int) and 0 <= c['relegated'] <= len(c['reserve']['pool']),
+                      f"{c['key']}: 'relegated' n (0 .. its pool's size)")
         par = self.league.get('parallel')          # parallel groups (Serie C 3 x 20; several levels): pgroups.py
         if par:
             pars = par if isinstance(par, list) else [par]
@@ -479,27 +495,51 @@ class Pack:
         return [(k, v) for k, v in self.files.items() if k != getattr(self, 'pool_key', None)]
 
     def off_pool(self):
-        """Off-file pool table (gplay.c ri_season): None, or (world, league file, the lowest level's first division,
-        [(global, base division, D area)] the league's slots in file order, [D area] of the pool records,
-        [pool index] the first order: 'first', then the rest as clubs.csv lists them). D area: the last letter of
-        clubs.csv 'area' (A.. = the group of that region in the lowest level), 0xFF = none."""
-        rs = self.league.get('reserve') if self.league else None
-        if not rs or not rs.get('off_file') or self.world is None:
+        """Off-file pools (gplay.c ri_season, ripool.table_bytes): None, or (world, team file, pools) with pools
+        ('league', low = the lowest level's first division, [(global, base division, D area)] the league's slots in
+        file order, [D area] of the pool records, [pool index] the first order: 'first', then clubs.csv's order) or
+        ('state', key = the state's first club's team word, relegated, [(ordinal, global, strength)] its own clubs of
+        the states' file, [strength] of its pool records in its first order, [pool index] its first order). D area:
+        the last letter of clubs.csv 'area' (A.. = the group of that region in the lowest level), 0xFF = none;
+        strength: 1..255, the 16 players' prices against the strongest club of the state and its pool."""
+        if not getattr(self, 'pool_key', None) or self.world is None:
             return None
-        divs = self.divisions()
-        par = self.league.get('parallel')
-        pars = {q['first']: q['count'] for q in (par if isinstance(par, list) else [par] if par else [])}
-        low, d = 0, 0
-        while d < len(divs):
-            low, d = d, d + pars.get(d, 1)
-        letters = 'ABCDEFGHIJ'
-        darea = lambda k: letters.index(self.clubs[k]['area'].split('/')[-1]) if self.clubs[k].get('area') else 0xFF
-        fl, base = self.files[self.league['clubs']]
-        slots = sorted(self.league_clubs, key=lambda k: self.where[k][1])
-        first = list(rs.get('first') or [])
-        order = first + [k for k in self.pool_clubs if k not in first]
-        return (self.world, fl, low, [(base + self.where[k][1], self.division[k], darea(k)) for k in slots],
-                [darea(k) for k in self.pool_clubs], [self.pool_clubs.index(k) for k in order])
+        rs = self.league.get('reserve') if self.league else None
+        if rs and rs.get('off_file'):
+            divs = self.divisions()
+            par = self.league.get('parallel')
+            pars = {q['first']: q['count'] for q in (par if isinstance(par, list) else [par] if par else [])}
+            low, d = 0, 0
+            while d < len(divs):
+                low, d = d, d + pars.get(d, 1)
+            letters = 'ABCDEFGHIJ'
+            darea = lambda k: letters.index(self.clubs[k]['area'].split('/')[-1]) if self.clubs[k].get('area') else 0xFF
+            fl, base = self.files[self.league['clubs']]
+            slots = sorted(self.league_clubs, key=lambda k: self.where[k][1])
+            first = list(rs.get('first') or [])
+            order = first + [k for k in self.pool_clubs if k not in first]
+            return (self.world, fl, [('league', low, [(base + self.where[k][1], self.division[k], darea(k)) for k in slots],
+                                      [darea(k) for k in self.pool_clubs], [self.pool_clubs.index(k) for k in order])])
+        if not hasattr(self, '_tf'):
+            self._tf = self.team_files()
+        recs = dict(self._tf)
+        price = lambda r: sum(r[76 + j * 38 + 32] for j in range(16))
+        base = next(b for f, b in self.files.values() if f == self.pool_file)
+        pools = []
+        for c in self.comps:
+            if c['type'] != 'state' or not (c.get('reserve') or {}).get('off_file'):
+                continue
+            f0, o0 = self.where[c['clubs'][0]]
+            own = [k for k in c['clubs'] if self.where[k][0] == self.pool_file]
+            order = list(c['reserve']['pool'])
+            rp = lambda k: self.pool_data[2 + 684 * self.pool_clubs.index(k):][:684]
+            raw = [price(recs[self.pool_file][2 + 684 * self.where[k][1]:][:684]) for k in own] + [price(rp(k)) for k in order]
+            top = max(raw) or 1
+            sc = [max(1, min(255, x * 255 // top)) for x in raw]
+            pools.append(('state', f0 | o0 << 8, c['relegated'],
+                          [(self.where[k][1], base + self.where[k][1], s) for k, s in zip(own, sc)],
+                          sc[len(own):], [self.pool_clubs.index(k) for k in order]))
+        return (self.world, self.pool_file, pools) if pools else None
 
     def parallel(self):
         """pgroups table: None, or (world, [(first division, [sizes])] top-down over the chain, [(global number, base
@@ -1136,7 +1176,7 @@ def rs_files():
             if not hasattr(pk, 'pool_data'):
                 pk.team_files()
             _need(pk.pool_data, f"{pk.meta['id']}: the off-file pool has no records")
-            out['RS%d%03d.DAT' % (pk.world, pk.files[pk.league['clubs']][0])] = pk.pool_data
+            out['RS%d%03d.DAT' % (pk.world, pk.pool_file)] = pk.pool_data
     return out
 
 

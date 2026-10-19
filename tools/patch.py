@@ -217,6 +217,7 @@ def patch_exe(src, dst, remap, lang='it'):
         import gplay as gp_mod                         # contest pointers back after a load (gp_sync)
         engine.save_item('GP', gp_mod.GP_ST_SIZE)
         engine.after_load('gp_sync')
+        engine.after_process('gp_sync')          # (4.0: again after ProcessCareerFile, which clears slot 4's pointer)
         if any(t[2] in gp_mod.T2_SPECS for t in gp_tabs):   # (a group contest played: the early tables beyond 2)
             engine.save_item('GS', gp_mod.GS_SIZE)
         if mkseason.cupd_tables():                     # (the Coppa Italia Serie D's state)

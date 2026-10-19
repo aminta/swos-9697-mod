@@ -436,6 +436,12 @@ def patch(p, cave, items, tails=False):
         asm = asm.replace(';EN_SAVE', EN_SAVE)
     cbs = engine.after_loads()                    # after the engine items (or their clearing): pushad, call, popad
     asm = asm.replace(';EN_AFTER', '\n'.join(f'    pushad\n    call [EN_CB + {4 * k}]\n    popad' for k in range(len(cbs))))
+    aps = engine.after_processes()                # (4.0: after ProcessCareerFile, its result's flags / registers kept)
+    if aps:
+        asm = asm.replace('    call set_mark\n    popad\n    jmp PROCESS', '    call set_mark\n    popad\n    call PROCESS\n' +
+                          ''.join(f'    pushfd\n    pushad\n    call [EN_CB + {4 * (len(cbs) + k)}]\n    popad\n    popfd\n'
+                                  for k in range(len(aps))) + '    ret', 1)
+        cbs = cbs + aps
     asm += 'align 4\nEN_CB: ' + ('dd ' + ', '.join(f'CB{k}' for k in range(len(cbs))) if cbs else 'dd 0') + '\n'
     for k, (name, at) in enumerate(cbs):
         symbols[f'CB{k}'] = at or (1, cave)

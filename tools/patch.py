@@ -449,7 +449,7 @@ def patch_exe(src, dst, remap, lang='it'):
     cos = zones.patch(p, cos, area, lang, [e if os.sep in e else os.path.join(mkseason.PACKS, e) for e in mkseason.ENABLED],
                       num_bss + shirtnum.BSS_SIZE + blond.BSS_SIZE + menunum.BSS_SIZE, fmtpage.BSS_SIZE,
                       careerworld.SITES if worlds else None)   # (the FORMAT page's buffer, shared)
-    cos = longtable.patch(p, cos)                # 4.0: tables over 24 clubs scroll (ARG / MLS 30: no drawing past the screen)
+    cos = longtable.patch(p, cos, area, lang)                # 4.0: tables over 24 clubs scroll (ARG / MLS 30: no drawing past the screen)
     if cos_pg:
         assert cos <= hist2 + h2 + 0x1000 * lpb, hex(cos)
     else:

@@ -26,9 +26,47 @@ pg_fix:                                 ; replaces `call cseg_7CAA2` (leaguesTab
     push dword RS_TAB                   ; the reserve first (gplay.c rs_season: who leaves the lowest level, who
     call RS_SEASON                      ; comes back), then the levels' groups (pg_season places the new clubs)
     add esp, 4
+%if RI_ON
+    movzx eax, word [CAREERTEAM + 2]    ; the off-file pool (gplay.c ri_season): relegated slots of the lowest level
+    cmp word [SACKED], 0                ; swap identities with the pool (never the manager's club; a sacked manager's
+    je .mgr                             ; old club swaps like any other: gplay's gp_sack)
+    or eax, -1
+.mgr:
+    mov [RI_MGR], eax
+    cmp dword [RI_PRE_PTR], 0           ; statesim (statecup): the rankings of every state first, when hooked
+    je .nopre
+    pushad
+    call [RI_PRE_PTR]
+    popad
+.nopre:
+    push dword [RI_SR_PTR]              ; (every state's ranking, statespec's 'SR' item: its address, or 0)
+    movzx eax, byte [SLT + WORLD_BYTE]
+    push eax
+    push dword SLTCOPY
+    push dword SLT
+    push dword RI_TAB
+    call RI_SEASON
+    add esp, 20
+    cmp dword [RI_POST_PTR], 0          ; statecup: the overrides (RI_OVR) into the state contests, when hooked
+    je .nopost
+    pushad
+    call [RI_POST_PTR]
+    popad
+.nopost:
+%endif
     push dword PG_TAB
     call PG_SEASON
     add esp, 16
+%if CD_ON
+    movzx eax, byte [SLT + WORLD_BYTE]  ; the Coppa Italia Serie D's next entry order (gplay.c cd_season: the moves
+    push eax                            ; done, the season's tables still in GP_IN)
+    push dword SLTCOPY
+    push dword SLT
+    push dword CD_DT
+    push dword CD_TAB
+    call CD_SEASON
+    add esp, 20
+%endif
     xor eax, eax                        ; cseg_9487A traps unless leaguesTableCopy adds up to 0 (8 bits): a move of
     mov esi, SLTCOPY                    ; several divisions (a group winner up two levels of groups, a club down into
     mov ecx, NSUM                       ; a farther group) breaks the game's +1 / -1 pairs: the balance byte BAL
@@ -37,6 +75,9 @@ pg_fix:                                 ; replaces `call cseg_7CAA2` (leaguesTab
     inc esi
     loop .s
     sub [SLTCOPY + BAL], al
+%if RI_ON
+    call RI_AFTER                       ; (ripool: the career cache's swapped records, LoadTeamFile's cache cleared)
+%endif
     popad
     jmp C7CAA2
 PG_TAB: TAB_BYTES
@@ -112,8 +153,10 @@ def _site(p):
 LABELS = {}             # obj1 offsets other modules link to (RS_TAB: gplay's sacking check; PG_TAB: pg_place at a 3.x load)
 
 
-def patch(p, at, tables, pg_season, rs_tables=(), rs_season=None):
-    """Glue + tables at obj1:at (the fix itself: gplay.c pg_season, (1, offset)); returns the end."""
+def patch(p, at, tables, pg_season, rs_tables=(), rs_season=None, ri=None, cd=None):
+    """Glue + tables at obj1:at (the fix itself: gplay.c pg_season, (1, offset)); returns the end. ri: the off-file pool
+    (ripool.patch's symbols: RI_TAB its table's address, gplay.c ri_season / RI_MGR, ripool's ri_after, careerTeam), or None.
+    cd: the Coppa Italia Serie D (CD_SEASON = gplay.c cd_season, CD_TAB, CD_DT), or None."""
     import bigtables
     import careerworld
     site, c7caa2, s = _site(p)
@@ -122,7 +165,13 @@ def patch(p, at, tables, pg_season, rs_tables=(), rs_season=None):
            'C7CAA2': (1, c7caa2), 'PG_SEASON': pg_season, 'BAL': (0, BALANCE), 'RS_SEASON': rs_season,
            'RS_BYTES': (0, 'db ' + ', '.join(str(b) for b in reserve_bytes(list(rs_tables)))),
            'NSUM': (0, bigtables.LIMIT if bigtables.ON[0] else 2000),
-           'TAB_BYTES': (0, 'db ' + ', '.join(str(b) for b in table_bytes(tables)))}
+           'TAB_BYTES': (0, 'db ' + ', '.join(str(b) for b in table_bytes(tables))), 'RI_ON': (0, int(bool(ri)))}
+    sym.update(ri or {})
+    sym['CD_ON'] = (0, int(bool(cd)))
+    sym.update(cd or {})
+    if ri:                                              # (youreSacked: gplay's gp_sack sites)
+        import gplay
+        sym['SACKED'] = (2, gplay._sack_sites(p)['SACKED'])
     code, fix = nasmcave.assemble(ASM, at, sym)
     lab = nasmcave.labels(ASM, at, sym)
     assert not any(p.get(1, at, len(code)))

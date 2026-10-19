@@ -430,6 +430,65 @@ UC_QPTS: dd uc_noq                      ; (uefaq.py: uq_cpts)
 uc_noq:
     ret
 
+uc_rank:                                ; ebp = CB: the world's UEFA associations ranked by their 5 ring seasons
+    pushad                              ; (UC_C / UC_T / UC_N; also the zone colours' next-season places)
+    mov esi, UC_SEEDC                   ; the world's UEFA associations = those with seeds (pack.json uefa_coef),
+    xor ecx, ecx                        ; in pack order: also those without direct places (they enter the
+.ru:                                     ; qualifying rounds); a suspended one (Russia) has none
+    mov al, [esi]
+    test al, al
+    jz .ru1
+    cmp ecx, 64
+    jae .ru1
+    mov [UC_C + ecx], al
+    add esi, 21
+    inc ecx
+    jmp .ru
+.ru1:
+    mov [UC_N], ecx
+    xor ecx, ecx                        ; their coefficients (5 seasons)
+.rt:
+    movzx edx, byte [UC_C + ecx]
+    xor eax, eax
+    xor edi, edi
+.rt1:
+    imul esi, edi, 256
+    add esi, edx
+    add eax, [ebp + CHIST + esi*4]
+    inc edi
+    cmp edi, 5
+    jb .rt1
+    mov [UC_T + ecx*4], eax
+    inc ecx
+    cmp ecx, [UC_N]
+    jb .rt
+    mov ecx, 1                          ; insertion sort, best first (stable)
+.rs1:
+    cmp ecx, [UC_N]
+    jae .rw
+    mov al, [UC_C + ecx]
+    mov esi, [UC_T + ecx*4]
+    mov edx, ecx
+.rs2:
+    test edx, edx
+    jz .rs3
+    cmp esi, [UC_T + edx*4 - 4]
+    jbe .rs3
+    mov edi, [UC_T + edx*4 - 4]
+    mov [UC_T + edx*4], edi
+    mov ah, [UC_C + edx - 1]
+    mov [UC_C + edx], ah
+    dec edx
+    jmp .rs2
+.rs3:
+    mov [UC_C + edx], al
+    mov [UC_T + edx*4], esi
+    inc ecx
+    jmp .rs1
+.rw:
+    popad
+    ret
+
 uc_final:                               ; careerworld w_q_cb: the first qualifier of the season end (cseg_93974: the
     pushad                              ; cups are over, simulations included; cseg_936C0 has expanded the place lists
     mov al, 0                           ; into the working lists, nothing taken yet)
@@ -461,6 +520,9 @@ uc_final:                               ; careerworld w_q_cb: the first qualifie
     cmp ebx, 3
     jb .f
     call [UC_QPTS]                      ; (uefaq: the qualifying ties' points, before the ring)
+    call uc_rank                        ; the ranking BEFORE this season enters the ring: the next season's places
+                                        ; come from the 5 seasons up to the last one (UEFA's access list uses the
+                                        ; ranking a year old; the first season end ranks the seed)
     movzx ebx, byte [ebp + RING]        ; the season's values into the ring
     xor ecx, ecx
 .c:
@@ -497,59 +559,6 @@ uc_final:                               ; careerworld w_q_cb: the first qualifie
     xor ebx, ebx
 .rg:
     mov [ebp + RING], bl
-    mov esi, UC_SEEDC                   ; the world's UEFA associations = those with seeds (pack.json uefa_coef),
-    xor ecx, ecx                        ; in pack order: also those without direct places (they enter the
-.u:                                     ; qualifying rounds); a suspended one (Russia) has none
-    mov al, [esi]
-    test al, al
-    jz .u1
-    cmp ecx, 64
-    jae .u1
-    mov [UC_C + ecx], al
-    add esi, 21
-    inc ecx
-    jmp .u
-.u1:
-    mov [UC_N], ecx
-    xor ecx, ecx                        ; their coefficients (5 seasons)
-.t:
-    movzx edx, byte [UC_C + ecx]
-    xor eax, eax
-    xor edi, edi
-.t1:
-    imul esi, edi, 256
-    add esi, edx
-    add eax, [ebp + CHIST + esi*4]
-    inc edi
-    cmp edi, 5
-    jb .t1
-    mov [UC_T + ecx*4], eax
-    inc ecx
-    cmp ecx, [UC_N]
-    jb .t
-    mov ecx, 1                          ; insertion sort, best first (stable)
-.s1:
-    cmp ecx, [UC_N]
-    jae .w
-    mov al, [UC_C + ecx]
-    mov esi, [UC_T + ecx*4]
-    mov edx, ecx
-.s2:
-    test edx, edx
-    jz .s3
-    cmp esi, [UC_T + edx*4 - 4]
-    jbe .s3
-    mov edi, [UC_T + edx*4 - 4]
-    mov [UC_T + edx*4], edi
-    mov ah, [UC_C + edx - 1]
-    mov [UC_C + edx], ah
-    dec edx
-    jmp .s2
-.s3:
-    mov [UC_C + edx], al
-    mov [UC_T + edx*4], esi
-    inc ecx
-    jmp .s1
 .w:
     mov esi, UC_CLN                     ; places per rank and cup (UC_A: CL, EL, UECL x 64 ranks)
     mov edi, UC_A

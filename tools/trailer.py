@@ -392,7 +392,8 @@ def patch(p, cave, items, tails=False):
     en = engine.save_items()                      # the engine block 'EN' after the main one
     en_block = 4 + sum(4 + sz for _, _, sz, _, _ in en) if en else 0
     nmax = (SELECTED_ROOM - block - en_block) // TEAM_SIZE   # save_trailer writes 'EN' only if N*684 + all <= 68400
-    assert en_block < 0x10000 and nmax >= 90, (block, en_block, nmax)   # (the main block alone: N <= 98)
+    assert en_block < 0x10000 and nmax >= 80, (block, en_block, nmax)   # (the main block alone: N <= 98; EN in the normal
+                                                  # cache matters for world-0 careers only, whose 4.0 items are unused)
     import careerworld                            # a big world's cache (its own SELBASEV / ROOMV): all of it at SEL_N
     if careerworld.BSS[0] is not None:
         assert careerworld.SEL_N * TEAM_SIZE + block + en_block <= careerworld.SEL_ROOM, \

@@ -129,6 +129,8 @@ sp_init:                                ; replaces `call cseg_2653B` at the end 
     call sp_saveregs
     call C2730A                         ; the days' weeks again
     call sp_restregs
+    cmp byte [edi + 7], 0               ; (no stages: a meetings-only entry has no stage record)
+    je .x
     movzx esi, word [edi + E_STG + 26]  ; our own weeks (a calendar with breaks: Argentina's knockout weeks)
     test esi, esi
     jz .x
@@ -278,6 +280,8 @@ sp_slot:                                ; eax = row -> ebp = its slot in the slo
 
 sp_pair:                                ; replaces `mov esi, [A0]` before cseg_89758's home / away test
     pushad
+    cmp dword [esp + 36], BUILDER_RET   ; (the career calendar's builder walking the days: sp_stage_end idle)
+    sete byte [sp_bld]
     call sp_entry
     jz .game
     movzx ecx, word [esi + 1C1h]
@@ -619,6 +623,19 @@ sp_stage_end:                           ; ecx = the day just over (after the spl
     lea edi, [ecx + 1]
     cmp edi, ebx
     jne .r
+    cmp byte [sp_bld], 0                ; (the calendar builder's walk at the season start: not a stage end)
+    jne .r
+    xor edi, edi                        ; a real stage end: matches played (the career calendar's builder walks
+    movzx ebx, word [esi + 31h]         ; every day at the season start with nothing played: no table, no callback)
+.pl:
+    imul eax, edi, 18
+    cmp word [esi + eax + 2B7h], 0
+    jne .played
+    inc edi
+    cmp edi, ebx
+    jb .pl
+    jmp .r
+.played:
     movzx eax, byte [ebp + 23]
     test eax, eax
     jz .cb
@@ -630,17 +647,17 @@ sp_stage_end:                           ; ecx = the day just over (after the spl
     pushad
     dec eax
     movzx ebx, byte [ebp + 24]
+    push es                             ; (es first: the C code's arguments must be right above the return address)
+    push ds
+    pop es
+    cld
     push ebx
     push eax
     push dword [SELTEAMS]
     push dword DIY
-    push es
-    push ds
-    pop es
-    cld
     call GP_STAGE
-    pop es
     add esp, 16
+    pop es
     popad
 .cb:
     movzx eax, byte [ebp + 22]
@@ -873,6 +890,7 @@ sp_rec: dd 0
 sp_n: dd 0
 sp_first: dd 0
 sp_stg: db 0
+sp_bld: db 0
 sp_rule: db 0
 sp_G: db 0
 sp_div: dd 0

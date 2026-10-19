@@ -114,6 +114,10 @@ nc_bye:                                 ; replaces `mov esi, [A5]` before the ro
     inc ecx
     shr eax, 1
     jnz .r
+    cmp byte [esi + 1], 0FFh            ; (a hook's entry, gplay's contest: its rounds at +4)
+    jne .rn
+    movzx ecx, byte [esi + 4]
+.rn:
     mov [NCW + 59h], cx
     mov esi, [A5]                       ; the rounds' legs / extra time / penalties words from the header's round
     xor edx, edx                        ; bytes (+0Eh) for all of them: the game decodes as many as its halving of
@@ -490,6 +494,11 @@ nc_adv_call:
     jmp C194A4                          ; (chain_adv: the call's target after careerworld.euro_draw hooked it)
 
 bye_find:                               ; al = contest id, cx = its clubs -> CF = 0, esi = its BYE_TAB entry
+    cmp dword [NC_BYEP], 0              ; (gplay.gp_bye first: a running play-off of its own)
+    je .tab
+    call [NC_BYEP]
+    jnc .r
+.tab:
     mov esi, BYE_TAB                    ; (id, world, clubs, byes); world 0 = any (one-world builds: ids unique)
     mov edx, BYE_NT
 .l:
@@ -512,6 +521,7 @@ bye_find:                               ; al = contest id, cx = its clubs -> CF 
 %endif
 .ok:
     clc
+.r:
     ret
 .n:
     add esi, 4
@@ -614,6 +624,7 @@ NC_W: dd 0
 NC_T: times 64 db 0
 NC_DTAB: dd 0                           ; (chain_adv: historic's draw table)
 NC_DPP: dd 0                            ; (dplay.dp_perm, or 0)
+NC_BYEP: dd 0                           ; (gplay.gp_bye, or 0)
 NC_WREC: dd 0                           ; (chain_adv: careerworld.w_rec)
 NC_WDON: db 0
 ST_SB: times 32 db 0                    ; (EN item 'SB': st_ko's last fixed round [0..16), st_kend's winners [16..24))
@@ -757,7 +768,8 @@ def patch(p, cave, fin_pre):
     p.put(1, bye_call + 1, struct.pack('<i', labels['lib_bye'] - (bye_call + 5)))
     LABELS.update(nc_adv=labels['nc_adv'], nc_adv_call=labels['nc_adv_call'], adv_site=adv_site,   # (chain_adv)
                   NC_DTAB=labels['NC_DTAB'], NC_WDON=labels['NC_WDON'], NC_WREC=labels['NC_WREC'], fd=fd,
-                  NC_T=labels['NC_T'], NC_DPP=labels['NC_DPP'], ST_SB=labels['ST_SB'], ST_REC=labels['ST_REC'])
+                  NC_T=labels['NC_T'], NC_DPP=labels['NC_DPP'], NC_BYEP=labels['NC_BYEP'], ST_SB=labels['ST_SB'],
+                  ST_REC=labels['ST_REC'])
     if st:
         import engine
         engine.ITEM_AT['SB'] = (1, labels['ST_SB'])

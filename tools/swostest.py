@@ -5271,7 +5271,9 @@ def world_away_goals():
     import lepatch
     sp = split.sites(lepatch.LEPatch(os.path.join(MAIN, 'orig', 'ITALIAN.EXE')))['SLOTS']   # (InitNewSeason's
     seen, errs, info, bps = {}, [], [], []                     # arrayOfPointers: slots 0-4' buffers; integrator)
-    os.environ.setdefault('W8485_TMO', '1800')  # (the slower core: long steps; the run stops once the evidence is in)
+
+    class Enough(Exception):                                   # (the evidence is in: no need to finish the season under
+        pass                                                   # the slow core - its season end takes hours)
 
     def decided(r):                                           # breakpoint after cseg_28E76 stores cseg_2AE97's D7
         diy = struct.unpack('<I', r.read(r.base2 + AG_A3, 4))[0]   # (A3 = DIY_competitionStart, the working copy)
@@ -5282,9 +5284,8 @@ def world_away_goals():
             team = lambda i: w(0x24D + 2 * i)
             bps.append((d[0x2D], w(0x57), team(d[0x2CD + 2 * t]), team(d[0x2CD + 2 * t + 1]), d[0x89 + t],
                         w(0xC9 + 2 * t), w(0x14D + 2 * t)))
-
-    class Enough(Exception):                                   # (the evidence is in: no need to finish the season under
-        pass                                                   # the slow core - its season end takes hours)
+            if not FORCE and d[0x89 + t] & 0x10:           # (1984-85: the first away-goals decision is the evidence:
+                raise Enough                               # stop at once, not at the next screen)
 
     def hook(s, season, scr):
         if not FORCE and any(b[4] & 0x10 for b in bps):
@@ -5366,6 +5367,9 @@ def world_away_goals():
         seen.clear()
         bps.clear()
         FORCE = False                                         # (b) 1984-85: the rule as the engine plays it
+        os.environ['CORE'] = 'normal'                         # (the decision breakpoint: the dynamic core skips it;
+        os.environ['W8485_TMO'] = os.environ.get('AG_TMO', '3600')   # a loaded Mac: long steps; it stops at the
+                                                              # first away-goals decision)
         if 'b' in parts:
             keep = {k: os.environ.get(k) for k in ('W8485_ONE', 'W8485_BUILD', 'SWOSTEST_SCENARIO')}
             os.environ['W8485_ONE'] = '1'
@@ -5382,15 +5386,11 @@ def world_away_goals():
                         os.environ.pop(k, None)
                     else:
                         os.environ[k] = v
-            res = collections.Counter()                         # the European second legs' result texts (the
-            for d in glob.glob(os.path.join(RUNS, w84_tag() + '_*', 'session.log')):   # fast core: no breakpoint)
-                for ln in open(d, errors='replace'):
-                    if 'RITORNO' in ln:
-                        for t in re.findall(r'VINCE (?:\d+-\d+ )?(AI RIG(?: D\.T)?|IN TOT\.(?: D\.T)?|SU GOL FC)', ln):
-                            res[t] += 1
-            info.append(f'1984-85: {msg[:120]}; second-leg results {dict(res)}')
+            ag = [b for b in bps if b[4] & 0x10]
+            info.append(f'1984-85: {msg[:120]}; second legs {len(bps)}, away-goals bit {len(ag)}; '
+                        + ' '.join(f'{b[2]}-{b[3]}:{b[4]:02x}/{b[5]:04x}/{b[6]:04x}' for b in ag[:4]))
             check(ok, msg, errs)
-            check(res.get('SU GOL FC', 0) > 0, f'1984-85: no tie won on away goals on the screens {dict(res)}', errs)
+            check(bool(ag), '1984-85: no tie decided on away goals', errs)
     finally:
         W84_HOOK = None
     return not errs, '; '.join(errs + info)

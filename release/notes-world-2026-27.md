@@ -52,7 +52,8 @@ Not one fixed formula for everybody: each league plays the season the way its ow
   legs; the Netherlands 5th-8th; Wales 2nd-7th; Northern Ireland 3rd-7th; Romania; San Marino ...).
 - **Argentina 2026**: the Liga Profesional of 30 in two zones of 15, Apertura and Clausura (16 matchdays each: the
   zone round robin, the clasico on the free day, a drawn interzonal day), the annual table, relegation by promedio
-  (3 seasons) and by the annual table.
+  (3 seasons) and by the annual table. The annual table (Apertura + Clausura) is in STAT > ANNUAL TABLE, with the
+  Libertadores and Sudamericana places and the relegated last place in colour.
 - **Major League Soccer 2026**: 30 clubs in the Eastern and Western Conference (15 + 15), the real 34-match schedule
   (28 conference + 6 cross-conference games per club) on the real match days and dates, the World Cup break
   included. Equal points are ranked by wins, then goal difference, then goals scored; the club with the best record
@@ -62,7 +63,8 @@ Not one fixed formula for everybody: each league plays the season the way its ow
     higher seed hosts games 1 and 3, a drawn game goes to penalties, game 3 only if needed); Conference Semifinals
     and Conference Finals, single matches at the higher seed; the MLS Cup at the club with the better record. Extra
     time and penalties from the Conference Semifinals. Playable by your club, with the real round names.
-  Declared: the tables are the two conferences; the Supporters' Shield is not shown as a separate table.
+  The standings show the two conference tables; the Supporters' Shield (the overall table of 30) is in STAT >
+  SUPPORTERS' SHIELD.
 - **Title play-offs where the champion is decided after the table**:
   - **Canada** (CPL): the top 4, semi-finals 1st v 4th and 2nd v 3rd over two legs (the better placed hosts the
     return), a single final at the better placed's ground.
@@ -618,7 +620,8 @@ Non una formula uguale per tutti: ogni campionato gioca la stagione come l'ha sc
   Marino ...).
 - **Argentina 2026**: la Liga Profesional a 30 in due zone da 15, Apertura e Clausura (16 giornate ciascuno: girone di
   zona, il clasico nel giorno di riposo, una giornata interzonale sorteggiata), la classifica annuale, retrocessione
-  per promedio (3 stagioni) e per classifica annuale.
+  per promedio (3 stagioni) e per classifica annuale. La classifica annuale (Apertura + Clausura) è in STAT >
+  CLASSIFICA ANNUALE, con a colori i posti in Libertadores e Sudamericana e l'ultimo posto che retrocede.
 - **Major League Soccer 2026**: 30 club nelle Conference Est e Ovest (15 + 15), il calendario vero di 34 partite
   (28 nella propria conference e 6 contro l'altra) nelle giornate e date vere, pausa per i Mondiali compresa. A
   parità di punti contano le vittorie, poi la differenza reti, poi i gol fatti; il club col miglior record assoluto
@@ -629,7 +632,8 @@ Non una formula uguale per tutti: ogni campionato gioca la stagione come l'ha sc
     solo se serve); semifinali e finali di conference in gara secca in casa della meglio piazzata; la MLS Cup in
     casa del club col record migliore. Supplementari e rigori dalle semifinali di conference. Giocabili dal tuo
     club, coi nomi veri dei turni.
-  Dichiarato: le classifiche sono le due conference; il Supporters' Shield non ha una classifica a parte.
+  La classifica mostra le due conference; il Supporters' Shield (la classifica generale delle 30) è in STAT >
+  SUPPORTERS' SHIELD.
 - **Play-off per il titolo dove il campione si decide dopo la classifica**:
   - **Canada** (CPL): le prime 4, semifinali 1ª-4ª e 2ª-3ª andata e ritorno (ritorno in casa della meglio
     piazzata), finale secca in casa della meglio piazzata.

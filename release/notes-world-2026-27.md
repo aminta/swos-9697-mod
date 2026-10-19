@@ -515,8 +515,6 @@ when the engine lands it.
   of these details.
 
 **Known limits**
-- After a mid-season split, a group with fewer rounds spreads them over the stage's match days and plays its last
-  round on the stage's last day (the real calendars may end that group earlier).
 - A career saved with one language's executable and loaded with another keeps the first language's competition
   titles, and its league tables show no zone colours and no FORMAT page: continue a career with the language you
   started it in.
@@ -1088,8 +1086,6 @@ Baiano, Cearense, Pernambucano, Alagoano e Mato-Grossense.
   regolamento pubblicato non dà questi dettagli.
 
 **Limiti noti**
-- Dopo lo split di metà stagione, un gruppo con meno giornate le distribuisce sulle date della fase e gioca l'ultima
-  nell'ultima data della fase (nei calendari veri quel gruppo può finire prima).
 - Una carriera salvata con l'eseguibile di una lingua e caricata con quello di un'altra tiene i titoli delle
   competizioni della prima lingua, e le sue classifiche non mostrano né i colori né la pagina FORMULA: continua una
   carriera nella lingua in cui l'hai iniziata.

@@ -208,9 +208,11 @@ static int agg_better(int s, int a, int b) {   /* the two rounds' points togethe
    1v4, 2v3, then the final, every tie skip_if_same: one club won both rounds -> 4 x O1 (no match: champion); O1 / C1
    1st and 2nd in reverse order, or one club 2nd in both (it is the runner-up, out of the decider) -> the Finalissima
    O1 v C1 (seeds A A B B, A the better by aggregate points); three clubs -> the one 1st in a round and 2nd in the
-   other straight to the final (seeds 1 and 4), the other two play for its other place; four clubs -> the Final Four
-   seeded by aggregate points (both rounds' points, then the Closing table's place: the MFA's head-to-head tiebreak
-   is not kept) */
+   other straight to the final (seeds 1 and 4), the other two play for its other place (a club 2nd in both: 3rd, the
+   Finalissima as above); four clubs -> the Final Four seeded by the season's points (the Opening's kept table, Top 6
+   included, + the Closing's). Equal points: the Closing table's place (the rules' direct encounters need every
+   pair's results over both rounds, which no table keeps; the Top-6 / league-phase rule is the rules' classification
+   of 2nd-4th when one club won both, not a seeding) */
 static int split_seed(int d, int s, int a) {
     if (d >= GP_IN.nd || GP_IN.n[d] < 2 || a < 1 || a > 4) return -1;
     int o1 = stage_club(d, s, 1), o2 = stage_club(d, s, 2), c1 = d * GT, c2 = d * GT + 1;

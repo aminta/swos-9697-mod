@@ -189,8 +189,30 @@ function md5(bytes) {
 }
 
 // ---- delta decoder (format SWD1, see tools/mkpatcher.py) ----
-function applyDelta(src, b64, outSize) {
-  const ops = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+// 4.0: deltas are raw-deflated ('z'), inflated with DecompressionStream (Chrome 103+, Safari 16.4+, Firefox 113+);
+// an upgrade with 'mid_md5' goes back to the original first, then takes this release's own delta from the original.
+const HAS_INFLATE = typeof DecompressionStream === 'function';
+async function opsOf(patch) {
+  const raw = Uint8Array.from(atob(patch.delta), c => c.charCodeAt(0));
+  if (!patch.z) return raw;
+  if (!HAS_INFLATE) throw new Error('browser');
+  const s = new Blob([raw]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
+  return new Uint8Array(await new Response(s).arrayBuffer());
+}
+async function patchFile(src, patch) {           // -> the patched bytes, every step checked; throws on any mismatch
+  let from = src;
+  if (patch.mid_md5) {
+    const mid = applyDelta(src, await opsOf(patch), patch.mid_size);
+    if (md5(mid) !== patch.mid_md5) throw new Error('md5');
+    const base = PATCHES.find(p => p.id === patch.id && p.md5 === patch.mid_md5 && p.size === patch.mid_size && !p.from && !p.via);
+    if (!base) throw new Error('bad patch data');
+    from = mid; patch = base;
+  }
+  const out = applyDelta(patch.with ? new Uint8Array(0) : from, await opsOf(patch), patch.out_size);
+  if (md5(out) !== patch.out_md5) throw new Error('md5');
+  return out;
+}
+function applyDelta(src, ops, outSize) {
   if (String.fromCharCode(...ops.subarray(0, 4)) !== 'SWD1') throw new Error('bad patch data');
   const out = new Uint8Array(outSize);
   let p = 4, q = 0, last = 0;
@@ -209,10 +231,12 @@ function applyDelta(src, b64, outSize) {
 let lang = 'it';
 const T = {
   it: { all: n => `Scarica tutto (${n} file, .zip)`, wait: 'Controllo…', ok: 'Pronto', bad: 'File non riconosciuto', fail: 'Errore nella modifica', dl: 'Scarica', none: 'Nessun file ancora.',
+        browser: 'Questo browser è troppo vecchio per questa pagina (serve DecompressionStream): aggiornalo (Chrome 103+, Safari 16.4+, Firefox 113+) e riprova. Nessun file è stato modificato.',
         current: 'Già aggiornato', from: v => `aggiornamento dalla ${v}`, via: { swospp: 'dal gioco originale con SWOS++', mod: 'aggiunge SWOS++' },
         unknown: n => `${n}: non corrisponde a nessun file atteso (né un originale, né modificato da una versione precedente di questa mod). Non è stato modificato.`,
         page: n => `${n} è questa pagina, non un file del gioco: trascina qui l'eseguibile (es. ITALIAN.EXE) dalla cartella del gioco e TEAM.020 dalla sua cartella DATA.` },
   en: { all: n => `Download all (${n} files, .zip)`, wait: 'Checking…', ok: 'Ready', bad: 'File not recognised', fail: 'Patching error', dl: 'Download', none: 'No files yet.',
+        browser: 'This browser is too old for this page (it needs DecompressionStream): update it (Chrome 103+, Safari 16.4+, Firefox 113+) and try again. No file was changed.',
         current: 'Already up to date', from: v => `upgrade from ${v}`, via: { swospp: 'from the original game with SWOS++', mod: 'adds SWOS++' },
         unknown: n => `${n}: does not match any expected file (neither an original nor one modified by an earlier release of this mod). It was not patched.`,
         page: n => `${n} is this page, not a game file: drop here the executable (e.g. ENGLISH.EXE) from the game folder and TEAM.020 from its DATA folder.` },
@@ -325,10 +349,11 @@ async function handle(files) {
     for (const patch of patches) {
       const q = { name: f.name, state: 'wait', patch }; results.push(q);
       try {
-        const out = applyDelta(patch.with ? new Uint8Array(0) : src, patch.delta, patch.out_size);
-        if (md5(out) !== patch.out_md5) throw new Error('md5');
-        q.out = out; q.state = 'ok';
-      } catch (e) { q.state = 'fail'; }
+        q.out = await patchFile(src, patch); q.state = 'ok';
+      } catch (e) {
+        q.state = 'fail';
+        if (e.message === 'browser') { msg.hidden = false; msg.textContent = T[lang].browser; }
+      }
     }
     render();
   }
@@ -345,6 +370,7 @@ document.getElementById('b-it').onclick = () => setLang('it');
 document.getElementById('b-en').onclick = () => setLang('en');
 let saved = null; try { saved = localStorage.getItem('swos-patcher-lang'); } catch (e) {}
 setLang(saved === 'it' || saved === 'en' ? saved : (navigator.language || '').startsWith('it') ? 'it' : 'en');
+if (!HAS_INFLATE) { const m = document.getElementById('msg'); m.hidden = false; m.textContent = T[lang].browser; }
 </script>
 </body>
 </html>

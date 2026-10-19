@@ -589,8 +589,7 @@ sp_count:                               ; replaces `mov esi, [A0]` in cseg_8922B
     inc eax
     cmp ax, [esi + 1C7h]
     jne .game
-    xor ecx, ecx
-    call sp_early
+    mov byte [sp_pend], 1               ; (frozen after this match's result is in: sp_post)
     jmp .game
 .post:
     cmp cl, [edx + 6]
@@ -626,9 +625,10 @@ sp_count:                               ; replaces `mov esi, [A0]` in cseg_8922B
     mov [WEEK], al
     call sp_stage_end
     inc ecx
-    cmp dword [esp + 36], CNT_BLD_RET   ; (a stage starting tomorrow: frozen now, before the game shows its first
-    je .nb                              ; calendar block)
-    call sp_early
+    cmp dword [esp + 36], CNT_BLD_RET   ; (a stage starting tomorrow: frozen once this match's result is in -
+    je .nb                              ; sp_post - before the game shows its first calendar block)
+    lea eax, [ecx + 1]
+    mov [sp_pend], al
 .nb:
     cmp cl, [edx + 6]
     jb .ret
@@ -640,6 +640,23 @@ sp_count:                               ; replaces `mov esi, [A0]` in cseg_8922B
 .game:
     popad
     mov esi, [A0]
+    ret
+
+sp_post:                                ; replaces `mov ax, [RFLAG]` after the result path's last figure (both paths: the
+                                        ; career club's match and the others' join there, before a jnz that skips the
+                                        ; sort): a stage
+    pushad                              ; freeze marked by sp_count (pend = its first day + 1) now that the day's
+    movzx ecx, byte [sp_pend]           ; last result is in the table (frozen inside cseg_8922B, a 'reset' stage
+    test ecx, ecx                       ; started with that match's played but not its result: W + D + L > played)
+    jz .x
+    mov byte [sp_pend], 0
+    dec ecx
+    call sp_entry
+    jz .x
+    call sp_early
+.x:
+    popad
+    mov ax, [RFLAG]
     ret
 
 sp_early:                               ; ecx = the day after the split that starts next (esi = DIY, edx = entry):
@@ -958,6 +975,7 @@ sp_n: dd 0
 sp_first: dd 0
 sp_stg: db 0
 sp_bld: db 0
+sp_pend: db 0
 sp_rule: db 0
 sp_G: db 0
 sp_W: db 0
@@ -1258,6 +1276,12 @@ def sites(p):
     assert len(c) == 1, 'cseg_8E796'                # (its mov [A0], offset arrayOfPointers: the contests' slot
     k = d1.rfind(b'\xc7\x05' + struct.pack('<I', a0), c[0] - 0x80, c[0])   # buffers, 0 = the league; the harness)
     s['SLOTS'] = p.target(1, k + 6)[1]
+    # the result path after cseg_8922B: wins / draws / losses / points / goals, the last one `add [esi+2C1h], ax`,
+    # then `mov ax, [RFLAG]; or ax, ax; jnz` (past the sort): sp_post's site, the mov
+    po = [m.start() + 7 for m in re.finditer(rb'\x66\x01\x86\xc1\x02\x00\x00\x66\xa1(.{4})\x66\x0b\xc0\x0f\x85', d1, re.S)]
+    assert len(po) == 1, ('result path: add [esi+2C1h], ax; mov ax, [RFLAG]; or ax, ax; jnz', po)
+    s['post'] = po[0]
+    s['RFLAG'] = struct.unpack_from('<I', d1, po[0] + 2)[0]
     s['res'] = one(rb'\xc7\x05' + A(a0) + A(diy) + rb'\x8b\x35' + A(a0) + rb'\x66\x83\x86\xbd\x01\x00\x00\x01',
                    'cseg_88CBB').start() + 16
     # calendar builder cseg_8B8D9: push [A6]; call cseg_89758 (the return address is on the stack in sp_pair)
@@ -1346,6 +1370,7 @@ def patch(p, cave, nasmcave, splits):
            'WORLD_BYTE': (0, careerworld.WORLD_BYTE), 'C2653B': (1, s['C2653B']), 'C2730A': (1, s['C2730A']),
            'C883DD': (1, s['sort_start']), 'C88420': (1, s['C88420']), 'BUILDER_RET': (1, s['BUILDER_RET']),
            'CNT_BLD_RET': (1, s['CNT_BLD_RET']),
+           'RFLAG': (2, s['RFLAG']),
            'CAL': (2, s['CAL']), 'CALN': (2, s['CALN']), 'SELTEAMS': (2, s['SELTEAMS']), 'WEEK': (2, s['WEEK']),
            'SIMFLAG': (2, s['SIMFLAG']), 'C89758': (1, s['pair']), 'C88A12': (1, s['C88A12'])}
     import engine
@@ -1372,10 +1397,13 @@ def patch(p, cave, nasmcave, splits):
     hooks = [(s['div'], 'sp_div8f', 6), (s['init'], 'sp_init', 5), (s['cpu'], 'sp_cpu', 5), (s['swap'], 'sp_pair', 6), (s['count'], 'sp_count', 6), (s['sort'], 'sp_sort', 6)]
     if any(POINTS[x] == 4 for _, _, _, _, sp in splits for x in sp.get('points') or []):
         hooks.append((s['res'], 'sp_res', 8))              # (only with head-to-head groups: the result path)
+    hooks.append((s['post'], 'sp_post', 6))
     for site, label, n in hooks:
         assert p.get(1, site, n) == p.le.obj_bytes(1)[site:site + n], f'split: {label} site already patched'
         if label in ('sp_pair', 'sp_count', 'sp_div8f'):
             p.remove(1, site + 2)                    # mov esi, [A0] / mov ax, [D0] (the others: no address)
+        if label == 'sp_post':
+            p.remove(1, site + 2)                    # mov ax, [RFLAG]
         p.put(1, site, b'\xe8' + struct.pack('<i', lab[label] - (site + 5)) + b'\x90' * (n - 5))
     print(f'exe: mid-season splits ({"; ".join(log)}), code obj1+{cave:#x}..{cave + len(code):#x} '
           f'(' + ', '.join(f'{k} {lab[k]:#x}' for k in ('sp_init', 'sp_pair', 'sp_freeze', 'sp_calendar', 'sp_count',

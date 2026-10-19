@@ -26,14 +26,22 @@ NAMES = {
            ('PRIMO TURNO NAZIONALE', 'T. NAZ. 1', 'N 1'), ('SECONDO TURNO NAZIONALE', 'T. NAZ. 2', 'N 2'),
            ('PRIMO TURNO', 'T. 1', 'T 1'), ('TRENTADUESIMI DI FINALE', 'TRENTADUES.', '1/32'),
            ('SEDICESIMI DI FINALE', 'SEDICESIMI', '1/16'), ('QUARTI DI FINALE', 'QUARTI', 'Q F'),
-           ('SEMIFINALE', 'SEMIFINALE', 'S F'), ('FINALE', 'FINALE', 'F')],
+           ('SEMIFINALE', 'SEMIFINALE', 'S F'), ('FINALE', 'FINALE', 'F'),
+           ('WILD CARD', 'WILD CARD', 'WC'), ('PRIMO TURNO GARA 1', 'T.1 GARA 1', 'T1 1'),
+           ('PRIMO TURNO GARA 2', 'T.1 GARA 2', 'T1 2'), ('PRIMO TURNO GARA 3', 'T.1 GARA 3', 'T1 3'),
+           ('SEMIFINALI CONFERENCE', 'SEMIF. CONF.', 'SFC'), ('FINALE DI CONFERENCE', 'FINALE CONF.', 'FC'),
+           ('MLS CUP', 'MLS CUP', 'CUP')],
     'en': [('LEAGUE PHASE', 'LEAGUE PH.', 'LP'), ('KNOCKOUT PLAY-OFFS', 'PLAY-OFFS', 'P/O'),
            ('ROUND OF 16', 'LAST 16', 'R16'), ('PLAY-OFF ROUND', 'PLAY-OFF', 'P/O'),
            ('PRELIMINARY ROUND', 'PRELIMINARY', 'PRE'),
            ('GROUP PHASE ROUND 1', 'GROUP RND 1', 'GR1'), ('GROUP PHASE ROUND 2', 'GROUP RND 2', 'GR2'),
            ('NATIONAL ROUND 1', 'NAT. RND 1', 'NR1'), ('NATIONAL ROUND 2', 'NAT. RND 2', 'NR2'),
            ('FIRST ROUND', 'ROUND 1', 'R1'), ('ROUND OF 64', 'LAST 64', 'R64'), ('ROUND OF 32', 'LAST 32', 'R32'),
-           ('QUARTER-FINAL', 'QUARTER-F.', 'QF'), ('SEMI-FINAL', 'SEMI-FINAL', 'SF'), ('FINAL', 'FINAL', 'F')],
+           ('QUARTER-FINAL', 'QUARTER-F.', 'QF'), ('SEMI-FINAL', 'SEMI-FINAL', 'SF'), ('FINAL', 'FINAL', 'F'),
+           ('WILD CARD', 'WILD CARD', 'WC'), ('ROUND ONE GAME 1', 'R1 GAME 1', 'R1 1'),
+           ('ROUND ONE GAME 2', 'R1 GAME 2', 'R1 2'), ('ROUND ONE GAME 3', 'R1 GAME 3', 'R1 3'),
+           ('CONFERENCE SEMIFINALS', 'CONF. SEMIS', 'CSF'), ('CONFERENCE FINAL', 'CONF. FINAL', 'CF'),
+           ('MLS CUP', 'MLS CUP', 'CUP')],
     'fr': [('PHASE DE LIGUE', 'PH. LIGUE', 'LIG'), ('BARRAGES', 'BARRAGES', 'BAR'),
            ('HUITIEMES DE FINALE', '1/8 FINALE', '1/8'), ('BARRAGES', 'BARRAGES', 'BAR'),
            ('TOUR PRELIMINAIRE', 'T. PRELIM.', 'T P'),
@@ -41,18 +49,29 @@ NAMES = {
            ('1ER TOUR NATIONAL', 'T1 NATIONAL', 'N 1'), ('2E TOUR NATIONAL', 'T2 NATIONAL', 'N 2'),
            ('PREMIER TOUR', '1ER TOUR', 'T1'), ('TRENTE-DEUXIEMES', '1/32 FINALE', '1/32'),
            ('SEIZIEMES DE FINALE', '1/16 FINALE', '1/16'), ('QUARTS DE FINALE', '1/4 FINALE', '1/4'),
-           ('DEMI-FINALE', '1/2 FINALE', '1/2'), ('FINALE', 'FINALE', 'F')],
+           ('DEMI-FINALE', '1/2 FINALE', '1/2'), ('FINALE', 'FINALE', 'F'),
+           ('WILD CARD', 'WILD CARD', 'WC'), ('PREMIER TOUR MATCH 1', 'T1 MATCH 1', 'T1 1'),
+           ('PREMIER TOUR MATCH 2', 'T1 MATCH 2', 'T1 2'), ('PREMIER TOUR MATCH 3', 'T1 MATCH 3', 'T1 3'),
+           ('DEMI-FINALES CONFERENCE', '1/2 CONF.', '1/2C'), ('FINALE DE CONFERENCE', 'FINALE CONF.', 'FC'),
+           ('MLS CUP', 'MLS CUP', 'CUP')],
     'de': [('LIGAPHASE', 'LIGAPHASE', 'LIGA'), ('K.O.-PLAYOFFS', 'PLAYOFFS', 'P/O'),
            ('ACHTELFINALE', 'ACHTELF.', 'A/F'), ('PLAYOFF-RUNDE', 'PLAYOFFS', 'P/O'),
            ('VORRUNDE', 'VORRUNDE', 'VR'),
            ('GRUPPENRUNDE 1', 'GR.-RUNDE 1', 'GR1'), ('GRUPPENRUNDE 2', 'GR.-RUNDE 2', 'GR2'),
            ('NATIONALE RUNDE 1', 'NAT. RUNDE 1', 'NR1'), ('NATIONALE RUNDE 2', 'NAT. RUNDE 2', 'NR2'),
            ('ERSTE RUNDE', '1. RUNDE', 'R1'), ('1/32-FINALE', '1/32-FIN.', '1/32'), ('1/16-FINALE', '1/16-FIN.', '1/16'),
-           ('VIERTELFINALE', 'VIERTELF.', 'V F'), ('HALBFINALE', 'HALBFINALE', 'H F'), ('FINALE', 'FINALE', 'F')],
+           ('VIERTELFINALE', 'VIERTELF.', 'V F'), ('HALBFINALE', 'HALBFINALE', 'H F'), ('FINALE', 'FINALE', 'F'),
+           ('WILD CARD', 'WILD CARD', 'WC'), ('ERSTE RUNDE SPIEL 1', '1.RUNDE SP.1', 'R1 1'),
+           ('ERSTE RUNDE SPIEL 2', '1.RUNDE SP.2', 'R1 2'), ('ERSTE RUNDE SPIEL 3', '1.RUNDE SP.3', 'R1 3'),
+           ('CONFERENCE-HALBFINALE', 'CONF.-HALBF.', 'CHF'), ('CONFERENCE-FINALE', 'CONF.-FINALE', 'CF'),
+           ('MLS CUP', 'MLS CUP', 'CUP')],
 }
 N_OLD = 12
 LP, KO, R16, QPO, PRE, CG1, CG2, CN1, CN2, CD1, CD2, CD3, CD5, CD6, CD7 = range(N_OLD, N_OLD + 15)
-CD_NAMES = (PRE, CD1, CD2, CD3, R16, CD5, CD6, CD7)   # (the Coppa Italia Serie D's rounds 0-7: gplay's cd_rname)
+CD_NAMES = (PRE, CD1, CD2, CD3, R16, CD5, CD6, CD7)   # (the Coppa Italia Serie D's rounds 0-7: gplay's gp_rname)
+# gplay play-offs' "round_names" (one per game round, a best-of-three's games apart): 4.0 MLS
+KEYS = dict(zip(('WC', 'R1G1', 'R1G2', 'R1G3', 'CSF', 'CF', 'CUP'), range(N_OLD + 15, N_OLD + 22)))
+KEYS.update(PRE=PRE, R16=R16, QF=CD5, SF=CD6, F=CD7)
 
 LABELS = {}
 
@@ -143,7 +162,7 @@ rn_round:                               ; uq_rn1 / uq_rn2: CF = 1 and D0 = the n
 .out:                                   ; (FE: gplay's slot-4 contests; a Coppa Italia Serie D tie: its round's name)
     cmp dword [RN_CDP], 0
     je .game
-    call [RN_CDP]                       ; (gplay cd_rname: CF = 1, al = the name index)
+    call [RN_CDP]                       ; (gplay gp_rname: CF = 1, al = the name index)
     jc .set
 .game:
     pop ebx
@@ -151,7 +170,7 @@ rn_round:                               ; uq_rn1 / uq_rn2: CF = 1 and D0 = the n
     clc
     ret
 align 4
-RN_CDP: dd 0                            ; (gplay.cd_rname, or 0)
+RN_CDP: dd 0                            ; (gplay.gp_rname, or 0)
 
 ; Titles (cseg_45D92: '<contest name> <round> [<leg>]' into a menu entry's text, which shows 40 characters): when
 ; longer, a national contest drops its country prefix first ('ITALIA PLAY-OFF SERIE B' -> 'PLAY-OFF SERIE B'), then

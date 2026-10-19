@@ -593,6 +593,8 @@ struct gp_state {
     struct gp_dec dec[3];               /* 4.0 ARG: the stage titles decided mid-season (by stage: 0, 1, 2) */
     u8 pend, pweek, pseas, pad3;        /* 'then_build': play-off pend - 1 to build at the calendar advance from week
                                            pweek on (gp_adv), this season's */
+    u8 rn[KG];                          /* ko[0]'s game rounds' names (rnames index, 0: the game's): pack
+                                           'round_names', gplay.py gp_rname (4.0 MLS) */
 };
 struct gp_state GP_ST;
 extern const u8 *GP_CFB;
@@ -605,6 +607,7 @@ struct gp_log { u32 tag; u8 seas, stseas, pl_pi, pad; struct gp_ko ko; struct gp
 /* set by the glue */
 u8 GP_HDR[14] = { 0xAD };               /* (gplay.py: the game's Australian cup header, no draw, no away goals) */
 const u32 *GP_NM;                       /* the country's names: per play-off dd long, short, record (relative) */
+const u8 *GP_RN;                        /* the country's 'round_names': KG bytes per play-off (rnames indices) */
 const u8 *GP_TH;                        /* the country's 'then_build': per play-off the next one's index + 1, or 0 */
 u8 *GP_DIYP;
 u32 GP_K, GP_W, GP_SKIP, GP_RB, GP_ALIVE;
@@ -1028,6 +1031,8 @@ static int ko_build(struct gp_ko *k, int pi, int slot, int cid) {
     for (int g = g0; g < k->ngr; g++) days += (k->rb[g] & 0xC0) == 0x80 ? 2 : 1;
     k->gcur = g0;
     k->bye[5] = GP_TH ? GP_TH[pi] : 0;  /* (pack 'then_build': the play-off built when this one ends, index + 1) */
+    if (k == &GP_ST.ko[0])              /* (its round names: the slot-4 screens, gp_rname) */
+        for (int i = 0; i < KG; i++) GP_ST.rn[i] = GP_RN ? GP_RN[KG * pi + i] : 0;
     k->lfile = k->team[0] & 0xFF;
     k->d1 = GP_IN.week + 1; k->d2 = GP_IN.week + days > 255 ? 255 : GP_IN.week + days;
     k->bye[0] = cid; k->bye[1] = 0xFF; k->bye[2] = n; k->bye[3] = n - np1; k->bye[4] = k->ngr - g0;
@@ -1596,7 +1601,8 @@ const u32 GP_LAYOUT2[] = { __builtin_offsetof(struct gp_in, mgr), __builtin_offs
                            __builtin_offsetof(struct gp_ko, cid), __builtin_offsetof(struct gp_ko, n),
                            __builtin_offsetof(struct gp_ko, team), __builtin_offsetof(struct gp_ko, bye),
                            __builtin_offsetof(struct gp_ko, con), sizeof(struct gp_state), sizeof(struct gp_log),
-                           __builtin_offsetof(struct gp_ko, slot) };
+                           __builtin_offsetof(struct gp_ko, slot), __builtin_offsetof(struct gp_state, rn),
+                           __builtin_offsetof(struct gp_ko, gcur) };
 
 /* Parallel groups at the season end (pgroups.py: InitializeNewSeason's copy-back, leaguesTableCopy -> someLeaguesTable).
    The table: db count; per country db world, levels; per level db first division, groups, sizes[groups] (top-down,

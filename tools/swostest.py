@@ -1720,10 +1720,13 @@ def zone_colours():
                                      ['lb'] * 4 + ['gr', 'db'] + ['pl'] * 11 + ['gy'] * 3, ['CL', 'EL', 'CONF', 'RETR']),
                                     (('ITALIA', 'SERIE B', 'AVELLINO'),
                                      ['lb'] * 2 + ['gr'] * 6 + ['pl'] * 7 + ['or'] * 2 + ['gy'] * 3,
-                                     ['PROM', 'P.OFF', 'P.OUT', 'RETR'])):
+                                     ['PROM', 'P.OFF', 'P.OUT', 'RETR']),
+                                    (('SUDAMERICA', 'BRASILE', 'CAMPEONATO BRASILEIRO SERIE A', 'PALMEIRAS'),
+                                     ['lb'] * 6 + ['gr'] * 6 + ['pl'] * 4 + ['gy'] * 4, ['LIB', 'SUD', 'RETR'])):
             with Session('zone_colours_' + path[1].split()[-1].lower(), w27, {}, 'dump:2', 1500) as s:
                 s.wait()
-                for t in ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27', 'EUROPA'] + list(path):
+                for t in ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27'] + \
+                        ([] if path[0] == 'SUDAMERICA' else ['EUROPA']) + list(path):
                     if press(s, s.screen(), t, 3) is None:
                         return False, f'2026-27 career: {t} not reached'
                 s.send('fire dump:3')

@@ -632,17 +632,17 @@ sp_stage_end:                           ; ecx = the day just over (after the spl
     pushad
     dec eax
     movzx ebx, byte [ebp + 24]
+    push es                             ; (es first: the C code's arguments must be right above the return address)
+    push ds
+    pop es
+    cld
     push ebx
     push eax
     push dword [SELTEAMS]
     push dword DIY
-    push es
-    push ds
-    pop es
-    cld
     call GP_STAGE
-    pop es
     add esp, 16
+    pop es
     popad
 .cb:
     movzx eax, byte [ebp + 22]

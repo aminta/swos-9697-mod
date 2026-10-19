@@ -267,19 +267,19 @@ gp_setup:                               ; ZF = 0 if the career league (D8CAA) is
     jae .no
     mov [GP_IN + O_MDIV], al
     push eax                            ; (split's kept stage table too: GP_IN.st, stage_place entrants)
+    push es                             ; (es first: the C code's arguments right above the return address)
+    push ds
+    pop es
+    cld
     push dword SP_MAGIC
     push eax
     push dword [SELTEAMS]
     push dword SP_KEEP
     push dword SP_ST
     push dword CFB
-    push es
-    push ds
-    pop es
-    cld
     call gp_keep
-    pop es
     add esp, 24
+    pop es
     pop eax
     mov ebp, CFB
     call gp_rows
@@ -707,19 +707,19 @@ gp_cap:                                 ; replaces `call cseg_9221F` (after dpla
     cmp eax, GD_N
     jae .x
     push eax                            ; split's kept stage table (gplay.c gp_keep: GP_IN.st)
+    push es                             ; (es first: the C code's arguments right above the return address)
+    push ds
+    pop es
+    cld
     push dword SP_MAGIC
     push eax
     push dword [SELTEAMS]
     push dword SP_KEEP
     push dword SP_ST
     push dword DIY
-    push es
-    push ds
-    pop es
-    cld
     call gp_keep
-    pop es
     add esp, 24
+    pop es
     pop eax
     mov ebp, DIY
     call gp_rows

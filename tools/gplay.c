@@ -813,7 +813,8 @@ static int build_game(struct gp_ko *k, int g) {
     for (int i = 0; i < ties; i++) {
         int t = t0 + i, a = mem[2 * i], b = mem[2 * i + 1], gap = k->rs[r][5];
         if (k->tw[t] != NOC) continue;  /* (decided by the gap rule) */
-        if (a == b) { k->tw[t] = k->tl[t] = a; continue; }      /* (skip_if_same: one club, no tie) */
+        if (k->code[a] == k->code[b]) { k->tw[t] = k->tl[t] = a; continue; }   /* (skip_if_same: one CLUB twice
+                                           (two entrants, e.g. the Trofeo's R1 = R2): no tie) */
         if (g == 0 && gap) {
             int d = (int)k->pts[a] - (int)k->pts[b];
             if (d >= gap || -d >= gap) { k->tw[t] = kbetter(k, a, b) ? a : b; k->tl[t] = k->tw[t] == a ? b : a; continue; }

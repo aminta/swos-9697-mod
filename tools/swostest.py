@@ -4101,8 +4101,8 @@ def world_statesim(team='SUDAMERICA,BRASILE,CAMPEONATO BRASILEIRO SERIE A,ATHLET
     """State championships at the season end (statespec statesim.c + ripool, World 2026-27 private data world5tm):
     two seasons at ATHLETICO-PR (Paranaense): season 1's SS_LAST (statesim's SR) has one block per state, the
     Paranaense's = the real stage-1 order seen at its first knockout (ST_RANK block 0, st_rec) with its relegation
-    play-outs applied; season 2's Paranaense list (block 0 again) no longer holds the season-1 relegated words
-    unless they were league clubs replaced as per ripool, and still holds 12 clubs"""
+    play-outs applied; season 2's Paranaense list (block 0 again) still holds 12 clubs and no season-1 relegated
+    LEAGUE club (those leave through RI_OVR; a state-only club keeps its word, ripool swaps its identity)"""
     src = os.path.join(MAIN, 'internal', 'world2526', 'world5tm')
     if not os.path.isdir(src):
         return True, 'SKIP: private data internal/world2526/world5tm missing'
@@ -4129,10 +4129,12 @@ def world_statesim(team='SUDAMERICA,BRASILE,CAMPEONATO BRASILEIRO SERIE A,ATHLET
             else:
                 os.environ[x] = v
     hexes = {}
-    for ln in open(os.path.join(RUNS, w84_tag() + '_1', 'session.log'), errors='replace'):
-        q = ln.split()
-        if len(q) == 3 and q[0] == 'HEX':
-            hexes.setdefault(q[1], []).append(bytes.fromhex(q[2]))
+    for sn in (1, 2):                            # (each season's own run)
+        f = os.path.join(RUNS, w84_tag() + f'_{sn}', 'session.log')
+        for ln in open(f, errors='replace') if os.path.exists(f) else []:
+            q = ln.split()
+            if len(q) == 3 and q[0] == 'HEX':
+                hexes.setdefault(q[1], []).append(bytes.fromhex(q[2]))
     errs = []
     check(ok, msg, errs)
     ranks = [sr_blocks(b) for b in hexes.get(f'o1/{rank_at:x}', [])]
@@ -4150,8 +4152,8 @@ def world_statesim(team='SUDAMERICA,BRASILE,CAMPEONATO BRASILEIRO SERIE A,ATHLET
             blk = dict(L).get(pk)
             check(blk is not None and sorted(blk) == sorted(pw), f'played state {pk:#x}: SR {blk} vs order {pw}', errs)
             if len(played) >= 2 and blk:
-                p2k, p2w = played[1]
-                gone = [w for w in blk[-2:] if w in p2w]
+                p2k, p2w = played[1]                 # (a relegated state-only club keeps its word: ripool swaps
+                gone = [w for w in blk[-2:] if w in p2w and (w & 255) != 0xA1]   # the identity in file 161)
                 check(p2k == pk and len(p2w) == len(pw) and not gone,
                       f'season 2 list {[hex(x) for x in p2w]}: season-1 relegated {[hex(x) for x in blk[-2:]]} '
                       f'still in: {[hex(x) for x in gone]}', errs)

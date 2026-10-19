@@ -640,7 +640,7 @@ def world_year(w, d=None):
 
 def from_pack(d):
     """[(world, contest id, {lang: title}, {lang: [lines]})] of one pack."""
-    m = json.load(open(os.path.join(d, 'pack.json')))
+    m = complist.load_pack(d)
     clubs = complist.csv.DictReader(open(os.path.join(d, 'clubs.csv'), encoding='utf-8')) \
         if os.path.exists(os.path.join(d, 'clubs.csv')) else []
     clubs = [dict(r, file=r.get('file') or 'league', division=r.get('division') or '0') for r in clubs]

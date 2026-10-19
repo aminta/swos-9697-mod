@@ -162,6 +162,57 @@ def _sfx(n):
     return 'th' if 10 <= n % 100 <= 20 else {1: 'st', 2: 'nd', 3: 'rd'}.get(n % 10, 'th')
 
 
+TITLE_MAX = 34      # the game's title '<country> <long name>' (DIY+4): a 35-byte field, the long-name pointer right after
+                    # it (DIY+27h); longer, the copy overwrites the pointer (4.0: Argentina's 'CEK' record line, title garbage)
+LANGS = ('it', 'en', 'fr', 'de')
+
+
+def _fit(country, long_, short):
+    """A long name that fits '<country> <long>' in TITLE_MAX: the long one, else the short one, else the longer of the
+    two cut at a word (then at the limit)."""
+    room = TITLE_MAX - len(country) - 1
+    for x in (long_, short):
+        if len(x) <= room:
+            return x
+    w = (short or long_)[:room + 1].rsplit(' ', 1)[0] if ' ' in (short or long_)[:room + 1] else (short or long_)[:room]
+    return w.rstrip(' -.') or (short or long_)[:room]
+
+
+def fit_titles(m):
+    """pack.json m (in place): every name list [long, short] of a competition, its divisions and its play-offs gets a
+    per-language long name whose title '<country> <long>' fits the game's field (TITLE_MAX). Every reader of a pack's
+    names (mkseason, zones, fmtgame) uses this, so the struct names and the zone / FORMAT keys stay the same."""
+    bn = m.get('button_names') or {}
+
+    def fix(names):
+        if not isinstance(names, dict) or not names:
+            return
+        for lang in LANGS:
+            v = names.get(lang) or names.get('*') or next(iter(names.values()))
+            if not isinstance(v, list) or not v:
+                continue
+            country = (bn.get(lang) or m.get('button') or '').upper()
+            long_ = v[0]
+            short = v[1] if len(v) > 1 else v[0]
+            f = _fit(country, long_.upper(), short.upper()) if len(country) + 1 + len(long_) > TITLE_MAX else None
+            if f is not None and f != long_.upper():
+                names[lang] = [f] + list(v[1:])
+    for c in m.get('competitions', []) or []:
+        fix(c.get('names'))
+        for dv in c.get('divisions', []) or []:
+            if isinstance(dv, dict):
+                fix(dv.get('names'))
+        for po in c.get('ko_playoffs', []) if isinstance(c.get('ko_playoffs'), list) else []:
+            if isinstance(po, dict):
+                fix(po.get('names'))
+    return m
+
+
+def load_pack(d):
+    """pack.json of directory d, its titles fitted (fit_titles)."""
+    return fit_titles(json.load(open(os.path.join(d, 'pack.json'), encoding='utf-8')))
+
+
 def _nm(names, lang):
     v = names.get(lang) or names.get('*') or next(iter(names.values()))
     return v[0] if isinstance(v, list) else v

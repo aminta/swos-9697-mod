@@ -25,6 +25,7 @@ Usage:
 """
 import csv
 import json
+import complist
 import os
 import random
 import re
@@ -235,7 +236,7 @@ def _csv(path):
 class Pack:
     def __init__(self, path):
         self.path = path
-        self.meta = json.load(open(os.path.join(path, 'pack.json'), encoding='utf-8'))
+        self.meta = complist.fit_titles(json.load(open(os.path.join(path, 'pack.json'), encoding='utf-8')))
         m = self.meta
         _need(m.get('format') == 1, 'pack.json: format must be 1')
         self.files = {k: (v['file'], v['base']) for k, v in m['files'].items()}
@@ -1067,7 +1068,7 @@ class NationalPack(Pack):
 
     def __init__(self, path):
         self.path = path
-        self.meta = m = json.load(open(os.path.join(path, 'pack.json'), encoding='utf-8'))
+        self.meta = m = complist.fit_titles(json.load(open(os.path.join(path, 'pack.json'), encoding='utf-8')))
         _need(m.get('format') == 1 and m.get('kind') == 'national', f'{path}: pack.json: format 1, kind national')
         self.kind, self.world = 'national', m.get('world')
         _need(isinstance(self.world, int) and 1 <= self.world <= 50, f'{path}: world must be a number 1..50')

@@ -5097,36 +5097,42 @@ def statespec_byes():
 @scenario
 def statespec_ce():
     """A state's second group stage by 'from' (statespec.st_grp, STATESPEC_TEST=3 build: a Cearense-shaped world-0
-    test state F1 at ATL PARANAENSE: 2 groups of 5, then C = the top 3 of A, D = the top 3 of B, 2 groups of 3):
-    the second stage's group rows (DIY+6Dh) are exactly those clubs, group by group"""
+    test state F1 at ATL PARANAENSE: 2 groups of 5 (a fixed calendar inside each: the groups = the list blocks),
+    then C = the top 3 of A, D = the top 3 of B, 2 groups of 3): the second stage's group rows (DIY+6Dh) are
+    exactly those clubs, group by group (stage 1's final order: st_resort's STRDBGPT block at stage 2's start)"""
     b = os.environ.get('STATESPEC_BUILD3') or builds()['it']
+    from le import LE
+    d1 = LE(open(b, 'rb').read()).obj_bytes(1)
+    k = d1.find(b'STRDBGPT')
+    if k < 0:
+        return False, 'no STRDBGPT block'
+    rd_at = struct.unpack_from('<I', d1, k + 8)[0]
     errs, seen = [], {}
     with Session('statespec_ce', b, {}, 'dump:2', 1800) as s:
         s.wait()
         new_career(s, 'BRASILE', None, 'ATL PARANAENSE', 'SUDAMERICA')
 
         def stop(scr):
-            d = s.result.read(s.result.base2, 0x100000)
-            for i in range(0, len(d) - 0x41F):
-                if d[i + 0x2D] != 0xF1 or d[i] not in (0, 2):
-                    continue
-                w = lambda o: struct.unpack_from('<H', d, i + o)[0]
-                if d[i] == 2 and w(0x53) == 1 and 'rank' not in seen:
-                    seen['rank'] = list(d[i + 0x59:i + 0x59 + 10])
-                if d[i] == 0 and w(0x31) == 6 and w(0x4F) == 2 and w(0x51) == 3 and 'rows' not in seen:
-                    seen['rows'] = [w(0x6D + 2 * k) // 18 for k in range(6)]
+            c = s.result.obj2(0x4ebd4, 0x41F)                  # (IT: diyFileBufferCopy, DIY at +41Fh)
+            d = s.result.obj2(0x4ebd4 + 0x41F, 0x41F)
+            if c[0x2D] == 0xF1 and struct.unpack_from('<H', c, 0x53)[0] == 1 and 'final1' not in seen:
+                fb = s.result.read(s.result.base1 + rd_at, 48)
+                seen['final1'] = [struct.unpack_from('<H', fb, 2 * j)[0] // 18 for j in range(10)]
+            w = lambda o: struct.unpack_from('<H', d, o)[0]
+            if d[0x2D] == 0xF1 and d[0] == 0 and w(0x31) == 6 and w(0x4F) == 2 and w(0x51) == 3 and 'rows' not in seen:
+                seen['rows'] = [w(0x6D + 2 * k) // 18 for k in range(6)]
             return season_over(scr)
         ok, msg = advance(s, stop, 1700)
     check(ok, f'season: {msg}', errs)
-    R, rows = seen.get('rank'), seen.get('rows')
-    if R and rows:
-        a = [t for t in R if t < 5][:3]
-        bb = [t for t in R if t >= 5][:3]
+    F, rows = seen.get('final1'), seen.get('rows')
+    if F and rows:
+        a, bb = F[:3], F[5:8]
+        check(all(t < 5 for t in F[:5]) and all(t >= 5 for t in F[5:10]), f'stage 1 groups {F}', errs)
         check(set(rows[:3]) == set(a) and set(rows[3:]) == set(bb), f'phase 2 groups {rows[:3]} / {rows[3:]}, '
-              f'want {a} / {bb} (ranking {R})', errs)
+              f'want {a} / {bb} (stage 1 final {F})', errs)
     else:
-        check(False, f'ranking {R}, phase-2 rows {rows}', errs)
-    return not errs, '; '.join(errs + [f'{msg}; ranking {R}, phase 2 {rows}'])
+        check(False, f'stage 1 final {F}, phase-2 rows {rows}', errs)
+    return not errs, '; '.join(errs + [f'{msg}; stage 1 final {F}, phase 2 {rows}'])
 
 
 @scenario

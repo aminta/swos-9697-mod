@@ -214,6 +214,8 @@ def patch_exe(src, dst, remap, lang='it'):
         engine.after_load('gp_sync')
         if any(t[2] in gp_mod.T2_SPECS for t in gp_tabs):   # (a group contest played: the early tables beyond 2)
             engine.save_item('GS', gp_mod.GS_SIZE)
+        if mkseason.cupd_tables():                     # (the Coppa Italia Serie D's state)
+            engine.save_item('CD', gp_mod.CD_SIZE)
     gp_on = bool((gp_tabs or pg_tabs or rs_tabs or ri_tabs) and mkseason.worlds())         # (gplay.c also holds the parallel groups' fix)
     import gplay as gp_mod
     lpb += gp_mod.GP_PAGES * gp_on                     # (its pages, after dplay's: C + glue + specs)
@@ -405,6 +407,8 @@ def patch_exe(src, dst, remap, lang='it'):
         engine.ITEM_AT['GP'] = gplay.LABELS['GP_ST']    # (the played play-offs' state; its pointers after a load)
         if 'GS' in engine.SAVE_ITEMS:
             engine.ITEM_AT['GS'] = gplay.LABELS['GP_GS']
+        if 'CD' in engine.SAVE_ITEMS:
+            engine.ITEM_AT['CD'] = gplay.LABELS['CD_ST']
         engine.CALL_AT['gp_sync'] = (1, gplay.LABELS['gp_sync'])
         pgroups.relax_file_check(p)             # (moves of several divisions: cseg_9487A's per-file sum check)
         careerworld.BSS_SIZE += gplay.GP_BSS

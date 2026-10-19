@@ -340,39 +340,31 @@ lp_fmt:                                 ; al = contest id -> the format: Champio
     ret
 
 lp_info1:                               ; DesignDIYTournamentOnDraw (STAT > INFO SU COMPETIZIONE): replaces `mov [A0],
-    mov dword [A0], INFO_GROUPS         ; offset '%0 GROUPS OF %1'`: the league phase's stage = 1 group of 36
-    call lp_info_ours
-    jne .r
-    mov dword [A0], LP_INFO1
-.r:
-    ret
+    mov eax, INFO_GROUPS                ; offset '%0 GROUPS OF %1'`: the league phase's stage = 1 group of 36
+    push LP_INFO1
+    jmp lp_info2.s
 
 lp_info2:                               ; replaces `mov [A0], offset '(TOP %0 IN EACH GROUP QUALIFY)'`: its qualifiers
-    mov dword [A0], INFO_TOP
+    mov eax, INFO_TOP                   ; (eax is free at both sites: the game loads it next)
+    push LP_INFO2
+.s:
     call lp_info_ours
-    jne .r
-    mov dword [A0], LP_INFO2
-.r:
+    jne .k
+    mov eax, [esp]
+.k:
+    mov [A0], eax
+    pop eax
     ret
 
 lp_info3:                               ; replaces `mov ax, [esi+165h]` (esi = [A2], a group stage: the times each
-    mov ax, [esi + 165h]                ; club meets each other, the index of the row's string table 'AFFRONTA
-    push esi                            ; SQUAD. X 1..4'): a league phase of ours shows '8 AVVERSARIE X 1'
-    push eax
+    mov ax, [esi + 165h]                ; club meets each other, = 1 here: the index of the row's string table
+    push esi                            ; 'AFFRONTA SQUAD. X 1..4'): a league phase of ours shows '8 AVVERSARIE X 1'
     mov esi, [AENT]                     ; the row's menu entry -> +26h its string table (var, first, strings)
     mov esi, [esi + 26h]
-    mov eax, [esi + 6]
-    cmp dword [LP_X1SAVE], 0            ; (the game's 'X 1' string, kept from the first visit: the tables share it)
-    jne .k
-    mov [LP_X1SAVE], eax
-.k:
-    mov eax, [LP_X1SAVE]
-    mov [esi + 6], eax
+    mov dword [esi + 6], INFO_X1        ; (the game's own first string for any other contest)
     call lp_info_ours
-    pop eax
     jne .r
     mov dword [esi + 6], LP_INFO3
-    mov ax, 1
 .r:
     pop esi
     ret
@@ -1847,11 +1839,15 @@ def _info_sites(p, a0):
     assert len(s1) == 1 and len(s2) == 1, (s1, s2)
     one = [s1[0] + x.start() for x in re.finditer(rb'\xc7\x05' + pk(a0) + rb'.{4}', d1[s1[0] + 10:s1[0] + 0x60], re.S)]
     assert len(one) == 1, one
+    # the group rows' 'plays each team x 1..4' string table: after the six 'points for a win' tables (initial 2)
+    x1 = [m.end() - 4 for m in re.finditer(rb'(?:.{4}\x02\x00(.{8})){6}.{4}\x01\x00(.{4})', d1, re.S)
+          if len({d1[m.start() + 6 + 14 * k:m.start() + 14 + 14 * k] for k in range(6)}) == 1]
+    assert len(x1) == 1, x1
     # a group row's `mov esi, [A2]; mov ax, [esi+165h]; mov esi, [A0]; mov [esi], ax` (its 'plays each team x n')
     s3 = [x.start() for x in re.finditer(rb'\x8b\x35' + pk(a0 + 8) + rb'\x66\x8b\x86\x65\x01\x00\x00\x8b\x35' + pk(a0) +
                                          rb'\x66\x89\x06', d1, re.S)]
     assert len(s3) == 1, s3
-    return s1[0], s2[0], one[0] + 10, s3[0] + 6
+    return s1[0], s2[0], one[0] + 10, s3[0] + 6, x1[0]
 
 
 def _game_sites(p, a0):
@@ -1924,15 +1920,15 @@ def patch(p, cave, cups, area, lang='it', world_ids=()):
     symbols.update(LP_KEY=(2, work), LP_OPP=(2, work + 576), LP_ORD=(2, work + 576 + 432))
     game, st = _game_sites(p, a0)                       # criterion 9: the engine's played match and its statistics
     symbols.update(GAMET1=st[2], T1STATS=st[0], T2STATS=st[1])
-    i1, i2, i_one, i3 = _info_sites(p, a0)              # STAT > INFO SU COMPETIZIONE of a league phase
-    symbols.update(INFO_GROUPS=p.target(1, i1 + 6), INFO_TOP=p.target(1, i2 + 6), AENT=(2, a0 + 16))
+    i1, i2, i_one, i3, x1 = _info_sites(p, a0)          # STAT > INFO SU COMPETIZIONE of a league phase
+    symbols.update(INFO_GROUPS=p.target(1, i1 + 6), INFO_TOP=p.target(1, i2 + 6), AENT=(2, a0 + 16), INFO_X1=p.target(1, x1))
     o, off = p.target(1, i_one + 6)
     one = p.le.obj_bytes(o)[off:p.le.obj_bytes(o).index(b'\0', off)]
     assert b'%1' in one, one
     q = INFO_Q[lang].encode()
     assert len(q) <= 40, q
     symbols.update(LP_INFO1=(2, area.add(one.replace(b'%1', b'36').rstrip(b'* ') + b'\0')), LP_INFO2=(2, area.add(q + b'\0')),
-                   LP_INFO3=(2, area.add(INFO_X[lang].encode() + b'\0')), LP_X1SAVE=(2, area.add(bytes(4))))
+                   LP_INFO3=(2, area.add(INFO_X[lang].encode() + b'\0')))
     code, fix = nasmcave.assemble(ASM, cave, symbols)
     lab = nasmcave.labels(ASM, cave, symbols)
     p.put(1, cave, code)

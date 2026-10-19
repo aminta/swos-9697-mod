@@ -182,12 +182,18 @@ static int glob_club(int d, u16 g) {     /* a global number -> its row of divisi
     return -1;
 }
 
+static u16 stage_glob(int k, int j) {   /* stage k's champion (j 0) / runner-up (1): decided this season (dec: the
+                                           Trofeo built mid-season), else this gp_season pass's GP_OUT.sres */
+    const struct gp_dec *x = stage_dec(k);
+    return x ? x->glob[j] : GP_OUT.sres[k].glob[j];
+}
+
 static int title_club(int d, int c) {   /* entrant type 5 (the Trofeo): 1 the 1st stage's champion; 2 / 3 the 2nd
                                            stage's champion, or (the same club won both) the 1st's / 2nd's runner-up */
-    u16 c0 = GP_OUT.sres[0].glob[0], c1 = GP_OUT.sres[1].glob[0];
+    u16 c0 = stage_glob(0, 0), c1 = stage_glob(1, 0);
     if (c == 1) return glob_club(d, c0);
     if (c0 != c1) return glob_club(d, c1);
-    return glob_club(d, GP_OUT.sres[c - 2].glob[1]);
+    return glob_club(d, stage_glob(c - 2, 1));
 }
 
 /* a group match: goals by strength (draws ~ 1 in 4), home advantage unless neutral */
@@ -740,6 +746,7 @@ static const u8 *po_at(int pi) {        /* the country's play-off pi in GP_IN.sp
 
 static int ent_club(const u8 *e, int kind) {    /* an entrant -> its club (division * GT + place), or -1 */
     if (e[0] == 3) return stage_club(e[1], e[3], e[2]);
+    if (e[0] == 5) return title_club(e[1], e[2]);
     if (e[0]) return -1;
     return place_club(e[1], e[2], kind);
 }
@@ -750,7 +757,7 @@ static int playable(const u8 *s) {      /* knockouts only (promotion, placement,
     const u8 *e = s + 6, *r = e + 4 * n;
     if ((s[0] < 1 || (s[0] > 6 && s[0] != K_STAGE) || s[0] == 2) || n > KN || nr > KR || nr < 1) return 0;   /* (not 'europe': uefaq's) */
     for (int i = 0; i < n; i++)
-        if (e[4 * i] != 0 && e[4 * i] != 3) return 0;     /* (type 5, the Trofeo: at the season end only) */
+        if (e[4 * i] != 0 && e[4 * i] != 3 && e[4 * i] != 5) return 0;   /* (5: the Trofeo, built by then_build) */
     for (int k = 0; k < nr; k++) {
         if (r[1] < 1 || r[1] > 3 || (r[1] == 3 && k == nr - 1)) return 0;   /* (no group round; a series: not last) */
         for (int i = 0; i < 2 * r[0]; i++)

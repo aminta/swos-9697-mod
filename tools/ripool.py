@@ -13,6 +13,7 @@ A2 clubs (file 161, the state-only clubs: no free global numbers) swap IDENTITIE
 - RI_STATE is the engine item 'RI' (saved with the career; cleared for a new career and for a save without it: the
   identity maps, the pools' first order at the first season end).
 """
+import os
 import re
 import struct
 
@@ -20,7 +21,9 @@ ORIG_SIZE, POOL_SIZE = 0x2B000, 0x10000         # BSS per file: the file as read
 assert ORIG_SIZE >= 256 * 684 + 2                 # (Italy's 256 records + the count: 175106 B)
 RF = 2                                          # gplay.c RF / RP / RQT: files, pools, queue words
 RP, RQT = 16, 192
-RI_SIZE = RF * (4 + 2 * 256) + RP + 2 * RQT     # gplay.c struct ri_state: the engine item 'RI'
+RO = 16                                         # contest entries per state (gplay.c RO)
+RI_SIZE = RF * (4 + 2 * 256) + RP + 2 * RQT + 2 * RP * RO   # gplay.c struct ri_state: the engine item 'RI'
+OVR_AT = RF * (4 + 2 * 256) + RP + 2 * RQT      # (+ RI_STATE: ovr[RP][RO], statecup applies them: RI_OVR)
 
 
 def bss_need(tabs):
@@ -29,35 +32,44 @@ LABELS = {}
 
 
 def table_bytes(tabs):
-    """gplay.c ri_season's table: db files; per file db world, file, pools; per pool db kind, n (its pool records),
+    """gplay.c ri_season's table: db files; per file db world, file, pools, dw base (its global numbers), db spares,
+    spares x db ordinal; per pool db kind, n (its pool records),
     kind 0 ('league'): db low; dw slots; slots x (dw global, db base division, db D area); n x db D area;
     kind 1 ('state'): dw key; db relegated; db slots; slots x (db ordinal, dw global, db strength); n x db strength;
-    then n x db RS record (the first order)."""
+    db entries; entries x dw the contest's team words;
+    then n x db RS record (the first order). tabs: [(world, file, pools, base, [spare ordinals])]."""
     assert len(tabs) <= RF, f'at most {RF} pooled team files (gplay.c RF)'
     out = bytearray([len(tabs)])
     npools = nq = 0
-    for world, fl, pools in tabs:
-        out += bytes((world, fl, len(pools)))
+    for world, fl, pools, base, spares in tabs:
+        out += bytes((world, fl, len(pools))) + struct.pack('<HB', base, len(spares)) + bytes(spares)
         for pl in pools:
             if pl[0] == 'league':
                 _, low, slots, areas, order = pl
                 assert len(slots) <= 256 and len(areas) <= 255 and sorted(order) == list(range(len(areas)))
                 out += bytes((0, len(order), low)) + struct.pack('<H', len(slots))
-                for g, base, a in slots:
-                    out += struct.pack('<HBB', g, base, a)
+                for g, b, a in slots:
+                    out += struct.pack('<HBB', g, b, a)
                 out += bytes(areas)
             else:
-                _, key, rel, slots, strength, order = pl
-                assert len(slots) <= 255 and len(strength) == len(order) <= 255
+                _, key, rel, slots, strength, order, entries = pl
+                assert len(slots) <= 255 and len(strength) == len(order) <= 255 and len(entries) <= RO
                 out += bytes((1, len(order))) + struct.pack('<HBB', key, rel, len(slots))
                 for o, g, s in slots:
                     out += struct.pack('<BHB', o, g, s)
-                out += bytes(strength)
+                out += bytes(strength) + bytes((len(entries),)) + b''.join(struct.pack('<H', w) for w in entries)
             out += bytes(order)
             npools += 1
             nq += len(order)
     assert npools <= RP and nq <= RQT, (npools, nq)
     return bytes(out)
+
+
+def keys_bytes(tabs):
+    """RI_OVR_KEYS: RP x dw, each pool's state key (its contest's original first club; 0 = a league pool / none), in
+    RI_STATE.ovr's order."""
+    ks = [pl[1] if pl[0] == 'state' else 0 for _, _, pools, _, _ in tabs for pl in pools]
+    return b''.join(struct.pack('<H', k) for k in (ks + [0] * RP)[:RP])
 
 
 def _asm(nf):
@@ -191,7 +203,7 @@ def patch(p, at, bss, tabs):
            'NUMSEL': trailer.INFO['NUMSEL'], 'SELBASEV': (1, trailer.INFO['selbasev']),
            'TEAMSLOADED': (2, s['teamsloaded']), 'LASTEXT': s['lastext']}
     names = []
-    for k, (world, fl, _) in enumerate(tabs):
+    for k, (world, fl, *_) in enumerate(tabs):
         o = bss + k * (ORIG_SIZE + POOL_SIZE)
         names.append('data/rs%d%03d.dat' % (world, fl))
         sym.update({f'RI_W{k}': (0, world), f'RI_F{k}': (0, fl), f'RI_ORIG{k}': (2, o),
@@ -205,17 +217,28 @@ def patch(p, at, bss, tabs):
     p.put(1, call + 1, struct.pack('<i', lab['ri_load'] - (call + 5)))
     LABELS.update(lab)
     tab = (at + len(code) + 15) & ~15           # the table (gplay.c ri_season reads it; pgroups' pg_fix passes it)
-    tb = table_bytes(tabs)
+    tb = table_bytes(tabs) + bytes(-len(table_bytes(tabs)) % 4) + keys_bytes(tabs)
     p.put(1, tab, tb)
+    keys_at = tab + len(tb) - 2 * RP
+    LABELS['RI_OVR_KEYS'] = (1, keys_at)
+    LABELS['RI_OVR'] = (gplay.LABELS['RI_STATE'][0], gplay.LABELS['RI_STATE'][1] + OVR_AT)
     print(f"exe: off-file pools ({', '.join(names)}: {sum(len(x[2]) for x in tabs)} pools): LoadTeamFile "
           f'obj1+{call:#x} -> ri_load obj1+{at:#x}, table {len(tb)} B, buffers obj2+{bss:#x}')
     import dplay
     ct = dplay._sites(p)[5]                     # careerTeam (obj2), as gplay
     sr = (0, 0)
-    try:
-        import statespec                        # the career's state's stage-1 ranking (package 5's 'SR' item)
+    test = os.environ.get('RIPOOL_TEST_SR')     # (harness builds: a fixed ranking in hex, as the 'SR' item)
+    if test:
+        b = bytes.fromhex(test)
+        sr = (1, (tab + len(tb) + 15) & ~15)
+        p.put(1, sr[1], b)
+        tb += bytes(sr[1] - tab - len(tb)) + b
+        print(f'exe: off-file pools: TEST ranking {test} at obj1+{sr[1]:#x}')
+    else:
+      try:
+        import statespec                        # every state's ranking (package 5's 'SR' item)
         sr = statespec.LABELS.get('ST_RANK', sr)
-    except (ImportError, AttributeError):
+      except (ImportError, AttributeError):
         pass
     return (tab + len(tb) + 15) & ~15, {'RI_TAB': (1, tab), 'RI_SEASON': gplay.LABELS['ri_season'],
                                          'RI_MGR': gplay.LABELS['RI_MGR'], 'RI_AFTER': (1, lab['ri_after']),

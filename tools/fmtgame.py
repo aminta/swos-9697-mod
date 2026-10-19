@@ -365,6 +365,7 @@ EX = {
            'TURNI E PERCORSI DELL ACCESS LIST UEFA 2026-27; CHI PERDE SCENDE NELLA COPPA SOTTO, COME DA REGOLAMENTO'],
         po_n='{n} SQUADRE', grp_po='GIRONE DA {n}, SOLA ANDATA', grp_po2='GIRONE DA {n}, ANDATA E RITORNO', series='AL MEGLIO DELLE 3 GARE',
         drawn='ACCOPPIAMENTI SORTEGGIATI', neutral='IN CAMPO NEUTRO',
+        st_byes='{who} ESENTI, ENTRANO AL TURNO DOPO', st_down='RETROCESSE: {n}', 
         state='CAMPIONATO STATALE: {n} SQUADRE', st_grp='{g} GIRONI DA {s}, SOLA ANDATA', st_grp1='GIRONE UNICO DA {s}, SOLA ANDATA',
         st_cross=' (CONTRO LE SQUADRE DELL ALTRO GIRONE)', st_grp2='POI {g} GIRONI DA {s}', st_ko='{n} SQUADRE: {r}',
         ita_b=['TERZA PROMOSSA DI SERIE B: 3A-8A', 'TURNO PRELIMINARE: 5A-8A E 6A-7A, GARA UNICA IN CASA DELLA MEGLIO PIAZZATA, SUPPLEMENTARI, POI LA MEGLIO PIAZZATA',
@@ -397,6 +398,7 @@ EX = {
            'ROUNDS AND PATHS OF THE UEFA 2026-27 ACCESS LIST; THE LOSERS DROP INTO THE CUP BELOW AS THE REGULATIONS SAY'],
         po_n='{n} CLUBS', grp_po='A GROUP OF {n}, SINGLE ROUND', grp_po2='A GROUP OF {n}, HOME AND AWAY', series='BEST OF 3 MATCHES',
         drawn='TIES DRAWN', neutral='AT A NEUTRAL GROUND',
+        st_byes='{who} WITH A BYE TO THE NEXT ROUND', st_down='RELEGATED: {n}', 
         state='STATE CHAMPIONSHIP: {n} CLUBS', st_grp='{g} GROUPS OF {s}, SINGLE ROUND', st_grp1='ONE GROUP OF {s}, SINGLE ROUND',
         st_cross=' (AGAINST THE OTHER GROUP S CLUBS)', st_grp2='THEN {g} GROUPS OF {s}', st_ko='{n} CLUBS: {r}',
         ita_b=['SERIE B THIRD PROMOTED CLUB: 3RD-8TH', 'PRELIMINARY ROUND: 5TH V 8TH, 6TH V 7TH, SINGLE MATCH AT THE BETTER PLACED, EXTRA TIME, THEN THE BETTER PLACED',
@@ -428,6 +430,7 @@ EX = {
            'TOURS ET VOIES DE LA LISTE D ACCES UEFA 2026-27; LES PERDANTS DESCENDENT DANS LA COUPE INFERIEURE SELON LE REGLEMENT'],
         po_n='{n} CLUBS', grp_po='UN GROUPE DE {n}, MATCHS SIMPLES', grp_po2='UN GROUPE DE {n}, ALLER-RETOUR', series='AU MEILLEUR DES 3 MATCHS',
         drawn='AFFICHES TIREES AU SORT', neutral='SUR TERRAIN NEUTRE',
+        st_byes='{who} EXEMPTES JUSQU AU TOUR SUIVANT', st_down='RELEGUES: {n}', 
         state='CHAMPIONNAT D ETAT: {n} CLUBS', st_grp='{g} GROUPES DE {s}, MATCHS SIMPLES', st_grp1='UN GROUPE DE {s}, MATCHS SIMPLES',
         st_cross=' (CONTRE LES CLUBS DE L AUTRE GROUPE)', st_grp2='PUIS {g} GROUPES DE {s}', st_ko='{n} CLUBS: {r}',
         ita_b=['3E PROMU DE SERIE B: 3E-8E', 'TOUR PRELIMINAIRE: 5E-8E ET 6E-7E, UN MATCH CHEZ LE MIEUX CLASSE, PROLONGATION, PUIS LE MIEUX CLASSE',
@@ -460,6 +463,7 @@ EX = {
            'RUNDEN UND WEGE DER UEFA-ZUGANGSLISTE 2026-27; DIE VERLIERER RUTSCHEN LAUT REGLEMENT IN DEN POKAL DARUNTER'],
         po_n='{n} VEREINE', grp_po='EINE GRUPPE ZU {n}, EINFACHE RUNDE', grp_po2='EINE GRUPPE ZU {n}, HIN UND RUECK', series='BEST OF 3',
         drawn='PAARUNGEN AUSGELOST', neutral='AUF NEUTRALEM PLATZ',
+        st_byes='{who} MIT FREILOS IN DIE NAECHSTE RUNDE', st_down='ABSTEIGER: {n}', 
         state='STAATSMEISTERSCHAFT: {n} VEREINE', st_grp='{g} GRUPPEN ZU {s}, EINFACHE RUNDE', st_grp1='EINE GRUPPE ZU {s}, EINFACHE RUNDE',
         st_cross=' (GEGEN DIE VEREINE DER ANDEREN GRUPPE)', st_grp2='DANN {g} GRUPPEN ZU {s}', st_ko='{n} VEREINE: {r}',
         ita_b=['DRITTER AUFSTEIGER DER SERIE B: 3.-8.', 'VORRUNDE: 5.-8. UND 6.-7., EIN SPIEL BEIM BESSER PLATZIERTEN, VERLAENGERUNG, DANN DER BESSER PLATZIERTE',
@@ -559,8 +563,14 @@ def state_text(c, t, lang):
             lines.append(s)
         elif st['type'] == 'knockout':
             lines.append(e['st_ko'].format(n=st['teams'], r=t['r'][st.get('matches', 'single')]))
+            if st.get('byes'):                  # ('1A' = the 1st of group A)
+                one = (c.get('stages') or [{}])[0].get('groups', 1) == 1
+                who = [t['ord'](int(b[:-1])) + ('' if one else ' ' + b[-1]) for b in st['byes']]
+                lines.append(e['st_byes'].format(who=', '.join(who)))
         first = False
     lines.append(t['pts'].format(w=c.get('win_points', 3)))
+    if c.get('relegated'):
+        lines.append(e['st_down'].format(n=c['relegated']))
     return lines
 
 

@@ -454,7 +454,7 @@ class Pack:
             return None
         import gplay
         try:
-            spec = gplay.compile_spec(lg['ko_playoffs'], len(self.divisions()))
+            spec = gplay.compile_spec(lg['ko_playoffs'], len(self.divisions()), lg.get('names'))
         except (ValueError, KeyError, TypeError) as e:
             _need(False, f"{self.meta['id']}: ko_playoffs: {e}")
         return self.world, self.files[lg['clubs']][0], spec

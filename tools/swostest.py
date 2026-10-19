@@ -4409,11 +4409,12 @@ def world_title(code, force='3'):
         exe = build('world_title_' + force, env=env)
         os.environ[benv] = exe                          # (the next country reuses it)
     log_at, st_at, log_n, st_n = gp_ptrs(exe)
+    seas_at = gp_eu(exe)[4]                             # (the season records: the title won's line, gp_pwin_c)
     keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K',
                                             'W8485_NOSACK', 'W8485_HEX', 'W8485_ONE')}
     os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=TITLE_TEAMS[code], W8485_WNUM='5',
-                      W8485_K='108+', W8485_NOSACK='1', W8485_HEX=f'{log_at:x}:{log_n},{st_at:x}:{st_n}',
-                      W8485_ONE='1')
+                      W8485_K='108+', W8485_NOSACK='1',
+                      W8485_HEX=f'{log_at:x}:{log_n},{st_at:x}:{st_n},{seas_at:x}:106', W8485_ONE='1')
     try:
         ok, msg = world8485()
     finally:
@@ -4464,7 +4465,16 @@ def world_title(code, force='3'):
     top = title_top(lg)                                  # (gp_champ: the qualifiers' champion place)
     check(top and top[0] == win, f"top-9 list {top and [hex(t) for t in top]}, champion {win and hex(win)}", errs)
     gw = sorted({r['gcur'] for r in run})
-    return not errs, '; '.join(errs) or (f"{msg}; {po['key']}: clubs {[hex(t) for t in ko['team']]} codes {ko['code']}"
+    recs = hexes.get(seas_at, [])                       # (the season record at the end: GPLAY_FORCE builds make the
+    rec = recs[-1] if recs else b''                     # club the champion: a line with WINNERS, 4th / 3rd / 2nd)
+    lines = [(o, struct.unpack_from('<I', rec, 22 + 4 * o)[0], rec[86 + o]) for o in (3, 2, 1)] if len(rec) >= 90 else []
+    won = [x for x in lines if x[1] and x[2] == 1]
+    club = ko['team'][ko['code'].index(me)] if me in ko['code'] else None
+    champ = titles[0][2] if titles else None
+    check(bool(won) == (champ == club), f'the title line {won} with champion {champ and hex(champ)}, the club '
+          f'{club and hex(club)}: {[(o, hex(a), r) for o, a, r in lines]}', errs)
+    gw = sorted({r['gcur'] for r in run})
+    return not errs, '; '.join(errs) or (f"{msg}; {f'record line {won[0][0] + 1} = WINNERS' if won else 'not the champion: no title line'}; {po['key']}: clubs {[hex(t) for t in ko['team']]} codes {ko['code']}"
                                          f", ties {ko['ntie']} winners {ko['tw']}, game rounds seen {gw}, champion "
                                          f"{win:#x} (first of the top-9 list {[hex(t) for t in top]})")
 

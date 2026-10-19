@@ -947,7 +947,7 @@ def reserve_info(cur, y):
     return name, role, value
 
 
-def substitute(s, scr, tries=40):
+def substitute(s, scr, tries=40, full=False):
     """Squad screen (Davide, 2026-10-16: the harness used to put any fit reserve - a defender up front, a trial player -
     in place of a starter and leave him there). Two passes on the 17th row (the reserve shown; its face cycles through
     the reserves beyond the 16th):
@@ -958,8 +958,8 @@ def substitute(s, scr, tries=40):
        trial players (PROVA) only when nothing better is there. Row 1 must be a goalkeeper (P): a fit one of the
        bench (row 12) first. Returns an error string or None."""
     subs = s.__dict__.setdefault('subs', {})
-    if os.environ.get('SWOSTEST_LINEUP', 'min') != 'full':   # (the default: substitute_min; full = the best-reserve
-        return substitute_min(s, tries)                      # search below, for a scenario that judges the club's results)
+    if not full and os.environ.get('SWOSTEST_LINEUP', 'min') != 'full':   # (the default: substitute_min; full =
+        return substitute_min(s, tries)                     # the best-reserve search below, also its fallback)                      # search below, for a scenario that judges the club's results)
 
     def cycle(face, ry):                                # every reserve once: [(name, role, value, fit)]
         seen = []
@@ -1057,6 +1057,34 @@ def substitute(s, scr, tries=40):
     return 'squad screen: still unavailable players after 10 swaps'
 
 
+def keeper_from_reserves(s, cur, rows, tries=40):
+    """Row 1 without a fit goalkeeper: cycle the 17th row (the reserve shown) to a fit G / P and swap him into row 1.
+    Returns an error string or None."""
+    reserve = rows[-1][0]
+    ry = cur.geom[reserve][1]
+    face = next((i for i, (l, r) in enumerate(cur.nav) if l[1] == reserve and cur.geom[i][0] < row_x(cur)), None)
+    if face is None:
+        return 'squad screen: no face entry for the 17th row'
+    first = None
+    for _ in range(tries):
+        c2 = s.screen()
+        rows2 = squad_rows(s, c2, f'sq{len(s.log):03d}')
+        if len(rows2) != 17:
+            return f'squad screen: {len(rows2)} rows'
+        name, role, _ = reserve_info(c2, ry)
+        if role == 'G' and not rows2[-1][1]:
+            press(s, c2, rows2[0][0], wait=1)
+            press(s, s.screen(), reserve, wait=1)
+            s.log.append(f'[subs] slot 1: {name} (a reserve keeper) in (min)')
+            return None
+        if first is None:
+            first = name
+        elif name == first:
+            break
+        press(s, c2, face, wait=1)
+    return 'no fit goalkeeper among the reserves'
+
+
 def substitute_min(s, tries=40):
     """The default line-up handling (SWOSTEST_LINEUP=min; Davide 2026-10-19: flow / calendar / save-load runs, where
     the line-up's quality does not matter; SWOSTEST_LINEUP=full = substitute's best-reserve search): only
@@ -1064,6 +1092,7 @@ def substitute_min(s, tries=40):
     first fit reserve the 17th row shows (cycled only while it shows an unavailable one), the keeper's slot with the
     bench keeper (row 12) first; no best-reserve search, no starter brought back later (substitute's two cycles over
     every reserve per squad screen were ~50-60% of a long career's pauses). Returns an error string or None."""
+    keeper = False                                      # (the row-12 keeper swap: once)
     for _ in range(12):
         cur = s.screen()
         rows = squad_rows(s, cur, f'sq{len(s.log):03d}')
@@ -1075,9 +1104,15 @@ def substitute_min(s, tries=40):
         if not bad:
             return None if 'VIS. RISULTATI' in cur.texts() else 'squad screen without VIS. RISULTATI, no unavailable row'
         k = bad[0]
-        if k == 0 and not rows[11][1]:                  # the keeper: row 12 is the bench keeper in SWOS squads
+        if k == 0 and (keeper or rows[11][1]):          # no fit keeper in goal (row 12 is not always one: an outfield
+            err = keeper_from_reserves(s, cur, rows, tries)   # player in goal keeps VIS. RISULTATI hidden): a fit
+            if err:                                           # keeper (P / G) of the reserves, the 17th row cycled
+                return err
+            continue
+        if k == 0:                                      # the keeper: row 12 is the bench keeper in SWOS squads
             press(s, cur, rows[0][0], wait=1)
             press(s, s.screen(), rows[11][0], wait=1)
+            keeper = True
             s.log.append('[subs] slot 1: the bench keeper (row 12) in (min)')
             continue
         reserve = rows[-1][0]
@@ -1106,7 +1141,8 @@ def substitute_min(s, tries=40):
         press(s, s.screen(), rows[k][0], wait=1)
         press(s, s.screen(), reserve, wait=1)
         s.log.append(f'[subs] slot {k + 1}: {stand_in} in (min)')
-    return 'squad screen: still unavailable players after 12 swaps'
+    s.log.append('[subs] 12 swaps without VIS. RISULTATI - the full search (min)')
+    return substitute(s, s.screen(), tries, full=True)
 
 
 def nat_callups(s, limit=120):

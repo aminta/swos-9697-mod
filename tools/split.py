@@ -329,6 +329,11 @@ sp_freeze:                              ; esi = DIY, edx = entry, eax = stage, e
     pushad                              ; from the table now, its points rules. The table sorted first: the last
     call sp_saveregs                    ; day's last results may not be in its order yet (Malta: the kept table and
     call C883DD                         ; the groups a match behind); the previous stage's groups still partition it
+%if SF_PLACE
+    mov esi, [esp + 4]                  ; (test builds, SPLIT_FORCE=k: the career club's row swaps its figures with
+    call sp_force                       ; the row at place k, sorted again: the club starts the stage in k's group)
+    call C883DD
+%endif
     call sp_restregs
     popad
     mov [sp_rec], ebp
@@ -641,6 +646,36 @@ sp_count:                               ; replaces `mov esi, [A0]` in cseg_8922B
     popad
     mov esi, [A0]
     ret
+
+%if SF_PLACE
+sp_force:                               ; esi = DIY
+    pushad
+    movzx ecx, word [esi + 31h]
+    mov dx, [CAREERTEAM]
+    xor ebx, ebx
+.f: cmp ebx, ecx
+    jae .x
+    cmp [esi + 12Dh + ebx * 2], dx
+    je .found
+    inc ebx
+    jmp .f
+.found:
+    imul ebx, ebx, 18                   ; the club's row offset
+    movzx edi, word [esi + 6Dh + (SF_PLACE - 1) * 2]   ; place k's row offset
+    cmp ebx, edi
+    je .x
+    lea ebx, [esi + ebx + 2B3h]
+    lea edi, [esi + edi + 2B3h]
+    mov ecx, 4                          ; swap the figures (bytes 4..17; 0..3 = the team)
+.s: mov al, [ebx + ecx]
+    xchg al, [edi + ecx]
+    mov [ebx + ecx], al
+    inc ecx
+    cmp ecx, 18
+    jb .s
+.x: popad
+    ret
+%endif
 
 sp_post:                                ; replaces `mov ax, [RFLAG]` after the result path's last figure (both paths: the
                                         ; career club's match and the others' join there, before a jnz that skips the
@@ -1372,7 +1407,12 @@ def patch(p, cave, nasmcave, splits):
            'CNT_BLD_RET': (1, s['CNT_BLD_RET']),
            'RFLAG': (2, s['RFLAG']),
            'CAL': (2, s['CAL']), 'CALN': (2, s['CALN']), 'SELTEAMS': (2, s['SELTEAMS']), 'WEEK': (2, s['WEEK']),
-           'SIMFLAG': (2, s['SIMFLAG']), 'C89758': (1, s['pair']), 'C88A12': (1, s['C88A12'])}
+           'SIMFLAG': (2, s['SIMFLAG']), 'C89758': (1, s['pair']), 'C88A12': (1, s['C88A12']),
+           'SF_PLACE': (0, int(_os.environ.get('SPLIT_FORCE') or 0))}    # (test builds: SPLIT_FORCE=k, sp_force)
+    if sym['SF_PLACE'][1]:
+        import dplay
+        sym['CAREERTEAM'] = (2, dplay._sites(p)[5])
+        print(f'exe: SPLIT_FORCE={sym["SF_PLACE"][1]} (test build: the career club starts a split stage at that place)')
     import engine
     import gplay
     if gplay.LABELS.get('gp_stage'):                # the stage tables (GP_SS): gplay.c, built before us

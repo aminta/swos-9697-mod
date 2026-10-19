@@ -111,8 +111,25 @@ def wrap(text, w=W):
 
 
 def pages(lines):
+    """Pages of fmtpage.LINES lines from lines or from paragraphs (lists of wrapped lines): a paragraph is not split
+    across two pages when it fits on one, and one ending with ':' (a heading) goes with the next."""
     n = fmtpage.LINES
-    return [lines[i:i + n] for i in range(0, len(lines), n)] or [[]]
+    paras = [x if isinstance(x, list) else [x] for x in lines]
+    glued = []
+    for pa in paras:
+        if glued and glued[-1] and glued[-1][-1].endswith(':') and len(glued[-1]) + len(pa) <= n:
+            glued[-1] = glued[-1] + pa
+        else:
+            glued.append(list(pa))
+    out = [[]]
+    for pa in glued:
+        if out[-1] and len(out[-1]) + len(pa) > n and len(pa) <= n:
+            out.append([])
+        for line in pa:
+            if len(out[-1]) == n:
+                out.append([])
+            out[-1].append(line)
+    return out
 
 
 def _runs(codes, t):
@@ -171,10 +188,13 @@ def _rule(r, t):
         base = t['r']['two_legs']
     else:
         base = t['r']['single_et' if lvl in ('et_pens', 'et_better') else 'single']
+    two = t['r']['two_legs'].split(',')[0]          # ('ANDATA E RITORNO': the level rule follows)
     if lvl == 'better':
-        base = (t['r']['two_legs'] if legs == 2 else t['r']['single'].split(',')[0]) + ', ' + t['better']
+        base = (two if legs == 2 else t['r']['single'].split(',')[0]) + ', ' + t['better']
     elif lvl == 'et_better':
-        base = t['r']['single'].split(',')[0] + ', ' + t['et_better']
+        base = (two if legs == 2 else t['r']['single'].split(',')[0]) + ', ' + t['et_better']
+    elif lvl == 'pens' and legs == 2:
+        base = t['r']['two_legs_pens']
     return base
 
 
@@ -229,6 +249,356 @@ def tourney_text(c, t):
     return lines
 
 
+# the table colours (zones.py) and a league-phase top flight's European places (zones.eu_places), as the table shows them
+ZT = {
+    'it': dict(head='COLORI DELLA CLASSIFICA:', col=('AZZURRO', 'VERDE', 'BLU', 'ARANCIONE', 'GRIGIO'),
+               why=dict(cc='COPPA DEI CAMPIONI', uefa='COPPA UEFA', up='PROMOZIONE DIRETTA', po_up='PLAY-OFF PROMOZIONE',
+                        po_eu='PLAY-OFF EUROPEO', po_down='SPAREGGIO SALVEZZA', out='PLAY-OUT', down='RETROCESSIONE DIRETTA',
+                        cl='CHAMPIONS LEAGUE', el='EUROPA LEAGUE', conf='CONFERENCE LEAGUE', eu='COPPE EUROPEE'),
+               eu='POSTI EUROPEI DAL RANKING UEFA DELLA FEDERAZIONE (ACCESS LIST UEFA): CLASSIFICA {y} PER LE COPPE {y2}, '
+                  'RANKING VERO {r}:',
+               cup='VINCITRICE DELLA COPPA: {c}', s2='DALLA STAGIONE DOPO: RANKING SIMULATO',
+               eps='I 2 EUROPEAN PERFORMANCE SPOTS E I POSTI SPOSTATI PER I DETENTORI DEI TITOLI SI DECIDONO A FINE '
+                   'STAGIONE: NON COLORATI IN ANTICIPO'),
+    'en': dict(head='TABLE COLOURS:', col=('LIGHT BLUE', 'GREEN', 'DARK BLUE', 'ORANGE', 'GRAY'),
+               why=dict(cc='CHAMPIONS CUP', uefa='UEFA CUP', up='PROMOTED', po_up='PROMOTION PLAY-OFF',
+                        po_eu='EUROPEAN PLAY-OFF', po_down='RELEGATION PLAY-OFF', out='PLAY-OUT', down='RELEGATED',
+                        cl='CHAMPIONS LEAGUE', el='EUROPA LEAGUE', conf='CONFERENCE LEAGUE', eu='EUROPEAN CUPS'),
+               eu='EUROPEAN PLACES BY THE ASSOCIATION UEFA RANKING (UEFA ACCESS LIST): THE {y} TABLE FOR THE {y2} CUPS, '
+                  'REAL {r} RANKING:',
+               cup='THE CUP WINNER: {c}', s2='FROM THE NEXT SEASON ON: SIMULATED RANKING',
+               eps='THE 2 EUROPEAN PERFORMANCE SPOTS AND THE TITLE HOLDERS REBALANCING ARE DECIDED AT THE SEASON END, '
+                   'NOT COLOURED IN ADVANCE'),
+    'fr': dict(head='COULEURS DU CLASSEMENT:', col=('BLEU CLAIR', 'VERT', 'BLEU FONCE', 'ORANGE', 'GRIS'),
+               why=dict(cc='COUPE DES CHAMPIONS', uefa='COUPE UEFA', up='MONTEE DIRECTE', po_up='BARRAGES DE MONTEE',
+                        po_eu='BARRAGES EUROPEENS', po_down='BARRAGE DE MAINTIEN', out='BARRAGES DE MAINTIEN',
+                        down='DESCENTE DIRECTE', cl='LIGUE DES CHAMPIONS', el='LIGUE EUROPA', conf='LIGUE CONFERENCE',
+                        eu='COUPES D EUROPE'),
+               eu='PLACES EUROPEENNES SELON LE CLASSEMENT UEFA DE L ASSOCIATION (LISTE D ACCES UEFA): CLASSEMENT {y} POUR '
+                  'LES COUPES {y2}, CLASSEMENT UEFA REEL {r}:',
+               cup='VAINQUEUR DE LA COUPE: {c}', s2='DES LA SAISON SUIVANTE: CLASSEMENT SIMULE',
+               eps='LES 2 EUROPEAN PERFORMANCE SPOTS ET LE REEQUILIBRAGE DES TENANTS SONT DECIDES EN FIN DE SAISON: PAS '
+                   'COLORES A L AVANCE'),
+    'de': dict(head='FARBEN DER TABELLE:', col=('HELLBLAU', 'GRUEN', 'DUNKELBLAU', 'ORANGE', 'GRAU'),
+               why=dict(cc='LANDESMEISTERPOKAL', uefa='UEFA-POKAL', up='DIREKTER AUFSTIEG', po_up='AUFSTIEGSPLAYOFFS',
+                        po_eu='EUROPAPOKAL-PLAYOFFS', po_down='RELEGATION', out='ABSTIEGSPLAYOFFS',
+                        down='DIREKTER ABSTIEG', cl='CHAMPIONS LEAGUE', el='EUROPA LEAGUE', conf='CONFERENCE LEAGUE',
+                        eu='EUROPAPOKALE'),
+               eu='EUROPAPOKALPLAETZE NACH DER UEFA-RANGLISTE DES VERBANDS (UEFA-ZUGANGSLISTE): TABELLE {y} FUER DIE '
+                  'POKALE {y2}, ECHTE RANGLISTE {r}:',
+               cup='POKALSIEGER: {c}', s2='AB DER NAECHSTEN SAISON: SIMULIERTE RANGLISTE',
+               eps='DIE 2 EUROPEAN PERFORMANCE SPOTS UND DER AUSGLEICH FUER TITELVERTEIDIGER WERDEN AM SAISONENDE '
+                   'ENTSCHIEDEN: NICHT IM VORAUS GEFAERBT'),
+}
+_ZCTX = {}
+
+
+def _zctx(d=None, world=None):
+    """zones.context over the build's packs (mkseason.ENABLED), keyed by real path; a career pack whose world is not
+    among them (fmtgame.py run on a data dir, or a test build) gets its own world's context from its sibling packs
+    (the world's root has world_cups: league phase, start year), so a world never falls back to the classic cups."""
+    import zones
+    if None not in _ZCTX:
+        import mkseason
+        dirs = [e if os.sep in e else os.path.join(mkseason.PACKS, e) for e in mkseason.ENABLED]
+        metas, ranks = zones.context(dirs)
+        _ZCTX[None] = (metas, {os.path.realpath(x): r for x, r in ranks.items()})
+    metas, ranks = _ZCTX[None]
+    if d is None or world is None or world in metas:
+        return metas, ranks
+    par = os.path.dirname(os.path.realpath(d))
+    if par not in _ZCTX:
+        sib = [os.path.join(par, x) for x in sorted(os.listdir(par)) if os.path.exists(os.path.join(par, x, 'pack.json'))]
+        m2, r2 = zones.context(sib)
+        _ZCTX[par] = ({**metas, **m2}, {**ranks, **{os.path.realpath(x): r for x, r in r2.items()}})
+    return _ZCTX[par]
+
+
+def zone_text(rw, t, lang, eu=None):
+    """The FORMAT lines of a table's colours: rw = [(first, last, colour, why)] (zones.pack_zones detail); eu =
+    (places, cup winner's cup, season) of a league-phase top flight."""
+    import zones
+    z = ZT[lang]
+    cols = (zones.LIGHT_BLUE, zones.GREEN, zones.DARK_BLUE, zones.ORANGE, zones.RED)
+    ord_ = t['ord']
+    def one(a, b, c, w):
+        rng = ord_(a) if a == b else f'{ord_(a)}-{ord_(b)}'
+        return f"{z['col'][cols.index(c)]} {rng}: {z['why'][w]}"
+    merged = []
+    for a, b, c, w in sorted(rw):
+        if merged and merged[-1][2:] == (c, w) and merged[-1][1] == a - 1:
+            merged[-1] = (merged[-1][0], b, c, w)
+        else:
+            merged.append((a, b, c, w))
+    lines = []
+    if eu:
+        places, cw, y = eu
+        lines.append(z['eu'].format(y=f'{y}-{(y + 1) % 100:02d}', y2=f'{y + 1}-{(y + 2) % 100:02d}', r=y))   # (a table
+        # shows the places of the next season's cups: uefacoef 131f04b, from the 5 seasons up to the year before)
+        lines += [one(*x) for x in places]
+        if cw:
+            lines.append(z['cup'].format(c=z['why'][cw]))
+        lines += [z['s2'], z['eps']]
+    if merged:
+        lines.append(z['head'])
+        lines += [one(*x) for x in merged]
+    return lines
+
+
+TEXTS = T                                  # (from_pack may swap a world's two_legs text)
+NOAWAY = {'it': 'ANDATA E RITORNO, SUPPL. E RIGORI', 'en': 'TWO LEGS, EXTRA TIME, PENALTIES',
+          'fr': 'ALLER-RETOUR, PROLONGATION, TAB', 'de': 'HIN- UND RUECKSPIEL, VERL., ELFM.'}
+_YEARS = {}
+
+
+# the pages of the contests the game makes outside the packs' competitions: the worlds' European cups and the
+# career club's qualifying tie (careerworld / uefaq), the packs' ko_playoffs (gplay), Italy's play-offs (dplay),
+# the Brazilian state championships (statecup); texts as the release notes' rules
+EX = {
+    'it': dict(
+        cupd=['TUTTE LE SQUADRE DI SERIE D, SUL TABELLONE VERO 2026-27: TURNO PRELIMINARE, PRIMO TURNO, POI FINO ALLA FINALE',
+              'GARA UNICA, NIENTE SUPPLEMENTARI: IN PARITA RIGORI', 'SEMIFINALI E FINALE ANDATA E RITORNO, IN PARITA RIGORI (NIENTE GOL IN TRASFERTA)',
+              'CAMPO SORTEGGIATO FINO AI TRENTADUESIMI, POI GIOCA IN CASA CHI ERA FUORI NEL TURNO PRIMA',
+              'DALLA 2A STAGIONE LE NUOVE DELLA SERIE D GIOCANO IL TURNO PRELIMINARE'],
+        lp=['{n} SQUADRE, FASE CAMPIONATO A CLASSIFICA UNICA', '4 FASCE DA 9: 8 PARTITE, 2 AVVERSARIE PER FASCIA, UNA IN CASA E UNA FUORI',
+            'MAI UNA SQUADRA DELLA STESSA FEDERAZIONE, AL MASSIMO 2 DELLA STESSA'],
+        lp6=['{n} SQUADRE, FASE CAMPIONATO A CLASSIFICA UNICA', '6 FASCE DA 6: 6 PARTITE, UNA AVVERSARIA PER FASCIA, 3 IN CASA E 3 FUORI',
+             'MAI UNA SQUADRA DELLA STESSA FEDERAZIONE, AL MASSIMO 2 DELLA STESSA'],
+        lp_ko=['1A-8A AGLI OTTAVI, 9A-24A AGLI SPAREGGI, 25A-36A FUORI',
+               'SPAREGGI: 9/10 CONTRO 23/24, 11/12 CONTRO 21/22, 13/14 CONTRO 19/20, 15/16 CONTRO 17/18, RITORNO IN CASA DELLA TESTA DI SERIE',
+               'OTTAVI, QUARTI E SEMIFINALI SU TABELLONE FISSO DAI PIAZZAMENTI',
+               'ANDATA E RITORNO, IN PARITA SUPPLEMENTARI E RIGORI (NIENTE GOL IN TRASFERTA)', 'FINALE IN GARA UNICA',
+               'A PARI PUNTI: DIFFERENZA RETI, GOL, GOL FUORI CASA, VITTORIE, VITTORIE FUORI, POI PUNTI, DIFFERENZA RETI E GOL DELLE AVVERSARIE, PUNTI DISCIPLINARI, COEFFICIENTE'],
+        lp_q='PRIMA: TURNI PRELIMINARI DELL ACCESS LIST 2026-27 (PERCORSO CAMPIONI E PIAZZATE), LE ELIMINATE SCENDONO DI COPPA',
+        q=['IL TURNO PRELIMINARE DELLA TUA SQUADRA', '2 SQUADRE, ANDATA E RITORNO, IN PARITA SUPPLEMENTARI E RIGORI (NIENTE GOL IN TRASFERTA)',
+           '1. TURNO INIZIO LUGLIO, 2. FINE LUGLIO, 3. INIZIO AGOSTO, SPAREGGIO FINE AGOSTO',
+           'TURNI E PERCORSI DELL ACCESS LIST UEFA 2026-27; CHI PERDE SCENDE NELLA COPPA SOTTO, COME DA REGOLAMENTO'],
+        po_n='{n} SQUADRE', grp_po='GIRONE DA {n}, SOLA ANDATA', grp_po2='GIRONE DA {n}, ANDATA E RITORNO', series='AL MEGLIO DELLE 3 GARE',
+        drawn='ACCOPPIAMENTI SORTEGGIATI', neutral='IN CAMPO NEUTRO',
+        st_byes='{who} ESENTI, ENTRANO AL TURNO DOPO', st_down='RETROCESSE: {n}', 
+        state='CAMPIONATO STATALE: {n} SQUADRE', st_grp='{g} GIRONI DA {s}, SOLA ANDATA', st_grp1='GIRONE UNICO DA {s}, SOLA ANDATA',
+        st_cross=' (CONTRO LE SQUADRE DELL ALTRO GIRONE)', st_grp2='POI {g} GIRONI DA {s}', st_ko='{n} SQUADRE: {r}',
+        ita_b=['TERZA PROMOSSA DI SERIE B: 3A-8A', 'TURNO PRELIMINARE: 5A-8A E 6A-7A, GARA UNICA IN CASA DELLA MEGLIO PIAZZATA, SUPPLEMENTARI, POI LA MEGLIO PIAZZATA',
+               'SEMIFINALI: 3A E 4A CONTRO LE VINCENTI, ANDATA E RITORNO, IN PARITA LA MEGLIO PIAZZATA',
+               'FINALE: ANDATA E RITORNO, IN PARITA LA MEGLIO PIAZZATA; A PARI PUNTI IN CAMPIONATO SUPPLEMENTARI E RIGORI',
+               'SE LA 3A HA PIU DI 14 PUNTI SULLA 4A SALE DIRETTAMENTE'],
+        ita_out=['16A CONTRO 17A, ANDATA E RITORNO, ANDATA IN CASA DELLA 17A', 'IN PARITA RESTA LA 16A; A PARI PUNTI IN CAMPIONATO SUPPLEMENTARI E RIGORI',
+                 'SE LA 16A HA PIU DI 4 PUNTI SULLA 17A NON SI GIOCA: LA 17A RETROCEDE'],
+        ita_c=['28 SQUADRE: 2A-10A DEI 3 GIRONI E LA VINCITRICE DELLA COPPA ITALIA SERIE C; LA VINCENTE SALE IN SERIE B',
+               'FASE DEI GIRONI: 5A-10A, 6A-9A, 7A-8A, GARA UNICA IN CASA DELLA MEGLIO PIAZZATA, IN PARITA LA MEGLIO PIAZZATA; POI CON LA 4A',
+               'FASE NAZIONALE: 2 TURNI CON TESTE DI SERIE, ANDATA E RITORNO, IN PARITA LA TESTA DI SERIE',
+               'FINAL FOUR: SORTEGGIO LIBERO, ANDATA E RITORNO, SUPPLEMENTARI E RIGORI']),
+    'en': dict(
+        cupd=['EVERY SERIE D CLUB, ON THE REAL 2026-27 BRACKET: PRELIMINARY ROUND, FIRST ROUND, THEN TO THE FINAL',
+              'SINGLE MATCH, NO EXTRA TIME: LEVEL, PENALTIES', 'SEMI-FINALS AND FINAL OVER TWO LEGS, LEVEL: PENALTIES (NO AWAY GOALS)',
+              'HOSTS DRAWN UP TO THE ROUND OF 64, THEN THE CLUB AWAY IN ITS PREVIOUS TIE HOSTS',
+              'FROM SEASON 2 THE CLUBS NEW TO THE SERIE D PLAY THE PRELIMINARY ROUND'],
+        lp=['{n} CLUBS, A LEAGUE PHASE WITH ONE TABLE', '4 POTS OF 9: 8 MATCHES, 2 OPPONENTS FROM EACH POT, ONE AT HOME AND ONE AWAY',
+            'NEVER A CLUB OF THE SAME ASSOCIATION, AT MOST 2 FROM ONE'],
+        lp6=['{n} CLUBS, A LEAGUE PHASE WITH ONE TABLE', '6 POTS OF 6: 6 MATCHES, ONE OPPONENT FROM EACH POT, 3 AT HOME AND 3 AWAY',
+             'NEVER A CLUB OF THE SAME ASSOCIATION, AT MOST 2 FROM ONE'],
+        lp_ko=['1ST-8TH TO THE ROUND OF 16, 9TH-24TH TO THE KNOCKOUT PLAY-OFFS, 25TH-36TH OUT',
+               'PLAY-OFFS: 9/10 V 23/24, 11/12 V 21/22, 13/14 V 19/20, 15/16 V 17/18, THE SEEDED CLUB AT HOME IN THE 2ND LEG',
+               'ROUND OF 16, QUARTER- AND SEMI-FINALS ON A BRACKET FIXED BY THE PLACES',
+               'TWO LEGS, LEVEL: EXTRA TIME AND PENALTIES (NO AWAY GOALS)', 'SINGLE-MATCH FINAL',
+               'LEVEL ON POINTS: GOAL DIFFERENCE, GOALS, AWAY GOALS, WINS, AWAY WINS, THEN THE OPPONENTS POINTS, GOAL DIFFERENCE AND GOALS, DISCIPLINARY POINTS, COEFFICIENT'],
+        lp_q='BEFORE: THE QUALIFYING ROUNDS OF THE 2026-27 ACCESS LIST (CHAMPIONS AND LEAGUE PATHS), THE LOSERS DROP A CUP',
+        q=['YOUR CLUB S QUALIFYING TIE', '2 CLUBS, TWO LEGS, LEVEL: EXTRA TIME AND PENALTIES (NO AWAY GOALS)',
+           'ROUND 1 EARLY JULY, ROUND 2 LATE JULY, ROUND 3 EARLY AUGUST, PLAY-OFF LATE AUGUST',
+           'ROUNDS AND PATHS OF THE UEFA 2026-27 ACCESS LIST; THE LOSERS DROP INTO THE CUP BELOW AS THE REGULATIONS SAY'],
+        po_n='{n} CLUBS', grp_po='A GROUP OF {n}, SINGLE ROUND', grp_po2='A GROUP OF {n}, HOME AND AWAY', series='BEST OF 3 MATCHES',
+        drawn='TIES DRAWN', neutral='AT A NEUTRAL GROUND',
+        st_byes='{who} WITH A BYE TO THE NEXT ROUND', st_down='RELEGATED: {n}', 
+        state='STATE CHAMPIONSHIP: {n} CLUBS', st_grp='{g} GROUPS OF {s}, SINGLE ROUND', st_grp1='ONE GROUP OF {s}, SINGLE ROUND',
+        st_cross=' (AGAINST THE OTHER GROUP S CLUBS)', st_grp2='THEN {g} GROUPS OF {s}', st_ko='{n} CLUBS: {r}',
+        ita_b=['SERIE B THIRD PROMOTED CLUB: 3RD-8TH', 'PRELIMINARY ROUND: 5TH V 8TH, 6TH V 7TH, SINGLE MATCH AT THE BETTER PLACED, EXTRA TIME, THEN THE BETTER PLACED',
+               'SEMI-FINALS: 3RD AND 4TH V THE WINNERS, TWO LEGS, LEVEL: THE BETTER PLACED',
+               'FINAL: TWO LEGS, LEVEL: THE BETTER PLACED; LEVEL ON LEAGUE POINTS: EXTRA TIME AND PENALTIES',
+               'A 3RD MORE THAN 14 POINTS AHEAD OF THE 4TH GOES UP DIRECTLY'],
+        ita_out=['16TH V 17TH, TWO LEGS, FIRST LEG AT THE 17TH', 'LEVEL: THE 16TH STAYS UP; LEVEL ON LEAGUE POINTS: EXTRA TIME AND PENALTIES',
+                 'NOT PLAYED WHEN THE 16TH IS MORE THAN 4 POINTS AHEAD: THE 17TH GOES DOWN'],
+        ita_c=['28 CLUBS: 2ND-10TH OF THE 3 GROUPS AND THE COPPA ITALIA SERIE C WINNER; THE WINNER GOES UP TO SERIE B',
+               'GROUP PHASE: 5TH V 10TH, 6TH V 9TH, 7TH V 8TH, SINGLE MATCH AT THE BETTER PLACED, LEVEL: THE BETTER PLACED; THEN WITH THE 4TH',
+               'NATIONAL PHASE: 2 SEEDED ROUNDS, TWO LEGS, LEVEL: THE SEED', 'FINAL FOUR: FREE DRAW, TWO LEGS, EXTRA TIME AND PENALTIES']),
+    'fr': dict(
+        cupd=['TOUS LES CLUBS DE SERIE D, SUR LE VRAI TABLEAU 2026-27: TOUR PRELIMINAIRE, PREMIER TOUR, PUIS JUSQU A LA FINALE',
+              'UN MATCH, SANS PROLONGATION: EGALITE, TAB', 'DEMI-FINALES ET FINALE EN ALLER-RETOUR, EGALITE: TAB (PAS DE BUTS A L EXTERIEUR)',
+              'TERRAIN TIRE AU SORT JUSQU AUX 32ES, PUIS RECOIT LE CLUB QUI JOUAIT A L EXTERIEUR AU TOUR PRECEDENT',
+              'DES LA 2E SAISON LES NOUVEAUX DE SERIE D JOUENT LE TOUR PRELIMINAIRE'],
+        lp=['{n} CLUBS, PHASE DE LIGUE A CLASSEMENT UNIQUE', '4 CHAPEAUX DE 9: 8 MATCHS, 2 ADVERSAIRES PAR CHAPEAU, UN A DOMICILE ET UN A L EXTERIEUR',
+            'JAMAIS UN CLUB DE LA MEME ASSOCIATION, AU PLUS 2 D UNE MEME'],
+        lp6=['{n} CLUBS, PHASE DE LIGUE A CLASSEMENT UNIQUE', '6 CHAPEAUX DE 6: 6 MATCHS, UN ADVERSAIRE PAR CHAPEAU, 3 A DOMICILE ET 3 A L EXTERIEUR',
+             'JAMAIS UN CLUB DE LA MEME ASSOCIATION, AU PLUS 2 D UNE MEME'],
+        lp_ko=['1ER-8E EN 8ES, 9E-24E EN BARRAGES, 25E-36E ELIMINES',
+               'BARRAGES: 9/10 CONTRE 23/24, 11/12 CONTRE 21/22, 13/14 CONTRE 19/20, 15/16 CONTRE 17/18, RETOUR CHEZ LA TETE DE SERIE',
+               '8ES, QUARTS ET DEMI-FINALES SUR UN TABLEAU FIXE PAR LES PLACES',
+               'ALLER-RETOUR, EGALITE: PROLONGATION ET TAB (PAS DE BUTS A L EXTERIEUR)', 'FINALE SUR UN MATCH',
+               'EGALITE DE POINTS: DIFFERENCE DE BUTS, BUTS, BUTS A L EXTERIEUR, VICTOIRES, VICTOIRES A L EXTERIEUR, PUIS POINTS, DIFFERENCE ET BUTS DES ADVERSAIRES, POINTS DISCIPLINAIRES, COEFFICIENT'],
+        lp_q='AVANT: LES TOURS DE QUALIFICATION DE LA LISTE D ACCES 2026-27 (VOIES CHAMPIONS ET LIGUE), LES PERDANTS DESCENDENT D UNE COUPE',
+        q=['LE TOUR DE QUALIFICATION DE VOTRE CLUB', '2 CLUBS, ALLER-RETOUR, EGALITE: PROLONGATION ET TAB (PAS DE BUTS A L EXTERIEUR)',
+           '1ER TOUR DEBUT JUILLET, 2E FIN JUILLET, 3E DEBUT AOUT, BARRAGE FIN AOUT',
+           'TOURS ET VOIES DE LA LISTE D ACCES UEFA 2026-27; LES PERDANTS DESCENDENT DANS LA COUPE INFERIEURE SELON LE REGLEMENT'],
+        po_n='{n} CLUBS', grp_po='UN GROUPE DE {n}, MATCHS SIMPLES', grp_po2='UN GROUPE DE {n}, ALLER-RETOUR', series='AU MEILLEUR DES 3 MATCHS',
+        drawn='AFFICHES TIREES AU SORT', neutral='SUR TERRAIN NEUTRE',
+        st_byes='{who} EXEMPTES JUSQU AU TOUR SUIVANT', st_down='RELEGUES: {n}', 
+        state='CHAMPIONNAT D ETAT: {n} CLUBS', st_grp='{g} GROUPES DE {s}, MATCHS SIMPLES', st_grp1='UN GROUPE DE {s}, MATCHS SIMPLES',
+        st_cross=' (CONTRE LES CLUBS DE L AUTRE GROUPE)', st_grp2='PUIS {g} GROUPES DE {s}', st_ko='{n} CLUBS: {r}',
+        ita_b=['3E PROMU DE SERIE B: 3E-8E', 'TOUR PRELIMINAIRE: 5E-8E ET 6E-7E, UN MATCH CHEZ LE MIEUX CLASSE, PROLONGATION, PUIS LE MIEUX CLASSE',
+               'DEMI-FINALES: 3E ET 4E CONTRE LES VAINQUEURS, ALLER-RETOUR, EGALITE: LE MIEUX CLASSE',
+               'FINALE: ALLER-RETOUR, EGALITE: LE MIEUX CLASSE; A EGALITE DE POINTS EN CHAMPIONNAT PROLONGATION ET TAB',
+               'UN 3E AVEC PLUS DE 14 POINTS D AVANCE SUR LE 4E MONTE DIRECTEMENT'],
+        ita_out=['16E CONTRE 17E, ALLER-RETOUR, ALLER CHEZ LE 17E', 'EGALITE: LE 16E RESTE; A EGALITE DE POINTS EN CHAMPIONNAT PROLONGATION ET TAB',
+                 'PAS JOUE SI LE 16E A PLUS DE 4 POINTS D AVANCE: LE 17E DESCEND'],
+        ita_c=['28 CLUBS: 2E-10E DES 3 GROUPES ET LE VAINQUEUR DE LA COPPA ITALIA SERIE C; LE VAINQUEUR MONTE EN SERIE B',
+               'PHASE DES GROUPES: 5E-10E, 6E-9E, 7E-8E, UN MATCH CHEZ LE MIEUX CLASSE, EGALITE: LE MIEUX CLASSE; PUIS AVEC LE 4E',
+               'PHASE NATIONALE: 2 TOURS AVEC TETES DE SERIE, ALLER-RETOUR, EGALITE: LA TETE DE SERIE',
+               'FINAL FOUR: TIRAGE LIBRE, ALLER-RETOUR, PROLONGATION ET TAB']),
+    'de': dict(
+        cupd=['ALLE VEREINE DER SERIE D, AUF DEM ECHTEN TABLEAU 2026-27: VORRUNDE, ERSTE RUNDE, DANN BIS ZUM FINALE',
+              'EIN SPIEL, KEINE VERLAENGERUNG: GLEICHSTAND, ELFMETER', 'HALBFINALE UND FINALE MIT HIN- UND RUECKSPIEL, GLEICHSTAND: ELFMETER (KEINE AUSWAERTSTORE)',
+              'HEIMRECHT BIS ZUR RUNDE DER LETZTEN 64 AUSGELOST, DANN HAT DER IN DER VORRUNDE AUSWAERTS SPIELENDE HEIMRECHT',
+              'AB DER 2. SAISON SPIELEN DIE NEUEN DER SERIE D DIE VORRUNDE'],
+        lp=['{n} VEREINE, LIGAPHASE MIT EINER TABELLE', '4 TOEPFE ZU 9: 8 SPIELE, 2 GEGNER AUS JEDEM TOPF, EINER DAHEIM UND EINER AUSWAERTS',
+            'NIE EIN VEREIN DESSELBEN VERBANDS, HOECHSTENS 2 AUS EINEM'],
+        lp6=['{n} VEREINE, LIGAPHASE MIT EINER TABELLE', '6 TOEPFE ZU 6: 6 SPIELE, EIN GEGNER AUS JEDEM TOPF, 3 DAHEIM UND 3 AUSWAERTS',
+             'NIE EIN VEREIN DESSELBEN VERBANDS, HOECHSTENS 2 AUS EINEM'],
+        lp_ko=['1.-8. INS ACHTELFINALE, 9.-24. IN DIE PLAYOFFS, 25.-36. RAUS',
+               'PLAYOFFS: 9./10. GEGEN 23./24., 11./12. GEGEN 21./22., 13./14. GEGEN 19./20., 15./16. GEGEN 17./18., RUECKSPIEL BEIM GESETZTEN',
+               'ACHTEL-, VIERTEL- UND HALBFINALE NACH EINEM FESTEN TABLEAU AUS DEN PLAETZEN',
+               'HIN- UND RUECKSPIEL, GLEICHSTAND: VERLAENGERUNG UND ELFMETER (KEINE AUSWAERTSTORE)', 'FINALE IN EINEM SPIEL',
+               'PUNKTGLEICH: TORDIFFERENZ, TORE, AUSWAERTSTORE, SIEGE, AUSWAERTSSIEGE, DANN PUNKTE, TORDIFFERENZ UND TORE DER GEGNER, DISZIPLINARPUNKTE, KOEFFIZIENT'],
+        lp_q='DAVOR: DIE QUALIFIKATIONSRUNDEN DER ZUGANGSLISTE 2026-27 (MEISTER- UND LIGAWEG), DIE VERLIERER RUTSCHEN EINEN POKAL TIEFER',
+        q=['DIE QUALIFIKATIONSRUNDE DEINES VEREINS', '2 VEREINE, HIN- UND RUECKSPIEL, GLEICHSTAND: VERLAENGERUNG UND ELFMETER (KEINE AUSWAERTSTORE)',
+           '1. RUNDE ANFANG JULI, 2. ENDE JULI, 3. ANFANG AUGUST, PLAYOFF ENDE AUGUST',
+           'RUNDEN UND WEGE DER UEFA-ZUGANGSLISTE 2026-27; DIE VERLIERER RUTSCHEN LAUT REGLEMENT IN DEN POKAL DARUNTER'],
+        po_n='{n} VEREINE', grp_po='EINE GRUPPE ZU {n}, EINFACHE RUNDE', grp_po2='EINE GRUPPE ZU {n}, HIN UND RUECK', series='BEST OF 3',
+        drawn='PAARUNGEN AUSGELOST', neutral='AUF NEUTRALEM PLATZ',
+        st_byes='{who} MIT FREILOS IN DIE NAECHSTE RUNDE', st_down='ABSTEIGER: {n}', 
+        state='STAATSMEISTERSCHAFT: {n} VEREINE', st_grp='{g} GRUPPEN ZU {s}, EINFACHE RUNDE', st_grp1='EINE GRUPPE ZU {s}, EINFACHE RUNDE',
+        st_cross=' (GEGEN DIE VEREINE DER ANDEREN GRUPPE)', st_grp2='DANN {g} GRUPPEN ZU {s}', st_ko='{n} VEREINE: {r}',
+        ita_b=['DRITTER AUFSTEIGER DER SERIE B: 3.-8.', 'VORRUNDE: 5.-8. UND 6.-7., EIN SPIEL BEIM BESSER PLATZIERTEN, VERLAENGERUNG, DANN DER BESSER PLATZIERTE',
+               'HALBFINALE: 3. UND 4. GEGEN DIE SIEGER, HIN- UND RUECKSPIEL, GLEICHSTAND: DER BESSER PLATZIERTE',
+               'FINALE: HIN- UND RUECKSPIEL, GLEICHSTAND: DER BESSER PLATZIERTE; BEI GLEICHEN LIGAPUNKTEN VERLAENGERUNG UND ELFMETER',
+               'EIN 3. MIT MEHR ALS 14 PUNKTEN VOR DEM 4. STEIGT DIREKT AUF'],
+        ita_out=['16. GEGEN 17., HIN- UND RUECKSPIEL, HINSPIEL BEIM 17.', 'GLEICHSTAND: DER 16. BLEIBT; BEI GLEICHEN LIGAPUNKTEN VERLAENGERUNG UND ELFMETER',
+                 'NICHT GESPIELT BEI MEHR ALS 4 PUNKTEN VORSPRUNG DES 16.: DER 17. STEIGT AB'],
+        ita_c=['28 VEREINE: 2.-10. DER 3 GRUPPEN UND DER SIEGER DER COPPA ITALIA SERIE C; DER SIEGER STEIGT IN DIE SERIE B AUF',
+               'GRUPPENPHASE: 5.-10., 6.-9., 7.-8., EIN SPIEL BEIM BESSER PLATZIERTEN, GLEICHSTAND: DER BESSER PLATZIERTE; DANN MIT DEM 4.',
+               'NATIONALE PHASE: 2 RUNDEN MIT GESETZTEN, HIN- UND RUECKSPIEL, GLEICHSTAND: DER GESETZTE',
+               'FINAL FOUR: FREIE AUSLOSUNG, HIN- UND RUECKSPIEL, VERLAENGERUNG UND ELFMETER']),
+}
+# the game's own names of the European cups (a classic world: the exe's strings), keyed as world_cups
+GAME_CUPS = {'it': {'cc': 'COPPA CAMPIONI EUROPEA', 'cwc': 'COPPA D. COPPE EUROPEA', 'uefa': 'COPPA EUFA'},
+             'en': {'cc': 'EUROPEAN CHAMPIONS CUP', 'cwc': 'EUROPEAN CUP-WINNERS CUP', 'uefa': 'EUFA CUP'},
+             'fr': {'cc': "CPE D'EUROPE DES CHAMPS", 'cwc': "CPE D'EUR VAINQ. DE CPE", 'uefa': 'COUPE EUFA'},
+             'de': {'cc': 'EUROPAPOKAL LANDESMEISTER', 'cwc': 'EUROPAPOKAL POKALSIEGER', 'uefa': 'EUFA-CUP'}}
+CODES = {0x94: 'two_legs', 0x84: 'two_legs_pens', 0x14: 'single', 0x54: 'single_et'}
+
+
+def world_items():
+    """[(world, cid, titles, texts)] of the career worlds' European cups (mkseason.world_defs) and, in a league-phase
+    world, the career club's qualifying tie (uefaq: 'PRELIM. ' + the cup, per language). Titles: '' + ' ' + the
+    cup's long name, as the game writes a contest without a country."""
+    import mkseason
+    out = []
+    for w in mkseason.world_defs():
+        n, T = w['n'], (_noaway_texts() if w.get('year', 0) >= 2021 else TEXTS)
+        for key, (rounds, clubs) in w['cups'].items():
+            lp = rounds == __import__('careerworld').LP_ROUNDS
+            names = w['cupnames'].get(key)
+            titles = {lang: ' ' + (names[0] if names else GAME_CUPS[lang][key]) for lang in LANGS}
+            texts = {}
+            for lang in LANGS:
+                e = EX[lang]
+                if lp:
+                    texts[lang] = [x.format(n=len(clubs)) for x in (e['lp6'] if key == 'uefa' else e['lp'])] + \
+                        e['lp_ko'] + [e['lp_q']]
+                else:
+                    texts[lang] = cup_text(dict(clubs=len(clubs), rounds=[CODES[b] for b in rounds]), T[lang])
+            out.append((n, None, titles, texts))
+        if any(r == __import__('careerworld').LP_ROUNDS for r, _ in w['cups'].values()):
+            import uefaq
+            for cid, cup in zip(uefaq.QIDS, uefaq.CUPS):
+                titles = {lang: ' ' + uefaq.NAMES[lang] + cup.decode() for lang in LANGS}
+                out.append((n, cid, titles, {lang: list(EX[lang]['q']) for lang in LANGS}))
+    return out
+
+
+def _noaway_texts():
+    return {lang: dict(TEXTS[lang], r=dict(TEXTS[lang]['r'], two_legs=NOAWAY[lang])) for lang in TEXTS}
+
+
+def po_page(po, names, t, lang):
+    """A play-off contest's own page (gplay): who, the rounds (groups, series, draws, neutral grounds)."""
+    e = EX[lang]
+    lines = po_text(po, names, t, lang)
+    ent = po.get('entrants', [])
+    if ent and not any(isinstance(x, list) for x in ent):
+        lines[0] = lines[0].rstrip(': ') + ': ' + e['po_n'].format(n=len(ent))
+    rs = po.get('rounds', [])
+    if any('group' in r or r.get('series') or r.get('pairing') == 'draw' or r.get('host') == 'neutral' for r in rs):
+        lines = lines[:1]
+        for i, r in enumerate(rs):
+            if 'group' in r:
+                g = r['group']
+                lines.append(t['r1'].format(a=i + 1) + (e['grp_po2'] if g.get('rounds', 1) == 2 else e['grp_po']).format(
+                    n=len(r.get('members', []))))
+                continue
+            s = _rule(r, t)
+            if r.get('series'):
+                s = e['series']
+            if r.get('pairing') == 'draw':
+                s += ', ' + e['drawn']
+            if r.get('host') == 'neutral':
+                s += ', ' + e['neutral']
+            lines.append(t['r1'].format(a=i + 1) + s)
+        if any(r.get('gap') for r in rs):
+            lines.append(t['gap'].format(n=max(r.get('gap') or 0 for r in rs)))
+    return lines
+
+
+def state_text(c, t, lang):
+    e = EX[lang]
+    lines = [e['state'].format(n=len(c.get('clubs', [])))]
+    first = True
+    for st in c.get('stages', []):
+        if st['type'] == 'groups':
+            g, n = st.get('groups', 1), st['teams']
+            if first:
+                s = (e['st_grp1'].format(s=n) if g == 1 else e['st_grp'].format(g=g, s=n // g))
+                if st.get('cross') and g > 1:
+                    s += e['st_cross']
+            else:
+                s = e['st_grp2'].format(g=g, s=n // g)
+            lines.append(s)
+        elif st['type'] == 'knockout':
+            lines.append(e['st_ko'].format(n=st['teams'], r=t['r'][st.get('matches', 'single')]))
+            if st.get('byes'):                  # ('1A' = the 1st of group A)
+                one = (c.get('stages') or [{}])[0].get('groups', 1) == 1
+                who = [t['ord'](int(b[:-1])) + ('' if one else ' ' + b[-1]) for b in st['byes']]
+                lines.append(e['st_byes'].format(who=', '.join(who)))
+        first = False
+    lines.append(t['pts'].format(w=c.get('win_points', 3)))
+    if c.get('relegated'):
+        lines.append(e['st_down'].format(n=c['relegated']))
+    return lines
+
+
+
+
+def world_year(w, d=None):
+    """A world's first year (its root pack's world_cups.start_year): from 2021-22 on, no away goals (careerworld
+    w_noaway: the engine applies the same rule). d: a pack of that world (its siblings when not in the build)."""
+    if not _YEARS:
+        import mkseason
+        for pk in mkseason.packs():
+            if pk.world is not None and 'world_cups' in pk.meta:
+                _YEARS[pk.world] = pk.meta['world_cups'].get('start_year', 0)
+    if w not in _YEARS and d is not None:
+        return _zctx(d, w)[0].get(w, {}).get('start_year', 0)
+    return _YEARS.get(w, 0)
+
+
 def from_pack(d):
     """[(world, contest id, {lang: title}, {lang: [lines]})] of one pack."""
     m = json.load(open(os.path.join(d, 'pack.json')))
@@ -238,9 +608,19 @@ def from_pack(d):
     tp = os.path.join(d, 'ties.csv')
     ties = list(complist.csv.DictReader(open(tp, encoding='utf-8'))) if os.path.exists(tp) else []
     bn = m.get('button_names') or {}
+    T = TEXTS
+    if m.get('world') is not None and world_year(m['world'], d) >= 2021:   # (no away goals: the round's ET / penalties)
+        T = {lang: dict(TEXTS[lang], r=dict(TEXTS[lang]['r'], two_legs=NOAWAY[lang])) for lang in TEXTS}
     world = m.get('world', 0) if m.get('kind') == 'career' else 0
+    import zones
+    metas, ranks = _zctx(d, m.get('world', 0) if m.get('kind') == 'career' else None)
+    rank = ranks.get(os.path.realpath(d))
+    lp = zones._lp_world(metas, m.get('world', 0) if m.get('kind') == 'career' else 0)
+    zdet = {lang: {} for lang in LANGS}
+    for lang in LANGS:
+        zones.pack_zones(d, lang, lp, rank, zdet[lang])
     out = []
-    for comp in m.get('competitions', []):
+    for ci, comp in enumerate(m.get('competitions', [])):
         cid = int(comp['id'], 16) if comp.get('id') else None
         euro = comp.get('layout') == 'european' or comp['type'] == 'tourney'
         def title(lang, name):
@@ -253,13 +633,18 @@ def from_pack(d):
             for lv in lg['levels']:
                 for div in lv:
                     titles, texts = {}, {}
+                    eu = None
+                    if lp and rank and lv is lg['levels'][0]:
+                        places, cw = zones.eu_places(rank)
+                        eu = (places, cw, metas.get(m.get('world', 0), {}).get('start_year', 0))
                     for lang in LANGS:
                         nm = complist._nm(div['name'], lang)
                         titles[lang] = title(lang, nm)
                         low = (lg['closed'] or lv is lg['levels'][-1]) and not any(
                             po.get('kind') == 'promedio' for po in comp.get('ko_playoffs') or [])
                         texts[lang] = league_text(div, win, T[lang], lg['names'], lang, low) + \
-                            (T[lang]['ita'] if lg['special'] and k == min(1, len(lg['names']) - 1) else [])
+                            (T[lang]['ita'] if lg['special'] and k == min(1, len(lg['names']) - 1) else []) + \
+                            zone_text(zdet[lang].get((ci, k), []), T[lang], lang, eu)
                     out.append((world, cid, titles, texts))
                     k += 1
         elif comp['type'] == 'cup':
@@ -269,6 +654,27 @@ def from_pack(d):
         elif comp['type'] == 'tourney':
             titles = {lang: title(lang, complist._nm(comp['names'], lang)) for lang in LANGS}
             out.append((world, cid, titles, {lang: tourney_text(comp, T[lang]) for lang in LANGS}))
+        elif comp['type'] == 'state':           # (statecup: a Brazilian state championship)
+            titles = {lang: title(lang, complist._nm(comp['names'], lang)) for lang in LANGS}
+            out.append((world, cid, titles, {lang: state_text(comp, T[lang], lang) for lang in LANGS}))
+        if comp['type'] != 'league':
+            continue
+        lg = complist._league(comp, clubs)
+        pos = comp.get('ko_playoffs') or []
+        for po in pos if isinstance(pos, list) else []:          # gplay: each play-off is a contest of its own
+            if po.get('kind') == 'promedio' or not po.get('names'):
+                continue
+            titles = {lang: title(lang, complist._nm(po['names'], lang)) for lang in LANGS}
+            out.append((world, None, titles, {lang: po_page(po, lg['names'], T[lang], lang) for lang in LANGS}))
+        if comp.get('cup_d'):                   # cupd: the Coppa Italia Serie D
+            nm = comp['cup_d'].get('names') or {'*': ['COPPA ITALIA SERIE D', 'COPPA IT SERIE D']}
+            titles = {lang: title(lang, complist._nm(nm, lang)) for lang in LANGS}
+            out.append((world, None, titles, {lang: list(EX[lang]['cupd']) for lang in LANGS}))
+        if comp.get('playoffs') == 'ita':       # dplay: Serie B play-off / play-out, Serie C play-off
+            import dplay
+            for nm, k in zip(dplay.NAMES, ('ita_b', 'ita_out', 'ita_c')):
+                titles = {lang: title(lang, nm.decode()) for lang in LANGS}
+                out.append((world, None, titles, {lang: list(EX[lang][k]) for lang in LANGS}))
     return out
 
 
@@ -277,11 +683,11 @@ def write(out_dir, items):
     by, keys = {}, {}
     for world, cid, titles, texts in items:
         for lang in LANGS:
-            body = [x for line in texts[lang] for x in wrap(ascii_up(line, lang))]
+            body = [wrap(ascii_up(line, lang)) for line in texts[lang]]      # (paragraphs: pages())
             key = titles[lang][:fmtpage.NAME - 1]
             k = (lang, world, key)
             if k in keys:                       # the same title twice (two divisions with one name): one page,
-                keys[k].extend([''] + body)     # both descriptions
+                keys[k].extend([['']] + body)     # both descriptions
                 continue
             keys[k] = body
             by.setdefault((lang, world), []).append((cid, key, None))
@@ -301,14 +707,22 @@ def file_names(pack_dirs):
 
 
 def main(argv):
+    """The packs given (pack dirs or dirs of packs) are the build (mkseason.ENABLED): their worlds' league phase, start
+    year, European cups and qualifying ties as in patch.py's build."""
     out, dirs = argv[0], argv[1:]
-    items = []
+    pk = []
     for d in dirs:
         if os.path.exists(os.path.join(d, 'pack.json')):
-            items += from_pack(d)
+            pk.append(d)
         else:
-            items += [x for s in sorted(os.listdir(d)) if os.path.exists(os.path.join(d, s, 'pack.json'))
-                      for x in from_pack(os.path.join(d, s))]
+            pk += [os.path.join(d, s) for s in sorted(os.listdir(d)) if os.path.exists(os.path.join(d, s, 'pack.json'))]
+    import mkseason
+    mkseason.ENABLED = [os.path.abspath(d) for d in pk if os.path.basename(d.rstrip(os.sep)) != mkseason.NATIONAL]
+    items = [x for d in pk for x in from_pack(d)]
+    try:
+        items += world_items()
+    except Exception as e:                      # (packs that are no full world: no European cups)
+        print(f'(no European cups: {e})')
     for name, n in write(out, items):
         print(f'{name}: {n} competitions')
 

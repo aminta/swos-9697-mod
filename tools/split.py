@@ -830,6 +830,12 @@ sp_sort:                                ; replaces cseg_883DD's last `jns` (the 
     inc ecx
     jmp .c
 .tie:                                   ; equal points in one group: more points before rounding first
+    movzx eax, byte [esi + S_FROZEN]    ; (flag 16, 'tiebreak' 'wins' - MLS: more wins first, then the engine's
+    dec eax                             ; goal difference / goals order, kept: the passes are stable)
+    imul eax, eax, SR_
+    mov al, [edx + E_STG + 2 + eax]
+    and al, 16
+    mov [sp_W], al
     mov ebp, NMAX_
 .pass:
     xor ecx, ecx
@@ -858,9 +864,18 @@ sp_sort:                                ; replaces cseg_883DD's last `jns` (the 
     mov dl, [esi + S_GRP + ecx]
     cmp dl, [esi + S_GRP + eax]
     jne .tp
+    cmp byte [sp_W], 0
+    je .pre
+    mov edx, [esp]                      ; (row a's offset)
+    mov dx, [esi + edx + 2B9h]          ; wins
+    cmp dx, [esi + ebx + 2B9h]
+    jae .tp
+    jmp .sw
+.pre:
     mov dx, [esi + S_PRE + ecx * 2]
     cmp dx, [esi + S_PRE + eax * 2]
     jae .tp
+.sw:
     pop eax
     pop edx
     pop ecx
@@ -893,6 +908,7 @@ sp_stg: db 0
 sp_bld: db 0
 sp_rule: db 0
 sp_G: db 0
+sp_W: db 0
 sp_div: dd 0
 sp_tmp: times NMAX_ dw 0
 align 4
@@ -1073,7 +1089,7 @@ def entry(world, file, div, n, spec, table):
             assert len(groups) <= 4 and all(groups), groups
             for d in st['fixtures']:
                 assert len({x for pr in d for x in pr}) == 2 * len(d) and all(0 <= x < n for pr in d for x in pr), d
-            flags = (1 if st.get('reset') else 0) | 4 | (8 if mem else 0)
+            flags = (1 if st.get('reset') else 0) | 4 | (8 if mem else 0) | (16 if st.get('wins') else 0)
             recs.append((len(days), groups, ['full'] * len(groups), flags, b'') + extra)
             days += [[(a, b, 0) for a, b in d] for d in st['fixtures']]
             continue

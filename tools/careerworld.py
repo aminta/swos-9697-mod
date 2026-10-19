@@ -48,12 +48,12 @@ B_TFB, TFB_SIZE = 0x31000, 0x2B000
 # SaveCareerFile writes it from B_STAGE (fixed part copied before the records) and LoadCareerFile reads it there
 # (trailer.LOADCOPY -> w_loadcopy spreads it). Old saves (N <= 100) load unchanged.
 SEL_N = 160
-B_SEL, SEL_ROOM = 0x5C000, SEL_N * TEAM_SIZE + 0x2800          # (+ the trailer's blocks after the records: the main
-                                                               # one + the engine block 'EN': RS 1056, RI ~700, GP 1740 ...)
-B_STAGE = 0x7A000                                    # 95153 (fixed part) + SEL_ROOM
+B_SEL, SEL_ROOM = 0x5C000, SEL_N * TEAM_SIZE + 0x3800          # (+ the trailer's blocks after the records: the main
+                                                               # one + the engine block 'EN': GP, GS, PR, RI, SS, CD ... ~9-10 KB)
+B_STAGE = 0x7B000                                    # 95153 (fixed part) + SEL_ROOM
 # UEFA qualifying rounds (uefaq.py, league-phase worlds only: BSS_SIZE grows then): the C code's .bss, then the
 # season end's copies of the clubs' records (55 associations x (top 9 + cup winner) + 3)
-B_UQ, UQ_BSS, UQ_RECS = 0xAF000, 0x7000, 563
+B_UQ, UQ_BSS, UQ_RECS = 0xB1000, 0x7000, 563
 # 3.3.3 (main): a big world's new career uses the big cache too; its saves carry BIGC (the last dword of the
 # 80-record area, after the W1 block); a save without BIGC loads into the game's cache, or into the big one when
 # it caches more than UPGRADE_N teams or belongs to a league-phase world (this branch's saves before the merge)
@@ -72,7 +72,7 @@ B_TMD, B_CUPS, B_LISTS = 0, 128 * TEAM_SIZE, 128 * TEAM_SIZE + 3 * 160      # cu
 # save without BIGC (3.0 .. 3.3.2) loads into the game's cache as before, or into the big one when it caches more than
 # UPGRADE_N teams (then saved with BIGC). After a load only selTeamsPtr points into the cache (scan of the game's memory,
 # W84E_TEAM254.CAR), and w_pcf sets it.
-# (world-2025-26 keeps its own offsets above: B_TFB, B_SEL 0x5C000, B_STAGE 0x7A000, B_UQ.)
+# (world-2025-26 keeps its own offsets above: B_TFB, B_SEL 0x5C000, B_STAGE 0x7B000, B_UQ.)
 # SaveSelectedTeams / RestoreSelectedTeams park the career's team cache while a contest is simulated (season end):
 # the game keeps only its first 32 records (21888 B in DOS memory at dosMemOfs60c00h), the simulated contest reuses
 # the cache, so records 32+ come back as the simulated clubs (a 64-club national cup lost its second half -> the
@@ -335,6 +335,84 @@ w_copy:                                 ; ecx bytes esi -> edi (no string instru
 %endmacro
 W_YEAR w_year96, 1996
 W_YEAR w_year95, 1995
+
+w_noaway:                               ; ZF = 1 in a career of a world from 2021-22 on (UEFA abolished away goals in
+    push ebx                            ; 2021-22, and every 2026-27 two-legged round's rule has none: the data's
+    cmp word [GAMETYPE], 4              ; two_legs_2627.json); 1984-85 / 1996-97 keep them (real then)
+    jne .away
+    call w_rec
+    jz .away
+    cmp byte [ebx + 42], 121            ; (the world's first year - 1900)
+    jb .away
+    xor ebx, ebx                        ; (ZF = 1)
+    pop ebx
+    ret
+.away:
+    or esp, esp                         ; (ZF = 0)
+    pop ebx
+    ret
+
+w_away1:                                ; replaces UpdateTime's `cmp word [playing2ndGame], 1` before `jz
+    call w_noaway                       ; @@2nd_game_ended` (90': level on the night, the away goals decide)
+    jz .no
+    cmp word [P2G], 1
+    ret
+.no:
+    or esp, esp                         ; (no away goals: not taken -> extra time / penalties as the round says)
+    ret
+
+w_away2:                                ; replaces `mov ax, [playing2ndGame]; or ax, ax` before `jz @@check_penalties`
+    call w_noaway                       ; (after extra time)
+    jz .no
+    mov ax, [P2G]
+    or ax, ax
+    ret
+.no:
+    xor ax, ax                          ; (no away goals: taken -> penalties)
+    ret
+
+w_away3:                                ; replaces cseg_2AE97's `cmp word [esi+5Dh], 1` (a simulated two-legged tie
+    call w_noaway                       ; level on aggregate after 90': the contest's away-goals flag)
+    jz .no
+    cmp word [esi + 5Dh], 1
+    ret
+.no:
+    or esp, esp                         ; (no away goals: jnz taken -> extra time / penalties)
+    ret
+
+w_away4:                                ; replaces its `mov ax, [esi+5Dh]; or ax, ax` (after extra time)
+    call w_noaway
+    jz .no
+    mov ax, [esi + 5Dh]
+    or ax, ax
+    ret
+.no:
+    xor ax, ax                          ; (no away goals: jz taken)
+    ret
+
+w_pfx:                                  ; replaces cseg_95C18's `mov word [D0], 1` (a contest not in the game's
+    push esi                            ; European list gets '<country> ' before its name): a contest of a country
+    push eax                            ; with no name (a world's continental cups) gets none either - it showed
+    mov esi, [A5R]                      ; ' UEFA CHAMPIONS LEAGUE' / ' COPPA UEFA' (the prefix: the country entry's
+    movzx eax, byte [esi + 2]           ; second string)
+    mov esi, CTAB0
+    mov esi, [esi + eax * 4]
+    inc esi
+.s:
+    mov al, [esi]
+    inc esi
+    test al, al
+    jnz .s
+    cmp byte [esi], 0
+    pop eax
+    pop esi
+    je .none
+    mov word [D0R], 1
+    ret
+.none:
+    add esp, 4                          ; (straight back to cseg_95C18's caller with ZF = 1: no prefix)
+    xor ax, ax
+    ret
 
 w_mrec:                                 ; replaces `add word [D1], 1996; add word [D2], 97` in FillManagementRecordInfo
     push ebx                            ; (REGISTRO GESTIONE: D1 = D2 = the shown season's number from the career's
@@ -1307,7 +1385,30 @@ def sites(p):
     s['season'] = struct.unpack('<I', m.group(1))[0]
     s['y96'] = _one(rb'\x66\x81\x3d' + pk(D0) + rb'\xcc\x07', d1, '1996').start()
     s['y95'] = _one(rb'\x66\x81\x3d' + pk(D0) + rb'\xcb\x07', d1, '1995').start()
+    # cseg_95C18 (a contest in the game's European list dseg_C7136: no '<country> ' prefix in its name): the not-found
+    # tail `mov word [D0], 1; mov ax, 1; or ax, ax; retn` after `cmp [A5], eax; jnz; xor ax, ax; retn`
+    s['pfx'] = _one(rb'\x39\x05' + pk(A0 + 20) + rb'\x75.\x66[\x31\x33]\xc0\xc3\x66\xc7\x05' + pk(D0) +
+                    rb'\x01\x00\x66\xb8\x01\x00\x66[\x0b\x09]\xc0\xc3', d1, 'cseg_95C18').start() + 12
     # FillManagementRecordInfo: add word [D1], 1996; add word [D2], 97 (the record's season years)
+    # UpdateTime's two second-leg aggregate blocks (statsTeam2Goals * 2 + team2GoalsFirstLeg ...): before the first
+    # `cmp word [playing2ndGame], 1; jz` it, before the second `mov ax, [playing2ndGame]; or ax, ax; jz` (penalties)
+    agg = [x.start() for x in re.finditer(rb'\x66\xa1.{4}\x66\xa3' + pk(D0) + rb'\x66\xd1\x25' + pk(D0) + rb'\x66\xa1.{4}'
+                                          rb'\x66\x01\x05' + pk(D0), d1, re.S)]
+    assert len(agg) == 2, agg
+    s['away2'] = agg[1] - 15
+    assert d1[s['away2']:s['away2'] + 2] == b'\x66\xa1' and d1[s['away2'] + 6:s['away2'] + 11] == b'\x66\x0b\xc0\x0f\x84'
+    p2g = d1[s['away2'] + 2:s['away2'] + 6]
+    a1 = [x.start() for x in re.finditer(rb'\x66\x83\x3d' + re.escape(p2g) + rb'\x01\x74(.)', d1, re.S)
+          if x.end() + struct.unpack('b', x.group(1))[0] == agg[0]]
+    assert len(a1) == 1, a1
+    s['away1'] = a1[0]
+    s['p2g'] = p.target(1, s['away2'] + 2)
+    a3 = [x.start() for x in re.finditer(rb'\x66\x83\x7e\x5d\x01\x75', d1)]   # cseg_2AE97: a simulated two-legged
+    assert len(a3) == 2, a3                                                       # tie (the 2nd hit: cseg_89381, a league)
+    s['away3'] = a3[0]
+    a4 = [x.start() for x in re.finditer(rb'\x66\x8b\x46\x5d\x66\x0b\xc0\x74', d1) if a3[0] < x.start() < a3[0] + 0x200]
+    assert len(a4) == 1, a4
+    s['away4'] = a4[0]
     s['mrec'] = _one(rb'\x66\x81\x05' + pk(D0 + 4) + rb'\xcc\x07\x66\x83\x05' + pk(D0 + 8) + rb'\x61', d1, 'mrec').start()
     # ViewWorldMenu: call ChooseCompetitionMenu; mov ax,[chooseTeamsResult]; or ax,ax; jz; mov eax,[selectedContest]
     m = _one(rb'\xe8(.{4})\x66\xa1.{4}\x66\x0b\xc0\x74.\xa1.{4}\xa3' + pk(A0) + rb'\x66\xa1.{4}\x66\xa3' + pk(D0)
@@ -1750,6 +1851,7 @@ def patch(p, worlds, at, nasmcave, comp, ct, cont_rec):
     p.add_ptr(2, ct + 4 * WCONT, *cont_rec)        # continent button name (the CLASSIC CAREERS record)
     sym = {k: (2, v) for k, v in s['regs'].items()}
     sobj, slt = s['slt']
+    sym['CTAB0'] = (2, ct)
     sym.update({'SLT': (sobj, slt), 'SLTCOPY': s['sltcopy'], 'WORLD_BYTE': (0, WORLD_BYTE), 'REC': (0, REC),
                 'LOADEURO': (1, s['loadeuro']), 'KNOWN': (1, s['known']), 'TEAMSLOADED': (2, s['teamsloaded']),
                 'CCCOPY': s['copies'][0][0],
@@ -1762,7 +1864,7 @@ def patch(p, worlds, at, nasmcave, comp, ct, cont_rec):
                 'CHOOSETEAMS': (1, s['chooseteams']), 'LASTNAT': (2, s['lastnat']), 'HOLDERS': (1, s['holders']),
                 'ADDREC': (1, s['addrec']), 'CLEARHOLD': (1, s['clearhold']),
                 'LOOP_CWC': (1, s['pick'][1][2]), 'LOOP_UEFA': (1, s['pick'][2][2]),
-                'GAMETYPE': s['gametype'], 'LASTEXT': s['lastext'], 'NTGAME': (2, s['nt']),
+                'GAMETYPE': s['gametype'], 'P2G': s['p2g'], 'LASTEXT': s['lastext'], 'NTGAME': (2, s['nt']),
                 'A4R': (2, s['regs']['A0R'] + 16), 'FLAGS': s['nc']['flags'], 'DF52F': s['nc']['df52f'],
                 'D6CD0': s['nc']['d6cd0'], 'D6CD2': (2, s['nc']['d6cd0'][1] + 2), 'D6CD4': (2, s['nc']['d6cd0'][1] + 4),
                 'D6CBC': s['nc']['d6cbc'], 'E0931': s['nc']['e0931'], 'E0933': s['nc']['e0933'],
@@ -1802,6 +1904,13 @@ def patch(p, worlds, at, nasmcave, comp, ct, cont_rec):
     hook(s['y96'], 9, 'w_year96', (3,))
     hook(s['y95'], 9, 'w_year95', (3,))
     hook(s['mrec'], 17, 'w_mrec', (3, 12))
+    hook(s['pfx'], 9, 'w_pfx', (3,))
+    for site, n in ((s['away1'], 8), (s['away2'], 9), (s['away3'], 5), (s['away4'], 7)):
+        assert p.get(1, site, n) == p.le.obj_bytes(1)[site:site + n], ('away goals site already patched', hex(site))
+    hook(s['away1'], 8, 'w_away1', (3,))            # no away goals in a world from 2021-22 on: played second legs
+    hook(s['away2'], 9, 'w_away2', (2,))
+    hook(s['away3'], 5, 'w_away3', ())              # and simulated two-legged ties
+    hook(s['away4'], 7, 'w_away4', ())
     hook(s['view'], 5, 'w_view', ())
     hook(s['buy'], 5, 'w_buy', ())
     hook(s['nat'], 12, 'w_nat', (2, 8))

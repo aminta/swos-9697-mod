@@ -157,6 +157,9 @@ def world_entries(data_dir=None):
         import fmtgame                                       # the FORMAT page's texts (fmtpage.py), per world
         names = sorted(set(names) | set(fmtgame.file_names([e if os.sep in e else os.path.join(mkseason.PACKS, e)
                                                             for e in mkseason.ENABLED])))
+        import zones                                         # the league tables' zone colours, per world
+        names = sorted(set(names) | set(zones.file_names([e if os.sep in e else os.path.join(mkseason.PACKS, e)
+                                                          for e in mkseason.ENABLED])))
     rows = [(n, None, os.path.relpath(os.path.join(data_dir, n), ROOT), 'DATA/' + n) for n in names
             if 'DATA/' + n not in listed]
     missing = [r[0] for r in rows if not os.path.exists(os.path.join(ROOT, r[2]))]

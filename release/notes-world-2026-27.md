@@ -7,8 +7,9 @@
 <!-- REGIA STAGED, the release payoff (Davide 2026-10-18, for the final release of the whole work):
 *Football competitions, global and local, that no other game has, has ever had, or probably ever will.* -->
 
-A historic career world of the **2026-27 season**: 91 countries, 1,847 clubs (+ 9 Serie D clubs waiting below Serie C), real squads at the end of the summer
-2026 transfer window. In CLASSIC CAREERS choose WORLD 2026-27, then the continent and the country (EUROPE lists the
+A historic career world of the **2026-27 season**: 91 countries, 2,378 clubs (Italy down to the real Serie D: 156 clubs in 9 groups), plus 97 clubs waiting outside
+the world (the Eccellenza, Brazil's state second divisions, the clubs below the B teams' leagues), real squads at the
+end of the summer 2026 transfer window. In CLASSIC CAREERS choose WORLD 2026-27, then the continent and the country (EUROPE lists the
 first 43 UEFA associations by ranking, the others are under OTHER NATIONS).
 
 ### Rebuilt exactly, point by point
@@ -52,6 +53,31 @@ Not one fixed formula for everybody: each league plays the season the way its ow
 - **Argentina 2026**: the Liga Profesional of 30 in two zones of 15, Apertura and Clausura (16 matchdays each: the
   zone round robin, the clasico on the free day, a drawn interzonal day), the annual table, relegation by promedio
   (3 seasons) and by the annual table.
+- **Major League Soccer 2026**: 30 clubs in the Eastern and Western Conference (15 + 15), the real 34-match schedule
+  (28 conference + 6 cross-conference games per club) on the real match days and dates, the World Cup break
+  included. Equal points are ranked by wins, then goal difference, then goals scored; the club with the best record
+  overall (the Supporters' Shield) hosts the MLS Cup.
+  - **MLS Cup Playoffs**: the top 9 of each conference. Wild Card 8th v 9th (single match at the 8th, a draw goes
+    straight to penalties); Round One best-of-three, 1st v the Wild Card, 2nd v 7th, 3rd v 6th, 4th v 5th (the
+    higher seed hosts games 1 and 3, a drawn game goes to penalties, game 3 only if needed); Conference Semifinals
+    and Conference Finals, single matches at the higher seed; the MLS Cup at the club with the better record. Extra
+    time and penalties from the Conference Semifinals. Playable by your club, with the real round names.
+  Declared: the tables are the two conferences; the Supporters' Shield is not shown as a separate table.
+<!-- REGIA STAGED (title play-offs, branch titlepo; publish when merged + TM_TITLE=1 + the champion applied):
+- **Title play-offs where the champion is decided after the table**:
+  - **Canada** (CPL): the top 4, semi-finals 1st v 4th and 2nd v 3rd over two legs (the better placed hosts the
+    return), a single final at the better placed's ground.
+  - **Australia** (A-League Men finals series): the top 6, single elimination finals 3rd v 6th and 4th v 5th,
+    two-legged semi-finals re-seeded (the 1st meets the lowest survivor), a single Grand Final at the better
+    placed's ground.
+  - **Costa Rica**: semi-finals 1st v 4th and 2nd v 3rd and a final, two legs each, then the two-legged Gran Final
+    between the table's leader and the play-off winner, not played when they are the same club.
+  - **Malta**: the champion comes from the Opening and Closing Rounds: one club winning both is champion with no
+    match; otherwise a Finalissima between the two round winners, or, with three or four clubs in the top two of the
+    rounds, a decider or a Final Four seeded by aggregate points.
+  Extra time and penalties where the tie is level. Declared for Malta: single matches at a neutral ground (the
+  rules give no format); equal season points in the Final Four seeding are split by the Closing Round place; no
+  third-place match. -->
 - **Leagues with an odd number of clubs play real rounds**: one club rests each matchday, as in the real
   competitions (El Salvador's Tercera, Gibraltar, New Zealand, India, Taiwan ...); the original game's tables for odd
   sizes were not rounds.
@@ -89,6 +115,10 @@ when the engine lands it.
 
 *European cups (UEFA 2026-27)*
 - **The current official names**: UEFA Champions League, UEFA Europa League, UEFA Conference League, on every screen.
+- **No away goals in 2026-27** (UEFA abolished them in 2021-22; every federation's two-legged rounds followed): a
+  level aggregate goes to extra time and penalties, or straight to penalties where the regulation says so (Copa do
+  Brasil rounds 5-8, EFL Cup semi-finals, the Chilean Copa de la Liga semi-finals), in played and simulated ties
+  alike. The historic worlds (1984-85) keep the away-goals rule, as it was then.
 - **Every round under its real name, in every language**: league phase, knockout play-offs, round of 16 (then
   quarter-finals, semi-finals, final), the qualifying play-off round; also the Serie B play-off's preliminary round
   and the national cups' round of 16, except the cups whose federations number their rounds: the FA Cup and the
@@ -122,7 +152,9 @@ when the engine lands it.
   place from 24th, UECL 0.125 then 0.25); a bonus for each knockout round reached; **qualifying matches at half
   points** (1.5 / 0.5 a tie); clubs knocked out in qualifying count in their association's divisor; a club's
   coefficient never below **20% of its association's**.
-- Places per association, entry rounds and pots follow the simulated ranking every season.
+- Places per association, entry rounds and pots follow the simulated ranking every season, **a year old as in
+  UEFA's access list**: the 2027/28 places come from the 2026 ranking, the season just played counts from the
+  following one; the clubs' coefficients for the seeding include the season just finished.
 
 *Italian football*
 - **Serie B**: 1st and 2nd promoted directly; **the 3rd is promoted directly if it finishes more than 14 points
@@ -143,8 +175,25 @@ when the engine lands it.
   relegated from Serie B go into the group of their region, balanced to 20 per group, as the real 2026-27 groups
   are drawn.
 - **Serie C relegates for real**: the 20th of each group and the two play-out losers (16th v 19th, 17th v 18th; no
-  play-out when 8+ points apart) go down to the Serie D, and nine clubs come up from it, each into the group of its
-  area. A relegated club comes back after the others ahead of it.
+  play-out when 8+ points apart) go down to the Serie D, and its nine group winners come up, each into the group of
+  its area.
+- **Serie D 2026-27, the real one**: the real 9 groups (Girone A-I), each club in its real group (156 of the real
+  162, see the Mod rules).
+  - Each group winner is promoted to Serie C (9 clubs).
+  - **Play-offs**: 2nd v 5th and 3rd v 4th in each group, single match at the better placed club's ground; a draw
+    goes to extra time, then the better placed club goes through; the final between the two winners the same way.
+    As in reality they promote nobody: they rank the repechage list.
+  - **Play-outs**: 13th v 16th and 14th v 15th (in the 17-club groups 12th v 15th and 13th v 14th), single match at
+    the better placed club's ground; a draw goes to extra time, then the better placed club stays up; not played
+    when the two clubs are 8 or more points apart (the lower one goes down). The two losers go down.
+  - **Relegation**: the last two of each group go down directly; with the play-out losers, 4 per group, 36 in all,
+    go down to the Eccellenza, and 36 clubs come up from it each season, as in reality.
+  - **Poule Scudetto** (title "Campione d'Italia Dilettanti", the 2025-26 rules, as the 2026-27 text isn't out):
+    the 9 group winners in 3 triangulars by group (A-B-C, D-E-F, G-H-I), single round robin; the 3 triangular
+    winners and the best runner-up in drawn two-legged semi-finals (points, then goals, no away goals, then
+    penalties, no extra time); the final a single match at a neutral ground, no extra time, penalties.
+  - **Played by your club**: the play-offs, the play-outs and the Poule Scudetto when you win your group; the
+    winner's season record shows ITALIAN AMATEUR CHAMPIONS.
 - **Serie C play-off of 28 clubs** (2nd-10th of each group + the Coppa Italia Serie C winner) for the fourth
   promotion:
   - group phase, round 1: 5th v 10th, 6th v 9th, 7th v 8th, single match at the better placed's, a draw -> the
@@ -160,6 +209,22 @@ when the engine lands it.
 - **The Serie C play-off is played by your club too**: group phase, national phase and Final Four under exactly
   these rules; while you play it the other two groups are already over (simulated when your group ends), and the
   season end keeps their results.
+- **Coppa Italia Serie D 2026-27**, on its real bracket: every Serie D club, the real pairings of the turno
+  preliminare (34 ties) and the primo turno (64), and the real paths through the sedicesimi, ottavi and quarti; ties
+  already played in reality keep their real winners in the first season.
+  - Each round on its real date (23 Aug, 30 Aug, 7 Oct, 28 Oct, 18 Nov, 9 Dec; semi-finals 20 Jan / 3 Feb; final 17
+    Feb / 3 Mar). **No extra time anywhere** (LND official notice no. 1): a single match level after 90 minutes goes
+    straight to penalties; two-legged ties (semi-finals, final) level on aggregate also go straight to penalties, and
+    away goals do not count double.
+  - Hosts drawn up to the trentaduesimi; from the sedicesimi, the club that played away in its previous tie hosts
+    (both home or both away: drawn). The semi-final pairs are drawn when the semi-finals are reached; the final is
+    over two legs.
+  - From the second season (LND art. 1-2), the clubs new to the Serie D (relegated from Serie C, promoted from the
+    Eccellenza) play the preliminary round, filled up with the lowest-placed clubs of each group; the others enter at
+    the primo turno.
+  - **Played by your club**, with the real round names (TURNO PRELIMINARE, PRIMO TURNO, TRENTADUESIMI ... FINALE).
+  - The ties your club does not play are decided by the clubs' strength (their best 11, as every other simulated
+    result), home advantage included.
 
 *National cups 2026-27*
 - **Every club still in when the data was taken (October 2026)**, each from **its real round**: clubs entering later
@@ -168,6 +233,17 @@ when the engine lands it.
   group stages count as group stages (a defeat there is no exit).
 - **No national cup where none is played in 2026-27** (Mexico, Honduras, Guatemala, Panama: league only); Peru's
   cup is its real Copa de la Liga 2026.
+
+*League tables in colour*
+- **Every league table shows its end-of-season zones**, as on TV: Champions League (or the European Cup) and direct
+  promotion light blue; Europa League (or the UEFA Cup), promotion and European play-offs green; Conference League
+  dark blue; play-out orange; relegation gray. The places follow the real rules: the UEFA 2026/27 access list by
+  association rank (qualifying rounds included), and each league's own promotions, relegations and play-offs (Serie
+  B 3rd-8th and 16th-17th, the Serie C groups 2nd-10th). A legend on the header line names the colours each table
+  uses. In the Europe 1984-85 world too.
+  In the World 2026-27 the European places in every season come from the engine's own UEFA ranking (the one a year
+  old, as UEFA's access list uses) and the real 2026/27 access list; the European Performance Spots and the title
+  holders' rebalancing are decided at the season end and are not coloured in advance.
 
 *Leagues, calendars and clubs*
 - **Every league, national cup and league cup under its real 2026-27 name, without title sponsors**: COPPA ITALIA,
@@ -306,13 +382,18 @@ when the engine lands it.
 - Serie C relegates as in reality: in each group the 20th goes down and the 16th-19th
   play the play-out (16th v 19th, 17th v 18th, two legs, the return leg at the better placed club; level on aggregate:
   the better placed stays; no play-out when the two clubs are 8 or more points apart: the worse placed goes down).
-  The 9 relegated clubs leave the world for the Serie D, and 9 come up into the group of their area. In season 1 the
-  9 that come up stand in for the 2026-27 Serie D winners, who are known only in May 2027: they are the 9 group
-  leaders of the Serie D on 18 October 2026 (Alessandria, Nibbiano & Valtidone, Luparense, Pistoiese, Prato,
-  L'Aquila, Sarnese, Virtus Francavilla, Reggina), a provisional choice to be replaced by the real 9. From season 2 the
-  relegated clubs come back up in turn, the longest in the Serie D first. Your club relegated to the Serie D is sacked
-  (job offers).
-- Nobody goes down from a country's lowest division in the world (except Serie C, relegated to the Serie D reserve), and play-offs against a tier outside the world are
+  The 9 relegated clubs go down to the Serie D and the 9 Serie D group winners come up into the group of their area.
+- Serie D, 156 of 162: Italy's team file holds 256 clubs (20 + 20 + 60 + 156), so 6 of the real 162 Serie D clubs
+  wait outside: the weakest newly promoted squads (Lascaris, Pavonese, Virtus Bolzano, Grassina, Citta di Anagni,
+  Melfi). They are the first clubs of the Eccellenza pool and come up to the Serie D at the first season end. In 4.1:
+  all 162.
+- The Eccellenza pool: 42 real clubs outside the team file, with real squads (the 6 above, then the 36 relegated from
+  the Serie D in 2025-26, in order of their finish). Each season the 36 clubs relegated from the Serie D leave the
+  world into the pool and the next 36 of the pool come up in their place, each into the Serie D group of its area
+  (the groups keep their sizes); the pool turns over, so a relegated club can come back later. Each season the Serie
+  D groups are re-formed by area, as in reality, so a club can move to a neighbouring group.
+- Your club relegated from the Serie D to the Eccellenza is sacked (job offers).
+- Nobody goes down from a country's lowest division in the world (except the Serie D, relegated to the Eccellenza pool), and play-offs against a tier outside the world are
   not played: e.g. Switzerland's 11th does not meet the Challenge League's 2nd, Korea's 10th and 11th play no K
   League 2 club.
 <!-- DATA STAGED (second-team rules: to come, the integrator's engine; Davide 2026-10-18): - Second teams (Juventus
@@ -408,8 +489,9 @@ when the engine lands it.
 <!-- REGIA STAGED, il payoff del rilascio (Davide 2026-10-18, per il rilascio finale di tutto il lavoro):
 *Le competizioni di calcio, globali e locali, che nessun altro gioco ha, ha mai avuto e probabilmente avrà.* -->
 
-Un mondo di carriera storica della **stagione 2026-27**: 91 nazioni, 1.847 club (+ 9 di Serie D in attesa sotto la Serie C), rose reali alla fine del mercato
-estivo 2026. In CARR. STORICHE scegli MONDO 2026-27, poi il continente e la nazione (EUROPA elenca le prime 43
+Un mondo di carriera storica della **stagione 2026-27**: 91 nazioni, 2.378 club (l'Italia fino alla Serie D vera: 156 club in 9 gironi), più 97 club in attesa fuori dal
+mondo (l'Eccellenza, le seconde divisioni statali brasiliane, i club sotto i campionati delle squadre B), rose reali
+alla fine del mercato estivo 2026. In CARR. STORICHE scegli MONDO 2026-27, poi il continente e la nazione (EUROPA elenca le prime 43
 federazioni UEFA per ranking, le altre sono in ALTRE NAZIONI).
 
 ### Ricostruito esattamente, punto per punto
@@ -454,6 +536,31 @@ Non una formula uguale per tutti: ogni campionato gioca la stagione come l'ha sc
 - **Argentina 2026**: la Liga Profesional a 30 in due zone da 15, Apertura e Clausura (16 giornate ciascuno: girone di
   zona, il clasico nel giorno di riposo, una giornata interzonale sorteggiata), la classifica annuale, retrocessione
   per promedio (3 stagioni) e per classifica annuale.
+<!-- REGIA STAGED (play-off per il titolo, ramo titlepo; da pubblicare col merge + TM_TITLE=1 + campione applicato):
+- **Major League Soccer 2026**: 30 club nelle Conference Est e Ovest (15 + 15), il calendario vero di 34 partite
+  (28 nella propria conference e 6 contro l'altra) nelle giornate e date vere, pausa per i Mondiali compresa. A
+  parità di punti contano le vittorie, poi la differenza reti, poi i gol fatti; il club col miglior record assoluto
+  (il Supporters' Shield) ospita la MLS Cup.
+  - **Play-off della MLS Cup**: le prime 9 di ogni conference. Wild Card 8ª contro 9ª (gara secca in casa
+    dell'8ª, in caso di pareggio subito i rigori); primo turno al meglio delle tre, 1ª contro la vincente della Wild
+    Card, 2ª-7ª, 3ª-6ª, 4ª-5ª (la meglio piazzata gioca in casa gara 1 e gara 3, una gara pari va ai rigori, gara 3
+    solo se serve); semifinali e finali di conference in gara secca in casa della meglio piazzata; la MLS Cup in
+    casa del club col record migliore. Supplementari e rigori dalle semifinali di conference. Giocabili dal tuo
+    club, coi nomi veri dei turni.
+  Dichiarato: le classifiche sono le due conference; il Supporters' Shield non ha una classifica a parte.
+- **Play-off per il titolo dove il campione si decide dopo la classifica**:
+  - **Canada** (CPL): le prime 4, semifinali 1ª-4ª e 2ª-3ª andata e ritorno (ritorno in casa della meglio
+    piazzata), finale secca in casa della meglio piazzata.
+  - **Australia** (A-League Men): le prime 6, eliminatorie secche 3ª-6ª e 4ª-5ª, semifinali andata e ritorno con
+    nuovi accoppiamenti (la 1ª contro la peggio piazzata rimasta), Grand Final secca in casa della meglio piazzata.
+  - **Costa Rica**: semifinali 1ª-4ª e 2ª-3ª e finale, andata e ritorno, poi la Gran Final andata e ritorno tra la
+    prima in classifica e la vincitrice dei play-off, non giocata se sono lo stesso club.
+  - **Malta**: il campione esce dall'Opening e dal Closing Round: chi li vince entrambi è campione senza giocare;
+    altrimenti la Finalissima tra le due vincitrici o, con tre o quattro club nei primi due posti dei due round, uno
+    spareggio o una Final Four ordinata per punti complessivi.
+  Supplementari e rigori in caso di parità. Dichiarato per Malta: partite secche in campo neutro (il regolamento
+  non dice il formato); a parità di punti nella stagione, l'ordine della Final Four segue il posto nel Closing Round;
+  niente finale per il terzo posto. -->
 - **I campionati con un numero dispari di squadre giocano giornate vere**: a ogni turno una squadra riposa, come nelle
   competizioni reali (la Tercera di El Salvador, Gibilterra, Nuova Zelanda, India, Taiwan ...); le tabelle originali
   del gioco per le dimensioni dispari non erano giornate.
@@ -490,6 +597,10 @@ Non una formula uguale per tutti: ogni campionato gioca la stagione come l'ha sc
 
 *Coppe europee (UEFA 2026-27)*
 - **I nomi ufficiali di oggi**: UEFA Champions League, UEFA Europa League, UEFA Conference League, su ogni schermata.
+- **Niente gol in trasferta nel 2026-27** (aboliti dalla UEFA nel 2021-22, e le federazioni hanno seguito): a parità
+  nel totale si va ai supplementari e ai rigori, o direttamente ai rigori dove il regolamento lo prevede (Copa do
+  Brasil turni 5-8, semifinali di EFL Cup e della Copa de la Liga cilena), sia nelle sfide giocate sia in quelle
+  simulate. I mondi storici (1984-85) mantengono la regola dei gol in trasferta, com'era allora.
 - **Ogni turno col suo nome vero, in ogni lingua**: fase campionato, spareggi, ottavi di finale (poi quarti,
   semifinali, finale), gli spareggi delle qualificazioni; anche il turno preliminare dei play-off di Serie B e gli
   ottavi delle coppe nazionali, tranne le coppe che le federazioni numerano per turni: FA Cup e Scottish Cup
@@ -523,7 +634,9 @@ Non una formula uguale per tutti: ogni campionato gioca la stagione come l'ha sc
   classifica** (CL / EL 0,25 a posizione dalla 24ª, UECL 0,125 poi 0,25); un bonus per ogni turno a eliminazione
   raggiunto; **preliminari a punti dimezzati** (1,5 / 0,5 a sfida); i club eliminati nei preliminari contano nel
   divisore della federazione; il coefficiente di un club mai sotto il **20% di quello della sua federazione**.
-- Posti per federazione, turno d'ingresso e fasce seguono il ranking simulato ogni stagione.
+- Posti per federazione, turno d'ingresso e fasce seguono il ranking simulato ogni stagione, **quello dell'anno
+  prima come nella access list UEFA**: i posti 2027/28 vengono dal ranking 2026, la stagione appena giocata conta
+  dalla successiva; i coefficienti dei club per le fasce comprendono la stagione appena finita.
 
 *Calcio italiano*
 - **Serie B**: 1ª e 2ª promosse direttamente; **la 3ª sale direttamente se chiude con più di 14 punti sulla 4ª**,
@@ -544,8 +657,26 @@ Non una formula uguale per tutti: ogni campionato gioca la stagione come l'ha sc
 - **Serie C su tre gironi da 20** (A Nord, B Centro, C Sud): salgono le tre vincitrici; le retrocesse dalla B vanno
   nel girone della loro regione, bilanciato a 20, come sono composti i gironi veri 2026-27.
 - **In Serie C si retrocede davvero**: la 20ª di ogni girone e le due perdenti dei play-out (16ª-19ª e 17ª-18ª;
-  niente play-out con 8 o più punti di distacco) scendono in Serie D, e ne salgono nove, ognuna nel girone della sua
-  area. Chi retrocede torna dopo quelle scese prima di lui.
+  niente play-out con 8 o più punti di distacco) scendono in Serie D, e salgono le nove vincitrici dei gironi di
+  Serie D, ognuna nel girone della sua area.
+- **Serie D 2026-27, quella vera**: i 9 gironi veri (Girone A-I), ogni club nel suo girone vero (156 dei 162 veri,
+  vedi le regole della mod).
+  - La vincitrice di ogni girone sale in Serie C (9 club).
+  - **Play-off**: 2ª-5ª e 3ª-4ª in ogni girone, gara secca in casa della meglio piazzata; in caso di pareggio
+    supplementari, poi passa la meglio piazzata; la finale tra le due vincenti allo stesso modo. Come nella realtà
+    non promuovono nessuno: formano la graduatoria dei ripescaggi.
+  - **Play-out**: 13ª-16ª e 14ª-15ª (nei gironi da 17: 12ª-15ª e 13ª-14ª), gara secca in casa della meglio
+    piazzata; in caso di pareggio supplementari, poi si salva la meglio piazzata; non si gioca con 8 o più punti di
+    distacco (scende la peggio piazzata). Le due perdenti retrocedono.
+  - **Retrocessioni**: le ultime due di ogni girone scendono direttamente; con le perdenti dei play-out, 4 per
+    girone, 36 in tutto, scendono in Eccellenza, e ogni stagione ne salgono 36, come nella realtà.
+  - **Poule Scudetto** (titolo di Campione d'Italia Dilettanti, regole 2025-26, il testo 2026-27 non è ancora
+    uscito): le 9 vincitrici dei gironi in 3 triangolari per gironi (A-B-C, D-E-F, G-H-I), sola andata; le 3
+    vincitrici dei triangolari e la migliore seconda in semifinali sorteggiate di andata e ritorno (punti, poi gol,
+    niente gol in trasferta, poi rigori, niente supplementari); finale secca in campo neutro, niente supplementari,
+    rigori.
+  - **La gioca la tua squadra**: play-off, play-out e la Poule Scudetto se vinci il girone; nella storia della
+    stagione della vincitrice compare CAMPIONE D'ITALIA DILETTANTI.
 - **Play-off di Serie C a 28 squadre** (dalla 2ª alla 10ª di ogni girone + la vincente della Coppa Italia Serie C)
   per la quarta promozione:
   - fase dei gironi, primo turno: 5ª-10ª, 6ª-9ª, 7ª-8ª, gara secca in casa della meglio piazzata, a parità passa la
@@ -562,6 +693,22 @@ Non una formula uguale per tutti: ogni campionato gioca la stagione come l'ha sc
 - **Anche il play-off di Serie C lo gioca la tua squadra**: fase dei gironi, fase nazionale e Final Four esattamente
   con queste regole; mentre lo giochi gli altri due gironi sono già finiti (simulati quando finisce il tuo), e la
   fine della stagione ne tiene i risultati.
+- **Coppa Italia Serie D 2026-27** sul suo tabellone vero: tutti i club di Serie D, gli accoppiamenti veri del turno
+  preliminare (34 sfide) e del primo turno (64), e i percorsi veri attraverso sedicesimi, ottavi e quarti; le sfide
+  già giocate nella realtà tengono nella prima stagione i loro vincitori veri.
+  - Ogni turno nella sua data vera (23 agosto, 30 agosto, 7 ottobre, 28 ottobre, 18 novembre, 9 dicembre; semifinali
+    20 gennaio / 3 febbraio; finale 17 febbraio / 3 marzo). **Mai supplementari** (C.U. LND n. 1): una gara secca
+    pari dopo 90 minuti va subito ai rigori; anche le sfide di andata e ritorno (semifinali, finale) in parità vanno
+    subito ai rigori, e i gol in trasferta non valgono doppio.
+  - Campo sorteggiato fino ai trentaduesimi; dai sedicesimi gioca in casa chi aveva giocato fuori nel turno prima
+    (entrambe in casa o entrambe fuori: sorteggio). Le semifinali si sorteggiano quando ci si arriva; la finale è di
+    andata e ritorno.
+  - Dalla seconda stagione (LND art. 1-2) le nuove arrivate in Serie D (retrocesse dalla Serie C, promosse
+    dall'Eccellenza) giocano il turno preliminare, completato con le peggio piazzate di ogni girone; le altre entrano
+    al primo turno.
+  - **La gioca la tua squadra**, coi nomi veri dei turni (TURNO PRELIMINARE, PRIMO TURNO, TRENTADUESIMI ... FINALE).
+  - Le sfide che non giochi si decidono con la forza dei club (i migliori 11, come ogni altro risultato simulato),
+    compreso il vantaggio del campo.
 
 *Coppe nazionali 2026-27*
 - **Tutte le squadre ancora in corsa quando sono stati presi i dati (ottobre 2026)**, ognuna dal **suo turno vero**:
@@ -570,6 +717,17 @@ Non una formula uguale per tutti: ogni campionato gioca la stagione come l'ha sc
   (fissi per la prima stagione); le fasi a gironi restano fasi a gironi (una sconfitta lì non elimina).
 - **Nessuna coppa nazionale dove nel 2026-27 non si gioca** (Messico, Honduras, Guatemala, Panamá: solo il
   campionato); la coppa del Perù è la sua vera Copa de la Liga 2026.
+
+*Classifiche a colori*
+- **Ogni classifica di campionato mostra le sue zone di fine stagione**, come in TV: Champions League (o Coppa dei
+  Campioni) e promozione diretta in azzurro; Europa League (o Coppa UEFA), play-off promozione e spareggi europei in
+  verde; Conference League in blu scuro; play-out in arancione; retrocessione in grigio. I posti seguono le regole
+  vere: la lista d'accesso UEFA 2026/27 secondo il ranking delle federazioni (preliminari compresi) e le promozioni,
+  retrocessioni e spareggi di ogni campionato (Serie B 3ª-8ª e 16ª-17ª, i gironi di Serie C 2ª-10ª). Una legenda
+  sulla riga del titolo indica i colori usati in quella classifica. Anche nel mondo Europa 1984-85.
+  Nel Mondo 2026-27 i posti europei di ogni stagione vengono dal ranking UEFA del gioco (quello dell'anno prima,
+  come nella access list UEFA) e dalla access list vera 2026/27; gli European Performance Spots e i ritocchi per i
+  detentori dei titoli si decidono a fine stagione e non vengono colorati in anticipo.
 
 *Campionati, calendari e club*
 - **Ogni campionato, coppa nazionale e coppa di lega col suo nome vero 2026-27, senza lo sponsor**: COPPA ITALIA,
@@ -716,14 +874,21 @@ Non una formula uguale per tutti: ogni campionato gioca la stagione come l'ha sc
 - La Serie C retrocede come nella realtà: in ogni girone la 20ª scende e
   dalla 16ª alla 19ª si gioca il play-out (16ª contro 19ª, 17ª contro 18ª, andata e ritorno, ritorno in casa della
   meglio piazzata; in parità nel totale resta la meglio piazzata; niente play-out se le due squadre sono a 8 o più
-  punti di distanza: scende la peggio piazzata). Le 9 retrocesse lasciano il mondo per la Serie D e ne salgono 9, nel
-  girone della loro area. Nella prima stagione le 9 che salgono fanno le veci delle vincitrici della Serie D 2026-27,
-  note solo a maggio 2027: sono le 9 capoliste dei gironi di Serie D al 18 ottobre 2026 (Alessandria, Nibbiano &
-  Valtidone, Luparense, Pistoiese, Prato, L'Aquila, Sarnese, Virtus Francavilla, Reggina), una scelta provvisoria da
-  sostituire con le 9 vere. Dalla seconda stagione le retrocesse risalgono a turno, prima quella in Serie D da più
-  tempo. Se la tua squadra retrocede in Serie D vieni esonerato (offerte di lavoro).
-- Nessuna squadra retrocede dall'ultima divisione di una nazione nel mondo (tranne la Serie C, che retrocede nella
-  riserva di Serie D), e gli spareggi contro una serie fuori dal
+  punti di distanza: scende la peggio piazzata). Le 9 retrocesse scendono in Serie D e salgono le 9 vincitrici dei
+  gironi di Serie D, nel girone della loro area.
+- Serie D, 156 su 162: il file delle squadre italiane contiene 256 club (20 + 20 + 60 + 156), quindi 6 dei 162 club
+  veri di Serie D aspettano fuori: le neopromosse con la rosa più debole (Lascaris, Pavonese, Virtus Bolzano,
+  Grassina, Città di Anagni, Melfi). Sono le prime della riserva di Eccellenza e salgono in Serie D alla fine della
+  prima stagione. Nella 4.1: tutti e 162.
+- La riserva di Eccellenza: 42 club veri fuori dal file delle squadre, con rose vere (i 6 qui sopra, poi le 36
+  retrocesse dalla Serie D nel 2025-26 nell'ordine di classifica). Ogni stagione le 36 retrocesse dalla Serie D
+  lasciano il mondo per la riserva e le 36 successive della riserva salgono al loro posto, ognuna nel girone di Serie
+  D della sua area (i gironi tengono le loro dimensioni); la riserva gira, quindi una retrocessa può tornare più
+  avanti. Ogni stagione i gironi di Serie D si ricompongono per area, come nella realtà, quindi un club può passare a
+  un girone vicino.
+- Se la tua squadra retrocede dalla Serie D in Eccellenza vieni esonerato (offerte di lavoro).
+- Nessuna squadra retrocede dall'ultima divisione di una nazione nel mondo (tranne la Serie D, che retrocede nella
+  riserva di Eccellenza), e gli spareggi contro una serie fuori dal
   mondo non si giocano: per esempio l'11ª svizzera non affronta la 2ª della Challenge League, la 10ª e l'11ª coreane
   non giocano contro club della K League 2.
 <!-- DATA STAGED (regole delle seconde squadre: in arrivo, motore dell'integratore; Davide 2026-10-18): - Le seconde

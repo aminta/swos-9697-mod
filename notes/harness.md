@@ -50,7 +50,12 @@ breakpoints), `W84NAT_REDO=1` (remake the cached national-team saves).
 - `advance(s, stop)`: the results-only career loop Davide uses (PARTITA → VIS. RISULTATI → ESCI …): message screens,
   cup round screens, the squad screen. Special cases:
   - squad screen without VIS. RISULTATI (an injured/suspended player in the first 16): `substitute()` takes a
-    frame of the screen, finds the red rows, swaps them with fit reserves (a goalkeeper for row 1);
+    frame of the screen, finds the red rows, swaps them with fit reserves (a goalkeeper for row 1). Standing rule
+    (Davide, 2026-10-19): the MINIMAL line-up is the default - `substitute_min()`: an unavailable starter changes
+    places with the first fit reserve the 17th row shows, nothing more (no best-reserve search, no starter brought
+    back). The full selection (`SWOSTEST_LINEUP=full`: the best fit reserve of the slot's role by value, the starters
+    restored when fit) only in scenarios that judge the career club's own results or strength; it cycled every
+    reserve at every squad screen and was ~50-60% of a long career's pauses (world_full_arg / _eng, rc1);
   - injured goalkeeper: first the reserve goalkeeper of row 12 (the rows' positions are drawn, not menu entries);
   - national team: menu without TRASFERIMENTI, PARTITA disabled until the squad is called up: `nat_callups()` adds
     players from the home leagues (enabled player rows = eligible) until "SCEGLI ALTRI 0".
@@ -116,6 +121,8 @@ it returns the rounds (title, ties shown: at most 6 per screen) and the coin-tos
 4. Check with `check(cond, message, errs)`; put what you saw in the message: the report is the evidence.
 5. Run it twice: same result (the feeder is deterministic; match results may vary between runs because game time
    leaks in, so never assert a specific score or winner).
+6. Line-ups: leave the default minimal line-up (§3); set `SWOSTEST_LINEUP=full` in the scenario only when it checks
+   the career club's results or strength (the full best-reserve search costs about half of a career's run time).
 
 ## 7. What the tests do not cover (a person still has to look)
 

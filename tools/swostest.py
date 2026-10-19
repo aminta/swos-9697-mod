@@ -13,7 +13,9 @@
   Env: SWOSTEST_NOEXIT=1 = DOSBox-X stays at the DOS prompt when the game exits (see its last message: shots/final);
        SWOSTEST_BUILD = build dir under test, else SWOSTEST_BRANCH = git branch/commit to build, else this checkout;
        SWOSTEST_RUNS = run dirs (default internal/swostest/runs; another one = a second suite at the same time);
-       TURBO=0 = real-time speed (default: DOSBox-X turbo, the emulated machine runs as fast as the host allows).
+       TURBO=0 = real-time speed (default: DOSBox-X turbo, the emulated machine runs as fast as the host allows);
+       SWOSTEST_LINEUP=full = the career squad screen's best-reserve search (substitute); default min = an unavailable
+       starter swaps with the first fit reserve, nothing more (substitute_min: ~half of a long career's pauses saved).
 
 Key script: space-separated keys fire up down left right esc enter space bspace a-z 0-9, and 'dump'; 'fire+right'
 = both held (fire typed), for the entries with input-function control masks (kit colours). 'key:s' waits
@@ -900,6 +902,8 @@ def substitute(s, scr, tries=40):
        trial players (PROVA) only when nothing better is there. Row 1 must be a goalkeeper (P): a fit one of the
        bench (row 12) first. Returns an error string or None."""
     subs = s.__dict__.setdefault('subs', {})
+    if os.environ.get('SWOSTEST_LINEUP', 'min') != 'full':   # (the default: substitute_min; full = the best-reserve
+        return substitute_min(s, tries)                      # search below, for a scenario that judges the club's results)
 
     def cycle(face, ry):                                # every reserve once: [(name, role, value, fit)]
         seen = []
@@ -995,6 +999,58 @@ def substitute(s, scr, tries=40):
             subs[k] = (out, stand_in)
         s.log.append(f'[subs] slot {k + 1} ({need or "any"}): {out} out, {stand_in} ({best[1] or "?"}, {best[2]}) in')
     return 'squad screen: still unavailable players after 10 swaps'
+
+
+def substitute_min(s, tries=40):
+    """The default line-up handling (SWOSTEST_LINEUP=min; Davide 2026-10-19: flow / calendar / save-load runs, where
+    the line-up's quality does not matter; SWOSTEST_LINEUP=full = substitute's best-reserve search): only
+    what the game needs to show VIS. RISULTATI - an unavailable player among the first 16 changes places with the
+    first fit reserve the 17th row shows (cycled only while it shows an unavailable one), the keeper's slot with the
+    bench keeper (row 12) first; no best-reserve search, no starter brought back later (substitute's two cycles over
+    every reserve per squad screen were ~50-60% of a long career's pauses). Returns an error string or None."""
+    for _ in range(12):
+        cur = s.screen()
+        rows = squad_rows(s, cur, f'sq{len(s.log):03d}')
+        if len(rows) != 17:
+            return f'squad screen: {len(rows)} rows'
+        bad = [k for k, (i, un) in enumerate(rows[:16]) if un]
+        if not bad and 'VIS. RISULTATI' not in cur.texts():
+            bad = [0]                                   # no goalkeeper in goal (the game's own squad changes)
+        if not bad:
+            return None if 'VIS. RISULTATI' in cur.texts() else 'squad screen without VIS. RISULTATI, no unavailable row'
+        k = bad[0]
+        if k == 0 and not rows[11][1]:                  # the keeper: row 12 is the bench keeper in SWOS squads
+            press(s, cur, rows[0][0], wait=1)
+            press(s, s.screen(), rows[11][0], wait=1)
+            s.log.append('[subs] slot 1: the bench keeper (row 12) in (min)')
+            continue
+        reserve = rows[-1][0]
+        ry = cur.geom[reserve][1]
+        face = next((i for i, (l, r) in enumerate(cur.nav) if l[1] == reserve and cur.geom[i][0] < 25), None)
+        if face is None:
+            return 'squad screen: no face entry for the 17th row'
+        fit = not rows[-1][1]
+        first = reserve_info(cur, ry)[0]
+        for _ in range(tries):                          # the first fit reserve the 17th row shows
+            if fit:
+                break
+            press(s, s.screen(), face, wait=1)
+            if s.result.outcome != 'dump':
+                return f'squad screen: {s.result}'
+            c2 = s.screen()
+            rows2 = squad_rows(s, c2, f'sq{len(s.log):03d}')
+            if len(rows2) != 17:
+                break
+            fit = not rows2[-1][1]
+            if reserve_info(c2, ry)[0] == first:        # (every reserve seen: none fit)
+                break
+        if not fit:
+            return f'no fit reserve for row {k + 1}'
+        stand_in = reserve_info(s.screen(), ry)[0]
+        press(s, s.screen(), rows[k][0], wait=1)
+        press(s, s.screen(), reserve, wait=1)
+        s.log.append(f'[subs] slot {k + 1}: {stand_in} in (min)')
+    return 'squad screen: still unavailable players after 12 swaps'
 
 
 def nat_callups(s, limit=120):

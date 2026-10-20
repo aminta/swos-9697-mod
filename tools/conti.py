@@ -71,8 +71,8 @@ def main_round(c, size=None):
     size = size or next((v[0] for (cf, ck), v in FIELDS.items() if ck == c['key']), None)
     n = len(c['rounds'])
     if size:
-        for j in range(n):
-            if size[j] == 2 ** (n - j):
+        for j in range(n):                              # (a knockout round only: ACLE's league stage of 32 is not)
+            if c['rounds'][j]['kind'] == 'ko' and size[j] == 2 ** (n - j):
                 return j
     return 0
 

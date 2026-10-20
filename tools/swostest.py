@@ -5118,6 +5118,53 @@ def world_po_sweep_mlt():
 
 
 @scenario
+def world_conti_guest():
+    """A guest club (a team file outside the world: TEAM.191) in a continental cup of the world 2026-27 (the
+    integrator's guest clubs, step 1): orig TEAM.064's clubs as TEAM.191 (each record's countryNumber = 191, as
+    GetTeamPointer matches file | ordinal), its first (ATL. COLEGIALES, word 0x00BF) in INDEPENDIENTE's Libertadores
+    group in place of its first group-mate (conti CONTI_GUEST, a test-build switch); a season there: both matches
+    against it on the game's screens with its name, the season ends"""
+    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-names-2214')
+    if not os.path.isdir(src):
+        return True, f'SKIP: private data {src} missing'
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    packs = ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order])
+    old = os.environ.get('SEASON_PACKS')
+    os.environ['SEASON_PACKS'] = packs
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import mkseason
+    ind = next(f | i << 8 for pk in mkseason.packs() if pk.meta.get('id') == 'world-2026-27-arg'
+               for k, (f, i) in pk.where.items() if pk.clubs[k]['name'] == 'INDEPENDIENTE')
+    if old is None:
+        os.environ.pop('SEASON_PACKS')
+    else:
+        os.environ['SEASON_PACKS'] = old
+    exe = build('world_conti_guest', env={'SEASON_PACKS': packs, 'CONTI_GUEST': f'lib:00bf:{ind:04x}'})
+    d = bytearray(open(os.path.join(MAIN, 'orig', 'DATA', 'TEAM.064'), 'rb').read())
+    for i in range((len(d) - 2) // 684):
+        d[2 + 684 * i] = 191
+    open(os.path.join(exe, 'DATA', 'TEAM.191'), 'wb').write(d)
+    keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K',
+                                            'W8485_NOSACK', 'W8485_ONE')}
+    os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM='SUDAMERICA,ARGENTINA,LIGA PROFESIONAL,'
+                      'INDEPENDIENTE', W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1', W8485_ONE='1')
+    try:
+        ok, msg = world8485()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    log = open(os.path.join(RUNS, w84_tag() + '_1', 'session.log'), errors='replace').read().splitlines()
+    games = [ln for ln in log if 'LIBERTADORES' in ln and '- RISULTATO -' in ln and 'ATL. COLEGIALES' in ln]
+    errs = []
+    check(ok, msg, errs)
+    check(len(games) >= 2, f'{len(games)} Libertadores matches against the guest (ATL. COLEGIALES) seen', errs)
+    return not errs, '; '.join(errs) or f'{msg}; the guest played {len(games)} times (TEAM.191)'
+
+
+@scenario
 def world_rlines_arg():
     """world_rlines at BOCA JUNIORS (Argentina: TORNEO APERTURA / CLAUSURA knockouts, TROFEO DE CAMPEONES), forced
     to win its knockouts (GPLAY_RLFORCE: the record's codes only - the titles themselves go to others): one line

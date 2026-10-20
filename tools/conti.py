@@ -630,8 +630,15 @@ def structs(p, area, lang, at):
                 body[3], body[4] = _month(rd.get('month') or 8), _month(last)
                 name_at = len(body)
             body[0x0a] = 1 if any(r.get('level') == 'away_pens' for r in rounds) else 0   # (away goals after 90')
-            ws = first.get((conf, c['key'])) or []
+            ws = list(first.get((conf, c['key'])) or [])
             assert len(ws) in (0, n), (c['key'], len(ws), n)
+            g = os.environ.get('CONTI_GUEST')           # (test builds: 'cup:guest word:club word', hex - the guest
+            if g and g.split(':')[0] == c['key']:       # in place of the career club's first group-mate / opponent)
+                _, gw, cw = g.split(':')
+                if int(cw, 16) in ws:
+                    i = ws.index(int(cw, 16))
+                    sz = rd['size'] if rd['kind'] == 'groups' else 2
+                    ws[i - i % sz + (i % sz + 1) % sz] = int(gw, 16)
             ws = ws or [0xFFFF] * n
             blob = bytes(body[:name_at]) + struct.pack('<II', rel, rel) + struct.pack(f'<{n}H', *ws)
             assert blob[5] + 5 == name_at and blob[7] + 7 == name_at + 8, c['key']

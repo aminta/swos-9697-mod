@@ -82,7 +82,7 @@ NAME = 41                       # the slot's name field (as fmtpage.NAME)
 RANGES = 8
 LEG = 5                         # legend boxes (the colours a table uses, in place order)
 ENTRY = 1 + NAME + 1 + 3 * RANGES + 1 + 2 * LEG   # world, title, n, ranges, n legend, (colour, label) * LEG = 78
-ENTRY_PAD = 84
+ENTRY_PAD = 96                  # (+81: the group headers' legend, n + 5 boxes)
 ECODE = 80                      # a league-phase top flight: its association's code (the league's team file, uefacoef)
 EU_PLACES = 10                  # the access list's places looked at per rank (the top 9 + 1)
 EFLAG = 78                      # 1: a league-phase world's top flight (its European places: season 1 only)
@@ -187,9 +187,20 @@ def pack_zones(d, lang, lp=False, rank=None, detail=None):
             if dv['down']:
                 rng.append((n - dv['down'] + 1, n, RED))
                 why.append('down')
+            gleg = []
             for g, ga, gz in group_ranges(dv, po, i):   # 4.0 group headers (longtable): a zone's places by
                 rng.append((ga | 0x80, gz | (g << 6), GREEN))   # its group place, shown only with the headers on
                 why.append('po_grp')
+                gleg = [(GREEN, 'po')]
+            sg = split_groups(dv) if not groups_of(dv) else []
+            if sg:                                       # a split league after its split: each range by group place too
+                plain = [(r, w) for r, w in zip(rng, why) if not r[0] & 0x80]
+                for (a, z, c), w in plain:
+                    for g, (ga, gz, _) in enumerate(sg[:4]):
+                        if a <= gz and z >= ga:
+                            rng.append(((max(a, ga) - ga + 1) | 0x80, (min(z, gz) - ga + 1) | (g << 6), c))
+                            why.append(w + '/grp')
+                gleg = None                              # (the plain legend, filled below)
             if detail is not None:
                 detail[(ci, i)] = [r + (w,) for r, w in zip(rng[:RANGES], why)]
             if rng:
@@ -197,10 +208,10 @@ def pack_zones(d, lang, lp=False, rank=None, detail=None):
                 if id(dv) in top and not m.get('europe_places') and continental(m):
                     kind = 'confed/' + '/'.join(dict.fromkeys(e['cup'] for e in continental(m)))
                 out.append((world, _title(m, lang, complist._nm(dv['name'], lang)), rng[:RANGES], kind,
-                            m['files'][comp['clubs']]['file'] if kind == 'lp' else 0))
+                            m['files'][comp['clubs']]['file'] if kind == 'lp' else 0, gleg))
             elif lp and rank and id(dv) in top and not EU_SEASON1_ONLY:   # European colours only at run time
                 out.append((world, _title(m, lang, complist._nm(dv['name'], lang)), [], 'lp',
-                            m['files'][comp['clubs']]['file']))
+                            m['files'][comp['clubs']]['file'], []))
     return out
 
 
@@ -216,6 +227,17 @@ def groups_of(dv):
                 a += len(z)
             return out
     return []
+
+
+def split_groups(dv):
+    """A split division's groups after its split (the last stage with 2+ groups): [(first, last, names)], names
+    {lang: [long, short]} or None; [] for none."""
+    out = []
+    for st in ((dv.get('split') or {}).get('stages') or ([dv['split']] if dv.get('split') else [])):
+        gs = st.get('groups') or []
+        if len(gs) > 1:
+            out = [(g['places'][0], g['places'][1], g.get('title') or g.get('names')) for g in gs]
+    return out
 
 
 def group_ranges(dv, po, i):
@@ -263,10 +285,14 @@ def header_labels(lang, pack_dirs):
             lg = complist._league(comp, clubs)
             for dv in (x for lv in lg['levels'] for x in lv):
                 gs = groups_of(dv)
-                if not gs:
+                sg = [] if gs else split_groups(dv)
+                if not gs and not sg:
                     continue
                 zn = m.get('zone_names') or {}
-                if lang in zn or '*' in zn:
+                if sg:                                  # a split league: its groups' names (the data's 'title')
+                    gen = {'it': 'GRUPPO', 'en': 'GROUP', 'fr': 'GROUPE', 'de': 'GRUPPE'}[lang]
+                    labels = [complist._nm(nm, lang) if nm else f'{gen} {chr(65 + g)}' for g, (_, _, nm) in enumerate(sg)]
+                elif lang in zn or '*' in zn:
                     labels = zn.get(lang) or zn['*']
                 elif m.get('id', '').endswith('-usa') and len(gs) == 2:
                     labels = HDR_NAMES['conf'][lang]
@@ -322,11 +348,12 @@ def table(lang, pack_dirs):
     for d in pack_dirs:
         m = complist.load_pack(d)
         w = m.get('world', 0) if m.get('kind') == 'career' else 0
-        for world, title, rng, kind, code in pack_zones(d, lang, _lp_world(metas, w), ranks.get(d)):
+        for world, title, rng, kind, code, gleg in pack_zones(d, lang, _lp_world(metas, w), ranks.get(d)):
             assert (world, title) not in seen, (world, title)
             seen.add((world, title))
-            out.append((world, title, rng, legend(rng, kind), kind, metas.get(world, {}).get('start_year', 1900) - 1900,
-                        code))
+            leg = legend(rng, kind)
+            out.append((world, title, rng, leg, kind, metas.get(world, {}).get('start_year', 1900) - 1900,
+                        code, leg if gleg is None else gleg))
     return out
 
 
@@ -385,7 +412,7 @@ def legend(rng, kind):
 
 def blob(rows):
     b = bytearray(struct.pack('<I', len(rows)))
-    for world, title, rng, leg, kind, year, code in rows:
+    for world, title, rng, leg, kind, year, code, gleg in rows:
         t = title.encode('latin-1')[:NAME - 1]
         e = bytes([world]) + t + b'\0' * (NAME - len(t)) + bytes([len(rng)])
         for a, z, c in rng:
@@ -394,8 +421,8 @@ def blob(rows):
         for c, k in leg:
             e += bytes([LEG_COLOUR.get(c, c), KEYS.index(k)])
         e += b'\0' * (EFLAG - len(e)) + bytes([1 if kind == 'lp' else 0, year % 256, code])
-        if any(r[0] & 0x80 for r in rng):              # 4.0 group headers: their legend (one box)
-            e += bytes([1, LEG_COLOUR.get(GREEN, GREEN), KEYS.index('po')])
+        if any(r[0] & 0x80 for r in rng):              # 4.0 group headers: their legend (+81: n, (colour, label))
+            e += bytes([len(gleg[:LEG])]) + b''.join(bytes([LEG_COLOUR.get(c, c), KEYS.index(k)]) for c, k in gleg[:LEG])
         b += e + b'\0' * (ENTRY_PAD - len(e))
     return bytes(b)
 
@@ -562,9 +589,9 @@ zn_leg:                                 ; edi = the table's entry or 0: the lege
     mov [ZEU], bh
     pop ebx
     xor ecx, ecx                        ; ecx = box
-HDR_LEG
 EU_LEG
 .d:
+HDR_LEG
     xor esi, esi                        ; esi = the entry's legend item
 .l:
     cmp ecx, LEG_
@@ -659,8 +686,6 @@ HDR_PREP_ASM = """    cmp dword [GP_HON], 0               ; headers drawn in thi
     je .hp
     cmp word [DIY + 4Fh], 1
     jne .hp
-    cmp word [DIY + 51h], LT_ROWS_
-    jbe .hp
     movzx ebp, byte [GP_HG + eax]
     shl ebp, 8
     push edx
@@ -707,8 +732,6 @@ HDR_LEG_ASM = """    test edi, edi                       ; group headers on: the
     je .hl
     cmp word [DIY + 4Fh], 1
     jne .hl
-    cmp word [DIY + 51h], LT_ROWS_
-    jbe .hl
     cmp byte [edi + 81], 0
     je .hl
     add edi, 81 - LEGN_

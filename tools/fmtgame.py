@@ -110,6 +110,33 @@ def wrap(text, w=W):
     return out
 
 
+PX = {' ': 3, "'": 2, '(': 3, ')': 3, ',': 2, '-': 4, '.': 2, '1': 2, ':': 2, ';': 3, 'I': 2}   # the small font's
+PX_MAX = 298                    # widths (charset sprites: 6 px else); the FORMAT page's usable width (entries of 304)
+
+
+def px(t):
+    return sum(PX.get(c, 6) for c in t)
+
+
+def wrap_px(text, w=PX_MAX):
+    """wrap() by the small font's pixel width (and the line buffer's fmtpage.LINE_W - 1 characters)."""
+    out = []
+    for para in text.split('\n'):
+        line = ''
+        for word in para.split(' '):
+            if not word:
+                continue
+            cand = f'{line} {word}' if line else word
+            if px(cand) <= w and len(cand) < fmtpage.LINE_W:
+                line = cand
+            else:
+                if line:
+                    out.append(line)
+                line = word
+        out.append(line)
+    return out
+
+
 def pages(lines):
     """Pages of fmtpage.LINES lines from lines or from paragraphs (lists of wrapped lines): a paragraph is not split
     across two pages when it fits on one, and one ending with ':' (a heading) goes with the next."""
@@ -361,7 +388,8 @@ def zone_text(rw, t, lang, eu=None, confed=None):
         if w == 'po_grp':
             rng += ' ' + z['each']
         return f"{z['col'][cols.index(c)]} {rng}: {z['why'][w]}"
-    rw = list(dict.fromkeys((a & 0x7F, b & 0x3F, c, w) if w == 'po_grp' else (a, b, c, w) for a, b, c, w in rw))
+    rw = list(dict.fromkeys((a & 0x7F, b & 0x3F, c, w) if w == 'po_grp' else (a, b, c, w) for a, b, c, w in rw
+                            if not w.endswith('/grp')))   # (a split league's group copies: the plain lines say it)
     merged = []
     for a, b, c, w in sorted(rw, key=lambda r: (r[3] == 'po_grp', r)):
         if merged and merged[-1][2:] == (c, w) and merged[-1][1] == a - 1:
@@ -828,7 +856,14 @@ def write(out_dir, items):
     by, keys = {}, {}
     for world, cid, titles, texts in items:
         for lang in LANGS:
-            body = [wrap(ascii_up(line, lang)) for line in texts[lang]]      # (paragraphs: pages())
+            lines = texts[lang]
+            import fmtprose                     # 4.0: a competition's text in plain prose (the colours' lines kept)
+            prose = fmtprose.text(world, titles[lang], lang)
+            if prose:
+                h = ZT[lang]['head']
+                tail = lines[lines.index(h):] if h in lines else []
+                lines = prose + [x for x in tail if x not in CONFED_NOTES[lang].values()]
+            body = [wrap_px(ascii_up(line, lang)) for line in lines]      # (paragraphs: pages())
             key = titles[lang][:fmtpage.NAME - 1]
             k = (lang, world, key)
             if k in keys:                       # the same title twice (two divisions with one name): one page,

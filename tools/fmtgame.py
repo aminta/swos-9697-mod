@@ -828,7 +828,14 @@ def write(out_dir, items):
     by, keys = {}, {}
     for world, cid, titles, texts in items:
         for lang in LANGS:
-            body = [wrap(ascii_up(line, lang)) for line in texts[lang]]      # (paragraphs: pages())
+            lines = texts[lang]
+            import fmtprose                     # 4.0: a competition's text in plain prose (the colours' lines kept)
+            prose = fmtprose.text(world, titles[lang], lang)
+            if prose:
+                h = ZT[lang]['head']
+                tail = lines[lines.index(h):] if h in lines else []
+                lines = prose + [x for x in tail if x not in CONFED_NOTES[lang].values()]
+            body = [wrap(ascii_up(line, lang)) for line in lines]      # (paragraphs: pages())
             key = titles[lang][:fmtpage.NAME - 1]
             k = (lang, world, key)
             if k in keys:                       # the same title twice (two divisions with one name): one page,

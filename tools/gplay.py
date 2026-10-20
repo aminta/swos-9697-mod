@@ -263,6 +263,15 @@ gp_cal:                                 ; 4.0: replaces the career calendar's le
 
 gp_after:                               ; 4.0 after a career load (arg97's arg_load, after ProcessCareerFile)
     call gp_sync
+%if CD_ON
+    mov eax, [SLOTS_ + 4]               ; (the Coppa D in slot 1: its contest pointer back, ProcessCareerFile left 0)
+    test eax, eax
+    jz .ns1
+    cmp byte [eax + 2Dh], CDS1_ID
+    jne .ns1
+    mov dword [D8CAA + 4], CDS1
+.ns1:
+%endif
     mov al, [SEASONPLAYING]
     mov [GP_SEAS], al
     xor ebp, ebp                        ; (the career country's play-off names, as gp_sack finds them)
@@ -950,12 +959,24 @@ gp_adv:                                 ; replaces the 4 `call cseg_8EA82` (the 
     mov dword [GP_CDFIRST], 1
 .nf:
     popad
+    mov dword [GP_CDS1], CDS1 + CDS1_LIST
     mov eax, cd_step_c
     call gp_c
     test eax, eax
     jz .ncd
+    cmp eax, 2
+    je .s1
     mov dword [GP_BUILT], 1             ; (the career club's tie: slot 4)
     call gp_install
+    jmp .ncd
+.s1:
+    pushad                              ; 4.0: the Coppa D from the 1/32 in slot 1 (CDS1, its list just written)
+    mov dword [A0R], CDS1
+    mov word [D0R], 1
+    mov word [D1R], 0
+    mov word [D2R], 0
+    call C8B2D3
+    popad
 .ncd:
 %endif
     mov eax, gp_adv_c
@@ -1210,6 +1231,28 @@ CD_RNAME = '''
     stc
     ret
 .ncd:'''
+CDS1_ID = 0xEF                          # 4.0: the Coppa D's slot-1 knockout (conti.IDS' last, unused there)
+
+
+def cds1_src(p, cd, rl, rs):
+    """The Coppa D from the 1/32 as a game knockout for slot 1 (64 clubs; header weeks = the round records', round
+    bytes by legs; names rl / rs; its list written by cd_step_c at the 1/32): nasm source, labels CDS1 / CDS1_LIST."""
+    import sacups
+    import conti
+    world, lfile, tab, nr, nt, cnames, cdt = cd
+    assert CDS1_ID == conti.IDS[-1] and len(conti.STRUCTS) + 1 < len(conti.IDS)
+    recs = [tab[8 * r:8 * r + 8] for r in range(nr)]
+    r32 = next(r for r in range(nr) if recs[r][4] == 32)
+    legs = tuple(0x94 if recs[r][2] == 2 else 0x14 for r in range(r32, nr))
+    d2 = p.le.obj_bytes(2)
+    h = sacups.knockout16(d2[sacups.unique(d2, sacups.CWC_HDR):][:28], CDS1_ID, 64, legs)
+    h[3], h[4] = recs[r32][0], recs[nr - 1][1]
+    CDS1_ROUNDS[:] = list(range(r32, nr))
+    return ('align 4\nCDS1: db ' + ', '.join(map(str, h)) + f'\n    dd {rl}, {rs}\n'
+            + f'CDS1_LIST equ {len(h) + 8}\n    times 64 dw 0FFFFh\nCDS1_ID equ {CDS1_ID}\n')
+
+
+CDS1_ROUNDS = []                        # (rnames: the Coppa D rounds the slot-1 contest plays)
 CUP12 = '''
 gp_cup12:                               ; 4.0: InitNewSeason's `call cseg_8B2D3` of slots 1 / 2 (the country's cup and
     pushad                              ; league cup): a Coppa Italia Serie D club gets neither (cd_member_c), the slot
@@ -1597,6 +1640,7 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
                                          'gp_defer_c', 'cd_step_c', 'gp_scal_c', 'gp_repoint_c', 'gp_fixload_c', 'CD_ST', 'GP_CDT', 'GP_CDNM', 'GP_CDD',
                                          'GP_CDFIRST')})
     symbols['CD_MEMBER'] = syms['cd_member_c']
+    symbols['GP_CDS1'] = syms['GP_CDS1']
     symbols['FORCE_ON'] = (0, int(bool(force)))
     import longtable                                          # 4.0 stage titles (table, calendar): the table in area
     stg = longtable.stage_table(lang, b'\0' * 2 + struct.pack('<4HIH', split.ST, split.ST + split.OFF['frozen'],
@@ -1658,7 +1702,7 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
                   + f'\nCD_NM: dd {rl}, {rs}\nCD_DT: db ' + ', '.join(str(b) for b in cdt)
                   + '\nCD_RN: db ' + ', '.join(str(x) for x in rnames.CD_NAMES) + '\n')
     if cds:
-        cd_src += CUP12
+        cd_src += CUP12 + cds1_src(p, cds[0], rl, rs)
     cd_src += GP_RNAME.replace('CD_PART', CD_RNAME if cds else '')
     asm = (ASM.replace('jmp GP_REC_NEXT', 'jmp GP_REC_NEXT' if rec_dp else 'jmp gp_recmov') + tab_src + '\n'
            + names_lines(tables, area, lang) + '\n' + stubs + cd_src)

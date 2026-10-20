@@ -1404,6 +1404,7 @@ struct cd_state { u16 magic; u8 season, round, built, bt, drawn, pad; u8 res[CDT
 struct cd_state CD_ST;
 const u32 CD_STSZ = sizeof(struct cd_state);
 const u8 *GP_CDT;                       /* (the glue: CD_TAB of the running world, or 0) */
+u16 *GP_CDS1;                           /* 4.0 (the glue): the Coppa D's slot-1 contest team list (64 words), 0 = none */
 const u8 *GP_CDD;                       /* (its CD_DT: db first Serie D division, groups; dw global base; 256 x db
                                            base division, FFh none) */
 const u32 *GP_CDNM;                     /* (its names: dd long, short) */
@@ -1645,6 +1646,18 @@ u32 cd_step_c(void) {
     while (CD_ST.round < GP_CDT[1]) {
         int r = CD_ST.round;
         const u8 *rec = CDREC(r);
+        if (GP_CDS1 && cd_n(r) == 32 && (int)GP_WK + 1 >= rec[0] && !CD_ST.built) {
+            /* 4.0: the 1/32 on as the game's own knockout in slot 1 (GP_CDS1: its 64 team words), the career club in it:
+               the round's pairs in bracket order, cd done for the season (CD_ST.round past the last) */
+            int f = cd_first(r), me = 0;
+            for (int q = 0; q < 32; q++)
+                for (int sd = 0; sd < 2; sd++) {
+                    u16 w = cd_side(f + q, sd);
+                    GP_CDS1[2 * q + sd] = w && w != 0xFFFF ? w : 0xFFFF;
+                    me |= w == GP_MGR;
+                }
+            if (me) { CD_ST.round = GP_CDT[1]; return 2; }
+        }
         int w1 = rec[0], w2 = rec[1], legs = rec[2], host = rec[3], n = cd_n(r), first = cd_first(r);
         if ((int)GP_WK + 1 < w1 || CD_ST.built) return 0;
         rng = GP_SEAS * 7919u + r * 131u + first;

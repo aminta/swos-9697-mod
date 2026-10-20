@@ -164,6 +164,15 @@ def _ct_names(lang):
         for t, j in enumerate(js[:7]):
             m[8 * k + t] = CT_IDX.get((ci, j), 0)
         m[8 * k + 7] = kind
+    import mkseason                     # 4.0: the Coppa D's slot-1 knockout (gplay.CDS1_ID, conti.IDS' last): its
+    cds = mkseason.cupd_tables() if mkseason.worlds() else []     # rounds from the 1/32, CD_NAMES by Coppa D round
+    if cds:
+        world, lfile, tab, nr, nt, cnames, cdt = cds[0]
+        r32 = next(r for r in range(nr) if tab[8 * r + 4] == 32)
+        k = len(conti.IDS) - 1
+        for t, r in enumerate(range(r32, min(nr, r32 + 7))):
+            m[8 * k + t] = CD_NAMES[r] if r < len(CD_NAMES) else 0
+        m[8 * k + 7] = 1
     assert len(names) + N_OLD < 256
     return names, m
 

@@ -24,6 +24,8 @@ Played (promotion / playout play-offs whose entrants are all [div, place]; rules
 - gp_end: gp_played_c() gives gp_season the played winners. The state GP_ST (saved with the career by the engine's
   save block; gp_sync restores D8CBA / D8CB6 after a load), the season end's log GP_LOG (harness: 'GPLOGPTR').
 Test builds: GPLAY_FORCE=k puts the career club on place k of its division at the league end and the season end.
+GPLAY_RLFORCE=code (signed) makes the career club's result in a play-off it is in that code for the season record lines
+only (club_res: 1 WINNERS, -100 FINALIST, -101 / -102 semi / quarter-final, -110 - n round n).
 
 pack.json league "ko_playoffs": [{ "key", "names": {lang: [long, short]},
   "kind": "promotion" | "europe" | "placement" | "playout" (the last round's losers go down to loser_div) |
@@ -813,20 +815,26 @@ gp_sack:                                ; replaces SeasonFinished's `call cseg_3
     div ecx
     mov eax, [GP_NMT + eax * 4]
     mov [GP_NM], eax
-    mov eax, gp_pwin_c
-    call gp_c
+    mov eax, gp_rlines_c                ; (the season record's extra lines: the Poule, ARG's stage titles, a title
+    call gp_c                           ; play-off - gplay.c gp_rlines_c)
     test eax, eax
     jz .nr
-    push eax
+    mov ebp, eax
 %if FORCE_ON
-    mov ax, [CAREERTEAM]                ; (test builds: the review sees the career club as the slot-3 cup's winner)
+    cmp dword [GP_RLPOULE], 0           ; (test builds: the review sees the career club as the slot-3 cup's winner)
+    je .nf
+    mov ax, [CAREERTEAM]
     mov [DA11B], ax
+.nf:
 %endif
     pushad
     call GETSEASON                      ; (GetCurrentSeasonPointer: A0)
     popad
-    pop eax
     mov esi, [A0R]
+    xor ebx, ebx
+.nl:
+    cmp ebx, ebp
+    jae .nr
     mov ecx, 3                          ; (the 4th line, else the 3rd / 2nd: the first free one - a title play-off's
 .ln:                                    ; club may play a continental cup the same season)
     cmp dword [esi + 22 + ecx * 4], 0
@@ -834,8 +842,12 @@ gp_sack:                                ; replaces SeasonFinished's `call cseg_3
     loop .ln
     jmp .nr
 .put:
+    mov eax, [GP_RLN + ebx * 4]
     mov [esi + 22 + ecx * 4], eax
-    mov byte [esi + 86 + ecx], 1
+    mov al, [GP_RLC + ebx]
+    mov [esi + 86 + ecx], al
+    inc ebx
+    jmp .nl
 .nr:
     mov eax, [D8CAA + 12]               ; (our slot-3 contest, the Poule, is no European cup for the season review:
     test eax, eax                       ; cseg_3D7CB credits the slot-3 cup's winner with D8CBE's trophy) D8CB6 = 0
@@ -1379,7 +1391,8 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
     p.put(1, at, sec)
     sec_at, at = at, (at + len(sec) + 15) & ~15
     obj = cobj.compile_c(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'gplay.c'), [f'-DGP_FORCE={force}', f"-DSEC_FORCE={int(os.environ.get('SEC_FORCE') or 0)}",
-                                f"-DSEC_FORCE_B={int(os.environ.get('SEC_FORCE_B') or 0xFFFF)}"])
+                                f"-DSEC_FORCE_B={int(os.environ.get('SEC_FORCE_B') or 0xFFFF)}",
+                                f"-DGP_RLFORCE={int(os.environ.get('GPLAY_RLFORCE') or 0)}"])
     top_r, top_w = _top9(p)                          # (cseg_927A2's top-9 list: gp_champ)
     syms, cend, bss = cobj.link(p, obj, at, (2, bss_at), externs={'GP_PROM_TAB': (1, prom_at), 'SEC_TAB': (1, sec_at),
                                                                    'GP_TOPR': top_r, 'GP_TOPW': top_w,
@@ -1435,7 +1448,7 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
     symbols.update({f'EUW{i}': (2, a) for i, a in enumerate(sk['euw'])})
     symbols.update({'DA11B': (2, sk['da11b']), 'GETSEASON': (1, sk['getseason']), 'SEASREC': (2, sk['seasrec'])})
     symbols.update({k: syms[k] for k in ('GP_CFB', 'GP_LG', 'GP_RST', 'GP_RIT', 'GP_SEL', 'GP_MGR', 'GP_WORLD', 'GP_SLT',
-                                         'gp_sack_c', 'gp_forcecfb', 'gp_pwin_c', 'gp_adv_c', 'GP_ADVWK', 'GP_WK', 'GP_TH', 'GP_RN',
+                                         'gp_sack_c', 'gp_forcecfb', 'gp_pwin_c', 'gp_rlines_c', 'GP_RLN', 'GP_RLC', 'GP_RLPOULE', 'gp_adv_c', 'GP_ADVWK', 'GP_WK', 'GP_TH', 'GP_RN',
                                          'gp_defer_c', 'cd_step_c', 'gp_scal_c', 'gp_repoint_c', 'gp_fixload_c', 'CD_ST', 'GP_CDT', 'GP_CDNM', 'GP_CDD',
                                          'GP_CDFIRST')})
     symbols['FORCE_ON'] = (0, int(bool(force)))

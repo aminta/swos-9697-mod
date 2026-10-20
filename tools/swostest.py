@@ -6468,7 +6468,8 @@ def menu_levels():
             walk(s, 'SERIE D', 3)
             walk(s, 'SERIE D GIRONE I', 3)
             clubs = vis(s.screen())
-            check('TRAPANI' in clubs and 'SIRACUSA CALCIO' in clubs, f'GIRONE I clubs {clubs}', errs)
+            check('TRAPANI' in clubs and ('SIRACUSA' in clubs or 'SIRACUSA CALCIO' in clubs),   # (the press name
+                  f'GIRONE I clubs {clubs}', errs)                                    # since 4.0: SIRACUSA)
             s.shot('girone_i')
             walk(s, 'TRAPANI', 3)
             s.send('fire dump:3')

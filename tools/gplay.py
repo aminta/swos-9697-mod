@@ -840,6 +840,22 @@ gp_rl:                                  ; the season record's extra lines (gp_sa
     or esp, esp                         ; (ZF = 0)
 .r: ret
 
+gp_job:                                 ; replaces the club job offers' `call AddJobOffer` (cseg_5B705, D0 = the club's
+    push eax                            ; team word): no offer from a club whose team file is not a real one - an
+    mov al, [D0R]                       ; off-file pool's (ripool RS files: 0FDh; their clubs reach the leagues by
+    cmp al, 0FDh                        ; promotion, the record stays in the pool: a job there trapped the next season,
+    jae .no                             ; SAN LUIGI 2026-27) or a pseudo file 190..199 (the foreign market's pool,
+    cmp al, 190                         ; the continental cups' guests)
+    jb .ok
+    cmp al, 199
+    jbe .no
+.ok:
+    pop eax
+    jmp ADDJOB
+.no:
+    pop eax
+    ret
+
 gp_sack:                                ; replaces SeasonFinished's `call cseg_3C07C` (a club career's season-end
     pushad                              ; screens; cseg_3E55C, the contract check, runs for national selectors only):
     cmp word [GAMETYPE], 4              ; (a group contest won, the Poule: the season record's 4th line = its record
@@ -1399,6 +1415,17 @@ def _sack_sites(p):
                 CURMSG=u(1), SACKED=u(4))
 
 
+def _job_site(p):
+    """cseg_5B705's club job offer: `pop D0; call AddJobOffer` (AddJobOffer: `cmp numNewJobOffers, 5; jz ...;
+    mov ax, numNewJobOffers; mov [D2], ax`) -> (site of the call, AddJobOffer)."""
+    d1 = p.le.obj_bytes(1)
+    f = [m.start() for m in re.finditer(rb'\x66\x83\x3d.{4}\x05\x0f\x84.{4}\x66\xa1.{4}\x66\xa3', d1, re.S)]
+    hit = [(i, a) for a in f for i in range(len(d1) - 5)
+           if d1[i] == 0xE8 and i + 5 + struct.unpack_from('<i', d1, i + 1)[0] == a and d1[i - 6:i - 4] == b'\x8f\x05']
+    assert len(hit) == 1, hit
+    return hit[0]
+
+
 def _mrec_site(p):
     """ManagementRecordMenu's `call cseg_39392` (if not youreSacked: the season record refresh - cseg_3D7CB, the
     trophy flags, lines 3 / 4 re-read from the slot buffers - then `mov A6, management_record_menu`): (site, cseg_39392)."""
@@ -1563,6 +1590,8 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
     symbols.update({'DA11B': (2, sk['da11b']), 'GETSEASON': (1, sk['getseason']), 'SEASREC': (2, sk['seasrec'])})
     mrec, c39392 = _mrec_site(p)
     symbols['C39392'] = (1, c39392)
+    job, addjob = _job_site(p)
+    symbols['ADDJOB'] = (1, addjob)
     symbols.update({k: syms[k] for k in ('GP_CFB', 'GP_LG', 'GP_RST', 'GP_RIT', 'GP_SEL', 'GP_MGR', 'GP_WORLD', 'GP_SLT',
                                          'gp_sack_c', 'gp_forcecfb', 'gp_pwin_c', 'gp_rlines_c', 'GP_RLN', 'GP_RLC', 'GP_RLPOULE', 'GP_REC', 'GP_CMB', 'gp_adv_c', 'GP_ADVWK', 'GP_WK', 'GP_TH', 'GP_RN',
                                          'gp_defer_c', 'cd_step_c', 'gp_scal_c', 'gp_repoint_c', 'gp_fixload_c', 'CD_ST', 'GP_CDT', 'GP_CDNM', 'GP_CDD',
@@ -1682,6 +1711,8 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
         for a in adv_calls:                                  # (the calendar advance: 'then_build')
             assert p.get(1, a, 5) == p.le.obj_bytes(1)[a:a + 5], f'obj1+{a:#x} already hooked'
             p.put(1, a + 1, struct.pack('<i', lab['gp_adv'] - (a + 5)))
+        assert p.get(1, job, 5) == p.le.obj_bytes(1)[job:job + 5], 'the club job offers call is hooked'
+        p.put(1, job + 1, struct.pack('<i', lab['gp_job'] - (job + 5)))   # (no job at an off-file / pool club)
         assert p.get(1, mrec, 5) == p.le.obj_bytes(1)[mrec:mrec + 5], 'ManagementRecordMenu call is hooked'
         p.put(1, mrec + 1, struct.pack('<i', lab['gp_mrec'] - (mrec + 5)))   # (REGISTRO GESTIONE: our lines again)
         assert p.get(1, sk['site'], 5) == p.le.obj_bytes(1)[sk['site']:sk['site'] + 5], 'the season-end call is hooked'

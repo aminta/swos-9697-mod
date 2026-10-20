@@ -388,8 +388,9 @@ def _world_maps(confs):
         except (KeyError, TypeError, AttributeError):
             continue
         for k, (fl, n) in getattr(pk, 'where', {}).items():
-            words[k] = fl | n << 8
-    return files, words
+            words[(key, k)] = fl | n << 8               # (club keys repeat across associations: HURACAN ARG / URU)
+            words[k] = None if k in words and words[k] != fl | n << 8 else fl | n << 8
+    return files, {k: v for k, v in words.items() if v is not None}
 
 
 def patch(p, at, limit, bss_at, area):
@@ -470,13 +471,14 @@ def season1(confs, files, words, seed=2027):
         rank = {words[k]: v for k, v in (ac.get('ranking') or {}).items() if k in words}
         top = sorted({e['assoc'] for c in acc.values() for e in c.get('entrants_season1') or []},
                      key=lambda a: ('bra', 'arg').index(a) if a in ('bra', 'arg') else 9)
-        taken = {words[e['club']] for c in acc.values() for e in c.get('entrants_season1') or []}
+        taken = {words[(e['assoc'], e['club'])] for c in acc.values() for e in c.get('entrants_season1') or []}
 
         def stand_in(i):
             if rank:
                 return max((w for w in rank if w not in taken), key=rank.get)
             a = top[i % len(top)]
-            return min((w for w in words.values() if w & 0xFF == files[a] and w not in taken), key=lambda w: w >> 8)
+            return min((w for k, w in words.items() if isinstance(k, tuple) and w & 0xFF == files[a] and w not in taken),
+                       key=lambda w: w >> 8)
 
         subs = []
         extra = {}                                      # (cup key, round key) -> words moved in (losers, holders)
@@ -499,7 +501,7 @@ def season1(confs, files, words, seed=2027):
             ent = {}
             for e in a.get('entrants_season1') or []:
                 r = ALIAS.get(e['round'], e['round'])
-                ent.setdefault(r, []).append((words[e['club']], e['assoc']))
+                ent.setdefault(r, []).append((words[(e['assoc'], e['club'])], e['assoc']))
             if not ent and not any(k[0] == c['key'] for k in extra):
                 if c['key'] == 'rec' and len(subs) >= 2:
                     out[(conf, c['key'])] = subs[:2]

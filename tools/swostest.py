@@ -2097,6 +2097,7 @@ def world8485():
 
             mid = os.environ.get('W8485_MIDSAVE', '').split(':') if season == 1 else ['']   # obj2 off:byte:dumps:
             midc = [0]                                 # a career save mid-season once the byte held that long
+            midt = (os.environ.get('W8485_MIDTEXT', '').split(':') + [''])[:2] + [None, 0] if season == 1 else ['']
 
             def stop(scr):                             # the player's European cup: no same-country tie in rounds 1-2
                 if nosack is not None and season not in poked:   # W8485_NOSACK: the game's 'no sacking' word
@@ -2127,6 +2128,14 @@ def world8485():
                 if mid[0] and s.result.obj2(int(mid[0], 16), 1)[0] == int(mid[1], 0):
                     midc[0] += 1
                     if midc[0] >= int(mid[2]):
+                        return True
+                if midt[0] and '- RISULTATO -' in scr.texts() and midt[0] in scr.texts() and \
+                        tuple(scr.texts()) != midt[2]:         # W8485_MIDTEXT 'text:n': save after the n-th
+                    midt[2] = tuple(scr.texts())                # match screen showing that text
+                    midt[3] += 1
+                    if midt[3] >= int(midt[1]):
+                        mid[:] = ['t', 0, 0]
+                        midc[0] = 1
                         return True
                 if diy is not None:                    # W8485_DIY (world_split): the split league's DIY when its
                     b = s.result.obj2(diy[0], 0x733)    # day / freeze changes, the calendar once frozen
@@ -5117,51 +5126,110 @@ def world_po_sweep_mlt():
     return world_po_sweep('EUROPA,MALTA,HAMRUN SPARTANS', 'mlt')
 
 
+def guest_sample(out, src=64, n=2, conf='caf', assoc='PAR'):
+    """A <conf>.guests.json in out from the first n records of orig TEAM.<src> (the builder's input format, data's):
+    their names, coaches, kits, lineups and 16 players as explicit rows. Returns the clubs' names."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import mkseason as mk
+    d = open(os.path.join(MAIN, 'orig', 'DATA', 'TEAM.%03d' % src), 'rb').read()
+    skins = {v: k for k, v in mk.EXPLICIT_SKIN.items()}
+    clubs = []
+    for i in range(n):
+        r = d[2 + 684 * i:2 + 684 * (i + 1)]
+        txt = lambda b: b.split(b'\0')[0].decode('latin1')
+        players = []
+        for jj in range(16):
+            q = r[76 + 38 * jj:76 + 38 * (jj + 1)]
+            pos = mk.EXPLICIT_POS[q[26] >> 5]
+            nib = [x for b in q[28:32] for x in (b >> 4, b & 15)]
+            row = {'name': txt(q[3:26]), 'role': mk.EXPLICIT_ROLE[pos], 'position': pos, 'number': q[2], 'nat': q[0],
+                   'skin': skins[(q[26] >> 3) & 3], 'price': min(q[32], 49)}
+            row.update({k: f"{nib[1 + kk] & 7}{'*' if nib[1 + kk] & 8 else ''}" for kk, k in enumerate(mk.EXPLICIT_SKILLS)})
+            players.append(row)
+        clubs.append({'key': f'g{src}_{i}', 'assoc': assoc, 'club': txt(r[5:22]).title(), 'name': txt(r[5:22]),
+                      'coach': txt(r[36:59]), 'tactic': r[24] & 15, 'kit1': ' '.join(map(str, r[26:31])),
+                      'kit2': ' '.join(map(str, r[31:36])), 'lineup': ' '.join(map(str, r[60:76])), 'access': 0,
+                      'source': f'orig TEAM.{src:03d} (test)', 'players': players})
+    os.makedirs(out, exist_ok=True)
+    json.dump({'conf': conf, 'rotation': 'test', 'season1': {}, 'clubs': clubs}, open(os.path.join(out, f'{conf}.guests.json'), 'w'))
+    return [c['name'] for c in clubs]
+
+
 @scenario
 def world_conti_guest():
-    """A guest club (a team file outside the world: TEAM.191) in a continental cup of the world 2026-27 (the
-    integrator's guest clubs, step 1): orig TEAM.064's clubs as TEAM.191 (each record's countryNumber = 191, as
-    GetTeamPointer matches file | ordinal), its first (ATL. COLEGIALES, word 0x00BF) in INDEPENDIENTE's Libertadores
-    group in place of its first group-mate (conti CONTI_GUEST, a test-build switch); a season there: both matches
-    against it on the game's screens with its name, the season ends"""
+    """Guest clubs of the continental cups (guests.py, the integrator's option b): two guests built from a sample
+    caf.guests.json (orig TEAM.064's first two clubs) into TEAM.191 on alias global numbers (guests.alloc), in
+    INDEPENDIENTE's Libertadores group in place of two group-mates (conti CONTI_GUEST, a test-build switch). A season
+    saved after the first match against a guest (W8485_MIDTEXT) and reloaded (W8485_FROM): the guests' matches with
+    their names before and after the reload, the season's record (REGISTRO GESTIONE) with the Libertadores line;
+    then its end save reloaded for a second season"""
     src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-names-2214')
     if not os.path.isdir(src):
         return True, f'SKIP: private data {src} missing'
     order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
     packs = ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order])
     old = os.environ.get('SEASON_PACKS')
-    os.environ['SEASON_PACKS'] = packs
+    os.environ['SEASON_PACKS'] = packs                   # (before mkseason's import: ENABLED is read there)
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import mkseason
+    sample = os.path.join(WORK, 'guests_sample_squads')
+    names = guest_sample(sample)
     ind = next(f | i << 8 for pk in mkseason.packs() if pk.meta.get('id') == 'world-2026-27-arg'
                for k, (f, i) in pk.where.items() if pk.clubs[k]['name'] == 'INDEPENDIENTE')
     if old is None:
         os.environ.pop('SEASON_PACKS')
     else:
         os.environ['SEASON_PACKS'] = old
-    exe = build('world_conti_guest', env={'SEASON_PACKS': packs, 'CONTI_GUEST': f'lib:00bf:{ind:04x}'})
-    d = bytearray(open(os.path.join(MAIN, 'orig', 'DATA', 'TEAM.064'), 'rb').read())
-    for i in range((len(d) - 2) // 684):
-        d[2 + 684 * i] = 191
-    open(os.path.join(exe, 'DATA', 'TEAM.191'), 'wb').write(d)
-    keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K',
-                                            'W8485_NOSACK', 'W8485_ONE')}
-    os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM='SUDAMERICA,ARGENTINA,LIGA PROFESIONAL,'
-                      'INDEPENDIENTE', W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1', W8485_ONE='1')
+    exe = os.environ.get('GUEST_BUILD') or build('world_conti_guest', env={
+        'SEASON_PACKS': packs, 'GUESTS_DATA': sample, 'CONTI_GUEST': f'lib:00bf,01bf:{ind:04x}'})
+    keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_ONE',
+            'W8485_MIDTEXT', 'W8485_FROM', 'W8485_RECSHOT')
+    keep = {k: os.environ.get(k) for k in keys}
+    base = dict(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM='SUDAMERICA,ARGENTINA,LIGA PROFESIONAL,'
+                'INDEPENDIENTE', W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1')
+    logs = {}
     try:
+        os.environ.update(base, W8485_ONE='1', W8485_MIDTEXT=f'{names[0]}:1')
         ok, msg = world8485()
+        logs['a'] = open(os.path.join(RUNS, w84_tag() + '_1', 'session.log'), errors='replace').read()
+        if not ok:
+            return False, f'first session (to the mid-season save): {msg}'
+        mid = os.path.join(WORK, 'guests_mid_squads.CAR')
+        shutil.copy(msg.split(': ', 1)[1], mid)
+        for k in ('W8485_ONE', 'W8485_MIDTEXT'):
+            os.environ.pop(k, None)
+        os.environ.update(base, W8485_FROM=mid, W8485_RECSHOT='1')
+        ok2, msg2 = world8485()
+        run2 = os.path.join(RUNS, w84_tag() + '_2')
+        logs['b'] = open(os.path.join(run2, 'session.log'), errors='replace').read()
+        end = os.path.join(WORK, 'guests_end_squads.CAR')
+        if os.path.exists(end):
+            os.remove(end)
+        if os.path.exists(os.path.join(run2, 'SWOS', 'W84B.CAR')):   # (world8485's season-2 save: W84B)
+            shutil.copy(os.path.join(run2, 'SWOS', 'W84B.CAR'), end)
+        ok3, msg3 = (False, 'no season-end save') if not ok2 or not os.path.exists(end) else (None, '')
+        if ok3 is None:
+            os.environ.pop('W8485_RECSHOT', None)
+            os.environ.update(base, W8485_FROM=end)
+            ok3, msg3 = world8485()
     finally:
         for k, v in keep.items():
             if v is None:
                 os.environ.pop(k, None)
             else:
                 os.environ[k] = v
-    log = open(os.path.join(RUNS, w84_tag() + '_1', 'session.log'), errors='replace').read().splitlines()
-    games = [ln for ln in log if 'LIBERTADORES' in ln and '- RISULTATO -' in ln and 'ATL. COLEGIALES' in ln]
+    games = lambda log: [ln for ln in log.splitlines() if 'LIBERTADORES' in ln and '- RISULTATO -' in ln
+                         and any(n in ln for n in names)]
+    rec = next((ln for ln in logs['b'].splitlines() if ln.startswith('[record] ')), '')
     errs = []
-    check(ok, msg, errs)
-    check(len(games) >= 2, f'{len(games)} Libertadores matches against the guest (ATL. COLEGIALES) seen', errs)
-    return not errs, '; '.join(errs) or f'{msg}; the guest played {len(games)} times (TEAM.191)'
+    check(ok2, f'the reloaded season: {msg2}', errs)
+    check(ok3, f'the second season: {msg3}', errs)
+    check(games(logs['a']), f'no match against a guest {names} before the save', errs)
+    check(games(logs['b']), f'no match against a guest {names} after the reload', errs)
+    check('2026/27 STAGIONE' in rec and 'INDEPENDIENTE' in rec, f'the record screen: {rec[:200]}', errs)
+    return not errs, '; '.join(errs) or (f'guests {names}: {len(games(logs["a"]))} match screens before the save, '
+                                         f'{len(games(logs["b"]))} after the reload; record {rec[9:160]!r}; '
+                                         f'second season: {msg3[:120]}')
 
 
 @scenario

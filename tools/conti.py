@@ -239,9 +239,12 @@ def load(confs, files=None, words=None, s1=None):
         size, outside = fields(c, known, None if gr else (a.get('access') or {}).get('outside'))
         for j, r in enumerate(rounds):                  # (data's lists must close the sizes: a report, not a guess)
             feed = sum(rr['groups'] * len(_places(q)) for rr in rounds if rr['kind'] in ('groups', 'league_stage')
-                       for q, t in (rr.get('out') or {}).items() if t == r['key'])
+                       for q, t in (rr.get('out') or {}).items() if t == r['key'] and str(rr.get('best')) != str(q))
             win = size[j - 1] // 2 if j and rounds[j - 1]['kind'] == 'ko' else 0
             have = known[j] + outside[j] + feed + win
+            for rr in rounds:                           # (the best runners-up: the places left, at most a group's)
+                if rr.get('best') and rr['out'].get(str(rr['best'])) == r['key']:
+                    have += min(rr['groups'], max(0, size[j] - have))
             if gr and have != size[j]:
                 print(f"conti: {conf}:{c['key']}:{r['key']} {have} clubs for {size[j]} places (data's lists)")
         FIELDS[(conf, c['key'])] = size, outside, known

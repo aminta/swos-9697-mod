@@ -512,7 +512,8 @@ HDR_PREP
     movzx ecx, byte [edi + 1 + NAME_]
     lea esi, [edi + 2 + NAME_]
 .r:
-    jecxz .x
+    test ecx, ecx                       ; (jecxz: out of short range)
+    jz .x
 HDR_RANGE
     cmp al, [esi]
     jb .rn
@@ -526,9 +527,14 @@ HDR_RANGE
     mov [D3], dx
     mov esi, [A1]                       ; club (team file record): a computer club's name in the row colour
     cmp byte [esi + 4], 1
-    jne .x
+    jne .hu
     mov esi, [A5]
     mov [esi + 1Eh], dx
+    jmp .x
+.hu:
+    mov esi, [A5]                       ; the human's name box: its own colour, framed (inner frame colour =
+    and word [esi + 1Eh], 0FF0Fh        ; the high nibble, yellow), so a player-coach's light blue stays apart
+    or word [esi + 1Eh], FRAME_         ; from a light-blue zone row
     jmp .x
 .rn:
     add esi, 3
@@ -892,7 +898,7 @@ def patch(p, at, area, lang, pack_dirs, bss, bss_len, world=None):
            **({'C11': c11} if c11 else {}), 'ZHIT': (2, keys), 'ZEU': (2, keys + 47), 'ZKEY': (2, keys + 4), 'NAME_': (0, NAME), 'ZENT': (2, zent),
            'ZFILE': (2, zfile), 'FN_BASE_': (0, len(FILE[lang])), 'BUF': (2, bss), 'BUFLEN_': (0, bss_len),
            'ENTRY_': (0, ENTRY_PAD), 'LEG_': (0, LEG), 'LEG_W_': (0, LEG_W), 'LEGN_': (0, 1 + NAME + 1 + 3 * RANGES),
-           'LABS': (2, labs), 'EFLAG_': (0, EFLAG), 'ECODE_': (0, ECODE), 'EU_PLACES_': (0, EU_PLACES), 'LEGBUF': (2, legbuf), 'MENU': cur_menu}
+           'FRAME_': (0, int(os.environ.get('ZN_FRAME', '0x60'), 16)), 'LABS': (2, labs), 'EFLAG_': (0, EFLAG), 'ECODE_': (0, ECODE), 'EU_PLACES_': (0, EU_PLACES), 'LEGBUF': (2, legbuf), 'MENU': cur_menu}
     import fmtpage
     import gplay
     ov = 'on' in fmtpage.OV and 'GP_OV_ANNUAL' in gplay.LABELS

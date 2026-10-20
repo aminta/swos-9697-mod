@@ -61,7 +61,8 @@ def main_round(c, size=None):
     """The round a career club plays as the game's own contest (slot 3): the biggest group stage (OFC: the groups, not
     the qualifying group), else the first knockout round whose clubs are a power of two of the rounds left (CONCACAF:
     the round of 16, its first round of 22 a tie before it; size: load()'s round sizes, else FIELDS)."""
-    g = [(r['groups'] * r['size'], -j, j) for j, r in enumerate(c['rounds']) if r['kind'] == 'groups'
+    _norm(c)
+    g = [(r['groups'] * r['size'], -j, j) for j, r in enumerate(c['rounds']) if r['kind'] in ('groups', 'league_stage')
          and not r.get('best') and not any(str(t).endswith('_best') for t in (r.get('out') or {}).values())]
     # (a group stage whose best runners-up go on: not the game's contest, simulated - the ACGL from its quarters)
     if g:
@@ -318,7 +319,8 @@ def load(confs, files=None, words=None, s1=None):
             out += bytes(b)
         body += bytes((len(rounds), 0, 0, 0)) + out
         mj = main_round(c, size)                        # (the exe's group contest of this cup: conti's group-end hook)
-        gids.append(IDS[ci] if not c.get('stepladder') and rounds[mj]['kind'] == 'groups' and ci < len(IDS) else 0)
+        gids.append(IDS[ci] if not c.get('stepladder') and rounds[mj]['kind'] in ('groups', 'league_stage')
+                    and ci < len(IDS) else 0)
         if s1 is not None:                              # season 1 (the build): data's real entrants as fixed clubs
             for (cf, ck, rk), ws in s1.items():
                 if (cf, ck) != (conf, c['key']):
@@ -1162,6 +1164,23 @@ def _month(m):                          # the contest's months: x 8 from January
     return (m - 1 + (12 if m < 8 else 0)) * 8
 
 
+def _league_cal(ng):
+    """A league stage's calendar in each region of 16 (4 pots of 4: the contest list's order): every club 2 opponents
+    of each pot, one at home, one away (a 4-cycle in its own pot), 8 matchdays of 8 matches, built directly: the pots
+    paired 3 ways (AB CD / AC BD / AD BC), each pairing 2 days (P_i v Q_i, then Q_i+1 v P_i), then the own-pot
+    cycle in 2 days; lp36's fixture order (match m = 2 * pair + group, day = m / (8 * groups))."""
+    pot = lambda q, i: 4 * q + i % 4
+    days = []
+    for pairs in (((0, 1), (2, 3)), ((0, 2), (1, 3)), ((0, 3), (1, 2))):
+        days.append([(pot(a, i), pot(b, i)) for a, b in pairs for i in range(4)])
+        days.append([(pot(b, i + 1), pot(a, i)) for a, b in pairs for i in range(4)])
+    days.append([(pot(q, i), pot(q, i + 1)) for q in range(4) for i in (0, 2)])
+    days.append([(pot(q, i), pot(q, i + 1)) for q in range(4) for i in (1, 3)])
+    for d in days:
+        assert len(d) == 8 and len({c for m in d for c in m}) == 16
+    return [(h + 16 * g, a + 16 * g) for d in days for (h, a) in d for g in range(ng)]
+
+
 def structs(p, area, lang, at):
     """The career club's contests (one per cup: its main round as the game's own contest) at obj1:at; returns (end,
     [(1, struct offset)], [euro rank per struct]) for sacups' slot-3 chain (D7 / E092F = 6 + index)."""
@@ -1199,7 +1218,10 @@ def structs(p, area, lang, at):
             nm = (c['names'].get(lang) or c['names']['en'])[0].upper().encode('latin1')[:30]
             rel = area.add(nm + b'\0') - sacups.STR_BASE
             last = rounds[-1].get('month') or 5
-            if rd['kind'] == 'groups':
+            if rd['kind'] == 'league_stage':            # (ACLE: each region a group of 16, 8 matchdays from a fixed
+                import lp36                             # calendar - lp36's fixture contests, any first club)
+                lp36.FIXTURES[(cid, (0xFF, 0xFF))] = (rd['groups'], rd['size'], 8, _league_cal(rd['groups']))
+            if rd['kind'] in ('groups', 'league_stage'):
                 body = bytearray(d2[euro:euro + 47])
                 body[0] = cid
                 n = rd['groups'] * rd['size']

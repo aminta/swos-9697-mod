@@ -945,5 +945,15 @@ u32 ct_gend(u8 *diy, u8 *diycopy, u32 sel) {
         }
         for (int k = 0; k < 8; k++) { diycopy[0x59 + 2 * k] = sr[k]; diycopy[0x59 + 2 * k + 1] = fr[k]; }
     }
+    if (mr >= 0 && mr + 1 < nrd[c] && RND(c, mr)[19] && RND(c, mr + 1)[4] == D_PLACE) {
+        /* a league stage's top n per region into a by-place round (ACLE: 1 v 8, 2 v 7 ... in each region; the better
+           placed at home in the second leg) */
+        int n = RND(c, mr)[19], k = 0;
+        for (int g = 0; g < ng; g++)
+            for (int q = 0; q < n / 2; q++) {
+                diycopy[0x59 + k++] = (u8)(w16(diy + 0x6D + 2 * (g * gs + n - 1 - q)) / 18);
+                diycopy[0x59 + k++] = (u8)(w16(diy + 0x6D + 2 * (g * gs + q)) / 18);
+            }
+    }
     return place;
 }

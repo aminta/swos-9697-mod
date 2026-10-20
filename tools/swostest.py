@@ -5036,6 +5036,87 @@ def world_rlines(team, tag, res, show=None, fill=False):
                                          f'tw {ko["tw"][:ko["ntie"]]}; record lines {[(n, hex(a), c) for n, a, c in lines]}')
 
 
+def world_po_sweep(team, tag):
+    """The play-offs whose entrants come from a kept / stage table, not the final one (regia's sweep after Malta's
+    silent split_seed): a season of the release data (W2627REL_DATA) at team, its build GPLAY_FORCE=1 (world_rlinesn:
+    the club 1st of its division and of its stage tables); each knockout of ours seen in GP_ST (the dumps: by play-off
+    index, its entrants) and the season end's GP_LOG.out (moves, results, stage titles). Per tag: arg - the Apertura /
+    Clausura knockouts (16 from the zones' stage tables 4 / 5), the TROFEO (stage titles), the Primera Nacional's final
+    + reducido ('loser_of_previous': two clubs up); usa - the MLS play-offs (18 from stage table 7); mlt - the Final
+    Four (split_seed: the Opening's kept table) -> a title result."""
+    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-names-2214')
+    if not os.path.isdir(src):
+        return True, f'SKIP: private data {src} missing'
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    exe = os.environ.get('RLINES_BUILDNone') or build('world_rlinesn', env={'SEASON_PACKS': ','.join(
+        ['ddr-1988-89'] + [os.path.join(src, x) for x in order]), 'GPLAY_FORCE': '1'})
+    os.environ['RLINES_BUILDNone'] = exe
+    log_at, st_at, log_n, st_n = gp_ptrs(exe)
+    keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K',
+                                            'W8485_NOSACK', 'W8485_HEX', 'W8485_ONE')}
+    os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5', W8485_K='108+',
+                      W8485_NOSACK='1', W8485_HEX=f'{log_at:x}:{log_n},{st_at:x}:{st_n}', W8485_ONE='1')
+    try:
+        ok, msg = world8485()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    hexes = {}
+    for ln in open(os.path.join(RUNS, w84_tag() + '_1', 'session.log'), errors='replace'):
+        q = ln.split()
+        if len(q) == 3 and q[0] == 'HEX':
+            hexes.setdefault(int(q[1], 16), []).append(bytes.fromhex(q[2]))
+    errs = []
+    check(ok, msg, errs)
+    kos = {}                                             # play-off index -> its entrants (the largest list seen)
+    for b in hexes.get(st_at, []):
+        if b[:2] != b'GK':
+            continue
+        k = gp_ko(b[GP_STKO:])
+        if k['magic'] == 0x4B47 and k['season'] == b[2] and k['n'] and len(k['team']) >= len(kos.get(k['pi'], [])):
+            kos[k['pi']] = k['team']
+    logs = [b for b in hexes.get(log_at, []) if b[:4] == b'GPLG']
+    if not logs:
+        return False, f'{msg}; no season-end log (GP_LOG); knockouts seen {sorted(kos)}'
+    lg = logs[-1]
+    mv = [struct.unpack_from('<HHb', lg, 686 + 8 * i) for i in range(min(lg[682], 32))]
+    res = [struct.unpack_from('<BBHHHH', lg, 942 + 10 * i) for i in range(min(lg[683], 4))]
+    sres = [struct.unpack_from('<BBHHHH', lg, 982 + 10 * i) for i in range(3)]
+    want = {'arg': [(3, 16), (4, 16), (5, 2)], 'usa': [(0, 18)], 'mlt': []}[tag]
+    for pi, n in want:                                   # (stage_place: distinct clubs; the TROFEO's stage titles may
+        t = kos.get(pi, [])                              # name one club twice - Apertura winner and annual 1st)
+        check(len(set(t)) >= n and (n < 3 or len(set(t)) == len(t)) and all(t),
+              f'play-off {pi}: entrants {[hex(x) for x in t]} (want {n} distinct)', errs)
+    if tag == 'arg':
+        check(len([m for m in mv if m[2] < 0]) >= 2, f'promotions {mv}: want the final + reducido', errs)
+        check(all(x[0] == 8 and x[2] for x in sres), f'stage titles {sres}', errs)
+    if tag == 'mlt':
+        check(any(r[0] == 5 for r in res), f'no title result: res {res}', errs)
+    return not errs, '; '.join(errs) or (f'{msg}; {tag}: knockouts {[(pi, len(t)) for pi, t in sorted(kos.items())]}, '
+                                         f'moves {mv}, results {res}, stage titles {sres}')
+
+
+@scenario
+def world_po_sweep_arg():
+    """world_po_sweep at BOCA JUNIORS: the stage_place / stage_title / loser_of_previous play-offs"""
+    return world_po_sweep('SUDAMERICA,ARGENTINA,LIGA PROFESIONAL,BOCA JUNIORS', 'arg')
+
+
+@scenario
+def world_po_sweep_usa():
+    """world_po_sweep at PHILADELPHIA: the MLS play-offs from the season's stage table"""
+    return world_po_sweep('NORDAMERICA,USA,PHILADELPHIA', 'usa')
+
+
+@scenario
+def world_po_sweep_mlt():
+    """world_po_sweep in Malta: the Final Four from split_seed (the Opening's kept table)"""
+    return world_po_sweep('EUROPA,MALTA,HAMRUN SPARTANS', 'mlt')
+
+
 @scenario
 def world_rlines_arg():
     """world_rlines at BOCA JUNIORS (Argentina: TORNEO APERTURA / CLAUSURA knockouts, TROFEO DE CAMPEONES), forced

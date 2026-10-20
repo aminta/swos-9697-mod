@@ -504,8 +504,38 @@ w_tfile:                                ; replaces `and dword [D0], 0FFh` before
 %ifdef NS
     call w_ns_stem
 %endif
+%ifdef GUESTS
+    call w_guest
+%endif
     pop eax
     ret
+
+%ifdef GUESTS
+w_guest:                                ; eax = the physical team file: a guest file (guests.py, the continental cups'
+    pushad                              ; clubs outside the world) -> someLeaguesTable at its clubs' global numbers
+    push es                             ; cleared (they alias 1996-97 files the world never loads: SetLeagueNumbers
+    push ds                             ; adds nothing to their records)
+    pop es
+    cld
+    mov esi, GUESTT
+.l:
+    cmp byte [esi], 0
+    je .r
+    cmp [esi], al
+    je .z
+    add esi, 5
+    jmp .l
+.z:
+    movzx edi, word [esi + 1]
+    movzx ecx, word [esi + 3]
+    add edi, SLT
+    xor eax, eax
+    rep stosb
+.r:
+    pop es
+    popad
+    ret
+%endif
 
 w_ntw:                                  ; ebx = this career's world nationalTeams record (WNATT), 0 = the game's
     xor ebx, ebx
@@ -1839,7 +1869,14 @@ def patch(p, worlds, at, nasmcave, comp, ct, cont_rec):
         extra.append('WNSB: db ' + ', '.join(map(str, bits)))
         extra.append('align 4')
         extra.append('WSTEM: db ' + ', '.join(map(str, b''.join(ns['stems'].get(n, 'team').encode() for n in range(maxw + 1)))))
+    import guests
+    if guests.files():                           # the guest clubs' files: GUESTT = file, base, count (guests.alloc)
+        gb = guests.alloc()
+        extra.append('GUESTT: db ' + ', '.join(f'{n}, {gb[n] & 0xFF}, {gb[n] >> 8}, {k & 0xFF}, {k >> 8}'
+                                               for n, k in guests.counts().items()) + ', 0')
     src = ASM + '\n'.join(stubs + data + extra) + '\n'
+    if guests.files():
+        src = '%define GUESTS\n' + src
     if ns:
         src = '%define NS\n' + src
         sym_ns = _ns_sites(p, s)

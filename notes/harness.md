@@ -151,3 +151,9 @@ it returns the rounds (title, ties shown: at most 6 per screen) and the coin-tos
   probably died: see `debugger.raw`).
 - Breakpoints (`Session.bp`, `SWOSTEST_BP`) need `CORE=normal` (the dynamic core does not re-check translated code).
 - Never run `config -wcd` inside DOSBox-X: it overwrote the user's DOSBox-X preferences once.
+- `SWOSTEST_UI=fr` / `de` full seasons stuck at the season end's 'TERMINER LA SAISON' / 'SAISON BEENDEN' until
+  2026-10-20: the label map (tools/swostest_lang.json) had no FINISCI STAGIONE for them; added (FR / DE seasons with
+  save now pass). A season loop that sticks on a menu in another language: look for its label in that map first.
+- Country names in another language's exe: the harness maps the labels it knows (swostest_lang.json, the 1996-97
+  menus) back to Italian, so a 1996-97 country keeps its Italian name in `W8485_TEAM` (BRASILE in the EN exe), while a
+  world-only one needs that language's name (NEW ZEALAND, NOUV. ZELANDE, NEUSEELAND: the pack's `button_names`).

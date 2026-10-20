@@ -225,6 +225,7 @@ SAVE_ITEMS = [None]      # [(obj1 offset, size)] of the SA lists + Intercontinen
 SAVED_GLOBAL = 1740      # 1.0/1.1 saves: someLeaguesTable[1740..1842]: 'S2' + 3 lists + Intercontinental pair + balance byte
                          # (cseg_9487A: sum must be 0); session-12 saves: 'SA' + 3 lists + balance byte (1740..1838);
                          # global numbers 1730..1849 belong to no team
+CT_PRE_PTR = [None]     # obj1 offset of the dword conti.patch fills with its ct_pre
 LISTS_OUT = [None]       # career code's lists_out, called at season end
 SEL_ADDR = [None]        # obj2 offset of selTeamNumber (the career club's word), set by career_hooks
 SITES = {}               # career_hooks: E092F, D8CBE (cup kind), cseg_8B2D3, the slot-3 buffer (uefaq.py)
@@ -360,6 +361,8 @@ init_sa:
     mov [CUP_KIND], ax
     jmp FOUND
 
+ct_pre_ptr: dd 0                        ; (conti.patch: its ct_pre)
+
 ; ProcessCareerFile, replaces "cmp [E092F],-1; jz out": restore a Supercopa in slot 1
 load_slot1:                             ; the lists were restored by trailer.load_trailer (.CAR trailer / old saves)
     cmp dword [PLAYER_CUP], 0
@@ -386,6 +389,13 @@ load_slot1:                             ; the lists were restored by trailer.loa
 
 ; ProcessCareerFile, replaces "cmp [E092F],2; jz map; jmp out": slot 3 = SA cup for E092F 3..5, extra cups 6..
 load_slot3:
+    mov eax, [ct_pre_ptr]               ; (conti: its contest lists and next game again from the saved edition, before
+    test eax, eax                       ; the slot is mapped back: after a load the exe's season-1 lists - wrong names
+    jz .np                              ; in the group tables, OFC / CAF)
+    pushad
+    call eax
+    popad
+.np:
     cmp word [E092F], 2
     je LOAD_MAP
     mov dword [A0], LIB
@@ -629,6 +639,9 @@ def career_hooks(p, cups, cave, cups_all=None, caf=None):
     chain, load_map_lines = [], []
     for k, off in enumerate(caf['structs']):
         symbols[f'XCUP{k}'] = (1, off)
+        if k == caf.get('conti_from'):              # (conti: its lists again before its checks, after a load)
+            chain += ['    mov eax, [ct_pre_ptr]', '    test eax, eax', f'    jz .np{k}', '    pushad', '    call eax',
+                      '    popad', f'.np{k}:']
         chain += [f'    mov dword [A0], XCUP{k}', f'    mov word [D7], {6 + k}', '    call CHECK', '    jz .found']
         load_map_lines += [f'    mov dword [A0], XCUP{k}', f'    cmp word [E092F], {6 + k}', '    je LOAD_MAP']
     symbols['KIND_BYTES'] = (0, 'db ' + ', '.join(str(x) for x in [0, 1, 2] + caf['kinds']))
@@ -641,6 +654,7 @@ def career_hooks(p, cups, cave, cups_all=None, caf=None):
     code, fix = nasmcave.assemble(asm, cave, symbols)
     labels = nasmcave.labels(asm, cave, symbols)
     LISTS_OUT[0] = labels['lists_out']
+    CT_PRE_PTR[0] = labels['ct_pre_ptr']
     p.put(1, cave, code)
     for off, tobj, toff in fix:
         p.add_ptr(1, cave + off, tobj, toff)

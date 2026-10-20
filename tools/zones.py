@@ -95,12 +95,13 @@ CONFED = {'lib': LIGHT_BLUE, 'sud': GREEN, 'ccc': LIGHT_BLUE, 'acle': LIGHT_BLUE
 CONFED_LAB = dict(lib='LIB', sud='SUD', ccc='CCC', acle='ACLE', acl2='ACL2', cafcl='CAFCL', cafcc='CAFCC', ofc='OFC')
 # legend labels (<= 5 characters): top flight of a league-phase world, of a classic world, a lower division
 LABELS = {
-    'it': dict(cl='CL', el='EL', conf='CONF', cc='CAMP', uefa='UEFA', up='PROM', po='P.OFF', out='P.OUT', down='RETR', **CONFED_LAB),
-    'en': dict(cl='CL', el='EL', conf='CONF', cc='EC', uefa='UEFA', up='UP', po='P.OFF', out='P.OUT', down='DOWN', **CONFED_LAB),
-    'fr': dict(cl='LDC', el='LE', conf='LC', cc='C1', uefa='C3', up='MONT', po='BARR', out='MAINT', down='DESC', **CONFED_LAB),
-    'de': dict(cl='CL', el='EL', conf='CONF', cc='EC', uefa='UEFA', up='AUF', po='AUF-R', out='ABS-R', down='AB', **CONFED_LAB),
+    'it': dict(next='PASSA', cl='CL', el='EL', conf='CONF', cc='CAMP', uefa='UEFA', up='PROM', po='P.OFF', out='P.OUT', down='RETR', **CONFED_LAB),
+    'en': dict(next='NEXT', cl='CL', el='EL', conf='CONF', cc='EC', uefa='UEFA', up='UP', po='P.OFF', out='P.OUT', down='DOWN', **CONFED_LAB),
+    'fr': dict(next='QUAL.', cl='LDC', el='LE', conf='LC', cc='C1', uefa='C3', up='MONT', po='BARR', out='MAINT', down='DESC', **CONFED_LAB),
+    'de': dict(next='WEIT.', cl='CL', el='EL', conf='CONF', cc='EC', uefa='UEFA', up='AUF', po='AUF-R', out='ABS-R', down='AB', **CONFED_LAB),
 }
-KEYS = ('cl', 'el', 'conf', 'cc', 'uefa', 'up', 'po', 'out', 'down', 'lib', 'sud', 'ccc', 'acle', 'acl2', 'cafcl', 'cafcc', 'ofc')
+KEYS = ('cl', 'el', 'conf', 'cc', 'uefa', 'up', 'po', 'out', 'down', 'lib', 'sud', 'ccc', 'acle', 'acl2', 'cafcl', 'cafcc', 'ofc',
+        'next')
 LEG_COLOUR = {DARK_BLUE: 0x13}  # the legend box: dark blue with a frame (08h alone vanishes on the menu's blue)
 
 
@@ -354,6 +355,42 @@ def table(lang, pack_dirs):
             leg = legend(rng, kind)
             out.append((world, title, rng, leg, kind, metas.get(world, {}).get('start_year', 1900) - 1900,
                         code, leg if gleg is None else gleg))
+    out += [r for r in conti_rows(lang, metas) if (r[0], r[1]) not in seen]
+    return out
+
+
+CONTI_LAB = {'lib': 'lib', 'sud': 'sud', 'ccc': 'ccc', 'acle': 'acle', 'acl2': 'acl2', 'cl': 'cafcl', 'cc': 'cafcc',
+             'ocl': 'ofc'}
+LEGX, CUPY = 92, 188            # (an entry's byte: 1 = a cup's group table: its legend boxes on the bottom line, y CUPY)
+
+
+def conti_rows(lang, metas):
+    """4.0: the other confederations' group stages (conti.py; the game's own group tables, titled with the cup's name
+    as the FORMAT page): light blue for the places that go on in the cup, green for those that move to another cup."""
+    import conti
+    import mkseason
+    worlds = {pk.world for pk in mkseason.packs() if pk.meta.get('id', '').startswith('world-2026-27-') and pk.world}
+    if not worlds or not conti.ready():
+        return []
+    w, out = min(worlds), []
+    for conf in conti.ready():
+        for c in conti._read(conf, 'format')['cups']:
+            gs = [rd for rd in c['rounds'] if rd['kind'] == 'groups' and rd.get('out')]
+            for rd in sorted(gs, key=lambda r: -r['groups'] * r['size'])[:1]:   # (the biggest group stage: the one
+                                                                                 # the game plays, conti.py)
+                rng, leg = [], [(LIGHT_BLUE, 'next')]
+                for p, to in sorted(rd['out'].items(), key=lambda x: int(x[0])):
+                    col = GREEN if ':' in to or to == 'po' else LIGHT_BLUE   # (play-offs / another cup: green)
+                    if col == GREEN and not any(l[0] == GREEN for l in leg):
+                        leg.append((GREEN, CONTI_LAB.get(to.split(':')[0], 'po') if ':' in to else 'po'))
+                    if rng and rng[-1][2] == col and rng[-1][1] == int(p) - 1:
+                        rng[-1] = (rng[-1][0], int(p), col)
+                    else:
+                        rng.append((int(p), int(p), col))
+                name = (c['names'].get(lang) or c['names']['en'])[0].upper()
+                for title in (' ' + name, name):
+                    out.append((w, title[:NAME - 1], rng[:RANGES], leg, 'cupgrp',   # (its legend right of group A's
+                                metas.get(w, {}).get('start_year', 1900) - 1900, 0, leg))  # title: LEGX, zn_leg)
     return out
 
 
@@ -423,7 +460,10 @@ def blob(rows):
         e += b'\0' * (EFLAG - len(e)) + bytes([1 if kind == 'lp' else 0, year % 256, code])
         if any(r[0] & 0x80 for r in rng):              # 4.0 group headers: their legend (+81: n, (colour, label))
             e += bytes([len(gleg[:LEG])]) + b''.join(bytes([LEG_COLOUR.get(c, c), KEYS.index(k)]) for c, k in gleg[:LEG])
-        b += e + b'\0' * (ENTRY_PAD - len(e))
+        e += b'\0' * (ENTRY_PAD - len(e))
+        if kind == 'cupgrp':                           # (the legend right of the group's title)
+            e = e[:LEGX] + b'\1' + e[LEGX + 1:]
+        b += e
     return bytes(b)
 
 
@@ -620,6 +660,21 @@ HDR_LEG
     inc ecx
     jmp .l
 .o:
+    test edi, edi                       ; a cup's group table: the boxes on the bottom line
+    jz .q
+    cmp byte [edi + LEGX_], 0
+    je .q
+    movzx ecx, word [MENU + 10h]
+    sub ecx, LEG_
+    imul ebx, ecx, 38h
+    add ebx, MENU + 16h
+    mov ecx, LEG_
+.s:
+    mov word [ebx + 16h], CUPY_         ; (the bottom line, left of STAT / ESCI)
+    add ebx, 38h
+    dec ecx
+    jnz .s
+.q:
     popad
     ret
 
@@ -921,7 +976,7 @@ def patch(p, at, area, lang, pack_dirs, bss, bss_len, world=None):
     sym = {'D3': (2, a0 - 20), 'D7': (2, a0 - 4), 'A1': (2, a0 + 4), 'A5': (2, a0 + 20), 'DIY': (2, diy),
            **({'C11': c11} if c11 else {}), 'ZHIT': (2, keys), 'ZEU': (2, keys + 47), 'ZKEY': (2, keys + 4), 'NAME_': (0, NAME), 'ZENT': (2, zent),
            'ZFILE': (2, zfile), 'FN_BASE_': (0, len(FILE[lang])), 'BUF': (2, bss), 'BUFLEN_': (0, bss_len),
-           'ENTRY_': (0, ENTRY_PAD), 'LEG_': (0, LEG), 'LEG_W_': (0, LEG_W), 'LEGN_': (0, 1 + NAME + 1 + 3 * RANGES),
+           'ENTRY_': (0, ENTRY_PAD), 'LEG_': (0, LEG), 'LEG_W_': (0, LEG_W), 'LEGN_': (0, 1 + NAME + 1 + 3 * RANGES), 'LEGX_': (0, LEGX), 'CUPY_': (0, CUPY),
            'FRAME_': (0, int(os.environ.get('ZN_FRAME', '0x60'), 16)), 'LABS': (2, labs), 'EFLAG_': (0, EFLAG), 'ECODE_': (0, ECODE), 'EU_PLACES_': (0, EU_PLACES), 'LEGBUF': (2, legbuf), 'MENU': cur_menu}
     import fmtpage
     import gplay

@@ -253,6 +253,7 @@ def patch_exe(src, dst, remap, lang='it'):
     ct_pg = conti.PAGES * int(bool(mkseason.league_phase_worlds() and conti.enabled()))   # statecup's, a save item
     if ct_pg:
         engine.save_item('CT', conti.ST_SIZE)
+        engine.save_item('CE', conti.ED_SIZE)          # (phase B: the edition being played, conti.c CT_ED)
     for _ in range((6 + cp + 2 + 2 * cdp if worlds else 6) + lpb + sp_pg + sc_pg + ct_pg):  # (+1: the UEFA league phase's page, lp36)
         data = add_object_page(data, 1)
     mkseason.CAREER_CAVE[0] = CAREER_CAVE if worlds else None
@@ -360,6 +361,7 @@ def patch_exe(src, dst, remap, lang='it'):
         ct_at = hist2 + h2 + 0x1000 * (lpb + sp_pg + sc_pg)
         ct_code, cq, ck = conti.structs(p, area, lang, ct_at)
         conti.D7_BASE[0] = 6 + len(info['structs'])     # (sacups: D7 / E092F = 6 + index in the chain)
+        info['conti_from'] = len(info['structs'])
         info['structs'] += cq
         info['kinds'] += ck
     info['new_career_ptr'] = world              # dword filled below: sacups is assembled before the trailer code
@@ -635,6 +637,12 @@ def write_new_teams(src_dir, dst_dir):
     import careerworld as cw_                         # (a big world: teamFileBuffer is careerworld's TFB_SIZE one,
     tfb = (cw_.TFB_SIZE - 14 if any(cw_.big(w) for w in mkseason.world_defs())   # 257 clubs: the
            else 106496)                               # 4.0 build's TMW5.102 = Italy 2026-27's 256)
+    import guests
+    for name, data in guests.team_files().items():      # the continental cups' guest clubs (guests.py: their globals
+        k = struct.unpack('>H', data[:2])[0]             # alias 1996-97 files the world never loads, guests.alloc)
+        open(os.path.join(dst_dir, name), 'wb').write(team_fix(data))
+        print(f'{name}: {k} guest clubs, global numbers {struct.unpack(">H", data[4:6])[0]}..'
+              f'{struct.unpack(">H", data[4:6])[0] + k - 1}')
     for name, data in mkseason.ns_team_files().items():   # several worlds: the team files of a namespace of its own
         k = struct.unpack('>H', data[:2])[0]
         assert k * TEAM_SIZE + 2 <= tfb, (name, k)

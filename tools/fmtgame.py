@@ -17,6 +17,7 @@ import unicodedata
 sys.path.insert(0, os.path.dirname(__file__))
 import complist
 import fmtpage
+import fmtprose
 
 W = 40
 EXTRA = []      # [(world, contest id or None, {lang: title}, {lang: [lines]})] from readers other than the packs:
@@ -594,7 +595,7 @@ def world_items():
                     texts[lang] = [x.format(n=len(clubs)) for x in (e['lp6'] if key == 'uefa' else e['lp'])] + \
                         e['lp_ko'] + [e['lp_q']]
                 else:
-                    texts[lang] = cup_text(dict(clubs=len(clubs), rounds=[CODES[b] for b in rounds]), T[lang])
+                    texts[lang] = dict(fmtprose.cup(dict(clubs=len(clubs), rounds=[CODES[b] for b in rounds]), lang), tail=[])
             out.append((n, None, titles, texts))
             out.append((n, None, {lang: t[1:] for lang, t in titles.items()}, texts))   # (careerworld w_pfx, 4.0:
             # a contest of a country with no name gets no '<country> ' prefix, no space either; the old key kept)
@@ -608,16 +609,16 @@ def world_items():
 
 
 CT_RN = {   # 4.0 other confederations' cups (conti.py formats): round names on their FORMAT page
-    'it': dict(q='TURNO PRELIMINARE {n}', first='PRIMO TURNO', pre='TURNO PRELIMINARE', r1='PRIMO TURNO',
+    'it': dict(qual='TURNO DI QUALIFICAZIONE', q='TURNO PRELIMINARE {n}', first='PRIMO TURNO', pre='TURNO PRELIMINARE', r1='PRIMO TURNO',
                league='FASE CAMPIONATO', losers='PERDENTI', thirds='TERZE', groups='FASE A GIRONI', po='SPAREGGI', r16='OTTAVI',
                qf='QUARTI', sf='SEMIFINALI', final='FINALE'),
-    'en': dict(q='QUALIFYING ROUND {n}', first='FIRST ROUND', pre='PRELIMINARY ROUND', r1='FIRST ROUND',
+    'en': dict(qual='QUALIFYING STAGE', q='QUALIFYING ROUND {n}', first='FIRST ROUND', pre='PRELIMINARY ROUND', r1='FIRST ROUND',
                league='LEAGUE STAGE', losers='LOSERS', thirds='THIRDS', groups='GROUP STAGE', po='PLAY-OFFS', r16='ROUND OF 16',
                qf='QUARTER-FINALS', sf='SEMI-FINALS', final='FINAL'),
-    'fr': dict(q='TOUR PRELIMINAIRE {n}', first='PREMIER TOUR', pre='TOUR PRELIMINAIRE', r1='PREMIER TOUR',
+    'fr': dict(qual='PHASE DE QUALIFICATION', q='TOUR PRELIMINAIRE {n}', first='PREMIER TOUR', pre='TOUR PRELIMINAIRE', r1='PREMIER TOUR',
                league='PHASE DE LIGUE', losers='PERDANTS', thirds='TROISIEMES', groups='PHASE DE GROUPES', po='BARRAGES',
                r16='HUITIEMES', qf='QUARTS', sf='DEMI-FINALES', final='FINALE'),
-    'de': dict(q='QUALIFIKATIONSRUNDE {n}', first='ERSTE RUNDE', pre='VORRUNDE', r1='ERSTE RUNDE',
+    'de': dict(qual='QUALIFIKATION', q='QUALIFIKATIONSRUNDE {n}', first='ERSTE RUNDE', pre='VORRUNDE', r1='ERSTE RUNDE',
                league='LIGAPHASE', losers='VERLIERER', thirds='DRITTEN', groups='GRUPPENPHASE', po='PLAYOFFS', r16='ACHTELFINALE',
                qf='VIERTELFINALE', sf='HALBFINALE', final='FINALE'),
 }
@@ -660,6 +661,14 @@ def conti_items():
     n_world = min(worlds)
     out = []
     cups = {c['key']: c for conf in conti.ready() for c in conti._read(conf, 'format')['cups']}
+    where = {c['key']: (conf, k) for conf in conti.ready() for k, c in enumerate(conti._read(conf, 'format')['cups'])}
+    accs = {c['key']: c.get('access') for conf in conti.ready() for c in conti._read(conf, 'access')['cups']}
+    gst = {k for conf in conti.ready() for g in ((conti._read(conf, 'guests') or {}).get('clubs') or [])
+           for k in (g.get('access') or {})}
+    import fmtprose
+    assoc = {pk.meta['id'][len('world-2026-27-'):]: pk.meta for pk in mkseason.packs()
+             if pk.meta.get('id', '').startswith('world-2026-27-')}
+    aname = lambda lang, a: ((assoc.get(a) or {}).get('button_names') or {}).get(lang) or a.upper()
 
     def rname(lang, key):
         r = CT_RN[lang]
@@ -697,7 +706,9 @@ def conti_items():
                 lines.append(x['inn'].format(c=cname(lang, ck), what=f'{rname(lang, rest.split()[0])} {tail}') +
                              f' -> {rname(lang, tr)}')
             titles[lang] = ' ' + (c['names'].get(lang) or c['names']['en'])[0].upper()
-            texts[lang] = lines
+            texts[lang] = {'prose': fmtprose.conti(c, accs.get(key), lang, lambda k, lang=lang: cname(lang, k),
+                                                   lambda a, lang=lang: aname(lang, a), *where[key], key in gst),
+                           'tail': []}                  # (4.0 plain prose; lines: the schema)
         out.append((n_world, None, titles, texts))
         out.append((n_world, None, {lang: s[1:] for lang, s in titles.items()}, texts))
     return out
@@ -734,6 +745,16 @@ def po_page(po, names, t, lang):
         if any(r.get('gap') for r in rs):
             lines.append(t['gap'].format(n=max(r.get('gap') or 0 for r in rs)))
     return lines
+
+
+def _po_prose(po, names, lang):
+    """po_page in prose (4.0): who plays it in a sentence, then its rounds' lines as sentences."""
+    import fmtprose
+    lines = po_page(po, names, T[lang], lang)
+    who = fmtprose.po_who(po, names, lang, lambda n: complist._nm(n, lang))
+    if not who:
+        return lines
+    return {'prose': [' '.join([who] + fmtprose.sentences(lines[1:]))], 'tail': []}
 
 
 def state_text(c, t, lang):
@@ -830,7 +851,9 @@ def from_pack(d):
                         tail = sch[sch.index(h):] if h in sch else [x for x in sch if x.startswith(ZT[lang]['eu'].split('{')[0][:30])]
                         pos_ = comp.get('ko_playoffs') or []
                         texts[lang] = {'prose': fmtprose.league(div, k, lg, win, lang, pos_ if isinstance(pos_, list) else [],
-                                                                low, lambda x, lang=lang: complist._nm(x, lang)) +
+                                                                low, lambda x, lang=lang: complist._nm(x, lang),
+                                                                ((comp.get('divisions') or [comp])[k] if k < len(comp.get('divisions') or [comp])
+                                                                 else {}).get('real_down')) +
                                        (T[lang]['ita'] if lg['special'] and k == min(1, len(lg['names']) - 1) else []),
                                        'tail': sch[sch.index(next(x for x in sch if x.startswith(ZT[lang]['eu'].split('{')[0][:30]))):]
                                        if any(x.startswith(ZT[lang]['eu'].split('{')[0][:30]) for x in sch) else tail}
@@ -841,7 +864,7 @@ def from_pack(d):
             info = (json.load(open(side)) if os.path.exists(side) else {}).get(comp['key'], {})
             cp = complist._cup(comp, ties, 'cup', info if comp['key'] == 'cup' else {})
             titles = {lang: title(lang, complist._nm(comp['names'], lang)) for lang in LANGS}
-            out.append((world, cid, titles, {lang: cup_text(cp, T[lang]) for lang in LANGS}))
+            out.append((world, cid, titles, {lang: dict(fmtprose.cup(cp, lang), tail=[]) for lang in LANGS}))
         elif comp['type'] == 'tourney':
             titles = {lang: title(lang, complist._nm(comp['names'], lang)) for lang in LANGS}
             out.append((world, cid, titles, {lang: tourney_text(comp, T[lang]) for lang in LANGS}))
@@ -856,7 +879,7 @@ def from_pack(d):
             if po.get('kind') == 'promedio' or not po.get('names'):
                 continue
             titles = {lang: title(lang, complist._nm(po['names'], lang)) for lang in LANGS}
-            out.append((world, None, titles, {lang: po_page(po, lg['names'], T[lang], lang) for lang in LANGS}))
+            out.append((world, None, titles, {lang: _po_prose(po, lg['names'], lang) for lang in LANGS}))
         if comp.get('cup_d'):                   # cupd: the Coppa Italia Serie D
             nm = comp['cup_d'].get('names') or {'*': ['COPPA ITALIA SERIE D', 'COPPA IT SERIE D']}
             titles = {lang: title(lang, complist._nm(nm, lang)) for lang in LANGS}
@@ -883,6 +906,8 @@ def write(out_dir, items):
                 tail = lines[lines.index(h):] if h in lines else []
                 prose = fmtprose.sentences(lines[:len(lines) - len(tail)])
             hand = fmtprose.text(world, titles['it'], lang)   # (hand texts keyed by the Italian title)
+            if hand and isinstance(lines, dict) and lines.get('real'):   # a national cup's real cup first, then the hand text
+                hand = [lines['real']] + hand
             if hand and not isinstance(lines, dict):      # a national cup's real draw first (complist: real_cup / real_in)
                 rc = [x for x in lines if x.startswith(TEXTS[lang]['real_cup'].split('{')[0]) or
                       x.startswith(TEXTS[lang]['real_in'])]

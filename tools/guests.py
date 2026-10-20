@@ -19,7 +19,7 @@ import conti
 import mkseason
 
 TEAM_SIZE = mkseason.TEAM_SIZE
-DATA = conti.DATA
+DATA = os.environ.get('GUESTS_DATA') or conti.DATA      # (GUESTS_DATA: tests, a sample folder)
 FILES = {'caf': 191, 'afc': 192, 'ofc': 193, 'concacaf': 194}
 LABELS = {191: ('africa', {'*': b'AFRICA'}),       # (continent, the country name shown for its clubs)
           192: ('asia', {'*': b'ASIA'}),
@@ -37,16 +37,17 @@ def ready(data=None):
     return [c for c in FILES if load(c, data)]
 
 
-def words(data=None):
-    """{(conf, assoc, club): team word} and {(conf, key): team word} of every guest."""
-    out = {}
-    for conf in ready(data):
-        n = FILES[conf]
-        for i, c in enumerate(load(conf, data)['clubs']):
-            w = n | i << 8
-            out[(conf, c['assoc'], c['club'])] = w
-            out[(conf, c['key'])] = w
-    return out
+def words(conf, data=None):
+    """{club key: team word} of a confederation's guests (conti's lists; {} without its file)."""
+    g = load(conf, data)
+    return {c['key']: FILES[conf] | i << 8 for i, c in enumerate(g['clubs'])} if g else {}
+
+
+def strengths(conf, data=None):
+    """{club key: strength} of a confederation's guests: the sum of their first 16 players' prices (as conti rates the
+    world's clubs)."""
+    g = load(conf, data)
+    return {c['key']: sum(int(p['price']) for p in c['players'][:16]) for c in g['clubs']} if g else {}
 
 
 def record(conf, i, c, base):
@@ -84,3 +85,49 @@ def build(bases, data=None):
         mkseason._need(len(clubs) <= 255, f'{conf}: at most 255 guests ({len(clubs)})')
         out[n] = struct.pack('>H', len(clubs)) + b''.join(record(conf, i, c, bases[n]) for i, c in enumerate(clubs))
     return out
+
+
+def world():
+    """The career world whose continental cups take the guests (World 2026-27's packs), or None."""
+    return next((pk.world for pk in mkseason.packs() if pk.meta.get('id', '').startswith('world-2026-27-')), None)
+
+
+def files():
+    """The guest team files of this build (the confederations with a guests file; none without World 2026-27)."""
+    return [FILES[c] for c in ready()] if world() is not None else []
+
+
+def alloc():
+    """{file: global base} of the guest files (integrator's option b, 2026-10-20): ranges of global numbers that world
+    world() never loads - not its packs' or national pack's clubs, not the reserved 1730..1849 (career marks, world
+    byte, the saved SA block; its pool 190 / off-file pools 253 sit there too) - below bigtables.LIMIT: numbers of
+    1996-97 files that world never loads. Asserted at the build: enough room, no overlap."""
+    import bigtables
+    w = world()
+    used = set(range(1730, 1850))
+    for pk in mkseason.packs() + mkseason.nationals():
+        if pk.world == w:
+            for key, (f, base) in pk.files.items():
+                used.update(range(base, base + pk.count.get(key, 0)))
+    out = {}
+    for conf in ready():
+        n, k = FILES[conf], len(load(conf)['clubs'])
+        start = next((g for g in range(bigtables.LIMIT - k + 1) if not used & set(range(g, g + k))), None)
+        mkseason._need(start is not None, f'guests {conf}: no {k} free global numbers in world {w} below '
+                                          f'{bigtables.LIMIT}')
+        out[n] = start
+        used.update(range(start, start + k))
+    return out
+
+
+def counts():
+    """{file: clubs} of the guest files."""
+    return {FILES[c]: len(load(c)['clubs']) for c in ready()} if world() is not None else {}
+
+
+def team_files():
+    """{'<stem>.nnn': data} of the guest files (the world's namespace stem: TEAM, or TMWn in a multi-world build)."""
+    if not files():
+        return {}
+    stem = mkseason.ns_stem(world()).upper()
+    return {'%s.%03d' % (stem, n): data for n, data in build(alloc()).items()}

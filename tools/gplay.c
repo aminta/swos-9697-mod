@@ -1682,6 +1682,17 @@ u32 cd_step_c(void) {
     return 0;
 }
 
+/* 4.0: a Coppa Italia Serie D entrant this season (team word = file | ordinal << 8: the Serie D file, its ordinal's
+   division of the season in the Serie D groups) - InitNewSeason gives it no cup / league cup (gp_cup12) */
+u32 cd_member_c(u32 team) {
+    const u8 *dt = GP_CDD;
+    if (!GP_CDT || !dt || !GP_SLT || (team & 0xFF) != GP_CDT[2]) return 0;
+    int i = team >> 8 & 0xFF, b = dt[4 + i];
+    if (b == 0xFF) return 0;
+    int dv = b + GP_SLT[(dt[2] | dt[3] << 8) + i];
+    return dv >= dt[0] && dv < dt[0] + dt[1];
+}
+
 static void cd_done(struct gp_ko *k) {  /* gp_rec_c: our CD tie decided -> its result */
     if (!CD_ST.built || k->tw[0] == NOC) return;
     CD_ST.res[CD_ST.bt] = k->team[k->tw[0]] == cd_side(CD_ST.bt, 0) ? 1 : 2;
@@ -1913,7 +1924,7 @@ u32 gp_stitle_c(const u8 *diy, const u8 *tab) {
 /* 4.0 group headers in a long table (longtable lt_d5 / lt_row / lt_end; the labels: gp_hlabel_c, 3.3.6's): the
    table's places in virtual rows - a header before each group's first place (split's group of its row, tab = the
    stage table's header) - and the window of rows virtual rows from cur: GP_HF / GP_HL its first / last place,
-   GP_HP[place] = 0x80 | group when its header is shown before it, GP_HGP[place] its place in the group, GP_HV the
+   GP_HP[place] = 0x80 | group when its header is shown before it (| 0x40: an empty row before the header), GP_HGP[place] its place in the group, GP_HV the
    virtual rows (ScrollDown's limit), GP_HON = headers in this table. */
 u8 GP_HP[65], GP_HGP[65], GP_HG[65];   /* (GP_HG: every place's group, for zones by group) */
 u32 GP_HV, GP_HF, GP_HL, GP_HON;
@@ -1951,8 +1962,10 @@ void gp_hplan_c(const u8 *t, const u8 *tab, u32 cur, u32 rows, u32 off) {
         for (int k = 1; k <= n && hdr; k++) if ((k == 1 || g[k] != g[k - 1]) && !gp_hlabel_c(t, g[k])) hdr = 0;
     }
     GP_HON = hdr;
-    int v = 0, h0[65];                  /* h0[k]: the virtual row of place k's header (or -1), its own row after */
+    int v = 0, h0[65], s0[65];          /* h0[k]: the virtual row of place k's header (or -1), its own row after;
+                                           s0[k]: an empty row before every header but the first (Davide, 4.0) */
     for (int k = 1; k <= n; k++) {
+        s0[k] = hdr && k > 1 && g[k] != g[k - 1] ? v++ : -1;
         h0[k] = hdr && (k == 1 || g[k] != g[k - 1]) ? v++ : -1;
         v++;
     }
@@ -1968,7 +1981,7 @@ void gp_hplan_c(const u8 *t, const u8 *tab, u32 cur, u32 rows, u32 off) {
         if (v >= c && v < end) {
             if (!GP_HF) GP_HF = k;
             GP_HL = k;
-            if (h0[k] >= c) GP_HP[k] = 0x80 | g[k];
+            if (h0[k] >= c) GP_HP[k] = 0x80 | (s0[k] >= c ? 0x40 : 0) | g[k];
         }
         v++;
     }
@@ -2551,7 +2564,14 @@ static const u8 *ri_pool(const u8 *e, struct ri_file *f, int fi, u16 *q, u8 *qn,
             const u8 *s = sl + 4 * i;
             int g = s[0] | s[1] << 8, base = s[2];
             int o = base + slt[g], nn = base + copy[g];
-            if (o < low || nn <= o || g == manager) continue;   /* (relegated from the lowest level; never the manager's) */
+            if (o < low || nn <= o) continue;   /* (relegated from the lowest level) */
+            if (g == manager) {                 /* never the manager's: re-admitted, its slot and identity stay in the
+                                                   lowest level (a relegated manager is sacked by gp_sack, so this is
+                                                   a job taken at the season end - accepted before ContinueCareer's
+                                                   moves - at a club going down: left below it, the career trapped) */
+                copy[g] = slt[g];
+                continue;
+            }
             int in = ri_swap(f, fi, i, q, *qn, m++, out, &no);
             ri_og[ri_no] = g;
             ri_oa[ri_no] = in < RIS ? sl[4 * in + 3] : pa[in - RIS];

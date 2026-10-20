@@ -143,10 +143,8 @@ lt_down:                                ; flags for ScrollDown's jnb (no scroll 
     mov esi, [LT_TAB]
     test esi, esi
     jz .game
-    cmp word [MODE], 0                  ; (the table view)
-    jne .game
-    cmp word [esi + 4Fh], 1
-    jne .game
+    cmp word [esi + 4Fh], 1             ; (any view of a long one-group table: the table view, and 4.0 the screen after
+    jne .game                           ; a match, where its results get one line - Davide's ZONA B)
     movzx eax, word [esi + 51h]
 %if HDR_
     cmp byte [LT_HON], 0
@@ -280,6 +278,11 @@ lt_row:                                 ; the row loop's `mov esi, A6 / movzx eb
     mov [LT_REAL], bx
     test byte [GP_HP + ebx], 80h
     jz .d
+    test byte [GP_HP + ebx], 40h        ; (an empty row first: every group's header but the first)
+    jz .ns
+    mov ax, [ROWH]
+    add [D2R], ax
+.ns:
     movzx eax, byte [GP_HP + ebx]
     and eax, 3
     push es

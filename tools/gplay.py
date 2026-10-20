@@ -840,6 +840,22 @@ gp_rl:                                  ; the season record's extra lines (gp_sa
     or esp, esp                         ; (ZF = 0)
 .r: ret
 
+gp_job:                                 ; replaces the club job offers' `call AddJobOffer` (cseg_5B705, D0 = the club's
+    push eax                            ; team word): no offer from a club whose team file is not a real one - an
+    mov al, [D0R]                       ; off-file pool's (ripool RS files: 0FDh; their clubs reach the leagues by
+    cmp al, 0FDh                        ; promotion, the record stays in the pool: a job there trapped the next season,
+    jae .no                             ; SAN LUIGI 2026-27) or a pseudo file 190..199 (the foreign market's pool,
+    cmp al, 190                         ; the continental cups' guests)
+    jb .ok
+    cmp al, 199
+    jbe .no
+.ok:
+    pop eax
+    jmp ADDJOB
+.no:
+    pop eax
+    ret
+
 gp_sack:                                ; replaces SeasonFinished's `call cseg_3C07C` (a club career's season-end
     pushad                              ; screens; cseg_3E55C, the contract check, runs for national selectors only):
     cmp word [GAMETYPE], 4              ; (a group contest won, the Poule: the season record's 4th line = its record
@@ -1185,7 +1201,7 @@ GS_SIZE = 7 + 1 + 7 * 20 * 10   # (sizeof struct gp_gs)
 CD_SIZE = 8 + 2 * 168 + 4 + 256 + 8 + 2 * 2 * (41 + 64)   # (sizeof struct cd_state: the engine block's item 'CD')
 CD_RNAME = '''
     cmp byte [GP_ST + ST_KO + 6], 9     ; (gp_ko.kind: K_CUPD) a Coppa Italia Serie D tie: rnames.CD_NAMES by CD_ST's
-    jne .rn                             ; round
+    jne .ncd                            ; round
     movzx ebx, byte [CD_ST + 3]
     cmp ebx, 8
     jae .nb
@@ -1193,7 +1209,37 @@ CD_RNAME = '''
     pop ebx
     stc
     ret
-.rn:'''
+.ncd:'''
+CUP12 = '''
+gp_cup12:                               ; 4.0: InitNewSeason's `call cseg_8B2D3` of slots 1 / 2 (the country's cup and
+    pushad                              ; league cup): a Coppa Italia Serie D club gets neither (cd_member_c), the slot
+    cmp word [GAMETYPE], 4              ; cleared (Davide's Schio: COPPA ITALIA / C. IT SERIE C rows never played)
+    jne .game
+    mov al, [SLT + WORLD_BYTE]
+    cmp al, [CD_TAB]
+    jne .game
+    mov dword [GP_CDT], CD_TAB
+    mov dword [GP_CDD], CD_DT
+    mov dword [GP_SLT], SLT
+    push es
+    push ds
+    pop es
+    cld
+    movzx eax, word [CAREERTEAM]
+    push eax
+    call CD_MEMBER
+    add esp, 4
+    pop es
+    test eax, eax
+    jz .game
+    movzx eax, word [D0R]
+    mov dword [D8CAA + eax * 4], 0
+    popad
+    ret
+.game:
+    popad
+    jmp C8B2D3
+'''
 GP_RNAME = '''
 gp_rname:                               ; rnames' rn_round (an FE contest, RN_CDP): ko[0] of this season in slot 4 ->
     cmp word [GP_ST + ST_KO], 4B47h     ; CF = 1, al = its round's name, else CF = 0 (the game's); every register but
@@ -1205,7 +1251,21 @@ gp_rname:                               ; rnames' rn_round (an FE contest, RN_CD
     cmp byte [GP_ST + ST_KO + KO_SLOT], 0
     je .nb
 CD_PART
+    mov ebx, [GP_CALDP]                 ; 4.0: a calendar being built (rnames RN_CALD = its entry's round + 1): that
+    test ebx, ebx                       ; round, from the contest's first (the current one while it is built)
+    jz .cur
+    mov ebx, [ebx]
+    test ebx, ebx
+    jz .cur
+    dec ebx
+    push eax
+    movzx eax, byte [GP_ST + ST_KO + KO_GCUR]
+    add ebx, eax
+    pop eax
+    jmp .rn
+.cur:
     movzx ebx, byte [GP_ST + ST_KO + KO_GCUR]   ; the pack's 'round_names' by game round (GP_ST.rn, gplay.c)
+.rn:
     cmp ebx, 12
     jae .nb
     mov bl, [GP_ST + ST_RN + ebx]
@@ -1220,6 +1280,7 @@ CD_PART
 .no:
     clc
     ret
+GP_CALDP: dd 0                          ; (rnames.RN_CALD's address, or 0)
 '''
 RNAMES = {}              # compile_spec's output -> per play-off KG bytes: its game rounds' rnames indices (0: the game's)
 RN_KG = 12               # (gplay.c KG)
@@ -1352,6 +1413,17 @@ def _sack_sites(p):
                 da11b=da11b, getseason=gs[0], seasrec=struct.unpack('<I', gm[0].group(1))[0],
                 msg=struct.unpack('<H', m.group(2))[0], show=m.end(3) + struct.unpack('<i', m.group(3))[0],
                 CURMSG=u(1), SACKED=u(4))
+
+
+def _job_site(p):
+    """cseg_5B705's club job offer: `pop D0; call AddJobOffer` (AddJobOffer: `cmp numNewJobOffers, 5; jz ...;
+    mov ax, numNewJobOffers; mov [D2], ax`) -> (site of the call, AddJobOffer)."""
+    d1 = p.le.obj_bytes(1)
+    f = [m.start() for m in re.finditer(rb'\x66\x83\x3d.{4}\x05\x0f\x84.{4}\x66\xa1.{4}\x66\xa3', d1, re.S)]
+    hit = [(i, a) for a in f for i in range(len(d1) - 5)
+           if d1[i] == 0xE8 and i + 5 + struct.unpack_from('<i', d1, i + 1)[0] == a and d1[i - 6:i - 4] == b'\x8f\x05']
+    assert len(hit) == 1, hit
+    return hit[0]
 
 
 def _mrec_site(p):
@@ -1518,10 +1590,13 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
     symbols.update({'DA11B': (2, sk['da11b']), 'GETSEASON': (1, sk['getseason']), 'SEASREC': (2, sk['seasrec'])})
     mrec, c39392 = _mrec_site(p)
     symbols['C39392'] = (1, c39392)
+    job, addjob = _job_site(p)
+    symbols['ADDJOB'] = (1, addjob)
     symbols.update({k: syms[k] for k in ('GP_CFB', 'GP_LG', 'GP_RST', 'GP_RIT', 'GP_SEL', 'GP_MGR', 'GP_WORLD', 'GP_SLT',
                                          'gp_sack_c', 'gp_forcecfb', 'gp_pwin_c', 'gp_rlines_c', 'GP_RLN', 'GP_RLC', 'GP_RLPOULE', 'GP_REC', 'GP_CMB', 'gp_adv_c', 'GP_ADVWK', 'GP_WK', 'GP_TH', 'GP_RN',
                                          'gp_defer_c', 'cd_step_c', 'gp_scal_c', 'gp_repoint_c', 'gp_fixload_c', 'CD_ST', 'GP_CDT', 'GP_CDNM', 'GP_CDD',
                                          'GP_CDFIRST')})
+    symbols['CD_MEMBER'] = syms['cd_member_c']
     symbols['FORCE_ON'] = (0, int(bool(force)))
     import longtable                                          # 4.0 stage titles (table, calendar): the table in area
     stg = longtable.stage_table(lang, b'\0' * 2 + struct.pack('<4HIH', split.ST, split.ST + split.OFF['frozen'],
@@ -1582,6 +1657,8 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
         cd_src = (f'CD_TAB: db {world}, {nr}, {lfile}, 0\n    db ' + ', '.join(str(b) for b in tab)
                   + f'\nCD_NM: dd {rl}, {rs}\nCD_DT: db ' + ', '.join(str(b) for b in cdt)
                   + '\nCD_RN: db ' + ', '.join(str(x) for x in rnames.CD_NAMES) + '\n')
+    if cds:
+        cd_src += CUP12
     cd_src += GP_RNAME.replace('CD_PART', CD_RNAME if cds else '')
     asm = (ASM.replace('jmp GP_REC_NEXT', 'jmp GP_REC_NEXT' if rec_dp else 'jmp gp_recmov') + tab_src + '\n'
            + names_lines(tables, area, lang) + '\n' + stubs + cd_src)
@@ -1595,6 +1672,17 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
         engine.CALL_AT[name] = (1, lab[f'ba_{name}'])         # (split.late binds the stage's callback to it)
     for off, tobj, toff in fix:
         cobj.add_ptr(p, glue + off, tobj, toff)
+    if cds and not os.environ.get('NO_CUP12'):               # InitNewSeason's slot-1 / slot-2 installs -> gp_cup12 (NO_CUP12: test builds)
+        d1o = p.le.obj_bytes(1)
+        d0 = struct.pack('<I', r['A0'] - 32)
+        sites = [i for i in range(len(d1o) - 5) if d1o[i] == 0xE8 and
+                 i + 5 + struct.unpack_from('<i', d1o, i + 1)[0] == sacups.SITES['c8b2d3'] and
+                 d1o[i - 6:i] == b'\xff\x35' + struct.pack('<I', r['A0'] + 24) and   # (push A6: InitNewSeason's)
+                 any(d1o[j:j + 9] == b'\x66\xc7\x05' + d0 + bytes([k, 0]) for j in range(i - 40, i) for k in (1, 2))]
+        assert len(sites) == 4, [hex(x) for x in sites]       # (InitNewSeason; ProcessCareerFile's rebuild after a load)
+        for site in sites:
+            assert p.get(1, site, 1) == b'\xe8', hex(site)
+            p.put(1, site + 1, struct.pack('<i', lab['gp_cup12'] - (site + 5)))
     for site, target in ((cap, 'gp_cap'), (end_site, 'gp_end')) if tables else ():   # (relative calls: no fixups;
         p.put(1, site + 1, struct.pack('<i', lab[target] - (site + 5)))                # none: only pg_season)
     if tables and area is not None:                         # the playable play-offs (chained before dplay's hooks)
@@ -1618,9 +1706,13 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
         import rnames
         if 'gp_rname' in lab and rnames.LABELS.get('RN_CDP'):   # (the Coppa D's and the packs' round names)
             p.add_ptr(1, rnames.LABELS['RN_CDP'], 1, lab['gp_rname'])
+            if 'GP_CALDP' in lab and rnames.LABELS.get('RN_CALD'):
+                p.add_ptr(1, lab['GP_CALDP'], 1, rnames.LABELS['RN_CALD'])
         for a in adv_calls:                                  # (the calendar advance: 'then_build')
             assert p.get(1, a, 5) == p.le.obj_bytes(1)[a:a + 5], f'obj1+{a:#x} already hooked'
             p.put(1, a + 1, struct.pack('<i', lab['gp_adv'] - (a + 5)))
+        assert p.get(1, job, 5) == p.le.obj_bytes(1)[job:job + 5], 'the club job offers call is hooked'
+        p.put(1, job + 1, struct.pack('<i', lab['gp_job'] - (job + 5)))   # (no job at an off-file / pool club)
         assert p.get(1, mrec, 5) == p.le.obj_bytes(1)[mrec:mrec + 5], 'ManagementRecordMenu call is hooked'
         p.put(1, mrec + 1, struct.pack('<i', lab['gp_mrec'] - (mrec + 5)))   # (REGISTRO GESTIONE: our lines again)
         assert p.get(1, sk['site'], 5) == p.le.obj_bytes(1)[sk['site']:sk['site'] + 5], 'the season-end call is hooked'

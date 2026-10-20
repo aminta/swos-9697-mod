@@ -1243,7 +1243,9 @@ def ns_stem(w):
 
 def ns_files(w):
     """Team file numbers of world w (its packs and its national pack): the files named by its stem."""
-    return sorted({f for pk in packs() + nationals() if pk.world == w for _, (f, _) in pk.team_file_items()})
+    import guests
+    return sorted({f for pk in packs() + nationals() if pk.world == w for _, (f, _) in pk.team_file_items()}
+                  | set(guests.files() if guests.world() == w else ()))   # (the guest clubs' files: guests.py)
 
 
 def draws():
@@ -1294,6 +1296,13 @@ def league_cup_europe_files():
     (pack.json season 'league_cup_europe': true; England's EFL Cup)."""
     return [pk.files[pk.league['clubs']][0] for pk in packs() if pk.world is not None and pk.meta['season'].get('league_cup')
             and pk.meta['season'].get('league_cup_europe')]
+
+
+def _cal_short(names):
+    """(long, short) with the short fitted to the career calendar's first line, before the (C) / (F) marker."""
+    sh = complist.fit_short(names[1])
+    _need(complist.px(sh) <= complist.CAL_PX and all(ch in complist.FONT for ch in sh), f'cup short name {sh!r}')
+    return names[0], sh
 
 
 def numbered_cups():
@@ -1925,8 +1934,10 @@ def _tab(p, env, w, kind, n, *val):
         else:
             p.add_ptr(2, (ct if kind == 'ct' else comp) + 4 * n, *val)
         return
-    _need(n < 252 and n not in (SEASONS, CAREERS, 99) and not WMENU <= n <= WMENU + 9 and n not in POOL_IDS,
-          f'world {w}: country {n} is a menu id or a pool pseudo-country')
+    import guests
+    _need(n < 252 and n not in (SEASONS, CAREERS, 99) and not WMENU <= n <= WMENU + 9 and
+          (n not in POOL_IDS or (n in guests.FILES.values() and w == guests.world() and kind in ('ct', 'tcn'))),
+          f'world {w}: country {n} is a menu id or a pool pseudo-country')   # (191..194: the guest files, guests.py)
     row = NS.setdefault(w, {}).setdefault(n, {})
     _need(kind == 'tcn' or kind not in row, f'world {w}: country {n} is already used')
     row[kind] = val[0] if kind == 'tcn' else val
@@ -2123,6 +2134,16 @@ def patch(p, lang, area, cave):
         else:
             at, info = _patch_pack(pk, p, lang, area, at, env)
         infos.append(info)
+    import guests
+    if guests.files():                          # the guest clubs' files (guests.py): a country label, a global base
+        bases = guests.alloc()                  # each - no country / league entry
+        for n in guests.files():
+            cont, names = guests.LABELS[n]
+            label = names.get(lang) or names['*']
+            rec = area.add(bytes((countries.CONTINENT[cont],)) + label + b'\0' + label + b'\0')
+            _need(env[1] + 4 * n not in env[4], f'guests: country {n} is already used')
+            _tab(p, env, guests.world(), 'ct', n, 2, rec)
+            _tab(p, env, guests.world(), 'tcn', n, bases[n])
     if multi_ns():                              # several worlds: their namespaces' rows (filled by ns_emit)
         nums = sorted(set().union(*NS.values()))
         NS_INFO.update(ct=ct, tcn=tcn, comp=comp, numbers=nums, list_at=cat, rows_at={})
@@ -2305,8 +2326,8 @@ def patch(p, lang, area, cave):
         import sacups
         wd = world_defs()
         for w in wd:                                       # the European cups' own names (official ones in a
-            w['cupnames'] = {k: tuple(area.add(x.encode('latin1') + b'\0') - sacups.STR_BASE for x in names)
-                             for k, names in w['cupnames'].items()}   # league-phase world): long, short
+            w['cupnames'] = {k: tuple(area.add(x.encode('latin1') + b'\0') - sacups.STR_BASE for x in _cal_short(names))
+                             for k, names in w['cupnames'].items()}   # league-phase world): long, short (calendar)
         end = careerworld.patch(p, wd, cave, nasmcave, comp, ct, (2, CAREERS_REC[0]))
         _need(end <= cave + CAREER_CAVE_SIZE, f'career world code overflows its pages ({end:#x})')
     return at, [x for i in infos for x in i['classic']] + tleagues

@@ -906,7 +906,9 @@ lp_gend:                                ; replaces `call cseg_8A2CE` (group stag
     popad
     ret
 .plain:
-    jmp C8A2CE
+    jmp [CT_GEND_V]                     ; (conti: its group stages' end - the career club's place, the R16 order)
+
+CT_GEND_V: dd C8A2CE
 
 lp_draw:                                ; called by hist_draw for this contest (esi = DIY buffer, ecx = clubs)
     cmp ecx, 16                         ; esi + 59h: the list; the round of 16 = stage 3 ([53h] = 2)
@@ -1966,7 +1968,7 @@ def patch(p, cave, cups, area, lang='it', world_ids=()):
           f"; day 1 {days[0][:3]}...; labels " + ' '.join(f'{k} {v:#x}' for k, v in lab.items() if k.startswith('lp_')))
     LABELS.update(lab)
     LABELS['LP_ORD'] = symbols['LP_ORD']
-    LABELS['symbols'] = {k: symbols[k] for k in ('DIY', 'DIYCOPY', 'A0', 'A1', 'A2', 'C2730A')}
+    LABELS['symbols'] = {k: symbols[k] for k in ('DIY', 'DIYCOPY', 'A0', 'A1', 'A2', 'C2730A', 'C8A2CE', 'SELTEAMS')}
     return cave + len(code), lab['lp_copy_ours'], lab['lp_draw']
 
 

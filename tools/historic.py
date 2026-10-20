@@ -241,9 +241,9 @@ hist_draw:                              ; replaces `call cseg_27F08` in cseg_26D
     mov edi, [A3]
     movzx ecx, word [edi + 161h]
 %if LP_ON
-    call LP_CHK                         ; UEFA league phase (lp36): its own orders, never the game's draw
-    jne .nlp
-    call LP_DRAW
+    call [LP_CHK_V]                     ; UEFA league phase (lp36): its own orders, never the game's draw (vectors:
+    jne .nlp                            ; conti.patch adds its own contests)
+    call [LP_DRW_V]
     popad
     ret
 .nlp:
@@ -354,6 +354,9 @@ hist_draw:                              ; replaces `call cseg_27F08` in cseg_26D
 
 draw_pre_none:
     ret
+align 4
+LP_CHK_V: dd LP_CHK                     ; (conti.patch retargets both: its contests keep their order too)
+LP_DRW_V: dd LP_DRAW
 %if CF_ON
 DRAW_C: dw 0
 %endif
@@ -457,6 +460,8 @@ hist_preset:
     ret
 '''
 
+
+LBL = {}                                # (the patch's labels: conti.patch retargets LP_CHK_V / LP_DRW_V)
 
 def build_teams(src_dir):
     """{file number: bytes} of the historic team files."""
@@ -928,6 +933,7 @@ def patch(p, lang, area, cave, draw_pre=None, leagues=(), cave2=None, lp=None, c
     p.put(1, at2, code)
     for off, tobj, toff in fix:
         p.add_ptr(1, at2 + off, tobj, toff)
+    LBL.update(labels)
     p.put(1, pre_call + 1, struct.pack('<i', labels['hist_preset'] - (pre_call + 5)))
     p.put(1, names_call + 1, struct.pack('<i', labels['hist_names'] - (names_call + 5)))
     # the overwritten instructions held absolute addresses (D7, the skip flag): drop their fixups, or the loader would

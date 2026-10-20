@@ -20,9 +20,9 @@ typedef int s32;
 void *memset(void *d, int c, unsigned n) { u8 *p = d; while (n--) *p++ = (u8)c; return d; }
 void *memcpy(void *d, const void *s, unsigned n) { u8 *p = d; const u8 *q = s; while (n--) *p++ = *q++; return d; }
 
-#define NA 48                           /* associations (countries) of the confederations in the world */
-#define NL 16                           /* league clubs kept per association (the final table's top 16) */
-#define NC 640                          /* clubs seen */
+#define NA 128                          /* associations (countries) of the confederations in the world */
+#define NL 32                           /* league clubs kept per association (the final table; J1 20, ARG 30) */
+#define NC 1024                         /* clubs seen + the guest clubs */
 #define NCUP 16
 #define NRD 8                           /* rounds per cup (the Libertadores: 8) */
 #define NE 64                           /* entrants of a round (CAF q1: 52) */
@@ -32,7 +32,7 @@ void *memcpy(void *d, const void *s, unsigned n) { u8 *p = d; const u8 *q = s; w
 
 /* round kinds, draws, association rules (spec byte values) */
 enum { K_KO, K_GROUPS };
-enum { D_ORDER, D_POTS2, D_SAMEPAIRS, D_SEED12, D_BRACKET, D_GROUPS, D_CROSS };
+enum { D_ORDER, D_POTS2, D_SAMEPAIRS, D_SEED12, D_BRACKET, D_GROUPS, D_CROSS, D_SLOT, D_PLACE };
 enum { A_ANY, A_NO, A_NOVIA };
 /* access codes: 0 champion, 1 cup winner, 2..10 the k-th place, NEXT the best club not yet in, AP / CL a split
    season's stage champions (else as NEXT) */
@@ -70,16 +70,48 @@ struct ct_in CT_IN;
 struct ct_state CT_ST;
 struct ct_out CT_OUT;
 
+/* phase B: the edition being played, kept in the save (engine item 'CE'): its entrants (the access result), the
+   career club's results so far; every step re-runs it from the start (same seed), the club's games forced, up to
+   the club's next game: its segment (CT_SEG) goes into slot 3 */
+#define NED 440                         /* (the save's room: the item must leave 80 team records; 384 used with
+                                           all six confederations, reserves included) */
+struct ct_ed {
+    u16 mark;                           /* 'CE' */
+    u16 ne;                             /* entries */
+    u32 seed;
+    u16 mgr;                            /* the career club's team word (0 = none) */
+    u8 nf, pad;
+    struct { u8 c, r, v; } f[16];       /* the club's results: ko 1 won / 0 lost, groups the place */
+    struct { u8 id0, id1, cr, s0, s1; } e[NED];   /* an entrant: team word, cup << 4 | round (0xFF: a reserve
+                                           club for group fills), strength / 16 (12 bits) | its slot << 12; the
+                                           association from the team file (the guests' table), the ranking from
+                                           the spec */
+};
+struct ct_seg {                         /* the career club's next game (CT_SEG.kind 0xFF: none) */
+    u8 cup, round, kind, n;             /* kind: K_KO a tie (club[0] v club[1]), K_GROUPS the drawn groups */
+    u8 legs, level, month, pos;         /* pos: the club's place in the list */
+    u16 club[32];                       /* team words */
+};
+struct ct_ed CT_ED;
+struct ct_seg CT_SEG;
+static int g_stop, g_fv;
+
 /* --- the spec ----------------------------------------------------------------------------------------------------- */
 static u8 ncup, na, fcup, frnd;         /* (test builds, CONTI_FORCE: the career club into this cup's round) */
 static const u8 *cupr[NCUP];            /* first round of each cup */
 static u8 nrd[NCUP];
 static const u8 *acc;                   /* access entries: assoc, cup, round, code */
 static u16 nacc;
-static const u8 *hol;                   /* holders: src cup, dst cup, dst round */
+static const u8 *hol;                   /* holders: src cup (0xFF: the UEFA Champions League's, the game's), dst cup,
+                                           dst round | 0x80 own place | 0x40 even / 0x20 odd editions only, its slot */
+static u16 g_uefa;                      /* the UEFA Champions League holder's team word (ct_go) */
 static u8 nhol;
 static const u8 *afile;                 /* each association's league team file */
 static const u8 *rk;                    /* ranking: team word, points (u16 each) */
+static const u8 *gu;                    /* guests (clubs of associations not in the world): word, assoc, -, str */
+static u16 ngu;
+static const u8 *areg, *s1h, *wfile, *gid;
+static u16 GI[256];                     /* a guest's club index this season */
 static u16 nrk;
 #define RND(c, r) (cupr[c] + (r) * RB)
 
@@ -97,11 +129,22 @@ static void parse(void) {
     p += 2 + 4 * nacc;
     nhol = p[0];
     hol = p + 1;
-    p += 1 + 3 * nhol;
+    p += 1 + 4 * nhol;
     afile = p;
     p += na;
     nrk = p[0] | p[1] << 8;
     rk = p + 2;
+    p += 2 + 4 * nrk;
+    ngu = p[0] | p[1] << 8;             /* guest clubs: team word, association, strength (8 B each) */
+    gu = p + 2;
+    p += 2 + 8 * ngu;
+    areg = p;                           /* each association's region (a league stage's group: ACLE West 0 / East 1) */
+    p += na;
+    wfile = p;                          /* the world's team files (a bitmap): the UEFA holder must be one of them */
+    p += 32;
+    s1h = p;                            /* each cup's 2027 edition winner (the build's run): the first holders */
+    p += 8 * ncup;
+    gid = p;                            /* each cup's group contest id in the exe (0: none) */
 }
 
 /* --- random, strength -------------------------------------------------------------------------------------------- */
@@ -147,6 +190,7 @@ static u8 EV[NCUP][NRD][NE];            /* 1 = came through an earlier round ('v
 static u8 EK[NCUP][NRD][NE];            /* side for D_CROSS (0 = this cup's, 1 = another's) and its rank key */
 static u8 EN[NCUP][NRD];
 static u8 taken[NC + 1];                /* the access pass: the club already has a place (this edition) */
+static u8 own[NC + 1];                  /* a holder whose league place in that cup (+1) is its own (CAF) */
 
 static void enter(int c, int r, int club, int via, int side) {
     if (!club || r >= nrd[c] || EN[c][r] >= NE) return;
@@ -161,6 +205,7 @@ static void route(int from_cup, u8 rt, int club, int side_rank) {
     enter(c, r, club, 1, (c != from_cup ? 0x80 : 0) | (side_rank & 0x7F));
 }
 
+static int in_cup(int c, int a);
 static int next_club(int a) {          /* the best league club of association a not yet in */
     for (int l = 0; l < NL; l++) {
         int x = CT_IN.league[a][l];
@@ -169,20 +214,42 @@ static int next_club(int a) {          /* the best league club of association a 
     return 0;
 }
 static void access(void) {
-    for (int c = 0; c <= NC; c++) taken[c] = 0;
+    for (int c = 0; c <= NC; c++) taken[c] = own[c] = 0;
+    for (int g = 0; g < ngu && g < 256; g++) {       /* the guests: clubs of their own every season (no table) */
+        const u8 *e = gu + 8 * g;
+        GI[g] = 0;
+        if (CT_IN.nclub >= NC) continue;
+        int k = ++CT_IN.nclub;
+        CT_IN.club[k - 1].id = e[0] | e[1] << 8; CT_IN.club[k - 1].assoc = e[2];
+        CT_IN.club[k - 1].str = e[4] | e[5] << 8 | e[6] << 16 | e[7] << 24; CT_IN.club[k - 1].pts = 0;
+        GI[g] = k;
+    }
     u8 vac[NCUP * 2]; int nvac = 0;     /* holder places with no holder yet (season 1): filled after the access */
     for (int h = 0; h < nhol; h++) {    /* the holders first: their own places */
-        const u8 *e = hol + 3 * h;
-        int s = e[0];
-        if (!CT_ST.hold[s].id) { if (nvac < NCUP * 2) vac[nvac++] = h; continue; }
+        const u8 *e = hol + 4 * h;
+        int s = e[0], odd = (2028 + CT_ST.season) & 1;   /* (the edition's year: built at the season end) */
+        if ((e[2] & 0x40) && odd) continue;
+        if ((e[2] & 0x20) && !odd) continue;
+        u16 hid = s == 0xFF ? g_uefa : CT_ST.hold[s].id;
+        if (s == 0xFF && hid && hid != 0xFFFF && !(wfile[(hid & 0xFF) >> 3] & 1 << (hid & 7)))
+            hid = 0;                    /* (a UEFA holder of no world file: the game's own, not a club of this world) */
+        if (!hid || hid == 0xFFFF) { if (s != 0xFF && nvac < NCUP * 2) vac[nvac++] = h; continue; }
         int k = 0;                      /* the holder's club index (seen this season, else appended) */
-        for (int i = 0; i < CT_IN.nclub; i++) if (CT_IN.club[i].id == CT_ST.hold[s].id) { k = i + 1; break; }
+        for (int i = 0; i < CT_IN.nclub; i++) if (CT_IN.club[i].id == hid) { k = i + 1; break; }
         if (!k && CT_IN.nclub < NC) {
             k = ++CT_IN.nclub;
-            CT_IN.club[k - 1].id = CT_ST.hold[s].id; CT_IN.club[k - 1].assoc = CT_ST.hold[s].assoc;
-            CT_IN.club[k - 1].str = CT_ST.hold[s].str; CT_IN.club[k - 1].pts = CT_ST.hold[s].pts;
+            CT_IN.club[k - 1].id = hid;
+            if (s == 0xFF) {            /* (the UEFA holder: no record here, as strong as the strongest club seen) */
+                u32 m = 0;
+                for (int i = 0; i + 1 < k; i++) if (CT_IN.club[i].str > m) m = CT_IN.club[i].str;
+                CT_IN.club[k - 1].assoc = 0xFD; CT_IN.club[k - 1].str = m; CT_IN.club[k - 1].pts = 0;
+            } else {
+                CT_IN.club[k - 1].assoc = CT_ST.hold[s].assoc;
+                CT_IN.club[k - 1].str = CT_ST.hold[s].str; CT_IN.club[k - 1].pts = CT_ST.hold[s].pts;
+            }
         }
-        if (k) { enter(e[1], e[2], k, 0, 0); taken[k] = 1; }   /* (a holder may hold places in two cups: the Recopa) */
+        if (k) { enter(e[1], e[2] & 0x1F, k, 0, e[3]); taken[k] = 1; if (e[2] & 0x80) own[k] = e[1] + 1; }
+        /* (a holder may hold places in two cups: the Recopa; own[]: CAF, its league place in the cup is its own) */
     }
     if (fcup < ncup && CT_IN.manager && !taken[CT_IN.manager]) {   /* (test builds: the forced place) */
         enter(fcup, frnd, CT_IN.manager, 0, 0);
@@ -191,22 +258,31 @@ static void access(void) {
     for (int i = 0; i < nacc; i++) {
         const u8 *e = acc + 4 * i;
         int a = e[0], c = e[1], r = e[2], k = e[3], club = 0;
+        if (a == 0xFE) {                /* a guest's place (its real access, data's list): k = the guest */
+            club = k < ngu ? GI[k] : 0;
+            if (club) { enter(c, r, club, 0, 0); taken[club] = 1; }   /* (a listed club may hold two places:
+                                                                            season 1's stand-in holders, the Recopa) */
+            continue;
+        }
         if (k == 0) club = CT_IN.league[a][0];
         else if (k == 1) club = CT_IN.cup[a];
         else if (k == C_AP) club = CT_IN.ap[a];
         else if (k == C_CL) club = CT_IN.cl[a];
         else if (k >= 2 && k <= NL) club = CT_IN.league[a][k - 1];
+        if (club && taken[club] && own[club] == c + 1) { own[club] = 0; continue; }   /* (the holder's own place) */
         if (club && taken[club]) club = 0;          /* already in: the place passes down the table */
         if (!club) club = next_club(a);
         if (club) { enter(c, r, club, 0, 0); taken[club] = 1; }
     }
     for (int v = 0; v < nvac; v++) {    /* a vacant holder place: the best ranked club not yet in (declared) */
-        const u8 *e = hol + 3 * vac[v];
-        if (e[1] != e[0] && RND(e[1], e[2])[0] == K_KO && nrd[e[1]] == 1) continue;   /* (a holders' match: none) */
+        const u8 *e = hol + 4 * vac[v];
+        if (e[0] == 0xFF || (e[2] & 0x60)) continue;   /* (the Intercontinental: no stand-ins) */
+        if (e[1] != e[0] && RND(e[1], e[2] & 0x1F)[0] == K_KO && nrd[e[1]] == 1) continue;   /* (a holders' match: none) */
+        if (e[2] & 0x80) continue;      /* (CAF: no extra place for a holder) */
         int best = 0;
         for (int i = 1; i <= CT_IN.nclub; i++)
-            if (!taken[i] && (!best || pts(i) > pts(best))) best = i;
-        if (best) { enter(e[1], e[2], best, 0, 0); taken[best] = 1; }
+            if (!taken[i] && in_cup(e[1], assoc(i)) && (!best || pts(i) > pts(best))) best = i;
+        if (best) { enter(e[1], e[2] & 0x1F, best, 0, 0); taken[best] = 1; }
     }
 }
 
@@ -240,6 +316,32 @@ static void draw_ko(int c, int r, const u8 *R) {
     int n = EN[c][r], dr = R[4], rule = R[5];
     u16 x[NE]; u8 v[NE], k[NE];
     for (int i = 0; i < n; i++) { x[i] = E[c][r][i]; v[i] = EV[c][r][i]; k[i] = EK[c][r][i]; }
+    if (dr == D_PLACE) {                /* (ACLE's round of 16: in each region 1 v 8, 2 v 7, 3 v 6, 4 v 5; the better
+                                           placed at home in the second leg; the group (region) in the via byte) */
+        int m = 0;
+        for (int g = 1; g < 32 && m < n; g++) {
+            int cnt = 0;
+            for (int i = 0; i < n; i++) if ((v[i] >> 1) == g) cnt++;
+            for (int p = 1; p <= cnt / 2; p++) {
+                int hi = -1, lo = -1;
+                for (int i = 0; i < n; i++) if ((v[i] >> 1) == g) {
+                    if ((k[i] & 0x7F) == p) hi = i;
+                    if ((k[i] & 0x7F) == cnt + 1 - p) lo = i;
+                }
+                if (hi < 0 || lo < 0) continue;
+                D[m] = x[lo]; DV[m] = v[lo]; DK[m] = k[lo]; m++;
+                D[m] = x[hi]; DV[m] = v[hi]; DK[m] = k[hi]; m++;
+            }
+        }
+        if (m == n) return;
+    }
+    if (dr == D_SLOT) {                 /* (the Intercontinental's stepladder: each club in its slot, the side key) */
+        for (int i = 1; i < n; i++) { u16 t = x[i]; u8 tk = k[i], tv = v[i]; int j = i;
+            while (j > 0 && (k[j - 1] & 0x7F) > (tk & 0x7F)) { x[j] = x[j - 1]; k[j] = k[j - 1]; v[j] = v[j - 1]; j--; }
+            x[j] = t; k[j] = tk; v[j] = tv; }
+        for (int i = 0; i < n; i++) { D[i] = x[i]; DV[i] = v[i]; DK[i] = k[i]; }
+        return;
+    }
     if (dr == D_ORDER || dr == D_BRACKET) {
         for (int i = 0; i < n; i++) { D[i] = x[i]; DV[i] = v[i]; DK[i] = k[i]; }
         return;
@@ -321,6 +423,15 @@ static void draw_ko(int c, int r, const u8 *R) {
 }
 /* groups into D: group g = D[g * size ..]; pots of ngroups clubs by ranking (via clubs last), the holder A1 */
 static void reached(int club, int c, int r);
+static int in_cup(int c, int a) {       /* an association with a place in the cup (its confederation's) */
+    for (int i = 0; i < nacc; i++) {
+        const u8 *e = acc + 4 * i;
+        if (e[1] != c) continue;
+        if (e[0] == a) return 1;
+        if (e[0] == 0xFE && e[3] < ngu && gu[8 * e[3] + 2] == a) return 1;
+    }
+    return 0;
+}
 static void draw_groups(int c, int r, const u8 *R) {
     int n = EN[c][r], ng = R[6], gs = R[7], rule = R[5];
     u16 x[NE]; u8 v[NE], k[NE];
@@ -339,15 +450,30 @@ static void draw_groups(int c, int r, const u8 *R) {
         for (int i = w; i + 1 < m; i++) { x[i] = x[i + 1]; v[i] = v[i + 1]; k[i] = k[i + 1]; }
         m--;
     }
-    while (m < size) {                  /* fewer (the world could not fill the rounds before): the best ranked
+    while (m < size && !R[23]) {        /* fewer (the world could not fill the rounds before): the best ranked
                                            club in no cup this edition (declared), so the game's contest is full */
         int b = 0;
         for (int i = 1; i <= CT_IN.nclub; i++)
-            if (!taken[i] && (!b || pts(i) > pts(b))) b = i;
+            if (!taken[i] && in_cup(c, assoc(i)) && (!b || pts(i) > pts(b))) b = i;
         if (!b) break;
         taken[b] = 1;
         reached(b, c, r);
         x[m] = b; v[m] = 0; k[m] = 0; m++;
+    }
+    if (R[19] && areg) {                /* a league stage by region: each club in its association's region */
+        sort_by_pts(x, v, k, m);
+        int fill[16] = {0};
+        for (int i = 0; i < NE; i++) D[i] = 0;
+        for (int pass = 0; pass < 2; pass++)
+            for (int i = 0; i < m; i++) {
+                if (!x[i]) continue;
+                int a = assoc(x[i]), g = a < na ? areg[a] : 0xFF;
+                if (pass == 0 && (g >= ng || fill[g] >= gs)) continue;
+                if (pass == 1) { g = 0; while (g < ng && fill[g] >= gs) g++; if (g >= ng) break; }
+                D[g * gs + fill[g]] = x[i]; DV[g * gs + fill[g]] = v[i]; DK[g * gs + fill[g]] = k[i]; fill[g]++;
+                x[i] = 0;
+            }
+        return;
     }
     int nd = 0;
     while (nd < m && !v[nd]) nd++;
@@ -398,7 +524,7 @@ static void reached(int club, int c, int r) { CT_OUT.last[club - 1] = c << 4 | r
 
 /* a group: double / single round robin of D[base .. base + gs) -> places into P */
 static void group(int base, int gs, int grounds, int *P) {
-    int pt[8] = {0}, gd[8] = {0}, gf[8] = {0};
+    int pt[16] = {0}, gd[16] = {0}, gf[16] = {0};
     for (int leg = 0; leg < grounds; leg++)
         for (int i = 0; i < gs; i++)
             for (int j = i + 1; j < gs; j++) {
@@ -421,49 +547,96 @@ static void group(int base, int gs, int grounds, int *P) {
         P[j] = t;
     }
     for (int i = 0; i < gs; i++) gd[i] = gd[i] * 100 + gf[i] + pt[i] * 10000;   /* (a record key for the ranking) */
-    for (int i = 0; i < gs; i++) P[8 + i] = gd[P[i]];
+    for (int i = 0; i < gs; i++) P[16 + i] = gd[P[i]];
 }
 
-static void ct_round(int c, int r) {
+static int lp_size(int c);
+static int forced(int c, int r) {
+    for (int i = 0; i < CT_ED.nf; i++) if (CT_ED.f[i].c == c && CT_ED.f[i].r == r) return CT_ED.f[i].v;
+    return -1;
+}
+static int ct_round(int c, int r) {
     const u8 *R = RND(c, r);
     int n = EN[c][r];
-    if (!n) return;
+    if (!n) return 0;
     if (R[0] == K_KO && R[18] && 2 * n <= R[18]) {     /* (no more than the winners' places: all go through) */
-        for (int i = 0; i < n; i++) { reached(E[c][r][i], c, r); route(c, R[10], E[c][r][i], 0x7F); }
+        for (int i = 0; i < n; i++) { reached(E[c][r][i], c, r); route(c, R[10], E[c][r][i], EK[c][r][i] & 0x7F ? EK[c][r][i] & 0x7F : 0x7F); }
+        if (R[10] == CHAMP && n == 1) {             /* (a final with one club: the Intercontinental with no UEFA holder) */
+            CT_OUT.winner[c] = E[c][r][0]; CT_OUT.out_of[E[c][r][0] - 1] = 1;
+        }
         CT_OUT.nent[c][r] = n;
-        return;
+        return 0;
     }
     if (R[0] == K_KO && R[18] && n < R[18]) {
         /* fewer clubs than the round's places (the 'outside' places the world's associations could not fill): the
            best ranked go through without playing, so the next round still gets its size (declared) */
         sort_by_pts(E[c][r], EV[c][r], EK[c][r], n);
         int b = R[18] - n;
-        for (int i = 0; i < b; i++) { reached(E[c][r][i], c, r); route(c, R[10], E[c][r][i], 0x7F); }
+        for (int i = 0; i < b; i++) { reached(E[c][r][i], c, r); route(c, R[10], E[c][r][i], EK[c][r][i] & 0x7F ? EK[c][r][i] & 0x7F : 0x7F); }
         for (int i = b; i < n; i++) { E[c][r][i - b] = E[c][r][i]; EV[c][r][i - b] = EV[c][r][i]; EK[c][r][i - b] = EK[c][r][i]; }
         EN[c][r] = n -= b;
+    }
+    while (R[0] == K_KO && R[18] && n > R[18]) {   /* more clubs than places (a forced test place in a holders' final):
+                                                       the weakest out, never the career club */
+        int w = -1;
+        for (int i = 0; i < n; i++)
+            if (E[c][r][i] != CT_IN.manager && (w < 0 || pts(E[c][r][i]) < pts(E[c][r][w]))) w = i;
+        if (w < 0) break;
+        for (int i = w; i + 1 < n; i++) { E[c][r][i] = E[c][r][i + 1]; EV[c][r][i] = EV[c][r][i + 1]; EK[c][r][i] = EK[c][r][i + 1]; }
+        EN[c][r] = --n;
     }
     if (R[0] == K_GROUPS) { draw_groups(c, r, R); n = R[6] * R[7]; } else draw_ko(c, r, R);
     CT_OUT.nent[c][r] = n;
     for (int i = 0; i < n && i < NE; i++) { CT_OUT.ent[c][r][i] = D[i]; if (D[i]) reached(D[i], c, r); }
     if (R[17] && CT_LP[c]) {            /* the main round: the game's contest plays it with the career club */
-        int m = R[0] == K_GROUPS ? R[6] * R[7] : n;
+        int m = R[0] == K_GROUPS ? R[6] * R[7] : n, ms = lp_size(c);
+        if (m > ms) m = ms;
         for (int i = 0; i < m && i < 32; i++) CT_LP[c][i] = D[i] && i < n + (m - n) ? CT_IN.club[D[i] - 1].id : 0xFFFF;
+    }
+    int pm = -1;                        /* the career club in this round: its result forced, else its next game */
+    g_fv = -1;
+    if (CT_IN.manager)
+        for (int i = 0; i < n; i++) if (D[i] == CT_IN.manager) pm = i;
+    if (pm >= 0) {
+        g_fv = forced(c, r);
+        if (g_fv < 0 && g_stop && (R[17] || R[0] == K_KO)) {   /* (a group stage before the main round: simulated) */
+            CT_SEG.cup = c; CT_SEG.round = r; CT_SEG.kind = R[0] | (R[17] ? 0x80 : 0);
+            CT_SEG.legs = R[1] == 2 ? (R[2] == 1 ? 0x94 : 0x84) : 0x14;   /* (the game's round byte) */
+            CT_SEG.level = R[2];
+            CT_SEG.month = (u8)((R[9] - 1 + (R[9] < 8 ? 12 : 0)) * 8);   /* (x 8 from January, as a contest's) */
+            if (R[0] == K_KO) {
+                int a = pm & ~1;
+                CT_SEG.n = 2; CT_SEG.pos = pm & 1;
+                CT_SEG.club[0] = CT_IN.club[D[a] - 1].id; CT_SEG.club[1] = CT_IN.club[D[a + 1] - 1].id;
+            } else {
+                CT_SEG.n = n < 32 ? n : 32; CT_SEG.pos = pm;
+                for (int i = 0; i < CT_SEG.n; i++) CT_SEG.club[i] = D[i] ? CT_IN.club[D[i] - 1].id : 0xFFFF;
+            }
+            return 1;
+        }
     }
     if (R[0] == K_GROUPS) {
         int ng = R[6], gs = R[7];
         /* every group, then each place's clubs ranked across the groups by record (the rank keys of the next draw) */
-        static u16 byplace[8][16];
-        static s32 key[8][16];
+        static u16 byplace[16][16];
+        static s32 key[16][16];
         for (int g = 0; g < ng; g++) {
-            int P[16];
+            int P[32];
             group(g * gs, gs, R[8], P);
+            if (pm >= 0 && g_fv > 0 && g_fv <= gs && pm / gs == g) {   /* (the career club's place, as played) */
+                int loc = pm - g * gs, q0 = 0;
+                while (q0 < gs && P[q0] != loc) q0++;
+                int t = P[q0]; P[q0] = P[g_fv - 1]; P[g_fv - 1] = t;
+            }
             for (int q = 0; q < gs; q++) {
                 byplace[q][g] = D[g * gs + P[q]];
-                key[q][g] = P[8 + q];
+                key[q][g] = P[16 + q];
                 CT_OUT.res[c][r][g * gs + P[q]] = q + 1;
             }
         }
-        for (int q = 0; q < gs && q < 4; q++) {
+        for (int q = 0; q < gs; q++) {
+            u8 to = R[19] ? (q < R[19] ? R[20] : OUT) : (q < 4 ? R[12 + q] : OUT);   /* (a league stage: its top n) */
+            if (to == OUT) continue;
             int ord[16];
             for (int g = 0; g < ng; g++) ord[g] = g;
             for (int i = 1; i < ng; i++) { int t = ord[i], j = i;
@@ -471,18 +644,19 @@ static void ct_round(int c, int r) {
                 ord[j] = t; }
             for (int i = 0; i < ng; i++) {
                 int club = byplace[q][ord[i]];
-                if (R[12 + q] == OUT) continue;
-                route(c, R[12 + q], club, q * ng + i + 1);
-                if (EN[R[12 + q] >> 4][R[12 + q] & 15] && R[12 + q] < CHAMP)   /* (the group in the via byte: fixed ties) */
-                    EV[R[12 + q] >> 4][R[12 + q] & 15][EN[R[12 + q] >> 4][R[12 + q] & 15] - 1] = 1 | (ord[i] + 1) << 1;
+                if (R[21] == q + 1 && i >= R[22]) continue;   /* (only the best of this place: ACGL's 2nds) */
+                route(c, to, club, R[19] ? q + 1 : q * ng + i + 1);   /* (a league stage: the key = the place) */
+                if (EN[to >> 4][to & 15] && to < CHAMP)   /* (the group in the via byte: fixed ties) */
+                    EV[to >> 4][to & 15][EN[to >> 4][to & 15] - 1] = 1 | (ord[i] + 1) << 1;
             }
         }
-        return;
+        return 0;
     }
     /* knockout: D[2i] v D[2i+1] */
     for (int i = 0; i + 1 < n; i += 2) {
         int a = D[i], b = D[i + 1];
         int w = tie(a, b, R[1], R[2], R[3]);
+        if (g_fv >= 0 && (i == pm || i + 1 == pm)) w = (i == pm) ? g_fv : !g_fv;   /* (the career club's tie) */
         CT_OUT.res[c][r][i] = w;
         int win = w ? a : b, los = w ? b : a;
         if (R[10] == CHAMP) {
@@ -493,6 +667,7 @@ static void ct_round(int c, int r) {
         route(c, R[11], los, i / 2 + 1);
     }
     if (n & 1) route(c, R[10], D[n - 1], 0x7F);         /* (an odd one goes through) */
+    return 0;
 }
 
 /* --- the season end's input (the game's records) ------------------------------------------------------------------ */
@@ -522,7 +697,9 @@ void ct_table(const u8 *diy) {
     }
     ntab = n;
 }
-void ct_begin(void) {
+void ct_finish(void);
+void ct_begin(void) {                   /* the season end's first country: this season's edition finished first */
+    ct_finish();
     u8 *b = (u8 *)&CT_IN;
     for (u32 i = 0; i < sizeof(CT_IN); i++) b[i] = 0;
     ntab = 0;
@@ -554,42 +731,229 @@ void ct_country(const u8 *stand, const u8 *cuprec) {
     ntab = 0;
 }
 /* the season end, every country seen: the editions (seed, the career club's team word) */
-void ct_go(u32 manager, u32 seed) {
+void ct_go(u32 manager, u32 seed, u32 uefa) {
+    g_uefa = (u16)uefa;
     if (!CT_SPEC) return;
     CT_IN.seed = seed ^ (CT_ST.season * 7919u);
     CT_IN.manager = 0;
     for (int i = 0; i < CT_IN.nclub; i++) if (CT_IN.club[i].id == (u16)manager) CT_IN.manager = i + 1;
+    if (!CT_IN.manager && manager && manager != 0xFFFF) {   /* (its country's table: the top 9 records only, the
+                                                               career club below them: as its association's weakest) */
+        parse();
+        for (int a = 0; a < na; a++)
+            if (afile[a] == (manager & 0xFF)) {
+                u32 s = 0;
+                int k = 0;
+                while (k < NL && CT_IN.league[a][k]) k++;
+                if (k) s = CT_IN.club[CT_IN.league[a][k - 1] - 1].str * 15 / 16;
+                CT_IN.manager = add_club((u16)manager, a, s);
+                if (CT_IN.manager && k < NL) CT_IN.league[a][k] = CT_IN.manager;
+                break;
+            }
+    }
     ct_season();
 }
 
 /* --- the season --------------------------------------------------------------------------------------------------- */
-void ct_season(void) {
-    parse();
-    rng = CT_IN.seed ? CT_IN.seed : 1;
+static int lp_size(int c) {             /* the contest list's places: its main round's (a group stage, else its field) */
+    for (int r = 0; r < nrd[c]; r++) {
+        const u8 *R = RND(c, r);
+        if (R[17]) { int m = R[0] == K_GROUPS ? R[6] * R[7] : R[18]; return m < 32 ? m : 32; }
+    }
+    return 0;
+}
+static void lp_clear(int c) {           /* (only its own places: the Recopa's list has 2, the next struct follows) */
+    for (int i = 0, m = lp_size(c); i < m; i++) CT_LP[c][i] = 0xFFFF;
+}
+static void clear_run(void) {
     for (int c = 0; c < NCUP; c++) for (int r = 0; r < NRD; r++) EN[c][r] = 0;
     CT_OUT.ncup = ncup;
     for (int i = 0; i < NC; i++) { CT_OUT.last[i] = OUT; CT_OUT.out_of[i] = 0; }
     for (int c = 0; c < NCUP; c++) { CT_OUT.winner[c] = CT_OUT.second[c] = 0;
         for (int r = 0; r < NRD; r++) { CT_OUT.nent[c][r] = 0; for (int i = 0; i < NE; i++) { CT_OUT.ent[c][r][i] = 0; CT_OUT.res[c][r][i] = 0; } } }
-    access();
+}
+static u32 rpts(u16 id);
+static void ed_add(int x, int cr, int side) {
+    if (CT_ED.ne >= NED) return;
+    u16 id = CT_IN.club[x - 1].id;
+    u32 st = CT_IN.club[x - 1].str / 16;            /* (strength / 16 in 12 bits: sq() caps it at 4000; the top 4
+                                                       bits: the entry's slot, the Intercontinental's stepladder) */
+    u16 sv = (u16)((st > 0xFFF ? 0xFFF : st) | (side & 15) << 12);
+    CT_ED.e[CT_ED.ne].id0 = (u8)id; CT_ED.e[CT_ED.ne].id1 = (u8)(id >> 8);
+    CT_ED.e[CT_ED.ne].cr = (u8)cr;
+    CT_ED.e[CT_ED.ne].s0 = (u8)sv; CT_ED.e[CT_ED.ne].s1 = (u8)(sv >> 8);
+    CT_ED.ne++;
+}
+static int assoc_of(u16 id) {           /* a team word's association: its file's, else a guest's, else none (0xFD) */
+    for (int a = 0; a < na; a++) if (afile[a] && afile[a] == (id & 0xFF)) return a;
+    for (int g = 0; g < ngu; g++) if ((gu[8 * g] | gu[8 * g + 1] << 8) == id) return gu[8 * g + 2];
+    return 0xFD;
+}
+static void snapshot(void) {            /* the edition's entrants (after access) + the reserve clubs for group fills */
+    static u8 seen[NC + 1];
+    for (int i = 0; i <= NC; i++) seen[i] = 0;
+    CT_ED.ne = 0; CT_ED.nf = 0;
+    CT_ED.seed = rng;
+    CT_ED.mgr = CT_IN.manager ? CT_IN.club[CT_IN.manager - 1].id : 0;
+    for (int c = 0; c < ncup; c++)
+        for (int r = 0; r < nrd[c]; r++)
+            for (int i = 0; i < EN[c][r]; i++) { seen[E[c][r][i]] = 1; ed_add(E[c][r][i], c << 4 | r, EK[c][r][i]); }
+    for (int c = 0; c < ncup; c++)      /* up to 4 reserves per cup: its associations' best clubs in no cup */
+        for (int k = 0; k < 4; k++) {
+            int b = 0;
+            for (int i = 1; i <= CT_IN.nclub; i++)
+                if (!taken[i] && !seen[i] && in_cup(c, assoc(i)) && (!b || pts(i) > pts(b))) b = i;
+            if (!b) break;
+            seen[b] = 1;
+            ed_add(b, 0xFF, 0);
+        }
+    CT_ED.mark = 0x4543;
+}
+static int run(int stop) {              /* the edition from its entrants, the career club's results forced; stop: at
+                                           its next unplayed game (CT_SEG), 1 returned */
+    static u16 idx[NED];
+    CT_IN.nclub = 0;
+    CT_IN.manager = 0;
+    for (int i = 0; i < CT_ED.ne; i++) {    /* the clubs: each team word once */
+        u16 id = CT_ED.e[i].id0 | CT_ED.e[i].id1 << 8, sv = CT_ED.e[i].s0 | CT_ED.e[i].s1 << 8;
+        int k = 0;
+        for (int j = 0; j < CT_IN.nclub; j++) if (CT_IN.club[j].id == id) { k = j + 1; break; }
+        if (!k) {
+            k = ++CT_IN.nclub;
+            CT_IN.club[k - 1].id = id; CT_IN.club[k - 1].assoc = (u8)assoc_of(id);
+            CT_IN.club[k - 1].str = (u32)(sv & 0xFFF) * 16; CT_IN.club[k - 1].pts = rpts(id);
+            taken[k] = 0;
+            if (CT_ED.mgr && id == CT_ED.mgr) CT_IN.manager = k;
+        }
+        idx[i] = k;
+        if (CT_ED.e[i].cr != 0xFF) taken[k] = 1;
+    }
+    rng = CT_ED.seed ? CT_ED.seed : 1;
+    clear_run();
+    for (int i = 0; i < CT_ED.ne; i++)
+        if (CT_ED.e[i].cr != 0xFF) enter(CT_ED.e[i].cr >> 4, CT_ED.e[i].cr & 15, idx[i], 0, CT_ED.e[i].s1 >> 4);
+    g_stop = stop;
+    CT_SEG.kind = 0xFF;
     /* every round in calendar order: month (8 = August first, the season's order), then cup, then round */
     for (int mo = 0; mo < 12; mo++) {
         int month = (mo + 7) % 12 + 1;
         for (int c = 0; c < ncup; c++)
             for (int r = 0; r < nrd[c]; r++)
-                if (RND(c, r)[9] == month) ct_round(c, r);
+                if (RND(c, r)[9] == month && ct_round(c, r)) return 1;
     }
-    for (int c = 0; c < ncup; c++) {    /* the holders of the next edition */
+    return 0;
+}
+void ct_finish(void) {                  /* this season's edition finished, as played: the next one's holders (before
+                                           the season end's tables fill CT_IN: run() uses CT_IN for the edition) */
+    if (!CT_SPEC) return;
+    if (CT_ED.mark != 0x4543 && CT_ST.mark != 0x5443) {   /* the first season end: the 2027 editions (the build's) */
+        parse();
+        for (int c = 0; c < ncup; c++) {
+            const u8 *e = s1h + 8 * c;
+            u16 w = e[0] | e[1] << 8;
+            if (!w || w == 0xFFFF) continue;
+            CT_ST.hold[c].id = w; CT_ST.hold[c].assoc = e[2];
+            CT_ST.hold[c].str = e[4] | e[5] << 8 | e[6] << 16 | e[7] << 24; CT_ST.hold[c].pts = 0;
+        }
+        return;
+    }
+    if (CT_ED.mark != 0x4543) return;
+    parse();
+    run(0);
+    for (int c = 0; c < ncup; c++) {
         int w = CT_OUT.winner[c];
         if (!w) continue;
         CT_ST.hold[c].id = CT_IN.club[w - 1].id; CT_ST.hold[c].assoc = CT_IN.club[w - 1].assoc;
         CT_ST.hold[c].str = CT_IN.club[w - 1].str; CT_ST.hold[c].pts = CT_IN.club[w - 1].pts;
     }
+    CT_ED.mark = 0;
+}
+void ct_season(void) {                  /* the season end (after ct_finish and the tables): the next edition built */
+    parse();
+    CT_ED.mark = 0;
+    rng = CT_IN.seed ? CT_IN.seed : 1;
+    for (int c = 0; c < NCUP; c++) for (int r = 0; r < NRD; r++) EN[c][r] = 0;
+    for (int c = 0; c < ncup; c++) if (CT_LP[c]) lp_clear(c);
+    access();
+    snapshot();
     CT_ST.mark = 0x5443; CT_ST.season++;
+    run(1);
+}
+void ct_result(u32 v) {                 /* the career club's game in CT_SEG ended: ko 1 won / 0 lost, groups its place */
+    if (!CT_SPEC || CT_ED.mark != 0x4543 || CT_SEG.kind == 0xFF) return;
+    parse();
+    if (CT_ED.nf < 16) {
+        CT_ED.f[CT_ED.nf].c = CT_SEG.cup; CT_ED.f[CT_ED.nf].r = CT_SEG.round; CT_ED.f[CT_ED.nf].v = (u8)v;
+        CT_ED.nf++;
+    }
+    run(1);
+}
+void ct_resume(void) {                  /* after a load: CT_SEG again from the saved edition */
+    if (!CT_SPEC || CT_ED.mark != 0x4543) { CT_SEG.kind = 0xFF; return; }
+    parse();
+    run(1);
 }
 
 #define OFF(t, f) ((u32) __builtin_offsetof(struct t, f))
 const u32 CT_LAYOUT[] = { sizeof(struct ct_in), sizeof(struct ct_state), sizeof(struct ct_out),
                           OFF(ct_in, league), OFF(ct_in, cup), OFF(ct_in, ap), OFF(ct_in, cl), OFF(ct_in, club),
                           OFF(ct_out, winner), OFF(ct_out, second), OFF(ct_out, last), OFF(ct_out, nent),
-                          OFF(ct_out, ent), OFF(ct_out, res), NA, NL, NC, NCUP, NRD, NE };
+                          OFF(ct_out, ent), OFF(ct_out, res), NA, NL, NC, NCUP, NRD, NE,
+                          sizeof(struct ct_ed), sizeof(struct ct_seg) };
+
+/* --- a group stage's end in the game's contest (lp36's lp_gend vector, after cseg_8A2CE) ----------------------------- */
+static u32 w16(const u8 *p) { return p[0] | p[1] << 8; }
+static u32 w32(const u8 *p) { return p[0] | p[1] << 8 | p[2] << 16 | (u32)p[3] << 24; }
+u32 ct_gend(u8 *diy, u8 *diycopy, u32 sel) {
+    /* -> the career club's place in its group (0: not in this contest). A Libertadores-style knockout after the groups
+       (draw 'seeded_1v2', 8 groups): the qualifiers' list rewritten as the real draw - the group winners by points,
+       each against a drawn runner-up of another group if possible, the winner at home in the second leg */
+    if (!CT_SPEC) return 0;
+    parse();
+    int c = -1;
+    for (int i = 0; i < ncup; i++) if (gid[i] && gid[i] == diy[0x2D]) c = i;
+    if (c < 0) return 0;
+    int ng = w16(diy + 0x4F), gs = w16(diy + 0x51), place = 0;
+    if (ng < 1 || ng > 16 || gs < 2 || gs > 16) return 0;
+    for (int g = 0; g < ng; g++)
+        for (int q = 0; q < gs; q++) {
+            u32 off = w16(diy + 0x6D + 2 * (g * gs + q));
+            const u8 *rec = (const u8 *)(sel + w32(diy + 0x2B3 + off));
+            if (CT_ED.mgr && (u16)(rec[0] | rec[1] << 8) == CT_ED.mgr) place = q + 1;
+        }
+    int mr = -1;
+    for (int r = 0; r < nrd[c]; r++) if (RND(c, r)[17]) mr = r;
+    if (place && gid[ncup]) place = gid[ncup];   /* (CONTI_GPLACE: test builds) */
+    if (mr >= 0 && mr + 1 < nrd[c] && ng == 8 && RND(c, mr + 1)[0] == K_KO && RND(c, mr + 1)[4] == D_SEED12) {
+        u8 fr[8], sr[8], fg[8], sg[8];
+        u32 fp[8];
+        for (int g = 0; g < 8; g++) {
+            u32 o1 = w16(diy + 0x6D + 2 * (g * gs)), o2 = w16(diy + 0x6D + 2 * (g * gs + 1));
+            fr[g] = (u8)(o1 / 18); sr[g] = (u8)(o2 / 18); fg[g] = sg[g] = (u8)g;
+            fp[g] = w16(diy + 0x2B3 + o1 + 16) * 64 + below(64);
+        }
+        for (int i = 1; i < 8; i++) { int j = i; u8 a = fr[i], b = fg[i]; u32 x = fp[i];   /* winners by points */
+            while (j > 0 && fp[j - 1] < x) { fr[j] = fr[j - 1]; fg[j] = fg[j - 1]; fp[j] = fp[j - 1]; j--; }
+            fr[j] = a; fg[j] = b; fp[j] = x; }
+        rng ^= CT_ED.seed + (u32)place * 2654435761u;
+        for (int tries = 0; tries < 50; tries++) {
+            for (int i = 7; i > 0; i--) { int j = below(i + 1); u8 t = sr[i]; sr[i] = sr[j]; sr[j] = t;
+                t = sg[i]; sg[i] = sg[j]; sg[j] = t; }
+            int ok = 1;
+            for (int k = 0; k < 8; k++) if (sg[k] == fg[k]) ok = 0;
+            if (ok) break;
+        }
+        for (int k = 0; k < 8; k++) { diycopy[0x59 + 2 * k] = sr[k]; diycopy[0x59 + 2 * k + 1] = fr[k]; }
+    }
+    if (mr >= 0 && mr + 1 < nrd[c] && RND(c, mr)[19] && RND(c, mr + 1)[4] == D_PLACE) {
+        /* a league stage's top n per region into a by-place round (ACLE: 1 v 8, 2 v 7 ... in each region; the better
+           placed at home in the second leg) */
+        int n = RND(c, mr)[19], k = 0;
+        for (int g = 0; g < ng; g++)
+            for (int q = 0; q < n / 2; q++) {
+                diycopy[0x59 + k++] = (u8)(w16(diy + 0x6D + 2 * (g * gs + n - 1 - q)) / 18);
+                diycopy[0x59 + k++] = (u8)(w16(diy + 0x6D + 2 * (g * gs + q)) / 18);
+            }
+    }
+    return place;
+}

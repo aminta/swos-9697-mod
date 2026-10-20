@@ -288,7 +288,9 @@ def load(confs, files=None, words=None, s1=None):
                 b[6], b[7], b[8] = rd['groups'], rd['size'], rd.get('rounds', 2)
                 b[16] = 1 if (rd.get('draw') or {}).get('holder') else 0
             b[9] = rd.get('month') or (rd.get('months') or [8])[0]
-            b[17] = 1 if j == main_round(c, size) else 0
+            b[17] = 1 if j == main_round(c, size) and not c.get('stepladder') else 0   # (the Intercontinental: no
+                                                # contest of its own, every game a tie; its final as 'main' loaded
+                                                # ct_structs past the end: the trap after the Challenger Cup)
             b[18] = min(size[j], 255)                   # (the round's places: byes when the world cannot fill it)
             b[10] = CHAMP if j == len(rounds) - 1 else (ci << 4 | (j + 1))
             b[11] = OUT
@@ -387,6 +389,10 @@ def load(confs, files=None, words=None, s1=None):
                             if ak in assocs:
                                 reg.setdefault(ak, ri)
     spec += bytes(reg.get(a, 0xFF) for a in assocs)
+    wf = bytearray(32)                                  # (the world's team files: a UEFA holder outside it - the
+    for f in (files or {}).values():                    # game's own 1996-97 Champions Cup holder - is no finalist)
+        wf[f >> 3] |= 1 << (f & 7)
+    spec += bytes(wf)
     for conf, c, _ in cups:                             # (each cup's season-1 holder: season1_native's run)
         w, an, st = S1_HOLD.get((conf, c['key']), (0, None, 0))
         spec += struct.pack('<HBBI', w, assocs.index(an) if an in assocs else 0xFE, 0, st)
@@ -485,12 +491,12 @@ if __name__ == '__main__':
 
 
 # --- the game ---------------------------------------------------------------------------------------------------------
-PAGES = 5                               # obj1 pages: the C code + the glue (patch.py: after split's / statecup's)
+PAGES = 6                               # obj1 pages: the C code + the glue (patch.py: after split's / statecup's)
 BSS = 0x18000                           # obj2 .bss: CT_IN, CT_ST, CT_OUT, the edition (patch.py: in the career BSS)
 CONFS = ['conmebol', 'concacaf', 'afc', 'caf', 'ofc', 'fifa']
 LABELS = {}
 ST_SIZE = 4 + 16 * 12                   # sizeof(struct ct_state)
-ED_SIZE = 3660                          # sizeof(struct ct_ed) (phase B, the save's item 'CE')
+ED_SIZE = 2260                          # sizeof(struct ct_ed) (phase B, the save's item 'CE')
 
 
 BUILT = ['conmebol', 'concacaf', 'afc', 'caf', 'ofc']                    # (the confederations the engine handles so far; CONTI_CONFS: dev builds)
@@ -670,6 +676,8 @@ ct_daily:                               ; before the next match (uefaq's uq_dail
     jmp .x
 .main:
     movzx ebx, byte [CT_SEG]            ; the cup's main round (its list: CT_LP, just written)
+    cmp ebx, CT_NS                      ; (a cup with no contest of its own: none - never past the table)
+    jae .none
     mov eax, [ct_structs + ebx * 4]
     mov [A0R], eax
     call ct_build
@@ -792,7 +800,7 @@ def patch(p, at, limit, bss_at, area):
     symbols.update({k: u[k] for k in ('SLOT3', 'CAL', 'CAL_CUR', 'STAGE_G', 'D0R', 'D1R', 'D2R', 'C8B2D3', 'A0R',
                                       'E092F', 'CUP_KIND')})
     symbols.update(NEXT_DAILY=u['uq_daily'], TIE=(1, TIE[0]), TIE_ID=(0, p.get(1, TIE[0], 1)[0]),
-                   TIE_D7=(0, D7_BASE[0] + len(STRUCTS)), CT_D7=(0, D7_BASE[0]), CT_SEG=syms['CT_SEG'],
+                   TIE_D7=(0, D7_BASE[0] + len(STRUCTS)), CT_D7=(0, D7_BASE[0]), CT_SEG=syms['CT_SEG'], CT_NS=(0, len(STRUCTS)),
                    CT_ED=syms['CT_ED'], CT_RESULT=syms['ct_result'], CT_RESUME=syms['ct_resume'])
     asm = GLUE.replace("    ;CT_LP", "\n".join(lp)).replace(
         "    ;CT_STRUCTS", "\n".join(f'    dd XST{i}' for i in range(len(STRUCTS))) or '    dd 0').replace(

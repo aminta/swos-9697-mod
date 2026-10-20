@@ -73,7 +73,8 @@ struct ct_out CT_OUT;
 /* phase B: the edition being played, kept in the save (engine item 'CE'): its entrants (the access result), the
    career club's results so far; every step re-runs it from the start (same seed), the club's games forced, up to
    the club's next game: its segment (CT_SEG) goes into slot 3 */
-#define NED 600                         /* (the save's room: ~3.8 KB for this item) */
+#define NED 440                         /* (the save's room: the item must leave 80 team records; 384 used with
+                                           all six confederations, reserves included) */
 struct ct_ed {
     u16 mark;                           /* 'CE' */
     u16 ne;                             /* entries */
@@ -81,8 +82,10 @@ struct ct_ed {
     u16 mgr;                            /* the career club's team word (0 = none) */
     u8 nf, pad;
     struct { u8 c, r, v; } f[16];       /* the club's results: ko 1 won / 0 lost, groups the place */
-    struct { u16 id; u8 assoc, cr; u16 str; } e[NED];   /* an entrant: cup << 4 | round (0xFF: a reserve club for
-                                                           group fills), strength / 16; the ranking from the spec */
+    struct { u8 id0, id1, cr, s0, s1; } e[NED];   /* an entrant: team word, cup << 4 | round (0xFF: a reserve
+                                           club for group fills), strength / 16 (12 bits) | its slot << 12; the
+                                           association from the team file (the guests' table), the ranking from
+                                           the spec */
 };
 struct ct_seg {                         /* the career club's next game (CT_SEG.kind 0xFF: none) */
     u8 cup, round, kind, n;             /* kind: K_KO a tie (club[0] v club[1]), K_GROUPS the drawn groups */
@@ -107,7 +110,7 @@ static const u8 *afile;                 /* each association's league team file *
 static const u8 *rk;                    /* ranking: team word, points (u16 each) */
 static const u8 *gu;                    /* guests (clubs of associations not in the world): word, assoc, -, str */
 static u16 ngu;
-static const u8 *areg, *s1h;
+static const u8 *areg, *s1h, *wfile;
 static u16 GI[256];                     /* a guest's club index this season */
 static u16 nrk;
 #define RND(c, r) (cupr[c] + (r) * RB)
@@ -137,6 +140,8 @@ static void parse(void) {
     p += 2 + 8 * ngu;
     areg = p;                           /* each association's region (a league stage's group: ACLE West 0 / East 1) */
     p += na;
+    wfile = p;                          /* the world's team files (a bitmap): the UEFA holder must be one of them */
+    p += 32;
     s1h = p;                            /* each cup's 2027 edition winner (the build's run): the first holders */
 }
 
@@ -224,6 +229,8 @@ static void access(void) {
         if ((e[2] & 0x40) && odd) continue;
         if ((e[2] & 0x20) && !odd) continue;
         u16 hid = s == 0xFF ? g_uefa : CT_ST.hold[s].id;
+        if (s == 0xFF && hid && hid != 0xFFFF && !(wfile[(hid & 0xFF) >> 3] & 1 << (hid & 7)))
+            hid = 0;                    /* (a UEFA holder of no world file: the game's own, not a club of this world) */
         if (!hid || hid == 0xFFFF) { if (s != 0xFF && nvac < NCUP * 2) vac[nvac++] = h; continue; }
         int k = 0;                      /* the holder's club index (seen this season, else appended) */
         for (int i = 0; i < CT_IN.nclub; i++) if (CT_IN.club[i].id == hid) { k = i + 1; break; }
@@ -766,12 +773,19 @@ static void clear_run(void) {
 static u32 rpts(u16 id);
 static void ed_add(int x, int cr, int side) {
     if (CT_ED.ne >= NED) return;
-    CT_ED.e[CT_ED.ne].id = CT_IN.club[x - 1].id; CT_ED.e[CT_ED.ne].assoc = CT_IN.club[x - 1].assoc;
-    CT_ED.e[CT_ED.ne].cr = (u8)cr;
+    u16 id = CT_IN.club[x - 1].id;
     u32 st = CT_IN.club[x - 1].str / 16;            /* (strength / 16 in 12 bits: sq() caps it at 4000; the top 4
                                                        bits: the entry's slot, the Intercontinental's stepladder) */
-    CT_ED.e[CT_ED.ne].str = (u16)((st > 0xFFF ? 0xFFF : st) | (side & 15) << 12);
+    u16 sv = (u16)((st > 0xFFF ? 0xFFF : st) | (side & 15) << 12);
+    CT_ED.e[CT_ED.ne].id0 = (u8)id; CT_ED.e[CT_ED.ne].id1 = (u8)(id >> 8);
+    CT_ED.e[CT_ED.ne].cr = (u8)cr;
+    CT_ED.e[CT_ED.ne].s0 = (u8)sv; CT_ED.e[CT_ED.ne].s1 = (u8)(sv >> 8);
     CT_ED.ne++;
+}
+static int assoc_of(u16 id) {           /* a team word's association: its file's, else a guest's, else none (0xFD) */
+    for (int a = 0; a < na; a++) if (afile[a] && afile[a] == (id & 0xFF)) return a;
+    for (int g = 0; g < ngu; g++) if ((gu[8 * g] | gu[8 * g + 1] << 8) == id) return gu[8 * g + 2];
+    return 0xFD;
 }
 static void snapshot(void) {            /* the edition's entrants (after access) + the reserve clubs for group fills */
     static u8 seen[NC + 1];
@@ -799,14 +813,15 @@ static int run(int stop) {              /* the edition from its entrants, the ca
     CT_IN.nclub = 0;
     CT_IN.manager = 0;
     for (int i = 0; i < CT_ED.ne; i++) {    /* the clubs: each team word once */
+        u16 id = CT_ED.e[i].id0 | CT_ED.e[i].id1 << 8, sv = CT_ED.e[i].s0 | CT_ED.e[i].s1 << 8;
         int k = 0;
-        for (int j = 0; j < CT_IN.nclub; j++) if (CT_IN.club[j].id == CT_ED.e[i].id) { k = j + 1; break; }
+        for (int j = 0; j < CT_IN.nclub; j++) if (CT_IN.club[j].id == id) { k = j + 1; break; }
         if (!k) {
             k = ++CT_IN.nclub;
-            CT_IN.club[k - 1].id = CT_ED.e[i].id; CT_IN.club[k - 1].assoc = CT_ED.e[i].assoc;
-            CT_IN.club[k - 1].str = (u32)(CT_ED.e[i].str & 0xFFF) * 16; CT_IN.club[k - 1].pts = rpts(CT_ED.e[i].id);
+            CT_IN.club[k - 1].id = id; CT_IN.club[k - 1].assoc = (u8)assoc_of(id);
+            CT_IN.club[k - 1].str = (u32)(sv & 0xFFF) * 16; CT_IN.club[k - 1].pts = rpts(id);
             taken[k] = 0;
-            if (CT_ED.mgr && CT_ED.e[i].id == CT_ED.mgr) CT_IN.manager = k;
+            if (CT_ED.mgr && id == CT_ED.mgr) CT_IN.manager = k;
         }
         idx[i] = k;
         if (CT_ED.e[i].cr != 0xFF) taken[k] = 1;
@@ -814,7 +829,7 @@ static int run(int stop) {              /* the edition from its entrants, the ca
     rng = CT_ED.seed ? CT_ED.seed : 1;
     clear_run();
     for (int i = 0; i < CT_ED.ne; i++)
-        if (CT_ED.e[i].cr != 0xFF) enter(CT_ED.e[i].cr >> 4, CT_ED.e[i].cr & 15, idx[i], 0, CT_ED.e[i].str >> 12);
+        if (CT_ED.e[i].cr != 0xFF) enter(CT_ED.e[i].cr >> 4, CT_ED.e[i].cr & 15, idx[i], 0, CT_ED.e[i].s1 >> 4);
     g_stop = stop;
     CT_SEG.kind = 0xFF;
     /* every round in calendar order: month (8 = August first, the season's order), then cup, then round */

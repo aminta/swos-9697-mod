@@ -594,7 +594,7 @@ def world_items():
                     texts[lang] = [x.format(n=len(clubs)) for x in (e['lp6'] if key == 'uefa' else e['lp'])] + \
                         e['lp_ko'] + [e['lp_q']]
                 else:
-                    texts[lang] = cup_text(dict(clubs=len(clubs), rounds=[CODES[b] for b in rounds]), T[lang])
+                    texts[lang] = dict(fmtprose.cup(dict(clubs=len(clubs), rounds=[CODES[b] for b in rounds]), lang), tail=[])
             out.append((n, None, titles, texts))
             out.append((n, None, {lang: t[1:] for lang, t in titles.items()}, texts))   # (careerworld w_pfx, 4.0:
             # a contest of a country with no name gets no '<country> ' prefix, no space either; the old key kept)
@@ -746,6 +746,16 @@ def po_page(po, names, t, lang):
     return lines
 
 
+def _po_prose(po, names, lang):
+    """po_page in prose (4.0): who plays it in a sentence, then its rounds' lines as sentences."""
+    import fmtprose
+    lines = po_page(po, names, T[lang], lang)
+    who = fmtprose.po_who(po, names, lang, lambda n: complist._nm(n, lang))
+    if not who:
+        return lines
+    return {'prose': [' '.join([who] + fmtprose.sentences(lines[1:]))], 'tail': []}
+
+
 def state_text(c, t, lang):
     e = EX[lang]
     lines = [e['state'].format(n=len(c.get('clubs', [])))]
@@ -853,7 +863,7 @@ def from_pack(d):
             info = (json.load(open(side)) if os.path.exists(side) else {}).get(comp['key'], {})
             cp = complist._cup(comp, ties, 'cup', info if comp['key'] == 'cup' else {})
             titles = {lang: title(lang, complist._nm(comp['names'], lang)) for lang in LANGS}
-            out.append((world, cid, titles, {lang: cup_text(cp, T[lang]) for lang in LANGS}))
+            out.append((world, cid, titles, {lang: dict(fmtprose.cup(cp, lang), tail=[]) for lang in LANGS}))
         elif comp['type'] == 'tourney':
             titles = {lang: title(lang, complist._nm(comp['names'], lang)) for lang in LANGS}
             out.append((world, cid, titles, {lang: tourney_text(comp, T[lang]) for lang in LANGS}))
@@ -868,7 +878,7 @@ def from_pack(d):
             if po.get('kind') == 'promedio' or not po.get('names'):
                 continue
             titles = {lang: title(lang, complist._nm(po['names'], lang)) for lang in LANGS}
-            out.append((world, None, titles, {lang: po_page(po, lg['names'], T[lang], lang) for lang in LANGS}))
+            out.append((world, None, titles, {lang: _po_prose(po, lg['names'], lang) for lang in LANGS}))
         if comp.get('cup_d'):                   # cupd: the Coppa Italia Serie D
             nm = comp['cup_d'].get('names') or {'*': ['COPPA ITALIA SERIE D', 'COPPA IT SERIE D']}
             titles = {lang: title(lang, complist._nm(nm, lang)) for lang in LANGS}
@@ -895,6 +905,8 @@ def write(out_dir, items):
                 tail = lines[lines.index(h):] if h in lines else []
                 prose = fmtprose.sentences(lines[:len(lines) - len(tail)])
             hand = fmtprose.text(world, titles['it'], lang)   # (hand texts keyed by the Italian title)
+            if hand and isinstance(lines, dict) and lines.get('real'):   # a national cup's real cup first, then the hand text
+                hand = [lines['real']] + hand
             if hand and not isinstance(lines, dict):      # a national cup's real draw first (complist: real_cup / real_in)
                 rc = [x for x in lines if x.startswith(TEXTS[lang]['real_cup'].split('{')[0]) or
                       x.startswith(TEXTS[lang]['real_in'])]

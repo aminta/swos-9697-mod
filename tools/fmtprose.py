@@ -292,7 +292,8 @@ def _rd(art, inn, to, pl=False):
 _ORD = {'it': ['primo', 'secondo', 'terzo', 'quarto'], 'en': ['first', 'second', 'third', 'fourth'],
         'fr': ['premier', 'deuxième', 'troisième', 'quatrième'], 'de': ['erste', 'zweite', 'dritte', 'vierte']}
 RD = {
-    'it': dict(q=lambda o: _rd(f'il {o} turno preliminare', f'nel {o} turno preliminare', f'al {o} turno preliminare'),
+    'it': dict(n=lambda o: _rd(f'il {o} turno', f'nel {o} turno', f'al {o} turno'),
+               q=lambda o: _rd(f'il {o} turno preliminare', f'nel {o} turno preliminare', f'al {o} turno preliminare'),
                pre=_rd('il turno preliminare', 'nel turno preliminare', 'al turno preliminare'),
                r1=_rd('il primo turno', 'nel primo turno', 'al primo turno'),
                qual=_rd('il turno di qualificazione', 'nel turno di qualificazione', 'al turno di qualificazione'),
@@ -301,7 +302,8 @@ RD = {
                po=_rd('gli spareggi', 'negli spareggi', 'agli spareggi', True), r16=_rd('gli ottavi', 'negli ottavi', 'agli ottavi', True),
                qf=_rd('i quarti', 'nei quarti', 'ai quarti', True), sf=_rd('le semifinali', 'nelle semifinali', 'alle semifinali', True),
                final=_rd('la finale', 'in finale', 'alla finale')),
-    'en': dict(q=lambda o: _rd(f'the {o} qualifying round', f'in the {o} qualifying round', f'to the {o} qualifying round'),
+    'en': dict(n=lambda o: _rd(f'the {o} round', f'in the {o} round', f'to the {o} round'),
+               q=lambda o: _rd(f'the {o} qualifying round', f'in the {o} qualifying round', f'to the {o} qualifying round'),
                pre=_rd('the preliminary round', 'in the preliminary round', 'to the preliminary round'),
                r1=_rd('the first round', 'in the first round', 'to the first round'),
                qual=_rd('the qualifying stage', 'in the qualifying stage', 'to the qualifying stage'),
@@ -312,7 +314,8 @@ RD = {
                qf=_rd('the quarter-finals', 'in the quarter-finals', 'to the quarter-finals', True),
                sf=_rd('the semi-finals', 'in the semi-finals', 'to the semi-finals', True),
                final=_rd('the final', 'in the final', 'to the final')),
-    'fr': dict(q=lambda o: _rd(f'le {o} tour préliminaire', f'au {o} tour préliminaire', f'au {o} tour préliminaire'),
+    'fr': dict(n=lambda o: _rd(f'le {o} tour', f'au {o} tour', f'au {o} tour'),
+               q=lambda o: _rd(f'le {o} tour préliminaire', f'au {o} tour préliminaire', f'au {o} tour préliminaire'),
                pre=_rd('le tour préliminaire', 'au tour préliminaire', 'au tour préliminaire'),
                r1=_rd('le premier tour', 'au premier tour', 'au premier tour'),
                qual=_rd('la phase de qualification', 'en phase de qualification', 'en phase de qualification'),
@@ -323,7 +326,8 @@ RD = {
                qf=_rd('les quarts de finale', 'en quarts de finale', 'en quarts de finale', True),
                sf=_rd('les demi-finales', 'en demi-finales', 'en demi-finales', True),
                final=_rd('la finale', 'en finale', 'en finale')),
-    'de': dict(q=lambda o: _rd(f'die {o} Qualifikationsrunde', f'in der {o}n Qualifikationsrunde', f'in die {o} Qualifikationsrunde'),
+    'de': dict(n=lambda o: _rd(f'die {o} Runde', f'in der {o}n Runde', f'in die {o} Runde'),
+               q=lambda o: _rd(f'die {o} Qualifikationsrunde', f'in der {o}n Qualifikationsrunde', f'in die {o} Qualifikationsrunde'),
                pre=_rd('die Vorrunde', 'in der Vorrunde', 'in die Vorrunde'),
                r1=_rd('die erste Runde', 'in der ersten Runde', 'in die erste Runde'),
                qual=_rd('die Qualifikation', 'in der Qualifikation', 'in die Qualifikation'),
@@ -570,3 +574,98 @@ def conti(c, acc, lang, cname, aname, conf, tier, guests=False):
         for a, b in el:
             out = [re.sub(a, b, x) for x in out]
     return out
+
+
+# ---- national cups (complist._cup: the real cup's size, the game's knockout slice), 4.0: the same plain story
+NC = {
+    'it': dict(real='La coppa vera ha {n} squadre, che entrano in turni diversi secondo la categoria.',
+               game='Nel gioco si parte con {n} squadre a eliminazione diretta.', game_r='Nel gioco ne restano {n}, a eliminazione diretta.',
+               byes='{b} di loro passano direttamente al secondo turno.', drawn='Il primo turno ricalca il sorteggio vero.',
+               away=', con la regola dei gol in trasferta', rep=', e in caso di parità si ripete', po=', e in caso di parità si gioca uno spareggio',
+               ord=['primo', 'secondo', 'terzo', 'quarto', 'quinto', 'sesto', 'settimo']),
+    'en': dict(real='The real cup has {n} clubs, who enter at different rounds by division.',
+               game='In the game it starts with {n} clubs, knockout.', game_r='In the game {n} of them are left, knockout.',
+               byes='{b} of them go straight to the second round.', drawn='The first round follows the real draw.',
+               away=', with the away goals rule', rep=', with a replay if level', po=', with a play-off if level',
+               ord=['first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh']),
+    'fr': dict(real='La vraie coupe compte {n} clubs, qui entrent à des tours différents selon leur division.',
+               game="Dans le jeu, on commence avec {n} clubs, à élimination directe.", game_r='Dans le jeu, il en reste {n}, à élimination directe.',
+               byes='{b} d\'entre eux passent directement au deuxième tour.', drawn='Le premier tour suit le vrai tirage.',
+               away=", avec la règle des buts à l'extérieur", rep=", et un match à rejouer en cas d'égalité", po=", et un barrage en cas d'égalité",
+               ord=['premier', 'deuxième', 'troisième', 'quatrième', 'cinquième', 'sixième', 'septième']),
+    'de': dict(real='Der echte Pokal hat {n} Vereine, die je nach Liga in verschiedenen Runden einsteigen.',
+               game='Im Spiel beginnt es mit {n} Vereinen im K.-o.-System.', game_r='Im Spiel sind davon {n} übrig, im K.-o.-System.',
+               byes='{b} davon steigen direkt in der zweiten Runde ein.', drawn='Die erste Runde folgt der echten Auslosung.',
+               away=', mit Auswärtstorregel', rep=', bei Gleichstand mit Wiederholungsspiel', po=', bei Gleichstand mit Entscheidungsspiel',
+               ord=['erste', 'zweite', 'dritte', 'vierte', 'fünfte', 'sechste', 'siebte']),
+}
+
+
+def cup(cp, lang):
+    """A knockout cup's FORMAT page as plain prose: the real cup (its size), the game's slice (clubs, byes), its rounds
+    by name (the last 16 / quarter-finals / semi-finals / final, else the n-th round) and how each is played.
+    Returns {'prose': [paragraphs], 'real': the real cup's sentence or None}."""
+    l, c, nc = CP[lang], RD[lang], NC[lang]
+    real = cp.get('real') and len(cp['real']['rounds']) > 1
+    s1 = [nc['real'].format(n=cp['real']['clubs'])] if real else []
+    s1.append((nc['game_r'] if real else nc['game']).format(n=cp['clubs']))
+    if cp.get('byes'):
+        s1.append(nc['byes'].format(b=cp['byes']))
+    codes = cp.get('rounds') or []
+    n, byes, names = cp['clubs'], cp.get('byes') or 0, []
+    for i in range(len(codes)):
+        left = len(codes) - i                    # (the rounds to go: 1 = the final)
+        play = n - (byes if i == 0 else 0)       # (a round's name by its clubs only when they fit: 8 = the quarters)
+        key = {1: 'final', 2: 'sf', 3: 'qf', 4: 'r16'}.get(left) if play == 2 ** left else None
+        names.append(c[key] if key else c['n'](nc['ord'][min(i, 6)]))
+        n = play // 2 + (byes if i == 0 else 0)
+    how = lambda code: {'single': (l['one'], l['pens']), 'single_et': (l['one'], l['etp']),
+                        'two_legs': (l['two'], nc['away']), 'single_replay': (l['one'], nc['rep']),
+                        'two_legs_pens': (l['two'], l['pens']), 'two_legs_replay': (l['two'], nc['po'])}.get(code, (l['one'], l['pens']))
+    s2, i = [], 0
+    while i < len(codes):
+        j = i
+        while j + 1 < len(codes) and codes[j + 1] == codes[i]:
+            j += 1
+        subj = names[i:j + 1]
+        lg, lv = how(codes[i])
+        s2.append(l['ko'].format(s=_list([x['art'] for x in subj], l), v=l['v'][len(subj) > 1 or subj[0]['pl']],
+                                 legs=lg, nt='', lv=lv))
+        i = j + 1
+    if cp.get('src') == 'real':
+        s2.append(nc['drawn'])
+    out = [' '.join(_cap(x) for x in s1)]
+    if s2:
+        out.append(' '.join(_cap(x) for x in s2))
+    return {'prose': out, 'real': s1[0] if real else None}
+
+
+POW = {'it': dict(one='la {o}', rng='le squadre dalla {a} alla {b}', of=' di {d}', s='{who} {v} {kind}.', v=('gioca', 'giocano')),
+       'en': dict(one='the {o}', rng='the clubs from {a} to {b}', of=' of {d}', s='{who} {v} {kind}.', v=('plays', 'play')),
+       'fr': dict(one='le {o}', rng='les clubs du {a} au {b}', of=' de {d}', s='{who} {v} {kind}.', v=('joue', 'jouent')),
+       'de': dict(one='der {o}', rng='die Vereine vom {a} bis zum {b}', of=' der {d}', s='{who} {v} {kind}.', v=('spielt', 'spielen'))}
+
+
+def po_who(po, names, lang, nm):
+    """A play-off contest's first sentence: who plays it ('La 1a di SEGUNDA OCCIDENTE e la 1a di SEGUNDA ORIENTE
+    giocano i play-off promozione.'); None when its entrants are not division places."""
+    l, w = L[lang], POW[lang]
+    ent = po.get('entrants', [])
+    if not ent or not all(isinstance(e, list) for e in ent):
+        return None
+    by = {}
+    for d, p in ent:
+        by.setdefault(d, []).append(p)
+    items = []
+    for d, ps in sorted(by.items()):
+        ps = sorted(ps)
+        if len(ps) == 1:
+            x = w['one'].format(o=l['ord'](ps[0]))
+        elif ps == list(range(ps[0], ps[-1] + 1)):
+            x = w['rng'].format(a=l['ord'](ps[0]), b=l['ord'](ps[-1]))
+        else:
+            x = w['one'].format(o=_list([l['ord'](p) for p in ps], CP[lang]))
+        items.append(x + (w['of'].format(d=nm(names[d])) if len(by) > 1 and names else ''))
+    many = len(items) > 1 or len(ent) > 1
+    kind = l['kind'].get(po.get('kind', 'promotion'), l['kind']['promotion'])
+    return _cap(w['s'].format(who=_list(items, CP[lang]), v=w['v'][many], kind=kind))

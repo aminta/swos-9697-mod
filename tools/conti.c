@@ -482,6 +482,7 @@ static void group(int base, int gs, int grounds, int *P) {
     for (int i = 0; i < gs; i++) P[8 + i] = gd[P[i]];
 }
 
+static int lp_size(int c);
 static int forced(int c, int r) {
     for (int i = 0; i < CT_ED.nf; i++) if (CT_ED.f[i].c == c && CT_ED.f[i].r == r) return CT_ED.f[i].v;
     return -1;
@@ -508,7 +509,8 @@ static int ct_round(int c, int r) {
     CT_OUT.nent[c][r] = n;
     for (int i = 0; i < n && i < NE; i++) { CT_OUT.ent[c][r][i] = D[i]; if (D[i]) reached(D[i], c, r); }
     if (R[17] && CT_LP[c]) {            /* the main round: the game's contest plays it with the career club */
-        int m = R[0] == K_GROUPS ? R[6] * R[7] : n;
+        int m = R[0] == K_GROUPS ? R[6] * R[7] : n, ms = lp_size(c);
+        if (m > ms) m = ms;
         for (int i = 0; i < m && i < 32; i++) CT_LP[c][i] = D[i] && i < n + (m - n) ? CT_IN.club[D[i] - 1].id : 0xFFFF;
     }
     int pm = -1;                        /* the career club in this round: its result forced, else its next game */
@@ -517,9 +519,11 @@ static int ct_round(int c, int r) {
         for (int i = 0; i < n; i++) if (D[i] == CT_IN.manager) pm = i;
     if (pm >= 0) {
         g_fv = forced(c, r);
-        if (g_fv < 0 && g_stop) {
-            CT_SEG.cup = c; CT_SEG.round = r; CT_SEG.kind = R[0]; CT_SEG.legs = R[1]; CT_SEG.level = R[2];
-            CT_SEG.month = R[9];
+        if (g_fv < 0 && g_stop && (R[17] || R[0] == K_KO)) {   /* (a group stage before the main round: simulated) */
+            CT_SEG.cup = c; CT_SEG.round = r; CT_SEG.kind = R[0] | (R[17] ? 0x80 : 0);
+            CT_SEG.legs = R[1] == 2 ? (R[2] == 1 ? 0x94 : 0x84) : 0x14;   /* (the game's round byte) */
+            CT_SEG.level = R[2];
+            CT_SEG.month = (u8)((R[9] - 1 + (R[9] < 8 ? 12 : 0)) * 8);   /* (x 8 from January, as a contest's) */
             if (R[0] == K_KO) {
                 int a = pm & ~1;
                 CT_SEG.n = 2; CT_SEG.pos = pm & 1;
@@ -654,6 +658,16 @@ void ct_go(u32 manager, u32 seed) {
 }
 
 /* --- the season --------------------------------------------------------------------------------------------------- */
+static int lp_size(int c) {             /* the contest list's places: its main round's (a group stage, else its field) */
+    for (int r = 0; r < nrd[c]; r++) {
+        const u8 *R = RND(c, r);
+        if (R[17]) { int m = R[0] == K_GROUPS ? R[6] * R[7] : R[18]; return m < 32 ? m : 32; }
+    }
+    return 0;
+}
+static void lp_clear(int c) {           /* (only its own places: the Recopa's list has 2, the next struct follows) */
+    for (int i = 0, m = lp_size(c); i < m; i++) CT_LP[c][i] = 0xFFFF;
+}
 static void clear_run(void) {
     for (int c = 0; c < NCUP; c++) for (int r = 0; r < NRD; r++) EN[c][r] = 0;
     CT_OUT.ncup = ncup;
@@ -741,7 +755,7 @@ void ct_season(void) {                  /* the season end (after ct_finish and t
     CT_ED.mark = 0;
     rng = CT_IN.seed ? CT_IN.seed : 1;
     for (int c = 0; c < NCUP; c++) for (int r = 0; r < NRD; r++) EN[c][r] = 0;
-    for (int c = 0; c < NCUP; c++) if (CT_LP[c]) for (int i = 0; i < 32; i++) CT_LP[c][i] = 0xFFFF;
+    for (int c = 0; c < ncup; c++) if (CT_LP[c]) lp_clear(c);
     access();
     snapshot();
     CT_ST.mark = 0x5443; CT_ST.season++;

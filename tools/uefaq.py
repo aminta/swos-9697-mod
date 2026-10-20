@@ -690,6 +690,7 @@ Q_NAME, Q_LIST = 0x28, 0x30     # offsets in a contest: its 2 name dwords, its 2
 NAMES = {'it': 'PRELIM. ', 'en': 'QUAL. ', 'fr': 'QUALIF. ', 'de': 'QUALI. '}
 CUPS = (b'CHAMPIONS LEAGUE', b'EUROPA LEAGUE', b'CONFERENCE LEAGUE')
 STRUCTS = []
+SYMS = {}                       # the patch's symbols + DAILY_SITE (conti.py)
 STATE_END = [None]
 LABELS = {}                     # (dplay: the round-name hooks)
 D7_BASE = [None]                # sacups' chain value of the first contest (patch.py)
@@ -804,6 +805,7 @@ def patch(p, at, limit, sites):
         p.put(1, a, b'\xe9' + rel(a, lab[target]))
     p.retarget(1, uc.LABELS['UC_QPTS'], 1, lab['uq_cpts'])       # (uefacoef uc_final)
     p.put(1, site + 1, rel(site, lab['uq_daily']))     # (a relative call: no fixup to move)
+    SYMS.update(symbols, DAILY_SITE=site, uq_daily=(1, lab['uq_daily']))   # (conti's phase B: the same sites)
     for hk, stub in ((r280c0, 'uq_rn1'), (r283bd, 'uq_rn2')):     # `sub word [Dn], 1` (8 B, a fixup) -> jmp
         p.remove(1, hk + 3)
         p.put(1, hk, b'\xe9' + rel(hk, lab[stub]) + b'\x90' * 3)

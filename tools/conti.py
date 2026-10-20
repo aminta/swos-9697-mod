@@ -372,7 +372,7 @@ if __name__ == '__main__':
 
 
 # --- the game ---------------------------------------------------------------------------------------------------------
-PAGES = 4                               # obj1 pages: the C code + the glue (patch.py: after split's / statecup's)
+PAGES = 5                               # obj1 pages: the C code + the glue (patch.py: after split's / statecup's)
 BSS = 0x18000                           # obj2 .bss: CT_IN, CT_ST, CT_OUT, the edition (patch.py: in the career BSS)
 CONFS = ['conmebol', 'concacaf', 'afc', 'caf', 'ofc']
 LABELS = {}
@@ -443,11 +443,142 @@ ct_fill:                                ; careerworld w_ct_fill (the season end'
     call CT_GO
     add esp, 8
     pop es
-    popad
+    call ct_prep                        ; (phase B: the career club's first game: a tie into the ties' contest, which
+    popad                               ; the season start's slot-3 chain finds as any contest)
 .r:
     ret
 
+; --- phase B: the career club's games one by one (conti.c ct_result / ct_resume; CT_SEG: cup, round, kind, n,
+; round byte, level, month x 8, pos, the clubs) -----------------------------------------------------------------
+ct_prep:                                ; CT_SEG a tie -> the ties' contest (its cup's name, the two clubs, its round
+    mov byte [ct_live], 0               ; byte, its month); ct_live: our tie is (or will be) in slot 3
+    cmp byte [CT_SEG + 2], 0
+    jne .r
+    mov edi, TIE
+    mov al, [CT_SEG + 6]
+    mov [edi + 3], al
+    add al, 2
+    mov [edi + 4], al
+    mov al, [CT_SEG + 4]
+    mov [edi + 14], al
+    movzx eax, byte [CT_SEG]
+    mov eax, [ct_names + eax * 4]
+    mov [edi + 16], eax
+    mov [edi + 20], eax
+    mov eax, [CT_SEG + 8]
+    mov [edi + 24], eax
+    mov byte [ct_live], 1
+.r:
+    ret
+
+ct_daily:                               ; before the next match (uefaq's uq_daily site, chained): our tie decided ->
+    pushad                              ; ct_result, the next game into slot 3
+    push es
+    push ds
+    pop es
+    cld
+    mov dword [CT_SPEC], SPEC
+    mov eax, [CT_ED + 4]                ; (a load / another career: CT_SEG again from the saved edition)
+    mov dx, [CT_ED]
+    cmp eax, [ct_seen]
+    jne .resume
+    mov al, [CT_ED + 10]
+    cmp al, [ct_seen + 4]
+    je .chk
+.resume:
+    mov eax, [CT_ED + 4]
+    mov [ct_seen], eax
+    mov al, [CT_ED + 10]
+    mov [ct_seen + 4], al
+    cmp dx, 4543h
+    jne .x
+    call CT_RESUME
+    call ct_prep
+.chk:
+    cmp byte [ct_live], 0
+    je .x
+    mov al, [SLOT3 + 2Dh]
+    cmp al, TIE_ID
+    jne .x
+    mov ax, [SLOT3 + 39h]               ; the tie's winner (FFFF until it is decided)
+    cmp ax, 0FFFFh
+    je .x
+    xor ecx, ecx
+    cmp ax, [SEL]
+    jne .l
+    inc ecx
+.l:
+    push ecx
+    call CT_RESULT
+    add esp, 4
+    mov al, [CT_ED + 10]
+    mov [ct_seen + 4], al
+    call ct_prep
+    movzx eax, byte [CT_SEG + 2]
+    cmp al, 0FFh
+    je .none
+    test al, 80h
+    jnz .main
+    mov dword [A0R], TIE                ; the next tie
+    call ct_build
+    mov word [E092F], TIE_D7
+    mov word [CUP_KIND], 0
+    jmp .x
+.main:
+    movzx ebx, byte [CT_SEG]            ; the cup's main round (its list: CT_LP, just written)
+    mov eax, [ct_structs + ebx * 4]
+    mov [A0R], eax
+    call ct_build
+    add ebx, CT_D7
+    mov [E092F], bx
+    mov word [CUP_KIND], 0
+    jmp .x
+.none:
+    mov word [E092F], -1                ; (out: the finished tie stays in slot 3, not reloaded)
+.x:
+    pop es
+    popad
+    jmp NEXT_DAILY
+
+ct_build:                               ; [A0R] -> slot 3, as uefaq's .build: the played slot-3 calendar entries get
+    pushad                              ; round FFh, the slot cleared, the stale type-2 stage reset, cseg_8B2D3
+    mov esi, CAL
+    movzx ecx, word [CAL_CUR]
+    add ecx, esi
+.c0:
+    cmp esi, ecx
+    jae .c1
+    cmp byte [esi], 3
+    jne .c2
+    mov byte [esi + 7], 0FFh
+.c2:
+    movzx eax, word [esi + 2]
+    test eax, eax
+    jz .c1
+    add esi, eax
+    jmp .c0
+.c1:
+    mov edi, SLOT3
+    mov ecx, 0B52h
+    xor eax, eax
+    rep stosb
+    mov word [STAGE_G], 0
+    mov word [D0R], 3
+    mov word [D1R], 0
+    mov word [D2R], 0
+    call C8B2D3
+    mov word [SLOT3 + 39h], 0FFFFh
+    popad
+    ret
+
 ct_on: db 0
+ct_live: db 0
+align 4
+ct_seen: dd 0, 0
+ct_structs:
+    ;CT_STRUCTS
+ct_names:
+    ;CT_NAMES
 '''
 
 
@@ -506,7 +637,19 @@ def patch(p, at, limit, bss_at, area):
         symbols[f'LIST{ci}'] = (1, lst)
         lp.append(f'    mov dword [CT_LP + {4 * ci}], LIST{ci}')
     symbols['CT_LP'] = syms['CT_LP']
-    asm = GLUE.replace("    ;CT_LP", "\n".join(lp))
+    import uefaq
+    u = uefaq.SYMS
+    assert u, 'conti phase B: uefaq (the daily site, slot 3) first'
+    for i, (ci, off, lst, n) in enumerate(STRUCTS):
+        symbols[f'XST{i}'] = (1, off)
+    symbols.update({k: u[k] for k in ('SLOT3', 'CAL', 'CAL_CUR', 'STAGE_G', 'D0R', 'D1R', 'D2R', 'C8B2D3', 'A0R',
+                                      'E092F', 'CUP_KIND')})
+    symbols.update(NEXT_DAILY=u['uq_daily'], TIE=(1, TIE[0]), TIE_ID=(0, p.get(1, TIE[0], 1)[0]),
+                   TIE_D7=(0, D7_BASE[0] + len(STRUCTS)), CT_D7=(0, D7_BASE[0]), CT_SEG=syms['CT_SEG'],
+                   CT_ED=syms['CT_ED'], CT_RESULT=syms['ct_result'], CT_RESUME=syms['ct_resume'])
+    asm = GLUE.replace("    ;CT_LP", "\n".join(lp)).replace(
+        "    ;CT_STRUCTS", "\n".join(f'    dd XST{i}' for i in range(len(STRUCTS))) or '    dd 0').replace(
+        "    ;CT_NAMES", "\n".join(f'    dd {r}' for r in NAMES) or '    dd 0')
     bad = {k: v for k, v in symbols.items() if not (isinstance(v, tuple) and isinstance(v[1], int))}
     assert not bad, bad
     spec_at = (end + 15) & ~15                          # (the spec in our own pages: the obj2 string area is
@@ -523,12 +666,15 @@ def patch(p, at, limit, bss_at, area):
         p.put(1, c + 1, rel(c, lab['ct_tab']))
     for c in c939:
         p.put(1, c + 1, rel(c, lab['ct_ctry']))
+    site = u['DAILY_SITE']                              # (the daily site: ours first, then uefaq's uq_daily)
+    p.put(1, site + 1, rel(site, lab['ct_daily']))
     a = cw.LABELS['w_ct_fill']
     p.put(1, a, b'\xe9' + rel(a, lab['ct_fill']))
     assert struct.unpack('<I', p.get(1, syms['CT_LAYOUT'][1] + 4, 4))[0] == ST_SIZE      # (engine item 'CT')
     engine.ITEM_AT['CT'] = syms['CT_ST']
     assert struct.unpack('<I', p.get(1, syms['CT_LAYOUT'][1] + 80, 4))[0] == ED_SIZE
-    engine.ITEM_AT['CE'] = syms['CT_ED']
+    if 'CE' in engine.SAVE_ITEMS:
+        engine.ITEM_AT['CE'] = syms['CT_ED']
     LABELS.update(lab, syms=syms, assocs=assocs, cups=cups)
     print(f'exe: other confederations\' cups (conti.c): {len(cups)} cups of {", ".join(confs)}, '
           f'{len(assocs)} associations, spec {len(spec)} B; C obj1+{at:#x}..{end:#x}, glue ..{glue + len(code):#x}, '
@@ -716,6 +862,8 @@ def season1_native(confs, files, words):
 IDS = [0xC6, 0xC7, 0xC8, 0xC9, 0xCA, 0xD0, 0xD1, 0xDA, 0xDD, 0xDE, 0xDF, 0xEC, 0xED, 0xEE, 0xEF]   # (mkseason.RESERVED_IDS)
 STRUCTS = []                            # [(cup index, struct offset, team list offset, list length)]
 D7_BASE = [0]                           # (patch.py: sacups' D7 / E092F of the first one)
+NAMES = []                              # each cup's name (rel to sacups.STR_BASE)
+TIE = [None]                            # the ties' contest (obj1), D7 = D7_BASE + len(STRUCTS)
 
 
 def _legs(rd):
@@ -743,6 +891,7 @@ def structs(p, area, lang, at):
     cwc = sacups.unique(d2, sacups.CWC_HDR)
     out, kinds = [], []
     STRUCTS.clear()
+    NAMES.clear()
     files, words = _world_maps(confs)
     first = season1_native(confs, files, words)         # (the 2027 editions' main rounds: the contests' lists)
     ci = 0
@@ -791,10 +940,23 @@ def structs(p, area, lang, at):
             blob = bytes(body[:name_at]) + struct.pack('<II', rel, rel) + struct.pack(f'<{n}H', *ws)
             assert blob[5] + 5 == name_at and blob[7] + 7 == name_at + 8, c['key']
             p.put(1, at, blob)
+            NAMES.append(rel)
             STRUCTS.append((ci, at, at + name_at + 8, n))
             out.append(at)
             kinds.append(min(k, 2))                         # (the trophy's rank: the first cup as the Champions Cup)
             at += (len(blob) + 3) & ~3
             ci += 1
-    print(f'exe: other confederations\' contests (slot-3 chain): {len(out)} at obj1+{out[0] if out else at:#x}')
+    # phase B: the career club's ties (a qualifying round, a knockout round before the main one): one 2-club
+    # knockout contest, rewritten by the glue for each tie (its cup's name, the two clubs, the round byte, months)
+    body = sacups.knockout16(d2[cwc:cwc + 28], IDS[len(out)], 2, (0x84,))
+    rel = NAMES[0] if NAMES else 0
+    blob = bytes(body) + struct.pack('<II', rel, rel) + struct.pack('<2H', 0xFFFF, 0xFFFF)
+    assert blob[5] + 5 == len(body) and len(body) == 16
+    p.put(1, at, blob)
+    TIE[0] = at
+    out.append(at)
+    kinds.append(0)
+    at += (len(blob) + 3) & ~3
+    print(f'exe: other confederations\' contests (slot-3 chain): {len(out)} at obj1+{out[0] if out else at:#x} '
+          '(the last: the career club\'s ties)')
     return at, out, kinds

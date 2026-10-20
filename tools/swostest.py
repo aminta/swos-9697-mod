@@ -1446,7 +1446,7 @@ def fill_check(s, tag):
     """The menu buttons' texture: FILL.256 lives at linAdr384k + 65536 (64000 pixels) while the menus run; a match draws
     its virtual pitch over the whole 384k buffer, and GameLoop / highlights / animations reload it (LoadFillAndSwtitle)
     before the menus come back. Compares that memory with the game folder's FILL.256 and logs '[fill] <tag>: intact' or
-    'CHANGED' (differing bytes, the first offset). The address of linAdr384k: LoadFillAndSwtitle's `mov eax,
+    'CHANGED' (differing 16-byte blocks, the first one's byte offset). The address of linAdr384k: LoadFillAndSwtitle's `mov eax,
     [linAdr384k]; add eax, 65536; mov [A1], eax`. Returns True when intact (None if it could not be read)."""
     try:
         exe = os.path.join(ROOT, 'orig', UI_ORIG)
@@ -1466,7 +1466,7 @@ def fill_check(s, tag):
         mem = s.result.read(lin, 64000)
         diff = [i for i in range(0, 64000, 16) if mem[i:i + 16] != fill_check.ref[i:i + 16]]
         s.log.append(f'[fill] {tag}: ' + ('intact' if not diff else
-                                          f'CHANGED ({len(diff)} of 4000 blocks, first +{diff[0] * 16:#x})'))
+                                          f'CHANGED ({len(diff)} of 4000 blocks, first +{diff[0]:#x})'))
         return not diff
     except Exception as e:                           # never let the check break a run
         s.log.append(f'[fill] {tag}: check failed {e}')

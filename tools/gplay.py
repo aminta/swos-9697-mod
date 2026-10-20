@@ -263,6 +263,15 @@ gp_cal:                                 ; 4.0: replaces the career calendar's le
 
 gp_after:                               ; 4.0 after a career load (arg97's arg_load, after ProcessCareerFile)
     call gp_sync
+%if CD_ON
+    mov eax, [SLOTS_ + 8]               ; (the Coppa D in slot 2: its contest pointer back, ProcessCareerFile left 0)
+    test eax, eax
+    jz .ns1
+    cmp byte [eax + 2Dh], CDS1_ID
+    jne .ns1
+    mov dword [D8CAA + 8], CDS1
+.ns1:
+%endif
     mov al, [SEASONPLAYING]
     mov [GP_SEAS], al
     xor ebp, ebp                        ; (the career country's play-off names, as gp_sack finds them)
@@ -950,12 +959,36 @@ gp_adv:                                 ; replaces the 4 `call cseg_8EA82` (the 
     mov dword [GP_CDFIRST], 1
 .nf:
     popad
+    mov dword [GP_CDS1], CDS1 + CDS1_LIST
+    mov dword [GP_CDFORCE], CDFORCE_
     mov eax, cd_step_c
     call gp_c
     test eax, eax
     jz .ncd
+    cmp eax, 2
+    je .s1
     mov dword [GP_BUILT], 1             ; (the career club's tie: slot 4)
     call gp_install
+    jmp .ncd
+.s1:
+    pushad                              ; 4.0: the Coppa D from the 1/32 in slot 2 (CDS1, its list just written), as
+    push es                             ; conti's ct_build: the slot's buffer cleared, cseg_8B2D3, no winner yet
+    push ds
+    pop es
+    cld
+    mov edi, [SLOTS_ + 8]
+    mov ecx, 0B52h
+    xor eax, eax
+    rep stosb
+    pop es
+    mov dword [A0R], CDS1
+    mov word [D0R], 2
+    mov word [D1R], 0
+    mov word [D2R], 0
+    call C8B2D3
+    mov eax, [SLOTS_ + 8]
+    mov word [eax + 39h], 0FFFFh
+    popad
 .ncd:
 %endif
     mov eax, gp_adv_c
@@ -1210,6 +1243,103 @@ CD_RNAME = '''
     stc
     ret
 .ncd:'''
+CDS1_ID = 0xEF                          # 4.0: the Coppa D's slot-2 knockout (conti.IDS' last, unused there)
+
+
+def cds1_src(p, cd, rl, rs):
+    """The Coppa D from the 1/32 as a game knockout for slot 2 (64 clubs; header weeks = the round records', round
+    bytes by legs; names rl / rs; its list written by cd_step_c at the 1/32): nasm source, labels CDS1 / CDS1_LIST."""
+    import sacups
+    import conti
+    world, lfile, tab, nr, nt, cnames, cdt = cd
+    assert CDS1_ID == conti.IDS[-1] and len(conti.STRUCTS) + 1 < len(conti.IDS)
+    recs = [tab[8 * r:8 * r + 8] for r in range(nr)]
+    r32 = next(r for r in range(nr) if recs[r][4] == 32)
+    legs = tuple(0x94 if recs[r][2] == 2 else 0x14 for r in range(r32, nr))
+    d2 = p.le.obj_bytes(2)
+    h = sacups.knockout16(d2[sacups.unique(d2, sacups.CWC_HDR):][:28], CDS1_ID, 64, legs)
+    h[3], h[4] = recs[r32][0], recs[nr - 1][1]
+    CDS1_ROUNDS[:] = list(range(r32, nr))
+    import dplay
+    d1 = p.le.obj_bytes(1)
+    t, calls, i = dplay._play_sites(p, sacups.regs(d1))['tail'], [], 0
+    i = t
+    while len(calls) < 5 and i < t + 0x200:             # cseg_8ECAE's tail: cseg_32E15, then the contest's start
+        if d1[i] == 0xE8:
+            calls.append(i + 5 + struct.unpack_from('<i', d1, i + 1)[0])
+            i += 5
+        else:
+            i += 1
+    assert len(calls) == 5, calls
+    CDS1_CALLS[:] = calls[1:]
+    return ('align 4\nCDS1_START: dd ' + ', '.join(f'C_S1_{k}' for k in range(4)) + ', 0\n'
+            + 'align 4\nCDS1: db ' + ', '.join(map(str, h)) + f'\n    dd {rl}, {rs}\n'
+            + f'CDS1_LIST equ {len(h) + 8}\n    times 64 dw 0FFFFh\nCDS1_ID equ {CDS1_ID}\n')
+
+
+CDS1_ROUNDS = []                        # (rnames: the Coppa D rounds the slot-2 contest plays)
+CAL1_SITE = []                          # (cseg_3563E's `mov eax, A6`: gp_cal1)
+CDS1_CALLS = []                         # (cseg_8ECAE tail's start calls: cseg_8B71C, cseg_27436, cseg_8B8B8, cseg_8B7EA)
+CUP12 = '''
+gp_cdmem:                               ; ZF = 0 when the career club is a Coppa Italia Serie D entrant (cd_member_c),
+    pushad                              ; every register kept
+    xor ebx, ebx
+    cmp word [GAMETYPE], 4
+    jne .r
+    mov al, [SLT + WORLD_BYTE]
+    cmp al, [CD_TAB]
+    jne .r
+    mov dword [GP_CDT], CD_TAB
+    mov dword [GP_CDD], CD_DT
+    mov dword [GP_SLT], SLT
+    push es
+    push ds
+    pop es
+    cld
+    movzx eax, word [CAREERTEAM]
+    push eax
+    call CD_MEMBER
+    add esp, 4
+    pop es
+    mov ebx, eax
+.r: test ebx, ebx
+    popad
+    ret
+
+gp_cal1:                                ; 4.0 A: cseg_3563E's `mov eax, A6` (the career calendar's list of entries):
+    mov eax, [A6R]                      ; a Coppa D club's COPPA ITALIA entries (slot 1: the game plays the cup
+    cmp byte [eax], 1                   ; through them, the club is not in it) are left out of the list
+    jne .r
+    call gp_cdmem
+    jz .r
+    inc word [D6R]                      ; (cseg_3570C's next entry, without using a list line)
+    mov word [D7R], 0
+    movzx ecx, word [eax + 2]
+    add eax, ecx
+    mov [A6R], eax
+    mov [A4R], eax
+    add esp, 4
+    jmp CAL1_LOOP
+.r: ret
+
+gp_cup12:                               ; 4.0: InitNewSeason's `call cseg_8B2D3` of slots 1 / 2 (the country's cup and
+    pushad                              ; league cup): a Coppa Italia Serie D club gets neither (cd_member_c), the slot
+    cmp word [GAMETYPE], 4              ; cleared (Davide's Schio: COPPA ITALIA / C. IT SERIE C rows never played)
+    jne .game
+    cmp word [D0R], 2                   ; (4.0 A: slot 1 stays the COPPA ITALIA - the game plays it through the
+    jne .game                           ; calendar and the season end needs its winner; slot 2 becomes the Coppa D's)
+    call gp_cdmem
+    jz .game
+    movzx eax, word [D0R]
+    mov dword [D8CAA + eax * 4], 0
+    mov eax, [SLOTS_ + eax * 4]         ; (the slot's buffer: no contest, as sacups clears slot 1's)
+    mov byte [eax + 2Dh], 0
+    popad
+    ret
+.game:
+    popad
+    jmp C8B2D3
+'''
 GP_RNAME = '''
 gp_rname:                               ; rnames' rn_round (an FE contest, RN_CDP): ko[0] of this season in slot 4 ->
     cmp word [GP_ST + ST_KO], 4B47h     ; CF = 1, al = its round's name, else CF = 0 (the game's); every register but
@@ -1566,6 +1696,10 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
                                          'gp_sack_c', 'gp_forcecfb', 'gp_pwin_c', 'gp_rlines_c', 'GP_RLN', 'GP_RLC', 'GP_RLPOULE', 'GP_REC', 'GP_CMB', 'gp_adv_c', 'GP_ADVWK', 'GP_WK', 'GP_TH', 'GP_RN',
                                          'gp_defer_c', 'cd_step_c', 'gp_scal_c', 'gp_repoint_c', 'gp_fixload_c', 'CD_ST', 'GP_CDT', 'GP_CDNM', 'GP_CDD',
                                          'GP_CDFIRST')})
+    symbols['CD_MEMBER'] = syms['cd_member_c']
+    symbols['GP_CDS1'] = syms['GP_CDS1']
+    symbols['GP_CDFORCE'] = syms['GP_CDFORCE']
+    symbols['CDFORCE_'] = (0, int(os.environ.get('CD_FORCE') or 0))   # (test builds only)
     symbols['FORCE_ON'] = (0, int(bool(force)))
     import longtable                                          # 4.0 stage titles (table, calendar): the table in area
     stg = longtable.stage_table(lang, b'\0' * 2 + struct.pack('<4HIH', split.ST, split.ST + split.OFF['frozen'],
@@ -1626,6 +1760,18 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
         cd_src = (f'CD_TAB: db {world}, {nr}, {lfile}, 0\n    db ' + ', '.join(str(b) for b in tab)
                   + f'\nCD_NM: dd {rl}, {rs}\nCD_DT: db ' + ', '.join(str(b) for b in cdt)
                   + '\nCD_RN: db ' + ', '.join(str(x) for x in rnames.CD_NAMES) + '\n')
+    if cds:
+        a0_ = r['A0']
+        pk_ = lambda x: re.escape(struct.pack('<I', x))
+        d1c = p.le.obj_bytes(1)
+        ms = [m for m in re.finditer(rb'\xa1' + pk_(a0_ + 24) + rb'\x8b\x35(.{4})\x89\x06\x83\x05(.{4})\x04', d1c, re.S)
+              if m.group(1) == m.group(2)]
+        assert len(ms) == 1 and d1c[ms[0].start() - 19:ms[0].start() - 17] == b'\x66\xa1', ms
+        CAL1_SITE[:] = [ms[0].start()]
+        symbols.update({'CAL1_LOOP': (1, ms[0].start() - 19), 'D6R': (2, a0_ - 8), 'D7R': (2, a0_ - 4),
+                        'A4R': (2, a0_ + 16)})
+        cd_src += CUP12 + cds1_src(p, cds[0], rl, rs)
+        symbols.update({f'C_S1_{k}': (1, c) for k, c in enumerate(CDS1_CALLS)})
     cd_src += GP_RNAME.replace('CD_PART', CD_RNAME if cds else '')
     asm = (ASM.replace('jmp GP_REC_NEXT', 'jmp GP_REC_NEXT' if rec_dp else 'jmp gp_recmov') + tab_src + '\n'
            + names_lines(tables, area, lang) + '\n' + stubs + cd_src)
@@ -1639,6 +1785,20 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
         engine.CALL_AT[name] = (1, lab[f'ba_{name}'])         # (split.late binds the stage's callback to it)
     for off, tobj, toff in fix:
         cobj.add_ptr(p, glue + off, tobj, toff)
+    if cds and not os.environ.get('NO_CUP12'):               # InitNewSeason's slot-1 / slot-2 installs -> gp_cup12 (NO_CUP12: test builds)
+        d1o = p.le.obj_bytes(1)
+        d0 = struct.pack('<I', r['A0'] - 32)
+        sites = [i for i in range(len(d1o) - 5) if d1o[i] == 0xE8 and
+                 i + 5 + struct.unpack_from('<i', d1o, i + 1)[0] == sacups.SITES['c8b2d3'] and
+                 d1o[i - 6:i] == b'\xff\x35' + struct.pack('<I', r['A0'] + 24) and   # (push A6: InitNewSeason's)
+                 any(d1o[j:j + 9] == b'\x66\xc7\x05' + d0 + bytes([k, 0]) for j in range(i - 40, i) for k in (1, 2))]
+        assert len(sites) == 4, [hex(x) for x in sites]       # (InitNewSeason; ProcessCareerFile's rebuild after a load)
+        for site in sites:
+            assert p.get(1, site, 1) == b'\xe8', hex(site)
+            p.put(1, site + 1, struct.pack('<i', lab['gp_cup12'] - (site + 5)))
+        cal1 = CAL1_SITE[0]                                   # cseg_3563E's `mov eax, A6` (5 B, a fixup) -> call
+        p.remove(1, cal1 + 1)
+        p.put(1, cal1, b'\xe8' + struct.pack('<i', lab['gp_cal1'] - (cal1 + 5)))
     for site, target in ((cap, 'gp_cap'), (end_site, 'gp_end')) if tables else ():   # (relative calls: no fixups;
         p.put(1, site + 1, struct.pack('<i', lab[target] - (site + 5)))                # none: only pg_season)
     if tables and area is not None:                         # the playable play-offs (chained before dplay's hooks)

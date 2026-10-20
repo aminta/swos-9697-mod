@@ -1404,6 +1404,8 @@ struct cd_state { u16 magic; u8 season, round, built, bt, drawn, pad; u8 res[CDT
 struct cd_state CD_ST;
 const u32 CD_STSZ = sizeof(struct cd_state);
 const u8 *GP_CDT;                       /* (the glue: CD_TAB of the running world, or 0) */
+u32 GP_CDFORCE;                         /* (the glue: CD_FORCE test builds, the career club wins its Coppa D ties) */
+u16 *GP_CDS1;                           /* 4.0 (the glue): the Coppa D's slot-1 contest team list (64 words), 0 = none */
 const u8 *GP_CDD;                       /* (its CD_DT: db first Serie D division, groups; dw global base; 256 x db
                                            base division, FFh none) */
 const u32 *GP_CDNM;                     /* (its names: dd long, short) */
@@ -1645,6 +1647,18 @@ u32 cd_step_c(void) {
     while (CD_ST.round < GP_CDT[1]) {
         int r = CD_ST.round;
         const u8 *rec = CDREC(r);
+        if (GP_CDS1 && cd_n(r) == 32 && (int)GP_WK + 1 >= rec[0] && !CD_ST.built) {
+            /* 4.0: the 1/32 on as the game's own knockout in slot 1 (GP_CDS1: its 64 team words), the career club in it:
+               the round's pairs in bracket order, cd done for the season (CD_ST.round past the last) */
+            int f = cd_first(r), me = 0;
+            for (int q = 0; q < 32; q++)
+                for (int sd = 0; sd < 2; sd++) {
+                    u16 w = cd_side(f + q, sd);
+                    GP_CDS1[2 * q + sd] = w && w != 0xFFFF ? w : 0xFFFF;
+                    me |= w == GP_MGR;
+                }
+            if (me) { CD_ST.round = GP_CDT[1]; return 2; }
+        }
         int w1 = rec[0], w2 = rec[1], legs = rec[2], host = rec[3], n = cd_n(r), first = cd_first(r);
         if ((int)GP_WK + 1 < w1 || CD_ST.built) return 0;
         rng = GP_SEAS * 7919u + r * 131u + first;
@@ -1682,9 +1696,21 @@ u32 cd_step_c(void) {
     return 0;
 }
 
+/* 4.0: a Coppa Italia Serie D entrant this season (team word = file | ordinal << 8: the Serie D file, its ordinal's
+   division of the season in the Serie D groups) - InitNewSeason gives it no cup / league cup (gp_cup12) */
+u32 cd_member_c(u32 team) {
+    const u8 *dt = GP_CDD;
+    if (!GP_CDT || !dt || !GP_SLT || (team & 0xFF) != GP_CDT[2]) return 0;
+    int i = team >> 8 & 0xFF, b = dt[4 + i];
+    if (b == 0xFF) return 0;
+    int dv = b + GP_SLT[(dt[2] | dt[3] << 8) + i];
+    return dv >= dt[0] && dv < dt[0] + dt[1];
+}
+
 static void cd_done(struct gp_ko *k) {  /* gp_rec_c: our CD tie decided -> its result */
     if (!CD_ST.built || k->tw[0] == NOC) return;
     CD_ST.res[CD_ST.bt] = k->team[k->tw[0]] == cd_side(CD_ST.bt, 0) ? 1 : 2;
+    if (GP_CDFORCE) CD_ST.res[CD_ST.bt] = cd_side(CD_ST.bt, 0) == GP_MGR ? 1 : 2;   /* (CD_FORCE test builds: won) */
     CD_ST.built = 0;
     CD_ST.pad |= 0x40;
 }

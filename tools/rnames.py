@@ -164,6 +164,15 @@ def _ct_names(lang):
         for t, j in enumerate(js[:7]):
             m[8 * k + t] = CT_IDX.get((ci, j), 0)
         m[8 * k + 7] = kind
+    import mkseason                     # 4.0: the Coppa D's slot-1 knockout (gplay.CDS1_ID, conti.IDS' last): its
+    cds = mkseason.cupd_tables() if mkseason.worlds() else []     # rounds from the 1/32, CD_NAMES by Coppa D round
+    if cds:
+        world, lfile, tab, nr, nt, cnames, cdt = cds[0]
+        r32 = next(r for r in range(nr) if tab[8 * r + 4] == 32)
+        k = len(conti.IDS) - 1
+        for t, r in enumerate(range(r32, min(nr, r32 + 7))):
+            m[8 * k + t] = CD_NAMES[r] if r < len(CD_NAMES) else 0
+        m[8 * k + 7] = 1
     assert len(names) + N_OLD < 256
     return names, m
 
@@ -354,7 +363,9 @@ rn_tfit:                                ; A0 = the round's long name, D0 = its i
     cmp edx, 40
     jbe .x
     mov al, [DIY + 2Dh]                 ; a national contest ('<country> <name>'): its country prefix goes first
-    mov ebx, RN_LPIDS                   ; (not the UEFA cups nor their qualifying ties)
+    cmp al, CDS1I                       ; (not the UEFA cups nor their qualifying ties, nor the Coppa D's slot-1
+    je .med                             ; knockout: no country prefix)
+    mov ebx, RN_LPIDS
 .u:
     cmp [ebx], al
     je .med
@@ -597,6 +608,7 @@ def patch(p, at, limit, lang, area, lp_ids, numbered):
            'GRP_I': (0, GRP), 'CTID_BYTES': (0, 'db ' + ', '.join(str(x) for x in __import__('conti').IDS) + ', 0'),
            'CTMAP_BYTES': (0, 'db ' + ', '.join(str(x) for x in ctmap)),
            'RN_TIEK': (0, len(__import__('conti').STRUCTS)),
+           'CDS1I': (0, __import__('conti').IDS[-1]),
            'NUMB_BYTES': (0, 'db ' + ', '.join(str(x) for x in list(numbered) + [0]))}
     end, s284, s280, c28049, c284ab = _title_sites(p, sacups.regs(p.le.obj_bytes(1)))
     t280 = c28049 + 5 + struct.unpack('<i', bytes(p.get(1, c28049 + 1, 4)))[0]

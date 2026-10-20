@@ -309,6 +309,24 @@ def test(confs=('conmebol',), seasons=3, seed=7):
             struct.pack_into('<H', b, o_cup + 2 * a, mine[rnd.randint(0, 6)] + 1)
         ctypes.memmove(IN, bytes(b), s_in)
         L.ct_season()
+        if os.environ.get('CONTI_TEST_MANAGER'):    # phase B: the career club's games, one by one (random results)
+            SEG = (ctypes.c_ubyte * 72).in_dll(L, 'CT_SEG')
+            path = []
+            for _ in range(20):
+                g = bytes(SEG)
+                if g[2] == 0xFF:
+                    break
+                cn = cups[g[0]][1]
+                if g[2] == 0:
+                    opp = struct.unpack_from('<H', g, 8 + 2 * (1 - g[7]))[0]
+                    v = rnd.randint(0, 1)
+                    path.append(f'{cn}:{g[1]} v {opp:#x} {"W" if v else "L"}')
+                else:
+                    v = rnd.randint(1, 4)
+                    path.append(f'{cn}:{g[1]} groups ({g[3]}) place {v}')
+                L.ct_result(v)
+            print('    career club:', ' -> '.join(path) or 'no game')
+            L.ct_season.restype = None
         o = bytes(OUTB)
         print(f'--- season {season + 1}')
         for ci, (conf, ck) in enumerate(cups):

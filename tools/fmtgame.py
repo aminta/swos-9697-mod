@@ -17,6 +17,7 @@ import unicodedata
 sys.path.insert(0, os.path.dirname(__file__))
 import complist
 import fmtpage
+import fmtprose
 
 W = 40
 EXTRA = []      # [(world, contest id or None, {lang: title}, {lang: [lines]})] from readers other than the packs:

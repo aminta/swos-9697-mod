@@ -54,11 +54,20 @@ def _draw(rd):
     return DRAW['order'], rule
 
 
-def main_round(c):
+def main_round(c, size=None):
     """The round a career club plays as the game's own contest (slot 3): the biggest group stage (OFC: the groups, not
-    the qualifying group), else the first round."""
+    the qualifying group), else the first knockout round whose clubs are a power of two of the rounds left (CONCACAF:
+    the round of 16, its first round of 22 a tie before it; size: load()'s round sizes, else FIELDS)."""
     g = [(r['groups'] * r['size'], -j, j) for j, r in enumerate(c['rounds']) if r['kind'] == 'groups']
-    return max(g)[2] if g else 0
+    if g:
+        return max(g)[2]
+    size = size or next((v[0] for (cf, ck), v in FIELDS.items() if ck == c['key']), None)
+    n = len(c['rounds'])
+    if size:
+        for j in range(n):
+            if size[j] == 2 ** (n - j):
+                return j
+    return 0
 
 
 FIELDS = {}                             # (conf, cup key) -> (round sizes, outside places, known places): load()'s
@@ -111,7 +120,7 @@ def fields(c, known, outside):
     return field, out
 
 
-def load(confs, files=None, words=None):
+def load(confs, files=None, words=None, s1=None):
     """-> (spec bytes, [association pack keys], [(conf, cup key)]). files: {association key: its league team file}
     (the game's build; the tests: 100 + index), words: {club key: team word} (the ranking's clubs)."""
     cups, assocs = [], []
@@ -199,7 +208,7 @@ def load(confs, files=None, words=None):
                 b[6], b[7], b[8] = rd['groups'], rd['size'], rd.get('rounds', 2)
                 b[16] = 1 if (rd.get('draw') or {}).get('holder') else 0
             b[9] = rd.get('month') or (rd.get('months') or [8])[0]
-            b[17] = 1 if j == main_round(c) else 0
+            b[17] = 1 if j == main_round(c, size) else 0
             b[18] = min(size[j], 255)                   # (the round's places: byes when the world cannot fill it)
             b[10] = CHAMP if j == len(rounds) - 1 else (ci << 4 | (j + 1))
             b[11] = OUT
@@ -213,7 +222,18 @@ def load(confs, files=None, words=None):
                 b[11] = target(conf, ci, c['losers'][rd['key']])
             out += bytes(b)
         body += bytes((len(rounds), 0, 0, 0)) + out
-        for ak, entries in (a.get('access') or {}).items():
+        if s1 is not None:                              # season 1 (the build): data's real entrants as fixed clubs
+            for (cf, ck, rk), ws in s1.items():
+                if (cf, ck) != (conf, c['key']):
+                    continue
+                for w, ak in ws:
+                    if ak not in assocs:
+                        assocs.append(ak)
+                    gin[('s1', w)] = gin.get(('s1', w), len(gl))
+                    if gin[('s1', w)] == len(gl):
+                        gl.append((w, assocs.index(ak), 1))
+                    access.append((0xFE, ci, rkey[ci][rk if rk in rkey[ci] else ALIAS.get(rk, rk)], gin[('s1', w)]))
+        for ak, entries in ({} if s1 is not None else (a.get('access') or {})).items():
             if ak == 'holders':                         # (CAF: a holder qualified through its league keeps that
                 own = a.get('holder_rule', 'own_place' if conf == 'caf' else 'extra') == 'own_place'   # one place)
                 for src, rk in entries.items():
@@ -235,7 +255,7 @@ def load(confs, files=None, words=None):
                     access.append((0xFE, ci, j, gin[(conf, gk)]))
         mine = [x for x in (a.get('access') or {}) if x not in ('holders', 'from', 'outside')]
         q = 0
-        for j, k in enumerate(outside):                 # the outside places left: the world associations' next clubs
+        for j, k in enumerate(outside if s1 is None else ()):                 # the outside places left: the world associations' next clubs
             for _ in range(k):
                 access.append((assocs.index(mine[q % len(mine)]), ci, j, CODE['next']))
                 q += 1
@@ -352,10 +372,11 @@ if __name__ == '__main__':
 
 # --- the game ---------------------------------------------------------------------------------------------------------
 PAGES = 4                               # obj1 pages: the C code + the glue (patch.py: after split's / statecup's)
-BSS = 0x14000                           # obj2 .bss: CT_IN, CT_ST, CT_OUT, the edition (patch.py: in the career BSS)
+BSS = 0x18000                           # obj2 .bss: CT_IN, CT_ST, CT_OUT, the edition (patch.py: in the career BSS)
 CONFS = ['conmebol', 'concacaf', 'afc', 'caf', 'ofc']
 LABELS = {}
 ST_SIZE = 4 + 16 * 12                   # sizeof(struct ct_state)
+ED_SIZE = 3660                          # sizeof(struct ct_ed) (phase B, the save's item 'CE')
 
 
 BUILT = ['conmebol']                    # (the confederations the engine handles so far; CONTI_CONFS: dev builds)
@@ -503,6 +524,8 @@ def patch(p, at, limit, bss_at, area):
     p.put(1, a, b'\xe9' + rel(a, lab['ct_fill']))
     assert struct.unpack('<I', p.get(1, syms['CT_LAYOUT'][1] + 4, 4))[0] == ST_SIZE      # (engine item 'CT')
     engine.ITEM_AT['CT'] = syms['CT_ST']
+    assert struct.unpack('<I', p.get(1, syms['CT_LAYOUT'][1] + 80, 4))[0] == ED_SIZE
+    engine.ITEM_AT['CE'] = syms['CT_ED']
     LABELS.update(lab, syms=syms, assocs=assocs, cups=cups)
     print(f'exe: other confederations\' cups (conti.c): {len(cups)} cups of {", ".join(confs)}, '
           f'{len(assocs)} associations, spec {len(spec)} B; C obj1+{at:#x}..{end:#x}, glue ..{glue + len(code):#x}, '
@@ -511,7 +534,7 @@ def patch(p, at, limit, bss_at, area):
 
 
 # --- season 1: the 2027 editions' main rounds at build time ---------------------------------------------------------
-def season1(confs, files, words, seed=2027):
+def season1(confs, files, words, seed=2027, stand_ins_only=False):
     """{(conf, cup key): [team words of the main round, in the drawn order]} from the access files' entrants_season1
     (data: the real 2027 entrants where known, else the access list on the starting tables). Rounds before the main
     one are simulated here (seeded, 50/50 or by the ranking); a vacant holder place (holders_season1 None: the 2026
@@ -537,18 +560,37 @@ def season1(confs, files, words, seed=2027):
 
         subs = []
         extra = {}                                      # (cup key, round key) -> words moved in (losers, holders)
+        afile = {v: k for k, v in files.items()}
+        held = {}
         for c in fm['cups']:
             a = acc.get(c['key'], {})
+            own = a.get('holder_rule', 'own_place' if conf == 'caf' else 'extra') == 'own_place'
             for h, w in (a.get('holders_season1') or {}).items():
                 if w is None:
-                    w = stand_in(len(subs))
-                    taken.add(w)
-                    subs.append(w)
+                    if own:                             # (CAF: no extra place for a holder)
+                        continue
+                    w = held.get(h) or stand_in(len(subs))
+                    if w not in subs:
+                        taken.add(w)
+                        subs.append(w)
                 else:
-                    w = words[w]
+                    w = words.get(w)
+                    if w is None:
+                        continue
+                held[h] = w
                 rk = (a.get('access') or {}).get('holders', {}).get(h)
                 if rk:
                     extra.setdefault((c['key'], ALIAS.get(rk, rk)), []).append(w)
+        if stand_ins_only:
+            res = {}
+            for (ck, rk), ws in extra.items():
+                res[(conf, ck, rk)] = [(w, afile.get(w & 0xFF, '?')) for w in ws]
+            for c in fm['cups']:                        # (the Recopa: the two stand-in holders)
+                if not acc.get(c['key'], {}).get('entrants_season1') and len(c['rounds']) == 1 and len(subs) >= 2 \
+                        and not any(k[0] == c['key'] for k in extra):
+                    res[(conf, c['key'], c['rounds'][0]['key'])] = [(w, afile.get(w & 0xFF, '?')) for w in subs[:2]]
+            out.update(res)
+            continue
         for c in fm['cups']:
             a = acc.get(c['key'], {})
             j0 = main_round(c)
@@ -625,6 +667,48 @@ def season1(confs, files, words, seed=2027):
     return out
 
 
+def season1_native(confs, files, words):
+    """{(conf, cup key): [team words of the main round, drawn]}: conti.c itself on data's season-1 entrants (the
+    access files' entrants_season1 + holders_season1, the guests' season1), natively at the build: the rounds before
+    the main one simulated (strength: none, 50/50), the same draws / byes / fills as in the game. Vacant season-1
+    holder places: the best-placed clubs in no cup of the top associations (season1()'s stand-ins)."""
+    import ctypes
+    L = _native()
+    out = {}
+    for conf in confs:
+        fm, ac = _read(conf, 'format'), _read(conf, 'access') or {}
+        acc = {c['key']: c for c in ac.get('cups', [])}
+        s1 = {}
+        for c in fm['cups']:
+            for e in (acc.get(c['key'], {}).get('entrants_season1') or []):
+                w = words.get((e['assoc'], e['club']))
+                if w is not None:
+                    s1.setdefault((conf, c['key'], e['round']), []).append((w, e['assoc']))
+        base = season1([conf], files, words, stand_ins_only=True)
+        for (cf, ck, rk), ws in base.items():
+            s1.setdefault((cf, ck, rk), []).extend(ws)
+        spec, assocs, cups = load([conf], files, words, s1=s1)
+        lay = (ctypes.c_uint32 * 22).in_dll(L, 'CT_LAYOUT')
+        buf = ctypes.create_string_buffer(spec, len(spec))
+        ctypes.c_void_p.in_dll(L, 'CT_SPEC').value = ctypes.addressof(buf)
+        ctypes.memset(ctypes.addressof(ctypes.c_ubyte.in_dll(L, 'CT_IN')), 0, lay[0])
+        lists = [(ctypes.c_uint16 * 32)(*([0xFFFF] * 32)) for _ in cups]
+        lp = (ctypes.c_void_p * 16).in_dll(L, 'CT_LP')
+        for i in range(16):
+            lp[i] = ctypes.addressof(lists[i]) if i < len(cups) else None
+        L.ct_season()
+        for i, (cf, ck) in enumerate(cups):
+            c = next(x for x in fm['cups'] if x['key'] == ck)
+            rd = c['rounds'][main_round(c)]
+            n = rd['groups'] * rd['size'] if rd['kind'] == 'groups' else 2 ** (len(c['rounds']) - main_round(c))
+            ws = list(lists[i])[:n]
+            if any(w != 0xFFFF for w in ws):
+                out[(cf, ck)] = ws
+        for i in range(16):
+            lp[i] = None
+    return out
+
+
 # --- the career club's contests (the slot-3 chain) --------------------------------------------------------------------
 IDS = [0xC6, 0xC7, 0xC8, 0xC9, 0xCA, 0xD0, 0xD1, 0xDA, 0xDD, 0xDE, 0xDF, 0xEC, 0xED, 0xEE, 0xEF]   # (mkseason.RESERVED_IDS)
 STRUCTS = []                            # [(cup index, struct offset, team list offset, list length)]
@@ -657,10 +741,10 @@ def structs(p, area, lang, at):
     out, kinds = [], []
     STRUCTS.clear()
     files, words = _world_maps(confs)
-    first = season1(confs, files, words)                # (the 2027 editions' main rounds: the contests' lists)
+    first = season1_native(confs, files, words)         # (the 2027 editions' main rounds: the contests' lists)
     ci = 0
     for conf in confs:
-        for k, c in enumerate(_read(conf, 'format')['cups']):
+        for k, c in enumerate(c for c in _read(conf, 'format')['cups'] if supported(c)):
             assert ci < len(IDS), 'conti: more cups than ids'
             cid, j0 = IDS[ci], main_round(c)
             rd, rounds = c['rounds'][j0], c['rounds']
@@ -672,8 +756,13 @@ def structs(p, area, lang, at):
                 body[0] = cid
                 n = rd['groups'] * rd['size']
                 ko = [r for r in rounds[j0 + 1:] if r['kind'] == 'ko'][-4:]
-                st = [5, n, rd['groups'], rd['size'], 16, 0, 16, 8, 0, 8, 4, 0, 4, 2, 0, 2, 1, 0, 0, 0, 0] + [_legs(r) for r in ko]
-                assert len(st) == 0x27 - 0x0e and len(ko) == 4, (c['key'], len(ko))
+                kn = len(ko)                                # (stages: the groups, then kn knockout rounds of
+                st = [1 + kn, n, rd['groups'], rd['size']]  # 2^kn .. 2 clubs; the winners count; a round byte per
+                for t in range(kn):                         # stage from +22h: the groups' 0, then the knockouts')
+                    st += [2 ** (kn - t), 0, 2 ** (kn - t)]
+                st += [1] + [0] * (20 - len(st) - 1)
+                st += [0] + [_legs(r) for r in ko] + [0] * (4 - kn)
+                assert len(st) == 0x27 - 0x0e and 1 <= kn <= 4, (c['key'], kn, len(st))
                 body[0x0e:0x27] = bytes(st)
                 body[9] = 0                                 # (every round through the game's own draw: our list order)
                 body[3], body[4] = _month((rd.get('months') or [10])[0]), _month(last)

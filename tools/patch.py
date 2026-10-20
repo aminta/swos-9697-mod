@@ -253,6 +253,7 @@ def patch_exe(src, dst, remap, lang='it'):
     ct_pg = conti.PAGES * int(bool(mkseason.league_phase_worlds() and conti.enabled()))   # statecup's, a save item
     if ct_pg:
         engine.save_item('CT', conti.ST_SIZE)
+        engine.save_item('CE', conti.ED_SIZE)          # (phase B: the edition being played, conti.c CT_ED)
     for _ in range((6 + cp + 2 + 2 * cdp if worlds else 6) + lpb + sp_pg + sc_pg + ct_pg):  # (+1: the UEFA league phase's page, lp36)
         data = add_object_page(data, 1)
     mkseason.CAREER_CAVE[0] = CAREER_CAVE if worlds else None

@@ -28,10 +28,10 @@ ENTRY = 48
 NAME = 41                       # the slot's name (+4 .. +2Ch, before the contest id): the title the game shows
 
 TEXTS = {
-    'it': dict(btn=b'FORMULA', next=b'PAG. SUCC.', none=b'NESSUNA DESCRIZIONE', file=b'data/fmtit', ov=b'CLASSIFICA GENERALE'),
-    'en': dict(btn=b'FORMAT', next=b'NEXT PAGE', none=b'NO DESCRIPTION', file=b'data/fmten', ov=b'OVERALL TABLE'),
-    'fr': dict(btn=b'FORMULE', next=b'PAGE SUIV.', none=b'PAS DE DESCRIPTION', file=b'data/fmtfr', ov=b'CLASSEMENT GENERAL'),
-    'de': dict(btn=b'MODUS', next=b'WEITER', none=b'KEINE BESCHREIBUNG', file=b'data/fmtde', ov=b'GESAMTTABELLE'),
+    'it': dict(btn=b'FORMULA', next=b'PAG. SUCC.', none=b'NESSUNA DESCRIZIONE', file=b'data/fmtit', ov=b'CLASSIFICA GENERALE', prev=b'PAG. PREC.'),
+    'en': dict(btn=b'FORMAT', next=b'NEXT PAGE', none=b'NO DESCRIPTION', file=b'data/fmten', ov=b'OVERALL TABLE', prev=b'PREV. PAGE'),
+    'fr': dict(btn=b'FORMULE', next=b'PAGE SUIV.', none=b'PAS DE DESCRIPTION', file=b'data/fmtfr', ov=b'CLASSEMENT GENERAL', prev=b'PAGE PREC.'),
+    'de': dict(btn=b'MODUS', next=b'WEITER', none=b'KEINE BESCHREIBUNG', file=b'data/fmtde', ov=b'GESAMTTABELLE', prev=b'VORIGE SEITE'),
 }
 
 OV = {}                         # 4.0 (longtable.py): the overall-table flag's obj2 offset ('flag')
@@ -150,9 +150,58 @@ WORLD_FILE
     mov dword [A6], FMTMENU
     jmp SHOW_MENU
 
-fp_next:                                ; NEXT PAGE (fire): the next page, after the last the first
+fp_next:                                ; NEXT PAGE (fire): the next page (hidden on the last one)
+    movzx eax, byte [NPAGE]
+    dec eax
+    cmp [PAGE], eax
+    jae .x
     inc dword [PAGE]
     call fp_fill
+.x: jmp fp_vis
+
+fp_prev:                                ; PREVIOUS PAGE (fire): the page before (hidden on the first one)
+    cmp dword [PAGE], 0
+    je .x
+    dec dword [PAGE]
+    call fp_fill
+.x: jmp fp_vis
+
+fp_vis:                                 ; the page menu's onInit, and after a page change: PREV hidden on page 1,
+    pushad                              ; NEXT on the last; a hidden selected button gives the cursor to the other
+    mov ebx, MENU_ + 16h                ; one (or EXIT); ebx = the current menu's entries (one fixup)
+    xor eax, eax
+    cmp dword [PAGE], 0
+    sete al
+    mov [ebx + PREV_ * 38h + 4], ax
+    movzx edx, byte [NPAGE]
+    dec edx
+    xor eax, eax
+    cmp [PAGE], edx
+    setae al
+    mov [ebx + NEXT_ * 38h + 4], ax
+    mov esi, [ebx - 16h + 0Ch]          ; the selected entry
+    lea eax, [ebx + NEXT_ * 38h]
+    lea ecx, [ebx + PREV_ * 38h]
+    lea edx, [ebx + EXIT_ * 38h]
+    cmp esi, eax
+    je .n
+    cmp esi, ecx
+    jne .x
+    cmp word [ecx + 4], 0
+    je .x
+    mov esi, eax
+    cmp word [eax + 4], 0
+    je .s
+    mov esi, edx
+    jmp .s
+.n: cmp word [eax + 4], 0
+    je .x
+    mov esi, ecx
+    cmp word [ecx + 4], 0
+    je .s
+    mov esi, edx
+.s: mov [ebx - 16h + 0Ch], esi
+.x: popad
     ret
 
 fp_fill:                                ; LINES from page [PAGE] of TXT (FOUND), else NONE
@@ -161,6 +210,7 @@ fp_fill:                                ; LINES from page [PAGE] of TXT (FOUND),
     mov ecx, LINES_ * LINE_W_
     xor eax, eax
     rep stosb
+    mov byte [NPAGE], 1
     cmp byte [FOUND], 0
     jne .text
     mov esi, NONE
@@ -172,6 +222,16 @@ fp_fill:                                ; LINES from page [PAGE] of TXT (FOUND),
     jnz .none
     jmp .out
 .text:
+    mov esi, TXT                        ; (the pages: form feeds + 1)
+.np:
+    lodsb
+    test al, al
+    jz .np2
+    cmp al, 0Ch
+    jne .np
+    inc byte [NPAGE]
+    jmp .np
+.np2:
     mov esi, TXT
     mov ecx, [PAGE]
 .skip:
@@ -296,7 +356,7 @@ def patch(p, at, lang, area, bss, world=None):
     def put(key, b, size=None):
         off[key] = len(data)
         data.extend(b + b'\0' * ((size or len(b) + 1) - len(b)))
-    for k in ('btn', 'next', 'none', 'ov'):
+    for k in ('btn', 'next', 'none', 'ov', 'prev'):
         put(k, T[k])
     put('file', T['file'], 20)
     put('title', b'', NAME + 1)
@@ -348,8 +408,11 @@ def patch(p, at, lang, area, bss, world=None):
     entry(fm, fm_at, 0, 0, 304, 14, color=0x17, text=(2, 'title'))
     for i in range(LINES):
         entry(fm, fm_at, 0, 20 + 11 * i, 304, 10, text=(2, ('lines', i)), flags=0x8000)
-    entry(fm, fm_at, 50, 185, 100, 15, nav=(-1, ex, -1, -1), color=0x0E, text=(2, 'next'), select=(1, 'fp_next'))
-    entry(fm, fm_at, 154, 185, 100, 15, nav=(nx, -1, -1, -1), color=0x0C, text=exit_text[0], select=exit_fn[0])
+    pv = LINES + 3                                       # (PREV PAGE last: NEXT / EXIT keep their numbers)
+    entry(fm, fm_at, 104, 185, 96, 15, nav=(pv, ex, -1, -1), color=0x0E, text=(2, 'next'), select=(1, 'fp_next'))
+    entry(fm, fm_at, 204, 185, 96, 15, nav=(nx, -1, -1, -1), color=0x0C, text=exit_text[0], select=exit_fn[0])
+    entry(fm, fm_at, 4, 185, 96, 15, nav=(-1, nx, -1, -1), color=0x0E, text=(2, 'prev'), select=(1, 'fp_prev'))
+    ptrs.append((fm_at + 0, 1, 'fp_vis'))               # (the page menu's onInit: PREV / NEXT shown as the page allows)
     fm += struct.pack('<h', -999)
     data.extend(fm)
 
@@ -361,7 +424,8 @@ def patch(p, at, lang, area, bss, world=None):
            'PAGE': (2, base + off['vars']), 'FOUND': (2, base + off['vars'] + 4), 'FMTMENU': (2, base + fm_at),
            'BUF': (2, bss), 'TXT': (2, bss + IDXMAX), 'IDXMAX_': (0, IDXMAX), 'TXTMAX_': (0, TXTMAX),
            'ENTRY_': (0, ENTRY), 'NAME_': (0, NAME), 'LINES_': (0, LINES), 'LINE_W_': (0, LINE_W),
-           'FN_BASE_': (0, len(T['file'])), 'OV_FLAG': (2, base + off['vars'] + 5), 'EXIT_FN': exit_fn[0],
+           'FN_BASE_': (0, len(T['file'])), 'OV_FLAG': (2, base + off['vars'] + 5), 'NPAGE': (2, base + off['vars'] + 7),
+           'NEXT_': (0, LINES + 1), 'EXIT_': (0, LINES + 2), 'PREV_': (0, LINES + 3), 'EXIT_FN': exit_fn[0],
            'DIY_': (2, __import__('lp36')._sites(p)['DIY']), 'MENU_': __import__('zones')._current_menu(p)}
     OV['flag'] = base + off['vars'] + 5
     OV['on'] = base + off['vars'] + 6           # (longtable: this table drawn in overall mode now)

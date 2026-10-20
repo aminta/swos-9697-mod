@@ -1885,7 +1885,7 @@ u32 gp_stitle_c(const u8 *diy, const u8 *tab) {
    stage table's header) - and the window of rows virtual rows from cur: GP_HF / GP_HL its first / last place,
    GP_HP[place] = 0x80 | group when its header is shown before it, GP_HGP[place] its place in the group, GP_HV the
    virtual rows (ScrollDown's limit), GP_HON = headers in this table. */
-u8 GP_HP[65], GP_HGP[65];
+u8 GP_HP[65], GP_HGP[65], GP_HG[65];   /* (GP_HG: every place's group, for zones by group) */
 u32 GP_HV, GP_HF, GP_HL, GP_HON;
 u32 gp_hlabel_c(const u8 *t, u32 g) {   /* a group's header label (3.3.6: ZONA A / B, EASTERN / WESTERN CONFERENCE) */
 #ifdef HDR_TEST
@@ -1918,6 +1918,7 @@ void gp_hplan_c(const u8 *t, const u8 *tab, u32 cur, u32 rows, u32 off) {
     for (int k = 1; k <= n; k++) {
         gp = h0[k] >= 0 || k == 1 ? 1 : gp + 1;
         GP_HGP[k] = hdr ? gp : k;
+        GP_HG[k] = (u8)g[k];
         v = h0[k] >= 0 ? h0[k] + 1 : v;
         if (v >= c && v < end) {
             if (!GP_HF) GP_HF = k;

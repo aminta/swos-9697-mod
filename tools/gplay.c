@@ -1932,6 +1932,8 @@ u32 gp_stitle_c(const u8 *diy, const u8 *tab) {
     int s = diy[w16(tab + 4)];
     if (s >= 5) return 0;
     const u8 *row = r + 42 + 8 * s;
+    if (w16(row + 2) && w16(row + 2) != w16(row)) return 0;   /* 4.0: names per group (a split's GRUPPO TITOLO /
+                                    SALVEZZA): the one table shows every group under its header row - the league's name */
     int g = st_grp(diy, tab), o = w16(row + 2 * g);
     if (!o) o = w16(row);
     return o ? (u32)(tab + o) : 0;

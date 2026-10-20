@@ -507,7 +507,7 @@ ST_SIZE = 4 + 16 * 12                   # sizeof(struct ct_state)
 ED_SIZE = 2260                          # sizeof(struct ct_ed) (phase B, the save's item 'CE')
 
 
-BUILT = ['conmebol', 'concacaf', 'afc', 'caf', 'ofc']                    # (the confederations the engine handles so far; CONTI_CONFS: dev builds)
+BUILT = ['conmebol', 'concacaf', 'afc', 'caf', 'ofc', 'fifa']                    # (the confederations the engine handles so far; CONTI_CONFS: dev builds)
 
 
 def ready():

@@ -233,6 +233,7 @@ def load(confs, files=None, words=None, s1=None):
         return ci << 4 | rkey[ci][s]
 
     body = b''
+    gids = []
     access, holders = [], []
     incoming = {}                                       # (cup, round) -> places from another cup's losers
     for ci, (conf, c, a) in enumerate(cups):
@@ -316,6 +317,8 @@ def load(confs, files=None, words=None, s1=None):
                 b[23] = 1
             out += bytes(b)
         body += bytes((len(rounds), 0, 0, 0)) + out
+        mj = main_round(c, size)                        # (the exe's group contest of this cup: conti's group-end hook)
+        gids.append(IDS[ci] if not c.get('stepladder') and rounds[mj]['kind'] == 'groups' and ci < len(IDS) else 0)
         if s1 is not None:                              # season 1 (the build): data's real entrants as fixed clubs
             for (cf, ck, rk), ws in s1.items():
                 if (cf, ck) != (conf, c['key']):
@@ -396,6 +399,7 @@ def load(confs, files=None, words=None, s1=None):
     for conf, c, _ in cups:                             # (each cup's season-1 holder: season1_native's run)
         w, an, st = S1_HOLD.get((conf, c['key']), (0, None, 0))
         spec += struct.pack('<HBBI', w, assocs.index(an) if an in assocs else 0xFE, 0, st)
+    spec += bytes(gids)
     return spec, assocs, [(conf, c['key']) for conf, c, _ in cups]
 
 
@@ -621,6 +625,60 @@ ct_prep:                                ; CT_SEG a tie -> the ties' contest (its
 .r:
     ret
 
+ct_gend:                                ; lp36's lp_gend vector: a group stage's end (cseg_8A2CE first, the game's
+    call C8A2CE                         ; qualifiers), then conti.c ct_gend: the career club's place (-> the daily),
+    pushad                              ; a Libertadores-style R16 drawn as the real one
+    push es
+    push ds
+    pop es
+    cld
+    mov dword [CT_SPEC], SPEC
+    push dword [SELTEAMS]
+    push dword LPDIYC
+    push dword LPDIY
+    call CT_GEND
+    add esp, 12
+    test eax, eax
+    jz .n
+    mov [ct_gplace], al
+.n:
+    pop es
+    popad
+    ret
+
+ct_draw:                                ; hist_draw (lp36's lp_chk2 / lp_draw2 vector), esi = the DIY buffer: ZF = 1
+    push eax                            ; for conti's contests (their order is conti's draw: never the game's)
+    push ecx
+    mov al, [esi + 2Dh]
+    mov ecx, CT_NG
+.l:
+    dec ecx
+    js .no
+    cmp al, [ct_gids + ecx]
+    jne .l
+    pop ecx
+    pop eax
+    ret
+.no:
+    or ecx, 1
+    pop ecx
+    pop eax
+    ret
+
+ct_chk:                                 ; lp36's hist_draw check: its league phase, or a conti contest (ZF = 1)
+    call LP_OURS
+    je .r
+    call ct_draw
+.r:
+    ret
+
+ct_drw:                                 ; lp36's hist_draw draw: a conti contest keeps its order, else lp36's
+    call ct_draw
+    je .keep
+    jmp LP_DRAW0
+.keep:
+    ret
+
 ct_daily:                               ; before the next match (uefaq's uq_daily site, chained): our tie decided ->
     pushad                              ; ct_result, the next game into slot 3
     push es
@@ -646,6 +704,26 @@ ct_daily:                               ; before the next match (uefaq's uq_dail
     call CT_RESUME
     call ct_prep
 .chk:
+    movzx ebx, byte [ct_gplace]         ; a group stage ended: the club's place to conti.c; a 3rd -> its next cup's
+    test ebx, ebx                       ; tie (the Libertadores 3rd -> the Sudamericana play-off), else the game's
+    jz .chk2                            ; contest goes on (1st / 2nd: its R16; 4th: out)
+    mov byte [ct_gplace], 0
+    push ebx
+    call CT_RESULT
+    add esp, 4
+    mov al, [CT_ED + 10]
+    mov [ct_seen + 4], al
+    call ct_prep
+    cmp ebx, 3
+    jne .x
+    cmp byte [CT_SEG + 2], 0
+    jne .x
+    mov dword [A0R], TIE
+    call ct_build
+    mov word [E092F], TIE_D7
+    mov word [CUP_KIND], 0
+    jmp .x
+.chk2:
     cmp byte [ct_live], 0
     je .x
     mov al, [SLOT3 + 2Dh]
@@ -726,6 +804,9 @@ ct_build:                               ; [A0R] -> slot 3, as uefaq's .build: th
 
 ct_on: db 0
 ct_live: db 0
+ct_gplace: db 0
+ct_gids:
+    ;CT_GIDS
 align 4
 ct_seen: dd 0, 0
 ct_structs:
@@ -805,7 +886,13 @@ def patch(p, at, limit, bss_at, area):
     symbols.update(NEXT_DAILY=u['uq_daily'], TIE=(1, TIE[0]), TIE_ID=(0, p.get(1, TIE[0], 1)[0]),
                    TIE_D7=(0, D7_BASE[0] + len(STRUCTS)), CT_D7=(0, D7_BASE[0]), CT_SEG=syms['CT_SEG'], CT_NS=(0, len(STRUCTS)),
                    CT_ED=syms['CT_ED'], CT_RESULT=syms['ct_result'], CT_RESUME=syms['ct_resume'])
-    asm = GLUE.replace("    ;CT_LP", "\n".join(lp)).replace(
+    import lp36
+    ls = lp36.LABELS['symbols']
+    ids = [p.get(1, off, 1)[0] for _, off, _, _ in STRUCTS] + [p.get(1, TIE[0], 1)[0]]
+    symbols.update(LPDIY=ls['DIY'], LPDIYC=ls['DIYCOPY'], SELTEAMS=ls['SELTEAMS'], C8A2CE=ls['C8A2CE'],
+                   CT_GEND=syms['ct_gend'], CT_NG=(0, len(ids)), LP_OURS=(1, lp36.LABELS['lp_copy_ours']),
+                   LP_DRAW0=(1, lp36.LABELS['lp_draw']))
+    asm = GLUE.replace("    ;CT_GIDS", '    db ' + ', '.join(str(i) for i in ids)).replace("    ;CT_LP", "\n".join(lp)).replace(
         "    ;CT_STRUCTS", "\n".join(f'    dd XST{i}' for i in range(len(STRUCTS))) or '    dd 0').replace(
         "    ;CT_NAMES", "\n".join(f'    dd {r}' for r in NAMES) or '    dd 0').replace(
         "    ;CT_SNAMES", "\n".join(f'    dd {r}' for r in SNAMES) or '    dd 0')
@@ -832,6 +919,11 @@ def patch(p, at, limit, bss_at, area):
         p.put(1, c + 1, rel(c, lab['ct_tab']))
     for c in c939:
         p.put(1, c + 1, rel(c, lab['ct_ctry']))
+    import historic
+    for at, fn in ((lp36.LABELS['CT_GEND_V'], 'ct_gend'), (historic.LBL['LP_CHK_V'], 'ct_chk'),
+                   (historic.LBL['LP_DRW_V'], 'ct_drw')):      # (lp36's group end, historic's draw check / draw)
+        p.retarget(1, at, 1, lab[fn])
+        p.put(1, at, struct.pack('<I', lab[fn]))
     pp = sacups.CT_PRE_PTR[0]                           # (the season start's chain calls ct_pre through it)
     p.put(1, pp, struct.pack('<I', lab['ct_pre']))
     cobj.add_ptr(p, pp, 1, lab['ct_pre'])

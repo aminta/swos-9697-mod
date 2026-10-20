@@ -110,7 +110,7 @@ static const u8 *afile;                 /* each association's league team file *
 static const u8 *rk;                    /* ranking: team word, points (u16 each) */
 static const u8 *gu;                    /* guests (clubs of associations not in the world): word, assoc, -, str */
 static u16 ngu;
-static const u8 *areg, *s1h, *wfile;
+static const u8 *areg, *s1h, *wfile, *gid;
 static u16 GI[256];                     /* a guest's club index this season */
 static u16 nrk;
 #define RND(c, r) (cupr[c] + (r) * RB)
@@ -143,6 +143,8 @@ static void parse(void) {
     wfile = p;                          /* the world's team files (a bitmap): the UEFA holder must be one of them */
     p += 32;
     s1h = p;                            /* each cup's 2027 edition winner (the build's run): the first holders */
+    p += 8 * ncup;
+    gid = p;                            /* each cup's group contest id in the exe (0: none) */
 }
 
 /* --- random, strength -------------------------------------------------------------------------------------------- */
@@ -898,3 +900,49 @@ const u32 CT_LAYOUT[] = { sizeof(struct ct_in), sizeof(struct ct_state), sizeof(
                           OFF(ct_out, winner), OFF(ct_out, second), OFF(ct_out, last), OFF(ct_out, nent),
                           OFF(ct_out, ent), OFF(ct_out, res), NA, NL, NC, NCUP, NRD, NE,
                           sizeof(struct ct_ed), sizeof(struct ct_seg) };
+
+/* --- a group stage's end in the game's contest (lp36's lp_gend vector, after cseg_8A2CE) ----------------------------- */
+static u32 w16(const u8 *p) { return p[0] | p[1] << 8; }
+static u32 w32(const u8 *p) { return p[0] | p[1] << 8 | p[2] << 16 | (u32)p[3] << 24; }
+u32 ct_gend(u8 *diy, u8 *diycopy, u32 sel) {
+    /* -> the career club's place in its group (0: not in this contest). A Libertadores-style knockout after the groups
+       (draw 'seeded_1v2', 8 groups): the qualifiers' list rewritten as the real draw - the group winners by points,
+       each against a drawn runner-up of another group if possible, the winner at home in the second leg */
+    if (!CT_SPEC) return 0;
+    parse();
+    int c = -1;
+    for (int i = 0; i < ncup; i++) if (gid[i] && gid[i] == diy[0x2D]) c = i;
+    if (c < 0) return 0;
+    int ng = w16(diy + 0x4F), gs = w16(diy + 0x51), place = 0;
+    if (ng < 1 || ng > 16 || gs < 2 || gs > 16) return 0;
+    for (int g = 0; g < ng; g++)
+        for (int q = 0; q < gs; q++) {
+            u32 off = w16(diy + 0x6D + 2 * (g * gs + q));
+            const u8 *rec = (const u8 *)(sel + w32(diy + 0x2B3 + off));
+            if (CT_ED.mgr && (u16)(rec[0] | rec[1] << 8) == CT_ED.mgr) place = q + 1;
+        }
+    int mr = -1;
+    for (int r = 0; r < nrd[c]; r++) if (RND(c, r)[17]) mr = r;
+    if (mr >= 0 && mr + 1 < nrd[c] && ng == 8 && RND(c, mr + 1)[0] == K_KO && RND(c, mr + 1)[4] == D_SEED12) {
+        u8 fr[8], sr[8], fg[8], sg[8];
+        u32 fp[8];
+        for (int g = 0; g < 8; g++) {
+            u32 o1 = w16(diy + 0x6D + 2 * (g * gs)), o2 = w16(diy + 0x6D + 2 * (g * gs + 1));
+            fr[g] = (u8)(o1 / 18); sr[g] = (u8)(o2 / 18); fg[g] = sg[g] = (u8)g;
+            fp[g] = w16(diy + 0x2B3 + o1 + 16) * 64 + below(64);
+        }
+        for (int i = 1; i < 8; i++) { int j = i; u8 a = fr[i], b = fg[i]; u32 x = fp[i];   /* winners by points */
+            while (j > 0 && fp[j - 1] < x) { fr[j] = fr[j - 1]; fg[j] = fg[j - 1]; fp[j] = fp[j - 1]; j--; }
+            fr[j] = a; fg[j] = b; fp[j] = x; }
+        rng ^= CT_ED.seed + (u32)place * 2654435761u;
+        for (int tries = 0; tries < 50; tries++) {
+            for (int i = 7; i > 0; i--) { int j = below(i + 1); u8 t = sr[i]; sr[i] = sr[j]; sr[j] = t;
+                t = sg[i]; sg[i] = sg[j]; sg[j] = t; }
+            int ok = 1;
+            for (int k = 0; k < 8; k++) if (sg[k] == fg[k]) ok = 0;
+            if (ok) break;
+        }
+        for (int k = 0; k < 8; k++) { diycopy[0x59 + 2 * k] = sr[k]; diycopy[0x59 + 2 * k + 1] = fr[k]; }
+    }
+    return place;
+}

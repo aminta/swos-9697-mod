@@ -7,8 +7,10 @@
 <!-- REGIA STAGED, the release payoff (Davide 2026-10-18, for the final release of the whole work):
 *Football competitions, global and local, that no other game has, has ever had, or probably ever will.* -->
 
-A historic career world of the **2026-27 season**: 91 countries, 2,378 clubs (Italy down to the real Serie D: 156 clubs in 9 groups), plus 97 clubs waiting outside
-the world (the Eccellenza, Brazil's state second divisions, the clubs below the B teams' leagues), real squads at the
+A historic career world of the **2026-27 season**: 91 countries, 2,003 clubs in the league divisions (Italy down to the real Serie D: 156 clubs in 9 groups) and 119
+that play only Brazil's state championships, plus 104 clubs waiting outside the world (the Eccellenza, Brazil's
+state second divisions, the clubs below the B teams' leagues) and 159 guest clubs of the continental cups: 2,385
+clubs with a team record in all, real squads at the
 end of the summer 2026 transfer window. In CLASSIC CAREERS choose WORLD 2026-27, then the continent and the country (EUROPE lists the
 first 43 UEFA associations by ranking, the others are under OTHER NATIONS).
 
@@ -347,8 +349,8 @@ when the engine lands it.
   Transfermarkt squads for 126 of them. They play only their continental cup.
 - **Pots and seeds from the real rankings**: the Libertadores and Sudamericana pots from the CONMEBOL club ranking of
   15 December 2025 (the one of the 2026 draws).
-- **The Copa Libertadores is played exactly**: the qualifying rounds, the groups, the seeded round of 16 draw after
-  the groups, and the group thirds into the Sudamericana play-off.
+- **The Copa Libertadores is played exactly**: the qualifying rounds, the groups and the seeded round of 16 draw
+  after the groups.
 - **Each cup's FORMAT page** tells its format, its entrants and its guests in plain words, in 4 languages.
 - **Zone colours in the cups' group tables**: light blue for the places that go on, green for a play-off or the
   move to another cup (the Libertadores thirds to the Sudamericana), with a legend.
@@ -575,6 +577,8 @@ when the engine lands it.
     generated players; coaches are generated where Transfermarkt has none.
   - **OFC's Intercontinental place**: the OFC Professional League champion's place goes to the OFC Champions League
     winner.
+  - **Libertadores thirds**: the move of the Libertadores group thirds to the Sudamericana play-off is simulated in
+    4.0 (played in 4.0.1).
   - **AFC**: the Champions League Elite league stage and the Challenge League groups are simulated in 4.0: your club
     joins the Elite at the round of 16 and the Challenge League at the quarter-finals.
   - **Intercontinental Cup**: the UEFA Champions League holder has no strength data of its own; the rounds that
@@ -583,6 +587,8 @@ when the engine lands it.
     played as a knockout).
 
 **Known limits**
+- After a job offer letter in a career, a few stray pixels can appear on the menu buttons until the next match
+  reloads the menu graphics: cosmetic only, saves are not affected (fixed in 4.0.1).
 - At the end of a season the game finishes every competition still open and shows each one in turn: in this world
   there are many more of them than in the original game, so the sequence takes longer (about a second each on a fast
   486; the time is the original game's own menu drawing, not the mod's code).
@@ -645,8 +651,10 @@ when the engine lands it.
 <!-- REGIA STAGED, il payoff del rilascio (Davide 2026-10-18, per il rilascio finale di tutto il lavoro):
 *Le competizioni di calcio, globali e locali, che nessun altro gioco ha, ha mai avuto e probabilmente avrà.* -->
 
-Un mondo di carriera storica della **stagione 2026-27**: 91 nazioni, 2.378 club (l'Italia fino alla Serie D vera: 156 club in 9 gironi), più 97 club in attesa fuori dal
-mondo (l'Eccellenza, le seconde divisioni statali brasiliane, i club sotto i campionati delle squadre B), rose reali
+Un mondo di carriera storica della **stagione 2026-27**: 91 nazioni, 2.003 club nelle divisioni dei campionati (l'Italia fino alla Serie D vera: 156 club in 9 gironi) e 119
+che giocano solo i campionati statali brasiliani, più 104 club in attesa fuori dal mondo (l'Eccellenza, le seconde
+divisioni statali brasiliane, i club sotto i campionati delle squadre B) e 159 club ospiti delle coppe
+continentali: 2.385 club con una scheda squadra in tutto, rose reali
 alla fine del mercato estivo 2026. In CARR. STORICHE scegli MONDO 2026-27, poi il continente e la nazione (EUROPA elenca le prime 43
 federazioni UEFA per ranking, le altre sono in ALTRE NAZIONI).
 
@@ -989,8 +997,8 @@ Baiano, Cearense, Pernambucano, Alagoano e Mato-Grossense.
   Transfermarkt per 126 di loro. Giocano solo la loro coppa continentale.
 - **Fasce e teste di serie dai ranking veri**: le fasce di Libertadores e Sudamericana dal ranking CONMEBOL dei club
   del 15 dicembre 2025 (quello dei sorteggi 2026).
-- **La Copa Libertadores si gioca esattamente**: i turni preliminari, i gironi, il sorteggio degli ottavi con le
-  teste di serie dopo i gironi e le terze dei gironi allo spareggio della Sudamericana.
+- **La Copa Libertadores si gioca esattamente**: i turni preliminari, i gironi e il sorteggio degli ottavi con le
+  teste di serie dopo i gironi.
 - **La pagina FORMULA di ogni coppa** ne racconta formula, iscritte e ospiti in parole semplici, in 4 lingue.
 - **Colori delle zone nelle classifiche dei gironi delle coppe**: azzurro per i posti che proseguono, verde per uno
   spareggio o il passaggio a un'altra coppa (le terze della Libertadores alla Sudamericana), con la legenda.
@@ -1233,6 +1241,8 @@ Baiano, Cearense, Pernambucano, Alagoano e Mato-Grossense.
     mondo), 5 sono completate con giocatori generati; gli allenatori sono generati dove Transfermarkt non li ha.
   - **Posto OFC nell'Intercontinentale**: il posto della campione della OFC Professional League va alla vincitrice
     della OFC Champions League.
+  - **Terze della Libertadores**: il passaggio delle terze dei gironi della Libertadores allo spareggio della
+    Sudamericana è simulato nella 4.0 (giocato nella 4.0.1).
   - **AFC**: la fase a campionato della Champions League Elite e i gironi della Challenge League sono simulati nella
     4.0: il tuo club entra nella Elite dagli ottavi e nella Challenge League dai quarti.
   - **Coppa Intercontinentale**: la detentrice della UEFA Champions League non ha dati di forza propri; i turni che
@@ -1241,6 +1251,9 @@ Baiano, Cearense, Pernambucano, Alagoano e Mato-Grossense.
     gioca a eliminazione diretta).
 
 **Limiti noti**
+- Dopo una lettera di offerta di lavoro in carriera, sui pulsanti dei menu possono comparire alcuni pixel sporchi
+  finché la partita successiva non ricarica la grafica dei menu: solo estetico, i salvataggi non ne risentono
+  (corretto nella 4.0.1).
 - A fine stagione il gioco conclude tutte le competizioni ancora aperte e le mostra una dopo l'altra: in questo mondo
   sono molte più che nel gioco originale, quindi la sequenza dura di più (circa un secondo ciascuna su un 486 veloce;
   il tempo è quello del disegno dei menu del gioco originale, non del codice della mod).
@@ -1279,9 +1292,9 @@ Baiano, Cearense, Pernambucano, Alagoano e Mato-Grossense.
   di prezzi del gioco); non vengono distribuiti valori di mercato, valutazioni o pagine delle fonti.
 
 <!-- complist:begin -->
-91 countries, 136 league divisions, 87 national cups, 14 league cups: every playable competition and its format, generated from the release build: [world-2026-27-competitions.md](world-2026-27-competitions.md).
+91 countries, 134 league divisions, 87 national cups, 14 league cups, 13 state championships, 15 continental competitions (UEFA 3 + 12 new): every playable competition and its format, generated from the release build: [world-2026-27-competitions.md](world-2026-27-competitions.md).
 
-91 nazioni, 136 divisioni, 87 coppe nazionali, 14 coppe di lega: ogni competizione giocabile e la sua formula, generate dalla build della release: [world-2026-27-competitions.md](world-2026-27-competitions.md).
+91 nazioni, 134 divisioni, 87 coppe nazionali, 14 coppe di lega, 13 campionati statali, 15 competizioni continentali (UEFA 3 + 12 nuove): ogni competizione giocabile e la sua formula, generate dalla build della release: [world-2026-27-competitions.md](world-2026-27-competitions.md).
 <!-- complist:end -->
 
 <!-- REGIA STAGED (rilascio: da completare dalla prova della 4.0, c/REL40rc1):

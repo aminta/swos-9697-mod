@@ -890,9 +890,9 @@ def write(out_dir, items):
                 body = []
                 for para in prose:
                     body += [wrap_px(ascii_up(para, lang)), [GAP]]
-                tl = [x for t in tail for x in wrap_px(ascii_up(t, lang))]
+                tl = [wrap_px(ascii_up(t, lang)) for t in tail]
                 if tl:
-                    body.append(tl)                 # (the colours: one block)
+                    body += tl                      # (the colours' lines fill the page and go on: not prose)
                 elif body:
                     body.pop()                      # (no trailing paragraph break)
             else:

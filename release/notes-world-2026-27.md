@@ -583,6 +583,8 @@ when the engine lands it.
     played as a knockout).
 
 **Known limits**
+- After a job offer letter in a career, a few stray pixels can appear on the menu buttons until the next match
+  reloads the menu graphics: cosmetic only, saves are not affected (fixed in 4.0.1).
 - At the end of a season the game finishes every competition still open and shows each one in turn: in this world
   there are many more of them than in the original game, so the sequence takes longer (about a second each on a fast
   486; the time is the original game's own menu drawing, not the mod's code).
@@ -1241,6 +1243,9 @@ Baiano, Cearense, Pernambucano, Alagoano e Mato-Grossense.
     gioca a eliminazione diretta).
 
 **Limiti noti**
+- Dopo una lettera di offerta di lavoro in carriera, sui pulsanti dei menu possono comparire alcuni pixel sporchi
+  finché la partita successiva non ricarica la grafica dei menu: solo estetico, i salvataggi non ne risentono
+  (corretto nella 4.0.1).
 - A fine stagione il gioco conclude tutte le competizioni ancora aperte e le mostra una dopo l'altra: in questo mondo
   sono molte più che nel gioco originale, quindi la sequenza dura di più (circa un secondo ciascuna su un 486 veloce;
   il tempo è quello del disegno dei menu del gioco originale, non del codice della mod).

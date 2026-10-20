@@ -194,7 +194,7 @@ HAND = {
         'it': ["La Coppa Intercontinentale riunisce le vincitrici delle coppe dei sei continenti. Si gioca a scalini: "
                "chi arriva da una coppa più forte entra più tardi. Tutte le partite sono in gara unica, con "
                "supplementari e rigori in caso di parità.",
-               "Si parte con il play-off Africa-Asia-Pacifico: la vincitrice della AFC Champions League Elite ospita "
+               "Si parte con il play-off Africa-Asia-Pacifico: la vincitrice dell'AFC Champions League Elite ospita "
                "quella dell'OFC Champions League (negli anni dispari tocca alla vincitrice africana). Poi si giocano "
                "due sfide: nella Coppa Africa-Asia-Pacifico la vincitrice della CAF Champions League affronta chi ha "
                "vinto il play-off, in casa della squadra del paese meglio piazzato nel ranking FIFA; nel Derby delle "

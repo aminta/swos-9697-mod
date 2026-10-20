@@ -28,7 +28,8 @@ MAX = 30                        # the largest table that scrolls (split.NMAX's 3
 LABELS = {}
 
 ASM = """
-lt_d3:                                  ; esi = DIY_competitionStart
+lt_d3:                                  ; esi = the table shown (OnRestore's; not always DIY: VIS. COMPETIZ., the world's
+    mov [LT_TAB], esi                   ; tables while DIY holds another contest - Serie C's CRC stuck, 2026-10-20)
 %if STG_
     call lt_stage
 %endif
@@ -47,7 +48,8 @@ lt_d3:                                  ; esi = DIY_competitionStart
 lt_d5:
     pushad
     mov word [D5], 1
-    mov esi, DIY
+    mov esi, [A6R]                      ; (BeforeDraw's table: its A6)
+    mov [LT_TAB], esi
     movzx eax, word [esi + 51h]
     mov [LT_END], ax
     cmp word [esi + 4Fh], 1
@@ -79,7 +81,9 @@ lt_end:                                 ; flags for the loop's jbe: D5 v the las
 lt_down:                                ; flags for ScrollDown's jnb (no scroll when 'not below')
     push eax
     push esi
-    mov esi, DIY
+    mov esi, [LT_TAB]
+    test esi, esi
+    jz .game
     cmp word [MODE], 0                  ; (the table view)
     jne .game
     cmp word [esi + 4Fh], 1
@@ -95,12 +99,12 @@ lt_down:                                ; flags for ScrollDown's jnb (no scroll 
     cmp [D0], ax
 .r: pop esi
     pop eax
+    mov ax, [GROUPS]                    ; (as the original left it; mov keeps the flags)
     ret
 
 lt_arrows:                              ; flags for OnRestore's jnz (arrows shown when the groups shown < the groups):
-    push eax                            ; a long table's arrows are always shown
+    push eax                            ; a long table's arrows are always shown (esi = OnRestore's table)
     push esi
-    mov esi, DIY
     cmp word [esi + 4Fh], 1
     jne .game
     cmp word [esi + 51h], ROWS_
@@ -112,6 +116,7 @@ lt_arrows:                              ; flags for OnRestore's jnz (arrows show
     cmp [D0], ax
 .r: pop esi
     pop eax
+    mov ax, [NUMRES]                    ; (as the original left it)
     ret
 
 %if OV_
@@ -201,6 +206,8 @@ lt_stage:                               ; (OnRestore) a split / staged league's 
     ret
 %endif
 
+align 4
+LT_TAB: dd 0
 align 2
 LT_END: dw 0
 """
@@ -246,7 +253,7 @@ def patch(p, at, area=None, lang='it'):
     import fmtpage
     import gplay
     ov = bool(fmtpage.OV.get('flag')) and 'gp_overall' in gplay.LABELS and area is not None
-    sym = {'D0': (2, d0), 'D3': (2, d3), 'D5': (2, d5), 'D7': (2, d7), 'DIY': (2, lp36._sites(p)['DIY']),
+    sym = {'D0': (2, d0), 'D3': (2, d3), 'D5': (2, d5), 'D7': (2, d7), 'DIY': (2, lp36._sites(p)['DIY']), 'A6R': (2, a0 + 24),
            'CURLINE': p.target(1, curline + 2), 'MODE': p.target(1, mode + 2), 'GROUPS': p.target(1, h4 + 2),
            'NUMRES': p.target(1, h5 + 2), 'ROWS_': (0, ROWS), 'OV_': (0, int(ov))}
     import gplay

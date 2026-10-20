@@ -644,9 +644,9 @@ class Screen:
         mem = r.read(m, 0x16 + n * 0x38)
         ptrs = [struct.unpack_from('<I', mem, 0x16 + i * 0x38 + 0x26)[0] for i in range(n)]
         ptrs = [p if 0x1000 < p < MEMSIZE - 64 else 0 for p in ptrs]
-        out = [p for p in ptrs if p and not r.cached(p, 40)]
+        out = [p for p in ptrs if p and not r.cached(p, 64)]
         if out and max(out) - min(out) < 0x100000:     # texts outside the cached ranges: one dump for all
-            r.read(min(out), max(out) + 40 - min(out))
+            r.read(min(out), max(out) + 64 - min(out))
         self.entries, self.nav, self.geom, self.colors = [], [], [], []
         for i in range(n):
             e = 0x16 + i * 0x38
@@ -656,7 +656,7 @@ class Screen:
             self.colors.append(struct.unpack_from('<H', mem, e + 0x1E)[0])            # bg.backAndFrameColor
             text = ''
             if ptrs[i]:
-                raw = r.read(ptrs[i], 40).split(b'\0')[0]
+                raw = r.read(ptrs[i], 64).split(b'\0')[0]
                 if raw and all(32 <= b < 127 for b in raw):
                     text = raw.decode()
                 elif raw and (UI_MAP or COLLECT) and all(b >= 32 for b in raw):   # (another language's umlauts /

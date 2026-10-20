@@ -872,7 +872,7 @@ const u32 *GP_NM;                       /* the country's names: per play-off dd 
 const u8 *GP_RN;                        /* the country's 'round_names': KG bytes per play-off (rnames indices) */
 const u8 *GP_TH;                        /* the country's 'then_build': per play-off the next one's index + 1, or 0 */
 u8 *GP_DIYP;
-u32 GP_K, GP_W, GP_SKIP, GP_RB, GP_ALIVE;
+u32 GP_K, GP_W, GP_SKIP, GP_RB, GP_ALIVE, GP_LAST;
 u16 GP_MGR;                             /* (the career club: CAREERTEAM, set by the glue before the call) */
 u16 GP_A, GP_B;
 u8 GP_CID, GP_SEAS, GP_DIV, GP_PT[64], GP_PL[64];
@@ -1773,6 +1773,12 @@ u32 gp_adv_c(void) {
     return t;
 }
 
+static void ko_copy(struct gp_ko *d, const struct gp_ko *s) {   /* (no memcpy in the exe: byte by byte) */
+    volatile u8 *o = (volatile u8 *)d;
+    const u8 *i = (const u8 *)s;
+    for (unsigned n = 0; n < sizeof *d; n++) o[n] = i[n];
+}
+
 void gp_rec_c(void) {
     struct gp_ko *k = &GP_ST.ko[GP_K];
     int a = kidx(k, GP_A), b = kidx(k, GP_B), g = k->gcur;
@@ -1784,6 +1790,25 @@ void gp_rec_c(void) {
         if ((k->pa[p] == a && k->pb[p] == b) || (k->pa[p] == b && k->pb[p] == a)) k->pw[p] = GP_W ? b : a;
     resolve(k);
     if (k->kind == K_CUPD) { cd_done(k); return; }
+    GP_LAST = 0;
+    int left = 0;
+    for (int p = k->gp0[g]; p < k->gp0[g + 1]; p++) if (k->pw[p] == NOC) left++;
+    if (!left && g + 1 < k->ngr) {      /* (this match ended its round: the later ones all decided without a match -
+                                           a skip_if_same / gap round, CRC's Gran Final of one club - end the contest
+                                           here, the game's own last round: gp_rec, +59h = +57h + 1; else the game
+                                           draws a next round gp_perm cannot build and hangs) */
+        static struct gp_ko t;
+        ko_copy(&t, k);
+        int g2 = g + 1, over = 1;
+        while (g2 < t.ngr && build_game(&t, g2) == 0) g2++;
+        resolve(&t);
+        for (int i = 0; i < t.ntie; i++) if (t.tw[i] == NOC) over = 0;
+        if (g2 >= t.ngr && over) {
+            ko_copy(k, &t);
+            k->gcur = t.ngr - 1;
+            GP_LAST = 1;
+        }
+    }
     if (k->bye[5] && k->ntie && k->tw[k->ntie - 1] != NOC) {   /* (its final decided: the next one, once, from the
                                            week after: the advance right after the final still has slot 4's contest
                                            in hand, a build there was lost - 4.0's Trofeo) */

@@ -661,6 +661,11 @@ gp_rec:                                 ; at cseg_2AE97's end (the match's resul
     call gp_week
     mov eax, gp_rec_c
     call gp_c
+    cmp dword [GP_LAST], 0              ; (the contest ended here: every later round decided without a match - the
+    je .x                               ; game's own last-round path, cseg_28E76's +57h + 1 == +59h: its winner, +55h)
+    mov ax, [NCW + 57h]
+    inc ax
+    mov [NCW + 59h], ax
 .x:
     popad
     jmp GP_REC_NEXT
@@ -1484,7 +1489,7 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
     symbols = {k: (0, v) for k, v in lay.items()}
     symbols.update(tab_syms)
     symbols.update({k: syms[k] for k in ('GP_IN', 'GP_OUT', 'gp_season', 'gp_champ', 'gp_keep', 'GP_ST', 'GP_LOG', 'GP_NM', 'GP_DIYP', 'GP_K',
-                                         'GP_W', 'GP_SKIP', 'GP_RB', 'GP_ALIVE', 'GP_A', 'GP_B', 'GP_CID', 'GP_SEAS', 'GP_DIV',
+                                         'GP_W', 'GP_SKIP', 'GP_RB', 'GP_ALIVE', 'GP_LAST', 'GP_A', 'GP_B', 'GP_CID', 'GP_SEAS', 'GP_DIV',
                                          'GP_PT', 'GP_PL', 'gp_need', 'gp_simkeep', 'gp_restore', 'gp_lend_c', 'gp_ours_c',
                                          'gp_perm_c', 'gp_rec_c', 'gp_draw_c', 'gp_played_c', 'gp_end_c',
                                          'gp_build_c', 'GP_BPIC', 'sec_post')})

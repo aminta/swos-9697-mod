@@ -4820,7 +4820,7 @@ def title_top(lg):
     return list(struct.unpack_from('<9H', lg, GP_LOG_TOP)) if len(lg) >= GP_LOG_TOP + 18 else None
 
 
-def world_title(code, force='3'):
+def world_title(code, force='3', team=None, fill=False):
     """A title play-off of the world 2026-27 (formats_data.KO_TITLE, mkworld_tm TM_TITLE=1: Canada's CPL play-offs,
     the A-League finals series, Costa Rica's semis + final + Gran Final), played: the stable world5tm-poule snapshot
     with the country's KO_TITLE in its pack, built with GPLAY_FORCE (the career club's place at the league end; one
@@ -4859,8 +4859,15 @@ def world_title(code, force='3'):
     log_at, st_at, log_n, st_n = gp_ptrs(exe)
     seas_at = gp_eu(exe)[4]                             # (the season records: the title won's line, gp_pwin_c)
     keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K',
-                                            'W8485_NOSACK', 'W8485_HEX', 'W8485_ONE')}
-    os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=TITLE_TEAMS[code], W8485_WNUM='5',
+                                            'W8485_NOSACK', 'W8485_HEX', 'W8485_ONE', 'W8485_FILL')}
+    if fill:                                            # (every match won by the stronger side, 3-0: simdraw's table)
+        import simdraw
+        from le import LE
+        at = LE(open(os.path.join(exe, 'ITALIAN.EXE'), 'rb').read()).obj_bytes(2).find(simdraw.table())
+        if at < 0:
+            return False, 'simdraw table not found in obj2'
+        os.environ['W8485_FILL'] = f'{at:x}:30:3072'
+    os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=team or TITLE_TEAMS[code], W8485_WNUM='5',
                       W8485_K='108+', W8485_NOSACK='1',
                       W8485_HEX=f'{log_at:x}:{log_n},{st_at:x}:{st_n},{seas_at:x}:106', W8485_ONE='1')
     try:
@@ -5164,6 +5171,15 @@ int main(void) {
     want = 'AAAA BAAB CAAC BCAB CADB'    # (aggregates: B 63 / A 60; C 61 / A 60; C 56 / A 31; C 61 A 55 D 54 B 48)
     ok, got = gplay_host(test)
     return ok and got == want, f'seeds {got} (expected {want})'
+
+
+@scenario
+def world_title_crc_skip():
+    """world_title: Costa Rica with HEREDIANO (the strongest) forced 1st and every match won by the stronger side
+    (W8485_FILL): it wins its semi and the final, so the Gran Final (the 1st v the play-off winner, one club) is skipped
+    as the LAST round - gp_rec ends the contest at the final (GP_LAST: the game's own last round, +59h = +57h + 1); it
+    hung on HEREDIANO's squad screen with 'SORTEGGIO PROSS. TURNO' before (Serie C's reproducer)"""
+    return world_title('crc', '1', 'NORDAMERICA,COSTA RICA,HEREDIANO', fill=True)
 
 
 @scenario

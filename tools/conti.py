@@ -529,6 +529,11 @@ ct_prep:                                ; CT_SEG a tie -> the ties' contest (its
     mov [edi + 20], eax
     mov eax, [CT_SEG + 8]
     mov [edi + 24], eax
+    movzx eax, byte [CT_SEG]            ; (its round's name: rnames' RN_TIE, from the cup and round)
+    shl eax, 4
+    or al, [CT_SEG + 1]
+    mov al, [ct_rn + eax]
+    mov [RN_TIE], al
     mov byte [ct_live], 1
 .r:
     ret
@@ -642,6 +647,9 @@ ct_structs:
     ;CT_STRUCTS
 ct_names:
     ;CT_NAMES
+ct_rn:                                  ; each cup's rounds' name index (rnames.CT_IDX; 16 per cup, 0 = the game's)
+    ;CT_RN
+ct_rntie: db 0                          ; (RN_TIE without rnames)
 '''
 
 
@@ -713,6 +721,13 @@ def patch(p, at, limit, bss_at, area):
     asm = GLUE.replace("    ;CT_LP", "\n".join(lp)).replace(
         "    ;CT_STRUCTS", "\n".join(f'    dd XST{i}' for i in range(len(STRUCTS))) or '    dd 0').replace(
         "    ;CT_NAMES", "\n".join(f'    dd {r}' for r in NAMES) or '    dd 0')
+    import rnames
+    rn = [rnames.CT_IDX.get((ci, j), 0) for ci in range(16) for j in range(16)]
+    asm = asm.replace("    ;CT_RN", '    db ' + ', '.join(map(str, rn)))
+    if 'RN_TIE' in rnames.LABELS:
+        symbols['RN_TIE'] = (1, rnames.LABELS['RN_TIE'])
+    else:
+        asm = asm.replace('[RN_TIE]', '[ct_rntie]')
     bad = {k: v for k, v in symbols.items() if not (isinstance(v, tuple) and isinstance(v[1], int))}
     assert not bad, bad
     spec_at = (end + 15) & ~15                          # (the spec in our own pages: the obj2 string area is
@@ -932,6 +947,9 @@ STRUCTS = []                            # [(cup index, struct offset, team list 
 D7_BASE = [0]                           # (patch.py: sacups' D7 / E092F of the first one)
 NAMES = []                              # each cup's name (rel to sacups.STR_BASE)
 TIE = [None]                            # the ties' contest (obj1), D7 = D7_BASE + len(STRUCTS)
+CUPROUNDS = []                          # each cup's rounds (format), by cup index: rnames' names per round
+SROUNDS = []                            # per struct: the round index of its rounds / stages (rnames' RN_CTMAP)
+SKINDS = []                             # per struct: 1 type 1 (a knockout), 2 type 2 (groups + knockouts)
 
 
 def _legs(rd):
@@ -960,11 +978,15 @@ def structs(p, area, lang, at):
     out, kinds = [], []
     STRUCTS.clear()
     NAMES.clear()
+    CUPROUNDS.clear()
+    SROUNDS.clear()
+    SKINDS.clear()
     files, words = _world_maps(confs)
     first = season1_native(confs, files, words)         # (the 2027 editions' main rounds: the contests' lists)
     ci = 0
     for conf in confs:
         for k, c in enumerate(c for c in _read(conf, 'format')['cups'] if supported(c)):
+            CUPROUNDS.append(c['rounds'])
             if c.get('stepladder'):                     # (the Intercontinental: its games as ties only; its name)
                 nm = (c['names'].get(lang) or c['names']['en'])[0].upper().encode('latin1')[:30]
                 NAMES.append(area.add(nm + b'\0') - sacups.STR_BASE)
@@ -1017,6 +1039,12 @@ def structs(p, area, lang, at):
             p.put(1, at, blob)
             NAMES.append(rel)
             STRUCTS.append((ci, at, at + name_at + 8, n))
+            if rd['kind'] == 'groups':
+                SROUNDS.append([j0] + [rounds.index(r) for r in ko])
+                SKINDS.append(2)
+            else:
+                SROUNDS.append(list(range(j0, len(rounds))))
+                SKINDS.append(1)
             out.append(at)
             kinds.append(min(k, 2))                         # (the trophy's rank: the first cup as the Champions Cup)
             at += (len(blob) + 3) & ~3

@@ -91,7 +91,7 @@ L = {
                none='Non retrocede nessuno.',
                split='Dopo {a} giornate la classifica si divide: {groups}.', grp='{name} ({a}-{b}) {r}', grp0='le squadre dalla {a} alla {b} {r}', rngl='Le squadre {x}', andw='e',
                grprp={0: 'si fermano', 1: 'giocano una volta', 2: 'giocano andata e ritorno'}, grpr={0: 'si ferma', 1: 'gioca una volta', 2: 'gioca andata e ritorno'},
-               half=', con i punti dimezzati', reset=', ripartendo da zero',
+               full=', con tutti i punti della prima fase', half=', con i punti dimezzati', reset=', ripartendo da zero',
                po='{rng} si giocano {kind}: {rules}.', win='La vincente sale in {d}.',
                kind={'promotion': 'i play-off promozione', 'playout': 'i play-out', 'placement': 'gli spareggi',
                      'europe': "i play-off per l'Europa", 'title': 'i play-off per il titolo'},
@@ -111,7 +111,7 @@ L = {
                none='Nobody goes down.',
                split='After {a} matchdays the table splits: {groups}.', grp='{name} ({a}-{b}) {r}', grp0='the clubs from {a} to {b} {r}', rngl='The clubs {x}', andw='and',
                grprp={0: 'stop', 1: 'play once more', 2: 'play home and away'}, grpr={0: 'stops', 1: 'plays once more', 2: 'plays home and away'},
-               half=', with points halved', reset=', starting from zero',
+               full=', keeping all the points of the first phase', half=', with points halved', reset=', starting from zero',
                po='{rng} play {kind}: {rules}.', win='The winner goes up to {d}.',
                kind={'promotion': 'the promotion play-offs', 'playout': 'the play-outs', 'placement': 'the placement play-offs',
                      'europe': 'the European play-offs', 'title': 'the title play-offs'},
@@ -130,7 +130,7 @@ L = {
                none='Personne ne descend.',
                split='Après {a} journées le classement se divise : {groups}.', grp='{name} ({a}-{b}) {r}', grp0='les clubs du {a} au {b} {r}', rngl='Les clubs {x}', andw='et',
                grprp={0: "s'arrêtent", 1: 'jouent une fois', 2: 'jouent en aller et retour'}, grpr={0: "s'arrête", 1: 'joue une fois', 2: 'joue en aller et retour'},
-               half=', points divisés par deux', reset=', en repartant de zéro',
+               full=', en gardant tous les points de la première phase', half=', points divisés par deux', reset=', en repartant de zéro',
                po='{rng} jouent {kind} : {rules}.', win='Le vainqueur monte en {d}.',
                kind={'promotion': 'les barrages de montée', 'playout': 'les barrages de maintien',
                      'placement': 'les barrages de classement', 'europe': "les barrages pour l'Europe",
@@ -150,7 +150,7 @@ L = {
                none='Niemand steigt ab.',
                split='Nach {a} Spieltagen wird die Tabelle geteilt: {groups}.', grp='{name} ({a}-{b}) {r}', grp0='die Vereine vom {a} bis zum {b} {r}', rngl='Die Vereine {x}', andw='und',
                grprp={0: 'hören auf', 1: 'spielen einmal', 2: 'spielen mit Hin- und Rückspiel'}, grpr={0: 'hört auf', 1: 'spielt einmal', 2: 'spielt mit Hin- und Rückspiel'},
-               half=', mit halbierten Punkten', reset=', bei null beginnend',
+               full=', mit allen Punkten der ersten Phase', half=', mit halbierten Punkten', reset=', bei null beginnend',
                po='{rng} spielen {kind}: {rules}.', win='Der Sieger steigt in die {d} auf.',
                kind={'promotion': 'die Aufstiegs-Playoffs', 'playout': 'die Abstiegs-Playoffs',
                      'placement': 'die Platzierungsspiele', 'europe': 'die Europapokal-Playoffs',
@@ -204,7 +204,8 @@ def league(div, k, lg, win, lang, pos, lowest, nm):
             a, b = gr['places']
             ri = {'none': 0, 'single': 1, 'double': 2}[gr.get('rounds', 'single')]
             r = (l['grpr'] if gr.get('title') else l['grprp'])[ri]
-            r += {'half_up': l['half'], 'half_down': l['half'], 'reset': l['reset']}.get(gr.get('points', 'full'), '')
+            if ri:                              # (a group that plays on: how its points carry over)
+                r += {'half_up': l['half'], 'half_down': l['half'], 'reset': l['reset']}.get(gr.get('points', 'full'), l['full'])
             if gr.get('title'):
                 gs.append(l['grp'].format(name=nm(gr['title']), a=l['ord'](a), b=l['ord'](b), r=r))
             else:

@@ -208,16 +208,16 @@ HAND = {
     (5, 'CANADA CPL PLAYOFFS'): _CPL, (5, 'AUSTRALIA A-LEAGUE FINALS SERIES'): _AUS,
     (5, 'COSTA RICA PLAYOFFS'): _CRC, (5, 'MALTA PREMIER LEAGUE FINAL FOUR'): _MLT,
     (5, 'ITALIA COPPA ITALIA'): _cup(
-        "Coppa a eliminazione diretta. Nel gioco la si gioca dagli ottavi, con 16 squadre: ottavi e quarti in gara "
+        "Nel gioco si parte dagli ottavi, con 16 squadre: ottavi e quarti in gara "
         "unica, con supplementari e rigori; semifinali di andata e ritorno; finale in gara unica, con supplementari e "
         "rigori. Il primo turno è quello del sorteggio vero.",
-        "A knockout cup. In the game it is played from the round of 16, with 16 clubs: the round of 16 and the "
+        "In the game it starts from the round of 16, with 16 clubs: the round of 16 and the "
         "quarter-finals in single matches, with extra time and penalties; two-legged semi-finals; a single-match "
         "final, with extra time and penalties. The first round is the real draw.",
-        "Coupe à élimination directe. Dans le jeu elle se joue à partir des huitièmes, avec 16 clubs : huitièmes et "
+        "Dans le jeu on part des huitièmes, avec 16 clubs : huitièmes et "
         "quarts sur un match, avec prolongation et tirs au but ; demi-finales en aller et retour ; finale sur un "
         "match, avec prolongation et tirs au but. Le premier tour est celui du vrai tirage.",
-        "Ein K.-o.-Pokal. Im Spiel ab dem Achtelfinale mit 16 Vereinen: Achtel- und Viertelfinale in einem Spiel, mit "
+        "Im Spiel geht es ab dem Achtelfinale mit 16 Vereinen los: Achtel- und Viertelfinale in einem Spiel, mit "
         "Verlängerung und Elfmeterschießen; Halbfinale mit Hin- und Rückspiel; Finale in einem Spiel, mit Verlängerung "
         "und Elfmeterschießen. Die erste Runde ist die echte Auslosung."),
     (5, 'INGHILTERRA FA CUP'): _cup(

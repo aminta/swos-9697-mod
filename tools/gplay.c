@@ -1359,6 +1359,7 @@ static u16 team_glob(u16 team) {        /* a team word -> its global number (the
     return 0xFFFF;
 }
 
+static int club_res(struct gp_ko *k, u16 mgr);
 static void stage_done(const struct gp_ko *k) {   /* a stage title's knockout decided: GP_ST.dec[stage] */
     const u8 *s = k->magic == MAGIC && k->season == GP_SEAS && k->ntie ? po_at(k->pi) : 0;
     int t = k->ntie - 1;
@@ -1368,6 +1369,8 @@ static void stage_done(const struct gp_ko *k) {   /* a stage title's knockout de
     x->season = GP_SEAS; x->done = 1;
     x->team[0] = k->team[w]; x->glob[0] = team_glob(k->team[w]);
     x->team[1] = l != NOC ? k->team[l] : 0xFFFF; x->glob[1] = l != NOC ? team_glob(k->team[l]) : 0xFFFF;
+    x->pad[0] = (u8)club_res((struct gp_ko *)k, GP_IN.mgr);   /* (the career club's result: its season record line) */
+    x->pad[1] = k->pi + 1;
 }
 
 u32 GP_WK;                              /* (the glue: the current calendar entry's week) */
@@ -1962,6 +1965,67 @@ void gp_repoint_c(u8 *const *slots, u8 *const *structs, u32 base, u32 div) {
         for (int j = 0; j < n; j++) b[4 + p + j] = ln[j];
         for (int j = p + n; j < 35; j++) b[4 + j] = 0;
     }
+}
+
+/* The career club's result in a decided knockout, as the season record's codes (FillManagementRecordInfo): 1 WINNERS,
+   -100 FINALIST (the last round lost), -101 REACHED SEMI-FINAL, -102 REACHED QUARTER-FINAL, -110 - n KNOCKED OUT IN
+   ROUND n; 0: not in it / undecided. */
+#ifndef GP_RLFORCE
+#define GP_RLFORCE 0                    /* test builds (GPLAY_RLFORCE=code, never release): the career club's result in
+                                           a contest it is in, read by the record lines only (no game flow) */
+#endif
+static int club_res(struct gp_ko *k, u16 mgr) {
+    int me = mgr ? kidx(k, mgr) : NOC;
+    if (me == NOC || !k->ntie) return 0;
+    if (GP_RLFORCE) return GP_RLFORCE;
+    resolve(k);
+    if (k->tw[k->ntie - 1] == me) return 1;
+    for (int t = 0; t < k->ntie; t++) {
+        if (k->tl[t] != me) continue;
+        int r = 0;
+        while (r + 1 < k->nrs && t >= k->gt0[r + 1]) r++;
+        int d = k->nrs - 1 - r;
+        return d == 0 ? -100 : d == 1 ? -101 : d == 2 ? -102 : -(110 + r + 1);
+    }
+    return 0;
+}
+
+/* SeasonFinished (gp_sack): the season record's extra lines (GP_RLN names, GP_RLC result codes; the count returned):
+   the Poule won (its record name, WINNERS); a stage title's knockout played (4.0 ARG: TORNEO APERTURA / CLAUSURA,
+   TROFEO DE CAMPEONES: its long name and the club's result, from GP_ST.dec - stage_done - or ko[0]); a title
+   play-off played (MLS CUP PLAYOFFS, CAN, AUS, CRC, MLT: the league's name with WINNERS, else the play-off's long
+   name with the round reached). GP_RLPOULE: the Poule's line (the test builds' DA11B). */
+u32 GP_RLN[4];
+s8 GP_RLC[4];
+u32 GP_RLPOULE;
+u32 gp_rlines_c(void) {
+    struct gp_ko *k = &GP_ST.ko[0];
+    int n = 0, kstage = -1;
+    GP_RLPOULE = 0;
+    int live = GP_ST.magic == MAGIC && GP_ST.season == GP_SEAS && k->magic == MAGIC && k->season == GP_SEAS;
+    if (live && k->kind == K_STAGE) {
+        const u8 *s = po_at(k->pi);
+        kstage = s ? s[3] : -1;
+    }
+    for (int st = 0; st < 3 && GP_NM; st++) {       /* (the stage titles decided before: Apertura, Clausura, Trofeo) */
+        const struct gp_dec *x = &GP_ST.dec[st];
+        if (st == kstage || x->season != GP_SEAS || !x->done || !x->pad[0] || !x->pad[1] || n >= 4) continue;
+        GP_RLN[n] = GP_NM[3 * (x->pad[1] - 1)]; GP_RLC[n++] = (s8)x->pad[0];
+    }
+    if (!live || n >= 4) return n;
+    if (KT2(k)) {
+        int me = kidx(k, GP_MGR);
+        if (me == NOC) return n;
+        if (GP_FORCE) { k->tw[0] = me; k->tl[0] = me ? 0 : 1; }
+        if (k->tw[0] == me) { GP_RLN[n] = *(u32 *)k->bye; GP_RLC[n++] = 1; GP_RLPOULE = 1; }
+        return n;
+    }
+    if ((k->kind != K_TITLE && k->kind != K_STAGE) || !GP_NM) return n;
+    int r = club_res(k, GP_MGR);    /* (SeasonFinished comes before the season end's gp_season: the contest itself) */
+    if (!r) return n;
+    GP_RLN[n] = GP_NM[3 * k->pi + (r == 1 && k->kind == K_TITLE ? 2 : 0)];
+    GP_RLC[n++] = (s8)r;
+    return n;
 }
 
 u32 gp_pwin_c(void) {

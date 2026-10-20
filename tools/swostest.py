@@ -4885,6 +4885,86 @@ def world_title(code, force='3'):
                                          f"{win:#x} (first of the top-9 list {[hex(t) for t in top]})")
 
 
+def world_rlines(team, tag, res):
+    """The season record's extra lines (gplay.c gp_rlines_c): a season of the release data (W2627REL_DATA, default
+    internal/world2526/world5tm-rel40-names-2214) at team; each result the engine holds for the career club - a stage
+    title decided (GP_ST.dec: ARG's TORNEO APERTURA / CLAUSURA / TROFEO) or the title play-off / stage in ko[0]
+    (MLS CUP PLAYOFFS) - is one of the record's lines 2-4 with its code (1 WINNERS, -100 FINALIST, -101 / -102 the
+    semi / quarter-final, -110 - n round n). Forced (Davide: never re-run seasons for a result): the club 1st of its
+    division (GPLAY_FORCE=1: in the knockouts) and its result res in every one it plays (GPLAY_RLFORCE)"""
+    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-names-2214')
+    if not os.path.isdir(src):
+        return True, f'SKIP: private data {src} missing'
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    exe = os.environ.get(f'RLINES_BUILD{res}') or build(f'world_rlines{res}', env={'SEASON_PACKS': ','.join(
+        ['ddr-1988-89'] + [os.path.join(src, x) for x in order]), 'GPLAY_FORCE': '1', 'GPLAY_RLFORCE': str(res)})
+    os.environ[f'RLINES_BUILD{res}'] = exe
+    log_at, st_at, log_n, st_n = gp_ptrs(exe)
+    seas_at = gp_eu(exe)[4]
+    keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K',
+                                            'W8485_NOSACK', 'W8485_HEX', 'W8485_ONE')}
+    os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5', W8485_K='108+',
+                      W8485_NOSACK='1', W8485_HEX=f'{st_at:x}:{st_n},{seas_at:x}:106', W8485_ONE='1')
+    try:
+        ok, msg = world8485()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    hexes = {}
+    for ln in open(os.path.join(RUNS, w84_tag() + '_1', 'session.log'), errors='replace'):
+        q = ln.split()
+        if len(q) == 3 and q[0] == 'HEX':
+            hexes.setdefault(int(q[1], 16), []).append(bytes.fromhex(q[2]))
+    errs = []
+    check(ok, msg, errs)
+    sts = [b for b in hexes.get(st_at, []) if b[:2] == b'GK']
+    recs = hexes.get(seas_at, [])
+    if not sts or not recs:
+        return False, f'{msg}; no GP_ST / season record seen'
+    st, rec = sts[-1], recs[-1]
+    seas = st[2]
+    free = [o for o in (3, 2, 1) if not struct.unpack_from('<I', recs[0], 22 + 4 * o)[0]] if len(recs) > 1 else []
+    want = []
+    for k in range(3):                                   # (gplay.c struct gp_dec at 1996: season, done, res, pi + 1)
+        d = st[1996 + 12 * k:1996 + 12 * k + 12]
+        if d[0] == seas and d[1] and d[2]:
+            want.append(('stage %d' % k, struct.unpack('b', d[2:3])[0]))
+    lines = [(o + 1, struct.unpack_from('<I', rec, 22 + 4 * o)[0], struct.unpack('b', rec[86 + o:87 + o])[0])
+             for o in range(4)]
+    check(want or tag != 'arg', f'no stage title decided this season (GP_ST.dec): {st[1996:2032].hex()}', errs)
+    check(all(c == res for _, c in want), f'stage results {want}, forced {res}', errs)
+    ko = gp_ko(st[GP_STKO:])
+    if ko['kind'] in (5, 8) and ko['season'] == seas and ko['slot']:   # (ko[0] played by the club: a title play-off / stage)
+        if ko['kind'] == 8:                              # (a stage in ko[0] at the season end: ARG's TROFEO, stage
+            want = [w for w in want if w[0] != 'stage 2']   # 2 - gp_rlines_c reads it from ko[0], not GP_ST.dec)
+        want.append(('ko[0]', res))
+    else:
+        check(tag != 'usa', f'the MLS play-offs not played by the club: ko[0] {ko}', errs)
+    exp = [c for _, c in want][:len(free)]               # (gp_sack: the engine's lines in order, each into the first
+    got = [lines[o][2] for o in free[:len(exp)]]         # line free at the season start, 4 / 3 / 2; the game's own -
+    check(len(recs) > 1 and got == exp and exp, f'free lines {[o + 1 for o in free]}: codes {got}, expected {exp} '
+          f'(results {want}); {lines}', errs)            # league, cup, continental - keep theirs)
+    return not errs, '; '.join(errs) or (f'{msg}; {tag}: stage results {want}, ko[0] kind {ko["kind"]} pi {ko["pi"]} '
+                                         f'tw {ko["tw"][:ko["ntie"]]}; record lines {[(n, hex(a), c) for n, a, c in lines]}')
+
+
+@scenario
+def world_rlines_arg():
+    """world_rlines at BOCA JUNIORS (Argentina: TORNEO APERTURA / CLAUSURA knockouts, TROFEO DE CAMPEONES), forced
+    to win them (WINNERS lines)"""
+    return world_rlines('SUDAMERICA,ARGENTINA,LIGA PROFESIONAL,BOCA JUNIORS', 'arg', 1)
+
+
+@scenario
+def world_rlines_usa():
+    """world_rlines at PHILADELPHIA (USA: MLS CUP PLAYOFFS, a title play-off), forced out in the semi-final
+    (REACHED SEMI-FINAL)"""
+    return world_rlines('NORDAMERICA,USA,PHILADELPHIA', 'usa', -101)
+
+
 @scenario
 def world_title_can():
     """world_title: Canada's CPL play-offs (1st-4th: semis 1v4 / 2v3 two legs, the final at the better placed's)"""
@@ -4906,14 +4986,83 @@ def world_title_mlt():
     return world_title('mlt', '1')
 
 
+def gplay_host(test):
+    """A C test that #includes tools/gplay.c (%s: its path) compiled and run on the host (cc): (ok, stdout or the
+    compiler's error); the exe's externs it never uses get stubs in a unit of their own."""
+    import subprocess
+    import tempfile
+    with tempfile.TemporaryDirectory() as d:
+        open(os.path.join(d, 't.c'), 'w').write(test % os.path.join(ROOT, 'tools', 'gplay.c'))
+        stub = ''
+        for _ in range(2):
+            open(os.path.join(d, 's.c'), 'w').write(stub)
+            r = subprocess.run(['cc', '-w', '-o', os.path.join(d, 't'), os.path.join(d, 't.c'), os.path.join(d, 's.c')],
+                               capture_output=True, text=True)
+            miss = sorted(set(re.findall(r'"_(\w+)", referenced from', r.stderr)))
+            if not r.returncode or not miss:
+                break
+            stub += ''.join(f'unsigned char {m}[65536] __attribute__((aligned(8)));\n' for m in miss)
+        if r.returncode:
+            return False, f'cc: {r.stderr[:300]}'
+        return True, subprocess.run([os.path.join(d, 't')], capture_output=True, text=True).stdout.strip()
+
+
+@scenario
+def gplay_rlines():
+    """gplay.c club_res / gp_rlines_c (the season record's extra lines) compiled on the host (cc), every result
+    forced: a 3-round knockout won / lost in the final / semi / quarter (1 / -100 / -101 / -102), a 5-round one lost
+    in rounds 1-2 (-111 / -112), a club not in it (0); then the lines: two stage titles decided before (GP_ST.dec:
+    WINNERS of play-off 0, REACHED SEMI-FINAL of play-off 2 - their long names) and the title play-off in ko[0]
+    (won: the league's record name, lost in the final: its long name)"""
+    test = r"""
+#include "%s"
+#include <stdio.h>
+static u32 NM[9] = {101, 102, 103, 201, 202, 203, 301, 302, 303};
+static void ko(int nrs, const int *ties, int out) {   /* the club (team 1000, entrant 0) wins every round before out */
+    struct gp_ko *k = &GP_ST.ko[0];
+    *k = (struct gp_ko){0};
+    k->magic = MAGIC; k->season = GP_SEAS; k->kind = K_TITLE; k->pi = 1; k->n = 24; k->nrs = nrs;
+    for (int i = 0; i < 24; i++) k->team[i] = 1000 + i;
+    int t = 0;
+    for (int r = 0; r < nrs; r++) {
+        k->gt0[r] = t;
+        for (int i = 0; i < ties[r]; i++, t++) {
+            k->tw[t] = 1 + t; k->tl[t] = 16 + t %% 8;   /* (KT: 24 ties at most) */
+            if (i == 0 && r <= out && r < nrs) { if (r < out) k->tw[t] = 0; else k->tl[t] = 0; }
+        }
+    }
+    k->gt0[nrs] = t; k->ntie = t;
+}
+int main(void) {
+    static const int t3[] = {4, 2, 1}, t5[] = {8, 4, 2, 1, 1};
+    GP_SEAS = 26; GP_MGR = 1000; GP_NM = NM;
+    GP_ST.magic = MAGIC; GP_ST.season = GP_SEAS;
+    for (int out = 3; out >= 0; out--) { ko(3, t3, out); printf("%%d ", club_res(&GP_ST.ko[0], GP_MGR)); }
+    for (int out = 0; out < 2; out++) { ko(5, t5, out); printf("%%d ", club_res(&GP_ST.ko[0], GP_MGR)); }
+    ko(3, t3, 3); printf("%%d |", club_res(&GP_ST.ko[0], 999));
+    struct gp_dec *d = GP_ST.dec;
+    d[0].season = d[1].season = GP_SEAS; d[0].done = d[1].done = 1;
+    d[0].pad[0] = 1; d[0].pad[1] = 1; d[1].pad[0] = (u8)-101; d[1].pad[1] = 3;
+    for (int out = 3; out >= 2; out--) {
+        ko(3, t3, out);
+        int n = gp_rlines_c();
+        for (int i = 0; i < n; i++) printf(" %%u:%%d", GP_RLN[i], GP_RLC[i]);
+        printf(" |");
+    }
+    return 0;
+}
+"""
+    want = '1 -100 -101 -102 -111 -112 0 | 101:1 301:-101 203:1 | 101:1 301:-101 201:-100 |'
+    ok, got = gplay_host(test)
+    return ok and got == want, f'{got} (expected {want})'
+
+
 @scenario
 def gplay_split_seed():
     """gplay.c split_seed (Malta 2026-27's title decider) compiled on the host (cc), its four cases: one winner of
     both rounds (4 x it: no match), the Finalissima (Opening / Closing 1st-2nd in reverse, or one club 2nd in both:
     seeds A B B A by aggregate points), three clubs (the one 1st and 2nd straight to the final: seeds 1 and 4), the
     Final Four by aggregate points"""
-    import subprocess
-    import tempfile
     test = r"""
 #include "%s"
 #include <stdio.h>
@@ -4931,23 +5080,10 @@ int main(void) {
     run("ACBDEFGHIJKL"); run("BACDEFGHIJKL"); run("CBDEFGHIJKLA"); run("BCDEFGHIJKLA"); run("CDABEFGHIJKL");
     return 0;
 }
-""" % os.path.join(ROOT, 'tools', 'gplay.c')
+"""
     want = 'AAAA BAAB CAAC BCAB CADB'    # (aggregates: B 63 / A 60; C 61 / A 60; C 56 / A 31; C 61 A 55 D 54 B 48)
-    with tempfile.TemporaryDirectory() as d:
-        open(os.path.join(d, 't.c'), 'w').write(test)
-        stub = ''
-        for _ in range(2):                      # (the exe's externs, never used here: stubs in a unit of their own
-            open(os.path.join(d, 's.c'), 'w').write(stub)                  # for those the linker misses)
-            r = subprocess.run(['cc', '-w', '-o', os.path.join(d, 't'), os.path.join(d, 't.c'), os.path.join(d, 's.c')],
-                               capture_output=True, text=True)
-            miss = sorted(set(re.findall(r'"_(\w+)", referenced from', r.stderr)))
-            if not r.returncode or not miss:
-                break
-            stub += ''.join(f'unsigned char {m}[65536] __attribute__((aligned(8)));\n' for m in miss)
-        if r.returncode:
-            return False, f'cc: {r.stderr[:300]}'
-        got = subprocess.run([os.path.join(d, 't')], capture_output=True, text=True).stdout.strip()
-    return got == want, f'seeds {got} (expected {want})'
+    ok, got = gplay_host(test)
+    return ok and got == want, f'seeds {got} (expected {want})'
 
 
 @scenario

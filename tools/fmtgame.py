@@ -882,7 +882,7 @@ def write(out_dir, items):
             else:
                 tail = lines[lines.index(h):] if h in lines else []
                 prose = fmtprose.sentences(lines[:len(lines) - len(tail)])
-            hand = fmtprose.text(world, titles[lang], lang)
+            hand = fmtprose.text(world, titles['it'], lang)   # (hand texts keyed by the Italian title)
             prose = hand or prose
             if prose:
                 if hand:                        # (a hand text tells the real rule itself)

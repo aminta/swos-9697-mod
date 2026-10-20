@@ -75,7 +75,8 @@ def text(world, title, lang):
     t = title.strip()
     if world == 5 and t in ('UEFA EUROPA LEAGUE', 'UEFA CONFERENCE LEAGUE'):
         return _el(lang, t.endswith('CONFERENCE LEAGUE'))
-    p = PROSE.get((world, t), {}).get(lang)
+    import fmtprose_hand
+    p = (fmtprose_hand.HAND.get((world, t)) or PROSE.get((world, t), {})).get(lang)
     return list(p) if p else None
 
 
@@ -188,6 +189,9 @@ def league(div, k, lg, win, lang, pos, lowest, nm):
     grouped = len(levels[li]) > 1
     n, g = div['clubs'], div['games']
     d = (n if n % 2 else n - 1) * g
+    fx = [st for st in ((div.get('split') or {}).get('stages') or []) if 'fixtures' in st]
+    if fx:                                      # (a fixture-list league: its own matchdays)
+        d = sum(len(st['fixtures']) for st in fx)
     s1 = l['has'].format(w=l['the_group'] if grouped else l['the_league'], n=n, g=l['g'].get(g, l['g'][2]), d=d)
     s1 += (l['rest'] if n % 2 else '') + '. ' + l['pts'].format(w=win)
     out = [s1]

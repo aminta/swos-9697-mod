@@ -18,7 +18,7 @@ if not os.path.isdir(DATA):
 RB = 24
 OUT, CHAMP = 0xFF, 0xFE
 K = {'ko': 0, 'groups': 1}
-DRAW = {'order': 0, 'pots2': 1, 'same_assoc_pairs': 2, 'seeded_1v2': 3, 'bracket': 4, 'groups': 5, 'fixed': 6}
+DRAW = {'order': 0, 'pots2': 1, 'same_assoc_pairs': 2, 'seeded_1v2': 3, 'bracket': 4, 'groups': 5, 'fixed': 6, 'slot': 7}
 ASSOC = {'allow': 0, 'any': 0, 'no': 1, 'no_unless_via': 2, 'allow_if_via': 2}
 LEVEL = {'pens': 0, 'et_pens': 1, 'away_pens': 2}
 CODE = {'cup': 1, 'next': 0x40, 'ap': 0x41, 'cl': 0x42}
@@ -120,6 +120,35 @@ def fields(c, known, outside):
     return field, out
 
 
+IC_KEYS = {'cafcl': ('caf', 'cl')}       # (the Intercontinental's access file: holders by cup key)
+
+
+def _cup_index(index, key):
+    if key in IC_KEYS and IC_KEYS[key] in index:
+        return index[IC_KEYS[key]]
+    hits = [i for (cf, ck), i in index.items() if ck == key]
+    return hits[0] if len(hits) == 1 else None
+
+
+def _ic_holders(a, entries):
+    """The Intercontinental's places: [(holder's cup key, round, slot, parity flag)]. Slots order the stepladder's
+    fixed ties (draw 'slot'): r1 both 1 (its winner keeps 1), the African-Asian-Pacific tie = slots 1, 2, the
+    Derby of the Americas = 3, 4, the final: the play-off winner v the UEFA holder (5). The AFC / CAF rotation:
+    even editions as the access file's holders, odd ones its 'rotation'.odd (0x40 even only, 0x20 odd only)."""
+    rot = a.get('rotation') or {}
+    rotated = {k for side in rot.values() for ks in side.values() for k in ks}
+    out = []
+    for par, flag in (('even', 0x40), ('odd', 0x20)):
+        for rk, keys in (rot.get(par) or {}).items():
+            for k in keys:
+                out.append((k, rk, 1 if rk == 'r1' else 2, flag))
+    slots = {'lib': 3, 'ccc': 4, 'uefa:cl': 5}
+    for k, rk in entries.items():
+        if k not in rotated:
+            out.append((k, rk, slots.get(k, 2), 0))
+    return out
+
+
 def load(confs, files=None, words=None, s1=None):
     """-> (spec bytes, [association pack keys], [(conf, cup key)]). files: {association key: its league team file}
     (the game's build; the tests: 100 + index), words: {club key: team word} (the ranking's clubs)."""
@@ -204,6 +233,8 @@ def load(confs, files=None, words=None, s1=None):
             b[2] = LEVEL.get(rd.get('level', 'pens'), 0)
             b[3] = 1 if rd.get('host') in ('neutral', 'centralised') else 0
             b[4], b[5] = dr, rule
+            if c.get('stepladder'):                     # (the Intercontinental: each club in its slot)
+                b[4] = DRAW['slot']
             if rd['kind'] == 'groups':
                 b[6], b[7], b[8] = rd['groups'], rd['size'], rd.get('rounds', 2)
                 b[16] = 1 if (rd.get('draw') or {}).get('holder') else 0
@@ -234,11 +265,17 @@ def load(confs, files=None, words=None, s1=None):
                         gl.append((w, assocs.index(ak), 1))
                     access.append((0xFE, ci, rkey[ci][rk if rk in rkey[ci] else ALIAS.get(rk, rk)], gin[('s1', w)]))
         for ak, entries in ({} if s1 is not None else (a.get('access') or {})).items():
+            if ak == 'holders' and c.get('stepladder'):  # the Intercontinental: the confederations' holders by slot
+                for src, rk, slot, par in _ic_holders(a, entries):
+                    si = 0xFF if src == 'uefa:cl' else _cup_index(index, src)
+                    if si is not None:
+                        holders.append((si, ci, rkey[ci][rk] | par, slot))
+                continue
             if ak == 'holders':                         # (CAF: a holder qualified through its league keeps that
                 own = a.get('holder_rule', 'own_place' if conf == 'caf' else 'extra') == 'own_place'   # one place)
                 for src, rk in entries.items():
                     if (conf, src) in index:
-                        holders.append((index[(conf, src)], ci, rkey[ci][rk] | (0x80 if own else 0)))
+                        holders.append((index[(conf, src)], ci, rkey[ci][rk] | (0x80 if own else 0), 0))
                 continue
             if ak == 'from':
                 continue
@@ -268,7 +305,7 @@ def load(confs, files=None, words=None, s1=None):
             print(f'exe: CONTI_FORCE={fk}:{fr} (test build)')
     spec = bytes((len(cups), len(assocs)) + force) + body
     spec += struct.pack('<H', len(access)) + b''.join(bytes(x) for x in access)
-    spec += bytes((len(holders),)) + b''.join(bytes(x) for x in holders)
+    spec += bytes((len(holders),)) + b''.join(bytes(x) for x in holders)     # (src, dst, round | flags, slot)
     spec += bytes(0 if a.startswith('g:') else (files or {}).get(a, 100 + i) & 0xFF for i, a in enumerate(assocs))
     rank = {}
     for conf in confs:
@@ -374,7 +411,7 @@ if __name__ == '__main__':
 # --- the game ---------------------------------------------------------------------------------------------------------
 PAGES = 5                               # obj1 pages: the C code + the glue (patch.py: after split's / statecup's)
 BSS = 0x18000                           # obj2 .bss: CT_IN, CT_ST, CT_OUT, the edition (patch.py: in the career BSS)
-CONFS = ['conmebol', 'concacaf', 'afc', 'caf', 'ofc']
+CONFS = ['conmebol', 'concacaf', 'afc', 'caf', 'ofc', 'fifa']
 LABELS = {}
 ST_SIZE = 4 + 16 * 12                   # sizeof(struct ct_state)
 ED_SIZE = 3660                          # sizeof(struct ct_ed) (phase B, the save's item 'CE')
@@ -438,10 +475,12 @@ ct_fill:                                ; careerworld w_ct_fill (the season end'
     cld
     call ct_lp
     movzx eax, word [SEL]
+    movzx ecx, word [HOLD_CC]           ; (the UEFA Champions League holder: the Intercontinental's final)
+    push ecx
     push dword [STAND]                  ; (a seed: changes every season)
     push eax
     call CT_GO
-    add esp, 8
+    add esp, 12
     pop es
     call ct_prep                        ; (phase B: the career club's first game: a tie into the ties' contest, which
     popad                               ; the season start's slot-3 chain finds as any contest)
@@ -653,7 +692,7 @@ def patch(p, at, limit, bss_at, area):
     assert bss <= BSS, hex(bss)
     q = cw._qual_sites(d1, p)
     symbols = {'DIY': (2, lib97._sites(p)[3] + 0x41F), 'STAND': q['STAND'], 'CUPREC': q['CUPREC'],
-               'SEL': (2, sacups.SEL_ADDR[0]), 'SPEC': (1, (end + 15) & ~15), 'C927A2': (1, t927[0]),
+               'SEL': (2, sacups.SEL_ADDR[0]), 'HOLD_CC': q['HOLD_CC'], 'SPEC': (1, (end + 15) & ~15), 'C927A2': (1, t927[0]),
                'C93974': (1, t939[0]), 'CT_SPEC': syms['CT_SPEC'], 'CT_TABLE': syms['ct_table'],
                'CT_BEGIN': syms['ct_begin'], 'CT_COUNTRY': syms['ct_country'], 'CT_GO': syms['ct_go']}
     lp = []
@@ -853,6 +892,8 @@ def season1_native(confs, files, words):
     out = {}
     for conf in confs:
         fm, ac = _read(conf, 'format'), _read(conf, 'access') or {}
+        if all(c.get('stepladder') for c in fm['cups']):
+            continue                                    # (the Intercontinental: no contest of its own)
         acc = {c['key']: c for c in ac.get('cups', [])}
         s1 = {}
         for c in fm['cups']:
@@ -924,6 +965,11 @@ def structs(p, area, lang, at):
     ci = 0
     for conf in confs:
         for k, c in enumerate(c for c in _read(conf, 'format')['cups'] if supported(c)):
+            if c.get('stepladder'):                     # (the Intercontinental: its games as ties only; its name)
+                nm = (c['names'].get(lang) or c['names']['en'])[0].upper().encode('latin1')[:30]
+                NAMES.append(area.add(nm + b'\0') - sacups.STR_BASE)
+                ci += 1
+                continue
             assert ci < len(IDS), 'conti: more cups than ids'
             cid, j0 = IDS[ci], main_round(c)
             rd, rounds = c['rounds'][j0], c['rounds']

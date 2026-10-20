@@ -32,7 +32,7 @@ void *memcpy(void *d, const void *s, unsigned n) { u8 *p = d; const u8 *q = s; w
 
 /* round kinds, draws, association rules (spec byte values) */
 enum { K_KO, K_GROUPS };
-enum { D_ORDER, D_POTS2, D_SAMEPAIRS, D_SEED12, D_BRACKET, D_GROUPS, D_CROSS };
+enum { D_ORDER, D_POTS2, D_SAMEPAIRS, D_SEED12, D_BRACKET, D_GROUPS, D_CROSS, D_SLOT };
 enum { A_ANY, A_NO, A_NOVIA };
 /* access codes: 0 champion, 1 cup winner, 2..10 the k-th place, NEXT the best club not yet in, AP / CL a split
    season's stage champions (else as NEXT) */
@@ -99,7 +99,9 @@ static const u8 *cupr[NCUP];            /* first round of each cup */
 static u8 nrd[NCUP];
 static const u8 *acc;                   /* access entries: assoc, cup, round, code */
 static u16 nacc;
-static const u8 *hol;                   /* holders: src cup, dst cup, dst round */
+static const u8 *hol;                   /* holders: src cup (0xFF: the UEFA Champions League's, the game's), dst cup,
+                                           dst round | 0x80 own place | 0x40 even / 0x20 odd editions only, its slot */
+static u16 g_uefa;                      /* the UEFA Champions League holder's team word (ct_go) */
 static u8 nhol;
 static const u8 *afile;                 /* each association's league team file */
 static const u8 *rk;                    /* ranking: team word, points (u16 each) */
@@ -123,7 +125,7 @@ static void parse(void) {
     p += 2 + 4 * nacc;
     nhol = p[0];
     hol = p + 1;
-    p += 1 + 3 * nhol;
+    p += 1 + 4 * nhol;
     afile = p;
     p += na;
     nrk = p[0] | p[1] << 8;
@@ -212,17 +214,27 @@ static void access(void) {
     }
     u8 vac[NCUP * 2]; int nvac = 0;     /* holder places with no holder yet (season 1): filled after the access */
     for (int h = 0; h < nhol; h++) {    /* the holders first: their own places */
-        const u8 *e = hol + 3 * h;
-        int s = e[0];
-        if (!CT_ST.hold[s].id) { if (nvac < NCUP * 2) vac[nvac++] = h; continue; }
+        const u8 *e = hol + 4 * h;
+        int s = e[0], odd = (2028 + CT_ST.season) & 1;   /* (the edition's year: built at the season end) */
+        if ((e[2] & 0x40) && odd) continue;
+        if ((e[2] & 0x20) && !odd) continue;
+        u16 hid = s == 0xFF ? g_uefa : CT_ST.hold[s].id;
+        if (!hid || hid == 0xFFFF) { if (s != 0xFF && nvac < NCUP * 2) vac[nvac++] = h; continue; }
         int k = 0;                      /* the holder's club index (seen this season, else appended) */
-        for (int i = 0; i < CT_IN.nclub; i++) if (CT_IN.club[i].id == CT_ST.hold[s].id) { k = i + 1; break; }
+        for (int i = 0; i < CT_IN.nclub; i++) if (CT_IN.club[i].id == hid) { k = i + 1; break; }
         if (!k && CT_IN.nclub < NC) {
             k = ++CT_IN.nclub;
-            CT_IN.club[k - 1].id = CT_ST.hold[s].id; CT_IN.club[k - 1].assoc = CT_ST.hold[s].assoc;
-            CT_IN.club[k - 1].str = CT_ST.hold[s].str; CT_IN.club[k - 1].pts = CT_ST.hold[s].pts;
+            CT_IN.club[k - 1].id = hid;
+            if (s == 0xFF) {            /* (the UEFA holder: no record here, as strong as the strongest club seen) */
+                u32 m = 0;
+                for (int i = 0; i + 1 < k; i++) if (CT_IN.club[i].str > m) m = CT_IN.club[i].str;
+                CT_IN.club[k - 1].assoc = 0xFD; CT_IN.club[k - 1].str = m; CT_IN.club[k - 1].pts = 0;
+            } else {
+                CT_IN.club[k - 1].assoc = CT_ST.hold[s].assoc;
+                CT_IN.club[k - 1].str = CT_ST.hold[s].str; CT_IN.club[k - 1].pts = CT_ST.hold[s].pts;
+            }
         }
-        if (k) { enter(e[1], e[2] & 0x7F, k, 0, 0); taken[k] = 1; if (e[2] & 0x80) own[k] = e[1] + 1; }
+        if (k) { enter(e[1], e[2] & 0x1F, k, 0, e[3]); taken[k] = 1; if (e[2] & 0x80) own[k] = e[1] + 1; }
         /* (a holder may hold places in two cups: the Recopa; own[]: CAF, its league place in the cup is its own) */
     }
     if (fcup < ncup && CT_IN.manager && !taken[CT_IN.manager]) {   /* (test builds: the forced place) */
@@ -249,13 +261,14 @@ static void access(void) {
         if (club) { enter(c, r, club, 0, 0); taken[club] = 1; }
     }
     for (int v = 0; v < nvac; v++) {    /* a vacant holder place: the best ranked club not yet in (declared) */
-        const u8 *e = hol + 3 * vac[v];
-        if (e[1] != e[0] && RND(e[1], e[2] & 0x7F)[0] == K_KO && nrd[e[1]] == 1) continue;   /* (a holders' match: none) */
+        const u8 *e = hol + 4 * vac[v];
+        if (e[0] == 0xFF || (e[2] & 0x60)) continue;   /* (the Intercontinental: no stand-ins) */
+        if (e[1] != e[0] && RND(e[1], e[2] & 0x1F)[0] == K_KO && nrd[e[1]] == 1) continue;   /* (a holders' match: none) */
         if (e[2] & 0x80) continue;      /* (CAF: no extra place for a holder) */
         int best = 0;
         for (int i = 1; i <= CT_IN.nclub; i++)
             if (!taken[i] && in_cup(e[1], assoc(i)) && (!best || pts(i) > pts(best))) best = i;
-        if (best) { enter(e[1], e[2] & 0x7F, best, 0, 0); taken[best] = 1; }
+        if (best) { enter(e[1], e[2] & 0x1F, best, 0, 0); taken[best] = 1; }
     }
 }
 
@@ -289,6 +302,13 @@ static void draw_ko(int c, int r, const u8 *R) {
     int n = EN[c][r], dr = R[4], rule = R[5];
     u16 x[NE]; u8 v[NE], k[NE];
     for (int i = 0; i < n; i++) { x[i] = E[c][r][i]; v[i] = EV[c][r][i]; k[i] = EK[c][r][i]; }
+    if (dr == D_SLOT) {                 /* (the Intercontinental's stepladder: each club in its slot, the side key) */
+        for (int i = 1; i < n; i++) { u16 t = x[i]; u8 tk = k[i], tv = v[i]; int j = i;
+            while (j > 0 && (k[j - 1] & 0x7F) > (tk & 0x7F)) { x[j] = x[j - 1]; k[j] = k[j - 1]; v[j] = v[j - 1]; j--; }
+            x[j] = t; k[j] = tk; v[j] = tv; }
+        for (int i = 0; i < n; i++) { D[i] = x[i]; DV[i] = v[i]; DK[i] = k[i]; }
+        return;
+    }
     if (dr == D_ORDER || dr == D_BRACKET) {
         for (int i = 0; i < n; i++) { D[i] = x[i]; DV[i] = v[i]; DK[i] = k[i]; }
         return;
@@ -492,7 +512,10 @@ static int ct_round(int c, int r) {
     int n = EN[c][r];
     if (!n) return 0;
     if (R[0] == K_KO && R[18] && 2 * n <= R[18]) {     /* (no more than the winners' places: all go through) */
-        for (int i = 0; i < n; i++) { reached(E[c][r][i], c, r); route(c, R[10], E[c][r][i], 0x7F); }
+        for (int i = 0; i < n; i++) { reached(E[c][r][i], c, r); route(c, R[10], E[c][r][i], EK[c][r][i] & 0x7F ? EK[c][r][i] & 0x7F : 0x7F); }
+        if (R[10] == CHAMP && n == 1) {             /* (a final with one club: the Intercontinental with no UEFA holder) */
+            CT_OUT.winner[c] = E[c][r][0]; CT_OUT.out_of[E[c][r][0] - 1] = 1;
+        }
         CT_OUT.nent[c][r] = n;
         return 0;
     }
@@ -501,7 +524,7 @@ static int ct_round(int c, int r) {
            best ranked go through without playing, so the next round still gets its size (declared) */
         sort_by_pts(E[c][r], EV[c][r], EK[c][r], n);
         int b = R[18] - n;
-        for (int i = 0; i < b; i++) { reached(E[c][r][i], c, r); route(c, R[10], E[c][r][i], 0x7F); }
+        for (int i = 0; i < b; i++) { reached(E[c][r][i], c, r); route(c, R[10], E[c][r][i], EK[c][r][i] & 0x7F ? EK[c][r][i] & 0x7F : 0x7F); }
         for (int i = b; i < n; i++) { E[c][r][i - b] = E[c][r][i]; EV[c][r][i - b] = EV[c][r][i]; EK[c][r][i - b] = EK[c][r][i]; }
         EN[c][r] = n -= b;
     }
@@ -649,7 +672,8 @@ void ct_country(const u8 *stand, const u8 *cuprec) {
     ntab = 0;
 }
 /* the season end, every country seen: the editions (seed, the career club's team word) */
-void ct_go(u32 manager, u32 seed) {
+void ct_go(u32 manager, u32 seed, u32 uefa) {
+    g_uefa = (u16)uefa;
     if (!CT_SPEC) return;
     CT_IN.seed = seed ^ (CT_ST.season * 7919u);
     CT_IN.manager = 0;
@@ -690,12 +714,13 @@ static void clear_run(void) {
         for (int r = 0; r < NRD; r++) { CT_OUT.nent[c][r] = 0; for (int i = 0; i < NE; i++) { CT_OUT.ent[c][r][i] = 0; CT_OUT.res[c][r][i] = 0; } } }
 }
 static u32 rpts(u16 id);
-static void ed_add(int x, int cr) {
+static void ed_add(int x, int cr, int side) {
     if (CT_ED.ne >= NED) return;
     CT_ED.e[CT_ED.ne].id = CT_IN.club[x - 1].id; CT_ED.e[CT_ED.ne].assoc = CT_IN.club[x - 1].assoc;
     CT_ED.e[CT_ED.ne].cr = (u8)cr;
-    u32 st = CT_IN.club[x - 1].str / 16;
-    CT_ED.e[CT_ED.ne].str = st > 0xFFFF ? 0xFFFF : (u16)st;
+    u32 st = CT_IN.club[x - 1].str / 16;            /* (strength / 16 in 12 bits: sq() caps it at 4000; the top 4
+                                                       bits: the entry's slot, the Intercontinental's stepladder) */
+    CT_ED.e[CT_ED.ne].str = (u16)((st > 0xFFF ? 0xFFF : st) | (side & 15) << 12);
     CT_ED.ne++;
 }
 static void snapshot(void) {            /* the edition's entrants (after access) + the reserve clubs for group fills */
@@ -706,7 +731,7 @@ static void snapshot(void) {            /* the edition's entrants (after access)
     CT_ED.mgr = CT_IN.manager ? CT_IN.club[CT_IN.manager - 1].id : 0;
     for (int c = 0; c < ncup; c++)
         for (int r = 0; r < nrd[c]; r++)
-            for (int i = 0; i < EN[c][r]; i++) { seen[E[c][r][i]] = 1; ed_add(E[c][r][i], c << 4 | r); }
+            for (int i = 0; i < EN[c][r]; i++) { seen[E[c][r][i]] = 1; ed_add(E[c][r][i], c << 4 | r, EK[c][r][i]); }
     for (int c = 0; c < ncup; c++)      /* up to 4 reserves per cup: its associations' best clubs in no cup */
         for (int k = 0; k < 4; k++) {
             int b = 0;
@@ -714,7 +739,7 @@ static void snapshot(void) {            /* the edition's entrants (after access)
                 if (!taken[i] && !seen[i] && in_cup(c, assoc(i)) && (!b || pts(i) > pts(b))) b = i;
             if (!b) break;
             seen[b] = 1;
-            ed_add(b, 0xFF);
+            ed_add(b, 0xFF, 0);
         }
     CT_ED.mark = 0x4543;
 }
@@ -729,7 +754,7 @@ static int run(int stop) {              /* the edition from its entrants, the ca
         if (!k) {
             k = ++CT_IN.nclub;
             CT_IN.club[k - 1].id = CT_ED.e[i].id; CT_IN.club[k - 1].assoc = CT_ED.e[i].assoc;
-            CT_IN.club[k - 1].str = (u32)CT_ED.e[i].str * 16; CT_IN.club[k - 1].pts = rpts(CT_ED.e[i].id);
+            CT_IN.club[k - 1].str = (u32)(CT_ED.e[i].str & 0xFFF) * 16; CT_IN.club[k - 1].pts = rpts(CT_ED.e[i].id);
             taken[k] = 0;
             if (CT_ED.mgr && CT_ED.e[i].id == CT_ED.mgr) CT_IN.manager = k;
         }
@@ -739,7 +764,7 @@ static int run(int stop) {              /* the edition from its entrants, the ca
     rng = CT_ED.seed ? CT_ED.seed : 1;
     clear_run();
     for (int i = 0; i < CT_ED.ne; i++)
-        if (CT_ED.e[i].cr != 0xFF) enter(CT_ED.e[i].cr >> 4, CT_ED.e[i].cr & 15, idx[i], 0, 0);
+        if (CT_ED.e[i].cr != 0xFF) enter(CT_ED.e[i].cr >> 4, CT_ED.e[i].cr & 15, idx[i], 0, CT_ED.e[i].str >> 12);
     g_stop = stop;
     CT_SEG.kind = 0xFF;
     /* every round in calendar order: month (8 = August first, the season's order), then cup, then round */

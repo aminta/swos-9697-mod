@@ -24,8 +24,8 @@ void *memcpy(void *d, const void *s, unsigned n) { u8 *p = d; const u8 *q = s; w
 #define NL 16                           /* league clubs kept per association (the final table's top 16) */
 #define NC 640                          /* clubs seen */
 #define NCUP 16
-#define NRD 12                          /* rounds per cup */
-#define NE 48                           /* entrants of a round (the world's rounds: 32 at most, 48 kept) */
+#define NRD 8                           /* rounds per cup (the Libertadores: 8) */
+#define NE 64                           /* entrants of a round (CAF q1: 52) */
 #define RB 24                           /* bytes per round in the spec */
 #define OUT 0xFF
 #define CHAMP 0xFE
@@ -276,6 +276,19 @@ static void draw_ko(int c, int r, const u8 *R) {
             while (j > 0 && (bk[j - 1] & 0x7F) > (tk & 0x7F)) { b[j] = b[j - 1]; bk[j] = bk[j - 1]; bv[j] = bv[j - 1]; j--; }
             b[j] = t; bk[j] = tk; bv[j] = tv; }
         int m = 0;
+        if (!nb) {                      /* one cup's group places (OFC: A1 v B2, B1 v A2): a 1st v the next group's 2nd */
+            int ng = na_ / 2;
+            for (int i = 0; i < na_; i++) {
+                if ((ak[i] & 0x7F) > ng) continue;
+                int g = (av[i] >> 1) - 1;
+                for (int j = 0; j < na_; j++)
+                    if ((ak[j] & 0x7F) > ng && (av[j] >> 1) - 1 == (g + 1) % ng) {
+                        D[m] = a[j]; DV[m] = av[j]; DK[m] = ak[j]; m++;
+                        D[m] = a[i]; DV[m] = av[i]; DK[m] = ak[i]; m++;
+                    }
+            }
+            return;
+        }
         for (int i = 0; i < na_ && i < nb; i++) {   /* the other cup's club at home first: listed first */
             D[m] = b[nb - 1 - i]; DV[m] = bv[nb - 1 - i]; DK[m] = bk[nb - 1 - i]; m++;
             D[m] = a[i]; DV[m] = av[i]; DK[m] = ak[i]; m++;
@@ -395,6 +408,20 @@ static void ct_round(int c, int r) {
     const u8 *R = RND(c, r);
     int n = EN[c][r];
     if (!n) return;
+    if (R[0] == K_KO && R[18] && 2 * n <= R[18]) {     /* (no more than the winners' places: all go through) */
+        for (int i = 0; i < n; i++) { reached(E[c][r][i], c, r); route(c, R[10], E[c][r][i], 0x7F); }
+        CT_OUT.nent[c][r] = n;
+        return;
+    }
+    if (R[0] == K_KO && R[18] && n < R[18]) {
+        /* fewer clubs than the round's places (the 'outside' places the world's associations could not fill): the
+           best ranked go through without playing, so the next round still gets its size (declared) */
+        sort_by_pts(E[c][r], EV[c][r], EK[c][r], n);
+        int b = R[18] - n;
+        for (int i = 0; i < b; i++) { reached(E[c][r][i], c, r); route(c, R[10], E[c][r][i], 0x7F); }
+        for (int i = b; i < n; i++) { E[c][r][i - b] = E[c][r][i]; EV[c][r][i - b] = EV[c][r][i]; EK[c][r][i - b] = EK[c][r][i]; }
+        EN[c][r] = n -= b;
+    }
     if (R[0] == K_GROUPS) draw_groups(c, r, R); else draw_ko(c, r, R);
     CT_OUT.nent[c][r] = n;
     for (int i = 0; i < n && i < NE; i++) { CT_OUT.ent[c][r][i] = D[i]; if (D[i]) reached(D[i], c, r); }
@@ -426,6 +453,8 @@ static void ct_round(int c, int r) {
                 int club = byplace[q][ord[i]];
                 if (R[12 + q] == OUT) continue;
                 route(c, R[12 + q], club, q * ng + i + 1);
+                if (EN[R[12 + q] >> 4][R[12 + q] & 15] && R[12 + q] < CHAMP)   /* (the group in the via byte: fixed ties) */
+                    EV[R[12 + q] >> 4][R[12 + q] & 15][EN[R[12 + q] >> 4][R[12 + q] & 15] - 1] = 1 | (ord[i] + 1) << 1;
             }
         }
         return;

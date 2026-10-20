@@ -55,8 +55,60 @@ def _draw(rd):
 
 
 def main_round(c):
-    """The round a career club plays as the game's own contest (slot 3): the first group stage, else the first round."""
-    return next((j for j, r in enumerate(c['rounds']) if r['kind'] == 'groups'), 0)
+    """The round a career club plays as the game's own contest (slot 3): the biggest group stage (OFC: the groups, not
+    the qualifying group), else the first round."""
+    g = [(r['groups'] * r['size'], -j, j) for j, r in enumerate(c['rounds']) if r['kind'] == 'groups']
+    return max(g)[2] if g else 0
+
+
+FIELDS = {}                             # (conf, cup key) -> (round sizes, outside places, known places): load()'s
+
+
+def supported(c):
+    """The engine plays every round of the cup: knockouts and groups whose places go to a round of the cups."""
+    keys = {r['key'] for r in c['rounds']}
+    return all(r['kind'] in K for r in c['rounds']) and all(
+        ':' in t or t in keys for r in c['rounds'] for t in (r.get('out') or {}).values())
+
+
+def fields(c, known, outside):
+    """A cup's round sizes from the top (final 2, a group stage its own size): -> ([field per round], [outside places per
+    round]). known[j] = the places of round j filled by world clubs (access, holders, losers of another cup);
+    outside = the access file's 'outside' ({round key: count} or 'rest'): places of associations / cups not in the
+    world, filled by the confederation's world associations' next clubs (declared). 'rest' fills what the sizes leave:
+    above a group stage its gap, else the lowest round (data can give exact counts instead)."""
+    rounds = c['rounds']
+    n = len(rounds)
+    key = {r['key']: j for j, r in enumerate(rounds)}
+    rk_ = lambda rk: rk if rk in key else ALIAS.get(rk, rk)
+    out = [0] * n
+    if isinstance(outside, dict):
+        for rk, k in outside.items():
+            out[key[rk_(rk)]] = k
+    feed = [0] * n                                      # (a group stage's places into a later round of the cup)
+    for r in rounds:
+        if r['kind'] == 'groups':
+            for t in (r.get('out') or {}).values():
+                if ':' not in t:
+                    feed[key[t]] += r['groups']
+    field = [0] * n
+    for j in range(n - 1, -1, -1):
+        r = rounds[j]
+        if r['kind'] == 'groups':
+            field[j] = r['groups'] * r['size']
+        elif j == n - 1:
+            field[j] = 2
+        else:
+            field[j] = 2 * (field[j + 1] - known[j + 1] - out[j + 1] - feed[j + 1])
+        if j < n - 1 and r['kind'] == 'groups':
+            gap = field[j + 1] - known[j + 1] - out[j + 1] - feed[j + 1]
+            if gap and outside == 'rest':
+                out[j + 1] += gap
+            elif gap:
+                print(f"conti: {c['key']}:{rounds[j + 1]['key']} {gap} places left by the sizes")
+    if outside == 'rest':
+        out[0] += field[0] - known[0] - out[0] - feed[0]
+    return field, out
 
 
 def load(confs, files=None, words=None):
@@ -68,9 +120,12 @@ def load(confs, files=None, words=None):
         assert fm, f'{conf}: no format file'
         acc = {c['key']: c for c in (ac or {}).get('cups', [])}
         for c in fm['cups']:
+            if not supported(c):
+                print(f"conti: {conf}:{c['key']} not built (a round kind / route the engine lacks)")
+                continue
             cups.append((conf, c, acc.get(c['key'], {})))
             for a in acc.get(c['key'], {}).get('access', {}):
-                if a not in ('holders', 'from') and a not in assocs:
+                if a not in ('holders', 'from', 'outside') and a not in assocs:
                     assocs.append(a)
     index = {(conf, c['key']): i for i, (conf, c, _) in enumerate(cups)}
     rkey = {i: {r['key']: j for j, r in enumerate(c['rounds'])} for i, (_, c, _) in enumerate(cups)}
@@ -85,8 +140,30 @@ def load(confs, files=None, words=None):
 
     body = b''
     access, holders = [], []
+    incoming = {}                                       # (cup, round) -> places from another cup's losers
     for ci, (conf, c, a) in enumerate(cups):
         rounds = c['rounds']
+        known = [incoming.get((ci, j), 0) for j in range(len(rounds))]
+        for ak, entries in (a.get('access') or {}).items():
+            if ak == 'holders':
+                for rk in entries.values():
+                    known[rkey[ci][rk]] += 1
+            elif ak not in ('from', 'outside'):
+                for rk, _ in entries:
+                    known[rkey[ci][ALIAS.get(rk, rk) if rk not in rkey[ci] else rk]] += 1
+        size, outside = fields(c, known, (a.get('access') or {}).get('outside'))
+        FIELDS[(conf, c['key'])] = size, outside, known
+        for r in rounds:                                # (a group place into another cup's round)
+            for t in (r.get('out') or {}).values() if r['kind'] == 'groups' else ():
+                if ':' in t and (conf, t.split(':')[0]) in index:
+                    cj = index[(conf, t.split(':')[0])]
+                    incoming[(cj, rkey[cj][t.split(':')[1]])] = incoming.get((cj, rkey[cj][t.split(':')[1]]), 0) + r['groups']
+        for rk, t in (c.get('losers') or {}).items():
+            if ':' in t:
+                ck, tr = t.split(':')
+                if (conf, ck) in index:
+                    cj = index[(conf, ck)]
+                    incoming[(cj, rkey[cj][tr])] = incoming.get((cj, rkey[cj][tr]), 0) + size[rkey[ci][rk]] // 2
         out = b''
         for j, rd in enumerate(rounds):
             dr, rule = _draw(rd)
@@ -101,6 +178,7 @@ def load(confs, files=None, words=None):
                 b[16] = 1 if (rd.get('draw') or {}).get('holder') else 0
             b[9] = rd.get('month') or (rd.get('months') or [8])[0]
             b[17] = 1 if j == main_round(c) else 0
+            b[18] = min(size[j], 255)                   # (the round's places: byes when the world cannot fill it)
             b[10] = CHAMP if j == len(rounds) - 1 else (ci << 4 | (j + 1))
             b[11] = OUT
             for q in range(4):
@@ -120,10 +198,18 @@ def load(confs, files=None, words=None):
                 continue
             if ak == 'from':
                 continue
+            if ak == 'outside':
+                continue
             for rk, code in entries:
                 rk = ALIAS.get(rk, rk) if rk not in rkey[ci] else rk
                 k = CODE[code] if isinstance(code, str) else (0 if code <= 1 else code)
                 access.append((assocs.index(ak), ci, rkey[ci][rk], k))
+        mine = [x for x in (a.get('access') or {}) if x not in ('holders', 'from', 'outside')]
+        q = 0
+        for j, k in enumerate(outside):                 # the outside places: the world associations' next clubs
+            for _ in range(k):
+                access.append((assocs.index(mine[q % len(mine)]), ci, j, CODE['next']))
+                q += 1
     force = (0xFF, 0xFF)                                # CONTI_FORCE=<cup>:<round> (test builds only): the
     if os.environ.get('CONTI_FORCE'):                   # career club enters that round at every season end
         fk, fr = os.environ['CONTI_FORCE'].split(':')
@@ -196,6 +282,11 @@ def test(confs=('conmebol',), seasons=3, seed=7):
             nm = lambda x: names[clubs[x - 1][0]] if x else '-'
             counts = [o[o_nent + ci * NRD + r] for r in range(NRD)]
             print(f'{conf}:{ck} rounds {[c for c in counts if c]} winner {nm(w)} runner-up {nm(s2)}')
+            if os.environ.get('CONTI_DUMP') == ck:
+                for r in range(NRD):
+                    if counts[r]:
+                        es = struct.unpack_from(f'<{counts[r]}H', o, o_ent + 2 * (ci * NRD * NE + r * NE))
+                        print('   ', r, [nm(x) for x in es])
 
 
 if __name__ == '__main__':

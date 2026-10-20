@@ -960,6 +960,7 @@ gp_adv:                                 ; replaces the 4 `call cseg_8EA82` (the 
 .nf:
     popad
     mov dword [GP_CDS1], CDS1 + CDS1_LIST
+    mov dword [GP_CDFORCE], CDFORCE_
     mov eax, cd_step_c
     call gp_c
     test eax, eax
@@ -970,12 +971,23 @@ gp_adv:                                 ; replaces the 4 `call cseg_8EA82` (the 
     call gp_install
     jmp .ncd
 .s1:
-    pushad                              ; 4.0: the Coppa D from the 1/32 in slot 1 (CDS1, its list just written)
+    pushad                              ; 4.0: the Coppa D from the 1/32 in slot 1 (CDS1, its list just written), as
+    push es                             ; conti's ct_build: the slot's buffer cleared, cseg_8B2D3, no winner yet
+    push ds
+    pop es
+    cld
+    mov edi, [SLOTS_ + 4]
+    mov ecx, 0B52h
+    xor eax, eax
+    rep stosb
+    pop es
     mov dword [A0R], CDS1
     mov word [D0R], 1
     mov word [D1R], 0
     mov word [D2R], 0
     call C8B2D3
+    mov eax, [SLOTS_ + 4]
+    mov word [eax + 39h], 0FFFFh
     popad
 .ncd:
 %endif
@@ -1248,11 +1260,25 @@ def cds1_src(p, cd, rl, rs):
     h = sacups.knockout16(d2[sacups.unique(d2, sacups.CWC_HDR):][:28], CDS1_ID, 64, legs)
     h[3], h[4] = recs[r32][0], recs[nr - 1][1]
     CDS1_ROUNDS[:] = list(range(r32, nr))
-    return ('align 4\nCDS1: db ' + ', '.join(map(str, h)) + f'\n    dd {rl}, {rs}\n'
+    import dplay
+    d1 = p.le.obj_bytes(1)
+    t, calls, i = dplay._play_sites(p, sacups.regs(d1))['tail'], [], 0
+    i = t
+    while len(calls) < 5 and i < t + 0x200:             # cseg_8ECAE's tail: cseg_32E15, then the contest's start
+        if d1[i] == 0xE8:
+            calls.append(i + 5 + struct.unpack_from('<i', d1, i + 1)[0])
+            i += 5
+        else:
+            i += 1
+    assert len(calls) == 5, calls
+    CDS1_CALLS[:] = calls[1:]
+    return ('align 4\nCDS1_START: dd ' + ', '.join(f'C_S1_{k}' for k in range(4)) + ', 0\n'
+            + 'align 4\nCDS1: db ' + ', '.join(map(str, h)) + f'\n    dd {rl}, {rs}\n'
             + f'CDS1_LIST equ {len(h) + 8}\n    times 64 dw 0FFFFh\nCDS1_ID equ {CDS1_ID}\n')
 
 
 CDS1_ROUNDS = []                        # (rnames: the Coppa D rounds the slot-1 contest plays)
+CDS1_CALLS = []                         # (cseg_8ECAE tail's start calls: cseg_8B71C, cseg_27436, cseg_8B8B8, cseg_8B7EA)
 CUP12 = '''
 gp_cup12:                               ; 4.0: InitNewSeason's `call cseg_8B2D3` of slots 1 / 2 (the country's cup and
     pushad                              ; league cup): a Coppa Italia Serie D club gets neither (cd_member_c), the slot
@@ -1641,6 +1667,8 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
                                          'GP_CDFIRST')})
     symbols['CD_MEMBER'] = syms['cd_member_c']
     symbols['GP_CDS1'] = syms['GP_CDS1']
+    symbols['GP_CDFORCE'] = syms['GP_CDFORCE']
+    symbols['CDFORCE_'] = (0, int(os.environ.get('CD_FORCE') or 0))   # (test builds only)
     symbols['FORCE_ON'] = (0, int(bool(force)))
     import longtable                                          # 4.0 stage titles (table, calendar): the table in area
     stg = longtable.stage_table(lang, b'\0' * 2 + struct.pack('<4HIH', split.ST, split.ST + split.OFF['frozen'],
@@ -1703,6 +1731,7 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
                   + '\nCD_RN: db ' + ', '.join(str(x) for x in rnames.CD_NAMES) + '\n')
     if cds:
         cd_src += CUP12 + cds1_src(p, cds[0], rl, rs)
+        symbols.update({f'C_S1_{k}': (1, c) for k, c in enumerate(CDS1_CALLS)})
     cd_src += GP_RNAME.replace('CD_PART', CD_RNAME if cds else '')
     asm = (ASM.replace('jmp GP_REC_NEXT', 'jmp GP_REC_NEXT' if rec_dp else 'jmp gp_recmov') + tab_src + '\n'
            + names_lines(tables, area, lang) + '\n' + stubs + cd_src)

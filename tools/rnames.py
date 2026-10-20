@@ -363,7 +363,9 @@ rn_tfit:                                ; A0 = the round's long name, D0 = its i
     cmp edx, 40
     jbe .x
     mov al, [DIY + 2Dh]                 ; a national contest ('<country> <name>'): its country prefix goes first
-    mov ebx, RN_LPIDS                   ; (not the UEFA cups nor their qualifying ties)
+    cmp al, CDS1I                       ; (not the UEFA cups nor their qualifying ties, nor the Coppa D's slot-1
+    je .med                             ; knockout: no country prefix)
+    mov ebx, RN_LPIDS
 .u:
     cmp [ebx], al
     je .med
@@ -606,6 +608,7 @@ def patch(p, at, limit, lang, area, lp_ids, numbered):
            'GRP_I': (0, GRP), 'CTID_BYTES': (0, 'db ' + ', '.join(str(x) for x in __import__('conti').IDS) + ', 0'),
            'CTMAP_BYTES': (0, 'db ' + ', '.join(str(x) for x in ctmap)),
            'RN_TIEK': (0, len(__import__('conti').STRUCTS)),
+           'CDS1I': (0, __import__('conti').IDS[-1]),
            'NUMB_BYTES': (0, 'db ' + ', '.join(str(x) for x in list(numbered) + [0]))}
     end, s284, s280, c28049, c284ab = _title_sites(p, sacups.regs(p.le.obj_bytes(1)))
     t280 = c28049 + 5 + struct.unpack('<i', bytes(p.get(1, c28049 + 1, 4)))[0]

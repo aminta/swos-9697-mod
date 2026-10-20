@@ -1404,6 +1404,7 @@ struct cd_state { u16 magic; u8 season, round, built, bt, drawn, pad; u8 res[CDT
 struct cd_state CD_ST;
 const u32 CD_STSZ = sizeof(struct cd_state);
 const u8 *GP_CDT;                       /* (the glue: CD_TAB of the running world, or 0) */
+u32 GP_CDFORCE;                         /* (the glue: CD_FORCE test builds, the career club wins its Coppa D ties) */
 u16 *GP_CDS1;                           /* 4.0 (the glue): the Coppa D's slot-1 contest team list (64 words), 0 = none */
 const u8 *GP_CDD;                       /* (its CD_DT: db first Serie D division, groups; dw global base; 256 x db
                                            base division, FFh none) */
@@ -1709,6 +1710,7 @@ u32 cd_member_c(u32 team) {
 static void cd_done(struct gp_ko *k) {  /* gp_rec_c: our CD tie decided -> its result */
     if (!CD_ST.built || k->tw[0] == NOC) return;
     CD_ST.res[CD_ST.bt] = k->team[k->tw[0]] == cd_side(CD_ST.bt, 0) ? 1 : 2;
+    if (GP_CDFORCE) CD_ST.res[CD_ST.bt] = cd_side(CD_ST.bt, 0) == GP_MGR ? 1 : 2;   /* (CD_FORCE test builds: won) */
     CD_ST.built = 0;
     CD_ST.pad |= 0x40;
 }

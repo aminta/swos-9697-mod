@@ -654,6 +654,20 @@ void ct_go(u32 manager, u32 seed) {
     CT_IN.seed = seed ^ (CT_ST.season * 7919u);
     CT_IN.manager = 0;
     for (int i = 0; i < CT_IN.nclub; i++) if (CT_IN.club[i].id == (u16)manager) CT_IN.manager = i + 1;
+    if (!CT_IN.manager && manager && manager != 0xFFFF) {   /* (its country's table: the top 9 records only, the
+                                                               career club below them: as its association's weakest) */
+        parse();
+        for (int a = 0; a < na; a++)
+            if (afile[a] == (manager & 0xFF)) {
+                u32 s = 0;
+                int k = 0;
+                while (k < NL && CT_IN.league[a][k]) k++;
+                if (k) s = CT_IN.club[CT_IN.league[a][k - 1] - 1].str * 15 / 16;
+                CT_IN.manager = add_club((u16)manager, a, s);
+                if (CT_IN.manager && k < NL) CT_IN.league[a][k] = CT_IN.manager;
+                break;
+            }
+    }
     ct_season();
 }
 

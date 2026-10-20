@@ -113,7 +113,7 @@ def fields(c, known, outside):
     for j in range(n - 1, -1, -1):
         r = rounds[j]
         if r['kind'] in ('groups', 'league_stage'):
-            field[j] = r['groups'] * r['size']
+            field[j] = r.get('clubs') or r['groups'] * r['size']
         elif j == n - 1:
             field[j] = 2
         else:
@@ -211,6 +211,17 @@ def load(confs, files=None, words=None, s1=None):
             gl.append((gmod.FILES[conf] | i << 8, assocs.index(ak), sum(rec[76 + 38 * j + 32] for j in range(16))))
     gs1 = {conf: (gmod.load(conf) or {}).get('season1', {}) for conf in confs}
     index = {(conf, c['key']): i for i, (conf, c, _) in enumerate(cups)}
+    xlosers = {}                                        # (an access file's 'from': {'acl2:pre_losers': 'groups'}: that
+    for conf, c, a in cups:                             # round's losers into this cup's round, as a format 'losers')
+        for src, rk in ((a.get('access') or {}).get('from') or {}).items():
+            sc, _, what = src.partition(':')
+            if what.endswith('_losers'):
+                xlosers[(conf, sc, what[:-7])] = f"{c['key']}:{rk}"
+    for conf, c, a in cups:                             # (the short group stages: a 'clubs' count below the groups')
+        for rk, n in (a.get('clubs') or {}).items():
+            for r in c['rounds']:
+                if r['key'] == rk:
+                    r['clubs'] = n
     rkey = {i: {r['key']: j for j, r in enumerate(c['rounds'])} for i, (_, c, _) in enumerate(cups)}
 
     def target(conf, ci, s):
@@ -254,7 +265,9 @@ def load(confs, files=None, words=None, s1=None):
                 if ':' in t and (conf, t.split(':')[0]) in index:
                     cj = index[(conf, t.split(':')[0])]
                     incoming[(cj, rkey[cj][t.split(':')[1]])] = incoming.get((cj, rkey[cj][t.split(':')[1]]), 0) + r['groups']
-        for rk, t in (c.get('losers') or {}).items():
+        lmap = dict(c.get('losers') or {})
+        lmap.update({k[2]: v for k, v in xlosers.items() if k[:2] == (conf, c['key'])})
+        for rk, t in lmap.items():
             if ':' in t:
                 ck, tr = t.split(':')
                 if (conf, ck) in index:
@@ -294,8 +307,11 @@ def load(confs, files=None, words=None, s1=None):
                     tj = rkey[ci][rd['out'][str(rd['best'])]]
                     b[21] = rd['best']
                     b[22] = size[tj] - rd['groups'] * len([q for q in rd['out'] if q != str(rd['best'])]) - known[tj]
-            if (c.get('losers') or {}).get(rd['key']):
-                b[11] = target(conf, ci, c['losers'][rd['key']])
+            lt = (c.get('losers') or {}).get(rd['key']) or xlosers.get((conf, c['key'], rd['key']))
+            if lt:
+                b[11] = target(conf, ci, lt)
+            if rd.get('clubs'):                         # (a short group stage: no fill to its places)
+                b[23] = 1
             out += bytes(b)
         body += bytes((len(rounds), 0, 0, 0)) + out
         if s1 is not None:                              # season 1 (the build): data's real entrants as fixed clubs

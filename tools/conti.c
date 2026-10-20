@@ -441,7 +441,7 @@ static void draw_groups(int c, int r, const u8 *R) {
         for (int i = w; i + 1 < m; i++) { x[i] = x[i + 1]; v[i] = v[i + 1]; k[i] = k[i + 1]; }
         m--;
     }
-    while (m < size) {                  /* fewer (the world could not fill the rounds before): the best ranked
+    while (m < size && !R[23]) {        /* fewer (the world could not fill the rounds before): the best ranked
                                            club in no cup this edition (declared), so the game's contest is full */
         int b = 0;
         for (int i = 1; i <= CT_IN.nclub; i++)

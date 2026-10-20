@@ -1278,17 +1278,17 @@ def cds1_src(p, cd, rl, rs):
 
 
 CDS1_ROUNDS = []                        # (rnames: the Coppa D rounds the slot-2 contest plays)
+CAL1_SITE = []                          # (cseg_3563E's `mov eax, A6`: gp_cal1)
 CDS1_CALLS = []                         # (cseg_8ECAE tail's start calls: cseg_8B71C, cseg_27436, cseg_8B8B8, cseg_8B7EA)
 CUP12 = '''
-gp_cup12:                               ; 4.0: InitNewSeason's `call cseg_8B2D3` of slots 1 / 2 (the country's cup and
-    pushad                              ; league cup): a Coppa Italia Serie D club gets neither (cd_member_c), the slot
-    cmp word [GAMETYPE], 4              ; cleared (Davide's Schio: COPPA ITALIA / C. IT SERIE C rows never played)
-    jne .game
-    cmp word [D0R], 2                   ; (4.0 A: slot 1 stays the COPPA ITALIA - the game plays it through the
-    jne .game                           ; calendar and the season end needs its winner; slot 2 becomes the Coppa D's)
+gp_cdmem:                               ; ZF = 0 when the career club is a Coppa Italia Serie D entrant (cd_member_c),
+    pushad                              ; every register kept
+    xor ebx, ebx
+    cmp word [GAMETYPE], 4
+    jne .r
     mov al, [SLT + WORLD_BYTE]
     cmp al, [CD_TAB]
-    jne .game
+    jne .r
     mov dword [GP_CDT], CD_TAB
     mov dword [GP_CDD], CD_DT
     mov dword [GP_SLT], SLT
@@ -1301,7 +1301,34 @@ gp_cup12:                               ; 4.0: InitNewSeason's `call cseg_8B2D3`
     call CD_MEMBER
     add esp, 4
     pop es
-    test eax, eax
+    mov ebx, eax
+.r: test ebx, ebx
+    popad
+    ret
+
+gp_cal1:                                ; 4.0 A: cseg_3563E's `mov eax, A6` (the career calendar's list of entries):
+    mov eax, [A6R]                      ; a Coppa D club's COPPA ITALIA entries (slot 1: the game plays the cup
+    cmp byte [eax], 1                   ; through them, the club is not in it) are left out of the list
+    jne .r
+    call gp_cdmem
+    jz .r
+    inc word [D6R]                      ; (cseg_3570C's next entry, without using a list line)
+    mov word [D7R], 0
+    movzx ecx, word [eax + 2]
+    add eax, ecx
+    mov [A6R], eax
+    mov [A4R], eax
+    add esp, 4
+    jmp CAL1_LOOP
+.r: ret
+
+gp_cup12:                               ; 4.0: InitNewSeason's `call cseg_8B2D3` of slots 1 / 2 (the country's cup and
+    pushad                              ; league cup): a Coppa Italia Serie D club gets neither (cd_member_c), the slot
+    cmp word [GAMETYPE], 4              ; cleared (Davide's Schio: COPPA ITALIA / C. IT SERIE C rows never played)
+    jne .game
+    cmp word [D0R], 2                   ; (4.0 A: slot 1 stays the COPPA ITALIA - the game plays it through the
+    jne .game                           ; calendar and the season end needs its winner; slot 2 becomes the Coppa D's)
+    call gp_cdmem
     jz .game
     movzx eax, word [D0R]
     mov dword [D8CAA + eax * 4], 0
@@ -1734,6 +1761,15 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
                   + f'\nCD_NM: dd {rl}, {rs}\nCD_DT: db ' + ', '.join(str(b) for b in cdt)
                   + '\nCD_RN: db ' + ', '.join(str(x) for x in rnames.CD_NAMES) + '\n')
     if cds:
+        a0_ = r['A0']
+        pk_ = lambda x: re.escape(struct.pack('<I', x))
+        d1c = p.le.obj_bytes(1)
+        ms = [m for m in re.finditer(rb'\xa1' + pk_(a0_ + 24) + rb'\x8b\x35(.{4})\x89\x06\x83\x05(.{4})\x04', d1c, re.S)
+              if m.group(1) == m.group(2)]
+        assert len(ms) == 1 and d1c[ms[0].start() - 19:ms[0].start() - 17] == b'\x66\xa1', ms
+        CAL1_SITE[:] = [ms[0].start()]
+        symbols.update({'CAL1_LOOP': (1, ms[0].start() - 19), 'D6R': (2, a0_ - 8), 'D7R': (2, a0_ - 4),
+                        'A4R': (2, a0_ + 16)})
         cd_src += CUP12 + cds1_src(p, cds[0], rl, rs)
         symbols.update({f'C_S1_{k}': (1, c) for k, c in enumerate(CDS1_CALLS)})
     cd_src += GP_RNAME.replace('CD_PART', CD_RNAME if cds else '')
@@ -1760,6 +1796,9 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
         for site in sites:
             assert p.get(1, site, 1) == b'\xe8', hex(site)
             p.put(1, site + 1, struct.pack('<i', lab['gp_cup12'] - (site + 5)))
+        cal1 = CAL1_SITE[0]                                   # cseg_3563E's `mov eax, A6` (5 B, a fixup) -> call
+        p.remove(1, cal1 + 1)
+        p.put(1, cal1, b'\xe8' + struct.pack('<i', lab['gp_cal1'] - (cal1 + 5)))
     for site, target in ((cap, 'gp_cap'), (end_site, 'gp_end')) if tables else ():   # (relative calls: no fixups;
         p.put(1, site + 1, struct.pack('<i', lab[target] - (site + 5)))                # none: only pg_season)
     if tables and area is not None:                         # the playable play-offs (chained before dplay's hooks)

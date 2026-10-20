@@ -278,6 +278,11 @@ lt_row:                                 ; the row loop's `mov esi, A6 / movzx eb
     mov [LT_REAL], bx
     test byte [GP_HP + ebx], 80h
     jz .d
+    test byte [GP_HP + ebx], 40h        ; (an empty row first: every group's header but the first)
+    jz .ns
+    mov ax, [ROWH]
+    add [D2R], ax
+.ns:
     movzx eax, byte [GP_HP + ebx]
     and eax, 3
     push es

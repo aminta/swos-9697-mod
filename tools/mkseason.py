@@ -1298,6 +1298,13 @@ def league_cup_europe_files():
             and pk.meta['season'].get('league_cup_europe')]
 
 
+def _cal_short(names):
+    """(long, short) with the short fitted to the career calendar's first line, before the (C) / (F) marker."""
+    sh = complist.fit_short(names[1])
+    _need(complist.px(sh) <= complist.CAL_PX and all(ch in complist.FONT for ch in sh), f'cup short name {sh!r}')
+    return names[0], sh
+
+
 def numbered_cups():
     """rnames: the contest ids of the world cups whose rounds keep their numbers (cup 'round_names': 'numbered')."""
     return [int(c['id'], 16) for pk in packs() if pk.world is not None for c in pk.comps
@@ -2319,8 +2326,8 @@ def patch(p, lang, area, cave):
         import sacups
         wd = world_defs()
         for w in wd:                                       # the European cups' own names (official ones in a
-            w['cupnames'] = {k: tuple(area.add(x.encode('latin1') + b'\0') - sacups.STR_BASE for x in names)
-                             for k, names in w['cupnames'].items()}   # league-phase world): long, short
+            w['cupnames'] = {k: tuple(area.add(x.encode('latin1') + b'\0') - sacups.STR_BASE for x in _cal_short(names))
+                             for k, names in w['cupnames'].items()}   # league-phase world): long, short (calendar)
         end = careerworld.patch(p, wd, cave, nasmcave, comp, ct, (2, CAREERS_REC[0]))
         _need(end <= cave + CAREER_CAVE_SIZE, f'career world code overflows its pages ({end:#x})')
     return at, [x for i in infos for x in i['classic']] + tleagues

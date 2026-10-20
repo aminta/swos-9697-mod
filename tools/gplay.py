@@ -1205,7 +1205,21 @@ gp_rname:                               ; rnames' rn_round (an FE contest, RN_CD
     cmp byte [GP_ST + ST_KO + KO_SLOT], 0
     je .nb
 CD_PART
+    mov ebx, [GP_CALDP]                 ; 4.0: a calendar being built (rnames RN_CALD = its entry's round + 1): that
+    test ebx, ebx                       ; round, from the contest's first (the current one while it is built)
+    jz .cur
+    mov ebx, [ebx]
+    test ebx, ebx
+    jz .cur
+    dec ebx
+    push eax
+    movzx eax, byte [GP_ST + ST_KO + KO_GCUR]
+    add ebx, eax
+    pop eax
+    jmp .rn
+.cur:
     movzx ebx, byte [GP_ST + ST_KO + KO_GCUR]   ; the pack's 'round_names' by game round (GP_ST.rn, gplay.c)
+.rn:
     cmp ebx, 12
     jae .nb
     mov bl, [GP_ST + ST_RN + ebx]
@@ -1220,6 +1234,7 @@ CD_PART
 .no:
     clc
     ret
+GP_CALDP: dd 0                          ; (rnames.RN_CALD's address, or 0)
 '''
 RNAMES = {}              # compile_spec's output -> per play-off KG bytes: its game rounds' rnames indices (0: the game's)
 RN_KG = 12               # (gplay.c KG)
@@ -1618,6 +1633,8 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
         import rnames
         if 'gp_rname' in lab and rnames.LABELS.get('RN_CDP'):   # (the Coppa D's and the packs' round names)
             p.add_ptr(1, rnames.LABELS['RN_CDP'], 1, lab['gp_rname'])
+            if 'GP_CALDP' in lab and rnames.LABELS.get('RN_CALD'):
+                p.add_ptr(1, lab['GP_CALDP'], 1, rnames.LABELS['RN_CALD'])
         for a in adv_calls:                                  # (the calendar advance: 'then_build')
             assert p.get(1, a, 5) == p.le.obj_bytes(1)[a:a + 5], f'obj1+{a:#x} already hooked'
             p.put(1, a + 1, struct.pack('<i', lab['gp_adv'] - (a + 5)))

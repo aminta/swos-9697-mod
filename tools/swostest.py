@@ -1499,6 +1499,44 @@ def menu_check(s, tag):
         s.log.append(f'[menu] {tag}: check failed {e}')
 
 
+def rec_shot(s):
+    """W8485_RECSHOT=1: on the season-end menu ('<year> FINE CAMP.'), once, the season record (ManagementRecordMenu:
+    VISUAL. COMPETIZ. -> REGISTRO GESTIONE, EN MANAGEMENT RECORD): its texts logged '[record] ...', a shot 'record', back with
+    ESCI twice. True if it was shown."""
+    scr = s.screen()
+    if os.environ.get('W8485_RECSHOT') != '1' or s.__dict__.get('rec_done') or \
+            not any(t.endswith('FINE CAMP.') for t in scr.texts()):
+        return False
+    s.rec_done = True
+    def watch(tag):                                    # (debug W8485_RECWATCH: the record's line pointers / codes)
+        if os.environ.get('W8485_RECWATCH'):
+            o = int(os.environ['W8485_RECWATCH'], 16)
+            s.log.append(f"[rec] {tag} {s.result.obj2(o + 22, 16).hex()} {s.result.obj2(o + 86, 4).hex()}")
+    watch('before')
+    try:
+        if press(s, scr, 'VISUAL. COMPETIZ.', wait=3) is None:
+            s.log.append(f'[record] not reached: {scr}')
+            return False
+        watch('viscomp')
+        vc = s.screen()
+        lab = next((x for x in ('REGISTRO GESTIONE', 'MANAGEMENT RECORD') if vc.find(x, exact=True) is not None), None)
+        if lab is None or press(s, vc, lab, wait=3) is None:
+            s.log.append(f'[record] not reached: {vc}')
+            press(s, s.screen(), 'ESCI', wait=2)
+            return True
+    except AssertionError as e:                    # (no path: logged, the season goes on)
+        s.log.append(f'[record] not reached: {e}')
+        return False
+    s.send('dump:1')
+    watch('record')
+    s.log.append('[record] ' + ' | '.join(x for _, x, inv, _ in s.screen().entries if x and not inv))
+    s.shot('record')
+    for k in range(2):
+        press(s, s.screen(), 'ESCI', wait=2) or s.send('fire dump:2')
+        watch(f'esci{k}')
+    return True
+
+
 def next_season_save(s, name):
     """Season-end menu -> CONTINUA CARRIERA -> (messages) -> new season's career menu -> ESCI -> SALVA CARRIERA -> name.
     Returns the save path or an error string."""
@@ -1525,6 +1563,7 @@ def next_season_save(s, name):
             press(s, scr, 'ESCI') or s.send('fire dump:2')
         if s.result.outcome != 'dump':
             return f'job offer: {s.result}'
+    rec_shot(s)
     if press(s, s.screen(), 'CONTINUA CARRIERA', wait=3) is None:
         return f'no CONTINUA CARRIERA on {s.screen()}'
     for _ in range(20):                                # chairman's note, job offers ...: CONTINUA / fire
@@ -1532,6 +1571,11 @@ def next_season_save(s, name):
             return f'new season: {s.result}'
         scr = s.screen()
         s.log.append(f'[ns] {scr}')
+        if os.environ.get('W8485_RECWATCH'):           # (debug: the season record's line pointers / codes each step)
+            o = int(os.environ['W8485_RECWATCH'], 16)
+            s.log.append(f"[rec] {s.result.obj2(o + 22, 16).hex()} {s.result.obj2(o + 86, 4).hex()}")
+        if any(t.endswith('FINE CAMP.') for t in scr.texts()) and rec_shot(s):
+            continue
         if 'TRASFERIMENTI' in scr.texts() or 'VISUALIZZA MONDO' in scr.texts():    # club / national team menu
             break
         if any(t.startswith('SQUADRA DEL ') for t in scr.texts()):    # national squad call-ups
@@ -4885,7 +4929,7 @@ def world_title(code, force='3'):
                                          f"{win:#x} (first of the top-9 list {[hex(t) for t in top]})")
 
 
-def world_rlines(team, tag, res):
+def world_rlines(team, tag, res, show=None):
     """The season record's extra lines (gplay.c gp_rlines_c): a season of the release data (W2627REL_DATA, default
     internal/world2526/world5tm-rel40-names-2214) at team; each result the engine holds for the career club - a stage
     title decided (GP_ST.dec: ARG's TORNEO APERTURA / CLAUSURA / TROFEO) or the title play-off / stage in ko[0]
@@ -4902,9 +4946,9 @@ def world_rlines(team, tag, res):
     log_at, st_at, log_n, st_n = gp_ptrs(exe)
     seas_at = gp_eu(exe)[4]
     keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K',
-                                            'W8485_NOSACK', 'W8485_HEX', 'W8485_ONE')}
+                                            'W8485_NOSACK', 'W8485_HEX', 'W8485_ONE', 'W8485_RECSHOT')}
     os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5', W8485_K='108+',
-                      W8485_NOSACK='1', W8485_HEX=f'{st_at:x}:{st_n},{seas_at:x}:106', W8485_ONE='1')
+                      W8485_NOSACK='1', W8485_HEX=f'{st_at:x}:{st_n},{seas_at:x}:106', W8485_ONE='1', W8485_RECSHOT='1')
     try:
         ok, msg = world8485()
     finally:
@@ -4913,8 +4957,10 @@ def world_rlines(team, tag, res):
                 os.environ.pop(k, None)
             else:
                 os.environ[k] = v
-    hexes = {}
+    hexes, shown = {}, ''
     for ln in open(os.path.join(RUNS, w84_tag() + '_1', 'session.log'), errors='replace'):
+        if ln.startswith('[record] '):
+            shown = ln[9:].strip()
         q = ln.split()
         if len(q) == 3 and q[0] == 'HEX':
             hexes.setdefault(int(q[1], 16), []).append(bytes.fromhex(q[2]))
@@ -4947,15 +4993,25 @@ def world_rlines(team, tag, res):
     got = [lines[o][2] for o in free[:len(exp)]]         # line free at the season start, 4 / 3 / 2; the game's own -
     check(len(recs) > 1 and got == exp and exp, f'free lines {[o + 1 for o in free]}: codes {got}, expected {exp} '
           f'(results {want}); {lines}', errs)            # league, cup, continental - keep theirs)
-    return not errs, '; '.join(errs) or (f'{msg}; {tag}: stage results {want}, ko[0] kind {ko["kind"]} pi {ko["pi"]} '
+    if show:                                             # (the screen's texts keep its last line only: the name by
+        from le import LE                                # the pointer - the strings' base from the game's own league
+        d2 = LE(open(os.path.join(exe, 'ITALIAN.EXE'), 'rb').read()).obj_bytes(2)   # line and cup line, which must be
+        ok_s = lambda o: 0 < o < len(d2) and d2[o - 1] == 0 and 65 <= d2[o] <= 90     # names there too)
+        at = [m.start() + 1 for m in re.finditer(b'\0' + re.escape(show.encode('latin-1')) + b'\0', d2)]
+        hit = [o for _, a_, _ in lines[1:] if a_ for o in at
+               if ok_s(o - a_ + lines[0][1]) and (not lines[1][1] or ok_s(o - a_ + lines[1][1]))]
+        check(hit and shown, f'no record line named {show!r} ({len(at)} such strings; lines {lines}); the record '
+              f'screen: {shown[:120]}', errs)
+    return not errs, '; '.join(errs) or (f'{msg}; {tag}: record screen {shown[:200]!r}; stage results {want}, ko[0] kind {ko["kind"]} pi {ko["pi"]} '
                                          f'tw {ko["tw"][:ko["ntie"]]}; record lines {[(n, hex(a), c) for n, a, c in lines]}')
 
 
 @scenario
 def world_rlines_arg():
     """world_rlines at BOCA JUNIORS (Argentina: TORNEO APERTURA / CLAUSURA knockouts, TROFEO DE CAMPEONES), forced
-    to win them (WINNERS lines)"""
-    return world_rlines('SUDAMERICA,ARGENTINA,LIGA PROFESIONAL,BOCA JUNIORS', 'arg', 1)
+    to win them: one line 'APERTURA E CLAUSURA' WINNERS (gplay.combined, fitted to the record's 144 px), seen on the
+    season-end REGISTRO GESTIONE (its refresh: gp_mrec puts the line back); the TROFEO is decided after the record"""
+    return world_rlines('SUDAMERICA,ARGENTINA,LIGA PROFESIONAL,BOCA JUNIORS', 'arg', 1, 'APERTURA E CLAUSURA')
 
 
 @scenario
@@ -5011,9 +5067,11 @@ def gplay_host(test):
 def gplay_rlines():
     """gplay.c club_res / gp_rlines_c (the season record's extra lines) compiled on the host (cc), every result
     forced: a 3-round knockout won / lost in the final / semi / quarter (1 / -100 / -101 / -102), a 5-round one lost
-    in rounds 1-2 (-111 / -112), a club not in it (0); then the lines: two stage titles decided before (GP_ST.dec:
-    WINNERS of play-off 0, REACHED SEMI-FINAL of play-off 2 - their long names) and the title play-off in ko[0]
-    (won: the league's record name, lost in the final: its long name)"""
+    in rounds 1-2 (-111 / -112), a club not in it (0); then the lines, titles won first (Davide): a stage title won
+    and one in the semi (GP_ST.dec: their long names) with the title play-off in ko[0] (won: the league's record name,
+    lost in the final: its long name); two stage titles won -> one combined line (GP_CMB), placed in the free line 3
+    and the title play-off's WINNERS in place of the continental KNOCKED OUT IN ROUND 1 (not the cup's FINALIST); a
+    loss with every line taken replaces nothing"""
     test = r"""
 #include "%s"
 #include <stdio.h>
@@ -5043,16 +5101,38 @@ int main(void) {
     struct gp_dec *d = GP_ST.dec;
     d[0].season = d[1].season = GP_SEAS; d[0].done = d[1].done = 1;
     d[0].pad[0] = 1; d[0].pad[1] = 1; d[1].pad[0] = (u8)-101; d[1].pad[1] = 3;
-    for (int out = 3; out >= 2; out--) {
+    for (int out = 3; out >= 2; out--) {                /* wins first: stage 0 won, the title play-off won / lost */
         ko(3, t3, out);
         int n = gp_rlines_c();
         for (int i = 0; i < n; i++) printf(" %%u:%%d", GP_RLN[i], GP_RLC[i]);
         printf(" |");
     }
+    static u32 CMB[8] = {0, 0, 0, 999, 0, 0, 0, 0};
+    static u8 rec[106];
+    GP_CMB = CMB; GP_REC = rec;                         /* stages 0 + 1 won: one line; the record: league, cup final
+                                                           lost, line 3 free, continental out in round 1 */
+    d[1].pad[0] = 1;
+    *(u32 *)(rec + 22) = 5; rec[86] = 1; *(u32 *)(rec + 26) = 6; rec[87] = (u8)-100; *(u32 *)(rec + 34) = 7; rec[89] = (u8)-111;
+    ko(3, t3, 3);
+    int n = gp_rlines_c();
+    for (int i = 0; i < n; i++) printf(" %%u:%%d", GP_RLN[i], GP_RLC[i]);
+    printf(" ->");
+    for (int o = 0; o < 4; o++) printf(" %%u:%%d", *(u32 *)(rec + 22 + 4 * o), (s8)rec[86 + o]);
+    *(u32 *)(rec + 30) = 0; rec[89] = (u8)-111;         /* a second pass after the game's refresh (gp_mrec): line 3's
+                                                           name lost, line 4's code back to the cup's: both restored */
+    gp_rlines_c();
+    printf(" |");
+    for (int o = 0; o < 4; o++) printf(" %%u:%%d", *(u32 *)(rec + 22 + 4 * o), (s8)rec[86 + o]);
+    ko(3, t3, 0);                                       /* a loss with every line taken: none replaced */
+    rec[88] = 0; *(u32 *)(rec + 30) = 8; rec[88] = 1; d[0].pad[0] = d[1].pad[0] = (u8)-101;
+    gp_rlines_c();
+    printf(" |");
+    for (int o = 0; o < 4; o++) printf(" %%u:%%d", *(u32 *)(rec + 22 + 4 * o), (s8)rec[86 + o]);
     return 0;
 }
 """
-    want = '1 -100 -101 -102 -111 -112 0 | 101:1 301:-101 203:1 | 101:1 301:-101 201:-100 |'
+    want = ('1 -100 -101 -102 -111 -112 0 | 101:1 203:1 301:-101 | 101:1 301:-101 201:-100 | 999:1 203:1 -> 5:1 6:-100 '
+            '999:1 203:1 | 5:1 6:-100 999:1 203:1 | 5:1 6:-100 8:1 203:1')
     ok, got = gplay_host(test)
     return ok and got == want, f'{got} (expected {want})'
 

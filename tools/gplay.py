@@ -210,6 +210,8 @@ def compile_spec(pos, ndiv, league_names=None):
     out = bytes(out + b'\0')
     SPEC_NAMES[out] = [(po.get('names') or {}, po.get('key', '?'),
                         po.get('record') or (league_names if po.get('kind') == 'title' else None)) for po in pos]
+    SPEC_STAGES[out] = [(po['stage'], po.get('names') or {}, po.get('key', '?')) for po in pos
+                        if KINDS.get(po.get('kind')) == 8 and po.get('stage') in (0, 1, 2)]
     keys = [po.get('key') for po in pos]
     for po in pos:                      # 'then_build': the key of the play-off built when this one ends
         if po.get('then_build') is not None and po['then_build'] not in keys:
@@ -795,59 +797,56 @@ gp_sync:                                ; after a career / .SEA load (the engine
     popad
     ret
 
-gp_sack:                                ; replaces SeasonFinished's `call cseg_3C07C` (a club career's season-end
-    pushad                              ; screens; cseg_3E55C, the contract check, runs for national selectors only):
-    cmp word [GAMETYPE], 4              ; (a group contest won, the Poule: the season record's 4th line = its record
-    jne .nr                             ; name, result 1 = WINNERS; no trophy flag)
-    mov ax, [CAREERTEAM]
-    mov [GP_MGR], ax
+gp_mrec:                                ; replaces ManagementRecordMenu's `call cseg_39392` (REGISTRO GESTIONE: the
+    call C39392                         ; game's season record refresh re-reads lines 3 / 4 from the slot buffers - a
+    pushad                              ; line of ours lost its name): ours again (gp_rl, the same lines)
+    cmp word [GAMETYPE], 4
+    jne .x
+    call gp_rl
+.x: popad
+    ret
+
+gp_rl:                                  ; the season record's extra lines (gp_sack, gp_mrec; career only): GP_MGR,
+    mov ax, [CAREERTEAM]                ; GP_SEAS, the career league's names (GP_NM, GP_CMB), the record (GP_REC),
+    mov [GP_MGR], ax                    ; gplay.c gp_rlines_c; ZF = 1 when the league is none of ours
     mov al, [SEASONPLAYING]
     mov [GP_SEAS], al
-    mov edx, [D8CAA]                    ; (the career league's names: GP_NM, a title play-off's record line)
+    mov edx, [D8CAA]
     test edx, edx
-    jz .nr
+    jz .r
     call gp_find
-    jz .nr
+    jz .r
     sub esi, GP_TAB
     mov eax, esi
     xor edx, edx
     mov ecx, 9
     div ecx
+    mov ecx, [GP_CMT + eax * 4]         ; (its stage titles won together: GP_CMB)
+    mov [GP_CMB], ecx
     mov eax, [GP_NMT + eax * 4]
     mov [GP_NM], eax
-    mov eax, gp_rlines_c                ; (the season record's extra lines: the Poule, ARG's stage titles, a title
-    call gp_c                           ; play-off - gplay.c gp_rlines_c)
-    test eax, eax
-    jz .nr
-    mov ebp, eax
-%if FORCE_ON
-    cmp dword [GP_RLPOULE], 0           ; (test builds: the review sees the career club as the slot-3 cup's winner)
-    je .nf
-    mov ax, [CAREERTEAM]
-    mov [DA11B], ax
-.nf:
-%endif
     pushad
     call GETSEASON                      ; (GetCurrentSeasonPointer: A0)
     popad
-    mov esi, [A0R]
-    xor ebx, ebx
-.nl:
-    cmp ebx, ebp
-    jae .nr
-    mov ecx, 3                          ; (the 4th line, else the 3rd / 2nd: the first free one - a title play-off's
-.ln:                                    ; club may play a continental cup the same season)
-    cmp dword [esi + 22 + ecx * 4], 0
-    je .put
-    loop .ln
-    jmp .nr
-.put:
-    mov eax, [GP_RLN + ebx * 4]
-    mov [esi + 22 + ecx * 4], eax
-    mov al, [GP_RLC + ebx]
-    mov [esi + 86 + ecx], al
-    inc ebx
-    jmp .nl
+    mov eax, [A0R]
+    mov [GP_REC], eax
+    mov eax, gp_rlines_c                ; (the Poule, ARG's stage titles, a title play-off - written into GP_REC)
+    call gp_c
+    or esp, esp                         ; (ZF = 0)
+.r: ret
+
+gp_sack:                                ; replaces SeasonFinished's `call cseg_3C07C` (a club career's season-end
+    pushad                              ; screens; cseg_3E55C, the contract check, runs for national selectors only):
+    cmp word [GAMETYPE], 4              ; (a group contest won, the Poule: the season record's 4th line = its record
+    jne .nr                             ; name, result 1 = WINNERS; no trophy flag)
+    call gp_rl
+    jz .nr
+%if FORCE_ON
+    cmp dword [GP_RLPOULE], 0           ; (test builds: the review sees the career club as the slot-3 cup's winner)
+    je .nr
+    mov ax, [CAREERTEAM]
+    mov [DA11B], ax
+%endif
 .nr:
     mov eax, [D8CAA + 12]               ; (our slot-3 contest, the Poule, is no European cup for the season review:
     test eax, eax                       ; cseg_3D7CB credits the slot-3 cup's winner with D8CBE's trophy) D8CB6 = 0
@@ -996,6 +995,7 @@ GP_RITP: dd 0                           ; (ripool's RI_TAB: link_reserve, or 0)
     dd GP_LOG, GP_ST, LOG_SIZE, ST_SIZE ; flags D6C64 / D6C66 / D6C68)
     dd D8CAA + 12, EUW0, EUW1, EUW2, SEASREC   ; (+ the season records, 106 B each)
     dd CD_ST                            ; (the Coppa Italia Serie D's state)
+    dd GP_RLN, GP_RLC, GP_REC, GP_CMB, GP_NM, D8CAA   ; (the season record lines: gp_rlines_c's)
 '''
 
 
@@ -1220,6 +1220,41 @@ CD_PART
 '''
 RNAMES = {}              # compile_spec's output -> per play-off KG bytes: its game rounds' rnames indices (0: the game's)
 RN_KG = 12               # (gplay.c KG)
+SPEC_STAGES = {}         # compile_spec's output -> its stage titles (kind stage_title): [(stage, names, key)]
+REC_PX = 144             # the season record's competition column (ManagementRecordMenu: x 0, width 144, small font)
+AND = {'it': 'E', 'en': 'AND', 'fr': 'ET', 'de': 'UND'}
+
+
+def combined(parts, lang):
+    """Several stage titles won in one season -> one record line (Davide 2026-10-20: 'TORNEO APERTURA E CLAUSURA'
+    style, fitted to REC_PX): parts = [(long, short)] in stage order. The long names with their shared first words
+    once, else the short names, 'A, B E C', else 'A/B/C', the same with their first words only, else each short name
+    cut (a '.' after it) until it fits."""
+    import complist
+    conj = AND.get(lang, 'AND')
+    join = lambda xs: xs[0] if len(xs) == 1 else ', '.join(xs[:-1]) + f' {conj} ' + xs[-1]
+    cands = []
+    words = [p[0].split() for p in parts]
+    k = 0
+    while all(len(w) > k + 1 and w[k] == words[0][k] for w in words):
+        k += 1
+    if k:
+        cands.append(' '.join(words[0][:k]) + ' ' + join([' '.join(w[k:]) for w in words]))
+    shorts = [p[1] for p in parts]
+    first = [x.split()[0] for x in shorts]             # (their first words: 'TROFEO CAMP.' -> 'TROFEO')
+    cands += [join(shorts), '/'.join(shorts), join(first), '/'.join(first)]
+    for c in cands:
+        if complist.px(c) <= REC_PX:
+            return c
+    n = max(len(x) for x in shorts)
+    while n > 3:
+        n -= 1
+        c = '/'.join(x if len(x) <= n else x[:n].rstrip() + '.' for x in shorts)
+        if complist.px(c) <= REC_PX:
+            return c
+    raise ValueError(f'combined stage titles {shorts}: no name fits {REC_PX} px')
+
+
 SPEC_NAMES = {}          # compile_spec's output -> the play-offs' names ({lang: [long, short]}), for the contests
 
 
@@ -1262,7 +1297,7 @@ def _top9(p):
                                         rb'\xc7\x05' + pk(r['A0'] + 8), d1, re.S)]
     assert len(m) == 2, m                       # (the first: cseg_927A2; the second: another list of the season end)
     return p.target(1, m[0] + 6), p.target(1, m[0] + 16)
-GP_PAGES = 11            # obj1 pages for the C code + glue + specs (World 2026-27's 20 countries; gplay-play; 4.0 ARG: 7)
+GP_PAGES = 12            # obj1 pages for the C code + glue + specs (World 2026-27's 20 countries; gplay-play; 4.0 ARG: 7; the record lines: 12)
 GP_ST_SIZE = 2048       # (sizeof struct gp_state: the engine block's item 'GP', patch.py)
 GP_BSS = 0x6000          # the C .bss pages (obj2 after careerworld's BSS): GP_IN at GT 32 / GD 16, GP_SS, PR, RS, GP_ST, RI, PS
 
@@ -1316,6 +1351,18 @@ def _sack_sites(p):
                 CURMSG=u(1), SACKED=u(4))
 
 
+def _mrec_site(p):
+    """ManagementRecordMenu's `call cseg_39392` (if not youreSacked: the season record refresh - cseg_3D7CB, the
+    trophy flags, lines 3 / 4 re-read from the slot buffers - then `mov A6, management_record_menu`): (site, cseg_39392)."""
+    d1 = p.le.obj_bytes(1)
+    f = [m.start() for m in re.finditer(rb'\x66\x83\x3d.{4}\x04\x0f\x85.{4}\xe8.{4}\xe8', d1, re.S)]
+    assert len(f) == 1, f
+    calls = [m.start() for m in re.finditer(rb'\x66\x0b\xc0\x75\x05\xe8(.{4})\xc7\x05', d1, re.S)
+             if m.start() + 10 + struct.unpack('<i', m.group(1))[0] == f[0]]
+    assert len(calls) == 1, calls
+    return calls[0] + 5, f[0]
+
+
 def _adv_sites(p):
     """cseg_8EA82 (the career calendar advance: gameType 4 -> counters, cseg_94DB1) and its 4 callers."""
     import split
@@ -1353,6 +1400,19 @@ def names_lines(tables, area, lang):
             rl, rs, rr = (area.add(x + b'\0') - sacups.STR_BASE if area else 0 for x in (long_, short, record))
             lines.append(f'    dd {rl}, {rs}, {rr}')
         lines.append('    dd 0, 0, 0')
+    multi = [len(SPEC_STAGES.get(spec, [])) >= 2 for _, _, spec in tables]       # (stage titles won together: one
+    lines += ['GP_CMT:'] + [f'    dd GPC{i}' if multi[i] else '    dd 0' for i in range(len(tables))]   # name per mask
+    for i, (_, _, spec) in enumerate(tables):                                     # of stages 0..2; only where there
+        if not multi[i]:                                                          # are two)
+            continue
+        st = {stg: _name(names, lang, key) for stg, names, key in SPEC_STAGES.get(spec, [])}
+        row = []
+        for m in range(8):
+            ok = bin(m).count('1') >= 2 and all(x in st for x in range(3) if m & 1 << x) and area
+            got = [st[x] for x in range(3) if m & 1 << x] if ok else []
+            row.append(area.add(combined([(a.decode('latin-1'), b.decode('latin-1')) for a, b in got], lang)
+                                .encode('latin-1') + b'\0') - sacups.STR_BASE if ok else 0)
+        lines.append(f'GPC{i}: dd ' + ', '.join(map(str, row)))
     lines += ['GP_THT:'] + [f'    dd GPT{i}' for i in range(len(tables))]      # ('then_build' per play-off)
     for i, (_, _, spec) in enumerate(tables):
         lines.append(f'GPT{i}: db ' + ', '.join(str(b) for b in (THEN.get(spec) or b'') + b'\0'))
@@ -1447,8 +1507,10 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
     symbols.update({'MSG_NORENEW': (0, sk['msg']), 'SHOWCHAIR': (1, sk['show']), 'C3C07C': (1, sk['c3c07c'])})
     symbols.update({f'EUW{i}': (2, a) for i, a in enumerate(sk['euw'])})
     symbols.update({'DA11B': (2, sk['da11b']), 'GETSEASON': (1, sk['getseason']), 'SEASREC': (2, sk['seasrec'])})
+    mrec, c39392 = _mrec_site(p)
+    symbols['C39392'] = (1, c39392)
     symbols.update({k: syms[k] for k in ('GP_CFB', 'GP_LG', 'GP_RST', 'GP_RIT', 'GP_SEL', 'GP_MGR', 'GP_WORLD', 'GP_SLT',
-                                         'gp_sack_c', 'gp_forcecfb', 'gp_pwin_c', 'gp_rlines_c', 'GP_RLN', 'GP_RLC', 'GP_RLPOULE', 'gp_adv_c', 'GP_ADVWK', 'GP_WK', 'GP_TH', 'GP_RN',
+                                         'gp_sack_c', 'gp_forcecfb', 'gp_pwin_c', 'gp_rlines_c', 'GP_RLN', 'GP_RLC', 'GP_RLPOULE', 'GP_REC', 'GP_CMB', 'gp_adv_c', 'GP_ADVWK', 'GP_WK', 'GP_TH', 'GP_RN',
                                          'gp_defer_c', 'cd_step_c', 'gp_scal_c', 'gp_repoint_c', 'gp_fixload_c', 'CD_ST', 'GP_CDT', 'GP_CDNM', 'GP_CDD',
                                          'GP_CDFIRST')})
     symbols['FORCE_ON'] = (0, int(bool(force)))
@@ -1551,6 +1613,8 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
         for a in adv_calls:                                  # (the calendar advance: 'then_build')
             assert p.get(1, a, 5) == p.le.obj_bytes(1)[a:a + 5], f'obj1+{a:#x} already hooked'
             p.put(1, a + 1, struct.pack('<i', lab['gp_adv'] - (a + 5)))
+        assert p.get(1, mrec, 5) == p.le.obj_bytes(1)[mrec:mrec + 5], 'ManagementRecordMenu call is hooked'
+        p.put(1, mrec + 1, struct.pack('<i', lab['gp_mrec'] - (mrec + 5)))   # (REGISTRO GESTIONE: our lines again)
         assert p.get(1, sk['site'], 5) == p.le.obj_bytes(1)[sk['site']:sk['site'] + 5], 'the season-end call is hooked'
         p.put(1, sk['site'] + 1, struct.pack('<i', lab['gp_sack'] - (sk['site'] + 5)))   # (the reserve: sacked)
     for cs in cal_site or []:                                 # (6 bytes, no address: no fixup)

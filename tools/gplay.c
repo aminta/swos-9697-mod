@@ -1998,9 +1998,29 @@ static int club_res(struct gp_ko *k, u16 mgr) {
 u32 GP_RLN[4];
 s8 GP_RLC[4];
 u32 GP_RLPOULE;
+u8 *GP_REC;                             /* the season record (106 B, gp_sack: GetCurrentSeasonPointer), or 0 */
+const u32 *GP_CMB;                      /* the country's stage titles won together: one name per mask (bit = stage 0..2,
+                                           relative, 0: none; gplay.py names_lines GPC) */
+static int rl_rank(int c) {             /* a line's worth to keep (lower: replaced first by a title won): KNOCKED OUT IN
+                                           ROUND n by n, then '-', still in, 4th, 3rd, quarter, semi, final lost */
+    if (c <= -110) return -(c + 110);
+    static const s8 ord[] = { -106, -104, -105, -103, -102, -101, -100, 2 };
+    for (int i = 0; i < 8; i++) if (c == ord[i]) return 40 + i;
+    return 48;
+}
+static int rl_n, rl_w;
+static void rl_add(u32 name, int code) {
+    if (rl_n >= 4) return;
+    if (code == 1) {                    /* (titles won first, in their order) */
+        for (int i = rl_n; i > rl_w; i--) { GP_RLN[i] = GP_RLN[i - 1]; GP_RLC[i] = GP_RLC[i - 1]; }
+        GP_RLN[rl_w] = name; GP_RLC[rl_w++] = 1; rl_n++;
+    } else { GP_RLN[rl_n] = name; GP_RLC[rl_n++] = (s8)code; }
+}
 u32 gp_rlines_c(void) {
     struct gp_ko *k = &GP_ST.ko[0];
-    int n = 0, kstage = -1;
+    int kstage = -1, wmask = 0;
+    u32 wname[3] = { 0, 0, 0 };
+    rl_n = rl_w = 0;
     GP_RLPOULE = 0;
     int live = GP_ST.magic == MAGIC && GP_ST.season == GP_SEAS && k->magic == MAGIC && k->season == GP_SEAS;
     if (live && k->kind == K_STAGE) {
@@ -2009,23 +2029,55 @@ u32 gp_rlines_c(void) {
     }
     for (int st = 0; st < 3 && GP_NM; st++) {       /* (the stage titles decided before: Apertura, Clausura, Trofeo) */
         const struct gp_dec *x = &GP_ST.dec[st];
-        if (st == kstage || x->season != GP_SEAS || !x->done || !x->pad[0] || !x->pad[1] || n >= 4) continue;
-        GP_RLN[n] = GP_NM[3 * (x->pad[1] - 1)]; GP_RLC[n++] = (s8)x->pad[0];
+        if (st == kstage || x->season != GP_SEAS || !x->done || !x->pad[0] || !x->pad[1]) continue;
+        if (x->pad[0] == 1) { wmask |= 1 << st; wname[st] = GP_NM[3 * (x->pad[1] - 1)]; }
+        else rl_add(GP_NM[3 * (x->pad[1] - 1)], (s8)x->pad[0]);
     }
-    if (!live || n >= 4) return n;
-    if (KT2(k)) {
+    u32 kn = 0;                         /* ko[0]'s line (after the stage titles) */
+    int kr = 0;
+    if (live && KT2(k)) {
         int me = kidx(k, GP_MGR);
-        if (me == NOC) return n;
-        if (GP_FORCE) { k->tw[0] = me; k->tl[0] = me ? 0 : 1; }
-        if (k->tw[0] == me) { GP_RLN[n] = *(u32 *)k->bye; GP_RLC[n++] = 1; GP_RLPOULE = 1; }
-        return n;
+        if (me != NOC) {
+            if (GP_FORCE) { k->tw[0] = me; k->tl[0] = me ? 0 : 1; }
+            if (k->tw[0] == me) { kn = *(u32 *)k->bye; kr = 1; GP_RLPOULE = 1; }
+        }
+    } else if (live && (k->kind == K_TITLE || k->kind == K_STAGE) && GP_NM) {
+        int r = club_res(k, GP_MGR);    /* (SeasonFinished comes before the season end's gp_season: the contest itself) */
+        if (r == 1 && k->kind == K_STAGE && kstage >= 0 && kstage < 3) { wmask |= 1 << kstage; wname[kstage] = GP_NM[3 * k->pi]; }
+        else if (r) { kn = GP_NM[3 * k->pi + (r == 1 && k->kind == K_TITLE ? 2 : 0)]; kr = r; }
     }
-    if ((k->kind != K_TITLE && k->kind != K_STAGE) || !GP_NM) return n;
-    int r = club_res(k, GP_MGR);    /* (SeasonFinished comes before the season end's gp_season: the contest itself) */
-    if (!r) return n;
-    GP_RLN[n] = GP_NM[3 * k->pi + (r == 1 && k->kind == K_TITLE ? 2 : 0)];
-    GP_RLC[n++] = (s8)r;
-    return n;
+    if (wmask & (wmask - 1) && GP_CMB && GP_CMB[wmask]) {   /* (several stage titles of the league: one line, Davide) */
+        rl_add(GP_CMB[wmask], 1);
+        wmask = 0;
+    }
+    for (int st = 0; st < 3; st++)      /* (else one line each, in stage order) */
+        if (wmask & 1 << st) rl_add(wname[st], 1);
+    if (kr) rl_add(kn, kr);
+    if (GP_REC) {                       /* each into its line if there already, else the first free line 4 / 3 / 2; a
+                                           title won with none free: in place of the game's weakest non-winning line (an
+                                           elimination, Davide), not ours */
+        int ours = 0;
+        for (int i = 0; i < rl_n; i++) {
+            int at = -1;
+            for (int o = 3; o >= 1 && at < 0; o--)  /* (already there: a second pass - REGISTRO GESTIONE's refresh,
+                                                       gp_mrec - only restores its code) */
+                if (!(ours & 1 << o) && *(u32 *)(GP_REC + 22 + 4 * o) == GP_RLN[i]) at = o;
+            for (int o = 3; o >= 1 && at < 0; o--) if (!*(u32 *)(GP_REC + 22 + 4 * o)) at = o;
+            if (at < 0 && GP_RLC[i] == 1) {
+                int best = 99;
+                for (int o = 3; o >= 1; o--) {
+                    int c = (s8)GP_REC[86 + o];
+                    if (ours & 1 << o || c == 1 || rl_rank(c) >= best) continue;
+                    best = rl_rank(c); at = o;
+                }
+            }
+            if (at < 0) continue;
+            *(u32 *)(GP_REC + 22 + 4 * at) = GP_RLN[i];
+            GP_REC[86 + at] = (u8)GP_RLC[i];
+            ours |= 1 << at;
+        }
+    }
+    return rl_n;
 }
 
 u32 gp_pwin_c(void) {

@@ -1682,17 +1682,6 @@ u32 cd_step_c(void) {
     return 0;
 }
 
-/* 4.0: a Coppa Italia Serie D entrant this season (team word = file | ordinal << 8: the Serie D file, its ordinal's
-   division of the season in the Serie D groups) - InitNewSeason gives it no cup / league cup (gp_cup12) */
-u32 cd_member_c(u32 team) {
-    const u8 *dt = GP_CDD;
-    if (!GP_CDT || !dt || !GP_SLT || (team & 0xFF) != GP_CDT[2]) return 0;
-    int i = team >> 8 & 0xFF, b = dt[4 + i];
-    if (b == 0xFF) return 0;
-    int dv = b + GP_SLT[(dt[2] | dt[3] << 8) + i];
-    return dv >= dt[0] && dv < dt[0] + dt[1];
-}
-
 static void cd_done(struct gp_ko *k) {  /* gp_rec_c: our CD tie decided -> its result */
     if (!CD_ST.built || k->tw[0] == NOC) return;
     CD_ST.res[CD_ST.bt] = k->team[k->tw[0]] == cd_side(CD_ST.bt, 0) ? 1 : 2;

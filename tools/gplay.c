@@ -1913,7 +1913,7 @@ u32 gp_stitle_c(const u8 *diy, const u8 *tab) {
 /* 4.0 group headers in a long table (longtable lt_d5 / lt_row / lt_end; the labels: gp_hlabel_c, 3.3.6's): the
    table's places in virtual rows - a header before each group's first place (split's group of its row, tab = the
    stage table's header) - and the window of rows virtual rows from cur: GP_HF / GP_HL its first / last place,
-   GP_HP[place] = 0x80 | group when its header is shown before it, GP_HGP[place] its place in the group, GP_HV the
+   GP_HP[place] = 0x80 | group when its header is shown before it (| 0x40: an empty row before the header), GP_HGP[place] its place in the group, GP_HV the
    virtual rows (ScrollDown's limit), GP_HON = headers in this table. */
 u8 GP_HP[65], GP_HGP[65], GP_HG[65];   /* (GP_HG: every place's group, for zones by group) */
 u32 GP_HV, GP_HF, GP_HL, GP_HON;
@@ -1951,8 +1951,10 @@ void gp_hplan_c(const u8 *t, const u8 *tab, u32 cur, u32 rows, u32 off) {
         for (int k = 1; k <= n && hdr; k++) if ((k == 1 || g[k] != g[k - 1]) && !gp_hlabel_c(t, g[k])) hdr = 0;
     }
     GP_HON = hdr;
-    int v = 0, h0[65];                  /* h0[k]: the virtual row of place k's header (or -1), its own row after */
+    int v = 0, h0[65], s0[65];          /* h0[k]: the virtual row of place k's header (or -1), its own row after;
+                                           s0[k]: an empty row before every header but the first (Davide, 4.0) */
     for (int k = 1; k <= n; k++) {
+        s0[k] = hdr && k > 1 && g[k] != g[k - 1] ? v++ : -1;
         h0[k] = hdr && (k == 1 || g[k] != g[k - 1]) ? v++ : -1;
         v++;
     }
@@ -1968,7 +1970,7 @@ void gp_hplan_c(const u8 *t, const u8 *tab, u32 cur, u32 rows, u32 off) {
         if (v >= c && v < end) {
             if (!GP_HF) GP_HF = k;
             GP_HL = k;
-            if (h0[k] >= c) GP_HP[k] = 0x80 | g[k];
+            if (h0[k] >= c) GP_HP[k] = 0x80 | (s0[k] >= c ? 0x40 : 0) | g[k];
         }
         v++;
     }

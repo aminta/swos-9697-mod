@@ -354,6 +354,36 @@ def table(lang, pack_dirs):
             leg = legend(rng, kind)
             out.append((world, title, rng, leg, kind, metas.get(world, {}).get('start_year', 1900) - 1900,
                         code, leg if gleg is None else gleg))
+    out += [r for r in conti_rows(lang, metas) if (r[0], r[1]) not in seen]
+    return out
+
+
+def conti_rows(lang, metas):
+    """4.0: the other confederations' group stages (conti.py; the game's own group tables, titled with the cup's name
+    as the FORMAT page): light blue for the places that go on in the cup, green for those that move to another cup."""
+    import conti
+    import mkseason
+    worlds = {pk.world for pk in mkseason.packs() if pk.meta.get('id', '').startswith('world-2026-27-') and pk.world}
+    if not worlds or not conti.ready():
+        return []
+    w, out = min(worlds), []
+    for conf in conti.ready():
+        for c in conti._read(conf, 'format')['cups']:
+            for rd in c['rounds']:
+                if rd['kind'] != 'groups' or not rd.get('out'):
+                    continue
+                rng = []
+                for p, to in sorted(rd['out'].items(), key=lambda x: int(x[0])):
+                    col = GREEN if ':' in to or to == 'po' else LIGHT_BLUE   # (play-offs / another cup: green)
+                    if rng and rng[-1][2] == col and rng[-1][1] == int(p) - 1:
+                        rng[-1] = (rng[-1][0], int(p), col)
+                    else:
+                        rng.append((int(p), int(p), col))
+                name = (c['names'].get(lang) or c['names']['en'])[0].upper()
+                for title in (' ' + name, name):
+                    out.append((w, title[:NAME - 1], rng[:RANGES], [], 'cupgrp',    # (no legend: its boxes would
+                                metas.get(w, {}).get('start_year', 1900) - 1900, 0, []))   # cover group A's title)
+                break                                # (the cup's first group stage: the one the game shows)
     return out
 
 

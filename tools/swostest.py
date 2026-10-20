@@ -6788,7 +6788,8 @@ def statespec_byes():
     F1 at ATL PARANAENSE: 8 clubs, single round robin; 3rd-6th play the QF (6v3, 5v4), 1st-2nd wait; SF W(5v4) v 1st,
     W(6v3) v 2nd; final): the QF round has 2 ties of exactly those pairs, the SF one tie per bye with the winner of
     its own QF tie, the final one SF winner of each tie"""
-    b = os.environ.get('STATESPEC_BUILD2') or builds()['it']
+    b = os.environ.get('STATESPEC_BUILD2') or build(f'statespec_t2' + ('_' + os.environ['SWOSTEST_TAG'] if os.environ.get('SWOSTEST_TAG') else ''),
+                  env={'STATESPEC_TEST': '2'})   # (its own test build)
     errs, seen = [], {}
     with Session('statespec_byes', b, {}, 'dump:2', 1800) as s:
         s.wait()
@@ -6827,7 +6828,8 @@ def statespec_ce():
     import statespec
     if not statespec.GRP_ON:
         return True, 'SKIP: statespec.GRP_ON is off (Cearense phase 2: the game draws the groups)'
-    b = os.environ.get('STATESPEC_BUILD3') or builds()['it']
+    b = os.environ.get('STATESPEC_BUILD3') or build(f'statespec_t3' + ('_' + os.environ['SWOSTEST_TAG'] if os.environ.get('SWOSTEST_TAG') else ''),
+                  env={'STATESPEC_TEST': '3'})   # (its own test build)
     from le import LE
     d1 = LE(open(os.path.join(b, 'ITALIAN.EXE') if os.path.isdir(b) else b, 'rb').read()).obj_bytes(1)
     k = d1.find(b'STRDBGPT')
@@ -6867,7 +6869,8 @@ def statespec_merit():
     """State knockout by merit (statespec 'pairing': 'merit', statespec.st_ko positions; STATESPEC_TEST=4 build: a
     Mineiro-shaped world-0 test state F1 at ATL PARANAENSE: 3 cross blocks of 4, the engine's 4 qualifiers (3
     winners + the best 2nd, merit order): SF 1st v 4th, 2nd v 3rd; final)"""
-    b = os.environ.get('STATESPEC_BUILD4') or builds()['it']
+    b = os.environ.get('STATESPEC_BUILD4') or build(f'statespec_t4' + ('_' + os.environ['SWOSTEST_TAG'] if os.environ.get('SWOSTEST_TAG') else ''),
+                  env={'STATESPEC_TEST': '4'})   # (its own test build)
     errs, seen = [], {}
     with Session('statespec_merit', b, {}, 'dump:2', 1800) as s:
         s.wait()
@@ -6899,7 +6902,8 @@ def statespec_test():
     (lp36 fixture contest, 6 days of 6): at every pause of the group stage every row has played the same number of
     matches and block A's goals for = block B's goals against (and the reverse; a round robin inside the groups
     would give A's for = A's against); points 3W + D; the season to its end (knockout 8, 4, 2; the league)"""
-    b = os.environ.get('STATESPEC_BUILD') or builds()['it']
+    b = os.environ.get('STATESPEC_BUILD') or build(f'statespec_t1' + ('_' + os.environ['SWOSTEST_TAG'] if os.environ.get('SWOSTEST_TAG') else ''),
+                  env={'STATESPEC_TEST': '1'})   # (its own test build)
     errs, snaps = [], {}
     with Session('statespec_test', b, {}, 'dump:2', 1800) as s:
         s.wait()

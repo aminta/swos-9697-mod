@@ -2564,7 +2564,14 @@ static const u8 *ri_pool(const u8 *e, struct ri_file *f, int fi, u16 *q, u8 *qn,
             const u8 *s = sl + 4 * i;
             int g = s[0] | s[1] << 8, base = s[2];
             int o = base + slt[g], nn = base + copy[g];
-            if (o < low || nn <= o || g == manager) continue;   /* (relegated from the lowest level; never the manager's) */
+            if (o < low || nn <= o) continue;   /* (relegated from the lowest level) */
+            if (g == manager) {                 /* never the manager's: re-admitted, its slot and identity stay in the
+                                                   lowest level (a relegated manager is sacked by gp_sack, so this is
+                                                   a job taken at the season end - accepted before ContinueCareer's
+                                                   moves - at a club going down: left below it, the career trapped) */
+                copy[g] = slt[g];
+                continue;
+            }
             int in = ri_swap(f, fi, i, q, *qn, m++, out, &no);
             ri_og[ri_no] = g;
             ri_oa[ri_no] = in < RIS ? sl[4 * in + 3] : pa[in - RIS];

@@ -30,7 +30,7 @@ NAMES = {
            ('WILD CARD', 'WILD CARD', 'WC'), ('PRIMO TURNO GARA 1', 'T.1 GARA 1', 'T1 1'),
            ('PRIMO TURNO GARA 2', 'T.1 GARA 2', 'T1 2'), ('PRIMO TURNO GARA 3', 'T.1 GARA 3', 'T1 3'),
            ('SEMIFINALI CONFERENCE', 'SEMIF. CONF.', 'SFC'), ('FINALE DI CONFERENCE', 'FINALE CONF.', 'FC'),
-           ('MLS CUP', 'MLS CUP', 'CUP')],
+           ('MLS CUP', 'MLS CUP', 'CUP'), ('FASE A GIRONI', 'FASE GIRONI', 'GIR')],
     'en': [('LEAGUE PHASE', 'LEAGUE PH.', 'LP'), ('KNOCKOUT PLAY-OFFS', 'PLAY-OFFS', 'P/O'),
            ('ROUND OF 16', 'LAST 16', 'R16'), ('PLAY-OFF ROUND', 'PLAY-OFF', 'P/O'),
            ('PRELIMINARY ROUND', 'PRELIMINARY', 'PRE'),
@@ -41,7 +41,7 @@ NAMES = {
            ('WILD CARD', 'WILD CARD', 'WC'), ('ROUND ONE GAME 1', 'R1 GAME 1', 'R1 1'),
            ('ROUND ONE GAME 2', 'R1 GAME 2', 'R1 2'), ('ROUND ONE GAME 3', 'R1 GAME 3', 'R1 3'),
            ('CONFERENCE SEMIFINALS', 'CONF. SEMIS', 'CSF'), ('CONFERENCE FINAL', 'CONF. FINAL', 'CF'),
-           ('MLS CUP', 'MLS CUP', 'CUP')],
+           ('MLS CUP', 'MLS CUP', 'CUP'), ('GROUP STAGE', 'GROUPS', 'GRP')],
     'fr': [('PHASE DE LIGUE', 'PH. LIGUE', 'LIG'), ('BARRAGES', 'BARRAGES', 'BAR'),
            ('HUITIEMES DE FINALE', '1/8 FINALE', '1/8'), ('BARRAGES', 'BARRAGES', 'BAR'),
            ('TOUR PRELIMINAIRE', 'T. PRELIM.', 'T P'),
@@ -53,7 +53,7 @@ NAMES = {
            ('WILD CARD', 'WILD CARD', 'WC'), ('PREMIER TOUR MATCH 1', 'T1 MATCH 1', 'T1 1'),
            ('PREMIER TOUR MATCH 2', 'T1 MATCH 2', 'T1 2'), ('PREMIER TOUR MATCH 3', 'T1 MATCH 3', 'T1 3'),
            ('DEMI-FINALES CONFERENCE', '1/2 CONF.', '1/2C'), ('FINALE DE CONFERENCE', 'FINALE CONF.', 'FC'),
-           ('MLS CUP', 'MLS CUP', 'CUP')],
+           ('MLS CUP', 'MLS CUP', 'CUP'), ('PHASE DE GROUPES', 'PH. GROUPES', 'GR')],
     'de': [('LIGAPHASE', 'LIGAPHASE', 'LIGA'), ('K.O.-PLAYOFFS', 'PLAYOFFS', 'P/O'),
            ('ACHTELFINALE', 'ACHTELF.', 'A/F'), ('PLAYOFF-RUNDE', 'PLAYOFFS', 'P/O'),
            ('VORRUNDE', 'VORRUNDE', 'VR'),
@@ -64,7 +64,7 @@ NAMES = {
            ('WILD CARD', 'WILD CARD', 'WC'), ('ERSTE RUNDE SPIEL 1', '1.RUNDE SP.1', 'R1 1'),
            ('ERSTE RUNDE SPIEL 2', '1.RUNDE SP.2', 'R1 2'), ('ERSTE RUNDE SPIEL 3', '1.RUNDE SP.3', 'R1 3'),
            ('CONFERENCE-HALBFINALE', 'CONF.-HALBF.', 'CHF'), ('CONFERENCE-FINALE', 'CONF.-FINALE', 'CF'),
-           ('MLS CUP', 'MLS CUP', 'CUP')],
+           ('MLS CUP', 'MLS CUP', 'CUP'), ('GRUPPENPHASE', 'GRUPPEN', 'GR')],
 }
 N_OLD = 12
 LP, KO, R16, QPO, PRE, CG1, CG2, CN1, CN2, CD1, CD2, CD3, CD5, CD6, CD7 = range(N_OLD, N_OLD + 15)
@@ -72,6 +72,7 @@ CD_NAMES = (PRE, CD1, CD2, CD3, R16, CD5, CD6, CD7)   # (the Coppa Italia Serie 
 # gplay play-offs' "round_names" (one per game round, a best-of-three's games apart): 4.0 MLS
 KEYS = dict(zip(('WC', 'R1G1', 'R1G2', 'R1G3', 'CSF', 'CF', 'CUP'), range(N_OLD + 15, N_OLD + 22)))
 KEYS.update(PRE=PRE, R16=R16, QF=CD5, SF=CD6, F=CD7)
+GRP = N_OLD + 22                        # 4.0: another confederation's cup (conti.py ids): its group stage
 
 LABELS = {}
 
@@ -98,6 +99,24 @@ rn_round:                               ; uq_rn1 / uq_rn2: CF = 1 and D0 = the n
     add eax, CG1_I
     jmp .set
 .nc:
+    mov ebx, RN_CTIDS                   ; 4.0: another confederation's cup (conti.py's contests in slot 3)
+.ct:
+    cmp byte [ebx], 0
+    je .nct
+    cmp [ebx], al
+    je .ctx
+    inc ebx
+    jmp .ct
+.ctx:
+    cmp dword [esp + 8], R280C0_RET     ; (a type-1 round: the other cups' rule, 16 clubs = round of 16)
+    je .q
+    movzx eax, word [D0R]               ; (a type-2 contest: stage 0 the group stage, 1 the round of 16)
+    cmp eax, 1
+    ja .game
+    mov al, GRP_I
+    je .r16
+    jmp .set
+.nct:
     mov ebx, RN_LPIDS                   ; the world's three UEFA cups (type 2; ids 0 .. 2 in the game)
 .l:
     cmp ebx, RN_LPIDS + 3
@@ -302,6 +321,7 @@ RN_TS: dd 0
 RN_DROP: db 0
 
 RN_LPMAP: db LP_I, KO_I, R16_I
+RN_CTIDS: CTID_BYTES
 RN_LPIDS: LPID_BYTES
 RN_NUMB: NUMB_BYTES
 '''
@@ -386,6 +406,7 @@ def patch(p, at, limit, lang, area, lp_ids, numbered):
            'UQ_TIE_ROUND': (1, ul['uq_tie_round']), 'R280C0_RET': (1, ul['uq_rn1'] + 5),
            'LP_I': (0, LP), 'KO_I': (0, KO), 'R16_I': (0, R16), 'QPO_I': (0, QPO), 'PRE_I': (0, PRE),
            'LPID_BYTES': (0, 'db ' + ', '.join(str(x) for x in lp_ids)),
+           'GRP_I': (0, GRP), 'CTID_BYTES': (0, 'db ' + ', '.join(str(x) for x in __import__('conti').IDS) + ', 0'),
            'NUMB_BYTES': (0, 'db ' + ', '.join(str(x) for x in list(numbered) + [0]))}
     end, s284, s280, c28049, c284ab = _title_sites(p, sacups.regs(p.le.obj_bytes(1)))
     sym.update({'QID_LO': (0, min(uefaq.QIDS)), 'QID_HI': (0, max(uefaq.QIDS)), 'C28049': (1, c28049), 'C284AB': (1, c284ab), 'MEDTAB': (1, tab + 4 * n), 'A0R': (2, a0),

@@ -563,6 +563,102 @@ def world_items():
     return out
 
 
+CT_RN = {   # 4.0 other confederations' cups (conti.py formats): round names on their FORMAT page
+    'it': dict(q='TURNO PRELIMINARE {n}', first='PRIMO TURNO', pre='TURNO PRELIMINARE', r1='PRIMO TURNO',
+               league='FASE CAMPIONATO', losers='PERDENTI', thirds='TERZE', groups='FASE A GIRONI', po='SPAREGGI', r16='OTTAVI',
+               qf='QUARTI', sf='SEMIFINALI', final='FINALE'),
+    'en': dict(q='QUALIFYING ROUND {n}', first='FIRST ROUND', pre='PRELIMINARY ROUND', r1='FIRST ROUND',
+               league='LEAGUE STAGE', losers='LOSERS', thirds='THIRDS', groups='GROUP STAGE', po='PLAY-OFFS', r16='ROUND OF 16',
+               qf='QUARTER-FINALS', sf='SEMI-FINALS', final='FINAL'),
+    'fr': dict(q='TOUR PRELIMINAIRE {n}', first='PREMIER TOUR', pre='TOUR PRELIMINAIRE', r1='PREMIER TOUR',
+               league='PHASE DE LIGUE', losers='PERDANTS', thirds='TROISIEMES', groups='PHASE DE GROUPES', po='BARRAGES',
+               r16='HUITIEMES', qf='QUARTS', sf='DEMI-FINALES', final='FINALE'),
+    'de': dict(q='QUALIFIKATIONSRUNDE {n}', first='ERSTE RUNDE', pre='VORRUNDE', r1='ERSTE RUNDE',
+               league='LIGAPHASE', losers='VERLIERER', thirds='DRITTEN', groups='GRUPPENPHASE', po='PLAYOFFS', r16='ACHTELFINALE',
+               qf='VIERTELFINALE', sf='HALBFINALE', final='FINALE'),
+}
+CT_TX = {
+    'it': dict(two='ANDATA E RITORNO, POI RIGORI', one='GARA UNICA, RIGORI', one_et='GARA UNICA, SUPPLEMENTARI E RIGORI',
+               neutral='IN CAMPO NEUTRO', groups='{g} GIRONI DA {s}, ANDATA E RITORNO; PASSANO LE PRIME DUE',
+               noaway='NESSUNA REGOLA DEI GOL IN TRASFERTA', away='VALE LA REGOLA DEI GOL IN TRASFERTA',
+               league='{c} SQUADRE IN {r} ZONE, {m} PARTITE CIASCUNA; PASSANO LE PRIME {q} DI OGNI ZONA', losers='I PERDENTI DEL {r} ALLA {c} ({to})',
+               third='LE TERZE DEI GIRONI ALLA {c} ({to})', inn='ENTRANO DALLA {c}: {what}'),
+    'en': dict(two='TWO LEGS, THEN PENALTIES', one='ONE MATCH, PENALTIES', one_et='ONE MATCH, EXTRA TIME AND PENALTIES',
+               neutral='AT A NEUTRAL GROUND', groups='{g} GROUPS OF {s}, HOME AND AWAY; THE TOP TWO GO THROUGH',
+               noaway='NO AWAY GOALS RULE', away='THE AWAY GOALS RULE APPLIES',
+               league='{c} CLUBS IN {r} REGIONS, {m} MATCHES EACH; THE TOP {q} OF EACH REGION GO THROUGH', losers='THE {r} LOSERS GO TO THE {c} ({to})',
+               third='THE GROUPS\' THIRDS GO TO THE {c} ({to})', inn='FROM THE {c}: {what}'),
+    'fr': dict(two='ALLER-RETOUR, PUIS TIRS AU BUT', one='MATCH UNIQUE, TIRS AU BUT',
+               one_et='MATCH UNIQUE, PROLONGATIONS ET TIRS AU BUT', neutral='SUR TERRAIN NEUTRE',
+               groups='{g} GROUPES DE {s}, ALLER-RETOUR; LES DEUX PREMIERS QUALIFIES', noaway='PAS DE BUTS A L\'EXTERIEUR',
+               away='LES BUTS A L\'EXTERIEUR COMPTENT DOUBLE',
+               league='{c} CLUBS EN {r} ZONES, {m} MATCHS CHACUN; LES {q} PREMIERS DE CHAQUE ZONE QUALIFIES',
+               losers='LES PERDANTS DU {r} EN {c} ({to})', third='LES TROISIEMES DES GROUPES EN {c} ({to})',
+               inn='DE LA {c}: {what}'),
+    'de': dict(two='HIN- UND RUECKSPIEL, DANN ELFMETER', one='EIN SPIEL, ELFMETER',
+               one_et='EIN SPIEL, VERLAENGERUNG UND ELFMETER', neutral='AUF NEUTRALEM PLATZ',
+               groups='{g} GRUPPEN ZU {s}, HIN UND RUECK; DIE ERSTEN ZWEI WEITER', noaway='KEINE AUSWAERTSTORREGEL',
+               away='DIE AUSWAERTSTORREGEL GILT',
+               league='{c} KLUBS IN {r} REGIONEN, JE {m} SPIELE; DIE ERSTEN {q} JEDER REGION WEITER',
+               losers='DIE VERLIERER DER {r} IN DIE {c} ({to})', third='DIE GRUPPENDRITTEN IN DIE {c} ({to})',
+               inn='AUS DER {c}: {what}'),
+}
+
+
+def conti_items():
+    """[(world, cid, titles, texts)]: the FORMAT pages of the other confederations' cups (conti.py), in the World
+    2026-27 world; titles as the game writes a contest without a country (' ' + the name, and without the space)."""
+    import conti
+    import mkseason
+    worlds = {pk.world for pk in mkseason.packs() if pk.meta.get('id', '').startswith('world-2026-27-') and pk.world}
+    if not worlds:
+        return []
+    n_world = min(worlds)
+    out = []
+    cups = {c['key']: c for conf in conti.ready() for c in conti._read(conf, 'format')['cups']}
+
+    def rname(lang, key):
+        r = CT_RN[lang]
+        return r['q'].format(n=key[1:]) if key[0] == 'q' and key[1:].isdigit() else r.get(key, key.upper())
+
+    def cname(lang, key):
+        c = cups.get(key)
+        return (c['names'].get(lang) or c['names']['en'])[0].upper() if c else key.upper()
+    for key, c in cups.items():
+        titles, texts = {}, {}
+        for lang in LANGS:
+            x, lines = CT_TX[lang], []
+            for rd in c['rounds']:
+                if rd['kind'] == 'league_stage':
+                    q = max((int(k.split('-')[1]) for k in (rd.get('out') or {}) if '-' in k), default=8)
+                    lines.append(f"{rname(lang, rd['key'])}: " + x['league'].format(
+                        c=rd.get('regions', 1) * rd.get('clubs_per_region', 0), r=rd.get('regions', 1),
+                        m=rd.get('matches', 0), q=q))
+                    continue
+                if rd['kind'] == 'groups':
+                    lines.append(f"{rname(lang, rd['key'])}: " + x['groups'].format(g=rd['groups'], s=rd['size']))
+                    continue
+                how = x['two'] if rd.get('legs', 2) == 2 else x['one_et'] if rd.get('level') == 'et_pens' else x['one']
+                if rd.get('host') == 'neutral':
+                    how += ' ' + x['neutral']
+                lines.append(f"{rname(lang, rd['key'])}: {how}")
+            lines.append(x['away'] if any(rd.get('level') == 'away_pens' for rd in c['rounds']) else x['noaway'])
+            for rk, to in (c.get('losers') or {}).items():
+                ck, tr = to.split(':')
+                lines.append(x['losers'].format(r=rname(lang, rk), c=cname(lang, ck), to=rname(lang, tr)))
+            for tr, what in (c.get('in') or {}).items():
+                ck, rest = what.split(':', 1)
+                tail = ' '.join(CT_RN[lang]['losers'] if w == 'losers' else CT_RN[lang]['thirds'] if w == '3rds'
+                                else w.upper() for w in rest.split()[1:])
+                lines.append(x['inn'].format(c=cname(lang, ck), what=f'{rname(lang, rest.split()[0])} {tail}') +
+                             f' -> {rname(lang, tr)}')
+            titles[lang] = ' ' + (c['names'].get(lang) or c['names']['en'])[0].upper()
+            texts[lang] = lines
+        out.append((n_world, None, titles, texts))
+        out.append((n_world, None, {lang: s[1:] for lang, s in titles.items()}, texts))
+    return out
+
+
 def _noaway_texts():
     return {lang: dict(TEXTS[lang], r=dict(TEXTS[lang]['r'], two_legs=NOAWAY[lang])) for lang in TEXTS}
 

@@ -1185,7 +1185,7 @@ GS_SIZE = 7 + 1 + 7 * 20 * 10   # (sizeof struct gp_gs)
 CD_SIZE = 8 + 2 * 168 + 4 + 256 + 8 + 2 * 2 * (41 + 64)   # (sizeof struct cd_state: the engine block's item 'CD')
 CD_RNAME = '''
     cmp byte [GP_ST + ST_KO + 6], 9     ; (gp_ko.kind: K_CUPD) a Coppa Italia Serie D tie: rnames.CD_NAMES by CD_ST's
-    jne .rn                             ; round
+    jne .ncd                            ; round
     movzx ebx, byte [CD_ST + 3]
     cmp ebx, 8
     jae .nb
@@ -1193,7 +1193,7 @@ CD_RNAME = '''
     pop ebx
     stc
     ret
-.rn:'''
+.ncd:'''
 GP_RNAME = '''
 gp_rname:                               ; rnames' rn_round (an FE contest, RN_CDP): ko[0] of this season in slot 4 ->
     cmp word [GP_ST + ST_KO], 4B47h     ; CF = 1, al = its round's name, else CF = 0 (the game's); every register but

@@ -2039,6 +2039,8 @@ void gp_repoint_c(u8 *const *slots, u8 *const *structs, u32 base, u32 div) {
     for (int k = 0; k < 5; k++) {
         u8 *b = slots[k];
         const u8 *s = structs[k];
+        if (k == 2 || k == 3) continue; /* (never the European / continental slots: at a load D8CAA[3] may already
+                                           be conti's next contest while the buffer is still this season's) */
         if (!b || !s || !b[4]) continue;
         const u8 *nm = s + 5 + s[5] + (k == 0 ? 8 * div : 0);
         const u8 *ln = (const u8 *)(base + *(const u32 *)nm);

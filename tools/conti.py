@@ -1053,6 +1053,8 @@ def structs(p, area, lang, at):
                 n = 2 ** len(ko)
                 body = sacups.knockout16(d2[cwc:cwc + 28], cid, n, tuple(_legs(r) for r in ko))
                 body[3], body[4] = _month(rd.get('month') or 8), _month(last)
+                if body[4] <= body[3]:                  # (a one-round cup, the Recopa / CAF Super Cup: a month's window,
+                    body[4] = body[3] + 8               # as the game's Intercontinental 58h / 60h)
                 name_at = len(body)
             if rd['kind'] == 'groups':                  # (away goals after 90': the type-2 header's byte; a knockout
                 body[0x0a] = 1 if any(r.get('level') == 'away_pens' for r in rounds) else 0   # header's +0Ah is its

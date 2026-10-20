@@ -565,6 +565,15 @@ static int ct_round(int c, int r) {
         for (int i = b; i < n; i++) { E[c][r][i - b] = E[c][r][i]; EV[c][r][i - b] = EV[c][r][i]; EK[c][r][i - b] = EK[c][r][i]; }
         EN[c][r] = n -= b;
     }
+    while (R[0] == K_KO && R[18] && n > R[18]) {   /* more clubs than places (a forced test place in a holders' final):
+                                                       the weakest out, never the career club */
+        int w = -1;
+        for (int i = 0; i < n; i++)
+            if (E[c][r][i] != CT_IN.manager && (w < 0 || pts(E[c][r][i]) < pts(E[c][r][w]))) w = i;
+        if (w < 0) break;
+        for (int i = w; i + 1 < n; i++) { E[c][r][i] = E[c][r][i + 1]; EV[c][r][i] = EV[c][r][i + 1]; EK[c][r][i] = EK[c][r][i + 1]; }
+        EN[c][r] = --n;
+    }
     if (R[0] == K_GROUPS) { draw_groups(c, r, R); n = R[6] * R[7]; } else draw_ko(c, r, R);
     CT_OUT.nent[c][r] = n;
     for (int i = 0; i < n && i < NE; i++) { CT_OUT.ent[c][r][i] = D[i]; if (D[i]) reached(D[i], c, r); }

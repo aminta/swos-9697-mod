@@ -212,9 +212,13 @@ LABELS = {}
 ST_SIZE = 4 + 16 * 12                   # sizeof(struct ct_state)
 
 
+BUILT = ['conmebol']                    # (the confederations the engine handles so far; CONTI_CONFS: dev builds)
+
+
 def ready():
-    """The confederations with both files (format + access): the others wait for their data."""
-    return [c for c in CONFS if _read(c, 'format') and _read(c, 'access')]
+    """The confederations built: in BUILT, with both files (format + access)."""
+    want = os.environ.get('CONTI_CONFS', '').split(',') if os.environ.get('CONTI_CONFS') else BUILT
+    return [c for c in CONFS if c in want and _read(c, 'format') and _read(c, 'access')]
 
 
 def enabled():
@@ -359,6 +363,120 @@ def patch(p, at, limit, bss_at, area):
     return glue + len(code)
 
 
+# --- season 1: the 2027 editions' main rounds at build time ---------------------------------------------------------
+def season1(confs, files, words, seed=2027):
+    """{(conf, cup key): [team words of the main round, in the drawn order]} from the access files' entrants_season1
+    (data: the real 2027 entrants where known, else the access list on the starting tables). Rounds before the main
+    one are simulated here (seeded, 50/50 or by the ranking); a vacant holder place (holders_season1 None: the 2026
+    finals come after the release) goes to the best-placed club not in any cup of the top-ranked associations (BRA,
+    ARG, ...), the same clubs stand in as the Recopa's pair. Declared in the notes."""
+    import random
+    rnd = random.Random(seed)
+    out = {}
+    for conf in confs:
+        fm, ac = _read(conf, 'format'), _read(conf, 'access') or {}
+        acc = {c['key']: c for c in ac.get('cups', [])}
+        rank = {words[k]: v for k, v in (ac.get('ranking') or {}).items() if k in words}
+        top = sorted({e['assoc'] for c in acc.values() for e in c.get('entrants_season1') or []},
+                     key=lambda a: ('bra', 'arg').index(a) if a in ('bra', 'arg') else 9)
+        taken = {words[e['club']] for c in acc.values() for e in c.get('entrants_season1') or []}
+
+        def stand_in(i):
+            if rank:
+                return max((w for w in rank if w not in taken), key=rank.get)
+            a = top[i % len(top)]
+            return min((w for w in words.values() if w & 0xFF == files[a] and w not in taken), key=lambda w: w >> 8)
+
+        subs = []
+        extra = {}                                      # (cup key, round key) -> words moved in (losers, holders)
+        for c in fm['cups']:
+            a = acc.get(c['key'], {})
+            for h, w in (a.get('holders_season1') or {}).items():
+                if w is None:
+                    w = stand_in(len(subs))
+                    taken.add(w)
+                    subs.append(w)
+                else:
+                    w = words[w]
+                rk = (a.get('access') or {}).get('holders', {}).get(h)
+                if rk:
+                    extra.setdefault((c['key'], ALIAS.get(rk, rk)), []).append(w)
+        for c in fm['cups']:
+            a = acc.get(c['key'], {})
+            j0 = main_round(c)
+            rk = {r['key']: r for r in c['rounds']}
+            ent = {}
+            for e in a.get('entrants_season1') or []:
+                r = ALIAS.get(e['round'], e['round'])
+                ent.setdefault(r, []).append((words[e['club']], e['assoc']))
+            if not ent and not any(k[0] == c['key'] for k in extra):
+                if c['key'] == 'rec' and len(subs) >= 2:
+                    out[(conf, c['key'])] = subs[:2]
+                continue
+            if c['key'] == 'rec' and not ent and len(subs) >= 2:
+                out[(conf, c['key'])] = subs[:2]
+                continue
+            asc = {w: e for r in ent.values() for w, e in r}
+            for w in [x for v in extra.values() for x in v]:
+                asc.setdefault(w, next((k for k, f in files.items() if f == w & 0xFF), '?'))
+            win = []
+            for j, rd in enumerate(c['rounds'][:j0 + 1]):
+                field = win + [w for w, _ in ent.get(rd['key'], [])] + extra.get((c['key'], rd['key']), [])
+                if j == j0:
+                    break
+                d = rd.get('draw') or {}
+                if isinstance(d, dict) and d.get('kind') == 'same_assoc_pairs':
+                    by = {}
+                    for w in field:
+                        by.setdefault(asc[w], []).append(w)
+                    field = [w for v in by.values() for w in v]
+                else:
+                    field = sorted(field, key=lambda w: -rank.get(w, 0))
+                    h = len(field) // 2
+                    field = [x for t in zip(field[:h], rnd.sample(field[h:], h)) for x in t]
+                assert len(field) % 2 == 0, (c['key'], rd['key'], len(field))
+                win, lose = [], []
+                for x, y in zip(field[::2], field[1::2]):
+                    rx, ry = rank.get(x, 1), rank.get(y, 1)
+                    wx = rnd.random() < rx / (rx + ry)
+                    win.append(x if wx else y)
+                    lose.append(y if wx else x)
+                lt = (c.get('losers') or {}).get(rd['key'])
+                if lt:
+                    ck, rr = lt.split(':')
+                    extra.setdefault((ck, rr), []).extend(lose)
+            rd = c['rounds'][j0]
+            if rd['kind'] == 'groups':
+                n, g = rd['groups'] * rd['size'], rd['groups']
+                assert len(field) == n, (c['key'], len(field), n)
+                rule = (rd.get('draw') or {}).get('same_assoc', 'no')
+                direct = {w for w, _ in ent.get(rd['key'], [])}
+                order = sorted(field, key=lambda w: (-rank.get(w, 0), w not in direct))
+                pots = [order[i * g:(i + 1) * g] for i in range(rd['size'])]
+                groups = None
+                for _ in range(2000):
+                    gs = [[] for _ in range(g)]
+                    ok = True
+                    for pi, pot in enumerate(pots):
+                        for w in rnd.sample(pot, g):
+                            free = [i for i in range(g) if len(gs[i]) == pi and (rule == 'allow' or not any(
+                                asc[w] == asc[x] and (rule == 'no' or (w in direct and x in direct)) for x in gs[i]))]
+                            if not free:
+                                ok = False
+                                break
+                            gs[rnd.choice(free)].append(w)
+                        if not ok:
+                            break
+                    if ok:
+                        groups = gs
+                        break
+                assert groups, (c['key'], 'no draw')
+                out[(conf, c['key'])] = [w for gr in groups for w in gr]
+            else:
+                out[(conf, c['key'])] = field
+    return out
+
+
 # --- the career club's contests (the slot-3 chain) --------------------------------------------------------------------
 IDS = [0xC6, 0xC7, 0xC8, 0xC9, 0xCA, 0xD0, 0xD1, 0xDA, 0xDD, 0xDE, 0xDF, 0xEC, 0xED, 0xEE, 0xEF]   # (mkseason.RESERVED_IDS)
 STRUCTS = []                            # [(cup index, struct offset, team list offset, list length)]
@@ -389,6 +507,8 @@ def structs(p, area, lang, at):
     cwc = sacups.unique(d2, sacups.CWC_HDR)
     out, kinds = [], []
     STRUCTS.clear()
+    files, words = _world_maps(confs)
+    first = season1(confs, files, words)                # (the 2027 editions' main rounds: the contests' lists)
     ci = 0
     for conf in confs:
         for k, c in enumerate(_read(conf, 'format')['cups']):
@@ -416,7 +536,10 @@ def structs(p, area, lang, at):
                 body[3], body[4] = _month(rd.get('month') or 8), _month(last)
                 name_at = len(body)
             body[0x0a] = 1 if any(r.get('level') == 'away_pens' for r in rounds) else 0   # (away goals after 90')
-            blob = bytes(body[:name_at]) + struct.pack('<II', rel, rel) + struct.pack('<H', 0xFFFF) * n
+            ws = first.get((conf, c['key'])) or []
+            assert len(ws) in (0, n), (c['key'], len(ws), n)
+            ws = ws or [0xFFFF] * n
+            blob = bytes(body[:name_at]) + struct.pack('<II', rel, rel) + struct.pack(f'<{n}H', *ws)
             assert blob[5] + 5 == name_at and blob[7] + 7 == name_at + 8, c['key']
             p.put(1, at, blob)
             STRUCTS.append((ci, at, at + name_at + 8, n))

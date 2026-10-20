@@ -88,7 +88,7 @@ L = {
                pts='La vittoria vale {w} punti, il pareggio 1.',
                up1='La prima sale in {u}.', upk='Le prime {k} salgono in {u}.', upper='la categoria superiore',
                down1="L'ultima retrocede in {l}.", downk='Le ultime {k} retrocedono in {l}.', lower='la categoria inferiore',
-               none='Non retrocede nessuno.',
+               realdown="La {p} scenderebbe in {to}, che non è nel mondo: qui non retrocede nessuno.", none='Non retrocede nessuno.',
                split='Dopo {a} giornate la classifica si divide: {groups}.', grp='{name} ({a}-{b}) {r}', grp0='le squadre dalla {a} alla {b} {r}', rngl='Le squadre {x}', andw='e',
                grprp={0: 'si fermano', 1: 'giocano una volta', 2: 'giocano andata e ritorno'}, grpr={0: 'si ferma', 1: 'gioca una volta', 2: 'gioca andata e ritorno'},
                full=', con tutti i punti della prima fase', half=', con i punti dimezzati', reset=', ripartendo da zero',
@@ -108,7 +108,7 @@ L = {
                pts='A win is worth {w} points, a draw 1.',
                up1='The champions go up to {u}.', upk='The top {k} go up to {u}.', upper='the division above',
                down1='The last club goes down to {l}.', downk='The bottom {k} go down to {l}.', lower='the division below',
-               none='Nobody goes down.',
+               realdown="The {p} would go down to {to}, which is not in the world: here nobody goes down.", none='Nobody goes down.',
                split='After {a} matchdays the table splits: {groups}.', grp='{name} ({a}-{b}) {r}', grp0='the clubs from {a} to {b} {r}', rngl='The clubs {x}', andw='and',
                grprp={0: 'stop', 1: 'play once more', 2: 'play home and away'}, grpr={0: 'stops', 1: 'plays once more', 2: 'plays home and away'},
                full=', keeping all the points of the first phase', half=', with points halved', reset=', starting from zero',
@@ -127,7 +127,7 @@ L = {
                pts='La victoire vaut {w} points, le nul 1.',
                up1='Le premier monte en {u}.', upk='Les {k} premiers montent en {u}.', upper='division supérieure',
                down1='Le dernier descend en {l}.', downk='Les {k} derniers descendent en {l}.', lower='division inférieure',
-               none='Personne ne descend.',
+               realdown="Le {p} descendrait en {to}, qui n'est pas dans le monde : ici personne ne descend.", none='Personne ne descend.',
                split='Après {a} journées le classement se divise : {groups}.', grp='{name} ({a}-{b}) {r}', grp0='les clubs du {a} au {b} {r}', rngl='Les clubs {x}', andw='et',
                grprp={0: "s'arrêtent", 1: 'jouent une fois', 2: 'jouent en aller et retour'}, grpr={0: "s'arrête", 1: 'joue une fois', 2: 'joue en aller et retour'},
                full=', en gardant tous les points de la première phase', half=', points divisés par deux', reset=', en repartant de zéro',
@@ -147,7 +147,7 @@ L = {
                pts='Ein Sieg zählt {w} Punkte, ein Remis 1.',
                up1='Der Meister steigt in die {u} auf.', upk='Die ersten {k} steigen in die {u} auf.', upper='höhere Liga',
                down1='Der Letzte steigt in die {l} ab.', downk='Die letzten {k} steigen in die {l} ab.', lower='tiefere Liga',
-               none='Niemand steigt ab.',
+               realdown="Der {p} würde in die {to} absteigen, die nicht in der Welt ist: hier steigt niemand ab.", none='Niemand steigt ab.',
                split='Nach {a} Spieltagen wird die Tabelle geteilt: {groups}.', grp='{name} ({a}-{b}) {r}', grp0='die Vereine vom {a} bis zum {b} {r}', rngl='Die Vereine {x}', andw='und',
                grprp={0: 'hören auf', 1: 'spielen einmal', 2: 'spielen mit Hin- und Rückspiel'}, grpr={0: 'hört auf', 1: 'spielt einmal', 2: 'spielt mit Hin- und Rückspiel'},
                full=', mit allen Punkten der ersten Phase', half=', mit halbierten Punkten', reset=', bei null beginnend',
@@ -181,7 +181,7 @@ def _rule(r, l):
     return ', '.join(p)
 
 
-def league(div, k, lg, win, lang, pos, lowest, nm):
+def league(div, k, lg, win, lang, pos, lowest, nm, real_down=None):
     """Paragraphs for division k (flattened) of a league model (complist._league): nm(names) -> name in lang."""
     l = L[lang]
     levels = lg['levels']
@@ -228,6 +228,12 @@ def league(div, k, lg, win, lang, pos, lowest, nm):
         loname = lvname(levels[li + 1]) if li + 1 < len(levels) else None
         s2.append((l['down1'] if div['down'] == 1 else l['downk']).format(k=div['down'], l=loname) if loname else
                   (l['down1x'] if div['down'] == 1 else l['downkx']).format(k=div['down']))
+    elif lowest and real_down and real_down.get('n'):   # (data: the real relegation below the world's lowest division)
+        a = n - real_down['n'] + 1
+        to = real_down.get('to')
+        to = to if isinstance(to, str) else (to or {}).get(lang) or (to or {}).get('*', '')
+        pp = l['ord'](a) if a == n else f"{l['ord'](a)}-{l['ord'](n)}"
+        s2.append(l['realdown'].format(p=pp, to=to))
     elif lowest:
         s2.append(l['none'])
     if s2:

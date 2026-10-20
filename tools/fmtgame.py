@@ -830,7 +830,9 @@ def from_pack(d):
                         tail = sch[sch.index(h):] if h in sch else [x for x in sch if x.startswith(ZT[lang]['eu'].split('{')[0][:30])]
                         pos_ = comp.get('ko_playoffs') or []
                         texts[lang] = {'prose': fmtprose.league(div, k, lg, win, lang, pos_ if isinstance(pos_, list) else [],
-                                                                low, lambda x, lang=lang: complist._nm(x, lang)) +
+                                                                low, lambda x, lang=lang: complist._nm(x, lang),
+                                                                ((comp.get('divisions') or [comp])[k] if k < len(comp.get('divisions') or [comp])
+                                                                 else {}).get('real_down')) +
                                        (T[lang]['ita'] if lg['special'] and k == min(1, len(lg['names']) - 1) else []),
                                        'tail': sch[sch.index(next(x for x in sch if x.startswith(ZT[lang]['eu'].split('{')[0][:30]))):]
                                        if any(x.startswith(ZT[lang]['eu'].split('{')[0][:30]) for x in sch) else tail}

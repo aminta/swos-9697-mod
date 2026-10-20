@@ -436,7 +436,7 @@ ct_fill:                                ; careerworld w_ct_fill (the season end'
     push ds
     pop es
     cld
-    ;CT_LP
+    call ct_lp
     movzx eax, word [SEL]
     push dword [STAND]                  ; (a seed: changes every season)
     push eax
@@ -450,6 +450,29 @@ ct_fill:                                ; careerworld w_ct_fill (the season end'
 
 ; --- phase B: the career club's games one by one (conti.c ct_result / ct_resume; CT_SEG: cup, round, kind, n,
 ; round byte, level, month x 8, pos, the clubs) -----------------------------------------------------------------
+ct_lp:                                  ; the contests' team lists for conti.c (CT_LP: BSS, empty after a load)
+    ;CT_LP
+    ret
+
+ct_pre:                                 ; the season start's slot-3 chain, before conti's checks: after a load the
+    push es                             ; exe's lists, CT_SEG empty -> both again from the saved edition
+    push ds
+    pop es
+    cld
+    mov dword [CT_SPEC], SPEC
+    cmp word [CT_ED], 4543h
+    jne .r
+    call ct_lp
+    call CT_RESUME
+    call ct_prep
+    mov eax, [CT_ED + 4]
+    mov [ct_seen], eax
+    mov al, [CT_ED + 10]
+    mov [ct_seen + 4], al
+.r:
+    pop es
+    ret
+
 ct_prep:                                ; CT_SEG a tie -> the ties' contest (its cup's name, the two clubs, its round
     mov byte [ct_live], 0               ; byte, its month); ct_live: our tie is (or will be) in slot 3
     cmp byte [CT_SEG + 2], 0
@@ -492,6 +515,7 @@ ct_daily:                               ; before the next match (uefaq's uq_dail
     mov [ct_seen + 4], al
     cmp dx, 4543h
     jne .x
+    call ct_lp                          ; (the lists again: the exe's after a load, conti.c rewrites the main one)
     call CT_RESUME
     call ct_prep
 .chk:
@@ -666,6 +690,9 @@ def patch(p, at, limit, bss_at, area):
         p.put(1, c + 1, rel(c, lab['ct_tab']))
     for c in c939:
         p.put(1, c + 1, rel(c, lab['ct_ctry']))
+    pp = sacups.CT_PRE_PTR[0]                           # (the season start's chain calls ct_pre through it)
+    p.put(1, pp, struct.pack('<I', lab['ct_pre']))
+    cobj.add_ptr(p, pp, 1, lab['ct_pre'])
     site = u['DAILY_SITE']                              # (the daily site: ours first, then uefaq's uq_daily)
     p.put(1, site + 1, rel(site, lab['ct_daily']))
     a = cw.LABELS['w_ct_fill']
@@ -925,7 +952,9 @@ def structs(p, area, lang, at):
                 body = sacups.knockout16(d2[cwc:cwc + 28], cid, n, tuple(_legs(r) for r in ko))
                 body[3], body[4] = _month(rd.get('month') or 8), _month(last)
                 name_at = len(body)
-            body[0x0a] = 1 if any(r.get('level') == 'away_pens' for r in rounds) else 0   # (away goals after 90')
+            if rd['kind'] == 'groups':                  # (away goals after 90': the type-2 header's byte; a knockout
+                body[0x0a] = 1 if any(r.get('level') == 'away_pens' for r in rounds) else 0   # header's +0Ah is its
+                                                                                              # clubs: CONCACAF had 1)
             ws = list(first.get((conf, c['key'])) or [])
             assert len(ws) in (0, n), (c['key'], len(ws), n)
             g = os.environ.get('CONTI_GUEST')           # (test builds: 'cup:guest word[,guest word..]:club word', hex -

@@ -307,6 +307,8 @@ def test(confs=('conmebol',), seasons=3, seed=7):
             for l in range(NL):
                 struct.pack_into('<H', b, o_league + 2 * (a * NL + l), mine[l] + 1)
             struct.pack_into('<H', b, o_cup + 2 * a, mine[rnd.randint(0, 6)] + 1)
+        ctypes.c_void_p.in_dll(L, 'CT_SPEC').value = ctypes.addressof(buf)
+        L.ct_finish()                               # (the game: ct_begin, the season end's first country)
         ctypes.memmove(IN, bytes(b), s_in)
         L.ct_season()
         if os.environ.get('CONTI_TEST_MANAGER'):    # phase B: the career club's games, one by one (random results)
@@ -331,7 +333,8 @@ def test(confs=('conmebol',), seasons=3, seed=7):
         print(f'--- season {season + 1}')
         for ci, (conf, ck) in enumerate(cups):
             w, s2 = struct.unpack_from('<H', o, o_win + 2 * ci)[0], struct.unpack_from('<H', o, o_sec + 2 * ci)[0]
-            nm = lambda x: (names[clubs[x - 1][0]] if x <= len(clubs) else f'guest{x - len(clubs)}') if x else '-'
+            ib = bytes(IN)                              # (club indices: the run's own, CT_ED's order)
+            nm = lambda x: names.get(struct.unpack_from('<H', ib, o_club + 12 * (x - 1))[0], 'guest') if x else '-'
             counts = [o[o_nent + ci * NRD + r] for r in range(NRD)]
             print(f'{conf}:{ck} rounds {[c for c in counts if c]} winner {nm(w)} runner-up {nm(s2)}')
             if os.environ.get('CONTI_DUMP') == ck:

@@ -611,7 +611,9 @@ void ct_table(const u8 *diy) {
     }
     ntab = n;
 }
-void ct_begin(void) {
+void ct_finish(void);
+void ct_begin(void) {                   /* the season end's first country: this season's edition finished first */
+    ct_finish();
     u8 *b = (u8 *)&CT_IN;
     for (u32 i = 0; i < sizeof(CT_IN); i++) b[i] = 0;
     ntab = 0;
@@ -718,17 +720,21 @@ static int run(int stop) {              /* the edition from its entrants, the ca
     }
     return 0;
 }
-void ct_season(void) {                  /* the season end: this edition finished (as played), the next one built */
+void ct_finish(void) {                  /* this season's edition finished, as played: the next one's holders (before
+                                           the season end's tables fill CT_IN: run() uses CT_IN for the edition) */
+    if (!CT_SPEC || CT_ED.mark != 0x4543) return;
     parse();
-    if (CT_ED.mark == 0x4543) {
-        run(0);
-        for (int c = 0; c < ncup; c++) {    /* the holders of the next edition */
-            int w = CT_OUT.winner[c];
-            if (!w) continue;
-            CT_ST.hold[c].id = CT_IN.club[w - 1].id; CT_ST.hold[c].assoc = CT_IN.club[w - 1].assoc;
-            CT_ST.hold[c].str = CT_IN.club[w - 1].str; CT_ST.hold[c].pts = CT_IN.club[w - 1].pts;
-        }
+    run(0);
+    for (int c = 0; c < ncup; c++) {
+        int w = CT_OUT.winner[c];
+        if (!w) continue;
+        CT_ST.hold[c].id = CT_IN.club[w - 1].id; CT_ST.hold[c].assoc = CT_IN.club[w - 1].assoc;
+        CT_ST.hold[c].str = CT_IN.club[w - 1].str; CT_ST.hold[c].pts = CT_IN.club[w - 1].pts;
     }
+    CT_ED.mark = 0;
+}
+void ct_season(void) {                  /* the season end (after ct_finish and the tables): the next edition built */
+    parse();
     CT_ED.mark = 0;
     rng = CT_IN.seed ? CT_IN.seed : 1;
     for (int c = 0; c < NCUP; c++) for (int r = 0; r < NRD; r++) EN[c][r] = 0;

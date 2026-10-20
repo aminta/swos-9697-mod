@@ -400,6 +400,10 @@ def load(confs, files=None, words=None, s1=None):
         w, an, st = S1_HOLD.get((conf, c['key']), (0, None, 0))
         spec += struct.pack('<HBBI', w, assocs.index(an) if an in assocs else 0xFE, 0, st)
     spec += bytes(gids)
+    gp = int(os.environ.get('CONTI_GPLACE', '0'))       # CONTI_GPLACE=n (test builds only): the career club's place
+    if gp:                                              # at every group stage's end is n (the 3rd's move, forced)
+        print(f'exe: CONTI_GPLACE={gp} (test build)')
+    spec += bytes((gp,))
     return spec, assocs, [(conf, c['key']) for conf, c, _ in cups]
 
 

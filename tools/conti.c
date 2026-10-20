@@ -923,6 +923,7 @@ u32 ct_gend(u8 *diy, u8 *diycopy, u32 sel) {
         }
     int mr = -1;
     for (int r = 0; r < nrd[c]; r++) if (RND(c, r)[17]) mr = r;
+    if (place && gid[ncup]) place = gid[ncup];   /* (CONTI_GPLACE: test builds) */
     if (mr >= 0 && mr + 1 < nrd[c] && ng == 8 && RND(c, mr + 1)[0] == K_KO && RND(c, mr + 1)[4] == D_SEED12) {
         u8 fr[8], sr[8], fg[8], sg[8];
         u32 fp[8];

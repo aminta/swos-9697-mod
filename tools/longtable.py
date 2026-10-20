@@ -51,6 +51,9 @@ lt_d5:
     mov esi, [A6R]                      ; (BeforeDraw's table: its A6)
     mov [LT_TAB], esi
     mov byte [LT_HON], 0
+%if HDR_
+    mov dword [GP_HON], 0               ; (every table: headers only where gp_hplan_c finds them)
+%endif
     movzx eax, word [esi + 51h]
     mov [LT_END], ax
     cmp word [esi + 4Fh], 1

@@ -264,12 +264,12 @@ gp_cal:                                 ; 4.0: replaces the career calendar's le
 gp_after:                               ; 4.0 after a career load (arg97's arg_load, after ProcessCareerFile)
     call gp_sync
 %if CD_ON
-    mov eax, [SLOTS_ + 4]               ; (the Coppa D in slot 1: its contest pointer back, ProcessCareerFile left 0)
+    mov eax, [SLOTS_ + 8]               ; (the Coppa D in slot 2: its contest pointer back, ProcessCareerFile left 0)
     test eax, eax
     jz .ns1
     cmp byte [eax + 2Dh], CDS1_ID
     jne .ns1
-    mov dword [D8CAA + 4], CDS1
+    mov dword [D8CAA + 8], CDS1
 .ns1:
 %endif
     mov al, [SEASONPLAYING]
@@ -971,22 +971,22 @@ gp_adv:                                 ; replaces the 4 `call cseg_8EA82` (the 
     call gp_install
     jmp .ncd
 .s1:
-    pushad                              ; 4.0: the Coppa D from the 1/32 in slot 1 (CDS1, its list just written), as
+    pushad                              ; 4.0: the Coppa D from the 1/32 in slot 2 (CDS1, its list just written), as
     push es                             ; conti's ct_build: the slot's buffer cleared, cseg_8B2D3, no winner yet
     push ds
     pop es
     cld
-    mov edi, [SLOTS_ + 4]
+    mov edi, [SLOTS_ + 8]
     mov ecx, 0B52h
     xor eax, eax
     rep stosb
     pop es
     mov dword [A0R], CDS1
-    mov word [D0R], 1
+    mov word [D0R], 2
     mov word [D1R], 0
     mov word [D2R], 0
     call C8B2D3
-    mov eax, [SLOTS_ + 4]
+    mov eax, [SLOTS_ + 8]
     mov word [eax + 39h], 0FFFFh
     popad
 .ncd:
@@ -1243,11 +1243,11 @@ CD_RNAME = '''
     stc
     ret
 .ncd:'''
-CDS1_ID = 0xEF                          # 4.0: the Coppa D's slot-1 knockout (conti.IDS' last, unused there)
+CDS1_ID = 0xEF                          # 4.0: the Coppa D's slot-2 knockout (conti.IDS' last, unused there)
 
 
 def cds1_src(p, cd, rl, rs):
-    """The Coppa D from the 1/32 as a game knockout for slot 1 (64 clubs; header weeks = the round records', round
+    """The Coppa D from the 1/32 as a game knockout for slot 2 (64 clubs; header weeks = the round records', round
     bytes by legs; names rl / rs; its list written by cd_step_c at the 1/32): nasm source, labels CDS1 / CDS1_LIST."""
     import sacups
     import conti
@@ -1277,13 +1277,15 @@ def cds1_src(p, cd, rl, rs):
             + f'CDS1_LIST equ {len(h) + 8}\n    times 64 dw 0FFFFh\nCDS1_ID equ {CDS1_ID}\n')
 
 
-CDS1_ROUNDS = []                        # (rnames: the Coppa D rounds the slot-1 contest plays)
+CDS1_ROUNDS = []                        # (rnames: the Coppa D rounds the slot-2 contest plays)
 CDS1_CALLS = []                         # (cseg_8ECAE tail's start calls: cseg_8B71C, cseg_27436, cseg_8B8B8, cseg_8B7EA)
 CUP12 = '''
 gp_cup12:                               ; 4.0: InitNewSeason's `call cseg_8B2D3` of slots 1 / 2 (the country's cup and
     pushad                              ; league cup): a Coppa Italia Serie D club gets neither (cd_member_c), the slot
     cmp word [GAMETYPE], 4              ; cleared (Davide's Schio: COPPA ITALIA / C. IT SERIE C rows never played)
     jne .game
+    cmp word [D0R], 2                   ; (4.0 A: slot 1 stays the COPPA ITALIA - the game plays it through the
+    jne .game                           ; calendar and the season end needs its winner; slot 2 becomes the Coppa D's)
     mov al, [SLT + WORLD_BYTE]
     cmp al, [CD_TAB]
     jne .game
@@ -1303,6 +1305,8 @@ gp_cup12:                               ; 4.0: InitNewSeason's `call cseg_8B2D3`
     jz .game
     movzx eax, word [D0R]
     mov dword [D8CAA + eax * 4], 0
+    mov eax, [SLOTS_ + eax * 4]         ; (the slot's buffer: no contest, as sacups clears slot 1's)
+    mov byte [eax + 2Dh], 0
     popad
     ret
 .game:

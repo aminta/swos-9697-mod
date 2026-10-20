@@ -1752,8 +1752,11 @@ u32 gp_perm_c(void) {
 
 /* a decisive match of ours (GP_A v GP_B, GP_W = 1: the second won): its pair's winner */
 
+u32 GP_DEFWK, GP_ADVWK;                 /* 4.0: a deferred stage build's week (its stage's last day), the week gp_adv builds
+                                           from (the advance's own week is already the next league day's) */
 void gp_defer_c(void) {                 /* (gp_defer: play-off GP_BPIC built at the calendar advance from week GP_WK on) */
     set_pend(GP_BPIC + 1, GP_WK);
+    GP_DEFWK = GP_WK + 1;
 }
 
 /* the calendar advance (gp_adv, cseg_8EA82's callers): a pending 'then_build' due -> its play-off index + 1 (then
@@ -1762,6 +1765,8 @@ u32 gp_adv_c(void) {
     if (!GP_ST.pend || GP_ST.pseas != GP_SEAS || GP_WK < GP_ST.pweek) return 0;
     u32 t = GP_ST.pend;
     GP_ST.pend = 0;
+    GP_ADVWK = GP_DEFWK ? GP_DEFWK - 1 : GP_WK;
+    GP_DEFWK = 0;
     return t;
 }
 
@@ -1780,6 +1785,7 @@ void gp_rec_c(void) {
                                            week after: the advance right after the final still has slot 4's contest
                                            in hand, a build there was lost - 4.0's Trofeo) */
         set_pend(k->bye[5], GP_WK + 1);
+        GP_DEFWK = 0;
         k->bye[5] = 0;
     }
 }
@@ -1840,6 +1846,124 @@ u8 GP_WORLD;
 /* SeasonFinished (gp_sack, before the season review): the career club won our played group contest (the Poule) ->
    its record line's name (the season record's 4th line: a Serie D club plays no European cup), else 0. Test builds
    (GPLAY_FORCE): the club is made the winner (the review's DA11B too: no European trophy for it, gp_sack's guard). */
+/* 4.0 stage titles (longtable.stage_table): tab: dw n; dw S_MAGIC, S_FROZEN, S_GRP offsets (split's state in a league
+   buffer), dw its magic; dd the career team word's address; dw the weeks table's offset; n records of 128 B: key (41 B:
+   the DIY+4 title) + pad, [5 stages][4 groups] dw long-title offsets from tab, the same for the short ones (0 = none),
+   5 db the stage's first day (255 = none) + pad. */
+static const u8 *st_rec(const u8 *lg, const u8 *tab) {      /* lg's record, or 0 */
+    if (w16(lg + w16(tab + 2)) != w16(tab + 8)) return 0;
+    const u8 *r = tab + 16;
+    for (int i = 0, n = w16(tab); i < n; i++, r += 128) {
+        int k = 0;
+        while (k < 41 && lg[4 + k] == r[k] && r[k]) k++;
+        if (k == 41 || lg[4 + k] == r[k]) return r;
+    }
+    return 0;
+}
+static int st_grp(const u8 *lg, const u8 *tab) {           /* the career club's group in lg (0 if none) */
+    const u16 *ct = *(const u16 * const *)(tab + 10);
+    for (int j = 0, nc = w16(lg + 0x31); j < nc && j < 64; j++)
+        if (w16(lg + 0x12D + 2 * j) == *ct) return lg[w16(tab + 6) + j] & 3;
+    return 0;
+}
+/* longtable lt_stage (a table's OnRestore): the table title of diy's current stage / the career club's group */
+u32 gp_stitle_c(const u8 *diy, const u8 *tab) {
+    const u8 *r = st_rec(diy, tab);
+    if (!r) return 0;
+    int s = diy[w16(tab + 4)];
+    if (s >= 5) return 0;
+    const u8 *row = r + 42 + 8 * s;
+    int g = st_grp(diy, tab), o = w16(row + 2 * g);
+    if (!o) o = w16(row);
+    return o ? (u32)(tab + o) : 0;
+}
+/* gp_cal (the career calendar's league row): the short title of the league day in week wk (lg = slot 0's buffer) */
+u32 gp_scal_c(const u8 *lg, const u8 *tab, u32 wk) {
+    if (!lg || !tab) return 0;
+    const u8 *r = st_rec(lg, tab);
+    if (!r) return 0;
+    const u8 *weeks = lg + w16(tab + 14);
+    int d = -1;
+    for (int i = 0; i < 64; i++) if (weeks[i] == (u8)wk) { d = i; break; }
+    if (d < 0) return 0;
+    int s = 0;
+    for (int k = 1; k < 5; k++) if (r[122 + k] != 255 && d >= r[122 + k]) s = k;
+    const u8 *row = r + 82 + 8 * s;
+    int g = s ? st_grp(lg, tab) : 0, o = w16(row + 2 * g);
+    if (!o) o = w16(row);
+    return o ? (u32)(tab + o) : 0;
+}
+
+/* 4.0 after a career load (gp_repoint, after ProcessCareerFile): every slot buffer's long-name pointer (DIY+27h,
+   absolute: stale in a save from another build - 3.x, an older 4.0) from its contest struct (D8CAA[k], rebuilt from
+   this exe's records: names at struct + 5 + [struct + 5], [long, short] per division, the career division for slot 0);
+   a title (DIY+4, '<country> <long>') whose name part differs is rebuilt from its country prefix (a 4.0 test save's
+   overflowed 'ARGENTINA LIGA PROFESIONAL DE FUTBO'). base: the strings' base (aChairmanScenes). */
+/* 4.0 after a career load from another build: phase 0, the running knockouts' contest names from this exe's play-off
+   names (nm: the career country's GP_NM, long / short / record rel per play-off); phase 1, every season record whose
+   league line (leagueStringOffset, +16h) is not the start of a string of the names (an old build's offset: ' . PROF.',
+   'ION' ...) gets the career league's name (slot 0's DIY+27h, repointed). */
+static int str_ok(const u8 *s) {        /* the start of a name string (the names table / the game's strings)? */
+    if (s[-1] || s[0] < 'A' || s[0] > 'Z') return 0;
+    int n = 0;
+    while (s[n] && n < 41) {
+        u8 c = s[n++];
+        if (!((c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == ' ' || c == '.' || c == '-' || c == '\'' || c == '/' || c == '&' || c == '(' || c == ')')) return 0;
+    }
+    return n >= 2 && !s[n];
+}
+void gp_fixload_c(const u32 *nm, u8 *recs, u32 base, u8 *const *slots, u32 phase) {
+    if (phase == 0) {
+        if (!nm) return;
+        for (int i = 0; i < 2; i++) {
+            struct gp_ko *k = &GP_ST.ko[i];
+            if (k->magic != MAGIC || k->season != GP_SEAS) continue;
+            u8 *c = k->con, *names = c + 5 + c[5];
+            *(u32 *)names = nm[3 * k->pi];
+            *(u32 *)(names + 4) = nm[3 * k->pi + 1];
+        }
+        return;
+    }
+    if (!slots || !recs || !slots[0]) return;
+    u32 lg = *(const u32 *)(slots[0] + 0x27), cup = slots[1] ? *(const u32 *)(slots[1] + 0x27) : 0;
+    for (int i = 0; i < 64; i++) {
+        u8 *r = recs + 106 * i;
+        if (!r[2]) break;
+        for (int f = 0; f < 4; f++) {   /* +16h the league, +1Ah the national cup, +1Eh / +22h the continental cups */
+            u32 *o = (u32 *)(r + 0x16 + 4 * f);
+            if (!*o || str_ok((const u8 *)(base + *o))) continue;
+            *o = f == 0 && lg ? lg - base : f == 1 && cup ? cup - base : 0;
+        }
+    }
+}
+
+void gp_repoint_c(u8 *const *slots, u8 *const *structs, u32 base, u32 div) {
+    for (int k = 0; k < 5; k++) {
+        u8 *b = slots[k];
+        const u8 *s = structs[k];
+        if (!b || !s || !b[4]) continue;
+        const u8 *nm = s + 5 + s[5] + (k == 0 ? 8 * div : 0);
+        const u8 *ln = (const u8 *)(base + *(const u32 *)nm);
+        *(const u8 **)(b + 0x27) = ln;
+        int n = 0;
+        while (ln[n] && n < 40) n++;
+        if (!n) continue;
+        int p = -1;                     /* the country prefix: up to the name's first word in the title */
+        for (int i = 0; i < 34 && b[4 + i]; i++)
+            if ((i == 0 || b[3 + i] == ' ')) {
+                int j = 0;
+                while (ln[j] && ln[j] != ' ' && b[4 + i + j] == ln[j]) j++;
+                if (!ln[j] || ln[j] == ' ') { p = i; break; }
+            }
+        if (p <= 0 || p + n > 34) continue;
+        int same = 1;
+        for (int j = 0; j <= n; j++) if (b[4 + p + j] != ln[j]) { same = 0; break; }
+        if (same) continue;
+        for (int j = 0; j < n; j++) b[4 + p + j] = ln[j];
+        for (int j = p + n; j < 35; j++) b[4 + j] = 0;
+    }
+}
+
 u32 gp_pwin_c(void) {
     struct gp_ko *k = &GP_ST.ko[0];
     if (GP_ST.magic != MAGIC || GP_ST.season != GP_SEAS || k->magic != MAGIC || k->season != GP_SEAS)

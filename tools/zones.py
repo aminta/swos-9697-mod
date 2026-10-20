@@ -117,7 +117,7 @@ def _lp_world(meta_by_world, n):
 def pack_zones(d, lang, lp=False, rank=None, detail=None):
     """[(world, title, [(first, last, colour), ...])] of one pack's league divisions; detail (a dict): {(competition
     index, division index): [(first, last, colour, why)]} for the FORMAT page (fmtgame.py), why in WHY."""
-    m = json.load(open(os.path.join(d, 'pack.json')))
+    m = complist.load_pack(d)
     cl = os.path.join(d, 'clubs.csv')
     clubs = [dict(r, file=r.get('file') or 'league', division=r.get('division') or '0')
              for r in complist.csv.DictReader(open(cl, encoding='utf-8'))] if os.path.exists(cl) else []
@@ -204,12 +204,12 @@ def context(pack_dirs):
     """({world: world_cups}, {pack dir: season-1 association rank}) of a build's packs."""
     metas = {}
     for d in pack_dirs:
-        m = json.load(open(os.path.join(d, 'pack.json')))
+        m = complist.load_pack(d)
         if m.get('kind') == 'career' and m.get('world_cups'):
             metas[m.get('world', 0)] = m['world_cups']
     coef = {}                                            # season-1 association ranks: 5 seasons' coefficients
     for d in pack_dirs:
-        m = json.load(open(os.path.join(d, 'pack.json')))
+        m = complist.load_pack(d)
         if m.get('uefa_coef', {}).get('country'):
             coef.setdefault(m.get('world', 0), []).append((-sum(m['uefa_coef']['country']), d))
     ranks = {d: k + 1 for w, lst in coef.items() for k, (_, d) in enumerate(sorted(lst))}
@@ -237,7 +237,7 @@ def table(lang, pack_dirs):
     metas, ranks = context(pack_dirs)
     out, seen = [], set()
     for d in pack_dirs:
-        m = json.load(open(os.path.join(d, 'pack.json')))
+        m = complist.load_pack(d)
         w = m.get('world', 0) if m.get('kind') == 'career' else 0
         for world, title, rng, kind, code in pack_zones(d, lang, _lp_world(metas, w), ranks.get(d)):
             assert (world, title) not in seen, (world, title)

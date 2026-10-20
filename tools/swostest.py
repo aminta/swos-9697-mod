@@ -2687,6 +2687,22 @@ def classic_tourneys():
 
 
 @scenario
+def names_fit():
+    """4.0 names the game can show (complist.check_titles, no game run): every title '<country> <long name>' of the
+    build's packs (SEASON_PACKS) fits the game's 35-byte field (longer, it overwrote the long-name pointer: Argentina's
+    'CEK' record line and title garbage, 2026-10-20) and every competition, division, play-off and club name uses only
+    the font's characters (Davide: no stray characters)"""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import complist
+    import mkseason
+    bad, n = [], 0
+    for pk in mkseason.packs():
+        n += 1
+        bad += complist.check_titles(pk.meta, [r.get('name', '') for r in pk.clubs.values()])
+    return not bad, '; '.join(bad[:8]) if bad else f'{n} packs: titles <= {complist.TITLE_MAX}, font characters only'
+
+
+@scenario
 def careers_list():
     """CARRIERA > SCEGLI SQUADRA > CARR. STORICHE lists the career worlds only, one entry each (since 3.0 a tourney pack
     shifted mkseason's pack / info pairing: 'ALBANIA', the 1984-85 world's first country, showed as an entry of its

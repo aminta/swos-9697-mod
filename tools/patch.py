@@ -447,6 +447,9 @@ def patch_exe(src, dst, remap, lang='it'):
     num_bss = obj2_free + o2pages * p.le.page_size + (careerworld.BSS_SIZE if bigw else 0)
     world = shirtnum.patch(p, world, num_bss)    # 3.2.5: shirt numbers 17..99 over the players (built from the digits)
     weeks.patch(p)                               # 3.2.7: career weeks 128+ (mod cups outside Europe) in the job offers
+    if gp_on and arg97.LABELS.get('GP_AFTER') and 'gp_after' in gplay.LABELS:   # 4.0: arg_load's call after a load
+        p.put(1, arg97.LABELS['GP_AFTER'], struct.pack('<I', 0))
+        p.add_ptr(1, arg97.LABELS['GP_AFTER'], 1, gplay.LABELS['gp_after'])
     cos = hist2 + h2 + 0x1000 * (lpb - 1) if cos_pg else world   # (worlds: their own page)
     cos = purple.patch(p, area, cos)            # 3.3.0: kit colour 10 = purple (palette entry 12 when no maroon; in
                                                 # the cosmetics page with worlds: the world cave is full, 2026-27)

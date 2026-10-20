@@ -163,7 +163,17 @@ def load(confs, files=None, words=None):
             elif ak not in ('from', 'outside'):
                 for rk, _ in entries:
                     known[rkey[ci][ALIAS.get(rk, rk) if rk not in rkey[ci] else rk]] += 1
-        size, outside = fields(c, known, (a.get('access') or {}).get('outside'))
+        gr = gs1.get(conf, {}).get(c['key']) or {}     # the guests' real places: they ARE the outside places
+        for rk, keys in gr.items():
+            known[rkey[ci][rk if rk in rkey[ci] else ALIAS.get(rk, rk)]] += len([k for k in keys if (conf, k) in gin])
+        size, outside = fields(c, known, None if gr else (a.get('access') or {}).get('outside'))
+        for j, r in enumerate(rounds):                  # (data's lists must close the sizes: a report, not a guess)
+            feed = sum(rr['groups'] for rr in rounds if rr['kind'] == 'groups'
+                       for t in (rr.get('out') or {}).values() if t == r['key'])
+            win = size[j - 1] // 2 if j and rounds[j - 1]['kind'] == 'ko' else 0
+            have = known[j] + outside[j] + feed + win
+            if gr and have != size[j]:
+                print(f"conti: {conf}:{c['key']}:{r['key']} {have} clubs for {size[j]} places (data's lists)")
         FIELDS[(conf, c['key'])] = size, outside, known
         for r in rounds:                                # (a group place into another cup's round)
             for t in (r.get('out') or {}).values() if r['kind'] == 'groups' else ():
@@ -221,7 +231,6 @@ def load(confs, files=None, words=None):
             for gk in keys:
                 if (conf, gk) in gin and len(gin) < 255:
                     access.append((0xFE, ci, j, gin[(conf, gk)]))
-                    outside[j] = max(0, outside[j] - 1)
         mine = [x for x in (a.get('access') or {}) if x not in ('holders', 'from', 'outside')]
         q = 0
         for j, k in enumerate(outside):                 # the outside places left: the world associations' next clubs

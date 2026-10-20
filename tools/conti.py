@@ -17,8 +17,9 @@ if not os.path.isdir(DATA):
 
 RB = 24
 OUT, CHAMP = 0xFF, 0xFE
-K = {'ko': 0, 'groups': 1}
-DRAW = {'order': 0, 'pots2': 1, 'same_assoc_pairs': 2, 'seeded_1v2': 3, 'bracket': 4, 'groups': 5, 'fixed': 6, 'slot': 7}
+K = {'ko': 0, 'groups': 1, 'league_stage': 1}   # (a league stage: simulated as groups, one region a group)
+DRAW = {'order': 0, 'pots2': 1, 'same_assoc_pairs': 2, 'seeded_1v2': 3, 'bracket': 4, 'groups': 5, 'fixed': 6, 'slot': 7,
+        'fixed_by_place': 8}
 ASSOC = {'allow': 0, 'any': 0, 'no': 1, 'no_unless_via': 2, 'allow_if_via': 2}
 LEVEL = {'pens': 0, 'et_pens': 1, 'away_pens': 2}
 CODE = {'cup': 1, 'next': 0x40, 'ap': 0x41, 'cl': 0x42}
@@ -33,8 +34,10 @@ def _read(conf, kind):
 def _draw(rd):
     """(draw byte, association rule byte) of a round's 'draw' value."""
     d = rd.get('draw')
-    if rd['kind'] == 'groups':
+    if rd['kind'] in ('groups', 'league_stage'):
         return DRAW['groups'], ASSOC.get((d or {}).get('same_assoc', 'no'), 1)
+    if isinstance(d, dict) and d.get('kind') == 'fixed_by_place':
+        return DRAW['fixed_by_place'], 0
     if isinstance(d, str):
         return DRAW.get(d, DRAW['order']) if d != 'fixed' else DRAW['order'], 0
     if not d:
@@ -96,20 +99,20 @@ def fields(c, known, outside):
             out[key[rk_(rk)]] = k
     feed = [0] * n                                      # (a group stage's places into a later round of the cup)
     for r in rounds:
-        if r['kind'] == 'groups':
-            for t in (r.get('out') or {}).values():
+        if r['kind'] in ('groups', 'league_stage'):
+            for q, t in (r.get('out') or {}).items():
                 if ':' not in t:
-                    feed[key[t]] += r['groups']
+                    feed[key[t]] += r['groups'] * len(_places(q))
     field = [0] * n
     for j in range(n - 1, -1, -1):
         r = rounds[j]
-        if r['kind'] == 'groups':
+        if r['kind'] in ('groups', 'league_stage'):
             field[j] = r['groups'] * r['size']
         elif j == n - 1:
             field[j] = 2
         else:
             field[j] = 2 * (field[j + 1] - known[j + 1] - out[j + 1] - feed[j + 1])
-        if j < n - 1 and r['kind'] == 'groups':
+        if j < n - 1 and r['kind'] in ('groups', 'league_stage'):
             gap = field[j + 1] - known[j + 1] - out[j + 1] - feed[j + 1]
             if gap and outside == 'rest':
                 out[j + 1] += gap
@@ -118,6 +121,23 @@ def fields(c, known, outside):
     if outside == 'rest':
         out[0] += field[0] - known[0] - out[0] - feed[0]
     return field, out
+
+
+def _norm(c):
+    """A league stage as groups: its regions as groups of size clubs, one round (each pair once: the real 8 matches a
+    club, declared), its 'out' ranges ('1-8') kept for the top-n routing."""
+    for r in c['rounds']:
+        if r['kind'] == 'league_stage':
+            r.setdefault('groups', r.get('regions') or 2)
+            r.setdefault('size', 16)
+            r.setdefault('rounds', 1)
+    return c
+
+
+def _places(key):
+    """'3' -> [3]; '1-8' -> [1..8]."""
+    a, _, b = str(key).partition('-')
+    return list(range(int(a), int(b or a) + 1))
 
 
 IC_KEYS = {'cafcl': ('caf', 'cl')}       # (the Intercontinental's access file: holders by cup key)
@@ -158,6 +178,7 @@ def load(confs, files=None, words=None, s1=None):
         assert fm, f'{conf}: no format file'
         acc = {c['key']: c for c in (ac or {}).get('cups', [])}
         for c in fm['cups']:
+            _norm(c)
             if not supported(c):
                 print(f"conti: {conf}:{c['key']} not built (a round kind / route the engine lacks)")
                 continue
@@ -206,15 +227,15 @@ def load(confs, files=None, words=None, s1=None):
             known[rkey[ci][rk if rk in rkey[ci] else ALIAS.get(rk, rk)]] += len([k for k in keys if (conf, k) in gin])
         size, outside = fields(c, known, None if gr else (a.get('access') or {}).get('outside'))
         for j, r in enumerate(rounds):                  # (data's lists must close the sizes: a report, not a guess)
-            feed = sum(rr['groups'] for rr in rounds if rr['kind'] == 'groups'
-                       for t in (rr.get('out') or {}).values() if t == r['key'])
+            feed = sum(rr['groups'] * len(_places(q)) for rr in rounds if rr['kind'] in ('groups', 'league_stage')
+                       for q, t in (rr.get('out') or {}).items() if t == r['key'])
             win = size[j - 1] // 2 if j and rounds[j - 1]['kind'] == 'ko' else 0
             have = known[j] + outside[j] + feed + win
             if gr and have != size[j]:
                 print(f"conti: {conf}:{c['key']}:{r['key']} {have} clubs for {size[j]} places (data's lists)")
         FIELDS[(conf, c['key'])] = size, outside, known
         for r in rounds:                                # (a group place into another cup's round)
-            for t in (r.get('out') or {}).values() if r['kind'] == 'groups' else ():
+            for t in (r.get('out') or {}).values() if r['kind'] in ('groups', 'league_stage') else ():
                 if ':' in t and (conf, t.split(':')[0]) in index:
                     cj = index[(conf, t.split(':')[0])]
                     incoming[(cj, rkey[cj][t.split(':')[1]])] = incoming.get((cj, rkey[cj][t.split(':')[1]]), 0) + r['groups']
@@ -235,7 +256,7 @@ def load(confs, files=None, words=None, s1=None):
             b[4], b[5] = dr, rule
             if c.get('stepladder'):                     # (the Intercontinental: each club in its slot)
                 b[4] = DRAW['slot']
-            if rd['kind'] == 'groups':
+            if rd['kind'] in ('groups', 'league_stage'):
                 b[6], b[7], b[8] = rd['groups'], rd['size'], rd.get('rounds', 2)
                 b[16] = 1 if (rd.get('draw') or {}).get('holder') else 0
             b[9] = rd.get('month') or (rd.get('months') or [8])[0]
@@ -245,10 +266,15 @@ def load(confs, files=None, words=None, s1=None):
             b[11] = OUT
             for q in range(4):
                 b[12 + q] = OUT
-            if rd['kind'] == 'groups':
+            if rd['kind'] in ('groups', 'league_stage'):
                 b[10] = OUT
                 for q, t in (rd.get('out') or {}).items():
-                    b[12 + int(q) - 1] = target(conf, ci, t)
+                    ps = _places(q)
+                    if len(ps) > 1:                     # (a range: the top n into one round)
+                        assert ps[0] == 1, (c['key'], q)
+                        b[19], b[20] = len(ps), target(conf, ci, t)
+                    else:
+                        b[12 + ps[0] - 1] = target(conf, ci, t)
             if (c.get('losers') or {}).get(rd['key']):
                 b[11] = target(conf, ci, c['losers'][rd['key']])
             out += bytes(b)
@@ -314,6 +340,18 @@ def load(confs, files=None, words=None, s1=None):
                 rank[words[k]] = min(int(round(v)), 0xFFFF)
     spec += struct.pack('<H', len(rank)) + b''.join(struct.pack('<HH', w, v) for w, v in sorted(rank.items()))
     spec += struct.pack('<H', len(gl)) + b''.join(struct.pack('<HBBI', w, a, 0, st) for w, a, st in gl)
+    reg = {}                                            # (a league stage's regions: data's <conf>.<cup>_league.json)
+    for conf in confs:
+        for c in (_read(conf, 'format') or {}).get('cups', []):
+            lg = _read(conf, c['key'] + '_league')
+            for ri, (rn, rd) in enumerate((lg or {}).get('regions', {}).items()):
+                for pot in rd.get('pots', []):
+                    for e in pot:
+                        a = e.get('assoc', '').lower()
+                        for ak in (a, 'g:' + e.get('assoc', '')):
+                            if ak in assocs:
+                                reg.setdefault(ak, ri)
+    spec += bytes(reg.get(a, 0xFF) for a in assocs)
     return spec, assocs, [(conf, c['key']) for conf, c, _ in cups]
 
 

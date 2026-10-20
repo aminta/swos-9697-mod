@@ -32,7 +32,7 @@ void *memcpy(void *d, const void *s, unsigned n) { u8 *p = d; const u8 *q = s; w
 
 /* round kinds, draws, association rules (spec byte values) */
 enum { K_KO, K_GROUPS };
-enum { D_ORDER, D_POTS2, D_SAMEPAIRS, D_SEED12, D_BRACKET, D_GROUPS, D_CROSS, D_SLOT };
+enum { D_ORDER, D_POTS2, D_SAMEPAIRS, D_SEED12, D_BRACKET, D_GROUPS, D_CROSS, D_SLOT, D_PLACE };
 enum { A_ANY, A_NO, A_NOVIA };
 /* access codes: 0 champion, 1 cup winner, 2..10 the k-th place, NEXT the best club not yet in, AP / CL a split
    season's stage champions (else as NEXT) */
@@ -107,6 +107,7 @@ static const u8 *afile;                 /* each association's league team file *
 static const u8 *rk;                    /* ranking: team word, points (u16 each) */
 static const u8 *gu;                    /* guests (clubs of associations not in the world): word, assoc, -, str */
 static u16 ngu;
+static const u8 *areg;
 static u16 GI[256];                     /* a guest's club index this season */
 static u16 nrk;
 #define RND(c, r) (cupr[c] + (r) * RB)
@@ -133,6 +134,8 @@ static void parse(void) {
     p += 2 + 4 * nrk;
     ngu = p[0] | p[1] << 8;             /* guest clubs: team word, association, strength (8 B each) */
     gu = p + 2;
+    p += 2 + 8 * ngu;
+    areg = p;                           /* each association's region (a league stage's group: ACLE West 0 / East 1) */
 }
 
 /* --- random, strength -------------------------------------------------------------------------------------------- */
@@ -302,6 +305,25 @@ static void draw_ko(int c, int r, const u8 *R) {
     int n = EN[c][r], dr = R[4], rule = R[5];
     u16 x[NE]; u8 v[NE], k[NE];
     for (int i = 0; i < n; i++) { x[i] = E[c][r][i]; v[i] = EV[c][r][i]; k[i] = EK[c][r][i]; }
+    if (dr == D_PLACE) {                /* (ACLE's round of 16: in each region 1 v 8, 2 v 7, 3 v 6, 4 v 5; the better
+                                           placed at home in the second leg; the group (region) in the via byte) */
+        int m = 0;
+        for (int g = 1; g < 32 && m < n; g++) {
+            int cnt = 0;
+            for (int i = 0; i < n; i++) if ((v[i] >> 1) == g) cnt++;
+            for (int p = 1; p <= cnt / 2; p++) {
+                int hi = -1, lo = -1;
+                for (int i = 0; i < n; i++) if ((v[i] >> 1) == g) {
+                    if ((k[i] & 0x7F) == p) hi = i;
+                    if ((k[i] & 0x7F) == cnt + 1 - p) lo = i;
+                }
+                if (hi < 0 || lo < 0) continue;
+                D[m] = x[lo]; DV[m] = v[lo]; DK[m] = k[lo]; m++;
+                D[m] = x[hi]; DV[m] = v[hi]; DK[m] = k[hi]; m++;
+            }
+        }
+        if (m == n) return;
+    }
     if (dr == D_SLOT) {                 /* (the Intercontinental's stepladder: each club in its slot, the side key) */
         for (int i = 1; i < n; i++) { u16 t = x[i]; u8 tk = k[i], tv = v[i]; int j = i;
             while (j > 0 && (k[j - 1] & 0x7F) > (tk & 0x7F)) { x[j] = x[j - 1]; k[j] = k[j - 1]; v[j] = v[j - 1]; j--; }
@@ -427,6 +449,21 @@ static void draw_groups(int c, int r, const u8 *R) {
         reached(b, c, r);
         x[m] = b; v[m] = 0; k[m] = 0; m++;
     }
+    if (R[19] && areg) {                /* a league stage by region: each club in its association's region */
+        sort_by_pts(x, v, k, m);
+        int fill[16] = {0};
+        for (int i = 0; i < NE; i++) D[i] = 0;
+        for (int pass = 0; pass < 2; pass++)
+            for (int i = 0; i < m; i++) {
+                if (!x[i]) continue;
+                int a = assoc(x[i]), g = a < na ? areg[a] : 0xFF;
+                if (pass == 0 && (g >= ng || fill[g] >= gs)) continue;
+                if (pass == 1) { g = 0; while (g < ng && fill[g] >= gs) g++; if (g >= ng) break; }
+                D[g * gs + fill[g]] = x[i]; DV[g * gs + fill[g]] = v[i]; DK[g * gs + fill[g]] = k[i]; fill[g]++;
+                x[i] = 0;
+            }
+        return;
+    }
     int nd = 0;
     while (nd < m && !v[nd]) nd++;
     sort_by_pts(x, v, k, nd);
@@ -476,7 +513,7 @@ static void reached(int club, int c, int r) { CT_OUT.last[club - 1] = c << 4 | r
 
 /* a group: double / single round robin of D[base .. base + gs) -> places into P */
 static void group(int base, int gs, int grounds, int *P) {
-    int pt[8] = {0}, gd[8] = {0}, gf[8] = {0};
+    int pt[16] = {0}, gd[16] = {0}, gf[16] = {0};
     for (int leg = 0; leg < grounds; leg++)
         for (int i = 0; i < gs; i++)
             for (int j = i + 1; j < gs; j++) {
@@ -499,7 +536,7 @@ static void group(int base, int gs, int grounds, int *P) {
         P[j] = t;
     }
     for (int i = 0; i < gs; i++) gd[i] = gd[i] * 100 + gf[i] + pt[i] * 10000;   /* (a record key for the ranking) */
-    for (int i = 0; i < gs; i++) P[8 + i] = gd[P[i]];
+    for (int i = 0; i < gs; i++) P[16 + i] = gd[P[i]];
 }
 
 static int lp_size(int c);
@@ -561,10 +598,10 @@ static int ct_round(int c, int r) {
     if (R[0] == K_GROUPS) {
         int ng = R[6], gs = R[7];
         /* every group, then each place's clubs ranked across the groups by record (the rank keys of the next draw) */
-        static u16 byplace[8][16];
-        static s32 key[8][16];
+        static u16 byplace[16][16];
+        static s32 key[16][16];
         for (int g = 0; g < ng; g++) {
-            int P[16];
+            int P[32];
             group(g * gs, gs, R[8], P);
             if (pm >= 0 && g_fv > 0 && g_fv <= gs && pm / gs == g) {   /* (the career club's place, as played) */
                 int loc = pm - g * gs, q0 = 0;
@@ -573,11 +610,13 @@ static int ct_round(int c, int r) {
             }
             for (int q = 0; q < gs; q++) {
                 byplace[q][g] = D[g * gs + P[q]];
-                key[q][g] = P[8 + q];
+                key[q][g] = P[16 + q];
                 CT_OUT.res[c][r][g * gs + P[q]] = q + 1;
             }
         }
-        for (int q = 0; q < gs && q < 4; q++) {
+        for (int q = 0; q < gs; q++) {
+            u8 to = R[19] ? (q < R[19] ? R[20] : OUT) : (q < 4 ? R[12 + q] : OUT);   /* (a league stage: its top n) */
+            if (to == OUT) continue;
             int ord[16];
             for (int g = 0; g < ng; g++) ord[g] = g;
             for (int i = 1; i < ng; i++) { int t = ord[i], j = i;
@@ -585,10 +624,9 @@ static int ct_round(int c, int r) {
                 ord[j] = t; }
             for (int i = 0; i < ng; i++) {
                 int club = byplace[q][ord[i]];
-                if (R[12 + q] == OUT) continue;
-                route(c, R[12 + q], club, q * ng + i + 1);
-                if (EN[R[12 + q] >> 4][R[12 + q] & 15] && R[12 + q] < CHAMP)   /* (the group in the via byte: fixed ties) */
-                    EV[R[12 + q] >> 4][R[12 + q] & 15][EN[R[12 + q] >> 4][R[12 + q] & 15] - 1] = 1 | (ord[i] + 1) << 1;
+                route(c, to, club, R[19] ? q + 1 : q * ng + i + 1);   /* (a league stage: the key = the place) */
+                if (EN[to >> 4][to & 15] && to < CHAMP)   /* (the group in the via byte: fixed ties) */
+                    EV[to >> 4][to & 15][EN[to >> 4][to & 15] - 1] = 1 | (ord[i] + 1) << 1;
             }
         }
         return 0;

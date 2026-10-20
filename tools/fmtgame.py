@@ -361,7 +361,8 @@ def zone_text(rw, t, lang, eu=None, confed=None):
         if w == 'po_grp':
             rng += ' ' + z['each']
         return f"{z['col'][cols.index(c)]} {rng}: {z['why'][w]}"
-    rw = list(dict.fromkeys((a & 0x7F, b & 0x3F, c, w) if w == 'po_grp' else (a, b, c, w) for a, b, c, w in rw))
+    rw = list(dict.fromkeys((a & 0x7F, b & 0x3F, c, w) if w == 'po_grp' else (a, b, c, w) for a, b, c, w in rw
+                            if not w.endswith('/grp')))   # (a split league's group copies: the plain lines say it)
     merged = []
     for a, b, c, w in sorted(rw, key=lambda r: (r[3] == 'po_grp', r)):
         if merged and merged[-1][2:] == (c, w) and merged[-1][1] == a - 1:

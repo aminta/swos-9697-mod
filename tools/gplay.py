@@ -1194,6 +1194,36 @@ CD_RNAME = '''
     stc
     ret
 .ncd:'''
+CUP12 = '''
+gp_cup12:                               ; 4.0: InitNewSeason's `call cseg_8B2D3` of slots 1 / 2 (the country's cup and
+    pushad                              ; league cup): a Coppa Italia Serie D club gets neither (cd_member_c), the slot
+    cmp word [GAMETYPE], 4              ; cleared (Davide's Schio: COPPA ITALIA / C. IT SERIE C rows never played)
+    jne .game
+    mov al, [SLT + WORLD_BYTE]
+    cmp al, [CD_TAB]
+    jne .game
+    mov dword [GP_CDT], CD_TAB
+    mov dword [GP_CDD], CD_DT
+    mov dword [GP_SLT], SLT
+    push es
+    push ds
+    pop es
+    cld
+    movzx eax, word [CAREERTEAM]
+    push eax
+    call CD_MEMBER
+    add esp, 4
+    pop es
+    test eax, eax
+    jz .game
+    movzx eax, word [D0R]
+    mov dword [D8CAA + eax * 4], 0
+    popad
+    ret
+.game:
+    popad
+    jmp C8B2D3
+'''
 GP_RNAME = '''
 gp_rname:                               ; rnames' rn_round (an FE contest, RN_CDP): ko[0] of this season in slot 4 ->
     cmp word [GP_ST + ST_KO], 4B47h     ; CF = 1, al = its round's name, else CF = 0 (the game's); every register but
@@ -1537,6 +1567,7 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
                                          'gp_sack_c', 'gp_forcecfb', 'gp_pwin_c', 'gp_rlines_c', 'GP_RLN', 'GP_RLC', 'GP_RLPOULE', 'GP_REC', 'GP_CMB', 'gp_adv_c', 'GP_ADVWK', 'GP_WK', 'GP_TH', 'GP_RN',
                                          'gp_defer_c', 'cd_step_c', 'gp_scal_c', 'gp_repoint_c', 'gp_fixload_c', 'CD_ST', 'GP_CDT', 'GP_CDNM', 'GP_CDD',
                                          'GP_CDFIRST')})
+    symbols['CD_MEMBER'] = syms['cd_member_c']
     symbols['FORCE_ON'] = (0, int(bool(force)))
     import longtable                                          # 4.0 stage titles (table, calendar): the table in area
     stg = longtable.stage_table(lang, b'\0' * 2 + struct.pack('<4HIH', split.ST, split.ST + split.OFF['frozen'],
@@ -1597,6 +1628,8 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
         cd_src = (f'CD_TAB: db {world}, {nr}, {lfile}, 0\n    db ' + ', '.join(str(b) for b in tab)
                   + f'\nCD_NM: dd {rl}, {rs}\nCD_DT: db ' + ', '.join(str(b) for b in cdt)
                   + '\nCD_RN: db ' + ', '.join(str(x) for x in rnames.CD_NAMES) + '\n')
+    if cds:
+        cd_src += CUP12
     cd_src += GP_RNAME.replace('CD_PART', CD_RNAME if cds else '')
     asm = (ASM.replace('jmp GP_REC_NEXT', 'jmp GP_REC_NEXT' if rec_dp else 'jmp gp_recmov') + tab_src + '\n'
            + names_lines(tables, area, lang) + '\n' + stubs + cd_src)
@@ -1610,6 +1643,17 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
         engine.CALL_AT[name] = (1, lab[f'ba_{name}'])         # (split.late binds the stage's callback to it)
     for off, tobj, toff in fix:
         cobj.add_ptr(p, glue + off, tobj, toff)
+    if cds and not os.environ.get('NO_CUP12'):               # InitNewSeason's slot-1 / slot-2 installs -> gp_cup12 (NO_CUP12: test builds)
+        d1o = p.le.obj_bytes(1)
+        d0 = struct.pack('<I', r['A0'] - 32)
+        sites = [i for i in range(len(d1o) - 5) if d1o[i] == 0xE8 and
+                 i + 5 + struct.unpack_from('<i', d1o, i + 1)[0] == sacups.SITES['c8b2d3'] and
+                 d1o[i - 6:i] == b'\xff\x35' + struct.pack('<I', r['A0'] + 24) and   # (push A6: InitNewSeason's)
+                 any(d1o[j:j + 9] == b'\x66\xc7\x05' + d0 + bytes([k, 0]) for j in range(i - 40, i) for k in (1, 2))]
+        assert len(sites) == 4, [hex(x) for x in sites]       # (InitNewSeason; ProcessCareerFile's rebuild after a load)
+        for site in sites:
+            assert p.get(1, site, 1) == b'\xe8', hex(site)
+            p.put(1, site + 1, struct.pack('<i', lab['gp_cup12'] - (site + 5)))
     for site, target in ((cap, 'gp_cap'), (end_site, 'gp_end')) if tables else ():   # (relative calls: no fixups;
         p.put(1, site + 1, struct.pack('<i', lab[target] - (site + 5)))                # none: only pg_season)
     if tables and area is not None:                         # the playable play-offs (chained before dplay's hooks)

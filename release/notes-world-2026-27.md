@@ -347,8 +347,8 @@ when the engine lands it.
   Transfermarkt squads for 126 of them. They play only their continental cup.
 - **Pots and seeds from the real rankings**: the Libertadores and Sudamericana pots from the CONMEBOL club ranking of
   15 December 2025 (the one of the 2026 draws).
-- **The Copa Libertadores is played exactly**: the qualifying rounds, the groups, the seeded round of 16 draw after
-  the groups, and the group thirds into the Sudamericana play-off.
+- **The Copa Libertadores is played exactly**: the qualifying rounds, the groups and the seeded round of 16 draw
+  after the groups.
 - **Each cup's FORMAT page** tells its format, its entrants and its guests in plain words, in 4 languages.
 - **Zone colours in the cups' group tables**: light blue for the places that go on, green for a play-off or the
   move to another cup (the Libertadores thirds to the Sudamericana), with a legend.
@@ -575,6 +575,8 @@ when the engine lands it.
     generated players; coaches are generated where Transfermarkt has none.
   - **OFC's Intercontinental place**: the OFC Professional League champion's place goes to the OFC Champions League
     winner.
+  - **Libertadores thirds**: the move of the Libertadores group thirds to the Sudamericana play-off is simulated in
+    4.0 (played in 4.0.1).
   - **AFC**: the Champions League Elite league stage and the Challenge League groups are simulated in 4.0: your club
     joins the Elite at the round of 16 and the Challenge League at the quarter-finals.
   - **Intercontinental Cup**: the UEFA Champions League holder has no strength data of its own; the rounds that
@@ -991,8 +993,8 @@ Baiano, Cearense, Pernambucano, Alagoano e Mato-Grossense.
   Transfermarkt per 126 di loro. Giocano solo la loro coppa continentale.
 - **Fasce e teste di serie dai ranking veri**: le fasce di Libertadores e Sudamericana dal ranking CONMEBOL dei club
   del 15 dicembre 2025 (quello dei sorteggi 2026).
-- **La Copa Libertadores si gioca esattamente**: i turni preliminari, i gironi, il sorteggio degli ottavi con le
-  teste di serie dopo i gironi e le terze dei gironi allo spareggio della Sudamericana.
+- **La Copa Libertadores si gioca esattamente**: i turni preliminari, i gironi e il sorteggio degli ottavi con le
+  teste di serie dopo i gironi.
 - **La pagina FORMULA di ogni coppa** ne racconta formula, iscritte e ospiti in parole semplici, in 4 lingue.
 - **Colori delle zone nelle classifiche dei gironi delle coppe**: azzurro per i posti che proseguono, verde per uno
   spareggio o il passaggio a un'altra coppa (le terze della Libertadores alla Sudamericana), con la legenda.
@@ -1235,6 +1237,8 @@ Baiano, Cearense, Pernambucano, Alagoano e Mato-Grossense.
     mondo), 5 sono completate con giocatori generati; gli allenatori sono generati dove Transfermarkt non li ha.
   - **Posto OFC nell'Intercontinentale**: il posto della campione della OFC Professional League va alla vincitrice
     della OFC Champions League.
+  - **Terze della Libertadores**: il passaggio delle terze dei gironi della Libertadores allo spareggio della
+    Sudamericana è simulato nella 4.0 (giocato nella 4.0.1).
   - **AFC**: la fase a campionato della Champions League Elite e i gironi della Challenge League sono simulati nella
     4.0: il tuo club entra nella Elite dagli ottavi e nella Challenge League dai quarti.
   - **Coppa Intercontinentale**: la detentrice della UEFA Champions League non ha dati di forza propri; i turni che

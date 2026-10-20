@@ -34,7 +34,7 @@ PROSE = {
         'it': ["Alla fase campionato partecipano 36 squadre, divise in 4 fasce da 9. Ogni squadra gioca 8 partite, "
                "contro 2 avversarie di ogni fascia, una in casa e una in trasferta, mai contro una squadra della sua "
                "federazione e al massimo contro 2 della stessa.",
-               "C e una sola classifica: le prime 8 vanno direttamente agli ottavi, dalla 9a alla 24a si giocano gli "
+               "C'e una sola classifica: le prime 8 vanno direttamente agli ottavi, dalla 9a alla 24a si giocano gli "
                "spareggi (9a e 10a contro 23a e 24a e cosi via, ritorno in casa della meglio piazzata), dalla 25a in "
                "giu si esce.",
                "Ottavi, quarti e semifinali seguono un tabellone fisso dai piazzamenti, con andata e ritorno: in "
@@ -42,7 +42,7 @@ PROSE = {
                "A parita di punti contano la differenza reti, i gol segnati, i gol in trasferta, le vittorie, le "
                "vittorie in trasferta, poi punti, differenza reti e gol delle avversarie, i punti disciplinari e il "
                "coefficiente.",
-               "Prima della fase campionato si giocano i turni preliminari dell access list 2026-27 (percorso "
+               "Prima della fase campionato si giocano i turni preliminari dell'access list 2026-27 (percorso "
                "campioni e percorso piazzate); chi viene eliminato scende in Europa League o Conference League."],
     },
 }

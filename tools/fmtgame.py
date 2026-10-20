@@ -137,6 +137,9 @@ def wrap_px(text, w=PX_MAX):
     return out
 
 
+GAP = '\x00'                     # pages(): a paragraph break in prose (a blank line)
+
+
 def pages(lines):
     """Pages of fmtpage.LINES lines from lines or from paragraphs (lists of wrapped lines): a paragraph is not split
     across two pages when it fits on one, and one ending with ':' (a heading) goes with the next."""
@@ -148,10 +151,16 @@ def pages(lines):
             glued[-1] = glued[-1] + pa
         else:
             glued.append(list(pa))
-    out = [[]]
+    out, gap = [[]], False
     for pa in glued:
-        if out[-1] and len(out[-1]) + len(pa) > n and len(pa) <= n:
+        if pa == [GAP]:                         # (prose: a blank line before the next paragraph, never at a page top)
+            gap = bool(out[-1])
+            continue
+        if gap and out[-1] and len(out[-1]) + 1 + len(pa) <= n:
+            out[-1].append('')
+        elif out[-1] and len(out[-1]) + len(pa) + gap > n and len(pa) <= n:
             out.append([])
+        gap = False
         for line in pa:
             if len(out[-1]) == n:
                 out.append([])
@@ -862,8 +871,17 @@ def write(out_dir, items):
             if prose:
                 h = ZT[lang]['head']
                 tail = lines[lines.index(h):] if h in lines else []
-                lines = prose + [x for x in tail if x not in CONFED_NOTES[lang].values()]
-            body = [wrap_px(ascii_up(line, lang)) for line in lines]      # (paragraphs: pages())
+                tail = [x for x in tail if x not in CONFED_NOTES[lang].values()]
+                body = []
+                for para in prose:
+                    body += [wrap_px(ascii_up(para, lang)), [GAP]]
+                tl = [x for t in tail for x in wrap_px(ascii_up(t, lang))]
+                if tl:
+                    body.append(tl)                 # (the colours: one block)
+                elif body:
+                    body.pop()                      # (no trailing paragraph break)
+            else:
+                body = [wrap_px(ascii_up(line, lang)) for line in lines]      # (paragraphs: pages())
             key = titles[lang][:fmtpage.NAME - 1]
             k = (lang, world, key)
             if k in keys:                       # the same title twice (two divisions with one name): one page,

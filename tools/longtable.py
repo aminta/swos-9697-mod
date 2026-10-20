@@ -143,10 +143,8 @@ lt_down:                                ; flags for ScrollDown's jnb (no scroll 
     mov esi, [LT_TAB]
     test esi, esi
     jz .game
-    cmp word [MODE], 0                  ; (the table view)
-    jne .game
-    cmp word [esi + 4Fh], 1
-    jne .game
+    cmp word [esi + 4Fh], 1             ; (any view of a long one-group table: the table view, and 4.0 the screen after
+    jne .game                           ; a match, where its results get one line - Davide's ZONA B)
     movzx eax, word [esi + 51h]
 %if HDR_
     cmp byte [LT_HON], 0

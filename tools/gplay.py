@@ -856,9 +856,7 @@ gp_sack:                                ; replaces SeasonFinished's `call cseg_3
     je .ec
     add ebx, KO_SIZE
     cmp eax, ebx
-    je .ec
-CONTI_CMP
-    jmp .e
+    jne .e
 .ec:
     mov dword [D8CAA + 12], 0
 .e:
@@ -1575,10 +1573,6 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
     asm = (ASM.replace('jmp GP_REC_NEXT', 'jmp GP_REC_NEXT' if rec_dp else 'jmp gp_recmov') + tab_src + '\n'
            + names_lines(tables, area, lang) + '\n' + stubs + cd_src)
     glue = (cend + 15) & ~15
-    import conti                                              # 4.0: another confederation's cup in slot 3 (conti.py's
-    cts = [o for _, o, _, _ in conti.STRUCTS]                 # structs): no UEFA trophy / review / holders for it
-    asm = asm.replace('CONTI_CMP\n', ''.join(f'    cmp eax, CT{i}\n    je .ec\n' for i in range(len(cts))))
-    symbols.update({f'CT{i}': (1, o) for i, o in enumerate(cts)})
     code, fix = nasmcave.assemble(asm, glue, symbols)
     lab = nasmcave.labels(asm, glue, symbols)
     assert glue + len(code) <= limit, hex(glue + len(code))

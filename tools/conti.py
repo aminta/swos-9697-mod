@@ -262,9 +262,10 @@ def load(confs, files=None, words=None, s1=None):
     force = (0xFF, 0xFF)                                # CONTI_FORCE=<cup>:<round> (test builds only): the
     if os.environ.get('CONTI_FORCE'):                   # career club enters that round at every season end
         fk, fr = os.environ['CONTI_FORCE'].split(':')
-        fc = next(i for i, (_, c, _) in enumerate(cups) if c['key'] == fk)
-        force = (fc, rkey[fc][fr])
-        print(f'exe: CONTI_FORCE={fk}:{fr} (test build)')
+        fc = next((i for i, (_, c, _) in enumerate(cups) if c['key'] == fk), None)
+        if fc is not None:                              # (season1_native loads one confederation at a time)
+            force = (fc, rkey[fc][fr])
+            print(f'exe: CONTI_FORCE={fk}:{fr} (test build)')
     spec = bytes((len(cups), len(assocs)) + force) + body
     spec += struct.pack('<H', len(access)) + b''.join(bytes(x) for x in access)
     spec += bytes((len(holders),)) + b''.join(bytes(x) for x in holders)

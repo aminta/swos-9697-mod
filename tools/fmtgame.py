@@ -608,16 +608,16 @@ def world_items():
 
 
 CT_RN = {   # 4.0 other confederations' cups (conti.py formats): round names on their FORMAT page
-    'it': dict(q='TURNO PRELIMINARE {n}', first='PRIMO TURNO', pre='TURNO PRELIMINARE', r1='PRIMO TURNO',
+    'it': dict(qual='TURNO DI QUALIFICAZIONE', q='TURNO PRELIMINARE {n}', first='PRIMO TURNO', pre='TURNO PRELIMINARE', r1='PRIMO TURNO',
                league='FASE CAMPIONATO', losers='PERDENTI', thirds='TERZE', groups='FASE A GIRONI', po='SPAREGGI', r16='OTTAVI',
                qf='QUARTI', sf='SEMIFINALI', final='FINALE'),
-    'en': dict(q='QUALIFYING ROUND {n}', first='FIRST ROUND', pre='PRELIMINARY ROUND', r1='FIRST ROUND',
+    'en': dict(qual='QUALIFYING STAGE', q='QUALIFYING ROUND {n}', first='FIRST ROUND', pre='PRELIMINARY ROUND', r1='FIRST ROUND',
                league='LEAGUE STAGE', losers='LOSERS', thirds='THIRDS', groups='GROUP STAGE', po='PLAY-OFFS', r16='ROUND OF 16',
                qf='QUARTER-FINALS', sf='SEMI-FINALS', final='FINAL'),
-    'fr': dict(q='TOUR PRELIMINAIRE {n}', first='PREMIER TOUR', pre='TOUR PRELIMINAIRE', r1='PREMIER TOUR',
+    'fr': dict(qual='PHASE DE QUALIFICATION', q='TOUR PRELIMINAIRE {n}', first='PREMIER TOUR', pre='TOUR PRELIMINAIRE', r1='PREMIER TOUR',
                league='PHASE DE LIGUE', losers='PERDANTS', thirds='TROISIEMES', groups='PHASE DE GROUPES', po='BARRAGES',
                r16='HUITIEMES', qf='QUARTS', sf='DEMI-FINALES', final='FINALE'),
-    'de': dict(q='QUALIFIKATIONSRUNDE {n}', first='ERSTE RUNDE', pre='VORRUNDE', r1='ERSTE RUNDE',
+    'de': dict(qual='QUALIFIKATION', q='QUALIFIKATIONSRUNDE {n}', first='ERSTE RUNDE', pre='VORRUNDE', r1='ERSTE RUNDE',
                league='LIGAPHASE', losers='VERLIERER', thirds='DRITTEN', groups='GRUPPENPHASE', po='PLAYOFFS', r16='ACHTELFINALE',
                qf='VIERTELFINALE', sf='HALBFINALE', final='FINALE'),
 }
@@ -660,6 +660,13 @@ def conti_items():
     n_world = min(worlds)
     out = []
     cups = {c['key']: c for conf in conti.ready() for c in conti._read(conf, 'format')['cups']}
+    accs = {c['key']: c.get('access') for conf in conti.ready() for c in conti._read(conf, 'access')['cups']}
+    gst = {k for conf in conti.ready() for g in ((conti._read(conf, 'guests') or {}).get('clubs') or [])
+           for k in (g.get('access') or {})}
+    import fmtprose
+    assoc = {pk.meta['id'][len('world-2026-27-'):]: pk.meta for pk in mkseason.packs()
+             if pk.meta.get('id', '').startswith('world-2026-27-')}
+    aname = lambda lang, a: ((assoc.get(a) or {}).get('button_names') or {}).get(lang) or a.upper()
 
     def rname(lang, key):
         r = CT_RN[lang]
@@ -697,7 +704,9 @@ def conti_items():
                 lines.append(x['inn'].format(c=cname(lang, ck), what=f'{rname(lang, rest.split()[0])} {tail}') +
                              f' -> {rname(lang, tr)}')
             titles[lang] = ' ' + (c['names'].get(lang) or c['names']['en'])[0].upper()
-            texts[lang] = lines
+            texts[lang] = {'prose': fmtprose.conti(c, accs.get(key), lang, lambda r, lang=lang: rname(lang, r),
+                                                   lambda k, lang=lang: cname(lang, k), lambda a, lang=lang: aname(lang, a),
+                                                   key in gst), 'tail': []}   # (4.0 plain prose; lines: the schema)
         out.append((n_world, None, titles, texts))
         out.append((n_world, None, {lang: s[1:] for lang, s in titles.items()}, texts))
     return out

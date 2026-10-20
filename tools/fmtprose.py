@@ -281,3 +281,153 @@ def sentences(lines):
     """Other competitions: their schematic lines as one paragraph of sentences."""
     xs = [x.rstrip(' :') for x in lines if x.strip()]
     return [_cap('. '.join(x[:1] + x[1:].lower() for x in xs) + '.')] if xs else []
+
+
+# ---- the other confederations' cups (conti.py data: format + access + guests), 4.0
+CP = {
+    'it': dict(pw=['prime', 'seconde', 'terze', 'quarte'], pgo='le {w} passano ({to})', pbest='le migliori {w} passano ({to})', pcup='le {w} vanno alla {c} ({to})', n1='Partecipa {n} squadra del mondo: {lst}.', gonly="Partecipano solo squadre di federazioni che non sono nel mondo: sono ospiti, con la rosa vera, e le gioca il computer.", holderc="Turno d'ingresso della vincitrice della {c}: {r}.", n='{n} squadre del mondo partecipano: {lst}.', each='{x} {k}', eachk='{x} {k} ciascuna', andw='e',
+               enter='Entrano per posizione in campionato o per la coppa nazionale; per turno, {lst}.', at='{r}: {k}',
+               guests="Gli altri posti vanno a squadre di federazioni che non sono nel mondo: sono ospiti, con la rosa vera, e le gioca il computer.",
+               holders='Si affrontano le vincitrici della {a} e della {b}.', holder="Turno d'ingresso della detentrice: {r}.",
+               two='andata e ritorno, in parità rigori', one='gara unica, in parità rigori',
+               one_et='gara unica, in parità supplementari e rigori', neutral='in campo neutro', rnd='{r}: {how}.',
+               rnds='{r} e {z}: {how}.', groups='{r}: {g} gironi da {s}, {legs}; {out}.', group1='{r}: un girone da {s}, {legs}; {out}.',
+               legs2='andata e ritorno', legs1='gara unica', go='passano le prime {k} ({to})', go1='passa la prima ({to})',
+               go2='passano le prime due ({to})', third='le terze vanno alla {c} ({to})',
+               league='{r}: {c} squadre in {z} zone, {m} partite ciascuna; le prime {q} di ogni zona passano.',
+               away='Vale la regola dei gol in trasferta.', noaway='Non vale la regola dei gol in trasferta.',
+               wl='i perdenti del {r}', wt='le terze della {r}', losers='I perdenti del {r} passano alla {c} ({to}).', inn='Dalla {c} entrano {what} ({to}).'),
+    'en': dict(pw=['winners', 'runners-up', 'thirds', 'fourths'], pgo='the {w} go through ({to})', pbest='the best {w} go through ({to})', pcup='the {w} go to the {c} ({to})', n1='{n} club of the world takes part: {lst}.', gonly='Only clubs of associations that are not in the world take part: they are guests, with their real squads, played by the computer.', holderc='The {c} winners enter in the {r}.', n='{n} clubs of the world take part: {lst}.', each='{x} {k}', eachk='{x} {k} each', andw='and',
+               enter='They enter by league place or national cup; by round, {lst}.', at='{r}: {k}',
+               guests="The other places go to clubs of associations that are not in the world: they are guests, with their real squads, played by the computer.",
+               holders='The winners of the {a} and of the {b} meet.', holder='The holders enter in the {r}.',
+               two='two legs, penalties if level', one='one match, penalties if level',
+               one_et='one match, extra time and penalties if level', neutral='at a neutral ground', rnd='{r}: {how}.',
+               rnds='{r} and {z}: {how}.', groups='{r}: {g} groups of {s}, {legs}; {out}.', group1='{r}: one group of {s}, {legs}; {out}.',
+               legs2='home and away', legs1='single matches', go='the top {k} go through ({to})', go1='the winner goes through ({to})',
+               go2='the top two go through ({to})', third='the thirds go to the {c} ({to})',
+               league='{r}: {c} clubs in {z} regions, {m} matches each; the top {q} of each region go through.',
+               away='The away goals rule applies.', noaway='No away goals rule.',
+               wl='the {r} losers', wt='the {r} thirds', losers='The {r} losers go to the {c} ({to}).', inn='From the {c} come {what} ({to}).'),
+    'fr': dict(pw=['premiers', 'deuxièmes', 'troisièmes', 'quatrièmes'], pgo='les {w} sont qualifiés ({to})', pbest='les meilleurs {w} sont qualifiés ({to})', pcup='les {w} vont en {c} ({to})', n1='{n} club du monde participe : {lst}.', gonly="Seuls des clubs de fédérations qui ne sont pas dans le monde participent : ce sont des invités, avec leur vrai effectif, joués par l'ordinateur.", holderc="Tour d'entrée du vainqueur de la {c} : {r}.", n="{n} clubs du monde participent : {lst}.", each='{x} {k}', eachk='{x} {k} chacun', andw='et',
+               enter="Ils entrent par leur place en championnat ou la coupe nationale ; par tour, {lst}.", at='{r} : {k}',
+               guests="Les autres places vont à des clubs de fédérations qui ne sont pas dans le monde : ce sont des invités, avec leur vrai effectif, joués par l'ordinateur.",
+               holders='Les vainqueurs de la {a} et de la {b} se rencontrent.', holder="Tour d'entrée du tenant du titre : {r}.",
+               two="aller et retour, tirs au but en cas d'égalité", one="match unique, tirs au but en cas d'égalité",
+               one_et="match unique, prolongation et tirs au but en cas d'égalité", neutral='sur terrain neutre', rnd='{r} : {how}.',
+               rnds='{r} et {z} : {how}.', groups='{r} : {g} groupes de {s}, {legs} ; {out}.', group1='{r} : un groupe de {s}, {legs} ; {out}.',
+               legs2='aller et retour', legs1='matchs uniques', go='les {k} premiers sont qualifiés ({to})', go1='le premier est qualifié ({to})',
+               go2='les deux premiers sont qualifiés ({to})', third='les troisièmes vont en {c} ({to})',
+               league='{r} : {c} clubs en {z} zones, {m} matchs chacun ; les {q} premiers de chaque zone passent.',
+               away="Les buts à l'extérieur comptent.", noaway="Pas de règle des buts à l'extérieur.",
+               wl='les perdants du {r}', wt='les troisièmes de la {r}', losers='Les perdants du {r} vont en {c} ({to}).', inn='De la {c} arrivent {what} ({to}).'),
+    'de': dict(pw=['Ersten', 'Zweiten', 'Dritten', 'Vierten'], pgo='die {w} kommen weiter ({to})', pbest='die besten {w} kommen weiter ({to})', pcup='die {w} gehen in die {c} ({to})', n1='{n} Verein der Welt nimmt teil: {lst}.', gonly='Nur Vereine von Verbänden, die nicht in der Welt sind, nehmen teil: Gäste mit ihrem echten Kader, vom Computer gespielt.', holderc='Einstieg des Siegers der {c}: {r}.', n='{n} Vereine der Welt nehmen teil: {lst}.', each='{x} {k}', eachk='{x} je {k}', andw='und',
+               enter='Sie kommen über den Ligaplatz oder den Pokal; nach Runden {lst}.', at='{r}: {k}',
+               guests='Die übrigen Plätze gehen an Vereine von Verbänden, die nicht in der Welt sind: Gäste mit ihrem echten Kader, vom Computer gespielt.',
+               holders='Die Sieger der {a} und der {b} treffen aufeinander.', holder='Einstieg des Titelverteidigers: {r}.',
+               two='Hin- und Rückspiel, bei Gleichstand Elfmeter', one='ein Spiel, bei Gleichstand Elfmeter',
+               one_et='ein Spiel, bei Gleichstand Verlängerung und Elfmeter', neutral='auf neutralem Platz', rnd='{r}: {how}.',
+               rnds='{r} und {z}: {how}.', groups='{r}: {g} Gruppen zu {s}, {legs}; {out}.', group1='{r}: eine Gruppe zu {s}, {legs}; {out}.',
+               legs2='Hin und Rück', legs1='je ein Spiel', go='die ersten {k} kommen weiter ({to})', go1='der Erste kommt weiter ({to})',
+               go2='die ersten zwei kommen weiter ({to})', third='die Dritten gehen in die {c} ({to})',
+               league='{r}: {c} Vereine in {z} Regionen, je {m} Spiele; die ersten {q} jeder Region kommen weiter.',
+               away='Die Auswärtstorregel gilt.', noaway='Keine Auswärtstorregel.',
+               wl='die Verlierer der {r}', wt='die Dritten der {r}', losers='Die Verlierer der {r} gehen in die {c} ({to}).', inn='Aus der {c} kommen {what} dazu ({to}).'),
+}
+
+
+def _list(xs, l):
+    return xs[0] if len(xs) == 1 else ', '.join(xs[:-1]) + f" {l['andw']} " + xs[-1]
+
+
+def conti(c, acc, lang, rname, cname, aname, guests=False):
+    """A continental cup's FORMAT page in plain prose: its entrants (access: per association, the entry rounds, the
+    guests, the holders), its rounds (format) and the links to the other cups. rname / cname / aname: a round's,
+    a cup's and an association's name in the language."""
+    l = CP[lang]
+    out = []
+    acc = acc or {}
+    per = {a: v for a, v in acc.items() if isinstance(v, list)}
+    s = []
+    if per:
+        by = {}
+        for a, v in per.items():
+            by.setdefault(len(v), []).append(aname(a))
+        lst = [(l['each'] if len(by[k]) == 1 else l['eachk']).format(k=k, x=', '.join(by[k])) for k in sorted(by, reverse=True)]
+        nn = sum(len(v) for v in per.values())
+        s.append(l['n' if nn > 1 else 'n1'].format(n=nn, lst=', '.join(lst) if nn > 1 else aname(next(iter(per)))))
+        at = {}
+        for v in per.values():
+            for r, _ in v:
+                at[r] = at.get(r, 0) + 1
+        order = [rd['key'] for rd in c['rounds']]
+        if len(at) > 1:
+            s.append(l['enter'].format(lst='; '.join(l['at'].format(k=at[r], r=rname(r).lower()) for r in
+                                                   sorted(at, key=lambda r: -order.index(r) if r in order else 0))))
+    if acc.get('outside') or guests:
+        s.append(l['guests'] if per else l['gonly'])
+    hold = acc.get('holders') or {}
+    if per or len(hold) != 2:
+        for k, r in hold.items():
+            if r in [rd['key'] for rd in c['rounds']] and r != c['rounds'][0]['key']:
+                s.append((l['holder'] if k == c['key'] else l['holderc']).format(r=rname(r).lower(), c=cname(k)))
+    elif hold:
+        a, b = list(hold)
+        s.append(l['holders'].format(a=cname(a), b=cname(b)))
+    if s:
+        out.append(' '.join(s))
+    s, i, rds = [], 0, c['rounds']
+    how = lambda rd: (l['two'] if rd.get('legs', 2) == 2 else l['one_et'] if rd.get('level') == 'et_pens' else l['one']) + \
+        (' ' + l['neutral'] if rd.get('host') == 'neutral' else '')
+    while i < len(rds):
+        rd = rds[i]
+        if rd['kind'] == 'league_stage':
+            q = max((int(k.split('-')[1]) for k in (rd.get('out') or {}) if '-' in k), default=8)
+            s.append(l['league'].format(r=rname(rd['key']), c=rd.get('regions', 1) * rd.get('clubs_per_region', 0),
+                                        z=rd.get('regions', 1), m=rd.get('matches', 0), q=q))
+            i += 1
+            continue
+        if rd['kind'] == 'groups':
+            o = rd.get('out') or {}
+            nxt = {}
+            for p, to in sorted(o.items()):
+                nxt.setdefault(to, []).append(int(p))
+            parts = []
+            for to, ps in nxt.items():
+                if ':' in to:
+                    ck, tr = to.split(':')
+                    parts += [l['pcup'].format(w=l['pw'][p - 1], c=cname(ck), to=rname(tr).lower()) for p in ps]
+                elif ps == [1] and rd['groups'] == 1:
+                    parts.append(l['go1'].format(to=rname(to).lower()))
+                elif len(ps) > 1 and ps == list(range(1, len(ps) + 1)):
+                    parts.append((l['go2'] if len(ps) == 2 else l['go']).format(k=len(ps), to=rname(to).lower()))
+                elif to.endswith('_best'):
+                    parts += [l['pbest'].format(w=l['pw'][p - 1], to=rname(to[:-5]).lower()) for p in ps]
+                else:
+                    parts += [l['pgo'].format(w=l['pw'][p - 1], to=rname(to).lower()) for p in ps]
+            s.append((l['group1'] if rd['groups'] == 1 else l['groups']).format(
+                r=rname(rd['key']), g=rd['groups'], s=rd['size'], legs=l['legs2'] if rd.get('rounds', 2) == 2 else l['legs1'],
+                out=_list(parts, l) if parts else '-'))
+            i += 1
+            continue
+        j = i
+        while j + 1 < len(rds) and rds[j + 1]['kind'] not in ('groups', 'league_stage') and how(rds[j + 1]) == how(rd):
+            j += 1
+        names = [rname(r['key']) for r in rds[i:j + 1]]
+        s.append(l['rnd'].format(r=names[0], how=how(rd)) if i == j else
+                 l['rnds'].format(r=', '.join(names[:-1]), z=names[-1], how=how(rd)))
+        i = j + 1
+    s.append(l['away'] if any(rd.get('level') == 'away_pens' for rd in rds) else l['noaway'])
+    out.append(' '.join(_cap(x) for x in s))
+    s = []
+    for rk, to in (c.get('losers') or {}).items():
+        ck, tr = to.split(':')
+        s.append(l['losers'].format(r=rname(rk).lower(), c=cname(ck), to=rname(tr).lower()))
+    for tr, what in (c.get('in') or {}).items():         # ('po': 'lib:groups 3rds', 'groups': 'lib:q3 losers')
+        ck, rest = what.split(':', 1)
+        r, w = (rest.split() + [''])[:2]
+        s.append(l['inn'].format(c=cname(ck), what=(l['wt'] if w == '3rds' else l['wl']).format(r=rname(r).lower()),
+                                 to=rname(tr).lower()))
+    if s:
+        out.append(' '.join(s))
+    return out

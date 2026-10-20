@@ -520,6 +520,9 @@ when the engine lands it.
   of these details.
 
 **Known limits**
+- At the end of a season the game finishes every competition still open and shows each one in turn: in this world
+  there are many more of them than in the original game, so the sequence takes longer (about a second each on a fast
+  486; the time is the original game's own menu drawing, not the mod's code).
 - The World 2026-27 has no national teams yet: no national team offers a job in this career (planned for 4.2).
 - A career saved with one language's executable and loaded with another keeps the first language's competition
   titles, and its league tables show no zone colours, no FORMAT page and no overall table (annual table / Supporters'
@@ -1107,6 +1110,9 @@ Baiano, Cearense, Pernambucano, Alagoano e Mato-Grossense.
   regolamento pubblicato non dà questi dettagli.
 
 **Limiti noti**
+- A fine stagione il gioco conclude tutte le competizioni ancora aperte e le mostra una dopo l'altra: in questo mondo
+  sono molte più che nel gioco originale, quindi la sequenza dura di più (circa un secondo ciascuna su un 486 veloce;
+  il tempo è quello del disegno dei menu del gioco originale, non del codice della mod).
 - Il Mondo 2026-27 non ha ancora le nazionali: in questa carriera nessuna nazionale offre un lavoro (previste nella
   4.2).
 - Una carriera salvata con l'eseguibile di una lingua e caricata con quello di un'altra tiene i titoli delle

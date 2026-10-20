@@ -2129,7 +2129,7 @@ def world8485():
                     midc[0] += 1
                     if midc[0] >= int(mid[2]):
                         return True
-                if midt[0] and '- RISULTATO -' in scr.texts() and midt[0] in scr.texts() and \
+                if midt[0] and '- RISULTATO -' in scr.texts() and any(midt[0] in x for x in scr.texts()) and \
                         tuple(scr.texts()) != midt[2]:         # W8485_MIDTEXT 'text:n': save after the n-th
                     midt[2] = tuple(scr.texts())                # match screen showing that text
                     midt[3] += 1

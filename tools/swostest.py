@@ -5815,10 +5815,11 @@ def world_full_eng():
 
 @scenario
 def world_full_arg():
-    """Full 5.0 world (full_season): a season at BOCA JUNIORS (Argentina, LIGA PROFESIONAL ZONA A, 15 clubs: a rest day
+    """Full 5.0 world (full_season): a season at BOCA JUNIORS (Argentina, LIGA PROFESIONAL - the menu's fitted name since
+    4.0-argfix -, its zone A of 15 clubs: a rest day
     each matchday): the season end runs with no 25+-club division (the 30-club table made the season end ask for
     team 0: VerifyTeamLoaded's int 3); sizes kept"""
-    return full_season('arg', 'SUDAMERICA,ARGENTINA,LIGA PROFESIONAL ZONA A,BOCA JUNIORS')
+    return full_season('arg', 'SUDAMERICA,ARGENTINA,LIGA PROFESIONAL,BOCA JUNIORS')
 
 
 @scenario

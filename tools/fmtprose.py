@@ -339,13 +339,13 @@ RD = {
                sf=_rd('das Halbfinale', 'im Halbfinale', 'ins Halbfinale'),
                final=_rd('das Finale', 'im Finale', 'ins Finale')),
 }
-REG = {'it': dict(conmebol='del Sudamerica', concacaf='del Nord e Centro America e dei Caraibi', afc="dell'Asia",
+REG = {'it': dict(fifa='del mondo', conmebol='del Sudamerica', concacaf='del Nord e Centro America e dei Caraibi', afc="dell'Asia",
                   caf="dell'Africa", ofc="dell'Oceania"),
-       'en': dict(conmebol='of South America', concacaf='of North and Central America and the Caribbean', afc='of Asia',
+       'en': dict(fifa='of the world', conmebol='of South America', concacaf='of North and Central America and the Caribbean', afc='of Asia',
                   caf='of Africa', ofc='of Oceania'),
-       'fr': dict(conmebol="d'Amérique du Sud", concacaf="d'Amérique du Nord, d'Amérique centrale et des Caraïbes",
+       'fr': dict(fifa='du monde', conmebol="d'Amérique du Sud", concacaf="d'Amérique du Nord, d'Amérique centrale et des Caraïbes",
                   afc="d'Asie", caf="d'Afrique", ofc="d'Océanie"),
-       'de': dict(conmebol='Südamerikas', concacaf='Nord- und Mittelamerikas und der Karibik', afc='Asiens', caf='Afrikas',
+       'de': dict(fifa='der Welt', conmebol='Südamerikas', concacaf='Nord- und Mittelamerikas und der Karibik', afc='Asiens', caf='Afrikas',
                   ofc='Ozeaniens')}
 CP = {
     'it': dict(tier=['La {c} riunisce le migliori squadre {reg}.', 'La {c} è la seconda coppa per club {reg}.',

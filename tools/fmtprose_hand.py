@@ -190,6 +190,47 @@ def _cup(it, en, fr, de):
 
 
 HAND = {
+    (5, 'COPPA INTERCONTINENTALE'): {   # (conti 'fifa': the stepladder of the six continental champions)
+        'it': ["La Coppa Intercontinentale riunisce le vincitrici delle coppe dei sei continenti. Si gioca a scalini: "
+               "chi arriva da una coppa più forte entra più tardi. Tutte le partite sono in gara unica, con "
+               "supplementari e rigori in caso di parità.",
+               "Si parte con il play-off Africa-Asia-Pacifico: la vincitrice della AFC Champions League Elite ospita "
+               "quella dell'OFC Champions League (negli anni dispari tocca alla vincitrice africana). Poi si giocano "
+               "due sfide: nella Coppa Africa-Asia-Pacifico la vincitrice della CAF Champions League affronta chi ha "
+               "vinto il play-off, in casa della squadra del paese meglio piazzato nel ranking FIFA; nel Derby delle "
+               "Americhe la vincitrice della Copa Libertadores affronta quella della CONCACAF Champions Cup, in campo "
+               "neutro. Le due vincenti si giocano la Challenger Cup in campo neutro, e chi vince sfida in finale, "
+               "sempre in campo neutro, la vincitrice della UEFA Champions League."],
+        'en': ["The Intercontinental Cup brings together the winners of the six continents' club cups. It is a "
+               "stepladder: the stronger a club's cup, the later it comes in. Every match is a single game, with extra "
+               "time and penalties if level.",
+               "It starts with the African-Asian-Pacific play-off: the AFC Champions League Elite winners host the OFC "
+               "Champions League winners (in odd years the African winners play it). Then come two ties: in the "
+               "African-Asian-Pacific Cup the CAF Champions League winners meet the play-off winners, at the club of "
+               "the country higher in the FIFA ranking; in the Derby of the Americas the Copa Libertadores winners "
+               "meet the CONCACAF Champions Cup winners at a neutral ground. The two winners play the Challenger Cup at "
+               "a neutral ground, and its winners face the UEFA Champions League winners in the final, also at a "
+               "neutral ground."],
+        'fr': ["La Coupe intercontinentale réunit les vainqueurs des coupes des six continents. Elle se joue par "
+               "paliers : plus la coupe d'un club est forte, plus il entre tard. Tous les matchs sont uniques, avec "
+               "prolongation et tirs au but en cas d'égalité.",
+               "On commence par le barrage Afrique-Asie-Pacifique : le vainqueur de l'AFC Champions League Elite "
+               "reçoit celui de l'OFC Champions League (les années impaires, c'est le vainqueur africain qui le joue). "
+               "Viennent ensuite deux affiches : dans la Coupe Afrique-Asie-Pacifique, le vainqueur de la CAF "
+               "Champions League affronte celui du barrage, chez le club du pays le mieux classé au classement FIFA ; "
+               "dans le Derby des Amériques, le vainqueur de la Copa Libertadores affronte celui de la CONCACAF "
+               "Champions Cup sur terrain neutre. Les deux vainqueurs jouent la Challenger Cup sur terrain neutre, et "
+               "son vainqueur affronte en finale, toujours sur terrain neutre, le vainqueur de l'UEFA Champions League."],
+        'de': ["Der Interkontinental-Pokal vereint die Sieger der Klubwettbewerbe der sechs Kontinente. Gespielt wird "
+               "in Stufen: Je stärker der Wettbewerb eines Vereins, desto später steigt er ein. Alle Spiele sind "
+               "Einzelspiele, bei Gleichstand mit Verlängerung und Elfmeterschießen.",
+               "Es beginnt mit dem Afrika-Asien-Pazifik-Playoff: Der Sieger der AFC Champions League Elite empfängt "
+               "den Sieger der OFC Champions League (in ungeraden Jahren spielt es der afrikanische Sieger). Danach "
+               "folgen zwei Duelle: Im Afrika-Asien-Pazifik-Pokal trifft der Sieger der CAF Champions League auf den "
+               "Playoff-Sieger, beim Verein des in der FIFA-Rangliste besser platzierten Landes; im Derby der Amerikas "
+               "trifft der Sieger der Copa Libertadores auf den Sieger des CONCACAF Champions Cup, auf neutralem Platz. "
+               "Die beiden Sieger spielen auf neutralem Platz den Challenger Cup, und dessen Sieger trifft im Finale, "
+               "ebenfalls auf neutralem Platz, auf den Sieger der UEFA Champions League."]},
     (5, 'ITALIA SERIE B'): {l: [{'it': "Il campionato ha 20 squadre che si affrontano in andata e ritorno: 38 giornate. "
                                        "La vittoria vale 3 punti, il pareggio 1.",
                                  'en': "The league has 20 clubs who play each other home and away: 38 matchdays. A win "

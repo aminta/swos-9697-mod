@@ -2775,7 +2775,10 @@ def careers_list():
                 return False, f'{t} not reached ({s.result})'
         got = [t for _, t, inv, _ in s.screen().entries if t and not inv][1:]
         got = [t for t in got if t != 'ESCI']
-    return got == want, f'CARR. STORICHE: {got} (expected {want})'
+    extra = [t for t in got if t not in want]      # (4.0: a release build adds worlds outside the harness's packs - the
+    ok = (all(t in got for t in want) and len(set(got)) == len(got)       # world 2026-27, MONDO 2026-27 - one entry each)
+          and all(re.search(r'\d{4}-\d{2}$', t) for t in extra))
+    return ok, f'CARR. STORICHE: {got} (expected {want} + worlds of the build)'
 
 
 @scenario
@@ -4613,7 +4616,7 @@ def sr_blocks(b):
 
 
 @scenario
-def world_statesim(team='SUDAMERICA,BRASILE,CAMPEONATO BRASILEIRO SERIE A,ATHLETICO-PR'):
+def world_statesim(team='SUDAMERICA,BRASILE,BRASILEIRAO SERIE A,ATHLETICO-PR'):
     """State championships at the season end (statespec statesim.c + ripool, World 2026-27 private data world5tm):
     two seasons at ATHLETICO-PR (Paranaense): season 1's SS_LAST (statesim's SR) has one block per state, the
     Paranaense's = the real stage-1 order seen at its first knockout (ST_RANK block 0, st_rec) with its relegation
@@ -5995,7 +5998,7 @@ def world_full_draw():
         return False, f'simdraw table found {len(at)} times in {bdir}'
     keep = {k: os.environ.get(k) for k in ('W2627FULL', 'W2627FULL_COUNTRY', 'W2627FULL_TEAM', 'W8485_FILL', 'W8485_ONE')}
     os.environ.update(W2627FULL=bdir, W2627FULL_COUNTRY='bra', W8485_ONE='1', W8485_FILL=f'{at[0]:x}:11:{len(tab)}',
-                      W2627FULL_TEAM='SUDAMERICA,BRASILE,CAMPEONATO BRASILEIRO SERIE A,PALMEIRAS')
+                      W2627FULL_TEAM='SUDAMERICA,BRASILE,BRASILEIRAO SERIE A,PALMEIRAS')
     try:
         ok, msg = full_season('bra', '')
     finally:
@@ -6103,7 +6106,7 @@ def world_away_goals():
                                                    'W8485_ONE', 'W8485_BUILD', 'W8485_TEAM', 'W8485_WORLD', 'W8485_WNUM',
                                                    'W8485_K')}
             os.environ.update(W2627FULL=bdir, W2627FULL_COUNTRY='bra', W8485_ONE='1', W8485_FILL=f'{at[0]:x}:11:{len(tab)}',
-                              W2627FULL_TEAM='SUDAMERICA,BRASILE,CAMPEONATO BRASILEIRO SERIE A,PALMEIRAS')   # (slot 1:
+                              W2627FULL_TEAM='SUDAMERICA,BRASILE,BRASILEIRAO SERIE A,PALMEIRAS')   # (slot 1:
             # the Copa do Brasil from its two-legged quarter-finals, the career club always in them: the screens show
             # every tie's result; two_legs_pens, but cseg_2AE97 checks the away rule before the round byte)
             try:
@@ -6485,10 +6488,12 @@ def menu_levels():
             walk(s, cont, 3)
             walk(s, 'EL SALVADOR', 3)
             lv = vis(s.screen())
-            check('SEGUNDA DIVISION' in lv and 'TERCERA DIVISION' in lv, f'EL SALVADOR levels {lv}', errs)
-            walk(s, 'SEGUNDA DIVISION', 3)
+            seg = next((x for x in ('SEGUNDA DIVISION', 'SEGUNDA') if x in lv), None)   # (4.0: the fitted short forms)
+            check(seg and any(x in lv for x in ('TERCERA DIVISION', 'TERCERA')), f'EL SALVADOR levels {lv}', errs)
+            walk(s, seg or 'SEGUNDA', 3)
             gr = vis(s.screen())
-            check(gr == ['SEGUNDA DIVISION OCCIDENTE', 'SEGUNDA DIVISION ORIENTE'], f'SEGUNDA groups {gr}', errs)
+            check(len(gr) == 2 and gr[0].startswith('SEGUNDA') and gr[0].endswith('OCCIDENTE')
+                  and gr[1].startswith('SEGUNDA') and gr[1].endswith('ORIENTE'), f'SEGUNDA groups {gr}', errs)
             notes.append(f'EL SALVADOR {lv}')
         except AssertionError as e:
             return False, f'{e}; {"; ".join(errs)}; screen {s.screen().texts()[:16]}'

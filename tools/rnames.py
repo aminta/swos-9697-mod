@@ -370,9 +370,32 @@ rn_tfit:                                ; A0 = the round's long name, D0 = its i
     cmp edx, 40
     jbe .x
 .med:
-    movzx eax, word [D0R]
-    mov eax, [MEDTAB + eax]
-    mov [A0R], eax
+    movzx edi, word [D0R]
+    mov ebx, [MEDTAB + edi]
+    mov [A0R], ebx
+    mov esi, ebx                        ; 4.0: still longer once rn_tend drops the first word (ACLE 'CHAMPIONS LEAGUE
+    call rn_len                         ; ELITE FASE CAMP. RITORNO'): the calendar's form of the round (CALTAB)
+    mov edx, ecx
+    mov esi, DIY + 4
+    call rn_len
+    add edx, ecx
+    cmp word [DIY + 14Bh], 2
+    jne .m2
+    add edx, 8
+.m2:
+    mov esi, DIY + 4
+.m3:
+    lodsb
+    test al, al
+    jz .m4
+    dec edx
+    cmp al, ' '
+    jne .m3
+.m4:
+    cmp edx, 39
+    jbe .x
+    mov ebx, [CALTAB + edi]
+    mov [A0R], ebx
 .x:
     popad
     ret
@@ -574,7 +597,7 @@ def patch(p, at, limit, lang, area, lp_ids, numbered):
             i + 5 + struct.unpack_from('<i', d1, i + 1)[0] == t280]
     assert len(o280) == 1, o280                 # (cseg_8C21C's call: the calendar entries' round name)
     sym.update({'R8C21C_RET': (1, o280[0] + 5), 'A6R': (2, a0 + 24)})
-    sym.update({'QID_LO': (0, min(uefaq.QIDS)), 'QID_HI': (0, max(uefaq.QIDS)), 'C28049': (1, c28049), 'C284AB': (1, c284ab), 'MEDTAB': (1, tab + 4 * n), 'A0R': (2, a0),
+    sym.update({'QID_LO': (0, min(uefaq.QIDS)), 'QID_HI': (0, max(uefaq.QIDS)), 'C28049': (1, c28049), 'C284AB': (1, c284ab), 'MEDTAB': (1, tab + 4 * n), 'CALTAB': (1, cal), 'A0R': (2, a0),
                 'A1R': (2, a0 + 4)})
     code, fix = nasmcave.assemble(ASM, code_at, sym)
     lab = nasmcave.labels(ASM, code_at, sym)

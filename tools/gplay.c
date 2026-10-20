@@ -1231,7 +1231,12 @@ static int ko_build(struct gp_ko *k, int pi, int slot, int cid) {
     if (GP_IN.gtype == 4) {
         int in = 0, in0 = 0;
         for (int i = 0; i < n; i++) in |= k->team[i] == GP_IN.mgr;
-        for (int i = 0; i < 2 * k->rs[0][0]; i++) in0 |= k->rc[i] < n && k->team[k->rc[i]] == GP_IN.mgr;
+        for (int i = 0; i < k->rs[0][0]; i++) {   /* (a round-1 tie of the club with itself - Malta's split seeds,
+                                               skip_if_same - is no match: the club waits) */
+            int a = k->rc[2 * i], b = k->rc[2 * i + 1];
+            if (a < n && b < n && (k->team[a] == GP_IN.mgr || k->team[b] == GP_IN.mgr) && k->code[a] != k->code[b])
+                in0 = 1;
+        }
         presim = in && !in0;
     }
     k->gp0[0] = 0;

@@ -1549,13 +1549,16 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
         for i, name in BUILD_AFTER.get(spec, []):
             assert after.setdefault(name, i) == i, f'build_after {name}: two play-off indices'
     symbols['SP_WEEK'] = (2, split.sites(p)['WEEK'])
-    symbols.update({'SP_MAGIC': (0, split.ST), 'SP_MAGIC_': (0, split.MAGIC), 'SP_WEEKS': (0, split.WEEKS)})
+    symbols.update({'SP_STO': (0, split.ST), 'SP_MAGIC_': (0, split.MAGIC), 'SP_WEEKS': (0, split.WEEKS)})
+                                                            # (SP_STO, not SP_MAGIC: gp_keep pushes SP_MAGIC = the
+                                                            # magic value; redefined as the offset, Malta's kept
+                                                            # Opening table was refused and its decider never built)
     stubs = ''.join(f'ba_{name}:\n    mov dword [GP_BPI], {i}\n    call gp_lastwk\n'
                     f'    mov [GP_BWEEK], eax\n    jmp gp_defer\n' for name, i in sorted(after.items()))
     stubs += '''gp_lastwk:                              ; 4.0: eax = the week of the league's last played day (split's weeks table in
     movzx eax, byte [SP_WEEK]           ; DIY: ARG's Apertura knockout starts in the gap before the Clausura, not after
     push ecx                            ; its first day - Davide 2026-10-20), else the game's week
-    cmp word [DIY + SP_MAGIC], SP_MAGIC_
+    cmp word [DIY + SP_STO], SP_MAGIC_
     jne .x
     movzx ecx, word [DIY + 1C1h]
     jecxz .x

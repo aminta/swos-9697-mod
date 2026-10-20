@@ -498,7 +498,7 @@ def patch(p, at, limit, bss_at, area):
     assert bss <= BSS, hex(bss)
     q = cw._qual_sites(d1, p)
     symbols = {'DIY': (2, lib97._sites(p)[3] + 0x41F), 'STAND': q['STAND'], 'CUPREC': q['CUPREC'],
-               'SEL': (2, sacups.SEL_ADDR[0]), 'SPEC': (2, area.add(spec)), 'C927A2': (1, t927[0]),
+               'SEL': (2, sacups.SEL_ADDR[0]), 'SPEC': (1, (end + 15) & ~15), 'C927A2': (1, t927[0]),
                'C93974': (1, t939[0]), 'CT_SPEC': syms['CT_SPEC'], 'CT_TABLE': syms['ct_table'],
                'CT_BEGIN': syms['ct_begin'], 'CT_COUNTRY': syms['ct_country'], 'CT_GO': syms['ct_go']}
     lp = []
@@ -509,7 +509,9 @@ def patch(p, at, limit, bss_at, area):
     asm = GLUE.replace("    ;CT_LP", "\n".join(lp))
     bad = {k: v for k, v in symbols.items() if not (isinstance(v, tuple) and isinstance(v[1], int))}
     assert not bad, bad
-    glue = (end + 15) & ~15
+    spec_at = (end + 15) & ~15                          # (the spec in our own pages: the obj2 string area is
+    p.put(1, spec_at, spec)                             # nearly full with five confederations' names)
+    glue = (spec_at + len(spec) + 15) & ~15
     code, fix = nasmcave.assemble(asm, glue, symbols)
     lab = nasmcave.labels(asm, glue, symbols)
     assert glue + len(code) <= limit, hex(glue + len(code))

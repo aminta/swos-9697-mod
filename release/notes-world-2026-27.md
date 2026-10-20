@@ -278,6 +278,7 @@ when the engine lands it.
   - **Played by your club**, with the real round names (TURNO PRELIMINARE, PRIMO TURNO, TRENTADUESIMI ... FINALE).
   - The ties your club does not play are decided by the clubs' strength (their best 11, as every other simulated
     result), home advantage included.
+  - Its bracket screens show every round from the trentaduesimi on. <!-- staged -->
 
 *National cups 2026-27*
 - **Every club still in when the data was taken (October 2026)**, each from **its real round**: clubs entering later
@@ -309,6 +310,48 @@ when the engine lands it.
   follow the general rule (no list of qualified clubs published); Central America and Suriname (qualified through
   the Central American and Caribbean Cups) and Taiwan (AFC Challenge League) have no colours; the holders' extra
   places and places passed down are decided by the cups and not coloured.
+
+*Continental club cups 2026-27*
+- **12 continental competitions, all in the career**, each with one edition per season, on the real 2026 / 2026-27
+  formats and places by association:
+  - CONMEBOL: **Copa Libertadores** (47 clubs: three two-legged qualifying rounds, 8 groups of 4, two-legged round
+    of 16, quarter- and semi-finals, a single-match final), **Copa Sudamericana** (56 clubs: a single-match first
+    round between clubs of the same association, 8 groups of 4, a two-legged play-off against the Libertadores
+    group thirds, two-legged round of 16 to semi-finals, a single-match final), **Recopa** (the two winners, over
+    two legs).
+  - CONCACAF: **Champions Cup** (two-legged first round, round of 16, quarter- and semi-finals: away goals, then
+    penalties; a single-match final at the finalist with the better goal difference in the earlier rounds).
+  - AFC: **Champions League Elite** (a single-match preliminary round; a league stage in two regions, West and East,
+    of 16 clubs: 4 pots of 4, 8 matches each, 2 against each pot, the real 2026-27 pots and fixtures; two-legged round
+    of 16; single-match quarter-finals, semi-finals and final; level ties go to extra time and penalties),
+    **Champions League Two** (preliminary round, 8 groups of 4, two-legged round of 16 to semi-finals, a single-match
+    final), **Challenge League** (preliminary round, 5 groups of 4 with the best runners-up also through, two-legged
+    quarter- and semi-finals, a single-match final).
+  - CAF: **Champions League** and **Confederation Cup** (two-legged first and second qualifying rounds, 4 groups of
+    4, two-legged quarter-finals, semi-finals and final: away goals, then penalties, no extra time; only the real 3
+    byes skip the first round: RS Berkane, Esperance and the holder Mamelodi Sundowns; a holder that qualifies
+    through its league uses its own place), **Super Cup** (the two winners, a single match at a neutral ground,
+    penalties).
+  - OFC: **Champions League** (a qualifying group of 4 with the champions of the four lowest-ranked associations,
+    2 groups of 4, single-match semi-finals and final at a centralised host; one place per association, New Zealand
+    included).
+  - FIFA: **Intercontinental Cup**, the real 2026 stepladder, all single matches with extra time and penalties: the
+    African-Asian-Pacific play-off (the AFC winner v the OFC champion, alternating with CAF), then the
+    African-Asian-Pacific Cup (the CAF winner v the play-off winner, at the club of the higher FIFA-ranked country)
+    and the Derby of the Americas (the Libertadores winner v the CONCACAF winner, at a neutral ground), the FIFA
+    Challenger Cup between their winners, and the final against the UEFA Champions League winner.
+- **Access by association**: every confederation's real list of places (champions, cup winners, k-th places,
+  play-off and split-season champions), mapped to the world's leagues.
+- **Guest clubs**: every place of an association that is not in the world goes to that association's real entrant:
+  159 real clubs from the 2026-27 entry lists (CAF 94, AFC 53, OFC 10, CONCACAF 2), with their real names and
+  Transfermarkt squads for 126 of them. They play only their continental cup.
+- **Pots and seeds from the real rankings**: the Libertadores and Sudamericana pots from the CONMEBOL club ranking of
+  15 December 2025 (the one of the 2026 draws).
+- **The Copa Libertadores is played exactly**: the qualifying rounds, the groups, the seeded round of 16 draw after
+  the groups, and the group thirds into the Sudamericana play-off.
+- **Each cup's FORMAT page** tells its format, its entrants and its guests in plain words, in 4 languages.
+- **Zone colours in the cups' group tables**: light blue for the places that go on, green for a play-off or the
+  move to another cup (the Libertadores thirds to the Sudamericana), with a legend.
 
 *Leagues, calendars and clubs*
 - **Every league, national cup and league cup under its real 2026-27 name, without title sponsors**: COPPA ITALIA,
@@ -519,6 +562,26 @@ when the engine lands it.
   Profesional's matchdays are weekly from 22 January (Apertura) and 18 July (Clausura): the regulation published none
   of these details.
 
+- Continental cups:
+  - **Single-table associations**: the Apertura, Clausura and hexagonal places go to the matching places of the
+    single world table.
+  - **Rankings frozen at season 1**: the CONMEBOL club ranking of 15 December 2025 and the 2026 CAF, AFC and OFC
+    association lists.
+  - **CAF byes**: from season 2 they stay on the same places (Morocco's 2nd, Tunisia's 2nd and the holder) instead
+    of following CAF's club ranking.
+  - **Guests**: the same list every season (there are no real entrants for later seasons); OFC and CONCACAF use the
+    2026 entrants, as the 2027 lists are not out yet. 33 guest squads are not complete on Transfermarkt: 28 are
+    generated (names from the world's players of that nationality, values on the world scale), 5 are completed with
+    generated players; coaches are generated where Transfermarkt has none.
+  - **OFC's Intercontinental place**: the OFC Professional League champion's place goes to the OFC Champions League
+    winner.
+  - **AFC**: the Champions League Elite league stage and the Challenge League groups are simulated in 4.0: your club
+    joins the Elite at the round of 16 and the Challenge League at the quarter-finals.
+  - **Intercontinental Cup**: the UEFA Champions League holder has no strength data of its own; the rounds that
+    overlap your club's own cup are simulated.
+  - **Copa El Salvador**: the 18 real entrants that are in the world (of 24), as a knockout (the real group stage is
+    played as a knockout).
+
 **Known limits**
 - At the end of a season the game finishes every competition still open and shows each one in turn: in this world
   there are many more of them than in the original game, so the sequence takes longer (about a second each on a fast
@@ -562,6 +625,10 @@ when the engine lands it.
 - The 1996-97 game as it really was (the real 1996-97 groups, Supercup, Intertoto, leagues and cups) comes in 4.1.
 
 **Updating**
+- **One-click install** (Chrome or Edge): choose the game folder (GOG, CD install, eXoDOS / DOSBox; Mac GOG: the
+  .harddisk folder inside the app) and the patcher recognises the version, keeps the files it changes in
+  MOD_BACKUP\4.0 and writes the mod in place; from the CD it copies the game into a new folder first. Run it again
+  to update. The page is in 4 languages (IT / EN / FR / DE); the manual download stays for other browsers.
 - The patcher upgrades every published version (1.0.1 to 3.3.6, CD and GOG, also the English SWOS++ version) and the
   original game, checking every file before and after (an old file goes back to the original, then to 4.0). Drop your
   executable and DATA files as usual: 15 files change (the executables, TEAM.020, TEAM.096, TEAM.105, TEAM.145,
@@ -851,6 +918,7 @@ Baiano, Cearense, Pernambucano, Alagoano e Mato-Grossense.
   - **La gioca la tua squadra**, coi nomi veri dei turni (TURNO PRELIMINARE, PRIMO TURNO, TRENTADUESIMI ... FINALE).
   - Le sfide che non giochi si decidono con la forza dei club (i migliori 11, come ogni altro risultato simulato),
     compreso il vantaggio del campo.
+  - Le schermate del tabellone mostrano ogni turno dai trentaduesimi in poi. <!-- staged -->
 
 *Coppe nazionali 2026-27*
 - **Tutte le squadre ancora in corsa quando sono stati presi i dati (ottobre 2026)**, ognuna dal **suo turno vero**:
@@ -883,6 +951,49 @@ Baiano, Cearense, Pernambucano, Alagoano e Mato-Grossense.
   Centrale e Suriname (qualificati tramite le coppe centroamericana e caraibica) e Taiwan (AFC Challenge League) non
   hanno colori; i posti in più dei detentori e quelli che passano alla squadra seguente li decidono le coppe e non
   vengono colorati.
+
+*Coppe continentali per club 2026-27*
+- **12 competizioni continentali, tutte in carriera**, ognuna con un'edizione per stagione, con i formati e i posti
+  per federazione veri del 2026 / 2026-27:
+  - CONMEBOL: **Copa Libertadores** (47 club: tre turni preliminari di andata e ritorno, 8 gironi da 4, ottavi,
+    quarti e semifinali di andata e ritorno, finale in gara unica), **Copa Sudamericana** (56 club: primo turno in
+    gara unica tra club della stessa federazione, 8 gironi da 4, spareggio di andata e ritorno contro le terze dei
+    gironi della Libertadores, dagli ottavi alle semifinali andata e ritorno, finale in gara unica), **Recopa** (le
+    due vincitrici, andata e ritorno).
+  - CONCACAF: **Champions Cup** (primo turno, ottavi, quarti e semifinali di andata e ritorno: gol in trasferta, poi
+    rigori; finale in gara unica in casa della finalista con la miglior differenza reti nei turni prima).
+  - AFC: **Champions League Elite** (turno preliminare in gara unica; fase a campionato in due zone, Ovest ed Est, da
+    16 club: 4 fasce da 4, 8 partite ciascuna, 2 contro ogni fascia, con fasce e calendario veri del 2026-27; ottavi
+    di andata e ritorno; quarti, semifinali e finale in gara unica; in parità supplementari e rigori), **Champions
+    League Two** (turno preliminare, 8 gironi da 4, dagli ottavi alle semifinali andata e ritorno, finale in gara
+    unica), **Challenge League** (turno preliminare, 5 gironi da 4 con anche le migliori seconde ai quarti, quarti e
+    semifinali di andata e ritorno, finale in gara unica).
+  - CAF: **Champions League** e **Confederation Cup** (primo e secondo turno preliminare di andata e ritorno, 4
+    gironi da 4, quarti, semifinali e finale di andata e ritorno: gol in trasferta, poi rigori, niente
+    supplementari; saltano il primo turno solo le 3 esenti vere: RS Berkane, Esperance e la detentrice Mamelodi
+    Sundowns; una detentrice qualificata col campionato usa il suo posto), **Super Cup** (le due vincitrici, gara
+    unica in campo neutro, rigori).
+  - OFC: **Champions League** (un girone di qualificazione da 4 con i campioni delle quattro federazioni più basse
+    nel ranking, 2 gironi da 4, semifinali e finale in gara unica in una sede unica; un posto per federazione, Nuova
+    Zelanda compresa).
+  - FIFA: **Coppa Intercontinentale**, la scala vera del 2026, tutte gare uniche con supplementari e rigori: il
+    play-off Africa-Asia-Pacifico (la vincitrice AFC contro la campione OFC, a turno con la CAF), poi la Coppa
+    Africa-Asia-Pacifico (la vincitrice CAF contro la vincente del play-off, in casa del club del paese meglio
+    piazzato nel ranking FIFA) e il Derby delle Americhe (la vincitrice della Libertadores contro quella della
+    CONCACAF, in campo neutro), la FIFA Challenger Cup tra le loro vincenti e la finale contro la vincitrice della
+    UEFA Champions League.
+- **Accesso per federazione**: la lista vera dei posti di ogni confederazione (campioni, vincitrici delle coppe,
+  piazzamenti, campioni dei play-off e dei tornei di apertura e chiusura), riportata sui campionati del mondo.
+- **Club ospiti**: ogni posto di una federazione che non è nel mondo va al club vero di quella federazione: 159 club
+  veri dalle liste d'iscrizione 2026-27 (CAF 94, AFC 53, OFC 10, CONCACAF 2), con i loro nomi veri e le rose di
+  Transfermarkt per 126 di loro. Giocano solo la loro coppa continentale.
+- **Fasce e teste di serie dai ranking veri**: le fasce di Libertadores e Sudamericana dal ranking CONMEBOL dei club
+  del 15 dicembre 2025 (quello dei sorteggi 2026).
+- **La Copa Libertadores si gioca esattamente**: i turni preliminari, i gironi, il sorteggio degli ottavi con le
+  teste di serie dopo i gironi e le terze dei gironi allo spareggio della Sudamericana.
+- **La pagina FORMULA di ogni coppa** ne racconta formula, iscritte e ospiti in parole semplici, in 4 lingue.
+- **Colori delle zone nelle classifiche dei gironi delle coppe**: azzurro per i posti che proseguono, verde per uno
+  spareggio o il passaggio a un'altra coppa (le terze della Libertadores alla Sudamericana), con la legenda.
 
 *Campionati, calendari e club*
 - **Ogni campionato, coppa nazionale e coppa di lega col suo nome vero 2026-27, senza lo sponsor**: COPPA ITALIA,
@@ -1109,6 +1220,26 @@ Baiano, Cearense, Pernambucano, Alagoano e Mato-Grossense.
   rigori; le giornate della Liga Profesional sono settimanali dal 22 gennaio (Apertura) e dal 18 luglio (Clausura): il
   regolamento pubblicato non dà questi dettagli.
 
+- Coppe continentali:
+  - **Federazioni con una classifica unica**: i posti di Apertura, Clausura ed esagonali vanno ai posti
+    corrispondenti della classifica unica del mondo.
+  - **Ranking fermi alla prima stagione**: il ranking CONMEBOL dei club del 15 dicembre 2025 e le liste per
+    federazione 2026 di CAF, AFC e OFC.
+  - **Esenti CAF**: dalla seconda stagione restano sugli stessi posti (la 2a del Marocco, la 2a della Tunisia e la
+    detentrice) invece di seguire il ranking dei club CAF.
+  - **Ospiti**: la stessa lista ogni stagione (non esistono iscritte vere per le stagioni dopo); OFC e CONCACAF usano
+    le iscritte 2026, perché le liste 2027 non sono ancora uscite. 33 rose ospiti non sono complete su
+    Transfermarkt: 28 sono generate (nomi dai giocatori del mondo di quella nazionalità, valori sulla scala del
+    mondo), 5 sono completate con giocatori generati; gli allenatori sono generati dove Transfermarkt non li ha.
+  - **Posto OFC nell'Intercontinentale**: il posto della campione della OFC Professional League va alla vincitrice
+    della OFC Champions League.
+  - **AFC**: la fase a campionato della Champions League Elite e i gironi della Challenge League sono simulati nella
+    4.0: il tuo club entra nella Elite dagli ottavi e nella Challenge League dai quarti.
+  - **Coppa Intercontinentale**: la detentrice della UEFA Champions League non ha dati di forza propri; i turni che
+    si sovrappongono alla coppa del tuo club sono simulati.
+  - **Copa El Salvador**: le 18 iscritte vere che sono nel mondo (su 24), a eliminazione diretta (il girone vero si
+    gioca a eliminazione diretta).
+
 **Limiti noti**
 - A fine stagione il gioco conclude tutte le competizioni ancora aperte e le mostra una dopo l'altra: in questo mondo
   sono molte più che nel gioco originale, quindi la sequenza dura di più (circa un secondo ciascuna su un 486 veloce;
@@ -1165,6 +1296,10 @@ Baiano, Cearense, Pernambucano, Alagoano e Mato-Grossense.
 - Il gioco 1996-97 com'era davvero (i gironi veri 1996-97, Supercoppa, Intertoto, campionati e coppe) arriva nella 4.1.
 
 **Aggiornamento**
+- **Installazione con un clic** (Chrome o Edge): scegli la cartella del gioco (GOG, CD installato, eXoDOS / DOSBox;
+  Mac GOG: la cartella .harddisk dentro l'app) e il patcher riconosce la versione, mette i file che cambia in
+  MOD_BACKUP\4.0 e scrive la mod al loro posto; dal CD copia prima il gioco in una cartella nuova. Rilancialo per
+  aggiornare. La pagina è in 4 lingue (IT / EN / FR / DE); il download a mano resta per gli altri browser.
 - Il patcher aggiorna tutte le versioni pubblicate (dalla 1.0.1 alla 3.3.6, CD e GOG, anche la versione inglese con
   SWOS++) e il gioco originale, controllando ogni file prima e dopo (un file vecchio torna all'originale, poi alla
   4.0). Trascina come sempre l'eseguibile e i file di DATA: cambiano 15 file (gli eseguibili, TEAM.020, TEAM.096,

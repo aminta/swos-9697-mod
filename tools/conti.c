@@ -167,6 +167,7 @@ static void route(int from_cup, u8 rt, int club, int side_rank) {
     enter(c, r, club, 1, (c != from_cup ? 0x80 : 0) | (side_rank & 0x7F));
 }
 
+static int in_cup(int c, int a);
 static int next_club(int a) {          /* the best league club of association a not yet in */
     for (int l = 0; l < NL; l++) {
         int x = CT_IN.league[a][l];
@@ -225,7 +226,7 @@ static void access(void) {
         if (e[1] != e[0] && RND(e[1], e[2])[0] == K_KO && nrd[e[1]] == 1) continue;   /* (a holders' match: none) */
         int best = 0;
         for (int i = 1; i <= CT_IN.nclub; i++)
-            if (!taken[i] && (!best || pts(i) > pts(best))) best = i;
+            if (!taken[i] && in_cup(e[1], assoc(i)) && (!best || pts(i) > pts(best))) best = i;
         if (best) { enter(e[1], e[2], best, 0, 0); taken[best] = 1; }
     }
 }
@@ -341,6 +342,15 @@ static void draw_ko(int c, int r, const u8 *R) {
 }
 /* groups into D: group g = D[g * size ..]; pots of ngroups clubs by ranking (via clubs last), the holder A1 */
 static void reached(int club, int c, int r);
+static int in_cup(int c, int a) {       /* an association with a place in the cup (its confederation's) */
+    for (int i = 0; i < nacc; i++) {
+        const u8 *e = acc + 4 * i;
+        if (e[1] != c) continue;
+        if (e[0] == a) return 1;
+        if (e[0] == 0xFE && e[3] < ngu && gu[8 * e[3] + 2] == a) return 1;
+    }
+    return 0;
+}
 static void draw_groups(int c, int r, const u8 *R) {
     int n = EN[c][r], ng = R[6], gs = R[7], rule = R[5];
     u16 x[NE]; u8 v[NE], k[NE];
@@ -363,7 +373,7 @@ static void draw_groups(int c, int r, const u8 *R) {
                                            club in no cup this edition (declared), so the game's contest is full */
         int b = 0;
         for (int i = 1; i <= CT_IN.nclub; i++)
-            if (!taken[i] && (!b || pts(i) > pts(b))) b = i;
+            if (!taken[i] && in_cup(c, assoc(i)) && (!b || pts(i) > pts(b))) b = i;
         if (!b) break;
         taken[b] = 1;
         reached(b, c, r);

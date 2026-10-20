@@ -966,7 +966,8 @@ def season1(confs, files, words, seed=2027, stand_ins_only=False):
         rank = {words[k]: v for k, v in (ac.get('ranking') or {}).items() if k in words}
         top = sorted({e['assoc'] for c in acc.values() for e in c.get('entrants_season1') or []},
                      key=lambda a: ('bra', 'arg').index(a) if a in ('bra', 'arg') else 9)
-        taken = {words[(e['assoc'], e['club'])] for c in acc.values() for e in c.get('entrants_season1') or []}
+        taken = {words[(e['assoc'], e['club'])] for c in acc.values() for e in c.get('entrants_season1') or []
+                 if (e['assoc'], e['club']) in words}   # (a test world without some of the clubs)
 
         def stand_in(i):
             if rank:
@@ -1015,6 +1016,9 @@ def season1(confs, files, words, seed=2027, stand_ins_only=False):
             ent = {}
             for e in a.get('entrants_season1') or []:
                 r = ALIAS.get(e['round'], e['round'])
+                if (e['assoc'], e['club']) not in words:   # (a test world without the club: the round's fill takes over)
+                    print(f"conti: season 1 {conf} {c['key']}: {e['assoc']} {e['club']} not in this world, skipped")
+                    continue
                 ent.setdefault(r, []).append((words[(e['assoc'], e['club'])], e['assoc']))
             if not ent and not any(k[0] == c['key'] for k in extra):
                 if c['key'] == 'rec' and len(subs) >= 2:

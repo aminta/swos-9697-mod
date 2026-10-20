@@ -62,7 +62,8 @@ def main_round(c, size=None):
     the qualifying group), else the first knockout round whose clubs are a power of two of the rounds left (CONCACAF:
     the round of 16, its first round of 22 a tie before it; size: load()'s round sizes, else FIELDS)."""
     _norm(c)
-    g = [(r['groups'] * r['size'], -j, j) for j, r in enumerate(c['rounds']) if r['kind'] in ('groups', 'league_stage')
+    lg = ('groups', 'league_stage') if os.environ.get('CONTI_LEAGUE_PLAYED') else ('groups',)   # (the played league
+    g = [(r['groups'] * r['size'], -j, j) for j, r in enumerate(c['rounds']) if r['kind'] in lg   # stage: WIP)
          and not r.get('best') and not any(str(t).endswith('_best') for t in (r.get('out') or {}).values())]
     # (a group stage whose best runners-up go on: not the game's contest, simulated - the ACGL from its quarters)
     if g:

@@ -4936,7 +4936,7 @@ def world_title(code, force='3', team=None, fill=False):
                                          f"{win:#x} (first of the top-9 list {[hex(t) for t in top]})")
 
 
-def world_rlines(team, tag, res, show=None):
+def world_rlines(team, tag, res, show=None, fill=False):
     """The season record's extra lines (gplay.c gp_rlines_c): a season of the release data (W2627REL_DATA, default
     internal/world2526/world5tm-rel40-names-2214) at team; each result the engine holds for the career club - a stage
     title decided (GP_ST.dec: ARG's TORNEO APERTURA / CLAUSURA / TROFEO) or the title play-off / stage in ko[0]
@@ -4947,13 +4947,22 @@ def world_rlines(team, tag, res, show=None):
     if not os.path.isdir(src):
         return True, f'SKIP: private data {src} missing'
     order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
-    exe = os.environ.get(f'RLINES_BUILD{res}') or build(f'world_rlines{res}', env={'SEASON_PACKS': ','.join(
-        ['ddr-1988-89'] + [os.path.join(src, x) for x in order]), 'GPLAY_FORCE': '1', 'GPLAY_RLFORCE': str(res)})
+    exe = os.environ.get(f'RLINES_BUILD{res}') or build(f'world_rlines{res or "n"}', env=dict({'SEASON_PACKS': ','.join(
+        ['ddr-1988-89'] + [os.path.join(src, x) for x in order]), 'GPLAY_FORCE': '1'},
+        **({'GPLAY_RLFORCE': str(res)} if res else {})))
     os.environ[f'RLINES_BUILD{res}'] = exe
     log_at, st_at, log_n, st_n = gp_ptrs(exe)
     seas_at = gp_eu(exe)[4]
     keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K',
-                                            'W8485_NOSACK', 'W8485_HEX', 'W8485_ONE', 'W8485_RECSHOT')}
+                                            'W8485_NOSACK', 'W8485_HEX', 'W8485_ONE', 'W8485_RECSHOT', 'W8485_FILL')}
+    if fill:                                             # (every match won by the stronger side, 3-0: simdraw's score
+        import simdraw                                   # table filled; the career club the strongest - real titles)
+        from le import LE
+        d2 = LE(open(os.path.join(exe, 'ITALIAN.EXE'), 'rb').read()).obj_bytes(2)
+        at = d2.find(simdraw.table())
+        if at < 0:
+            return False, 'simdraw table not found in obj2'
+        os.environ['W8485_FILL'] = f'{at:x}:30:3072'
     os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5', W8485_K='108+',
                       W8485_NOSACK='1', W8485_HEX=f'{st_at:x}:{st_n},{seas_at:x}:106', W8485_ONE='1', W8485_RECSHOT='1')
     try:
@@ -4988,7 +4997,7 @@ def world_rlines(team, tag, res, show=None):
     lines = [(o + 1, struct.unpack_from('<I', rec, 22 + 4 * o)[0], struct.unpack('b', rec[86 + o:87 + o])[0])
              for o in range(4)]
     check(want or tag != 'arg', f'no stage title decided this season (GP_ST.dec): {st[1996:2032].hex()}', errs)
-    check(all(c == res for _, c in want), f'stage results {want}, forced {res}', errs)
+    check(not res or all(c == res for _, c in want), f'stage results {want}, forced {res}', errs)
     ko = gp_ko(st[GP_STKO:])
     if ko['kind'] in (5, 8) and ko['season'] == seas and ko['slot']:   # (ko[0] played by the club: a title play-off / stage)
         if ko['kind'] == 8:                              # (a stage in ko[0] at the season end: ARG's TROFEO, stage
@@ -4998,8 +5007,22 @@ def world_rlines(team, tag, res, show=None):
         check(tag != 'usa', f'the MLS play-offs not played by the club: ko[0] {ko}', errs)
     exp = [c for _, c in want][:len(free)]               # (gp_sack: the engine's lines in order, each into the first
     got = [lines[o][2] for o in free[:len(exp)]]         # line free at the season start, 4 / 3 / 2; the game's own -
-    check(len(recs) > 1 and got == exp and exp, f'free lines {[o + 1 for o in free]}: codes {got}, expected {exp} '
+    check(not res or len(recs) > 1 and got == exp and exp, f'free lines {[o + 1 for o in free]}: codes {got}, expected {exp} '
           f'(results {want}); {lines}', errs)            # league, cup, continental - keep theirs)
+    if show == 'auto':                                   # (the stage titles the club really won: their line's name,
+        import gplay                                     # gplay.combined - the TROFEO decided before SeasonFinished
+        pos = [po for c in json.load(open(os.path.join(src, tag, 'pack.json')))['competitions']   # is among them)
+               if c['type'] == 'league' for po in c.get('ko_playoffs', [])]
+        me = struct.unpack_from('<H', rec, 0)[0]
+        won = {pos[st[1996 + 12 * k + 3] - 1]['stage'] for k in range(3) if st[1996 + 12 * k] == seas and
+               st[1996 + 12 * k + 1] and st[1996 + 12 * k + 2] == 1 and 0 < st[1996 + 12 * k + 3] <= len(pos)}
+        if ko['kind'] == 8 and ko['ntie'] and ko['tw'][ko['ntie'] - 1] < ko['n'] and \
+                ko['team'][ko['tw'][ko['ntie'] - 1]] == me:
+            won.add(pos[ko['pi']]['stage'])
+        nm = {po['stage']: (po['names'].get('it') or po['names']['*']) for po in pos if po.get('kind') == 'stage_title'}
+        show = gplay.combined([tuple(nm[x]) for x in sorted(won)], 'it') if len(won) > 1 else \
+            nm[min(won)][0] if won else None
+        check(len(won) > 1, f'the club won {sorted(won)} of the stage titles: no combined line to check', errs)
     if show:                                             # (the screen's texts keep its last line only: the name by
         from le import LE                                # the pointer - the strings' base from the game's own league
         d2 = LE(open(os.path.join(exe, 'ITALIAN.EXE'), 'rb').read()).obj_bytes(2)   # line and cup line, which must be
@@ -5016,9 +5039,19 @@ def world_rlines(team, tag, res, show=None):
 @scenario
 def world_rlines_arg():
     """world_rlines at BOCA JUNIORS (Argentina: TORNEO APERTURA / CLAUSURA knockouts, TROFEO DE CAMPEONES), forced
-    to win them: one line 'APERTURA E CLAUSURA' WINNERS (gplay.combined, fitted to the record's 144 px), seen on the
-    season-end REGISTRO GESTIONE (its refresh: gp_mrec puts the line back); the TROFEO is decided after the record"""
+    to win its knockouts (GPLAY_RLFORCE: the record's codes only - the titles themselves go to others): one line
+    'APERTURA E CLAUSURA' WINNERS (gplay.combined, fitted to the record's 144 px), seen on the season-end REGISTRO
+    GESTIONE (its refresh: gp_mrec puts the line back)"""
     return world_rlines('SUDAMERICA,ARGENTINA,LIGA PROFESIONAL,BOCA JUNIORS', 'arg', 1, 'APERTURA E CLAUSURA')
+
+
+@scenario
+def world_rlines_arg3():
+    """world_rlines at ROSARIO CENTRAL (the strongest Argentine squad), forced 1st, every match won by the stronger
+    side (W8485_FILL: simdraw's table 3-0): the stage titles it really wins - the TROFEO DE CAMPEONES among them, decided
+    before SeasonFinished - in one record line, its name from GP_ST (gplay.combined: 'CLAUSURA E TROFEO CAMP.' on
+    world5tm-rel40-names-2214, the Apertura lost in the quarter-final its own line)"""
+    return world_rlines('SUDAMERICA,ARGENTINA,LIGA PROFESIONAL,ROSARIO CENTRAL', 'arg', None, 'auto', fill=True)
 
 
 @scenario

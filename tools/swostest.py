@@ -2438,7 +2438,8 @@ def world8485_nat():
         check(seen[-4:] == ['YUG', 'RFT', 'URS', 'RDT'], f'coach nationalities: {seen}', errs)   # Italian exe
     try:
         with england('W84NAT', None, 2) as s:             # Euro 88
-            check(s.offer.endswith('ENG'), f'offer: {s.offer}', errs)
+            check(s.offer.endswith(('ENG', 'ENGLAND')), f'offer: {s.offer}', errs)   # (the row's whole name, read
+                                                                            # today on 3.3.6 and rc2 alike: no change)
             new_season(s, '1985-86')
             callups(s)
             notes.append(f"call-ups: {getattr(s, 'squad_title', '?')}, home {getattr(s, 'home_leagues', '?')}, "
@@ -2476,7 +2477,8 @@ def world8485_nat():
                   f'reloaded national career: {str(s.screen())[:80]} groups {groups}', errs)
             notes.append(f'reloaded mid-qualifying: {str(s.screen())[:40]}')
         with england('W84GDR', None, 1, lefts=5) as s:   # an East German coach: the GDR job, DDR-Oberliga call-ups
-            check(s.offer.endswith('EAS'), f'GDR coach: offer {s.offer}', errs)   # the game: 3 letters of the name
+            check(s.offer.endswith(('EAS', 'EAST GERMANY')), f'GDR coach: offer {s.offer}', errs)   # (3 letters, or
+                                                                            # the whole name as the screen shows it)
             new_season(s, 'GDR 1985-86')
             callups(s)
             notes.append(f"GDR: {s.offer}, {getattr(s, 'squad_title', '?')}, home clubs {getattr(s, 'home_clubs', '?')}")
@@ -6466,7 +6468,8 @@ def menu_levels():
             walk(s, 'SERIE D', 3)
             walk(s, 'SERIE D GIRONE I', 3)
             clubs = vis(s.screen())
-            check('TRAPANI' in clubs and 'SIRACUSA CALCIO' in clubs, f'GIRONE I clubs {clubs}', errs)
+            check('TRAPANI' in clubs and ('SIRACUSA' in clubs or 'SIRACUSA CALCIO' in clubs),   # (the press name
+                  f'GIRONE I clubs {clubs}', errs)                                    # since 4.0: SIRACUSA)
             s.shot('girone_i')
             walk(s, 'TRAPANI', 3)
             s.send('fire dump:3')

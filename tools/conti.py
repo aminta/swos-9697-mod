@@ -600,9 +600,10 @@ ct_prep:                                ; CT_SEG a tie -> the ties' contest (its
     mov al, [CT_SEG + 4]
     mov [edi + 14], al
     movzx eax, byte [CT_SEG]
+    push dword [ct_snames + eax * 4]    ; (the short name: the calendar's first line)
     mov eax, [ct_names + eax * 4]
     mov [edi + 16], eax
-    mov [edi + 20], eax
+    pop dword [edi + 20]
     mov eax, [CT_SEG + 8]
     mov [edi + 24], eax
     movzx eax, byte [CT_SEG]            ; (its round's name: rnames' RN_TIE, from the cup and round)
@@ -723,6 +724,8 @@ ct_structs:
     ;CT_STRUCTS
 ct_names:
     ;CT_NAMES
+ct_snames:
+    ;CT_SNAMES
 ct_rn:                                  ; each cup's rounds' name index (rnames.CT_IDX; 16 per cup, 0 = the game's)
     ;CT_RN
 ct_rntie: db 0                          ; (RN_TIE without rnames)
@@ -796,7 +799,8 @@ def patch(p, at, limit, bss_at, area):
                    CT_ED=syms['CT_ED'], CT_RESULT=syms['ct_result'], CT_RESUME=syms['ct_resume'])
     asm = GLUE.replace("    ;CT_LP", "\n".join(lp)).replace(
         "    ;CT_STRUCTS", "\n".join(f'    dd XST{i}' for i in range(len(STRUCTS))) or '    dd 0').replace(
-        "    ;CT_NAMES", "\n".join(f'    dd {r}' for r in NAMES) or '    dd 0')
+        "    ;CT_NAMES", "\n".join(f'    dd {r}' for r in NAMES) or '    dd 0').replace(
+        "    ;CT_SNAMES", "\n".join(f'    dd {r}' for r in SNAMES) or '    dd 0')
     import rnames
     rn = [rnames.CT_IDX.get((ci, j), 0) for ci in range(16) for j in range(16)]
     asm = asm.replace("    ;CT_RN", '    db ' + ', '.join(map(str, rn)))
@@ -1028,10 +1032,19 @@ IDS = [0xC6, 0xC7, 0xC8, 0xC9, 0xCA, 0xD0, 0xD1, 0xDA, 0xDD, 0xDE, 0xDF, 0xEC, 0
 STRUCTS = []                            # [(cup index, struct offset, team list offset, list length)]
 D7_BASE = [0]                           # (patch.py: sacups' D7 / E092F of the first one)
 NAMES = []                              # each cup's name (rel to sacups.STR_BASE)
+SNAMES = []                             # its short name, the career calendar's first line (complist.fit_short, 70 px)
 TIE = [None]                            # the ties' contest (obj1), D7 = D7_BASE + len(STRUCTS)
 CUPROUNDS = []                          # each cup's rounds (format), by cup index: rnames' names per round
 SROUNDS = []                            # per struct: the round index of its rounds / stages (rnames' RN_CTMAP)
 SKINDS = []                             # per struct: 1 type 1 (a knockout), 2 type 2 (groups + knockouts)
+
+
+def _short(c, lang):
+    """A cup's short name for the career calendar's first line: fitted before the (C) / (F) marker (CAL_PX)."""
+    import complist
+    sh = complist.fit_short((c['names'].get(lang) or c['names']['en'])[1])
+    assert complist.px(sh) <= complist.CAL_PX and all(ch in complist.FONT for ch in sh), (c['key'], lang, sh)
+    return sh.encode('latin1')
 
 
 def _legs(rd):
@@ -1060,6 +1073,7 @@ def structs(p, area, lang, at):
     out, kinds = [], []
     STRUCTS.clear()
     NAMES.clear()
+    SNAMES.clear()
     CUPROUNDS.clear()
     SROUNDS.clear()
     SKINDS.clear()
@@ -1069,6 +1083,7 @@ def structs(p, area, lang, at):
     for conf in confs:
         for k, c in enumerate(c for c in _read(conf, 'format')['cups'] if supported(c)):
             CUPROUNDS.append(c['rounds'])
+            SNAMES.append(area.add(_short(c, lang) + b'\0') - sacups.STR_BASE)
             if c.get('stepladder'):                     # (the Intercontinental: its games as ties only; its name)
                 nm = (c['names'].get(lang) or c['names']['en'])[0].upper().encode('latin1')[:30]
                 NAMES.append(area.add(nm + b'\0') - sacups.STR_BASE)
@@ -1118,7 +1133,7 @@ def structs(p, area, lang, at):
                     for k, gw in enumerate(gws.split(',')[:sz - 1]):
                         ws[i - i % sz + (i % sz + 1 + k) % sz] = int(gw, 16)
             ws = ws or [0xFFFF] * n
-            blob = bytes(body[:name_at]) + struct.pack('<II', rel, rel) + struct.pack(f'<{n}H', *ws)
+            blob = bytes(body[:name_at]) + struct.pack('<II', rel, SNAMES[-1]) + struct.pack(f'<{n}H', *ws)
             assert blob[5] + 5 == name_at and blob[7] + 7 == name_at + 8, c['key']
             p.put(1, at, blob)
             NAMES.append(rel)
@@ -1137,7 +1152,7 @@ def structs(p, area, lang, at):
     # knockout contest, rewritten by the glue for each tie (its cup's name, the two clubs, the round byte, months)
     body = sacups.knockout16(d2[cwc:cwc + 28], IDS[len(out)], 2, (0x84,))
     rel = NAMES[0] if NAMES else 0
-    blob = bytes(body) + struct.pack('<II', rel, rel) + struct.pack('<2H', 0xFFFF, 0xFFFF)
+    blob = bytes(body) + struct.pack('<II', rel, SNAMES[0] if SNAMES else 0) + struct.pack('<2H', 0xFFFF, 0xFFFF)
     assert blob[5] + 5 == len(body) and len(body) == 16
     p.put(1, at, blob)
     TIE[0] = at

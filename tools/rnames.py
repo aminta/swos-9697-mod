@@ -310,6 +310,13 @@ rn_round:                               ; uq_rn1 / uq_rn2: CF = 1 and D0 = the n
 .out:                                   ; (FE: gplay's slot-4 contests; a Coppa Italia Serie D tie: its round's name)
     cmp dword [RN_CDP], 0
     je .game
+    mov dword [RN_CALD], 0              ; (4.0: a calendar being built, cseg_8C21C: RN_CALD = its round D0 + 1, gp_rname
+    cmp dword [esp + 12], R8C21C_RET    ; names each entry by its own round, not the contest's current one)
+    jne .oc
+    movzx ebx, word [D0R]
+    inc ebx
+    mov [RN_CALD], ebx
+.oc:
     call [RN_CDP]                       ; (gplay gp_rname: CF = 1, al = the name index)
     jc .set
 .game:
@@ -319,6 +326,7 @@ rn_round:                               ; uq_rn1 / uq_rn2: CF = 1 and D0 = the n
     ret
 align 4
 RN_CDP: dd 0                            ; (gplay.gp_rname, or 0)
+RN_CALD: dd 0                           ; (see .out)
 
 ; Titles (cseg_45D92: '<contest name> <round> [<leg>]' into a menu entry's text, which shows 40 characters): when
 ; longer, a national contest drops its country prefix first ('ITALIA PLAY-OFF SERIE B' -> 'PLAY-OFF SERIE B'), then
@@ -617,6 +625,7 @@ def patch(p, at, limit, lang, area, lp_ids, numbered):
         p.put(1, a + 1, struct.pack('<i', lab['rn_round'] - (a + 5)))
     LABELS['RN_CDP'] = lab['RN_CDP']
     LABELS['RN_TIE'] = lab['RN_TIE']
+    LABELS['RN_CALD'] = lab['RN_CALD']
     print(f'exe: round names: tables obj2+{base:#x} -> obj1+{tab:#x} ({n} x 3, {len(fx)} references), rn_round '
           f'obj1+{lab["rn_round"]:#x}, UEFA cups {[hex(x) for x in lp_ids]}, numbered {len(numbered)}')
     return code_at + len(code)

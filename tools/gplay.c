@@ -1880,6 +1880,55 @@ u32 gp_stitle_c(const u8 *diy, const u8 *tab) {
     if (!o) o = w16(row);
     return o ? (u32)(tab + o) : 0;
 }
+/* 4.0 group headers in a long table (longtable lt_d5 / lt_row / lt_end; the labels: gp_hlabel_c, 3.3.6's): the
+   table's places in virtual rows - a header before each group's first place (split's group of its row, tab = the
+   stage table's header) - and the window of rows virtual rows from cur: GP_HF / GP_HL its first / last place,
+   GP_HP[place] = 0x80 | group when its header is shown before it, GP_HGP[place] its place in the group, GP_HV the
+   virtual rows (ScrollDown's limit), GP_HON = headers in this table. */
+u8 GP_HP[65], GP_HGP[65];
+u32 GP_HV, GP_HF, GP_HL, GP_HON;
+u32 gp_hlabel_c(const u8 *t, u32 g) {   /* a group's header label (3.3.6: ZONA A / B, EASTERN / WESTERN CONFERENCE) */
+#ifdef HDR_TEST
+    static const char *L[4] = { "GROUP 1", "GROUP 2", "GROUP 3", "GROUP 4" };
+    return g < 4 ? (u32)L[g] : 0;
+#else
+    (void)t; (void)g;
+    return 0;
+#endif
+}
+void gp_hplan_c(const u8 *t, const u8 *tab, u32 cur, u32 rows, u32 off) {
+    int n = w16(t + 0x51), g[65], hdr = 0;
+    if (n > 64) n = 64;
+    for (int k = 1; k <= n; k++) { GP_HP[k] = 0; GP_HGP[k] = k; g[k] = 0; }
+    if (!off && tab && w16(t + w16(tab + 2)) == w16(tab + 8)) {
+        for (int k = 1; k <= n; k++) g[k] = t[w16(tab + 6) + w16(t + 0x6D + 2 * (k - 1)) / 18] & 3;
+        for (int k = 2; k <= n; k++) if (g[k] != g[1]) hdr = 1;
+        for (int k = 1; k <= n && hdr; k++) if ((k == 1 || g[k] != g[k - 1]) && !gp_hlabel_c(t, g[k])) hdr = 0;
+    }
+    GP_HON = hdr;
+    int v = 0, h0[65];                  /* h0[k]: the virtual row of place k's header (or -1), its own row after */
+    for (int k = 1; k <= n; k++) {
+        h0[k] = hdr && (k == 1 || g[k] != g[k - 1]) ? v++ : -1;
+        v++;
+    }
+    GP_HV = v;
+    int mx = v > (int)rows ? v - (int)rows : 0, c = (int)cur > mx ? mx : (int)cur, end = c + (int)rows, gp = 0;
+    GP_HF = 0; GP_HL = 0;
+    v = 0;
+    for (int k = 1; k <= n; k++) {
+        gp = h0[k] >= 0 || k == 1 ? 1 : gp + 1;
+        GP_HGP[k] = hdr ? gp : k;
+        v = h0[k] >= 0 ? h0[k] + 1 : v;
+        if (v >= c && v < end) {
+            if (!GP_HF) GP_HF = k;
+            GP_HL = k;
+            if (h0[k] >= c) GP_HP[k] = 0x80 | g[k];
+        }
+        v++;
+    }
+    if (!GP_HF) { GP_HF = 1; GP_HL = 1; }
+}
+
 /* gp_cal (the career calendar's league row): the short title of the league day in week wk (lg = slot 0's buffer) */
 u32 gp_scal_c(const u8 *lg, const u8 *tab, u32 wk) {
     if (!lg || !tab) return 0;

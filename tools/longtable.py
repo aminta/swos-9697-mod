@@ -50,12 +50,43 @@ lt_d5:
     mov word [D5], 1
     mov esi, [A6R]                      ; (BeforeDraw's table: its A6)
     mov [LT_TAB], esi
+    mov byte [LT_HON], 0
     movzx eax, word [esi + 51h]
     mov [LT_END], ax
     cmp word [esi + 4Fh], 1
     jne .x
     cmp eax, ROWS_
     jbe .x
+%if HDR_
+    push es                             ; 4.0: the window in virtual rows (group headers: gplay.c gp_hplan_c)
+    push ds
+    pop es
+    cld
+%if OV_
+    movzx eax, byte [OV_ON]
+%else
+    xor eax, eax
+%endif
+    push eax
+    push dword ROWS_
+    movzx eax, word [CURLINE]
+    push eax
+    push dword STGTAB_
+    push esi
+    call GP_HPLAN
+    add esp, 20
+    pop es
+    mov al, [GP_HON]
+    mov [LT_HON], al
+    mov eax, [GP_HF]
+    mov [D5], ax
+    mov [LT_REAL], ax
+    lea eax, [eax * 2 - 2]
+    mov [D7], ax
+    mov eax, [GP_HL]
+    mov [LT_END], ax
+    jmp .x
+%endif
     movzx ebx, word [CURLINE]
     sub eax, ROWS_                      ; the last first row
     cmp ebx, eax
@@ -72,6 +103,16 @@ lt_d5:
     ret
 
 lt_end:                                 ; flags for the loop's jbe: D5 v the last row shown
+%if HDR_
+    cmp byte [LT_HON], 0                ; (headers: D5 showed the place in the group; the real one goes on)
+    je .n
+    push eax
+    mov ax, [LT_REAL]
+    inc ax
+    mov [D5], ax
+    pop eax
+.n:
+%endif
     push eax
     mov ax, [LT_END]
     cmp [D5], ax
@@ -91,6 +132,12 @@ lt_down:                                ; flags for ScrollDown's jnb (no scroll 
     movzx eax, word [esi + 51h]
     cmp eax, ROWS_
     jbe .game
+%if HDR_
+    cmp byte [LT_HON], 0
+    je .v
+    mov eax, [GP_HV]                    ; (headers: the virtual rows)
+.v:
+%endif
     sub eax, ROWS_
     cmp [CURLINE], ax                   ; below the last first row: scroll
     jmp .r
@@ -169,14 +216,6 @@ lt_ov:                                  ; (OnRestore) STAT > CLASSIFICA GENERALE
 .x: popad                               ; name is left as it is; the next unpack restores it)
     ret
 
-lt_row:                                 ; the row loop's `mov esi, A6 / movzx ebx, D7` (then mov ax, [esi+ebx+6Dh]):
-    mov esi, [A6]                       ; the overall order instead of the table's
-    movzx ebx, word [D7]
-    cmp byte [OV_ON], 0
-    je .r
-    mov esi, GP_OV_ORD - 6Dh
-.r: ret
-
 lt_a4:                                  ; its `mov A4, eax` (A4 = DIY + row offset): the overall figures' row
     cmp byte [OV_ON], 0
     je .r
@@ -206,10 +245,86 @@ lt_stage:                               ; (OnRestore) a split / staged league's 
     ret
 %endif
 
+%if ROWHOOK_
+lt_row:                                 ; the row loop's `mov esi, A6 / movzx ebx, D7` (then mov ax, [esi+ebx+6Dh]):
+%if HDR_
+    cmp byte [LT_HON], 0                ; 4.0 group headers: this place's group header first (its own row, the
+    je .p                               ; name entry at D2, then D2 += a row), and D5 = its place in the group
+    pushad
+    movzx ebx, word [D5]
+    mov [LT_REAL], bx
+    test byte [GP_HP + ebx], 80h
+    jz .d
+    movzx eax, byte [GP_HP + ebx]
+    and eax, 3
+    push es
+    push ds
+    pop es
+    cld
+    push eax
+    push dword [LT_TAB]
+    call GP_HLABEL
+    add esp, 8
+    pop es
+    test eax, eax
+    jz .d
+    mov edi, [A5R]                      ; (entry 31: the place; 32: the name)
+    add edi, 38h
+    push dword [edi + 16h]              ; (y, height)
+    push dword [edi + 26h]              ; (the text)
+    push word [edi + 1Eh]               ; (the colours)
+    mov cx, [D2R]
+    mov [edi + 16h], cx
+    mov [edi + 26h], eax
+    mov word [edi + 1Eh], HDRCOL_
+    push dword [A5R]                    ; (as the loop's own call: DrawMultipleItems uses the pseudo registers)
+    push dword [D0R]
+    push dword [D2R]
+    push dword [D2R + 8]                ; (D4)
+    push dword [D5]
+    push dword [D7]
+    push dword [A6R]
+    mov [A5R], edi
+    mov word [D0R], 1
+    pushad
+    call DRAWMI
+    popad
+    pop dword [A6R]
+    pop dword [D7]
+    pop dword [D5]
+    pop dword [D2R + 8]
+    pop dword [D2R]
+    pop dword [D0R]
+    pop dword [A5R]
+    pop word [edi + 1Eh]
+    pop dword [edi + 26h]
+    pop dword [edi + 16h]
+    mov ax, [ROWH]
+    add [D2R], ax
+.d: movzx ebx, word [LT_REAL]
+    mov al, [GP_HGP + ebx]
+    movzx eax, al
+    mov [D5], ax
+    popad
+.p:
+%endif
+    mov esi, [A6R]                      ; the overall order instead of the table's
+    movzx ebx, word [D7]
+%if OV_
+    cmp byte [OV_ON], 0
+    je .r
+    mov esi, GP_OV_ORD - 6Dh
+.r:
+%endif
+    ret
+%endif
+
 align 4
 LT_TAB: dd 0
 align 2
 LT_END: dw 0
+LT_REAL: dw 0
+LT_HON: db 0
 """
 
 
@@ -258,6 +373,18 @@ def patch(p, at, area=None, lang='it'):
            'NUMRES': p.target(1, h5 + 2), 'ROWS_': (0, ROWS), 'OV_': (0, int(ov))}
     import gplay
     stg = gplay.LABELS.get('STG_TAB') if area is not None else None
+    hdr = 'gp_hplan_c' in gplay.LABELS
+    m = re.search(rb'\xe8(....)(?:\x8f\x05....){6}\x66\xa1(....)\x66\x01\x05', d1[h3 - 0x50:h3], re.S)
+    assert m, 'the row loop end: call DrawMultipleItems ... mov ax, rowHeight / add D2, ax'
+    drawmi = h3 - 0x50 + m.start() + 5 + struct.unpack('<i', m.group(1))[0]
+    sym.update({'HDR_': (0, int(hdr)), 'ROWHOOK_': (0, int(hdr or ov)), 'A5R': (2, a0 + 20), 'D0R': (2, d0),
+                'D2R': (2, d0 + 8), 'DRAWMI': (1, drawmi), 'ROWH': p.target(1, h3 - 0x50 + m.start() + 5 + 36 + 2),
+                'HDRCOL_': (0, 0x08)})
+    if hdr:
+        sym.update({k: gplay.LABELS[n] for k, n in (('GP_HPLAN', 'gp_hplan_c'), ('GP_HLABEL', 'gp_hlabel_c'),
+                    ('GP_HP', 'GP_HP'), ('GP_HGP', 'GP_HGP'), ('GP_HV', 'GP_HV'), ('GP_HF', 'GP_HF'),
+                    ('GP_HL', 'GP_HL'), ('GP_HON', 'GP_HON'))})
+        sym['STGTAB_'] = stg or (0, 0)
     sym['STG_'] = (0, int(bool(stg)))
     if stg:
         import zones
@@ -303,8 +430,9 @@ def patch(p, at, area=None, lang='it'):
     p.put(1, cmp22 + 5, b'\x90\xe9')                                 # table shows ROWS (22) rows and scrolls
     if ov:
         hook(init, 9, 'lt_init', (3,))
-        hook(row, 13, 'lt_row', (2, 9))
         hook(a4, 5, 'lt_a4', (1,))
+    if hdr or ov:
+        hook(row, 13, 'lt_row', (2, 9))
     LABELS.update(lab)
     print(f'exe: league tables over {ROWS} clubs scroll ({ROWS} rows shown; OnRestore obj1+{h1:#x}, row loop '
           f'obj1+{h2:#x} / {h3:#x}, ScrollDown obj1+{h4:#x}; code obj1+{at:#x}, {len(code)} B' +

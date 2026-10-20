@@ -183,7 +183,11 @@ def cave_pages():
     return cp
 
 
+LT_SPACE = []
+
+
 def patch_exe(src, dst, remap, lang='it'):
+    LT_SPACE.clear()
     grown = dst + '.tmp'
     data = open(src, 'rb').read()
     worlds = bool(mkseason.worlds())
@@ -417,7 +421,8 @@ def patch_exe(src, dst, remap, lang='it'):
     if gp_on:                                   # knockout play-offs (C, tools/gplay.c; chained after dplay's hooks)
         import gplay                            # and the parallel groups' season-end fix (pg_season, pgroups.py)
         gp_at = hist2 + h2 + 0x1000 * (lpb - cos_pg - gplay.GP_PAGES - xpg - ri_pg)
-        gplay.patch(p, gp_at, gp_at + 0x1000 * gplay.GP_PAGES, gp_tabs, careerworld.BSS[0] + careerworld.BSS_SIZE, area, lang)
+        gp_end = gplay.patch(p, gp_at, gp_at + 0x1000 * gplay.GP_PAGES, gp_tabs, careerworld.BSS[0] + careerworld.BSS_SIZE, area, lang)
+        LT_SPACE[:] = [(gp_end + 15) & ~15, gp_at + 0x1000 * gplay.GP_PAGES]   # (4.0: longtable's code after gplay's)
         if rs_tabs:
             engine.ITEM_AT['RS'] = gplay.LABELS['RS_STATE']
         if ri_tabs:
@@ -464,7 +469,12 @@ def patch_exe(src, dst, remap, lang='it'):
     cos = zones.patch(p, cos, area, lang, [e if os.sep in e else os.path.join(mkseason.PACKS, e) for e in mkseason.ENABLED],
                       num_bss + shirtnum.BSS_SIZE + blond.BSS_SIZE + menunum.BSS_SIZE, fmtpage.BSS_SIZE,
                       careerworld.SITES if worlds else None)   # (the FORMAT page's buffer, shared)
-    cos = longtable.patch(p, cos, area, lang)                # 4.0: tables over 24 clubs scroll (ARG / MLS 30: no drawing past the screen)
+    if LT_SPACE and LT_SPACE[1] - LT_SPACE[0] >= 0x700:        # (4.0: in gplay's pages - the cosmetics page is full)
+        lt_end_ = longtable.patch(p, LT_SPACE[0], area, lang)
+        assert lt_end_ <= LT_SPACE[1], hex(lt_end_)
+        print(f'exe: longtable code in gplay\'s pages: obj1+{LT_SPACE[0]:#x}..{lt_end_:#x} (free to {LT_SPACE[1]:#x})')
+    else:
+        cos = longtable.patch(p, cos, area, lang)                # 4.0: tables over 24 clubs scroll (ARG / MLS 30: no drawing past the screen)
     if cos_pg:
         assert cos <= hist2 + h2 + 0x1000 * lpb, hex(cos)
     else:

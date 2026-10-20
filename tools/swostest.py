@@ -5028,8 +5028,8 @@ def world_rlines(team, tag, res, show=None, fill=False):
         me = struct.unpack_from('<H', rec, 0)[0]
         won = {pos[st[1996 + 12 * k + 3] - 1]['stage'] for k in range(3) if st[1996 + 12 * k] == seas and
                st[1996 + 12 * k + 1] and st[1996 + 12 * k + 2] == 1 and 0 < st[1996 + 12 * k + 3] <= len(pos)}
-        if ko['kind'] == 8 and ko['ntie'] and ko['tw'][ko['ntie'] - 1] < ko['n'] and \
-                ko['team'][ko['tw'][ko['ntie'] - 1]] == me:
+        if ko['kind'] == 8 and ko['ntie'] and ko['season'] == seas and ko['slot'] and (res == 1 or (   # (forced won:
+                ko['tw'][ko['ntie'] - 1] < ko['n'] and ko['team'][ko['tw'][ko['ntie'] - 1]] == me)):   # its stage too)
             won.add(pos[ko['pi']]['stage'])
         nm = {po['stage']: (po['names'].get('it') or po['names']['*']) for po in pos if po.get('kind') == 'stage_title'}
         show = gplay.combined([tuple(nm[x]) for x in sorted(won)], 'it') if len(won) > 1 else \
@@ -5247,10 +5247,10 @@ def world_rlines_arg():
 @scenario
 def world_rlines_arg3():
     """world_rlines at ROSARIO CENTRAL (the strongest Argentine squad), forced 1st, every match won by the stronger
-    side (W8485_FILL: simdraw's table 3-0): the stage titles it really wins - the TROFEO DE CAMPEONES among them, decided
-    before SeasonFinished - in one record line, its name from GP_ST (gplay.combined: 'CLAUSURA E TROFEO CAMP.' on
-    world5tm-rel40-names-2214, the Apertura lost in the quarter-final its own line)"""
-    return world_rlines('SUDAMERICA,ARGENTINA,LIGA PROFESIONAL,ROSARIO CENTRAL', 'arg', None, 'auto', fill=True)
+    side (W8485_FILL: simdraw's table 3-0) and every stage title forced won (GPLAY_RLFORCE=1: no luck - Davide's rule):
+    the stage titles - the TROFEO DE CAMPEONES among them, decided before SeasonFinished - in one record line, its name
+    from GP_ST (gplay.combined of the titles won)"""
+    return world_rlines('SUDAMERICA,ARGENTINA,LIGA PROFESIONAL,ROSARIO CENTRAL', 'arg', 1, 'auto', fill=True)
 
 
 @scenario
@@ -5945,6 +5945,11 @@ def full_season(country, team):
         base = next(b for fk, (ff, b) in pk.files.items() if ff == fl)
         clubs.append((base + i, pk.division[key]))
     sizes = collections.Counter(dv for _, dv in clubs)
+    if '{div}' in team:                         # (the career club's division as this data's menu names it: the full
+        club = team.split(',')[-1]              # world's staged data may predate a pack change - Argentina's zones)
+        key = next(k for k in pk.league_clubs if pk.clubs[k]['name'] == club)
+        nm = pk.divisions()[pk.division[key]]['names']
+        team = team.replace('{div}', (nm.get('it') or nm.get('*') or next(iter(nm.values())))[0])
     keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK')
     keep = {k: os.environ.get(k) for k in keys}
     os.environ.update(W8485_BUILD=bdir, W8485_WORLD='MONDO 2026-27', W8485_TEAM=os.environ.get('W2627FULL_TEAM', team), W8485_WNUM='5',
@@ -6281,11 +6286,11 @@ def world_full_eng():
 
 @scenario
 def world_full_arg():
-    """Full 5.0 world (full_season): a season at BOCA JUNIORS (Argentina, LIGA PROFESIONAL - the menu's fitted name since
-    4.0-argfix -, its zone A of 15 clubs: a rest day
+    """Full 5.0 world (full_season): a season at BOCA JUNIORS (Argentina: its division's menu name from the data - LIGA
+    PROFESIONAL since 4.0-argfix, LIGA PROFESIONAL ZONA A in older staged full worlds -, its zone A of 15 clubs: a rest day
     each matchday): the season end runs with no 25+-club division (the 30-club table made the season end ask for
     team 0: VerifyTeamLoaded's int 3); sizes kept"""
-    return full_season('arg', 'SUDAMERICA,ARGENTINA,LIGA PROFESIONAL,BOCA JUNIORS')
+    return full_season('arg', 'SUDAMERICA,ARGENTINA,{div},BOCA JUNIORS')
 
 
 @scenario

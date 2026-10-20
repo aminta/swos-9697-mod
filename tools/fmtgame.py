@@ -660,6 +660,7 @@ def conti_items():
     n_world = min(worlds)
     out = []
     cups = {c['key']: c for conf in conti.ready() for c in conti._read(conf, 'format')['cups']}
+    where = {c['key']: (conf, k) for conf in conti.ready() for k, c in enumerate(conti._read(conf, 'format')['cups'])}
     accs = {c['key']: c.get('access') for conf in conti.ready() for c in conti._read(conf, 'access')['cups']}
     gst = {k for conf in conti.ready() for g in ((conti._read(conf, 'guests') or {}).get('clubs') or [])
            for k in (g.get('access') or {})}
@@ -704,9 +705,9 @@ def conti_items():
                 lines.append(x['inn'].format(c=cname(lang, ck), what=f'{rname(lang, rest.split()[0])} {tail}') +
                              f' -> {rname(lang, tr)}')
             titles[lang] = ' ' + (c['names'].get(lang) or c['names']['en'])[0].upper()
-            texts[lang] = {'prose': fmtprose.conti(c, accs.get(key), lang, lambda r, lang=lang: rname(lang, r),
-                                                   lambda k, lang=lang: cname(lang, k), lambda a, lang=lang: aname(lang, a),
-                                                   key in gst), 'tail': []}   # (4.0 plain prose; lines: the schema)
+            texts[lang] = {'prose': fmtprose.conti(c, accs.get(key), lang, lambda k, lang=lang: cname(lang, k),
+                                                   lambda a, lang=lang: aname(lang, a), *where[key], key in gst),
+                           'tail': []}                  # (4.0 plain prose; lines: the schema)
         out.append((n_world, None, titles, texts))
         out.append((n_world, None, {lang: s[1:] for lang, s in titles.items()}, texts))
     return out

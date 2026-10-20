@@ -75,6 +75,7 @@ def main_round(c, size=None):
     return 0
 
 
+S1_HOLD = {}                            # (conf, cup key) -> the 2027 edition's winner (word, association, strength)
 FIELDS = {}                             # (conf, cup key) -> (round sizes, outside places, known places): load()'s
 
 
@@ -370,6 +371,9 @@ def load(confs, files=None, words=None, s1=None):
                             if ak in assocs:
                                 reg.setdefault(ak, ri)
     spec += bytes(reg.get(a, 0xFF) for a in assocs)
+    for conf, c, _ in cups:                             # (each cup's season-1 holder: season1_native's run)
+        w, an, st = S1_HOLD.get((conf, c['key']), (0, None, 0))
+        spec += struct.pack('<HBBI', w, assocs.index(an) if an in assocs else 0xFE, 0, st)
     return spec, assocs, [(conf, c['key']) for conf, c, _ in cups]
 
 
@@ -985,6 +989,12 @@ def season1_native(confs, files, words):
         for i in range(16):
             lp[i] = ctypes.addressof(lists[i]) if i < len(cups) else None
         L.ct_season()
+        o, ib = bytes((ctypes.c_ubyte * lay[2]).in_dll(L, 'CT_OUT')), bytes((ctypes.c_ubyte * lay[0]).in_dll(L, 'CT_IN'))
+        for i, (cf, ck) in enumerate(cups):             # (the 2027 editions' winners: the first season end's holders)
+            w = struct.unpack_from('<H', o, lay[8] + 2 * i)[0]
+            if w:
+                cid, ca, _, cs = struct.unpack_from('<HBBI', ib, lay[7] + 12 * (w - 1))
+                S1_HOLD[(cf, ck)] = (cid, assocs[ca] if ca < len(assocs) else '?', cs)
         for i, (cf, ck) in enumerate(cups):
             c = next(x for x in fm['cups'] if x['key'] == ck)
             rd = c['rounds'][main_round(c)]

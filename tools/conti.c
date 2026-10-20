@@ -107,7 +107,7 @@ static const u8 *afile;                 /* each association's league team file *
 static const u8 *rk;                    /* ranking: team word, points (u16 each) */
 static const u8 *gu;                    /* guests (clubs of associations not in the world): word, assoc, -, str */
 static u16 ngu;
-static const u8 *areg;
+static const u8 *areg, *s1h;
 static u16 GI[256];                     /* a guest's club index this season */
 static u16 nrk;
 #define RND(c, r) (cupr[c] + (r) * RB)
@@ -136,6 +136,8 @@ static void parse(void) {
     gu = p + 2;
     p += 2 + 8 * ngu;
     areg = p;                           /* each association's region (a league stage's group: ACLE West 0 / East 1) */
+    p += na;
+    s1h = p;                            /* each cup's 2027 edition winner (the build's run): the first holders */
 }
 
 /* --- random, strength -------------------------------------------------------------------------------------------- */
@@ -826,7 +828,19 @@ static int run(int stop) {              /* the edition from its entrants, the ca
 }
 void ct_finish(void) {                  /* this season's edition finished, as played: the next one's holders (before
                                            the season end's tables fill CT_IN: run() uses CT_IN for the edition) */
-    if (!CT_SPEC || CT_ED.mark != 0x4543) return;
+    if (!CT_SPEC) return;
+    if (CT_ED.mark != 0x4543 && CT_ST.mark != 0x5443) {   /* the first season end: the 2027 editions (the build's) */
+        parse();
+        for (int c = 0; c < ncup; c++) {
+            const u8 *e = s1h + 8 * c;
+            u16 w = e[0] | e[1] << 8;
+            if (!w || w == 0xFFFF) continue;
+            CT_ST.hold[c].id = w; CT_ST.hold[c].assoc = e[2];
+            CT_ST.hold[c].str = e[4] | e[5] << 8 | e[6] << 16 | e[7] << 24; CT_ST.hold[c].pts = 0;
+        }
+        return;
+    }
+    if (CT_ED.mark != 0x4543) return;
     parse();
     run(0);
     for (int c = 0; c < ncup; c++) {

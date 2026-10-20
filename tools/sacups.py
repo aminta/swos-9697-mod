@@ -389,6 +389,13 @@ load_slot1:                             ; the lists were restored by trailer.loa
 
 ; ProcessCareerFile, replaces "cmp [E092F],2; jz map; jmp out": slot 3 = SA cup for E092F 3..5, extra cups 6..
 load_slot3:
+    mov eax, [ct_pre_ptr]               ; (conti: its contest lists and next game again from the saved edition, before
+    test eax, eax                       ; the slot is mapped back: after a load the exe's season-1 lists - wrong names
+    jz .np                              ; in the group tables, OFC / CAF)
+    pushad
+    call eax
+    popad
+.np:
     cmp word [E092F], 2
     je LOAD_MAP
     mov dword [A0], LIB

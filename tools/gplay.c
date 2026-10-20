@@ -1887,7 +1887,22 @@ u32 gp_stitle_c(const u8 *diy, const u8 *tab) {
    virtual rows (ScrollDown's limit), GP_HON = headers in this table. */
 u8 GP_HP[65], GP_HGP[65], GP_HG[65];   /* (GP_HG: every place's group, for zones by group) */
 u32 GP_HV, GP_HF, GP_HL, GP_HON;
+extern const u8 GP_HLT[];                /* zones.header_labels: [n dw] + n x (title 41 B, 4 labels of 24 B) */
 u32 gp_hlabel_c(const u8 *t, u32 g) {   /* a group's header label (3.3.6: ZONA A / B, EASTERN / WESTERN CONFERENCE) */
+#ifndef HDR_TEST
+    u32 n = *(const u32 *)GP_HLT;
+    const u8 *e = GP_HLT + 4;
+    if (g > 3)
+        return 0;
+    for (u32 k = 0; k < n; k++, e += 41 + 4 * 24) {
+        u32 i = 0;
+        while (i < 40 && e[i] && e[i] == t[4 + i])
+            i++;
+        if ((i == 40 || (!e[i] && !t[4 + i])) && e[41 + 24 * g])
+            return (u32)(e + 41 + 24 * g);
+    }
+    return 0;
+#endif
 #ifdef HDR_TEST
     static const char *L[4] = { "GROUP 1", "GROUP 2", "GROUP 3", "GROUP 4" };
     return g < 4 ? (u32)L[g] : 0;

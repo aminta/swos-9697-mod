@@ -1453,10 +1453,15 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
                                 f"-DGP_RLFORCE={int(os.environ.get('GPLAY_RLFORCE') or 0)}"]
                                + (['-DHDR_TEST'] if os.environ.get('HDR_TEST') else []))   # (test builds: GROUP n headers)
     top_r, top_w = _top9(p)                          # (cseg_927A2's top-9 list: gp_champ)
+    import mkseason                             # 4.0 group headers' labels (zones.header_labels, the exe language)
+    import zones
+    hlt = area.add(zones.header_labels(lang, [e if os.sep in e else os.path.join(mkseason.PACKS, e)
+                                              for e in mkseason.ENABLED]))
     syms, cend, bss = cobj.link(p, obj, at, (2, bss_at), externs={'GP_PROM_TAB': (1, prom_at), 'SEC_TAB': (1, sec_at),
                                                                    'GP_TOPR': top_r, 'GP_TOPW': top_w,
                                                                    'SEC_SLT': careerworld.SITES['slt'],
-                                                                   'SEC_COPY': careerworld.SITES['sltcopy']}, limit=limit)
+                                                                   'SEC_COPY': careerworld.SITES['sltcopy'],
+                                                                   'GP_HLT': (2, hlt)}, limit=limit)
     assert bss <= GP_BSS, hex(bss)                  # (patch.py: GP_BSS: the reserves' state, GD 16, GP_ST)
     keys = ('RSZ', 'GT_N', 'O_N', 'O_T', 'O_SPEC', 'O_MV', 'MSZ', 'GD_N')
     lay = dict(zip(keys, struct.unpack(f'<{len(keys)}I', p.get(1, syms['GP_LAYOUT'][1], 4 * len(keys)))))

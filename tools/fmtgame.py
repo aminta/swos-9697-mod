@@ -307,6 +307,10 @@ CONFED_NAMES = dict(lib='COPA LIBERTADORES', sud='COPA SUDAMERICANA', ccc='CONCA
                     cafcc='CAF CONFEDERATION CUP', ofc='OFC CHAMPIONS LEAGUE')
 for _z in ZT.values():
     _z['why'].update(CONFED_NAMES)
+for _l, (_w, _e) in {'it': ('FASE FINALE', 'IN OGNI GIRONE'), 'en': ('KNOCKOUT STAGE', 'IN EACH GROUP'),
+                      'fr': ('PHASE FINALE', 'DANS CHAQUE GROUPE'), 'de': ('ENDRUNDE', 'IN JEDER GRUPPE')}.items():
+    ZT[_l]['why']['po_grp'] = _w                    # 4.0 group headers: a zone's places by group place
+    ZT[_l]['each'] = _e
 CONFED_NOTES = {   # zones.continental_all's notes: leagues whose real places are not table positions
     'it': dict(annual='IN REALTA: CAMPEON DE LIGA E POSTI DALLA CLASSIFICA ANNUALE (STAT > CLASSIFICA GENERALE, CON QUESTI COLORI), OLTRE AI CAMPIONI DI APERTURA E CLAUSURA',
                split='IN REALTA: I CAMPIONI DI APERTURA E CLAUSURA, POI LA CLASSIFICA ANNUALE; QUI LA CLASSIFICA DEL GIOCO',
@@ -354,9 +358,12 @@ def zone_text(rw, t, lang, eu=None, confed=None):
     ord_ = t['ord']
     def one(a, b, c, w):
         rng = ord_(a) if a == b else f'{ord_(a)}-{ord_(b)}'
+        if w == 'po_grp':
+            rng += ' ' + z['each']
         return f"{z['col'][cols.index(c)]} {rng}: {z['why'][w]}"
+    rw = list(dict.fromkeys((a & 0x7F, b & 0x3F, c, w) if w == 'po_grp' else (a, b, c, w) for a, b, c, w in rw))
     merged = []
-    for a, b, c, w in sorted(rw):
+    for a, b, c, w in sorted(rw, key=lambda r: (r[3] == 'po_grp', r)):
         if merged and merged[-1][2:] == (c, w) and merged[-1][1] == a - 1:
             merged[-1] = (merged[-1][0], b, c, w)
         else:

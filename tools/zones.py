@@ -177,10 +177,11 @@ def pack_zones(d, lang, lp=False, rank=None, detail=None):
                     rng.append((place, place, col))
                     why.append(w)
             if lg['special'] and comp.get('playoffs') == 'ita':
-                if i == 1:                               # Serie B
+                li = next(k for k, lv in enumerate(lg['levels']) if any(x is dv for x in lv))
+                if li == 1:                              # Serie B
                     rng += [(3, 8, GREEN), (16, 17, ORANGE)]
                     why += ['po_up', 'out']
-                elif i >= 2:                             # the Serie C groups
+                elif li == 2:                            # the Serie C groups (not the Serie D's: their own play-offs)
                     rng.append((2, 10, GREEN))
                     why.append('po_up')
             if dv['down']:

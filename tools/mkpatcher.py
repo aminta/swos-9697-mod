@@ -18,6 +18,7 @@ import hashlib
 import json
 import os
 import struct
+import zlib
 
 ROOT = os.path.join(os.path.dirname(__file__), '..')
 VERSION = '3.3.6'
@@ -217,6 +218,18 @@ def decode(src, ops):
     return bytes(out)
 
 
+def pack(ops):
+    """A delta as the page stores it: raw deflate (the page inflates it with DecompressionStream), base64."""
+    c = zlib.compressobj(9, zlib.DEFLATED, -15)
+    return base64.b64encode(c.compress(ops) + c.flush()).decode()
+
+
+def unpack(e):
+    """An entry's delta bytes ('z' = deflated; older pages: plain)."""
+    raw = base64.b64decode(e['delta'])
+    return zlib.decompress(raw, -15) if e.get('z') else raw
+
+
 OLD = os.path.join(ROOT, 'orig', 'old-patchers')       # the patchers published with every release (gh release download)
 
 
@@ -237,7 +250,7 @@ def old_outputs():
             src = open(os.path.join(ROOT, orig), 'rb').read() if orig else b''
             if e['md5']:
                 assert hashlib.md5(src).hexdigest() == e['md5'], (ver, e['id'])
-            out = decode(src, base64.b64decode(e['delta']))
+            out = decode(src, unpack(e))
             assert hashlib.md5(out).hexdigest() == e['out_md5'], (ver, e['id'])
             found.setdefault((e['id'], e['out_md5']), (out, ver))
     return found
@@ -258,9 +271,19 @@ def upgrades(entries):
         dst = open(os.path.join(ROOT, next(p for i, _, p, _ in FILES if i == fid)), 'rb').read()
         ops, inserted = encode(old, dst)
         assert decode(old, ops) == dst
-        extra.append({'id': fid, 'target': e['target'], 'size': len(old), 'md5': md5, 'out_md5': e['out_md5'],
-                      'out_size': e['out_size'], 'delta': base64.b64encode(ops).decode(), 'from': ver})
-        print(f'  upgrade {fid} from {ver}: delta {len(ops)} bytes')
+        x = {'id': fid, 'target': e['target'], 'size': len(old), 'md5': md5, 'out_md5': e['out_md5'],
+             'out_size': e['out_size'], 'from': ver, 'z': 1}
+        orig = next((o for i, o, _, _ in FILES if i == fid), None)
+        if orig and e['md5']:               # back to the original first (an old mod exe still holds almost every
+            src = open(os.path.join(ROOT, orig), 'rb').read()   # original byte: a few KB), then this release's own
+            inv, _ = encode(old, src)       # delta from the original (stored once): 'mid' = the original's md5 / size
+            assert decode(old, inv) == src and hashlib.md5(src).hexdigest() == e['md5']
+            if len(inv) < len(ops):
+                ops = inv
+                x.update(mid_md5=e['md5'], mid_size=len(src))
+        x['delta'] = pack(ops)
+        extra.append(x)
+        print(f'  upgrade {fid} from {ver}: delta {len(ops)} bytes' + (' (via the original)' if 'mid_md5' in x else ''))
     return extra
 
 
@@ -290,7 +313,7 @@ def swospp_sources(entries):
             ops, inserted = encode(src, dst)
             assert decode(src, ops) == dst
             extra.append({'id': vid, 'target': e['target'], 'size': len(src), 'md5': hashlib.md5(src).hexdigest(),
-                          'out_md5': e['out_md5'], 'out_size': e['out_size'], 'delta': base64.b64encode(ops).decode(),
+                          'out_md5': e['out_md5'], 'out_size': e['out_size'], 'delta': pack(ops), 'z': 1,
                           'via': via})
             print(f'  {vid} via {via}: delta {len(ops)} bytes')
     return extra
@@ -305,7 +328,7 @@ def build():
         ops, inserted = encode(src, dst)
         assert decode(src, ops) == dst, fid
         e = {'id': fid, 'target': target, 'size': len(src), 'md5': hashlib.md5(src).hexdigest() if orig else None,
-             'out_md5': hashlib.md5(dst).hexdigest(), 'out_size': len(dst), 'delta': base64.b64encode(ops).decode()}
+             'out_md5': hashlib.md5(dst).hexdigest(), 'out_size': len(dst), 'delta': pack(ops), 'z': 1}
         if not orig:
             e['with'] = 'TEAM.020'                  # new file: produced when the user's TEAM.020 is recognised
         entries.append(e)

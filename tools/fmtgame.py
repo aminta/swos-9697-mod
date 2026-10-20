@@ -883,6 +883,11 @@ def write(out_dir, items):
                 tail = lines[lines.index(h):] if h in lines else []
                 prose = fmtprose.sentences(lines[:len(lines) - len(tail)])
             hand = fmtprose.text(world, titles['it'], lang)   # (hand texts keyed by the Italian title)
+            if hand and not isinstance(lines, dict):      # a national cup's real draw first (complist: real_cup / real_in)
+                rc = [x for x in lines if x.startswith(TEXTS[lang]['real_cup'].split('{')[0]) or
+                      x.startswith(TEXTS[lang]['real_in'])]
+                if rc:
+                    hand = fmtprose.sentences(rc) + hand
             prose = hand or prose
             if prose:
                 if hand:                        # (a hand text tells the real rule itself)

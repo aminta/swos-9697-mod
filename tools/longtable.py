@@ -22,32 +22,87 @@ import nasmcave
 
 TITLES = {'it': (b'CLASSIFICA ANNUALE', b"SUPPORTERS' SHIELD"), 'en': (b'ANNUAL TABLE', b"SUPPORTERS' SHIELD"),
           'fr': (b'CLASSEMENT ANNUEL', b"SUPPORTERS' SHIELD"), 'de': (b'JAHRESTABELLE', b"SUPPORTERS' SHIELD")}
-ROWS = 24                       # the game's own largest table (mkseason: at most 24 clubs a division without fixtures)
+ROWS = 22                       # rows shown (the game lays out up to 22 rows with the full 14-px title bar; 23-24 squeeze it to
+                                # 9 px, the title on its edge: Davide 2026-10-20)
 MAX = 30                        # the largest table that scrolls (split.NMAX's 30: Argentina, MLS); mkseason refuses more
 LABELS = {}
 
 ASM = """
-lt_d3:                                  ; esi = DIY_competitionStart
+lt_d3:                                  ; esi = the table shown (OnRestore's; not always DIY: VIS. COMPETIZ., the world's
+    mov [LT_TAB], esi                   ; tables while DIY holds another contest - Serie C's CRC stuck, 2026-10-20)
+%if STG_
+    call lt_stage
+%endif
 %if OV_
     call lt_ov
 %endif
     mov ax, [esi + 51h]
     cmp word [esi + 4Fh], 1
     jne .s
+%if HDR_
+    call lt_plan                        ; 4.0: a split league's groups (any one-group table): its header rows count
+    cmp dword [GP_HON], 0
+    je .h
+    mov eax, [GP_HV]
+.h:
+%endif
     cmp ax, ROWS_
     jbe .s
     mov ax, ROWS_
 .s: mov [D3], ax
     ret
 
+%if HDR_
+lt_plan:                                ; esi = a one-group table: gp_hplan_c's window (GP_HON / GP_HV / GP_HF / GP_HL)
+    pushad
+    push es
+    push ds
+    pop es
+    cld
+%if OV_
+    movzx eax, byte [OV_ON]
+%else
+    xor eax, eax
+%endif
+    push eax
+    push dword ROWS_
+    movzx eax, word [CURLINE]
+    push eax
+    push dword STGTAB_
+    push esi
+    call GP_HPLAN
+    add esp, 20
+    pop es
+    popad
+    ret
+%endif
+
 lt_d5:
     pushad
     mov word [D5], 1
-    mov esi, DIY
+    mov esi, [A6R]                      ; (BeforeDraw's table: its A6)
+    mov [LT_TAB], esi
+    mov byte [LT_HON], 0
+%if HDR_
+    mov dword [GP_HON], 0               ; (every table: headers only where gp_hplan_c finds them)
+%endif
     movzx eax, word [esi + 51h]
     mov [LT_END], ax
     cmp word [esi + 4Fh], 1
     jne .x
+%if HDR_
+    call lt_plan                        ; 4.0: the window in virtual rows (any one-group table: a split league's
+    mov al, [GP_HON]                    ; group headers; without them the same rows as before)
+    mov [LT_HON], al
+    mov eax, [GP_HF]
+    mov [D5], ax
+    mov [LT_REAL], ax
+    lea eax, [eax * 2 - 2]
+    mov [D7], ax
+    mov eax, [GP_HL]
+    mov [LT_END], ax
+    jmp .x
+%endif
     cmp eax, ROWS_
     jbe .x
     movzx ebx, word [CURLINE]
@@ -66,6 +121,16 @@ lt_d5:
     ret
 
 lt_end:                                 ; flags for the loop's jbe: D5 v the last row shown
+%if HDR_
+    cmp byte [LT_HON], 0                ; (headers: D5 showed the place in the group; the real one goes on)
+    je .n
+    push eax
+    mov ax, [LT_REAL]
+    inc ax
+    mov [D5], ax
+    pop eax
+.n:
+%endif
     push eax
     mov ax, [LT_END]
     cmp [D5], ax
@@ -75,12 +140,20 @@ lt_end:                                 ; flags for the loop's jbe: D5 v the las
 lt_down:                                ; flags for ScrollDown's jnb (no scroll when 'not below')
     push eax
     push esi
-    mov esi, DIY
+    mov esi, [LT_TAB]
+    test esi, esi
+    jz .game
     cmp word [MODE], 0                  ; (the table view)
     jne .game
     cmp word [esi + 4Fh], 1
     jne .game
     movzx eax, word [esi + 51h]
+%if HDR_
+    cmp byte [LT_HON], 0
+    je .v
+    mov eax, [GP_HV]                    ; (headers: the virtual rows)
+.v:
+%endif
     cmp eax, ROWS_
     jbe .game
     sub eax, ROWS_
@@ -91,15 +164,22 @@ lt_down:                                ; flags for ScrollDown's jnb (no scroll 
     cmp [D0], ax
 .r: pop esi
     pop eax
+    mov ax, [GROUPS]                    ; (as the original left it; mov keeps the flags)
     ret
 
 lt_arrows:                              ; flags for OnRestore's jnz (arrows shown when the groups shown < the groups):
-    push eax                            ; a long table's arrows are always shown
+    push eax                            ; a long table's arrows are always shown (esi = OnRestore's table)
     push esi
-    mov esi, DIY
     cmp word [esi + 4Fh], 1
     jne .game
-    cmp word [esi + 51h], ROWS_
+    movzx eax, word [esi + 51h]
+%if HDR_
+    cmp dword [GP_HON], 0               ; (headers: the virtual rows, lt_d3's plan)
+    je .v
+    mov eax, [GP_HV]
+.v:
+%endif
+    cmp eax, ROWS_
     jbe .game
     or esp, esp                         ; (ZF = 0: shown)
     jmp .r
@@ -108,6 +188,7 @@ lt_arrows:                              ; flags for OnRestore's jnz (arrows show
     cmp [D0], ax
 .r: pop esi
     pop eax
+    mov ax, [NUMRES]                    ; (as the original left it)
     ret
 
 %if OV_
@@ -160,14 +241,6 @@ lt_ov:                                  ; (OnRestore) STAT > CLASSIFICA GENERALE
 .x: popad                               ; name is left as it is; the next unpack restores it)
     ret
 
-lt_row:                                 ; the row loop's `mov esi, A6 / movzx ebx, D7` (then mov ax, [esi+ebx+6Dh]):
-    mov esi, [A6]                       ; the overall order instead of the table's
-    movzx ebx, word [D7]
-    cmp byte [OV_ON], 0
-    je .r
-    mov esi, GP_OV_ORD - 6Dh
-.r: ret
-
 lt_a4:                                  ; its `mov A4, eax` (A4 = DIY + row offset): the overall figures' row
     cmp byte [OV_ON], 0
     je .r
@@ -178,8 +251,105 @@ lt_a4:                                  ; its `mov A4, eax` (A4 = DIY + row offs
 
 %endif
 
+%if STG_
+lt_stage:                               ; (OnRestore) a split / staged league's title names its stage or the career
+    pushad                              ; club's group (stage_table, gplay.c gp_stitle_c): the title entry's pointer
+    push es                             ; only (DIY+4, the zone / FORMAT keys and the record keep the base name)
+    push ds
+    pop es
+    cld
+    push dword STG_TAB
+    push esi
+    call GP_STITLE
+    add esp, 8
+    pop es
+    test eax, eax
+    jz .x
+    mov [MENU_ + 16h + 26h], eax
+.x: popad
+    ret
+%endif
+
+%if ROWHOOK_
+lt_row:                                 ; the row loop's `mov esi, A6 / movzx ebx, D7` (then mov ax, [esi+ebx+6Dh]):
+%if HDR_
+    cmp byte [LT_HON], 0                ; 4.0 group headers: this place's group header first (its own row, the
+    je .p                               ; name entry at D2, then D2 += a row), and D5 = its place in the group
+    pushad
+    movzx ebx, word [D5]
+    mov [LT_REAL], bx
+    test byte [GP_HP + ebx], 80h
+    jz .d
+    movzx eax, byte [GP_HP + ebx]
+    and eax, 3
+    push es
+    push ds
+    pop es
+    cld
+    push eax
+    push dword [LT_TAB]
+    call GP_HLABEL
+    add esp, 8
+    pop es
+    test eax, eax
+    jz .d
+    mov edi, [A5R]                      ; (entry 31: the place; 32: the name)
+    add edi, 38h
+    push dword [edi + 16h]              ; (y, height)
+    push dword [edi + 26h]              ; (the text)
+    push word [edi + 1Eh]               ; (the colours)
+    mov cx, [D2R]
+    mov [edi + 16h], cx
+    mov [edi + 26h], eax
+    mov word [edi + 1Eh], HDRCOL_
+    push dword [A5R]                    ; (as the loop's own call: DrawMultipleItems uses the pseudo registers)
+    push dword [D0R]
+    push dword [D2R]
+    push dword [D2R + 8]                ; (D4)
+    push dword [D5]
+    push dword [D7]
+    push dword [A6R]
+    mov [A5R], edi
+    mov word [D0R], 1
+    pushad
+    call DRAWMI
+    popad
+    pop dword [A6R]
+    pop dword [D7]
+    pop dword [D5]
+    pop dword [D2R + 8]
+    pop dword [D2R]
+    pop dword [D0R]
+    pop dword [A5R]
+    pop word [edi + 1Eh]
+    pop dword [edi + 26h]
+    pop dword [edi + 16h]
+    mov ax, [ROWH]
+    add [D2R], ax
+.d: movzx ebx, word [LT_REAL]
+    mov al, [GP_HGP + ebx]
+    movzx eax, al
+    mov [D5], ax
+    popad
+.p:
+%endif
+    mov esi, [A6R]                      ; the overall order instead of the table's
+    movzx ebx, word [D7]
+%if OV_
+    cmp byte [OV_ON], 0
+    je .r
+    mov esi, GP_OV_ORD - 6Dh
+.r:
+%endif
+    ret
+%endif
+
+align 4
+LT_TAB: dd 0
 align 2
 LT_END: dw 0
+LT_REAL: dw 0
+LT_HON: db 0
 """
 
 
@@ -223,9 +393,27 @@ def patch(p, at, area=None, lang='it'):
     import fmtpage
     import gplay
     ov = bool(fmtpage.OV.get('flag')) and 'gp_overall' in gplay.LABELS and area is not None
-    sym = {'D0': (2, d0), 'D3': (2, d3), 'D5': (2, d5), 'D7': (2, d7), 'DIY': (2, lp36._sites(p)['DIY']),
+    sym = {'D0': (2, d0), 'D3': (2, d3), 'D5': (2, d5), 'D7': (2, d7), 'DIY': (2, lp36._sites(p)['DIY']), 'A6R': (2, a0 + 24),
            'CURLINE': p.target(1, curline + 2), 'MODE': p.target(1, mode + 2), 'GROUPS': p.target(1, h4 + 2),
            'NUMRES': p.target(1, h5 + 2), 'ROWS_': (0, ROWS), 'OV_': (0, int(ov))}
+    import gplay
+    stg = gplay.LABELS.get('STG_TAB') if area is not None else None
+    hdr = 'gp_hplan_c' in gplay.LABELS
+    m = re.search(rb'\xe8(....)(?:\x8f\x05....){6}\x66\xa1(....)\x66\x01\x05', d1[h3 - 0x50:h3], re.S)
+    assert m, 'the row loop end: call DrawMultipleItems ... mov ax, rowHeight / add D2, ax'
+    drawmi = h3 - 0x50 + m.start() + 5 + struct.unpack('<i', m.group(1))[0]
+    sym.update({'HDR_': (0, int(hdr)), 'ROWHOOK_': (0, int(hdr or ov)), 'A5R': (2, a0 + 20), 'D0R': (2, d0),
+                'D2R': (2, d0 + 8), 'DRAWMI': (1, drawmi), 'ROWH': p.target(1, h3 - 0x50 + m.start() + 5 + 36 + 2),
+                'HDRCOL_': (0, 0x08)})
+    if hdr:
+        sym.update({k: gplay.LABELS[n] for k, n in (('GP_HPLAN', 'gp_hplan_c'), ('GP_HLABEL', 'gp_hlabel_c'),
+                    ('GP_HP', 'GP_HP'), ('GP_HGP', 'GP_HGP'), ('GP_HV', 'GP_HV'), ('GP_HF', 'GP_HF'),
+                    ('GP_HL', 'GP_HL'), ('GP_HON', 'GP_HON'))})
+        sym['STGTAB_'] = stg or (0, 0)
+    sym['STG_'] = (0, int(bool(stg)))
+    if stg:
+        import zones
+        sym.update({'STG_TAB': stg, 'GP_STITLE': gplay.LABELS['gp_stitle_c'], 'MENU_': zones._current_menu(p)})
     if ov:
         import split
         import zones
@@ -262,10 +450,14 @@ def patch(p, at, area=None, lang='it'):
     hook(h3, 11, 'lt_end', (7,))
     hook(h4, 13, 'lt_down', (2, 9))
     hook(h5, 13, 'lt_arrows', (2, 9))
+    cmp22 = _find(d1, rb'\x66\x83\x7e\x51\x16\x0f\x86', 0x4868D - B - 0x40, 0x80)  # OnRestore: over 22 clubs -> the
+    assert bytes(p.get(1, cmp22 + 5, 2)) == b'\x0f\x86'               # compact layout (9-px title bar): never, the
+    p.put(1, cmp22 + 5, b'\x90\xe9')                                 # table shows ROWS (22) rows and scrolls
     if ov:
         hook(init, 9, 'lt_init', (3,))
-        hook(row, 13, 'lt_row', (2, 9))
         hook(a4, 5, 'lt_a4', (1,))
+    if hdr or ov:
+        hook(row, 13, 'lt_row', (2, 9))
     LABELS.update(lab)
     print(f'exe: league tables over {ROWS} clubs scroll ({ROWS} rows shown; OnRestore obj1+{h1:#x}, row loop '
           f'obj1+{h2:#x} / {h3:#x}, ScrollDown obj1+{h4:#x}; code obj1+{at:#x}, {len(code)} B' +
@@ -286,6 +478,74 @@ def annual_key(lang):
                 ent = [e for e in zones.pack_zones(pk.path, lang) if e[0] == (pk.world or 0)]
                 return ent[d][1].encode('latin-1') if d < len(ent) else b''
     return b''
+
+
+MAXS, MAXG = 5, 4                       # stage titles: the title before the first stage + 4 stages, 4 groups each
+
+
+REC = 42 + 4 * MAXS * MAXG + MAXS + 1   # a stage-title record (gplay.c gp_stitle_c / gp_scal_c)
+HEAD = 16                               # the table's header (gplay builds it: split's offsets, the career team word's address)
+
+
+def stage_table(lang, head=b'\0' * HEAD):
+    """The staged leagues' titles (pack split specs: 'title' before the first stage, a stage's 'title' or its groups'
+    'title', each {lang | '*': [long, short]}): head (HEAD bytes: dw count, then gplay's), per league: key (41 B, the
+    table's DIY+4 title) + pad, [MAXS][MAXG] dw long-title offsets from the table's start, the same for the short ones
+    (0 = none), MAXS db the stage's first day (255 = none) + pad; then the strings. Long: '<league long> <stage>' (the
+    league's short name when longer than 40); short: the stage's short name (the career calendar's second line). None
+    without any."""
+    import complist
+    import mkseason
+    import zones
+    recs = []
+    for pk in mkseason.packs():
+        lg = pk.league or {}
+        for d, dv in enumerate(pk.divisions()):
+            sp = dv.get('split') or (lg.get('split') if d == 0 else None)
+            if not sp:
+                continue
+            stages = sp.get('stages') or [sp]
+            grid = [[sp.get('title')] * MAXG] + [[st.get('title')] * MAXG if st.get('title') else
+                                                  [g.get('title') for g in st.get('groups') or []][:MAXG] + [None] * MAXG
+                                                  for st in stages][:MAXS - 1]
+            if not any(x for row in grid for x in row):
+                continue
+            starts = [0] + [st.get('after', 0) for st in stages][:MAXS - 1]
+            nm = dv.get('names') or lg.get('names') or {}
+            v = nm.get(lang) or nm.get('*') or [complist._nm(nm, lang)]
+            key = zones._title(pk.meta, lang, v[0]).encode('latin-1')
+            names = [[((x.get(lang) or x.get('*')) if x else None) for x in row[:MAXG]] for row in grid]
+            recs.append((key, names, v, starts))
+    if not recs:
+        return None
+    base = HEAD + REC * len(recs)
+    strings, pool = b'', {}
+
+    def put(s):
+        nonlocal strings
+        s = s.upper()[:40].encode('latin-1')
+        if s not in pool:
+            pool[s] = base + len(strings)
+            strings += s + b'\0'
+        return pool[s]
+    out = bytearray(struct.pack('<H', len(recs)) + head[2:HEAD])
+    for key, names, v, starts in recs:
+        r = bytearray(key[:41].ljust(42, b'\0'))
+        longs, shorts = b'', b''
+        for s in range(MAXS):
+            row = names[s] if s < len(names) else []
+            for g in range(MAXG):
+                x = row[g] if g < len(row) else None
+                if not x:
+                    longs += b'\0\0'
+                    shorts += b'\0\0'
+                    continue
+                title = f'{v[0]} {x[0]}' if len(v[0]) + 1 + len(x[0]) <= 40 else f'{v[-1]} {x[0]}'
+                longs += struct.pack('<H', put(title))
+                shorts += struct.pack('<H', put(x[-1]))
+        r += longs + shorts + bytes(min(255, starts[s]) if s < len(starts) else 255 for s in range(MAXS)) + b'\0'
+        out += r
+    return bytes(out + strings)
 
 
 def apn():

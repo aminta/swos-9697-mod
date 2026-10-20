@@ -644,9 +644,9 @@ class Screen:
         mem = r.read(m, 0x16 + n * 0x38)
         ptrs = [struct.unpack_from('<I', mem, 0x16 + i * 0x38 + 0x26)[0] for i in range(n)]
         ptrs = [p if 0x1000 < p < MEMSIZE - 64 else 0 for p in ptrs]
-        out = [p for p in ptrs if p and not r.cached(p, 40)]
+        out = [p for p in ptrs if p and not r.cached(p, 64)]
         if out and max(out) - min(out) < 0x100000:     # texts outside the cached ranges: one dump for all
-            r.read(min(out), max(out) + 40 - min(out))
+            r.read(min(out), max(out) + 64 - min(out))
         self.entries, self.nav, self.geom, self.colors = [], [], [], []
         for i in range(n):
             e = 0x16 + i * 0x38
@@ -656,7 +656,7 @@ class Screen:
             self.colors.append(struct.unpack_from('<H', mem, e + 0x1E)[0])            # bg.backAndFrameColor
             text = ''
             if ptrs[i]:
-                raw = r.read(ptrs[i], 40).split(b'\0')[0]
+                raw = r.read(ptrs[i], 64).split(b'\0')[0]
                 if raw and all(32 <= b < 127 for b in raw):
                     text = raw.decode()
                 elif raw and (UI_MAP or COLLECT) and all(b >= 32 for b in raw):   # (another language's umlauts /
@@ -1499,6 +1499,44 @@ def menu_check(s, tag):
         s.log.append(f'[menu] {tag}: check failed {e}')
 
 
+def rec_shot(s):
+    """W8485_RECSHOT=1: on the season-end menu ('<year> FINE CAMP.'), once, the season record (ManagementRecordMenu:
+    VISUAL. COMPETIZ. -> REGISTRO GESTIONE, EN MANAGEMENT RECORD): its texts logged '[record] ...', a shot 'record', back with
+    ESCI twice. True if it was shown."""
+    scr = s.screen()
+    if os.environ.get('W8485_RECSHOT') != '1' or s.__dict__.get('rec_done') or \
+            not any(t.endswith('FINE CAMP.') for t in scr.texts()):
+        return False
+    s.rec_done = True
+    def watch(tag):                                    # (debug W8485_RECWATCH: the record's line pointers / codes)
+        if os.environ.get('W8485_RECWATCH'):
+            o = int(os.environ['W8485_RECWATCH'], 16)
+            s.log.append(f"[rec] {tag} {s.result.obj2(o + 22, 16).hex()} {s.result.obj2(o + 86, 4).hex()}")
+    watch('before')
+    try:
+        if press(s, scr, 'VISUAL. COMPETIZ.', wait=3) is None:
+            s.log.append(f'[record] not reached: {scr}')
+            return False
+        watch('viscomp')
+        vc = s.screen()
+        lab = next((x for x in ('REGISTRO GESTIONE', 'MANAGEMENT RECORD') if vc.find(x, exact=True) is not None), None)
+        if lab is None or press(s, vc, lab, wait=3) is None:
+            s.log.append(f'[record] not reached: {vc}')
+            press(s, s.screen(), 'ESCI', wait=2)
+            return True
+    except AssertionError as e:                    # (no path: logged, the season goes on)
+        s.log.append(f'[record] not reached: {e}')
+        return False
+    s.send('dump:1')
+    watch('record')
+    s.log.append('[record] ' + ' | '.join(x for _, x, inv, _ in s.screen().entries if x and not inv))
+    s.shot('record')
+    for k in range(2):
+        press(s, s.screen(), 'ESCI', wait=2) or s.send('fire dump:2')
+        watch(f'esci{k}')
+    return True
+
+
 def next_season_save(s, name):
     """Season-end menu -> CONTINUA CARRIERA -> (messages) -> new season's career menu -> ESCI -> SALVA CARRIERA -> name.
     Returns the save path or an error string."""
@@ -1525,6 +1563,7 @@ def next_season_save(s, name):
             press(s, scr, 'ESCI') or s.send('fire dump:2')
         if s.result.outcome != 'dump':
             return f'job offer: {s.result}'
+    rec_shot(s)
     if press(s, s.screen(), 'CONTINUA CARRIERA', wait=3) is None:
         return f'no CONTINUA CARRIERA on {s.screen()}'
     for _ in range(20):                                # chairman's note, job offers ...: CONTINUA / fire
@@ -1532,6 +1571,11 @@ def next_season_save(s, name):
             return f'new season: {s.result}'
         scr = s.screen()
         s.log.append(f'[ns] {scr}')
+        if os.environ.get('W8485_RECWATCH'):           # (debug: the season record's line pointers / codes each step)
+            o = int(os.environ['W8485_RECWATCH'], 16)
+            s.log.append(f"[rec] {s.result.obj2(o + 22, 16).hex()} {s.result.obj2(o + 86, 4).hex()}")
+        if any(t.endswith('FINE CAMP.') for t in scr.texts()) and rec_shot(s):
+            continue
         if 'TRASFERIMENTI' in scr.texts() or 'VISUALIZZA MONDO' in scr.texts():    # club / national team menu
             break
         if any(t.startswith('SQUADRA DEL ') for t in scr.texts()):    # national squad call-ups
@@ -1960,13 +2004,13 @@ def zone_colours():
                                     (('ITALIA', 'SERIE B', 'AVELLINO'),
                                      ['lb'] * 2 + ['gr'] * 6 + ['pl'] * 7 + ['or'] * 2 + ['gy'] * 3,
                                      ['PROM', 'P.OFF', 'P.OUT', 'RETR']),
-                                    (('SUDAMERICA', 'BRASILE', 'CAMPEONATO BRASILEIRO SERIE A', 'PALMEIRAS'),
+                                    (('SUDAMERICA', 'BRASILE', 'BRASILEIRAO SERIE A|CAMPEONATO BRASILEIRO SERIE A', 'PALMEIRAS'),
                                      ['lb'] * 6 + ['gr'] * 6 + ['pl'] * 4 + ['gy'] * 4, ['LIB', 'SUD', 'RETR'])):
             with Session('zone_colours_' + path[1].split()[-1].lower(), w27, {}, 'dump:2', 1500) as s:
                 s.wait()
                 for t in ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27'] + \
                         ([] if path[0] == 'SUDAMERICA' else ['EUROPA']) + list(path):
-                    if press(s, s.screen(), t, 3) is None:
+                    if all(press(s, s.screen(), x, 3) is None for x in t.split('|')):   # (alternative names: '|')
                         return False, f'2026-27 career: {t} not reached'
                 s.send('fire dump:3')
                 walk(s, s.screen().find('VISUAL. COMPETIZ.', exact=True), 3)
@@ -2684,6 +2728,22 @@ def classic_tourneys():
         good &= ok
         out.append(f"{button}: {'ok' if ok else 'FAIL'} {msg}, {len(coins)} coin tosses")
     return good, '; '.join(out)
+
+
+@scenario
+def names_fit():
+    """4.0 names the game can show (complist.check_titles, no game run): every title '<country> <long name>' of the
+    build's packs (SEASON_PACKS) fits the game's 35-byte field (longer, it overwrote the long-name pointer: Argentina's
+    'CEK' record line and title garbage, 2026-10-20) and every competition, division, play-off and club name uses only
+    the font's characters (Davide: no stray characters)"""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import complist
+    import mkseason
+    bad, n = [], 0
+    for pk in mkseason.packs():
+        n += 1
+        bad += complist.check_titles(pk.meta, [r.get('name', '') for r in pk.clubs.values()])
+    return not bad, '; '.join(bad[:8]) if bad else f'{n} packs: titles <= {complist.TITLE_MAX}, font characters only'
 
 
 @scenario
@@ -4760,7 +4820,7 @@ def title_top(lg):
     return list(struct.unpack_from('<9H', lg, GP_LOG_TOP)) if len(lg) >= GP_LOG_TOP + 18 else None
 
 
-def world_title(code, force='3'):
+def world_title(code, force='3', team=None, fill=False):
     """A title play-off of the world 2026-27 (formats_data.KO_TITLE, mkworld_tm TM_TITLE=1: Canada's CPL play-offs,
     the A-League finals series, Costa Rica's semis + final + Gran Final), played: the stable world5tm-poule snapshot
     with the country's KO_TITLE in its pack, built with GPLAY_FORCE (the career club's place at the league end; one
@@ -4799,8 +4859,15 @@ def world_title(code, force='3'):
     log_at, st_at, log_n, st_n = gp_ptrs(exe)
     seas_at = gp_eu(exe)[4]                             # (the season records: the title won's line, gp_pwin_c)
     keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K',
-                                            'W8485_NOSACK', 'W8485_HEX', 'W8485_ONE')}
-    os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=TITLE_TEAMS[code], W8485_WNUM='5',
+                                            'W8485_NOSACK', 'W8485_HEX', 'W8485_ONE', 'W8485_FILL')}
+    if fill:                                            # (every match won by the stronger side, 3-0: simdraw's table)
+        import simdraw
+        from le import LE
+        at = LE(open(os.path.join(exe, 'ITALIAN.EXE'), 'rb').read()).obj_bytes(2).find(simdraw.table())
+        if at < 0:
+            return False, 'simdraw table not found in obj2'
+        os.environ['W8485_FILL'] = f'{at:x}:30:3072'
+    os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=team or TITLE_TEAMS[code], W8485_WNUM='5',
                       W8485_K='108+', W8485_NOSACK='1',
                       W8485_HEX=f'{log_at:x}:{log_n},{st_at:x}:{st_n},{seas_at:x}:106', W8485_ONE='1')
     try:
@@ -4856,7 +4923,9 @@ def world_title(code, force='3'):
     recs = hexes.get(seas_at, [])                       # (the season record at the end: GPLAY_FORCE builds make the
     rec = recs[-1] if recs else b''                     # club the champion: a line with WINNERS, 4th / 3rd / 2nd)
     lines = [(o, struct.unpack_from('<I', rec, 22 + 4 * o)[0], rec[86 + o]) for o in (3, 2, 1)] if len(rec) >= 90 else []
-    won = [x for x in lines if x[1] and x[2] == 1]
+    base = recs[0] if len(recs) > 1 and len(recs[0]) >= 90 else b''    # (a line the game already had before the season
+    old = {o for o in (3, 2, 1) if base and struct.unpack_from('<I', base, 22 + 4 * o)[0]}  # end - the national cup's,
+    won = [x for x in lines if x[1] and x[2] == 1 and x[0] not in old]  # COPA DE COSTA RICA WINNERS - isn't the title's)
     club = ko['team'][ko['code'].index(me)] if me in ko['code'] else None
     champ = titles[0][2] if titles else None
     check(bool(won) == (champ == club), f'the title line {won} with champion {champ and hex(champ)}, the club '
@@ -4865,6 +4934,259 @@ def world_title(code, force='3'):
     return not errs, '; '.join(errs) or (f"{msg}; {f'record line {won[0][0] + 1} = WINNERS' if won else 'not the champion: no title line'}; {po['key']}: clubs {[hex(t) for t in ko['team']]} codes {ko['code']}"
                                          f", ties {ko['ntie']} winners {ko['tw']}, game rounds seen {gw}, champion "
                                          f"{win:#x} (first of the top-9 list {[hex(t) for t in top]})")
+
+
+def world_rlines(team, tag, res, show=None, fill=False):
+    """The season record's extra lines (gplay.c gp_rlines_c): a season of the release data (W2627REL_DATA, default
+    internal/world2526/world5tm-rel40-names-2214) at team; each result the engine holds for the career club - a stage
+    title decided (GP_ST.dec: ARG's TORNEO APERTURA / CLAUSURA / TROFEO) or the title play-off / stage in ko[0]
+    (MLS CUP PLAYOFFS) - is one of the record's lines 2-4 with its code (1 WINNERS, -100 FINALIST, -101 / -102 the
+    semi / quarter-final, -110 - n round n). Forced (Davide: never re-run seasons for a result): the club 1st of its
+    division (GPLAY_FORCE=1: in the knockouts) and its result res in every one it plays (GPLAY_RLFORCE)"""
+    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-names-2214')
+    if not os.path.isdir(src):
+        return True, f'SKIP: private data {src} missing'
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    exe = os.environ.get(f'RLINES_BUILD{res}') or build(f'world_rlines{res or "n"}', env=dict({'SEASON_PACKS': ','.join(
+        ['ddr-1988-89'] + [os.path.join(src, x) for x in order]), 'GPLAY_FORCE': '1'},
+        **({'GPLAY_RLFORCE': str(res)} if res else {})))
+    os.environ[f'RLINES_BUILD{res}'] = exe
+    log_at, st_at, log_n, st_n = gp_ptrs(exe)
+    seas_at = gp_eu(exe)[4]
+    keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K',
+                                            'W8485_NOSACK', 'W8485_HEX', 'W8485_ONE', 'W8485_RECSHOT', 'W8485_FILL')}
+    if fill:                                             # (every match won by the stronger side, 3-0: simdraw's score
+        import simdraw                                   # table filled; the career club the strongest - real titles)
+        from le import LE
+        d2 = LE(open(os.path.join(exe, 'ITALIAN.EXE'), 'rb').read()).obj_bytes(2)
+        at = d2.find(simdraw.table())
+        if at < 0:
+            return False, 'simdraw table not found in obj2'
+        os.environ['W8485_FILL'] = f'{at:x}:30:3072'
+    os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5', W8485_K='108+',
+                      W8485_NOSACK='1', W8485_HEX=f'{st_at:x}:{st_n},{seas_at:x}:106', W8485_ONE='1', W8485_RECSHOT='1')
+    try:
+        ok, msg = world8485()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    hexes, shown = {}, ''
+    for ln in open(os.path.join(RUNS, w84_tag() + '_1', 'session.log'), errors='replace'):
+        if ln.startswith('[record] '):
+            shown = ln[9:].strip()
+        q = ln.split()
+        if len(q) == 3 and q[0] == 'HEX':
+            hexes.setdefault(int(q[1], 16), []).append(bytes.fromhex(q[2]))
+    errs = []
+    check(ok, msg, errs)
+    sts = [b for b in hexes.get(st_at, []) if b[:2] == b'GK']
+    recs = hexes.get(seas_at, [])
+    if not sts or not recs:
+        return False, f'{msg}; no GP_ST / season record seen'
+    st, rec = sts[-1], recs[-1]
+    seas = st[2]
+    free = [o for o in (3, 2, 1) if not struct.unpack_from('<I', recs[0], 22 + 4 * o)[0]] if len(recs) > 1 else []
+    want = []
+    for k in range(3):                                   # (gplay.c struct gp_dec at 1996: season, done, res, pi + 1)
+        d = st[1996 + 12 * k:1996 + 12 * k + 12]
+        if d[0] == seas and d[1] and d[2]:
+            want.append(('stage %d' % k, struct.unpack('b', d[2:3])[0]))
+    lines = [(o + 1, struct.unpack_from('<I', rec, 22 + 4 * o)[0], struct.unpack('b', rec[86 + o:87 + o])[0])
+             for o in range(4)]
+    check(want or tag != 'arg', f'no stage title decided this season (GP_ST.dec): {st[1996:2032].hex()}', errs)
+    check(not res or all(c == res for _, c in want), f'stage results {want}, forced {res}', errs)
+    ko = gp_ko(st[GP_STKO:])
+    if ko['kind'] in (5, 8) and ko['season'] == seas and ko['slot']:   # (ko[0] played by the club: a title play-off / stage)
+        if ko['kind'] == 8:                              # (a stage in ko[0] at the season end: ARG's TROFEO, stage
+            want = [w for w in want if w[0] != 'stage 2']   # 2 - gp_rlines_c reads it from ko[0], not GP_ST.dec)
+        want.append(('ko[0]', res))
+    else:
+        check(tag != 'usa', f'the MLS play-offs not played by the club: ko[0] {ko}', errs)
+    exp = [c for _, c in want][:len(free)]               # (gp_sack: the engine's lines in order, each into the first
+    got = [lines[o][2] for o in free[:len(exp)]]         # line free at the season start, 4 / 3 / 2; the game's own -
+    check(not res or len(recs) > 1 and got == exp and exp, f'free lines {[o + 1 for o in free]}: codes {got}, expected {exp} '
+          f'(results {want}); {lines}', errs)            # league, cup, continental - keep theirs)
+    if show == 'auto':                                   # (the stage titles the club really won: their line's name,
+        import gplay                                     # gplay.combined - the TROFEO decided before SeasonFinished
+        pos = [po for c in json.load(open(os.path.join(src, tag, 'pack.json')))['competitions']   # is among them)
+               if c['type'] == 'league' for po in c.get('ko_playoffs', [])]
+        me = struct.unpack_from('<H', rec, 0)[0]
+        won = {pos[st[1996 + 12 * k + 3] - 1]['stage'] for k in range(3) if st[1996 + 12 * k] == seas and
+               st[1996 + 12 * k + 1] and st[1996 + 12 * k + 2] == 1 and 0 < st[1996 + 12 * k + 3] <= len(pos)}
+        if ko['kind'] == 8 and ko['ntie'] and ko['tw'][ko['ntie'] - 1] < ko['n'] and \
+                ko['team'][ko['tw'][ko['ntie'] - 1]] == me:
+            won.add(pos[ko['pi']]['stage'])
+        nm = {po['stage']: (po['names'].get('it') or po['names']['*']) for po in pos if po.get('kind') == 'stage_title'}
+        show = gplay.combined([tuple(nm[x]) for x in sorted(won)], 'it') if len(won) > 1 else \
+            nm[min(won)][0] if won else None
+        check(len(won) > 1, f'the club won {sorted(won)} of the stage titles: no combined line to check', errs)
+    if show:                                             # (the screen's texts keep its last line only: the name by
+        from le import LE                                # the pointer - the strings' base from the game's own league
+        d2 = LE(open(os.path.join(exe, 'ITALIAN.EXE'), 'rb').read()).obj_bytes(2)   # line and cup line, which must be
+        ok_s = lambda o: 0 < o < len(d2) and d2[o - 1] == 0 and 65 <= d2[o] <= 90     # names there too)
+        at = [m.start() + 1 for m in re.finditer(b'\0' + re.escape(show.encode('latin-1')) + b'\0', d2)]
+        hit = [o for _, a_, _ in lines[1:] if a_ for o in at
+               if ok_s(o - a_ + lines[0][1]) and (not lines[1][1] or ok_s(o - a_ + lines[1][1]))]
+        check(hit and shown, f'no record line named {show!r} ({len(at)} such strings; lines {lines}); the record '
+              f'screen: {shown[:120]}', errs)
+    return not errs, '; '.join(errs) or (f'{msg}; {tag}: record screen {shown[:200]!r}; stage results {want}, ko[0] kind {ko["kind"]} pi {ko["pi"]} '
+                                         f'tw {ko["tw"][:ko["ntie"]]}; record lines {[(n, hex(a), c) for n, a, c in lines]}')
+
+
+def world_po_sweep(team, tag):
+    """The play-offs whose entrants come from a kept / stage table, not the final one (regia's sweep after Malta's
+    silent split_seed): a season of the release data (W2627REL_DATA) at team, its build GPLAY_FORCE=1 (world_rlinesn:
+    the club 1st of its division and of its stage tables); each knockout of ours seen in GP_ST (the dumps: by play-off
+    index, its entrants) and the season end's GP_LOG.out (moves, results, stage titles). Per tag: arg - the Apertura /
+    Clausura knockouts (16 from the zones' stage tables 4 / 5), the TROFEO (stage titles), the Primera Nacional's final
+    + reducido ('loser_of_previous': two clubs up); usa - the MLS play-offs (18 from stage table 7); mlt - the Final
+    Four (split_seed: the Opening's kept table) -> a title result."""
+    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-names-2214')
+    if not os.path.isdir(src):
+        return True, f'SKIP: private data {src} missing'
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    exe = os.environ.get('RLINES_BUILDNone') or build('world_rlinesn', env={'SEASON_PACKS': ','.join(
+        ['ddr-1988-89'] + [os.path.join(src, x) for x in order]), 'GPLAY_FORCE': '1'})
+    os.environ['RLINES_BUILDNone'] = exe
+    log_at, st_at, log_n, st_n = gp_ptrs(exe)
+    keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K',
+                                            'W8485_NOSACK', 'W8485_HEX', 'W8485_ONE')}
+    os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5', W8485_K='108+',
+                      W8485_NOSACK='1', W8485_HEX=f'{log_at:x}:{log_n},{st_at:x}:{st_n}', W8485_ONE='1')
+    try:
+        ok, msg = world8485()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    hexes = {}
+    for ln in open(os.path.join(RUNS, w84_tag() + '_1', 'session.log'), errors='replace'):
+        q = ln.split()
+        if len(q) == 3 and q[0] == 'HEX':
+            hexes.setdefault(int(q[1], 16), []).append(bytes.fromhex(q[2]))
+    errs = []
+    check(ok, msg, errs)
+    kos = {}                                             # play-off index -> its entrants (the largest list seen)
+    for b in hexes.get(st_at, []):
+        if b[:2] != b'GK':
+            continue
+        k = gp_ko(b[GP_STKO:])
+        if k['magic'] == 0x4B47 and k['season'] == b[2] and k['n'] and len(k['team']) >= len(kos.get(k['pi'], [])):
+            kos[k['pi']] = k['team']
+    logs = [b for b in hexes.get(log_at, []) if b[:4] == b'GPLG']
+    if not logs:
+        return False, f'{msg}; no season-end log (GP_LOG); knockouts seen {sorted(kos)}'
+    lg = logs[-1]
+    mv = [struct.unpack_from('<HHb', lg, 686 + 8 * i) for i in range(min(lg[682], 32))]
+    res = [struct.unpack_from('<BBHHHH', lg, 942 + 10 * i) for i in range(min(lg[683], 4))]
+    sres = [struct.unpack_from('<BBHHHH', lg, 982 + 10 * i) for i in range(3)]
+    want = {'arg': [(3, 16), (4, 16), (5, 2)], 'usa': [(0, 18)], 'mlt': []}[tag]
+    for pi, n in want:                                   # (stage_place: distinct clubs; the TROFEO's stage titles may
+        t = kos.get(pi, [])                              # name one club twice - Apertura winner and annual 1st)
+        check(len(set(t)) >= n and (n < 3 or len(set(t)) == len(t)) and all(t),
+              f'play-off {pi}: entrants {[hex(x) for x in t]} (want {n} distinct)', errs)
+    if tag == 'arg':
+        check(len([m for m in mv if m[2] < 0]) >= 2, f'promotions {mv}: want the final + reducido', errs)
+        check(all(x[0] == 8 and x[2] for x in sres), f'stage titles {sres}', errs)
+    if tag == 'mlt':
+        check(any(r[0] == 5 for r in res), f'no title result: res {res}', errs)
+    return not errs, '; '.join(errs) or (f'{msg}; {tag}: knockouts {[(pi, len(t)) for pi, t in sorted(kos.items())]}, '
+                                         f'moves {mv}, results {res}, stage titles {sres}')
+
+
+@scenario
+def world_po_sweep_arg():
+    """world_po_sweep at BOCA JUNIORS: the stage_place / stage_title / loser_of_previous play-offs"""
+    return world_po_sweep('SUDAMERICA,ARGENTINA,LIGA PROFESIONAL,BOCA JUNIORS', 'arg')
+
+
+@scenario
+def world_po_sweep_usa():
+    """world_po_sweep at PHILADELPHIA: the MLS play-offs from the season's stage table"""
+    return world_po_sweep('NORDAMERICA,USA,PHILADELPHIA', 'usa')
+
+
+@scenario
+def world_po_sweep_mlt():
+    """world_po_sweep in Malta: the Final Four from split_seed (the Opening's kept table)"""
+    return world_po_sweep('EUROPA,MALTA,HAMRUN SPARTANS', 'mlt')
+
+
+@scenario
+def world_conti_guest():
+    """A guest club (a team file outside the world: TEAM.191) in a continental cup of the world 2026-27 (the
+    integrator's guest clubs, step 1): orig TEAM.064's clubs as TEAM.191 (each record's countryNumber = 191, as
+    GetTeamPointer matches file | ordinal), its first (ATL. COLEGIALES, word 0x00BF) in INDEPENDIENTE's Libertadores
+    group in place of its first group-mate (conti CONTI_GUEST, a test-build switch); a season there: both matches
+    against it on the game's screens with its name, the season ends"""
+    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-names-2214')
+    if not os.path.isdir(src):
+        return True, f'SKIP: private data {src} missing'
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    packs = ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order])
+    old = os.environ.get('SEASON_PACKS')
+    os.environ['SEASON_PACKS'] = packs
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import mkseason
+    ind = next(f | i << 8 for pk in mkseason.packs() if pk.meta.get('id') == 'world-2026-27-arg'
+               for k, (f, i) in pk.where.items() if pk.clubs[k]['name'] == 'INDEPENDIENTE')
+    if old is None:
+        os.environ.pop('SEASON_PACKS')
+    else:
+        os.environ['SEASON_PACKS'] = old
+    exe = build('world_conti_guest', env={'SEASON_PACKS': packs, 'CONTI_GUEST': f'lib:00bf:{ind:04x}'})
+    d = bytearray(open(os.path.join(MAIN, 'orig', 'DATA', 'TEAM.064'), 'rb').read())
+    for i in range((len(d) - 2) // 684):
+        d[2 + 684 * i] = 191
+    open(os.path.join(exe, 'DATA', 'TEAM.191'), 'wb').write(d)
+    keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K',
+                                            'W8485_NOSACK', 'W8485_ONE')}
+    os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM='SUDAMERICA,ARGENTINA,LIGA PROFESIONAL,'
+                      'INDEPENDIENTE', W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1', W8485_ONE='1')
+    try:
+        ok, msg = world8485()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    log = open(os.path.join(RUNS, w84_tag() + '_1', 'session.log'), errors='replace').read().splitlines()
+    games = [ln for ln in log if 'LIBERTADORES' in ln and '- RISULTATO -' in ln and 'ATL. COLEGIALES' in ln]
+    errs = []
+    check(ok, msg, errs)
+    check(len(games) >= 2, f'{len(games)} Libertadores matches against the guest (ATL. COLEGIALES) seen', errs)
+    return not errs, '; '.join(errs) or f'{msg}; the guest played {len(games)} times (TEAM.191)'
+
+
+@scenario
+def world_rlines_arg():
+    """world_rlines at BOCA JUNIORS (Argentina: TORNEO APERTURA / CLAUSURA knockouts, TROFEO DE CAMPEONES), forced
+    to win its knockouts (GPLAY_RLFORCE: the record's codes only - the titles themselves go to others): one line
+    'APERTURA E CLAUSURA' WINNERS (gplay.combined, fitted to the record's 144 px), seen on the season-end REGISTRO
+    GESTIONE (its refresh: gp_mrec puts the line back)"""
+    return world_rlines('SUDAMERICA,ARGENTINA,LIGA PROFESIONAL,BOCA JUNIORS', 'arg', 1, 'APERTURA E CLAUSURA')
+
+
+@scenario
+def world_rlines_arg3():
+    """world_rlines at ROSARIO CENTRAL (the strongest Argentine squad), forced 1st, every match won by the stronger
+    side (W8485_FILL: simdraw's table 3-0): the stage titles it really wins - the TROFEO DE CAMPEONES among them, decided
+    before SeasonFinished - in one record line, its name from GP_ST (gplay.combined: 'CLAUSURA E TROFEO CAMP.' on
+    world5tm-rel40-names-2214, the Apertura lost in the quarter-final its own line)"""
+    return world_rlines('SUDAMERICA,ARGENTINA,LIGA PROFESIONAL,ROSARIO CENTRAL', 'arg', None, 'auto', fill=True)
+
+
+@scenario
+def world_rlines_usa():
+    """world_rlines at PHILADELPHIA (USA: MLS CUP PLAYOFFS, a title play-off), forced out in the semi-final
+    (REACHED SEMI-FINAL)"""
+    return world_rlines('NORDAMERICA,USA,PHILADELPHIA', 'usa', -101)
 
 
 @scenario
@@ -4888,14 +5210,107 @@ def world_title_mlt():
     return world_title('mlt', '1')
 
 
+def gplay_host(test):
+    """A C test that #includes tools/gplay.c (%s: its path) compiled and run on the host (cc): (ok, stdout or the
+    compiler's error); the exe's externs it never uses get stubs in a unit of their own."""
+    import subprocess
+    import tempfile
+    with tempfile.TemporaryDirectory() as d:
+        open(os.path.join(d, 't.c'), 'w').write(test % os.path.join(ROOT, 'tools', 'gplay.c'))
+        stub = ''
+        for _ in range(2):
+            open(os.path.join(d, 's.c'), 'w').write(stub)
+            r = subprocess.run(['cc', '-w', '-o', os.path.join(d, 't'), os.path.join(d, 't.c'), os.path.join(d, 's.c')],
+                               capture_output=True, text=True)
+            miss = sorted(set(re.findall(r'"_(\w+)", referenced from', r.stderr)))
+            if not r.returncode or not miss:
+                break
+            stub += ''.join(f'unsigned char {m}[65536] __attribute__((aligned(8)));\n' for m in miss)
+        if r.returncode:
+            return False, f'cc: {r.stderr[:300]}'
+        return True, subprocess.run([os.path.join(d, 't')], capture_output=True, text=True).stdout.strip()
+
+
+@scenario
+def gplay_rlines():
+    """gplay.c club_res / gp_rlines_c (the season record's extra lines) compiled on the host (cc), every result
+    forced: a 3-round knockout won / lost in the final / semi / quarter (1 / -100 / -101 / -102), a 5-round one lost
+    in rounds 1-2 (-111 / -112), a club not in it (0); then the lines, titles won first (Davide): a stage title won
+    and one in the semi (GP_ST.dec: their long names) with the title play-off in ko[0] (won: the league's record name,
+    lost in the final: its long name); two stage titles won -> one combined line (GP_CMB), placed in the free line 3
+    and the title play-off's WINNERS in place of the continental KNOCKED OUT IN ROUND 1 (not the cup's FINALIST); a
+    loss with every line taken replaces nothing"""
+    test = r"""
+#include "%s"
+#include <stdio.h>
+static u32 NM[9] = {101, 102, 103, 201, 202, 203, 301, 302, 303};
+static void ko(int nrs, const int *ties, int out) {   /* the club (team 1000, entrant 0) wins every round before out */
+    struct gp_ko *k = &GP_ST.ko[0];
+    *k = (struct gp_ko){0};
+    k->magic = MAGIC; k->season = GP_SEAS; k->kind = K_TITLE; k->pi = 1; k->n = 24; k->nrs = nrs;
+    for (int i = 0; i < 24; i++) k->team[i] = 1000 + i;
+    int t = 0;
+    for (int r = 0; r < nrs; r++) {
+        k->gt0[r] = t;
+        for (int i = 0; i < ties[r]; i++, t++) {
+            k->tw[t] = 1 + t; k->tl[t] = 16 + t %% 8;   /* (KT: 24 ties at most) */
+            if (i == 0 && r <= out && r < nrs) { if (r < out) k->tw[t] = 0; else k->tl[t] = 0; }
+        }
+    }
+    k->gt0[nrs] = t; k->ntie = t;
+}
+int main(void) {
+    static const int t3[] = {4, 2, 1}, t5[] = {8, 4, 2, 1, 1};
+    GP_SEAS = 26; GP_MGR = 1000; GP_NM = NM;
+    GP_ST.magic = MAGIC; GP_ST.season = GP_SEAS;
+    for (int out = 3; out >= 0; out--) { ko(3, t3, out); printf("%%d ", club_res(&GP_ST.ko[0], GP_MGR)); }
+    for (int out = 0; out < 2; out++) { ko(5, t5, out); printf("%%d ", club_res(&GP_ST.ko[0], GP_MGR)); }
+    ko(3, t3, 3); printf("%%d |", club_res(&GP_ST.ko[0], 999));
+    struct gp_dec *d = GP_ST.dec;
+    d[0].season = d[1].season = GP_SEAS; d[0].done = d[1].done = 1;
+    d[0].pad[0] = 1; d[0].pad[1] = 1; d[1].pad[0] = (u8)-101; d[1].pad[1] = 3;
+    for (int out = 3; out >= 2; out--) {                /* wins first: stage 0 won, the title play-off won / lost */
+        ko(3, t3, out);
+        int n = gp_rlines_c();
+        for (int i = 0; i < n; i++) printf(" %%u:%%d", GP_RLN[i], GP_RLC[i]);
+        printf(" |");
+    }
+    static u32 CMB[8] = {0, 0, 0, 999, 0, 0, 0, 0};
+    static u8 rec[106];
+    GP_CMB = CMB; GP_REC = rec;                         /* stages 0 + 1 won: one line; the record: league, cup final
+                                                           lost, line 3 free, continental out in round 1 */
+    d[1].pad[0] = 1;
+    *(u32 *)(rec + 22) = 5; rec[86] = 1; *(u32 *)(rec + 26) = 6; rec[87] = (u8)-100; *(u32 *)(rec + 34) = 7; rec[89] = (u8)-111;
+    ko(3, t3, 3);
+    int n = gp_rlines_c();
+    for (int i = 0; i < n; i++) printf(" %%u:%%d", GP_RLN[i], GP_RLC[i]);
+    printf(" ->");
+    for (int o = 0; o < 4; o++) printf(" %%u:%%d", *(u32 *)(rec + 22 + 4 * o), (s8)rec[86 + o]);
+    *(u32 *)(rec + 30) = 0; rec[89] = (u8)-111;         /* a second pass after the game's refresh (gp_mrec): line 3's
+                                                           name lost, line 4's code back to the cup's: both restored */
+    gp_rlines_c();
+    printf(" |");
+    for (int o = 0; o < 4; o++) printf(" %%u:%%d", *(u32 *)(rec + 22 + 4 * o), (s8)rec[86 + o]);
+    ko(3, t3, 0);                                       /* a loss with every line taken: none replaced */
+    rec[88] = 0; *(u32 *)(rec + 30) = 8; rec[88] = 1; d[0].pad[0] = d[1].pad[0] = (u8)-101;
+    gp_rlines_c();
+    printf(" |");
+    for (int o = 0; o < 4; o++) printf(" %%u:%%d", *(u32 *)(rec + 22 + 4 * o), (s8)rec[86 + o]);
+    return 0;
+}
+"""
+    want = ('1 -100 -101 -102 -111 -112 0 | 101:1 203:1 301:-101 | 101:1 301:-101 201:-100 | 999:1 203:1 -> 5:1 6:-100 '
+            '999:1 203:1 | 5:1 6:-100 999:1 203:1 | 5:1 6:-100 8:1 203:1')
+    ok, got = gplay_host(test)
+    return ok and got == want, f'{got} (expected {want})'
+
+
 @scenario
 def gplay_split_seed():
     """gplay.c split_seed (Malta 2026-27's title decider) compiled on the host (cc), its four cases: one winner of
     both rounds (4 x it: no match), the Finalissima (Opening / Closing 1st-2nd in reverse, or one club 2nd in both:
     seeds A B B A by aggregate points), three clubs (the one 1st and 2nd straight to the final: seeds 1 and 4), the
     Final Four by aggregate points"""
-    import subprocess
-    import tempfile
     test = r"""
 #include "%s"
 #include <stdio.h>
@@ -4913,23 +5328,19 @@ int main(void) {
     run("ACBDEFGHIJKL"); run("BACDEFGHIJKL"); run("CBDEFGHIJKLA"); run("BCDEFGHIJKLA"); run("CDABEFGHIJKL");
     return 0;
 }
-""" % os.path.join(ROOT, 'tools', 'gplay.c')
+"""
     want = 'AAAA BAAB CAAC BCAB CADB'    # (aggregates: B 63 / A 60; C 61 / A 60; C 56 / A 31; C 61 A 55 D 54 B 48)
-    with tempfile.TemporaryDirectory() as d:
-        open(os.path.join(d, 't.c'), 'w').write(test)
-        stub = ''
-        for _ in range(2):                      # (the exe's externs, never used here: stubs in a unit of their own
-            open(os.path.join(d, 's.c'), 'w').write(stub)                  # for those the linker misses)
-            r = subprocess.run(['cc', '-w', '-o', os.path.join(d, 't'), os.path.join(d, 't.c'), os.path.join(d, 's.c')],
-                               capture_output=True, text=True)
-            miss = sorted(set(re.findall(r'"_(\w+)", referenced from', r.stderr)))
-            if not r.returncode or not miss:
-                break
-            stub += ''.join(f'unsigned char {m}[65536] __attribute__((aligned(8)));\n' for m in miss)
-        if r.returncode:
-            return False, f'cc: {r.stderr[:300]}'
-        got = subprocess.run([os.path.join(d, 't')], capture_output=True, text=True).stdout.strip()
-    return got == want, f'seeds {got} (expected {want})'
+    ok, got = gplay_host(test)
+    return ok and got == want, f'seeds {got} (expected {want})'
+
+
+@scenario
+def world_title_crc_skip():
+    """world_title: Costa Rica with HEREDIANO (the strongest) forced 1st and every match won by the stronger side
+    (W8485_FILL): it wins its semi and the final, so the Gran Final (the 1st v the play-off winner, one club) is skipped
+    as the LAST round - gp_rec ends the contest at the final (GP_LAST: the game's own last round, +59h = +57h + 1); it
+    hung on HEREDIANO's squad screen with 'SORTEGGIO PROSS. TURNO' before (Serie C's reproducer)"""
+    return world_title('crc', '1', 'NORDAMERICA,COSTA RICA,HEREDIANO', fill=True)
 
 
 @scenario
@@ -5799,10 +6210,11 @@ def world_full_eng():
 
 @scenario
 def world_full_arg():
-    """Full 5.0 world (full_season): a season at BOCA JUNIORS (Argentina, LIGA PROFESIONAL ZONA A, 15 clubs: a rest day
+    """Full 5.0 world (full_season): a season at BOCA JUNIORS (Argentina, LIGA PROFESIONAL - the menu's fitted name since
+    4.0-argfix -, its zone A of 15 clubs: a rest day
     each matchday): the season end runs with no 25+-club division (the 30-club table made the season end ask for
     team 0: VerifyTeamLoaded's int 3); sizes kept"""
-    return full_season('arg', 'SUDAMERICA,ARGENTINA,LIGA PROFESIONAL ZONA A,BOCA JUNIORS')
+    return full_season('arg', 'SUDAMERICA,ARGENTINA,LIGA PROFESIONAL,BOCA JUNIORS')
 
 
 @scenario

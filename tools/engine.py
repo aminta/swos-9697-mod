@@ -68,6 +68,20 @@ def after_load(name):
         AFTER_LOAD.append(name)
 
 
+AFTER_PROCESS = []      # 4.0: callbacks after ProcessCareerFile (it rebuilds the contests' pointers D8CAA from the league
+                        # records: gplay's gp_sync must come after it, or slot 4's knockout reads 'SPAREGGI' after a load)
+
+
+def after_process(name):
+    """Call CALL_AT[name] (pushfd / pushad around it) after ProcessCareerFile, at the end of a career load."""
+    if name not in AFTER_PROCESS:
+        AFTER_PROCESS.append(name)
+
+
+def after_processes():
+    return [(n, CALL_AT.get(n)) for n in AFTER_PROCESS]
+
+
 def after_loads():
     """[(name, (obj, offset) or None: set later, trailer.late)] in registration order (trailer.patch)."""
     return [(n, CALL_AT.get(n)) for n in AFTER_LOAD]

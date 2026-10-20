@@ -110,6 +110,36 @@ def wrap(text, w=W):
     return out
 
 
+PX = {' ': 3, "'": 2, '(': 3, ')': 3, ',': 2, '-': 4, '.': 2, '1': 2, ':': 2, ';': 3, 'I': 2}   # the small font's
+PX_MAX = 298                    # widths (charset sprites: 6 px else); the FORMAT page's usable width (entries of 304)
+
+
+def px(t):
+    return sum(PX.get(c, 6) for c in t)
+
+
+def wrap_px(text, w=PX_MAX):
+    """wrap() by the small font's pixel width (and the line buffer's fmtpage.LINE_W - 1 characters)."""
+    out = []
+    for para in text.split('\n'):
+        line = ''
+        for word in para.split(' '):
+            if not word:
+                continue
+            cand = f'{line} {word}' if line else word
+            if px(cand) <= w and len(cand) < fmtpage.LINE_W:
+                line = cand
+            else:
+                if line:
+                    out.append(line)
+                line = word
+        out.append(line)
+    return out
+
+
+GAP = '\x00'                     # pages(): a paragraph break in prose (a blank line)
+
+
 def pages(lines):
     """Pages of fmtpage.LINES lines from lines or from paragraphs (lists of wrapped lines): a paragraph is not split
     across two pages when it fits on one, and one ending with ':' (a heading) goes with the next."""
@@ -121,10 +151,16 @@ def pages(lines):
             glued[-1] = glued[-1] + pa
         else:
             glued.append(list(pa))
-    out = [[]]
+    out, gap = [[]], False
     for pa in glued:
-        if out[-1] and len(out[-1]) + len(pa) > n and len(pa) <= n:
+        if pa == [GAP]:                         # (prose: a blank line before the next paragraph, never at a page top)
+            gap = bool(out[-1])
+            continue
+        if gap and out[-1] and len(out[-1]) + 1 + len(pa) <= n:
+            out[-1].append('')
+        elif out[-1] and len(out[-1]) + len(pa) + gap > n and len(pa) <= n:
             out.append([])
+        gap = False
         for line in pa:
             if len(out[-1]) == n:
                 out.append([])
@@ -307,6 +343,10 @@ CONFED_NAMES = dict(lib='COPA LIBERTADORES', sud='COPA SUDAMERICANA', ccc='CONCA
                     cafcc='CAF CONFEDERATION CUP', ofc='OFC CHAMPIONS LEAGUE')
 for _z in ZT.values():
     _z['why'].update(CONFED_NAMES)
+for _l, (_w, _e) in {'it': ('FASE FINALE', 'IN OGNI GIRONE'), 'en': ('KNOCKOUT STAGE', 'IN EACH GROUP'),
+                      'fr': ('PHASE FINALE', 'DANS CHAQUE GROUPE'), 'de': ('ENDRUNDE', 'IN JEDER GRUPPE')}.items():
+    ZT[_l]['why']['po_grp'] = _w                    # 4.0 group headers: a zone's places by group place
+    ZT[_l]['each'] = _e
 CONFED_NOTES = {   # zones.continental_all's notes: leagues whose real places are not table positions
     'it': dict(annual='IN REALTA: CAMPEON DE LIGA E POSTI DALLA CLASSIFICA ANNUALE (STAT > CLASSIFICA GENERALE, CON QUESTI COLORI), OLTRE AI CAMPIONI DI APERTURA E CLAUSURA',
                split='IN REALTA: I CAMPIONI DI APERTURA E CLAUSURA, POI LA CLASSIFICA ANNUALE; QUI LA CLASSIFICA DEL GIOCO',
@@ -354,9 +394,13 @@ def zone_text(rw, t, lang, eu=None, confed=None):
     ord_ = t['ord']
     def one(a, b, c, w):
         rng = ord_(a) if a == b else f'{ord_(a)}-{ord_(b)}'
+        if w == 'po_grp':
+            rng += ' ' + z['each']
         return f"{z['col'][cols.index(c)]} {rng}: {z['why'][w]}"
+    rw = list(dict.fromkeys((a & 0x7F, b & 0x3F, c, w) if w == 'po_grp' else (a, b, c, w) for a, b, c, w in rw
+                            if not w.endswith('/grp')))   # (a split league's group copies: the plain lines say it)
     merged = []
-    for a, b, c, w in sorted(rw):
+    for a, b, c, w in sorted(rw, key=lambda r: (r[3] == 'po_grp', r)):
         if merged and merged[-1][2:] == (c, w) and merged[-1][1] == a - 1:
             merged[-1] = (merged[-1][0], b, c, w)
         else:
@@ -563,6 +607,102 @@ def world_items():
     return out
 
 
+CT_RN = {   # 4.0 other confederations' cups (conti.py formats): round names on their FORMAT page
+    'it': dict(q='TURNO PRELIMINARE {n}', first='PRIMO TURNO', pre='TURNO PRELIMINARE', r1='PRIMO TURNO',
+               league='FASE CAMPIONATO', losers='PERDENTI', thirds='TERZE', groups='FASE A GIRONI', po='SPAREGGI', r16='OTTAVI',
+               qf='QUARTI', sf='SEMIFINALI', final='FINALE'),
+    'en': dict(q='QUALIFYING ROUND {n}', first='FIRST ROUND', pre='PRELIMINARY ROUND', r1='FIRST ROUND',
+               league='LEAGUE STAGE', losers='LOSERS', thirds='THIRDS', groups='GROUP STAGE', po='PLAY-OFFS', r16='ROUND OF 16',
+               qf='QUARTER-FINALS', sf='SEMI-FINALS', final='FINAL'),
+    'fr': dict(q='TOUR PRELIMINAIRE {n}', first='PREMIER TOUR', pre='TOUR PRELIMINAIRE', r1='PREMIER TOUR',
+               league='PHASE DE LIGUE', losers='PERDANTS', thirds='TROISIEMES', groups='PHASE DE GROUPES', po='BARRAGES',
+               r16='HUITIEMES', qf='QUARTS', sf='DEMI-FINALES', final='FINALE'),
+    'de': dict(q='QUALIFIKATIONSRUNDE {n}', first='ERSTE RUNDE', pre='VORRUNDE', r1='ERSTE RUNDE',
+               league='LIGAPHASE', losers='VERLIERER', thirds='DRITTEN', groups='GRUPPENPHASE', po='PLAYOFFS', r16='ACHTELFINALE',
+               qf='VIERTELFINALE', sf='HALBFINALE', final='FINALE'),
+}
+CT_TX = {
+    'it': dict(two='ANDATA E RITORNO, POI RIGORI', one='GARA UNICA, RIGORI', one_et='GARA UNICA, SUPPLEMENTARI E RIGORI',
+               neutral='IN CAMPO NEUTRO', groups='{g} GIRONI DA {s}, ANDATA E RITORNO; PASSANO LE PRIME DUE',
+               noaway='NESSUNA REGOLA DEI GOL IN TRASFERTA', away='VALE LA REGOLA DEI GOL IN TRASFERTA',
+               league='{c} SQUADRE IN {r} ZONE, {m} PARTITE CIASCUNA; PASSANO LE PRIME {q} DI OGNI ZONA', losers='I PERDENTI DEL {r} ALLA {c} ({to})',
+               third='LE TERZE DEI GIRONI ALLA {c} ({to})', inn='ENTRANO DALLA {c}: {what}'),
+    'en': dict(two='TWO LEGS, THEN PENALTIES', one='ONE MATCH, PENALTIES', one_et='ONE MATCH, EXTRA TIME AND PENALTIES',
+               neutral='AT A NEUTRAL GROUND', groups='{g} GROUPS OF {s}, HOME AND AWAY; THE TOP TWO GO THROUGH',
+               noaway='NO AWAY GOALS RULE', away='THE AWAY GOALS RULE APPLIES',
+               league='{c} CLUBS IN {r} REGIONS, {m} MATCHES EACH; THE TOP {q} OF EACH REGION GO THROUGH', losers='THE {r} LOSERS GO TO THE {c} ({to})',
+               third='THE GROUPS\' THIRDS GO TO THE {c} ({to})', inn='FROM THE {c}: {what}'),
+    'fr': dict(two='ALLER-RETOUR, PUIS TIRS AU BUT', one='MATCH UNIQUE, TIRS AU BUT',
+               one_et='MATCH UNIQUE, PROLONGATIONS ET TIRS AU BUT', neutral='SUR TERRAIN NEUTRE',
+               groups='{g} GROUPES DE {s}, ALLER-RETOUR; LES DEUX PREMIERS QUALIFIES', noaway='PAS DE BUTS A L\'EXTERIEUR',
+               away='LES BUTS A L\'EXTERIEUR COMPTENT DOUBLE',
+               league='{c} CLUBS EN {r} ZONES, {m} MATCHS CHACUN; LES {q} PREMIERS DE CHAQUE ZONE QUALIFIES',
+               losers='LES PERDANTS DU {r} EN {c} ({to})', third='LES TROISIEMES DES GROUPES EN {c} ({to})',
+               inn='DE LA {c}: {what}'),
+    'de': dict(two='HIN- UND RUECKSPIEL, DANN ELFMETER', one='EIN SPIEL, ELFMETER',
+               one_et='EIN SPIEL, VERLAENGERUNG UND ELFMETER', neutral='AUF NEUTRALEM PLATZ',
+               groups='{g} GRUPPEN ZU {s}, HIN UND RUECK; DIE ERSTEN ZWEI WEITER', noaway='KEINE AUSWAERTSTORREGEL',
+               away='DIE AUSWAERTSTORREGEL GILT',
+               league='{c} KLUBS IN {r} REGIONEN, JE {m} SPIELE; DIE ERSTEN {q} JEDER REGION WEITER',
+               losers='DIE VERLIERER DER {r} IN DIE {c} ({to})', third='DIE GRUPPENDRITTEN IN DIE {c} ({to})',
+               inn='AUS DER {c}: {what}'),
+}
+
+
+def conti_items():
+    """[(world, cid, titles, texts)]: the FORMAT pages of the other confederations' cups (conti.py), in the World
+    2026-27 world; titles as the game writes a contest without a country (' ' + the name, and without the space)."""
+    import conti
+    import mkseason
+    worlds = {pk.world for pk in mkseason.packs() if pk.meta.get('id', '').startswith('world-2026-27-') and pk.world}
+    if not worlds:
+        return []
+    n_world = min(worlds)
+    out = []
+    cups = {c['key']: c for conf in conti.ready() for c in conti._read(conf, 'format')['cups']}
+
+    def rname(lang, key):
+        r = CT_RN[lang]
+        return r['q'].format(n=key[1:]) if key[0] == 'q' and key[1:].isdigit() else r.get(key, key.upper())
+
+    def cname(lang, key):
+        c = cups.get(key)
+        return (c['names'].get(lang) or c['names']['en'])[0].upper() if c else key.upper()
+    for key, c in cups.items():
+        titles, texts = {}, {}
+        for lang in LANGS:
+            x, lines = CT_TX[lang], []
+            for rd in c['rounds']:
+                if rd['kind'] == 'league_stage':
+                    q = max((int(k.split('-')[1]) for k in (rd.get('out') or {}) if '-' in k), default=8)
+                    lines.append(f"{rname(lang, rd['key'])}: " + x['league'].format(
+                        c=rd.get('regions', 1) * rd.get('clubs_per_region', 0), r=rd.get('regions', 1),
+                        m=rd.get('matches', 0), q=q))
+                    continue
+                if rd['kind'] == 'groups':
+                    lines.append(f"{rname(lang, rd['key'])}: " + x['groups'].format(g=rd['groups'], s=rd['size']))
+                    continue
+                how = x['two'] if rd.get('legs', 2) == 2 else x['one_et'] if rd.get('level') == 'et_pens' else x['one']
+                if rd.get('host') == 'neutral':
+                    how += ' ' + x['neutral']
+                lines.append(f"{rname(lang, rd['key'])}: {how}")
+            lines.append(x['away'] if any(rd.get('level') == 'away_pens' for rd in c['rounds']) else x['noaway'])
+            for rk, to in (c.get('losers') or {}).items():
+                ck, tr = to.split(':')
+                lines.append(x['losers'].format(r=rname(lang, rk), c=cname(lang, ck), to=rname(lang, tr)))
+            for tr, what in (c.get('in') or {}).items():
+                ck, rest = what.split(':', 1)
+                tail = ' '.join(CT_RN[lang]['losers'] if w == 'losers' else CT_RN[lang]['thirds'] if w == '3rds'
+                                else w.upper() for w in rest.split()[1:])
+                lines.append(x['inn'].format(c=cname(lang, ck), what=f'{rname(lang, rest.split()[0])} {tail}') +
+                             f' -> {rname(lang, tr)}')
+            titles[lang] = ' ' + (c['names'].get(lang) or c['names']['en'])[0].upper()
+            texts[lang] = lines
+        out.append((n_world, None, titles, texts))
+        out.append((n_world, None, {lang: s[1:] for lang, s in titles.items()}, texts))
+    return out
+
+
 def _noaway_texts():
     return {lang: dict(TEXTS[lang], r=dict(TEXTS[lang]['r'], two_legs=NOAWAY[lang])) for lang in TEXTS}
 
@@ -640,7 +780,7 @@ def world_year(w, d=None):
 
 def from_pack(d):
     """[(world, contest id, {lang: title}, {lang: [lines]})] of one pack."""
-    m = json.load(open(os.path.join(d, 'pack.json')))
+    m = complist.load_pack(d)
     clubs = complist.csv.DictReader(open(os.path.join(d, 'clubs.csv'), encoding='utf-8')) \
         if os.path.exists(os.path.join(d, 'clubs.csv')) else []
     clubs = [dict(r, file=r.get('file') or 'league', division=r.get('division') or '0') for r in clubs]
@@ -681,10 +821,19 @@ def from_pack(d):
                         titles[lang] = title(lang, nm)
                         low = (lg['closed'] or lv is lg['levels'][-1]) and not any(
                             po.get('kind') == 'promedio' for po in comp.get('ko_playoffs') or [])
-                        texts[lang] = league_text(div, win, T[lang], lg['names'], lang, low) + \
+                        sch = league_text(div, win, T[lang], lg['names'], lang, low) + \
                             (T[lang]['ita'] if lg['special'] and k == min(1, len(lg['names']) - 1) else []) + \
                             zone_text(zdet[lang].get((ci, k), []), T[lang], lang, eu,
                                       zones.continental_all(m) if lv is lg['levels'][0] and not m.get('europe_places') else None)
+                        import fmtprose             # 4.0: the prose (the schematic lines' tail: the colours)
+                        h = ZT[lang]['head']
+                        tail = sch[sch.index(h):] if h in sch else [x for x in sch if x.startswith(ZT[lang]['eu'].split('{')[0][:30])]
+                        pos_ = comp.get('ko_playoffs') or []
+                        texts[lang] = {'prose': fmtprose.league(div, k, lg, win, lang, pos_ if isinstance(pos_, list) else [],
+                                                                low, lambda x, lang=lang: complist._nm(x, lang)) +
+                                       (T[lang]['ita'] if lg['special'] and k == min(1, len(lg['names']) - 1) else []),
+                                       'tail': sch[sch.index(next(x for x in sch if x.startswith(ZT[lang]['eu'].split('{')[0][:30]))):]
+                                       if any(x.startswith(ZT[lang]['eu'].split('{')[0][:30]) for x in sch) else tail}
                     out.append((world, cid, titles, texts))
                     k += 1
         elif comp['type'] == 'cup':
@@ -725,7 +874,34 @@ def write(out_dir, items):
     by, keys = {}, {}
     for world, cid, titles, texts in items:
         for lang in LANGS:
-            body = [wrap(ascii_up(line, lang)) for line in texts[lang]]      # (paragraphs: pages())
+            lines = texts[lang]
+            import fmtprose                     # 4.0: every competition's text in plain prose (the colours' lines kept)
+            h = ZT[lang]['head']
+            if isinstance(lines, dict):
+                prose, tail = lines['prose'], lines['tail']
+            else:
+                tail = lines[lines.index(h):] if h in lines else []
+                prose = fmtprose.sentences(lines[:len(lines) - len(tail)])
+            hand = fmtprose.text(world, titles['it'], lang)   # (hand texts keyed by the Italian title)
+            if hand and not isinstance(lines, dict):      # a national cup's real draw first (complist: real_cup / real_in)
+                rc = [x for x in lines if x.startswith(TEXTS[lang]['real_cup'].split('{')[0]) or
+                      x.startswith(TEXTS[lang]['real_in'])]
+                if rc:
+                    hand = fmtprose.sentences(rc) + hand
+            prose = hand or prose
+            if prose:
+                if hand:                        # (a hand text tells the real rule itself)
+                    tail = [x for x in tail if x not in CONFED_NOTES[lang].values()]
+                body = []
+                for para in prose:
+                    body += [wrap_px(ascii_up(para, lang)), [GAP]]
+                tl = [wrap_px(ascii_up(t, lang)) for t in tail]
+                if tl:
+                    body += tl                      # (the colours' lines fill the page and go on: not prose)
+                elif body:
+                    body.pop()                      # (no trailing paragraph break)
+            else:
+                body = [wrap_px(ascii_up(line, lang)) for line in lines]      # (paragraphs: pages())
             key = titles[lang][:fmtpage.NAME - 1]
             k = (lang, world, key)
             if k in keys:                       # the same title twice (two divisions with one name): one page,

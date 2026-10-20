@@ -82,7 +82,7 @@ NAME = 41                       # the slot's name field (as fmtpage.NAME)
 RANGES = 8
 LEG = 5                         # legend boxes (the colours a table uses, in place order)
 ENTRY = 1 + NAME + 1 + 3 * RANGES + 1 + 2 * LEG   # world, title, n, ranges, n legend, (colour, label) * LEG = 78
-ENTRY_PAD = 84
+ENTRY_PAD = 96                  # (+81: the group headers' legend, n + 5 boxes)
 ECODE = 80                      # a league-phase top flight: its association's code (the league's team file, uefacoef)
 EU_PLACES = 10                  # the access list's places looked at per rank (the top 9 + 1)
 EFLAG = 78                      # 1: a league-phase world's top flight (its European places: season 1 only)
@@ -117,7 +117,7 @@ def _lp_world(meta_by_world, n):
 def pack_zones(d, lang, lp=False, rank=None, detail=None):
     """[(world, title, [(first, last, colour), ...])] of one pack's league divisions; detail (a dict): {(competition
     index, division index): [(first, last, colour, why)]} for the FORMAT page (fmtgame.py), why in WHY."""
-    m = json.load(open(os.path.join(d, 'pack.json')))
+    m = complist.load_pack(d)
     cl = os.path.join(d, 'clubs.csv')
     clubs = [dict(r, file=r.get('file') or 'league', division=r.get('division') or '0')
              for r in complist.csv.DictReader(open(cl, encoding='utf-8'))] if os.path.exists(cl) else []
@@ -177,15 +177,30 @@ def pack_zones(d, lang, lp=False, rank=None, detail=None):
                     rng.append((place, place, col))
                     why.append(w)
             if lg['special'] and comp.get('playoffs') == 'ita':
-                if i == 1:                               # Serie B
+                li = next(k for k, lv in enumerate(lg['levels']) if any(x is dv for x in lv))
+                if li == 1:                              # Serie B
                     rng += [(3, 8, GREEN), (16, 17, ORANGE)]
                     why += ['po_up', 'out']
-                elif i >= 2:                             # the Serie C groups
+                elif li == 2:                            # the Serie C groups (not the Serie D's: their own play-offs)
                     rng.append((2, 10, GREEN))
                     why.append('po_up')
             if dv['down']:
                 rng.append((n - dv['down'] + 1, n, RED))
                 why.append('down')
+            gleg = []
+            for g, ga, gz in group_ranges(dv, po, i):   # 4.0 group headers (longtable): a zone's places by
+                rng.append((ga | 0x80, gz | (g << 6), GREEN))   # its group place, shown only with the headers on
+                why.append('po_grp')
+                gleg = [(GREEN, 'po')]
+            sg = split_groups(dv) if not groups_of(dv) else []
+            if sg:                                       # a split league after its split: each range by group place too
+                plain = [(r, w) for r, w in zip(rng, why) if not r[0] & 0x80]
+                for (a, z, c), w in plain:
+                    for g, (ga, gz, _) in enumerate(sg[:4]):
+                        if a <= gz and z >= ga:
+                            rng.append(((max(a, ga) - ga + 1) | 0x80, (min(z, gz) - ga + 1) | (g << 6), c))
+                            why.append(w + '/grp')
+                gleg = None                              # (the plain legend, filled below)
             if detail is not None:
                 detail[(ci, i)] = [r + (w,) for r, w in zip(rng[:RANGES], why)]
             if rng:
@@ -193,23 +208,117 @@ def pack_zones(d, lang, lp=False, rank=None, detail=None):
                 if id(dv) in top and not m.get('europe_places') and continental(m):
                     kind = 'confed/' + '/'.join(dict.fromkeys(e['cup'] for e in continental(m)))
                 out.append((world, _title(m, lang, complist._nm(dv['name'], lang)), rng[:RANGES], kind,
-                            m['files'][comp['clubs']]['file'] if kind == 'lp' else 0))
+                            m['files'][comp['clubs']]['file'] if kind == 'lp' else 0, gleg))
             elif lp and rank and id(dv) in top and not EU_SEASON1_ONLY:   # European colours only at run time
                 out.append((world, _title(m, lang, complist._nm(dv['name'], lang)), [], 'lp',
-                            m['files'][comp['clubs']]['file']))
+                            m['files'][comp['clubs']]['file'], []))
     return out
+
+
+def groups_of(dv):
+    """A division's groups of consecutive places (its split stage's 'zones', e.g. Argentina's zones A / B, the MLS
+    conferences): [(first place, size)], or [] for none."""
+    for st in ((dv.get('split') or {}).get('stages') or []):
+        zs = st.get('zones')
+        if zs and len(zs) > 1:
+            out, a = [], 1
+            for z in zs:
+                out.append((a, len(z)))
+                a += len(z)
+            return out
+    return []
+
+
+def split_groups(dv):
+    """A split division's groups after its split (the last stage with 2+ groups): [(first, last, names)], names
+    {lang: [long, short]} or None; [] for none."""
+    out = []
+    for st in ((dv.get('split') or {}).get('stages') or ([dv['split']] if dv.get('split') else [])):
+        gs = st.get('groups') or []
+        if len(gs) > 1:
+            out = [(g['places'][0], g['places'][1], g.get('title') or g.get('names')) for g in gs]
+    return out
+
+
+def group_ranges(dv, po, i):
+    """[(group, first, last)] in group places: a split-stage play-off's entrants of division i (stage_place
+    entrants: places of the stage's table), per group; [] without groups."""
+    gs = groups_of(dv)
+    if not gs:
+        return []
+    per = {}
+    for p in po:
+        for e in p.get('entrants', []):
+            if isinstance(e, dict) and 'stage_place' in e and e.get('div', 0) == i:
+                for g, (a, n) in enumerate(gs):
+                    if a <= e['place'] < a + n:
+                        per.setdefault(g, set()).add(e['place'] - a + 1)
+    out = []
+    for g, pl in sorted(per.items()):
+        pl = sorted(pl)
+        out.append((g, pl[0], pl[-1]))
+    return out[:2]
+
+
+HDR_NAMES = {     # 4.0 group headers: default labels (a pack's "zone_names": {lang: [..]} overrides)
+    'conf': {'it': ['CONFERENCE EST', 'CONFERENCE OVEST'], 'en': ['EASTERN CONFERENCE', 'WESTERN CONFERENCE'],
+             'fr': ['CONFERENCE EST', 'CONFERENCE OUEST'], 'de': ['EASTERN CONFERENCE', 'WESTERN CONFERENCE']},
+    'zone': {'it': 'ZONA', 'en': 'ZONE', 'fr': 'ZONE', 'de': 'ZONE'},
+}
+HDR_LABEL = 24                  # a label's bytes (NUL padded)
+
+
+def header_labels(lang, pack_dirs):
+    """gplay.c gp_hlabel_c's table: [count dw] + per long table of groups: title (NAME) + 4 labels (HDR_LABEL):
+    the MLS conferences, otherwise ZONA A / B ... in the exe language."""
+    rows = []
+    for d in pack_dirs:
+        m = complist.load_pack(d)                       # (as pack_zones: the game's titles)
+        if m.get('kind') != 'career':
+            continue
+        cl = os.path.join(d, 'clubs.csv')
+        clubs = [dict(r, file=r.get('file') or 'league', division=r.get('division') or '0')
+                 for r in complist.csv.DictReader(open(cl, encoding='utf-8'))] if os.path.exists(cl) else []
+        for comp in m.get('competitions', []):
+            if comp['type'] != 'league':
+                continue
+            lg = complist._league(comp, clubs)
+            for dv in (x for lv in lg['levels'] for x in lv):
+                gs = groups_of(dv)
+                sg = [] if gs else split_groups(dv)
+                if not gs and not sg:
+                    continue
+                zn = m.get('zone_names') or {}
+                if sg:                                  # a split league: its groups' names (the data's 'title')
+                    gen = {'it': 'GRUPPO', 'en': 'GROUP', 'fr': 'GROUPE', 'de': 'GRUPPE'}[lang]
+                    labels = [complist._nm(nm, lang) if nm else f'{gen} {chr(65 + g)}' for g, (_, _, nm) in enumerate(sg)]
+                elif lang in zn or '*' in zn:
+                    labels = zn.get(lang) or zn['*']
+                elif m.get('id', '').endswith('-usa') and len(gs) == 2:
+                    labels = HDR_NAMES['conf'][lang]
+                else:
+                    labels = [f"{HDR_NAMES['zone'][lang]} {chr(65 + g)}" for g in range(len(gs))]
+                rows.append((_title(m, lang, complist._nm(dv['name'], lang)), labels[:4]))
+    b = bytearray(struct.pack('<I', len(rows)))
+    for title, labels in rows:
+        t = title.encode('latin-1')[:NAME - 1]
+        b += t + bytes(NAME - len(t))
+        for k in range(4):
+            x = (labels[k] if k < len(labels) else '').encode('latin-1')[:HDR_LABEL - 1]
+            b += x + bytes(HDR_LABEL - len(x))
+    return bytes(b)
 
 
 def context(pack_dirs):
     """({world: world_cups}, {pack dir: season-1 association rank}) of a build's packs."""
     metas = {}
     for d in pack_dirs:
-        m = json.load(open(os.path.join(d, 'pack.json')))
+        m = complist.load_pack(d)
         if m.get('kind') == 'career' and m.get('world_cups'):
             metas[m.get('world', 0)] = m['world_cups']
     coef = {}                                            # season-1 association ranks: 5 seasons' coefficients
     for d in pack_dirs:
-        m = json.load(open(os.path.join(d, 'pack.json')))
+        m = complist.load_pack(d)
         if m.get('uefa_coef', {}).get('country'):
             coef.setdefault(m.get('world', 0), []).append((-sum(m['uefa_coef']['country']), d))
     ranks = {d: k + 1 for w, lst in coef.items() for k, (_, d) in enumerate(sorted(lst))}
@@ -237,13 +346,14 @@ def table(lang, pack_dirs):
     metas, ranks = context(pack_dirs)
     out, seen = [], set()
     for d in pack_dirs:
-        m = json.load(open(os.path.join(d, 'pack.json')))
+        m = complist.load_pack(d)
         w = m.get('world', 0) if m.get('kind') == 'career' else 0
-        for world, title, rng, kind, code in pack_zones(d, lang, _lp_world(metas, w), ranks.get(d)):
+        for world, title, rng, kind, code, gleg in pack_zones(d, lang, _lp_world(metas, w), ranks.get(d)):
             assert (world, title) not in seen, (world, title)
             seen.add((world, title))
-            out.append((world, title, rng, legend(rng, kind), kind, metas.get(world, {}).get('start_year', 1900) - 1900,
-                        code))
+            leg = legend(rng, kind)
+            out.append((world, title, rng, leg, kind, metas.get(world, {}).get('start_year', 1900) - 1900,
+                        code, leg if gleg is None else gleg))
     return out
 
 
@@ -293,7 +403,7 @@ def legend(rng, kind):
              'classic': {LIGHT_BLUE: 'cc', GREEN: 'uefa', ORANGE: 'out', RED: 'down'},
              'lower': {LIGHT_BLUE: 'up', GREEN: 'po', ORANGE: 'out', RED: 'down'}}[kind]
     out, seen = [], set()
-    for a, z, c in sorted(rng):
+    for a, z, c in sorted(r for r in rng if not r[0] & 0x80):
         if c not in seen and c in names:
             seen.add(c)
             out.append((c, names[c]))
@@ -302,7 +412,7 @@ def legend(rng, kind):
 
 def blob(rows):
     b = bytearray(struct.pack('<I', len(rows)))
-    for world, title, rng, leg, kind, year, code in rows:
+    for world, title, rng, leg, kind, year, code, gleg in rows:
         t = title.encode('latin-1')[:NAME - 1]
         e = bytes([world]) + t + b'\0' * (NAME - len(t)) + bytes([len(rng)])
         for a, z, c in rng:
@@ -311,6 +421,8 @@ def blob(rows):
         for c, k in leg:
             e += bytes([LEG_COLOUR.get(c, c), KEYS.index(k)])
         e += b'\0' * (EFLAG - len(e)) + bytes([1 if kind == 'lp' else 0, year % 256, code])
+        if any(r[0] & 0x80 for r in rng):              # 4.0 group headers: their legend (+81: n, (colour, label))
+            e += bytes([len(gleg[:LEG])]) + b''.join(bytes([LEG_COLOUR.get(c, c), KEYS.index(k)]) for c, k in gleg[:LEG])
         b += e + b'\0' * (ENTRY_PAD - len(e))
     return bytes(b)
 
@@ -423,14 +535,19 @@ EU_ROW
     shr eax, 1
     inc eax                             ; the row's place 1..
 OV_ROW
+    xor ebp, ebp                        ; (4.0 group headers: ebp = 10000h + group * 100h + its group place)
+HDR_PREP
     movzx ecx, byte [edi + 1 + NAME_]
     lea esi, [edi + 2 + NAME_]
 .r:
-    jecxz .x
+    test ecx, ecx                       ; (jecxz: out of short range)
+    jz .x
+HDR_RANGE
     cmp al, [esi]
     jb .rn
     cmp al, [esi + 1]
     ja .rn
+.m:
     movzx edx, byte [esi + 2]           ; the zone's colour
     call zn_iseu
     je .rn
@@ -438,9 +555,14 @@ OV_ROW
     mov [D3], dx
     mov esi, [A1]                       ; club (team file record): a computer club's name in the row colour
     cmp byte [esi + 4], 1
-    jne .x
+    jne .hu
     mov esi, [A5]
     mov [esi + 1Eh], dx
+    jmp .x
+.hu:
+    mov esi, [A5]                       ; the human's name box: its own colour, framed (inner frame colour =
+    and word [esi + 1Eh], 0FF0Fh        ; the high nibble, yellow), so a player-coach's light blue stays apart
+    or word [esi + 1Eh], FRAME_         ; from a light-blue zone row
     jmp .x
 .rn:
     add esi, 3
@@ -469,6 +591,7 @@ zn_leg:                                 ; edi = the table's entry or 0: the lege
     xor ecx, ecx                        ; ecx = box
 EU_LEG
 .d:
+HDR_LEG
     xor esi, esi                        ; esi = the entry's legend item
 .l:
     cmp ecx, LEG_
@@ -557,6 +680,64 @@ zn_iseu:                                ; dl = a colour, bh = 1 -> ZF = 1 when i
     ret
 """
 
+
+
+HDR_PREP_ASM = """    cmp dword [GP_HON], 0               ; headers drawn in this table (a long table of one group)
+    je .hp
+    cmp word [DIY + 4Fh], 1
+    jne .hp
+    movzx ebp, byte [GP_HG + eax]
+    shl ebp, 8
+    push edx
+    movzx edx, byte [GP_HGP + eax]
+    or ebp, edx
+    pop edx
+    or ebp, 10000h
+.hp:
+"""
+HDR_RANGE_ASM = """    test byte [esi], 80h                ; a group range (headers on only): group place, group
+    jnz .g
+    test ebp, 10000h                    ; a plain range: headers off only
+    jnz .rn
+    jmp .pl
+.g: test ebp, 10000h
+    jz .rn
+    push eax
+    push edx
+    mov eax, ebp
+    mov dl, [esi]
+    and dl, 7Fh
+    cmp al, dl
+    jb .gn
+    mov dl, [esi + 1]
+    mov dh, dl
+    and dl, 3Fh
+    cmp al, dl
+    ja .gn
+    shr dh, 6
+    cmp ah, dh
+    jne .gn
+    pop edx
+    pop eax
+    jmp .m
+.gn:
+    pop edx
+    pop eax
+    jmp .rn
+.pl:
+"""
+HDR_LEG_ASM = """    test edi, edi                       ; group headers on: the group legend (entry +81)
+    jz .hl
+    cmp dword [GP_HON], 0
+    je .hl
+    cmp word [DIY + 4Fh], 1
+    jne .hl
+    cmp byte [edi + 81], 0
+    je .hl
+    add edi, 81 - LEGN_
+    movzx ebp, byte [edi + LEGN_]
+.hl:
+"""
 
 def _menu_copy(p, area, legbuf):
     """DIY_leagueTournamentMenu (its init DIYLeagueTournamentInit: mov word [..], 0 / mov word [..], 0 / call) copied
@@ -741,10 +922,17 @@ def patch(p, at, area, lang, pack_dirs, bss, bss_len, world=None):
            **({'C11': c11} if c11 else {}), 'ZHIT': (2, keys), 'ZEU': (2, keys + 47), 'ZKEY': (2, keys + 4), 'NAME_': (0, NAME), 'ZENT': (2, zent),
            'ZFILE': (2, zfile), 'FN_BASE_': (0, len(FILE[lang])), 'BUF': (2, bss), 'BUFLEN_': (0, bss_len),
            'ENTRY_': (0, ENTRY_PAD), 'LEG_': (0, LEG), 'LEG_W_': (0, LEG_W), 'LEGN_': (0, 1 + NAME + 1 + 3 * RANGES),
-           'LABS': (2, labs), 'EFLAG_': (0, EFLAG), 'ECODE_': (0, ECODE), 'EU_PLACES_': (0, EU_PLACES), 'LEGBUF': (2, legbuf), 'MENU': cur_menu}
+           'FRAME_': (0, int(os.environ.get('ZN_FRAME', '0x60'), 16)), 'LABS': (2, labs), 'EFLAG_': (0, EFLAG), 'ECODE_': (0, ECODE), 'EU_PLACES_': (0, EU_PLACES), 'LEGBUF': (2, legbuf), 'MENU': cur_menu}
     import fmtpage
     import gplay
     ov = 'on' in fmtpage.OV and 'GP_OV_ANNUAL' in gplay.LABELS
+    hdr = 'GP_HON' in gplay.LABELS and 'GP_HG' in gplay.LABELS
+    src = src.replace('HDR_PREP\n', HDR_PREP_ASM if hdr else '').replace('HDR_RANGE\n', HDR_RANGE_ASM if hdr else '')
+    src = src.replace('HDR_LEG\n', HDR_LEG_ASM if hdr else '')
+    if hdr:
+        import longtable
+        sym.update({'GP_HON': gplay.LABELS['GP_HON'], 'GP_HG': gplay.LABELS['GP_HG'], 'GP_HGP': gplay.LABELS['GP_HGP'],
+                    'LT_ROWS_': (0, longtable.ROWS)})
     src = src.replace('OV_ROW\n', '''    cmp byte [OV_ON], 2                 ; 4.0 the overall table in its annual form (Argentina): the last relegated
     jne .o
     cmp eax, [GP_OV_N]

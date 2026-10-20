@@ -162,6 +162,211 @@ def _sfx(n):
     return 'th' if 10 <= n % 100 <= 20 else {1: 'st', 2: 'nd', 3: 'rd'}.get(n % 10, 'th')
 
 
+TITLE_MAX = 34      # the game's title '<country> <long name>' (DIY+4): a 35-byte field, the long-name pointer right after
+                    # it (DIY+27h); longer, the copy overwrites the pointer (4.0: Argentina's 'CEK' record line, title garbage)
+LANGS = ('it', 'en', 'fr', 'de')
+
+
+FIT_NAMES = {   # hand-picked forms (regia / Davide 2026-10-20): (original long name, language or '*') -> the long name used
+    ('SEGUNDA DIVISION OCCIDENTE', '*'): 'SEGUNDA OCCIDENTE', ('SEGUNDA DIVISION ORIENTE', '*'): 'SEGUNDA ORIENTE',
+    ('TERCERA DIVISION OCCIDENTE', '*'): 'TERCERA OCCIDENTE', ('TERCERA DIVISION ORIENTE', '*'): 'TERCERA ORIENTE',
+    ('CAMPEONATO BRASILEIRO SERIE A', '*'): 'BRASILEIRAO SERIE A', ('CAMPEONATO BRASILEIRO SERIE B', '*'): 'BRASILEIRAO SERIE B',
+    ('PLAY-OFF CONFERENCE LEAGUE', '*'): 'PLAY-OFF CONFERENCE',
+    ('EUROPA CONFERENCE PLAY-OFF', '*'): 'PLAY-OFF CONFERENCE', ('EUROPA CONFERENCE PLAY-OFF', 'it'): 'PLAY-OFF CONF.', ('EUROPA CONFERENCE PLAY-OFF', 'fr'): 'PLAY-OFF CONF.',
+    ('RELEGATION 2. BUNDESLIGA', '*'): 'RELEGATION 2./3. LIGA',
+    ('SKUPINA O UMISTENI 7-10', 'it'): 'POSTI 7-10', ('SKUPINA O UMISTENI 7-10', 'en'): 'PLACES 7-10',
+    ('SKUPINA O UMISTENI 7-10', 'fr'): 'PLACES 7-10', ('SKUPINA O UMISTENI 7-10', 'de'): 'PLATZ 7-10',
+    ('TAIWAN FOOTBALL PREMIER LEAGUE', '*'): 'PREMIER LEAGUE',
+    ('TAIWAN FOOTBALL LEAGUE DIV. 2', 'it'): 'SECONDA DIVISIONE', ('TAIWAN FOOTBALL LEAGUE DIV. 2', 'en'): '2ND DIVISION',
+    ('TAIWAN FOOTBALL LEAGUE DIV. 2', 'fr'): 'DEUXIEME DIVISION', ('TAIWAN FOOTBALL LEAGUE DIV. 2', 'de'): '2. LIGA',
+}
+
+
+CAL_PX = 70         # the career calendar's label: x 8 .. 78, where the home / away marker (C) / (F) starts (Davide 2026-10-20)
+SMALL_W = dict({c: 6 for c in 'ABCDEFGHJKLMNOPQRSTUVWXYZ023456789!"#$%&*+/<=>?@'},
+               **{'I': 2, '1': 2, "'": 2, '(': 3, ')': 3, ',': 2, '-': 4, '.': 2, ':': 2, ' ': 3})   # the menus' small
+                    # font (smallCharsTable: sprite pixWidth, no spacing, space 3), as the game's GetTextWidth adds them
+
+
+def px(s):
+    """s's width in the small font (pixels)."""
+    return sum(SMALL_W.get(c, 6) for c in s.upper())
+
+
+FIT_SHORT = {(k, '*'): v for k, v in {   # hand-picked calendar labels (else ABBR / the cut): short name -> the label
+    'AUSTRALIA CUP': 'AUST. CUP', 'BULGARIAN CUP': 'BULG. CUP', "EMPEROR'S CUP": 'EMPEROR CUP', 'PUCHAR POLSKI': 'PUCHAR POL.',
+    'SCHWEIZER CUP': 'SCHWEIZ. CUP', 'RELEGATION 1/2': 'RELEG. 1/2', 'RELEGATION 2/3': 'RELEG. 2/3', 'SEGUNDA FINAL': 'SEG. FINAL',
+    'LANDESMEISTER': 'LANDESMEIST.', 'CAMPIONATO SMR': 'CAMP. SMR', 'BEKER VAN BELGIE': 'BEKER BELGIE',
+    'COPA COSTA RICA': 'COPA C. RICA', 'CUP WINNERS CUP': 'CUP W. CUP', 'GHANA PREM. LGE': 'GHANA PREM.',
+    'EGYPT LEAGUE CUP': 'EGY LGE CUP', 'LIGA DE PRIMERA': 'LIGA PRIMERA', 'COPA DE LA LIGA': 'COPA LIGA',
+    'P.NACIONAL FINAL': 'P. NAC. FINAL', 'CUPA MOLDOVEI': 'CUPA MOLDOVA', 'MALTA PREMIER': 'MALTA PREM.',
+    'COPA COLOMBIA': 'COPA COL.', 'CYMRU PREMIER': 'CYMRU PREM.', 'LIGA PORTUGAL': 'LIGA PORT.',
+}.items()}
+ABBR = {'LEAGUE': 'LGE', 'DIVISION': 'DIV.', 'DIVISIO': 'DIV.', 'DIVISAO': 'DIV.', 'PREMIER': 'PREM.',
+        'PROFESIONAL': 'PROF.', 'CHAMPIONS': 'CHAMP.', 'CHAMPIONNAT': 'CHAMP.', 'CAMPIONI': 'CAMP.', 'CAMPEONATO': 'CAMP.',
+        'GIRONE': 'GIR.', 'GRUPO': 'GR.', 'NATIONAL': 'NAT.', 'NACIONAL': 'NAC.', 'NATIONALLIGA': 'NATIONALL.',
+        'PLAY-OFFS': 'P-OFFS', 'PLAY-OFF': 'P-OFF', 'COUPE': 'C.', 'COPPA': 'C.', 'PRESIDENT': 'PRES.',
+        "PRESIDENT'S": "PRES.", 'CONSTITUCIO': 'CONST.', 'SUPERIORE': 'SUP.', 'KNOCKOUT': 'K.O.', 'NORTHERN': 'NORTH.',
+        'SOUTHERN': 'SOUTH.', 'CENTRAL': 'CENT.', 'OCCIDENTE': 'OCC.', 'OCCIDENT': 'OCC.', 'ORIENTE': 'OR.',
+        'EXPANSION': 'EXP.', 'QUEENSLAND': 'QLD', 'LUXEMBOURG': 'LUX.', 'LUXEMB.': 'LUX.', 'PORTUGAL': 'PORT.',
+        'URUGUAY': 'URU.', 'VENEZUELA': 'VEN.', 'COLOMBIA': 'COL.', 'PARAGUAY': 'PAR.', 'ARGENTINA': 'ARG.',
+        'BRASIL': 'BRA.', 'TUNISIE': 'TUN.', "D'ALGERIE": "D'ALG.", 'SHQIPERISE': 'SHQ.', 'SHQIPERIS': 'SHQ.',
+        'SVENSKA': 'SV.', 'SCOTTISH': 'SCOT.', 'IRISH': 'IR.', 'WELSH': 'WELSH', 'BELARUSIAN': 'BLR',
+        'MACEDONIAN': 'MKD', 'AZERBAIJAN': 'AZE', 'KAZAKHSTAN': 'KAZ', 'CANADIAN': 'CAN.', 'CHAMP.': 'CH.'}
+
+
+def fit_short(s, lang='*'):
+    """A short name that fits the career calendar's label (CAL_PX): a hand-picked form, else the longest words
+    abbreviated (their first letters + '.'), else cut."""
+    s = s.upper()
+    x = FIT_SHORT.get((s, lang)) or FIT_SHORT.get((s, '*'))
+    if x:
+        return x
+    if px(s) <= CAL_PX:
+        return s
+    words = s.split()
+    for i in range(len(words) - 1, -1, -1):         # the standard abbreviations, last word first
+        if px(' '.join(words)) <= CAL_PX:
+            return ' '.join(words)
+        if words[i] in ABBR:
+            words[i] = ABBR[words[i]]
+    for _ in range(12):
+        if px(' '.join(words)) <= CAL_PX:
+            return ' '.join(words)
+        cand = [i for i, w in enumerate(words) if len(w.rstrip('.')) > 4 and not w[0].isdigit()]
+        if not cand:
+            break
+        i = max(cand, key=lambda k: px(words[k]))
+        w = words[i].rstrip('.')
+        n = len(w) - 1
+        while n > 3 and px(' '.join(words[:i] + [w[:n] + '.'] + words[i + 1:])) > CAL_PX:
+            n -= 1
+        words[i] = w[:max(n, 3)] + '.'
+    out = ''
+    for c in ' '.join(words):
+        if px(out + c) > CAL_PX:
+            break
+        out += c
+    return out.rstrip(' .') + ('.' if px(out.rstrip(' .') + '.') <= CAL_PX and out != ' '.join(words) else '')
+
+
+LANG = ['it']
+
+
+def _fit(country, long_, short):
+    """A long name that fits '<country> <long>' in TITLE_MAX: the long one, else the short one, else the longer of the
+    two cut at a word (then at the limit)."""
+    room = TITLE_MAX - len(country) - 1
+    for x in (FIT_NAMES.get((long_, LANG[0])), FIT_NAMES.get((long_, '*')), long_, short):
+        if x and len(x) <= room:
+            return x
+    for x in ():
+        if len(x) <= room:
+            return x
+    words, w = long_.split(), ''
+    for x in words:                                 # (whole words only: never a cut inside a word)
+        if len(w) + (1 if w else 0) + len(x) > room:
+            break
+        w = f'{w} {x}' if w else x
+    return w or short[:room]
+
+
+def fit_titles(m):
+    """pack.json m (in place): every name list [long, short] of a competition, its divisions and its play-offs gets a
+    per-language long name whose title '<country> <long>' fits the game's field (TITLE_MAX). Every reader of a pack's
+    names (mkseason, zones, fmtgame) uses this, so the struct names and the zone / FORMAT keys stay the same."""
+    bn = m.get('button_names') or {}
+
+    def fix(names):
+        if not isinstance(names, dict) or not names:
+            return
+        for lang in LANGS:
+            v = names.get(lang) or names.get('*') or next(iter(names.values()))
+            if not isinstance(v, list) or not v:
+                continue
+            country = (bn.get(lang) or m.get('button') or '').upper()
+            long_ = v[0]
+            short = v[1] if len(v) > 1 else v[0]
+            LANG[0] = lang
+            f = _fit(country, long_.upper(), short.upper()) if len(country) + 1 + len(long_) > TITLE_MAX else None
+            sh = fit_short(short, lang) if len(v) > 1 else None
+            if (f is not None and f != long_.upper()) or (sh is not None and sh != short.upper()):
+                names[lang] = [f or long_] + ([sh] if sh is not None else []) + list(v[2:])
+    for c in m.get('competitions', []) or []:
+        fix(c.get('names'))
+        for dv in c.get('divisions', []) or []:
+            if isinstance(dv, dict):
+                fix(dv.get('names'))
+        for po in c.get('ko_playoffs', []) if isinstance(c.get('ko_playoffs'), list) else []:
+            if isinstance(po, dict):
+                fix(po.get('names'))
+    return m
+
+
+FONT = set(" &'()-./0123456789:,!?+ABCDEFGHIJKLMNOPQRSTUVWXYZ")   # the characters the game's menu fonts draw (4.0)
+
+
+def check_titles(m, clubs=()):
+    """Problems of pack.json m (after fit_titles): a title '<country> <long>' over TITLE_MAX, or a character outside FONT in
+    any name (competitions, divisions, play-offs, clubs). Davide: no stray characters may ever ship."""
+    bad = []
+    bn = m.get('button_names') or {}
+
+    def chk(names, where):
+        if not isinstance(names, dict):
+            return
+        for lang in LANGS:
+            v = names.get(lang) or names.get('*') or next(iter(names.values()), None)
+            if not isinstance(v, list):
+                continue
+            country = (bn.get(lang) or m.get('button') or '').upper()
+            if len(country) + 1 + len(v[0]) > TITLE_MAX:
+                bad.append(f"{m.get('id')} {where} {lang}: title over {TITLE_MAX}: {country} {v[0]}")
+            if len(v) > 1 and px(v[1]) > CAL_PX:
+                bad.append(f"{m.get('id')} {where} {lang}: short name over {CAL_PX} px (the calendar label): {v[1]}")
+            for x in [country] + list(v):
+                odd = sorted(set(x.upper()) - FONT)
+                if odd:
+                    bad.append(f"{m.get('id')} {where} {lang}: characters {odd} in {x!r}")
+    for c in m.get('competitions', []) or []:
+        chk(c.get('names'), c.get('key'))
+        for i, dv in enumerate(c.get('divisions', []) or []):
+            chk((dv or {}).get('names'), f"{c.get('key')} division {i}")
+        for po in c.get('ko_playoffs', []) if isinstance(c.get('ko_playoffs'), list) else []:
+            chk((po or {}).get('names'), po.get('key') if isinstance(po, dict) else '?')
+    def stage_titles(sp, where):                # split 'title' fields: [long, short]; short = the career calendar's label
+        if not isinstance(sp, dict):
+            return
+        tl = [sp.get('title')] + [s.get('title') for s in sp.get('stages') or [sp]] + \
+             [g.get('title') for s in sp.get('stages') or [sp] for g in s.get('groups') or []]
+        for x in filter(None, tl):
+            for lang in LANGS:
+                v = x.get(lang) or x.get('*')
+                if not isinstance(v, list) or len(v) != 2:
+                    bad.append(f"{m.get('id')} {where} {lang}: split title not [long, short]: {v}")
+                    continue
+                if px(v[1]) > CAL_PX:
+                    bad.append(f"{m.get('id')} {where} {lang}: split title short over {CAL_PX} px (the calendar label): {v[1]}")
+                for s in v:
+                    odd = sorted(set(s.upper()) - FONT)
+                    if odd:
+                        bad.append(f"{m.get('id')} {where} {lang}: characters {odd} in {s!r}")
+    for c in m.get('competitions', []) or []:
+        stage_titles(c.get('split'), c.get('key'))
+        for i, dv in enumerate(c.get('divisions', []) or []):
+            stage_titles((dv or {}).get('split'), f"{c.get('key')} division {i}")
+    for name in clubs:
+        odd = sorted(set(name.upper()) - FONT)
+        if odd:
+            bad.append(f"{m.get('id')} club {name!r}: characters {odd}")
+    return bad
+
+
+def load_pack(d):
+    """pack.json of directory d, its titles fitted (fit_titles)."""
+    return fit_titles(json.load(open(os.path.join(d, 'pack.json'), encoding='utf-8')))
+
+
 def _nm(names, lang):
     v = names.get(lang) or names.get('*') or next(iter(names.values()))
     return v[0] if isinstance(v, list) else v

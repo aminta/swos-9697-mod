@@ -872,7 +872,7 @@ const u32 *GP_NM;                       /* the country's names: per play-off dd 
 const u8 *GP_RN;                        /* the country's 'round_names': KG bytes per play-off (rnames indices) */
 const u8 *GP_TH;                        /* the country's 'then_build': per play-off the next one's index + 1, or 0 */
 u8 *GP_DIYP;
-u32 GP_K, GP_W, GP_SKIP, GP_RB, GP_ALIVE;
+u32 GP_K, GP_W, GP_SKIP, GP_RB, GP_ALIVE, GP_LAST;
 u16 GP_MGR;                             /* (the career club: CAREERTEAM, set by the glue before the call) */
 u16 GP_A, GP_B;
 u8 GP_CID, GP_SEAS, GP_DIV, GP_PT[64], GP_PL[64];
@@ -1231,7 +1231,12 @@ static int ko_build(struct gp_ko *k, int pi, int slot, int cid) {
     if (GP_IN.gtype == 4) {
         int in = 0, in0 = 0;
         for (int i = 0; i < n; i++) in |= k->team[i] == GP_IN.mgr;
-        for (int i = 0; i < 2 * k->rs[0][0]; i++) in0 |= k->rc[i] < n && k->team[k->rc[i]] == GP_IN.mgr;
+        for (int i = 0; i < k->rs[0][0]; i++) {   /* (a round-1 tie of the club with itself - Malta's split seeds,
+                                               skip_if_same - is no match: the club waits) */
+            int a = k->rc[2 * i], b = k->rc[2 * i + 1];
+            if (a < n && b < n && (k->team[a] == GP_IN.mgr || k->team[b] == GP_IN.mgr) && k->code[a] != k->code[b])
+                in0 = 1;
+        }
         presim = in && !in0;
     }
     k->gp0[0] = 0;
@@ -1359,6 +1364,7 @@ static u16 team_glob(u16 team) {        /* a team word -> its global number (the
     return 0xFFFF;
 }
 
+static int club_res(struct gp_ko *k, u16 mgr);
 static void stage_done(const struct gp_ko *k) {   /* a stage title's knockout decided: GP_ST.dec[stage] */
     const u8 *s = k->magic == MAGIC && k->season == GP_SEAS && k->ntie ? po_at(k->pi) : 0;
     int t = k->ntie - 1;
@@ -1368,6 +1374,8 @@ static void stage_done(const struct gp_ko *k) {   /* a stage title's knockout de
     x->season = GP_SEAS; x->done = 1;
     x->team[0] = k->team[w]; x->glob[0] = team_glob(k->team[w]);
     x->team[1] = l != NOC ? k->team[l] : 0xFFFF; x->glob[1] = l != NOC ? team_glob(k->team[l]) : 0xFFFF;
+    x->pad[0] = (u8)club_res((struct gp_ko *)k, GP_IN.mgr);   /* (the career club's result: its season record line) */
+    x->pad[1] = k->pi + 1;
 }
 
 u32 GP_WK;                              /* (the glue: the current calendar entry's week) */
@@ -1752,8 +1760,11 @@ u32 gp_perm_c(void) {
 
 /* a decisive match of ours (GP_A v GP_B, GP_W = 1: the second won): its pair's winner */
 
+u32 GP_DEFWK, GP_ADVWK;                 /* 4.0: a deferred stage build's week (its stage's last day), the week gp_adv builds
+                                           from (the advance's own week is already the next league day's) */
 void gp_defer_c(void) {                 /* (gp_defer: play-off GP_BPIC built at the calendar advance from week GP_WK on) */
     set_pend(GP_BPIC + 1, GP_WK);
+    GP_DEFWK = GP_WK + 1;
 }
 
 /* the calendar advance (gp_adv, cseg_8EA82's callers): a pending 'then_build' due -> its play-off index + 1 (then
@@ -1762,7 +1773,15 @@ u32 gp_adv_c(void) {
     if (!GP_ST.pend || GP_ST.pseas != GP_SEAS || GP_WK < GP_ST.pweek) return 0;
     u32 t = GP_ST.pend;
     GP_ST.pend = 0;
+    GP_ADVWK = GP_DEFWK ? GP_DEFWK - 1 : GP_WK;
+    GP_DEFWK = 0;
     return t;
+}
+
+static void ko_copy(struct gp_ko *d, const struct gp_ko *s) {   /* (no memcpy in the exe: byte by byte) */
+    volatile u8 *o = (volatile u8 *)d;
+    const u8 *i = (const u8 *)s;
+    for (unsigned n = 0; n < sizeof *d; n++) o[n] = i[n];
 }
 
 void gp_rec_c(void) {
@@ -1776,10 +1795,30 @@ void gp_rec_c(void) {
         if ((k->pa[p] == a && k->pb[p] == b) || (k->pa[p] == b && k->pb[p] == a)) k->pw[p] = GP_W ? b : a;
     resolve(k);
     if (k->kind == K_CUPD) { cd_done(k); return; }
+    GP_LAST = 0;
+    int left = 0;
+    for (int p = k->gp0[g]; p < k->gp0[g + 1]; p++) if (k->pw[p] == NOC) left++;
+    if (!left && g + 1 < k->ngr) {      /* (this match ended its round: the later ones all decided without a match -
+                                           a skip_if_same / gap round, CRC's Gran Final of one club - end the contest
+                                           here, the game's own last round: gp_rec, +59h = +57h + 1; else the game
+                                           draws a next round gp_perm cannot build and hangs) */
+        static struct gp_ko t;
+        ko_copy(&t, k);
+        int g2 = g + 1, over = 1;
+        while (g2 < t.ngr && build_game(&t, g2) == 0) g2++;
+        resolve(&t);
+        for (int i = 0; i < t.ntie; i++) if (t.tw[i] == NOC) over = 0;
+        if (g2 >= t.ngr && over) {
+            ko_copy(k, &t);
+            k->gcur = t.ngr - 1;
+            GP_LAST = 1;
+        }
+    }
     if (k->bye[5] && k->ntie && k->tw[k->ntie - 1] != NOC) {   /* (its final decided: the next one, once, from the
                                            week after: the advance right after the final still has slot 4's contest
                                            in hand, a build there was lost - 4.0's Trofeo) */
         set_pend(k->bye[5], GP_WK + 1);
+        GP_DEFWK = 0;
         k->bye[5] = 0;
     }
 }
@@ -1840,6 +1879,304 @@ u8 GP_WORLD;
 /* SeasonFinished (gp_sack, before the season review): the career club won our played group contest (the Poule) ->
    its record line's name (the season record's 4th line: a Serie D club plays no European cup), else 0. Test builds
    (GPLAY_FORCE): the club is made the winner (the review's DA11B too: no European trophy for it, gp_sack's guard). */
+/* 4.0 stage titles (longtable.stage_table): tab: dw n; dw S_MAGIC, S_FROZEN, S_GRP offsets (split's state in a league
+   buffer), dw its magic; dd the career team word's address; dw the weeks table's offset; n records of 128 B: key (41 B:
+   the DIY+4 title) + pad, [5 stages][4 groups] dw long-title offsets from tab, the same for the short ones (0 = none),
+   5 db the stage's first day (255 = none) + pad. */
+static const u8 *st_rec(const u8 *lg, const u8 *tab) {      /* lg's record, or 0 */
+    if (w16(lg + w16(tab + 2)) != w16(tab + 8)) return 0;
+    const u8 *r = tab + 16;
+    for (int i = 0, n = w16(tab); i < n; i++, r += 128) {
+        int k = 0;
+        while (k < 41 && lg[4 + k] == r[k] && r[k]) k++;
+        if (k == 41 || lg[4 + k] == r[k]) return r;
+    }
+    return 0;
+}
+static int st_grp(const u8 *lg, const u8 *tab) {           /* the career club's group in lg (0 if none) */
+    const u16 *ct = *(const u16 * const *)(tab + 10);
+    for (int j = 0, nc = w16(lg + 0x31); j < nc && j < 64; j++)
+        if (w16(lg + 0x12D + 2 * j) == *ct) return lg[w16(tab + 6) + j] & 3;
+    return 0;
+}
+/* longtable lt_stage (a table's OnRestore): the table title of diy's current stage / the career club's group */
+u32 gp_stitle_c(const u8 *diy, const u8 *tab) {
+    const u8 *r = st_rec(diy, tab);
+    if (!r) return 0;
+    int s = diy[w16(tab + 4)];
+    if (s >= 5) return 0;
+    const u8 *row = r + 42 + 8 * s;
+    int g = st_grp(diy, tab), o = w16(row + 2 * g);
+    if (!o) o = w16(row);
+    return o ? (u32)(tab + o) : 0;
+}
+/* 4.0 group headers in a long table (longtable lt_d5 / lt_row / lt_end; the labels: gp_hlabel_c, 3.3.6's): the
+   table's places in virtual rows - a header before each group's first place (split's group of its row, tab = the
+   stage table's header) - and the window of rows virtual rows from cur: GP_HF / GP_HL its first / last place,
+   GP_HP[place] = 0x80 | group when its header is shown before it, GP_HGP[place] its place in the group, GP_HV the
+   virtual rows (ScrollDown's limit), GP_HON = headers in this table. */
+u8 GP_HP[65], GP_HGP[65], GP_HG[65];   /* (GP_HG: every place's group, for zones by group) */
+u32 GP_HV, GP_HF, GP_HL, GP_HON;
+extern const u8 GP_HLT[];                /* zones.header_labels: [n dw] + n x (title 41 B, 4 labels of 24 B) */
+u32 gp_hlabel_c(const u8 *t, u32 g) {   /* a group's header label (3.3.6: ZONA A / B, EASTERN / WESTERN CONFERENCE) */
+#ifndef HDR_TEST
+    u32 n = *(const u32 *)GP_HLT;
+    const u8 *e = GP_HLT + 4;
+    if (g > 3)
+        return 0;
+    for (u32 k = 0; k < n; k++, e += 41 + 4 * 24) {
+        u32 i = 0;
+        while (i < 40 && e[i] && e[i] == t[4 + i])
+            i++;
+        if ((i == 40 || (!e[i] && !t[4 + i])) && e[41 + 24 * g])
+            return (u32)(e + 41 + 24 * g);
+    }
+    return 0;
+#endif
+#ifdef HDR_TEST
+    static const char *L[4] = { "GROUP 1", "GROUP 2", "GROUP 3", "GROUP 4" };
+    return g < 4 ? (u32)L[g] : 0;
+#else
+    (void)t; (void)g;
+    return 0;
+#endif
+}
+void gp_hplan_c(const u8 *t, const u8 *tab, u32 cur, u32 rows, u32 off) {
+    int n = w16(t + 0x51), g[65], hdr = 0;
+    if (n > 64) n = 64;
+    for (int k = 1; k <= n; k++) { GP_HP[k] = 0; GP_HGP[k] = k; g[k] = 0; }
+    if (!off && tab && w16(t + w16(tab + 2)) == w16(tab + 8)) {
+        for (int k = 1; k <= n; k++) g[k] = t[w16(tab + 6) + w16(t + 0x6D + 2 * (k - 1)) / 18] & 3;
+        for (int k = 2; k <= n; k++) if (g[k] != g[1]) hdr = 1;
+        for (int k = 1; k <= n && hdr; k++) if ((k == 1 || g[k] != g[k - 1]) && !gp_hlabel_c(t, g[k])) hdr = 0;
+    }
+    GP_HON = hdr;
+    int v = 0, h0[65];                  /* h0[k]: the virtual row of place k's header (or -1), its own row after */
+    for (int k = 1; k <= n; k++) {
+        h0[k] = hdr && (k == 1 || g[k] != g[k - 1]) ? v++ : -1;
+        v++;
+    }
+    GP_HV = v;
+    int mx = v > (int)rows ? v - (int)rows : 0, c = (int)cur > mx ? mx : (int)cur, end = c + (int)rows, gp = 0;
+    GP_HF = 0; GP_HL = 0;
+    v = 0;
+    for (int k = 1; k <= n; k++) {
+        gp = h0[k] >= 0 || k == 1 ? 1 : gp + 1;
+        GP_HGP[k] = hdr ? gp : k;
+        GP_HG[k] = (u8)g[k];
+        v = h0[k] >= 0 ? h0[k] + 1 : v;
+        if (v >= c && v < end) {
+            if (!GP_HF) GP_HF = k;
+            GP_HL = k;
+            if (h0[k] >= c) GP_HP[k] = 0x80 | g[k];
+        }
+        v++;
+    }
+    if (!GP_HF) { GP_HF = 1; GP_HL = 1; }
+}
+
+/* gp_cal (the career calendar's league row): the short title of the league day in week wk (lg = slot 0's buffer) */
+u32 gp_scal_c(const u8 *lg, const u8 *tab, u32 wk) {
+    if (!lg || !tab) return 0;
+    const u8 *r = st_rec(lg, tab);
+    if (!r) return 0;
+    const u8 *weeks = lg + w16(tab + 14);
+    int d = -1;
+    for (int i = 0; i < 64; i++) if (weeks[i] == (u8)wk) { d = i; break; }
+    if (d < 0) return 0;
+    int s = 0;
+    for (int k = 1; k < 5; k++) if (r[122 + k] != 255 && d >= r[122 + k]) s = k;
+    const u8 *row = r + 82 + 8 * s;
+    int g = s ? st_grp(lg, tab) : 0, o = w16(row + 2 * g);
+    if (!o) o = w16(row);
+    return o ? (u32)(tab + o) : 0;
+}
+
+/* 4.0 after a career load (gp_repoint, after ProcessCareerFile): every slot buffer's long-name pointer (DIY+27h,
+   absolute: stale in a save from another build - 3.x, an older 4.0) from its contest struct (D8CAA[k], rebuilt from
+   this exe's records: names at struct + 5 + [struct + 5], [long, short] per division, the career division for slot 0);
+   a title (DIY+4, '<country> <long>') whose name part differs is rebuilt from its country prefix (a 4.0 test save's
+   overflowed 'ARGENTINA LIGA PROFESIONAL DE FUTBO'). base: the strings' base (aChairmanScenes). */
+/* 4.0 after a career load from another build: phase 0, the running knockouts' contest names from this exe's play-off
+   names (nm: the career country's GP_NM, long / short / record rel per play-off); phase 1, every season record whose
+   league line (leagueStringOffset, +16h) is not the start of a string of the names (an old build's offset: ' . PROF.',
+   'ION' ...) gets the career league's name (slot 0's DIY+27h, repointed). */
+static int str_ok(const u8 *s) {        /* the start of a name string (the names table / the game's strings)? */
+    if (s[-1] || s[0] < 'A' || s[0] > 'Z') return 0;
+    int n = 0;
+    while (s[n] && n < 41) {
+        u8 c = s[n++];
+        if (!((c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == ' ' || c == '.' || c == '-' || c == '\'' || c == '/' || c == '&' || c == '(' || c == ')')) return 0;
+    }
+    return n >= 2 && !s[n];
+}
+void gp_fixload_c(const u32 *nm, u8 *recs, u32 base, u8 *const *slots, u32 phase) {
+    if (phase == 0) {
+        if (!nm) return;
+        for (int i = 0; i < 2; i++) {
+            struct gp_ko *k = &GP_ST.ko[i];
+            if (k->magic != MAGIC || k->season != GP_SEAS) continue;
+            u8 *c = k->con, *names = c + 5 + c[5];
+            *(u32 *)names = nm[3 * k->pi];
+            *(u32 *)(names + 4) = nm[3 * k->pi + 1];
+        }
+        return;
+    }
+    if (!slots || !recs || !slots[0]) return;
+    u32 lg = *(const u32 *)(slots[0] + 0x27), cup = slots[1] ? *(const u32 *)(slots[1] + 0x27) : 0;
+    for (int i = 0; i < 64; i++) {
+        u8 *r = recs + 106 * i;
+        if (!r[2]) break;
+        for (int f = 0; f < 4; f++) {   /* +16h the league, +1Ah the national cup, +1Eh / +22h the continental cups */
+            u32 *o = (u32 *)(r + 0x16 + 4 * f);
+            if (!*o || str_ok((const u8 *)(base + *o))) continue;
+            *o = f == 0 && lg ? lg - base : f == 1 && cup ? cup - base : 0;
+        }
+    }
+}
+
+void gp_repoint_c(u8 *const *slots, u8 *const *structs, u32 base, u32 div) {
+    for (int k = 0; k < 5; k++) {
+        u8 *b = slots[k];
+        const u8 *s = structs[k];
+        if (k == 2 || k == 3) continue; /* (never the European / continental slots: at a load D8CAA[3] may already
+                                           be conti's next contest while the buffer is still this season's) */
+        if (!b || !s || !b[4]) continue;
+        const u8 *nm = s + 5 + s[5] + (k == 0 ? 8 * div : 0);
+        const u8 *ln = (const u8 *)(base + *(const u32 *)nm);
+        *(const u8 **)(b + 0x27) = ln;
+        int n = 0;
+        while (ln[n] && n < 40) n++;
+        if (!n) continue;
+        int p = -1;                     /* the country prefix: up to the name's first word in the title */
+        for (int i = 0; i < 34 && b[4 + i]; i++)
+            if ((i == 0 || b[3 + i] == ' ')) {
+                int j = 0;
+                while (ln[j] && ln[j] != ' ' && b[4 + i + j] == ln[j]) j++;
+                if (!ln[j] || ln[j] == ' ') { p = i; break; }
+            }
+        if (p <= 0 || p + n > 34) continue;
+        int same = 1;
+        for (int j = 0; j <= n; j++) if (b[4 + p + j] != ln[j]) { same = 0; break; }
+        if (same) continue;
+        for (int j = 0; j < n; j++) b[4 + p + j] = ln[j];
+        for (int j = p + n; j < 35; j++) b[4 + j] = 0;
+    }
+}
+
+/* The career club's result in a decided knockout, as the season record's codes (FillManagementRecordInfo): 1 WINNERS,
+   -100 FINALIST (the last round lost), -101 REACHED SEMI-FINAL, -102 REACHED QUARTER-FINAL, -110 - n KNOCKED OUT IN
+   ROUND n; 0: not in it / undecided. */
+#ifndef GP_RLFORCE
+#define GP_RLFORCE 0                    /* test builds (GPLAY_RLFORCE=code, never release): the career club's result in
+                                           a contest it is in, read by the record lines only (no game flow) */
+#endif
+static int club_res(struct gp_ko *k, u16 mgr) {
+    int me = mgr ? kidx(k, mgr) : NOC;
+    if (me == NOC || !k->ntie) return 0;
+    if (GP_RLFORCE) return GP_RLFORCE;
+    resolve(k);
+    if (k->tw[k->ntie - 1] == me) return 1;
+    for (int t = 0; t < k->ntie; t++) {
+        if (k->tl[t] != me) continue;
+        int r = 0;
+        while (r + 1 < k->nrs && t >= k->gt0[r + 1]) r++;
+        int d = k->nrs - 1 - r;
+        return d == 0 ? -100 : d == 1 ? -101 : d == 2 ? -102 : -(110 + r + 1);
+    }
+    return 0;
+}
+
+/* SeasonFinished (gp_sack): the season record's extra lines (GP_RLN names, GP_RLC result codes; the count returned):
+   the Poule won (its record name, WINNERS); a stage title's knockout played (4.0 ARG: TORNEO APERTURA / CLAUSURA,
+   TROFEO DE CAMPEONES: its long name and the club's result, from GP_ST.dec - stage_done - or ko[0]); a title
+   play-off played (MLS CUP PLAYOFFS, CAN, AUS, CRC, MLT: the league's name with WINNERS, else the play-off's long
+   name with the round reached). GP_RLPOULE: the Poule's line (the test builds' DA11B). */
+u32 GP_RLN[4];
+s8 GP_RLC[4];
+u32 GP_RLPOULE;
+u8 *GP_REC;                             /* the season record (106 B, gp_sack: GetCurrentSeasonPointer), or 0 */
+const u32 *GP_CMB;                      /* the country's stage titles won together: one name per mask (bit = stage 0..2,
+                                           relative, 0: none; gplay.py names_lines GPC) */
+static int rl_rank(int c) {             /* a line's worth to keep (lower: replaced first by a title won): KNOCKED OUT IN
+                                           ROUND n by n, then '-', still in, 4th, 3rd, quarter, semi, final lost */
+    if (c <= -110) return -(c + 110);
+    static const s8 ord[] = { -106, -104, -105, -103, -102, -101, -100, 2 };
+    for (int i = 0; i < 8; i++) if (c == ord[i]) return 40 + i;
+    return 48;
+}
+static int rl_n, rl_w;
+static void rl_add(u32 name, int code) {
+    if (rl_n >= 4) return;
+    if (code == 1) {                    /* (titles won first, in their order) */
+        for (int i = rl_n; i > rl_w; i--) { GP_RLN[i] = GP_RLN[i - 1]; GP_RLC[i] = GP_RLC[i - 1]; }
+        GP_RLN[rl_w] = name; GP_RLC[rl_w++] = 1; rl_n++;
+    } else { GP_RLN[rl_n] = name; GP_RLC[rl_n++] = (s8)code; }
+}
+u32 gp_rlines_c(void) {
+    struct gp_ko *k = &GP_ST.ko[0];
+    int kstage = -1, wmask = 0;
+    u32 wname[3] = { 0, 0, 0 };
+    rl_n = rl_w = 0;
+    GP_RLPOULE = 0;
+    int live = GP_ST.magic == MAGIC && GP_ST.season == GP_SEAS && k->magic == MAGIC && k->season == GP_SEAS;
+    if (live && k->kind == K_STAGE) {
+        const u8 *s = po_at(k->pi);
+        kstage = s ? s[3] : -1;
+    }
+    for (int st = 0; st < 3 && GP_NM; st++) {       /* (the stage titles decided before: Apertura, Clausura, Trofeo) */
+        const struct gp_dec *x = &GP_ST.dec[st];
+        if (st == kstage || x->season != GP_SEAS || !x->done || !x->pad[0] || !x->pad[1]) continue;
+        if (x->pad[0] == 1) { wmask |= 1 << st; wname[st] = GP_NM[3 * (x->pad[1] - 1)]; }
+        else rl_add(GP_NM[3 * (x->pad[1] - 1)], (s8)x->pad[0]);
+    }
+    u32 kn = 0;                         /* ko[0]'s line (after the stage titles) */
+    int kr = 0;
+    if (live && KT2(k)) {
+        int me = kidx(k, GP_MGR);
+        if (me != NOC) {
+            if (GP_FORCE) { k->tw[0] = me; k->tl[0] = me ? 0 : 1; }
+            if (k->tw[0] == me) { kn = *(u32 *)k->bye; kr = 1; GP_RLPOULE = 1; }
+        }
+    } else if (live && (k->kind == K_TITLE || k->kind == K_STAGE) && GP_NM) {
+        int r = club_res(k, GP_MGR);    /* (SeasonFinished comes before the season end's gp_season: the contest itself) */
+        if (r == 1 && k->kind == K_STAGE && kstage >= 0 && kstage < 3) { wmask |= 1 << kstage; wname[kstage] = GP_NM[3 * k->pi]; }
+        else if (r) { kn = GP_NM[3 * k->pi + (r == 1 && k->kind == K_TITLE ? 2 : 0)]; kr = r; }
+    }
+    if (wmask & (wmask - 1) && GP_CMB && GP_CMB[wmask]) {   /* (several stage titles of the league: one line, Davide) */
+        rl_add(GP_CMB[wmask], 1);
+        wmask = 0;
+    }
+    for (int st = 0; st < 3; st++)      /* (else one line each, in stage order) */
+        if (wmask & 1 << st) rl_add(wname[st], 1);
+    if (kr) rl_add(kn, kr);
+    if (GP_REC) {                       /* each into its line if there already, else the first free line 4 / 3 / 2; a
+                                           title won with none free: in place of the game's weakest non-winning line (an
+                                           elimination, Davide), not ours */
+        int ours = 0;
+        for (int i = 0; i < rl_n; i++) {
+            int at = -1;
+            for (int o = 3; o >= 1 && at < 0; o--)  /* (already there: a second pass - REGISTRO GESTIONE's refresh,
+                                                       gp_mrec - only restores its code) */
+                if (!(ours & 1 << o) && *(u32 *)(GP_REC + 22 + 4 * o) == GP_RLN[i]) at = o;
+            for (int o = 3; o >= 1 && at < 0; o--) if (!*(u32 *)(GP_REC + 22 + 4 * o)) at = o;
+            if (at < 0 && GP_RLC[i] == 1) {
+                int best = 99;
+                for (int o = 3; o >= 1; o--) {
+                    int c = (s8)GP_REC[86 + o];
+                    if (ours & 1 << o || c == 1 || rl_rank(c) >= best) continue;
+                    best = rl_rank(c); at = o;
+                }
+            }
+            if (at < 0) continue;
+            *(u32 *)(GP_REC + 22 + 4 * at) = GP_RLN[i];
+            GP_REC[86 + at] = (u8)GP_RLC[i];
+            ours |= 1 << at;
+        }
+    }
+    return rl_n;
+}
+
 u32 gp_pwin_c(void) {
     struct gp_ko *k = &GP_ST.ko[0];
     if (GP_ST.magic != MAGIC || GP_ST.season != GP_SEAS || k->magic != MAGIC || k->season != GP_SEAS)

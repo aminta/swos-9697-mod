@@ -183,7 +183,11 @@ def cave_pages():
     return cp
 
 
+LT_SPACE = []
+
+
 def patch_exe(src, dst, remap, lang='it'):
+    LT_SPACE.clear()
     grown = dst + '.tmp'
     data = open(src, 'rb').read()
     worlds = bool(mkseason.worlds())
@@ -352,6 +356,12 @@ def patch_exe(src, dst, remap, lang='it'):
         uefaq.D7_BASE[0] = 6 + len(info['structs'])     # (sacups: D7 / E092F = 6 + index in the chain)
         info['structs'] += q
         info['kinds'] += [0, 1, 2]
+    if ct_pg:                                   # the other confederations' contests: after uefaq's in the slot-3 chain
+        ct_at = hist2 + h2 + 0x1000 * (lpb + sp_pg + sc_pg)
+        ct_code, cq, ck = conti.structs(p, area, lang, ct_at)
+        conti.D7_BASE[0] = 6 + len(info['structs'])     # (sacups: D7 / E092F = 6 + index in the chain)
+        info['structs'] += cq
+        info['kinds'] += ck
     info['new_career_ptr'] = world              # dword filled below: sacups is assembled before the trailer code
     world += 4
     cave = sacups.patch(p, pool, SA_CAVE, info)
@@ -412,7 +422,8 @@ def patch_exe(src, dst, remap, lang='it'):
     if gp_on:                                   # knockout play-offs (C, tools/gplay.c; chained after dplay's hooks)
         import gplay                            # and the parallel groups' season-end fix (pg_season, pgroups.py)
         gp_at = hist2 + h2 + 0x1000 * (lpb - cos_pg - gplay.GP_PAGES - xpg - ri_pg)
-        gplay.patch(p, gp_at, gp_at + 0x1000 * gplay.GP_PAGES, gp_tabs, careerworld.BSS[0] + careerworld.BSS_SIZE, area, lang)
+        gp_end = gplay.patch(p, gp_at, gp_at + 0x1000 * gplay.GP_PAGES, gp_tabs, careerworld.BSS[0] + careerworld.BSS_SIZE, area, lang)
+        LT_SPACE[:] = [(gp_end + 15) & ~15, gp_at + 0x1000 * gplay.GP_PAGES]   # (4.0: longtable's code after gplay's)
         if rs_tabs:
             engine.ITEM_AT['RS'] = gplay.LABELS['RS_STATE']
         if ri_tabs:
@@ -442,6 +453,9 @@ def patch_exe(src, dst, remap, lang='it'):
     num_bss = obj2_free + o2pages * p.le.page_size + (careerworld.BSS_SIZE if bigw else 0)
     world = shirtnum.patch(p, world, num_bss)    # 3.2.5: shirt numbers 17..99 over the players (built from the digits)
     weeks.patch(p)                               # 3.2.7: career weeks 128+ (mod cups outside Europe) in the job offers
+    if gp_on and arg97.LABELS.get('GP_AFTER') and 'gp_after' in gplay.LABELS:   # 4.0: arg_load's call after a load
+        p.put(1, arg97.LABELS['GP_AFTER'], struct.pack('<I', 0))
+        p.add_ptr(1, arg97.LABELS['GP_AFTER'], 1, gplay.LABELS['gp_after'])
     cos = hist2 + h2 + 0x1000 * (lpb - 1) if cos_pg else world   # (worlds: their own page)
     cos = purple.patch(p, area, cos)            # 3.3.0: kit colour 10 = purple (palette entry 12 when no maroon; in
                                                 # the cosmetics page with worlds: the world cave is full, 2026-27)
@@ -456,7 +470,12 @@ def patch_exe(src, dst, remap, lang='it'):
     cos = zones.patch(p, cos, area, lang, [e if os.sep in e else os.path.join(mkseason.PACKS, e) for e in mkseason.ENABLED],
                       num_bss + shirtnum.BSS_SIZE + blond.BSS_SIZE + menunum.BSS_SIZE, fmtpage.BSS_SIZE,
                       careerworld.SITES if worlds else None)   # (the FORMAT page's buffer, shared)
-    cos = longtable.patch(p, cos, area, lang)                # 4.0: tables over 24 clubs scroll (ARG / MLS 30: no drawing past the screen)
+    if LT_SPACE and LT_SPACE[1] - LT_SPACE[0] >= 0x700:        # (4.0: in gplay's pages - the cosmetics page is full)
+        lt_end_ = longtable.patch(p, LT_SPACE[0], area, lang)
+        assert lt_end_ <= LT_SPACE[1], hex(lt_end_)
+        print(f'exe: longtable code in gplay\'s pages: obj1+{LT_SPACE[0]:#x}..{lt_end_:#x} (free to {LT_SPACE[1]:#x})')
+    else:
+        cos = longtable.patch(p, cos, area, lang)                # 4.0: tables over 24 clubs scroll (ARG / MLS 30: no drawing past the screen)
     if cos_pg:
         assert cos <= hist2 + h2 + 0x1000 * lpb, hex(cos)
     else:
@@ -500,8 +519,7 @@ def patch_exe(src, dst, remap, lang='it'):
         if sc_pg > 1:
             statespec.sim_patch(p, sc_at + 0x1000)  # statesim.c: every state's stage 1 + relegation at the season end
     if ct_pg:                                    # the other confederations' cups (conti.c): after statecup's pages
-        ct_at = hist2 + h2 + 0x1000 * (lpb + sp_pg + sc_pg)
-        conti.patch(p, ct_at, ct_at + 0x1000 * ct_pg, ct_bss, area)
+        conti.patch(p, ct_code, ct_at + 0x1000 * ct_pg, ct_bss, area)
     p.set_vsize(1, OBJ1_NEW_VSIZE + (0x1000 * (cp + 2 + cdp) if worlds else 0) + h2 + 0x1000 * (lpb + sp_pg + sc_pg + ct_pg))
     tail = (careerworld.BSS_SIZE if bigw else 0) + shirtnum.BSS_SIZE + blond.BSS_SIZE + menunum.BSS_SIZE + fmtpage.BSS_SIZE   # obj2 tail
     p.set_vsize(2, obj2_free + o2pages * p.le.page_size + tail, bss=tail)
@@ -631,7 +649,7 @@ def write_new_teams(src_dir, dst_dir):
         open(os.path.join(dst_dir, 'TEAM.%03d' % n), 'wb').write(blond.faces(data)[0])
     print(f'purple clubs: TEAM.{", ".join("%03d" % n for n in purple.VANILLA_FILES)} recoloured')
     import fmtgame                                    # 5.0 / 4.0: the FORMAT page's texts (fmtpage.py), per world
-    items = [x for e in mkseason.ENABLED for x in fmtgame.from_pack(e if os.sep in e else os.path.join(mkseason.PACKS, e))] + fmtgame.world_items() + fmtgame.EXTRA
+    items = [x for e in mkseason.ENABLED for x in fmtgame.from_pack(e if os.sep in e else os.path.join(mkseason.PACKS, e))] + fmtgame.world_items() + fmtgame.conti_items() + fmtgame.EXTRA
     for name, k in fmtgame.write(dst_dir, items):
         print(f'{name}: FORMAT pages of {k} competitions')
     import zones                                      # 4.0: the league tables' zone colours, per world

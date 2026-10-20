@@ -39,29 +39,23 @@ lt_d3:                                  ; esi = the table shown (OnRestore's; no
     mov ax, [esi + 51h]
     cmp word [esi + 4Fh], 1
     jne .s
+%if HDR_
+    call lt_plan                        ; 4.0: a split league's groups (any one-group table): its header rows count
+    cmp dword [GP_HON], 0
+    je .h
+    mov eax, [GP_HV]
+.h:
+%endif
     cmp ax, ROWS_
     jbe .s
     mov ax, ROWS_
 .s: mov [D3], ax
     ret
 
-lt_d5:
+%if HDR_
+lt_plan:                                ; esi = a one-group table: gp_hplan_c's window (GP_HON / GP_HV / GP_HF / GP_HL)
     pushad
-    mov word [D5], 1
-    mov esi, [A6R]                      ; (BeforeDraw's table: its A6)
-    mov [LT_TAB], esi
-    mov byte [LT_HON], 0
-%if HDR_
-    mov dword [GP_HON], 0               ; (every table: headers only where gp_hplan_c finds them)
-%endif
-    movzx eax, word [esi + 51h]
-    mov [LT_END], ax
-    cmp word [esi + 4Fh], 1
-    jne .x
-    cmp eax, ROWS_
-    jbe .x
-%if HDR_
-    push es                             ; 4.0: the window in virtual rows (group headers: gplay.c gp_hplan_c)
+    push es
     push ds
     pop es
     cld
@@ -79,7 +73,26 @@ lt_d5:
     call GP_HPLAN
     add esp, 20
     pop es
-    mov al, [GP_HON]
+    popad
+    ret
+%endif
+
+lt_d5:
+    pushad
+    mov word [D5], 1
+    mov esi, [A6R]                      ; (BeforeDraw's table: its A6)
+    mov [LT_TAB], esi
+    mov byte [LT_HON], 0
+%if HDR_
+    mov dword [GP_HON], 0               ; (every table: headers only where gp_hplan_c finds them)
+%endif
+    movzx eax, word [esi + 51h]
+    mov [LT_END], ax
+    cmp word [esi + 4Fh], 1
+    jne .x
+%if HDR_
+    call lt_plan                        ; 4.0: the window in virtual rows (any one-group table: a split league's
+    mov al, [GP_HON]                    ; group headers; without them the same rows as before)
     mov [LT_HON], al
     mov eax, [GP_HF]
     mov [D5], ax
@@ -90,6 +103,8 @@ lt_d5:
     mov [LT_END], ax
     jmp .x
 %endif
+    cmp eax, ROWS_
+    jbe .x
     movzx ebx, word [CURLINE]
     sub eax, ROWS_                      ; the last first row
     cmp ebx, eax
@@ -133,14 +148,14 @@ lt_down:                                ; flags for ScrollDown's jnb (no scroll 
     cmp word [esi + 4Fh], 1
     jne .game
     movzx eax, word [esi + 51h]
-    cmp eax, ROWS_
-    jbe .game
 %if HDR_
     cmp byte [LT_HON], 0
     je .v
     mov eax, [GP_HV]                    ; (headers: the virtual rows)
 .v:
 %endif
+    cmp eax, ROWS_
+    jbe .game
     sub eax, ROWS_
     cmp [CURLINE], ax                   ; below the last first row: scroll
     jmp .r
@@ -157,7 +172,14 @@ lt_arrows:                              ; flags for OnRestore's jnz (arrows show
     push esi
     cmp word [esi + 4Fh], 1
     jne .game
-    cmp word [esi + 51h], ROWS_
+    movzx eax, word [esi + 51h]
+%if HDR_
+    cmp dword [GP_HON], 0               ; (headers: the virtual rows, lt_d3's plan)
+    je .v
+    mov eax, [GP_HV]
+.v:
+%endif
+    cmp eax, ROWS_
     jbe .game
     or esp, esp                         ; (ZF = 0: shown)
     jmp .r

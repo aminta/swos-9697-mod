@@ -3,8 +3,8 @@ in order, how its season is organised, who meets whom and how often, who goes th
 the relegation are decided. Proposal stage: the first texts, for Davide's OK, before every competition gets one;
 fmtgame uses a text here in place of its schematic lines (the table colours' lines follow).
 
-PROSE: {(world, title as the game shows it): {lang: [paragraph, ...]}}. The game's font has no apostrophe or accents:
-fmtgame's ascii_up drops the accents, the apostrophes become spaces here.
+PROSE: {(world, title as the game shows it): {lang: [paragraph, ...]}}. The small font has the apostrophe, no accents
+(fmtgame's ascii_up drops them); lines wrap by pixel width (fmtgame.wrap_px).
 """
 
 PROSE = {
@@ -51,4 +51,4 @@ PROSE = {
 def text(world, title, lang):
     """The paragraphs for this competition, or None (the schematic lines stay)."""
     p = PROSE.get((world, title.strip()), {}).get(lang)
-    return [x.replace("'", ' ') for x in p] if p else None
+    return list(p) if p else None

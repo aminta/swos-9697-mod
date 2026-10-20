@@ -20,7 +20,7 @@ import struct
 import nasmcave
 
 LINES = 14
-LINE_W = 42                     # buffer per line (41 characters + NUL); the renderer wraps at 40
+LINE_W = 64                     # buffer per line (63 characters + NUL); fmtgame wraps by pixel width (PX_MAX)
 IDXMAX = 0x6000                 # header + index read at once (511 entries)
 TXTMAX = 0x2000                 # one competition's text
 BSS_SIZE = IDXMAX + TXTMAX

@@ -110,6 +110,33 @@ def wrap(text, w=W):
     return out
 
 
+PX = {' ': 3, "'": 2, '(': 3, ')': 3, ',': 2, '-': 4, '.': 2, '1': 2, ':': 2, ';': 3, 'I': 2}   # the small font's
+PX_MAX = 298                    # widths (charset sprites: 6 px else); the FORMAT page's usable width (entries of 304)
+
+
+def px(t):
+    return sum(PX.get(c, 6) for c in t)
+
+
+def wrap_px(text, w=PX_MAX):
+    """wrap() by the small font's pixel width (and the line buffer's fmtpage.LINE_W - 1 characters)."""
+    out = []
+    for para in text.split('\n'):
+        line = ''
+        for word in para.split(' '):
+            if not word:
+                continue
+            cand = f'{line} {word}' if line else word
+            if px(cand) <= w and len(cand) < fmtpage.LINE_W:
+                line = cand
+            else:
+                if line:
+                    out.append(line)
+                line = word
+        out.append(line)
+    return out
+
+
 def pages(lines):
     """Pages of fmtpage.LINES lines from lines or from paragraphs (lists of wrapped lines): a paragraph is not split
     across two pages when it fits on one, and one ending with ':' (a heading) goes with the next."""
@@ -836,7 +863,7 @@ def write(out_dir, items):
                 h = ZT[lang]['head']
                 tail = lines[lines.index(h):] if h in lines else []
                 lines = prose + [x for x in tail if x not in CONFED_NOTES[lang].values()]
-            body = [wrap(ascii_up(line, lang)) for line in lines]      # (paragraphs: pages())
+            body = [wrap_px(ascii_up(line, lang)) for line in lines]      # (paragraphs: pages())
             key = titles[lang][:fmtpage.NAME - 1]
             k = (lang, world, key)
             if k in keys:                       # the same title twice (two divisions with one name): one page,

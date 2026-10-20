@@ -21,7 +21,7 @@ void *memset(void *d, int c, unsigned n) { u8 *p = d; while (n--) *p++ = (u8)c; 
 void *memcpy(void *d, const void *s, unsigned n) { u8 *p = d; const u8 *q = s; while (n--) *p++ = *q++; return d; }
 
 #define NA 128                          /* associations (countries) of the confederations in the world */
-#define NL 16                           /* league clubs kept per association (the final table's top 16) */
+#define NL 32                           /* league clubs kept per association (the final table; J1 20, ARG 30) */
 #define NC 1024                         /* clubs seen + the guest clubs */
 #define NCUP 16
 #define NRD 8                           /* rounds per cup (the Libertadores: 8) */

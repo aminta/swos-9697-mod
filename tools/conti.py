@@ -325,7 +325,7 @@ def test(confs=('conmebol',), seasons=3, seed=7):
             mine = sorted([i for i, c in enumerate(clubs) if c[1] == a], key=lambda i: -clubs[i][2] + rnd.randint(0, 900))
             if not mine:
                 continue
-            for l in range(NL):
+            for l in range(min(NL, len(mine))):
                 struct.pack_into('<H', b, o_league + 2 * (a * NL + l), mine[l] + 1)
             struct.pack_into('<H', b, o_cup + 2 * a, mine[rnd.randint(0, 6)] + 1)
         ctypes.c_void_p.in_dll(L, 'CT_SPEC').value = ctypes.addressof(buf)

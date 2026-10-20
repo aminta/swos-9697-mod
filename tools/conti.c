@@ -624,6 +624,7 @@ static int ct_round(int c, int r) {
                 ord[j] = t; }
             for (int i = 0; i < ng; i++) {
                 int club = byplace[q][ord[i]];
+                if (R[21] == q + 1 && i >= R[22]) continue;   /* (only the best of this place: ACGL's 2nds) */
                 route(c, to, club, R[19] ? q + 1 : q * ng + i + 1);   /* (a league stage: the key = the place) */
                 if (EN[to >> 4][to & 15] && to < CHAMP)   /* (the group in the via byte: fixed ties) */
                     EV[to >> 4][to & 15][EN[to >> 4][to & 15] - 1] = 1 | (ord[i] + 1) << 1;

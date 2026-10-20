@@ -61,7 +61,9 @@ def main_round(c, size=None):
     """The round a career club plays as the game's own contest (slot 3): the biggest group stage (OFC: the groups, not
     the qualifying group), else the first knockout round whose clubs are a power of two of the rounds left (CONCACAF:
     the round of 16, its first round of 22 a tie before it; size: load()'s round sizes, else FIELDS)."""
-    g = [(r['groups'] * r['size'], -j, j) for j, r in enumerate(c['rounds']) if r['kind'] == 'groups']
+    g = [(r['groups'] * r['size'], -j, j) for j, r in enumerate(c['rounds']) if r['kind'] == 'groups'
+         and not r.get('best') and not any(str(t).endswith('_best') for t in (r.get('out') or {}).values())]
+    # (a group stage whose best runners-up go on: not the game's contest, simulated - the ACGL from its quarters)
     if g:
         return max(g)[2]
     size = size or next((v[0] for (cf, ck), v in FIELDS.items() if ck == c['key']), None)
@@ -80,7 +82,7 @@ def supported(c):
     """The engine plays every round of the cup: knockouts and groups whose places go to a round of the cups."""
     keys = {r['key'] for r in c['rounds']}
     return all(r['kind'] in K for r in c['rounds']) and all(
-        ':' in t or t in keys for r in c['rounds'] for t in (r.get('out') or {}).values())
+        ':' in t or t.replace('_best', '') in keys for r in c['rounds'] for t in (r.get('out') or {}).values())
 
 
 def fields(c, known, outside):
@@ -98,11 +100,14 @@ def fields(c, known, outside):
         for rk, k in outside.items():
             out[key[rk_(rk)]] = k
     feed = [0] * n                                      # (a group stage's places into a later round of the cup)
+    best = {}
     for r in rounds:
         if r['kind'] in ('groups', 'league_stage'):
             for q, t in (r.get('out') or {}).items():
-                if ':' not in t:
+                if ':' not in t and str(r.get('best')) != str(q):
                     feed[key[t]] += r['groups'] * len(_places(q))
+                elif ':' not in t:
+                    best[key[t]] = r['groups']
     field = [0] * n
     for j in range(n - 1, -1, -1):
         r = rounds[j]
@@ -112,6 +117,8 @@ def fields(c, known, outside):
             field[j] = 2
         else:
             field[j] = 2 * (field[j + 1] - known[j + 1] - out[j + 1] - feed[j + 1])
+        if j in best:                                   # (the best runners-up: the places left, at most a group's)
+            feed[j] += min(best[j], max(0, field[j] - known[j] - out[j] - feed[j]))
         if j < n - 1 and r['kind'] in ('groups', 'league_stage'):
             gap = field[j + 1] - known[j + 1] - out[j + 1] - feed[j + 1]
             if gap and outside == 'rest':
@@ -127,6 +134,10 @@ def _norm(c):
     """A league stage as groups: its regions as groups of size clubs, one round (each pair once: the real 8 matches a
     club, declared), its 'out' ranges ('1-8') kept for the top-n routing."""
     for r in c['rounds']:
+        for q, t in list((r.get('out') or {}).items()):  # ('qf_best': only that place's best clubs across the groups,
+            if t.endswith('_best'):                      # as many as the next round has places left: ACGL's 3 best 2nds)
+                r['out'][q] = t[:-5]
+                r['best'] = int(q)
         if r['kind'] == 'league_stage':
             r.setdefault('groups', r.get('regions') or 2)
             r.setdefault('size', 16)
@@ -275,6 +286,10 @@ def load(confs, files=None, words=None, s1=None):
                         b[19], b[20] = len(ps), target(conf, ci, t)
                     else:
                         b[12 + ps[0] - 1] = target(conf, ci, t)
+                if rd.get('best'):                      # (the best of that place: as many as the target has left)
+                    tj = rkey[ci][rd['out'][str(rd['best'])]]
+                    b[21] = rd['best']
+                    b[22] = size[tj] - rd['groups'] * len([q for q in rd['out'] if q != str(rd['best'])]) - known[tj]
             if (c.get('losers') or {}).get(rd['key']):
                 b[11] = target(conf, ci, c['losers'][rd['key']])
             out += bytes(b)

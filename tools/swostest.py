@@ -4872,7 +4872,9 @@ def world_title(code, force='3'):
     recs = hexes.get(seas_at, [])                       # (the season record at the end: GPLAY_FORCE builds make the
     rec = recs[-1] if recs else b''                     # club the champion: a line with WINNERS, 4th / 3rd / 2nd)
     lines = [(o, struct.unpack_from('<I', rec, 22 + 4 * o)[0], rec[86 + o]) for o in (3, 2, 1)] if len(rec) >= 90 else []
-    won = [x for x in lines if x[1] and x[2] == 1]
+    base = recs[0] if len(recs) > 1 and len(recs[0]) >= 90 else b''    # (a line the game already had before the season
+    old = {o for o in (3, 2, 1) if base and struct.unpack_from('<I', base, 22 + 4 * o)[0]}  # end - the national cup's,
+    won = [x for x in lines if x[1] and x[2] == 1 and x[0] not in old]  # COPA DE COSTA RICA WINNERS - isn't the title's)
     club = ko['team'][ko['code'].index(me)] if me in ko['code'] else None
     champ = titles[0][2] if titles else None
     check(bool(won) == (champ == club), f'the title line {won} with champion {champ and hex(champ)}, the club '

@@ -913,17 +913,22 @@ u32 ct_gend(u8 *diy, u8 *diycopy, u32 sel) {
     int c = -1;
     for (int i = 0; i < ncup; i++) if (gid[i] && gid[i] == diy[0x2D]) c = i;
     if (c < 0) return 0;
-    int ng = w16(diy + 0x4F), gs = w16(diy + 0x51), place = 0;
+    int ng = w16(diy + 0x4F), gs = w16(diy + 0x51), place = 0, mg = 0;
     if (ng < 1 || ng > 16 || gs < 2 || gs > 16) return 0;
     for (int g = 0; g < ng; g++)
         for (int q = 0; q < gs; q++) {
             u32 off = w16(diy + 0x6D + 2 * (g * gs + q));
             const u8 *rec = (const u8 *)(sel + w32(diy + 0x2B3 + off));
-            if (CT_ED.mgr && (u16)(rec[0] | rec[1] << 8) == CT_ED.mgr) place = q + 1;
+            if (CT_ED.mgr && (u16)(rec[0] | rec[1] << 8) == CT_ED.mgr) { place = q + 1; mg = g; }
         }
     int mr = -1;
     for (int r = 0; r < nrd[c]; r++) if (RND(c, r)[17]) mr = r;
-    if (place && gid[ncup]) place = gid[ncup];   /* (CONTI_GPLACE: test builds) */
+    if (place && gid[ncup] && gid[ncup] <= gs) {   /* (CONTI_GPLACE, test builds: the club's row moved to that place,
+                                                      so the game's own qualifiers agree with conti.c's) */
+        u8 *a = diy + 0x6D + 2 * (mg * gs + place - 1), *b = diy + 0x6D + 2 * (mg * gs + gid[ncup] - 1), t;
+        t = a[0]; a[0] = b[0]; b[0] = t; t = a[1]; a[1] = b[1]; b[1] = t;
+        place = gid[ncup];
+    }
     if (mr >= 0 && mr + 1 < nrd[c] && ng == 8 && RND(c, mr + 1)[0] == K_KO && RND(c, mr + 1)[4] == D_SEED12) {
         u8 fr[8], sr[8], fg[8], sg[8];
         u32 fp[8];

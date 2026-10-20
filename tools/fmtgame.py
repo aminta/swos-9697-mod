@@ -137,6 +137,9 @@ def wrap_px(text, w=PX_MAX):
     return out
 
 
+GAP = '\x00'                     # pages(): a paragraph break in prose (a blank line)
+
+
 def pages(lines):
     """Pages of fmtpage.LINES lines from lines or from paragraphs (lists of wrapped lines): a paragraph is not split
     across two pages when it fits on one, and one ending with ':' (a heading) goes with the next."""
@@ -148,10 +151,16 @@ def pages(lines):
             glued[-1] = glued[-1] + pa
         else:
             glued.append(list(pa))
-    out = [[]]
+    out, gap = [[]], False
     for pa in glued:
-        if out[-1] and len(out[-1]) + len(pa) > n and len(pa) <= n:
+        if pa == [GAP]:                         # (prose: a blank line before the next paragraph, never at a page top)
+            gap = bool(out[-1])
+            continue
+        if gap and out[-1] and len(out[-1]) + 1 + len(pa) <= n:
+            out[-1].append('')
+        elif out[-1] and len(out[-1]) + len(pa) + gap > n and len(pa) <= n:
             out.append([])
+        gap = False
         for line in pa:
             if len(out[-1]) == n:
                 out.append([])
@@ -812,10 +821,19 @@ def from_pack(d):
                         titles[lang] = title(lang, nm)
                         low = (lg['closed'] or lv is lg['levels'][-1]) and not any(
                             po.get('kind') == 'promedio' for po in comp.get('ko_playoffs') or [])
-                        texts[lang] = league_text(div, win, T[lang], lg['names'], lang, low) + \
+                        sch = league_text(div, win, T[lang], lg['names'], lang, low) + \
                             (T[lang]['ita'] if lg['special'] and k == min(1, len(lg['names']) - 1) else []) + \
                             zone_text(zdet[lang].get((ci, k), []), T[lang], lang, eu,
                                       zones.continental_all(m) if lv is lg['levels'][0] and not m.get('europe_places') else None)
+                        import fmtprose             # 4.0: the prose (the schematic lines' tail: the colours)
+                        h = ZT[lang]['head']
+                        tail = sch[sch.index(h):] if h in sch else [x for x in sch if x.startswith(ZT[lang]['eu'].split('{')[0][:30])]
+                        pos_ = comp.get('ko_playoffs') or []
+                        texts[lang] = {'prose': fmtprose.league(div, k, lg, win, lang, pos_ if isinstance(pos_, list) else [],
+                                                                low, lambda x, lang=lang: complist._nm(x, lang)) +
+                                       (T[lang]['ita'] if lg['special'] and k == min(1, len(lg['names']) - 1) else []),
+                                       'tail': sch[sch.index(next(x for x in sch if x.startswith(ZT[lang]['eu'].split('{')[0][:30]))):]
+                                       if any(x.startswith(ZT[lang]['eu'].split('{')[0][:30]) for x in sch) else tail}
                     out.append((world, cid, titles, texts))
                     k += 1
         elif comp['type'] == 'cup':
@@ -857,13 +875,28 @@ def write(out_dir, items):
     for world, cid, titles, texts in items:
         for lang in LANGS:
             lines = texts[lang]
-            import fmtprose                     # 4.0: a competition's text in plain prose (the colours' lines kept)
-            prose = fmtprose.text(world, titles[lang], lang)
-            if prose:
-                h = ZT[lang]['head']
+            import fmtprose                     # 4.0: every competition's text in plain prose (the colours' lines kept)
+            h = ZT[lang]['head']
+            if isinstance(lines, dict):
+                prose, tail = lines['prose'], lines['tail']
+            else:
                 tail = lines[lines.index(h):] if h in lines else []
-                lines = prose + [x for x in tail if x not in CONFED_NOTES[lang].values()]
-            body = [wrap_px(ascii_up(line, lang)) for line in lines]      # (paragraphs: pages())
+                prose = fmtprose.sentences(lines[:len(lines) - len(tail)])
+            hand = fmtprose.text(world, titles['it'], lang)   # (hand texts keyed by the Italian title)
+            prose = hand or prose
+            if prose:
+                if hand:                        # (a hand text tells the real rule itself)
+                    tail = [x for x in tail if x not in CONFED_NOTES[lang].values()]
+                body = []
+                for para in prose:
+                    body += [wrap_px(ascii_up(para, lang)), [GAP]]
+                tl = [wrap_px(ascii_up(t, lang)) for t in tail]
+                if tl:
+                    body += tl                      # (the colours' lines fill the page and go on: not prose)
+                elif body:
+                    body.pop()                      # (no trailing paragraph break)
+            else:
+                body = [wrap_px(ascii_up(line, lang)) for line in lines]      # (paragraphs: pages())
             key = titles[lang][:fmtpage.NAME - 1]
             k = (lang, world, key)
             if k in keys:                       # the same title twice (two divisions with one name): one page,

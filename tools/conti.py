@@ -127,6 +127,18 @@ def load(confs, files=None, words=None):
             for a in acc.get(c['key'], {}).get('access', {}):
                 if a not in ('holders', 'from', 'outside') and a not in assocs:
                     assocs.append(a)
+    import guests as gmod
+    gl, gin = [], {}                                    # the guests: (word, association index, strength)
+    for conf in confs:
+        g = gmod.load(conf)
+        for i, c in enumerate((g or {}).get('clubs', [])):
+            ak = 'g:' + c['assoc']
+            if ak not in assocs:
+                assocs.append(ak)
+            rec = gmod.record(conf, i, c, 0)
+            gin[(conf, c['key'])] = len(gl)
+            gl.append((gmod.FILES[conf] | i << 8, assocs.index(ak), sum(rec[76 + 38 * j + 32] for j in range(16))))
+    gs1 = {conf: (gmod.load(conf) or {}).get('season1', {}) for conf in confs}
     index = {(conf, c['key']): i for i, (conf, c, _) in enumerate(cups)}
     rkey = {i: {r['key']: j for j, r in enumerate(c['rounds'])} for i, (_, c, _) in enumerate(cups)}
 
@@ -204,9 +216,15 @@ def load(confs, files=None, words=None):
                 rk = ALIAS.get(rk, rk) if rk not in rkey[ci] else rk
                 k = CODE[code] if isinstance(code, str) else (0 if code <= 1 else code)
                 access.append((assocs.index(ak), ci, rkey[ci][rk], k))
+        for rk, keys in (gs1.get(conf, {}).get(c['key']) or {}).items():   # the guests' places (data's real list)
+            j = rkey[ci][rk if rk in rkey[ci] else ALIAS.get(rk, rk)]
+            for gk in keys:
+                if (conf, gk) in gin and len(gin) < 255:
+                    access.append((0xFE, ci, j, gin[(conf, gk)]))
+                    outside[j] = max(0, outside[j] - 1)
         mine = [x for x in (a.get('access') or {}) if x not in ('holders', 'from', 'outside')]
         q = 0
-        for j, k in enumerate(outside):                 # the outside places: the world associations' next clubs
+        for j, k in enumerate(outside):                 # the outside places left: the world associations' next clubs
             for _ in range(k):
                 access.append((assocs.index(mine[q % len(mine)]), ci, j, CODE['next']))
                 q += 1
@@ -219,13 +237,14 @@ def load(confs, files=None, words=None):
     spec = bytes((len(cups), len(assocs)) + force) + body
     spec += struct.pack('<H', len(access)) + b''.join(bytes(x) for x in access)
     spec += bytes((len(holders),)) + b''.join(bytes(x) for x in holders)
-    spec += bytes((files or {}).get(a, 100 + i) & 0xFF for i, a in enumerate(assocs))
+    spec += bytes(0 if a.startswith('g:') else (files or {}).get(a, 100 + i) & 0xFF for i, a in enumerate(assocs))
     rank = {}
     for conf in confs:
         for k, v in ((_read(conf, 'access') or {}).get('ranking') or {}).items():
             if words and k in words:
                 rank[words[k]] = min(int(round(v)), 0xFFFF)
     spec += struct.pack('<H', len(rank)) + b''.join(struct.pack('<HH', w, v) for w, v in sorted(rank.items()))
+    spec += struct.pack('<H', len(gl)) + b''.join(struct.pack('<HBBI', w, a, 0, st) for w, a, st in gl)
     return spec, assocs, [(conf, c['key']) for conf, c, _ in cups]
 
 
@@ -260,6 +279,8 @@ def test(confs=('conmebol',), seasons=3, seed=7):
         b = bytearray(s_in)
         clubs = []
         for a, ak in enumerate(assocs):         # 12 clubs per association, strength by size
+            if ak.startswith('g:'):
+                continue
             base = 3000 if ak in ('bra', 'arg') else 1500
             for k in range(18):
                 cid = (100 + a) | k << 8
@@ -270,6 +291,8 @@ def test(confs=('conmebol',), seasons=3, seed=7):
             struct.pack_into("<HBBII", b, o_club + 12 * i, cid, a, 0, st, pt)
         for a in range(len(assocs)):
             mine = sorted([i for i, c in enumerate(clubs) if c[1] == a], key=lambda i: -clubs[i][2] + rnd.randint(0, 900))
+            if not mine:
+                continue
             for l in range(NL):
                 struct.pack_into('<H', b, o_league + 2 * (a * NL + l), mine[l] + 1)
             struct.pack_into('<H', b, o_cup + 2 * a, mine[rnd.randint(0, 6)] + 1)
@@ -279,7 +302,7 @@ def test(confs=('conmebol',), seasons=3, seed=7):
         print(f'--- season {season + 1}')
         for ci, (conf, ck) in enumerate(cups):
             w, s2 = struct.unpack_from('<H', o, o_win + 2 * ci)[0], struct.unpack_from('<H', o, o_sec + 2 * ci)[0]
-            nm = lambda x: names[clubs[x - 1][0]] if x else '-'
+            nm = lambda x: (names[clubs[x - 1][0]] if x <= len(clubs) else f'guest{x - len(clubs)}') if x else '-'
             counts = [o[o_nent + ci * NRD + r] for r in range(NRD)]
             print(f'{conf}:{ck} rounds {[c for c in counts if c]} winner {nm(w)} runner-up {nm(s2)}')
             if os.environ.get('CONTI_DUMP') == ck:

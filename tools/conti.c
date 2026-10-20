@@ -20,9 +20,9 @@ typedef int s32;
 void *memset(void *d, int c, unsigned n) { u8 *p = d; while (n--) *p++ = (u8)c; return d; }
 void *memcpy(void *d, const void *s, unsigned n) { u8 *p = d; const u8 *q = s; while (n--) *p++ = *q++; return d; }
 
-#define NA 48                           /* associations (countries) of the confederations in the world */
+#define NA 128                          /* associations (countries) of the confederations in the world */
 #define NL 16                           /* league clubs kept per association (the final table's top 16) */
-#define NC 640                          /* clubs seen */
+#define NC 1024                         /* clubs seen + the guest clubs */
 #define NCUP 16
 #define NRD 8                           /* rounds per cup (the Libertadores: 8) */
 #define NE 64                           /* entrants of a round (CAF q1: 52) */
@@ -80,6 +80,9 @@ static const u8 *hol;                   /* holders: src cup, dst cup, dst round 
 static u8 nhol;
 static const u8 *afile;                 /* each association's league team file */
 static const u8 *rk;                    /* ranking: team word, points (u16 each) */
+static const u8 *gu;                    /* guests (clubs of associations not in the world): word, assoc, -, str */
+static u16 ngu;
+static u16 GI[256];                     /* a guest's club index this season */
 static u16 nrk;
 #define RND(c, r) (cupr[c] + (r) * RB)
 
@@ -102,6 +105,9 @@ static void parse(void) {
     p += na;
     nrk = p[0] | p[1] << 8;
     rk = p + 2;
+    p += 2 + 4 * nrk;
+    ngu = p[0] | p[1] << 8;             /* guest clubs: team word, association, strength (8 B each) */
+    gu = p + 2;
 }
 
 /* --- random, strength -------------------------------------------------------------------------------------------- */
@@ -170,6 +176,15 @@ static int next_club(int a) {          /* the best league club of association a 
 }
 static void access(void) {
     for (int c = 0; c <= NC; c++) taken[c] = 0;
+    for (int g = 0; g < ngu && g < 256; g++) {       /* the guests: clubs of their own every season (no table) */
+        const u8 *e = gu + 8 * g;
+        GI[g] = 0;
+        if (CT_IN.nclub >= NC) continue;
+        int k = ++CT_IN.nclub;
+        CT_IN.club[k - 1].id = e[0] | e[1] << 8; CT_IN.club[k - 1].assoc = e[2];
+        CT_IN.club[k - 1].str = e[4] | e[5] << 8 | e[6] << 16 | e[7] << 24; CT_IN.club[k - 1].pts = 0;
+        GI[g] = k;
+    }
     u8 vac[NCUP * 2]; int nvac = 0;     /* holder places with no holder yet (season 1): filled after the access */
     for (int h = 0; h < nhol; h++) {    /* the holders first: their own places */
         const u8 *e = hol + 3 * h;
@@ -191,6 +206,11 @@ static void access(void) {
     for (int i = 0; i < nacc; i++) {
         const u8 *e = acc + 4 * i;
         int a = e[0], c = e[1], r = e[2], k = e[3], club = 0;
+        if (a == 0xFE) {                /* a guest's place (its real access, data's list): k = the guest */
+            club = k < ngu ? GI[k] : 0;
+            if (club && !taken[club]) { enter(c, r, club, 0, 0); taken[club] = 1; }
+            continue;
+        }
         if (k == 0) club = CT_IN.league[a][0];
         else if (k == 1) club = CT_IN.cup[a];
         else if (k == C_AP) club = CT_IN.ap[a];

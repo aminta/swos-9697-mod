@@ -153,6 +153,7 @@ static u8 EV[NCUP][NRD][NE];            /* 1 = came through an earlier round ('v
 static u8 EK[NCUP][NRD][NE];            /* side for D_CROSS (0 = this cup's, 1 = another's) and its rank key */
 static u8 EN[NCUP][NRD];
 static u8 taken[NC + 1];                /* the access pass: the club already has a place (this edition) */
+static u8 own[NC + 1];                  /* a holder whose league place in that cup (+1) is its own (CAF) */
 
 static void enter(int c, int r, int club, int via, int side) {
     if (!club || r >= nrd[c] || EN[c][r] >= NE) return;
@@ -176,7 +177,7 @@ static int next_club(int a) {          /* the best league club of association a 
     return 0;
 }
 static void access(void) {
-    for (int c = 0; c <= NC; c++) taken[c] = 0;
+    for (int c = 0; c <= NC; c++) taken[c] = own[c] = 0;
     for (int g = 0; g < ngu && g < 256; g++) {       /* the guests: clubs of their own every season (no table) */
         const u8 *e = gu + 8 * g;
         GI[g] = 0;
@@ -198,7 +199,8 @@ static void access(void) {
             CT_IN.club[k - 1].id = CT_ST.hold[s].id; CT_IN.club[k - 1].assoc = CT_ST.hold[s].assoc;
             CT_IN.club[k - 1].str = CT_ST.hold[s].str; CT_IN.club[k - 1].pts = CT_ST.hold[s].pts;
         }
-        if (k) { enter(e[1], e[2], k, 0, 0); taken[k] = 1; }   /* (a holder may hold places in two cups: the Recopa) */
+        if (k) { enter(e[1], e[2] & 0x7F, k, 0, 0); taken[k] = 1; if (e[2] & 0x80) own[k] = e[1] + 1; }
+        /* (a holder may hold places in two cups: the Recopa; own[]: CAF, its league place in the cup is its own) */
     }
     if (fcup < ncup && CT_IN.manager && !taken[CT_IN.manager]) {   /* (test builds: the forced place) */
         enter(fcup, frnd, CT_IN.manager, 0, 0);
@@ -217,17 +219,19 @@ static void access(void) {
         else if (k == C_AP) club = CT_IN.ap[a];
         else if (k == C_CL) club = CT_IN.cl[a];
         else if (k >= 2 && k <= NL) club = CT_IN.league[a][k - 1];
+        if (club && taken[club] && own[club] == c + 1) { own[club] = 0; continue; }   /* (the holder's own place) */
         if (club && taken[club]) club = 0;          /* already in: the place passes down the table */
         if (!club) club = next_club(a);
         if (club) { enter(c, r, club, 0, 0); taken[club] = 1; }
     }
     for (int v = 0; v < nvac; v++) {    /* a vacant holder place: the best ranked club not yet in (declared) */
         const u8 *e = hol + 3 * vac[v];
-        if (e[1] != e[0] && RND(e[1], e[2])[0] == K_KO && nrd[e[1]] == 1) continue;   /* (a holders' match: none) */
+        if (e[1] != e[0] && RND(e[1], e[2] & 0x7F)[0] == K_KO && nrd[e[1]] == 1) continue;   /* (a holders' match: none) */
+        if (e[2] & 0x80) continue;      /* (CAF: no extra place for a holder) */
         int best = 0;
         for (int i = 1; i <= CT_IN.nclub; i++)
             if (!taken[i] && in_cup(e[1], assoc(i)) && (!best || pts(i) > pts(best))) best = i;
-        if (best) { enter(e[1], e[2], best, 0, 0); taken[best] = 1; }
+        if (best) { enter(e[1], e[2] & 0x7F, best, 0, 0); taken[best] = 1; }
     }
 }
 

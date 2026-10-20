@@ -214,9 +214,11 @@ def load(confs, files=None, words=None):
             out += bytes(b)
         body += bytes((len(rounds), 0, 0, 0)) + out
         for ak, entries in (a.get('access') or {}).items():
-            if ak == 'holders':
+            if ak == 'holders':                         # (CAF: a holder qualified through its league keeps that
+                own = a.get('holder_rule', 'own_place' if conf == 'caf' else 'extra') == 'own_place'   # one place)
                 for src, rk in entries.items():
-                    holders.append((index[(conf, src)], ci, rkey[ci][rk]))
+                    if (conf, src) in index:
+                        holders.append((index[(conf, src)], ci, rkey[ci][rk] | (0x80 if own else 0)))
                 continue
             if ak == 'from':
                 continue

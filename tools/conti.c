@@ -320,6 +320,7 @@ static void draw_ko(int c, int r, const u8 *R) {
     }
 }
 /* groups into D: group g = D[g * size ..]; pots of ngroups clubs by ranking (via clubs last), the holder A1 */
+static void reached(int club, int c, int r);
 static void draw_groups(int c, int r, const u8 *R) {
     int n = EN[c][r], ng = R[6], gs = R[7], rule = R[5];
     u16 x[NE]; u8 v[NE], k[NE];
@@ -329,6 +330,25 @@ static void draw_groups(int c, int r, const u8 *R) {
             if ((pass == 1 && !EV[c][r][i]) || (pass == 2 && EV[c][r][i])) {
                 x[m] = E[c][r][i]; v[m] = EV[c][r][i]; k[m] = EK[c][r][i]; m++;
             }
+    int size = ng * gs;
+    while (m > size) {                  /* more clubs than places (a forced test place): the weakest out */
+        int w = -1;
+        for (int i = 0; i < m; i++)
+            if (x[i] != CT_IN.manager && (w < 0 || pts(x[i]) < pts(x[w]))) w = i;
+        if (w < 0) break;
+        for (int i = w; i + 1 < m; i++) { x[i] = x[i + 1]; v[i] = v[i + 1]; k[i] = k[i + 1]; }
+        m--;
+    }
+    while (m < size) {                  /* fewer (the world could not fill the rounds before): the best ranked
+                                           club in no cup this edition (declared), so the game's contest is full */
+        int b = 0;
+        for (int i = 1; i <= CT_IN.nclub; i++)
+            if (!taken[i] && (!b || pts(i) > pts(b))) b = i;
+        if (!b) break;
+        taken[b] = 1;
+        reached(b, c, r);
+        x[m] = b; v[m] = 0; k[m] = 0; m++;
+    }
     int nd = 0;
     while (nd < m && !v[nd]) nd++;
     sort_by_pts(x, v, k, nd);
@@ -355,9 +375,9 @@ static void draw_groups(int c, int r, const u8 *R) {
             ;
         shuffle(px, pv, pk, pn);
         for (int i = 0; i < pn; i++) {
-            int best = -1;
-            for (int t = 0; t < ng; t++) {
-                int g = (t + below(ng)) % ng, s = g * gs + p;
+            int best = -1, g0 = below(ng);
+            for (int t = 0; t < ng; t++) {     /* (every group once, from a drawn one) */
+                int g = (t + g0) % ng, s = g * gs + p;
                 if (D[s]) continue;
                 int bad = 0;
                 for (int q = 0; q < p; q++)
@@ -422,7 +442,7 @@ static void ct_round(int c, int r) {
         for (int i = b; i < n; i++) { E[c][r][i - b] = E[c][r][i]; EV[c][r][i - b] = EV[c][r][i]; EK[c][r][i - b] = EK[c][r][i]; }
         EN[c][r] = n -= b;
     }
-    if (R[0] == K_GROUPS) draw_groups(c, r, R); else draw_ko(c, r, R);
+    if (R[0] == K_GROUPS) { draw_groups(c, r, R); n = R[6] * R[7]; } else draw_ko(c, r, R);
     CT_OUT.nent[c][r] = n;
     for (int i = 0; i < n && i < NE; i++) { CT_OUT.ent[c][r][i] = D[i]; if (D[i]) reached(D[i], c, r); }
     if (R[17] && CT_LP[c]) {            /* the main round: the game's contest plays it with the career club */

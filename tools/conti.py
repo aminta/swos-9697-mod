@@ -265,7 +265,7 @@ def test(confs=('conmebol',), seasons=3, seed=7):
                 cid = (100 + a) | k << 8
                 names[cid] = f'{ak}{k + 1}'
                 clubs.append((cid, a, base + rnd.randint(0, 1500) - 60 * k, rnd.randint(100, 9000)))
-        struct.pack_into('<IHH', b, 0, seed * 100 + season, len(clubs), 0)
+        struct.pack_into('<IHH', b, 0, seed * 100 + season, len(clubs), int(os.environ.get('CONTI_TEST_MANAGER', 0)))
         for i, (cid, a, st, pt) in enumerate(clubs):
             struct.pack_into("<HBBII", b, o_club + 12 * i, cid, a, 0, st, pt)
         for a in range(len(assocs)):
@@ -573,6 +573,7 @@ def season1(confs, files, words, seed=2027):
 # --- the career club's contests (the slot-3 chain) --------------------------------------------------------------------
 IDS = [0xC6, 0xC7, 0xC8, 0xC9, 0xCA, 0xD0, 0xD1, 0xDA, 0xDD, 0xDE, 0xDF, 0xEC, 0xED, 0xEE, 0xEF]   # (mkseason.RESERVED_IDS)
 STRUCTS = []                            # [(cup index, struct offset, team list offset, list length)]
+D7_BASE = [0]                           # (patch.py: sacups' D7 / E092F of the first one)
 
 
 def _legs(rd):

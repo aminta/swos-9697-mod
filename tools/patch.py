@@ -359,6 +359,7 @@ def patch_exe(src, dst, remap, lang='it'):
     if ct_pg:                                   # the other confederations' contests: after uefaq's in the slot-3 chain
         ct_at = hist2 + h2 + 0x1000 * (lpb + sp_pg + sc_pg)
         ct_code, cq, ck = conti.structs(p, area, lang, ct_at)
+        conti.D7_BASE[0] = 6 + len(info['structs'])     # (sacups: D7 / E092F = 6 + index in the chain)
         info['structs'] += cq
         info['kinds'] += ck
     info['new_career_ptr'] = world              # dword filled below: sacups is assembled before the trailer code

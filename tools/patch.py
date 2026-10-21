@@ -474,6 +474,9 @@ def patch_exe(src, dst, remap, lang='it'):
                       careerworld.SITES if worlds else None)   # (the FORMAT page's buffer, shared)
     if LT_SPACE and LT_SPACE[1] - LT_SPACE[0] >= 0x700:        # (4.0: in gplay's pages - the cosmetics page is full)
         lt_end_ = longtable.patch(p, LT_SPACE[0], area, lang)
+        if worlds and any(pk.meta.get('id', '').startswith('world-2026-27-') for pk in mkseason.packs()):
+            import mainbtn                               # 4.0: the green CARRIERA 2026-27 button on the main menu
+            lt_end_ = mainbtn.patch(p, (lt_end_ + 15) & ~15, lang)
         assert lt_end_ <= LT_SPACE[1], hex(lt_end_)
         print(f'exe: longtable code in gplay\'s pages: obj1+{LT_SPACE[0]:#x}..{lt_end_:#x} (free to {LT_SPACE[1]:#x})')
     else:

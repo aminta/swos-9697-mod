@@ -20,6 +20,9 @@ mb_on:  mov [esi + 16h], ax             ; (replaced: LOAD OLD COMPETITION's y = 
         jmp mb_set
 mb_off: mov word [esi + 4], 0           ; (replaced: CONTINUE shown)
 mb_set: pushad
+        call .f
+.f:     pop eax
+        mov byte [eax + mb_flag - .f], 0   ; (back on the main menu: SELECT TEAM TO MANAGE opens at the top again)
         mov word [D0], 9                ; CAREER: the row's left half, its right link -> the button
         call CALC
         mov edi, [A0]
@@ -48,16 +51,37 @@ mb_set: pushad
 .g:     pop eax
         add eax, mb_lab - .g
         mov [edi + 26h], eax
-        mov dword [edi + 2Ah], ONSELF
+        add eax, mb_go - mb_lab
+        mov [edi + 2Ah], eax
         popad
         ret
 
+mb_go:  push eax                         ; the button: CAREER's menu, its team choice opening in the World 2026-27
+        call .g
+.g:     pop eax
+        mov byte [eax + mb_flag - .g], 1
+        pop eax
+        jmp ONSELF
+
+mb_d0:  mov byte [D0], 0FFh             ; (replaced: SelectTeamsFinalMenu from the top list)
+        push eax
+        call .g
+.g:     pop eax
+        cmp byte [eax + mb_flag - .g], 0
+        pop eax
+        je .r
+        cmp dword [HDR], STR            ; only SELECT TEAM TO MANAGE (not a player purchase's team choice)
+        jne .r
+        mov byte [D0], WID_             ; the world's list (CLASSIC CAREERS > WORLD 2026-27): its continents
+.r:     ret
+
+mb_flag: db 0
 mb_lab: db LABEL_, 0
 """
 
 
-def patch(p, at, lang, onsel=None):
-    """The button's code at obj1 offset at; onsel = (1, obj1 offset) of its on-select function (None: CAREER's).
+def patch(p, at, lang, wid, onsel=None):
+    """The button's code at obj1 offset at; wid = the world's list id (mkseason.WMENU + its number); onsel = (1, obj1 offset) of its on-select function (None: CAREER's).
     Returns the end of the code."""
     c = p.le.obj_bytes(1)
     fx = {s: (t, o) for so, s, _, t, o, *_ in p.le.fixups() if so == 1}
@@ -86,6 +110,14 @@ def patch(p, at, lang, onsel=None):
     sym = {'D0': d0[0], 'A0': a0, 'CALC': (1, calc), 'GAP_': (0, GAP), 'X_': (0, X), 'W_': (0, W), 'H_': (0, H),
            'GREEN_': (0, GREEN)}
     sym['ONSELF'] = onsel
+    cs = [m.start() for m in re.finditer(rb'\xc6\x05....\xff\xe8....\x66\xa1', c, re.S)]   # ChooseTeamsDialog:
+    assert len(cs) == 1, cs                                          # `mov byte [D0], 255; call SelectTeamsFinalMenu`
+    cs = cs[0]
+    hdr = [fx[cs - 0xd0 + k.start() + 6] for k in re.finditer(rb'\xa1....\xa3', c[cs - 0xd0:cs], re.S)][0]
+    st = [fx[m.start() + 6] for m in re.finditer(rb'\xc7\x05........\xc7\x05....\x00\x00\x00\x00\x66\xc7\x05....'
+                                                 rb'\x01\x00\x66\xc7\x05....\x00\x00\x66\xc7\x05....\x00\x00\xe8', c, re.S)]
+    st = [x for x in st if p.le.obj_bytes(2)[x[1]:x[1] + 1] != b'\0']
+    sym.update({'HDR': hdr, 'STR': st[0], 'WID_': (0, wid)})
     code, fix = nasmcave.assemble(src, at, sym)
     lab = nasmcave.labels(src, at, sym)
     p.put(1, at, code)
@@ -93,5 +125,7 @@ def patch(p, at, lang, onsel=None):
         p.add_ptr(1, at + o, tobj, toff)
     p.put(1, on + 6, b'\xe9' + struct.pack('<i', lab['mb_on'] - (on + 11)))
     p.put(1, off + 6, b'\xe9' + struct.pack('<i', lab['mb_off'] - (off + 11)) + b'\x90\x90')
+    p.remove(1, cs + 2)                              # (the overwritten instruction's fixup: [D0])
+    p.put(1, cs, b'\xe8' + struct.pack('<i', lab['mb_d0'] - (cs + 5)) + b'\x90\x90')
     print(f'exe: main menu button {LABEL[lang].decode()} at obj1+{at:#x} (hooks {on + 6:#x}, {off + 6:#x})')
     return at + len(code)

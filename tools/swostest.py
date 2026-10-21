@@ -1934,6 +1934,56 @@ def zone_rows(s, tag, n):
 
 
 @scenario
+@scenario
+def main_button():
+    """4.0: the main menu's green CARRIERA 2026-27 button (mainbtn.py), in a full 2026-27 build (MAINBTN_BUILD; EN too
+    with MAINBTN_EN = an English build, its exe as ITALIAN.EXE): the plain CAREER > SELECT TEAM still opens the top
+    list; the button (right of CAREER: 4 x down from FRIENDLY) opens CAREER's menu whose SELECT TEAM opens the World
+    2026-27's list (its continents) at once; EUROPE > ITALY > SERIE A > INTER starts that world's career (2026/27)"""
+    cases = [('it', os.environ.get('MAINBTN_BUILD'), 'CARRIERA 2026-27', 'SCEGLI SQUADRA', 'MONDO 2026-27',
+              ['EUROPA', 'ITALIA', 'SERIE A', 'INTER'], 'CAMP. 2026/27'),
+             ('en', os.environ.get('MAINBTN_EN'), 'CAREER 2026-27', 'CHOOSE TEAM', 'WORLD 2026-27',
+              ['EUROPE', 'ITALY', 'SERIE A', 'INTER'], '2026/27')]
+    errs, info = [], []
+    if not cases[0][1]:
+        return True, 'SKIP: MAINBTN_BUILD (a full 2026-27 build) not set'
+    for lang, b, btn, pick, world, path, season in cases:
+        if not b:
+            continue
+        with Session(f'main_button_{lang}', b, {}, 'dump:2', 1500) as s:
+            s.wait()
+            sc = s.screen()
+            i = next((k for k, e in enumerate(sc.entries) if e[1] == btn), None)
+            check(i is not None, f'{lang}: {btn} on the main menu', errs)
+            if i is None:
+                continue
+            s.send('down down down down dump:1')
+            check(s.screen().selected == i, f'{lang}: 4 x down from FRIENDLY reaches {btn}', errs)
+            s.send('left dump:1 fire dump:3')               # the plain CAREER first: SELECT TEAM at the top
+            press(s, s.screen(), pick, 3)
+            top = str(s.screen())
+            check(world not in top.split('|')[0], f'{lang}: plain CAREER > {pick} at the top ({top[:60]})', errs)
+            s.send('esc dump:2 esc dump:2')
+            for _ in range(3):
+                if s.screen().find(btn, exact=True) is not None:
+                    break
+                s.send('esc dump:2')
+            walk(s, s.screen().find(btn, exact=True), 3)
+            s.send('fire dump:3')
+            press(s, s.screen(), pick, 3)
+            head = str(s.screen()).split('|')[0]
+            check(world in head, f'{lang}: the button > {pick}: {head}', errs)
+            for x in path:
+                if press(s, s.screen(), x, 3) is None:
+                    errs.append(f'{lang}: {x} not reached')
+                    break
+            s.send('fire dump:3')
+            got = str(s.screen())
+            check(season in got and 'INTER' in got, f'{lang}: the career starts: {got[:80]}', errs)
+            info.append(f'{lang}: {got[:60]}')
+    return not errs, '; '.join(errs) or '; '.join(info)
+
+
 def zone_colours():
     """4.0 zone colours (zones.py): a new 1984-85 career at Liverpool, VISUAL. COMPETIZ. > First Division: place 1 light
     blue (Champions Cup), 2-5 green (UEFA Cup), 20-22 gray, the others plain (pixels of the stats columns); the legend

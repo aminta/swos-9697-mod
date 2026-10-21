@@ -476,7 +476,8 @@ def patch_exe(src, dst, remap, lang='it'):
         lt_end_ = longtable.patch(p, LT_SPACE[0], area, lang)
         if worlds and any(pk.meta.get('id', '').startswith('world-2026-27-') for pk in mkseason.packs()):
             import mainbtn                               # 4.0: the green CARRIERA 2026-27 button on the main menu
-            lt_end_ = mainbtn.patch(p, (lt_end_ + 15) & ~15, lang)
+            w27 = min(pk.world for pk in mkseason.packs() if pk.meta.get('id', '').startswith('world-2026-27-'))
+            lt_end_ = mainbtn.patch(p, (lt_end_ + 15) & ~15, lang, mkseason.WMENU + w27)
         assert lt_end_ <= LT_SPACE[1], hex(lt_end_)
         print(f'exe: longtable code in gplay\'s pages: obj1+{LT_SPACE[0]:#x}..{lt_end_:#x} (free to {LT_SPACE[1]:#x})')
     else:

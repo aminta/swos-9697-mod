@@ -12,7 +12,9 @@ that play only Brazil's state championships, plus 104 clubs waiting outside the 
 state second divisions, the clubs below the B teams' leagues) and 159 guest clubs of the continental cups: 2,385
 clubs with a team record in all, real squads at the
 end of the summer 2026 transfer window. In CLASSIC CAREERS choose WORLD 2026-27, then the continent and the country (EUROPE lists the
-first 43 UEFA associations by ranking, the others are under OTHER NATIONS).
+first 43 UEFA associations by ranking, the others are under OTHER NATIONS). Or, from the main menu, the green
+CAREER 2026-27 button next to CAREER: it opens the career menu, and its CHOOSE TEAM goes straight to the World
+2026-27's continents.
 
 ### Rebuilt exactly, point by point
 <!-- REGIA: kept up to date by the regia session at each milestone (Davide, 2026-10-17: "per far capire come, punto per
@@ -141,6 +143,8 @@ Cearense, Pernambucano, Alagoano and Mato-Grossense.
   Cearense's six qualifiers are drawn into two groups of three that play each other (real: each group's clubs play
   the other group's); the Catarinense semi-final crossing is assumed; the Pernambucano's second division clubs are those of 2025; the side trophies (Taca Rio, Taca Farroupilha,
   Trofeu Inconfidencia, Campeao do Interior) are not played.
+- **FORMAT pages**: each state championship's page tells its format in plain words (groups, finals, byes,
+  relegation), in 4 languages.
 
 *At least everything the original game had*
 - **Never fewer leagues or divisions than SWOS 96/97**: England's four divisions, with League Two and its 4th-7th
@@ -292,8 +296,9 @@ when the engine lands it.
 
 *League tables in colour*
 - **Every league table shows its end-of-season zones**, as on TV: Champions League (or the European Cup) and direct
-  promotion light blue; Europa League (or the UEFA Cup), promotion and European play-offs green; Conference League
-  dark blue; play-out orange; relegation gray. The places follow the real rules: the UEFA 2026/27 access list by
+  promotion light blue; Europa League (or the UEFA Cup), promotion play-offs and European play-offs for a Europa
+  League place green; Conference League dark blue, a European play-off for a Conference League place too (Austria,
+  Denmark, the Netherlands, Northern Ireland, Bulgaria); play-out orange; relegation gray. The places follow the real rules: the UEFA 2026/27 access list by
   association rank (qualifying rounds included), and each league's own promotions, relegations and play-offs (Serie
   B 3rd-8th and 16th-17th, the Serie C groups 2nd-10th). A legend on the header line names the colours each table
   uses. In the Europe 1984-85 world too.
@@ -656,7 +661,9 @@ che giocano solo i campionati statali brasiliani, più 104 club in attesa fuori 
 divisioni statali brasiliane, i club sotto i campionati delle squadre B) e 159 club ospiti delle coppe
 continentali: 2.385 club con una scheda squadra in tutto, rose reali
 alla fine del mercato estivo 2026. In CARR. STORICHE scegli MONDO 2026-27, poi il continente e la nazione (EUROPA elenca le prime 43
-federazioni UEFA per ranking, le altre sono in ALTRE NAZIONI).
+federazioni UEFA per ranking, le altre sono in ALTRE NAZIONI). Oppure, dal menu principale, il pulsante verde
+CARRIERA 2026-27 accanto a CARRIERA: apre il menu della carriera, e il suo SCEGLI SQUADRA porta subito ai continenti
+del Mondo 2026-27.
 
 ### Ricostruito esattamente, punto per punto
 L'obiettivo di questo mondo: il calcio di oggi com'è davvero, fino alle regole che quasi nessun giocatore nota.
@@ -786,6 +793,8 @@ Baiano, Cearense, Pernambucano, Alagoano e Mato-Grossense.
   le sei qualificate del Cearense sono sorteggiate in due gironi da tre che giocano tra loro (vero: ogni club gioca
   contro quelli dell'altro girone); l'incrocio delle semifinali del Catarinense è presunto; i club della seconda serie del Pernambucano sono quelli del 2025; i trofei minori (Taca
   Rio, Taca Farroupilha, Trofeu Inconfidencia, Campeao do Interior) non si giocano.
+- **Pagine FORMULA**: la pagina di ogni campionato statale ne racconta la formula in parole semplici (gironi, fase
+  finale, esenti, retrocessioni), in 4 lingue.
 
 *Almeno tutto quello che aveva il gioco originale*
 - **Mai meno campionati o divisioni di SWOS 96/97**: le quattro divisioni inglesi, con la League Two e i suoi play-off
@@ -938,8 +947,9 @@ Baiano, Cearense, Pernambucano, Alagoano e Mato-Grossense.
 
 *Classifiche a colori*
 - **Ogni classifica di campionato mostra le sue zone di fine stagione**, come in TV: Champions League (o Coppa dei
-  Campioni) e promozione diretta in azzurro; Europa League (o Coppa UEFA), play-off promozione e spareggi europei in
-  verde; Conference League in blu scuro; play-out in arancione; retrocessione in grigio. I posti seguono le regole
+  Campioni) e promozione diretta in azzurro; Europa League (o Coppa UEFA), play-off promozione e spareggi europei per
+  un posto in Europa League in verde; Conference League in blu scuro, anche lo spareggio europeo che vale un posto in
+  Conference League (Austria, Danimarca, Olanda, Irlanda del Nord, Bulgaria); play-out in arancione; retrocessione in grigio. I posti seguono le regole
   vere: la lista d'accesso UEFA 2026/27 secondo il ranking delle federazioni (preliminari compresi) e le promozioni,
   retrocessioni e spareggi di ogni campionato (Serie B 3ª-8ª e 16ª-17ª, i gironi di Serie C 2ª-10ª). Una legenda
   sulla riga del titolo indica i colori usati in quella classifica. Anche nel mondo Europa 1984-85.

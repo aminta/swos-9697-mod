@@ -4342,16 +4342,27 @@ def world_split_stages():
     return world_split('stages')
 
 
+def odd_build():
+    """world_odd_league's build when no ODD_BUILD is given: this checkout with the newest release data
+    (internal/world2526/world5tm-rel40-*: India's Football League has 11 clubs), built once per run (the staged
+    builds/w2627odd-* of 10-18 had gone stale: the per-country balance trap at obj1+0x8476C on b8's suite run)."""
+    import glob
+    if not os.environ.get('_ODD_B'):
+        src = sorted((d for d in glob.glob(os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-*'))
+                      if os.path.isdir(d)), key=os.path.getmtime)[-1]
+        order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+        os.environ['_ODD_B'] = build('w2627odd-cur', env={'SEASON_PACKS': ','.join(
+            ['ddr-1988-89'] + [os.path.join(src, x) for x in order])})
+    return os.environ['_ODD_B']
+
+
 @scenario
 def world_odd_league():
     """A league with an odd number of clubs (mkseason.odd_leagues: the engine's own rest day, no phantom club): the
     full world with the real odd sizes (ODD_BUILD, default the newest internal/swostest/builds/w2627odd-*), a
     season at DEMPO (India's Football League, the 2nd division, 11 clubs; the NZ National League is gone from the
     final data): 22 days of 5 matches, every club 20 matches and 2 rests, the season ended and the next one started"""
-    import glob
-    b = os.environ.get('ODD_BUILD') or (sorted(glob.glob(os.path.join(WORK, 'builds', 'w2627odd-*'))) or [None])[-1]
-    if not b:
-        return True, 'SKIP: no w2627odd build'
+    b = os.environ.get('ODD_BUILD') or odd_build()
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import split
     import lepatch

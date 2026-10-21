@@ -2118,12 +2118,20 @@ def world8485():
                                 return False, f'new career: ESCI ({s.result})'
                         continue
                     scr = s.screen()                      # a group of a level (menulevels): its level first
+                    alts = t.lstrip('?').split('|')       # ('a|b': alternative names, the first on screen - after its
+                    if '|' in t or t.startswith('?'):     # level; '?a': an optional level, skipped when not on screen)
+                        hit = next((x for x in alts if scr.find(x, exact=True) is not None), None)
+                        if hit is None and t.startswith('?'):
+                            continue
+                        t = hit or next((x for x in alts if any(e[1] and x.startswith(e[1] + ' ') for e in scr.entries)),
+                                        alts[0])
                     lvl = None if scr.find(t, exact=True) is not None else \
                         next((x for i, x, inv, _ in scr.entries if 11 <= i <= 20 and x and not inv and
                               t.startswith(x + ' ')), None)
                     if lvl and press(s, scr, lvl) is None:
                         return False, f'new career: level {lvl} of {t} not reached ({s.result})'
-                    if press(s, s.screen(), t) is None or s.result.outcome != 'dump':
+                    if all(press(s, s.screen(), x) is None for x in ([t] + [x for x in alts if x != t])) \
+                            or s.result.outcome != 'dump':
                         return False, f'new career: {t} not reached ({s.result})'
                 if os.environ.get('W8485_START') == '1':          # menu check only: the career has started
                     return True, f'career started: {s.screen()}'[:400]
@@ -6328,7 +6336,7 @@ def world_full_uefa():
 def world_full_slv():
     """Full 5.0 world (full_season): a season at HACHADURA (El Salvador, Tercera occidente): two levels of parallel
     zones (Segunda, Tercera) keep their sizes, the moves go one level by the clubs' areas (pgroups multi-level)"""
-    return full_season('slv', 'NORDAMERICA,EL SALVADOR,TERCERA DIVISION OCCIDENTE,HACHADURA')
+    return full_season('slv', 'NORDAMERICA,EL SALVADOR,TERCERA DIVISION OCCIDENTE|TERCERA OCCIDENTE|TERCERA OCCIDENT,HACHADURA')
 
 
 @scenario
@@ -6350,7 +6358,7 @@ def world_full_arg():
 @scenario
 def world_full_usa():
     """Full 5.0 world (full_season): a season at PHILADELPHIA (USA, MLS EASTERN CONFERENCE, 15 clubs, rest days)"""
-    return full_season('usa', 'NORDAMERICA,USA,MLS EASTERN CONFERENCE,PHILADELPHIA')
+    return full_season('usa', 'NORDAMERICA,USA,?MLS EASTERN CONFERENCE,PHILADELPHIA')
 
 @scenario
 def lp36_tie():

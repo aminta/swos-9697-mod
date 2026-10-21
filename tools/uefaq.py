@@ -814,7 +814,8 @@ def patch(p, at, limit, sites):
     print('exe: uefaq labels ' + ' '.join(f'{k} {lab[k]:#x}' for k in ('uq_country', 'uq_fill', 'uq_fill.ran', 'uq_fill.done', 'uq_post',
                                                                          'uq_cpts')) + f" UC_QPTS {uc.LABELS['UC_QPTS']:#x}")
     print(f'exe: UEFA qualifying rounds: C obj1+{at:#x}..{end:#x}, glue ..{glue + len(code):#x}, '
-          f'bss obj2+{bss_at:#x} ({bss} B + {cw.UQ_RECS} records)')
+          f'bss obj2+{bss_at:#x} ({bss} B + {cw.UQ_RECS} records), UQ_IN obj{syms["UQ_IN"][0]}+{syms["UQ_IN"][1]:#x} '
+          f'UQ_OUT obj{syms["UQ_OUT"][0]}+{syms["UQ_OUT"][1]:#x}')   # (the harness's UQ_BSS dumps)
     return glue + len(code)
 
 

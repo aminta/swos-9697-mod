@@ -972,9 +972,12 @@ def season1(confs, files, words, seed=2027, stand_ins_only=False):
         def stand_in(i):
             if rank:
                 return max((w for w in rank if w not in taken), key=rank.get)
-            a = top[i % len(top)]
-            return min((w for k, w in words.items() if isinstance(k, tuple) and w & 0xFF == files[a] and w not in taken),
-                       key=lambda w: w >> 8)
+            for d in range(len(top)):                   # (a test world: an association may have no free club left)
+                a = top[(i + d) % len(top)]
+                free = [w for k, w in words.items() if isinstance(k, tuple) and w & 0xFF == files[a] and w not in taken]
+                if free:
+                    return min(free, key=lambda w: w >> 8)
+            return None
 
         subs = []
         extra = {}                                      # (cup key, round key) -> words moved in (losers, holders)
@@ -988,6 +991,9 @@ def season1(confs, files, words, seed=2027, stand_ins_only=False):
                     if own:                             # (CAF: no extra place for a holder)
                         continue
                     w = held.get(h) or stand_in(len(subs))
+                    if w is None:
+                        print(f"conti: season 1 {conf} {c['key']}: no stand-in for the holder {h} in this world, skipped")
+                        continue
                     if w not in subs:
                         taken.add(w)
                         subs.append(w)

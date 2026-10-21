@@ -669,3 +669,104 @@ def po_who(po, names, lang, nm):
     many = len(items) > 1 or len(ent) > 1
     kind = l['kind'].get(po.get('kind', 'promotion'), l['kind']['promotion'])
     return _cap(w['s'].format(who=_list(items, CP[lang]), v=w['v'][many], kind=kind))
+
+
+# ---- the Brazilian state championships (statecup / statespec stages), 4.0: the same plain story
+SP = {
+    'it': dict(n='Il campionato statale riunisce {n} squadre.', g1='Si comincia con un girone unico da {s} squadre, {legs}',
+               g='Si comincia con {g} gironi da {s} squadre, {legs}', g2='Poi le squadre vengono divise in {g} gironi da {s}.',
+               once='in sola andata', twice='in andata e ritorno', cross1=", e ogni squadra affronta quelle dell'altro girone",
+               crossn=', e ogni squadra affronta quelle degli altri gironi',
+               ko='Poi le migliori {n} giocano la fase finale a eliminazione diretta.',
+               byes='{who} passano direttamente al turno successivo.', bye1='{who} passa direttamente al turno successivo.',
+               grp='del girone {x}', pts='La vittoria vale {w} punti.', down1="L'ultima retrocede.", downk='Le ultime {n} retrocedono.',
+               two='in andata e ritorno', one='in gara unica', pens=', con i rigori in caso di parità',
+               etp=', con supplementari e rigori in caso di parità', best=', e in caso di parità passa la meglio piazzata'),
+    'en': dict(n='The state championship brings together {n} clubs.', g1='It starts with one group of {s} clubs, {legs}',
+               g='It starts with {g} groups of {s} clubs, {legs}', g2='Then the clubs are split into {g} groups of {s}.',
+               once='each meeting once', twice='home and away', cross1=", each club playing those of the other group",
+               crossn=', each club playing those of the other groups',
+               ko='Then the best {n} play the knockout finals.',
+               byes='{who} go straight to the next round.', bye1='{who} goes straight to the next round.',
+               grp='of group {x}', pts='A win is worth {w} points.', down1='The last club goes down.',
+               downk='The bottom {n} go down.', two='over two legs', one='as single matches', pens=', with penalties if level',
+               etp=', with extra time and penalties if level', best=', the better placed club going through if level'),
+    'fr': dict(n='Le championnat d\'État réunit {n} clubs.', g1='On commence par un groupe unique de {s} clubs, {legs}',
+               g='On commence par {g} groupes de {s} clubs, {legs}', g2='Ensuite, les clubs sont répartis en {g} groupes de {s}.',
+               once='en matchs simples', twice='en aller et retour', cross1=", chaque club affrontant ceux de l'autre groupe",
+               crossn=', chaque club affrontant ceux des autres groupes',
+               ko='Ensuite, les {n} meilleurs jouent la phase finale à élimination directe.',
+               byes='{who} passent directement au tour suivant.', bye1='{who} passe directement au tour suivant.',
+               grp='du groupe {x}', pts='La victoire vaut {w} points.', down1='Le dernier descend.',
+               downk='Les {n} derniers descendent.', two='en aller et retour', one='en un seul match',
+               pens=", avec tirs au but en cas d'égalité", etp=", avec prolongation et tirs au but en cas d'égalité",
+               best=", le mieux classé passant en cas d'égalité"),
+    'de': dict(n='Die Staatsmeisterschaft vereint {n} Vereine.', g1='Sie beginnt mit einer Gruppe zu {s} Vereinen, {legs}',
+               g='Sie beginnt mit {g} Gruppen zu {s} Vereinen, {legs}', g2='Danach werden die Vereine in {g} Gruppen zu {s} geteilt.',
+               once='mit je einem Spiel', twice='mit Hin- und Rückspiel', cross1=', jeder Verein gegen die der anderen Gruppe',
+               crossn=', jeder Verein gegen die der anderen Gruppen',
+               ko='Danach spielen die besten {n} die Endrunde im K.-o.-System.',
+               byes='{who} kommen direkt in die nächste Runde.', bye1='{who} kommt direkt in die nächste Runde.',
+               grp='der Gruppe {x}', pts='Ein Sieg zählt {w} Punkte.', down1='Der Letzte steigt ab.',
+               downk='Die letzten {n} steigen ab.', two='mit Hin- und Rückspiel', one='in einem Spiel',
+               pens=', bei Gleichstand mit Elfmeterschießen', etp=', bei Gleichstand mit Verlängerung und Elfmeterschießen',
+               best=', bei Gleichstand kommt der besser Platzierte weiter'),
+}
+_ART1 = {'it': 'la {o}', 'en': 'the {o}', 'fr': 'le {o}', 'de': 'der {o}'}
+
+
+def state(c, lang):
+    """A state championship's FORMAT page as plain prose (stages: groups, knockout rounds with byes; points,
+    relegation)."""
+    l, ln, cp, nc, rd = SP[lang], L[lang], CP[lang], NC[lang], RD[lang]
+    how = lambda code: {'single': (cp['one'], cp['pens']), 'single_et': (cp['one'], cp['etp']),
+                        'two_legs': (cp['two'], nc['away']), 'single_replay': (cp['one'], nc['rep']),
+                        'two_legs_pens': (cp['two'], cp['pens']), 'two_legs_replay': (cp['two'], nc['po'])}.get(
+                            code, (cp['two'] if code.startswith('two') else cp['one'], cp['pens']))
+    s = [l['n'].format(n=len(c.get('clubs', [])))]
+    stages, k, first = c.get('stages', []), 0, True
+    while k < len(stages):
+        st = stages[k]
+        if st['type'] == 'groups':
+            g, n = st.get('groups', 1), st['teams']
+            if first:
+                legs = l['twice'] if st.get('meetings', 1) == 2 else l['once']
+                x = (l['g1'].format(s=n, legs=legs) if g == 1 else l['g'].format(g=g, s=n // g, legs=legs))
+                if st.get('cross') and g > 1:
+                    x += l['cross1'] if g == 2 else l['crossn']
+                s.append(x + '.')
+            else:
+                s.append(l['g2'].format(g=g, s=n // g))
+            k += 1
+            first = False
+            continue
+        ko = []                                  # the knockout rounds that follow, by name
+        while k < len(stages) and stages[k]['type'] == 'knockout':
+            ko.append(stages[k])
+            k += 1
+        s.append(l['ko'].format(n=ko[0]['teams']))
+        for st in ko:
+            if st.get('byes'):                  # ('1A' = the 1st of group A)
+                one = (stages or [{}])[0].get('groups', 1) == 1
+                who = [_ART1[lang].format(o=ln['ord'](int(b[:-1]))) + ('' if one else ' ' + l['grp'].format(x=b[-1]))
+                       for b in st['byes']]
+                s.append((l['bye1'] if len(who) == 1 else l['byes']).format(who=_list(who, cp)))
+        names = []
+        for j, st in enumerate(ko):
+            key = {2: 'final', 4: 'sf', 8: 'qf', 16: 'r16'}.get(st['teams'])
+            names.append(rd[key] if key else rd['n'](nc['ord'][min(j, 6)]))
+        j = 0
+        while j < len(ko):
+            e = j
+            while e + 1 < len(ko) and ko[e + 1].get('matches', 'single') == ko[j].get('matches', 'single'):
+                e += 1
+            subj = names[j:e + 1]
+            lg, lv = how(ko[j].get('matches', 'single'))
+            s.append(cp['ko'].format(s=_list([x['art'] for x in subj], cp), v=cp['v'][len(subj) > 1 or subj[0]['pl']],
+                                     legs=lg, nt='', lv=lv))
+            j = e + 1
+        first = False
+    s.append(l['pts'].format(w=c.get('win_points', 3)))
+    if c.get('relegated'):
+        s.append(l['down1'] if c['relegated'] == 1 else l['downk'].format(n=c['relegated']))
+    return [' '.join(_cap(x) for x in s)]

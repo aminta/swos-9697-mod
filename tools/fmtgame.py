@@ -870,7 +870,7 @@ def from_pack(d):
             out.append((world, cid, titles, {lang: tourney_text(comp, T[lang]) for lang in LANGS}))
         elif comp['type'] == 'state':           # (statecup: a Brazilian state championship)
             titles = {lang: title(lang, complist._nm(comp['names'], lang)) for lang in LANGS}
-            out.append((world, cid, titles, {lang: state_text(comp, T[lang], lang) for lang in LANGS}))
+            out.append((world, cid, titles, {lang: dict(prose=fmtprose.state(comp, lang), tail=[]) for lang in LANGS}))
         if comp['type'] != 'league':
             continue
         lg = complist._league(comp, clubs)

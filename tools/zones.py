@@ -33,6 +33,17 @@ LIGHT_BLUE, GREEN, DARK_BLUE, ORANGE, RED = 0x0D, 0x0E, 0x08, 0x0C, 0x02   # RED
                                                                          # was the computer clubs' own name colour)
 
 
+def po_eu_colour(rank):
+    """A European play-off's colour: the competition of the association's lowest-ranked league place in the 2026/27
+    access list (the place the play-off decides: Austria, Denmark, the Netherlands, Northern Ireland, Bulgaria ->
+    Conference League); green when the rank is unknown."""
+    al = [r for r, c in access_list().get(rank, []) if c != 1] if rank else []
+    if not al:
+        return GREEN
+    r = max(al)
+    return LIGHT_BLUE if r < 8 else GREEN if r < 14 else DARK_BLUE
+
+
 def access_list():
     """uefaq.c's AL (the 2026/27 access list by association rank): {rank: [(round, code)]}; round < 8 Champions
     League, < 14 Europa League, else Conference League; code 0 the champion, 1 the cup winner, k the k-th place."""
@@ -167,8 +178,8 @@ def pack_zones(d, lang, lp=False, rank=None, detail=None):
                 kind = p.get('kind', 'promotion')
                 wd = p.get('winner_div')
                 for _, place in ent:
-                    if kind in ('europe',):
-                        col, w = GREEN, 'po_eu'
+                    if kind in ('europe',):              # the competition of the place it plays for: the
+                        col, w = po_eu_colour(rank), 'po_eu'   # association's worst league place (AUT: CONF)
                     elif kind == 'playout':
                         col, w = ORANGE, 'out'
                     elif kind == 'promotion':
@@ -439,6 +450,8 @@ def legend(rng, kind):
     names = names if kind == 'confed' else {'lp': {LIGHT_BLUE: 'cl', GREEN: 'el', DARK_BLUE: 'conf', ORANGE: 'out', RED: 'down'},
              'classic': {LIGHT_BLUE: 'cc', GREEN: 'uefa', ORANGE: 'out', RED: 'down'},
              'lower': {LIGHT_BLUE: 'up', GREEN: 'po', ORANGE: 'out', RED: 'down'}}[kind]
+    if kind == 'lp':                                 # (a league-phase top flight's European labels come from its run
+        names = {c: k for c, k in names.items() if k not in ('cl', 'el', 'conf')}   # time colours: EU_LEG)
     out, seen = [], set()
     for a, z, c in sorted(r for r in rng if not r[0] & 0x80):
         if c not in seen and c in names:

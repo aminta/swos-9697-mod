@@ -2906,7 +2906,9 @@ def world2526():
         return True, 'SKIP: private converter internal/world2526 missing'
     out = os.path.join(WORK, 'builds', 'world2526')
     with world_lock():                         # (world2526q builds from the same converter output dir)
-        r = subprocess.run(['sh', run], env=dict(os.environ, LP='1', OUT=out, TOOLS=os.path.join(ROOT, 'tools')),
+        r = subprocess.run(['sh', run], env=dict(os.environ, LP='1', OUT=out, CONTI_CONFS='none',   # (the UEFA test world: no other
+                                                                    # confederations' cups - its partial South America)
+                                 TOOLS=os.path.join(ROOT, 'tools')),
                            capture_output=True, text=True)
     if r.returncode or not os.path.exists(os.path.join(out, 'ITALIAN.EXE')):
         return False, f'build: {(r.stdout + r.stderr)[-300:]}'

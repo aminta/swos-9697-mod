@@ -3,7 +3,7 @@
 //   node tools/patcher_dirtest.mjs PAGE.html c/RELxx SCRATCH_DIR [3.3.6,...]
 // Per UI language (it, en, fr, de): a CD install, a GOG install (game in a subfolder, DOSBOX beside it), the copy
 // from a CD folder, a SWOS++ install (LOADER.BIN present: ENGLISH.EXE = RELxx/swospp), a re-run (nothing written),
-// a wrong folder, and an update over each earlier release given (its outputs made by its own published page,
+// a wrong folder, an install stopped half way (red INCOMPLETE, then a re-run completes it), and an update over each earlier release given (its outputs made by its own published page,
 // orig/old-patchers/patcher-v<ver>.html, from the originals). Every written file must equal RELxx's (SWOS/ or gog/
 // for the GOG exes, swospp/ for SWOS++), the world's pool / guest files included; MOD_BACKUP\<version> must hold the
 // files replaced. Exit code 1 on any failure. (Node 18+: DecompressionStream.)
@@ -27,7 +27,8 @@ function load(file, lang) {                                   // a patcher page'
 }
 class FH { constructor(p) { this.p = p; this.kind = 'file'; this.name = path.basename(p); }
   async getFile() { const b = fs.readFileSync(this.p); return { name: this.name, arrayBuffer: async () => b.buffer.slice(b.byteOffset, b.byteOffset + b.length) }; }
-  async createWritable() { const p = this.p, ch = []; return { write: async d => ch.push(Buffer.from(d)), close: async () => fs.writeFileSync(p, Buffer.concat(ch)) }; } }
+  async createWritable() { const p = this.p, ch = []; return { write: async d => ch.push(Buffer.from(d)), close: async () => { if (cut-- > 0) fs.writeFileSync(p, Buffer.concat(ch)); } }; } }
+let cut = Infinity;                                          // writes after the first `cut` are lost (an install stopped half way)
 class DH { constructor(p) { this.p = p; this.kind = 'directory'; this.name = path.basename(p); }
   async *entries() { for (const n of fs.readdirSync(this.p)) { const q = path.join(this.p, n); yield [n, fs.statSync(q).isDirectory() ? new DH(q) : new FH(q)]; } }
   async getDirectoryHandle(n, o = {}) { const q = path.join(this.p, n); if (!fs.existsSync(q)) { if (!o.create) throw Object.assign(new Error('nf'), { name: 'NotFoundError' }); fs.mkdirSync(q); } return new DH(q); }
@@ -67,6 +68,15 @@ for (const lang of ['it', 'en', 'fr', 'de']) {
        md5(path.join(backup(dir), 'DATA/TEAM.020')) === md5(path.join(M, 'orig/DATA/TEAM.020')), `${lang} ${name}: MOD_BACKUP = the originals`);
     const n2 = await T.installDir(new DH(top), say); ok(n2 === 0, `${lang} ${name} again: ${log.at(-1)}`);
   }
+  { const top = path.join(R, 'cut'), dir = path.join(top, 'SWOS'); game(dir, false); cut = 40;
+    const n = await T.installDir(new DH(top), say); cut = Infinity;
+    ok(log.at(-1).startsWith('!'), `${lang} stopped half way: ${n} written: ${log.at(-1).slice(0, 160)}`);
+    const n2 = await T.installDir(new DH(top), say); ok(n2 > 0 && !log.at(-1).startsWith('!'), `${lang} stopped half way, run again: ${n2} written: ${log.at(-1).slice(0, 80)}`);
+    check(T, dir, false, false, `${lang} stopped half way, run again`);
+    ok(md5(path.join(backup(dir), 'ITALIAN.EXE')) === md5(path.join(M, 'orig/ITALIAN.EXE')) &&
+       fs.readdirSync(path.join(backup(dir), 'DATA')).every(x => fs.existsSync(path.join(M, 'orig/DATA', x)) &&
+                                                              md5(path.join(backup(dir), 'DATA', x)) === md5(path.join(M, 'orig/DATA', x))),
+       `${lang} stopped half way, run again: MOD_BACKUP = the originals`); }
   { const src = path.join(R, 'cdsrc'), dst = path.join(R, 'cddst'); game(src, false); fs.rmSync(dst, { recursive: true, force: true }); fs.mkdirSync(dst);
     const g = await T.findGame(new DH(src)); await T.copyTree(g.root, new DH(dst)); const n = await T.installDir(new DH(dst), say);
     ok(n > 0, `${lang} from the CD: ${n} written`); check(T, dst, false, false, `${lang} from the CD`);

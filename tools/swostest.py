@@ -5856,8 +5856,9 @@ def world_winners_oldsave():
     last = [x.strip() for x in more[0]] if more else []
     got = winner_blocks(last)
     got.pop(last[0][:-1] if last else '', None)
-    ok = e is not None and not e[2] and last[:1] and last[0].startswith('VINCITORI ') and len(got) == 2 and \
-        all(v and v != 'DA GIOCARE' for v in got.values())
+    ok = e is not None and not e[2] and last[:1] and last[0].startswith('VINCITORI ') and \
+        list(got) == ["SUPPORTERS' SHIELD", 'PLAYOFF - MLS CUP', 'CAMPIONE EASTERN CONFERENCE',
+                      'CAMPIONE WESTERN CONFERENCE'] and all(v and v not in ('DA GIOCARE', 'IN CORSO') for v in got.values())
     return bool(ok), f'{msg[:120]}; page {title!r} {[x for x in lines if x]}; last season {last[:1]} {got}'
 
 

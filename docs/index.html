@@ -122,7 +122,7 @@ html{scroll-behavior:smooth}
   <p>Documentation for anyone who wants to understand, extend or port the mod's patches: Serie C1 and C2, South American club cups (Libertadores, Supercopa, CONMEBOL), the Intercontinental Cup in career mode, real 1996-97 squads, classic tourneys (World Cup 1982, Mitropa Cup 1934, FA Cup 1871-72), Argentina's Apertura and Clausura, Australia, New Zealand and MLS 1997 (2.5), classic seasons with the DDR 1988-89 and that year's European cups (2.6), and the World 2026-27 career world with its shared engines (4.0). Everything below was worked out from the disassembly and checked with builds and test games.</p>
   <div class="meta">
     <span>State as of <b>2026-10-22</b> (release 4.0)</span>
-    <span>ENGLISH.EXE build <b><code>e36485aa…</code></b></span>
+    <span>ENGLISH.EXE build <b><code>1a0fa3d1…</code></b></span>
     <span>TEAM.020 <b><code>bd44208c…</code></b></span>
     <span>Original ENGLISH.EXE <b><code>aa21cd1c…</code></b></span>
   </div>
@@ -752,7 +752,7 @@ assert blk[:2] == b'S2' and sum(blk) % 256 == 0</code></pre>
   </ul></li>
 <li><strong>Before the first match</strong> (4.0 rc7): while no club of the table (<code>DIY+31h</code> clubs, row +4 = played) has played, <code>zn_col</code> paints nothing and shows no legend: the clubs are still in their initial order. A league whose first stage starts on day 0 with groups by membership (the MLS conferences, Argentina's zones, Panama) gets its groups and its order partitioned at the league init (<code>split.py</code> <code>sp_pregroup</code>; <code>sp_sort</code> partitions before the freeze too), so its header rows show from day 0. Scenario <code>zones_preseason</code>.</li>
 <li><strong>The legend boxes</strong> are plain boxes of the zone colour, the Conference League's dark blue included (<code>LEG_COLOUR</code> is empty since rc9: rc7's 13h gave that box an inner frame).</li>
-<li><strong>The legend</strong> (CONVENTIONS rules 5–6): <code>DIY_leagueTournamentMenu</code> is copied whole with <code>LEG</code> = 5 legend boxes after its last entry, and <code>zn_leg</code> shows them in the row above the table header, top left, its y computed from the title bar. On a cup's group screen (entry byte <code>LEGX</code> = 92, bit 1; bit 0 = places counted per group, <code>LEGX+1</code> = the group size), the boxes go in the title row (y <code>CUPY</code> = 3) and the title bar starts at x <code>CUPT</code> = 70. The legend lists only the colours painted: <code>_merge</code> joins runs of places into the 8 ranges, and a place shadowed by another zone is dropped.</li>
+<li><strong>The legend</strong> (CONVENTIONS rules 5–6): <code>DIY_leagueTournamentMenu</code> is copied whole with <code>LEG</code> = 6 legend boxes (six since rc12: the Netherlands use CL EL CONF P.OFF P.OUT RETR) after its last entry, and <code>zn_leg</code> shows them in the row above the table header, top left, its y computed from the title bar. On a cup's group screen (entry byte <code>LEGX</code> = 92, bit 1; bit 0 = places counted per group, <code>LEGX+1</code> = the group size), the boxes go in the title row (y <code>CUPY</code> = 3) and the title bar starts at x <code>CUPT</code> = 70. The legend lists only the colours painted: <code>_merge</code> joins runs of places into the 8 ranges, and a place shadowed by another zone is dropped.</li>
 </ul>
 
 <h3>The WINNERS page (winners.py)</h3>

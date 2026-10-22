@@ -299,7 +299,8 @@ Cearense, Pernambucano, Alagoano and Mato-Grossense.
   promotion light blue; Europa League (or the UEFA Cup) and promotion play-offs green; Conference League dark blue;
   the places of a European play-off (Austria's title group 5th and qualification group's top two, the Netherlands,
   Denmark, Northern Ireland, Bulgaria ...) green P.OFF with their own legend entry, not the cup's colour (the cup is
-  decided by the play-off); play-out orange; relegation gray. The places follow the real rules: the UEFA 2026/27 access list by
+  decided by the play-off; a table can show up to six legend boxes, e.g. the Netherlands: CL, EL, CONF, P.OFF, P.OUT,
+  RETR); play-out orange; relegation gray. The places follow the real rules: the UEFA 2026/27 access list by
   association rank (qualifying rounds included), and each league's own promotions, relegations and play-offs (Serie
   B 3rd-8th and 16th-17th, the Serie C groups 2nd-10th), every kind of play-off included (promotion, title,
   placement: green P.OFF; the Serie D groups 2nd-5th, the Czech 7th-10th, the A-League, the MLS, Costa Rica ...). One
@@ -995,7 +996,8 @@ Baiano, Cearense, Pernambucano, Alagoano e Mato-Grossense.
   Campioni) e promozione diretta in azzurro; Europa League (o Coppa UEFA) e play-off promozione in verde; Conference
   League in blu scuro; i posti di uno spareggio europeo (la 5ª del gruppo titolo e le prime due del gruppo di
   qualificazione in Austria, l'Olanda, la Danimarca, l'Irlanda del Nord, la Bulgaria ...) in verde P.OFF con la loro
-  voce di legenda, non nel colore della coppa (la coppa la decide lo spareggio); play-out in arancione; retrocessione in grigio. I posti seguono le regole
+  voce di legenda, non nel colore della coppa (la coppa la decide lo spareggio; una classifica può mostrare fino a sei
+  riquadri di legenda, per esempio l'Olanda: CL, EL, CONF, P.OFF, P.OUT, RETR); play-out in arancione; retrocessione in grigio. I posti seguono le regole
   vere: la lista d'accesso UEFA 2026/27 secondo il ranking delle federazioni (preliminari compresi) e le promozioni,
   retrocessioni e spareggi di ogni campionato (Serie B 3ª-8ª e 16ª-17ª, i gironi di Serie C 2ª-10ª), tutti i tipi di
   play-off compresi (promozione, scudetto, piazzamento: verde P.OFF; i gironi di Serie D 2ª-5ª, la Rep. Ceca 7ª-10ª,

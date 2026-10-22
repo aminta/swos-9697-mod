@@ -624,6 +624,8 @@ Cearense, Pernambucano, Alagoano and Mato-Grossense.
 **Known limits**
 - After a job offer letter in a career, a few stray pixels can appear on the menu buttons until the next match
   reloads the menu graphics: cosmetic only, saves are not affected (fixed in the upcoming 4.0.1).
+- A few very long match-screen titles (a long competition name + a long round + the leg) can still be cut at the
+  game's 40 characters; the upcoming 4.0.1 checks and fits every title.
 - The World 2026-27 has no national teams yet: no national team offers a job in this career (planned for the upcoming 4.2).
 - A career saved with one language's executable and loaded with another keeps the first language's competition
   titles, and its league tables show no zone colours, no FORMAT page and no overall table (annual table / Supporters'
@@ -1334,6 +1336,8 @@ Baiano, Cearense, Pernambucano, Alagoano e Mato-Grossense.
 - Dopo una lettera di offerta di lavoro in carriera, sui pulsanti dei menu possono comparire alcuni pixel sporchi
   finché la partita successiva non ricarica la grafica dei menu: solo estetico, i salvataggi non ne risentono
   (corretto nella prossima 4.0.1).
+- Alcuni titoli molto lunghi della schermata della partita (un nome di competizione lungo + un turno lungo + la gara)
+  possono ancora essere tagliati ai 40 caratteri del gioco; la prossima 4.0.1 controlla e adatta ogni titolo.
 - Il Mondo 2026-27 non ha ancora le nazionali: in questa carriera nessuna nazionale offre un lavoro (previste nella
   prossima 4.2).
 - Una carriera salvata con l'eseguibile di una lingua e caricata con quello di un'altra tiene i titoli delle

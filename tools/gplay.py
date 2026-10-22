@@ -1322,6 +1322,15 @@ gp_cal1:                                ; 4.0 A: cseg_3563E's `mov eax, A6` (the
     jmp CAL1_LOOP
 .r: ret
 
+gp_vc1:                                 ; 4.0 (rule 11): VISUAL. COMPETIZ.'s `mov eax, [D8CAA + 4]` (slot 1 shown when
+    mov eax, [D8CAA + 4]                ; not 0): a Coppa D club does not see the COPPA ITALIA it is not in (the cup is
+    test eax, eax                       ; still played for its winner)
+    jz .r
+    call gp_cdmem
+    jz .r
+    xor eax, eax
+.r: ret
+
 gp_cup12:                               ; 4.0: InitNewSeason's `call cseg_8B2D3` of slots 1 / 2 (the country's cup and
     pushad                              ; league cup): a Coppa Italia Serie D club gets neither (cd_member_c), the slot
     cmp word [GAMETYPE], 4              ; cleared (Davide's Schio: COPPA ITALIA / C. IT SERIE C rows never played)
@@ -1799,6 +1808,12 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
         for site in sites:
             assert p.get(1, site, 1) == b'\xe8', hex(site)
             p.put(1, site + 1, struct.pack('<i', lab['gp_cup12'] - (site + 5)))
+        d1v = p.le.obj_bytes(1)                               # VISUAL. COMPETIZ. (cseg_3760C): its slot-1 test
+        vc = [m.start() for m in re.finditer(rb'\xa1' + re.escape(struct.pack('<I', ps['d8caa'] + 4)) +
+                                             rb'\x0b\xc0\x0f\x85', d1v)]
+        assert len(vc) == 2, vc                               # (the first: SquadInit's)
+        p.remove(1, vc[1] + 1)
+        p.put(1, vc[1], b'\xe8' + struct.pack('<i', lab['gp_vc1'] - (vc[1] + 5)))
         cal1 = CAL1_SITE[0]                                   # cseg_3563E's `mov eax, A6` (5 B, a fixup) -> call
         p.remove(1, cal1 + 1)
         p.put(1, cal1, b'\xe8' + struct.pack('<i', lab['gp_cal1'] - (cal1 + 5)))

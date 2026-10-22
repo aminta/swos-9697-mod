@@ -109,8 +109,9 @@ html{scroll-behavior:smooth}
     <li><a href="#euro8485">26 · Europe 1984-85 and European cups (3.0)</a></li>
     <li><a href="#nazionali">27 · National teams of Europe 1984-85 (3.1)</a></li>
     <li><a href="#tornei32">28 · Classic tourneys from data (3.2)</a></li>
-    <li><a href="#limiti">29 · Limits and open issues</a></li>
-    <li><a href="#storia">30 · History and next steps</a></li>
+    <li><a href="#mondo2627">29 · World 2026-27: the 4.0 engine</a></li>
+    <li><a href="#limiti">30 · Limits and open issues</a></li>
+    <li><a href="#storia">31 · History and next steps</a></li>
   </ol>
 </nav>
 
@@ -672,7 +673,105 @@ assert blk[:2] == b'S2' and sum(blk) % 256 == 0</code></pre>
 </ul>
 
 <!-- 29 -->
-<h2 id="limiti"><span class="n">29</span>Limits and open issues</h2>
+<h2 id="mondo2627"><span class="n">29</span>World 2026-27: the 4.0 engine</h2>
+<p>The World 2026-27 is a career world of the pack machinery (<a href="#pacchetti">section 23</a>): its world byte is <code>someLeaguesTable[1845]</code>, its packs come from <code>packs/</code>, the build is <code>tools/patch.py</code>. On top of it 4.0 adds a set of shared engines, each a C file compiled into its own obj1 pages (<code>nasmcave</code>) and a Python module with the hooks. Every one of them works from data: no competition has code of its own. The design rules they follow are in <code>notes/CONVENTIONS.md</code> (read it before any change); the work notes are in <code>notes/world-2025-26*.md</code> and <code>notes/continental-cups.md</code>.</p>
+
+<h3>The engine block</h3>
+<ul>
+<li><strong>Items.</strong> <code>engine.py</code> registers the state each engine keeps with the career: <code>engine.save_item(name, size)</code> plus <code>ITEM_AT[name]</code> during <code>patch_exe</code>. <code>trailer.py</code> writes all items as one chained block 'EN' after the main trailer of the .CAR. The 4.0 items are 'GP' (play-offs), 'CT' and 'CE' (continental cups), 'RI' (off-file pools), 'SR' / 'SB' (Brazilian states) and 'BT_EXT' (big tables).</li>
+<li><strong>World 0.</strong> The original 1996-97 world has no pack: its code registers its tables through <code>engine.gplay / pgroups / split</code> before <code>patch_exe</code>, which sizes its pages from them.</li>
+<li><strong>Load hooks.</strong> A new post-load hook in the career load chain broke the next season end (trap at the season-3 start, 2026-10-22). Until 4.0.1, any change to the load / save path needs the <code>career_20seasons</code> scenario (<code>C20_SEASONS=2</code>), see CONVENTIONS rule 19.</li>
+</ul>
+
+<h3>Continental cups (conti)</h3>
+<ul>
+<li><strong>Data, not code.</strong> <code>conti.c</code> + <code>conti.py</code> run the 11 non-UEFA club cups and the FIFA Intercontinental Cup. Each confederation has a format (<code>internal/conti/&lt;conf&gt;.format.json</code>: rounds, draws, routes between cups, names in 4 languages) and an access file (<code>&lt;conf&gt;.access.json</code>: places by league rank, cup winner, holders, the ranking, the season-1 entrants). They are merged by cup key, and <code>python3 tools/conti.py --test</code> runs the C natively (ctypes) on a synthetic world.</li>
+<li><strong>Season end.</strong> A world's season end walks every country of the world. <code>ct_tab</code> replaces <code>call cseg_927A2</code> (the top 9 of a division) and first passes the whole final order, up to 16 clubs, to <code>ct_table</code>. <code>ct_ctry</code> replaces <code>call cseg_93974</code>, which returns at once for a country outside Europe: it passes the country's table, top records and cup winner to the C, then goes on to the game's routine. From these inputs <code>conti.c</code> makes the next editions' entrants with the access lists, draws (pots by ranking, association rules), simulates every round the career club does not play (strength = the 16 players' prices, as <code>uefaq</code>), and keeps the holders and every club's path.</li>
+<li><strong>The career club in slot 3.</strong> The rounds the club plays are <em>segments</em>, each one a contest of the game built in slot 3 (free for a non-UEFA club) by <code>ct_build</code> through <code>cseg_8B2D3</code>. A segment is a type-1 knockout, a type-2 group stage (the team list in the drawn order) or a league stage on lp36's engine. <code>ct_daily</code> (chained on uefaq's <code>uq_daily</code>, before each match) gives the C the result of a finished tie and builds the next segment. A move between cups (Libertadores Q3 loser to the Sudamericana) is just the next segment.</li>
+<li><strong>Ids and state.</strong> The cups use the reserved contest ids <code>conti.IDS</code> (C6–CA, D0, D1, DA, DD–DF, EC–EF; the build asserts that no pack uses them). The state is the engine item 'CT' (<code>struct ct_state</code>, 4 + 16 × 12 bytes) and 'CE' (the edition, <code>struct ct_ed</code>, 2260 bytes): a load resumes the path from the saved edition.</li>
+<li><strong>Guest clubs.</strong> <code>guests.py</code>: the real clubs of associations that are not in the world (CAF, AFC, OFC and CONCACAF entrants) are team files of their own, <strong>TEAM.191</strong> (CAF), <strong>192</strong> (AFC), <strong>193</strong> (OFC) and <strong>194</strong> (CONCACAF), with no country or league entry and no table. A guest's team word is <code>file | ordinal &lt;&lt; 8</code>, its record's countryNumber is its file, and <code>countriesTable[file]</code> gives the one country label shown for the file.</li>
+</ul>
+
+<h3>UEFA: league phase and qualifying</h3>
+<ul>
+<li><code>lp36.py</code> runs the 36-club league phase as a type-2 stage of 2 groups of 18. <code>lp_pair</code> takes each match from the drawn calendar (one home and one away opponent per pot, no club of its own country), and <code>lp_sort</code> writes one ranking of 36 over both groups (UEFA 2025-26 art. 18 criteria). The play-off ties and the fixed round-of-16 bracket come from <code>lp_gend</code> / <code>lp_draw</code>.</li>
+<li><code>uefaq.c</code> plays the qualifying rounds at the season end from each country's top 9 and cup winner, with the ranking of <code>uefacoef</code> and the European Performance Spots, then fills the three league phases (36 / 36 / 36).</li>
+</ul>
+
+<h3>Play-offs and the knockout rules (gplay, dplay)</h3>
+<ul>
+<li><strong>dplay</strong> (<code>dplay.c</code>): Italy's play-offs and play-outs. Serie B play-off (contest FD: 6 clubs, the 3rd and 4th wait, semi-finals and final over two legs), Serie B play-out (FE: 17th v 16th), and the play-offs of each Serie C group.</li>
+<li><strong>gplay</strong> (<code>gplay.c</code>): every other knockout play-off of a world, declared in the pack's league <code>ko_playoffs</code>.
+  <ul>
+  <li>Kinds: <code>promotion</code>, <code>europe</code>, <code>placement</code>, <code>playout</code>, <code>title</code>, <code>continental</code> and <code>stage_title</code> (Argentina's Trofeo).</li>
+  <li>Entrants: <code>[div, place]</code>, the best club without Europe, the league cup winner, a split stage's place or seed.</li>
+  <li>Rounds: legs, best-of-three series, pairing, host, level, points gap, groups.</li>
+  </ul>
+  The full schema is in the <code>gplay.py</code> docstring.</li>
+<li><strong>Hooks.</strong> At the season end (<code>cseg_91D4D</code>, per league struct), <code>gp_cap</code> / <code>dp_cap</code> replace <code>call cseg_9221F</code> and copy each division's final table. <code>gp_end</code> / <code>dp_end</code> replace <code>call cseg_9228D</code>: they run the play-offs and write the signed division moves into <code>leaguesTableCopy</code>. A play-off the career club is in is <em>played</em>: <code>gp_lend</code> / <code>dp_lend</code> replace the two <code>call cseg_8ECAE</code> of the league's last match day and build the contest in slot 4 (<code>cseg_8B2D3</code>, D0 = 4) as the game builds its native play-offs.</li>
+<li><strong>One set of tie-break modes</strong> (CONVENTIONS rule 10), chosen per round with <code>level</code>:
+  <ul>
+  <li>two legs (aggregate);</li>
+  <li><code>pens</code> / <code>et_pens</code> (extra time and penalties);</li>
+  <li><code>et_better</code> / <code>better</code> (extra time, then the <strong>better-placed club</strong> goes through: the mod's play-offs);</li>
+  <li><code>away_pens</code> / <code>away_better</code>, simulated as <code>et_pens</code> / <code>better</code>.</li>
+  </ul>
+  <code>gp_draw</code> / <code>dp_draw</code> sit at <code>cseg_2AE97</code>'s "draw → replay" mark: a level tie of ours goes to the better-placed club. <code>cal_noreplay</code> (<code>lib97.py</code>) removes a slot's calendar entries of type 3 (replay days), so a knockout without replays shows no replay dates.</li>
+<li><strong>Test switches</strong> (test builds only): <code>GPLAY_FORCE=k</code> puts the career club on place k at the league end; <code>GPLAY_RLFORCE</code> sets its play-off result for the season record lines.</li>
+</ul>
+
+<h3>Coppa Italia Serie D (slot 2)</h3>
+<ul>
+<li><code>cupd.py</code> runs the knockout of every Serie D club (162 in reality, 156 in the world's file) at its real dates, on gplay's engine. Season 1 uses the data session's bracket JSON (rounds, dates, legs, host, matches with real winners). Later seasons are drawn by <code>cd_make</code> from <code>someLeaguesTable</code>; the ties nobody plays use strengths from the best 11 players' prices (<code>cd_str</code>).</li>
+<li><strong>Before the 1/32</strong>, the career club's ties are 1-tie contests in slot 4, built at the calendar advance before the round's week. Every other tie is decided at that advance: in season 1 by its real result when known, otherwise by gplay's tie rules.</li>
+<li><strong>From the 1/32</strong>, the Coppa D is a game knockout of 64 clubs in <strong>slot 2</strong> (contest CDS1). <code>gp_cup12</code> sits on InitNewSeason's <code>call cseg_8B2D3</code> for slots 1 and 2: a Serie D club keeps slot 1's COPPA ITALIA, which is simulated for its winner and hidden from that club's calendar (CONVENTIONS rule 11), and its slot 2 becomes the Coppa D. After a load, <code>gp_after</code> restores slot 2's contest pointer, which ProcessCareerFile leaves at 0.</li>
+</ul>
+
+<h3>Splits, long tables, zone colours and the legend</h3>
+<ul>
+<li><strong>Split</strong> (<code>split.py</code>): the pack spec for a division is <code>"split": {"games", "groups", "rounds", "points", "home"}</code> (points <code>full</code> / <code>half_up</code> / <code>half_down</code>; home <code>balance</code> / <code>reverse3</code> / <code>seeded</code>). Four hooks run it:
+  <ul>
+  <li><code>sp_init</code> on <code>cseg_2653B</code> adds one cycle so the stage does not end at the split;</li>
+  <li><code>sp_pair</code> on <code>cseg_89758</code> takes the matches after the split from our calendar. Its first call freezes the groups, halves the points (the points before rounding are the first tie-break) and rewrites the career calendar;</li>
+  <li><code>sp_count</code> on <code>cseg_8922B</code> keeps the day counters;</li>
+  <li><code>sp_sort</code> on <code>cseg_883DD</code> does a stable partition into the groups, so <code>DIY+6Dh</code> is always the final table in place order.</li>
+  </ul>
+  The state lives in the unused DIY rows 48–63, saved with the slot.</li>
+<li><strong>Long tables</strong> (<code>longtable.py</code>): the table screen lays out only up to 24 rows, and a 30-club table (Argentina, MLS) was drawn past the screen buffer. One-group tables longer than <code>ROWS</code> = 22 now show 22 rows from <code>currentDiyLine</code> and scroll with the arrows (<code>lt_d3</code>, <code>lt_d5</code>, <code>lt_end</code>, <code>lt_down</code>, <code>lt_arrows</code>). <code>lt_plan</code> (gplay's <code>gp_hplan_c</code>) counts a split league's group header rows and spacers in the same window.</li>
+<li><strong>Zone colours</strong> (<code>zones.py</code>):
+  <ul>
+  <li>Palette: light blue 0Dh (CL / direct promotion), green 0Eh (EL / promotion or European play-off), dark blue 08h (Conference League), orange 0Ch (play-out / relegation play-off), gray 02h (relegation).</li>
+  <li>Hook: <code>mov ax, [dseg_11F41C]</code> in the row loop at <code>cseg_49B65</code> (lp36's <code>lp_col</code> uses the same site).</li>
+  <li>The table is found by the career's world and the title shown, cached per table.</li>
+  <li>Zones come from the packs: European places, promoted / relegated, <code>ko_playoffs</code> entrants, dplay's Italian places, state zones. They are computed per group (the place in its own group) in split, zoned and cup-group tables.</li>
+  </ul></li>
+<li><strong>The legend</strong> (CONVENTIONS rules 5–6): <code>DIY_leagueTournamentMenu</code> is copied whole with <code>LEG</code> = 5 legend boxes after its last entry, and <code>zn_leg</code> shows them in the row above the table header, top left, its y computed from the title bar. On a cup's group screen (entry byte <code>LEGX</code> = 92 set, <code>LEGX+1</code> = the group size), the boxes go in the title row (y <code>CUPY</code> = 3) and the title bar starts at x <code>CUPT</code> = 70. The legend lists only the colours painted: <code>_merge</code> joins runs of places into the 8 ranges, and a place shadowed by another zone is dropped.</li>
+</ul>
+
+<h3>Off-file pools (ripool)</h3>
+<ul>
+<li>Italy's Eccellenza (Italy's 256 league slots fill its team file) and Brazil's state second divisions (file 161) cannot add clubs to the world. Instead, slots swap <em>identities</em> with off-file pools <code>DATA\RS&lt;world&gt;&lt;file&gt;.DAT</code> (<code>mkseason.rs_files</code>), and no club leaves or enters the world.</li>
+<li><code>ri_load</code> replaces LoadTeamFile's <code>call SetLoadedTeamsGlobalNumbers</code>: it keeps the file as read, reads its pool once per DOS session, and <code>ri_apply</code> gives every remapped slot its identity's record.</li>
+<li>At the season end, <code>ri_season</code> / <code>ri_after</code> (through <code>pgroups.pg_fix</code>) update the maps and the career cache, then clear LoadTeamFile's own cache.</li>
+<li>The state is the engine item 'RI'. Rule 13: any code that loads a club's file goes through this shared loader.</li>
+</ul>
+
+<h3>The one-click folder patcher</h3>
+<ul>
+<li><code>tools/patcher_template.html</code> → <code>mkpatcher.py</code> (raw-deflate packed outputs) → <code>release/swos-9697-mod-patcher.html</code>. In Chrome or Edge, the folder mode (<code>showDirectoryPicker</code>) reads the chosen game folder (CD install, GOG with the game in a subfolder, eXoDOS / DOSBox) or copies the game from a CD folder first.</li>
+<li>The page recognises each file's version by md5 and writes only the files that differ. It keeps the replaced ones in <code>MOD_BACKUP\&lt;version&gt;</code> and writes the SWOS++ variant only where SWOS++ is installed (<code>SWOSPP.BIN</code> / <code>LOADER.BIN</code>). A re-run writes nothing. The UI is in 4 languages; the manual download stays for other browsers.</li>
+<li>Release check: <code>node tools/patcher_dirtest.mjs PAGE.html c/RELxx SCRATCH [3.3.6,...]</code> runs the page's own code in Node with mocked directory handles, per UI language: CD, GOG, from the CD, SWOS++, re-run, wrong folder, and updates over earlier releases. Every written file must equal the release build, and <code>MOD_BACKUP</code> must hold the replaced files.</li>
+</ul>
+
+<h3>Conventions and tests</h3>
+<ul>
+<li><code>notes/CONVENTIONS.md</code>: the settled rules (font characters only, 4 languages, discursive FORMAT pages, one legend top left, legend = zones painted, real formats exactly, one set of tie-break modes, forced test cases, release checks) and the known engine pitfalls. Reuse the shared code named there.</li>
+<li>The harness (<code>tools/swostest.py</code>, <a href="#verifica">section 18</a>, <code>notes/harness.md</code>) ends a run with outcome <code>'break'</code> when an <code>int 3</code> stops in the DOSBox-X debugger: a trap of the game or a <code>dump</code> step of the scenario. Memory is read there. Breakpoints (<code>Session.bp</code>, <code>SWOSTEST_BP</code>) need <code>CORE=normal</code>. A failing run's directory is kept for decoding.</li>
+<li>Result-dependent cases are forced with test switches (<code>GPLAY_FORCE</code>, <code>GPLAY_RLFORCE</code>, <code>CONTI_GPLACE</code> …), never re-run hoping; the switches never go into release builds. 4.0 release checks: the full suite on the release candidate, <code>career_20seasons</code>, and the patcher's outputs byte-equal to the build.</li>
+</ul>
+
+<!-- 30 -->
+<h2 id="limiti"><span class="n">30</span>Limits and open issues</h2>
 <ul>
 <li><strong>Play-offs (2.5).</strong> NSL Finals and NSSL Playoffs are top-4 knockouts: the real formats (NSL: 6 clubs; both: a "double chance" for the top two) need per-round control of the entrants, i.e. a type-2 contest in slot 4, whose buffer (443h) is too small. Kept for a future version (<code>finals97.py</code>, option A). The regular-season winner that loses the play-off still shows a small icon at the top of its season record (not yet traced in the code).</li>
 <li><strong>C1/C2 groups.</strong> In 1996-97 C1 had 2 groups and C2 had 3. The mod uses one group per series. The full reality (128 teams) does not fit the limit of about 93 teams per nation. C1 with two groups would fit (92), but it needs promotions and relegations between parallel divisions, and checks on the 80-team career limit and on global numbers: estimated 2–3 sessions.</li>
@@ -685,8 +784,8 @@ assert blk[:2] == b'S2' and sum(blk) % 256 == 0</code></pre>
 <li><strong>English bench (after 1.0).</strong> In the pre-match line-up English clubs show 14 players (11 + 3 on the bench). The original game does the same, and <code>TEAM.008</code> has 16 players per club: it is a game rule. To do: find where the bench size comes from (rules at buffer +3Dh…41h, values 5/2/8 set by <code>InitCareer</code>) and raise it to 5.</li>
 </ul>
 
-<!-- 30 -->
-<h2 id="storia"><span class="n">30</span>History and next steps</h2>
+<!-- 31 -->
+<h2 id="storia"><span class="n">31</span>History and next steps</h2>
 <div class="tbl"><table>
 <thead><tr><th>Session</th><th>Content</th><th>Test</th></tr></thead>
 <tbody>

@@ -6179,9 +6179,13 @@ def foreign_buy(exe, mode):
         except Exception:
             return None
 
-    with Session('foreign_buy_' + mode, exe, {}, 'dump:2', 600) as s:
+    car_in = os.environ.get('FOREIGNBUY_CAR')            # (a saved career instead of a new one: mode 'load')
+    with Session('foreign_buy_' + mode, exe, {'W84A.CAR': car_in} if car_in else {}, 'dump:2', 600) as s:
         s.wait()
-        if mode == '9697':
+        if car_in:
+            s.send(LOAD1 + ' dump:3')
+            want_season = 'CAMP.'
+        elif mode == '9697':
             walk0 = walk
 
             def walk9(s_, t, w=3, *a, **k):        # (the main menu's CARRIERA = entry 9; the green 2026-27 button is 4)
@@ -6198,7 +6202,7 @@ def foreign_buy(exe, mode):
                     return False, f'new career: {t} not reached'
             s.send('fire dump:3')
             want_season = 'CAMP. 2026/27'
-        check(want_season in s.screen().texts(), f'{mode}: career screen {s.screen().texts()[:4]}', errs)
+        check(any(x.startswith(want_season) for x in s.screen().texts()), f'{mode}: career screen {s.screen().texts()[:4]}', errs)
         n0 = squad_n(s)
         walk(s, 'TRASFERIMENTI', 3)
         walk(s, 2, 3)                              # ACQUISTA GIOCATORE

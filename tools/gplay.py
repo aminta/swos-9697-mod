@@ -1332,8 +1332,11 @@ gp_cup12:                               ; 4.0: InitNewSeason's `call cseg_8B2D3`
     jz .game
     movzx eax, word [D0R]
     mov dword [D8CAA + eax * 4], 0
-    mov eax, [SLOTS_ + eax * 4]         ; (the slot's buffer: no contest, as sacups clears slot 1's)
-    mov byte [eax + 2Dh], 0
+    mov eax, [SLOTS_ + eax * 4]         ; (the slot's buffer: no contest, as sacups clears slot 1's; its long-name
+    mov byte [eax + 2Dh], 0             ; pointer = the Coppa D's: the season record's league-cup line - the slot-2
+    mov ecx, [CD_NM]                    ; Coppa D's or its slot-4 ties' result - reads COPPA ITALIA SERIE D, not a
+    add ecx, STR_BASE_                  ; stale pointer's garbage, TEST 8's CJARLINS MUZANE)
+    mov [eax + 27h], ecx
     popad
     ret
 .game:

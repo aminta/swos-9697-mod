@@ -852,7 +852,8 @@ def patch(p, at, limit, tables, bss_at, area):
     p.remove(1, ps['rec'] + 2)                               # mov ax, [dseg_11F9CC] (6 B) -> call dp_rec; nop
     p.put(1, ps['rec'], b'\xe8' + struct.pack('<i', lab['dp_rec'] - (ps['rec'] + 5)) + b'\x90')
     p.add_ptr(1, lib97.LABELS['NC_DPP'], 1, lab['dp_perm'])  # (lib97 nc_adv's slot)
-    LABELS.update(lab, diy=diy, a0=r['A0'], DP_IN=syms['DP_IN'], DP_OUT=syms['DP_OUT'], layout=lay, contests=(c0, c1, c2), save=tmd + save_at,
+    LABELS.update(lab, diy=diy, a0=r['A0'], DP_IN=syms['DP_IN'], DP_OUT=syms['DP_OUT'], DP_ST=syms['DP_ST'],   # (winners.py)
+                  layout=lay, contests=(c0, c1, c2), save=tmd + save_at,
                   sites=ps)
     print(f"exe: Italian play-offs (dplay): {len(tables)} leagues, C obj1+{at:#x}..{cend:#x}, glue ..{glue + len(code):#x}, "
           f"contests obj1+{c0:#x} / +{c1:#x} / +{c2:#x}, DP_IN obj2+{syms['DP_IN'][1]:#x}, state obj2+{tmd + save_at:#x}, "

@@ -800,10 +800,10 @@ def world_year(w, d=None):
 
 
 WN = {   # the SEASON WINNERS page (fmtpage / winners.py): page title, a title not decided yet, a 'title' league's table
-    'it': dict(title='VINCITORI', tbp='DA GIOCARE', reg=' (STAGIONE REGOLARE)'),
-    'en': dict(title='WINNERS', tbp='TO BE PLAYED', reg=' (REGULAR SEASON)'),
-    'fr': dict(title='VAINQUEURS', tbp='A JOUER', reg=' (SAISON REGULIERE)'),
-    'de': dict(title='SIEGER', tbp='NOCH OFFEN', reg=' (HAUPTRUNDE)'),
+    'it': dict(down='RETROCESSA', title='VINCITORI', tbp='DA GIOCARE', reg=' (STAGIONE REGOLARE)'),
+    'en': dict(down='RELEGATED', title='WINNERS', tbp='TO BE PLAYED', reg=' (REGULAR SEASON)'),
+    'fr': dict(down='RELEGUE', title='VAINQUEURS', tbp='A JOUER', reg=' (SAISON REGULIERE)'),
+    'de': dict(down='ABSTEIGER', title='SIEGER', tbp='NOCH OFFEN', reg=' (HAUPTRUNDE)'),
 }
 WN_SKIP = ('promedio', 'playout', 'placement')   # (no single winner: the promedio's and a play-out's relegated, places)
 
@@ -836,6 +836,15 @@ def win_lines(comp, div, k):
         src = f'D{st}{pi:02X}' if st is not None and 0 <= st < 3 else f'K{pi:02X}'
         for lang in LANGS:
             lines[lang].append((_wn_fit(po['names'], lang), src))
+    par = comp.get('parallel')                  # dplay (pack 'playoffs': 'ita'): the Serie B play-off and play-out (its
+    par = par[0] if isinstance(par, list) else par   # relegated club), a Serie C group's play-off ('P' + dplay's kind)
+    if comp.get('playoffs') == 'ita' and par:
+        import dplay
+        po = [(dplay.NAMES[0], 'P1', ''), (dplay.NAMES[1], 'P2', 'down')] if k == par['upper'] else \
+            [(dplay.NAMES[2], 'P3', '')] if par['first'] <= k < par['first'] + par['count'] else []
+        for nm, src, tail in po:
+            for lang in LANGS:
+                lines[lang].append((_wn_fit({'*': [nm.decode()]}, lang, ' - ' + WN[lang][tail] if tail else ''), src))
     if not lines['it']:
         return {}
     sp = div.get('split')

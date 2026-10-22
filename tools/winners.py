@@ -6,6 +6,8 @@ Titles: the FMTxx[world].DAT file's WIN entries (fmtgame.win_lines: a league div
 none = the entry hidden by the menu's onInit), read when the menu opens and when the page opens (fmtpage's buffers),
 a text line per title: the title, 01h, its source:
   'L' hh dd    the league's own table: its 1st once it has played hh matches (fmtgame.end_played: the season's);
+  'P' k        dplay's play-off k this season (1 Serie B play-off, 2 its play-out: the relegated club, 3 Serie C
+               play-off), the career club's (DP_ST), else no line;
   'C'          a cup-shaped contest's winner (DIY +39h, the game's: Brazil's state championship, live in slot 1);
   'S' k hh dd  the 1st of stage table k (gplay GP_SS.r[k] written this season: Argentina's annual table), once the
                league has played its hh match days (DIY +1C1h, split's day count); dd: the division (4.0.1);
@@ -267,6 +269,8 @@ wn_src:                                 ; esi -> a source: edx = the winner's na
     je .lg
     cmp al, 'C'
     je .cup
+    cmp al, 'P'
+    je .dp
     xor ebx, ebx                        ; GP_WNSRC: type, stage << 8, play-off << 16
     mov bl, al
     cmp al, 'K'
@@ -318,6 +322,10 @@ wn_src:                                 ; esi -> a source: edx = the winner's na
 .lx:
     clc
     ret
+.dp:                                    ; 'P' k: dplay's play-off k (1 Serie B play-off, 2 its play-out: the loser, 3
+    lodsb                               ; Serie C play-off), the career club's (DP_ST 'DP' this season), else no line
+    sub al, '0'
+DP_CODE
 .cup:                                   ; a cup-shaped contest (a state championship): its winner, DIY +39h (0FFFFh
     mov ax, [DIY_ + 39h]                ; until its final is played; the game's own field)
     cmp ax, 0FFFFh
@@ -404,6 +412,12 @@ def patch(p, at, lang, sites):
                 'TBP_BYTES': (0, 'db ' + ', '.join(str(b) for b in tbp + b'\0'))})
     src = ASM.replace("""    cmp byte [ebx], 0                   ; (dummy: replaced below)
     ret""", GP_CALL)
+    import dplay
+    dpon = 'DP_ST' in dplay.LABELS
+    src = src.replace('DP_CODE\n', DP_CODE if dpon else '    stc\n    ret\n')
+    if dpon:
+        lay = dplay.LABELS['layout']
+        sym.update({'DP_ST': dplay.LABELS['DP_ST'], 'SV_KIND': (0, lay['SV_KIND']), 'SV_TEAM': (0, lay['SV_TEAM'])})
     at = (at + 15) & ~15
     code, cfix = nasmcave.assemble(src, at, sym)
     lab = nasmcave.labels(src, at, sym)
@@ -452,3 +466,33 @@ GP_CALL = """    mov [GP_WNSRC], ebx                 ; gplay.c gp_wn_c: the winn
     pop esi
     stc
     ret"""
+
+
+DP_CODE = """    cmp word [DP_ST], 5044h
+    jne .dps
+    cmp [DP_ST + SV_KIND], al
+    jne .dps
+    mov ah, [SEASONPLAYING]
+    cmp [DP_ST + SV_KIND + 2], ah
+    jne .dps
+    mov cx, [DP_ST + 2]                 ; (res: the last round's winner, 0 until then)
+    test cx, cx
+    jz .dpt
+    cmp al, 2
+    jne .dpw
+    mov dx, [DP_ST + SV_TEAM]           ; (the play-out: the other of its two clubs, relegated)
+    cmp dx, cx
+    jne .dpl
+    mov dx, [DP_ST + SV_TEAM + 2]
+.dpl:
+    mov cx, dx
+.dpw:
+    mov ax, cx
+    call wn_team
+.dpt:
+    clc
+    ret
+.dps:
+    stc
+    ret
+"""

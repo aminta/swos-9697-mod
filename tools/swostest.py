@@ -5618,8 +5618,9 @@ def world_winners():
     at = LE(open(os.path.join(exe, 'ITALIAN.EXE'), 'rb').read()).obj_bytes(2).find(simdraw.table())
     base = dict(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5', W8485_K='108+',
                 W8485_NOSACK='1', W8485_FILL=f'{at:x}:30:3072')
-    try:                                                # (mid-season: once the Apertura is decided, GP_ST.dec[0].done)
-        os.environ.update(base, W8485_ONE='1', W8485_MIDSAVE=f'{st_at + 1997:x}:1:2')
+    try:                                                # (mid-season: the Apertura's knockout running - GP_ST.ko[0]
+        os.environ.update(base, W8485_ONE='1', W8485_MIDSAVE=f'{st_at + 648 + 5:x}:3:6')   # .pi 3 -, the Clausura
+                                                        # to come: dec[0] is written once the next knockout is built)
         ok, msg = world8485()
         mid = msg.split(': ', 1)[1] if ok else None
         os.environ.pop('W8485_MIDSAVE')
@@ -5662,10 +5663,8 @@ def world_winners():
         return got, src
 
     mg, ms = page('world_winners_mid', mid)
-    check(mg.get('TORNEO APERTURA') != 'DA GIOCARE' and mg.get('TROFEO DE CAMPEONES') == 'DA GIOCARE' and
-          mg.get('LIGA PROFESIONAL') == 'DA GIOCARE', f'mid-season: {mg} (the league: DA GIOCARE until its last day)',
-          errs)
-    check(ms.get('TORNEO APERTURA') == 'GP_ST.dec[0]', f'mid-season: the Apertura from {ms.get("TORNEO APERTURA")}',
+    check(mg.get('LIGA PROFESIONAL') == 'DA GIOCARE' and mg.get('TORNEO CLAUSURA') == 'DA GIOCARE' and
+          mg.get('TROFEO DE CAMPEONES') == 'DA GIOCARE', f'mid-season: {mg} (the league: DA GIOCARE until its last day)',
           errs)
     eg, es = page('world_winners_end', car)
     check(es.get('TORNEO APERTURA') == 'GP_ST.dec[0]' and es.get('TORNEO CLAUSURA') == 'GP_ST.dec[1]',

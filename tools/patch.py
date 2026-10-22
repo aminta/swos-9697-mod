@@ -481,9 +481,13 @@ def patch_exe(src, dst, remap, lang='it'):
             import mainbtn                               # 4.0: the green CARRIERA 2026-27 button on the main menu
             w27 = min(pk.world for pk in mkseason.packs() if pk.meta.get('id', '').startswith('world-2026-27-'))
             lt_end_ = mainbtn.patch(p, (lt_end_ + 15) & ~15, lang, mkseason.WMENU + w27)
+        if worlds and fmtpage.WN:                        # 4.0.1: the SEASON WINNERS page (fmtpage's VINCITORI entry)
+            import winners
+            lt_end_ = winners.patch(p, lt_end_, lang, careerworld.SITES)
         assert lt_end_ <= LT_SPACE[1], hex(lt_end_)
         print(f'exe: longtable code in gplay\'s pages: obj1+{LT_SPACE[0]:#x}..{lt_end_:#x} (free to {LT_SPACE[1]:#x})')
     else:
+        assert not fmtpage.WN, 'VINCITORI: no room in gplay\'s pages'
         cos = longtable.patch(p, cos, area, lang)                # 4.0: tables over 24 clubs scroll (ARG / MLS 30: no drawing past the screen)
     if cos_pg:
         assert cos <= hist2 + h2 + 0x1000 * lpb, hex(cos)

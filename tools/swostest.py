@@ -300,6 +300,9 @@ def bp_str(r):
     for a in filter(None, os.environ.get('SWOSTEST_BP_HEX', '').split(',')):   # obj2 offset:bytes, logged in hex
         o, n = a.split(':')
         out += f' {o}:{r.obj2(int(o, 16), int(n)).hex()}'
+    for a in filter(None, os.environ.get('SWOSTEST_BP_HEX1', '').split(',')):  # obj1 offset:bytes (glue variables)
+        o, n = a.split(':')
+        out += f' obj1+{o}:{r.obj1(int(o, 16), int(n)).hex()}'
     off = os.environ.get('SWOSTEST_BP_STR')
     if not off:
         return out

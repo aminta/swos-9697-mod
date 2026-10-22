@@ -311,7 +311,13 @@ Cearense, Pernambucano, Alagoano and Mato-Grossense.
   its name box without a frame; a thin black border appears only when the box has the same colour as the zone.
   In the World 2026-27 the European places in every season come from the engine's own UEFA ranking (the one a year
   old, as UEFA's access list uses) and the real 2026/27 access list; the European Performance Spots and the title
-  holders' rebalancing are decided at the season end and are not coloured in advance.
+  holders' rebalancing are decided at the season end and are not coloured in advance. Liechtenstein, which has no
+  national league of its own, enters by its own access-list row: its cup winner goes to the Conference League first
+  qualifying round wherever the association ranks.
+- **WINNERS page**: in a competition's STAT menu, WINNERS lists the titles the league decides beyond its table
+  (play-off winners, the Apertura / Clausura champions, a state championship's champion) with the club that won each
+  this season, or TO BE PLAYED while it is still open; in 4 languages (VINCITORI / VAINQUEURS / SIEGER). Declared: a
+  title decided only at the season end (a play-off your club is not in) appears there from the upcoming 4.0.1.
 - **Continental places outside Europe**: the top flights of the other confederations colour their real club-cup
   places: light blue for the first cup (Copa Libertadores, Concacaf Champions Cup, AFC Champions League Elite, CAF
   Champions League, OFC Champions League), green for the second (Copa Sudamericana, AFC Champions League Two, CAF
@@ -655,6 +661,9 @@ Cearense, Pernambucano, Alagoano and Mato-Grossense.
   .harddisk folder inside the app) and the patcher recognises the version, keeps the files it changes in
   MOD_BACKUP\4.0 and writes the mod in place; from the CD it copies the game into a new folder first. Run it again
   to update. The page is in 4 languages (IT / EN / FR / DE); the manual download stays for other browsers.
+  If the game is in Program Files (GOG Galaxy's default folder), the browser will not open that folder: copy the game
+  folder elsewhere (e.g. Documents), patch the copy, then copy its contents back over the original (Windows asks for
+  administrator permission: accept) and play as usual; or use the manual mode.
 - The patcher upgrades every published version (1.0.1 to 3.3.6, CD and GOG, also the English SWOS++ version) and the
   original game, checking every file before and after (an old file goes back to the original, then to 4.0). Drop your
   executable and DATA files as usual: the patcher writes every file the World 2026-27 needs (its team files and
@@ -984,7 +993,14 @@ Baiano, Cearense, Pernambucano, Alagoano e Mato-Grossense.
   quando il riquadro ha lo stesso colore della zona.
   Nel Mondo 2026-27 i posti europei di ogni stagione vengono dal ranking UEFA del gioco (quello dell'anno prima,
   come nella access list UEFA) e dalla access list vera 2026/27; gli European Performance Spots e i ritocchi per i
-  detentori dei titoli si decidono a fine stagione e non vengono colorati in anticipo.
+  detentori dei titoli si decidono a fine stagione e non vengono colorati in anticipo. Il Liechtenstein, che non ha un
+  campionato nazionale suo, entra con la sua riga della lista d'accesso: la vincitrice della coppa va al primo turno
+  preliminare di Conference League qualunque sia il posto della federazione nel ranking.
+- **Pagina VINCITORI**: nel menu STAT di una competizione, VINCITORI elenca i titoli che il campionato assegna oltre
+  alla classifica (le vincitrici dei play-off, i campioni di Apertura e Clausura, il campione di uno statale) con il
+  club che li ha vinti in questa stagione, oppure DA GIOCARE finché sono aperti; in 4 lingue (WINNERS / VAINQUEURS /
+  SIEGER). Dichiarato: un titolo che si decide solo a fine stagione (un play-off senza il tuo club) vi compare dalla
+  prossima 4.0.1.
 - **Posti continentali fuori dall'Europa**: le massime serie delle altre confederazioni colorano i loro posti veri
   nelle coppe per club: azzurro per la prima coppa (Copa Libertadores, Concacaf Champions Cup, AFC Champions League
   Elite, CAF Champions League, OFC Champions League), verde per la seconda (Copa Sudamericana, AFC Champions League
@@ -1361,6 +1377,10 @@ Baiano, Cearense, Pernambucano, Alagoano e Mato-Grossense.
   Mac GOG: la cartella .harddisk dentro l'app) e il patcher riconosce la versione, mette i file che cambia in
   MOD_BACKUP\4.0 e scrive la mod al loro posto; dal CD copia prima il gioco in una cartella nuova. Rilancialo per
   aggiornare. La pagina è in 4 lingue (IT / EN / FR / DE); il download a mano resta per gli altri browser.
+  Se il gioco è in Programmi (la cartella predefinita di GOG Galaxy), il browser non apre quella cartella: copia la
+  cartella del gioco altrove (per esempio in Documenti), applica la patch alla copia, poi ricopia il suo contenuto
+  sopra l'originale (Windows chiede il permesso di amministratore: accetta) e gioca come sempre; oppure usa la
+  modalità manuale.
 - Il patcher aggiorna tutte le versioni pubblicate (dalla 1.0.1 alla 3.3.6, CD e GOG, anche la versione inglese con
   SWOS++) e il gioco originale, controllando ogni file prima e dopo (un file vecchio torna all'originale, poi alla
   4.0). Trascina come sempre l'eseguibile e i file di DATA: il patcher scrive tutti i file che servono al Mondo

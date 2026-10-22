@@ -21,6 +21,8 @@
     with their real squads.
   - Every table in colour (titles, cups, promotion, play-offs, play-outs, relegation) with one legend at the top left;
     every competition has a FORMAT page in plain words, in 4 languages.
+- **WINNERS page**: in a competition's STAT menu, the season's titles beyond the table (play-offs, Apertura /
+  Clausura, state champions) with their winners, or TO BE PLAYED.
 - **One engine for all of it**: groups, splits, play-offs and cups share the same rules (one knockout rule for the
   mod's play-offs: extra time, then the better-placed club goes through; no replays).
 - **Europe 1984-85** (DaniSwos's database): tables in colour and FORMAT pages too.
@@ -31,6 +33,9 @@
 - The patcher page (attached below) upgrades the original game and every published version (CD and GOG, also the
   English SWOS++ version). Step-by-step guide: [English](https://worldofswos.com/en/install/) ·
   [Italiano](https://worldofswos.com/it/install/).
+- If the game is in Program Files (GOG Galaxy's default folder), the browser won't open it: copy the game folder
+  elsewhere, patch the copy, copy its contents back over the original (Windows asks for administrator permission:
+  accept), or use the manual mode.
 - Start a new career to play the World 2026-27. Careers of the 1996-97 game and of the Europe 1984-85 world saved with
   earlier versions load and play on.
 
@@ -43,6 +48,8 @@
   Elite at the round of 16 and the Challenge League at the quarter-finals.
 - After a job offer letter a few stray pixels can appear on the menu buttons until the next match: cosmetic only.
 - The season end shows every open competition in turn: in this world it takes longer than in the original game.
+- **WINNERS page**: a title decided only at the season end (a play-off your club is not in) is listed from the
+  upcoming 4.0.1.
 - The World 2026-27 has no national teams yet (planned for the upcoming 4.2).
 
 Every rule, source and limit: the [full release notes](https://github.com/aminta/swos-9697-mod/blob/main/release/notes-world-2026-27.md).
@@ -75,6 +82,8 @@ Thanks to DaniSwos for the Europe 1984-85 database, and to Marco for the reports
     con le rose vere.
   - Ogni classifica a colori (titolo, coppe, promozione, play-off, play-out, retrocessione) con una sola legenda in
     alto a sinistra; ogni competizione ha la sua pagina FORMULA in parole semplici, in 4 lingue.
+- **Pagina VINCITORI**: nel menu STAT di una competizione, i titoli della stagione oltre alla classifica (play-off,
+  Apertura / Clausura, campioni statali) con le loro vincitrici, oppure DA GIOCARE.
 - **Un solo motore per tutto**: gironi, campionati divisi, play-off e coppe seguono le stesse regole (una sola regola
   per gli scontri diretti dei play-off della mod: supplementari, poi passa la meglio piazzata; nessuna ripetizione).
 - **Europa 1984-85** (il database di DaniSwos): anche qui classifiche a colori e pagine FORMULA.
@@ -85,6 +94,9 @@ Thanks to DaniSwos for the Europe 1984-85 database, and to Marco for the reports
 - La pagina del patcher (allegata qui sotto) aggiorna il gioco originale e tutte le versioni pubblicate (CD e GOG,
   anche la versione inglese con SWOS++). Guida passo per passo: [Italiano](https://worldofswos.com/it/install/) ·
   [English](https://worldofswos.com/en/install/).
+- Se il gioco è in Programmi (la cartella predefinita di GOG Galaxy), il browser non la apre: copia la cartella del
+  gioco altrove, applica la patch alla copia, ricopia il suo contenuto sopra l'originale (Windows chiede il permesso
+  di amministratore: accetta), oppure usa la modalità manuale.
 - Inizia una carriera nuova per giocare il Mondo 2026-27. Le carriere del gioco 1996-97 e del mondo Europa 1984-85
   salvate con le versioni precedenti si caricano e continuano.
 
@@ -100,6 +112,8 @@ Thanks to DaniSwos for the Europe 1984-85 database, and to Marco for the reports
   partita successiva: solo estetico.
 - A fine stagione il gioco mostra una dopo l'altra tutte le competizioni ancora aperte: in questo mondo ci vuole più
   tempo che nel gioco originale.
+- **Pagina VINCITORI**: un titolo che si decide solo a fine stagione (un play-off senza il tuo club) compare dalla
+  prossima 4.0.1.
 - Il Mondo 2026-27 non ha ancora le nazionali (previste nella prossima 4.2).
 
 Tutte le regole, le fonti e i limiti: le [note complete](https://github.com/aminta/swos-9697-mod/blob/main/release/notes-world-2026-27.md).

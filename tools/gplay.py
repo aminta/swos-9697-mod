@@ -1332,7 +1332,8 @@ gp_cdmem:                               ; ZF = 0 when the career club is a Coppa
     ret
 
 gp_notin:                               ; al = a slot (1 / 2): ZF = 0 when the career club is not one of its
-    pushad                              ; contest's clubs (rule 11; the slot's DIY +31h clubs, +12Dh team words) -
+    pushad                              ; contest's clubs (rule 11; the slot's DIY +31h clubs, their 18-byte entries at
+                                        ; +2B3h: selTeamsPtr + [entry] = the club's record, its team word first) -
     xor ebx, ebx                        ; careers of this world only; a Coppa D club: slot 1 hidden, slot 2 its Coppa D
     cmp word [GAMETYPE], 4              ; (as before)
     jne .r
@@ -1357,9 +1358,13 @@ gp_notin:                               ; al = a slot (1 / 2): ZF = 0 when the c
     mov ecx, 64
 .n: mov dx, [CAREERTEAM]
     mov bl, 1
+    add esi, 2B3h
 .l: jecxz .r
-    cmp [esi + 12Dh + ecx * 2 - 2], dx
+    mov edi, [esi]
+    add edi, [SELPTR_]
+    cmp [edi], dx
     je .in
+    add esi, 18
     dec ecx
     jmp .l
 .in:
@@ -1817,6 +1822,8 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
                                          'gp_defer_c', 'cd_step_c', 'gp_scal_c', 'gp_repoint_c', 'gp_fixload_c', 'CD_ST', 'GP_CDT', 'GP_CDNM', 'GP_CDD',
                                          'GP_CDFIRST')})
     symbols['CD_MEMBER'] = syms['cd_member_c']
+    import winners
+    symbols['SELPTR_'] = (2, winners.sel_ptr(p))             # (selTeamsPtr: gp_notin's club records)
     symbols['GP_CDS1'] = syms['GP_CDS1']
     symbols['GP_CDFORCE'] = syms['GP_CDFORCE']
     symbols['CDFORCE_'] = (0, int(os.environ.get('CD_FORCE') or 0))   # (test builds only)

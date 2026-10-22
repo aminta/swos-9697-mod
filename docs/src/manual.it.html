@@ -112,11 +112,11 @@ html{scroll-behavior:smooth}
 <header class="top">
   <div class="eyebrow">Sensible World of Soccer 96/97 · DOS · ITALIAN.EXE · <a class="lang" href="https://claude.ai/artifact/2GdFS8VJho8AEDk3SryDxG">English version</a></div>
   <h1>Manuale tecnico SWOS ITA Mod</h1>
-  <p>Documentazione per chi vuole capire, ampliare o portare su altri eseguibili le patch del mod: Serie C1 e C2, coppe sudamericane (Libertadores, Supercopa, CONMEBOL), Coppa Intercontinentale in carriera, rose reali 1996-97, tornei storici (Mondiale 1982, Coppa Mitropa 1934, FA Cup 1871-72), Apertura e Clausura in Argentina, Australia, Nuova Zelanda e MLS 1997 (2.5), stagioni storiche con la DDR 1988-89 e le coppe europee di quell'anno (2.6). Tutto quello che segue è stato ricavato dal disassemblato e verificato con build e partite di prova.</p>
+  <p>Documentazione per chi vuole capire, ampliare o portare su altri eseguibili le patch del mod: Serie C1 e C2, coppe sudamericane (Libertadores, Supercopa, CONMEBOL), Coppa Intercontinentale in carriera, rose reali 1996-97, tornei storici (Mondiale 1982, Coppa Mitropa 1934, FA Cup 1871-72), Apertura e Clausura in Argentina, Australia, Nuova Zelanda e MLS 1997 (2.5), stagioni storiche con la DDR 1988-89 e le coppe europee di quell'anno (2.6), e il mondo di carriera Mondo 2026-27 con i suoi motori condivisi (4.0). Tutto quello che segue è stato ricavato dal disassemblato e verificato con build e partite di prova.</p>
   <div class="meta">
-    <span>Stato all'<b>11/10/2026</b> (sessioni 1–34, release 3.0)</span>
-    <span>Build exe <b><code>d38a5d1c…</code></b></span>
-    <span>TEAM.020 <b><code>ded1b97b…</code></b></span>
+    <span>Stato al <b>22/10/2026</b> (release 4.0)</span>
+    <span>Build exe <b><code>RC6_EXE_MD5…</code></b></span>
+    <span>TEAM.020 <b><code>RC6_TEAM020_MD5…</code></b></span>
     <span>Exe originale <b><code>60cdb6b1…</code></b></span>
   </div>
 </header>
@@ -710,7 +710,8 @@ assert blk[:2] == b'S2' and sum(blk) % 256 == 0</code></pre>
   <li><code>away_pens</code> / <code>away_better</code>, simulati come <code>et_pens</code> / <code>better</code>.</li>
   </ul>
   <code>gp_draw</code> / <code>dp_draw</code> stanno sul punto "pareggio → ripetizione" di <code>cseg_2AE97</code>: un nostro scontro in parità va alla meglio piazzata. <code>cal_noreplay</code> (<code>lib97.py</code>) toglie da uno slot le voci di calendario di tipo 3 (giorni di ripetizione), così un'eliminazione diretta senza ripetizioni non mostra date di ripetizione.</li>
-<li><strong>Switch di test</strong> (solo build di test): <code>GPLAY_FORCE=k</code> mette il club in carriera al posto k a fine campionato; <code>GPLAY_RLFORCE</code> fissa il suo risultato nel play-off per le righe del palmarès stagionale.</li>
+<li><strong>Due tornei a stagione</strong> (Costa Rica, Honduras, Panama; dati <code>TM_CA_EXACT</code>): la divisione 0 ha una specifica di split a <code>stages</code> con calendario (l'Apertura sul calendario vero, la Clausura coi punti azzerati, <code>reset</code>). All'ultima giornata di ogni fase la sua classifica va in <code>GP_SS</code> 0 / 1 (condiviso con l'Argentina: lo scrive solo il campionato della carriera), e viene costruita un'eliminazione diretta <code>stage_title</code> con partecipanti <code>{"stage_place": 4 | 5, "place", "div"}</code>: la fase finale vera del torneo (la Gran Final del Costa Rica con <code>skip_if_same</code>, le semifinali <code>best_worst</code> dell'Honduras, le teste di serie per conference di Panama). Gli scenari <code>world_ca_crc / _hon / _pan</code> forzano ogni fase finale.</li>
+<li><strong>Switch di test</strong> (solo build di test): <code>GPLAY_FORCE=k</code> mette il club in carriera al posto k a fine campionato (anche nella classifica tenuta di una fase); <code>GPLAY_RLFORCE</code> fissa il suo risultato nel play-off per le righe del palmarès stagionale.</li>
 </ul>
 
 <h3>Coppa Italia Serie D (slot 2)</h3>
@@ -729,6 +730,7 @@ assert blk[:2] == b'S2' and sum(blk) % 256 == 0</code></pre>
   <li><code>sp_count</code> su <code>cseg_8922B</code> tiene i contatori delle giornate;</li>
   <li><code>sp_sort</code> su <code>cseg_883DD</code> fa una partizione stabile nei gruppi, così <code>DIY+6Dh</code> è sempre la classifica finale in ordine di posto.</li>
   </ul>
+  Una classifica divisa o a zone mostra una riga d'intestazione per gruppo (la tabella <code>gp_hlabel_c</code> di gplay da <code>zones.header_labels</code>): ZONA A / B … nella lingua dell'exe, i nomi delle conference per i campionati di <code>CONF_PACKS</code> (la MLS e la LPF di Panama, prima l'Est).
   Lo stato sta nelle righe DIY 48–63, inutilizzate e salvate con lo slot.</li>
 <li><strong>Classifiche lunghe</strong> (<code>longtable.py</code>): la schermata della classifica dispone al massimo 24 righe, e una classifica a 30 club (Argentina, MLS) veniva disegnata oltre il buffer dello schermo. Le classifiche a un girone più lunghe di <code>ROWS</code> = 22 ora mostrano 22 righe da <code>currentDiyLine</code> e scorrono con le frecce (<code>lt_d3</code>, <code>lt_d5</code>, <code>lt_end</code>, <code>lt_down</code>, <code>lt_arrows</code>). <code>lt_plan</code> (<code>gp_hplan_c</code> di gplay) conta nella stessa finestra le righe d'intestazione e le righe vuote dei gruppi di un campionato diviso.</li>
 <li><strong>Colori delle zone</strong> (<code>zones.py</code>):
@@ -736,9 +738,9 @@ assert blk[:2] == b'S2' and sum(blk) % 256 == 0</code></pre>
   <li>Palette: azzurro 0Dh (CL / promozione diretta), verde 0Eh (EL / play-off promozione o europeo), blu scuro 08h (Conference League), arancione 0Ch (play-out / play-off salvezza), grigio 02h (retrocessione).</li>
   <li>Hook: <code>mov ax, [dseg_11F41C]</code> nel ciclo delle righe a <code>cseg_49B65</code> (lo stesso punto usato da <code>lp_col</code> di lp36).</li>
   <li>La classifica è riconosciuta dal mondo della carriera e dal titolo mostrato, con una cache per classifica.</li>
-  <li>Le zone vengono dai pacchetti: posti europei, promosse / retrocesse, partecipanti dei <code>ko_playoffs</code>, i posti italiani di dplay, le zone degli statali. Sono calcolate per gruppo (il posto nel proprio gruppo) nelle classifiche divise, a zone e dei gironi di coppa.</li>
+  <li>Le zone vengono dai pacchetti: posti europei, promosse / retrocesse, partecipanti dei <code>ko_playoffs</code>, i posti italiani di dplay. Le prime fasi degli statali brasiliani vengono da <code>state_zones</code>: i posti della fase successiva in verde (P.OFF), chi salta un turno a eliminazione diretta in azzurro, le retrocesse di uno statale a girone unico in grigio; uno statale a più gironi retrocede sulla classifica complessiva, che quindi non è colorata. Le zone sono calcolate per gruppo (il posto nel proprio gruppo) nelle classifiche divise, a zone e dei gironi di coppa.</li>
   </ul></li>
-<li><strong>La legenda</strong> (regole 5–6 di CONVENTIONS): <code>DIY_leagueTournamentMenu</code> viene copiato intero con <code>LEG</code> = 5 riquadri di legenda dopo la sua ultima voce, e <code>zn_leg</code> li mostra nella riga sopra l'intestazione della classifica, in alto a sinistra, con la y calcolata dalla barra del titolo. Nella schermata dei gironi di una coppa (byte <code>LEGX</code> = 92 della voce impostato, <code>LEGX+1</code> = la dimensione del girone), i riquadri vanno nella riga del titolo (y <code>CUPY</code> = 3) e la barra del titolo parte da x <code>CUPT</code> = 70. La legenda elenca solo i colori dipinti: <code>_merge</code> unisce le serie di posti negli 8 intervalli, e un posto coperto da un'altra zona viene scartato.</li>
+<li><strong>La legenda</strong> (regole 5–6 di CONVENTIONS): <code>DIY_leagueTournamentMenu</code> viene copiato intero con <code>LEG</code> = 5 riquadri di legenda dopo la sua ultima voce, e <code>zn_leg</code> li mostra nella riga sopra l'intestazione della classifica, in alto a sinistra, con la y calcolata dalla barra del titolo. Nella schermata dei gironi di una coppa (byte <code>LEGX</code> = 92 della voce, bit 1; bit 0 = posti contati per girone, <code>LEGX+1</code> = la dimensione del girone), i riquadri vanno nella riga del titolo (y <code>CUPY</code> = 3) e la barra del titolo parte da x <code>CUPT</code> = 70. La legenda elenca solo i colori dipinti: <code>_merge</code> unisce le serie di posti negli 8 intervalli, e un posto coperto da un'altra zona viene scartato.</li>
 </ul>
 
 <h3>Pool fuori file (ripool)</h3>
@@ -760,6 +762,7 @@ assert blk[:2] == b'S2' and sum(blk) % 256 == 0</code></pre>
 <ul>
 <li><code>notes/CONVENTIONS.md</code>: le regole stabilite (solo caratteri del font, 4 lingue, pagine FORMULA discorsive, una sola legenda in alto a sinistra, legenda = zone dipinte, formule vere esatte, un solo insieme di regole di parità, casi di test forzati, controlli di release) e le trappole note del motore. Va riusato il codice condiviso indicato lì.</li>
 <li>L'harness (<code>tools/swostest.py</code>, <a href="#verifica">sezione 18</a>, <code>notes/harness.md</code>) chiude una run con esito <code>'break'</code> quando un <code>int 3</code> si ferma nel debugger di DOSBox-X: una trap del gioco o un passo <code>dump</code> dello scenario. Lì si legge la memoria. I breakpoint (<code>Session.bp</code>, <code>SWOSTEST_BP</code>) richiedono <code>CORE=normal</code>. La cartella di una run fallita viene tenuta per decodificarla.</li>
+<li>Un gioco che va avanti senza chiedere un tasto (un ciclo infinito, un disegno senza fine, una fine stagione lenta) risulta solo 'timeout': <code>Session.sample(tasti, secondi)</code> (branch harness-break, <code>notes/harness.md</code> 'Breaking a busy game') manda i tasti con un breakpoint sull'interrupt del timer (<code>BPINT 8</code>), restituisce un istogramma degli EIP per offset di obj1 e chiude con un <code>MEMDUMP.BIN</code> completo all'ultimo tick per l'analisi.</li>
 <li>I casi che dipendono dai risultati si forzano con switch di test (<code>GPLAY_FORCE</code>, <code>GPLAY_RLFORCE</code>, <code>CONTI_GPLACE</code> …), mai rigiocando nella speranza; gli switch non entrano mai nelle build di release. Controlli di release della 4.0: l'intera suite sulla release candidate, <code>career_20seasons</code> e i file di uscita del patcher identici byte per byte alla build.</li>
 </ul>
 

@@ -119,11 +119,11 @@ html{scroll-behavior:smooth}
 <header class="top">
   <div class="eyebrow">Sensible World of Soccer 96/97 · DOS · ENGLISH.EXE · <a class="lang" href="it.html">Versione italiana</a></div>
   <h1>SWOS ITA Mod Technical Manual</h1>
-  <p>Documentation for anyone who wants to understand, extend or port the mod's patches: Serie C1 and C2, South American club cups (Libertadores, Supercopa, CONMEBOL), the Intercontinental Cup in career mode, real 1996-97 squads, classic tourneys (World Cup 1982, Mitropa Cup 1934, FA Cup 1871-72), Argentina's Apertura and Clausura, Australia, New Zealand and MLS 1997 (2.5), classic seasons with the DDR 1988-89 and that year's European cups (2.6). Everything below was worked out from the disassembly and checked with builds and test games.</p>
+  <p>Documentation for anyone who wants to understand, extend or port the mod's patches: Serie C1 and C2, South American club cups (Libertadores, Supercopa, CONMEBOL), the Intercontinental Cup in career mode, real 1996-97 squads, classic tourneys (World Cup 1982, Mitropa Cup 1934, FA Cup 1871-72), Argentina's Apertura and Clausura, Australia, New Zealand and MLS 1997 (2.5), classic seasons with the DDR 1988-89 and that year's European cups (2.6), and the World 2026-27 career world with its shared engines (4.0). Everything below was worked out from the disassembly and checked with builds and test games.</p>
   <div class="meta">
-    <span>State as of <b>2026-10-11</b> (sessions 1–34, release 3.0)</span>
-    <span>ENGLISH.EXE build <b><code>feba4a5f…</code></b></span>
-    <span>TEAM.020 <b><code>ded1b97b…</code></b></span>
+    <span>State as of <b>2026-10-22</b> (release 4.0)</span>
+    <span>ENGLISH.EXE build <b><code>RC6_EXE_MD5…</code></b></span>
+    <span>TEAM.020 <b><code>RC6_TEAM020_MD5…</code></b></span>
     <span>Original ENGLISH.EXE <b><code>aa21cd1c…</code></b></span>
   </div>
 </header>
@@ -717,7 +717,8 @@ assert blk[:2] == b'S2' and sum(blk) % 256 == 0</code></pre>
   <li><code>away_pens</code> / <code>away_better</code>, simulated as <code>et_pens</code> / <code>better</code>.</li>
   </ul>
   <code>gp_draw</code> / <code>dp_draw</code> sit at <code>cseg_2AE97</code>'s "draw → replay" mark: a level tie of ours goes to the better-placed club. <code>cal_noreplay</code> (<code>lib97.py</code>) removes a slot's calendar entries of type 3 (replay days), so a knockout without replays shows no replay dates.</li>
-<li><strong>Test switches</strong> (test builds only): <code>GPLAY_FORCE=k</code> puts the career club on place k at the league end; <code>GPLAY_RLFORCE</code> sets its play-off result for the season record lines.</li>
+<li><strong>Two tournaments a season</strong> (Costa Rica, Honduras, Panama; data <code>TM_CA_EXACT</code>): division 0 has a split spec of fixture <code>stages</code> (the Apertura on its real fixtures, the Clausura with <code>reset</code> points). At each stage's last day its table goes into <code>GP_SS</code> 0 / 1 (shared with Argentina: only the career league writes it), and a <code>stage_title</code> knockout is built with entrants <code>{"stage_place": 4 | 5, "place", "div"}</code>: the tournament's real final phase (Costa Rica's Gran Final with <code>skip_if_same</code>, Honduras' <code>best_worst</code> semi-finals, Panama's conference seeds). Scenarios <code>world_ca_crc / _hon / _pan</code> force each final phase.</li>
+<li><strong>Test switches</strong> (test builds only): <code>GPLAY_FORCE=k</code> puts the career club on place k at the league end (also in a stage's kept table); <code>GPLAY_RLFORCE</code> sets its play-off result for the season record lines.</li>
 </ul>
 
 <h3>Coppa Italia Serie D (slot 2)</h3>
@@ -736,6 +737,7 @@ assert blk[:2] == b'S2' and sum(blk) % 256 == 0</code></pre>
   <li><code>sp_count</code> on <code>cseg_8922B</code> keeps the day counters;</li>
   <li><code>sp_sort</code> on <code>cseg_883DD</code> does a stable partition into the groups, so <code>DIY+6Dh</code> is always the final table in place order.</li>
   </ul>
+  A split or zoned table shows a header row per group (gplay's <code>gp_hlabel_c</code> table from <code>zones.header_labels</code>): ZONA A / B … in the exe's language, the conference names for the leagues of <code>CONF_PACKS</code> (the MLS and Panama's LPF, East first).
   The state lives in the unused DIY rows 48–63, saved with the slot.</li>
 <li><strong>Long tables</strong> (<code>longtable.py</code>): the table screen lays out only up to 24 rows, and a 30-club table (Argentina, MLS) was drawn past the screen buffer. One-group tables longer than <code>ROWS</code> = 22 now show 22 rows from <code>currentDiyLine</code> and scroll with the arrows (<code>lt_d3</code>, <code>lt_d5</code>, <code>lt_end</code>, <code>lt_down</code>, <code>lt_arrows</code>). <code>lt_plan</code> (gplay's <code>gp_hplan_c</code>) counts a split league's group header rows and spacers in the same window.</li>
 <li><strong>Zone colours</strong> (<code>zones.py</code>):
@@ -743,9 +745,9 @@ assert blk[:2] == b'S2' and sum(blk) % 256 == 0</code></pre>
   <li>Palette: light blue 0Dh (CL / direct promotion), green 0Eh (EL / promotion or European play-off), dark blue 08h (Conference League), orange 0Ch (play-out / relegation play-off), gray 02h (relegation).</li>
   <li>Hook: <code>mov ax, [dseg_11F41C]</code> in the row loop at <code>cseg_49B65</code> (lp36's <code>lp_col</code> uses the same site).</li>
   <li>The table is found by the career's world and the title shown, cached per table.</li>
-  <li>Zones come from the packs: European places, promoted / relegated, <code>ko_playoffs</code> entrants, dplay's Italian places, state zones. They are computed per group (the place in its own group) in split, zoned and cup-group tables.</li>
+  <li>Zones come from the packs: European places, promoted / relegated, <code>ko_playoffs</code> entrants, dplay's Italian places. The Brazilian states' first stages come from <code>state_zones</code>: the next stage's places green (P.OFF), a knockout's byes light blue, a one-group state's relegated gray; a state of several groups relegates on its overall table, so that is not painted. Zones are computed per group (the place in its own group) in split, zoned and cup-group tables.</li>
   </ul></li>
-<li><strong>The legend</strong> (CONVENTIONS rules 5–6): <code>DIY_leagueTournamentMenu</code> is copied whole with <code>LEG</code> = 5 legend boxes after its last entry, and <code>zn_leg</code> shows them in the row above the table header, top left, its y computed from the title bar. On a cup's group screen (entry byte <code>LEGX</code> = 92 set, <code>LEGX+1</code> = the group size), the boxes go in the title row (y <code>CUPY</code> = 3) and the title bar starts at x <code>CUPT</code> = 70. The legend lists only the colours painted: <code>_merge</code> joins runs of places into the 8 ranges, and a place shadowed by another zone is dropped.</li>
+<li><strong>The legend</strong> (CONVENTIONS rules 5–6): <code>DIY_leagueTournamentMenu</code> is copied whole with <code>LEG</code> = 5 legend boxes after its last entry, and <code>zn_leg</code> shows them in the row above the table header, top left, its y computed from the title bar. On a cup's group screen (entry byte <code>LEGX</code> = 92, bit 1; bit 0 = places counted per group, <code>LEGX+1</code> = the group size), the boxes go in the title row (y <code>CUPY</code> = 3) and the title bar starts at x <code>CUPT</code> = 70. The legend lists only the colours painted: <code>_merge</code> joins runs of places into the 8 ranges, and a place shadowed by another zone is dropped.</li>
 </ul>
 
 <h3>Off-file pools (ripool)</h3>
@@ -767,6 +769,7 @@ assert blk[:2] == b'S2' and sum(blk) % 256 == 0</code></pre>
 <ul>
 <li><code>notes/CONVENTIONS.md</code>: the settled rules (font characters only, 4 languages, discursive FORMAT pages, one legend top left, legend = zones painted, real formats exactly, one set of tie-break modes, forced test cases, release checks) and the known engine pitfalls. Reuse the shared code named there.</li>
 <li>The harness (<code>tools/swostest.py</code>, <a href="#verifica">section 18</a>, <code>notes/harness.md</code>) ends a run with outcome <code>'break'</code> when an <code>int 3</code> stops in the DOSBox-X debugger: a trap of the game or a <code>dump</code> step of the scenario. Memory is read there. Breakpoints (<code>Session.bp</code>, <code>SWOSTEST_BP</code>) need <code>CORE=normal</code>. A failing run's directory is kept for decoding.</li>
+<li>A game that runs on without asking for a key (a busy loop, an endless draw, a slow season end) only shows as 'timeout': <code>Session.sample(keys, secs)</code> (branch harness-break, <code>notes/harness.md</code> 'Breaking a busy game') sends the keys with a breakpoint on the timer interrupt (<code>BPINT 8</code>), returns an EIP histogram by obj1 offset and ends with a full <code>MEMDUMP.BIN</code> at the last tick for the post-mortem.</li>
 <li>Result-dependent cases are forced with test switches (<code>GPLAY_FORCE</code>, <code>GPLAY_RLFORCE</code>, <code>CONTI_GPLACE</code> …), never re-run hoping; the switches never go into release builds. 4.0 release checks: the full suite on the release candidate, <code>career_20seasons</code>, and the patcher's outputs byte-equal to the build.</li>
 </ul>
 

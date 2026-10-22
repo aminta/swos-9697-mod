@@ -377,6 +377,8 @@ dp_lend:                                ; replaces `call cseg_8ECAE` (the career
     mov word [D2R], 0
     pushad
     call C8B2D3
+    mov al, 4                           ; (no replay days: a level tie is decided by dp_draw)
+    call CAL_NOREPLAY
     popad
     movzx ecx, byte [DP_ST + SV_KIND + 1]   ; (n)
     xor ebx, ebx
@@ -801,6 +803,7 @@ def patch(p, at, limit, tables, bss_at, area):
                     'CAREERTEAM': (2, ct), 'ANIM_REL': (2, rel), 'ANIM_PRO': (2, pro),
                     'C9221F': (1, c9221f), 'C9228D': (1, c9228d), 'C8ECAE': (1, ps['c8ecae']), 'C8EE5D': (1, ps['tail']),
                     'C8B2D3': (1, sacups.SITES['c8b2d3']), 'D8CAA': (2, ps['d8caa']), 'D6CDC': (2, ps['d6cdc']),
+                    'CAL_NOREPLAY': (1, lib97.LABELS['cal_noreplay']),
                     'CFB': (2, ps['cfb']), 'CAL': (2, ps['cal']), 'CAL_CUR': (2, ps['cal_cur']), 'SLOT4': (2, ps['slot4']), 'LIST4': (2, ps['list4']),
                     'W11F9CC': (2, ps['w11f9cc']), 'COIN_DRAW': (1, coin), 'NC_T': (1, lib97.LABELS['NC_T']),
                     'DP_ST': syms['DP_ST'], 'SEASONPLAYING': (2, s['season']), 'SR_N': (0, 20), 'CUPW_AT': (0, 0x3F0),

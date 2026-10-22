@@ -7079,6 +7079,8 @@ def state_rounds(r, cid, seen):
         elif d[i] == 1 and n in (2, 4, 6, 8, 16):
             lst = list(d[i + 0x2CD:i + 0x2CD + n])
             ties = struct.unpack_from('<H', d, i + 0x4F)[0]
+            if not 1 <= ties <= n // 2 or not 0x20 <= d[i + 4] < 0x7F:    # a contest with its name, not stray
+                continue                                                  # bytes (rc5: 'ties' 54 at obj2+0xc5bd5)
             if (lst, ties) not in seen.setdefault(n, []):
                 seen[n].append((lst, ties))
 

@@ -240,8 +240,8 @@ Cearense, Pernambucano, Alagoano and Mato-Grossense.
   162, see the Mod rules).
   - Each group winner is promoted to Serie C (9 clubs).
   - **Play-offs**: 2nd v 5th and 3rd v 4th in each group, single match at the better placed club's ground; a draw
-    goes to extra time, then the better placed club goes through; the final between the two winners the same way.
-    As in reality they promote nobody: they rank the repechage list.
+    goes to extra time, then the better placed club goes through; the final between the two winners the same way (it is
+    decided also when your club loses its semi-final). As in reality they promote nobody: they rank the repechage list.
   - **Play-outs**: 13th v 16th and 14th v 15th (in the 17-club groups 12th v 15th and 13th v 14th), single match at
     the better placed club's ground; a draw goes to extra time, then the better placed club stays up; not played
     when the two clubs are 8 or more points apart (the lower one goes down). The two losers go down.
@@ -311,7 +311,16 @@ Cearense, Pernambucano, Alagoano and Mato-Grossense.
   its name box without a frame; a thin black border appears only when the box has the same colour as the zone.
   In the World 2026-27 the European places in every season come from the engine's own UEFA ranking (the one a year
   old, as UEFA's access list uses) and the real 2026/27 access list; the European Performance Spots and the title
-  holders' rebalancing are decided at the season end and are not coloured in advance.
+  holders' rebalancing are decided at the season end and are not coloured in advance. Liechtenstein, which has no
+  national league of its own, enters by its own access-list row: its cup winner goes to the Conference League first
+  qualifying round wherever the association ranks.
+- **WINNERS page**: in a competition's STAT menu, WINNERS lists the titles the league decides beyond its table
+  (play-off winners, the Apertura / Clausura champions, a state championship's champion) with the club that won each
+  this season: TO BE PLAYED before it starts, IN PROGRESS while it is played; the titles decided at the season end
+  are listed too, and after the season end the page shows last season's winners. A title play-off reads
+  "PLAYOFFS - <title>" (e.g. PLAYOFFS - MLS CUP), and officially titled intermediate winners are listed (the MLS
+  Eastern and Western Conference champions). In 4 languages (VINCITORI / DA
+  GIOCARE / IN CORSO, VAINQUEURS / A JOUER / EN COURS, SIEGER / NOCH OFFEN / IM GANGE).
 - **Continental places outside Europe**: the top flights of the other confederations colour their real club-cup
   places: light blue for the first cup (Copa Libertadores, Concacaf Champions Cup, AFC Champions League Elite, CAF
   Champions League, OFC Champions League), green for the second (Copa Sudamericana, AFC Champions League Two, CAF
@@ -481,6 +490,8 @@ Cearense, Pernambucano, Alagoano and Mato-Grossense.
 - **One knockout rule for the mod's play-offs** (Serie B, Serie C and Serie D play-offs and the other leagues'
   play-offs the mod plays): a single match level after 90 minutes goes to extra time, then the better-placed club
   goes through; two-legged ties as their real rules. No replays anywhere, and no replay dates in the calendar.
+- **Quick season end**: at the end of a season the other countries' competitions are simulated without being shown one by one (your own country's competitions and the European cups still show, as in the original game). The original game shows every competition of every country
+  for a moment; with the World 2026-27's 264 competitions that took minutes on a real 486. The results are the same.
 - **A Serie D club plays only what its real club plays**: its group (and its play-off or play-out) and the Coppa
   Italia Serie D. The national Coppa Italia is still played for its winner but is not in a Serie D club's calendar
   or VISUAL. COMPETIZ.
@@ -610,9 +621,6 @@ Cearense, Pernambucano, Alagoano and Mato-Grossense.
 **Known limits**
 - After a job offer letter in a career, a few stray pixels can appear on the menu buttons until the next match
   reloads the menu graphics: cosmetic only, saves are not affected (fixed in the upcoming 4.0.1).
-- At the end of a season the game finishes every competition still open and shows each one in turn: in this world
-  there are many more of them than in the original game, so the sequence takes longer (about a second each on a fast
-  486; the time is the original game's own menu drawing, not the mod's code).
 - The World 2026-27 has no national teams yet: no national team offers a job in this career (planned for the upcoming 4.2).
 - A career saved with one language's executable and loaded with another keeps the first language's competition
   titles, and its league tables show no zone colours, no FORMAT page and no overall table (annual table / Supporters'
@@ -655,6 +663,9 @@ Cearense, Pernambucano, Alagoano and Mato-Grossense.
   .harddisk folder inside the app) and the patcher recognises the version, keeps the files it changes in
   MOD_BACKUP\4.0 and writes the mod in place; from the CD it copies the game into a new folder first. Run it again
   to update. The page is in 4 languages (IT / EN / FR / DE); the manual download stays for other browsers.
+  If the game is in Program Files (GOG Galaxy's default folder), the browser will not open that folder: copy the game
+  folder elsewhere (e.g. Documents), patch the copy, then copy its contents back over the original (Windows asks for
+  administrator permission: accept) and play as usual; or use the manual mode.
 - The patcher upgrades every published version (1.0.1 to 3.3.6, CD and GOG, also the English SWOS++ version) and the
   original game, checking every file before and after (an old file goes back to the original, then to 4.0). Drop your
   executable and DATA files as usual: the patcher writes every file the World 2026-27 needs (its team files and
@@ -909,8 +920,8 @@ Baiano, Cearense, Pernambucano, Alagoano e Mato-Grossense.
   vedi le regole della mod).
   - La vincitrice di ogni girone sale in Serie C (9 club).
   - **Play-off**: 2ª-5ª e 3ª-4ª in ogni girone, gara secca in casa della meglio piazzata; in caso di pareggio
-    supplementari, poi passa la meglio piazzata; la finale tra le due vincenti allo stesso modo. Come nella realtà
-    non promuovono nessuno: formano la graduatoria dei ripescaggi.
+    supplementari, poi passa la meglio piazzata; la finale tra le due vincenti allo stesso modo (si decide anche quando
+    il tuo club perde la semifinale). Come nella realtà non promuovono nessuno: formano la graduatoria dei ripescaggi.
   - **Play-out**: 13ª-16ª e 14ª-15ª (nei gironi da 17: 12ª-15ª e 13ª-14ª), gara secca in casa della meglio
     piazzata; in caso di pareggio supplementari, poi si salva la meglio piazzata; non si gioca con 8 o più punti di
     distacco (scende la peggio piazzata). Le due perdenti retrocedono.
@@ -984,7 +995,17 @@ Baiano, Cearense, Pernambucano, Alagoano e Mato-Grossense.
   quando il riquadro ha lo stesso colore della zona.
   Nel Mondo 2026-27 i posti europei di ogni stagione vengono dal ranking UEFA del gioco (quello dell'anno prima,
   come nella access list UEFA) e dalla access list vera 2026/27; gli European Performance Spots e i ritocchi per i
-  detentori dei titoli si decidono a fine stagione e non vengono colorati in anticipo.
+  detentori dei titoli si decidono a fine stagione e non vengono colorati in anticipo. Il Liechtenstein, che non ha un
+  campionato nazionale suo, entra con la sua riga della lista d'accesso: la vincitrice della coppa va al primo turno
+  preliminare di Conference League qualunque sia il posto della federazione nel ranking.
+- **Pagina VINCITORI**: nel menu STAT di una competizione, VINCITORI elenca i titoli che il campionato assegna oltre
+  alla classifica (le vincitrici dei play-off, i campioni di Apertura e Clausura, il campione di uno statale) con il
+  club che li ha vinti in questa stagione: DA GIOCARE prima che inizi, IN CORSO mentre si gioca; ci sono anche i
+  titoli che si decidono a fine stagione, e dopo la fine della stagione la pagina mostra le vincitrici della stagione
+  appena conclusa. Un play-off per il titolo si legge "PLAYOFF - <titolo>" (per esempio PLAYOFF - MLS CUP), e sono
+  elencati anche i vincitori intermedi con un titolo ufficiale (le campionesse della Eastern e della Western Conference
+  della MLS). In 4 lingue (WINNERS / TO BE PLAYED / IN PROGRESS, VAINQUEURS / A JOUER / EN COURS, SIEGER /
+  NOCH OFFEN / IM GANGE).
 - **Posti continentali fuori dall'Europa**: le massime serie delle altre confederazioni colorano i loro posti veri
   nelle coppe per club: azzurro per la prima coppa (Copa Libertadores, Concacaf Champions Cup, AFC Champions League
   Elite, CAF Champions League, OFC Champions League), verde per la seconda (Copa Sudamericana, AFC Champions League
@@ -1166,6 +1187,8 @@ Baiano, Cearense, Pernambucano, Alagoano e Mato-Grossense.
   degli altri campionati giocati dalla mod): una gara unica in parità dopo 90 minuti va ai supplementari, poi passa
   la meglio piazzata; andata e ritorno secondo le regole vere. Nessuna ripetizione, e nessuna data di ripetizione in
   calendario.
+- **Fine stagione veloce**: a fine stagione le competizioni delle altre nazioni vengono simulate senza essere mostrate una per una (le competizioni della tua nazione e le coppe europee si vedono ancora, come nel gioco originale). Il gioco originale mostra per un attimo ogni competizione di
+  ogni nazione; con le 264 competizioni del Mondo 2026-27 su un 486 vero servivano minuti. I risultati sono gli stessi.
 - **Un club di Serie D gioca solo quello che gioca il club vero**: il suo girone (e i suoi play-off o play-out) e la
   Coppa Italia Serie D. La Coppa Italia nazionale si gioca comunque per la sua vincitrice, ma non compare nel
   calendario né in VISUAL. COMPETIZ. di un club di Serie D.
@@ -1303,9 +1326,6 @@ Baiano, Cearense, Pernambucano, Alagoano e Mato-Grossense.
 - Dopo una lettera di offerta di lavoro in carriera, sui pulsanti dei menu possono comparire alcuni pixel sporchi
   finché la partita successiva non ricarica la grafica dei menu: solo estetico, i salvataggi non ne risentono
   (corretto nella prossima 4.0.1).
-- A fine stagione il gioco conclude tutte le competizioni ancora aperte e le mostra una dopo l'altra: in questo mondo
-  sono molte più che nel gioco originale, quindi la sequenza dura di più (circa un secondo ciascuna su un 486 veloce;
-  il tempo è quello del disegno dei menu del gioco originale, non del codice della mod).
 - Il Mondo 2026-27 non ha ancora le nazionali: in questa carriera nessuna nazionale offre un lavoro (previste nella
   prossima 4.2).
 - Una carriera salvata con l'eseguibile di una lingua e caricata con quello di un'altra tiene i titoli delle
@@ -1361,6 +1381,10 @@ Baiano, Cearense, Pernambucano, Alagoano e Mato-Grossense.
   Mac GOG: la cartella .harddisk dentro l'app) e il patcher riconosce la versione, mette i file che cambia in
   MOD_BACKUP\4.0 e scrive la mod al loro posto; dal CD copia prima il gioco in una cartella nuova. Rilancialo per
   aggiornare. La pagina è in 4 lingue (IT / EN / FR / DE); il download a mano resta per gli altri browser.
+  Se il gioco è in Programmi (la cartella predefinita di GOG Galaxy), il browser non apre quella cartella: copia la
+  cartella del gioco altrove (per esempio in Documenti), applica la patch alla copia, poi ricopia il suo contenuto
+  sopra l'originale (Windows chiede il permesso di amministratore: accetta) e gioca come sempre; oppure usa la
+  modalità manuale.
 - Il patcher aggiorna tutte le versioni pubblicate (dalla 1.0.1 alla 3.3.6, CD e GOG, anche la versione inglese con
   SWOS++) e il gioco originale, controllando ogni file prima e dopo (un file vecchio torna all'originale, poi alla
   4.0). Trascina come sempre l'eseguibile e i file di DATA: il patcher scrive tutti i file che servono al Mondo

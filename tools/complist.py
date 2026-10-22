@@ -45,8 +45,11 @@ P = {
                      'reverse3': 'home order: the club that was away in their 3rd meeting', 'seeded': ''},
                reset='points and figures reset to 0', keep='(the Opening Round table is kept)',
                stage='stage {k}: ', po='{name}: {who}; {rounds}',
+               fx='{name}: {n} matchdays on the real fixtures', promedio='{name}: relegation by the points average of the last seasons (promedio), the last goes down to {div}', fx_zones=' in {k} groups ({sizes})',
                kind={'promotion': 'promotion play-off', 'europe': 'European play-off', 'placement': 'placement play-off',
-                     'playout': 'play-out', 'title': 'title play-off'},
+                     'playout': 'play-out', 'title': 'title play-off', 'stage_title': 'the tournament\'s final phase',
+                     'continental': 'continental play-off'},
+               stage_pl='the tournament table\'s {places}', stage_top='the first {k} of each group of the tournament table',
                place='{div} {places}', places_one='{a}', places_rng='{a}-{b}', ord=lambda n: f'{n}{_sfx(n)}',
                legs={1: 'single match', 2: 'two legs'},
                host={'listed': 'home order as in the real schedule', 'better': 'the better placed at home (2nd leg)',
@@ -96,8 +99,11 @@ P = {
                      'reverse3': 'ordine in casa: chi era in trasferta nel 3° incontro', 'seeded': ''},
                reset='punti e statistiche azzerati', keep='(la classifica dell\'Opening Round resta salvata)',
                stage='fase {k}: ', po='{name}: {who}; {rounds}',
+               fx='{name}: {n} giornate sul calendario vero', promedio='{name}: retrocessione per media punti delle ultime stagioni (promedio), l\'ultima scende in {div}', fx_zones=' in {k} gruppi ({sizes})',
                kind={'promotion': 'play-off promozione', 'europe': 'play-off europeo', 'placement': 'spareggio piazzamenti',
-                     'playout': 'play-out', 'title': 'play-off scudetto'},
+                     'playout': 'play-out', 'title': 'play-off scudetto', 'stage_title': 'fase finale del torneo',
+                     'continental': 'play-off continentale'},
+               stage_pl='classifica del torneo {places}', stage_top='le prime {k} di ogni gruppo della classifica del torneo',
                place='{div} {places}', places_one='{a}', places_rng='{a}-{b}', ord=lambda n: f'{n}ª',
                legs={1: 'gara unica', 2: 'andata e ritorno'},
                host={'listed': 'ordine in casa come nel calendario vero', 'better': 'in casa la meglio piazzata (al ritorno)',
@@ -509,6 +515,18 @@ def _split_text(sp, n, t):
     st = sp.get('stages') or [sp]
     parts, days, prev = [], 0, 0
     for k, s in enumerate(st):
+        if 'groups' not in s:                            # a stage on its own fixtures (Apertura / Clausura, 4.0)
+            nd = len(s.get('fixtures') or [])
+            name = ((s.get('title') or {}).get('*') or [''])[0] or t['stage'].format(k=k + 1).rstrip(': ')
+            txt = t['fx'].format(name=name, n=nd)
+            if s.get('zones'):
+                txt += t['fx_zones'].format(k=len(s['zones']), sizes=' + '.join(str(len(z)) for z in s['zones']))
+            if s.get('reset'):
+                txt += ', ' + t['reset']
+            parts.append(txt)
+            prev = s['after'] + nd
+            days = prev
+            continue
         gs, mx = [], 0
         for g in s['groups']:
             a, b = g['places']
@@ -534,6 +552,18 @@ def _who(po, names, t, lang):
             by.setdefault(e[0], []).append(e[1])
     seeds = sorted(e['split_seed'] for e in po.get('entrants', []) if isinstance(e, dict) and 'split_seed' in e)
     txt = [t['seeds'].format(a=seeds[0], b=seeds[-1])] if seeds else []
+    sp = sorted(e['place'] for e in po.get('entrants', []) if isinstance(e, dict) and 'stage_place' in e)
+    if sp:                                               # (a tournament's final phase: places of its kept table)
+        runs, a = [], 0
+        for i in range(1, len(sp) + 1):
+            if i == len(sp) or sp[i] != sp[i - 1] + 1:
+                runs.append((sp[a], sp[i - 1]))
+                a = i
+        if len(runs) > 1 and runs[0][0] == 1 and len({b - a for a, b in runs}) == 1:   # (zones: the top k of each)
+            txt.append(t['stage_top'].format(k=runs[0][1]))
+        else:
+            txt.append(t['stage_pl'].format(places=', '.join(
+                t['ord'](a) if a == b else t['places_rng'].format(a=t['ord'](a), b=t['ord'](b)) for a, b in runs)))
     for dv, pls in by.items():
         pls = sorted(pls)
         rng = t['ord'](pls[0]) if len(pls) == 1 else \
@@ -544,6 +574,9 @@ def _who(po, names, t, lang):
 
 
 def _po(po, names, t, lang):
+    if po.get('kind') == 'promedio':                    # (Argentina: relegation by the points average, no matches)
+        return t['promedio'].format(name=_cname(_nm(po['names'], lang)),
+                                    div=_cname(_nm(names[po['loser_div']], lang)) if isinstance(po.get('loser_div'), int) else '-')
     def one(r):
         h = t['host'].get(r.get('host', 'listed'), '')
         if r.get('legs', 1) == 1:                        # (a single match: no '2nd leg')
@@ -579,7 +612,7 @@ def _div_line(dv, lg, t, lang, lowest, head=True):
         st = dv['split'].get('stages') or [dv['split']]
         first = st[0]['after'] // (n if n % 2 else n - 1)
         sp, days = _split_text(dv['split'], n, t)
-        bits.append(f"{_rr(t, first)} ({t['matchdays'].format(n=st[0]['after'])}); {sp}")
+        bits.append(f"{_rr(t, first)} ({t['matchdays'].format(n=st[0]['after'])}); {sp}" if st[0]['after'] else sp)
         bits.append(t['matchdays'].format(n=days))
     else:
         bits.append(_rr(t, g) + ', ' + t['matchdays'].format(n=_matchdays(n, g)))

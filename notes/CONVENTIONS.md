@@ -18,6 +18,9 @@ new rule. If a rule seems wrong for a case, ask the regia session; don't silentl
    P.OFF / P.OUT / RETR, PASSA / P.OFF ...), as in the league tables. Never at the bottom, never over a button,
    never over a group title. The legend is built by the shared zones code (zones.py) for leagues, splits and conti
    cup groups alike.
+   Legend boxes are plain colour boxes with no inner frame (Davide 2026-10-22, CONF included). The career club's
+   row is its own clean colour, never framed; only when its colour equals the zone colour (player-coach light blue
+   on a light-blue zone) it gets a 1-px black border flush with the box edge.
 6. **Legend == zones painted.** An entry appears in the legend only if at least one row is painted in that colour,
    and every painted zone has its legend entry. Zones are computed **per group** in split / zoned / cup-group
    tables (group place, not overall place).
@@ -54,5 +57,8 @@ new rule. If a rule seems wrong for a case, ask the regia session; don't silentl
 ## Known engine pitfalls
 18. (Under investigation, not a rule yet) The game's type-2 group contest hung with New Zealand's single 11-club group;
     odd groups of 3 (Serie D poule) work, so the cause is not just the odd size. Check here before using a large single group.
-19. Adding any post-load hook to the career save-load chain (after_process trailer path) breaks the next season end
-    (trap 0x17064 at the season-3 start, found 2026-10-22). Don't add load-time hooks until the integrator fixes it (4.0.1).
+19. Post-load hooks in the career save-load chain are safe since 284da66 (2026-10-22). Cause of the old season-3 trap
+    (0x17064): trailer.patch()'s after_process rewrite removed the text the LOAD_TAIL substitution looked for, so big-world
+    loads silently skipped w_load_tail. Rule: every text rewrite of asm source asserts its pattern count (trailer._sub;
+    the shared nasmcave.sub for the other patchers in the upcoming 4.0.1). Any load / save-path change still runs
+    career_20seasons (C20_SEASONS>=2) + old-save loads before its sha.

@@ -357,6 +357,13 @@ DEFAULTS: DEFAULT_BYTES
 INFO = {}                                 # symbols + tail dwords for careerworld.patch_tails (big worlds)
 
 
+def _sub(asm, old, new, n=1):
+    """asm with old replaced, asserting it occurs n times: a rewrite whose pattern is gone must fail the build, never
+    pass silently (CONVENTIONS 19: the load tail lost to an earlier rewrite)."""
+    assert asm.count(old) == n, (old, asm.count(old))
+    return asm.replace(old, new)
+
+
 def patch(p, cave, items, tails=False):
     """items = [(obj1 offset, size)] to save: sacups.SAVE_ITEMS + the extra cup lists. tails: save_trailer and
     load_trailer end with `jmp [SAVE_TAIL]` / `jmp [LOAD_TAIL]` (dwords = WriteFile / ProcessCareerFile, retargeted by
@@ -432,24 +439,22 @@ def patch(p, cave, items, tails=False):
         tbl = 'OLD_ITEMS' if lib_b == OLD_LIB else f'OLD_ITEMS{lib_b}'
         olds += [f'    mov edx, {tbl} + 8 * {first}', f'    mov ebp, {count}', f'    mov ecx, {size}',
                  f'    mov dword [LIBOLD_N], {lib_b}', f'    cmp word [esi], {mark:#x}', '    je .check']
-    asm = ASM.replace(';OLD_TRAILERS', '\n'.join(olds))
+    asm = _sub(ASM, ';OLD_TRAILERS', '\n'.join(olds))
     if en:
-        asm = asm.replace(';EN_SAVE', EN_SAVE)
+        asm = _sub(asm, ';EN_SAVE', EN_SAVE)
     cbs = engine.after_loads()                    # after the engine items (or their clearing): pushad, call, popad
-    asm = asm.replace(';EN_AFTER', '\n'.join(f'    pushad\n    call [EN_CB + {4 * k}]\n    popad' for k in range(len(cbs))))
+    asm = _sub(asm, ';EN_AFTER', '\n'.join(f'    pushad\n    call [EN_CB + {4 * k}]\n    popad' for k in range(len(cbs))))
     if tails:                                     # the tails first: after_process below calls the load tail (the
-        asm = asm.replace('    popad\n    jmp WRITEFILE', '    popad\n    jmp [SAVE_TAIL]')   # other order lost
-        asm = asm.replace('    popad\n    jmp PROCESS', '    popad\n    jmp [LOAD_TAIL]')     # w_load_tail - the
+        asm = _sub(asm, '    popad\n    jmp WRITEFILE', '    popad\n    jmp [SAVE_TAIL]')   # other order lost
+        asm = _sub(asm, '    popad\n    jmp PROCESS', '    popad\n    jmp [LOAD_TAIL]')     # w_load_tail - the
     aps = engine.after_processes()                # big world's W1 block - on every load: CONVENTIONS 19)
     if os.environ.get('AFTER_PROCESS_PROBE'):     # (test builds only: a no-op callback, the load path with one)
         aps = aps + [('probe', None)]
     if aps:                                       # (4.0: after ProcessCareerFile - or the load tail that ends in it -,
         tail = '[LOAD_TAIL]' if tails else 'PROCESS'   # its result's flags / registers kept)
-        old = f'    call set_mark\n    popad\n    jmp {tail}'
-        assert asm.count(old) == 1, tail
-        asm = asm.replace(old, f'    call set_mark\n    popad\n    call {tail}\n' +
-                          ''.join(f'    pushfd\n    pushad\n    call [EN_CB + {4 * (len(cbs) + k)}]\n    popad\n    popfd\n'
-                                  for k in range(len(aps))) + '    ret', 1)
+        asm = _sub(asm, f'    call set_mark\n    popad\n    jmp {tail}', f'    call set_mark\n    popad\n    call {tail}\n' +
+                   ''.join(f'    pushfd\n    pushad\n    call [EN_CB + {4 * (len(cbs) + k)}]\n    popad\n    popfd\n'
+                           for k in range(len(aps))) + '    ret')
         cbs = cbs + aps
     asm += 'align 4\nEN_CB: ' + ('dd ' + ', '.join('ap_probe' if n == 'probe' else f'CB{k}' for k, (n, _) in enumerate(cbs))
                                  if cbs else 'dd 0') + '\n'

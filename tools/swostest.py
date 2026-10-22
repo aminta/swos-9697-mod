@@ -6157,6 +6157,158 @@ def world_cuplist():
     return not errs, '; '.join(errs + info)
 
 
+def foreign_buy(exe, mode):
+    """A foreign-market purchase on a RELEASE exe (mode '2627': the World 2026-27 career at INTER; '9697': a real 1996-97
+    JUVENTUS career): TRASFERIMENTI > ACQUISTA GIOCATORE > VISUAL. MERCATO STRANIERO > ELENCA, the first listed player,
+    FAI UN'OFFERTA > CONFERMA OFFERTA (a counter: OFFRI DI PIU' until accepted), then the squad must hold him; saved,
+    reloaded, and a match day played. (4.0 rc12: the 2026-27 foreign list's POOL05 players asked for a team file 190 the
+    release has not - the game exited to DOS at the pick.) Returns (ok, msg)."""
+    import re as _re
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    errs, info = [], []
+
+    def squad_n(s):
+        try:                                       # (the career squad's size word; best effort, release exes only)
+            import lepatch
+            import xtra
+            from le import LE
+            d1 = LE(open(os.path.join(exe, 'ITALIAN.EXE'), 'rb').read()).obj_bytes(1)
+            a = _re.search(rb'\xc7\x05(.{4})(.{4})\x66\xa1(.{4})\x66\xa3.{4}\x66\x83\x2d.{4}\x01\x8b\x35\1.{0,40}?\xcc\xeb\xfe', d1, _re.S)
+            cnp = struct.unpack('<I', a.group(3))[0]
+            return struct.unpack('<H', s.result.obj2(cnp, 2))[0]
+        except Exception:
+            return None
+
+    with Session('foreign_buy_' + mode, exe, {}, 'dump:2', 600) as s:
+        s.wait()
+        if mode == '9697':
+            walk0 = walk
+
+            def walk9(s_, t, w=3, *a, **k):        # (the main menu's CARRIERA = entry 9; the green 2026-27 button is 4)
+                return walk0(s_, 9 if t == 'CARRIERA' else t, w, *a, **k)
+            globals()['walk'] = walk9
+            try:
+                new_career(s, 'ITALIA', 'SERIE A', 'JUVENTUS')
+            finally:
+                globals()['walk'] = walk0
+            want_season = 'CAMP. 1996/97'
+        else:
+            for t in ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27', 'EUROPA', 'ITALIA', 'SERIE A', 'INTER']:
+                if press(s, s.screen(), t, 3) is None:
+                    return False, f'new career: {t} not reached'
+            s.send('fire dump:3')
+            want_season = 'CAMP. 2026/27'
+        check(want_season in s.screen().texts(), f'{mode}: career screen {s.screen().texts()[:4]}', errs)
+        n0 = squad_n(s)
+        walk(s, 'TRASFERIMENTI', 3)
+        walk(s, 2, 3)                              # ACQUISTA GIOCATORE
+        scr = s.screen()
+        walk(s, next(e[0] for e in scr.entries if e[1] and 'VISUAL. MERCATO STRANIERO' in e[1]), 3)
+        walk(s, 7, 3)                              # ELENCA
+        scr = s.screen()
+        row = int(os.environ.get('FOREIGNBUY_ROW', 0)) or next(e[0] for e in scr.entries if 10 <= e[0] < 20 and not e[2])
+        who = f'list row {row}'
+        for k in (scr.path(row) or []):
+            s.send(k + ' dump:0.5')
+        try:
+            s.send('fire dump:4')
+        except AssertionError as e:
+            return False, f'{mode}: the game exited at the pick of the first foreign-market player ({who}): {e}'
+        if s.result.outcome != 'dump':
+            return False, f'{mode}: the game exited at the pick of the first foreign-market player ({who}): {s.result.outcome}'
+        tx = s.screen().texts()
+        check("FAI UN'OFFERTA" in tx, f'{mode}: no offer screen after the pick ({who}): {tx[:6]}', errs)
+        info.append(f'{mode}: picked {who}')
+        offer = [e[1] for e in s.screen().entries if e[0] >= 20 and e[1] and e[1] != 'STDMENUTEXT']
+        seller = next((x[3:].split(' IN CAMBIO')[0] for x in tx if x.startswith('DA ')), None)
+        info.append(f'{mode}: offer screen: {offer}, seller {seller}')
+        raise_n = 10
+        for _ in range(10):                        # a generous bid (fire+right = +100,000 each), CONFERMA OFFERTA; a counter
+            scr = s.screen()                       # ('A MENO CHE L'OFFERTA AUMENTI DI L300,000M'): OFFRI DI PIU' + that much
+            tx = scr.texts()
+            if "FAI UN'OFFERTA" in tx:
+                s.send(' '.join(['fire+right'] * raise_n) + ' dump:1')
+                info.append(f'{mode}: bid {next((e[1] for e in s.screen().entries if e[0] == 9), None)}')
+                walk(s, s.screen().find('CONFERMA OFFERTA', exact=True), 3)
+                raise_n = 0
+                continue
+            more = next((_re.search(r'AUMENTI DI L([\d,]+)M', x) for x in tx if 'AUMENTI DI' in x), None)
+            if "OFFRI DI PIU'" in tx:
+                raise_n = (int(more.group(1).replace(',', '')) // 100000 + 1) if more else 5
+                walk(s, scr.find("OFFRI DI PIU'", exact=True), 3)
+                continue
+            break
+        ans = s.screen().texts()
+        info.append(f'{mode}: answer {ans[:6]}')
+        said = next((_re.search(r"IL CLUB (.+) E' LIETO", x) for x in ans if "E' LIETO" in x), None)
+        if said and seller:
+            check(said.group(1) == seller, f'{mode}: the offer was to {seller}, the answer comes from {said.group(1)}', errs)
+        for _ in range(6):                         # leave the market screens
+            if 'PROSS. PARTITA' in s.screen().texts():
+                break
+            press(s, s.screen(), 'CONTINUA', 3) or press(s, s.screen(), 'ESCI', 3) or s.send('fire dump:2')
+        n1 = squad_n(s)
+        info.append(f'{mode}: squad {n0} -> {n1}')
+        if n0 is not None and n1 is not None:
+            check(n1 == n0 + 1, f'{mode}: the squad did not take the player ({n0} -> {n1})', errs)
+        for _ in range(4):
+            if 'PROSS. PARTITA' in s.screen().texts():
+                break
+            press(s, s.screen(), 'ESCI', 3) or s.send('fire dump:2')
+        walk(s, 'SQUADRA', 3)                      # the bought player's data as the squad screen shows it
+        sq = s.screen().texts()
+        miss = [x for x in offer if x not in sq]
+        check(not miss, f'{mode}: the squad screen lacks the offer\'s {miss} (offer {offer})', errs)
+        info.append(f'{mode}: bought {offer} {"= squad screen" if not miss else "MISMATCH"}')
+        for _ in range(3):
+            if 'PROSS. PARTITA' in s.screen().texts():
+                break
+            press(s, s.screen(), 'ESCI', 3) or s.send('fire dump:2')
+        walk(s, 'ESCI', 3)
+        walk(s, 'SALVA CARRIERA', 2)
+        s.send(name_entry('FBUY') + ' dump:3')
+        car = os.path.join(s.run, 'SWOS', 'FBUY.CAR')
+        check(os.path.exists(car), f'{mode}: no save', errs)
+    if os.path.exists(car):
+        with Session('foreign_buy_reload_' + mode, exe, {'FBUY.CAR': car}, 'dump:2', 600) as s:
+            s.wait()
+            s.send(LOAD1 + ' dump:3')
+            n2 = squad_n(s)
+            info.append(f'{mode}: reloaded squad {n2}')
+            check('PROSS. PARTITA' in s.screen().texts(), f'{mode}: reload {s.screen().texts()[:4]}', errs)
+            seen = {'res': False}
+
+            def played(scr):
+                tx = scr.texts()
+                if '- RISULTATO -' in tx:
+                    seen['res'] = True
+                return seen['res'] and 'PROSS. PARTITA' in tx and 'SQUADRA' in tx
+            ok, msg = advance(s, played, 600)
+            check(ok, f'{mode}: a match day after the reload: {str(msg)[:120]}', errs)
+    return not errs, '; '.join(errs + info)
+
+
+@scenario
+def world_foreign_buy():
+    """A foreign-market purchase in the World 2026-27 career on a RELEASE exe (FOREIGNBUY_BUILD or W8485_BUILD = c/RELxx/
+    SWOS; a harness test build has no worldpool, so it proves nothing): the first listed player, whose POOL05 team file
+    (190) 4.0 rc12 lacked -> the game exited to DOS (Davide's MiSTer, 2026-10-22). FAIL on rc12, PASS on the fix."""
+    exe = os.environ.get('FOREIGNBUY_BUILD') or os.environ.get('W8485_BUILD')
+    if not exe or not os.path.exists(os.path.join(exe, 'ITALIAN.EXE')):
+        return True, 'SKIP: FOREIGNBUY_BUILD / W8485_BUILD (a release SWOS dir) not set'
+    return foreign_buy(exe, '2627')
+
+
+@scenario
+def world_foreign_buy_9697():
+    """world_foreign_buy's control: a real 1996-97 career (the original foreign market) on the same release exe."""
+    exe = os.environ.get('FOREIGNBUY_BUILD') or os.environ.get('W8485_BUILD')
+    if not exe or not os.path.exists(os.path.join(exe, 'ITALIAN.EXE')):
+        return True, 'SKIP: FOREIGNBUY_BUILD / W8485_BUILD (a release SWOS dir) not set'
+    return foreign_buy(exe, '9697')
+
+
+
 @scenario
 def world_cuplist_mestre():
     """Davide's MESTRE.CAR (rc7, internal/davide-mister-20261021: MESTRE, Serie D) on a release-recipe build

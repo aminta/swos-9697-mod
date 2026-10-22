@@ -114,7 +114,8 @@ LABELS = {
 }
 KEYS = ('cl', 'el', 'conf', 'cc', 'uefa', 'up', 'po', 'out', 'down', 'lib', 'sud', 'ccc', 'acle', 'acl2', 'cafcl', 'cafcc', 'ofc',
         'next')
-LEG_COLOUR = {DARK_BLUE: 0x13}  # the legend box: dark blue with a frame (08h alone vanishes on the menu's blue)
+LEG_COLOUR = {}                 # (a legend box's colour code when not the zone's own: none - the Conference's
+                                # dark blue is a plain box like the others, no inner frame: Davide 2026-10-22)
 
 
 def _title(pk_meta, lang, name):
@@ -1021,7 +1022,7 @@ EU_ROW = """    cmp byte [edi + EFLAG_], 0          ; a league-phase top flight:
 .eur:
 """
 EU_LEG = """    test edi, edi                       ; a league-phase top flight: its European colours first, in place
-    jz .d                               ; order, one box each (Conference: the framed dark blue)
+    jz .d                               ; order, one box each (Conference: dark blue)
     cmp byte [edi + EFLAG_], 0
     je .d
     mov byte [ZSEEN], 0
@@ -1052,10 +1053,6 @@ EU_LEG = """    test edi, edi                       ; a league-phase top flight:
     pop ecx
     cmp ecx, LEG_
     jae .o
-    cmp al, 08h
-    jne .e2
-    mov al, 13h
-.e2:
     call zn_box
     jmp .e
 .e1:

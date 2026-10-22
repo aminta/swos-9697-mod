@@ -152,38 +152,6 @@ xtra_reserves:                          ; replaces InitializeNewSeason's call of
                                         ; trainingMatchSavedPlayers (a sale's cseg_639F9 looks the player up there:
                                         ; left all 0, 'int 3; jmp $' on ACCETTA OFFERTA - TEST 8, 2026-10-21)
 
-xtra_order:                             ; after a career load (engine.after_process, pushfd / pushad around it): a
-    movzx ecx, word [CNP]               ; career started before the reserves' fix kept trainingMatchSavedPlayers all 0
-    cmp ecx, 2                          ; (every sale trapped in cseg_639F9): when its careerNumPlayers entries are not
-    jb .ok                              ; distinct slots < 32, cseg_6481C rebuilds it from currentMatchPlayers, as a
-    cmp ecx, 32                         ; new club's season start does; the game's pseudo registers D0..A6 kept
-    ja .ok
-    xor edx, edx
-    xor esi, esi
-.l:
-    movzx eax, byte [TMSP + esi]
-    cmp eax, 32
-    jae .fix
-    bt edx, eax
-    jc .fix
-    bts edx, eax
-    inc esi
-    cmp esi, ecx
-    jb .l
-.ok:
-    ret
-.fix:
-    mov esi, REGS
-    mov edi, xregs
-    mov ecx, 15
-    rep movsd
-    call RESTAIL
-    mov esi, xregs
-    mov edi, REGS
-    mov ecx, 15
-    rep movsd
-    ret
-
 xtra_wage:                              ; replaces `mov esi, [A0] / cmp byte [esi+71h], 9Ah` in cseg_5E345
     mov esi, [REGS + 32]                ; A0 = the player (- 4Ch)
     cmp byte [esi + 71h], 9Ah           ; reserve: 66%
@@ -228,7 +196,6 @@ xsize: dd 0
 xteam: dw -1
 xname: db 'data\xtra.000', 0
 xadded: db 0
-xregs: times 15 dd 0
 xcount: db 0
 xres: db 0
 xhead: db 0, 0, 0
@@ -298,16 +265,6 @@ def reserves_tail(p, reserves):
     return calls[10]
 
 
-def order_site(p):
-    """obj2 offset of trainingMatchSavedPlayers, from cseg_639F9's lookup (mov [A6], offset it; careerNumPlayers; ...
-    int 3; jmp $)."""
-    d1 = p.le.obj_bytes(1)
-    m = [x for x in re.finditer(rb'\xc7\x05(.{4})(.{4})\x66\xa1.{4}\x66\xa3.{4}\x66\x83\x2d.{4}\x01\x8b\x35\1'
-                                rb'.{0,40}?\xcc\xeb\xfe', d1, re.S)]
-    assert len(m) == 1, m
-    return struct.unpack('<I', m[0].group(2))[0]
-
-
 def wage_sites(p):
     """(site of `mov esi, [A0] / cmp byte [esi+71h], 9Ah` in cseg_5E345, cseg_5E345, D0 = the pseudo registers' base)."""
     import sacups
@@ -350,18 +307,15 @@ def patch(p, at):
     s, cnp, ct, cmp, sel = sites(p)
     rs, reserves = reserves_site(p)
     tail = reserves_tail(p, reserves)
-    tmsp = order_site(p)
     ws, wage, regs = wage_sites(p)
     at = (at + 15) & ~15
-    sym = {'CNP': (2, cnp), 'CT': (2, ct), 'CMP': (2, cmp), 'SEL': (2, sel), 'RESERVES': (1, reserves), 'RESTAIL': (1, tail), 'TMSP': (2, tmsp),
+    sym = {'CNP': (2, cnp), 'CT': (2, ct), 'CMP': (2, cmp), 'SEL': (2, sel), 'RESERVES': (1, reserves), 'RESTAIL': (1, tail),
            'WAGE': (1, wage), 'REGS': (2, regs), 'PLAYER_': (0, PLAYER), 'MAXE_': (0, MAX_EXTRA)}
     code, fix = nasmcave.assemble(ASM, at, sym)
     lab = nasmcave.labels(ASM, at, sym)
     assert not any(p.get(1, at, len(code)))
     p.put(1, at, code)
     LABELS['XTRA_NAMEP'] = lab['xtra_namep']
-    import engine                                       # (the old saves' squad order after every career load:
-    engine.CALL_AT['xtra_order'] = (1, lab['xtra_order'])   # patch.py registers it before trailer.patch)
     for o, t_obj, t_off in fix:
         p.add_ptr(1, at + o, t_obj, t_off)
     p.remove(1, s + 3)

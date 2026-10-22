@@ -4386,33 +4386,6 @@ def squad_order_xtra():
             order = list(s.result.obj2(tmsp, 32))[:n]
             notes.append(f'{world}: {n} players, order {order}')
             check(n > 16 and sorted(order) == list(range(n)), f'{world}: squad order {order} ({n} players)', errs)
-    car = os.path.join(MAIN, 'internal', 'davide-mister-20261021', 'PAULO.CAR')   # (b9's save: the order all 0)
-    if os.path.exists(car) and os.path.exists(os.path.join(exe, 'DATA')):
-        le = LE(open(os.path.join(exe, 'ITALIAN.EXE'), 'rb').read())
-        t1 = {f[1]: f[4] for f in le.fixups() if f[0] == 1 and f[3] == 2}
-        m = re.search(rb'\xc6\x46\x0d\x00\x66\x83\x05(.{4})\x01', d1, re.S)      # cseg_5AB36: add numOffers, 1
-        nof = t1[m.start(1)]
-        c = list(re.finditer(rb'\xc7\x05(.{4})(.{4})\xa1.{4}\x01\x05\1', d1[m.start() - 600:m.start()], re.S))
-        rec = t1[m.start() - 600 + c[-1].start(2)]                                 # the offers (dseg_D6DBA)
-        with Session('squad_order_paulo', exe, {'W84A.CAR': car}, 'dump:2', 300) as s:
-            s.wait()
-            s.send(LOAD1 + ' dump:3')
-            n = struct.unpack('<H', s.result.obj2(cnp, 2))[0]
-            order = list(s.result.obj2(tmsp, 32))[:n]
-            check(len(set(order)) == n, f'PAULO.CAR: squad order after the load {order}', errs)
-            s.poke(s.result.base2 + rec, struct.pack('<HBBBBHHHBB', 0x0AA1, 5, 0, 0, 0, 1300, 0, 0, 10, 0))
-            s.poke(s.result.base2 + nof, struct.pack('<H', 1))           # an offer of ATLETICO MINEIRO, accepted
-            s.send('dump:0.5')
-            for st in ('TRASFERIMENTI', 'VISUAL. OFFERTE', 2):
-                walk(s, st, 3)
-            scr = s.screen()
-            check('OFFERTA TERZE PARTI' in scr.texts(), f'PAULO.CAR: no offer screen ({scr.texts()[:4]})', errs)
-            i = scr.find('ACCETTA OFFERTA', exact=True)
-            for k in (scr.path(i) or []):
-                s.send(k + ' dump:0.5')
-            r = s.send('fire dump:4')
-            check(r.outcome == 'dump', f'PAULO.CAR: ACCETTA OFFERTA -> {s.result}', errs)
-            notes.append(f'PAULO.CAR: order after the load {order}, sale accepted: {r.outcome}')
     return not errs, '; '.join(errs + notes)
 
 

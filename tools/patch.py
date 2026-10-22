@@ -203,8 +203,6 @@ def patch_exe(src, dst, remap, lang='it'):
     lpb += bool(mkseason.league_phase_worlds())   # (+1 more: the UEFA coefficients, uefacoef)
     lpb += 4 * bool(mkseason.league_phase_worlds())   # (+4: the UEFA qualifying rounds, uefaq: C code + glue)
     xtra_on = bool(mkseason.xtra_files() or os.environ.get('XTRA_HOOK'))
-    if xtra_on:                                 # (xtra_order: an older career's empty squad order rebuilt after a load;
-        engine.after_process('xtra_order')      # its address bound by xtra.patch, trailer.late)
     bigtables.ON[0] = bigtables.needed()         # a world numbering its clubs 2000+ (World 5.0; 4.0's world 0)
     bigtables.MOVED.clear()
     pg_tabs = mkseason.parallel_tables() + engine.parallel_tables()   # parallel groups (worlds' packs; world 0: engine)

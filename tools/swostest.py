@@ -6112,7 +6112,7 @@ def world_gplay_seried(force='3', team='EUROPA,ITALIA,SERIE D GIRONE A,LIGORNA',
     play-off (2nd v 5th, 3rd v 4th, then the final; single matches at the better placed, extra time, then the better
     placed) built in slot 4 and played to its end; it moves nobody. Its results forced (rule 15, GPLAY_KOFORCE): ko '2'
     LIGORNA wins its semi-final and the final (the play-off's winner); '1' it loses the semi-final - the final of the
-    other two decided all the same (gp_perm_c: a knockout the career club leaves is simulated to its end)"""
+    other two is then played by the game at the season end (FINISCI STAGIONE), before gp_season: read from GP_LOG"""
     src = os.environ.get('W2627D_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-e0b89822')
     if not os.path.isdir(src):
         return True, f'SKIP: private data {src} missing'
@@ -6144,7 +6144,11 @@ def world_gplay_seried(force='3', team='EUROPA,ITALIA,SERIE D GIRONE A,LIGORNA',
     replays = cal_replays(lines, cal)                    # slot 4's replay days: none (lib97 cal_noreplay; rule 10)
     check(not replays, f'slot 4 has {replays} replay days in the calendar (the better placed advances: no replays)',
           errs)
-    ko = gp_ko(sts[-1][GP_STKO:])
+    logs = [bytes.fromhex(ln.split()[2]) for ln in lines if ln.startswith(f'HEX {log_at:x} ')]
+    logs = [b for b in logs if b[:4] == b'GPLG']
+    # the play-off as the season end left it (GP_LOG, gp_end_c): a final without the career club is played by the
+    # game at FINISCI STAGIONE, after the last GP_ST snapshot that still has it open (rc10: '[0, 3, 255]' was that)
+    ko = gp_ko(logs[-1][8:]) if logs else gp_ko(sts[-1][GP_STKO:])
     me = div * GP_GT + int(force) - 1
     check(ko['kind'] == 3 and ko['n'] == 4 and ko['slot'] == 4 and me in ko['code'],
           f"play-off kind {ko['kind']} slot {ko['slot']} codes {ko['code']}", errs)
@@ -6165,7 +6169,7 @@ def world_gplay_seried(force='3', team='EUROPA,ITALIA,SERIE D GIRONE A,LIGORNA',
 @scenario
 def world_gplay_seried_lost():
     """world_gplay_seried with LIGORNA forced to lose its semi-final (GPLAY_KOFORCE=1): the final between the other two
-    is decided all the same (before rc10 it stayed 'to be played': winners [x, y, 255])"""
+    is played by the game at the season end and recorded before gp_season (GP_LOG: no tie left open)"""
     return world_gplay_seried(ko='1')
 
 

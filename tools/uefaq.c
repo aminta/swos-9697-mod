@@ -240,14 +240,30 @@ static int p_clq_top(int i) { return p_clq(i) && (E[i].code == 0 || E[i].code ==
 static int x_split;                              /* CL Q1 losers into UECL Q2ch (the others into Q3ch) */
 
 /* model.rebalance: the season's list in E. st[3] = holders' status (1 'league', 2 'own') */
+/* the access list's one association-specific row: Liechtenstein (no league, its cup winner in UECL Q1) is row 44 in
+   the real list; it takes that row wherever it ranks (an association with a cup winner and no league clubs), and a
+   44th association with a league takes the regular row of ranks 43 / 45 (4.0, data's uefa401 diagnosis) */
+#ifndef UQ_RO
+#define UQ_RO const                             /* (native tests: -DUQ_RO= to set it from Python) */
+#endif
+UQ_RO volatile u8 UQ_CUPONLY_FILE[4] = { 0 };   /* (in the code page, set by uefaq.py: the league file of the world's
+                                                     Liechtenstein; 0 = none) */
+static const u8 ROW_CUPONLY[] = { CO_Q1, 1 };
+static const u8 ROW_44[] = { CL_Q1, 0, CO_Q1, 1, CO_Q1, 2, CO_Q1, 3 };
+
 static void rebalance(const u8 *eps, const u8 *st, int totals) {
     ne = 0;
     for (const u8 *a = AL; *a; a += 2 + 2 * a[1]) {
-        if (!UQ_IN.present[a[0]]) continue;
-        for (int j = 0; j < a[1]; j++) {
-            E[ne].rank = a[0];
-            E[ne].round = a[2 + 2 * j];
-            E[ne].code = a[3 + 2 * j];
+        int rk = a[0], n = a[1];
+        const u8 *row = a + 2;
+        if (!UQ_IN.present[rk]) continue;
+        int c0 = UQ_IN.league[rk][0];
+        if (UQ_CUPONLY_FILE[0] && c0 && (UQ_IN.club[c0 - 1].id & 0xFF) == UQ_CUPONLY_FILE[0]) { row = ROW_CUPONLY; n = 1; }
+        else if (rk == 44 && n == 1) { row = ROW_44; n = 4; }
+        for (int j = 0; j < n; j++) {
+            E[ne].rank = rk;
+            E[ne].round = row[2 * j];
+            E[ne].code = row[2 * j + 1];
             ne++;
         }
     }

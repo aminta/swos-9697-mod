@@ -24,6 +24,7 @@ Zones from the packs (mkseason.ENABLED):
 """
 import json
 import os
+import re
 import struct
 
 import complist
@@ -103,7 +104,7 @@ LEG_W, LEG_TXT = 30, 8
 FILE = {'it': b'data/zonit', 'en': b'data/zonen', 'fr': b'data/zonfr', 'de': b'data/zonde'}          # a legend box's width (5 small-font characters), its text buffer
 CONFED = {'lib': LIGHT_BLUE, 'sud': GREEN, 'ccc': LIGHT_BLUE, 'acle': LIGHT_BLUE, 'acl2': GREEN, 'cafcl': LIGHT_BLUE,
           'cafcc': GREEN, 'ofc': LIGHT_BLUE}   # the other confederations' club cups: the first light blue, the second green
-CONFED_LAB = dict(lib='LIB', sud='SUD', ccc='CCC', acle='ACLE', acl2='ACL2', cafcl='CAFCL', cafcc='CAFCC', ofc='OFC')
+CONFED_LAB = dict(lib='LIB', sud='SUD', ccc='CONC', acle='ACLE', acl2='ACL2', cafcl='CAFCL', cafcc='CAFCC', ofc='OFC')
 # legend labels (<= 5 characters): top flight of a league-phase world, of a classic world, a lower division
 LABELS = {
     'it': dict(next='PASSA', cl='CL', el='EL', conf='CONF', cc='CAMP', uefa='UEFA', up='PROM', po='P.OFF', out='P.OUT', down='RETR', **CONFED_LAB),
@@ -113,7 +114,8 @@ LABELS = {
 }
 KEYS = ('cl', 'el', 'conf', 'cc', 'uefa', 'up', 'po', 'out', 'down', 'lib', 'sud', 'ccc', 'acle', 'acl2', 'cafcl', 'cafcc', 'ofc',
         'next')
-LEG_COLOUR = {DARK_BLUE: 0x13}  # the legend box: dark blue with a frame (08h alone vanishes on the menu's blue)
+LEG_COLOUR = {}                 # (a legend box's colour code when not the zone's own: none - the Conference's
+                                # dark blue is a plain box like the others, no inner frame: Davide 2026-10-22)
 
 
 def _title(pk_meta, lang, name):
@@ -566,6 +568,7 @@ ASM = r"""
 zn_col:                                 ; replaces `mov ax, [dseg_11F41C]` at cseg_49B65 (or lp36's call there)
 FIRST
     pushad
+    call zn_roff                        ; (the row's name box: our ring off - a scrolled table reuses the entries)
 LP_SKIP
     xor ebx, ebx                        ; the table's world: a career's world byte, else 0
 WORLD_BYTE
@@ -657,6 +660,19 @@ WORLD_BYTE
     jmp .e
 .hit:
     mov edi, [ZHIT]
+    test edi, edi                       ; 4.0: no club of the table (DIY, +31h clubs) has played a match yet (a table
+    jz .z0                              ; before its first match day, the clubs in their initial order): no zones, no
+    movzx ecx, word [DIY + 31h]         ; legend (Davide)
+    lea esi, [DIY + 2B3h + 4]           ; (a row: +0 team, +4 played .. +10h points)
+.z1:
+    jecxz .z2
+    cmp word [esi], 0
+    jne .z0
+    add esi, 18
+    loop .z1
+.z2:
+    xor edi, edi
+.z0:
     cmp word [D7], 0                    ; the first row: the European places (run time), the legend boxes
     jne .nl
 RANK_CALL
@@ -707,10 +723,8 @@ HDR_RANGE
     mov [esi + 1Eh], dx
     jmp .x
 .hu:
-    mov esi, [A5]                       ; the human's name box: its own colour, framed (inner frame colour =
-    and word [esi + 1Eh], 0FF0Fh        ; the high nibble, yellow), so a player-coach's light blue stays apart
-    or word [esi + 1Eh], FRAME_         ; from a light-blue zone row
-    jmp .x
+    call zn_ron                         ; the human's name box keeps its own colour, clean as in the game; a ring
+    jmp .x                              ; only when that colour is the zone's (Davide 2026-10-22)
 .rn:
     add esi, 3
     dec ecx
@@ -1008,7 +1022,7 @@ EU_ROW = """    cmp byte [edi + EFLAG_], 0          ; a league-phase top flight:
 .eur:
 """
 EU_LEG = """    test edi, edi                       ; a league-phase top flight: its European colours first, in place
-    jz .d                               ; order, one box each (Conference: the framed dark blue)
+    jz .d                               ; order, one box each (Conference: dark blue)
     cmp byte [edi + EFLAG_], 0
     je .d
     mov byte [ZSEEN], 0
@@ -1039,16 +1053,114 @@ EU_LEG = """    test edi, edi                       ; a league-phase top flight:
     pop ecx
     cmp ecx, LEG_
     jae .o
-    cmp al, 08h
-    jne .e2
-    mov al, 13h
-.e2:
     call zn_box
     jmp .e
 .e1:
     pop ecx
     jmp .e
 """
+
+
+RING_ASM = r"""
+zn_roff:                                ; zn_col, every row: its name box (A5) loses our ring (entries are reused)
+    push esi
+    mov esi, [A5]
+    cmp dword [esi + 34h], zn_ring
+    jne .n
+    and dword [esi + 34h], 0
+.n:
+    pop esi
+    ret
+
+zn_ron:                                 ; zn_col, the human's name box in a zone row, dl = the zone's colour: its own
+    push esi                            ; colour stays; a black ring (afterDraw) only when that colour is the zone's
+    push eax                            ; (a player-coach's light blue in a light-blue row)
+    mov esi, [A5]
+    mov al, [esi + 1Eh]
+    and al, 0Fh
+    cmp al, dl
+    jne .n
+    mov dword [esi + 34h], zn_ring
+.n:
+    pop eax
+    pop esi
+    ret
+
+zn_ring:                                ; afterDraw of the human's name box (zn_col: its colour = the zone's): a 1-px
+    pushad                              ; black ring on the box's own edge, the name's white / shadow pixels kept
+    mov esi, [A5]
+    movzx edi, word [esi + 16h]         ; y * 320 + x + the menus' screen (DrawEmptyMenuItem's)
+    imul edi, edi, 320
+    movzx eax, word [esi + 14h]
+    add edi, eax
+    add edi, [LIN384]
+    movzx ecx, word [esi + 18h]         ; width
+    movzx edx, word [esi + 1Ah]         ; height
+    test ecx, ecx
+    jz .x
+    test edx, edx
+    jz .x
+    lea ebx, [edx - 1]
+    imul ebx, ebx, 320                  ; (the top row -> the bottom row)
+    xor ebp, ebp
+.h:
+    lea eax, [edi + ebp]
+    call .px
+    add eax, ebx
+    call .px
+    inc ebp
+    cmp ebp, ecx
+    jb .h
+    mov eax, edi
+.v:
+    call .px
+    push eax
+    lea eax, [eax + ecx - 1]
+    call .px
+    pop eax
+    add eax, 320
+    dec edx
+    jnz .v
+.x:
+    popad
+    ret
+.px:
+    cmp byte [eax], WHITE_
+    je .k
+    cmp byte [eax], SHADOW_
+    je .k
+    mov byte [eax], BLACK_
+.k:
+    ret
+"""
+RING = None                     # {label: (obj, off)} of zn_roff / zn_ron / zn_ring when ring_patch put them in gplay's
+                                # pages (the cosmetics page is full); else zones.patch assembles them with its own code
+
+
+def _ring_sym(p):
+    import lp36
+    import sacups
+    d1 = p.le.obj_bytes(1)
+    a1 = struct.pack('<I', sacups.regs(d1)['A0'] + 4)
+    hits = [m.start() for m in re.finditer(rb'\xa1(.{4})\x05\x00\x00\x01\x00\xa3' + re.escape(a1), d1, re.S)]
+    assert len(hits) == 1, hits                          # LoadFillAndSwtitle: mov eax, [linAdr384k] / add eax, 65536
+    return {'A5': (2, lp36._sites(p)['A0'] + 20), 'LIN384': p.target(1, hits[0] + 1),
+            'WHITE_': (0, 2), 'SHADOW_': (0, 8), 'BLACK_': (0, 3)}   # (the menus' palette: the font's white and shadow)
+
+
+def ring_patch(p, at):
+    """zn_ring at obj1:at (gplay's pages); returns its end."""
+    global RING
+    at = (at + 15) & ~15
+    sym = _ring_sym(p)
+    code, cfix = nasmcave.assemble(RING_ASM, at, sym)
+    assert not any(p.get(1, at, len(code)))
+    p.put(1, at, code)
+    for o, t_obj, t_off in cfix:
+        p.add_ptr(1, at + o, t_obj, t_off)
+    lab = nasmcave.labels(RING_ASM, at, sym)
+    RING = {k: (1, lab[k]) for k in ('zn_roff', 'zn_ron', 'zn_ring')}
+    return at + len(code)
 
 
 def patch(p, at, area, lang, pack_dirs, bss, bss_len, world=None):
@@ -1091,7 +1203,7 @@ def patch(p, at, area, lang, pack_dirs, bss, bss_len, world=None):
            **({'C11': c11} if c11 else {}), 'ZHIT': (2, keys), 'ZEU': (2, keys + 47), 'ZKEY': (2, keys + 4), 'NAME_': (0, NAME), 'ZENT': (2, zent),
            'ZFILE': (2, zfile), 'FN_BASE_': (0, len(FILE[lang])), 'BUF': (2, bss), 'BUFLEN_': (0, bss_len),
            'ENTRY_': (0, ENTRY_PAD), 'LEG_': (0, LEG), 'LEG_W_': (0, LEG_W), 'LEGN_': (0, 1 + NAME + 1 + 3 * RANGES), 'LEGX_': (0, LEGX), 'CUPY_': (0, CUPY), 'CUPT_': (0, CUPT),
-           'FRAME_': (0, int(os.environ.get('ZN_FRAME', '0x60'), 16)), 'LABS': (2, labs), 'EFLAG_': (0, EFLAG), 'ECODE_': (0, ECODE), 'EU_PLACES_': (0, EU_PLACES), 'LEGBUF': (2, legbuf), 'MENU': cur_menu}
+           'LABS': (2, labs), 'EFLAG_': (0, EFLAG), 'ECODE_': (0, ECODE), 'EU_PLACES_': (0, EU_PLACES), 'LEGBUF': (2, legbuf), 'MENU': cur_menu}
     import fmtpage
     import gplay
     ov = 'on' in fmtpage.OV and 'GP_OV_ANNUAL' in gplay.LABELS
@@ -1123,6 +1235,11 @@ def patch(p, at, area, lang, pack_dirs, bss, bss_len, world=None):
         sym.update({'LP_COL': (1, site + 5 + struct.unpack('<i', cur[1:5])[0]), 'LP_OURS': (1, lp36.LABELS['lp_ours'])})
     if world:
         sym.update({'GAMETYPE': world['gametype'], 'SLT': world['slt'], 'SEASONP': (2, world['season'])})
+    if RING:
+        sym.update(RING)
+    else:
+        src += RING_ASM
+        sym.update(_ring_sym(p))
     at = (at + 15) & ~15
     code, cfix = nasmcave.assemble(src, at, sym)
     lab = nasmcave.labels(src, at, sym)

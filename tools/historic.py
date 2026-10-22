@@ -747,6 +747,13 @@ def _draw_call(p):
 TABLE = [None, False]           # the fixed draws' table (obj, offset) and whether it has world filter records
 
 
+def cf_on():
+    """The draw table has first-club filter records [2, file, ordinal] (statespec's state brackets): hist_draw's and
+    lib97 dt_find's CF rule."""
+    import statespec
+    return any(len(d) > 3 for d in DRAWS + statespec.TEST_DRAWS + [x for ds in mkseason.world_draws().values() for x in ds])
+
+
 def draw_table():
     """hist_draw's fixed draws: [id, teams | sort flag, perm...] per round; each career world's after a filter
     record [1, 0, world] (its cup ids are its own); 0 ends. One world: no filter records (the table of 3.3)."""
@@ -912,7 +919,7 @@ def patch(p, lang, area, cave, draw_pre=None, leagues=(), cave2=None, lp=None, c
                'DIYCOPY': (2, coin['diycopy']), 'RAND2': (1, coin['rand2']), 'D5': (2, a0 - 12), 'D6': (2, a0 - 8),
                'D7': (2, a0 - 4), 'D1': (2, a0 - 28), 'SKIP': (2, coin['skip']), 'DIYCOMP': (2, coin['diycomp']),
                'ESCI_FIX': (1, elab['esci_fix']), 'EF_VARS': (1, elab['EF_VARS']),
-               'CF_ON': (0, int(any(len(d) > 3 for d in DRAWS + statespec.TEST_DRAWS + [x for ds in mkseason.world_draws().values() for x in ds]))),
+               'CF_ON': (0, int(cf_on())),
                'WD_ON': (0, int(wd)), 'WORLDB': (slt[0], slt[1] + careerworld.WORLD_BYTE) if wd else (0, 0),
                'LP_ON': (0, int(lp is not None)), 'LP_CHK': (1, lp[0]) if lp else (0, 'draw_pre_none'),
                'LP_DRAW': (1, lp[1]) if lp else (0, 'draw_pre_none')}

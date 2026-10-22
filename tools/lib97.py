@@ -197,9 +197,21 @@ dt_find:                                ; al = contest id, ecx = clubs of the ro
     mov [NC_RD], ah                     ; rounds in order, world filter records [1, 0, w])
     mov edx, [NC_DTAB]
     mov byte [NC_DW], 0
+%if CF_ON
+    mov word [NC_DC], 0
+%endif
 .f:
     cmp byte [edx], 0
     je .no
+%if CF_ON
+    cmp byte [edx], 2                   ; [2, file, ordinal]: the next draws only for a contest whose first club is
+    jne .cf                             ; that one (statespec: several state championships share one id; [2, 0, 0]:
+    mov bx, [edx + 1]                   ; all), as historic hist_draw's CF rule
+    mov [NC_DC], bx
+    add edx, 3
+    jmp .f
+.cf:
+%endif
     cmp byte [NC_WDON], 0
     je .rec
     cmp byte [edx], 1
@@ -221,6 +233,16 @@ dt_find:                                ; al = contest id, ecx = clubs of the ro
     pop eax
     jne .n
 .w:
+%if CF_ON
+    cmp word [NC_DC], 0
+    je .wc
+    push eax
+    mov ax, [NCW + 24Dh]                ; the contest's first club (its team words' row 0)
+    cmp ax, [NC_DC]
+    pop eax
+    jne .n
+.wc:
+%endif
     cmp byte [NC_RD], 0                 ; this cup's k-th entry = its round k
     je .k
     dec byte [NC_RD]
@@ -543,6 +565,9 @@ NC_WREC: dd 0                           ; (chain_adv: careerworld.w_rec)
 NC_WDON: db 0
 NC_DW: db 0
 NC_RD: db 0
+%if CF_ON
+NC_DC: dw 0                             ; (dt_find: the first-club filter of the records being read, 0 = none)
+%endif
 '''
 
 
@@ -620,6 +645,7 @@ def patch(p, cave, fin_pre):
     """Returns (cave end, lib_pre offset) — lib_pre is called by historic.hist_draw."""
     a0, bye_call, c2573c, diycopy, cal_site, nc_site, adv_site, c194a4, c1740f, c27f84 = _sites(p)
     ps = dplay._play_sites(p, sacups.regs(p.le.obj_bytes(1)))   # (the career calendar: cal_noreplay)
+    import historic
     symbols = {'DIYCOPY': (2, diycopy), 'LIB_ID': (0, sacups.LIB_ID), 'LIB_N': (0, sacups.LIB_N),
                'LIB_GROUPS': (0, LIB_GROUPS), 'CSEG_2573C': (1, c2573c), 'A0': (2, a0), 'A3': (2, a0 + 12),
                'BYE_NT': (0, len(bc)), 'BYE_BYTES': (0, 'db ' + ', '.join(str(x) for e in bc for x in e)),
@@ -627,6 +653,7 @@ def patch(p, cave, fin_pre):
                'C194A4': (1, c194a4), 'C1740F': (1, c1740f), 'PREG': (2, a0 - 32), 'C27F84': (1, c27f84),
                'BW_ON': (0, int(bw)), 'WORLDB': (slt[0], slt[1] + careerworld.WORLD_BYTE) if bw or fd else (0, 0),
                'FD_ON': (0, int(fd)), 'SEASONPLAYING': (2, cws['season']) if fd else (0, 0),
+               'CF_ON': (0, int(historic.cf_on())),       # statespec's [2, file, ordinal] records in the draw table
                'FIN_PRE': (1, fin_pre),
                'CAL': (2, ps['cal']), 'CAL_CUR': (2, ps['cal_cur']),
                'CAL_BYTES': (0, 'db ' + ', '.join(str(b) for b in calendar_bytes()))}
@@ -647,5 +674,6 @@ def patch(p, cave, fin_pre):
     print(f'exe: Libertadores 1997: bye call obj1+{bye_call:#x} (lib_bye {labels["lib_bye"]:#x}, BYE_TAB {len(bc)}, '
           f'national cups obj1+{nc_site:#x}, round advance obj1+{adv_site:#x}), '
           f'calendar obj1+{cal_site:#x}, code @ obj1+{cave:#x} '
-          f'(diyFileBufferCopy obj2+{diycopy:#x})')
+          f'(diyFileBufferCopy obj2+{diycopy:#x}); nc_bye {labels["nc_bye"]:#x}'
+          + (f' (.x {labels.get("nc_bye.x", 0):#x} .y {labels.get("nc_bye.y", 0):#x})' if labels.get('nc_bye.x') else ''))
     return (cave + len(code) + 3) & ~3, labels['lib_pre']

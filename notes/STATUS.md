@@ -2126,22 +2126,27 @@ Left for 2.5: (a) NSL/NSSL finals series (type-1 design) or declare them postpon
 - Build c/REL336: SWOS IT 372524d1 EN e00c5dc4 FR 49095d32 DE e3ca0b32; gog IT 0b0d9628 EN 17ce221f FR 32fdb905 DE fb0a7340;
   SWOS++ 6ccc9e51. Suite 24/24 PASS (runs336 + runs336b). Patcher md5 45d7b998: Node OK.
 
-## 4.0 (2026-10-22): World 2026-27 career (release candidate rc5)
-- Build c/REL40rc5 from world-2025-26 d01a08d (later commits: notes / README / harness only), data
-  internal/world2526/world5tm-rel40-itanames-0340, recipe internal/release-tools/buildrel.sh (exes + patcher with the
-  same SEASON_PACKS). SWOS IT b287e020 EN f12056e4 FR 6f9d8fbe DE 1aa9a41e; gog IT 49a06cac EN f3322731 FR 327d9e4d
-  DE 92905843; SWOS++ d3ac8fdc / gog c4032ef5. 12 continental cups (CONMEBOL, CONCACAF, AFC, CAF, OFC, FIFA IC).
-- Patcher e1473b02 (VERSION 4.0): Node 339 runs / 315 outputs OK, DATA coverage 0 missing (the off-file pools
+## 4.0 (2026-10-22): World 2026-27 career (release candidate rc7)
+- Build c/REL40rc7 from world-2025-26 6b2e7e4 (later commits: notes / docs / harness only), data
+  internal/world2526/world5tm-rel40-ca-0813 (itanames-0340 + Central America exact), recipe
+  internal/release-tools/buildrel.sh (exes + patcher with the same SEASON_PACKS). SWOS IT f4bd4421 EN 46c21e4f
+  FR 993fd142 DE 9c9ea14e; gog IT aa33fa78 EN 1b46ccfc FR bc94e4e4 DE a1ad4935; TEAM.020 bd44208c; SWOS++ aa8e32c4 /
+  gog aa2c3d1e. 12 continental cups (CONMEBOL, CONCACAF, AFC, CAF, OFC, FIFA IC).
+- rc6 -> rc7: zone colours before the first match day off, group headers from day 0, legend CONC (prezone 2f647ab);
+  the career club's row without a frame, a 1-px border only on a same-colour zone (4.0-ring c0b8eb6).
+- Patcher 42ecd207 (VERSION 4.0): Node 339 runs / 315 outputs OK, DATA coverage 0 missing (the off-file pools
   RS5*.DAT and the guests' TMW5.191-194 were missing from the rc2 / rc3 pages); one-click mode patcher_dirtest.mjs
   ALL OK (4 UI languages, CD / GOG / from the CD / SWOS++ / re-run / wrong folder / upgrade over 3.3.6).
-- Suite on rc5 (squads, runs-rc5-*): all PASS except world_full_uefa = KNOWN FAIL 4.0 (one European place may go to
-  another association's club in some seasons; declared, fix in 4.0.1). career_20seasons (Malta) 20 seasons; season 3
-  of HAMRUN / SCHIO -> NARDO / BOCA; world_full_arg; TEST 8 regressions (squad_order_xtra, world_cupd_slot2_load);
-  transfer smoke; season-1 smoke in EN / FR / DE / GOG IT / GOG EN.
+- Tests (squads): rc5 / rc6 / rc7 sets; season 3 of HAMRUN / SCHIO / BOCA; career_20seasons; world_full_arg;
+  world_ca_crc; TEST 8 regressions; transfer smoke; the 5-language smoke; Davide's TEST 8 saves (PHILA / MESTRE /
+  PAULO) and real 3.3.6 saves (1984-85 LIVERPOOL, 1996-97 JUVENTUS) loaded on the release exe and played on.
+  world_full_uefa = KNOWN FAIL 4.0 (one European place may go to another association's club in some seasons;
+  declared, fix in 4.0.1).
 - Fixed on the way: ACCETTA OFFERTA freeze (xtra.py left the squad order empty: offerfix 8ac0e33); the Coppa D club's
   stale slot-2 winner after a load (4.0-slot2clr); orderfix reverted (engine.after_process's trailer path traps the
   next season end even with a bare ret: fix in 4.0.1). Careers started on b8 / b9 freeze on a sale: new careers.
 - 4.0.1 queue: the after_process trailer path; the European places (uefaq glue / holders, UQ_IN unreadable at the
   breakpoint); Lib 3rd -> Sud (ct_gend never finds the club: place 0); ACLE / ACGL played; FILL.256 after a job letter;
   package 6's per-league GP_SS banks + trailer (a) + exact Peru / Colombia / Uruguay (sa401) with the reload card
-  (D8CAA[0] = 0x532CC2 after a mid-season load); Mexico (mex401c); Paraguay 44 days parked.
+  (D8CAA[0] = 0x532CC2 after a mid-season load); Mexico (mex401c); Paraguay 44 days parked; 4.0-stagedec 1543af9
+  (defensive); CRC's stage-title runner-up = the champion; the IC test forcing (own confederation's slot).

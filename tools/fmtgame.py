@@ -841,8 +841,14 @@ def win_lines(comp, div, k):
     sp = div.get('split')
     tabs = [st for st in ((sp.get('stages') or [sp]) if sp else []) if st.get('table') is not None]
     end = end_played(div)
-    src = 'S2' if any(st.get('annual') for st in tabs) else f"S{tabs[-1]['table']}" if tabs else \
-        f'L{end:02X}' if end is not None else None              # (a stage table's league: its annual / last table)
+    stages = (sp.get('stages') or [sp]) if sp else []
+    days = sum(len(st.get('fixtures') or []) for st in stages)  # (a stage table's league: the season's match days)
+    src = None
+    if tabs and 0 < days < 256:                                 # its annual / last table, once the days are played
+        src = f"S{2 if any(st.get('annual') for st in tabs) else tabs[-1]['table']}{days:02X}"
+    elif not tabs and end is not None:
+        src = f'L{end:02X}'
+    src = src and src + f'{k:02X}'                              # (+ the division: 4.0.1's last season, WN_ST 'L')
     if src:
         for lang in LANGS:
             lines[lang].insert(0, (_wn_fit(div['name'], lang, WN[lang]['reg'] if title_po else ''), src))

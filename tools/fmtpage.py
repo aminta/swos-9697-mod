@@ -14,6 +14,7 @@ BSS_SIZE bytes, nothing resident.
   text    lines separated by LF, pages by FF; upper case, the game's font (no accents).
 build(path, pages) writes such a file: pages = [(id or None, name, [page = [line, ...], ...]), ...].
 """
+import os
 import re
 import struct
 
@@ -36,6 +37,7 @@ TEXTS = {
 
 OV = {}                         # 4.0 (longtable.py): the overall-table flag's obj2 offset ('flag')
 WN = {}                         # 4.0.1 (winners.py): the SEASON WINNERS entry's pointers and the page's symbols
+WN_COLOUR = 15                  # the WINNERS page's winner lines: text colour 15, yellow (stringFlags & 0Fh; titles 0: white)
 
 ASM = r"""
 fp_ov:                                  ; 4.0 CLASSIFICA GENERALE (fire): the table screen's overall mode on / off
@@ -424,6 +426,22 @@ def patch(p, at, lang, area, bss, world=None, wn=False):
     ptrs.append((fm_at + 0, 1, 'fp_vis'))               # (the page menu's onInit: PREV / NEXT shown as the page allows)
     fm += struct.pack('<h', -999)
     data.extend(fm)
+    if wn:                                               # 4.0.1 the WINNERS page's own copy: its lines centred, blocks
+        while len(data) % 4:                             # of 3 (title, winner in WN_COLOUR, a blank), 5 to a page
+            data.append(0)
+        wm_at = len(data)
+        wm = bytearray(struct.pack('<IIII', 0, 0, 0, ex))
+        entry(wm, wm_at, 0, 0, 304, 14, color=0x17, text=(2, 'title'))
+        coltest = os.environ.get('WN_COLTEST')           # (a test build: line i in text colour i)
+        for i in range(LINES):
+            col = (int(coltest) + i) & 15 if coltest else WN_COLOUR if i % 3 == 1 else 0
+            entry(wm, wm_at, 0, 20 + 11 * i, 304, 10, text=(2, ('lines', i)), flags=col)
+        entry(wm, wm_at, 104, 185, 96, 15, nav=(pv, ex, -1, -1), color=0x0E, text=(2, 'next'), select=(1, 'fp_next'))
+        entry(wm, wm_at, 204, 185, 96, 15, nav=(nx, -1, -1, -1), color=0x0C, text=exit_text[0], select=exit_fn[0])
+        entry(wm, wm_at, 4, 185, 96, 15, nav=(-1, nx, -1, -1), color=0x0E, text=(2, 'prev'), select=(1, 'fp_prev'))
+        ptrs.append((wm_at + 0, 1, 'fp_vis'))
+        wm += struct.pack('<h', -999)
+        data.extend(wm)
 
     base = area.add(bytes(data))
     assert not any((base + o) // 0x1000 != (base + o + 3) // 0x1000 for o, _, _ in ptrs), 'a pointer straddles a page'
@@ -456,7 +474,7 @@ def patch(p, at, lang, area, bss, world=None, wn=False):
     if wn:
         assert world, 'VINCITORI: a build with career worlds'
         assert any(o == wsel for o, _, _ in ptrs), 'VINCITORI select'
-        WN.update(sel=base + wsel, init=base + sm_at, ovinit=lab['fp_ovinit'], fill=lab['fp_fill'],
+        WN.update(sel=base + wsel, init=base + sm_at, ovinit=lab['fp_ovinit'], fill=lab['fp_fill'], menu=base + wm_at,
                   sym={k: sym[k] for k in ('DIYNAME', 'A6', 'SHOW_MENU', 'FNAME', 'TITLE', 'LINES_BUF', 'PAGE', 'FOUND',
                                            'FMTMENU', 'BUF', 'TXT', 'IDXMAX_', 'TXTMAX_', 'ENTRY_', 'NAME_', 'LINES_',
                                            'LINE_W_', 'FN_BASE_', 'NPAGE', 'DIY_', 'MENU_', 'GAMETYPE', 'SLT',

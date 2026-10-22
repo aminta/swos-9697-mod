@@ -5,9 +5,10 @@ the viewed league its name, then its winner this season or 'DA GIOCARE' (to be p
 Titles: the FMTxx[world].DAT file's WIN entries (fmtgame.win_lines: a league division with a title beyond its table;
 none = the entry hidden by the menu's onInit), read when the menu opens and when the page opens (fmtpage's buffers),
 a text line per title: the title, 01h, its source:
-  'L' hh       the league's own table: its 1st once it has played hh matches (fmtgame.end_played: the season's);
+  'L' hh dd    the league's own table: its 1st once it has played hh matches (fmtgame.end_played: the season's);
   'C'          a cup-shaped contest's winner (DIY +39h, the game's: Brazil's state championship, live in slot 1);
-  'S' k        the 1st of stage table k (gplay GP_SS.r[k] written this season: Argentina's annual table);
+  'S' k hh dd  the 1st of stage table k (gplay GP_SS.r[k] written this season: Argentina's annual table), once the
+               league has played its hh match days (DIY +1C1h, split's day count); dd: the division (4.0.1);
   'D' s hh     a stage title decided mid-season (gplay GP_ST.dec[s] of play-off hh), else as 'K';
   'K' hh       play-off hh's last tie in gplay GP_ST.ko (the career club's play-off, played).
 A title with nothing this season is left out (no line that would never fill: a play-off the career club is not in is
@@ -180,20 +181,27 @@ wn_load:                                ; FOUND = 1 with the competition's WIN t
 .x: popad
     ret
 
-wn_render:                              ; TXT's lines (title 01h source) -> per title two lines, 'title:' and its
-    pushad                              ; winner indented, LINES_ to a page (form feeds); built in BUF, then into TXT
-    mov esi, TXT
+wn_render:                              ; TXT's lines (title 01h source) -> per title a block: 'title:', its winner
+    pushad                              ; (the page's own menu: centred, the winner yellow), a blank line between
+    mov esi, TXT                        ; blocks, 5 to a page (a form feed: no block split); in BUF, then into TXT
     mov edi, BUF
-    xor ebp, ebp                        ; (lines on this page)
+    xor ebp, ebp                        ; (blocks on this page)
 .line:
     cmp byte [esi], 0
     je .end
-    cmp ebp, LINES_
-    jb .ti0
-    mov byte [edi - 1], 0Ch             ; (the page's last line feed: a form feed)
+    mov [WN_LS], edi                    ; (the block's start: a title with nothing to show is left out)
+    mov [WN_BC], ebp
+    cmp edi, BUF
+    je .ti
+    cmp ebp, 5
+    jb .sep
+    mov al, 0Ch                         ; (a new page)
+    stosb
     xor ebp, ebp
-.ti0:
-    mov [WN_LS], edi                    ; (the title's start: a title with nothing to show this season is left out)
+    jmp .ti
+.sep:
+    mov ax, 0A0Ah                       ; (the winner line's end, a blank line)
+    stosw
 .ti:
     lodsb
     test al, al
@@ -212,11 +220,10 @@ wn_render:                              ; TXT's lines (title 01h source) -> per 
 .nos:
     mov ax, 0A3Ah                       ; ':' LF
     stosw
-    mov eax, '    '
-    stosd
     call wn_src                         ; edx = the winner's name (or 'DA GIOCARE'), esi past the source;
-    jnc .nm                             ; CF: nothing this season (decided at the season end) - no line
+    jnc .nm                             ; CF: nothing to show - no block
     mov edi, [WN_LS]
+    mov ebp, [WN_BC]
     jmp .eol
 .nm:
     mov al, [edx]
@@ -226,9 +233,7 @@ wn_render:                              ; TXT's lines (title 01h source) -> per 
     inc edx
     jmp .nm
 .ne:
-    mov al, 0Ah
-    stosb
-    add ebp, 2
+    inc ebp
 .eol:
     lodsb                               ; (the rest of the source line)
     test al, al
@@ -240,10 +245,7 @@ wn_render:                              ; TXT's lines (title 01h source) -> per 
     dec esi
     jmp .line
 .end:
-    cmp edi, BUF
-    je .z
-    dec edi                             ; (no trailing line feed)
-.z: mov byte [edi], 0
+    mov byte [edi], 0
     mov esi, BUF
     mov edi, TXT
     mov ecx, TXTMAX_ - 1
@@ -273,7 +275,16 @@ wn_src:                                 ; esi -> a source: edx = the winner's na
     sub al, '0'
     mov bh, al
     cmp bl, 'S'
-    je .call
+    jne .pi
+    call .hex                           ; ('S': the league's match days, then decided once DIY +1C1h has them)
+    shl eax, 4
+    mov ecx, eax
+    call .hex
+    or ecx, eax
+    cmp [DIY_ + 1C1h], cx
+    jae .call
+    push esi                            ; (not over: as nothing of it this season - GP_CALL's frame)
+    jmp .none
 .pi:
     call .hex
     shl eax, 4
@@ -355,6 +366,7 @@ wn_mine:                                ; ZF = 0 if the career club is a row of 
     ret
 
 WN_LS: dd 0
+WN_BC: dd 0
 WN_TITLE: WN_TITLE_BYTES
 TBP: TBP_BYTES
 """
@@ -381,7 +393,7 @@ def patch(p, at, lang, sites):
     import nasmcave
     wn = fmtpage.WN
     assert wn, 'fmtpage: no VINCITORI entry (a build without career worlds)'
-    sym = dict(wn['sym'])
+    sym = dict(wn['sym'], FMTMENU=(2, wn['menu']))     # (the page's own copy of fmtpage's menu)
     ttl, tbp = TEXTS[lang]
     sym.update({'FP_OVINIT': (1, wn['ovinit']), 'FP_FILL': (1, wn['fill']),
                 'SEASONPLAYING': (2, sites['season']),

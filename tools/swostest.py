@@ -5547,6 +5547,12 @@ def team_name(exe, word):
     return d[k + 5:k + 22].split(b'\0')[0].decode('latin-1') if k + 22 <= len(d) else None
 
 
+def winner_blocks(lines):
+    """The WINNERS page's blocks: {title: winner} from its lines ('TITLE:', the winner, a blank line)."""
+    lines = [x.strip() for x in lines]
+    return {x[:-1]: lines[i + 1] if i + 1 < len(lines) else '' for i, x in enumerate(lines) if x.endswith(':')}
+
+
 def winners_page(s):
     """Career menu -> VISUAL. COMPETIZ. -> the first competition (the career league) -> STAT: the SEASON WINNERS entry
     (its index, invisible flag) and, opened, the page's title and lines (then back to the statistics)."""
@@ -5592,8 +5598,9 @@ def world_winners():
         s.send('fire dump:3')
         e, title, lines = winners_page(s)
         check(e is not None and not e[2], f'start: VINCITORI entry {e}', errs)
-        heads = [x.rstrip(':') for x in lines[0::2] if x]
-        check(title == 'VINCITORI 2026-27' and heads == want and all(x.strip() == 'DA GIOCARE' for x in lines[1::2] if x),
+        b0 = winner_blocks(lines)
+        heads = list(b0)
+        check(title == 'VINCITORI 2026-27' and heads == want and set(b0.values()) == {'DA GIOCARE'},
               f'start: page {title!r} {lines}', errs)
         info.append(f'start: {title}, {heads}')
         walk(s, s.screen().find('ESCI', exact=True), 3)   # -> the competition
@@ -5635,9 +5642,9 @@ def world_winners():
             s.send(LOAD1 + ' dump:3')
             st = s.result.obj2(st_at, 2100)
             e, title, lines = winners_page(s)
-        got = dict(zip([x.rstrip(':') for x in lines[0::2]], [x.strip() for x in lines[1::2]]))
-        got.pop('', None)
+        got = winner_blocks(lines)
         seas = st[2]
+        src = {}
         for k, nm in enumerate(want[1:]):               # (gplay.c: struct gp_dec at 1996 + 12k; gp_ko at 648 + 674j:
             d = st[1996 + 12 * k:2008 + 12 * k]          # +3 season, +5 pi, +11 ties, +330 winners, +474 team words)
             w, how = 'DA GIOCARE', f'GP_ST.dec[{k}] {d.hex()}'
@@ -5650,17 +5657,23 @@ def world_winners():
                         w = team_name(exe, struct.unpack_from('<H', ko, 474 + 2 * ko[330 + ko[11] - 1])[0])
                         how = f'GP_ST.ko[{j}] final'
             check(got.get(nm) == w, f'{tag}: {nm} shows {got.get(nm)!r}, {how} = {w!r}', errs)
+            src[nm] = how.split()[0]
         check(title == 'VINCITORI 2026-27' and list(got) == want, f'{tag}: page {title!r} {list(got)}', errs)
-        return got
+        return got, src
 
-    mg = page('world_winners_mid', mid)
-    check(mg.get('TORNEO APERTURA') != 'DA GIOCARE' and mg.get('TROFEO DE CAMPEONES') == 'DA GIOCARE',
-          f'mid-season: {mg}', errs)
-    eg = page('world_winners_end', car)
+    mg, ms = page('world_winners_mid', mid)
+    check(mg.get('TORNEO APERTURA') != 'DA GIOCARE' and mg.get('TROFEO DE CAMPEONES') == 'DA GIOCARE' and
+          mg.get('LIGA PROFESIONAL') == 'DA GIOCARE', f'mid-season: {mg} (the league: DA GIOCARE until its last day)',
+          errs)
+    check(ms.get('TORNEO APERTURA') == 'GP_ST.dec[0]', f'mid-season: the Apertura from {ms.get("TORNEO APERTURA")}',
+          errs)
+    eg, es = page('world_winners_end', car)
+    check(es.get('TORNEO APERTURA') == 'GP_ST.dec[0]' and es.get('TORNEO CLAUSURA') == 'GP_ST.dec[1]',
+          f'end: sources {es} (the Apertura / Clausura: closed before the Trofeo, GP_ST.dec)', errs)
     arg = {team_name(exe, 0xA3 | i << 8) for i in range(30)}
     check(eg.get('LIGA PROFESIONAL') in arg, f'end: LIGA PROFESIONAL shows {eg.get("LIGA PROFESIONAL")!r} (GP_SS '
           f'annual table\'s 1st: an Argentine club)', errs)
-    info.append(f'mid: {mg}; end: {eg}')
+    info.append(f'mid: {mg}; end: {eg}; sources {es}')
     return not errs, '; '.join(errs + info)
 
 

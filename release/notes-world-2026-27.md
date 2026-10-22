@@ -1,8 +1,8 @@
 ## English
 
 **SWOS 96/97 Mod 4.0: the World 2026-27 career, today's football as it really is**
-<!-- REGIA STAGED, the release payoff (Davide 2026-10-18, for the final release of the whole work):
-*Football competitions, global and local, that no other game has, has ever had, or probably ever will.* -->
+
+*Football competitions, global and local, that no other game has, has ever had, or probably ever will.*
 
 A historic career world of the **2026-27 season**: 91 countries, 2,003 clubs in the league divisions (Italy down to the real Serie D: 156 clubs in 9 groups) and 119
 that play only Brazil's state championships, plus 104 clubs waiting outside the world (the Eccellenza, Brazil's
@@ -665,8 +665,8 @@ Cearense, Pernambucano, Alagoano and Mato-Grossense.
 ## Italiano
 
 **SWOS 96/97 Mod 4.0: la carriera Mondo 2026-27, il calcio di oggi com'è davvero**
-<!-- REGIA STAGED, il payoff del rilascio (Davide 2026-10-18, per il rilascio finale di tutto il lavoro):
-*Le competizioni di calcio, globali e locali, che nessun altro gioco ha, ha mai avuto e probabilmente avrà.* -->
+
+*Le competizioni di calcio, globali e locali, che nessun altro gioco ha, ha mai avuto e probabilmente avrà.*
 
 Un mondo di carriera storica della **stagione 2026-27**: 91 nazioni, 2.003 club nelle divisioni dei campionati (l'Italia fino alla Serie D vera: 156 club in 9 gironi) e 119
 che giocano solo i campionati statali brasiliani, più 104 club in attesa fuori dal mondo (l'Eccellenza, le seconde

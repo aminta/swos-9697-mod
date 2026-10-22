@@ -1,9 +1,6 @@
-<!-- DRAFT (2026-10-16), not released. Kept up to date at each milestone by the world 2026-27 sessions.
-     Data parts: Transfermarkt converter session. TODO parts marked [TODO <session>]. Never publish without Davide's ok. -->
-
 ## English
 
-**SWOS 96/97 Mod 4.0: the World 2026-27 career, today's football as it really is** (DRAFT)
+**SWOS 96/97 Mod 4.0: the World 2026-27 career, today's football as it really is**
 <!-- REGIA STAGED, the release payoff (Davide 2026-10-18, for the final release of the whole work):
 *Football competitions, global and local, that no other game has, has ever had, or probably ever will.* -->
 
@@ -154,21 +151,6 @@ Cearense, Pernambucano, Alagoano and Mato-Grossense.
   Queensland, closed as in reality; El Salvador's Primera, Segunda in two zones and Tercera; and Suriname, Taiwan,
   India and Ghana, back with their real leagues and cups.
 
-<!-- REGIA STAGED: formats still to come (facts final: internal formats2627.md); move each into the section above
-when the engine lands it.
-- **Malta**: the Final Four for the title from the Opening Round's table. **Champions decided by play-offs**:
-  Canada's CPL top-4 play-offs; the A-League's top-6 finals series (3rd v 6th, 4th v 5th, re-seeded two-legged
-  semi-finals, the Grand Final at the higher placed club's ground); Costa Rica's semi-finals, final and Gran Final.
-- **Argentina 2026** (the official LPF regulation): Apertura and Clausura in two zones of 15, the clasico matchday,
-  octavos 1A v 8B ... 4B v 5A, a fixed bracket to a neutral final; the annual table (Campeon de Liga, international
-  places); relegation by the three-year promedio and by the annual table; the Trofeo de Campeones.
-- **MLS**: 34 matches incl. the other conference, the Supporters' Shield, the play-offs of 9 per conference with the
-  wild card and the best-of-three first round.
-- **Mexico**: Apertura and Clausura with the liguilla of eight (1st v 8th ..., two legs; no play-in since 2026).
-  **Uruguay**: Apertura, Intermedio, Clausura and the annual table, then semi-final and final. **Paraguay**: Apertura
-  and Clausura, no play-offs, relegation by promedio. **Colombia**: the Apertura knockout, the Finalizacion's
-  cuadrangulares. **Peru**: Apertura, Clausura and the 4-club play-offs. **Honduras**: two geographic groups.
--->
 
 *European cups (UEFA 2026-27)*
 - **The current official names**: UEFA Champions League, UEFA Europa League, UEFA Conference League, on every screen.
@@ -638,7 +620,6 @@ when the engine lands it.
 - The game files hold derived data only: the squads, skills and prices are computed from these sources (the game's
   own price scale); no market values, ratings or source pages are shipped.
 
-<!-- REGIA STAGED (release: fill from the 4.0 dry run, c/REL40rc1):
 **Also in this release**
 - Europe 1984-85 career: league tables in colour (see above), each competition's FORMAT page with its table colours,
   the European cups' titles without a leading space.
@@ -661,11 +642,11 @@ when the engine lands it.
   EUROCUP.TMD, UEFACUP.TMD and POOLPLYR.DAT). Copy the new files into DATA too, or use the one-click install. The patcher page now needs a recent browser (Chrome 103+,
   Safari 16.4+, Firefox 113+).
 - Saves: careers of the 1996-97 game saved with 3.3.6 and earlier load and play on. Careers of the Europe 1984-85 world saved with
-  3.x load and play on too. -->
+  3.x load and play on too. 
 
 ## Italiano
 
-**SWOS 96/97 Mod 4.0: la carriera Mondo 2026-27, il calcio di oggi com'è davvero** (BOZZA)
+**SWOS 96/97 Mod 4.0: la carriera Mondo 2026-27, il calcio di oggi com'è davvero**
 <!-- REGIA STAGED, il payoff del rilascio (Davide 2026-10-18, per il rilascio finale di tutto il lavoro):
 *Le competizioni di calcio, globali e locali, che nessun altro gioco ha, ha mai avuto e probabilmente avrà.* -->
 
@@ -817,20 +798,6 @@ Baiano, Cearense, Pernambucano, Alagoano e Mato-Grossense.
   Wales, Victoria e Queensland, chiuse come nella realtà; Primera, Segunda in due zone e Tercera di El Salvador; e
   Suriname, Taiwan, India e Ghana, di nuovo con i loro veri campionati e coppe.
 
-<!-- REGIA STAGED: formati ancora da fare (vedi la parte inglese).
-- **Malta**: la Final Four per il titolo dalla classifica dell'Opening Round. **Campioni decisi dai play-off**: i
-  play-off a 4 della CPL canadese; la fase finale a 6 dell'A-League (3ª-6ª, 4ª-5ª, semifinali di andata e ritorno
-  con nuovo abbinamento, Grand Final in casa della meglio piazzata); semifinali, finale e Gran Final della Costa Rica.
-- **Argentina 2026** (regolamento ufficiale LPF): Apertura e Clausura in due zone da 15, la giornata dei clasicos,
-  ottavi 1A-8B ... 4B-5A, tabellone fisso fino alla finale in campo neutro; la classifica annuale (Campeon de Liga,
-  posti internazionali); retrocessioni per promedio di tre stagioni e per classifica annuale; il Trofeo de Campeones.
-- **MLS**: 34 partite anche contro l'altra conference, il Supporters' Shield, i play-off a 9 per conference con la
-  wild card e il primo turno al meglio delle tre.
-- **Messico**: Apertura e Clausura con la liguilla a otto (1ª-8ª ..., andata e ritorno; niente play-in dal 2026).
-  **Uruguay**: Apertura, Intermedio, Clausura e classifica annuale, poi semifinale e finale. **Paraguay**: Apertura e
-  Clausura, niente play-off, retrocessione per promedio. **Colombia**: l'Apertura a eliminazione, i cuadrangulares
-  della Finalizacion. **Perù**: Apertura, Clausura e i play-off a 4. **Honduras**: due gironi geografici.
--->
 
 *Coppe europee (UEFA 2026-27)*
 - **I nomi ufficiali di oggi**: UEFA Champions League, UEFA Europa League, UEFA Conference League, su ogni schermata.
@@ -1335,7 +1302,6 @@ Baiano, Cearense, Pernambucano, Alagoano e Mato-Grossense.
 91 nazioni, 134 divisioni, 87 coppe nazionali, 14 coppe di lega, 13 campionati statali, 15 competizioni continentali (UEFA 3 + 12 nuove): ogni competizione giocabile e la sua formula, generate dalla build della release: [world-2026-27-competitions.md](world-2026-27-competitions.md).
 <!-- complist:end -->
 
-<!-- REGIA STAGED (rilascio: da completare dalla prova della 4.0, c/REL40rc1):
 **Anche in questa versione**
 - Carriera Europa 1984-85: classifiche a colori (vedi sopra), la pagina FORMULA di ogni competizione coi colori della
   classifica, i titoli delle coppe europee senza lo spazio iniziale.
@@ -1360,4 +1326,4 @@ Baiano, Cearense, Pernambucano, Alagoano e Mato-Grossense.
   nuovi in DATA, oppure usa l'installazione con un clic. La pagina del patcher ora
   richiede un browser recente (Chrome 103+, Safari 16.4+, Firefox 113+).
 - Salvataggi: le carriere del gioco 1996-97 salvate con la 3.3.6 e precedenti si caricano e continuano. Anche le carriere del mondo
-  Europa 1984-85 salvate con la 3.x si caricano e continuano. -->
+  Europa 1984-85 salvate con la 3.x si caricano e continuano. 

@@ -1501,8 +1501,12 @@ def splits():
                     day += len(fxd)
                     continue
                 _need(set(st) <= {'after', 'home', 'groups', 'tiebreak', 'reset', 'keep', 'title', 'places',
-                                  'places_snake'},
-                      f'{ws}: keys after, home, groups, tiebreak, reset, keep, places / places_snake')
+                                  'places_snake', 'table', 'then', 'annual'},
+                      f'{ws}: keys after, home, groups, tiebreak, reset, keep, places / places_snake, table, then, annual')
+                _need(st.get('table') in (None, 0, 1, 2, 3), f'{ws}.table: 0..3 (GP_SS: stage_place 4..7)')
+                if st.get('then'):                      # (4.0.1: a group stage's kept table and after-stage routine
+                    import engine                       # too - Uruguay's Intermedio between two fixture stages)
+                    engine.after_stage(st['then'])
                 if i == 0:
                     _need(isinstance(st.get('after'), int) and st['after'] % per == 0 and 1 <= st['after'] // per <= 4,
                           f'{ws}.after: {per} x the meetings (1..4)')
@@ -1535,7 +1539,8 @@ def splits():
                 one = {'after': st['after'], 'groups': [g['places'][1] - g['places'][0] + 1 for g in gs],
                        'rounds': [rnd[g.get('rounds', 'single')] for g in gs],
                        'points': [g.get('points', 'full') for g in gs], 'home': st.get('home', 'seeded'),
-                       'reset': bool(st.get('reset')), 'keep': st.get('keep')}
+                       'reset': bool(st.get('reset')), 'keep': st.get('keep'), 'then': st.get('then'),
+                       'table': st.get('table'), 'annual': bool(st.get('annual'))}
                 if expl is not None:                    # (split.entry: new place k = the old place perm[k], 0-based)
                     one['perm'] = [p - 1 for e in expl for p in e]
                 spec['stages'].append(one)

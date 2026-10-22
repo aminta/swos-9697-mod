@@ -4665,6 +4665,7 @@ def sa_exact_build(code, also=()):
     for c in (code, *also):
         f = os.path.join(w, 'world5tm', c, 'pack.json')
         json.dump(sa_exact.EXACT[c](json.load(open(f))), open(f, 'w'), indent=1, ensure_ascii=False)
+    shutil.copy(src + '.txt', os.path.join(w, 'world5tm.txt'))      # (full_season: the data's file order)
     order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
     tag = '_' + os.environ['SWOSTEST_TAG'] if os.environ.get('SWOSTEST_TAG') else ''
     return build(f"world_sa_{'_'.join((code, *also))}{tag}", env={'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(w, 'world5tm', x)
@@ -4922,6 +4923,51 @@ def world_col_exact():
     """Colombia 2026 (4.0.1, sa_exact.col_exact): Apertura 19 + QF / SF / final (two legs), Finalizacion 19 + two
     cuadrangulares + final, at ATL. NACIONAL: 38 days, both stages frozen, two stage titles"""
     return world_sa_exact('col', 'SUDAMERICA,COLOMBIA,ATL. NACIONAL', 20, 38)
+
+
+@scenario
+def world_uru_exact():
+    """URUGUAY 2026 real format (sa_exact.uru_exact, 4.0.1): Apertura 15 (real calendar) + Intermedio (snake series A
+    / B, 7 days, table kept) + Clausura 15 at DANUBIO: the 16-club league frozen, 37 match days, the stage titles"""
+    return world_sa_exact('uru', 'SUDAMERICA,URUGUAY,CAMPEONATO URUGUAYO,DANUBIO', 16, 37)
+
+
+def world_full_sa(code, team):
+    """full_season on the 4.0 world with one South American country's real 2026 format (sa_exact_build): a whole
+    season at team, every division keeps its size, each club moves at most one level"""
+    exe = sa_exact_build(code)
+    w = os.path.join(WORK, f'world_sa_{code}')
+    keep = {k: os.environ.get(k) for k in ('W2627FULL', 'W2627FULL_DATA')}
+    os.environ.update(W2627FULL=exe, W2627FULL_DATA=os.path.join(w, 'world5tm'))
+    try:
+        return full_season(code, team)
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+
+
+@scenario
+def world_full_per():
+    """A full season of PERU's real 2026 format (Apertura + Clausura, real calendars, table titles) at ALIANZA LIMA
+    (world_full_sa): the divisions keep their sizes, moves of one level"""
+    return world_full_sa('per', 'SUDAMERICA,PERU,ALIANZA LIMA')
+
+
+@scenario
+def world_full_col():
+    """A full season of COLOMBIA's real 2026 format (Apertura + knockout, Finalizacion + cuadrangulares) at ATL.
+    NACIONAL (world_full_sa): the divisions keep their sizes, moves of one level"""
+    return world_full_sa('col', 'SUDAMERICA,COLOMBIA,ATL. NACIONAL')
+
+
+@scenario
+def world_full_uru():
+    """A full season of URUGUAY's real 2026 format (Apertura, Intermedio snake + final, Clausura, the championship
+    semi-final / final) at DANUBIO (world_full_sa): the divisions keep their sizes, moves of one level"""
+    return world_full_sa('uru', 'SUDAMERICA,URUGUAY,CAMPEONATO URUGUAYO,DANUBIO')
 
 
 @scenario

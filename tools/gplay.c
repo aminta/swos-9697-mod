@@ -1387,6 +1387,31 @@ static void stage_done(const struct gp_ko *k) {   /* a stage title's knockout de
     x->pad[1] = k->pi + 1;
 }
 
+/* the SEASON WINNERS page (winners.py): a title's source GP_WNSRC ('S' / 'D' / 'K', stage << 8, play-off pi << 16) -> its
+   winner's team word this season (GP_SEAS); 0xFFFF: not decided yet, but being played (the play-off's contest is
+   this season's GP_ST.ko); 0xFFFE: nothing of it this season (a play-off the career club is not in: decided at the
+   season end). 'S': stage table st's 1st (GP_SS.r[st] written this season: ARG's annual table); 'D': a stage title
+   decided mid-season (GP_ST.dec[stage] of play-off pi), else as 'K': play-off pi's last tie in GP_ST.ko (the career
+   club's, played; not a group contest). The page names a club only when it is one of the viewed league's rows. */
+u32 GP_WNSRC;
+u32 gp_wn_c(void) {
+    int t = GP_WNSRC & 0xFF, st = GP_WNSRC >> 8 & 0xFF, pi = GP_WNSRC >> 16 & 0xFF;
+    if (t == 'S')
+        return st < SS_N && (GP_SS.fresh >> st & 1) && GP_SS.n[st] ? GP_SS.r[st][0].team : 0xFFFE;
+    if (GP_ST.magic != MAGIC) return 0xFFFE;
+    if (t == 'D' && st < 3) {
+        const struct gp_dec *x = &GP_ST.dec[st];
+        if (x->season == GP_SEAS && x->done && x->pad[1] == pi + 1) return x->team[0];
+    }
+    for (int j = 0; j < 2; j++) {
+        const struct gp_ko *k = &GP_ST.ko[j];
+        if (k->magic != MAGIC || k->season != GP_SEAS || k->pi != pi || !k->ntie || k->bye[7]) continue;
+        int w = k->tw[k->ntie - 1];
+        return w != NOC ? k->team[w] : 0xFFFF;
+    }
+    return 0xFFFE;
+}
+
 u32 GP_WK;                              /* (the glue: the current calendar entry's week) */
 
 /* ---- The Coppa Italia Serie D (cupd.py: CD_TAB; state CD_ST, the engine block's item 'CD'). At every calendar

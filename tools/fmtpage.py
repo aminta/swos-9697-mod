@@ -14,6 +14,7 @@ BSS_SIZE bytes, nothing resident.
   text    lines separated by LF, pages by FF; upper case, the game's font (no accents).
 build(path, pages) writes such a file: pages = [(id or None, name, [page = [line, ...], ...]), ...].
 """
+import os
 import re
 import struct
 
@@ -28,13 +29,15 @@ ENTRY = 48
 NAME = 41                       # the slot's name (+4 .. +2Ch, before the contest id): the title the game shows
 
 TEXTS = {
-    'it': dict(btn=b'FORMULA', next=b'PAG. SUCC.', none=b'NESSUNA DESCRIZIONE', file=b'data/fmtit', ov=b'CLASSIFICA GENERALE', prev=b'PAG. PREC.'),
-    'en': dict(btn=b'FORMAT', next=b'NEXT PAGE', none=b'NO DESCRIPTION', file=b'data/fmten', ov=b'OVERALL TABLE', prev=b'PREV. PAGE'),
-    'fr': dict(btn=b'FORMULE', next=b'PAGE SUIV.', none=b'PAS DE DESCRIPTION', file=b'data/fmtfr', ov=b'CLASSEMENT GENERAL', prev=b'PAGE PREC.'),
-    'de': dict(btn=b'MODUS', next=b'WEITER', none=b'KEINE BESCHREIBUNG', file=b'data/fmtde', ov=b'GESAMTTABELLE', prev=b'VORIGE SEITE'),
+    'it': dict(wbtn=b'VINCITORI', btn=b'FORMULA', next=b'PAG. SUCC.', none=b'NESSUNA DESCRIZIONE', file=b'data/fmtit', ov=b'CLASSIFICA GENERALE', prev=b'PAG. PREC.'),
+    'en': dict(wbtn=b'WINNERS', btn=b'FORMAT', next=b'NEXT PAGE', none=b'NO DESCRIPTION', file=b'data/fmten', ov=b'OVERALL TABLE', prev=b'PREV. PAGE'),
+    'fr': dict(wbtn=b'VAINQUEURS', btn=b'FORMULE', next=b'PAGE SUIV.', none=b'PAS DE DESCRIPTION', file=b'data/fmtfr', ov=b'CLASSEMENT GENERAL', prev=b'PAGE PREC.'),
+    'de': dict(wbtn=b'SIEGER', btn=b'MODUS', next=b'WEITER', none=b'KEINE BESCHREIBUNG', file=b'data/fmtde', ov=b'GESAMTTABELLE', prev=b'VORIGE SEITE'),
 }
 
 OV = {}                         # 4.0 (longtable.py): the overall-table flag's obj2 offset ('flag')
+WN = {}                         # 4.0.1 (winners.py): the SEASON WINNERS entry's pointers and the page's symbols
+WN_COLOUR = 15                  # the WINNERS page's winner lines: text colour 15, yellow (stringFlags & 0Fh; titles 0: white)
 
 ASM = r"""
 fp_ov:                                  ; 4.0 CLASSIFICA GENERALE (fire): the table screen's overall mode on / off
@@ -337,9 +340,11 @@ WORLD_ASM = r"""
 """
 
 
-def patch(p, at, lang, area, bss, world=None):
+def patch(p, at, lang, area, bss, world=None, wn=False):
     """Code at obj1:at, menus and buffers in obj2 area, the file buffer at obj2:bss (BSS_SIZE); world = careerworld's
-    sites in a build with career worlds (DATA\\FMTxx<world>.DAT in a career of world 1+). Returns the code end."""
+    sites in a build with career worlds (DATA\\FMTxx<world>.DAT in a career of world 1+); wn: the SEASON WINNERS entry
+    too (winners.py places its page in gplay's pages). Returns the code end."""
+    WN.clear()
     d, d2 = p.le.obj_bytes(1), p.le.obj_bytes(2)
     site, (mobj, moff), name, show, a6 = locate(p)
     assert mobj == 2 and struct.unpack_from('<IIIIhhhh', d2, moff) == (0, 0, 0, 1, 92, 0, 120, 15), 'competitionStatsMenu'
@@ -356,7 +361,7 @@ def patch(p, at, lang, area, bss, world=None):
     def put(key, b, size=None):
         off[key] = len(data)
         data.extend(b + b'\0' * ((size or len(b) + 1) - len(b)))
-    for k in ('btn', 'next', 'none', 'ov', 'prev'):
+    for k in ('btn', 'next', 'none', 'ov', 'prev') + (('wbtn',) if wn else ()):   # (VINCITORI: its builds only)
         put(k, T[k])
     put('file', T['file'], 20)
     put('title', b'', NAME + 1)
@@ -373,7 +378,8 @@ def patch(p, at, lang, area, bss, world=None):
     e3, e4 = ents[3][1] - moff, ents[4][1] - moff
     assert sm[e3 + 3] == 4 and sm[e4 + 2] == 3, (sm[e3:e3 + 4], sm[e4:e4 + 4])
     sm[e3 + 3] = 5                                       # VIEW SQUADS: down -> FORMULA
-    sm[e4 + 2] = 6                                       # EXIT: up -> CLASSIFICA GENERALE (4.0: FORMULA -> it -> EXIT)
+    sm[e4 + 2] = 7 if wn else 6                       # EXIT: up -> CLASSIFICA GENERALE (4.0: FORMULA -> it -> EXIT;
+                                                         # 4.0.1 worlds: -> VINCITORI)
     ptrs.append((sm_at + 0, 1, 'fp_ovinit'))             # (the menu's onInit: the 7th entry only for long tables)
     exit_text = [t for o, t in ((o, (t_obj, t_off)) for o, t_obj, t_off in fixes) if o == ents[4][0] + 22]
     exit_fn = [t for o, t in ((o, (t_obj, t_off)) for o, t_obj, t_off in fixes) if o == ents[4][0] + 28]
@@ -395,7 +401,12 @@ def patch(p, at, lang, area, bss, world=None):
         buf.extend(b + b'\0\0')
     tail = bytearray()
     entry(tail, sm_at + len(sm), 92, 115, 120, 15, nav=(-1, -1, 3, 6), color=0x0E, text=(2, 'btn'), select=(1, 'fp_open'))
-    entry(tail, sm_at + len(sm), 92, 140, 120, 15, nav=(-1, -1, 5, 4), color=0x0E, text=(2, 'ov'), select=(1, 'fp_ov'))
+    entry(tail, sm_at + len(sm), 92, 140, 120, 15, nav=(-1, -1, 5, 7 if wn else 4), color=0x0E, text=(2, 'ov'),
+          select=(1, 'fp_ov'))
+    if wn:                                               # 4.0.1 VINCITORI: winners.py points its select and the menu's
+        entry(tail, sm_at + len(sm), 92, 165, 120, 15, nav=(-1, -1, 6, 4), color=0x0E, text=(2, 'wbtn'),
+              select=(1, 'fp_open'))                     # onInit at its own code (hidden without a WIN entry)
+        wsel = sm_at + len(sm) + len(tail) - 6           # (the select pointer: the entry's last field before its 0)
     sm += tail + struct.pack('<h', -999)
     data.extend(sm)
     while len(data) % 4:
@@ -415,6 +426,22 @@ def patch(p, at, lang, area, bss, world=None):
     ptrs.append((fm_at + 0, 1, 'fp_vis'))               # (the page menu's onInit: PREV / NEXT shown as the page allows)
     fm += struct.pack('<h', -999)
     data.extend(fm)
+    if wn:                                               # 4.0.1 the WINNERS page's own copy: its lines centred, blocks
+        while len(data) % 4:                             # of 3 (title, winner in WN_COLOUR, a blank), 5 to a page
+            data.append(0)
+        wm_at = len(data)
+        wm = bytearray(struct.pack('<IIII', 0, 0, 0, ex))
+        entry(wm, wm_at, 0, 0, 304, 14, color=0x17, text=(2, 'title'))
+        coltest = os.environ.get('WN_COLTEST')           # (a test build: line i in text colour i)
+        for i in range(LINES):
+            col = (int(coltest) + i) & 15 if coltest else WN_COLOUR if i % 3 == 1 else 0
+            entry(wm, wm_at, 0, 20 + 11 * i, 304, 10, text=(2, ('lines', i)), flags=col)
+        entry(wm, wm_at, 104, 185, 96, 15, nav=(pv, ex, -1, -1), color=0x0E, text=(2, 'next'), select=(1, 'fp_next'))
+        entry(wm, wm_at, 204, 185, 96, 15, nav=(nx, -1, -1, -1), color=0x0C, text=exit_text[0], select=exit_fn[0])
+        entry(wm, wm_at, 4, 185, 96, 15, nav=(-1, nx, -1, -1), color=0x0E, text=(2, 'prev'), select=(1, 'fp_prev'))
+        ptrs.append((wm_at + 0, 1, 'fp_vis'))
+        wm += struct.pack('<h', -999)
+        data.extend(wm)
 
     base = area.add(bytes(data))
     assert not any((base + o) // 0x1000 != (base + o + 3) // 0x1000 for o, _, _ in ptrs), 'a pointer straddles a page'
@@ -444,6 +471,14 @@ def patch(p, at, lang, area, bss, world=None):
         elif isinstance(t, tuple):
             t = base + off[t[0]] + LINE_W * t[1]
         p.add_ptr(2, base + o, t_obj, t)
+    if wn:
+        assert world, 'VINCITORI: a build with career worlds'
+        assert any(o == wsel for o, _, _ in ptrs), 'VINCITORI select'
+        WN.update(sel=base + wsel, init=base + sm_at, ovinit=lab['fp_ovinit'], fill=lab['fp_fill'], menu=base + wm_at,
+                  sym={k: sym[k] for k in ('DIYNAME', 'A6', 'SHOW_MENU', 'FNAME', 'TITLE', 'LINES_BUF', 'PAGE', 'FOUND',
+                                           'FMTMENU', 'BUF', 'TXT', 'IDXMAX_', 'TXTMAX_', 'ENTRY_', 'NAME_', 'LINES_',
+                                           'LINE_W_', 'FN_BASE_', 'NPAGE', 'DIY_', 'MENU_', 'GAMETYPE', 'SLT',
+                                           'WORLD_BYTE_')})
     p.retarget(1, site + 6, 2, base + sm_at)
     p.put(1, site + 6, struct.pack('<I', base + sm_at))
     print(f'exe: FORMAT page: statistics menu + FORMULA obj2+{base + sm_at:#x}, page obj2+{base + fm_at:#x}, '
@@ -451,17 +486,22 @@ def patch(p, at, lang, area, bss, world=None):
     return at + len(code)
 
 
-def build(path, pages):
-    """DATA\\FMTxx.DAT from [(contest id or None, name, [[line, ...], ...]), ...]."""
+def build(path, pages, wins=()):
+    """DATA\\FMTxx.DAT from [(contest id or None, name, [[line, ...], ...]), ...]; wins: the SEASON WINNERS page's
+    entries [(contest id or None, name, [(title, source), ...])], after the pages' (their count: the header's second
+    word), a text line per title: the title, 01h, its source (winners.py)."""
     idx, body = bytearray(), bytearray()
-    head = 8 + ENTRY * len(pages)
-    assert head <= IDXMAX, len(pages)
-    for cid, name, pp in pages:
-        txt = '\x0c'.join('\n'.join(l.upper() for l in pg[:LINES]) for pg in pp).encode('ascii')
+    head = 8 + ENTRY * (len(pages) + len(wins))
+    assert head <= IDXMAX, (len(pages), len(wins))
+    for cid, name, pp in list(pages) + list(wins):
+        if pp and isinstance(pp[0], tuple):
+            txt = '\n'.join(f'{t}\x01{s_}' for t, s_ in pp).encode('ascii')
+        else:
+            txt = '\x0c'.join('\n'.join(l.upper() for l in pg[:LINES]) for pg in pp).encode('ascii')
         assert len(txt) < TXTMAX, (name, len(txt))
         nm = name.encode('latin-1')[:NAME - 1]
         idx += struct.pack('<B', 0xFF if cid is None else cid) + nm + b'\0' * (NAME - len(nm))
         idx += struct.pack('<IH', head + len(body), len(txt))
         idx += b'\0' * (-len(idx) % ENTRY)
         body += txt
-    open(path, 'wb').write(b'FMT1' + struct.pack('<HH', len(pages), 0) + idx + body)
+    open(path, 'wb').write(b'FMT1' + struct.pack('<HH', len(pages), len(wins)) + idx + body)

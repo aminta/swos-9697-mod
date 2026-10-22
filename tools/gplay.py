@@ -1910,7 +1910,8 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
     LABELS.update(lab, GP_TOPW=top_w, GP_TOPR=top_r, CD_ST=syms['CD_ST'], GP_GS=syms['GP_GS'], GP_KOLAY=kolay, GP_IN=syms['GP_IN'], GP_OUT=syms['GP_OUT'], GP_ST=syms['GP_ST'], GP_LOG=syms['GP_LOG'], layout=lay, pg_season=syms['pg_season'], pg_place=syms['pg_place'], rs_season=syms['rs_season'], gp_stage=syms['gp_stage'], gp_overall=syms['gp_overall'], gp_stitle_c=syms['gp_stitle_c'], gp_hplan_c=syms['gp_hplan_c'], gp_hlabel_c=syms['gp_hlabel_c'], GP_HP=syms['GP_HP'], GP_HGP=syms['GP_HGP'], GP_HG=syms['GP_HG'], GP_HV=syms['GP_HV'], GP_HF=syms['GP_HF'], GP_HL=syms['GP_HL'], GP_HON=syms['GP_HON'], GP_OV_ORD=syms['GP_OV_ORD'], GP_OV_ROWS=syms['GP_OV_ROWS'], GP_OV_N=syms['GP_OV_N'], GP_OV_ANNUAL=syms['GP_OV_ANNUAL'], GP_SS=syms['GP_SS'], PR_STATE=syms['PR_STATE'],
                   RS_STATE=syms['RS_STATE'], ri_season=syms['ri_season'], ri_apply=syms['ri_apply'],
                   ri_cache=syms['ri_cache'], RI_STATE=syms['RI_STATE'], RI_MGR=syms['RI_MGR'],
-                  RI_RULE=syms['RI_RULE'], cd_season=syms['cd_season'])
+                  RI_RULE=syms['RI_RULE'], cd_season=syms['cd_season'],
+                  gp_wn_c=syms['gp_wn_c'], GP_WNSRC=syms['GP_WNSRC'], GP_SEAS=syms['GP_SEAS'])   # (winners.py)
     if cds:
         assert struct.unpack('<I', p.get(1, syms['CD_STSZ'][1], 4))[0] == CD_SIZE   # (the engine block's 'CD')
     print(f"exe: knockout play-offs (gplay): {len(tables)} countries, C obj1+{at:#x}..{cend:#x}, glue ..{glue + len(code):#x}, "

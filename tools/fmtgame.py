@@ -799,6 +799,112 @@ def world_year(w, d=None):
     return _YEARS.get(w, 0)
 
 
+WN = {   # the SEASON WINNERS page (fmtpage / winners.py): page title, a title not decided yet, a 'title' league's table
+    'it': dict(down='RETROCESSA', title='VINCITORI', tbp='DA GIOCARE', reg=' (STAGIONE REGOLARE)'),
+    'en': dict(down='RELEGATED', title='WINNERS', tbp='TO BE PLAYED', reg=' (REGULAR SEASON)'),
+    'fr': dict(down='RELEGUE', title='VAINQUEURS', tbp='A JOUER', reg=' (SAISON REGULIERE)'),
+    'de': dict(down='ABSTEIGER', title='SIEGER', tbp='NOCH OFFEN', reg=' (HAUPTRUNDE)'),
+}
+WN_SKIP = ('promedio', 'playout', 'placement')   # (no single winner: the promedio's and a play-out's relegated, places)
+
+
+def _po_divs(po):
+    """The divisions a play-off's entrants come from."""
+    out = set()
+    for e in po.get('entrants') or []:
+        if isinstance(e, list) and len(e) == 2:
+            out.add(e[0])
+        elif isinstance(e, dict) and ('div' in e or 'stage_place' in e or 'split_seed' in e):
+            out.add(e.get('div', 0))
+    return out
+
+
+def win_lines(comp, div, k):
+    """The SEASON WINNERS page of division k of a league: {lang: [(title, source)]}, {} when it has no title beyond its
+    table (the page's entry stays hidden). Sources (winners.py wn_src): 'L' the table's 1st once the league is over;
+    'K' + pi (2 hex digits) the last tie's winner of play-off pi (gplay GP_ST.ko: the career club's, played);
+    'D' + stage + pi a stage title decided mid-season (GP_ST.dec[stage], pi its play-off)."""
+    pos = comp.get('ko_playoffs') or []
+    lines = {lang: [] for lang in LANGS}
+    title_po = False
+    for pi, po in enumerate(pos if isinstance(pos, list) else []):
+        divs = _po_divs(po)
+        if po.get('kind') in WN_SKIP or not po.get('names') or k not in divs or pi > 0xFF:
+            continue
+        title_po |= po.get('kind') == 'title' and divs == {k}       # (its champion is not the table's 1st)
+        st = po.get('stage') if po.get('kind') == 'stage_title' else None
+        src = f'D{st}{pi:02X}' if st is not None and 0 <= st < 3 else f'K{pi:02X}'
+        for lang in LANGS:
+            lines[lang].append((_wn_fit(po['names'], lang), src))
+    par = comp.get('parallel')                  # dplay (pack 'playoffs': 'ita'): the Serie B play-off and play-out (its
+    par = par[0] if isinstance(par, list) else par   # relegated club), a Serie C group's play-off ('P' + dplay's kind)
+    if comp.get('playoffs') == 'ita' and par:
+        import dplay
+        po = [(dplay.NAMES[0], 'P1', ''), (dplay.NAMES[1], 'P2', 'down')] if k == par['upper'] else \
+            [(dplay.NAMES[2], 'P3', '')] if par['first'] <= k < par['first'] + par['count'] else []
+        for nm, src, tail in po:
+            for lang in LANGS:
+                lines[lang].append((_wn_fit({'*': [nm.decode()]}, lang, ' - ' + WN[lang][tail] if tail else ''), src))
+    if not lines['it']:
+        return {}
+    sp = div.get('split')
+    tabs = [st for st in ((sp.get('stages') or [sp]) if sp else []) if st.get('table') is not None]
+    end = end_played(div)
+    stages = (sp.get('stages') or [sp]) if sp else []
+    days = sum(len(st.get('fixtures') or []) for st in stages)  # (a stage table's league: the season's match days)
+    src = None
+    if tabs and 0 < days < 256:                                 # its annual / last table, once the days are played
+        src = f"S{2 if any(st.get('annual') for st in tabs) else tabs[-1]['table']}{days:02X}"
+    elif not tabs and end is not None:
+        src = f'L{end:02X}'
+    src = src and src + f'{k:02X}'                              # (+ the division: 4.0.1's last season, WN_ST 'L')
+    if src:
+        for lang in LANGS:
+            lines[lang].insert(0, (_wn_fit(div['name'], lang, WN[lang]['reg'] if title_po else ''), src))
+    return lines
+
+
+def _wn_fit(names, lang, tail=''):
+    """A title of the SEASON WINNERS page, 'title:' within the page's width (rule 1): the long name, else the short
+    one, else the long one without the tail."""
+    v = names.get(lang) or names.get('*') or next(iter(names.values()))
+    v = v if isinstance(v, list) else [v]
+    tries = [x + tail for x in v] + [v[-1]]
+    for t in tries:
+        t = ascii_up(t, lang)
+        if px(t + ':') <= PX_MAX:
+            return t
+    raise ValueError(f'SEASON WINNERS: {v} does not fit ({lang})')
+
+
+def end_played(div):
+    """The matches the table's 1st has played once the league is over (the SEASON WINNERS page's 'L' source), None
+    when not known: a fixture-list league its days, a split league the last stage's (from 0 if it resets) plus its
+    first group's rounds, else (n - 1) x meetings."""
+    n, g = div['clubs'], div['games']
+    sp = div.get('split')
+    stages = (sp.get('stages') or [sp]) if sp else []
+    fx = [st for st in stages if 'fixtures' in st]
+    if fx:                                      # (each club's matches in the lists: one count for all, else unknown)
+        cnt = {}
+        for st in fx:
+            for day in st['fixtures']:
+                for m in day:
+                    for c in m[:2]:
+                        cnt[c] = cnt.get(c, 0) + 1
+        out = cnt.popitem()[1] if cnt and len(set(cnt.values())) == 1 else None
+    elif stages:
+        st = stages[-1]
+        gr = (st.get('groups') or [{}])[0]
+        a, b = gr.get('places', [1, 0])
+        r = {'none': 0, 'single': 1, 'double': 2, 'triple': 3, 'quadruple': 4}[gr.get('rounds', 'single')]
+        base = max([x['after'] for x in stages if x.get('reset')] or [0])   # (the figures from 0 at the last reset)
+        out = st['after'] - base + (b - a) * r if n % 2 == 0 and a == 1 and b > a else None
+    else:
+        out = (n - 1) * g
+    return out if out is not None and 0 < out < 256 else None
+
+
 def from_pack(d):
     """[(world, contest id, {lang: title}, {lang: [lines]})] of one pack."""
     m = complist.load_pack(d)
@@ -858,6 +964,9 @@ def from_pack(d):
                                        'tail': sch[sch.index(next(x for x in sch if x.startswith(ZT[lang]['eu'].split('{')[0][:30]))):]
                                        if any(x.startswith(ZT[lang]['eu'].split('{')[0][:30]) for x in sch) else tail}
                     out.append((world, cid, titles, texts))
+                    wl = win_lines(comp, div, k)
+                    if wl:
+                        out.append((world, cid, titles, {'win': wl}))
                     k += 1
         elif comp['type'] == 'cup':
             side = os.path.join(d, 'complist.json')     # (the converter's facts: the real cup as TM lists it)
@@ -871,6 +980,7 @@ def from_pack(d):
         elif comp['type'] == 'state':           # (statecup: a Brazilian state championship)
             titles = {lang: title(lang, complist._nm(comp['names'], lang)) for lang in LANGS}
             out.append((world, cid, titles, {lang: dict(prose=fmtprose.state(comp, lang), tail=[]) for lang in LANGS}))
+            out.append((world, cid, titles, {'win': {lang: [(_wn_fit(comp['names'], lang), 'C')] for lang in LANGS}}))
         if comp['type'] != 'league':
             continue
         lg = complist._league(comp, clubs)
@@ -894,8 +1004,15 @@ def from_pack(d):
 
 def write(out_dir, items):
     """FMTxx[world].DAT per language and world from [(world, cid, titles, texts)]."""
-    by, keys = {}, {}
+    by, keys, wins = {}, {}, {}
     for world, cid, titles, texts in items:
+        if 'win' in texts:                      # (the SEASON WINNERS page's lines: the file's WIN entries)
+            for lang in LANGS:
+                key = titles[lang][:fmtpage.NAME - 1]
+                lst = wins.setdefault((lang, world), [])
+                if all(k_ != key for _, k_, _ in lst):
+                    lst.append((cid, key, texts['win'][lang]))
+            continue
         for lang in LANGS:
             lines = texts[lang]
             import fmtprose                     # 4.0: every competition's text in plain prose (the colours' lines kept)
@@ -938,7 +1055,7 @@ def write(out_dir, items):
     files = []
     for (lang, world), lst in sorted(by.items()):
         name = f'FMT{lang.upper()}{world or ""}.DAT'
-        fmtpage.build(os.path.join(out_dir, name), lst)
+        fmtpage.build(os.path.join(out_dir, name), lst, wins.get((lang, world), []))
         files.append((name, len(lst)))
     return files
 

@@ -52,7 +52,7 @@
 
 Every rule, source and limit: the [full release notes](https://github.com/aminta/swos-9697-mod/blob/main/release/notes-world-2026-27.md).
 
-Thanks to DaniSwos for the Europe 1984-85 database, and to Marco for the reports.
+Thanks to DaniSwos for the Europe 1984-85 database, to Marco for the reports, to Roman for the install feedback and to Gianmarco for the Program Files report.
 
 ---
 
@@ -114,4 +114,4 @@ Thanks to DaniSwos for the Europe 1984-85 database, and to Marco for the reports
 
 Tutte le regole, le fonti e i limiti: le [note complete](https://github.com/aminta/swos-9697-mod/blob/main/release/notes-world-2026-27.md).
 
-Grazie a DaniSwos per il database Europa 1984-85, e a Marco per le segnalazioni.
+Grazie a DaniSwos per il database Europa 1984-85, a Marco per le segnalazioni, a Roman per i consigli sull'installazione e a Gianmarco per la segnalazione sulla cartella Programmi.

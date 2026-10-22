@@ -3957,7 +3957,8 @@ def world_dplay_b(force='5', team='EUROPA,ITALIA,SERIE B,MODENA'):
                                             'W8485_NOSACK', 'W8485_HEX')}
     os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=team,
                       W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1')
-    os.environ.setdefault('W8485_HEX', '156d8:16,18e04:4,1b528:6')   # (the session log: the state's head, slot 4)
+    os.environ.setdefault('W8485_HEX', f'156d8:16,18e04:4,1b528:6,{CAL_AT - 4:x}:3000')   # (the state's head, slot 4,
+                                                                                      # the calendar)
     try:
         ok, msg = world8485()
     finally:
@@ -3976,6 +3977,9 @@ def world_dplay_b(force='5', team='EUROPA,ITALIA,SERIE B,MODENA'):
     if k < 0:
         return False, f'{msg}; no dplay log in W84A.CAR'
     magic, res, kind, n = struct.unpack_from('<HHBB', d, k + 4)      # dplay.c dp_save (912 B)
+    lines = open(os.path.join(RUNS, w84_tag() + '_1', 'session.log'), errors='replace').read().splitlines()
+    rp = cal_replays(lines, CAL_AT - 4)
+    check(not rp, f'slot 4 has {rp} replay days in the calendar (dplay decides level ties: no replays)', errs)
     teams = struct.unpack_from('<28H', d, k + 4 + 8)
     places = d[k + 4 + 120:k + 4 + 148]
     groups = d[k + 4 + 148:k + 4 + 176]
@@ -4565,6 +4569,26 @@ def world_gplay():
 GP_KO = dict(magic=0, season=2, slot=3, cid=4, pi=5, kind=6, n=7, nrs=8, ngr=9, gcur=10, ntie=11, d1=13, d2=14,
              rs=16, rb=121, gp0=157, pa=170, pb=210, pw=250, ptie=290, tw=330, tl=354, code=378, team=474,
              size=674)                  # gplay.c struct gp_ko (gp_log: tag, seasons, pl_pi, ko at 8, gp_out at 682)
+def cal_replays(lines, cal, slot=4):
+    """The most replay days (calendar entries of type 3) of a slot seen in a session log's HEX dumps of the career
+    calendar (W8485_HEX 'CAL_AT - 4:3000': the count word, then the entries)."""
+    best = 0
+    for ln in lines:
+        if ln.startswith(f'HEX {cal:x} '):
+            b = bytes.fromhex(ln.split()[2])
+            n, o, r = struct.unpack_from('<H', b, 0)[0], 4, 0
+            for _ in range(n):
+                if o + 9 > len(b):
+                    break
+                ln_ = struct.unpack_from('<H', b, o + 2)[0]
+                if not ln_:
+                    break
+                r += b[o] == slot and b[o + 8] == 3
+                o += ln_
+            best = max(best, r)
+    return best
+
+
 CAL_AT = 0x1B530              # obj2: the career calendar's entries (dseg_DB3E6; the count word at -4; dplay _play_sites 'cal')
 GP_GT, GP_STKO = 32, 648      # gplay.c GT (a club code = division * GT + place), struct gp_state's ko
 
@@ -5602,20 +5626,7 @@ def world_gplay_seried(force='3', team='EUROPA,ITALIA,SERIE D GIRONE A,LIGORNA',
     sts = [b for b in sts if b[:2] == b'GK']
     if not sts:
         return False, f'{msg}; the play-off never ran (no GP_ST seen)'
-    replays = 0                                          # slot 4's replay days (calendar entries of type 3) once it
-    for ln in lines:                                     # is built: none (lib97 cal_noreplay; rule 10)
-        if ln.startswith(f'HEX {cal:x} '):
-            b = bytes.fromhex(ln.split()[2])
-            n, o, r = struct.unpack_from('<H', b, 0)[0], 4, 0
-            for _ in range(n):
-                if o + 9 > len(b):
-                    break
-                ln_ = struct.unpack_from('<H', b, o + 2)[0]
-                if not ln_:
-                    break
-                r += b[o] == 4 and b[o + 8] == 3
-                o += ln_
-            replays = max(replays, r)
+    replays = cal_replays(lines, cal)                    # slot 4's replay days: none (lib97 cal_noreplay; rule 10)
     check(not replays, f'slot 4 has {replays} replay days in the calendar (the better placed advances: no replays)',
           errs)
     ko = gp_ko(sts[-1][GP_STKO:])

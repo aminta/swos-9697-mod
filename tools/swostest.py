@@ -6681,8 +6681,9 @@ def menu_levels():
     with Session('menu_levels', b, {}, 'dump:2', 600) as s:
         s.wait()
         try:
-            for t in head + ('EUROPA',):
-                walk(s, t, 3)
+            for t in head + ('EUROPA',):                # (exact: the main menu's green CARRIERA 2026-27 button
+                i = s.screen().find(t, exact=True)      # would match 'CARRIERA' too, mainbtn)
+                walk(s, t if i is None else i, 3)
             walk(s, 'ITALIA', 3)
             lv = vis(s.screen())
             check(lv == ['SERIE A', 'SERIE B', 'SERIE C', 'SERIE D'], f'ITALIA levels {lv}', errs)
@@ -6722,8 +6723,9 @@ def menu_levels():
     with Session('menu_levels_slv', b, {}, 'dump:2', 600) as s:
         s.wait()
         try:
-            for t in head:
-                walk(s, t, 3)
+            for t in head:                              # (exact: CARRIERA 2026-27 matches 'CARRIERA' too)
+                i = s.screen().find(t, exact=True)
+                walk(s, t if i is None else i, 3)
             cont = next((c for c in ('NORDAMERICA', 'NORD AMERICA', 'CENTROAMERICA') if s.screen().find(c, exact=True) is not None), None)
             walk(s, cont, 3)
             walk(s, 'EL SALVADOR', 3)

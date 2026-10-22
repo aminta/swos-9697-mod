@@ -48,6 +48,8 @@
 - **AFC**: the Champions League Elite league stage and the Challenge League groups are simulated; your club joins the
   Elite at the round of 16 and the Challenge League at the quarter-finals.
 - After a job offer letter a few stray pixels can appear on the menu buttons until the next match: cosmetic only.
+- In Serie D groups with an odd number of clubs, a club that rests on the last match day does not play its Poule
+  Scudetto or group play-off: it is decided by simulation (fixed in the upcoming 4.0.1).
 - The World 2026-27 has no national teams yet (planned for the upcoming 4.2).
 
 Every rule, source and limit: the [full release notes](https://github.com/aminta/swos-9697-mod/blob/main/release/notes-world-2026-27.md).
@@ -110,6 +112,8 @@ Thanks to DaniSwos for the Europe 1984-85 database, to Marco for the reports, to
   club entra nella Elite dagli ottavi e nella Challenge League dai quarti.
 - Dopo una lettera di offerta di lavoro possono comparire alcuni pixel sporchi sui pulsanti dei menu fino alla
   partita successiva: solo estetico.
+- Nei gironi di Serie D con un numero dispari di squadre, una squadra che riposa all'ultima giornata non gioca la
+  Poule Scudetto o il play-off del girone: vengono simulati (corretto nella prossima 4.0.1).
 - Il Mondo 2026-27 non ha ancora le nazionali (previste nella prossima 4.2).
 
 Tutte le regole, le fonti e i limiti: le [note complete](https://github.com/aminta/swos-9697-mod/blob/main/release/notes-world-2026-27.md).

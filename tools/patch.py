@@ -492,9 +492,6 @@ def patch_exe(src, dst, remap, lang='it'):
             import mainbtn                               # 4.0: the green CARRIERA 2026-27 button on the main menu
             w27 = min(pk.world for pk in mkseason.packs() if pk.meta.get('id', '').startswith('world-2026-27-'))
             lt_end_ = mainbtn.patch(p, (lt_end_ + 15) & ~15, lang, mkseason.WMENU + w27)
-            if not os.environ.get('QUIETEND_OFF'):       # (QUIETEND_OFF=1: a control build for the identical-results check)
-                import quietend                          # 4.0.1: the other countries' competitions simulated unseen
-                lt_end_ = quietend.patch(p, (lt_end_ + 15) & ~15, w27)   # at the season end (World 2026-27 only)
         assert lt_end_ <= lt_room[1], hex(lt_end_)
         print(f'exe: longtable code obj1+{lt_room[0]:#x}..{lt_end_:#x} (free to {lt_room[1]:#x})')
     else:
@@ -521,6 +518,10 @@ def patch_exe(src, dst, remap, lang='it'):
         if fmtpage.WN:                                           # the WINNERS page (fmtpage's VINCITORI entry; gplay's
             import winners                                       # pages are full)
             xe = winners.patch(p, xe, lang, careerworld.SITES)
+        w27s = [pk.world for pk in mkseason.packs() if pk.meta.get('id', '').startswith('world-2026-27-')] if worlds else []
+        if w27s and not os.environ.get('QUIETEND_OFF'):  # (QUIETEND_OFF=1: a control build for the identical-results check)
+            import quietend                              # 4.0.1: the other countries' competitions simulated unseen at
+            xe = quietend.patch(p, (xe + 15) & ~15, min(w27s), lang)   # the season end + a progress line (World 2026-27)
         xlim = xp + 0x1000 * xpg - (0x600 if lt_room and lt_room[1] == xp + 0x1000 * xpg else 0)   # (longtable's)
         assert xe <= xlim, hex(xe)
     elif xtra_on:

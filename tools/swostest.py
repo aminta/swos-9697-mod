@@ -3093,8 +3093,14 @@ def world2526q():
                                                  UEFAQ_FORCE='CL Q1'), capture_output=True, text=True)
     if r.returncode or not os.path.exists(os.path.join(out, 'ITALIAN.EXE')):
         return False, f'build: {(r.stdout + r.stderr)[-300:]}'
-    keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK')
+    keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_FILL')
     keep = {k: os.environ.get(k) for k in keys}
+    import simdraw                                      # (rule 15: the stronger side wins every match, 3-0: AJAX
+    from le import LE                                   # wins its CL qualifying ties - rc7's run lost the first)
+    at = LE(open(os.path.join(out, 'ITALIAN.EXE'), 'rb').read()).obj_bytes(2).find(simdraw.table())
+    if at < 0:
+        return False, 'simdraw table not found in obj2 (rule 15 needs the forced results)'
+    os.environ['W8485_FILL'] = f'{at:x}:30:3072'
     os.environ.update(W8485_BUILD=out, W8485_WORLD='WORLD 2025-26', W8485_TEAM='EUROPA,HOLLAND,HOLLAND DIV 1,AJAX',
                       W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1')
     try:
@@ -3116,7 +3122,7 @@ def world2526q():
             if 'FINALE' in title:
                 bad.append(title)
             if '- PARTITA -' in f:                     # a leg the manager could play: one tie per round name
-                key = title.split(' TURNO')[0] + ' TURNO' if ' TURNO' in title else title
+                key = re.sub(r' (ANDATA|RITORNO)$', '', title)   # (TURNO n kept: 'TURNO 1' / 'TURNO 2' = 2 ties)
                 if key not in ties:
                     ties.append(key)
     ok = ok and len(ties) >= 2 and not bad

@@ -382,7 +382,9 @@ def patch_exe(src, dst, remap, lang='it'):
         end = careerworld.late(p, careerworld.LABELS['end'], nasmcave)
         if bigw:
             end = careerworld.patch_tails(p, end, nasmcave)
-        end = worldpool.patch(p, end, nasmcave, [(w['n'], w['pool'][0]) for w in mkseason.world_defs() if w['pool']])
+        import guests
+        end = worldpool.patch(p, end, nasmcave, [(w['n'], w['pool'][0]) for w in mkseason.world_defs() if w['pool']],
+                              guests.alloc().get(guests.POOL))   # (4.0 hotfix: the pool clubs' team file 190)
         end = benchnum.patch(p, end, nasmcave, [w['n'] for w in mkseason.world_defs() if w['squad_numbers']])
         assert end <= CAREER_CAVE + mkseason.CAREER_CAVE_SIZE, hex(end)
     p.add_ptr(1, info['new_career_ptr'], 1, new_career)
@@ -668,6 +670,9 @@ def write_new_teams(src_dir, dst_dir):
     for name, data in guests.team_files().items():      # the continental cups' guest clubs (guests.py: their globals
         k = struct.unpack('>H', data[:2])[0]             # alias 1996-97 files the world never loads, guests.alloc)
         open(os.path.join(dst_dir, name), 'wb').write(team_fix(data))
+        if name.endswith('.%03d' % guests.POOL):
+            print(f'{name}: {k} foreign-market pool clubs, global number {struct.unpack(">H", data[4:6])[0]}')
+            continue
         print(f'{name}: {k} guest clubs, global numbers {struct.unpack(">H", data[4:6])[0]}..'
               f'{struct.unpack(">H", data[4:6])[0] + k - 1}')
     for name, data in mkseason.ns_team_files().items():   # several worlds: the team files of a namespace of its own

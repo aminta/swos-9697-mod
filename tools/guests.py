@@ -24,7 +24,25 @@ FILES = {'caf': 191, 'afc': 192, 'ofc': 193, 'concacaf': 194}
 LABELS = {191: ('africa', {'*': b'AFRICA'}),       # (continent, the country name shown for its clubs)
           192: ('asia', {'*': b'ASIA'}),
           193: ('oceania', {'*': b'OCEANIA'}),
-          194: ('north_america', {'it': b'NORDAMERICA', 'en': b'N. AMERICA', 'fr': b'AM. DU NORD', 'de': b'NORDAMERIKA'})}
+          194: ('north_america', {'it': b'NORDAMERICA', 'en': b'N. AMERICA', 'fr': b'AM. DU NORD', 'de': b'NORDAMERIKA'}),
+          190: ('europe', {'it': b'ESTERO', 'en': b'ABROAD', 'fr': b'ETRANGER', 'de': b'AUSLAND'})}
+POOL = 190                              # the foreign-market pool clubs' file (worldpool.POOL_FILE, 4.0 hotfix): built from
+                                        # the world's POOLnn.DAT, one global number for all its records (worldpool.wp_glob)
+
+
+_POOL = []
+
+
+def pool_data():
+    """The guest world's pool bytes when its records name file POOL (their clubs need a team file), else None."""
+    import worldpool
+    if _POOL:
+        return _POOL[0]
+    w = world()
+    src = next((d['pool'][1] for d in mkseason.world_defs() if d['n'] == w and d['pool']), None) if w is not None else None
+    data = open(src, 'rb').read() if src else None
+    _POOL.append(data if data and worldpool.pool_split(data) else None)
+    return _POOL[0]
 
 
 def load(conf, data=None):
@@ -84,6 +102,9 @@ def build(bases, data=None):
         clubs = load(conf, data)['clubs']
         mkseason._need(len(clubs) <= 255, f'{conf}: at most 255 guests ({len(clubs)})')
         out[n] = struct.pack('>H', len(clubs)) + b''.join(record(conf, i, c, bases[n]) for i, c in enumerate(clubs))
+    if POOL in bases:
+        import worldpool
+        out[POOL] = worldpool.pool_team_file(pool_data(), bases[POOL])
     return out
 
 
@@ -94,7 +115,7 @@ def world():
 
 def files():
     """The guest team files of this build (the confederations with a guests file; none without World 2026-27)."""
-    return [FILES[c] for c in ready()] if world() is not None else []
+    return [FILES[c] for c in ready()] + ([POOL] if pool_data() else []) if world() is not None else []
 
 
 def alloc():
@@ -110,10 +131,9 @@ def alloc():
             for key, (f, base) in pk.files.items():
                 used.update(range(base, base + pk.count.get(key, 0)))
     out = {}
-    for conf in ready():
-        n, k = FILES[conf], len(load(conf)['clubs'])
+    for n, k in counts().items():
         start = next((g for g in range(bigtables.LIMIT - k + 1) if not used & set(range(g, g + k))), None)
-        mkseason._need(start is not None, f'guests {conf}: no {k} free global numbers in world {w} below '
+        mkseason._need(start is not None, f'guests file {n}: no {k} free global numbers in world {w} below '
                                           f'{bigtables.LIMIT}')
         out[n] = start
         used.update(range(start, start + k))
@@ -122,7 +142,10 @@ def alloc():
 
 def counts():
     """{file: clubs} of the guest files."""
-    return {FILES[c]: len(load(c)['clubs']) for c in ready()} if world() is not None else {}
+    if world() is None:
+        return {}
+    return {**{FILES[c]: len(load(c)['clubs']) for c in ready()}, **({POOL: 1} if pool_data() else {})}   # (the pool:
+                                                                                        # one global number)
 
 
 def team_files():

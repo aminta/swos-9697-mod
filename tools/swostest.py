@@ -6150,6 +6150,40 @@ def world_cuplist():
     return not errs, '; '.join(errs + info)
 
 
+@scenario
+def world_cuplist_mestre():
+    """Davide's MESTRE.CAR (rc7, internal/davide-mister-20261021: MESTRE, Serie D) on a release-recipe build
+    (CUPLIST_REL: a buildrel.sh dir) played on to its season's end and into the next season (world8485 from it):
+    VISUAL. COMPETIZ. never lists the COPPA ITALIA (its 16 Serie A / B clubs) nor the COPPA ITALIA SERIE C (its 17
+    clubs), Mestre being in neither (gp_notin, rule 11)"""
+    car = os.path.join(MAIN, 'internal', 'davide-mister-20261021', 'MESTRE.CAR')
+    exe = os.environ.get('CUPLIST_REL')
+    if not os.path.exists(car) or not exe:
+        return True, 'SKIP: no MESTRE.CAR or CUPLIST_REL'
+    keys = ('W8485_BUILD', 'W8485_FROM', 'W8485_NOSACK')
+    keep = {k: os.environ.get(k) for k in keys}
+    os.environ.update(W8485_BUILD=exe, W8485_FROM=car, W8485_NOSACK='1')
+    try:
+        ok, msg = world8485()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    nxt = os.path.join(RUNS, w84_tag() + '_2', 'SWOS', 'W84B.CAR')
+    if not os.path.exists(nxt) or 'trap' in msg:
+        return False, f'the old save played on: {msg}'
+    with Session('world_cuplist_mestre', exe, {'W84B.CAR': nxt}, 'dump:2', 300) as s:
+        s.wait()
+        s.send(LOAD1 + ' dump:3')
+        head = [e[1] for e in s.screen().entries if e[1] and not e[2]][:4]
+        walk(s, s.screen().find('VISUAL. COMPETIZ.', exact=True), 3)
+        vc = [e[1] for e in s.screen().entries if e[1] and not e[2]]
+    bad = [x for x in ('ITALIA COPPA ITALIA', 'ITALIA COPPA ITALIA SERIE C') if x in vc]
+    return not bad, f'{msg[:100]}; next season {head}: competitions {vc}' + (f'; not its own: {bad}' if bad else '')
+
+
 def world_ca(team, country, league, want):
     """4.0.1 Central America exactly (session40/ca_exact.py, data TM_CA_EXACT): a season at team, forced 1st of each
     tournament (GPLAY_FORCE=1: the stage's kept table too): the stage titles <league> APERTURA / CLAUSURA and each

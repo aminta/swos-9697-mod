@@ -407,7 +407,9 @@ const DT = {
         bad: n => `Questi file non sono stati riconosciuti e restano com'erano: ${n}.`,
         noexe: "Nessun eseguibile del gioco è stato riconosciuto (né originale, né modificato da una versione di questa mod): non ho cambiato niente.",
         current: 'Il gioco è già aggiornato a questa versione: non c\'era niente da cambiare.',
-        done: n => `Fatto: ${n} file scritti (la copia dei file sostituiti è in MOD_BACKUP\\4.0). Avvia il gioco come sempre e inizia una carriera nuova.`,
+        writing: (i, n) => `Scrivo la mod: ${i} / ${n} file… Non chiudere né ricaricare la pagina.`,
+        incomplete: (k, n, l) => `INSTALLAZIONE INCOMPLETA: solo ${k} file su ${n} sono stati scritti correttamente (mancano: ${l}). Così il gioco non funziona: scegli di nuovo la cartella del gioco per completare l'installazione.`,
+        done: n => `Fatto: ${n} / ${n} file scritti e verificati (la copia dei file sostituiti è in MOD_BACKUP\\4.0). Avvia il gioco come sempre e inizia una carriera nuova.`,
         denied: 'La pagina non ha il permesso di scrivere nella cartella: riprova e conferma "Modifica file" / "Salva modifiche".',
         error: m => `Errore: ${m}. Il gioco potrebbe essere a metà: rimetti i file di MOD_BACKUP\\4.0 e riprova.` },
   en: { pf: "Is the game in Program Files (for example GOG Galaxy's folder, C:\\Program Files (x86)\\GOG Galaxy\\Games)? Chrome and Edge do not open that folder (\"contains system files\"). Use the manual steps below, or copy the game folder somewhere else (for example Documents), install the mod into the copy with one click, then copy its contents back over the original (Windows asks for administrator permission: accept) and play as usual.",
@@ -420,7 +422,9 @@ const DT = {
         bad: n => `These files were not recognised and were left as they were: ${n}.`,
         noexe: 'No game executable was recognised (neither original nor modified by a release of this mod): nothing was changed.',
         current: 'The game is already up to date with this release: there was nothing to change.',
-        done: n => `Done: ${n} files written (a copy of the replaced files is in MOD_BACKUP\\4.0). Start the game as usual and start a new career.`,
+        writing: (i, n) => `Writing the mod: ${i} / ${n} files… Do not close or reload the page.`,
+        incomplete: (k, n, l) => `INSTALL INCOMPLETE: only ${k} of ${n} files were written correctly (missing: ${l}). The game will not work like this: choose the game folder again to complete the install.`,
+        done: n => `Done: ${n} / ${n} files written and verified (a copy of the replaced files is in MOD_BACKUP\\4.0). Start the game as usual and start a new career.`,
         denied: 'The page has no permission to write into the folder: try again and confirm "Edit files" / "Save changes".',
         error: m => `Error: ${m}. The game may be half updated: put back the files from MOD_BACKUP\\4.0 and try again.` },
   fr: { pf: "Le jeu est dans Program Files / Programmes (par exemple le dossier de GOG Galaxy, C:\\Program Files (x86)\\GOG Galaxy\\Games) ? Chrome et Edge n'ouvrent pas ce dossier (« contient des fichiers système »). Suivez les étapes à la main ci-dessous, ou copiez le dossier du jeu ailleurs (par exemple dans Documents), installez le mod dans la copie en un clic, puis recopiez son contenu par-dessus l'original (Windows demande l'autorisation d'administrateur : acceptez) et jouez comme d'habitude.",
@@ -433,7 +437,9 @@ const DT = {
         bad: n => `Ces fichiers n'ont pas été reconnus et restent tels quels : ${n}.`,
         noexe: "Aucun exécutable du jeu n'a été reconnu (ni original, ni modifié par une version de ce mod) : rien n'a été changé.",
         current: "Le jeu est déjà à jour avec cette version : il n'y avait rien à changer.",
-        done: n => `Terminé : ${n} fichiers écrits (la copie des fichiers remplacés est dans MOD_BACKUP\\4.0). Lancez le jeu comme d'habitude et commencez une nouvelle carrière.`,
+        writing: (i, n) => `Écriture du mod : ${i} / ${n} fichiers… Ne fermez pas et ne rechargez pas la page.`,
+        incomplete: (k, n, l) => `INSTALLATION INCOMPLÈTE : seulement ${k} fichiers sur ${n} ont été écrits correctement (manquants : ${l}). Le jeu ne fonctionnera pas ainsi : choisissez à nouveau le dossier du jeu pour terminer l'installation.`,
+        done: n => `Terminé : ${n} / ${n} fichiers écrits et vérifiés (la copie des fichiers remplacés est dans MOD_BACKUP\\4.0). Lancez le jeu comme d'habitude et commencez une nouvelle carrière.`,
         denied: "La page n'a pas le droit d'écrire dans le dossier : réessayez et confirmez « Modifier les fichiers » / « Enregistrer les modifications ».",
         error: m => `Erreur : ${m}. Le jeu est peut-être à moitié modifié : remettez les fichiers de MOD_BACKUP\\4.0 et réessayez.` },
   de: { pf: "Liegt das Spiel unter Programme / Program Files (zum Beispiel im Ordner von GOG Galaxy, C:\\Program Files (x86)\\GOG Galaxy\\Games)? Chrome und Edge öffnen diesen Ordner nicht („enthält Systemdateien“). Folgen Sie den Schritten von Hand weiter unten, oder kopieren Sie den Spielordner woandershin (zum Beispiel nach Dokumente), installieren Sie den Mod mit einem Klick in die Kopie, kopieren Sie dann ihren Inhalt über das Original zurück (Windows fragt nach Administratorrechten: bestätigen) und spielen Sie wie gewohnt.",
@@ -446,7 +452,9 @@ const DT = {
         bad: n => `Diese Dateien wurden nicht erkannt und bleiben, wie sie sind: ${n}.`,
         noexe: 'Keine ausführbare Datei des Spiels wurde erkannt (weder Original noch von einer Version dieses Mods geändert): Nichts wurde geändert.',
         current: 'Das Spiel ist schon auf dem Stand dieser Version: Es gab nichts zu ändern.',
-        done: n => `Fertig: ${n} Dateien geschrieben (die Kopie der ersetzten Dateien liegt in MOD_BACKUP\\4.0). Starten Sie das Spiel wie gewohnt und beginnen Sie eine neue Karriere.`,
+        writing: (i, n) => `Schreibe den Mod: ${i} / ${n} Dateien… Seite nicht schließen oder neu laden.`,
+        incomplete: (k, n, l) => `INSTALLATION UNVOLLSTÄNDIG: nur ${k} von ${n} Dateien wurden korrekt geschrieben (es fehlen: ${l}). So läuft das Spiel nicht: wählen Sie den Spielordner erneut, um die Installation abzuschließen.`,
+        done: n => `Fertig: ${n} / ${n} Dateien geschrieben und geprüft (die Kopie der ersetzten Dateien liegt in MOD_BACKUP\\4.0). Starten Sie das Spiel wie gewohnt und beginnen Sie eine neue Karriere.`,
         denied: 'Die Seite darf nicht in den Ordner schreiben: Versuchen Sie es erneut und bestätigen Sie „Dateien bearbeiten“ / „Änderungen speichern“.',
         error: m => `Fehler: ${m}. Das Spiel ist vielleicht nur halb geändert: Legen Sie die Dateien aus MOD_BACKUP\\4.0 zurück und versuchen Sie es erneut.` },
 };
@@ -515,16 +523,30 @@ async function installDir(dir, say) {             // -> the number of files writ
     const [dname, fname] = tgt.includes('/') ? tgt.split('/') : [null, tgt];
     let cur = have.get(tgt) && have.get(tgt).bytes;
     if (!cur) { const h = (dname ? dm : g.m).get(fname.toUpperCase()); if (h && h.kind === 'file') cur = new Uint8Array(await (await h.getFile()).arrayBuffer()); }
-    if (!cur) continue;                                    // (a new file: nothing to keep)
+    if (!cur || !cur.length) continue;                     // (a new file, or one left empty by a cut-short run: nothing to keep)
     let there = false;
-    try { let d = bdir; if (dname) d = await d.getDirectoryHandle(dname); await d.getFileHandle(fname); there = true; } catch (e) {}
+    try { let d = bdir; if (dname) d = await d.getDirectoryHandle(dname);            // (an empty one: a backup cut short)
+          there = (await (await (await d.getFileHandle(fname)).getFile()).arrayBuffer()).byteLength > 0; } catch (e) {}
     if (!there) await writeFile(bdir, tgt, cur);
   }
+  let i = 0;
   for (const [tgt, bytes] of out) {                        // the game's own spelling of an existing name is kept
     const [dname, fname] = tgt.includes('/') ? tgt.split('/') : [null, tgt];
     const ex = (dname ? dm : g.m).get(fname.toUpperCase());
     await writeFile(dname ? g.data : g.root, ex ? ex.name : fname, bytes);
+    if (++i % 10 === 0 || i === out.size) say(head + ' ' + D.writing(i, out.size));
   }
+  const miss = [];                                         // read every written file back: an install stopped half way
+  for (const [tgt, bytes] of out) {                        // (page closed, a copy back from Program Files) must not pass
+    const [dname, fname] = tgt.includes('/') ? tgt.split('/') : [null, tgt];
+    const ex = (dname ? dm : g.m).get(fname.toUpperCase());
+    let good = false;
+    try { const f = await (await (dname ? g.data : g.root).getFileHandle(ex ? ex.name : fname)).getFile();
+          const b = new Uint8Array(await f.arrayBuffer()); good = b.length === bytes.length && md5(b) === md5(bytes); } catch (e) {}
+    if (!good) miss.push(tgt);
+  }
+  if (miss.length) { say(head + ' ' + D.incomplete(out.size - miss.length, out.size, miss.slice(0, 5).join(', ') + (miss.length > 5 ? '…' : '')), true);
+                     return out.size - miss.length; }
   say(head + ' ' + D.done(out.size));
   return out.size;
 }

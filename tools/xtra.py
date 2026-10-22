@@ -147,8 +147,10 @@ xtra_read:                              ; [SEL]'s block of the XTRA file -> xblo
 xtra_reserves:                          ; replaces InitializeNewSeason's call of cseg_64A65 (new club: 10 reserves)
     cmp byte [xadded], 0
     je RESERVES
-    mov byte [xadded], 0                ; the club's real players instead of the invented reserves
-    ret
+    mov byte [xadded], 0                ; the club's real players instead of the invented reserves, but cseg_64A65's
+    jmp RESTAIL                         ; own tail still runs: cseg_6481C -> cseg_63F6F copies the squad order into
+                                        ; trainingMatchSavedPlayers (a sale's cseg_639F9 looks the player up there:
+                                        ; left all 0, 'int 3; jmp $' on ACCETTA OFFERTA - TEST 8, 2026-10-21)
 
 xtra_wage:                              ; replaces `mov esi, [A0] / cmp byte [esi+71h], 9Ah` in cseg_5E345
     mov esi, [REGS + 32]                ; A0 = the player (- 4Ch)
@@ -248,6 +250,21 @@ def reserves_site(p):
     return calls[0]
 
 
+def reserves_tail(p, reserves):
+    """cseg_64A65's last call, cseg_6481C (after its 10 calls of cseg_64B06, the invented reserves): the squad order
+    copy into trainingMatchSavedPlayers that xtra_reserves must keep."""
+    d1 = p.le.obj_bytes(1)
+    calls, i = [], reserves
+    while len(calls) < 11 and i < reserves + 0x200:
+        if d1[i] == 0xE8:
+            calls.append(i + 5 + struct.unpack_from('<i', d1, i + 1)[0])
+            i += 5
+        else:
+            i += 1
+    assert len(calls) == 11 and len(set(calls[:10])) == 1 and calls[10] != calls[0], [hex(c) for c in calls]
+    return calls[10]
+
+
 def wage_sites(p):
     """(site of `mov esi, [A0] / cmp byte [esi+71h], 9Ah` in cseg_5E345, cseg_5E345, D0 = the pseudo registers' base)."""
     import sacups
@@ -289,9 +306,10 @@ def patch(p, at):
     """Code at obj1:at; returns the code end."""
     s, cnp, ct, cmp, sel = sites(p)
     rs, reserves = reserves_site(p)
+    tail = reserves_tail(p, reserves)
     ws, wage, regs = wage_sites(p)
     at = (at + 15) & ~15
-    sym = {'CNP': (2, cnp), 'CT': (2, ct), 'CMP': (2, cmp), 'SEL': (2, sel), 'RESERVES': (1, reserves),
+    sym = {'CNP': (2, cnp), 'CT': (2, ct), 'CMP': (2, cmp), 'SEL': (2, sel), 'RESERVES': (1, reserves), 'RESTAIL': (1, tail),
            'WAGE': (1, wage), 'REGS': (2, regs), 'PLAYER_': (0, PLAYER), 'MAXE_': (0, MAX_EXTRA)}
     code, fix = nasmcave.assemble(ASM, at, sym)
     lab = nasmcave.labels(ASM, at, sym)

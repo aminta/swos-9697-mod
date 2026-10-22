@@ -48,6 +48,9 @@
 - **AFC**: the Champions League Elite league stage and the Challenge League groups are simulated; your club joins the
   Elite at the round of 16 and the Challenge League at the quarter-finals.
 - After a job offer letter a few stray pixels can appear on the menu buttons until the next match: cosmetic only.
+- National cups of the World 2026-27 keep their 2026-27 entrants every season: a club promoted or relegated into another
+  division doesn't join that division's cup (e.g. Mestre promoted to Serie C doesn't play the Coppa Italia Serie C);
+  the upcoming 4.0.1 draws each season's entrants from the current divisions.
 - In Serie D groups with an odd number of clubs, a club that rests on the last match day does not play its Poule
   Scudetto or group play-off: it is decided by simulation (fixed in the upcoming 4.0.1).
 - The World 2026-27 has no national teams yet (planned for the upcoming 4.2).
@@ -112,6 +115,9 @@ Thanks to DaniSwos for the Europe 1984-85 database, to Marco for the reports, to
   club entra nella Elite dagli ottavi e nella Challenge League dai quarti.
 - Dopo una lettera di offerta di lavoro possono comparire alcuni pixel sporchi sui pulsanti dei menu fino alla
   partita successiva: solo estetico.
+- Le coppe nazionali del Mondo 2026-27 tengono ogni stagione le partecipanti del 2026-27: una squadra promossa o
+  retrocessa non entra nella coppa della nuova categoria (es. il Mestre promosso in Serie C non gioca la Coppa Italia
+  Serie C); la prossima 4.0.1 ricava ogni stagione le partecipanti dalle categorie del momento.
 - Nei gironi di Serie D con un numero dispari di squadre, una squadra che riposa all'ultima giornata non gioca la
   Poule Scudetto o il play-off del girone: vengono simulati (corretto nella prossima 4.0.1).
 - Il Mondo 2026-27 non ha ancora le nazionali (previste nella prossima 4.2).

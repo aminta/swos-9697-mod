@@ -628,6 +628,9 @@ Cearense, Pernambucano, Alagoano and Mato-Grossense.
 **Known limits**
 - After a job offer letter in a career, a few stray pixels can appear on the menu buttons until the next match
   reloads the menu graphics: cosmetic only, saves are not affected (fixed in the upcoming 4.0.1).
+- National cups of the World 2026-27 keep their 2026-27 entrants every season: a club promoted or relegated into another
+  division doesn't join that division's cup (e.g. Mestre promoted to Serie C doesn't play the Coppa Italia Serie C);
+  the upcoming 4.0.1 draws each season's entrants from the current divisions.
 - In Serie D groups with an odd number of clubs, a club that rests on the last match day does not play its Poule
   Scudetto or group play-off: it is decided by simulation (fixed in the upcoming 4.0.1).
 - A few very long match-screen titles (a long competition name + a long round + the leg) can still be cut at the
@@ -1348,6 +1351,9 @@ Baiano, Cearense, Pernambucano, Alagoano e Mato-Grossense.
 - Dopo una lettera di offerta di lavoro in carriera, sui pulsanti dei menu possono comparire alcuni pixel sporchi
   finché la partita successiva non ricarica la grafica dei menu: solo estetico, i salvataggi non ne risentono
   (corretto nella prossima 4.0.1).
+- Le coppe nazionali del Mondo 2026-27 tengono ogni stagione le partecipanti del 2026-27: una squadra promossa o
+  retrocessa non entra nella coppa della nuova categoria (es. il Mestre promosso in Serie C non gioca la Coppa Italia
+  Serie C); la prossima 4.0.1 ricava ogni stagione le partecipanti dalle categorie del momento.
 - Nei gironi di Serie D con un numero dispari di squadre, una squadra che riposa all'ultima giornata non gioca la
   Poule Scudetto o il play-off del girone: vengono simulati (corretto nella prossima 4.0.1).
 - Alcuni titoli molto lunghi della schermata della partita (un nome di competizione lungo + un turno lungo + la gara)

@@ -4632,6 +4632,87 @@ def world_odd_league():
     return not errs, '; '.join(errs) or f'{n} clubs, {2 * n} days, every club {2 * (n - 1)} matches; {msg}'
 
 
+def sa_exact_build(code):
+    """The world 2026-27 (SA_DATA, default the 4.0 RC data world5tm-a6cf4e34) with one South American country's real
+    2026 format applied (internal/sam6/sa_exact.py, 4.0.1); SA_BUILD reuses one."""
+    import json
+    if os.environ.get('SA_BUILD'):
+        return os.environ['SA_BUILD']
+    src = os.environ.get('SA_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-a6cf4e34')
+    sys.path.insert(0, os.path.join(MAIN, 'internal', 'sam6'))
+    import sa_exact
+    w = os.path.join(WORK, f'world_sa_{code}')
+    shutil.rmtree(w, ignore_errors=True)
+    shutil.copytree(src, os.path.join(w, 'world5tm'))
+    f = os.path.join(w, 'world5tm', code, 'pack.json')
+    json.dump(sa_exact.EXACT[code](json.load(open(f))), open(f, 'w'), indent=1, ensure_ascii=False)
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    tag = '_' + os.environ['SWOSTEST_TAG'] if os.environ.get('SWOSTEST_TAG') else ''
+    return build(f'world_sa_{code}{tag}', env={'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(w, 'world5tm', x)
+                                                                                      for x in order])})
+
+
+def world_sa_exact(code, team, n, days):
+    """A season of a South American country's real 2026 format (sa_exact) at team: its n-club league frozen in both
+    tournaments, days match days, two stage titles (Apertura / Clausura or Finalizacion) in the season end's GP_LOG."""
+    exe = sa_exact_build(code)
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import split
+    import lepatch
+    sa = split.sites(lepatch.LEPatch(os.path.join(MAIN, 'orig', 'ITALIAN.EXE')))
+    log_at, st_at, log_n, st_n = gp_ptrs(exe)
+    keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K',
+                                            'W8485_NOSACK', 'W8485_HEX', 'W8485_DIY', 'W8485_TMO', 'W8485_ONE')}
+    os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1',
+                      W8485_TEAM=team, W8485_ONE='1', W8485_TMO='600',
+                      W8485_HEX=f'{log_at:x}:{log_n}', W8485_DIY=f"{sa['DIY']:x},{split.ST:x},{sa['CAL']:x}")
+    try:
+        ok, msg = world8485()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    log = open(os.path.join(RUNS, w84_tag() + '_1', 'session.log'), errors='replace').read().splitlines()
+    errs = []
+    check(ok, msg, errs)
+    diys = [b for b in (bytes.fromhex(ln[4:]) for ln in log if ln.startswith('DIY ')) if b[0:2] == b'\0\0']
+    w = lambda b, k: struct.unpack_from('<H', b, k)[0]
+    diys = [b for b in diys if w(b, 0x31) == n]
+    check(diys, f'no snapshot of the {n}-club league', errs)
+    if diys:
+        last = diys[-1]
+        check(last[split.ST + split.OFF['frozen']] == 2 and w(last, 0x1C1) == w(last, 0x1C3) == days,
+              f'end: frozen {last[split.ST + split.OFF["frozen"]]}, day {w(last, 0x1C1)} / {w(last, 0x1C3)} ({days})', errs)
+    logs = [bytes.fromhex(ln.split()[2]) for ln in log if ln.startswith('HEX ') and len(ln.split()) == 3]
+    logs = [b for b in logs if b[:4] == b'GPLG']
+    check(logs, 'no season-end GP_LOG', errs)
+    sres = [struct.unpack_from('<BBHHHH', logs[-1], 982 + 10 * i) for i in range(3)] if logs else []
+    check(len(sres) == 3 and all(x[0] == 8 and x[2] for x in sres[:2]), f'stage titles {sres}', errs)
+    return not errs, '; '.join(errs) or f'{msg}; {days} days, stage titles {sres[:2]}'
+
+
+@scenario
+def world_par_exact():
+    """Paraguay 2026 (4.0.1, parked: 44 days > split's 40): Apertura + Clausura double round robins at OLIMPIA"""
+    return world_sa_exact('par', 'SUDAMERICA,PARAGUAY,OLIMPIA', 12, 44)
+
+
+@scenario
+def world_per_exact():
+    """Peru 2026 (4.0.1, sa_exact.per_exact): Apertura + Clausura (17 + 17, real calendars), each won by its table's
+    leader, at ALIANZA LIMA: 34 days, both stages frozen, two stage titles"""
+    return world_sa_exact('per', 'SUDAMERICA,PERU,ALIANZA LIMA', 18, 34)
+
+
+@scenario
+def world_col_exact():
+    """Colombia 2026 (4.0.1, sa_exact.col_exact): Apertura 19 + QF / SF / final (two legs), Finalizacion 19 + two
+    cuadrangulares + final, at ATL. NACIONAL: 38 days, both stages frozen, two stage titles"""
+    return world_sa_exact('col', 'SUDAMERICA,COLOMBIA,ATL. NACIONAL', 20, 38)
+
+
 @scenario
 def world_split_places():
     """Explicit places (split 'places' / 'places_snake'): Uruguay 2026 (Apertura 15 days; the Intermedio's two

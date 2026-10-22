@@ -126,6 +126,37 @@ def _lp_world(meta_by_world, n):
     return any(wc.get(k, {}).get('format') == 'league_phase' for k in ('cc', 'cwc', 'uefa'))
 
 
+def state_zones(c):
+    """A state championship's first group stage: the places that go on to the next stage (its 'from' list, a
+    knockout's byes = straight to a later round: light blue NEXT; the others green P.OFF), the relegated (one group:
+    the last ones; several groups: not painted, the relegation runs on the overall table). The places are group
+    places (the same in every group); size = the group size for several groups (zn_col counts places per group)."""
+    st = c.get('stages') or []
+    if not st or st[0]['type'] != 'groups':
+        return None
+    g = st[0].get('groups', 1)
+    size = st[0]['teams'] // g
+    nxt = [s for s in st[1:]]
+    first = set()
+    if nxt and nxt[0].get('from'):
+        first = {int(x[:-1]) for x in nxt[0]['from']}
+    elif nxt and nxt[0]['type'] == 'knockout':
+        first = set(range(1, nxt[0]['teams'] // g + 1))
+    byes = {int(x[:-1]) for s in nxt for x in (s.get('byes') or [])}   # (a knockout's byes: straight to the next round)
+    rng, why = [], []
+    for p in sorted(byes - first):
+        rng.append((p, p, LIGHT_BLUE))
+        why.append('next')
+    for p in sorted(first):
+        rng.append((p, p, GREEN))
+        why.append('po_title')
+    if g == 1 and c.get('relegated'):
+        rng.append((size - c['relegated'] + 1, size, RED))
+        why.append('down')
+    rng, why = _merge(rng, why)
+    return rng, why, (size if g > 1 else 0)
+
+
 def _merge(rng, why):
     """Plain ranges of one colour and reason joined into runs of consecutive places (a play-off's entrants come one
     place each), in the order of their first appearance (the first matching range wins); group ranges kept after."""
@@ -167,6 +198,13 @@ def pack_zones(d, lang, lp=False, rank=None, detail=None):
     world = m.get('world', 0) if m.get('kind') == 'career' else 0
     out = []
     for ci, comp in enumerate(m.get('competitions', [])):
+        if comp['type'] == 'state':                      # 4.0.1: a Brazilian state championship's group table
+            sr = state_zones(comp)
+            if sr:
+                rng, why, size = sr
+                out.append((world, _title(m, lang, complist._nm(comp['names'], lang)), rng[:RANGES], 'state', size,
+                            [], why[:RANGES]))
+            continue
         if comp['type'] != 'league':
             continue
         lg = complist._league(comp, clubs)
@@ -473,7 +511,7 @@ def continental_all(m):
     return confed2627.PLACES.get(m.get('id'), [])
 
 
-WHY_LAB = {'up': 'up', 'po_up': 'po', 'po_title': 'po', 'po_place': 'po', 'po_down': 'out', 'out': 'out',
+WHY_LAB = {'next': 'next', 'up': 'up', 'po_up': 'po', 'po_title': 'po', 'po_place': 'po', 'po_down': 'out', 'out': 'out',
            'down': 'down', 'cc': 'cc', 'uefa': 'uefa'}
 
 
@@ -514,7 +552,9 @@ def blob(rows):
         if any(r[0] & 0x80 for r in rng):              # 4.0 group headers: their legend (+81: n, (colour, label))
             e += bytes([len(gleg[:LEG])]) + b''.join(bytes([LEG_COLOUR.get(c, c), KEYS.index(k)]) for c, k in gleg[:LEG])
         e += b'\0' * (ENTRY_PAD - len(e))
-        if kind == 'cupgrp':                           # (a cup's group screen: LEGX = 1, LEGX + 1 = the group size)
+        if kind == 'cupgrp':                           # (a cup's group screen: LEGX = 3: places per group (bit 0) and
+            e = e[:LEGX] + bytes((3, code)) + e[LEGX + 2:]   # the legend in the title row (bit 1); LEGX + 1 = the size)
+        elif kind == 'state' and code:                   # (a state of several groups: places per group only)
             e = e[:LEGX] + bytes((1, code)) + e[LEGX + 2:]
         b += e
     return bytes(b)
@@ -627,8 +667,8 @@ EU_ROW
     movzx eax, word [D7]
     shr eax, 1
     inc eax                             ; the row's place 1..
-    cmp byte [edi + LEGX_], 0           ; a cup's group screen: the rows run on over the groups (B = 5..8):
-    je .pg                              ; the place within its group
+    test byte [edi + LEGX_], 1          ; groups shown one after the other: the rows run on (B = 5..8):
+    jz .pg                              ; the place within its group
     push ecx
     push edx
     dec eax
@@ -732,8 +772,8 @@ HDR_LEG
     mov edi, [esp]                      ; (the entry as it came: HDR_LEG moves edi to the group legend)
     test edi, edi                       ; a cup's group table: the boxes in the title row, the bar from CUPT_
     jz .q
-    cmp byte [edi + LEGX_], 0
-    je .q
+    test byte [edi + LEGX_], 2
+    jz .q
     mov word [MENU + 16h + 14h], CUPT_
     mov word [MENU + 16h + 18h], 312 - CUPT_
     movzx ecx, word [MENU + 10h]

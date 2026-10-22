@@ -2077,11 +2077,18 @@ def diy_lin(s, lang='it'):
     return s.result.base2 + lp36._sites(lepatch.LEPatch(os.path.join(ROOT, 'orig', exe + '.EXE')))['DIY']
 
 
+def zone_leg_n():
+    """The legend boxes at the end of a zoned table's menu (zones.LEG: 6 since rc12)."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import zones
+    return zones.LEG
+
+
 def zones_force_played(s, lang, errs, tag):
     """4.0 (Davide): a table before its first match day has no zones and no legend. Checked on the table shown, then
     its first row's played count forced to 1 (DIY row 0 +4: a test poke, nothing saved) so the zones show."""
     scr = s.screen()
-    leg = [e[1] for e in scr.entries[-5:] if not e[2]]
+    leg = [e[1] for e in scr.entries[-zone_leg_n():] if not e[2]]
     rows, _ = zone_rows(s, tag + '_pre', 6)
     check(not leg and all(z == 'pl' for _, z in rows), f'{tag}: no match played: no zones, no legend '
           f'({[z for _, z in rows]}, {leg})', errs)
@@ -2119,7 +2126,7 @@ def zones_preseason():
             walk(s, s.screen().find(view, exact=True), 3)
             walk(s, 1, 3)
             scr = s.screen()
-            leg = [e[1] for e in scr.entries[-5:] if not e[2]]
+            leg = [e[1] for e in scr.entries[-zone_leg_n():] if not e[2]]
             rows, _ = zone_rows(s, f'mls_pre_{lang}', 15)
             check(not leg and all(z == 'pl' for _, z in rows), f'{lang} MLS before the first match: no zones, no legend '
                   f'({[z for _, z in rows]}, {leg})', errs)
@@ -2143,13 +2150,13 @@ def zones_preseason():
             walk(s, s.screen().find('VISUAL. COMPETIZ.', exact=True), 3)
             walk(s, 1, 3)
             scr = s.screen()
-            leg = [e[1] for e in scr.entries[-5:] if not e[2]]
+            leg = [e[1] for e in scr.entries[-zone_leg_n():] if not e[2]]
             s.shot('mls_mid')
             check(leg == ['P.OFF'], f'MLS mid-season: legend {leg}', errs)
             walk(s, scr.find('STAT', exact=True), 3)
             press(s, s.screen(), 'CLASSIFICA GENERALE', 3)
             rows, scr = zone_rows(s, 'mls_shield', 8)
-            leg = [e[1] for e in scr.entries[-5:] if not e[2]]
+            leg = [e[1] for e in scr.entries[-zone_leg_n():] if not e[2]]
             got = [z for _, z in rows]
             check(leg == ['CONC'] and got[:6] == ['lb'] * 6 and got[6] != 'lb', f"Supporters' Shield: {got} {leg}", errs)
             info.append(f"mid-season: MLS legend P.OFF, Supporters' Shield {''.join(z[0] for z in got)} {leg}")
@@ -2181,7 +2188,7 @@ def zone_colours():
             liv = None
             check(len(got) == 22 and all(a == w or (w == 'pl' and a != w and False) for a, w in zip(got, want)),
                   f'pass {k}: zones {got}', errs)
-            leg = [e[1] for e in scr.entries[-5:] if not e[2]]
+            leg = [e[1] for e in scr.entries[-zone_leg_n():] if not e[2]]
             check(leg == ['CAMP', 'UEFA', 'RETR'], f'pass {k}: legend {leg}', errs)
             info.append(f"pass {k}: {''.join({'gy': 'x'}.get(z, z[0]) for z in got)}, legend {leg}")
             if k == 1:                              # the FORMAT page (it reads its own file into the shared buffer)
@@ -2219,7 +2226,7 @@ def zone_colours():
                 rows, scr = zone_rows(s, f'zones_{lang}_' + path[1].split()[-1].lower(), len(want_l))
                 got = [z for _, z in rows]
                 check(got == want_l, f'{lang} {path[0]} {path[1]}: zones {got}', errs)
-                leg = [e[1] for e in scr.entries[-5:] if not e[2]]
+                leg = [e[1] for e in scr.entries[-zone_leg_n():] if not e[2]]
                 check(leg == leg_l, f'{lang} {path[0]} {path[1]}: legend {leg}', errs)
                 info.append(f"{lang} {path[0]} {path[1]}: {''.join({'gy': 'x'}.get(z, z[0]) for z in got)}, legend {leg}")
     w27 = os.environ.get('ZONES_W2627')                 # a full 2026-27 build (exe + DATA): two more tables
@@ -2244,7 +2251,7 @@ def zone_colours():
                 rows, scr = zone_rows(s, 'zones_' + path[1].split()[-1].lower(), len(want27))
                 got = [z for _, z in rows]
                 check(got == want27, f'{path[1]}: zones {got}', errs)
-                leg = [e[1] for e in scr.entries[-5:] if not e[2]]
+                leg = [e[1] for e in scr.entries[-zone_leg_n():] if not e[2]]
                 check(leg == leg27, f'{path[1]}: legend {leg}', errs)
                 info.append(f"{path[1]}: {''.join({'gy': 'x'}.get(z, z[0]) for z in got)}, legend {leg}")
                 if path[1] == 'PREMIER LEAGUE':         # another season year, the same ring: the same colours (they
@@ -2256,7 +2263,7 @@ def zone_colours():
                     s.send('dump:1')
                     rows, scr = zone_rows(s, 'zones_premier_s2', len(want27))
                     got = [z for _, z in rows]
-                    leg = [e[1] for e in scr.entries[-5:] if not e[2]]
+                    leg = [e[1] for e in scr.entries[-zone_leg_n():] if not e[2]]
                     check(got == want27 and leg == leg27, f'another season: {got} {leg} (uc_rank: the same ring)', errs)
                     info.append(f"PREMIER LEAGUE season 2: {''.join({'gy': 'x'}.get(z, z[0]) for z in got)}, legend {leg}")
     return not errs, '; '.join(errs + info) if errs else '; '.join(info)

@@ -6311,7 +6311,8 @@ def world_full_uefa():
 
             def at_uq(r):
                 n = len([f for f in os.listdir(s.run) if f.startswith('uq_in_')])
-                open(os.path.join(s.run, f'uq_in_{n}.bin'), 'wb').write(r.read(r.base2 + x + 0x8, 8732))
+                open(os.path.join(s.run, f'uq_in_{n}.bin'), 'wb').write(r.box.dump(r.base2 + x + 0x8, 8732))
+                s.log.append(f'UQ_BP {n}: base2 {r.base2:#x} holders {r.box.dump(r.base2 + HOLDERS, 6).hex()}')
             s.bp(s.result.base1 + int(os.environ['UQ_BP'], 16), at_uq)
         h = struct.unpack_from('<3H', s.result.obj2(HOLDERS, 6))
         if all(x not in (0, 0xFFFF) for x in h):

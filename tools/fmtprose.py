@@ -279,7 +279,7 @@ def league(div, k, lg, win, lang, pos, lowest, nm, real_down=None):
 
 def sentences(lines):
     """Other competitions: their schematic lines as one paragraph of sentences."""
-    xs = [x.rstrip(' :') for x in lines if x.strip()]
+    xs = [x.rstrip(' :').rstrip('.') for x in lines if x.strip()]   # (a line ending in 'T.A.B.': one dot, not '..')
     return [_cap('. '.join(x[:1] + x[1:].lower() for x in xs) + '.')] if xs else []
 
 

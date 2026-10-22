@@ -471,6 +471,8 @@ def patch_exe(src, dst, remap, lang='it'):
                          careerworld.SITES if worlds else None,   # FORMAT page (5.0); 4.0.1 its VINCITORI entry
                          wn=bool(worlds and LT_SPACE and xtra_pg))   # (winners.py on the extra pages)
     cos = menulevels.patch(p, cos, area, lang)   # 4.0: team choice of a league with levels of groups: level, then group
+    import titlelegs                             # 4.0: the French match titles' leg words (40-character titles)
+    titlelegs.patch(p, area, lang)
     import zones                                 # 4.0: zone colours in the league tables (light blue, green, ...)
     zones.RING = None                            # (per exe: a release build patches the four languages in one run)
     lt_room = None                                               # zones' ring + longtable + mainbtn (~0x5A0 B): in

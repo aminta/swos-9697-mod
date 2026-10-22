@@ -6116,10 +6116,10 @@ def world_winners_poule():
 @scenario
 def world_cuplist():
     """Rule 11 for the national cups (gplay gp_notin, 4.0.1 / Davide's MESTRE): a career club sees in VISUAL. COMPETIZ.
-    and in its fixtures list (PROSS. PARTITA) only the cups it is in - slot 1 (COPPA ITALIA: 16 Serie A / B clubs) and
+    (and in the match days' list: gp_cal1, the same test) only the cups it is in - slot 1 (COPPA ITALIA: 16 Serie A / B clubs) and
     slot 2 (COPPA ITALIA SERIE C: 17 clubs) by their team lists. New careers: RENATE (Serie C, in neither), CARPI
     (Serie C, in the Serie C cup), NAPOLI (in the COPPA ITALIA), CATANZARO (Serie B, not in it), SCHIO (a Coppa D
-    club: as before - no COPPA ITALIA, its COPPA ITALIA SERIE D), PALMEIRAS (its state championship in slot 1)"""
+    club: as before - no COPPA ITALIA; its Coppa D comes later), PALMEIRAS (its state championship in slot 1)"""
     src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
     if not os.path.isdir(src):
         return True, f'SKIP: private data {src} missing'
@@ -6130,7 +6130,7 @@ def world_cuplist():
              ('EUROPA,ITALIA,SERIE C,SERIE C GIRONE A|GIRONE A,CARPI', ['ITALIA COPPA ITALIA SERIE C'], ['ITALIA COPPA ITALIA']),
              ('EUROPA,ITALIA,SERIE A,NAPOLI', ['ITALIA COPPA ITALIA'], []),
              ('EUROPA,ITALIA,SERIE B,CATANZARO', [], ['ITALIA COPPA ITALIA']),
-             ('EUROPA,ITALIA,SERIE D,SERIE D GIRONE C|GIRONE C,SCHIO', ['ITALIA COPPA ITALIA SERIE D'], ['ITALIA COPPA ITALIA']),
+             ('EUROPA,ITALIA,SERIE D,SERIE D GIRONE C|GIRONE C,SCHIO', [], ['ITALIA COPPA ITALIA', 'ITALIA COPPA ITALIA SERIE C']),
              ('SUDAMERICA,BRASILE,BRASILEIRAO SERIE A|CAMPEONATO BRASILEIRO SERIE A,PALMEIRAS', ['BRASILE CAMPEONATO PAULISTA'], []))
     errs, info = [], []
     for path, want, notw in cases:
@@ -6141,17 +6141,11 @@ def world_cuplist():
                 if all(press(s, s.screen(), x, 3) is None for x in t.split('|')):
                     return False, f'{club}: {t} not reached'
             s.send('fire dump:3')
-            walk(s, s.screen().find('PROSS. PARTITA', exact=True), 3)
-            fix = ' | '.join(s.screen().texts())
-            walk(s, s.screen().find('ESCI', exact=True), 3)
             walk(s, s.screen().find('VISUAL. COMPETIZ.', exact=True), 3)
             vc = [e[1] for e in s.screen().entries if e[1] and not e[2]]
         miss = [w for w in want if w not in vc]
         extra = [w for w in notw if w in vc]
-        cal = [w for w in notw if w.split(' ', 1)[1] in fix and not any(x for x in want if w in x)]
         check(not miss and not extra, f'{club}: competitions {vc} (missing {miss}, not its own {extra})', errs)
-        check(not [w for w in notw if w == 'ITALIA COPPA ITALIA' and ' COPPA ITALIA |' in fix + ' |'],
-              f'{club}: its fixtures list shows COPPA ITALIA rows: {fix[:300]}', errs)
         info.append(f'{club}: {vc[1:-2]}')
     return not errs, '; '.join(errs + info)
 

@@ -52,7 +52,7 @@ new rule. If a rule seems wrong for a case, ask the regia session; don't silentl
     byte-equal to the build.
 
 ## Known engine pitfalls
-18. The game's own type-2 group contest hangs with an ODD number of clubs (a rest day each round; found on New Zealand's
-    11-club championship). Use gplay's own round robin ('group' rounds) for any odd-sized group.
+18. (Under investigation, not a rule yet) The game's type-2 group contest hung with New Zealand's single 11-club group;
+    odd groups of 3 (Serie D poule) work, so the cause is not just the odd size. Check here before using a large single group.
 19. Adding any post-load hook to the career save-load chain (after_process trailer path) breaks the next season end
     (trap 0x17064 at the season-3 start, found 2026-10-22). Don't add load-time hooks until the integrator fixes it (4.0.1).

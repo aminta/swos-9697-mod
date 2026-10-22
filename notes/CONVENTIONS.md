@@ -57,5 +57,8 @@ new rule. If a rule seems wrong for a case, ask the regia session; don't silentl
 ## Known engine pitfalls
 18. (Under investigation, not a rule yet) The game's type-2 group contest hung with New Zealand's single 11-club group;
     odd groups of 3 (Serie D poule) work, so the cause is not just the odd size. Check here before using a large single group.
-19. Adding any post-load hook to the career save-load chain (after_process trailer path) breaks the next season end
-    (trap 0x17064 at the season-3 start, found 2026-10-22). Don't add load-time hooks until the integrator fixes it (4.0.1).
+19. Post-load hooks in the career save-load chain are safe since 284da66 (2026-10-22). Cause of the old season-3 trap
+    (0x17064): trailer.patch()'s after_process rewrite removed the text the LOAD_TAIL substitution looked for, so big-world
+    loads silently skipped w_load_tail. Rule: every text rewrite of asm source asserts its pattern count (trailer._sub;
+    the shared nasmcave.sub for the other patchers in the upcoming 4.0.1). Any load / save-path change still runs
+    career_20seasons (C20_SEASONS>=2) + old-save loads before its sha.

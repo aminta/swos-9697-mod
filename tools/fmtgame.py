@@ -800,10 +800,10 @@ def world_year(w, d=None):
 
 
 WN = {   # the SEASON WINNERS page (fmtpage / winners.py): page title, a title not decided yet, a 'title' league's table
-    'it': dict(down='RETROCESSA', title='VINCITORI', tbp='DA GIOCARE', reg=' (STAGIONE REGOLARE)'),
-    'en': dict(down='RELEGATED', title='WINNERS', tbp='TO BE PLAYED', reg=' (REGULAR SEASON)'),
-    'fr': dict(down='RELEGUE', title='VAINQUEURS', tbp='A JOUER', reg=' (SAISON REGULIERE)'),
-    'de': dict(down='ABSTEIGER', title='SIEGER', tbp='NOCH OFFEN', reg=' (HAUPTRUNDE)'),
+    'it': dict(po='PLAYOFF', down='RETROCESSA', title='VINCITORI', tbp='DA GIOCARE', reg=' (STAGIONE REGOLARE)'),
+    'en': dict(po='PLAYOFFS', down='RELEGATED', title='WINNERS', tbp='TO BE PLAYED', reg=' (REGULAR SEASON)'),
+    'fr': dict(po='PLAY-OFFS', down='RELEGUE', title='VAINQUEURS', tbp='A JOUER', reg=' (SAISON REGULIERE)'),
+    'de': dict(po='PLAYOFFS', down='ABSTEIGER', title='SIEGER', tbp='NOCH OFFEN', reg=' (HAUPTRUNDE)'),
 }
 WN_SKIP = ('promedio', 'playout', 'placement')   # (no single winner: the promedio's and a play-out's relegated, places)
 
@@ -847,6 +847,14 @@ WN_TITLES = {   # official titles (data session, 2026-27): (country, ko_playoffs
 }
 
 
+WN_SUBS = {   # intermediate official titles inside a play-off (data session): (country, key) -> [(global tie, names)]
+    ('usa', 'mls_po'): [(14, {'it': 'CAMPIONE EASTERN CONFERENCE', 'en': 'EASTERN CONFERENCE CHAMPIONS',
+                              'fr': 'CHAMPION CONFERENCE EST', 'de': 'MEISTER EASTERN CONFERENCE'}),
+                        (15, {'it': 'CAMPIONE WESTERN CONFERENCE', 'en': 'WESTERN CONFERENCE CHAMPIONS',
+                              'fr': 'CHAMPION CONFERENCE OUEST', 'de': 'MEISTER WESTERN CONFERENCE'})],
+}
+
+
 def _wn_title(cc, key, lang):
     t = WN_TITLES.get((cc, key))
     return {'*': [t.get(lang) or t['*']]} if t else None
@@ -869,7 +877,13 @@ def win_lines(comp, div, k, cc=''):
         st = po.get('stage') if po.get('kind') == 'stage_title' else None
         src = f'D{st}{pi:02X}{_stage_start(div, po):02X}' if st is not None and 0 <= st < 3 else f'K{pi:02X}'
         for lang in LANGS:
-            lines[lang].append((_wn_fit(_wn_title(cc, po.get('key'), lang) or po['names'], lang), src))
+            own = _wn_title(cc, po.get('key'), lang)
+            if own and po.get('kind') == 'title':           # (Davide: 'PLAYOFF - MLS CUP', the title it gives)
+                own = {'*': [WN[lang]['po'] + ' - ' + own['*'][0]]}
+            lines[lang].append((_wn_fit(own or po['names'], lang), src))
+        for tie, nm in WN_SUBS.get((cc, po.get('key')), []):  # ('T' + pi + tie: after the champion, Davide)
+            for lang in LANGS:
+                lines[lang].append((_wn_fit({'*': [nm[lang]]}, lang), f'T{pi:02X}{tie:02X}'))
     par = comp.get('parallel')                  # dplay (pack 'playoffs': 'ita'): the Serie B play-off and play-out (its
     par = par[0] if isinstance(par, list) else par   # relegated club), a Serie C group's play-off ('P' + dplay's kind)
     if comp.get('playoffs') == 'ita' and par:

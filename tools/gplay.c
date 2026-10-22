@@ -856,6 +856,8 @@ void gp_season(void) {
             wn_add('K', pidx, GP_IN.pl_w[0] ? GP_IN.pl_w[0] : 0xFFFF);
         else if (ok && kind != 4 && (glast >= 0 || last >= 0))
             wn_add('K', pidx, row(glast >= 0 ? P[glast] : W[last])->team);
+        if (ok && kind == K_TITLE && glast < 0)  /* (a title play-off's last three ties: the MLS conference finals) */
+            for (int t = nt > 3 ? nt - 3 : 0; t < nt && t < GN; t++) wn_add(0x80 | (pidx & 0x7F), t, row(W[t])->team);
         prev_loser = ok && last >= 0 ? L[last] : -1;
         s = r;
     }
@@ -1425,17 +1427,26 @@ static void stage_done(const struct gp_ko *k) {   /* a stage title's knockout de
     x->pad[1] = k->pi + 1;
 }
 
-/* the SEASON WINNERS page (winners.py): a title's source GP_WNSRC ('S' / 'D' / 'K', stage << 8, play-off pi << 16) -> its
+/* the SEASON WINNERS page (winners.py): a title's source GP_WNSRC ('S' / 'D' / 'K' / 'T', stage or tie << 8, play-off pi
+   << 16; 'T': an intermediate title, tie st's winner) -> its
    winner's team word this season (GP_SEAS); 0xFFFF: not decided yet, but being played (the play-off's contest is
    this season's GP_ST.ko); 0xFFFE: nothing of it this season (a play-off the career club is not in: decided at the
    season end). 'S': stage table st's 1st (GP_SS.r[st] written this season: ARG's annual table); 'D': a stage title
    decided mid-season (GP_ST.dec[stage] of play-off pi), else as 'K': play-off pi's last tie in GP_ST.ko (the career
    club's, played; not a group contest). The page names a club only when it is one of the viewed league's rows. */
 u32 GP_WNSRC;
+static int kidx(const struct gp_ko *k, u16 team);
+static int wn_out(const struct gp_ko *k) {      /* the career club knocked out of k (interim, rc10: a played play-off
+                                                   whose final stays undecided once it is out - 4.0's fix decides it) */
+    int me = kidx(k, GP_MGR);
+    if (me == NOC) return 0;
+    for (int t = 0; t < k->ntie && t < KT; t++) if (k->tl[t] == me) return 1;
+    return 0;
+}
 u32 gp_wn_c(void) {
     int t = GP_WNSRC & 0xFF, st = GP_WNSRC >> 8 & 0xFF, pi = GP_WNSRC >> 16 & 0xFF;
     if (GP_WNSRC >> 24) {               /* (4.0.1 the last season: WN_ST's entry 'K' pi, or 'L' division st) */
-        int ty = t == 'K' || t == 'D' ? 'K' : 'L', ix = ty == 'K' ? pi : st;
+        int ty = t == 'K' || t == 'D' ? 'K' : t == 'T' ? 0x80 | (pi & 0x7F) : 'L', ix = ty == 'K' ? pi : st;
         if (WN_ST.magic != WN_MAGIC || (u8)(WN_ST.season + 1) != GP_SEAS) return 0xFFFE;
         for (int i = 0; i < WN_ST.n && i < WN_N; i++)
             if (WN_ST.e[i].type == ty && WN_ST.e[i].idx == ix) return WN_ST.e[i].team;
@@ -1444,6 +1455,14 @@ u32 gp_wn_c(void) {
     if (t == 'S')
         return st < SS_N && (GP_SS.fresh >> st & 1) && GP_SS.n[st] ? GP_SS.r[st][0].team : 0xFFFE;
     if (GP_ST.magic != MAGIC) return 0xFFFE;
+    if (t == 'T') {                     /* (tie st of play-off pi, the career club's: an intermediate title) */
+        for (int j = 0; j < 2; j++) {
+            const struct gp_ko *k = &GP_ST.ko[j];
+            if (k->magic != MAGIC || k->season != GP_SEAS || k->pi != pi || k->bye[7] || st >= KT) continue;
+            return k->tw[st] != NOC ? k->team[k->tw[st]] : wn_out(k) ? 0xFFFD : 0xFFFF;
+        }
+        return 0xFFFE;
+    }
     if (t == 'D' && st < 3) {
         const struct gp_dec *x = &GP_ST.dec[st];
         if (x->season == GP_SEAS && x->done && x->pad[1] == pi + 1) return x->team[0];
@@ -1452,7 +1471,7 @@ u32 gp_wn_c(void) {
         const struct gp_ko *k = &GP_ST.ko[j];
         if (k->magic != MAGIC || k->season != GP_SEAS || k->pi != pi || !k->ntie || k->bye[7]) continue;
         int w = k->tw[k->ntie - 1];
-        return w != NOC ? k->team[w] : 0xFFFF;
+        return w != NOC ? k->team[w] : wn_out(k) ? 0xFFFD : 0xFFFF;   /* (0xFFFD: no line) */
     }
     return 0xFFFE;
 }

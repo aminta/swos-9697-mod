@@ -320,7 +320,9 @@ Cearense, Pernambucano, Alagoano and Mato-Grossense.
   are listed too, and after the season end the page shows last season's winners. A title play-off reads
   "PLAYOFFS - <title>" (PLAY-OFFS in French; e.g. PLAYOFFS - MLS CUP), and officially titled intermediate winners
   are listed (the MLS's Eastern and Western Conference champions; the MLS's league line is the SUPPORTERS' SHIELD).
-  In 4 languages (VINCITORI / DA
+  The Serie D's Poule Scudetto is listed too (PLAYOFF - SCUDETTO SERIE D in the Italian game: IN PROGRESS, then its
+  champion). Declared: after a promotion or relegation, last season's WINNERS page shows the titles of your club's new
+  division; the upcoming 4.0.1 shows the division your club played in. In 4 languages (VINCITORI / DA
   GIOCARE / IN CORSO, VAINQUEURS / A JOUER / EN COURS, SIEGER / NOCH OFFEN / IM GANGE).
 - **Continental places outside Europe**: the top flights of the other confederations colour their real club-cup
   places: light blue for the first cup (Copa Libertadores, Concacaf Champions Cup, AFC Champions League Elite, CAF
@@ -1007,7 +1009,10 @@ Baiano, Cearense, Pernambucano, Alagoano e Mato-Grossense.
   titoli che si decidono a fine stagione, e dopo la fine della stagione la pagina mostra le vincitrici della stagione
   appena conclusa. Un play-off per il titolo si legge "PLAYOFF - <titolo>" (per esempio PLAYOFF - MLS CUP), e sono
   elencati anche i titoli intermedi ufficiali (CAMPIONE EASTERN CONFERENCE e CAMPIONE WESTERN CONFERENCE della MLS;
-  per la MLS la riga del campionato è il SUPPORTERS' SHIELD). In 4 lingue (WINNERS / TO BE PLAYED / IN PROGRESS, VAINQUEURS / A JOUER / EN COURS, SIEGER /
+  per la MLS la riga del campionato è il SUPPORTERS' SHIELD). C'è anche la Poule Scudetto della Serie D (PLAYOFF -
+  SCUDETTO SERIE D: IN CORSO, poi la campionessa). Dichiarato: dopo una promozione o una retrocessione, la pagina
+  VINCITORI della stagione appena conclusa mostra i titoli della nuova divisione del tuo club; la prossima 4.0.1
+  mostrerà la divisione in cui il tuo club ha giocato. In 4 lingue (WINNERS / TO BE PLAYED / IN PROGRESS, VAINQUEURS / A JOUER / EN COURS, SIEGER /
   NOCH OFFEN / IM GANGE).
 - **Posti continentali fuori dall'Europa**: le massime serie delle altre confederazioni colorano i loro posti veri
   nelle coppe per club: azzurro per la prima coppa (Copa Libertadores, Concacaf Champions Cup, AFC Champions League

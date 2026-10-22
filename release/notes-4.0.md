@@ -2,6 +2,8 @@
 
 **SWOS 96/97 Mod 4.0: the World 2026-27 career, today's football as it really is**
 
+*Football competitions, global and local, that no other game has, has ever had, or probably ever will.*
+
 ### What's new
 - **World 2026-27**, a new historic career world: 91 countries, 2,385 clubs with their real squads at the end of the
   summer 2026 transfer window, 264 competitions. In CLASSIC CAREERS choose WORLD 2026-27, or use the new green
@@ -52,6 +54,8 @@ Thanks to DaniSwos for the Europe 1984-85 database, and to Marco for the reports
 ## Italiano
 
 **SWOS 96/97 Mod 4.0: la carriera Mondo 2026-27, il calcio di oggi com'è davvero**
+
+*Le competizioni di calcio, globali e locali, che nessun altro gioco ha, ha mai avuto e probabilmente avrà.*
 
 ### Novità
 - **Mondo 2026-27**, un nuovo mondo di carriera storica: 91 nazioni, 2.385 club con le rose vere alla fine del

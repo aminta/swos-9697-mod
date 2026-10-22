@@ -6328,7 +6328,8 @@ def world_ca_hon():
 def world_ca_pan():
     """world_ca at PLAZA AMADOR (Panama: two conferences; their leaders straight into the two-legged semi-finals, the
     play-offs 2nd v the other conference's 3rd one match, the final one match at a neutral ground)"""
-    return world_ca('NORDAMERICA,PANAMA,PLAZA AMADOR', 'PANAMA', 'LIGA PANAMENA DE FUTBOL',
+    return world_ca('NORDAMERICA,PANAMA,PLAZA AMADOR', 'PANAMA', 'LPF',   # (rc12's 158 px title fit: the official short
+                                                                           # name LPF, kept by Davide 2026-10-22)
                     ['APERTURA SEMIFINALE ANDATA', 'APERTURA FINALE', 'CLAUSURA SEMIFINALE ANDATA'])
 
 

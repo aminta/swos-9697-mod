@@ -41,14 +41,26 @@ OLD_SIZE = 103                            # 1.0/1.1 block in someLeaguesTable (s
 TEAM_SIZE, SELECTED_ROOM = 684, 68400
 
 EN_SAVE = '''
-    lea eax, [ebx + TOTAL]              ; the engine block, if it fits too (else a load clears its items)
+    mov ebp, EN_N
+    mov eax, TOTAL
+%if EN_N0 < EN_N
+    cmp byte [SLT + WORLD_BYTE], 0      ; 4.0.1: a world-0 career writes only the first EN_N0 items (the world-only
+    jne .enw                            ; ones last in EN_ITEMS: a load zeroes them, as from an older save)
+    mov ebp, EN_N0
+    mov eax, TOTAL0
+.enw:
+%endif
+    push eax
+    add eax, ebx                        ; the engine block, if it fits too (else a load clears its items)
     cmp eax, [ROOMV]
+    pop eax
     ja .skip
     mov word [edi], EN_MARK
-    mov word [edi + 2], TOTAL - BLOCK - 4
+    push eax
+    sub eax, BLOCK + 4
+    mov [edi + 2], ax
     add edi, 4
     mov edx, EN_ITEMS
-    mov ebp, EN_N
 .en:
     mov ax, [edx + 8]
     mov [edi], ax
@@ -67,7 +79,9 @@ EN_SAVE = '''
     add edx, 12
     dec ebp
     jnz .en
-    add dword [D1], TOTAL - BLOCK'''
+    pop eax
+    sub eax, BLOCK
+    add [D1], eax'''
 
 ASM = '''
 save_trailer:
@@ -391,9 +405,12 @@ def patch(p, cave, items, tails=False):
     import engine
     en = engine.save_items()                      # the engine block 'EN' after the main one
     en_block = 4 + sum(4 + sz for _, _, sz, _, _ in en) if en else 0
-    nmax = (SELECTED_ROOM - block - en_block) // TEAM_SIZE   # save_trailer writes 'EN' only if N*684 + all <= 68400
-    assert en_block < 0x10000 and nmax >= 80, (block, en_block, nmax)   # (the main block alone: N <= 98; EN in the normal
-                                                  # cache matters for world-0 careers only, whose 4.0 items are unused)
+    en0 = [e for e in en if e[0] not in engine.WORLD_ONLY]     # 4.0.1: a world-0 career's block (the world-only items
+    assert en[:len(en0)] == en0, [e[0] for e in en]            # last, not written for it)
+    en_block0 = 4 + sum(4 + sz for _, _, sz, _, _ in en0) if en else 0
+    nmax = (SELECTED_ROOM - block - en_block0) // TEAM_SIZE  # save_trailer writes 'EN' only if N*684 + all <= 68400
+    assert en_block < 0x10000 and nmax >= 80, (block, en_block0, nmax)  # (the main block alone: N <= 98; EN in the
+                                                  # normal cache matters for world-0 careers; a world's: its big cache)
     import careerworld                            # a big world's cache (its own SELBASEV / ROOMV): all of it at SEL_N
     if careerworld.BSS[0] is not None:
         assert careerworld.SEL_N * TEAM_SIZE + block + en_block <= careerworld.SEL_ROOM, \
@@ -408,7 +425,10 @@ def patch(p, cave, items, tails=False):
                'OLD_SAVED': (2, table + sa.SAVED_GLOBAL), 'MARK3_AT': (2, table + sa.MARK3_GLOBAL),
                'MARK3_COPY': (2, copy + sa.MARK3_GLOBAL), 'OLD_LIB': (0, OLD_LIB), 'OLD_LIB_MAX': (0, OLD_LIB_MAX), 'LIB_N': (0, sacups.LIB_N), 'MARK3': (0, sa.MARK3), 'MARK3_BAL': (0, bal),
                'DEFAULT_BYTES': (0, 'db ' + ', '.join(str(b) for b in defaults)),
-               'TOTAL': (0, block + en_block), 'EN_N': (0, len(en)), 'EN_MARK': (0, EN_MARK)}
+               'TOTAL': (0, block + en_block), 'EN_N': (0, len(en)), 'EN_MARK': (0, EN_MARK),
+               'TOTAL0': (0, block + en_block0), 'EN_N0': (0, len(en0))}
+    if len(en0) < len(en):                        # (the career's world byte: careerworld's someLeaguesTable copy)
+        symbols.update(SLT=careerworld.SITES['slt'], WORLD_BYTE=(0, careerworld.WORLD_BYTE))
     late = []                                     # items / routines whose address comes later in patch_exe
     for k_, (name, _, _, _, at) in enumerate(en):
         symbols[f'E{k_}'] = at or (1, cave)       # (a placeholder fixup, retargeted by late())

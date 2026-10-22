@@ -4854,12 +4854,18 @@ def world_sa_reload():
                 q = ln.split()
                 if len(q) == 3 and q[0] == 'HEX' and int(q[1], 16) == st_at:
                     st = bytes.fromhex(q[2])
-                    k = gp_ko(st[GP_STKO:])
-                    info.append(f"GP_ST pend {st[:16].hex()} ko0 magic {k['magic']:#x} pi {k['pi']} season "
-                                f"{k['season']} n {k['n']} teams {[hex(x) for x in k['team'][:4]]}")
+                    try:
+                        k = gp_ko(st[GP_STKO:])
+                        last_st = (f"GP_ST pend {st[:16].hex()} ko0 magic {k['magic']:#x} pi {k['pi']} season "
+                                   f"{k['season']} n {k['n']} teams {[hex(x) for x in k['team'][:4]]}")
+                    except (IndexError, KeyError) as e:
+                        last_st = f'GP_ST {len(st)} B, undecoded ({e})'
+            if 'last_st' in locals():
+                info.append(last_st)
             check(ok, f'reloaded: {msg}', errs)
             dumps = [bytes.fromhex(ln.split()[2]) for ln in open(os.path.join(RUNS, w84_tag() + '_2', 'session.log'),
-                                                                     errors='replace') if ln.startswith('HEX ')]
+                                                                     errors='replace')
+                     if ln.startswith('HEX ') and int(ln.split()[1], 16) == ssb]
             check(dumps, 'no GP_SSB dump', errs)
             if dumps:
                 b = dumps[-1]

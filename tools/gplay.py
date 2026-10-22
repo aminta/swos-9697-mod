@@ -1673,9 +1673,6 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
     for a in (*ps['lend'], ps['ssim'], ps['draw']):
         assert p.get(1, a, 1) == b'\xe8', hex(a)
     force = int(os.environ.get('GPLAY_FORCE') or 0)         # (test builds: the career club's place in its division)
-    if os.environ.get('GPLAY_KOFORCE'):                     # (test builds: the career club's knockout ties forced)
-        print(f"exe: GPLAY_KOFORCE={os.environ['GPLAY_KOFORCE']} (test build: the career club {'loses' if os.environ['GPLAY_KOFORCE'] == '1' else 'wins'} "
-              'its played knockout ties)')
     import mkseason as mks
     prom = mks.promedio_table()                     # Argentina's promedio history (GP_PROM_TAB) before the C code
     assert not any(p.get(1, at, len(prom)))
@@ -1687,8 +1684,7 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
     sec_at, at = at, (at + len(sec) + 15) & ~15
     obj = cobj.compile_c(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'gplay.c'), [f'-DGP_FORCE={force}', f"-DSEC_FORCE={int(os.environ.get('SEC_FORCE') or 0)}",
                                 f"-DSEC_FORCE_B={int(os.environ.get('SEC_FORCE_B') or 0xFFFF)}",
-                                f"-DGP_RLFORCE={int(os.environ.get('GPLAY_RLFORCE') or 0)}",
-                                f"-DGP_KOFORCE={int(os.environ.get('GPLAY_KOFORCE') or 0)}"]
+                                f"-DGP_RLFORCE={int(os.environ.get('GPLAY_RLFORCE') or 0)}"]
                                + (['-DHDR_TEST'] if os.environ.get('HDR_TEST') else []))   # (test builds: GROUP n headers)
     top_r, top_w = _top9(p)                          # (cseg_927A2's top-9 list: gp_champ)
     import mkseason                             # 4.0 group headers' labels (zones.header_labels, the exe language)

@@ -8,9 +8,10 @@
   **CAREER 2026-27** button on the main menu (next to CAREER): it opens the career menu, and its CHOOSE TEAM goes
   straight to the world's continents.
   - Every league in its real 2026-27 format: groups, splits (title and relegation groups), Apertura / Clausura,
-    conferences, promotion, title and placement play-offs, play-outs, real relegations; Italy down to the real Serie
-    D (9 groups) with its play-offs and the **Coppa Italia Serie D** on its real bracket.
-  - Every national cup and league cup from its real round, the 13 **Brazilian state championships**.
+    conferences, promotion, title and placement play-offs, play-outs, real relegations; Costa Rica, Honduras and Panama with
+    two tournaments a season and their real final phases; Italy down to the real Serie D (9 groups) with its play-offs and the **Coppa Italia Serie D** on its real bracket.
+  - Every national cup and league cup from its real round, the 13 **Brazilian state championships**,
+    their tables in colour.
   - The UEFA cups with the league phase, and **12 new continental competitions**: Copa Libertadores, Copa
     Sudamericana, Recopa, CONCACAF Champions Cup, AFC Champions League Elite, Champions League Two and Challenge
     League, CAF Champions League, Confederation Cup and Super Cup, OFC Champions League, and the FIFA
@@ -34,14 +35,13 @@
 ### Known limits (declared)
 - **European places**: in some seasons one of the 108 European places goes to a club of a different association from
   the one the access list names; the number of clubs in each cup and the holders' places are always right (fixed in
-  4.0.1).
-- **Copa Libertadores**: the group thirds' move to the Sudamericana play-off is simulated (played in 4.0.1).
+  the upcoming 4.0.1).
+- **Copa Libertadores**: the group thirds' move to the Sudamericana play-off is simulated (played in the upcoming 4.0.1).
 - **AFC**: the Champions League Elite league stage and the Challenge League groups are simulated; your club joins the
   Elite at the round of 16 and the Challenge League at the quarter-finals.
-- **Brazilian state championships**: their tables have no zone colours yet (4.0.1).
 - After a job offer letter a few stray pixels can appear on the menu buttons until the next match: cosmetic only.
 - The season end shows every open competition in turn: in this world it takes longer than in the original game.
-- The World 2026-27 has no national teams yet (planned for 4.2).
+- The World 2026-27 has no national teams yet (planned for the upcoming 4.2).
 
 Every rule, source and limit: the [full release notes](https://github.com/aminta/swos-9697-mod/blob/main/release/notes-world-2026-27.md).
 
@@ -60,9 +60,10 @@ Thanks to DaniSwos for the Europe 1984-85 database, and to Marco for the reports
   subito ai continenti del mondo.
   - Ogni campionato con la sua formula vera 2026-27: gironi, campionati divisi (gruppo titolo e gruppo salvezza),
     Apertura / Clausura, conference, play-off promozione, scudetto e piazzamento, play-out, retrocessioni vere;
-    l'Italia fino alla Serie D vera (9 gironi) con i suoi play-off e la **Coppa Italia Serie D** sul suo tabellone
+    Costa Rica, Honduras e Panama con due tornei a stagione e le loro fasi finali vere; l'Italia fino alla Serie D vera (9 gironi) con i suoi play-off e la **Coppa Italia Serie D** sul suo tabellone
     vero.
-  - Ogni coppa nazionale e coppa di lega dal suo turno vero, i 13 **campionati statali brasiliani**.
+  - Ogni coppa nazionale e coppa di lega dal suo turno vero, i 13 **campionati statali brasiliani**,
+    con le classifiche a colori.
   - Le coppe UEFA con la fase a campionato, e **12 nuove competizioni continentali**: Copa Libertadores, Copa
     Sudamericana, Recopa, CONCACAF Champions Cup, AFC Champions League Elite, Champions League Two e Challenge
     League, CAF Champions League, Confederation Cup e Super Cup, OFC Champions League, e la **Coppa
@@ -86,17 +87,16 @@ Thanks to DaniSwos for the Europe 1984-85 database, and to Marco for the reports
 ### Limiti noti (dichiarati)
 - **Posti europei**: in alcune stagioni uno dei 108 posti europei va a un club di una federazione diversa da quella
   indicata dalla lista d'accesso; il numero di club di ogni coppa e i posti delle detentrici sono sempre giusti
-  (corretto nella 4.0.1).
+  (corretto nella prossima 4.0.1).
 - **Copa Libertadores**: il passaggio delle terze dei gironi allo spareggio della Sudamericana è simulato (giocato
-  nella 4.0.1).
+  nella prossima 4.0.1).
 - **AFC**: la fase a campionato della Champions League Elite e i gironi della Challenge League sono simulati; il tuo
   club entra nella Elite dagli ottavi e nella Challenge League dai quarti.
-- **Campionati statali brasiliani**: le loro classifiche non hanno ancora i colori delle zone (4.0.1).
 - Dopo una lettera di offerta di lavoro possono comparire alcuni pixel sporchi sui pulsanti dei menu fino alla
   partita successiva: solo estetico.
 - A fine stagione il gioco mostra una dopo l'altra tutte le competizioni ancora aperte: in questo mondo ci vuole più
   tempo che nel gioco originale.
-- Il Mondo 2026-27 non ha ancora le nazionali (previste nella 4.2).
+- Il Mondo 2026-27 non ha ancora le nazionali (previste nella prossima 4.2).
 
 Tutte le regole, le fonti e i limiti: le [note complete](https://github.com/aminta/swos-9697-mod/blob/main/release/notes-world-2026-27.md).
 

@@ -55,6 +55,22 @@ Not one fixed formula for everybody: each league plays the season the way its ow
   zone round robin, the clasico on the free day, a drawn interzonal day), the annual table, relegation by promedio
   (3 seasons) and by the annual table. The annual table (Apertura + Clausura) is in STAT > ANNUAL TABLE, with the
   Libertadores and Sudamericana places and the relegated last place in colour.
+- **Central America 2026-27: Costa Rica, Honduras and Panama, two tournaments a season**: Costa Rica (Liga FPD, 10
+  clubs), Honduras (Liga Nacional, 12) and Panama (LPF, 12 in an Eastern and a Western Conference of 6, with their
+  own headers in the table) play the Apertura 2026 on its real fixtures, then the Clausura 2027 with the points back
+  to zero; each tournament has its own table, its own final phase and its own champion:
+  - **Costa Rica**: semi-finals 1st v 4th and 2nd v 3rd and the final, two legs each (level on aggregate, the better
+    placed goes through), then the two-legged Gran Final between the table's leader and the final's winner (extra
+    time and penalties), not played when the leader won the final.
+  - **Honduras**: 3rd v 6th and 4th v 5th, then the semi-finals 1st v the lower placed survivor and 2nd v the other,
+    two legs each (level on aggregate, the better placed goes through); a two-legged final with extra time and
+    penalties.
+  - **Panama** (LPF Reglamento de Competencias 2026): the two conference leaders go straight into the semi-finals;
+    play-offs 2nd of one conference v 3rd of the other, single matches at the better placed's ground; two-legged
+    semi-finals, each leader against a play-off winner; a single final at the better placed's ground. Extra time
+    and penalties where level.
+  Your club can play every final phase. Declared: the Clausura 2027 calendar is not published yet, so the Clausura
+  plays the Apertura's fixtures mirrored (home and away swapped) until the real ones are out.
 - **Major League Soccer 2026**: 30 clubs in the Eastern and Western Conference (15 + 15), the real 34-match schedule
   (28 conference + 6 cross-conference games per club) on the real match days and dates, the World Cup break
   included. Equal points are ranked by wins, then goal difference, then goals scored; the club with the best record
@@ -72,8 +88,6 @@ Not one fixed formula for everybody: each league plays the season the way its ow
   - **Australia** (A-League Men finals series): the top 6, single elimination finals 3rd v 6th and 4th v 5th,
     two-legged semi-finals re-seeded (the 1st meets the lowest survivor), a single Grand Final at the better
     placed's ground.
-  - **Costa Rica**: semi-finals 1st v 4th and 2nd v 3rd and a final, two legs each, then the two-legged Gran Final
-    between the table's leader and the play-off winner, not played when they are the same club.
   - **Malta**: the champion comes from the Opening and Closing Rounds: one club winning both is champion with no
     match; otherwise a Finalissima between the two round winners, or, with three or four clubs in the top two of the
     rounds, a decider or a Final Four seeded by aggregate points.
@@ -134,6 +148,10 @@ Cearense, Pernambucano, Alagoano and Mato-Grossense.
   (Serie A2) with their squads; a national-league club relegated from its state leaves the state contest.
 - **The states you don't play are simulated at the season end with their real format**: first stage, knockout to a
   champion and relegation phase, the results by the clubs' strength.
+- **Tables in colour**: in each state's first stage the places that go on are painted (green P.OFF; light blue for
+  the clubs that skip a knockout round and go straight to a later one), and in a one-group state the relegated
+  places gray; with several groups each club's zone is its place in its own group. Declared: in the states with
+  several groups relegation is decided on the overall table, so it is not painted in the groups.
 - Declared: the Paulista's round order is rebuilt (real pairings and home sides, the dates aren't published); the
   Carioca and Mineiro finals are at the first finalist's ground (real: a neutral ground); in the state you play,
   equal points are split by goal difference (real: wins first; the simulated states use the real order); the
@@ -465,7 +483,7 @@ Cearense, Pernambucano, Alagoano and Mato-Grossense.
   or VISUAL. COMPETIZ.
 - **European places**: in some seasons one of the 108 European places goes to a club of a different association
   from the one the access list names. The number of clubs in each European cup and the title holders' places are
-  always right (fixed in 4.0.1).
+  always right (fixed in the upcoming 4.0.1).
 - The two Milan clubs are called INTER and MILAN (the game had INTER MILAN and AC MILAN), also in the Europe 1984-85
   world (its INTERNAZIONALE) and in the transfer pool. A career saved with an earlier version keeps the names it was
   saved with.
@@ -578,7 +596,7 @@ Cearense, Pernambucano, Alagoano and Mato-Grossense.
   - **OFC's Intercontinental place**: the OFC Professional League champion's place goes to the OFC Champions League
     winner.
   - **Libertadores thirds**: the move of the Libertadores group thirds to the Sudamericana play-off is simulated in
-    4.0 (played in 4.0.1).
+    4.0 (played in the upcoming 4.0.1).
   - **AFC**: the Champions League Elite league stage and the Challenge League groups are simulated in 4.0: your club
     joins the Elite at the round of 16 and the Challenge League at the quarter-finals.
   - **Intercontinental Cup**: the UEFA Champions League holder has no strength data of its own; the rounds that
@@ -588,11 +606,11 @@ Cearense, Pernambucano, Alagoano and Mato-Grossense.
 
 **Known limits**
 - After a job offer letter in a career, a few stray pixels can appear on the menu buttons until the next match
-  reloads the menu graphics: cosmetic only, saves are not affected (fixed in 4.0.1).
+  reloads the menu graphics: cosmetic only, saves are not affected (fixed in the upcoming 4.0.1).
 - At the end of a season the game finishes every competition still open and shows each one in turn: in this world
   there are many more of them than in the original game, so the sequence takes longer (about a second each on a fast
   486; the time is the original game's own menu drawing, not the mod's code).
-- The World 2026-27 has no national teams yet: no national team offers a job in this career (planned for 4.2).
+- The World 2026-27 has no national teams yet: no national team offers a job in this career (planned for the upcoming 4.2).
 - A career saved with one language's executable and loaded with another keeps the first language's competition
   titles, and its league tables show no zone colours, no FORMAT page and no overall table (annual table / Supporters'
   Shield): continue a career with the language you started it in.
@@ -702,6 +720,22 @@ Non una formula uguale per tutti: ogni campionato gioca la stagione come l'ha sc
   zona, il clasico nel giorno di riposo, una giornata interzonale sorteggiata), la classifica annuale, retrocessione
   per promedio (3 stagioni) e per classifica annuale. La classifica annuale (Apertura + Clausura) è in STAT >
   CLASSIFICA ANNUALE, con a colori i posti in Libertadores e Sudamericana e l'ultimo posto che retrocede.
+- **America Centrale 2026-27: Costa Rica, Honduras e Panama, due tornei a stagione**: Costa Rica (Liga FPD, 10
+  club), Honduras (Liga Nacional, 12) e Panama (LPF, 12 in una Conference Est e una Ovest da 6, con le loro
+  intestazioni in classifica) giocano l'Apertura 2026 sul calendario vero, poi la Clausura 2027 con i punti azzerati;
+  ogni torneo ha la sua classifica, la sua fase finale e il suo campione:
+  - **Costa Rica**: semifinali 1ª-4ª e 2ª-3ª e finale, andata e ritorno (a parità nel doppio confronto passa la
+    meglio piazzata), poi la Gran Final andata e ritorno tra la prima della classifica e la vincitrice della finale
+    (supplementari e rigori), non giocata quando la prima ha vinto la finale.
+  - **Honduras**: 3ª-6ª e 4ª-5ª, poi le semifinali 1ª contro la peggio piazzata delle qualificate e 2ª contro l'altra,
+    andata e ritorno (a parità nel doppio confronto passa la meglio piazzata); finale andata e ritorno con
+    supplementari e rigori.
+  - **Panama** (Reglamento de Competencias LPF 2026): le prime delle due conference vanno direttamente in semifinale;
+    spareggi 2ª di una conference contro 3ª dell'altra, in gara unica in casa della meglio piazzata; semifinali
+    andata e ritorno, ognuna delle prime contro una vincitrice degli spareggi; finale in gara unica in casa della
+    meglio piazzata. Supplementari e rigori in caso di parità.
+  Il tuo club può giocare ogni fase finale. Dichiarato: il calendario della Clausura 2027 non è ancora pubblicato,
+  quindi la Clausura gioca il calendario dell'Apertura a campi invertiti finché non esce quello vero.
 - **Major League Soccer 2026**: 30 club nelle Conference Est e Ovest (15 + 15), il calendario vero di 34 partite
   (28 nella propria conference e 6 contro l'altra) nelle giornate e date vere, pausa per i Mondiali compresa. A
   parità di punti contano le vittorie, poi la differenza reti, poi i gol fatti; il club col miglior record assoluto
@@ -719,8 +753,6 @@ Non una formula uguale per tutti: ogni campionato gioca la stagione come l'ha sc
     piazzata), finale secca in casa della meglio piazzata.
   - **Australia** (A-League Men): le prime 6, eliminatorie secche 3ª-6ª e 4ª-5ª, semifinali andata e ritorno con
     nuovi accoppiamenti (la 1ª contro la peggio piazzata rimasta), Grand Final secca in casa della meglio piazzata.
-  - **Costa Rica**: semifinali 1ª-4ª e 2ª-3ª e finale, andata e ritorno, poi la Gran Final andata e ritorno tra la
-    prima in classifica e la vincitrice dei play-off, non giocata se sono lo stesso club.
   - **Malta**: il campione esce dall'Opening e dal Closing Round: chi li vince entrambi è campione senza giocare;
     altrimenti la Finalissima tra le due vincitrici o, con tre o quattro club nei primi due posti dei due round, uno
     spareggio o una Final Four ordinata per punti complessivi.
@@ -781,6 +813,11 @@ Baiano, Cearense, Pernambucano, Alagoano e Mato-Grossense.
   (Serie A2) con le loro rose; un club del campionato nazionale retrocesso dal suo statale esce dallo statale.
 - **Gli statali che non giochi vengono simulati a fine stagione con la loro formula vera**: prima fase, fase finale
   fino al campione e fase salvezza, coi risultati secondo la forza dei club.
+- **Classifiche a colori**: nella prima fase di ogni statale sono colorati i posti che vanno avanti (verde P.OFF;
+  azzurro per i club che saltano un turno a eliminazione diretta ed entrano in un turno successivo), e negli statali a
+  girone unico i posti della retrocessione in grigio; con più gironi la zona di ogni club è il suo posto nel proprio
+  girone. Dichiarato: negli statali con più gironi la retrocessione si decide sulla classifica complessiva, quindi
+  non è colorata nei gironi.
 - Dichiarato: l'ordine delle giornate del Paulista è ricostruito (partite e campi veri, le date non sono pubblicate);
   le finali di Carioca e Mineiro si giocano in casa della prima finalista (vero: campo neutro); nello statale che
   giochi, a pari punti decide la differenza reti (vero: prima le vittorie; gli statali simulati usano l'ordine vero);
@@ -1127,7 +1164,7 @@ Baiano, Cearense, Pernambucano, Alagoano e Mato-Grossense.
   calendario né in VISUAL. COMPETIZ. di un club di Serie D.
 - **Posti europei**: in alcune stagioni uno dei 108 posti europei va a un club di una federazione diversa da quella
   indicata dalla lista d'accesso. Il numero di club di ogni coppa europea e i posti delle detentrici sono sempre
-  giusti (corretto nella 4.0.1).
+  giusti (corretto nella prossima 4.0.1).
 - Le due squadre di Milano si chiamano INTER e MILAN (il gioco aveva INTER MILAN e AC MILAN), anche nel mondo Europa
   1984-85 (dove era INTERNAZIONALE) e nel mercato dei giocatori. Una carriera salvata con una versione precedente tiene
   i nomi con cui è stata salvata.
@@ -1247,7 +1284,7 @@ Baiano, Cearense, Pernambucano, Alagoano e Mato-Grossense.
   - **Posto OFC nell'Intercontinentale**: il posto della campione della OFC Professional League va alla vincitrice
     della OFC Champions League.
   - **Terze della Libertadores**: il passaggio delle terze dei gironi della Libertadores allo spareggio della
-    Sudamericana è simulato nella 4.0 (giocato nella 4.0.1).
+    Sudamericana è simulato nella 4.0 (giocato nella prossima 4.0.1).
   - **AFC**: la fase a campionato della Champions League Elite e i gironi della Challenge League sono simulati nella
     4.0: il tuo club entra nella Elite dagli ottavi e nella Challenge League dai quarti.
   - **Coppa Intercontinentale**: la detentrice della UEFA Champions League non ha dati di forza propri; i turni che
@@ -1258,12 +1295,12 @@ Baiano, Cearense, Pernambucano, Alagoano e Mato-Grossense.
 **Limiti noti**
 - Dopo una lettera di offerta di lavoro in carriera, sui pulsanti dei menu possono comparire alcuni pixel sporchi
   finché la partita successiva non ricarica la grafica dei menu: solo estetico, i salvataggi non ne risentono
-  (corretto nella 4.0.1).
+  (corretto nella prossima 4.0.1).
 - A fine stagione il gioco conclude tutte le competizioni ancora aperte e le mostra una dopo l'altra: in questo mondo
   sono molte più che nel gioco originale, quindi la sequenza dura di più (circa un secondo ciascuna su un 486 veloce;
   il tempo è quello del disegno dei menu del gioco originale, non del codice della mod).
 - Il Mondo 2026-27 non ha ancora le nazionali: in questa carriera nessuna nazionale offre un lavoro (previste nella
-  4.2).
+  prossima 4.2).
 - Una carriera salvata con l'eseguibile di una lingua e caricata con quello di un'altra tiene i titoli delle
   competizioni della prima lingua, e le sue classifiche non mostrano né i colori, né la pagina FORMULA, né la
   classifica generale (annuale / Supporters' Shield): continua una carriera nella lingua in cui l'hai iniziata.

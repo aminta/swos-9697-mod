@@ -7720,10 +7720,13 @@ def main(argv):
         for n in names:
             t = time.time()
             os.environ['SWOSTEST_SCENARIO'] = n
-            ok, msg = SCENARIOS[n]()
-            if not ok and msg.startswith('START'):          # rare stall at the main menu (cause unknown): retry once
-                print(f'RETRY {n}: {msg}', flush=True)
+            try:
                 ok, msg = SCENARIOS[n]()
+                if not ok and msg.startswith('START'):      # rare stall at the main menu (cause unknown): retry once
+                    print(f'RETRY {n}: {msg}', flush=True)
+                    ok, msg = SCENARIOS[n]()
+            except Exception as e:                         # (one scenario's exception: a FAIL, the suite goes on)
+                ok, msg = False, f'exception {type(e).__name__}: {e}'
             bad += not ok
             print(f'{"PASS" if ok else "FAIL"} {n} ({time.time() - t:.0f} s) {msg}', flush=True)
         return 1 if bad else 0

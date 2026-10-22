@@ -21,7 +21,7 @@ import struct
 import zlib
 
 ROOT = os.path.join(os.path.dirname(__file__), '..')
-VERSION = '3.3.6'
+VERSION = '4.0'
 BLOCK = 16
 FILES = [  # (id, original path, patched path, file name in the game folder)
     ('ITALIAN.EXE', 'orig/ITALIAN.EXE', 'c/SWOS/ITALIAN.EXE', 'ITALIAN.EXE'),
@@ -33,6 +33,10 @@ FILES = [  # (id, original path, patched path, file name in the game folder)
     ('TEAM.044', 'orig/DATA/TEAM.044', 'c/SWOS/DATA/TEAM.044', 'DATA/TEAM.044'),
     ('TEAM.062', 'orig/DATA/TEAM.062', 'c/SWOS/DATA/TEAM.062', 'DATA/TEAM.062'),
     ('TEAM.073', 'orig/DATA/TEAM.073', 'c/SWOS/DATA/TEAM.073', 'DATA/TEAM.073'),
+    # 4.0: INTER MILAN -> INTER, AC MILAN -> MILAN (patch.rename_clubs): changed original files
+    ('EUROCUP.TMD', 'orig/DATA/EUROCUP.TMD', 'c/SWOS/DATA/EUROCUP.TMD', 'DATA/EUROCUP.TMD'),
+    ('UEFACUP.TMD', 'orig/DATA/UEFACUP.TMD', 'c/SWOS/DATA/UEFACUP.TMD', 'DATA/UEFACUP.TMD'),
+    ('POOLPLYR.DAT', 'orig/DATA/POOLPLYR.DAT', 'c/SWOS/DATA/POOLPLYR.DAT', 'DATA/POOLPLYR.DAT'),
     # 3.3.0: purple clubs (kit colour 10) in original team files the mod did not change before
     ('TEAM.001', 'orig/DATA/TEAM.001', 'c/SWOS/DATA/TEAM.001', 'DATA/TEAM.001'),
     ('TEAM.002', 'orig/DATA/TEAM.002', 'c/SWOS/DATA/TEAM.002', 'DATA/TEAM.002'),
@@ -132,6 +136,42 @@ BUILD = os.environ.get('PATCHER_BUILD')   # e.g. c/REL30: built files read from 
 if BUILD:
     FILES = [(i, o, BUILD + '/' + p[2:] if p.startswith('c/') else p, t) for i, o, p, t in FILES]
 SWOSPP_BASE = {'ENGLISH.EXE + SWOS++': 'ENGLISH.EXE', 'ENGLISH.EXE + SWOS++ (GOG)': 'ENGLISH.EXE (GOG)'}
+# Career worlds' own files, named by mkseason from the build's packs instead of listed by hand: the team files of a
+# world with a namespace of its own (TMWn.nnn, several worlds in one exe), the managed club's extra players (XTRA.nnn /
+# XTWn.nnn), a world's first-season European clubs (WORLDnn.TMD) and foreign-market pool (POOLnn.DAT), the FORMAT
+# pages' texts (FMTxx[world].DAT, fmtgame.py). Not a listing of
+# the DATA folder: release dirs keep stale test files (WORLD01.TMD, WORLD03.TMD). New files: produced with TEAM.020.
+
+
+def world_entries(data_dir=None):
+    """FILES rows for the per-world files the build writes (mkseason, the release packs or SEASON_PACKS) and the list
+    above lacks; each must exist in the build's DATA."""
+    import sys
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import mkseason
+    data_dir = data_dir or os.path.join(ROOT, BUILD or 'c', 'SWOS', 'DATA')
+    listed = {t for _, _, _, t in FILES}
+    import contextlib
+    import io
+    with contextlib.redirect_stdout(io.StringIO()):          # (the packs' build logs)
+        import guests                                        # (4.0: the off-file pools RS<w><file>.DAT and the
+        names = sorted(set(mkseason.ns_team_files()) | set(mkseason.xtra_files()) | set(mkseason.world_files())
+                       | set(mkseason.rs_files()) | set(guests.team_files()))   # continental cups' guest files)
+        import fmtgame                                       # the FORMAT page's texts (fmtpage.py), per world
+        names = sorted(set(names) | set(fmtgame.file_names([e if os.sep in e else os.path.join(mkseason.PACKS, e)
+                                                            for e in mkseason.ENABLED])))
+        import zones                                         # the league tables' zone colours, per world
+        names = sorted(set(names) | set(zones.file_names([e if os.sep in e else os.path.join(mkseason.PACKS, e)
+                                                          for e in mkseason.ENABLED])))
+    rows = [(n, None, os.path.relpath(os.path.join(data_dir, n), ROOT), 'DATA/' + n) for n in names
+            if 'DATA/' + n not in listed]
+    missing = [r[0] for r in rows if not os.path.exists(os.path.join(ROOT, r[2]))]
+    assert not missing, f'per-world files missing in {data_dir}: {missing}'
+    return rows
+
+
+_k = next(i for i, f in enumerate(FILES) if f[0].endswith('(GOG)'))
+FILES[_k:_k] = world_entries()
 
 
 def varint(n):
@@ -219,13 +259,13 @@ def decode(src, ops):
 
 
 def pack(ops):
-    """A delta as the page stores it: raw deflate (the page inflates it with DecompressionStream), base64."""
+    """4.0: a delta as the page stores it: raw deflate (the page inflates it with DecompressionStream), base64."""
     c = zlib.compressobj(9, zlib.DEFLATED, -15)
     return base64.b64encode(c.compress(ops) + c.flush()).decode()
 
 
 def unpack(e):
-    """An entry's delta bytes ('z' = deflated; older pages: plain)."""
+    """An entry's delta bytes (4.0 pages: 'z' = deflated; older pages: plain)."""
     raw = base64.b64decode(e['delta'])
     return zlib.decompress(raw, -15) if e.get('z') else raw
 
@@ -274,7 +314,7 @@ def upgrades(entries):
         x = {'id': fid, 'target': e['target'], 'size': len(old), 'md5': md5, 'out_md5': e['out_md5'],
              'out_size': e['out_size'], 'from': ver, 'z': 1}
         orig = next((o for i, o, _, _ in FILES if i == fid), None)
-        if orig and e['md5']:               # back to the original first (an old mod exe still holds almost every
+        if orig and e['md5']:               # 4.0: back to the original first (an old mod exe still holds almost every
             src = open(os.path.join(ROOT, orig), 'rb').read()   # original byte: a few KB), then this release's own
             inv, _ = encode(old, src)       # delta from the original (stored once): 'mid' = the original's md5 / size
             assert decode(old, inv) == src and hashlib.md5(src).hexdigest() == e['md5']

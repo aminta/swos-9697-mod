@@ -15,8 +15,9 @@ Engine facts used here (see the hex manual, chapter 17):
 - a country's team count = teamsCountryNumbers[n+1] - [n]: a single-league country must hold exactly its league, so
   cup-only clubs live in their own file ('cuponly');
 - Season menu: CLASSIC SEASONS = pseudo-continent 97, listing the packs' countries;
-- InitNewSeason: the country table [league, -2, cup, <European cup>, -1] fills slot 0, 1, 2; euro_slot2 swaps slot 2
-  for the cup of the first human-controlled club of the league that played in Europe (or skips it);
+- InitNewSeason: the country table [league, -2, cup, <European cup> or <league cup>, -1] fills slot 0, 1, 2;
+  euro_slot2 swaps slot 2 for the cup of the first human-controlled club of the league that played in Europe (or skips
+  it); a league cup (season.league_cup) is the game's own slot-2 contest (England 1996-97), its season end cseg_91AD0;
 - cups are fixed team lists with fixed draws per round (historic.DRAWS): the real bracket if the real winners win.
 
 Usage:
@@ -24,6 +25,7 @@ Usage:
 """
 import csv
 import json
+import complist
 import os
 import random
 import re
@@ -48,26 +50,63 @@ SEASONS_REC = [None]                    # obj2 offset of its countriesTable reco
 CAREERS = 98                            # pseudo-continent 'classic careers' of the career team selector
 CAREERS_NAMES = {'it': b'CARR. STORICHE', 'en': b'CLASSIC CAREERS', 'fr': b"CARR. D'ANTAN", 'de': b'KLASS. KARRIERE'}
 CAREERS_REC = [None]
+WCONT_IDS = {}                          # world 2025-26: world n -> [(menu id, [country files], top level)] when the world
+CONT_ORDER = ['europe', 'south_america', 'north_america', 'asia', 'africa', 'oceania']   # spans several continents
+OTHER_NAMES = {'it': b'ALTRE NAZIONI', 'en': b'OTHER NATIONS', 'fr': b'AUTRES PAYS', 'de': b'WEITERE LAENDER'}
+WCONT_MAX = int(os.environ.get('WCONT_MAX', 44))                             # countries a continent list of a world holds (more exits to DOS)
+CONT_NAT = {'europe': 80, 'africa': 81, 'south_america': 82, 'north_america': 83, 'asia': 84, 'oceania': 85}
 WMENU = 200                             # a world's entry in the CLASSIC CAREERS list: pseudo-continent 200 + world number
                                         # (its countries), named by the root pack's world_cups.name
 CAREER_DATA = [None]                    # obj1 pages of the career packs' structs (patch.py, only with worlds)
-CAREER_DATA_SIZE = 0x2000
+CAREER_DATA_SIZE = 0x2000                # grows to 3 pages for a big world (career_data_pages)
+
+
+def career_data_pages():
+    """obj1 pages of the career packs' structs: 2, or 3 when the worlds hold more than ~75 country packs (~105 B
+    each; world 2026-27: 87)."""
+    n = sum(len(pks) for pks in worlds().values())
+    if not multi_ns():
+        return 3 if n * 105 > 0x2000 else 2
+    ns = len(worlds()) * 151 * 10 + 512         # several worlds: + the namespaces' rows (ns_emit)
+    return max(2, -(-(n * 105 + ns) // 0x1000))
+
+
+LEAGUE_AT = {}                          # (world, league file) -> obj1 offset of its league struct (patch)
 CAREER_CAVE = [None]                    # obj1 page of the career world code (patch.py adds it when worlds exist)
-CAREER_CAVE_SIZE = 0x2000               # 3.1: two pages (patch.py)
-ROUND = {'two_legs': 0x94, 'single': 0x14, 'single_et': 0x54}   # knockout round byte: two legs (away goals),
+CAREER_CAVE_SIZE = 0x2000               # 3.1: two pages (patch.py; three with several worlds, cave_pages)
+ROUND = {'two_legs': 0x94, 'two_legs_pens': 0x84, 'single': 0x14, 'single_et': 0x54}   # knockout round byte: two legs (away goals),
                                                                  # single match, single match + extra time/penalties
 # tourney packs (3.2, CLASSIC TOURNEYS): matches of a knockout stage = the legs byte of a worldCup-layout stage (as the
 # World Cup 1982 / Mitropa 1934 / FA Cup 1871-72 of historic.py). *_replay: a draw (on aggregate) is replayed, a drawn
 # replay is decided by a coin toss (historic coin_draw): those tourneys use no penalties at all.
-MATCHES = {'single': 0x14, 'single_et': 0x54, 'two_legs': 0x94, 'single_replay': 0x00, 'two_legs_replay': 0x80}
+MATCHES = {'single': 0x14, 'single_et': 0x54, 'two_legs': 0x94, 'two_legs_pens': 0x84, 'single_replay': 0x00,
+           'two_legs_replay': 0x80}   # (two_legs_pens: no away goals, a level aggregate straight to penalties)
 REPLAY = ('single_replay', 'two_legs_replay')
-RESERVED_IDS = {0xAD, 0xC1, 0xC2, 0xC3, 0xC4, 0xC5} | set(range(0x6c, 0x7c))   # hand-made contests (historic, finals97,
-                                                                               # sacups, cafcups, Australian cup)
+UEFA_NAMES = {'cc': ('UEFA CHAMPIONS LEAGUE', 'CHAMPIONS LEAGUE'), 'cwc': ('UEFA EUROPA LEAGUE', 'EUROPA LEAGUE'),
+              'uefa': ('UEFA CONFERENCE LEAGUE', 'CONF. LEAGUE')}     # a league-phase world's cups (official)
+RESERVED_IDS = {0xAD, 0xC1, 0xC2, 0xC3, 0xC4, 0xC5, 0xFC, 0xFD, 0xFE} | set(range(0x6c, 0x7f))   # hand-made contests (historic, finals97,
+                                                                               # sacups, cafcups, Australian cup,
+                                                                               # uefaq's qualifying ties 7C..7E,
+                                                                               # dplay's play-offs FC..FE)
+WORLD0_IDS = set(range(0xF2, 0xFA)) | {0xFF, 0xBF, 0xC0, 0x87, 0xA1, 0xA2, 0x8B} \
+    | {0x2F, 0x30, 0x38, 0x4A}   # 4.0 package 7 (+ its real draws); package 6: Brazilian state championships
+# contests hand-made for world 0, the original 1996-97 world (4.0: its national cups, state
+                        # championships ...): refused in non-world packs (seasons, tourneys) only; the career worlds'
+                        # packs may reuse them (a world career never loads world 0's contests)
 AU_CUP_SIG = bytes((0xAD, 1, 0x2C, 0x28, 0x50))   # SWOS's Australian cup: layout of a 'national' cup
 COUNTRY = {'ALB': 0, 'AUT': 1, 'BEL': 2, 'BUL': 3, 'CYP': 5, 'TCH': 6, 'DEN': 7, 'ENG': 8, 'FIN': 12, 'FRA': 13, 'GDR': 14,
            'FRG': 14, 'GRE': 15, 'HUN': 16, 'ISL': 17, 'IRL': 18, 'ITA': 20, 'LUX': 23, 'MLT': 24, 'NED': 25,
            'NIR': 26, 'NOR': 27, 'POL': 28, 'POR': 29, 'ROU': 30, 'URS': 31, 'SCO': 33, 'ESP': 35, 'SWE': 36,
-           'SUI': 37, 'TUR': 38, 'WAL': 40, 'YUG': 41}   # code -> game country (team file whose clubs give templates)
+           'SUI': 37, 'TUR': 38, 'WAL': 40, 'YUG': 41}
+COUNTRY.update({'CRO': 4, 'CZE': 6, 'GER': 14, 'EST': 10, 'FRO': 11, 'ISR': 19, 'LVA': 21, 'LTU': 22, 'SMR': 32,
+                'SVN': 34, 'UKR': 39, 'SRB': 41, 'BLR': 76, 'SVK': 78, 'XEU': 31, 'ALG': 42, 'ARG': 43, 'AUS': 44,
+                'BOL': 45, 'BRA': 46, 'CRC': 47, 'CHI': 48, 'COL': 49, 'ECU': 50, 'SLV': 51, 'GUA': 51, 'HON': 51,
+                'PAN': 51, 'JPN': 55, 'MEX': 60, 'NZL': 62, 'FIJ': 62, 'SOL': 62, 'PAR': 64, 'PER': 65, 'KSA': 67,
+                'RSA': 69, 'URU': 71, 'USA': 73, 'QAT': 75, 'VEN': 77, 'EGY': 79})   # world 2025-26 (phase-0 prototype)   # code -> game country (team file whose clubs give templates)
+COUNTRY.update({'RUS': 31, 'KAZ': 31, 'AZE': 31, 'ARM': 31, 'GEO': 31, 'MDA': 30, 'BIH': 41, 'KOS': 0, 'MKD': 41,
+                'MNE': 41, 'AND': 35, 'GIB': 8, 'CAN': 73, 'KOR': 55, 'CHN': 55, 'IRN': 67, 'UAE': 67, 'MAR': 42,
+                'TUN': 42, 'LIE': 37})                         # world 2026-27 (Transfermarkt): the countries it adds
+COUNTRY.update({'SUR': 66, 'TPE': 67, 'IND': 75, 'GHA': 79})   # 5.0: never fewer countries than the original game
 ROLES = 'GDMA'
 BORROW = {'G': 'G', 'D': 'DMA', 'M': 'MDA', 'A': 'AMD'}   # slot role -> roles its player may come from
 
@@ -136,6 +175,33 @@ def _shirt_numbers(data):
     return bytes(d), n
 
 
+def _xtra_cap(q, r):
+    """An extra player (XTRA.nnn) no better than the weakest of his club's 16 (Davide 2026-10-16: the managed club
+    must not be favoured): goalkeeper price <= the lowest keeper price of the record; outfield skill sum and price
+    <= the lowest outfield price of the record (skills scaled down in proportion, key-skill marks kept; price = sum)."""
+    ps = [r[76 + j * 38:76 + (j + 1) * 38] for j in range(16)]
+    gk = q[26] >> 5 == 0
+    same = [p[32] for p in ps if (p[26] >> 5 == 0) == gk] or [p[32] for p in ps]
+    cap = min(same)
+    if gk:
+        q[32] = min(q[32], cap)
+        return q
+    nib = [q[28] & 15] + [q[29 + i // 2] >> (4 * (1 - i % 2)) & 15 for i in range(6)]
+    val = [v & 7 for v in nib]
+    tot = sum(val)
+    if tot > cap:                                  # scaled in proportion: the player's profile stays his own
+        exact = [v * cap / tot for v in val]
+        val = [int(x) for x in exact]
+        for i in sorted(range(7), key=lambda i: (val[i] - exact[i], i))[:cap - sum(val)]:
+            val[i] += 1
+    nib = [(n & 8) | v for n, v in zip(nib, val)]
+    q[28] = (q[28] & 0xF0) | nib[0]
+    for i in range(3):
+        q[29 + i] = nib[1 + 2 * i] << 4 | nib[2 + 2 * i]
+    q[32] = min(q[32], sum(val))
+    return q
+
+
 def _place_numbers(data):
     """Team file bytes with the shirt numbers of the era before squad numbers (3.3.4, Davide: in 1984-85 the starters
     wore 1..11 and the substitutes 12..16, and a player kept his historic number, Franco Baresi the 6 at Milan): the
@@ -170,7 +236,7 @@ def _csv(path):
 class Pack:
     def __init__(self, path):
         self.path = path
-        self.meta = json.load(open(os.path.join(path, 'pack.json'), encoding='utf-8'))
+        self.meta = complist.fit_titles(json.load(open(os.path.join(path, 'pack.json'), encoding='utf-8')))
         m = self.meta
         _need(m.get('format') == 1, 'pack.json: format must be 1')
         self.files = {k: (v['file'], v['base']) for k, v in m['files'].items()}
@@ -208,7 +274,7 @@ class Pack:
         _need(self.kind in ('season', 'career', 'tourney'), "pack.json: kind must be 'season', 'career' or 'tourney'")
         self.world = None
         if self.kind == 'tourney':              # 3.2: CLASSIC TOURNEYS only (no league, no Season / Career entry)
-            self.league, self.league_clubs, self.division = None, [], {}
+            self.league, self.league_clubs, self.division, self.reserve_clubs = None, [], {}, []
             _need(self.comps and all(c['type'] in ('tourney', 'league') for c in self.comps),
                   "a tourney pack holds competitions of type 'tourney' or 'league' only")
             for c in self.comps:
@@ -216,15 +282,108 @@ class Pack:
             return
         self.league = next(c for c in self.comps if c['key'] == m['season']['league'])
         self.league_clubs = [k for k, c in self.clubs.items() if c['file'] == self.league['clubs']]
-        self.division = {k: int(self.clubs[k].get('division') or 0) for k in self.league_clubs}
+        nd = len(self.divisions())                 # (a club of the 'reserve' (gplay loser_div 'reserve', league
+        self.division = {k: nd if self.clubs[k].get('division') == 'reserve' else   # 'reserve'): out of every
+                         int(self.clubs[k].get('division') or 0) for k in self.league_clubs}   # division, = nd)
+        self.reserve_clubs = [k for k in self.league_clubs if self.division[k] == nd]
         divs = self.divisions()
         for d, dv in enumerate(divs):
             n = sum(1 for k in self.league_clubs if self.division[k] == d)
             _need(n == dv['teams'], f"{self.league['key']}: division {d + 1} has {n} clubs in clubs.csv, {dv['teams']} in pack.json")
-        _need(sum(dv['teams'] for dv in divs) == len(self.league_clubs), f"{self.league['key']}: clubs outside the divisions")
+            fx = any('fixtures' in st for st in ((dv.get('split') or {}).get('stages') or []))
+            _need(n <= (split_nmax() if fx else 24), f"{self.meta['id']}: {self.league['key']}: division {d + 1} has {n} clubs: at most 24 (the game's "
+                  'round-robin pairing; more = fixtures past the team list, team 0, VerifyTeamLoaded int 3 at the season end; '
+                  'a split with a fixture list from day 0: up to split.NMAX)')
+            import longtable                    # 4.0: the table screen (longtable.py: 24 rows shown, scrolled) - a bigger
+            _need(n <= longtable.MAX, f"{self.meta['id']}: {self.league['key']}: division {d + 1} has {n} clubs: the "
+                  f"league table screen shows at most {longtable.MAX} (longtable.MAX; more was drawn past the screen, over "
+                  'the font and the menu sprites)')
+        _need(sum(dv['teams'] for dv in divs) == len(self.league_clubs) - len(self.reserve_clubs),
+              f"{self.league['key']}: clubs outside the divisions")
+        rs = self.league.get('reserve')
+        _need(not self.reserve_clubs or rs, f"{self.league['key']}: clubs.csv has 'reserve' clubs but no league 'reserve'")
+        self.pool_key, self.pool_clubs = None, []
+        if rs and rs.get('off_file'):           # the off-file pool (Eccellenza: gplay.c ri_season swaps identities):
+            pool, first = rs.get('pool') or [], rs.get('first') or []   # file key 'pool' = a pseudo file
+            self.pool_key = 'pool'
+            self.pool_clubs = [k for k, c in self.clubs.items() if c['file'] == 'pool']
+            _need('pool' in self.files and not self.reserve_clubs and self.pool_clubs and
+                  set(pool) == set(self.pool_clubs) and set(first) <= set(pool) and rs.get('then', 'rotation') == 'rotation',
+                  f"{self.league['key']}: an off-file reserve: files 'pool', clubs.csv rows of file 'pool' = reserve pool, "
+                  "no 'reserve' division")
+            _need(all(v[0] != self.files['pool'][0] for k, v in self.files.items() if k != 'pool'),
+                  f"{self.league['key']}: the pool's file number must differ from every team file")
+        elif rs:
+            pool, first = rs.get('pool') or [], rs.get('first') or []
+            _need(set(pool) == set(self.reserve_clubs) and set(first) <= set(pool) and rs.get('then', 'rotation') == 'rotation',
+                  f"{self.league['key']}: reserve {{first, pool = every 'reserve' club of clubs.csv, then: 'rotation'}}")
+        self.pool_file = self.files[self.league['clubs']][0] if self.pool_key else None
+        st_res = [c for c in self.comps if c['type'] == 'state' and (c.get('reserve') or {}).get('off_file')]
+        if st_res:                              # state championships' off-file pools (Brazil 2026: the A2 clubs)
+            _need(not self.pool_key, f"{self.meta['id']}: one off-file pool kind per pack (league or states)")
+            self.pool_key = 'pool'
+            self.pool_clubs = [k for k, c in self.clubs.items() if c['file'] == 'pool']
+            allp = [k for c in st_res for k in c['reserve'].get('pool') or []]
+            _need('pool' in self.files and self.pool_clubs and sorted(allp) == sorted(self.pool_clubs),
+                  f"{self.meta['id']}: state reserves: files 'pool'; every clubs.csv row of file 'pool' in exactly one "
+                  "state's reserve.pool")
+            sf = {self.clubs[k]['file'] for c in st_res for k in c['clubs']} - {self.league['clubs'], 'pool'}
+            _need(len(sf) == 1, f"{self.meta['id']}: the states' own clubs in one team file ({sorted(sf)})")
+            self.pool_file = self.files[sf.pop()][0]
+            for c in st_res:
+                _need(isinstance(c.get('relegated'), int) and 0 <= c['relegated'] <= len(c['reserve']['pool']),
+                      f"{c['key']}: 'relegated' n (0 .. its pool's size)")
+                _need(len(c['clubs']) <= 16, f"{c['key']}: at most 16 clubs in a state contest with a pool (gplay.c RO)")
+            sp = m.get('state_spares') or []
+            inc = {k for c in self.comps if c['type'] == 'state' for k in c['clubs']}
+            _need(all(k in self.clubs and self.files.get(self.clubs[k]['file'], (None,))[0] == self.pool_file
+                      and k not in inc for k in sp) and len(set(sp)) == len(sp),
+                  f"{self.meta['id']}: state_spares = distinct clubs of the states' file, in no state contest")
+        par = self.league.get('parallel')          # parallel groups (Serie C 3 x 20; several levels): pgroups.py
+        if par:
+            pars = par if isinstance(par, list) else [par]
+            nxt = 1
+            for q in pars:
+                u, f, n = q.get('upper'), q.get('first'), q.get('count')
+                _need(isinstance(f, int) and f >= nxt and (u is None or u == f - 1) and isinstance(n, int)
+                      and 2 <= n <= 9 and f + n <= len(divs),
+                      'league.parallel: {upper, first = upper + 1, count 2..9} (or a list of them, top-down, not '
+                      'overlapping), the groups being divisions of the chain')
+                nxt = f + n
+            _need(isinstance(par, list) or nxt == len(divs), 'league.parallel: one level of groups must be the last '
+                  'divisions (several levels: a list)')
+            _need(self.league.get('playoffs') in (None, 'ita'), "league.playoffs: 'ita' (the Italian play-offs, dplay.py: "
+                  'on the first level of groups, Serie C)')
+            n = max(q['count'] for q in pars)
+            for k in self.league_clubs:
+                a = self.clubs[k].get('area') or ''
+                if a == 'reserve':
+                    continue
+                parts = a.split('/') if '/' in a else [a]
+                _need(a == '' or all(x and x in 'ABCDEFGHI'[:n] for x in parts) and len(parts) in (1, len(pars)),
+                      f"clubs.csv: {k}: area A..{'ABCDEFGHI'[n - 1]} (a group, every level) or one per level of groups "
+                      f"(A/B...: {len(pars)} levels)")
+        if (self.league and len(divs) > 1 and self.league.get('playoffs') != 'ita'   # (Italy: dplay's own counts;
+                and not os.environ.get('MKSEASON_NOBALANCE')):                       # harness: a build as it is)
+            self._balance(divs)
+        if self.league and m.get('world') is not None and len(divs) > 1:
+            par = self.league.get('parallel')
+            pars = {q['first']: q['count'] for q in (par if isinstance(par, list) else [par] if par else [])}
+            low, d = 0, 0
+            while d < len(divs):
+                low, d = d, d + pars.get(d, 1)
+            _need(not any(dv.get('relegated', 0) for dv in divs[low:]) or self.league.get('ko_playoffs'),
+                  f"{self.meta['id']}: {self.league['key']}: the lowest level relegates ('relegated' > 0) but the league "
+                  "has no 'ko_playoffs': only gplay's season end balances those moves (cseg_9487A traps); relegate "
+                  "through a play-out with loser_div 'reserve', or add one ko_playoffs entry")
         for c in self.comps:
+            if c['type'] == 'state':     # a state championship (statespec.py / statecup.py)
+                self.state(c)            # validates
             if c['type'] == 'cup':
                 self.bracket(c)          # validates
+                _need(c.get('first_round', 1) in range(1, 7), f"{c['key']}: first_round 1..6 (the first round's number)")
+                _need(c.get('round_names') in (None, 'numbered'),
+                      f"{c['key']}: round_names 'numbered' (FA Cup style: no ROUND OF 16 name, rnames.py) or absent")
             _need(not c.get('classic_tourney') or c['type'] == 'league',
                   f"{c['key']}: classic_tourney is for leagues (a cup or a tournament: a tourney pack, see packs/README.md)")
         self.world = m.get('world')
@@ -240,9 +399,198 @@ class Pack:
                 for c in clubs:
                     _need(c in self.league_clubs, f'first_europe.{key}: {c} is not a league club')
         _need(m['season'].get('cup') or not m['season'].get('europe'), 'season: European cups need a national cup')
+        lc = m['season'].get('league_cup')         # the league cup: the country table's slot 2 (the game's own, as
+        if lc:                                     # England's 1996-97 one; the season end's cseg_91AD0)
+            _need(m['season'].get('cup') and not m['season'].get('europe') and lc != m['season']['cup'],
+                  'season.league_cup needs a national cup (slot 1) and no season.europe (slot 2)')
+            _need(any(c['key'] == lc and c['type'] == 'cup' for c in self.comps), f'season.league_cup: no cup {lc}')
         for club, cup in m['season'].get('europe', {}).items():
             _need(club in self.league_clubs, f'season.europe: {club} is not a league club')
             _need(club in self.bracket(self.comp(cup))['clubs'], f'season.europe: {club} does not play {cup}')
+
+    def _balance(self, divs):
+        """Every level of the chain (a division, or a level of parallel groups) keeps its size at the season end: the
+        clubs relegated from the level above + promoted from the one below = the level's own promoted + relegated;
+        a promotion play-off ('ko_playoffs') with no entrant from winner_div sends one more club up."""
+        par = self.league.get('parallel')
+        pars = {q['first']: q['count'] for q in (par if isinstance(par, list) else [par] if par else [])}
+        lv, d = [], 0
+        while d < len(divs):
+            lv.append(list(range(d, d + pars.get(d, 1))))
+            d += pars.get(d, 1)
+        lvl = {dv: i for i, ds in enumerate(lv) for dv in ds}
+        up = [sum(divs[x].get('promoted', 0) for x in ds) for ds in lv]
+        down = [sum(divs[x].get('relegated', 0) for x in ds) for ds in lv]
+        extra = [0] * len(lv)                      # play-off moves: + into a level, - out of it
+        for po in self.league.get('ko_playoffs') or []:
+            if po.get('kind') == 'promedio':         # Argentina: 2 down from division 0 (promedio + annual table)
+                extra[lvl[0]] -= 2
+                extra[lvl[po.get('loser_div', 1)]] += 2
+                continue
+            if po.get('kind') != 'promotion':
+                continue
+            ents = [e for e in po['entrants'] if isinstance(e, list)]
+            wd = po.get('winner_div', 0)
+            if ents and not any(e[0] == wd for e in ents):
+                extra[lvl[wd]] += 1
+                extra[lvl[ents[0][0]]] -= 1
+        for i in range(len(lv)):
+            gain = (down[i - 1] if i else 0) + (up[i + 1] if i + 1 < len(lv) else 0) + extra[i]
+            lose = (up[i] if i else 0) + (down[i] if i + 1 < len(lv) else 0)
+            _need(gain == lose, f"{self.meta['id']}: {self.league['key']}: level {i + 1} (divisions {lv[i][0] + 1}..{lv[i][-1] + 1}) gets "
+                  f"{gain} clubs at the season end and loses {lose} (promoted / relegated counts, play-offs): it "
+                  'would not keep its size')
+
+    def dplay(self):
+        """dplay table: None, or (world, league id, upper, first, groups) of a league with 'playoffs': 'ita' (Serie B
+        play-off / play-out and the Serie C play-off at the season end; needs 'parallel')."""
+        lg = self.league
+        if not lg or self.world is None or lg.get('playoffs') != 'ita' or not lg.get('parallel'):
+            return None
+        par = lg['parallel']
+        par = par[0] if isinstance(par, list) else par     # (Serie C; Serie D below it: pgroups)
+        lc = self.meta['season'].get('league_cup')        # (its winner: the Coppa Italia Serie C winner's place)
+        return (self.world, int(lg['id'], 16), par['upper'], par['first'], par['count'], self.files[lg['clubs']][0],
+                int(self.comp(lc)['id'], 16) if lc else 0)
+
+    def gplay(self):
+        """gplay table: None, or (world, league file, spec bytes) of a world league with 'ko_playoffs'."""
+        lg = self.league
+        if not lg or self.world is None or not lg.get('ko_playoffs'):
+            return None
+        import gplay
+        try:
+            spec = gplay.compile_spec(lg['ko_playoffs'], len(self.divisions()), lg.get('names'))
+        except (ValueError, KeyError, TypeError) as e:
+            _need(False, f"{self.meta['id']}: ko_playoffs: {e}")
+        return self.world, self.files[lg['clubs']][0], spec
+
+    def cupd(self):
+        """Coppa Italia Serie D table (cupd.py): None, or (world, team file, table, rounds, ties, names)."""
+        import cupd
+        return cupd.pack_table(self)
+
+    def reserve(self):
+        """Reserve table (gplay.c rs_season): None, or (world, nd = the reserve's division, the lowest level's first
+        division, [(global, base division)] every league club, [globals] the pool in its first order: 'first', then
+        the rest as clubs.csv lists them)."""
+        rs = self.league.get('reserve') if self.league else None
+        if not rs or self.world is None or rs.get('off_file'):
+            return None
+        divs = self.divisions()
+        par = self.league.get('parallel')
+        pars = {q['first']: q['count'] for q in (par if isinstance(par, list) else [par] if par else [])}
+        low, d = 0, 0
+        while d < len(divs):
+            low, d = d, d + pars.get(d, 1)
+        glob = {}
+        for k in self.league_clubs:
+            fl, i = self.where[k]
+            glob[k] = next(b for fk, (ff, b) in self.files.items() if ff == fl) + i
+        order = list(rs.get('first') or []) + [k for k in self.reserve_clubs if k not in (rs.get('first') or [])]
+        return (self.world, len(divs), low, [(glob[k], self.division[k]) for k in self.league_clubs],
+                [glob[k] for k in order])
+
+    def promedio(self):
+        """gplay.c promedio's history (Argentina, ko_playoffs kind 'promedio'): None, or [(global, points y-2, matches
+        y-2, points y-1, matches y-1)] from league 'promedio_history': [[club key, p, m, p, m], ...] (0 / 0 = not in
+        the top flight that season: promoted clubs count only their own seasons)."""
+        h = self.league.get('promedio_history') if self.league else None
+        if not h or self.world is None:
+            return None
+        out = []
+        for e in h:
+            _need(isinstance(e, list) and len(e) == 5 and e[0] in self.league_clubs and all(isinstance(x, int) and
+                  0 <= x < (65536 if i % 2 == 0 else 256) for i, x in enumerate(e[1:])),
+                  f"{self.meta['id']}: promedio_history: [club key, points, matches, points, matches] ({e})")
+            fl, i = self.where[e[0]]
+            out.append((next(b for fk, (ff, b) in self.files.items() if ff == fl) + i, *e[1:]))
+        return out
+
+    def team_file_items(self):
+        """files without the off-file pool (a pseudo file: no TEAM file, no country entry, no global numbers)."""
+        return [(k, v) for k, v in self.files.items() if k != getattr(self, 'pool_key', None)]
+
+    def _nrec(self, fl):
+        """Records of team file fl in this pack (its clubs of every file key with that number)."""
+        return sum(1 for k, c in self.clubs.items() if self.files.get(c['file'], (None,))[0] == fl)
+
+    def off_pool(self):
+        """Off-file pools (gplay.c ri_season, ripool.table_bytes): None, or (world, team file, pools) with pools
+        ('league', low = the lowest level's first division, [(global, base division, D area)] the league's slots in
+        file order, [D area] of the pool records, [pool index] the first order: 'first', then clubs.csv's order) or
+        ('state', key = the state's first club's team word, relegated, [(ordinal, global, strength)] its own clubs of
+        the states' file, [strength] of its pool records in its first order, [pool index] its first order). D area:
+        the last letter of clubs.csv 'area' (A.. = the group of that region in the lowest level), 0xFF = none;
+        strength: 1..255, the 16 players' prices against the strongest club of the state and its pool."""
+        if not getattr(self, 'pool_key', None) or self.world is None:
+            return None
+        rs = self.league.get('reserve') if self.league else None
+        if rs and rs.get('off_file'):
+            divs = self.divisions()
+            par = self.league.get('parallel')
+            pars = {q['first']: q['count'] for q in (par if isinstance(par, list) else [par] if par else [])}
+            low, d = 0, 0
+            while d < len(divs):
+                low, d = d, d + pars.get(d, 1)
+            letters = 'ABCDEFGHIJ'
+            darea = lambda k: letters.index(self.clubs[k]['area'].split('/')[-1]) if self.clubs[k].get('area') else 0xFF
+            fl, base = self.files[self.league['clubs']]
+            slots = sorted(self.league_clubs, key=lambda k: self.where[k][1])
+            first = list(rs.get('first') or [])
+            order = first + [k for k in self.pool_clubs if k not in first]
+            return (self.world, fl, [('league', low, [(base + self.where[k][1], self.division[k], darea(k)) for k in slots],
+                                      [darea(k) for k in self.pool_clubs], [self.pool_clubs.index(k) for k in order])],
+                    base, [], self._nrec(fl), len(self.pool_clubs))
+        if not hasattr(self, '_tf'):
+            self._tf = self.team_files()
+        recs = dict(self._tf)
+        price = lambda r: sum(r[76 + j * 38 + 32] for j in range(16))
+        base = next(b for f, b in self.files.values() if f == self.pool_file)
+        pools = []
+        for c in self.comps:
+            if c['type'] != 'state' or not (c.get('reserve') or {}).get('off_file'):
+                continue
+            f0, o0 = self.where[c['clubs'][0]]
+            own = [k for k in c['clubs'] if self.where[k][0] == self.pool_file]
+            order = list(c['reserve']['pool'])
+            rp = lambda k: self.pool_data[2 + 684 * self.pool_clubs.index(k):][:684]
+            raw = [price(recs[self.pool_file][2 + 684 * self.where[k][1]:][:684]) for k in own] + [price(rp(k)) for k in order]
+            top = max(raw) or 1
+            sc = [max(1, min(255, x * 255 // top)) for x in raw]
+            pools.append(('state', f0 | o0 << 8, c['relegated'],
+                          [(self.where[k][1], base + self.where[k][1], s) for k, s in zip(own, sc)],
+                          sc[len(own):], [self.pool_clubs.index(k) for k in order],
+                          [self.where[k][0] | self.where[k][1] << 8 for k in c['clubs']]))
+        spares = [self.where[k][1] for k in self.meta.get('state_spares') or []]
+        return (self.world, self.pool_file, pools, base, spares, self._nrec(self.pool_file), len(self.pool_clubs)) if pools else None
+
+    def parallel(self):
+        """pgroups table: None, or (world, [(first division, [sizes])] top-down over the chain, [(global number, base
+        division, area)]) for every league club (any of them may reach a level). Area: clubs.csv 'area' (A, B, ...),
+        else the club's own group, else 0xFF (the middle group of the level it goes to)."""
+        par = self.league.get('parallel') if self.league else None
+        if not par or self.world is None:
+            return None
+        pars = {q['first']: q['count'] for q in (par if isinstance(par, list) else [par])}
+        divs = self.divisions()
+        levels, own, d = [], {}, 0
+        while d < len(divs):
+            n = pars.get(d, 1)
+            levels.append((d, [divs[d + g]['teams'] for g in range(n)]))
+            for g in range(n):
+                own[d + g] = g if n > 1 else 0xFF
+            d += n
+        out = []
+        for k in self.league_clubs:
+            c = self.clubs[k]
+            fl, i = self.where[k]
+            base = next(b for fk, (ff, b) in self.files.items() if ff == fl)
+            d = self.division[k]
+            a = c.get('area') or ''
+            out.append((base + i, d, ['ABCDEFGHI'.index(x) for x in a.split('/')] if '/' in a else
+                        'ABCDEFGHI'.index(a) if a else own.get(d, 0xFF)))      # (a reserve club: division nd)
+        return self.world, levels, out
 
     def divisions(self):
         """League divisions: pack.json 'divisions' [{teams, promoted, relegated, names}], or one division."""
@@ -252,6 +600,18 @@ class Pack:
         if 'divisions' in lg:
             return lg['divisions']
         return [{'teams': len(self.league_clubs), 'promoted': 0, 'relegated': lg['relegated'], 'names': lg['names']}]
+
+    def state(self, c):
+        """A 'state' competition (statespec.py): the compiled contest + its clubs' (file, ordinal)."""
+        import statespec
+        clubs = c.get('clubs') or []
+        _need(clubs and all(k in self.clubs for k in clubs) and len(set(clubs)) == len(clubs),
+              f"{c['key']}: clubs = distinct club keys of the pack")
+        _need(self.world is not None or self.kind == 'career', f"{c['key']}: state championships in career packs")
+        out = statespec.compile_state(c, len(clubs))
+        out['clubs'] = [self.where[k] for k in clubs]
+        out['members'] = [self.where[k][1] for k in clubs if self.clubs[k]['file'] == self.league['clubs']]
+        return out
 
     def comp(self, key):
         return next(c for c in self.comps if c['key'] == key)
@@ -270,6 +630,7 @@ class Pack:
         _need(all(x['away'] for r in range(2, nr + 1) for x in by[r]), f'{key}: byes only in round 1')
         clubs = [x[s] for x in by[1] if x['away'] for s in ('home', 'away')] + byes
         _need(len(set(clubs)) == len(clubs), f'{key}: a club plays twice in round 1')
+        _need(len(clubs) <= 64, f'{key}: {len(clubs)} clubs, at most 64 (a cup buffer: team words +24Dh, round list +2CDh)')
         draws, prev = [], None
         for r in range(1, nr + 1):
             ties = [x for x in by[r] if x['away']]
@@ -294,6 +655,7 @@ class Pack:
     # --- TEAM files --------------------------------------------------------------------------------------------------
     def team_files(self):
         out = {}
+        self.xtra = {}                                  # file number -> XTRA bytes (explicit squads with "extra")
         for sq in self.meta['squads']:
             builder = {'calibrate': self._calibrate, 'game': self._game, 'explicit': self._explicit,
                        'records': self._records}[sq['method']]
@@ -310,7 +672,9 @@ class Pack:
                 out[k], n = _place_numbers(out[k])
                 moved += n
             self.log(f'shirt numbers by place (1..11 starters, 12..16 bench): {moved} changed')
-        return out
+        self.pool_data = out.pop(self.files['pool'][0], None) if getattr(self, 'pool_key', None) else None
+        self.xtra.pop(self.files['pool'][0], None) if getattr(self, 'pool_key', None) else None
+        return out                                      # (the off-file pool: rs_files)
 
     def _empty_record(self, key, template):
         c = self.clubs[key]
@@ -434,7 +798,7 @@ class Pack:
         _need(isinstance(c.get('dates_from', 14), int), f'{w} dates_from: a country number')
         c.setdefault('dates_from', 14)
         _need(re.fullmatch(r'[0-9A-F]{2}', c.get('id', '')) and int(c['id'], 16) >= 0x80
-              and int(c['id'], 16) not in RESERVED_IDS, f'{w} id: a free contest id (hex, 80..FE, see packs/README.md)')
+              and int(c['id'], 16) not in RESERVED_IDS | WORLD0_IDS, f'{w} id: a free contest id (hex, 80..FE, see packs/README.md)')
         for lg, nm in c['names'].items():
             _need(len(nm) == 2 and all(x == x.upper() for x in nm) and len(nm[1]) <= 16 and len(nm[0]) <= 30,
                   f'{w} names.{lg}: [long name (<= 30), short name (<= 16)], upper case')
@@ -458,14 +822,14 @@ class Pack:
         _need(isinstance(c.get('win_points'), int) and 1 <= c['win_points'] <= 9, f'{w} win_points 1..9')
         _need(c.get('draw', 'fixed') in ('fixed', 'random'), f"{w} draw must be 'fixed' or 'random'")
         _need(re.fullmatch(r'[0-9A-F]{2}', c.get('id', '')) and int(c['id'], 16) >= 0x80
-              and int(c['id'], 16) not in RESERVED_IDS, f'{w} id: a free contest id (hex, 80..FE, see packs/README.md)')
+              and int(c['id'], 16) not in RESERVED_IDS | WORLD0_IDS, f'{w} id: a free contest id (hex, 80..FE, see packs/README.md)')
         for lg, nm in c['names'].items():
             _need(len(nm) == 2 and all(x == x.upper() for x in nm) and len(nm[1]) <= 16 and len(nm[0]) <= 30,
                   f'{w} names.{lg}: [long name (<= 30), short name (<= 16)], upper case')
         st = c.get('stages') or []
         _need(2 <= len(st) <= 6, f'{w} 2 to 6 stages (the last one the final)')
         clubs = [k for k, x in self.clubs.items() if x['file'] == c['clubs']]
-        _need(len(clubs) <= 32, f'{w} at most 32 teams (CLASSIC TOURNEYS share 32 global numbers)')
+        _need(len(clubs) <= (40 if os.environ.get('PROTO36') else 32), f'{w} at most 32 teams (CLASSIC TOURNEYS share 32 global numbers)')
         trip, legs, draws, coin, prev = [], [], [], None, None
         nko = sum(1 for x in st if x['type'] == 'knockout')
         ties = st[0]['type'] == 'knockout' and key in self.ties
@@ -485,6 +849,10 @@ class Pack:
                 prev = [x['winner'] for x in tr]
             _need(sorted(clubs) == sorted(k for k, x in self.clubs.items() if x['file'] == c['clubs']),
                   f"{w} ties.csv round 1 must hold every club of {c['clubs']}")
+        lp = bool(c.get('league_phase'))       # UEFA league phase (tools/lp36.py, prototype): 36 in 2 x 18, play-offs, R16
+        if lp:
+            _need(os.environ.get('PROTO36') and [x.get('teams') for x in st] == [36, 16, 16, 8, 4, 2]
+                  and st[0].get('groups') == 2, f'{w} league_phase: stages 36 (2 groups) 16 16 8 4 2 (PROTO36 builds)')
         ko = 0
         for i, x in enumerate(st):
             t = x.get('type')
@@ -500,13 +868,15 @@ class Pack:
                       f'{sw} third_place comes after the semi-finals (knockout of 4), before the final')
             elif prev['type'] == 'groups':
                 _need(n < prev['teams'], f'{sw} fewer teams than the group stage before')
+            elif lp and i == 2:
+                _need(n == 16 and prev['teams'] == 16, f'{sw} league phase: the round of 16 after the play-offs')
             else:
                 last = st[i - 2] if prev['type'] == 'third_place' else prev
                 _need(n * 2 == last['teams'], f'{sw} {n} teams: half of the knockout before')
             if t == 'groups':
                 g = x.get('groups')
                 _need(isinstance(g, int) and g >= 1 and n % g == 0 and n // g >= 2, f'{sw} groups: teams / groups >= 2')
-                _need(n // g <= 24, f'{sw} at most 24 teams per group')
+                _need(n // g <= (36 if os.environ.get('PROTO36') else 24), f'{sw} at most 24 teams per group')
                 trip += [n, g, n // g]
                 legs.append(0)
             else:
@@ -538,6 +908,8 @@ class Pack:
             sizes = [len(pm) for pm in sperm] + [len(clubs)]
             draws = [d for d in draws if d[0] not in sizes] + [(len(clubs), list(range(len(clubs))), False)]
             draws += [(len(pm), pm, True) for pm in sperm if len(pm) > 2]
+        if lp:
+            draws = [(36, list(range(36)), False)]  # lp36.lp_draw keeps every later order (the play-offs from lp_gend)
         ns = [d[0] for d in draws]
         _need(len(set(ns)) == len(ns), f'{w} two stages of {ns} teams: the fixed order needs a different team count per '
                                        f'stage (or draw: random)')
@@ -602,10 +974,13 @@ class Pack:
 
     def _explicit(self, sq):
         """Every byte from the pack: clubs.csv tactic, kit1, kit2, lineup; players.csv (16 per club, in record order)
-        number, position, nat, skin, the 7 skills and price (see EXPLICIT_*)."""
+        number, position, nat, skin, the 7 skills and price (see EXPLICIT_*). squads "extra": E (1..16): rows 17..16+E
+        of a club go to XTRA.nnn, the players the managed club of a career gets beyond its 16 (xtra.py)."""
         out = {}
+        extra = sq.get('extra', 0)
+        _need(isinstance(extra, int) and 0 <= extra <= 16, 'squads "extra" must be 0..16')
         for fk in sq['files']:
-            recs = []
+            recs, blocks = [], {}
             for key, c in self.clubs.items():
                 if c['file'] != fk:
                     continue
@@ -619,32 +994,49 @@ class Pack:
                 _need(sorted(lineup) == list(range(16)), f'{where}: lineup must list 0..15 once each')
                 r[60:76] = bytes(lineup)
                 rows = self.prows[key]
-                _need(len(rows) == 16, f'players.csv: {key}: explicit squads need exactly 16 players ({len(rows)})')
-                for j, row in enumerate(rows):
-                    w = f"players.csv: {key} {row['name']}"
-                    p = 76 + j * 38
-                    pos = row.get('position', '')
-                    _need(pos in EXPLICIT_POS, f'{w}: position must be one of {" ".join(EXPLICIT_POS)}')
-                    _need(EXPLICIT_ROLE[pos] == row['role'], f"{w}: position {pos} is not role {row['role']}")
-                    _need(row.get('skin', '') in EXPLICIT_SKIN, f'{w}: skin must be one of {" ".join(EXPLICIT_SKIN)}')
-                    r[p] = _num(row, 'nat', 0, 255, w)
-                    r[p + 2] = _num(row, 'number', 1, 255, w)
-                    r[p + 3:p + 26] = _sn(row['name']).encode('latin1').ljust(23, b'\0')[:23]
-                    r[p + 26] = EXPLICIT_POS.index(pos) << 5 | EXPLICIT_SKIN[row['skin']] << 3
-                    nib = [0]
-                    for sk in EXPLICIT_SKILLS:
-                        v = row.get(sk, '').strip()
-                        key_skill = v.endswith('*')
-                        v = v.rstrip('*')
-                        _need(v.isdigit() and int(v) <= 7, f'{w}: {sk} must be 0..7 (a trailing * marks a key skill)')
-                        nib.append(int(v) | (8 if key_skill else 0))
-                    for i in range(4):
-                        r[p + 28 + i] = nib[2 * i] << 4 | nib[2 * i + 1]
-                    r[p + 32] = _num(row, 'price', 0, 49, w)
+                _need(16 <= len(rows) <= 16 + extra, f'players.csv: {key}: explicit squads need 16 players'
+                      + (f' + at most {extra} more (squads "extra")' if extra else '') + f' ({len(rows)})')
+                for j, row in enumerate(rows[:16]):
+                    r[76 + j * 38:76 + (j + 1) * 38] = self._explicit_player(row)
+                more = [_xtra_cap(bytearray(self._explicit_player(row)), r) for row in rows[16:]]
+                used = {r[76 + j * 38 + 2] for j in range(16)}
+                for q in more:                         # extras: numbers 1..99 (shirtnum), else a free one from 17
+                    if not 1 <= q[2] <= 99 or q[2] in used:
+                        q[2] = min(set(range(17, 100)) - used)
+                    used.add(q[2])
+                if more:
+                    blocks[r[1]] = [bytes(q) for q in more]
                 recs.append(bytes(r))
             out[self.files[fk][0]] = struct.pack('>H', len(recs)) + b''.join(recs)
+            if blocks:                             # XTRA.nnn only for a file with extra players
+                import xtra
+                self.xtra[self.files[fk][0]] = xtra.build(blocks, len(recs), extra)
         self.log(f"{'+'.join(sq['files'])}: {sum(self.count[f] for f in sq['files'])} clubs, explicit records")
         return out
+
+    def _explicit_player(self, row):
+        """38 bytes of one explicit players.csv row."""
+        w = f"players.csv: {row['club']} {row['name']}"
+        q = bytearray(38)
+        pos = row.get('position', '')
+        _need(pos in EXPLICIT_POS, f'{w}: position must be one of {" ".join(EXPLICIT_POS)}')
+        _need(EXPLICIT_ROLE[pos] == row['role'], f"{w}: position {pos} is not role {row['role']}")
+        _need(row.get('skin', '') in EXPLICIT_SKIN, f'{w}: skin must be one of {" ".join(EXPLICIT_SKIN)}')
+        q[0] = _num(row, 'nat', 0, 255, w)
+        q[2] = _num(row, 'number', 1, 255, w)
+        q[3:26] = _sn(row['name']).encode('latin1').ljust(23, b'\0')[:23]
+        q[26] = EXPLICIT_POS.index(pos) << 5 | EXPLICIT_SKIN[row['skin']] << 3
+        nib = [0]
+        for sk in EXPLICIT_SKILLS:
+            v = row.get(sk, '').strip()
+            key_skill = v.endswith('*')
+            v = v.rstrip('*')
+            _need(v.isdigit() and int(v) <= 7, f'{w}: {sk} must be 0..7 (a trailing * marks a key skill)')
+            nib.append(int(v) | (8 if key_skill else 0))
+        for i in range(4):
+            q[28 + i] = nib[2 * i] << 4 | nib[2 * i + 1]
+        q[32] = _num(row, 'price', 0, 49, w)
+        return bytes(q)
 
     def log(self, s):
         print(f"pack {self.meta['id']}: {s}")
@@ -655,7 +1047,9 @@ class Pack:
         if self.kind == 'tourney':
             return [(int(c['id'], 16), pm, srt) for c in self.comps if c['type'] == 'tourney'
                     for pm, srt in self.tourney(c)['draws']]
-        return [(int(c['id'], 16), perm) for c in self.comps if c['type'] == 'cup' for perm in self.bracket(c)['draws']]
+        return [(int(c['id'], 16), perm) for c in self.comps if c['type'] == 'cup' for perm in self.bracket(c)['draws']] \
+            + [(int(c['id'], 16), pm, srt, self.state(c)['clubs'][0]) for c in self.comps if c['type'] == 'state'
+               for pm, srt in self.state(c)['draws']]      # (states may share one id: filtered by their first club)
 
     def bye_cups(self):
         """[(contest id, world or 0, clubs, byes)] of the cups with first-round byes (lib97 BYE_TAB)."""
@@ -674,7 +1068,7 @@ class NationalPack(Pack):
 
     def __init__(self, path):
         self.path = path
-        self.meta = m = json.load(open(os.path.join(path, 'pack.json'), encoding='utf-8'))
+        self.meta = m = complist.fit_titles(json.load(open(os.path.join(path, 'pack.json'), encoding='utf-8')))
         _need(m.get('format') == 1 and m.get('kind') == 'national', f'{path}: pack.json: format 1, kind national')
         self.kind, self.world = 'national', m.get('world')
         _need(isinstance(self.world, int) and 1 <= self.world <= 50, f'{path}: world must be a number 1..50')
@@ -771,28 +1165,380 @@ def packs():
     if not hasattr(packs, 'cache'):
         packs.cache = [Pack(x if os.sep in x else os.path.join(PACKS, x)) for x in ENABLED
                        if os.path.basename(x.rstrip(os.sep)) != NATIONAL]
+        bad = [b for pk in packs.cache for b in complist.check_titles(pk.meta, [r.get('name', '') for r in pk.clubs.values()])]
+        _need(not bad, 'names the game cannot show: ' + '; '.join(bad[:10]))
     return packs.cache
 
 
 def team_files():
+    """{file number: TEAM.nnn data} of the packs outside worlds and of the worlds named 'team' (ns_stem)."""
     out = {}
     for pk in packs() + nationals():
-        out.update(pk.team_files())
+        if pk.world is None or ns_stem(pk.world) == 'team':
+            out.update(pk.team_files())
     return out
 
 
+def xtra_files():
+    """The XTRA files of the packs whose explicit squads have "extra" players: {name: bytes}, name = XTRA.nnn (nnn =
+    the club's team file), XTWn.nnn for a world with a namespace of its own (ns_stem; careerworld w_ns_set points
+    xtra.py's XTRA_NAMEP at data\\xtwN.nnn while that world is current)."""
+    out = {}
+    for pk in packs():
+        if not hasattr(pk, 'xtra'):
+            pk.team_files()
+        stem = 'XTRA' if pk.world is None or ns_stem(pk.world) == 'team' else 'XTW%d' % pk.world
+        for n, data in pk.xtra.items():
+            out['%s.%03d' % (stem, n)] = data
+    return out
+
+
+def rs_files():
+    """{'RS<world><league file>.DAT': records}: the off-file pools (gplay.c ri_season), TEAM format (BE count + 684-B
+    records). The world byte's namespace does not matter: the name carries the world."""
+    out = {}
+    for pk in packs():
+        if getattr(pk, 'pool_key', None) and pk.world is not None:
+            if not hasattr(pk, 'pool_data'):
+                pk.team_files()
+            _need(pk.pool_data, f"{pk.meta['id']}: the off-file pool has no records")
+            out['RS%d%03d.DAT' % (pk.world, pk.pool_file)] = pk.pool_data
+    return out
+
+
+def off_pools():
+    """gplay.c ri_season: the world leagues with an off-file pool (Pack.off_pool)."""
+    return [t for pk in packs() for t in [pk.off_pool()] if t]
+
+
+def ns_team_files():
+    """{'TMWn.nnn': data}: the team files of the worlds with a namespace of their own (several worlds in the build)."""
+    out = {}
+    for pk in packs() + nationals():
+        if pk.world is not None and ns_stem(pk.world) != 'team':
+            for n, data in pk.team_files().items():
+                out['%s.%03d' % (ns_stem(pk.world).upper(), n)] = data
+    return out
+
+
+def multi_ns():
+    """Several career worlds in the build: each has its own country namespace (numbers 101..251 per world, swapped
+    into countriesTable / competitionsTable / teamsCountryNumbers by careerworld w_ns_set)."""
+    return len(worlds()) > 1
+
+
+def ns_base():
+    """The world whose namespace is in the exe's static tables (the lowest; its team files keep the name TEAM.nnn)."""
+    return min(worlds()) if worlds() else None
+
+
+def ns_stem(w):
+    """Team file name stem of world w (8.3: data/<stem>.nnn): 'team' for the base world (and for a build with one
+    world: old installs and saves stay valid), 'tmwN' for the other worlds of a multi-world build."""
+    if not multi_ns() or w == ns_base():
+        return 'team'
+    _need(w <= 9, f'world {w}: team file stem tmw{w} (worlds 1..9 only)')
+    return 'tmw%d' % w
+
+
+def ns_files(w):
+    """Team file numbers of world w (its packs and its national pack): the files named by its stem."""
+    import guests
+    return sorted({f for pk in packs() + nationals() if pk.world == w for _, (f, _) in pk.team_file_items()}
+                  | set(guests.files() if guests.world() == w else ()))   # (the guest clubs' files: guests.py)
+
+
 def draws():
-    return [d for pk in packs() for d in pk.draws()]
+    """Fixed draws of the packs outside career worlds (one contest id each in the whole build)."""
+    return [d for pk in packs() if pk.world is None for d in pk.draws()]
+
+
+def register_states():
+    """Before patch_exe sizes its pages: every world pack's state championships into statecup (cup 1 = the pack's
+    first state; members = the league clubs of each state) and their cross-group calendars into lp36.FIXTURES."""
+    import statecup
+    import lp36
+    for pk in packs():
+        sts = [c for c in pk.comps if c['type'] == 'state'] if pk.world is not None else []
+        if not sts:
+            continue
+        lfile = pk.files[pk.league['clubs']][0]
+        if any(e['world'] == pk.world and e['cup1'] == int(sts[0]['id'], 16) for e in statecup.ENTRIES):
+            continue                            # (patch_exe per language: once)
+        entries = []
+        for c in sts:
+            sp = pk.state(c)
+            entries.append({'id': int(c['id'], 16), 'members': sp['members'], 'struct': None,
+                            'first': tuple(sp['clubs'][0])})
+            if sp['fixture']:
+                g, size, days, cal = sp['fixture']
+                key = (int(c['id'], 16), tuple(sp['clubs'][0]))
+                assert key not in lp36.FIXTURES, key
+                lp36.FIXTURES[key] = (g, size, days, cal)
+        firsts = [tuple(pk.state(c)['clubs'][0]) for c in sts]
+        _need(len(set(firsts)) == len(firsts), f"{pk.meta['id']}: every state contest needs a different first club "
+                                               f"(several share one contest id: fixtures / draws keyed by it)")
+        statecup.register(pk.world, int(sts[0]['id'], 16), lfile, entries)
+
+
+def world_draws():
+    """{world: fixed draws of its packs}: a world's cup ids are its own (worlds never run together), so historic's
+    table puts each world's draws after a filter record [1, 0, world] matched against the career's world byte."""
+    out = {}
+    for pk in packs():
+        if pk.world is not None:
+            out.setdefault(pk.world, []).extend(pk.draws())
+    return out
+
+
+def league_cup_europe_files():
+    """uefaq: the league files of the world countries whose league cup winner takes their last UECL place
+    (pack.json season 'league_cup_europe': true; England's EFL Cup)."""
+    return [pk.files[pk.league['clubs']][0] for pk in packs() if pk.world is not None and pk.meta['season'].get('league_cup')
+            and pk.meta['season'].get('league_cup_europe')]
+
+
+def _cal_short(names):
+    """(long, short) with the short fitted to the career calendar's first line, before the (C) / (F) marker."""
+    sh = complist.fit_short(names[1])
+    _need(complist.px(sh) <= complist.CAL_PX and all(ch in complist.FONT for ch in sh), f'cup short name {sh!r}')
+    return names[0], sh
+
+
+def numbered_cups():
+    """rnames: the contest ids of the world cups whose rounds keep their numbers (cup 'round_names': 'numbered')."""
+    return [int(c['id'], 16) for pk in packs() if pk.world is not None for c in pk.comps
+            if c['type'] == 'cup' and c.get('round_names') == 'numbered']
+
+
+def gplay_tables():
+    """gplay: the world leagues with knockout play-offs (Pack.gplay)."""
+    return [t for pk in packs() for t in [pk.gplay()] if t]
+
+
+def cupd_tables():
+    """cupd: the world leagues with a 'cup_d' (Pack.cupd)."""
+    return [t for pk in packs() for t in [pk.cupd()] if t]
+
+
+def dplay_tables():
+    """dplay: the leagues of the worlds with the Italian play-offs (Pack.dplay)."""
+    return [t for pk in packs() for t in [pk.dplay()] if t]
+
+
+def promedio_table():
+    """gplay.c GP_PROM: dw count, count x (dw global, dw points, db matches, dw points, db matches)."""
+    import struct
+    rows = [r for pk in packs() for t in [pk.promedio()] if t for r in t]
+    _need(len(rows) <= 48, f'promedio_history: {len(rows)} clubs (at most 48, gplay.c PR_N)')
+    return struct.pack('<H', len(rows)) + b''.join(struct.pack('<HHBHB', *r) for r in rows)
+
+
+SECOND_RULES = {          # league 'second_teams': {'rules': code} -> (top level a B team may reach (0xFF: any; the
+                          # first team's level is always a bound), play-offs allowed) - formats2627.md 'Second teams'
+    'ita': (1, True),     # up to Serie B; the Serie C play-offs too
+    'esp': (0xFF, False), # never into / above the first team's division; no LaLiga 2 play-off
+    'ger': (2, False),    # never to the 2. Bundesliga; no relegation play-off
+    'ned': (1, False),    # never to the Eredivisie; no play-offs
+    'por': (0xFF, False), # never into the first team's division; no play-off (Davide 2026-10-18)
+}
+
+
+def second_table():
+    """gplay.c SEC_TAB: db countries; per country db nd, nd x db level, db n, n x (dw B global, dw first team global
+    (0xFFFF: another country), db top, db flags: 1 play-offs allowed, 2 may leave the world (an off-file league pool))."""
+    import struct
+    out, nc = bytearray(), 0
+    for pk in packs():
+        st = (pk.league or {}).get('second_teams') if pk.world is not None else None
+        if not st or st.get('rules') not in SECOND_RULES:
+            continue
+        top, po = SECOND_RULES[st['rules']]
+        divs = pk.divisions()
+        par = pk.league.get('parallel')
+        pars = {q['first']: q['count'] for q in (par if isinstance(par, list) else [par] if par else [])}
+        lv, d, l = [], 0, 0
+        while d < len(divs):
+            lv += [l] * pars.get(d, 1)
+            d += pars.get(d, 1)
+            l += 1
+        glob = lambda k: next(b for f, b in pk.files.values() if f == pk.where[k][0]) + pk.where[k][1]
+        sec = [(k, c['second_of']) for k, c in pk.clubs.items() if c.get('second_of')]
+        rs = pk.league.get('reserve') or {}
+        ex = 2 if rs.get('off_file') else 0
+        rows = []
+        for k, f in sec:
+            _need(k in pk.league_clubs, f"{pk.meta['id']}: second team {k} not a league club")
+            gf = glob(f) if f in pk.clubs and f in pk.league_clubs else 0xFFFF
+            rows.append(struct.pack('<HHBB', glob(k), gf, top, (1 if po else 0) | ex))
+        if not rows:
+            continue
+        out += bytes((len(lv),)) + bytes(lv) + bytes((len(rows),)) + b''.join(rows)
+        nc += 1
+    return bytes((nc,)) + bytes(out)
+
+
+def reserve_tables():
+    """gplay.c rs_season: the world leagues with a reserve (Pack.reserve)."""
+    return [t for pk in packs() for t in [pk.reserve()] if t]
+
+
+def parallel_tables():
+    """pgroups: the countries of the worlds with parallel groups (Pack.parallel)."""
+    return [t for pk in packs() for t in [pk.parallel()] if t]
 
 
 def bye_cups():
     return [b for pk in packs() for b in pk.bye_cups()]
 
 
-def multi_ns():
-    """Several career worlds with their own country namespaces (world-2025-26): never on main (one world with cups of
-    its own, the 1984-85 one), so lib97's byes / fixed-draw table needs no world filter records."""
-    return False
+def state_draws():
+    """[(contest id, world, round clubs N, b, first club word, g, size, codes)] of the state championships' knockout
+    stages with a fixed draw (statespec.st_ko at the stage start; ST_TAB keyed by id + first club). g > 0: code = band *
+    g + group (b > 0: the b last wait); g = 0: the stage after one with byes, b = its ties, size = its clubs."""
+    import statespec
+    out = list(statespec.ST_DRAWS)
+    for pk in packs():
+        if pk.world is None:
+            continue
+        for c in pk.comps:
+            if c['type'] == 'state':
+                sp = pk.state(c)
+                f = sp['clubs'][0]
+                out += [(int(c['id'], 16), pk.world, n, b, f[0] | f[1] << 8, g, sz, pm)
+                        for n, b, g, sz, pm in sp['ko_draws']]
+    return out
+
+
+def league_phase_cups():
+    """[(contest id, countries of the clubs in contest order)] of the tourneys with league_phase (lp36 prototype)."""
+    out = []
+    for pk in packs():
+        for c in pk.comps:
+            if pk.kind == 'tourney' and c['type'] == 'tourney' and c.get('league_phase'):
+                out.append((int(c['id'], 16), [pk.clubs[k]['country'] for k in pk.tourney(c)['clubs']]))
+    return out
+
+
+def league_phase_worlds():
+    """Contest ids (the game's cups: 0 Champions Cup, 1 Cup Winners' Cup, 2 UEFA Cup) some world plays as a league
+    phase (2: the Conference League format, 6 matches)."""
+    import careerworld
+    return sorted({k for w in world_defs() for k, key in ((0, 'cc'), (1, 'cwc'), (2, 'uefa'))
+                   if w['cups'][key][0] == careerworld.LP_ROUNDS})
+
+
+def split_nmax():
+    import split
+    return split.NMAX
+
+
+def splits():
+    """Mid-season splits and per-division meetings of the career worlds (split.py): [(world, team file, division,
+    clubs, spec)]. A division (or the league: its first division) may carry
+      'games': 3                        a division's meetings in the season (the league struct's 'games' is one
+                                        for every division; 'split' sets its own from 'after');
+      'split': {'after': 33, 'home': 'balance' | 'reverse1' | 'reverse3' | 'seeded',
+                'groups': [{'places': [1, 6], 'rounds': 'single' | 'double' | 'triple' | 'quadruple' | 'none',
+                            'points': 'full' | 'half_up' | 'half_down' | 'reset' | 'h2h_half'}, ...], 'tiebreak': ...}
+               or {'stages': [split, split, ...]} (Malta: Opening Round, Closing Round), a stage adding
+               'reset': true (every figure from 0) and 'keep': 'opening' (the table before it kept in the save)
+    ('after' = the match days before the split / the stage; groups = consecutive places of the table then)."""
+    import split
+    out = []
+    rnd = {'none': 0, 'single': 1, 'double': 2, 'triple': 3, 'quadruple': 4}
+    for pk in packs():
+        lg = pk.league
+        if pk.world is None or not lg:
+            continue
+        file = pk.files[lg['clubs']][0]
+        for d, dv in enumerate(pk.divisions()):
+            sp = dv.get('split') or (lg.get('split') if d == 0 else None)   # (the league's: its first division)
+            games = dv.get('games') if 'divisions' in lg else None
+            if not sp and games is None:
+                continue
+            n = dv['teams']
+            w = f"{pk.meta['id']} division {d + 1}"
+            _need(n <= split.NMAX, f'{w}: at most {split.NMAX} clubs')
+            spec = {'stages': []}
+            stages = (sp.get('stages') or [sp]) if sp else []
+            _need(not sp or set(sp) <= {'after', 'home', 'groups', 'tiebreak', 'title'} or set(sp) <= {'stages', 'weeks', 'title'},
+                  f'{w}.split: keys after, home, groups, tiebreak (or stages, weeks)')
+            rows = [k for k in pk.league_clubs if pk.division[k] == d]      # the division's table rows (team-file order)
+            per = split.days_before(n, 1)
+            day = None
+            for i, st in enumerate(stages):
+                ws = f'{w}.split' + (f'.stages[{i}]' if 'stages' in sp else '')
+                if 'fixtures' in st:                # a fixture list by club (Argentina: zones, clasicos, interzonals)
+                    _need(set(st) <= {'after', 'fixtures', 'zones', 'reset', 'then', 'table', 'annual', 'tiebreak', 'title'},
+                          f'{ws}: keys after, fixtures, zones, reset, then, table, annual, tiebreak, title')
+                    _need(st.get('tiebreak') in (None, 'wins'), f"{ws}.tiebreak: 'wins' (MLS: points, wins, then the "
+                          f"game's goal difference, goals) or absent")
+                    if i == 0:
+                        _need(st.get('after') == 0, f'{ws}.after: 0 (a fixture list from the first day)')
+                        games, day = 0, 0
+                    _need(st.get('after') == day, f'{ws}.after: {day} (the previous stage ends then)')
+                    fxd = []
+                    for dd in st['fixtures']:
+                        _need(all(isinstance(pr, list) and len(pr) == 2 and all(c in rows for c in pr) for pr in dd)
+                              and len({c for pr in dd for c in pr}) == 2 * len(dd), f'{ws}.fixtures: [home, away] keys of '
+                              f'the division, each club once a day ({dd})')
+                        fxd.append([(rows.index(a), rows.index(b)) for a, b in dd])
+                    mem = None
+                    if st.get('zones'):
+                        zs = st['zones']
+                        _need(sorted(c for z in zs for c in z) == sorted(rows) and 2 <= len(zs) <= 4,
+                              f'{ws}.zones: 2..4 lists covering the division')
+                        mem = [next(g for g, z in enumerate(zs) if c in z) for c in rows]
+                    if st.get('then'):
+                        import engine
+                        engine.after_stage(st['then'])
+                    _need(st.get('table') in (None, 0, 1, 2, 3), f'{ws}.table: 0..3 (GP_SS: stage_place 4..7)')
+                    spec['stages'].append({'after': day, 'fixtures': fxd, 'members': mem, 'reset': bool(st.get('reset')),
+                                           'then': st.get('then'), 'table': st.get('table'),
+                                           'annual': bool(st.get('annual')), 'wins': st.get('tiebreak') == 'wins',
+                                           'groups': [len(z) for z in st.get('zones') or [rows]]})
+                    day += len(fxd)
+                    continue
+                _need(set(st) <= {'after', 'home', 'groups', 'tiebreak', 'reset', 'keep', 'title'},
+                      f'{ws}: keys after, home, groups, tiebreak, reset, keep')
+                if i == 0:
+                    _need(isinstance(st.get('after'), int) and st['after'] % per == 0 and 1 <= st['after'] // per <= 4,
+                          f'{ws}.after: {per} x the meetings (1..4)')
+                    games = st['after'] // per
+                    day = st['after']
+                _need(st.get('after') == day, f'{ws}.after: {day} (the previous stage ends then)')
+                places, gs = 1, st.get('groups') or []
+                for g in gs:
+                    _need(set(g) <= {'places', 'rounds', 'points', 'neutral', 'title'} and g.get('places', [0])[0] == places
+                          and g['places'][1] >= places + 1, f'{ws}.groups: consecutive places from 1')
+                    _need(g.get('rounds', 'single') in rnd and g.get('points', 'full') in split.POINTS,
+                          f'{ws}.groups: rounds none / single / double / triple / quadruple, points '
+                          + ' / '.join(split.POINTS))
+                    places = g['places'][1] + 1
+                _need(places == n + 1 and 1 <= len(gs) <= 4, f'{ws}.groups: 1..4 groups covering places 1-{n}')
+                _need(st.get('home', 'seeded') in split.HOMES, f'{ws}.home: ' + ', '.join(split.HOMES))
+                _need(st.get('keep') in (None, 'opening'), f"{ws}.keep: 'opening'")
+                one = {'after': st['after'], 'groups': [g['places'][1] - g['places'][0] + 1 for g in gs],
+                       'rounds': [rnd[g.get('rounds', 'single')] for g in gs],
+                       'points': [g.get('points', 'full') for g in gs], 'home': st.get('home', 'seeded'),
+                       'reset': bool(st.get('reset')), 'keep': st.get('keep')}
+                spec['stages'].append(one)
+                day += len(split.schedule(one['groups'], one['rounds']))
+            _need(games in (1, 2, 3, 4) or (games == 0 and stages and 'fixtures' in stages[0]),
+                  f'{w}.games: 1..4 meetings')
+            spec['games'] = games
+            days = day if stages else split.days_before(n, games)
+            _need(days <= split.MAXDAYS, f'{w}: {days} match days (at most {split.MAXDAYS})')
+            if sp and sp.get('weeks'):              # the days' dates ('dd/mm', a year later: 'dd/mm+1'): the weeks
+                wk = sp['weeks']
+                _need(len(wk) == days, f'{w}.split.weeks: one date per match day ({days})')
+                spec['weeks'] = [split.week_of(x) for x in wk]
+                _need(spec['weeks'] == sorted(spec['weeks']), f'{w}.split.weeks: in order')
+            out.append((pk.world, file, d, n, spec))
+    keys = [x[:3] for x in out]
+    _need(len(keys) == len(set(keys)), 'split: one entry per division')
+    return out
 
 
 def tourneys():
@@ -813,13 +1559,15 @@ def tourneys():
 
 
 def file_numbers():
-    return sorted(f for pk in packs() + nationals() for f, _ in pk.files.values())
+    return sorted(f for pk in packs() + nationals() for _, (f, _) in pk.team_file_items())
 
 
 def base_of(n):
-    """First global number of a pack team file (None if n is not one)."""
+    """First global number of a pack team file named TEAM.nnn (None if n is not one)."""
     for pk in packs() + nationals():
-        for f, b in pk.files.values():
+        if pk.world is not None and ns_stem(pk.world) != 'team':
+            continue
+        for _, (f, b) in pk.team_file_items():
             if f == n:
                 return b
     return None
@@ -834,13 +1582,13 @@ def worlds():
     return out
 
 
-def _first_europe(pk, holder=False):
+def _first_europe(pk, holders=None):
     """First-season European clubs of a world country per cup: pack.json first_europe, else the league order
-    (Champions Cup first, then Cup Winners' Cup, then UEFA Cup). holder: the world's root pack also fills the place
-    the holders take from season 2 on (one more club per cup)."""
+    (Champions Cup first, then Cup Winners' Cup, then UEFA Cup). holders ({cup: n}, the world's root pack): it also
+    fills the places the holders take from season 2 on."""
     pl, fe = dict(pk.meta.get('europe_places', {})), pk.meta.get('first_europe', {})
-    if holder:
-        pl = {k: pl.get(k, 0) + 1 for k in ('cc', 'cwc', 'uefa')}
+    if holders:
+        pl = {k: pl.get(k, 0) + holders[k] for k in ('cc', 'cwc', 'uefa')}
     order = iter(sorted(pk.league_clubs, key=lambda k: pk.division[k]))   # top division first, table order
     taken = {c for v in fe.values() for c in v}
     out = {}
@@ -865,8 +1613,13 @@ def world_defs():
         _need(len(roots) == 1, f'world {n}: exactly one pack must have world_cups')
         wc = roots[0].meta['world_cups']
         w = {'n': n, 'countries': [pk.files[pk.league['clubs']][0] for pk in pks], 'places': {}, 'cups': {},
-             'clubs': {}, 'tmd': 'WORLD%02d.TMD' % n}
-        _need(isinstance(wc.get('start_year'), int) and 1900 < wc['start_year'] < 2000,
+             'clubs': {}, 'tmd': 'WORLD%02d.TMD' % n, 'pool': None}
+        w['squad_numbers'] = bool(roots[0].meta.get('squad_numbers'))   # benchnum.py: real numbers on the bench
+        if roots[0].meta.get('pool'):                     # its foreign market (worldpool.py): POOLnn.DAT
+            src = os.path.join(roots[0].path, roots[0].meta['pool'])
+            _need(os.path.getsize(src) == 900 * 58, f'world {n}: pool {src}: 900 records of 58 bytes needed')
+            w['pool'] = ('POOL%02d.DAT' % n, src)
+        _need(isinstance(wc.get('start_year'), int) and 1900 < wc["start_year"] < 2100,
               f'world {n}: world_cups.start_year (first season, e.g. 1984) is needed')
         w['year'] = wc['start_year']
         nat = [x for x in nationals() if x.world == n]
@@ -875,18 +1628,41 @@ def world_defs():
         w['nations'] = nat[0].nations if nat else {}
         w['natcomp'] = nat[0].competitions() if nat else None
         w['codes'] = {pk.clubs[pk.league_clubs[0]]['country']: pk.files[pk.league['clubs']][0] for pk in pks}
+        lpw = any(wc.get(k, {}).get('format') == 'league_phase' for k in ('cc', 'cwc', 'uefa'))
+        # the cups' names: world_cups.<cup>.names [long, short] (the game's own when absent); a league-phase world's
+        # default = UEFA's official names (English in every language), not the 1996-97 game's
+        w['cupnames'] = {}
+        for k in ('cc', 'cwc', 'uefa'):
+            nm = wc.get(k, {}).get('names') or (UEFA_NAMES[k] if lpw else None)
+            if nm:
+                _need(len(nm) == 2 and len(nm[0]) <= 30 and len(nm[1]) <= 16,
+                      f'world {n}: world_cups.{k}.names = [long (<= 30), short (<= 16)]')
+                w['cupnames'][k] = tuple(nm)
         for pk in pks:                          # cseg_93974: the champion, the cup winner, then the top 9's next clubs
             pl = pk.meta.get('europe_places', {})
+            if lpw:                             # league-phase world (careerworld.QUAL_ASM): top N, cup winner + next
+                _need(pl.get('cc', 0) <= 5 and pl.get('cwc', 0) <= 3 and pl.get('uefa', 0) <= 6 and sum(pl.values()) <= 9,
+                      f"{pk.meta['id']}: europe_places at most cc 5, cwc 3, uefa 6, 9 in all (the top 9 of the league)")
+                continue
             _need(pl.get('cc', 0) <= 1 and pl.get('cwc', 0) <= 1 and pl.get('uefa', 0) <= 6,
                   f"{pk.meta['id']}: europe_places at most cc 1, cwc 1, uefa 6")
-        first = {id(pk): _first_europe(pk, pk is roots[0]) for pk in pks}
+        # holders' places per cup: one each (the game's rule); a league-phase world (2025-26 rules): the Champions
+        # League takes its holder and the Europa League winner, the Europa League the Conference League winner
+        holders = {'cc': 2, 'cwc': 1, 'uefa': 0} if lpw else {'cc': 1, 'cwc': 1, 'uefa': 1}
+        first = {id(pk): _first_europe(pk, holders if pk is roots[0] else None) for pk in pks}
         for key in ('cc', 'cwc', 'uefa'):
             w['places'][key] = [pk.files[pk.league['clubs']][0] for pk in pks
                                 for _ in range(pk.meta.get('europe_places', {}).get(key, 0))]
             clubs = [(pk, c) for pk in pks for c in first[id(pk)][key]]
             size = len(clubs)
-            _need(size == len(w['places'][key]) + 1,
-                  f'world {n}: {key}: {size} clubs in the first season, {len(w["places"][key])} places + the holder')
+            _need(size == len(w['places'][key]) + holders[key],
+                  f'world {n}: {key}: {size} clubs in the first season, {len(w["places"][key])} places + '
+                  f'{holders[key]} holder place(s)')
+            if wc.get(key, {}).get('format') == 'league_phase':     # UEFA league phase (lp36): 36 clubs, type 2
+                _need(size == 36, f'world {n}: {key}: a league phase has 36 clubs ({size})')
+                w['cups'][key] = (careerworld.LP_ROUNDS, [pk.where[c] for pk, c in clubs])
+                w['clubs'][key] = clubs
+                continue
             _need(2 <= size <= careerworld.MAX[key] and size & (size - 1) == 0,
                   f'world {n}: {key} has {size} clubs (a power of 2, at most {careerworld.MAX[key]})')
             rounds = wc.get(key, {}).get('rounds') or ['two_legs'] * (size.bit_length() - 2) + ['single']
@@ -897,28 +1673,45 @@ def world_defs():
               f'world {n}: a club is in two European cups')
         tot = sum(len(v) for v in w['clubs'].values())
         _need(tot <= careerworld.TOTAL_MAX, f'world {n}: {tot} European clubs (at most {careerworld.TOTAL_MAX})')
+        # UEFA coefficients (league-phase worlds, uefacoef.py): pack.json uefa_coef = {country: 5 seasons, oldest first;
+        # clubs: {club key: coefficient}}
+        w['coef'] = {'countries': [], 'clubs': []}
+        for pk in pks:
+            uc = pk.meta.get('uefa_coef')
+            if uc:
+                _need(len(uc.get('country', [])) == 5, f"{pk.meta['id']}: uefa_coef.country: 5 seasons")
+                w['coef']['countries'].append((pk.files[pk.league['clubs']][0], uc['country']))
+                for c, v in uc.get('clubs', {}).items():
+                    _need(c in pk.league_clubs, f"{pk.meta['id']}: uefa_coef: {c} is not a league club")
+                    w['coef']['clubs'].append((pk.where[c], v))
         out.append(w)
     return out
 
 
 def world_files():
-    """{'WORLDnn.TMD': first-season European clubs of world nn (team-file records, the game sets word +2)}."""
-    files = team_files()
+    """{'WORLDnn.TMD': first-season European clubs of world nn (team-file records, the game sets word +2),
+    'POOLnn.DAT': its foreign-market pool when the root pack names one (pack.json 'pool')}."""
     out = {}
     for w in world_defs():
+        files = {}
+        for pk in packs() + nationals():
+            if pk.world == w['n']:
+                files.update(pk.team_files())
         recs = []
         for key in ('cc', 'cwc', 'uefa'):
             for pk, c in w['clubs'][key]:
                 f, i = pk.where[c]
                 recs.append(files[f][2 + i * TEAM_SIZE:2 + (i + 1) * TEAM_SIZE])
         out[w['tmd']] = b''.join(recs)
+        if w['pool']:
+            out[w['pool'][0]] = open(w['pool'][1], 'rb').read()
     return out
 
 
 def career_file(n):
     """True for the team files of world career packs: their clubs may reuse 1996-97 European global numbers (a world
     career never loads those files)."""
-    return any(pk.world is not None and n in (f for f, _ in pk.files.values()) for pk in packs() + nationals())
+    return any(pk.world is not None and n in (f for _, (f, _) in pk.team_file_items()) for pk in packs() + nationals())
 
 
 def shares_base(n):
@@ -992,8 +1785,8 @@ WMENU_ASM = '''
 w_lvl:                                  ; replaces `cmp word [numSelectedTeams], 2` (SelectTeamsFinalMenu shows a
     cmp word [NST], 2                   ; country's leagues at depth 2 only): depth 3 too when the parent list is a
     je .r                               ; world of CLASSIC CAREERS (top of countryStack = WMENU + n)
-    cmp word [NST], 3
-    jne .r
+    cmp word [NST], 3                   ; depth 3+: CLASSIC CAREERS > world (> continent (> OTHER NATIONS ...)) >
+    jb .r                               ; country, whenever the parent list is one of a world's (id >= WMENU)
     push eax
     mov eax, [CSP]
     cmp byte [eax - 1], WMENU_N
@@ -1126,6 +1919,75 @@ def _tourney_leagues(p, lang, area, at, env):
     return at, out
 
 
+POOL_IDS = range(190, 200)              # pseudo-countries of the worlds' foreign-market pools (worldpool.py): no world file
+NS = {}                                 # several worlds: world -> {country number: {'ct': (obj, off), 'comp': (obj, off),
+NS_INFO = {}                            # 'tcn': base}} (its namespace); NS_INFO: where patch() put the tables (ns_emit)
+
+
+def _tab(p, env, w, kind, n, *val):
+    """A country entry (kind 'ct' / 'comp' = countriesTable / competitionsTable pointer, 'tcn' = teamsCountryNumbers
+    word): written into the exe, or with several worlds into world w's namespace (ns_emit writes them)."""
+    d2, ct, tcn, comp, fx2 = env
+    if w is None or not multi_ns():
+        if kind == 'tcn':
+            p.put(2, tcn + 2 * n, struct.pack('<H', val[0]))
+        else:
+            p.add_ptr(2, (ct if kind == 'ct' else comp) + 4 * n, *val)
+        return
+    import guests
+    _need(n < 252 and n not in (SEASONS, CAREERS, 99) and not WMENU <= n <= WMENU + 9 and
+          (n not in POOL_IDS or (n in guests.FILES.values() and w == guests.world() and kind in ('ct', 'tcn'))),
+          f'world {w}: country {n} is a menu id or a pool pseudo-country')   # (191..194: the guest files, guests.py)
+    row = NS.setdefault(w, {}).setdefault(n, {})
+    _need(kind == 'tcn' or kind not in row, f'world {w}: country {n} is already used')
+    row[kind] = val[0] if kind == 'tcn' else val
+
+
+def _has_fix(p, objn, off):
+    try:
+        p.target(objn, off)
+        return True
+    except AssertionError:
+        return False
+
+
+def ns_emit(p):
+    """Several worlds (after every other patch, before save): per world a row per namespace number (countriesTable
+    and competitionsTable entries as obj-tagged offsets: bit 30 = obj1, bit 31 = obj2, 0 = none; teamsCountryNumbers
+    word) = its own entry, else the build's global one; the base world's rows into the static tables."""
+    if not NS_INFO:
+        return
+    ct, tcn, comp, nums = NS_INFO['ct'], NS_INFO['tcn'], NS_INFO['comp'], NS_INFO['numbers']
+
+    def cur(off):
+        if _has_fix(p, 2, off):
+            obj, t = p.target(2, off)
+            assert obj in (1, 2) and t < 1 << 30
+            return obj << 30 | t
+        assert bytes(p.get(2, off, 4)) == bytes(4), hex(off)
+        return 0
+    glob = {n: (cur(ct + 4 * n), cur(comp + 4 * n), struct.unpack('<H', bytes(p.get(2, tcn + 2 * n, 2)))[0]) for n in nums}
+    p.put(1, NS_INFO['list_at'], bytes(nums))
+    for w, at in NS_INFO['rows_at'].items():
+        p.add_ptr(1, NS_INFO['wt_at'] + 4 * w, 1, at)
+        rows = b''
+        for n in nums:
+            r, (gct, gcomp, gtcn) = NS[w].get(n, {}), glob[n]
+            for kind, g in (('ct', gct), ('comp', gcomp)):
+                _need(kind not in r or g == 0, f'world {w}: country {n} is also a global {kind} entry')
+            rows += struct.pack('<IIH', r['ct'][0] << 30 | r['ct'][1] if 'ct' in r else gct,
+                                r['comp'][0] << 30 | r['comp'][1] if 'comp' in r else gcomp, r.get('tcn', gtcn))
+        p.put(1, at, rows)
+    for n, r in NS[ns_base()].items():            # the static tables = the base world's namespace
+        for kind, tab in (('ct', ct), ('comp', comp)):
+            if kind in r:
+                p.add_ptr(2, tab + 4 * n, *r[kind])
+        if 'tcn' in r:
+            p.put(2, tcn + 2 * n, struct.pack('<H', r['tcn']))
+    print(f"exe: country namespaces of worlds {sorted(NS)}: {len(nums)} numbers ({nums[0]}..{nums[-1]}), "
+          f"base world {ns_base()}, rows @ obj1+{min(NS_INFO['rows_at'].values()):#x}")
+
+
 def _patch_pack(pk, p, lang, area, at, env):
     """One pack: country entries, competition structs, country table. Returns (cave end, info for the shared part)."""
     import countries
@@ -1139,20 +2001,27 @@ def _patch_pack(pk, p, lang, area, at, env):
     # every pack file is a country entry (a club's country is never null); bases in teamsCountryNumbers; the entry
     # after the last own-base file closes its team count (a country's count = next base - its base); shared-base
     # files last: their bases overwrite that closing entry when they follow it
-    own = sorted(v for v in pk.files.values() if not shares_base(v[0]))
-    for f, base in own + sorted(v for v in pk.files.values() if shares_base(v[0])):
+    own = sorted(v for _, v in pk.team_file_items() if not shares_base(v[0]))
+    for f, base in own + sorted(v for _, v in pk.team_file_items() if shares_base(v[0])):
         _need(ct + 4 * f not in fx2 and comp + 4 * f not in fx2, f'{pk.meta["id"]}: country {f} is already used')
-        p.add_ptr(2, ct + 4 * f, 2, rec)
-        p.put(2, tcn + 2 * f, struct.pack('<H', base))
+        _tab(p, env, pk.world, 'ct', f, 2, rec)
+        _tab(p, env, pk.world, 'tcn', f, base)
         if (f, base) == own[-1]:
-            p.put(2, tcn + 2 * (f + 1),
-                  struct.pack('<H', base + pk.count[next(k for k, v in pk.files.items() if v[0] == f)]))
+            _tab(p, env, pk.world, 'tcn', f + 1, base + pk.count[next(k for k, v in pk.files.items() if v[0] == f)])
 
     ptr = {}
     for c in pk.comps:
         names = c['names'].get(lang) or c['names']['*']
         if c['type'] == 'league':
             body = _league_body(p, lang, area, comp, c, lfile, pk.divisions())
+        elif c['type'] == 'state':                      # a state championship (statecup.py: slot 1 by the club's state)
+            import statecup
+            sp = pk.state(c)
+            rel = [area.add(x.encode('latin1') + b'\0') - sacups.STR_BASE for x in names]
+            cc = bytes(d2[sacups.unique(d2, sacups.EUROCUP_HDR):][:0x27])
+            body = statecup.contest_bytes(cc, int(c['id'], 16), lfile, sp['months'], sp['meetings'], sp['points'],
+                                          sp['stages'], sp['stage_bytes'], sp['clubs'], struct.pack('<II', *rel))
+            statecup.set_struct(pk.world, int(c['id'], 16), (1, at), first=tuple(sp['clubs'][0]))
         else:
             br = pk.bracket(c)
             rounds = bytes(ROUND[x] for x in c['rounds'])
@@ -1169,8 +2038,9 @@ def _patch_pack(pk, p, lang, area, at, env):
                 cobj, gcup = p.target(gobj, gtab + k)
                 gc = p.le.obj_bytes(cobj)[gcup:gcup + 5]
                 h[2], h[3], h[4] = lfile, gc[3], gc[4]
-                h[13] = 1                       # first round name: PRIMO TURNO (the Australian cup's 2 = SECONDO TURNO:
-                                                # the round name = round + [5Bh] - 1 unless quarter / semi / final)
+                h[13] = c.get('first_round', 1)  # first round name: PRIMO TURNO (the Australian cup's 2 = SECONDO TURNO:
+                                                # the round name = round + [5Bh] - 1 unless quarter / semi / final);
+                                                # a cup taken up later (EFL Cup from its 4th round): first_round 4
             else:
                 h = bytearray(d2[sacups.unique(d2, sacups.CWC_HDR):][:14])
             h[0], h[10] = int(c['id'], 16), len(br['clubs'])
@@ -1180,6 +2050,8 @@ def _patch_pack(pk, p, lang, area, at, env):
             rel = [area.add(s.encode('latin1') + b'\0') - sacups.STR_BASE for s in names]
             body = bytes(h) + struct.pack('<II', *rel) + pk.team_bytes(br['clubs'])
         ptr[c['key']] = at
+        if c['type'] == 'league' and pk.world is not None:
+            LEAGUE_AT[(pk.world, lfile)] = at            # (dplay: a world's leagues share one contest id)
         p.put(1, at, body)
         at = (at + len(body) + 3) & ~3
 
@@ -1189,15 +2061,22 @@ def _patch_pack(pk, p, lang, area, at, env):
     p.put(1, at + 4, struct.pack('<i', -2))     # no national cup (Italy 1947-48): [league, -2, -1], like Costa Rica
     table = at
     at += 8
+    states = [c['key'] for c in pk.comps if c['type'] == 'state']
+    if states:                                  # state championships: [league, -2, a state (statecup's cup 1: the
+        p.add_ptr(1, at, 1, ptr[states[0]])     # club's own state at the slot-1 set-up), national cup, -1]
+        at += 4
     if s.get('cup'):
         p.add_ptr(1, at, 1, ptr[s['cup']])
         at += 4
     if s.get('europe'):
         p.add_ptr(1, at, 1, ptr[s['europe_placeholder']])
         at += 4
+    elif s.get('league_cup'):                   # [league, -2, cup, league cup, -1]
+        p.add_ptr(1, at, 1, ptr[s['league_cup']])
+        at += 4
     p.put(1, at, struct.pack('<i', -1))
     at += 4
-    p.add_ptr(2, comp + 4 * lfile, 1, table)
+    _tab(p, env, pk.world, 'comp', lfile, 1, table)
     emap = bytearray(len(pk.league_clubs))
     for club, cup in s.get('europe', {}).items():
         emap[pk.league_clubs.index(club)] = europe.index(cup) + 1
@@ -1231,13 +2110,20 @@ def patch(p, lang, area, cave):
     import sacups
     ct, tcn, _, _ = countries.tables(p)
     comp = countries.COMP[0]
+    NS.clear()                                 # (several worlds: this exe's namespaces; a release builds 8 exes in one run)
+    NS_INFO.clear()
     env = (p.le.obj_bytes(2), ct, tcn, comp, {f[1] for f in p.le.fixups() if f[0] == 2})
-    ids = {}                                   # a league id may be shared by the packs of one career world
-    for pk in packs():                         # (the free contest ids 0xC1..0xFE are too few for 30 leagues + cups)
-        for c in pk.comps:
+    ids = {}                                   # a league id may be shared by the packs of one career world, and
+    for pk in packs():                         # every world has its own ids (worlds never run together: their cups'
+        for c in pk.comps:                     # fixed draws are filtered by the career's world byte, world_draws)
             owner = ('world', pk.world) if pk.world is not None and c['type'] == 'league' else ('pack', pk.meta['id'])
-            _need(ids.setdefault(c['id'], owner) == owner, f"contest id {c['id']} used twice")
-            _need(int(c['id'], 16) not in RESERVED_IDS, f"contest id {c['id']} is used by the mod")
+            scope = pk.world                   # None = seasons / tourneys / no-world careers: unique in the build
+            users = ids.setdefault(c['id'], {})
+            _need(all(s2 is not None and scope is not None and s2 != scope or o == owner for s2, o in users.items())
+                  and users.get(scope, owner) == owner, f"contest id {c['id']} used twice")
+            users[scope] = owner
+            _need(int(c['id'], 16) not in RESERVED_IDS | (WORLD0_IDS if pk.world is None else set()),
+                  f"contest id {c['id']} is used by the mod")
     at, infos = cave, []
     cat = CAREER_DATA[0]                       # career packs: own obj1 pages (a world of 30 countries needs ~5 KB)
     for pk in packs():
@@ -1248,8 +2134,28 @@ def patch(p, lang, area, cave):
         else:
             at, info = _patch_pack(pk, p, lang, area, at, env)
         infos.append(info)
+    import guests
+    if guests.files():                          # the guest clubs' files (guests.py): a country label, a global base
+        bases = guests.alloc()                  # each - no country / league entry
+        for n in guests.files():
+            cont, names = guests.LABELS[n]
+            label = names.get(lang) or names['*']
+            rec = area.add(bytes((countries.CONTINENT[cont],)) + label + b'\0' + label + b'\0')
+            _need(env[1] + 4 * n not in env[4], f'guests: country {n} is already used')
+            _tab(p, env, guests.world(), 'ct', n, 2, rec)
+            _tab(p, env, guests.world(), 'tcn', n, bases[n])
+    if multi_ns():                              # several worlds: their namespaces' rows (filled by ns_emit)
+        nums = sorted(set().union(*NS.values()))
+        NS_INFO.update(ct=ct, tcn=tcn, comp=comp, numbers=nums, list_at=cat, rows_at={})
+        cat = (cat + len(nums) + 3) & ~3
+        NS_INFO['wt_at'] = cat                  # dd per world number: its rows (0 = not in the build)
+        cat += 4 * (max(worlds()) + 1)
+        for w in sorted(NS):
+            NS_INFO['rows_at'][w] = cat
+            cat += 10 * len(nums)
+        cat = (cat + 3) & ~3
     if cat is not None:
-        _need(cat <= CAREER_DATA[0] + CAREER_DATA_SIZE, f'career packs overflow their pages ({cat:#x})')
+        _need(cat <= CAREER_DATA[0] + 0x1000 * career_data_pages(), f'career packs overflow their pages ({cat:#x})')
     at, tleagues = _tourney_leagues(p, lang, area, at, env)
     if any(dv['teams'] % 2 for pk in packs() for dv in pk.divisions()) or \
             any(pk.count[c['clubs']] % 2 for pk in packs() if pk.kind == 'tourney' for c in pk.comps if c['type'] == 'league'):
@@ -1283,7 +2189,8 @@ def patch(p, lang, area, cave):
         CAREERS_REC[0] = crec
         p.add_ptr(2, ct + 4 * CAREERS, 2, crec)
         entries = []                            # a world = one entry (WMENU + n) listing its countries; packs of no
-        for pk, i in zip(packs(), infos):       # world stay countries of the list
+        for pk, i in zip([q for q in packs() if q.kind != 'tourney'], infos):   # world stay countries of the list
+                                                # (infos skips the tourney packs: a plain zip listed ALBANIA, 3.0-4.0)
             if i['kind'] != 'career':
                 continue
             if pk.world is None:
@@ -1300,7 +2207,49 @@ def patch(p, lang, area, cave):
             _need(len(name) <= 20, f'world {n}: world_cups.name longer than 20 characters')
             rec = area.add(bytes((countries.CONTINENT['europe'],)) + name + b'\0' + name + b'\0')
             p.add_ptr(2, ct + 4 * wid, 2, rec)
-            wl = struct.pack('<i', -1) + bytes(pk.files[pk.league['clubs']][0] for pk in pks) + b'\xff'
+            wconts = {}                          # several continents: the world entry lists them (continent menu
+            for pk in pks:                      # ids from 251 down; names = the game's continents)
+                wconts.setdefault(pk.meta.get('continent', 'europe'), []).append(pk.files[pk.league['clubs']][0])
+            if len(wconts) > 1:
+                ids, cid = [], 251
+                # a continent of more than WCONT_MAX countries (a longer list exits to DOS): its list holds the first
+                # WCONT_MAX - 1 (pack order = the UEFA ranking for Europe) and an OTHER NATIONS entry, a list of the
+                # rest (chained again if needed). Davide 2026-10-16: one list per continent + ALTRE NAZIONI.
+                def take_id():
+                    nonlocal cid
+                    while ct + 4 * cid in fx2 or comp + 4 * cid in fx2 or cid in wmenus or any(
+                            cid == e[0] for v in WCONT_IDS.values() for e in v) or cid in [e[0] for e in ids] or \
+                            any(cid in v for v in NS.values()):     # (a global id: no world may use it)
+                        cid -= 1
+                    _need(cid > WMENU + max(worlds()), f'world {n}: no free continent menu id')
+                    cid -= 1
+                    return cid + 1
+
+                def put_list(lid, entries):
+                    nonlocal at
+                    cl = struct.pack('<i', -1) + bytes(entries) + b'\xff'
+                    p.put(1, at, cl)
+                    p.add_ptr(2, comp + 4 * lid, 1, at)
+                    at = (at + len(cl) + 3) & ~3
+                for c in sorted(wconts, key=CONT_ORDER.index):
+                    files, lid, top = wconts[c], take_id(), True
+                    p.add_ptr(2, ct + 4 * lid, *p.target(2, ct + 4 * CONT_NAT[c]))
+                    while True:
+                        if len(files) <= WCONT_MAX:
+                            put_list(lid, files)
+                            ids.append((lid, files, top))
+                            break
+                        more = take_id()
+                        oname = OTHER_NAMES[lang]
+                        p.add_ptr(2, ct + 4 * more, 2, area.add(bytes((countries.CONTINENT[c],)) + oname + b'\0'
+                                                                + oname + b'\0'))
+                        put_list(lid, files[:WCONT_MAX - 1] + [more])
+                        ids.append((lid, files[:WCONT_MAX - 1], top))
+                        files, lid, top = files[WCONT_MAX - 1:], more, False
+                WCONT_IDS[n] = ids
+                wl = struct.pack('<i', -1) + bytes(x for x, _, top in ids if top) + b'\xff'
+            else:
+                wl = struct.pack('<i', -1) + bytes(pk.files[pk.league['clubs']][0] for pk in pks) + b'\xff'
             p.put(1, at, wl)
             p.add_ptr(2, comp + 4 * wid, 1, at)
             at = (at + len(wl) + 3) & ~3
@@ -1330,11 +2279,14 @@ def patch(p, lang, area, cave):
     if careers:
         site_c, choose = _career_site(p)
         symbols.update({'CAREER_WORLD': (1, cworld), 'CHOOSE': (1, choose), 'CAREERS_N': (0, CAREERS)})
-        src = src.replace('cont_check:', 'cont_check:\n    cmp word [D7REG], CAREERS_N\n    je CONT_WORLD') + CAREER_ASM
+        src = nasmcave.sub(src, 'cont_check:', 'cont_check:\n    cmp word [D7REG], CAREERS_N\n    je CONT_WORLD') + CAREER_ASM
         if worlds():                                      # careerworld.WCONT: the running world's continent
-            src = src.replace('cont_check:', 'cont_check:\n    cmp word [D7REG], 99\n    je CONT_WORLD')
+            src = nasmcave.sub(src, 'cont_check:', 'cont_check:\n    cmp word [D7REG], 99\n    je CONT_WORLD')
         for wid in wmenus:                                # the worlds of the CLASSIC CAREERS list
-            src = src.replace('cont_check:', f'cont_check:\n    cmp word [D7REG], {wid}\n    je CONT_WORLD')
+            src = nasmcave.sub(src, 'cont_check:', f'cont_check:\n    cmp word [D7REG], {wid}\n    je CONT_WORLD')
+        for ids in WCONT_IDS.values():                    # a world's continents and OTHER NATIONS lists
+            for cid, _, _ in ids:
+                src = nasmcave.sub(src, 'cont_check:', f'cont_check:\n    cmp word [D7REG], {cid}\n    je CONT_WORLD')
         if wmenus:
             lvl, nst, csp = _level_site(p)
             symbols.update({'NST': nst, 'CSP': csp, 'WMENU_N': (0, WMENU)})
@@ -1368,7 +2320,15 @@ def patch(p, lang, area, cave):
         import careerworld
         cave = CAREER_CAVE[0]
         careerworld.LANG[0] = lang
-        end = careerworld.patch(p, world_defs(), cave, nasmcave, comp, ct, (2, CAREERS_REC[0]))
+        if multi_ns():
+            careerworld.NS['info'] = dict(NS_INFO, files={n: ns_files(n) for n in worlds()}, base=ns_base(),
+                                          stems={n: ns_stem(n) for n in worlds()}, cworld=cworld, wmenu=WMENU)
+        import sacups
+        wd = world_defs()
+        for w in wd:                                       # the European cups' own names (official ones in a
+            w['cupnames'] = {k: tuple(area.add(x.encode('latin1') + b'\0') - sacups.STR_BASE for x in _cal_short(names))
+                             for k, names in w['cupnames'].items()}   # league-phase world): long, short (calendar)
+        end = careerworld.patch(p, wd, cave, nasmcave, comp, ct, (2, CAREERS_REC[0]))
         _need(end <= cave + CAREER_CAVE_SIZE, f'career world code overflows its pages ({end:#x})')
     return at, [x for i in infos for x in i['classic']] + tleagues
 
@@ -1391,6 +2351,12 @@ def main(argv):
                               f"{' > '.join(str(x.get('teams', 2)) + ' ' + x['type'] for x in c['stages'])}, "
                               f"{'replays + coin toss' if t['coin'] else 'no replays'}")
                         continue
+                    if c['type'] == 'state':
+                        sp = pk.state(c)
+                        print(f"{c['key']}: state championship (id {c['id']}), {len(sp['clubs'])} clubs, stages "
+                              f"{' > '.join(f'{g} x {n}' if g else f'{n} knockout' for g, n, _ in sp['stages'])}"
+                              + (f", fixed calendar {sp['fixture'][2]} days" if sp['fixture'] else ''))
+                        continue
                     n = len(pk.league_clubs) if c['type'] == 'league' else len(pk.bracket(c)['clubs'])
                     print(f"{c['key']}: {c['type']}, {n} clubs")
                 short = [k for k, v in pk.players.items() if len(v) < 16 and pk.kind != 'tourney']
@@ -1399,7 +2365,8 @@ def main(argv):
             for w in world_defs():
                 print(f"== world {w['n']}: from {w['year']}, countries {w['countries']}")
                 for key in ('cc', 'cwc', 'uefa'):
-                    print(f"{key}: {len(w['cups'][key][1])} clubs = {len(w['places'][key])} places + holder; "
+                    print(f"{key}: {len(w['cups'][key][1])} clubs = {len(w['places'][key])} places + "
+                          f"{len(w['cups'][key][1]) - len(w['places'][key])} holder place(s); "
                           f"season 1: {', '.join(pk.clubs[c]['name'] for pk, c in w['clubs'][key])}")
         except PackError as e:
             sys.exit(f'ERROR: {e}')

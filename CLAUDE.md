@@ -68,7 +68,10 @@ SWOSTEST_BUILD=~/swos-mod/c/RELxx/SWOS W8485_BUILD=~/swos-mod/c/RELxx/SWOS pytho
 2. Full harness suite on that build: all PASS.
 3. `VERSION` in `tools/mkpatcher.py`; save the previous published patcher as `orig/old-patchers/patcher-v<prev>.html`;
    `PATCHER_BUILD=c/RELxx python3 tools/mkpatcher.py`; test the page's own code in Node (originals CD/GOG, previous
-   releases and SWOS++ upgrade; outputs = the release build).
+   releases and SWOS++ upgrade; outputs = the release build; every changed DATA file has a page entry). Then the
+   one-click (folder) mode: `node tools/patcher_dirtest.mjs PAGE c/RELxx SCRATCH <prev>` (4 UI languages, CD / GOG /
+   from the CD / SWOS++ / re-run / wrong folder / upgrade from the previous release): ALL OK.
+   Also before a release: `notes/CONVENTIONS.md` rules hold; career_20seasons PASS.
 4. Notes (`release/notes-x.md`), README EN/IT, manual + `mkdocs.py`, `notes/STATUS.md`.
 5. With Davide's ok: merge to main, push, `gh release create vX release/swos-9697-mod-patcher.html --notes-file ...`.
 6. If asked: Davide's MiSTer and the 12bit packages (procedure in `~/swos-mod/internal/12bit-packages.md`).

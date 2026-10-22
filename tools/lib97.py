@@ -107,14 +107,39 @@ nc_bye:                                 ; replaces `mov esi, [A5]` before the ro
     shr eax, 1
     mov [NCW + 4Fh], ax                 ; round 1's matches ([4Fh], [51h], as obj1 0x16711 sets N / 2)
     mov [NCW + 51h], ax
-    add eax, ebx                        ; round 2's clubs (a power of 2): rounds = 1 + log2 of it ([59h])
+    add eax, ebx                        ; round 2's clubs: rounds = 1 + log2 of it rounded up ([59h]; a power of 2
+    dec eax                             ; as the game's cups, else a later bracket of the hook's: dplay's Serie C)
     mov ecx, 1
 .r:
     inc ecx
     shr eax, 1
-    cmp eax, 1
-    ja .r
+    jnz .r
+    cmp byte [esi + 1], 0FFh            ; (a hook's entry, gplay's contest: its rounds at +4)
+    jne .rn
+    movzx ecx, byte [esi + 4]
+.rn:
     mov [NCW + 59h], cx
+    mov esi, [A5]                       ; the rounds' legs / extra time / penalties words from the header's round
+    xor edx, edx                        ; bytes (+0Eh) for all of them: the game decodes as many as its halving of
+.rb:                                    ; the clubs gives (6 clubs: 2 of 3)
+    mov al, [esi + 0Eh + edx]
+    test al, al
+    jz .rbx
+    movzx ebx, al
+    shr ebx, 6
+    mov [NCW + 65h + edx * 2], bx
+    movzx ebx, al
+    shr ebx, 4
+    and ebx, 3
+    mov [NCW + 71h + edx * 2], bx
+    movzx ebx, al
+    shr ebx, 2
+    and ebx, 3
+    mov [NCW + 7Dh + edx * 2], bx
+    inc edx
+    cmp edx, ecx
+    jb .rb
+.rbx:
     mov ecx, 12                         ; the cup's dates ([333h], the table +337h) again for those rounds
     mov esi, PREG                       ; (cseg_2740F, which uses the game's D0..A3: kept)
 .p:
@@ -172,9 +197,21 @@ dt_find:                                ; al = contest id, ecx = clubs of the ro
     mov [NC_RD], ah                     ; rounds in order, world filter records [1, 0, w])
     mov edx, [NC_DTAB]
     mov byte [NC_DW], 0
+%if CF_ON
+    mov word [NC_DC], 0
+%endif
 .f:
     cmp byte [edx], 0
     je .no
+%if CF_ON
+    cmp byte [edx], 2                   ; [2, file, ordinal]: the next draws only for a contest whose first club is
+    jne .cf                             ; that one (statespec: several state championships share one id; [2, 0, 0]:
+    mov bx, [edx + 1]                   ; all), as historic hist_draw's CF rule
+    mov [NC_DC], bx
+    add edx, 3
+    jmp .f
+.cf:
+%endif
     cmp byte [NC_WDON], 0
     je .rec
     cmp byte [edx], 1
@@ -196,6 +233,16 @@ dt_find:                                ; al = contest id, ecx = clubs of the ro
     pop eax
     jne .n
 .w:
+%if CF_ON
+    cmp word [NC_DC], 0
+    je .wc
+    push eax
+    mov ax, [NCW + 24Dh]                ; the contest's first club (its team words' row 0)
+    cmp ax, [NC_DC]
+    pop eax
+    jne .n
+.wc:
+%endif
     cmp byte [NC_RD], 0                 ; this cup's k-th entry = its round k
     je .k
     dec byte [NC_RD]
@@ -263,6 +310,11 @@ nc_adv:                                 ; replaces `call 0x194A4` in the knockou
 .fx:
     mov ecx, [NC_W]
     add ecx, [NC_B]                     ; the next round's clubs
+    cmp dword [NC_DPP], 0               ; dplay's play-off: its own bracket (dplay.dp_perm)
+    je .ndp
+    call [NC_DPP]
+    jnc .set
+.ndp:
 %if FD_ON
     call nc_first
     jc .rnd
@@ -313,10 +365,79 @@ nc_adv:                                 ; replaces `call 0x194A4` in the knockou
 .x:
     popad
     ret
+cal_noreplay:                           ; al = a slot: its calendar entries of type 3 (a replay's day) removed - a
+    pushad                              ; knockout whose level ties are decided without a replay (gplay / dplay: the
+    mov [CNR_SLOT], al                  ; better placed advances, rule 10) had replay dates in the calendar (Davide's
+    movzx ecx, word [CAL - 4]           ; TEST 8: 'D C PLAY-OFF S F REPLAY'); the entries after it move down, the
+    mov edi, CAL                        ; count and the current entry's offset follow
+.l:
+    test ecx, ecx
+    jz .x
+    movzx edx, word [edi + 2]
+    test edx, edx
+    jz .x
+    mov al, [CNR_SLOT]
+    cmp [edi], al
+    jne .n
+    cmp byte [edi + 8], 3
+    jne .n
+    push ecx                            ; the bytes after it: the next ecx - 1 entries
+    lea esi, [edi + edx]
+    mov ebx, esi
+    xor ebp, ebp
+    dec ecx
+.s:
+    test ecx, ecx
+    jz .m
+    movzx eax, word [ebx + 2]
+    test eax, eax
+    jz .m
+    add ebp, eax
+    add ebx, eax
+    dec ecx
+    jmp .s
+.m:
+    push edi
+.c:
+    test ebp, ebp
+    jz .cd
+    mov al, [esi]
+    mov [edi], al
+    inc esi
+    inc edi
+    dec ebp
+    jmp .c
+.cd:
+    pop edi
+    pop ecx
+    dec word [CAL - 4]
+    mov eax, edi
+    sub eax, CAL
+    movzx ebx, word [CAL_CUR]
+    cmp ebx, eax
+    jbe .k
+    sub word [CAL_CUR], dx
+.k:
+    dec ecx                             ; (the next entry is at edi now)
+    jmp .l
+.n:
+    add edi, edx
+    dec ecx
+    jmp .l
+.x:
+    popad
+    ret
+CNR_SLOT: db 0
+
 nc_adv_call:
     jmp C194A4                          ; (chain_adv: the call's target after careerworld.euro_draw hooked it)
 
 bye_find:                               ; al = contest id, cx = its clubs -> CF = 0, esi = its BYE_TAB entry
+    cmp dword [NC_BYEP], 0              ; (gplay.gp_bye first: a running play-off of its own)
+    je .tab
+    call [NC_BYEP]
+    jnc .r
+.tab:
     mov esi, BYE_TAB                    ; (id, world, clubs, byes); world 0 = any (one-world builds: ids unique)
     mov edx, BYE_NT
 .l:
@@ -339,6 +460,7 @@ bye_find:                               ; al = contest id, cx = its clubs -> CF 
 %endif
 .ok:
     clc
+.r:
     ret
 .n:
     add esi, 4
@@ -437,10 +559,15 @@ NC_B: dd 0
 NC_W: dd 0
 NC_T: times 64 db 0
 NC_DTAB: dd 0                           ; (chain_adv: historic's draw table)
+NC_DPP: dd 0                            ; (dplay.dp_perm, or 0)
+NC_BYEP: dd 0                           ; (gplay.gp_bye, or 0)
 NC_WREC: dd 0                           ; (chain_adv: careerworld.w_rec)
 NC_WDON: db 0
 NC_DW: db 0
 NC_RD: db 0
+%if CF_ON
+NC_DC: dw 0                             ; (dt_find: the first-club filter of the records being read, 0 = none)
+%endif
 '''
 
 
@@ -504,7 +631,10 @@ def chain_adv(p):
 
 def patch(p, cave, fin_pre):
     import mkseason
+    import dplay
     bc = [(0xC3, 0, 15, 1)] + mkseason.bye_cups()           # historic.FA_ID: FA Cup 1871-72 (15 clubs, 1 bye)
+    if mkseason.worlds():
+        bc += dplay.bye_cups(mkseason.dplay_tables())        # the Serie B play-off (the 3rd and 4th wait)
     assert all(0 < b and n <= 255 and (n - b) % 2 == 0 for _, _, n, b in bc), bc
     bw = mkseason.multi_ns() and any(w for _, w, _, _ in bc)  # several worlds: a world's cup ids are its own
     fd = bool(mkseason.worlds())                             # career worlds: their cups' fixed draws (first season)
@@ -514,6 +644,8 @@ def patch(p, cave, fin_pre):
         slt = cws['slt']
     """Returns (cave end, lib_pre offset) — lib_pre is called by historic.hist_draw."""
     a0, bye_call, c2573c, diycopy, cal_site, nc_site, adv_site, c194a4, c1740f, c27f84 = _sites(p)
+    ps = dplay._play_sites(p, sacups.regs(p.le.obj_bytes(1)))   # (the career calendar: cal_noreplay)
+    import historic
     symbols = {'DIYCOPY': (2, diycopy), 'LIB_ID': (0, sacups.LIB_ID), 'LIB_N': (0, sacups.LIB_N),
                'LIB_GROUPS': (0, LIB_GROUPS), 'CSEG_2573C': (1, c2573c), 'A0': (2, a0), 'A3': (2, a0 + 12),
                'BYE_NT': (0, len(bc)), 'BYE_BYTES': (0, 'db ' + ', '.join(str(x) for e in bc for x in e)),
@@ -521,7 +653,9 @@ def patch(p, cave, fin_pre):
                'C194A4': (1, c194a4), 'C1740F': (1, c1740f), 'PREG': (2, a0 - 32), 'C27F84': (1, c27f84),
                'BW_ON': (0, int(bw)), 'WORLDB': (slt[0], slt[1] + careerworld.WORLD_BYTE) if bw or fd else (0, 0),
                'FD_ON': (0, int(fd)), 'SEASONPLAYING': (2, cws['season']) if fd else (0, 0),
+               'CF_ON': (0, int(historic.cf_on())),       # statespec's [2, file, ordinal] records in the draw table
                'FIN_PRE': (1, fin_pre),
+               'CAL': (2, ps['cal']), 'CAL_CUR': (2, ps['cal_cur']),
                'CAL_BYTES': (0, 'db ' + ', '.join(str(b) for b in calendar_bytes()))}
     code, fix = nasmcave.assemble(ASM, cave, symbols)
     labels = nasmcave.labels(ASM, cave, symbols)
@@ -530,7 +664,9 @@ def patch(p, cave, fin_pre):
         p.add_ptr(1, cave + off, tobj, toff)
     p.put(1, bye_call + 1, struct.pack('<i', labels['lib_bye'] - (bye_call + 5)))
     LABELS.update(nc_adv=labels['nc_adv'], nc_adv_call=labels['nc_adv_call'], adv_site=adv_site,   # (chain_adv)
-                  NC_DTAB=labels['NC_DTAB'], NC_WDON=labels['NC_WDON'], NC_WREC=labels['NC_WREC'], fd=fd)
+                  NC_DTAB=labels['NC_DTAB'], NC_WDON=labels['NC_WDON'], NC_WREC=labels['NC_WREC'], fd=fd,
+                  NC_T=labels['NC_T'], NC_DPP=labels['NC_DPP'], NC_BYEP=labels['NC_BYEP'],
+                  cal_noreplay=labels['cal_noreplay'])
     p.remove(1, nc_site + 2)                                      # mov esi, [A5] (6 B) -> call nc_bye; nop
     p.put(1, nc_site, b'\xe8' + struct.pack('<i', labels['nc_bye'] - (nc_site + 5)) + b'\x90')
     p.remove(1, cal_site + 2)                                     # mov esi, [A0] (6 B) -> call lib_cal; nop
@@ -538,5 +674,6 @@ def patch(p, cave, fin_pre):
     print(f'exe: Libertadores 1997: bye call obj1+{bye_call:#x} (lib_bye {labels["lib_bye"]:#x}, BYE_TAB {len(bc)}, '
           f'national cups obj1+{nc_site:#x}, round advance obj1+{adv_site:#x}), '
           f'calendar obj1+{cal_site:#x}, code @ obj1+{cave:#x} '
-          f'(diyFileBufferCopy obj2+{diycopy:#x})')
+          f'(diyFileBufferCopy obj2+{diycopy:#x}); nc_bye {labels["nc_bye"]:#x}'
+          + (f' (.x {labels.get("nc_bye.x", 0):#x} .y {labels.get("nc_bye.y", 0):#x})' if labels.get('nc_bye.x') else ''))
     return (cave + len(code) + 3) & ~3, labels['lib_pre']

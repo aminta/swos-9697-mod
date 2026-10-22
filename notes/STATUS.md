@@ -2125,3 +2125,37 @@ Left for 2.5: (a) NSL/NSSL finals series (type-1 design) or declare them postpon
   Not reproduced on Marco's exact setup (a SWOSPP.XML with menuMusic=1 already played in DOSBox-X); notes ask him.
 - Build c/REL336: SWOS IT 372524d1 EN e00c5dc4 FR 49095d32 DE e3ca0b32; gog IT 0b0d9628 EN 17ce221f FR 32fdb905 DE fb0a7340;
   SWOS++ 6ccc9e51. Suite 24/24 PASS (runs336 + runs336b). Patcher md5 45d7b998: Node OK.
+
+## 4.0 (2026-10-22): World 2026-27 career (release candidate rc12)
+- Build c/REL40rc12 from world-2025-26 d439507 (later commits: docs / harness only), data
+  internal/world2526/world5tm-rel40-winnames-1031, recipe internal/release-tools/rc12.sh (buildrel.sh exes + patcher,
+  Node, dirtest). SWOS IT bff1b4bc EN 1a0fa3d1 FR d6d385d2 DE c835458d; gog IT ace0dc56 EN 923ec9d1 FR 8edfe615
+  DE b20207a3; TEAM.020 bd44208c; SWOS++ ea0b1c0a / gog a21e52bf. Patcher d0947893: Node 339 runs / 315 outputs OK,
+  DATA coverage 0 missing; patcher_dirtest ALL OK. 486 check: the C modules (-march=i486) disassembled: no cmov /
+  long nop / ud2 / cpuid; nasm pads with 1-byte NOPs.
+- rc11 -> rc12: the season-end progress line (qeprogress 8587470); the national-cup listing rule for clubs not in a
+  cup (cuplist); the last season's WINNERS page = the division played in (winners-lastdiv); European play-off
+  entrants green P.OFF with a 6-box legend (4.0-europo); VISUAL. COMPETIZ. titles fit their 160-px buttons (vcfit rev 2).
+- rc7 -> rc11: the load-trailer fix (CONVENTIONS 19) + asserts; the CONF legend without its inner frame; lib97 dt_find
+  skips statespec's filter records (35 world-5 cups' fixed first-season draws); the access list's LIE row by
+  association; the WINNERS page (live + WN season-end titles saved, PLAYOFF(S) - <title>, MLS conferences, the Poule
+  Scudetto); the quiet season end (other countries simulated unseen); FR / DE match-title leg words within 40 chars;
+  the patcher's Program Files hint; nasmcave.sub everywhere (asserted asm rewrites).
+- Declared for 4.0 (fix in 4.0.1): the national cups keep their 2026-27 entrants every season; an odd Serie D group's club resting on the last match day does not play its Poule /
+  play-off (simulated); FILL.256 after a job letter; one European place may go to another association's club.
+- The patcher's DATA coverage check: the off-file pools RS5*.DAT and the guests' TMW5.191-194 were missing from the
+  rc2 / rc3 pages; one-click mode patcher_dirtest.mjs (4 UI languages, CD / GOG / from the CD / SWOS++ / re-run /
+  wrong folder / upgrade over 3.3.6).
+- Tests (squads): rc5 / rc6 / rc7 / rc10 / rc11 sets; season 3 of HAMRUN / SCHIO / BOCA; career_20seasons; world_full_arg;
+  world_ca_crc; TEST 8 regressions; transfer smoke; the 5-language smoke; Davide's TEST 8 saves (PHILA / MESTRE /
+  PAULO) and real 3.3.6 saves (1984-85 LIVERPOOL, 1996-97 JUVENTUS) loaded on the release exe and played on.
+  world_full_uefa = KNOWN FAIL 4.0 (one European place may go to another association's club in some seasons;
+  declared, fix in 4.0.1).
+- Fixed on the way: ACCETTA OFFERTA freeze (xtra.py left the squad order empty: offerfix 8ac0e33); the Coppa D club's
+  stale slot-2 winner after a load (4.0-slot2clr); orderfix reverted (engine.after_process's trailer path traps the
+  next season end even with a bare ret: fix in 4.0.1). Careers started on b8 / b9 freeze on a sale: new careers.
+- 4.0.1 queue: the after_process trailer path; the European places (uefaq glue / holders, UQ_IN unreadable at the
+  breakpoint); Lib 3rd -> Sud (ct_gend never finds the club: place 0); ACLE / ACGL played; FILL.256 after a job letter;
+  package 6's per-league GP_SS banks + trailer (a) + exact Peru / Colombia / Uruguay (sa401) with the reload card
+  (D8CAA[0] = 0x532CC2 after a mid-season load); Mexico (mex401c); Paraguay 44 days parked; 4.0-stagedec 1543af9
+  (defensive); CRC's stage-title runner-up = the champion; the IC test forcing (own confederation's slot).

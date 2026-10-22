@@ -140,7 +140,8 @@ if __name__ == '__main__':
     import sys
     sys.path.insert(0, os.path.dirname(__file__))
     out = build(os.path.join(os.path.dirname(__file__), '..', 'orig', 'DATA'))
+    NUL = b'\0'                                    # (no backslash inside an f-string: Python < 3.12)
     for i in CLUBS:
         r = out[2 + i * TEAM_SIZE:2 + (i + 1) * TEAM_SIZE]
         print(r[5:22].split(b'\0')[0].decode(), '|', r[36:59].split(b'\0')[0].decode(), '|',
-              ', '.join(f"{r[76 + k * 38 + 3:76 + k * 38 + 26].split(b'\\0')[0].decode()}({CODES[r[76 + k * 38]]})" for k in range(16)))
+              ', '.join(r[76 + k * 38 + 3:76 + k * 38 + 26].split(NUL)[0].decode() + f"({CODES[r[76 + k * 38]]})" for k in range(16)))

@@ -30,6 +30,14 @@ def _nasm(src, org, symbols, bases):
         return open(out, 'rb').read()
 
 
+def sub(src, old, new, n=1):
+    """src with old replaced by new; old must occur exactly n times (None: at least once). A rewrite whose pattern is
+    gone (changed code, an earlier rewrite) fails the build instead of passing silently (CONVENTIONS 19)."""
+    c = src.count(old)
+    assert (c >= 1) if n is None else c == n, (old[:60], c, n)
+    return src.replace(old, new)
+
+
 def assemble(src, org, symbols):
     """Return (code, [(offset_in_code, target_obj, target_off)]) for code placed at obj1:org."""
     base = _nasm(src, org, symbols, {1: 0, 2: 0})

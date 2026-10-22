@@ -24,7 +24,9 @@ COPY = {'cc': 79, 'cwc': 92, 'uefa': 92}           # in-save struct copies
 SMALL = {'cc': 16, 'cwc': 32, 'uefa': 32}           # what fits the in-save copies and the 80 records
 MAX = {'cc': 32, 'cwc': 32, 'uefa': 64}             # big worlds (euro 128): a type-1 cup holds 64 clubs at most
 TOTAL_MAX = 128
-BIGCOPY = {'cc': 92, 'cwc': 92, 'uefa': 160}        # CWC layout: 22 + rounds + 2 B per club
+BIGCOPY = {'cc': 92, 'cwc': 92, 'uefa': 160}        # CWC layout: 22 + rounds + 2 B per club (W1 block)
+BIGROOM = {'cc': 120, 'cwc': 120, 'uefa': 160}      # room of each cup buffer (160 apart); a league-phase cup (120 B)
+                                                    # keeps bytes 92..119 after the W1 records (old saves unchanged)
 WORLD_BYTE = 1845                                    # someLeaguesTable index (+1 = balance byte)
 REC = 52                                             # world record: 8 dwords, 5 words, year byte, pad, 2 dwords
 # Big world (more than 80 European clubs or a cup above SMALL): the 128 records, the 3 cups and the 3 working place
@@ -34,6 +36,31 @@ REC = 52                                             # world record: 8 dwords, 5
 # C7 trailer: a world career caches ~92 teams, so the 68400-B room is nearly full.) Normal careers never take these
 # paths.
 BSS = [None]
+SITES = {}                                           # sites(p) of the last careerworld.patch
+# World 2025-26 (phase 0): a country may hold more than 93 clubs (Italy A + B + C = 100): teamFileBuffer (64014 B,
+# LoadFile reads the whole file there before checking 64000 -> FatalError) moves to the obj2 tail, 176128 B (257 clubs:
+# Italy 2026-27 = A + B + C + D = 256, the most one file can hold: team word = file | ordinal << 8).
+B_TFB, TFB_SIZE = 0x31000, 0x2B000
+# The game's team cache g_selectedTeams holds 100 teams (68400 B) and the pseudo registers D0..A6 follow it: a 101st
+# team overwrites them (A0 = a player name -> LoadFile on garbage -> exit to DOS; world 2026-27: an English
+# 2nd-division club's 64-club cup + a 36-club league phase). A big world's cache moves to B_SEL (SEL_N teams, every
+# fixup into the old one retargeted, big_sel_buffer); the .CAR keeps its layout (fixed part + N records + trailer), so
+# SaveCareerFile writes it from B_STAGE (fixed part copied before the records) and LoadCareerFile reads it there
+# (trailer.LOADCOPY -> w_loadcopy spreads it). Old saves (N <= 100) load unchanged.
+SEL_N = 160
+B_SEL, SEL_ROOM = 0x5C000, SEL_N * TEAM_SIZE + 0x3800          # (+ the trailer's blocks after the records: the main
+                                                               # one + the engine block 'EN': GP, GS, PR, RI, SS, CD ... ~9-10 KB)
+B_STAGE = 0x7B000                                    # 95153 (fixed part) + SEL_ROOM
+# UEFA qualifying rounds (uefaq.py, league-phase worlds only: BSS_SIZE grows then): the C code's .bss, then the
+# season end's copies of the clubs' records (55 associations x (top 9 + cup winner) + 3)
+B_UQ, UQ_BSS, UQ_RECS = 0xB1000, 0x7000, 563
+# 3.3.3 (main): a big world's new career uses the big cache too; its saves carry BIGC (the last dword of the
+# 80-record area, after the W1 block); a save without BIGC loads into the game's cache, or into the big one when
+# it caches more than UPGRADE_N teams or belongs to a league-phase world (this branch's saves before the merge)
+UPGRADE_N = 90
+BIGC = 0x43474942                                    # 'BIGC'
+BIGC_AT = 80 * TEAM_SIZE - 4                         # in the fixed part's 80-record area (tmdFileBuffer)
+BSS_SIZE = B_UQ                                      # (big worlds; + the qualifying rounds' area in league-phase ones)
 B_TMD, B_CUPS, B_LISTS = 0, 128 * TEAM_SIZE, 128 * TEAM_SIZE + 3 * 160      # cups 160 B apart, lists 64 / 64 / 96
 # The game's team cache g_selectedTeams holds 100 teams (68400 B) and the pseudo registers D0..A6 follow it: a 101st
 # team overwrites them (A3 / D0 garbage -> LoadTeamFile builds data/team.254 -> exit to DOS; world 1984-85: an English
@@ -45,28 +72,28 @@ B_TMD, B_CUPS, B_LISTS = 0, 128 * TEAM_SIZE, 128 * TEAM_SIZE + 3 * 160      # cu
 # save without BIGC (3.0 .. 3.3.2) loads into the game's cache as before, or into the big one when it caches more than
 # UPGRADE_N teams (then saved with BIGC). After a load only selTeamsPtr points into the cache (scan of the game's memory,
 # W84E_TEAM254.CAR), and w_pcf sets it.
-SEL_N, UPGRADE_N = 160, 90
-B_SEL, SEL_ROOM = 0x31000, SEL_N * TEAM_SIZE + 0x1000          # (+ the trailer's block after the records)
-B_STAGE = 0x4D000                                    # 95153 (fixed part) + SEL_ROOM
-BSS_SIZE = 0x80000
-BIGC = 0x43474942                                    # 'BIGC'
-BIGC_AT = 80 * TEAM_SIZE - 4                         # in the fixed part's 80-record area (tmdFileBuffer)
+# (world-2025-26 keeps its own offsets above: B_TFB, B_SEL 0x5C000, B_STAGE 0x7B000, B_UQ.)
 # SaveSelectedTeams / RestoreSelectedTeams park the career's team cache while a contest is simulated (season end):
 # the game keeps only its first 32 records (21888 B in DOS memory at dosMemOfs60c00h), the simulated contest reuses
 # the cache, so records 32+ come back as the simulated clubs (a 64-club national cup lost its second half -> the
-# season end's VerifyTeamLoaded on a finalist -> exit to DOS; world 1984-85, 2026-10-10). A big world parks all 100
-# records (count word + 68400 B, or SEL_N x 684 B in the big cache) at B_SAVE.
+# season end's VerifyTeamLoaded on a finalist -> exit to DOS; world 1984-85, 2026-10-10). A big world parks all its
+# records (count word + SEL_N x 684 B) at B_SAVE.
 B_SAVE, SAVE_SIZE = 0x16000, 2 + SEL_N * TEAM_SIZE
-assert B_LISTS + 224 <= B_SAVE and B_SAVE + SAVE_SIZE <= B_SEL and B_SEL + SEL_ROOM <= B_STAGE
-assert B_STAGE + 95153 + SEL_ROOM <= BSS_SIZE
+assert B_LISTS + 224 <= B_SAVE and B_SAVE + SAVE_SIZE <= B_TFB and B_TFB + TFB_SIZE <= B_SEL
+assert B_SEL + SEL_ROOM <= B_STAGE and B_STAGE + 95153 + SEL_ROOM <= B_UQ
 VAROFF = [4, 22, 25] + [76 + 38 * k + x for k in range(16) for x in (1, 27, 33, 34, 35, 36)]
 WMARK = 0x3157                                       # 'W1'
-WBLOCK = 2 + sum(BIGCOPY.values()) + TOTAL_MAX * (2 + len(VAROFF))   # in the fixed part's 80-record area
+WBLOCK = 2 + sum(BIGCOPY.values()) + TOTAL_MAX * (2 + len(VAROFF)) + 2 * 28   # in the fixed part's 80-record area
 assert WBLOCK <= BIGC_AT
 LABELS = {}
 
 
 def big(w):
+    import bigtables
+    if bigtables.world_maxg(w['n']) > 2000:
+        return True                                 # global numbers 2000+ (bigtables: saved in the 80-record area)
+    if any(w['cups'][k][0] == LP_ROUNDS for k in ('cc', 'cwc', 'uefa')):
+        return True                                 # league-phase cups: 120-B structs in the obj2 tail
     tot = sum(len(w['cups'][k][1]) for k in ('cc', 'cwc', 'uefa'))
     return tot > 80 or any(len(w['cups'][k][1]) > SMALL[k] for k in SMALL)
 NEW_NATS = {'it': ['RDT', 'URS', 'RFT'], 'en': ['GDR', 'URS', 'FRG'],   # 3.1: player nationalities after the game's
@@ -118,6 +145,15 @@ w_dcopy:                                ; ecx dwords esi -> edi
 w_load1:                                ; replaces the first `call LoadSomeEuroCup` (euroCup) in InitCareer
     push esi
     push eax
+%ifdef NS
+    movzx eax, byte [WSEL]              ; several worlds: the club's country in the namespace the selector showed
+    movzx esi, byte [WCUR]
+    shl esi, 5
+    bt [WNSB + esi], eax
+    jnc .none
+    mov al, [WCUR]
+    jmp .world
+%else
     mov al, [WSEL]
     mov esi, WMAP                       ; country, world pairs + FF
 .l:
@@ -127,14 +163,20 @@ w_load1:                                ; replaces the first `call LoadSomeEuroC
     je .found
     add esi, 2
     jmp .l
+%endif
 .none:
     mov byte [SLT + WORLD_BYTE], 0
     mov byte [SLTCOPY + WORLD_BYTE], 0
+%ifdef NS
+    xor eax, eax                        ; a 1996-97 career: the base namespace
+    call w_ns_set
+%endif
     pop eax
     pop esi
     jmp LOADEURO
 .found:
     mov al, [esi + 1]
+.world:
     mov [SLT + WORLD_BYTE], al          ; also in leaguesTableCopy: InitializeNewSeason (cseg_8CC4E) copies it back
     mov [SLTCOPY + WORLD_BYTE], al      ; over someLeaguesTable, like the 'S3' mark (trailer.set_mark)
     neg al
@@ -179,11 +221,11 @@ w_cups:                                 ; replaces `mov word [teamsLoaded], 0` a
 .big:                                   ; big world: the cups live in the obj2 tail (the copies stay unused)
     mov esi, [ebx]
     mov edi, WCC
-    mov ecx, 92
+    mov ecx, 120                        ; (BIGROOM: a league-phase cup is 120 B)
     call w_copy
     mov esi, [ebx + 4]
     mov edi, WCWC
-    mov ecx, 92
+    mov ecx, 120
     call w_copy
     mov esi, [ebx + 8]
     mov edi, WUEFA
@@ -294,6 +336,84 @@ w_copy:                                 ; ecx bytes esi -> edi (no string instru
 W_YEAR w_year96, 1996
 W_YEAR w_year95, 1995
 
+w_noaway:                               ; ZF = 1 in a career of a world from 2021-22 on (UEFA abolished away goals in
+    push ebx                            ; 2021-22, and every 2026-27 two-legged round's rule has none: the data's
+    cmp word [GAMETYPE], 4              ; two_legs_2627.json); 1984-85 / 1996-97 keep them (real then)
+    jne .away
+    call w_rec
+    jz .away
+    cmp byte [ebx + 42], 121            ; (the world's first year - 1900)
+    jb .away
+    xor ebx, ebx                        ; (ZF = 1)
+    pop ebx
+    ret
+.away:
+    or esp, esp                         ; (ZF = 0)
+    pop ebx
+    ret
+
+w_away1:                                ; replaces UpdateTime's `cmp word [playing2ndGame], 1` before `jz
+    call w_noaway                       ; @@2nd_game_ended` (90': level on the night, the away goals decide)
+    jz .no
+    cmp word [P2G], 1
+    ret
+.no:
+    or esp, esp                         ; (no away goals: not taken -> extra time / penalties as the round says)
+    ret
+
+w_away2:                                ; replaces `mov ax, [playing2ndGame]; or ax, ax` before `jz @@check_penalties`
+    call w_noaway                       ; (after extra time)
+    jz .no
+    mov ax, [P2G]
+    or ax, ax
+    ret
+.no:
+    xor ax, ax                          ; (no away goals: taken -> penalties)
+    ret
+
+w_away3:                                ; replaces cseg_2AE97's `cmp word [esi+5Dh], 1` (a simulated two-legged tie
+    call w_noaway                       ; level on aggregate after 90': the contest's away-goals flag)
+    jz .no
+    cmp word [esi + 5Dh], 1
+    ret
+.no:
+    or esp, esp                         ; (no away goals: jnz taken -> extra time / penalties)
+    ret
+
+w_away4:                                ; replaces its `mov ax, [esi+5Dh]; or ax, ax` (after extra time)
+    call w_noaway
+    jz .no
+    mov ax, [esi + 5Dh]
+    or ax, ax
+    ret
+.no:
+    xor ax, ax                          ; (no away goals: jz taken)
+    ret
+
+w_pfx:                                  ; replaces cseg_95C18's `mov word [D0], 1` (a contest not in the game's
+    push esi                            ; European list gets '<country> ' before its name): a contest of a country
+    push eax                            ; with no name (a world's continental cups) gets none either - it showed
+    mov esi, [A5R]                      ; ' UEFA CHAMPIONS LEAGUE' / ' COPPA UEFA' (the prefix: the country entry's
+    movzx eax, byte [esi + 2]           ; second string)
+    mov esi, CTAB0
+    mov esi, [esi + eax * 4]
+    inc esi
+.s:
+    mov al, [esi]
+    inc esi
+    test al, al
+    jnz .s
+    cmp byte [esi], 0
+    pop eax
+    pop esi
+    je .none
+    mov word [D0R], 1
+    ret
+.none:
+    add esp, 4                          ; (straight back to cseg_95C18's caller with ZF = 1: no prefix)
+    xor ax, ax
+    ret
+
 w_mrec:                                 ; replaces `add word [D1], 1996; add word [D2], 97` in FillManagementRecordInfo
     push ebx                            ; (REGISTRO GESTIONE: D1 = D2 = the shown season's number from the career's
     call w_rec                          ; start): in a world its first season is the world's first year, not 1996
@@ -381,8 +501,41 @@ w_tfile:                                ; replaces `and dword [D0], 0FFh` before
     call w_tmap
     mov [D0R], eax
     mov [WTPHYS], al                    ; the physical file now in teamFileBuffer
+%ifdef NS
+    call w_ns_stem
+%endif
+%ifdef GUESTS
+    call w_guest
+%endif
     pop eax
     ret
+
+%ifdef GUESTS
+w_guest:                                ; eax = the physical team file: a guest file (guests.py, the continental cups'
+    pushad                              ; clubs outside the world) -> someLeaguesTable at its clubs' global numbers
+    push es                             ; cleared (they alias 1996-97 files the world never loads: SetLeagueNumbers
+    push ds                             ; adds nothing to their records)
+    pop es
+    cld
+    mov esi, GUESTT
+.l:
+    cmp byte [esi], 0
+    je .r
+    cmp [esi], al
+    je .z
+    add esi, 5
+    jmp .l
+.z:
+    movzx edi, word [esi + 1]
+    movzx ecx, word [esi + 3]
+    add edi, SLT
+    xor eax, eax
+    rep stosb
+.r:
+    pop es
+    popad
+    ret
+%endif
 
 w_ntw:                                  ; ebx = this career's world nationalTeams record (WNATT), 0 = the game's
     xor ebx, ebx
@@ -782,6 +935,11 @@ w_holders:                              ; replaces `call cseg_92BBF`: in a world
 .w:
     pushad
     mov esi, HOLDTAB                    ; per cup: holder, list start pointer, counter, saved holder record
+    call w_rec
+    mov eax, [ebx]                      ; a world whose Champions Cup is a league phase (2025-26 rules): the
+    cmp byte [eax + 1], 2               ; Europa League winner plays the Champions League, the Conference League
+    jne .c                              ; winner the Europa League
+    mov esi, HOLDTAB_LP
 .c:
     mov ebx, [esi]
     cmp ebx, -1
@@ -820,6 +978,26 @@ w_holders:                              ; replaces `call cseg_92BBF`: in a world
     jb .h
     popad
     ret
+
+w_q_fill:                               ; patched to `jmp uq_fill` by uefaq.py
+    ret
+    times 4 nop
+w_ct_fill:                              ; patched to `jmp ct_fill` by conti.py (the other confederations' cups)
+    ret
+    times 4 nop
+w_chk_tot0q:                            ; the record count before the holders: in a league-phase world the
+    call w_q_fill                       ; qualifying rounds' clubs go into the lists first (uefaq)
+    call w_ct_fill                      ; (conti: the other confederations' editions, world-wide)
+    jmp w_chk_tot0
+w_chk_totq:                             ; the last record count check, then (uefaq) the record of the career
+    call w_chk_tot                      ; club's qualifying-tie opponent
+    pushfd
+    call w_q_post
+    popfd
+    ret
+w_q_post:                               ; patched to `jmp uq_post` by uefaq.py
+    ret
+    times 4 nop
 
 w_isholder:                             ; ZF = 1 when word [D0] is one of the three holders or already in a list
     push eax                            ; (a club skipped by one cup must not be taken twice by the next)
@@ -956,11 +1134,183 @@ HOLDTAB:
     dd HOLD_CWC, LIST_CWC, CNT_CWC, BUF_CWC
     dd HOLD_UEFA, LIST_UEFA, CNT_UEFA, BUF_UEFA
     dd -1
+HOLDTAB_LP:
+    dd HOLD_CC, LIST_CC, CNT_CC, BUF_CC
+    dd HOLD_CWC, LIST_CC, CNT_CC, BUF_CWC
+    dd HOLD_UEFA, LIST_CWC, CNT_CWC, BUF_UEFA
+    dd -1
 WVIEW:
     dd VIEWFIRST, -1
     db WCONT, 0xff
 WSEL: db 0
+
+%ifdef NS
+; ---- several worlds: a country namespace per world (numbers 101..251 reused). The rows of world w (NSWT[w]) hold
+; for every namespace number (NSLIST) its countriesTable and competitionsTable entries (obj-tagged offsets) and its
+; teamsCountryNumbers word; WCUR = the world whose rows are in the tables (the base world at start); WNSB = per world a
+; 256-bit set of its team files, named data/<WSTEM>.nnn while that world is current.
+w_ns_set:                               ; al = world (0 = the base world): its namespace into the 3 tables
+    pushad
+    movzx eax, al
+    test eax, eax
+    jnz .w
+    mov al, NSBASE
+.w:
+    cmp al, [WCUR]
+    je .r
+    mov [WCUR], al
+    mov word [TEAMSLOADED], 0           ; teamFileBuffer may hold the other world's file of the same number
+    mov edx, [NSXP]                     ; xtra.py's XTRA_NAMEP (0: no XTRA hook in this build; bound by ns_xtra)
+    test edx, edx
+    jz .nx
+    mov ebx, [NSXDEF]                   ; its own 'data\\xtra.000' for a world named 'team'
+    cmp dword [WSTEM + eax * 4], 'team'
+    je .xs
+    mov cl, [WSTEM + eax * 4 + 3]       ; 'tmwN' -> 'data\\xtwN.000'
+    mov [XNAMEW + 8], cl
+    mov ebx, XNAMEW
+.xs:
+    mov [edx], ebx
+.nx:
+    mov esi, [NSWT + eax * 4]
+    test esi, esi
+    jnz .t
+    mov esi, [NSWT + NSBASE * 4]        ; (a world not in this exe)
+.t:
+    mov edi, NSLIST
+    mov ecx, NSN
+.l:
+    movzx ebx, byte [edi]
+    mov eax, [esi]
+    call w_ns_ptr
+    mov [CTAB + ebx * 4], eax
+    mov eax, [esi + 4]
+    call w_ns_ptr
+    mov [COMPT + ebx * 4], eax
+    mov ax, [esi + 8]
+    mov [TCNT + ebx * 2], ax
+    add esi, 10
+    inc edi
+    dec ecx
+    jnz .l
+.r:
+    popad
+    ret
+
+w_ns_ptr:                               ; eax = tagged offset -> pointer (bit 31: obj2, bit 30: obj1, 0 = none)
+    btr eax, 31
+    jc .o2
+    btr eax, 30
+    jnc .r
+    mov edx, OBJ1Z
+    add eax, edx
+.r:
+    ret
+.o2:
+    mov edx, OBJ2Z
+    add eax, edx
+    ret
+
+w_ns_stem:                              ; eax = physical team file: data/team.nnn, or the current world's stem
+    push esi
+    push edx
+    movzx esi, byte [WCUR]
+    mov edx, 'team'
+    shl esi, 5
+    bt [WNSB + esi], eax
+    jnc .w
+    shr esi, 3
+    mov edx, [WSTEM + esi]
+.w:
+    mov [TEAMNAME + 5], edx
+    pop edx
+    pop esi
+    ret
+
+w_ns_menu:                              ; replaces `and word [D7], 0FFh` at the top of SelectTeamsFinalMenu's list loop:
+    and word [D7R], 0FFh                ; in the CLASSIC CAREERS selector the namespace of the world entry on the path
+    pushad                              ; (countries stack or the list itself), else the base one
+    cmp dword [COMP254], CAREER_WORLD
+    jne .r
+    xor ecx, ecx
+    movzx eax, byte [D7R]
+    call .isw
+    mov esi, CSTACK
+    mov edi, [CSPTR]
+.s:
+    cmp esi, edi
+    jae .d
+    movzx eax, byte [esi]
+    call .isw
+    inc esi
+    jmp .s
+.d:
+    mov eax, ecx
+    call w_ns_set
+.r:
+    popad
+    ret
+.isw:
+    cmp eax, WMENU_N + 1
+    jb .n
+    cmp eax, WMENU_N + NSMAXW
+    ja .n
+    lea ecx, [eax - WMENU_N]
+.n:
+    ret
+
+w_ns_ld:                                ; LoadCareerFile, before the trailer: the save's world namespace (the
+    pushad                              ; team files ProcessCareerFile loads are that world's)
+    mov al, [SLT + WORLD_BYTE]
+    call w_ns_set
+    popad
+    jmp [NSNEXT]
+align 4
+NSNEXT: dd 0
+NSXP: dd 0
+NSXDEF: dd 0
+XNAMEW: db 'data\\xtw0.000', 0
+WCUR: db NSBASE
+%endif
 '''
+
+
+NS = {}                                              # mkseason (several worlds): {'info': namespaces, 'menu_site'}
+
+
+def _ns_sites(p, s):
+    """Namespace symbols: data/team.nnn (obj2), the countries stack of SelectTeamsFinalMenu and its list loop's
+    `and word [D7], 0FFh` (after `mov [countryStackPtr], offset countriesStack`)."""
+    import mkseason
+    d1, d2 = p.le.obj_bytes(1), p.le.obj_bytes(2)
+    k = d2.find(b'data/team.nnn\0')
+    assert k > 0 and d2.find(b'data/team.nnn\0', k + 1) < 0
+    _, _, csp = mkseason._level_site(p)
+    pk = lambda x: re.escape(struct.pack('<I', x))
+    m = _one(rb'\xc7\x05' + pk(csp[1]) + rb'(.{4})\x66\x81\x25' + pk(s['regs']['D7R']) + rb'\xff\x00', d1,
+             'SelectTeamsFinalMenu list loop')
+    NS['menu_site'] = m.start() + 10
+    return {'TEAMNAME': (2, k), 'CSTACK': p.target(1, m.start() + 6), 'CSPTR': csp}
+
+
+def ns_xtra(p, namep):
+    """xtra.py's XTRA_NAMEP (obj1 offset of the dd holding the XTRA file name's address, None without the hook):
+    w_ns_set points it at data\\xtwN.nnn for a world named tmwN, back to its default for the base world."""
+    if not NS.get('info') or namep is None:
+        return
+    p.add_ptr(1, LABELS['NSXP'], 1, namep)
+    p.add_ptr(1, LABELS['NSXDEF'], *p.target(1, namep))
+    print(f'exe: country namespaces: XTRA file names through obj1+{namep:#x}')
+
+
+def ns_load(p, call):
+    """LoadCareerFile's call of the trailer loader (arg97.LOAD_CALL, already wrapped by arg97): w_ns_ld first."""
+    if not NS.get('info'):
+        return
+    tgt = call + 5 + struct.unpack('<i', bytes(p.get(1, call + 1, 4)))[0]
+    p.add_ptr(1, LABELS['NSNEXT'], 1, tgt)
+    p.put(1, call + 1, struct.pack('<i', LABELS['w_ns_ld'] - (call + 5)))
+    print(f'exe: country namespaces: career load obj1+{call:#x} -> w_ns_ld -> obj1+{tgt:#x}')
 
 
 def _one(pat, d, what):
@@ -1025,8 +1375,8 @@ def sites(p):
              rb'\x66\x83\x3d(.{4})\x10\x75.\x66\x83\x3d(.{4})\x20\x75.\x66\x83\x3d(.{4})\x20\x75.'
              rb'\x66\x83\x3d' + cfb + rb'\x50\x75', tail, 'checks')
     b = s['list'] + m.start()
-    s['chk'] = [(b, 'w_chk_tot0'), (b + 29, 'w_chk_cc'), (b + 39, 'w_chk_cwc'), (b + 49, 'w_chk_uefa'),
-                (b + 59, 'w_chk_tot')]
+    s['chk'] = [(b, 'w_chk_tot0q'), (b + 29, 'w_chk_cc'), (b + 39, 'w_chk_cwc'), (b + 49, 'w_chk_uefa'),
+                (b + 59, 'w_chk_totq')]
     s['cnt'] = [struct.unpack('<I', m.group(k))[0] for k in (1, 2, 3)]
     # cseg_936C0: the static place tables are 0x42 / 0x91 / 0xE0 after the original seasonEndList (obj2)
     o2 = countries.tables(p)[2]
@@ -1069,7 +1419,30 @@ def sites(p):
     s['season'] = struct.unpack('<I', m.group(1))[0]
     s['y96'] = _one(rb'\x66\x81\x3d' + pk(D0) + rb'\xcc\x07', d1, '1996').start()
     s['y95'] = _one(rb'\x66\x81\x3d' + pk(D0) + rb'\xcb\x07', d1, '1995').start()
+    # cseg_95C18 (a contest in the game's European list dseg_C7136: no '<country> ' prefix in its name): the not-found
+    # tail `mov word [D0], 1; mov ax, 1; or ax, ax; retn` after `cmp [A5], eax; jnz; xor ax, ax; retn`
+    s['pfx'] = _one(rb'\x39\x05' + pk(A0 + 20) + rb'\x75.\x66[\x31\x33]\xc0\xc3\x66\xc7\x05' + pk(D0) +
+                    rb'\x01\x00\x66\xb8\x01\x00\x66[\x0b\x09]\xc0\xc3', d1, 'cseg_95C18').start() + 12
     # FillManagementRecordInfo: add word [D1], 1996; add word [D2], 97 (the record's season years)
+    # UpdateTime's two second-leg aggregate blocks (statsTeam2Goals * 2 + team2GoalsFirstLeg ...): before the first
+    # `cmp word [playing2ndGame], 1; jz` it, before the second `mov ax, [playing2ndGame]; or ax, ax; jz` (penalties)
+    agg = [x.start() for x in re.finditer(rb'\x66\xa1.{4}\x66\xa3' + pk(D0) + rb'\x66\xd1\x25' + pk(D0) + rb'\x66\xa1.{4}'
+                                          rb'\x66\x01\x05' + pk(D0), d1, re.S)]
+    assert len(agg) == 2, agg
+    s['away2'] = agg[1] - 15
+    assert d1[s['away2']:s['away2'] + 2] == b'\x66\xa1' and d1[s['away2'] + 6:s['away2'] + 11] == b'\x66\x0b\xc0\x0f\x84'
+    p2g = d1[s['away2'] + 2:s['away2'] + 6]
+    a1 = [x.start() for x in re.finditer(rb'\x66\x83\x3d' + re.escape(p2g) + rb'\x01\x74(.)', d1, re.S)
+          if x.end() + struct.unpack('b', x.group(1))[0] == agg[0]]
+    assert len(a1) == 1, a1
+    s['away1'] = a1[0]
+    s['p2g'] = p.target(1, s['away2'] + 2)
+    a3 = [x.start() for x in re.finditer(rb'\x66\x83\x7e\x5d\x01\x75', d1)]   # cseg_2AE97: a simulated two-legged
+    assert len(a3) == 2, a3                                                       # tie (the 2nd hit: cseg_89381, a league)
+    s['away3'] = a3[0]
+    a4 = [x.start() for x in re.finditer(rb'\x66\x8b\x46\x5d\x66\x0b\xc0\x74', d1) if a3[0] < x.start() < a3[0] + 0x200]
+    assert len(a4) == 1, a4
+    s['away4'] = a4[0]
     s['mrec'] = _one(rb'\x66\x81\x05' + pk(D0 + 4) + rb'\xcc\x07\x66\x83\x05' + pk(D0 + 8) + rb'\x61', d1, 'mrec').start()
     # ViewWorldMenu: call ChooseCompetitionMenu; mov ax,[chooseTeamsResult]; or ax,ax; jz; mov eax,[selectedContest]
     m = _one(rb'\xe8(.{4})\x66\xa1.{4}\x66\x0b\xc0\x74.\xa1.{4}\xa3' + pk(A0) + rb'\x66\xa1.{4}\x66\xa3' + pk(D0)
@@ -1311,11 +1684,36 @@ def nat_table(game, counts, w):
     return b''.join(groups[0] + groups[1] + groups[2]), (n1, n2, n2 + len(groups[2]))
 
 
-def struct_for(p, key, euro, rounds, clubs, size=None):
+LP_ROUNDS = b'LP'                                    # a world cup with the UEFA league phase (lp36): 36 clubs
+LP_SIZE = 0x28 + 8 + 2 * 36                         # its struct: 120 B (the W1 block saves bytes 92.. at its end)
+# type 2 (euroCup layout, header 0x28 as historic's tourneys): stages from +0Eh = (36, 2 groups, 18), play-offs 16,
+# round of 16, QF, SF, final; legs from +22h: groups, then two legs with extra time and penalties, a single final
+LP_STAGES = bytes([6, 36, 2, 18, 16, 0, 16, 16, 0, 16, 8, 0, 8, 4, 0, 4, 2, 0, 2, 1]) + bytes([0, 0x94, 0x94, 0x94, 0x94, 0x14])
+
+
+def lp_struct(d, clubs, size, names=None):
+    """A world's league-phase cup: the original cup's id, months and names (d), type 2, fixed list (the draw is
+    lp36's), shuffle path for the knockout draws (lp36.lp_draw keeps the orders), no away goals, one meeting, 3 points."""
+    assert len(clubs) == 36, len(clubs)
+    h = bytearray(0x28)
+    h[0], h[1], h[2], h[3], h[4] = d[0], 2, 0xff, d[3], d[4]
+    h[5] = 0x28 - 5                     # names at +28h
+    h[7] = 0x30 - 7                     # clubs at +30h
+    h[8], h[9], h[10], h[11], h[12], h[13] = 1, 0, 0, 1, 3, 0x35
+    h[0x0e:0x28] = LP_STAGES
+    names = struct.pack('<II', *names) if names else d[5 + d[5]:5 + d[5] + 8]
+    body = bytes(h) + names + b''.join(bytes(c) for c in clubs)
+    assert len(body) == LP_SIZE and (size or 0) >= LP_SIZE, (len(body), size)
+    return body.ljust(size, b'\0')
+
+
+def struct_for(p, key, euro, rounds, clubs, size=None, names=None):
     """World European cup struct: CWC layout (header, rounds, 0, name dwords, (file, ordinal) pairs) with the
     original cup's id, dates and names, padded to the in-save copy size (size: a big world's buffer)."""
     obj, off = euro
     d = bytes(p.get(obj, off, 100))
+    if rounds == LP_ROUNDS:
+        return lp_struct(d, clubs, size, names)
     import sacups
     d2 = p.le.obj_bytes(2)
     cwc = d2[sacups.unique(d2, sacups.CWC_HDR):][:14]
@@ -1327,7 +1725,7 @@ def struct_for(p, key, euro, rounds, clubs, size=None):
     h += bytes(rounds) + b'\0'
     h[5] = len(h) - 5
     h[7] = len(h) + 8 - 7
-    names = d[5 + d[5]:5 + d[5] + 8]
+    names = struct.pack('<II', *names) if names else d[5 + d[5]:5 + d[5] + 8]   # (a world's own: long, short)
     body = bytes(h) + names + b''.join(bytes(c) for c in clubs)
     size = size or COPY[key]
     assert len(body) <= size, (key, len(body))
@@ -1339,6 +1737,7 @@ def patch(p, worlds, at, nasmcave, comp, ct, cont_rec):
     'places': {key: [country file per place]}, 'tmd': name}]. Returns the cave end."""
     import sacups
     s = sites(p)
+    SITES.update(s)                             # for later patches (historic: the world byte of world_draws)
     data = ['align 4', 'WTAB:']
     extra = []
     nrec = 0
@@ -1350,17 +1749,20 @@ def patch(p, worlds, at, nasmcave, comp, ct, cont_rec):
         nrec += 1
         tot = sum(len(w['cups'][k][1]) for k in ('cc', 'cwc', 'uefa'))
         bw = big(w)
-        assert tot <= TOTAL_MAX and all(len(w['cups'][k][1]) <= (MAX if bw else SMALL)[k] for k in MAX), (n, tot)
+        assert tot <= TOTAL_MAX and all(len(w['cups'][k][1]) <= (MAX if bw else SMALL)[k] or w['cups'][k][0] == LP_ROUNDS
+                                        for k in MAX), (n, tot)
         data.append(f'    dd W{n}_CC, W{n}_CWC, W{n}_UEFA, W{n}_TMD, W{n}_LIST, W{n}_TCC, W{n}_TCWC, W{n}_TUEFA')
         data.append('    dw %d, %d, %d, %d, %d' % (tot, len(w['cups']['cc'][1]), len(w['cups']['cwc'][1]),
                                                   len(w['cups']['uefa'][1]), tot - 3))   # before the 3 holders
         data.append(f"    db {w['year'] - 1900}, 0")
         data.append(f'    dd W{n}_CONT, {int(bw)}')
         extra.append(f'W{n}_CONT: dd ' + ('WCC, WCWC, WUEFA' if bw else 'CCCOPY, CWCCOPY, UEFACOPY') + ', -1')
-        extra.append('    db ' + ', '.join(map(str, w['countries'] + [0xff])))
+        import mkseason                         # world 2025-26: several continents -> VIEW WORLD / foreign browser
+        view = [c for c, _, top in mkseason.WCONT_IDS.get(n, []) if top] or w['countries']   # the continents, then theirs
+        extra.append('    db ' + ', '.join(map(str, view + [0xff])))
         for key, euro in zip(('cc', 'cwc', 'uefa'), s['euro']):
             rounds, clubs = w['cups'][key]
-            body = struct_for(p, key, euro, rounds, clubs, BIGCOPY[key] if bw else None)
+            body = struct_for(p, key, euro, rounds, clubs, BIGROOM[key] if bw else None, w.get('cupnames', {}).get(key))
             extra.append(f'W{n}_{key.upper()}: db ' + ', '.join(map(str, body)))
             pl = w['places'][key]               # one group: every listed place is taken (n = take)
             extra.append(f'W{n}_T{key.upper()}: dd W{n}_P{key.upper()}')
@@ -1457,14 +1859,40 @@ def patch(p, worlds, at, nasmcave, comp, ct, cont_rec):
     b = BSS[0] or 0
     bsym.update({'WTMD': (2, b + B_TMD), 'WCC': (2, b + B_CUPS), 'WCWC': (2, b + B_CUPS + 160),
                  'WUEFA': (2, b + B_CUPS + 320)})
+    ns = NS.get('info')                          # several worlds: a country namespace each (mkseason.ns_emit)
+    if ns:
+        maxw = max(w['n'] for w in worlds)
+        bits = bytearray(32 * (maxw + 1))
+        for w in worlds:
+            for f in ns['files'][w['n']]:
+                bits[32 * w['n'] + f // 8] |= 1 << f % 8
+        extra.append('WNSB: db ' + ', '.join(map(str, bits)))
+        extra.append('align 4')
+        extra.append('WSTEM: db ' + ', '.join(map(str, b''.join(ns['stems'].get(n, 'team').encode() for n in range(maxw + 1)))))
+    import guests
+    if guests.files():                           # the guest clubs' files: GUESTT = file, base, count (guests.alloc)
+        gb = guests.alloc()
+        extra.append('GUESTT: db ' + ', '.join(f'{n}, {gb[n] & 0xFF}, {gb[n] >> 8}, {k & 0xFF}, {k >> 8}'
+                                               for n, k in guests.counts().items()) + ', 0')
     src = ASM + '\n'.join(stubs + data + extra) + '\n'
+    if guests.files():
+        src = '%define GUESTS\n' + src
+    if ns:
+        src = '%define NS\n' + src
+        sym_ns = _ns_sites(p, s)
+        bsym.update(sym_ns)
+        bsym.update({'NSLIST': (1, ns['list_at']), 'NSWT': (1, ns['wt_at']), 'NSN': (0, len(ns['numbers'])),
+                     'NSBASE': (0, ns['base']), 'NSMAXW': (0, maxw), 'CTAB': (2, ct), 'COMPT': (2, comp),
+                     'TCNT': (2, ns['tcn']), 'OBJ1Z': (1, 0), 'OBJ2Z': (2, 0), 'CAREER_WORLD': (1, ns['cworld']),
+                     'WMENU_N': (0, ns['wmenu'])})
     if os.environ.get('DIAG'):
-        src = '%define DIAG\n' + src
+        src = f"%define DIAG\n%define DIAG_TICKS {int(os.environ.get('DIAG_TICKS', 364))}\n" + src
     vobj, vtab = p.target(2, comp + 4 * 254)
     assert ct + 4 * WCONT not in {f[1] for f in p.le.fixups() if f[0] == 2} and p.get(2, comp + 4 * WCONT, 4) == bytes(4)
     p.add_ptr(2, ct + 4 * WCONT, *cont_rec)        # continent button name (the CLASSIC CAREERS record)
     sym = {k: (2, v) for k, v in s['regs'].items()}
     sobj, slt = s['slt']
+    sym['CTAB0'] = (2, ct)
     sym.update({'SLT': (sobj, slt), 'SLTCOPY': s['sltcopy'], 'WORLD_BYTE': (0, WORLD_BYTE), 'REC': (0, REC),
                 'LOADEURO': (1, s['loadeuro']), 'KNOWN': (1, s['known']), 'TEAMSLOADED': (2, s['teamsloaded']),
                 'CCCOPY': s['copies'][0][0],
@@ -1477,7 +1905,7 @@ def patch(p, worlds, at, nasmcave, comp, ct, cont_rec):
                 'CHOOSETEAMS': (1, s['chooseteams']), 'LASTNAT': (2, s['lastnat']), 'HOLDERS': (1, s['holders']),
                 'ADDREC': (1, s['addrec']), 'CLEARHOLD': (1, s['clearhold']),
                 'LOOP_CWC': (1, s['pick'][1][2]), 'LOOP_UEFA': (1, s['pick'][2][2]),
-                'GAMETYPE': s['gametype'], 'LASTEXT': s['lastext'], 'NTGAME': (2, s['nt']),
+                'GAMETYPE': s['gametype'], 'P2G': s['p2g'], 'LASTEXT': s['lastext'], 'NTGAME': (2, s['nt']),
                 'A4R': (2, s['regs']['A0R'] + 16), 'FLAGS': s['nc']['flags'], 'DF52F': s['nc']['df52f'],
                 'D6CD0': s['nc']['d6cd0'], 'D6CD2': (2, s['nc']['d6cd0'][1] + 2), 'D6CD4': (2, s['nc']['d6cd0'][1] + 4),
                 'D6CBC': s['nc']['d6cbc'], 'E0931': s['nc']['e0931'], 'E0933': s['nc']['e0933'],
@@ -1517,6 +1945,13 @@ def patch(p, worlds, at, nasmcave, comp, ct, cont_rec):
     hook(s['y96'], 9, 'w_year96', (3,))
     hook(s['y95'], 9, 'w_year95', (3,))
     hook(s['mrec'], 17, 'w_mrec', (3, 12))
+    hook(s['pfx'], 9, 'w_pfx', (3,))
+    for site, n in ((s['away1'], 8), (s['away2'], 9), (s['away3'], 5), (s['away4'], 7)):
+        assert p.get(1, site, n) == p.le.obj_bytes(1)[site:site + n], ('away goals site already patched', hex(site))
+    hook(s['away1'], 8, 'w_away1', (3,))            # no away goals in a world from 2021-22 on: played second legs
+    hook(s['away2'], 9, 'w_away2', (2,))
+    hook(s['away3'], 5, 'w_away3', ())              # and simulated two-legged ties
+    hook(s['away4'], 7, 'w_away4', ())
     hook(s['view'], 5, 'w_view', ())
     hook(s['buy'], 5, 'w_buy', ())
     hook(s['nat'], 12, 'w_nat', (2, 8))
@@ -1540,6 +1975,8 @@ def patch(p, worlds, at, nasmcave, comp, ct, cont_rec):
     p.put(1, s['nat_wrap'][0], bytes((63 + len(MENU_NATS),)))
     p.put(1, s['nat_wrap'][1], bytes((64 + len(MENU_NATS),)))
     hook(s['tcache'], 5, 'w_tcache', (1,))
+    if ns:
+        hook(NS['menu_site'], 9, 'w_ns_menu', (3,))
     for site, name, _ in s['pick']:
         hook(site, 5, name, ())
     for site, name in hooks:                     # euro 128 (big worlds only)
@@ -1598,6 +2035,12 @@ w_save_tail:                            ; SaveCareerFile after save_trailer (tra
     inc dword [WI]
     cmp dword [WI], 128
     jb .rec
+    mov esi, WCC + 92                   ; league-phase cups (120 B): their last 28 bytes
+    mov ecx, 28
+    call w_copy
+    mov esi, WCWC + 92
+    mov ecx, 28
+    call w_copy
     mov dword [TMDBUF + BIGC_AT], 0     ; BIGC: this career uses the big cache (3.3.3)
     cmp dword [SELBASEV], NEWSEL        ; a big-cache career: the file from the stage (its cache is not after the
     jne .plain                          ; fixed part): the fixed part, then the records and the trailer
@@ -1623,7 +2066,32 @@ w_loadcopy:                             ; trailer LOADCOPY: LoadCareerFile read 
     mov edi, CAREER
     mov ecx, FIXED
     call w_copy
+%if NS_ON
+    mov al, [SLTW]                      ; several worlds: the save's namespace again (w_ns_ld ran before this copy,
+    call W_NS_SET                       ; on the previous career's world byte)
+%endif
     call w_setbase
+    mov eax, [SELBASEV]                 ; the fixed part holds selTeamsPtr (careerFileBuffer + 0x1739C) as an absolute
+    mov [SELPTR], eax                   ; address: a save of another layout / obj2 base (3.3.x on 4.0) points elsewhere;
+    mov edx, [STAGE + 1739Ch]           ; the competitions (careerFileBuffer + 0xF77E .. + 0x16ABC: the 5 buffers of
+    mov esi, CAREER + 0F77Eh            ; ProcessCareerFile's arrayOfPointers) keep each club as an offset from it:
+    mov ecx, 16ABCh - 0F77Eh            ; careerTeam's (the player's club) is negative and moves with the cache ->
+.ct:                                    ; any dword that the save's selTeamsPtr turns into careerTeam (same page
+    mov eax, [esi]                      ; offset, obj2 bases at most 1 MB apart; no cached record's offset is one)
+    add eax, edx                        ; = careerTeam - the cache now
+    sub eax, CAREER + 0DB80h
+    test eax, 0FFFh
+    jnz .cn
+    add eax, 100000h
+    cmp eax, 200000h
+    jae .cn
+    mov eax, CAREER + 0DB80h
+    sub eax, [SELBASEV]
+    mov [esi], eax
+.cn:
+    inc esi
+    dec ecx
+    jnz .ct
     mov ecx, [D1R]                      ; (bytes read)
     sub ecx, FIXED
     jbe .x
@@ -1638,12 +2106,16 @@ w_loadcopy:                             ; trailer LOADCOPY: LoadCareerFile read 
     popad
     ret
 
-w_setbase:                              ; a loaded career's cache: the big one for a big world's save marked BIGC, or
-    push eax                            ; one caching more than UPGRADE_N teams (upgraded: saved with BIGC from now
-    mov dword [SELBASEV], OLDSEL        ; on); else the game's (100 teams)
+w_setbase:                              ; a loaded career's cache: the big one for a big world's save marked BIGC, a
+    push eax                            ; league-phase world's, or one caching more than UPGRADE_N teams (upgraded:
+    mov dword [SELBASEV], OLDSEL        ; saved with BIGC from now on); else the game's (100 teams)
     mov dword [ROOMV], OLDROOM
     call w_big
     jz .r
+%if LPW_ON
+    call W_LPW
+    je .n
+%endif
     cmp dword [TMDBUF + BIGC_AT], BIGC
     je .n
     cmp word [NUMSEL], UPGRADE_N
@@ -1659,6 +2131,14 @@ w_switch:                               ; InitCareer's start (w_entry): a club o
     pushad                              ; takes the big cache, before any team is loaded
     mov dword [SELBASEV], OLDSEL
     mov dword [ROOMV], OLDROOM
+%if NS_ON
+    movzx eax, byte [WSEL]              ; several worlds: the club's country in the namespace the selector showed
+    movzx esi, byte [WCURV]             ; (as w_load1; country numbers repeat across worlds, WMAP is ambiguous)
+    shl esi, 5
+    bt [WNSBV + esi], eax
+    jnc .s
+    movzx ebx, byte [WCURV]
+%else
     mov al, [WSEL]
     mov esi, WMAP
 .l:
@@ -1670,6 +2150,7 @@ w_switch:                               ; InitCareer's start (w_entry): a club o
     jmp .l
 .f:
     movzx ebx, byte [esi + 1]
+%endif
     imul ebx, ebx, REC
     add ebx, WTAB - REC
     cmp byte [ebx + 48], 0              ; (w_big's test)
@@ -1726,7 +2207,7 @@ w_load_tail:                            ; LoadCareerFile after load_trailer (tra
 .rec:                                   ; every record from its TEAM file + the saved bytes
     movzx eax, word [CFB]
     cmp [WI], eax
-    jae .x
+    jae .tails
     mov esi, [WPTR]
     movzx eax, word [esi]
     mov [WPAIR], eax
@@ -1766,6 +2247,14 @@ w_load_tail:                            ; LoadCareerFile after load_trailer (tra
     add dword [WPTR], 2 + VARN
     inc dword [WI]
     jmp .rec
+.tails:                                 ; league-phase cups (120 B): their last 28 bytes after the 128 records
+    mov esi, TMDBUF + 2 + 92 + 92 + 160 + 128 * (2 + VARN)
+    mov edi, WCC + 92
+    mov ecx, 28
+    call w_copy
+    mov edi, WCWC + 92
+    mov ecx, 28
+    call w_copy
 .x:
     mov word [TEAMSLOADED], 0           ; teamFileBuffer holds another file now: force a reload
     popad
@@ -1822,7 +2311,7 @@ diag8:
     cmp byte [DG_ARMED], 0
     je .c
     inc dword [DG_TICKS]
-    cmp dword [DG_TICKS], 364           ; ~20 s after the season end started
+    cmp dword [DG_TICKS], DIAG_TICKS    ; (364: ~20 s after the season end started; env DIAG_TICKS)
     jne .c
     mov eax, [esp + 40]
     mov byte [DGEIP + 8], 8
@@ -1933,9 +2422,16 @@ def patch_tails(p, at, nasmcave):
                 'SELBASEV': (1, t['selbasev']), 'ROOMV': (1, t['roomv']), 'WSEL': (1, LABELS['WSEL']),
                 'WMAP': (1, LABELS['WMAP']), 'WTAB': (1, LABELS['WTAB']), 'REC': (0, REC),
                 'BIGC': (0, BIGC), 'BIGC_AT': (0, BIGC_AT), 'UPGRADE_N': (0, UPGRADE_N)})
+    sym['W_LPW'] = (1, LABELS['w_lpw']) if 'w_lpw' in LABELS else (0, 0)
+    sym['LPW_ON'] = (0, int('w_lpw' in LABELS))
+    sym['NS_ON'] = (0, int('w_ns_set' in LABELS))
+    sym['W_NS_SET'] = (1, LABELS['w_ns_set']) if 'w_ns_set' in LABELS else (0, 0)
+    sym['SLTW'] = (s['slt'][0], s['slt'][1] + WORLD_BYTE)
+    sym['WCURV'] = (1, LABELS['WCUR']) if 'WCUR' in LABELS else (0, 0)
+    sym['WNSBV'] = (1, LABELS['WNSB']) if 'WNSB' in LABELS else (0, 0)
     src = TAILS_ASM
     if os.environ.get('DIAG'):                   # diagnostic build: int 3 handler writes DIAG.BIN
-        src = '%define DIAG\n' + src.replace('.w:\n    pushad\n    mov esi, TMDBUF', '.w:\n    call diag_install\n    pushad\n    mov esi, TMDBUF')
+        src = f"%define DIAG\n%define DIAG_TICKS {int(os.environ.get('DIAG_TICKS', 364))}\n" + nasmcave.sub(src, '.w:\n    pushad\n    mov esi, TMDBUF', '.w:\n    ' + ('times 5 nop' if os.environ.get('DIAG_NOINST') else 'call diag_install') + '\n    pushad\n    mov esi, TMDBUF')   # (DIAG_NOINST: the same layout, no handlers)
         sym.update({'DREGS': (2, D0 - 0), 'AREGS': (2, A0), 'HOLDREG': (2, s['hold'][0][0] - 0x10),
                     'DG_TICKS': (1, LABELS['DG_TICKS']), 'DG_ARMED': (1, LABELS['DG_ARMED'])})
     code, fix = nasmcave.assemble(src, at, sym)
@@ -1991,28 +2487,62 @@ def late(p, at, nasmcave):
                 i += 1
             assert i < at + 0x200
         return out
-    cc, cw = calls(c92d55, 6), calls(c9307a, 6)
+    c9339d = tgt(orig, site + 10)
+    cc, cw, cu = calls(c92d55, 6), calls(c9307a, 6), calls(c9339d, 6)
     assert [t for _, t in cc[:2]] == [t for _, t in cw[:2]] and cc[4][1] == cw[4][1], (cc, cw)
+    assert [t for _, t in cu] == [t for _, t in cw[:2]] + [cw[2][1], cu[3][1], cw[4][1], cw[5][1]], (cu, cw)
     play_site, sim_site = cc[2][0], cc[5][0]
     assert tgt(d1, play_site) == cc[2][1] and tgt(d1, sim_site) == cc[5][1], 'cseg_92D55 calls already hooked'
+    import sacups
+    a4r = sacups.regs(orig)['A4']
+    # A world's cup is a knockout (type 1, 1984-85) or a league phase + knockout (type 2, 2025-26: lp36): the cup's
+    # struct (A4 = its copy) says which play-out / simulation the season end runs, for the three cups alike.
     src = '''
-w_cc_play:                              ; cseg_92D55: the player's Champions Cup -> knockout play-out in a world
+w_cc_play:                              ; cseg_92D55 / 9307A / 9339D: the player's cup -> play-out by its type in a world
     push ebx
     call w_rec
     pop ebx
     jz .n
+    mov eax, [A4R]
+    cmp byte [eax + 1], 2
+    je .n
     jmp KO_PLAY
 .n:
     jmp GROUP_PLAY
 
-w_cc_sim:                               ; cseg_92D55: a simulated Champions Cup -> knockout simulation in a world
+w_ko_play:                              ; (CWC / UEFA Cup: the 1996-97 world and type-1 cups keep the knockout)
+    push ebx
+    call w_rec
+    pop ebx
+    jz .k
+    mov eax, [A4R]
+    cmp byte [eax + 1], 2
+    je w_cc_play.n
+.k:
+    jmp KO_PLAY
+
+w_cc_sim:                               ; the same for a simulated cup
     push ebx
     call w_rec
     pop ebx
     jz .n
+    mov eax, [A4R]
+    cmp byte [eax + 1], 2
+    je .n
     jmp KO_SIM
 .n:
     jmp GROUP_SIM
+
+w_ko_sim:
+    push ebx
+    call w_rec
+    pop ebx
+    jz .k
+    mov eax, [A4R]
+    cmp byte [eax + 1], 2
+    je w_cc_sim.n
+.k:
+    jmp KO_SIM
 
 w_season_end:                           ; replaces `call arg_agg` (-> sa_qualify -> cseg_92D55) at the season end
     push ebx
@@ -2023,18 +2553,231 @@ w_season_end:                           ; replaces `call arg_agg` (-> sa_qualify
 .n:
     jmp CUR
 '''
+    import mkseason
+    lpw = bool(mkseason.league_phase_worlds())   # (QUAL_ASM: ~40 fixups; only builds with a league-phase world, so
+    if lpw:                                       # the harness still has room for its page in the others)
+        src += QUAL_ASM
     sym = {'w_rec': (1, LABELS['w_rec']), 'C92D55': (1, c92d55), 'CUR': (1, cur), 'KO_PLAY': (1, cw[2][1]),
-           'GROUP_PLAY': (1, cc[2][1]), 'KO_SIM': (1, cw[5][1]), 'GROUP_SIM': (1, cc[5][1])}
+           'GROUP_PLAY': (1, cc[2][1]), 'KO_SIM': (1, cw[5][1]), 'GROUP_SIM': (1, cc[5][1]), 'A4R': (2, a4r)}
+    if lpw:
+        sym.update({k: v for k, v in _qual_sites(orig, p).items() if not k.startswith('call_')})
     code, fix = nasmcave.assemble(src, at, sym)
     lab = nasmcave.labels(src, at, sym)
     p.put(1, at, code)
     for off, tobj, toff in fix:
         p.add_ptr(1, at + off, tobj, toff)
+    if lpw:
+        q = _qual_sites(orig, p)
+        for site_, lbl in ((q['call_cl'], 'w_q_cl'), (q['call_el'], 'w_q_el'), (q['call_ue'], 'w_q_ue'),
+                           (q['call_cwchk'], 'w_q_inlists')):
+            assert tgt(d1, site_) == tgt(orig, site_), 'qualifier call already hooked'
+            p.put(1, site_ + 1, struct.pack('<i', lab[lbl] - (site_ + 5)))
     p.put(1, site + 1, struct.pack('<i', lab['w_season_end'] - (site + 5)))
     p.put(1, play_site + 1, struct.pack('<i', lab['w_cc_play'] - (play_site + 5)))
     p.put(1, sim_site + 1, struct.pack('<i', lab['w_cc_sim'] - (sim_site + 5)))
-    print(f'exe: career worlds skip the 1996-97 qualifier simulations: call obj1+{site:#x} -> obj1+{at:#x}')
+    for k in (cw, cu):
+        assert tgt(d1, k[2][0]) == k[2][1] and tgt(d1, k[5][0]) == k[5][1], 'cseg_9307A / 9339D calls already hooked'
+        p.put(1, k[2][0] + 1, struct.pack('<i', lab['w_ko_play'] - (k[2][0] + 5)))
+        p.put(1, k[5][0] + 1, struct.pack('<i', lab['w_ko_sim'] - (k[5][0] + 5)))
+    LABELS.update({k: v for k, v in lab.items() if k.startswith('w_')})    # (w_lpw: uefacoef.py)
+    print(f'exe: career worlds skip the 1996-97 qualifier simulations: call obj1+{site:#x} -> obj1+{at:#x}; '
+          + ' '.join(f'{k} {v:#x}' for k, v in lab.items() if k.startswith('w_q') or k == 'w_lpw'))
     return (at + len(code) + 3) & ~3
+
+
+# The season-end qualifiers of a world with league-phase cups (2025-26 access, no qualifying rounds): per country
+# (cseg_93974) the game gives the Champions Cup only its champion (cseg_939C9), the Cup Winners' Cup only its cup
+# winner (cseg_939FE), the UEFA Cup the next league clubs (cseg_93A60). A league-phase world: Champions League =
+# the top N of the league (N = the country's places), Europa League = the cup winner unless already in, then the
+# next league clubs, UEFA Cup slot = the next ones (also skipping Champions League clubs). Holders are skipped (they
+# play their own cup as holders, as before). Standings: the top 9 records from dseg_1807C2, the cup's from 181D22+2ACh.
+QUAL_ASM = """
+w_lpw:                                  ; ZF = 1 in a world whose Champions Cup is a league phase (type 2)
+    push ebx
+    call w_rec
+    jz .no
+    mov ebx, [ebx]                      ; the world's CC struct (template)
+    cmp byte [ebx + 1], 2
+    pop ebx
+    ret
+.no:
+    pop ebx
+    cmp esp, 0
+    ret
+
+w_q_skip:                               ; ZF = 1 if the club [D0] is a holder or already in one of the 3 lists
+    mov ax, [D0]
+    cmp ax, [HOLD_CC]
+    je .y
+    cmp ax, [HOLD_CWC]
+    je .y
+    cmp ax, [HOLD_UEFA]
+    je .y
+    mov dword [A1R], LIST_CC
+    mov dword [A3R], CNT_CC
+    call C93D0B
+    jz .y
+    call C93B9C                         ; (in the CWC list)
+    jz .y
+    call C93BB5                         ; (in the UEFA Cup list)
+.y:
+    ret
+
+w_q_next:                               ; [A5] = the next record not to skip (the top 9 of the league); CF = 1: none
+    inc dword [W_QI]                    ; left
+    cmp dword [W_QI], 9
+    ja .none
+    mov eax, [W_QI]
+    dec eax
+    imul eax, eax, 2ACh
+    add eax, STAND
+    mov [A5R], eax
+    mov esi, eax
+    mov ax, [esi]
+    mov [D0], ax
+    test ax, ax                         ; (an empty record)
+    jz w_q_next
+    cmp ax, 0FFFFh
+    je w_q_next
+    call w_q_skip
+    jz w_q_next
+    clc
+    ret
+.none:
+    stc
+    ret
+
+w_q_cl:                                 ; replaces `call cseg_939C9` in cseg_93974
+    call w_lpw
+    je .lp0
+    jmp C939C9
+.lp0:
+    call w_q_cb                         ; (uefacoef: the season's coefficients and the places, once per season end)
+    call w_q_cq                         ; (uefaq: the qualifying rounds take this country's clubs: nothing here)
+    jc .r
+.lp:
+    mov dword [A0R], WORK_CC            ; one more place of this country in the CC list?
+    call C93B30
+    jnz .r
+    mov dword [W_QI], 0
+    call w_q_next
+    jc .lp                              ; (no club left: the place stays empty)
+    call C93BCE
+    call C93C19
+    jmp .lp
+.r:
+    ret
+
+w_q_el:                                 ; replaces `call cseg_939FE` (Cup Winners' Cup slot = Europa League)
+    call w_lpw
+    je .lp
+    jmp C939FE
+.lp:
+    cmp byte [w_qon], 0
+    jne .r
+    mov byte [W_QF], 1
+.p:
+    mov dword [A0R], WORK_CWC
+    call C93B30
+    jnz .r
+    cmp byte [W_QF], 0
+    je .league
+    mov byte [W_QF], 0
+    mov eax, CUPREC + 2ACh              ; the cup winner
+    mov [A5R], eax
+    mov ax, [eax]
+    mov [D0], ax
+    call w_q_skip
+    je .league
+    jmp .add
+.league:
+    mov dword [W_QI], 0
+    call w_q_next
+    jc .p
+.add:
+    call C93BCE
+    call C93C3C
+    jmp .p
+.r:
+    ret
+
+w_q_ue:                                 ; replaces `call cseg_93A60` (UEFA Cup slot = Conference League): the next
+    call w_lpw                          ; clubs not qualified yet (the game's loop would take an empty record of
+    je .lp                              ; the standings once many clubs are skipped)
+    jmp C93A60
+.lp:
+    cmp byte [w_qon], 0
+    jne .r
+    mov dword [A0R], WORK_UEFA
+    call C93B30
+    jnz .r
+    mov dword [W_QI], 0
+    call w_q_next
+    jc .lp
+    call C93BCE
+    call C93C5F
+    jmp .lp
+.r:
+    ret
+
+w_q_inlists:                            ; replaces `call cseg_93B9C` in cseg_93A60 (UEFA Cup: skip CWC clubs and,
+    call C93B9C                         ; in a league-phase world, Champions League clubs too)
+    jz .r
+    call w_lpw
+    jne .r
+    mov dword [A1R], LIST_CC
+    mov dword [A3R], CNT_CC
+    jmp C93D0B
+.r:
+    ret
+
+w_q_cb:                                 ; patched to `jmp uc_final` by uefacoef.py
+    ret
+    times 4 nop
+w_q_cq:                                 ; patched to `jmp uq_country` by uefaq.py (CF = 1: the country is taken)
+    clc
+    ret
+    times 3 nop
+w_qon: db 0                             ; (uefaq: 1 from the first country to the holders)
+W_QI: dd 0
+W_QF: db 0
+"""
+
+
+def _qual_sites(orig, p):
+    """Addresses for QUAL_ASM: the three calls in cseg_93974, the routines they use, the season-end variables (the
+    dseg block's addresses = the English names + one delta)."""
+    import re as _re
+    import sacups
+    tgt = lambda i: i + 5 + struct.unpack_from('<i', orig, i + 1)[0]
+    m = [x.start() for x in _re.finditer(rb'\x80\x3e\x00\x75\x0f\xe8.{4}\xe8.{4}\xe8.{4}\xc3', orig, _re.S)]
+    assert len(m) == 1, m
+    a = m[0] + 5
+    c_cl, c_el, c_ue = tgt(a), tgt(a + 5), tgt(a + 10)
+    calls = lambda at, n: [i for i in range(at, at + 0x120) if orig[i] == 0xe8][:n]
+    cl, ue = calls(c_cl, 3), calls(c_ue, 5)       # cl: 93B30, 93BCE, 93C19; ue: 93B30, 93B9C, 93BB5, 93BCE, 93C5F
+    el = calls(c_el, 3)                           # 93B30, 93BCE, 93C3C
+    c93b9c = tgt(ue[1])
+    assert orig[c93b9c + 20] == 0xe9, hex(orig[c93b9c + 20])
+    c93d0b = c93b9c + 25 + struct.unpack_from('<i', orig, c93b9c + 21)[0]
+    imm = lambda i: struct.unpack_from('<I', orig, i)[0]     # (obj2 offsets: the original exe's immediates)
+    delta = imm(c_cl + 6) - 0x18072F               # dseg_18072F (CC working list) in this exe
+    assert imm(c_el + 6) - 0x180740 == delta and imm(c_cl + 0x17) - 0x1807C2 == delta, hex(delta)
+    d = lambda eng: (2, eng + delta)
+    regs = sacups.regs(orig)
+    a0 = regs['A0']
+    return {'call_cl': a, 'call_el': a + 5, 'call_ue': a + 10, 'call_cwchk': ue[1], 'C93A60': (1, c_ue),
+            'C93C5F': (1, tgt(ue[4])),
+            'C939C9': (1, c_cl), 'C939FE': (1, c_el), 'C93B30': (1, tgt(cl[0])), 'C93BCE': (1, tgt(cl[1])),
+            'C93C19': (1, tgt(cl[2])), 'C93C3C': (1, tgt(el[2])), 'C93B9C': (1, c93b9c), 'C93BB5': (1, tgt(ue[2])),
+            'C93D0B': (1, c93d0b), 'STAND': d(0x1807C2),
+            # the working place lists (CC 17 B in the game): moved to the obj2 tail in a build with a big world
+            'WORK_CC': (2, BSS[0] + B_LISTS) if BSS[0] is not None else d(0x18072F),
+            'WORK_CWC': (2, BSS[0] + B_LISTS + 64) if BSS[0] is not None else d(0x180740),
+            'WORK_UEFA': (2, BSS[0] + B_LISTS + 128) if BSS[0] is not None else d(0x180761),
+            'CUPREC': d(0x181D22), 'HOLD_CC': d(0x18070F), 'HOLD_CWC': d(0x180711), 'HOLD_UEFA': d(0x180713),
+            'LIST_CC': d(0x18078A), 'CNT_CC': d(0x180784), 'D0': (2, a0 - 32), 'A0R': (2, a0), 'A1R': (2, a0 + 4),
+            'A3R': (2, a0 + 12), 'A5R': (2, a0 + 20)}
 
 
 DRAW_ASM = '''
@@ -2286,3 +3029,53 @@ def euro_draw(p, at, nasmcave):
     p.put(1, copy_site, b'\xe8' + struct.pack('<i', lab['w_draw2'] - (copy_site + 5)) + b'\x90' * 8)
     print(f'exe: European cups: no same-country ties in rounds 1-2, code obj1+{at:#x} ({len(code)} B)')
     return (at + len(code) + 3) & ~3
+
+
+def sel_sites(p, d0):
+    """The team cache g_selectedTeams (D0 - 68400: the pseudo registers follow it), selTeamsPtr and the three hook
+    sites of the cache switch: ProcessCareerFile `mov selTeamsPtr, offset g_selectedTeams` (10 B), CareerMenu `mov ax,
+    currentTick` (6 B), SWOSMainMenuInit `mov currentTeamNumber, -1` (9 B); 'fix' = their fixup offsets."""
+    d1 = p.le.obj_bytes(1)
+    pk = lambda x: re.escape(struct.pack('<I', x))
+    old = d0 - 68400
+    m = _one(rb'\xc7\x05(.{4})' + pk(old), d1, 'ProcessCareerFile selTeamsPtr')
+    selptr, pcf = struct.unpack('<I', m.group(1))[0], m.start()
+    ms = [m for m in re.finditer(rb'\x66\xa1(.{4})\x66\xa3(.{4})\x66\xc7\x05(.{4})\x00\x00\xc7\x05', d1, re.S)
+          if d1.find(b'\x66\xc7\x05' + struct.pack('<I', d0) + b'\x0a\x00', m.end(), m.end() + 0x80) > 0]
+    assert len(ms) == 3, ('competition / season / career menus (seed, ..., mov word [D0], 10: continue)', len(ms))
+    m = ms[2]                                    # (in code order: CareerMenu is the third one, every language)
+    assert m.group(2) == m.group(3), 'CareerMenu seed'
+    ctick, cmenu = struct.unpack('<I', m.group(1))[0], m.start()
+    m = _one(rb'\xe8(.{4})\x75\x01\xc3\xcc\xe8.{4}\xe8.{4}\xcc', d1, 'VerifyTeamLoaded')   # call FindTeamInCache
+    ftic = m.start() + 5 + struct.unpack('<i', m.group(1))[0]
+    assert d1[ftic:ftic + 2] == b'\x66\xa1', d1[ftic:ftic + 8].hex()            # mov ax, currentTeamNumber
+    ctn = struct.unpack_from('<I', d1, ftic + 2)[0]
+    m = _one(rb'\x66\xc7\x05' + pk(ctn) + rb'\xff\xff\xe8.{4}\xe8.{4}\xeb\x00', d1, 'SWOSMainMenuInit')
+    mmi = m.start()
+    return {'old': old, 'selptr': selptr, 'ctick': ctick, 'ctn': ctn, 'pcf': pcf, 'cmenu': cmenu, 'mmi': mmi,
+            'fix': {pcf: (pcf + 2, pcf + 6), cmenu: (cmenu + 2,), mmi: (mmi + 3,)}}
+
+
+def big_team_buffer(p):
+    """Big worlds: teamFileBuffer -> BSS + B_TFB (every fixup into its 64014 bytes keeps its offset inside it) and the
+    two `cmp [D1], 64000; ja FatalError` of LoadTeamFile (CUSTOMS.EDT, TEAM.nnn) -> TFB_SIZE - 14."""
+    import re
+    d1 = bytes(p.get(1, 0, len(p.le.obj_bytes(1))))
+    fx = {(f[0], f[1]): (f[3], f[4]) for f in p.le.fixups() if f[4] is not None}
+    cmps = [m.start() for m in re.finditer(rb'\x81\x3d.{4}\x00\xfa\x00\x00\x0f\x87', d1, re.S)]
+    tfb = {}
+    for c in cmps:                    # mov [A1], offset teamFileBuffer; call LoadFile; jnz ..; cmp [D1], 64000
+        m = [i for i in range(c - 40, c) if d1[i:i + 2] == b'\xc7\x05' and (1, i + 6) in fx and fx[1, i + 6][0] == 2]
+        if m:
+            tfb.setdefault(fx[1, m[-1] + 6][1], []).append(c)
+    big = [t for t, v in tfb.items() if len(v) == 2]
+    assert len(big) == 1, tfb
+    tfb, cmps = big[0], tfb[big[0]]
+    n = 0
+    for (so, off), (to, toff) in fx.items():
+        if to == 2 and tfb <= toff < tfb + 64014:
+            p.retarget(so, off, 2, BSS[0] + B_TFB + toff - tfb)
+            n += 1
+    for c in cmps:
+        p.put(1, c + 6, struct.pack('<I', TFB_SIZE - 14))
+    print(f'exe: big world: teamFileBuffer obj2+{tfb:#x} -> obj2+{BSS[0] + B_TFB:#x} ({n} fixups, limit {TFB_SIZE - 14})')

@@ -12,6 +12,7 @@ import struct
 from le import LE
 
 ALIGN = 0x200
+HARNESS_ROOM = 64
 
 
 class LEPatch:
@@ -104,20 +105,34 @@ class LEPatch:
         gp, i = self._find(objn, off)
         r = self.recs[gp][i]
         assert not r[1] & 0x40
-        self.recs[gp][i] = self._record(r[0], struct.unpack_from('<h', r, 2)[0], tobj, toff)
+        po = struct.unpack_from('<h', r, 2)[0]
+        self.recs[gp][i] = self._record(r[0], po, tobj, toff)
+        if po > self.le.page_size - 4:      # (a straddling one: its next page's record too)
+            for k, q in enumerate(self.recs[gp + 1]):
+                if not q[0] & 0x20 and struct.unpack_from('<h', q, 2)[0] == po - self.le.page_size:
+                    self.recs[gp + 1][k] = self._record(q[0], po - self.le.page_size, tobj, toff)
 
     def remove(self, objn, off):
         """Drop the fixup at objn:off (before overwriting the instruction holding it)."""
         gp, i = self._find(objn, off)
+        po = struct.unpack_from('<h', self.recs[gp][i], 2)[0]
         del self.recs[gp][i]
+        if po > self.le.page_size - 4:      # (a straddling one: its next page's record too, negative offset)
+            nxt = [k for k, r in enumerate(self.recs[gp + 1])
+                   if not r[0] & 0x20 and struct.unpack_from('<h', r, 2)[0] == po - self.le.page_size]
+            assert len(nxt) == 1, (objn, hex(off))
+            del self.recs[gp + 1][nxt[0]]
 
     def add_ptr(self, objn, off, tobj, toff):
         """Add a 32-bit offset fixup at objn:off and store the offset there."""
         gp, po = self._page(objn, off)
-        assert po <= self.le.page_size - 4, 'pointer straddles a page'
         assert not any(not r[0] & 0x20 and struct.unpack_from('<h', r, 2)[0] == po
                        for r in self.recs[gp])
         self.recs[gp].append(self._record(0x07, po, tobj, toff))
+        if po > self.le.page_size - 4:      # a pointer across two pages (4.0: the two-world career code): the LE way,
+            o = self.le.obj(objn)           # one record in each page, the next page's at a negative source offset
+            assert off // self.le.page_size + 1 < o.npages, 'pointer straddles the object end'
+            self.recs[gp + 1].append(self._record(0x07, po - self.le.page_size, tobj, toff))
         self.put(objn, off, struct.pack('<I', toff))
 
     # --- output ------------------------------------------------------------
@@ -133,7 +148,8 @@ class LEPatch:
         assert len(pt) == le.fix_rec_tab - le.fix_page_tab
         end = le.fix_rec_tab + len(table)
         old_data = le.data_pages
-        new_data = max(old_data, (end + ALIGN - 1) // ALIGN * ALIGN)
+        # keep >= 64 bytes of padding: the harness's test copy adds its page with add_object_page (8 bytes each)
+        new_data = old_data if end + HARNESS_ROOM <= old_data else (end + HARNESS_ROOM + ALIGN - 1) // ALIGN * ALIGN
         shift = new_data - old_data
         body = out[old_data:]
         out = out[:le.fix_page_tab] + pt + table + bytes(new_data - end) + body
@@ -182,10 +198,14 @@ def add_object_page(data, objn):
     setu(0x30, u(0x30) + 4)                                     # fixup section size
     setu(0x38, u(0x38) + 8)                                     # loader section size
     # the 8 inserted bytes come out of the padding before the data pages
-    data_pages = u(0x80)
+    data_pages = u(0x80)                                        # (the old offset: the pages now start 8 later)
     end = h + u(0x70)
-    assert end <= data_pages and not any(d[end:data_pages])
-    del d[data_pages - 8:data_pages]
+    if end + 8 <= data_pages and not any(d[end:data_pages]):
+        del d[data_pages - 8:data_pages]                        # the 8 bytes from the padding: the pages stay put
+    else:                                                       # padding used up (a full world's German exe): the
+        new = (end + HARNESS_ROOM + ALIGN - 1) // ALIGN * ALIGN  # pages move down, 512-byte aligned, as save()
+        d[data_pages + 8:data_pages + 8] = bytes(new - (data_pages + 8))   # does (no non-resident names / debug
+        setu(0x80, new)                                         # info after them)
     setu(0x14, npages + 1)
     objs[objn - 1][4] += 1
     for o in objs[objn:]:

@@ -59,6 +59,7 @@ competizioni, di `squads` e di `dates_from`: li assegniamo noi quando il mondo e
 | `europe_places` | posti di questa nazione in Coppa dei Campioni (`cc`), Coppa delle Coppe (`cwc`) e Coppa UEFA (`uefa`) |
 | `first_europe` | facoltativo: i club che giocano ogni coppa europea nella **prima** stagione (chiavi dei club di questa nazione). Predefinito: i club in ordine di campionato, prima la divisione più alta (prima la Coppa dei Campioni, poi la Coppa delle Coppe, poi la UEFA) |
 | `world_cups` | in **un solo** pacchetto del mondo (la nazione *principale*): `start_year` (la prima stagione, es. `1984` per il 1984-85), `name` (il nome del mondo nell'elenco CARR. STORICHE, anche per lingua: `{"it": "EUROPA 1984-85", "en": "EUROPE 1984-85"}`; predefinito `1984-85`) e, se serve, i turni (`rounds`) di ogni coppa, es. `{"cc": {"rounds": ["two_legs", "two_legs", "two_legs", "two_legs", "single"]}}`. Turni predefiniti: andata e ritorno, finale secca |
+| `pool` | facoltativo, solo nel pacchetto principale: il mercato estero del mondo, un file nella cartella del pacchetto nel formato di POOLPLYR.DAT del gioco (900 record da 58 byte: file squadra, club, numero del giocatore, nome del club 17, giocatore 38). Viene installato come `DATA/POOLnn.DAT` (nn = numero del mondo); una carriera in quel mondo lo carica al posto di `poolplyr.dat` del 1996-97 (tools/worldpool.py). Per i suoi club usare numeri di file squadra che non siano file del mondo |
 
 **Campionati con più divisioni.** Una nazione può avere più divisioni con promozioni e retrocessioni: nella
 competizione del campionato, `divisions` le elenca dalla più alta (`teams`, `promoted`, `relegated`, `names`), e
@@ -118,6 +119,34 @@ questi file al posto di quelli del gioco.
 
 Le nazionali del mondo Europa 1984-85 sono costruite da un convertitore dallo stesso database dei club (i giocatori di
 ogni nazionalità, prima i nazionali) e verificate con il test automatico `world8485_nat`.
+
+## Campi per i mondi moderni (Mondo 2026-27, 5.0)
+
+Campi usati dal Mondo 2026-27; qualunque mondo può usarli.
+
+| Dove | Campo | Significato |
+|---|---|---|
+| competizione campionato | `parallel` | `{"upper": 1, "first": 2, "count": 3}`: le ultime `count` divisioni sono **gironi di uno stesso livello** (i gironi A / B / C della Serie C sotto la Serie B). Ogni girone promuove la prima (`promoted` 1), nessuno retrocede (`relegated` 0: il livello più basso del mondo). Dalla seconda stagione i gironi si riformano per area e si bilanciano alle loro dimensioni |
+| `clubs.csv` | `area` | con `parallel`: il girone (`A`, `B`, …) in cui entra un club quando scende a quel livello (Italia: i club di Serie C il loro vero girone 2026-27, quelli di A e B il girone della loro regione) |
+| competizione campionato | `playoffs` | `"ita"`: i play-off italiani a fine stagione (play-off e play-out di Serie B, play-off di Serie C a 28); richiede `parallel` |
+| competizione coppa | `round_names` | `"numbered"`: la coppa tiene i turni numerati del gioco dove la sua federazione li numera (il **quinto turno** della FA Cup); senza, in un mondo il turno a 16 club si chiama OTTAVI DI FINALE |
+| `ties.csv` | righe di esenzione | un club senza avversario al primo turno parte dal secondo: vedi [README.it.md](README.it.md). Il secondo turno deve essere una potenza di 2; al massimo 64 club per coppa |
+| `season` | senza `cup` | una nazione senza coppa nazionale (Messico, Honduras, Guatemala, Panama nel 2026-27) ha solo il campionato |
+
+## Il Mondo 2026-27: fonti e ricostruzione
+
+- **Fonti**: rose, allenatori, partecipanti 2026-27, classifiche 2025-26 e turni delle coppe nazionali da
+  **Transfermarkt** (transfermarkt.com); attributi dei giocatori dalle valutazioni **EA SPORTS FC** (era FC 26); maglie
+  dagli infobox di **Wikipedia** (contributori, CC BY-SA 4.0) tramite **Wikidata** (CC0); coefficienti UEFA dal sito di
+  Bert Kassies (kassiesa.net); formule dei campionati dai regolamenti delle leghe e dalle pagine stagionali di Wikipedia.
+- **Nei pacchetti ci sono solo dati derivati**: i campi del gioco (nomi, abilità sulla sua scala 0-7, prezzi sulla sua
+  scala, ruoli, maglie); nessun valore di mercato, valutazione o pagina delle fonti.
+- **Cosa resta privato**: il convertitore e la sua cache delle pagine sorgente (scaricate una volta, con calma)
+  restano al manutentore; non sono mai in questo repository né nel patcher. I pacchetti del mondo sono compilati nella
+  release.
+- **Ricostruzione**: il manutentore rilancia il convertitore su una fotografia più recente (nuova sessione di mercato,
+  valutazioni FC 27 di EA) e ricostruisce; ogni build registra data dei dati e versioni. Chi vuole un'altra stagione può
+  sempre mandarci un mondo come descritto sopra, costruito da fonti che può usare.
 
 ## Cosa ci serve da chi contribuisce
 

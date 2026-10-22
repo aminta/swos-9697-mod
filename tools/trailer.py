@@ -16,15 +16,19 @@ load_trailer (replaces `call ProcessCareerFile`): every list from the defaults (
 - older trailers (OLD_TRAILERS): 'C1' 1.1 (3 CAF lists), 'C2' and 'C3' 1.2 dev, 'C4' 1.2, 'C5' 1.3 (their 16/20-club
   Libertadores list is completed by lib_merge with default clubs not in it; the season end rebuilds it anyway);
 - 'C6': everything.
+After the main block (current mark only; only if N*684 + all fits, the main block alone as before): the engine block 'EN' (engine.save_item: word length, then per item word id,
+word length, bytes), any world; unknown ids skipped, missing items zeroed (unless saved with clear=False).
 Then the career mark 'S3' + balance byte at someLeaguesTable[1847..1849] (and leaguesTableCopy): sacups.init_sa
 calls new_career_defaults when a season starts without it (InitCareer clears the table = new career).
 """
+import os
 import re
 import struct
 
 import nasmcave
 import sacups
 
+EN_MARK = 0x4E45                          # 'EN': the engine block after the main one (engine.save_item)
 MARK, S2, SA = 0x3743, 0x3253, 0x4153     # 'C7' (2.1: + Argentina), 'S2' 'SA' (1.0/1.1 block in someLeaguesTable)
 C6 = 0x3643                               # 2.0: the same first 10 items (Libertadores of 21 as saved)
 # older trailers: (mark, first item, item count, Libertadores bytes) — 'C5' 1.3 (10 items, 20 clubs), 'C4' 1.2 (10 items,
@@ -37,6 +41,35 @@ NSA = 4                                   # SA items first: Lib, Sup, CON, Inter
 OLD_SIZE = 103                            # 1.0/1.1 block in someLeaguesTable (sum 0)
 TEAM_SIZE, SELECTED_ROOM = 684, 68400
 
+EN_SAVE = '''
+    lea eax, [ebx + TOTAL]              ; the engine block, if it fits too (else a load clears its items)
+    cmp eax, [ROOMV]
+    ja .skip
+    mov word [edi], EN_MARK
+    mov word [edi + 2], TOTAL - BLOCK - 4
+    add edi, 4
+    mov edx, EN_ITEMS
+    mov ebp, EN_N
+.en:
+    mov ax, [edx + 8]
+    mov [edi], ax
+    mov eax, [edx + 4]
+    mov [edi + 2], ax
+    add edi, 4
+    mov esi, [edx]
+    mov ecx, [edx + 4]
+.eb:
+    mov al, [esi]
+    mov [edi], al
+    inc esi
+    inc edi
+    dec ecx
+    jnz .eb
+    add edx, 12
+    dec ebp
+    jnz .en
+    add dword [D1], TOTAL - BLOCK'''
+
 ASM = '''
 save_trailer:
     pushad
@@ -44,6 +77,7 @@ save_trailer:
     imul eax, eax, TEAM_SIZE
     mov edi, eax                        ; after the records: the career's cache + N*684 (g_selectedTeams =
     add edi, [SELBASEV]                 ; careerFileBuffer + [D1], or a league-phase world's big cache, careerworld)
+    mov ebx, eax
     add eax, BLOCK
     cmp eax, [ROOMV]
     ja .skip
@@ -65,6 +99,7 @@ save_trailer:
     dec ebp
     jnz .next
     add dword [D1], BLOCK
+;EN_SAVE
 .skip:
     popad
     jmp WRITEFILE
@@ -72,6 +107,7 @@ save_trailer:
 load_trailer:
     call [LOADCOPY]                     ; (a big world: the file read into its stage, out to the fixed part + cache)
     pushad
+    call en_reset
     mov word [LIBOLD], 0FFFFh           ; no old Libertadores list read (yet)
     mov dword [LIBOLD_N], OLD_LIB
     mov esi, DEFAULTS
@@ -107,16 +143,23 @@ load_trailer:
     mov ebp, NITEMS
     mov ecx, BLOCK
     cmp word [esi], MARK
-    je .check
+    je .cur
 ;OLD_TRAILERS
     jmp .done
+.cur:
+    mov byte [EN_CUR], 1                ; (the current main block: the engine block may follow)
 .check:
     add ecx, ebx
     cmp ecx, [D1]
     ja .done
     add esi, 2
     call items_in
+    cmp byte [EN_CUR], 1
+    jne .done
+    call en_read                        ; esi = after the main block, ebx = its offset in the file
 .done:
+    call en_finish
+;EN_AFTER
     call lib_merge
     call set_mark
     popad
@@ -169,6 +212,8 @@ new_career_defaults:
     mov edx, ITEMS
     mov ebp, NITEMS
     call items_in
+    call en_reset                       ; a new career: the engine items from zero (clear flag)
+    call en_finish
     call set_mark
     popad
     ret
@@ -202,6 +247,102 @@ items_in:                               ; esi -> ebp items starting at [edx] (dd
     jnz items_in
     ret
 
+; the engine block 'EN' (engine.save_item): mark, word length, then per item word id, word length, the bytes;
+; items another build does not know are skipped; items missing from the save are zeroed (unless their clear flag is 0)
+en_reset:
+    push ecx
+    mov byte [EN_CUR], 0
+    mov ecx, EN_N + 1
+.z:
+    mov byte [EN_FOUND + ecx - 1], 0
+    dec ecx
+    jnz .z
+    pop ecx
+    ret
+
+en_read:
+    pushad
+    cmp word [esi], EN_MARK
+    jne .r
+    movzx ecx, word [esi + 2]
+    lea eax, [ebx + BLOCK + 4]
+    add eax, ecx
+    cmp eax, [D1]                       ; (all of it in the file)
+    ja .r
+    lea edi, [esi + 4]
+    add ecx, edi                        ; end
+.e:
+    cmp edi, ecx
+    jae .r
+    movzx eax, word [edi]               ; id
+    movzx ebp, word [edi + 2]           ; length
+    push ecx
+    mov edx, EN_ITEMS
+    xor ecx, ecx
+.f:
+    cmp ecx, EN_N
+    jae .nf
+    cmp ax, [edx + 8]
+    jne .nx
+    cmp ebp, [edx + 4]                  ; (another size: not this build's item)
+    jne .nf
+    mov byte [EN_FOUND + ecx], 1
+    push edi
+    lea esi, [edi + 4]
+    mov edi, [edx]
+    mov ecx, ebp
+.b:
+    mov al, [esi]
+    mov [edi], al
+    inc esi
+    inc edi
+    dec ecx
+    jnz .b
+    pop edi
+    jmp .nf
+.nx:
+    add edx, 12
+    inc ecx
+    jmp .f
+.nf:
+    pop ecx
+    lea edi, [edi + ebp + 4]
+    jmp .e
+.r:
+    popad
+    ret
+
+en_finish:
+    pushad
+    mov edx, EN_ITEMS
+    xor ecx, ecx
+.l:
+    cmp ecx, EN_N
+    jae .r
+    cmp byte [EN_FOUND + ecx], 0
+    jne .n
+    test byte [edx + 10], 1             ; clear flag
+    jz .n
+    mov edi, [edx]
+    mov eax, [edx + 4]
+.z:
+    mov byte [edi], 0
+    inc edi
+    dec eax
+    jnz .z
+.n:
+    add edx, 12
+    inc ecx
+    jmp .l
+.r:
+    mov byte [EN_CUR], 0
+    popad
+    ret
+
+EN_CUR: db 0
+EN_FOUND: times EN_N + 1 db 0
+align 4
+EN_ITEMS: EN_ENTRIES
 ITEMS: ITEM_ENTRIES
 OLD_ITEMS: dd LIBOLD, OLD_LIB       ; the rest as ITEMS
     OLD_ENTRIES
@@ -248,6 +389,16 @@ def patch(p, cave, items, tails=False):
     table, copy = sa.TABLES[0]
     assert len(items) >= NSA + 4 and [n for _, n in items[:NSA]] == [2 * sacups.LIB_N, 32, 32, 4]
     block = 2 + sum(n for _, n in items)
+    import engine
+    en = engine.save_items()                      # the engine block 'EN' after the main one
+    en_block = 4 + sum(4 + sz for _, _, sz, _, _ in en) if en else 0
+    nmax = (SELECTED_ROOM - block - en_block) // TEAM_SIZE   # save_trailer writes 'EN' only if N*684 + all <= 68400
+    assert en_block < 0x10000 and nmax >= 80, (block, en_block, nmax)   # (the main block alone: N <= 98; EN in the normal
+                                                  # cache matters for world-0 careers only, whose 4.0 items are unused)
+    import careerworld                            # a big world's cache (its own SELBASEV / ROOMV): all of it at SEL_N
+    if careerworld.BSS[0] is not None:
+        assert careerworld.SEL_N * TEAM_SIZE + block + en_block <= careerworld.SEL_ROOM, \
+            ('big cache room', careerworld.SEL_N, block, en_block, careerworld.SEL_ROOM)
     defaults = b''.join(p.get(1, off, n) for off, n in items)
     bal = -(sa.MARK3 & 0xff) - (sa.MARK3 >> 8) & 0xff
     symbols = {'NUMSEL': (2, numsel), 'CAREER': (2, career), 'D1': (2, dreg1), 'WRITEFILE': (1, writefile),
@@ -257,7 +408,15 @@ def patch(p, cave, items, tails=False):
                'FIXED': (0, numsel - career + 2), 'NITEMS': (0, len(items)), 'NSA': (0, NSA), 'OLD_SIZE': (0, OLD_SIZE),
                'OLD_SAVED': (2, table + sa.SAVED_GLOBAL), 'MARK3_AT': (2, table + sa.MARK3_GLOBAL),
                'MARK3_COPY': (2, copy + sa.MARK3_GLOBAL), 'OLD_LIB': (0, OLD_LIB), 'OLD_LIB_MAX': (0, OLD_LIB_MAX), 'LIB_N': (0, sacups.LIB_N), 'MARK3': (0, sa.MARK3), 'MARK3_BAL': (0, bal),
-               'DEFAULT_BYTES': (0, 'db ' + ', '.join(str(b) for b in defaults))}
+               'DEFAULT_BYTES': (0, 'db ' + ', '.join(str(b) for b in defaults)),
+               'TOTAL': (0, block + en_block), 'EN_N': (0, len(en)), 'EN_MARK': (0, EN_MARK)}
+    late = []                                     # items / routines whose address comes later in patch_exe
+    for k_, (name, _, _, _, at) in enumerate(en):
+        symbols[f'E{k_}'] = at or (1, cave)       # (a placeholder fixup, retargeted by late())
+        if at is None:
+            late.append(('item', name, 'EN_ITEMS', 12 * k_))
+    symbols['EN_ENTRIES'] = (0, 'dd ' + ', '.join(f'E{k_}, {sz}, {iid | (int(cl) << 16)}'
+                                                  for k_, (_, iid, sz, cl, _) in enumerate(en)) if en else 'dd 0')
     for k_, (off, n) in enumerate(items):         # obj1 addresses as symbols: nasmcave adds their fixups
         symbols[f'I{k_}'] = (1, off)
     symbols['ITEM_ENTRIES'] = (0, 'dd ' + ', '.join(f'I{k_}, {n}' for k_, (_, n) in enumerate(items)))
@@ -273,10 +432,34 @@ def patch(p, cave, items, tails=False):
         tbl = 'OLD_ITEMS' if lib_b == OLD_LIB else f'OLD_ITEMS{lib_b}'
         olds += [f'    mov edx, {tbl} + 8 * {first}', f'    mov ebp, {count}', f'    mov ecx, {size}',
                  f'    mov dword [LIBOLD_N], {lib_b}', f'    cmp word [esi], {mark:#x}', '    je .check']
-    asm = ASM.replace(';OLD_TRAILERS', '\n'.join(olds))
+    asm = nasmcave.sub(ASM, ';OLD_TRAILERS', '\n'.join(olds))
+    if en:
+        asm = nasmcave.sub(asm, ';EN_SAVE', EN_SAVE)
+    cbs = engine.after_loads()                    # after the engine items (or their clearing): pushad, call, popad
+    asm = nasmcave.sub(asm, ';EN_AFTER', '\n'.join(f'    pushad\n    call [EN_CB + {4 * k}]\n    popad' for k in range(len(cbs))))
+    if tails:                                     # the tails first: after_process below calls the load tail (the
+        asm = nasmcave.sub(asm, '    popad\n    jmp WRITEFILE', '    popad\n    jmp [SAVE_TAIL]')   # other order lost
+        asm = nasmcave.sub(asm, '    popad\n    jmp PROCESS', '    popad\n    jmp [LOAD_TAIL]')     # w_load_tail - the
+    aps = engine.after_processes()                # big world's W1 block - on every load: CONVENTIONS 19)
+    if os.environ.get('AFTER_PROCESS_PROBE'):     # (test builds only: a no-op callback, the load path with one)
+        aps = aps + [('probe', None)]
+    if aps:                                       # (4.0: after ProcessCareerFile - or the load tail that ends in it -,
+        tail = '[LOAD_TAIL]' if tails else 'PROCESS'   # its result's flags / registers kept)
+        asm = nasmcave.sub(asm, f'    call set_mark\n    popad\n    jmp {tail}', f'    call set_mark\n    popad\n    call {tail}\n' +
+                   ''.join(f'    pushfd\n    pushad\n    call [EN_CB + {4 * (len(cbs) + k)}]\n    popad\n    popfd\n'
+                           for k in range(len(aps))) + '    ret')
+        cbs = cbs + aps
+    asm += 'align 4\nEN_CB: ' + ('dd ' + ', '.join('ap_probe' if n == 'probe' else f'CB{k}' for k, (n, _) in enumerate(cbs))
+                                 if cbs else 'dd 0') + '\n'
+    if any(n == 'probe' for n, _ in cbs):
+        asm += 'ap_probe:\n    ret\n'
+    for k, (name, at) in enumerate(cbs):
+        if name == 'probe':
+            continue
+        symbols[f'CB{k}'] = at or (1, cave)
+        if at is None:
+            late.append(('call', name, 'EN_CB', 4 * k))
     if tails:
-        asm = asm.replace('    popad\n    jmp WRITEFILE', '    popad\n    jmp [SAVE_TAIL]')
-        asm = asm.replace('    popad\n    jmp PROCESS', '    popad\n    jmp [LOAD_TAIL]')
         asm += 'align 4\nSAVE_TAIL: dd WRITEFILE\nLOAD_TAIL: dd PROCESS\n'
     while True:                                   # no pointer may straddle an obj1 page (LE fixups are per page)
         code, fix = nasmcave.assemble(asm, cave, symbols)
@@ -295,6 +478,23 @@ def patch(p, cave, items, tails=False):
     INFO.update(load_a1=load_a1, roomv=labels['ROOMV'], loadcopy=labels['LOADCOPY'], selbasev=labels['SELBASEV'])
     if tails:
         INFO['tails'] = (labels['SAVE_TAIL'], labels['LOAD_TAIL'])
-    print(f'exe: .CAR trailer C7 ({block} B) @ obj1+{cave:#x}, SaveCareerFile call obj1+{save_call:#x}, '
+    INFO['EN'] = [(n, iid, sz) for n, iid, sz, _, _ in en]
+    INFO['late'] = [(kind, name, labels[lab] + off) for kind, name, lab, off in late]
+    print(f'exe: .CAR trailer {chr(MARK & 0xff)}{chr(MARK >> 8)} ({block} B' + (f' + engine block EN {en_block} B: ' + ', '.join(n for n, *_ in en)
+                                                if en else '') + f'; EN saved with up to {nmax} cached teams'
+          + (f'; after load: {", ".join(n for n, _ in cbs)}' if cbs else '') + f') @ obj1+{cave:#x}, '
+          f'SaveCareerFile call obj1+{save_call:#x}, '
           f'LoadCareerFile call obj1+{load_call:#x}')
     return (cave + len(code) + 3) & ~3, labels['new_career_defaults']
+
+
+def late(p):
+    """End of patch_exe: bind the engine items / after-load routines whose addresses were not known at trailer.patch
+    (engine.ITEM_AT / CALL_AT set since, e.g. gplay's RS_STATE)."""
+    import engine
+    for kind, name, off in INFO.get('late', []):
+        at = (engine.ITEM_AT if kind == 'item' else engine.CALL_AT).get(name)
+        assert at is not None, f'engine {kind} {name}: no address'
+        p.retarget(1, off, at[0], at[1])
+        p.put(1, off, struct.pack('<I', at[1]))
+    INFO['late'] = []

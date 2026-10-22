@@ -514,8 +514,16 @@ arg_load:
     mov ebp, SLOT0                      ; the player's league as loaded from the .CAR
     call ARG_NAMES
     pop ebp
+    pushad                              ; 4.0: after ProcessCareerFile (it rebuilt D8CAA from the league records):
+    mov eax, [GP_AFTER]                 ; gplay's contest pointers again (slot 4's knockout), the slot buffers'
+    test eax, eax                       ; name pointers / titles from this exe's structs (gp_after: set by
+    jz .n                               ; gplay.patch, which comes later)
+    call eax
+.n: popad
     popfd
     ret
+align 4
+GP_AFTER: dd 0
 '''
 LABELS = {}
 ROUND_HOOK = True
@@ -626,6 +634,9 @@ def patch(p, area, str_base, at, site_b, src_dir):
     return (at + len(code) + 15) & ~15
 
 
+LOAD_CALL = [None]                       # obj1 offset of the wrapped call (careerworld.ns_load chains in front)
+
+
 def load_hook(p, at):
     """After trailer.patch: wrap the LoadCareerFile -> ProcessCareerFile call (now trailer's load_trailer)."""
     import sacups
@@ -639,12 +650,15 @@ def load_hook(p, at):
     loader = m[0].end() + struct.unpack('<i', p.get(1, call + 1, 4))[0]     # trailer's load_trailer (patched bytes)
     assert loader != m[0].end() + struct.unpack('<i', m[0].group(2))[0], 'trailer not applied yet'
     symbols = {'LOADER': (1, loader), 'ARG_NAMES': (1, LABELS['arg_names']), 'SLOT0': (2, SLOT0)}
+
     code, fix = nasmcave.assemble(LOAD_ASM, at, symbols)
     assert not any(p.le.obj_bytes(1)[at:at + len(code)])
     p.put(1, at, code)
     for off, tobj, toff in fix:
         p.add_ptr(1, at + off, tobj, toff)
     p.put(1, call + 1, struct.pack('<i', at - (call + 5)))
+    LABELS['GP_AFTER'] = nasmcave.labels(LOAD_ASM, at, symbols)['GP_AFTER']
+    LOAD_CALL[0] = call
     print(f'exe: Argentina: career load call obj1+{call:#x} -> obj1+{at:#x}')
     return (at + len(code) + 15) & ~15
 

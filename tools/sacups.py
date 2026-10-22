@@ -225,7 +225,10 @@ SAVE_ITEMS = [None]      # [(obj1 offset, size)] of the SA lists + Intercontinen
 SAVED_GLOBAL = 1740      # 1.0/1.1 saves: someLeaguesTable[1740..1842]: 'S2' + 3 lists + Intercontinental pair + balance byte
                          # (cseg_9487A: sum must be 0); session-12 saves: 'SA' + 3 lists + balance byte (1740..1838);
                          # global numbers 1730..1849 belong to no team
+CT_PRE_PTR = [None]     # obj1 offset of the dword conti.patch fills with its ct_pre
 LISTS_OUT = [None]       # career code's lists_out, called at season end
+SEL_ADDR = [None]        # obj2 offset of selTeamNumber (the career club's word), set by career_hooks
+SITES = {}               # career_hooks: E092F, D8CBE (cup kind), cseg_8B2D3, the slot-3 buffer (uefaq.py)
 
 # ITA bytes (obj-relative offsets as stored in the file), see notes/STATUS.md
 
@@ -358,6 +361,8 @@ init_sa:
     mov [CUP_KIND], ax
     jmp FOUND
 
+ct_pre_ptr: dd 0                        ; (conti.patch: its ct_pre)
+
 ; ProcessCareerFile, replaces "cmp [E092F],-1; jz out": restore a Supercopa in slot 1
 load_slot1:                             ; the lists were restored by trailer.load_trailer (.CAR trailer / old saves)
     cmp dword [PLAYER_CUP], 0
@@ -384,6 +389,13 @@ load_slot1:                             ; the lists were restored by trailer.loa
 
 ; ProcessCareerFile, replaces "cmp [E092F],2; jz map; jmp out": slot 3 = SA cup for E092F 3..5, extra cups 6..
 load_slot3:
+    mov eax, [ct_pre_ptr]               ; (conti: its contest lists and next game again from the saved edition, before
+    test eax, eax                       ; the slot is mapped back: after a load the exe's season-1 lists - wrong names
+    jz .np                              ; in the group tables, OFC / CAF)
+    pushad
+    call eax
+    popad
+.np:
     cmp word [E092F], 2
     je LOAD_MAP
     mov dword [A0], LIB
@@ -577,16 +589,19 @@ def career_hooks(p, cups, cave, cups_all=None, caf=None):
     # InitCareer: mov [A0], offset someLeaguesTable; mov word [D0], 1999 (clear loop)
     m = [x for x in re.finditer(rb'\xc7\x05' + struct.pack('<I', a0) + rb'(.{4})\x66\xc7\x05.{4}\xcf\x07', d1, re.S)]
     assert len(m) == 1, len(m)
-    table = struct.unpack('<I', m[0].group(1))[0]
+    import bigtables
+    table_raw = struct.unpack('<I', m[0].group(1))[0]
+    table = bigtables.moved(table_raw)                  # (global numbers 2000+: the table moved, bigtables.retarget)
     saved = table + SAVED_GLOBAL
     # cseg_8CC0A: mov [D0], 1999; mov [A0], offset someLeaguesTable; mov [A1], offset leaguesTableCopy
-    m = [x for x in re.finditer(rb'\xc7\x05' + struct.pack('<I', a0) + struct.pack('<I', table) + rb'\xc7\x05.{4}(.{4})', d1, re.S)]
-    copies = {struct.unpack('<I', x.group(1))[0] for x in m}
+    m = [x for x in re.finditer(rb'\xc7\x05' + struct.pack('<I', a0) + struct.pack('<I', table_raw) + rb'\xc7\x05.{4}(.{4})', d1, re.S)]
+    copies = {bigtables.moved(struct.unpack('<I', x.group(1))[0]) for x in m}
     assert len(copies) == 1, copies
     copies_base = copies.pop()
     saved_copy = copies_base + SAVED_GLOBAL
     defaults = b''.join(p.get(1, off, n) for off, n in ((lib + 47, 2 * LIB_N), (sup + 27, 32), (con + 27, 32))) + p.get(1, cups_all[3] + 24, 4)
     sel = struct.unpack_from('<I', d1, check + 0x2d + 2)[0]               # cseg_8D661: mov ax,[selTeamNumber]
+    SEL_ADDR[0] = sel                                                     # (uefaq.py: the manager's club)
     assert d1[check + 0x2d:check + 0x2f] == b'\x66\xa1'
 
     # cseg_8ECAE: cmp dword [D8CBA],0; jz out; mov eax,[D8CC0]; mov [A6],eax; mov [A5],offset list; mov [A4],offset slot4
@@ -600,6 +615,7 @@ def career_hooks(p, cups, cave, cups_all=None, caf=None):
     k = d1.find(b'\xc7\x05', k + 10)
     assert k - po < 0x30
     slot4 = struct.unpack_from('<I', d1, k + 6)[0]
+    SITES.update(e092f=e092f, cup_kind=cup_kind, c8b2d3=c8b2d3, slot3=slot4 + 0x443)    # (uefaq.py)
     assert slot4 == slot2 + 0x443, (hex(slot4), hex(slot2))
     # its tail: mov ax,[league+3Dh]; mov [slot4+3Dh],ax (x3)
     k = d1.find(b'\x66\xa3' + struct.pack('<I', slot4 + 0x3d), po)
@@ -623,6 +639,9 @@ def career_hooks(p, cups, cave, cups_all=None, caf=None):
     chain, load_map_lines = [], []
     for k, off in enumerate(caf['structs']):
         symbols[f'XCUP{k}'] = (1, off)
+        if k == caf.get('conti_from'):              # (conti: its lists again before its checks, after a load)
+            chain += ['    mov eax, [ct_pre_ptr]', '    test eax, eax', f'    jz .np{k}', '    pushad', '    call eax',
+                      '    popad', f'.np{k}:']
         chain += [f'    mov dword [A0], XCUP{k}', f'    mov word [D7], {6 + k}', '    call CHECK', '    jz .found']
         load_map_lines += [f'    mov dword [A0], XCUP{k}', f'    cmp word [E092F], {6 + k}', '    je LOAD_MAP']
     symbols['KIND_BYTES'] = (0, 'db ' + ', '.join(str(x) for x in [0, 1, 2] + caf['kinds']))
@@ -631,10 +650,12 @@ def career_hooks(p, cups, cave, cups_all=None, caf=None):
     symbols['MARK3'] = (0, MARK3)
     TABLES[0] = (table, copies_base)
     SAVE_ITEMS[0] = [(lib + 47, 2 * LIB_N), (sup + 27, 32), (con + 27, 32), (cups_all[3] + 24, 4)]   # Lib, Sup, CON, INT pair
-    asm = CAREER_ASM.replace(';EXTRA_CHAIN', '\n'.join(chain)).replace(';EXTRA_LOAD', '\n'.join(load_map_lines))
+    asm = nasmcave.sub(CAREER_ASM, ';EXTRA_CHAIN', '\n'.join(chain))
+    asm = nasmcave.sub(asm, ';EXTRA_LOAD', '\n'.join(load_map_lines))
     code, fix = nasmcave.assemble(asm, cave, symbols)
     labels = nasmcave.labels(asm, cave, symbols)
     LISTS_OUT[0] = labels['lists_out']
+    CT_PRE_PTR[0] = labels['ct_pre_ptr']
     p.put(1, cave, code)
     for off, tobj, toff in fix:
         p.add_ptr(1, cave + off, tobj, toff)

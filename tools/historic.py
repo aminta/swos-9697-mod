@@ -240,20 +240,71 @@ hist_draw:                              ; replaces `call cseg_27F08` in cseg_26D
     mov al, [esi + 2Dh]
     mov edi, [A3]
     movzx ecx, word [edi + 161h]
+%if LP_ON
+    call [LP_CHK_V]                     ; UEFA league phase (lp36): its own orders, never the game's draw (vectors:
+    jne .nlp                            ; conti.patch adds its own contests)
+    call [LP_DRW_V]
+    popad
+    ret
+.nlp:
+%endif
     mov edx, DRAW_TABLE
+%if CF_ON
+    mov word [DRAW_C], 0
+%endif
+%if WD_ON
+    mov byte [DRAW_W], 0                ; world filter: 0 = every career / mode
+%endif
 .find:
     cmp byte [edx], 0
     je .orig
+%if CF_ON
+    cmp byte [edx], 2                   ; [2, file, ordinal]: the next draws only for a contest whose first club is
+    jne .cf                             ; that one (several state championships share one contest id); [2, 0, 0]: all
+    mov bx, [edx + 1]
+    mov [DRAW_C], bx
+    add edx, 3
+    jmp .find
+.cf:
+%endif
+%if WD_ON
+    cmp byte [edx], 1                   ; [1, 0, w]: the next draws belong to world w (its own cup ids)
+    jne .rec
+    mov bl, [edx + 2]
+    mov [DRAW_W], bl
+    add edx, 3
+    jmp .find
+.rec:
+%endif
     movzx ebx, byte [edx + 1]           ; teams in the round; bit 7: sort first (tourney packs)
     and bl, 7Fh
     cmp [edx], al
     jne .next
     cmp ebx, ecx
+%if WD_ON
+    jne .next
+    cmp byte [DRAW_W], 0
+    je .perm
+    push eax
+    mov al, [DRAW_W]
+    cmp al, [WORLDB]                    ; someLeaguesTable[1845]: the running career's world
+    pop eax
+%endif
     je .perm
 .next:
     lea edx, [edx + ebx + 2]
     jmp .find
 .perm:
+%if CF_ON
+    cmp word [DRAW_C], 0
+    je .cfok
+    push eax
+    mov ax, [esi + 12Dh]                ; the contest's first club (its team table's row 0)
+    cmp ax, [DRAW_C]
+    pop eax
+    jne .next
+.cfok:
+%endif
     call DRAW_PRE                       ; lib97.lib_pre (Libertadores holder into the round of 16), else ret
     cmp byte [edx + 2], 0FFh            ; 'pre only': the bye club joins, then the game's own random draw
     je .orig
@@ -303,7 +354,17 @@ hist_draw:                              ; replaces `call cseg_27F08` in cseg_26D
 
 draw_pre_none:
     ret
+align 4
+LP_CHK_V: dd LP_CHK                     ; (conti.patch retargets both: its contests keep their order too)
+LP_DRW_V: dd LP_DRAW
+%if CF_ON
+DRAW_C: dw 0
+%endif
+%if WD_ON
+DRAW_W: db 0
+%else
 DRAW_TABLE: DRAW_BYTES
+%endif
 DRAW_TMP: times 64 db 0
 
 ; Coin toss (Mitropa 1934, FA Cup 1871-72). These contests have no extra time and no penalties (legs byte), so a draw
@@ -399,6 +460,8 @@ hist_preset:
     ret
 '''
 
+
+LBL = {}                                # (the patch's labels: conti.patch retargets LP_CHK_V / LP_DRW_V)
 
 def build_teams(src_dir):
     """{file number: bytes} of the historic team files."""
@@ -684,8 +747,32 @@ def _draw_call(p):
 TABLE = [None, False]           # the fixed draws' table (obj, offset) and whether it has world filter records
 
 
-def patch(p, lang, area, cave, draw_pre=None, leagues=(), cave2=None):
+def cf_on():
+    """The draw table has first-club filter records [2, file, ordinal] (statespec's state brackets): hist_draw's and
+    lib97 dt_find's CF rule."""
+    import statespec
+    return any(len(d) > 3 for d in DRAWS + statespec.TEST_DRAWS + [x for ds in mkseason.world_draws().values() for x in ds])
+
+
+def draw_table():
+    """hist_draw's fixed draws: [id, teams | sort flag, perm...] per round; each career world's after a filter
+    record [1, 0, world] (its cup ids are its own); 0 ends. One world: no filter records (the table of 3.3)."""
+    def drec(d):                        # (id, perm[, sort[, first club]]): a first club = a [2, file, ordinal] filter
+        r = bytes((d[0], len(d[1]) | (0x80 if d[2:] and d[2] else 0))) + bytes(d[1])
+        return (bytes((2,) + tuple(d[3])) + r + bytes((2, 0, 0))) if d[3:] else r
+    wdraws = mkseason.world_draws()
+    import statespec
+    DRAWS = globals()['DRAWS'] + statespec.TEST_DRAWS    # (STATESPEC_TEST=1: the world-0 test state's brackets)
+    if not mkseason.multi_ns():
+        return b''.join(map(drec, DRAWS + [d for ds in wdraws.values() for d in ds])) + b'\0'
+    assert all(d[0] > 1 for d in DRAWS) and all(d[0] > 1 for ds in wdraws.values() for d in ds)
+    return b''.join(map(drec, DRAWS)) + b''.join(bytes((1, 0, w)) + b''.join(map(drec, ds))
+                                                 for w, ds in sorted(wdraws.items()) if ds) + b'\0'
+
+
+def patch(p, lang, area, cave, draw_pre=None, leagues=(), cave2=None, lp=None, cave2_size=0x1000):
     """Register CLASSICS and the World Cup 1982; returns the new cave end."""
+    import statespec
     d2 = p.le.obj_bytes(2)
     ct, tcn, _, _ = countries.tables(p)
     comp = countries.COMP[0]
@@ -787,7 +874,7 @@ def patch(p, lang, area, cave, draw_pre=None, leagues=(), cave2=None):
         print(f"exe: historic: tourney {long} id {t['id']:#x} @ obj1+{at2:#x}, {len(t['pairs']) // 2} teams, "
               f"file {t['file']}{', coin toss' if t['coin'] else ''}")
         at2 = (at2 + len(blob) + 3) & ~3
-    assert at2 <= cave2 + 0x1000, hex(at2)
+    assert at2 <= cave2 + cave2_size, hex(at2)
     at2 = (at2 + 15) & ~15
 
     table = at                                             # CLASSICS: [leagues..., -2, WC82, M34, FA, tourneys..., -1]
@@ -816,23 +903,32 @@ def patch(p, lang, area, cave, draw_pre=None, leagues=(), cave2=None):
     names_call, set_names, calc_entry = _names_call(p)
     regs = sacups.regs(p.le.obj_bytes(1))
     a0 = regs['D7'] + 4
-    tbl = b''.join(bytes((d[0], len(d[1]) | (0x80 if d[2:] and d[2] else 0))) + bytes(d[1]) for d in DRAWS) + b'\0'
+    tbl = draw_table()
+    wd = mkseason.multi_ns() and any(mkseason.world_draws().values())   # several worlds: own cup ids
+    if wd:
+        import careerworld
+        slt = careerworld.SITES['slt']        # careerworld.patch ran first (mkseason.patch, before historic)
     symbols = {'COMP254': (2, comp + 4 * 254), 'WORLD_PRESET': (1, wpre), 'SELECT': (1, select),
                'A2': (2, a0 + 8), 'A3': (2, a0 + 12), 'DRAW_ORIG': (1, draw_orig),
-               'DRAW_BYTES': (0, 'db ' + ', '.join(str(b) for b in tbl)),
+               **({'DRAW_TABLE': (2, area.add(tbl))} if wd else   # several worlds: obj2 (patch.py adds pages)
+                  {'DRAW_BYTES': (0, 'db ' + ', '.join(str(b) for b in tbl))}),
                'DRAW_PRE': (1, draw_pre) if draw_pre is not None else (0, 'draw_pre_none'),
                'D0': (2, a0 - 32), 'A0': (2, a0), 'SET_COUNTRY_NAMES': (1, set_names), 'CALC_ENTRY': (1, calc_entry),
                'CLASSICS_NAME': (2, rec + 1), 'SEASONS_NAME': (2, mkseason.SEASONS_REC[0] + 1), 'MENU_COLOR': (0, MENU_COLOR), 'MENU_GAP': (0, MENU_GAP),
                'M34_ID_': (0, M34_ID), 'FA_ID_': (0, FA_ID), 'COIN_TEXT': (2, coin_text),
                'DIYCOPY': (2, coin['diycopy']), 'RAND2': (1, coin['rand2']), 'D5': (2, a0 - 12), 'D6': (2, a0 - 8),
                'D7': (2, a0 - 4), 'D1': (2, a0 - 28), 'SKIP': (2, coin['skip']), 'DIYCOMP': (2, coin['diycomp']),
-               'ESCI_FIX': (1, elab['esci_fix']), 'EF_VARS': (1, elab['EF_VARS'])}
+               'ESCI_FIX': (1, elab['esci_fix']), 'EF_VARS': (1, elab['EF_VARS']),
+               'CF_ON': (0, int(cf_on())),
+               'WD_ON': (0, int(wd)), 'WORLDB': (slt[0], slt[1] + careerworld.WORLD_BYTE) if wd else (0, 0),
+               'LP_ON': (0, int(lp is not None)), 'LP_CHK': (1, lp[0]) if lp else (0, 'draw_pre_none'),
+               'LP_DRAW': (1, lp[1]) if lp else (0, 'draw_pre_none')}
     src = ASM
     extra = ''.join(f'    je .r\n    cmp byte [DIYCOPY + 2Dh], {cid:#x}\n' for cid in coin_ids)   # tourney packs
-    src = src.replace('    cmp byte [DIYCOPY + 2Dh], FA_ID_\n.r:', '    cmp byte [DIYCOPY + 2Dh], FA_ID_\n' + extra + '.r:')
+    src = nasmcave.sub(src, '    cmp byte [DIYCOPY + 2Dh], FA_ID_\n.r:', '    cmp byte [DIYCOPY + 2Dh], FA_ID_\n' + extra + '.r:')
     if mkseason.CAREERS_REC[0] is not None:                # career packs: CLASSIC CAREERS button coloured too
         symbols['CAREERS_NAME'] = (2, mkseason.CAREERS_REC[0] + 1)
-        src = src.replace('    cmp dword [esi + 26h], SEASONS_NAME', '    cmp dword [esi + 26h], CAREERS_NAME\n    je .c\n'
+        src = nasmcave.sub(src, '    cmp dword [esi + 26h], SEASONS_NAME', '    cmp dword [esi + 26h], CAREERS_NAME\n    je .c\n'
                           '    cmp dword [esi + 26h], SEASONS_NAME')
     while True:                                            # (3.2: the code on its own page; tables stay in the cave)
         code, fix = nasmcave.assemble(src, at2, symbols)    # no pointer may straddle a page
@@ -840,10 +936,11 @@ def patch(p, lang, area, cave, draw_pre=None, leagues=(), cave2=None):
             break
         at2 += 4
     labels = nasmcave.labels(src, at2, symbols)
-    assert at2 + len(code) <= cave2 + 0x1000, hex(at2 + len(code))
+    assert at2 + len(code) <= cave2 + cave2_size, hex(at2 + len(code))
     p.put(1, at2, code)
     for off, tobj, toff in fix:
         p.add_ptr(1, at2 + off, tobj, toff)
+    LBL.update(labels)
     p.put(1, pre_call + 1, struct.pack('<i', labels['hist_preset'] - (pre_call + 5)))
     p.put(1, names_call + 1, struct.pack('<i', labels['hist_names'] - (names_call + 5)))
     # the overwritten instructions held absolute addresses (D7, the skip flag): drop their fixups, or the loader would
@@ -861,5 +958,5 @@ def patch(p, lang, area, cave, draw_pre=None, leagues=(), cave2=None):
     print(f'exe: historic: {name.decode()} = country {CLASSICS}, {full.decode()} id {WC82_ID:#x} @ obj1+{wc82:#x}, '
           f'preset call obj1+{pre_call:#x} -> obj1+{labels["hist_preset"]:#x} (season call obj1+{season_call:#x} untouched)')
     print(f'exe: historic: code obj1+{at2:#x}..{at2 + len(code):#x} (page {cave2:#x})')
-    TABLE[:] = [(1, labels['DRAW_TABLE']), False]    # (lib97.chain_adv: career cups; one world, no filter records)
+    TABLE[:] = [symbols['DRAW_TABLE'] if wd else (1, labels['DRAW_TABLE']), wd]   # (lib97.chain_adv: career cups)
     return at

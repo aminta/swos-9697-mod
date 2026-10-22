@@ -7427,7 +7427,7 @@ def world_full_uefa():
 def world_full_slv():
     """Full 5.0 world (full_season): a season at HACHADURA (El Salvador, Tercera occidente): two levels of parallel
     zones (Segunda, Tercera) keep their sizes, the moves go one level by the clubs' areas (pgroups multi-level)"""
-    return full_season('slv', 'NORDAMERICA,EL SALVADOR,TERCERA DIVISION OCCIDENTE|TERCERA OCCIDENTE|TERCERA OCCIDENT,HACHADURA')
+    return full_season('slv', 'NORDAMERICA,EL SALVADOR,TERCERA DIVISION OCCIDENTE|TERCERA OCCIDENTE|TERCERA OCCIDENT|TERCERA OCC.,HACHADURA')
 
 
 @scenario

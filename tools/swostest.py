@@ -1393,7 +1393,9 @@ def builds():
     branch/commit), else from this checkout."""
     if not hasattr(builds, 'cache'):
         br = os.environ.get('SWOSTEST_BRANCH')
-        builds.cache = {'it': os.environ.get('SWOSTEST_BUILD') or build(re.sub(r'\W', '_', br) if br else 'it', branch=br)}
+        tag = '_' + os.environ['SWOSTEST_TAG'] if os.environ.get('SWOSTEST_TAG') else ''   # (parallel sessions: their own
+        builds.cache = {'it': os.environ.get('SWOSTEST_BUILD') or     # build dir, not a shared builds/it overwritten
+                        build((re.sub(r'\W', '_', br) if br else 'it') + tag, branch=br)}   # under a running suite)
     return builds.cache
 
 

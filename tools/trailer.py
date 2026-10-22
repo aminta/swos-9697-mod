@@ -41,6 +41,35 @@ OLD_SIZE = 103                            # 1.0/1.1 block in someLeaguesTable (s
 TEAM_SIZE, SELECTED_ROOM = 684, 68400
 
 EN_SAVE = '''
+    lea eax, [ebx + TOTAL]              ; the engine block, if it fits too (else a load clears its items)
+    cmp eax, [ROOMV]
+    ja .skip
+    mov word [edi], EN_MARK
+    mov word [edi + 2], TOTAL - BLOCK - 4
+    add edi, 4
+    mov edx, EN_ITEMS
+    mov ebp, EN_N
+.en:
+    mov ax, [edx + 8]
+    mov [edi], ax
+    mov eax, [edx + 4]
+    mov [edi + 2], ax
+    add edi, 4
+    mov esi, [edx]
+    mov ecx, [edx + 4]
+.eb:
+    mov al, [esi]
+    mov [edi], al
+    inc esi
+    inc edi
+    dec ecx
+    jnz .eb
+    add edx, 12
+    dec ebp
+    jnz .en
+    add dword [D1], TOTAL - BLOCK'''
+
+EN_SAVE_W = '''
     mov ebp, EN_N
     mov eax, TOTAL
 %if EN_N0 < EN_N
@@ -453,7 +482,8 @@ def patch(p, cave, items, tails=False):
                  f'    mov dword [LIBOLD_N], {lib_b}', f'    cmp word [esi], {mark:#x}', '    je .check']
     asm = ASM.replace(';OLD_TRAILERS', '\n'.join(olds))
     if en:
-        asm = asm.replace(';EN_SAVE', EN_SAVE)
+        asm = asm.replace(';EN_SAVE', EN_SAVE_W if len(en0) < len(en) else EN_SAVE)   # (4.0.1: the world-0
+                                                  # subset only where world-only items exist; else 4.0's code)
     cbs = engine.after_loads()                    # after the engine items (or their clearing): pushad, call, popad
     asm = asm.replace(';EN_AFTER', '\n'.join(f'    pushad\n    call [EN_CB + {4 * k}]\n    popad' for k in range(len(cbs))))
     aps = engine.after_processes()                # (4.0: after ProcessCareerFile, its result's flags / registers kept)

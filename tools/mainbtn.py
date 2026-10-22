@@ -26,6 +26,8 @@ mb_set: pushad
         mov word [D0], 9                ; CAREER: the row's left half, its right link -> the button
         call CALC
         mov edi, [A0]
+        cmp dword [edi + 2Ah], ONSELF   ; (only the main menu: its entry 9 is CAREER)
+        jne .out
         mov word [edi + 14h], 8
         mov byte [edi + 9], 4
         mov byte [edi + 0Ah], 3         ; (up: OPTIONS, the left column)
@@ -53,7 +55,7 @@ mb_set: pushad
         mov [edi + 26h], eax
         add eax, mb_go - mb_lab
         mov [edi + 2Ah], eax
-        popad
+.out:   popad
         ret
 
 mb_go:  push eax                         ; the button: CAREER's menu, its team choice opening in the World 2026-27

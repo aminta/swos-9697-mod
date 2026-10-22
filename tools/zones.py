@@ -193,8 +193,11 @@ def pack_zones(d, lang, lp=False, rank=None, detail=None):
                 if li == 1:                              # Serie B
                     rng += [(3, 8, GREEN), (16, 17, ORANGE)]
                     why += ['po_up', 'out']
-                elif li == 2:                            # the Serie C groups (not the Serie D's: their own play-offs)
+                elif li == 2:                            # the Serie C groups
                     rng.append((2, 10, GREEN))
+                    why.append('po_up')
+                elif li == 3:                            # the Serie D groups: each group's play-off, 2nd-5th
+                    rng.append((2, 5, GREEN))            # (Davide 2026-10-22, CONVENTIONS rule 7)
                     why.append('po_up')
             if dv['down']:
                 rng.append((n - dv['down'] + 1, n, RED))
@@ -372,7 +375,8 @@ def table(lang, pack_dirs):
 
 CONTI_LAB = {'lib': 'lib', 'sud': 'sud', 'ccc': 'ccc', 'acle': 'acle', 'acl2': 'acl2', 'cl': 'cafcl', 'cc': 'cafcc',
              'ocl': 'ofc'}
-LEGX, CUPY = 92, 188            # (an entry's byte: 1 = a cup's group table: its legend boxes on the bottom line, y CUPY)
+LEGX, CUPY, CUPT = 92, 3, 70   # (an entry's byte: 1 = a cup's group table: its legend in the title row, y CUPY, the
+                                # title bar from x CUPT (the groups' header rows have no room: GRUPPO A ...))
 
 
 def conti_rows(lang, metas):
@@ -400,8 +404,8 @@ def conti_rows(lang, metas):
                         rng.append((int(p), int(p), col))
                 name = (c['names'].get(lang) or c['names']['en'])[0].upper()
                 for title in (' ' + name, name):
-                    out.append((w, title[:NAME - 1], rng[:RANGES], leg, 'cupgrp',   # (its legend right of group A's
-                                metas.get(w, {}).get('start_year', 1900) - 1900, 0, leg))  # title: LEGX, zn_leg)
+                    out.append((w, title[:NAME - 1], rng[:RANGES], leg, 'cupgrp',   # (code: the group size, the
+                                metas.get(w, {}).get('start_year', 1900) - 1900, rd['size'], leg))   # place per group)
     return out
 
 
@@ -474,8 +478,8 @@ def blob(rows):
         if any(r[0] & 0x80 for r in rng):              # 4.0 group headers: their legend (+81: n, (colour, label))
             e += bytes([len(gleg[:LEG])]) + b''.join(bytes([LEG_COLOUR.get(c, c), KEYS.index(k)]) for c, k in gleg[:LEG])
         e += b'\0' * (ENTRY_PAD - len(e))
-        if kind == 'cupgrp':                           # (the legend right of the group's title)
-            e = e[:LEGX] + b'\1' + e[LEGX + 1:]
+        if kind == 'cupgrp':                           # (a cup's group screen: LEGX = 1, LEGX + 1 = the group size)
+            e = e[:LEGX] + bytes((1, code)) + e[LEGX + 2:]
         b += e
     return bytes(b)
 
@@ -587,6 +591,18 @@ EU_ROW
     movzx eax, word [D7]
     shr eax, 1
     inc eax                             ; the row's place 1..
+    cmp byte [edi + LEGX_], 0           ; a cup's group screen: the rows run on over the groups (B = 5..8):
+    je .pg                              ; the place within its group
+    push ecx
+    push edx
+    dec eax
+    xor edx, edx
+    movzx ecx, byte [edi + LEGX_ + 1]
+    div ecx
+    lea eax, [edx + 1]
+    pop edx
+    pop ecx
+.pg:
 OV_ROW
     xor ebp, ebp                        ; (4.0 group headers: ebp = 10000h + group * 100h + its group place)
 HDR_PREP
@@ -636,7 +652,9 @@ zn_leg:                                 ; edi = the table's entry or 0: the lege
     sub ecx, LEG_
     imul ebx, ecx, 38h
     add ebx, MENU + 16h
-    mov dx, [MENU + 16h + 24 * 38h + 16h]
+    mov dx, [MENU + 16h + 16h]          ; the header line: under the title bar (entry 24 moves in a long table)
+    add dx, [MENU + 16h + 1Ah]
+    inc dx
     push ebx
     call zn_eu
     mov [ZEU], bh
@@ -673,17 +691,22 @@ HDR_LEG
     inc ecx
     jmp .l
 .o:
-    test edi, edi                       ; a cup's group table: the boxes on the bottom line
+    mov word [MENU + 16h + 14h], 8      ; the title bar: whole width
+    mov word [MENU + 16h + 18h], 304
+    mov edi, [esp]                      ; (the entry as it came: HDR_LEG moves edi to the group legend)
+    test edi, edi                       ; a cup's group table: the boxes in the title row, the bar from CUPT_
     jz .q
     cmp byte [edi + LEGX_], 0
     je .q
+    mov word [MENU + 16h + 14h], CUPT_
+    mov word [MENU + 16h + 18h], 312 - CUPT_
     movzx ecx, word [MENU + 10h]
     sub ecx, LEG_
     imul ebx, ecx, 38h
     add ebx, MENU + 16h
     mov ecx, LEG_
 .s:
-    mov word [ebx + 16h], CUPY_         ; (the bottom line, left of STAT / ESCI)
+    mov word [ebx + 16h], CUPY_
     add ebx, 38h
     dec ecx
     jnz .s
@@ -989,7 +1012,7 @@ def patch(p, at, area, lang, pack_dirs, bss, bss_len, world=None):
     sym = {'D3': (2, a0 - 20), 'D7': (2, a0 - 4), 'A1': (2, a0 + 4), 'A5': (2, a0 + 20), 'DIY': (2, diy),
            **({'C11': c11} if c11 else {}), 'ZHIT': (2, keys), 'ZEU': (2, keys + 47), 'ZKEY': (2, keys + 4), 'NAME_': (0, NAME), 'ZENT': (2, zent),
            'ZFILE': (2, zfile), 'FN_BASE_': (0, len(FILE[lang])), 'BUF': (2, bss), 'BUFLEN_': (0, bss_len),
-           'ENTRY_': (0, ENTRY_PAD), 'LEG_': (0, LEG), 'LEG_W_': (0, LEG_W), 'LEGN_': (0, 1 + NAME + 1 + 3 * RANGES), 'LEGX_': (0, LEGX), 'CUPY_': (0, CUPY),
+           'ENTRY_': (0, ENTRY_PAD), 'LEG_': (0, LEG), 'LEG_W_': (0, LEG_W), 'LEGN_': (0, 1 + NAME + 1 + 3 * RANGES), 'LEGX_': (0, LEGX), 'CUPY_': (0, CUPY), 'CUPT_': (0, CUPT),
            'FRAME_': (0, int(os.environ.get('ZN_FRAME', '0x60'), 16)), 'LABS': (2, labs), 'EFLAG_': (0, EFLAG), 'ECODE_': (0, ECODE), 'EU_PLACES_': (0, EU_PLACES), 'LEGBUF': (2, legbuf), 'MENU': cur_menu}
     import fmtpage
     import gplay

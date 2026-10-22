@@ -21,6 +21,7 @@ word length, bytes), any world; unknown ids skipped, missing items zeroed (unles
 Then the career mark 'S3' + balance byte at someLeaguesTable[1847..1849] (and leaguesTableCopy): sacups.init_sa
 calls new_career_defaults when a season starts without it (InitCareer clears the table = new career).
 """
+import os
 import re
 import struct
 
@@ -436,20 +437,31 @@ def patch(p, cave, items, tails=False):
         asm = asm.replace(';EN_SAVE', EN_SAVE)
     cbs = engine.after_loads()                    # after the engine items (or their clearing): pushad, call, popad
     asm = asm.replace(';EN_AFTER', '\n'.join(f'    pushad\n    call [EN_CB + {4 * k}]\n    popad' for k in range(len(cbs))))
-    aps = engine.after_processes()                # (4.0: after ProcessCareerFile, its result's flags / registers kept)
-    if aps:
-        asm = asm.replace('    call set_mark\n    popad\n    jmp PROCESS', '    call set_mark\n    popad\n    call PROCESS\n' +
+    if tails:                                     # the tails first: after_process below calls the load tail (the
+        asm = asm.replace('    popad\n    jmp WRITEFILE', '    popad\n    jmp [SAVE_TAIL]')   # other order lost
+        asm = asm.replace('    popad\n    jmp PROCESS', '    popad\n    jmp [LOAD_TAIL]')     # w_load_tail - the
+    aps = engine.after_processes()                # big world's W1 block - on every load: CONVENTIONS 19)
+    if os.environ.get('AFTER_PROCESS_PROBE'):     # (test builds only: a no-op callback, the load path with one)
+        aps = aps + [('probe', None)]
+    if aps:                                       # (4.0: after ProcessCareerFile - or the load tail that ends in it -,
+        tail = '[LOAD_TAIL]' if tails else 'PROCESS'   # its result's flags / registers kept)
+        old = f'    call set_mark\n    popad\n    jmp {tail}'
+        assert asm.count(old) == 1, tail
+        asm = asm.replace(old, f'    call set_mark\n    popad\n    call {tail}\n' +
                           ''.join(f'    pushfd\n    pushad\n    call [EN_CB + {4 * (len(cbs) + k)}]\n    popad\n    popfd\n'
                                   for k in range(len(aps))) + '    ret', 1)
         cbs = cbs + aps
-    asm += 'align 4\nEN_CB: ' + ('dd ' + ', '.join(f'CB{k}' for k in range(len(cbs))) if cbs else 'dd 0') + '\n'
+    asm += 'align 4\nEN_CB: ' + ('dd ' + ', '.join('ap_probe' if n == 'probe' else f'CB{k}' for k, (n, _) in enumerate(cbs))
+                                 if cbs else 'dd 0') + '\n'
+    if any(n == 'probe' for n, _ in cbs):
+        asm += 'ap_probe:\n    ret\n'
     for k, (name, at) in enumerate(cbs):
+        if name == 'probe':
+            continue
         symbols[f'CB{k}'] = at or (1, cave)
         if at is None:
             late.append(('call', name, 'EN_CB', 4 * k))
     if tails:
-        asm = asm.replace('    popad\n    jmp WRITEFILE', '    popad\n    jmp [SAVE_TAIL]')
-        asm = asm.replace('    popad\n    jmp PROCESS', '    popad\n    jmp [LOAD_TAIL]')
         asm += 'align 4\nSAVE_TAIL: dd WRITEFILE\nLOAD_TAIL: dd PROCESS\n'
     while True:                                   # no pointer may straddle an obj1 page (LE fixups are per page)
         code, fix = nasmcave.assemble(asm, cave, symbols)

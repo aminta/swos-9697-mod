@@ -1834,8 +1834,8 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
                         'A4R': (2, a0_ + 16)})
         cd_src += CUP12 + cds1_src(p, cds[0], rl, rs)
         symbols.update({f'C_S1_{k}': (1, c) for k, c in enumerate(CDS1_CALLS)})
-    cd_src += GP_RNAME.replace('CD_PART', CD_RNAME if cds else '')
-    asm = (ASM.replace('jmp GP_REC_NEXT', 'jmp GP_REC_NEXT' if rec_dp else 'jmp gp_recmov') + tab_src + '\n'
+    cd_src += nasmcave.sub(GP_RNAME, 'CD_PART', CD_RNAME if cds else '')
+    asm = (nasmcave.sub(ASM, 'jmp GP_REC_NEXT', 'jmp GP_REC_NEXT' if rec_dp else 'jmp gp_recmov') + tab_src + '\n'
            + names_lines(tables, area, lang) + '\n' + stubs + cd_src)
     glue = (cend + 15) & ~15
     code, fix = nasmcave.assemble(asm, glue, symbols)

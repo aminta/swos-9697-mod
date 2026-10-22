@@ -18,6 +18,8 @@ association coefficients (5 seasons) and the clubs' coefficients at the 2025-26 
 """
 import struct
 
+import nasmcave
+
 LABELS = {}                     # (uefaq.py: UC_C, UC_N, uc_g, CB)
 
 CB_OFF = 0x3800                 # in tmdFileBuffer (the W1 block ends at 0x3482)
@@ -141,7 +143,7 @@ uc_init:                                ; zero the block, the seeds (5 seasons o
 '''
 # (CHIST + s*1024 + c*4: ebx = s*1024 + c, so [ebp + CHIST + ebx*4] would be s*4096: fixed below in Python by the
 # layout constant CHS = 1024 dwords per season)
-ASM = ASM.replace("""    imul ebx, ecx, 1024
+ASM = nasmcave.sub(ASM, """    imul ebx, ecx, 1024
     add ebx, edx
     mov [ebp + CHIST + ebx*4 - 0], eax  ; (CHIST + s*1024 + c*4)""", """    imul ebx, ecx, 256
     add ebx, edx

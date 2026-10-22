@@ -831,7 +831,7 @@ def patch(p, at, limit, tables, bss_at, area):
     glue = (cend + 15) & ~15
     # the two contests after the glue (their address known after a first assembly)
     symbols.update({'DP_C0': (1, 0), 'DP_C1': (1, 0), 'DP_C2': (1, 0)})
-    asm = ASM.replace('DP_TAB: TAB_BYTES', 'DP_TAB:\n    ' + tab_src)
+    asm = nasmcave.sub(ASM, 'DP_TAB: TAB_BYTES', 'DP_TAB:\n    ' + tab_src)
     code, _ = nasmcave.assemble(asm, glue, symbols)
     c0 = (glue + len(code) + 15) & ~15
     c1 = (c0 + len(cps[0]) + 3) & ~3

@@ -899,17 +899,18 @@ def patch(p, at, limit, bss_at, area):
     symbols.update(LPDIY=ls['DIY'], LPDIYC=ls['DIYCOPY'], SELTEAMS=ls['SELTEAMS'], C8A2CE=ls['C8A2CE'],
                    CT_GEND=syms['ct_gend'], CT_NG=(0, len(ids)), LP_OURS=(1, lp36.LABELS['lp_copy_ours']),
                    LP_DRAW0=(1, lp36.LABELS['lp_draw']))
-    asm = GLUE.replace("    ;CT_GIDS", '    db ' + ', '.join(str(i) for i in ids)).replace("    ;CT_LP", "\n".join(lp)).replace(
-        "    ;CT_STRUCTS", "\n".join(f'    dd XST{i}' for i in range(len(STRUCTS))) or '    dd 0').replace(
-        "    ;CT_NAMES", "\n".join(f'    dd {r}' for r in NAMES) or '    dd 0').replace(
-        "    ;CT_SNAMES", "\n".join(f'    dd {r}' for r in SNAMES) or '    dd 0')
+    asm = nasmcave.sub(GLUE, "    ;CT_GIDS", '    db ' + ', '.join(str(i) for i in ids))
+    asm = nasmcave.sub(asm, "    ;CT_LP", "\n".join(lp))
+    asm = nasmcave.sub(asm, "    ;CT_STRUCTS", "\n".join(f'    dd XST{i}' for i in range(len(STRUCTS))) or '    dd 0')
+    asm = nasmcave.sub(asm, "    ;CT_NAMES", "\n".join(f'    dd {r}' for r in NAMES) or '    dd 0')
+    asm = nasmcave.sub(asm, "    ;CT_SNAMES", "\n".join(f'    dd {r}' for r in SNAMES) or '    dd 0')
     import rnames
     rn = [rnames.CT_IDX.get((ci, j), 0) for ci in range(16) for j in range(16)]
-    asm = asm.replace("    ;CT_RN", '    db ' + ', '.join(map(str, rn)))
+    asm = nasmcave.sub(asm, "    ;CT_RN", '    db ' + ', '.join(map(str, rn)))
     if 'RN_TIE' in rnames.LABELS:
         symbols['RN_TIE'] = (1, rnames.LABELS['RN_TIE'])
     else:
-        asm = asm.replace('[RN_TIE]', '[ct_rntie]')
+        asm = nasmcave.sub(asm, '[RN_TIE]', '[ct_rntie]')
     bad = {k: v for k, v in symbols.items() if not (isinstance(v, tuple) and isinstance(v[1], int))}
     assert not bad, bad
     spec_at = (end + 15) & ~15                          # (the spec in our own pages: the obj2 string area is

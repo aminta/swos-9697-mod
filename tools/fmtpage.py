@@ -456,7 +456,7 @@ def patch(p, at, lang, area, bss, world=None, wn=False):
            'DIY_': (2, __import__('lp36')._sites(p)['DIY']), 'MENU_': __import__('zones')._current_menu(p)}
     OV['flag'] = base + off['vars'] + 5
     OV['on'] = base + off['vars'] + 6           # (longtable: this table drawn in overall mode now)
-    src = ASM.replace('WORLD_FILE\n', WORLD_ASM if world else '')
+    src = nasmcave.sub(ASM, 'WORLD_FILE\n', WORLD_ASM if world else '')
     if world:
         sym.update({'GAMETYPE': world['gametype'], 'SLT': world['slt'], 'WORLD_BYTE_': (0, 1845)})
     code, cfix = nasmcave.assemble(src, at, sym)

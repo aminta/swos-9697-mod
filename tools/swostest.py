@@ -5445,6 +5445,67 @@ def world_rlines_arg3():
     return world_rlines('SUDAMERICA,ARGENTINA,LIGA PROFESIONAL,ROSARIO CENTRAL', 'arg', 1, 'auto', fill=True)
 
 
+def world_ca(team, country, league, want):
+    """4.0.1 Central America exactly (session40/ca_exact.py, data TM_CA_EXACT): a season at team, forced 1st of each
+    tournament (GPLAY_FORCE=1: the stage's kept table too): the stage titles <league> APERTURA / CLAUSURA and each
+    tournament's final phase played (want: the screens' titles), every title within 40 characters (never a cut
+    country: 'RICA ...')"""
+    src = os.environ.get('W2627CA_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-401-ca3-0448')
+    if not os.path.isdir(src):
+        return True, f'SKIP: private data {src} missing'
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    exe = os.environ.get('CA_BUILD') or build('world_ca', env={'SEASON_PACKS': ','.join(
+        ['ddr-1988-89'] + [os.path.join(src, x) for x in order]), 'GPLAY_FORCE': '1'})
+    os.environ['CA_BUILD'] = exe
+    keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_ONE')
+    keep = {k: os.environ.get(k) for k in keys}
+    os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5', W8485_K='108+',
+                      W8485_NOSACK='1', W8485_ONE='1')
+    try:
+        ok, msg = world8485()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    titles = set()
+    for ln in open(os.path.join(RUNS, w84_tag() + '_1', 'session.log'), errors='replace'):
+        m = re.match(r'^\[\d+\] ([^|]*?) \|', ln)
+        if m:
+            titles.add(m.group(1).strip())
+    errs = []
+    check(ok, msg, errs)
+    for w in [f'{league} APERTURA', f'{league} CLAUSURA'] + [f'{country} {x}' for x in want]:
+        check(w in titles, f'no screen titled {w!r}', errs)
+    check(not any(len(t) > 40 for t in titles), f'titles over 40: {[t for t in titles if len(t) > 40]}', errs)
+    return not errs, '; '.join(errs) or f'{msg}; ' + ', '.join(sorted(t for t in titles if 'APERTURA' in t or 'CLAUSURA' in t))
+
+
+@scenario
+def world_ca_crc():
+    """world_ca at SAPRISSA (Costa Rica: semi-finals 1-4 / 2-3 and final, two legs; the Gran Final skipped when the
+    leader wins)"""
+    return world_ca('NORDAMERICA,COSTA RICA,SAPRISSA', 'COSTA RICA', 'PRIMERA DIVISION',
+                    ['APERTURA SEMIFINALE ANDATA', 'APERTURA FINALE ANDATA', 'CLAUSURA SEMIFINALE ANDATA'])
+
+
+@scenario
+def world_ca_hon():
+    """world_ca at OLIMPIA (Honduras: one table of 12; 3-6 / 4-5, the semi-finals with the 1st / 2nd, the final, two
+    legs)"""
+    return world_ca('NORDAMERICA,HONDURAS,OLIMPIA', 'HONDURAS', 'LIGA NACIONAL',
+                    ['APERTURA SEMIFINALE ANDATA', 'APERTURA FINALE ANDATA', 'CLAUSURA SEMIFINALE ANDATA'])
+
+
+@scenario
+def world_ca_pan():
+    """world_ca at PLAZA AMADOR (Panama: two conferences; their leaders straight into the two-legged semi-finals, the
+    play-offs 2nd v the other conference's 3rd one match, the final one match at a neutral ground)"""
+    return world_ca('NORDAMERICA,PANAMA,PLAZA AMADOR', 'PANAMA', 'LIGA PANAMENA DE FUTBOL',
+                    ['APERTURA SEMIFINALE ANDATA', 'APERTURA FINALE', 'CLAUSURA SEMIFINALE ANDATA'])
+
+
 @scenario
 def world_cupd_slot2_load():
     """rc4 regression (squads' AVOLA trap): a Serie D career's slot 2 after a load. SCHIO forced through its Coppa D

@@ -5878,8 +5878,10 @@ def world_winners_mls():
     if not os.path.isdir(src):
         return True, f'SKIP: private data {src} missing'
     order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
-    exe = build('world_winners_mls', env={'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]),
-                                         'GPLAY_FORCE': '1'})
+    kof = os.environ.get('WINNERS_KOFORCE')              # (1: the career club loses its play-off ties - 4.0's
+    exe = build('world_winners_mls' + (f'_kof{kof}' if kof else ''),   # a41b1e4: the rest is still decided)
+                env=dict({'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]),
+                          'GPLAY_FORCE': '1'}, **({'GPLAY_KOFORCE': kof} if kof else {})))
     st_at = gp_ptrs(exe)[1]
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import simdraw
@@ -5922,6 +5924,9 @@ def world_winners_mls():
     for nm, w in want.items():
         check(got.get(nm) == w, f'end: {nm} shows {got.get(nm)!r}, GP_ST.ko = {w!r}', errs)
     check(got.get("SUPPORTERS' SHIELD") not in (None, 'IN CORSO', 'DA GIOCARE'), f'end: the Shield {got}', errs)
+    if kof == '1':                                      # (knocked out: the final and the conference finals decided)
+        check(all(got.get(k) not in (None, 'IN CORSO', 'DA GIOCARE') for k in want) and 'INTER MIAMI' not in
+              [got.get('PLAYOFF - MLS CUP')], f'knocked out (GPLAY_KOFORCE=1): {got}', errs)
     with Session('world_winners_mls_out', exe, {'WMLS.CAR': car}, 'dump:2', 300) as s:   # (interim rule: the career
         s.wait()                                        # club knocked out, the final and the West final undecided -
         s.send(LOAD1 + ' dump:3')                       # forced by pokes: those two lines go, the others stay)

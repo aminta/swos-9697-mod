@@ -6200,17 +6200,21 @@ def world_gplay_reserve_gap():
 
 
 @scenario
-def world_gplay_seried(force='3', team='EUROPA,ITALIA,SERIE D GIRONE A,LIGORNA', div=5):
+def world_gplay_seried(force='3', team='EUROPA,ITALIA,SERIE D GIRONE A,LIGORNA', div=5, ko='2'):
+    ko_ = ko
     """A Serie D group play-off played (gplay 'placement', World 2026-27 with Serie D: the data session's snapshot
     internal/world2526/world5tm-e0b89822, W2627D_DATA): LIGORNA (girone A) forced 3rd at the league end -> the group
     play-off (2nd v 5th, 3rd v 4th, then the final; single matches at the better placed, extra time, then the better
-    placed) built in slot 4 and played to its end; it moves nobody"""
+    placed) built in slot 4 and played to its end; it moves nobody. Its results forced (rule 15, GPLAY_KOFORCE): ko '2'
+    LIGORNA wins its semi-final and the final (the play-off's winner); '1' it loses the semi-final - the final of the
+    other two decided all the same (gp_perm_c: a knockout the career club leaves is simulated to its end)"""
     src = os.environ.get('W2627D_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-e0b89822')
     if not os.path.isdir(src):
         return True, f'SKIP: private data {src} missing'
     order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
-    env = {'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]), 'GPLAY_FORCE': force}
-    exe = os.environ.get('GPLAY_BUILD') or build('world_gplay_seried_' + force, env=env)
+    env = {'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]), 'GPLAY_FORCE': force,
+           'GPLAY_KOFORCE': ko}
+    exe = os.environ.get(f'GPLAY_BUILD{ko}') or build(f'world_gplay_seried_{force}_ko{ko}', env=env)
     log_at, st_at, log_n, st_n = gp_ptrs(exe)
     keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K',
                                             'W8485_NOSACK', 'W8485_HEX', 'W8485_ONE')}
@@ -6241,7 +6245,23 @@ def world_gplay_seried(force='3', team='EUROPA,ITALIA,SERIE D GIRONE A,LIGORNA',
           f"play-off kind {ko['kind']} slot {ko['slot']} codes {ko['code']}", errs)
     check(ko['ntie'] == 3 and all(x != 255 for x in ko['tw']), f"play-off not over: winners {ko['tw']}", errs)
     win = ko['code'][ko['tw'][-1]] if ko['tw'] and ko['tw'][-1] < ko['n'] else None
-    return not errs, '; '.join(errs) or f"{msg}; play-off codes {ko['code']}, winner code {win}, no replay days"
+    mi = ko['code'].index(me) if me in ko['code'] else None
+    if ko_ == '2':
+        check(win == me, f"forced won: the winner code {win}, not the career club's {me}", errs)
+    else:
+        lost = [t for t in range(ko['ntie'] - 1) if ko['tl'][t] == mi]
+        check(lost and win != me and ko['tw'][-1] != 255, f"forced lost: semi-final ties lost {lost}, final winner "
+              f"code {win}", errs)
+    return not errs, '; '.join(errs) or (f"{msg}; play-off codes {ko['code']}, winners {ko['tw']}, winner code {win} "
+                                         f"({'the career club' if win == me else 'the career club out in the semi-final'}), "
+                                         f"no replay days")
+
+
+@scenario
+def world_gplay_seried_lost():
+    """world_gplay_seried with LIGORNA forced to lose its semi-final (GPLAY_KOFORCE=1): the final between the other two
+    is decided all the same (before rc10 it stayed 'to be played': winners [x, y, 255])"""
+    return world_gplay_seried(ko='1')
 
 
 @scenario

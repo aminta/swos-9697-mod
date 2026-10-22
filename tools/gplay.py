@@ -1529,14 +1529,18 @@ def ss_banks(sp_tabs):
     """4.0.1: one GP_SS bank per league with stage tables ('table' stages): ARG / MLS share bank 0 (4.0's), each other
     league its own. -> (count, 256 bytes: team file -> bank)."""
     import mkseason
-    files = []
+    files, divs = [], {}
     for world, file, div, n, spec in sp_tabs:
-        if any(st.get('table') is not None for st in spec.get('stages') or []) and file not in files:
-            files.append(file)
+        if any(st.get('table') is not None for st in spec.get('stages') or []):
+            divs.setdefault(file, set()).add(div)
+            if file not in files:
+                files.append(file)
     code = {}
     for pk in mkseason.packs():
         if pk.world is not None and pk.league:
             code[pk.files[pk.league['clubs']][0]] = pk.meta['id'].rsplit('-', 1)[-1]
+    for f, ds in divs.items():                  # (a bank per league, the career's saved: a second staged division of
+        assert code.get(f) in SS_LEGACY or len(ds) == 1, (code.get(f), ds)   # one country would share it mid-season)
     tab, nb = bytearray(256), 1
     for f in files:
         if code.get(f) not in SS_LEGACY:

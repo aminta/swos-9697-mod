@@ -1586,6 +1586,10 @@ def next_season_save(s, name):
             if err:
                 return err
             continue
+        if ('AVVERSARI' in scr.texts() or 'VIS. SQUADRA' in scr.texts()) and 'ESCI' in scr.texts() and \
+                any(t == 'GIOCA :' and inv for _, t, inv, _ in scr.entries):   # a match card with GIOCA off (a
+            press(s, scr, 'ESCI', wait=3)                                      # fixture shown at the new season's
+            continue                                                           # start): ESCI
         press(s, scr, 'CONTINUA') or s.send('fire dump:2')
     else:
         return 'career menu of the new season not reached'
@@ -2356,6 +2360,7 @@ def world8485():
                 if diy_league(b):
                     s.log.append(f'DIY {b.hex()}')
             if os.environ.get('W8485_SAVE_END'):      # (debug) a save at the season-end menu, before CONTINUA
+                hexlog()                               # (the season end's state first: W8485_HEX)
                 nm = os.environ['W8485_SAVE_END']
                 if press(s, s.screen(), 'SALVA CARRIERA') is None:
                     return False, f'season {season}: no SALVA CARRIERA on {s.screen()}'
@@ -4800,6 +4805,75 @@ def world_sa_compat():
                 check(b[0] == b[1] == b[2] == 30 and not bad, f'annual != Apertura + Clausura for {len(bad)} clubs '
                       f'(n {list(b[:3])})', errs)
                 info.append(f'annual of {len(an)} clubs = Apertura (4.0 save) + Clausura')
+    finally:
+        for x, v in keep.items():
+            if v is None:
+                os.environ.pop(x, None)
+            else:
+                os.environ[x] = v
+    return not errs, '; '.join(errs + info)
+
+
+@scenario
+def world_sa_reload():
+    """4.0.1 GP_SS banks across a mid-season save: a career at ALIANZA LIMA (Peru exact, Colombia exact in the same
+    world) saved right after Peru's Apertura (bank 1 half-built), reloaded and played to the season end: Peru's annual
+    = its Apertura (from the save) + Clausura, Colombia's (a transient bank, built at the season end) = its own two"""
+    import split
+    import lepatch
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    from le import LE
+    exe = sa_exact_build('per', ('col',))
+    sa = split.sites(lepatch.LEPatch(os.path.join(MAIN, 'orig', 'ITALIAN.EXE')))
+    frozen = sa['DIY'] + split.ST + split.OFF['frozen']
+    d1 = LE(open(os.path.join(exe, 'ITALIAN.EXE'), 'rb').read()).obj_bytes(1)
+    ssb = struct.unpack_from('<I', d1, d1.find(b'GPLOGPTR') + 8 + 64)[0]
+    item = 6 + 4 * 32 * 12
+    names = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_HEX',
+             'W8485_ONE', 'W8485_MIDSAVE', 'W8485_FROM', 'W8485_SAVE_END')
+    keep = {x: os.environ.get(x) for x in names}
+    base = dict(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1',
+                W8485_TEAM=os.environ.get('SA_TEAM') or 'SUDAMERICA,PERU,ALIANZA LIMA')
+    errs, info = [], []
+    try:
+        for x in names:
+            os.environ.pop(x, None)
+        os.environ.update(base, W8485_ONE='1', W8485_MIDSAVE=f'{frozen:x}:2:2')
+        ok, msg = world8485()
+        car = os.path.join(RUNS, w84_tag() + '_1', 'SWOS', 'W84A.CAR')
+        check(ok and os.path.exists(car), f'mid-season save: {msg}', errs)
+        if not errs:
+            saved = os.path.join(RUNS, 'sa_reload_W84A.CAR')
+            shutil.copy(car, saved)
+            for x in names:
+                os.environ.pop(x, None)
+            log_at, st_at, log_n, st_n = gp_ptrs(exe)
+            os.environ.update(base, W8485_FROM=saved, W8485_HEX=f'{ssb:x}:{4 * item},{st_at:x}:{st_n}')
+            ok, msg = world8485()                     # (to the next season: gp_season runs at CONTINUA CARRIERA)
+            for ln in open(os.path.join(RUNS, w84_tag() + '_2', 'session.log'), errors='replace'):
+                q = ln.split()
+                if len(q) == 3 and q[0] == 'HEX' and int(q[1], 16) == st_at:
+                    st = bytes.fromhex(q[2])
+                    k = gp_ko(st[GP_STKO:])
+                    info.append(f"GP_ST pend {st[:16].hex()} ko0 magic {k['magic']:#x} pi {k['pi']} season "
+                                f"{k['season']} n {k['n']} teams {[hex(x) for x in k['team'][:4]]}")
+            check(ok, f'reloaded: {msg}', errs)
+            dumps = [bytes.fromhex(ln.split()[2]) for ln in open(os.path.join(RUNS, w84_tag() + '_2', 'session.log'),
+                                                                     errors='replace') if ln.startswith('HEX ')]
+            check(dumps, 'no GP_SSB dump', errs)
+            if dumps:
+                b = dumps[-1]
+                for bank in (1, 2, 3):
+                    o = bank * item
+                    if not b[o]:
+                        continue
+                    rows = lambda t: {struct.unpack_from('<H', b, o + 6 + (t * 32 + r) * 12 + 2)[0]:
+                                      struct.unpack_from('<H', b, o + 6 + (t * 32 + r) * 12 + 10)[0]
+                                      for r in range(b[o + t])}
+                    ap, cl, an = rows(0), rows(1), rows(2)
+                    bad = [g for g in an if an[g] != ap.get(g, -999) + cl.get(g, -999)]
+                    check(an and not bad, f'bank {bank}: annual != Apertura + Clausura for {len(bad)} of {len(an)}', errs)
+                    info.append(f'bank {bank}: {len(an)} clubs, annual = the two tournaments')
     finally:
         for x, v in keep.items():
             if v is None:

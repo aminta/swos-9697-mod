@@ -1772,7 +1772,15 @@ u32 gp_build_c(void) {
     }
     GP_ST.nsim = 0;
     GP_IN.pi[0] = GP_BPIC; GP_IN.pi[1] = NOC;
+    const u8 *e0 = s + 6, *e1 = s + 10;         /* 4.0.1: a table's leader as both entrants of one tie (sa_exact's
+                                                   'table titles'): nothing to play, decided at once as a simulated
+                                                   one - a slot contest of the career club with itself stayed stuck
+                                                   after a mid-season reload */
+    int trivial = s[1] == 2 && s[2] == 1 && e0[0] == e1[0] && e0[1] == e1[1] && e0[2] == e1[2] && e0[3] == e1[3];
+    u16 mgr = GP_IN.mgr;
+    if (trivial) GP_IN.mgr = 0xFFFF;
     u32 b = gp_lend_c() & 1;
+    GP_IN.mgr = mgr;
     if (!b && GP_ST.ko[0].magic == MAGIC) {
         ko_sim(&GP_ST.ko[0]);
         stage_done(&GP_ST.ko[0]);               /* (simulated at once: decided now) */

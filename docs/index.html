@@ -122,7 +122,7 @@ html{scroll-behavior:smooth}
   <p>Documentation for anyone who wants to understand, extend or port the mod's patches: Serie C1 and C2, South American club cups (Libertadores, Supercopa, CONMEBOL), the Intercontinental Cup in career mode, real 1996-97 squads, classic tourneys (World Cup 1982, Mitropa Cup 1934, FA Cup 1871-72), Argentina's Apertura and Clausura, Australia, New Zealand and MLS 1997 (2.5), classic seasons with the DDR 1988-89 and that year's European cups (2.6), and the World 2026-27 career world with its shared engines (4.0). Everything below was worked out from the disassembly and checked with builds and test games.</p>
   <div class="meta">
     <span>State as of <b>2026-10-22</b> (release 4.0)</span>
-    <span>ENGLISH.EXE build <b><code>2c4d414b…</code></b></span>
+    <span>ENGLISH.EXE build <b><code>46c21e4f…</code></b></span>
     <span>TEAM.020 <b><code>bd44208c…</code></b></span>
     <span>Original ENGLISH.EXE <b><code>aa21cd1c…</code></b></span>
   </div>
@@ -743,7 +743,7 @@ assert blk[:2] == b'S2' and sum(blk) % 256 == 0</code></pre>
 <li><strong>Zone colours</strong> (<code>zones.py</code>):
   <ul>
   <li>Palette: light blue 0Dh (CL / direct promotion), green 0Eh (EL / promotion or European play-off), dark blue 08h (Conference League), orange 0Ch (play-out / relegation play-off), gray 02h (relegation).</li>
-  <li>Hook: <code>mov ax, [dseg_11F41C]</code> in the row loop at <code>cseg_49B65</code> (lp36's <code>lp_col</code> uses the same site).</li>
+  <li>Hook: <code>mov ax, [dseg_11F41C]</code> in the row loop at <code>cseg_49B65</code> (lp36's <code>lp_col</code> uses the same site). Computer clubs' names take the row colour; the career club's name box keeps its own colour with no frame, and a 1-px black ring is drawn round it only when its colour equals the zone colour (<code>zn_ring</code>, in gplay's pages through <code>zones.ring_patch</code>).</li>
   <li>The table is found by the career's world and the title shown, cached per table.</li>
   <li>Zones come from the packs: European places, promoted / relegated, <code>ko_playoffs</code> entrants, dplay's Italian places. The Brazilian states' first stages come from <code>state_zones</code>: the next stage's places green (P.OFF), a knockout's byes light blue, a one-group state's relegated gray; a state of several groups relegates on its overall table, so that is not painted. Zones are computed per group (the place in its own group) in split, zoned and cup-group tables.</li>
   </ul></li>

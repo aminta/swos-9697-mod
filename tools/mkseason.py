@@ -1704,7 +1704,10 @@ def world_files():
                 recs.append(files[f][2 + i * TEAM_SIZE:2 + (i + 1) * TEAM_SIZE])
         out[w['tmd']] = b''.join(recs)
         if w['pool']:
-            out[w['pool'][0]] = open(w['pool'][1], 'rb').read()
+            import worldpool
+            data = open(w['pool'][1], 'rb').read()
+            split = worldpool.pool_split(data)          # (clubs of file 190: renumbered as their team file, guests.py)
+            out[w['pool'][0]] = split[0] if split else data
     return out
 
 
@@ -1936,7 +1939,7 @@ def _tab(p, env, w, kind, n, *val):
         return
     import guests
     _need(n < 252 and n not in (SEASONS, CAREERS, 99) and not WMENU <= n <= WMENU + 9 and
-          (n not in POOL_IDS or (n in guests.FILES.values() and w == guests.world() and kind in ('ct', 'tcn'))),
+          (n not in POOL_IDS or (n in guests.files() and w == guests.world() and kind in ('ct', 'tcn'))),
           f'world {w}: country {n} is a menu id or a pool pseudo-country')   # (191..194: the guest files, guests.py)
     row = NS.setdefault(w, {}).setdefault(n, {})
     _need(kind == 'tcn' or kind not in row, f'world {w}: country {n} is already used')

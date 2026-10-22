@@ -1,3 +1,9 @@
+> **Updated 23/10 / Aggiornata 23/10**
+>
+> **EN:** fixed the crash on buying a player from the foreign market in a World 2026-27 career (the game exited to DOS). If you installed 4.0 before 23/10, download the patcher below again and run it on your game: it updates your 4.0 in place, and your saves keep working.
+>
+> **IT:** corretto il crash nel mercato estero (acquisto di giocatori dal mercato straniero nel Mondo 2026-27: il gioco usciva in DOS). Se hai installato la 4.0 prima del 23/10, riscarica il patcher qui sotto e lancialo sul gioco: aggiorna la tua 4.0 e i salvataggi restano validi.
+
 ## English
 
 **SWOS 96/97 Mod 4.0: the World 2026-27 career, today's football as it really is**

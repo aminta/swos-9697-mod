@@ -5695,9 +5695,12 @@ def world_winners():
     if not os.path.isdir(src):
         return True, f'SKIP: private data {src} missing'
     order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
-    exe = os.environ.get('WINNERS_BUILD') or build('world_winners', env={'SEASON_PACKS': ','.join(
-        ['ddr-1988-89'] + [os.path.join(src, x) for x in order]), 'GPLAY_FORCE': '1'})
-    os.environ['WINNERS_BUILD'] = exe
+    kof = os.environ.get('WINNERS_KOFORCE')              # (1: the career club loses its knockout ties - squads' rc12
+    exe = os.environ.get('WINNERS_BUILD') or build('world_winners' + (f'_kof{kof}' if kof else ''),   # mid-Apertura case)
+        env=dict({'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]), 'GPLAY_FORCE': '1'},
+                 **({'GPLAY_KOFORCE': kof} if kof else {})))
+    if not kof:
+        os.environ['WINNERS_BUILD'] = exe
     st_at = gp_ptrs(exe)[1]
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import lepatch

@@ -2125,3 +2125,23 @@ Left for 2.5: (a) NSL/NSSL finals series (type-1 design) or declare them postpon
   Not reproduced on Marco's exact setup (a SWOSPP.XML with menuMusic=1 already played in DOSBox-X); notes ask him.
 - Build c/REL336: SWOS IT 372524d1 EN e00c5dc4 FR 49095d32 DE e3ca0b32; gog IT 0b0d9628 EN 17ce221f FR 32fdb905 DE fb0a7340;
   SWOS++ 6ccc9e51. Suite 24/24 PASS (runs336 + runs336b). Patcher md5 45d7b998: Node OK.
+
+## 4.0 (2026-10-22): World 2026-27 career (release candidate rc5)
+- Build c/REL40rc5 from world-2025-26 d01a08d (later commits: notes / README / harness only), data
+  internal/world2526/world5tm-rel40-itanames-0340, recipe internal/release-tools/buildrel.sh (exes + patcher with the
+  same SEASON_PACKS). SWOS IT b287e020 EN f12056e4 FR 6f9d8fbe DE 1aa9a41e; gog IT 49a06cac EN f3322731 FR 327d9e4d
+  DE 92905843; SWOS++ d3ac8fdc / gog c4032ef5. 12 continental cups (CONMEBOL, CONCACAF, AFC, CAF, OFC, FIFA IC).
+- Patcher e1473b02 (VERSION 4.0): Node 339 runs / 315 outputs OK, DATA coverage 0 missing (the off-file pools
+  RS5*.DAT and the guests' TMW5.191-194 were missing from the rc2 / rc3 pages); one-click mode patcher_dirtest.mjs
+  ALL OK (4 UI languages, CD / GOG / from the CD / SWOS++ / re-run / wrong folder / upgrade over 3.3.6).
+- Suite on rc5 (squads, runs-rc5-*): all PASS except world_full_uefa = KNOWN FAIL 4.0 (one European place may go to
+  another association's club in some seasons; declared, fix in 4.0.1). career_20seasons (Malta) 20 seasons; season 3
+  of HAMRUN / SCHIO -> NARDO / BOCA; world_full_arg; TEST 8 regressions (squad_order_xtra, world_cupd_slot2_load);
+  transfer smoke; season-1 smoke in EN / FR / DE / GOG IT / GOG EN.
+- Fixed on the way: ACCETTA OFFERTA freeze (xtra.py left the squad order empty: offerfix 8ac0e33); the Coppa D club's
+  stale slot-2 winner after a load (4.0-slot2clr); orderfix reverted (engine.after_process's trailer path traps the
+  next season end even with a bare ret: fix in 4.0.1). Careers started on b8 / b9 freeze on a sale: new careers.
+- 4.0.1 queue: the after_process trailer path; the European places (uefaq glue / holders, UQ_IN unreadable at the
+  breakpoint); Lib 3rd -> Sud (ct_gend never finds the club: place 0); ACLE / ACGL played; FILL.256 after a job letter;
+  package 6's per-league GP_SS banks + trailer (a) + exact Peru / Colombia / Uruguay (sa401) with the reload card
+  (D8CAA[0] = 0x532CC2 after a mid-season load); Mexico (mex401c); Paraguay 44 days parked.

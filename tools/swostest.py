@@ -5603,15 +5603,22 @@ def world_winners():
         e2 = next((x for x in s.screen().entries if x[1] == 'VINCITORI'), None)
         check(e2 is not None and e2[2], f'the cup: VINCITORI entry {e2} (hidden)', errs)
     keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K',
-                                            'W8485_NOSACK', 'W8485_ONE', 'W8485_FILL', 'W8485_SAVE_END')}
+                                            'W8485_NOSACK', 'W8485_ONE', 'W8485_FILL', 'W8485_SAVE_END', 'W8485_MIDSAVE',
+                                            'W8485_FROM')}
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import simdraw
     from le import LE
     at = LE(open(os.path.join(exe, 'ITALIAN.EXE'), 'rb').read()).obj_bytes(2).find(simdraw.table())
-    os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5', W8485_K='108+',
-                      W8485_NOSACK='1', W8485_ONE='1', W8485_FILL=f'{at:x}:30:3072', W8485_SAVE_END='WWIN')
-    try:
+    base = dict(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5', W8485_K='108+',
+                W8485_NOSACK='1', W8485_FILL=f'{at:x}:30:3072')
+    try:                                                # (mid-season: once the Apertura is decided, GP_ST.dec[0].done)
+        os.environ.update(base, W8485_ONE='1', W8485_MIDSAVE=f'{st_at + 1997:x}:1:2')
         ok, msg = world8485()
+        mid = msg.split(': ', 1)[1] if ok else None
+        os.environ.pop('W8485_MIDSAVE')
+        if ok:                                          # (then on to the season's end: saved before CONTINUA)
+            os.environ.update(base, W8485_FROM=mid, W8485_SAVE_END='WWIN')
+            ok, msg = world8485()
     finally:
         for k, v in keep.items():
             if v is None:
@@ -5621,30 +5628,94 @@ def world_winners():
     if not ok:
         return False, '; '.join(errs + [f'season: {msg}'])
     car = msg.split('saved ', 1)[1]
-    with Session('world_winners_end', exe, {'WWIN.CAR': car}, 'dump:2', 300) as s:
+
+    def page(tag, save):
+        with Session(tag, exe, {'WWIN.CAR': save}, 'dump:2', 300) as s:
+            s.wait()
+            s.send(LOAD1 + ' dump:3')
+            st = s.result.obj2(st_at, 2100)
+            e, title, lines = winners_page(s)
+        got = dict(zip([x.rstrip(':') for x in lines[0::2]], [x.strip() for x in lines[1::2]]))
+        got.pop('', None)
+        seas = st[2]
+        for k, nm in enumerate(want[1:]):               # (gplay.c: struct gp_dec at 1996 + 12k; gp_ko at 648 + 674j:
+            d = st[1996 + 12 * k:2008 + 12 * k]          # +3 season, +5 pi, +11 ties, +330 winners, +474 team words)
+            w, how = 'DA GIOCARE', f'GP_ST.dec[{k}] {d.hex()}'
+            if d[0] == seas and d[1]:
+                w = team_name(exe, struct.unpack_from('<H', d, 4)[0])
+            else:
+                for j in range(2):
+                    ko = st[648 + 674 * j:648 + 674 * (j + 1)]
+                    if ko[:2] == b'GK' and ko[2] == seas and ko[5] == 3 + k and ko[11] and ko[330 + ko[11] - 1] != 0xFF:
+                        w = team_name(exe, struct.unpack_from('<H', ko, 474 + 2 * ko[330 + ko[11] - 1])[0])
+                        how = f'GP_ST.ko[{j}] final'
+            check(got.get(nm) == w, f'{tag}: {nm} shows {got.get(nm)!r}, {how} = {w!r}', errs)
+        check(title == 'VINCITORI 2026-27' and list(got) == want, f'{tag}: page {title!r} {list(got)}', errs)
+        return got
+
+    mg = page('world_winners_mid', mid)
+    check(mg.get('TORNEO APERTURA') != 'DA GIOCARE' and mg.get('TROFEO DE CAMPEONES') == 'DA GIOCARE',
+          f'mid-season: {mg}', errs)
+    eg = page('world_winners_end', car)
+    arg = {team_name(exe, 0xA3 | i << 8) for i in range(30)}
+    check(eg.get('LIGA PROFESIONAL') in arg, f'end: LIGA PROFESIONAL shows {eg.get("LIGA PROFESIONAL")!r} (GP_SS '
+          f'annual table\'s 1st: an Argentine club)', errs)
+    info.append(f'mid: {mg}; end: {eg}')
+    return not errs, '; '.join(errs + info)
+
+
+@scenario
+def world_winners_state():
+    """4.0 SEASON WINNERS page of a Brazilian state championship (winners.py 'C': the contest's winner, DIY +39h):
+    PALMEIRAS saved once its CAMPEONATO PAULISTA (career slot 1) is over (+55h = FFh), reloaded: VISUAL. COMPETIZ. >
+    the Paulista > STAT > VINCITORI shows one line, the champion the slot holds"""
+    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-names-2214')
+    if not os.path.isdir(src):
+        return True, f'SKIP: private data {src} missing'
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    exe = os.environ.get('WINNERS_BUILD') or build('world_winners', env={'SEASON_PACKS': ','.join(
+        ['ddr-1988-89'] + [os.path.join(src, x) for x in order]), 'GPLAY_FORCE': '1'})
+    os.environ['WINNERS_BUILD'] = exe
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import lepatch
+    import statecup
+    s1 = statecup.sites(lepatch.LEPatch(os.path.join(MAIN, 'orig', 'ITALIAN.EXE')))['slot1']
+    keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_ONE',
+            'W8485_MIDSAVE')
+    keep = {k: os.environ.get(k) for k in keys}
+    os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1',
+                      W8485_TEAM='SUDAMERICA,BRASILE,BRASILEIRAO SERIE A|CAMPEONATO BRASILEIRO SERIE A,PALMEIRAS',
+                      W8485_ONE='1', W8485_MIDSAVE=f'{s1 + 0x55:x}:255:2')
+    try:
+        ok, msg = world8485()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    if not ok:
+        return False, f'season: {msg}'
+    with Session('world_winners_state', exe, {'WWIN.CAR': msg.split(': ', 1)[1]}, 'dump:2', 300) as s:
         s.wait()
         s.send(LOAD1 + ' dump:3')
-        st = s.result.obj2(st_at, 2100)
-        e, title, lines = winners_page(s)
-    got = dict(zip([x.rstrip(':') for x in lines[0::2]], [x.strip() for x in lines[1::2]]))
-    seas = st[2]
-    for k, nm in enumerate(want[1:]):                   # (gplay.c: struct gp_dec at 1996 + 12k; gp_ko at 648 + 674j:
-        d = st[1996 + 12 * k:2008 + 12 * k]              # +3 season, +5 pi, +11 ties, +330 winners, +474 team words)
-        w, how = 'DA GIOCARE', f'GP_ST.dec[{k}] {d.hex()}'
-        if d[0] == seas and d[1]:
-            w = team_name(exe, struct.unpack_from('<H', d, 4)[0])
-        else:
-            for j in range(2):
-                ko = st[648 + 674 * j:648 + 674 * (j + 1)]
-                if ko[:2] == b'GK' and ko[2] == seas and ko[5] == 3 + k and ko[11] and ko[330 + ko[11] - 1] != 0xFF:
-                    w = team_name(exe, struct.unpack_from('<H', ko, 474 + 2 * ko[330 + ko[11] - 1])[0])
-                    how = f'GP_ST.ko[{j}] final'
-        check(got.get(nm) == w, f'end: {nm} shows {got.get(nm)!r}, {how} = {w!r}', errs)
-    lg = got.get('LIGA PROFESIONAL')
-    arg = {team_name(exe, 0xA3 | i << 8) for i in range(30)}
-    check(lg in arg, f'end: LIGA PROFESIONAL shows {lg!r} (GP_SS annual table\'s 1st: an Argentine club)', errs)
-    info.append(f'end: {title}, {got}')
-    return not errs, '; '.join(errs + info)
+        champ = team_name(exe, struct.unpack_from('<H', s.result.obj2(s1 + 0x39, 2))[0])
+        walk(s, s.screen().find('VISUAL. COMPETIZ.', exact=True), 3)
+        scr = s.screen()
+        k = next((i for i, t, inv, _ in scr.entries if t and 'PAULISTA' in t and not inv), None)
+        if k is None:
+            return False, f'no Paulista in the competitions: {[e[1] for e in scr.entries]}'
+        walk(s, k, 3)
+        walk(s, s.screen().find('STAT', exact=True), 3)
+        e = next((x for x in s.screen().entries if x[1] == 'VINCITORI'), None)
+        if e is None or e[2]:
+            return False, f'the Paulista: VINCITORI entry {e}'
+        walk(s, e[0], 3)
+        scr = s.screen()
+        s.shot('winners_state')
+        lines = [x[1].strip() for x in scr.entries[1:15] if x[1]]
+    ok = champ is not None and lines == ['CAMPEONATO PAULISTA:', champ]
+    return ok, f'champion (slot 1 +39h) {champ!r}; page {lines}'
 
 
 def world_ca(team, country, league, want):

@@ -6,9 +6,12 @@ Titles: the FMTxx[world].DAT file's WIN entries (fmtgame.win_lines: a league div
 none = the entry hidden by the menu's onInit), read when the menu opens and when the page opens (fmtpage's buffers),
 a text line per title: the title, 01h, its source:
   'L' hh       the league's own table: its 1st once it has played hh matches (fmtgame.end_played: the season's);
+  'C'          a cup-shaped contest's winner (DIY +39h, the game's: Brazil's state championship, live in slot 1);
   'S' k        the 1st of stage table k (gplay GP_SS.r[k] written this season: Argentina's annual table);
   'D' s hh     a stage title decided mid-season (gplay GP_ST.dec[s] of play-off hh), else as 'K';
   'K' hh       play-off hh's last tie in gplay GP_ST.ko (the career club's play-off, played).
+A title with nothing this season is left out (no line that would never fill: a play-off the career club is not in is
+decided at the season end - 4.0.1's 'WN'); a stage title or stage table of the career's own league shows DA GIOCARE.
 The winners are read from state saved with the career (the DIY, GP_ST: no new save item, no after-load call); a club
 is named only when it is a row of the viewed league (DIY +6Dh rows: selTeamsPtr + [row + 2B3h], TeamFile.teamName),
 so another country's career state never names a club here. Code in gplay's pages (the cosmetics page is full).
@@ -186,9 +189,11 @@ wn_render:                              ; TXT's lines (title 01h source) -> per 
     cmp byte [esi], 0
     je .end
     cmp ebp, LINES_
-    jb .ti
+    jb .ti0
     mov byte [edi - 1], 0Ch             ; (the page's last line feed: a form feed)
     xor ebp, ebp
+.ti0:
+    mov [WN_LS], edi                    ; (the title's start: a title with nothing to show this season is left out)
 .ti:
     lodsb
     test al, al
@@ -209,7 +214,10 @@ wn_render:                              ; TXT's lines (title 01h source) -> per 
     stosw
     mov eax, '    '
     stosd
-    call wn_src                         ; edx = the winner's name (or 'DA GIOCARE'), esi past the source
+    call wn_src                         ; edx = the winner's name (or 'DA GIOCARE'), esi past the source;
+    jnc .nm                             ; CF: nothing this season (decided at the season end) - no line
+    mov edi, [WN_LS]
+    jmp .eol
 .nm:
     mov al, [edx]
     test al, al
@@ -248,11 +256,15 @@ wn_render:                              ; TXT's lines (title 01h source) -> per 
     popad
     ret
 
-wn_src:                                 ; esi -> a source: edx = the winner's name, else TBP (to be played)
+wn_src:                                 ; esi -> a source: edx = the winner's name, else TBP (to be played); CF = 1:
+                                        ; no line (a play-off without its contest this season; a stage title or stage
+                                        ; table of another league than the career's, not decided)
     mov edx, TBP
     lodsb
     cmp al, 'L'
     je .lg
+    cmp al, 'C'
+    je .cup
     xor ebx, ebx                        ; GP_WNSRC: type, stage << 8, play-off << 16
     mov bl, al
     cmp al, 'K'
@@ -281,7 +293,8 @@ wn_src:                                 ; esi -> a source: edx = the winner's na
     sub al, 7
 .h: movzx eax, al
     ret
-.lg:                                    ; the league's table: its 1st once it has played hh matches (the season's)
+.lg:                                    ; the league's table: its 1st once it has played hh matches (the season's;
+                                        ; any league: its table is live)
     call .hex
     shl eax, 4
     mov ecx, eax
@@ -292,6 +305,15 @@ wn_src:                                 ; esi -> a source: edx = the winner's na
     jb .lx
     call wn_row
 .lx:
+    clc
+    ret
+.cup:                                   ; a cup-shaped contest (a state championship): its winner, DIY +39h (0FFFFh
+    mov ax, [DIY_ + 39h]                ; until its final is played; the game's own field)
+    cmp ax, 0FFFFh
+    je .cx
+    call wn_team
+.cx:
+    clc
     ret
 
 wn_row:                                 ; eax = a row's offset in DIY_: edx = its club's name
@@ -300,29 +322,39 @@ wn_row:                                 ; eax = a row's offset in DIY_: edx = it
     lea edx, [eax + 5]                  ; (TeamFile.teamName)
     ret
 
-wn_team:                                ; ax = a team word: edx = its name if it is a row of the viewed league
-    pushad                              ; (DIY_ +6Dh: groups x clubs rows), else unchanged
-    movzx ecx, word [DIY_ + 4Fh]
-    movzx ebx, word [DIY_ + 51h]
-    imul ecx, ebx
+wn_team:                                ; ax = a team word: edx = its name if it is a club of the viewed contest
+    pushad                              ; (DIY_ +31h clubs, +12Dh their team words, +2B3h their 18-byte entries:
+    movzx ecx, word [DIY_ + 31h]        ; selTeamsPtr + [entry]), else unchanged
     cmp ecx, 64
     jbe .n
     mov ecx, 64
 .n: xor esi, esi
 .r: jecxz .x
-    movzx ebx, word [DIY_ + 6Dh + esi * 2]
-    mov ebx, [DIY_ + ebx + 2B3h]
-    add ebx, [SELPTR]
-    cmp [ebx], ax
+    cmp [DIY_ + 12Dh + esi * 2], ax
     je .f
     inc esi
     dec ecx
     jmp .r
-.f: lea ebx, [ebx + 5]
+.f: imul esi, esi, 18
+    mov ebx, [DIY_ + 2B3h + esi]
+    add ebx, [SELPTR]
+    lea ebx, [ebx + 5]
     mov [esp + 20], ebx                 ; (pushad's edx)
 .x: popad
     ret
 
+wn_mine:                                ; ZF = 0 if the career club is a row of the viewed league
+    push edx
+    push eax
+    xor edx, edx
+    mov ax, [CAREERTEAM]
+    call wn_team
+    test edx, edx
+    pop eax
+    pop edx
+    ret
+
+WN_LS: dd 0
 WN_TITLE: WN_TITLE_BYTES
 TBP: TBP_BYTES
 """
@@ -355,7 +387,7 @@ def patch(p, at, lang, sites):
                 'SEASONPLAYING': (2, sites['season']),
                 'SELPTR': (2, sel_ptr(p)),
                 'GP_WN_C': (1, gplay.LABELS['gp_wn_c'][1]), 'GP_WNSRC': gplay.LABELS['GP_WNSRC'],
-                'GP_SEAS': gplay.LABELS['GP_SEAS'],
+                'GP_SEAS': gplay.LABELS['GP_SEAS'], 'CAREERTEAM': (2, __import__('dplay')._sites(p)[5]),
                 'WN_TITLE_BYTES': (0, 'db ' + ', '.join(str(b) for b in ttl + b'\0')),
                 'TBP_BYTES': (0, 'db ' + ', '.join(str(b) for b in tbp + b'\0'))})
     src = ASM.replace("""    cmp byte [ebx], 0                   ; (dummy: replaced below)
@@ -374,18 +406,37 @@ def patch(p, at, lang, sites):
     return at + len(code)
 
 
-GP_CALL = """    mov [GP_WNSRC], ebx                 ; gplay.c gp_wn_c: the winner's team word, 0FFFFh to be played
-    mov al, [SEASONPLAYING]
+GP_CALL = """    mov [GP_WNSRC], ebx                 ; gplay.c gp_wn_c: the winner's team word, 0FFFFh being played, 0FFFEh
+    mov al, [SEASONPLAYING]             ; nothing this season
     mov [GP_SEAS], al
     push esi
-    push edx
     pushad
     call GP_WN_C
     mov [esp + 28], eax                 ; (pushad's eax)
     popad
-    pop edx
     cmp ax, 0FFFFh
-    je .k
-    call wn_team
-.k: pop esi
+    je .tbp
+    cmp ax, 0FFFEh
+    je .none
+    push edx
+    xor edx, edx
+    call wn_team                        ; (a club of another league: another country's state)
+    test edx, edx
+    jz .nf
+    add esp, 4
+    jmp .tbp
+.nf:
+    pop edx
+.none:
+    cmp bl, 'K'                         ; (a play-off without its contest: decided at the season end)
+    je .skip
+    call wn_mine                        ; (a stage title / table of the career's league: to be played)
+    jz .skip
+.tbp:
+    pop esi
+    clc
+    ret
+.skip:
+    pop esi
+    stc
     ret"""

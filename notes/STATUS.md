@@ -2126,18 +2126,23 @@ Left for 2.5: (a) NSL/NSSL finals series (type-1 design) or declare them postpon
 - Build c/REL336: SWOS IT 372524d1 EN e00c5dc4 FR 49095d32 DE e3ca0b32; gog IT 0b0d9628 EN 17ce221f FR 32fdb905 DE fb0a7340;
   SWOS++ 6ccc9e51. Suite 24/24 PASS (runs336 + runs336b). Patcher md5 45d7b998: Node OK.
 
-## 4.0 (2026-10-22): World 2026-27 career (release candidate rc7)
-- Build c/REL40rc7 from world-2025-26 6b2e7e4 (later commits: notes / docs / harness only), data
-  internal/world2526/world5tm-rel40-ca-0813 (itanames-0340 + Central America exact), recipe
-  internal/release-tools/buildrel.sh (exes + patcher with the same SEASON_PACKS). SWOS IT f4bd4421 EN 46c21e4f
-  FR 993fd142 DE 9c9ea14e; gog IT aa33fa78 EN 1b46ccfc FR bc94e4e4 DE a1ad4935; TEAM.020 bd44208c; SWOS++ aa8e32c4 /
-  gog aa2c3d1e. 12 continental cups (CONMEBOL, CONCACAF, AFC, CAF, OFC, FIFA IC).
-- rc6 -> rc7: zone colours before the first match day off, group headers from day 0, legend CONC (prezone 2f647ab);
-  the career club's row without a frame, a 1-px border only on a same-colour zone (4.0-ring c0b8eb6).
-- Patcher 42ecd207 (VERSION 4.0): Node 339 runs / 315 outputs OK, DATA coverage 0 missing (the off-file pools
-  RS5*.DAT and the guests' TMW5.191-194 were missing from the rc2 / rc3 pages); one-click mode patcher_dirtest.mjs
-  ALL OK (4 UI languages, CD / GOG / from the CD / SWOS++ / re-run / wrong folder / upgrade over 3.3.6).
-- Tests (squads): rc5 / rc6 / rc7 sets; season 3 of HAMRUN / SCHIO / BOCA; career_20seasons; world_full_arg;
+## 4.0 (2026-10-22): World 2026-27 career (release candidate rc11)
+- Build c/REL40rc11 from world-2025-26 79ec501 (later commits: notes / docs / harness, and the byte-identical
+  kofinish 2bf9d71 / nasmcave.sub 75c6ba0 checked md5-equal on rc10), data internal/world2526/world5tm-rel40-winnames-1031
+  (ca-0813 + 13 play-off title names), recipe internal/release-tools/buildrel.sh. SWOS IT c3828fb4 EN e36485aa
+  FR a5991ca9 DE e4fce3f8; gog IT 76edbfad EN 32f3de3e FR b9e802dc DE 5c08cf6b; TEAM.020 bd44208c; SWOS++ 8a1830fb /
+  gog 9fb4777a. Patcher 66ce29bb: Node 339 runs / 315 outputs OK, DATA coverage 0 missing; patcher_dirtest ALL OK.
+- rc7 -> rc11: the load-trailer fix (CONVENTIONS 19) + asserts; the CONF legend without its inner frame; lib97 dt_find
+  skips statespec's filter records (35 world-5 cups' fixed first-season draws); the access list's LIE row by
+  association; the WINNERS page (live + WN season-end titles saved, PLAYOFF(S) - <title>, MLS conferences, the Poule
+  Scudetto); the quiet season end (other countries simulated unseen); FR / DE match-title leg words within 40 chars;
+  the patcher's Program Files hint; nasmcave.sub everywhere (asserted asm rewrites).
+- Declared for 4.0 (fix in 4.0.1): an odd Serie D group's club resting on the last match day does not play its Poule /
+  play-off (simulated); FILL.256 after a job letter; one European place may go to another association's club.
+- The patcher's DATA coverage check: the off-file pools RS5*.DAT and the guests' TMW5.191-194 were missing from the
+  rc2 / rc3 pages; one-click mode patcher_dirtest.mjs (4 UI languages, CD / GOG / from the CD / SWOS++ / re-run /
+  wrong folder / upgrade over 3.3.6).
+- Tests (squads): rc5 / rc6 / rc7 / rc10 / rc11 sets; season 3 of HAMRUN / SCHIO / BOCA; career_20seasons; world_full_arg;
   world_ca_crc; TEST 8 regressions; transfer smoke; the 5-language smoke; Davide's TEST 8 saves (PHILA / MESTRE /
   PAULO) and real 3.3.6 saves (1984-85 LIVERPOOL, 1996-97 JUVENTUS) loaded on the release exe and played on.
   world_full_uefa = KNOWN FAIL 4.0 (one European place may go to another association's club in some seasons;

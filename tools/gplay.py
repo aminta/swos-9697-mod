@@ -268,8 +268,29 @@ gp_after:                               ; 4.0 after a career load (arg97's arg_l
     test eax, eax
     jz .ns1
     cmp byte [eax + 2Dh], CDS1_ID
-    jne .ns1
+    jne .nd
     mov dword [D8CAA + 8], CDS1
+    jmp .ns1
+.nd:
+    call gp_cdmem                       ; (rc4: a Coppa D club with no Coppa D there: ProcessCareerFile rebuilt slot 2's
+    jz .ns1                             ; pointer - the C. IT SERIE C - over an empty buffer whose stale winner, a club
+    mov dword [D8CAA + 8], 0            ; not loaded after a job change, trapped the season end: no contest, as at
+    pushad                              ; the season start)
+    mov edi, [SLOTS_ + 8]
+    push es
+    push ds
+    pop es
+    cld
+    mov ecx, 0B52h
+    xor eax, eax
+    rep stosb
+    pop es
+    sub edi, 0B52h
+    mov word [edi + 39h], 0FFFFh
+    mov ecx, [CD_NM]
+    add ecx, STR_BASE_
+    mov [edi + 27h], ecx
+    popad
 .ns1:
 %endif
     mov al, [SEASONPLAYING]
@@ -1354,11 +1375,20 @@ gp_cup12:                               ; 4.0: InitNewSeason's `call cseg_8B2D3`
     jz .game
     movzx eax, word [D0R]
     mov dword [D8CAA + eax * 4], 0
-    mov eax, [SLOTS_ + eax * 4]         ; (the slot's buffer: no contest, as sacups clears slot 1's; its long-name
-    mov byte [eax + 2Dh], 0             ; pointer = the Coppa D's: the season record's league-cup line - the slot-2
-    mov ecx, [CD_NM]                    ; Coppa D's or its slot-4 ties' result - reads COPPA ITALIA SERIE D, not a
-    add ecx, STR_BASE_                  ; stale pointer's garbage, TEST 8's CJARLINS MUZANE)
-    mov [eax + 27h], ecx
+    mov edi, [SLOTS_ + eax * 4]         ; (the slot's buffer: no contest - cleared whole, as conti's ct_build: a
+    push es                             ; stale buffer kept last season's winner, a club of another Serie D group
+    push ds                             ; not loaded after a job change -> the season end's VerifyTeamLoaded int 3,
+    pop es                              ; rc4 AVOLA; no winner; its long-name pointer = the Coppa D's: the season
+    cld                                 ; record's league-cup line reads COPPA ITALIA SERIE D, TEST 8's CJARLINS)
+    mov ecx, 0B52h
+    xor eax, eax
+    rep stosb
+    pop es
+    sub edi, 0B52h
+    mov word [edi + 39h], 0FFFFh
+    mov ecx, [CD_NM]
+    add ecx, STR_BASE_
+    mov [edi + 27h], ecx
     popad
     ret
 .game:

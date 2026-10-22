@@ -188,6 +188,8 @@ FIT_NAMES = {   # hand-picked forms (regia / Davide 2026-10-20): (original long 
 }
 
 
+VC_PX = 158         # VISUAL. COMPETIZ.'s buttons: 160 px wide, the title '<country> <long>' centred in the small font
+                    # (rc11, Davide's MiSTer photo: ARABIA SAUDITA SAUDI PRO LEAGUE = 162 px, past both edges); 1 px each side
 CAL_PX = 70         # the career calendar's label: x 8 .. 78, where the home / away marker (C) / (F) starts (Davide 2026-10-20)
 SMALL_W = dict({c: 6 for c in 'ABCDEFGHJKLMNOPQRSTUVWXYZ023456789!"#$%&*+/<=>?@'},
                **{'I': 2, '1': 2, "'": 2, '(': 3, ')': 3, ',': 2, '-': 4, '.': 2, ':': 2, ' ': 3})   # the menus' small
@@ -261,19 +263,60 @@ def fit_short(s, lang='*'):
 LANG = ['it']
 
 
-def _fit(country, long_, short):
-    """A long name that fits '<country> <long>' in TITLE_MAX: the long one, else the short one, else the longer of the
-    two cut at a word (then at the limit)."""
-    room = TITLE_MAX - len(country) - 1
+NATWORDS = {'EGYPTIAN', 'ARMENIAN', 'BELARUSIAN', 'UKRAINIAN', 'RUSSIAN', 'SAUDI', 'SCOTTISH', 'SWISS', 'SLOVAK',
+            'KAZAKHSTAN', 'IRISH', 'WELSH', 'GIBRALTAR', 'SURINAME', 'LIECHTENSTEIN', 'CANADIAN', 'TAIWAN', 'MACEDONIAN',
+            'SLOVENIAN', 'CROATIAN', 'GREEK', 'CYPRIOT', 'MALTESE', 'ALBANIAN', 'LATVIAN', 'ESTONIAN', 'LITHUANIAN'}
+VC_ABBR = dict(ABBR, **{'BUNDESLIGA': 'BUNDESL.', 'RELEGATION': 'RELEG.', 'CHAMPIONSHIP': 'CHAMP.', 'PROMOZIONE': 'PROMOZ.',
+                        'PROMOTION': 'PROMO.', 'GROUPE': 'GR.', 'GRUPPE': 'GR.', 'GROUP': 'GR.', 'PLAYOFFS': 'P-OFFS',
+                        'PLAY-OUTS': 'P-OUTS', 'PLAY-OUT': 'P-OUT', 'PLAYOUTS': 'P-OUTS', 'BARRAGES': 'BARR.',
+                        'PROFESSIONNELLE': 'PROF.', 'INDEPENDENCE': 'IND.', 'NOGOMETNA': 'NOG.', 'NOGOMETNI': 'NOG.', 'EUROPEO': 'EUR.',
+                        'EUROPEEN': 'EUR.', 'EUROPACUP-PLAY-OFF': 'EUROPA PLAY-OFF'})
+
+
+def _fit_old(country, long_, short, room):
+    """The 3.x / 4.0 fit (TITLE_MAX only): a hand form, the long name, the short one, whole words."""
     for x in (FIT_NAMES.get((long_, LANG[0])), FIT_NAMES.get((long_, '*')), long_, short):
         if x and len(x) <= room:
             return x
-    for x in ():
-        if len(x) <= room:
-            return x
     words, w = long_.split(), ''
-    for x in words:                                 # (whole words only: never a cut inside a word)
+    for x in words:
         if len(w) + (1 if w else 0) + len(x) > room:
+            break
+        w = f'{w} {x}' if w else x
+    return w or short[:room]
+
+
+def _fit(country, long_, short):
+    """A long name that fits '<country> <long>' in TITLE_MAX and VISUAL. COMPETIZ.'s button (VC_PX): the 4.0 fit when
+    it fits both, else (regia rc12) the nationality word that repeats the country dropped, generic words abbreviated
+    (VC_ABBR, last first), the short name, whole words only - never the distinguishing words cut, never a cut word."""
+    room = TITLE_MAX - len(country) - 1
+    ok = lambda x: bool(x) and len(x) <= room and px(f'{country} {x}') <= VC_PX
+    old = _fit_old(country, long_, short, room)
+    if ok(old):
+        return old
+    fn = FIT_NAMES.get((long_, LANG[0])) or FIT_NAMES.get((long_, '*'))
+    cands = []
+    for base in filter(None, (fn, long_)):
+        w = base.split()
+        if len(w) > 2 and w[0] in NATWORDS:          # 'ARMENIA ARMENIAN PREMIER LEAGUE' -> 'ARMENIA PREMIER LEAGUE'
+            w = w[1:]
+        cands.append(list(w))
+    for w in cands:
+        if ok(' '.join(w)):
+            return ' '.join(w)
+    for w in cands:                                 # generic words abbreviated, last word first
+        w = list(w)
+        for i in range(len(w) - 1, -1, -1):
+            if w[i] in VC_ABBR:
+                w[i] = VC_ABBR[w[i]]
+                if ok(' '.join(w)):
+                    return ' '.join(w)
+    if ok(short):
+        return short
+    words, w = (cands[-1] if cands else long_.split()), ''
+    for x in words:                                 # (whole words only: never a cut inside a word)
+        if not ok(f'{w} {x}' if w else x):
             break
         w = f'{w} {x}' if w else x
     return w or short[:room]
@@ -284,6 +327,8 @@ def fit_titles(m):
     per-language long name whose title '<country> <long>' fits the game's field (TITLE_MAX). Every reader of a pack's
     names (mkseason, zones, fmtgame) uses this, so the struct names and the zone / FORMAT keys stay the same."""
     bn = m.get('button_names') or {}
+    import copy
+    orig_m = copy.deepcopy(m)
 
     def fix(names):
         if not isinstance(names, dict) or not names:
@@ -296,7 +341,8 @@ def fit_titles(m):
             long_ = v[0]
             short = v[1] if len(v) > 1 else v[0]
             LANG[0] = lang
-            f = _fit(country, long_.upper(), short.upper()) if len(country) + 1 + len(long_) > TITLE_MAX else None
+            f = _fit(country, long_.upper(), short.upper()) if (len(country) + 1 + len(long_) > TITLE_MAX or
+                                                                 px(f'{country} {long_}') > VC_PX) else None
             sh = fit_short(short, lang) if len(v) > 1 else None
             if (f is not None and f != long_.upper()) or (sh is not None and sh != short.upper()):
                 names[lang] = [f or long_] + ([sh] if sh is not None else []) + list(v[2:])
@@ -308,6 +354,26 @@ def fit_titles(m):
         for po in c.get('ko_playoffs', []) if isinstance(c.get('ko_playoffs'), list) else []:
             if isinstance(po, dict):
                 fix(po.get('names'))
+    seen = {}                                       # (regia rc12) fitted titles stay unique per language
+    def uniq(names, orig):
+        if not isinstance(names, dict):
+            return
+        for lang in LANGS:
+            v = names.get(lang) or names.get('*') or next(iter(names.values()), None)
+            o = orig.get(lang) or orig.get('*') or next(iter(orig.values()), None) if isinstance(orig, dict) else None
+            if isinstance(v, list) and isinstance(o, list):
+                k = (lang, v[0].upper())
+                if seen.setdefault(k, o[0].upper()) != o[0].upper():
+                    m.setdefault('_fit_dups', []).append(f'{lang}: {v[0]} = {seen[k]} and {o[0]}')
+    for c, oc in zip(m.get('competitions', []) or [], orig_m.get('competitions', []) or []):
+        uniq(c.get('names'), oc.get('names'))
+        for dv, od in zip(c.get('divisions', []) or [], oc.get('divisions', []) or []):
+            if isinstance(dv, dict) and isinstance(od, dict):
+                uniq(dv.get('names'), od.get('names'))
+        for po, op in zip(c.get('ko_playoffs', []) if isinstance(c.get('ko_playoffs'), list) else [],
+                          oc.get('ko_playoffs', []) if isinstance(oc.get('ko_playoffs'), list) else []):
+            if isinstance(po, dict) and isinstance(op, dict):
+                uniq(po.get('names'), op.get('names'))
     return m
 
 
@@ -317,7 +383,7 @@ FONT = set(" &'()-./0123456789:,!?+ABCDEFGHIJKLMNOPQRSTUVWXYZ")   # the characte
 def check_titles(m, clubs=()):
     """Problems of pack.json m (after fit_titles): a title '<country> <long>' over TITLE_MAX, or a character outside FONT in
     any name (competitions, divisions, play-offs, clubs). Davide: no stray characters may ever ship."""
-    bad = []
+    bad = [f"{m.get('id')}: fitted titles not unique: {d}" for d in m.get('_fit_dups', [])]
     bn = m.get('button_names') or {}
 
     def chk(names, where):
@@ -330,6 +396,8 @@ def check_titles(m, clubs=()):
             country = (bn.get(lang) or m.get('button') or '').upper()
             if len(country) + 1 + len(v[0]) > TITLE_MAX:
                 bad.append(f"{m.get('id')} {where} {lang}: title over {TITLE_MAX}: {country} {v[0]}")
+            if px(f'{country} {v[0]}') > VC_PX:
+                bad.append(f"{m.get('id')} {where} {lang}: title over {VC_PX} px (VISUAL. COMPETIZ.'s button): {country} {v[0]}")
             if len(v) > 1 and px(v[1]) > CAL_PX:
                 bad.append(f"{m.get('id')} {where} {lang}: short name over {CAL_PX} px (the calendar label): {v[1]}")
             for x in [country] + list(v):

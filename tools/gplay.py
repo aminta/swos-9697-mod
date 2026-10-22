@@ -1331,11 +1331,54 @@ gp_cdmem:                               ; ZF = 0 when the career club is a Coppa
     popad
     ret
 
-gp_cal1:                                ; 4.0 A: cseg_3563E's `mov eax, A6` (the career calendar's list of entries):
-    mov eax, [A6R]                      ; a Coppa D club's COPPA ITALIA entries (slot 1: the game plays the cup
-    cmp byte [eax], 1                   ; through them, the club is not in it) are left out of the list (replay
-    jne .r                              ; days: lib97 cal_noreplay removes them at the install)
+gp_notin:                               ; al = a slot (1 / 2): ZF = 0 when the career club is not one of its
+    pushad                              ; contest's clubs (rule 11; the slot's DIY +31h clubs, +12Dh team words) -
+    xor ebx, ebx                        ; careers of this world only; a Coppa D club: slot 1 hidden, slot 2 its Coppa D
+    cmp word [GAMETYPE], 4              ; (as before)
+    jne .r
+    mov cl, [SLT + WORLD_BYTE]
+    cmp cl, [CD_TAB]
+    jne .r
+    push eax
     call gp_cdmem
+    pop eax
+    jz .nc
+    cmp al, 1
+    sete bl
+    jmp .r
+.nc:
+    movzx eax, al
+    mov esi, [SLOTS_ + eax * 4]
+    test esi, esi
+    jz .r
+    movzx ecx, word [esi + 31h]
+    cmp ecx, 64
+    jbe .n
+    mov ecx, 64
+.n: mov dx, [CAREERTEAM]
+    mov bl, 1
+.l: jecxz .r
+    cmp [esi + 12Dh + ecx * 2 - 2], dx
+    je .in
+    dec ecx
+    jmp .l
+.in:
+    xor ebx, ebx
+.r: test ebx, ebx
+    popad
+    ret
+
+gp_cal1:                                ; 4.0 A: cseg_3563E's `mov eax, A6` (the career calendar's list of entries):
+    mov eax, [A6R]                      ; slot 1 / 2's entries of a cup the career club is not in (gp_notin: rule 11,
+    mov cl, [eax]                       ; the game plays the cup through them) are left out of the list (replay days:
+    cmp cl, 1                           ; lib97 cal_noreplay removes them at the install)
+    je .s
+    cmp cl, 2
+    jne .r
+.s: push eax
+    mov al, cl
+    call gp_notin
+    pop eax
     jz .r
     inc word [D6R]                      ; (cseg_3570C's next entry, without using a list line)
     mov word [D7R], 0
@@ -1348,10 +1391,25 @@ gp_cal1:                                ; 4.0 A: cseg_3563E's `mov eax, A6` (the
 .r: ret
 
 gp_vc1:                                 ; 4.0 (rule 11): VISUAL. COMPETIZ.'s `mov eax, [D8CAA + 4]` (slot 1 shown when
-    mov eax, [D8CAA + 4]                ; not 0): a Coppa D club does not see the COPPA ITALIA it is not in (the cup is
-    test eax, eax                       ; still played for its winner)
+    mov eax, [D8CAA + 4]                ; not 0): the career club does not see a cup it is not in (gp_notin; the cup is
+    test eax, eax                       ; still played for its winner: Mestre promoted to Serie C, the COPPA ITALIA's
+    jz .r                               ; 16 Serie A / B clubs)
+    push eax
+    mov al, 1
+    call gp_notin
+    pop eax
     jz .r
-    call gp_cdmem
+    xor eax, eax
+.r: ret
+
+gp_vc2:                                 ; 4.0.1: the same for slot 2 (`mov eax, [D8CAA + 8]`: the league cup, e.g. the
+    mov eax, [D8CAA + 8]                ; COPPA ITALIA SERIE C's 17 clubs)
+    test eax, eax
+    jz .r
+    push eax
+    mov al, 2
+    call gp_notin
+    pop eax
     jz .r
     xor eax, eax
 .r: ret
@@ -1864,6 +1922,11 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
         assert len(vc) == 2, vc                               # (the first: SquadInit's)
         p.remove(1, vc[1] + 1)
         p.put(1, vc[1], b'\xe8' + struct.pack('<i', lab['gp_vc1'] - (vc[1] + 5)))
+        vc2 = [m.start() for m in re.finditer(rb'\xa1' + re.escape(struct.pack('<I', ps['d8caa'] + 8)) +
+                                              rb'\x0b\xc0\x0f\x85', d1v) if 0 < m.start() - vc[1] < 0x400]
+        assert len(vc2) == 1, vc2                             # (its slot-2 test, after the slot-1 one)
+        p.remove(1, vc2[0] + 1)
+        p.put(1, vc2[0], b'\xe8' + struct.pack('<i', lab['gp_vc2'] - (vc2[0] + 5)))
         cal1 = CAL1_SITE[0]                                   # cseg_3563E's `mov eax, A6` (5 B, a fixup) -> call
         p.remove(1, cal1 + 1)
         p.put(1, cal1, b'\xe8' + struct.pack('<i', lab['gp_cal1'] - (cal1 + 5)))

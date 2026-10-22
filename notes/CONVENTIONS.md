@@ -50,3 +50,9 @@ new rule. If a rule seems wrong for a case, ask the regia session; don't silentl
 16. Every new feature gets a harness scenario; every bug found by a player gets a regression scenario.
 17. Release checks: full suite all PASS on the release candidate; the 20-season career; the patcher's outputs
     byte-equal to the build.
+
+## Known engine pitfalls
+18. (Under investigation, not a rule yet) The game's type-2 group contest hung with New Zealand's single 11-club group;
+    odd groups of 3 (Serie D poule) work, so the cause is not just the odd size. Check here before using a large single group.
+19. Adding any post-load hook to the career save-load chain (after_process trailer path) breaks the next season end
+    (trap 0x17064 at the season-3 start, found 2026-10-22). Don't add load-time hooks until the integrator fixes it (4.0.1).

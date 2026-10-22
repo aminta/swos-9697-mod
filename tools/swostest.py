@@ -5730,6 +5730,48 @@ def world_winners_state():
     return ok, f'champion (slot 1 +39h) {champ!r}; page {lines}'
 
 
+@scenario
+def world_winners_dplay():
+    """WINNERS page of Serie B with the career club's play-off (winners.py 'P', dplay's DP_ST): MODENA forced 5th at the
+    league end (DPLAY_FORCE=5, as world_dplay_b), the PLAY-OFF SERIE B played in slot 4; at the season end (saved before
+    CONTINUA, reloaded) the page lists SERIE B (its table's 1st), PLAY-OFF SERIE B = the state's winner (DP_SAVE +2),
+    and no PLAY-OUT line (a play-out MODENA is not in: decided at the season end)"""
+    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-names-2214')
+    if not os.path.isdir(src):
+        return True, f'SKIP: private data {src} missing'
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    exe = build('world_winners_dp5', env={'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]),
+                                         'DPLAY_FORCE': '5'})
+    keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_ONE',
+            'W8485_SAVE_END')
+    keep = {k: os.environ.get(k) for k in keys}
+    os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM='EUROPA,ITALIA,SERIE B,MODENA',
+                      W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1', W8485_ONE='1', W8485_SAVE_END='WDP')
+    try:
+        ok, msg = world8485()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    if not ok or 'saved ' not in msg:
+        return False, f'season: {msg}'
+    with Session('world_winners_dplay', exe, {'WDP.CAR': msg.split('saved ', 1)[1]}, 'dump:2', 300) as s:
+        s.wait()
+        s.send(LOAD1 + ' dump:3')
+        m = s.result.read(s.result.base2, 0x200000)      # (dplay's saved state DP_SAVE: 'DP', res, kind 1, 6 clubs)
+        k = re.search(rb'DP..\x01\x06', m, re.S)
+        head = m[k.start():k.start() + 8] if k else b''
+        e, title, lines = winners_page(s)
+    got = winner_blocks(lines)
+    res = struct.unpack_from('<H', head, 2)[0]
+    w = team_name(exe, res) if head[:2] == b'DP' and head[4] == 1 and res else None
+    ok = w is not None and got.get('PLAY-OFF SERIE B') == w and 'SERIE B' in got and \
+        not any(k.startswith('PLAY-OUT') for k in got)
+    return ok, f'state {head.hex()} winner {w!r}; page {title!r} {got}'
+
+
 def world_ca(team, country, league, want):
     """4.0.1 Central America exactly (session40/ca_exact.py, data TM_CA_EXACT): a season at team, forced 1st of each
     tournament (GPLAY_FORCE=1: the stage's kept table too): the stage titles <league> APERTURA / CLAUSURA and each

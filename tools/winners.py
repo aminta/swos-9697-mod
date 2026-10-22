@@ -7,7 +7,7 @@ none = the entry hidden by the menu's onInit), read when the menu opens and when
 a text line per title: the title, 01h, its source:
   'L' hh dd    the league's own table: its 1st once it has played hh matches (fmtgame.end_played: the season's);
   'P' k        dplay's play-off k this season (1 Serie B play-off, 2 its play-out: the relegated club, 3 Serie C
-               play-off), the career club's (DP_ST), else no line;
+               play-off), the career club's (DP_ST, else its saved copy DP_SAVE), else no line;
   'C'          a cup-shaped contest's winner (DIY +39h, the game's: Brazil's state championship, live in slot 1);
   'S' k hh dd  the 1st of stage table k (gplay GP_SS.r[k] written this season: Argentina's annual table), once the
                league has played its hh match days (DIY +1C1h, split's day count); dd: the division (4.0.1);
@@ -417,7 +417,8 @@ def patch(p, at, lang, sites):
     src = src.replace('DP_CODE\n', DP_CODE if dpon else '    stc\n    ret\n')
     if dpon:
         lay = dplay.LABELS['layout']
-        sym.update({'DP_ST': dplay.LABELS['DP_ST'], 'SV_KIND': (0, lay['SV_KIND']), 'SV_TEAM': (0, lay['SV_TEAM'])})
+        sym.update({'DP_ST': dplay.LABELS['DP_ST'], 'DP_SAVE': (2, dplay.LABELS['save']), 'SV_KIND': (0, lay['SV_KIND']),
+                    'SV_TEAM': (0, lay['SV_TEAM'])})
     at = (at + 15) & ~15
     code, cfix = nasmcave.assemble(src, at, sym)
     lab = nasmcave.labels(src, at, sym)
@@ -468,31 +469,43 @@ GP_CALL = """    mov [GP_WNSRC], ebx                 ; gplay.c gp_wn_c: the winn
     ret"""
 
 
-DP_CODE = """    cmp word [DP_ST], 5044h
-    jne .dps
-    cmp [DP_ST + SV_KIND], al
-    jne .dps
+DP_CODE = """    push esi                            ; (the live state DP_ST, else its saved copy DP_SAVE: after a load
+    mov esi, DP_ST                      ; dp_sync restores DP_ST only when dplay runs)
     mov ah, [SEASONPLAYING]
-    cmp [DP_ST + SV_KIND + 2], ah
+    cmp word [esi], 5044h
+    jne .dp2
+    cmp [esi + SV_KIND + 2], ah
+    je .dp3
+.dp2:
+    mov esi, DP_SAVE
+    cmp word [esi], 5044h
     jne .dps
-    mov cx, [DP_ST + 2]                 ; (res: the last round's winner, 0 until then)
+    cmp [esi + SV_KIND + 2], ah
+    jne .dps
+.dp3:
+    cmp [esi + SV_KIND], al
+    jne .dps
+    mov cx, [esi + 2]                   ; (res: the last round's winner, 0 until then)
     test cx, cx
     jz .dpt
     cmp al, 2
     jne .dpw
-    mov dx, [DP_ST + SV_TEAM]           ; (the play-out: the other of its two clubs, relegated)
+    mov dx, [esi + SV_TEAM]             ; (the play-out: the other of its two clubs, relegated)
     cmp dx, cx
     jne .dpl
-    mov dx, [DP_ST + SV_TEAM + 2]
+    mov dx, [esi + SV_TEAM + 2]
 .dpl:
     mov cx, dx
 .dpw:
     mov ax, cx
+    mov edx, TBP
     call wn_team
 .dpt:
+    pop esi
     clc
     ret
 .dps:
+    pop esi
     stc
     ret
 """

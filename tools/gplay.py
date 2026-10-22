@@ -219,7 +219,7 @@ def compile_spec(pos, ndiv, league_names=None):
     import rnames
     rn = bytearray()
     for po in pos:
-        names = po.get('round_names') or []
+        names = po.get('round_names') or _default_rnames(po)
         if not (isinstance(names, list) and len(names) <= RN_KG and all(x in rnames.KEYS for x in names)):
             raise ValueError(f"{po.get('key')}: round_names: up to {RN_KG} of {' '.join(rnames.KEYS)} (one per game round)")
         rn += bytes(rnames.KEYS[x] for x in names) + bytes(RN_KG - len(names))
@@ -1308,10 +1308,19 @@ gp_cdmem:                               ; ZF = 0 when the career club is a Coppa
 
 gp_cal1:                                ; 4.0 A: cseg_3563E's `mov eax, A6` (the career calendar's list of entries):
     mov eax, [A6R]                      ; a Coppa D club's COPPA ITALIA entries (slot 1: the game plays the cup
-    cmp byte [eax], 1                   ; through them, the club is not in it) are left out of the list
+    cmp byte [eax], 4                   ; through them, the club is not in it) are left out of the list; and (rule
+    jne .c1                             ; 10) a gplay play-off's replay dates (slot 4: gplay never replays - a level
+    cmp byte [eax + 8], 3               ; tie goes to gp_draw's better-placed club - the game reserved them for a
+    jne .r                              ; round byte without penalties)
+    cmp word [GP_ST + ST_KO], 4B47h
+    je .skip
+    jmp .r
+.c1:
+    cmp byte [eax], 1
     jne .r
     call gp_cdmem
     jz .r
+.skip:
     inc word [D6R]                      ; (cseg_3570C's next entry, without using a list line)
     mov word [D7R], 0
     movzx ecx, word [eax + 2]
@@ -1394,6 +1403,16 @@ CD_PART
     ret
 GP_CALDP: dd 0                          ; (rnames.RN_CALD's address, or 0)
 '''
+def _default_rnames(po):
+    """A knockout play-off without 'round_names' (Serie D's single-match semi-finals and final): its rounds named from
+    the end - F, SF, QF, R16 - when it ends in one tie and has no group / best-of-three round; else none (the game's)."""
+    rs = po.get('rounds') or []
+    if not rs or len(rs) > 4 or len(rs[-1].get('ties') or []) != 1 or \
+            any('group' in r or r.get('legs', 1) not in (1, 2) or not r.get('ties') for r in rs):
+        return []
+    return ['R16', 'QF', 'SF', 'F'][4 - len(rs):]
+
+
 RNAMES = {}              # compile_spec's output -> per play-off KG bytes: its game rounds' rnames indices (0: the game's)
 RN_KG = 12               # (gplay.c KG)
 SPEC_STAGES = {}         # compile_spec's output -> its stage titles (kind stage_title): [(stage, names, key)]

@@ -359,7 +359,7 @@ def patch(p, at, lang, area, bss, world=None, wn=False):
     def put(key, b, size=None):
         off[key] = len(data)
         data.extend(b + b'\0' * ((size or len(b) + 1) - len(b)))
-    for k in ('btn', 'next', 'none', 'ov', 'prev', 'wbtn'):
+    for k in ('btn', 'next', 'none', 'ov', 'prev') + (('wbtn',) if wn else ()):   # (VINCITORI: its builds only)
         put(k, T[k])
     put('file', T['file'], 20)
     put('title', b'', NAME + 1)

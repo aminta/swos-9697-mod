@@ -135,6 +135,10 @@ static int series(int a, int b, int level) {   /* best of three: games 1 and 3 a
 #ifndef GP_FORCE
 #define GP_FORCE 0
 #endif
+#ifndef GP_KOFORCE
+#define GP_KOFORCE 0                    /* (test builds, GPLAY_KOFORCE: 1 the career club loses its played knockout ties,
+                                           2 wins them - gp_perm_c / gp_rec_c, the game told so through the next round) */
+#endif
 /* test builds (GPLAY_FORCE=k): the career club takes place k of its division (team and global number swapped with
    the club there), at the league end and again at the season end */
 static int gp_force(void) {
@@ -1348,8 +1352,7 @@ u32 gp_lend_c(void) {
 
 /* a knockout not built (the career club not in round 1): every tie simulated now with gplay's tie rules (4.0's
    gp_build: the champion = team[tw[last tie]], the runner-up team[tl[...]] at once) */
-static void ko_sim(struct gp_ko *k) {
-    int g = 0;
+static void ko_sim_at(struct gp_ko *k, int g) {   /* (from game round g: its pairs still open, then the later ones) */
     for (;;) {
         for (int p = k->gp0[g]; p < k->gp0[g + 1]; p++) {
             if (k->pw[p] != NOC) continue;
@@ -1364,6 +1367,7 @@ static void ko_sim(struct gp_ko *k) {
         if (g >= k->ngr) break;
     }
 }
+static void ko_sim(struct gp_ko *k) { ko_sim_at(k, 0); }
 
 /* gp_build (mid-season): play-off GP_BPIC of the spec into slot 4 when its entrants' tables are captured */
 u32 GP_BPIC;
@@ -1797,8 +1801,12 @@ u32 gp_perm_c(void) {
     if (KT2(k)) return 0;               /* (a type-2 contest: the game's own stages) */
     int g = k->gcur, p0 = k->gp0[g], np = k->gp0[g + 1] - p0, c = 0;
     for (int i = 0; i < np && i < 64; i++) k->pw[p0 + i] = GP_PT[i];
-    resolve(k);
-    int me = kidx(k, GP_MGR);           /* the contest's human-clubs count (+4Bh): the game takes 1 off for every
+    int me = kidx(k, GP_MGR);
+    if (GP_KOFORCE && me != NOC)        /* (test builds: the career club's ties of this round lost / won) */
+        for (int p = p0; p < p0 + np; p++)
+            if (k->pa[p] == me || k->pb[p] == me)
+                k->pw[p] = (GP_KOFORCE == 2) == (k->pa[p] == me) ? k->pa[p] : k->pb[p];
+    resolve(k);           /* the contest's human-clubs count (+4Bh): the game takes 1 off for every
                                            match a human club loses (cseg_2ABF0), a series' lost game 1 too -> a
                                            later elimination left it FFFFh, the next round's entry 'still in' (FFh)
                                            and PARTITA without a match hung (MLS): ours, the club still in the bracket */
@@ -1815,6 +1823,16 @@ u32 gp_perm_c(void) {
     k->gcur = g;
     for (int i = 0; i < c; i++) { GP_PL[2 * i] = k->pa[k->gp0[g] + i]; GP_PL[2 * i + 1] = k->pb[k->gp0[g] + i]; }
     GP_RB = k->rb[g];
+    if (me != NOC && !GP_ALIVE) {       /* the career club knocked out with rounds to go (a Serie D group play-off's
+                                           semi-final lost): the game plays no more of the contest - its rest decided
+                                           now in the state with gplay's tie rules, as a knockout without the club (its
+                                           stage title too); gcur back on the round handed to the game, whose results,
+                                           if it ever plays it, still come in here and in gp_rec_c (rc10: the final
+                                           stayed 'to be played') */
+        ko_sim_at(k, g);
+        k->gcur = g;
+        stage_done(k);
+    }
     return 2 * c;
 }
 
@@ -1852,7 +1870,12 @@ void gp_rec_c(void) {
         return;
     }
     for (int p = k->gp0[g]; p < k->gp0[g + 1]; p++)
-        if ((k->pa[p] == a && k->pb[p] == b) || (k->pa[p] == b && k->pb[p] == a)) k->pw[p] = GP_W ? b : a;
+        if ((k->pa[p] == a && k->pb[p] == b) || (k->pa[p] == b && k->pb[p] == a)) {
+            k->pw[p] = GP_W ? b : a;
+            int me = kidx(k, GP_MGR);
+            if (GP_KOFORCE && me != NOC && (a == me || b == me))   /* (test builds: lost / won) */
+                k->pw[p] = (GP_KOFORCE == 2) == (a == me) ? a : b;
+        }
     resolve(k);
     if (k->kind == K_CUPD) { cd_done(k); return; }
     GP_LAST = 0;

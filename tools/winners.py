@@ -13,7 +13,8 @@ a text line per title: the title, 01h, its source:
   'S' k hh dd  the 1st of stage table k (gplay GP_SS.r[k] written this season: Argentina's annual table), once the
                league has played its hh match days (DIY +1C1h, split's day count); dd: the division (4.0.1);
   'D' s hh     a stage title decided mid-season (gplay GP_ST.dec[s] of play-off hh), else as 'K';
-  'K' hh       play-off hh's last tie in gplay GP_ST.ko (the career club's play-off, played).
+  'K' hh       play-off hh's last tie in gplay GP_ST.ko (the career club's play-off, played);
+  'T' hh tt    tie tt's winner of play-off hh (an intermediate title: the MLS conference finals), as 'K'.
 A title with nothing this season is left out (no line that would never fill: a play-off the career club is not in is
 decided at the season end - 4.0.1's 'WN'); a stage title or stage table of the career's own league shows DA GIOCARE.
 4.0.1: then, on a page of its own, the last season ('VINCITORI 2025-26:' and its titles as gplay's WN_ST holds them:
@@ -317,6 +318,8 @@ wn_src:                                 ; esi -> a source: edx = the winner's na
     mov bl, al
     cmp al, 'K'
     je .pi
+    cmp al, 'T'
+    je .tt
     lodsb                               ; ('D' / 'S': the stage)
     sub al, '0'
     mov bh, al
@@ -347,6 +350,17 @@ wn_src:                                 ; esi -> a source: edx = the winner's na
     jne .call
     call .hex2
     mov [WN_SS], al
+    jmp .call
+.tt:                                    ; 'T' pi tt: tie tt of play-off pi (an intermediate title)
+    call .hex2
+    shl eax, 16
+    mov ebx, eax
+    call .hex2
+    mov bh, al
+    mov bl, 'T'
+    cmp byte [WN_MODE], 0
+    je .call
+    or ebx, 1000000h
 .call:
     cmp byte [ebx], 0                   ; (dummy: replaced below)
     ret
@@ -385,6 +399,8 @@ DP_CODE
     xor ebx, ebx                        ; 'S' k hh dd -> 'L' entry dd; 'C', 'P': none
     cmp al, 'K'
     je .lk
+    cmp al, 'T'
+    je .tt
     cmp al, 'D'
     je .ld
     cmp al, 'S'
@@ -616,6 +632,8 @@ GP_CALL = """    mov [GP_WNSRC], ebx                 ; gplay.c gp_wn_c: the winn
     pop edx
 .none:
     cmp bl, 'K'                         ; (a play-off without its contest: decided at the season end)
+    je .skip
+    cmp bl, 'T'
     je .skip
     cmp bl, 'D'                         ; (a stage title: IN CORSO once its stage has a day played)
     jne .nm2

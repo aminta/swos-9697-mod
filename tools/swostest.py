@@ -5861,6 +5861,78 @@ def world_winners_oldsave():
     return bool(ok), f'{msg[:120]}; page {title!r} {[x for x in lines if x]}; last season {last[:1]} {got}'
 
 
+@scenario
+def world_winners_mls():
+    """WINNERS page of the MLS (winners.py 'S', 'K', 'T'): INTER MIAMI forced 1st (GPLAY_FORCE=1), every match won by
+    the stronger side (simdraw's table 3-0); at the season end (saved before CONTINUA, reloaded) the page lists
+    SUPPORTERS' SHIELD, PLAYOFF - MLS CUP (the final, tie 16), then the conference champions (ties 14 / 15), each as
+    GP_ST.ko holds it; continued into 2027-28 (WN): its second page the same four"""
+    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+    if not os.path.isdir(src):
+        return True, f'SKIP: private data {src} missing'
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    exe = build('world_winners_mls', env={'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]),
+                                         'GPLAY_FORCE': '1'})
+    st_at = gp_ptrs(exe)[1]
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import simdraw
+    from le import LE
+    at = LE(open(os.path.join(exe, 'ITALIAN.EXE'), 'rb').read()).obj_bytes(2).find(simdraw.table())
+    keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_ONE',
+            'W8485_SAVE_END', 'W8485_FILL')
+    keep = {k: os.environ.get(k) for k in keys}
+    os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM='NORDAMERICA,USA,INTER MIAMI|INTER MIAMI CF',
+                      W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1', W8485_ONE='1', W8485_SAVE_END='WMLS',
+                      W8485_FILL=f'{at:x}:30:3072')
+    try:
+        ok, msg = world8485()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    if not ok or 'saved ' not in msg:
+        return False, f'season: {msg}'
+    car = msg.split('saved ', 1)[1]
+    with Session('world_winners_mls', exe, {'WMLS.CAR': car}, 'dump:2', 300) as s:
+        s.wait()
+        s.send(LOAD1 + ' dump:3')
+        st = s.result.obj2(st_at, 2100)
+        e, title, lines = winners_page(s)
+    got = winner_blocks(lines)
+    want, errs = {}, []
+    for j in range(2):                                  # (gp_ko at 648 + 674j: +5 pi, +11 ties, +330 winners, +474 teams)
+        ko = st[648 + 674 * j:648 + 674 * (j + 1)]
+        if ko[:2] == b'GK' and ko[2] == st[2] and ko[5] == 0:
+            for nm, t in (('PLAYOFF - MLS CUP', 16), ('CAMPIONE EASTERN CONFERENCE', 14),
+                          ('CAMPIONE WESTERN CONFERENCE', 15)):
+                w = ko[330 + t]
+                want[nm] = team_name(exe, struct.unpack_from('<H', ko, 474 + 2 * w)[0]) if w != 0xFF else 'IN CORSO'
+    keys_ = list(got)
+    check(want and keys_ == ["SUPPORTERS' SHIELD", 'PLAYOFF - MLS CUP', 'CAMPIONE EASTERN CONFERENCE',
+                             'CAMPIONE WESTERN CONFERENCE'], f'end: page {title!r} {got} (GP_ST.ko {want})', errs)
+    for nm, w in want.items():
+        check(got.get(nm) == w, f'end: {nm} shows {got.get(nm)!r}, GP_ST.ko = {w!r}', errs)
+    check(got.get("SUPPORTERS' SHIELD") not in (None, 'IN CORSO', 'DA GIOCARE'), f'end: the Shield {got}', errs)
+    with Session('world_winners_mls_next', exe, {'WMLS.CAR': car}, 'dump:2', 600) as s:
+        s.wait()
+        s.send(LOAD1 + ' dump:3')
+        nxt = next_season_save(s, 'WMLN')
+    if not nxt.endswith('.CAR'):
+        return False, '; '.join(errs + [f'next season: {nxt}'])
+    with Session('world_winners_mls_s2', exe, {'WMLN.CAR': nxt}, 'dump:2', 300) as s:
+        s.wait()
+        s.send(LOAD1 + ' dump:3')
+        more = []
+        e, title2, lines2 = winners_page(s, more)
+    last = [x.strip() for x in more[0]] if more else []
+    lg2 = winner_blocks(last)
+    lg2.pop('VINCITORI 2026-27', None)
+    check(last[:1] == ['VINCITORI 2026-27:'] and lg2 == got, f'season 2: last season {lg2} (the end: {got})', errs)
+    return not errs, '; '.join(errs) or f'end: {got}; season 2 last season: {lg2}'
+
+
 def world_ca(team, country, league, want):
     """4.0.1 Central America exactly (session40/ca_exact.py, data TM_CA_EXACT): a season at team, forced 1st of each
     tournament (GPLAY_FORCE=1: the stage's kept table too): the stage titles <league> APERTURA / CLAUSURA and each

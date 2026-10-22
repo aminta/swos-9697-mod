@@ -847,6 +847,14 @@ WN_TITLES = {   # official titles (data session, 2026-27): (country, ko_playoffs
 }
 
 
+WN_SUBS = {   # intermediate official titles inside a play-off (data session): (country, key) -> [(global tie, names)]
+    ('usa', 'mls_po'): [(14, {'it': 'CAMPIONE EASTERN CONFERENCE', 'en': 'EASTERN CONFERENCE CHAMPIONS',
+                              'fr': 'CHAMPION CONFERENCE EST', 'de': 'MEISTER EASTERN CONFERENCE'}),
+                        (15, {'it': 'CAMPIONE WESTERN CONFERENCE', 'en': 'WESTERN CONFERENCE CHAMPIONS',
+                              'fr': 'CHAMPION CONFERENCE OUEST', 'de': 'MEISTER WESTERN CONFERENCE'})],
+}
+
+
 def _wn_title(cc, key, lang):
     t = WN_TITLES.get((cc, key))
     return {'*': [t.get(lang) or t['*']]} if t else None
@@ -873,6 +881,9 @@ def win_lines(comp, div, k, cc=''):
             if own and po.get('kind') == 'title':           # (Davide: 'PLAYOFF - MLS CUP', the title it gives)
                 own = {'*': [WN[lang]['po'] + ' - ' + own['*'][0]]}
             lines[lang].append((_wn_fit(own or po['names'], lang), src))
+        for tie, nm in WN_SUBS.get((cc, po.get('key')), []):  # ('T' + pi + tie: after the champion, Davide)
+            for lang in LANGS:
+                lines[lang].append((_wn_fit({'*': [nm[lang]]}, lang), f'T{pi:02X}{tie:02X}'))
     par = comp.get('parallel')                  # dplay (pack 'playoffs': 'ita'): the Serie B play-off and play-out (its
     par = par[0] if isinstance(par, list) else par   # relegated club), a Serie C group's play-off ('P' + dplay's kind)
     if comp.get('playoffs') == 'ita' and par:

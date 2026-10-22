@@ -473,12 +473,13 @@ def patch_exe(src, dst, remap, lang='it'):
     cos = menulevels.patch(p, cos, area, lang)   # 4.0: team choice of a league with levels of groups: level, then group
     import zones                                 # 4.0: zone colours in the league tables (light blue, green, ...)
     zones.RING = None                            # (per exe: a release build patches the four languages in one run)
-    if LT_SPACE and LT_SPACE[1] - LT_SPACE[0] >= 0x800:          # (its ring routine in gplay's pages: the cosmetics
+    if LT_SPACE and LT_SPACE[1] - LT_SPACE[0] >= 0x700:          # (its ring routine in gplay's pages: the cosmetics
         LT_SPACE[0] = zones.ring_patch(p, LT_SPACE[0])           # page is full)
     cos = zones.patch(p, cos, area, lang, [e if os.sep in e else os.path.join(mkseason.PACKS, e) for e in mkseason.ENABLED],
                       num_bss + shirtnum.BSS_SIZE + blond.BSS_SIZE + menunum.BSS_SIZE, fmtpage.BSS_SIZE,
                       careerworld.SITES if worlds else None)   # (the FORMAT page's buffer, shared)
-    if LT_SPACE and LT_SPACE[1] - LT_SPACE[0] >= 0x700:        # (4.0: in gplay's pages - the cosmetics page is full)
+    if LT_SPACE and LT_SPACE[1] - LT_SPACE[0] >= 0x600:        # (4.0: in gplay's pages - the cosmetics page is full;
+                                                               # longtable + mainbtn ~0x4F5 B, asserted below)
         lt_end_ = longtable.patch(p, LT_SPACE[0], area, lang)
         if worlds and any(pk.meta.get('id', '').startswith('world-2026-27-') for pk in mkseason.packs()):
             import mainbtn                               # 4.0: the green CARRIERA 2026-27 button on the main menu

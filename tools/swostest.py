@@ -9336,6 +9336,18 @@ def world_full_uefa():
 
             def at_uq(r):
                 n = len([f for f in os.listdir(s.run) if f.startswith('uq_in_')])
+                if os.environ.get('UQ_HOLD'):               # forced shape (4.0.1 diagnosis): the holders = given
+                    q = r.base2 + x + 0x8                   # clubs, 'rank:slot' x 3 (slot 0-8 league, c = cup), in
+                    ws = []                                 # UQ_IN.hold and the game's holder words (w_holders)
+                    for j, spec in enumerate(os.environ['UQ_HOLD'].split(',')):
+                        rk, sl = spec.split(':')
+                        off = 1078 + 2 * int(rk) if sl == 'c' else 70 + 2 * (int(rk) * 9 + int(sl))
+                        ci = struct.unpack('<H', r.box.dump(q + off, 2))[0]
+                        w = struct.unpack('<H', r.box.dump(q + 1192 + (ci - 1) * 12, 2))[0]
+                        s.poke(q + 62 + 2 * j, struct.pack('<H', ci))
+                        ws.append(w)
+                    s.poke(r.base2 + HOLDERS, struct.pack('<3H', *ws))
+                    s.log.append(f'UQ_HOLD {os.environ["UQ_HOLD"]}: club indices / words {ws}')
                 open(os.path.join(s.run, f'uq_in_{n}.bin'), 'wb').write(r.box.dump(r.base2 + x + 0x8, 8732))
                 s.log.append(f'UQ_BP {n}: base2 {r.base2:#x} holders {r.box.dump(r.base2 + HOLDERS, 6).hex()}')
             s.bp(s.result.base1 + int(os.environ['UQ_BP'], 16), at_uq)

@@ -240,8 +240,8 @@ Cearense, Pernambucano, Alagoano and Mato-Grossense.
   162, see the Mod rules).
   - Each group winner is promoted to Serie C (9 clubs).
   - **Play-offs**: 2nd v 5th and 3rd v 4th in each group, single match at the better placed club's ground; a draw
-    goes to extra time, then the better placed club goes through; the final between the two winners the same way (it is
-    decided also when your club loses its semi-final). As in reality they promote nobody: they rank the repechage list.
+    goes to extra time, then the better placed club goes through; the final between the two winners the same way.
+    As in reality they promote nobody: they rank the repechage list.
   - **Play-outs**: 13th v 16th and 14th v 15th (in the 17-club groups 12th v 15th and 13th v 14th), single match at
     the better placed club's ground; a draw goes to extra time, then the better placed club stays up; not played
     when the two clubs are 8 or more points apart (the lower one goes down). The two losers go down.
@@ -920,8 +920,8 @@ Baiano, Cearense, Pernambucano, Alagoano e Mato-Grossense.
   vedi le regole della mod).
   - La vincitrice di ogni girone sale in Serie C (9 club).
   - **Play-off**: 2ª-5ª e 3ª-4ª in ogni girone, gara secca in casa della meglio piazzata; in caso di pareggio
-    supplementari, poi passa la meglio piazzata; la finale tra le due vincenti allo stesso modo (si decide anche quando
-    il tuo club perde la semifinale). Come nella realtà non promuovono nessuno: formano la graduatoria dei ripescaggi.
+    supplementari, poi passa la meglio piazzata; la finale tra le due vincenti allo stesso modo. Come nella realtà
+    non promuovono nessuno: formano la graduatoria dei ripescaggi.
   - **Play-out**: 13ª-16ª e 14ª-15ª (nei gironi da 17: 12ª-15ª e 13ª-14ª), gara secca in casa della meglio
     piazzata; in caso di pareggio supplementari, poi si salva la meglio piazzata; non si gioca con 8 o più punti di
     distacco (scende la peggio piazzata). Le due perdenti retrocedono.

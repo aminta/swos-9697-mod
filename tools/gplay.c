@@ -67,7 +67,7 @@ static int ss_used;                     /* (a play-off read GP_SS this season en
 #ifndef SS_NB
 #define SS_NB 1
 #endif
-struct gp_ss GP_SSB[SS_NB + 1];         /* 4.0.1: one bank per league with stage tables. Bank 0 = 4.0's single one
+struct gp_ss GP_SSB[SS_NB > 1 ? SS_NB + 1 : 1];         /* 4.0.1: one bank per league with stage tables. Bank 0 = 4.0's single one
                                            (Argentina r[0..2], MLS r[3]: engine item 'SS', unchanged for 4.0 saves);
                                            bank 1 = the CAREER club's league when it is another one (item 'SS2': its
                                            tables must survive a mid-season save); 2.. the other leagues', not saved

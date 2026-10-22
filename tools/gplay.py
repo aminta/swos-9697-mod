@@ -1312,19 +1312,10 @@ gp_cdmem:                               ; ZF = 0 when the career club is a Coppa
 
 gp_cal1:                                ; 4.0 A: cseg_3563E's `mov eax, A6` (the career calendar's list of entries):
     mov eax, [A6R]                      ; a Coppa D club's COPPA ITALIA entries (slot 1: the game plays the cup
-    cmp byte [eax], 4                   ; through them, the club is not in it) are left out of the list; and (rule
-    jne .c1                             ; 10) a gplay play-off's replay dates (slot 4: gplay never replays - a level
-    cmp byte [eax + 8], 3               ; tie goes to gp_draw's better-placed club - the game reserved them for a
-    jne .r                              ; round byte without penalties)
-    cmp word [GP_ST + ST_KO], 4B47h
-    je .skip
-    jmp .r
-.c1:
-    cmp byte [eax], 1
-    jne .r
+    cmp byte [eax], 1                   ; through them, the club is not in it) are left out of the list (replay
+    jne .r                              ; days: lib97 cal_noreplay removes them at the install)
     call gp_cdmem
     jz .r
-.skip:
     inc word [D6R]                      ; (cseg_3570C's next entry, without using a list line)
     mov word [D7R], 0
     movzx ecx, word [eax + 2]

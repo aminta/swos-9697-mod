@@ -6496,6 +6496,8 @@ def world_full_uefa():
               f'entry or a holder {odd}', errs)                                                  # (CC: the 2 EPS)
         notes.append(f"{c} 36 = direct {sum(direct[c].values())} + {sum(extra.values())} more "
                      f"({', '.join(f'{name.get(f, f)} +{x}' for f, x in sorted(extra.items(), key=lambda t: -t[1]))})")
+    if errs:                    # (Davide, 2026-10-22: KNOWN FAIL for 4.0 - in some seasons one European place goes to
+        errs.insert(0, 'KNOWN FAIL 4.0 (declared in the notes, fix in 4.0.1)')   # another association's club; kept FAIL)
     return not errs, '; '.join(errs + notes)
 
 

@@ -469,6 +469,9 @@ def patch_exe(src, dst, remap, lang='it'):
                          careerworld.SITES if worlds else None)   # FORMAT page (5.0)
     cos = menulevels.patch(p, cos, area, lang)   # 4.0: team choice of a league with levels of groups: level, then group
     import zones                                 # 4.0: zone colours in the league tables (light blue, green, ...)
+    zones.RING = None                            # (per exe: a release build patches the four languages in one run)
+    if LT_SPACE and LT_SPACE[1] - LT_SPACE[0] >= 0x800:          # (its ring routine in gplay's pages: the cosmetics
+        LT_SPACE[0] = zones.ring_patch(p, LT_SPACE[0])           # page is full)
     cos = zones.patch(p, cos, area, lang, [e if os.sep in e else os.path.join(mkseason.PACKS, e) for e in mkseason.ENABLED],
                       num_bss + shirtnum.BSS_SIZE + blond.BSS_SIZE + menunum.BSS_SIZE, fmtpage.BSS_SIZE,
                       careerworld.SITES if worlds else None)   # (the FORMAT page's buffer, shared)

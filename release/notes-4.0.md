@@ -22,7 +22,7 @@
   - Every table in colour (titles, cups, promotion, play-offs, play-outs, relegation) with one legend at the top left;
     every competition has a FORMAT page in plain words, in 4 languages.
 - **WINNERS page**: in a competition's STAT menu, the season's titles beyond the table (play-offs, Apertura /
-  Clausura, state champions) with their winners, or TO BE PLAYED.
+  Clausura, state champions) with their winners, TO BE PLAYED or IN PROGRESS; after the season end, last season's.
 - **One engine for all of it**: groups, splits, play-offs and cups share the same rules (one knockout rule for the
   mod's play-offs: extra time, then the better-placed club goes through; no replays).
 - **Europe 1984-85** (DaniSwos's database): tables in colour and FORMAT pages too.
@@ -48,8 +48,6 @@
   Elite at the round of 16 and the Challenge League at the quarter-finals.
 - After a job offer letter a few stray pixels can appear on the menu buttons until the next match: cosmetic only.
 - The season end shows every open competition in turn: in this world it takes longer than in the original game.
-- **WINNERS page**: a title decided only at the season end (a play-off your club is not in) is listed from the
-  upcoming 4.0.1.
 - The World 2026-27 has no national teams yet (planned for the upcoming 4.2).
 
 Every rule, source and limit: the [full release notes](https://github.com/aminta/swos-9697-mod/blob/main/release/notes-world-2026-27.md).
@@ -83,7 +81,8 @@ Thanks to DaniSwos for the Europe 1984-85 database, and to Marco for the reports
   - Ogni classifica a colori (titolo, coppe, promozione, play-off, play-out, retrocessione) con una sola legenda in
     alto a sinistra; ogni competizione ha la sua pagina FORMULA in parole semplici, in 4 lingue.
 - **Pagina VINCITORI**: nel menu STAT di una competizione, i titoli della stagione oltre alla classifica (play-off,
-  Apertura / Clausura, campioni statali) con le loro vincitrici, oppure DA GIOCARE.
+  Apertura / Clausura, campioni statali) con le loro vincitrici, DA GIOCARE o IN CORSO; dopo la fine della stagione,
+  quelle della stagione appena conclusa.
 - **Un solo motore per tutto**: gironi, campionati divisi, play-off e coppe seguono le stesse regole (una sola regola
   per gli scontri diretti dei play-off della mod: supplementari, poi passa la meglio piazzata; nessuna ripetizione).
 - **Europa 1984-85** (il database di DaniSwos): anche qui classifiche a colori e pagine FORMULA.
@@ -112,8 +111,6 @@ Thanks to DaniSwos for the Europe 1984-85 database, and to Marco for the reports
   partita successiva: solo estetico.
 - A fine stagione il gioco mostra una dopo l'altra tutte le competizioni ancora aperte: in questo mondo ci vuole più
   tempo che nel gioco originale.
-- **Pagina VINCITORI**: un titolo che si decide solo a fine stagione (un play-off senza il tuo club) compare dalla
-  prossima 4.0.1.
 - Il Mondo 2026-27 non ha ancora le nazionali (previste nella prossima 4.2).
 
 Tutte le regole, le fonti e i limiti: le [note complete](https://github.com/aminta/swos-9697-mod/blob/main/release/notes-world-2026-27.md).

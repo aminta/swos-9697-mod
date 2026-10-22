@@ -316,8 +316,9 @@ Cearense, Pernambucano, Alagoano and Mato-Grossense.
   qualifying round wherever the association ranks.
 - **WINNERS page**: in a competition's STAT menu, WINNERS lists the titles the league decides beyond its table
   (play-off winners, the Apertura / Clausura champions, a state championship's champion) with the club that won each
-  this season, or TO BE PLAYED while it is still open; in 4 languages (VINCITORI / VAINQUEURS / SIEGER). Declared: a
-  title decided only at the season end (a play-off your club is not in) appears there from the upcoming 4.0.1.
+  this season: TO BE PLAYED before it starts, IN PROGRESS while it is played; the titles decided at the season end
+  are listed too, and after the season end the page shows last season's winners. In 4 languages (VINCITORI / DA
+  GIOCARE / IN CORSO, VAINQUEURS / A JOUER / EN COURS, SIEGER / NOCH OFFEN / IM GANGE).
 - **Continental places outside Europe**: the top flights of the other confederations colour their real club-cup
   places: light blue for the first cup (Copa Libertadores, Concacaf Champions Cup, AFC Champions League Elite, CAF
   Champions League, OFC Champions League), green for the second (Copa Sudamericana, AFC Champions League Two, CAF
@@ -998,9 +999,10 @@ Baiano, Cearense, Pernambucano, Alagoano e Mato-Grossense.
   preliminare di Conference League qualunque sia il posto della federazione nel ranking.
 - **Pagina VINCITORI**: nel menu STAT di una competizione, VINCITORI elenca i titoli che il campionato assegna oltre
   alla classifica (le vincitrici dei play-off, i campioni di Apertura e Clausura, il campione di uno statale) con il
-  club che li ha vinti in questa stagione, oppure DA GIOCARE finché sono aperti; in 4 lingue (WINNERS / VAINQUEURS /
-  SIEGER). Dichiarato: un titolo che si decide solo a fine stagione (un play-off senza il tuo club) vi compare dalla
-  prossima 4.0.1.
+  club che li ha vinti in questa stagione: DA GIOCARE prima che inizi, IN CORSO mentre si gioca; ci sono anche i
+  titoli che si decidono a fine stagione, e dopo la fine della stagione la pagina mostra le vincitrici della stagione
+  appena conclusa. In 4 lingue (WINNERS / TO BE PLAYED / IN PROGRESS, VAINQUEURS / A JOUER / EN COURS, SIEGER /
+  NOCH OFFEN / IM GANGE).
 - **Posti continentali fuori dall'Europa**: le massime serie delle altre confederazioni colorano i loro posti veri
   nelle coppe per club: azzurro per la prima coppa (Copa Libertadores, Concacaf Champions Cup, AFC Champions League
   Elite, CAF Champions League, OFC Champions League), verde per la seconda (Copa Sudamericana, AFC Champions League

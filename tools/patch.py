@@ -220,6 +220,7 @@ def patch_exe(src, dst, remap, lang='it'):
     if gp_tabs and mkseason.worlds():                  # the played ones' state (GP_ST) in the .CAR engine block, its
         import gplay as gp_mod                         # contest pointers back after a load (gp_sync)
         engine.save_item('GP', gp_mod.GP_ST_SIZE)
+        engine.save_item('WN', gp_mod.WN_SIZE)         # 4.0.1 the WINNERS page's last season (WN_ST, gp_season)
         engine.after_load('gp_sync')
         if any(t[2] in gp_mod.T2_SPECS for t in gp_tabs):   # (a group contest played: the early tables beyond 2)
             engine.save_item('GS', gp_mod.GS_SIZE)
@@ -435,6 +436,7 @@ def patch_exe(src, dst, remap, lang='it'):
         if pr_on:
             engine.ITEM_AT['PR'] = gplay.LABELS['PR_STATE']
         engine.ITEM_AT['GP'] = gplay.LABELS['GP_ST']    # (the played play-offs' state; its pointers after a load)
+        engine.ITEM_AT['WN'] = gplay.LABELS['WN_ST']    # (the WINNERS page's last season)
         if 'GS' in engine.SAVE_ITEMS:
             engine.ITEM_AT['GS'] = gplay.LABELS['GP_GS']
         if 'CD' in engine.SAVE_ITEMS:
@@ -467,7 +469,7 @@ def patch_exe(src, dst, remap, lang='it'):
     cos = menumusic.patch(p, cos)                # 3.3.6: menu music when the main menu opens (SWOS++ options load late)
     cos = fmtpage.patch(p, cos, lang, area, num_bss + shirtnum.BSS_SIZE + blond.BSS_SIZE + menunum.BSS_SIZE,
                          careerworld.SITES if worlds else None,   # FORMAT page (5.0); 4.0.1 its VINCITORI entry
-                         wn=bool(worlds and LT_SPACE))            # (winners.py in gplay's pages)
+                         wn=bool(worlds and LT_SPACE and xtra_pg))   # (winners.py on the extra pages)
     cos = menulevels.patch(p, cos, area, lang)   # 4.0: team choice of a league with levels of groups: level, then group
     import zones                                 # 4.0: zone colours in the league tables (light blue, green, ...)
     zones.RING = None                            # (per exe: a release build patches the four languages in one run)
@@ -482,13 +484,9 @@ def patch_exe(src, dst, remap, lang='it'):
             import mainbtn                               # 4.0: the green CARRIERA 2026-27 button on the main menu
             w27 = min(pk.world for pk in mkseason.packs() if pk.meta.get('id', '').startswith('world-2026-27-'))
             lt_end_ = mainbtn.patch(p, (lt_end_ + 15) & ~15, lang, mkseason.WMENU + w27)
-        if worlds and fmtpage.WN:                        # 4.0.1: the SEASON WINNERS page (fmtpage's VINCITORI entry)
-            import winners
-            lt_end_ = winners.patch(p, lt_end_, lang, careerworld.SITES)
         assert lt_end_ <= LT_SPACE[1], hex(lt_end_)
         print(f'exe: longtable code in gplay\'s pages: obj1+{LT_SPACE[0]:#x}..{lt_end_:#x} (free to {LT_SPACE[1]:#x})')
     else:
-        assert not fmtpage.WN, 'VINCITORI: no room in gplay\'s pages'
         cos = longtable.patch(p, cos, area, lang)                # 4.0: tables over 24 clubs scroll (ARG / MLS 30: no drawing past the screen)
     if cos_pg:
         assert cos <= hist2 + h2 + 0x1000 * lpb, hex(cos)
@@ -509,9 +507,13 @@ def patch_exe(src, dst, remap, lang='it'):
             gplay.link_reserve(p, ri)                            # (the reserves: gp_sack's tables)
         if bigtables.ON[0]:                                      # the .CAR's 2000 bytes <-> the moved tables,
             xe = bigtables.hooks(p, (xe + 15) & ~15)             # numbers 2000+ (after every finder of the tables)
+        if fmtpage.WN:                                           # the WINNERS page (fmtpage's VINCITORI entry; gplay's
+            import winners                                       # pages are full)
+            xe = winners.patch(p, xe, lang, careerworld.SITES)
         assert xe <= xp + 0x1000 * xpg, hex(xe)
     elif xtra_on:
         world = xtra.patch(p, world)
+    assert not fmtpage.WN or xtra_pg, 'VINCITORI: no extra pages'
     assert world <= NZ_CAVE and nz_end <= FIN_CAVE and fin_end <= ARG_CAVE and arg_end <= OBJ1_NEW_VSIZE, \
         (hex(world), hex(nz_end), hex(fin_end), hex(arg_end))
     careerworld.ns_xtra(p, xtra.LABELS['XTRA_NAMEP'] if xtra_on else None)   # several worlds: XTWn.nnn names

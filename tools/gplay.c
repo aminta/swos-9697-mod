@@ -678,6 +678,23 @@ void gp_champ(void) {
     }
 }
 
+/* 4.0.1 the SEASON WINNERS page's last season (winners.py; the engine block's item 'WN', zeroed in a save without it):
+   the career country's titles as this season end decides them - each play-off's winner ('K', its index; a stage
+   title's champion) and each division's 1st ('L', its index; division 0 of a league with an annual table: that
+   table's), as team words. Written by gp_season's pass over the career club's country only; read by gp_wn_c. */
+extern u8 GP_SEAS;
+enum { WN_N = 40, WN_MAGIC = 0x4E57 };
+struct wn_e { u8 type, idx; u16 team; };
+struct wn_state { u16 magic; u8 season, n; struct wn_e e[WN_N]; };
+struct wn_state WN_ST;
+const u32 WN_SIZE = sizeof(struct wn_state);
+static int wn_on;
+static void wn_add(int type, int idx, u16 team) {
+    if (!wn_on || team == 0xFFFF || WN_ST.n >= WN_N) return;
+    struct wn_e *x = &WN_ST.e[WN_ST.n++];
+    x->type = (u8)type; x->idx = (u8)idx; x->team = team;
+}
+
 void gp_season(void) {
     const u8 *s = GP_IN.spec;
     u32 h = 0;
@@ -693,6 +710,16 @@ void gp_season(void) {
     int prev_loser = -1;                        /* the last tie's loser of the play-off before (entrant type 4) */
     ss_used = 0;
     gp_force();
+    wn_on = 0;                                  /* (the career club's country: its titles into WN_ST) */
+    for (int d = 0; d < GP_IN.nd && d < GD && GP_IN.mgr; d++)
+        for (int k = 0; k < GP_IN.n[d]; k++) if (GP_IN.t[d][k].team == GP_IN.mgr) wn_on = 1;
+    if (wn_on) {
+        WN_ST.magic = WN_MAGIC; WN_ST.season = GP_SEAS; WN_ST.n = 0;
+        for (int d = 0; d < GP_IN.nd && d < GD; d++)
+            if (GP_IN.n[d])
+                wn_add('L', d, d == 0 && (GP_SS.fresh & 4) && GP_SS.n[2] == GP_IN.n[0] ? GP_SS.r[2][0].team
+                                                                                        : GP_IN.t[d][0].team);
+    }
     for (int pidx = 0; s && *s; pidx++) {
         int kind = s[0], n = s[1], nr = s[2], wdiv = s[3], ldiv = s[4];
         const u8 *e = s + 6, *r = e + 4 * n;
@@ -819,9 +846,16 @@ void gp_season(void) {
                 move(c, to - DV(c));
             }
         }
+        if (kind == K_STAGE)                    /* (WN_ST: this play-off's winner) */
+            wn_add('K', pidx, wdiv < 3 && GP_OUT.sres[wdiv].kind ? GP_OUT.sres[wdiv].team[0] : 0xFFFF);
+        else if (kind == K_TITLE && GP_IN.pl_t2 && GP_IN.pl_pi == pidx + 1)
+            wn_add('K', pidx, GP_IN.pl_w[0] ? GP_IN.pl_w[0] : 0xFFFF);
+        else if (ok && kind != 4 && (glast >= 0 || last >= 0))
+            wn_add('K', pidx, row(glast >= 0 ? P[glast] : W[last])->team);
         prev_loser = ok && last >= 0 ? L[last] : -1;
         s = r;
     }
+    wn_on = 0;
     if (ss_used) GP_SS.fresh = 0;              /* (this league's stage tables used: next season's are new ones) */
 }
 
@@ -1396,6 +1430,13 @@ static void stage_done(const struct gp_ko *k) {   /* a stage title's knockout de
 u32 GP_WNSRC;
 u32 gp_wn_c(void) {
     int t = GP_WNSRC & 0xFF, st = GP_WNSRC >> 8 & 0xFF, pi = GP_WNSRC >> 16 & 0xFF;
+    if (GP_WNSRC >> 24) {               /* (4.0.1 the last season: WN_ST's entry 'K' pi, or 'L' division st) */
+        int ty = t == 'K' || t == 'D' ? 'K' : 'L', ix = ty == 'K' ? pi : st;
+        if (WN_ST.magic != WN_MAGIC || (u8)(WN_ST.season + 1) != GP_SEAS) return 0xFFFE;
+        for (int i = 0; i < WN_ST.n && i < WN_N; i++)
+            if (WN_ST.e[i].type == ty && WN_ST.e[i].idx == ix) return WN_ST.e[i].team;
+        return 0xFFFE;
+    }
     if (t == 'S')
         return st < SS_N && (GP_SS.fresh >> st & 1) && GP_SS.n[st] ? GP_SS.r[st][0].team : 0xFFFE;
     if (GP_ST.magic != MAGIC) return 0xFFFE;

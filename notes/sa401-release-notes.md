@@ -27,8 +27,9 @@ sibling of the Argentina 2026 entry. Paraguay is listed only once the integrator
       coincidence rules).
   - Your club can play every final phase. Every tournament's winner is listed on the WINNERS page.
   - Declared:
-    - Transfermarkt does not list every match yet, so the missing Clausura / Finalizacion matchdays are completed:
-      Peru's last 4, Colombia's last 2, Uruguay's last 3. The home club is the reverse of the Apertura meeting.
+    - The Clausura / Finalizacion calendars are the Apertura's mirrored, matchday by matchday, as every published
+      matchday shows. The last matchdays not yet published (Peru 4, Colombia 2, Uruguay 3) follow that mirror. Their
+      dates are a week apart: for Peru that ends on 22 November, the real last day.
     - Uruguay's Intermedio uses the game's own calendar of the two series, dated between the Apertura and the
       Clausura.
     - Colombia's cuadrangulares are fixed groups, 1st 4th 5th 8th and 2nd 3rd 6th 7th. In reality the 1st and 2nd
@@ -70,9 +71,10 @@ sibling of the Argentina 2026 entry. Paraguay is listed only once the integrator
       coincidenze).
   - La tua squadra può giocare ogni fase finale. I vincitori di ogni torneo sono nella pagina VINCITORI.
   - Dichiarato:
-    - Transfermarkt non elenca ancora tutte le partite, quindi le giornate mancanti di Clausura / Finalizacion sono
-      completate: le ultime 4 del Perù, 2 della Colombia, 3 dell'Uruguay. In casa gioca chi era in trasferta
-      all'Apertura.
+    - I calendari di Clausura / Finalizacion sono quelli dell'Apertura a campi invertiti, giornata per giornata,
+      come mostra ogni giornata pubblicata. Le ultime non ancora pubblicate (Perù 4, Colombia 2, Uruguay 3) seguono
+      lo stesso specchio. Le loro date sono a una settimana di distanza: per il Perù si arriva al 22 novembre,
+      l'ultima giornata vera.
     - L'Intermedio uruguaiano usa il calendario del gioco per le due serie, con date tra Apertura e Clausura.
     - I quadrangolari colombiani sono gruppi fissi, 1a 4a 5a 8a e 2a 3a 6a 7a. Nella realtà 1a e 2a sono teste di
       serie e le altre si sorteggiano a coppie.

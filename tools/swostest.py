@@ -6268,6 +6268,14 @@ def world_full_uefa():
     hold = {}
 
     def hook(s, season, scr):
+        if os.environ.get('UQ_BP') and not getattr(s, 'uq_bp', False):   # (integrator: UQ_BP = uq_season's obj1 offset,
+            s.uq_bp = True                                              # the patch log; CORE=normal): its input at the
+            x = int(os.environ.get('UQ_BSS', '186000'), 16)             # call, every season end -> uq_in_<n>.bin
+
+            def at_uq(r):
+                n = len([f for f in os.listdir(s.run) if f.startswith('uq_in_')])
+                open(os.path.join(s.run, f'uq_in_{n}.bin'), 'wb').write(r.read(r.base2 + x + 0x8, 8732))
+            s.bp(s.result.base1 + int(os.environ['UQ_BP'], 16), at_uq)
         h = struct.unpack_from('<3H', s.result.obj2(HOLDERS, 6))
         if all(x not in (0, 0xFFFF) for x in h):
             hold['h'] = h

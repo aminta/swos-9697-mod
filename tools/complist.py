@@ -188,6 +188,8 @@ FIT_NAMES = {   # hand-picked forms (regia / Davide 2026-10-20): (original long 
 }
 
 
+VC_PX = 158         # VISUAL. COMPETIZ.'s buttons: 160 px wide, the title '<country> <long>' centred in the small font
+                    # (rc11, Davide's MiSTer photo: ARABIA SAUDITA SAUDI PRO LEAGUE = 162 px, past both edges); 1 px each side
 CAL_PX = 70         # the career calendar's label: x 8 .. 78, where the home / away marker (C) / (F) starts (Davide 2026-10-20)
 SMALL_W = dict({c: 6 for c in 'ABCDEFGHJKLMNOPQRSTUVWXYZ023456789!"#$%&*+/<=>?@'},
                **{'I': 2, '1': 2, "'": 2, '(': 3, ')': 3, ',': 2, '-': 4, '.': 2, ':': 2, ' ': 3})   # the menus' small
@@ -265,15 +267,25 @@ def _fit(country, long_, short):
     """A long name that fits '<country> <long>' in TITLE_MAX: the long one, else the short one, else the longer of the
     two cut at a word (then at the limit)."""
     room = TITLE_MAX - len(country) - 1
-    for x in (FIT_NAMES.get((long_, LANG[0])), FIT_NAMES.get((long_, '*')), long_, short):
-        if x and len(x) <= room:
+    ok = lambda x: len(x) <= room and px(f'{country} {x}') <= VC_PX
+    def abbr(base):                                 # the standard abbreviations (ABBR), last word first
+        words = base.split()
+        for i in range(len(words) - 1, -1, -1):
+            if words[i] in ABBR:
+                words[i] = ABBR[words[i]]
+                if ok(' '.join(words)):
+                    return ' '.join(words)
+        return None
+    fn = FIT_NAMES.get((long_, LANG[0])) or FIT_NAMES.get((long_, '*'))
+    for x in (fn, long_):
+        if x and ok(x):
             return x
-    for x in ():
-        if len(x) <= room:
+    for x in (fn and abbr(fn), abbr(long_), short if ok(short) else None, abbr(short)):
+        if x:
             return x
     words, w = long_.split(), ''
     for x in words:                                 # (whole words only: never a cut inside a word)
-        if len(w) + (1 if w else 0) + len(x) > room:
+        if not ok(f'{w} {x}' if w else x):
             break
         w = f'{w} {x}' if w else x
     return w or short[:room]
@@ -296,7 +308,8 @@ def fit_titles(m):
             long_ = v[0]
             short = v[1] if len(v) > 1 else v[0]
             LANG[0] = lang
-            f = _fit(country, long_.upper(), short.upper()) if len(country) + 1 + len(long_) > TITLE_MAX else None
+            f = _fit(country, long_.upper(), short.upper()) if (len(country) + 1 + len(long_) > TITLE_MAX or
+                                                                 px(f'{country} {long_}') > VC_PX) else None
             sh = fit_short(short, lang) if len(v) > 1 else None
             if (f is not None and f != long_.upper()) or (sh is not None and sh != short.upper()):
                 names[lang] = [f or long_] + ([sh] if sh is not None else []) + list(v[2:])
@@ -330,6 +343,8 @@ def check_titles(m, clubs=()):
             country = (bn.get(lang) or m.get('button') or '').upper()
             if len(country) + 1 + len(v[0]) > TITLE_MAX:
                 bad.append(f"{m.get('id')} {where} {lang}: title over {TITLE_MAX}: {country} {v[0]}")
+            if px(f'{country} {v[0]}') > VC_PX:
+                bad.append(f"{m.get('id')} {where} {lang}: title over {VC_PX} px (VISUAL. COMPETIZ.'s button): {country} {v[0]}")
             if len(v) > 1 and px(v[1]) > CAL_PX:
                 bad.append(f"{m.get('id')} {where} {lang}: short name over {CAL_PX} px (the calendar label): {v[1]}")
             for x in [country] + list(v):

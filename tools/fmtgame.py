@@ -860,7 +860,7 @@ def _wn_title(cc, key, lang):
     return {'*': [t.get(lang) or t['*']]} if t else None
 
 
-def win_lines(comp, div, k, cc=''):
+def win_lines(comp, div, k, cc='', tfile=None):
     """The SEASON WINNERS page of division k of a league: {lang: [(title, source)]}, {} when it has no title beyond its
     table (the page's entry stays hidden). Sources (winners.py wn_src): 'L' the table's 1st once the league is over;
     'K' + pi (2 hex digits) the last tie's winner of play-off pi (gplay GP_ST.ko: the career club's, played);
@@ -911,6 +911,9 @@ def win_lines(comp, div, k, cc=''):
             own = _wn_title(cc, None, lang) if title_po else None      # (the regular season's own title)
             lines[lang].insert(0, (_wn_fit(own, lang) if own else
                                    _wn_fit(div['name'], lang, WN[lang]['reg'] if title_po else ''), src))
+    if tfile is not None and 0 <= tfile < 256:                  # 4.0.1: its key first for the last season's page (the
+        for lang in LANGS:                                      # division the career club played in: WN_ST 'M')
+            lines[lang].insert(0, ('', f'H{tfile:02X}{k:02X}'))
     return lines
 
 
@@ -1014,7 +1017,8 @@ def from_pack(d):
                                        'tail': sch[sch.index(next(x for x in sch if x.startswith(ZT[lang]['eu'].split('{')[0][:30]))):]
                                        if any(x.startswith(ZT[lang]['eu'].split('{')[0][:30]) for x in sch) else tail}
                     out.append((world, cid, titles, texts))
-                    wl = win_lines(comp, div, k, (m.get('id') or '').rsplit('-', 1)[-1])
+                    wl = win_lines(comp, div, k, (m.get('id') or '').rsplit('-', 1)[-1],
+                                   ((m.get('files') or {}).get(comp.get('clubs')) or {}).get('file'))
                     if wl:
                         out.append((world, cid, titles, {'win': wl}))
                     k += 1

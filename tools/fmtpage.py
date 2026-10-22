@@ -493,6 +493,7 @@ def build(path, pages, wins=()):
     idx, body = bytearray(), bytearray()
     head = 8 + ENTRY * (len(pages) + len(wins))
     assert head <= IDXMAX, (len(pages), len(wins))
+    assert not wins or head <= 0x5000, head          # (winners.py wn_lastdiv: the index below its second text)
     for cid, name, pp in list(pages) + list(wins):
         if pp and isinstance(pp[0], tuple):
             txt = '\n'.join(f'{t}\x01{s_}' for t, s_ in pp).encode('ascii')

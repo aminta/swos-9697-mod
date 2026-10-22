@@ -715,10 +715,12 @@ void gp_season(void) {
     ss_used = 0;
     gp_force();
     wn_on = 0;                                  /* (the career club's country: its titles into WN_ST) */
+    int wn_div = 0;
     for (int d = 0; d < GP_IN.nd && d < GD && GP_IN.mgr; d++)
-        for (int k = 0; k < GP_IN.n[d]; k++) if (GP_IN.t[d][k].team == GP_IN.mgr) wn_on = 1;
+        for (int k = 0; k < GP_IN.n[d]; k++) if (GP_IN.t[d][k].team == GP_IN.mgr) { wn_on = 1; wn_div = d; }
     if (wn_on) {
         WN_ST.magic = WN_MAGIC; WN_ST.season = GP_SEAS; WN_ST.n = 0;
+        wn_add('M', wn_div, GP_IN.mgr);         /* (4.0.1: the division it played in - the last season's page) */
         for (int d = 0; d < GP_IN.nd && d < GD; d++)
             if (GP_IN.n[d])
                 wn_add('L', d, d == 0 && (GP_SS.fresh & 4) && GP_SS.n[2] == GP_IN.n[0] ? GP_SS.r[2][0].team
@@ -1445,6 +1447,12 @@ static int wn_out(const struct gp_ko *k) {      /* the career club knocked out o
 }
 u32 gp_wn_c(void) {
     int t = GP_WNSRC & 0xFF, st = GP_WNSRC >> 8 & 0xFF, pi = GP_WNSRC >> 16 & 0xFF;
+    if (GP_WNSRC >> 24 && t == 'M') {   /* (4.0.1: the division the career club played in: team | division << 16) */
+        if (WN_ST.magic != WN_MAGIC || (u8)(WN_ST.season + 1) != GP_SEAS) return 0xFFFE;
+        for (int i = 0; i < WN_ST.n && i < WN_N; i++)
+            if (WN_ST.e[i].type == 'M') return WN_ST.e[i].team | (u32)WN_ST.e[i].idx << 16;
+        return 0xFFFE;
+    }
     if (GP_WNSRC >> 24) {               /* (4.0.1 the last season: WN_ST's entry 'K' pi, or 'L' division st) */
         int ty = t == 'K' || t == 'D' ? 'K' : t == 'T' ? 0x80 | (pi & 0x7F) : 'L', ix = ty == 'K' ? pi : st;
         if (WN_ST.magic != WN_MAGIC || (u8)(WN_ST.season + 1) != GP_SEAS) return 0xFFFE;

@@ -307,7 +307,8 @@ Cearense, Pernambucano, Alagoano and Mato-Grossense.
   and the Brazilian state championships alike. In split and group tables each club's zone is its place in its own
   group. In the Europe 1984-85 world too. Before a table's first match day the clubs are still in their initial order,
   so the table has no colours and no legend yet; the leagues whose groups are known from the start (the MLS
-  conferences, Argentina's zones, Panama's conferences) show their group headers from day one.
+  conferences, Argentina's zones, Panama's conferences) show their group headers from day one. Your club's row keeps
+  its name box without a frame; a thin black border appears only when the box has the same colour as the zone.
   In the World 2026-27 the European places in every season come from the engine's own UEFA ranking (the one a year
   old, as UEFA's access list uses) and the real 2026/27 access list; the European Performance Spots and the title
   holders' rebalancing are decided at the season end and are not coloured in advance.
@@ -979,7 +980,8 @@ Baiano, Cearense, Pernambucano, Alagoano e Mato-Grossense.
   girone. Anche nel mondo Europa 1984-85. Prima della prima giornata di una classifica i club sono ancora nel loro
   ordine iniziale, quindi la classifica non ha ancora colori né legenda; i campionati con i gruppi noti dall'inizio
   (le conference della MLS, le zone dell'Argentina, le conference di Panama) mostrano le intestazioni dei gruppi dal
-  primo giorno.
+  primo giorno. La riga del tuo club tiene il riquadro del nome senza cornice; un sottile bordo nero compare solo
+  quando il riquadro ha lo stesso colore della zona.
   Nel Mondo 2026-27 i posti europei di ogni stagione vengono dal ranking UEFA del gioco (quello dell'anno prima,
   come nella access list UEFA) e dalla access list vera 2026/27; gli European Performance Spots e i ritocchi per i
   detentori dei titoli si decidono a fine stagione e non vengono colorati in anticipo.

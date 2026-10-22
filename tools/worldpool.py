@@ -9,7 +9,14 @@ content on the original bytes; careerworld never touches LoadPoolplyrDat):
   wp_name  replaces `mov [A0], offset aDataPoolplyr_d`: the file name of the wanted pool.
 Pool files: mkseason.world_files() writes POOLnn.DAT from the root pack's 'pool' field (pack.json, a file in the
 pack folder). Pool clubs use pseudo team-file numbers outside the world's files (mkworld_tm: 190+), so the market's
-'other country' test always passes; their names come from the pool record."""
+'other country' test always passes; their names come from the pool record.
+
+Pool clubs' team file (4.0 hotfix, 2026-10-23): buying a pool player loads his club (GetTeamPointer -> LoadTeamFile
+of file 190), so the world ships that file too (pool_team_file: one record per pool club, a club over 16 players
+split into extra ordinals and its pool records renumbered to match, pool_split; guests.py adds it to the world's
+namespace, its label and the patcher). SetTeamGlobalNumbers sets a loaded record's global number to
+teamsCountryNumbers[file] + ordinal: wp_glob gives every record of file POOL_FILE one global number instead
+(guests.alloc: a number the world never uses; w_guest clears its someLeaguesTable byte at the load)."""
 import re
 import struct
 
@@ -55,6 +62,17 @@ wp_name:                                ; replaces mov [A0], offset aDataPoolply
     pop eax
     ret
 
+%ifdef POOLG
+wp_glob:                                ; SetTeamGlobalNumbers' store (replaces mov esi, [A0]; mov [esi+2], ax)
+    mov esi, [A0]
+    cmp byte [esi], POOL_FILE
+    jne .s
+    mov ax, POOLG                       ; the pool clubs' one global number
+.s:
+    mov [esi+2], ax
+    ret
+%endif
+
 WP_LAST: db 0
 align 4
 WP_NAME: dd 0
@@ -86,11 +104,67 @@ def _sites(p):
           re.finditer(rb'\x66\xa1.{4}\x66\x0b\xc0\x75.\x66\x83\x3d.{4}\x04\x75', orig, re.S)}
     assert len(gt) == 1, ('gameType', gt)
     s['gametype'] = gt.pop()
+    # SetTeamGlobalNumbers: mov esi, [A0]; mov [esi+2], ax; add [A0], 684
+    ag = re.escape(struct.pack('<I', a0))
+    gs = [x.start() for x in re.finditer(rb'\x8b\x35' + ag + rb'\x66\x89\x46\x02\x81\x05' + ag + rb'\xac\x02\x00\x00', d1)]
+    assert len(gs) == 1, ('SetTeamGlobalNumbers', gs)
+    s['glob'] = gs[0]
     return s
 
 
-def patch(p, cave, nasmcave, pools):
-    """pools: [(world number, 'POOLnn.DAT')]. Returns the cave end (nothing done without pools)."""
+POOL_FILE = 190                         # mkseason.POOL_IDS[0]: the pool clubs' pseudo team file
+REC = 58
+TEAM_HDR = bytes.fromhex('0000000000010102010002020102')   # record bytes 22..35: tactic 0, plain kits
+
+
+def pool_split(data):
+    """(pool bytes with the records of clubs over 16 players renumbered, [(ordinal, name 17 B, [PlayerFile 38 B])]
+    in ordinal order) - for a pool whose records all name file POOL_FILE; None for any other pool."""
+    recs = [bytearray(data[i:i + REC]) for i in range(0, len(data), REC)]
+    if not recs or any(r[0] != POOL_FILE for r in recs):
+        return None
+    clubs = {}
+    for r in recs:
+        clubs.setdefault(r[1], {})[r[2]] = r
+    assert sorted(clubs) == list(range(len(clubs))), 'pool club ordinals 0..n-1'
+    nxt, out = len(clubs), []
+    for o in range(len(clubs)):
+        ps = clubs[o]
+        assert sorted(ps) == list(range(len(ps))), ('pool club', o, sorted(ps))
+        for c in range((len(ps) + 15) // 16):
+            ordn = o if c == 0 else nxt
+            nxt += c > 0
+            chunk = [ps[k] for k in range(16 * c, min(16 * c + 16, len(ps)))]
+            for j, r in enumerate(chunk):
+                r[1], r[2] = ordn, j
+            out.append((ordn, bytes(chunk[0][3:20]), [bytes(r[20:58]) for r in chunk]))
+    assert nxt <= 256, nxt
+    out.sort()
+    return b''.join(recs), out
+
+
+def pool_team_file(data, glob):
+    """TEAM-file bytes (BE count + 684-byte records) of a pool's clubs: name from the pool record, plain kits, lineup
+    0..15, its players in slots 0..n-1 and slots n..15 repeating them (the game's records hold 16)."""
+    _, clubs = pool_split(data)
+    out = bytearray(struct.pack('>H', len(clubs)))
+    for i, (ordn, name, ps) in enumerate(clubs):
+        assert ordn == i
+        r = bytearray(684)
+        r[0], r[1] = POOL_FILE, ordn
+        struct.pack_into('>H', r, 2, glob)
+        r[5:22] = name
+        r[22:36] = TEAM_HDR
+        r[60:76] = bytes(range(16))
+        for j in range(16):
+            r[76 + 38 * j:76 + 38 * (j + 1)] = ps[j % len(ps)]
+        out += r
+    return bytes(out)
+
+
+def patch(p, cave, nasmcave, pools, glob=None):
+    """pools: [(world number, 'POOLnn.DAT')]; glob: the pool clubs' global number when the build ships their team
+    file (guests.alloc()[POOL_FILE]). Returns the cave end (nothing done without pools)."""
     import careerworld
     if not pools:
         return cave
@@ -98,6 +172,8 @@ def patch(p, cave, nasmcave, pools):
     tab = ''.join(f'    db {n}\n    dd WP_STR_{n}\n' for n, _ in pools) + '    db 0\n'
     strs = ''.join(f'WP_STR_{n}: db "data\\\\{name.lower()}", 0\n' for n, name in pools)
     src = ASM + tab + strs
+    if glob is not None:
+        src = f'%define POOLG {glob}\n%define POOL_FILE {POOL_FILE}\n' + src
     symbols = {'GAMETYPE': s['gametype'], 'SLT': s['slt'], 'WORLD_BYTE': (0, careerworld.WORLD_BYTE),
                'LOADED': s['loaded'], 'ORIGNAME': s['orig'], 'A0': (2, s['a0'])}
     code, fix = nasmcave.assemble(src, cave, symbols)
@@ -110,5 +186,10 @@ def patch(p, cave, nasmcave, pools):
     p.remove(1, s['name'] + 2)                       # mov [A0], offset name -> call wp_name; 5 x nop
     p.remove(1, s['name'] + 6)
     p.put(1, s['name'], b'\xe8' + struct.pack('<i', labels['wp_name'] - (s['name'] + 5)) + b'\x90' * 5)
+    if glob is not None:                             # mov esi, [A0]; mov [esi+2], ax -> call wp_glob; 5 x nop
+        g = s['glob']
+        p.remove(1, g + 2)
+        p.put(1, g, b'\xe8' + struct.pack('<i', labels['wp_glob'] - (g + 5)) + b'\x90' * 5)
+        print(f'exe: pool clubs (file {POOL_FILE}): one global number {glob}, SetTeamGlobalNumbers obj1+{g:#x}')
     print(f'exe: world pools {pools}: LoadPoolplyrDat obj1+{s["load"]:#x}, code obj1+{cave:#x}..{cave + len(code):#x}')
     return (cave + len(code) + 3) & ~3

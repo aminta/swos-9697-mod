@@ -318,8 +318,9 @@ Cearense, Pernambucano, Alagoano and Mato-Grossense.
   (play-off winners, the Apertura / Clausura champions, a state championship's champion) with the club that won each
   this season: TO BE PLAYED before it starts, IN PROGRESS while it is played; the titles decided at the season end
   are listed too, and after the season end the page shows last season's winners. A title play-off reads
-  "PLAYOFFS - <title>" (e.g. PLAYOFFS - MLS CUP), and officially titled intermediate winners are listed (the MLS
-  Eastern and Western Conference champions). In 4 languages (VINCITORI / DA
+  "PLAYOFFS - <title>" (PLAY-OFFS in French; e.g. PLAYOFFS - MLS CUP), and officially titled intermediate winners
+  are listed (the MLS's Eastern and Western Conference champions; the MLS's league line is the SUPPORTERS' SHIELD).
+  In 4 languages (VINCITORI / DA
   GIOCARE / IN CORSO, VAINQUEURS / A JOUER / EN COURS, SIEGER / NOCH OFFEN / IM GANGE).
 - **Continental places outside Europe**: the top flights of the other confederations colour their real club-cup
   places: light blue for the first cup (Copa Libertadores, Concacaf Champions Cup, AFC Champions League Elite, CAF
@@ -1003,8 +1004,8 @@ Baiano, Cearense, Pernambucano, Alagoano e Mato-Grossense.
   club che li ha vinti in questa stagione: DA GIOCARE prima che inizi, IN CORSO mentre si gioca; ci sono anche i
   titoli che si decidono a fine stagione, e dopo la fine della stagione la pagina mostra le vincitrici della stagione
   appena conclusa. Un play-off per il titolo si legge "PLAYOFF - <titolo>" (per esempio PLAYOFF - MLS CUP), e sono
-  elencati anche i vincitori intermedi con un titolo ufficiale (le campionesse della Eastern e della Western Conference
-  della MLS). In 4 lingue (WINNERS / TO BE PLAYED / IN PROGRESS, VAINQUEURS / A JOUER / EN COURS, SIEGER /
+  elencati anche i titoli intermedi ufficiali (CAMPIONE EASTERN CONFERENCE e CAMPIONE WESTERN CONFERENCE della MLS;
+  per la MLS la riga del campionato è il SUPPORTERS' SHIELD). In 4 lingue (WINNERS / TO BE PLAYED / IN PROGRESS, VAINQUEURS / A JOUER / EN COURS, SIEGER /
   NOCH OFFEN / IM GANGE).
 - **Posti continentali fuori dall'Europa**: le massime serie delle altre confederazioni colorano i loro posti veri
   nelle coppe per club: azzurro per la prima coppa (Copa Libertadores, Concacaf Champions Cup, AFC Champions League

@@ -70,13 +70,16 @@ def _el(lang, conf):
     return p
 
 
+PACK = {}       # 4.0.1: hand texts a pack brings ('format_prose', fmtgame.from_pack): {(world, Italian title): {lang: [..]}}
+
+
 def text(world, title, lang):
     """The paragraphs for this competition, or None (the schematic lines stay)."""
     t = title.strip()
     if world == 5 and t in ('UEFA EUROPA LEAGUE', 'UEFA CONFERENCE LEAGUE'):
         return _el(lang, t.endswith('CONFERENCE LEAGUE'))
     import fmtprose_hand
-    p = (fmtprose_hand.HAND.get((world, t)) or PROSE.get((world, t), {})).get(lang)
+    p = (PACK.get((world, t)) or fmtprose_hand.HAND.get((world, t)) or PROSE.get((world, t), {})).get(lang)
     return list(p) if p else None
 
 

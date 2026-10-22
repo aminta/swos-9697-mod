@@ -479,6 +479,8 @@ gp_install:                             ; GP_BUILT (gp_lend_c): each ko built in
     mov word [D2R], 0
     pushad
     call C8B2D3
+    mov al, 4                           ; (no replay days: a level tie is decided by gp_draw / its level)
+    call CAL_NOREPLAY
     popad
     movzx ecx, byte [esi + KO_N]
     xor ebx, ebx
@@ -503,6 +505,8 @@ gp_install:                             ; GP_BUILT (gp_lend_c): each ko built in
     mov word [D1R], 0
     mov word [D2R], 0
     call C8B2D3
+    mov al, 3                           ; (no replay days)
+    call CAL_NOREPLAY
     popad
 .n:
     inc ebx
@@ -1707,6 +1711,7 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
                     'GP_DRAW_NEXT': (1, tgt(ps['draw'])),
                     'C8B2D3': (1, sacups.SITES['c8b2d3']), 'C8EE5D': (1, ps['tail']), 'D8CAA': (2, ps['d8caa']),
                     'D6CDC': (2, ps['d6cdc']), 'CFB': (2, ps['cfb']), 'CAL': (2, ps['cal']), 'CAL_CUR': (2, ps['cal_cur']),
+                    'CAL_NOREPLAY': (1, lib97.LABELS['cal_noreplay']),
                     'SLOT4': (2, ps['slot4']), 'LIST4': (2, ps['list4']), 'W11F9CC': (2, ps['w11f9cc']),
                     'F846': (2, ps['f846']), 'SAVESEL': (1, ps['savesel']), 'RESTSEL': (1, ps['restsel']),
                     'C3ABB2': (1, ps['c3abb2']), 'NC_T': (1, lib97.LABELS['NC_T']), 'SDX_N': (0, 9),

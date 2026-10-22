@@ -3802,9 +3802,10 @@ def world_groups():
     import collections
     import json
     import shutil
-    src = os.path.join(MAIN, 'internal', 'world2526', 'world5tm')
+    src = (os.environ.get('W2627G_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-formats')).rstrip('/')
+                                     # (a snapshot with Italy in 5 divisions: world5tm's has 14, 'parallel' a list)
     if not os.path.isdir(src):
-        return True, 'SKIP: private data internal/world2526/world5tm missing'
+        return True, f'SKIP: private data {src} missing'
     w = os.path.join(WORK, 'world_groups')
     shutil.rmtree(w, ignore_errors=True)
     shutil.copytree(src, os.path.join(w, 'world5tm'))
@@ -3877,9 +3878,10 @@ def world_playoffs():
     import collections
     import json
     import shutil
-    src = os.path.join(MAIN, 'internal', 'world2526', 'world5tm')
+    src = (os.environ.get('W2627G_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-formats')).rstrip('/')
+                                     # (a snapshot with Italy in 5 divisions: world5tm's has 14, 'parallel' a list)
     if not os.path.isdir(src):
-        return True, 'SKIP: private data internal/world2526/world5tm missing'
+        return True, f'SKIP: private data {src} missing'
     w = os.path.join(WORK, 'world_playoffs')
     shutil.rmtree(w, ignore_errors=True)
     shutil.copytree(src, os.path.join(w, 'world5tm'))
@@ -3946,21 +3948,23 @@ def world_playoffs():
 @scenario
 def world_dplay_b(force='5', team='EUROPA,ITALIA,SERIE B,MODENA'):
     """The career club's Serie B play-off, played (dplay step 2): the world 2026-27 (private data internal/world2526/
-    world5tm, 'playoffs': 'ita') built with DPLAY_FORCE=5 (at the league end the career club takes 5th place); a
-    season at MODENA: the PLAY-OFF SERIE B contest is built in slot 4 after the last league day and played to its
-    end (the season log in W84A.CAR: kind 1, the 6 clubs with MODENA 5th in the order 5th 8th 6th 7th 3rd 4th, a
-    winner among them), and that winner is the club Serie B sends up besides the first two"""
-    src = os.path.join(MAIN, 'internal', 'world2526', 'world5tm')
+    world5tm, 'playoffs': 'ita'; W2627D_DATA: another snapshot) built with DPLAY_FORCE=5 (at the league end the
+    career club takes 5th place); a season at MODENA: the PLAY-OFF SERIE B contest is built in slot 4 after the last
+    league day and played to its end (the season log in W84A.CAR: kind 1, the 6 clubs with MODENA 5th in the order 5th
+    8th 6th 7th 3rd 4th, a winner among them), and that winner is the club Serie B sends up besides the first two"""
+    src = (os.environ.get('W2627D_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm')).rstrip('/')
     if not os.path.isdir(src):
         return True, 'SKIP: private data internal/world2526/world5tm missing'
     order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
     env = {'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]), 'DPLAY_FORCE': force}
-    exe = build('world_dplay_' + force, env=env)
+    exe = build('world_dplay_' + force + ('_' + os.path.basename(src) if os.environ.get('W2627D_DATA') else ''),
+                env=env)                                     # (another snapshot: its own build dir)
     keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K',
                                             'W8485_NOSACK', 'W8485_HEX')}
     os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=team,
                       W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1')
-    os.environ.setdefault('W8485_HEX', '156d8:16,18e04:4,1b528:6')   # (the session log: the state's head, slot 4)
+    os.environ.setdefault('W8485_HEX', f'156d8:16,18e04:4,1b528:6,{CAL_AT - 4:x}:3000')   # (the state's head, slot 4,
+                                                                                      # the calendar)
     try:
         ok, msg = world8485()
     finally:
@@ -3979,6 +3983,9 @@ def world_dplay_b(force='5', team='EUROPA,ITALIA,SERIE B,MODENA'):
     if k < 0:
         return False, f'{msg}; no dplay log in W84A.CAR'
     magic, res, kind, n = struct.unpack_from('<HHBB', d, k + 4)      # dplay.c dp_save (912 B)
+    lines = open(os.path.join(RUNS, w84_tag() + '_1', 'session.log'), errors='replace').read().splitlines()
+    rp = cal_replays(lines, CAL_AT - 4)
+    check(not rp, f'slot 4 has {rp} replay days in the calendar (dplay decides level ties: no replays)', errs)
     teams = struct.unpack_from('<28H', d, k + 4 + 8)
     places = d[k + 4 + 120:k + 4 + 148]
     groups = d[k + 4 + 148:k + 4 + 176]
@@ -4632,6 +4639,27 @@ def world_gplay():
 GP_KO = dict(magic=0, season=2, slot=3, cid=4, pi=5, kind=6, n=7, nrs=8, ngr=9, gcur=10, ntie=11, d1=13, d2=14,
              rs=16, rb=121, gp0=157, pa=170, pb=210, pw=250, ptie=290, tw=330, tl=354, code=378, team=474,
              size=674)                  # gplay.c struct gp_ko (gp_log: tag, seasons, pl_pi, ko at 8, gp_out at 682)
+def cal_replays(lines, cal, slot=4):
+    """The most replay days (calendar entries of type 3) of a slot seen in a session log's HEX dumps of the career
+    calendar (W8485_HEX 'CAL_AT - 4:3000': the count word, then the entries)."""
+    best = 0
+    for ln in lines:
+        if ln.startswith(f'HEX {cal:x} '):
+            b = bytes.fromhex(ln.split()[2])
+            n, o, r = struct.unpack_from('<H', b, 0)[0], 4, 0
+            for _ in range(n):
+                if o + 9 > len(b):
+                    break
+                ln_ = struct.unpack_from('<H', b, o + 2)[0]
+                if not ln_:
+                    break
+                r += b[o] == slot and b[o + 8] == 3
+                o += ln_
+            best = max(best, r)
+    return best
+
+
+CAL_AT = 0x1B530              # obj2: the career calendar's entries (dseg_DB3E6; the count word at -4; dplay _play_sites 'cal')
 GP_GT, GP_STKO = 32, 648      # gplay.c GT (a club code = division * GT + place), struct gp_state's ko
 
 
@@ -5650,8 +5678,9 @@ def world_gplay_seried(force='3', team='EUROPA,ITALIA,SERIE D GIRONE A,LIGORNA',
     log_at, st_at, log_n, st_n = gp_ptrs(exe)
     keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K',
                                             'W8485_NOSACK', 'W8485_HEX', 'W8485_ONE')}
+    cal = CAL_AT - 4                                     # (the career calendar: count word + entries)
     os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5', W8485_K='108+',
-                      W8485_NOSACK='1', W8485_HEX=f'{log_at:x}:{log_n},{st_at:x}:{st_n}', W8485_ONE='1')
+                      W8485_NOSACK='1', W8485_HEX=f'{log_at:x}:{log_n},{st_at:x}:{st_n},{cal:x}:3000', W8485_ONE='1')
     try:
         ok, msg = world8485()
     finally:
@@ -5667,13 +5696,16 @@ def world_gplay_seried(force='3', team='EUROPA,ITALIA,SERIE D GIRONE A,LIGORNA',
     sts = [b for b in sts if b[:2] == b'GK']
     if not sts:
         return False, f'{msg}; the play-off never ran (no GP_ST seen)'
+    replays = cal_replays(lines, cal)                    # slot 4's replay days: none (lib97 cal_noreplay; rule 10)
+    check(not replays, f'slot 4 has {replays} replay days in the calendar (the better placed advances: no replays)',
+          errs)
     ko = gp_ko(sts[-1][GP_STKO:])
     me = div * GP_GT + int(force) - 1
     check(ko['kind'] == 3 and ko['n'] == 4 and ko['slot'] == 4 and me in ko['code'],
           f"play-off kind {ko['kind']} slot {ko['slot']} codes {ko['code']}", errs)
     check(ko['ntie'] == 3 and all(x != 255 for x in ko['tw']), f"play-off not over: winners {ko['tw']}", errs)
     win = ko['code'][ko['tw'][-1]] if ko['tw'] and ko['tw'][-1] < ko['n'] else None
-    return not errs, '; '.join(errs) or f"{msg}; play-off codes {ko['code']}, winner code {win}"
+    return not errs, '; '.join(errs) or f"{msg}; play-off codes {ko['code']}, winner code {win}, no replay days"
 
 
 @scenario

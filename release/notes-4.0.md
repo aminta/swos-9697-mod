@@ -37,8 +37,8 @@
 - If the game is in Program Files (GOG Galaxy's default folder), the browser won't open it: copy the game folder
   elsewhere, patch the copy, copy its contents back over the original (Windows asks for administrator permission:
   accept), or use the manual mode.
-- Start a new career to play the World 2026-27. Careers of the 1996-97 game and of the Europe 1984-85 world saved with
-  earlier versions load and play on.
+- Start a new career to play the World 2026-27. Careers saved with the original game and with every earlier version of the mod (1.x, 2.x, 3.x: 1996-97 and Europe
+  1984-85) load and play on.
 
 ### Known limits (declared)
 - **European places**: in some seasons one of the 108 European places goes to a club of a different association from
@@ -99,8 +99,8 @@ Thanks to DaniSwos for the Europe 1984-85 database, to Marco for the reports, to
 - Se il gioco è in Programmi (la cartella predefinita di GOG Galaxy), il browser non la apre: copia la cartella del
   gioco altrove, applica la patch alla copia, ricopia il suo contenuto sopra l'originale (Windows chiede il permesso
   di amministratore: accetta), oppure usa la modalità manuale.
-- Inizia una carriera nuova per giocare il Mondo 2026-27. Le carriere del gioco 1996-97 e del mondo Europa 1984-85
-  salvate con le versioni precedenti si caricano e continuano.
+- Inizia una carriera nuova per giocare il Mondo 2026-27. Le carriere salvate con il gioco originale e con ogni versione precedente della mod (1.x, 2.x, 3.x: 1996-97 ed Europa
+  1984-85) si caricano e continuano.
 
 ### Limiti noti (dichiarati)
 - **Posti europei**: in alcune stagioni uno dei 108 posti europei va a un club di una federazione diversa da quella

@@ -1256,7 +1256,7 @@ def pages(splits):
     """obj1 pages for the code + SP_TAB (0 without splits)."""
     if not splits:
         return 0
-    size = 0x900                                   # the code (~1.8 KB)
+    size = 0xC00                                   # the code (0xB38 measured, package 6)
     for world, file, div, n, spec in splits:
         size += len(entry(world, file, div, n, spec, [(a, b) for a in range(n) for b in range(a + 1, n)])[0])
     return (size + 0xFFF) // 0x1000

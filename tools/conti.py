@@ -946,7 +946,8 @@ def patch(p, at, limit, bss_at, area):
     LABELS.update(lab, syms=syms, assocs=assocs, cups=cups)
     print(f'exe: other confederations\' cups (conti.c): {len(cups)} cups of {", ".join(confs)}, '
           f'{len(assocs)} associations, spec {len(spec)} B; C obj1+{at:#x}..{end:#x}, glue ..{glue + len(code):#x}, '
-          f'bss obj2+{bss_at:#x} ({bss} B)')
+          f'bss obj2+{bss_at:#x} ({bss} B); ct_gend C obj1+{syms["ct_gend"][1]:#x} glue {lab["ct_gend"]:#x}, '
+          f'ct_daily {lab["ct_daily"]:#x}, ct_gplace {lab["ct_gplace"]:#x}, ct_gend.n {lab.get("ct_gend.n", 0):#x}')
     return glue + len(code)
 
 

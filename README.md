@@ -44,9 +44,14 @@ Patch for **Sensible World of Soccer 96/97** (DOS, CD or GOG version): ITALIAN.E
 **Invented players (1.1–1.2).** For the 138 clubs of Egypt, Morocco, Tunisia, Nigeria, Cameroon, South Korea, China, Saudi Arabia, Guatemala and Honduras we could not find the 1996-97 squads: no reliable source lists the players and coaches of those leagues for that season. Clubs, final order and relative strength are real; player and coach names are invented from common names of each country. If you have real squads from those years, even for a single club, please help us: open an [issue](../../issues) or write on the forum.
 
 ### Install
-1. Download `swos-9697-mod-patcher.html` from the [Releases](../../releases) page and open it in a browser (works offline too).
-2. Drop your language's executable and `DATA\TEAM.020`, `TEAM.044`, `TEAM.062`, `TEAM.073` from the game folder, then download the patched files (also the new `TEAM.052`, `053`, `054`, `056`, `058`, `061`, `063`, `086`, `087`, `088` of 1.1–1.2 `TEAM.089`, `090`, `091` of 2.0 and `TEAM.092`–`096` of 2.6).
-3. Copy them into the game folder (the TEAM files into `DATA`) after backing it up. Start a new career.
+**One click (Chrome or Edge, recommended).**
+1. Download `swos-9697-mod-patcher.html` from the [Releases](../../releases) page and open it in Chrome or Edge (works offline too).
+2. In **One-click install**, press **Choose the game folder** and pick the folder that holds the game (the one with `ITALIAN.EXE` / `ENGLISH.EXE` and `DATA`; for GOG e.g. `C:\GOG Games\Sensible World of Soccer 96-97`). The patcher finds the game, keeps the original files in `MOD_BACKUP\<version>` and patches it in place. No CD install yet? **From the CD: copy the game into a new folder** copies the game from the CD to your disk and patches it.
+3. Start the game as usual and begin a new career. Step-by-step guide with pictures: [worldofswos.com/en/install](https://worldofswos.com/en/install/).
+
+**Other browsers (Firefox, Safari): the manual way.**
+1. Open the same page and drop your language's executable and `DATA\TEAM.020`, `TEAM.044`, `TEAM.062`, `TEAM.073` from the game folder, then download the patched files (also the new TEAM files the page lists).
+2. Copy them into the game folder (the TEAM files into `DATA`) after backing it up. Start a new career.
 
 The patcher ships only differences and checks every file before and after patching: an original copy of the game is required. It works with both the original CD and the GOG version (from 1.0.1).
 
@@ -112,9 +117,14 @@ Patch per **Sensible World of Soccer 96/97** (versione DOS, CD o GOG): ITALIAN.E
 **Giocatori inventati (1.1–1.2).** Per i 138 club di Egitto, Marocco, Tunisia, Nigeria, Camerun, Corea del Sud, Cina, Arabia Saudita, Guatemala e Honduras non siamo riusciti a trovare le rose 1996-97: non esistono fonti affidabili con i giocatori e gli allenatori di quei campionati in quella stagione. Club, classifica finale e forza relativa sono reali; i nomi di giocatori e allenatori sono invece inventati con nomi comuni di ogni paese. Se avete rose reali di quegli anni, anche di un solo club, aiutateci: aprite una [issue](../../issues) o scriveteci sul forum.
 
 ### Installazione
-1. Scarica `swos-9697-mod-patcher.html` dalla pagina [Releases](../../releases) e aprilo nel browser (funziona anche offline).
-2. Trascina l'exe della tua lingua e `DATA\TEAM.020`, `TEAM.044`, `TEAM.062`, `TEAM.073` dalla cartella del gioco, poi scarica i file modificati (anche i nuovi `TEAM.052`, `053`, `054`, `056`, `058`, `061`, `063`, `086`, `087`, `088` della 1.1–1.2 `TEAM.089`, `090`, `091` della 2.0 e `TEAM.092`–`096` della 2.6).
-3. Copiali nella cartella del gioco (i file TEAM in `DATA`), dopo aver fatto una copia di sicurezza. Inizia una carriera nuova.
+**Con un clic (Chrome o Edge, consigliato).**
+1. Scarica `swos-9697-mod-patcher.html` dalla pagina [Releases](../../releases) e aprilo in Chrome o Edge (funziona anche offline).
+2. In **Installa con un clic**, premi **Scegli la cartella del gioco** e scegli la cartella del gioco (quella con `ITALIAN.EXE` / `ENGLISH.EXE` e `DATA`; per GOG ad esempio `C:\GOG Games\Sensible World of Soccer 96-97`). Il patcher trova il gioco, tiene gli originali in `MOD_BACKUP\<versione>` e lo modifica direttamente. Non hai ancora installato dal CD? **Dal CD: copia il gioco in una cartella nuova** copia il gioco dal CD sul disco e lo modifica.
+3. Avvia il gioco come sempre e inizia una carriera nuova. Guida passo passo con le immagini: [worldofswos.com/it/install](https://worldofswos.com/it/install/).
+
+**Altri browser (Firefox, Safari): il metodo a mano.**
+1. Apri la stessa pagina e trascina l'exe della tua lingua e `DATA\TEAM.020`, `TEAM.044`, `TEAM.062`, `TEAM.073` dalla cartella del gioco, poi scarica i file modificati (anche i nuovi file TEAM che la pagina elenca).
+2. Copiali nella cartella del gioco (i file TEAM in `DATA`), dopo aver fatto una copia di sicurezza. Inizia una carriera nuova.
 
 Il patcher contiene solo differenze e controlla i file prima e dopo la modifica: serve una copia originale del gioco. Funziona sia con il CD originale sia con la versione GOG (dalla 1.0.1).
 

@@ -300,6 +300,9 @@ def bp_str(r):
     for a in filter(None, os.environ.get('SWOSTEST_BP_HEX', '').split(',')):   # obj2 offset:bytes, logged in hex
         o, n = a.split(':')
         out += f' {o}:{r.obj2(int(o, 16), int(n)).hex()}'
+    for a in filter(None, os.environ.get('SWOSTEST_BP_HEX1', '').split(',')):  # obj1 offset:bytes (glue variables)
+        o, n = a.split(':')
+        out += f' obj1+{o}:{r.obj1(int(o, 16), int(n)).hex()}'
     off = os.environ.get('SWOSTEST_BP_STR')
     if not off:
         return out
@@ -3799,9 +3802,10 @@ def world_groups():
     import collections
     import json
     import shutil
-    src = os.path.join(MAIN, 'internal', 'world2526', 'world5tm')
+    src = (os.environ.get('W2627G_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-formats')).rstrip('/')
+                                     # (a snapshot with Italy in 5 divisions: world5tm's has 14, 'parallel' a list)
     if not os.path.isdir(src):
-        return True, 'SKIP: private data internal/world2526/world5tm missing'
+        return True, f'SKIP: private data {src} missing'
     w = os.path.join(WORK, 'world_groups')
     shutil.rmtree(w, ignore_errors=True)
     shutil.copytree(src, os.path.join(w, 'world5tm'))
@@ -3874,9 +3878,10 @@ def world_playoffs():
     import collections
     import json
     import shutil
-    src = os.path.join(MAIN, 'internal', 'world2526', 'world5tm')
+    src = (os.environ.get('W2627G_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-formats')).rstrip('/')
+                                     # (a snapshot with Italy in 5 divisions: world5tm's has 14, 'parallel' a list)
     if not os.path.isdir(src):
-        return True, 'SKIP: private data internal/world2526/world5tm missing'
+        return True, f'SKIP: private data {src} missing'
     w = os.path.join(WORK, 'world_playoffs')
     shutil.rmtree(w, ignore_errors=True)
     shutil.copytree(src, os.path.join(w, 'world5tm'))
@@ -3943,21 +3948,23 @@ def world_playoffs():
 @scenario
 def world_dplay_b(force='5', team='EUROPA,ITALIA,SERIE B,MODENA'):
     """The career club's Serie B play-off, played (dplay step 2): the world 2026-27 (private data internal/world2526/
-    world5tm, 'playoffs': 'ita') built with DPLAY_FORCE=5 (at the league end the career club takes 5th place); a
-    season at MODENA: the PLAY-OFF SERIE B contest is built in slot 4 after the last league day and played to its
-    end (the season log in W84A.CAR: kind 1, the 6 clubs with MODENA 5th in the order 5th 8th 6th 7th 3rd 4th, a
-    winner among them), and that winner is the club Serie B sends up besides the first two"""
-    src = os.path.join(MAIN, 'internal', 'world2526', 'world5tm')
+    world5tm, 'playoffs': 'ita'; W2627D_DATA: another snapshot) built with DPLAY_FORCE=5 (at the league end the
+    career club takes 5th place); a season at MODENA: the PLAY-OFF SERIE B contest is built in slot 4 after the last
+    league day and played to its end (the season log in W84A.CAR: kind 1, the 6 clubs with MODENA 5th in the order 5th
+    8th 6th 7th 3rd 4th, a winner among them), and that winner is the club Serie B sends up besides the first two"""
+    src = (os.environ.get('W2627D_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm')).rstrip('/')
     if not os.path.isdir(src):
         return True, 'SKIP: private data internal/world2526/world5tm missing'
     order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
     env = {'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]), 'DPLAY_FORCE': force}
-    exe = build('world_dplay_' + force, env=env)
+    exe = build('world_dplay_' + force + ('_' + os.path.basename(src) if os.environ.get('W2627D_DATA') else ''),
+                env=env)                                     # (another snapshot: its own build dir)
     keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K',
                                             'W8485_NOSACK', 'W8485_HEX')}
     os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=team,
                       W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1')
-    os.environ.setdefault('W8485_HEX', '156d8:16,18e04:4,1b528:6')   # (the session log: the state's head, slot 4)
+    os.environ.setdefault('W8485_HEX', f'156d8:16,18e04:4,1b528:6,{CAL_AT - 4:x}:3000')   # (the state's head, slot 4,
+                                                                                      # the calendar)
     try:
         ok, msg = world8485()
     finally:
@@ -3976,6 +3983,9 @@ def world_dplay_b(force='5', team='EUROPA,ITALIA,SERIE B,MODENA'):
     if k < 0:
         return False, f'{msg}; no dplay log in W84A.CAR'
     magic, res, kind, n = struct.unpack_from('<HHBB', d, k + 4)      # dplay.c dp_save (912 B)
+    lines = open(os.path.join(RUNS, w84_tag() + '_1', 'session.log'), errors='replace').read().splitlines()
+    rp = cal_replays(lines, CAL_AT - 4)
+    check(not rp, f'slot 4 has {rp} replay days in the calendar (dplay decides level ties: no replays)', errs)
     teams = struct.unpack_from('<28H', d, k + 4 + 8)
     places = d[k + 4 + 120:k + 4 + 148]
     groups = d[k + 4 + 148:k + 4 + 176]
@@ -4342,6 +4352,89 @@ def world_split_stages():
     return world_split('stages')
 
 
+@scenario
+def squad_order_xtra():
+    """TEST 8 regression (2026-10-21: ACCETTA OFFERTA froze in every World 2026-27 career): a new career at SAO PAULO
+    (an XTRA club, 16 + its real extras) has a squad order in trainingMatchSavedPlayers: a permutation of
+    0..careerNumPlayers-1. xtra skipped cseg_64A65 (the invented reserves) and with it cseg_6481C's copy of the order,
+    so the array stayed 0 and a sale's cseg_639F9 ('int 3; jmp $' when the sold player is not in it) trapped. The
+    1984-85 world (no XTRA: the game's own reserves) as the control."""
+    from le import LE
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    exe = os.environ.get('W8485_BUILD') or builds()['it']
+    d1 = LE(open(os.path.join(exe, 'ITALIAN.EXE'), 'rb').read()).obj_bytes(1)
+    m = re.search(rb'\xc7\x05(.{4})(.{4})\x66\xa1(.{4})\x66\xa3.{4}\x66\x83\x2d.{4}\x01\x8b\x35\1.{0,40}?\xcc\xeb\xfe',
+                  d1, re.S)                     # cseg_639F9's lookup: A6 = the order, careerNumPlayers, int 3; jmp $
+    tmsp, cnp = struct.unpack('<I', m.group(2))[0], struct.unpack('<I', m.group(3))[0]
+    errs, notes = [], []
+    for world, team in (('MONDO 2026-27', 'SUDAMERICA,BRASILE,BRASILEIRAO SERIE A,SAO PAULO'),
+                        ('EUROPA 1984-85', 'INGHILTERRA,FIRST DIVISION,LIVERPOOL')):
+        with Session('squad_order_' + world.split()[0].lower(), exe, {}, 'dump:2', 300) as s:
+            s.wait()
+            path = ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', world] + team.split(',')
+            for k, t in enumerate(path):
+                if all(press(s, s.screen(), x) is None for x in t.split('|')):
+                    if k == 3 and world.startswith('EUROPA'):      # (a test build without the 1984-85 world)
+                        notes.append(f'{world}: not in this build'); break
+                    return False, f'{world}: {t} not reached'
+            else:
+                path = None
+            if path is not None:
+                continue
+            s.send('fire dump:3')
+            n = struct.unpack('<H', s.result.obj2(cnp, 2))[0]
+            order = list(s.result.obj2(tmsp, 32))[:n]
+            notes.append(f'{world}: {n} players, order {order}')
+            check(n > 16 and sorted(order) == list(range(n)), f'{world}: squad order {order} ({n} players)', errs)
+    return not errs, '; '.join(errs + notes)
+
+
+@scenario
+def career_20seasons():
+    """Release check (Davide, 4.0): a World 2026-27 career through 20 seasons, the most a career allows (an old mod
+    froze at the 7th): season 1 new, then each season from the previous one's save (world8485 with W8485_FROM: load,
+    play to the season end, next season's save) - a save + reload every season, checkw1 at each one. HAMRUN SPARTANS
+    (Malta: a short league; C20_TEAM to change), the minimal line-up, no sacking. Logs every season end with its time.
+    PASS = 20 seasons, no trap, no freeze."""
+    team = os.environ.get('C20_TEAM', 'EUROPA,MALTA,?MALTESE PREMIER LEAGUE|PREMIER LEAGUE,HAMRUN SPARTANS')
+    n = int(os.environ.get('C20_SEASONS', 20))
+    keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_ONE',
+            'W8485_FROM', 'SWOSTEST_TAG')
+    keep = {k: os.environ.get(k) for k in keys}
+    exe = os.environ.get('W8485_BUILD') or builds()['it']
+    times, notes, car = [], [], None
+    try:
+        os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5',
+                          W8485_K='108+', W8485_NOSACK='1')
+        for season in range(1, n + 1):
+            os.environ['SWOSTEST_TAG'] = f'_c20s{season:02d}'
+            if season == 1:
+                os.environ['W8485_ONE'] = '1'
+                os.environ.pop('W8485_FROM', None)
+            else:
+                os.environ.pop('W8485_ONE', None)
+                os.environ['W8485_FROM'] = car
+            t0 = time.time()
+            ok, msg = world8485()
+            times.append(round(time.time() - t0))
+            print(f'[c20] season {season}: {"ok" if ok else "FAIL"} in {times[-1]} s: {msg[:160]}', flush=True)
+            if not ok or 'checkw1 FAIL' in msg:
+                return False, f'season {season} of {n}: {msg[:300]}; times {times}'
+            nxt = os.path.join(RUNS, w84_tag() + ('_1' if season == 1 else '_2'), 'SWOS',
+                               'W84A.CAR' if season == 1 else 'W84B.CAR')
+            if not os.path.exists(nxt):
+                return False, f'season {season}: no save {nxt}; times {times}'
+            car = os.path.join(RUNS, f'c20_after_s{season:02d}.CAR')
+            shutil.copy(nxt, car)
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    return True, f'{n} seasons, save + reload each; seconds per season {times} (total {sum(times)})'
+
+
 def odd_build():
     """world_odd_league's build when no ODD_BUILD is given: this checkout with the newest release data
     (internal/world2526/world5tm-rel40-*: India's Football League has 11 clubs), built once per run (the staged
@@ -4565,6 +4658,27 @@ def world_gplay():
 GP_KO = dict(magic=0, season=2, slot=3, cid=4, pi=5, kind=6, n=7, nrs=8, ngr=9, gcur=10, ntie=11, d1=13, d2=14,
              rs=16, rb=121, gp0=157, pa=170, pb=210, pw=250, ptie=290, tw=330, tl=354, code=378, team=474,
              size=674)                  # gplay.c struct gp_ko (gp_log: tag, seasons, pl_pi, ko at 8, gp_out at 682)
+def cal_replays(lines, cal, slot=4):
+    """The most replay days (calendar entries of type 3) of a slot seen in a session log's HEX dumps of the career
+    calendar (W8485_HEX 'CAL_AT - 4:3000': the count word, then the entries)."""
+    best = 0
+    for ln in lines:
+        if ln.startswith(f'HEX {cal:x} '):
+            b = bytes.fromhex(ln.split()[2])
+            n, o, r = struct.unpack_from('<H', b, 0)[0], 4, 0
+            for _ in range(n):
+                if o + 9 > len(b):
+                    break
+                ln_ = struct.unpack_from('<H', b, o + 2)[0]
+                if not ln_:
+                    break
+                r += b[o] == slot and b[o + 8] == 3
+                o += ln_
+            best = max(best, r)
+    return best
+
+
+CAL_AT = 0x1B530              # obj2: the career calendar's entries (dseg_DB3E6; the count word at -4; dplay _play_sites 'cal')
 GP_GT, GP_STKO = 32, 648      # gplay.c GT (a club code = division * GT + place), struct gp_state's ko
 
 
@@ -5327,6 +5441,35 @@ def world_rlines_arg3():
 
 
 @scenario
+def world_cupd_slot2_load():
+    """rc4 regression (squads' AVOLA trap): a Serie D career's slot 2 after a load. SCHIO forced through its Coppa D
+    ties (CD_FORCE=1: the 1/32 in slot 2 in season 1, its winner a club of another Serie D group), season 2 from the
+    season-1 save: the slot-2 buffer and pointer of a Coppa D club with no Coppa D there are empty after the load, so
+    the season-2 end looks up no stale winner (VerifyTeamLoaded's int 3 at obj1+0x17064 before the fix). The season
+    end's FILL.256 check is reported, not judged here (a separate, pre-existing issue)"""
+    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-itanames-0340')
+    if not os.path.isdir(src):
+        return True, f'SKIP: private data {src} missing'
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    exe = os.environ.get('CDS2_BUILD') or build('world_cupd_slot2', env={'SEASON_PACKS': ','.join(
+        ['ddr-1988-89'] + [os.path.join(src, x) for x in order]), 'CD_FORCE': '1'})
+    keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK')
+    keep = {k: os.environ.get(k) for k in keys}
+    os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM='EUROPA,ITALIA,SERIE D GIRONE C,SCHIO',
+                      W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1')
+    try:
+        ok, msg = world8485()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    trap = 'trap' in msg
+    return not trap and (ok or 'FILL.256' in msg), msg
+
+
+@scenario
 def world_rlines_usa():
     """world_rlines at PHILADELPHIA (USA: MLS CUP PLAYOFFS, a title play-off), forced out in the semi-final
     (REACHED SEMI-FINAL)"""
@@ -5583,8 +5726,9 @@ def world_gplay_seried(force='3', team='EUROPA,ITALIA,SERIE D GIRONE A,LIGORNA',
     log_at, st_at, log_n, st_n = gp_ptrs(exe)
     keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K',
                                             'W8485_NOSACK', 'W8485_HEX', 'W8485_ONE')}
+    cal = CAL_AT - 4                                     # (the career calendar: count word + entries)
     os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5', W8485_K='108+',
-                      W8485_NOSACK='1', W8485_HEX=f'{log_at:x}:{log_n},{st_at:x}:{st_n}', W8485_ONE='1')
+                      W8485_NOSACK='1', W8485_HEX=f'{log_at:x}:{log_n},{st_at:x}:{st_n},{cal:x}:3000', W8485_ONE='1')
     try:
         ok, msg = world8485()
     finally:
@@ -5600,13 +5744,16 @@ def world_gplay_seried(force='3', team='EUROPA,ITALIA,SERIE D GIRONE A,LIGORNA',
     sts = [b for b in sts if b[:2] == b'GK']
     if not sts:
         return False, f'{msg}; the play-off never ran (no GP_ST seen)'
+    replays = cal_replays(lines, cal)                    # slot 4's replay days: none (lib97 cal_noreplay; rule 10)
+    check(not replays, f'slot 4 has {replays} replay days in the calendar (the better placed advances: no replays)',
+          errs)
     ko = gp_ko(sts[-1][GP_STKO:])
     me = div * GP_GT + int(force) - 1
     check(ko['kind'] == 3 and ko['n'] == 4 and ko['slot'] == 4 and me in ko['code'],
           f"play-off kind {ko['kind']} slot {ko['slot']} codes {ko['code']}", errs)
     check(ko['ntie'] == 3 and all(x != 255 for x in ko['tw']), f"play-off not over: winners {ko['tw']}", errs)
     win = ko['code'][ko['tw'][-1]] if ko['tw'] and ko['tw'][-1] < ko['n'] else None
-    return not errs, '; '.join(errs) or f"{msg}; play-off codes {ko['code']}, winner code {win}"
+    return not errs, '; '.join(errs) or f"{msg}; play-off codes {ko['code']}, winner code {win}, no replay days"
 
 
 @scenario
@@ -6268,6 +6415,15 @@ def world_full_uefa():
     hold = {}
 
     def hook(s, season, scr):
+        if os.environ.get('UQ_BP') and not getattr(s, 'uq_bp', False):   # (integrator: UQ_BP = uq_season's obj1 offset,
+            s.uq_bp = True                                              # the patch log; CORE=normal): its input at the
+            x = int(os.environ.get('UQ_BSS', '186000'), 16)             # call, every season end -> uq_in_<n>.bin
+
+            def at_uq(r):
+                n = len([f for f in os.listdir(s.run) if f.startswith('uq_in_')])
+                open(os.path.join(s.run, f'uq_in_{n}.bin'), 'wb').write(r.box.dump(r.base2 + x + 0x8, 8732))
+                s.log.append(f'UQ_BP {n}: base2 {r.base2:#x} holders {r.box.dump(r.base2 + HOLDERS, 6).hex()}')
+            s.bp(s.result.base1 + int(os.environ['UQ_BP'], 16), at_uq)
         h = struct.unpack_from('<3H', s.result.obj2(HOLDERS, 6))
         if all(x not in (0, 0xFFFF) for x in h):
             hold['h'] = h

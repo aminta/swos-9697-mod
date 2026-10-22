@@ -343,6 +343,70 @@ nc_adv:                                 ; replaces `call 0x194A4` in the knockou
 .x:
     popad
     ret
+cal_noreplay:                           ; al = a slot: its calendar entries of type 3 (a replay's day) removed - a
+    pushad                              ; knockout whose level ties are decided without a replay (gplay / dplay: the
+    mov [CNR_SLOT], al                  ; better placed advances, rule 10) had replay dates in the calendar (Davide's
+    movzx ecx, word [CAL - 4]           ; TEST 8: 'D C PLAY-OFF S F REPLAY'); the entries after it move down, the
+    mov edi, CAL                        ; count and the current entry's offset follow
+.l:
+    test ecx, ecx
+    jz .x
+    movzx edx, word [edi + 2]
+    test edx, edx
+    jz .x
+    mov al, [CNR_SLOT]
+    cmp [edi], al
+    jne .n
+    cmp byte [edi + 8], 3
+    jne .n
+    push ecx                            ; the bytes after it: the next ecx - 1 entries
+    lea esi, [edi + edx]
+    mov ebx, esi
+    xor ebp, ebp
+    dec ecx
+.s:
+    test ecx, ecx
+    jz .m
+    movzx eax, word [ebx + 2]
+    test eax, eax
+    jz .m
+    add ebp, eax
+    add ebx, eax
+    dec ecx
+    jmp .s
+.m:
+    push edi
+.c:
+    test ebp, ebp
+    jz .cd
+    mov al, [esi]
+    mov [edi], al
+    inc esi
+    inc edi
+    dec ebp
+    jmp .c
+.cd:
+    pop edi
+    pop ecx
+    dec word [CAL - 4]
+    mov eax, edi
+    sub eax, CAL
+    movzx ebx, word [CAL_CUR]
+    cmp ebx, eax
+    jbe .k
+    sub word [CAL_CUR], dx
+.k:
+    dec ecx                             ; (the next entry is at edi now)
+    jmp .l
+.n:
+    add edi, edx
+    dec ecx
+    jmp .l
+.x:
+    popad
+    ret
+CNR_SLOT: db 0
+
 nc_adv_call:
     jmp C194A4                          ; (chain_adv: the call's target after careerworld.euro_draw hooked it)
 
@@ -555,6 +619,7 @@ def patch(p, cave, fin_pre):
         slt = cws['slt']
     """Returns (cave end, lib_pre offset) — lib_pre is called by historic.hist_draw."""
     a0, bye_call, c2573c, diycopy, cal_site, nc_site, adv_site, c194a4, c1740f, c27f84 = _sites(p)
+    ps = dplay._play_sites(p, sacups.regs(p.le.obj_bytes(1)))   # (the career calendar: cal_noreplay)
     symbols = {'DIYCOPY': (2, diycopy), 'LIB_ID': (0, sacups.LIB_ID), 'LIB_N': (0, sacups.LIB_N),
                'LIB_GROUPS': (0, LIB_GROUPS), 'CSEG_2573C': (1, c2573c), 'A0': (2, a0), 'A3': (2, a0 + 12),
                'BYE_NT': (0, len(bc)), 'BYE_BYTES': (0, 'db ' + ', '.join(str(x) for e in bc for x in e)),
@@ -563,6 +628,7 @@ def patch(p, cave, fin_pre):
                'BW_ON': (0, int(bw)), 'WORLDB': (slt[0], slt[1] + careerworld.WORLD_BYTE) if bw or fd else (0, 0),
                'FD_ON': (0, int(fd)), 'SEASONPLAYING': (2, cws['season']) if fd else (0, 0),
                'FIN_PRE': (1, fin_pre),
+               'CAL': (2, ps['cal']), 'CAL_CUR': (2, ps['cal_cur']),
                'CAL_BYTES': (0, 'db ' + ', '.join(str(b) for b in calendar_bytes()))}
     code, fix = nasmcave.assemble(ASM, cave, symbols)
     labels = nasmcave.labels(ASM, cave, symbols)
@@ -572,7 +638,8 @@ def patch(p, cave, fin_pre):
     p.put(1, bye_call + 1, struct.pack('<i', labels['lib_bye'] - (bye_call + 5)))
     LABELS.update(nc_adv=labels['nc_adv'], nc_adv_call=labels['nc_adv_call'], adv_site=adv_site,   # (chain_adv)
                   NC_DTAB=labels['NC_DTAB'], NC_WDON=labels['NC_WDON'], NC_WREC=labels['NC_WREC'], fd=fd,
-                  NC_T=labels['NC_T'], NC_DPP=labels['NC_DPP'], NC_BYEP=labels['NC_BYEP'])
+                  NC_T=labels['NC_T'], NC_DPP=labels['NC_DPP'], NC_BYEP=labels['NC_BYEP'],
+                  cal_noreplay=labels['cal_noreplay'])
     p.remove(1, nc_site + 2)                                      # mov esi, [A5] (6 B) -> call nc_bye; nop
     p.put(1, nc_site, b'\xe8' + struct.pack('<i', labels['nc_bye'] - (nc_site + 5)) + b'\x90')
     p.remove(1, cal_site + 2)                                     # mov esi, [A0] (6 B) -> call lib_cal; nop

@@ -233,6 +233,19 @@ dp_lend:                                ; replaces `call cseg_8ECAE` (the career
     mov [DP_IN], cl                     ; (ng)
     mov byte [DP_ST + SV_SG], 0
     mov byte [DP_ST + SV_SG + 1], 0
+%if DP_FORCE_ON
+    pushad                              ; (DPLAY_FORCE test builds: the league's own table too, before its rows)
+    mov ax, [CAREERTEAM]
+    mov [DP_IN + O_MGR], ax
+    mov dword [DP_CFBP], CFB
+    push es
+    push ds
+    pop es
+    cld
+    call dp_forcecfb_c
+    pop es
+    popad
+%endif
     push esi
     mov ebp, CFB
     call dp_rows                        ; its own final table
@@ -377,6 +390,8 @@ dp_lend:                                ; replaces `call cseg_8ECAE` (the career
     mov word [D2R], 0
     pushad
     call C8B2D3
+    mov al, 4                           ; (no replay days: a level tie is decided by dp_draw)
+    call CAL_NOREPLAY
     popad
     movzx ecx, byte [DP_ST + SV_KIND + 1]   ; (n)
     xor ebx, ebx
@@ -794,13 +809,15 @@ def patch(p, at, limit, tables, bss_at, area):
     tab_src, tab_syms = table_lines(tables)
     symbols = {k: (0, v) for k, v in lay.items()}
     symbols.update({'NDIV': (0, 5), 'DP_IN': syms['DP_IN'], 'DP_OUTB': syms['DP_OUT'], 'dp_season': syms['dp_season'],
-                    'dp_lend_c': syms['dp_lend'], 'DP_SVP': syms['DP_SVP'], 'A0R': (2, r['A0']), 'A1R': (2, r['A0'] + 4), 'A2R': (2, r['A0'] + 8),
+                    'dp_lend_c': syms['dp_lend'], 'DP_SVP': syms['DP_SVP'], 'DP_FORCE_ON': (0, int(bool(force))),
+                    'DP_CFBP': syms['DP_CFB'], 'dp_forcecfb_c': syms['dp_forcecfb'], 'A0R': (2, r['A0']), 'A1R': (2, r['A0'] + 4), 'A2R': (2, r['A0'] + 8),
                     'A4R': (2, r['A0'] + 16), 'D7R': (2, r['D7']), 'D0R': (2, r['A0'] - 32), 'D1R': (2, r['A0'] - 28),
                     'D2R': (2, r['A0'] - 24), 'SLT': s['slt'], 'SLTCOPY': s['sltcopy'],
                     'WORLD_BYTE': (0, careerworld.WORLD_BYTE), 'DIY': (2, diy), 'NCW': (2, diy), 'SELTEAMS': (2, sel),
                     'CAREERTEAM': (2, ct), 'ANIM_REL': (2, rel), 'ANIM_PRO': (2, pro),
                     'C9221F': (1, c9221f), 'C9228D': (1, c9228d), 'C8ECAE': (1, ps['c8ecae']), 'C8EE5D': (1, ps['tail']),
                     'C8B2D3': (1, sacups.SITES['c8b2d3']), 'D8CAA': (2, ps['d8caa']), 'D6CDC': (2, ps['d6cdc']),
+                    'CAL_NOREPLAY': (1, lib97.LABELS['cal_noreplay']),
                     'CFB': (2, ps['cfb']), 'CAL': (2, ps['cal']), 'CAL_CUR': (2, ps['cal_cur']), 'SLOT4': (2, ps['slot4']), 'LIST4': (2, ps['list4']),
                     'W11F9CC': (2, ps['w11f9cc']), 'COIN_DRAW': (1, coin), 'NC_T': (1, lib97.LABELS['NC_T']),
                     'DP_ST': syms['DP_ST'], 'SEASONPLAYING': (2, s['season']), 'SR_N': (0, 20), 'CUPW_AT': (0, 0x3F0),

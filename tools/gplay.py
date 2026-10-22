@@ -219,7 +219,7 @@ def compile_spec(pos, ndiv, league_names=None):
     import rnames
     rn = bytearray()
     for po in pos:
-        names = po.get('round_names') or []
+        names = po.get('round_names') or _default_rnames(po)
         if not (isinstance(names, list) and len(names) <= RN_KG and all(x in rnames.KEYS for x in names)):
             raise ValueError(f"{po.get('key')}: round_names: up to {RN_KG} of {' '.join(rnames.KEYS)} (one per game round)")
         rn += bytes(rnames.KEYS[x] for x in names) + bytes(RN_KG - len(names))
@@ -268,8 +268,29 @@ gp_after:                               ; 4.0 after a career load (arg97's arg_l
     test eax, eax
     jz .ns1
     cmp byte [eax + 2Dh], CDS1_ID
-    jne .ns1
+    jne .nd
     mov dword [D8CAA + 8], CDS1
+    jmp .ns1
+.nd:
+    call gp_cdmem                       ; (rc4: a Coppa D club with no Coppa D there: ProcessCareerFile rebuilt slot 2's
+    jz .ns1                             ; pointer - the C. IT SERIE C - over an empty buffer whose stale winner, a club
+    mov dword [D8CAA + 8], 0            ; not loaded after a job change, trapped the season end: no contest, as at
+    pushad                              ; the season start)
+    mov edi, [SLOTS_ + 8]
+    push es
+    push ds
+    pop es
+    cld
+    mov ecx, 0B52h
+    xor eax, eax
+    rep stosb
+    pop es
+    sub edi, 0B52h
+    mov word [edi + 39h], 0FFFFh
+    mov ecx, [CD_NM]
+    add ecx, STR_BASE_
+    mov [edi + 27h], ecx
+    popad
 .ns1:
 %endif
     mov al, [SEASONPLAYING]
@@ -479,6 +500,8 @@ gp_install:                             ; GP_BUILT (gp_lend_c): each ko built in
     mov word [D2R], 0
     pushad
     call C8B2D3
+    mov al, 4                           ; (no replay days: a level tie is decided by gp_draw / its level)
+    call CAL_NOREPLAY
     popad
     movzx ecx, byte [esi + KO_N]
     xor ebx, ebx
@@ -503,6 +526,8 @@ gp_install:                             ; GP_BUILT (gp_lend_c): each ko built in
     mov word [D1R], 0
     mov word [D2R], 0
     call C8B2D3
+    mov al, 3                           ; (no replay days)
+    call CAL_NOREPLAY
     popad
 .n:
     inc ebx
@@ -1308,10 +1333,19 @@ gp_cdmem:                               ; ZF = 0 when the career club is a Coppa
 
 gp_cal1:                                ; 4.0 A: cseg_3563E's `mov eax, A6` (the career calendar's list of entries):
     mov eax, [A6R]                      ; a Coppa D club's COPPA ITALIA entries (slot 1: the game plays the cup
-    cmp byte [eax], 1                   ; through them, the club is not in it) are left out of the list
+    cmp byte [eax], 4                   ; through them, the club is not in it) are left out of the list; and (rule
+    jne .c1                             ; 10) a gplay play-off's replay dates (slot 4: gplay never replays - a level
+    cmp byte [eax + 8], 3               ; tie goes to gp_draw's better-placed club - the game reserved them for a
+    jne .r                              ; round byte without penalties)
+    cmp word [GP_ST + ST_KO], 4B47h
+    je .skip
+    jmp .r
+.c1:
+    cmp byte [eax], 1
     jne .r
     call gp_cdmem
     jz .r
+.skip:
     inc word [D6R]                      ; (cseg_3570C's next entry, without using a list line)
     mov word [D7R], 0
     movzx ecx, word [eax + 2]
@@ -1320,6 +1354,15 @@ gp_cal1:                                ; 4.0 A: cseg_3563E's `mov eax, A6` (the
     mov [A4R], eax
     add esp, 4
     jmp CAL1_LOOP
+.r: ret
+
+gp_vc1:                                 ; 4.0 (rule 11): VISUAL. COMPETIZ.'s `mov eax, [D8CAA + 4]` (slot 1 shown when
+    mov eax, [D8CAA + 4]                ; not 0): a Coppa D club does not see the COPPA ITALIA it is not in (the cup is
+    test eax, eax                       ; still played for its winner)
+    jz .r
+    call gp_cdmem
+    jz .r
+    xor eax, eax
 .r: ret
 
 gp_cup12:                               ; 4.0: InitNewSeason's `call cseg_8B2D3` of slots 1 / 2 (the country's cup and
@@ -1332,8 +1375,20 @@ gp_cup12:                               ; 4.0: InitNewSeason's `call cseg_8B2D3`
     jz .game
     movzx eax, word [D0R]
     mov dword [D8CAA + eax * 4], 0
-    mov eax, [SLOTS_ + eax * 4]         ; (the slot's buffer: no contest, as sacups clears slot 1's)
-    mov byte [eax + 2Dh], 0
+    mov edi, [SLOTS_ + eax * 4]         ; (the slot's buffer: no contest - cleared whole, as conti's ct_build: a
+    push es                             ; stale buffer kept last season's winner, a club of another Serie D group
+    push ds                             ; not loaded after a job change -> the season end's VerifyTeamLoaded int 3,
+    pop es                              ; rc4 AVOLA; no winner; its long-name pointer = the Coppa D's: the season
+    cld                                 ; record's league-cup line reads COPPA ITALIA SERIE D, TEST 8's CJARLINS)
+    mov ecx, 0B52h
+    xor eax, eax
+    rep stosb
+    pop es
+    sub edi, 0B52h
+    mov word [edi + 39h], 0FFFFh
+    mov ecx, [CD_NM]
+    add ecx, STR_BASE_
+    mov [edi + 27h], ecx
     popad
     ret
 .game:
@@ -1382,6 +1437,16 @@ CD_PART
     ret
 GP_CALDP: dd 0                          ; (rnames.RN_CALD's address, or 0)
 '''
+def _default_rnames(po):
+    """A knockout play-off without 'round_names' (Serie D's single-match semi-finals and final): its rounds named from
+    the end - F, SF, QF, R16 - when it ends in one tie and has no group / best-of-three round; else none (the game's)."""
+    rs = po.get('rounds') or []
+    if not rs or len(rs) > 4 or len(rs[-1].get('ties') or []) != 1 or \
+            any('group' in r or r.get('legs', 1) not in (1, 2) or not r.get('ties') for r in rs):
+        return []
+    return ['R16', 'QF', 'SF', 'F'][4 - len(rs):]
+
+
 RNAMES = {}              # compile_spec's output -> per play-off KG bytes: its game rounds' rnames indices (0: the game's)
 RN_KG = 12               # (gplay.c KG)
 SPEC_STAGES = {}         # compile_spec's output -> its stage titles (kind stage_title): [(stage, names, key)]
@@ -1676,6 +1741,7 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
                     'GP_DRAW_NEXT': (1, tgt(ps['draw'])),
                     'C8B2D3': (1, sacups.SITES['c8b2d3']), 'C8EE5D': (1, ps['tail']), 'D8CAA': (2, ps['d8caa']),
                     'D6CDC': (2, ps['d6cdc']), 'CFB': (2, ps['cfb']), 'CAL': (2, ps['cal']), 'CAL_CUR': (2, ps['cal_cur']),
+                    'CAL_NOREPLAY': (1, lib97.LABELS['cal_noreplay']),
                     'SLOT4': (2, ps['slot4']), 'LIST4': (2, ps['list4']), 'W11F9CC': (2, ps['w11f9cc']),
                     'F846': (2, ps['f846']), 'SAVESEL': (1, ps['savesel']), 'RESTSEL': (1, ps['restsel']),
                     'C3ABB2': (1, ps['c3abb2']), 'NC_T': (1, lib97.LABELS['NC_T']), 'SDX_N': (0, 9),
@@ -1796,6 +1862,12 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
         for site in sites:
             assert p.get(1, site, 1) == b'\xe8', hex(site)
             p.put(1, site + 1, struct.pack('<i', lab['gp_cup12'] - (site + 5)))
+        d1v = p.le.obj_bytes(1)                               # VISUAL. COMPETIZ. (cseg_3760C): its slot-1 test
+        vc = [m.start() for m in re.finditer(rb'\xa1' + re.escape(struct.pack('<I', ps['d8caa'] + 4)) +
+                                             rb'\x0b\xc0\x0f\x85', d1v)]
+        assert len(vc) == 2, vc                               # (the first: SquadInit's)
+        p.remove(1, vc[1] + 1)
+        p.put(1, vc[1], b'\xe8' + struct.pack('<i', lab['gp_vc1'] - (vc[1] + 5)))
         cal1 = CAL1_SITE[0]                                   # cseg_3563E's `mov eax, A6` (5 B, a fixup) -> call
         p.remove(1, cal1 + 1)
         p.put(1, cal1, b'\xe8' + struct.pack('<i', lab['gp_cal1'] - (cal1 + 5)))

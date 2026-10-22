@@ -808,6 +808,19 @@ WN = {   # the SEASON WINNERS page (fmtpage / winners.py): page title, a title n
 WN_SKIP = ('promedio', 'playout', 'placement')   # (no single winner: the promedio's and a play-out's relegated, places)
 
 
+def _stage_start(div, po):
+    """A stage title's start: the league days before its split stage (the one whose 'then' builds it, its knockout:
+    'build_after'), FFh when it has no stage of its own (the Trofeo: started once its knockout is built)."""
+    sp = div.get('split') or {}
+    stages = sp.get('stages') or ([sp] if sp else [])
+    days = 0
+    for st in stages:
+        if po.get('build_after') and st.get('then') == po['build_after']:
+            return days if days < 0xFF else 0xFF
+        days += len(st.get('fixtures') or [])
+    return 0xFF
+
+
 def _po_divs(po):
     """The divisions a play-off's entrants come from."""
     out = set()
@@ -823,7 +836,8 @@ def win_lines(comp, div, k):
     """The SEASON WINNERS page of division k of a league: {lang: [(title, source)]}, {} when it has no title beyond its
     table (the page's entry stays hidden). Sources (winners.py wn_src): 'L' the table's 1st once the league is over;
     'K' + pi (2 hex digits) the last tie's winner of play-off pi (gplay GP_ST.ko: the career club's, played);
-    'D' + stage + pi a stage title decided mid-season (GP_ST.dec[stage], pi its play-off)."""
+    'D' + stage + pi + ss a stage title decided mid-season (GP_ST.dec[stage], pi its play-off), in progress once the
+    league has played more than ss days (its stage started; FFh: once its knockout is built)."""
     pos = comp.get('ko_playoffs') or []
     lines = {lang: [] for lang in LANGS}
     title_po = False
@@ -833,7 +847,7 @@ def win_lines(comp, div, k):
             continue
         title_po |= po.get('kind') == 'title' and divs == {k}       # (its champion is not the table's 1st)
         st = po.get('stage') if po.get('kind') == 'stage_title' else None
-        src = f'D{st}{pi:02X}' if st is not None and 0 <= st < 3 else f'K{pi:02X}'
+        src = f'D{st}{pi:02X}{_stage_start(div, po):02X}' if st is not None and 0 <= st < 3 else f'K{pi:02X}'
         for lang in LANGS:
             lines[lang].append((_wn_fit(po['names'], lang), src))
     par = comp.get('parallel')                  # dplay (pack 'playoffs': 'ita'): the Serie B play-off and play-out (its

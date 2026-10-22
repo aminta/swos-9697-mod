@@ -5964,6 +5964,56 @@ def world_winners_mls():
     return not errs, '; '.join(errs) or f'end: {got}; season 2 last season: {lg2}'
 
 
+@scenario
+def world_winners_poule():
+    """WINNERS page of a Serie D group with the Poule Scudetto (a group contest of ours in slot 3, id FEh; winners.py
+    0FFFCh: the game's winner, the slot's DIY +39h): LIGORNA forced 1st of girone A (GPLAY_FORCE=1); mid-Poule (saved
+    once slot 3 holds it a while) its line PLAYOFF - SCUDETTO SERIE D = IN CORSO; at the season end (saved before
+    CONTINUA) the club slot 3's +39h names (squads' rc10 finding: the line was missing)"""
+    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+    if not os.path.isdir(src):
+        return True, f'SKIP: private data {src} missing'
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    exe = build('world_winners_poule', env={'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]),
+                                           'GPLAY_FORCE': '1'})
+    keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_ONE',
+            'W8485_SAVE_END', 'W8485_MIDSAVE', 'W8485_FROM')
+    keep = {k: os.environ.get(k) for k in keys}
+    base = dict(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM='EUROPA,ITALIA,SERIE D GIRONE A,LIGORNA',
+                W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1')
+    try:
+        os.environ.update(base, W8485_ONE='1', W8485_MIDSAVE=f'{SLOT + 0x2D:x}:254:8')   # (slot 3 = the Poule, id FEh)
+        ok, msg = world8485()
+        mid = msg.split(': ', 1)[1] if ok else None
+        os.environ.pop('W8485_MIDSAVE')
+        if ok:
+            os.environ.update(base, W8485_FROM=mid, W8485_SAVE_END='WPO')
+            ok, msg = world8485()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    if not ok or 'saved ' not in msg:
+        return False, f'season: {msg}'
+    out, errs = {}, []
+    for tag, car in (('mid', mid), ('end', msg.split('saved ', 1)[1])):
+        with Session('world_winners_poule_' + tag, exe, {'WPO.CAR': car}, 'dump:2', 300) as s:
+            s.wait()
+            s.send(LOAD1 + ' dump:3')
+            w = struct.unpack_from('<H', s.result.obj2(SLOT + 0x39, 2))[0]
+            fe = s.result.obj2(SLOT + 0x2D, 1)[0]
+            e, title, lines = winners_page(s)
+        got = winner_blocks(lines)
+        want = 'IN CORSO' if w == 0xFFFF else team_name(exe, w)
+        out[tag] = got
+        check(fe == 0xFE and got.get('PLAYOFF - SCUDETTO SERIE D') == want,
+              f'{tag}: slot 3 id {fe:#x} winner {w:#x} = {want!r}; page {got}', errs)
+    check(out['mid'].get('PLAYOFF - SCUDETTO SERIE D') == 'IN CORSO', f'mid-Poule: {out["mid"]}', errs)
+    return not errs, '; '.join(errs) or f'mid {out["mid"]}; end {out["end"]}'
+
+
 def world_ca(team, country, league, want):
     """4.0.1 Central America exactly (session40/ca_exact.py, data TM_CA_EXACT): a season at team, forced 1st of each
     tournament (GPLAY_FORCE=1: the stage's kept table too): the stage titles <league> APERTURA / CLAUSURA and each

@@ -580,7 +580,10 @@ def patch(p, at, lang, sites):
                 'SEASONPLAYING': (2, sites['season']),
                 'SELPTR': (2, sel_ptr(p)),
                 'GP_WN_C': (1, gplay.LABELS['gp_wn_c'][1]), 'GP_WNSRC': gplay.LABELS['GP_WNSRC'],
-                'GP_SEAS': gplay.LABELS['GP_SEAS'], 'GP_MGR': gplay.LABELS['GP_MGR'], 'CAREERTEAM': (2, __import__('dplay')._sites(p)[5]),
+                'GP_SEAS': gplay.LABELS['GP_SEAS'], 'GP_MGR': gplay.LABELS['GP_MGR'],
+                'SLOT3': (2, __import__('dplay')._play_sites(p, __import__('sacups').regs(p.le.obj_bytes(1)))['slot4']
+                          + 0x443),                      # (slot 3's buffer follows slot 4's, 443h each)
+                'CAREERTEAM': (2, __import__('dplay')._sites(p)[5]),
                 'WN_TITLE_BYTES': (0, 'db ' + ', '.join(str(b) for b in ttl + b'\0')),
                 'TBP_BYTES': (0, 'db ' + ', '.join(str(b) for b in tbp + b'\0')),
                 'INC_BYTES': (0, 'db ' + ', '.join(str(b) for b in inc + b'\0'))})
@@ -621,6 +624,8 @@ GP_CALL = """    mov [GP_WNSRC], ebx                 ; gplay.c gp_wn_c: the winn
     jne .lst
     cmp ax, 0FFFDh
     je .skip
+    cmp ax, 0FFFCh
+    je .t2
     cmp ax, 0FFFFh                      ; (its contest running: IN CORSO)
     je .inc
     cmp ax, 0FFFEh
@@ -673,6 +678,22 @@ GP_CALL = """    mov [GP_WNSRC], ebx                 ; gplay.c gp_wn_c: the winn
 .lf:
     add esp, 4
     jmp .tbp
+.t2:                                    ; a group contest of ours (the Poule Scudetto, slot 3, id FEh): its winner
+    cmp byte [SLOT3 + 2Dh], 0FEh        ; the game's (DIY +39h, 0FFFFh until its final); a club of another group:
+    jne .skip                           ; its team file's name
+    mov ax, [SLOT3 + 39h]
+    cmp ax, 0FFFFh
+    je .inc
+    push edx
+    xor edx, edx
+    call wn_team
+    test edx, edx
+    jnz .lf
+    call wn_disk
+    test edx, edx
+    jnz .lf
+    pop edx
+    jmp .skip
 .skip:
     pop esi
     stc

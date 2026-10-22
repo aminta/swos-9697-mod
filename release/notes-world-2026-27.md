@@ -322,8 +322,9 @@ Cearense, Pernambucano, Alagoano and Mato-Grossense.
   "PLAYOFFS - <title>" (PLAY-OFFS in French; e.g. PLAYOFFS - MLS CUP), and officially titled intermediate winners
   are listed (the MLS's Eastern and Western Conference champions; the MLS's league line is the SUPPORTERS' SHIELD).
   The Serie D's Poule Scudetto is listed too (PLAYOFF - SCUDETTO SERIE D in the Italian game: IN PROGRESS, then its
-  champion). Declared: after a promotion or relegation, last season's WINNERS page shows the titles of your club's new
-  division; the upcoming 4.0.1 shows the division your club played in. In 4 languages (VINCITORI / DA
+  champion). After the season end, last season's page shows the division your club played in, also after a promotion
+  or relegation (e.g. a club promoted from Serie D girone A through the Poule sees SERIE D GIRONE A and the Poule's
+  winner). In 4 languages (VINCITORI / DA
   GIOCARE / IN CORSO, VAINQUEURS / A JOUER / EN COURS, SIEGER / NOCH OFFEN / IM GANGE).
 - **Continental places outside Europe**: the top flights of the other confederations colour their real club-cup
   places: light blue for the first cup (Copa Libertadores, Concacaf Champions Cup, AFC Champions League Elite, CAF
@@ -1019,9 +1020,10 @@ Baiano, Cearense, Pernambucano, Alagoano e Mato-Grossense.
   appena conclusa. Un play-off per il titolo si legge "PLAYOFF - <titolo>" (per esempio PLAYOFF - MLS CUP), e sono
   elencati anche i titoli intermedi ufficiali (CAMPIONE EASTERN CONFERENCE e CAMPIONE WESTERN CONFERENCE della MLS;
   per la MLS la riga del campionato è il SUPPORTERS' SHIELD). C'è anche la Poule Scudetto della Serie D (PLAYOFF -
-  SCUDETTO SERIE D: IN CORSO, poi la campionessa). Dichiarato: dopo una promozione o una retrocessione, la pagina
-  VINCITORI della stagione appena conclusa mostra i titoli della nuova divisione del tuo club; la prossima 4.0.1
-  mostrerà la divisione in cui il tuo club ha giocato. In 4 lingue (WINNERS / TO BE PLAYED / IN PROGRESS, VAINQUEURS / A JOUER / EN COURS, SIEGER /
+  SCUDETTO SERIE D: IN CORSO, poi la campionessa). Dopo la fine della stagione, la pagina della stagione appena
+  conclusa mostra la divisione in cui il tuo club ha giocato, anche dopo una promozione o una retrocessione (per
+  esempio un club promosso dalla Serie D girone A tramite la Poule vede SERIE D GIRONE A e la vincitrice della Poule).
+  In 4 lingue (WINNERS / TO BE PLAYED / IN PROGRESS, VAINQUEURS / A JOUER / EN COURS, SIEGER /
   NOCH OFFEN / IM GANGE).
 - **Posti continentali fuori dall'Europa**: le massime serie delle altre confederazioni colorano i loro posti veri
   nelle coppe per club: azzurro per la prima coppa (Copa Libertadores, Concacaf Champions Cup, AFC Champions League

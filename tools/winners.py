@@ -580,7 +580,7 @@ def patch(p, at, lang, sites):
                 'SEASONPLAYING': (2, sites['season']),
                 'SELPTR': (2, sel_ptr(p)),
                 'GP_WN_C': (1, gplay.LABELS['gp_wn_c'][1]), 'GP_WNSRC': gplay.LABELS['GP_WNSRC'],
-                'GP_SEAS': gplay.LABELS['GP_SEAS'], 'CAREERTEAM': (2, __import__('dplay')._sites(p)[5]),
+                'GP_SEAS': gplay.LABELS['GP_SEAS'], 'GP_MGR': gplay.LABELS['GP_MGR'], 'CAREERTEAM': (2, __import__('dplay')._sites(p)[5]),
                 'WN_TITLE_BYTES': (0, 'db ' + ', '.join(str(b) for b in ttl + b'\0')),
                 'TBP_BYTES': (0, 'db ' + ', '.join(str(b) for b in tbp + b'\0')),
                 'INC_BYTES': (0, 'db ' + ', '.join(str(b) for b in inc + b'\0'))})
@@ -608,7 +608,9 @@ def patch(p, at, lang, sites):
 
 
 GP_CALL = """    mov [GP_WNSRC], ebx                 ; gplay.c gp_wn_c: the winner's team word, 0FFFFh being played, 0FFFEh
-    mov al, [SEASONPLAYING]             ; nothing this season
+    mov ax, [CAREERTEAM]                ; nothing, 0FFFDh no line (the career club out, the final undecided)
+    mov [GP_MGR], ax
+    mov al, [SEASONPLAYING]
     mov [GP_SEAS], al
     push esi
     pushad
@@ -617,6 +619,8 @@ GP_CALL = """    mov [GP_WNSRC], ebx                 ; gplay.c gp_wn_c: the winn
     popad
     cmp byte [WN_MODE], 0
     jne .lst
+    cmp ax, 0FFFDh
+    je .skip
     cmp ax, 0FFFFh                      ; (its contest running: IN CORSO)
     je .inc
     cmp ax, 0FFFEh

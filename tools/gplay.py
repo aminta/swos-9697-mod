@@ -1913,7 +1913,7 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
                   ri_cache=syms['ri_cache'], RI_STATE=syms['RI_STATE'], RI_MGR=syms['RI_MGR'],
                   RI_RULE=syms['RI_RULE'], cd_season=syms['cd_season'],
                   gp_wn_c=syms['gp_wn_c'], GP_WNSRC=syms['GP_WNSRC'], GP_SEAS=syms['GP_SEAS'],   # (winners.py)
-                  WN_ST=syms['WN_ST'])
+                  WN_ST=syms['WN_ST'], GP_MGR=syms['GP_MGR'])
     assert struct.unpack('<I', p.get(1, syms['WN_SIZE'][1], 4))[0] == WN_SIZE   # (the engine block's 'WN')
     if cds:
         assert struct.unpack('<I', p.get(1, syms['CD_STSZ'][1], 4))[0] == CD_SIZE   # (the engine block's 'CD')

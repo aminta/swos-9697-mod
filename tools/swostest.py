@@ -5915,6 +5915,25 @@ def world_winners_mls():
     for nm, w in want.items():
         check(got.get(nm) == w, f'end: {nm} shows {got.get(nm)!r}, GP_ST.ko = {w!r}', errs)
     check(got.get("SUPPORTERS' SHIELD") not in (None, 'IN CORSO', 'DA GIOCARE'), f'end: the Shield {got}', errs)
+    with Session('world_winners_mls_out', exe, {'WMLS.CAR': car}, 'dump:2', 300) as s:   # (interim rule: the career
+        s.wait()                                        # club knocked out, the final and the West final undecided -
+        s.send(LOAD1 + ' dump:3')                       # forced by pokes: those two lines go, the others stay)
+        st = s.result.obj2(st_at, 2100)
+        j = next((j for j in range(2) if st[648 + 674 * j:650 + 674 * j] == b'GK' and st[653 + 674 * j] == 0), None)
+        ko = st[648 + 674 * j:648 + 674 * (j + 1)] if j is not None else b''
+        me = next((i for i in range(24) if team_name(exe, struct.unpack_from('<H', ko, 474 + 2 * i)[0]) == 'INTER MIAMI'),
+                  None) if ko else None
+        if me is not None:
+            k0 = s.result.base2 + st_at + 648 + 674 * j
+            s.poke(k0 + 330 + 16, b'\xff')
+            s.poke(k0 + 330 + 15, b'\xff')
+            s.poke(k0 + 354, bytes([me]))                 # (tie 0's loser: the career club)
+            s.send('dump:1')
+        e, title3, lines3 = winners_page(s)
+    out = winner_blocks(lines3)
+    check(me is not None and list(out) == ["SUPPORTERS' SHIELD", 'CAMPIONE EASTERN CONFERENCE'] and
+          out.get('CAMPIONE EASTERN CONFERENCE') == got.get('CAMPIONE EASTERN CONFERENCE'),
+          f'knocked out, final undecided: page {out} (no MLS CUP / West line; career index {me})', errs)
     with Session('world_winners_mls_next', exe, {'WMLS.CAR': car}, 'dump:2', 600) as s:
         s.wait()
         s.send(LOAD1 + ' dump:3')

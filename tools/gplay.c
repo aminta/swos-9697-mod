@@ -1431,6 +1431,14 @@ static void stage_done(const struct gp_ko *k) {   /* a stage title's knockout de
    decided mid-season (GP_ST.dec[stage] of play-off pi), else as 'K': play-off pi's last tie in GP_ST.ko (the career
    club's, played; not a group contest). The page names a club only when it is one of the viewed league's rows. */
 u32 GP_WNSRC;
+static int kidx(const struct gp_ko *k, u16 team);
+static int wn_out(const struct gp_ko *k) {      /* the career club knocked out of k (interim, rc10: a played play-off
+                                                   whose final stays undecided once it is out - 4.0's fix decides it) */
+    int me = kidx(k, GP_MGR);
+    if (me == NOC) return 0;
+    for (int t = 0; t < k->ntie && t < KT; t++) if (k->tl[t] == me) return 1;
+    return 0;
+}
 u32 gp_wn_c(void) {
     int t = GP_WNSRC & 0xFF, st = GP_WNSRC >> 8 & 0xFF, pi = GP_WNSRC >> 16 & 0xFF;
     if (GP_WNSRC >> 24) {               /* (4.0.1 the last season: WN_ST's entry 'K' pi, or 'L' division st) */
@@ -1447,7 +1455,7 @@ u32 gp_wn_c(void) {
         for (int j = 0; j < 2; j++) {
             const struct gp_ko *k = &GP_ST.ko[j];
             if (k->magic != MAGIC || k->season != GP_SEAS || k->pi != pi || k->bye[7] || st >= KT) continue;
-            return k->tw[st] != NOC ? k->team[k->tw[st]] : 0xFFFF;
+            return k->tw[st] != NOC ? k->team[k->tw[st]] : wn_out(k) ? 0xFFFD : 0xFFFF;
         }
         return 0xFFFE;
     }
@@ -1459,7 +1467,7 @@ u32 gp_wn_c(void) {
         const struct gp_ko *k = &GP_ST.ko[j];
         if (k->magic != MAGIC || k->season != GP_SEAS || k->pi != pi || !k->ntie || k->bye[7]) continue;
         int w = k->tw[k->ntie - 1];
-        return w != NOC ? k->team[w] : 0xFFFF;
+        return w != NOC ? k->team[w] : wn_out(k) ? 0xFFFD : 0xFFFF;   /* (0xFFFD: no line) */
     }
     return 0xFFFE;
 }

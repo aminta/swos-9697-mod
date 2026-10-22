@@ -6026,9 +6026,9 @@ def world_winners_mls():
     if kof == '1':                                      # (knocked out: the final and the conference finals decided)
         check(all(got.get(k) not in (None, 'IN CORSO', 'DA GIOCARE') for k in want) and 'INTER MIAMI' not in
               [got.get('PLAYOFF - MLS CUP')], f'knocked out (GPLAY_KOFORCE=1): {got}', errs)
-    with Session('world_winners_mls_out', exe, {'WMLS.CAR': car}, 'dump:2', 300) as s:   # (interim rule: the career
-        s.wait()                                        # club knocked out, the final and the West final undecided -
-        s.send(LOAD1 + ' dump:3')                       # forced by pokes: those two lines go, the others stay)
+    with Session('world_winners_mls_out', exe, {'WMLS.CAR': car}, 'dump:2', 300) as s:   # (the career club knocked
+        s.wait()                                        # out, the final and the West final undecided - forced by
+        s.send(LOAD1 + ' dump:3')                       # pokes: those two IN CORSO, no line dropped)
         st = s.result.obj2(st_at, 2100)
         j = next((j for j in range(2) if st[648 + 674 * j:650 + 674 * j] == b'GK' and st[653 + 674 * j] == 0), None)
         ko = st[648 + 674 * j:648 + 674 * (j + 1)] if j is not None else b''
@@ -6042,9 +6042,11 @@ def world_winners_mls():
             s.send('dump:1')
         e, title3, lines3 = winners_page(s)
     out = winner_blocks(lines3)
-    check(me is not None and list(out) == ["SUPPORTERS' SHIELD", 'CAMPIONE EASTERN CONFERENCE'] and
+    check(me is not None and list(out) == list(got) and out.get('PLAYOFF - MLS CUP') == 'IN CORSO' and
+          out.get('CAMPIONE WESTERN CONFERENCE') == 'IN CORSO' and
           out.get('CAMPIONE EASTERN CONFERENCE') == got.get('CAMPIONE EASTERN CONFERENCE'),
-          f'knocked out, final undecided: page {out} (no MLS CUP / West line; career index {me})', errs)
+          f'knocked out, final undecided: page {out} (MLS CUP / West IN CORSO - 4.0 a41b1e4 decides them; career '
+          f'index {me})', errs)
     with Session('world_winners_mls_next', exe, {'WMLS.CAR': car}, 'dump:2', 600) as s:
         s.wait()
         s.send(LOAD1 + ' dump:3')

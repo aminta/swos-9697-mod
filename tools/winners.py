@@ -584,11 +584,11 @@ def patch(p, at, lang, sites):
                 'WN_TITLE_BYTES': (0, 'db ' + ', '.join(str(b) for b in ttl + b'\0')),
                 'TBP_BYTES': (0, 'db ' + ', '.join(str(b) for b in tbp + b'\0')),
                 'INC_BYTES': (0, 'db ' + ', '.join(str(b) for b in inc + b'\0'))})
-    src = ASM.replace("""    cmp byte [ebx], 0                   ; (dummy: replaced below)
+    src = nasmcave.sub(ASM, """    cmp byte [ebx], 0                   ; (dummy: replaced below)
     ret""", GP_CALL)
     import dplay
     dpon = 'DP_ST' in dplay.LABELS
-    src = src.replace('DP_CODE\n', DP_CODE if dpon else '    stc\n    ret\n')
+    src = nasmcave.sub(src, 'DP_CODE\n', DP_CODE if dpon else '    stc\n    ret\n')
     if dpon:
         lay = dplay.LABELS['layout']
         sym.update({'DP_ST': dplay.LABELS['DP_ST'], 'DP_SAVE': (2, dplay.LABELS['save']), 'SV_KIND': (0, lay['SV_KIND']),

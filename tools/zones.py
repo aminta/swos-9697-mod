@@ -34,17 +34,6 @@ LIGHT_BLUE, GREEN, DARK_BLUE, ORANGE, RED = 0x0D, 0x0E, 0x08, 0x0C, 0x02   # RED
                                                                          # was the computer clubs' own name colour)
 
 
-def po_eu_colour(rank):
-    """A European play-off's colour: the competition of the association's lowest-ranked league place in the 2026/27
-    access list (the place the play-off decides: Austria, Denmark, the Netherlands, Northern Ireland, Bulgaria ->
-    Conference League); green when the rank is unknown."""
-    al = [r for r, c in access_list().get(rank, []) if c != 1] if rank else []
-    if not al:
-        return GREEN
-    r = max(al)
-    return LIGHT_BLUE if r < 8 else GREEN if r < 14 else DARK_BLUE
-
-
 def access_list():
     """uefaq.c's AL (the 2026/27 access list by association rank): {rank: [(round, code)]}; round < 8 Champions
     League, < 14 Europa League, else Conference League; code 0 the champion, 1 the cup winner, k the k-th place."""
@@ -249,8 +238,9 @@ def pack_zones(d, lang, lp=False, rank=None, detail=None):
                 kind = p.get('kind', 'promotion')
                 wd = p.get('winner_div')
                 for _, place in ent:
-                    if kind in ('europe',):              # the competition of the place it plays for: the
-                        col, w = po_eu_colour(rank), 'po_eu'   # association's worst league place (AUT: CONF)
+                    if kind in ('europe',):              # a European play-off's entrants: P.OFF green as every
+                        col, w = GREEN, 'po_eu'          # play-off (Davide 2026-10-22: in the competition's colour
+                                                         # they read as its places - AUT's 5th and 7th-8th as CONF)
                     elif kind == 'playout':
                         col, w = ORANGE, 'out'
                     elif kind == 'promotion':
@@ -515,7 +505,7 @@ def continental_all(m):
     return confed2627.PLACES.get(m.get('id'), [])
 
 
-WHY_LAB = {'next': 'next', 'up': 'up', 'po_up': 'po', 'po_title': 'po', 'po_place': 'po', 'po_down': 'out', 'out': 'out',
+WHY_LAB = {'next': 'next', 'up': 'up', 'po_up': 'po', 'po_title': 'po', 'po_place': 'po', 'po_eu': 'po', 'po_down': 'out', 'out': 'out',
            'down': 'down', 'cc': 'cc', 'uefa': 'uefa'}
 
 

@@ -4158,7 +4158,7 @@ SPLITS = {   # world_split kinds: country, career path (ITA), the 'split' of its
     'places': ('uru', 'SUDAMERICA,URUGUAY,CAMPEONATO URUGUAYO,DANUBIO',     # (Uruguay 2026: Apertura 15, the
                {'_games': 1, 'stages': [                                  # Intermedio's snake groups, Clausura 15)
                    {'after': 15, 'places_snake': True, 'reset': True, 'keep': 'opening',
-                    'groups': [{'rounds': 'single'}, {'rounds': 'single'}]},
+                    'groups': [{'places': [1, 8], 'rounds': 'single'}, {'places': [9, 16], 'rounds': 'single'}]},
                    {'after': 22, 'reset': True, 'groups': [{'places': [1, 16], 'rounds': 'single'}]}]}),
     'halved': ('rou', 'EUROPA,ROMANIA,BOTOSANI',
                {'after': 30, 'groups': [{'places': [1, 6], 'rounds': 'double', 'points': 'half_up'},

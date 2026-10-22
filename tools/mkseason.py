@@ -1500,8 +1500,9 @@ def splits():
                                            'groups': [len(z) for z in st.get('zones') or [rows]]})
                     day += len(fxd)
                     continue
-                _need(set(st) <= {'after', 'home', 'groups', 'tiebreak', 'reset', 'keep', 'title'},
-                      f'{ws}: keys after, home, groups, tiebreak, reset, keep')
+                _need(set(st) <= {'after', 'home', 'groups', 'tiebreak', 'reset', 'keep', 'title', 'places',
+                                  'places_snake'},
+                      f'{ws}: keys after, home, groups, tiebreak, reset, keep, places / places_snake')
                 if i == 0:
                     _need(isinstance(st.get('after'), int) and st['after'] % per == 0 and 1 <= st['after'] // per <= 4,
                           f'{ws}.after: {per} x the meetings (1..4)')
@@ -1517,10 +1518,10 @@ def splits():
                     expl = [[p + 1 for p, k in enumerate(order) if k == x] for x in range(len(gs))]
                 if expl is not None:
                     _need(len(expl) == len(gs) and sorted(p for g in expl for p in g) == list(range(1, n + 1))
-                          and all(not g_.get('places') for g_ in gs), f'{ws}.places: one list per group, places 1-{n} '
-                          f'once each (groups without places)')
-                    gs = [dict(g_, places=[places_ + 1, places_ + len(e)]) for g_, e, places_ in
-                          zip(gs, expl, [sum(len(e) for e in expl[:k]) for k in range(len(expl))])]
+                          and all(g_.get('places') and g_['places'][1] - g_['places'][0] + 1 == len(e)
+                                  for g_, e in zip(gs, expl)),
+                          f'{ws}.places: one list per group, places 1-{n} once each; the groups keep consecutive '
+                          f'places (the table is permuted at the split), each as long as its list')
                 for g in gs:
                     _need(set(g) <= {'places', 'rounds', 'points', 'neutral', 'title'} and g.get('places', [0])[0] == places
                           and g['places'][1] >= places + 1, f'{ws}.groups: consecutive places from 1')

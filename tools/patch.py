@@ -514,7 +514,7 @@ def patch_exe(src, dst, remap, lang='it'):
     if sp_pg:                                    # World 2026-27: mid-season splits (split.py), after lpb's pages
         sp_at = hist2 + h2 + 0x1000 * lpb
         sp_end = split.patch(p, sp_at, nasmcave, sp_tabs)
-        assert sp_end <= sp_at + 0x1000 * sp_pg, hex(sp_end)
+        assert sp_end <= sp_at + 0x1000 * sp_pg, (hex(sp_at), hex(sp_end), sp_pg)
     if sc_pg:                                    # state championships in career / Season slot 1 (statecup.py)
         sc_at = hist2 + h2 + 0x1000 * (lpb + sp_pg)
         sc_end = statecup.test_contest(p, sc_at) if statecup.TEST else sc_at   # (STATECUP_TEST=1 builds)

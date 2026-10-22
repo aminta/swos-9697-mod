@@ -338,9 +338,10 @@ WORLD_ASM = r"""
 """
 
 
-def patch(p, at, lang, area, bss, world=None):
+def patch(p, at, lang, area, bss, world=None, wn=False):
     """Code at obj1:at, menus and buffers in obj2 area, the file buffer at obj2:bss (BSS_SIZE); world = careerworld's
-    sites in a build with career worlds (DATA\\FMTxx<world>.DAT in a career of world 1+). Returns the code end."""
+    sites in a build with career worlds (DATA\\FMTxx<world>.DAT in a career of world 1+); wn: the SEASON WINNERS entry
+    too (winners.py places its page in gplay's pages). Returns the code end."""
     WN.clear()
     d, d2 = p.le.obj_bytes(1), p.le.obj_bytes(2)
     site, (mobj, moff), name, show, a6 = locate(p)
@@ -375,7 +376,7 @@ def patch(p, at, lang, area, bss, world=None):
     e3, e4 = ents[3][1] - moff, ents[4][1] - moff
     assert sm[e3 + 3] == 4 and sm[e4 + 2] == 3, (sm[e3:e3 + 4], sm[e4:e4 + 4])
     sm[e3 + 3] = 5                                       # VIEW SQUADS: down -> FORMULA
-    sm[e4 + 2] = 7 if world else 6                       # EXIT: up -> CLASSIFICA GENERALE (4.0: FORMULA -> it -> EXIT;
+    sm[e4 + 2] = 7 if wn else 6                       # EXIT: up -> CLASSIFICA GENERALE (4.0: FORMULA -> it -> EXIT;
                                                          # 4.0.1 worlds: -> VINCITORI)
     ptrs.append((sm_at + 0, 1, 'fp_ovinit'))             # (the menu's onInit: the 7th entry only for long tables)
     exit_text = [t for o, t in ((o, (t_obj, t_off)) for o, t_obj, t_off in fixes) if o == ents[4][0] + 22]
@@ -398,9 +399,9 @@ def patch(p, at, lang, area, bss, world=None):
         buf.extend(b + b'\0\0')
     tail = bytearray()
     entry(tail, sm_at + len(sm), 92, 115, 120, 15, nav=(-1, -1, 3, 6), color=0x0E, text=(2, 'btn'), select=(1, 'fp_open'))
-    entry(tail, sm_at + len(sm), 92, 140, 120, 15, nav=(-1, -1, 5, 7 if world else 4), color=0x0E, text=(2, 'ov'),
+    entry(tail, sm_at + len(sm), 92, 140, 120, 15, nav=(-1, -1, 5, 7 if wn else 4), color=0x0E, text=(2, 'ov'),
           select=(1, 'fp_ov'))
-    if world:                                            # 4.0.1 VINCITORI: winners.py points its select and the menu's
+    if wn:                                               # 4.0.1 VINCITORI: winners.py points its select and the menu's
         entry(tail, sm_at + len(sm), 92, 165, 120, 15, nav=(-1, -1, 6, 4), color=0x0E, text=(2, 'wbtn'),
               select=(1, 'fp_open'))                     # onInit at its own code (hidden without a WIN entry)
         wsel = sm_at + len(sm) + len(tail) - 6           # (the select pointer: the entry's last field before its 0)
@@ -452,7 +453,8 @@ def patch(p, at, lang, area, bss, world=None):
         elif isinstance(t, tuple):
             t = base + off[t[0]] + LINE_W * t[1]
         p.add_ptr(2, base + o, t_obj, t)
-    if world:
+    if wn:
+        assert world, 'VINCITORI: a build with career worlds'
         assert any(o == wsel for o, _, _ in ptrs), 'VINCITORI select'
         WN.update(sel=base + wsel, init=base + sm_at, ovinit=lab['fp_ovinit'], fill=lab['fp_fill'],
                   sym={k: sym[k] for k in ('DIYNAME', 'A6', 'SHOW_MENU', 'FNAME', 'TITLE', 'LINES_BUF', 'PAGE', 'FOUND',

@@ -466,7 +466,8 @@ def patch_exe(src, dst, remap, lang='it'):
     cos = avgprice.patch(p, cos)                 # 3.3.4: average player price >= 1 (divide error, 1984-85 Iceland)
     cos = menumusic.patch(p, cos)                # 3.3.6: menu music when the main menu opens (SWOS++ options load late)
     cos = fmtpage.patch(p, cos, lang, area, num_bss + shirtnum.BSS_SIZE + blond.BSS_SIZE + menunum.BSS_SIZE,
-                         careerworld.SITES if worlds else None)   # FORMAT page (5.0)
+                         careerworld.SITES if worlds else None,   # FORMAT page (5.0); 4.0.1 its VINCITORI entry
+                         wn=bool(worlds and LT_SPACE))            # (winners.py in gplay's pages)
     cos = menulevels.patch(p, cos, area, lang)   # 4.0: team choice of a league with levels of groups: level, then group
     import zones                                 # 4.0: zone colours in the league tables (light blue, green, ...)
     zones.RING = None                            # (per exe: a release build patches the four languages in one run)

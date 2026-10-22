@@ -17,7 +17,8 @@ a text line per title: the title, 01h, its source:
   'T' hh tt    tie tt's winner of play-off hh (an intermediate title: the MLS conference finals), as 'K'.
 A title with nothing this season is left out (no line that would never fill: a play-off the career club is not in is
 decided at the season end - 4.0.1's 'WN'); a stage title or stage table of the career's own league shows DA GIOCARE.
-4.0.1: then, on a page of its own, the last season ('VINCITORI 2025-26:' and its titles as gplay's WN_ST holds them:
+4.0.1: then, on a page of its own, the last season ('VINCITORI 2025-26:' and the titles of the division the career
+club played in - WN_ST's 'M', the WIN text keyed 01h 'H' file division - as gplay's WN_ST holds them:
 the engine block's item 'WN', written at the career country's season end by gp_season, zeroed in an older save: no
 such page), the club named by the viewed contest's rows, else by its team file (DATA\\TEAM.nnn: moved since).
 The winners are read from state saved with the career (the DIY, GP_ST: no new save item, no after-load call); a club
@@ -44,6 +45,7 @@ wn_init:                                ; the statistics menu's onInit: fmtpage'
 wn_open:                                ; VINCITORI (fire): the page
     pushad
     call wn_load
+    call wn_lastdiv
     mov edi, TITLE
     mov al, [SEASONPLAYING]
     call wn_title                       ; 'VINCITORI 2026-27'
@@ -57,6 +59,99 @@ wn_open:                                ; VINCITORI (fire): the page
     popad
     mov dword [A6], FMTMENU
     jmp SHOW_MENU
+
+wn_lastdiv:                             ; 4.0.1 (Davide): the last season's page shows the division the career club
+    pushad                              ; played in - WN_ST's 'M' (team word, division) -> the WIN text whose key line
+    mov byte [WN_T2], 0                 ; is 01h 'H' file division into TXT2 (WN_T2 = 1), else the viewed contest's
+    mov dword [GP_WNSRC], 0100004Dh     ; ('M', the last season)
+    mov al, [SEASONPLAYING]
+    mov [GP_SEAS], al
+    pushad
+    call GP_WN_C
+    mov [esp + 28], eax
+    popad
+    cmp ax, 0FFFEh
+    jae .x
+    mov edi, WN_KEY + 2                 ; 01h 'H' + 2 hex digits of the file (the team word's low byte) + 2 of the
+    mov ebx, eax                        ; division
+    call .hx
+    shr eax, 16
+    mov ebx, eax
+    call .hx
+    mov edx, FNAME
+    mov eax, 3D00h
+    int 21h
+    jc .x
+    mov ebx, eax
+    mov edx, BUF
+    mov ecx, 5000h                      ; (the index: below TXT2, fmtpage.build asserts it)
+    mov ah, 3Fh
+    int 21h
+    jc .c
+    cmp dword [BUF], 31544D46h
+    jne .c
+    movzx eax, word [BUF + 4]
+    imul esi, eax, ENTRY_
+    add esi, BUF + 8
+    movzx ebp, word [BUF + 6]
+.e: test ebp, ebp
+    jz .c
+    mov edx, [esi + NAME_ + 1]          ; (its text's first 6 bytes)
+    mov ecx, edx
+    shr ecx, 16
+    mov eax, 4200h
+    int 21h
+    jc .c
+    mov edx, WN_TMP
+    mov ecx, 6
+    mov ah, 3Fh
+    int 21h
+    jc .c
+    mov eax, [WN_TMP]
+    cmp eax, [WN_KEY]
+    jne .nx
+    mov ax, [WN_TMP + 4]
+    cmp ax, [WN_KEY + 4]
+    je .f
+.nx:
+    add esi, ENTRY_
+    dec ebp
+    jmp .e
+.f: mov edx, [esi + NAME_ + 1]          ; (the whole text)
+    mov ecx, edx
+    shr ecx, 16
+    mov eax, 4200h
+    int 21h
+    jc .c
+    movzx ecx, word [esi + NAME_ + 5]
+    cmp ecx, 0FFFh
+    jbe .l
+    mov ecx, 0FFFh
+.l: mov edx, TXT2
+    mov ah, 3Fh
+    int 21h
+    jc .c
+    mov byte [TXT2 + eax], 0
+    mov byte [WN_T2], 1
+.c: mov ah, 3Eh
+    int 21h
+.x: popad
+    ret
+.hx:                                    ; bl -> 2 hex digits at edi (upper case), ebx >>= 8
+    mov al, bl
+    shr al, 4
+    call .d
+    mov al, bl
+    and al, 0Fh
+    call .d
+    shr ebx, 8
+    ret
+.d: add al, '0'
+    cmp al, '9'
+    jbe .s
+    add al, 7
+.s: stosb
+    ret
 
 wn_title:                               ; at edi (advanced): 'VINCITORI ' + the season of al (1900 + al: 2026-27)
     push esi
@@ -282,6 +377,9 @@ wn_render:                              ; TXT's lines (title 01h source) -> per 
     stosw
     mov ebp, 1
     mov esi, TXT
+    cmp byte [WN_T2], 0                 ; (4.0.1: the division the career club played in, when known)
+    je .line
+    mov esi, TXT2
     jmp .line
 .end1:
     cmp dword [WN_CNT], 0
@@ -306,6 +404,8 @@ wn_src:                                 ; esi -> a source: edx = the winner's na
                                         ; table of another league than the career's, not decided)
     mov edx, TBP
     lodsb
+    cmp al, 'H'                         ; (a WIN text's key line: no line)
+    je .hk
     cmp byte [WN_MODE], 0
     jne .ls
     cmp al, 'L'
@@ -436,6 +536,9 @@ DP_CODE
     or eax, ecx
     pop ecx
     ret
+.hk:
+    stc
+    ret
 .cup:                                   ; a cup-shaped contest (a state championship): its winner, DIY +39h (0FFFFh
     mov ax, [DIY_ + 39h]                ; until its final is played; the game's own field)
     cmp ax, 0FFFFh
@@ -544,6 +647,9 @@ WN_BC: dd 0
 WN_HS: dd 0
 WN_CNT: dd 0
 WN_MODE: db 0
+WN_T2: db 0
+WN_KEY: db 1, 'H', '0000'
+WN_TMP: times 8 db 0
 WN_SS: db 0FFh
 WN_FN: db 'data/team.000', 0
 WN_NAME: times 18 db 0
@@ -575,6 +681,7 @@ def patch(p, at, lang, sites):
     wn = fmtpage.WN
     assert wn, 'fmtpage: no VINCITORI entry (a build without career worlds)'
     sym = dict(wn['sym'], FMTMENU=(2, wn['menu']))     # (the page's own copy of fmtpage's menu)
+    sym['TXT2'] = (2, wn['sym']['BUF'][1] + 0x5000)      # (4.0.1 wn_lastdiv: the last season's division's text)
     ttl, tbp, inc = TEXTS[lang]
     sym.update({'FP_OVINIT': (1, wn['ovinit']), 'FP_FILL': (1, wn['fill']),
                 'SEASONPLAYING': (2, sites['season']),

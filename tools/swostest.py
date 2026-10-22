@@ -6113,6 +6113,48 @@ def world_winners_poule():
     return not errs, '; '.join(errs) or f'mid {out["mid"]}; end {out["end"]}'
 
 
+@scenario
+def world_winners_lastdiv():
+    """4.0.1 (Davide): the last season's WINNERS page shows the division the career club PLAYED IN (WN_ST 'M' + the WIN
+    text keyed 01h 'H' file division): LIGORNA forced 1st of Serie D girone A (GPLAY_FORCE=1) through the Poule,
+    promoted; next season (Serie C girone A's view) its second page 'VINCITORI 2026-27:' = SERIE D GIRONE A: LIGORNA
+    and the PLAYOFF - SCUDETTO SERIE D's winner, not Serie C's titles"""
+    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+    if not os.path.isdir(src):
+        return True, f'SKIP: private data {src} missing'
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    exe = build('world_winners_lastdiv', env={'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]),
+                                             'GPLAY_FORCE': '1'})
+    keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_ONE')
+    keep = {k: os.environ.get(k) for k in keys}
+    os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM='EUROPA,ITALIA,SERIE D GIRONE A,LIGORNA',
+                      W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1', W8485_ONE='1')
+    try:
+        ok, msg = world8485()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    car = os.path.join(RUNS, w84_tag() + '_1', 'SWOS', 'W84A.CAR')
+    if not ok or not os.path.exists(car):
+        return False, f'season: {msg}'
+    with Session('world_winners_lastdiv', exe, {'W84A.CAR': car}, 'dump:2', 300) as s:
+        s.wait()
+        s.send(LOAD1 + ' dump:3')
+        more = []
+        e, title, lines = winners_page(s, more)
+    cur = winner_blocks(lines)
+    last = [x.strip() for x in more[0]] if more else []
+    lg = winner_blocks(last)
+    lg.pop('VINCITORI 2026-27', None)
+    ok = list(cur)[:1] == ['SERIE C GIRONE A'] and last[:1] == ['VINCITORI 2026-27:'] and \
+        list(lg) == ['SERIE D GIRONE A', 'PLAYOFF - SCUDETTO SERIE D'] and lg.get('SERIE D GIRONE A') == 'LIGORNA' and \
+        lg.get('PLAYOFF - SCUDETTO SERIE D') not in (None, '', 'IN CORSO', 'DA GIOCARE')
+    return ok, f'page {title!r} {cur}; last season {last[:1]} {lg}'
+
+
 def world_ca(team, country, league, want):
     """4.0.1 Central America exactly (session40/ca_exact.py, data TM_CA_EXACT): a season at team, forced 1st of each
     tournament (GPLAY_FORCE=1: the stage's kept table too): the stage titles <league> APERTURA / CLAUSURA and each

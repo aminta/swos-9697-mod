@@ -1633,6 +1633,8 @@ def next_season_save(s, name):
         if i is not None and not scr.entries[i][3]:
             break
         s.log.append(f'[job] {scr}')
+        if os.environ.get('W8485_FILLWATCH'):
+            fill_check(s, 'job ' + (scr.entries[0][1] if scr.entries else ''))
         if scr.find('ACCETTA', exact=True) is not None:      # the offer letter: accept it
             press(s, scr, 'ACCETTA', wait=3)
             continue
@@ -1651,6 +1653,8 @@ def next_season_save(s, name):
         if s.result.outcome != 'dump':
             return f'job offer: {s.result}'
     rec_shot(s)
+    if os.environ.get('W8485_FILLWATCH'):
+        fill_check(s, 'before CONTINUA CARRIERA')
     if press(s, s.screen(), 'CONTINUA CARRIERA', wait=3) is None:
         return f'no CONTINUA CARRIERA on {s.screen()}'
     for _ in range(20):                                # chairman's note, job offers ...: CONTINUA / fire
@@ -1669,6 +1673,8 @@ def next_season_save(s, name):
                 else:
                     info.append(f'{k_}:{lin:#x}')
             s.log.append('[nsd] ' + ' | '.join(info))
+        if os.environ.get('W8485_FILLWATCH'):
+            fill_check(s, 'ns ' + (scr.entries[0][1] if scr.entries else ''))
         if os.environ.get('W8485_RECWATCH'):           # (debug: the season record's line pointers / codes each step)
             o = int(os.environ['W8485_RECWATCH'], 16)
             s.log.append(f"[rec] {s.result.obj2(o + 22, 16).hex()} {s.result.obj2(o + 86, 4).hex()}")
@@ -2379,6 +2385,10 @@ def world8485():
             midt = (os.environ.get('W8485_MIDTEXT', '').split(':') + [''])[:2] + [None, 0] if season == 1 else ['']
 
             def stop(scr):                             # the player's European cup: no same-country tie in rounds 1-2
+                if os.environ.get('W8485_FILLWATCH') and not getattr(stop, 'fill_bad', False):   # (debug: the first
+                    title = scr.entries[0][1] if scr.entries else ''                    # step whose screen left the
+                    if fill_check(s, f'step {title}') is False:                         # menu texture changed)
+                        stop.fill_bad = True
                 if nosack is not None and season not in poked:   # W8485_NOSACK: the game's 'no sacking' word
                     s.poke(s.result.base2 + nosack, b'\x01\x00')   # (dseg_D6B62, cleared at every season start)
                     poked.add(season)

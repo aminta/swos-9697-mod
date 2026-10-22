@@ -81,12 +81,14 @@ def lp_places(rank, cc):
     return [(k + 1, c) for k, c in enumerate(cols)]
 NAME = 41                       # the slot's name field (as fmtpage.NAME)
 RANGES = 8
-LEG = 5                         # legend boxes (the colours a table uses, in place order)
-ENTRY = 1 + NAME + 1 + 3 * RANGES + 1 + 2 * LEG   # world, title, n, ranges, n legend, (colour, label) * LEG = 78
-ENTRY_PAD = 96                  # (+81: the group headers' legend, n + 5 boxes)
-ECODE = 80                      # a league-phase top flight: its association's code (the league's team file, uefacoef)
+LEG = 6                         # legend boxes (the colours a table uses, in place order; 6 since rc12: NED's CL EL
+                                # CONF P.OFF P.OUT RETR - the euro play-off's own P.OFF)
+ENTRY = 1 + NAME + 1 + 3 * RANGES + 1 + 2 * LEG   # world, title, n, ranges, n legend, (colour, label) * LEG = 80
+ENTRY_PAD = 96                  # (+GLEG: the group headers' legend, n + GLEG_N boxes, before LEGX)
+ECODE = ENTRY + 2               # a league-phase top flight: its association's code (the league's team file, uefacoef)
 EU_PLACES = 10                  # the access list's places looked at per rank (the top 9 + 1)
-EFLAG = 78                      # 1: a league-phase world's top flight (its European places: season 1 only)
+EFLAG = ENTRY                   # 1: a league-phase world's top flight (its European places: season 1 only); + 1 the
+GLEG, GLEG_N = ENTRY + 3, 4     # year, + 2 ECODE; then the group headers' legend (at most 4 boxes: it ends at LEGX)
 EU_SEASON1_ONLY = False         # (True: season-1 colours in season 1 only; False: every season from uc_rank, the
                                 # ranking a year old that decides the next season's places, uefacoef 131f04b)
 LEG_W, LEG_TXT = 30, 8
@@ -543,8 +545,10 @@ def blob(rows):
         for c, k in leg:
             e += bytes([LEG_COLOUR.get(c, c), KEYS.index(k)])
         e += b'\0' * (EFLAG - len(e)) + bytes([1 if kind == 'lp' else 0, year % 256, code])
-        if any(r[0] & 0x80 for r in rng):              # 4.0 group headers: their legend (+81: n, (colour, label))
-            e += bytes([len(gleg[:LEG])]) + b''.join(bytes([LEG_COLOUR.get(c, c), KEYS.index(k)]) for c, k in gleg[:LEG])
+        if any(r[0] & 0x80 for r in rng):              # 4.0 group headers: their legend (+GLEG: n, (colour, label))
+            assert len(e) == GLEG, len(e)
+            e += bytes([len(gleg[:GLEG_N])]) + b''.join(bytes([LEG_COLOUR.get(c, c), KEYS.index(k)]) for c, k in gleg[:GLEG_N])
+        assert len(e) <= min(ENTRY_PAD, LEGX) or kind != 'cupgrp', len(e)
         e += b'\0' * (ENTRY_PAD - len(e))
         if kind == 'cupgrp':                           # (a cup's group screen: LEGX = 3: places per group (bit 0) and
             e = e[:LEGX] + bytes((3, code)) + e[LEGX + 2:]   # the legend in the title row (bit 1); LEGX + 1 = the size)
@@ -899,15 +903,15 @@ HDR_RANGE_ASM = """    test byte [esi], 80h                ; a group range (head
     jmp .rn
 .pl:
 """
-HDR_LEG_ASM = """    test edi, edi                       ; group headers on: the group legend (entry +81)
+HDR_LEG_ASM = """    test edi, edi                       ; group headers on: the group legend (entry +GLEG)
     jz .hl
     cmp dword [GP_HON], 0
     je .hl
     cmp word [DIY + 4Fh], 1
     jne .hl
-    cmp byte [edi + 81], 0
+    cmp byte [edi + GLEG_], 0
     je .hl
-    add edi, 81 - LEGN_
+    add edi, GLEG_ - LEGN_
     movzx ebp, byte [edi + LEGN_]
 .hl:
 """
@@ -1194,7 +1198,7 @@ def patch(p, at, area, lang, pack_dirs, bss, bss_len, world=None):
            **({'C11': c11} if c11 else {}), 'ZHIT': (2, keys), 'ZEU': (2, keys + 47), 'ZKEY': (2, keys + 4), 'NAME_': (0, NAME), 'ZENT': (2, zent),
            'ZFILE': (2, zfile), 'FN_BASE_': (0, len(FILE[lang])), 'BUF': (2, bss), 'BUFLEN_': (0, bss_len),
            'ENTRY_': (0, ENTRY_PAD), 'LEG_': (0, LEG), 'LEG_W_': (0, LEG_W), 'LEGN_': (0, 1 + NAME + 1 + 3 * RANGES), 'LEGX_': (0, LEGX), 'CUPY_': (0, CUPY), 'CUPT_': (0, CUPT),
-           'LABS': (2, labs), 'EFLAG_': (0, EFLAG), 'ECODE_': (0, ECODE), 'EU_PLACES_': (0, EU_PLACES), 'LEGBUF': (2, legbuf), 'MENU': cur_menu}
+           'LABS': (2, labs), 'EFLAG_': (0, EFLAG), 'ECODE_': (0, ECODE), 'GLEG_': (0, GLEG), 'EU_PLACES_': (0, EU_PLACES), 'LEGBUF': (2, legbuf), 'MENU': cur_menu}
     import fmtpage
     import gplay
     ov = 'on' in fmtpage.OV and 'GP_OV_ANNUAL' in gplay.LABELS

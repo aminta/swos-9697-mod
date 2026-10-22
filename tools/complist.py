@@ -471,7 +471,7 @@ def from_packs(dirs, approx=None, staged=None, since=None, modes=('career',)):
     out = []
     for d in dirs:
         d = d.rstrip('/')
-        m = json.load(open(os.path.join(d, 'pack.json')))
+        m = load_pack(d)                                 # (the titles as the game shows them: fitted, rc12)
         if m.get('kind') != 'career':
             continue
         code = m['id'].rsplit('-', 1)[1].upper()

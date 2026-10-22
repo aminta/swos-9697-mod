@@ -1469,6 +1469,8 @@ u32 gp_wn_c(void) {
     }
     for (int j = 0; j < 2; j++) {
         const struct gp_ko *k = &GP_ST.ko[j];
+        if (k->magic == MAGIC && k->season == GP_SEAS && k->pi == pi && k->bye[7])
+            return 0xFFFC;              /* (a group contest of ours - the Poule: its winner is the game's, slot 3) */
         if (k->magic != MAGIC || k->season != GP_SEAS || k->pi != pi || !k->ntie || k->bye[7]) continue;
         int w = k->tw[k->ntie - 1];
         return w != NOC ? k->team[w] : wn_out(k) ? 0xFFFD : 0xFFFF;   /* (0xFFFD: no line) */

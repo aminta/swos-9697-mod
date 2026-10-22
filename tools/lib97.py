@@ -647,5 +647,6 @@ def patch(p, cave, fin_pre):
     print(f'exe: Libertadores 1997: bye call obj1+{bye_call:#x} (lib_bye {labels["lib_bye"]:#x}, BYE_TAB {len(bc)}, '
           f'national cups obj1+{nc_site:#x}, round advance obj1+{adv_site:#x}), '
           f'calendar obj1+{cal_site:#x}, code @ obj1+{cave:#x} '
-          f'(diyFileBufferCopy obj2+{diycopy:#x})')
+          f'(diyFileBufferCopy obj2+{diycopy:#x}); nc_bye {labels["nc_bye"]:#x}'
+          + (f' (.x {labels.get("nc_bye.x", 0):#x} .y {labels.get("nc_bye.y", 0):#x})' if labels.get('nc_bye.x') else ''))
     return (cave + len(code) + 3) & ~3, labels['lib_pre']

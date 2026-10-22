@@ -832,7 +832,27 @@ def _po_divs(po):
     return out
 
 
-def win_lines(comp, div, k):
+WN_TITLES = {   # official titles (data session, 2026-27): (country, ko_playoffs key) -> {lang: name}; the league line
+    ('usa', 'mls_po'): {'*': 'MLS CUP'},                              # ((country, None): instead of '(regular season)')
+    ('aus', 'finals'): {'it': 'CAMPIONE A-LEAGUE MEN', 'en': 'A-LEAGUE MEN CHAMPIONS', 'fr': 'CHAMPION A-LEAGUE MEN',
+                        'de': 'MEISTER A-LEAGUE MEN'},
+    ('can', 'cpl_po'): {'*': 'NORTH STAR CUP'},
+    ('mlt', 'final_four'): {'it': 'CAMPIONE DI MALTA', 'en': 'MALTESE CHAMPIONS', 'fr': 'CHAMPION DE MALTE',
+                            'de': 'MALTESISCHER MEISTER'},
+    ('ita', 'poule_scudetto'): {'it': 'SCUDETTO SERIE D', 'en': 'SERIE D CHAMPIONS', 'fr': 'CHAMPION SERIE D',
+                                'de': 'SERIE-D-MEISTER'},
+    ('usa', None): {'*': "SUPPORTERS' SHIELD"},
+    ('aus', None): {'it': 'PREMIERS A-LEAGUE', 'en': 'A-LEAGUE PREMIERS', 'fr': 'PREMIERS A-LEAGUE', 'de': 'PREMIERS A-LEAGUE'},
+    ('can', None): {'*': 'CPL SHIELD'},
+}
+
+
+def _wn_title(cc, key, lang):
+    t = WN_TITLES.get((cc, key))
+    return {'*': [t.get(lang) or t['*']]} if t else None
+
+
+def win_lines(comp, div, k, cc=''):
     """The SEASON WINNERS page of division k of a league: {lang: [(title, source)]}, {} when it has no title beyond its
     table (the page's entry stays hidden). Sources (winners.py wn_src): 'L' the table's 1st once the league is over;
     'K' + pi (2 hex digits) the last tie's winner of play-off pi (gplay GP_ST.ko: the career club's, played);
@@ -849,7 +869,7 @@ def win_lines(comp, div, k):
         st = po.get('stage') if po.get('kind') == 'stage_title' else None
         src = f'D{st}{pi:02X}{_stage_start(div, po):02X}' if st is not None and 0 <= st < 3 else f'K{pi:02X}'
         for lang in LANGS:
-            lines[lang].append((_wn_fit(po['names'], lang), src))
+            lines[lang].append((_wn_fit(_wn_title(cc, po.get('key'), lang) or po['names'], lang), src))
     par = comp.get('parallel')                  # dplay (pack 'playoffs': 'ita'): the Serie B play-off and play-out (its
     par = par[0] if isinstance(par, list) else par   # relegated club), a Serie C group's play-off ('P' + dplay's kind)
     if comp.get('playoffs') == 'ita' and par:
@@ -874,7 +894,9 @@ def win_lines(comp, div, k):
     src = src and src + f'{k:02X}'                              # (+ the division: 4.0.1's last season, WN_ST 'L')
     if src:
         for lang in LANGS:
-            lines[lang].insert(0, (_wn_fit(div['name'], lang, WN[lang]['reg'] if title_po else ''), src))
+            own = _wn_title(cc, None, lang) if title_po else None      # (the regular season's own title)
+            lines[lang].insert(0, (_wn_fit(own, lang) if own else
+                                   _wn_fit(div['name'], lang, WN[lang]['reg'] if title_po else ''), src))
     return lines
 
 
@@ -978,7 +1000,7 @@ def from_pack(d):
                                        'tail': sch[sch.index(next(x for x in sch if x.startswith(ZT[lang]['eu'].split('{')[0][:30]))):]
                                        if any(x.startswith(ZT[lang]['eu'].split('{')[0][:30]) for x in sch) else tail}
                     out.append((world, cid, titles, texts))
-                    wl = win_lines(comp, div, k)
+                    wl = win_lines(comp, div, k, (m.get('id') or '').rsplit('-', 1)[-1])
                     if wl:
                         out.append((world, cid, titles, {'win': wl}))
                     k += 1

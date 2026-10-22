@@ -393,6 +393,7 @@ void gp_overall(const u8 *diy, const u8 *sel, u32 apn) {
 /* split's stage end (sp_stage_end, a fixture stage with 'table'): the DIY table in its order (+6Dh, the groups
    partitioned by sp_sort: Argentina's zone A then zone B) into GP_SS.r[k]; annual: GP_SS.r[2] = r[0] + r[1] by club,
    by points, goal difference, goals (the earlier stage's order on a tie). */
+extern u16 GP_MGR;
 void gp_stage(const u8 *diy, const u8 *sel, u32 k, u32 annual) {
     int n = diy[0x31] | diy[0x32] << 8;
     if (k >= SS_N || n < 1 || n > GT) return;
@@ -410,6 +411,14 @@ void gp_stage(const u8 *diy, const u8 *sel, u32 k, u32 annual) {
     }
     GP_SS.n[k] = n;
     GP_SS.fresh |= 1 << k;
+    if (GP_FORCE && GP_MGR && GP_FORCE <= n)    /* (test builds, GPLAY_FORCE=k: the career club at place k of the
+                                                   stage's kept table too - a stage_title knockout built at its end) */
+        for (int i = 0; i < n; i++)
+            if (o[i].team == (u16)GP_MGR && i != GP_FORCE - 1) {
+                struct gp_row x;
+                rcopy(&x, &o[i]); rcopy(&o[i], &o[GP_FORCE - 1]); rcopy(&o[GP_FORCE - 1], &x);
+                break;
+            }
     if (!annual || k == 0 || GP_SS.n[0] != n) return;
     struct gp_row *a = GP_SS.r[2], tmp;
     for (int i = 0; i < n; i++) {

@@ -5422,6 +5422,44 @@ def world_rlines_arg3():
 
 
 @scenario
+def world_ca_crc():
+    """4.0.1 Central America exactly (session40/ca_exact.py, data TM_CA_EXACT): Costa Rica's two tournaments at
+    SAPRISSA, forced 1st of each (GPLAY_FORCE=1: the stage's kept table too): the stage titles PRIMERA DIVISION
+    APERTURA / CLAUSURA, each tournament's final phase played (APERTURA SEMIFINALE + FINALE, CLAUSURA SEMIFINALE, two
+    legs), the titles within 40 characters ('COSTA RICA APERTURA FINALE ANDATA', not a cut country)"""
+    src = os.environ.get('W2627CA_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-401-caexact-0418')
+    if not os.path.isdir(src):
+        return True, f'SKIP: private data {src} missing'
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    exe = os.environ.get('CA_BUILD') or build('world_ca_crc', env={'SEASON_PACKS': ','.join(
+        ['ddr-1988-89'] + [os.path.join(src, x) for x in order]), 'GPLAY_FORCE': '1'})
+    keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_ONE')
+    keep = {k: os.environ.get(k) for k in keys}
+    os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM='NORDAMERICA,COSTA RICA,SAPRISSA',
+                      W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1', W8485_ONE='1')
+    try:
+        ok, msg = world8485()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    titles = set()
+    for ln in open(os.path.join(RUNS, w84_tag() + '_1', 'session.log'), errors='replace'):
+        m = re.match(r'^\[\d+\] ([^|]*?) \|', ln)
+        if m:
+            titles.add(m.group(1).strip())
+    errs = []
+    check(ok, msg, errs)
+    for want in ('PRIMERA DIVISION APERTURA', 'PRIMERA DIVISION CLAUSURA', 'COSTA RICA APERTURA SEMIFINALE ANDATA',
+                 'COSTA RICA APERTURA FINALE ANDATA', 'COSTA RICA CLAUSURA SEMIFINALE ANDATA'):
+        check(any(t.endswith(want) or t == want for t in titles), f'no screen titled {want!r}', errs)
+    check(not any(t.startswith('RICA ') for t in titles), 'a title cut to RICA ...', errs)
+    return not errs, '; '.join(errs) or f'{msg}; CRC titles ' + ', '.join(sorted(t for t in titles if 'APERTURA' in t or 'CLAUSURA' in t))
+
+
+@scenario
 def world_rlines_usa():
     """world_rlines at PHILADELPHIA (USA: MLS CUP PLAYOFFS, a title play-off), forced out in the semi-final
     (REACHED SEMI-FINAL)"""

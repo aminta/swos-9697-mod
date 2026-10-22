@@ -449,6 +449,31 @@ rn_tend:                                ; replaces `mov esi, [A1]` at cseg_45D92
     cmp ecx, 40
     jbe .x
 .d:
+    mov ebp, [DIY + 27h]                ; 4.0.1: the whole country prefix goes (COSTA RICA, EL SALVADOR): words
+    mov edx, 4                          ; dropped until the title starts with the contest's own long name (at most
+.dl:                                    ; 3; a title with no prefix, or no name pointer: its first word, as before)
+    test ebp, ebp
+    jz .d1
+    push ecx
+    xor ecx, ecx
+.sc:
+    mov al, [ebp + ecx]
+    test al, al
+    jz .same
+    cmp al, [ebx + ecx]
+    jne .diff
+    inc ecx
+    cmp ecx, 8
+    jb .sc
+.same:
+    pop ecx
+    cmp edx, 4                          ; (the title already starts with the name: no country prefix - the first
+    jne .dn                             ; word goes, as before)
+    xor ebp, ebp
+    jmp .d1
+.diff:
+    pop ecx
+.d1:
     mov esi, ebx                        ; drop the first word
 .f:
     cmp esi, edi
@@ -456,6 +481,7 @@ rn_tend:                                ; replaces `mov esi, [A1]` at cseg_45D92
     lodsb
     cmp al, ' '
     jne .f
+    push edx
     mov edx, ebx
 .c:
     mov al, [esi]
@@ -466,6 +492,13 @@ rn_tend:                                ; replaces `mov esi, [A1]` at cseg_45D92
     jnz .c
     dec edx
     mov [A1R], edx
+    mov edi, edx
+    pop edx
+    test ebp, ebp
+    jz .dn
+    dec edx
+    jnz .dl
+.dn:
     mov esi, ebx
     call rn_len
     cmp ecx, 40

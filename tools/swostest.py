@@ -5553,7 +5553,7 @@ def winner_blocks(lines):
     return {x[:-1]: lines[i + 1] if i + 1 < len(lines) else '' for i, x in enumerate(lines) if x.endswith(':')}
 
 
-def winners_page(s):
+def winners_page(s, pages=None):
     """Career menu -> VISUAL. COMPETIZ. -> the first competition (the career league) -> STAT: the SEASON WINNERS entry
     (its index, invisible flag) and, opened, the page's title and lines (then back to the statistics)."""
     walk(s, s.screen().find('VISUAL. COMPETIZ.', exact=True), 3)
@@ -5568,6 +5568,13 @@ def winners_page(s):
     s.shot('winners_page')
     lines = [x[1] for x in scr.entries[1:15]]
     title = scr.entries[0][1]
+    if pages is not None:                               # (the next pages: NEXT, entry 15)
+        for k in range(3):
+            if s.screen().entries[15][2]:
+                break
+            walk(s, 15, 3)
+            s.shot(f'winners_page{k + 2}')
+            pages.append([x[1] for x in s.screen().entries[1:15]])
     walk(s, 16, 3)                                      # EXIT -> the statistics
     return e, title, lines
 
@@ -5587,6 +5594,10 @@ def world_winners():
         ['ddr-1988-89'] + [os.path.join(src, x) for x in order]), 'GPLAY_FORCE': '1'})
     os.environ['WINNERS_BUILD'] = exe
     st_at = gp_ptrs(exe)[1]
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import lepatch
+    import lp36
+    diy_at = lp36._sites(lepatch.LEPatch(os.path.join(MAIN, 'orig', 'ITALIAN.EXE')))['DIY']   # (the viewed contest)
     want = ['LIGA PROFESIONAL', 'TORNEO APERTURA', 'TORNEO CLAUSURA', 'TROFEO DE CAMPEONES']
     errs, info = [], []
     team = 'SUDAMERICA,ARGENTINA,LIGA PROFESIONAL,ROSARIO CENTRAL'
@@ -5623,6 +5634,13 @@ def world_winners():
                                                         # to come: dec[0] is written once the next knockout is built)
         ok, msg = world8485()
         mid = msg.split(': ', 1)[1] if ok else None
+        if ok:                                          # (a later one, the Clausura's days under way)
+            mid1 = os.path.join(WORK, 'winners_mid1.CAR')
+            shutil.copy(mid, mid1)
+            mid = mid1
+            os.environ.update(base, W8485_ONE='1', W8485_MIDSAVE=f'{st_at + 648 + 5:x}:3:40')
+            ok, msg = world8485()
+            mid2 = msg.split(': ', 1)[1] if ok else None
         os.environ.pop('W8485_MIDSAVE')
         if ok:                                          # (then on to the season's end: saved before CONTINUA)
             os.environ.update(base, W8485_FROM=mid, W8485_SAVE_END='WWIN')
@@ -5643,36 +5661,64 @@ def world_winners():
             s.send(LOAD1 + ' dump:3')
             st = s.result.obj2(st_at, 2100)
             e, title, lines = winners_page(s)
+            days = struct.unpack_from('<H', s.result.obj2(diy_at + 0x1C1, 2))[0]   # (the league days played)
         got = winner_blocks(lines)
         seas = st[2]
         src = {}
         for k, nm in enumerate(want[1:]):               # (gplay.c: struct gp_dec at 1996 + 12k; gp_ko at 648 + 674j:
             d = st[1996 + 12 * k:2008 + 12 * k]          # +3 season, +5 pi, +11 ties, +330 winners, +474 team words)
-            w, how = 'DA GIOCARE', f'GP_ST.dec[{k}] {d.hex()}'
+            w = 'IN CORSO' if days > (0, 16, 999)[k] else 'DA GIOCARE'   # (its stage started: Apertura day 1,
+            how = f'GP_ST.dec[{k}] {d.hex()} days {days}'                 # Clausura day 17, the Trofeo its knockout)
             if d[0] == seas and d[1]:
                 w = team_name(exe, struct.unpack_from('<H', d, 4)[0])
             else:
                 for j in range(2):
                     ko = st[648 + 674 * j:648 + 674 * (j + 1)]
-                    if ko[:2] == b'GK' and ko[2] == seas and ko[5] == 3 + k and ko[11] and ko[330 + ko[11] - 1] != 0xFF:
-                        w = team_name(exe, struct.unpack_from('<H', ko, 474 + 2 * ko[330 + ko[11] - 1])[0])
-                        how = f'GP_ST.ko[{j}] final'
+                    if ko[:2] == b'GK' and ko[2] == seas and ko[5] == 3 + k and ko[11]:
+                        t = ko[330 + ko[11] - 1]
+                        w = team_name(exe, struct.unpack_from('<H', ko, 474 + 2 * t)[0]) if t != 0xFF else 'IN CORSO'
+                        how = f'GP_ST.ko[{j}] final' if t != 0xFF else f'GP_ST.ko[{j}] running'
             check(got.get(nm) == w, f'{tag}: {nm} shows {got.get(nm)!r}, {how} = {w!r}', errs)
             src[nm] = how.split()[0]
         check(title == 'VINCITORI 2026-27' and list(got) == want, f'{tag}: page {title!r} {list(got)}', errs)
+        lg = got.get('LIGA PROFESIONAL')
+        check(lg == ('IN CORSO' if 0 < days < 32 else 'DA GIOCARE' if not days else lg) and (days < 32 or lg not in
+              ('IN CORSO', 'DA GIOCARE')), f'{tag}: LIGA PROFESIONAL {lg!r} after {days} days', errs)
         return got, src
 
     mg, ms = page('world_winners_mid', mid)
-    check(mg.get('LIGA PROFESIONAL') == 'DA GIOCARE' and mg.get('TORNEO CLAUSURA') == 'DA GIOCARE' and
-          mg.get('TROFEO DE CAMPEONES') == 'DA GIOCARE', f'mid-season: {mg} (the league: DA GIOCARE until its last day)',
-          errs)
+    check(mg.get('LIGA PROFESIONAL') == 'IN CORSO' and mg.get('TORNEO APERTURA') not in ('DA GIOCARE', None) and
+          mg.get('TORNEO CLAUSURA') == 'DA GIOCARE' and mg.get('TROFEO DE CAMPEONES') == 'DA GIOCARE',
+          f'mid-season: {mg} (the Apertura knockout running)', errs)
+    mg2, _ = page('world_winners_mid2', mid2)
+    check(mg2.get('LIGA PROFESIONAL') == 'IN CORSO' and mg2.get('TORNEO CLAUSURA') == 'IN CORSO' and
+          mg2.get('TROFEO DE CAMPEONES') == 'DA GIOCARE', f'mid-season 2: {mg2} (the Clausura under way)', errs)
     eg, es = page('world_winners_end', car)
+    with Session('world_winners_next', exe, {'WWIN.CAR': car}, 'dump:2', 600) as s:   # 4.0.1 'WN': CONTINUA ->
+        s.wait()                                        # the next season, saved, reloaded: its page's second page =
+        s.send(LOAD1 + ' dump:3')                       # the last season's titles as the season end had them
+        nxt = next_season_save(s, 'WNXT')
+    if not nxt.endswith('.CAR'):
+        return False, '; '.join(errs + [f'next season: {nxt}'])
+    with Session('world_winners_s2', exe, {'WNXT.CAR': nxt}, 'dump:2', 300) as s:
+        s.wait()
+        s.send(LOAD1 + ' dump:3')
+        more = []
+        e, title2, lines2 = winners_page(s, more)
+    cur = winner_blocks(lines2)
+    check(title2 == 'VINCITORI 2027-28' and list(cur) == want and set(cur.values()) == {'DA GIOCARE'},
+          f'season 2: page {title2!r} {cur}', errs)
+    last = [x.strip() for x in more[0]] if more else []
+    lg2 = winner_blocks(last)
+    lg2.pop('VINCITORI 2026-27', None)
+    check(last[:1] == ['VINCITORI 2026-27:'] and lg2 == eg, f'season 2: last season page {last} (season 1 end: {eg})',
+          errs)
     check(es.get('TORNEO APERTURA') == 'GP_ST.dec[0]' and es.get('TORNEO CLAUSURA') == 'GP_ST.dec[1]',
           f'end: sources {es} (the Apertura / Clausura: closed before the Trofeo, GP_ST.dec)', errs)
     arg = {team_name(exe, 0xA3 | i << 8) for i in range(30)}
     check(eg.get('LIGA PROFESIONAL') in arg, f'end: LIGA PROFESIONAL shows {eg.get("LIGA PROFESIONAL")!r} (GP_SS '
           f'annual table\'s 1st: an Argentine club)', errs)
-    info.append(f'mid: {mg}; end: {eg}; sources {es}')
+    info.append(f'mid: {mg}; mid 2: {mg2}; end: {eg}; sources {es}; season 2: {cur}, last season {lg2}')
     return not errs, '; '.join(errs + info)
 
 
@@ -5770,6 +5816,49 @@ def world_winners_dplay():
     ok = w is not None and got.get('PLAY-OFF SERIE B') == w and 'SERIE B' in got and \
         not any(k.startswith('PLAY-OUT') for k in got)
     return ok, f'state {head.hex()} winner {w!r}; page {title!r} {got}'
+
+
+@scenario
+def world_winners_oldsave():
+    """4.0.1 'WN' and a 4.0 save: Davide's rc7 career PHILA.CAR (internal/davide-mister-20261021: PHILADELPHIA, no 'WN'
+    item - zeroed at the load) on a release-like build (WINNERS_W27, else the W2627REL_DATA packs, no test switch)
+    plays on to its season's end and into the next season (world8485 from it); then the MLS page: this season's
+    titles, and a second page 'VINCITORI <last season>:' with the season end's MLS (regular season) and MLS Cup"""
+    car = os.environ.get('WINNERS_OLDSAVE') or os.path.join(MAIN, 'internal', 'davide-mister-20261021', 'PHILA.CAR')
+    if not os.path.exists(car):
+        return True, f'SKIP: no {car}'
+    exe = os.environ.get('WINNERS_W27')
+    if not exe:
+        src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-names-2214')
+        if not os.path.isdir(src):
+            return True, f'SKIP: private data {src} missing'
+        order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+        exe = build('winners_w27', env={'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order])})
+    keys = ('W8485_BUILD', 'W8485_FROM', 'W8485_NOSACK', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K')
+    keep = {k: os.environ.get(k) for k in keys}
+    os.environ.update(W8485_BUILD=exe, W8485_FROM=car, W8485_NOSACK='1')
+    try:
+        ok, msg = world8485()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    nxt = os.path.join(RUNS, w84_tag() + '_2', 'SWOS', 'W84B.CAR')
+    if not os.path.exists(nxt) or 'trap' in msg:        # (checkw1: a 1984-85 world check, FAIL on rc7's own build too)
+        return False, f'the old save played on: {msg}'
+    with Session('world_winners_oldsave', exe, {'W84B.CAR': nxt}, 'dump:2', 300) as s:
+        s.wait()
+        s.send(LOAD1 + ' dump:3')
+        more = []
+        e, title, lines = winners_page(s, more)
+    last = [x.strip() for x in more[0]] if more else []
+    got = winner_blocks(last)
+    got.pop(last[0][:-1] if last else '', None)
+    ok = e is not None and not e[2] and last[:1] and last[0].startswith('VINCITORI ') and len(got) == 2 and \
+        all(v and v != 'DA GIOCARE' for v in got.values())
+    return bool(ok), f'{msg[:120]}; page {title!r} {[x for x in lines if x]}; last season {last[:1]} {got}'
 
 
 def world_ca(team, country, league, want):

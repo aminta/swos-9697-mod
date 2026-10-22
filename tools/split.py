@@ -1499,14 +1499,14 @@ def patch(p, cave, nasmcave, splits):
     if gplay.LABELS.get('gp_stage'):                # the stage tables (GP_SS): gplay.c, built before us
         sym['GP_STAGE'] = gplay.LABELS['gp_stage']
     else:
-        src = src.replace('call GP_STAGE', 'call sp_nostage')
+        src = nasmcave.sub(src, 'call GP_STAGE', 'call sp_nostage')
     late = []
     for k, name in enumerate(CALLBACKS):            # after-stage routines (engine.after_stage)
         at = engine.CALL_AT.get(name)
         sym[f'CB{k}'] = at or (1, cave)
         if at is None:
             late.append((name, 4 * k))
-    src = src.replace('SP_CB_ENTRIES', 'dd ' + ', '.join(f'CB{k}' for k in range(len(CALLBACKS))) if CALLBACKS else 'dd 0')
+    src = nasmcave.sub(src, 'SP_CB_ENTRIES', 'dd ' + ', '.join(f'CB{k}' for k in range(len(CALLBACKS))) if CALLBACKS else 'dd 0')
     cave = (cave + 3) & ~3
     code, fix = nasmcave.assemble(src, cave, sym)
     lab = nasmcave.labels(src, cave, sym)

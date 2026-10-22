@@ -2431,7 +2431,7 @@ def patch_tails(p, at, nasmcave):
     sym['WNSBV'] = (1, LABELS['WNSB']) if 'WNSB' in LABELS else (0, 0)
     src = TAILS_ASM
     if os.environ.get('DIAG'):                   # diagnostic build: int 3 handler writes DIAG.BIN
-        src = f"%define DIAG\n%define DIAG_TICKS {int(os.environ.get('DIAG_TICKS', 364))}\n" + src.replace('.w:\n    pushad\n    mov esi, TMDBUF', '.w:\n    ' + ('times 5 nop' if os.environ.get('DIAG_NOINST') else 'call diag_install') + '\n    pushad\n    mov esi, TMDBUF')   # (DIAG_NOINST: the same layout, no handlers)
+        src = f"%define DIAG\n%define DIAG_TICKS {int(os.environ.get('DIAG_TICKS', 364))}\n" + nasmcave.sub(src, '.w:\n    pushad\n    mov esi, TMDBUF', '.w:\n    ' + ('times 5 nop' if os.environ.get('DIAG_NOINST') else 'call diag_install') + '\n    pushad\n    mov esi, TMDBUF')   # (DIAG_NOINST: the same layout, no handlers)
         sym.update({'DREGS': (2, D0 - 0), 'AREGS': (2, A0), 'HOLDREG': (2, s['hold'][0][0] - 0x10),
                     'DG_TICKS': (1, LABELS['DG_TICKS']), 'DG_ARMED': (1, LABELS['DG_ARMED'])})
     code, fix = nasmcave.assemble(src, at, sym)

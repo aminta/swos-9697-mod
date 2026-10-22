@@ -398,7 +398,7 @@ def patch(p, at, area, lang):
             if name:
                 sym[f'N{k}_{first}'] = (2, area.add(name.encode('latin1') + b'\0'))
         body += rows
-    src = ASM.replace('LV_BYTES', '\n    '.join(body))     # (several lines: in the text, not a one-line symbol)
+    src = nasmcave.sub(ASM, 'LV_BYTES', '\n    '.join(body))     # (several lines: in the text, not a one-line symbol)
     code, fix = nasmcave.assemble(src, at, sym)
     lab = nasmcave.labels(src, at, sym)
     assert not any(p.get(1, at, len(code)))

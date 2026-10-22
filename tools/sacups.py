@@ -650,7 +650,8 @@ def career_hooks(p, cups, cave, cups_all=None, caf=None):
     symbols['MARK3'] = (0, MARK3)
     TABLES[0] = (table, copies_base)
     SAVE_ITEMS[0] = [(lib + 47, 2 * LIB_N), (sup + 27, 32), (con + 27, 32), (cups_all[3] + 24, 4)]   # Lib, Sup, CON, INT pair
-    asm = CAREER_ASM.replace(';EXTRA_CHAIN', '\n'.join(chain)).replace(';EXTRA_LOAD', '\n'.join(load_map_lines))
+    asm = nasmcave.sub(CAREER_ASM, ';EXTRA_CHAIN', '\n'.join(chain))
+    asm = nasmcave.sub(asm, ';EXTRA_LOAD', '\n'.join(load_map_lines))
     code, fix = nasmcave.assemble(asm, cave, symbols)
     labels = nasmcave.labels(asm, cave, symbols)
     LISTS_OUT[0] = labels['lists_out']

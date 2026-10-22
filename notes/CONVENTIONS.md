@@ -18,6 +18,9 @@ new rule. If a rule seems wrong for a case, ask the regia session; don't silentl
    P.OFF / P.OUT / RETR, PASSA / P.OFF ...), as in the league tables. Never at the bottom, never over a button,
    never over a group title. The legend is built by the shared zones code (zones.py) for leagues, splits and conti
    cup groups alike.
+   Legend boxes are plain colour boxes with no inner frame (Davide 2026-10-22, CONF included). The career club's
+   row is its own clean colour, never framed; only when its colour equals the zone colour (player-coach light blue
+   on a light-blue zone) it gets a 1-px black border flush with the box edge.
 6. **Legend == zones painted.** An entry appears in the legend only if at least one row is painted in that colour,
    and every painted zone has its legend entry. Zones are computed **per group** in split / zoned / cup-group
    tables (group place, not overall place).

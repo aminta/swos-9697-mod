@@ -41,7 +41,7 @@ How it works
   ones on demand; debugger commands are typed in one go, short forms (~1 ms per char), no fixed sleeps.
 - Oracles: saves written by the game, checked in Python (car_info, W1 block, cup lists), the outcome, the dump.
 """
-import hashlib, json, os, pty, re, select, shutil, signal, struct, subprocess, sys, time
+import glob, hashlib, json, os, pty, re, select, shutil, signal, struct, subprocess, sys, time
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 MAIN = os.path.expanduser('~/swos-mod')               # main checkout: c/, orig/, internal/ live there
@@ -94,26 +94,107 @@ def setup():
     return base
 
 
+BUILD_KEEP_DAYS = 3        # build() / unique_out(): <name>-<key> dirs unused this long are removed (other names untouched)
+_ENV_RE = re.compile(r"""(?:environ(?:\.get)?\s*[\[(]\s*|getenv\(\s*)['"]([A-Z][A-Z0-9_]*)['"]""")
+
+
+def _build_vars():
+    """The environment variables the build code reads (tools/*.py but this harness), scanned once."""
+    if not hasattr(_build_vars, 'v'):
+        names = set()
+        for f in glob.glob(os.path.join(ROOT, 'tools', '*.py')):
+            if os.path.basename(f) != 'swostest.py':
+                names |= set(_ENV_RE.findall(open(f, errors='replace').read()))
+        _build_vars.v = names
+    return _build_vars.v
+
+
+def build_key(src, env=None, extra=b''):
+    """A build's identity (12 hex digits): the source tree (HEAD, its uncommitted changes, untracked files under
+    tools/), the build-affecting environment (the variables the build code reads, every *_FORCE / *_TEST / *_DATA /
+    *_PACKS / *_HOOK one and env's own, values merged as the build sees them; SEASON_PACKS' packs with their files'
+    times) and extra. Two sessions get one dir only for the same build."""
+    git = lambda *a: subprocess.run(['git', '-C', src] + list(a), capture_output=True).stdout
+    h = hashlib.sha256(git('rev-parse', 'HEAD'))
+    h.update(git('diff', 'HEAD', '--binary'))
+    for f in sorted(git('ls-files', '--others', '--exclude-standard', 'tools').decode(errors='replace').split()):
+        try:
+            h.update(f.encode() + open(os.path.join(src, f), 'rb').read())
+        except OSError:
+            pass
+    full = dict(os.environ, **(env or {}))
+    keys = _build_vars() | set(env or {}) | {k for k in full if re.search(r'_(FORCE|TEST|DATA|PACKS|HOOK)$', k)}
+    for k in sorted(keys):
+        if k in full:
+            h.update(f'{k}={full[k]}\0'.encode())
+    for d in (full.get('SEASON_PACKS') or '').split(','):
+        for f in ('pack.json', 'clubs.csv', 'players.csv'):
+            q = os.path.join(d, f)
+            if os.sep in d and os.path.exists(q):
+                h.update(f'{q}:{os.path.getmtime(q)}\0'.encode())
+    h.update(extra)
+    return h.hexdigest()[:12]
+
+
+def build_cleanup():
+    """<name>-<12 hex> build dirs and branch worktrees unused for BUILD_KEEP_DAYS (a reuse touches its dir)."""
+    cut = time.time() - BUILD_KEEP_DAYS * 86400
+    for kind in ('builds', 'src'):
+        for d in glob.glob(os.path.join(WORK, kind, '*-' + '[0-9a-f]' * 12)):
+            try:
+                if os.path.getmtime(d) >= cut:
+                    continue
+                if kind == 'src':
+                    subprocess.run(['git', '-C', MAIN, 'worktree', 'remove', '--force', d], capture_output=True)
+                shutil.rmtree(d, ignore_errors=True)
+            except OSError:
+                pass
+
+
+def unique_out(name, key):
+    """builds/<name>-<key>, and whether it is complete (ITALIAN.EXE there: reused, its time touched)."""
+    out = os.path.join(WORK, 'builds', f'{name}-{key}')
+    done = os.path.exists(os.path.join(out, 'ITALIAN.EXE'))
+    if done:
+        os.utime(out)
+    return out, done
+
+
 def build(name, env=None, branch=None):
-    """Build the IT exe + team files into internal/swostest/builds/<name> (from this checkout or a git branch)."""
-    out = os.path.join(WORK, 'builds', name)
+    """Build the IT exe + team files into internal/swostest/builds/<name>-<key> (build_key: from this checkout or a
+    git branch, with the build-affecting environment) - its own dir per build, so sessions never overwrite each
+    other's exes; an existing dir of the same key is reused. Built in <dir>.tmp<pid>, then renamed into place."""
     src = ROOT
-    if branch:                                       # a throw-away worktree of that branch, links to the ignored dirs
-        src = os.path.join(WORK, 'src', name)
+    if branch:                                       # a throw-away worktree of that commit, links to the ignored dirs
+        sha = subprocess.run(['git', '-C', MAIN, 'rev-parse', branch + '^{commit}'], capture_output=True, text=True,
+                             check=True).stdout.strip()
+        src = os.path.join(WORK, 'src', f'{name}-{sha[:12]}')
         if not os.path.isdir(src):
-            subprocess.run(['git', '-C', MAIN, 'worktree', 'add', '--detach', src, branch], check=True)
-        else:
-            subprocess.run(['git', '-C', src, 'checkout', '-q', '--detach', branch], check=True)
+            subprocess.run(['git', '-C', MAIN, 'worktree', 'add', '--detach', src, sha], check=True)
+        os.utime(src)
         for d in ('orig', 'ref', 'c', 'internal'):
             if not os.path.exists(os.path.join(src, d)):
                 os.symlink(os.path.join(MAIN, d), os.path.join(src, d))
-    os.makedirs(os.path.join(out, 'DATA'), exist_ok=True)
+    out, done = unique_out(name, build_key(src, env))
+    if done:
+        return out
+    tmp = f'{out}.tmp{os.getpid()}'
+    shutil.rmtree(tmp, ignore_errors=True)
+    os.makedirs(os.path.join(tmp, 'DATA'))
     code = ("import sys,io,contextlib; sys.path.insert(0,'tools'); import patch\n"
             "out=sys.argv[1]\n"
             "with contextlib.redirect_stdout(io.StringIO()):\n"
             "    r=patch.patch_teams('orig/DATA/TEAM.020',out+'/DATA/TEAM.020'); patch.write_new_teams('orig/DATA',out+'/DATA')\n"
             "    patch.patch_exe('orig/ITALIAN.EXE',out+'/ITALIAN.EXE',r,'it')\n")
-    subprocess.run([sys.executable, '-c', code, out], cwd=src, check=True, env=dict(os.environ, **(env or {})))
+    try:
+        subprocess.run([sys.executable, '-c', code, tmp], cwd=src, check=True, env=dict(os.environ, **(env or {})))
+        try:
+            os.rename(tmp, out)
+        except OSError:                              # (another session built the same key meanwhile: its dir stays)
+            shutil.rmtree(tmp, ignore_errors=True)
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+    build_cleanup()
     return out
 
 
@@ -1885,7 +1966,7 @@ def w84_record():
     car = os.path.join(WORK, 'saves', 'W84B_MREC.CAR')
     if not os.path.exists(car):
         return True, 'SKIP: no saves/W84B_MREC.CAR (a world8485 run\'s W84B.CAR)'
-    exe = os.environ.get('W8485_BUILD', os.path.join(WORK, 'builds', 'w8485'))
+    exe = (os.environ.get('W8485_BUILD') or builds()['it'])   # (builds/w8485: a stale shared dir)
     with Session('w84_record', exe, {'W84B.CAR': car}, 'dump:2', 300) as s:
         s.wait()
         s.send(LOAD1 + ' dump:3')
@@ -2081,7 +2162,7 @@ def zone_colours():
     blue (Champions Cup), 2-5 green (UEFA Cup), 20-22 gray, the others plain (pixels of the stats columns); the legend
     CAMP / UEFA / RETR on the header line; STAT > FORMULA > back (the FORMAT page shares the zones' file buffer): the
     same colours again"""
-    b = os.environ.get('W8485_BUILD', os.path.join(WORK, 'builds', 'w8485'))
+    b = (os.environ.get('W8485_BUILD') or builds()['it'])   # (builds/w8485: a stale shared dir)
     want = ['lb'] + ['gr'] * 4 + ['pl'] * 14 + ['gy'] * 3
     errs, info = [], []
     with Session('zone_colours', b, {}, 'dump:2', 600) as s:
@@ -3033,6 +3114,32 @@ def lp36_tourney():
                       f'final {rounds.get("FINALE")}; ' + '; '.join(errs))
 
 
+def converter_build(name, env):
+    """internal/world2526/run.sh into builds/<name>-<key> (build_key with the converter's own files' times), under
+    world_lock; an existing complete dir of the same key is reused. Returns (dir, error text or '')."""
+    conv = os.path.join(MAIN, 'internal', 'world2526')
+    stamp = ''.join(f'{f}:{os.path.getmtime(f)}' for f in sorted(glob.glob(os.path.join(conv, '*.py')) +
+                                                                  glob.glob(os.path.join(conv, '*.sh'))))
+    stamp += f"SCOPE={os.environ.get('SCOPE', '')}LANGS={os.environ.get('LANGS', '')}"
+    out, done = unique_out(name, build_key(ROOT, env, stamp.encode()))
+    if done:
+        return out, ''
+    tmp = f'{out}.tmp{os.getpid()}'
+    shutil.rmtree(tmp, ignore_errors=True)
+    with world_lock():                          # (the converter rewrites its own output dir: one build at a time)
+        r = subprocess.run(['sh', os.path.join(conv, 'run.sh')], env=dict(os.environ, OUT=tmp,
+                           TOOLS=os.path.join(ROOT, 'tools'), **env), capture_output=True, text=True)
+    if r.returncode or not os.path.exists(os.path.join(tmp, 'ITALIAN.EXE')):
+        shutil.rmtree(tmp, ignore_errors=True)
+        return out, f'build: {(r.stdout + r.stderr)[-300:]}'
+    try:
+        os.rename(tmp, out)
+    except OSError:
+        shutil.rmtree(tmp, ignore_errors=True)
+    build_cleanup()
+    return out, ''
+
+
 def world_lock():
     """An exclusive lock around internal/world2526/run.sh: it rewrites its converter output (world5/) every time, so
     two builds at once (world2526 and world2526q in a parallel suite) would break each other."""
@@ -3057,14 +3164,9 @@ def world2526():
     run = os.path.join(MAIN, 'internal', 'world2526', 'run.sh')
     if not os.path.exists(run):
         return True, 'SKIP: private converter internal/world2526 missing'
-    out = os.path.join(WORK, 'builds', 'world2526')
-    with world_lock():                         # (world2526q builds from the same converter output dir)
-        r = subprocess.run(['sh', run], env=dict(os.environ, LP='1', OUT=out, CONTI_CONFS='none',   # (the UEFA test world: no other
-                                                                    # confederations' cups - its partial South America)
-                                 TOOLS=os.path.join(ROOT, 'tools')),
-                           capture_output=True, text=True)
-    if r.returncode or not os.path.exists(os.path.join(out, 'ITALIAN.EXE')):
-        return False, f'build: {(r.stdout + r.stderr)[-300:]}'
+    out, err = converter_build('world2526', {'LP': '1', 'CONTI_CONFS': 'none'})   # (the UEFA test world: no other
+    if err:                                     # confederations' cups - its partial South America; its own dir)
+        return False, err
     keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K')}
     os.environ.update(W8485_BUILD=out, W8485_WORLD='WORLD 2025-26', W8485_TEAM='EUROPA,ENGLAND,ENGLAND DIV 1,ARSENAL',
                       W8485_WNUM='5', W8485_K='108+' if os.environ.get('UEFAQ_FORCE') else '108')
@@ -3087,12 +3189,9 @@ def world2526q():
     run = os.path.join(MAIN, 'internal', 'world2526', 'run.sh')
     if not os.path.exists(run):
         return True, 'SKIP: private converter internal/world2526 missing'
-    out = os.path.join(WORK, 'builds', 'world2526q')
-    with world_lock():
-        r = subprocess.run(['sh', run], env=dict(os.environ, LP='1', OUT=out, TOOLS=os.path.join(ROOT, 'tools'),
-                                                 UEFAQ_FORCE='CL Q1'), capture_output=True, text=True)
-    if r.returncode or not os.path.exists(os.path.join(out, 'ITALIAN.EXE')):
-        return False, f'build: {(r.stdout + r.stderr)[-300:]}'
+    out, err = converter_build('world2526q', {'LP': '1', 'UEFAQ_FORCE': 'CL Q1'})
+    if err:
+        return False, err
     keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_FILL')
     keep = {k: os.environ.get(k) for k in keys}
     import simdraw                                      # (rule 15: the stronger side wins every match, 3-0: AJAX

@@ -482,6 +482,9 @@ def patch_exe(src, dst, remap, lang='it'):
             import mainbtn                               # 4.0: the green CARRIERA 2026-27 button on the main menu
             w27 = min(pk.world for pk in mkseason.packs() if pk.meta.get('id', '').startswith('world-2026-27-'))
             lt_end_ = mainbtn.patch(p, (lt_end_ + 15) & ~15, lang, mkseason.WMENU + w27)
+            if not os.environ.get('QUIETEND_OFF'):       # (QUIETEND_OFF=1: a control build for the identical-results check)
+                import quietend                          # 4.0.1: the other countries' competitions simulated unseen
+                lt_end_ = quietend.patch(p, (lt_end_ + 15) & ~15, w27)   # at the season end (World 2026-27 only)
         if worlds and fmtpage.WN:                        # 4.0.1: the SEASON WINNERS page (fmtpage's VINCITORI entry)
             import winners
             lt_end_ = winners.patch(p, lt_end_, lang, careerworld.SITES)

@@ -133,7 +133,7 @@ sp_init:                                ; replaces `call cseg_2653B` at the end 
     je .x
     movzx esi, word [edi + E_STG + 26]  ; our own weeks (a calendar with breaks: Argentina's knockout weeks)
     test esi, esi
-    jz .x
+    jz .pg
     add esi, edi
     movzx ecx, word [ebx + 1C3h]
     xor eax, eax
@@ -143,7 +143,82 @@ sp_init:                                ; replaces `call cseg_2653B` at the end 
     inc eax
     cmp eax, ecx
     jb .wk
+.pg:
+    call sp_pregroup
 .x:
+    popad
+    ret
+
+sp_pre0:                                ; edx = an entry -> ZF = 0 when its first stage starts on the first day with
+    cmp byte [edx + 5], 0               ; groups by membership (the MLS's conferences, Argentina's zones): its groups
+    jne .no                             ; are known before any match (4.0: shown from day 0, rule 8)
+    cmp byte [edx + 7], 0
+    je .no
+    cmp byte [edx + E_STG], 0
+    jne .no
+    test byte [edx + E_STG + 2], 8
+    jz .no
+    or edx, edx
+    ret
+.no:
+    cmp eax, eax
+    ret
+
+sp_pregroup:                            ; edi = the entry, ebx = DIY (sp_init): a first stage of sp_pre0's -> the rows'
+    pushad                              ; groups (S_GRP) from the members now and the table's order partitioned by them,
+    mov edx, edi                        ; so the table shows its group headers before the first match (the freeze at the
+    call sp_pre0                        ; first match sets the same groups)
+    jz .r
+    movzx esi, word [edi + E_STG + 20]
+    add esi, edi
+    movzx ecx, byte [edi + 3]
+    xor eax, eax
+.m:
+    mov dl, [esi + eax]
+    mov [ebx + S_GRP + eax], dl
+    inc eax
+    cmp eax, ecx
+    jb .m
+    xor edx, edx                        ; out count
+    xor ebp, ebp                        ; group
+.g:
+    movzx eax, byte [edi + E_STG + 1]
+    cmp ebp, eax
+    jae .c
+    xor esi, esi
+.p:
+    movzx eax, word [ebx + 6Dh + esi * 2]
+    push eax
+    push edx
+    push ecx
+    xor edx, edx
+    mov ecx, 18
+    div ecx
+    pop ecx
+    pop edx
+    movzx eax, byte [ebx + S_GRP + eax]
+    cmp eax, ebp
+    pop eax
+    jne .np
+    mov [sp_tmp + edx * 2], ax
+    inc edx
+.np:
+    inc esi
+    cmp esi, ecx
+    jb .p
+    inc ebp
+    jmp .g
+.c:
+    cmp edx, ecx                        ; (every row in a group, else the order is left)
+    jne .r
+    xor esi, esi
+.cp:
+    mov ax, [sp_tmp + esi * 2]
+    mov [ebx + 6Dh + esi * 2], ax
+    inc esi
+    cmp esi, ecx
+    jb .cp
+.r:
     popad
     ret
 
@@ -895,7 +970,12 @@ sp_sort:                                ; replaces cseg_883DD's last `jns` (the 
     jz .x
     movzx eax, byte [esi + S_FROZEN]
     dec eax
-    js .x
+    jns .st
+    call sp_pre0                        ; (4.0: before the first match, a first stage's groups known from day 0)
+    jz .x
+    xor eax, eax
+.st:
+    mov [sp_sst], al
     imul eax, eax, SR_
     mov al, [edx + E_STG + 1 + eax]     ; the frozen stage's groups
     mov [sp_G], al
@@ -934,8 +1014,8 @@ sp_sort:                                ; replaces cseg_883DD's last `jns` (the 
     inc ecx
     jmp .c
 .tie:                                   ; equal points in one group: more points before rounding first
-    movzx eax, byte [esi + S_FROZEN]    ; (flag 16, 'tiebreak' 'wins' - MLS: more wins first, then the engine's
-    dec eax                             ; goal difference / goals order, kept: the passes are stable)
+    movzx eax, byte [sp_sst]            ; (flag 16, 'tiebreak' 'wins' - MLS: more wins first, then the engine's
+                                        ; goal difference / goals order, kept: the passes are stable)
     imul eax, eax, SR_
     mov al, [edx + E_STG + 2 + eax]
     and al, 16
@@ -1013,6 +1093,7 @@ sp_bld: db 0
 sp_pend: db 0
 sp_rule: db 0
 sp_G: db 0
+sp_sst: db 0
 sp_W: db 0
 sp_div: dd 0
 sp_tmp: times NMAX_ dw 0

@@ -1937,7 +1937,6 @@ def zone_rows(s, tag, n):
 
 
 @scenario
-@scenario
 def main_button():
     """4.0: the main menu's green CARRIERA 2026-27 button (mainbtn.py), in a full 2026-27 build (MAINBTN_BUILD; EN too
     with MAINBTN_EN = an English build, its exe as ITALIAN.EXE): the plain CAREER > SELECT TEAM still opens the top
@@ -1987,6 +1986,96 @@ def main_button():
     return not errs, '; '.join(errs) or '; '.join(info)
 
 
+def diy_lin(s, lang='it'):
+    """The linear address of DIY_competitionStart (the table shown) in this session (obj2: the same offset as the
+    language's original exe)."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import lepatch
+    import lp36
+    exe = {'it': 'ITALIAN', 'en': 'ENGLISH', 'fr': 'FRENCH', 'de': 'GERMAN'}[lang]
+    return s.result.base2 + lp36._sites(lepatch.LEPatch(os.path.join(ROOT, 'orig', exe + '.EXE')))['DIY']
+
+
+def zones_force_played(s, lang, errs, tag):
+    """4.0 (Davide): a table before its first match day has no zones and no legend. Checked on the table shown, then
+    its first row's played count forced to 1 (DIY row 0 +4: a test poke, nothing saved) so the zones show."""
+    scr = s.screen()
+    leg = [e[1] for e in scr.entries[-5:] if not e[2]]
+    rows, _ = zone_rows(s, tag + '_pre', 6)
+    check(not leg and all(z == 'pl' for _, z in rows), f'{tag}: no match played: no zones, no legend '
+          f'({[z for _, z in rows]}, {leg})', errs)
+    s.poke(diy_lin(s, lang) + 0x2B3 + 4, [1, 0])
+    s.send('dump:1')
+
+
+@scenario
+def zones_preseason():
+    """4.0 (Davide): a table before its first match day (the clubs in their initial order) has no zone colours and no
+    legend, and a league whose groups are known from day 0 shows them at once (split.py sp_pregroup: the MLS's
+    CONFERENCE EST / OVEST). A new career at ATLANTA UNITED (World 2026-27): VISUAL. COMPETIZ. > MLS before the first
+    match (no colours, no legend; the conference headers in the shot); then 3 career matches: the MLS table with P.OFF,
+    STAT > CLASSIFICA GENERALE (the Supporters' Shield) 1-6 light blue with CONC. PREZONE_LANGS='en=DIR,fr=DIR,de=DIR':
+    the pre-season check in those exes too (ITALIAN.EXE = that language's exe)."""
+    b = os.environ.get('PREZONE_BUILD') or os.environ.get('ZONES_W2627')
+    if not b:
+        return True, 'SKIP: PREZONE_BUILD (a full 2026-27 build) not set'
+    errs, info = [], []
+    menus = {'it': (['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27', 'NORDAMERICA', 'USA'], 'VISUAL. COMPETIZ.'),
+             'en': (['CAREER', 'CHOOSE TEAM', 'CLASSIC CAREERS', 'WORLD 2026-27', 'NORTH AMERICA|N. AMERICA', 'USA'], 'VIEW COMPETITIONS'),
+             'fr': (['CARRIERE', 'CHOISIR UNE EQUIPE', "CARR. D'ANTAN", 'MONDE 2026-27', 'NORD-AMERICA|AMERIQUE DU NORD', 'ETATS-UNIS|USA'], 'AFFICHER COMPET.'),
+             'de': (['KARRIERE', '#10', 'KLASS. KARRIERE', 'WELT 2026-27', 'NORDAMERIKA', 'USA'], 'WETTBWRBE ANZEIGN')}
+    runs = [('it', b)] + [tuple(x.split('=', 1)) for x in os.environ.get('PREZONE_LANGS', '').split(',') if x]
+    for lang, d in runs:
+        menu, view = menus[lang]
+        with Session(f'zones_preseason_{lang}', d, {}, 'dump:2', 1500) as s:
+            s.wait()
+            for t in menu + ['ATLANTA UNITED']:
+                if t.startswith('#'):
+                    walk(s, int(t[1:]), 3)
+                elif all(press(s, s.screen(), x, 3) is None for x in t.split('|')):   # (alternative names: '|')
+                    return False, f'{lang}: {t} not reached ({s.screen().texts()[:8]})'
+            s.send('fire dump:3')
+            walk(s, s.screen().find(view, exact=True), 3)
+            walk(s, 1, 3)
+            scr = s.screen()
+            leg = [e[1] for e in scr.entries[-5:] if not e[2]]
+            rows, _ = zone_rows(s, f'mls_pre_{lang}', 15)
+            check(not leg and all(z == 'pl' for _, z in rows), f'{lang} MLS before the first match: no zones, no legend '
+                  f'({[z for _, z in rows]}, {leg})', errs)
+            info.append(f'{lang} pre-season: legend {leg}, rows {"".join(z[0] for _, z in rows)}')
+            if lang != 'it':
+                continue
+            for _ in range(3):
+                if s.screen().find('ESCI', exact=True) is None:
+                    break
+                walk(s, s.screen().find('ESCI', exact=True), 3)
+                if 'TRASFERIMENTI' in s.screen().texts():
+                    break
+            n = [0]
+            def stop(scr):
+                if 'VISUAL. COMPETIZ.' in scr.texts() and 'TRASFERIMENTI' in scr.texts():
+                    n[0] += 1
+                    return n[0] >= 4
+                return False
+            ok, m = advance(s, stop, 300)
+            check(ok, f'3 matches: {m}', errs)
+            walk(s, s.screen().find('VISUAL. COMPETIZ.', exact=True), 3)
+            walk(s, 1, 3)
+            scr = s.screen()
+            leg = [e[1] for e in scr.entries[-5:] if not e[2]]
+            s.shot('mls_mid')
+            check(leg == ['P.OFF'], f'MLS mid-season: legend {leg}', errs)
+            walk(s, scr.find('STAT', exact=True), 3)
+            press(s, s.screen(), 'CLASSIFICA GENERALE', 3)
+            rows, scr = zone_rows(s, 'mls_shield', 8)
+            leg = [e[1] for e in scr.entries[-5:] if not e[2]]
+            got = [z for _, z in rows]
+            check(leg == ['CONC'] and got[:6] == ['lb'] * 6 and got[6] != 'lb', f"Supporters' Shield: {got} {leg}", errs)
+            info.append(f"mid-season: MLS legend P.OFF, Supporters' Shield {''.join(z[0] for z in got)} {leg}")
+    return not errs, '; '.join(errs + info) if errs else '; '.join(info)
+
+
+@scenario
 def zone_colours():
     """4.0 zone colours (zones.py): a new 1984-85 career at Liverpool, VISUAL. COMPETIZ. > First Division: place 1 light
     blue (Champions Cup), 2-5 green (UEFA Cup), 20-22 gray, the others plain (pixels of the stats columns); the legend
@@ -2004,6 +2093,7 @@ def zone_colours():
         s.send('fire dump:3')
         walk(s, s.screen().find('VISUAL. COMPETIZ.', exact=True), 3)
         walk(s, 1, 3)
+        zones_force_played(s, 'it', errs, 'w8485 first division')
         for k in (1, 2):
             rows, scr = zone_rows(s, f'zones_{k}', len(want))
             got = [z for _, z in rows]
@@ -2030,7 +2120,7 @@ def zone_colours():
         L = zones.LABELS[lang]
         cases = ((({'en': 'ITALY', 'fr': 'ITALIE', 'de': 'ITALIEN'}[lang], 'SERIE A', 'INTER'),
                   ['lb'] * 4 + ['gr', 'db'] + ['pl'] * 11 + ['gy'] * 3, [L['cl'], L['el'], L['conf'], L['down']]),
-                 (({'en': 'GERMANY', 'fr': 'ALLEMAGNE', 'de': 'DEUTSCHLAND'}[lang], 'BUNDESLIGA', 'BAYERN MUNICH'),
+                 (({'en': 'GERMANY', 'fr': 'ALLEMAGNE', 'de': 'DEUTSCHLAND'}[lang], 'BUNDESLIGA', 'BAYERN|BAYERN MUNICH'),
                   ['lb'] * 4 + ['gr', 'db'] + ['pl'] * 9 + ['or'] + ['gy'] * 2,
                   [L['cl'], L['el'], L['conf'], L['out'], L['down']]))
         for path, want_l, leg_l in cases:
@@ -2039,11 +2129,12 @@ def zone_colours():
                 for t in menu + list(path):
                     if t.startswith('#'):
                         walk(s, int(t[1:]), 3)
-                    elif press(s, s.screen(), t, 3) is None:
+                    elif all(press(s, s.screen(), x, 3) is None for x in t.split('|')):   # (alternatives: '|')
                         return False, f'{lang}: {t} not reached'
                 s.send('fire dump:3')
                 walk(s, s.screen().find(view, exact=True), 3)
                 walk(s, 1, 3)
+                zones_force_played(s, lang, errs, f'{lang} {path[1]}')
                 rows, scr = zone_rows(s, f'zones_{lang}_' + path[1].split()[-1].lower(), len(want_l))
                 got = [z for _, z in rows]
                 check(got == want_l, f'{lang} {path[0]} {path[1]}: zones {got}', errs)
@@ -2068,6 +2159,7 @@ def zone_colours():
                 s.send('fire dump:3')
                 walk(s, s.screen().find('VISUAL. COMPETIZ.', exact=True), 3)
                 walk(s, 1, 3)
+                zones_force_played(s, 'it', errs, path[1])
                 rows, scr = zone_rows(s, 'zones_' + path[1].split()[-1].lower(), len(want27))
                 got = [z for _, z in rows]
                 check(got == want27, f'{path[1]}: zones {got}', errs)

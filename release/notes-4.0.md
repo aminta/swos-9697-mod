@@ -23,7 +23,7 @@
     every competition has a FORMAT page in plain words, in 4 languages.
 - **WINNERS page**: in a competition's STAT menu, the season's titles beyond the table (play-offs, Apertura /
   Clausura, state champions) with their winners, TO BE PLAYED or IN PROGRESS; after the season end, last season's.
-- **Quick season end**: the other countries' competitions are simulated without being shown one by one (your own country's competitions and the European cups still show, as in the original game).
+- **Quick season end**: the other countries' competitions are simulated without being shown one by one (your own country's competitions and the European cups still show, as in the original game), with a progress line (SIMULATING OTHER COUNTRIES... n/N).
 - **One engine for all of it**: groups, splits, play-offs and cups share the same rules (one knockout rule for the
   mod's play-offs: extra time, then the better-placed club goes through; no replays).
 - **Europe 1984-85** (DaniSwos's database): tables in colour and FORMAT pages too.
@@ -85,7 +85,7 @@ Thanks to DaniSwos for the Europe 1984-85 database, to Marco for the reports, to
 - **Pagina VINCITORI**: nel menu STAT di una competizione, i titoli della stagione oltre alla classifica (play-off,
   Apertura / Clausura, campioni statali) con le loro vincitrici, DA GIOCARE o IN CORSO; dopo la fine della stagione,
   quelle della stagione appena conclusa.
-- **Fine stagione veloce**: le competizioni delle altre nazioni vengono simulate senza essere mostrate una per una (le competizioni della tua nazione e le coppe europee si vedono ancora, come nel gioco originale).
+- **Fine stagione veloce**: le competizioni delle altre nazioni vengono simulate senza essere mostrate una per una (le competizioni della tua nazione e le coppe europee si vedono ancora, come nel gioco originale), con una riga di avanzamento (SIMULAZIONE ALTRE NAZIONI... n/N).
 - **Un solo motore per tutto**: gironi, campionati divisi, play-off e coppe seguono le stesse regole (una sola regola
   per gli scontri diretti dei play-off della mod: supplementari, poi passa la meglio piazzata; nessuna ripetizione).
 - **Europa 1984-85** (il database di DaniSwos): anche qui classifiche a colori e pagine FORMULA.

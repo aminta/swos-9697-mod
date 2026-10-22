@@ -296,9 +296,10 @@ Cearense, Pernambucano, Alagoano and Mato-Grossense.
 
 *League tables in colour*
 - **Every league table shows its end-of-season zones**, as on TV: Champions League (or the European Cup) and direct
-  promotion light blue; Europa League (or the UEFA Cup), promotion play-offs and European play-offs for a Europa
-  League place green; Conference League dark blue, a European play-off for a Conference League place too (Austria,
-  Denmark, the Netherlands, Northern Ireland, Bulgaria); play-out orange; relegation gray. The places follow the real rules: the UEFA 2026/27 access list by
+  promotion light blue; Europa League (or the UEFA Cup) and promotion play-offs green; Conference League dark blue;
+  the places of a European play-off (Austria's title group 5th and qualification group's top two, the Netherlands,
+  Denmark, Northern Ireland, Bulgaria ...) green P.OFF with their own legend entry, not the cup's colour (the cup is
+  decided by the play-off); play-out orange; relegation gray. The places follow the real rules: the UEFA 2026/27 access list by
   association rank (qualifying rounds included), and each league's own promotions, relegations and play-offs (Serie
   B 3rd-8th and 16th-17th, the Serie C groups 2nd-10th), every kind of play-off included (promotion, title,
   placement: green P.OFF; the Serie D groups 2nd-5th, the Czech 7th-10th, the A-League, the MLS, Costa Rica ...). One
@@ -321,8 +322,9 @@ Cearense, Pernambucano, Alagoano and Mato-Grossense.
   "PLAYOFFS - <title>" (PLAY-OFFS in French; e.g. PLAYOFFS - MLS CUP), and officially titled intermediate winners
   are listed (the MLS's Eastern and Western Conference champions; the MLS's league line is the SUPPORTERS' SHIELD).
   The Serie D's Poule Scudetto is listed too (PLAYOFF - SCUDETTO SERIE D in the Italian game: IN PROGRESS, then its
-  champion). Declared: after a promotion or relegation, last season's WINNERS page shows the titles of your club's new
-  division; the upcoming 4.0.1 shows the division your club played in. In 4 languages (VINCITORI / DA
+  champion). After the season end, last season's page shows the division your club played in, also after a promotion
+  or relegation (e.g. a club promoted from Serie D girone A through the Poule sees SERIE D GIRONE A and the Poule's
+  winner). In 4 languages (VINCITORI / DA
   GIOCARE / IN CORSO, VAINQUEURS / A JOUER / EN COURS, SIEGER / NOCH OFFEN / IM GANGE).
 - **Continental places outside Europe**: the top flights of the other confederations colour their real club-cup
   places: light blue for the first cup (Copa Libertadores, Concacaf Champions Cup, AFC Champions League Elite, CAF
@@ -493,11 +495,12 @@ Cearense, Pernambucano, Alagoano and Mato-Grossense.
 - **One knockout rule for the mod's play-offs** (Serie B, Serie C and Serie D play-offs and the other leagues'
   play-offs the mod plays): a single match level after 90 minutes goes to extra time, then the better-placed club
   goes through; two-legged ties as their real rules. No replays anywhere, and no replay dates in the calendar.
-- **Quick season end**: at the end of a season the other countries' competitions are simulated without being shown one by one (your own country's competitions and the European cups still show, as in the original game). The original game shows every competition of every country
+- **Quick season end**: at the end of a season the other countries' competitions are simulated without being shown one by one (your own country's competitions and the European cups still show, as in the original game), with a progress line at the bottom of the screen (SIMULATING OTHER COUNTRIES... n/N). The original game shows every competition of every country
   for a moment; with the World 2026-27's 264 competitions that took minutes on a real 486. The results are the same.
 - **A Serie D club plays only what its real club plays**: its group (and its play-off or play-out) and the Coppa
   Italia Serie D. The national Coppa Italia is still played for its winner but is not in a Serie D club's calendar
-  or VISUAL. COMPETIZ.
+  or VISUAL. COMPETIZ.; in general a national cup is listed among your competitions and in your calendar only if your
+  club takes part in it.
 - **European places**: in some seasons one of the 108 European places goes to a club of a different association
   from the one the access list names. The number of clubs in each European cup and the title holders' places are
   always right (fixed in the upcoming 4.0.1).
@@ -660,7 +663,9 @@ Cearense, Pernambucano, Alagoano and Mato-Grossense.
 - Europe 1984-85 career: league tables in colour (see above), each competition's FORMAT page with its table colours,
   the European cups' titles without a leading space.
 - Long competition titles no longer overwrite the game's memory (the title field holds 34 characters): they are
-  shortened to their usual short form, which also fixes the classic season DDR 1988-89's European cup titles.
+  shortened to their usual short form, which also fixes the classic season DDR 1988-89's European cup titles. A
+  competition name longer than the VISUAL. COMPETIZ. button (160 px) is shortened to fit, keeping the words that tell
+  it apart (e.g. ARABIA SAUDITA PRO LEAGUE, ITALIA PLAY-OUT SERIE C GIR. A), never two equal names in one country.
 - CLASSIC CAREERS no longer lists ALBANIA as an entry of its own (since 3.0 the first country of the Europe 1984-85
   world also appeared next to the world).
 - The 1996-97 game as it really was (the real 1996-97 groups, Supercup, Intertoto, leagues and cups) comes in 4.1.
@@ -987,9 +992,10 @@ Baiano, Cearense, Pernambucano, Alagoano e Mato-Grossense.
 
 *Classifiche a colori*
 - **Ogni classifica di campionato mostra le sue zone di fine stagione**, come in TV: Champions League (o Coppa dei
-  Campioni) e promozione diretta in azzurro; Europa League (o Coppa UEFA), play-off promozione e spareggi europei per
-  un posto in Europa League in verde; Conference League in blu scuro, anche lo spareggio europeo che vale un posto in
-  Conference League (Austria, Danimarca, Olanda, Irlanda del Nord, Bulgaria); play-out in arancione; retrocessione in grigio. I posti seguono le regole
+  Campioni) e promozione diretta in azzurro; Europa League (o Coppa UEFA) e play-off promozione in verde; Conference
+  League in blu scuro; i posti di uno spareggio europeo (la 5ª del gruppo titolo e le prime due del gruppo di
+  qualificazione in Austria, l'Olanda, la Danimarca, l'Irlanda del Nord, la Bulgaria ...) in verde P.OFF con la loro
+  voce di legenda, non nel colore della coppa (la coppa la decide lo spareggio); play-out in arancione; retrocessione in grigio. I posti seguono le regole
   vere: la lista d'accesso UEFA 2026/27 secondo il ranking delle federazioni (preliminari compresi) e le promozioni,
   retrocessioni e spareggi di ogni campionato (Serie B 3ª-8ª e 16ª-17ª, i gironi di Serie C 2ª-10ª), tutti i tipi di
   play-off compresi (promozione, scudetto, piazzamento: verde P.OFF; i gironi di Serie D 2ª-5ª, la Rep. Ceca 7ª-10ª,
@@ -1014,9 +1020,10 @@ Baiano, Cearense, Pernambucano, Alagoano e Mato-Grossense.
   appena conclusa. Un play-off per il titolo si legge "PLAYOFF - <titolo>" (per esempio PLAYOFF - MLS CUP), e sono
   elencati anche i titoli intermedi ufficiali (CAMPIONE EASTERN CONFERENCE e CAMPIONE WESTERN CONFERENCE della MLS;
   per la MLS la riga del campionato è il SUPPORTERS' SHIELD). C'è anche la Poule Scudetto della Serie D (PLAYOFF -
-  SCUDETTO SERIE D: IN CORSO, poi la campionessa). Dichiarato: dopo una promozione o una retrocessione, la pagina
-  VINCITORI della stagione appena conclusa mostra i titoli della nuova divisione del tuo club; la prossima 4.0.1
-  mostrerà la divisione in cui il tuo club ha giocato. In 4 lingue (WINNERS / TO BE PLAYED / IN PROGRESS, VAINQUEURS / A JOUER / EN COURS, SIEGER /
+  SCUDETTO SERIE D: IN CORSO, poi la campionessa). Dopo la fine della stagione, la pagina della stagione appena
+  conclusa mostra la divisione in cui il tuo club ha giocato, anche dopo una promozione o una retrocessione (per
+  esempio un club promosso dalla Serie D girone A tramite la Poule vede SERIE D GIRONE A e la vincitrice della Poule).
+  In 4 lingue (WINNERS / TO BE PLAYED / IN PROGRESS, VAINQUEURS / A JOUER / EN COURS, SIEGER /
   NOCH OFFEN / IM GANGE).
 - **Posti continentali fuori dall'Europa**: le massime serie delle altre confederazioni colorano i loro posti veri
   nelle coppe per club: azzurro per la prima coppa (Copa Libertadores, Concacaf Champions Cup, AFC Champions League
@@ -1199,11 +1206,12 @@ Baiano, Cearense, Pernambucano, Alagoano e Mato-Grossense.
   degli altri campionati giocati dalla mod): una gara unica in parità dopo 90 minuti va ai supplementari, poi passa
   la meglio piazzata; andata e ritorno secondo le regole vere. Nessuna ripetizione, e nessuna data di ripetizione in
   calendario.
-- **Fine stagione veloce**: a fine stagione le competizioni delle altre nazioni vengono simulate senza essere mostrate una per una (le competizioni della tua nazione e le coppe europee si vedono ancora, come nel gioco originale). Il gioco originale mostra per un attimo ogni competizione di
+- **Fine stagione veloce**: a fine stagione le competizioni delle altre nazioni vengono simulate senza essere mostrate una per una (le competizioni della tua nazione e le coppe europee si vedono ancora, come nel gioco originale), con una riga di avanzamento in fondo allo schermo (SIMULAZIONE ALTRE NAZIONI... n/N). Il gioco originale mostra per un attimo ogni competizione di
   ogni nazione; con le 264 competizioni del Mondo 2026-27 su un 486 vero servivano minuti. I risultati sono gli stessi.
 - **Un club di Serie D gioca solo quello che gioca il club vero**: il suo girone (e i suoi play-off o play-out) e la
   Coppa Italia Serie D. La Coppa Italia nazionale si gioca comunque per la sua vincitrice, ma non compare nel
-  calendario né in VISUAL. COMPETIZ. di un club di Serie D.
+  calendario né in VISUAL. COMPETIZ. di un club di Serie D; in generale una coppa nazionale compare tra le tue
+  competizioni e nel tuo calendario solo se il tuo club la gioca.
 - **Posti europei**: in alcune stagioni uno dei 108 posti europei va a un club di una federazione diversa da quella
   indicata dalla lista d'accesso. Il numero di club di ogni coppa europea e i posti delle detentrici sono sempre
   giusti (corretto nella prossima 4.0.1).
@@ -1387,7 +1395,9 @@ Baiano, Cearense, Pernambucano, Alagoano e Mato-Grossense.
   classifica, i titoli delle coppe europee senza lo spazio iniziale.
 - I titoli lunghi delle competizioni non sovrascrivono più la memoria del gioco (il campo del titolo ha 34
   caratteri): vengono accorciati alla loro forma breve abituale, e questo corregge anche i titoli delle coppe europee
-  della stagione storica DDR 1988-89.
+  della stagione storica DDR 1988-89. Un nome di competizione più lungo del pulsante di VISUAL. COMPETIZ. (160 px)
+  viene accorciato per starci, tenendo le parole che lo distinguono (per esempio ARABIA SAUDITA PRO LEAGUE, ITALIA
+  PLAY-OUT SERIE C GIR. A), mai due nomi uguali nella stessa nazione.
 - CARR. STORICHE non elenca più ALBANIA come voce a sé (dalla 3.0 la prima nazione del mondo Europa 1984-85
   compariva anche accanto al mondo).
 - Il gioco 1996-97 com'era davvero (i gironi veri 1996-97, Supercoppa, Intertoto, campionati e coppe) arriva nella 4.1.

@@ -25,7 +25,9 @@ new rule. If a rule seems wrong for a case, ask the regia session; don't silentl
    and every painted zone has its legend entry. Zones are computed **per group** in split / zoned / cup-group
    tables (group place, not overall place).
 7. **Every competition's real places are painted**: titles, promotion, play-offs (P.OFF), play-outs, relegation,
-   European / continental places (the colour is the competition the place leads to: CL / EL / CONF ...).
+   European / continental places (the colour is the competition the place leads to: CL / EL / CONF ...). A place that
+   only leads to a PLAY-OFF for a European place (e.g. Austria's / the Netherlands' European play-offs) is green P.OFF,
+   not the cup's colour (Davide 2026-10-22).
 8. **Group tables**: header rows (ZONA A, GRUPPO TITOLO ...) + one blank spacer row between groups; the title bar
    shows the league's own name; scroll reaches the last row (one fire on the arrow = one row).
 

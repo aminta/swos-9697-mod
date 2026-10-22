@@ -5706,7 +5706,7 @@ def world_winners():
     import lepatch
     import lp36
     diy_at = lp36._sites(lepatch.LEPatch(os.path.join(MAIN, 'orig', 'ITALIAN.EXE')))['DIY']   # (the viewed contest)
-    want = ['LIGA PROFESIONAL', 'TORNEO APERTURA', 'TORNEO CLAUSURA', 'TROFEO DE CAMPEONES']
+    want = ['LIGA PROFESIONAL', 'TORNEO APERTURA', 'TORNEO CLAUSURA', 'TROFEO CAMP.']   # (the data's short name: fit)
     errs, info = [], []
     team = 'SUDAMERICA,ARGENTINA,LIGA PROFESIONAL,ROSARIO CENTRAL'
     with Session('world_winners_start', exe, {}, 'dump:2', 600) as s:
@@ -5796,11 +5796,11 @@ def world_winners():
 
     mg, ms = page('world_winners_mid', mid)
     check(mg.get('LIGA PROFESIONAL') == 'IN CORSO' and mg.get('TORNEO APERTURA') not in ('DA GIOCARE', None) and
-          mg.get('TORNEO CLAUSURA') == 'DA GIOCARE' and mg.get('TROFEO DE CAMPEONES') == 'DA GIOCARE',
+          mg.get('TORNEO CLAUSURA') == 'DA GIOCARE' and mg.get('TROFEO CAMP.') == 'DA GIOCARE',
           f'mid-season: {mg} (the Apertura knockout running)', errs)
     mg2, _ = page('world_winners_mid2', mid2)
     check(mg2.get('LIGA PROFESIONAL') == 'IN CORSO' and mg2.get('TORNEO CLAUSURA') == 'IN CORSO' and
-          mg2.get('TROFEO DE CAMPEONES') == 'DA GIOCARE', f'mid-season 2: {mg2} (the Clausura under way)', errs)
+          mg2.get('TROFEO CAMP.') == 'DA GIOCARE', f'mid-season 2: {mg2} (the Clausura under way)', errs)
     eg, es = page('world_winners_end', car)
     with Session('world_winners_next', exe, {'WWIN.CAR': car}, 'dump:2', 600) as s:   # 4.0.1 'WN': CONTINUA ->
         s.wait()                                        # the next season, saved, reloaded: its page's second page =

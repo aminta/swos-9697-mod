@@ -5426,7 +5426,7 @@ def world_ca(team, country, league, want):
     tournament (GPLAY_FORCE=1: the stage's kept table too): the stage titles <league> APERTURA / CLAUSURA and each
     tournament's final phase played (want: the screens' titles), every title within 40 characters (never a cut
     country: 'RICA ...')"""
-    src = os.environ.get('W2627CA_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-401-ca-0439')
+    src = os.environ.get('W2627CA_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-401-ca3-0448')
     if not os.path.isdir(src):
         return True, f'SKIP: private data {src} missing'
     order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]

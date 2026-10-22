@@ -305,7 +305,9 @@ Cearense, Pernambucano, Alagoano and Mato-Grossense.
   legend, always in the same place, top left above the table header, names the colours each table uses: leagues,
   split leagues, long tables, the continental cups' groups (in their title row: the group headers fill the row below)
   and the Brazilian state championships alike. In split and group tables each club's zone is its place in its own
-  group. In the Europe 1984-85 world too.
+  group. In the Europe 1984-85 world too. Before a table's first match day the clubs are still in their initial order,
+  so the table has no colours and no legend yet; the leagues whose groups are known from the start (the MLS
+  conferences, Argentina's zones, Panama's conferences) show their group headers from day one.
   In the World 2026-27 the European places in every season come from the engine's own UEFA ranking (the one a year
   old, as UEFA's access list uses) and the real 2026/27 access list; the European Performance Spots and the title
   holders' rebalancing are decided at the season end and are not coloured in advance.
@@ -974,7 +976,10 @@ Baiano, Cearense, Pernambucano, Alagoano e Mato-Grossense.
   l'intestazione della classifica, indica i colori usati: campionati, campionati divisi, classifiche lunghe, gironi
   delle coppe continentali (nella riga del titolo: la riga sotto è occupata dalle intestazioni dei gironi) e
   campionati statali brasiliani. Nelle classifiche divise e a gironi la zona di ogni club è il suo posto nel suo
-  girone. Anche nel mondo Europa 1984-85.
+  girone. Anche nel mondo Europa 1984-85. Prima della prima giornata di una classifica i club sono ancora nel loro
+  ordine iniziale, quindi la classifica non ha ancora colori né legenda; i campionati con i gruppi noti dall'inizio
+  (le conference della MLS, le zone dell'Argentina, le conference di Panama) mostrano le intestazioni dei gruppi dal
+  primo giorno.
   Nel Mondo 2026-27 i posti europei di ogni stagione vengono dal ranking UEFA del gioco (quello dell'anno prima,
   come nella access list UEFA) e dalla access list vera 2026/27; gli European Performance Spots e i ritocchi per i
   detentori dei titoli si decidono a fine stagione e non vengono colorati in anticipo.

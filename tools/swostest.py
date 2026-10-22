@@ -1574,6 +1574,17 @@ def next_season_save(s, name):
             return f'new season: {s.result}'
         scr = s.screen()
         s.log.append(f'[ns] {scr}')
+        if os.environ.get('W8485_NSDUMP'):             # (debug: D8CAA[0..4] slot pointers + each slot's +2Dh / +39h)
+            o = int(os.environ['W8485_NSDUMP'], 16)
+            ptrs = struct.unpack('<5I', bytes(s.result.obj2(o, 20)))
+            info = []
+            for k_, lin in enumerate(ptrs):
+                if lin and lin < 0x10000000:
+                    b_ = bytes(s.result.read(lin, 0x40))
+                    info.append(f'{k_}:{lin:#x} id {b_[0x2D]:#04x} +39 {b_[0x39]:#04x} t {b_[0]:#04x}')
+                else:
+                    info.append(f'{k_}:{lin:#x}')
+            s.log.append('[nsd] ' + ' | '.join(info))
         if os.environ.get('W8485_RECWATCH'):           # (debug: the season record's line pointers / codes each step)
             o = int(os.environ['W8485_RECWATCH'], 16)
             s.log.append(f"[rec] {s.result.obj2(o + 22, 16).hex()} {s.result.obj2(o + 86, 4).hex()}")
@@ -4830,7 +4841,7 @@ def world_sa_reload():
     ssb = struct.unpack_from('<I', d1, d1.find(b'GPLOGPTR') + 8 + 64)[0]
     item = 6 + 4 * 32 * 12
     names = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_HEX',
-             'W8485_ONE', 'W8485_MIDSAVE', 'W8485_FROM', 'W8485_SAVE_END')
+             'W8485_ONE', 'W8485_MIDSAVE', 'W8485_FROM', 'W8485_SAVE_END', 'W8485_NSDUMP')
     keep = {x: os.environ.get(x) for x in names}
     base = dict(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1',
                 W8485_TEAM=os.environ.get('SA_TEAM') or 'SUDAMERICA,PERU,ALIANZA LIMA')
@@ -4848,7 +4859,9 @@ def world_sa_reload():
             for x in names:
                 os.environ.pop(x, None)
             log_at, st_at, log_n, st_n = gp_ptrs(exe)
-            os.environ.update(base, W8485_FROM=saved, W8485_HEX=f'{ssb:x}:{4 * item},{st_at:x}:{st_n}')
+            d8caa = struct.unpack_from('<I', d1, d1.find(b'GPLOGPTR') + 8 + 60)[0]   # (GPLOGPTR's D8CAA)
+            os.environ.update(base, W8485_FROM=saved, W8485_HEX=f'{ssb:x}:{4 * item},{st_at:x}:{st_n}',
+                              W8485_NSDUMP=f'{d8caa:x}')
             ok, msg = world8485()                     # (to the next season: gp_season runs at CONTINUA CARRIERA)
             for ln in open(os.path.join(RUNS, w84_tag() + '_2', 'session.log'), errors='replace'):
                 q = ln.split()

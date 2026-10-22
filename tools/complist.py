@@ -280,7 +280,8 @@ def _fit(country, long_, short):
     for x in (fn, long_):
         if x and ok(x):
             return x
-    for x in (fn and abbr(fn), abbr(long_), short if ok(short) else None, abbr(short)):
+    for x in (fn and abbr(fn), short if ok(short) and not short.endswith('.') else None, abbr(long_),
+              short if ok(short) else None, abbr(short)):   # (a short cut with '.' after the long name abbreviated)
         if x:
             return x
     words, w = long_.split(), ''

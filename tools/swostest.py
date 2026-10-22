@@ -5441,6 +5441,35 @@ def world_rlines_arg3():
 
 
 @scenario
+def world_cupd_slot2_load():
+    """rc4 regression (squads' AVOLA trap): a Serie D career's slot 2 after a load. SCHIO forced through its Coppa D
+    ties (CD_FORCE=1: the 1/32 in slot 2 in season 1, its winner a club of another Serie D group), season 2 from the
+    season-1 save: the slot-2 buffer and pointer of a Coppa D club with no Coppa D there are empty after the load, so
+    the season-2 end looks up no stale winner (VerifyTeamLoaded's int 3 at obj1+0x17064 before the fix). The season
+    end's FILL.256 check is reported, not judged here (a separate, pre-existing issue)"""
+    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-itanames-0340')
+    if not os.path.isdir(src):
+        return True, f'SKIP: private data {src} missing'
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    exe = os.environ.get('CDS2_BUILD') or build('world_cupd_slot2', env={'SEASON_PACKS': ','.join(
+        ['ddr-1988-89'] + [os.path.join(src, x) for x in order]), 'CD_FORCE': '1'})
+    keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK')
+    keep = {k: os.environ.get(k) for k in keys}
+    os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM='EUROPA,ITALIA,SERIE D GIRONE C,SCHIO',
+                      W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1')
+    try:
+        ok, msg = world8485()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    trap = 'trap' in msg
+    return not trap and (ok or 'FILL.256' in msg), msg
+
+
+@scenario
 def world_rlines_usa():
     """world_rlines at PHILADELPHIA (USA: MLS CUP PLAYOFFS, a title play-off), forced out in the semi-final
     (REACHED SEMI-FINAL)"""

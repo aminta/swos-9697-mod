@@ -126,6 +126,37 @@ def _lp_world(meta_by_world, n):
     return any(wc.get(k, {}).get('format') == 'league_phase' for k in ('cc', 'cwc', 'uefa'))
 
 
+def _merge(rng, why):
+    """Plain ranges of one colour and reason joined into runs of consecutive places (a play-off's entrants come one
+    place each), in the order of their first appearance (the first matching range wins); group ranges kept after."""
+    runs, order = {}, []
+    for (a, z, c), w in zip(rng, why):
+        if a & 0x80:
+            continue
+        if (c, w) not in runs:
+            runs[(c, w)] = set()
+            order.append((c, w))
+        runs[(c, w)].update(range(a, z + 1))
+    out, ow, seen = [], [], set()
+    for c, w in order:
+        ps = sorted(set(runs[(c, w)]) - seen)    # (places an earlier zone paints: never this one's)
+        seen.update(runs[(c, w)])
+        if not ps:
+            continue
+        s = ps[0]
+        for k, p in enumerate(ps):
+            if k + 1 == len(ps) or ps[k + 1] != p + 1:
+                out.append((s, p, c))
+                ow.append(w)
+                if k + 1 < len(ps):
+                    s = ps[k + 1]
+    for r, w in zip(rng, why):
+        if r[0] & 0x80:
+            out.append(r)
+            ow.append(w)
+    return out, ow
+
+
 def pack_zones(d, lang, lp=False, rank=None, detail=None):
     """[(world, title, [(first, last, colour), ...])] of one pack's league divisions; detail (a dict): {(competition
     index, division index): [(first, last, colour, why)]} for the FORMAT page (fmtgame.py), why in WHY."""
@@ -184,8 +215,8 @@ def pack_zones(d, lang, lp=False, rank=None, detail=None):
                         col, w = ORANGE, 'out'
                     elif kind == 'promotion':
                         col, w = (GREEN, 'po_up') if (wd is None or wd < i) else (ORANGE, 'po_down')
-                    else:
-                        continue
+                    else:                                # title / placement play-offs (CONVENTIONS rule 7)
+                        col, w = GREEN, 'po_title' if kind == 'title' else 'po_place'
                     rng.append((place, place, col))
                     why.append(w)
             if lg['special'] and comp.get('playoffs') == 'ita':
@@ -195,9 +226,6 @@ def pack_zones(d, lang, lp=False, rank=None, detail=None):
                     why += ['po_up', 'out']
                 elif li == 2:                            # the Serie C groups
                     rng.append((2, 10, GREEN))
-                    why.append('po_up')
-                elif li == 3:                            # the Serie D groups: each group's play-off, 2nd-5th
-                    rng.append((2, 5, GREEN))            # (Davide 2026-10-22, CONVENTIONS rule 7)
                     why.append('po_up')
             if dv['down']:
                 rng.append((n - dv['down'] + 1, n, RED))
@@ -216,6 +244,7 @@ def pack_zones(d, lang, lp=False, rank=None, detail=None):
                             rng.append(((max(a, ga) - ga + 1) | 0x80, (min(z, gz) - ga + 1) | (g << 6), c))
                             why.append(w + '/grp')
                 gleg = None                              # (the plain legend, filled below)
+            rng, why = _merge(rng, why)                  # (one range per run of places: RANGES is short)
             if detail is not None:
                 detail[(ci, i)] = [r + (w,) for r, w in zip(rng[:RANGES], why)]
             if rng:
@@ -223,10 +252,10 @@ def pack_zones(d, lang, lp=False, rank=None, detail=None):
                 if id(dv) in top and not m.get('europe_places') and continental(m):
                     kind = 'confed/' + '/'.join(dict.fromkeys(e['cup'] for e in continental(m)))
                 out.append((world, _title(m, lang, complist._nm(dv['name'], lang)), rng[:RANGES], kind,
-                            m['files'][comp['clubs']]['file'] if kind == 'lp' else 0, gleg))
+                            m['files'][comp['clubs']]['file'] if kind == 'lp' else 0, gleg, why[:RANGES]))
             elif lp and rank and id(dv) in top and not EU_SEASON1_ONLY:   # European colours only at run time
                 out.append((world, _title(m, lang, complist._nm(dv['name'], lang)), [], 'lp',
-                            m['files'][comp['clubs']]['file'], []))
+                            m['files'][comp['clubs']]['file'], [], []))
     return out
 
 
@@ -363,10 +392,10 @@ def table(lang, pack_dirs):
     for d in pack_dirs:
         m = complist.load_pack(d)
         w = m.get('world', 0) if m.get('kind') == 'career' else 0
-        for world, title, rng, kind, code, gleg in pack_zones(d, lang, _lp_world(metas, w), ranks.get(d)):
+        for world, title, rng, kind, code, gleg, why in pack_zones(d, lang, _lp_world(metas, w), ranks.get(d)):
             assert (world, title) not in seen, (world, title)
             seen.add((world, title))
-            leg = legend(rng, kind)
+            leg = legend(rng, kind, why)
             out.append((world, title, rng, leg, kind, metas.get(world, {}).get('start_year', 1900) - 1900,
                         code, leg if gleg is None else gleg))
     out += [r for r in conti_rows(lang, metas) if (r[0], r[1]) not in seen]
@@ -444,8 +473,13 @@ def continental_all(m):
     return confed2627.PLACES.get(m.get('id'), [])
 
 
-def legend(rng, kind):
-    """[(colour, label key)] in place order, one per colour."""
+WHY_LAB = {'up': 'up', 'po_up': 'po', 'po_title': 'po', 'po_place': 'po', 'po_down': 'out', 'out': 'out',
+           'down': 'down', 'cc': 'cc', 'uefa': 'uefa'}
+
+
+def legend(rng, kind, why=None):
+    """[(colour, label key)] in place order, one per painted zone (CONVENTIONS rule 6): the label from the zone's
+    reason where it names one (a play-off is P.OFF whatever its colour), else from the colour and the table's kind."""
     if kind.startswith('confed/'):
         cups = kind.split('/')[1:]
         names = {CONFED[c]: c for c in reversed(cups)}
@@ -453,14 +487,16 @@ def legend(rng, kind):
         kind = 'confed'
     names = names if kind == 'confed' else {'lp': {LIGHT_BLUE: 'cl', GREEN: 'el', DARK_BLUE: 'conf', ORANGE: 'out', RED: 'down'},
              'classic': {LIGHT_BLUE: 'cc', GREEN: 'uefa', ORANGE: 'out', RED: 'down'},
-             'lower': {LIGHT_BLUE: 'up', GREEN: 'po', ORANGE: 'out', RED: 'down'}}[kind]
-    if kind == 'lp':                                 # (a league-phase top flight's European labels come from its run
-        names = {c: k for c, k in names.items() if k not in ('cl', 'el', 'conf')}   # time colours: EU_LEG)
+             'lower': {LIGHT_BLUE: 'up', GREEN: 'po', ORANGE: 'out', RED: 'down'}}.get(kind, {})
+    why = list(why or []) + [None] * (len(rng) - len(why or []))
     out, seen = [], set()
-    for a, z, c in sorted(r for r in rng if not r[0] & 0x80):
-        if c not in seen and c in names:
-            seen.add(c)
-            out.append((c, names[c]))
+    for (a, z, c), w in sorted((r, w) for r, w in zip(rng, why) if not r[0] & 0x80):
+        k = WHY_LAB.get(w) or (w if w in CONFED else None) or names.get(c)
+        if kind == 'lp' and k in ('cl', 'el', 'conf'):   # (a league-phase top flight's European labels come from its
+            continue                                     # run-time colours: EU_LEG)
+        if k and (c, k) not in seen:
+            seen.add((c, k))
+            out.append((c, k))
     return out[:LEG]
 
 

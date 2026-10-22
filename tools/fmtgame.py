@@ -302,7 +302,7 @@ def tourney_text(c, t):
 ZT = {
     'it': dict(head='COLORI DELLA CLASSIFICA:', col=('AZZURRO', 'VERDE', 'BLU', 'ARANCIONE', 'GRIGIO'),
                why=dict(cc='COPPA DEI CAMPIONI', uefa='COPPA UEFA', up='PROMOZIONE DIRETTA', po_up='PLAY-OFF PROMOZIONE',
-                        po_eu='PLAY-OFF EUROPEO', po_down='SPAREGGIO SALVEZZA', out='PLAY-OUT', down='RETROCESSIONE DIRETTA',
+                        po_eu='PLAY-OFF EUROPEO', po_title='PLAY-OFF SCUDETTO', po_place='PLAY-OFF', po_down='SPAREGGIO SALVEZZA', out='PLAY-OUT', down='RETROCESSIONE DIRETTA',
                         cl='CHAMPIONS LEAGUE', el='EUROPA LEAGUE', conf='CONFERENCE LEAGUE', eu='COPPE EUROPEE'),
                eu='POSTI EUROPEI DAL RANKING UEFA DELLA FEDERAZIONE (ACCESS LIST UEFA): CLASSIFICA {y} PER LE COPPE {y2}, '
                   'RANKING VERO {r}:',
@@ -311,7 +311,7 @@ ZT = {
                    'STAGIONE: NON COLORATI IN ANTICIPO'),
     'en': dict(head='TABLE COLOURS:', col=('LIGHT BLUE', 'GREEN', 'DARK BLUE', 'ORANGE', 'GRAY'),
                why=dict(cc='CHAMPIONS CUP', uefa='UEFA CUP', up='PROMOTED', po_up='PROMOTION PLAY-OFF',
-                        po_eu='EUROPEAN PLAY-OFF', po_down='RELEGATION PLAY-OFF', out='PLAY-OUT', down='RELEGATED',
+                        po_eu='EUROPEAN PLAY-OFF', po_title='TITLE PLAY-OFF', po_place='PLAY-OFFS', po_down='RELEGATION PLAY-OFF', out='PLAY-OUT', down='RELEGATED',
                         cl='CHAMPIONS LEAGUE', el='EUROPA LEAGUE', conf='CONFERENCE LEAGUE', eu='EUROPEAN CUPS'),
                eu='EUROPEAN PLACES BY THE ASSOCIATION UEFA RANKING (UEFA ACCESS LIST): THE {y} TABLE FOR THE {y2} CUPS, '
                   'REAL {r} RANKING:',
@@ -320,7 +320,7 @@ ZT = {
                    'NOT COLOURED IN ADVANCE'),
     'fr': dict(head='COULEURS DU CLASSEMENT:', col=('BLEU CLAIR', 'VERT', 'BLEU FONCE', 'ORANGE', 'GRIS'),
                why=dict(cc='COUPE DES CHAMPIONS', uefa='COUPE UEFA', up='MONTEE DIRECTE', po_up='BARRAGES DE MONTEE',
-                        po_eu='BARRAGES EUROPEENS', po_down='BARRAGE DE MAINTIEN', out='BARRAGES DE MAINTIEN',
+                        po_eu='BARRAGES EUROPEENS', po_title='PLAY-OFF DU TITRE', po_place='BARRAGES', po_down='BARRAGE DE MAINTIEN', out='BARRAGES DE MAINTIEN',
                         down='DESCENTE DIRECTE', cl='LIGUE DES CHAMPIONS', el='LIGUE EUROPA', conf='LIGUE CONFERENCE',
                         eu='COUPES D EUROPE'),
                eu='PLACES EUROPEENNES SELON LE CLASSEMENT UEFA DE L ASSOCIATION (LISTE D ACCES UEFA): CLASSEMENT {y} POUR '
@@ -330,7 +330,7 @@ ZT = {
                    'COLORES A L AVANCE'),
     'de': dict(head='FARBEN DER TABELLE:', col=('HELLBLAU', 'GRUEN', 'DUNKELBLAU', 'ORANGE', 'GRAU'),
                why=dict(cc='LANDESMEISTERPOKAL', uefa='UEFA-POKAL', up='DIREKTER AUFSTIEG', po_up='AUFSTIEGSPLAYOFFS',
-                        po_eu='EUROPAPOKAL-PLAYOFFS', po_down='RELEGATION', out='ABSTIEGSPLAYOFFS',
+                        po_eu='EUROPAPOKAL-PLAYOFFS', po_title='MEISTER-PLAYOFFS', po_place='PLAYOFFS', po_down='RELEGATION', out='ABSTIEGSPLAYOFFS',
                         down='DIREKTER ABSTIEG', cl='CHAMPIONS LEAGUE', el='EUROPA LEAGUE', conf='CONFERENCE LEAGUE',
                         eu='EUROPAPOKALE'),
                eu='EUROPAPOKALPLAETZE NACH DER UEFA-RANGLISTE DES VERBANDS (UEFA-ZUGANGSLISTE): TABELLE {y} FUER DIE '

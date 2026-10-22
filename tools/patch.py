@@ -241,8 +241,17 @@ def patch_exe(src, dst, remap, lang='it'):
     sp_tabs = (mkseason.splits() if worlds else []) + engine.split_tables()   # mid-season splits (worlds; world 0)
     sp_pg = split.pages(sp_tabs) if worlds else 0      # (own pages after all the others)
     ss_on = any(st.get('table') is not None for *_, sp in sp_tabs for st in sp.get('stages') or [])
+    import gplay                                       # (also imported below: the banks need it here)
     if ss_on:                                          # stage tables (GP_SS, gplay.c gp_stage: Argentina's Apertura /
-        engine.save_item('SS', 6 + 4 * 32 * 12)        # Clausura / annual, the MLS season) in the .CAR engine block
+        engine.save_item('SS', gplay.SS_ITEM)          # Clausura / annual, the MLS season) in the .CAR engine block
+        gplay.SS_BANKS[:] = gplay.ss_banks(sp_tabs)    # 4.0.1: the other leagues' banks, item 'SS2' (4.0 saves: absent,
+        if gplay.SS_BANKS[0] > 1:                      # zeroed at load; 'SS' = bank 0 as in 4.0)
+            engine.save_item('SS2', gplay.SS_ITEM)       # (one bank: the career league's; the others are transient)
+            gplay.GP_BSS = 0x6000 + ((gplay.SS_ITEM * gplay.SS_BANKS[0] + 0xFFF) & ~0xFFF)
+    else:
+        gplay.SS_BANKS[:] = [1, None]
+    if gplay.SS_BANKS[0] <= 1:
+        gplay.GP_BSS = 0x6000
     pr_on = any(t and any(po.get('kind') == 'promedio' for po in pk.league.get('ko_playoffs') or [])
                 for pk in mkseason.packs() if pk.world is not None and pk.league for t in [True])
     if pr_on:                                          # Argentina's promedio history (gplay.c PR_STATE)
@@ -432,6 +441,9 @@ def patch_exe(src, dst, remap, lang='it'):
             engine.ITEM_AT['RI'] = gplay.LABELS['RI_STATE']
         if ss_on:
             engine.ITEM_AT['SS'] = gplay.LABELS['GP_SS']
+            if 'SS2' in engine.SAVE_ITEMS:
+                o_, a_ = gplay.LABELS['GP_SS']
+                engine.ITEM_AT['SS2'] = (o_, a_ + gplay.SS_ITEM)
         if pr_on:
             engine.ITEM_AT['PR'] = gplay.LABELS['PR_STATE']
         engine.ITEM_AT['GP'] = gplay.LABELS['GP_ST']    # (the played play-offs' state; its pointers after a load)

@@ -4632,7 +4632,7 @@ def world_odd_league():
     return not errs, '; '.join(errs) or f'{n} clubs, {2 * n} days, every club {2 * (n - 1)} matches; {msg}'
 
 
-def sa_exact_build(code):
+def sa_exact_build(code, also=()):
     """The world 2026-27 (SA_DATA, default the 4.0 RC data world5tm-a6cf4e34) with one South American country's real
     2026 format applied (internal/sam6/sa_exact.py, 4.0.1); SA_BUILD reuses one."""
     import json
@@ -4641,14 +4641,15 @@ def sa_exact_build(code):
     src = os.environ.get('SA_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-a6cf4e34')
     sys.path.insert(0, os.path.join(MAIN, 'internal', 'sam6'))
     import sa_exact
-    w = os.path.join(WORK, f'world_sa_{code}')
+    w = os.path.join(WORK, f"world_sa_{'_'.join((code, *also))}")
     shutil.rmtree(w, ignore_errors=True)
     shutil.copytree(src, os.path.join(w, 'world5tm'))
-    f = os.path.join(w, 'world5tm', code, 'pack.json')
-    json.dump(sa_exact.EXACT[code](json.load(open(f))), open(f, 'w'), indent=1, ensure_ascii=False)
+    for c in (code, *also):
+        f = os.path.join(w, 'world5tm', c, 'pack.json')
+        json.dump(sa_exact.EXACT[c](json.load(open(f))), open(f, 'w'), indent=1, ensure_ascii=False)
     order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
     tag = '_' + os.environ['SWOSTEST_TAG'] if os.environ.get('SWOSTEST_TAG') else ''
-    return build(f'world_sa_{code}{tag}', env={'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(w, 'world5tm', x)
+    return build(f"world_sa_{'_'.join((code, *also))}{tag}", env={'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(w, 'world5tm', x)
                                                                                       for x in order])})
 
 
@@ -4691,6 +4692,121 @@ def world_sa_exact(code, team, n, days):
     sres = [struct.unpack_from('<BBHHHH', logs[-1], 982 + 10 * i) for i in range(3)] if logs else []
     check(len(sres) == 3 and all(x[0] == 8 and x[2] for x in sres[:2]), f'stage titles {sres}', errs)
     return not errs, '; '.join(errs) or f'{msg}; {days} days, stage titles {sres[:2]}'
+
+
+@scenario
+def world_sa_banks():
+    """4.0.1 GP_SS banks (gplay.c GP_SSB): Peru and Colombia exactly next to Argentina (+ MLS) in one world, a season at
+    ALIANZA LIMA; at the season end every bank holds only its own league's clubs: bank 0 = Argentina's Apertura /
+    Clausura / annual (4.0's item 'SS'), bank 1 = the career league's (Peru, item 'SS2'), bank 3 = Colombia's
+    (transient: 1 + its index)"""
+    import json
+    exe = sa_exact_build('per', ('col',))
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    from le import LE
+    d1 = LE(open(os.path.join(exe, 'ITALIAN.EXE'), 'rb').read()).obj_bytes(1)
+    k = d1.find(b'GPLOGPTR')
+    ssb = struct.unpack_from('<I', d1, k + 8 + 64)[0]
+    item = 6 + 4 * 32 * 12
+    data = os.environ.get('SA_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-a6cf4e34')
+    file_of = lambda c: json.load(open(os.path.join(data, c, 'pack.json')))['files']['league']['file']
+    want = {0: file_of('arg'), 1: file_of('per'), 3: file_of('col')}   # (1: the career league's, saved; 1 + b)
+    keep = {x: os.environ.get(x) for x in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K',
+                                            'W8485_NOSACK', 'W8485_HEX', 'W8485_ONE')}
+    os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1',
+                      W8485_TEAM='SUDAMERICA,PERU,ALIANZA LIMA', W8485_ONE='1', W8485_HEX=f'{ssb:x}:{4 * item}')
+    try:
+        ok, msg = world8485()
+    finally:
+        for x, v in keep.items():
+            if v is None:
+                os.environ.pop(x, None)
+            else:
+                os.environ[x] = v
+    errs = []
+    check(ok, msg, errs)
+    dumps = [bytes.fromhex(ln.split()[2]) for ln in open(os.path.join(RUNS, w84_tag() + '_1', 'session.log'),
+                                                             errors='replace') if ln.startswith('HEX ')]
+    check(dumps, 'no GP_SSB dump', errs)
+    info = []
+    if dumps:
+        b = dumps[-1]
+        seen = {}
+        for bank in range(4):
+            base = bank * item
+            n = list(b[base:base + 4])
+            files = set()
+            for t in range(4):
+                for r in range(n[t] if n[t] <= 32 else 0):
+                    files.add(struct.unpack_from('<H', b, base + 6 + (t * 32 + r) * 12)[0] & 255)
+            info.append(f'bank {bank}: n {n} files {sorted(files)}')
+            seen[bank] = files
+        check(seen[0] and seen[0] <= {want[0], file_of('usa')}, f'bank 0 (4.0): files {sorted(seen[0])}', errs)
+        check(seen[1] == {want[1]}, f'bank 1 (the career league, Peru): files {sorted(seen[1])}', errs)
+        check(sum(seen[k] == {want[3]} for k in (2, 3)) == 1, f'Colombia in one transient bank: {seen}', errs)
+        check(all(len(seen[k]) <= 1 for k in (1, 2, 3)), f'a bank with two leagues: {seen}', errs)
+    return not errs, '; '.join(errs + info) + f'; {msg}'
+
+
+@scenario
+def world_sa_compat():
+    """4.0 -> 4.0.1 save compatibility of the stage tables (GP_SS banks): a career at BOCA JUNIORS on the 4.0 build
+    (SA_OLD_BUILD, default c/REL40/SWOS) saved right after Argentina's Apertura (split 'frozen' = 2), loaded on the
+    4.0.1 build with Peru + Colombia exact and played to the season end: bank 0's annual table = the Apertura (from
+    the 4.0 save) + the Clausura, club by club; the season ends"""
+    import split
+    import lepatch
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    from le import LE
+    old = os.environ.get('SA_OLD_BUILD') or os.path.join(MAIN, 'c', 'REL40', 'SWOS')
+    new_ = sa_exact_build('per', ('col',))
+    sa = split.sites(lepatch.LEPatch(os.path.join(MAIN, 'orig', 'ITALIAN.EXE')))
+    frozen = sa['DIY'] + split.ST + split.OFF['frozen']
+    d1 = LE(open(os.path.join(new_, 'ITALIAN.EXE'), 'rb').read()).obj_bytes(1)
+    k = d1.find(b'GPLOGPTR')
+    ssb = struct.unpack_from('<I', d1, k + 8 + 64)[0]
+    item = 6 + 4 * 32 * 12
+    names = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_HEX',
+             'W8485_ONE', 'W8485_MIDSAVE', 'W8485_FROM')
+    keep = {x: os.environ.get(x) for x in names}
+    base = dict(W8485_WORLD='MONDO 2026-27', W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1',
+                W8485_TEAM='SUDAMERICA,ARGENTINA,LIGA PROFESIONAL DE FUTBOL,BOCA JUNIORS')
+    errs, info = [], []
+    try:
+        for x in names:
+            os.environ.pop(x, None)
+        os.environ.update(base, W8485_BUILD=old, W8485_ONE='1', W8485_MIDSAVE=f'{frozen:x}:2:2')
+        ok, msg = world8485()
+        car = os.path.join(RUNS, w84_tag() + '_1', 'SWOS', 'W84A.CAR')
+        check(ok and os.path.exists(car), f'4.0 mid-season save: {msg}', errs)
+        if not errs:
+            saved = os.path.join(RUNS, 'sa_compat_W84A.CAR')
+            shutil.copy(car, saved)
+            for x in names:
+                os.environ.pop(x, None)
+            os.environ.update(base, W8485_BUILD=new_, W8485_FROM=saved, W8485_HEX=f'{ssb:x}:{item}')
+            ok, msg = world8485()
+            check(ok, f'4.0.1 from the 4.0 save: {msg}', errs)
+            dumps = [bytes.fromhex(ln.split()[2]) for ln in open(os.path.join(RUNS, w84_tag() + '_2', 'session.log'),
+                                                                     errors='replace') if ln.startswith('HEX ')]
+            ann = [b for b in dumps if b[4] & 4]              # (bank 0 with its annual table written)
+            check(ann, f'no dump with the annual table ({len(dumps)} dumps)', errs)
+            if ann:
+                b = ann[-1]
+                rows = lambda t: {struct.unpack_from('<H', b, 6 + (t * 32 + r) * 12 + 2)[0]:
+                                  struct.unpack_from('<H', b, 6 + (t * 32 + r) * 12 + 10)[0] for r in range(b[t])}
+                ap, cl, an = rows(0), rows(1), rows(2)
+                bad = [g for g in an if an[g] != ap.get(g, -999) + cl.get(g, -999)]
+                check(b[0] == b[1] == b[2] == 30 and not bad, f'annual != Apertura + Clausura for {len(bad)} clubs '
+                      f'(n {list(b[:3])})', errs)
+                info.append(f'annual of {len(an)} clubs = Apertura (4.0 save) + Clausura')
+    finally:
+        for x, v in keep.items():
+            if v is None:
+                os.environ.pop(x, None)
+            else:
+                os.environ[x] = v
+    return not errs, '; '.join(errs + info)
 
 
 @scenario

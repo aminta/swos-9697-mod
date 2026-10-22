@@ -675,7 +675,9 @@ Cearense, Pernambucano, Alagoano and Mato-Grossense.
   EUROCUP.TMD, UEFACUP.TMD and POOLPLYR.DAT). Copy the new files into DATA too, or use the one-click install. The patcher page now needs a recent browser (Chrome 103+,
   Safari 16.4+, Firefox 113+).
 - Saves: careers of the 1996-97 game saved with 3.3.6 and earlier load and play on. Careers of the Europe 1984-85 world saved with
-  3.x load and play on too. 
+  3.x load and play on too.
+
+Thanks to DaniSwos for the Europe 1984-85 database, to Marco for the reports, to Roman for the install feedback and to Gianmarco for the Program Files report.
 
 ## Italiano
 
@@ -1395,4 +1397,6 @@ Baiano, Cearense, Pernambucano, Alagoano e Mato-Grossense.
   nuovi in DATA, oppure usa l'installazione con un clic. La pagina del patcher ora
   richiede un browser recente (Chrome 103+, Safari 16.4+, Firefox 113+).
 - Salvataggi: le carriere del gioco 1996-97 salvate con la 3.3.6 e precedenti si caricano e continuano. Anche le carriere del mondo
-  Europa 1984-85 salvate con la 3.x si caricano e continuano. 
+  Europa 1984-85 salvate con la 3.x si caricano e continuano.
+
+Grazie a DaniSwos per il database Europa 1984-85, a Marco per le segnalazioni, a Roman per i consigli sull'installazione e a Gianmarco per la segnalazione sulla cartella Programmi.

@@ -6867,7 +6867,12 @@ def world_full_uefa():
     direct = {c: collections.Counter() for c in LS}
     qual = {c: set() for c in LS}
     for r, f in enumerate(rank, 1):
-        for rnd, code in entries.get(r, []):
+        rows = entries.get(r, [])
+        if name.get(f) == 'lie':                     # (4.0, uefa401: Liechtenstein's own row wherever it ranks; a
+            rows = [(21, 1)]                         # 44th association with a league: the regular row of 43 / 45)
+        elif r == 44 and rows == [(21, 1)]:
+            rows = [(7, 0), (21, 1), (21, 2), (21, 3)]
+        for rnd, code in rows:
             for c in LS:
                 if rnd == LS[c]:
                     direct[c][f] += 1

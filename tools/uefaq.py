@@ -723,6 +723,23 @@ def structs(p, area, lang, at):
     return out
 
 
+def cuponly_file():
+    """The league file of the world's Liechtenstein (tools/uefaq_al_exceptions.json: no league, its cup winner only;
+    the access list's row 44 belongs to it wherever it ranks), 0 if the build has none."""
+    import careerworld
+    import mkseason
+    lp = {w['n'] for w in mkseason.world_defs() if careerworld.LP_ROUNDS in [w['cups'][k][0] for k in ('cc', 'cwc', 'uefa')]}
+    for n, pks in mkseason.worlds().items():
+        if n not in lp:                                  # (the league-phase world: the one uefaq serves)
+            continue
+        for pk in pks:
+            if str(pk.meta.get('id', '')).lower().split('-')[-1] == 'lie':
+                f = ((pk.meta.get('files') or {}).get('league') or {}).get('file')
+                if f:
+                    return f & 0xFF
+    return 0
+
+
 def patch(p, at, limit, sites):
     """sites: careerworld LABELS / _qual_sites, uefacoef LABELS, the obj2 BSS base. Returns the end."""
     import cobj
@@ -734,6 +751,8 @@ def patch(p, at, limit, sites):
     syms, end, bss = cobj.link(p, obj, at, (2, bss_at), limit=limit)
     assert bss <= cw.UQ_BSS, hex(bss)
     lay = struct.unpack('<24I', p.get(1, syms['UQ_LAYOUT'][1], 96))
+    assert syms['UQ_CUPONLY_FILE'][0] == 1, syms['UQ_CUPONLY_FILE']   # (the access list's Liechtenstein row: by file)
+    p.put(1, syms['UQ_CUPONLY_FILE'][1], bytes([cuponly_file()]))
     keys = ('L_PRESENT', 'L_EPS', 'L_HOLD', 'L_NCLUB', 'L_LEAGUE', 'L_CUP', 'L_CLUB', 'CSZ', 'O_N', 'O_LS', 'O_STATUS',
             'IN_SIZE', 'NC', 'L_MANAGER', 'L_FORCE', 'O_MT_N', 'O_MT_ROUND', 'O_MT_OPP', 'O_MT_WIN', 'O_STANDIN', 'O_GN',
             'O_GL', 'L_LCUP', 'L_EPLAY')

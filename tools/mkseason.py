@@ -2279,14 +2279,14 @@ def patch(p, lang, area, cave):
     if careers:
         site_c, choose = _career_site(p)
         symbols.update({'CAREER_WORLD': (1, cworld), 'CHOOSE': (1, choose), 'CAREERS_N': (0, CAREERS)})
-        src = src.replace('cont_check:', 'cont_check:\n    cmp word [D7REG], CAREERS_N\n    je CONT_WORLD') + CAREER_ASM
+        src = nasmcave.sub(src, 'cont_check:', 'cont_check:\n    cmp word [D7REG], CAREERS_N\n    je CONT_WORLD') + CAREER_ASM
         if worlds():                                      # careerworld.WCONT: the running world's continent
-            src = src.replace('cont_check:', 'cont_check:\n    cmp word [D7REG], 99\n    je CONT_WORLD')
+            src = nasmcave.sub(src, 'cont_check:', 'cont_check:\n    cmp word [D7REG], 99\n    je CONT_WORLD')
         for wid in wmenus:                                # the worlds of the CLASSIC CAREERS list
-            src = src.replace('cont_check:', f'cont_check:\n    cmp word [D7REG], {wid}\n    je CONT_WORLD')
+            src = nasmcave.sub(src, 'cont_check:', f'cont_check:\n    cmp word [D7REG], {wid}\n    je CONT_WORLD')
         for ids in WCONT_IDS.values():                    # a world's continents and OTHER NATIONS lists
             for cid, _, _ in ids:
-                src = src.replace('cont_check:', f'cont_check:\n    cmp word [D7REG], {cid}\n    je CONT_WORLD')
+                src = nasmcave.sub(src, 'cont_check:', f'cont_check:\n    cmp word [D7REG], {cid}\n    je CONT_WORLD')
         if wmenus:
             lvl, nst, csp = _level_site(p)
             symbols.update({'NST': nst, 'CSP': csp, 'WMENU_N': (0, WMENU)})

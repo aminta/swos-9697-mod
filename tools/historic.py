@@ -925,10 +925,10 @@ def patch(p, lang, area, cave, draw_pre=None, leagues=(), cave2=None, lp=None, c
                'LP_DRAW': (1, lp[1]) if lp else (0, 'draw_pre_none')}
     src = ASM
     extra = ''.join(f'    je .r\n    cmp byte [DIYCOPY + 2Dh], {cid:#x}\n' for cid in coin_ids)   # tourney packs
-    src = src.replace('    cmp byte [DIYCOPY + 2Dh], FA_ID_\n.r:', '    cmp byte [DIYCOPY + 2Dh], FA_ID_\n' + extra + '.r:')
+    src = nasmcave.sub(src, '    cmp byte [DIYCOPY + 2Dh], FA_ID_\n.r:', '    cmp byte [DIYCOPY + 2Dh], FA_ID_\n' + extra + '.r:')
     if mkseason.CAREERS_REC[0] is not None:                # career packs: CLASSIC CAREERS button coloured too
         symbols['CAREERS_NAME'] = (2, mkseason.CAREERS_REC[0] + 1)
-        src = src.replace('    cmp dword [esi + 26h], SEASONS_NAME', '    cmp dword [esi + 26h], CAREERS_NAME\n    je .c\n'
+        src = nasmcave.sub(src, '    cmp dword [esi + 26h], SEASONS_NAME', '    cmp dword [esi + 26h], CAREERS_NAME\n    je .c\n'
                           '    cmp dword [esi + 26h], SEASONS_NAME')
     while True:                                            # (3.2: the code on its own page; tables stay in the cave)
         code, fix = nasmcave.assemble(src, at2, symbols)    # no pointer may straddle a page

@@ -1184,17 +1184,18 @@ def patch(p, at, area, lang, pack_dirs, bss, bss_len, world=None):
     menu_new, menu_ref = _menu_copy(p, area, legbuf)
     cur_menu = _current_menu(p)
     first = ('    call LP_COL\n' if lp else '    mov ax, [C11]\n')
-    src = ASM.replace('FIRST\n', first)
-    src = src.replace('LP_SKIP\n', '    call LP_OURS\n    je .x\n' if lp else '')
+    src = nasmcave.sub(ASM, 'FIRST\n', first)
+    src = nasmcave.sub(src, 'LP_SKIP\n', '    call LP_OURS\n    je .x\n' if lp else '')
     import uefacoef
     rt = lp and world is not None and not EU_SEASON1_ONLY and 'uc_rank' in uefacoef.LABELS
-    src = src.replace('RANK_CALL\n', RANK_CALL if rt else '').replace('EU_ROW\n', EU_ROW if rt else '')
-    src = src.replace('EU_LEG\n', EU_LEG if rt else '')
+    src = nasmcave.sub(src, 'RANK_CALL\n', RANK_CALL if rt else '')
+    src = nasmcave.sub(src, 'EU_ROW\n', EU_ROW if rt else '')
+    src = nasmcave.sub(src, 'EU_LEG\n', EU_LEG if rt else '')
     if rt:
         src += RANK_ASM
-    src = src.replace('SEASON_TEST\n', '    mov bl, [SEASONP]\n    cmp bl, [edi + EFLAG_ + 1]\n    je .r\n    mov bh, 1\n'
+    src = nasmcave.sub(src, 'SEASON_TEST\n', '    mov bl, [SEASONP]\n    cmp bl, [edi + EFLAG_ + 1]\n    je .r\n    mov bh, 1\n'
                       if world and EU_SEASON1_ONLY else '')
-    src = src.replace('WORLD_BYTE\n', '''    cmp word [GAMETYPE], 4
+    src = nasmcave.sub(src, 'WORLD_BYTE\n', '''    cmp word [GAMETYPE], 4
     jne .w
     mov bl, [SLT + 1845]
 .w:
@@ -1208,13 +1209,14 @@ def patch(p, at, area, lang, pack_dirs, bss, bss_len, world=None):
     import gplay
     ov = 'on' in fmtpage.OV and 'GP_OV_ANNUAL' in gplay.LABELS
     hdr = 'GP_HON' in gplay.LABELS and 'GP_HG' in gplay.LABELS
-    src = src.replace('HDR_PREP\n', HDR_PREP_ASM if hdr else '').replace('HDR_RANGE\n', HDR_RANGE_ASM if hdr else '')
-    src = src.replace('HDR_LEG\n', HDR_LEG_ASM if hdr else '')
+    src = nasmcave.sub(src, 'HDR_PREP\n', HDR_PREP_ASM if hdr else '')
+    src = nasmcave.sub(src, 'HDR_RANGE\n', HDR_RANGE_ASM if hdr else '')
+    src = nasmcave.sub(src, 'HDR_LEG\n', HDR_LEG_ASM if hdr else '')
     if hdr:
         import longtable
         sym.update({'GP_HON': gplay.LABELS['GP_HON'], 'GP_HG': gplay.LABELS['GP_HG'], 'GP_HGP': gplay.LABELS['GP_HGP'],
                     'LT_ROWS_': (0, longtable.ROWS)})
-    src = src.replace('OV_ROW\n', '''    cmp byte [OV_ON], 2                 ; 4.0 the overall table in its annual form (Argentina): the last relegated
+    src = nasmcave.sub(src, 'OV_ROW\n', '''    cmp byte [OV_ON], 2                 ; 4.0 the overall table in its annual form (Argentina): the last relegated
     jne .o
     cmp eax, [GP_OV_N]
     jne .o

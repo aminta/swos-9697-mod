@@ -100,7 +100,7 @@ def patch(p, at, lang, wid, onsel=None):
     assert d0, 'mov word [D0], 11'
     call = [m.start() + on - 80 for m in re.finditer(rb'\xe8....\x8f\x05', c[on - 80:on], re.S)][-1]   # (call; pop D0)
     calc = call + 5 + struct.unpack_from('<i', c, call + 1)[0]
-    src = SRC.replace('LABEL_', '"' + LABEL[lang].decode('latin-1') + '"')
+    src = nasmcave.sub(SRC, 'LABEL_', '"' + LABEL[lang].decode('latin-1') + '"')
     if not onsel:                                    # (CAREER's on-select function: the main menu's entry 9 in obj2,
         d2 = p.le.obj_bytes(2)                       # `dw 13 / dd offset CareerMenu` after its string's pointer)
         f2 = {s: (t, o) for so, s, _, t, o, *_ in p.le.fixups() if so == 2}

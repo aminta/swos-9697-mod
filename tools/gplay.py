@@ -1331,11 +1331,59 @@ gp_cdmem:                               ; ZF = 0 when the career club is a Coppa
     popad
     ret
 
-gp_cal1:                                ; 4.0 A: cseg_3563E's `mov eax, A6` (the career calendar's list of entries):
-    mov eax, [A6R]                      ; a Coppa D club's COPPA ITALIA entries (slot 1: the game plays the cup
-    cmp byte [eax], 1                   ; through them, the club is not in it) are left out of the list (replay
-    jne .r                              ; days: lib97 cal_noreplay removes them at the install)
+gp_notin:                               ; al = a slot (1 / 2): ZF = 0 when the career club is not one of its cup's
+    pushad                              ; clubs (rule 11; the cup's definition, D8CAA's slot pointer) -
+    xor ebx, ebx                        ; careers of this world only; a Coppa D club: slot 1 hidden, slot 2 its Coppa D
+    cmp word [GAMETYPE], 4              ; (as before)
+    jne .r
+    mov cl, [SLT + WORLD_BYTE]
+    cmp cl, [CD_TAB]
+    jne .r
+    push eax
     call gp_cdmem
+    pop eax
+    jz .nc
+    cmp al, 1
+    sete bl
+    jmp .r
+.nc:
+    movzx eax, al
+    mov esi, [SLOTS_ + eax * 4]         ; (a group contest - a state championship, our group contests: its own clubs)
+    test esi, esi
+    jz .r
+    cmp byte [esi], 1
+    jne .r
+    mov esi, [D8CAA + eax * 4]          ; a cup: its definition's clubs (header, byte 10 = clubs, the team words from
+    test esi, esi                       ; byte 7 + [7]; the slot's entries are filled only by its draw)
+    jz .r
+    movzx ecx, byte [esi + 10]
+    movzx eax, byte [esi + 7]
+    lea esi, [esi + eax + 7]
+    mov dx, [CAREERTEAM]
+    mov bl, 1
+.l: jecxz .r
+    cmp [esi], dx
+    je .in
+    add esi, 2
+    dec ecx
+    jmp .l
+.in:
+    xor ebx, ebx
+.r: test ebx, ebx
+    popad
+    ret
+
+gp_cal1:                                ; 4.0 A: cseg_3563E's `mov eax, A6` (the career calendar's list of entries):
+    mov eax, [A6R]                      ; slot 1 / 2's entries of a cup the career club is not in (gp_notin: rule 11,
+    mov cl, [eax]                       ; the game plays the cup through them) are left out of the list (replay days:
+    cmp cl, 1                           ; lib97 cal_noreplay removes them at the install)
+    je .s
+    cmp cl, 2
+    jne .r
+.s: push eax
+    mov al, cl
+    call gp_notin
+    pop eax
     jz .r
     inc word [D6R]                      ; (cseg_3570C's next entry, without using a list line)
     mov word [D7R], 0
@@ -1348,10 +1396,25 @@ gp_cal1:                                ; 4.0 A: cseg_3563E's `mov eax, A6` (the
 .r: ret
 
 gp_vc1:                                 ; 4.0 (rule 11): VISUAL. COMPETIZ.'s `mov eax, [D8CAA + 4]` (slot 1 shown when
-    mov eax, [D8CAA + 4]                ; not 0): a Coppa D club does not see the COPPA ITALIA it is not in (the cup is
-    test eax, eax                       ; still played for its winner)
+    mov eax, [D8CAA + 4]                ; not 0): the career club does not see a cup it is not in (gp_notin; the cup is
+    test eax, eax                       ; still played for its winner: Mestre promoted to Serie C, the COPPA ITALIA's
+    jz .r                               ; 16 Serie A / B clubs)
+    push eax
+    mov al, 1
+    call gp_notin
+    pop eax
     jz .r
-    call gp_cdmem
+    xor eax, eax
+.r: ret
+
+gp_vc2:                                 ; 4.0.1: the same for slot 2 (`mov eax, [D8CAA + 8]`: the league cup, e.g. the
+    mov eax, [D8CAA + 8]                ; COPPA ITALIA SERIE C's 17 clubs)
+    test eax, eax
+    jz .r
+    push eax
+    mov al, 2
+    call gp_notin
+    pop eax
     jz .r
     xor eax, eax
 .r: ret
@@ -1519,6 +1582,7 @@ def _top9(p):
     return p.target(1, m[0] + 6), p.target(1, m[0] + 16)
 GP_PAGES = 13            # obj1 pages for the C code + glue + specs (World 2026-27's 20 countries; gplay-play; 4.0 ARG: 7; the record lines: 12; longtable's code: 13)
 GP_ST_SIZE = 2048       # (sizeof struct gp_state: the engine block's item 'GP', patch.py)
+WN_SIZE = 4 + 4 * 40    # (sizeof struct wn_state: the engine block's item 'WN', the WINNERS page's last season)
 GP_BSS = 0x6000          # the C .bss pages (obj2 after careerworld's BSS): GP_IN at GT 32 / GD 16, GP_SS, PR, RS, GP_ST, RI, PS
 
 
@@ -1672,6 +1736,9 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
     for a in (*ps['lend'], ps['ssim'], ps['draw']):
         assert p.get(1, a, 1) == b'\xe8', hex(a)
     force = int(os.environ.get('GPLAY_FORCE') or 0)         # (test builds: the career club's place in its division)
+    if os.environ.get('GPLAY_KOFORCE'):                     # (test builds: the career club's knockout ties forced)
+        print(f"exe: GPLAY_KOFORCE={os.environ['GPLAY_KOFORCE']} (test build: the career club {'loses' if os.environ['GPLAY_KOFORCE'] == '1' else 'wins'} "
+              'its played knockout ties)')
     import mkseason as mks
     prom = mks.promedio_table()                     # Argentina's promedio history (GP_PROM_TAB) before the C code
     assert not any(p.get(1, at, len(prom)))
@@ -1683,7 +1750,8 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
     sec_at, at = at, (at + len(sec) + 15) & ~15
     obj = cobj.compile_c(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'gplay.c'), [f'-DGP_FORCE={force}', f"-DSEC_FORCE={int(os.environ.get('SEC_FORCE') or 0)}",
                                 f"-DSEC_FORCE_B={int(os.environ.get('SEC_FORCE_B') or 0xFFFF)}",
-                                f"-DGP_RLFORCE={int(os.environ.get('GPLAY_RLFORCE') or 0)}"]
+                                f"-DGP_RLFORCE={int(os.environ.get('GPLAY_RLFORCE') or 0)}",
+                                f"-DGP_KOFORCE={int(os.environ.get('GPLAY_KOFORCE') or 0)}"]
                                + (['-DHDR_TEST'] if os.environ.get('HDR_TEST') else []))   # (test builds: GROUP n headers)
     top_r, top_w = _top9(p)                          # (cseg_927A2's top-9 list: gp_champ)
     import mkseason                             # 4.0 group headers' labels (zones.header_labels, the exe language)
@@ -1829,8 +1897,8 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
                         'A4R': (2, a0_ + 16)})
         cd_src += CUP12 + cds1_src(p, cds[0], rl, rs)
         symbols.update({f'C_S1_{k}': (1, c) for k, c in enumerate(CDS1_CALLS)})
-    cd_src += GP_RNAME.replace('CD_PART', CD_RNAME if cds else '')
-    asm = (ASM.replace('jmp GP_REC_NEXT', 'jmp GP_REC_NEXT' if rec_dp else 'jmp gp_recmov') + tab_src + '\n'
+    cd_src += nasmcave.sub(GP_RNAME, 'CD_PART', CD_RNAME if cds else '')
+    asm = (nasmcave.sub(ASM, 'jmp GP_REC_NEXT', 'jmp GP_REC_NEXT' if rec_dp else 'jmp gp_recmov') + tab_src + '\n'
            + names_lines(tables, area, lang) + '\n' + stubs + cd_src)
     glue = (cend + 15) & ~15
     code, fix = nasmcave.assemble(asm, glue, symbols)
@@ -1859,6 +1927,11 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
         assert len(vc) == 2, vc                               # (the first: SquadInit's)
         p.remove(1, vc[1] + 1)
         p.put(1, vc[1], b'\xe8' + struct.pack('<i', lab['gp_vc1'] - (vc[1] + 5)))
+        vc2 = [m.start() for m in re.finditer(rb'\xa1' + re.escape(struct.pack('<I', ps['d8caa'] + 8)) +
+                                              rb'\x0b\xc0\x0f\x85', d1v) if 0 < m.start() - vc[1] < 0x400]
+        assert len(vc2) == 1, vc2                             # (its slot-2 test, after the slot-1 one)
+        p.remove(1, vc2[0] + 1)
+        p.put(1, vc2[0], b'\xe8' + struct.pack('<i', lab['gp_vc2'] - (vc2[0] + 5)))
         cal1 = CAL1_SITE[0]                                   # cseg_3563E's `mov eax, A6` (5 B, a fixup) -> call
         p.remove(1, cal1 + 1)
         p.put(1, cal1, b'\xe8' + struct.pack('<i', lab['gp_cal1'] - (cal1 + 5)))
@@ -1911,7 +1984,9 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
                   RS_STATE=syms['RS_STATE'], ri_season=syms['ri_season'], ri_apply=syms['ri_apply'],
                   ri_cache=syms['ri_cache'], RI_STATE=syms['RI_STATE'], RI_MGR=syms['RI_MGR'],
                   RI_RULE=syms['RI_RULE'], cd_season=syms['cd_season'],
-                  gp_wn_c=syms['gp_wn_c'], GP_WNSRC=syms['GP_WNSRC'], GP_SEAS=syms['GP_SEAS'])   # (winners.py)
+                  gp_wn_c=syms['gp_wn_c'], GP_WNSRC=syms['GP_WNSRC'], GP_SEAS=syms['GP_SEAS'],   # (winners.py)
+                  WN_ST=syms['WN_ST'], GP_MGR=syms['GP_MGR'])
+    assert struct.unpack('<I', p.get(1, syms['WN_SIZE'][1], 4))[0] == WN_SIZE   # (the engine block's 'WN')
     if cds:
         assert struct.unpack('<I', p.get(1, syms['CD_STSZ'][1], 4))[0] == CD_SIZE   # (the engine block's 'CD')
     print(f"exe: knockout play-offs (gplay): {len(tables)} countries, C obj1+{at:#x}..{cend:#x}, glue ..{glue + len(code):#x}, "

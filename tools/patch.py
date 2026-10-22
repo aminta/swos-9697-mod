@@ -220,6 +220,7 @@ def patch_exe(src, dst, remap, lang='it'):
     if gp_tabs and mkseason.worlds():                  # the played ones' state (GP_ST) in the .CAR engine block, its
         import gplay as gp_mod                         # contest pointers back after a load (gp_sync)
         engine.save_item('GP', gp_mod.GP_ST_SIZE)
+        engine.save_item('WN', gp_mod.WN_SIZE)         # 4.0.1 the WINNERS page's last season (WN_ST, gp_season)
         engine.after_load('gp_sync')
         if any(t[2] in gp_mod.T2_SPECS for t in gp_tabs):   # (a group contest played: the early tables beyond 2)
             engine.save_item('GS', gp_mod.GS_SIZE)
@@ -435,6 +436,7 @@ def patch_exe(src, dst, remap, lang='it'):
         if pr_on:
             engine.ITEM_AT['PR'] = gplay.LABELS['PR_STATE']
         engine.ITEM_AT['GP'] = gplay.LABELS['GP_ST']    # (the played play-offs' state; its pointers after a load)
+        engine.ITEM_AT['WN'] = gplay.LABELS['WN_ST']    # (the WINNERS page's last season)
         if 'GS' in engine.SAVE_ITEMS:
             engine.ITEM_AT['GS'] = gplay.LABELS['GP_GS']
         if 'CD' in engine.SAVE_ITEMS:
@@ -467,28 +469,32 @@ def patch_exe(src, dst, remap, lang='it'):
     cos = menumusic.patch(p, cos)                # 3.3.6: menu music when the main menu opens (SWOS++ options load late)
     cos = fmtpage.patch(p, cos, lang, area, num_bss + shirtnum.BSS_SIZE + blond.BSS_SIZE + menunum.BSS_SIZE,
                          careerworld.SITES if worlds else None,   # FORMAT page (5.0); 4.0.1 its VINCITORI entry
-                         wn=bool(worlds and LT_SPACE))            # (winners.py in gplay's pages)
+                         wn=bool(worlds and LT_SPACE and xtra_pg))   # (winners.py on the extra pages)
     cos = menulevels.patch(p, cos, area, lang)   # 4.0: team choice of a league with levels of groups: level, then group
+    import titlelegs                             # 4.0: the French match titles' leg words (40-character titles)
+    titlelegs.patch(p, area, lang)
     import zones                                 # 4.0: zone colours in the league tables (light blue, green, ...)
     zones.RING = None                            # (per exe: a release build patches the four languages in one run)
-    if LT_SPACE and LT_SPACE[1] - LT_SPACE[0] >= 0x800:          # (its ring routine in gplay's pages: the cosmetics
-        LT_SPACE[0] = zones.ring_patch(p, LT_SPACE[0])           # page is full)
+    lt_room = None                                               # zones' ring + longtable + mainbtn (~0x5A0 B): in
+    if LT_SPACE and LT_SPACE[1] - LT_SPACE[0] >= 0x600:          # gplay's pages, else the extra pages' last 0x600 B
+        lt_room = list(LT_SPACE)                                 # (a test build's gplay is bigger), else the
+    elif xtra_pg:                                                # cosmetics page as before (full in a world build)
+        xtop = hist2 + h2 + 0x1000 * (lpb - cos_pg - ri_pg)
+        lt_room = [xtop - 0x600, xtop]
+    if lt_room:
+        lt_room[0] = zones.ring_patch(p, lt_room[0])
     cos = zones.patch(p, cos, area, lang, [e if os.sep in e else os.path.join(mkseason.PACKS, e) for e in mkseason.ENABLED],
                       num_bss + shirtnum.BSS_SIZE + blond.BSS_SIZE + menunum.BSS_SIZE, fmtpage.BSS_SIZE,
                       careerworld.SITES if worlds else None)   # (the FORMAT page's buffer, shared)
-    if LT_SPACE and LT_SPACE[1] - LT_SPACE[0] >= 0x700:        # (4.0: in gplay's pages - the cosmetics page is full)
-        lt_end_ = longtable.patch(p, LT_SPACE[0], area, lang)
+    if lt_room:
+        lt_end_ = longtable.patch(p, (lt_room[0] + 15) & ~15, area, lang)
         if worlds and any(pk.meta.get('id', '').startswith('world-2026-27-') for pk in mkseason.packs()):
             import mainbtn                               # 4.0: the green CARRIERA 2026-27 button on the main menu
             w27 = min(pk.world for pk in mkseason.packs() if pk.meta.get('id', '').startswith('world-2026-27-'))
             lt_end_ = mainbtn.patch(p, (lt_end_ + 15) & ~15, lang, mkseason.WMENU + w27)
-        if worlds and fmtpage.WN:                        # 4.0.1: the SEASON WINNERS page (fmtpage's VINCITORI entry)
-            import winners
-            lt_end_ = winners.patch(p, lt_end_, lang, careerworld.SITES)
-        assert lt_end_ <= LT_SPACE[1], hex(lt_end_)
-        print(f'exe: longtable code in gplay\'s pages: obj1+{LT_SPACE[0]:#x}..{lt_end_:#x} (free to {LT_SPACE[1]:#x})')
+        assert lt_end_ <= lt_room[1], hex(lt_end_)
+        print(f'exe: longtable code obj1+{lt_room[0]:#x}..{lt_end_:#x} (free to {lt_room[1]:#x})')
     else:
-        assert not fmtpage.WN, 'VINCITORI: no room in gplay\'s pages'
         cos = longtable.patch(p, cos, area, lang)                # 4.0: tables over 24 clubs scroll (ARG / MLS 30: no drawing past the screen)
     if cos_pg:
         assert cos <= hist2 + h2 + 0x1000 * lpb, hex(cos)
@@ -509,9 +515,18 @@ def patch_exe(src, dst, remap, lang='it'):
             gplay.link_reserve(p, ri)                            # (the reserves: gp_sack's tables)
         if bigtables.ON[0]:                                      # the .CAR's 2000 bytes <-> the moved tables,
             xe = bigtables.hooks(p, (xe + 15) & ~15)             # numbers 2000+ (after every finder of the tables)
-        assert xe <= xp + 0x1000 * xpg, hex(xe)
+        if fmtpage.WN:                                           # the WINNERS page (fmtpage's VINCITORI entry; gplay's
+            import winners                                       # pages are full)
+            xe = winners.patch(p, xe, lang, careerworld.SITES)
+        w27s = [pk.world for pk in mkseason.packs() if pk.meta.get('id', '').startswith('world-2026-27-')] if worlds else []
+        if w27s and not os.environ.get('QUIETEND_OFF'):  # (QUIETEND_OFF=1: a control build for the identical-results check)
+            import quietend                              # 4.0.1: the other countries' competitions simulated unseen at
+            xe = quietend.patch(p, (xe + 15) & ~15, min(w27s), lang)   # the season end + a progress line (World 2026-27)
+        xlim = xp + 0x1000 * xpg - (0x600 if lt_room and lt_room[1] == xp + 0x1000 * xpg else 0)   # (longtable's)
+        assert xe <= xlim, hex(xe)
     elif xtra_on:
         world = xtra.patch(p, world)
+    assert not fmtpage.WN or xtra_pg, 'VINCITORI: no extra pages'
     assert world <= NZ_CAVE and nz_end <= FIN_CAVE and fin_end <= ARG_CAVE and arg_end <= OBJ1_NEW_VSIZE, \
         (hex(world), hex(nz_end), hex(fin_end), hex(arg_end))
     careerworld.ns_xtra(p, xtra.LABELS['XTRA_NAMEP'] if xtra_on else None)   # several worlds: XTWn.nnn names

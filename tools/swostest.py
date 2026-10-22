@@ -4418,6 +4418,11 @@ def career_20seasons():
             ok, msg = world8485()
             times.append(round(time.time() - t0))
             print(f'[c20] season {season}: {"ok" if ok else "FAIL"} in {times[-1]} s: {msg[:160]}', flush=True)
+            if not ok and season == n == 20:              # (the 20th season's end: the game ends the career -
+                log = open(os.path.join(RUNS, w84_tag() + '_2', 'session.log'), errors='replace').read()   # 'LA TUA
+                if "CARRIERA E' FINITA" in log and 'PENSIONAMENTO' in log:   # CARRIERA E' FINITA', PENSIONAMENTO, no
+                    notes.append(f'season {season}: the career ends (20 seasons: the game\'s limit)')   # next season)
+                    break
             if not ok or 'checkw1 FAIL' in msg:
                 return False, f'season {season} of {n}: {msg[:300]}; times {times}'
             nxt = os.path.join(RUNS, w84_tag() + ('_1' if season == 1 else '_2'), 'SWOS',
@@ -4432,7 +4437,7 @@ def career_20seasons():
                 os.environ.pop(k, None)
             else:
                 os.environ[k] = v
-    return True, f'{n} seasons, save + reload each; seconds per season {times} (total {sum(times)})'
+    return True, f'{n} seasons, save + reload each; seconds per season {times} (total {sum(times)}); ' + '; '.join(notes)
 
 
 def odd_build():

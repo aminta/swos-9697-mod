@@ -1872,7 +1872,7 @@ void gp_rec_c(void) {
     for (int p = k->gp0[g]; p < k->gp0[g + 1]; p++)
         if ((k->pa[p] == a && k->pb[p] == b) || (k->pa[p] == b && k->pb[p] == a)) {
             k->pw[p] = GP_W ? b : a;
-            int me = kidx(k, GP_MGR);
+            int me = kidx(k, GP_IN.mgr ? GP_IN.mgr : GP_MGR);   /* (GP_IN: the career club as ko_build saw it) */
             if (GP_KOFORCE && me != NOC && (a == me || b == me))   /* (test builds: lost / won) */
                 k->pw[p] = (GP_KOFORCE == 2) == (a == me) ? a : b;
         }

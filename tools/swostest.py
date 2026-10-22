@@ -4416,6 +4416,52 @@ def squad_order_xtra():
     return not errs, '; '.join(errs + notes)
 
 
+@scenario
+def career_20seasons():
+    """Release check (Davide, 4.0): a World 2026-27 career through 20 seasons, the most a career allows (an old mod
+    froze at the 7th): season 1 new, then each season from the previous one's save (world8485 with W8485_FROM: load,
+    play to the season end, next season's save) - a save + reload every season, checkw1 at each one. HAMRUN SPARTANS
+    (Malta: a short league; C20_TEAM to change), the minimal line-up, no sacking. Logs every season end with its time.
+    PASS = 20 seasons, no trap, no freeze."""
+    team = os.environ.get('C20_TEAM', 'EUROPA,MALTA,?MALTESE PREMIER LEAGUE|PREMIER LEAGUE,HAMRUN SPARTANS')
+    n = int(os.environ.get('C20_SEASONS', 20))
+    keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_ONE',
+            'W8485_FROM', 'SWOSTEST_TAG')
+    keep = {k: os.environ.get(k) for k in keys}
+    exe = os.environ.get('W8485_BUILD') or builds()['it']
+    times, notes, car = [], [], None
+    try:
+        os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5',
+                          W8485_K='108+', W8485_NOSACK='1')
+        for season in range(1, n + 1):
+            os.environ['SWOSTEST_TAG'] = f'_c20s{season:02d}'
+            if season == 1:
+                os.environ['W8485_ONE'] = '1'
+                os.environ.pop('W8485_FROM', None)
+            else:
+                os.environ.pop('W8485_ONE', None)
+                os.environ['W8485_FROM'] = car
+            t0 = time.time()
+            ok, msg = world8485()
+            times.append(round(time.time() - t0))
+            print(f'[c20] season {season}: {"ok" if ok else "FAIL"} in {times[-1]} s: {msg[:160]}', flush=True)
+            if not ok or 'checkw1 FAIL' in msg:
+                return False, f'season {season} of {n}: {msg[:300]}; times {times}'
+            nxt = os.path.join(RUNS, w84_tag() + ('_1' if season == 1 else '_2'), 'SWOS',
+                               'W84A.CAR' if season == 1 else 'W84B.CAR')
+            if not os.path.exists(nxt):
+                return False, f'season {season}: no save {nxt}; times {times}'
+            car = os.path.join(RUNS, f'c20_after_s{season:02d}.CAR')
+            shutil.copy(nxt, car)
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    return True, f'{n} seasons, save + reload each; seconds per season {times} (total {sum(times)})'
+
+
 def odd_build():
     """world_odd_league's build when no ODD_BUILD is given: this checkout with the newest release data
     (internal/world2526/world5tm-rel40-*: India's Football League has 11 clubs), built once per run (the staged

@@ -6113,6 +6113,115 @@ def world_winners_poule():
     return not errs, '; '.join(errs) or f'mid {out["mid"]}; end {out["end"]}'
 
 
+@scenario
+def world_cuplist():
+    """Rule 11 for the national cups (gplay gp_notin, 4.0.1 / Davide's MESTRE): a career club sees in VISUAL. COMPETIZ.
+    (and in the match days' list: gp_cal1, the same test) only the cups it is in - slot 1 (COPPA ITALIA: 16 Serie A / B clubs) and
+    slot 2 (COPPA ITALIA SERIE C: 17 clubs) by their team lists. New careers: RENATE (Serie C, in neither), CARPI
+    (Serie C, in the Serie C cup), NAPOLI (in the COPPA ITALIA), CATANZARO (Serie B, not in it), SCHIO (a Coppa D
+    club: as before - no COPPA ITALIA; its Coppa D comes later), PALMEIRAS (its state championship in slot 1)"""
+    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+    if not os.path.isdir(src):
+        return True, f'SKIP: private data {src} missing'
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    exe = os.environ.get('CUPLIST_BUILD') or build('world_cuplist', env={'SEASON_PACKS': ','.join(
+        ['ddr-1988-89'] + [os.path.join(src, x) for x in order])})
+    cases = (('EUROPA,ITALIA,SERIE C,SERIE C GIRONE A|GIRONE A,RENATE', [], ['ITALIA COPPA ITALIA', 'ITALIA COPPA ITALIA SERIE C']),
+             ('EUROPA,ITALIA,SERIE C,SERIE C GIRONE A|GIRONE A,CARPI', ['ITALIA COPPA ITALIA SERIE C'], ['ITALIA COPPA ITALIA']),
+             ('EUROPA,ITALIA,SERIE A,NAPOLI', ['ITALIA COPPA ITALIA'], []),
+             ('EUROPA,ITALIA,SERIE B,CATANZARO', [], ['ITALIA COPPA ITALIA']),
+             ('EUROPA,ITALIA,SERIE D,SERIE D GIRONE C|GIRONE C,SCHIO', [], ['ITALIA COPPA ITALIA', 'ITALIA COPPA ITALIA SERIE C']),
+             ('SUDAMERICA,BRASILE,BRASILEIRAO SERIE A|CAMPEONATO BRASILEIRO SERIE A,PALMEIRAS', ['BRASILE CAMPEONATO PAULISTA'], []))
+    errs, info = [], []
+    for path, want, notw in cases:
+        club = path.split(',')[-1]
+        with Session('world_cuplist_' + club.lower(), exe, {}, 'dump:2', 300) as s:
+            s.wait()
+            for t in ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27'] + path.split(','):
+                if all(press(s, s.screen(), x, 3) is None for x in t.split('|')):
+                    return False, f'{club}: {t} not reached'
+            s.send('fire dump:3')
+            walk(s, s.screen().find('VISUAL. COMPETIZ.', exact=True), 3)
+            vc = [e[1] for e in s.screen().entries if e[1] and not e[2]]
+        miss = [w for w in want if w not in vc]
+        extra = [w for w in notw if w in vc]
+        check(not miss and not extra, f'{club}: competitions {vc} (missing {miss}, not its own {extra})', errs)
+        info.append(f'{club}: {vc[1:-2]}')
+    return not errs, '; '.join(errs + info)
+
+
+@scenario
+def world_cuplist_mestre():
+    """Davide's MESTRE.CAR (rc7, internal/davide-mister-20261021: MESTRE, Serie D) on a release-recipe build
+    (CUPLIST_REL: a buildrel.sh dir) played on to its season's end and into the next season (world8485 from it):
+    VISUAL. COMPETIZ. never lists the COPPA ITALIA (its 16 Serie A / B clubs) nor the COPPA ITALIA SERIE C (its 17
+    clubs), Mestre being in neither (gp_notin, rule 11)"""
+    car = os.path.join(MAIN, 'internal', 'davide-mister-20261021', 'MESTRE.CAR')
+    exe = os.environ.get('CUPLIST_REL')
+    if not os.path.exists(car) or not exe:
+        return True, 'SKIP: no MESTRE.CAR or CUPLIST_REL'
+    keys = ('W8485_BUILD', 'W8485_FROM', 'W8485_NOSACK')
+    keep = {k: os.environ.get(k) for k in keys}
+    os.environ.update(W8485_BUILD=exe, W8485_FROM=car, W8485_NOSACK='1')
+    try:
+        ok, msg = world8485()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    nxt = os.path.join(RUNS, w84_tag() + '_2', 'SWOS', 'W84B.CAR')
+    if not os.path.exists(nxt) or 'trap' in msg:
+        return False, f'the old save played on: {msg}'
+    with Session('world_cuplist_mestre', exe, {'W84B.CAR': nxt}, 'dump:2', 300) as s:
+        s.wait()
+        s.send(LOAD1 + ' dump:3')
+        head = [e[1] for e in s.screen().entries if e[1] and not e[2]][:4]
+        walk(s, s.screen().find('VISUAL. COMPETIZ.', exact=True), 3)
+        vc = [e[1] for e in s.screen().entries if e[1] and not e[2]]
+    bad = [x for x in ('ITALIA COPPA ITALIA', 'ITALIA COPPA ITALIA SERIE C') if x in vc]
+    return not bad, f'{msg[:100]}; next season {head}: competitions {vc}' + (f'; not its own: {bad}' if bad else '')
+
+
+@scenario
+def world_cuplist_promoted():
+    """Rule 11 across a D -> C promotion (Davide's MESTRE case, forced): LIGORNA 1st of Serie D girone A (GPLAY_FORCE=1,
+    promoted), the season played and the next one saved and reloaded: in Serie C, VISUAL. COMPETIZ. lists neither the
+    COPPA ITALIA (16 Serie A / B clubs) nor the COPPA ITALIA SERIE C unless LIGORNA is one of its clubs"""
+    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+    if not os.path.isdir(src):
+        return True, f'SKIP: private data {src} missing'
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    exe = build('world_cuplist_promo', env={'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]),
+                                           'GPLAY_FORCE': '1'})
+    keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_ONE')
+    keep = {k: os.environ.get(k) for k in keys}
+    os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM='EUROPA,ITALIA,SERIE D GIRONE A,LIGORNA',
+                      W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1', W8485_ONE='1')
+    try:
+        ok, msg = world8485()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    car = os.path.join(RUNS, w84_tag() + '_1', 'SWOS', 'W84A.CAR')
+    if not ok or not os.path.exists(car):
+        return False, f'season: {msg}'
+    with Session('world_cuplist_promoted', exe, {'W84A.CAR': car}, 'dump:2', 300) as s:
+        s.wait()
+        s.send(LOAD1 + ' dump:3')
+        head = [e[1] for e in s.screen().entries if e[1] and not e[2]][:4]
+        walk(s, s.screen().find('VISUAL. COMPETIZ.', exact=True), 3)
+        vc = [e[1] for e in s.screen().entries if e[1] and not e[2]]
+    league = next((x for x in vc if x.startswith('ITALIA SERIE ')), '')
+    bad = [x for x in ('ITALIA COPPA ITALIA', 'ITALIA COPPA ITALIA SERIE C') if x in vc]
+    ok = league.startswith('ITALIA SERIE C') and not bad
+    return ok, f'next season {head}: competitions {vc}' + (f'; not its own: {bad}' if bad else '')
+
+
 def world_ca(team, country, league, want):
     """4.0.1 Central America exactly (session40/ca_exact.py, data TM_CA_EXACT): a season at team, forced 1st of each
     tournament (GPLAY_FORCE=1: the stage's kept table too): the stage titles <league> APERTURA / CLAUSURA and each

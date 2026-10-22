@@ -103,7 +103,7 @@ LEG_W, LEG_TXT = 30, 8
 FILE = {'it': b'data/zonit', 'en': b'data/zonen', 'fr': b'data/zonfr', 'de': b'data/zonde'}          # a legend box's width (5 small-font characters), its text buffer
 CONFED = {'lib': LIGHT_BLUE, 'sud': GREEN, 'ccc': LIGHT_BLUE, 'acle': LIGHT_BLUE, 'acl2': GREEN, 'cafcl': LIGHT_BLUE,
           'cafcc': GREEN, 'ofc': LIGHT_BLUE}   # the other confederations' club cups: the first light blue, the second green
-CONFED_LAB = dict(lib='LIB', sud='SUD', ccc='CCC', acle='ACLE', acl2='ACL2', cafcl='CAFCL', cafcc='CAFCC', ofc='OFC')
+CONFED_LAB = dict(lib='LIB', sud='SUD', ccc='CONC', acle='ACLE', acl2='ACL2', cafcl='CAFCL', cafcc='CAFCC', ofc='OFC')
 # legend labels (<= 5 characters): top flight of a league-phase world, of a classic world, a lower division
 LABELS = {
     'it': dict(next='PASSA', cl='CL', el='EL', conf='CONF', cc='CAMP', uefa='UEFA', up='PROM', po='P.OFF', out='P.OUT', down='RETR', **CONFED_LAB),
@@ -657,6 +657,19 @@ WORLD_BYTE
     jmp .e
 .hit:
     mov edi, [ZHIT]
+    test edi, edi                       ; 4.0: no club of the table (DIY, +31h clubs) has played a match yet (a table
+    jz .z0                              ; before its first match day, the clubs in their initial order): no zones, no
+    movzx ecx, word [DIY + 31h]         ; legend (Davide)
+    lea esi, [DIY + 2B3h + 4]           ; (a row: +0 team, +4 played .. +10h points)
+.z1:
+    jecxz .z2
+    cmp word [esi], 0
+    jne .z0
+    add esi, 18
+    loop .z1
+.z2:
+    xor edi, edi
+.z0:
     cmp word [D7], 0                    ; the first row: the European places (run time), the legend boxes
     jne .nl
 RANK_CALL

@@ -173,15 +173,23 @@ xtra_order:                             ; after a career load (engine.after_proc
 .ok:
     ret
 .fix:
+    push es                             ; (string moves: ES = DS, forward)
+    push ds
+    pop es
+    cld
     mov esi, REGS
     mov edi, xregs
     mov ecx, 15
     rep movsd
     call RESTAIL
+    push ds
+    pop es
+    cld
     mov esi, xregs
     mov edi, REGS
     mov ecx, 15
     rep movsd
+    pop es
     ret
 
 xtra_wage:                              ; replaces `mov esi, [A0] / cmp byte [esi+71h], 9Ah` in cseg_5E345

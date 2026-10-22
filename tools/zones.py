@@ -348,6 +348,7 @@ HDR_NAMES = {     # 4.0 group headers: default labels (a pack's "zone_names": {l
     'zone': {'it': 'ZONA', 'en': 'ZONE', 'fr': 'ZONE', 'de': 'ZONE'},
 }
 HDR_LABEL = 24                  # a label's bytes (NUL padded)
+CONF_PACKS = ('usa', 'pan')     # leagues of two conferences, East first (4.0.1: Panama's Conferencia Este / Oeste)
 
 
 def header_labels(lang, pack_dirs):
@@ -371,13 +372,14 @@ def header_labels(lang, pack_dirs):
                 if not gs and not sg:
                     continue
                 zn = m.get('zone_names') or {}
-                if sg:                                  # a split league: its groups' names (the data's 'title')
+                conf = m.get('id', '').split('-')[-1] in CONF_PACKS and len(gs or sg) == 2
+                if conf and not (lang in zn or '*' in zn):      # (two conferences: the MLS, Panama: East / West)
+                    labels = HDR_NAMES['conf'][lang]
+                elif sg:                                # a split league: its groups' names (the data's 'title')
                     gen = {'it': 'GRUPPO', 'en': 'GROUP', 'fr': 'GROUPE', 'de': 'GRUPPE'}[lang]
                     labels = [complist._nm(nm, lang) if nm else f'{gen} {chr(65 + g)}' for g, (_, _, nm) in enumerate(sg)]
                 elif lang in zn or '*' in zn:
                     labels = zn.get(lang) or zn['*']
-                elif m.get('id', '').endswith('-usa') and len(gs) == 2:
-                    labels = HDR_NAMES['conf'][lang]
                 else:
                     labels = [f"{HDR_NAMES['zone'][lang]} {chr(65 + g)}" for g in range(len(gs))]
                 rows.append((_title(m, lang, complist._nm(dv['name'], lang)), labels[:4]))

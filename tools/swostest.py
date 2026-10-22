@@ -4342,6 +4342,43 @@ def world_split_stages():
     return world_split('stages')
 
 
+@scenario
+def squad_order_xtra():
+    """TEST 8 regression (2026-10-21: ACCETTA OFFERTA froze in every World 2026-27 career): a new career at SAO PAULO
+    (an XTRA club, 16 + its real extras) has a squad order in trainingMatchSavedPlayers: a permutation of
+    0..careerNumPlayers-1. xtra skipped cseg_64A65 (the invented reserves) and with it cseg_6481C's copy of the order,
+    so the array stayed 0 and a sale's cseg_639F9 ('int 3; jmp $' when the sold player is not in it) trapped. The
+    1984-85 world (no XTRA: the game's own reserves) as the control."""
+    from le import LE
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    exe = os.environ.get('W8485_BUILD') or builds()['it']
+    d1 = LE(open(os.path.join(exe, 'ITALIAN.EXE'), 'rb').read()).obj_bytes(1)
+    m = re.search(rb'\xc7\x05(.{4})(.{4})\x66\xa1(.{4})\x66\xa3.{4}\x66\x83\x2d.{4}\x01\x8b\x35\1.{0,40}?\xcc\xeb\xfe',
+                  d1, re.S)                     # cseg_639F9's lookup: A6 = the order, careerNumPlayers, int 3; jmp $
+    tmsp, cnp = struct.unpack('<I', m.group(2))[0], struct.unpack('<I', m.group(3))[0]
+    errs, notes = [], []
+    for world, team in (('MONDO 2026-27', 'SUDAMERICA,BRASILE,BRASILEIRAO SERIE A,SAO PAULO'),
+                        ('EUROPA 1984-85', 'INGHILTERRA,FIRST DIVISION,LIVERPOOL')):
+        with Session('squad_order_' + world.split()[0].lower(), exe, {}, 'dump:2', 300) as s:
+            s.wait()
+            path = ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', world] + team.split(',')
+            for k, t in enumerate(path):
+                if all(press(s, s.screen(), x) is None for x in t.split('|')):
+                    if k == 3 and world.startswith('EUROPA'):      # (a test build without the 1984-85 world)
+                        notes.append(f'{world}: not in this build'); break
+                    return False, f'{world}: {t} not reached'
+            else:
+                path = None
+            if path is not None:
+                continue
+            s.send('fire dump:3')
+            n = struct.unpack('<H', s.result.obj2(cnp, 2))[0]
+            order = list(s.result.obj2(tmsp, 32))[:n]
+            notes.append(f'{world}: {n} players, order {order}')
+            check(n > 16 and sorted(order) == list(range(n)), f'{world}: squad order {order} ({n} players)', errs)
+    return not errs, '; '.join(errs + notes)
+
+
 def odd_build():
     """world_odd_league's build when no ODD_BUILD is given: this checkout with the newest release data
     (internal/world2526/world5tm-rel40-*: India's Football League has 11 clubs), built once per run (the staged

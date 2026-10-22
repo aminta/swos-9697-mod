@@ -1331,9 +1331,8 @@ gp_cdmem:                               ; ZF = 0 when the career club is a Coppa
     popad
     ret
 
-gp_notin:                               ; al = a slot (1 / 2): ZF = 0 when the career club is not one of its
-    pushad                              ; contest's clubs (rule 11; the slot's DIY +31h clubs, their 18-byte entries at
-                                        ; +2B3h: selTeamsPtr + [entry] = the club's record, its team word first) -
+gp_notin:                               ; al = a slot (1 / 2): ZF = 0 when the career club is not one of its cup's
+    pushad                              ; clubs (rule 11; the cup's definition, D8CAA's slot pointer) -
     xor ebx, ebx                        ; careers of this world only; a Coppa D club: slot 1 hidden, slot 2 its Coppa D
     cmp word [GAMETYPE], 4              ; (as before)
     jne .r
@@ -1349,22 +1348,23 @@ gp_notin:                               ; al = a slot (1 / 2): ZF = 0 when the c
     jmp .r
 .nc:
     movzx eax, al
-    mov esi, [SLOTS_ + eax * 4]
+    mov esi, [SLOTS_ + eax * 4]         ; (a group contest - a state championship, our group contests: its own clubs)
     test esi, esi
     jz .r
-    movzx ecx, word [esi + 31h]
-    cmp ecx, 64
-    jbe .n
-    mov ecx, 64
-.n: mov dx, [CAREERTEAM]
+    cmp byte [esi], 1
+    jne .r
+    mov esi, [D8CAA + eax * 4]          ; a cup: its definition's clubs (header, byte 10 = clubs, the team words from
+    test esi, esi                       ; byte 7 + [7]; the slot's entries are filled only by its draw)
+    jz .r
+    movzx ecx, byte [esi + 10]
+    movzx eax, byte [esi + 7]
+    lea esi, [esi + eax + 7]
+    mov dx, [CAREERTEAM]
     mov bl, 1
-    add esi, 2B3h
 .l: jecxz .r
-    mov edi, [esi]
-    add edi, [SELPTR_]
-    cmp [edi], dx
+    cmp [esi], dx
     je .in
-    add esi, 18
+    add esi, 2
     dec ecx
     jmp .l
 .in:
@@ -1822,8 +1822,6 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
                                          'gp_defer_c', 'cd_step_c', 'gp_scal_c', 'gp_repoint_c', 'gp_fixload_c', 'CD_ST', 'GP_CDT', 'GP_CDNM', 'GP_CDD',
                                          'GP_CDFIRST')})
     symbols['CD_MEMBER'] = syms['cd_member_c']
-    import winners
-    symbols['SELPTR_'] = (2, winners.sel_ptr(p))             # (selTeamsPtr: gp_notin's club records)
     symbols['GP_CDS1'] = syms['GP_CDS1']
     symbols['GP_CDFORCE'] = syms['GP_CDFORCE']
     symbols['CDFORCE_'] = (0, int(os.environ.get('CD_FORCE') or 0))   # (test builds only)

@@ -481,7 +481,9 @@ when the engine lands it.
 - **A Serie D club plays only what its real club plays**: its group (and its play-off or play-out) and the Coppa
   Italia Serie D. The national Coppa Italia is still played for its winner but is not in a Serie D club's calendar
   or VISUAL. COMPETIZ.
-<!-- staged: the European places item (pending Davide's decision) -->
+- **European places**: in some seasons one of the 108 European places goes to a club of a different association
+  from the one the access list names. The number of clubs in each European cup and the title holders' places are
+  always right (fixed in 4.0.1).
 - The two Milan clubs are called INTER and MILAN (the game had INTER MILAN and AC MILAN), also in the Europe 1984-85
   world (its INTERNAZIONALE) and in the transfer pool. A career saved with an earlier version keeps the names it was
   saved with.
@@ -1156,7 +1158,9 @@ Baiano, Cearense, Pernambucano, Alagoano e Mato-Grossense.
 - **Un club di Serie D gioca solo quello che gioca il club vero**: il suo girone (e i suoi play-off o play-out) e la
   Coppa Italia Serie D. La Coppa Italia nazionale si gioca comunque per la sua vincitrice, ma non compare nel
   calendario né in VISUAL. COMPETIZ. di un club di Serie D.
-<!-- staged: la voce sui posti europei (in attesa della decisione di Davide) -->
+- **Posti europei**: in alcune stagioni uno dei 108 posti europei va a un club di una federazione diversa da quella
+  indicata dalla lista d'accesso. Il numero di club di ogni coppa europea e i posti delle detentrici sono sempre
+  giusti (corretto nella 4.0.1).
 - Le due squadre di Milano si chiamano INTER e MILAN (il gioco aveva INTER MILAN e AC MILAN), anche nel mondo Europa
   1984-85 (dove era INTERNAZIONALE) e nel mercato dei giocatori. Una carriera salvata con una versione precedente tiene
   i nomi con cui è stata salvata.

@@ -55,6 +55,12 @@ new rule. If a rule seems wrong for a case, ask the regia session; don't silentl
 16. Every new feature gets a harness scenario; every bug found by a player gets a regression scenario.
 17. Release checks: full suite all PASS on the release candidate; the 20-season career; the patcher's outputs
     byte-equal to the build.
+17a. **Release builds differ from test builds** (Davide 2026-10-22, after the foreign-market crash that only release builds
+    had): a release build carries the world data / pools / packs (e.g. POOL05's file-190 pool clubs), a default harness
+    build does not. So every gameplay path that reads data files (transfers incl. the FOREIGN market, cups, careers,
+    season ends, saves) must be exercised on the RELEASE recipe (buildrel.sh exes + release DATA), not only on
+    scenario-built test exes; a scenario that builds its own exe gets a release-exe variant (SWOSTEST_BUILD = c/RELxx).
+    A new data file / pool / pseudo file number needs a test that loads it through every engine path that can.
 
 ## Known engine pitfalls
 18. (Under investigation, not a rule yet) The game's type-2 group contest hung with New Zealand's single 11-club group;

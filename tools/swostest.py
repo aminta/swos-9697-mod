@@ -3321,6 +3321,115 @@ def world2526q():
     return ok, f'{msg}; ties played {ties}; FINALE titles {bad[:2]}'
 
 
+def q27_run(hook=None):
+    """world2627q's career (see there), W84_HOOK = hook: (ok, msg, the manager's qualifying ties of season 2)."""
+    global W84_HOOK
+    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+    if not os.path.isdir(src):
+        return None, f'SKIP: private data {src} missing', []
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    exe = os.environ.get('Q27_BUILD') or build('world2627q', env={
+        'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]),
+        'UEFAQ_FORCE': os.environ.get('Q27_FORCE', 'CL Q1')})
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import simdraw
+    from le import LE
+    at = LE(open(os.path.join(exe, 'ITALIAN.EXE'), 'rb').read()).obj_bytes(2).find(simdraw.table())
+    if at < 0:
+        return False, 'simdraw table not found in obj2', []
+    keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_FILL')
+    keep = {k: os.environ.get(k) for k in keys}
+    os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_FILL=f'{at:x}:30:3072',
+                      W8485_TEAM=os.environ.get('Q27_TEAM', 'EUROPA,OLANDA,EREDIVISIE,AJAX AMSTERDAM'),
+                      W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1')
+    W84_HOOK = hook
+    try:
+        ok, msg = world8485()
+    finally:
+        W84_HOOK = None
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    log = os.path.join(RUNS, w84_tag() + '_2', 'session.log')
+    ties = []
+    if os.path.exists(log):
+        for line in open(log, errors='replace'):
+            if not line.startswith('[') or 'PRELIM.' not in line.split('|')[0]:
+                continue
+            f = [x.strip() for x in line.split('|')]
+            if '- PARTITA -' in f:
+                key = re.sub(r' (ANDATA|RITORNO)$', '', f[0].split(']', 1)[1].strip())
+                if key not in ties:
+                    ties.append(key)
+    return ok, msg, ties
+
+
+@scenario
+def world2627q():
+    """Pietro's 4.0 report (GOG, INTER D'ESCALDES 2027/28: CL Q1 won, no Q2 in the calendar): the World 2026-27 on the
+    4.0 data built with UEFAQ_FORCE (default 'CL Q1': the career club enters that qualifying round at every season
+    end) and simdraw (the stronger side wins every match 3-0, so the club wins its ties); AJAX AMSTERDAM two seasons:
+    season 2 must open with at least two qualifying ties played by the manager (Q1, then Q2 ...) - the PRELIM. contests
+    of its result screens, one per round name"""
+    ok, msg, ties = q27_run()
+    if ok is None:
+        return True, msg
+    return ok and len(ties) >= 2, f'{msg[:200]}; ties played {ties}'
+
+
+@scenario
+def world_uq_early():
+    """4.0.1 (Pietro's polish): the next UEFA qualifying tie is built as soon as the return leg is decided (uefaq's
+    uq_daily also at the end of the day played), so the career calendar lists it at once, not only after PARTITA. As
+    world2627q (AJAX, CL Q1 forced, simdraw: the ties won); at every career menu of season 2 slot 3 (arrayOfPointers)
+    and the calendar: a qualifying tie whose winner is the career club may never be on the menu (its next tie, or the
+    league phase, already in slot 3), and the menu after each won return leg shows the next tie's calendar days ahead"""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import split
+    import lepatch
+    sp = split.sites(lepatch.LEPatch(os.path.join(MAIN, 'orig', 'ITALIAN.EXE')))['SLOTS']
+    qids = (0x7C, 0x7D, 0x7E)                                  # (uefaq.QIDS)
+    menus, errs = [], []
+
+    def hook(s, season, scr):
+        if season != 2 or scr is None or scr.find('TRASFERIMENTI') is None or scr.find('PROSS. PARTITA') is None:
+            return
+        lin = struct.unpack('<I', s.result.obj2(sp + 12, 4))[0]
+        if not lin:
+            return
+        d = s.result.read(lin, 0x450)
+        sid, date, win = d[0x2D], d[0x37], struct.unpack_from('<H', d, 0x39)[0]   # (+37h: the first leg's date)
+        cal = s.result.obj2(CAL_AT - 8, 3000)
+        cur, n = struct.unpack_from('<H', cal, 2)[0], struct.unpack_from('<H', cal, 4)[0]
+        o, ahead = 8 + cur, 0
+        for _ in range(n):                                     # slot-3 match days from the current entry on
+            if o + 9 > len(cal):
+                break
+            ln_ = struct.unpack_from('<H', cal, o + 2)[0]
+            if not ln_:
+                break
+            ahead += cal[o] == 3 and cal[o + 7] != 0xFF
+            o += ln_
+        menus.append((sid, date, win, ahead))
+        open(os.path.join(s.run, 'uq_menus.log'), 'a').write(f'{sid:#x} {date:#x} {win:#x} ahead {ahead}\n')
+
+    ok, msg, ties = q27_run(hook)
+    if ok is None:
+        return True, msg
+    check(ok, msg, errs)
+    check(len(ties) >= 2, f'ties played {ties}', errs)
+    qs = [i for i, m in enumerate(menus) if m[0] in qids]
+    late = [menus[i] for i in qs if menus[i][2] != 0xFFFF and any(x[:2] != menus[i][:2] for x in menus[i + 1:])]
+    check(not late, f'a decided qualifying tie still in slot 3 on the menu, the next contest built only later: '
+                    f'{[tuple(hex(x) for x in m) for m in late[:3]]}', errs)
+    check(all(menus[i][3] for i in qs if menus[i][2] == 0xFFFF), 'a qualifying tie on the menu with no calendar day '
+          f'ahead: {[tuple(hex(x) for x in menus[i]) for i in qs if menus[i][2] == 0xFFFF and not menus[i][3]][:3]}', errs)
+    seen = list(dict.fromkeys((hex(m[0]), hex(m[1])) for m in menus))
+    return not errs, '; '.join(errs) or f'{msg[:160]}; ties played {ties}; slot 3 on the menus {seen} ({len(menus)} menus)'
+
+
 def walk(s, target, w=3, tries=20):
     """Select entry `target` (text or number) one key at a time, re-planning after each move (menus where a planned
     path drifts: two-column lists, moves taken twice), then fire; returns the new screen."""

@@ -904,6 +904,44 @@ const u32 CT_LAYOUT[] = { sizeof(struct ct_in), sizeof(struct ct_state), sizeof(
 /* --- a group stage's end in the game's contest (lp36's lp_gend vector, after cseg_8A2CE) ----------------------------- */
 static u32 w16(const u8 *p) { return p[0] | p[1] << 8; }
 static u32 w32(const u8 *p) { return p[0] | p[1] << 8 | p[2] << 16 | (u32)p[3] << 24; }
+static int reported(int c, int r) {     /* the club's result of cup c's round r already given (CT_ED.f) */
+    for (int i = 0; i < CT_ED.nf && i < 16; i++) if (CT_ED.f[i].c == c && CT_ED.f[i].r == r) return 1;
+    return 0;
+}
+static u32 gplace(const u8 *diy, u8 id) {
+    /* a conti group stage's DIY (DIY_competitionStart; a type-2 slot holds it at +41Fh): the career club's group
+       complete -> its place (once; 0: not yet / not ours). +4Fh groups, +51h their size, +6Dh each group's rows in the
+       game's own order (offsets, 18 bytes each: the place), rows +2B3h (+4 played), team words +12Dh */
+    if (!CT_SPEC || CT_ED.mark != 0x4543 || !CT_ED.mgr) return 0;
+    parse();
+    int c = -1;
+    for (int i = 0; i < ncup; i++) if (gid[i] && gid[i] == id) c = i;
+    if (c < 0) return 0;
+    int mr = -1;
+    for (int r = 0; r < nrd[c]; r++) if (RND(c, r)[17]) mr = r;
+    if (mr < 0 || RND(c, mr)[0] != K_GROUPS || reported(c, mr)) return 0;
+    int ng = w16(diy + 0x4F), gs = w16(diy + 0x51), need = (gs - 1) * (RND(c, mr)[8] ? RND(c, mr)[8] : 2);
+    if (ng != RND(c, mr)[6] || gs != RND(c, mr)[7] || ng < 1 || ng > 16 || gs < 2 || gs > 16) return 0;
+    for (int g = 0; g < ng; g++) {
+        int place = 0;
+        for (int q = 0; q < gs; q++) {
+            int row = w16(diy + 0x6D + 2 * (g * gs + q)) / 18;
+            if (row >= 64) return 0;
+            if ((u16)w16(diy + 0x12D + 2 * row) == CT_ED.mgr) place = q + 1;
+        }
+        if (!place) continue;
+        for (int q = 0; q < gs; q++)                    /* (its group complete: every row played them all) */
+            if ((int)w16(diy + 0x2B3 + w16(diy + 0x6D + 2 * (g * gs + q)) + 4) != need) return 0;
+        if (gid[ncup] && gid[ncup] <= gs) place = gid[ncup];   /* (CONTI_GPLACE, test builds) */
+        return (u32)place;
+    }
+    return 0;
+}
+u32 ct_gpre(u8 *diy) {
+    /* 4.0.1: lp_gend's group stage end, BEFORE cseg_8A2CE reshapes the DIY for the next stage: the career club's place
+       (ct_gend's own reading after it found no club - the Libertadores 3rd never reached the Sudamericana play-off) */
+    return gplace(diy, diy[0x2D]);
+}
 u32 ct_gend(u8 *diy, u8 *diycopy, u32 sel) {
     /* -> the career club's place in its group (0: not in this contest). A Libertadores-style knockout after the groups
        (draw 'seeded_1v2', 8 groups): the qualifiers' list rewritten as the real draw - the group winners by points,
@@ -913,7 +951,8 @@ u32 ct_gend(u8 *diy, u8 *diycopy, u32 sel) {
     int c = -1;
     for (int i = 0; i < ncup; i++) if (gid[i] && gid[i] == diy[0x2D]) c = i;
     if (c < 0) return 0;
-    int ng = w16(diy + 0x4F), gs = w16(diy + 0x51), place = 0, mg = 0;
+    int ng = w16(diy + 0x4F), gs = w16(diy + 0x51), place = 0, mg = 0, rep = 0;
+    for (int r = 0; r < nrd[c]; r++) if (RND(c, r)[17] && reported(c, r)) rep = 1;   /* (4.0.1: ct_gpre gave it) */
     if (ng < 1 || ng > 16 || gs < 2 || gs > 16) return 0;
     for (int g = 0; g < ng; g++)
         for (int q = 0; q < gs; q++) {
@@ -960,5 +999,5 @@ u32 ct_gend(u8 *diy, u8 *diycopy, u32 sel) {
                 diycopy[0x59 + k++] = (u8)(w16(diy + 0x6D + 2 * (g * gs + q)) / 18);
             }
     }
-    return place;
+    return rep ? 0 : place;                 /* (already given mid-season: not again at the season end) */
 }

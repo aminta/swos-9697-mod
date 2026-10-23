@@ -933,6 +933,10 @@ static u32 gplace(const u8 *diy, u8 id) {
         for (int q = 0; q < gs; q++)                    /* (its group complete: every row played them all) */
             if ((int)w16(diy + 0x2B3 + w16(diy + 0x6D + 2 * (g * gs + q)) + 4) != need) return 0;
         if (gid[ncup] && gid[ncup] <= gs) place = gid[ncup];   /* (CONTI_GPLACE, test builds) */
+        /* only a move into another cup (the Libertadores 3rd to the Sudamericana play-off): a place that goes on in
+           the same cup, or out, stays the game's contest's as in 4.0 (a group winner's / the ACLE's round of 16) */
+        u8 t = place <= 4 ? RND(c, mr)[12 + place - 1] : OUT;
+        if (t == OUT || t >> 4 == c) return 0;
         return (u32)place;
     }
     return 0;
@@ -951,8 +955,7 @@ u32 ct_gend(u8 *diy, u8 *diycopy, u32 sel) {
     int c = -1;
     for (int i = 0; i < ncup; i++) if (gid[i] && gid[i] == diy[0x2D]) c = i;
     if (c < 0) return 0;
-    int ng = w16(diy + 0x4F), gs = w16(diy + 0x51), place = 0, mg = 0, rep = 0;
-    for (int r = 0; r < nrd[c]; r++) if (RND(c, r)[17] && reported(c, r)) rep = 1;   /* (4.0.1: ct_gpre gave it) */
+    int ng = w16(diy + 0x4F), gs = w16(diy + 0x51), place = 0, mg = 0;
     if (ng < 1 || ng > 16 || gs < 2 || gs > 16) return 0;
     for (int g = 0; g < ng; g++)
         for (int q = 0; q < gs; q++) {
@@ -999,5 +1002,5 @@ u32 ct_gend(u8 *diy, u8 *diycopy, u32 sel) {
                 diycopy[0x59 + k++] = (u8)(w16(diy + 0x6D + 2 * (g * gs + q)) / 18);
             }
     }
-    return rep ? 0 : place;                 /* (already given mid-season: not again at the season end) */
+    return place;
 }

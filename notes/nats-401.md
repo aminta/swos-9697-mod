@@ -1,6 +1,6 @@
 # Own nationalities for the World 2026-27 nations (4.0.1, session '4.0') — table for the regia's review
 
-Estimate: 8 h in all (about 1.5 h spent: audit + this table).
+Estimate: 8 h in all; about 5 h spent (audit, table, converter diff, engine, 3 harness scenarios).
 
 ## Facts checked
 - **152 'CUS' is not Cuba.** It is the custom teams' nationality.
@@ -99,9 +99,44 @@ Estimate: 8 h in all (about 1.5 h spent: audit + this table).
 - **D2 one code set for all four languages** (as the original 153). The alternative is per-language codes as in 3.1;
   I see no established local acronym for any of these nations.
 
-## Tests (release recipe, 1 DOSBox slot, not Sat 08-13)
-- A Montenegrin and an Andorran player show MNE / AND on the squad screen and in the foreign market, in all 4 exes.
-- The 1996-97 and 1984-85 national teams are unchanged (byte compare of nationalTeams + the 1984-85 call-up
-  scenario).
-- An old save (4.0 release build) loads and plays on.
-- The coach nationality list is unchanged (world8485_nat_menu).
+## Converter (internal, applied after the merge: data after engine)
+- `internal/world2526/tmmaps_401nats.py` = tmmaps.py with the 58 '~' entries -> their own codes and
+  `GAME[code] = 156..213`. It replaces tmmaps.py once 4.0.1-nats is merged.
+- Re-run of mkworld_tm (private), baseline vs new:
+  - players.csv: only the nat column, 1568 players, all to 156..213;
+  - eng/POOL.DAT: 20 nat bytes;
+  - conti guests: nat, plus the 12 generated guest clubs of DJI / GNB / NAM / SOM / SSD / LBN / DOM, which now take
+    their own nation's names and coaches (before: the 'Nigeria' fallback). The regia's ok, 2026-10-23.
+- Test data: `internal/world2526/world5tm-401nats` = world5tm-rel40-winnames-1031 + the regenerated files.
+
+## Tests (release recipe c/REL401nats, buildrel.sh NOPATCHER=1, data world5tm-401nats)
+- `world_nats` (new), PASS in all 4 exes (SWOSTEST_UI it/en/fr/de, the language's exe run as ITALIAN.EXE):
+  - CORDOBA career: IKER ALVAREZ's nationality byte in the game's memory = AND 158;
+  - squad screen: the last row's byte poked to 156 / 158 / 213 shows (MNE) / (AND) / (TGA);
+  - foreign market (TRASFERIMENTI > ACQUISTA GIOCATORE > VISUAL. MERCATO STRANIERO > ELENCA): a listed player's byte
+    poked the same way shows (MNE) / (AND) / (TGA).
+  - (Rule 15: forced by pokes. The squad rows are drawn through one template entry, so only the last row's text
+    can be read back; screenshots in the run dirs show the real (AND) on IKER ALVAREZ's row.)
+- 1996-97 / 1984-85 national teams unchanged:
+  - DATA differs from c/REL40hf only in the world-5 files (TMW5 / XTW5 / RS5 / POOL05 / WORLD05);
+  - the game's nationalTeams (142 x 6 B) is byte-identical in all 4 exes;
+  - `world8485_nat` PASS: coach list ... YUG RFT URS RDT unchanged, call-ups, Euro 88.
+- Old save: `world_nats_oldsave` (new): a 4.0 (REL40hf) save at season 2's start, loaded on 4.0.1 and played
+  to the season end: PASS (season 1 on 4.0: 145 steps, checkw1 ok; season 2 on 4.0.1 from that save: 147 steps,
+  checkw1 ok). Not verified: whether a European career's season actually plays the CAF / AFC / CONCACAF guests'
+  ties (a career in those confederations would show it).
+
+## Release notes (draft)
+EN — Players from 58 nations that the original game did not have now show their own nationality instead of the
+nearest one: Montenegro (MNE), Kosovo (KOS), Andorra (AND), Gibraltar (GIB), Kazakhstan (KAZ), Cape Verde (CPV),
+Curacao (CUW), Haiti (HAI), Cuba (CUB), the Dominican Republic (DOM), Lebanon (LBN), Palestine (PLE), Hong Kong (HKG),
+Thailand (THA), Indonesia (IDN), Tahiti (TAH) and more. They appear in the squad and transfer screens of every
+language with the FIFA code. Rule: these nations have no national team in the game, so their players are not called
+up (before, a Montenegrin could be called up by Yugoslavia).
+
+IT — I giocatori di 58 nazioni che il gioco originale non aveva ora mostrano la propria nazionalità invece di quella
+più vicina: Montenegro (MNE), Kosovo (KOS), Andorra (AND), Gibilterra (GIB), Kazakistan (KAZ), Capo Verde (CPV),
+Curaçao (CUW), Haiti (HAI), Cuba (CUB), Repubblica Dominicana (DOM), Libano (LBN), Palestina (PLE), Hong Kong (HKG),
+Thailandia (THA), Indonesia (IDN), Tahiti (TAH) e altre. Compaiono nelle schermate della rosa e dei trasferimenti in
+ogni lingua con la sigla FIFA. Regola: queste nazioni non hanno una nazionale nel gioco, quindi i loro giocatori non
+vengono convocati (prima un montenegrino poteva essere convocato dalla Jugoslavia).

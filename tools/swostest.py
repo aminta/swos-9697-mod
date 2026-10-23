@@ -7078,6 +7078,44 @@ def world_nats():
 
 
 @scenario
+def world_nats_oldsave():
+    """4.0.1 own nationalities and an old save: a World 2026-27 career at HAMRUN SPARTANS on the 4.0 release
+    (NATS_OLD, a buildrel.sh dir: c/REL40hf/SWOS) plays season 1 (the continental cups with the 12 guest clubs whose
+    generated names and coaches the new codes changed: DJI / GNB / NAM / SOM / SSD / LBN / DOM) and saves season 2's
+    start; that save loaded on the 4.0.1 release build (SWOSTEST_BUILD) plays season 2 to its end (checkw1, world 5)"""
+    old = os.environ.get('NATS_OLD')
+    if not old:
+        return True, 'SKIP: NATS_OLD (the 4.0 release build) not set'
+    keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_ONE',
+            'W8485_FROM', 'W8485_TMO')
+    keep = {k: os.environ.get(k) for k in keys}
+    msgs = []
+    try:
+        os.environ.update(W8485_BUILD=old, W8485_WORLD='MONDO 2026-27',
+                          W8485_TEAM='EUROPA,MALTA,?MALTESE PREMIER LEAGUE|PREMIER LEAGUE,HAMRUN SPARTANS',
+                          W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1', W8485_ONE='1',
+                          W8485_TMO=os.environ.get('W8485_TMO', '1800'))
+        ok, msg = world8485()
+        msgs.append(f'4.0 season 1: {msg[:300]}')
+        car = os.path.join(RUNS, w84_tag() + '_1', 'SWOS', 'W84A.CAR')
+        if not ok or not os.path.exists(car):
+            return False, '; '.join(msgs)
+        saved = os.path.join(RUNS, 'NATS_OLD_W84A.CAR')
+        shutil.copy(car, saved)
+        os.environ.pop('W8485_ONE')
+        os.environ.update(W8485_BUILD=builds()['it'], W8485_FROM=saved)
+        ok, msg = world8485()
+        msgs.append(f'4.0.1 season 2 from the 4.0 save: {msg[:400]}')
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    return ok, '; '.join(msgs)
+
+
+@scenario
 def world_cup_prefix():
     """The continental cups' names without the empty country's prefix (careerworld w_pfx: cseg_95C18): a World
     2026-27 career at INTER (world5tm-poule) and a 1984-85 one at LIVERPOOL - VISUAL. COMPETIZ. lists 'UEFA CHAMPIONS

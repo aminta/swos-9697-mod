@@ -124,7 +124,8 @@ sp_init:                                ; replaces `call cseg_2653B` at the end 
     pushad                              ; (4.0.1: its head-to-head / 'keep' block, zeroed: a league played - not the
     cmp word [SIMFLAG], 0               ; season end's simulation - is the career league, its key into 'SH')
     jne .sx
-    mov ax, [edi + 1]                   ; (team file, division)
+    mov ax, [edi + 1]                   ; (team file, division | 80h)
+    or ah, 80h
     mov [sp_sh], ax
 .sx:
     mov edx, edi
@@ -269,6 +270,7 @@ sp_restregs:
 
 sp_entry:                               ; -> edx = the DIY league's entry, esi = DIY; ZF = 1 when none / no split
     mov esi, DIY
+sp_entry_at:                            ; (esi = a league buffer: sp_migrate's DIY / CFB)
     xor edx, edx
     cmp word [esi + S_MAGIC], MAGIC_
     jne .no
@@ -1182,7 +1184,8 @@ sp_shsel:                               ; edx = an entry -> [sp_shp]: the career
     push eax                            ; (gplay's GP_SHB[0] / [1]: the career's, the one in use - gp_keep)
     mov eax, sp_shx
     push ecx
-    mov cx, [edx + 1]
+    mov cx, [edx + 1]                   ; (the key: team file, division | 80h - a zeroed 'SH' never matches)
+    or ch, 80h
     cmp cx, [sp_sh]
     pop ecx
     jne .s
@@ -1209,10 +1212,6 @@ sp_migrate:                             ; 4.0.1, after ProcessCareerFile (engine
     mov edi, sp_sh + 2
     mov ecx, 64
     rep movsb
-    movzx edx, word [ebx + ST_40 + 2]
-    add edx, SP_TAB
-    mov ax, [edx + 1]
-    mov [sp_sh], ax
     lea esi, [ebx + ST_40 + ST_SIZE - 1]   ; the state up by 64 bytes (overlapping: from its end)
     lea edi, [ebx + ST_ + ST_SIZE - 1]
     mov ecx, ST_SIZE
@@ -1223,6 +1222,12 @@ sp_migrate:                             ; 4.0.1, after ProcessCareerFile (engine
     mov ecx, 64
     xor eax, eax
     rep stosb
+    mov esi, ebx                        ; the key from its entry found again by key (a 4.0 S_ENTRY is an offset
+    call sp_entry_at                    ; into 4.0's SP_TAB: Motore's review) - S_ENTRY fixed too
+    jz .r
+    mov ax, [edx + 1]
+    or ah, 80h
+    mov [sp_sh], ax
 .r: ret
 align 4
 SP_CB: SP_CB_ENTRIES
@@ -1635,7 +1640,7 @@ def patch(p, cave, nasmcave, splits):
         src = nasmcave.sub(src, 'call GP_STAGE', 'call sp_nostage')
     if gplay.LABELS.get('GP_SHB'):                  # (4.0.1: gp_keep reads the 'keep' table from the block in use)
         sym['GP_SHB'] = gplay.LABELS['GP_SHB']
-        src = nasmcave.sub(src, '    SHB_SET\n', '    mov [GP_SHB + 4], eax\n    mov dword [GP_SHB], sp_sh + 2\n')
+        src = nasmcave.sub(src, '    SHB_SET\n', '    mov dword [GP_SHB], sp_sh\n    mov dword [GP_SHB + 4], sp_shx\n')
     else:
         src = nasmcave.sub(src, '    SHB_SET\n', '')
     sym['CFB'] = (2, (careerworld.SITES or careerworld.sites(p))['cfb'])   # (sp_migrate: the career league's slot)

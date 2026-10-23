@@ -147,8 +147,7 @@ load and play on.
   larger match-day limit in the game's calendar; they keep the format they had in 4.0 until then.
 - **Calendars not yet published:** the Clausura 2027 of Mexico, Costa Rica, Honduras and Panama, and the last match
   days of Peru, Colombia and Uruguay are derived (mirrored) until the real calendars are out.
-- **Colombia's cuadrangulares:** the real group fixture order and the tie-break by regular-season place. [CHECK: planned
-  for 4.0.2?]
+- **Colombia's cuadrangulares:** the real group fixture order and the tie-break by regular-season place. Planned for 4.0.2.
 - **Serie D rest day and the Libertadores continuation:** see "Known issues of 4.0, revisited".
 
 ### Thanks
@@ -308,7 +307,7 @@ nella 4.0 resta com'era; le carriere salvate con la 4.0 si caricano e continuano
 - **Calendari non ancora pubblicati:** la Clausura 2027 di Messico, Costa Rica, Honduras e Panama, e le ultime
   giornate di Perù, Colombia e Uruguay sono derivate (a campi invertiti) finché non escono quelle vere.
 - **Quadrangolari colombiani:** l'ordine vero delle partite dei gironi e lo spareggio per piazzamento nella fase
-  regolare. [CHECK: previsto per la 4.0.2?]
+  regolare. Previsto nella 4.0.2.
 - **Giorno di riposo in Serie D e prosecuzione della Libertadores:** vedi "Problemi noti della 4.0, rivisti".
 
 ### Ringraziamenti

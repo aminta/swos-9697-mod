@@ -11,6 +11,8 @@ SLOT, CLS = mkseason.SLOT_POS, mkseason._POS_CLASS
 
 # explicit-lineup records of the historic tourney packs whose hand-written lineups start worse than the squad allows
 # (2026-10-23: "explicit lineup wins"; counts per team file, the checker fails on more or on any other file)
+# Kept as they are on purpose (Regia 2026-10-23): hand-written historic line-ups, where a player out of his usual role
+# can be the real XI.
 KNOWN_EXPLICIT = {'TEAM.089': 15, 'TEAM.090': 16, 'TEAM.091': 14, 'TEAM.092': 11, 'TEAM.093': 6, 'TEAM.146': 16}
 
 

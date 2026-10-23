@@ -7443,6 +7443,35 @@ def world_nats_oldsave():
 
 
 @scenario
+def world_buycont():
+    """4.0.1 foreign purchase in a world of several continents (careerworld w_buy, byte +49 of the world record): a World
+    2026-27 career at CORDOBA (release recipe, SWOSTEST_BUILD) - TRASFERIMENTI > ACQUISTA GIOCATORE > ACQ. ALTRO GIOCAT.
+    STRANIERO lists the world's continents at once (no violet CARR. STORICHE entry first), then EUROPA > ITALIA > SERIE A
+    > ATALANTA reaches its players"""
+    errs, info = [], []
+    with Session('world_buycont_' + UI, builds()['it'], {}, 'dump:2', 900) as s:
+        s.wait()
+        for t in ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27', 'EUROPA', 'SPAGNA',
+                  'SEGUNDA DIVISION', 'CORDOBA']:
+            if press(s, s.screen(), t, 3) is None:
+                return False, f'{t} not reached: {[e[1] for e in s.screen().entries if e[1]]}'
+        s.send('fire dump:3')
+        for k in (4, 2, 5):                              # TRASFERIMENTI, ACQUISTA GIOCATORE, ACQ. ALTRO GIOCAT. STRANIERO
+            walk(s, k, 3)
+        top = [e[1] for e in s.screen().entries if e[1] and not e[2]]
+        s.shot('chooser')
+        check('EUROPA' in top and 'AFRICA' in top and 'CARR. STORICHE' not in top, f'first list {top}', errs)
+        info.append(f'first list {top[1:8]}')
+        for t in ('EUROPA', 'ITALIA', 'SERIE A', 'ATALANTA'):
+            if press(s, s.screen(), t, 3) is None:
+                return False, f'{t} not reached: {[e[1] for e in s.screen().entries if e[1]]}; ' + '; '.join(errs)
+        got = [e[1] for e in s.screen().entries if e[1] and not e[2]]
+        s.shot('atalanta')
+        info.append(f'ATALANTA: {got[:6]}')
+    return not errs, '; '.join(errs + info)
+
+
+@scenario
 def world_cup_prefix():
     """The continental cups' names without the empty country's prefix (careerworld w_pfx: cseg_95C18): a World
     2026-27 career at INTER (world5tm-poule) and a 1984-85 one at LIVERPOOL - VISUAL. COMPETIZ. lists 'UEFA CHAMPIONS

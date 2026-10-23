@@ -410,12 +410,15 @@ static struct gs PS[GN], ms[GT];       /* (gp_season: the placings' figures; a r
    order the season end captures them (k = 0 again at each country's division 0). diy = DIY, st = split.ST, keep =
    S_KEEP - ST, sel = the team cache (a row's team dword is an offset into it: +2 the global number). */
 static u8 gp_kn;
+u8 *GP_SHB[2];   /* 4.0.1 (split.py sp_shsel): [0] the career league's head-to-head / 'keep' block ('SH'), [1] the one
+                    in use - the 'keep' table left the DIY */
 void gp_keep(const u8 *diy, u32 st, u32 keep, const u8 *sel, u32 div, u32 magic) {
     if (div == 0) {
         gp_kn = 0;
         for (int i = 0; i < GS; i++) GP_IN.nst[i] = 0;
     }
-    const u8 *s = diy + st, *k = s + keep;
+    const u8 *s = diy + st, *k = keep < 2 ? GP_SHB[keep] : 0;   /* (keep: 0 the career's block - CFB -, 1 in use) */
+    if (!k) return;
     int n = diy[0x31] | diy[0x32] << 8;
     if ((u32)(s[0] | s[1] << 8) != magic || s[5] != 1 || gp_kn >= GS || n < 2 || n > GT || n > 21) return;
     u32 seen = 0;

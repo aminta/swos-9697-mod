@@ -245,6 +245,9 @@ def patch_exe(src, dst, remap, lang='it'):
     cp = cave_pages()                                          # career world code: 2 pages, 3 with several worlds
     sp_tabs = (mkseason.splits() if worlds else []) + engine.split_tables()   # mid-season splits (worlds; world 0)
     sp_pg = split.pages(sp_tabs) if worlds else 0      # (own pages after all the others)
+    if sp_tabs:                                        # 4.0.1: split's head-to-head / 'keep' block left the DIY (the
+        engine.save_item('SH', split.SH_SIZE, world_only=not engine.split_tables())   # weeks reach 104 days): the
+        engine.after_process('sp_migrate')             # career league's in 'SH'; a 4.0 save's state moved at the load
     ss_on = any(st.get('table') is not None for *_, sp in sp_tabs for st in sp.get('stages') or [])
     import gplay                                       # (also imported below: the banks need it here)
     if ss_on:                                          # stage tables (GP_SS, gplay.c gp_stage: Argentina's Apertura /

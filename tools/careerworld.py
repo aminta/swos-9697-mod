@@ -453,12 +453,9 @@ w_mrec:                                 ; replaces `add word [D1], 1996; add wor
     push dword [COMP254]
     push dword [COMP99]
     mov dword [COMP254], WVIEW
-%if %3                                  ; (4.0.1, the foreign purchase: a world of several continents lists them at
-    cmp byte [ebx + 49], 0              ; once, without the violet 99 entry first)
-    je .v
-    push dword [ebx + 44]
+%if %3                                  ; (4.0.1, the foreign purchase: the world's continents, or a one-continent
+    push dword [ebx + 44]               ; world's countries, at once - without the violet 99 entry first)
     pop dword [COMP254]
-.v:
 %endif
     mov ebx, [ebx + 44]
     mov [COMP99], ebx
@@ -1769,7 +1766,7 @@ def patch(p, worlds, at, nasmcave, comp, ct, cont_rec):
         import mkseason                         # world 2025-26: several continents -> VIEW WORLD / foreign browser
         conts = [c for c, _, top in mkseason.WCONT_IDS.get(n, []) if top]
         view = conts or w['countries']          # the continents, then theirs
-        data.append(f'    dd W{n}_CONT, {int(bw) | (0x100 if conts else 0)}')   # (+48 big, +49 several continents)
+        data.append(f'    dd W{n}_CONT, {int(bw)}')
         extra.append(f'W{n}_CONT: dd ' + ('WCC, WCWC, WUEFA' if bw else 'CCCOPY, CWCCOPY, UEFACOPY') + ', -1')
         extra.append('    db ' + ', '.join(map(str, view + [0xff])))
         for key, euro in zip(('cc', 'cwc', 'uefa'), s['euro']):

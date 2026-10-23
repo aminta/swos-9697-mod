@@ -143,6 +143,9 @@ load and play on.
   4.0.2.
 - **Serie D**: a career saved after its Coppa Italia Serie D tie was drawn no longer starts the play-offs after a few
   match days when loaded (the tie is played; 4.0 saves affected are repaired on load). Gianmarco.
+- Careers saved during a season in which a play-off or title decider was settled without your club (for example
+  Argentina's Apertura / Clausura knockouts when your club missed them, or Malta's decider when one club won both
+  rounds) no longer start the next season with an empty league after loading (the match screen could not be played).
 - **Withdrawn:** 4.0's notes listed a few stray pixels on the menu buttons after a job offer letter. We could not
   reproduce them on the released 4.0, nor on 4.0.1, with the same save and the same steps: they only appeared on a
   development build of 20 October. If you see them, tell us.
@@ -313,6 +316,10 @@ nella 4.0 resta com'era; le carriere salvate con la 4.0 si caricano e continuano
 - **Serie D**: una carriera salvata dopo il sorteggio del turno di Coppa Italia Serie D, una volta caricata, non fa più
   partire i play-off dopo poche giornate (il turno si gioca; i salvataggi 4.0 colpiti vengono riparati al
   caricamento). Gianmarco.
+- Le carriere salvate durante una stagione in cui un play-off o uno spareggio per il titolo è stato deciso senza il tuo
+  club (per esempio i knockout di Apertura / Clausura in Argentina quando il tuo club non c'era, o lo spareggio di
+  Malta quando un club ha vinto entrambe le fasi) non iniziano più la stagione successiva con un campionato vuoto dopo
+  il caricamento (la schermata della partita non si poteva giocare).
 - **Ritirato:** le note della 4.0 elencavano alcuni pixel sporchi sui pulsanti dei menu dopo una lettera di offerta di
   lavoro. Non siamo riusciti a riprodurli sulla 4.0 pubblicata, né sulla 4.0.1, con lo stesso salvataggio e gli stessi
   passi: comparivano solo in una build di sviluppo del 20 ottobre. Se li vedi, dicci.

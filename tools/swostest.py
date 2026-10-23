@@ -4583,10 +4583,10 @@ def split_check_places(log, key):
     mid = [b for b in diys if b[st + o['frozen']] == 1]
     errs, info = [], []
     check(mid, 'no snapshot inside the snake stage', errs)
-    pre = [b for b in diys if b[st + o['frozen']] == 0]           # (4.0.1: the kept table left the DIY - split's
-    for b in mid[-1:]:                                            #  'SH' block -: the Apertura's rows by place
-        src = pre[-1] if pre else b                               #  from the last snapshot before the snake stage)
-        kept = [w(src, 0x6D + 2 * p) // 18 for p in range(n)]
+    shk = sh_rows(log, n)                                         # (4.0.1: the kept table is in split's 'SH' block,
+    for b in mid[-1:]:                                            #  dumped by world_split: the Apertura's rows by place)
+        check(shk is not None, "no dump of split's 'SH' block (the kept table)", errs)
+        kept = shk[0] if shk else list(range(n))
         grp = list(b[st + o['grp']:st + o['grp'] + n])
         want = {kept[p]: snake[p] for p in range(n)}
         bad = [r for r in range(n) if grp[r] != want[r]]
@@ -4646,14 +4646,15 @@ def split_check_stages(log, key):
         start += m
     if any(x.get('keep') for x in stg):                            # (4.0.1: the kept table is in split's 'SH' block,
         ki = next(i for i, x in enumerate(stg) if x.get('keep'))   # not the DIY: the table the keep stage froze,
-        pre = [b for b in diys if b[st + o['frozen']] == ki] or [last]   # from the last snapshot before it)
-        rows = [w(pre[-1], 0x6D + 2 * i) // 18 for i in range(n)]
-        kp = [struct.unpack_from('<H', pre[-1], 0x2B3 + 18 * r + 16)[0] for r in rows]
-        check(sorted(rows) == list(range(n)), f'kept order {rows}', errs)
-        kinfo = f'; kept order before the keep stage {rows} (its points {kp}: the snapshot a match behind - the table ' \
-                f'itself is in split\'s \'SH\' block since 4.0.1, its use checked by world_po_sweep_mlt)'
-    else:
-        kinfo = ''
+        shk = sh_rows(log, n)                                      # (4.0.1: from split's 'SH' block, world_split's dump)
+        check(shk is not None, "no dump of split's 'SH' block (the kept table)", errs)
+        rows, kp = shk if shk else (list(range(n)), [0] * n)
+        start, okk = 0, sorted(rows) == list(range(n))
+        for m in (sizes[ki - 1] if ki else [n]):
+            okk = okk and kp[start:start + m] == sorted(kp[start:start + m], reverse=True)
+            start += m
+        check(okk, f'kept table {rows} {kp}', errs)
+    kinfo = ''
     return not errs, '; '.join(errs[:6]) or f'{len(stg)} stages, {total} days, final order {order}{kinfo}'
 
 
@@ -4758,6 +4759,25 @@ def split_check(log, key, slots_table):
     return not errs, '; '.join(errs[:6]) or f'days {d1} + {d2}, final order {order}, groups {sizes}'
 
 
+def sh_at(exe):
+    """obj1 offset of split's 'SH' block in a build (4.0.1 option C: the career league's head-to-head / 'keep' block,
+    sp_sh: key word + 64 bytes) - the operand of sp_shsel's `cmp cx, [sp_sh]` after its `or ch, 80h`; None before."""
+    import lepatch
+    pe = lepatch.LEPatch(exe if exe.endswith('.EXE') else os.path.join(exe, 'ITALIAN.EXE'))
+    d1 = pe.le.obj_bytes(1)
+    m = re.search(rb'\x80\xcd\x80\x66\x3b\x0d', d1)
+    return pe.target(1, m.end())[1] if m else None
+
+
+def sh_rows(log, n):
+    """The last 'SH' block dumped (HEX o1/...) -> (kept rows by place, their points) of an n-club league, or None."""
+    v = [bytes.fromhex(ln.split()[2]) for ln in log if ln.startswith('HEX o1/') and len(ln.split()) == 3]
+    if not v:
+        return None
+    b = v[-1][2:]
+    return list(b[:n]), [struct.unpack_from('<H', b, 22 + 2 * i)[0] for i in range(n)]
+
+
 def world_split(kind):
     c, team, spec = SPLITS[kind]
     exe = split_build()
@@ -4767,10 +4787,13 @@ def world_split(kind):
     po = lepatch.LEPatch(os.path.join(MAIN, 'orig', 'ITALIAN.EXE'))
     sa = split.sites(po)
     keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K',
-                                            'W8485_NOSACK', 'W8485_DIY', 'W8485_FROM', 'W8485_TMO', 'W8485_SLOTS')}
+                                            'W8485_NOSACK', 'W8485_DIY', 'W8485_FROM', 'W8485_TMO', 'W8485_SLOTS', 'W8485_HEX')}
     os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5', W8485_K='108+',
                       W8485_NOSACK='1', W8485_DIY=f"{sa['DIY']:x},{split.ST:x},{sa['CAL']:x}", W8485_TMO='600',
                       W8485_SLOTS=f"{sa['SLOTS']:x}")
+    sh = sh_at(exe)                                     # (4.0.1: the kept table in split's 'SH' block)
+    if sh is not None:
+        os.environ['W8485_HEX'] = f'o1/{sh:x}:66'
     try:
         ok, msg = world8485()
     finally:

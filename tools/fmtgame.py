@@ -1049,6 +1049,11 @@ def from_pack(d):
             side = os.path.join(d, 'complist.json')     # (the converter's facts: the real cup as TM lists it)
             info = (json.load(open(side)) if os.path.exists(side) else {}).get(comp['key'], {})
             cp = complist._cup(comp, ties, 'cup', info if comp['key'] == 'cup' else {})
+            r1 = [x for t in ties if t.get('competition') == comp['key'] and t.get('round') == '1'
+                  for x in (t.get('home'), t.get('away')) if x]
+            lk = {r['key'] for r in clubs if r['file'] == 'league'}
+            if m.get('world') is not None and world_year(m['world'], d) >= 2026 and r1 and all(x in lk for x in r1):
+                cp['follow'] = True                     # (4.0.1 cupsf: the clubs follow promotions from season 2)
             titles = {lang: title(lang, complist._nm(comp['names'], lang)) for lang in LANGS}
             out.append((world, cid, titles, {lang: dict(fmtprose.cup(cp, lang), tail=[]) for lang in LANGS}))
         elif comp['type'] == 'tourney':

@@ -4649,12 +4649,12 @@ def split_check_stages(log, key):
         pre = [b for b in diys if b[st + o['frozen']] == ki] or [last]   # from the last snapshot before it)
         rows = [w(pre[-1], 0x6D + 2 * i) // 18 for i in range(n)]
         kp = [struct.unpack_from('<H', pre[-1], 0x2B3 + 18 * r + 16)[0] for r in rows]
-        start, okk = 0, sorted(rows) == list(range(n))
-        for m in (sizes[ki - 1] if ki else [n]):
-            okk = okk and kp[start:start + m] == sorted(kp[start:start + m], reverse=True)
-            start += m
-        check(okk, f'kept table {rows} {kp}', errs)
-    return not errs, '; '.join(errs[:6]) or f'{len(stg)} stages, {total} days, final order {order}'
+        check(sorted(rows) == list(range(n)), f'kept order {rows}', errs)
+        kinfo = f'; kept order before the keep stage {rows} (its points {kp}: the snapshot a match behind - the table ' \
+                f'itself is in split\'s \'SH\' block since 4.0.1, its use checked by world_po_sweep_mlt)'
+    else:
+        kinfo = ''
+    return not errs, '; '.join(errs[:6]) or f'{len(stg)} stages, {total} days, final order {order}{kinfo}'
 
 
 def split_check(log, key, slots_table):

@@ -1073,7 +1073,6 @@ GP_RITP: dd 0                           ; (ripool's RI_TAB: link_reserve, or 0)
     dd D8CAA + 12, EUW0, EUW1, EUW2, SEASREC   ; (+ the season records, 106 B each)
     dd CD_ST                            ; (the Coppa Italia Serie D's state)
     dd GP_RLN, GP_RLC, GP_REC, GP_CMB, GP_NM, D8CAA   ; (the season record lines: gp_rlines_c's)
-    dd CF_ST_                           ; (4.0.1 cupsf: the clubs' last-season places)
 '''
 
 
@@ -1509,6 +1508,8 @@ cf_mem:                                 ; gp_notin (rule 11): esi = a cup's defi
     mov eax, [CF_RES]
     ret
 CF_RES: dd 0
+    db 'CFSTPTR', 0                     ; (the harness: cupsf's CF_ST in obj2, gp_cf)
+    dd CF_ST_
 
 cf_cap:                                 ; gp_cap (the season end, every league division, D7R = the division, DIY = its
     pushad                              ; final table): gplay.c cf_cap_c keeps the places of this world's clubs

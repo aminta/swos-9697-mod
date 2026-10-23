@@ -6205,12 +6205,12 @@ def cf_slt(exe):
 
 
 def gp_cf(exe):
-    """obj2 offset of gplay's CF_ST (cupsf's last-season places; GPLOGPTR's 17th dword)."""
+    """obj2 offset of gplay's CF_ST (cupsf's last-season places; the 'CFSTPTR' block of its glue)."""
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     from le import LE
     d1 = LE(open(os.path.join(exe, 'ITALIAN.EXE'), 'rb').read()).obj_bytes(1)
-    k = d1.find(b'GPLOGPTR')
-    return struct.unpack_from('<I', d1, k + 8 + 64)[0]
+    k = d1.find(b'CFSTPTR\0')
+    return struct.unpack_from('<I', d1, k + 8)[0]
 
 
 def cf_follow(name, team, pack, cid, gpforce, career_div):

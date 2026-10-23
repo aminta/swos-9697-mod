@@ -2187,6 +2187,16 @@ Left for 2.5: (a) NSL/NSSL finals series (type-1 design) or declare them postpon
   save from before the 2027-28 season end.
 
 ## Deferred realism (4.0.2+)
+- Moldova's h2h_half groups start at 0 points (package 6, 2026-10-24; pre-existing, not option C).
+  - Facts: in Moldova's Super Liga (8 clubs, split after day 21: places 1-6 double, points 'h2h_half'; 7-8) the
+    six clubs of the title group start the group stage at 0 points. The two of the other group keep their full
+    points.
+  - The same happens on REL40hf (4.0) and on 4.0.1 (option C): the day-22 / 23 DIY snapshots have the same shape.
+    Runs: internal/swostest/go3_mda_ref (4.0), go3_mda40a, go_mda41a.
+  - 'h2h_half' should give half the points each club won against the group's other five in the first phase. Either
+    the head-to-head table is not filled in a career (sp_res is hooked only with h2h groups: check that its site is
+    reached), or the halving reads the wrong row order.
+  - 4.0.2: a world_split_h2h-style scenario that checks the group's start points against the first phase's results.
 - Odd Serie D groups, the career club resting on the last match day (Serie C session, 2026-10-23): its Poule / group
   play-off stays simulated in 4.0.1 (lastrest reverted). The tried fix (gp_lastrest: cseg_8EC2B's careerFinished loop
   also counting an unplayed slot-0 day) kept careerFinished = 0 before the rest day; PARTITA then runs

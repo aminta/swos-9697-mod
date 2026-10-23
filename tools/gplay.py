@@ -1073,6 +1073,7 @@ GP_RITP: dd 0                           ; (ripool's RI_TAB: link_reserve, or 0)
     dd D8CAA + 12, EUW0, EUW1, EUW2, SEASREC   ; (+ the season records, 106 B each)
     dd CD_ST                            ; (the Coppa Italia Serie D's state)
     dd GP_RLN, GP_RLC, GP_REC, GP_CMB, GP_NM, D8CAA   ; (the season record lines: gp_rlines_c's)
+    dd CF_ST_                           ; (4.0.1 cupsf: the clubs' last-season places)
 '''
 
 
@@ -1508,6 +1509,26 @@ cf_mem:                                 ; gp_notin (rule 11): esi = a cup's defi
     mov eax, [CF_RES]
     ret
 CF_RES: dd 0
+
+cf_cap:                                 ; gp_cap (the season end, every league division, D7R = the division, DIY = its
+    pushad                              ; final table): gplay.c cf_cap_c keeps the places of this world's clubs
+    mov al, [SLT + WORLD_BYTE]
+    cmp al, [CF_DATA]
+    jne .x
+    push es
+    push ds
+    pop es
+    cld
+    movzx ecx, byte [SEASONPLAYING]
+    push ecx
+    push dword DIY
+    movzx eax, word [D7R]
+    push eax
+    call CF_CAP
+    add esp, 12
+    pop es
+.x: popad
+    ret
 '''
 GP_RNAME = '''
 gp_rname:                               ; rnames' rn_round (an FE contest, RN_CDP): ko[0] of this season in slot 4 ->
@@ -1643,6 +1664,7 @@ def _top9(p):
 GP_PAGES = 15            # obj1 pages for the C code + glue + specs (World 2026-27's 20 countries; gplay-play; 4.0 ARG: 7; the record lines: 12; longtable's code: 13; 4.0.1 cupsf's table: 15)
 GP_ST_SIZE = 2048       # (sizeof struct gp_state: the engine block's item 'GP', patch.py)
 WN_SIZE = 4 + 4 * 40    # (sizeof struct wn_state: the engine block's item 'WN', the WINNERS page's last season)
+CF_SIZE = 4 + 256       # (sizeof struct cf_state: the engine block's item 'CF', cupsf's last-season places)
 GP_BSS = 0x6000          # the C .bss pages (obj2 after careerworld's BSS): GP_IN at GT 32 / GD 16, GP_SS, PR, RS, GP_ST, RI, PS
 
 
@@ -1965,9 +1987,16 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
                               '    jz .r\n    call cf_mem\n    cmp eax, 2\n    je .cfd\n    test eax, eax\n'
                               '    sete bl\n    jmp .r\n.cfd:\n    movzx ecx, byte [esi + 10]\n')
         cd_src += CF_ASM + 'CF_DATA: db ' + ', '.join(str(b) for b in cft) + '\n'
-        symbols.update({'CF_TABP': syms['CF_TAB'], 'CF_LIST': syms['cf_list_c'], 'CF_MEMBER': syms['cf_member_c']})
+        symbols.update({'CF_TABP': syms['CF_TAB'], 'CF_LIST': syms['cf_list_c'], 'CF_MEMBER': syms['cf_member_c'],
+                        'CF_CAP': syms['cf_cap_c']})
     cd_src += nasmcave.sub(GP_RNAME, 'CD_PART', CD_RNAME if cds else '')
-    asm = (nasmcave.sub(ASM, 'jmp GP_REC_NEXT', 'jmp GP_REC_NEXT' if rec_dp else 'jmp gp_recmov') + tab_src + '\n'
+    asm_main = ASM
+    if cft:                                                   # (cupsf: every league division's final places)
+        asm_main = nasmcave.sub(asm_main, '    call GP_CAP_NEXT\n    pushad\n    mov edx, [A4R]\n    call gp_find\n',
+                                '    call GP_CAP_NEXT\n    pushad\n    call cf_cap\n    mov edx, [A4R]\n'
+                                '    call gp_find\n')
+    symbols['CF_ST_'] = syms['CF_ST']
+    asm = (nasmcave.sub(asm_main, 'jmp GP_REC_NEXT', 'jmp GP_REC_NEXT' if rec_dp else 'jmp gp_recmov') + tab_src + '\n'
            + names_lines(tables, area, lang) + '\n' + stubs + cd_src)
     glue = (cend + 15) & ~15
     code, fix = nasmcave.assemble(asm, glue, symbols)
@@ -2058,7 +2087,7 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
     assert struct.unpack('<I', p.get(1, syms['RI_STATE_SIZE'][1], 4))[0] == ripool.RI_SIZE   # (the engine block's 'RI')
     kolay = dict(zip(('st_ko', 'size', 'slot', 'ntie', 'tw', 'tl', 'team', 'n'),
                      struct.unpack('<8I', p.get(1, syms['GP_KOLAY'][1], 32))))   # (4.0's gp_build glue: GP_ST.ko[0])
-    LABELS.update(lab, GP_TOPW=top_w, GP_TOPR=top_r, CD_ST=syms['CD_ST'], GP_GS=syms['GP_GS'], GP_KOLAY=kolay, GP_IN=syms['GP_IN'], GP_OUT=syms['GP_OUT'], GP_ST=syms['GP_ST'], GP_LOG=syms['GP_LOG'], layout=lay, pg_season=syms['pg_season'], pg_place=syms['pg_place'], rs_season=syms['rs_season'], gp_stage=syms['gp_stage'], gp_overall=syms['gp_overall'], gp_stitle_c=syms['gp_stitle_c'], gp_hplan_c=syms['gp_hplan_c'], gp_hlabel_c=syms['gp_hlabel_c'], GP_HP=syms['GP_HP'], GP_HGP=syms['GP_HGP'], GP_HG=syms['GP_HG'], GP_HV=syms['GP_HV'], GP_HF=syms['GP_HF'], GP_HL=syms['GP_HL'], GP_HON=syms['GP_HON'], GP_OV_ORD=syms['GP_OV_ORD'], GP_OV_ROWS=syms['GP_OV_ROWS'], GP_OV_N=syms['GP_OV_N'], GP_OV_ANNUAL=syms['GP_OV_ANNUAL'], GP_SS=syms['GP_SS'], PR_STATE=syms['PR_STATE'],
+    LABELS.update(lab, GP_TOPW=top_w, GP_TOPR=top_r, CD_ST=syms['CD_ST'], CF_ST=syms['CF_ST'], GP_GS=syms['GP_GS'], GP_KOLAY=kolay, GP_IN=syms['GP_IN'], GP_OUT=syms['GP_OUT'], GP_ST=syms['GP_ST'], GP_LOG=syms['GP_LOG'], layout=lay, pg_season=syms['pg_season'], pg_place=syms['pg_place'], rs_season=syms['rs_season'], gp_stage=syms['gp_stage'], gp_overall=syms['gp_overall'], gp_stitle_c=syms['gp_stitle_c'], gp_hplan_c=syms['gp_hplan_c'], gp_hlabel_c=syms['gp_hlabel_c'], GP_HP=syms['GP_HP'], GP_HGP=syms['GP_HGP'], GP_HG=syms['GP_HG'], GP_HV=syms['GP_HV'], GP_HF=syms['GP_HF'], GP_HL=syms['GP_HL'], GP_HON=syms['GP_HON'], GP_OV_ORD=syms['GP_OV_ORD'], GP_OV_ROWS=syms['GP_OV_ROWS'], GP_OV_N=syms['GP_OV_N'], GP_OV_ANNUAL=syms['GP_OV_ANNUAL'], GP_SS=syms['GP_SS'], PR_STATE=syms['PR_STATE'],
                   RS_STATE=syms['RS_STATE'], ri_season=syms['ri_season'], ri_apply=syms['ri_apply'],
                   ri_cache=syms['ri_cache'], RI_STATE=syms['RI_STATE'], RI_MGR=syms['RI_MGR'],
                   RI_RULE=syms['RI_RULE'], cd_season=syms['cd_season'],

@@ -6204,6 +6204,15 @@ def cf_slt(exe):
     return p.target(1, k + 6)[1]
 
 
+def gp_cf(exe):
+    """obj2 offset of gplay's CF_ST (cupsf's last-season places; GPLOGPTR's 17th dword)."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    from le import LE
+    d1 = LE(open(os.path.join(exe, 'ITALIAN.EXE'), 'rb').read()).obj_bytes(1)
+    k = d1.find(b'GPLOGPTR')
+    return struct.unpack_from('<I', d1, k + 8 + 64)[0]
+
+
 def cf_follow(name, team, pack, cid, gpforce, career_div):
     """World 2026-27 cups follow promotions (cupsf.py, gplay.c cf_list_c): a new career at team (its last path entry)
     forced to place gpforce (GPLAY_FORCE) in its division, season 1 played, the next season saved and reloaded:
@@ -6251,6 +6260,7 @@ def cf_follow(name, team, pack, cid, gpforce, career_div):
         s.send(LOAD1 + ' dump:3')
         d = s.result.read(s.result.base2, 0x100000)
         sl = bytes(s.result.obj2(slt + gbase, 256)) if slt is not None else bytes(256)
+        cfs = bytes(s.result.obj2(gp_cf(exe), 260)) if slt is not None else bytes(260)
         walk(s, s.screen().find('VISUAL. COMPETIZ.', exact=True), 3)
         vc = [e[1] for e in s.screen().entries if e[1] and not e[2]]
     n = fmt[1]
@@ -6273,9 +6283,25 @@ def cf_follow(name, team, pack, cid, gpforce, career_div):
     want = {dv: [c, b] for dv, c, b in fmt[2]}
     check(got == want, f'divisions (entrants, byes) {got} (want the real format {want})', errs)
     moved = [names[w >> 8] for w in words if cur(w >> 8) != base[w >> 8]]
+    magic, cseas, cfile = struct.unpack_from('<HBB', cfs, 0)
+    check(magic == 0x4643 and cfile == lfile, f'CF_ST {magic:#x} season {cseas} file {cfile} (want the league file {lfile})',
+          errs)
+    rank = cfs[4:260]
+    key = lambda o: (rank[o], o)
+    for dv, c, b in fmt[2]:                         # Davide: by last season's place (the career club first)
+        cand = sorted((o for o in base if cur(o) == dv), key=key)
+        if me in cand:
+            cand.remove(me)
+            cand.insert(0, me)
+        want_set = set(cand[:c])
+        got_set = {w >> 8 for w in words if cur(w >> 8) == dv}
+        check(got_set == want_set, f'division {dv}: {sorted(names[o] for o in got_set)} (want by last season\'s place '
+                                   f'{sorted(names[o] for o in want_set)})', errs)
+    tops = {dv: [(names[o], rank[o]) for o in sorted((o for o in base if cur(o) == dv), key=key)[:3]]
+            for dv, _, _ in fmt[2]}
     check(any(cup in x for x in vc for cup in ('COPPA', 'CUP', 'COPA')), f'competitions {vc}', errs)
     return not errs, '; '.join(errs) or (f'season 2 cup {cid:#x}: {n} clubs by current division {got}, {club} in; '
-                                         f'clubs that changed division: {moved}; competitions {vc}')
+                                         f'clubs that changed division: {moved}; best placed {tops}; competitions {vc}')
 
 
 @scenario

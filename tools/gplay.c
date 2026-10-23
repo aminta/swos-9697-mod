@@ -2882,8 +2882,11 @@ void ri_cache(u8 *recs, int n, int file, const u8 *orig, const u8 *pool, int fi,
 /* 4.0.1 (cupsf.py): the World 2026-27 national and league cups follow promotions and relegations. From the world's
    second season a cup's entrants come from the clubs' CURRENT divisions (base + someLeaguesTable delta), with the real
    list's format: n_d entrants per division, b_d of them byes (the list's end, as lib97's BYE_TAB); the career club
-   first when its division takes part; the others in a deterministic order (seed: season, cup id), so the set-up (cf_a6)
-   and rule 11's check (gp_notin -> cf_member_c) agree without any saved state.
+   first when its division takes part; the others by LAST SEASON'S FINAL POSITION in the division they played in
+   (Davide: best placed first, a promoted / relegated club by its place in its old division; equal places: the file's
+   order; clubs without a place - an old save, a club not in last season's league - after them in the file's order). The positions: cf_cap_c at the
+   season end (gp_cap: every division's final table), saved with the career (engine item 'CF'). The set-up (cf_a6) and
+   rule 11's check (gp_notin -> cf_member_c) compute the same list.
    CF_TAB: db world, db first season, db cups; per cup: db id, db n, db groups, db dt, groups x (db division, db n_d,
    db b_d); then db dts; per dt: dw global base, db file, dw m, m x (db ordinal, db base division). */
 const u8 *CF_TAB;
@@ -2905,13 +2908,31 @@ static const u8 *cf_cup(int id, const u8 **dtp) {
     *dtp = d;
     return hit;
 }
+struct cf_state { u16 magic; u8 season, file; u8 rank[256]; };
+struct cf_state CF_ST;
+const u32 CF_STSZ = sizeof(struct cf_state);
+enum { CF_MAGIC = 0x4643 };
+void cf_cap_c(u32 dv, const u8 *diy, u32 season) {     /* a division's final table (DIY: +31h clubs, +6Dh the places'
+                                                           row offsets, +12Dh the rows' team words) */
+    int n = diy[0x31] | diy[0x32] << 8;
+    if (n > 255) n = 255;
+    for (int k = 0; k < n; k++) {
+        int row = (diy[0x6D + 2 * k] | diy[0x6E + 2 * k] << 8) / 0x12;
+        u16 w = (u16)(diy[0x12D + 2 * row] | diy[0x12E + 2 * row] << 8);
+        if (CF_ST.magic != CF_MAGIC || CF_ST.season != (u8)season) {
+            for (int i = 0; i < 256; i++) CF_ST.rank[i] = 0xFF;
+            CF_ST.magic = CF_MAGIC; CF_ST.season = (u8)season; CF_ST.file = (u8)(w & 0xFF);
+        }
+        if ((w & 0xFF) != CF_ST.file) continue;
+        CF_ST.rank[w >> 8] = (u8)(k + 1);
+    }
+}
 static int cf_build(int id, int season, u32 cteam, u16 *out) {
     const u8 *dt, *c = cf_cup(id, &dt);
     if (!c || season == CF_TAB[1]) return 0;     /* (the first season: the real list and bracket) */
     int n = c[1], ng = c[2], gb = dt[0] | dt[1] << 8, lf = dt[2], nm = dt[3] | dt[4] << 8, nb = 0, at = 0;
     u16 byes[64];
     u8 cand[256];
-    rng = (u32)season * 104729u + (u32)id * 7919u + 17u;
     for (int g = 0; g < ng; g++) {
         int dv = c[4 + 3 * g], want = c[5 + 3 * g], wb = c[6 + 3 * g], m = 0;
         for (int q = 0; q < nm; q++) {
@@ -2919,9 +2940,17 @@ static int cf_build(int id, int season, u32 cteam, u16 *out) {
             if (b + GP_SLT[gb + i] == dv) cand[m++] = (u8)i;
         }
         if (m < want) return 0;                  /* (a division shorter than the format: keep the fixed list) */
-        for (int i = m - 1; i > 0; i--) {        /* (deterministic shuffle) */
-            int j = below(i + 1); u8 x = cand[i]; cand[i] = cand[j]; cand[j] = x;
+        int ranked = CF_ST.magic == CF_MAGIC && (u8)(CF_ST.season + 1) == (u8)season && CF_ST.file == lf;
+        u32 key[256];
+        for (int i = 0; i < m; i++) {            /* (last season's place, then the ordinal) */
+            int o = cand[i], r = ranked ? CF_ST.rank[o] : 0xFF;
+            key[i] = (u32)r << 8 | (u32)o;
         }
+        for (int i = 1; i < m; i++)              /* (insertion sort by key) */
+            for (int j = i; j > 0 && key[j - 1] > key[j]; j--) {
+                u32 k = key[j]; key[j] = key[j - 1]; key[j - 1] = k;
+                u8 x = cand[j]; cand[j] = cand[j - 1]; cand[j - 1] = x;
+            }
         if ((cteam & 0xFF) == lf)                /* the career club first */
             for (int i = 0; i < m; i++)
                 if (cand[i] == (cteam >> 8 & 0xFF)) { u8 x = cand[i]; for (int j = i; j > 0; j--) cand[j] = cand[j - 1]; cand[0] = x; break; }

@@ -95,6 +95,14 @@ load and play on.
 - Saves: the clubs' final places are saved with the career. A 4.0 save loads and plays on; its first new season
   orders the clubs by the team file until a season has been completed.
 
+#### Line-ups that make sense
+- The computer teams of the World 2026-27, of Europe 1984-85 and of the historic season packs (since 3.0) used to field
+  their starters in file order, so the left-back stood at centre-back and the left midfielder in central midfield.
+  Now each team's 11 starters follow their roles (goalkeeper, right-back, two centre-backs, left-back, right
+  midfielder, two central midfielders, left midfielder, two forwards): 3,529 teams corrected. The original 1996-97
+  teams and the hand-written line-ups of the historic tourneys are unchanged.
+- In a career started before 4.0.1, the clubs the career already holds in memory keep their old line-up.
+
 #### Menus and screens
 - **Buying a foreign player** now opens straight on the continents (World 2026-27) or on the nations (Europe
   1984-85), without a CARR. STORICHE (CLASSIC CAREERS) menu in front (in the World 2026-27 that was a violet entry).
@@ -151,7 +159,7 @@ load and play on.
 - **Serie D rest day and the Libertadores continuation:** see "Known issues of 4.0, revisited".
 
 ### Thanks
-Thanks to Roman for the nationalities, to Gianmarco for the install report and to Filippo for the GOG launch.
+Thanks to Roman for the nationalities, to Gianmarco for the install report and the line-ups, and to Filippo for the GOG launch.
 
 ## Italiano
 
@@ -252,6 +260,15 @@ nella 4.0 resta com'era; le carriere salvate con la 4.0 si caricano e continuano
 - Salvataggi: i piazzamenti finali delle squadre si salvano con la carriera. Un salvataggio della 4.0 si carica e
   prosegue; la sua prima stagione nuova ordina le squadre secondo il file finché non si è completata una stagione.
 
+#### Formazioni sensate
+- Le squadre del computer del Mondo 2026-27, di Europa 1984-85 e dei pacchetti di stagioni storiche (dalla 3.0)
+  schieravano i titolari nell'ordine del file, così il terzino sinistro giocava da difensore centrale e il
+  centrocampista di sinistra a centrocampo. Ora gli 11 titolari di ogni squadra seguono i loro ruoli (portiere,
+  terzino destro, due difensori centrali, terzino sinistro, ala destra, due centrocampisti centrali, ala sinistra, due
+  attaccanti): 3.529 squadre corrette. Le squadre originali del 1996-97 e le formazioni scritte a mano dei tornei
+  storici non cambiano.
+- In una carriera iniziata prima della 4.0.1, i club che la carriera ha già in memoria tengono la vecchia formazione.
+
 #### Menu e schermate
 - **L'acquisto di un giocatore straniero** si apre ora direttamente sui continenti (Mondo 2026-27) o sulle nazioni
   (Europa 1984-85), senza un menu CARR. STORICHE davanti (nel Mondo 2026-27 era una voce viola).
@@ -311,4 +328,4 @@ nella 4.0 resta com'era; le carriere salvate con la 4.0 si caricano e continuano
 - **Giorno di riposo in Serie D e prosecuzione della Libertadores:** vedi "Problemi noti della 4.0, rivisti".
 
 ### Ringraziamenti
-Grazie a Roman per le nazionalità, a Gianmarco per la segnalazione sull'installazione e a Filippo per l'avvio da GOG.
+Grazie a Roman per le nazionalità, a Gianmarco per la segnalazione sull'installazione e sulle formazioni e a Filippo per l'avvio da GOG.

@@ -286,6 +286,23 @@ gp_cal:                                 ; 4.0: replaces the career calendar's le
 %endif
 
 gp_after:                               ; 4.0 after a career load (arg97's arg_load, after ProcessCareerFile)
+%if CD_ON
+    pushad                              ; (4.0.1: a 4.0 save's play-off built over an emptied Coppa D tie dropped,
+    push es                             ; cd_fixload_c - before gp_sync points slot 4 at it)
+    push ds
+    pop es
+    cld
+    movzx eax, word [CAL_CUR]
+    push eax
+    push dword CAL
+    movzx eax, byte [SEASONPLAYING]
+    push eax
+    push dword [SLOTS_]
+    call cd_fixload_c
+    add esp, 16
+    pop es
+    popad
+%endif
     call gp_sync
 %if CD_ON
     mov eax, [SLOTS_ + 8]               ; (the Coppa D in slot 2: its contest pointer back, ProcessCareerFile left 0)
@@ -299,17 +316,18 @@ gp_after:                               ; 4.0 after a career load (arg97's arg_l
     call gp_cdmem                       ; (rc4: a Coppa D club with no Coppa D there: ProcessCareerFile rebuilt slot 2's
     jz .ns1                             ; pointer - the C. IT SERIE C - over an empty buffer whose stale winner, a club
     mov dword [D8CAA + 8], 0            ; not loaded after a job change, trapped the season end: no contest, as at
-    pushad                              ; the season start)
-    mov edi, [SLOTS_ + 8]
+    pushad                              ; the season start; 4.0.1: slot 2's own 443h only - B52h ran over slot 4,
+    mov edi, [SLOTS_ + 8]               ; the next buffer: a Coppa D tie there came back empty, read as a league
+                                        ; over -> gp_lend built the play-off at match day 5, Gianmarco's FIDELIS)
     push es
     push ds
     pop es
     cld
-    mov ecx, 0B52h
+    mov ecx, 443h
     xor eax, eax
     rep stosb
     pop es
-    sub edi, 0B52h
+    sub edi, 443h
     mov word [edi + 39h], 0FFFFh
     mov ecx, [CD_NM]
     add ecx, STR_BASE_
@@ -561,6 +579,9 @@ gp_install:                             ; GP_BUILT (gp_lend_c): each ko built in
 
 gp_lend:                                ; replaces `call cseg_8ECAE` (the career league's last match day) before
     pushad                              ; dplay's dp_lend (or the game's): in a country of GP_TAB the career club's
+    mov eax, [A0R]                      ; (4.0.1: only for the league's own buffer, slot 0 - the callers test the
+    cmp eax, [SLOTS_]                   ; played slot's contest: an empty one, type 0 with [2Bh] = [5Fh] = 0, looks
+    jne .skip                           ; like a league over; none of them, nor the game's own, at a cup's match)
     call gp_setup                       ; play-off (Season: the division's play-off and play-out) into slot 4 (3)
     jz .next
 %if FORCE_ON
@@ -1021,12 +1042,12 @@ gp_adv:                                 ; replaces the 4 `call cseg_8EA82` (the 
     jmp .ncd
 .s1:
     pushad                              ; 4.0: the Coppa D from the 1/32 in slot 2 (CDS1, its list just written), as
-    push es                             ; conti's ct_build: the slot's buffer cleared, cseg_8B2D3, no winner yet
+    push es                             ; conti's ct_build: the slot's buffer cleared (its 443h), cseg_8B2D3, no winner
     push ds
     pop es
     cld
     mov edi, [SLOTS_ + 8]
-    mov ecx, 0B52h
+    mov ecx, 443h
     xor eax, eax
     rep stosb
     pop es
@@ -1454,16 +1475,16 @@ gp_cup12:                               ; 4.0: InitNewSeason's `call cseg_8B2D3`
     jz .game
     movzx eax, word [D0R]
     mov dword [D8CAA + eax * 4], 0
-    mov edi, [SLOTS_ + eax * 4]         ; (the slot's buffer: no contest - cleared whole, as conti's ct_build: a
+    mov edi, [SLOTS_ + eax * 4]         ; (the slot's 443h buffer: no contest - cleared whole, as conti's ct_build: a
     push es                             ; stale buffer kept last season's winner, a club of another Serie D group
     push ds                             ; not loaded after a job change -> the season end's VerifyTeamLoaded int 3,
     pop es                              ; rc4 AVOLA; no winner; its long-name pointer = the Coppa D's: the season
     cld                                 ; record's league-cup line reads COPPA ITALIA SERIE D, TEST 8's CJARLINS)
-    mov ecx, 0B52h
+    mov ecx, 443h
     xor eax, eax
     rep stosb
     pop es
-    sub edi, 0B52h
+    sub edi, 443h
     mov word [edi + 39h], 0FFFFh
     mov ecx, [CD_NM]
     add ecx, STR_BASE_
@@ -1982,7 +2003,7 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
     symbols['ADDJOB'] = (1, addjob)
     symbols.update({k: syms[k] for k in ('GP_CFB', 'GP_LG', 'GP_RST', 'GP_RIT', 'GP_SEL', 'GP_MGR', 'GP_WORLD', 'GP_SLT',
                                          'gp_sack_c', 'gp_forcecfb', 'gp_pwin_c', 'gp_rlines_c', 'GP_RLN', 'GP_RLC', 'GP_RLPOULE', 'GP_REC', 'GP_CMB', 'gp_adv_c', 'GP_ADVWK', 'GP_WK', 'GP_TH', 'GP_RN',
-                                         'gp_defer_c', 'cd_step_c', 'gp_scal_c', 'gp_repoint_c', 'gp_fixload_c', 'CD_ST', 'GP_CDT', 'GP_CDNM', 'GP_CDD',
+                                         'gp_defer_c', 'cd_step_c', 'cd_fixload_c', 'gp_scal_c', 'gp_repoint_c', 'gp_fixload_c', 'CD_ST', 'GP_CDT', 'GP_CDNM', 'GP_CDD',
                                          'GP_CDFIRST')})
     symbols['CD_MEMBER'] = syms['cd_member_c']
     symbols['GP_CDS1'] = syms['GP_CDS1']

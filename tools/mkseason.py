@@ -131,6 +131,28 @@ def _nums(row, col, n, lo, hi, where):
           f'{where}: {col} must be {n} numbers {lo}..{hi} separated by spaces')
     return [int(x) for x in v]
 
+SLOT_POS = [0, 1, 3, 3, 2, 4, 6, 6, 5, 7, 7]    # the game's 4-4-2 starter slots: GK RB D D LB RW M M LW A A (position bytes)
+_POS_CLASS = {0: 0, 1: 1, 2: 1, 3: 1, 4: 2, 5: 2, 6: 2, 7: 3}     # GK / defender / midfielder / attacker
+
+
+def auto_lineup(positions):
+    """16-byte lineup (record bytes 60..75) from the 16 players' position bytes (0 G 1 RB 2 LB 3 D 4 RW 5 LW 6 M 7 A,
+    file order): the 11 starters take the slot roles GK RB D D LB RW M M LW A A (exact position first, then the same
+    class), the bench is the rest in file order. A squad of the real record order is not touched (it has its own)."""
+    assert len(positions) == 16
+    used, start = set(), [None] * 11
+    for exact in (True, False):
+        for k, want in enumerate(SLOT_POS):
+            if start[k] is not None:
+                continue
+            for j, ps in enumerate(positions):
+                if j not in used and (ps == want if exact else _POS_CLASS[ps] == _POS_CLASS[want]):
+                    start[k] = j; used.add(j); break
+    for k in range(11):
+        if start[k] is None:
+            start[k] = next(j for j in range(16) if j not in used); used.add(start[k])
+    return start + [j for j in range(16) if j not in used]
+
 
 class PackError(Exception):
     pass
@@ -991,10 +1013,15 @@ class Pack:
                 for col, at in (('kit1', 26), ('kit2', 31)):
                     v = _nums(c, col, 5, 0, 255, where)
                     r[at:at + 5] = bytes(v)
-                lineup = _nums(c, 'lineup', 16, 0, 15, where)
-                _need(sorted(lineup) == list(range(16)), f'{where}: lineup must list 0..15 once each')
-                r[60:76] = bytes(lineup)
                 rows = self.prows[key]
+                lineup = _nums(c, 'lineup', 16, 0, 15, where) if (c.get('lineup') or '').strip() else list(range(16))
+                _need(sorted(lineup) == list(range(16)), f'{where}: lineup must list 0..15 once each')
+                if lineup == list(range(16)):          # no explicit lineup (blank / identity): from the positions
+                    ps = [EXPLICIT_POS.index(row['position']) for row in rows[:16]]
+                    lineup = auto_lineup(ps)
+                    _need(sorted(lineup) == list(range(16)) and ([ps[j] for j in lineup[:11]] == SLOT_POS or not all(
+                        ps.count(p_) >= SLOT_POS.count(p_) for p_ in set(SLOT_POS))), f'{where}: auto lineup')
+                r[60:76] = bytes(lineup)
                 _need(16 <= len(rows) <= 16 + extra, f'players.csv: {key}: explicit squads need 16 players'
                       + (f' + at most {extra} more (squads "extra")' if extra else '') + f' ({len(rows)})')
                 for j, row in enumerate(rows[:16]):

@@ -83,7 +83,7 @@ def record(conf, i, c, base):
         r[at:at + 5] = bytes(mkseason._nums(c, col, 5, 0, 255, where))
     lineup = mkseason._nums(c, 'lineup', 16, 0, 15, where) if c.get('lineup') else list(range(16))
     mkseason._need(sorted(lineup) == list(range(16)), f'{where}: lineup must list 0..15 once each')
-    r[60:76] = bytes(lineup)
+    r[60:76] = bytes(lineup)      # (identity = none given: from the positions, below)
     r[36:59] = mkseason._sn(c['coach']).encode('latin1').ljust(23, b'\0')[:23] if c.get('coach') else bytes(23)
     rows = c['players']
     mkseason._need(len(rows) >= 16, f'{where}: at least 16 players ({len(rows)})')
@@ -91,6 +91,8 @@ def record(conf, i, c, base):
         row = {k: str(v) for k, v in row.items()}
         row.setdefault('club', c['key'])
         r[76 + j * 38:76 + (j + 1) * 38] = mkseason.Pack._explicit_player(None, row)
+    if lineup == list(range(16)):                  # no explicit lineup: the starters from the positions
+        r[60:76] = bytes(mkseason.auto_lineup([r[76 + j * 38 + 26] >> 5 for j in range(16)]))
     return bytes(r)
 
 

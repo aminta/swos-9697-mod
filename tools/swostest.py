@@ -3458,6 +3458,15 @@ def walk(s, target, w=3, tries=20):
     raise AssertionError(f'{target} not reached')
 
 
+def career_entry(s, t):
+    """walk() target for a menu label: the main menu's original CARRIERA (1996-97 career) when a release build also
+    has the green 'CARRIERA 2026-27' button (4.0 mainbtn), which a plain 'CARRIERA' would pick first."""
+    if t == 'CARRIERA':
+        i = s.screen().find('CARRIERA', exact=True)
+        return t if i is None else i
+    return t
+
+
 def friendly_prematch(s, home, away):
     """Main menu -> AMICHEVOLE with two Bundesliga clubs (player-controlled) -> pre-match screen."""
     for t in ('AMICHEVOLE', 'OK', 'SCEGLI SQUADRE', 'SQUADRE CLUB', 'EUROPA', 'GERMANIA', '1. LIGA', home, away):
@@ -3563,7 +3572,7 @@ def india_season():
     with Session('india_season', builds()['it'], {}, 'dump:3', 500) as s:
         s.wait()
         for t in ('CARRIERA', 'SCEGLI SQUADRA', 'ASIA', 'INDIA', 'EAST BENGAL'):
-            walk(s, t, 3)
+            walk(s, career_entry(s, t), 3)
         ok, msg = advance(s, season_over, 900)
         if not ok:
             return False, 'advance: ' + msg
@@ -3633,7 +3642,7 @@ def xtra_squad():
     with Session('xtra_squad', b, {'DATA/XTRA.%03d' % XTRA_FILE: path}, 'dump:3', 300) as s:
         s.wait()
         for t in ('CARRIERA', 'SCEGLI SQUADRA', 'EUROPA', 'GERMANIA'):
-            walk(s, t, 3)
+            walk(s, career_entry(s, t), 3)
         if s.screen().find('1. LIGA') is not None:
             walk(s, '1. LIGA', 3)
         scr = walk(s, XTRA_CLUB, 4)
@@ -3685,7 +3694,7 @@ def xtra_squad():
     with Session('xtra_squad_ctl', b, {'DATA/XTRA.%03d' % XTRA_FILE: path}, 'dump:3', 300) as s:
         s.wait()                                # control: a club without an XTRA block keeps the game's reserves
         for t in ('CARRIERA', 'SCEGLI SQUADRA', 'EUROPA', 'GERMANIA'):
-            walk(s, t, 3)
+            walk(s, career_entry(s, t), 3)
         if s.screen().find('1. LIGA') is not None:
             walk(s, '1. LIGA', 3)
         walk(s, 'HANSA ROSTOCK', 4)
@@ -6450,12 +6459,13 @@ def world_winners_state():
     import statecup
     s1 = statecup.sites(lepatch.LEPatch(os.path.join(MAIN, 'orig', 'ITALIAN.EXE')))['slot1']
     keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_ONE',
-            'W8485_MIDSAVE')
+            'W8485_MIDSAVE', 'W8485_SAVE_END')
     keep = {k: os.environ.get(k) for k in keys}
     os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1',
                       W8485_TEAM='SUDAMERICA,BRASILE,BRASILEIRAO SERIE A|CAMPEONATO BRASILEIRO SERIE A,PALMEIRAS',
-                      W8485_ONE='1', W8485_MIDSAVE=f'{s1 + 0x55:x}:255:2')
-    try:
+                      W8485_ONE='1', W8485_MIDSAVE=f'{s1 + 0x55:x}:255:2',
+                      W8485_SAVE_END='WWIN')         # (401rc data: slot 1 +55h never holds FFh although the Paulista is
+    try:                                             # decided; the season-end save, slot 1 still the Paulista, is the fallback)
         ok, msg = world8485()
     finally:
         for k, v in keep.items():
@@ -6465,7 +6475,11 @@ def world_winners_state():
                 os.environ[k] = v
     if not ok:
         return False, f'season: {msg}'
-    with Session('world_winners_state', exe, {'WWIN.CAR': msg.split(': ', 1)[1]}, 'dump:2', 300) as s:
+    if 'saved ' not in msg:
+        return False, f'no save: {msg}'
+    car = msg.split('saved ', 1)[1].strip()
+    car = car.split(': ', 1)[1] if car.startswith('mid-season: ') else car      # ('saved mid-season: PATH' | 'saved PATH')
+    with Session('world_winners_state', exe, {'WWIN.CAR': car}, 'dump:2', 300) as s:
         s.wait()
         s.send(LOAD1 + ' dump:3')
         champ = team_name(exe, struct.unpack_from('<H', s.result.obj2(s1 + 0x39, 2))[0])

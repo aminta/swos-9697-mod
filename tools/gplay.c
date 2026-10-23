@@ -1950,6 +1950,51 @@ u32 cd_member_c(u32 team) {
     return dv >= dt[0] && dv < dt[0] + dt[1];
 }
 
+/* 4.0.1, a career load (gp_after, before gp_sync): a 4.0 save played on after a reload with a Coppa D tie built
+   (CD_ST.built): 4.0's gp_after cleared slot 4 together with slot 2, the tie came back as an empty contest, read as a
+   league over, and gp_lend built the club's play-off over it into ko[0] from that day's table (Gianmarco's FIDELIS
+   ANDRIA, match day 5). Its signature - ko[0] a play-off of this season, the tie still built, the league (slot 0's
+   buffer: day +1C1h, days +1C3h) not over - drops that play-off; the tie is built again at the next calendar advance
+   (gp_install) and the play-off comes at the league's real end. The play-off's calendar entries still to come (slot
+   4 from cur on: the next entry to play; cal: the career calendar, its count word at cal - 4) go, as lib97's
+   cal_noreplay removes an entry - the next one moves into cur's place: else its final was played next, then its
+   leftover days stuck the career. */
+static void cal_drop(u8 *cal, u32 cur, u8 slot) {
+    u16 *cnt = (u16 *)(cal - 4);
+    u8 *e = cal;
+    for (u32 i = 0; i < *cnt; ) {
+        u32 len = *(const u16 *)(e + 2);
+        if (!len) break;
+        if ((u32)(e - cal) >= cur && e[0] == slot) {
+            u32 rest = 0;                       /* (the bytes of the entries after it) */
+            const u8 *f = e + len;
+            for (u32 j = i + 1; j < *cnt; j++) {
+                u32 l = *(const u16 *)(f + 2);
+                if (!l) break;
+                rest += l;
+                f += l;
+            }
+            volatile u8 *o = e;
+            for (u32 b = 0; b < rest; b++) o[b] = e[len + b];
+            (*cnt)--;
+            continue;
+        }
+        e += len;
+        i++;
+    }
+}
+void cd_fixload_c(const u8 *league, u32 seas, u8 *cal, u32 cur) {
+    struct gp_ko *k = &GP_ST.ko[0];
+    if (CD_ST.magic != 0x4443 || CD_ST.season != (u8)seas || !CD_ST.built) return;
+    if (k->magic != MAGIC || k->season != (u8)seas || k->kind == K_CUPD) return;
+    if (!league || *(const u16 *)(league + 0x1C1) >= *(const u16 *)(league + 0x1C3)) return;
+    k->magic = 0;
+    k->slot = 0;
+    CD_ST.built = 0;
+    if (cal) cal_drop(cal, cur, 4);
+    CD_ST.pad |= 0x20;                  /* (the harness's trace: repaired at a load) */
+}
+
 static void cd_done(struct gp_ko *k) {  /* gp_rec_c: our CD tie decided -> its result */
     if (!CD_ST.built || k->tw[0] == NOC) return;
     CD_ST.res[CD_ST.bt] = k->team[k->tw[0]] == cd_side(CD_ST.bt, 0) ? 1 : 2;

@@ -7359,6 +7359,118 @@ def world_cupd_slot2_load():
 
 
 @scenario
+def world_cupd_reload(team='H:FIDELIS ANDRIA'):
+    """4.0.1 user report (Gianmarco, 4.0: 'Serie D play-offs after 5 match days'): a World 2026-27 career at FIDELIS
+    ANDRIA (Girone H, 17 clubs) on SWOSTEST_BUILD, saved as soon as its Coppa D PRIMO TURNO tie is built in slot 4
+    (W8485_MIDSAVE on CD_ST.built: the world's first-season bracket, no luck involved), then loaded and played to the
+    season's end: slot 4 still holds the tie after the load (gplay's gp_after cleared B52h from slot 2's 443h buffer
+    over it: an empty slot-4 contest, type 0 with [2Bh] = [5Fh] = 0, read as a league over -> gp_lend built the
+    play-off from the match-day-5 table, or the career stuck on an empty match screen), the tie is played, and no
+    play-off / poule screen comes before the group's last match day (2 x (clubs - 1) league results)"""
+    import csv as _csv
+    data = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-401nats')
+    if not os.path.isdir(data):
+        return True, f'SKIP: private data {data} missing'
+    g, club = team.split(':')
+    n = sum(1 for r in _csv.DictReader(open(os.path.join(data, 'ita', 'clubs.csv')))
+            if r['division'] == str(5 + 'ABCDEFGHI'.index(g)))
+    exe = builds()['it']
+    cd_at = gp_cd(exe)
+    slot4 = SLOT - 0x443                                  # (dseg_D9C9F: slot 4's 443h buffer, right before slot 3's)
+    keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_ONE',
+            'W8485_TMO', 'W8485_HEX', 'W8485_MIDSAVE', 'W8485_FROM')
+    keep = {k: os.environ.get(k) for k in keys}
+    base = dict(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=f'EUROPA,ITALIA,SERIE D GIRONE {g},{club}',
+                W8485_WNUM='5', W8485_K='0+', W8485_NOSACK='1', W8485_TMO='1500', W8485_HEX=f'{slot4:x}:48')
+    try:
+        os.environ.update(base, W8485_ONE='1', W8485_MIDSAVE=f'{cd_at + 4:x}:1:1')   # (CD_ST +4: built)
+        ok, msg = world8485()
+        if not ok:
+            return False, f'season 1 to the Coppa D tie: {msg}'
+        mid = os.path.join(RUNS, 'cupd_reload_mid.CAR')                # (per run dir: parallel suites)
+        shutil.copy(msg.split(': ', 1)[1], mid)
+        os.environ.pop('W8485_MIDSAVE')
+        os.environ.update(base, W8485_FROM=mid)
+        ok, msg = world8485()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    def league_days(lines):
+        return len({ln for ln in lines if ln.startswith('[') and f'SERIE D GIRONE {g}' in ln.split('|')[0]
+                    and '>- RISULTATO -' in ln})
+    days0 = league_days(open(os.path.join(RUNS, w84_tag() + '_1', 'session.log'), errors='replace').read().splitlines())
+    lines = open(os.path.join(RUNS, w84_tag() + '_2', 'session.log'), errors='replace').read().splitlines()
+    errs = []
+    s4 = next((bytes.fromhex(ln.split()[2]) for ln in lines if ln.startswith(f'HEX {slot4:x} ')), b'')
+    check(b'COPPA ITALIA SERIE D' in s4, f'slot 4 after the load: {s4[:40]}', errs)
+    days, first_po, cup, seen = days0, None, None, set()
+    for ln in lines:
+        if not ln.startswith('['):
+            continue
+        t = ln.split(']', 1)[1].split('|')[0].strip()
+        if f'SERIE D GIRONE {g}' in t and '>- RISULTATO -' in ln and ln not in seen:
+            seen.add(ln)
+            days += 1
+        if cup is None and 'COPPA ITALIA SERIE D' in t and '- PARTITA -' in ln:
+            cup = days
+        if first_po is None and '- PARTITA -' in ln and any(k in t for k in ('PLAY', 'POULE', 'SPAREGG', 'SCUDETTO')):
+            first_po = (days, t)
+    check(cup is not None, 'the Coppa D tie never played after the load', errs)
+    check(first_po is None or first_po[0] >= 2 * (n - 1), f'a play-off at league day {first_po}', errs)
+    check(days >= 2 * (n - 1), f'{days} league results ({days0} before the save)', errs)
+    return ok and not errs, '; '.join(errs + [f'{club} ({n}): saved after league day {days0}, cup tie after league day '
+                                              f'{cup}, {days} league results, '
+                                              f'first play-off {first_po}; {msg[:80]}'])
+
+
+@scenario
+def world_cupd_fidelis_save():
+    """world_cupd_reload's 4.0 aftermath: Gianmarco's own save (internal/swostest/repro/gianmarco/FIDELIS.CAR, 4.0:
+    FIDELIS ANDRIA at match day 5 with the play-off already built over its emptied Coppa D tie, its semi-finals
+    played) loaded on SWOSTEST_BUILD and played to the season's end: gplay's cd_fixload_c drops that play-off and its
+    calendar days still to come - no play-off screen before the 32nd league day, the Coppa D tie built again and
+    played, 2 x 16 league results in all"""
+    car = os.environ.get('FIDELIS_CAR') or os.path.join(WORK, 'repro', 'gianmarco', 'FIDELIS.CAR')
+    if not os.path.exists(car):
+        return True, f'SKIP: no {car}'
+    exe = builds()['it']
+    keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_TMO', 'W8485_FROM')
+    keep = {k: os.environ.get(k) for k in keys}
+    os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_WNUM='5', W8485_K='0+', W8485_NOSACK='1',
+                      W8485_TMO='1500', W8485_FROM=car)
+    try:
+        ok, msg = world8485()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    lines = open(os.path.join(RUNS, w84_tag() + '_2', 'session.log'), errors='replace').read().splitlines()
+    days, first_po, cup, seen = 5, None, None, set()   # (the save: 5 league days played)
+    for ln in lines:
+        if not ln.startswith('['):
+            continue
+        t = ln.split(']', 1)[1].split('|')[0].strip()
+        if 'SERIE D GIRONE H' in t and '>- RISULTATO -' in ln and ln not in seen:
+            seen.add(ln)
+            days += 1
+        if cup is None and 'COPPA ITALIA SERIE D' in t and '- PARTITA -' in ln:
+            cup = days
+        if first_po is None and '- PARTITA -' in ln and any(k in t for k in ('PLAY', 'POULE', 'SPAREGG', 'SCUDETTO')):
+            first_po = (days, t)
+    errs = []
+    check(cup is not None, 'the Coppa D tie never played', errs)
+    check(first_po is None or first_po[0] >= 32, f'a play-off at league day {first_po}', errs)
+    check(days >= 32, f'{days} league results', errs)
+    return ok and not errs, '; '.join(errs + [f'cup tie after league day {cup}, {days} league results, first play-off '
+                                              f'{first_po}; {msg[:80]}'])
+
+
+@scenario
 def world_rlines_usa():
     """world_rlines at PHILADELPHIA (USA: MLS CUP PLAYOFFS, a title play-off), forced out in the semi-final
     (REACHED SEMI-FINAL)"""

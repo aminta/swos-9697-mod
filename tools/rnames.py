@@ -338,8 +338,9 @@ align 4
 RN_CDP: dd 0                            ; (gplay.gp_rname, or 0)
 RN_CALD: dd 0                           ; (see .out)
 
-; Titles (cseg_45D92: '<contest name> <round> [<leg>]' into a menu entry's text, which shows 40 characters): when
-; longer, a national contest drops its country prefix first ('ITALIA PLAY-OFF SERIE B' -> 'PLAY-OFF SERIE B'), then
+; Titles (cseg_45D92: '<contest name> <round> [<leg>]' into the match screen's 304-px bar, small font; a wider text
+; wraps and the bar shows one line of it). 4.0.1: measured in px (RN_WT, PXMAX 302; was 40 characters). When wider,
+; a national contest drops its country prefix first ('ITALIA PLAY-OFF SERIE B' -> 'PLAY-OFF SERIE B'), then
 ; the medium round name ('OTTAVI', 'T. PRELIM.') is used; still longer, the first word goes and then the end is cut.
 rn_t1:                                  ; its `call cseg_284AB` (type-2 rounds)
     call C284AB
@@ -350,7 +351,7 @@ rn_tfit:                                ; A0 = the round's long name, D0 = its i
     pushad
     mov esi, DIY + 4                    ; (the contest's name, copied first)
     call rn_len
-    lea edx, [ecx + 1]
+    lea edx, [ecx + 3]                  ; (+ the space: 3 px)
     mov eax, [A1R]
     sub eax, edx
     mov [RN_TS], eax                    ; the title's start
@@ -359,9 +360,9 @@ rn_tfit:                                ; A0 = the round's long name, D0 = its i
     add edx, ecx
     cmp word [DIY + 14Bh], 2            ; (+ ' <leg>' of a two-legged round, or ' DRAW')
     jne .w
-    add edx, 8
+    add edx, LEGPX_
 .w:
-    cmp edx, 40
+    cmp edx, PXMAX_
     jbe .x
     mov al, [DIY + 2Dh]                 ; a national contest ('<country> <name>'): its country prefix goes first
     cmp al, CDS1I                       ; (not the UEFA cups nor their qualifying ties, nor the Coppa D's slot-1
@@ -384,10 +385,14 @@ rn_tfit:                                ; A0 = the round's long name, D0 = its i
     lodsb
     test al, al
     jz .med
-    dec edx
+    push eax
+    movzx eax, al
+    movzx eax, byte [RN_WT + eax]
+    sub edx, eax
+    pop eax
     cmp al, ' '
     jne .fw
-    cmp edx, 40
+    cmp edx, PXMAX_
     jbe .x
 .med:
     movzx edi, word [D0R]
@@ -401,18 +406,22 @@ rn_tfit:                                ; A0 = the round's long name, D0 = its i
     add edx, ecx
     cmp word [DIY + 14Bh], 2
     jne .m2
-    add edx, 8
+    add edx, LEGPX_
 .m2:
     mov esi, DIY + 4
 .m3:
     lodsb
     test al, al
     jz .m4
-    dec edx
+    push eax
+    movzx eax, al
+    movzx eax, byte [RN_WT + eax]
+    sub edx, eax
+    pop eax
     cmp al, ' '
     jne .m3
 .m4:
-    cmp edx, 39
+    cmp edx, PXMAX_
     jbe .x
     mov ebx, [CALTAB + edi]
     mov [A0R], ebx
@@ -420,18 +429,21 @@ rn_tfit:                                ; A0 = the round's long name, D0 = its i
     popad
     ret
 
-rn_len:                                 ; esi = a string -> ecx = its shown characters (the '*' fill is not shown)
-    xor ecx, ecx
+rn_len:                                 ; esi = a string -> ecx = its shown width (4.0.1: small-font px, RN_WT; the
+    xor ecx, ecx                        ; '*' fill is not shown)
+    push eax
 .l:
-    mov al, [esi]
+    movzx eax, byte [esi]
     inc esi
     test al, al
     jz .r
     cmp al, '*'
     je .l
-    inc ecx
+    movzx eax, byte [RN_WT + eax]
+    add ecx, eax
     jmp .l
 .r:
+    pop eax
     ret
 
 rn_tend:                                ; replaces `mov esi, [A1]` at cseg_45D92's end (then `mov byte [esi], 0`)
@@ -447,7 +459,7 @@ rn_tend:                                ; replaces `mov esi, [A1]` at cseg_45D92
     cmp byte [RN_DROP], 0
     mov byte [RN_DROP], 0
     jne .d
-    cmp ecx, 40
+    cmp ecx, PXMAX_
     jbe .x
 .d:
     mov ebp, [DIY + 27h]                ; 4.0.1: the whole country prefix goes (COSTA RICA, EL SALVADOR): words
@@ -502,16 +514,20 @@ rn_tend:                                ; replaces `mov esi, [A1]` at cseg_45D92
 .dn:
     mov esi, ebx
     call rn_len
-    cmp ecx, 40
+    cmp ecx, PXMAX_
     jbe .x
-    xor ecx, ecx                        ; still longer: cut after 40 shown characters
+    xor ecx, ecx                        ; still wider: cut at PXMAX px
     mov esi, ebx
 .k:
     mov al, [esi]
     cmp al, '*'
     je .n
-    inc ecx
-    cmp ecx, 40
+    push eax
+    movzx eax, al
+    movzx eax, byte [RN_WT + eax]
+    add ecx, eax
+    pop eax
+    cmp ecx, PXMAX_
     ja .cut
 .n:
     inc esi
@@ -524,6 +540,7 @@ rn_tend:                                ; replaces `mov esi, [A1]` at cseg_45D92
     ret
 RN_TS: dd 0
 RN_DROP: db 0
+RN_WT: WT_BYTES
 
 RN_LPMAP: db LP_I, KO_I, R16_I
 RN_TIE: db 0
@@ -553,6 +570,85 @@ def _title_sites(p, r):
                 assert d1[c + 5] == 0xE8, hex(c)
             return e, a[0], b, c28049, c284ab
     raise AssertionError('cseg_45D92 not found')
+
+
+PXMAX = 302                                     # the match screen's title bar: 304 px (cseg_45D92's menu entry 0)
+
+
+def _tails(p, end, a0):
+    """The two leg words cseg_45D92 appends to a two-legged round (its last two `mov [A0], offset s` before its end:
+    2ND LEG, then 1ST LEG; rn_tfit counts the tail only for a two-legged round, [DIY + 14Bh] = 2), '*' fill dropped."""
+    d1, d2 = p.le.obj_bytes(1), p.le.obj_bytes(2)
+    fx = {s: (t, o) for so, s, _, t, o, *_ in p.le.fixups() if so == 1}
+    out = []
+    for m in re.finditer(rb'\xc7\x05' + re.escape(struct.pack('<I', a0)), d1[end - 0x200:end]):
+        t = fx.get(end - 0x200 + m.start() + 6)
+        if t and t[0] == 2:
+            v = d2[t[1]:t[1] + 40].split(b'\0')[0].rstrip(b'*')
+            if v and all(c >= 32 for c in v):           # (umlauts: CP437 bytes, 6 px as the rest)
+                out.append(v.decode('latin1'))
+    assert len(out) >= 2, f'cseg_45D92: tail strings {out}'
+    return out[-2:]
+
+
+def _px_syms(p, end, a0):
+    import complist
+    wt = [0] + [complist.SMALL_W.get(chr(c).upper(), 6) for c in range(1, 256)]
+    tails = _tails(p, end, a0)
+    return {'WT_BYTES': (0, 'db ' + ', '.join(map(str, wt))), 'PXMAX_': (0, PXMAX),
+            'LEGPX_': (0, 3 + max(complist.px(t) for t in tails))}
+
+
+def _native_medium(p):
+    """The game's medium round names 0..10 (the table after the long one, obj2; 11 is a list label, not a round),
+    '*' fill dropped."""
+    base, _ = _tables(p)
+    d2 = p.le.obj_bytes(2)
+    f2 = {f[1]: f[4] for f in p.le.fixups() if f[0] == 2 and f[3] == 2}
+    out = []
+    for k in range(N_OLD):
+        t = f2.get(base + 48 + 4 * k)
+        if t is not None:
+            out.append(d2[t:t + 40].split(b'\0')[0].rstrip(b'*').decode('latin1'))
+    assert len(out) == N_OLD, out
+    return out[:11]
+
+
+def check_titles(p, lang, legpx):
+    """4.0.1 build assert: every contest's match title fits the bar without the last-resort cut. Its worst case before
+    the cut (rn_tfit): the contest's own name without the country prefix + ' ' + the widest medium round name + the
+    widest tail (LEGPX) within PXMAX px; every name in the game font. Contests: the packs' cups and league play-offs,
+    the worlds' European cups, the continental cups (conti)."""
+    import complist
+    import mkseason
+    meds = [m for _, m, _ in NAMES[lang]] + _native_medium(p)
+    bad = [m for m in meds if set(m) - complist.FONT]
+    medpx = max(complist.px(m) for m in meds)
+    names = []
+    for pk in mkseason.packs() + mkseason.nationals():
+        m = complist.load_pack(pk.path)
+        for c in m.get('competitions', []):
+            if c.get('type') == 'cup' or c.get('ko_playoffs'):
+                names.append((m.get('id'), complist._nm(c['names'], lang).upper()))
+            for po in c.get('ko_playoffs') or [] if isinstance(c.get('ko_playoffs'), list) else []:
+                if po.get('names'):
+                    names.append((m.get('id'), complist._nm(po['names'], lang).upper()))
+    for w in mkseason.world_defs():
+        for k, nm in w.get('cupnames', {}).items():
+            if isinstance(nm[0], str):
+                names.append((f"world {w['n']}", nm[0].upper()))
+    import conti
+    for conf in conti.BUILT:
+        f = conti._read(conf, 'format')
+        for c in (f or {}).get('cups', []):
+            names.append((conf, (c['names'].get(lang) or c['names']['en'])[0].upper()[:30]))
+    for who, nm in names:
+        if set(nm) - complist.FONT:
+            bad.append(f'{who}: {nm!r} (not the font)')
+        elif complist.px(nm) + 3 + medpx + legpx > PXMAX:
+            bad.append(f'{who}: {nm!r} {complist.px(nm)} + {3 + medpx + legpx} > {PXMAX} px')
+    assert not bad, f'rnames {lang}: match titles that need the cut: {bad[:12]}'
+    return len(names), medpx
 
 
 def _tables(p):
@@ -645,6 +741,9 @@ def patch(p, at, limit, lang, area, lp_ids, numbered):
            'CDS1I': (0, __import__('conti').IDS[-1]),
            'NUMB_BYTES': (0, 'db ' + ', '.join(str(x) for x in list(numbered) + [0]))}
     end, s284, s280, c28049, c284ab = _title_sites(p, sacups.regs(p.le.obj_bytes(1)))
+    sym.update(_px_syms(p, end, a0))            # 4.0.1: the title fit in small-font px
+    nt, medpx = check_titles(p, lang, sym['LEGPX_'][1])
+    print(f"exe: match titles: {nt} contests fit {PXMAX} px ({lang}; widest medium round {medpx} px, tail {sym['LEGPX_'][1]} px)")
     t280 = c28049 + 5 + struct.unpack('<i', bytes(p.get(1, c28049 + 1, 4)))[0]
     d1 = p.le.obj_bytes(1)
     o280 = [i for i in range(len(d1) - 5) if d1[i] == 0xE8 and i != c28049 and

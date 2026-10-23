@@ -2520,7 +2520,8 @@ def world8485():
                 b = s.result.read(lin, 0x733)          # its last days may come after the career club's last match)
                 if diy_league(b):
                     s.log.append(f'DIY {b.hex()}')
-            if os.environ.get('W8485_SAVE_END'):      # (debug) a save at the season-end menu, before CONTINUA
+            if os.environ.get('W8485_SAVE_END') and season >= int(os.environ.get('W8485_SAVE_END_SEASON', '1')):
+                # (debug) a save at the season-end menu, before CONTINUA (W8485_SAVE_END_SEASON: from that season)
                 hexlog()                               # (the season end's state first: W8485_HEX)
                 nm = os.environ['W8485_SAVE_END']
                 for _ in range(3):                     # (a chairman's note first: the contract not renewed)
@@ -8037,10 +8038,13 @@ def world_gplay_cupd(team='EUROPA,ITALIA,SERIE D GIRONE A,LIGORNA', two=False):
     log_at, st_at, log_n, st_n = gp_ptrs(exe)
     cd_at = gp_cd(exe)
     keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K',
-                                            'W8485_NOSACK', 'W8485_HEX', 'W8485_ONE', 'W8485_TMO')}
+                                            'W8485_NOSACK', 'W8485_HEX', 'W8485_ONE', 'W8485_TMO', 'W8485_SAVE_END',
+                                            'W8485_SAVE_END_SEASON')}
     os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5', W8485_K='108+',
                       W8485_NOSACK='1', W8485_HEX=f'{st_at:x}:{st_n},{cd_at:x}:{CD_SIZE}', W8485_ONE='0' if two else '1',
                       W8485_TMO='900')       # (the released data's season takes longer than the 240 s default)
+    if two:                                  # (season 2's end saved: the slot-1 cup's final read from it)
+        os.environ.update(W8485_SAVE_END='WCD2', W8485_SAVE_END_SEASON='2')
     try:
         ok, msg = world8485()
     finally:
@@ -8085,8 +8089,25 @@ def world_gplay_cupd(team='EUROPA,ITALIA,SERIE D GIRONE A,LIGORNA', two=False):
         arr = {i for i, e in enumerate(ent) if e == 1}
         pre = {w >> 8 for w in gen[:2 * np_]}
         nties = np_ + 127
-        check(b2[605] == 1 and b2[3] == 8 and all(b2[8:8 + nties]),
-              f'season 2: gen {b2[605]}, round {b2[3]}, undecided {[i for i in range(nties) if not b2[8 + i]][:10]}', errs)
+        rn2_ = {ln.split('|')[0].split('SERIE D')[-1].strip() for ln in lines2 if 'COPPA ITALIA SERIE D' in ln}
+        s1 = any(x.startswith('TRENTADUES') for x in rn2_)   # 4.0 (GP_CDS1): the career club in the 1/32 - the cup
+        upto = np_ + 64 if s1 else nties                       # goes on as the game's own knockout in slot 1, CD_ST's
+        check(b2[605] == 1 and b2[3] == 8 and all(b2[8:8 + upto]),   # later rounds left undecided by design
+              f'season 2: gen {b2[605]}, round {b2[3]}, undecided {[i for i in range(upto) if not b2[8 + i]][:10]}', errs)
+        car2 = os.path.join(RUNS, w84_tag() + '_2', 'SWOS', 'WCD2.CAR')
+        if s1:                                # (the slot-1 cup played to its final: season 2's end, VISUAL. COMPETIZ.)
+            fin = []
+            if os.path.exists(car2):
+                with Session('world_gplay_cupd2_end', exe, {'WCD2.CAR': car2}, 'dump:2', 300) as s:
+                    s.wait()
+                    s.send(LOAD1 + ' dump:3')
+                    walk(s, s.screen().find('VISUAL. COMPETIZ.', exact=True), 3)
+                    i = next((e[0] for e in s.screen().entries if e[1] == 'COPPA ITALIA SERIE D' and not e[2]), None)
+                    if i is not None:
+                        walk(s, i, 3)
+                        fin = [e[1] for e in s.screen().entries if e[1] and not e[2]]
+            check(fin and 'FINALE' in fin[0] and any('VINCE' in x for x in fin),
+                  f'season 2: the slot-1 cup (the career club in the 1/32) not over: {fin[:8]}', errs)
         d_in = [ent[i] for i in range(256) if ent[i] and i not in pre]
         p_old = [ent[i] for i in pre if ent[i] != 1]
         check(not p_old or not d_in or max(p_old) <= min(d_in),
@@ -8100,7 +8121,8 @@ def world_gplay_cupd(team='EUROPA,ITALIA,SERIE D GIRONE A,LIGORNA', two=False):
         rn2 = sorted({ln.split('|')[0].split('SERIE D')[-1].strip() for ln in lines2 if 'COPPA ITALIA SERIE D' in ln})
         st = cd_strengths(os.path.join(w, 'world5tm'))           # the ties nobody played: by strength (cd_sim)
         n_s, act, exp_, var = cd_strength_check(b2, b0, st, ent, gen, np_, mine2)
-        check(n_s >= 60 and exp_ > 0.55 * n_s and abs(act - exp_) <= 3 * var ** 0.5 + 1,
+        check(n_s >= (30 if s1 else 60) and exp_ > 0.55 * n_s and abs(act - exp_) <= 3 * var ** 0.5 + 1,   # (s1:
+                                                                        # CD_ST's own ties end before the 1/32)
               f'season 2: the stronger club through in {act} of {n_s} ties, the model {exp_:.1f} +- {var ** 0.5:.1f}', errs)
         msg2 = (f'; season 2: the stronger through in {act} of {n_s} ties (the model {exp_:.1f} +- {var ** 0.5:.1f}); '
                 f'{np_} preliminary ties, {len(arr)} new arrivals ({nfc} from C, {nfp} from the pool) all '

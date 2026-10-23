@@ -389,6 +389,7 @@ def patch_exe(src, dst, remap, lang='it'):
         import instcheck
         end = instcheck.place(p, end, lang)       # 4.0.1: a world's missing files -> a message, not DOS
         assert end <= CAREER_CAVE + mkseason.CAREER_CAVE_SIZE, hex(end)
+        print(f'exe: career cave end {end:#x} (limit {CAREER_CAVE + mkseason.CAREER_CAVE_SIZE:#x})')
     p.add_ptr(1, info['new_career_ptr'], 1, new_career)
     if ARG_LOAD_HOOK:
         arg_end = arg97.load_hook(p, arg_end)     # 2.1: Apertura/Clausura names after loading a career

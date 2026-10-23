@@ -121,9 +121,17 @@ sp_init:                                ; replaces `call cseg_2653B` at the end 
     sub eax, SP_TAB
     mov [ebx + S_ENTRY], ax
     mov byte [ebx + S_FROZEN], 0
-    pushad                              ; (4.0.1: its head-to-head / 'keep' block, zeroed: a league played - not the
-    cmp word [SIMFLAG], 0               ; season end's simulation - is the career league, its key into 'SH')
-    jne .sx
+    pushad                              ; (4.0.1: its head-to-head / 'keep' block, zeroed. The career league - the one
+    movzx ecx, word [ebx + 31h]         ; holding the career club's team word among its rows, whatever SIMFLAG says
+    mov ax, [CAREERTEAM]                ; at the career's start - gets its key into 'SH')
+    test ax, ax
+    jz .sx
+.ct:
+    cmp [ebx + 12Dh + ecx * 2 - 2], ax
+    je .key
+    loop .ct
+    jmp .sx
+.key:
     mov ax, [edi + 1]                   ; (team file, division | 80h)
     or ah, 80h
     mov [sp_sh], ax
@@ -1628,9 +1636,9 @@ def patch(p, cave, nasmcave, splits):
            'CAL': (2, s['CAL']), 'CALN': (2, s['CALN']), 'SELTEAMS': (2, s['SELTEAMS']), 'WEEK': (2, s['WEEK']),
            'SIMFLAG': (2, s['SIMFLAG']), 'C89758': (1, s['pair']), 'C88A12': (1, s['C88A12']),
            'SF_PLACE': (0, int(_os.environ.get('SPLIT_FORCE') or 0))}    # (test builds: SPLIT_FORCE=k, sp_force)
-    if sym['SF_PLACE'][1]:
-        import dplay
-        sym['CAREERTEAM'] = (2, dplay._sites(p)[5])
+    import dplay
+    sym['CAREERTEAM'] = (2, dplay._sites(p)[5])   # (sp_init's
+    if sym['SF_PLACE'][1]:                                                                              # 'SH' key)
         print(f'exe: SPLIT_FORCE={sym["SF_PLACE"][1]} (test build: the career club starts a split stage at that place)')
     import engine
     import gplay

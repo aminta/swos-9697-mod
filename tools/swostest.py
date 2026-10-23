@@ -4583,8 +4583,10 @@ def split_check_places(log, key):
     mid = [b for b in diys if b[st + o['frozen']] == 1]
     errs, info = [], []
     check(mid, 'no snapshot inside the snake stage', errs)
-    for b in mid[-1:]:
-        kept = list(b[st + o['h2h']:st + o['h2h'] + n])          # rows by Apertura place
+    pre = [b for b in diys if b[st + o['frozen']] == 0]           # (4.0.1: the kept table left the DIY - split's
+    for b in mid[-1:]:                                            #  'SH' block -: the Apertura's rows by place
+        src = pre[-1] if pre else b                               #  from the last snapshot before the snake stage)
+        kept = [w(src, 0x6D + 2 * p) // 18 for p in range(n)]
         grp = list(b[st + o['grp']:st + o['grp'] + n])
         want = {kept[p]: snake[p] for p in range(n)}
         bad = [r for r in range(n) if grp[r] != want[r]]
@@ -4642,11 +4644,11 @@ def split_check_stages(log, key):
         pts = [rec(r)[7] for r in order[start:start + m]]
         check(pts == sorted(pts, reverse=True), f'last stage group {g + 1} not in order: {pts}', errs)
         start += m
-    if any(x.get('keep') for x in stg):
-        k = st + o['h2h']
-        rows = list(last[k:k + n])
-        kp = [w(last, k + 22 + 2 * i) for i in range(n)]
-        ki = next(i for i, x in enumerate(stg) if x.get('keep'))   # in order within the groups of the stage before
+    if any(x.get('keep') for x in stg):                            # (4.0.1: the kept table is in split's 'SH' block,
+        ki = next(i for i, x in enumerate(stg) if x.get('keep'))   # not the DIY: the table the keep stage froze,
+        pre = [b for b in diys if b[st + o['frozen']] == ki] or [last]   # from the last snapshot before it)
+        rows = [w(pre[-1], 0x6D + 2 * i) // 18 for i in range(n)]
+        kp = [struct.unpack_from('<H', pre[-1], 0x2B3 + 18 * r + 16)[0] for r in rows]
         start, okk = 0, sorted(rows) == list(range(n))
         for m in (sizes[ki - 1] if ki else [n]):
             okk = okk and kp[start:start + m] == sorted(kp[start:start + m], reverse=True)

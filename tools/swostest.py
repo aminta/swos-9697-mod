@@ -1042,7 +1042,7 @@ def substitute(s, scr, tries=40, full=False):
        trial players (PROVA) only when nothing better is there. Row 1 must be a goalkeeper (P): a fit one of the
        bench (row 12) first. Returns an error string or None."""
     subs = s.__dict__.setdefault('subs', {})
-    gk_now = False                                      # (the bench keeper went in during this call)
+    gk_now, out_now = False, set()                      # (the bench keeper / a stand-in went in during this call)
     if not full and os.environ.get('SWOSTEST_LINEUP', 'min') != 'full':   # (the default: substitute_min; full =
         return substitute_min(s, tries)                     # the best-reserve search below, also its fallback)                      # search below, for a scenario that judges the club's results)
 
@@ -1091,11 +1091,12 @@ def substitute(s, scr, tries=40, full=False):
             s.log.append('[subs] slot 1: the first keeper back')
             continue
         pool = cycle(face, ry) if subs or any(un for _, un in rows[:16]) else []
-        back = next(((k, st) for k, (st, _) in sorted(subs.items())
-                     if any(n == st and fit for n, _, _, fit in pool) and not rows[k][1]), None)
+        back = next(((k, st) for k, (st, _) in sorted(subs.items()) if k not in out_now
+                     and any(n == st and fit for n, _, _, fit in pool) and not rows[k][1]), None)
         if back is None:                                # restore also over an unavailable stand-in
-            back = next(((k, st) for k, (st, _) in sorted(subs.items())
-                         if any(n == st and fit for n, _, _, fit in pool)), None)
+            back = next(((k, st) for k, (st, _) in sorted(subs.items()) if k not in out_now
+                         and any(n == st and fit for n, _, _, fit in pool)), None)   # (not one taken out in this
+                                                        # visit: a suspended reserve shows no red mark - it ping-ponged)
         if back is not None:                            # 1. a starter fit again: back to his slot
             k, st = back
             if bring(face, ry, st):
@@ -1138,6 +1139,7 @@ def substitute(s, scr, tries=40, full=False):
         out = reserve_info(s.screen(), ry)[0]           # the one who left the 16 is now the 17th row
         if k not in subs:
             subs[k] = (out, stand_in)
+        out_now.add(k)
         s.log.append(f'[subs] slot {k + 1} ({need or "any"}): {out} out, {stand_in} ({best[1] or "?"}, {best[2]}) in')
     return 'squad screen: still unavailable players after 10 swaps'
 

@@ -6359,7 +6359,11 @@ def world_winners_oldsave():
         if not os.path.isdir(src):
             return True, f'SKIP: private data {src} missing'
         order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
-        exe = build('winners_w27', env={'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order])})
+        w4 = os.path.join(ROOT, 'packs', 'europe-1984-85')     # (the release recipe's packs: buildrel.sh's order - the
+        packs = ['ddr-1988-89', 'italia-1947-48', 'world-cup-1934'] + \
+            [os.path.join(w4, c) for c in sorted(os.listdir(w4)) if not c.startswith('.')] + \
+            [os.path.join(src, x) for x in order]               # worlds' numbers / namespaces of the save's exe)
+        exe = build('winners_w27', env={'SEASON_PACKS': ','.join(packs)})
     keys = ('W8485_BUILD', 'W8485_FROM', 'W8485_NOSACK', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K')
     keep = {k: os.environ.get(k) for k in keys}
     os.environ.update(W8485_BUILD=exe, W8485_FROM=car, W8485_NOSACK='1')

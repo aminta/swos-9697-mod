@@ -4772,9 +4772,10 @@ def sh_at(exe):
 def sh_rows(log, n):
     """The last 'SH' block dumped (HEX o1/...) -> (kept rows by place, their points) of an n-club league, or None."""
     v = [bytes.fromhex(ln.split()[2]) for ln in log if ln.startswith('HEX o1/') and len(ln.split()) == 3]
-    if not v:
+    v = [x[2:] for x in v if sorted(x[2:2 + n]) == list(range(n))]   # (the last one holding a table: the next
+    if not v:                                                         #  season's init zeroes the block)
         return None
-    b = v[-1][2:]
+    b = v[-1]
     return list(b[:n]), [struct.unpack_from('<H', b, 22 + 2 * i)[0] for i in range(n)]
 
 

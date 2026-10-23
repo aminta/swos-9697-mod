@@ -6571,12 +6571,13 @@ def world_lib3_sud():
     order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
     env = {'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]),
            'CONTI_FORCE': os.environ.get('LIB3_FORCE', 'lib:groups'), 'CONTI_GPLACE': os.environ.get('LIB3_PLACE', '3')}
-    exe = os.environ.get('LIB3_BUILD') or build('world_lib3_sud', env=env)
+    exe = os.environ.get('LIB3_BUILD') or build('world_lib3_sud' + os.environ.get('LIB3_TAG', ''), env=env)
     keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_ONE',
             'W8485_MIDTEXT', 'W8485_FROM')
     keep = {k: os.environ.get(k) for k in keys}
-    base = dict(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM='SUDAMERICA,ARGENTINA,?LIGA PROFESIONAL,'
-                'BOCA JUNIORS', W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1', W8485_ONE='1')
+    base = dict(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=os.environ.get('LIB3_TEAM',
+                'SUDAMERICA,ARGENTINA,?LIGA PROFESIONAL,BOCA JUNIORS'), W8485_WNUM='5', W8485_K='108+',
+                W8485_NOSACK='1', W8485_ONE='1')
     try:                                                # (season 1's cups are the world's own: conti's edition - CT_ED
         car = os.environ.get('LIB3_FROM')               # - exists from the first season end on: season 2 from its save)
         if not car:

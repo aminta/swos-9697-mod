@@ -6109,7 +6109,7 @@ def winners_page(s, pages=None):
 def world_winners():
     """4.0.1 SEASON WINNERS page (winners.py): ROSARIO CENTRAL (Argentina, LIGA PROFESIONAL) forced 1st, every match
     won by the stronger side (as world_rlines_arg3): at the career's start STAT shows VINCITORI and its page
-    'VINCITORI 2026-27' lists LIGA PROFESIONAL, TORNEO APERTURA, TORNEO CLAUSURA, TROFEO DE CAMPEONES, each 'DA GIOCARE';
+    'VINCITORI 2026-27' lists LIGA PROFESIONAL DE FUTBOL, TORNEO APERTURA, TORNEO CLAUSURA, TROFEO DE CAMPEONES, each 'DA GIOCARE';
     the cup (the second competition) has no VINCITORI. At the season's end (saved before CONTINUA, reloaded): each
     stage title names its winner as GP_ST.dec holds it (the save's state) and the league its table's 1st"""
     src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-names-2214')
@@ -6127,7 +6127,7 @@ def world_winners():
     import lepatch
     import lp36
     diy_at = lp36._sites(lepatch.LEPatch(os.path.join(MAIN, 'orig', 'ITALIAN.EXE')))['DIY']   # (the viewed contest)
-    want = ['LIGA PROFESIONAL', 'TORNEO APERTURA', 'TORNEO CLAUSURA', 'TROFEO CAMP.']   # (the data's short name: fit)
+    want = ['LIGA PROFESIONAL DE FUTBOL', 'TORNEO APERTURA', 'TORNEO CLAUSURA', 'TROFEO DE CAMPEONES']   # (4.0.1: the long names, 298 px)
     errs, info = [], []
     team = 'SUDAMERICA,ARGENTINA,LIGA PROFESIONAL,ROSARIO CENTRAL'
     with Session('world_winners_start', exe, {}, 'dump:2', 600) as s:
@@ -6145,7 +6145,10 @@ def world_winners():
         info.append(f'start: {title}, {heads}')
         walk(s, s.screen().find('ESCI', exact=True), 3)   # -> the competition
         walk(s, s.screen().find('ESCI', exact=True), 3)   # -> the list
-        walk(s, 2, 3)
+        try:
+            walk(s, 2, 3)
+        except AssertionError as x:
+            return False, f'{x}: {s.screen()}; ' + '; '.join(errs + info)
         walk(s, s.screen().find('STAT', exact=True), 3)
         e2 = next((x for x in s.screen().entries if x[1] == 'VINCITORI'), None)
         check(e2 is not None and e2[2], f'the cup: VINCITORI entry {e2} (hidden)', errs)
@@ -6210,18 +6213,18 @@ def world_winners():
             check(got.get(nm) == w, f'{tag}: {nm} shows {got.get(nm)!r}, {how} = {w!r}', errs)
             src[nm] = how.split()[0]
         check(title == 'VINCITORI 2026-27' and list(got) == want, f'{tag}: page {title!r} {list(got)}', errs)
-        lg = got.get('LIGA PROFESIONAL')
+        lg = got.get('LIGA PROFESIONAL DE FUTBOL')
         check(lg == ('IN CORSO' if 0 < days < 32 else 'DA GIOCARE' if not days else lg) and (days < 32 or lg not in
               ('IN CORSO', 'DA GIOCARE')), f'{tag}: LIGA PROFESIONAL {lg!r} after {days} days', errs)
         return got, src
 
     mg, ms = page('world_winners_mid', mid)
-    check(mg.get('LIGA PROFESIONAL') == 'IN CORSO' and mg.get('TORNEO APERTURA') not in ('DA GIOCARE', None) and
-          mg.get('TORNEO CLAUSURA') == 'DA GIOCARE' and mg.get('TROFEO CAMP.') == 'DA GIOCARE',
+    check(mg.get('LIGA PROFESIONAL DE FUTBOL') == 'IN CORSO' and mg.get('TORNEO APERTURA') not in ('DA GIOCARE', None) and
+          mg.get('TORNEO CLAUSURA') == 'DA GIOCARE' and mg.get('TROFEO DE CAMPEONES') == 'DA GIOCARE',
           f'mid-season: {mg} (the Apertura knockout running)', errs)
     mg2, _ = page('world_winners_mid2', mid2)
-    check(mg2.get('LIGA PROFESIONAL') == 'IN CORSO' and mg2.get('TORNEO CLAUSURA') == 'IN CORSO' and
-          mg2.get('TROFEO CAMP.') == 'DA GIOCARE', f'mid-season 2: {mg2} (the Clausura under way)', errs)
+    check(mg2.get('LIGA PROFESIONAL DE FUTBOL') == 'IN CORSO' and mg2.get('TORNEO CLAUSURA') == 'IN CORSO' and
+          mg2.get('TROFEO DE CAMPEONES') == 'DA GIOCARE', f'mid-season 2: {mg2} (the Clausura under way)', errs)
     eg, es = page('world_winners_end', car)
     with Session('world_winners_next', exe, {'WWIN.CAR': car}, 'dump:2', 600) as s:   # 4.0.1 'WN': CONTINUA ->
         s.wait()                                        # the next season, saved, reloaded: its page's second page =
@@ -6245,7 +6248,7 @@ def world_winners():
     check(es.get('TORNEO APERTURA') == 'GP_ST.dec[0]' and es.get('TORNEO CLAUSURA') == 'GP_ST.dec[1]',
           f'end: sources {es} (the Apertura / Clausura: closed before the Trofeo, GP_ST.dec)', errs)
     arg = {team_name(exe, 0xA3 | i << 8) for i in range(30)}
-    check(eg.get('LIGA PROFESIONAL') in arg, f'end: LIGA PROFESIONAL shows {eg.get("LIGA PROFESIONAL")!r} (GP_SS '
+    check(eg.get('LIGA PROFESIONAL DE FUTBOL') in arg, f'end: LIGA PROFESIONAL shows {eg.get("LIGA PROFESIONAL DE FUTBOL")!r} (GP_SS '
           f'annual table\'s 1st: an Argentine club)', errs)
     info.append(f'mid: {mg}; mid 2: {mg2}; end: {eg}; sources {es}; season 2: {cur}, last season {lg2}')
     return not errs, '; '.join(errs + info)

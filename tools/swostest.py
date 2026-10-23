@@ -5944,7 +5944,7 @@ def world_winners_oldsave():
         return True, f'SKIP: no {car}'
     exe = os.environ.get('WINNERS_W27')
     if not exe:
-        src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-names-2214')
+        src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')   # (the released 4.0's data: an old save needs the data it was played on)
         if not os.path.isdir(src):
             return True, f'SKIP: private data {src} missing'
         order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]

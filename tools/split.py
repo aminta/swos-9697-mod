@@ -1643,7 +1643,9 @@ def patch(p, cave, nasmcave, splits):
         src = nasmcave.sub(src, '    SHB_SET\n', '    mov dword [GP_SHB], sp_sh\n    mov dword [GP_SHB + 4], sp_shx\n')
     else:
         src = nasmcave.sub(src, '    SHB_SET\n', '')
-    sym['CFB'] = (2, (careerworld.SITES or careerworld.sites(p))['cfb'])   # (sp_migrate: the career league's slot)
+    sym['CFB'] = gplay.LABELS.get('CFB') or (2, (careerworld.SITES or careerworld.sites(p))['cfb'] + 0x15F6A)
+    # (sp_migrate: competitionFileBuffer, the career league's slot - dplay._play_sites' 'cfb', as gplay reads it.
+    #  careerworld's 'cfb' is careerFileBuffer, the file's start: the slot is at +15F6Ah in every career file)
     late = []
     for k, name in enumerate(CALLBACKS):            # after-stage routines (engine.after_stage)
         at = engine.CALL_AT.get(name)

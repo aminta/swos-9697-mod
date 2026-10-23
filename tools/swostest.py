@@ -857,7 +857,7 @@ class Session:
             base1 = self.paused('x', b.eip).base1
             self.bp_hits = {}
             for off in filter(None, os.environ.get('SWOSTEST_BPLM', '').split(',')):   # memory watches (obj2 offsets,
-                b.cmd(f'BPLM {self.paused("x", b.eip).base2 + int(off, 16):08X}', 0.3)   # CORE=normal): a change
+                b.cmd(f'BPLM {bplm_lin(self.paused("x", b.eip), off):08X}', 0.3)   # CORE=normal): a change
                 b.memwatch = True                                                    # stops as a trap at its EIP
             for off in os.environ['SWOSTEST_BP'].split(','):     # counting breakpoints (use CORE=normal)
                 o = int(off, 16)
@@ -874,7 +874,7 @@ class Session:
             for lin in getattr(self, 'bps', {}):
                 b.cmd(f'BP 0160:{lin:08X}', 0.2)
             for off in filter(None, os.environ.get('SWOSTEST_BPLM', '').split(',')):
-                b.cmd(f'BPLM {r.base2 + int(off, 16):08X}', 0.3)
+                b.cmd(f'BPLM {bplm_lin(r, off):08X}', 0.3)
             outcome = b.go_on()
         while outcome == 'break' and b.eip in getattr(self, 'bps', {}):
             r = self.paused('bp', b.eip)
@@ -1529,6 +1529,32 @@ def ndiff(a, b):
     return sum(x != y for x, y in zip(a, b)) + abs(len(a) - len(b))
 
 
+def fill_lin_off():
+    """obj2 offset of linAdr384k (LoadFillAndSwtitle's `mov eax, [linAdr384k]; add eax, 65536; mov [A1], eax`) in the
+    exe language's original: the menu texture FILL.256 is at [linAdr384k] + 65536."""
+    if not hasattr(fill_lin_off, 'off'):
+        sys.path.insert(0, os.path.join(ROOT, 'tools'))
+        from le import LE
+        import sacups
+        d1 = LE(open(os.path.join(ROOT, 'orig', UI_ORIG), 'rb').read()).obj_bytes(1)
+        a1 = struct.pack('<I', sacups.regs(d1)['A0'] + 4)
+        offs = {struct.unpack('<I', m.group(1))[0] for m in
+                re.finditer(rb'\xa1(.{4})\x05\x00\x00\x01\x00\xa3' + re.escape(a1), d1, re.S)}
+        assert len(offs) == 1, offs
+        fill_lin_off.off = offs.pop()
+    return fill_lin_off.off
+
+
+def bplm_lin(r, off):
+    """A SWOSTEST_BPLM entry's linear address: an obj2 offset (hex), or 'fill+<hex>' = a byte of the menu texture
+    (FILL.256 at [linAdr384k] + 65536; 4.0.1, the job-offer letter's stray pixels)."""
+    if off.startswith('lin:'):                      # (an absolute linear address)
+        return int(off[4:], 16)
+    if off.startswith('fill+'):
+        return struct.unpack('<I', r.obj2(fill_lin_off(), 4))[0] + 65536 + int(off[5:], 16)
+    return r.base2 + int(off, 16)
+
+
 def fill_check(s, tag):
     """The menu buttons' texture: FILL.256 lives at linAdr384k + 65536 (64000 pixels) while the menus run; a match draws
     its virtual pitch over the whole 384k buffer, and GameLoop / highlights / animations reload it (LoadFillAndSwtitle)
@@ -1633,6 +1659,8 @@ def next_season_save(s, name):
         if i is not None and not scr.entries[i][3]:
             break
         s.log.append(f'[job] {scr}')
+        if os.environ.get('W8485_FILLWATCH'):
+            fill_check(s, 'job ' + (scr.entries[0][1] if scr.entries else ''))
         if scr.find('ACCETTA', exact=True) is not None:      # the offer letter: accept it
             press(s, scr, 'ACCETTA', wait=3)
             continue
@@ -1651,6 +1679,8 @@ def next_season_save(s, name):
         if s.result.outcome != 'dump':
             return f'job offer: {s.result}'
     rec_shot(s)
+    if os.environ.get('W8485_FILLWATCH'):
+        fill_check(s, 'before CONTINUA CARRIERA')
     if press(s, s.screen(), 'CONTINUA CARRIERA', wait=3) is None:
         return f'no CONTINUA CARRIERA on {s.screen()}'
     for _ in range(20):                                # chairman's note, job offers ...: CONTINUA / fire
@@ -1669,6 +1699,8 @@ def next_season_save(s, name):
                 else:
                     info.append(f'{k_}:{lin:#x}')
             s.log.append('[nsd] ' + ' | '.join(info))
+        if os.environ.get('W8485_FILLWATCH'):
+            fill_check(s, 'ns ' + (scr.entries[0][1] if scr.entries else ''))
         if os.environ.get('W8485_RECWATCH'):           # (debug: the season record's line pointers / codes each step)
             o = int(os.environ['W8485_RECWATCH'], 16)
             s.log.append(f"[rec] {s.result.obj2(o + 22, 16).hex()} {s.result.obj2(o + 86, 4).hex()}")
@@ -2379,6 +2411,10 @@ def world8485():
             midt = (os.environ.get('W8485_MIDTEXT', '').split(':') + [''])[:2] + [None, 0] if season == 1 else ['']
 
             def stop(scr):                             # the player's European cup: no same-country tie in rounds 1-2
+                if os.environ.get('W8485_FILLWATCH') and not getattr(stop, 'fill_bad', False):   # (debug: the first
+                    title = scr.entries[0][1] if scr.entries else ''                    # step whose screen left the
+                    if fill_check(s, f'step {title}') is False:                         # menu texture changed)
+                        stop.fill_bad = True
                 if nosack is not None and season not in poked:   # W8485_NOSACK: the game's 'no sacking' word
                     s.poke(s.result.base2 + nosack, b'\x01\x00')   # (dseg_D6B62, cleared at every season start)
                     poked.add(season)
@@ -2484,6 +2520,10 @@ def world8485():
             if os.environ.get('W8485_SAVE_END'):      # (debug) a save at the season-end menu, before CONTINUA
                 hexlog()                               # (the season end's state first: W8485_HEX)
                 nm = os.environ['W8485_SAVE_END']
+                for _ in range(3):                     # (a chairman's note first: the contract not renewed)
+                    if s.screen().find('SALVA CARRIERA') is not None or s.screen().find('CONTINUA', exact=True) is None:
+                        break
+                    press(s, s.screen(), 'CONTINUA')
                 if press(s, s.screen(), 'SALVA CARRIERA') is None:
                     return False, f'season {season}: no SALVA CARRIERA on {s.screen()}'
                 s.send(name_entry(nm) + ' dump:3')

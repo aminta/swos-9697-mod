@@ -755,7 +755,7 @@ void gp_season(void) {
         wn_add('M', wn_div, GP_IN.mgr);         /* (4.0.1: the division it played in - the last season's page) */
         for (int d = 0; d < GP_IN.nd && d < GD; d++)
             if (GP_IN.n[d])
-                wn_add('L', d, d == 0 && (GP_SS.fresh & 4) && GP_SS.n[2] == GP_IN.n[0] ? GP_SS.r[2][0].team
+                wn_add('L', d, d == 0 && (SSB->fresh & 4) && SSB->n[2] == GP_IN.n[0] ? SSB->r[2][0].team
                                                                                         : GP_IN.t[d][0].team);
     }
     for (int pidx = 0; s && *s; pidx++) {
@@ -1487,7 +1487,7 @@ u32 gp_wn_c(void) {
         return 0xFFFE;
     }
     if (t == 'S')
-        return st < SS_N && (GP_SS.fresh >> st & 1) && GP_SS.n[st] ? GP_SS.r[st][0].team : 0xFFFE;
+        return st < SS_N && (SSB->fresh >> st & 1) && SSB->n[st] ? SSB->r[st][0].team : 0xFFFE;
     if (GP_ST.magic != MAGIC) return 0xFFFE;
     if (t == 'T') {                     /* (tie st of play-off pi, the career club's: an intermediate title) */
         for (int j = 0; j < 2; j++) {

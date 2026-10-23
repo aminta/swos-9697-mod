@@ -48,8 +48,8 @@ B_TFB, TFB_SIZE = 0x31000, 0x2B000
 # SaveCareerFile writes it from B_STAGE (fixed part copied before the records) and LoadCareerFile reads it there
 # (trailer.LOADCOPY -> w_loadcopy spreads it). Old saves (N <= 100) load unchanged.
 SEL_N = 160
-B_SEL, SEL_ROOM = 0x5C000, SEL_N * TEAM_SIZE + 0x3800          # (+ the trailer's blocks after the records: the main
-                                                               # one + the engine block 'EN': GP, GS, PR, RI, SS, CD ... ~9-10 KB)
+B_SEL, SEL_ROOM = 0x5C000, SEL_N * TEAM_SIZE + 0x4000          # (+ the trailer's blocks after the records: the main
+                                                               # one + the engine block 'EN': ~14.6 KB in 4.0.1: 0x4000)
 B_STAGE = 0x7B000                                    # 95153 (fixed part) + SEL_ROOM
 # UEFA qualifying rounds (uefaq.py, league-phase worlds only: BSS_SIZE grows then): the C code's .bss, then the
 # season end's copies of the clubs' records (55 associations x (top 9 + cup winner) + 3)

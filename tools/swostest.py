@@ -8007,6 +8007,74 @@ def world_buycont():
     return not errs, '; '.join(errs + info)
 
 @scenario
+def world_winners_bank():
+    """4.0.1 WINNERS 'S' lines read the VIEWED league's stage bank (gplay.c ss_view(GP_WNFILE), read only), not the last
+    selected one: a World 2026-27 career at SAPRISSA (Costa Rica: the career's bank 1; release recipe, SWOSTEST_BUILD)
+    - mid-season, VISUALIZZA MONDO > ARGENTINA's and USA's VINCITORI pages (bank 0: ARG, MLS) name no club (DA GIOCARE /
+    IN CORSO, or no line at all: their seasons are simulated at the season end), never a Costa Rican one; at the season end (saved before
+    CONTINUA, reloaded) the career's own page names PRIMERA DIVISION's annual winner (stage table 2 of bank 1)"""
+    import csv as _csv
+    crc = {r['name'] for r in _csv.DictReader(open(os.path.join(
+        os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-401nats'), 'crc', 'clubs.csv')))}
+    errs, info = [], []
+    exe = builds()['it']
+    with Session('world_winners_bank_mid', exe, {}, 'dump:2', 600) as s:
+        s.wait()
+        for t in ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27', 'NORDAMERICA', 'COSTA RICA', 'SAPRISSA']:
+            if press(s, s.screen(), t, 3) is None:
+                return False, f'new career: {t} not reached'
+        s.send('fire dump:3')
+        for path in (('SUDAMERICA', 'ARGENTINA', 'LIGA PROFESIONAL'), ('NORDAMERICA', 'USA', 'MAJOR LEAGUE SOCCER')):
+            for t in ('VISUALIZZA MONDO', 'CARR. STORICHE') + path + ('STAT',):
+                if press(s, s.screen(), t, 3) is None:
+                    return False, f'{path[1]}: {t} not reached: {[e[1] for e in s.screen().entries if e[1]]}'
+            e = next((x for x in s.screen().entries if x[1] == 'VINCITORI'), None)
+            if e is None or e[2]:
+                return False, f'{path[1]}: no VINCITORI entry'
+            walk(s, e[0], 3)
+            lines = [x[1] for x in s.screen().entries[1:] if x[1] and not x[2]]
+            s.shot('wn_' + path[1])
+            b = winner_blocks(lines)
+            check(all(v in ('DA GIOCARE', 'IN CORSO') for v in b.values()) and not set(b.values()) & crc,   # (none: another
+                                                                                    # country's titles with nothing yet)
+                  f'mid-season {path[1]}: {b}', errs)
+            info.append(f'mid {path[1]}: {b}')
+            for _ in range(8):                           # back to the career menu
+                if s.screen().find('VISUALIZZA MONDO', exact=True) is not None:
+                    break
+                i = s.screen().find('ESCI', exact=True)
+                if i is None:
+                    i = s.screen().find('ABBANDONA', exact=True)
+                walk(s, i, 3)
+    keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_ONE',
+            'W8485_SAVE_END', 'W8485_TMO')
+    keep = {k: os.environ.get(k) for k in keys}
+    try:
+        os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM='NORDAMERICA,COSTA RICA,SAPRISSA',
+                          W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1', W8485_ONE='1', W8485_SAVE_END='WBANK',
+                          W8485_TMO=os.environ.get('W8485_TMO', '1800'))
+        ok, msg = world8485()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    car = os.path.join(RUNS, w84_tag() + '_1', 'SWOS', 'WBANK.CAR')
+    if not ok or not os.path.exists(car):
+        return False, f'season: {msg}; ' + '; '.join(errs + info)
+    with Session('world_winners_bank_end', exe, {'WBANK.CAR': car}, 'dump:2', 600) as s:
+        s.wait()
+        s.send(LOAD1 + ' dump:3')
+        e, title, lines = winners_page(s)
+        b = winner_blocks(lines)
+        pd = b.get('PRIMERA DIVISION')
+        check(pd in crc, f'end: PRIMERA DIVISION shows {pd!r} ({title!r} {b})', errs)
+        info.append(f'end {title}: {b}')
+    return not errs, '; '.join(errs + info)
+
+
+@scenario
 def world_cup_prefix():
     """The continental cups' names without the empty country's prefix (careerworld w_pfx: cseg_95C18): a World
     2026-27 career at INTER (world5tm-poule) and a 1984-85 one at LIVERPOOL - VISUAL. COMPETIZ. lists 'UEFA CHAMPIONS

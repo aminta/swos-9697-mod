@@ -261,6 +261,44 @@ sp_entry:                               ; -> edx = the DIY league's entry, esi =
     jne .no
     movzx edx, word [esi + S_ENTRY]
     add edx, SP_TAB
+    push eax
+    mov al, [esi + 12Dh]                ; 4.0.1: S_ENTRY is an offset into SP_TAB, saved with the career - a save
+    cmp [edx + 1], al                   ; made with other data (more split leagues before this one: 4.0 -> 4.0.1's
+    jne .seek                           ; South American leagues) points elsewhere: the entry of this league's team
+    mov al, [esi + 31h]                 ; file and club count is found again and S_ENTRY fixed
+    cmp [edx + 3], al
+    je .ok
+.seek:
+    push ecx
+    mov edx, SP_TAB
+.f: cmp word [edx + E_LEN], 0
+    je .nf
+    mov al, [esi + 12Dh]
+    cmp [edx + 1], al
+    jne .n
+    mov al, [esi + 31h]
+    cmp [edx + 3], al
+    jne .n
+    xor al, al                          ; (the world: a career's byte, else world 0)
+    cmp word [GAMETYPE], 4
+    jne .w
+    mov al, [SLT + WORLD_BYTE]
+.w: cmp [edx], al
+    jne .n
+    mov eax, edx
+    sub eax, SP_TAB
+    mov [esi + S_ENTRY], ax
+    pop ecx
+    jmp .ok
+.n: movzx ecx, word [edx + E_LEN]
+    add edx, ecx
+    jmp .f
+.nf:
+    pop ecx
+    pop eax
+    jmp .no
+.ok:
+    pop eax
     cmp byte [edx + 6], 0
     je .no
     or esi, esi                         ; (ZF = 0)

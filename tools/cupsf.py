@@ -41,9 +41,9 @@ def pack_cups(pk):
     return out, lfile
 
 
-SEED = int(__import__('os').environ.get('CF_SEED') or 0)   # the order within a division (gplay.c CF_SEED): 0 = last season's place (Davide's rule B, literal: a
-                # promoted / relegated club by its place in its old division); 1 = relegated clubs, then the stayers,
-                # then the promoted, each by place (regia's option 2, pending Davide; CF_SEED=1 test builds)
+SEED = int(__import__('os').environ.get('CF_SEED') or 1)   # the order within a division (gplay.c CF_SEED): 1 = Davide's
+                # choice (2026-10-24): relegated clubs, then the stayers, then the promoted, each by place; 0 = the
+                # place only (a promoted / relegated club by its place in its old division; CF_SEED=0 test builds)
 
 
 def levels(pk):

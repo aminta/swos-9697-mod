@@ -637,7 +637,26 @@ def cup(cp, lang):
     out = [' '.join(_cap(x) for x in s1)]
     if s2:
         out.append(' '.join(_cap(x) for x in s2))
+    if cp.get('follow'):                        # 4.0.1 cupsf: the entrants from the second season
+        out.append(FOLLOW[lang])
     return {'prose': out, 'real': s1[0] if real else None}
+
+
+FOLLOW = {   # (4.0.1 cupsf.py, Davide's rule: the real format by division; relegated, stayers, promoted, each by place)
+    'it': ("Dalla seconda stagione le squadre seguono promozioni e retrocessioni: ogni categoria manda tante squadre "
+           "quante nella coppa vera. Prima le retrocesse dalla categoria superiore, poi quelle rimaste, poi le promosse, "
+           "ognuna secondo il piazzamento della stagione prima; la tua squadra c'è sempre se la sua categoria partecipa."),
+    'en': ("From the second season the clubs follow promotions and relegations: each division sends as many clubs as in "
+           "the real cup. First those relegated from the division above, then those that stayed, then the promoted ones, "
+           "each by last season's place; your club always takes part when its division does."),
+    'fr': ("À partir de la deuxième saison, les clubs suivent les montées et les descentes : chaque division envoie autant "
+           "de clubs que dans la vraie coupe. D'abord les relégués de la division supérieure, puis ceux qui sont restés, "
+           "puis les promus, chacun selon son classement de la saison précédente ; ton club joue toujours si sa division "
+           "participe."),
+    'de': ("Ab der zweiten Saison folgen die Vereine Auf- und Abstieg: Jede Liga stellt so viele Vereine wie im echten "
+           "Pokal. Zuerst die Absteiger aus der höheren Liga, dann die verbliebenen, dann die Aufsteiger, jeweils nach "
+           "dem Platz der Vorsaison; dein Verein ist immer dabei, wenn seine Liga teilnimmt."),
+}
 
 
 POW = {'it': dict(one='la {o}', rng='le squadre dalla {a} alla {b}', of=' di {d}', s='{who} {v} {kind}.', v=('gioca', 'giocano')),

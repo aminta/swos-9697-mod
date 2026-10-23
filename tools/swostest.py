@@ -6547,7 +6547,9 @@ def world_lib3_sud():
     4.0 data, a test build with CONTI_FORCE=lib:groups (the club into the Libertadores groups) and CONTI_GPLACE=3 (its
     row moved to 3rd at the groups' end, so the game's own qualifiers agree); season 1 played to its end and saved
     (its cups are the world's own: conti's edition starts at that season end), then season 2 from the save: PASS = a
-    result screen showing SUDAMERICANA (the play-off, January), the club in it"""
+    result screen showing SUDAMERICANA (the play-off, January), the club in it. (The rest of the Sudamericana - from
+    February - and a 1st / 2nd's Libertadores round of 16 are simulated at the season end: Argentina's season ends in
+    December, seasonFinished comes before conti can add the next round; declared, 4.0.2)"""
     src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
     if not os.path.isdir(src):
         return True, f'SKIP: private data {src} missing'

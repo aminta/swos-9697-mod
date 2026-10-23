@@ -13,6 +13,13 @@
   kept the season going after the club's last match so that the rest day could be played, but a club with no
   play-off to follow then had no match left and the season could not end. A correct fix is planned for 4.0.2.
 
+- **Copa Libertadores group thirds**: 4.0 simulated their move to the Copa Sudamericana play-off. Now your club,
+  third in its Libertadores group, plays the play-off (both legs, January). This works from your career's second
+  season: the first season's continental cups are the world's own. After the play-off the rest of the Sudamericana
+  is simulated at the season end, because its rounds (from February) come after the domestic season ends (Argentina's
+  ends in December); the same holds for a group winner or runner-up and the Libertadores round of 16. Planned for
+  4.0.2.
+
 ### World 2026-27 cups
 - **National and league cups follow promotions and relegations** (World 2026-27). In 4.0 every cup kept the same
   clubs every season, so a promoted or relegated club never joined its new division's cup (Mestre, promoted to
@@ -44,6 +51,13 @@
   ancora simulati: la correzione provata teneva aperta la stagione dopo l'ultima partita della squadra, per giocare
   il turno di riposo, ma una squadra senza play-off non aveva più partite e la stagione non poteva finire. La
   correzione giusta è prevista nella 4.0.2.
+
+- **Terze dei gironi di Copa Libertadores**: nella 4.0 il loro passaggio allo spareggio della Copa Sudamericana era
+  simulato. Ora la tua squadra, terza nel suo girone di Libertadores, gioca lo spareggio (andata e ritorno, a
+  gennaio). Vale dalla seconda stagione della carriera: nella prima le coppe continentali sono quelle del mondo.
+  Dopo lo spareggio il resto della Sudamericana è simulato a fine stagione, perché i suoi turni (da febbraio)
+  vengono dopo la fine del campionato nazionale (quello argentino finisce a dicembre); lo stesso vale per la prima e
+  la seconda di un girone e gli ottavi di Libertadores. Previsto nella 4.0.2.
 
 ### Coppe del Mondo 2026-27
 - **Le coppe nazionali e di lega seguono promozioni e retrocessioni** (Mondo 2026-27). Nella 4.0 ogni coppa aveva le

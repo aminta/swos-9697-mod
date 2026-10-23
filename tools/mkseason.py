@@ -73,6 +73,7 @@ def career_data_pages():
 
 LEAGUE_AT = {}                          # (world, league file) -> obj1 offset of its league struct (patch)
 CAREER_CAVE = [None]                    # obj1 page of the career world code (patch.py adds it when worlds exist)
+INST_STUB = [None]                      # obj1 offset of cont_check's world-files check stub (instcheck.place)
 CAREER_CAVE_SIZE = 0x2000               # 3.1: two pages (patch.py; three with several worlds, cave_pages)
 ROUND = {'two_legs': 0x94, 'two_legs_pens': 0x84, 'single': 0x14, 'single_et': 0x54}   # knockout round byte: two legs (away goals),
                                                                  # single match, single match + extra time/penalties
@@ -2294,6 +2295,9 @@ def patch(p, lang, area, cave):
             lvl, nst, csp = _level_site(p)
             symbols.update({'NST': nst, 'CSP': csp, 'WMENU_N': (0, WMENU)})
             src += WMENU_ASM
+            src = nasmcave.sub(src, 'cont_check:', 'cont_check:\n    call inst_stub')   # 4.0.1: a world's files checked
+            src += 'inst_stub:\n    ret\n    nop\n    nop\n    nop\n    nop\n'   # before its list (instcheck.place:
+                                                                            # jmp to the check; last sub: first)
     tab = ['align 4', 'PACK_TAB:']
     data = []
     for k, i in enumerate(x for x in infos if x['emap']):
@@ -2311,6 +2315,7 @@ def patch(p, lang, area, cave):
         p.add_ptr(1, at + off, tobj, toff)
     p.put(1, season_call + 1, struct.pack('<i', labels['season_sel'] - (season_call + 5)))
     p.put(1, ja + 2, struct.pack('<i', labels['cont_check'] - (ja + 6)))
+    INST_STUB[0] = labels.get('inst_stub')
     if careers:
         p.put(1, site_c + 1, struct.pack('<i', labels['career_sel'] - (site_c + 5)))
     if wmenus:

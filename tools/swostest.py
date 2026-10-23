@@ -7309,6 +7309,53 @@ def world_nats():
 
 
 @scenario
+def world_instinc():
+    """4.0.1 install incomplete (Gianmarco's case; tools/instcheck.py): on a release-recipe build (SWOSTEST_BUILD; its
+    ITALIAN.EXE in SWOSTEST_UI's language) cloned without DATA\\TMW5.150, CARRIERA > SCEGLI SQUADRA > CARR. STORICHE >
+    MONDO 2026-27 and the main menu's CARRIERA 2026-27 button show the exe's 'INCOMPLETE INSTALL: RUN THE PATCHER
+    AGAIN' box, its CONTINUE leads back to the menus (no exit to DOS); the complete build lists the world's continents"""
+    import instcheck
+    b = builds()['it']
+    miss = os.path.join(RUNS, 'instinc_miss_' + UI)
+    shutil.rmtree(miss, ignore_errors=True)
+    os.makedirs(RUNS, exist_ok=True)
+    subprocess.run(['cp', '-cR', b, miss], check=True)
+    os.remove(os.path.join(miss, 'DATA', 'TMW5.150'))
+    msg = instcheck.MSG[UI]
+    errs, info = [], []
+    for tag, exe, via in (('miss_list', miss, 'list'), ('miss_button', miss, 'button'), ('full', b, 'list')):
+        with Session(f'world_instinc_{UI}_{tag}', exe, {}, 'dump:2', 300) as s:
+            s.wait()
+            if via == 'list':
+                for t in ('CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27'):
+                    if press(s, s.screen(), t, 3) is None:
+                        return False, f'{tag}: {t} not reached: {[e[1] for e in s.screen().entries if e[1]]}'
+            else:
+                walk(s, 4, 3)                            # the main menu's CARRIERA 2026-27 (entry 4)
+                walk(s, s.screen().find('SCEGLI SQUADRA'), 3)
+            shown = [e[1] for e in s.screen().entries if e[1] and not e[2]]
+            m = s.result.base2 + s.info['menu']             # (entry 0's raw text: Screen drops unknown umlauts)
+            ptr = struct.unpack('<I', s.result.read(m + 0x16 + 0x26, 4))[0]
+            raw = s.result.read(ptr, 64).split(b'\0')[0] if 0x1000 < ptr < MEMSIZE - 64 else b''
+            if raw == msg.encode('latin1'):
+                shown = shown if shown[:1] == [msg] else [msg] + shown
+            s.shot(tag)
+            if tag == 'full':
+                check(msg not in shown and 'EUROPA' in shown, f'{tag}: {shown}', errs)
+                info.append(f'{tag}: {shown[:4]}')
+                continue
+            check(shown[:1] == [msg], f'{tag}: the box shows {shown}', errs)
+            if s.send('fire dump:3').outcome != 'dump':
+                check(False, f'{tag}: CONTINUE -> {s.result}', errs)
+                continue
+            after = [e[1] for e in s.screen().entries if e[1] and not e[2]]
+            check(any(x in after for x in ('CARRIERA', 'SCEGLI SQUADRA')), f'{tag}: after CONTINUE {after}', errs)
+            info.append(f'{tag}: {shown[:1]} -> {after[:3]}')
+    shutil.rmtree(miss, ignore_errors=True)
+    return not errs, '; '.join(errs + info)
+
+
+@scenario
 def world_nats_oldsave():
     """4.0.1 own nationalities and an old save: a World 2026-27 career at HAMRUN SPARTANS on the 4.0 release
     (NATS_OLD, a buildrel.sh dir: c/REL40hf/SWOS) plays season 1 (the continental cups with the 12 guest clubs whose

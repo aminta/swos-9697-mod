@@ -4966,7 +4966,11 @@ def sa_exact_build(code, also=()):
     shutil.copytree(src, os.path.join(w, 'world5tm'))
     for c in (code, *also):
         f = os.path.join(w, 'world5tm', c, 'pack.json')
-        json.dump(sa_exact.EXACT[c](json.load(open(f))), open(f, 'w'), indent=1, ensure_ascii=False)
+        m = json.load(open(f))
+        lg = m['competitions'][0]
+        if 'split' in (lg['divisions'][0] if 'divisions' in lg else lg):   # (release data, 4.0.1 rc: the exact design
+            continue                                                    # already in the pack - applied once only)
+        json.dump(sa_exact.EXACT[c](m), open(f, 'w'), indent=1, ensure_ascii=False)
     shutil.copy(src + '.txt', os.path.join(w, 'world5tm.txt'))      # (full_season: the data's file order)
     order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
     tag = '_' + os.environ['SWOSTEST_TAG'] if os.environ.get('SWOSTEST_TAG') else ''
@@ -5195,10 +5199,13 @@ def world_sa_reload():
                     rows = lambda t: {struct.unpack_from('<H', b, o + 6 + (t * 32 + r) * 12 + 2)[0]:
                                       struct.unpack_from('<H', b, o + 6 + (t * 32 + r) * 12 + 10)[0]
                                       for r in range(b[o + t])}
-                    ap, cl, an = rows(0), rows(1), rows(2)
-                    bad = [g for g in an if an[g] != ap.get(g, -999) + cl.get(g, -999)]
-                    check(an and not bad, f'bank {bank}: annual != Apertura + Clausura for {len(bad)} of {len(an)}', errs)
-                    info.append(f'bank {bank}: {len(an)} clubs, annual = the two tournaments')
+                    ap, cl, an, t3 = rows(0), rows(1), rows(2), rows(3)   # (table 3: Uruguay's Clausura, its
+                    bad = [g for g in an                                     # Intermedio in table 1)
+                           if an[g] != ap.get(g, -999) + cl.get(g, -999) + (t3.get(g, -999) if t3 else 0)]
+                    what = 'the three stages' if t3 else 'the two tournaments'
+                    check(an and not bad, f'bank {bank}: annual != {what} for {len(bad)} of {len(an)}', errs)
+                    if an and not bad:
+                        info.append(f'bank {bank}: {len(an)} clubs, annual = {what}')
     finally:
         for x, v in keep.items():
             if v is None:
@@ -5210,7 +5217,11 @@ def world_sa_reload():
 
 @scenario
 def world_par_exact():
-    """Paraguay 2026 (4.0.1, parked: 44 days > split's 40): Apertura + Clausura double round robins at OLIMPIA"""
+    """Paraguay 2026 (4.0.2: 44 days, option C's split - MAXDAYS 104): Apertura + Clausura double round robins at
+    OLIMPIA; SKIP on a 4.0.1 engine (split's 40 days)"""
+    import split
+    if split.MAXDAYS < 44:
+        return True, f'SKIP: 4.0.2 only (Paraguay 44 days, this split allows {split.MAXDAYS})'
     return world_sa_exact('par', 'SUDAMERICA,PARAGUAY,OLIMPIA', 12, 44)
 
 

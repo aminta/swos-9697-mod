@@ -7183,6 +7183,118 @@ int main(void) {
     return ok and got == want, f'{got} (expected {want})'
 
 
+GP_STDEC = GP_STKO + 2 * 674     # gplay.c struct gp_state: dec[3] (the stage titles decided mid-season: 12 B each)
+GP_LOG_SRES = 982                # gp_log: out.sres[3] (the career club's division's stage champions, 10 B each)
+
+
+@scenario
+def world_mex(force='1', team='NORDAMERICA,MESSICO,LIGA MX,AMERICA',
+              stages=((0, 'APERTURA'), (1, 'CLAUSURA'), (2, 'CAMPEON DE CAMPEONES'))):
+    """Liga MX 2026-27 exactly (4.0.1, mkworld_tm mex_exact: Apertura 2026 by Transfermarkt's matchdays, the Clausura
+    its mirror, GP_SS tables 0 / 1 of Mexico's bank; each with its Liguilla: the top 8, quarter-finals 1v8 .. 4v5 and
+    re-seeded semi-finals over two legs, a level aggregate -> the better placed; the final over two legs, extra time +
+    penalties): the private snapshot internal/world2526/world5tm-mex3 (the 4.0 data + mex_exact) built with
+    GPLAY_FORCE (the career club's place in both tournaments' tables; MEX_BUILD); a season at AMERICA: both Liguillas
+    built after their tournament (stage titles 0 / 1 of division 0) and played with the club in them (8 clubs, every
+    tie decided, 7 ties), each champion = its final's winner (GP_ST.dec mid-season or GP_LOG's sres at the end); then
+    the Campeon de Campeones (stage 2: one match at a neutral ground, penalties; one club won both: no match, its own)"""
+    src = os.environ.get('W2627MEX_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-mex3')
+    if not os.path.isdir(src):
+        return True, f'SKIP: private data {src} missing'
+    exe = os.environ.get('MEX_BUILD')
+    if not exe:
+        order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+        env = {'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]), 'GPLAY_FORCE': force}
+        exe = build('world_mex_' + force, env=env)
+    log_at, st_at, log_n, st_n = gp_ptrs(exe)
+    keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K',
+                                            'W8485_NOSACK', 'W8485_HEX', 'W8485_ONE')}
+    os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5',
+                      W8485_K='108+', W8485_NOSACK='1', W8485_HEX=f'{log_at:x}:{log_n},{st_at:x}:{st_n}',
+                      W8485_ONE='1')
+    try:
+        ok, msg = world8485()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    hexes = {}
+    for ln in open(os.path.join(RUNS, w84_tag() + '_1', 'session.log'), errors='replace'):
+        p = ln.split()
+        if len(p) == 3 and p[0] == 'HEX':
+            hexes.setdefault(int(p[1], 16), []).append(bytes.fromhex(p[2]))
+    errs = []
+    check(ok, msg, errs)
+    import csv
+    pk = json.load(open(os.path.join(src, 'mex', 'pack.json')))['competitions'][0]['ko_playoffs']
+    want = {pi: po['stage'] for pi, po in enumerate(pk) if po.get('kind') == 'stage_title' and po['stage'] in dict(stages)
+            and any(isinstance(e, dict) and e.get('div', 0) == (1 if 'EXPANSION' in team else 0) for e in po['entrants'])}
+    sts = [b for b in hexes.get(st_at, []) if b[:2] == b'GK']
+    last = {}                                            # play-off index -> its last state seen
+    for b in sts:
+        k = gp_ko(b[GP_STKO:])
+        if k['magic'] == 0x4B47 and k['kind'] == 8 and k['pi'] in want:
+            last[k['pi']] = (k, b)
+    logs = [b for b in hexes.get(log_at, []) if b[:4] == b'GPLG']
+    sres = [struct.unpack_from('<BBHHHH', logs[-1], GP_LOG_SRES + 10 * i) for i in range(3)] if logs else []
+    fno = next(int(ln.split()[2]) for ln in open(src + '.txt') if ln.startswith('MEX '))
+    names = [r['name'] for r in csv.DictReader(open(os.path.join(src, 'mex', 'clubs.csv')))]
+    me = fno | names.index(team.split(',')[-1]) << 8      # (the career club's team word: file | ordinal << 8)
+    final = {}                                           # (the season end's log: the last contest, its ties all decided)
+    if logs:
+        k = gp_ko(logs[-1][8:])
+        final[k['pi']] = k
+    seen = set(last) | set(final) & set(want) | {pi for pi, st in want.items() if st == 2 and sres and sres[2][0] == 8}
+    check(sorted(seen) == sorted(want),
+          f'stage titles seen: play-offs {sorted(last)} (want {sorted(want)})', errs)
+    out, wins = [], {}
+    for pi in sorted(want, key=lambda x: want[x]):
+        stage = want[pi]
+        k, b = last.get(pi, (final.get(pi), None))
+        if k is None and stage == 2 and sres and sres[2][0] == 8:   # (the club out of the Clausura's: the rest and
+            two = {wins.get(0), wins.get(1)}                       # the Campeon de Campeones simulated at the end)
+            check(None not in two and {sres[2][2], sres[2][3]} - {0xFFFF} <= two and sres[2][2] in two,
+                  f'stage 2 at the season end: {sres[2]}, the champions {[hex(x) for x in two if x]}', errs)
+            out.append(f"{dict(stages)[2]} (season end): champion {sres[2][2]:#x} v {sres[2][3]:#x}")
+            continue
+        if k is None:
+            continue
+        played = me in k['team'][:k['n']]
+        k = final.get(pi, k)                             # (the career club out: the rest simulated at the season end)
+        nt = k['ntie']
+        win = k['team'][k['tw'][nt - 1]] if nt and k['tw'][nt - 1] < k['n'] else None
+        if stage < 2:
+            check(played and k['n'] == 8 and nt == 7 and all(x != 255 for x in k['tw'][:nt]),
+                  f"play-off {pi}: n {k['n']} clubs {[hex(t) for t in k['team'][:k['n']]]} (the club {me:#x}) ties {nt} "
+                  f"winners {k['tw'][:nt]}", errs)
+        else:                                            # (the Campeon de Campeones: the two champions; one: no tie)
+            two = {wins.get(0), wins.get(1)}
+            if len(two) == 1:
+                win = wins.get(0)
+            check(set(k['team'][:k['n']]) <= two and None not in two and (nt == 1 or len(two) == 1),
+                  f"play-off {pi}: clubs {[hex(t) for t in k['team'][:k['n']]]} ties {nt}, the champions "
+                  f"{[hex(x) for x in two if x]}", errs)
+        wins[stage] = win
+        dec = struct.unpack_from('<BB2xHHHH', b, GP_STDEC + 12 * stage) if b else (0, 0, 0)
+        champ = [dec[2]] if dec[1] else ([sres[stage][2]] if sres and sres[stage][0] == 8 else [])
+        check(champ and champ[0] == win, f'stage {stage}: champion {champ}, final winner {win}', errs)
+        out.append(f"{dict(stages)[stage]}: clubs {[hex(t) for t in k['team'][:k['n']]]}, winners "
+                   f"{k['tw'][:nt]}, champion {win and hex(win)}")
+    return not errs, '; '.join(errs) or f"{msg}; " + '; '.join(out)
+
+
+@scenario
+def world_mexe():
+    """The Liga de Expansion MX 2026-27 (4.0.1: division 1 of Mexico, its own Apertura / Clausura on tables 2 / 3, each
+    with its Liguilla as Liga MX's, then the Campeon de Campeones of the two champions over two legs - not played when
+    one club won both; gplay stage_title per division: the byte stage | division << 2): world_mex at CANCUN, both
+    Liguillas played with the club in them, each champion its final's winner, and the Campeon de Campeones (stage 2 of
+    division 1): its clubs = the two champions (one club won both: no tie, it is the champion)"""
+    return world_mex(team='NORDAMERICA,MESSICO,?LIGA DE EXPANSION MX|LIGA EXPANSION,CANCUN')
+
+
 @scenario
 def gplay_split_seed():
     """gplay.c split_seed (Malta 2026-27's title decider) compiled on the host (cc), its four cases: one winner of

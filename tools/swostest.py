@@ -1042,6 +1042,7 @@ def substitute(s, scr, tries=40, full=False):
        trial players (PROVA) only when nothing better is there. Row 1 must be a goalkeeper (P): a fit one of the
        bench (row 12) first. Returns an error string or None."""
     subs = s.__dict__.setdefault('subs', {})
+    gk_now = False                                      # (the bench keeper went in during this call)
     if not full and os.environ.get('SWOSTEST_LINEUP', 'min') != 'full':   # (the default: substitute_min; full =
         return substitute_min(s, tries)                     # the best-reserve search below, also its fallback)                      # search below, for a scenario that judges the club's results)
 
@@ -1084,7 +1085,7 @@ def substitute(s, scr, tries=40, full=False):
         if face is None:
             return 'squad screen: no face entry for the 17th row'
         # the first keeper fit again; row 12 must still be him (11 in subs: he left the 16, a stand-in is there)
-        if s.__dict__.get('gk_swap') and 11 not in subs and not rows[11][1] and not rows[0][1]:
+        if s.__dict__.get('gk_swap') and not gk_now and 11 not in subs and not rows[11][1] and not rows[0][1]:
             swap(rows[0][0], rows[11][0])
             s.gk_swap = False
             s.log.append('[subs] slot 1: the first keeper back')
@@ -1114,8 +1115,8 @@ def substitute(s, scr, tries=40, full=False):
         if k == 0 and not rows[11][1] and not s.__dict__.get('gk_swap') and 11 not in subs:   # the keeper: row 12
             swap(rows[0][0], rows[11][0])               # is the bench keeper in SWOS squads (drawn rows have no
                                                         # texts) unless a stand-in took his place
-            s.gk_swap = True
-            s.log.append('[subs] slot 1: the bench keeper (row 12) in')
+            s.gk_swap = gk_now = True                   # (not back in this same visit: a suspended keeper on the
+            s.log.append('[subs] slot 1: the bench keeper (row 12) in')   # bench shows no red mark - it ping-ponged)
             continue
         pool = pool or cycle(face, ry)
         fit = [(n, r, v) for n, r, v, f in pool if f and n]
@@ -5117,7 +5118,8 @@ def world_full_sa(code, team):
     exe = sa_exact_build(code)
     w = os.path.join(WORK, f'world_sa_{code}')
     keep = {k: os.environ.get(k) for k in ('W2627FULL', 'W2627FULL_DATA')}
-    os.environ.update(W2627FULL=exe, W2627FULL_DATA=os.path.join(w, 'world5tm'))
+    os.environ.update(W2627FULL=exe, W2627FULL_DATA=keep['W2627FULL_DATA'] or os.path.join(w, 'world5tm'))   # (a set
+                                                                    # one: the build's own data, e.g. uru + col + per)
     try:
         return full_season(code, team)
     finally:

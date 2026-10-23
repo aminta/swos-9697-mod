@@ -2172,3 +2172,11 @@ Left for 2.5: (a) NSL/NSSL finals series (type-1 design) or declare them postpon
   match appeared), only for GP_TAB leagues; proofs: cupd2 to the season end (no Poule), world_poule_rest through the
   Poule to the end, a resting club in the Poule to its end, world8485_nat, an even group, C20=2. Branch lastrest /
   lastrest3 (7cb2334) and the scenario world_poule_rest kept for it.
+- Continental rounds after the domestic season (Serie C session, 2026-10-23): the Libertadores 3rd now plays the
+  Sudamericana play-off (lib3sud: conti.c ct_gpre), but the later Sudamericana rounds and a 1st / 2nd's Libertadores
+  round of 16 (February) stay simulated at the season end: Argentina's season ends in December, the play-off /
+  the 6th group match is the club's last match, cseg_8EA82 sets seasonFinished and runs cseg_39392 before ct_daily can
+  build the next round in slot 3. 4.0.2: extend the season while the club has a conti segment pending (a calendar
+  entry for the next round built at the result, before the advance), proofs: world_lib3_sud with LIB3_TEXT=
+  'SUDAMERICANA:3' and CONTI_GPLACE=1 'LIBERTADORES OTTAVI:1', C20=2. Also: season 1 has no conti edition (CT_ED is
+  built at the first season end): the season-1 cups are the world's own.

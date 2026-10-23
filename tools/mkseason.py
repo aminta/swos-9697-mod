@@ -1789,6 +1789,25 @@ WMENU_ASM = '''
 w_lvl:                                  ; replaces `cmp word [numSelectedTeams], 2` (SelectTeamsFinalMenu shows a
     cmp word [NST], 2                   ; country's leagues at depth 2 only): depth 3 too when the parent list is a
     je .r                               ; world of CLASSIC CAREERS (top of countryStack = WMENU + n)
+    cmp word [NST], 1                   ; 4.0.1: depth 1 too for a country (careerworld w_buy: a one-continent
+    jne .d3                             ; world's countries in the top list): not a continent 80..85, 97..99 nor
+    cmp word [D7REG], WMENU_N           ; a world's list (>= WMENU)
+    jae .nz
+    cmp word [D7REG], 80
+    jb .yes
+    cmp word [D7REG], 86
+    jb .nz
+    cmp word [D7REG], 97
+    jb .yes
+    cmp word [D7REG], 100
+    jb .nz
+.yes:
+    cmp eax, eax
+    ret
+.nz:
+    or esp, esp
+    ret
+.d3:
     cmp word [NST], 3                   ; depth 3+: CLASSIC CAREERS > world (> continent (> OTHER NATIONS ...)) >
     jb .r                               ; country, whenever the parent list is one of a world's (id >= WMENU)
     push eax

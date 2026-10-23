@@ -1293,8 +1293,9 @@ def nat_callups(s, limit=120):
             press(s, scr, 'AGGIUNGI GIOCATORE') or s.send('fire dump:2')
         elif 'AGGIUNGI GIOCA. INTERNAZIONALE (CASA)' in texts and len(texts) <= 4:
             if not hasattr(s, 'abroad'):        # once: the abroad chooser -> the world (CARR. STORICHE) -> its
-                press(s, scr, next(t for t in texts if 'FUORI CASA' in t))   # countries, then back
-                if press(s, s.screen(), 'CARR. STORICHE') is not None:
+                press(s, scr, next(t for t in texts if 'FUORI CASA' in t))   # countries, then back (4.0.1: the
+                direct = s.screen().find('CARR. STORICHE', exact=True) is None   # countries at once, w_buy)
+                if direct or press(s, s.screen(), 'CARR. STORICHE') is not None:
                     s.abroad = s.screen().texts()
                     s.log.append(f'[abroad] {s.screen()}')
                 else:
@@ -2513,6 +2514,8 @@ def nat_offer_save(exe, off, name='W84NAT', season=None, lefts=0):
     offer kept (CONSIDERA: a national job is accepted at the season end), season played, saved at the season-end menu.
     lefts: the coach's nationality moved that many times left from ENG first (5 = GDR). Returns the save path or an
     error."""
+    if os.environ.get('W84SAVE_' + name):           # (a given save instead of the cache: a failing run's, re-played
+        return os.environ['W84SAVE_' + name]       # on another build)
     dst = os.path.join(WORK, 'saves', name + '.CAR')
     stamp = dst + '.exe'
     if os.path.exists(dst) and open(stamp).read() == md5(os.path.join(exe, 'ITALIAN.EXE')) \
@@ -7444,32 +7447,37 @@ def world_nats_oldsave():
 
 @scenario
 def world_buycont():
-    """4.0.1 foreign purchase in a world of several continents (careerworld w_buy, byte +49 of the world record): a World
-    2026-27 career at CORDOBA (release recipe, SWOSTEST_BUILD) - TRASFERIMENTI > ACQUISTA GIOCATORE > ACQ. ALTRO GIOCAT.
-    STRANIERO lists the world's continents at once (no violet CARR. STORICHE entry first), then EUROPA > ITALIA > SERIE A
-    > ATALANTA reaches its players"""
+    """4.0.1 foreign purchase in a historic world (careerworld w_buy: competitionsTable[254] = the world's W_CONT list):
+    TRASFERIMENTI > ACQUISTA GIOCATORE > ACQ. ALTRO GIOCAT. STRANIERO opens without the violet CARR. STORICHE entry -
+    a World 2026-27 career at CORDOBA on the world's continents (EUROPA > ITALIA > SERIE A > ATALANTA), a 1984-85 one
+    at LIVERPOOL on the world's countries (ITALIA > SERIE A > JUVENTUS); both reach the club's players (release recipe,
+    SWOSTEST_BUILD)"""
     errs, info = [], []
-    with Session('world_buycont_' + UI, builds()['it'], {}, 'dump:2', 900) as s:
-        s.wait()
-        for t in ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27', 'EUROPA', 'SPAGNA',
-                  'SEGUNDA DIVISION', 'CORDOBA']:
-            if press(s, s.screen(), t, 3) is None:
-                return False, f'{t} not reached: {[e[1] for e in s.screen().entries if e[1]]}'
-        s.send('fire dump:3')
-        for k in (4, 2, 5):                              # TRASFERIMENTI, ACQUISTA GIOCATORE, ACQ. ALTRO GIOCAT. STRANIERO
-            walk(s, k, 3)
-        top = [e[1] for e in s.screen().entries if e[1] and not e[2]]
-        s.shot('chooser')
-        check('EUROPA' in top and 'AFRICA' in top and 'CARR. STORICHE' not in top, f'first list {top}', errs)
-        info.append(f'first list {top[1:8]}')
-        for t in ('EUROPA', 'ITALIA', 'SERIE A', 'ATALANTA'):
-            if press(s, s.screen(), t, 3) is None:
-                return False, f'{t} not reached: {[e[1] for e in s.screen().entries if e[1]]}; ' + '; '.join(errs)
-        got = [e[1] for e in s.screen().entries if e[1] and not e[2]]
-        s.shot('atalanta')
-        info.append(f'ATALANTA: {got[:6]}')
+    for tag, path, want, then in (
+            ('w2627', ['CARR. STORICHE', 'MONDO 2026-27', 'EUROPA', 'SPAGNA', 'SEGUNDA DIVISION', 'CORDOBA'],
+             ('EUROPA', 'AFRICA'), ('EUROPA', 'ITALIA', 'SERIE A', 'ATALANTA')),
+            ('w8485', ['CARR. STORICHE', 'EUROPA 1984-85', 'INGHILTERRA', 'FIRST DIVISION', 'LIVERPOOL'],
+             ('ITALIA', 'JUGOSLAVIA'), ('ITALIA', 'SERIE A', 'JUVENTUS'))):
+        with Session(f'world_buycont_{UI}_{tag}', builds()['it'], {}, 'dump:2', 900) as s:
+            s.wait()
+            for t in ['CARRIERA', 'SCEGLI SQUADRA'] + path:
+                if press(s, s.screen(), t, 3) is None:
+                    return False, f'{tag}: {t} not reached: {[e[1] for e in s.screen().entries if e[1]]}'
+            s.send('fire dump:3')
+            for k in (4, 2, 5):                          # TRASFERIMENTI, ACQUISTA GIOCATORE, ACQ. ALTRO GIOCAT. STRANIERO
+                walk(s, k, 3)
+            top = [e[1] for e in s.screen().entries if e[1] and not e[2]]
+            s.shot('chooser')
+            check(all(x in top for x in want) and 'CARR. STORICHE' not in top, f'{tag}: first list {top}', errs)
+            info.append(f'{tag}: first list {top[1:7]}')
+            for t in then:
+                if press(s, s.screen(), t, 3) is None:
+                    return False, f'{tag}: {t} not reached: {[e[1] for e in s.screen().entries if e[1]]}; ' + '; '.join(errs)
+            got = [e[1] for e in s.screen().entries if e[1] and not e[2]]
+            s.shot('club')
+            check(len(got) > 4, f'{tag}: {then[-1]}: {got}', errs)
+            info.append(f'{tag} {then[-1]}: {got[:5]}')
     return not errs, '; '.join(errs + info)
-
 
 @scenario
 def world_cup_prefix():

@@ -7227,6 +7227,126 @@ def world_gplay_cupd(team='EUROPA,ITALIA,SERIE D GIRONE A,LIGORNA', two=False):
 
 
 @scenario
+def world_nats():
+    """4.0.1 own nationalities (careerworld.WORLD_NATS, codes 156..213): a World 2026-27 career at CORDOBA on the
+    release-recipe build (SWOSTEST_BUILD; SWOSTEST_UI = the exe's language) - the squad screen shows the Andorran
+    IKER ALVAREZ as (AND) (the converter's data); the foreign market (TRASFERIMENTI > ACQUISTA GIOCATORE > VISUAL.
+    MERCATO STRANIERO > ELENCA) shows its first player's code, then (forced: rule 15) that player's nationality byte
+    poked to MNE 156, AND 158 and TGA 213 (the table's last) and the list redrawn shows (MNE) / (AND) / (TGA)"""
+    import careerworld
+    codes = {156: 'MNE', 158: 'AND', 155 + len(careerworld.WORLD_NATS): careerworld.WORLD_NATS[-1]}
+    assert careerworld.WORLD_NATS[0] == 'MNE' and careerworld.WORLD_NATS[2] == 'AND'
+    errs, info = [], []
+    with Session('world_nats_' + UI, builds()['it'], {}, 'dump:2', 900) as s:
+        s.wait()
+        for t in ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27', 'EUROPA', 'SPAGNA',
+                  'SEGUNDA DIVISION', 'CORDOBA']:
+            scr = s.screen()
+            lvl = None if scr.find(t, exact=True) is not None else next(
+                (x for i, x, inv, _ in scr.entries if 11 <= i <= 20 and x and not inv and t.startswith(x + ' ')), None)
+            if lvl:
+                press(s, scr, lvl, 3)
+            if press(s, s.screen(), t, 3) is None:
+                return False, f'{t} not reached: {[e[1] for e in s.screen().entries if e[1]]}'
+        s.send('fire dump:3')
+        walk(s, 8, 3)                                    # the career menu's SQUADRA (entry 8)
+        s.shot('squad')
+        o2 = s.result.read(s.result.base2, s.info['size2'])
+        iker = [o2[m.start() - 3] for m in re.finditer(b'IKER ALVAREZ\\0', o2) if m.start() >= 3]
+        check(158 in iker, f'squad: IKER ALVAREZ\'s nationality bytes in memory {iker}, not AND 158', errs)
+        info.append(f'IKER ALVAREZ nat {iker}')
+        for code, name in codes.items():                 # the rows are drawn through one template entry: the last
+            scr = s.screen()                             # row's text stays (its name + '(XXX)'); poke its byte
+            last = next((t for i, t, inv, _ in scr.entries if i >= 40 and t and len(t) > 3 and not inv
+                         and not t.startswith(('(', 'L')) and t not in ('STDMENUTEXT',)), None)
+            if not last:
+                return False, f'squad: no last row: {[e[1] for e in scr.entries if e[1]]}'
+            o2 = s.result.read(s.result.base2, s.info['size2'])
+            hits = [m.start() - 3 for m in re.finditer(re.escape(last.encode()) + b'\\0', o2)
+                    if m.start() >= 3 and o2[m.start() - 3] <= 155 + len(careerworld.WORLD_NATS)]
+            check(hits, f'squad: {last} not found in obj2', errs)
+            for h in hits:
+                s.poke(s.result.base2 + h, [code])
+            walk(s, 'ESCI', 3)
+            walk(s, 8, 3)                                # SQUADRA again: redrawn
+            got = [t for i, t, inv, _ in s.screen().entries if i >= 40 and re.fullmatch(r'\([A-Z]{3}\)', t)]
+            s.shot('squad_' + name)
+            check(f'({name})' in got, f'squad: {last} poked to {code}, row shows {got}', errs)
+            info.append(f'squad {last} -> {code}: {got}')
+        s.send('escape dump:3') if s.screen().find('ESCI') is None else walk(s, 'ESCI', 3)
+        for k in (4, 2, 3, 7):                           # TRASFERIMENTI, ACQUISTA GIOCATORE, MERCATO STRANIERO, ELENCA
+            walk(s, k, 3)
+        for code, name in codes.items():
+            scr = s.screen()
+            nats = [(scr.geom[i][1], scr.geom[i][0], i, t) for i, t, inv, _ in scr.entries
+                    if i >= 10 and re.fullmatch(r'\([A-Z]{3}\)', t)]
+            if not nats:
+                return False, f'market list empty: {[e[1] for e in scr.entries if e[1]]}'
+            y, _, nat_i, _ = max(nats, key=lambda n: n[1])        # the nationality: the row's rightmost (XXX)
+            row = sorted((scr.geom[i][0], t) for i, t, inv, _ in scr.entries
+                         if i >= 10 and t and scr.geom[i][1] == y and not t.startswith('('))
+            names = [t for _, t in row if len(t) > 3]
+            if not names:
+                return False, f'market: no name on the row of {scr.entries[nat_i][1]}: {row}'
+            first = names[0].encode()
+            o2 = s.result.read(s.result.base2, s.info['size2'])
+            hits = [m.start() - 3 for m in re.finditer(re.escape(first) + b'\\0', o2)
+                    if m.start() >= 3 and o2[m.start() - 3] <= 155 + len(careerworld.WORLD_NATS)]
+            check(hits, f'market: {first} (nat {scr.entries[nat_i][1]}) not found in obj2', errs)
+            for h in hits:                               # the market record(s) of the shown player: nationality
+                s.poke(s.result.base2 + h, [code])       # byte 3 B before the name
+            for _ in range(8):                           # ELENCA again (a pager in some exes: LIST / MORE) until the
+                walk(s, 7, 3)                            # poked player's row is the last drawn again
+                scr = s.screen()
+                if any(t == first.decode() and scr.geom[i][1] == y for i, t, inv, _ in scr.entries if i >= 10):
+                    break
+            got = [t for i, t, inv, _ in scr.entries if i >= 10 and re.fullmatch(r'\([A-Z]{3}\)', t)
+                   and scr.geom[i][1] == y]
+            s.shot('market_' + name)
+            check(f'({name})' in got, f'market: {first} poked to {code}, list shows {got}', errs)
+            info.append(f'{first.decode()} -> {code}: {got[:3]}')
+    return not errs, '; '.join(errs + info)
+
+
+@scenario
+def world_nats_oldsave():
+    """4.0.1 own nationalities and an old save: a World 2026-27 career at HAMRUN SPARTANS on the 4.0 release
+    (NATS_OLD, a buildrel.sh dir: c/REL40hf/SWOS) plays season 1 (the continental cups with the 12 guest clubs whose
+    generated names and coaches the new codes changed: DJI / GNB / NAM / SOM / SSD / LBN / DOM) and saves season 2's
+    start; that save loaded on the 4.0.1 release build (SWOSTEST_BUILD) plays season 2 to its end (checkw1, world 5)"""
+    old = os.environ.get('NATS_OLD')
+    if not old:
+        return True, 'SKIP: NATS_OLD (the 4.0 release build) not set'
+    keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_ONE',
+            'W8485_FROM', 'W8485_TMO')
+    keep = {k: os.environ.get(k) for k in keys}
+    msgs = []
+    try:
+        os.environ.update(W8485_BUILD=old, W8485_WORLD='MONDO 2026-27',
+                          W8485_TEAM='EUROPA,MALTA,?MALTESE PREMIER LEAGUE|PREMIER LEAGUE,HAMRUN SPARTANS',
+                          W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1', W8485_ONE='1',
+                          W8485_TMO=os.environ.get('W8485_TMO', '1800'))
+        ok, msg = world8485()
+        msgs.append(f'4.0 season 1: {msg[:300]}')
+        car = os.path.join(RUNS, w84_tag() + '_1', 'SWOS', 'W84A.CAR')
+        if not ok or not os.path.exists(car):
+            return False, '; '.join(msgs)
+        saved = os.path.join(RUNS, 'NATS_OLD_W84A.CAR')
+        shutil.copy(car, saved)
+        os.environ.pop('W8485_ONE')
+        os.environ.update(W8485_BUILD=builds()['it'], W8485_FROM=saved)
+        ok, msg = world8485()
+        msgs.append(f'4.0.1 season 2 from the 4.0 save: {msg[:400]}')
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    return ok, '; '.join(msgs)
+
+
+@scenario
 def world_cup_prefix():
     """The continental cups' names without the empty country's prefix (careerworld w_pfx: cseg_95C18): a World
     2026-27 career at INTER (world5tm-poule) and a 1984-85 one at LIVERPOOL - VISUAL. COMPETIZ. lists 'UEFA CHAMPIONS

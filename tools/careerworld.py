@@ -99,6 +99,10 @@ def big(w):
 NEW_NATS = {'it': ['RDT', 'URS', 'RFT'], 'en': ['GDR', 'URS', 'FRG'],   # 3.1: player nationalities after the game's
             'fr': ['RDA', 'URS', 'RFA'], 'de': ['DDR', 'URS', 'BRD']}   # 153: East Germany 153, USSR 154, West Germany
 LANG = ['it']                                        # 155; 3-letter names per exe language (set by mkseason.patch)
+WORLD_NATS = ('MNE KOS AND GIB KAZ KGZ BLZ HAI CUW ARU DOM CUB PUR GRN GLP MTQ GUF ATG SKN LCA MSR CAY CPV GNB EQG '
+              'MTN NER RWA COM CTA SSD ERI SOM NAM LBY DJI STP REU MYT LBN PLE BHR HKG THA IDN CAM AFG NEP MAO MGL MDV '
+              'TLS GUM NCL TAH VAN SAM TGA').split()   # 4.0.1: the World 2026-27 nations without a 1996-97 code, 156..
+                                                 # (FIFA codes; the same in every exe, as the game's own 153)
 MENU_NATS = [153, 154, 155, 37]                      # added to the career menu's nationalities (Davide: the coach can be
                                                      # East/West German, Soviet, Yugoslav; YUG existed, not offered)
 WCONT = 99                                           # pseudo-continent of the running world (view, foreign browser)
@@ -1802,7 +1806,7 @@ def patch(p, worlds, at, nasmcave, comp, ct, cont_rec):
     extra.append('align 4')
     extra.append('WNATT:')
     extra += natt
-    nn = NEW_NATS[LANG[0]]
+    nn = NEW_NATS[LANG[0]] + WORLD_NATS
     assert all(len(x) == 3 for x in nn)
     short = bytes(p.get(2, s['short'], s['short_len'])) + ''.join(nn).encode()
     extra.append('NATSHORT: db ' + ', '.join(map(str, short + b'\0')))

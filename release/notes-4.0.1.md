@@ -149,6 +149,7 @@ load and play on.
 - **AFC Challenge League:** its group stage (5 groups of 4, one round robin; the 5 winners and the 3 best
   runners-up go to the quarter-finals) is still simulated; your club joins it at the quarter-finals. Playing it needs
   the ranking of the runners-up across the groups.
+- **AFC Champions League Elite league stage:** still simulated, played in 4.0.2.
 - **Guatemala, El Salvador and Paraguay:** their real 44-match-day calendars (two tournaments a season) need a
   larger match-day limit in the game's calendar; they keep the format they had in 4.0 until then.
 - **Calendars not yet published:** the Clausura 2027 of Mexico, Costa Rica, Honduras and Panama, and the last match
@@ -315,6 +316,7 @@ nella 4.0 resta com'era; le carriere salvate con la 4.0 si caricano e continuano
 - **AFC Challenge League:** la fase a gironi (5 gironi da 4, sola andata; le 5 prime e le 3 migliori seconde ai
   quarti) resta simulata; la tua squadra entra dai quarti di finale. Per giocarla serve la classifica delle seconde fra
   i gironi.
+- **Fase a campionato dell'AFC Champions League Elite:** ancora simulata, giocata nella 4.0.2.
 - **Guatemala, El Salvador e Paraguay:** i loro calendari veri di 44 giornate (due tornei a stagione) richiedono un
   limite di giornate più alto nel calendario del gioco; fino ad allora tengono la formula che avevano nella 4.0.
 - **Calendari non ancora pubblicati:** la Clausura 2027 di Messico, Costa Rica, Honduras e Panama, e le ultime

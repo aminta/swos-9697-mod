@@ -6094,6 +6094,10 @@ def world_conti_guest():
     check(games(logs['a']), f'no match against a guest {names} before the save', errs)
     check(games(logs['b']), f'no match against a guest {names} after the reload', errs)
     check('2026/27 STAGIONE' in rec and 'INDEPENDIENTE' in rec, f'the record screen: {rec[:200]}', errs)
+    if errs and all('career menu of the new season not reached' in e or 'no season-end save' in e for e in errs):
+        errs.insert(0, 'KNOWN FAIL 4.0.1 (the next season\'s start with the guest sample build: INDEPENDIENTE\'s team '
+                       'screen comes back after ESCI, 11 players shown; a natural INDEPENDIENTE career on REL40hf reaches '
+                       'season 2 - the test build\'s guests, 4.0.2)')
     return not errs, '; '.join(errs) or (f'guests {names}: {len(games(logs["a"]))} match screens before the save, '
                                          f'{len(games(logs["b"]))} after the reload; record {rec[9:160]!r}; '
                                          f'second season: {msg3[:120]}')

@@ -6157,6 +6157,17 @@ def world_cuplist():
     return not errs, '; '.join(errs + info)
 
 
+def foreign_exe():
+    """The release dir the foreign-market scenarios run on (CONVENTIONS 17a): FOREIGNBUY_BUILD, else the suite's
+    SWOSTEST_BUILD / W8485_BUILD when it is a release-like dir (DATA\\POOL05.DAT: the world pool the test builds lack)."""
+    for k in ('FOREIGNBUY_BUILD', 'SWOSTEST_BUILD', 'W8485_BUILD'):
+        d = os.environ.get(k)
+        if d and os.path.exists(os.path.join(d, 'ITALIAN.EXE')) and (k == 'FOREIGNBUY_BUILD' or
+                                                                     os.path.exists(os.path.join(d, 'DATA', 'POOL05.DAT'))):
+            return d
+    return None
+
+
 def foreign_buy(exe, mode):
     """A foreign-market purchase on a RELEASE exe (mode '2627': the World 2026-27 career at INTER; '9697': a real 1996-97
     JUVENTUS career): TRASFERIMENTI > ACQUISTA GIOCATORE > VISUAL. MERCATO STRANIERO > ELENCA, the first listed player,
@@ -6294,21 +6305,21 @@ def foreign_buy(exe, mode):
 
 @scenario
 def world_foreign_buy():
-    """A foreign-market purchase in the World 2026-27 career on a RELEASE exe (FOREIGNBUY_BUILD or W8485_BUILD = c/RELxx/
+    """A foreign-market purchase in the World 2026-27 career on a RELEASE exe (FOREIGNBUY_BUILD, or the suite's SWOSTEST_BUILD / W8485_BUILD = c/RELxx/
     SWOS; a harness test build has no worldpool, so it proves nothing): the first listed player, whose POOL05 team file
     (190) 4.0 rc12 lacked -> the game exited to DOS (Davide's MiSTer, 2026-10-22). FAIL on rc12, PASS on the fix."""
-    exe = os.environ.get('FOREIGNBUY_BUILD') or os.environ.get('W8485_BUILD')
-    if not exe or not os.path.exists(os.path.join(exe, 'ITALIAN.EXE')):
-        return True, 'SKIP: FOREIGNBUY_BUILD / W8485_BUILD (a release SWOS dir) not set'
+    exe = foreign_exe()
+    if not exe:
+        return True, 'SKIP: no release SWOS dir (FOREIGNBUY_BUILD, or SWOSTEST_BUILD / W8485_BUILD with DATA/POOL05.DAT)'
     return foreign_buy(exe, '2627')
 
 
 @scenario
 def world_foreign_buy_9697():
     """world_foreign_buy's control: a real 1996-97 career (the original foreign market) on the same release exe."""
-    exe = os.environ.get('FOREIGNBUY_BUILD') or os.environ.get('W8485_BUILD')
-    if not exe or not os.path.exists(os.path.join(exe, 'ITALIAN.EXE')):
-        return True, 'SKIP: FOREIGNBUY_BUILD / W8485_BUILD (a release SWOS dir) not set'
+    exe = foreign_exe()
+    if not exe:
+        return True, 'SKIP: no release SWOS dir (FOREIGNBUY_BUILD, or SWOSTEST_BUILD / W8485_BUILD with DATA/POOL05.DAT)'
     return foreign_buy(exe, '9697')
 
 

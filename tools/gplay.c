@@ -62,9 +62,34 @@ static const struct gp_dec *stage_dec(int k);   /* (GP_ST's, this season's, or 0
 enum { SS_N = 4, SS_BASE = 4 };      /* stage tables of a league with fixture stages (split 'table'): entrant
                                         'stage_place' s = SS_BASE + k (Argentina: 4 Apertura, 5 Clausura, 6 the
                                         annual table; 7 the MLS season, its own: GP_SS is the world's); saved with the career (engine item 'SS') */
-struct gp_ss { u8 n[SS_N], fresh; struct gp_row r[SS_N][GT]; };   /* fresh: bit k = r[k] written this season */
+struct gp_ss { u8 n[SS_N], fresh, key; struct gp_row r[SS_N][GT]; };   /* key (4.0.1): the bank's team file */   /* fresh: bit k = r[k] written this season */
 static int ss_used;                     /* (a play-off read GP_SS this season end: fresh cleared after) */
-struct gp_ss GP_SS;
+#ifndef SS_NB
+#define SS_NB 1
+#endif
+struct gp_ss GP_SSB[SS_NB > 1 ? SS_NB + 1 : 1];         /* 4.0.1: one bank per league with stage tables. Bank 0 = 4.0's single one
+                                           (Argentina r[0..2], MLS r[3]: engine item 'SS', unchanged for 4.0 saves);
+                                           bank 1 = the CAREER club's league when it is another one (item 'SS2': its
+                                           tables must survive a mid-season save); 2.. the other leagues', not saved
+                                           (they play at the season end's simulation). GP_SSF[team file] = 1.. */
+static struct gp_ss *SSB = &GP_SSB[0];
+#if SS_NB > 1
+extern const u8 GP_SSF[256];
+extern const u16 GP_CAREERW;            /* (selTeamNumber: the career club's team word) */
+static void ss_set(u32 file) {
+    u32 b = GP_SSF[file & 255];
+    file &= 255;
+    if (!b || b >= SS_NB) { SSB = &GP_SSB[0]; return; }
+    SSB = &GP_SSB[(GP_CAREERW & 255) == file ? 1 : 1 + b];
+    if (SSB->key != file) {                     /* (a new league in this bank: e.g. the career club moved) */
+        SSB->key = (u8)file;
+        SSB->fresh = 0;
+        for (int q = 0; q < SS_N; q++) SSB->n[q] = 0;
+    }
+}
+#else
+static void ss_set(u32 file) { (void)file; }
+#endif
 const u32 GP_LAYOUT[] = { sizeof(struct gp_row), GT, __builtin_offsetof(struct gp_in, n),
                           __builtin_offsetof(struct gp_in, t), __builtin_offsetof(struct gp_in, spec),
                           __builtin_offsetof(struct gp_out, mv), sizeof(struct gp_mv), GD,
@@ -144,10 +169,10 @@ static int series(int a, int b, int level) {   /* best of three: games 1 and 3 a
 static int gp_force(void) {
     if (!GP_FORCE || !GP_IN.mgr) return -1;
     for (int s = 0; s < SS_N; s++)              /* (a stage table written this season: the same place there) */
-        if (GP_SS.fresh & 1 << s && GP_FORCE <= GP_SS.n[s])
-            for (int k = 0; k < GP_SS.n[s]; k++)
-                if (GP_SS.r[s][k].team == GP_IN.mgr && k != GP_FORCE - 1) {
-                    struct gp_row x, *r = GP_SS.r[s];
+        if (SSB->fresh & 1 << s && GP_FORCE <= SSB->n[s])
+            for (int k = 0; k < SSB->n[s]; k++)
+                if (SSB->r[s][k].team == GP_IN.mgr && k != GP_FORCE - 1) {
+                    struct gp_row x, *r = SSB->r[s];
                     rcopy(&x, &r[k]); rcopy(&r[k], &r[GP_FORCE - 1]); rcopy(&r[GP_FORCE - 1], &x);
                     break;
                 }
@@ -183,13 +208,13 @@ static int stage_club(int d, int s, int a) {   /* place a of kept stage s -> its
     if (s >= SS_BASE && s < SS_BASE + SS_N) {
         int k = s - SS_BASE;
         ss_used = 1;
-        if (!(GP_SS.fresh & 1 << k)) {          /* (not written this season: a simulated league skips split's stage
+        if (!(SSB->fresh & 1 << k)) {          /* (not written this season: a simulated league skips split's stage
                                                    end -> the division's final table, its places as the stage's) */
             if (d >= GP_IN.nd || a < 1 || a > GP_IN.n[d]) return -1;
             return d * GT + a - 1;
         }
-        if (a < 1 || a > GP_SS.n[k] || d >= GP_IN.nd) return -1;
-        g = GP_SS.r[k][a - 1].glob;
+        if (a < 1 || a > SSB->n[k] || d >= GP_IN.nd) return -1;
+        g = SSB->r[k][a - 1].glob;
     } else {
         if (s >= GS || a < 1 || a > GP_IN.nst[s] || d >= GP_IN.nd) return -1;
         g = GP_IN.st[s][a - 1].glob;
@@ -348,15 +373,16 @@ static u16 w16(const u8 *b) { return b[0] | b[1] << 8; }
 static void p16(u8 *b, u32 v) { b[0] = v; b[1] = v >> 8; }
 void gp_overall(const u8 *diy, const u8 *sel, u32 apn) {
     int n = w16(diy + 0x31);
+    ss_set(diy[0x12D]);
     if (n < 1 || n > 32) { GP_OV_N = 0; return; }
     for (int i = 0; i < n * 18; i++) GP_OV_ROWS[i] = diy[0x2B3 + i];
     int found = 0;
-    if (apn && (GP_SS.fresh & 1) && GP_SS.n[0] == n) {
+    if (apn && (SSB->fresh & 1) && SSB->n[0] == n) {
         for (int r = 0; r < n; r++) {
             u8 *row = GP_OV_ROWS + 18 * r;
             u32 t = row[0] | row[1] << 8 | (u32)row[2] << 16 | (u32)row[3] << 24;
             u16 g = w16(sel + t + 2);
-            for (int k = 0; k < n; k++) if (GP_SS.r[0][k].glob == g) { found++; break; }
+            for (int k = 0; k < n; k++) if (SSB->r[0][k].glob == g) { found++; break; }
         }
     }
     GP_OV_ANNUAL = found == n;
@@ -366,7 +392,7 @@ void gp_overall(const u8 *diy, const u8 *sel, u32 apn) {
             u32 t = row[0] | row[1] << 8 | (u32)row[2] << 16 | (u32)row[3] << 24;
             u16 g = w16(sel + t + 2);
             for (int k = 0; k < n; k++) {
-                const struct gp_row *a = &GP_SS.r[0][k];
+                const struct gp_row *a = &SSB->r[0][k];
                 if (a->glob != g) continue;
                 int d = a->pts - 3 * a->won, l = (int)apn - a->won - d;
                 if (d < 0) d = 0;
@@ -395,13 +421,14 @@ void gp_overall(const u8 *diy, const u8 *sel, u32 apn) {
 }
 
 /* split's stage end (sp_stage_end, a fixture stage with 'table'): the DIY table in its order (+6Dh, the groups
-   partitioned by sp_sort: Argentina's zone A then zone B) into GP_SS.r[k]; annual: GP_SS.r[2] = r[0] + r[1] by club,
+   partitioned by sp_sort: Argentina's zone A then zone B) into SSB->r[k]; annual: SSB->r[2] = r[0] + r[1] by club,
    by points, goal difference, goals (the earlier stage's order on a tie). */
 extern u16 GP_MGR;
 void gp_stage(const u8 *diy, const u8 *sel, u32 k, u32 annual) {
     int n = diy[0x31] | diy[0x32] << 8;
+    ss_set(diy[0x12D]);                         /* (the league's bank: its clubs' team file) */
     if (k >= SS_N || n < 1 || n > GT) return;
-    struct gp_row *o = GP_SS.r[k];
+    struct gp_row *o = SSB->r[k];
     for (int i = 0; i < n; i++) {
         int off = diy[0x6D + 2 * i] | diy[0x6E + 2 * i] << 8, r = off / 18;
         const u8 *row = diy + 0x2B3 + off;
@@ -413,8 +440,8 @@ void gp_stage(const u8 *diy, const u8 *sel, u32 k, u32 annual) {
         o[i].ga = row[14] | row[15] << 8;
         o[i].pts = row[16] | row[17] << 8;
     }
-    GP_SS.n[k] = n;
-    GP_SS.fresh |= 1 << k;
+    SSB->n[k] = n;
+    SSB->fresh |= 1 << k;
     if (GP_FORCE && GP_MGR && GP_FORCE <= n)    /* (test builds, GPLAY_FORCE=k: the career club at place k of the
                                                    stage's kept table too - a stage_title knockout built at its end) */
         for (int i = 0; i < n; i++)
@@ -423,13 +450,17 @@ void gp_stage(const u8 *diy, const u8 *sel, u32 k, u32 annual) {
                 rcopy(&x, &o[i]); rcopy(&o[i], &o[GP_FORCE - 1]); rcopy(&o[GP_FORCE - 1], &x);
                 break;
             }
-    if (!annual || k == 0 || GP_SS.n[0] != n) return;
-    struct gp_row *a = GP_SS.r[2], tmp;
-    for (int i = 0; i < n; i++) {
-        rcopy(&a[i], &GP_SS.r[0][i]);
-        for (int j = 0; j < n; j++) if (o[j].glob == a[i].glob) {
-            a[i].won += o[j].won; a[i].gf += o[j].gf; a[i].ga += o[j].ga; a[i].pts += o[j].pts;
-        }
+    if (!annual || k == 0 || SSB->n[0] != n) return;
+    struct gp_row *a = SSB->r[2], tmp;          /* (4.0.1: every stage table of this season but the annual's own, by
+                                                    club: Uruguay's Apertura + Intermedio + Clausura) */
+    for (int i = 0; i < n; i++) rcopy(&a[i], &SSB->r[0][i]);
+    for (int q = 1; q < SS_N; q++) {
+        if (q == 2 || !(SSB->fresh & 1 << q) || SSB->n[q] != n) continue;
+        const struct gp_row *o2 = SSB->r[q];
+        for (int i = 0; i < n; i++)
+            for (int j = 0; j < n; j++) if (o2[j].glob == a[i].glob) {
+                a[i].won += o2[j].won; a[i].gf += o2[j].gf; a[i].ga += o2[j].ga; a[i].pts += o2[j].pts;
+            }
     }
     for (int i = 1; i < n; i++)                 /* insertion sort: stable */
         for (int j = i; j > 0; j--) {
@@ -438,8 +469,8 @@ void gp_stage(const u8 *diy, const u8 *sel, u32 k, u32 annual) {
                 rcopy(&tmp, &a[j]); rcopy(&a[j], &a[j - 1]); rcopy(&a[j - 1], &tmp);
             } else break;
         }
-    GP_SS.n[2] = n;
-    GP_SS.fresh |= 4;
+    SSB->n[2] = n;
+    SSB->fresh |= 4;
 }
 
 /* Argentina's relegation (LPF reglamento 2026 art. 26, AFA statute art. 93): kind 7 'promedio' (n = 0, no rounds;
@@ -477,9 +508,9 @@ static int pr_row(int d, u16 g) {               /* a global number -> its row of
 
 static void promedio(int d, int mnow, int ldiv) {
     if (!PR_STATE.init) pr_seed();
-    int n = GP_SS.n[2];
-    const struct gp_row *a = GP_SS.r[2];
-    if (!(GP_SS.fresh & 4) || n != GP_IN.n[d]) {   /* (no annual table this season: the league's final table) */
+    int n = SSB->n[2];
+    const struct gp_row *a = SSB->r[2];
+    if (!(SSB->fresh & 4) || n != GP_IN.n[d]) {   /* (no annual table this season: the league's final table) */
         n = GP_IN.n[d];
         a = GP_IN.t[d];
     }
@@ -713,6 +744,7 @@ void gp_season(void) {
     }
     int prev_loser = -1;                        /* the last tie's loser of the play-off before (entrant type 4) */
     ss_used = 0;
+    ss_set(GP_IN.n[0] ? GP_IN.t[0][0].team : 0);   /* (this country's bank: its top division's file) */
     gp_force();
     wn_on = 0;                                  /* (the career club's country: its titles into WN_ST) */
     int wn_div = 0;
@@ -864,7 +896,7 @@ void gp_season(void) {
         s = r;
     }
     wn_on = 0;
-    if (ss_used) GP_SS.fresh = 0;              /* (this league's stage tables used: next season's are new ones) */
+    if (ss_used) SSB->fresh = 0;              /* (this league's stage tables used: next season's are new ones) */
 }
 
 /* ---- The playable play-offs (gp_lend .. gp_end in gplay.py): the career club's play-off or play-out is played in
@@ -1023,6 +1055,7 @@ static int t2_shape(const u8 *s, struct t2s *o) {
    the divisions to simulate now for their entrants (sim[]); returns how many */
 u32 gp_need(void) {
     int m = -1, d0 = GP_IN.mdiv, cnt = 0, ns = 0;
+    ss_set(GP_IN.mgr);                          /* (the career club's league's bank) */
     GP_IN.pi[0] = GP_IN.pi[1] = NOC;
     for (int j = 0; j < SDX; j++) GP_IN.sim[j] = NOC;
     GP_ST.nsim = 0;
@@ -1379,6 +1412,7 @@ static int ko_build(struct gp_ko *k, int pi, int slot, int cid) {
 /* after gp_need and the early simulations: the contests (ko[0]: slot 4, id FE; Season's second: slot 3, FC) */
 u32 gp_lend_c(void) {
     u32 built = 0;
+    ss_set(GP_IN.mgr);
     GP_ST.magic = MAGIC;
     GP_ST.season = GP_SEAS;
     for (int i = 0; i < 2; i++) {
@@ -1820,6 +1854,7 @@ static void set_pend(int then, int week) {   /* 'then_build': the next play-off 
 }
 
 u32 gp_build_c(void) {
+    ss_set(GP_IN.mgr);
     const u8 *s = po_at(GP_BPIC);
     stage_done(&GP_ST.ko[0]);                   /* (the previous stage's knockout, played: before ko[0] is rebuilt) */
     if (!s || !playable(s)) return 0;
@@ -1829,7 +1864,15 @@ u32 gp_build_c(void) {
     }
     GP_ST.nsim = 0;
     GP_IN.pi[0] = GP_BPIC; GP_IN.pi[1] = NOC;
+    const u8 *e0 = s + 6, *e1 = s + 10;         /* 4.0.1: a table's leader as both entrants of one tie (sa_exact's
+                                                   'table titles'): nothing to play, decided at once as a simulated
+                                                   one - a slot contest of the career club with itself stayed stuck
+                                                   after a mid-season reload */
+    int trivial = s[1] == 2 && s[2] == 1 && e0[0] == e1[0] && e0[1] == e1[1] && e0[2] == e1[2] && e0[3] == e1[3];
+    u16 mgr = GP_IN.mgr;
+    if (trivial) GP_IN.mgr = 0xFFFF;
     u32 b = gp_lend_c() & 1;
+    GP_IN.mgr = mgr;
     if (!b && GP_ST.ko[0].magic == MAGIC) {
         ko_sim(&GP_ST.ko[0]);
         stage_done(&GP_ST.ko[0]);               /* (simulated at once: decided now) */

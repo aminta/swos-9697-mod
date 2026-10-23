@@ -1474,7 +1474,9 @@ def builds():
     branch/commit), else from this checkout."""
     if not hasattr(builds, 'cache'):
         br = os.environ.get('SWOSTEST_BRANCH')
-        builds.cache = {'it': os.environ.get('SWOSTEST_BUILD') or build(re.sub(r'\W', '_', br) if br else 'it', branch=br)}
+        tag = '_' + os.environ['SWOSTEST_TAG'] if os.environ.get('SWOSTEST_TAG') else ''   # (parallel sessions: their own
+        builds.cache = {'it': os.environ.get('SWOSTEST_BUILD') or     # build dir, not a shared builds/it overwritten
+                        build((re.sub(r'\W', '_', br) if br else 'it') + tag, branch=br)}   # under a running suite)
     return builds.cache
 
 
@@ -1655,6 +1657,17 @@ def next_season_save(s, name):
             return f'new season: {s.result}'
         scr = s.screen()
         s.log.append(f'[ns] {scr}')
+        if os.environ.get('W8485_NSDUMP'):             # (debug: D8CAA[0..4] slot pointers + each slot's +2Dh / +39h)
+            o = int(os.environ['W8485_NSDUMP'], 16)
+            ptrs = struct.unpack('<5I', bytes(s.result.obj2(o, 20)))
+            info = []
+            for k_, lin in enumerate(ptrs):
+                if lin and lin < 0x10000000:
+                    b_ = bytes(s.result.read(lin, 0x40))
+                    info.append(f'{k_}:{lin:#x} id {b_[0x2D]:#04x} +39 {b_[0x39]:#04x} t {b_[0]:#04x}')
+                else:
+                    info.append(f'{k_}:{lin:#x}')
+            s.log.append('[nsd] ' + ' | '.join(info))
         if os.environ.get('W8485_RECWATCH'):           # (debug: the season record's line pointers / codes each step)
             o = int(os.environ['W8485_RECWATCH'], 16)
             s.log.append(f"[rec] {s.result.obj2(o + 22, 16).hex()} {s.result.obj2(o + 86, 4).hex()}")
@@ -1667,6 +1680,10 @@ def next_season_save(s, name):
             if err:
                 return err
             continue
+        if ('AVVERSARI' in scr.texts() or 'VIS. SQUADRA' in scr.texts()) and 'ESCI' in scr.texts() and \
+                any(t == 'GIOCA :' and inv for _, t, inv, _ in scr.entries):   # a match card with GIOCA off (a
+            press(s, scr, 'ESCI', wait=3)                                      # fixture shown at the new season's
+            continue                                                           # start): ESCI
         press(s, scr, 'CONTINUA') or s.send('fire dump:2')
     else:
         return 'career menu of the new season not reached'
@@ -2444,6 +2461,7 @@ def world8485():
                 if diy_league(b):
                     s.log.append(f'DIY {b.hex()}')
             if os.environ.get('W8485_SAVE_END'):      # (debug) a save at the season-end menu, before CONTINUA
+                hexlog()                               # (the season end's state first: W8485_HEX)
                 nm = os.environ['W8485_SAVE_END']
                 if press(s, s.screen(), 'SALVA CARRIERA') is None:
                     return False, f'season {season}: no SALVA CARRIERA on {s.screen()}'
@@ -4267,6 +4285,11 @@ SPLITS = {   # world_split kinds: country, career path (ITA), the 'split' of its
                             'groups': [{'places': [1, 12], 'rounds': 'single'}]},
                            {'after': 27, 'groups': [{'places': [1, 6], 'rounds': 'single'},
                                                     {'places': [7, 12], 'rounds': 'single'}]}]}),
+    'places': ('uru', 'SUDAMERICA,URUGUAY,CAMPEONATO URUGUAYO,DANUBIO',     # (Uruguay 2026: Apertura 15, the
+               {'_games': 1, 'stages': [                                  # Intermedio's snake groups, Clausura 15)
+                   {'after': 15, 'places_snake': True, 'reset': True, 'keep': 'opening',
+                    'groups': [{'places': [1, 8], 'rounds': 'single'}, {'places': [9, 16], 'rounds': 'single'}]},
+                   {'after': 22, 'reset': True, 'groups': [{'places': [1, 16], 'rounds': 'single'}]}]}),
     'halved': ('rou', 'EUROPA,ROMANIA,BOTOSANI',
                {'after': 30, 'groups': [{'places': [1, 6], 'rounds': 'double', 'points': 'half_up'},
                                         {'places': [7, 16], 'rounds': 'single', 'points': 'half_up'}]}),
@@ -4286,7 +4309,10 @@ def split_build():
         f = os.path.join(w, 'world5tm', c, 'pack.json')
         d = json.load(open(f))
         lg = next(x for x in d['competitions'] if x['type'] == 'league')
-        (lg['divisions'][0] if 'divisions' in lg else lg)['split'] = sp
+        tgt = lg['divisions'][0] if 'divisions' in lg else lg
+        tgt['split'] = {k: v for k, v in sp.items() if k != '_games'}
+        if '_games' in sp:
+            tgt['games'] = sp['_games']
         json.dump(d, open(f, 'w'), indent=1, ensure_ascii=False)
     order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
     return build('world_split', env={'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(w, 'world5tm', x)
@@ -4309,6 +4335,40 @@ def split_tables_ok(diys, n, full_points, errs):
             check(not badp, f'day {day}: points != 3W + D in rows {badp[:4]}', errs)
         if errs:
             return
+
+
+def split_check_places(log, key):
+    """Explicit / snake places (Uruguay's Intermedio): at every snapshot of the snake stage (1 frozen stage), each
+    row's group = the snake group of its place in the kept table (the Apertura, rows by place); every row 7 matches
+    in that stage; then the Clausura from 0 (15 each at the end)."""
+    import split
+    diys = [b for b in (bytes.fromhex(ln[4:]) for ln in log if ln.startswith('DIY ')) if b[0:2] == b'\0\0']
+    if not diys:
+        return False, 'no snapshot of the split league'
+    clubs = lambda b: sorted(b[0x12D:0x12D + 2 * struct.unpack_from('<H', b, 0x31)[0]])
+    diys = [b for b in diys if clubs(b) == clubs(diys[0])]
+    st, o = split.ST, split.OFF
+    w = lambda b, k: struct.unpack_from('<H', b, k)[0]
+    n = w(diys[-1], 0x31)
+    snake = [k for b in range(n // 2) for k in ((0, 1) if b % 2 == 0 else (1, 0))]
+    mid = [b for b in diys if b[st + o['frozen']] == 1]
+    errs, info = [], []
+    check(mid, 'no snapshot inside the snake stage', errs)
+    for b in mid[-1:]:
+        kept = list(b[st + o['h2h']:st + o['h2h'] + n])          # rows by Apertura place
+        grp = list(b[st + o['grp']:st + o['grp'] + n])
+        want = {kept[p]: snake[p] for p in range(n)}
+        bad = [r for r in range(n) if grp[r] != want[r]]
+        check(not bad, f'rows in the wrong group: {[(r, grp[r], want[r]) for r in bad]}', errs)
+        info.append('A = Apertura places ' + ' '.join(str(p + 1) for p in range(n) if snake[p] == 0))
+        rec = lambda r: struct.unpack_from('<I7H', b, 0x2B3 + 18 * r)
+        info.append(f'snake-stage played {sorted({rec(r)[1] for r in range(n)})}')
+    last = diys[-1]
+    rec = lambda r: struct.unpack_from('<I7H', last, 0x2B3 + 18 * r)
+    check(last[st + o['frozen']] == 2 and w(last, 0x1C1) == w(last, 0x1C3) == 37 and w(last, 0x5F) == 0,
+          f'end: frozen {last[st + o["frozen"]]}, day {w(last, 0x1C1)} / {w(last, 0x1C3)} (37), cycles {w(last, 0x5F)}', errs)
+    check(all(rec(r)[1] == 15 for r in range(n)), f'Clausura played {[rec(r)[1] for r in range(n)]} (15)', errs)
+    return not errs, '; '.join(errs + info)
 
 
 def split_check_stages(log, key):
@@ -4489,7 +4549,8 @@ def world_split(kind):
             else:
                 os.environ[k] = v
     log = open(os.path.join(RUNS, f'{w84_tag()}_1', 'session.log')).read().splitlines()
-    good, rep = (split_check_stages(log, spec) if 'stages' in spec else
+    good, rep = (split_check_places(log, spec) if kind == 'places' else
+                 split_check_stages(log, spec) if 'stages' in spec else
                  split_check(log, spec, lambda n: split.pair_table(po, sa, n)))
     open(os.path.join(RUNS, f'{w84_tag()}_1', 'split.txt'), 'w').write(rep + '\n' + '\n'.join(
         x for x in log if x.startswith('post-split')) + '\n')
@@ -4699,6 +4760,334 @@ def world_odd_league():
           f'played {[t[1] for t in rows]}, {2 * (n - 1)} wanted', errs)
     check(ok, msg, errs)
     return not errs, '; '.join(errs) or f'{n} clubs, {2 * n} days, every club {2 * (n - 1)} matches; {msg}'
+
+
+def sa_exact_build(code, also=()):
+    """The world 2026-27 (SA_DATA, default the 4.0 RC data world5tm-a6cf4e34) with one South American country's real
+    2026 format applied (internal/sam6/sa_exact.py, 4.0.1); SA_BUILD reuses one."""
+    import json
+    if os.environ.get('SA_BUILD'):
+        return os.environ['SA_BUILD']
+    src = os.environ.get('SA_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-a6cf4e34')
+    sys.path.insert(0, os.path.join(MAIN, 'internal', 'sam6'))
+    import sa_exact
+    w = os.path.join(WORK, f"world_sa_{'_'.join((code, *also))}")
+    shutil.rmtree(w, ignore_errors=True)
+    shutil.copytree(src, os.path.join(w, 'world5tm'))
+    for c in (code, *also):
+        f = os.path.join(w, 'world5tm', c, 'pack.json')
+        json.dump(sa_exact.EXACT[c](json.load(open(f))), open(f, 'w'), indent=1, ensure_ascii=False)
+    shutil.copy(src + '.txt', os.path.join(w, 'world5tm.txt'))      # (full_season: the data's file order)
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    tag = '_' + os.environ['SWOSTEST_TAG'] if os.environ.get('SWOSTEST_TAG') else ''
+    return build(f"world_sa_{'_'.join((code, *also))}{tag}", env={'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(w, 'world5tm', x)
+                                                                                      for x in order])})
+
+
+def world_sa_exact(code, team, n, days):
+    """A season of a South American country's real 2026 format (sa_exact) at team: its n-club league frozen in both
+    tournaments, days match days, two stage titles (Apertura / Clausura or Finalizacion) in the season end's GP_LOG."""
+    exe = sa_exact_build(code)
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import split
+    import lepatch
+    sa = split.sites(lepatch.LEPatch(os.path.join(MAIN, 'orig', 'ITALIAN.EXE')))
+    log_at, st_at, log_n, st_n = gp_ptrs(exe)
+    keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K',
+                                            'W8485_NOSACK', 'W8485_HEX', 'W8485_DIY', 'W8485_TMO', 'W8485_ONE')}
+    os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1',
+                      W8485_TEAM=team, W8485_ONE='1', W8485_TMO='600',
+                      W8485_HEX=f'{log_at:x}:{log_n}', W8485_DIY=f"{sa['DIY']:x},{split.ST:x},{sa['CAL']:x}")
+    try:
+        ok, msg = world8485()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    log = open(os.path.join(RUNS, w84_tag() + '_1', 'session.log'), errors='replace').read().splitlines()
+    errs = []
+    check(ok, msg, errs)
+    diys = [b for b in (bytes.fromhex(ln[4:]) for ln in log if ln.startswith('DIY ')) if b[0:2] == b'\0\0']
+    w = lambda b, k: struct.unpack_from('<H', b, k)[0]
+    diys = [b for b in diys if w(b, 0x31) == n]
+    check(diys, f'no snapshot of the {n}-club league', errs)
+    if diys:
+        last = diys[-1]
+        check(last[split.ST + split.OFF['frozen']] == 2 and w(last, 0x1C1) == w(last, 0x1C3) == days,
+              f'end: frozen {last[split.ST + split.OFF["frozen"]]}, day {w(last, 0x1C1)} / {w(last, 0x1C3)} ({days})', errs)
+    logs = [bytes.fromhex(ln.split()[2]) for ln in log if ln.startswith('HEX ') and len(ln.split()) == 3]
+    logs = [b for b in logs if b[:4] == b'GPLG']
+    check(logs, 'no season-end GP_LOG', errs)
+    sres = [struct.unpack_from('<BBHHHH', logs[-1], 982 + 10 * i) for i in range(3)] if logs else []
+    check(len(sres) == 3 and all(x[0] == 8 and x[2] for x in sres[:2]), f'stage titles {sres}', errs)
+    return not errs, '; '.join(errs) or f'{msg}; {days} days, stage titles {sres[:2]}'
+
+
+@scenario
+def world_sa_banks():
+    """4.0.1 GP_SS banks (gplay.c GP_SSB): Peru and Colombia exactly next to Argentina (+ MLS) in one world, a season at
+    ALIANZA LIMA; at the season end every bank holds only its own league's clubs: bank 0 = Argentina's Apertura /
+    Clausura / annual (4.0's item 'SS'), bank 1 = the career league's (Peru, item 'SS2'), bank 3 = Colombia's
+    (transient: 1 + its index)"""
+    import json
+    exe = sa_exact_build('per', ('col',))
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    from le import LE
+    d1 = LE(open(os.path.join(exe, 'ITALIAN.EXE'), 'rb').read()).obj_bytes(1)
+    k = d1.find(b'GPLOGPTR')
+    ssb = struct.unpack_from('<I', d1, k + 8 + 64)[0]
+    item = 6 + 4 * 32 * 12
+    data = os.environ.get('SA_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-a6cf4e34')
+    file_of = lambda c: json.load(open(os.path.join(data, c, 'pack.json')))['files']['league']['file']
+    want = {0: file_of('arg'), 1: file_of('per'), 3: file_of('col')}   # (1: the career league's, saved; 1 + b)
+    keep = {x: os.environ.get(x) for x in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K',
+                                            'W8485_NOSACK', 'W8485_HEX', 'W8485_ONE')}
+    os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1',
+                      W8485_TEAM='SUDAMERICA,PERU,ALIANZA LIMA', W8485_ONE='1', W8485_HEX=f'{ssb:x}:{4 * item}')
+    try:
+        ok, msg = world8485()
+    finally:
+        for x, v in keep.items():
+            if v is None:
+                os.environ.pop(x, None)
+            else:
+                os.environ[x] = v
+    errs = []
+    check(ok, msg, errs)
+    dumps = [bytes.fromhex(ln.split()[2]) for ln in open(os.path.join(RUNS, w84_tag() + '_1', 'session.log'),
+                                                             errors='replace') if ln.startswith('HEX ')]
+    check(dumps, 'no GP_SSB dump', errs)
+    info = []
+    if dumps:
+        b = dumps[-1]
+        seen = {}
+        for bank in range(4):
+            base = bank * item
+            n = list(b[base:base + 4])
+            files = set()
+            for t in range(4):
+                for r in range(n[t] if n[t] <= 32 else 0):
+                    files.add(struct.unpack_from('<H', b, base + 6 + (t * 32 + r) * 12)[0] & 255)
+            info.append(f'bank {bank}: n {n} files {sorted(files)}')
+            seen[bank] = files
+        check(seen[0] and seen[0] <= {want[0], file_of('usa')}, f'bank 0 (4.0): files {sorted(seen[0])}', errs)
+        check(seen[1] == {want[1]}, f'bank 1 (the career league, Peru): files {sorted(seen[1])}', errs)
+        check(sum(seen[k] == {want[3]} for k in (2, 3)) == 1, f'Colombia in one transient bank: {seen}', errs)
+        check(all(len(seen[k]) <= 1 for k in (1, 2, 3)), f'a bank with two leagues: {seen}', errs)
+    return not errs, '; '.join(errs + info) + f'; {msg}'
+
+
+@scenario
+def world_sa_compat():
+    """4.0 -> 4.0.1 save compatibility of the stage tables (GP_SS banks): a career at BOCA JUNIORS on the 4.0 build
+    (SA_OLD_BUILD, default c/REL40/SWOS) saved right after Argentina's Apertura (split 'frozen' = 2), loaded on the
+    4.0.1 build with Peru + Colombia exact and played to the season end: bank 0's annual table = the Apertura (from
+    the 4.0 save) + the Clausura, club by club; the season ends"""
+    import split
+    import lepatch
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    from le import LE
+    old = os.environ.get('SA_OLD_BUILD') or os.path.join(MAIN, 'c', 'REL40', 'SWOS')
+    new_ = sa_exact_build('per', ('col',))
+    sa = split.sites(lepatch.LEPatch(os.path.join(MAIN, 'orig', 'ITALIAN.EXE')))
+    frozen = sa['DIY'] + split.ST + split.OFF['frozen']
+    d1 = LE(open(os.path.join(new_, 'ITALIAN.EXE'), 'rb').read()).obj_bytes(1)
+    k = d1.find(b'GPLOGPTR')
+    ssb = struct.unpack_from('<I', d1, k + 8 + 64)[0]
+    item = 6 + 4 * 32 * 12
+    names = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_HEX',
+             'W8485_ONE', 'W8485_MIDSAVE', 'W8485_FROM')
+    keep = {x: os.environ.get(x) for x in names}
+    base = dict(W8485_WORLD='MONDO 2026-27', W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1',
+                W8485_TEAM='SUDAMERICA,ARGENTINA,LIGA PROFESIONAL DE FUTBOL,BOCA JUNIORS')
+    errs, info = [], []
+    try:
+        for x in names:
+            os.environ.pop(x, None)
+        os.environ.update(base, W8485_BUILD=old, W8485_ONE='1', W8485_MIDSAVE=f'{frozen:x}:2:2')
+        ok, msg = world8485()
+        car = os.path.join(RUNS, w84_tag() + '_1', 'SWOS', 'W84A.CAR')
+        check(ok and os.path.exists(car), f'4.0 mid-season save: {msg}', errs)
+        if not errs:
+            saved = os.path.join(RUNS, 'sa_compat_W84A.CAR')
+            shutil.copy(car, saved)
+            for x in names:
+                os.environ.pop(x, None)
+            os.environ.update(base, W8485_BUILD=new_, W8485_FROM=saved, W8485_HEX=f'{ssb:x}:{item}')
+            ok, msg = world8485()
+            check(ok, f'4.0.1 from the 4.0 save: {msg}', errs)
+            dumps = [bytes.fromhex(ln.split()[2]) for ln in open(os.path.join(RUNS, w84_tag() + '_2', 'session.log'),
+                                                                     errors='replace') if ln.startswith('HEX ')]
+            ann = [b for b in dumps if b[4] & 4]              # (bank 0 with its annual table written)
+            check(ann, f'no dump with the annual table ({len(dumps)} dumps)', errs)
+            if ann:
+                b = ann[-1]
+                rows = lambda t: {struct.unpack_from('<H', b, 6 + (t * 32 + r) * 12 + 2)[0]:
+                                  struct.unpack_from('<H', b, 6 + (t * 32 + r) * 12 + 10)[0] for r in range(b[t])}
+                ap, cl, an = rows(0), rows(1), rows(2)
+                bad = [g for g in an if an[g] != ap.get(g, -999) + cl.get(g, -999)]
+                check(b[0] == b[1] == b[2] == 30 and not bad, f'annual != Apertura + Clausura for {len(bad)} clubs '
+                      f'(n {list(b[:3])})', errs)
+                info.append(f'annual of {len(an)} clubs = Apertura (4.0 save) + Clausura')
+    finally:
+        for x, v in keep.items():
+            if v is None:
+                os.environ.pop(x, None)
+            else:
+                os.environ[x] = v
+    return not errs, '; '.join(errs + info)
+
+
+@scenario
+def world_sa_reload():
+    """4.0.1 GP_SS banks across a mid-season save: a career at ALIANZA LIMA (Peru exact, Colombia exact in the same
+    world) saved right after Peru's Apertura (bank 1 half-built), reloaded and played to the season end: Peru's annual
+    = its Apertura (from the save) + Clausura, Colombia's (a transient bank, built at the season end) = its own two"""
+    import split
+    import lepatch
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    from le import LE
+    exe = sa_exact_build('per', ('col',))
+    sa = split.sites(lepatch.LEPatch(os.path.join(MAIN, 'orig', 'ITALIAN.EXE')))
+    frozen = sa['DIY'] + split.ST + split.OFF['frozen']
+    d1 = LE(open(os.path.join(exe, 'ITALIAN.EXE'), 'rb').read()).obj_bytes(1)
+    ssb = struct.unpack_from('<I', d1, d1.find(b'GPLOGPTR') + 8 + 64)[0]
+    item = 6 + 4 * 32 * 12
+    names = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_HEX',
+             'W8485_ONE', 'W8485_MIDSAVE', 'W8485_FROM', 'W8485_SAVE_END', 'W8485_NSDUMP')
+    keep = {x: os.environ.get(x) for x in names}
+    base = dict(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1',
+                W8485_TEAM=os.environ.get('SA_TEAM') or 'SUDAMERICA,PERU,ALIANZA LIMA')
+    errs, info = [], []
+    try:
+        for x in names:
+            os.environ.pop(x, None)
+        os.environ.update(base, W8485_ONE='1', W8485_MIDSAVE=f'{frozen:x}:2:2')
+        ok, msg = world8485()
+        car = os.path.join(RUNS, w84_tag() + '_1', 'SWOS', 'W84A.CAR')
+        check(ok and os.path.exists(car), f'mid-season save: {msg}', errs)
+        if not errs:
+            saved = os.path.join(RUNS, 'sa_reload_W84A.CAR')
+            shutil.copy(car, saved)
+            for x in names:
+                os.environ.pop(x, None)
+            log_at, st_at, log_n, st_n = gp_ptrs(exe)
+            d8caa = struct.unpack_from('<I', d1, d1.find(b'GPLOGPTR') + 8 + 60)[0]   # (GPLOGPTR's D8CAA)
+            os.environ.update(base, W8485_FROM=saved, W8485_HEX=f'{ssb:x}:{4 * item},{st_at:x}:{st_n}',
+                              W8485_NSDUMP=f'{d8caa:x}')
+            ok, msg = world8485()                     # (to the next season: gp_season runs at CONTINUA CARRIERA)
+            for ln in open(os.path.join(RUNS, w84_tag() + '_2', 'session.log'), errors='replace'):
+                q = ln.split()
+                if len(q) == 3 and q[0] == 'HEX' and int(q[1], 16) == st_at:
+                    st = bytes.fromhex(q[2])
+                    try:
+                        k = gp_ko(st[GP_STKO:])
+                        last_st = (f"GP_ST pend {st[:16].hex()} ko0 magic {k['magic']:#x} pi {k['pi']} season "
+                                   f"{k['season']} n {k['n']} teams {[hex(x) for x in k['team'][:4]]}")
+                    except (IndexError, KeyError) as e:
+                        last_st = f'GP_ST {len(st)} B, undecoded ({e})'
+            if 'last_st' in locals():
+                info.append(last_st)
+            check(ok, f'reloaded: {msg}', errs)
+            dumps = [bytes.fromhex(ln.split()[2]) for ln in open(os.path.join(RUNS, w84_tag() + '_2', 'session.log'),
+                                                                     errors='replace')
+                     if ln.startswith('HEX ') and int(ln.split()[1], 16) == ssb]
+            check(dumps, 'no GP_SSB dump', errs)
+            if dumps:
+                b = dumps[-1]
+                for bank in (1, 2, 3):
+                    o = bank * item
+                    if not b[o]:
+                        continue
+                    rows = lambda t: {struct.unpack_from('<H', b, o + 6 + (t * 32 + r) * 12 + 2)[0]:
+                                      struct.unpack_from('<H', b, o + 6 + (t * 32 + r) * 12 + 10)[0]
+                                      for r in range(b[o + t])}
+                    ap, cl, an = rows(0), rows(1), rows(2)
+                    bad = [g for g in an if an[g] != ap.get(g, -999) + cl.get(g, -999)]
+                    check(an and not bad, f'bank {bank}: annual != Apertura + Clausura for {len(bad)} of {len(an)}', errs)
+                    info.append(f'bank {bank}: {len(an)} clubs, annual = the two tournaments')
+    finally:
+        for x, v in keep.items():
+            if v is None:
+                os.environ.pop(x, None)
+            else:
+                os.environ[x] = v
+    return not errs, '; '.join(errs + info)
+
+
+@scenario
+def world_par_exact():
+    """Paraguay 2026 (4.0.1, parked: 44 days > split's 40): Apertura + Clausura double round robins at OLIMPIA"""
+    return world_sa_exact('par', 'SUDAMERICA,PARAGUAY,OLIMPIA', 12, 44)
+
+
+@scenario
+def world_per_exact():
+    """Peru 2026 (4.0.1, sa_exact.per_exact): Apertura + Clausura (17 + 17, real calendars), each won by its table's
+    leader, at ALIANZA LIMA: 34 days, both stages frozen, two stage titles"""
+    return world_sa_exact('per', 'SUDAMERICA,PERU,ALIANZA LIMA', 18, 34)
+
+
+@scenario
+def world_col_exact():
+    """Colombia 2026 (4.0.1, sa_exact.col_exact): Apertura 19 + QF / SF / final (two legs), Finalizacion 19 + two
+    cuadrangulares + final, at ATL. NACIONAL: 38 days, both stages frozen, two stage titles"""
+    return world_sa_exact('col', 'SUDAMERICA,COLOMBIA,ATL. NACIONAL', 20, 38)
+
+
+@scenario
+def world_uru_exact():
+    """URUGUAY 2026 real format (sa_exact.uru_exact, 4.0.1): Apertura 15 (real calendar) + Intermedio (snake series A
+    / B, 7 days, table kept) + Clausura 15 at DANUBIO: the 16-club league frozen, 37 match days, the stage titles"""
+    return world_sa_exact('uru', 'SUDAMERICA,URUGUAY,CAMPEONATO URUGUAYO,DANUBIO', 16, 37)
+
+
+def world_full_sa(code, team):
+    """full_season on the 4.0 world with one South American country's real 2026 format (sa_exact_build): a whole
+    season at team, every division keeps its size, each club moves at most one level"""
+    exe = sa_exact_build(code)
+    w = os.path.join(WORK, f'world_sa_{code}')
+    keep = {k: os.environ.get(k) for k in ('W2627FULL', 'W2627FULL_DATA')}
+    os.environ.update(W2627FULL=exe, W2627FULL_DATA=os.path.join(w, 'world5tm'))
+    try:
+        return full_season(code, team)
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+
+
+@scenario
+def world_full_per():
+    """A full season of PERU's real 2026 format (Apertura + Clausura, real calendars, table titles) at ALIANZA LIMA
+    (world_full_sa): the divisions keep their sizes, moves of one level"""
+    return world_full_sa('per', 'SUDAMERICA,PERU,ALIANZA LIMA')
+
+
+@scenario
+def world_full_col():
+    """A full season of COLOMBIA's real 2026 format (Apertura + knockout, Finalizacion + cuadrangulares) at ATL.
+    NACIONAL (world_full_sa): the divisions keep their sizes, moves of one level"""
+    return world_full_sa('col', 'SUDAMERICA,COLOMBIA,ATL. NACIONAL')
+
+
+@scenario
+def world_full_uru():
+    """A full season of URUGUAY's real 2026 format (Apertura, Intermedio snake + final, Clausura, the championship
+    semi-final / final) at DANUBIO (world_full_sa): the divisions keep their sizes, moves of one level"""
+    return world_full_sa('uru', 'SUDAMERICA,URUGUAY,CAMPEONATO URUGUAYO,DANUBIO')
+
+
+@scenario
+def world_split_places():
+    """Explicit places (split 'places' / 'places_snake'): Uruguay 2026 (Apertura 15 days; the Intermedio's two
+    groups of 8 = the Apertura's places 1 4 5 8 9 12 13 16 / 2 3 6 7 10 11 14 15, 7 days, from 0, the Apertura
+    table kept; the Clausura 15 days from 0) at DANUBIO: every row in its snake group, 37 days"""
+    return world_split('places')
 
 
 @scenario
@@ -8617,10 +9006,13 @@ def main(argv):
         for n in names:
             t = time.time()
             os.environ['SWOSTEST_SCENARIO'] = n
-            ok, msg = SCENARIOS[n]()
-            if not ok and msg.startswith('START'):          # rare stall at the main menu (cause unknown): retry once
-                print(f'RETRY {n}: {msg}', flush=True)
+            try:
                 ok, msg = SCENARIOS[n]()
+                if not ok and msg.startswith('START'):      # rare stall at the main menu (cause unknown): retry once
+                    print(f'RETRY {n}: {msg}', flush=True)
+                    ok, msg = SCENARIOS[n]()
+            except Exception as e:                         # (one scenario's exception: a FAIL, the suite goes on)
+                ok, msg = False, f'exception {type(e).__name__}: {e}'
             bad += not ok
             print(f'{"PASS" if ok else "FAIL"} {n} ({time.time() - t:.0f} s) {msg}', flush=True)
         return 1 if bad else 0

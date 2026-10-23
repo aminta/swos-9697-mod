@@ -978,6 +978,9 @@ def from_pack(d):
     zdet = {lang: {} for lang in LANGS}
     for lang in LANGS:
         zones.pack_zones(d, lang, lp, rank, zdet[lang])
+    import fmtprose                             # (4.0.1: a pack's own hand texts, 'format_prose': {Italian title:
+    for t_, v_ in (m.get('format_prose') or {}).items():          # {lang: [paragraph, ...]}} - sa_exact's leagues)
+        fmtprose.PACK[(world, t_)] = v_
     out = []
     for ci, comp in enumerate(m.get('competitions', [])):
         cid = int(comp['id'], 16) if comp.get('id') else None

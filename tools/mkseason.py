@@ -1501,8 +1501,13 @@ def splits():
                                            'groups': [len(z) for z in st.get('zones') or [rows]]})
                     day += len(fxd)
                     continue
-                _need(set(st) <= {'after', 'home', 'groups', 'tiebreak', 'reset', 'keep', 'title'},
-                      f'{ws}: keys after, home, groups, tiebreak, reset, keep')
+                _need(set(st) <= {'after', 'home', 'groups', 'tiebreak', 'reset', 'keep', 'title', 'places',
+                                  'places_snake', 'table', 'then', 'annual'},
+                      f'{ws}: keys after, home, groups, tiebreak, reset, keep, places / places_snake, table, then, annual')
+                _need(st.get('table') in (None, 0, 1, 2, 3), f'{ws}.table: 0..3 (GP_SS: stage_place 4..7)')
+                if st.get('then'):                      # (4.0.1: a group stage's kept table and after-stage routine
+                    import engine                       # too - Uruguay's Intermedio between two fixture stages)
+                    engine.after_stage(st['then'])
                 if i == 0:
                     _need(isinstance(st.get('after'), int) and st['after'] % per == 0 and 1 <= st['after'] // per <= 4,
                           f'{ws}.after: {per} x the meetings (1..4)')
@@ -1510,6 +1515,18 @@ def splits():
                     day = st['after']
                 _need(st.get('after') == day, f'{ws}.after: {day} (the previous stage ends then)')
                 places, gs = 1, st.get('groups') or []
+                expl = st.get('places')                 # explicit places per group (Uruguay's Intermedio: a snake)
+                if st.get('places_snake'):              # (sugar: groups of equal size, places dealt 1 2 .. g g .. 1)
+                    _need(expl is None and gs and n % len(gs) == 0, f'{ws}.places_snake: equal groups')
+                    order = [k for b in range(n // len(gs)) for k in (range(len(gs)) if b % 2 == 0
+                                                                    else reversed(range(len(gs))))]
+                    expl = [[p + 1 for p, k in enumerate(order) if k == x] for x in range(len(gs))]
+                if expl is not None:
+                    _need(len(expl) == len(gs) and sorted(p for g in expl for p in g) == list(range(1, n + 1))
+                          and all(g_.get('places') and g_['places'][1] - g_['places'][0] + 1 == len(e)
+                                  for g_, e in zip(gs, expl)),
+                          f'{ws}.places: one list per group, places 1-{n} once each; the groups keep consecutive '
+                          f'places (the table is permuted at the split), each as long as its list')
                 for g in gs:
                     _need(set(g) <= {'places', 'rounds', 'points', 'neutral', 'title'} and g.get('places', [0])[0] == places
                           and g['places'][1] >= places + 1, f'{ws}.groups: consecutive places from 1')
@@ -1523,7 +1540,10 @@ def splits():
                 one = {'after': st['after'], 'groups': [g['places'][1] - g['places'][0] + 1 for g in gs],
                        'rounds': [rnd[g.get('rounds', 'single')] for g in gs],
                        'points': [g.get('points', 'full') for g in gs], 'home': st.get('home', 'seeded'),
-                       'reset': bool(st.get('reset')), 'keep': st.get('keep')}
+                       'reset': bool(st.get('reset')), 'keep': st.get('keep'), 'then': st.get('then'),
+                       'table': st.get('table'), 'annual': bool(st.get('annual'))}
+                if expl is not None:                    # (split.entry: new place k = the old place perm[k], 0-based)
+                    one['perm'] = [p - 1 for e in expl for p in e]
                 spec['stages'].append(one)
                 day += len(split.schedule(one['groups'], one['rounds']))
             _need(games in (1, 2, 3, 4) or (games == 0 and stages and 'fixtures' in stages[0]),

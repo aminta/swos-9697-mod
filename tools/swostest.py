@@ -5564,10 +5564,13 @@ def world_gplay_reserve(force='20', team='EUROPA,ITALIA,SERIE C GIRONE A,RENATE'
     the play-out (16-19) -> it is played, and the club is sacked if and only if it lost (GPLAY_FORCE=16: world_gplay_
     reserve_out); sacked with no job offer left, the career ends (the game's own way) instead of a next season in the
     reserve (which trapped in cseg_3283C)"""
-    src = src or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-reserve')
+    src = src or os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
     src = src.rstrip('/')
     if not os.path.isdir(src):
         return True, f'SKIP: private data {src} missing'
+    if int(force) == direct and 'res' not in os.path.basename(src):
+        return True, ('SKIP: the released data sends the 20th of a Serie C group down to Serie D, not into the reserve '
+                      '(the direct drop is covered by world_gplay_seried_res on world5tm-res1; the play-outs by _out / _gap)')
     order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
     env = {'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]), 'GPLAY_FORCE': force}
     exe = os.environ.get('GPLAY_BUILD') or build(f'world_gplay_reserve_{os.path.basename(src)}_{force}', env=env)
@@ -7938,19 +7941,22 @@ def world_gplay_cupd(team='EUROPA,ITALIA,SERIE D GIRONE A,LIGORNA', two=False):
     decided at the calendar advances (the real results where known), the cup over by the season end"""
     import json
     import shutil
-    src = os.environ.get('W2627P_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-poule')
+    src = os.environ.get('W2627P_DATA') or os.environ.get('W2627REL_DATA') or \
+        os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')   # (the released data has the Coppa D)
     br = os.path.join(MAIN, 'internal', 'world2526', 'formats', 'coppa_italia_serie_d_2627.json')
     if not (os.path.isdir(src) and os.path.exists(br)):
         return True, 'SKIP: private data (world5tm-poule, the Coppa D bracket) missing'
     w = os.path.join(WORK, 'world_gplay_cupd')
     shutil.rmtree(w, ignore_errors=True)
     shutil.copytree(src, os.path.join(w, 'world5tm'))
-    shutil.copy(br, os.path.join(w, 'world5tm', 'ita', 'cupd.json'))
+    shutil.rmtree(os.path.join(w, 'world5tm', 'guests'), ignore_errors=True)    # (the released data's guest lists are no packs)
     f = os.path.join(w, 'world5tm', 'ita', 'pack.json')
     d = json.load(open(f))
     lg = next(c for c in d['competitions'] if c['type'] == 'league')
-    lg['cup_d'] = {'file': 'cupd.json', 'names': {'*': ['COPPA ITALIA SERIE D', 'COPPA IT. SERIE D']}}
-    json.dump(d, open(f, 'w'), indent=1, ensure_ascii=False)
+    if 'cup_d' not in lg:                          # (an older snapshot: the bracket and the cup are added to it)
+        shutil.copy(br, os.path.join(w, 'world5tm', 'ita', 'cupd.json'))
+        lg['cup_d'] = {'file': 'cupd.json', 'names': {'*': ['COPPA ITALIA SERIE D', 'COPPA IT. SERIE D']}}
+        json.dump(d, open(f, 'w'), indent=1, ensure_ascii=False)
     order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
     env = {'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(w, 'world5tm', x) for x in order])}
     if two:                             # (the club stays in Serie D: 10th of its group at both season ends)
@@ -7959,9 +7965,10 @@ def world_gplay_cupd(team='EUROPA,ITALIA,SERIE D GIRONE A,LIGORNA', two=False):
     log_at, st_at, log_n, st_n = gp_ptrs(exe)
     cd_at = gp_cd(exe)
     keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K',
-                                            'W8485_NOSACK', 'W8485_HEX', 'W8485_ONE')}
+                                            'W8485_NOSACK', 'W8485_HEX', 'W8485_ONE', 'W8485_TMO')}
     os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5', W8485_K='108+',
-                      W8485_NOSACK='1', W8485_HEX=f'{st_at:x}:{st_n},{cd_at:x}:{CD_SIZE}', W8485_ONE='0' if two else '1')
+                      W8485_NOSACK='1', W8485_HEX=f'{st_at:x}:{st_n},{cd_at:x}:{CD_SIZE}', W8485_ONE='0' if two else '1',
+                      W8485_TMO='900')       # (the released data's season takes longer than the 240 s default)
     try:
         ok, msg = world8485()
     finally:

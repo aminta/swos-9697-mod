@@ -2192,3 +2192,8 @@ Left for 2.5: (a) NSL/NSSL finals series (type-1 design) or declare them postpon
   entry for the next round built at the result, before the advance), proofs: world_lib3_sud with LIB3_TEXT=
   'SUDAMERICANA:3' and CONTI_GPLACE=1 'LIBERTADORES OTTAVI:1', C20=2. Also: season 1 has no conti edition (CT_ED is
   built at the first season end): the season-1 cups are the world's own.
+- world_conti_guest's next season (Serie C session, 2026-10-23): with the guest sample build (GUESTS_DATA sample +
+  CONTI_GUEST, test switches) INDEPENDIENTE's team screen comes back after ESCI at the second season's start (11
+  players shown, SQUADRA CORRE. off); a natural INDEPENDIENTE career on REL40hf reaches season 2 (career_20seasons
+  C20=2). KNOWN FAIL 4.0.1; 4.0.2: rebuild the scenario on the real guests (no sample) or find what the sample guests
+  take from the career club.

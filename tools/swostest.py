@@ -6015,6 +6015,10 @@ def guest_sample(out, src=64, n=2, conf='caf', assoc='PAR'):
                       'kit2': ' '.join(map(str, r[31:36])), 'lineup': ' '.join(map(str, r[60:76])), 'access': 0,
                       'source': f'orig TEAM.{src:03d} (test)', 'players': players})
     os.makedirs(out, exist_ok=True)
+    real = os.path.join(MAIN, 'internal', 'conti')          # (the other confederations' guests as the data has them:
+    for fn in os.listdir(real) if os.path.isdir(real) else []:   # GUESTS_DATA replaces the whole folder - without
+        if fn.endswith('.guests.json') and fn != f'{conf}.guests.json':   # AFC's, the ACGL's access gave a negative
+            shutil.copy(os.path.join(real, fn), os.path.join(out, fn))    # preliminary round: no build)
     json.dump({'conf': conf, 'rotation': 'test', 'season1': {}, 'clubs': clubs}, open(os.path.join(out, f'{conf}.guests.json'), 'w'))
     return [c['name'] for c in clubs]
 
@@ -6091,6 +6095,10 @@ def world_conti_guest():
     check(games(logs['a']), f'no match against a guest {names} before the save', errs)
     check(games(logs['b']), f'no match against a guest {names} after the reload', errs)
     check('2026/27 STAGIONE' in rec and 'INDEPENDIENTE' in rec, f'the record screen: {rec[:200]}', errs)
+    if errs and all('career menu of the new season not reached' in e or 'no season-end save' in e for e in errs):
+        errs.insert(0, 'KNOWN FAIL 4.0.1 (the next season\'s start with the guest sample build: INDEPENDIENTE\'s team '
+                       'screen comes back after ESCI, 11 players shown; a natural INDEPENDIENTE career on REL40hf reaches '
+                       'season 2 - the test build\'s guests, 4.0.2)')
     return not errs, '; '.join(errs) or (f'guests {names}: {len(games(logs["a"]))} match screens before the save, '
                                          f'{len(games(logs["b"]))} after the reload; record {rec[9:160]!r}; '
                                          f'second season: {msg3[:120]}')

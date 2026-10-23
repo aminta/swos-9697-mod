@@ -306,9 +306,6 @@ def patch_exe(src, dst, remap, lang='it'):
         o2pages += 2                            # play-off round names / title specs' strings (gplay), the MLS (area
         data = add_object_page(data, 2)         # full with TM_MLS_EXACT or TM_TITLE)
         data = add_object_page(data, 2)
-    if any(pk.meta.get('format_prose') for pk in mkseason.packs() if pk.world is not None):   # 4.0.1 package 6: the
-        o2pages += 1                            # South American exact leagues' stage / play-off names (gplay, split
-        data = add_object_page(data, 2)         # titles; 4 languages): the area was full with uru + col + per
     if statespec.TEST or statespec.TEST2:       # STATESPEC_TEST builds (harness): the test state + zones' menu copy
         o2pages += 1                            # (world 0's area was full)
         data = add_object_page(data, 2)

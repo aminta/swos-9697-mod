@@ -1821,6 +1821,18 @@ def link_reserve(p, ri=None):
         p.add_ptr(1, LABELS['GP_RITP'], *ri['RI_TAB'])
 
 
+_STRS = {}
+
+
+def _sadd(area, x):
+    """area.add(x + NUL), one copy per distinct string (4.0.1: the play-offs' long / short / record names repeat -
+    TORNEO APERTURA in three countries, the record line = the long name - and the obj2 area was full)."""
+    k = (id(area), x)
+    if k not in _STRS:
+        _STRS[k] = area.add(x + b'\0')
+    return _STRS[k]
+
+
 def names_lines(tables, area, lang):
     """GP_NMT: per GP_TAB entry dd its names; GPN<i>: per play-off dd long, short, its record line (pack 'record':
     {lang: name}, else the long name; relative to sacups.STR_BASE)."""
@@ -1831,7 +1843,7 @@ def names_lines(tables, area, lang):
         for names, key, rec in SPEC_NAMES.get(spec, []):
             long_, short = _name(names, lang, key)
             record = _name(rec, lang, key)[0] if rec else long_   # (a group contest won: the season record's line)
-            rl, rs, rr = (area.add(x + b'\0') - sacups.STR_BASE if area else 0 for x in (long_, short, record))
+            rl, rs, rr = (_sadd(area, x) - sacups.STR_BASE if area else 0 for x in (long_, short, record))
             lines.append(f'    dd {rl}, {rs}, {rr}')
         lines.append('    dd 0, 0, 0')
     multi = [len(SPEC_STAGES.get(spec, [])) >= 2 for _, _, spec in tables]       # (stage titles won together: one
@@ -1845,8 +1857,8 @@ def names_lines(tables, area, lang):
             m &= 7
             ok = bin(m).count('1') >= 2 and all(x in st for x in range(3) if m & 1 << x) and area
             got = [st[x] for x in range(3) if m & 1 << x] if ok else []
-            row.append(area.add(combined([(a.decode('latin-1'), b.decode('latin-1')) for a, b in got], lang)
-                                .encode('latin-1') + b'\0') - sacups.STR_BASE if ok else 0)
+            row.append(_sadd(area, combined([(a.decode('latin-1'), b.decode('latin-1')) for a, b in got], lang)
+                             .encode('latin-1')) - sacups.STR_BASE if ok else 0)
         lines.append(f'GPC{i}: dd ' + ', '.join(map(str, row)))
     lines += ['GP_THT:'] + [f'    dd GPT{i}' for i in range(len(tables))]      # ('then_build' per play-off)
     for i, (_, _, spec) in enumerate(tables):
@@ -2031,7 +2043,7 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
         import careerworld as cw_
         symbols['W_REC'] = (1, cw_.LABELS['w_rec'])
         long_, short = _name(cnames, lang, 'cup_d')
-        rl, rs = (area.add(x + b'\0') - sacups.STR_BASE if area else 0 for x in (long_, short))
+        rl, rs = (_sadd(area, x) - sacups.STR_BASE if area else 0 for x in (long_, short))
         import rnames
         cd_src = (f'CD_TAB: db {world}, {nr}, {lfile}, 0\n    db ' + ', '.join(str(b) for b in tab)
                   + f'\nCD_NM: dd {rl}, {rs}\nCD_DT: db ' + ', '.join(str(b) for b in cdt)

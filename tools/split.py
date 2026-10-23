@@ -1401,7 +1401,8 @@ def pages(splits):
     """obj1 pages for the code + SP_TAB (0 without splits)."""
     if not splits:
         return 0
-    size = 0xC00                                   # the code (0xB38 measured, package 6)
+    size = 0xD00                                   # the code (0xB38 measured, package 6; 4.0.1: sp_entry's re-find
+                                                   # by key, ~0xC20 with the tip's code: 0x20 over the old guess)
     for world, file, div, n, spec in splits:
         size += len(entry(world, file, div, n, spec, [(a, b) for a in range(n) for b in range(a + 1, n)])[0])
     return (size + 0xFFF) // 0x1000

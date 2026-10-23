@@ -81,7 +81,7 @@ Estimate: 8 h in all (about 1.5 h spent: audit + this table).
 | 201 | CAM | Cambodia | LAO |
 | 202 | AFG | Afghanistan | PAK |
 | 203 | NEP | Nepal | IND |
-| 204 | see D1 | Macao | CHN |
+| 204 | MAO | Macao (MAC is Macedonia) | CHN |
 | 205 | MGL | Mongolia | CHN |
 | 206 | MDV | Maldives | SRI |
 | 207 | TLS | Timor-Leste | MLY |
@@ -93,13 +93,9 @@ Estimate: 8 h in all (about 1.5 h spent: audit + this table).
 | 213 | TGA | Tonga | FIJ |
 
 ## Doubts for the regia
-- **D1 Macao / 141 'MAU'.**
-  - tmmaps reads 141 MAU as Mauritius. But in the original table it sits in the Asian block (… CHI SGP **MAU**
-    MYA PAP …); the African block ends at 117 MLW. So 141 is most likely Macau: FIFA's MAC is taken by 47
-    Macedonia, so the game wrote MAU.
-  - Proposal: treat 141 MAU as Macao (no new code), and give Mauritius a new code, MRI (FIFA), as 204.
-  - The alternative: keep MAU = Mauritius and give Macao MAO.
-  - The count stays at 58 either way.
+- **D1 Macao / 141 'MAU' (settled).** 141 MAU sits in the original's Asian block, but the game's own data use it for
+  Mauritius: the MAURITIUS national teams in TEAM.068 and TEAM.084 (16 players each) and the 1984-85 Mauritius.
+  So 141 stays Mauritius (as tmmaps reads it), and Macao gets a new MAO (FIFA's MAC is 47 Macedonia).
 - **D2 one code set for all four languages** (as the original 153). The alternative is per-language codes as in 3.1;
   I see no established local acronym for any of these nations.
 

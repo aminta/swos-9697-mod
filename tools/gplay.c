@@ -2888,7 +2888,8 @@ void ri_cache(u8 *recs, int n, int file, const u8 *orig, const u8 *pool, int fi,
    season end (gp_cap: every division's final table), saved with the career (engine item 'CF'). The set-up (cf_a6) and
    rule 11's check (gp_notin -> cf_member_c) compute the same list.
    CF_TAB: db world, db first season, db cups; per cup: db id, db n, db groups, db dt, groups x (db division, db n_d,
-   db b_d); then db dts; per dt: dw global base, db file, dw m, m x (db ordinal, db base division). */
+   db b_d); then db dts; per dt: dw global base, db file, dw m, 16 x db the divisions' levels, m x (db ordinal, db base
+   division). CF_ST.rank[ordinal] = place (1..31) | level of last season's division << 5; 0 = none. */
 const u8 *CF_TAB;
 static const u8 *cf_cup(int id, const u8 **dtp) {
     const u8 *t = CF_TAB, *c;
@@ -2904,12 +2905,24 @@ static const u8 *cf_cup(int id, const u8 **dtp) {
     int nd = c[0], di = hit[3];
     const u8 *d = c + 1;
     if (di >= nd) return 0;
-    for (int k = 0; k < di; k++) d += 5 + 2 * (d[3] | d[4] << 8);
+    for (int k = 0; k < di; k++) d += 21 + 2 * (d[3] | d[4] << 8);
     *dtp = d;
     return hit;
 }
 struct cf_state { u16 magic; u8 season, file; u8 rank[256]; };
 struct cf_state CF_ST;
+#ifndef CF_SEED
+#define CF_SEED 0
+#endif
+static const u8 *cf_dt(int file) {      /* the league file's dt */
+    const u8 *t = CF_TAB, *c;
+    if (!t) return 0;
+    c = t + 3;
+    for (int k = 0; k < t[2]; k++) c += 4 + 3 * c[2];
+    const u8 *d = c + 1;
+    for (int k = 0; k < c[0]; k++) { if (d[2] == file) return d; d += 21 + 2 * (d[3] | d[4] << 8); }
+    return 0;
+}
 const u32 CF_STSZ = sizeof(struct cf_state);
 enum { CF_MAGIC = 0x4643 };
 void cf_cap_c(u32 dv, const u8 *diy, u32 season) {     /* a division's final table (DIY: +31h clubs, +6Dh the places'
@@ -2920,11 +2933,13 @@ void cf_cap_c(u32 dv, const u8 *diy, u32 season) {     /* a division's final tab
         int row = (diy[0x6D + 2 * k] | diy[0x6E + 2 * k] << 8) / 0x12;
         u16 w = (u16)(diy[0x12D + 2 * row] | diy[0x12E + 2 * row] << 8);
         if (CF_ST.magic != CF_MAGIC || CF_ST.season != (u8)season) {
-            for (int i = 0; i < 256; i++) CF_ST.rank[i] = 0xFF;
+            for (int i = 0; i < 256; i++) CF_ST.rank[i] = 0;
             CF_ST.magic = CF_MAGIC; CF_ST.season = (u8)season; CF_ST.file = (u8)(w & 0xFF);
         }
         if ((w & 0xFF) != CF_ST.file) continue;
-        CF_ST.rank[w >> 8] = (u8)(k + 1);
+        const u8 *dt = cf_dt(CF_ST.file);
+        int lv = dt && dv < 16 ? dt[5 + dv] : 0;
+        CF_ST.rank[w >> 8] = (u8)((k + 1 > 31 ? 31 : k + 1) | lv << 5);
     }
 }
 static int cf_build(int id, int season, u32 cteam, u16 *out) {
@@ -2936,15 +2951,18 @@ static int cf_build(int id, int season, u32 cteam, u16 *out) {
     for (int g = 0; g < ng; g++) {
         int dv = c[4 + 3 * g], want = c[5 + 3 * g], wb = c[6 + 3 * g], m = 0;
         for (int q = 0; q < nm; q++) {
-            int i = dt[5 + 2 * q], b = dt[6 + 2 * q];
+            int i = dt[21 + 2 * q], b = dt[22 + 2 * q];
             if (b + GP_SLT[gb + i] == dv) cand[m++] = (u8)i;
         }
         if (m < want) return 0;                  /* (a division shorter than the format: keep the fixed list) */
         int ranked = CF_ST.magic == CF_MAGIC && (u8)(CF_ST.season + 1) == (u8)season && CF_ST.file == lf;
         u32 key[256];
-        for (int i = 0; i < m; i++) {            /* (last season's place, then the ordinal) */
-            int o = cand[i], r = ranked ? CF_ST.rank[o] : 0xFF;
-            key[i] = (u32)r << 8 | (u32)o;
+        int nl = dv < 16 ? dt[5 + dv] : 0;      /* (this division's level) */
+        for (int i = 0; i < m; i++) {            /* (CF_SEED 1: relegated, stayers, promoted; then the place, the
+                                                    ordinal; unplaced last) */
+            int o = cand[i], v = ranked ? CF_ST.rank[o] : 0, r = v ? v & 31 : 0xFF, ol = v ? v >> 5 : nl;
+            int g = !v ? 3 : !CF_SEED ? 0 : ol < nl ? 0 : ol == nl ? 1 : 2;
+            key[i] = (u32)g << 16 | (u32)r << 8 | (u32)o;
         }
         for (int i = 1; i < m; i++)              /* (insertion sort by key) */
             for (int j = i; j > 0 && key[j - 1] > key[j]; j--) {

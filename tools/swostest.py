@@ -6287,9 +6287,14 @@ def cf_follow(name, team, pack, cid, gpforce, career_div):
     check(magic == 0x4643 and cfile == lfile, f'CF_ST {magic:#x} season {cseas} file {cfile} (want the league file {lfile})',
           errs)
     rank = cfs[4:260]
-    key = lambda o: (rank[o], o)
+    lvl = cupsf.levels(pk)
+
+    def key(o, dv):                                 # (gplay.c cf_build: CF_SEED, the place, the ordinal)
+        v = rank[o]
+        g = 3 if not v else 0 if not cupsf.SEED else 0 if v >> 5 < lvl[dv] else 1 if v >> 5 == lvl[dv] else 2
+        return (g, v & 31 if v else 255, o)
     for dv, c, b in fmt[2]:                         # Davide: by last season's place (the career club first)
-        cand = sorted((o for o in base if cur(o) == dv), key=key)
+        cand = sorted((o for o in base if cur(o) == dv), key=lambda o: key(o, dv))
         if me in cand:
             cand.remove(me)
             cand.insert(0, me)
@@ -6297,7 +6302,8 @@ def cf_follow(name, team, pack, cid, gpforce, career_div):
         got_set = {w >> 8 for w in words if cur(w >> 8) == dv}
         check(got_set == want_set, f'division {dv}: {sorted(names[o] for o in got_set)} (want by last season\'s place '
                                    f'{sorted(names[o] for o in want_set)})', errs)
-    tops = {dv: [(names[o], rank[o]) for o in sorted((o for o in base if cur(o) == dv), key=key)[:3]]
+    tops = {dv: [(names[o], rank[o] & 31, rank[o] >> 5) for o in sorted((o for o in base if cur(o) == dv),
+                                                                        key=lambda o: key(o, dv))[:3]]
             for dv, _, _ in fmt[2]}
     check(any(cup in x for x in vc for cup in ('COPPA', 'CUP', 'COPA')), f'competitions {vc}', errs)
     return not errs, '; '.join(errs) or (f'season 2 cup {cid:#x}: {n} clubs by current division {got}, {club} in; '

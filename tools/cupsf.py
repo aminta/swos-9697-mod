@@ -41,11 +41,34 @@ def pack_cups(pk):
     return out, lfile
 
 
+SEED = int(__import__('os').environ.get('CF_SEED') or 0)   # the order within a division (gplay.c CF_SEED): 0 = last season's place (Davide's rule B, literal: a
+                # promoted / relegated club by its place in its old division); 1 = relegated clubs, then the stayers,
+                # then the promoted, each by place (regia's option 2, pending Davide; CF_SEED=1 test builds)
+
+
+def levels(pk):
+    """Division -> level (the parallel groups of one level share it: Serie C A / B / C = one level)."""
+    divs = pk.divisions()
+    par = pk.league.get('parallel') or []
+    par = par if isinstance(par, list) else [par]
+    grp = {q['first']: q['count'] for q in par}
+    out, lv, d = {}, 0, 0
+    while d < len(divs):
+        n = grp.get(d, 1)
+        for k in range(n):
+            out[d + k] = lv
+        lv += 1
+        d += n
+    assert lv <= 7 and len(divs) <= 16, (lv, len(divs))
+    return [out.get(d, 0) for d in range(16)]
+
+
 def dt_bytes(pk, lfile):
     gbase = next(b for ff, b in pk.files.values() if ff == lfile)
     pairs = sorted((pk.where[k][1], pk.division[k]) for k in pk.league_clubs if pk.where[k][0] == lfile)
     assert len(pairs) <= 256
-    return struct.pack('<HBH', gbase, lfile, len(pairs)) + b''.join(bytes(x) for x in pairs)
+    assert max(d.get('teams', 0) for d in pk.divisions()) <= 31, 'cupsf: places stored in 5 bits'
+    return struct.pack('<HBH', gbase, lfile, len(pairs)) + bytes(levels(pk)) + b''.join(bytes(x) for x in pairs)
 
 
 def table(world):

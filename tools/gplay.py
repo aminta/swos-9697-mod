@@ -1833,7 +1833,8 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
     obj = cobj.compile_c(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'gplay.c'), [f'-DGP_FORCE={force}', f"-DSEC_FORCE={int(os.environ.get('SEC_FORCE') or 0)}",
                                 f"-DSEC_FORCE_B={int(os.environ.get('SEC_FORCE_B') or 0xFFFF)}",
                                 f"-DGP_RLFORCE={int(os.environ.get('GPLAY_RLFORCE') or 0)}",
-                                f"-DGP_KOFORCE={int(os.environ.get('GPLAY_KOFORCE') or 0)}"]
+                                f"-DGP_KOFORCE={int(os.environ.get('GPLAY_KOFORCE') or 0)}",
+                                f"-DCF_SEED={__import__('cupsf').SEED}"]
                                + (['-DHDR_TEST'] if os.environ.get('HDR_TEST') else []))   # (test builds: GROUP n headers)
     top_r, top_w = _top9(p)                          # (cseg_927A2's top-9 list: gp_champ)
     import mkseason                             # 4.0 group headers' labels (zones.header_labels, the exe language)

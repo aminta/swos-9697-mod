@@ -54,6 +54,8 @@ Patch for **Sensible World of Soccer 96/97** (DOS, CD or GOG version): ITALIAN.E
 1. Open the same page and drop your language's executable and `DATA\TEAM.020`, `TEAM.044`, `TEAM.062`, `TEAM.073` from the game folder, then download the patched files (also the new TEAM files the page lists).
 2. Copy them into the game folder (the TEAM files into `DATA`) after backing it up. Start a new career.
 
+**Joypad / joystick.** The DOS game has no controls screen inside the game (SWOS 2020 has one, but it is a different product). The controls (keyboard only, joypad only, joypad + keyboard, keyboard + joypad, two joypads) are chosen with SETUP.EXE, in the game folder, and saved in SETUP.DAT; the mod touches neither. Plug the joypad in BEFORE starting the game: at the start the game reads the game port and, if it finds no joystick, falls back to keyboard only (if one of the two is missing, to keyboard + joypad). GOG: run SETUP.EXE inside GOG's DOSBox [CHECK: to be confirmed on GOG's layout]: start DOSBox from the DOSBOX folder, mount the game folder (mount c followed by the path of the game folder), type c: and then SETUP. In GOG's DOSBox configuration (dosbox_SWOS.conf), the [joystick] section must say joysticktype=auto, not none. The English version with SWOS++ also adds a joystick calibration.
+
 The patcher ships only differences and checks every file before and after patching: an original copy of the game is required. It works with both the original CD and the GOG version (from 1.0.1).
 
 **Upgrading (2.5.1):** you do not need to go back to the originals. Drop the executable and `DATA\TEAM.020` you have now (modified by any earlier release, 1.0 to 4.0, CD or GOG): the patcher recognises them and brings them to the latest version, or tells you they are already up to date. Saves are never touched.
@@ -129,6 +131,8 @@ Patch per **Sensible World of Soccer 96/97** (versione DOS, CD o GOG): ITALIAN.E
 2. Copiali nella cartella del gioco (i file TEAM in `DATA`), dopo aver fatto una copia di sicurezza. Inizia una carriera nuova.
 
 Il patcher contiene solo differenze e controlla i file prima e dopo la modifica: serve una copia originale del gioco. Funziona sia con il CD originale sia con la versione GOG (dalla 1.0.1).
+
+**Joypad / joystick.** Il gioco DOS non ha una schermata dei comandi dentro il gioco (SWOS 2020 ce l'ha, ma è un altro prodotto). I comandi (solo tastiera, solo joypad, joypad + tastiera, tastiera + joypad, due joypad) si scelgono con SETUP.EXE, nella cartella del gioco, e si salvano in SETUP.DAT; la mod non tocca né l'uno né l'altro. Collega il joypad PRIMA di avviare il gioco: all'avvio il gioco legge la porta giochi e, se non trova nessun joystick, passa a solo tastiera (se ne manca uno dei due, a tastiera + joypad). GOG: esegui SETUP.EXE dentro il DOSBox di GOG [CHECK: da confermare sulla cartella di GOG]: avvia DOSBox dalla cartella DOSBOX, monta la cartella del gioco (mount c seguito dal percorso della cartella del gioco), scrivi c: e poi SETUP. Nella configurazione del DOSBox di GOG (dosbox_SWOS.conf) la sezione [joystick] deve dire joysticktype=auto, non none. La versione inglese con SWOS++ aggiunge anche una calibrazione del joystick.
 
 **Aggiornamento (2.5.1):** non serve tornare agli originali. Trascina l'exe e `DATA\TEAM.020` che hai ora (modificati da una qualsiasi versione precedente, dalla 1.0 alla 4.0, CD o GOG): il patcher li riconosce e li porta all'ultima versione, oppure ti dice che sono già aggiornati. I salvataggi non vengono mai toccati.
 

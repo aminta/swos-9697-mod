@@ -1017,7 +1017,10 @@ class Pack:
                 lineup = _nums(c, 'lineup', 16, 0, 15, where) if (c.get('lineup') or '').strip() else list(range(16))
                 _need(sorted(lineup) == list(range(16)), f'{where}: lineup must list 0..15 once each')
                 if lineup == list(range(16)):          # no explicit lineup (blank / identity): from the positions
-                    lineup = auto_lineup([EXPLICIT_POS.index(row['position']) for row in rows[:16]])
+                    ps = [EXPLICIT_POS.index(row['position']) for row in rows[:16]]
+                    lineup = auto_lineup(ps)
+                    _need(sorted(lineup) == list(range(16)) and ([ps[j] for j in lineup[:11]] == SLOT_POS or not all(
+                        ps.count(p_) >= SLOT_POS.count(p_) for p_ in set(SLOT_POS))), f'{where}: auto lineup')
                 r[60:76] = bytes(lineup)
                 _need(16 <= len(rows) <= 16 + extra, f'players.csv: {key}: explicit squads need 16 players'
                       + (f' + at most {extra} more (squads "extra")' if extra else '') + f' ({len(rows)})')

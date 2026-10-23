@@ -37,7 +37,9 @@ function game(dir, gog) {                                    // a game folder fr
   fs.rmSync(dir, { recursive: true, force: true }); fs.mkdirSync(path.join(dir, 'DATA'), { recursive: true });
   for (const x of ['ITALIAN.EXE', 'ENGLISH.EXE', 'FRENCH.EXE', 'GERMAN.EXE']) fs.copyFileSync(path.join(M, gog ? 'orig/gog' : 'orig', x), path.join(dir, x));
   for (const x of fs.readdirSync(path.join(M, 'orig/DATA'))) fs.copyFileSync(path.join(M, 'orig/DATA', x), path.join(dir, 'DATA', x));
-  if (gog) fs.mkdirSync(path.join(dir, 'DOSBOX'));
+  if (gog) { fs.mkdirSync(path.join(dir, 'DOSBOX'));                 // GOG's DOSBox confs (contents not read by the page)
+    for (const c of ['dosbox_SWOS.conf', 'dosbox_SWOS_single.conf', 'dosbox_SWOS_single_italian.conf', 'dosbox_SWOS_single_french.conf',
+                     'dosbox_SWOS_single_german.conf']) fs.writeFileSync(path.join(dir, c), '[autoexec]\r\n'); }
 }
 let fail = 0;
 const ok = (c, m) => { console.log((c ? 'ok   ' : 'FAIL ') + m); if (!c) fail++; };
@@ -66,7 +68,15 @@ for (const lang of ['it', 'en', 'fr', 'de']) {
     check(T, dir, gog, false, `${lang} ${name}`);
     ok(md5(path.join(backup(dir), 'ITALIAN.EXE')) === md5(path.join(M, gog ? 'orig/gog' : 'orig', 'ITALIAN.EXE')) &&
        md5(path.join(backup(dir), 'DATA/TEAM.020')) === md5(path.join(M, 'orig/DATA/TEAM.020')), `${lang} ${name}: MOD_BACKUP = the originals`);
+    if (gog) { const want = { Italiano: 'italian', English: '', Francais: 'french', Deutsch: 'german' }, bad = [];
+      for (const [l, c] of Object.entries(want)) {
+        const f = path.join(dir, `SWOS Mod - ${l}.bat`), conf = c ? `dosbox_SWOS_single_${c}.conf` : 'dosbox_SWOS_single.conf';
+        if (!fs.existsSync(f) || fs.readFileSync(f, 'latin1') !== `@echo off\r\ncd /d "%~dp0DOSBOX"\r\nstart "" DOSBox.exe -conf "..\\dosbox_SWOS.conf" -conf "..\\${conf}" -noconsole -c "exit"\r\n`) bad.push(l); }
+      ok(!bad.length && /SWOS Mod - /.test(log.at(-1)), `${lang} gog: 4 language launchers${bad.length ? ' WRONG: ' + bad : ''}: ${log.at(-1).slice(-160)}`);
+      fs.unlinkSync(path.join(dir, 'SWOS Mod - Deutsch.bat')); }
     const n2 = await T.installDir(new DH(top), say); ok(n2 === 0, `${lang} ${name} again: ${log.at(-1)}`);
+    if (gog) ok(fs.existsSync(path.join(dir, 'SWOS Mod - Deutsch.bat')), `${lang} gog again: a missing launcher is written back`);
+    if (!gog) ok(!fs.readdirSync(dir).some(x => x.endsWith('.bat')), `${lang} cd: no launchers`);
   }
   { const top = path.join(R, 'cut'), dir = path.join(top, 'SWOS'); game(dir, false); cut = 40;
     const n = await T.installDir(new DH(top), say); cut = Infinity;

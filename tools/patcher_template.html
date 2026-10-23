@@ -409,6 +409,7 @@ const DT = {
         current: 'Il gioco è già aggiornato a questa versione: non c\'era niente da cambiare.',
         writing: (i, n) => `Scrivo la mod: ${i} / ${n} file… Non chiudere né ricaricare la pagina.`,
         incomplete: (k, n, l) => `INSTALLAZIONE INCOMPLETA: solo ${k} file su ${n} sono stati scritti correttamente (mancano: ${l}). Così il gioco non funziona: scegli di nuovo la cartella del gioco per completare l'installazione.`,
+        launch: l => `Per giocare con la mod usa i file «SWOS Mod - Italiano.bat» (o ${l}) nella cartella del gioco: il collegamento di GOG avvia sempre la versione inglese.`,
         done: n => `Fatto: ${n} / ${n} file scritti e verificati (la copia dei file sostituiti è in MOD_BACKUP\\{{VERSION}}). Avvia il gioco come sempre e inizia una carriera nuova.`,
         denied: 'La pagina non ha il permesso di scrivere nella cartella: riprova e conferma "Modifica file" / "Salva modifiche".',
         error: m => `Errore: ${m}. Il gioco potrebbe essere a metà: rimetti i file di MOD_BACKUP\\{{VERSION}} e riprova.` },
@@ -424,6 +425,7 @@ const DT = {
         current: 'The game is already up to date with this release: there was nothing to change.',
         writing: (i, n) => `Writing the mod: ${i} / ${n} files… Do not close or reload the page.`,
         incomplete: (k, n, l) => `INSTALL INCOMPLETE: only ${k} of ${n} files were written correctly (missing: ${l}). The game will not work like this: choose the game folder again to complete the install.`,
+        launch: l => `To play the mod, use the files "SWOS Mod - English.bat" (or ${l}) in the game folder: GOG's shortcut always starts the English version.`,
         done: n => `Done: ${n} / ${n} files written and verified (a copy of the replaced files is in MOD_BACKUP\\{{VERSION}}). Start the game as usual and start a new career.`,
         denied: 'The page has no permission to write into the folder: try again and confirm "Edit files" / "Save changes".',
         error: m => `Error: ${m}. The game may be half updated: put back the files from MOD_BACKUP\\{{VERSION}} and try again.` },
@@ -439,6 +441,7 @@ const DT = {
         current: "Le jeu est déjà à jour avec cette version : il n'y avait rien à changer.",
         writing: (i, n) => `Écriture du mod : ${i} / ${n} fichiers… Ne fermez pas et ne rechargez pas la page.`,
         incomplete: (k, n, l) => `INSTALLATION INCOMPLÈTE : seulement ${k} fichiers sur ${n} ont été écrits correctement (manquants : ${l}). Le jeu ne fonctionnera pas ainsi : choisissez à nouveau le dossier du jeu pour terminer l'installation.`,
+        launch: l => `Pour jouer au mod, utilisez les fichiers « SWOS Mod - Francais.bat » (ou ${l}) dans le dossier du jeu : le raccourci de GOG lance toujours la version anglaise.`,
         done: n => `Terminé : ${n} / ${n} fichiers écrits et vérifiés (la copie des fichiers remplacés est dans MOD_BACKUP\\{{VERSION}}). Lancez le jeu comme d'habitude et commencez une nouvelle carrière.`,
         denied: "La page n'a pas le droit d'écrire dans le dossier : réessayez et confirmez « Modifier les fichiers » / « Enregistrer les modifications ».",
         error: m => `Erreur : ${m}. Le jeu est peut-être à moitié modifié : remettez les fichiers de MOD_BACKUP\\{{VERSION}} et réessayez.` },
@@ -454,6 +457,7 @@ const DT = {
         current: 'Das Spiel ist schon auf dem Stand dieser Version: Es gab nichts zu ändern.',
         writing: (i, n) => `Schreibe den Mod: ${i} / ${n} Dateien… Seite nicht schließen oder neu laden.`,
         incomplete: (k, n, l) => `INSTALLATION UNVOLLSTÄNDIG: nur ${k} von ${n} Dateien wurden korrekt geschrieben (es fehlen: ${l}). So läuft das Spiel nicht: wählen Sie den Spielordner erneut, um die Installation abzuschließen.`,
+        launch: l => `Zum Spielen des Mods die Dateien „SWOS Mod - Deutsch.bat“ (oder ${l}) im Spielordner verwenden: die GOG-Verknüpfung startet immer die englische Version.`,
         done: n => `Fertig: ${n} / ${n} Dateien geschrieben und geprüft (die Kopie der ersetzten Dateien liegt in MOD_BACKUP\\{{VERSION}}). Starten Sie das Spiel wie gewohnt und beginnen Sie eine neue Karriere.`,
         denied: 'Die Seite darf nicht in den Ordner schreiben: Versuchen Sie es erneut und bestätigen Sie „Dateien bearbeiten“ / „Änderungen speichern“.',
         error: m => `Fehler: ${m}. Das Spiel ist vielleicht nur halb geändert: Legen Sie die Dateien aus MOD_BACKUP\\{{VERSION}} zurück und versuchen Sie es erneut.` },
@@ -482,6 +486,25 @@ async function writeFile(dir, path, bytes) {      // path 'DATA/TEAM.020' under 
   for (const d of parts.slice(0, -1)) dir = await dir.getDirectoryHandle(d, { create: true });
   const w = await (await dir.getFileHandle(parts[parts.length - 1], { create: true })).createWritable();
   await w.write(bytes); await w.close();
+}
+const LAUNCH = [['Italiano', 'DOSBOX_SWOS_SINGLE_ITALIAN.CONF'], ['English', 'DOSBOX_SWOS_SINGLE.CONF'],
+                ['Francais', 'DOSBOX_SWOS_SINGLE_FRENCH.CONF'], ['Deutsch', 'DOSBOX_SWOS_SINGLE_GERMAN.CONF']];
+async function launchers(g) {                     // GOG: one launcher per language beside the game (its shortcut starts English)
+  const dosbox = g.m.get('DOSBOX'), base = g.m.get('DOSBOX_SWOS.CONF');
+  if (!dosbox || dosbox.kind !== 'directory' || !base) return [];
+  const made = [];
+  for (const [lng, conf] of LAUNCH) {
+    const c = g.m.get(conf);
+    if (!c) continue;
+    const name = `SWOS Mod - ${lng}.bat`;
+    const txt = `@echo off\r\ncd /d "%~dp0${dosbox.name}"\r\nstart "" DOSBox.exe -conf "..\\${base.name}" -conf "..\\${c.name}" -noconsole -c "exit"\r\n`;
+    const bytes = new TextEncoder().encode(txt), ex = g.m.get(name.toUpperCase());
+    let same = false;
+    if (ex) { const b = new Uint8Array(await (await ex.getFile()).arrayBuffer()); same = b.length === bytes.length && md5(b) === md5(bytes); }
+    if (!same) await writeFile(g.root, ex ? ex.name : name, bytes);
+    made.push(lng);
+  }
+  return made;
 }
 async function installDir(dir, say) {             // -> the number of files written; say(text) reports progress
   const D = DT[lang];
@@ -516,7 +539,9 @@ async function installDir(dir, say) {             // -> the number of files writ
   const langs = EXES.filter(x => have.has(x)).map(x => ({ I: 'it', E: 'en', F: 'fr', G: 'de' })[x[0]]).join(', ');
   if (!exeOk.length) { say(D.noexe + (bad.length ? ' ' + D.bad(bad.join(', ')) : ''), true); return 0; }
   const head = D.found([...kinds].map(k => D.kind[k]).join(' + ') || D.kind.cd, langs) + (bad.length ? ' ' + D.bad(bad.join(', ')) : '');
-  if (!out.size) { say(head + ' ' + D.current); return 0; }
+  const lnote = async () => { const l = await launchers(g); const own = { it: 'Italiano', en: 'English', fr: 'Francais', de: 'Deutsch' }[lang];
+                             return l.length ? ' ' + D.launch(l.filter(x => x !== own).join(' / ')) : ''; };
+  if (!out.size) { say(head + ' ' + D.current + await lnote()); return 0; }
   say(head + ' ' + D.saving);
   const bdir = await (await g.root.getDirectoryHandle('MOD_BACKUP', { create: true })).getDirectoryHandle('{{VERSION}}', { create: true });
   for (const tgt of out.keys()) {                          // the files about to change, once per release
@@ -547,7 +572,7 @@ async function installDir(dir, say) {             // -> the number of files writ
   }
   if (miss.length) { say(head + ' ' + D.incomplete(out.size - miss.length, out.size, miss.slice(0, 5).join(', ') + (miss.length > 5 ? '…' : '')), true);
                      return out.size - miss.length; }
-  say(head + ' ' + D.done(out.size));
+  say(head + ' ' + D.done(out.size) + await lnote());
   return out.size;
 }
 async function pickDir() {

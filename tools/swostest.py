@@ -7021,6 +7021,11 @@ def world_instinc():
                 walk(s, 4, 3)                            # the main menu's CARRIERA 2026-27 (entry 4)
                 walk(s, s.screen().find('SCEGLI SQUADRA'), 3)
             shown = [e[1] for e in s.screen().entries if e[1] and not e[2]]
+            m = s.result.base2 + s.info['menu']             # (entry 0's raw text: Screen drops unknown umlauts)
+            ptr = struct.unpack('<I', s.result.read(m + 0x16 + 0x26, 4))[0]
+            raw = s.result.read(ptr, 64).split(b'\0')[0] if 0x1000 < ptr < MEMSIZE - 64 else b''
+            if raw == msg.encode('latin1'):
+                shown = shown if shown[:1] == [msg] else [msg] + shown
             s.shot(tag)
             if tag == 'full':
                 check(msg not in shown and 'EUROPA' in shown, f'{tag}: {shown}', errs)

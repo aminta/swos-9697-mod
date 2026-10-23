@@ -21,7 +21,7 @@
 | it | INSTALLAZIONE INCOMPLETA: RILANCIA IL PATCHER (230) |
 | en | INCOMPLETE INSTALL: RUN THE PATCHER AGAIN (215) |
 | fr | INSTALLATION INCOMPLETE: RELANCEZ LE PATCHER (236) |
-| de | INSTALLATION UNVOLLSTAENDIG: PATCHER NEU STARTEN (260) |
+| de | INSTALLATION UNVOLLSTÄNDIG: PATCHER NEU STARTEN (Ä = byte 8Eh, as in the German exe's own AUSLÄNDISCH; the regia) |
 
 ## Tests (release recipe, data world5tm-401nats; builds/instinc_{it,en,fr,de})
 - `world_instinc`, PASS in all 4 exes:

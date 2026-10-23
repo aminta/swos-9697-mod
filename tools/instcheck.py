@@ -8,7 +8,8 @@ import re
 import struct
 
 MSG = {'it': 'INSTALLAZIONE INCOMPLETA: RILANCIA IL PATCHER', 'en': 'INCOMPLETE INSTALL: RUN THE PATCHER AGAIN',
-       'fr': 'INSTALLATION INCOMPLETE: RELANCEZ LE PATCHER', 'de': 'INSTALLATION UNVOLLSTAENDIG: PATCHER NEU STARTEN'}
+       'fr': 'INSTALLATION INCOMPLETE: RELANCEZ LE PATCHER', 'de': 'INSTALLATION UNVOLLST\x8eNDIG: PATCHER NEU STARTEN'}   # (\x8e: the German exe's A umlaut,
+                                                                        # as in its own menus' AUSL\x8eNDISCH)
 FONT_FLAG = 0x1E                        # continueMenu: entry 0's flags word (10h = big font) after the 16-byte header
 
 ASM = '''
@@ -145,7 +146,7 @@ def asm(wmenus, lang):
         b = b''.join(b'DATA\\' + pre.encode() + b'\0' + bytes([len(nums)] + nums) for pre, nums in groups(files(w)))
         data.append(f'INST_F{k}: db ' + ', '.join(map(str, b + b'\0')))
     tab.append('    dw 0FFFFh')
-    data.append('INST_MSG: db ' + ', '.join(map(str, MSG[lang].encode() + b'\0')))
+    data.append('INST_MSG: db ' + ', '.join(map(str, MSG[lang].encode('latin1') + b'\0')))
     return ASM + '\n'.join(tab + data) + '\n'
 
 

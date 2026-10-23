@@ -6855,6 +6855,98 @@ def world_transfer_sale():
 
 
 
+GROUPB_FAMILIES = {   # family: (team path, seasons, titles a natural season must show (IT exe), why this club)
+    'sco_po': ('EUROPA,SCOZIA,?SCOTTISH CHAMPIONSHIP|CHAMPIONSHIP,DUNFERMLINE', 1, ['SPAREGGIO PREMIERSHIP'],
+                '3rd of the Championship by strength (the 2nd choice if the 2nd is promoted outright)'),
+    'can_title': ('NORDAMERICA,CANADA,ATLETICO OTTAWA', 1, ['PLAY-OFF CPL'], '2nd by strength'),
+    'aus_title': ('ASIA,AUSTRALIA,A-LEAGUE MEN,ADELAIDE UNITED', 1, ['FINALS SERIES'], 'the finals series (title play-off)'),
+    'mlt_title': ('EUROPA,MALTA,FLORIANA', 1, ['FINAL FOUR'], "Malta's Final Four (title decider)"),
+    'ca_pan': ('NORDAMERICA,PANAMA,PLAZA AMADOR', 1, ['LPF APERTURA', 'LPF CLAUSURA'], "Panama's Apertura / Clausura stages"),
+    'mls': ('NORDAMERICA,USA,INTER MIAMI', 1, ['MLS CUP PLAYOFFS'], 'the MLS Cup play-offs (rlines / winners)'),
+    'arg': ('SUDAMERICA,ARGENTINA,LIGA PROFESIONAL,BOCA JUNIORS', 1, ['APERTURA'], "Argentina's Apertura knockout (po_sweep / rlines)"),
+    'state': ('SUDAMERICA,BRASILE,BRASILEIRAO SERIE A,PALMEIRAS', 1, ['PAULISTA'], "a Brazilian state championship (statespec)"),
+    'uefaq': ('EUROPA,MALTA,FLORIANA', 2, ['PRELIM.'], "season 2 opens with the Champions League qualifying ties (world2526q)"),
+}
+
+
+def groupb_run(exe, fam):
+    """One natural-season run of a group-B family on a RELEASE exe, no test switch (W8485_FILL only: the stronger side wins
+    3-0, a memory poke of the running game): no trap / exit, every screen title in the font's characters, and the family's
+    titles present. (Group B = the scenarios whose exes carry GPLAY_FORCE / UEFAQ_FORCE ...: CONVENTIONS 17a.)"""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import complist
+    import simdraw
+    from le import LE
+    team, seasons, want, why = GROUPB_FAMILIES[fam]
+    at = LE(open(os.path.join(exe, 'ITALIAN.EXE'), 'rb').read()).obj_bytes(2).find(simdraw.table())
+    if at < 0:
+        return False, 'simdraw table not found in the exe'
+    keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_ONE', 'W8485_FILL',
+            'W8485_FROM', 'W8485_RECSHOT')
+    keep = {k: os.environ.get(k) for k in keys}
+    os.environ.update(W8485_RECSHOT='1', W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5', W8485_K='108+',
+                      W8485_NOSACK='1', W8485_FILL=f'{at:x}:30:3072')
+    os.environ.pop('W8485_FROM', None)
+    if seasons == 1:
+        os.environ['W8485_ONE'] = '1'
+    else:
+        os.environ.pop('W8485_ONE', None)
+    try:
+        ok, msg = world8485()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    titles, place = set(), []
+    for sn in range(1, seasons + 1):
+        lg = os.path.join(RUNS, w84_tag() + f'_{sn}', 'session.log')
+        if os.path.exists(lg):
+            for ln in open(lg, errors='replace'):
+                m = re.search(r'POSIZIONE: (\d+)', ln)
+                if m:
+                    place.append(int(m.group(1)))
+                if ln.startswith('[') and '|' in ln:
+                    t = ln.split('|')[0].split(']', 1)[1].strip()
+                    if t:
+                        titles.add(t)
+    errs = []
+    check(ok, f'{fam}: {msg[:200]}', errs)
+    missing = [w for w in want if not any(w in t for t in titles)]
+    check(not missing, f'{fam}: no screen title with {missing} ({why})', errs)
+    stray = sorted(t for t in titles if set(t.upper()) - complist.FONT - set('()/')
+                   and not t.startswith(('ELENCO', 'NOTA')) and 'STDMENU' not in t)
+    check(not stray, f'{fam}: stray characters in {stray[:3]}', errs)
+    why = f'{why}; the club finished {place}'
+    return not errs, '; '.join(errs + ([f'(club place {place})'] if errs else [])) or f'{fam}: place {place}; {msg[:90]}; titles with {want} seen ({sum(1 for t in titles if any(w in t for w in want))})'
+
+
+def groupb_smoke(fams):
+    exe = foreign_exe()
+    if not exe:
+        return True, 'SKIP: no release SWOS dir (FOREIGNBUY_BUILD, or SWOSTEST_BUILD / W8485_BUILD with DATA/POOL05.DAT)'
+    only = [f for f in os.environ.get('GB_FAMILY', '').split(',') if f]
+    res = []
+    for f in fams:
+        if only and f not in only:
+            continue
+        res.append((f,) + groupb_run(exe, f))
+    bad = [r for r in res if not r[1]]
+    return not bad, '; '.join(f'{r[0]} {"ok" if r[1] else "FAIL " + r[2]}' for r in res)
+
+
+@scenario
+def release_groupb_titles():
+    """CONVENTIONS 17a, group B on the release recipe: the play-off / title / stage families whose scenarios build exes with
+    GPLAY_FORCE / UEFAQ_FORCE ... reach the same screens in a NATURAL season of the release exe (a club picked by strength,
+    W8485_FILL = the stronger side wins): Scotland / England promotion play-offs, the Australian / Canadian / Maltese title
+    play-offs, Panama's stages, the MLS Cup play-offs, Argentina's Apertura, a Brazilian state, the Champions League
+    qualifying of season 2 (GB_FAMILY=a,b limits it; England's promotion play-offs have no natural-season family: three clubs tried by strength never reached places 3-8, see the forced eng champ_po checks). No trap, the titles in the font's characters, the family's titles seen"""
+    return groupb_smoke(list(GROUPB_FAMILIES))
+
+
+
 @scenario
 def world_cuplist_mestre():
     """Davide's MESTRE.CAR (rc7, internal/davide-mister-20261021: MESTRE, Serie D) on a release-recipe build

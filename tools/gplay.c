@@ -805,6 +805,17 @@ static void wn_add(int type, int idx, u16 team) {
     x->type = (u8)type; x->idx = (u8)idx; x->team = team;
 }
 
+/* 4.0.1 (Colombia's cuadrangulares): spec flag 08h = the entrants after the heads (one per leading group round) are
+   drawn - pm[i] = the entrant taking slot i (the builders keep the result in GP_ST's contest; a simulation draws once) */
+static void pot_perm(const u8 *s, int *pm) {
+    int n = s[1], h = 0;
+    for (int i = 0; i < n; i++) pm[i] = i;
+    if (!(s[5] & 8)) return;
+    const u8 *r = s + 6 + 4 * n;
+    for (int k = 0; k < s[2] && (r[1] & 0x80); k++) { h++; r += 6 + 2 * r[0]; }
+    for (int i = n - 1; i > h; i--) { int j = h + below(i - h + 1), x = pm[i]; pm[i] = pm[j]; pm[j] = x; }
+}
+
 void gp_season(void) {
     const u8 *s = GP_IN.spec;
     u32 h = 0;
@@ -867,6 +878,12 @@ void gp_season(void) {
                 if (club[i] < 0) ok = 0;
             } else if (ty != 0 || d >= GP_IN.nd || p < 1 || p > GP_IN.n[d]) ok = 0;
             else if ((club[i] = place_club(d, p, kind)) < 0) ok = 0;
+        }
+        if (s[5] & 8) {                         /* (4.0.1: the drawn pot) */
+            int pm[GN], tmp[GN];
+            pot_perm(s, pm);
+            for (int i = 0; i < n && i < GN; i++) tmp[i] = club[pm[i]];
+            for (int i = 0; i < n && i < GN; i++) club[i] = tmp[i];
         }
         for (int k = 0; k < nr; k++) {          /* walk the rounds (also to skip a play-off not played here) */
             int ties = r[0], legs = r[1], host = r[2] & 0x7F, skip = r[2] & HOST_SKIP_SAME, level = r[3];
@@ -1325,8 +1342,10 @@ static int ko_t2(struct gp_ko *k, const u8 *s, int pi, int cid, const struct t2s
     for (int i = 0; i < 8; i++) k->bye[i] = 0;
     KT2(k) = 1;
     *(u32 *)k->bye = GP_NM[3 * pi + 2]; /* (its record line's name: a type-2 contest has no byes) */
+    int pm[GN];
+    pot_perm(s, pm);                        /* (4.0.1: a drawn pot; else the identity) */
     for (int i = 0; i < n; i++) {
-        int c = ent_club(e + 4 * i, s[0]);
+        int c = ent_club(e + 4 * pm[i], s[0]);
         if (c < 0) return 0;
         k->ient[i] = i; k->code[i] = c; k->prio[i] = c > 255 ? 255 : c;
         k->team[i] = row(c)->team; k->pts[i] = row(c)->pts;
@@ -1383,11 +1402,13 @@ static int ko_build(struct gp_ko *k, int pi, int slot, int cid) {
     }
     k->gt0[k->nrs] = k->ntie;
     /* the list: round 1's members in tie order, then the others in entrant order */
+    int pm[GN];
+    pot_perm(s, pm);                        /* (4.0.1: a drawn pot; else the identity) */
     for (int i = 0; i < n; i++) {
-        int c = ent_club(e + 4 * i, s[0]);
+        int c = ent_club(e + 4 * pm[i], s[0]);
         if (c < 0) return 0;
         k->ient[i] = i; k->code[i] = c;
-        k->prio[i] = e[4 * i] == 3 ? e[4 * i + 2] - 1 : c > 255 ? 255 : c;   /* (stage entrants: the stage place) */
+        k->prio[i] = e[4 * pm[i]] == 3 ? e[4 * pm[i] + 2] - 1 : c > 255 ? 255 : c;   /* (stage entrants: the stage place) */
         k->team[i] = row(c)->team; k->pts[i] = row(c)->pts;
     }
     if (by_rec)                             /* (the better record hosts: the ranks by it) */

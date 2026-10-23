@@ -7588,6 +7588,43 @@ int main(void) {
 
 
 @scenario
+def gplay_pot_draw():
+    """gplay.c pot_perm (4.0.1 'draw_pot', Colombia's cuadrangulares) compiled on the host (cc): a spec of 8 entrants,
+    two leading groups of 4 and a final: over 200 draws the heads (entrants 0, 1) never move, every draw is a
+    permutation of 2..7, and each of 2..7 lands in group A (slots 2-4) and in group B (5-7)"""
+    test = r"""
+#include "%s"
+#include <stdio.h>
+int main(void) {
+    u8 s[256] = {0}; int pm[GN], inA[8] = {0}, inB[8] = {0}, bad = 0, diff = 0, prev = -1;
+    s[0] = 8; s[1] = 8; s[2] = 3; s[5] = 8;
+    u8 *r = s + 6 + 4 * 8;
+    for (int g = 0; g < 2; g++) { r[0] = 4; r[1] = 0x82; r += 6 + 8; }
+    r[0] = 1; r[1] = 2;
+    for (int t = 0; t < 200; t++) {
+        pot_perm(s, pm);
+        int seen = 0, key = 0;
+        for (int i = 0; i < 8; i++) { seen |= 1 << pm[i]; key = key * 8 + pm[i]; }
+        if (seen != 255 || pm[0] != 0 || pm[1] != 1) bad++;
+        for (int i = 2; i < 5; i++) inA[pm[i]]++;
+        for (int i = 5; i < 8; i++) inB[pm[i]]++;
+        if (prev >= 0 && key != prev) diff++;
+        prev = key;
+    }
+    int all = 1;
+    for (int i = 2; i < 8; i++) if (!inA[i] || !inB[i]) all = 0;
+    s[5] = 0; pot_perm(s, pm);
+    int id = 1; for (int i = 0; i < 8; i++) if (pm[i] != i) id = 0;
+    printf("bad %%d diff %%d all %%d id %%d", bad, diff > 100, all, id);
+    return 0;
+}
+"""
+    want = 'bad 0 diff 1 all 1 id 1'
+    ok, got = gplay_host(test)
+    return ok and got == want, f'{got} (expected {want})'
+
+
+@scenario
 def world_title_crc_skip():
     """world_title: Costa Rica with HEREDIANO (the strongest) forced 1st and every match won by the stronger side
     (W8485_FILL): it wins its semi and the final, so the Gran Final (the 1st v the play-off winner, one club) is skipped

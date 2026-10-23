@@ -445,7 +445,7 @@ w_mrec:                                 ; replaces `add word [D1], 1996; add wor
     pop ebx
     ret
 
-%macro W_SWAP 2                         ; replaces `call %2`: in a world, competitionsTable[254] = [.., -1, 99] and
+%macro W_SWAP 3                         ; replaces `call %2`: in a world, competitionsTable[254] = [.., -1, 99] and
 %1:                                     ; [99] = the world's continent (its countries, its cups = the in-save copies)
     push ebx
     call w_rec
@@ -453,6 +453,13 @@ w_mrec:                                 ; replaces `add word [D1], 1996; add wor
     push dword [COMP254]
     push dword [COMP99]
     mov dword [COMP254], WVIEW
+%if %3                                  ; (4.0.1, the foreign purchase: a world of several continents lists them at
+    cmp byte [ebx + 49], 0              ; once, without the violet 99 entry first)
+    je .v
+    push dword [ebx + 44]
+    pop dword [COMP254]
+.v:
+%endif
     mov ebx, [ebx + 44]
     mov [COMP99], ebx
     call %2
@@ -464,8 +471,8 @@ w_mrec:                                 ; replaces `add word [D1], 1996; add wor
     pop ebx
     jmp %2
 %endmacro
-W_SWAP w_view, CHOOSECOMP
-W_SWAP w_buy, CHOOSETEAMS
+W_SWAP w_view, CHOOSECOMP, 0
+W_SWAP w_buy, CHOOSETEAMS, 1
 
 w_nat:                                  ; replaces `mov ax, [D0]; mov [lastNationalityCall], ax`: no national team
     mov ax, [D0R]                       ; job in a world (-1 = none) unless the world has its national teams (3.1)
@@ -1759,10 +1766,11 @@ def patch(p, worlds, at, nasmcave, comp, ct, cont_rec):
         data.append('    dw %d, %d, %d, %d, %d' % (tot, len(w['cups']['cc'][1]), len(w['cups']['cwc'][1]),
                                                   len(w['cups']['uefa'][1]), tot - 3))   # before the 3 holders
         data.append(f"    db {w['year'] - 1900}, 0")
-        data.append(f'    dd W{n}_CONT, {int(bw)}')
-        extra.append(f'W{n}_CONT: dd ' + ('WCC, WCWC, WUEFA' if bw else 'CCCOPY, CWCCOPY, UEFACOPY') + ', -1')
         import mkseason                         # world 2025-26: several continents -> VIEW WORLD / foreign browser
-        view = [c for c, _, top in mkseason.WCONT_IDS.get(n, []) if top] or w['countries']   # the continents, then theirs
+        conts = [c for c, _, top in mkseason.WCONT_IDS.get(n, []) if top]
+        view = conts or w['countries']          # the continents, then theirs
+        data.append(f'    dd W{n}_CONT, {int(bw) | (0x100 if conts else 0)}')   # (+48 big, +49 several continents)
+        extra.append(f'W{n}_CONT: dd ' + ('WCC, WCWC, WUEFA' if bw else 'CCCOPY, CWCCOPY, UEFACOPY') + ', -1')
         extra.append('    db ' + ', '.join(map(str, view + [0xff])))
         for key, euro in zip(('cc', 'cwc', 'uefa'), s['euro']):
             rounds, clubs = w['cups'][key]

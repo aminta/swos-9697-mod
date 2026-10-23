@@ -108,6 +108,9 @@ load and play on.
   1984-85), without a CARR. STORICHE (CLASSIC CAREERS) menu in front (in the World 2026-27 that was a violet entry).
 - **Career calendar:** the two-line labels of the UEFA qualifying rounds are short enough for their line, e.g. "PRELIM.
   CL" over "TURNO 1 AND." (each language with its own round word).
+- **UEFA qualifying rounds**: when your club wins a qualifying tie, the next round now appears in the career calendar
+  straight after the return leg. Before, it was added only when you went on to the next match, so for a while the
+  calendar seemed to have no next round.
 - **Match titles** are fitted to the title bar by their real width: no title is cut any more (the 4.0 limit on long
   titles is gone) and none starts with a stray space. We checked the longest title of every competition.
 - **WINNERS page:** a competition's long name is shown in full when it fits (TROFEO DE CAMPEONES, not TROFEO CAMP.).
@@ -283,6 +286,9 @@ nella 4.0 resta com'era; le carriere salvate con la 4.0 si caricano e continuano
   (Europa 1984-85), senza un menu CARR. STORICHE davanti (nel Mondo 2026-27 era una voce viola).
 - **Calendario della carriera:** le etichette su due righe dei turni di qualificazione UEFA stanno nella loro riga, per
   esempio "PRELIM. CL" sopra "TURNO 1 AND." (ogni lingua con la sua parola per "turno").
+- **Turni preliminari UEFA**: quando il tuo club supera un turno preliminare, il turno successivo compare nel calendario
+  della carriera subito dopo la partita di ritorno. Prima veniva aggiunto solo quando passavi alla partita successiva,
+  quindi per un po' il calendario sembrava senza il turno dopo.
 - **I titoli delle partite** si adattano alla barra del titolo secondo la larghezza vera: nessun titolo viene più
   tagliato (il limite della 4.0 sui titoli lunghi non c'è più) e nessuno comincia con uno spazio vagante. Abbiamo
   controllato il titolo più lungo di ogni competizione.

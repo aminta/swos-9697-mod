@@ -5405,7 +5405,8 @@ def world_gplay_play(force='2', team='EUROPA,SCOZIA,SCOTTISH LEAGUE TWO,CLYDE', 
     f = os.path.join(w, 'world5tm', 'sco', 'pack.json')
     d = json.load(open(f))
     lg = next(c for c in d['competitions'] if c['type'] == 'league')
-    lg['ko_playoffs'] = [dict(po, names={'*': [po['key'].upper().replace('_', ' '), po['key'].upper()]}) for po in GPLAY_SCO]
+    lg['ko_playoffs'] = [dict(po, names={'*': [po['key'].upper().replace('_', ' ')] * 2})   # (font characters only:
+                         for po in GPLAY_SCO]                                               # complist.check_titles)
     json.dump(d, open(f, 'w'), indent=1, ensure_ascii=False)
     order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
     env = {'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(w, 'world5tm', x) for x in order]),
@@ -8242,7 +8243,18 @@ def world_gplay_cupd(team='EUROPA,ITALIA,SERIE D GIRONE A,LIGORNA', two=False):
         return False, f'{msg}; the cup never ran (no CD_ST seen)'
     last = cds[-1]
     rnd, res = last[3], last[8:8 + 161]
-    check(rnd == 8 and all(res), f'cup not over: round {rnd}, undecided ties {[i for i in range(161) if not res[i]][:10]}', errs)
+    s1names = [ln.split('SERIE D', 1)[1].split('|')[0].strip() for ln in lines if 'COPPA ITALIA SERIE D' in ln]
+    upto, nprev, first = 161, 0, 0     # 4.0 (GP_CDS1): the career club in the 1/32 - the cup goes on as the game's
+    if any(x.startswith('TRENTADUES') for x in s1names):    # own knockout in slot 2, CD_ST at its last round with
+        for ri, r in enumerate(json.load(open(br))['rounds']):   # the ties from the 1/32 on undecided by design
+            n = len(r.get('matches') or []) if ri < 2 else nprev // 2   # (cupd.compile_table's tie counts)
+            if n == 32:
+                upto = first
+                break
+            first, nprev = first + n, n
+    check(rnd == 8 and all(res[:upto]), f'cup not over: round {rnd}, undecided ties '
+          f'{[i for i in range(upto) if not res[i]][:10]}' + (f' (before the 1/32, tie {upto})' if upto < 161 else ''),
+          errs)
     sts = [bytes.fromhex(ln.split()[2]) for ln in lines if ln.startswith(f'HEX {st_at:x} ')]
     kos = [gp_ko(b[GP_STKO:]) for b in sts if b[GP_STKO:GP_STKO + 2] == b'GK']
     mine = [k for k in kos if k['kind'] == 9 and k['n'] == 2 and k['slot'] == 4]

@@ -635,7 +635,7 @@ Cearense, Pernambucano, Alagoano and Mato-Grossense.
   Scudetto or group play-off: it is decided by simulation (fixed in the upcoming 4.0.1).
 - A few very long match-screen titles (a long competition name + a long round + the leg) can still be cut at the
   game's 40 characters; the upcoming 4.0.1 checks and fits every title.
-- The World 2026-27 has no national teams yet: no national team offers a job in this career (planned for the upcoming 4.2).
+- The World 2026-27 has no national teams yet: no national team offers a job in this career (planned for the upcoming 5.0).
 - A career saved with one language's executable and loaded with another keeps the first language's competition
   titles, and its league tables show no zone colours, no FORMAT page and no overall table (annual table / Supporters'
   Shield): continue a career with the language you started it in.
@@ -1359,7 +1359,7 @@ Baiano, Cearense, Pernambucano, Alagoano e Mato-Grossense.
 - Alcuni titoli molto lunghi della schermata della partita (un nome di competizione lungo + un turno lungo + la gara)
   possono ancora essere tagliati ai 40 caratteri del gioco; la prossima 4.0.1 controlla e adatta ogni titolo.
 - Il Mondo 2026-27 non ha ancora le nazionali: in questa carriera nessuna nazionale offre un lavoro (previste nella
-  prossima 4.2).
+  prossima 5.0).
 - Una carriera salvata con l'eseguibile di una lingua e caricata con quello di un'altra tiene i titoli delle
   competizioni della prima lingua, e le sue classifiche non mostrano né i colori, né la pagina FORMULA, né la
   classifica generale (annuale / Supporters' Shield): continua una carriera nella lingua in cui l'hai iniziata.

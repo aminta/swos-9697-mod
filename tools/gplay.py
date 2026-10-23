@@ -872,6 +872,9 @@ gp_sync:                                ; after a career / .SEA load (the engine
     cmp [esi + KO_SEAS], ah
     jne .n
     movzx edx, byte [esi + KO_SLOT]
+    test edx, edx                       ; 4.0.1: slot 0 = no slot (a play-off simulated without the career club,
+    jz .n                               ; sa_exact's table titles decided at once): never the league's pointer -
+                                        ; a mid-season load left D8CAA[0] on GP_ST, the next season had no league
     lea ecx, [esi + KO_CON]
     mov [D8CAA + edx * 4], ecx
 .n:

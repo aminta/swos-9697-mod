@@ -108,8 +108,10 @@ def compile_spec(pos, ndiv, league_names=None):
                 ents.append((4, 0, 0, 0))
             elif isinstance(e, dict) and 'stage_title' in e:   # 4.0 ARG: the Trofeo's finalists from the stage titles
                 c, d = e['stage_title'], e.get('div', 0)       # 1 the 1st stage's champion; 2 / 3 the other finalist:
-                if not (c in (1, 2, 3) and 0 <= d < ndiv):     # the 2nd stage's champion, or (the same club won both)
-                    raise ValueError(f'{key}: entrant {e}')    # the two stages' runners-up (2: the 1st's, 3: the 2nd's)
+                if not (c in (1, 2, 3, 4) and 0 <= d < ndiv):  # the 2nd stage's champion, or (the same club won both)
+                    raise ValueError(f'{key}: entrant {e}')    # the two stages' runners-up (2: the 1st's, 3: the 2nd's);
+                                                               # 4 (4.0.1 MEX Campeon de Campeones): the 2nd stage's
+                                                               # champion always (with skip_if_same: none if the same)
                 ents.append((5, d, c, 0))
             elif isinstance(e, dict) and e.get('league_cup_winner'):
                 a, b = e.get('if_places', [0, 0])
@@ -189,10 +191,14 @@ def compile_spec(pos, ndiv, league_names=None):
             raise ValueError(f'{key}: winners 1..15')
         wd, ld = po.get('winner_div', 0), po.get('loser_div', 0)
         ld = RESERVE if ld == 'reserve' else ld
-        if kind == 8:                           # stage_title: winner_div byte = the stage (0, 1; 2 the Trofeo)
-            wd, ld = po.get('stage'), 0
+        if kind == 8:                           # stage_title: winner_div byte = the stage (0, 1; 2 the Trofeo) | its
+            wd, ld = po.get('stage'), 0         # division << 2 (4.0.1 MEX: the entrants', each division its own stages)
             if wd not in (0, 1, 2):
                 raise ValueError(f'{key}: stage_title needs "stage" 0 / 1 (the tournaments) or 2 (their champions)')
+            sdv = {e.get('div', 0) for e in po.get('entrants', []) if isinstance(e, dict)}
+            if len(sdv) > 1 or not sdv <= set(range(min(ndiv, 4))):
+                raise ValueError(f'{key}: stage_title entrants of one division (0..3)')
+            wd |= (sdv.pop() if sdv else 0) << 2
         if kind in (1, 4) and not (0 <= wd < ndiv and (0 <= ld < ndiv or ld == RESERVE)):
             raise ValueError(f'{key}: winner_div / loser_div (a division, or "reserve")')
         if rounds and po['rounds'][-1].get('series'):
@@ -201,16 +207,21 @@ def compile_spec(pos, ndiv, league_names=None):
         out += bytes((kind, len(ents), nrd, wd, ld, flags))
         out += b''.join(bytes(e) for e in ents) + rounds
     stages = set()                              # 4.0 ARG: the Trofeo's entrants (type 5) read GP_OUT.sres of the stage
-    for po in pos:                              # titles 0 and 1, filled earlier in the same gp_season pass
+    for po in pos:                              # titles 0 and 1 (of their division), filled earlier in the same pass
+        sdv = next((e.get('div', 0) for e in po.get('entrants', []) if isinstance(e, dict)), 0)
         if KINDS.get(po.get('kind')) == 8:
-            stages.add(po.get('stage'))
-        if any(isinstance(e, dict) and 'stage_title' in e for e in po.get('entrants', [])) and not {0, 1} <= stages:
+            if (po.get('stage'), sdv) in stages:
+                raise ValueError(f"{po.get('key', '?')}: stage {po.get('stage')} of division {sdv} twice")
+            stages.add((po.get('stage'), sdv))
+        if any(isinstance(e, dict) and 'stage_title' in e for e in po.get('entrants', [])) and \
+                not {(0, sdv), (1, sdv)} <= stages:
             raise ValueError(f"{po.get('key', '?')}: a 'stage_title' entrant needs the stage_title play-offs of stages 0 and "
-                             f"1 before it")
+                             f"1 (its division's) before it")
     out = bytes(out + b'\0')
     SPEC_NAMES[out] = [(po.get('names') or {}, po.get('key', '?'),
                         po.get('record') or (league_names if po.get('kind') == 'title' else None)) for po in pos]
-    SPEC_STAGES[out] = [(po['stage'], po.get('names') or {}, po.get('key', '?')) for po in pos
+    SPEC_STAGES[out] = [(po['stage'], po.get('names') or {}, po.get('key', '?'),
+                         next((e.get('div', 0) for e in po.get('entrants', []) if isinstance(e, dict)), 0)) for po in pos
                         if KINDS.get(po.get('kind')) == 8 and po.get('stage') in (0, 1, 2)]
     keys = [po.get('key') for po in pos]
     for po in pos:                      # 'then_build': the key of the play-off built when this one ends
@@ -1519,7 +1530,7 @@ def _default_rnames(po):
 
 RNAMES = {}              # compile_spec's output -> per play-off KG bytes: its game rounds' rnames indices (0: the game's)
 RN_KG = 12               # (gplay.c KG)
-SPEC_STAGES = {}         # compile_spec's output -> its stage titles (kind stage_title): [(stage, names, key)]
+SPEC_STAGES = {}         # compile_spec's output -> its stage titles (kind stage_title): [(stage, names, key, division)]
 REC_PX = 144             # the season record's competition column (ManagementRecordMenu: x 0, width 144, small font)
 AND = {'it': 'E', 'en': 'AND', 'fr': 'ET', 'de': 'UND'}
 
@@ -1596,7 +1607,7 @@ def _top9(p):
                                         rb'\xc7\x05' + pk(r['A0'] + 8), d1, re.S)]
     assert len(m) == 2, m                       # (the first: cseg_927A2; the second: another list of the season end)
     return p.target(1, m[0] + 6), p.target(1, m[0] + 16)
-GP_PAGES = 13            # obj1 pages for the C code + glue + specs (World 2026-27's 20 countries; gplay-play; 4.0 ARG: 7; the record lines: 12; longtable's code: 13)
+GP_PAGES = 14            # obj1 pages for the C code + glue + specs (World 2026-27's 20 countries; gplay-play; 4.0 ARG: 7; the record lines: 12; longtable's code: 13; 4.0.1 MEX stage titles per division: 14)
 GP_ST_SIZE = 2048       # (sizeof struct gp_state: the engine block's item 'GP', patch.py)
 WN_SIZE = 4 + 4 * 40    # (sizeof struct wn_state: the engine block's item 'WN', the WINNERS page's last season)
 SS_LEGACY = ('arg', 'usa')      # 4.0's stage-table leagues: bank 0 (engine item 'SS', its 4.0 layout kept)
@@ -1610,8 +1621,9 @@ def ss_banks(sp_tabs):
     import mkseason
     files, divs = [], {}
     for world, file, div, n, spec in sp_tabs:
-        if any(st.get('table') is not None for st in spec.get('stages') or []):
-            divs.setdefault(file, set()).add(div)
+        tabs = {st['table'] for st in spec.get('stages') or [] if st.get('table') is not None}
+        if tabs:
+            divs.setdefault(file, {})[div] = tabs
             if file not in files:
                 files.append(file)
     code = {}
@@ -1619,7 +1631,8 @@ def ss_banks(sp_tabs):
         if pk.world is not None and pk.league:
             code[pk.files[pk.league['clubs']][0]] = pk.meta['id'].rsplit('-', 1)[-1]
     for f, ds in divs.items():                  # (a bank per league, the career's saved: a second staged division of
-        assert code.get(f) in SS_LEGACY or len(ds) == 1, (code.get(f), ds)   # one country would share it mid-season)
+        used = [t for tabs in ds.values() for t in tabs]   # one country shares it mid-season - 4.0.1 MEX: on tables
+        assert code.get(f) in SS_LEGACY or len(used) == len(set(used)), (code.get(f), ds)   # of its own, as ARG's)
     tab, nb = bytearray(256), 1
     for f in files:
         if code.get(f) not in SS_LEGACY:
@@ -1742,12 +1755,13 @@ def names_lines(tables, area, lang):
         lines.append('    dd 0, 0, 0')
     multi = [len(SPEC_STAGES.get(spec, [])) >= 2 for _, _, spec in tables]       # (stage titles won together: one
     lines += ['GP_CMT:'] + [f'    dd GPC{i}' if multi[i] else '    dd 0' for i in range(len(tables))]   # name per mask
-    for i, (_, _, spec) in enumerate(tables):                                     # of stages 0..2; only where there
-        if not multi[i]:                                                          # are two)
-            continue
-        st = {stg: _name(names, lang, key) for stg, names, key in SPEC_STAGES.get(spec, [])}
+    for i, (_, _, spec) in enumerate(tables):                                     # of stages 0..2, 8 masks per
+        if not multi[i]:                                                          # division 0..3; only where there
+            continue                                                              # are two)
         row = []
-        for m in range(8):
+        for m in range(32):
+            st = {stg: _name(names, lang, key) for stg, names, key, dv in SPEC_STAGES.get(spec, []) if dv == m >> 3}
+            m &= 7
             ok = bin(m).count('1') >= 2 and all(x in st for x in range(3) if m & 1 << x) and area
             got = [st[x] for x in range(3) if m & 1 << x] if ok else []
             row.append(area.add(combined([(a.decode('latin-1'), b.decode('latin-1')) for a, b in got], lang)

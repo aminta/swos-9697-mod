@@ -1449,6 +1449,21 @@ gp_cup12:                               ; 4.0: InitNewSeason's `call cseg_8B2D3`
     popad
     jmp C8B2D3
 '''
+LASTREST = '''
+gp_lastrest:                            ; 4.0.1: cseg_8EC2B's loop (careerFinished when no calendar entry left has a match of
+    mov esi, [A0R]                      ; the career club, +6) also keeps an unplayed day of the career LEAGUE (slot 0, a
+    mov al, [esi + 6]                   ; league in a career): the career club's rest on the last match day of an odd group
+    test al, al                         ; (oddtables) or a split's odd group - else FINISH SEASON came a day early, the
+    jnz .r                              ; league ended (cseg_8ECAE: gplay's / dplay's play-offs) only at the season end and
+    cmp byte [esi], 0                   ; its Poule / play-off was never played; the day is now played as any rest day
+    jne .r                              ; (cseg_8E841)
+    cmp word [GAMETYPE], 4
+    jne .r
+    mov al, 1                           ; (slot 0 of a career is its league; the D8CAA test never held: that pointer is
+.r:                                     ; the contest definition, its first byte the id - the FR course lost its Poule)
+    ret                                 ; (the game's `or al, al / jnz` follows)
+'''
+
 GP_RNAME = '''
 gp_rname:                               ; rnames' rn_round (an FE contest, RN_CDP): ko[0] of this season in slot 4 ->
     cmp word [GP_ST + ST_KO], 4B47h     ; CF = 1, al = its round's name, else CF = 0 (the game's); every register but
@@ -1899,7 +1914,7 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
         symbols.update({f'C_S1_{k}': (1, c) for k, c in enumerate(CDS1_CALLS)})
     cd_src += nasmcave.sub(GP_RNAME, 'CD_PART', CD_RNAME if cds else '')
     asm = (nasmcave.sub(ASM, 'jmp GP_REC_NEXT', 'jmp GP_REC_NEXT' if rec_dp else 'jmp gp_recmov') + tab_src + '\n'
-           + names_lines(tables, area, lang) + '\n' + stubs + cd_src)
+           + names_lines(tables, area, lang) + '\n' + stubs + cd_src + LASTREST)
     glue = (cend + 15) & ~15
     code, fix = nasmcave.assemble(asm, glue, symbols)
     lab = nasmcave.labels(asm, glue, symbols)
@@ -1935,6 +1950,13 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
         cal1 = CAL1_SITE[0]                                   # cseg_3563E's `mov eax, A6` (5 B, a fixup) -> call
         p.remove(1, cal1 + 1)
         p.put(1, cal1, b'\xe8' + struct.pack('<i', lab['gp_cal1'] - (cal1 + 5)))
+    d1o = p.le.obj_bytes(1)                                   # cseg_8EC2B's loop: `mov esi, [A0] / mov al, [esi+6]` (9 B,
+    a0b = struct.pack('<I', r['A0'])                          # A0's fixup) -> call gp_lastrest + 4 nops
+    lr = [m.start() + 13 for m in re.finditer(re.escape(b'\x8b\x35' + a0b + b'\x8a\x46\x04\x0a\xc0\x75') + b'.' +
+                                              re.escape(b'\x8b\x35' + a0b + b'\x8a\x46\x06\x0a\xc0\x75'), d1o, re.S)]
+    assert len(lr) == 1 and bytes(p.get(1, lr[0], 9)) == d1o[lr[0]:lr[0] + 9], [hex(x) for x in lr]
+    p.remove(1, lr[0] + 2)
+    p.put(1, lr[0], b'\xe8' + struct.pack('<i', lab['gp_lastrest'] - (lr[0] + 5)) + b'\x90' * 4)
     for site, target in ((cap, 'gp_cap'), (end_site, 'gp_end')) if tables else ():   # (relative calls: no fixups;
         p.put(1, site + 1, struct.pack('<i', lab[target] - (site + 5)))                # none: only pg_season)
     if tables and area is not None:                         # the playable play-offs (chained before dplay's hooks)

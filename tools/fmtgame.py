@@ -917,9 +917,27 @@ def win_lines(comp, div, k, cc='', tfile=None):
     return lines
 
 
+_WN_RAW = {}     # id(a fitted names dict) -> its pack.json original (from_pack): the page is 298 px wide, so it
+                 # takes the real long name, not complist.fit_titles' 158-px one ('TROFEO CAMP.', rc12; 4.0.1)
+
+
+def _raw_names(raw, fit):
+    """Pair every 'names' dict of the fitted pack (complist.load_pack) with the same one of the raw pack.json."""
+    if isinstance(fit, dict) and isinstance(raw, dict):
+        if isinstance(fit.get('names'), dict) and isinstance(raw.get('names'), dict):
+            _WN_RAW[id(fit['names'])] = raw['names']
+        for k, v in fit.items():
+            if k in raw:
+                _raw_names(raw[k], v)
+    elif isinstance(fit, list) and isinstance(raw, list) and len(fit) == len(raw):
+        for a, b in zip(raw, fit):
+            _raw_names(a, b)
+
+
 def _wn_fit(names, lang, tail=''):
     """A title of the SEASON WINNERS page, 'title:' within the page's width (rule 1): the long name, else the short
-    one, else the long one without the tail."""
+    one, else the long one without the tail (the pack's own names, not the VISUAL. COMPETIZ. fit: _WN_RAW)."""
+    names = _WN_RAW.get(id(names), names)
     v = names.get(lang) or names.get('*') or next(iter(names.values()))
     v = v if isinstance(v, list) else [v]
     tries = [x + tail for x in v] + [v[-1]]
@@ -961,6 +979,8 @@ def end_played(div):
 def from_pack(d):
     """[(world, contest id, {lang: title}, {lang: [lines]})] of one pack."""
     m = complist.load_pack(d)
+    _WN_RAW.clear()
+    _raw_names(json.load(open(os.path.join(d, 'pack.json'), encoding='utf-8')), m)
     clubs = complist.csv.DictReader(open(os.path.join(d, 'clubs.csv'), encoding='utf-8')) \
         if os.path.exists(os.path.join(d, 'clubs.csv')) else []
     clubs = [dict(r, file=r.get('file') or 'league', division=r.get('division') or '0') for r in clubs]

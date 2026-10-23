@@ -686,7 +686,7 @@ def patch(p, at, lang, sites):
     sym.update({'FP_OVINIT': (1, wn['ovinit']), 'FP_FILL': (1, wn['fill']),
                 'SEASONPLAYING': (2, sites['season']),
                 'SELPTR': (2, sel_ptr(p)),
-                'GP_WN_C': (1, gplay.LABELS['gp_wn_c'][1]), 'GP_WNSRC': gplay.LABELS['GP_WNSRC'],
+                'GP_WN_C': (1, gplay.LABELS['gp_wn_c'][1]), 'GP_WNSRC': gplay.LABELS['GP_WNSRC'], 'GP_WNFILE': gplay.LABELS['GP_WNFILE'],
                 'GP_SEAS': gplay.LABELS['GP_SEAS'], 'GP_MGR': gplay.LABELS['GP_MGR'],
                 'SLOT3': (2, __import__('dplay')._play_sites(p, __import__('sacups').regs(p.le.obj_bytes(1)))['slot4']
                           + 0x443),                      # (slot 3's buffer follows slot 4's, 443h each)
@@ -718,7 +718,9 @@ def patch(p, at, lang, sites):
 
 
 GP_CALL = """    mov [GP_WNSRC], ebx                 ; gplay.c gp_wn_c: the winner's team word, 0FFFFh being played, 0FFFEh
-    mov ax, [CAREERTEAM]                ; nothing
+    movzx eax, byte [DIY_ + 12Dh]       ; nothing; GP_WNFILE = the viewed league's file (its stage bank, 4.0.1)
+    mov [GP_WNFILE], eax
+    mov ax, [CAREERTEAM]
     mov [GP_MGR], ax
     mov al, [SEASONPLAYING]
     mov [GP_SEAS], al

@@ -87,8 +87,17 @@ static void ss_set(u32 file) {
         for (int q = 0; q < SS_N; q++) SSB->n[q] = 0;
     }
 }
+static const struct gp_ss *ss_view(u32 file) {  /* (4.0.1, the WINNERS page: league file's bank, read only - ss_set
+                                                    would reset a bank holding another league; 0: none this season) */
+    u32 b = GP_SSF[file & 255];
+    file &= 255;
+    if (!b || b >= SS_NB) return &GP_SSB[0];
+    const struct gp_ss *x = &GP_SSB[(GP_CAREERW & 255) == file ? 1 : 1 + b];
+    return x->key == file ? x : 0;
+}
 #else
 static void ss_set(u32 file) { (void)file; }
+static const struct gp_ss *ss_view(u32 file) { (void)file; return &GP_SSB[0]; }
 #endif
 const u32 GP_LAYOUT[] = { sizeof(struct gp_row), GT, __builtin_offsetof(struct gp_in, n),
                           __builtin_offsetof(struct gp_in, t), __builtin_offsetof(struct gp_in, spec),
@@ -1496,6 +1505,7 @@ static void stage_done(const struct gp_ko *k) {   /* a stage title's knockout de
    decided mid-season (GP_ST.dec[stage] of play-off pi), else as 'K': play-off pi's last tie in GP_ST.ko (the career
    club's, played; not a group contest). The page names a club only when it is one of the viewed league's rows. */
 u32 GP_WNSRC;
+u32 GP_WNFILE;                          /* (4.0.1: the viewed league's team file, DIY +12Dh: its stage bank) */
 u32 gp_wn_c(void) {
     int t = GP_WNSRC & 0xFF, st = GP_WNSRC >> 8 & 0xFF, pi = GP_WNSRC >> 16 & 0xFF;
     if (GP_WNSRC >> 24 && t == 'M') {   /* (4.0.1: the division the career club played in: team | division << 16) */
@@ -1511,8 +1521,10 @@ u32 gp_wn_c(void) {
             if (WN_ST.e[i].type == ty && WN_ST.e[i].idx == ix) return WN_ST.e[i].team;
         return 0xFFFE;
     }
-    if (t == 'S')
-        return st < SS_N && (SSB->fresh >> st & 1) && SSB->n[st] ? SSB->r[st][0].team : 0xFFFE;
+    if (t == 'S') {
+        const struct gp_ss *b = ss_view(GP_WNFILE);
+        return b && st < SS_N && (b->fresh >> st & 1) && b->n[st] ? b->r[st][0].team : 0xFFFE;
+    }
     if (GP_ST.magic != MAGIC) return 0xFFFE;
     if (t == 'T') {                     /* (tie st of play-off pi, the career club's: an intermediate title) */
         for (int j = 0; j < 2; j++) {

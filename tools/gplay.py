@@ -1711,7 +1711,8 @@ def _top9(p):
                                         rb'\xc7\x05' + pk(r['A0'] + 8), d1, re.S)]
     assert len(m) == 2, m                       # (the first: cseg_927A2; the second: another list of the season end)
     return p.target(1, m[0] + 6), p.target(1, m[0] + 16)
-GP_PAGES = 16            # obj1 pages for the C code + glue + specs (World 2026-27's 20 countries; gplay-play; 4.0 ARG: 7; the record lines: 12; longtable's code: 13; 4.0.1 MEX stage titles per division: 14; cupsf: 16, with package 6's title_seed / draw_pot)
+GP_PAGES = 16 + (1 if os.environ.get('GPLAY_FORCE') else 0)   # (4.0.1 rc: GPLAY_FORCE test builds' extra code overflowed 16 pages by 44 B; release builds stay at 16)
+#P_PAGES = 16            # obj1 pages for the C code + glue + specs (World 2026-27's 20 countries; gplay-play; 4.0 ARG: 7; the record lines: 12; longtable's code: 13; 4.0.1 MEX stage titles per division: 14; cupsf: 16, with package 6's title_seed / draw_pot)
 GP_ST_SIZE = 2048       # (sizeof struct gp_state: the engine block's item 'GP', patch.py)
 WN_SIZE = 4 + 4 * 40    # (sizeof struct wn_state: the engine block's item 'WN', the WINNERS page's last season)
 CF_SIZE = 4 + 256       # (sizeof struct cf_state: the engine block's item 'CF', cupsf's last-season places)
@@ -2106,7 +2107,8 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
     glue = (cend + 15) & ~15
     code, fix = nasmcave.assemble(asm, glue, symbols)
     lab = nasmcave.labels(asm, glue, symbols)
-    assert glue + len(code) <= limit, hex(glue + len(code))
+    assert glue + len(code) <= limit, ('gplay pages full', hex(glue + len(code)), hex(limit))
+    print(f'exe: gplay glue end {glue + len(code):#x} (limit {limit:#x})')
     p.put(1, glue, code)
     import engine
     for name in after:

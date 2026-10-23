@@ -1161,8 +1161,7 @@ SKINDS = []                             # per struct: 1 type 1 (a knockout), 2 t
 def _short(c, lang):
     """A cup's short name for the career calendar's first line: fitted before the (C) / (F) marker (CAL_PX)."""
     import complist
-    sh = complist.fit_short((c['names'].get(lang) or c['names']['en'])[1])
-    assert complist.px(sh) <= complist.CAL_PX and all(ch in complist.FONT for ch in sh), (c['key'], lang, sh)
+    sh = complist.cal_label(complist.fit_short((c['names'].get(lang) or c['names']['en'])[1]), f"conti {c['key']} {lang}")
     return sh.encode('latin1')
 
 

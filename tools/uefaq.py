@@ -689,6 +689,8 @@ QIDS = (0x7C, 0x7D, 0x7E)       # contest ids (mkseason.RESERVED_IDS): CL / EL /
 Q_NAME, Q_LIST = 0x28, 0x30     # offsets in a contest: its 2 name dwords, its 2-club list
 NAMES = {'it': 'PRELIM. ', 'en': 'QUAL. ', 'fr': 'QUALIF. ', 'de': 'QUALI. '}
 CUPS = (b'CHAMPIONS LEAGUE', b'EUROPA LEAGUE', b'CONFERENCE LEAGUE')
+SHORT = (b'CL', b'EL', b'ECL')  # the calendar's first line: NAMES + this (CAL_PX; 'PRELIM. EUROPA LEAGUE' ran into the
+                                # (C) / (F) marker - Davide's LASK 2027-28)
 STRUCTS = []
 SYMS = {}                       # the patch's symbols + DAILY_SITE (conti.py)
 STATE_END = [None]
@@ -715,8 +717,11 @@ def structs(p, area, lang, at):
         h[8], h[9], h[10], h[11], h[12], h[13] = 1, 0, 0, 1, 3, 0x35
         stages = bytes([1, 2, 0, 2, 1])
         h[0x0E:0x28] = stages + bytes(20 - len(stages)) + bytes([0x94]) + bytes(5)
+        import complist
         rel = area.add(NAMES[lang].encode() + cup + b'\0') - sacups.STR_BASE
-        p.put(1, at, bytes(h) + struct.pack('<II', rel, rel) + bytes(4))
+        sh = complist.cal_label(NAMES[lang] + SHORT[CUPS.index(cup)].decode(), f'uefaq {lang}').encode()
+        srel = area.add(sh + b'\0') - sacups.STR_BASE    # (the short name: the career calendar's first line)
+        p.put(1, at, bytes(h) + struct.pack('<II', rel, srel) + bytes(4))
         out.append(at)
         at += Q_LIST + 4
     STRUCTS[:] = out

@@ -225,6 +225,13 @@ ABBR = {'LEAGUE': 'LGE', 'DIVISION': 'DIV.', 'DIVISIO': 'DIV.', 'DIVISAO': 'DIV.
         'MACEDONIAN': 'MKD', 'AZERBAIJAN': 'AZE', 'KAZAKHSTAN': 'KAZ', 'CANADIAN': 'CAN.', 'CHAMP.': 'CH.'}
 
 
+def cal_label(s, what=''):
+    """A career calendar label line (a two-line cup label: the contest's short name, the round + leg): within CAL_PX
+    (the (C) / (F) marker) and of font characters only (CONVENTIONS 1) - asserted; returns s."""
+    assert px(s) <= CAL_PX and all(ch in FONT for ch in s), (what, s, px(s))
+    return s
+
+
 def fit_short(s, lang='*'):
     """A short name that fits the career calendar's label (CAL_PX): a hand-picked form, else the longest words
     abbreviated (their first letters + '.'), else cut."""

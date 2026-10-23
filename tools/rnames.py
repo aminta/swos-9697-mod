@@ -134,7 +134,8 @@ def cal_med(lang, med):
     import complist
     room = complist.CAL_PX - 3 - max(complist.px(x) for x in CAL_LEGS[lang])
     m = med if complist.px(med) <= room else CAL_MED[lang].get(med)
-    assert m and complist.px(m) <= room and all(ch in complist.FONT for ch in m), (lang, med, m, room)
+    assert m and complist.px(m) <= room, (lang, med, m, room)
+    complist.cal_label(m + ' ' + max(CAL_LEGS[lang], key=complist.px), f'rnames {lang}')   # (with its widest leg)
     return m
 
 

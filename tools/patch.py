@@ -178,15 +178,17 @@ def remap_italian_cup_teams(p, remap):
 def cave_pages():
     """obj1 pages of the career world code (CAREER_CAVE): 3 (several worlds' tables, then 3.3.3's team cache switch
     in every big-world build overflowed 2)."""
-    cp = 3
+    cp = 4                                             # (4.0.1: +1 page, cave relief: instcheck + the shirt numbers)
     mkseason.CAREER_CAVE_SIZE = 0x1000 * cp
     return cp
 
 
 LT_SPACE = []
+CAREER_END = [None]                # the career cave's end after its code (4.0.1: the shirt numbers follow it)
 
 
 def patch_exe(src, dst, remap, lang='it'):
+    CAREER_END[0] = None
     LT_SPACE.clear()
     grown = dst + '.tmp'
     data = open(src, 'rb').read()
@@ -389,6 +391,7 @@ def patch_exe(src, dst, remap, lang='it'):
         import instcheck
         end = instcheck.place(p, end, lang)       # 4.0.1: a world's missing files -> a message, not DOS
         assert end <= CAREER_CAVE + mkseason.CAREER_CAVE_SIZE, hex(end)
+        CAREER_END[0] = end
         print(f'exe: career cave end {end:#x} (limit {CAREER_CAVE + mkseason.CAREER_CAVE_SIZE:#x})')
     p.add_ptr(1, info['new_career_ptr'], 1, new_career)
     if ARG_LOAD_HOOK:
@@ -460,7 +463,12 @@ def patch_exe(src, dst, remap, lang='it'):
     print(f'exe: caves: world end {world:#x} (limit {NZ_CAVE:#x}), arg end {arg_end:#x} (limit {OBJ1_NEW_VSIZE:#x})')
     world = cafcups.intl_list(p, caf, world)
     num_bss = obj2_free + o2pages * p.le.page_size + (careerworld.BSS_SIZE if bigw else 0)
-    world = shirtnum.patch(p, world, num_bss)    # 3.2.5: shirt numbers 17..99 over the players (built from the digits)
+    if CAREER_END[0] is not None:                # 4.0.1: with worlds, in the career cave (the world cave is full)
+        CAREER_END[0] = shirtnum.patch(p, (CAREER_END[0] + 3) & ~3, num_bss)
+        assert CAREER_END[0] <= CAREER_CAVE + mkseason.CAREER_CAVE_SIZE, hex(CAREER_END[0])
+        print(f'exe: career cave end {CAREER_END[0]:#x} with the shirt numbers')
+    else:
+        world = shirtnum.patch(p, world, num_bss)    # 3.2.5: shirt numbers 17..99 over the players (built from the digits)
     weeks.patch(p)                               # 3.2.7: career weeks 128+ (mod cups outside Europe) in the job offers
     if gp_on and arg97.LABELS.get('GP_AFTER') and 'gp_after' in gplay.LABELS:   # 4.0: arg_load's call after a load
         p.put(1, arg97.LABELS['GP_AFTER'], struct.pack('<I', 0))

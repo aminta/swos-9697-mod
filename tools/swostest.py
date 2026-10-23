@@ -6295,6 +6295,8 @@ def world_rlines_arg3():
 def team_name(exe, word):
     """A team word's club name (file = its low byte, ordinal = its high byte) from the build's DATA\\TEAM.nnn."""
     p = os.path.join(exe, 'DATA', 'TEAM.%03d' % (word & 0xFF))
+    if not os.path.exists(p):                        # (a release build's world clubs: TMW5.nnn)
+        p = os.path.join(exe, 'DATA', 'TMW5.%03d' % (word & 0xFF))
     if word == 0xFFFF or not os.path.exists(p):
         return None
     d = open(p, 'rb').read()
@@ -6492,9 +6494,11 @@ def world_winners_state():
     if not os.path.isdir(src):
         return True, f'SKIP: private data {src} missing'
     order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
-    exe = os.environ.get('WINNERS_BUILD') or build('world_winners', env={'SEASON_PACKS': ','.join(
-        ['ddr-1988-89'] + [os.path.join(src, x) for x in order]), 'GPLAY_FORCE': '1'})
-    os.environ['WINNERS_BUILD'] = exe
+    exe = os.environ.get('WINNERS_BUILD') or os.environ.get('WINNERS_W27')   # (the suite's release dir first: the GPLAY_FORCE
+    if not exe:                                                              # test build's layout is not the release's)
+        exe = build('world_winners', env={'SEASON_PACKS': ','.join(
+            ['ddr-1988-89'] + [os.path.join(src, x) for x in order]), 'GPLAY_FORCE': '1'})
+        os.environ['WINNERS_BUILD'] = exe                                    # (shared with the other world_winners_* scenarios)
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import lepatch
     import statecup

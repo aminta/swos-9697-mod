@@ -2878,3 +2878,70 @@ void ri_cache(u8 *recs, int n, int file, const u8 *orig, const u8 *pool, int fi,
         else if (id >= RIS && id - RIS < np) ri_copy(r, pool + 2 + 684 * (id - RIS));
     }
 }
+
+/* 4.0.1 (cupsf.py): the World 2026-27 national and league cups follow promotions and relegations. From the world's
+   second season a cup's entrants come from the clubs' CURRENT divisions (base + someLeaguesTable delta), with the real
+   list's format: n_d entrants per division, b_d of them byes (the list's end, as lib97's BYE_TAB); the career club
+   first when its division takes part; the others in a deterministic order (seed: season, cup id), so the set-up (cf_a6)
+   and rule 11's check (gp_notin -> cf_member_c) agree without any saved state.
+   CF_TAB: db world, db first season, db cups; per cup: db id, db n, db groups, db dt, groups x (db division, db n_d,
+   db b_d); then db dts; per dt: dw global base, db file, dw m, m x (db ordinal, db base division). */
+const u8 *CF_TAB;
+static const u8 *cf_cup(int id, const u8 **dtp) {
+    const u8 *t = CF_TAB, *c;
+    if (!t || !GP_SLT) return 0;
+    int nc = t[2];
+    c = t + 3;
+    const u8 *hit = 0;
+    for (int k = 0; k < nc; k++) {
+        if (c[0] == id && !hit) hit = c;
+        c += 4 + 3 * c[2];
+    }
+    if (!hit) return 0;
+    int nd = c[0], di = hit[3];
+    const u8 *d = c + 1;
+    if (di >= nd) return 0;
+    for (int k = 0; k < di; k++) d += 5 + 2 * (d[3] | d[4] << 8);
+    *dtp = d;
+    return hit;
+}
+static int cf_build(int id, int season, u32 cteam, u16 *out) {
+    const u8 *dt, *c = cf_cup(id, &dt);
+    if (!c || season == CF_TAB[1]) return 0;     /* (the first season: the real list and bracket) */
+    int n = c[1], ng = c[2], gb = dt[0] | dt[1] << 8, lf = dt[2], nm = dt[3] | dt[4] << 8, nb = 0, at = 0;
+    u16 byes[64];
+    u8 cand[256];
+    rng = (u32)season * 104729u + (u32)id * 7919u + 17u;
+    for (int g = 0; g < ng; g++) {
+        int dv = c[4 + 3 * g], want = c[5 + 3 * g], wb = c[6 + 3 * g], m = 0;
+        for (int q = 0; q < nm; q++) {
+            int i = dt[5 + 2 * q], b = dt[6 + 2 * q];
+            if (b + GP_SLT[gb + i] == dv) cand[m++] = (u8)i;
+        }
+        if (m < want) return 0;                  /* (a division shorter than the format: keep the fixed list) */
+        for (int i = m - 1; i > 0; i--) {        /* (deterministic shuffle) */
+            int j = below(i + 1); u8 x = cand[i]; cand[i] = cand[j]; cand[j] = x;
+        }
+        if ((cteam & 0xFF) == lf)                /* the career club first */
+            for (int i = 0; i < m; i++)
+                if (cand[i] == (cteam >> 8 & 0xFF)) { u8 x = cand[i]; for (int j = i; j > 0; j--) cand[j] = cand[j - 1]; cand[0] = x; break; }
+        for (int k = 0; k < want; k++) {
+            u16 w = (u16)(lf | cand[k] << 8);
+            if (k >= want - wb) { if (nb < 64) byes[nb++] = w; }
+            else if (at < 64) out[at++] = w;
+        }
+    }
+    for (int k = 0; k < nb && at < 64; k++) out[at++] = byes[k];
+    return at == n ? n : 0;
+}
+static u16 CF_BUF[64];
+u32 cf_list_c(u32 id, u32 season, u32 cteam) {          /* -> CF_BUF filled (its address) or 0: keep the list */
+    return cf_build((int)id, (int)season, cteam, CF_BUF) ? (u32)CF_BUF : 0;
+}
+u32 cf_member_c(u32 id, u32 season, u32 cteam) {        /* 2: not ours (the definition decides), 1 in, 0 not in */
+    u16 l[64];
+    int n = cf_build((int)id, (int)season, cteam, l);
+    if (!n) return 2;
+    for (int k = 0; k < n; k++) if (l[k] == (u16)cteam) return 1;
+    return 0;
+}

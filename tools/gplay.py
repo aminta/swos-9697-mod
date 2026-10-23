@@ -1449,6 +1449,66 @@ gp_cup12:                               ; 4.0: InitNewSeason's `call cseg_8B2D3`
     popad
     jmp C8B2D3
 '''
+CF_ASM = '''
+cf_a6:                                  ; 4.0.1 (cupsf.py): a cup's fixed list (`mov [A6], eax`, A0 = its header): a
+    mov [A6R], eax                      ; World 2026-27 career's later season takes gplay.c cf_list_c's (the clubs'
+    pushad                              ; current divisions, the real format); the game's copy reads it through A6
+    cmp word [GAMETYPE], 4
+    jne .x
+    mov al, [SLT + WORLD_BYTE]
+    cmp al, [CF_DATA]
+    jne .x
+    mov dword [GP_SLT], SLT
+    mov dword [CF_TABP], CF_DATA
+    mov esi, [A0R]
+    movzx eax, byte [esi]
+    push es
+    push ds
+    pop es
+    cld
+    movzx ecx, word [CAREERTEAM]
+    push ecx
+    movzx ecx, byte [SEASONPLAYING]
+    push ecx
+    push eax
+    call CF_LIST
+    add esp, 12
+    pop es
+    test eax, eax
+    jz .x
+    mov [A6R], eax
+.x: popad
+    ret
+
+cf_mem:                                 ; gp_notin (rule 11): esi = a cup's definition -> eax = cf_member_c (2: not a
+    pushad                              ; followed cup / not this world: the definition's list decides), others kept
+    mov dword [CF_RES], 2
+    cmp word [GAMETYPE], 4
+    jne .x
+    mov al, [SLT + WORLD_BYTE]
+    cmp al, [CF_DATA]
+    jne .x
+    mov dword [GP_SLT], SLT
+    mov dword [CF_TABP], CF_DATA
+    movzx eax, byte [esi]
+    push es
+    push ds
+    pop es
+    cld
+    movzx ecx, word [CAREERTEAM]
+    push ecx
+    movzx ecx, byte [SEASONPLAYING]
+    push ecx
+    push eax
+    call CF_MEMBER
+    add esp, 12
+    pop es
+    mov [CF_RES], eax
+.x: popad
+    mov eax, [CF_RES]
+    ret
+CF_RES: dd 0
+'''
 GP_RNAME = '''
 gp_rname:                               ; rnames' rn_round (an FE contest, RN_CDP): ko[0] of this season in slot 4 ->
     cmp word [GP_ST + ST_KO], 4B47h     ; CF = 1, al = its round's name, else CF = 0 (the game's); every register but
@@ -1580,7 +1640,7 @@ def _top9(p):
                                         rb'\xc7\x05' + pk(r['A0'] + 8), d1, re.S)]
     assert len(m) == 2, m                       # (the first: cseg_927A2; the second: another list of the season end)
     return p.target(1, m[0] + 6), p.target(1, m[0] + 16)
-GP_PAGES = 13            # obj1 pages for the C code + glue + specs (World 2026-27's 20 countries; gplay-play; 4.0 ARG: 7; the record lines: 12; longtable's code: 13)
+GP_PAGES = 15            # obj1 pages for the C code + glue + specs (World 2026-27's 20 countries; gplay-play; 4.0 ARG: 7; the record lines: 12; longtable's code: 13; 4.0.1 cupsf's table: 15)
 GP_ST_SIZE = 2048       # (sizeof struct gp_state: the engine block's item 'GP', patch.py)
 WN_SIZE = 4 + 4 * 40    # (sizeof struct wn_state: the engine block's item 'WN', the WINNERS page's last season)
 GP_BSS = 0x6000          # the C .bss pages (obj2 after careerworld's BSS): GP_IN at GT 32 / GD 16, GP_SS, PR, RS, GP_ST, RI, PS
@@ -1897,6 +1957,15 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
                         'A4R': (2, a0_ + 16)})
         cd_src += CUP12 + cds1_src(p, cds[0], rl, rs)
         symbols.update({f'C_S1_{k}': (1, c) for k, c in enumerate(CDS1_CALLS)})
+    import cupsf                                              # 4.0.1: the World 2026-27 cups follow promotions
+    cfw = [w for w in cupsf.worlds() if cupsf.year(w) >= 2026] if cds else []
+    cft = cupsf.table(cfw[-1]) if cfw else None
+    if cft:
+        cd_src = nasmcave.sub(cd_src, '    jz .r\n    movzx ecx, byte [esi + 10]\n',
+                              '    jz .r\n    call cf_mem\n    cmp eax, 2\n    je .cfd\n    test eax, eax\n'
+                              '    sete bl\n    jmp .r\n.cfd:\n    movzx ecx, byte [esi + 10]\n')
+        cd_src += CF_ASM + 'CF_DATA: db ' + ', '.join(str(b) for b in cft) + '\n'
+        symbols.update({'CF_TABP': syms['CF_TAB'], 'CF_LIST': syms['cf_list_c'], 'CF_MEMBER': syms['cf_member_c']})
     cd_src += nasmcave.sub(GP_RNAME, 'CD_PART', CD_RNAME if cds else '')
     asm = (nasmcave.sub(ASM, 'jmp GP_REC_NEXT', 'jmp GP_REC_NEXT' if rec_dp else 'jmp gp_recmov') + tab_src + '\n'
            + names_lines(tables, area, lang) + '\n' + stubs + cd_src)
@@ -1932,6 +2001,15 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
         assert len(vc2) == 1, vc2                             # (its slot-2 test, after the slot-1 one)
         p.remove(1, vc2[0] + 1)
         p.put(1, vc2[0], b'\xe8' + struct.pack('<i', lab['gp_vc2'] - (vc2[0] + 5)))
+        if cft:                                               # 4.0.1: the fixed list's `mov [A6], eax` (5 B, a
+            a6 = struct.pack('<I', r['A0'] + 24)              # fixup) -> call cf_a6 (cupsf.py)
+            d1o = p.le.obj_bytes(1)
+            ms = [m.start() + 5 for m in re.finditer(rb'\x03\xc3\x83\xc0\x07\xa3' + re.escape(a6) + rb'\xc7\x05'
+                                                     + re.escape(struct.pack('<I', r['A0'] + 8)), d1o)]
+            assert len(ms) == 3 and all(p.get(1, m, 5) == b'\xa3' + a6 for m in ms), ms   # (contest types 0 / 1 / 2:
+            for m in ms:                                                                   # cf_a6 acts for our cup ids)
+                p.remove(1, m + 1)
+                p.put(1, m, b'\xe8' + struct.pack('<i', lab['cf_a6'] - (m + 5)))
         cal1 = CAL1_SITE[0]                                   # cseg_3563E's `mov eax, A6` (5 B, a fixup) -> call
         p.remove(1, cal1 + 1)
         p.put(1, cal1, b'\xe8' + struct.pack('<i', lab['gp_cal1'] - (cal1 + 5)))

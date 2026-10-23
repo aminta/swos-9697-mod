@@ -6191,11 +6191,113 @@ def world_cuplist_mestre():
     return not bad, f'{msg[:100]}; next season {head}: competitions {vc}' + (f'; not its own: {bad}' if bad else '')
 
 
+def cf_slt(exe):
+    """cupsf (4.0.1): someLeaguesTable's obj2 offset in a build, from cf_a6's `mov dword [GP_SLT], SLT` (the call at the
+    fixed list's `mov [A6], eax`)."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import lepatch
+    p = lepatch.LEPatch(os.path.join(exe, 'ITALIAN.EXE'))
+    d1 = p.le.obj_bytes(1)
+    at = d1.find(b'\x03\xc3\x83\xc0\x07\xe8') + 5
+    cf = at + 5 + struct.unpack_from('<i', d1, at + 1)[0]
+    k = d1.find(b'\xc7\x05', cf, cf + 0x40)
+    return p.target(1, k + 6)[1]
+
+
+def cf_follow(name, team, pack, cid, gpforce, career_div):
+    """World 2026-27 cups follow promotions (cupsf.py, gplay.c cf_list_c): a new career at team (its last path entry)
+    forced to place gpforce (GPLAY_FORCE) in its division, season 1 played, the next season saved and reloaded:
+    cup cid's list (the slot buffer: +2Dh id, +31h clubs, team words +24Dh) has the career club (now in division
+    career_div) and, by every club's CURRENT division (base + someLeaguesTable), exactly the real list's format:
+    n_d entrants per division, b_d of them byes at the list's end; VISUAL. COMPETIZ. lists the cup."""
+    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+    if not os.path.isdir(src):
+        return True, f'SKIP: private data {src} missing'
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import mkseason
+    import cupsf
+    pk = mkseason.Pack(os.path.join(src, pack))
+    fmt = next(f for f in cupsf.pack_cups(pk)[0] if f[0] == cid)
+    lfile = pk.files[pk.league['clubs']][0]
+    gbase = next(b for ff, b in pk.files.values() if ff == lfile)
+    base = {pk.where[k][1]: pk.division[k] for k in pk.league_clubs if pk.where[k][0] == lfile}
+    names = {pk.where[k][1]: pk.clubs[k]['name'] for k in pk.league_clubs if pk.where[k][0] == lfile}
+    club = team.split(',')[-1]
+    me = next(o for o, n in names.items() if n == club)
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    br = os.environ.get('CF_BRANCH')                   # (a base commit for the FAIL-before run)
+    exe = os.environ.get('CF_BUILD') or build('world_cf_' + name + ('_' + br if br else ''), env={
+        'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]), 'GPLAY_FORCE': str(gpforce)},
+        branch=br)
+    slt = cf_slt(exe) if not br else None
+    keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_ONE')
+    keep = {k: os.environ.get(k) for k in keys}
+    os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5', W8485_K='108+',
+                      W8485_NOSACK='1', W8485_ONE='1')
+    try:
+        ok, msg = world8485()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    car = os.path.join(RUNS, w84_tag() + '_1', 'SWOS', 'W84A.CAR')
+    if not ok or not os.path.exists(car):
+        return False, f'season: {msg}'
+    errs = []
+    with Session('world_cf_' + name, exe, {'W84A.CAR': car}, 'dump:2', 300) as s:
+        s.wait()
+        s.send(LOAD1 + ' dump:3')
+        d = s.result.read(s.result.base2, 0x100000)
+        sl = bytes(s.result.obj2(slt + gbase, 256)) if slt is not None else bytes(256)
+        walk(s, s.screen().find('VISUAL. COMPETIZ.', exact=True), 3)
+        vc = [e[1] for e in s.screen().entries if e[1] and not e[2]]
+    n = fmt[1]
+    hits = [i for i in range(len(d) - 0x443) if d[i + 0x2D] == cid and d[i + 0x31:i + 0x33] == struct.pack('<H', n)
+            and d[i + 0x24D] == lfile]
+    if not hits:
+        return False, f'no cup {cid:#x} slot with {n} clubs; competitions {vc}'
+    words = list(struct.unpack_from(f'<{n}H', d, hits[0] + 0x24D))
+    cur = lambda o: base[o] + struct.unpack('b', sl[o:o + 1])[0]
+    check(cur(me) in career_div, f'{club}: division {cur(me)} (want one of {career_div}: the forced place)', errs)
+    check(lfile | me << 8 in words, f'{club} not in the cup ({[names.get(w >> 8) for w in words]})', errs)
+    check(all(w & 0xFF == lfile and w >> 8 in base for w in words) and len(set(words)) == n, 'not distinct league clubs',
+          errs)
+    nb = sum(b for _, _, b in fmt[2])
+    got = {}
+    for j, w in enumerate(words):
+        e = got.setdefault(cur(w >> 8), [0, 0])
+        e[0] += 1
+        e[1] += j >= n - nb
+    want = {dv: [c, b] for dv, c, b in fmt[2]}
+    check(got == want, f'divisions (entrants, byes) {got} (want the real format {want})', errs)
+    moved = [names[w >> 8] for w in words if cur(w >> 8) != base[w >> 8]]
+    check(any(cup in x for x in vc for cup in ('COPPA', 'CUP', 'COPA')), f'competitions {vc}', errs)
+    return not errs, '; '.join(errs) or (f'season 2 cup {cid:#x}: {n} clubs by current division {got}, {club} in; '
+                                         f'clubs that changed division: {moved}; competitions {vc}')
+
+
+@scenario
+def world_cf_italy():
+    """4.0.1 (Davide's MESTRE): LIGORNA forced 1st of Serie D girone A (promoted into Serie C), season 2: the COPPA
+    ITALIA SERIE C (0x83) has it, by current divisions the real format (C/A 5, C/B 7, C/C 5; byes 5 / 7 / 3)"""
+    return cf_follow('italy', 'EUROPA,ITALIA,SERIE D GIRONE A,LIGORNA', 'ita', 0x83, 1, (2, 3, 4))
+
+
+@scenario
+def world_cf_england():
+    """4.0.1: a Championship club forced 1st (promoted into the Premier League), season 2: the EFL CUP (0x81) has it,
+    by current divisions the real format (Premier 13, Championship 2, League One 1)"""
+    return cf_follow('england', 'EUROPA,INGHILTERRA,EFL CHAMPIONSHIP,MILLWALL', 'eng', 0x81, 1, (0,))
+
+
 @scenario
 def world_cuplist_promoted():
     """Rule 11 across a D -> C promotion (Davide's MESTRE case, forced): LIGORNA 1st of Serie D girone A (GPLAY_FORCE=1,
-    promoted), the season played and the next one saved and reloaded: in Serie C, VISUAL. COMPETIZ. lists neither the
-    COPPA ITALIA (16 Serie A / B clubs) nor the COPPA ITALIA SERIE C unless LIGORNA is one of its clubs"""
+    promoted), the season played and the next one saved and reloaded: in Serie C, VISUAL. COMPETIZ. lists the COPPA
+    ITALIA SERIE C (4.0.1 cupsf: its clubs follow the divisions, the career club first) and not the COPPA ITALIA
+    (16 Serie A / B clubs)"""
     src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
     if not os.path.isdir(src):
         return True, f'SKIP: private data {src} missing'
@@ -6224,8 +6326,8 @@ def world_cuplist_promoted():
         walk(s, s.screen().find('VISUAL. COMPETIZ.', exact=True), 3)
         vc = [e[1] for e in s.screen().entries if e[1] and not e[2]]
     league = next((x for x in vc if x.startswith('ITALIA SERIE ')), '')
-    bad = [x for x in ('ITALIA COPPA ITALIA', 'ITALIA COPPA ITALIA SERIE C') if x in vc]
-    ok = league.startswith('ITALIA SERIE C') and not bad
+    bad = [x for x in ('ITALIA COPPA ITALIA',) if x in vc]
+    ok = league.startswith('ITALIA SERIE C') and not bad and 'ITALIA COPPA ITALIA SERIE C' in vc
     return ok, f'next season {head}: competitions {vc}' + (f'; not its own: {bad}' if bad else '')
 
 

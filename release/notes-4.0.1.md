@@ -26,8 +26,8 @@ load and play on.
     swapped) until the real ones are out.
   - Expansión's Campeón de Campeones over two legs (second leg at the better placed club, extra time and
     penalties) is our reading: no source gives its format for 2026-27 (the 2021-22 one went to penalties).
-  - One Expansión Apertura match (Atlético La Paz v Leones Negros, match day 8) is missing from the Transfermarkt
-    data: it is played at Leones Negros, so every club has 7 home and 7 away matches.
+  - One Expansión Apertura match (Atlético La Paz v Leones Negros, match day 8) is missing from the published
+    fixtures (Transfermarkt): it is played at Leones Negros, so every club has 7 home and 7 away matches.
 
 #### South America: Peru, Colombia and Uruguay, the tournaments of the year
 - **Peru** (Liga 1, 18 clubs): the Apertura and the Clausura, 17 match days each, everybody once, on the real 2026
@@ -62,7 +62,7 @@ load and play on.
     match day; clubs level on points in a group are separated by goal difference, where the Dimayor uses the better
     regular-season place.
   - Peru's play-offs: a tournament winner outside the accumulated top 8 gives its place to the next club of that
-    table (the bases do not say what happens); a tie level on aggregate goes to penalties, and the final's better
+    table (the tournament rules do not say what happens); a tie level on aggregate goes to penalties, and the final's better
     placed club is at home in the second leg.
   - Relegation by *promedio* (the average of points over the last seasons: 3 seasons in Colombia, 2 in Uruguay) is
     not in. Peru and Colombia have one division in the world, so nobody goes down there. Uruguay relegates the last 3
@@ -88,16 +88,16 @@ load and play on.
   from LaLiga 2). Within a division, the clubs relegated from the division above come first, then the clubs that
   stayed, then the promoted ones, each by last season's final place; your club always takes part when its division
   does. The first season keeps the real 2026-27 draw. Every national and league cup of the world follows this rule
-  (101 of 102); the one cup with a club outside its country's league file keeps its fixed list. The rule is on each
+  (101 of 102); the one cup that includes a club from outside its country's league keeps its fixed list. The rule is on each
   cup's FORMAT page.
 - The main Coppa Italia keeps its real shape (its 16 clubs are from Serie A and Serie B), so a Serie C club does not
   enter it; the Coppa Italia Serie D is unchanged.
 - Saves: the clubs' final places are saved with the career. A 4.0 save loads and plays on; its first new season
-  orders the clubs by the team file until a season has been completed.
+  orders the clubs as the game lists them until a season has been completed.
 
 #### Line-ups that make sense
 - The computer teams of the World 2026-27, of Europe 1984-85 and of the historic season packs (since 3.0) used to field
-  their starters in file order, so the left-back stood at centre-back and the left midfielder in central midfield.
+  their starters in the order of the team list, so the left-back stood at centre-back and the left midfielder in central midfield.
   Now each team's 11 starters follow their roles (goalkeeper, right-back, two centre-backs, left-back, right
   midfielder, two central midfielders, left midfielder, two forwards): 3,529 teams corrected. The original 1996-97
   teams and the hand-written line-ups of the historic tourneys are unchanged.
@@ -109,7 +109,7 @@ load and play on.
 - **Career calendar:** the two-line labels of the UEFA qualifying rounds are short enough for their line, e.g. "PRELIM.
   CL" over "TURNO 1 AND." (each language with its own round word).
 - **Match titles** are fitted to the title bar by their real width: no title is cut any more (the 4.0 limit on long
-  titles is gone) and none starts with a stray space. Every contest's longest title is checked when the game is built.
+  titles is gone) and none starts with a stray space. We checked the longest title of every competition.
 - **WINNERS page:** a competition's long name is shown in full when it fits (TROFEO DE CAMPEONES, not TROFEO CAMP.).
 
 #### Install
@@ -118,7 +118,7 @@ load and play on.
   Francais.bat" and "SWOS Mod - Deutsch.bat" (for the languages GOG's folder has a configuration for). Start the game with
   them. A re-run writes back a launcher that was deleted.
 - **A half-finished install** is now caught twice. The one-click page shows "Writing the mod: i / N files... Do not close
-  or reload the page", reads every written file back and ends with "Done: N / N files written and verified" or, in
+  or reload the page", checks every file it wrote and ends with "Done: N / N files written and verified" or, in
   red, "INSTALL INCOMPLETE: only k of N files were written correctly ... choose the game folder again" (this part was
   already in the 23 October re-issue of 4.0). And if
   some World 2026-27 files are still missing, choosing the world (CLASSIC CAREERS, the green CAREER 2026-27 button,
@@ -198,8 +198,8 @@ nella 4.0 resta com'era; le carriere salvate con la 4.0 si caricano e continuano
     campi invertiti finché non escono quelli veri.
   - Il Campeón de Campeones della Expansión con andata e ritorno (ritorno in casa della meglio piazzata, supplementari
     e rigori) è una nostra interpretazione: nessuna fonte ne dà la formula 2026-27 (quella del 2021-22 andò ai rigori).
-  - Una partita dell'Apertura della Expansión (Atlético La Paz-Leones Negros, giornata 8) manca nei dati di
-    Transfermarkt: si gioca in casa del Leones Negros, così ogni squadra ha 7 partite in casa e 7 fuori.
+  - Una partita dell'Apertura della Expansión (Atlético La Paz-Leones Negros, giornata 8) manca dal calendario
+    pubblicato (Transfermarkt): si gioca in casa del Leones Negros, così ogni squadra ha 7 partite in casa e 7 fuori.
 
 #### Sudamerica: Perù, Colombia e Uruguay, i tornei dell'anno
 - **Perù** (Liga 1, 18 squadre): Apertura e Clausura, 17 giornate di sola andata ciascuno, sul calendario vero 2026; la
@@ -235,7 +235,7 @@ nella 4.0 resta com'era; le carriere salvate con la 4.0 si caricano e continuano
     in casa l'ultima giornata; a pari punti nel girone decide la differenza reti, mentre la Dimayor usa il miglior
     piazzamento nella fase regolare.
   - Playoff del Perù: un vincitore di torneo fuori dai primi 8 dell'accumulata lascia il posto alla squadra
-    successiva di quella classifica (le basi non lo dicono); in parità dopo andata e ritorno si va ai rigori, e in
+    successiva di quella classifica (il regolamento non lo dice); in parità dopo andata e ritorno si va ai rigori, e in
     finale la meglio piazzata gioca il ritorno in casa.
   - La retrocessione per *promedio* (la media dei punti delle ultime stagioni: 3 in Colombia, 2 in Uruguay) non c'è.
     Perù e Colombia hanno una sola divisione nel mondo, quindi lì non retrocede nessuno. In Uruguay retrocedono le
@@ -262,16 +262,16 @@ nella 4.0 resta com'era; le carriere salvate con la 4.0 si caricano e continuano
   dalla categoria superiore, poi le squadre rimaste, poi le promosse, ognuna secondo il piazzamento finale della
   stagione prima; la tua squadra c'è sempre se la sua categoria partecipa. La prima stagione mantiene il sorteggio
   vero 2026-27. Tutte le coppe nazionali e di lega del mondo seguono questa regola (101 su 102); l'unica con una
-  squadra fuori dal file di campionato del suo paese mantiene la lista fissa. La regola è nella pagina FORMULA di
+  squadra che non è del campionato del suo paese mantiene la lista fissa. La regola è nella pagina FORMULA di
   ogni coppa.
 - La Coppa Italia mantiene la sua forma vera (le sue 16 squadre sono di Serie A e Serie B), quindi una squadra di
   Serie C non vi entra; la Coppa Italia Serie D non cambia.
 - Salvataggi: i piazzamenti finali delle squadre si salvano con la carriera. Un salvataggio della 4.0 si carica e
-  prosegue; la sua prima stagione nuova ordina le squadre secondo il file finché non si è completata una stagione.
+  prosegue; la sua prima stagione nuova ordina le squadre come le elenca il gioco finché non si è completata una stagione.
 
 #### Formazioni sensate
 - Le squadre del computer del Mondo 2026-27, di Europa 1984-85 e dei pacchetti di stagioni storiche (dalla 3.0)
-  schieravano i titolari nell'ordine del file, così il terzino sinistro giocava da difensore centrale e il
+  schieravano i titolari nell'ordine della lista della squadra, così il terzino sinistro giocava da difensore centrale e il
   centrocampista di sinistra a centrocampo. Ora gli 11 titolari di ogni squadra seguono i loro ruoli (portiere,
   terzino destro, due difensori centrali, terzino sinistro, ala destra, due centrocampisti centrali, ala sinistra, due
   attaccanti): 3.529 squadre corrette. Le squadre originali del 1996-97 e le formazioni scritte a mano dei tornei
@@ -284,8 +284,8 @@ nella 4.0 resta com'era; le carriere salvate con la 4.0 si caricano e continuano
 - **Calendario della carriera:** le etichette su due righe dei turni di qualificazione UEFA stanno nella loro riga, per
   esempio "PRELIM. CL" sopra "TURNO 1 AND." (ogni lingua con la sua parola per "turno").
 - **I titoli delle partite** si adattano alla barra del titolo secondo la larghezza vera: nessun titolo viene più
-  tagliato (il limite della 4.0 sui titoli lunghi non c'è più) e nessuno comincia con uno spazio vagante. Il titolo più
-  lungo di ogni competizione viene controllato quando si costruisce il gioco.
+  tagliato (il limite della 4.0 sui titoli lunghi non c'è più) e nessuno comincia con uno spazio vagante. Abbiamo
+  controllato il titolo più lungo di ogni competizione.
 - **Pagina VINCITORI:** il nome lungo di una competizione si vede per intero quando ci sta (TROFEO DE CAMPEONES, non
   TROFEO CAMP.).
 
@@ -295,7 +295,7 @@ nella 4.0 resta com'era; le carriere salvate con la 4.0 si caricano e continuano
   Francais.bat" e "SWOS Mod - Deutsch.bat" (per le lingue di cui la cartella di GOG ha la configurazione). Avvia il gioco con
   questi. Se ne cancelli uno, un nuovo passaggio lo riscrive.
 - **Un'installazione a metà** viene ora rilevata due volte. La pagina a un clic mostra "Scrivo la mod: i / N file... Non
-  chiudere né ricaricare la pagina", rilegge ogni file scritto e finisce con "Fatto: N / N file scritti e verificati"
+  chiudere né ricaricare la pagina", controlla ogni file che ha scritto e finisce con "Fatto: N / N file scritti e verificati"
   oppure, in rosso, "INSTALLAZIONE INCOMPLETA: solo k file su N sono stati scritti correttamente ... scegli di nuovo la
   cartella del gioco" (questa parte era già nella riedizione della 4.0 del 23 ottobre). E se mancano ancora dei file del Mondo 2026-27, scegliere il mondo (CARR.
   STORICHE, il pulsante verde CARRIERA 2026-27 o Europa 1984-85) non fa più uscire a DOS: il gioco dice

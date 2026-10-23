@@ -315,6 +315,52 @@ static int split_seed(int d, int s, int a) {
     return q[a - 1];
 }
 
+/* entrant type 7 (4.0.1, package 6): seed a of a national title play-off between the tournament winners and the
+   annual table (GP_SS: A = stage_place 4's 1st, C = the closing tournament's (rule 1: stage_place 7, Uruguay's
+   Clausura in table 3; rule 2: stage_place 5), T = stage_place 6, the annual / accumulated table).
+   Rule 1, Uruguay (AUF): SF A v C, the final v T's 1st; seeds 1 A, 2 C, 3 T1 - or A when A won both tournaments
+   (then both ties are of A with itself: champion at once, as the rules say).
+   Rule 2, Peru (Liga1 2026): the winners (each only if in T's top 8) and T's top 2 other than the winners; a winner in
+   T's top 2 waits in the final; seeds for SF [[1, 4], [2, 3]], F [W0, W1], every tie skip_if_same: A = C -> all A
+   (champion); both winners in the top 2 -> 1 = 4 = A, 2 = 3 = C (the final only); one, X -> 1 = 4 = X, 2 / 3 = the
+   other winner and the other top-2 club; else four clubs by T's places, best v lowest, 2nd v 3rd. */
+static int t_place(int d, int c) {             /* club c's place in T (stage_place 6), 0 = not found */
+    for (int p = 1; d < GP_IN.nd && p <= GP_IN.n[d]; p++) if (stage_club(d, 6, p) == c) return p;
+    return 0;
+}
+static int title_seed(int d, int rule, int a) {
+    if (d >= GP_IN.nd || GP_IN.n[d] < 4 || a < 1 || a > 4) return -1;
+    int A = stage_club(d, 4, 1), C = stage_club(d, rule == 1 ? 7 : 5, 1), t1 = stage_club(d, 6, 1);
+    if (A < 0 || C < 0 || t1 < 0) return -1;
+    if (A == C) return A;
+    if (rule == 1) return a == 1 ? A : a == 2 ? C : t1;
+    int pa = t_place(d, A), pc = t_place(d, C), q[4], nq = 0;
+    if (pa && pa <= 2 && pc && pc <= 2) return a == 1 || a == 4 ? A : C;
+    if (pa > 0 && pa <= 8) q[nq++] = A;        /* (a winner outside T's top 8 does not qualify: its place goes to */
+    if (pc > 0 && pc <= 8) q[nq++] = C;        /*  the next club of T - declared, the bases do not say) */
+    for (int p = 1; nq < 4 && p <= GP_IN.n[d]; p++) {
+        int c = stage_club(d, 6, p);
+        if (c >= 0 && c != A && c != C) q[nq++] = c;
+    }
+    if (nq < 4) return -1;
+    int x = pa && pa <= 2 ? A : pc && pc <= 2 ? C : -1;
+    if (x >= 0) {                               /* one winner in the top 2: it waits in the final */
+        int y = -1, z = -1;
+        for (int i = 0; i < 4; i++) {           /* y: the other qualified winner (or the next club of T), z: the */
+            if (q[i] == x) continue;            /*  best other club of T */
+            if ((q[i] == A || q[i] == C) && y < 0) y = q[i];
+        }
+        for (int i = 0; i < 4; i++) if (q[i] != x && q[i] != y && (z < 0 || t_place(d, q[i]) < t_place(d, z))) z = q[i];
+        if (y < 0) {                            /* (the other winner outside the top 8: the next two of T) */
+            for (int i = 0; i < 4; i++) if (q[i] != x && q[i] != z) { y = q[i]; break; }
+        }
+        return a == 1 || a == 4 ? x : a == 2 ? y : z;
+    }
+    for (int i = 1; i < 4; i++)                 /* four clubs by T's places */
+        for (int j = i; j > 0 && t_place(d, q[j]) < t_place(d, q[j - 1]); j--) { int t = q[j]; q[j] = q[j - 1]; q[j - 1] = t; }
+    return q[a == 1 ? 0 : a == 4 ? 3 : a == 2 ? 1 : 2];
+}
+
 /* a group match: goals by strength (draws ~ 1 in 4), home advantage unless neutral */
 static void gmatch(int h, int a, int neutral, int *gh, int *ga) {
     u32 sh = str2(h, !neutral), sa = str2(a, 0);
@@ -816,6 +862,9 @@ void gp_season(void) {
             } else if (ty == 6) {               /* 4.0 MLT: a seed of the title decider (split_seed) */
                 club[i] = split_seed(d, e[4 * i + 3], p);
                 if (club[i] < 0) ok = 0;
+            } else if (ty == 7) {               /* 4.0.1 URU / PER: a seed of the national title play-off */
+                club[i] = title_seed(d, e[4 * i + 3], p);
+                if (club[i] < 0) ok = 0;
             } else if (ty != 0 || d >= GP_IN.nd || p < 1 || p > GP_IN.n[d]) ok = 0;
             else if ((club[i] = place_club(d, p, kind)) < 0) ok = 0;
         }
@@ -1017,6 +1066,7 @@ static int ent_club(const u8 *e, int kind) {    /* an entrant -> its club (divis
     if (e[0] == 3) return stage_club(e[1], e[3], e[2]);
     if (e[0] == 5) return title_club(e[1], e[2]);
     if (e[0] == 6) return split_seed(e[1], e[3], e[2]);
+    if (e[0] == 7) return title_seed(e[1], e[3], e[2]);
     if (e[0]) return -1;
     return place_club(e[1], e[2], kind);
 }

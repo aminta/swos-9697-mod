@@ -4833,7 +4833,8 @@ def sa_exact_build(code, also=()):
     import json
     if os.environ.get('SA_BUILD'):
         return os.environ['SA_BUILD']
-    src = os.environ.get('SA_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-a6cf4e34')
+    src = os.environ.get('SA_DATA') or os.environ.get('W2627REL_DATA') or \
+        os.path.join(MAIN, 'internal', 'world2526', 'world5tm-401nats')   # (4.0.1's snapshot; 4.0's was a6cf4e34)
     sys.path.insert(0, os.path.join(MAIN, 'internal', 'sam6'))
     import sa_exact
     w = os.path.join(WORK, f"world_sa_{'_'.join((code, *also))}")
@@ -4849,7 +4850,7 @@ def sa_exact_build(code, also=()):
                                                                                       for x in order])})
 
 
-def world_sa_exact(code, team, n, days):
+def world_sa_exact(code, team, n, days, stages=2):
     """A season of a South American country's real 2026 format (sa_exact) at team: its n-club league frozen in both
     tournaments, days match days, two stage titles (Apertura / Clausura or Finalizacion) in the season end's GP_LOG."""
     exe = sa_exact_build(code)
@@ -4880,14 +4881,15 @@ def world_sa_exact(code, team, n, days):
     check(diys, f'no snapshot of the {n}-club league', errs)
     if diys:
         last = diys[-1]
-        check(last[split.ST + split.OFF['frozen']] == 2 and w(last, 0x1C1) == w(last, 0x1C3) == days,
+        check(last[split.ST + split.OFF['frozen']] == stages and w(last, 0x1C1) == w(last, 0x1C3) == days,
               f'end: frozen {last[split.ST + split.OFF["frozen"]]}, day {w(last, 0x1C1)} / {w(last, 0x1C3)} ({days})', errs)
     logs = [bytes.fromhex(ln.split()[2]) for ln in log if ln.startswith('HEX ') and len(ln.split()) == 3]
     logs = [b for b in logs if b[:4] == b'GPLG']
     check(logs, 'no season-end GP_LOG', errs)
     sres = [struct.unpack_from('<BBHHHH', logs[-1], 982 + 10 * i) for i in range(3)] if logs else []
-    check(len(sres) == 3 and all(x[0] == 8 and x[2] for x in sres[:2]), f'stage titles {sres}', errs)
-    return not errs, '; '.join(errs) or f'{msg}; {days} days, stage titles {sres[:2]}'
+    nt = min(stages, 3)                         # (Uruguay: Apertura 0, Clausura 1, Intermedio 2)
+    check(len(sres) == 3 and all(x[0] == 8 and x[2] for x in sres[:nt]), f'stage titles {sres}', errs)
+    return not errs, '; '.join(errs) or f'{msg}; {days} days, stage titles {sres[:nt]}'
 
 
 @scenario
@@ -5106,7 +5108,7 @@ def world_col_exact():
 def world_uru_exact():
     """URUGUAY 2026 real format (sa_exact.uru_exact, 4.0.1): Apertura 15 (real calendar) + Intermedio (snake series A
     / B, 7 days, table kept) + Clausura 15 at DANUBIO: the 16-club league frozen, 37 match days, the stage titles"""
-    return world_sa_exact('uru', 'SUDAMERICA,URUGUAY,CAMPEONATO URUGUAYO,DANUBIO', 16, 37)
+    return world_sa_exact('uru', 'SUDAMERICA,URUGUAY,CAMPEONATO URUGUAYO,DANUBIO', 16, 37, stages=3)
 
 
 def world_full_sa(code, team):
@@ -7543,6 +7545,44 @@ int main(void) {
 }
 """
     want = 'AAAA BAAB CAAC BCAB CADB'    # (aggregates: B 63 / A 60; C 61 / A 60; C 56 / A 31; C 61 A 55 D 54 B 48)
+    ok, got = gplay_host(test)
+    return ok and got == want, f'seeds {got} (expected {want})'
+
+
+@scenario
+def gplay_title_seed():
+    """gplay.c title_seed (4.0.1: the national title play-offs of Uruguay and Peru) compiled on the host (cc). Uruguay:
+    SF Apertura v Clausura, the final v the annual 1st; a club winning both is all the seeds (champion at once, also
+    when another club leads the annual table). Peru: one winner of both (AAAA); both winners in the accumulated top 2
+    (the final only); one of them (it waits in the final, the other winner v the other top-2 club); four clubs by
+    accumulated places (best v lowest, 2nd v 3rd); a winner outside the top 8 (the next club of the table)"""
+    test = r"""
+#include "%s"
+#include <stdio.h>
+static void tab(int k, const char *o) {
+    SSB->fresh |= 1 << k; SSB->n[k] = 12;
+    for (int i = 0; i < 12; i++) SSB->r[k][i].glob = 100 + o[i] - 'A';
+}
+static void run(int rule, const char *ap, const char *cl, const char *t, int n) {
+    GP_IN.nd = 1; GP_IN.n[0] = 12; SSB->fresh = 0;
+    for (int i = 0; i < 12; i++) { GP_IN.t[0][i].glob = 100 + i; GP_IN.t[0][i].team = i; }
+    tab(0, ap); tab(rule == 1 ? 3 : 1, cl); tab(2, t);
+    for (int a = 1; a <= n; a++) { int c = title_seed(0, rule, a); putchar(c < 0 ? '-' : 'A' + GP_IN.t[0][c].team); }
+    putchar(' ');
+}
+int main(void) {
+    run(1, "ABCDEFGHIJKL", "CABDEFGHIJKL", "BACDEFGHIJKL", 3);
+    run(1, "ABCDEFGHIJKL", "ABCDEFGHIJKL", "BACDEFGHIJKL", 3);
+    run(2, "ABCDEFGHIJKL", "ABCDEFGHIJKL", "BACDEFGHIJKL", 4);
+    run(2, "ABCDEFGHIJKL", "BACDEFGHIJKL", "ABCDEFGHIJKL", 4);
+    run(2, "ABCDEFGHIJKL", "EABCDFGHIJKL", "ABCDEFGHIJKL", 4);
+    run(2, "EABCDFGHIJKL", "FABCDEGHIJKL", "ABCDEFGHIJKL", 4);
+    run(2, "JABCDEFGHIKL", "EABCDFGHIJKL", "ABCDEFGHIJKL", 4);
+    run(2, "ABCDEFGHIJKL", "KABCDEFGHIJL", "ABCDEFGHIJKL", 4);
+    return 0;
+}
+"""
+    want = 'ACB AAA AAAA ABBA AEBA ABEF ABCE ACBA'
     ok, got = gplay_host(test)
     return ok and got == want, f'seeds {got} (expected {want})'
 

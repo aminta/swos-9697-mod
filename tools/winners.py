@@ -84,7 +84,7 @@ wn_lastdiv:                             ; 4.0.1 (Davide): the last season's page
     jc .x
     mov ebx, eax
     mov edx, BUF
-    mov ecx, 5000h                      ; (the index: below TXT2, fmtpage.build asserts it)
+    mov ecx, 5800h                      ; (the index: below TXT2, fmtpage.build asserts it)
     mov ah, 3Fh
     int 21h
     jc .c
@@ -124,9 +124,9 @@ wn_lastdiv:                             ; 4.0.1 (Davide): the last season's page
     int 21h
     jc .c
     movzx ecx, word [esi + NAME_ + 5]
-    cmp ecx, 0FFFh
+    cmp ecx, 7FFh                       ; (TXT2: 0x800 B at BUF + 5800h, fmtpage.WN_TXT2)
     jbe .l
-    mov ecx, 0FFFh
+    mov ecx, 7FFh
 .l: mov edx, TXT2
     mov ah, 3Fh
     int 21h
@@ -681,7 +681,8 @@ def patch(p, at, lang, sites):
     wn = fmtpage.WN
     assert wn, 'fmtpage: no VINCITORI entry (a build without career worlds)'
     sym = dict(wn['sym'], FMTMENU=(2, wn['menu']))     # (the page's own copy of fmtpage's menu)
-    sym['TXT2'] = (2, wn['sym']['BUF'][1] + 0x5000)      # (4.0.1 wn_lastdiv: the last season's division's text)
+    sym['TXT2'] = (2, wn['sym']['BUF'][1] + fmtpage.WN_TXT2)   # (4.0.1 wn_lastdiv: the last season's division's text;
+                                                                  # 4.0.1 South America: 0x5800, the index grew)
     ttl, tbp, inc = TEXTS[lang]
     sym.update({'FP_OVINIT': (1, wn['ovinit']), 'FP_FILL': (1, wn['fill']),
                 'SEASONPLAYING': (2, sites['season']),

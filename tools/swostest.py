@@ -2411,7 +2411,8 @@ def world8485():
 
             mid = os.environ.get('W8485_MIDSAVE', '').split(':') if season == 1 else ['']   # obj2 off:byte:dumps:
             midc = [0]                                 # a career save mid-season once the byte held that long
-            midt = (os.environ.get('W8485_MIDTEXT', '').split(':') + [''])[:2] + [None, 0] if season == 1 else ['']
+            midt = (os.environ.get('W8485_MIDTEXT', '').split(':') + [''])[:2] + [None, 0] if season == 1 or first \
+                else ['']                              # (W8485_FROM: its one season, the loaded one)
 
             def stop(scr):                             # the player's European cup: no same-country tie in rounds 1-2
                 if os.environ.get('W8485_FILLWATCH') and not getattr(stop, 'fill_bad', False):   # (debug: the first
@@ -6543,6 +6544,47 @@ def world_winners_mls():
     lg2.pop('VINCITORI 2026-27', None)
     check(last[:1] == ['VINCITORI 2026-27:'] and lg2 == got, f'season 2: last season {lg2} (the end: {got})', errs)
     return not errs, '; '.join(errs) or f'end: {got}; season 2 last season: {lg2}'
+
+
+@scenario
+def world_lib3_sud():
+    """4.0.1: a Copa Libertadores group 3rd plays the Copa Sudamericana play-off (conti.c ct_gend: the career club's
+    place in its group -> 'sud:po'; before: place 0, the club never found - the play-off simulated). BOCA JUNIORS on the
+    4.0 data, a test build with CONTI_FORCE=lib:groups (the club into the Libertadores groups) and CONTI_GPLACE=3 (its
+    row moved to 3rd at the groups' end, so the game's own qualifiers agree); season 1 played to its end and saved
+    (its cups are the world's own: conti's edition starts at that season end), then season 2 from the save: PASS = a
+    result screen showing SUDAMERICANA (the play-off, January), the club in it. (The rest of the Sudamericana - from
+    February - and a 1st / 2nd's Libertadores round of 16 are simulated at the season end: Argentina's season ends in
+    December, seasonFinished comes before conti can add the next round; declared, 4.0.2)"""
+    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+    if not os.path.isdir(src):
+        return True, f'SKIP: private data {src} missing'
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    env = {'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]),
+           'CONTI_FORCE': os.environ.get('LIB3_FORCE', 'lib:groups'), 'CONTI_GPLACE': os.environ.get('LIB3_PLACE', '3')}
+    exe = os.environ.get('LIB3_BUILD') or build('world_lib3_sud', env=env)
+    keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_ONE',
+            'W8485_MIDTEXT', 'W8485_FROM')
+    keep = {k: os.environ.get(k) for k in keys}
+    base = dict(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM='SUDAMERICA,ARGENTINA,?LIGA PROFESIONAL,'
+                'BOCA JUNIORS', W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1', W8485_ONE='1')
+    try:                                                # (season 1's cups are the world's own: conti's edition - CT_ED
+        car = os.environ.get('LIB3_FROM')               # - exists from the first season end on: season 2 from its save)
+        if not car:
+            os.environ.update(base)
+            ok, msg = world8485()
+            car = os.path.join(RUNS, w84_tag() + '_1', 'SWOS', 'W84A.CAR')
+            if not ok or not os.path.exists(car):
+                return False, f'season 1: {msg[:200]}'
+        os.environ.update(base, W8485_FROM=car, W8485_MIDTEXT=os.environ.get('LIB3_TEXT', 'SUDAMERICANA:1'))
+        ok, msg = world8485()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    return ok and 'saved mid-season' in msg, msg[:300]
 
 
 @scenario

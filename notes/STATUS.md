@@ -2159,3 +2159,16 @@ Left for 2.5: (a) NSL/NSSL finals series (type-1 design) or declare them postpon
   package 6's per-league GP_SS banks + trailer (a) + exact Peru / Colombia / Uruguay (sa401) with the reload card
   (D8CAA[0] = 0x532CC2 after a mid-season load); Mexico (mex401c); Paraguay 44 days parked; 4.0-stagedec 1543af9
   (defensive); CRC's stage-title runner-up = the champion; the IC test forcing (own confederation's slot).
+
+## Deferred realism (4.0.2+)
+- Odd Serie D groups, the career club resting on the last match day (Serie C session, 2026-10-23): its Poule / group
+  play-off stays simulated in 4.0.1 (lastrest reverted). The tried fix (gp_lastrest: cseg_8EC2B's careerFinished loop
+  also counting an unplayed slot-0 day) kept careerFinished = 0 before the rest day; PARTITA then runs
+  CareerPlayMatch, which plays days (cseg_8E841: load the competition, its day, save it back, cseg_8ECAE at the league
+  end) until a club match: with the Poule built by gp_lend that day it is found, with none (LIGORNA 10th,
+  world_gplay_cupd2 season 2) cseg_8EA82 runs off the calendar and the loop never ends; in a 1984-85 national-team
+  season (world8485_nat, WC 1990) it hung the same way. world_poule_rest only reached the Poule screen, never the
+  season end. 4.0.2: play the rest day from the check (cseg_8E841 + cseg_8EA82, then careerFinished by whether a club
+  match appeared), only for GP_TAB leagues; proofs: cupd2 to the season end (no Poule), world_poule_rest through the
+  Poule to the end, a resting club in the Poule to its end, world8485_nat, an even group, C20=2. Branch lastrest /
+  lastrest3 (7cb2334) and the scenario world_poule_rest kept for it.

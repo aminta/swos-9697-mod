@@ -8,6 +8,10 @@
   world ranks 44th (North Macedonia) got Liechtenstein's cup-winner-only row. That was fixed in 4.0 itself (22/10,
   before the release): Liechtenstein keeps its own row wherever it ranks, and the 44th association gets the regular
   row. It has not been seen since; the check stays in the test suite.
+- **Serie D groups with an odd number of clubs**: 4.0's notes said that a club resting on the last match day would
+  play its Poule Scudetto or group play-off in 4.0.1. It is still decided by simulation in 4.0.1: the fix we tried
+  kept the season going after the club's last match so that the rest day could be played, but a club with no
+  play-off to follow then had no match left and the season could not end. A correct fix is planned for 4.0.2.
 
 ### World 2026-27 cups
 - **National and league cups follow promotions and relegations** (World 2026-27). In 4.0 every cup kept the same
@@ -35,6 +39,11 @@
   che il mondo mette 44ª (Macedonia del Nord) riceveva la riga del Liechtenstein, con la sola vincitrice della coppa.
   È stato corretto già nella 4.0 (22/10, prima della pubblicazione): il Liechtenstein ha la sua riga dovunque si
   classifichi e la 44ª federazione la riga normale. Da allora non si è più visto; il controllo resta nei test.
+- **Gironi di Serie D con un numero dispari di squadre**: le note della 4.0 dicevano che una squadra che riposa
+  all'ultima giornata avrebbe giocato la Poule Scudetto o il play-off del girone nella 4.0.1. Nella 4.0.1 vengono
+  ancora simulati: la correzione provata teneva aperta la stagione dopo l'ultima partita della squadra, per giocare
+  il turno di riposo, ma una squadra senza play-off non aveva più partite e la stagione non poteva finire. La
+  correzione giusta è prevista nella 4.0.2.
 
 ### Coppe del Mondo 2026-27
 - **Le coppe nazionali e di lega seguono promozioni e retrocessioni** (Mondo 2026-27). Nella 4.0 ogni coppa aveva le

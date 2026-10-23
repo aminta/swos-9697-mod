@@ -159,10 +159,6 @@ What changed (tools/swostest.py):
   (no TRASFERIMENTI), the season end runs after the chairman's opinion (read the finalists after it), MEMDUMPBIN
   retried when the typed command is lost.
 
-- Odd Serie D groups (4.0.1 lastrest): which club rests on the last match day changes per season and per exe (the team
-  order: IT LIGORNA / CHISOLA play it, FR LIGORNA rests). A last-day-rest test therefore needs a recipe that is checked to
-  rest (squads' FR LIGORNA course: FAIL on 2a2b0b1, PASS on 024be6c); never assume a fixed club.
-
 ## Not done yet / next
 
 - Friendly matches (kit-colors session): reachable with `keys` + screenshots, scenario not written.

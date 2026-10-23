@@ -158,6 +158,8 @@ def pool_team_file(data, glob):
         r[60:76] = bytes(range(16))
         for j in range(16):
             r[76 + 38 * j:76 + 38 * (j + 1)] = ps[j % len(ps)]
+        import mkseason
+        r[60:76] = bytes(mkseason.auto_lineup([r[76 + 38 * j + 26] >> 5 for j in range(16)]))
         out += r
     return bytes(out)
 

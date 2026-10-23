@@ -2197,3 +2197,17 @@ Left for 2.5: (a) NSL/NSSL finals series (type-1 design) or declare them postpon
   players shown, SQUADRA CORRE. off); a natural INDEPENDIENTE career on REL40hf reaches season 2 (career_20seasons
   C20=2). KNOWN FAIL 4.0.1; 4.0.2: rebuild the scenario on the real guests (no sample) or find what the sample guests
   take from the career club.
+
+## Starter lineups from the positions (4.0.1 line, 2026-10-23)
+- mkseason `auto_lineup()` (also guests.py, worldpool.py): a team with NO explicit lineup in its pack (blank or identity
+  0..15) gets the 16-byte lineup built from the players' position bytes: the 11 starters take the game's 4-4-2 slot
+  roles GK RB D D LB RW M M LW A A (exact position first, then the same class), the bench keeps the rest in file order.
+  An explicit non-identity `lineup` column wins; the original 1996-97 team files are byte-identical.
+  Check: `tools/lineupcheck.py DATA_DIR`, scenario `lineup_roles` (release dir, no exe run).
+- Old saves (CONVENTIONS 19: no post-load repair): clubs already in a career's team cache keep the old lineup; new careers
+  and clubs loaded fresh get the fix.
+- Vecchi salvataggi (CONVENZIONI 19, nessuna riparazione dopo il caricamento): i club già nella cache squadre di una
+  carriera tengono la vecchia formazione; le carriere nuove e i club caricati da zero hanno la correzione.
+- Counts on the 4.0 rc data (wrong starters before -> after): 2026-27 clubs 2477 (0 exact -> 2281 exact, 196 best the squad
+  allows), 1984-85 clubs 277 (21 original, 256 exact), 1984-85 national 18x all exact; 78 tourney/national records
+  (TEAM.089-093, 146) keep their explicit hand-written lineups, which start worse than the squad allows (lineupcheck KNOWN_EXPLICIT).

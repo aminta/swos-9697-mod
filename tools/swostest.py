@@ -6694,6 +6694,23 @@ def foreign_exe():
     return None
 
 
+@scenario
+def lineup_roles():
+    """(4.0.1 lineup fix) every team record of a RELEASE DATA dir (all worlds, historic packs, national teams; CONVENTIONS 17a):
+    the 11 starters (lineup bytes) hold the game's 4-4-2 slot roles GK RB D D LB RW M M LW A A as well as the squad
+    allows (tools/lineupcheck.py). Records of the original game are left alone. No exe is run."""
+    exe = foreign_exe()
+    if not exe:
+        return True, 'SKIP: no release dir (FOREIGNBUY_BUILD / SWOSTEST_BUILD with DATA\\POOL05.DAT)'
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import lineupcheck
+    lines, tot, errs = lineupcheck.check_dir(os.path.join(exe, 'DATA'), os.path.join(ROOT, 'orig', 'DATA'))
+    msg = f'{tot[0]} records: original {tot[1]}, exact {tot[2]}, best-possible {tot[3]}'
+    if tot[0] < 3000:
+        return False, f'only {tot[0]} records read in {exe}/DATA: ' + msg
+    return (not errs), msg + ('' if not errs else '; ' + ' | '.join(errs)[:600])
+
+
 def foreign_buy(exe, mode, market='STRANIERO'):
     """A market purchase on a RELEASE exe (market STRANIERO = the foreign one, NAZIONALE; mode '2627': the World 2026-27 career at INTER; '9697': a real 1996-97
     JUVENTUS career): TRASFERIMENTI > ACQUISTA GIOCATORE > VISUAL. MERCATO STRANIERO > ELENCA, the first listed player,

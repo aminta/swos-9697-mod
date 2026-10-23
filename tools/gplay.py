@@ -1396,16 +1396,8 @@ gp_lastrest:                            ; 4.0.1: cseg_8EC2B's loop (careerFinish
     jne .r                              ; (cseg_8E841)
     cmp word [GAMETYPE], 4
     jne .r
-    push esi
-    mov esi, [D8CAA]
-    test esi, esi
-    jz .p
-    cmp word [esi], 0
-    jne .p
-    mov al, 1
-.p:
-    pop esi
-.r:
+    mov al, 1                           ; (slot 0 of a career is its league; the D8CAA test never held: that pointer is
+.r:                                     ; the contest definition, its first byte the id - the FR course lost its Poule)
     ret                                 ; (the game's `or al, al / jnz` follows)
 '''
 

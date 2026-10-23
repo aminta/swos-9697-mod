@@ -718,7 +718,7 @@ def patch(p, at, lang, sites):
 
 
 GP_CALL = """    mov [GP_WNSRC], ebx                 ; gplay.c gp_wn_c: the winner's team word, 0FFFFh being played, 0FFFEh
-    mov ax, [CAREERTEAM]                ; nothing, 0FFFDh no line (the career club out, the final undecided)
+    mov ax, [CAREERTEAM]                ; nothing
     mov [GP_MGR], ax
     mov al, [SEASONPLAYING]
     mov [GP_SEAS], al
@@ -729,8 +729,6 @@ GP_CALL = """    mov [GP_WNSRC], ebx                 ; gplay.c gp_wn_c: the winn
     popad
     cmp byte [WN_MODE], 0
     jne .lst
-    cmp ax, 0FFFDh
-    je .skip
     cmp ax, 0FFFCh
     je .t2
     cmp ax, 0FFFFh                      ; (its contest running: IN CORSO)

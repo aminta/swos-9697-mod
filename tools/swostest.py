@@ -5702,15 +5702,18 @@ def world_winners():
     if not os.path.isdir(src):
         return True, f'SKIP: private data {src} missing'
     order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
-    exe = os.environ.get('WINNERS_BUILD') or build('world_winners', env={'SEASON_PACKS': ','.join(
-        ['ddr-1988-89'] + [os.path.join(src, x) for x in order]), 'GPLAY_FORCE': '1'})
-    os.environ['WINNERS_BUILD'] = exe
+    kof = os.environ.get('WINNERS_KOFORCE')              # (1: the career club loses its knockout ties - squads' rc12
+    exe = os.environ.get('WINNERS_BUILD') or build('world_winners' + (f'_kof{kof}' if kof else ''),   # mid-Apertura case)
+        env=dict({'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]), 'GPLAY_FORCE': '1'},
+                 **({'GPLAY_KOFORCE': kof} if kof else {})))
+    if not kof:
+        os.environ['WINNERS_BUILD'] = exe
     st_at = gp_ptrs(exe)[1]
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import lepatch
     import lp36
     diy_at = lp36._sites(lepatch.LEPatch(os.path.join(MAIN, 'orig', 'ITALIAN.EXE')))['DIY']   # (the viewed contest)
-    want = ['LIGA PROFESIONAL', 'TORNEO APERTURA', 'TORNEO CLAUSURA', 'TROFEO DE CAMPEONES']
+    want = ['LIGA PROFESIONAL', 'TORNEO APERTURA', 'TORNEO CLAUSURA', 'TROFEO CAMP.']   # (the data's short name: fit)
     errs, info = [], []
     team = 'SUDAMERICA,ARGENTINA,LIGA PROFESIONAL,ROSARIO CENTRAL'
     with Session('world_winners_start', exe, {}, 'dump:2', 600) as s:
@@ -5800,11 +5803,11 @@ def world_winners():
 
     mg, ms = page('world_winners_mid', mid)
     check(mg.get('LIGA PROFESIONAL') == 'IN CORSO' and mg.get('TORNEO APERTURA') not in ('DA GIOCARE', None) and
-          mg.get('TORNEO CLAUSURA') == 'DA GIOCARE' and mg.get('TROFEO DE CAMPEONES') == 'DA GIOCARE',
+          mg.get('TORNEO CLAUSURA') == 'DA GIOCARE' and mg.get('TROFEO CAMP.') == 'DA GIOCARE',
           f'mid-season: {mg} (the Apertura knockout running)', errs)
     mg2, _ = page('world_winners_mid2', mid2)
     check(mg2.get('LIGA PROFESIONAL') == 'IN CORSO' and mg2.get('TORNEO CLAUSURA') == 'IN CORSO' and
-          mg2.get('TROFEO DE CAMPEONES') == 'DA GIOCARE', f'mid-season 2: {mg2} (the Clausura under way)', errs)
+          mg2.get('TROFEO CAMP.') == 'DA GIOCARE', f'mid-season 2: {mg2} (the Clausura under way)', errs)
     eg, es = page('world_winners_end', car)
     with Session('world_winners_next', exe, {'WWIN.CAR': car}, 'dump:2', 600) as s:   # 4.0.1 'WN': CONTINUA ->
         s.wait()                                        # the next season, saved, reloaded: its page's second page =
@@ -6033,9 +6036,9 @@ def world_winners_mls():
     if kof == '1':                                      # (knocked out: the final and the conference finals decided)
         check(all(got.get(k) not in (None, 'IN CORSO', 'DA GIOCARE') for k in want) and 'INTER MIAMI' not in
               [got.get('PLAYOFF - MLS CUP')], f'knocked out (GPLAY_KOFORCE=1): {got}', errs)
-    with Session('world_winners_mls_out', exe, {'WMLS.CAR': car}, 'dump:2', 300) as s:   # (interim rule: the career
-        s.wait()                                        # club knocked out, the final and the West final undecided -
-        s.send(LOAD1 + ' dump:3')                       # forced by pokes: those two lines go, the others stay)
+    with Session('world_winners_mls_out', exe, {'WMLS.CAR': car}, 'dump:2', 300) as s:   # (the career club knocked
+        s.wait()                                        # out, the final and the West final undecided - forced by
+        s.send(LOAD1 + ' dump:3')                       # pokes: those two IN CORSO, no line dropped)
         st = s.result.obj2(st_at, 2100)
         j = next((j for j in range(2) if st[648 + 674 * j:650 + 674 * j] == b'GK' and st[653 + 674 * j] == 0), None)
         ko = st[648 + 674 * j:648 + 674 * (j + 1)] if j is not None else b''
@@ -6049,9 +6052,11 @@ def world_winners_mls():
             s.send('dump:1')
         e, title3, lines3 = winners_page(s)
     out = winner_blocks(lines3)
-    check(me is not None and list(out) == ["SUPPORTERS' SHIELD", 'CAMPIONE EASTERN CONFERENCE'] and
+    check(me is not None and list(out) == list(got) and out.get('PLAYOFF - MLS CUP') == 'IN CORSO' and
+          out.get('CAMPIONE WESTERN CONFERENCE') == 'IN CORSO' and
           out.get('CAMPIONE EASTERN CONFERENCE') == got.get('CAMPIONE EASTERN CONFERENCE'),
-          f'knocked out, final undecided: page {out} (no MLS CUP / West line; career index {me})', errs)
+          f'knocked out, final undecided: page {out} (MLS CUP / West IN CORSO - 4.0 a41b1e4 decides them; career '
+          f'index {me})', errs)
     with Session('world_winners_mls_next', exe, {'WMLS.CAR': car}, 'dump:2', 600) as s:
         s.wait()
         s.send(LOAD1 + ' dump:3')

@@ -8170,6 +8170,45 @@ def world_winners_bank():
 
 
 @scenario
+def world_titlefit():
+    """4.0.1 match titles in px (rnames rn_tfit / rn_tend: the 304-px bar, PXMAX 302, was 40 characters): a 1984-85
+    career at LIVERPOOL (release recipe, SWOSTEST_BUILD) - the Champions Cup's first match screen keeps the long round
+    name ('<cup> <round> <leg>', no fallback), and with the contest's name poked to 34 characters (rule 15) the title
+    recomposed at re-entry is the whole '<34> <round> <leg>' (it fits in px), not a fallback or a cut"""
+    import split
+    import lepatch
+    diy = split.sites(lepatch.LEPatch(os.path.join(MAIN, 'orig', UI_ORIG)))['DIY']   # (the exe language's obj2)
+    errs, info = [], []
+    with Session('world_titlefit_' + UI, builds()['it'], {}, 'dump:2', 600) as s:
+        s.wait()
+        for t in ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'EUROPA 1984-85', 'INGHILTERRA', 'FIRST DIVISION',
+                  'LIVERPOOL']:
+            if press(s, s.screen(), t, 3) is None:
+                return False, f'{t} not reached'
+        s.send('fire dump:3')
+        cur = lambda: s.result.obj2(diy + 4, 35).split(b'\0')[0].decode('latin1')   # (the contest on screen)
+        ok, msg = advance(s, lambda scr: '- PARTITA -' in scr.texts() and scr.entries[0][1].startswith(cur() + ' ')
+                          and len(scr.entries[0][1].split()) >= len(cur().split()) + 3, 300)
+        if not ok:
+            return False, f'no cup match screen: {msg}'
+        name = cur()
+        t0 = s.screen().entries[0][1]
+        s.shot('cup')
+        rest = t0[len(name):].split()
+        check(len(rest) >= 3, f'cup title {t0!r}: a fallback (medium round) or a cut', errs)
+        info.append(f'cup: {t0!r} ({len(t0)})')
+        s.poke(s.result.base2 + diy + 4, list(b'W' * 34 + b'\0'))
+        walk(s, s.screen().find('ESCI', exact=True), 3)
+        walk(s, s.screen().find('PARTITA', exact=True), 3)
+        t1 = s.screen().entries[0][1]
+        s.shot('poked')
+        check(t1 == 'W' * 34 + ' ' + ' '.join(rest) or t1.startswith('W' * 34 + ' '),
+              f'poked title {t1!r}: not the whole one', errs)
+        info.append(f'poked: {t1!r} ({len(t1)})')
+    return not errs, '; '.join(errs + info)
+
+
+@scenario
 def world_cup_prefix():
     """The continental cups' names without the empty country's prefix (careerworld w_pfx: cseg_95C18): a World
     2026-27 career at INTER (world5tm-poule) and a 1984-85 one at LIVERPOOL - VISUAL. COMPETIZ. lists 'UEFA CHAMPIONS

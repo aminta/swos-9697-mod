@@ -160,6 +160,16 @@ def unique_out(name, key):
     return out, done
 
 
+def mkseason_now():
+    """tools/mkseason for the SEASON_PACKS set now: it reads SEASON_PACKS once, at its import, and caches packs(), so a
+    scenario run before in the same process (a serial 'run a b c') would leave its own world - world_dplay_c after
+    world_gplay_cupd read the club words in cd_strengths' world (global None)"""
+    import importlib
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import mkseason
+    return importlib.reload(mkseason)
+
+
 def build(name, env=None, branch=None):
     """Build the IT exe + team files into internal/swostest/builds/<name>-<key> (build_key: from this checkout or a
     git branch, with the build-affecting environment) - its own dir per build, so sessions never overwrite each
@@ -3076,7 +3086,7 @@ def names_fit():
     the font's characters (Davide: no stray characters)"""
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import complist
-    import mkseason
+    mkseason = mkseason_now()
     bad, n = [], 0
     for pk in mkseason.packs():
         n += 1
@@ -3090,7 +3100,7 @@ def careers_list():
     shifted mkseason's pack / info pairing: 'ALBANIA', the 1984-85 world's first country, showed as an entry of its
     own); expected = the build's worlds' names (world_cups.name, else the start years)"""
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
-    import mkseason
+    mkseason = mkseason_now()
     want = []
     for n, pks in sorted(mkseason.worlds().items()):
         root = [pk for pk in pks if 'world_cups' in pk.meta][0].meta['world_cups']
@@ -4118,7 +4128,7 @@ def world_groups():
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     old = os.environ.get('SEASON_PACKS')
     os.environ['SEASON_PACKS'] = env['SEASON_PACKS']
-    import mkseason
+    mkseason = mkseason_now()
     pk = [p for p in mkseason.packs() if p.parallel()][0]
     if old is None:
         os.environ.pop('SEASON_PACKS')
@@ -4194,7 +4204,7 @@ def world_playoffs():
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     old = os.environ.get('SEASON_PACKS')
     os.environ['SEASON_PACKS'] = env['SEASON_PACKS']
-    import mkseason
+    mkseason = mkseason_now()
     pk = [p for p in mkseason.packs() if p.parallel()][0]
     if old is None:
         os.environ.pop('SEASON_PACKS')
@@ -4298,7 +4308,7 @@ def world_dplay_b(force='5', team='EUROPA,ITALIA,SERIE B,MODENA'):
         sys.path.insert(0, os.path.join(ROOT, 'tools'))      # the two groups simulated at the league end: their
         old = os.environ.get('SEASON_PACKS')                   # winners then (the state's tables) = the clubs the
         os.environ['SEASON_PACKS'] = env['SEASON_PACKS']       # season end promoted from them
-        import mkseason
+        mkseason = mkseason_now()
         pk = [p for p in mkseason.packs() if p.parallel()][0]
         if old is None:
             os.environ.pop('SEASON_PACKS')
@@ -5284,7 +5294,7 @@ def world_gplay():
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     old = os.environ.get('SEASON_PACKS')
     os.environ['SEASON_PACKS'] = env['SEASON_PACKS']
-    import mkseason
+    mkseason = mkseason_now()
     pk = next(p for p in mkseason.packs() if p.meta.get('id', '').endswith('-sco'))
     if old is None:
         os.environ.pop('SEASON_PACKS')
@@ -6040,7 +6050,7 @@ def world_conti_guest():
     old = os.environ.get('SEASON_PACKS')
     os.environ['SEASON_PACKS'] = packs                   # (before mkseason's import: ENABLED is read there)
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
-    import mkseason
+    mkseason = mkseason_now()
     sample = os.path.join(WORK, 'guests_sample_squads')
     names = guest_sample(sample)
     ind = next(f | i << 8 for pk in mkseason.packs() if pk.meta.get('id') == 'world-2026-27-arg'
@@ -7832,7 +7842,7 @@ def club_divisions(car, src, country, words):
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     old = os.environ.get('SEASON_PACKS')
     os.environ['SEASON_PACKS'] = ','.join([os.path.join(src, x) for x in order])
-    import mkseason
+    mkseason = mkseason_now()
     pk = next(p for p in mkseason.packs() if p.meta.get('id', '').endswith('-' + country))
     if old is None:
         os.environ.pop('SEASON_PACKS')
@@ -7857,7 +7867,7 @@ def reserve_left(car, src, country='ita'):
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     old = os.environ.get('SEASON_PACKS')
     os.environ['SEASON_PACKS'] = ','.join([os.path.join(src, x) for x in order])
-    import mkseason
+    mkseason = mkseason_now()
     pk = next(p for p in mkseason.packs() if p.meta.get('id', '').endswith('-' + country))
     if old is None:
         os.environ.pop('SEASON_PACKS')
@@ -8106,7 +8116,7 @@ def cd_strengths(src):
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     old = os.environ.get('SEASON_PACKS')
     os.environ['SEASON_PACKS'] = ','.join(os.path.join(src, x) for x in order)
-    import mkseason
+    mkseason = mkseason_now()
     import cupd
     try:
         pk = next(p for p in mkseason.packs() if p.meta.get('id', '').endswith('-ita'))
@@ -8729,7 +8739,7 @@ def full_season(country, team):
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     old = os.environ.get('SEASON_PACKS')
     os.environ['SEASON_PACKS'] = ','.join([os.path.join(data, x) for x in order])
-    import mkseason
+    mkseason = mkseason_now()
     pk = next(p for p in mkseason.packs() if p.meta.get('id', '').endswith('-' + country))
     if old is None:
         os.environ.pop('SEASON_PACKS')

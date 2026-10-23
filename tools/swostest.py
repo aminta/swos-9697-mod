@@ -6014,6 +6014,10 @@ def guest_sample(out, src=64, n=2, conf='caf', assoc='PAR'):
                       'kit2': ' '.join(map(str, r[31:36])), 'lineup': ' '.join(map(str, r[60:76])), 'access': 0,
                       'source': f'orig TEAM.{src:03d} (test)', 'players': players})
     os.makedirs(out, exist_ok=True)
+    real = os.path.join(MAIN, 'internal', 'conti')          # (the other confederations' guests as the data has them:
+    for fn in os.listdir(real) if os.path.isdir(real) else []:   # GUESTS_DATA replaces the whole folder - without
+        if fn.endswith('.guests.json') and fn != f'{conf}.guests.json':   # AFC's, the ACGL's access gave a negative
+            shutil.copy(os.path.join(real, fn), os.path.join(out, fn))    # preliminary round: no build)
     json.dump({'conf': conf, 'rotation': 'test', 'season1': {}, 'clubs': clubs}, open(os.path.join(out, f'{conf}.guests.json'), 'w'))
     return [c['name'] for c in clubs]
 

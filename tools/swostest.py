@@ -1981,9 +1981,29 @@ def w84_record():
     the season number: '1998/99' in the career's third season). W84B_MREC.CAR (world8485's W84B: Darlington, season
     1986/87) loaded: the record's season line is 1986/87 (careerworld w_mrec)"""
     car = os.path.join(WORK, 'saves', 'W84B_MREC.CAR')
-    if not os.path.exists(car):
-        return True, 'SKIP: no saves/W84B_MREC.CAR (a world8485 run\'s W84B.CAR)'
     exe = (os.environ.get('W8485_BUILD') or builds()['it'])   # (builds/w8485: a stale shared dir)
+    stamp = car + '.exe'
+    if not os.path.exists(car) or not os.path.exists(stamp) or open(stamp).read() != md5(os.path.join(exe, 'ITALIAN.EXE')):
+        keys = ('W8485_BUILD', 'W8485_TEAM', 'W8485_FROM', 'W8485_ONE', 'W8485_WORLD')     # (made again by this exe: a
+        keep = {k: os.environ.get(k) for k in keys}                                       # Darlington career, two seasons)
+        os.environ.update(W8485_BUILD=exe, W8485_TEAM='INGHILTERRA,FOURTH DIVISION,DARLINGTON')
+        for k in ('W8485_FROM', 'W8485_ONE', 'W8485_WORLD'):
+            os.environ.pop(k, None)
+        try:
+            ok, msg = world8485()
+        finally:
+            for k, v in keep.items():
+                if v is None:
+                    os.environ.pop(k, None)
+                else:
+                    os.environ[k] = v
+        made = os.path.join(RUNS, w84_tag() + '_2', 'SWOS', 'W84B.CAR')
+        if not os.path.exists(made):
+            if not os.path.exists(car):              # (else the kept one is used, as before)
+                return True, 'SKIP: no saves/W84B_MREC.CAR and a Darlington career could not be made: ' + str(msg)[:120]
+        else:
+            shutil.copy(made, car)
+            open(stamp, 'w').write(md5(os.path.join(exe, 'ITALIAN.EXE')))
     with Session('w84_record', exe, {'W84B.CAR': car}, 'dump:2', 300) as s:
         s.wait()
         s.send(LOAD1 + ' dump:3')
@@ -3486,6 +3506,7 @@ def xtra_squad():
             return False, f'XTRA1.CAR not written ({s.result}); ' + '; '.join(info)
         keep = os.path.join(WORK, 'saves', 'XTRA1.CAR')
         shutil.copy(car, keep)
+        open(keep + '.exe', 'w').write(md5(os.path.join(b, 'ITALIAN.EXE')))      # (the exe that made it: stale otherwise)
     with Session('xtra_squad_load', b, {'XTRA1.CAR': keep}, 'dump:2', 120) as s:
         s.wait()
         s.send('down down down down down fire dump:2')      # CARICA VECCHIA COMPETIZIONE -> the only save
@@ -3522,7 +3543,8 @@ def xtra_season():
     b = xtra_build()
     _, cnp, ct, cmp, sel = xtra.sites(lepatch.LEPatch(os.path.join(b, 'ITALIAN.EXE')))
     keep = os.path.join(WORK, 'saves', 'XTRA1.CAR')
-    if not os.path.exists(keep):
+    if not os.path.exists(keep) or not os.path.exists(keep + '.exe') or \
+            open(keep + '.exe').read() != md5(os.path.join(b, 'ITALIAN.EXE')):      # (made by another exe: made again)
         ok, msg = xtra_squad()
         if not ok:
             return False, 'xtra_squad: ' + msg

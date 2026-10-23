@@ -124,46 +124,51 @@ load and play on.
   some World 2026-27 files are still missing, choosing the world (CLASSIC CAREERS, the green CAREER 2026-27 button,
   or Europe 1984-85) no longer quits to DOS: the game says "INCOMPLETE INSTALL: RUN THE PATCHER AGAIN" (in each
   language) and goes back to the menu.
+- **Joypad**: the controls (keyboard, joypad, two joypads) and the joypad calibration are set with SETUP.EXE, a
+  Windows program in the game folder; the game comes set to keyboard only. The steps are in the README and on the
+  install page.
 
 ### Known issues of 4.0, revisited
-- **European places**: 4.0's notes said that in some seasons one of the 108 European places could go to a club of
-  another association. The one wrong-association place came from the access list's rank-44 row: the association the
-  world ranks 44th (North Macedonia) got Liechtenstein's cup-winner-only row. That was fixed in 4.0 itself (22/10,
-  before the release): Liechtenstein keeps its own row wherever it ranks, and the 44th association gets the regular
-  row. It has not been seen since; the check stays in the test suite.
-- **Serie D groups with an odd number of clubs**: 4.0's notes said that a club resting on the last match day would
-  play its Poule Scudetto or group play-off in 4.0.1. It is still decided by simulation in 4.0.1: the fix we tried
-  kept the season going after the club's last match so that the rest day could be played, but a club with no
-  play-off to follow then had no match left and the season could not end. A correct fix is planned for 4.0.2.
-- **Copa Libertadores group thirds**: 4.0 simulated their move to the Copa Sudamericana play-off. Now your club,
-  third in its Libertadores group, plays the play-off (both legs, January). This works from your career's second
-  season: the first season's continental cups are the world's own. After the play-off the rest of the Sudamericana
-  is simulated at the season end, because its rounds (from February) come after the domestic season ends (Argentina's
-  ends in December); the same holds for a group winner or runner-up and the Libertadores round of 16. Planned for
+- **European places**: the 4.0 notes warned that in some seasons a European place could go to a club of the wrong
+  country. This had already been fixed in 4.0 before its release and has not happened since: every country gets its
+  right European places.
+- **Serie D groups with an odd number of clubs**: in such a group one club rests on each match day. If yours rests on
+  the last one, it does not play the Poule Scudetto or its group play-off: they are decided by simulation. The 4.0
+  notes announced a fix for 4.0.1; the fix we tried could make the season impossible to finish, so it is planned for
   4.0.2.
+- **Copa Libertadores group thirds**: in 4.0 their move to the Copa Sudamericana play-off was simulated. Now your club,
+  third in its Libertadores group, plays the play-off (both legs, January). This works from your career's second
+  season, because the first season's continental cups are the world's own. The rest of the Sudamericana, and the
+  Libertadores round of 16 for a group winner or runner-up (both from February), are still simulated at the season
+  end, because they come after the domestic season has ended (Argentina's ends in December). Planned for 4.0.2.
 - **Serie D**: a career saved after its Coppa Italia Serie D tie was drawn no longer starts the play-offs after a few
   match days when loaded (the tie is played; 4.0 saves affected are repaired on load). Gianmarco.
 - Careers saved during a season in which a play-off or title decider was settled without your club (for example
   Argentina's Apertura / Clausura knockouts when your club missed them, or Malta's decider when one club won both
   rounds) no longer start the next season with an empty league after loading (the match screen could not be played).
-- **Withdrawn:** 4.0's notes listed a few stray pixels on the menu buttons after a job offer letter. We could not
-  reproduce them on the released 4.0, nor on 4.0.1, with the same save and the same steps: they only appeared on a
-  development build of 20 October. If you see them, tell us.
+- **Menu buttons**: the 4.0 notes mentioned a few wrong pixels on the menu buttons after a job offer. It was not a
+  problem of the released 4.0 (it only showed up in a test version), so we took it off the list. If you see it, let
+  us know.
 
 ### Declared for 4.0.2
-- **AFC Challenge League:** its group stage (5 groups of 4, one round robin; the 5 winners and the 3 best
-  runners-up go to the quarter-finals) is still simulated; your club joins it at the quarter-finals. Playing it needs
-  the ranking of the runners-up across the groups.
-- **AFC Champions League Elite league stage:** still simulated, played in 4.0.2.
-- **Guatemala, El Salvador and Paraguay:** their real 44-match-day calendars (two tournaments a season) need a
-  larger match-day limit in the game's calendar; they keep the format they had in 4.0 until then.
+- **AFC Challenge League:** its group stage (5 groups of 4, everybody once; the 5 winners and the 3 best runners-up go
+  to the quarter-finals) is still simulated; your club joins at the quarter-finals. Playing the groups needs a
+  ranking of the runners-up across the groups, which is not ready.
+- **AFC Champions League Elite:** its league stage (all the clubs in one table) is still simulated; it will be
+  played in 4.0.2.
+- **Guatemala, El Salvador and Paraguay:** their real 44-match-day calendars (two tournaments a season) are longer
+  than the game's calendar can hold today; they keep the format they had in 4.0 until then.
 - **Calendars not yet published:** the Clausura 2027 of Mexico, Costa Rica, Honduras and Panama, and the last match
-  days of Peru, Colombia and Uruguay are derived (mirrored) until the real calendars are out.
-- **Colombia's cuadrangulares:** the real group fixture order and the tie-break by regular-season place. Planned for 4.0.2.
+  days of Peru, Colombia and Uruguay, repeat the first half's fixtures with home and away swapped until the real
+  calendars are out.
+- **Colombia's cuadrangulares:** the real order of the group fixtures and the tie-break by regular-season place.
+  Planned for 4.0.2.
 - **Serie D rest day and the Libertadores continuation:** see "Known issues of 4.0, revisited".
 
 ### Thanks
-Thanks to Roman for the nationalities, to Gianmarco for the install report and the line-ups, and to Filippo for the GOG launch.
+Thanks to Roman for the nationalities, to Gianmarco for the install report, the line-ups and the Serie D report, to
+Filippo for the GOG launch, to Pietro for the Champions League qualifying report and to Marco and Luigi for the
+joypad question.
 
 ## Italiano
 
@@ -295,24 +300,24 @@ nella 4.0 resta com'era; le carriere salvate con la 4.0 si caricano e continuano
   cartella del gioco" (questa parte era già nella riedizione della 4.0 del 23 ottobre). E se mancano ancora dei file del Mondo 2026-27, scegliere il mondo (CARR.
   STORICHE, il pulsante verde CARRIERA 2026-27 o Europa 1984-85) non fa più uscire a DOS: il gioco dice
   "INSTALLAZIONE INCOMPLETA: RILANCIA IL PATCHER" (in ogni lingua) e torna al menu.
+- **Joypad**: i comandi (tastiera, joypad, due joypad) e la calibrazione del joypad si impostano con SETUP.EXE, un
+  programma Windows nella cartella del gioco; il gioco arriva impostato sulla sola tastiera. I passaggi sono nel README
+  e nella pagina d'installazione.
 
 ### Problemi noti della 4.0, rivisti
-- **Posti europei**: le note della 4.0 dicevano che in alcune stagioni uno dei 108 posti europei poteva andare a un
-  club di un'altra federazione. L'unico posto sbagliato veniva dalla riga 44 della lista d'accesso: la federazione
-  che il mondo mette 44ª (Macedonia del Nord) riceveva la riga del Liechtenstein, con la sola vincitrice della coppa.
-  È stato corretto già nella 4.0 (22/10, prima della pubblicazione): il Liechtenstein ha la sua riga dovunque si
-  classifichi e la 44ª federazione la riga normale. Da allora non si è più visto; il controllo resta nei test.
-- **Gironi di Serie D con un numero dispari di squadre**: le note della 4.0 dicevano che una squadra che riposa
-  all'ultima giornata avrebbe giocato la Poule Scudetto o il play-off del girone nella 4.0.1. Nella 4.0.1 vengono
-  ancora simulati: la correzione provata teneva aperta la stagione dopo l'ultima partita della squadra, per giocare
-  il turno di riposo, ma una squadra senza play-off non aveva più partite e la stagione non poteva finire. La
-  correzione giusta è prevista nella 4.0.2.
+- **Posti europei**: le note della 4.0 avvisavano che in alcune stagioni un posto europeo poteva andare a un club della
+  nazione sbagliata. Era già stato corretto nella 4.0 prima dell'uscita e non è più successo: ogni nazione ha i suoi
+  posti europei giusti.
+- **Gironi di Serie D con un numero dispari di squadre**: in un girone così una squadra riposa a ogni giornata. Se la
+  tua riposa all'ultima, non gioca la Poule Scudetto né il play-off del girone: vengono decisi con una simulazione. Le
+  note della 4.0 annunciavano la correzione nella 4.0.1; quella che abbiamo provato poteva rendere impossibile finire
+  la stagione, quindi è prevista nella 4.0.2.
 - **Terze dei gironi di Copa Libertadores**: nella 4.0 il loro passaggio allo spareggio della Copa Sudamericana era
   simulato. Ora la tua squadra, terza nel suo girone di Libertadores, gioca lo spareggio (andata e ritorno, a
-  gennaio). Vale dalla seconda stagione della carriera: nella prima le coppe continentali sono quelle del mondo.
-  Dopo lo spareggio il resto della Sudamericana è simulato a fine stagione, perché i suoi turni (da febbraio)
-  vengono dopo la fine del campionato nazionale (quello argentino finisce a dicembre); lo stesso vale per la prima e
-  la seconda di un girone e gli ottavi di Libertadores. Previsto nella 4.0.2.
+  gennaio). Vale dalla seconda stagione della carriera, perché nella prima le coppe continentali sono quelle del
+  mondo. Il resto della Sudamericana, e gli ottavi di Libertadores per chi è prima o seconda in un girone (entrambi da
+  febbraio), sono ancora simulati a fine stagione, perché vengono dopo la fine del campionato nazionale (quello
+  argentino finisce a dicembre). Previsto nella 4.0.2.
 - **Serie D**: una carriera salvata dopo il sorteggio del turno di Coppa Italia Serie D, una volta caricata, non fa più
   partire i play-off dopo poche giornate (il turno si gioca; i salvataggi 4.0 colpiti vengono riparati al
   caricamento). Gianmarco.
@@ -320,22 +325,26 @@ nella 4.0 resta com'era; le carriere salvate con la 4.0 si caricano e continuano
   club (per esempio i knockout di Apertura / Clausura in Argentina quando il tuo club non c'era, o lo spareggio di
   Malta quando un club ha vinto entrambe le fasi) non iniziano più la stagione successiva con un campionato vuoto dopo
   il caricamento (la schermata della partita non si poteva giocare).
-- **Ritirato:** le note della 4.0 elencavano alcuni pixel sporchi sui pulsanti dei menu dopo una lettera di offerta di
-  lavoro. Non siamo riusciti a riprodurli sulla 4.0 pubblicata, né sulla 4.0.1, con lo stesso salvataggio e gli stessi
-  passi: comparivano solo in una build di sviluppo del 20 ottobre. Se li vedi, dicci.
+- **Pulsanti dei menu**: le note della 4.0 citavano alcuni pixel sbagliati sui pulsanti dei menu dopo un'offerta di
+  lavoro. Non era un problema della 4.0 pubblicata (compariva solo in una versione di prova), quindi l'abbiamo tolto
+  dall'elenco. Se ti capita di vederlo, segnalacelo.
 
 ### Dichiarato per la 4.0.2
-- **AFC Challenge League:** la fase a gironi (5 gironi da 4, sola andata; le 5 prime e le 3 migliori seconde ai
-  quarti) resta simulata; la tua squadra entra dai quarti di finale. Per giocarla serve la classifica delle seconde fra
-  i gironi.
-- **Fase a campionato dell'AFC Champions League Elite:** ancora simulata, giocata nella 4.0.2.
-- **Guatemala, El Salvador e Paraguay:** i loro calendari veri di 44 giornate (due tornei a stagione) richiedono un
-  limite di giornate più alto nel calendario del gioco; fino ad allora tengono la formula che avevano nella 4.0.
-- **Calendari non ancora pubblicati:** la Clausura 2027 di Messico, Costa Rica, Honduras e Panama, e le ultime
-  giornate di Perù, Colombia e Uruguay sono derivate (a campi invertiti) finché non escono quelle vere.
+- **AFC Challenge League:** la fase a gironi (5 gironi da 4, tutti contro tutti una volta; le 5 prime e le 3 migliori
+  seconde ai quarti) resta simulata; la tua squadra entra dai quarti di finale. Per giocare i gironi serve la
+  classifica delle seconde fra i gironi, che non è pronta.
+- **AFC Champions League Elite:** la fase a campionato (tutte le squadre in una sola classifica) resta simulata; sarà
+  giocata nella 4.0.2.
+- **Guatemala, El Salvador e Paraguay:** i loro calendari veri di 44 giornate (due tornei a stagione) sono più lunghi di
+  quello che il calendario del gioco può contenere oggi; fino ad allora tengono la formula che avevano nella 4.0.
+- **Calendari non ancora pubblicati:** la Clausura 2027 di Messico, Costa Rica, Honduras e Panama, e le ultime giornate
+  di Perù, Colombia e Uruguay, ripetono le partite del girone d'andata a campi invertiti finché non escono i
+  calendari veri.
 - **Quadrangolari colombiani:** l'ordine vero delle partite dei gironi e lo spareggio per piazzamento nella fase
   regolare. Previsto nella 4.0.2.
 - **Giorno di riposo in Serie D e prosecuzione della Libertadores:** vedi "Problemi noti della 4.0, rivisti".
 
 ### Ringraziamenti
-Grazie a Roman per le nazionalità, a Gianmarco per la segnalazione sull'installazione e sulle formazioni e a Filippo per l'avvio da GOG.
+Grazie a Roman per le nazionalità, a Gianmarco per la segnalazione sull'installazione, sulle formazioni e sulla Serie D,
+a Filippo per l'avvio da GOG, a Pietro per la segnalazione sulle qualificazioni di Champions League e a Marco e Luigi
+per la domanda sul joypad.

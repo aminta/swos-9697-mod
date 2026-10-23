@@ -4204,6 +4204,34 @@ def world_byes():
 
 
 
+def conti_free_ids(world):
+    """An older world snapshot's competition ids that 4.0.1's conti reserves for the career club's continental contests
+    (conti.IDS: e.g. world5tm-formats' AUS / CHN / EGY / IRN cups on DA..DF -> conti's build assert) moved to ids no
+    pack of the snapshot uses, outside mkseason.RESERVED_IDS (the released data moved them the same way); returns
+    {old: new} (hex strings)."""
+    import json
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import conti
+    import mkseason
+    packs = [os.path.join(world, x, 'pack.json') for x in sorted(os.listdir(world))
+             if os.path.exists(os.path.join(world, x, 'pack.json'))]
+    data = {f: json.load(open(f)) for f in packs}
+    used = {int(str(c['id']), 16) for d in data.values() for c in d.get('competitions', []) if c.get('id')}
+    free = [i for i in range(0xE0, 0xFC) if i not in used and i not in conti.IDS and i not in mkseason.RESERVED_IDS]
+    moved = {}
+    for f, d in data.items():
+        hit = False
+        for c in d.get('competitions', []):
+            if c.get('id') and int(str(c['id']), 16) in conti.IDS:
+                new = '%X' % free.pop(0)
+                moved[str(c['id'])] = new
+                c['id'] = new
+                hit = True
+        if hit:
+            json.dump(d, open(f, 'w'), indent=1, ensure_ascii=False)
+    return moved
+
+
 @scenario
 def world_groups():
     """Parallel groups of one level (pgroups.py): the world 2026-27 (private data internal/world2526/world5tm) with
@@ -4220,6 +4248,7 @@ def world_groups():
     w = os.path.join(WORK, 'world_groups')
     shutil.rmtree(w, ignore_errors=True)
     shutil.copytree(src, os.path.join(w, 'world5tm'))
+    conti_free_ids(os.path.join(w, 'world5tm'))       # (the snapshot's cups off conti's reserved ids)
     f = os.path.join(w, 'world5tm', 'ita', 'pack.json')
     d = json.load(open(f))
     lg = next(c for c in d['competitions'] if c['type'] == 'league')
@@ -4296,6 +4325,7 @@ def world_playoffs():
     w = os.path.join(WORK, 'world_playoffs')
     shutil.rmtree(w, ignore_errors=True)
     shutil.copytree(src, os.path.join(w, 'world5tm'))
+    conti_free_ids(os.path.join(w, 'world5tm'))       # (the snapshot's cups off conti's reserved ids)
     f = os.path.join(w, 'world5tm', 'ita', 'pack.json')
     d = json.load(open(f))
     lg = next(c for c in d['competitions'] if c['type'] == 'league')
@@ -7389,15 +7419,16 @@ def world_winners_lastdiv():
 
 def world_ca(team, country, league, want):
     """4.0.1 Central America exactly (session40/ca_exact.py, data TM_CA_EXACT): a season at team, forced 1st of each
-    tournament (GPLAY_FORCE=1: the stage's kept table too): the stage titles <league> APERTURA / CLAUSURA and each
-    tournament's final phase played (want: the screens' titles), every title within 40 characters (never a cut
-    country: 'RICA ...')"""
+    tournament (GPLAY_FORCE=1: the stage's kept table too) and winning its ties (GPLAY_KOFORCE=2): the stage titles
+    <league> APERTURA / CLAUSURA and each tournament's final phase played (want: the screens' titles), every title
+    within the bar's px (rnames.PXMAX; never a cut country: 'RICA ...')"""
     src = os.environ.get('W2627CA_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-401-ca3-0448')
     if not os.path.isdir(src):
         return True, f'SKIP: private data {src} missing'
     order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
     exe = os.environ.get('CA_BUILD') or build('world_ca', env={'SEASON_PACKS': ','.join(
-        ['ddr-1988-89'] + [os.path.join(src, x) for x in order]), 'GPLAY_FORCE': '1'})
+        ['ddr-1988-89'] + [os.path.join(src, x) for x in order]), 'GPLAY_FORCE': '1',
+        'GPLAY_KOFORCE': '2'})   # (rule 15: the club wins its ties - every final screen reached, not by luck)
     os.environ['CA_BUILD'] = exe
     keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_ONE')
     keep = {k: os.environ.get(k) for k in keys}
@@ -7420,7 +7451,11 @@ def world_ca(team, country, league, want):
     check(ok, msg, errs)
     for w in [f'{league} APERTURA', f'{league} CLAUSURA'] + [f'{country} {x}' for x in want]:
         check(w in titles, f'no screen titled {w!r}', errs)
-    check(not any(len(t) > 40 for t in titles), f'titles over 40: {[t for t in titles if len(t) > 40]}', errs)
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))            # (4.0.1: titles fitted in small-font px since
+    import complist                                             # titlepx - rnames.PXMAX, not 40 characters)
+    import rnames
+    wide = [(t, complist.px(t)) for t in titles if complist.px(t) > rnames.PXMAX]
+    check(not wide, f'titles over {rnames.PXMAX} px: {wide}', errs)
     return not errs, '; '.join(errs) or f'{msg}; ' + ', '.join(sorted(t for t in titles if 'APERTURA' in t or 'CLAUSURA' in t))
 
 

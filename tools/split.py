@@ -121,21 +121,7 @@ sp_init:                                ; replaces `call cseg_2653B` at the end 
     sub eax, SP_TAB
     mov [ebx + S_ENTRY], ax
     mov byte [ebx + S_FROZEN], 0
-    pushad                              ; (4.0.1: its head-to-head / 'keep' block, zeroed. The career league - the one
-    movzx ecx, word [ebx + 31h]         ; holding the career club's team word among its rows, whatever SIMFLAG says
-    mov ax, [CAREERTEAM]                ; at the career's start - gets its key into 'SH')
-    test ax, ax
-    jz .sx
-.ct:
-    cmp [ebx + 12Dh + ecx * 2 - 2], ax
-    je .key
-    loop .ct
-    jmp .sx
-.key:
-    mov ax, [edi + 1]                   ; (team file, division | 80h)
-    or ah, 80h
-    mov [sp_sh], ax
-.sx:
+    pushad                              ; (4.0.1: its head-to-head / 'keep' block zeroed - sp_shsel keys 'SH')
     mov edx, edi
     call sp_shsel
     mov edi, [sp_shp]
@@ -1189,15 +1175,46 @@ sp_sh:  times 66 db 0                   ; engine item 'SH': the career league's 
 sp_shx: times 64 db 0                   ; any other league's block (the season end's simulation)
 
 sp_shsel:                               ; edx = an entry -> [sp_shp]: the career league's block or the scratch one
-    push eax                            ; (gplay's GP_SHB[0] / [1]: the career's, the one in use - gp_keep)
+    push eax                            ; (gplay's GP_SHB[0] / [1]: 'SH', the scratch - gp_keep)
     mov eax, sp_shx
     push ecx
     mov cx, [edx + 1]                   ; (the key: team file, division | 80h - a zeroed 'SH' never matches)
     or ch, 80h
     cmp cx, [sp_sh]
-    pop ecx
-    jne .s
-    mov eax, sp_sh + 2
+    je .c
+    cmp word [SIMFLAG], 0               ; the career league - outside the simulations, holding the career club
+    jne .n                              ; (a league only viewed has no career club) - gets 'SH': keyed to it, its
+    push esi                            ; block zeroed (another league's, or none, was there; a save's or
+    push edx                            ; sp_migrate's key already matches)
+    mov esi, DIY
+    movzx edx, word [esi + 31h]
+    mov ax, [CAREERTEAM]
+    test ax, ax
+    jz .nt
+.ct:
+    test edx, edx
+    jz .nt
+    cmp [esi + 12Dh + edx * 2 - 2], ax
+    je .yes
+    dec edx
+    jmp .ct
+.nt:
+    pop edx
+    pop esi
+    mov eax, sp_shx
+    jmp .n
+.yes:
+    pop edx
+    pop esi
+    mov [sp_sh], cx
+    push edi
+    mov edi, sp_sh + 2
+    mov ecx, 16
+    xor eax, eax
+    rep stosd
+    pop edi
+.c: mov eax, sp_sh + 2
+.n: pop ecx
 .s: mov [sp_shp], eax
     SHB_SET
     pop eax
@@ -1216,8 +1233,8 @@ sp_migrate:                             ; 4.0.1, after ProcessCareerFile (engine
     jne .r
     cmp word [ebx + ST_], MAGIC_
     je .r
-    lea esi, [ebx + ST_40 + ST_SIZE]    ; the block -> 'SH' (key: the entry's team file / division)
-    mov edi, sp_sh + 2
+    lea esi, [ebx + ST_40 + ST_SIZE]    ; the block parked in the scratch (the state's move overwrites it; 'SH' is
+    mov edi, sp_shx                     ; keyed below, which zeroes it)
     mov ecx, 64
     rep movsb
     lea esi, [ebx + ST_40 + ST_SIZE - 1]   ; the state up by 64 bytes (overlapping: from its end)
@@ -1236,6 +1253,10 @@ sp_migrate:                             ; 4.0.1, after ProcessCareerFile (engine
     mov ax, [edx + 1]
     or ah, 80h
     mov [sp_sh], ax
+    mov esi, sp_shx                     ; the parked block into 'SH'
+    mov edi, sp_sh + 2
+    mov ecx, 64
+    rep movsb
 .r: ret
 align 4
 SP_CB: SP_CB_ENTRIES
@@ -1637,8 +1658,8 @@ def patch(p, cave, nasmcave, splits):
            'SIMFLAG': (2, s['SIMFLAG']), 'C89758': (1, s['pair']), 'C88A12': (1, s['C88A12']),
            'SF_PLACE': (0, int(_os.environ.get('SPLIT_FORCE') or 0))}    # (test builds: SPLIT_FORCE=k, sp_force)
     import dplay
-    sym['CAREERTEAM'] = (2, dplay._sites(p)[5])   # (sp_init's
-    if sym['SF_PLACE'][1]:                                                                              # 'SH' key)
+    sym['CAREERTEAM'] = (2, dplay._sites(p)[5])      # (sp_shsel: the league holding the career club gets 'SH')
+    if sym['SF_PLACE'][1]:
         print(f'exe: SPLIT_FORCE={sym["SF_PLACE"][1]} (test build: the career club starts a split stage at that place)')
     import engine
     import gplay

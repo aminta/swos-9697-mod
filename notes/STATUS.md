@@ -2160,6 +2160,18 @@ Left for 2.5: (a) NSL/NSSL finals series (type-1 design) or declare them postpon
   (D8CAA[0] = 0x532CC2 after a mid-season load); Mexico (mex401c); Paraguay 44 days parked; 4.0-stagedec 1543af9
   (defensive); CRC's stage-title runner-up = the champion; the IC test forcing (own confederation's slot).
 
+## 4.0.1 (draft, 2026-10-23; release planned Wed 28)
+- Docs: `release/notes-4.0.1.md` (EN + IT, first draft on branch notes-401; open [CHECK]: the ACLE league stage wording
+  after natcups' go / no-go), README bullet, manual section 29 "4.0.1 additions".
+- In: Mexico exact (Liga MX + Expansion: liguillas, Campeon de Campeones; mex3), Peru / Colombia / Uruguay (sa401),
+  58 own nationalities (4.0.1-nats, codes 156..213), cups follow promotions / relegations (cupsf), foreign purchase
+  on the continents / nations, short calendar labels, match titles fitted in px, WINNERS long names, install-incomplete
+  message (instcheck), Libertadores 3rd -> Sudamericana play-off played, GOG launchers per language (patcher).
+- Withdrawn 4.0 limit: the job-letter stray pixels (fillfix parked: reproduces only on the 20/10 dev build).
+- Declared for 4.0.2: AFC Challenge League groups and the ACLE league stage (pending), Guatemala / El Salvador /
+  Paraguay 44-day calendars, derived Clausura 2027 calendars (CA, Mexico), Colombia's group fixtures / tie-break
+  (owner: package 6), the odd Serie D group's rest day, the Libertadores continuation after the domestic season.
+
 ## Deferred realism (4.0.2+)
 - Odd Serie D groups, the career club resting on the last match day (Serie C session, 2026-10-23): its Poule / group
   play-off stays simulated in 4.0.1 (lastrest reverted). The tried fix (gp_lastrest: cseg_8EC2B's careerFinished loop

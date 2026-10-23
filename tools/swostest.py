@@ -6168,8 +6168,8 @@ def foreign_exe():
     return None
 
 
-def foreign_buy(exe, mode):
-    """A foreign-market purchase on a RELEASE exe (mode '2627': the World 2026-27 career at INTER; '9697': a real 1996-97
+def foreign_buy(exe, mode, market='STRANIERO'):
+    """A market purchase on a RELEASE exe (market STRANIERO = the foreign one, NAZIONALE; mode '2627': the World 2026-27 career at INTER; '9697': a real 1996-97
     JUVENTUS career): TRASFERIMENTI > ACQUISTA GIOCATORE > VISUAL. MERCATO STRANIERO > ELENCA, the first listed player,
     FAI UN'OFFERTA > CONFERMA OFFERTA (a counter: OFFRI DI PIU' until accepted), then the squad must hold him; saved,
     reloaded, and a match day played. (4.0 rc12: the 2026-27 foreign list's POOL05 players asked for a team file 190 the
@@ -6218,7 +6218,7 @@ def foreign_buy(exe, mode):
         walk(s, 'TRASFERIMENTI', 3)
         walk(s, 2, 3)                              # ACQUISTA GIOCATORE
         scr = s.screen()
-        walk(s, next(e[0] for e in scr.entries if e[1] and 'VISUAL. MERCATO STRANIERO' in e[1]), 3)
+        walk(s, next(e[0] for e in scr.entries if e[1] and ('VISUAL. MERCATO ' + market) in e[1]), 3)
         walk(s, 7, 3)                              # ELENCA
         scr = s.screen()
         row = int(os.environ.get('FOREIGNBUY_ROW', 0)) or next(e[0] for e in scr.entries if 10 <= e[0] < 20 and not e[2])
@@ -6321,6 +6321,65 @@ def world_foreign_buy_9697():
     if not exe:
         return True, 'SKIP: no release SWOS dir (FOREIGNBUY_BUILD, or SWOSTEST_BUILD / W8485_BUILD with DATA/POOL05.DAT)'
     return foreign_buy(exe, '9697')
+
+
+
+@scenario
+def world_national_buy():
+    """world_foreign_buy's twin for the NATIONAL market (VISUAL. MERCATO NAZIONALE) in the World 2026-27 career, on the suite's
+    release dir (CONVENTIONS 17a): the first listed player is bought, he lands in the squad with the offer's data, saved,
+    reloaded, a match day."""
+    exe = foreign_exe()
+    if not exe:
+        return True, 'SKIP: no release SWOS dir (FOREIGNBUY_BUILD, or SWOSTEST_BUILD / W8485_BUILD with DATA/POOL05.DAT)'
+    return foreign_buy(exe, '2627', 'NAZIONALE')
+
+
+@scenario
+def world_national_buy_9697():
+    """world_national_buy in a real 1996-97 career (the control)."""
+    exe = foreign_exe()
+    if not exe:
+        return True, 'SKIP: no release SWOS dir (FOREIGNBUY_BUILD, or SWOSTEST_BUILD / W8485_BUILD with DATA/POOL05.DAT)'
+    return foreign_buy(exe, '9697', 'NAZIONALE')
+
+
+def xfer_sweep(env_extra, buyer, tag):
+    """tools/xfersweep.py on the release dir (a poked third-party offer for SAO PAULO's player, accepted; LIST_ROW: that
+    player listed on the transfer market first = a sale): the squad loses him, the bank gains, the order stays a
+    permutation, and after a save + reload the names, the bank and the order are the same."""
+    exe = foreign_exe()
+    if not exe:
+        return True, 'SKIP: no release SWOS dir (FOREIGNBUY_BUILD, or SWOSTEST_BUILD / W8485_BUILD with DATA/POOL05.DAT)'
+    r = subprocess.run([sys.executable, os.path.join(ROOT, 'tools', 'xfersweep.py'), exe, 'MONDO 2026-27',
+                        'SUDAMERICA,BRASILE,BRASILEIRAO SERIE A,SAO PAULO', buyer, 'accept'], capture_output=True, text=True,
+                       env=dict(os.environ, SWOSTEST_RUNS=os.path.join(RUNS, 'xfer_' + tag), **env_extra), timeout=1500)
+    out = r.stdout
+    deal = re.search(r"DEAL accept sold (.+?) players (\d+) -> (\d+) bank (BANCA +L[\d,]+M) -> (BANCA +L[\d,]+M) gone (\w+) .*? order_ok (\w+)", out)
+    rel = re.search(r"RELOAD players (\d+) same_names (\w+) bank (BANCA +L[\d,]+M) order_ok (\w+)", out)
+    if not deal or not rel:
+        return False, f'{tag}: no DEAL / RELOAD line: {(out + r.stderr)[-300:]!r}'
+    errs = []
+    sold, n0, n1, b0, b1, gone, ok1 = deal.groups()
+    check(int(n1) == int(n0) - 1 and gone == 'True' and ok1 == 'True', f'{tag}: deal {deal.group(0)[:200]}', errs)
+    n2, same, b2, ok2 = rel.groups()
+    check(int(n2) == int(n1) and same == 'True' and b2 == b1 and ok2 == 'True', f'{tag}: reload {rel.group(0)}', errs)
+    return not errs, '; '.join(errs) or f'{tag}: sold {sold}, squad {n0} -> {n1}, bank {b0} -> {b1}; reload squad {n2}, same names, bank {b2}'
+
+
+@scenario
+def world_transfer_offer():
+    """A third-party offer (poked into the offer table as cseg_5AB36 writes it) for a SAO PAULO player, accepted, on the
+    suite's release dir: the squad / bank / order after the deal and after a save + reload (the 4.0 'ACCETTA OFFERTA'
+    freeze family)."""
+    return xfer_sweep({}, '0x3066', 'offer')
+
+
+@scenario
+def world_transfer_sale():
+    """A sale: the 6th squad row listed on the transfer market (AGG. GIOCATORE AL CALCIOMERC.), then a third-party offer for
+    him accepted, on the suite's release dir: squad / bank / order, save + reload."""
+    return xfer_sweep({'LIST_ROW': '6'}, '0x02A3', 'sale')
 
 
 
@@ -6773,13 +6832,13 @@ def world_gplay_reserve_gap():
 
 @scenario
 def world_gplay_seried(force='3', team='EUROPA,ITALIA,SERIE D GIRONE A,LIGORNA', div=5, ko='2'):
-    ko_ = ko
     """A Serie D group play-off played (gplay 'placement', World 2026-27 with Serie D: the data session's snapshot
     internal/world2526/world5tm-e0b89822, W2627D_DATA): LIGORNA (girone A) forced 3rd at the league end -> the group
     play-off (2nd v 5th, 3rd v 4th, then the final; single matches at the better placed, extra time, then the better
     placed) built in slot 4 and played to its end; it moves nobody. Its results forced (rule 15, GPLAY_KOFORCE): ko '2'
     LIGORNA wins its semi-final and the final (the play-off's winner); '1' it loses the semi-final - the final of the
     other two is then played by the game at the season end (FINISCI STAGIONE), before gp_season: read from GP_LOG"""
+    ko_ = ko
     src = os.environ.get('W2627D_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-e0b89822')
     if not os.path.isdir(src):
         return True, f'SKIP: private data {src} missing'

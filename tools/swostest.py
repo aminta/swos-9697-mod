@@ -5965,6 +5965,55 @@ def world_winners_mls():
 
 
 @scenario
+def world_poule_rest():
+    """4.0.1 lastrest: a Serie D group of 17 (a rest each match day) whose career club rests on the LAST match day still
+    plays its Poule Scudetto (before: FINISCI STAGIONE came a day early, cseg_8EC2B saw no calendar entry left with a
+    career match, the league's last day - gp_lend's play-offs - came only at the season end, the Poule simulated).
+    Which club rests there varies per season / exe (the team order): squads' recipe, the FRENCH exe (FRENCH.EXE patched
+    as ITALIAN.EXE, the harness's fr labels), LIGORNA forced 1st of girone A (GPLAY_FORCE=1), every match 3-0 to the
+    stronger side (simdraw, W8485_FILL), rests on the last day there. PASS = a POULE TITRE SERIE D match screen
+    (W8485_MIDTEXT); FAIL on 2a2b0b1 / 0f5159b, PASS on 024be6c"""
+    global UI, UI_MAP, UI_ORIG
+    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+    if not os.path.isdir(src):
+        return True, f'SKIP: private data {src} missing'
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    env = {'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]), 'GPLAY_FORCE': '1'}
+    it = build('world_poule_rest', env=env)
+    exe = it + '_fr'                                    # (the FRENCH exe as ITALIAN.EXE, the same team files)
+    shutil.rmtree(exe, ignore_errors=True)
+    shutil.copytree(it, exe, ignore=shutil.ignore_patterns('ITALIAN.EXE'))
+    code = ("import sys,io,contextlib; sys.path.insert(0,'tools'); import patch\nout=sys.argv[1]\n"
+            "with contextlib.redirect_stdout(io.StringIO()):\n"
+            "    r=patch.patch_teams('orig/DATA/TEAM.020',out+'/DATA/_t020'); patch.patch_exe('orig/FRENCH.EXE',"
+            "out+'/ITALIAN.EXE',r,'fr')\n")
+    subprocess.run([sys.executable, '-c', code, exe], cwd=ROOT, check=True, env=dict(os.environ, **env))
+    os.remove(os.path.join(exe, 'DATA', '_t020'))
+    import simdraw
+    from le import LE
+    at = LE(open(os.path.join(exe, 'ITALIAN.EXE'), 'rb').read()).obj_bytes(2).find(simdraw.table())
+    keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_ONE',
+            'W8485_FILL', 'W8485_MIDTEXT', 'SWOSTEST_UI')
+    keep = {k: os.environ.get(k) for k in keys}
+    ui = UI, UI_MAP, UI_ORIG
+    UI, UI_ORIG = 'fr', 'FRENCH.EXE'
+    UI_MAP = json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'swostest_lang.json')))['fr']
+    os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM='EUROPA,ITALIA,SERIE D GIRONE A,LIGORNA',
+                      W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1', W8485_ONE='1', W8485_FILL=f'{at:x}:30:3072',
+                      W8485_MIDTEXT='POULE TITRE SERIE D:1', SWOSTEST_UI='fr')
+    try:
+        ok, msg = world8485()
+    finally:
+        UI, UI_MAP, UI_ORIG = ui
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    return ok and 'saved mid-season' in msg, f'LIGORNA (fr): {msg[:300]}'
+
+
+@scenario
 def world_winners_poule():
     """WINNERS page of a Serie D group with the Poule Scudetto (a group contest of ours in slot 3, id FEh; winners.py
     0FFFCh: the game's winner, the slot's DIY +39h): LIGORNA forced 1st of girone A (GPLAY_FORCE=1); mid-Poule (saved

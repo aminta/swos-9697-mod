@@ -350,11 +350,14 @@ rn_t2:                                  ; its two `call cseg_28049` (type-1 roun
 rn_tfit:                                ; A0 = the round's long name, D0 = its index x 4, A1 = after '<name> '
     pushad
     mov esi, DIY + 4                    ; (the contest's name, copied first)
-    call rn_len
-    lea edx, [ecx + 3]                  ; (+ the space: 3 px)
+    call rn_cnt
+    lea edx, [ecx + 1]                  ; (its characters + the space: bytes back from A1)
     mov eax, [A1R]
     sub eax, edx
     mov [RN_TS], eax                    ; the title's start
+    mov esi, DIY + 4
+    call rn_len
+    lea edx, [ecx + 3]                  ; (its width + the space: 3 px)
     mov esi, [A0R]
     call rn_len
     add edx, ecx
@@ -429,6 +432,64 @@ rn_tfit:                                ; A0 = the round's long name, D0 = its i
     popad
     ret
 
+rn_tcopy:                               ; DIYLeagueTournamentOnRestore's title (a type-2 contest's stage screen:
+    push ebx                            ; '<contest name>[ <stage>]'): replaces its `call StringCopy` of DIY + 4,
+    mov ebx, [A1R]                      ; the copy then trimmed (rn_trim; A1 = its end, as StringCopy leaves it)
+    call STRCOPY
+    pushad
+    call rn_trim
+    popad
+    pop ebx
+    ret
+
+rn_trim:                                ; ebx = the title's start (NUL-ended): its leading spaces dropped and runs of
+    push esi                            ; spaces made one (a career saved before 3.x's w_pfx keeps its European
+    push eax                            ; cups' titles as ' <name>': the empty country's prefix); edi, [A1R] = its
+    mov esi, ebx                        ; new end (the NUL)
+.l:
+    cmp byte [esi], ' '
+    jne .t
+    inc esi
+    jmp .l
+.t:
+    mov edi, ebx
+.c:
+    mov al, [esi]
+    inc esi
+    cmp al, ' '
+    jne .w
+    cmp edi, ebx
+    je .c
+    cmp byte [edi - 1], ' '
+    je .c
+.w:
+    mov [edi], al
+    test al, al
+    jz .e
+    inc edi
+    jmp .c
+.e:
+    mov [A1R], edi
+    pop eax
+    pop esi
+    ret
+
+rn_cnt:                                 ; esi = a string -> ecx = its shown characters (the '*' fill is not shown)
+    xor ecx, ecx
+    push eax
+.l:
+    mov al, [esi]
+    inc esi
+    test al, al
+    jz .r
+    cmp al, '*'
+    je .l
+    inc ecx
+    jmp .l
+.r:
+    pop eax
+    ret
+
 rn_len:                                 ; esi = a string -> ecx = its shown width (4.0.1: small-font px, RN_WT; the
     xor ecx, ecx                        ; '*' fill is not shown)
     push eax
@@ -454,6 +515,7 @@ rn_tend:                                ; replaces `mov esi, [A1]` at cseg_45D92
     mov dword [RN_TS], 0
     mov edi, [A1R]
     mov byte [edi], 0
+    call rn_trim                        ; (4.0.1: no leading / double space - an older save's ' COPPA ...')
     mov esi, ebx
     call rn_len
     cmp byte [RN_DROP], 0
@@ -599,6 +661,17 @@ def _px_syms(p, end, a0):
             'LEGPX_': (0, 3 + max(complist.px(t) for t in tails))}
 
 
+def _tcopy_site(p, a0):
+    """DIYLeagueTournamentOnRestore's `mov eax, [A2]; add eax, 4; mov [A0], eax; call StringCopy` (then `mov esi, [A2];
+    mov ax, [esi + 47h]`): the call's offset."""
+    d1 = p.le.obj_bytes(1)
+    a0b, a2b = (struct.pack('<I', x) for x in (a0, a0 + 8))
+    m = [x.start() + 13 for x in re.finditer(rb'\xa1' + re.escape(a2b) + rb'\x83\xc0\x04\xa3' + re.escape(a0b)
+                                             + rb'\xe8.{4}\x8b\x35' + re.escape(a2b) + rb'\x66\x8b\x46\x47', d1, re.S)]
+    assert len(m) == 1 and d1[m[0]] == 0xE8, m
+    return m[0]
+
+
 def _native_medium(p):
     """The game's medium round names 0..10 (the table after the long one, obj2; 11 is a list label, not a round),
     '*' fill dropped."""
@@ -617,7 +690,8 @@ def _native_medium(p):
 def check_titles(p, lang, legpx):
     """4.0.1 build assert: every contest's match title fits the bar without the last-resort cut. Its worst case before
     the cut (rn_tfit): the contest's own name without the country prefix + ' ' + the widest medium round name + the
-    widest tail (LEGPX) within PXMAX px; every name in the game font. Contests: the packs' cups and league play-offs,
+    widest tail (LEGPX) within PXMAX px; every name in the game font, with no leading, trailing or double space
+    (rn_trim drops them at run time too: older saves). Contests: the packs' cups and league play-offs,
     the worlds' European cups, the continental cups (conti)."""
     import complist
     import mkseason
@@ -643,7 +717,9 @@ def check_titles(p, lang, legpx):
         for c in (f or {}).get('cups', []):
             names.append((conf, (c['names'].get(lang) or c['names']['en'])[0].upper()[:30]))
     for who, nm in names:
-        if set(nm) - complist.FONT:
+        if nm != ' '.join(nm.split()):
+            bad.append(f'{who}: {nm!r} (a leading, trailing or double space)')
+        elif set(nm) - complist.FONT:
             bad.append(f'{who}: {nm!r} (not the font)')
         elif complist.px(nm) + 3 + medpx + legpx > PXMAX:
             bad.append(f'{who}: {nm!r} {complist.px(nm)} + {3 + medpx + legpx} > {PXMAX} px')
@@ -750,6 +826,9 @@ def patch(p, at, limit, lang, area, lp_ids, numbered):
             i + 5 + struct.unpack_from('<i', d1, i + 1)[0] == t280]
     assert len(o280) == 1, o280                 # (cseg_8C21C's call: the calendar entries' round name)
     sym.update({'R8C21C_RET': (1, o280[0] + 5), 'A6R': (2, a0 + 24)})
+    tc = _tcopy_site(p, a0)
+    assert bytes(p.get(1, tc, 5)) == p.le.obj_bytes(1)[tc:tc + 5], 'rnames: the stage title copy is hooked already'
+    sym['STRCOPY'] = (1, tc + 5 + struct.unpack('<i', bytes(p.get(1, tc + 1, 4)))[0])
     sym.update({'QID_LO': (0, min(uefaq.QIDS)), 'QID_HI': (0, max(uefaq.QIDS)), 'C28049': (1, c28049), 'C284AB': (1, c284ab), 'MEDTAB': (1, tab + 4 * n), 'CALTAB': (1, cal), 'A0R': (2, a0),
                 'A1R': (2, a0 + 4)})
     code, fix = nasmcave.assemble(ASM, code_at, sym)
@@ -762,6 +841,8 @@ def patch(p, at, limit, lang, area, lp_ids, numbered):
     p.put(1, s284 + 1, rel(s284, 'rn_t1'))      # (relative calls: no fixups)
     for c in s280:
         p.put(1, c + 1, rel(c, 'rn_t2'))
+    tc = _tcopy_site(p, a0)                     # 4.0.1: the type-2 stage screen's title copy, trimmed
+    p.put(1, tc, b'\xe8' + rel(tc, 'rn_tcopy'))
     p.remove(1, end + 2)                        # mov esi, [A1] (6 B) -> call rn_tend; nop
     p.put(1, end, b'\xe8' + rel(end, 'rn_tend') + b'\x90')
     for rn in ('uq_rn1', 'uq_rn2'):             # their `call uq_tie_round` (dplay may have moved it) -> rn_round

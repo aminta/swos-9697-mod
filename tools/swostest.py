@@ -8288,6 +8288,7 @@ def world_titlefit():
         s.shot('cup')
         rest = t0[len(name):].split()
         check(len(rest) >= 3, f'cup title {t0!r}: a fallback (medium round) or a cut', errs)
+        check(t0 == ' '.join(t0.split()), f'cup title {t0!r}: a leading / double space', errs)
         info.append(f'cup: {t0!r} ({len(t0)})')
         s.poke(s.result.base2 + diy + 4, list(b'W' * 34 + b'\0'))
         walk(s, s.screen().find('ESCI', exact=True), 3)
@@ -8298,6 +8299,32 @@ def world_titlefit():
               f'poked title {t1!r}: not the whole one', errs)
         info.append(f'poked: {t1!r} ({len(t1)})')
     return not errs, '; '.join(errs + info)
+
+
+@scenario
+def world_titlespace():
+    """4.0.1 match titles with no leading / double space (rnames rn_trim): a 1996-97 career saved by the original game
+    (internal/swostest/repro/OLDCAR_orig.CAR, its European cups' titles stored as ' <name>': the empty country prefix
+    before 3.x's w_pfx) loaded on SWOSTEST_BUILD and played on - every match screen's title until its first European cup
+    match is free of leading, trailing and double spaces"""
+    car = os.environ.get('TITLESPACE_CAR') or os.path.join(WORK, 'repro', 'OLDCAR_orig.CAR')
+    if not os.path.exists(car):
+        return True, f'SKIP: no {car}'
+    seen = []
+    with Session('world_titlespace', builds()['it'], {'W84A.CAR': car}, 'dump:2', 600) as s:
+        s.wait()
+        s.send(LOAD1 + ' dump:3')
+
+        def stop(scr):
+            t = scr.entries[0][1] if scr.entries else ''
+            if '- PARTITA -' in scr.texts() and t and t not in seen:
+                seen.append(t)
+            return '- PARTITA -' in scr.texts() and any(k in t for k in ('EUROPEA', 'UEFA', 'COPPE', 'INTERTOTO'))
+        ok, msg = advance(s, stop, 300)
+        s.shot('euro')
+    bad = [t for t in seen if t != ' '.join(t.split())]
+    euro = [t for t in seen if any(k in t for k in ('EUROPEA', 'UEFA', 'COPPE', 'INTERTOTO'))]
+    return ok and euro and not bad, f'{msg[:80]}; titles {seen[:8]}' + (f'; with spaces {bad}' if bad else '')
 
 
 @scenario

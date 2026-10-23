@@ -6444,9 +6444,9 @@ def world_cuplist_mestre():
     VISUAL. COMPETIZ. never lists the COPPA ITALIA (its 16 Serie A / B clubs) nor the COPPA ITALIA SERIE C (its 17
     clubs), Mestre being in neither (gp_notin, rule 11)"""
     car = os.path.join(MAIN, 'internal', 'davide-mister-20261021', 'MESTRE.CAR')
-    exe = os.environ.get('CUPLIST_REL')
+    exe = os.environ.get('CUPLIST_REL') or foreign_exe()      # (the saved career's own data: the suite's release dir)
     if not os.path.exists(car) or not exe:
-        return True, 'SKIP: no MESTRE.CAR or CUPLIST_REL'
+        return True, 'SKIP: no MESTRE.CAR or a release dir (CUPLIST_REL, or SWOSTEST_BUILD / W8485_BUILD with DATA/POOL05.DAT)'
     keys = ('W8485_BUILD', 'W8485_FROM', 'W8485_NOSACK')
     keep = {k: os.environ.get(k) for k in keys}
     os.environ.update(W8485_BUILD=exe, W8485_FROM=car, W8485_NOSACK='1')

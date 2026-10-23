@@ -386,6 +386,8 @@ def patch_exe(src, dst, remap, lang='it'):
         end = worldpool.patch(p, end, nasmcave, [(w['n'], w['pool'][0]) for w in mkseason.world_defs() if w['pool']],
                               guests.alloc().get(guests.POOL))   # (4.0 hotfix: the pool clubs' team file 190)
         end = benchnum.patch(p, end, nasmcave, [w['n'] for w in mkseason.world_defs() if w['squad_numbers']])
+        import instcheck
+        end = instcheck.place(p, end, lang)       # 4.0.1: a world's missing files -> a message, not DOS
         assert end <= CAREER_CAVE + mkseason.CAREER_CAVE_SIZE, hex(end)
     p.add_ptr(1, info['new_career_ptr'], 1, new_career)
     if ARG_LOAD_HOOK:

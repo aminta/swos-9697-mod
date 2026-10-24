@@ -9009,13 +9009,17 @@ def world_full_draw():
     log = os.path.join(RUNS, w84_tag() + '_1', 'session.log')
     for ln in (open(log, errors='replace') if os.path.exists(log) else []):
         title = ln.split('] ', 1)[-1].split(' | ')[0]
+        title = re.sub(r'^BRASILE ', '', title)          # (4.0.1 match titles: the country first, rc1)
         if not title.startswith('COPA DO BRASIL'):
             continue
         for t in re.findall(r'VINCE (\d+-\d+) (AI RIG(?: D\.T)?|IN TO)', ln):
             (pens if t[1].startswith('AI RIG') else tot)[title[15:], t[1]] += 1
     check(ok, msg, errs)
     check(any(k[1] == 'AI RIG' for k in pens), f'no Copa do Brasil tie on penalties ({log})', errs)
-    check(not [k for k in pens if 'D.T' in k[1]], f'penalties after extra time: {dict(pens)}', errs)
+    check(not [k for k in pens if 'D.T' in k[1] and k[0] != 'FINALE'], f'penalties after extra time: {dict(pens)}', errs)
+    # (the single-match final: round byte 14h, unchanged since 3.2, whose extra-time bits cseg_24DFA reads as 1 - the
+    # career club's played final went to extra time on rc1; declared, 4.0.2. This scenario checks the two_legs_pens
+    # rounds)
     return not errs, '; '.join(errs) or f'table obj2 {at[0]:#x}; penalties {dict(pens)}; on aggregate {dict(tot)}'
 
 

@@ -1129,7 +1129,8 @@ def write(out_dir, items):
             key = titles[lang][:fmtpage.NAME - 1]
             k = (lang, world, key)
             if k in keys:                       # the same title twice (two divisions with one name): one page,
-                keys[k].extend([['']] + body)     # both descriptions
+                if body != keys[k]:               # both descriptions (one hand text for both: once - Mexico's two
+                    keys[k].extend([['']] + body)   # Campeon de Campeones)
                 continue
             keys[k] = body
             by.setdefault((lang, world), []).append((cid, key, None))

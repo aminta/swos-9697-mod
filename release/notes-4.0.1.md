@@ -161,6 +161,8 @@ careers saved with 4.0 load and play on.
 - Careers saved during a season in which a play-off or title decider was settled without your club (for example
   Argentina's Apertura / Clausura knockouts when your club missed them, or Malta's decider when one club won both
   rounds) no longer start the next season with an empty league after loading (the match screen could not be played).
+- **World 2026-27**: at the season end the European cups' simulated finals no longer flash on screen with a garbled
+  title (seen in 4.0 too); they are simulated unseen like the other countries' competitions.
 - **Menu buttons**: the 4.0 notes mentioned a few wrong pixels on the menu buttons after a job offer. It was not a
   problem of the released 4.0 (it only showed up in a test version), so we took it off the list. If you see it, let
   us know.
@@ -359,6 +361,9 @@ formazioni secondo i ruoli, menu più semplici e un'installazione più sicura, p
   club (per esempio i knockout di Apertura / Clausura in Argentina quando il tuo club non c'era, o lo spareggio di
   Malta quando un club ha vinto entrambe le fasi) non iniziano più la stagione successiva con un campionato vuoto dopo
   il caricamento (la schermata della partita non si poteva giocare).
+- **Mondo 2026-27**: a fine stagione le finali simulate delle coppe europee non compaiono più a schermo con un titolo
+  illeggibile (difetto presente anche nella 4.0); vengono simulate senza essere mostrate, come le competizioni delle
+  altre nazioni.
 - **Pulsanti dei menu**: le note della 4.0 citavano alcuni pixel sbagliati sui pulsanti dei menu dopo un'offerta di
   lavoro. Non era un problema della 4.0 pubblicata (compariva solo in una versione di prova), quindi l'abbiamo tolto
   dall'elenco. Se ti capita di vederlo, segnalacelo.

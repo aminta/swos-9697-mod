@@ -1133,8 +1133,10 @@ def write(out_dir, items):
             key = titles[lang][:fmtpage.NAME - 1]
             k = (lang, world, key)
             if k in keys:                       # the same title twice (two divisions with one name): one page,
-                if body != keys[k]:               # both descriptions (one hand text for both: once - Mexico's two
-                    keys[k].extend([['']] + body)   # Campeon de Campeones)
+                if body != keys[k] and keys[k][:len(body)] != body:   # both descriptions (one hand text for both:
+                    keys[k].extend([['']] + body)   # once - Mexico's two Campeon de Campeones; 4.0.1 rc3: Uruguay's
+                                                    # title play-off is named as its league - the league's page holds
+                                                    # the same hand text + its colours, not repeated)
                 continue
             keys[k] = body
             by.setdefault((lang, world), []).append((cid, key, None))

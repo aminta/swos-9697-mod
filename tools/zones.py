@@ -181,6 +181,10 @@ def _merge(rng, why):
     return out, ow
 
 
+LIGUILLA_ZONES = {'world-2026-27-mex'}    # packs whose tables colour their Liguilla places (P.OFF), not the
+                                         # confederation's (Davide 2026-10-24: Liga MX + Liga de Expansion)
+
+
 def pack_zones(d, lang, lp=False, rank=None, detail=None):
     """[(world, title, [(first, last, colour), ...])] of one pack's league divisions; detail (a dict): {(competition
     index, division index): [(first, last, colour, why)]} for the FORMAT page (fmtgame.py), why in WHY."""
@@ -234,6 +238,12 @@ def pack_zones(d, lang, lp=False, rank=None, detail=None):
                 rng.append((1, dv['up'], LIGHT_BLUE))
                 why.append('up')
             for p in po:                                 # pack-level knockout play-offs: [division, place] entrants
+                if p.get('kind') == 'stage_title' and m.get('id') in LIGUILLA_ZONES and not groups_of(dv):
+                    for e in p.get('entrants', []):          # 4.0.1 (Davide, Mexico): a one-table split league's
+                        if isinstance(e, dict) and 'stage_place' in e and e.get('div', 0) == i:   # Liguilla: its
+                            rng.append((e['place'], e['place'], GREEN))   # tournament's top places (the shown
+                            why.append('po_title')                        # table is the current tournament's: 'reset')
+                    continue
                 ent = [e for e in p.get('entrants', []) if isinstance(e, list) and e[0] == i]
                 if not ent:
                     continue

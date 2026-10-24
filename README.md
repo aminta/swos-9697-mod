@@ -54,7 +54,17 @@ Patch for **Sensible World of Soccer 96/97** (DOS, CD or GOG version): ITALIAN.E
 1. Open the same page and drop your language's executable and `DATA\TEAM.020`, `TEAM.044`, `TEAM.062`, `TEAM.073` from the game folder, then download the patched files (also the new TEAM files the page lists).
 2. Copy them into the game folder (the TEAM files into `DATA`) after backing it up. Start a new career.
 
-**Joypad / joystick.** The DOS game has no controls screen inside the game (SWOS 2020 has one, but it is a different product). The controls (keyboard only, joypad only, joypad + keyboard, keyboard + joypad, two joypads) and the joypad calibration are set with SETUP.EXE, a Windows program in the game folder: run it directly from Windows, not inside DOSBox, calibrate the joypad and choose 'joypad and keyboard' (or the mode you want). They are saved in SETUP.DAT. The game as shipped (CD and GOG) is set to keyboard only, without calibration; the mod does not touch SETUP.DAT. SETUP.EXE needs Windows (or Wine): without Windows (for example on a Mac or Linux), run it once on any Windows PC, or with Wine, and copy the resulting SETUP.DAT into the game folder. In GOG's DOSBox configuration (dosbox_SWOS.conf) the [joystick] section should say joysticktype=auto, as it does by default, not none. The English version with SWOS++ also adds a joystick calibration.
+**Joypad / joystick.** The DOS game has no controls screen inside the game (SWOS 2020 has one, but it is a different product). On a GOG install, the one-click install has a tick, 'I have a joypad / gamepad', on by default, and the joypad works at once, stick and d-pad: the patcher replaces the factory SETUP.DAT (keyboard only, no calibration) with a ready calibrated one (joypad = player 1, keyboard = player 2), sets GOG's DOSBox to joysticktype=fcs and timed=false, and installs a mapper file that binds the d-pad to the joystick (only if you have no mapper file of your own). The game now checks at start whether a joypad is connected and falls back to the keyboard when there is none, so keyboard players can leave the tick on. The changed files are backed up (.bak); untick it to keep your own controls settings, and running the install again without the tick restores the originals.
+
+In your own DOSBox (CD installs): the same tick is off by default; tick it if you have a joypad, and add this to your DOSBox configuration:
+
+```
+[joystick]
+joysticktype=2axis
+timed=false
+```
+
+Then map the d-pad with the DOSBox mapper (Ctrl+F1 in DOSBox; in DOSBox-X: Main > Mapper editor): bind joystick 1 Y- up, Y+ down, X- left, X+ right (Add, press the d-pad direction, Save). In DOSBox-X, if you play with the keyboard only, set joysticktype=none (DOSBox-X invents a joystick when none is plugged in). To calibrate it yourself: the game's DOS installer INSTALL.EXE (on the CD) > Configure > Control > Calibrate Joystick, or SETUP.EXE, a Windows 3.x program in the game folder, on Windows. The English version with SWOS++ also adds a joystick calibration.
 
 The patcher ships only differences and checks every file before and after patching: an original copy of the game is required. It works with both the original CD and the GOG version (from 1.0.1).
 
@@ -132,7 +142,17 @@ Patch per **Sensible World of Soccer 96/97** (versione DOS, CD o GOG): ITALIAN.E
 
 Il patcher contiene solo differenze e controlla i file prima e dopo la modifica: serve una copia originale del gioco. Funziona sia con il CD originale sia con la versione GOG (dalla 1.0.1).
 
-**Joypad / joystick.** Il gioco DOS non ha una schermata dei comandi dentro il gioco (SWOS 2020 ce l'ha, ma è un altro prodotto). I comandi (solo tastiera, solo joypad, joypad + tastiera, tastiera + joypad, due joypad) e la calibrazione del joypad si impostano con SETUP.EXE, un programma Windows nella cartella del gioco: eseguilo direttamente da Windows, non dentro DOSBox, calibra il joypad e scegli 'joypad e tastiera' (o la modalità che vuoi). Vengono salvati in SETUP.DAT. Il gioco così com'è fornito (CD e GOG) è impostato sulla sola tastiera, senza calibrazione; la mod non tocca SETUP.DAT. SETUP.EXE richiede Windows (o Wine): senza Windows (per esempio su Mac o Linux), eseguilo una volta su un qualsiasi PC Windows, o con Wine, e copia il SETUP.DAT che ne risulta nella cartella del gioco. Nella configurazione del DOSBox di GOG (dosbox_SWOS.conf) la sezione [joystick] deve dire joysticktype=auto, come di solito, non none. La versione inglese con SWOS++ aggiunge anche una calibrazione del joystick.
+**Joypad / joystick.** Il gioco DOS non ha una schermata dei comandi dentro il gioco (SWOS 2020 ce l'ha, ma è un altro prodotto). Su un'installazione GOG, l'installazione con un clic ha una spunta, 'Ho un joypad / gamepad', attiva di default, e il joypad funziona subito, stick e croce direzionale: il patcher sostituisce il SETUP.DAT di fabbrica (solo tastiera, nessuna calibrazione) con uno già calibrato (joypad = giocatore 1, tastiera = giocatore 2), imposta il DOSBox di GOG su joysticktype=fcs e timed=false e installa un file del mapper che associa la croce direzionale al joystick (solo se non hai già un tuo file del mapper). Ora il gioco controlla all'avvio se c'è un joypad collegato e passa alla tastiera se non c'è, quindi chi gioca con la tastiera può lasciare la spunta. I file modificati restano in copia (.bak); togli la spunta per tenere le tue impostazioni dei comandi, e rifare l'installazione senza spunta ripristina gli originali.
+
+Nel tuo DOSBox (installazioni da CD): la stessa spunta è disattivata di default; attivala se hai un joypad, e aggiungi questo alla configurazione del tuo DOSBox:
+
+```
+[joystick]
+joysticktype=2axis
+timed=false
+```
+
+Poi associa la croce direzionale con il mapper di DOSBox (Ctrl+F1 in DOSBox; in DOSBox-X: Main > Mapper editor): associa joystick 1 Y- su, Y+ giù, X- sinistra, X+ destra (Add, premi la direzione della croce, Save). In DOSBox-X, se giochi solo con la tastiera, imposta joysticktype=none (DOSBox-X si inventa un joystick quando non ce n'è nessuno collegato). Per calibrarlo da te: l'installatore DOS del gioco, INSTALL.EXE (sul CD) > Configure > Control > Calibrate Joystick, oppure SETUP.EXE, un programma Windows 3.x nella cartella del gioco, su Windows. La versione inglese con SWOS++ aggiunge anche una calibrazione del joystick.
 
 **Aggiornamento (2.5.1):** non serve tornare agli originali. Trascina l'exe e `DATA\TEAM.020` che hai ora (modificati da una qualsiasi versione precedente, dalla 1.0 alla 4.0, CD o GOG): il patcher li riconosce e li porta all'ultima versione, oppure ti dice che sono già aggiornati. I salvataggi non vengono mai toccati.
 

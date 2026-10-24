@@ -2,11 +2,25 @@
 
 **SWOS 96/97 Mod 4.0.1** (draft)
 
-4.0.1 completes the World 2026-27 career: more leagues in their real format, a nationality for every player, cups
-that follow promotions, easier menus and a safer install. Everything in 4.0 stays as it was; careers saved with 4.0
-load and play on.
+4.0.1 brings a joypad that works out of the box on GOG and, in the World 2026-27, more leagues in their real format
+(Mexico, Peru, Colombia, Uruguay), a nationality for every player, cups that follow promotions and relegations,
+line-ups by role, simpler menus and a safer install, plus fixes for some 4.0 bugs. Everything in 4.0 stays as it was;
+careers saved with 4.0 load and play on.
 
 ### What's new
+
+#### Joypad ready
+- **Plug the joypad in and play.** On a GOG install, the one-click install now sets everything up: the joypad is
+  player 1 and the keyboard is player 2, with a ready calibration, and both the stick and the d-pad work. The keyboard
+  still works as before.
+- **No joypad, no problem.** The game now checks at start whether a joypad is connected and goes to the keyboard
+  automatically when there is none, so keyboard players do not have to change anything.
+- **Your own settings.** The install page has a tick, 'I have a joypad / gamepad', already on for GOG: untick it to
+  keep your own controls settings, and run the install again without the tick to put the originals back (the changed
+  files are backed up).
+- **Your own DOSBox (CD installs):** the same tick is off by default. Tick it if you have a joypad and add three
+  lines to your DOSBox configuration (`[joystick]`, `joysticktype=2axis`, `timed=false`); mapping the d-pad and what
+  to do in DOSBox-X are explained in the README and on the install page.
 
 #### Mexico, exactly
 - **Liga MX and the Liga de Expansión MX** now play their real 2026-27 season. Each has two tournaments a season: the
@@ -127,9 +141,6 @@ load and play on.
   some World 2026-27 files are still missing, choosing the world (CLASSIC CAREERS, the green CAREER 2026-27 button,
   or Europe 1984-85) no longer quits to DOS: the game says "INCOMPLETE INSTALL: RUN THE PATCHER AGAIN" (in each
   language) and goes back to the menu.
-- **Joypad**: the controls (keyboard, joypad, two joypads) and the joypad calibration are set with SETUP.EXE, a
-  Windows program in the game folder; the game comes set to keyboard only. The steps are in the README and on the
-  install page.
 
 ### Known issues of 4.0, revisited
 - **European places**: the 4.0 notes warned that in some seasons a European place could go to a club of the wrong
@@ -182,11 +193,25 @@ joypad question.
 
 **SWOS 96/97 Mod 4.0.1** (bozza)
 
-La 4.0.1 completa la carriera Mondo 2026-27: più campionati nella loro formula vera, una nazionalità per ogni
-giocatore, coppe che seguono le promozioni, menu più semplici e un'installazione più sicura. Tutto quello che c'era
-nella 4.0 resta com'era; le carriere salvate con la 4.0 si caricano e continuano.
+La 4.0.1 porta un joypad che funziona subito su GOG e, nel Mondo 2026-27, altri campionati con la loro formula vera
+(Messico, Perù, Colombia, Uruguay), una nazionalità per ogni giocatore, coppe che seguono promozioni e retrocessioni,
+formazioni secondo i ruoli, menu più semplici e un'installazione più sicura, più le correzioni di alcuni errori della
+4.0. Tutto quello che c'era nella 4.0 resta com'era; le carriere salvate con la 4.0 si caricano e continuano.
 
 ### Novità
+
+#### Joypad pronto
+- **Collega il joypad e gioca.** Su un'installazione GOG, l'installazione con un clic ora imposta tutto: il joypad è il
+  giocatore 1 e la tastiera il giocatore 2, con una calibrazione già pronta, e funzionano sia lo stick sia la croce
+  direzionale. La tastiera funziona come prima.
+- **Senza joypad, nessun problema.** Ora il gioco controlla all'avvio se c'è un joypad collegato e passa alla tastiera
+  da solo se non c'è, quindi chi gioca con la tastiera non deve cambiare nulla.
+- **Le tue impostazioni.** La pagina d'installazione ha una spunta, 'Ho un joypad / gamepad', già attiva su GOG:
+  toglila per tenere le tue impostazioni dei comandi, e rifai l'installazione senza spunta per rimettere gli originali
+  (i file modificati restano in copia).
+- **Il tuo DOSBox (installazioni da CD):** la stessa spunta è disattivata di default. Attivala se hai un joypad e
+  aggiungi tre righe alla configurazione del tuo DOSBox (`[joystick]`, `joysticktype=2axis`, `timed=false`); come
+  associare la croce direzionale e cosa fare in DOSBox-X sono spiegati nel README e nella pagina d'installazione.
 
 #### Il Messico, esattamente
 - **La Liga MX e la Liga de Expansión MX** giocano la loro vera stagione 2026-27. Ognuna ha due tornei a stagione:
@@ -311,9 +336,6 @@ nella 4.0 resta com'era; le carriere salvate con la 4.0 si caricano e continuano
   cartella del gioco" (questa parte era già nella riedizione della 4.0 del 23 ottobre). E se mancano ancora dei file del Mondo 2026-27, scegliere il mondo (CARR.
   STORICHE, il pulsante verde CARRIERA 2026-27 o Europa 1984-85) non fa più uscire a DOS: il gioco dice
   "INSTALLAZIONE INCOMPLETA: RILANCIA IL PATCHER" (in ogni lingua) e torna al menu.
-- **Joypad**: i comandi (tastiera, joypad, due joypad) e la calibrazione del joypad si impostano con SETUP.EXE, un
-  programma Windows nella cartella del gioco; il gioco arriva impostato sulla sola tastiera. I passaggi sono nel README
-  e nella pagina d'installazione.
 
 ### Problemi noti della 4.0, rivisti
 - **Posti europei**: le note della 4.0 avvisavano che in alcune stagioni un posto europeo poteva andare a un club della

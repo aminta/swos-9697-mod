@@ -417,6 +417,7 @@ const DT = {
         incomplete: (k, n, l) => `INSTALLAZIONE INCOMPLETA: solo ${k} file su ${n} sono stati scritti correttamente (mancano: ${l}). Così il gioco non funziona: scegli di nuovo la cartella del gioco per completare l'installazione.`,
         launch: l => `Per giocare con la mod usa i file «SWOS Mod - Italiano.bat» (o ${l}) nella cartella del gioco: il collegamento di GOG avvia sempre la versione inglese.`,
         done: n => `Fatto: ${n} / ${n} file scritti e verificati (la copia dei file sostituiti è in MOD_BACKUP\\{{VERSION}}). Avvia il gioco come sempre e inizia una carriera nuova.`,
+        setup: { done: 'SETUP.DAT (i comandi) era quello di fabbrica, solo tastiera: l\'ho sostituito con uno calibrato per joypad e tastiera (l\'originale è in SETUP.DAT.bak).', custom: 'SETUP.DAT è già configurato da te: non l\'ho toccato.', already: 'SETUP.DAT già calibrato per joypad e tastiera: non c\'era niente da cambiare.', none: 'SETUP.DAT non trovato: niente da cambiare per il joypad.' },
         denied: 'La pagina non ha il permesso di scrivere nella cartella: riprova e conferma "Modifica file" / "Salva modifiche".',
         error: m => `Errore: ${m}. Il gioco potrebbe essere a metà: rimetti i file di MOD_BACKUP\\{{VERSION}} e riprova.` },
   en: { pf: "Is the game in Program Files (for example GOG Galaxy's folder, C:\\Program Files (x86)\\GOG Galaxy\\Games)? Chrome and Edge do not open that folder (\"contains system files\"). Use the manual steps below, or copy the game folder somewhere else (for example Documents), install the mod into the copy with one click, then copy its contents back over the original (Windows asks for administrator permission: accept) and play as usual.",
@@ -433,6 +434,7 @@ const DT = {
         incomplete: (k, n, l) => `INSTALL INCOMPLETE: only ${k} of ${n} files were written correctly (missing: ${l}). The game will not work like this: choose the game folder again to complete the install.`,
         launch: l => `To play the mod, use the files "SWOS Mod - English.bat" (or ${l}) in the game folder: GOG's shortcut always starts the English version.`,
         done: n => `Done: ${n} / ${n} files written and verified (a copy of the replaced files is in MOD_BACKUP\\{{VERSION}}). Start the game as usual and start a new career.`,
+        setup: { done: 'SETUP.DAT (the controls) was the factory one, keyboard only: I replaced it with one calibrated for joypad and keyboard (the original is in SETUP.DAT.bak).', custom: 'SETUP.DAT is already set up by you: I did not touch it.', already: 'SETUP.DAT is already calibrated for joypad and keyboard: nothing to change.', none: 'SETUP.DAT not found: nothing to change for the joypad.' },
         denied: 'The page has no permission to write into the folder: try again and confirm "Edit files" / "Save changes".',
         error: m => `Error: ${m}. The game may be half updated: put back the files from MOD_BACKUP\\{{VERSION}} and try again.` },
   fr: { pf: "Le jeu est dans Program Files / Programmes (par exemple le dossier de GOG Galaxy, C:\\Program Files (x86)\\GOG Galaxy\\Games) ? Chrome et Edge n'ouvrent pas ce dossier (« contient des fichiers système »). Suivez les étapes à la main ci-dessous, ou copiez le dossier du jeu ailleurs (par exemple dans Documents), installez le mod dans la copie en un clic, puis recopiez son contenu par-dessus l'original (Windows demande l'autorisation d'administrateur : acceptez) et jouez comme d'habitude.",
@@ -449,6 +451,7 @@ const DT = {
         incomplete: (k, n, l) => `INSTALLATION INCOMPLÈTE : seulement ${k} fichiers sur ${n} ont été écrits correctement (manquants : ${l}). Le jeu ne fonctionnera pas ainsi : choisissez à nouveau le dossier du jeu pour terminer l'installation.`,
         launch: l => `Pour jouer au mod, utilisez les fichiers « SWOS Mod - Francais.bat » (ou ${l}) dans le dossier du jeu : le raccourci de GOG lance toujours la version anglaise.`,
         done: n => `Terminé : ${n} / ${n} fichiers écrits et vérifiés (la copie des fichiers remplacés est dans MOD_BACKUP\\{{VERSION}}). Lancez le jeu comme d'habitude et commencez une nouvelle carrière.`,
+        setup: { done: 'SETUP.DAT (les commandes) était celui d\'usine, clavier seul : je l\'ai remplacé par un fichier calibré pour joypad et clavier (l\'original est dans SETUP.DAT.bak).', custom: 'SETUP.DAT est déjà réglé par vous : je n\'y ai pas touché.', already: 'SETUP.DAT est déjà calibré pour joypad et clavier : rien à changer.', none: 'SETUP.DAT introuvable : rien à changer pour le joypad.' },
         denied: "La page n'a pas le droit d'écrire dans le dossier : réessayez et confirmez « Modifier les fichiers » / « Enregistrer les modifications ».",
         error: m => `Erreur : ${m}. Le jeu est peut-être à moitié modifié : remettez les fichiers de MOD_BACKUP\\{{VERSION}} et réessayez.` },
   de: { pf: "Liegt das Spiel unter Programme / Program Files (zum Beispiel im Ordner von GOG Galaxy, C:\\Program Files (x86)\\GOG Galaxy\\Games)? Chrome und Edge öffnen diesen Ordner nicht („enthält Systemdateien“). Folgen Sie den Schritten von Hand weiter unten, oder kopieren Sie den Spielordner woandershin (zum Beispiel nach Dokumente), installieren Sie den Mod mit einem Klick in die Kopie, kopieren Sie dann ihren Inhalt über das Original zurück (Windows fragt nach Administratorrechten: bestätigen) und spielen Sie wie gewohnt.",
@@ -465,6 +468,7 @@ const DT = {
         incomplete: (k, n, l) => `INSTALLATION UNVOLLSTÄNDIG: nur ${k} von ${n} Dateien wurden korrekt geschrieben (es fehlen: ${l}). So läuft das Spiel nicht: wählen Sie den Spielordner erneut, um die Installation abzuschließen.`,
         launch: l => `Zum Spielen des Mods die Dateien „SWOS Mod - Deutsch.bat“ (oder ${l}) im Spielordner verwenden: die GOG-Verknüpfung startet immer die englische Version.`,
         done: n => `Fertig: ${n} / ${n} Dateien geschrieben und geprüft (die Kopie der ersetzten Dateien liegt in MOD_BACKUP\\{{VERSION}}). Starten Sie das Spiel wie gewohnt und beginnen Sie eine neue Karriere.`,
+        setup: { done: 'SETUP.DAT (die Steuerung) war die Werkseinstellung, nur Tastatur: Ich habe sie durch eine für Joypad und Tastatur kalibrierte ersetzt (das Original liegt in SETUP.DAT.bak).', custom: 'SETUP.DAT wurde von Ihnen selbst eingestellt: Ich habe sie nicht angetastet.', already: 'SETUP.DAT ist schon für Joypad und Tastatur kalibriert: Nichts zu ändern.', none: 'SETUP.DAT nicht gefunden: Für das Joypad ist nichts zu ändern.' },
         denied: 'Die Seite darf nicht in den Ordner schreiben: Versuchen Sie es erneut und bestätigen Sie „Dateien bearbeiten“ / „Änderungen speichern“.',
         error: m => `Fehler: ${m}. Das Spiel ist vielleicht nur halb geändert: Legen Sie die Dateien aus MOD_BACKUP\\{{VERSION}} zurück und versuchen Sie es erneut.` },
 };
@@ -524,6 +528,10 @@ async function installDir(dir, say) {             // -> the number of files writ
     const h = (dname ? dm : g.m).get(fname.toUpperCase());
     if (h && h.kind === 'file') { const f = await h.getFile(); have.set(tgt, { name: f.name, bytes: new Uint8Array(await f.arrayBuffer()) }); }
   }
+  let setupState = 'none';                                 // 4.0.1: SETUP.DAT (the controls): factory -> calibrated, any other left alone
+  { const st = have.get('SETUP.DAT');
+    if (st) { const m = md5(st.bytes), known = PATCHES.some(p => p.id === 'SETUP.DAT' && p.size === st.bytes.length && (p.md5 === m || p.out_md5 === m));
+              setupState = known ? 'known' : 'custom'; if (!known) have.delete('SETUP.DAT'); } }
   results.length = 0;
   await handle([...have].map(([tgt, x]) => ({ name: x.name, arrayBuffer: async () => x.bytes.buffer.slice(x.bytes.byteOffset, x.bytes.byteOffset + x.bytes.length) })));
   const swospp = g.m.has('SWOSPP.BIN') || g.m.has('LOADER.BIN');
@@ -544,7 +552,10 @@ async function installDir(dir, say) {             // -> the number of files writ
   const kinds = new Set(results.filter(r => r.patch && EXES.includes(r.patch.target)).map(r => r.patch.id.includes('(GOG)') ? 'gog' : 'cd'));
   const langs = EXES.filter(x => have.has(x)).map(x => ({ I: 'it', E: 'en', F: 'fr', G: 'de' })[x[0]]).join(', ');
   if (!exeOk.length) { say(D.noexe + (bad.length ? ' ' + D.bad(bad.join(', ')) : ''), true); return 0; }
-  const head = D.found([...kinds].map(k => D.kind[k]).join(' + ') || D.kind.cd, langs) + (bad.length ? ' ' + D.bad(bad.join(', ')) : '');
+  const sres = results.find(r => r.patch && r.patch.id === 'SETUP.DAT');
+  const snote = setupState === 'custom' ? D.setup.custom : setupState === 'none' ? D.setup.none :
+                sres && sres.state === 'ok' && out.has('SETUP.DAT') ? D.setup.done : D.setup.already;
+  const head = D.found([...kinds].map(k => D.kind[k]).join(' + ') || D.kind.cd, langs) + (bad.length ? ' ' + D.bad(bad.join(', ')) : '') + ' ' + snote;
   const lnote = async () => { const l = await launchers(g); const own = { it: 'Italiano', en: 'English', fr: 'Francais', de: 'Deutsch' }[lang];
                              return l.length ? ' ' + D.launch(l.filter(x => x !== own).join(' / ')) : ''; };
   if (!out.size) { say(head + ' ' + D.current + await lnote()); return 0; }
@@ -559,6 +570,7 @@ async function installDir(dir, say) {             // -> the number of files writ
     try { let d = bdir; if (dname) d = await d.getDirectoryHandle(dname);            // (an empty one: a backup cut short)
           there = (await (await (await d.getFileHandle(fname)).getFile()).arrayBuffer()).byteLength > 0; } catch (e) {}
     if (!there) await writeFile(bdir, tgt, cur);
+    if (tgt === 'SETUP.DAT' && !g.m.has('SETUP.DAT.BAK')) await writeFile(g.root, 'SETUP.DAT.bak', cur);   // (kept beside the file too)
   }
   let i = 0;
   for (const [tgt, bytes] of out) {                        // the game's own spelling of an existing name is kept

@@ -68,7 +68,7 @@ stop turbo on key=false
 nosound=true
 [sblaster]
 sbtype=sb16
-[autoexec]
+{joy}[autoexec]
 mount c .
 imgmount d {iso} -t iso
 c:
@@ -414,7 +414,8 @@ class Dosbox:
         if os.environ.get('SWOSTEST_MEMSIZE'):         # (experiments: DOSBox-X memory in MB; dumps still read 32 MB)
             conf = conf.replace('memsize=32', 'memsize=' + os.environ['SWOSTEST_MEMSIZE'])
         conf = conf.format(cycles=os.environ.get('CYCLES', 'max'), core=os.environ.get('CORE', 'dynamic'), iso=ISO,
-                           exe=exe, turbo='false' if os.environ.get('TURBO') == '0' else 'true')
+                           exe=exe, turbo='false' if os.environ.get('TURBO') == '0' else 'true',
+                           joy=f"[joystick]\njoysticktype={os.environ['SWOSTEST_JOY']}\n" if os.environ.get('SWOSTEST_JOY') else '')   # (none / auto / 2axis ...)
         open(os.path.join(run, 'test.conf'), 'w').write(conf)
         self.screen, self.eip, self.t0, self.watch = b'', None, time.time(), set()
         self.stats = {}                                # wall time per phase (s), shown in the session log
@@ -10046,6 +10047,52 @@ def main(argv):
         return 1 if bad else 0
     print(__doc__)
     return 2
+
+
+@scenario
+def setup_nojoy():
+    """4.0.1 joypad: the game with the patcher's calibrated SETUP.DAT (tools/setup_calibrated.dat: controls != 1, a non-zero
+    g_numLoopsJoy1, the 65536-reads-per-frame risk of a zero one) on a release dir (FOREIGNBUY_BUILD / SWOSTEST_BUILD) and NO
+    joystick (DOSBox-X joysticktype none, then auto): the main menu is reached, a friendly HAMBURG - SCHALKE (HAMBURG human)
+    starts and the match runs on a few seconds (the keys in the menus are not drifted by a stuck stick). Prints g_inputControls"""
+    exe = foreign_exe()
+    if not exe:
+        return True, 'SKIP: no release SWOS dir (FOREIGNBUY_BUILD, or SWOSTEST_BUILD / W8485_BUILD with DATA/POOL05.DAT)'
+    dat = os.environ.get('SETUPNJ_DAT') or os.path.join(ROOT, 'tools', 'setup_calibrated.dat')   # (SETUPNJ_DAT: a control run)
+    d = open(dat, 'rb').read()
+    errs, info = [], []
+    check(os.environ.get('SETUPNJ_DAT') or len(d) == 105 and struct.unpack_from('<H', d, 6)[0] != 1, f'setup_calibrated.dat: controls {struct.unpack_from("<H", d, 6)[0]}', errs)
+    check(os.environ.get('SETUPNJ_DAT') or struct.unpack_from('<H', d, 92)[0] != 0, 'setup_calibrated.dat: g_numLoopsJoy1 = 0', errs)
+    keep = os.environ.get('SWOSTEST_JOY')
+    try:
+        for joy in os.environ.get('SETUPNJ_JOY', 'none,auto').split(','):
+            os.environ['SWOSTEST_JOY'] = joy
+            with Session('setup_nojoy_' + joy, exe, {'SETUP.DAT': dat}, 'dump:3', 300, match=True) as s:
+                r = s.wait()
+                check(r.outcome == 'dump', f'{joy}: the first menu not reached: {r}', errs)
+                if r.outcome != 'dump':
+                    continue
+                at = r.mem.find(d[92:105])
+                ctl = struct.unpack_from('<H', r.mem, at - 92 + 6)[0] if at > 0 else None
+                info.append(f'{joy}: g_inputControls {ctl}')
+                check(at > 0, f'{joy}: the SETUP.DAT block not found in memory', errs)
+                try:
+                    friendly_prematch(s, 'HAMBURG', 'SCHALKE')
+                except AssertionError as e:
+                    check(False, f'{joy}: friendly menus: {e}', errs)
+                    continue
+                for _ in range(22):                     # pre-match: down the rows to VIS. PARTITA
+                    s.send('down dump:0.5')
+                    if s.screen().selected == 9:
+                        break
+                r = s.send('fire ' + 'fire:3 ' * 30 + 'dump:2')
+                check(r.outcome == 'dump', f'{joy}: match: {r}', errs)
+    finally:
+        if keep is None:
+            os.environ.pop('SWOSTEST_JOY', None)
+        else:
+            os.environ['SWOSTEST_JOY'] = keep
+    return not errs, '; '.join(errs + info) or 'ok'
 
 
 if __name__ == '__main__':

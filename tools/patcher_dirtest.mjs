@@ -47,6 +47,7 @@ function check(T, dir, gog, pp, tag) {                       // every target fil
   let n = 0, bad = [], pool = 0;
   const done = new Set();
   for (const p of T.PATCHES.filter(p => !p.from && !p.via)) {
+    if (p.target === 'SETUP.DAT') continue;                   // (4.0.1: the controls file, its own cases below)
     if (done.has(p.target) || p.id.includes('SWOS++') !== (pp && p.target === 'ENGLISH.EXE')) continue;
     if (p.target.endsWith('.EXE') && p.id.includes('(GOG)') !== gog) continue;
     const want = path.join(rel, pp && p.target === 'ENGLISH.EXE' ? 'swospp' + (gog ? '/gog' : '') :
@@ -93,6 +94,29 @@ for (const lang of ['it', 'en', 'fr', 'de']) {
     ok(md5(path.join(src, 'ITALIAN.EXE')) === md5(path.join(M, 'orig/ITALIAN.EXE')), `${lang} from the CD: the CD folder untouched`); }
   { const top = path.join(R, 'pp'), dir = path.join(top, 'SWOS'); game(dir, false); fs.writeFileSync(path.join(dir, 'LOADER.BIN'), 'x');
     const n = await T.installDir(new DH(top), say); ok(n > 0, `${lang} SWOS++: ${n} written`); check(T, dir, false, true, `${lang} SWOS++`); }
+  { // 4.0.1 SETUP.DAT (the controls): the CD's / GOG's factory file -> the calibrated one + SETUP.DAT.bak; any other left alone
+    const cal = md5(path.join(M, 'tools/setup_calibrated.dat')), fac = k => path.join(M, 'orig/setup-factory', k + '.DAT');
+    for (const [kind, gog] of [['CD', false], ['GOG', true]]) {
+      const top = path.join(R, 'setup' + kind), dir = path.join(top, 'SWOS'); game(dir, gog); fs.copyFileSync(fac(kind), path.join(dir, 'SETUP.DAT'));
+      const n = await T.installDir(new DH(top), say), l1 = log.at(-1);
+      ok(n > 0 && fs.existsSync(path.join(dir, 'SETUP.DAT')) && md5(path.join(dir, 'SETUP.DAT')) === cal &&
+         md5(path.join(dir, 'SETUP.DAT.bak')) === md5(fac(kind)) && md5(path.join(backup(dir), 'SETUP.DAT')) === md5(fac(kind)) &&
+         l1.includes(T.DT[lang].setup.done), `${lang} SETUP.DAT ${kind} factory: replaced, .bak + MOD_BACKUP = the factory file, logged`);
+      const n2 = await T.installDir(new DH(top), say);
+      ok(n2 === 0 && md5(path.join(dir, 'SETUP.DAT')) === cal && md5(path.join(dir, 'SETUP.DAT.bak')) === md5(fac(kind)) &&
+         log.at(-1).includes(T.DT[lang].setup.already), `${lang} SETUP.DAT ${kind} again: calibrated file kept, .bak kept, nothing written`);
+    }
+    { const top = path.join(R, 'setupcustom'), dir = path.join(top, 'SWOS'); game(dir, false);
+      const mine = Buffer.from(fs.readFileSync(fac('GOG'))); mine[6] = 2; mine[100] = 0x39; fs.writeFileSync(path.join(dir, 'SETUP.DAT'), mine);
+      const n = await T.installDir(new DH(top), say), l1 = log.at(-1);
+      ok(n > 0 && Buffer.compare(fs.readFileSync(path.join(dir, 'SETUP.DAT')), mine) === 0 && !fs.existsSync(path.join(dir, 'SETUP.DAT.bak')) &&
+         !fs.existsSync(path.join(backup(dir), 'SETUP.DAT')) && l1.includes(T.DT[lang].setup.custom) && !l1.startsWith('!'),
+         `${lang} SETUP.DAT custom: untouched, no .bak, logged, the rest of the mod installed`); }
+    { const top = path.join(R, 'setupnone'), dir = path.join(top, 'SWOS'); game(dir, false);
+      const n = await T.installDir(new DH(top), say), l1 = log.at(-1);
+      ok(n > 0 && !fs.existsSync(path.join(dir, 'SETUP.DAT')) && !fs.existsSync(path.join(dir, 'SETUP.DAT.bak')) && l1.includes(T.DT[lang].setup.none),
+         `${lang} SETUP.DAT missing: not created, logged`); }
+  }
   { const w = path.join(R, 'wrong'); fs.rmSync(w, { recursive: true, force: true }); fs.mkdirSync(w); fs.writeFileSync(path.join(w, 'x.txt'), 'x');
     const n = await T.installDir(new DH(w), say); ok(n === 0 && log.at(-1).startsWith('!'), `${lang} wrong folder: ${log.at(-1)}`); }
   for (const v of ups.split(',').filter(Boolean)) {          // an install patched by release v (its own page)

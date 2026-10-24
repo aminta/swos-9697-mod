@@ -359,6 +359,29 @@ def swospp_sources(entries):
     return extra
 
 
+SETUP_FACTORY = [('CD', 'orig/setup-factory/CD.DAT', '7ebf215f2ebba6bcdb9d1d1dc068656dfef8fa87'),     # (sha1: the 105-byte file of the
+                 ('GOG', 'orig/setup-factory/GOG.DAT', '63acdb5ee45f3085fadeeb2561fce9982d747f11')]    # CD / of GOG: controls 1, no calibration)
+SETUP_CALIBRATED = 'tools/setup_calibrated.dat'      # 4.0.1: embedded; swap = overwrite this file (tools/mksetupdat_placeholder.py: layout)
+
+
+def setup_entries():
+    """4.0.1 joypad: SETUP.DAT as the CD / GOG ships it (keyboard only, calibration all 0) -> the calibrated one. Any other
+    SETUP.DAT matches no entry, so the page leaves it alone."""
+    dst = open(os.path.join(ROOT, SETUP_CALIBRATED), 'rb').read()
+    assert len(dst) == 105 and struct.unpack_from('<H', dst, 6)[0] != 1, 'SETUP.DAT: 105 bytes, controls != keyboard only'
+    assert struct.unpack_from('<H', dst, 92)[0] != 0, 'SETUP.DAT: g_numLoopsJoy1 = 0 (65536 port reads per frame)'
+    out = []
+    for kind, path, sha in SETUP_FACTORY:
+        src = open(os.path.join(ROOT, path), 'rb').read()
+        assert hashlib.sha1(src).hexdigest() == sha and len(src) == 105, path
+        ops, _ = encode(src, dst)
+        assert decode(src, ops) == dst
+        out.append({'id': 'SETUP.DAT', 'target': 'SETUP.DAT', 'size': 105, 'md5': hashlib.md5(src).hexdigest(),
+                    'out_md5': hashlib.md5(dst).hexdigest(), 'out_size': 105, 'delta': pack(ops), 'z': 1, 'setup': kind})
+        print(f'SETUP.DAT ({kind} factory): delta {len(ops)} bytes')
+    return out
+
+
 def build():
     build_swospp()
     entries = []
@@ -375,6 +398,7 @@ def build():
         print(f'{fid}: {len(dst)} bytes, delta {len(ops)} bytes ({inserted} inserted)')
     entries += upgrades(entries)
     entries += swospp_sources(entries)
+    entries += setup_entries()
     page = open(os.path.join(ROOT, 'tools', 'patcher_template.html'), encoding='utf-8').read()
     page = page.replace('/*PATCHES*/null', json.dumps(entries)).replace('{{VERSION}}', VERSION)
     out = os.path.join(ROOT, 'release', 'swos-9697-mod-patcher.html')

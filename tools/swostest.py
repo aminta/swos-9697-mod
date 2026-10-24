@@ -9009,6 +9009,7 @@ def world_full_draw():
     log = os.path.join(RUNS, w84_tag() + '_1', 'session.log')
     for ln in (open(log, errors='replace') if os.path.exists(log) else []):
         title = ln.split('] ', 1)[-1].split(' | ')[0]
+        title = re.sub(r'^BRASILE ', '', title)          # (4.0.1 match titles: the country first, rc1)
         if not title.startswith('COPA DO BRASIL'):
             continue
         for t in re.findall(r'VINCE (\d+-\d+) (AI RIG(?: D\.T)?|IN TO)', ln):

@@ -25,7 +25,7 @@ EXTRA = []      # [(world, contest id or None, {lang: title}, {lang: [lines]})] 
 LANGS = ('it', 'en', 'fr', 'de')
 
 T = {
-    'it': dict(promedio=['GIU: ULTIMO PROMEDIO (3 STAGIONI)', 'E ULTIMO DELLA CLASSIFICA ANNUALE;', 'PARI: SPAREGGIO IN CAMPO NEUTRO'], po_kind={'promotion': 'PLAY-OFF PROMOZIONE', 'europe': 'PLAY-OFF EUROPEO', 'placement': 'SPAREGGIO', 'playout': 'PLAY-OUT', 'title': 'PLAY-OFF SCUDETTO'}, better='IN PARITA PASSA LA MEGLIO PIAZZATA', et_better='SUPPLEMENTARI, POI LA MEGLIO PIAZZATA', gap='NON SI GIOCA SE C SONO {n}+ PUNTI DI DISTACCO', same='NON SI GIOCA SE E LA STESSA SQUADRA', seeds='TESTE DI SERIE {a}-{b} DELLE FASI', win_to='LA VINCENTE IN {d}', ita=['PLAY-OFF B: 3A-8A, PLAY-OUT: 16A-17A', 'PLAY-OFF C A 28 SQUADRE: 4A PROMOSSA'],
+    'it': dict(promedio=['GIU: ULTIMO PROMEDIO (3 STAGIONI)', 'E ULTIMO DELLA CLASSIFICA ANNUALE;', 'PARI: SPAREGGIO IN CAMPO NEUTRO'], po_kind={'promotion': 'PLAY-OFF PROMOZIONE', 'europe': 'PLAY-OFF EUROPEO', 'placement': 'SPAREGGIO', 'playout': 'PLAY-OUT', 'title': 'PLAY-OFF PER IL TITOLO'}, better='IN PARITA PASSA LA MEGLIO PIAZZATA', et_better='SUPPLEMENTARI, POI LA MEGLIO PIAZZATA', gap='NON SI GIOCA SE C SONO {n}+ PUNTI DI DISTACCO', same='NON SI GIOCA SE E LA STESSA SQUADRA', seeds='TESTE DI SERIE {a}-{b} DELLE FASI', win_to='LA VINCENTE IN {d}', ita=['PLAY-OFF B: 3A-8A, PLAY-OUT: 16A-17A', 'PLAY-OFF C A 28 SQUADRE: 4A PROMOSSA'],
                teams='{n} SQUADRE', clubs='{n} SQUADRE', rr={1: 'GIRONE DI SOLA ANDATA', 2: 'ANDATA E RITORNO', 3: 'TRE GIRONI',
                                         4: 'QUATTRO GIRONI'},
                days='{n} GIORNATE', rest='UNA SQUADRA RIPOSA OGNI GIORNATA', pts='VITTORIA {w} PUNTI, PAREGGIO 1',
@@ -302,7 +302,7 @@ def tourney_text(c, t):
 ZT = {
     'it': dict(head='COLORI DELLA CLASSIFICA:', col=('AZZURRO', 'VERDE', 'BLU', 'ARANCIONE', 'GRIGIO'),
                why=dict(cc='COPPA DEI CAMPIONI', uefa='COPPA UEFA', up='PROMOZIONE DIRETTA', po_up='PLAY-OFF PROMOZIONE',
-                        po_eu='PLAY-OFF EUROPEO', po_title='PLAY-OFF SCUDETTO', po_liguilla='LIGUILLA (PLAY-OFF PER IL TITOLO)', po_place='PLAY-OFF', po_down='SPAREGGIO SALVEZZA', out='PLAY-OUT', down='RETROCESSIONE DIRETTA',
+                        po_eu='PLAY-OFF EUROPEO', po_title='PLAY-OFF PER IL TITOLO', po_liguilla='LIGUILLA (PLAY-OFF PER IL TITOLO)', po_place='PLAY-OFF', po_down='SPAREGGIO SALVEZZA', out='PLAY-OUT', down='RETROCESSIONE DIRETTA',
                         cl='CHAMPIONS LEAGUE', el='EUROPA LEAGUE', conf='CONFERENCE LEAGUE', eu='COPPE EUROPEE'),
                eu='POSTI EUROPEI DAL RANKING UEFA DELLA FEDERAZIONE (ACCESS LIST UEFA): CLASSIFICA {y} PER LE COPPE {y2}, '
                   'RANKING VERO {r}:',

@@ -6508,25 +6508,31 @@ def world_winners_state():
     keep = {k: os.environ.get(k) for k in keys}
     os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1',
                       W8485_TEAM='SUDAMERICA,BRASILE,BRASILEIRAO SERIE A|CAMPEONATO BRASILEIRO SERIE A,PALMEIRAS',
-                      W8485_ONE='1', W8485_MIDSAVE=f'{s1 + 0x55:x}:255:2',
-                      W8485_SAVE_END='WWIN')         # (401rc data: slot 1 +55h never holds FFh although the Paulista is
-    try:                                             # decided; the season-end save, slot 1 still the Paulista, is the fallback)
-        ok, msg = world8485()
+                      W8485_ONE='1', W8485_MIDSAVE=f'{s1 + 0x55:x}:255:2')
+    os.environ.pop('W8485_SAVE_END', None)
+    car, why = None, []
+    try:
+        for attempt in (1, 2):         # the save is made only once slot 1 +55h held FFh in two dumps (the state is over);
+            ok, msg = world8485()      # under load that moment was once never seen (a flake): the season is played again
+            if not ok:
+                return False, f'season: {msg}'
+            if 'saved mid-season: ' in msg:
+                car = msg.split('saved mid-season: ', 1)[1].strip()
+                break
+            why.append(f'attempt {attempt}: no mid-season save (slot 1 +55h never FFh): {msg[:120]}')
     finally:
         for k, v in keep.items():
             if v is None:
                 os.environ.pop(k, None)
             else:
                 os.environ[k] = v
-    if not ok:
-        return False, f'season: {msg}'
-    if 'saved ' not in msg:
-        return False, f'no save: {msg}'
-    car = msg.split('saved ', 1)[1].strip()
-    car = car.split(': ', 1)[1] if car.startswith('mid-season: ') else car      # ('saved mid-season: PATH' | 'saved PATH')
+    if car is None:
+        return False, 'the Paulista was never over in the season: ' + '; '.join(why)
     with Session('world_winners_state', exe, {'WWIN.CAR': car}, 'dump:2', 300) as s:
         s.wait()
         s.send(LOAD1 + ' dump:3')
+        if s.result.obj2(s1 + 0x55, 1)[0] != 0xFF:
+            return False, f'the saved career has slot 1 +55h = {s.result.obj2(s1 + 0x55, 1)[0]:02X}, not FFh'
         champ = team_name(exe, struct.unpack_from('<H', s.result.obj2(s1 + 0x39, 2))[0])
         walk(s, s.screen().find('VISUAL. COMPETIZ.', exact=True), 3)
         scr = s.screen()

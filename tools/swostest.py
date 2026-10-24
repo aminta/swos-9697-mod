@@ -9651,8 +9651,8 @@ def menu_levels():
             check(seg and any(x in lv for x in ('TERCERA DIVISION', 'TERCERA')), f'EL SALVADOR levels {lv}', errs)
             walk(s, seg or 'SEGUNDA', 3)
             gr = vis(s.screen())
-            check(len(gr) == 2 and gr[0].startswith('SEGUNDA') and gr[0].endswith('OCCIDENTE')
-                  and gr[1].startswith('SEGUNDA') and gr[1].endswith('ORIENTE'), f'SEGUNDA groups {gr}', errs)
+            check(len(gr) == 2 and gr[0].startswith('SEGUNDA') and gr[0].endswith(('OCCIDENTE', 'OCC.'))   # (the fitted 'SEGUNDA OCC.' since 4.0)
+                  and gr[1].startswith('SEGUNDA') and gr[1].endswith(('ORIENTE', 'ORI.')), f'SEGUNDA groups {gr}', errs)
             notes.append(f'EL SALVADOR {lv}')
         except AssertionError as e:
             return False, f'{e}; {"; ".join(errs)}; screen {s.screen().texts()[:16]}'

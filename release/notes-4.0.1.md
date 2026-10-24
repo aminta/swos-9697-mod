@@ -127,9 +127,9 @@ load and play on.
   some World 2026-27 files are still missing, choosing the world (CLASSIC CAREERS, the green CAREER 2026-27 button,
   or Europe 1984-85) no longer quits to DOS: the game says "INCOMPLETE INSTALL: RUN THE PATCHER AGAIN" (in each
   language) and goes back to the menu.
-- **Joypad**: the controls (keyboard, joypad, two joypads) and the joypad calibration are set with SETUP.EXE, a
-  Windows program in the game folder; the game comes set to keyboard only. The steps are in the README and on the
-  install page.
+- **Joypad**: in the one-click install, tick 'I have a joypad / gamepad' and the patcher sets up the controls (joypad =
+  player 1, keyboard = player 2) and, on GOG, the DOSBox setting the joypad needs; untick it to go back. The game comes
+  set to keyboard only. How to calibrate it yourself, and the d-pad, are in the README and on the install page.
 
 ### Known issues of 4.0, revisited
 - **European places**: the 4.0 notes warned that in some seasons a European place could go to a club of the wrong
@@ -311,9 +311,10 @@ nella 4.0 resta com'era; le carriere salvate con la 4.0 si caricano e continuano
   cartella del gioco" (questa parte era già nella riedizione della 4.0 del 23 ottobre). E se mancano ancora dei file del Mondo 2026-27, scegliere il mondo (CARR.
   STORICHE, il pulsante verde CARRIERA 2026-27 o Europa 1984-85) non fa più uscire a DOS: il gioco dice
   "INSTALLAZIONE INCOMPLETA: RILANCIA IL PATCHER" (in ogni lingua) e torna al menu.
-- **Joypad**: i comandi (tastiera, joypad, due joypad) e la calibrazione del joypad si impostano con SETUP.EXE, un
-  programma Windows nella cartella del gioco; il gioco arriva impostato sulla sola tastiera. I passaggi sono nel README
-  e nella pagina d'installazione.
+- **Joypad**: nell'installazione con un clic spunta 'Ho un joypad / gamepad' e il patcher imposta i comandi (joypad =
+  giocatore 1, tastiera = giocatore 2) e, su GOG, l'impostazione di DOSBox che serve al joypad; togli la spunta per
+  tornare indietro. Il gioco arriva impostato sulla sola tastiera. Come calibrarlo da te e la croce direzionale sono
+  nel README e nella pagina d'installazione.
 
 ### Problemi noti della 4.0, rivisti
 - **Posti europei**: le note della 4.0 avvisavano che in alcune stagioni un posto europeo poteva andare a un club della

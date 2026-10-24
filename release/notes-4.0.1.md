@@ -127,9 +127,10 @@ load and play on.
   some World 2026-27 files are still missing, choosing the world (CLASSIC CAREERS, the green CAREER 2026-27 button,
   or Europe 1984-85) no longer quits to DOS: the game says "INCOMPLETE INSTALL: RUN THE PATCHER AGAIN" (in each
   language) and goes back to the menu.
-- **Joypad**: in the one-click install, tick 'I have a joypad / gamepad' and the patcher sets up the controls (joypad =
-  player 1, keyboard = player 2) and, on GOG, the DOSBox setting the joypad needs; untick it to go back. The game comes
-  set to keyboard only. How to calibrate it yourself, and the d-pad, are in the README and on the install page.
+- **Joypad ready**: the game now checks at start whether a joypad is connected and falls back to the keyboard when
+  there is none; the patcher sets up a joypad (player 1) and the keyboard (player 2) with a ready calibration and, on
+  GOG, the d-pad too (tick 'I have a joypad / gamepad', on by default; untick it to keep your own controls settings).
+  Other installs, and how to calibrate it yourself, are in the README and on the install page.
 
 ### Known issues of 4.0, revisited
 - **European places**: the 4.0 notes warned that in some seasons a European place could go to a club of the wrong
@@ -311,10 +312,10 @@ nella 4.0 resta com'era; le carriere salvate con la 4.0 si caricano e continuano
   cartella del gioco" (questa parte era già nella riedizione della 4.0 del 23 ottobre). E se mancano ancora dei file del Mondo 2026-27, scegliere il mondo (CARR.
   STORICHE, il pulsante verde CARRIERA 2026-27 o Europa 1984-85) non fa più uscire a DOS: il gioco dice
   "INSTALLAZIONE INCOMPLETA: RILANCIA IL PATCHER" (in ogni lingua) e torna al menu.
-- **Joypad**: nell'installazione con un clic spunta 'Ho un joypad / gamepad' e il patcher imposta i comandi (joypad =
-  giocatore 1, tastiera = giocatore 2) e, su GOG, l'impostazione di DOSBox che serve al joypad; togli la spunta per
-  tornare indietro. Il gioco arriva impostato sulla sola tastiera. Come calibrarlo da te e la croce direzionale sono
-  nel README e nella pagina d'installazione.
+- **Joypad pronto**: ora il gioco controlla all'avvio se c'è un joypad collegato e passa alla tastiera se non c'è; il
+  patcher imposta un joypad (giocatore 1) e la tastiera (giocatore 2) con una calibrazione già pronta e, su GOG, anche
+  la croce direzionale (spunta 'Ho un joypad / gamepad', attiva di default; toglila per tenere le tue impostazioni dei
+  comandi). Le altre installazioni, e come calibrarlo da te, sono nel README e nella pagina d'installazione.
 
 ### Problemi noti della 4.0, rivisti
 - **Posti europei**: le note della 4.0 avvisavano che in alcune stagioni un posto europeo poteva andare a un club della

@@ -10074,7 +10074,8 @@ def setup_nojoy():
                     continue
                 at = r.mem.find(d[92:105])
                 ctl = struct.unpack_from('<H', r.mem, at - 92 + 6)[0] if at > 0 else None
-                info.append(f'{joy}: g_inputControls {ctl}')
+                jx = struct.unpack_from('<HH', r.mem, at - 92 + 22)[0], struct.unpack_from('<H', r.mem, at - 92 + 56)[0] if at > 0 else None
+                info.append(f'{joy}: g_inputControls {ctl}, g_joy1X {jx[0]}, g_joy2X {jx[1]}')
                 check(at > 0, f'{joy}: the SETUP.DAT block not found in memory', errs)
                 try:
                     friendly_prematch(s, 'HAMBURG', 'SCHALKE')

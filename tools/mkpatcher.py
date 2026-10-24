@@ -380,6 +380,17 @@ def setup_entries():
         out.append({'id': 'SETUP.DAT', 'target': 'SETUP.DAT', 'size': 105, 'md5': hashlib.md5(src).hexdigest(),
                     'out_md5': hashlib.md5(dst).hexdigest(), 'out_size': 105, 'delta': pack(ops), 'z': 1, 'setup': kind, 'opt': 'joypad'})
         print(f'SETUP.DAT ({kind} factory): delta {len(ops)} bytes')
+    # the d-pad mapper of GOG's DOSBox 0.74 (joysticktype=fcs polls hats; mapper-SVN.map binds hat 0 to the joystick-1 axes): written when
+    # absent (the whole file, 'full') or when it is GOG's own default (a delta); any other mapper is the user's and is left alone
+    dflt = open(os.path.join(ROOT, 'orig/setup-factory/mapper-SVN.default.map'), 'rb').read()
+    dpad = open(os.path.join(ROOT, 'tools/mapper-SVN.dpad.map'), 'rb').read()
+    assert hashlib.sha1(dflt).hexdigest() == 'eef851420cc756b28738f9c7de11f47d9350d597'
+    ops, _ = encode(dflt, dpad)
+    assert decode(dflt, ops) == dpad
+    out.append({'id': 'mapper-SVN.map', 'target': 'mapper-SVN.map', 'size': len(dflt), 'md5': hashlib.md5(dflt).hexdigest(),
+                'out_md5': hashlib.md5(dpad).hexdigest(), 'out_size': len(dpad), 'delta': pack(ops), 'z': 1, 'opt': 'joypad-map',
+                'full': base64.b64encode(dpad).decode()})
+    print(f'mapper-SVN.map: delta {len(ops)} bytes')
     return out
 
 

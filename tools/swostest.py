@@ -7180,13 +7180,18 @@ def groupb_run(exe, fam):
                    and not t.startswith(('ELENCO', 'NOTA')) and 'STDMENU' not in t)
     check(not stray, f'{fam}: stray characters in {stray[:3]}', errs)
     why = f'{why}; the club finished {place}'
-    return not errs, '; '.join(errs + ([f'(club place {place})'] if errs else [])) or f'{fam}: place {place}; {msg[:90]}; titles with {want} seen ({sum(1 for t in titles if any(w in t for w in want))})'
+    return not errs, '; '.join(errs + ([f'(club place {place})'] if errs else [])) or f'{fam}: place {place}; {msg[:90]}; titles with {want} seen ({sum(1 for t in titles if any(w in t for w in want))}): {sorted(t for t in titles if any(w in t for w in want))[:4]}'
 
 
-GROUPB_FORCE = {'sco_po': '3', 'can_title': '3', 'aus_title': '3', 'mlt_title': '1'}   # family: GPLAY_FORCE place (as pocheck's)
+GROUPB_FORCE = {'sco_po': '3', 'can_title': '3', 'aus_title': '3', 'mlt_title': '1', 'uefaq': 'CL Q1'}   # family: GPLAY_FORCE place (as pocheck's)
 
 
 def groupb_forced_exe(force):
+    """force '<n>' = GPLAY_FORCE place n; 'CL Q1' (a str starting with a letter) = UEFAQ_FORCE."""
+    return _groupb_forced_exe(force)
+
+
+def _groupb_forced_exe(force):
     """A GPLAY_FORCE=<force> test build over the release data's packs (W2627REL_DATA, else the released 4.0's winnames-1031;
     the order of its .txt, as world_winners_state): the career club is put in its play-off (CONVENTIONS rule 15, never by
     re-running seasons); None when that data is missing."""
@@ -7194,8 +7199,10 @@ def groupb_forced_exe(force):
     if not os.path.isfile(src + '.txt'):
         return None
     order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
-    return build(f'gb_force{force}', env={'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]),
-                                         'GPLAY_FORCE': force})
+    packs = ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order])
+    if force[:1].isalpha():
+        return build('gb_uefaq', env={'SEASON_PACKS': packs, 'UEFAQ_FORCE': force})
+    return build(f'gb_force{force}', env={'SEASON_PACKS': packs, 'GPLAY_FORCE': force})
 
 
 def groupb_smoke(fams):

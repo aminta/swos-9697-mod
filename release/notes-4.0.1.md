@@ -1,6 +1,6 @@
 ## English
 
-**SWOS 96/97 Mod 4.0.1** (draft)
+**SWOS 96/97 Mod 4.0.1**
 
 4.0.1 brings a joypad that works out of the box on GOG and, in the World 2026-27, more leagues in their real format
 (Mexico, Peru, Colombia, Uruguay), a nationality for every player, cups that follow promotions and relegations,
@@ -194,7 +194,7 @@ joypad question.
 
 ## Italiano
 
-**SWOS 96/97 Mod 4.0.1** (bozza)
+**SWOS 96/97 Mod 4.0.1**
 
 La 4.0.1 porta un joypad che funziona subito su GOG e, nel Mondo 2026-27, altri campionati con la loro formula vera
 (Messico, Perù, Colombia, Uruguay), una nazionalità per ogni giocatore, coppe che seguono promozioni e retrocessioni,

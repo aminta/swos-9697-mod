@@ -242,7 +242,7 @@ def pack_zones(d, lang, lp=False, rank=None, detail=None):
                     for e in p.get('entrants', []):          # 4.0.1 (Davide, Mexico): a one-table split league's
                         if isinstance(e, dict) and 'stage_place' in e and e.get('div', 0) == i:   # Liguilla: its
                             rng.append((e['place'], e['place'], GREEN))   # tournament's top places (the shown
-                            why.append('po_title')                        # table is the current tournament's: 'reset')
+                            why.append('po_liguilla')                     # table is the current tournament's: 'reset')
                     continue
                 ent = [e for e in p.get('entrants', []) if isinstance(e, list) and e[0] == i]
                 if not ent:
@@ -517,7 +517,7 @@ def continental_all(m):
     return confed2627.PLACES.get(m.get('id'), [])
 
 
-WHY_LAB = {'next': 'next', 'up': 'up', 'po_up': 'po', 'po_title': 'po', 'po_place': 'po', 'po_eu': 'po', 'po_down': 'out', 'out': 'out',
+WHY_LAB = {'next': 'next', 'up': 'up', 'po_up': 'po', 'po_title': 'po', 'po_liguilla': 'po', 'po_place': 'po', 'po_eu': 'po', 'po_down': 'out', 'out': 'out',
            'down': 'down', 'cc': 'cc', 'uefa': 'uefa'}
 
 

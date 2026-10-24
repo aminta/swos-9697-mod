@@ -10352,6 +10352,79 @@ def world_seasonend_titles():
 
 
 @scenario
+def world_darkblond():
+    """4.0.1 user report (4.0 GOG, Italian: 'MALEN della Roma compare come una serie di pixel ammucchiati'): a World
+    2026-27 career at JUVENTUS on SWOSTEST_BUILD, VISUAL. COMPETIZ. -> SERIE A -> ROMA: its squad screen (DONYELL
+    MALEN: face 3, darkblond = blond.py's dark skin + blond hair, face icon 189) - screenshots of each step and the
+    face icon 189's pixels (yellow hair, entry 15, as blond_faces). DKB_TEAM: the career path (ROMA: its own squad);
+    DKB_STOP=1: stop after the career start; DKB_SQUAD=1: the career club's SQUADRA screen, then the fixture's visible
+    '- PARTITA -' - which traps in the harness (DIYLeagueTournamentMatch's int 3, 4.0 too: notes/darkblond-402.md).
+    WIP, parked for 4.0.2 (the world viewer / competition table have no squad entry: the ROMA path fails there)"""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import lepatch
+    import shirtnum
+    b = builds()['it']
+    spr = shirtnum.spr_index(lepatch.LEPatch(os.path.join(b, 'ITALIAN.EXE')))
+    nib = lambda data: [x >> 4 for x in data] + [x & 15 for x in data]
+    errs, info = [], []
+    team = os.environ.get('DKB_TEAM', 'EUROPA,ITALIA,SERIE A,JUVENTUS').split(',')
+    with Session('world_darkblond', b, {}, 'dump:2', 600, match=True) as s:
+        s.wait()
+        for t in ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27'] + team:
+            if press(s, s.screen(), t, 3) is None:
+                return False, f'new career: {t} not reached'
+        s.shot('team_choice')
+        info.append(f'choice: {s.screen().texts()[:6]}')
+        s.send('fire dump:3')
+        s.shot('career')
+        info.append(f'career: {s.screen().texts()[:6]}')
+        if os.environ.get('DKB_SQUAD'):               # (the career club's own squad screen, then a match played)
+            press(s, s.screen(), 'SQUADRA', 3)
+            s.shot('squad')
+            info.append(f'squad: {s.screen().texts()[:30]}')
+            r = s.result
+            p189 = struct.unpack('<I', r.read(r.base2 + spr + 189 * 4, 4))[0]
+            icon = r.read(struct.unpack('<I', r.read(p189, 4))[0], 64) if p189 else b''
+            info.append(f'icon 189 {icon[:32].hex()}')
+            press(s, s.screen(), 'ESCI', 3)
+            press(s, s.screen(), 'PARTITA', 3)
+            s.shot('fixture')
+            info.append(f'fixture: {s.screen().texts()[:14]}')
+            vis = next((e[0] for e in s.screen().entries if e[1] == '- PARTITA -' and not e[2]), None)
+            if vis is None:
+                return False, f'no visible - PARTITA - on {s.screen()}; ' + '; '.join(info)
+            walk(s, vis, 3)                           # (the visible one: PARTITA(inv) is the DIY button, int 3)
+            s.shot('prematch')
+            info.append(f'prematch: {s.screen().texts()[:14]}')
+            for k in range(10):                       # line-ups, the stadium screen, kick-off: a frame each
+                r = s.send('fire dump:1.5')
+                if r.outcome != 'dump':
+                    break
+                s.shot(f'm{k}')
+                info.append(f'm{k}: {s.screen().texts()[:4]}')
+            info.append(f'match: {r}')
+            return not errs, '; '.join(errs + info)
+        if os.environ.get('DKB_STOP'):
+            return True, '; '.join(info)
+        for t, opt in (('VISUALIZZA MONDO', 0), ('CARR. STORICHE', 1), ('MONDO 2026-27', 1), ('EUROPA', 0),
+                       ('ITALIA', 0), ('SERIE A', 0), ('ROMA', 0)):
+            if s.screen().find(t, exact=True) is None and opt:
+                continue
+            if press(s, s.screen(), t, 3) is None:
+                return False, f'{t} not on {s.screen()}'
+            s.shot(t.replace(' ', '_').replace('.', ''))
+            info.append(f'{t}: {s.screen().texts()[:6]}')
+        r = s.result
+        p189 = struct.unpack('<I', r.read(r.base2 + spr + 189 * 4, 4))[0]
+        icon = r.read(struct.unpack('<I', r.read(p189, 4))[0], 64) if p189 else b''
+        info.append(f'icon 189 {icon[:32].hex()}')
+        check(15 in nib(icon[:24]), f'face icon 189 without yellow hair ({icon[:24].hex()})', errs)
+        check('D. MALEN' in s.screen().texts() or any('MALEN' in x for x in s.screen().texts()),
+              'MALEN not on the ROMA screen', errs)
+    return not errs, '; '.join(errs + info)
+
+
+@scenario
 def world_titlespace():
     """4.0.1 match titles with no leading / double space (rnames rn_trim): a 1996-97 career saved by the original game
     (internal/swostest/repro/OLDCAR_orig.CAR, its European cups' titles stored as ' <name>': the empty country prefix

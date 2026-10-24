@@ -2,9 +2,10 @@
 
 **SWOS 96/97 Mod 4.0.1** (draft)
 
-4.0.1 brings a joypad that works out of the box on GOG, and completes the World 2026-27 career: more leagues in their
-real format, a nationality for every player, cups that follow promotions, easier menus and a safer install. Everything in 4.0 stays as it was; careers saved with 4.0
-load and play on.
+4.0.1 brings a joypad that works out of the box on GOG and, in the World 2026-27, more leagues in their real format
+(Mexico, Peru, Colombia, Uruguay), a nationality for every player, cups that follow promotions and relegations,
+line-ups by role, simpler menus and a safer install, plus fixes for some 4.0 bugs. Everything in 4.0 stays as it was;
+careers saved with 4.0 load and play on.
 
 ### What's new
 
@@ -192,10 +193,10 @@ joypad question.
 
 **SWOS 96/97 Mod 4.0.1** (bozza)
 
-La 4.0.1 porta un joypad che funziona subito su GOG e completa la carriera Mondo 2026-27: più campionati nella loro
-formula vera, una nazionalità per ogni giocatore, coppe che seguono le promozioni, menu più semplici e
-un'installazione più sicura. Tutto quello che c'era
-nella 4.0 resta com'era; le carriere salvate con la 4.0 si caricano e continuano.
+La 4.0.1 porta un joypad che funziona subito su GOG e, nel Mondo 2026-27, altri campionati con la loro formula vera
+(Messico, Perù, Colombia, Uruguay), una nazionalità per ogni giocatore, coppe che seguono promozioni e retrocessioni,
+formazioni secondo i ruoli, menu più semplici e un'installazione più sicura, più le correzioni di alcuni errori della
+4.0. Tutto quello che c'era nella 4.0 resta com'era; le carriere salvate con la 4.0 si caricano e continuano.
 
 ### Novità
 

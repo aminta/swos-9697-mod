@@ -7183,7 +7183,12 @@ def groupb_run(exe, fam):
     return not errs, '; '.join(errs + ([f'(club place {place})'] if errs else [])) or f'{fam}: place {place}; {msg[:90]}; titles with {want} seen ({sum(1 for t in titles if any(w in t for w in want))}): {sorted(t for t in titles if any(w in t for w in want))[:4]}'
 
 
-GROUPB_FORCE = {'sco_po': '3', 'can_title': '3', 'aus_title': '3', 'mlt_title': '1', 'uefaq': 'CL Q1'}   # family: GPLAY_FORCE place (as pocheck's)
+# family: the force (GPLAY_FORCE place, as pocheck's / world_po_sweep's; 'CL Q1' = UEFAQ_FORCE). Every family whose title needs a
+# result is forced: sco_po / can_title / aus_title / mlt_title (the play-off place), mls (the MLS Cup play-offs), arg (the
+# Apertura's knockout), state (the Paulista: the champion's stage), uefaq (the CL qualifying). Natural (the screen exists
+# whoever the club is, no result condition): ca_pan (Panama's two stages are played by every club).
+GROUPB_FORCE = {'sco_po': '3', 'can_title': '3', 'aus_title': '3', 'mlt_title': '1', 'mls': '1', 'arg': '1', 'state': '1',
+                'uefaq': 'CL Q1'}
 
 
 def groupb_forced_exe(force):

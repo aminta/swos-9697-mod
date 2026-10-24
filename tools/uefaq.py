@@ -689,6 +689,8 @@ QIDS = (0x7C, 0x7D, 0x7E)       # contest ids (mkseason.RESERVED_IDS): CL / EL /
 Q_NAME, Q_LIST = 0x28, 0x30     # offsets in a contest: its 2 name dwords, its 2-club list
 NAMES = {'it': 'PRELIM. ', 'en': 'QUAL. ', 'fr': 'QUALIF. ', 'de': 'QUALI. '}
 CUPS = (b'CHAMPIONS LEAGUE', b'EUROPA LEAGUE', b'CONFERENCE LEAGUE')
+SHORT = (b'CL', b'EL', b'ECL')  # the calendar's first line: NAMES + this (CAL_PX; 'PRELIM. EUROPA LEAGUE' ran into the
+                                # (C) / (F) marker - Davide's LASK 2027-28)
 STRUCTS = []
 SYMS = {}                       # the patch's symbols + DAILY_SITE (conti.py)
 STATE_END = [None]
@@ -715,8 +717,11 @@ def structs(p, area, lang, at):
         h[8], h[9], h[10], h[11], h[12], h[13] = 1, 0, 0, 1, 3, 0x35
         stages = bytes([1, 2, 0, 2, 1])
         h[0x0E:0x28] = stages + bytes(20 - len(stages)) + bytes([0x94]) + bytes(5)
+        import complist
         rel = area.add(NAMES[lang].encode() + cup + b'\0') - sacups.STR_BASE
-        p.put(1, at, bytes(h) + struct.pack('<II', rel, rel) + bytes(4))
+        sh = complist.cal_label(NAMES[lang] + SHORT[CUPS.index(cup)].decode(), f'uefaq {lang}').encode()
+        srel = area.add(sh + b'\0') - sacups.STR_BASE    # (the short name: the career calendar's first line)
+        p.put(1, at, bytes(h) + struct.pack('<II', rel, srel) + bytes(4))
         out.append(at)
         at += Q_LIST + 4
     STRUCTS[:] = out
@@ -824,6 +829,15 @@ def patch(p, at, limit, sites):
         p.put(1, a, b'\xe9' + rel(a, lab[target]))
     p.retarget(1, uc.LABELS['UC_QPTS'], 1, lab['uq_cpts'])       # (uefacoef uc_final)
     p.put(1, site + 1, rel(site, lab['uq_daily']))     # (a relative call: no fixup to move)
+    # 4.0.1 (Pietro): also at the end of the day played (cseg_8E3DA / cseg_8E469: call cseg_8EC2B; call cseg_8EA56;
+    # mov esi, [A0]; mov al, [esi+1]): the next tie is built as soon as the return leg is decided, so the career
+    # calendar lists it at once (the same tie, draw and dates as at the next match's start, where nothing changes)
+    ends = [i + 5 for i in range(len(d1) - 19) if d1[i] == 0xE8 and d1[i + 5] == 0xE8
+            and i + 10 + struct.unpack_from('<i', d1, i + 6)[0] == c8ea56
+            and d1[i + 10:i + 12] == b'\x8b\x35' and d1[i + 16:i + 19] == b'\x8a\x46\x01']
+    assert len(ends) == 2, ends
+    for e in ends:
+        p.put(1, e + 1, rel(e, lab['uq_daily']))
     SYMS.update(symbols, DAILY_SITE=site, uq_daily=(1, lab['uq_daily']))   # (conti's phase B: the same sites)
     for hk, stub in ((r280c0, 'uq_rn1'), (r283bd, 'uq_rn2')):     # `sub word [Dn], 1` (8 B, a fixup) -> jmp
         p.remove(1, hk + 3)

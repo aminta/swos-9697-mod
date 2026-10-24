@@ -28,6 +28,7 @@ PGROUPS = []            # (levels, clubs)
 SPLITS = []             # (team file, division, clubs, spec)
 RESERVES = []           # (nd, low, [(global, base division)], [pool globals, first order])
 SAVE_ITEMS = {}         # name -> (size, clear): state saved in the .CAR's engine block 'EN' (trailer.py)
+WORLD_ONLY = set()      # 4.0.1: items a world-0 career never uses: neither counted nor saved in its 'EN' block
 ITEM_AT = {}            # name -> (obj, offset) of its bytes, set by the owning module during patch_exe
 AFTER_LOAD = []         # names of routines called after a career load (after_load)
 CALL_AT = {}            # name -> (obj, offset) of the routine
@@ -40,7 +41,7 @@ def clear():
     CALL_AT.clear()
 
 
-def save_item(name, size, clear=True):
+def save_item(name, size, clear=True, world_only=False):
     """Save `size` bytes with the career, in the engine block 'EN' after the trailer's main block (any world, world 0
     too). The owner sets ITEM_AT[name] = (obj, offset) before trailer.patch runs, or later (then
     trailer.late() binds it, at the end of patch_exe). clear: a save without the item (an
@@ -49,6 +50,8 @@ def save_item(name, size, clear=True):
     another build does not know is skipped."""
     assert 0 < size < 0x8000 and SAVE_ITEMS.get(name, (size, clear)) == (size, clear), (name, size)
     SAVE_ITEMS[name] = (size, clear)
+    if world_only:                      # (4.0.1: trailer.py writes it only for a career world's career; a world-0
+        WORLD_ONLY.add(name)            # save without it loads it zeroed, as an older save)
 
 
 def after_stage(name):
@@ -95,7 +98,8 @@ def item_id(name):
 def save_items():
     """[(name, id, size, clear, (obj, offset) or None: set later, trailer.late)] in name order (trailer.patch); ids
     unique."""
-    out = [(n, item_id(n), sz, cl, ITEM_AT.get(n)) for n, (sz, cl) in sorted(SAVE_ITEMS.items())]
+    out = [(n, item_id(n), sz, cl, ITEM_AT.get(n))     # (the world-only items last: a world-0 career writes the
+           for n, (sz, cl) in sorted(SAVE_ITEMS.items(), key=lambda kv: (kv[0] in WORLD_ONLY, kv[0]))]   # first ones)
     assert len({i for _, i, _, _, _ in out}) == len(out), 'engine.save_item: two names with one id'
     return out
 

@@ -73,6 +73,7 @@ def career_data_pages():
 
 LEAGUE_AT = {}                          # (world, league file) -> obj1 offset of its league struct (patch)
 CAREER_CAVE = [None]                    # obj1 page of the career world code (patch.py adds it when worlds exist)
+INST_STUB = [None]                      # obj1 offset of cont_check's world-files check stub (instcheck.place)
 CAREER_CAVE_SIZE = 0x2000               # 3.1: two pages (patch.py; three with several worlds, cave_pages)
 ROUND = {'two_legs': 0x94, 'two_legs_pens': 0x84, 'single': 0x14, 'single_et': 0x54}   # knockout round byte: two legs (away goals),
                                                                  # single match, single match + extra time/penalties
@@ -129,6 +130,28 @@ def _nums(row, col, n, lo, hi, where):
     _need(len(v) == n and all(x.isdigit() and lo <= int(x) <= hi for x in v),
           f'{where}: {col} must be {n} numbers {lo}..{hi} separated by spaces')
     return [int(x) for x in v]
+
+SLOT_POS = [0, 1, 3, 3, 2, 4, 6, 6, 5, 7, 7]    # the game's 4-4-2 starter slots: GK RB D D LB RW M M LW A A (position bytes)
+_POS_CLASS = {0: 0, 1: 1, 2: 1, 3: 1, 4: 2, 5: 2, 6: 2, 7: 3}     # GK / defender / midfielder / attacker
+
+
+def auto_lineup(positions):
+    """16-byte lineup (record bytes 60..75) from the 16 players' position bytes (0 G 1 RB 2 LB 3 D 4 RW 5 LW 6 M 7 A,
+    file order): the 11 starters take the slot roles GK RB D D LB RW M M LW A A (exact position first, then the same
+    class), the bench is the rest in file order. A squad of the real record order is not touched (it has its own)."""
+    assert len(positions) == 16
+    used, start = set(), [None] * 11
+    for exact in (True, False):
+        for k, want in enumerate(SLOT_POS):
+            if start[k] is not None:
+                continue
+            for j, ps in enumerate(positions):
+                if j not in used and (ps == want if exact else _POS_CLASS[ps] == _POS_CLASS[want]):
+                    start[k] = j; used.add(j); break
+    for k in range(11):
+        if start[k] is None:
+            start[k] = next(j for j in range(16) if j not in used); used.add(start[k])
+    return start + [j for j in range(16) if j not in used]
 
 
 class PackError(Exception):
@@ -990,10 +1013,15 @@ class Pack:
                 for col, at in (('kit1', 26), ('kit2', 31)):
                     v = _nums(c, col, 5, 0, 255, where)
                     r[at:at + 5] = bytes(v)
-                lineup = _nums(c, 'lineup', 16, 0, 15, where)
-                _need(sorted(lineup) == list(range(16)), f'{where}: lineup must list 0..15 once each')
-                r[60:76] = bytes(lineup)
                 rows = self.prows[key]
+                lineup = _nums(c, 'lineup', 16, 0, 15, where) if (c.get('lineup') or '').strip() else list(range(16))
+                _need(sorted(lineup) == list(range(16)), f'{where}: lineup must list 0..15 once each')
+                if lineup == list(range(16)):          # no explicit lineup (blank / identity): from the positions
+                    ps = [EXPLICIT_POS.index(row['position']) for row in rows[:16]]
+                    lineup = auto_lineup(ps)
+                    _need(sorted(lineup) == list(range(16)) and ([ps[j] for j in lineup[:11]] == SLOT_POS or not all(
+                        ps.count(p_) >= SLOT_POS.count(p_) for p_ in set(SLOT_POS))), f'{where}: auto lineup')
+                r[60:76] = bytes(lineup)
                 _need(16 <= len(rows) <= 16 + extra, f'players.csv: {key}: explicit squads need 16 players'
                       + (f' + at most {extra} more (squads "extra")' if extra else '') + f' ({len(rows)})')
                 for j, row in enumerate(rows[:16]):
@@ -1500,8 +1528,13 @@ def splits():
                                            'groups': [len(z) for z in st.get('zones') or [rows]]})
                     day += len(fxd)
                     continue
-                _need(set(st) <= {'after', 'home', 'groups', 'tiebreak', 'reset', 'keep', 'title'},
-                      f'{ws}: keys after, home, groups, tiebreak, reset, keep')
+                _need(set(st) <= {'after', 'home', 'groups', 'tiebreak', 'reset', 'keep', 'title', 'places',
+                                  'places_snake', 'table', 'then', 'annual'},
+                      f'{ws}: keys after, home, groups, tiebreak, reset, keep, places / places_snake, table, then, annual')
+                _need(st.get('table') in (None, 0, 1, 2, 3), f'{ws}.table: 0..3 (GP_SS: stage_place 4..7)')
+                if st.get('then'):                      # (4.0.1: a group stage's kept table and after-stage routine
+                    import engine                       # too - Uruguay's Intermedio between two fixture stages)
+                    engine.after_stage(st['then'])
                 if i == 0:
                     _need(isinstance(st.get('after'), int) and st['after'] % per == 0 and 1 <= st['after'] // per <= 4,
                           f'{ws}.after: {per} x the meetings (1..4)')
@@ -1509,6 +1542,18 @@ def splits():
                     day = st['after']
                 _need(st.get('after') == day, f'{ws}.after: {day} (the previous stage ends then)')
                 places, gs = 1, st.get('groups') or []
+                expl = st.get('places')                 # explicit places per group (Uruguay's Intermedio: a snake)
+                if st.get('places_snake'):              # (sugar: groups of equal size, places dealt 1 2 .. g g .. 1)
+                    _need(expl is None and gs and n % len(gs) == 0, f'{ws}.places_snake: equal groups')
+                    order = [k for b in range(n // len(gs)) for k in (range(len(gs)) if b % 2 == 0
+                                                                    else reversed(range(len(gs))))]
+                    expl = [[p + 1 for p, k in enumerate(order) if k == x] for x in range(len(gs))]
+                if expl is not None:
+                    _need(len(expl) == len(gs) and sorted(p for g in expl for p in g) == list(range(1, n + 1))
+                          and all(g_.get('places') and g_['places'][1] - g_['places'][0] + 1 == len(e)
+                                  for g_, e in zip(gs, expl)),
+                          f'{ws}.places: one list per group, places 1-{n} once each; the groups keep consecutive '
+                          f'places (the table is permuted at the split), each as long as its list')
                 for g in gs:
                     _need(set(g) <= {'places', 'rounds', 'points', 'neutral', 'title'} and g.get('places', [0])[0] == places
                           and g['places'][1] >= places + 1, f'{ws}.groups: consecutive places from 1')
@@ -1522,7 +1567,10 @@ def splits():
                 one = {'after': st['after'], 'groups': [g['places'][1] - g['places'][0] + 1 for g in gs],
                        'rounds': [rnd[g.get('rounds', 'single')] for g in gs],
                        'points': [g.get('points', 'full') for g in gs], 'home': st.get('home', 'seeded'),
-                       'reset': bool(st.get('reset')), 'keep': st.get('keep')}
+                       'reset': bool(st.get('reset')), 'keep': st.get('keep'), 'then': st.get('then'),
+                       'table': st.get('table'), 'annual': bool(st.get('annual'))}
+                if expl is not None:                    # (split.entry: new place k = the old place perm[k], 0-based)
+                    one['perm'] = [p - 1 for e in expl for p in e]
                 spec['stages'].append(one)
                 day += len(split.schedule(one['groups'], one['rounds']))
             _need(games in (1, 2, 3, 4) or (games == 0 and stages and 'fixtures' in stages[0]),
@@ -1788,6 +1836,25 @@ WMENU_ASM = '''
 w_lvl:                                  ; replaces `cmp word [numSelectedTeams], 2` (SelectTeamsFinalMenu shows a
     cmp word [NST], 2                   ; country's leagues at depth 2 only): depth 3 too when the parent list is a
     je .r                               ; world of CLASSIC CAREERS (top of countryStack = WMENU + n)
+    cmp word [NST], 1                   ; 4.0.1: depth 1 too for a country (careerworld w_buy: a one-continent
+    jne .d3                             ; world's countries in the top list): not a continent 80..85, 97..99 nor
+    cmp word [D7REG], WMENU_N           ; a world's list (>= WMENU)
+    jae .nz
+    cmp word [D7REG], 80
+    jb .yes
+    cmp word [D7REG], 86
+    jb .nz
+    cmp word [D7REG], 97
+    jb .yes
+    cmp word [D7REG], 100
+    jb .nz
+.yes:
+    cmp eax, eax
+    ret
+.nz:
+    or esp, esp
+    ret
+.d3:
     cmp word [NST], 3                   ; depth 3+: CLASSIC CAREERS > world (> continent (> OTHER NATIONS ...)) >
     jb .r                               ; country, whenever the parent list is one of a world's (id >= WMENU)
     push eax
@@ -2294,6 +2361,9 @@ def patch(p, lang, area, cave):
             lvl, nst, csp = _level_site(p)
             symbols.update({'NST': nst, 'CSP': csp, 'WMENU_N': (0, WMENU)})
             src += WMENU_ASM
+            src = nasmcave.sub(src, 'cont_check:', 'cont_check:\n    call inst_stub')   # 4.0.1: a world's files checked
+            src += 'inst_stub:\n    ret\n    nop\n    nop\n    nop\n    nop\n'   # before its list (instcheck.place:
+                                                                            # jmp to the check; last sub: first)
     tab = ['align 4', 'PACK_TAB:']
     data = []
     for k, i in enumerate(x for x in infos if x['emap']):
@@ -2311,6 +2381,7 @@ def patch(p, lang, area, cave):
         p.add_ptr(1, at + off, tobj, toff)
     p.put(1, season_call + 1, struct.pack('<i', labels['season_sel'] - (season_call + 5)))
     p.put(1, ja + 2, struct.pack('<i', labels['cont_check'] - (ja + 6)))
+    INST_STUB[0] = labels.get('inst_stub')
     if careers:
         p.put(1, site_c + 1, struct.pack('<i', labels['career_sel'] - (site_c + 5)))
     if wmenus:

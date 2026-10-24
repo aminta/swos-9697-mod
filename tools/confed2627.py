@@ -53,7 +53,8 @@ PLACES = {
     W + 'gha': [{'cup': 'cafcl', 'places': [1, 1]}, {'cup': 'cafcc', 'via': 'cup'}],
     # CONCACAF (Champions Cup through the league; the Central American and Caribbean leagues qualify through the
     # Central American / Caribbean Cups: no colours)
-    W + 'mex': [{'cup': 'ccc', 'places': [1, 6]}, {'note': 'split'}],   # Apertura / Clausura champions and runners-up + 2 aggregate
+    W + 'mex': [],   # (Apertura / Clausura champions and runners-up + 2 aggregate: no table places - Davide 2026-10-24:
+                     # the tables show the Liguilla 1st-8th, the access is told by the FORMAT text)
     W + 'usa': [{'cup': 'ccc', 'places': [1, 3]}, {'cup': 'ccc', 'via': 'cup'}, {'note': 'final'}],   # Shield + next 2; MLS Cup, the other conference's leader
     W + 'can': [{'cup': 'ccc', 'places': [1, 1]}, {'cup': 'ccc', 'via': 'cup'}, {'note': 'final'}],   # CPL Shield + league (final) winner
     # OFC
@@ -61,5 +62,5 @@ PLACES = {
 }
 # declared in the release notes: places by the game's single table where the real ones are not table positions
 # (Apertura / Clausura champions, play-off finals, conference leaders) or from the general rule (Ghana, Iran's cup)
-DECLARED = {'split': ('arg', 'col', 'par', 'mex'), 'final': ('uru', 'ven', 'aus', 'usa', 'can', 'nzl'),
+DECLARED = {'split': ('arg', 'col', 'par'), 'final': ('uru', 'ven', 'aus', 'usa', 'can', 'nzl'),
             'rule': ('gha', 'irn', 'ind')}

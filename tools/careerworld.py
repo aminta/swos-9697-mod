@@ -48,8 +48,8 @@ B_TFB, TFB_SIZE = 0x31000, 0x2B000
 # SaveCareerFile writes it from B_STAGE (fixed part copied before the records) and LoadCareerFile reads it there
 # (trailer.LOADCOPY -> w_loadcopy spreads it). Old saves (N <= 100) load unchanged.
 SEL_N = 160
-B_SEL, SEL_ROOM = 0x5C000, SEL_N * TEAM_SIZE + 0x3800          # (+ the trailer's blocks after the records: the main
-                                                               # one + the engine block 'EN': GP, GS, PR, RI, SS, CD ... ~9-10 KB)
+B_SEL, SEL_ROOM = 0x5C000, SEL_N * TEAM_SIZE + 0x4000          # (+ the trailer's blocks after the records: the main
+                                                               # one + the engine block 'EN': ~14.6 KB in 4.0.1: 0x4000)
 B_STAGE = 0x7B000                                    # 95153 (fixed part) + SEL_ROOM
 # UEFA qualifying rounds (uefaq.py, league-phase worlds only: BSS_SIZE grows then): the C code's .bss, then the
 # season end's copies of the clubs' records (55 associations x (top 9 + cup winner) + 3)
@@ -99,6 +99,10 @@ def big(w):
 NEW_NATS = {'it': ['RDT', 'URS', 'RFT'], 'en': ['GDR', 'URS', 'FRG'],   # 3.1: player nationalities after the game's
             'fr': ['RDA', 'URS', 'RFA'], 'de': ['DDR', 'URS', 'BRD']}   # 153: East Germany 153, USSR 154, West Germany
 LANG = ['it']                                        # 155; 3-letter names per exe language (set by mkseason.patch)
+WORLD_NATS = ('MNE KOS AND GIB KAZ KGZ BLZ HAI CUW ARU DOM CUB PUR GRN GLP MTQ GUF ATG SKN LCA MSR CAY CPV GNB EQG '
+              'MTN NER RWA COM CTA SSD ERI SOM NAM LBY DJI STP REU MYT LBN PLE BHR HKG THA IDN CAM AFG NEP MAO MGL MDV '
+              'TLS GUM NCL TAH VAN SAM TGA').split()   # 4.0.1: the World 2026-27 nations without a 1996-97 code, 156..
+                                                 # (FIFA codes; the same in every exe, as the game's own 153)
 MENU_NATS = [153, 154, 155, 37]                      # added to the career menu's nationalities (Davide: the coach can be
                                                      # East/West German, Soviet, Yugoslav; YUG existed, not offered)
 WCONT = 99                                           # pseudo-continent of the running world (view, foreign browser)
@@ -441,7 +445,7 @@ w_mrec:                                 ; replaces `add word [D1], 1996; add wor
     pop ebx
     ret
 
-%macro W_SWAP 2                         ; replaces `call %2`: in a world, competitionsTable[254] = [.., -1, 99] and
+%macro W_SWAP 3                         ; replaces `call %2`: in a world, competitionsTable[254] = [.., -1, 99] and
 %1:                                     ; [99] = the world's continent (its countries, its cups = the in-save copies)
     push ebx
     call w_rec
@@ -449,6 +453,10 @@ w_mrec:                                 ; replaces `add word [D1], 1996; add wor
     push dword [COMP254]
     push dword [COMP99]
     mov dword [COMP254], WVIEW
+%if %3                                  ; (4.0.1, the foreign purchase: the world's continents, or a one-continent
+    push dword [ebx + 44]               ; world's countries, at once - without the violet 99 entry first)
+    pop dword [COMP254]
+%endif
     mov ebx, [ebx + 44]
     mov [COMP99], ebx
     call %2
@@ -460,8 +468,8 @@ w_mrec:                                 ; replaces `add word [D1], 1996; add wor
     pop ebx
     jmp %2
 %endmacro
-W_SWAP w_view, CHOOSECOMP
-W_SWAP w_buy, CHOOSETEAMS
+W_SWAP w_view, CHOOSECOMP, 0
+W_SWAP w_buy, CHOOSETEAMS, 1
 
 w_nat:                                  ; replaces `mov ax, [D0]; mov [lastNationalityCall], ax`: no national team
     mov ax, [D0R]                       ; job in a world (-1 = none) unless the world has its national teams (3.1)
@@ -1755,10 +1763,11 @@ def patch(p, worlds, at, nasmcave, comp, ct, cont_rec):
         data.append('    dw %d, %d, %d, %d, %d' % (tot, len(w['cups']['cc'][1]), len(w['cups']['cwc'][1]),
                                                   len(w['cups']['uefa'][1]), tot - 3))   # before the 3 holders
         data.append(f"    db {w['year'] - 1900}, 0")
+        import mkseason                         # world 2025-26: several continents -> VIEW WORLD / foreign browser
+        conts = [c for c, _, top in mkseason.WCONT_IDS.get(n, []) if top]
+        view = conts or w['countries']          # the continents, then theirs
         data.append(f'    dd W{n}_CONT, {int(bw)}')
         extra.append(f'W{n}_CONT: dd ' + ('WCC, WCWC, WUEFA' if bw else 'CCCOPY, CWCCOPY, UEFACOPY') + ', -1')
-        import mkseason                         # world 2025-26: several continents -> VIEW WORLD / foreign browser
-        view = [c for c, _, top in mkseason.WCONT_IDS.get(n, []) if top] or w['countries']   # the continents, then theirs
         extra.append('    db ' + ', '.join(map(str, view + [0xff])))
         for key, euro in zip(('cc', 'cwc', 'uefa'), s['euro']):
             rounds, clubs = w['cups'][key]
@@ -1802,7 +1811,7 @@ def patch(p, worlds, at, nasmcave, comp, ct, cont_rec):
     extra.append('align 4')
     extra.append('WNATT:')
     extra += natt
-    nn = NEW_NATS[LANG[0]]
+    nn = NEW_NATS[LANG[0]] + WORLD_NATS
     assert all(len(x) == 3 for x in nn)
     short = bytes(p.get(2, s['short'], s['short_len'])) + ''.join(nn).encode()
     extra.append('NATSHORT: db ' + ', '.join(map(str, short + b'\0')))
@@ -2183,6 +2192,29 @@ w_mmi:                                  ; SWOSMainMenuInit's first instruction: 
     mov dword [SELPTR], OLDSEL
     ret
 
+W_CUPS: dd WCC, WCWC, WUEFA               ; (w_cupnames' destinations; before it: no forward size)
+w_cupnames:                             ; 4.0.1: the 3 cups' name offsets (long, short: dd at 5 + header length, relative
+    pushad                              ; to the strings' base) from this exe's own structs (the world record's, as a new
+    call w_rec                          ; career copies them), not the save's: a save keeps them from the exe that wrote
+    jz .r                               ; it, and the string table moves between builds (Davide's 4.0 PHILA on 4.0.1
+    xor ecx, ecx                        ; showed the European finals of the season end under a team order list)
+.c: mov esi, [ebx + ecx * 4]
+    test esi, esi
+    jz .n
+    mov edi, [W_CUPS + ecx * 4]
+    movzx eax, byte [esi + 5]
+    cmp al, [edi + 5]                   ; (the same header: else the save's cup is not this one, left as it is)
+    jne .n
+    mov edx, [esi + eax + 5]
+    mov [edi + eax + 5], edx
+    mov edx, [esi + eax + 9]
+    mov [edi + eax + 9], edx
+.n: inc ecx
+    cmp ecx, 3
+    jb .c
+.r: popad
+    ret
+
 w_load_tail:                            ; LoadCareerFile after load_trailer (trailer.LOAD_TAIL)
     call w_big
     jnz .w
@@ -2203,6 +2235,7 @@ w_load_tail:                            ; LoadCareerFile after load_trailer (tra
     mov ecx, 160
     call w_copy
     mov [WPTR], esi
+    call w_cupnames
     mov dword [WI], 0
 .rec:                                   ; every record from its TEAM file + the saved bytes
     movzx eax, word [CFB]
@@ -2412,7 +2445,8 @@ def patch_tails(p, at, nasmcave):
            'VAROFF_WORDS': (0, 'dw ' + ', '.join(map(str, VAROFF))),
            'TMDBUF': (2, s['tmd']), 'CFB': (2, s['cfb']), 'D0R': (2, D0), 'LOADTEAM': (1, load_team),
            'TEAMBUF': (team_buf[0], team_buf[1] - 2), 'TEAMSLOADED': (2, s['teamsloaded']),
-           'w_big': (1, LABELS['w_big']), 'w_copy': (1, LABELS['w_copy']), 'w_dcopy': (1, LABELS['w_dcopy'])}
+           'w_big': (1, LABELS['w_big']), 'w_copy': (1, LABELS['w_copy']), 'w_dcopy': (1, LABELS['w_dcopy']),
+           'w_rec': (1, LABELS['w_rec'])}                  # (w_cupnames: the world record's own cup structs)
     b = BSS[0]
     hs = sel_sites(p, D0)
     sym.update({'WTMD': (2, b + B_TMD), 'WCC': (2, b + B_CUPS), 'WCWC': (2, b + B_CUPS + 160),

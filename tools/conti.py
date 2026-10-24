@@ -633,6 +633,21 @@ ct_prep:                                ; CT_SEG a tie -> the ties' contest (its
     ret
 
 ct_gend:                                ; lp36's lp_gend vector: a group stage's end (cseg_8A2CE first, the game's
+    pushad                              ; 4.0.1: the career club's place read before it (conti.c ct_gpre: the groups
+    push es                             ; as the game ordered them, the club's group complete)
+    push ds
+    pop es
+    cld
+    mov dword [CT_SPEC], SPEC
+    push dword LPDIY
+    call CT_GPRE
+    add esp, 4
+    test eax, eax
+    jz .g0
+    mov [ct_gplace], al
+.g0:
+    pop es
+    popad
     call C8A2CE                         ; qualifiers), then conti.c ct_gend: the career club's place (-> the daily),
     pushad                              ; a Libertadores-style R16 drawn as the real one
     push es
@@ -647,6 +662,8 @@ ct_gend:                                ; lp36's lp_gend vector: a group stage's
     add esp, 12
     test eax, eax
     jz .n
+    cmp byte [ct_gplace], 0             ; (ct_gpre's place first)
+    jne .n
     mov [ct_gplace], al
 .n:
     pop es
@@ -897,7 +914,7 @@ def patch(p, at, limit, bss_at, area):
     ls = lp36.LABELS['symbols']
     ids = [p.get(1, off, 1)[0] for _, off, _, _ in STRUCTS] + [p.get(1, TIE[0], 1)[0]]
     symbols.update(LPDIY=ls['DIY'], LPDIYC=ls['DIYCOPY'], SELTEAMS=ls['SELTEAMS'], C8A2CE=ls['C8A2CE'],
-                   CT_GEND=syms['ct_gend'], CT_NG=(0, len(ids)), LP_OURS=(1, lp36.LABELS['lp_copy_ours']),
+                   CT_GEND=syms['ct_gend'], CT_GPRE=syms['ct_gpre'], CT_NG=(0, len(ids)), LP_OURS=(1, lp36.LABELS['lp_copy_ours']),
                    LP_DRAW0=(1, lp36.LABELS['lp_draw']))
     asm = nasmcave.sub(GLUE, "    ;CT_GIDS", '    db ' + ', '.join(str(i) for i in ids))
     asm = nasmcave.sub(asm, "    ;CT_LP", "\n".join(lp))
@@ -1161,8 +1178,7 @@ SKINDS = []                             # per struct: 1 type 1 (a knockout), 2 t
 def _short(c, lang):
     """A cup's short name for the career calendar's first line: fitted before the (C) / (F) marker (CAL_PX)."""
     import complist
-    sh = complist.fit_short((c['names'].get(lang) or c['names']['en'])[1])
-    assert complist.px(sh) <= complist.CAL_PX and all(ch in complist.FONT for ch in sh), (c['key'], lang, sh)
+    sh = complist.cal_label(complist.fit_short((c['names'].get(lang) or c['names']['en'])[1]), f"conti {c['key']} {lang}")
     return sh.encode('latin1')
 
 

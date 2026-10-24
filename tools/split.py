@@ -261,6 +261,44 @@ sp_entry:                               ; -> edx = the DIY league's entry, esi =
     jne .no
     movzx edx, word [esi + S_ENTRY]
     add edx, SP_TAB
+    push eax
+    mov al, [esi + 12Dh]                ; 4.0.1: S_ENTRY is an offset into SP_TAB, saved with the career - a save
+    cmp [edx + 1], al                   ; made with other data (more split leagues before this one: 4.0 -> 4.0.1's
+    jne .seek                           ; South American leagues) points elsewhere: the entry of this league's team
+    mov al, [esi + 31h]                 ; file and club count is found again and S_ENTRY fixed
+    cmp [edx + 3], al
+    je .ok
+.seek:
+    push ecx
+    mov edx, SP_TAB
+.f: cmp word [edx + E_LEN], 0
+    je .nf
+    mov al, [esi + 12Dh]
+    cmp [edx + 1], al
+    jne .n
+    mov al, [esi + 31h]
+    cmp [edx + 3], al
+    jne .n
+    xor al, al                          ; (the world: a career's byte, else world 0)
+    cmp word [GAMETYPE], 4
+    jne .w
+    mov al, [SLT + WORLD_BYTE]
+.w: cmp [edx], al
+    jne .n
+    mov eax, edx
+    sub eax, SP_TAB
+    mov [esi + S_ENTRY], ax
+    pop ecx
+    jmp .ok
+.n: movzx ecx, word [edx + E_LEN]
+    add edx, ecx
+    jmp .f
+.nf:
+    pop ecx
+    pop eax
+    jmp .no
+.ok:
+    pop eax
     cmp byte [edx + 6], 0
     je .no
     or esi, esi                         ; (ZF = 0)
@@ -461,6 +499,27 @@ sp_freeze:                              ; esi = DIY, edx = entry, eax = stage, e
     inc ecx
     cmp ecx, [sp_n]
     jb .pr
+    mov ebp, [sp_rec]                   ; explicit places (flag 20h, word +18: the permutation from the entry): new
+    test byte [ebp + 2], 20h            ; place k = the old place perm[k] (Uruguay's Intermedio: a snake)
+    jz .noperm
+    movzx edi, word [ebp + 18]
+    add edi, edx
+    xor ecx, ecx
+.pc:
+    mov al, [esi + S_P2R + ecx]
+    mov [sp_tmp + ecx], al
+    inc ecx
+    cmp ecx, [sp_n]
+    jb .pc
+    xor ecx, ecx
+.pp:
+    movzx eax, byte [edi + ecx]
+    mov al, [sp_tmp + eax]
+    mov [esi + S_P2R + ecx], al
+    inc ecx
+    cmp ecx, [sp_n]
+    jb .pp
+.noperm:
     lea edi, [esi + S_GRP]
     mov ecx, NMAX_
     mov al, 0FFh
@@ -1276,7 +1335,7 @@ def entry(world, file, div, n, spec, table):
             for d in st['fixtures']:
                 assert len({x for pr in d for x in pr}) == 2 * len(d) and all(0 <= x < n for pr in d for x in pr), d
             flags = (1 if st.get('reset') else 0) | 4 | (8 if mem else 0) | (16 if st.get('wins') else 0)
-            recs.append((len(days), groups, ['full'] * len(groups), flags, b'') + extra)
+            recs.append((len(days), groups, ['full'] * len(groups), flags, (b'', None)) + extra)
             days += [[(a, b, 0) for a, b in d] for d in st['fixtures']]
             continue
         groups, rounds = st['groups'], st['rounds']
@@ -1289,8 +1348,10 @@ def entry(world, file, div, n, spec, table):
         home = st.get('home', 'seeded')
         mat = matrix(table, n, games, cycles, home) if home != 'seeded' and single else b''
         sd = schedule(groups, rounds)
-        recs.append((len(days), groups, points, (1 if st.get('reset') else 0) | (2 if st.get('keep') else 0), mat)
-                    + extra)
+        perm = st.get('perm')                       # explicit places (a permutation of the frozen order, flag 20h)
+        assert perm is None or sorted(perm) == list(range(n)), perm
+        recs.append((len(days), groups, points, (1 if st.get('reset') else 0) | (2 if st.get('keep') else 0)
+                     | (0x20 if perm else 0), (mat, perm)) + extra)
         days += [[(a, b, 1 if mat and g in single else 0) for a, b, g in d] for d in sd]
     assert not any(r[3] & 2 for r in recs) or all(POINTS[x] != 4 for st in stages for x in st.get('points') or []), \
         "'keep' and head-to-head points share their bytes"
@@ -1309,7 +1370,7 @@ def entry(world, file, div, n, spec, table):
     srec, mats = b'', b''
     weeks = bytes(spec['weeks']) if spec.get('weeks') else b''
     assert not weeks or len(weeks) == d1 + d2, (len(weeks), d1 + d2)
-    for k, (j0, groups, points, flags, mat, mem, cb, tb, ann) in enumerate(recs):
+    for k, (j0, groups, points, flags, (mat, perm), mem, cb, tb, ann) in enumerate(recs):
         g, start = b'', 0
         for i in range(4):
             if i < len(groups):
@@ -1317,8 +1378,11 @@ def entry(world, file, div, n, spec, table):
                 start += groups[i]
             else:
                 g += b'\0\0\0'
-        srec += bytes((j0, len(groups), flags, 0)) + g + struct.pack('<HH', o + len(mats) if mat else 0, 0)
+        mato = o + len(mats) if mat else 0
         mats += mat
+        po = o + len(mats) if perm else 0
+        mats += bytes(perm) if perm else b''
+        srec += bytes((j0, len(groups), flags, 0)) + g + struct.pack('<HH', mato, po)
         mo = o + len(mats) if mem else 0
         mats += bytes(mem) if mem else b''
         wo = o + len(mats) if weeks and k == 0 else 0
@@ -1337,7 +1401,8 @@ def pages(splits):
     """obj1 pages for the code + SP_TAB (0 without splits)."""
     if not splits:
         return 0
-    size = 0xC00                                   # the code (0xB38 measured, package 6)
+    size = 0xD00                                   # the code (0xB38 measured, package 6; 4.0.1: sp_entry's re-find
+                                                   # by key, ~0xC20 with the tip's code: 0x20 over the old guess)
     for world, file, div, n, spec in splits:
         size += len(entry(world, file, div, n, spec, [(a, b) for a in range(n) for b in range(a + 1, n)])[0])
     return (size + 0xFFF) // 0x1000

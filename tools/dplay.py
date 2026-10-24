@@ -217,6 +217,8 @@ dp_end:                                 ; replaces `call cseg_9228D` (the play-o
 
 dp_lend:                                ; replaces `call cseg_8ECAE` (the career league's last match day)
     pushad
+    cmp dword [A0R], CFB                ; (4.0.1: only for the league's own buffer, slot 0 - an empty slot contest
+    jne .x                              ; looks like a league over to the callers; gplay's gp_lend checks it too)
     mov edx, [D8CAA]
     test edx, edx
     jz .nat

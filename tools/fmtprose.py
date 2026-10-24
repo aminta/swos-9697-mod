@@ -70,13 +70,16 @@ def _el(lang, conf):
     return p
 
 
+PACK = {}       # 4.0.1: hand texts a pack brings ('format_prose', fmtgame.from_pack): {(world, Italian title): {lang: [..]}}
+
+
 def text(world, title, lang):
     """The paragraphs for this competition, or None (the schematic lines stay)."""
     t = title.strip()
     if world == 5 and t in ('UEFA EUROPA LEAGUE', 'UEFA CONFERENCE LEAGUE'):
         return _el(lang, t.endswith('CONFERENCE LEAGUE'))
     import fmtprose_hand
-    p = (fmtprose_hand.HAND.get((world, t)) or PROSE.get((world, t), {})).get(lang)
+    p = (PACK.get((world, t)) or fmtprose_hand.HAND.get((world, t)) or PROSE.get((world, t), {})).get(lang)
     return list(p) if p else None
 
 
@@ -447,6 +450,19 @@ def _round(key, lang):
     return r.get({'first': 'r1'}.get(key, key).replace('_best', '')) or _rd(key, key, key)
 
 
+# 4.0.1 rc3 (regia 2026-10-24): cups whose real two-legged ties go to extra time after the away goals, which the game's
+# levels cannot play yet (conti: away goals, then penalties; 4.0.2 'away_et_pens'): the real rule declared on the page
+REAL_AWAY_ET = {'ccc': {
+    'it': 'Nella realtà, in parità dopo i gol in trasferta si giocano i supplementari e poi i rigori; nel gioco si va '
+          'direttamente ai rigori.',
+    'en': 'In reality, if still level after away goals, extra time is played and then penalties; in the game it goes '
+          'straight to penalties.',
+    'fr': "En réalité, en cas d'égalité après les buts à l'extérieur, on joue la prolongation puis les tirs au but. "
+          'Dans le jeu, on passe directement aux tirs au but.',
+    'de': 'In Wirklichkeit folgen bei Gleichstand nach der Auswärtstorregel Verlängerung und Elfmeterschießen; im '
+          'Spiel geht es direkt ins Elfmeterschießen.'}}
+
+
 def conti(c, acc, lang, cname, aname, conf, tier, guests=False):
     """A continental cup's FORMAT page as a short story in plain prose, from conti's data: what the cup is (its
     confederation, its tier), the world's entrants per association and their entry rounds, the holders, the guests,
@@ -552,6 +568,8 @@ def conti(c, acc, lang, cname, aname, conf, tier, guests=False):
                                 legs=lg, nt=nt, lv=lv))
         i = j + 1
     s.append(l['away'] if any(rd.get('level') == 'away_pens' for rd in rds) else l['noaway'])
+    if c['key'] in REAL_AWAY_ET:                # (declared: the real rule plays extra time after the away goals)
+        s.append(REAL_AWAY_ET[c['key']][lang])
     out.append(' '.join(_cap(x) for x in s))
     s = []
     for rk, to in (c.get('losers') or {}).items():
@@ -637,7 +655,26 @@ def cup(cp, lang):
     out = [' '.join(_cap(x) for x in s1)]
     if s2:
         out.append(' '.join(_cap(x) for x in s2))
+    if cp.get('follow'):                        # 4.0.1 cupsf: the entrants from the second season
+        out.append(FOLLOW[lang])
     return {'prose': out, 'real': s1[0] if real else None}
+
+
+FOLLOW = {   # (4.0.1 cupsf.py, Davide's rule: the real format by division; relegated, stayers, promoted, each by place)
+    'it': ("Dalla seconda stagione le squadre seguono promozioni e retrocessioni: ogni categoria manda tante squadre "
+           "quante nella coppa vera. Prima le retrocesse dalla categoria superiore, poi quelle rimaste, poi le promosse, "
+           "ognuna secondo il piazzamento della stagione prima; la tua squadra c'è sempre se la sua categoria partecipa."),
+    'en': ("From the second season the clubs follow promotions and relegations: each division sends as many clubs as in "
+           "the real cup. First those relegated from the division above, then those that stayed, then the promoted ones, "
+           "each by last season's place; your club always takes part when its division does."),
+    'fr': ("À partir de la deuxième saison, les clubs suivent les montées et les descentes : chaque division envoie autant "
+           "de clubs que dans la vraie coupe. D'abord les relégués de la division supérieure, puis ceux qui sont restés, "
+           "puis les promus, chacun selon son classement de la saison précédente ; ton club joue toujours si sa division "
+           "participe."),
+    'de': ("Ab der zweiten Saison folgen die Vereine Auf- und Abstieg: Jede Liga stellt so viele Vereine wie im echten "
+           "Pokal. Zuerst die Absteiger aus der höheren Liga, dann die verbliebenen, dann die Aufsteiger, jeweils nach "
+           "dem Platz der Vorsaison; dein Verein ist immer dabei, wenn seine Liga teilnimmt."),
+}
 
 
 POW = {'it': dict(one='la {o}', rng='le squadre dalla {a} alla {b}', of=' di {d}', s='{who} {v} {kind}.', v=('gioca', 'giocano')),

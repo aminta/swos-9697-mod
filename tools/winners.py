@@ -84,7 +84,7 @@ wn_lastdiv:                             ; 4.0.1 (Davide): the last season's page
     jc .x
     mov ebx, eax
     mov edx, BUF
-    mov ecx, 5000h                      ; (the index: below TXT2, fmtpage.build asserts it)
+    mov ecx, 5800h                      ; (the index: below TXT2, fmtpage.build asserts it)
     mov ah, 3Fh
     int 21h
     jc .c
@@ -124,9 +124,9 @@ wn_lastdiv:                             ; 4.0.1 (Davide): the last season's page
     int 21h
     jc .c
     movzx ecx, word [esi + NAME_ + 5]
-    cmp ecx, 0FFFh
+    cmp ecx, 7FFh                       ; (TXT2: 0x800 B at BUF + 5800h, fmtpage.WN_TXT2)
     jbe .l
-    mov ecx, 0FFFh
+    mov ecx, 7FFh
 .l: mov edx, TXT2
     mov ah, 3Fh
     int 21h
@@ -681,12 +681,13 @@ def patch(p, at, lang, sites):
     wn = fmtpage.WN
     assert wn, 'fmtpage: no VINCITORI entry (a build without career worlds)'
     sym = dict(wn['sym'], FMTMENU=(2, wn['menu']))     # (the page's own copy of fmtpage's menu)
-    sym['TXT2'] = (2, wn['sym']['BUF'][1] + 0x5000)      # (4.0.1 wn_lastdiv: the last season's division's text)
+    sym['TXT2'] = (2, wn['sym']['BUF'][1] + fmtpage.WN_TXT2)   # (4.0.1 wn_lastdiv: the last season's division's text;
+                                                                  # 4.0.1 South America: 0x5800, the index grew)
     ttl, tbp, inc = TEXTS[lang]
     sym.update({'FP_OVINIT': (1, wn['ovinit']), 'FP_FILL': (1, wn['fill']),
                 'SEASONPLAYING': (2, sites['season']),
                 'SELPTR': (2, sel_ptr(p)),
-                'GP_WN_C': (1, gplay.LABELS['gp_wn_c'][1]), 'GP_WNSRC': gplay.LABELS['GP_WNSRC'],
+                'GP_WN_C': (1, gplay.LABELS['gp_wn_c'][1]), 'GP_WNSRC': gplay.LABELS['GP_WNSRC'], 'GP_WNFILE': gplay.LABELS['GP_WNFILE'],
                 'GP_SEAS': gplay.LABELS['GP_SEAS'], 'GP_MGR': gplay.LABELS['GP_MGR'],
                 'SLOT3': (2, __import__('dplay')._play_sites(p, __import__('sacups').regs(p.le.obj_bytes(1)))['slot4']
                           + 0x443),                      # (slot 3's buffer follows slot 4's, 443h each)
@@ -718,7 +719,9 @@ def patch(p, at, lang, sites):
 
 
 GP_CALL = """    mov [GP_WNSRC], ebx                 ; gplay.c gp_wn_c: the winner's team word, 0FFFFh being played, 0FFFEh
-    mov ax, [CAREERTEAM]                ; nothing, 0FFFDh no line (the career club out, the final undecided)
+    movzx eax, byte [DIY_ + 12Dh]       ; nothing; GP_WNFILE = the viewed league's file (its stage bank, 4.0.1)
+    mov [GP_WNFILE], eax
+    mov ax, [CAREERTEAM]
     mov [GP_MGR], ax
     mov al, [SEASONPLAYING]
     mov [GP_SEAS], al
@@ -729,8 +732,6 @@ GP_CALL = """    mov [GP_WNSRC], ebx                 ; gplay.c gp_wn_c: the winn
     popad
     cmp byte [WN_MODE], 0
     jne .lst
-    cmp ax, 0FFFDh
-    je .skip
     cmp ax, 0FFFCh
     je .t2
     cmp ax, 0FFFFh                      ; (its contest running: IN CORSO)

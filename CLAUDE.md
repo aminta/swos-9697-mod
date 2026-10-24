@@ -65,7 +65,9 @@ SWOSTEST_BUILD=~/swos-mod/c/RELxx/SWOS W8485_BUILD=~/swos-mod/c/RELxx/SWOS pytho
 
 ## Release checklist
 1. Build all languages, CD and GOG, into a release dir (`c/RELxx/SWOS`, `c/RELxx/gog`; see `notes/STATUS.md`).
-2. Full harness suite on that build: all PASS.
+2. Full harness suite on that build: all PASS. Release builds carry data / pools that scenario-built test exes lack
+   (CONVENTIONS 17a): run the data-reading paths (transfers incl. the FOREIGN market, cups, careers, season ends,
+   saves) on the release exes too (`SWOSTEST_BUILD=c/RELxx`).
 3. `VERSION` in `tools/mkpatcher.py`; save the previous published patcher as `orig/old-patchers/patcher-v<prev>.html`;
    `PATCHER_BUILD=c/RELxx python3 tools/mkpatcher.py`; test the page's own code in Node (originals CD/GOG, previous
    releases and SWOS++ upgrade; outputs = the release build; every changed DATA file has a page entry). Then the

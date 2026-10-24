@@ -21,7 +21,7 @@ import struct
 import zlib
 
 ROOT = os.path.join(os.path.dirname(__file__), '..')
-VERSION = '4.0'
+VERSION = '4.0.1'
 BLOCK = 16
 FILES = [  # (id, original path, patched path, file name in the game folder)
     ('ITALIAN.EXE', 'orig/ITALIAN.EXE', 'c/SWOS/ITALIAN.EXE', 'ITALIAN.EXE'),
@@ -359,6 +359,41 @@ def swospp_sources(entries):
     return extra
 
 
+SETUP_FACTORY = [('CD', 'orig/setup-factory/CD.DAT', '7ebf215f2ebba6bcdb9d1d1dc068656dfef8fa87'),     # (sha1: the 105-byte file of the
+                 ('GOG', 'orig/setup-factory/GOG.DAT', '63acdb5ee45f3085fadeeb2561fce9982d747f11')]    # CD / of GOG: controls 1, no calibration)
+SETUP_CALIBRATED = 'tools/setup_calibrated.dat'      # 4.0.1: embedded; swap = overwrite this file (tools/mksetupdat_placeholder.py: layout)
+
+
+def setup_entries():
+    """4.0.1 joypad (opt-in, 'opt' entries: used only when the page's "I have a joypad" box is ticked): SETUP.DAT as the CD / GOG
+    ships it (keyboard only, calibration all 0) -> the calibrated one (made with DOSBox timed=false). Any other SETUP.DAT
+    matches no entry, so the page leaves it alone."""
+    dst = open(os.path.join(ROOT, SETUP_CALIBRATED), 'rb').read()
+    assert len(dst) == 105 and struct.unpack_from('<H', dst, 6)[0] != 1, 'SETUP.DAT: 105 bytes, controls != keyboard only'
+    assert struct.unpack_from('<H', dst, 92)[0] != 0, 'SETUP.DAT: g_numLoopsJoy1 = 0 (65536 port reads per frame)'
+    out = []
+    for kind, path, sha in SETUP_FACTORY:
+        src = open(os.path.join(ROOT, path), 'rb').read()
+        assert hashlib.sha1(src).hexdigest() == sha and len(src) == 105, path
+        ops, _ = encode(src, dst)
+        assert decode(src, ops) == dst
+        out.append({'id': 'SETUP.DAT', 'target': 'SETUP.DAT', 'size': 105, 'md5': hashlib.md5(src).hexdigest(),
+                    'out_md5': hashlib.md5(dst).hexdigest(), 'out_size': 105, 'delta': pack(ops), 'z': 1, 'setup': kind, 'opt': 'joypad'})
+        print(f'SETUP.DAT ({kind} factory): delta {len(ops)} bytes')
+    # the d-pad mapper of GOG's DOSBox 0.74 (joysticktype=fcs polls hats; mapper-SVN.map binds hat 0 to the joystick-1 axes): written when
+    # absent (the whole file, 'full') or when it is GOG's own default (a delta); any other mapper is the user's and is left alone
+    dflt = open(os.path.join(ROOT, 'orig/setup-factory/mapper-SVN.default.map'), 'rb').read()
+    dpad = open(os.path.join(ROOT, 'tools/mapper-SVN.dpad.map'), 'rb').read()
+    assert hashlib.sha1(dflt).hexdigest() == 'eef851420cc756b28738f9c7de11f47d9350d597'
+    ops, _ = encode(dflt, dpad)
+    assert decode(dflt, ops) == dpad
+    out.append({'id': 'mapper-SVN.map', 'target': 'mapper-SVN.map', 'size': len(dflt), 'md5': hashlib.md5(dflt).hexdigest(),
+                'out_md5': hashlib.md5(dpad).hexdigest(), 'out_size': len(dpad), 'delta': pack(ops), 'z': 1, 'opt': 'joypad-map',
+                'full': base64.b64encode(dpad).decode()})
+    print(f'mapper-SVN.map: delta {len(ops)} bytes')
+    return out
+
+
 def build():
     build_swospp()
     entries = []
@@ -375,6 +410,7 @@ def build():
         print(f'{fid}: {len(dst)} bytes, delta {len(ops)} bytes ({inserted} inserted)')
     entries += upgrades(entries)
     entries += swospp_sources(entries)
+    entries += setup_entries()
     page = open(os.path.join(ROOT, 'tools', 'patcher_template.html'), encoding='utf-8').read()
     page = page.replace('/*PATCHES*/null', json.dumps(entries)).replace('{{VERSION}}', VERSION)
     out = os.path.join(ROOT, 'release', 'swos-9697-mod-patcher.html')

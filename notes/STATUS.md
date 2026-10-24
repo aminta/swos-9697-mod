@@ -2159,3 +2159,54 @@ Left for 2.5: (a) NSL/NSSL finals series (type-1 design) or declare them postpon
   package 6's per-league GP_SS banks + trailer (a) + exact Peru / Colombia / Uruguay (sa401) with the reload card
   (D8CAA[0] = 0x532CC2 after a mid-season load); Mexico (mex401c); Paraguay 44 days parked; 4.0-stagedec 1543af9
   (defensive); CRC's stage-title runner-up = the champion; the IC test forcing (own confederation's slot).
+
+## 4.0.1 (draft, 2026-10-23; release planned Wed 28)
+- Docs: `release/notes-4.0.1.md` (EN + IT, first draft on branch notes-401), README bullet, manual section 29 "4.0.1 additions".
+- In: Mexico exact (Liga MX + Expansion: liguillas, Campeon de Campeones; mex3), Peru / Colombia / Uruguay (sa401),
+  58 own nationalities (4.0.1-nats, codes 156..213), cups follow promotions / relegations (cupsf), foreign purchase
+  on the continents / nations, short calendar labels, match titles fitted in px, WINNERS long names, install-incomplete
+  message (instcheck), Libertadores 3rd -> Sudamericana play-off played, GOG launchers per language (patcher).
+- Withdrawn 4.0 limit: the job-letter stray pixels (fillfix parked: reproduces only on the 20/10 dev build).
+- Declared for 4.0.2: AFC Challenge League groups, the ACLE league stage, Guatemala / El Salvador /
+  Paraguay 44-day calendars, derived Clausura 2027 calendars (CA, Mexico), Colombia's group fixtures / tie-break
+  (owner: package 6), the odd Serie D group's rest day, the Libertadores continuation after the domestic season.
+
+## Deferred realism (4.0.2+)
+- Odd Serie D groups, the career club resting on the last match day (Serie C session, 2026-10-23): its Poule / group
+  play-off stays simulated in 4.0.1 (lastrest reverted). The tried fix (gp_lastrest: cseg_8EC2B's careerFinished loop
+  also counting an unplayed slot-0 day) kept careerFinished = 0 before the rest day; PARTITA then runs
+  CareerPlayMatch, which plays days (cseg_8E841: load the competition, its day, save it back, cseg_8ECAE at the league
+  end) until a club match: with the Poule built by gp_lend that day it is found, with none (LIGORNA 10th,
+  world_gplay_cupd2 season 2) cseg_8EA82 runs off the calendar and the loop never ends; in a 1984-85 national-team
+  season (world8485_nat, WC 1990) it hung the same way. world_poule_rest only reached the Poule screen, never the
+  season end. 4.0.2: play the rest day from the check (cseg_8E841 + cseg_8EA82, then careerFinished by whether a club
+  match appeared), only for GP_TAB leagues; proofs: cupd2 to the season end (no Poule), world_poule_rest through the
+  Poule to the end, a resting club in the Poule to its end, world8485_nat, an even group, C20=2. Branch lastrest /
+  lastrest3 (7cb2334) and the scenario world_poule_rest kept for it.
+- Continental rounds after the domestic season (Serie C session, 2026-10-23): the Libertadores 3rd now plays the
+  Sudamericana play-off (lib3sud: conti.c ct_gpre), but the later Sudamericana rounds and a 1st / 2nd's Libertadores
+  round of 16 (February) stay simulated at the season end: Argentina's season ends in December, the play-off /
+  the 6th group match is the club's last match, cseg_8EA82 sets seasonFinished and runs cseg_39392 before ct_daily can
+  build the next round in slot 3. 4.0.2: extend the season while the club has a conti segment pending (a calendar
+  entry for the next round built at the result, before the advance), proofs: world_lib3_sud with LIB3_TEXT=
+  'SUDAMERICANA:3' and CONTI_GPLACE=1 'LIBERTADORES OTTAVI:1', C20=2. Also: season 1 has no conti edition (CT_ED is
+  built at the first season end): the season-1 cups are the world's own.
+- world_conti_guest's next season (Serie C session, 2026-10-23): with the guest sample build (GUESTS_DATA sample +
+  CONTI_GUEST, test switches) INDEPENDIENTE's team screen comes back after ESCI at the second season's start (11
+  players shown, SQUADRA CORRE. off); a natural INDEPENDIENTE career on REL40hf reaches season 2 (career_20seasons
+  C20=2). KNOWN FAIL 4.0.1; 4.0.2: rebuild the scenario on the real guests (no sample) or find what the sample guests
+  take from the career club.
+
+## Starter lineups from the positions (4.0.1 line, 2026-10-23)
+- mkseason `auto_lineup()` (also guests.py, worldpool.py): a team with NO explicit lineup in its pack (blank or identity
+  0..15) gets the 16-byte lineup built from the players' position bytes: the 11 starters take the game's 4-4-2 slot
+  roles GK RB D D LB RW M M LW A A (exact position first, then the same class), the bench keeps the rest in file order.
+  An explicit non-identity `lineup` column wins; the original 1996-97 team files are byte-identical.
+  Check: `tools/lineupcheck.py DATA_DIR`, scenario `lineup_roles` (release dir, no exe run).
+- Old saves (CONVENTIONS 19: no post-load repair): clubs already in a career's team cache keep the old lineup; new careers
+  and clubs loaded fresh get the fix.
+- Vecchi salvataggi (CONVENZIONI 19, nessuna riparazione dopo il caricamento): i club già nella cache squadre di una
+  carriera tengono la vecchia formazione; le carriere nuove e i club caricati da zero hanno la correzione.
+- Counts on the 4.0 rc data (wrong starters before -> after): 2026-27 clubs 2477 (0 exact -> 2281 exact, 196 best the squad
+  allows), 1984-85 clubs 277 (21 original, 256 exact), 1984-85 national 18x all exact; 78 tourney/national records
+  (TEAM.089-093, 146) keep their explicit hand-written lineups, which start worse than the squad allows (lineupcheck KNOWN_EXPLICIT).

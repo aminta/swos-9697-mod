@@ -25,7 +25,7 @@ EXTRA = []      # [(world, contest id or None, {lang: title}, {lang: [lines]})] 
 LANGS = ('it', 'en', 'fr', 'de')
 
 T = {
-    'it': dict(promedio=['GIU: ULTIMO PROMEDIO (3 STAGIONI)', 'E ULTIMO DELLA CLASSIFICA ANNUALE;', 'PARI: SPAREGGIO IN CAMPO NEUTRO'], po_kind={'promotion': 'PLAY-OFF PROMOZIONE', 'europe': 'PLAY-OFF EUROPEO', 'placement': 'SPAREGGIO', 'playout': 'PLAY-OUT', 'title': 'PLAY-OFF SCUDETTO'}, better='IN PARITA PASSA LA MEGLIO PIAZZATA', et_better='SUPPLEMENTARI, POI LA MEGLIO PIAZZATA', gap='NON SI GIOCA SE C SONO {n}+ PUNTI DI DISTACCO', same='NON SI GIOCA SE E LA STESSA SQUADRA', seeds='TESTE DI SERIE {a}-{b} DELLE FASI', win_to='LA VINCENTE IN {d}', ita=['PLAY-OFF B: 3A-8A, PLAY-OUT: 16A-17A', 'PLAY-OFF C A 28 SQUADRE: 4A PROMOSSA'],
+    'it': dict(promedio=['GIU: ULTIMO PROMEDIO (3 STAGIONI)', 'E ULTIMO DELLA CLASSIFICA ANNUALE;', 'PARI: SPAREGGIO IN CAMPO NEUTRO'], po_kind={'promotion': 'PLAY-OFF PROMOZIONE', 'europe': 'PLAY-OFF EUROPEO', 'placement': 'SPAREGGIO', 'playout': 'PLAY-OUT', 'title': 'PLAY-OFF PER IL TITOLO'}, better='IN PARITA PASSA LA MEGLIO PIAZZATA', et_better='SUPPLEMENTARI, POI LA MEGLIO PIAZZATA', gap='NON SI GIOCA SE C SONO {n}+ PUNTI DI DISTACCO', same='NON SI GIOCA SE E LA STESSA SQUADRA', seeds='TESTE DI SERIE {a}-{b} DELLE FASI', win_to='LA VINCENTE IN {d}', ita=['PLAY-OFF B: 3A-8A, PLAY-OUT: 16A-17A', 'PLAY-OFF C A 28 SQUADRE: 4A PROMOSSA'],
                teams='{n} SQUADRE', clubs='{n} SQUADRE', rr={1: 'GIRONE DI SOLA ANDATA', 2: 'ANDATA E RITORNO', 3: 'TRE GIRONI',
                                         4: 'QUATTRO GIRONI'},
                days='{n} GIORNATE', rest='UNA SQUADRA RIPOSA OGNI GIORNATA', pts='VITTORIA {w} PUNTI, PAREGGIO 1',
@@ -302,7 +302,7 @@ def tourney_text(c, t):
 ZT = {
     'it': dict(head='COLORI DELLA CLASSIFICA:', col=('AZZURRO', 'VERDE', 'BLU', 'ARANCIONE', 'GRIGIO'),
                why=dict(cc='COPPA DEI CAMPIONI', uefa='COPPA UEFA', up='PROMOZIONE DIRETTA', po_up='PLAY-OFF PROMOZIONE',
-                        po_eu='PLAY-OFF EUROPEO', po_title='PLAY-OFF SCUDETTO', po_place='PLAY-OFF', po_down='SPAREGGIO SALVEZZA', out='PLAY-OUT', down='RETROCESSIONE DIRETTA',
+                        po_eu='PLAY-OFF EUROPEO', po_title='PLAY-OFF PER IL TITOLO', po_liguilla='LIGUILLA (PLAY-OFF PER IL TITOLO)', po_place='PLAY-OFF', po_down='SPAREGGIO SALVEZZA', out='PLAY-OUT', down='RETROCESSIONE DIRETTA',
                         cl='CHAMPIONS LEAGUE', el='EUROPA LEAGUE', conf='CONFERENCE LEAGUE', eu='COPPE EUROPEE'),
                eu='POSTI EUROPEI DAL RANKING UEFA DELLA FEDERAZIONE (ACCESS LIST UEFA): CLASSIFICA {y} PER LE COPPE {y2}, '
                   'RANKING VERO {r}:',
@@ -311,7 +311,7 @@ ZT = {
                    'STAGIONE: NON COLORATI IN ANTICIPO'),
     'en': dict(head='TABLE COLOURS:', col=('LIGHT BLUE', 'GREEN', 'DARK BLUE', 'ORANGE', 'GRAY'),
                why=dict(cc='CHAMPIONS CUP', uefa='UEFA CUP', up='PROMOTED', po_up='PROMOTION PLAY-OFF',
-                        po_eu='EUROPEAN PLAY-OFF', po_title='TITLE PLAY-OFF', po_place='PLAY-OFFS', po_down='RELEGATION PLAY-OFF', out='PLAY-OUT', down='RELEGATED',
+                        po_eu='EUROPEAN PLAY-OFF', po_title='TITLE PLAY-OFF', po_liguilla='LIGUILLA (TITLE PLAY-OFF)', po_place='PLAY-OFFS', po_down='RELEGATION PLAY-OFF', out='PLAY-OUT', down='RELEGATED',
                         cl='CHAMPIONS LEAGUE', el='EUROPA LEAGUE', conf='CONFERENCE LEAGUE', eu='EUROPEAN CUPS'),
                eu='EUROPEAN PLACES BY THE ASSOCIATION UEFA RANKING (UEFA ACCESS LIST): THE {y} TABLE FOR THE {y2} CUPS, '
                   'REAL {r} RANKING:',
@@ -320,7 +320,7 @@ ZT = {
                    'NOT COLOURED IN ADVANCE'),
     'fr': dict(head='COULEURS DU CLASSEMENT:', col=('BLEU CLAIR', 'VERT', 'BLEU FONCE', 'ORANGE', 'GRIS'),
                why=dict(cc='COUPE DES CHAMPIONS', uefa='COUPE UEFA', up='MONTEE DIRECTE', po_up='BARRAGES DE MONTEE',
-                        po_eu='BARRAGES EUROPEENS', po_title='PLAY-OFF DU TITRE', po_place='BARRAGES', po_down='BARRAGE DE MAINTIEN', out='BARRAGES DE MAINTIEN',
+                        po_eu='BARRAGES EUROPEENS', po_title='PLAY-OFF DU TITRE', po_liguilla='LIGUILLA (PLAY-OFF DU TITRE)', po_place='BARRAGES', po_down='BARRAGE DE MAINTIEN', out='BARRAGES DE MAINTIEN',
                         down='DESCENTE DIRECTE', cl='LIGUE DES CHAMPIONS', el='LIGUE EUROPA', conf='LIGUE CONFERENCE',
                         eu='COUPES D EUROPE'),
                eu='PLACES EUROPEENNES SELON LE CLASSEMENT UEFA DE L ASSOCIATION (LISTE D ACCES UEFA): CLASSEMENT {y} POUR '
@@ -330,7 +330,7 @@ ZT = {
                    'COLORES A L AVANCE'),
     'de': dict(head='FARBEN DER TABELLE:', col=('HELLBLAU', 'GRUEN', 'DUNKELBLAU', 'ORANGE', 'GRAU'),
                why=dict(cc='LANDESMEISTERPOKAL', uefa='UEFA-POKAL', up='DIREKTER AUFSTIEG', po_up='AUFSTIEGSPLAYOFFS',
-                        po_eu='EUROPAPOKAL-PLAYOFFS', po_title='MEISTER-PLAYOFFS', po_place='PLAYOFFS', po_down='RELEGATION', out='ABSTIEGSPLAYOFFS',
+                        po_eu='EUROPAPOKAL-PLAYOFFS', po_title='MEISTER-PLAYOFFS', po_liguilla='LIGUILLA (MEISTER-PLAYOFFS)', po_place='PLAYOFFS', po_down='RELEGATION', out='ABSTIEGSPLAYOFFS',
                         down='DIREKTER ABSTIEG', cl='CHAMPIONS LEAGUE', el='EUROPA LEAGUE', conf='CONFERENCE LEAGUE',
                         eu='EUROPAPOKALE'),
                eu='EUROPAPOKALPLAETZE NACH DER UEFA-RANGLISTE DES VERBANDS (UEFA-ZUGANGSLISTE): TABELLE {y} FUER DIE '
@@ -844,6 +844,10 @@ WN_TITLES = {   # official titles (data session, 2026-27): (country, ko_playoffs
     ('usa', None): {'*': "SUPPORTERS' SHIELD"},
     ('aus', None): {'it': 'PREMIERS A-LEAGUE', 'en': 'A-LEAGUE PREMIERS', 'fr': 'PREMIERS A-LEAGUE', 'de': 'PREMIERS A-LEAGUE'},
     ('can', None): {'*': 'CPL SHIELD'},
+    ('per', None): {'it': 'LIGA 1 - CLASSIFICA ACCUMULATA', 'en': 'LIGA 1 - ACCUMULATED TABLE',   # (4.0.1 rc3: no
+                    'fr': 'LIGA 1 - CLASSEMENT CUMULE', 'de': 'LIGA 1 - GESAMTTABELLE'},   # regular season, Davide)
+    ('uru', None): {'it': 'CAMPEONATO URUGUAYO - CLASSIFICA ANNUALE', 'en': 'CAMPEONATO URUGUAYO - ANNUAL TABLE',
+                    'fr': 'CAMPEONATO URUGUAYO - CLASSEMENT ANNUEL', 'de': 'CAMPEONATO URUGUAYO - JAHRESTABELLE'},
 }
 
 
@@ -917,9 +921,27 @@ def win_lines(comp, div, k, cc='', tfile=None):
     return lines
 
 
+_WN_RAW = {}     # id(a fitted names dict) -> its pack.json original (from_pack): the page is 298 px wide, so it
+                 # takes the real long name, not complist.fit_titles' 158-px one ('TROFEO CAMP.', rc12; 4.0.1)
+
+
+def _raw_names(raw, fit):
+    """Pair every 'names' dict of the fitted pack (complist.load_pack) with the same one of the raw pack.json."""
+    if isinstance(fit, dict) and isinstance(raw, dict):
+        if isinstance(fit.get('names'), dict) and isinstance(raw.get('names'), dict):
+            _WN_RAW[id(fit['names'])] = raw['names']
+        for k, v in fit.items():
+            if k in raw:
+                _raw_names(raw[k], v)
+    elif isinstance(fit, list) and isinstance(raw, list) and len(fit) == len(raw):
+        for a, b in zip(raw, fit):
+            _raw_names(a, b)
+
+
 def _wn_fit(names, lang, tail=''):
     """A title of the SEASON WINNERS page, 'title:' within the page's width (rule 1): the long name, else the short
-    one, else the long one without the tail."""
+    one, else the long one without the tail (the pack's own names, not the VISUAL. COMPETIZ. fit: _WN_RAW)."""
+    names = _WN_RAW.get(id(names), names)
     v = names.get(lang) or names.get('*') or next(iter(names.values()))
     v = v if isinstance(v, list) else [v]
     tries = [x + tail for x in v] + [v[-1]]
@@ -961,6 +983,8 @@ def end_played(div):
 def from_pack(d):
     """[(world, contest id, {lang: title}, {lang: [lines]})] of one pack."""
     m = complist.load_pack(d)
+    _WN_RAW.clear()
+    _raw_names(json.load(open(os.path.join(d, 'pack.json'), encoding='utf-8')), m)
     clubs = complist.csv.DictReader(open(os.path.join(d, 'clubs.csv'), encoding='utf-8')) \
         if os.path.exists(os.path.join(d, 'clubs.csv')) else []
     clubs = [dict(r, file=r.get('file') or 'league', division=r.get('division') or '0') for r in clubs]
@@ -978,6 +1002,9 @@ def from_pack(d):
     zdet = {lang: {} for lang in LANGS}
     for lang in LANGS:
         zones.pack_zones(d, lang, lp, rank, zdet[lang])
+    import fmtprose                             # (4.0.1: a pack's own hand texts, 'format_prose': {Italian title:
+    for t_, v_ in (m.get('format_prose') or {}).items():          # {lang: [paragraph, ...]}} - sa_exact's leagues)
+        fmtprose.PACK[(world, t_)] = v_
     out = []
     for ci, comp in enumerate(m.get('competitions', [])):
         cid = int(comp['id'], 16) if comp.get('id') else None
@@ -1026,6 +1053,11 @@ def from_pack(d):
             side = os.path.join(d, 'complist.json')     # (the converter's facts: the real cup as TM lists it)
             info = (json.load(open(side)) if os.path.exists(side) else {}).get(comp['key'], {})
             cp = complist._cup(comp, ties, 'cup', info if comp['key'] == 'cup' else {})
+            r1 = [x for t in ties if t.get('competition') == comp['key'] and t.get('round') == '1'
+                  for x in (t.get('home'), t.get('away')) if x]
+            lk = {r['key'] for r in clubs if r['file'] == 'league'}
+            if m.get('world') is not None and world_year(m['world'], d) >= 2026 and r1 and all(x in lk for x in r1):
+                cp['follow'] = True                     # (4.0.1 cupsf: the clubs follow promotions from season 2)
             titles = {lang: title(lang, complist._nm(comp['names'], lang)) for lang in LANGS}
             out.append((world, cid, titles, {lang: dict(fmtprose.cup(cp, lang), tail=[]) for lang in LANGS}))
         elif comp['type'] == 'tourney':
@@ -1101,7 +1133,10 @@ def write(out_dir, items):
             key = titles[lang][:fmtpage.NAME - 1]
             k = (lang, world, key)
             if k in keys:                       # the same title twice (two divisions with one name): one page,
-                keys[k].extend([['']] + body)     # both descriptions
+                if body != keys[k] and keys[k][:len(body)] != body:   # both descriptions (one hand text for both:
+                    keys[k].extend([['']] + body)   # once - Mexico's two Campeon de Campeones; 4.0.1 rc3: Uruguay's
+                                                    # title play-off is named as its league - the league's page holds
+                                                    # the same hand text + its colours, not repeated)
                 continue
             keys[k] = body
             by.setdefault((lang, world), []).append((cid, key, None))

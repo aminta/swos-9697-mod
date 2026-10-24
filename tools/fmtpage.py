@@ -26,6 +26,8 @@ IDXMAX = 0x6000                 # header + index read at once (511 entries)
 TXTMAX = 0x2000                 # one competition's text
 BSS_SIZE = IDXMAX + TXTMAX
 ENTRY = 48
+WN_TXT2 = 0x5800                # winners.py's TXT2 (the last season's division text, 0x800 B) at BUF + this:
+                                # the index (header + entries) must end below it (4.0.1: 0x5000 -> 0x5800)
 NAME = 41                       # the slot's name (+4 .. +2Ch, before the contest id): the title the game shows
 
 TEXTS = {
@@ -493,7 +495,9 @@ def build(path, pages, wins=()):
     idx, body = bytearray(), bytearray()
     head = 8 + ENTRY * (len(pages) + len(wins))
     assert head <= IDXMAX, (len(pages), len(wins))
-    assert not wins or head <= 0x5000, head          # (winners.py wn_lastdiv: the index below its second text)
+    assert not wins or head <= WN_TXT2, head         # (winners.py wn_lastdiv: the index below its second text)
+    for _, _, pp in wins:                           # (and a WIN text fits TXT2's 0x800 bytes, its 0x7FF read)
+        assert len('\n'.join(f'{t}\x01{s_}' for t, s_ in pp)) <= 0x7FF, pp
     for cid, name, pp in list(pages) + list(wins):
         if pp and isinstance(pp[0], tuple):
             txt = '\n'.join(f'{t}\x01{s_}' for t, s_ in pp).encode('ascii')

@@ -115,6 +115,8 @@ a{color:var(--accent)}
   <p class="sub" id="pfhint" data-it="Il gioco è in Program Files / Programmi (per esempio la cartella di GOG Galaxy, C:\Program Files (x86)\GOG Galaxy\Games)? Chrome ed Edge non aprono quella cartella («contiene file di sistema»). Usa i passi a mano qui sotto, oppure copia la cartella del gioco altrove (per esempio in Documenti), installa la mod nella copia con un clic, poi ricopia il suo contenuto sopra l&#x27;originale (Windows chiede il permesso di amministratore: accetta) e gioca come sempre." data-en="Is the game in Program Files (for example GOG Galaxy&#x27;s folder, C:\Program Files (x86)\GOG Galaxy\Games)? Chrome and Edge do not open that folder (&quot;contains system files&quot;). Use the manual steps below, or copy the game folder somewhere else (for example Documents), install the mod into the copy with one click, then copy its contents back over the original (Windows asks for administrator permission: accept) and play as usual." data-fr="Le jeu est dans Program Files / Programmes (par exemple le dossier de GOG Galaxy, C:\Program Files (x86)\GOG Galaxy\Games) ? Chrome et Edge n&#x27;ouvrent pas ce dossier (« contient des fichiers système »). Suivez les étapes à la main ci-dessous, ou copiez le dossier du jeu ailleurs (par exemple dans Documents), installez le mod dans la copie en un clic, puis recopiez son contenu par-dessus l&#x27;original (Windows demande l&#x27;autorisation d&#x27;administrateur : acceptez) et jouez comme d&#x27;habitude." data-de="Liegt das Spiel unter Programme / Program Files (zum Beispiel im Ordner von GOG Galaxy, C:\Program Files (x86)\GOG Galaxy\Games)? Chrome und Edge öffnen diesen Ordner nicht („enthält Systemdateien“). Folgen Sie den Schritten von Hand weiter unten, oder kopieren Sie den Spielordner woandershin (zum Beispiel nach Dokumente), installieren Sie den Mod mit einem Klick in die Kopie, kopieren Sie dann ihren Inhalt über das Original zurück (Windows fragt nach Administratorrechten: bestätigen) und spielen Sie wie gewohnt."></p>
   <p><button class="dl" type="button" id="pickdir" data-it="Scegli la cartella del gioco" data-en="Choose the game folder" data-fr="Choisir le dossier du jeu" data-de="Spielordner wählen"></button>
      <button class="dl" type="button" id="pickcd" data-it="Dal CD: copia il gioco in una cartella nuova" data-en="From the CD: copy the game into a new folder" data-fr="Depuis le CD : copier le jeu dans un nouveau dossier" data-de="Von der CD: Spiel in einen neuen Ordner kopieren"></button></p>
+  <p><label><input type="checkbox" id="joyopt" checked> <span data-it="Versione GOG: ho un joypad / gamepad. Imposta il gioco per il joypad (giocatore 1) e la tastiera (giocatore 2) e configura DOSBox (joysticktype=fcs, timed=false, croce direzionale). Se non hai un joypad collegato si gioca comunque con la tastiera; togli la spunta solo se non vuoi questo." data-en="GOG version: I have a joypad / gamepad. Set the game up for the joypad (player 1) and the keyboard (player 2) and configure DOSBox (joysticktype=fcs, timed=false, d-pad). If no joypad is plugged in the game is still played with the keyboard; untick it only if you do not want this." data-fr="Version GOG : j'ai une manette / un gamepad. Régler le jeu pour la manette (joueur 1) et le clavier (joueur 2) et configurer DOSBox (joysticktype=fcs, timed=false, croix directionnelle). Sans manette branchée, le jeu se joue quand même au clavier ; décochez seulement si vous ne le voulez pas." data-de="GOG-Version: Ich habe ein Joypad / Gamepad. Das Spiel für Joypad (Spieler 1) und Tastatur (Spieler 2) einrichten und DOSBox konfigurieren (joysticktype=fcs, timed=false, Steuerkreuz). Ist kein Joypad angeschlossen, spielt man trotzdem mit der Tastatur; nur abwählen, wenn Sie das nicht möchten."></span></label></p>
+  <p><label><input type="checkbox" id="joyown"> <span data-it="Usi un tuo DOSBox (CD, eXoDOS, altro)? Spunta se hai un joypad: cambio solo SETUP.DAT; nella configurazione del tuo DOSBox metti [joystick] timed=false (vedi la guida)." data-en="Using your own DOSBox (CD, eXoDOS, other)? Tick this if you have a joypad: I change only SETUP.DAT; in your DOSBox configuration set [joystick] timed=false (see the guide)." data-fr="Vous utilisez votre propre DOSBox (CD, eXoDOS, autre) ? Cochez si vous avez une manette : je ne change que SETUP.DAT ; dans la configuration de votre DOSBox mettez [joystick] timed=false (voir le guide)." data-de="Eigenes DOSBox (CD, eXoDOS, andere)? Anhaken, wenn Sie ein Joypad haben: ich ändere nur SETUP.DAT; in der Konfiguration Ihres DOSBox [joystick] timed=false setzen (siehe Anleitung)."></span></label></p>
   <p class="sub" data-it="Il CD non si può modificare: con il secondo pulsante scegli prima la cartella del gioco sul CD (per esempio D:\SWOS), poi una cartella vuota sul disco (per esempio C:\SWOS); la pagina ci copia il gioco e installa la mod." data-en="The CD cannot be changed: with the second button choose first the game folder on the CD (for example D:\SWOS), then an empty folder on your disk (for example C:\SWOS); the page copies the game there and installs the mod." data-fr="Le CD ne peut pas être modifié : avec le deuxième bouton, choisissez d&#x27;abord le dossier du jeu sur le CD (par exemple D:\SWOS), puis un dossier vide sur votre disque (par exemple C:\SWOS) ; la page y copie le jeu et installe le mod." data-de="Die CD kann nicht geändert werden: Wählen Sie mit dem zweiten Knopf zuerst den Spielordner auf der CD (zum Beispiel D:\SWOS), dann einen leeren Ordner auf Ihrer Festplatte (zum Beispiel C:\SWOS); die Seite kopiert das Spiel dorthin und installiert den Mod."></p>
   <p class="sub" data-it="Windows GOG: per esempio C:\GOG Games\Sensible World of Soccer 96-97. CD: per esempio C:\SWOS. Mac GOG: apri l'app con il tasto destro, Mostra contenuto pacchetto, e scegli Contents/Resources/game/…/Sensible World Of Soccer 96-97.boxer/C Sensible World of Soccer 96-97.harddisk." data-en="Windows GOG: for example C:\GOG Games\Sensible World of Soccer 96-97. CD: for example C:\SWOS. Mac GOG: right-click the app, Show Package Contents, and choose Contents/Resources/game/…/Sensible World Of Soccer 96-97.boxer/C Sensible World of Soccer 96-97.harddisk." data-fr="Windows GOG : par exemple C:\GOG Games\Sensible World of Soccer 96-97. CD : par exemple C:\SWOS. Mac GOG : clic droit sur l&#x27;app, Afficher le contenu du paquet, puis choisissez Contents/Resources/game/…/Sensible World Of Soccer 96-97.boxer/C Sensible World of Soccer 96-97.harddisk." data-de="Windows GOG: zum Beispiel C:\GOG Games\Sensible World of Soccer 96-97. CD: zum Beispiel C:\SWOS. Mac GOG: Rechtsklick auf die App, Paketinhalt zeigen, dann Contents/Resources/game/…/Sensible World Of Soccer 96-97.boxer/C Sensible World of Soccer 96-97.harddisk wählen."></p>
   <div id="dirmsg" class="msg" hidden></div>
@@ -364,14 +366,19 @@ function download(bytes, name) {
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 5000);
 }
+let JOY = true, JOYOWN = false;                    // 4.0.1: the two joypad boxes: GOG layout (default on) / own DOSBox (default off)
+const joyBox = document.getElementById('joyopt'), joyOwn = document.getElementById('joyown');
+if (joyBox) joyBox.onchange = () => { JOY = joyBox.checked; };
+if (joyOwn) joyOwn.onchange = () => { JOYOWN = joyOwn.checked; };
+function setJoy(v, own) { JOY = !!v; JOYOWN = !!own; }
 async function handle(files) {
   const msg = document.getElementById('msg'); msg.hidden = true; msg.textContent = '';
   for (const f of files) {
     const r = { name: f.name, state: 'wait' }; results.push(r); render();
     const src = new Uint8Array(await f.arrayBuffer());
     const sum = md5(src);
-    let patches = PATCHES.filter(p => p.md5 === sum && p.size === src.length);
-    const cur = PATCHES.find(p => p.out_md5 === sum && p.out_size === src.length);
+    let patches = PATCHES.filter(p => p.md5 === sum && p.size === src.length && (!p.opt || JOY || JOYOWN));
+    const cur = PATCHES.find(p => p.out_md5 === sum && p.out_size === src.length && (!p.opt || JOY || JOYOWN));
     const base = patches.length ? patches : cur && cur.id === 'TEAM.020' ? [cur] : [];
     if (base.length)                                      // new files (1.1 African countries ...) come with TEAM.020
       patches = patches.concat(PATCHES.filter(p => base.some(q => q.id === p.with) &&
@@ -417,6 +424,7 @@ const DT = {
         incomplete: (k, n, l) => `INSTALLAZIONE INCOMPLETA: solo ${k} file su ${n} sono stati scritti correttamente (mancano: ${l}). Così il gioco non funziona: scegli di nuovo la cartella del gioco per completare l'installazione.`,
         launch: l => `Per giocare con la mod usa i file «SWOS Mod - Italiano.bat» (o ${l}) nella cartella del gioco: il collegamento di GOG avvia sempre la versione inglese.`,
         done: n => `Fatto: ${n} / ${n} file scritti e verificati (la copia dei file sostituiti è in MOD_BACKUP\\{{VERSION}}). Avvia il gioco come sempre e inizia una carriera nuova.`,
+        joy: { conf: 'In dosbox_SWOS.conf: joysticktype=fcs e timed=false nella sezione [joystick] (copia in dosbox_SWOS.conf.bak).', map: 'Croce direzionale: mapper-SVN.map scritto (la copia, se c\'era, è in mapper-SVN.map.bak).', mapkeep: 'mapper-SVN.map è tuo: l\'ho lasciato com\'era (la croce direzionale non è mappata).', own: 'Il tuo DOSBox: metti [joystick] timed=false nella sua configurazione (vedi la guida).', cloud: 'Nella cartella cloud_saves di GOG:', done: 'Joypad: SETUP.DAT di fabbrica sostituito con quello calibrato (l\'originale è in SETUP.DAT.bak).', already: 'Joypad: SETUP.DAT già calibrato.', custom: 'Joypad: il tuo SETUP.DAT non è quello di fabbrica: l\'ho lasciato com\'era.', none: 'Joypad: SETUP.DAT non trovato, niente da cambiare.', undone: 'Joypad disattivato: SETUP.DAT (e dosbox_SWOS.conf) rimessi com\'erano dalle copie .bak.' },
         denied: 'La pagina non ha il permesso di scrivere nella cartella: riprova e conferma "Modifica file" / "Salva modifiche".',
         error: m => `Errore: ${m}. Il gioco potrebbe essere a metà: rimetti i file di MOD_BACKUP\\{{VERSION}} e riprova.` },
   en: { pf: "Is the game in Program Files (for example GOG Galaxy's folder, C:\\Program Files (x86)\\GOG Galaxy\\Games)? Chrome and Edge do not open that folder (\"contains system files\"). Use the manual steps below, or copy the game folder somewhere else (for example Documents), install the mod into the copy with one click, then copy its contents back over the original (Windows asks for administrator permission: accept) and play as usual.",
@@ -433,6 +441,7 @@ const DT = {
         incomplete: (k, n, l) => `INSTALL INCOMPLETE: only ${k} of ${n} files were written correctly (missing: ${l}). The game will not work like this: choose the game folder again to complete the install.`,
         launch: l => `To play the mod, use the files "SWOS Mod - English.bat" (or ${l}) in the game folder: GOG's shortcut always starts the English version.`,
         done: n => `Done: ${n} / ${n} files written and verified (a copy of the replaced files is in MOD_BACKUP\\{{VERSION}}). Start the game as usual and start a new career.`,
+        joy: { conf: 'In dosbox_SWOS.conf: joysticktype=fcs and timed=false in the [joystick] section (a copy is in dosbox_SWOS.conf.bak).', map: 'D-pad: mapper-SVN.map written (the previous one, if any, is in mapper-SVN.map.bak).', mapkeep: 'mapper-SVN.map is yours: left as it was (the d-pad is not mapped).', own: 'Your own DOSBox: set [joystick] timed=false in its configuration (see the guide).', cloud: 'In GOG\'s cloud_saves folder:', done: 'Joypad: the factory SETUP.DAT was replaced by the calibrated one (the original is in SETUP.DAT.bak).', already: 'Joypad: SETUP.DAT is already calibrated.', custom: 'Joypad: your SETUP.DAT is not the factory one: left as it was.', none: 'Joypad: SETUP.DAT not found, nothing to change.', undone: 'Joypad switched off: SETUP.DAT (and dosbox_SWOS.conf) put back from the .bak copies.' },
         denied: 'The page has no permission to write into the folder: try again and confirm "Edit files" / "Save changes".',
         error: m => `Error: ${m}. The game may be half updated: put back the files from MOD_BACKUP\\{{VERSION}} and try again.` },
   fr: { pf: "Le jeu est dans Program Files / Programmes (par exemple le dossier de GOG Galaxy, C:\\Program Files (x86)\\GOG Galaxy\\Games) ? Chrome et Edge n'ouvrent pas ce dossier (« contient des fichiers système »). Suivez les étapes à la main ci-dessous, ou copiez le dossier du jeu ailleurs (par exemple dans Documents), installez le mod dans la copie en un clic, puis recopiez son contenu par-dessus l'original (Windows demande l'autorisation d'administrateur : acceptez) et jouez comme d'habitude.",
@@ -449,6 +458,7 @@ const DT = {
         incomplete: (k, n, l) => `INSTALLATION INCOMPLÈTE : seulement ${k} fichiers sur ${n} ont été écrits correctement (manquants : ${l}). Le jeu ne fonctionnera pas ainsi : choisissez à nouveau le dossier du jeu pour terminer l'installation.`,
         launch: l => `Pour jouer au mod, utilisez les fichiers « SWOS Mod - Francais.bat » (ou ${l}) dans le dossier du jeu : le raccourci de GOG lance toujours la version anglaise.`,
         done: n => `Terminé : ${n} / ${n} fichiers écrits et vérifiés (la copie des fichiers remplacés est dans MOD_BACKUP\\{{VERSION}}). Lancez le jeu comme d'habitude et commencez une nouvelle carrière.`,
+        joy: { conf: 'Dans dosbox_SWOS.conf : joysticktype=fcs et timed=false dans la section [joystick] (copie dans dosbox_SWOS.conf.bak).', map: 'Croix directionnelle : mapper-SVN.map écrit (l\'ancien, s\'il existait, est dans mapper-SVN.map.bak).', mapkeep: 'mapper-SVN.map est le vôtre : laissé tel quel (la croix directionnelle n\'est pas mappée).', own: 'Votre propre DOSBox : mettez [joystick] timed=false dans sa configuration (voir le guide).', cloud: 'Dans le dossier cloud_saves de GOG :', done: 'Manette : le SETUP.DAT d\'usine a été remplacé par le fichier calibré (l\'original est dans SETUP.DAT.bak).', already: 'Manette : SETUP.DAT est déjà calibré.', custom: 'Manette : votre SETUP.DAT n\'est pas celui d\'usine : laissé tel quel.', none: 'Manette : SETUP.DAT introuvable, rien à changer.', undone: 'Manette désactivée : SETUP.DAT (et dosbox_SWOS.conf) remis comme avant depuis les copies .bak.' },
         denied: "La page n'a pas le droit d'écrire dans le dossier : réessayez et confirmez « Modifier les fichiers » / « Enregistrer les modifications ».",
         error: m => `Erreur : ${m}. Le jeu est peut-être à moitié modifié : remettez les fichiers de MOD_BACKUP\\{{VERSION}} et réessayez.` },
   de: { pf: "Liegt das Spiel unter Programme / Program Files (zum Beispiel im Ordner von GOG Galaxy, C:\\Program Files (x86)\\GOG Galaxy\\Games)? Chrome und Edge öffnen diesen Ordner nicht („enthält Systemdateien“). Folgen Sie den Schritten von Hand weiter unten, oder kopieren Sie den Spielordner woandershin (zum Beispiel nach Dokumente), installieren Sie den Mod mit einem Klick in die Kopie, kopieren Sie dann ihren Inhalt über das Original zurück (Windows fragt nach Administratorrechten: bestätigen) und spielen Sie wie gewohnt.",
@@ -465,6 +475,7 @@ const DT = {
         incomplete: (k, n, l) => `INSTALLATION UNVOLLSTÄNDIG: nur ${k} von ${n} Dateien wurden korrekt geschrieben (es fehlen: ${l}). So läuft das Spiel nicht: wählen Sie den Spielordner erneut, um die Installation abzuschließen.`,
         launch: l => `Zum Spielen des Mods die Dateien „SWOS Mod - Deutsch.bat“ (oder ${l}) im Spielordner verwenden: die GOG-Verknüpfung startet immer die englische Version.`,
         done: n => `Fertig: ${n} / ${n} Dateien geschrieben und geprüft (die Kopie der ersetzten Dateien liegt in MOD_BACKUP\\{{VERSION}}). Starten Sie das Spiel wie gewohnt und beginnen Sie eine neue Karriere.`,
+        joy: { conf: 'In dosbox_SWOS.conf: joysticktype=fcs und timed=false im Abschnitt [joystick] (Kopie in dosbox_SWOS.conf.bak).', map: 'Steuerkreuz: mapper-SVN.map geschrieben (die vorherige, falls vorhanden, liegt in mapper-SVN.map.bak).', mapkeep: 'mapper-SVN.map ist Ihre eigene: so gelassen (das Steuerkreuz ist nicht zugeordnet).', own: 'Ihr eigenes DOSBox: setzen Sie [joystick] timed=false in dessen Konfiguration (siehe Anleitung).', cloud: 'Im GOG-Ordner cloud_saves:', done: 'Joypad: Die Werks-SETUP.DAT wurde durch die kalibrierte ersetzt (das Original liegt in SETUP.DAT.bak).', already: 'Joypad: SETUP.DAT ist schon kalibriert.', custom: 'Joypad: Ihre SETUP.DAT ist nicht die Werksdatei: so gelassen.', none: 'Joypad: SETUP.DAT nicht gefunden, nichts zu ändern.', undone: 'Joypad ausgeschaltet: SETUP.DAT (und dosbox_SWOS.conf) aus den .bak-Kopien zurückgesetzt.' },
         denied: 'Die Seite darf nicht in den Ordner schreiben: Versuchen Sie es erneut und bestätigen Sie „Dateien bearbeiten“ / „Änderungen speichern“.',
         error: m => `Fehler: ${m}. Das Spiel ist vielleicht nur halb geändert: Legen Sie die Dateien aus MOD_BACKUP\\{{VERSION}} zurück und versuchen Sie es erneut.` },
 };
@@ -512,13 +523,93 @@ async function launchers(g) {                     // GOG: one launcher per langu
   }
   return made;
 }
+// 4.0.1 joypad (opt-in): ticked = the factory SETUP.DAT (CD / GOG, byte-identical) becomes the calibrated one and GOG's
+// dosbox_SWOS.conf gets timed=false in [joystick] (a .bak of each, the first one kept); unticked = an earlier tick is undone
+// from the .bak files (only when SETUP.DAT is still our calibrated file). Anything else is left alone. -> a log sentence or ''
+function joyConf(text) {                            // dosbox_SWOS.conf with joysticktype=fcs + timed=false in [joystick] (null: already so)
+  const eol = text.includes('\r\n') ? '\r\n' : '\n', lines = text.split(/\r?\n/), want = { joysticktype: 'fcs', timed: 'false' };
+  let sec = '', start = -1, end = -1, changed = false;
+  lines.forEach((l, i) => {
+    const m = /^\s*\[([^\]]*)\]/.exec(l);
+    if (m) { if (sec === 'joystick' && end < 0) end = i; sec = m[1].toLowerCase(); if (sec === 'joystick') start = i; }
+  });
+  if (start >= 0 && end < 0) end = lines.length;
+  if (start < 0) { if (lines[lines.length - 1] === '') lines.pop(); lines.push('[joystick]', 'joysticktype=fcs', 'timed=false', ''); return lines.join(eol); }
+  for (const [k, v] of Object.entries(want)) {
+    let hit = -1;
+    for (let i = start + 1; i < end; i++) if (new RegExp('^\\s*' + k + '\\s*=', 'i').test(lines[i])) hit = i;
+    if (hit >= 0) { if (new RegExp('^\\s*' + k + '\\s*=\\s*' + v + '\\s*$', 'i').test(lines[hit])) continue; lines[hit] = k + '=' + v; changed = true; }
+    else { lines.splice(end, 0, k + '=' + v); end++; changed = true; }
+  }
+  return changed ? lines.join(eol) : null;
+}
+async function readBytes(h) { return new Uint8Array(await (await h.getFile()).arrayBuffer()); }
+const bytesOf = t => { const b = new Uint8Array(t.length); for (let i = 0; i < t.length; i++) b[i] = t.charCodeAt(i); return b; };
+async function joypadAt(root, m, D, kind) {            // kind: 'gog' (SETUP.DAT + conf + mapper), 'own' / 'cloud' (SETUP.DAT only) -> a note
+  const J = D.joy, setup = m.get('SETUP.DAT'), gog = kind === 'gog', on = gog ? JOY : kind === 'cloud' ? (m.__gog ? JOY : JOYOWN) : JOYOWN;
+  const conf = gog ? m.get('DOSBOX_SWOS.CONF') : null, map = gog ? m.get('MAPPER-SVN.MAP') : null;
+  const cal = PATCHES.find(p => p.opt === 'joypad'), mp = PATCHES.find(p => p.opt === 'joypad-map');
+  const cur = setup && setup.kind === 'file' ? await readBytes(setup) : null, sum = cur && md5(cur);
+  const bak = m.get('SETUP.DAT.BAK'), cbak = gog ? m.get('DOSBOX_SWOS.CONF.BAK') : null, mbak = gog ? m.get('MAPPER-SVN.MAP.BAK') : null;
+  if (!on) {                                        // unticked: undo our own earlier change, nothing else
+    if (!cal || !cur || sum !== cal.out_md5 || !bak || bak.kind !== 'file') return '';
+    const old = await readBytes(bak);
+    if (!old.length) return '';
+    await writeFile(root, setup.name, old);
+    if (cbak && cbak.kind === 'file' && conf) { const c = await readBytes(cbak); if (c.length) await writeFile(root, conf.name, c); }
+    if (map && map.kind === 'file' && mp && md5(await readBytes(map)) === mp.out_md5) {   // our mapper: the old one back, or gone
+      if (mbak && mbak.kind === 'file') await writeFile(root, map.name, await readBytes(mbak));
+      else try { await root.removeEntry(map.name); } catch (e) {}
+    }
+    return J.undone;
+  }
+  if (!cur) return J.none;
+  let note;
+  const fac = PATCHES.find(p => p.opt === 'joypad' && p.md5 === sum && p.size === cur.length);
+  if (fac) {
+    const out = await patchFile(cur, fac);
+    if (!bak) await writeFile(root, 'SETUP.DAT.bak', cur);
+    await writeFile(root, setup.name, out);
+    note = J.done;
+  } else if (sum === cal.out_md5) note = J.already;
+  else return J.custom;
+  if (kind === 'own') note += ' ' + J.own;
+  if (conf && conf.kind === 'file') {
+    const nt = joyConf(new TextDecoder('latin1').decode(await readBytes(conf)));
+    if (nt !== null) {
+      if (!cbak) await writeFile(root, conf.name + '.bak', await readBytes(conf));
+      await writeFile(root, conf.name, bytesOf(nt));
+      note += ' ' + J.conf;
+    }
+  }
+  if (gog && mp) {                                  // the d-pad mapper: written only when absent or GOG's own default file
+    const mcur = map && map.kind === 'file' ? await readBytes(map) : null;
+    if (!mcur || (mcur.length === mp.size && md5(mcur) === mp.md5)) {
+      const out = mcur ? await patchFile(mcur, mp) : bytesOf(atob(mp.full));      // (absent: the whole file, 3.4 KB)
+      if (mcur && !mbak) await writeFile(root, 'mapper-SVN.map.bak', mcur);
+      await writeFile(root, map ? map.name : 'mapper-SVN.map', out);
+      note += ' ' + J.map;
+    } else if (md5(mcur) !== mp.out_md5) note += ' ' + J.mapkeep;
+  }
+  return note;
+}
+async function joypadStep(g, D) {                   // the game folder, and GOG's cloud_saves overlay (it shadows the game's SETUP.DAT)
+  const isGog = !!(g.m.get('DOSBOX') && g.m.get('DOSBOX').kind === 'directory' && g.m.get('DOSBOX_SWOS.CONF'));
+  const notes = [await joypadAt(g.root, g.m, D, isGog ? 'gog' : 'own')];
+  const cs = g.m.get('CLOUD_SAVES');
+  if (cs && cs.kind === 'directory') {
+    const m = await childMap(cs);
+    if (m.has('SETUP.DAT')) { m.__gog = isGog; const n = await joypadAt(cs, m, D, 'cloud'); if (n) notes.push(D.joy.cloud + ' ' + n); }
+  }
+  return notes.filter(Boolean).join(' ');
+}
 async function installDir(dir, say) {             // -> the number of files written; say(text) reports progress
   const D = DT[lang];
   const g = await findGame(dir);
   if (!g) { say(D.notfound + ' ' + D.pf, true); return 0; }
   say(D.reading);
   const dm = await childMap(g.data), have = new Map();      // target -> {file, bytes}
-  const targets = [...new Set(PATCHES.filter(p => !p.with && !p.from && !p.via).map(p => p.target))];
+  const targets = [...new Set(PATCHES.filter(p => !p.with && !p.from && !p.via && !p.opt).map(p => p.target))];
   for (const tgt of targets) {
     const [dname, fname] = tgt.includes('/') ? tgt.split('/') : [null, tgt];
     const h = (dname ? dm : g.m).get(fname.toUpperCase());
@@ -544,7 +635,8 @@ async function installDir(dir, say) {             // -> the number of files writ
   const kinds = new Set(results.filter(r => r.patch && EXES.includes(r.patch.target)).map(r => r.patch.id.includes('(GOG)') ? 'gog' : 'cd'));
   const langs = EXES.filter(x => have.has(x)).map(x => ({ I: 'it', E: 'en', F: 'fr', G: 'de' })[x[0]]).join(', ');
   if (!exeOk.length) { say(D.noexe + (bad.length ? ' ' + D.bad(bad.join(', ')) : ''), true); return 0; }
-  const head = D.found([...kinds].map(k => D.kind[k]).join(' + ') || D.kind.cd, langs) + (bad.length ? ' ' + D.bad(bad.join(', ')) : '');
+  const jnote = await joypadStep(g, D);
+  const head = D.found([...kinds].map(k => D.kind[k]).join(' + ') || D.kind.cd, langs) + (bad.length ? ' ' + D.bad(bad.join(', ')) : '') + (jnote ? ' ' + jnote : '');
   const lnote = async () => { const l = await launchers(g); const own = { it: 'Italiano', en: 'English', fr: 'Francais', de: 'Deutsch' }[lang];
                              return l.length ? ' ' + D.launch(l.filter(x => x !== own).join(' / ')) : ''; };
   if (!out.size) { say(head + ' ' + D.current + await lnote()); return 0; }

@@ -17,10 +17,10 @@ function load(file, lang) {                                   // a patcher page'
   const html = fs.readFileSync(file, 'utf8');
   const js = html.slice(html.lastIndexOf('<script>') + 8, html.lastIndexOf('</script>'));
   const ctx = { document: stub(), localStorage: { getItem: () => null, setItem() {} }, navigator: { language: lang }, window: {},
-    atob: s => Buffer.from(s, 'base64').toString('latin1'), Blob, Response, DecompressionStream, TextEncoder, URL, setTimeout, console };
+    atob: s => Buffer.from(s, 'base64').toString('latin1'), Blob, Response, DecompressionStream, TextEncoder, TextDecoder, URL, setTimeout, console };
   ctx.document.querySelectorAll = () => [];
   vm.createContext(ctx);
-  vm.runInContext(js + '\n;globalThis.__t = { handle, results, PATCHES, ' +
+  vm.runInContext(js + '\n;globalThis.__t = { handle, results, PATCHES, setJoy: typeof setJoy === "function" ? setJoy : null, ' +
     (js.includes('function installDir') ? 'installDir, copyTree, findGame, setLang, DT' : 'x: 0') + ' };', ctx);
   if (ctx.__t.setLang) ctx.__t.setLang(lang);
   return ctx.__t;
@@ -31,6 +31,7 @@ class FH { constructor(p) { this.p = p; this.kind = 'file'; this.name = path.bas
 let cut = Infinity;                                          // writes after the first `cut` are lost (an install stopped half way)
 class DH { constructor(p) { this.p = p; this.kind = 'directory'; this.name = path.basename(p); }
   async *entries() { for (const n of fs.readdirSync(this.p)) { const q = path.join(this.p, n); yield [n, fs.statSync(q).isDirectory() ? new DH(q) : new FH(q)]; } }
+  async removeEntry(n) { fs.rmSync(path.join(this.p, n), { recursive: true, force: true }); }
   async getDirectoryHandle(n, o = {}) { const q = path.join(this.p, n); if (!fs.existsSync(q)) { if (!o.create) throw Object.assign(new Error('nf'), { name: 'NotFoundError' }); fs.mkdirSync(q); } return new DH(q); }
   async getFileHandle(n, o = {}) { const q = path.join(this.p, n); if (!fs.existsSync(q)) { if (!o.create) throw Object.assign(new Error('nf'), { name: 'NotFoundError' }); fs.writeFileSync(q, ''); } return new FH(q); } }
 function game(dir, gog) {                                    // a game folder from the originals
@@ -47,6 +48,7 @@ function check(T, dir, gog, pp, tag) {                       // every target fil
   let n = 0, bad = [], pool = 0;
   const done = new Set();
   for (const p of T.PATCHES.filter(p => !p.from && !p.via)) {
+    if (p.target === 'SETUP.DAT') continue;                   // (4.0.1: the controls file, its own cases below)
     if (done.has(p.target) || p.id.includes('SWOS++') !== (pp && p.target === 'ENGLISH.EXE')) continue;
     if (p.target.endsWith('.EXE') && p.id.includes('(GOG)') !== gog) continue;
     const want = path.join(rel, pp && p.target === 'ENGLISH.EXE' ? 'swospp' + (gog ? '/gog' : '') :
@@ -93,6 +95,88 @@ for (const lang of ['it', 'en', 'fr', 'de']) {
     ok(md5(path.join(src, 'ITALIAN.EXE')) === md5(path.join(M, 'orig/ITALIAN.EXE')), `${lang} from the CD: the CD folder untouched`); }
   { const top = path.join(R, 'pp'), dir = path.join(top, 'SWOS'); game(dir, false); fs.writeFileSync(path.join(dir, 'LOADER.BIN'), 'x');
     const n = await T.installDir(new DH(top), say); ok(n > 0, `${lang} SWOS++: ${n} written`); check(T, dir, false, true, `${lang} SWOS++`); }
+  { // 4.0.1 joypad. GOG layout (DOSBOX folder + dosbox_SWOS.conf), box 1 (default on): the factory SETUP.DAT -> the calibrated one,
+    // dosbox_SWOS.conf: joysticktype=fcs + timed=false (only those two lines), mapper-SVN.map (the d-pad) when absent or GOG's default,
+    // a .bak of each file that existed; unticked on a re-run = undone. Own DOSBox (CD folder): box 2 (default off) = SETUP.DAT only.
+    const cal = md5(path.join(M, 'tools/setup_calibrated.dat')), fac = k => path.join(M, 'orig/setup-factory', k + '.DAT');
+    const dpad = path.join(M, 'tools/mapper-SVN.dpad.map'), dflt = path.join(M, 'orig/setup-factory/mapper-SVN.default.map');
+    const conf0 = fs.readFileSync(path.join(M, 'orig/setup-factory/dosbox_SWOS.conf'), 'latin1');
+    const same = (a, b) => fs.existsSync(a) && fs.existsSync(b) && md5(a) === md5(b);
+    const joyGame = (name, gog, kind, map) => { const top = path.join(R, name), dir = path.join(top, 'SWOS'); game(dir, gog);
+      if (kind) fs.copyFileSync(fac(kind), path.join(dir, 'SETUP.DAT'));
+      if (gog) fs.writeFileSync(path.join(dir, 'dosbox_SWOS.conf'), conf0, 'latin1');
+      if (map) fs.copyFileSync(map, path.join(dir, 'mapper-SVN.map')); return [top, dir]; };
+    const J = T.DT[lang].joy, conf1ok = t => t.includes('joysticktype=fcs') && t.includes('timed=false') &&
+      t.replace('joysticktype=fcs', 'joysticktype=auto').replace('timed=false', 'timed=true') === conf0;
+    for (const [kind, gog] of [['CD', false], ['GOG', true]]) {
+      const [top, dir] = joyGame('joy' + kind, gog, kind, null);
+      const tickOwn = gog ? [true, false] : [false, true], off = [false, false];
+      T.setJoy(...off); const n0 = await T.installDir(new DH(top), say), l0 = log.at(-1);
+      ok(n0 > 0 && same(path.join(dir, 'SETUP.DAT'), fac(kind)) && !fs.existsSync(path.join(dir, 'SETUP.DAT.bak')) && !fs.existsSync(path.join(dir, 'mapper-SVN.map')) &&
+         !l0.includes('SETUP.DAT') && (!gog || fs.readFileSync(path.join(dir, 'dosbox_SWOS.conf'), 'latin1') === conf0), `${lang} joypad ${kind} unticked, fresh: nothing touched, no joypad line`);
+      T.setJoy(...tickOwn); const n = await T.installDir(new DH(top), say), l1 = log.at(-1);
+      const conf1 = gog ? fs.readFileSync(path.join(dir, 'dosbox_SWOS.conf'), 'latin1') : '';
+      ok(md5(path.join(dir, 'SETUP.DAT')) === cal && same(path.join(dir, 'SETUP.DAT.bak'), fac(kind)) && l1.includes(J.done) && !l1.startsWith('!') &&
+         (gog ? conf1ok(conf1) && fs.readFileSync(path.join(dir, 'dosbox_SWOS.conf.bak'), 'latin1') === conf0 && l1.includes(J.conf) &&
+                same(path.join(dir, 'mapper-SVN.map'), dpad) && !fs.existsSync(path.join(dir, 'mapper-SVN.map.bak')) && l1.includes(J.map)
+              : !fs.existsSync(path.join(dir, 'dosbox_SWOS.conf.bak')) && !fs.existsSync(path.join(dir, 'mapper-SVN.map')) && l1.includes(J.own)),
+         `${lang} joypad ${kind} ticked: calibrated + SETUP.DAT.bak = factory, logged${gog ? '; conf fcs + timed=false (only those lines) + .bak; d-pad mapper written (absent before)' : '; nothing else (own DOSBox note)'}`);
+      await T.installDir(new DH(top), say);
+      ok(md5(path.join(dir, 'SETUP.DAT')) === cal && same(path.join(dir, 'SETUP.DAT.bak'), fac(kind)) && log.at(-1).includes(J.already) &&
+         (!gog || same(path.join(dir, 'mapper-SVN.map'), dpad)), `${lang} joypad ${kind} ticked again: kept, .bak kept, "already" logged`);
+      T.setJoy(...off); await T.installDir(new DH(top), say); const l3 = log.at(-1);
+      ok(same(path.join(dir, 'SETUP.DAT'), fac(kind)) && l3.includes(J.undone) && (!gog || (fs.readFileSync(path.join(dir, 'dosbox_SWOS.conf'), 'latin1') === conf0 && !fs.existsSync(path.join(dir, 'mapper-SVN.map')))),
+         `${lang} joypad ${kind} unticked: undone from the .bak files${gog ? ' (the mapper we created is removed)' : ''}, logged`);
+      await T.installDir(new DH(top), say);
+      ok(same(path.join(dir, 'SETUP.DAT'), fac(kind)) && !log.at(-1).includes(J.undone), `${lang} joypad ${kind} unticked again: untouched`);
+    }
+    { const [top, dir] = joyGame('joymapdef', true, 'GOG', dflt);       // GOG's own default mapper: the d-pad version replaces it, .bak
+      T.setJoy(true, false); await T.installDir(new DH(top), say);
+      ok(same(path.join(dir, 'mapper-SVN.map'), dpad) && same(path.join(dir, 'mapper-SVN.map.bak'), dflt), `${lang} joypad GOG default mapper: replaced by the d-pad one, .bak = the default`);
+      T.setJoy(false, false); await T.installDir(new DH(top), say);
+      ok(same(path.join(dir, 'mapper-SVN.map'), dflt), `${lang} joypad GOG default mapper unticked: the default back`); }
+    { const mine = path.join(R, 'mymap.map'); fs.mkdirSync(R, { recursive: true }); fs.writeFileSync(mine, fs.readFileSync(dflt, 'latin1').replace('mod_', 'mod_') + '\r\n# mine\r\n');
+      const [top, dir] = joyGame('joymapmine', true, 'GOG', mine);        // the user's own mapper: untouched, logged
+      T.setJoy(true, false); await T.installDir(new DH(top), say);
+      ok(same(path.join(dir, 'mapper-SVN.map'), mine) && !fs.existsSync(path.join(dir, 'mapper-SVN.map.bak')) && log.at(-1).includes(J.mapkeep) && md5(path.join(dir, 'SETUP.DAT')) === cal,
+         `${lang} joypad GOG own mapper: untouched, logged (SETUP.DAT + conf still done)`); }
+    { const [top, dir] = joyGame('joycdown', false, 'CD', null);          // a CD folder, box 1 on (GOG's) and box 2 off: nothing (it is not a GOG layout)
+      T.setJoy(true, false); await T.installDir(new DH(top), say);
+      ok(same(path.join(dir, 'SETUP.DAT'), fac('CD')) && !fs.existsSync(path.join(dir, 'SETUP.DAT.bak')), `${lang} joypad not GOG, only the GOG box ticked: SETUP.DAT untouched`); }
+    { // GOG's cloud_saves overlay: its SETUP.DAT shadows the game folder's; same rule there
+      for (const [tag, mk] of [['factory', null], ['custom', b => { b[6] = 2; b[100] = 0x39; return b; }]]) {
+        const [top, dir] = joyGame('joycloud' + tag, true, 'GOG', null); fs.mkdirSync(path.join(dir, 'cloud_saves'));
+        const cs = path.join(dir, 'cloud_saves', 'SETUP.DAT'), b = Buffer.from(fs.readFileSync(fac('GOG'))); fs.writeFileSync(cs, mk ? mk(b) : b);
+        const before = fs.readFileSync(cs);
+        T.setJoy(true, false); await T.installDir(new DH(top), say); const l1 = log.at(-1);
+        if (!mk) ok(md5(cs) === cal && same(path.join(dir, 'cloud_saves', 'SETUP.DAT.bak'), fac('GOG')) && md5(path.join(dir, 'SETUP.DAT')) === cal &&
+                    l1.includes(J.cloud), `${lang} joypad cloud_saves ${tag} ticked: both SETUP.DAT calibrated, .bak beside each, logged`);
+        else ok(Buffer.compare(fs.readFileSync(cs), before) === 0 && !fs.existsSync(path.join(dir, 'cloud_saves', 'SETUP.DAT.bak')) && md5(path.join(dir, 'SETUP.DAT')) === cal &&
+                l1.includes(J.cloud + ' ' + J.custom), `${lang} joypad cloud_saves ${tag} ticked: its SETUP.DAT untouched, logged (the game's own one calibrated)`);
+        T.setJoy(false, false); await T.installDir(new DH(top), say);
+        ok(Buffer.compare(fs.readFileSync(cs), before) === 0 && same(path.join(dir, 'SETUP.DAT'), fac('GOG')), `${lang} joypad cloud_saves ${tag} unticked: everything back`);
+      }
+      { const [top, dir] = joyGame('joycloudnone', true, 'GOG', null); fs.mkdirSync(path.join(dir, 'cloud_saves')); T.setJoy(true, false);   // (an empty overlay dir)
+        await T.installDir(new DH(top), say); ok(md5(path.join(dir, 'SETUP.DAT')) === cal && !fs.existsSync(path.join(dir, 'cloud_saves', 'SETUP.DAT')), `${lang} joypad cloud_saves empty: nothing created there`); }
+    }
+    { const [top, dir] = joyGame('joycustom', true, null, null);
+      const mine = Buffer.from(fs.readFileSync(fac('GOG'))); mine[6] = 2; mine[100] = 0x39; fs.writeFileSync(path.join(dir, 'SETUP.DAT'), mine);
+      T.setJoy(true, false); const n = await T.installDir(new DH(top), say), l1 = log.at(-1);
+      ok(n > 0 && Buffer.compare(fs.readFileSync(path.join(dir, 'SETUP.DAT')), mine) === 0 && !fs.existsSync(path.join(dir, 'SETUP.DAT.bak')) &&
+         fs.readFileSync(path.join(dir, 'dosbox_SWOS.conf'), 'latin1') === conf0 && !fs.existsSync(path.join(dir, 'mapper-SVN.map')) && l1.includes(J.custom) && !l1.startsWith('!'),
+         `${lang} joypad custom SETUP.DAT ticked: untouched (conf and mapper too), no .bak, logged`);
+      T.setJoy(false, false); await T.installDir(new DH(top), say);
+      ok(Buffer.compare(fs.readFileSync(path.join(dir, 'SETUP.DAT')), mine) === 0, `${lang} joypad custom SETUP.DAT unticked: untouched`); }
+    { const [top, dir] = joyGame('joynone', false, null, null); T.setJoy(false, true);
+      const n = await T.installDir(new DH(top), say), l1 = log.at(-1);
+      ok(n > 0 && !fs.existsSync(path.join(dir, 'SETUP.DAT')) && !fs.existsSync(path.join(dir, 'SETUP.DAT.bak')) && l1.includes(J.none),
+         `${lang} joypad missing SETUP.DAT ticked: nothing created, logged`); }
+    { const [top, dir] = joyGame('joyconfonly', true, 'GOG', null); const c = conf0.replace(/\[joystick\][^[]*/, '[joystick]\r\n');   // no joysticktype / timed lines at all
+      fs.writeFileSync(path.join(dir, 'dosbox_SWOS.conf'), c, 'latin1'); T.setJoy(true, false); await T.installDir(new DH(top), say);
+      const t = fs.readFileSync(path.join(dir, 'dosbox_SWOS.conf'), 'latin1');
+      ok(/\[joystick\]\r\njoysticktype=fcs\r\ntimed=false\r\n/.test(t), `${lang} joypad conf without the two lines: inserted in [joystick]`); }
+    T.setJoy(true, false);
+  }
   { const w = path.join(R, 'wrong'); fs.rmSync(w, { recursive: true, force: true }); fs.mkdirSync(w); fs.writeFileSync(path.join(w, 'x.txt'), 'x');
     const n = await T.installDir(new DH(w), say); ok(n === 0 && log.at(-1).startsWith('!'), `${lang} wrong folder: ${log.at(-1)}`); }
   for (const v of ups.split(',').filter(Boolean)) {          // an install patched by release v (its own page)

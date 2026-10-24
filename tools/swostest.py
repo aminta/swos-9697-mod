@@ -8895,6 +8895,75 @@ def world_titlefit():
 
 
 @scenario
+def world_seasonend_titles():
+    """4.0.1 rc3 (Davide's MiSTer, rc2): every competition screen the World 2026-27 season end SHOWS has a title in the
+    game font. Davide's own 4.0 save (SEASONEND_CAR, default internal/swostest/repro/mister-rc2/disk/PHILA.CAR:
+    PHILADELPHIA at the season-end menu) loaded on SWOSTEST_BUILD, CONTINUA CARRIERA to the new season with
+    breakpoints (CORE=normal) on the two show routines (ShowDiyLeaguesTournamentMenu obj1+0x38195, the cup results'
+    obj1+0x359A5): each shown title (DIY+4) only font characters, the three European cups' among them. On 4.0
+    (REL40hf) and rc2 the European cups' season-end simulation (cseg_92D55 / cseg_9307A / cseg_9339D, before the
+    career country) showed its finals - PARIS-SG v BARCELONA, SUNDERLAND v CRYSTAL PALACE - under a team order list:
+    the save's W1 cups kept the name offsets of the exe that wrote it (careerworld w_cupnames takes this exe's since
+    rc3). SEASONEND_CMP=<build dir>: the same run on that build too, reported (REL40hf)."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import complist
+    car = os.environ.get('SEASONEND_CAR') or os.path.join(WORK, 'repro', 'mister-rc2', 'disk', 'PHILA.CAR')
+    if not os.path.exists(car):
+        return True, f'SKIP: no {car}'
+    import lp36
+    import lepatch
+    diy = lp36._sites(lepatch.LEPatch(os.path.join(MAIN, 'orig', 'ITALIAN.EXE')))['DIY']
+    ok_chars = set(complist.SMALL_W) | {' '}
+
+    def run(exe, tag):
+        keep = {k: os.environ.get(k) for k in ('SWOSTEST_BP', 'SWOSTEST_BP_HEX', 'CORE')}
+        os.environ.update(SWOSTEST_BP='38195,359a5', SWOSTEST_BP_HEX=f'{diy:x}:40', CORE='normal')
+        try:
+            with Session('seasonend_titles_' + tag, exe, {'W84A.CAR': car}, 'dump:2', 1500) as s:
+                s.wait()
+                s.send(LOAD1 + ' dump:3')
+                if press(s, s.screen(), 'CONTINUA CARRIERA', 5) is None:
+                    return None, f'{tag}: no CONTINUA CARRIERA on {s.screen()}'
+                for _ in range(6):
+                    if s.result.outcome != 'dump' or 'TRASFERIMENTI' in s.screen().texts():
+                        break
+                    press(s, s.screen(), 'CONTINUA' if s.screen().find('CONTINUA', exact=True) is not None else 0, 3)
+                done = s.result.outcome == 'dump' and 'TRASFERIMENTI' in s.screen().texts()
+                log = list(s.log)
+        finally:
+            for k, v in keep.items():
+                if v is None:
+                    os.environ.pop(k, None)
+                else:
+                    os.environ[k] = v
+        titles = []
+        for ln in log:
+            m = re.search(rf'^BP obj1\+\w+ hit \d+ {diy:x}:([0-9a-f]+)', ln)
+            if m:
+                titles.append(bytes.fromhex(m.group(1))[4:39].split(b'\0')[0])
+        bad = [t for t in titles if not t or any(chr(c) not in ok_chars for c in t)]
+        return (done, titles, bad), ''
+
+    errs, info = [], []
+    r, msg = run(builds()['it'], 'build')
+    if r is None:
+        return False, msg
+    done, titles, bad = r
+    check(done, 'the new season not reached', errs)
+    check(titles, 'no competition shown at the season end (the breakpoints never hit)', errs)
+    check(not bad, f'{len(bad)} garbage titles: {bad[:4]}', errs)
+    euro = [t for t in titles if t.startswith(b'UEFA ')]
+    check(len(set(euro)) >= 3 or os.environ.get('SEASONEND_CAR'), f'the European finals not all shown: {euro}', errs)
+    info.append(f'{len(titles)} shown, e.g. {sorted({t.decode("latin1") for t in titles})[:6]}')
+    cmp_ = os.environ.get('SEASONEND_CMP')
+    if cmp_:
+        r2, msg2 = run(cmp_, 'cmp')
+        info.append(f'{os.path.basename(os.path.dirname(cmp_.rstrip("/")))}: ' +
+                    (msg2 if r2 is None else f'{len(r2[1])} shown, {len(r2[2])} garbage {r2[2][:2]}'))
+    return not errs, '; '.join(errs + info)
+
+
+@scenario
 def world_titlespace():
     """4.0.1 match titles with no leading / double space (rnames rn_trim): a 1996-97 career saved by the original game
     (internal/swostest/repro/OLDCAR_orig.CAR, its European cups' titles stored as ' <name>': the empty country prefix

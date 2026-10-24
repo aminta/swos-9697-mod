@@ -846,7 +846,8 @@ WN_TITLES = {   # official titles (data session, 2026-27): (country, ko_playoffs
     ('can', None): {'*': 'CPL SHIELD'},
     ('per', None): {'it': 'LIGA 1 - CLASSIFICA ACCUMULATA', 'en': 'LIGA 1 - ACCUMULATED TABLE',   # (4.0.1 rc3: no
                     'fr': 'LIGA 1 - CLASSEMENT CUMULE', 'de': 'LIGA 1 - GESAMTTABELLE'},   # regular season, Davide)
-    ('uru', None): {'it': 'CLASSIFICA ANNUALE', 'en': 'ANNUAL TABLE', 'fr': 'CLASSEMENT ANNUEL', 'de': 'JAHRESTABELLE'},
+    ('uru', None): {'it': 'CAMPEONATO URUGUAYO - CLASSIFICA ANNUALE', 'en': 'CAMPEONATO URUGUAYO - ANNUAL TABLE',
+                    'fr': 'CAMPEONATO URUGUAYO - CLASSEMENT ANNUEL', 'de': 'CAMPEONATO URUGUAYO - JAHRESTABELLE'},
 }
 
 

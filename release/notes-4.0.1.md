@@ -169,6 +169,8 @@ load and play on.
 - **Single-match ties**: in some cups a single match (for example the Copa do Brasil final) that ends level goes to
   extra time before the penalties, while the real rule goes straight to penalties. This has been so since 3.2; it will
   follow the real rule in 4.0.2.
+- **Management record**: for a season in which your club went out in a European qualifying round, the record shows the
+  qualifying competition with 'FINALIST' instead of the round in which it went out. It will show the round in 4.0.2.
 - **Serie D rest day and the Libertadores continuation:** see "Known issues of 4.0, revisited".
 
 ### Thanks
@@ -354,6 +356,8 @@ nella 4.0 resta com'era; le carriere salvate con la 4.0 si caricano e continuano
 - **Partite secche**: in alcune coppe una partita unica (per esempio la finale della Copa do Brasil) che finisce in
   parità va ai supplementari prima dei rigori, mentre la regola vera va direttamente ai rigori. È così dalla 3.2; nella
   4.0.2 seguirà la regola vera.
+- **Elenco di gestione**: per una stagione in cui il tuo club è uscito in un turno preliminare europeo, l'elenco mostra la
+  competizione preliminare con 'FINALISTA' invece del turno in cui è uscito. Nella 4.0.2 mostrerà il turno.
 - **Giorno di riposo in Serie D e prosecuzione della Libertadores:** vedi "Problemi noti della 4.0, rivisti".
 
 ### Ringraziamenti

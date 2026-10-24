@@ -9016,7 +9016,10 @@ def world_full_draw():
             (pens if t[1].startswith('AI RIG') else tot)[title[15:], t[1]] += 1
     check(ok, msg, errs)
     check(any(k[1] == 'AI RIG' for k in pens), f'no Copa do Brasil tie on penalties ({log})', errs)
-    check(not [k for k in pens if 'D.T' in k[1]], f'penalties after extra time: {dict(pens)}', errs)
+    check(not [k for k in pens if 'D.T' in k[1] and k[0] != 'FINALE'], f'penalties after extra time: {dict(pens)}', errs)
+    # (the single-match final: round byte 14h, unchanged since 3.2, whose extra-time bits cseg_24DFA reads as 1 - the
+    # career club's played final went to extra time on rc1; declared, 4.0.2. This scenario checks the two_legs_pens
+    # rounds)
     return not errs, '; '.join(errs) or f'table obj2 {at[0]:#x}; penalties {dict(pens)}; on aggregate {dict(tot)}'
 
 

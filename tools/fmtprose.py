@@ -450,6 +450,19 @@ def _round(key, lang):
     return r.get({'first': 'r1'}.get(key, key).replace('_best', '')) or _rd(key, key, key)
 
 
+# 4.0.1 rc3 (regia 2026-10-24): cups whose real two-legged ties go to extra time after the away goals, which the game's
+# levels cannot play yet (conti: away goals, then penalties; 4.0.2 'away_et_pens'): the real rule declared on the page
+REAL_AWAY_ET = {'ccc': {
+    'it': 'Nella realtà, in parità dopo i gol in trasferta si giocano i supplementari e poi i rigori; nel gioco si va '
+          'direttamente ai rigori.',
+    'en': 'In reality, if still level after away goals, extra time is played and then penalties; in the game it goes '
+          'straight to penalties.',
+    'fr': "En réalité, en cas d'égalité après les buts à l'extérieur, on joue la prolongation puis les tirs au but. "
+          'Dans le jeu, on passe directement aux tirs au but.',
+    'de': 'In Wirklichkeit folgen bei Gleichstand nach der Auswärtstorregel Verlängerung und Elfmeterschießen; im '
+          'Spiel geht es direkt ins Elfmeterschießen.'}}
+
+
 def conti(c, acc, lang, cname, aname, conf, tier, guests=False):
     """A continental cup's FORMAT page as a short story in plain prose, from conti's data: what the cup is (its
     confederation, its tier), the world's entrants per association and their entry rounds, the holders, the guests,
@@ -555,6 +568,8 @@ def conti(c, acc, lang, cname, aname, conf, tier, guests=False):
                                 legs=lg, nt=nt, lv=lv))
         i = j + 1
     s.append(l['away'] if any(rd.get('level') == 'away_pens' for rd in rds) else l['noaway'])
+    if c['key'] in REAL_AWAY_ET:                # (declared: the real rule plays extra time after the away goals)
+        s.append(REAL_AWAY_ET[c['key']][lang])
     out.append(' '.join(_cap(x) for x in s))
     s = []
     for rk, to in (c.get('losers') or {}).items():

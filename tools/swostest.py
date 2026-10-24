@@ -6293,10 +6293,12 @@ def world_rlines_arg3():
 
 
 def team_name(exe, word):
-    """A team word's club name (file = its low byte, ordinal = its high byte) from the build's DATA\\TEAM.nnn."""
+    """A team word's club name (file = its low byte, ordinal = its high byte) from the build's DATA\\TEAM.nnn (a
+    release build's world files: TMW<world>.nnn, the per-world namespace)."""
+    import glob
     p = os.path.join(exe, 'DATA', 'TEAM.%03d' % (word & 0xFF))
-    if not os.path.exists(p):                        # (a release build's world clubs: TMW5.nnn)
-        p = os.path.join(exe, 'DATA', 'TMW5.%03d' % (word & 0xFF))
+    if not os.path.exists(p):
+        p = next(iter(sorted(glob.glob(os.path.join(exe, 'DATA', 'TMW?.%03d' % (word & 0xFF))))), p)
     if word == 0xFFFF or not os.path.exists(p):
         return None
     d = open(p, 'rb').read()
@@ -6376,8 +6378,10 @@ def world_winners():
         info.append(f'start: {title}, {heads}')
         walk(s, s.screen().find('ESCI', exact=True), 3)   # -> the competition
         walk(s, s.screen().find('ESCI', exact=True), 3)   # -> the list
-        try:
-            walk(s, 2, 3)
+        cup = next((x for x in s.screen().entries if x[0] >= 2 and x[1] and not x[2]), None)   # (the first one after the
+        info.append(f'cup checked: {cup[1] if cup else None}')     # league shown: the national cup is hidden before its
+        try:                                                        # first round, on 4.0 too - then COPA LIBERTADORES)
+            walk(s, cup[0] if cup else 2, 3)
         except AssertionError as x:
             return False, f'{x}: {s.screen()}; ' + '; '.join(errs + info)
         walk(s, s.screen().find('STAT', exact=True), 3)

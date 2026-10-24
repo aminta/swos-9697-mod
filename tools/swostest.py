@@ -7179,6 +7179,21 @@ def groupb_run(exe, fam):
     return not errs, '; '.join(errs + ([f'(club place {place})'] if errs else [])) or f'{fam}: place {place}; {msg[:90]}; titles with {want} seen ({sum(1 for t in titles if any(w in t for w in want))})'
 
 
+GROUPB_FORCE = {'sco_po': '3', 'can_title': '3', 'aus_title': '3', 'mlt_title': '1'}   # family: GPLAY_FORCE place (as pocheck's)
+
+
+def groupb_forced_exe(force):
+    """A GPLAY_FORCE=<force> test build over the release data's packs (W2627REL_DATA, else the released 4.0's winnames-1031;
+    the order of its .txt, as world_winners_state): the career club is put in its play-off (CONVENTIONS rule 15, never by
+    re-running seasons); None when that data is missing."""
+    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+    if not os.path.isfile(src + '.txt'):
+        return None
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    return build(f'gb_force{force}', env={'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]),
+                                         'GPLAY_FORCE': force})
+
+
 def groupb_smoke(fams):
     exe = foreign_exe()
     if not exe:
@@ -7188,7 +7203,8 @@ def groupb_smoke(fams):
     for f in fams:
         if only and f not in only:
             continue
-        res.append((f,) + groupb_run(exe, f))
+        fx = groupb_forced_exe(GROUPB_FORCE[f]) if f in GROUPB_FORCE else None   # (the play-off families: forced, not by luck)
+        res.append((f,) + groupb_run(fx or exe, f))
     bad = [r for r in res if not r[1]]
     return not bad, '; '.join(f'{r[0]} {"ok" if r[1] else "FAIL " + r[2]}' for r in res)
 
@@ -7199,7 +7215,8 @@ def release_groupb_titles():
     GPLAY_FORCE / UEFAQ_FORCE ... reach the same screens in a NATURAL season of the release exe (a club picked by strength,
     W8485_FILL = the stronger side wins): Scotland / England promotion play-offs, the Australian / Canadian / Maltese title
     play-offs, Panama's stages, the MLS Cup play-offs, Argentina's Apertura, a Brazilian state, the Champions League
-    qualifying of season 2 (GB_FAMILY=a,b limits it; England's promotion play-offs have no natural-season family: three clubs tried by strength never reached places 3-8, see the forced eng champ_po checks). No trap, the titles in the font's characters, the family's titles seen"""
+    qualifying of season 2 (the play-off families sco_po / can_title / aus_title / mlt_title run on a GPLAY_FORCE build over
+    the release data, the club forced into its play-off: a natural season put the club elsewhere in some runs; GB_FAMILY=a,b limits it; England's promotion play-offs have no natural-season family: three clubs tried by strength never reached places 3-8, see the forced eng champ_po checks). No trap, the titles in the font's characters, the family's titles seen"""
     return groupb_smoke(list(GROUPB_FAMILIES))
 
 

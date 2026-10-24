@@ -2192,6 +2192,29 @@ w_mmi:                                  ; SWOSMainMenuInit's first instruction: 
     mov dword [SELPTR], OLDSEL
     ret
 
+W_CUPS: dd WCC, WCWC, WUEFA               ; (w_cupnames' destinations; before it: no forward size)
+w_cupnames:                             ; 4.0.1: the 3 cups' name offsets (long, short: dd at 5 + header length, relative
+    pushad                              ; to the strings' base) from this exe's own structs (the world record's, as a new
+    call w_rec                          ; career copies them), not the save's: a save keeps them from the exe that wrote
+    jz .r                               ; it, and the string table moves between builds (Davide's 4.0 PHILA on 4.0.1
+    xor ecx, ecx                        ; showed the European finals of the season end under a team order list)
+.c: mov esi, [ebx + ecx * 4]
+    test esi, esi
+    jz .n
+    mov edi, [W_CUPS + ecx * 4]
+    movzx eax, byte [esi + 5]
+    cmp al, [edi + 5]                   ; (the same header: else the save's cup is not this one, left as it is)
+    jne .n
+    mov edx, [esi + eax + 5]
+    mov [edi + eax + 5], edx
+    mov edx, [esi + eax + 9]
+    mov [edi + eax + 9], edx
+.n: inc ecx
+    cmp ecx, 3
+    jb .c
+.r: popad
+    ret
+
 w_load_tail:                            ; LoadCareerFile after load_trailer (trailer.LOAD_TAIL)
     call w_big
     jnz .w
@@ -2212,6 +2235,7 @@ w_load_tail:                            ; LoadCareerFile after load_trailer (tra
     mov ecx, 160
     call w_copy
     mov [WPTR], esi
+    call w_cupnames
     mov dword [WI], 0
 .rec:                                   ; every record from its TEAM file + the saved bytes
     movzx eax, word [CFB]
@@ -2421,7 +2445,8 @@ def patch_tails(p, at, nasmcave):
            'VAROFF_WORDS': (0, 'dw ' + ', '.join(map(str, VAROFF))),
            'TMDBUF': (2, s['tmd']), 'CFB': (2, s['cfb']), 'D0R': (2, D0), 'LOADTEAM': (1, load_team),
            'TEAMBUF': (team_buf[0], team_buf[1] - 2), 'TEAMSLOADED': (2, s['teamsloaded']),
-           'w_big': (1, LABELS['w_big']), 'w_copy': (1, LABELS['w_copy']), 'w_dcopy': (1, LABELS['w_dcopy'])}
+           'w_big': (1, LABELS['w_big']), 'w_copy': (1, LABELS['w_copy']), 'w_dcopy': (1, LABELS['w_dcopy']),
+           'w_rec': (1, LABELS['w_rec'])}                  # (w_cupnames: the world record's own cup structs)
     b = BSS[0]
     hs = sel_sites(p, D0)
     sym.update({'WTMD': (2, b + B_TMD), 'WCC': (2, b + B_CUPS), 'WCWC': (2, b + B_CUPS + 160),

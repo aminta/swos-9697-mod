@@ -7406,6 +7406,28 @@ def world_cf_england():
 
 
 @scenario
+def world_cf_coppa_b():
+    """4.0.1 (a user's SIRACUSA report): CATANIA forced 1st of Serie C girone C (promoted into Serie B), season 2: the
+    COPPA ITALIA (0x82, Serie A 13 + Serie B 3) has it - the career club first among its division's entrants"""
+    return cf_follow('coppa_b', 'EUROPA,ITALIA,SERIE C GIRONE C,CATANIA', 'ita', 0x82, 1, (1,))
+
+
+@scenario
+def world_cf_coppa_a():
+    """4.0.1 (the same report): PADOVA forced 1st of Serie B (promoted into Serie A), season 2: the COPPA ITALIA
+    (0x82) has it"""
+    return cf_follow('coppa_a', 'EUROPA,ITALIA,SERIE B,PADOVA', 'ita', 0x82, 1, (0,))
+
+
+@scenario
+def world_cf_siracusa():
+    """4.0.1 (the user's SIRACUSA report, (a)): SIRACUSA (area C/I) forced 1st of Serie D girone I (promoted), season
+    2: in Serie C girone C (division 4: pgroups places a promoted club in the group of its area) and in the COPPA
+    ITALIA SERIE C (0x83)"""
+    return cf_follow('siracusa', 'EUROPA,ITALIA,SERIE D GIRONE I,SIRACUSA', 'ita', 0x83, 1, (4,))
+
+
+@scenario
 def world_cuplist_promoted():
     """Rule 11 across a D -> C promotion (Davide's MESTRE case, forced): LIGORNA 1st of Serie D girone A (GPLAY_FORCE=1,
     promoted), the season played and the next one saved and reloaded: in Serie C, VISUAL. COMPETIZ. lists the COPPA

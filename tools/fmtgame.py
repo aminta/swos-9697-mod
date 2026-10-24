@@ -844,6 +844,9 @@ WN_TITLES = {   # official titles (data session, 2026-27): (country, ko_playoffs
     ('usa', None): {'*': "SUPPORTERS' SHIELD"},
     ('aus', None): {'it': 'PREMIERS A-LEAGUE', 'en': 'A-LEAGUE PREMIERS', 'fr': 'PREMIERS A-LEAGUE', 'de': 'PREMIERS A-LEAGUE'},
     ('can', None): {'*': 'CPL SHIELD'},
+    ('per', None): {'it': 'LIGA 1 - CLASSIFICA ACCUMULATA', 'en': 'LIGA 1 - ACCUMULATED TABLE',   # (4.0.1 rc3: no
+                    'fr': 'LIGA 1 - CLASSEMENT CUMULE', 'de': 'LIGA 1 - GESAMTTABELLE'},   # regular season, Davide)
+    ('uru', None): {'it': 'CLASSIFICA ANNUALE', 'en': 'ANNUAL TABLE', 'fr': 'CLASSEMENT ANNUEL', 'de': 'JAHRESTABELLE'},
 }
 
 

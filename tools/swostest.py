@@ -5027,11 +5027,16 @@ def world_sa_exact(code, team, n, days, stages=2):
     import lepatch
     sa = split.sites(lepatch.LEPatch(os.path.join(MAIN, 'orig', 'ITALIAN.EXE')))
     log_at, st_at, log_n, st_n = gp_ptrs(exe)
+    from le import LE
+    d1 = LE(open(os.path.join(exe, 'ITALIAN.EXE'), 'rb').read()).obj_bytes(1)
+    ssb = struct.unpack_from('<I', d1, d1.find(b'GPLOGPTR') + 8 + 64)[0]
+    item = 6 + 4 * 32 * 12                      # (GP_SSB: bank 1 = the career league's stage tables)
     keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K',
                                             'W8485_NOSACK', 'W8485_HEX', 'W8485_DIY', 'W8485_TMO', 'W8485_ONE')}
     os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1',
                       W8485_TEAM=team, W8485_ONE='1', W8485_TMO='600',
-                      W8485_HEX=f'{log_at:x}:{log_n}', W8485_DIY=f"{sa['DIY']:x},{split.ST:x},{sa['CAL']:x}")
+                      W8485_HEX=f'{log_at:x}:{log_n},{ssb:x}:{2 * item}',
+                      W8485_DIY=f"{sa['DIY']:x},{split.ST:x},{sa['CAL']:x}")
     try:
         ok, msg = world8485()
     finally:
@@ -5057,6 +5062,14 @@ def world_sa_exact(code, team, n, days, stages=2):
     sres = [struct.unpack_from('<BBHHHH', logs[-1], 982 + 10 * i) for i in range(3)] if logs else []
     nt = min(stages, 3)                         # (Uruguay: Apertura 0, Clausura 1, Intermedio 2)
     check(len(sres) == 3 and all(x[0] == 8 and x[2] for x in sres[:nt]), f'stage titles {sres}', errs)
+    banks = [bytes.fromhex(ln.split()[2]) for ln in log if ln.startswith('HEX ') and len(ln.split()) == 3
+             and int(ln.split()[1], 16) == ssb]
+    if code in ('per', 'uru', 'par') and banks and len(sres) == 3:   # (rc3: a table title = its table's leader -
+        b, o = banks[-1], item                                       # rc2 gave the Apertura to row 0 of the reset
+        for stg, tab in ((0, 0), (1, 3 if stages == 3 else 1)):      # table, gp_lend_c's bank 0)
+            lead = struct.unpack_from('<H', b, o + 6 + tab * 32 * 12)[0] if b[o + tab] else None
+            check(lead is not None and sres[stg][2] == lead,
+                  f'stage {stg} title {sres[stg][2]:#x} != table {tab} leader {lead and hex(lead)}', errs)
     return not errs, '; '.join(errs) or f'{msg}; {days} days, stage titles {sres[:nt]}'
 
 

@@ -1517,7 +1517,9 @@ static int ko_build(struct gp_ko *k, int pi, int slot, int cid) {
 /* after gp_need and the early simulations: the contests (ko[0]: slot 4, id FE; Season's second: slot 3, FC) */
 u32 gp_lend_c(void) {
     u32 built = 0;
-    ss_set(GP_IN.mgr);
+    if (GP_IN.mgr != 0xFFFF)                    /* (gp_build_c's trivial table title runs us with no career club: */
+        ss_set(GP_IN.mgr);                      /*  its ss_set chose the league's bank; 0xFFFF picked bank 0, not */
+                                                /*  written - the title went to row 0 of the reset table, 4.0.1 rc3) */
     GP_ST.magic = MAGIC;
     GP_ST.season = GP_SEAS;
     for (int i = 0; i < 2; i++) {

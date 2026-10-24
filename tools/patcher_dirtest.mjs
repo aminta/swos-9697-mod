@@ -17,10 +17,10 @@ function load(file, lang) {                                   // a patcher page'
   const html = fs.readFileSync(file, 'utf8');
   const js = html.slice(html.lastIndexOf('<script>') + 8, html.lastIndexOf('</script>'));
   const ctx = { document: stub(), localStorage: { getItem: () => null, setItem() {} }, navigator: { language: lang }, window: {},
-    atob: s => Buffer.from(s, 'base64').toString('latin1'), Blob, Response, DecompressionStream, TextEncoder, URL, setTimeout, console };
+    atob: s => Buffer.from(s, 'base64').toString('latin1'), Blob, Response, DecompressionStream, TextEncoder, TextDecoder, URL, setTimeout, console };
   ctx.document.querySelectorAll = () => [];
   vm.createContext(ctx);
-  vm.runInContext(js + '\n;globalThis.__t = { handle, results, PATCHES, ' +
+  vm.runInContext(js + '\n;globalThis.__t = { handle, results, PATCHES, setJoy: typeof setJoy === "function" ? setJoy : null, ' +
     (js.includes('function installDir') ? 'installDir, copyTree, findGame, setLang, DT' : 'x: 0') + ' };', ctx);
   if (ctx.__t.setLang) ctx.__t.setLang(lang);
   return ctx.__t;
@@ -94,28 +94,49 @@ for (const lang of ['it', 'en', 'fr', 'de']) {
     ok(md5(path.join(src, 'ITALIAN.EXE')) === md5(path.join(M, 'orig/ITALIAN.EXE')), `${lang} from the CD: the CD folder untouched`); }
   { const top = path.join(R, 'pp'), dir = path.join(top, 'SWOS'); game(dir, false); fs.writeFileSync(path.join(dir, 'LOADER.BIN'), 'x');
     const n = await T.installDir(new DH(top), say); ok(n > 0, `${lang} SWOS++: ${n} written`); check(T, dir, false, true, `${lang} SWOS++`); }
-  { // 4.0.1 SETUP.DAT (the controls): the CD's / GOG's factory file -> the calibrated one + SETUP.DAT.bak; any other left alone
+  { // 4.0.1 joypad (opt-in): the box ticked: the CD's / GOG's factory SETUP.DAT -> the calibrated one (+ SETUP.DAT.bak) and GOG's
+    // dosbox_SWOS.conf -> timed=false (+ .bak); a custom SETUP.DAT untouched; unticked on a re-run: undone from the .bak files
     const cal = md5(path.join(M, 'tools/setup_calibrated.dat')), fac = k => path.join(M, 'orig/setup-factory', k + '.DAT');
+    const conf0 = fs.readFileSync(path.join(M, 'orig/setup-factory/dosbox_SWOS.conf'), 'latin1');
+    const same = (a, b) => fs.existsSync(a) && fs.existsSync(b) && md5(a) === md5(b);
+    const joyGame = (name, gog, kind) => { const top = path.join(R, name), dir = path.join(top, 'SWOS'); game(dir, gog);
+      if (kind) fs.copyFileSync(fac(kind), path.join(dir, 'SETUP.DAT'));
+      if (gog) fs.writeFileSync(path.join(dir, 'dosbox_SWOS.conf'), conf0, 'latin1'); return [top, dir]; };
+    const J = T.DT[lang].joy;
     for (const [kind, gog] of [['CD', false], ['GOG', true]]) {
-      const top = path.join(R, 'setup' + kind), dir = path.join(top, 'SWOS'); game(dir, gog); fs.copyFileSync(fac(kind), path.join(dir, 'SETUP.DAT'));
-      const n = await T.installDir(new DH(top), say), l1 = log.at(-1);
-      ok(n > 0 && fs.existsSync(path.join(dir, 'SETUP.DAT')) && md5(path.join(dir, 'SETUP.DAT')) === cal &&
-         md5(path.join(dir, 'SETUP.DAT.bak')) === md5(fac(kind)) && md5(path.join(backup(dir), 'SETUP.DAT')) === md5(fac(kind)) &&
-         l1.includes(T.DT[lang].setup.done), `${lang} SETUP.DAT ${kind} factory: replaced, .bak + MOD_BACKUP = the factory file, logged`);
+      const [top, dir] = joyGame('joy' + kind, gog, kind);
+      T.setJoy(false); const n0 = await T.installDir(new DH(top), say), l0 = log.at(-1);
+      ok(n0 > 0 && same(path.join(dir, 'SETUP.DAT'), fac(kind)) && !fs.existsSync(path.join(dir, 'SETUP.DAT.bak')) && !l0.includes('SETUP.DAT') &&
+         (!gog || fs.readFileSync(path.join(dir, 'dosbox_SWOS.conf'), 'latin1') === conf0), `${lang} joypad ${kind} unticked, fresh: SETUP.DAT / conf untouched, no .bak, no joypad line`);
+      T.setJoy(true); const n = await T.installDir(new DH(top), say), l1 = log.at(-1);
+      const conf1 = gog ? fs.readFileSync(path.join(dir, 'dosbox_SWOS.conf'), 'latin1') : '';
+      ok(md5(path.join(dir, 'SETUP.DAT')) === cal && same(path.join(dir, 'SETUP.DAT.bak'), fac(kind)) && l1.includes(J.done) && !l1.startsWith('!') &&
+         (!gog || (/\[joystick\][^[]*?timed=false/i.test(conf1) && conf1.replace(/timed=false/, 'timed=true') === conf0 && fs.readFileSync(path.join(dir, 'dosbox_SWOS.conf.bak'), 'latin1') === conf0 && l1.includes(J.conf))) &&
+         (gog || !fs.existsSync(path.join(dir, 'dosbox_SWOS.conf.bak'))), `${lang} joypad ${kind} ticked: calibrated + SETUP.DAT.bak = factory, logged${gog ? ', conf timed=false (only that line) + .bak' : ''}`);
       const n2 = await T.installDir(new DH(top), say);
-      ok(n2 === 0 && md5(path.join(dir, 'SETUP.DAT')) === cal && md5(path.join(dir, 'SETUP.DAT.bak')) === md5(fac(kind)) &&
-         log.at(-1).includes(T.DT[lang].setup.already), `${lang} SETUP.DAT ${kind} again: calibrated file kept, .bak kept, nothing written`);
+      ok(md5(path.join(dir, 'SETUP.DAT')) === cal && same(path.join(dir, 'SETUP.DAT.bak'), fac(kind)) && log.at(-1).includes(J.already), `${lang} joypad ${kind} ticked again: kept, .bak kept, "already" logged`);
+      T.setJoy(false); const n3 = await T.installDir(new DH(top), say), l3 = log.at(-1);
+      ok(same(path.join(dir, 'SETUP.DAT'), fac(kind)) && l3.includes(J.undone) && (!gog || fs.readFileSync(path.join(dir, 'dosbox_SWOS.conf'), 'latin1') === conf0), `${lang} joypad ${kind} unticked: undone from the .bak files, logged`);
+      const n4 = await T.installDir(new DH(top), say);
+      ok(same(path.join(dir, 'SETUP.DAT'), fac(kind)) && !log.at(-1).includes(J.undone), `${lang} joypad ${kind} unticked again: untouched`);
     }
-    { const top = path.join(R, 'setupcustom'), dir = path.join(top, 'SWOS'); game(dir, false);
+    { const [top, dir] = joyGame('joycustom', true, null);
       const mine = Buffer.from(fs.readFileSync(fac('GOG'))); mine[6] = 2; mine[100] = 0x39; fs.writeFileSync(path.join(dir, 'SETUP.DAT'), mine);
-      const n = await T.installDir(new DH(top), say), l1 = log.at(-1);
+      T.setJoy(true); const n = await T.installDir(new DH(top), say), l1 = log.at(-1);
       ok(n > 0 && Buffer.compare(fs.readFileSync(path.join(dir, 'SETUP.DAT')), mine) === 0 && !fs.existsSync(path.join(dir, 'SETUP.DAT.bak')) &&
-         !fs.existsSync(path.join(backup(dir), 'SETUP.DAT')) && l1.includes(T.DT[lang].setup.custom) && !l1.startsWith('!'),
-         `${lang} SETUP.DAT custom: untouched, no .bak, logged, the rest of the mod installed`); }
-    { const top = path.join(R, 'setupnone'), dir = path.join(top, 'SWOS'); game(dir, false);
+         fs.readFileSync(path.join(dir, 'dosbox_SWOS.conf'), 'latin1') === conf0 && l1.includes(J.custom) && !l1.startsWith('!'),
+         `${lang} joypad custom SETUP.DAT ticked: untouched (conf too), no .bak, logged`);
+      T.setJoy(false); await T.installDir(new DH(top), say);
+      ok(Buffer.compare(fs.readFileSync(path.join(dir, 'SETUP.DAT')), mine) === 0, `${lang} joypad custom SETUP.DAT unticked: untouched`); }
+    { const [top, dir] = joyGame('joynone', false, null); T.setJoy(true);
       const n = await T.installDir(new DH(top), say), l1 = log.at(-1);
-      ok(n > 0 && !fs.existsSync(path.join(dir, 'SETUP.DAT')) && !fs.existsSync(path.join(dir, 'SETUP.DAT.bak')) && l1.includes(T.DT[lang].setup.none),
-         `${lang} SETUP.DAT missing: not created, logged`); }
+      ok(n > 0 && !fs.existsSync(path.join(dir, 'SETUP.DAT')) && !fs.existsSync(path.join(dir, 'SETUP.DAT.bak')) && l1.includes(J.none),
+         `${lang} joypad missing SETUP.DAT ticked: nothing created, logged`); }
+    { const [top, dir] = joyGame('joynoconf', false, 'GOG'); T.setJoy(true);       // (SETUP.DAT only: no dosbox_SWOS.conf, e.g. a CD / eXoDOS game)
+      await T.installDir(new DH(top), say);
+      ok(md5(path.join(dir, 'SETUP.DAT')) === cal && !fs.existsSync(path.join(dir, 'dosbox_SWOS.conf')) && !fs.existsSync(path.join(dir, 'dosbox_SWOS.conf.bak')),
+         `${lang} joypad ticked, no dosbox_SWOS.conf: only SETUP.DAT`); }
+    T.setJoy(false);
   }
   { const w = path.join(R, 'wrong'); fs.rmSync(w, { recursive: true, force: true }); fs.mkdirSync(w); fs.writeFileSync(path.join(w, 'x.txt'), 'x');
     const n = await T.installDir(new DH(w), say); ok(n === 0 && log.at(-1).startsWith('!'), `${lang} wrong folder: ${log.at(-1)}`); }

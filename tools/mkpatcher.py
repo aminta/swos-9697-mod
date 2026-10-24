@@ -365,8 +365,9 @@ SETUP_CALIBRATED = 'tools/setup_calibrated.dat'      # 4.0.1: embedded; swap = o
 
 
 def setup_entries():
-    """4.0.1 joypad: SETUP.DAT as the CD / GOG ships it (keyboard only, calibration all 0) -> the calibrated one. Any other
-    SETUP.DAT matches no entry, so the page leaves it alone."""
+    """4.0.1 joypad (opt-in, 'opt' entries: used only when the page's "I have a joypad" box is ticked): SETUP.DAT as the CD / GOG
+    ships it (keyboard only, calibration all 0) -> the calibrated one (made with DOSBox timed=false). Any other SETUP.DAT
+    matches no entry, so the page leaves it alone."""
     dst = open(os.path.join(ROOT, SETUP_CALIBRATED), 'rb').read()
     assert len(dst) == 105 and struct.unpack_from('<H', dst, 6)[0] != 1, 'SETUP.DAT: 105 bytes, controls != keyboard only'
     assert struct.unpack_from('<H', dst, 92)[0] != 0, 'SETUP.DAT: g_numLoopsJoy1 = 0 (65536 port reads per frame)'
@@ -377,7 +378,7 @@ def setup_entries():
         ops, _ = encode(src, dst)
         assert decode(src, ops) == dst
         out.append({'id': 'SETUP.DAT', 'target': 'SETUP.DAT', 'size': 105, 'md5': hashlib.md5(src).hexdigest(),
-                    'out_md5': hashlib.md5(dst).hexdigest(), 'out_size': 105, 'delta': pack(ops), 'z': 1, 'setup': kind})
+                    'out_md5': hashlib.md5(dst).hexdigest(), 'out_size': 105, 'delta': pack(ops), 'z': 1, 'setup': kind, 'opt': 'joypad'})
         print(f'SETUP.DAT ({kind} factory): delta {len(ops)} bytes')
     return out
 

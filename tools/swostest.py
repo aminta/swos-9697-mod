@@ -10051,18 +10051,18 @@ def main(argv):
 
 @scenario
 def setup_nojoy():
-    """4.0.1 joypad: the game with the patcher's calibrated SETUP.DAT (tools/setup_calibrated.dat: controls != 1, a non-zero
-    g_numLoopsJoy1, the 65536-reads-per-frame risk of a zero one) on a release dir (FOREIGNBUY_BUILD / SWOSTEST_BUILD) and NO
-    joystick (DOSBox-X joysticktype none, then auto): the main menu is reached, a friendly HAMBURG - SCHALKE (HAMBURG human)
-    starts and the match runs on a few seconds (the keys in the menus are not drifted by a stuck stick). Prints g_inputControls"""
+    """4.0.1 joypad (opt-in, C): the UNTICKED path of the patcher leaves the factory SETUP.DAT (controls 1, the CD's copy in
+    orig/setup-factory) and the game must reach the main menu and play a friendly HAMBURG - SCHALKE (HAMBURG human) with NO
+    joystick (DOSBox-X joysticktype none, then auto): menu keys move the selection, the match runs. (SETUPNJ_DAT=<file> tries
+    another SETUP.DAT: the calibrated one - tools/setup_calibrated.dat - needs a pad, without one its menus freeze.) On a release dir
+    (FOREIGNBUY_BUILD / SWOSTEST_BUILD). Prints g_inputControls"""
     exe = foreign_exe()
     if not exe:
         return True, 'SKIP: no release SWOS dir (FOREIGNBUY_BUILD, or SWOSTEST_BUILD / W8485_BUILD with DATA/POOL05.DAT)'
-    dat = os.environ.get('SETUPNJ_DAT') or os.path.join(ROOT, 'tools', 'setup_calibrated.dat')   # (SETUPNJ_DAT: a control run)
+    dat = os.environ.get('SETUPNJ_DAT') or os.path.join(MAIN, 'orig', 'setup-factory', 'CD.DAT')   # (the factory file; SETUPNJ_DAT: another)
     d = open(dat, 'rb').read()
     errs, info = [], []
-    check(os.environ.get('SETUPNJ_DAT') or len(d) == 105 and struct.unpack_from('<H', d, 6)[0] != 1, f'setup_calibrated.dat: controls {struct.unpack_from("<H", d, 6)[0]}', errs)
-    check(os.environ.get('SETUPNJ_DAT') or struct.unpack_from('<H', d, 92)[0] != 0, 'setup_calibrated.dat: g_numLoopsJoy1 = 0', errs)
+    check(len(d) == 105, f'SETUP.DAT: {len(d)} bytes', errs)
     keep = os.environ.get('SWOSTEST_JOY')
     try:
         for joy in os.environ.get('SETUPNJ_JOY', 'none,auto').split(','):

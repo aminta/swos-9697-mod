@@ -14,11 +14,12 @@ load and play on.
   still works as before.
 - **No joypad, no problem.** The game now checks at start whether a joypad is connected and goes to the keyboard
   automatically when there is none, so keyboard players do not have to change anything.
-- **Your own settings.** The install page has a tick, 'I have a joypad / gamepad', on by default. Untick it to keep
-  your own controls settings, and run the install again without the tick to put the originals back (the changed files
-  are backed up).
-- Other installs (for example the CD in your own DOSBox), how to calibrate it yourself and how to map the d-pad are
-  in the README and on the install page.
+- **Your own settings.** The install page has a tick, 'I have a joypad / gamepad', already on for GOG: untick it to
+  keep your own controls settings, and run the install again without the tick to put the originals back (the changed
+  files are backed up).
+- **Your own DOSBox (CD installs):** the same tick is off by default. Tick it if you have a joypad and add three
+  lines to your DOSBox configuration (`[joystick]`, `joysticktype=2axis`, `timed=false`); mapping the d-pad and what
+  to do in DOSBox-X are explained in the README and on the install page.
 
 #### Mexico, exactly
 - **Liga MX and the Liga de Expansión MX** now play their real 2026-27 season. Each has two tournaments a season: the
@@ -204,11 +205,12 @@ nella 4.0 resta com'era; le carriere salvate con la 4.0 si caricano e continuano
   direzionale. La tastiera funziona come prima.
 - **Senza joypad, nessun problema.** Ora il gioco controlla all'avvio se c'è un joypad collegato e passa alla tastiera
   da solo se non c'è, quindi chi gioca con la tastiera non deve cambiare nulla.
-- **Le tue impostazioni.** La pagina d'installazione ha una spunta, 'Ho un joypad / gamepad', attiva di default.
-  Toglila per tenere le tue impostazioni dei comandi, e rifai l'installazione senza spunta per rimettere gli originali
+- **Le tue impostazioni.** La pagina d'installazione ha una spunta, 'Ho un joypad / gamepad', già attiva su GOG:
+  toglila per tenere le tue impostazioni dei comandi, e rifai l'installazione senza spunta per rimettere gli originali
   (i file modificati restano in copia).
-- Le altre installazioni (per esempio il CD nel tuo DOSBox), come calibrarlo da te e come associare la croce
-  direzionale sono nel README e nella pagina d'installazione.
+- **Il tuo DOSBox (installazioni da CD):** la stessa spunta è disattivata di default. Attivala se hai un joypad e
+  aggiungi tre righe alla configurazione del tuo DOSBox (`[joystick]`, `joysticktype=2axis`, `timed=false`); come
+  associare la croce direzionale e cosa fare in DOSBox-X sono spiegati nel README e nella pagina d'installazione.
 
 #### Il Messico, esattamente
 - **La Liga MX e la Liga de Expansión MX** giocano la loro vera stagione 2026-27. Ognuna ha due tornei a stagione:

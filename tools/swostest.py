@@ -9340,6 +9340,9 @@ def world_full_uefa():
                     q = r.base2 + x + 0x8                   # clubs, 'rank:slot' x 3 (slot 0-8 league, c = cup), in
                     ws = []                                 # UQ_IN.hold and the game's holder words (w_holders)
                     for j, spec in enumerate(os.environ['UQ_HOLD'].split(',')):
+                        if spec in ('', 'x'):                  # (no holder of that cup)
+                            ws.append(0xFFFF)
+                            continue
                         rk, sl = spec.split(':')
                         off = 1078 + 2 * int(rk) if sl == 'c' else 70 + 2 * (int(rk) * 9 + int(sl))
                         ci = struct.unpack('<H', r.box.dump(q + off, 2))[0]
@@ -9431,6 +9434,55 @@ def world_full_uefa():
     if errs:                    # (Davide, 2026-10-22: KNOWN FAIL for 4.0 - in some seasons one European place goes to
         errs.insert(0, 'KNOWN FAIL 4.0 (declared in the notes, fix in 4.0.1)')   # another association's club; kept FAIL)
     return not errs, '; '.join(errs + notes)
+
+
+@scenario
+def world_uefa_double():
+    """4.0.2 (user Pietro, MILAN 2027-28: Serie A + Conference League winner, placed in the Europa League 2028-29): the
+    European places of a club with TWO qualifications. world_full_uefa's run with the holders FORCED at uq_season's call
+    (UQ_HOLD, test build only; default 'x,x,2:0' = no CL / EL holder, the UECL holder = Italy's champion): the club
+    must be in the Champions League list and not in the Europa League one (UQ_OUT.hkeep = 1, status 'league'), the
+    three lists of the season end exactly 36 clubs with no club in two of them, and Italy's per-list counts in
+    checkw1 equal the qualifying model's (UQ_OUT.ls): the holder is appended by nobody (uq_fill cleared its word).
+    Needs the full world as world_full_uefa (W2627FULL, W2627FULL_DATA) and UQ_BSS / UQ_BP of the build's log."""
+    if not (os.environ.get('UQ_BSS') and os.environ.get('UQ_BP')):
+        return True, 'SKIP: UQ_BSS / UQ_BP (the build log: bss obj2+X, uq_season obj1+Y) not set'
+    keep = {k: os.environ.get(k) for k in ('UQ_HOLD', 'CORE')}
+    os.environ['UQ_HOLD'] = os.environ.get('UQ_HOLD_CASE', 'x,x,2:0')
+    os.environ['CORE'] = 'normal'
+    try:
+        ok, msg = world_full_uefa()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    d = os.path.join(RUNS, w84_tag() + '_1')
+    try:
+        o = open(os.path.join(d, 'uq_out.bin'), 'rb').read()
+        i = open(os.path.join(d, 'uq_in_0.bin'), 'rb').read()
+    except OSError as e:
+        return False, f'no UQ dump ({e}); {msg[:200]}'
+    errs = []
+    import ctypes
+    # the dumps' layout: uq_in.bin starts at UQ_IN+8 (past the seed word: see at_uq); offsets from the build's layout
+    lay = {k: int(v, 16) for k, v in (x.split('=') for x in os.environ.get('UQ_LAYOUT', '').split(',') if x)}
+    if not lay:
+        return False, 'UQ_LAYOUT (O_STATUS=..,O_HKEEP=..,O_N=..,O_LS=..,O_GN=..,O_GL=..) not set'
+    st = o[lay['O_STATUS']:lay['O_STATUS'] + 3]
+    hk = o[lay['O_HKEEP']:lay['O_HKEEP'] + 3]
+    nl = [o[lay['O_N'] + c] for c in range(3)]
+    ls = [[struct.unpack_from('<H', o, lay['O_LS'] + (c * 40 + k) * 2)[0] for k in range(nl[c])] for c in range(3)]
+    gl = [[struct.unpack_from('<H', o, lay['O_GL'] + (c * 40 + k) * 2)[0] for k in range(o[lay['O_GN'] + c])] for c in range(3)]
+    rk, sl = (int(x) for x in os.environ.get('UQ_HOLD_CASE', 'x,x,2:0').split(',')[2].split(':'))
+    h2 = struct.unpack_from('<H', i, lay['L_LEAGUE'] + (rk * 9 + sl) * 2)[0]     # (the forced UECL holder's club index + 1)
+    check(h2 and h2 in ls[0], f'the UECL holder {h2} is not in the Champions League list (ls {[h2 in x for x in ls]})', errs)
+    check(h2 not in ls[1] and h2 not in ls[2], 'the UECL holder is also in another league phase list', errs)
+    check(st[2] == 1 and hk[2] == 1, f'status {list(st)} hkeep {list(hk)}: expected status 1 and hkeep 1', errs)
+    check(h2 in gl[0] and h2 not in gl[1], f'the game lists: holder in CL {h2 in gl[0]}, in EL {h2 in gl[1]}', errs)
+    check(all(len(x) == 36 for x in gl), f'game list sizes {[len(x) for x in gl]} (no routed holder: 36 each)', errs)
+    return not errs, '; '.join(errs + [f'status {list(st)} hkeep {list(hk)} ls sizes {nl} gl sizes {[len(x) for x in gl]}; ' + msg[:160]])
 
 
 @scenario

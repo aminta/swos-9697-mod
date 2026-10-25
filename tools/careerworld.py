@@ -955,6 +955,15 @@ w_holders:                              ; replaces `call cseg_92BBF`: in a world
     mov ax, [ebx]
     cmp ax, 0FFFFh
     je .n
+    mov edx, esi                        ; 4.0.2 (uefaq O_HKEEP): a holder already in a higher league phase's list
+    sub edx, HOLDTAB_LP                 ; (the UECL winner who won the league) is not appended again; the league-phase
+    jb short .nk                              ; table's rows only (the classic table lies before it)
+    shr edx, 4
+    cmp edx, 2
+    ja short .nk
+    cmp byte [w_hkeep + edx], 0
+    jne short .n
+.nk:
     mov edi, [esi + 4]
     mov edi, [edi]
     mov edx, [esi + 8]
@@ -1137,6 +1146,7 @@ DG_TICKS: dd 0
 DG_ARMED: db 0, 0, 0, 0
 %endif
 WH_SAVE: dw 0FFFFh, 0FFFFh, 0FFFFh, 0
+w_hkeep: db 0, 0, 0, 0                  ; (uefaq uq_fill: per holder row, 1 = already in a higher league phase's list)
 HOLDTAB:
     dd HOLD_CC, LIST_CC, CNT_CC, BUF_CC
     dd HOLD_CWC, LIST_CWC, CNT_CWC, BUF_CWC

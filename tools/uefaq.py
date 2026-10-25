@@ -374,11 +374,8 @@ uq_fill:                                ; careerworld w_q_fill (before the seaso
     inc ebx
     cmp ebx, 3
     jb .o
-    cmp byte [UQ_OUT + O_HKEEP + 2], 0  ; 4.0.2: the UECL holder already in the Champions League list: w_holders must
-    je .nokeep                          ; not append it to the EL list
-    mov edi, [UQ_HP + 8]
-    mov word [edi], 0FFFFh
-.nokeep:
+    mov al, [UQ_OUT + O_HKEEP + 2]      ; 4.0.2: the UECL holder already in the Champions League list: w_holders must
+    mov [W_HKEEP + 2], al               ; not append it to the EL list (its holder word stays: the game reads it later)
 .done:
     xor ebx, ebx                        ; the qualifying ties' contests: no tie (their lists are scanned by the
 .q0:                                    ; slot-3 chain at the season start)
@@ -802,7 +799,7 @@ def patch(p, at, limit, sites):
                     'UQREC': (2, bss_at + cw.UQ_BSS), 'STAND': q['STAND'], 'CUPREC': q['CUPREC'],
                     'HOLD_CC': q['HOLD_CC'], 'HOLD_CWC': q['HOLD_CWC'], 'HOLD_UEFA': q['HOLD_UEFA'],
                     'A0R': q['A0R'], 'HOLDTAB': (1, cw.LABELS['HOLDTAB']),
-                    'ADDREC': (1, cw.LABELS['sites']['addrec']), 'W_QON': (1, cw.LABELS['w_qon']),
+                    'ADDREC': (1, cw.LABELS['sites']['addrec']), 'W_QON': (1, cw.LABELS['w_qon']), 'W_HKEEP': (1, cw.LABELS['w_hkeep']),
                     'UC_N': (1, uc.LABELS['UC_N']), 'UC_C': (1, uc.LABELS['UC_C']), 'UC_G': (1, uc.LABELS['uc_g']), 'UC_KC': (1, uc.LABELS['uc_kc']),
                     'CB': (2, sites['tmd'] + uc.CB_OFF), 'KHIST': (0, uc.KHIST), 'CHIST': (0, uc.CHIST),
                     'RING': (0, uc.RING), 'SEL': (2, sites['sel']), 'Q_LIST': (0, Q_LIST),

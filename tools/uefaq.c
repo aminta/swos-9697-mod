@@ -125,6 +125,9 @@ struct uq_out {
     u16 standin;                        /* the club in the manager's league-phase place until its ties are played */
     u8 gn[3];                           /* the game's lists: the league phases without the holders that w_holders */
     u16 gl[3][40];                      /* appends (CL: CL / EL holders, EL: UECL holder), exactly 36 - those */
+    u8 hkeep[3];                        /* 4.0.2: a holder already in a HIGHER league phase than the one w_holders
+                                           would append it to (the UECL winner who won the league: Champions
+                                           League): kept in that list of gl, and w_holders must not append it */
 };
 
 /* the season's qualifying state, kept in the save (the 80-record area, after uefacoef's block) while the career
@@ -171,7 +174,7 @@ const u32 UQ_LAYOUT[] = { OFF(uq_in, present), OFF(uq_in, eps), OFF(uq_in, hold)
                           OFF(uq_out, n), OFF(uq_out, ls), OFF(uq_out, status), sizeof(struct uq_in), NC,
                           OFF(uq_in, manager), OFF(uq_in, force), OFF(uq_out, mt_n), OFF(uq_out, mt_round),
                           OFF(uq_out, mt_opp), OFF(uq_out, mt_win), OFF(uq_out, standin), OFF(uq_out, gn),
-                          OFF(uq_out, gl), OFF(uq_in, lcup), OFF(uq_in, eplay) };
+                          OFF(uq_out, gl), OFF(uq_in, lcup), OFF(uq_in, eplay), OFF(uq_out, hkeep) };
 
 static struct { u8 rank, round, code, pad; } E[NE];
 static int ne;
@@ -553,7 +556,8 @@ void uq_season(void) {
         if (!c) continue;
         for (int i = 0; i < ne; i++)
             if (CLUB[i] == c) dom = E[i].round;
-        int league = h < 2 ? dom == CL_LS : dom == EL_LS;   /* (UECL holder: only its EL league-phase place) */
+        int league = h < 2 ? dom == CL_LS : (dom == EL_LS || dom == CL_LS);   /* (UECL holder: its EL league-phase place, or
+                                                                              a higher one: the Champions League's, 4.0.2) */
         UQ_OUT.status[h] = league ? 1 : 2;
         if (!league) own[h] = c;
     }
@@ -622,11 +626,18 @@ void uq_season(void) {
     /* the game's lists: exactly 36 - its routed holders, whatever happened above (the season end's record count
        checks would stop the game): holders out, then the best unused clubs in / the last ones out */
     static const u8 ROUTE[3] = { 0, 0, 1 };     /* CL holder -> CL, EL holder -> CL, UECL holder -> EL */
+    for (int h = 0; h < 3; h++) {               /* 4.0.2: the UECL holder who qualified for the Champions League league phase
+                                                   (domestic title / place): its Champions League place stays, no EL one */
+        UQ_OUT.hkeep[h] = 0;
+        if (h == 2 && UQ_IN.hold[2] && UQ_OUT.status[2] == 1)
+            for (int i = 0; i < UQ_OUT.n[0]; i++)
+                if (UQ_OUT.ls[0][i] == UQ_IN.hold[2]) UQ_OUT.hkeep[2] = 1;
+    }
     for (int c = 0; c <= UQ_IN.nclub; c++) taken[c] = 0;
-    for (int h = 0; h < 3; h++) if (UQ_IN.hold[h]) taken[UQ_IN.hold[h]] = 1;
+    for (int h = 0; h < 3; h++) if (UQ_IN.hold[h] && !UQ_OUT.hkeep[h]) taken[UQ_IN.hold[h]] = 1;
     for (int c = 0; c < 3; c++) {
         int want = 36, n = 0;
-        for (int h = 0; h < 3; h++) if (UQ_IN.hold[h] && ROUTE[h] == c) want--;
+        for (int h = 0; h < 3; h++) if (UQ_IN.hold[h] && !UQ_OUT.hkeep[h] && ROUTE[h] == c) want--;
         for (int i = 0; i < UQ_OUT.n[c] && n < want; i++) {
             int k = UQ_OUT.ls[c][i];
             if (!taken[k]) { taken[k] = 1; UQ_OUT.gl[c][n++] = k; }
@@ -635,7 +646,7 @@ void uq_season(void) {
     }
     for (int c = 0; c < 3; c++) {
         int want = 36;
-        for (int h = 0; h < 3; h++) if (UQ_IN.hold[h] && ROUTE[h] == c) want--;
+        for (int h = 0; h < 3; h++) if (UQ_IN.hold[h] && !UQ_OUT.hkeep[h] && ROUTE[h] == c) want--;
         while (UQ_OUT.gn[c] < want) {
             int b = 0;
             for (int k = 1; k <= 550 && k <= UQ_IN.nclub; k++)

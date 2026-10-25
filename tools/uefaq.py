@@ -341,15 +341,18 @@ uq_fill:                                ; careerworld w_q_fill (before the seaso
     jae .o2                             ; (a holder not seen: w_holders adds it)
     imul esi, eax, CSZ
     mov si, [UQ_IN + L_CLUB + esi]
-    mov edi, [UQ_HP]                    ; the holders: w_holders appends them
-    cmp si, [edi]
+    mov edi, [UQ_HP]                    ; the holders: w_holders appends them (4.0.2: not a holder kept in a higher
+    cmp si, [edi]                       ; league phase than the one it would be appended to: O_HKEEP)
     je .o2
     mov edi, [UQ_HP + 4]
     cmp si, [edi]
     je .o2
     mov edi, [UQ_HP + 8]
     cmp si, [edi]
+    jne .ok
+    cmp byte [UQ_OUT + O_HKEEP + 2], 0
     je .o2
+.ok:
     pushad
     mov ecx, ebx
     shl ecx, 4
@@ -371,6 +374,11 @@ uq_fill:                                ; careerworld w_q_fill (before the seaso
     inc ebx
     cmp ebx, 3
     jb .o
+    cmp byte [UQ_OUT + O_HKEEP + 2], 0  ; 4.0.2: the UECL holder already in the Champions League list: w_holders must
+    je .nokeep                          ; not append it to the EL list
+    mov edi, [UQ_HP + 8]
+    mov word [edi], 0FFFFh
+.nokeep:
 .done:
     xor ebx, ebx                        ; the qualifying ties' contests: no tie (their lists are scanned by the
 .q0:                                    ; slot-3 chain at the season start)
@@ -755,12 +763,12 @@ def patch(p, at, limit, sites):
     bss_at = sites['bss'] + cw.B_UQ
     syms, end, bss = cobj.link(p, obj, at, (2, bss_at), limit=limit)
     assert bss <= cw.UQ_BSS, hex(bss)
-    lay = struct.unpack('<24I', p.get(1, syms['UQ_LAYOUT'][1], 96))
+    lay = struct.unpack('<25I', p.get(1, syms['UQ_LAYOUT'][1], 100))
     assert syms['UQ_CUPONLY_FILE'][0] == 1, syms['UQ_CUPONLY_FILE']   # (the access list's Liechtenstein row: by file)
     p.put(1, syms['UQ_CUPONLY_FILE'][1], bytes([cuponly_file()]))
     keys = ('L_PRESENT', 'L_EPS', 'L_HOLD', 'L_NCLUB', 'L_LEAGUE', 'L_CUP', 'L_CLUB', 'CSZ', 'O_N', 'O_LS', 'O_STATUS',
             'IN_SIZE', 'NC', 'L_MANAGER', 'L_FORCE', 'O_MT_N', 'O_MT_ROUND', 'O_MT_OPP', 'O_MT_WIN', 'O_STANDIN', 'O_GN',
-            'O_GL', 'L_LCUP', 'L_EPLAY')
+            'O_GL', 'L_LCUP', 'L_EPLAY', 'O_HKEEP')
     lay = dict(zip(keys, lay))
     assert lay['IN_SIZE'] % 4 == 0 and lay['CSZ'] == 12 and lay['NC'] >= 553, lay
     slay = dict(zip(('S_M', 'S_K', 'S_RES', 'S_GN', 'S_GL', 'S_SIZE', 'R_DONE', 'R_R', 'R_OPP', 'R_DEST', 'R_GL',

@@ -10351,76 +10351,103 @@ def world_seasonend_titles():
     return not errs, '; '.join(errs + info)
 
 
+def dkb_sets(r, spr, blond, info):
+    """In a running match: every frame of the darkblond sets (blond.NEW1 / NEW2, 101 each) against the same frame of
+    the team's black-skin set (543.. / 846..): the same width / lines and the same pixel positions, differing only in
+    hair colours; and each raw set's size against blond.SET_BYTES (copy_sets' room per team). Returns the errors."""
+    errs = []
+    nib = lambda data: [x >> 4 for x in data] + [x & 15 for x in data]
+    idx = lambda i: struct.unpack('<I', r.read(r.base2 + spr + i * 4, 4))[0]
+
+    def frame(i):
+        h = r.read(idx(i), 24)
+        wq, nl = struct.unpack_from('<hh', h, 14)[0], struct.unpack_from('<h', h, 12)[0]
+        return wq, nl, nib(r.read(struct.unpack('<I', h[:4])[0], wq * 8 * nl))
+    for tag, raw, black, new in (('team 1', 341, 543, blond.NEW1), ('team 2', 644, 946 - 100, blond.NEW2)):
+        size = 0
+        for k in range(101):
+            h = r.read(idx(raw + k), 24)
+            size += 24 + 8 * struct.unpack_from('<h', h, 14)[0] * struct.unpack_from('<h', h, 12)[0]
+        info.append(f'{tag}: raw set {size} B (room {blond.SET_BYTES})')
+        check(size <= blond.SET_BYTES, f'{tag}: raw set {size} B > copy_sets room {blond.SET_BYTES}', errs)
+        bad = []
+        for k in range(101):
+            a, b_ = frame(black + k), frame(new + k)
+            if a[:2] != b_[:2] or [x != 0 for x in a[2]] != [x != 0 for x in b_[2]]:
+                bad.append(k)
+        check(not bad, f'{tag}: darkblond frames differing from the black set: {bad[:12]} ({len(bad)})', errs)
+        other = [k for k in range(101) if not (frame(raw + k)[:2] == frame(raw + 101 + k)[:2] == frame(black + k)[:2])]
+        check(not other, f'{tag}: the three skin / hair sets differ in size at frames {other[:12]}', errs)
+        hair = {x for k in range(101) for x in frame(new + k)[2]}
+        check(15 in hair and 5 not in hair, f'{tag}: darkblond colours {sorted(hair)} (yellow 15, no light skin 5)', errs)
+    return errs
+
+
 @scenario
 def world_darkblond():
-    """4.0.1 user report (4.0 GOG, Italian: 'MALEN della Roma compare come una serie di pixel ammucchiati'): a World
-    2026-27 career at JUVENTUS on SWOSTEST_BUILD, VISUAL. COMPETIZ. -> SERIE A -> ROMA: its squad screen (DONYELL
-    MALEN: face 3, darkblond = blond.py's dark skin + blond hair, face icon 189) - screenshots of each step and the
-    face icon 189's pixels (yellow hair, entry 15, as blond_faces). DKB_TEAM: the career path (ROMA: its own squad);
-    DKB_STOP=1: stop after the career start; DKB_SQUAD=1: the career club's SQUADRA screen, then the fixture's visible
-    '- PARTITA -' - which traps in the harness (DIYLeagueTournamentMatch's int 3, 4.0 too: notes/darkblond-402.md).
-    WIP, parked for 4.0.2 (the world viewer / competition table have no squad entry: the ROMA path fails there)"""
+    """4.0.1 user report (4.0 GOG, Italian: Roma's dark-skinned blond player - DONYELL MALEN, face 3 'darkblond' =
+    blond.py's dark skin + blond hair - drawn as a garbled block at a kick-off; internal/reports/
+    malen_darkblond_match_20261025.jpg): a World 2026-27 career at ROMA (DKB_TEAM) on a test copy of SWOSTEST_BUILD
+    whose DIYLeagueTournamentMatch int 3 is a NOP (the game's own int 3 at its start: harmless on a real PC, a trap
+    under the harness's BPINT 3 - the league fixture's '- PARTITA -'), its SQUADRA screen (MALEN's face icon 189:
+    yellow hair) and its first match played (GIOCA PARTITA): pitch frames from the line-ups to kick-off, and in the
+    running match (dkb_sets) every frame of both teams' darkblond sets against the team's black-skin set (size and
+    pixel positions), the three skin / hair sets' sizes, the darkblond colours, each raw set within copy_sets' room.
+    Not reproduced so far (CD / GOG, 4.0 / 4.0hf / rc3, home / away, played / watched, replay): notes/darkblond-402.md"""
+    import re as _re
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import lepatch
     import shirtnum
-    b = builds()['it']
+    import blond
+    src = builds()['it']
+    b = os.path.join(WORK, 'builds-x', 'darkblond_' + os.path.basename(os.path.dirname(src.rstrip('/'))))
+    shutil.rmtree(b, ignore_errors=True)
+    shutil.copytree(src, b, symlinks=True)
+    p = lepatch.LEPatch(os.path.join(b, 'ITALIAN.EXE'))
+    d1 = bytes(p.get(1, 0, len(p.le.obj_bytes(1))))
+    m = [x.start() for x in _re.finditer(rb'\xcc\x8b\x35....\x66\x8b\x46\x02\x66\xa3....\x66\xc7\x05....\x02\x00', d1, _re.S)]
+    if len(m) != 1:
+        return False, f'DIYLeagueTournamentMatch int 3 not found once: {m}'
+    p.put(1, m[0], b'\x90')                       # (test copy only)
+    p.save(os.path.join(b, 'ITALIAN.EXE'))
     spr = shirtnum.spr_index(lepatch.LEPatch(os.path.join(b, 'ITALIAN.EXE')))
     nib = lambda data: [x >> 4 for x in data] + [x & 15 for x in data]
     errs, info = [], []
-    team = os.environ.get('DKB_TEAM', 'EUROPA,ITALIA,SERIE A,JUVENTUS').split(',')
+    team = os.environ.get('DKB_TEAM', 'EUROPA,ITALIA,SERIE A,ROMA').split(',')
     with Session('world_darkblond', b, {}, 'dump:2', 600, match=True) as s:
         s.wait()
         for t in ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27'] + team:
             if press(s, s.screen(), t, 3) is None:
                 return False, f'new career: {t} not reached'
-        s.shot('team_choice')
-        info.append(f'choice: {s.screen().texts()[:6]}')
         s.send('fire dump:3')
         s.shot('career')
-        info.append(f'career: {s.screen().texts()[:6]}')
-        if os.environ.get('DKB_SQUAD'):               # (the career club's own squad screen, then a match played)
-            press(s, s.screen(), 'SQUADRA', 3)
-            s.shot('squad')
-            info.append(f'squad: {s.screen().texts()[:30]}')
-            r = s.result
-            p189 = struct.unpack('<I', r.read(r.base2 + spr + 189 * 4, 4))[0]
-            icon = r.read(struct.unpack('<I', r.read(p189, 4))[0], 64) if p189 else b''
-            info.append(f'icon 189 {icon[:32].hex()}')
-            press(s, s.screen(), 'ESCI', 3)
-            press(s, s.screen(), 'PARTITA', 3)
-            s.shot('fixture')
-            info.append(f'fixture: {s.screen().texts()[:14]}')
-            vis = next((e[0] for e in s.screen().entries if e[1] == '- PARTITA -' and not e[2]), None)
-            if vis is None:
-                return False, f'no visible - PARTITA - on {s.screen()}; ' + '; '.join(info)
-            walk(s, vis, 3)                           # (the visible one: PARTITA(inv) is the DIY button, int 3)
-            s.shot('prematch')
-            info.append(f'prematch: {s.screen().texts()[:14]}')
-            for k in range(10):                       # line-ups, the stadium screen, kick-off: a frame each
-                r = s.send('fire dump:1.5')
-                if r.outcome != 'dump':
-                    break
-                s.shot(f'm{k}')
-                info.append(f'm{k}: {s.screen().texts()[:4]}')
-            info.append(f'match: {r}')
-            return not errs, '; '.join(errs + info)
-        if os.environ.get('DKB_STOP'):
-            return True, '; '.join(info)
-        for t, opt in (('VISUALIZZA MONDO', 0), ('CARR. STORICHE', 1), ('MONDO 2026-27', 1), ('EUROPA', 0),
-                       ('ITALIA', 0), ('SERIE A', 0), ('ROMA', 0)):
-            if s.screen().find(t, exact=True) is None and opt:
-                continue
-            if press(s, s.screen(), t, 3) is None:
-                return False, f'{t} not on {s.screen()}'
-            s.shot(t.replace(' ', '_').replace('.', ''))
-            info.append(f'{t}: {s.screen().texts()[:6]}')
+        press(s, s.screen(), 'SQUADRA', 3)
+        s.shot('squad')
         r = s.result
         p189 = struct.unpack('<I', r.read(r.base2 + spr + 189 * 4, 4))[0]
         icon = r.read(struct.unpack('<I', r.read(p189, 4))[0], 64) if p189 else b''
-        info.append(f'icon 189 {icon[:32].hex()}')
         check(15 in nib(icon[:24]), f'face icon 189 without yellow hair ({icon[:24].hex()})', errs)
-        check('D. MALEN' in s.screen().texts() or any('MALEN' in x for x in s.screen().texts()),
-              'MALEN not on the ROMA screen', errs)
+        press(s, s.screen(), 'ESCI', 3)
+        press(s, s.screen(), 'PARTITA', 3)
+        fx = s.screen().texts()[5:8]
+        vis = next((e[0] for e in s.screen().entries if e[1] == '- PARTITA -' and not e[2]), None)
+        if vis is None:
+            return False, f'no visible - PARTITA - on {s.screen()}'
+        walk(s, vis, 3)
+        if s.screen().find('GIOCA PARTITA') is None:
+            return False, f'no GIOCA PARTITA on {s.screen()}'
+        press(s, s.screen(), 'GIOCA PARTITA', 3)
+        checked = False
+        for k in range(10):                           # line-ups, the stadium screen, kick-off: a frame each
+            r = s.send('fire dump:1.5')
+            if r.outcome != 'dump':
+                break
+            s.shot(f'm{k}')
+            if k == 6:                                # (the match running: the sets as converted for it)
+                errs += dkb_sets(r, spr, blond, info)
+                checked = True
+        check(checked, f'the match never ran ({r})', errs)
+        info.append(f'fixture {fx}')
     return not errs, '; '.join(errs + info)
 
 

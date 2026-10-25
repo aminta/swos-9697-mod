@@ -10429,13 +10429,35 @@ def world_darkblond():
         check(15 in nib(icon[:24]), f'face icon 189 without yellow hair ({icon[:24].hex()})', errs)
         press(s, s.screen(), 'ESCI', 3)
         press(s, s.screen(), 'PARTITA', 3)
-        fx = s.screen().texts()[5:8]
+        opp = os.environ.get('DKB_OPP')               # (the reporter's case: the career club v that opponent, e.g. ROMA)
+        for _ in range(40 if opp else 0):
+            if opp in s.screen().texts()[5:9]:
+                break
+            press(s, s.screen(), '- RISULTATO -', 3)      # (the fixtures before it settled by result)
+            press(s, s.screen(), 'VIS. RISULTATI', 3)
+            for _ in range(6):
+                scr = s.screen()
+                if 'TRASFERIMENTI' in scr.texts() and scr.find('PARTITA', exact=True) is not None:
+                    break
+                press(s, scr, 'PROSS. PARTITA' if scr.find('PROSS. PARTITA') is not None else
+                      'CONTINUA' if scr.find('CONTINUA', exact=True) is not None else 'ESCI', 3)
+            press(s, s.screen(), 'PARTITA', 3)
+        fx = s.screen().texts()[5:9]
+        s.shot('fixture')
         vis = next((e[0] for e in s.screen().entries if e[1] == '- PARTITA -' and not e[2]), None)
         if vis is None:
             return False, f'no visible - PARTITA - on {s.screen()}'
         walk(s, vis, 3)
-        if s.screen().find('GIOCA PARTITA') is None:
-            return False, f'no GIOCA PARTITA on {s.screen()}'
+        for _ in range(3):                            # ('GIOCA :' cycles who plays: GIOCA PARTITA shows for the human)
+            e = next((x for x in s.screen().entries if x[1] == 'GIOCA PARTITA'), None)
+            if e is not None and not e[2]:
+                break
+            if s.screen().find('GIOCA :', exact=True) is None:
+                break
+            press(s, s.screen(), 'GIOCA :', 2)
+        s.shot('prematch')
+        if not any(x[1] == 'GIOCA PARTITA' and not x[2] for x in s.screen().entries):
+            return False, f'fixture {fx}: no GIOCA PARTITA on {s.screen()}'
         press(s, s.screen(), 'GIOCA PARTITA', 3)
         checked = False
         for k in range(10):                           # line-ups, the stadium screen, kick-off: a frame each

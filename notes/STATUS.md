@@ -2178,6 +2178,13 @@ Left for 2.5: (a) NSL/NSSL finals series (type-1 design) or declare them postpon
 - Logged by Regia elsewhere (owners per Regia): extended squads 17-30 in career, European places priority bug
   (Dati coppe), MALEN darkblond sprite (Motore), joypad keyboard-mode set-up, supercups 2026-27; squads'
   visual-tour branch (1d17216+) to merge for the 4.0.2 rcs.
+- European places priority fix READY TO MERGE: Dati coppe's branch uefa402 (worktree data-2627) sha ae3d93c (on
+  66a89a8). A UECL holder with a domestic CL place keeps the CL place (uefaq.c uq_season + hkeep, uefaq.py,
+  careerworld.w_holders). Verified natively (~4000 holder combos, 0 violations) + world_full_uefa PASS on the fix build.
+  Open at rc time: (a) forced in-game check of league champion + UECL winner (UQ_HOLD forcing traps the new season even
+  in a control case; scenario world_uefa_double is WIP and FAILs until reworked); (b) the old cseg_92BBF / w_pick_cc
+  swaps for a champion holding the CWC / UEFA Cup; (c) cup winner + league place. Davide is asking the user for a real
+  save from before the 2027-28 season end.
 
 ## Deferred realism (4.0.2+)
 - Odd Serie D groups, the career club resting on the last match day (Serie C session, 2026-10-23): its Poule / group

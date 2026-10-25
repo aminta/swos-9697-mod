@@ -2171,6 +2171,14 @@ Left for 2.5: (a) NSL/NSSL finals series (type-1 design) or declare them postpon
   Paraguay 44-day calendars, derived Clausura 2027 calendars (CA, Mexico), Colombia's group fixtures / tie-break
   (owner: package 6), the odd Serie D group's rest day, the Libertadores continuation after the domestic season.
 
+## 4.0.2 queue (logged 2026-10-25, scope with Regia / Davide)
+- User report (site form, 23/10; mod 4.0, GOG, DOSBox, World 2026-27 career): "in some cases the number of the player
+  being controlled does not appear above his head; during the match some players stay without the number above the
+  head even when you control them". Not investigated yet.
+- Logged by Regia elsewhere (owners per Regia): extended squads 17-30 in career, European places priority bug
+  (Dati coppe), MALEN darkblond sprite (Motore), joypad keyboard-mode set-up, supercups 2026-27; squads'
+  visual-tour branch (1d17216+) to merge for the 4.0.2 rcs.
+
 ## Deferred realism (4.0.2+)
 - Odd Serie D groups, the career club resting on the last match day (Serie C session, 2026-10-23): its Poule / group
   play-off stays simulated in 4.0.1 (lastrest reverted). The tried fix (gp_lastrest: cseg_8EC2B's careerFinished loop

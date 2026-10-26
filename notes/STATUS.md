@@ -2238,6 +2238,11 @@ Left for 2.5: (a) NSL/NSSL finals series (type-1 design) or declare them postpon
 - origin/main d44fa51 (LICENSE, MIT for the code) merged -> ae70f41.
 - MiSTer beta 4: c/REL402b4 = ae70f41 on world5tm-402rc3 (IT CD 9f0472cf, GOG IT 8e4a54ac; vs REL402b3: FMT{DE,EN,FR,IT}5.DAT +
   the 8 exes). roundtrip, controls_menu, team_choice_colours (TEAMCOL_BUILD = b4) PASS.
+13. numhead afe7b85 (Serie C: number-over-head ROOT CAUSE = obj2's non-file tail assumed zero, only DOSBox-X zeroes it;
+   tools/tailzero.py zeroes the tail before __CMain, all 8 exes; TAILZERO_FILL_TEST=5A test builds only) -> ae6fce1.
+   rc1 list += tail_zero (static; run it on c/RELxx/SWOS AND c/RELxx/gog).
+- MiSTer beta 5: c/REL402b5 = ae6fce1 on world5tm-402rc3 (IT CD 642b871d, GOG IT 0ab0ac6b; vs REL402b4: the 8 exes only).
+  roundtrip, shirt_numbers PASS; tail_zero PASS on SWOS/ and gog/ (obj2+0xd7000..+0x1bd900 zeroed). Davide confirms on the MiSTer.
 
 ## Deferred realism (4.0.2+)
 - Moldova's h2h_half groups start at 0 points (package 6, 2026-10-24; pre-existing, not option C).

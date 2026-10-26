@@ -2197,6 +2197,11 @@ Left for 2.5: (a) NSL/NSSL finals series (type-1 design) or declare them postpon
 - Held: 6. xsq-402 72e5207, 7. p402 772da13, 8. 4.0.2-controls 6ebee9b (after Motore's ctl_full PASS), until the fix.
 - Regia 26/10: blocker routed to Dati coppe (lead; same 0x81390 trap as their UQ_HOLD forcing) + Serie C; fix branch off
   9948089+. 6-8 stay HELD until the fix is merged and a season-crossing smoke (world_ccc_away / world_mex_titles) PASSes.
+- Blocker fixed: cnt80 a9264b9 (Dati coppe: w_chk_tot0q allows a kept UECL holder) -> 8152e56; world_ccc_away PASS.
+6. xsq-402 64852a6 -> 388e68f (xtra_squad, xtra_season PASS; xtra_market / xtra_world30 / xtra_club_browse need
+   XTRA30_BUILD = the TM_EXTRA=14 world: at rc time). 7. p402 772da13 -> 8009831 (world_ca_slv PASS with
+   W2627CA_DATA=internal/sam6/data/w402t; world_mex_titles, roundtrip PASS). Next: Dati coppe mkworld_tm hooks (par;
+   GUA, SLV + sa_exact.ca_prose) + world rebuild TM_EXTRA=14; p6's WINNERS commits on p402; 8. controls after Motore's suite.
 
 ## Deferred realism (4.0.2+)
 - Moldova's h2h_half groups start at 0 points (package 6, 2026-10-24; pre-existing, not option C).

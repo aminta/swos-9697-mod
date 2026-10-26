@@ -129,3 +129,12 @@ entries 44 / 45). So the paging UI exists; what is missing is the data for anoth
 - **Estimate** 12-16 h: GetPlayerAtIndex hook 2, SquadFinish count + arrows 2, row draw / totals / ViewSquad 4-5, scenarios (table > club,
   opponent view, selector squads unchanged, a club with 16, a bought extra gone, save / reload, match line-up unchanged: harness
   line-up check) + pictures 4-5, 4 languages 1.
+
+### Part 3 findings (2026-10-27): where another club's squad is listed for a career user of the 2026-27 world
+Walked in the harness (pictures in the run dirs, IT exe): (a) VISUAL. COMPETIZ. / VISUALIZZA MONDO > competition > table / STAT: no club squad (rows are not selectable); (b) transfer
+offers (VISUAL. OFFERTE > an offer): VIS. SQUADRA = OUR squad (the buyer's is not offered); (c) the pre-match screen shows the two MATCH line-ups (16);
+(d) ACQUISTA GIOCATORE > VIS. SQUADRA = our squad; (e) club browse (ACQ. ALTRO GIOCAT. NAZION. / STRANIERO) = the only list of another club's
+players: DONE (part 2). The game's squad screen for ANOTHER club (SelectAndShowSquadToView, StatsViewSquads: SELECT TEAM > VIEW TEAM, season / tournament
+standings > VIEW SQUADS) is reached only in friendly / season / tournament modes, where this build offers only the 1996 data and DDR 1988-89
+(no XTRA files): no 2026-27 club can be viewed there. The GetPlayerAtIndex / SquadFinish extension of part 3 is therefore NOT built (it could
+not be tested in any reachable screen); design stays as above if a mode ever lists world clubs.

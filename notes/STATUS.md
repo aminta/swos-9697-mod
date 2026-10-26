@@ -2229,6 +2229,9 @@ Left for 2.5: (a) NSL/NSSL finals series (type-1 design) or declare them postpon
   FMT{DE,EN,FR,IT}5.DAT, TMW5.102, WORLD05.TMD). roundtrip, controls_menu, world_winners_state (forced NOVORIZONTINO) PASS on b3.
   xtra_world30 cannot run on a release dir: it reads DATA/XTRA.102 (the test build's name), the release data has XTW5.102;
   rc1: teach the scenario the release name (XTW5.*) or keep it on the TM_EXTRA=14 test build.
+11. sdplayoff 6dfd565 (Serie C: Serie D placement play-offs FORMAT text, no promotion / repechage ranking, 4 languages;
+   fmtgame + fmtprose only) -> 78fe0c4, py_compile OK. FMT*5.DAT changes at the rc1 build. 4.0.2 code FINAL for rc1
+   (rc1 go from Davide after his MiSTer test of b3).
 
 ## Deferred realism (4.0.2+)
 - Moldova's h2h_half groups start at 0 points (package 6, 2026-10-24; pre-existing, not option C).

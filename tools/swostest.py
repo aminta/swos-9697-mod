@@ -228,7 +228,7 @@ def prepare(name, exe_dir, cars, steps, match=False, timer=False):
 
 
 SCAN = {'fire': 0x1D, 'up': 0x48, 'down': 0x50, 'left': 0x4B, 'right': 0x4D, 'esc': 0x01, 'enter': 0x1C,
-        'space': 0x39, 'bspace': 0x0E, 'dump': 0xFF}
+        'space': 0x39, 'bspace': 0x0E, 'semicolon': 0x27, 'dump': 0xFF}
 SCAN.update({ch: sc for row, base in (('1234567890', 0x02), ('qwertyuiop', 0x10), ('asdfghjkl', 0x1E),
                                       ('zxcvbnm', 0x2C)) for sc, ch in enumerate(row, base)})
 SCRIPT_MAX = 200                                       # steps a pause can write
@@ -1439,8 +1439,9 @@ FINISH = 'fire:2'                                 # career menu: FINISCI STAGION
 
 def name_entry(name):
     """Save screen (cursor on SALVA): NOME FILE field, clear it, type name, Enter (= save). The French exe reads the
-    keys as AZERTY (a <-> q, w <-> z: 'w84a' was saved as Z84Q), the German one as QWERTZ (y <-> z)."""
-    lay = {'fr': {'a': 'q', 'q': 'a', 'w': 'z', 'z': 'w'}, 'de': {'y': 'z', 'z': 'y'}}.get(UI, {})
+    keys as AZERTY (a <-> q, w <-> z: 'w84a' was saved as Z84Q; m is the QWERTY ';' key), the German one as QWERTZ
+    (y <-> z)."""
+    lay = {'fr': {'a': 'q', 'q': 'a', 'w': 'z', 'z': 'w', 'm': 'semicolon'}, 'de': {'y': 'z', 'z': 'y'}}.get(UI, {})
     return 'up:2 fire:1 ' + 'bspace ' * 8 + ' '.join(lay.get(c, c) for c in name.lower()) + ' enter:1'
 
 
@@ -2842,6 +2843,45 @@ def world8485_nat():
             check(holder in wc, f'WC 1990 winner {holder} is not one of the 24', errs)
     except RuntimeError as e:
         return False, f'{e}; ' + '; '.join(errs + notes)
+    return not errs, '; '.join(errs + notes)
+
+
+@scenario
+def save_devname():
+    """4.0.2: DOS device names refused as save names (devname.py): JUVE2F loaded, SALVA CARRIERA as CON / NUL / LPT1 /
+    COM1 / AUX.. (an extension too: the dialog adds .CAR) -> the error box, no file; then DEVOK is saved"""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import devname
+    msg = devname.MSG[UI]
+    errs, notes = [], []
+    with Session('save_devname', builds()['it'], {'JUVE2F.CAR': juve2(True)}, f'{LOAD1} dump:2', 120) as s:
+        if s.wait().outcome != 'dump':
+            return False, f'START: no first pause ({s.result})'
+        s.send(quit_and_save('con') + ' dump:2')
+        for k, name in enumerate(('nul', 'lpt1', 'com1', 'aux', 'prn')):
+            scr = s.screen() if s.result.outcome == 'dump' else None
+            check(scr is not None and msg in scr.texts(), f'{"con" if not k else prev}: no "{msg}" box ({scr})', errs)
+            if scr is None:
+                break
+            if k == 0:
+                s.shot('box')
+            prev = name
+            s.send('fire:2 dump:2')                       # the box's CONTINUA: back to the dialog
+            scr = s.screen()
+            if k == 0:
+                notes.append(f'after the box: {scr.texts()[-4:]}')
+            s.send(name_entry(name)[len('up:2 '):] + ' dump:2')   # (the cursor is back on the name field)
+        scr = s.screen() if s.result.outcome == 'dump' else None
+        check(scr is not None and msg in scr.texts(), f'prn: no "{msg}" box ({scr})', errs)
+        s.send('fire:2 dump:2')
+        s.send(name_entry('devok')[len('up:2 '):] + ' dump:3')
+        game = s.result.game
+        scr = s.screen() if s.result.outcome == 'dump' else None
+        notes.append(f'after DEVOK: {scr}')
+    files = sorted(os.listdir(game))
+    bad = [f for f in files if f.split('.')[0] in ('CON', 'NUL', 'LPT1', 'COM1', 'AUX', 'PRN')]
+    check(not bad, f'device-named files {bad}', errs)
+    check('DEVOK.CAR' in files, f'DEVOK.CAR not saved ({files})', errs)
     return not errs, '; '.join(errs + notes)
 
 

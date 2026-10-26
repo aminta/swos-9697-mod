@@ -48,3 +48,23 @@
 | 5 | scenarios: list shows an extra (name/price), buy it, squad = n+1, not buyable twice, season + save/reload, old 4.0.1 save, career_20seasons x2 | 4-5 |
 Total about 13-17 h (2-3 sessions). Test case: a Serie D career sees a Celle Varazze extra in the market, buys it, it is gone from the list and
 from Celle Varazze's block after a reload.
+
+## As built (2026-10-26, branch xsq-402)
+Everything is in tools/xtra.py (cave code, same page group; patch.py gives the xtra pages one more page when XTRA is on).
+- `xtra_readto` (ax = team word, edi = dest) is xtra_read's file reader made general; `xt_block` = cache of 4 clubs' blocks (round
+  robin, flushed when the world's XTRA name changes), entry = dw team, db players, db valid, 14 x 38.
+- **GetPlayer is the one accessor**: its `call GetTeamPointer` -> `gp_wide` (D1 >= 16 of another club -> A0 so that A0 + idx*38 = the
+  XTRA slot). That covers the offer / buy / third-party flow (about 14 functions). Two sites do their own `team + idx*38`:
+  the market row (cseg_5A017: `mov [A0], eax` -> mp_a6) and the market list (cseg_5A227: `add [A0], eax` -> mp_a1).
+- AddCareerTeamPlayer: after its index draw (`mov [D2+2], dx` -> `xt_pick`): one Rand2, uniform over 16 + extras; a blank slot (bought)
+  keeps the game's own pick. The weekly refill and cseg_8DF16 / IsPlayerInCareerContest need nothing (entries keep the 4-byte format).
+- **Sold list**: cseg_56379's last `call cseg_56615` -> `xt_sold` (D0 team, D1 idx restored; the player was already copied): index >= 16 of
+  another club -> (team word, index) in `xsold` (128 x 3 B, marker 'XSLD' for the harness), the cache block blanked. Not applied to
+  xtra_load / wages (a club managed later gets its block back: the bought player left with us). Saved as engine item 'XS' (world_only,
+  `engine.save_item` + ITEM_AT in xtra.patch); an old save has none -> zeroed at load.
+- The 30-player cap is the game's own (cseg_584D7: TOO_LARGE_SQUAD above 30): a 30-man club must sell first.
+- Seen: the weekly market of CHISOLA had 3 XTRA players among 13 entries; the list / offer / squad screens show them (shots in the run dir).
+- Tests: `xtra_market` (XTRA30_BUILD; CHISOLA buys a LIGORNA extra, list / offer / squad / save / reload / list again / match day);
+  career_20seasons x3 at CHISOLA, an old 25-man save on the new exe, xtra_world30, xtra_squad, xtra_season.
+- Users: a 4.0.2 save whose market lists such a player (or whose sold list is not empty) is one-way: older versions would read index
+  16.. past the club's record. Release-note line to add.

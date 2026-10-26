@@ -2846,6 +2846,254 @@ def world8485_nat():
     return not errs, '; '.join(errs + notes)
 
 
+def nop_league_int3(name):
+    """A test copy of builds()['it'] (builds-x/<name>_<build>) whose DIYLeagueTournamentMatch `int 3` (the game's own,
+    at its start: harmless on a real PC, a trap under the harness's BPINT 3 - a season / league fixture's
+    '- PARTITA -') is a NOP, as world_darkblond's."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import lepatch
+    src = builds()['it']
+    b = os.path.join(WORK, 'builds-x', f'{name}_' + os.path.basename(src.rstrip('/')))
+    shutil.rmtree(b, ignore_errors=True)
+    shutil.copytree(src, b, symlinks=True)
+    p = lepatch.LEPatch(os.path.join(b, 'ITALIAN.EXE'))
+    d1 = bytes(p.get(1, 0, len(p.le.obj_bytes(1))))
+    m = [x.start() for x in re.finditer(rb'\xcc\x8b\x35....\x66\x8b\x46\x02\x66\xa3....\x66\xc7\x05....\x02\x00', d1, re.S)]
+    assert len(m) == 1, f'DIYLeagueTournamentMatch int 3 not found once: {m}'
+    p.put(1, m[0], b'\x90')
+    p.save(os.path.join(b, 'ITALIAN.EXE'))
+    return b
+
+
+def se_vars():
+    """shirtedit.sites() of the exe language's original (obj2 offsets: the same in the built exe)."""
+    if not hasattr(se_vars, 'v'):
+        sys.path.insert(0, os.path.join(ROOT, 'tools'))
+        import lepatch
+        import shirtedit
+        se_vars.v = shirtedit.sites(lepatch.LEPatch(os.path.join(ROOT, 'orig', UI_ORIG)))
+    return se_vars.v
+
+
+def se_team(s):
+    """(team record address, [shirt numbers by record slot (32)], pin byte, squad slots in order) of playMatchTeam1Ptr's
+    team (the career club: careerNumPlayers slots by currentMatchPlayers, else the 16)."""
+    v, r = se_vars(), s.result
+    t = struct.unpack('<I', r.read(r.base2 + v['PM1'][1], 4))[0]
+    d = r.read(t, 76 + 38 * 32)
+    if t == r.base2 + v['CT'][1]:
+        n = struct.unpack('<H', r.read(r.base2 + v['CNP'][1], 2))[0]
+        sq = list(r.read(r.base2 + v['CMP'][1], n))
+    else:
+        sq = list(range(16))
+    return t, [d[76 + 38 * i + 2] for i in range(32)], d[23], sq
+
+
+def se_goto(s, i):
+    """Move the cursor to entry i (no fire); returns the screen."""
+    scr = s.screen()
+    for _ in range(12):
+        if scr.selected == i:
+            return scr
+        keys = scr.path(i)
+        if not keys:
+            return scr
+        s.send(' '.join(keys[:4]) + ' dump:1')
+        scr = s.screen()
+    return scr
+
+
+@scenario
+def shirt_edit():
+    """4.0.2 editable shirt numbers (shirtedit.py): JUVEFIX3 play-match screen: LEFT on a row lights the number, UP =
+    next free number, typed 2 digits (a used number is swapped), ESC undoes, ENTER ends; the team gets the pin bit; a
+    starter <-> bench swap keeps the numbers; saved (.CAR careerTeam at 56192), reloaded: the same numbers"""
+    car = os.path.join(SAVES, 'JUVEFIX3.CAR')
+    errs, notes = [], []
+    with Session('shirt_edit', builds()['it'], {'JUVEFIX3.CAR': car}, 'dump:2', 240) as s:
+        if s.wait().outcome != 'dump':
+            return False, f'START: no first pause ({s.result})'
+        s.send('down down down down down fire dump:2')
+        s.send('fire dump:2')
+        for _ in range(30):
+            scr = s.screen()
+            t = scr.texts()
+            if 'MOD. TATTICA' in t and 'AVVERSARI' in t:
+                break
+            if 'PARTITA' in t:
+                press(s, scr, 'PARTITA')
+            else:
+                s.send('fire dump:2')
+        else:
+            return False, f'no play-match screen ({scr})'
+        team, n0, pin0, sq = se_team(s)
+        ct = s.result.base2 + se_vars()['CT'][1]
+        notes.append(f'team {"careerTeam" if team == ct else hex(team)}, numbers {n0[:16]}, pin {pin0:#x}')
+        # row 7 (entry 20): LEFT, UP -> the next free number above
+        scr = se_goto(s, 20)
+        s.send('left dump:1')
+        s.shot('lit')
+        before = se_team(s)[1]                         # (after the first edit's one-number-per-player pass)
+        check(len({before[i] for i in sq}) == len(sq), f'first edit: numbers not unique {[before[i] for i in sq]}', errs)
+        s.send('up dump:1')
+        after = se_team(s)[1]
+        ch = [i for i in range(32) if before[i] != after[i]]
+        check(len(ch) == 1, f'UP: {len(ch)} numbers changed ({before[:16]} -> {after[:16]})', errs)
+        if len(ch) == 1:
+            k, o, nw = ch[0], before[ch[0]], after[ch[0]]
+            used = {before[i] for i in sq if i != k}
+            want = next(x for x in list(range(o + 1, 100)) + list(range(1, o)) if x not in used)
+            check(nw == want, f'UP: {o} -> {nw}, want {want} (next free)', errs)
+            notes.append(f'UP {o} -> {nw}')
+            # typed '2' '3': 23 (swapped with its holder if any)
+            holder = next((i for i in sq if after[i] == 23 and i != k), None)
+            s.send('2 3 dump:1')
+            t3 = se_team(s)[1]
+            check(t3[k] == 23 and (holder is None or t3[holder] == nw), f'typed 23: {t3[:16]} (holder {holder})', errs)
+            # ESC: everything as before the edit
+            s.send('esc dump:1')
+            t4 = se_team(s)[1]
+            check(t4 == before, f'ESC: {[t4[i] for i in sq]} != {[before[i] for i in sq]}', errs)
+            # again: LEFT, type 7 (a starter's: swapped), ENTER
+            s.send('left dump:1')
+            h7 = next((i for i in sq if before[i] == 7 and i != k), None)
+            s.send('7 dump:2')                       # (single digit: committed by the timer)
+            s.send('enter dump:1')
+            t5 = se_team(s)[1]
+            check(t5[k] == 7 and (h7 is None or t5[h7] == before[k]), f'typed 7: {t5[:16]} (holder {h7})', errs)
+            check(len({t5[i] for i in sq}) == len(sq), f'duplicate numbers {[t5[i] for i in sq]}', errs)
+            notes.append(f'typed 7 (holder slot {h7} got {before[k]})')
+            pin = se_team(s)[2]
+            check(pin & 0x80, f'pin bit not set ({pin:#x})', errs)
+            # the cursor moves again (edit over): DOWN goes to row 8
+            s.send('down dump:1')
+            check(s.screen().selected == 21, f'after ENTER, DOWN: selected {s.screen().selected}', errs)
+            # starter (row 8, entry 21) <-> bench (row 12, entry 25): numbers stay with the players
+            nb = se_team(s)[1]
+            s.send('fire dump:1')
+            se_goto(s, 25)
+            s.send('fire dump:2')
+            na = se_team(s)[1]
+            check(na[:16] == nb[:16], f'swap with the bench: numbers {nb[:16]} -> {na[:16]}', errs)
+            s.shot('after')
+        final = se_team(s)[1]
+        notes.append(f'final {[final[i] for i in sq]}')
+        for _ in range(10):                            # back to the career menu, then save from the main menu
+            scr = s.screen()
+            if 'FINISCI STAGIONE' in scr.texts() or 'PARTITA' in scr.texts() and 'TRASFERIMENTI' in scr.texts():
+                break
+            press(s, scr, 'ESCI') or s.send('fire dump:2')
+        press(s, s.screen(), 'ESCI', wait=2)
+        press(s, s.screen(), 'SALVA CARRIERA', wait=2)
+        s.send(name_entry('shirt1') + ' dump:3')
+        game = s.result.game
+    path = os.path.join(game, 'SHIRT1.CAR')
+    if not os.path.exists(path):
+        return False, '; '.join(errs + notes + [f'SHIRT1.CAR not saved ({sorted(os.listdir(game))})'])
+    d = open(path, 'rb').read()
+    saved = [d[56192 + 76 + 38 * i + 2] for i in range(32)]
+    check(saved[:16] == final[:16] or sorted(saved[:16]) == sorted(final[:16]) and saved == final, f'.CAR numbers {saved[:16]}', errs)
+    check(d[56192 + 23] & 0x80, f'.CAR pin byte {d[56192 + 23]:#x}', errs)
+    # reload: the play-match screen shows the same numbers (no 12..16 renumbering of the bench)
+    with Session('shirt_edit2', builds()['it'], {'SHIRT1.CAR': path}, 'dump:2', 240) as s:
+        s.wait()
+        s.send('down down down down down fire dump:2')
+        s.send('fire dump:2')
+        for _ in range(30):
+            scr = s.screen()
+            t = scr.texts()
+            if 'MOD. TATTICA' in t and 'AVVERSARI' in t:
+                break
+            if 'PARTITA' in t:
+                press(s, scr, 'PARTITA')
+            else:
+                s.send('fire dump:2')
+        again = se_team(s)[1]
+        check(again[:16] == saved[:16], f'reloaded: {again[:16]} != saved {saved[:16]}', errs)
+    return not errs, '; '.join(errs + notes)
+
+
+def se_to_playmatch(s, tries=12):
+    """From a season / career menu to the team screen before the next match (MOD. TATTICA + AVVERSARI); the screen."""
+    for _ in range(tries):
+        scr = s.screen()
+        t = scr.texts()
+        if 'MOD. TATTICA' in t and 'AVVERSARI' in t:
+            return scr
+        if '- PARTITA -' in t:
+            press(s, scr, '- PARTITA -', 2)
+        elif 'PARTITA' in t:
+            press(s, scr, 'PARTITA', 2)
+        else:
+            s.send('fire dump:2')
+    return None
+
+
+def se_rows(s):
+    """The entries drawn by DrawPlayerEntries (the player rows)."""
+    v, r = se_vars(), s.result
+    m = r.base2 + s.info['menu']
+    return [i for i in range(s.screen().n)
+            if struct.unpack('<I', r.read(m + 0x16 + i * 0x38 + 0x34, 4))[0] == r.base1 + v['DPE'][1]]
+
+
+@scenario
+def shirt_edit_season():
+    """4.0.2 editable shirt numbers in a SEASON (CLASSIC SEASONS Italy 1947-48, JUVENTUS played by the human): a row's
+    number UP + typed 27, the pin bit; SALVA STAGIONE, reloaded (CARICA VECCHIA COMPETIZIONE): the team screen shows the
+    same numbers, still pinned"""
+    b = nop_league_int3('shirt_edit_season')
+    errs, notes = [], []
+    with Session('shirt_edit_season', b, {}, 'dump:2', 300) as s:
+        s.wait()
+        for t in ('STAGIONE', 'STAG. STORICHE', 'ITALIA 1947-48', 'JUVENTUS'):
+            if press(s, s.screen(), t, 2) is None:
+                return False, f'{t} not reached ({s.result})'
+        for _ in range(14):                     # the STAGIONE button, right of ABBANDONA
+            scr = s.screen()
+            if scr.entries[scr.selected][1] == 'STAGIONE':
+                break
+            s.send(('right' if scr.entries[scr.selected][1] == 'ABBANDONA' else 'down') + ' dump:0.5')
+        s.send('fire dump:3')
+        if se_to_playmatch(s) is None:
+            return False, f'no team screen ({s.screen()})'
+        rows = se_rows(s)
+        check(len(rows) == 17, f'{len(rows)} player rows', errs)
+        _, n0, p0, sq = se_team(s)
+        se_goto(s, rows[5])
+        s.send('left dump:1')
+        s.send('up dump:1')
+        s.send('2 7 dump:1')
+        s.send('enter dump:1')
+        _, n1, p1, _ = se_team(s)
+        ch = [i for i in sq if n0[i] != n1[i]]
+        check(27 in [n1[i] for i in sq] and len({n1[i] for i in sq}) == 16 and p1 & 0x80,
+              f'edit: {[n1[i] for i in sq]} pin {p1:#x}', errs)
+        notes.append(f'{[n0[i] for i in sq]} -> {[n1[i] for i in sq]}')
+        for _ in range(6):
+            scr = s.screen()
+            if 'SALVA STAGIONE' in scr.texts():
+                break
+            press(s, scr, 'ESCI', 2) or s.send('fire dump:2')
+        press(s, s.screen(), 'SALVA STAGIONE', 2)
+        s.send(name_entry('shirts') + ' dump:3')
+        game = s.result.game
+    saves = [f for f in os.listdir(game) if f.upper().endswith('.SEA')]
+    if not saves:
+        return False, '; '.join(errs + notes + [f'no .SEA saved ({sorted(os.listdir(game))})'])
+    path = os.path.join(game, saves[0])
+    with Session('shirt_edit_season2', b, {saves[0]: path}, 'dump:2', 300) as s:
+        s.wait()
+        press(s, s.screen(), 'CARICA VECCHIA COMPETIZIONE', 2)
+        if press(s, s.screen(), 'SHIRTS', 3, exact=False) is None:
+            return False, '; '.join(errs + notes + [f'reload: SHIRTS not listed ({s.screen()})'])
+        if se_to_playmatch(s) is None:
+            return False, '; '.join(errs + notes + [f'reload: no team screen ({s.screen()})'])
+        _, n2, p2, _ = se_team(s)
+        check([n2[i] for i in sq] == [n1[i] for i in sq] and p2 & 0x80, f'reloaded: {[n2[i] for i in sq]} pin {p2:#x}', errs)
+    return not errs, '; '.join(errs + notes)
+
+
 @scenario
 def save_devname():
     """4.0.2: DOS device names refused as save names (devname.py): JUVE2F loaded, SALVA CARRIERA as CON / NUL / LPT1 /
@@ -3925,8 +4173,8 @@ def menu_glyphs(r, spr):
 def menu_numbers():
     """3.3.4: shirt numbers 17..99 in the menus. MOD. TATTICA > UTN A (LEICESTER CITY's squad): its players poked to
     17..32, the pitch redrawn: the little numbers 12..99 are the new sprites 1620.. (menunum; the game's small numbers
-    are 1..11 only), each one = tens digit, 1 pixel, units digit of the menu's own small digits (rebuilt here from
-    sprites 162..171). MENU_PATH: the menu entries in another language (English: 'EDIT TACTICS,USER_A')"""
+    are 1..11 only), each one = tens digit then units digit of the menu's own small digits, side by side as the
+    menu's own "10" (4.0.2; 3.3.4 had a 1-pixel gap; rebuilt here from sprites 162..171). MENU_PATH: the menu entries in another language (English: 'EDIT TACTICS,USER_A')"""
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import lepatch
     import shirtnum
@@ -3964,9 +4212,9 @@ def menu_numbers():
                 w, nl = struct.unpack_from('<hh', h, 10)
                 px = r.read(struct.unpack('<I', h[:4])[0], nl * 8)
                 got = [[(px[y * 8 + x // 2] >> (0 if x & 1 else 4)) & 15 for y in range(nl)] for x in range(w)]
-                want = g[n // 10] + [[0] * nl] + g[n % 10]
+                want = g[n // 10] + g[n % 10]
                 check(got == want and struct.unpack_from('<h', h, 22)[0] == menunum.NEWBASE + n - 12,
-                      f'{n}: sprite differs from tens + gap + units', errs)
+                      f'{n}: sprite differs from tens + units', errs)
             info.append(f'{len(recs)} copies of LEICESTER poked to 17..32; sprites 12..99 built, checked 12 17 20 23 32 '
                         f'41 99')
     return not errs, '; '.join(errs + info) + f' (screenshot runs/menu_numbers/shots/menu_numbers.png)'

@@ -26,7 +26,13 @@ SWAPLEN = 46                           # the shirt swap block: 10 instructions, 
 ASM = r"""
 bn_bench:                               ; replaces SetBenchPlayersNumbers' `mov esi, [A0]`
     call bn_world
+    jnz .keep
+    push esi
+    mov esi, [A0]                       ; (the team)
+    test byte [esi + PIN_AT], PIN_BIT   ; 4.0.2: a team whose numbers the player edited (shirtedit.py)
+    pop esi
     jz .game
+.keep:
     add esp, 4                          ; squad-number world: return from SetBenchPlayersNumbers itself
 .game:
     mov esi, [A0]
@@ -34,7 +40,10 @@ bn_bench:                               ; replaces SetBenchPlayersNumbers' `mov 
 
 bn_swap:                                ; replaces a shirt swap block's `mov esi, [A0]`
     call bn_world
+    jnz .keep
+    call bn_pinned                      ; 4.0.2: the swapped player's team has edited numbers
     jz .game
+.keep:
     add dword [esp], SWAPLEN_ - 5       ; squad-number world: on after the block (positions are swapped already)
 .game:
     mov esi, [A0]
@@ -43,7 +52,10 @@ bn_swap:                                ; replaces a shirt swap block's `mov esi
 bn_buy:                                 ; replaces `add word [careerNumPlayers], 1` after a purchase (cseg_56379)
     add word [CNP], 1
     call bn_world
+    jnz .free
+    test byte [CT + PIN_AT], PIN_BIT
     jz .r
+.free:
     pushad
     movzx ebx, word [REGS + 4]          ; D1 = the new player's slot (pushed around SetBenchPlayersNumbers)
     call bn_free
@@ -55,7 +67,10 @@ bn_new:                                 ; replaces `mov esi, [A0] / mov byte [es
     mov esi, [A0]                       ; (cseg_52956) or the game's reserve / trial player (cseg_64B80)
     mov byte [esi + 4Eh], 16
     call bn_world
+    jnz .free
+    test byte [CT + PIN_AT], PIN_BIT
     jz .r
+.free:
     pushad
     lea eax, [esi + 4Ch]
     sub eax, CT + 76
@@ -147,6 +162,45 @@ bn_world:                               ; ZF clear = a career in a squad-number 
     pop eax
     ret
 
+bn_pinned:                              ; ZF clear = the player [A0] (+4Ch: his record) is in a team with PIN_BIT:
+    pushad                              ; the team pointers of the swap sites' own functions, the career club, the
+    mov eax, [A0]                       ; play-match copy (a team record = 76 + 38 per slot; 32 slots at most)
+    add eax, 76
+    mov esi, BN_TEAMS
+.t:
+    mov ebx, [esi]
+    test ebx, ebx
+    jz .no
+    add esi, 5
+    cmp byte [esi - 1], 0               ; 0: a pointer variable, 1: the record itself
+    jne .rec
+    mov ebx, [ebx]
+    test ebx, ebx
+    jz .t
+.rec:
+    mov ecx, eax
+    sub ecx, ebx
+    sub ecx, 76                         ; (unsigned: a pointer below the record wraps above the limit)
+    cmp ecx, 38 * 32
+    jae .t
+    push eax
+    mov eax, ecx
+    xor edx, edx
+    mov ecx, 38
+    div ecx
+    pop eax
+    test edx, edx
+    jnz .t
+    test byte [ebx + PIN_AT], PIN_BIT
+    jz .t
+    popad
+    or esp, esp                         ; ZF = 0
+    ret
+.no:
+    popad
+    cmp eax, eax                        ; ZF = 1
+    ret
+
 bn_used: times 100 db 0
 BN_TAB:
 """
@@ -190,16 +244,55 @@ def sites(p):
     return b[0], s, a0, gt.pop(), sl.pop(), dict(buy=buy[0], new=new, cnp=cnp, ct=ct, cmp=cmp)
 
 
+PIN_AT, PIN_BIT = 23, 0x80     # 4.0.2 (shirtedit.py): TeamFile byte 23 (bit 0 = the game's training-match flag, the
+                                # rest 0 in every team file; TeamInit clears bit 0 only) bit 7 = numbers edited
+
+
+def team_vars(p, swaps, a0):
+    """For each swap block, the team pointer variable last loaded into A0 before it (`mov eax, [v]; mov [A0], eax`, within
+    0x400 bytes: the squad screen's team, playMatchTeam1Ptr, chooseTacticsTeamPtr ...), and the records compared with
+    PlayMatchMenuSwapPlayers' one (`cmp dword [playMatchTeam1Ptr], offset X`: currentTeam, careerTeam - the copies it
+    can point at)."""
+    d1 = p.le.obj_bytes(1)
+    pk = struct.pack('<I', a0)
+    out, last = [], []
+    for s in swaps:
+        hit = None
+        for m in re.finditer(rb'\xa1(....)\xa3' + re.escape(pk), d1[s - 0x400:s], re.S):
+            try:
+                t = p.target(1, s - 0x400 + m.start(1))
+            except AssertionError:
+                continue
+            if t[0] == 2:
+                hit = t
+        last.append(hit)
+        if hit and hit not in out:
+            out.append(hit)
+    pm1 = last[1]                                   # (swaps[1] = PlayMatchMenuSwapPlayers)
+    cur = set()
+    for m in re.finditer(rb'\x81\x3d' + re.escape(struct.pack('<I', pm1[1])) + rb'(....)', d1, re.S):
+        try:
+            cur.add(p.target(1, m.start(1)))
+        except AssertionError:
+            pass
+    assert len(out) >= 2 and cur, (out, cur)
+    return out, sorted(cur)
+
+
 def patch(p, cave, nasmcave, worlds):
-    """worlds: the world numbers with squad numbers. Returns the cave end (nothing done without such worlds)."""
+    """worlds: the world numbers with squad numbers (may be empty: 4.0.2's edited teams use the same hooks). Returns the
+    cave end."""
     import careerworld
-    if not worlds:
-        return cave
     bench, swaps, a0, gametype, slt, sq = sites(p)
+    tv, cur = team_vars(p, swaps, a0)
     src = ASM + ''.join(f'    db {n}\n' for n in worlds) + '    db 0\n'
-    sym = {'A0': (2, a0), 'GAMETYPE': gametype, 'SLT': slt, 'WORLD_BYTE': (0, careerworld.WORLD_BYTE),
+    src += 'BN_TEAMS:\n' + ''.join(f'    dd TV{i}\n    db 0\n' for i in range(len(tv)))
+    src += ''.join(f'    dd CUR{i}\n    db 1\n' for i in range(len(cur))) + '    dd CT\n    db 1\n    dd 0\n'
+    sym = {f'TV{i}': v for i, v in enumerate(tv)}
+    sym.update({f'CUR{i}': v for i, v in enumerate(cur)})
+    sym.update({'PIN_AT': (0, PIN_AT), 'PIN_BIT': (0, PIN_BIT),'A0': (2, a0), 'GAMETYPE': gametype, 'SLT': slt, 'WORLD_BYTE': (0, careerworld.WORLD_BYTE),
            'SWAPLEN_': (0, SWAPLEN), 'CNP': (2, sq['cnp']), 'CT': (2, sq['ct']), 'CMP': (2, sq['cmp']),
-           'REGS': (2, a0 - 32)}
+           'REGS': (2, a0 - 32)})
     cave = (cave + 3) & ~3
     code, fix = nasmcave.assemble(src, cave, sym)
     lab = nasmcave.labels(src, cave, sym)
@@ -215,7 +308,8 @@ def patch(p, cave, nasmcave, worlds):
     for site in sq['new']:                           # mov esi,[A0]; mov byte [esi+4Eh],16 -> call bn_new; 5 x nop
         p.remove(1, site + 2)
         p.put(1, site, b'\xe8' + struct.pack('<i', lab['bn_new'] - (site + 5)) + b'\x90' * 5)
-    print(f'exe: real squad numbers in worlds {worlds}: SetBenchPlayersNumbers obj1+{bench:#x}, '
+    print(f'exe: real squad numbers in worlds {worlds} + edited teams (team vars {[hex(v[1]) for v in tv]}, copies '
+          f'{[hex(v[1]) for v in cur]}): SetBenchPlayersNumbers obj1+{bench:#x}, '
           f'swaps {", ".join(hex(x) for x in swaps)}, purchase {sq["buy"]:#x}, new {[hex(x) for x in sq["new"]]}, '
           f'code obj1+{cave:#x}..{cave + len(code):#x}')
     return (cave + len(code) + 3) & ~3

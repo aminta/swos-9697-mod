@@ -60,7 +60,7 @@ machine=svga_s3
 memsize=32
 [cpu]
 core={core}
-cputype=pentium
+cputype={cputype}
 cycles={cycles}
 turbo={turbo}
 stop turbo on key=false
@@ -413,7 +413,7 @@ class Dosbox:
         conf = CONF if not os.environ.get('SWOSTEST_NOEXIT') else CONF.replace('{exe}\nexit\n', '{exe}\n')
         if os.environ.get('SWOSTEST_MEMSIZE'):         # (experiments: DOSBox-X memory in MB; dumps still read 32 MB)
             conf = conf.replace('memsize=32', 'memsize=' + os.environ['SWOSTEST_MEMSIZE'])
-        conf = conf.format(cycles=os.environ.get('CYCLES', 'max'), core=os.environ.get('CORE', 'dynamic'), iso=ISO,
+        conf = conf.format(cputype=os.environ.get('SWOSTEST_CPUTYPE', 'pentium'), cycles=os.environ.get('CYCLES', 'max'), core=os.environ.get('CORE', 'dynamic'), iso=ISO,
                            exe=exe, turbo='false' if os.environ.get('TURBO') == '0' else 'true',
                            joy=f"[joystick]\njoysticktype={os.environ['SWOSTEST_JOY']}\n" if os.environ.get('SWOSTEST_JOY') else '')   # (none / auto / 2axis ...)
         open(os.path.join(run, 'test.conf'), 'w').write(conf)
@@ -3822,7 +3822,10 @@ def shirt_numbers():
     open(team, 'wb').write(d)
     spr = shirtnum.spr_index(lepatch.LEPatch(os.path.join(b, 'ITALIAN.EXE')))
     errs = []
-    with Session('shirt_numbers', b, {'DATA/TEAM.014': team}, 'dump:3', 300, match=True) as s:
+    cars = {'DATA/TEAM.014': team}
+    if os.environ.get('DKB_SETUP'):                  # (half / EGA mode: GOG's factory SETUP.DAT)
+        cars['SETUP.DAT'] = os.environ['DKB_SETUP']
+    with Session('shirt_numbers', b, cars, 'dump:3', 300, match=True) as s:
         s.wait()
         for t in ('AMICHEVOLE', 'OK', 'SCEGLI SQUADRE', 'SQUADRE CLUB', 'EUROPA', 'GERMANIA', '1. LIGA', 'HAMBURG'):
             walk(s, t, 2)
@@ -10351,6 +10354,12 @@ def world_seasonend_titles():
     return not errs, '; '.join(errs + info)
 
 
+def dkb_half():
+    """DKB_SETUP's SETUP.DAT puts the game in half / EGA mode (video speed, byte 12, <= 85: GOG's factory file)."""
+    f = os.environ.get('DKB_SETUP')
+    return bool(f) and open(f, 'rb').read()[12] <= 85
+
+
 def dkb_sets(r, spr, blond, info):
     """In a running match: every frame of the darkblond sets (blond.NEW1 / NEW2, 101 each) against the same frame of
     the team's black-skin set (543.. / 846..): the same width / lines and the same pixel positions, differing only in
@@ -10358,11 +10367,17 @@ def dkb_sets(r, spr, blond, info):
     errs = []
     nib = lambda data: [x >> 4 for x in data] + [x & 15 for x in data]
     idx = lambda i: struct.unpack('<I', r.read(r.base2 + spr + i * 4, 4))[0]
+    planar = dkb_half()                         # half / EGA mode: sprites 309.. as 4 bitplanes (DoUnchainSprite)
+
+    def unplane(data):
+        q = len(data) // 4                      # plane k at k * q: bit k of 8 pixels per byte, first pixel = MSB
+        return [sum(((data[k * q + j] >> (7 - t)) & 1) << k for k in range(4)) for j in range(q) for t in range(8)]
 
     def frame(i):
         h = r.read(idx(i), 24)
         wq, nl = struct.unpack_from('<hh', h, 14)[0], struct.unpack_from('<h', h, 12)[0]
-        return wq, nl, nib(r.read(struct.unpack('<I', h[:4])[0], wq * 8 * nl))
+        data = r.read(struct.unpack('<I', h[:4])[0], wq * 8 * nl)
+        return wq, nl, unplane(data) if planar else nib(data)
     for tag, raw, black, new in (('team 1', 341, 543, blond.NEW1), ('team 2', 644, 946 - 100, blond.NEW2)):
         size = 0
         for k in range(101):
@@ -10414,7 +10429,8 @@ def world_darkblond():
     nib = lambda data: [x >> 4 for x in data] + [x & 15 for x in data]
     errs, info = [], []
     team = os.environ.get('DKB_TEAM', 'EUROPA,ITALIA,SERIE A,ROMA').split(',')
-    with Session('world_darkblond', b, {}, 'dump:2', 600, match=True) as s:
+    cars = {'SETUP.DAT': os.environ['DKB_SETUP']} if os.environ.get('DKB_SETUP') else {}   # (GOG's factory file:
+    with Session('world_darkblond', b, cars, 'dump:2', 600, match=True) as s:             # video speed 10 = half mode)
         s.wait()
         for t in ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27'] + team:
             if press(s, s.screen(), t, 3) is None:

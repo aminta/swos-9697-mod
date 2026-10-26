@@ -2235,6 +2235,9 @@ Left for 2.5: (a) NSL/NSSL finals series (type-1 design) or declare them postpon
 12. teamstab 82fc0bb (Serie C: teamsTable 100 -> 256 B, stray club-button colours in the career team choice / domestic-buy
    club list, Italy 2026-27 Serie D) -> 9258d42, roundtrip PASS. rc1 list += team_choice_colours (TEAMCOL_BUILD = the rc dir).
    4.0.2 code final.
+- origin/main d44fa51 (LICENSE, MIT for the code) merged -> ae70f41.
+- MiSTer beta 4: c/REL402b4 = ae70f41 on world5tm-402rc3 (IT CD 9f0472cf, GOG IT 8e4a54ac; vs REL402b3: FMT{DE,EN,FR,IT}5.DAT +
+  the 8 exes). roundtrip, controls_menu, team_choice_colours (TEAMCOL_BUILD = b4) PASS.
 
 ## Deferred realism (4.0.2+)
 - Moldova's h2h_half groups start at 0 points (package 6, 2026-10-24; pre-existing, not option C).

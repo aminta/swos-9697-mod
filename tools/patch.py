@@ -601,6 +601,8 @@ def patch_exe(src, dst, remap, lang='it'):
     import controls                              # 4.0.2: OPTIONS > CONTROLS (keys, device, calibration, SETUP.DAT)
     ctl_at = hist2 + h2 + 0x1000 * (lpb + sp_pg + sc_pg + ct_pg)
     ctl_end = controls.patch(p, ctl_at, lang, area)
+    import subsnum                               # 4.0.2: two-digit numbers in the in-match bench list (names +6 px)
+    ctl_end = subsnum.patch(p, ctl_end)
     import tailzero                              # 4.0.2: the stub that zeroes obj2's tail at startup (written below,
     tz_at = (ctl_end + 15) & ~15                 # once the tail's size is known; the cosmetics page is full)
     ctl_end = tz_at + tailzero.SIZE

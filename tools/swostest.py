@@ -10040,6 +10040,51 @@ def world_buycont():
     return not errs, '; '.join(errs + info)
 
 @scenario
+def world_viewcont():
+    """4.0.2 VISUALIZZA MONDO in a historic world's career (careerworld w_view, as w_buy: competitionsTable[254] = the
+    world's W_CONT list): no one-entry 'SCEGLI COMPETIZIONE - MONDO' menu with the violet CARR. STORICHE - a World
+    2026-27 career at CORDOBA lands on the world's cups and continents (EUROPA > ITALIA lists SERIE A, SERIE B), a
+    1984-85 one at LIVERPOOL on the world's countries (ITALIA), a 1996-97 one at JUVENTUS on the game's own continents
+    (no CARR. STORICHE either); ABBANDONA back to the career menu, from that list and
+    at once from the first one (release recipe, SWOSTEST_BUILD)"""
+    errs, info = [], []
+    for tag, path, want, then in (
+            ('w2627', ['CARR. STORICHE', 'MONDO 2026-27', 'EUROPA', 'SPAGNA', 'SEGUNDA DIVISION', 'CORDOBA'],
+             ('EUROPA', 'AFRICA', 'SUDAMERICA'), ('EUROPA', 'ITALIA')),
+            ('w8485', ['CARR. STORICHE', 'EUROPA 1984-85', 'INGHILTERRA', 'FIRST DIVISION', 'LIVERPOOL'],
+             ('ITALIA', 'JUGOSLAVIA'), ('ITALIA',)),
+            ('w9697', ['EUROPA', 'ITALIA', 'SERIE A', 'JUVENTUS'], ('EUROPA', 'SUDAMERICA'), ('EUROPA', 'ITALIA'))):
+        with Session(f'world_viewcont_{UI}_{tag}', builds()['it'], {}, 'dump:2', 900) as s:
+            s.wait()
+            for t in ['CARRIERA', 'SCEGLI SQUADRA'] + path:
+                if press(s, s.screen(), t, 3) is None:
+                    return False, f'{tag}: {t} not reached: {[e[1] for e in s.screen().entries if e[1]]}'
+            s.send('fire dump:3')
+            for back in (False, True):                  # (twice: the second time ABBANDONA at once)
+                if press(s, s.screen(), 'VISUALIZZA MONDO', 3) is None:
+                    return False, f'{tag}: no VISUALIZZA MONDO: {s.screen().texts()[:12]}'
+                top = [e[1] for e in s.screen().entries if e[1] and not e[2]]
+                if not back:
+                    s.shot('view_' + tag)
+                    check(all(x in top for x in want) and 'CARR. STORICHE' not in top, f'{tag}: first list {top}', errs)
+                    info.append(f'{tag}: first list {top[:8]}')
+                    for t in then:
+                        if press(s, s.screen(), t, 3) is None:
+                            return False, f'{tag}: {t} not reached: {[e[1] for e in s.screen().entries if e[1]]}; ' + \
+                                '; '.join(errs)
+                    got = [e[1] for e in s.screen().entries if e[1] and not e[2]]
+                    check('SERIE A' in got and 'SERIE B' in got, f'{tag}: {then[-1]}: {got}', errs)
+                    info.append(f'{tag} {then[-1]}: {got[1:5]}')
+                for _ in range(8):                      # ESCI / ABBANDONA up to the career menu
+                    if 'TRASFERIMENTI' in s.screen().texts():
+                        break
+                    ns_exit(s)                          # (lists: no menu links the BFS knows)
+                check('TRASFERIMENTI' in s.screen().texts(), f'{tag}: back {"at once" if back else "from the clubs"}: '
+                      f'{s.screen().texts()[:10]}', errs)
+    return not errs, '; '.join(errs + info)
+
+
+@scenario
 def world_winners_bank():
     """4.0.1 WINNERS 'S' lines read the VIEWED league's stage bank (gplay.c ss_view(GP_WNFILE), read only), not the last
     selected one: a World 2026-27 career at SAPRISSA (Costa Rica: the career's bank 1; release recipe, SWOSTEST_BUILD)
@@ -10058,7 +10103,7 @@ def world_winners_bank():
                 return False, f'new career: {t} not reached'
         s.send('fire dump:3')
         for path in (('SUDAMERICA', 'ARGENTINA', 'LIGA PROFESIONAL'), ('NORDAMERICA', 'USA', 'MAJOR LEAGUE SOCCER')):
-            for t in ('VISUALIZZA MONDO', 'CARR. STORICHE') + path + ('STAT',):
+            for t in ('VISUALIZZA MONDO',) + path + ('STAT',):   # (4.0.2: the world's continents at once)
                 if press(s, s.screen(), t, 3) is None:
                     return False, f'{path[1]}: {t} not reached: {[e[1] for e in s.screen().entries if e[1]]}'
             e = next((x for x in s.screen().entries if x[1] == 'VINCITORI'), None)

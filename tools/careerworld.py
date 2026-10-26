@@ -479,7 +479,7 @@ w_mrec:                                 ; replaces `add word [D1], 1996; add wor
     pop ebx
     jmp %2
 %endmacro
-W_SWAP w_view, CHOOSECOMP, 0
+W_SWAP w_view, CHOOSECOMP, 1               ; (4.0.2, Davide: VIEW WORLD as well - no one-entry CLASSIC CAREERS menu)
 W_SWAP w_buy, CHOOSETEAMS, 1
 
 w_nat:                                  ; replaces `mov ax, [D0]; mov [lastNationalityCall], ax`: no national team

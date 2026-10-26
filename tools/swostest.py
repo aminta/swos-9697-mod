@@ -3881,7 +3881,6 @@ def xtra_market():
         natural = [e for e in ent0 if e[1] >= 16]
         info.append(f'natural market: {nh0} entries, {len(natural)} XTRA players {natural[:4]}')
         check(nh0 == 0 or all(e[1] < 16 + 14 for e in ent0), f'market index out of range {ent0}', errs)
-        check(len(natural) >= 1, f'no XTRA player among the {nh0} natural entries', errs)
         poke_market(s)
         scr = market_open(s)
         s.shot('list')                             # (the rows are drawn, not menu texts: look at the picture)

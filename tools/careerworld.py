@@ -358,9 +358,16 @@ w_noaway:                               ; ZF = 1 in a career of a world from 202
 
 w_away1:                                ; replaces UpdateTime's `cmp word [playing2ndGame], 1` before `jz
     call w_noaway                       ; @@2nd_game_ended` (90': level on the night, the away goals decide)
-    jz .no
+    jz .x
+.p2g:
     cmp word [P2G], 1
     ret
+.x:
+    push esi                            ; (4.0.2: a continental cup whose rule keeps away goals - CONCACAF, CAF:
+    xor esi, esi                        ; conti's ct_away, the loaded contest; not after extra time, w_away2)
+    call w_ct_away
+    pop esi
+    jz .p2g
 .no:
     or esp, esp                         ; (no away goals: not taken -> extra time / penalties as the round says)
     ret
@@ -377,11 +384,15 @@ w_away2:                                ; replaces `mov ax, [playing2ndGame]; or
 
 w_away3:                                ; replaces cseg_2AE97's `cmp word [esi+5Dh], 1` (a simulated two-legged tie
     call w_noaway                       ; level on aggregate after 90': the contest's away-goals flag)
-    jz .no
+    jz .x
     cmp word [esi + 5Dh], 1
     ret
+.x:
+    call w_ct_away                      ; (4.0.2: a continental cup's away goals, esi = its DIY: ZF = 1 -> taken)
+    jz .r
 .no:
     or esp, esp                         ; (no away goals: jnz taken -> extra time / penalties)
+.r:
     ret
 
 w_away4:                                ; replaces its `mov ax, [esi+5Dh]; or ax, ax` (after extra time)
@@ -1002,6 +1013,10 @@ w_q_fill:                               ; patched to `jmp uq_fill` by uefaq.py
 w_ct_fill:                              ; patched to `jmp ct_fill` by conti.py (the other confederations' cups)
     ret
     times 4 nop
+w_ct_away:                              ; patched to `jmp ct_away` by conti.py: ZF = 1 when the contest (esi = its DIY,
+    or esp, esp                         ; 0: the loaded one) keeps away goals after 90' in a world without them
+    ret                                 ; (4.0.2: CONCACAF / CAF); else ZF = 0
+    times 3 nop
 w_chk_tot0q:                            ; the record count before the holders: in a league-phase world the
     call w_q_fill                       ; qualifying rounds' clubs go into the lists first (uefaq)
     call w_ct_fill                      ; (conti: the other confederations' editions, world-wide)

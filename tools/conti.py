@@ -21,7 +21,15 @@ K = {'ko': 0, 'groups': 1, 'league_stage': 1}   # (a league stage: simulated as 
 DRAW = {'order': 0, 'pots2': 1, 'same_assoc_pairs': 2, 'seeded_1v2': 3, 'bracket': 4, 'groups': 5, 'fixed': 6, 'slot': 7,
         'fixed_by_place': 8}
 ASSOC = {'allow': 0, 'any': 0, 'no': 1, 'no_unless_via': 2, 'allow_if_via': 2}
-LEVEL = {'pens': 0, 'et_pens': 1, 'away_pens': 2}
+LEVEL = {'pens': 0, 'et_pens': 1, 'away_pens': 2, 'away_et_pens': 3}   # (3, 4.0.2: CONCACAF - away goals, then
+AWAY = ('away_pens', 'away_et_pens')                                     # extra time, then penalties)
+
+
+def level(rd):
+    """A round's level: 'away_pens' with "extra_time": true in the data is 'away_et_pens' (4.0.2; the data keeps
+    'away_pens' so older code reading the shared internal/conti files plays it as before)."""
+    lv = rd.get('level', 'pens')
+    return 'away_et_pens' if lv == 'away_pens' and rd.get('extra_time') else lv
 CODE = {'cup': 1, 'next': 0x40, 'ap': 0x41, 'cl': 0x42}
 ALIAS = {'r1': 'first', 'playoffs': 'po'}   # (access files' round names -> the format's)
 
@@ -282,7 +290,7 @@ def load(confs, files=None, words=None, s1=None):
             b = bytearray(RB)
             b[0] = K[rd['kind']]
             b[1] = rd.get('legs', 2 if rd['kind'] == 'ko' else 0)
-            b[2] = LEVEL.get(rd.get('level', 'pens'), 0)
+            b[2] = LEVEL.get(level(rd), 0)
             b[3] = 1 if rd.get('host') in ('neutral', 'centralised') else 0
             b[4], b[5] = dr, rule
             if c.get('stepladder'):                     # (the Intercontinental: each club in its slot)
@@ -632,6 +640,40 @@ ct_prep:                                ; CT_SEG a tie -> the ties' contest (its
 .r:
     ret
 
+ct_away:                                ; careerworld w_ct_away (4.0.2): ZF = 1 when the contest - esi = its DIY, 0 the
+    push eax                            ; loaded one (diyFileBufferCopy) - keeps away goals after 90': a cup of
+    push ecx                            ; AWAY_IDS, or our tie's contest when its round's level has them (CT_SEG +5:
+    push esi                            ; 2 away_pens, 3 away_et_pens)
+    test esi, esi
+    jnz .h
+    mov esi, LPDIYC
+.h:
+    mov al, [esi + 2Dh]
+    cmp al, TIE_ID
+    jne .ids
+    cmp byte [CT_SEG + 5], 2
+    jb .no
+    jmp .yes
+.ids:
+    mov ecx, CT_NA
+.l:
+    dec ecx
+    js .no
+    cmp al, [ct_awayids + ecx]
+    jne .l
+.yes:
+    pop esi
+    pop ecx
+    pop eax
+    cmp esp, esp
+    ret
+.no:
+    pop esi
+    pop ecx
+    pop eax
+    or esp, esp
+    ret
+
 ct_gend:                                ; lp36's lp_gend vector: a group stage's end (cseg_8A2CE first, the game's
     pushad                              ; 4.0.1: the career club's place read before it (conti.c ct_gpre: the groups
     push es                             ; as the game ordered them, the club's group complete)
@@ -831,6 +873,8 @@ ct_live: db 0
 ct_gplace: db 0
 ct_gids:
     ;CT_GIDS
+ct_awayids:
+    ;CT_AWAYIDS
 align 4
 ct_seen: dd 0, 0
 ct_structs:
@@ -917,6 +961,8 @@ def patch(p, at, limit, bss_at, area):
                    CT_GEND=syms['ct_gend'], CT_GPRE=syms['ct_gpre'], CT_NG=(0, len(ids)), LP_OURS=(1, lp36.LABELS['lp_copy_ours']),
                    LP_DRAW0=(1, lp36.LABELS['lp_draw']))
     asm = nasmcave.sub(GLUE, "    ;CT_GIDS", '    db ' + ', '.join(str(i) for i in ids))
+    asm = nasmcave.sub(asm, "    ;CT_AWAYIDS", '    db ' + ', '.join(str(i) for i in AWAY_IDS + [0]))
+    symbols['CT_NA'] = (0, len(AWAY_IDS))
     asm = nasmcave.sub(asm, "    ;CT_LP", "\n".join(lp))
     asm = nasmcave.sub(asm, "    ;CT_STRUCTS", "\n".join(f'    dd XST{i}' for i in range(len(STRUCTS))) or '    dd 0')
     asm = nasmcave.sub(asm, "    ;CT_NAMES", "\n".join(f'    dd {r}' for r in NAMES) or '    dd 0')
@@ -956,6 +1002,8 @@ def patch(p, at, limit, bss_at, area):
     p.put(1, site + 1, rel(site, lab['ct_daily']))
     a = cw.LABELS['w_ct_fill']
     p.put(1, a, b'\xe9' + rel(a, lab['ct_fill']))
+    a = cw.LABELS['w_ct_away']                          # (4.0.2: continental cups' away goals in a world without them)
+    p.put(1, a, b'\xe9' + rel(a, lab['ct_away']))
     assert struct.unpack('<I', p.get(1, syms['CT_LAYOUT'][1] + 4, 4))[0] == ST_SIZE      # (engine item 'CT')
     engine.ITEM_AT['CT'] = syms['CT_ST']
     assert struct.unpack('<I', p.get(1, syms['CT_LAYOUT'][1] + 80, 4))[0] == ED_SIZE
@@ -1166,6 +1214,7 @@ def season1_native(confs, files, words):
 # --- the career club's contests (the slot-3 chain) --------------------------------------------------------------------
 IDS = [0xC6, 0xC7, 0xC8, 0xC9, 0xCA, 0xD0, 0xD1, 0xDA, 0xDD, 0xDE, 0xDF, 0xEC, 0xED, 0xEE, 0xEF]   # (mkseason.RESERVED_IDS)
 STRUCTS = []                            # [(cup index, struct offset, team list offset, list length)]
+AWAY_IDS = []                           # 4.0.2: contest ids of the cups whose two-legged rounds keep away goals
 D7_BASE = [0]                           # (patch.py: sacups' D7 / E092F of the first one)
 NAMES = []                              # each cup's name (rel to sacups.STR_BASE)
 SNAMES = []                             # its short name, the career calendar's first line (complist.fit_short, 70 px)
@@ -1185,7 +1234,7 @@ def _short(c, lang):
 def _legs(rd):
     """The game's round byte: bits 7-6 legs (2), 5-4 extra time, 3-2 penalties."""
     if rd.get('legs', 2) == 2:
-        return 0x94 if rd.get('level') == 'et_pens' else 0x84
+        return 0x94 if level(rd) in ('et_pens', 'away_et_pens') else 0x84
     return 0x14
 
 
@@ -1224,6 +1273,7 @@ def structs(p, area, lang, at):
     cwc = sacups.unique(d2, sacups.CWC_HDR)
     out, kinds = [], []
     STRUCTS.clear()
+    AWAY_IDS.clear()
     NAMES.clear()
     SNAMES.clear()
     CUPROUNDS.clear()
@@ -1275,7 +1325,7 @@ def structs(p, area, lang, at):
                     body[4] = body[3] + 8               # as the game's Intercontinental 58h / 60h)
                 name_at = len(body)
             if rd['kind'] == 'groups':                  # (away goals after 90': the type-2 header's byte; a knockout
-                body[0x0a] = 1 if any(r.get('level') == 'away_pens' for r in rounds) else 0   # header's +0Ah is its
+                body[0x0a] = 1 if any(level(r) in AWAY for r in rounds) else 0   # header's +0Ah is its
                                                                                               # clubs: CONCACAF had 1)
             ws = list(first.get((conf, c['key'])) or [])
             assert len(ws) in (0, n), (c['key'], len(ws), n)
@@ -1293,6 +1343,8 @@ def structs(p, area, lang, at):
             p.put(1, at, blob)
             NAMES.append(rel)
             STRUCTS.append((ci, at, at + name_at + 8, n))
+            if any(level(r) in AWAY and r.get('legs', 2) == 2 for r in rounds):
+                AWAY_IDS.append(cid)
             if rd['kind'] == 'groups':
                 SROUNDS.append([j0] + [rounds.index(r) for r in ko])
                 SKINDS.append(2)

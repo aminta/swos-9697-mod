@@ -9162,6 +9162,93 @@ def world_full_draw():
 
 
 @scenario
+def world_ccc_away():
+    """4.0.2 (regia): the CONCACAF Champions Cup's two-legged ties: aggregate, AWAY GOALS, then extra time (away goals no
+    longer count), then penalties (conti level 'away_et_pens': concacaf.format.json "extra_time"; careerworld w_ct_away
+    / conti ct_away: the 2026-27 world's no-away-goals rule keeps them for conti's away cups after 90'). UNAM PUMAS
+    (season 1: the real round of 16 in slot 3), simdraw's table at 1-1 for every simulated match and, between the legs
+    (forced, rule 15), the round of 16's first legs poked to 2-2 (second legs 1-1: aggregate 3-3, the first leg's away
+    side 2 away goals v 1): PASS = every simulated tie won by its first leg's away side (the quarter-finalists; by
+    penalties 1 in 2 each), and the contest's two-legged round bytes 94h (extra time, then penalties; before 84h =
+    straight to penalties). The career club's own (played) tie: its result screen logged"""
+    global W84_HOOK
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import simdraw
+    from le import LE
+    import split
+    import lepatch
+    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-401rc3')
+    if not os.path.isdir(src):
+        return True, f'SKIP: private data {src} missing'
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    br = os.environ.get('CCC_BRANCH')                   # (a base commit: the FAIL-before run)
+    exe = os.environ.get('CCC_BUILD') or build('world_ccc_away' + ('_' + br if br else ''), env={
+        'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order])}, branch=br)
+    d2 = LE(open(os.path.join(exe, 'ITALIAN.EXE'), 'rb').read()).obj_bytes(2)
+    tab = simdraw.table()
+    at = [m.start() for m in re.finditer(re.escape(tab), d2)]
+    if len(at) != 1:
+        return False, f'simdraw table found {len(at)} times'
+    sp = split.sites(lepatch.LEPatch(os.path.join(MAIN, 'orig', 'ITALIAN.EXE')))['SLOTS']
+    seen = {}
+
+    def hook(s, season, scr):
+        lin = struct.unpack('<I', s.result.obj2(sp + 12, 4))[0]    # slot 3
+        if not lin:
+            return
+        d = s.result.read(lin, 0x450)
+        c = slot_scores(d)
+        if c['legs'] != 2 or not 0 < c['n'] <= 16:
+            return
+        seen.setdefault('id', c['id'])
+        if c['round'] == 0 and not c['leg2'] and 'r16' not in seen:
+            seen['r16'] = [(a, b) for a, b, *_ in c['ties']]      # (first legs: home, away)
+        if c['round'] == 1 and 'qf' not in seen:
+            seen['qf'] = {x for a, b, *_ in c['ties'] for x in (a, b)}
+        if c['round'] == 0 and c['leg2'] and not seen.get('poked'):
+            for t in range(c['n']):
+                s.poke(lin + 0x14D + 2 * t, b'\x02\x02')
+                s.box.pump(0.05)
+            seen['poked'] = True
+        if seen.get('log') != (c['round'], c['leg2']):
+            seen['log'] = (c['round'], c['leg2'])
+            open(os.path.join(s.run, 'ccc.log'), 'a').write(f"{c['id']:#x} r{c['round']} n{c['n']} leg2 {c['leg2']} " + ' '.join(f'{a:#x}-{b:#x}:{fl:02x}/{sc:04x}/{f1:04x}' for a, b, fl, sc, f1 in c['ties']) + '\n')
+    W84_HOOK = hook
+    keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_ONE', 'W8485_FILL')
+    keep = {k: os.environ.get(k) for k in keys}
+    os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_FILL=f'{at[0]:x}:11:{len(tab)}',
+                      W8485_TEAM=os.environ.get('CCC_TEAM', 'NORDAMERICA,MESSICO,LIGA MX,UNAM PUMAS'),
+                      W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1', W8485_ONE='1')
+    try:
+        ok, msg = world8485()
+    finally:
+        W84_HOOK = None
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    errs = []
+    check(ok, msg, errs)
+    log = os.path.join(RUNS, w84_tag() + '_1', 'session.log')
+    own = [re.sub(r'\s+', ' ', x).strip() for ln in (open(log, errors='replace') if os.path.exists(log) else [])
+           if 'CHAMPIONS CUP' in ln and 'RITORNO' in ln for x in ln.split('|') if 'VINCE' in x]
+    r16, qf = seen.get('r16') or [], seen.get('qf') or set()
+    sim = [(a, b) for a, b in r16 if (a in qf) != (b in qf)]
+    away_won = sum(1 for a, b in sim if b in qf)
+    check(len(r16) == 8 and len(sim) == 8 and away_won >= 7, f'round of 16 (first legs 2-2, second 1-1): {away_won} of '
+          f'{len(sim)} ties won by the first leg\'s away side (want all but the career club\'s)', errs)
+    d1 = LE(open(os.path.join(exe, 'ITALIAN.EXE'), 'rb').read()).obj_bytes(1)   # the contest's round bytes (obj1:
+    cid = seen.get('id', 0)                                                    # header, 16 clubs, rounds from +0Eh)
+    ks = [i for i in range(len(d1) - 20) if d1[i] == cid and d1[i + 10] == 16 and d1[i + 14] in (0x84, 0x94)]
+    rb = list(d1[ks[0] + 14:ks[0] + 18]) if len(ks) == 1 else []
+    check(rb == [0x94, 0x94, 0x94, 0x14], f'contest {cid:#x} round bytes {[hex(x) for x in rb]} ({len(ks)} found; want '
+          f'94h x 3: extra time after the away goals, the final 14h)', errs)
+    return not errs, '; '.join(errs) or (f'{msg[:120]}; contest {seen.get("id", 0):#x}: {away_won} of 8 round-of-16 ties '
+                                         f'on away goals, round bytes {[hex(x) for x in rb]}; own tie {own[:2]}')
+
+
+@scenario
 def world_away_goals():
     """Away goals (integrator 6b58a43, regia 2026-10-19): a level aggregate with different away goals. (a) Full 2026-27
     world at PALMEIRAS (slot 1, the Copa do Brasil's two-legged rounds): simdraw's table at 1-1 and, between the

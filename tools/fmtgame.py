@@ -874,6 +874,8 @@ def win_lines(comp, div, k, cc='', tfile=None):
     """The SEASON WINNERS page of division k of a league: {lang: [(title, source)]}, {} when it has no title beyond its
     table (the page's entry stays hidden). Sources (winners.py wn_src): 'L' the table's 1st once the league is over;
     'K' + pi (2 hex digits) the last tie's winner of play-off pi (gplay GP_ST.ko: the career club's, played);
+    'Q' + rule + pi (4.0.2) a national title play-off seeded by gplay.c title_seed (1 Uruguay, 2 Peru), as 'K' - and
+    its champion once one club has won both tournaments (the play-off is not played);
     'D' + stage + pi + ss a stage title decided mid-season (GP_ST.dec[stage], pi its play-off), in progress once the
     league has played more than ss days (its stage started; FFh: once its knockout is built)."""
     pos = comp.get('ko_playoffs') or []
@@ -885,7 +887,9 @@ def win_lines(comp, div, k, cc='', tfile=None):
             continue
         title_po |= po.get('kind') == 'title' and divs == {k}       # (its champion is not the table's 1st)
         st = po.get('stage') if po.get('kind') == 'stage_title' else None
-        src = f'D{st}{pi:02X}{_stage_start(div, po):02X}' if st is not None and 0 <= st < 3 else f'K{pi:02X}'
+        seed = next((e.get('rule') for e in po.get('entrants') or [] if isinstance(e, dict) and 'title_seed' in e), None)
+        src = f'D{st}{pi:02X}{_stage_start(div, po):02X}' if st is not None and 0 <= st < 3 else \
+            f"Q{ {'uru': 1, 'per': 2}[seed]}{pi:02X}" if seed in ('uru', 'per') else f'K{pi:02X}'
         for lang in LANGS:
             own = _wn_title(cc, po.get('key'), lang)
             if own and po.get('kind') == 'title':           # (Davide: 'PLAYOFF - MLS CUP', the title it gives)

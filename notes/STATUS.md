@@ -2225,3 +2225,11 @@ Left for 2.5: (a) NSL/NSSL finals series (type-1 design) or declare them postpon
 - Counts on the 4.0 rc data (wrong starters before -> after): 2026-27 clubs 2477 (0 exact -> 2281 exact, 196 best the squad
   allows), 1984-85 clubs 277 (21 original, 256 exact), 1984-85 national 18x all exact; 78 tourney/national records
   (TEAM.089-093, 146) keep their explicit hand-written lineups, which start worse than the squad allows (lineupcheck KNOWN_EXPLICIT).
+
+## 4.0.2 extended squads: 17-30 real players (branch xsq-402, 2026-10-26)
+- Engine unchanged (xtra.py hook already merged); limit raised: `extra` 1..14 (16 + 14 = 30, the game's filler cap), MAX_EXTRA 14.
+- Data: internal/world2526/mkworld_tm.py `TM_EXTRA=14` (default stays 9 = 25-man until Regia switches the release recipe; `1` = 9, `0` = off):
+  next most valuable players of the club, a 3rd keeper among them, fairness cap kept. 91 packs, 92 XTRA files, 1.3 MB; 71 clubs have 30.
+- Test: scenario `xtra_world30` (XTRA30_BUILD): CELLE VARAZZE 30 players, STEFANO CHIAIA the 30th, two seasons + save/reload.
+  Old 4.0.1-style save (25 players, made on a TM_EXTRA=9 build) loads and plays a season on the 30-man build; career_20seasons x3 (Celle Varazze) PASS;
+  xtra_squad, xtra_season PASS.

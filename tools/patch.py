@@ -270,7 +270,8 @@ def patch_exe(src, dst, remap, lang='it'):
     if ct_pg:
         engine.save_item('CT', conti.ST_SIZE, world_only=True)
         engine.save_item('CE', conti.ED_SIZE, world_only=True)          # (phase B: the edition being played, conti.c CT_ED)
-    for _ in range((6 + cp + 2 + 2 * cdp if worlds else 6) + lpb + sp_pg + sc_pg + ct_pg):  # (+1: the UEFA league phase's page, lp36)
+    ctl_pg = 1                                         # 4.0.2: the CONTROLS page (controls.py), the last page
+    for _ in range((6 + cp + 2 + 2 * cdp if worlds else 6) + lpb + sp_pg + sc_pg + ct_pg + ctl_pg):  # (+1: the UEFA league phase's page, lp36)
         data = add_object_page(data, 1)
     mkseason.CAREER_CAVE[0] = CAREER_CAVE if worlds else None
     mkseason.CAREER_DATA[0] = CAREER_DATA + 0x1000 * (cp - 2) if worlds else None
@@ -296,6 +297,9 @@ def patch_exe(src, dst, remap, lang='it'):
     for _ in range(-(-len(historic.draw_table()) // 0x1000) if mkseason.multi_ns() else 0):   # several worlds: draws in obj2
         o2pages += 1
         data = add_object_page(data, 2)
+    o2pages += 2                                     # 4.0.2: the CONTROLS page's texts, key names and menu
+    data = add_object_page(data, 2)
+    data = add_object_page(data, 2)
     if mkseason.league_phase_cups() or mkseason.league_phase_worlds():   # UEFA league phase: the draw's buffers
         o2pages += 2
         data = add_object_page(data, 2)
@@ -580,7 +584,11 @@ def patch_exe(src, dst, remap, lang='it'):
             statespec.sim_patch(p, sc_at + 0x1000)  # statesim.c: every state's stage 1 + relegation at the season end
     if ct_pg:                                    # the other confederations' cups (conti.c): after statecup's pages
         conti.patch(p, ct_code, ct_at + 0x1000 * ct_pg, ct_bss, area)
-    p.set_vsize(1, OBJ1_NEW_VSIZE + (0x1000 * (cp + 2 + cdp) if worlds else 0) + h2 + 0x1000 * (lpb + sp_pg + sc_pg + ct_pg))
+    import controls                              # 4.0.2: OPTIONS > CONTROLS (keys, device, calibration, SETUP.DAT)
+    ctl_at = hist2 + h2 + 0x1000 * (lpb + sp_pg + sc_pg + ct_pg)
+    ctl_end = controls.patch(p, ctl_at, lang, area)
+    assert ctl_end <= ctl_at + 0x1000 * ctl_pg, hex(ctl_end)
+    p.set_vsize(1, OBJ1_NEW_VSIZE + (0x1000 * (cp + 2 + cdp) if worlds else 0) + h2 + 0x1000 * (lpb + sp_pg + sc_pg + ct_pg + ctl_pg))
     tail = (careerworld.BSS_SIZE if bigw else 0) + shirtnum.BSS_SIZE + blond.BSS_SIZE + menunum.BSS_SIZE + fmtpage.BSS_SIZE   # obj2 tail
     p.set_vsize(2, obj2_free + o2pages * p.le.page_size + tail, bss=tail)
     p.add_flags(1, 0x2)            # writable: season end rewrites the SA cup team lists in the cave

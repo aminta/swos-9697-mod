@@ -170,7 +170,7 @@ def mkseason_now():
     return importlib.reload(mkseason)
 
 
-def build(name, env=None, branch=None):
+def build(name, env=None, branch=None, lang='it'):
     """Build the IT exe + team files into internal/swostest/builds/<name>-<key> (build_key: from this checkout or a
     git branch, with the build-affecting environment) - its own dir per build, so sessions never overwrite each
     other's exes; an existing dir of the same key is reused. Built in <dir>.tmp<pid>, then renamed into place."""
@@ -195,7 +195,7 @@ def build(name, env=None, branch=None):
             "out=sys.argv[1]\n"
             "with contextlib.redirect_stdout(io.StringIO()):\n"
             "    r=patch.patch_teams('orig/DATA/TEAM.020',out+'/DATA/TEAM.020'); patch.write_new_teams('orig/DATA',out+'/DATA')\n"
-            "    patch.patch_exe('orig/ITALIAN.EXE',out+'/ITALIAN.EXE',r,'it')\n")
+            f"    patch.patch_exe('orig/{UI_ORIG_OF[lang]}',out+'/ITALIAN.EXE',r,'{lang}')\n")   # (lang: run as ITALIAN.EXE)
     try:
         subprocess.run([sys.executable, '-c', code, tmp], cwd=src, check=True, env=dict(os.environ, **(env or {})))
         try:
@@ -710,6 +710,7 @@ if UI != 'it':
 UI_MAP = json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'swostest_lang.json'))).get(UI, {}) \
     if UI != 'it' else {}
 UI_ORIG = {'it': 'ITALIAN', 'en': 'ENGLISH', 'fr': 'FRENCH', 'de': 'GERMAN'}.get(UI, 'ITALIAN') + '.EXE'
+UI_ORIG_OF = {k: v + '.EXE' for k, v in {'it': 'ITALIAN', 'en': 'ENGLISH', 'fr': 'FRENCH', 'de': 'GERMAN'}.items()}
 COLLECT = os.environ.get('SWOSTEST_COLLECT') == '1'    # (collecting the labels: raw texts, umlauts as '?')
 
 
@@ -812,8 +813,9 @@ class Session:
             while ...: scr = s.screen(); s.send('keys ... dump:1')
     """
 
-    def __init__(self, name, exe_dir, cars, keys, timeout=60, shots=0, match=False):
-        self.run, self.info = prepare(name, exe_dir, cars, steps_of(keys), match)
+    def __init__(self, name, exe_dir, cars, keys, timeout=60, shots=0, match=False, timer=False):
+        self.rate = TICKS if timer else None           # (timer: SWOS++, keys fed from TimerProc at 70 Hz)
+        self.run, self.info = prepare(name, exe_dir, cars, steps_of(keys, self.rate), match, timer)
         self.timeout = timeout
         self.box = Dosbox(self.run, timeout, shots)
         self.result = None
@@ -944,7 +946,7 @@ class Session:
         (debugger commands typed in one go: DOSBox-X runs them in order before the F5)."""
         r, b = self.result, self.box
         t = time.time()
-        steps = steps_of(keys)
+        steps = steps_of(keys, getattr(self, 'rate', None))
         assert len(steps) < SCRIPT_MAX
         data = b''.join(struct.pack('<HH', k, w) for k, w in steps) + b'\0' * 4
         base = r.base1 + self.info['script']
@@ -3930,6 +3932,268 @@ def menu_numbers():
             info.append(f'{len(recs)} copies of LEICESTER poked to 17..32; sprites 12..99 built, checked 12 17 20 23 32 '
                         f'41 99')
     return not errs, '; '.join(errs + info) + f' (screenshot runs/menu_numbers/shots/menu_numbers.png)'
+
+
+def ct_build():
+    """The CONTROLS scenarios' exe: builds()['it'] (SWOSTEST_UI=it), else that language's exe built from this checkout
+    (or CONTROLS_BUILD, a ready dir whose ITALIAN.EXE is SWOSTEST_UI's language); its controls.runtime() view."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import controls
+    b = os.environ.get('CONTROLS_BUILD') or (builds()['it'] if UI == 'it' else build('controls_' + UI, lang=UI))
+    return b, controls.runtime(os.path.join(b, 'ITALIAN.EXE'), os.path.join(ROOT, 'orig', UI_ORIG), UI)
+
+
+def ct_entry(r, menu, i):
+    """(text bytes, invisible, x, y, w, h) of entry i of the current menu."""
+    e = r.base2 + menu + 0x16 + i * 0x38
+    m = r.read(e, 0x38)
+    p = struct.unpack_from('<I', m, 0x26)[0]
+    t = r.read(p, 48).split(b'\0')[0] if 0x1000 < p < MEMSIZE - 64 else b''
+    return (t, struct.unpack_from('<H', m, 4)[0]) + struct.unpack_from('<4h', m, 0x14)
+
+
+def ct_vars(r, v):
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import controls
+    raw = r.read(r.base2 + v['vars'], 32)
+    out = {k: raw[o] for k, o in controls.VARS.items() if o < 8}
+    out.update({k: struct.unpack_from('<H', raw, o)[0] for k, o in controls.VARS.items() if o >= 8})
+    return out
+
+
+def ct_check_texts(r, menu, entries, errs, tag):
+    """Every shown text of these entries: the small font's characters and inside its box (controls.px)."""
+    import controls
+    for i in entries:
+        t, inv, x, y, w, h = ct_entry(r, menu, i)
+        if inv or not t:
+            continue
+        s_ = t.decode('latin-1')
+        if not all(c in controls.SMALL_W for c in s_):
+            errs.append(f'{tag} entry {i} {s_!r}: a character outside the font')
+        elif controls.px(s_) > w - 2:
+            errs.append(f'{tag} entry {i} {s_!r}: {controls.px(s_)} px in a box of {w}')
+
+
+@scenario
+def controls_menu():
+    """4.0.2 OPZIONI > COMANDI (controls.py), SWOSTEST_UI's exe: the button between ESCI A DOS and ESCI; the page's
+    texts in the font and their boxes; device 1 -> 3 -> 4 -> 5 -> 1 (CALIBRA 1 / 2 shown with a joypad / two); FUOCO ->
+    SPACE; SPACE on SU refused (TASTO GIA' USATO), ESC keeps; SALVA writes SETUP.DAT (+6 = 3, +100 = 39h, the rest as
+    it was) and the game takes SPACE as fire at once (no stick: device 1 in memory); ANNULLA drops a change; a restart
+    reads the saved file"""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import controls
+    b, v = ct_build()
+    T = controls.TEXTS[UI]
+    enc = lambda x: x.encode('latin-1')
+    errs, notes = [], []
+    base = open(os.path.join(setup(), 'SETUP.DAT'), 'rb').read()
+    with Session('controls_menu_' + UI, b, {}, 'dump:2', 300) as s:
+        if s.wait().outcome != 'dump':
+            return False, f'START: no first pause ({s.result})'
+        press(s, s.screen(), 'OPZIONI', 2)
+        r, menu = s.result, s.info['menu']
+        btn = ct_entry(r, menu, 19)
+        check(btn[:2] == (enc(T['title']), 0) and btn[2:] == (100, controls.BTN_Y, 120, 15), f'OPZIONI button {btn}',
+              errs)
+        sc = s.screen()
+        check(sc.nav[17][0][3] == 19 and sc.nav[18][0][2] == 19 and sc.nav[19][0][2:] == (17, 18),
+              f'links 17 / 18 / 19: {sc.nav[17][0]} {sc.nav[18][0]} {sc.nav[19][0]}', errs)
+        ct_check_texts(r, menu, [19], errs, 'OPZIONI')
+        s.shot('options')
+        press(s, sc, 19, 2)
+        r = s.result
+        sc = s.screen()
+        check(sc.n == 19 and ct_entry(r, menu, 0)[0] == enc(T['title']), f'page not open ({sc.n} entries)', errs)
+        if errs:
+            return False, '; '.join(errs)
+        check(sc.selected == 2, f'selected {sc.selected}, want the device row', errs)
+        ct_check_texts(r, menu, range(19), errs, 'page')
+        s.shot('page')
+        work = lambda: s.result.read(s.result.base2 + v['work'], 105)
+        seen = []
+        for want in (3, 4, 5, 1, 3):
+            s.send('fire dump:0.5')
+            r = s.result
+            dev = struct.unpack_from('<H', work(), 6)[0]
+            vis = (not ct_entry(r, menu, 13)[1], not ct_entry(r, menu, 14)[1])
+            seen.append(dev)
+            check(dev == want and vis == (want != 1, want == 5), f'device {dev} (want {want}), CALIBRA shown {vis}', errs)
+            check(ct_entry(r, menu, 2)[0] == enc(T['devs'][(0, 0, 1, 2, 3)[want - 1]]), f'device text {ct_entry(r, menu, 2)[0]}', errs)
+            if want == 5:
+                ct_check_texts(r, menu, range(19), errs, 'two joypads')
+                s.shot('two_joypads')
+        notes.append('device ' + ' -> '.join(map(str, seen)))
+        press(s, s.screen(), 12, 1)                     # FUOCO: wait for a key
+        r = s.result
+        cv = ct_vars(r, v)
+        check(cv['MODE'] == 1 and ct_entry(r, menu, 15)[0] == enc(controls.lines(T['press'])[0]),
+              f"FUOCO: mode {cv['MODE']}, line {ct_entry(r, menu, 15)[0]}", errs)
+        s.shot('press')
+        s.send('space dump:1')
+        r = s.result
+        w = work()
+        names = controls.key_names(UI)
+        check(ct_vars(r, v)['MODE'] == 0 and w[100] == 0x39 and ct_entry(r, menu, 12)[0] == enc(names[0x39]),
+              f"SPACE: mode {ct_vars(r, v)['MODE']}, fire {w[100]:#x}, text {ct_entry(r, menu, 12)[0]}", errs)
+        check(base[100] == r.read(r.base2 + v['buf'] + 100, 1)[0], 'the game took the key before SALVA', errs)
+        press(s, s.screen(), 8, 1)                      # SU: SPACE is FUOCO's -> refused, ESC keeps
+        s.send('space dump:1')
+        r = s.result
+        cv = ct_vars(r, v)
+        check(cv['MODE'] == 1 and cv['DUP'] == 1 and ct_entry(r, menu, 16)[0] == enc(T['dup']),
+              f"SU = SPACE: mode {cv['MODE']} dup {cv['DUP']} line {ct_entry(r, menu, 16)[0]}", errs)
+        s.shot('dup')
+        s.send('esc dump:1')
+        r = s.result
+        check(ct_vars(r, v)['MODE'] == 0 and work()[96] == 0x48, f'ESC: mode {ct_vars(r, v)["MODE"]} up {work()[96]:#x}',
+              errs)
+        press(s, s.screen(), 17, 2)                     # SALVA
+        r = s.result
+        sc = s.screen()
+        check(sc.n != 19 and ct_entry(r, menu, 19)[0] == enc(T['title']), f'SALVA: not back in OPZIONI ({sc.n})', errs)
+        saved = open(os.path.join(s.run, 'SWOS', 'SETUP.DAT'), 'rb').read()
+        want = bytearray(base)
+        want[6:8] = b'\x03\x00'
+        want[100] = 0x39
+        check(saved == bytes(want), f'SETUP.DAT {saved.hex()} want {bytes(want).hex()}', errs)
+        mem = r.read(r.base2 + v['buf'], 105)
+        check(mem[100] == 0x39 and mem[6] == 1, f'game: fire {mem[100]:#x}, device {mem[6]} (no stick: 1)', errs)
+        s.send(' '.join(sc.path(19)) + ' space dump:2')   # the new fire key opens COMANDI; ANNULLA drops a change
+        r = s.result
+        check(s.screen().n == 19, 'SPACE as fire: COMANDI not opened', errs)
+        s.send('space dump:0.5')
+        check(struct.unpack_from('<H', work(), 6)[0] == 3, 'device after one fire', errs)
+        sc = s.screen()
+        s.send(' '.join(sc.path(18)) + ' space dump:2')
+        r = s.result
+        check(s.screen().n != 19, 'ANNULLA: still on the page', errs)
+        check(open(os.path.join(s.run, 'SWOS', 'SETUP.DAT'), 'rb').read() == saved, 'ANNULLA changed SETUP.DAT', errs)
+        check(r.read(r.base2 + v['buf'] + 6, 1)[0] == 1, 'ANNULLA changed the device', errs)
+    sv = os.path.join(WORK, 'saves', f'SETUP_CTL_{UI}.DAT')
+    os.makedirs(os.path.dirname(sv), exist_ok=True)
+    open(sv, 'wb').write(saved)
+    with Session('controls_menu_restart_' + UI, b, {'SETUP.DAT': sv}, 'dump:2', 120) as s:
+        if s.wait().outcome == 'dump':
+            r = s.result
+            mem = r.read(r.base2 + v['buf'], 105)
+            check(mem[100] == 0x39 and mem[6] == 1, f'restart: fire {mem[100]:#x} device {mem[6]}', errs)
+        else:
+            errs.append(f'restart: no pause ({s.result})')
+    return not errs, '; '.join(errs + notes)
+
+
+@scenario
+def controls_calib():
+    """4.0.2 COMANDI > CALIBRA JOYPAD 1 with ReadGamePort off in a test copy (the raw x / y poked): raw 0 = NESSUN
+    JOYPAD 1 COLLEGATO; centre 500 / 500 + fire, corners 100..900 / 120..880 + fire -> centre, limits, divisors 400 /
+    400 / 380 / 380, loops 1012; the PROVA line shows the direction held; ESC; SALVA writes them; the game's controls
+    and loops as they were during the calibration"""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import controls
+    import lepatch
+    b, v = ct_build()
+    T = controls.TEXTS[UI]
+    enc = lambda x: x.encode('latin-1')
+    rb = os.path.join(WORK, 'builds-x', f'controls_rgp_{UI}')
+    shutil.rmtree(rb, ignore_errors=True)
+    shutil.copytree(b, rb)
+    p = lepatch.LEPatch(os.path.join(rb, 'ITALIAN.EXE'))
+    p.put(1, v['rgp'], b'\xc3')                         # ReadGamePort: ret (the harness pokes the readings)
+    p.save(os.path.join(rb, 'ITALIAN.EXE'))
+    errs, notes = [], []
+    base = open(os.path.join(setup(), 'SETUP.DAT'), 'rb').read()
+    jx = lambda r: r.base2 + v['buf'] + 22
+    with Session('controls_calib_' + UI, rb, {}, 'dump:2', 300) as s:
+        if s.wait().outcome != 'dump':
+            return False, f'START: no first pause ({s.result})'
+        press(s, s.screen(), 'OPZIONI', 2)
+        press(s, s.screen(), 19, 2)
+        menu = s.info['menu']
+        s.send('fire dump:0.5')                         # device 3: CALIBRA JOYPAD 1
+        s.poke(jx(s.result), struct.pack('<HH', 0, 0))
+        press(s, s.screen(), 13, 1)
+        r = s.result
+        cv = ct_vars(r, v)
+        check(cv['MODE'] == 5 and ct_entry(r, menu, 15)[0] == enc(controls.lines(T['nopad'].format(1))[0]),
+              f"raw 0: mode {cv['MODE']} line {ct_entry(r, menu, 15)[0]}", errs)
+        check(r.read(r.base2 + v['buf'] + 6, 2) == b'\x05\x00', 'calibrating: game device not 5', errs)
+        s.shot('nopad')
+        s.send('esc dump:1')
+        r = s.result
+        check(ct_vars(r, v)['MODE'] == 0 and r.read(r.base2 + v['buf'] + 6, 2) == base[6:8]
+              and r.read(r.base2 + v['buf'] + 92, 4) == base[92:96], 'ESC: the game controls / loops not restored', errs)
+        s.poke(jx(r), struct.pack('<HH', 500, 500))
+        press(s, s.screen(), 13, 1)
+        r = s.result
+        check(ct_vars(r, v)['MODE'] == 2 and ct_entry(r, menu, 15)[0] == enc(controls.lines(T['step1'])[0]),
+              f"step 1: mode {ct_vars(r, v)['MODE']} {ct_entry(r, menu, 15)[0]}", errs)
+        s.shot('step1')
+        s.send('fire dump:1')
+        r = s.result
+        check(ct_vars(r, v)['MODE'] == 3, f"centre + fire: mode {ct_vars(r, v)['MODE']}", errs)
+        s.shot('step2')
+        for x, y in ((100, 120), (900, 880), (500, 500)):
+            s.poke(jx(s.result), struct.pack('<HH', x, y))
+            s.send('dump:0.5')
+        s.send('fire dump:1')
+        r = s.result
+        w = r.read(r.base2 + v['work'], 105)
+        got = struct.unpack_from('<2H', w, 30) + struct.unpack_from('<8H', w, 38) + struct.unpack_from('<H', w, 92)
+        want = (500, 500, 120, 100, 900, 880, 400, 400, 380, 380, 1012)
+        check(ct_vars(r, v)['MODE'] == 4 and got == want, f"corners + fire: mode {ct_vars(r, v)['MODE']} {got} want {want}",
+              errs)
+        s.poke(jx(r), struct.pack('<HH', 100, 880))
+        s.send('dump:0.5')
+        r = s.result
+        line = r.read(r.base2 + v['pb'], 64).split(b'\0')[0]
+        wl = enc(f"{T['test']} {T['keys'][2]} {T['keys'][1]}")
+        check(line == wl, f'PROVA line {line} want {wl}', errs)
+        s.shot('test')
+        s.send('esc dump:1')
+        r = s.result
+        check(ct_vars(r, v)['MODE'] == 0 and r.read(r.base2 + v['buf'] + 6, 2) == base[6:8], 'ESC after PROVA', errs)
+        press(s, s.screen(), 17, 2)
+        saved = open(os.path.join(s.run, 'SWOS', 'SETUP.DAT'), 'rb').read()
+        sg = struct.unpack_from('<2H', saved, 30) + struct.unpack_from('<8H', saved, 38) + struct.unpack_from('<H', saved, 92)
+        check(sg == want and saved[6] == 3 and saved[:6] == base[:6] and saved[96:] == base[96:],
+              f'SETUP.DAT {saved.hex()}', errs)
+        notes.append(f'calibration {got}')
+    return not errs, '; '.join(errs + notes)
+
+
+@scenario
+def controls_swospp():
+    """4.0.2 COMANDI under SWOS++ (English build + tools/swospp.py + LOADER.BIN / SWOSPP.BIN 1.9.2.2, keys fed from
+    the timer): OPTIONS has no CONTROLS button (entry 19 invisible as in the game), ESC TO DOS / EXIT linked as before"""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import swospp
+    if UI != 'en':
+        return True, 'SKIP: SWOS++ is English only (SWOSTEST_UI=en)'
+    b, v = ct_build()
+    pp = os.path.join(MAIN, 'internal', 'swospp-test')
+    out = os.path.join(WORK, 'builds-x', 'controls_swospp')
+    shutil.rmtree(out, ignore_errors=True)
+    shutil.copytree(b, out)
+    swospp.install(os.path.join(b, 'ITALIAN.EXE'), os.path.join(out, 'ITALIAN.EXE'))
+    errs = []
+    with Session('controls_swospp', out, {'LOADER.BIN': os.path.join(pp, 'loader.bin'),
+                                          'SWOSPP.BIN': os.path.join(pp, 'swospp.bin')}, 'dump:3', 200,
+                 timer=True) as s:
+        if s.wait().outcome != 'dump':
+            return False, f'START: no first pause ({s.result})'
+        sc = s.screen()
+        check(any('SWOS++' in t for _, t, *_ in sc.entries), f'SWOS++ not running: {sc}', errs)
+        press(s, sc, 'OPZIONI', 3)
+        r = s.result
+        sc = s.screen()
+        btn = ct_entry(r, s.info['menu'], 19)
+        check(sc.entries[0][1] == 'OPZIONI', f'not in OPTIONS: {sc}', errs)
+        check(btn[1] == 1, f'entry 19 shown under SWOS++: {btn}', errs)
+        check(sc.nav[17][0][3] != 19 and sc.nav[18][0][2] != 19, f'links to 19: {sc.nav[17][0]} {sc.nav[18][0]}', errs)
+        s.shot('options')
+    return not errs, '; '.join(errs) or 'no CONTROLS button under SWOS++'
 
 
 PURPLE_RGB, MAROON_MENU = (24, 8, 34), (27, 0, 9)

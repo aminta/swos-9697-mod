@@ -228,7 +228,7 @@ def prepare(name, exe_dir, cars, steps, match=False, timer=False):
 
 
 SCAN = {'fire': 0x1D, 'up': 0x48, 'down': 0x50, 'left': 0x4B, 'right': 0x4D, 'esc': 0x01, 'enter': 0x1C,
-        'space': 0x39, 'bspace': 0x0E, 'semicolon': 0x27, 'dump': 0xFF}
+        'space': 0x39, 'bspace': 0x0E, 'semicolon': 0x27, 'pgup': 0x49, 'pgdn': 0x51, 'dump': 0xFF}
 SCAN.update({ch: sc for row, base in (('1234567890', 0x02), ('qwertyuiop', 0x10), ('asdfghjkl', 0x1E),
                                       ('zxcvbnm', 0x2C)) for sc, ch in enumerate(row, base)})
 SCRIPT_MAX = 200                                       # steps a pause can write
@@ -3854,6 +3854,96 @@ def shirt_numbers():
                     ordn = struct.unpack_from('<h', h, 22)[0]
                     check(rows == want and ordn == shirtnum.NEWBASE + n - 17, f'{n}: {rows} #{ordn}', errs)
     return not errs, '; '.join(errs) or 'numbers 17..99 built (17, 20, 41, 99 pixel-exact) in a match'
+
+
+SUBS_NUMS = [99, 43, 5, 3, 20, 18, 86, 61, 17, 14, 9, 1, 12, 7, 10, 77]
+
+
+def subs_rows(vga):
+    """The in-match bench list's player rows in a frame (320x200 palette indices): [(y0, y1, bg, segments)], segments =
+    the runs of text columns (x0, x1) in x 100..209 (face, number, name words), a gap of 2+ empty columns between runs."""
+    rows, y = [], 0
+    while y < 200:
+        c = vga[y * 320 + 203]
+        if all(vga[y * 320 + x] == c for x in range(196, 208)):
+            y1 = y
+            while y1 + 1 < 200 and vga[(y1 + 1) * 320 + 203] == c and all(vga[(y1 + 1) * 320 + x] == c for x in range(196, 208)):
+                y1 += 1
+            if 6 <= y1 - y <= 9:
+                cols = [x for x in range(100, 210) if any(vga[yy * 320 + x] != c for yy in range(y, y1 + 1))]
+                seg = []
+                for x in cols:
+                    if seg and x - seg[-1][1] <= 2:
+                        seg[-1][1] = x
+                    else:
+                        seg.append([x, x])
+                rows.append((y, y1, c, [tuple(g) for g in seg]))
+            y = y1 + 1
+        else:
+            y += 1
+    return rows
+
+
+@scenario
+def subs_numbers():
+    """4.0.2 subsnum (Davide's MiSTer b5: '99M. SVILAR' in the in-match bench list): friendly, human HAMBURG numbered
+    99 43 5 3 20 18 86 61 17 14 9 ..., the bench called (PgUp / PgDn at the kick-off) and its list opened: in every
+    player row the number is right-aligned (one last column), apart from the face icon, and the name starts in one
+    column for all rows, 2+ px after the number. FAILs on the 4.0.2 betas (two-digit numbers touch both)."""
+    b = os.environ.get('SWOSTEST_BUILD') or builds()['it']
+    d = bytearray(open(os.path.join(b, 'DATA', 'TEAM.014') if os.path.exists(os.path.join(b, 'DATA', 'TEAM.014'))
+                       else os.path.join(MAIN, 'orig', 'DATA', 'TEAM.014'), 'rb').read())
+    for t in range(struct.unpack('>H', d[:2])[0]):
+        o = 2 + t * 684
+        if d[o + 5:o + 22].split(b'\0')[0] == b'HAMBURG':
+            for k in range(16):
+                d[o + 76 + k * 38 + 2] = SUBS_NUMS[k]
+    team = os.path.join(WORK, 'saves', 'TEAM014_HAMBURG_SUBS.BIN')
+    os.makedirs(os.path.dirname(team), exist_ok=True)
+    open(team, 'wb').write(d)
+    errs, info = [], []
+    with Session('subs_numbers', b, {'DATA/TEAM.014': team}, 'dump:3', 300, match=True) as s:
+        s.wait()
+        for t in ('AMICHEVOLE', 'OK', 'SCEGLI SQUADRE', 'SQUADRE CLUB', 'EUROPA', 'GERMANIA', '1. LIGA', 'HAMBURG'):
+            walk(s, t, 2)
+        s.send('fire dump:2')                   # HAMBURG: GIOCA-ALLENA (human)
+        walk(s, 'SCHALKE', 2)
+        for _ in range(12):
+            scr = s.screen()
+            if scr.selected == 55:
+                s.send('fire dump:4')
+                break
+            s.send(('right' if scr.selected in (56, 57) else 'down') + ' dump:0.5')
+        for _ in range(22):
+            s.send('down dump:0.5')
+            if s.screen().selected == 9:
+                break
+        r = s.send('fire dump:1')
+        rows = []
+        for k in range(40):                     # the bench (MainKeysCheck: PgUp / PgDn, the human team's), then fire
+            r = s.send(('pgdn' if k % 2 else 'pgup') + ':0.3 dump:0.5')
+            if r.outcome != 'dump':
+                return False, f'match: {r}'
+            if k % 2:
+                r = s.send('fire:1 dump:1.5')
+                rows = [x for x in subs_rows(s.box.dump(0xA0000, 64000)) if len(x[3]) >= 2]
+                if len(rows) >= 11:
+                    break
+        s.shot('subs_list')
+        check(len(rows) >= 11, f'bench list not found ({len(rows)} rows)', errs)
+        merged = [x for x in rows if len(x[3]) < 3]
+        check(not merged, f'{len(merged)} rows with face, number and name run together: {[x[3][:2] for x in merged]}', errs)
+        if len(rows) >= 11 and not merged:
+            face = [x[3][0] for x in rows]
+            num = [x[3][1] for x in rows]
+            name = [x[3][2] for x in rows]
+            info.append(f'{len(rows)} rows: number ends {sorted({n[1] for n in num})}, names from {sorted({n[0] for n in name})}')
+            check(len({n[1] for n in num}) == 1, f'numbers not right-aligned: {num}', errs)
+            check(len({n[0] for n in name}) == 1, f'names not in one column: {name}', errs)
+            check(all(n[0] > f[1] + 1 for n, f in zip(num, face)), f'a number touches the face: {list(zip(face, num))}', errs)
+            check(all(m[0] - n[1] >= 2 for n, m in zip(num, name)), f'a number touches the name: {list(zip(num, name))}', errs)
+            check(all(x[3][-1][1] < 210 for x in rows), 'a row runs into the position column', errs)
+    return not errs, '; '.join(errs + info) + ' (runs/subs_numbers/shots/subs_list.png)'
 
 
 @scenario

@@ -107,3 +107,25 @@ So the whole offer / buy / sold-list / 30-cap flow is reused as is; what is miss
 - Found: the game writes a REPLACEMENT player into the seller's slot after a purchase (cseg_56615): with the cache that overwrote the
   sold slot (a "Robinho Naso" extra appeared); xt_sold now calls the game's tail first, then blanks the slot again.
 - Menu texts per language = fmtpage's NEXT / PREV; EN / FR / DE builds compile (screens not looked at yet).
+
+## Part 3 (design, 2026-10-27): every club squad view shows 16 + extras (display only)
+Screens that list another club's squad (all through the game's squad menu `squadMenu` with the club's record in dseg_16F486, or
+`ViewSquad*`): competition / table > club, SELECT TEAM > club squad, the opponent view in a career or season. Our own squad screen already
+scrolls (SquadFinish: dseg_16F484 = the player count: 16, or careerNumPlayers for the managed club; > 16 enables the page arrows, menu
+entries 44 / 45). So the paging UI exists; what is missing is the data for another club:
+- **Central hook**: GetPlayerAtIndex's `@@total_error` branch (index >= 16 of a club that is neither the current nor the managed team = `int 3`
+  today): index 16 + k -> the club's k-th extra still there (xt_block, sold skipped) -> A0 = slot - 4Ch, D1 = 16 + slot, then GetPlayer as now.
+  35 callers, all of them pass 0..15 today, so only the squad screens that ask for more are affected.
+- **Count**: SquadFinish's `mov D0, 16` branch (other club) becomes 16 + the club's extras (xt_block count), so the arrows appear.
+- **Rows / summaries**: the squad screen's per-row draw (SquadAfterDrawCommon, +479 GetPlayerInfoBreakPosition) and the totals loop
+  (cseg_114EC: `D7 = 16 - 1`, over currentMatchPlayers for the managed club, the record's playerNumbers for others) must take the extras:
+  the totals (average skill / value) keep the 16 (a CPU club plays with them; the extras are display only) - to confirm in a run.
+- **Display only**: nothing is written: the pre-match line-ups, the bench of 5, the match squad (currentTeam / playerPositions) and the
+  record stay at 16; swap / formation actions on another club's squad are not offered by the game (to verify), the extras rows are
+  not selectable for any action except the transfer browse (part 2).
+- **Risks**: the squad menu is the biggest menu (64 entries, tactic layout, national-selector mode, 4 languages); a viewer that loops
+  over 16 only is fine, one that sizes a buffer by the count is not (watch cseg_114EC and SetBenchPlayersNumbers); the row-skip of sold
+  extras must match between pages.
+- **Estimate** 12-16 h: GetPlayerAtIndex hook 2, SquadFinish count + arrows 2, row draw / totals / ViewSquad 4-5, scenarios (table > club,
+  opponent view, selector squads unchanged, a club with 16, a bought extra gone, save / reload, match line-up unchanged: harness
+  line-up check) + pictures 4-5, 4 languages 1.

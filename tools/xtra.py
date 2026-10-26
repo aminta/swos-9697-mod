@@ -27,7 +27,7 @@ import struct
 import nasmcave
 
 PLAYER = 38
-MAX_EXTRA = 16                         # 16 + 16 = the 32 slots of careerTeam
+MAX_EXTRA = 14                         # 16 + 14 = 30 players, the cap of the game's own fillers (careerTeam has 32 slots)
 LABELS = {}                            # obj1 offsets after patch(): XTRA_NAMEP = the dd holding the file name's address
 
 ASM = r"""

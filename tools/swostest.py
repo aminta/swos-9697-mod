@@ -3711,6 +3711,77 @@ def xtra_squad():
 
 
 @scenario
+def xtra_world30():
+    """Extended squads of the World 2026-27 (4.0.2): XTRA30_BUILD (a build of the world with TM_EXTRA=14, XTRA.nnn
+    in its DATA) and a career at CELLE VARAZZE (Serie D girone A, a 30-man club): it starts with 30 players, slots
+    16..29 = its XTRA block in file order (STEFANO CHIAIA the 30th), squad order 0..29, no invented reserves, wages
+    of the 30 all > 0; two seasons with save + reload keep the extras (at most 32 players, no trap)"""
+    exe = os.environ.get('XTRA30_BUILD')
+    if not exe or not os.path.isdir(exe):
+        return True, 'SKIP: XTRA30_BUILD not set'
+    club = os.environ.get('XTRA30_CLUB', 'CELLE VARAZZE')
+    path = os.environ.get('XTRA30_PATH', 'EUROPA,ITALIA,SERIE D GIRONE A,' + club)
+    last = os.environ.get('XTRA30_LAST', 'STEFANO CHIAIA')
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import lepatch
+    import xtra
+    p = lepatch.LEPatch(os.path.join(exe, 'ITALIAN.EXE'))
+    _, cnp, ct, cmp, sel = xtra.sites(p)
+    wt = xtra.wage_table(p)
+    want = None                                  # the club's block in the build's own files
+    for fn in sorted(os.listdir(os.path.join(exe, 'DATA'))):
+        if not (fn.startswith('TEAM.') or fn.startswith('TMW')):
+            continue
+        d = open(os.path.join(exe, 'DATA', fn), 'rb').read()
+        for k in range(struct.unpack('>H', d[:2])[0]):
+            if d[2 + k * 684 + 5:2 + k * 684 + 22].split(b'\0')[0].decode('latin1') == club:
+                xf = os.path.join(exe, 'DATA', 'XTRA.' + fn.split('.')[1])
+                want = [x[3:26].split(b'\0')[0].decode('latin1') for x in xtra.read(open(xf, 'rb').read())[k]]
+    if not want:
+        return False, f'{club}: no XTRA block in {exe}'
+    n_want = 16 + len(want)
+    keep = {x: os.environ.get(x) for x in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K',
+                                            'W8485_NOSACK', 'W8485_HEX', 'W8485_ONE')}
+    os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=path, W8485_WNUM='5', W8485_K='108+',
+                      W8485_NOSACK='1', W8485_HEX=f'{cnp:x}:2,{cmp:x}:32,{ct:x}:1292,{wt:x}:128')
+    os.environ.pop('W8485_ONE', None)
+    try:
+        ok, msg = world8485()
+    finally:
+        for x, v in keep.items():
+            if v is None:
+                os.environ.pop(x, None)
+            else:
+                os.environ[x] = v
+    errs = []
+    check(ok, msg, errs)
+    seen = {}
+    for ln in open(os.path.join(RUNS, w84_tag() + '_1', 'session.log'), errors='replace'):
+        q = ln.split()
+        if len(q) == 3 and q[0] == 'HEX':
+            seen.setdefault(q[1], []).append(bytes.fromhex(q[2]))
+    if not seen.get(f'{cnp:x}'):
+        return False, 'no HEX lines; ' + msg
+    def squad(i):
+        n = struct.unpack('<H', seen[f'{cnp:x}'][i])[0]
+        rec = seen[f'{ct:x}'][min(i, len(seen[f'{ct:x}']) - 1)]
+        names = [rec[684 + (j - 16) * 38 + 3:684 + (j - 16) * 38 + 26].split(b'\0')[0].decode('latin1') for j in range(16, 32)]
+        return n, names
+    n0, names0 = squad(0)
+    check(n0 == n_want, f'{club}: {n0} players at the start (want {n_want})', errs)
+    check(names0[:len(want)] == want, f'slots 16..: {names0[:len(want)]} != {want}', errs)
+    check(want[-1] == last if last else True, f'last extra {want[-1]!r} (want {last!r})', errs)
+    order = list(seen[f'{cmp:x}'][0])[:n0]
+    check(order[16:] == list(range(16, n0)), f'squad order {order[16:]}', errs)
+    wages = struct.unpack('<32I', seen[f'{wt:x}'][-1])
+    check(all(wages[j] > 0 for j in range(n_want)), f'wages {wages[:n_want]}', errs)
+    nl, namesl = squad(len(seen[f'{cnp:x}']) - 1)
+    check(n_want - 4 <= nl <= 32 and sum(1 for x in want if x in namesl) >= len(want) - 4,
+          f'after the seasons: {nl} players, {sum(1 for x in want if x in namesl)} of {len(want)} extras', errs)
+    return not errs, '; '.join(errs + [f'{club}: {n0} players, last {names0[len(want) - 1]!r}; end {nl}; {msg}'])
+
+
+@scenario
 def xtra_season():
     """Extended career squads: XTRA1.CAR (HAMBURG with 25 players, made by xtra_squad) played to the season end by
     results, season-end menu, next season saved: no trap, at most 32 players, the real extras still in the squad"""

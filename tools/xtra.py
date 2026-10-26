@@ -384,14 +384,19 @@ xt_pick:                                ; AddCareerTeamPlayer, replaces `mov [D2
     ret
 
 xt_sold:                                ; cseg_56379 (a player is bought), replaces its last `call cseg_56615`: D0 team, D1
-    pushfd                              ; index; remember an XTRA player as sold (after the game copied him)
+    mov eax, [REGS]                     ; index. The game's own tail first (it writes a replacement player into the seller's
+    mov [xsd0], eax                     ; slot: here the cached XTRA slot), then the sold list and the slot blanked again
+    mov eax, [REGS + 4]
+    mov [xsd1], eax
+    call TAIL56
+    pushfd
     pushad
-    movzx ecx, word [REGS + 4]
+    movzx ecx, word [xsd1]
     cmp ecx, 16
     jb .no
     cmp ecx, 16 + MAXE_
     jae .no
-    mov ax, [REGS]
+    mov ax, [xsd0]
     cmp ax, [SEL]
     je .no
     movzx edx, word [xsold]
@@ -412,7 +417,7 @@ xt_sold:                                ; cseg_56379 (a player is bought), repla
 .no:
     popad
     popfd
-    jmp TAIL56
+    ret
 
 align 4
 xtra_namep: dd xname                    ; -> 'data\xtra.nnn' (digits at +10..+12); LABELS['XTRA_NAMEP']
@@ -430,6 +435,8 @@ xrc: db 0
 align 4
 xrdst: dd 0
 xcnamep: dd 0
+xsd0: dd 0
+xsd1: dd 0
 xsmark: db 'XSLD'                      ; (the harness finds the list by this)
 xsold: times 2 + 3 * XSOLD_ db 0
 align 4
@@ -595,6 +602,7 @@ def patch(p, at):
     assert not any(p.get(1, at, len(code)))
     p.put(1, at, code)
     LABELS['XTRA_NAMEP'] = lab['xtra_namep']
+    LABELS['xt_block'] = lab['xt_block']
     LABELS['XSOLD'] = lab['xsold']                  # the bought XTRA players (engine item 'XS')
     import engine
     engine.ITEM_AT['XS'] = (1, lab['xsold'])         # saved in the .CAR's engine block (patch.py: engine.save_item)

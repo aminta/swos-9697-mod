@@ -3962,6 +3962,157 @@ def xtra_xsold(p):
     return k + 4
 
 
+def xtra_browse_to(s, group, club):
+    """From the career menu: TRASFERIMENTI > ACQUISTA GIOCATORE > ACQ. ALTRO GIOCAT. NAZION. > SERIE D > group > club."""
+    walk(s, 'TRASFERIMENTI', 3)
+    walk(s, 2, 3)
+    walk(s, 4, 3)
+    walk(s, 'SERIE D', 3)
+    walk(s, group, 3)
+    walk(s, club, 3)
+    return s.screen()
+
+
+def xtra_bid(s):
+    """FAI UN'OFFERTA > CONFERMA OFFERTA (OFFRI DI PIU' on a counter) until the answer; returns the answer's texts."""
+    raise_n = 10
+    for _ in range(10):
+        scr = s.screen()
+        tx = scr.texts()
+        if "FAI UN'OFFERTA" in tx:
+            s.send(' '.join(['fire+right'] * raise_n) + ' dump:1')
+            walk(s, s.screen().find('CONFERMA OFFERTA', exact=True), 3)
+            raise_n = 0
+            continue
+        more = next((re.search(r'AUMENTI DI L([\d,]+)M', x) for x in tx if 'AUMENTI DI' in x), None)
+        if "OFFRI DI PIU'" in tx:
+            raise_n = (int(more.group(1).replace(',', '')) // 100000 + 1) if more else 5
+            walk(s, scr.find("OFFRI DI PIU'", exact=True), 3)
+            continue
+        break
+    return s.screen().texts()
+
+
+@scenario
+def xtra_club_browse():
+    """The extras findable in their club (4.0.2): XTRA30_BUILD (TM_EXTRA=14 world). In the club browse (ACQ. ALTRO GIOCAT. NAZION. >
+    SERIE D > girone > club) LIGORNA's list has the button PAG. SUCC.; page 2 lists its extras (numbers 17.., shots); the first one
+    is picked and bought from CHISOLA (25 players): squad + 1 with his name, sold list, page 2 without him (shot); SORA (16 players,
+    no extras) has no button; from CELLE VARAZZE (30 players) the same purchase is refused (the squad is full); save + reload keep it."""
+    exe = os.environ.get('XTRA30_BUILD')
+    if not exe or not os.path.isdir(exe):
+        return True, 'SKIP: XTRA30_BUILD not set'
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import lepatch
+    import xtra
+    p = lepatch.LEPatch(os.path.join(exe, 'ITALIAN.EXE'))
+    _, cnp, ct, cmp, sel = xtra.sites(p)
+    team, names = xtra_club_block(exe, 'LIGORNA')
+    errs, info = [], []
+    base = ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27', 'EUROPA', 'ITALIA', 'SERIE D GIRONE A']
+
+    def squad(s):
+        r = s.result
+        n = struct.unpack('<H', r.obj2(cnp, 2))[0]
+        return n, [r.obj2(ct + 76 + j * 38 + 3, 23).split(b'\0')[0].decode('latin1') for j in range(32)]
+
+    def start(s, me):
+        if not pick_career(s, base[:-1] + ['SERIE D GIRONE A', me]):
+            return False
+        s.send('fire dump:3')
+        for _ in range(8):
+            if 'PROSS. PARTITA' in s.screen().texts():
+                break
+            press(s, s.screen(), 'CONTINUA', 3) or press(s, s.screen(), 'ESCI', 3) or s.send('fire dump:2')
+        return True
+
+    def leave(s):
+        for _ in range(8):
+            if 'PROSS. PARTITA' in s.screen().texts():
+                break
+            press(s, s.screen(), 'CONTINUA', 3) or press(s, s.screen(), 'ESCI', 3) or s.send('fire dump:2')
+
+    def button(scr):
+        return next(((e[1], e[2]) for e in scr.entries if e[0] == 31), None)
+
+    with Session('xtra_club_browse', exe, {}, 'dump:2', 600) as s:
+        s.wait()
+        if not start(s, 'CHISOLA'):
+            return False, 'new career: ' + str(s.screen().texts()[:8])
+        n0, nm0 = squad(s)
+        scr = xtra_browse_to(s, 'SERIE D GIRONE A', 'LIGORNA')
+        b = button(scr)
+        s.shot('page1')
+        check(b is not None and b[0] == 'PAG. SUCC.' and not b[1], f'page 1 button {b}', errs)
+        walk(s, 'PAG. SUCC.', 3)
+        scr = s.screen()
+        s.shot('page2')
+        check(button(scr) is not None and button(scr)[0] == 'PAG. PREC.', f'page 2 button {button(scr)}', errs)
+        walk(s, 3, 4)                                  # the first row of page 2 = LIGORNA's first extra
+        tx = s.screen().texts()
+        check("FAI UN'OFFERTA" in tx, f'no offer screen: {tx[:8]}', errs)
+        s.shot('offer')
+        ans = xtra_bid(s)
+        info.append(f'answer {ans[:4]}')
+        leave(s)
+        n1, nm1 = squad(s)
+        check(n1 == n0 + 1 and names[0] in nm1[:n1], f'squad {n0} -> {n1}, {names[0]} in it: {names[0] in nm1[:n1]}', errs)
+        sold = s.result.read(s.result.base1 + xtra_xsold(p), 5)
+        check(struct.unpack('<HHB', sold[:2] + sold[2:5])[1:] == (team, 16), f'sold list {sold.hex()}', errs)
+        scr = xtra_browse_to(s, 'SERIE D GIRONE A', 'LIGORNA')
+        walk(s, 'PAG. SUCC.', 3)
+        s.shot('page2_after')
+        press(s, s.screen(), 'ESCI', 3)
+        leave(s)
+        leave(s)
+        walk(s, 'ESCI', 3)
+        walk(s, 'SALVA CARRIERA', 2)
+        s.send(name_entry('XBRW') + ' dump:3')
+        car = os.path.join(s.run, 'SWOS', 'XBRW.CAR')
+        check(os.path.exists(car), 'no save', errs)
+    if os.path.exists(car):
+        with Session('xtra_club_browse_reload', exe, {'XBRW.CAR': car}, 'dump:2', 600) as s:
+            s.wait()
+            s.send(LOAD1 + ' dump:3')
+            n2, nm2 = squad(s)
+            check(n2 == n1 and names[0] in nm2[:n2], f'reload squad {n2}', errs)
+            scr = xtra_browse_to(s, 'SERIE D GIRONE A', 'LIGORNA')
+            walk(s, 'PAG. SUCC.', 3)
+            s.shot('page2_reload')
+            info.append('reloaded: page 2 shot')
+    nx_team, _ = xtra_club_block(exe, 'IMPERIA')            # a club without extras: its block zeroed in a copy of the file
+    xf = os.path.join(exe, 'DATA', 'XTRA.%03d' % (nx_team & 255))
+    raw = bytearray(open(xf, 'rb').read())
+    e_ = raw[2]
+    at_ = 3 + (nx_team >> 8) * e_ * 38
+    raw[at_:at_ + e_ * 38] = bytes(e_ * 38)
+    nxf = os.path.join(WORK, 'saves', 'XTRA_NOX.BIN')
+    open(nxf, 'wb').write(bytes(raw))
+    with Session('xtra_club_browse_none', exe, {'DATA/XTRA.%03d' % (nx_team & 255): nxf}, 'dump:2', 600) as s:
+        s.wait()
+        if not start(s, 'CHISOLA'):
+            return False, 'new career (no extras): ' + str(s.screen().texts()[:8])
+        scr = xtra_browse_to(s, 'SERIE D GIRONE A', 'IMPERIA')
+        b = button(scr)
+        s.shot('imperia')
+        check(b is None or b[1], f'IMPERIA (no extras) shows the button {b}', errs)
+        info.append(f'no-extras club: button {b}')
+    with Session('xtra_club_browse_full', exe, {}, 'dump:2', 600) as s:
+        s.wait()
+        if not start(s, 'CELLE VARAZZE'):
+            return False, 'new career (full squad): ' + str(s.screen().texts()[:8])
+        nf0, _ = squad(s)
+        xtra_browse_to(s, 'SERIE D GIRONE A', 'LIGORNA')
+        walk(s, 'PAG. SUCC.', 3)
+        walk(s, 3, 4)
+        ans = xtra_bid(s)
+        s.shot('full')
+        leave(s)
+        nf1, _ = squad(s)
+        check(nf0 == 30 and nf1 == 30 and any('SQUADRA' in x and 'GRANDE' in x for x in ans), f'full squad {nf0} -> {nf1}: {ans[:6]}', errs)
+    return not errs, '; '.join(errs + info)
+
+
 @scenario
 def xtra_season():
     """Extended career squads: XTRA1.CAR (HAMBURG with 25 players, made by xtra_squad) played to the season end by

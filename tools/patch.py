@@ -535,7 +535,10 @@ def patch_exe(src, dst, remap, lang='it'):
         world = cos
     if xtra_pg:                                                  # extended career squads (packs with "extra";
         xp = hist2 + h2 + 0x1000 * (lpb - cos_pg - ri_pg - xpg)  # XTRA_HOOK=1: test builds): DATA\XTRA.nnn players;
-        xe = xtra.patch(p, xp) if xtra_on else xp                # the extra page in a build with worlds, with the
+        xe = xtra.patch(p, xp) if xtra_on else xp
+        if xtra_on:
+            import xbrowse                                       # 4.0.2: the extras in the club browse (a 2nd page)
+            xe = xbrowse.patch(p, xe, lang)                # the extra page in a build with worlds, with the
         ri = None
         if ri_tabs:                                              # the off-file pool (Eccellenza): its own page
             rp = hist2 + h2 + 0x1000 * (lpb - cos_pg - ri_pg)
@@ -559,6 +562,8 @@ def patch_exe(src, dst, remap, lang='it'):
         assert xe <= xlim, hex(xe)
     elif xtra_on:
         world = xtra.patch(p, world)
+        import xbrowse
+        world = xbrowse.patch(p, world, lang)
     assert not fmtpage.WN or xtra_pg, 'VINCITORI: no extra pages'
     assert world <= NZ_CAVE and nz_end <= FIN_CAVE and fin_end <= ARG_CAVE and arg_end <= OBJ1_NEW_VSIZE, \
         (hex(world), hex(nz_end), hex(fin_end), hex(arg_end))

@@ -603,6 +603,7 @@ def patch(p, at):
     p.put(1, at, code)
     LABELS['XTRA_NAMEP'] = lab['xtra_namep']
     LABELS['xt_block'] = lab['xt_block']
+    LABELS['CT'] = ct                               # careerTeam (obj2 offset)
     LABELS['XSOLD'] = lab['xsold']                  # the bought XTRA players (engine item 'XS')
     import engine
     engine.ITEM_AT['XS'] = (1, lab['xsold'])         # saved in the .CAR's engine block (patch.py: engine.save_item)

@@ -175,7 +175,159 @@ xb_pick:                                ; D1 = row, A0 = the club's record -> CF
     popad
     ret
 
+xs_ga:                                  ; GetPlayerAtIndex (a club that is not the current / managed one): replaces
+    cmp word [D1], 16                   ; `cmp word [D1], 16; jnc total_error`. Index 16 + r of a club squad view = the r-th extra
+    jb .ok                              ; still there (display only: the club's record is never written)
+    pushad
+    movzx edx, word [D1]
+    sub edx, 16
+    mov ax, [D0]
+    call XT_BLOCK
+    test eax, eax
+    jz .trap
+    lea esi, [eax + 4]
+    xor ecx, ecx
+.f:
+    cmp ecx, MAXE_
+    jae .trap
+    cmp byte [esi + 3], 0
+    je .skip
+    test edx, edx
+    jz .hit
+    dec edx
+.skip:
+    add esi, PLAYER_
+    inc ecx
+    jmp .f
+.hit:
+    add ecx, 16
+    mov [D1], cx
+    popad
+    add esp, 4                          ; not coming back: GetPlayer (gp_wide gives the cached slot)
+    jmp GETPLAYER
+.trap:
+    popad
+    int 3                               ; as the game: an index it cannot serve
+    jmp $
+.ok:
+    ret
+
+xs_tail:                                ; SquadFinish's last call (SquadMenuSavePlayerPositions): then, for a club that is not
+    call SMSPP                          ; the managed one with extras, a PAG. SUCC. button: the menu's hidden entry 6 (PRATICA),
+    pushad                              ; made visible left of ESCI (entry 10)
+    mov esi, [SQTEAM]
+    cmp esi, CAREERTEAM
+    je .skip
+    popad
+    jmp xs_init
+.skip:
+    popad
+    ret
+
+xs_init:
+    pushad
+    mov byte [xs_pg], 0
+    mov esi, [SQTEAM]
+    mov [xs_team], esi
+    movzx eax, word [esi]
+    call XT_BLOCK
+    xor ebx, ebx
+    test eax, eax
+    jz .n
+    lea esi, [eax + 4]
+    mov ecx, MAXE_
+.c:
+    cmp byte [esi + 3], 0
+    je .s
+    inc ebx
+.s:
+    add esi, PLAYER_
+    dec ecx
+    jnz .c
+.n:
+    mov [xs_n], ebx
+    test ebx, ebx
+    jz .out
+    mov dword [D0], 10                  ; ESCI: where the button goes (left of it)
+    call CALC
+    mov esi, [A0]
+    mov eax, [esi + 14h]
+    mov [xs_xy], eax                    ; x, y
+    mov eax, [esi + 18h]
+    mov [xs_wh], eax                    ; width, height
+    mov byte [esi + 8], 6               ; ESCI: left -> the button
+    mov dword [D0], 6
+    call CALC
+    mov edi, [A0]
+    mov word [edi + 4], 0               ; shown, enabled
+    mov word [edi + 6], 0
+    mov eax, [xs_xy]
+    sub ax, 60                          ; (left of ESCI, clear of the coach's name at the left)
+    mov [edi + 14h], ax
+    shr eax, 16
+    mov [edi + 16h], ax
+    mov eax, [xs_wh]
+    mov [edi + 18h], ax
+    shr eax, 16
+    mov [edi + 1Ah], ax
+    mov word [edi + 18h], 56
+    mov word [edi + 1Eh], 14            ; the menus' green
+    mov dword [edi + 8], 0FFFF0AFFh     ; left -, right ESCI, up -, down -
+    mov dword [edi + 26h], xs_buf
+    mov dword [edi + 2Ah], xs_flip
+    call xs_label
+.out:
+    popad
+    ret
+
+xs_label:
+    mov edi, xs_buf
+    mov esi, [xb_txt]
+    cmp byte [xs_pg], 0
+    je .c
+    mov esi, [xb_txt + 4]
+.c:
+    mov al, [esi]
+    mov [edi], al
+    inc esi
+    inc edi
+    test al, al
+    jnz .c
+    ret
+
+xs_flip:                                ; fire on the button: the other page, redrawn
+    xor byte [xs_pg], 1
+    pushad
+    call xs_label
+    popad
+    mov dword [D0], 6
+    call SETCUR
+    jmp DRAWMENU
+
+xs_row:                                 ; replaces `call GetPlayerInfoBreakPosition` in SquadAfterDrawCommon / SquadCommon:
+    cmp byte [xs_pg], 0                 ; page 2 of the club the button was made for: row r = the club's r-th extra
+    je .n
+    mov eax, [SQTEAM]
+    cmp eax, [xs_team]
+    jne .n
+    movzx eax, word [D1]
+    cmp eax, [xs_n]
+    jae .none                           ; no such extra: nothing to draw / pick
+    add word [D1], 16
+.n:
+    jmp GPIBP
+.none:
+    add esp, 4
+    ret
+
 align 4
+xs_n: dd 0
+xs_team: dd 0
+xs_xy: dd 0
+xs_wh: dd 0
+xs_pg: db 0
+align 4
+xs_buf: times 16 db 0
 xb_pg: db 0
 align 4
 xb_mark: db 'XBRW'
@@ -229,7 +381,30 @@ def find(p):
     start = refs[0][1]
     users = [f[1] for f in p.le.fixups() if f[0] == 1 and (f[3], f[4]) == (2, start)]
     assert len(users) == 2, users
-    return dict(D0=D0, A0=A0, teamoff=teamoff, teamptr=teamptr, init=init.start(), draw=draw[0].start(1), pick=pick[0].start(1),
+    ga = [x for x in re.finditer(rb'(\x66\x83\x3d' + ptr(D0 + 4) + rb'\x10\x73.)\xff\x35' + ptr(D0) + rb'\xe8....\x8f\x05' + ptr(D0) +
+                                 rb'\x8b\x35' + ptr(A0) + rb'\x0f\xb7\x05' + ptr(D0 + 4) + rb'\x8a\x44\x06\x3c\xa2' + ptr(D0 + 4) +
+                                 rb'\xe9(....)\xcc', d1, re.S)]
+    assert len(ga) == 1, len(ga)
+    ga_site = ga[0].start(1)
+    getplayer = ga[0].end(2) + struct.unpack('<i', d1[ga[0].end(2) - 4:ga[0].end(2)])[0]
+    sf = None                                        # SquadFinish: mov [D0],16 ... mov [dseg_16F484],ax ... mov eax,[dseg_16F486]
+    for x in re.finditer(rb'\x66\xc7\x05' + ptr(D0) + rb'\x10\x00\xeb.\x66\xa1....\x66\xa3' + ptr(D0) + rb'\x66\xa1' + ptr(D0) +
+                         rb'\x66\xa3(....)', d1, re.S):
+        cnt = struct.unpack('<I', x.group(1))[0]
+        if re.search(rb'\xa1' + ptr(cnt + 2), d1[x.end():x.end() + 0x30]):
+            sf = (x.start(), cnt + 2)
+    assert sf, 'SquadFinish'
+    tl = [x for x in re.finditer(rb'\xe8....\xe8....(\xe8....)\xc3', d1[sf[0]:sf[0] + 0x600], re.S)]
+    assert len(tl) >= 1
+    tail = sf[0] + tl[-1].start(1)
+    smspp = _rel(d1, tail)
+    careerteam = xtra.LABELS['CT']                   # (xtra.patch ran first)
+    rows = []                                        # the two calls of GetPlayerInfoBreakPosition in the squad menu (select, draw)
+    for m in re.finditer(rb'\xa1' + ptr(sf[1]) + rb'\xa3' + ptr(A0) + rb'.{0,12}?(\xe8....)', d1, re.S):
+        if _rel(d1, m.start(1)) == gp:
+            rows.append(m.start(1))
+    assert len(rows) == 2, rows
+    return dict(tail=tail, smspp=smspp, careerteam=careerteam, rows=rows, ga=ga_site, getplayer=getplayer, sf=sf[0], sqteam=sf[1], D0=D0, A0=A0, teamoff=teamoff, teamptr=teamptr, init=init.start(), draw=draw[0].start(1), pick=pick[0].start(1),
                 gpibp=gp, setcur=_rel(d1, t.start(1)), drawmenu=_rel(d1, t.start(2)), calc=_rel(d1, c.start(1)),
                 menu=start, users=users)
 
@@ -280,7 +455,7 @@ def patch(p, at, lang):
     at = (at + 15) & ~15
     sym = {'D0': (2, s['D0']), 'D1': (2, s['D0'] + 4), 'D6': (2, s['D0'] + 24), 'A0': (2, s['A0']), 'TEAMOFF': (2, s['teamoff']),
            'CALC': (1, s['calc']), 'SETCUR': (1, s['setcur']), 'DRAWMENU': (1, s['drawmenu']), 'GPIBP': (1, s['gpibp']),
-           'XT_BLOCK': (1, xl['xt_block']), 'PLAYER_': (0, xtra.PLAYER), 'MAXE_': (0, xtra.MAX_EXTRA), 'NEWENT_': (0, new)}
+           'XT_BLOCK': (1, xl['xt_block']), 'GETPLAYER': (1, s['getplayer']), 'SMSPP': (1, s['smspp']), 'CAREERTEAM': (2, s['careerteam']), 'SQTEAM': (2, s['sqteam']), 'PLAYER_': (0, xtra.PLAYER), 'MAXE_': (0, xtra.MAX_EXTRA), 'NEWENT_': (0, new)}
     code, fix = nasmcave.assemble(ASM, at, sym)
     lab = nasmcave.labels(ASM, at, sym)
     assert not any(p.get(1, at, len(code)))
@@ -325,5 +500,9 @@ def patch(p, at, lang):
     call(s['init'], lab['xb_init'], 6, 2)                # mov ax, [teamOffering]  (66 A1 addr)
     call(s['draw'], lab['xb_row_draw'], 5)
     call(s['pick'], lab['xb_row_pick'], 5)
+    for o in s['rows']:
+        call(o, lab['xs_row'], 5)
+    call(s['ga'], lab['xs_ga'], 10, 3)                   # cmp word [D1], 16 (66 83 3D addr 10) + jnc
+    call(s['tail'], lab['xs_tail'], 5)                  # SquadFinish's `call SquadMenuSavePlayerPositions`
     print(f'exe: club browse pages: menu copy obj1+{mat:#x} ({len(copy)} B), code obj1+{at:#x} ({len(code)} B)')
     return (mat + len(copy) + 15) & ~15

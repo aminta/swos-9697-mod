@@ -2213,6 +2213,10 @@ Left for 2.5: (a) NSL/NSSL finals series (type-1 design) or declare them postpon
   TMW5.102, 92 XTW5.*; remote smokes cancelled). 8. 4.0.2-controls 6ebee9b -> c2cb852 (merged before Motore's ctl_full
   ended, per Regia/Davide; full suite at rc1). c/REL402b2 = c2cb852 (IT b77a371f, GOG IT c152732a; DATA = b1's): roundtrip,
   controls_menu (CONTROLS_BUILD = b2) PASS. p6 WINNERS not in.
+- Motore's remote ctl_full_253d557 stopped: 23 PASS, 1 FAIL lp36_tourney = remote-only path bug (the scenario reads the
+  absolute /Users/davide/swos-mod/internal/world2526/lp36/TEAM.SRC; the server's home is /Users/davidelorigliola). rc1: run
+  lp36_tourney LOCALLY. Fix later: path relative to ROOT / WORK (MAIN), or remote_run syncing it.
+- rc runs (Regia 26/10): use BOTH machines, 4 DOSBox here + 2 remote, never one idle while the other queues.
 
 ## Deferred realism (4.0.2+)
 - Moldova's h2h_half groups start at 0 points (package 6, 2026-10-24; pre-existing, not option C).

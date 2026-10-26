@@ -2243,7 +2243,7 @@ Left for 2.5: (a) NSL/NSSL finals series (type-1 design) or declare them postpon
    rc1 list += tail_zero (static; run it on c/RELxx/SWOS AND c/RELxx/gog).
 - MiSTer beta 5: c/REL402b5 = ae6fce1 on world5tm-402rc3 (IT CD 642b871d, GOG IT 0ab0ac6b; vs REL402b4: the 8 exes only).
   roundtrip, shirt_numbers PASS; tail_zero PASS on SWOS/ and gog/ (obj2+0xd7000..+0x1bd900 zeroed). Davide confirms on the MiSTer.
-14. contimain a75820c (Dati coppe, tooling: conti.py --test for all six confederations) -> f9a0b47; conti.py --test runs.
+14. contimain a75820c (Dati coppe, tooling: conti.py --test for all six confederations) -> f9a0b47; `conti.py --test afc caf concacaf conmebol fifa ofc` runs all six, rc 0 (no args = conmebol only).
 
 ## Deferred realism (4.0.2+)
 - Moldova's h2h_half groups start at 0 points (package 6, 2026-10-24; pre-existing, not option C).

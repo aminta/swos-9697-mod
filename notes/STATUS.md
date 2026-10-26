@@ -2220,6 +2220,11 @@ Left for 2.5: (a) NSL/NSSL finals series (type-1 design) or declare them postpon
 9. p402wn 71641f1 (p6 WINNERS: DA GIOCARE for the career league's play-off lines) -> 9befc7f: world_winners_title,
    roundtrip PASS. 4.0.2 code COMPLETE except: world_winners_state to FORCE the Paulista results (p6 follow-up; today
    result-dependent FAIL, statecup code untouched) and the kits A/B/C data batch.
+10. p402wn follow-up 6386078 (world_winners_state forced by a poke, no test switch; p6: PASS on release-recipe exes, 45 s)
+   -> 802884f (swostest only, py_compile OK). It needs WINNERS_BUILD = a release-recipe exe (on a scenario build it stops
+   at 'MONDO 2026-27 not reached'): run at rc1. 4.0.2 CODE COMPLETE.
+- rc1 DATA = internal/world2526/world5tm-402rc3 (402rc2 + 85 more Italian kits = 227; .md5 list digest ebc9ceee, checked;
+  tools 9befc7f). rc1 after the Thu 29 03:00 reset; a MiSTer beta 3 (c/REL402b3 at the tip) only if Davide asks before.
 
 ## Deferred realism (4.0.2+)
 - Moldova's h2h_half groups start at 0 points (package 6, 2026-10-24; pre-existing, not option C).

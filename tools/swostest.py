@@ -6259,6 +6259,93 @@ def world_par_exact():
 
 
 @scenario
+def world_winners_title():
+    """4.0.2 WINNERS page, a national title play-off seeded by title_seed (winners.py / fmtgame 'Q'; WT_CODE per =
+    Peru's PLAYOFFS LIGA 1, uru = Uruguay's CAMPEONATO URUGUAYO) at the league's weakest club (UTC /
+    MALDONADO: not in the play-off): at the career's start the line shows DA GIOCARE (4.0.1 skipped it); at the season
+    end (saved before CONTINUA, reloaded) the champion when one club won both tournaments (the bank's Apertura and
+    Clausura 1st, A = C: no play-off), else DA GIOCARE - both forced by pokes of the career bank's Clausura leader
+    (GP_SSB bank 1); continued into 2027-28: the last season's page names the simulated champion"""
+    code = os.environ.get('WT_CODE', 'per')
+    team, title, ct = {'per': ('SUDAMERICA,PERU,UTC', 'PLAYOFFS LIGA 1', 1),
+                       'uru': ('SUDAMERICA,URUGUAY,CAMPEONATO URUGUAYO,' + os.environ.get('WT_TEAM', 'MALDONADO'),
+                               'CAMPEONATO URUGUAYO', 3)}[code]
+    exe = sa_exact_build(code)
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    from le import LE
+    d1 = LE(open(os.path.join(exe, 'ITALIAN.EXE'), 'rb').read()).obj_bytes(1)
+    ssb = struct.unpack_from('<I', d1, d1.find(b'GPLOGPTR') + 8 + 64)[0]
+    item = 6 + 4 * 32 * 12
+    bank = ssb + item                                   # (bank 1: the career league's; table t row r at 6 + 12 (32t + r))
+    lead = lambda b, t, r=0: struct.unpack_from('<H', b, 6 + 12 * (32 * t + r))[0]
+    errs, info = [], []
+    with Session(f'world_winners_title_{code}_start', exe, {}, 'dump:2', 600) as s:
+        s.wait()
+        for t in ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27'] + team.split(','):
+            if press(s, s.screen(), t, 3) is None:
+                return False, f'new career: {t} not reached'
+        s.send('fire dump:3')
+        e, ttl, lines = winners_page(s)
+    b0 = winner_blocks(lines)
+    check(b0.get(title) == 'DA GIOCARE', f'start: {title} {b0.get(title)!r} (page {ttl!r} {b0})', errs)
+    info.append(f'start: {b0}')
+    keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_ONE',
+            'W8485_SAVE_END')
+    keep = {k: os.environ.get(k) for k in keys}
+    os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5', W8485_K='108+',
+                      W8485_NOSACK='1', W8485_ONE='1', W8485_SAVE_END='WTIT')
+    try:
+        ok, msg = world8485()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    if not ok or 'saved ' not in msg:
+        return False, '; '.join(errs + [f'season: {msg}'])
+    car = msg.split('saved ', 1)[1]
+    got = {}
+    for case in ('as is', 'double', 'two'):
+        with Session(f'world_winners_title_{code}_{case.replace(" ", "")}', exe, {'WTIT.CAR': car}, 'dump:2', 300) as s:
+            s.wait()
+            s.send(LOAD1 + ' dump:3')
+            b = s.result.obj2(bank, item)
+            a, c = lead(b, 0), lead(b, ct)
+            if case == 'double':                        # (the Clausura's leader = the Apertura's)
+                s.poke(s.result.base2 + bank + 6 + 12 * 32 * ct, struct.pack('<H', a))
+                c = a
+            elif case == 'two':                         # (another club leads the Clausura)
+                c = lead(b, 0, 1)
+                s.poke(s.result.base2 + bank + 6 + 12 * 32 * ct, struct.pack('<H', c))
+            if case != 'as is':
+                s.send('dump:1')
+            e, ttl, lines = winners_page(s)
+        blk = winner_blocks(lines)
+        want = team_name(exe, a) if a == c else 'DA GIOCARE'
+        got[case] = blk.get(title)
+        check(b[0] and b[ct] and blk.get(title) == want,
+              f'end ({case}): {title} {blk.get(title)!r}, want {want!r} (A {team_name(exe, a)}, C {team_name(exe, c)};'
+              f' n {list(b[:4])}; page {blk})', errs)
+    info.append(f'end: {got}')
+    with Session(f'world_winners_title_{code}_next', exe, {'WTIT.CAR': car}, 'dump:2', 600) as s:
+        s.wait()
+        s.send(LOAD1 + ' dump:3')
+        nxt = next_season_save(s, 'WTIN')
+    if not nxt.endswith('.CAR'):
+        return False, '; '.join(errs + [f'next season: {nxt}'])
+    with Session(f'world_winners_title_{code}_s2', exe, {'WTIN.CAR': nxt}, 'dump:2', 300) as s:
+        s.wait()
+        s.send(LOAD1 + ' dump:3')
+        more = []
+        e, ttl2, lines2 = winners_page(s, more)
+    last = winner_blocks([x for pg in more for x in pg])   # (the last season's page and the next: 5 Uruguay titles)
+    check(last.get(title) not in (None, '', 'DA GIOCARE', 'IN CORSO'), f'season 2: last season {last}', errs)
+    info.append(f'last season: {last}')
+    return not errs, '; '.join(errs + info)
+
+
+@scenario
 def world_per_exact():
     """Peru 2026 (4.0.1, sa_exact.per_exact): Apertura + Clausura (17 + 17, real calendars), each won by its table's
     leader, at ALIANZA LIMA: 34 days, both stages frozen, two stage titles"""

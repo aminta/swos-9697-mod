@@ -4522,16 +4522,14 @@ def xtra_squad_views():
         lig = xtra_club_block(exe, 'LIGORNA')
         first = next((e[1] for e in s.screen().entries if e[0] == 48), None)
         check(lig and first in lig[1], f'competitions path, page 2 first row {first!r}', errs)
-        press(s, s.screen(), 'ESCI', 3)                      # own squad afterwards: the normal screen (no button)
-        for t in ('ESCI', 'ESCI'):
-            if 'SQUADRA' in s.screen().texts():
+        for _ in range(6):                                   # own squad afterwards: the normal screen (no button)
+            if 'PROSS. PARTITA' in s.screen().texts():
                 break
-            press(s, s.screen(), t, 3)
-        if 'SQUADRA' in s.screen().texts():
-            walk(s, 'SQUADRA', 3)
-            own = button(s.screen())
-            s.shot('own_squad')
-            check(own is None or own[1] or own[0] != 'PAG. SUCC.', f'own squad shows the button {own}', errs)
+            press(s, s.screen(), 'ESCI', 3)
+        walk(s, 8, 3)
+        own = button(s.screen())
+        s.shot('own_squad')
+        check('PAG. SUCC.' not in s.screen().texts() and (own is None or own[1] or own[0] != 'PAG. SUCC.'), f'own squad shows the button {own}', errs)
         info.append(f'comp path: page 2 first {first}')
     return not errs, '; '.join(errs + info)
 

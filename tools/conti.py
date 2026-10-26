@@ -503,12 +503,6 @@ def test(confs=('conmebol',), seasons=3, seed=7):
                         print('   ', r, [nm(x) for x in es])
 
 
-if __name__ == '__main__':
-    import sys
-    if sys.argv[1:2] == ['--test']:
-        test(sys.argv[2:] or ['conmebol'])
-
-
 # --- the game ---------------------------------------------------------------------------------------------------------
 PAGES = 6                               # obj1 pages: the C code + the glue (patch.py: after split's / statecup's)
 BSS = 0x18000                           # obj2 .bss: CT_IN, CT_ST, CT_OUT, the edition (patch.py: in the career BSS)
@@ -1369,3 +1363,9 @@ def structs(p, area, lang, at):
     print(f'exe: other confederations\' contests (slot-3 chain): {len(out)} at obj1+{out[0] if out else at:#x} '
           '(the last: the career club\'s ties)')
     return at, out, kinds
+
+
+if __name__ == '__main__':
+    import sys
+    if sys.argv[1:2] == ['--test']:
+        test(sys.argv[2:] or ['conmebol'])

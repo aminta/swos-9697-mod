@@ -1,6 +1,7 @@
 """Editable shirt numbers (4.0.2; Marco Malave's SWOS 2020 video, Nicola's request): on the team screen before a match
 (playMatchMenu: each player row is an entry drawn by DrawPlayerEntries), LEFT on one of your players' rows lights his
-number box; then
+number box (once the cursor has been on that row ~0.3 s: a LEFT that just brought it there, or a held one, still only
+moves); then
   - UP / DOWN: the next / previous number of 1..99 that no other player of the team has (held = the menu's repeat);
   - digits (the keyboard's top row, by scan code: any layout): one or two digits, the second within ~1 s; a number
     another player has is swapped with him (he gets the old one): never two players with one number;
@@ -26,6 +27,7 @@ import nasmcave
 
 HL_COLOR = 0x0E                 # the lit number box's background colour (menu palette)
 WAIT = 28                       # menu frames for a second digit (~1 s)
+DWELL = 8                       # menu frames on a row before LEFT lights its number (~0.3 s)
 
 ASM = r"""
 se_ctl:                                 ; MenuProc: replaces `call MenuCheckControls`
@@ -35,6 +37,16 @@ se_ctl:                                 ; MenuProc: replaces `call MenuCheckCont
     push dword [D1]
     push dword [A0]
     mov ebx, [CURMENU + 0Ch]            ; the selected entry
+    cmp ebx, [se_last]                  ; frames on this entry (LEFT just after arriving on a row is a move that
+    je .same                            ; overshot, not an edit: the harness's paths, a held key)
+    mov [se_last], ebx
+    mov byte [se_dwell], 0
+    jmp .counted
+.same:
+    cmp byte [se_dwell], 255
+    je .counted
+    inc byte [se_dwell]
+.counted:
     cmp byte [se_on], 0
     jne .editing
     cmp byte [se_hold], 0               ; after an edit: wait until fire / left / right are released
@@ -53,6 +65,8 @@ se_ctl:                                 ; MenuProc: replaces `call MenuCheckCont
 .idle:
     cmp word [MCD], 6                   ; left (MenuProc: 0 up, 2 right, 4 down, 6 left)
     jne .out
+    cmp byte [se_dwell], DWELL
+    jb .out
     test ebx, ebx
     jz .out
     call se_row
@@ -343,6 +357,8 @@ se_used:                                ; al = number, edi = this record -> esi 
 se_row:                                 ; ebx = entry: one of your players' rows? -> CF clear, edi = his record, ebp = team
     cmp dword [ebx + 34h], DPE          ; (its afterDraw)
     jne .no
+    cmp byte [ebx + 8], 0FFh            ; LEFT goes nowhere from it (else LEFT is the menu's move)
+    jne .no
     cmp word [VOPP], 0
     jne .no
     cmp word [SCPU], 0
@@ -401,6 +417,8 @@ align 4
 se_seen: times 100 + 32 db 0
 align 4
 se_rec: dd 0
+se_last: dd 0
+se_dwell: db 0
 se_team: dd 0
 se_ent: dd 0
 se_prec: dd 0
@@ -490,7 +508,8 @@ def patch(p, cave):
     import benchnum
     s = sites(p)
     sym = {k: v for k, v in s.items() if not k.endswith('_SITE')}
-    sym.update(PIN_AT=(0, benchnum.PIN_AT), PIN_BIT=(0, benchnum.PIN_BIT), HL=(0, HL_COLOR), WAIT=(0, WAIT))
+    sym.update(PIN_AT=(0, benchnum.PIN_AT), PIN_BIT=(0, benchnum.PIN_BIT), HL=(0, HL_COLOR), WAIT=(0, WAIT),
+               DWELL=(0, DWELL))
     cave = (cave + 3) & ~3
     code, fix = nasmcave.assemble(ASM, cave, sym)
     lab = nasmcave.labels(ASM, cave, sym)

@@ -7606,6 +7606,22 @@ def world_ca_hon():
 
 
 @scenario
+def world_ca_gua():
+    """4.0.2 (option C: 44 days) world_ca at MUNICIPAL (Guatemala: 12 clubs, 22 + 22 days; 3-6 / 4-5, the semi-finals
+    with the 1st / 2nd, the final over two legs). Data: W2627CA_DATA with ca_exact 'gua' (e.g. sam6/data/w402t)"""
+    return world_ca('NORDAMERICA,GUATEMALA,MUNICIPAL', 'GUATEMALA', 'LIGA NACIONAL',
+                    ['APERTURA SEMIFINALE ANDATA', 'APERTURA FINALE ANDATA', 'CLAUSURA SEMIFINALE ANDATA'])
+
+
+@scenario
+def world_ca_slv():
+    """4.0.2 (option C: 44 days) world_ca at ALIANZA (El Salvador: as Guatemala, the final one match at a neutral
+    ground). Data: W2627CA_DATA with ca_exact 'slv' (e.g. sam6/data/w402t)"""
+    return world_ca('NORDAMERICA,EL SALVADOR,PRIMERA DIVISION,ALIANZA', 'EL SALVADOR', 'PRIMERA DIVISION',
+                    ['APERTURA SEMIFINALE ANDATA', 'APERTURA FINALE', 'CLAUSURA SEMIFINALE ANDATA'])
+
+
+@scenario
 def world_ca_pan():
     """world_ca at PLAZA AMADOR (Panama: two conferences; their leaders straight into the two-legged semi-finals, the
     play-offs 2nd v the other conference's 3rd one match, the final one match at a neutral ground)"""

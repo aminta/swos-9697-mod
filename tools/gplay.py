@@ -251,11 +251,13 @@ def compile_spec(pos, ndiv, league_names=None):
     THEN[out] = bytes(keys.index(po['then_build']) + 1 if po.get('then_build') is not None else 0 for po in pos)
     if any(po.get('kind') == 'title' and po['rounds'] and 'group' in po['rounds'][0] for po in pos):
         T2_SPECS.add(out)               # (a group contest played in a career: the engine block's item 'GS')
-    BUILD_AFTER[out] = [(i, po['build_after']) for i, po in enumerate(pos) if po.get('build_after')]
-    for i, name in BUILD_AFTER[out]:
+    ba = [(i, po['build_after']) for i, po in enumerate(pos) if po.get('build_after')]
+    for i, name in ba:
         if KINDS.get(pos[i].get('kind')) != 8 or not isinstance(name, str):
             raise ValueError(f"{pos[i].get('key', '?')}: build_after (a split stage's 'then' name) needs kind stage_title")
-    return out
+    BUILD_AFTER[out] = list(dict.fromkeys(BUILD_AFTER.get(out, []) + ba))   # (4.0.2: two leagues may compile to the
+    return out                                  # same bytes - Guatemala and Honduras: each keeps its own 'then' names;
+                                                # the last one alone left gua_ap without a routine, no final phase)
 
 
 PLAY_ASM = '''
@@ -1711,7 +1713,7 @@ def _top9(p):
                                         rb'\xc7\x05' + pk(r['A0'] + 8), d1, re.S)]
     assert len(m) == 2, m                       # (the first: cseg_927A2; the second: another list of the season end)
     return p.target(1, m[0] + 6), p.target(1, m[0] + 16)
-GP_PAGES = 16 + (1 if os.environ.get('GPLAY_FORCE') else 0)   # (4.0.1 rc: GPLAY_FORCE test builds' extra code overflowed 16 pages by 44 B; release builds stay at 16)
+GP_PAGES = 17 + (1 if os.environ.get('GPLAY_FORCE') else 0)   # (4.0.1 rc: GPLAY_FORCE test builds' extra code overflowed 16 pages by 44 B; 4.0.2: option C's gp_keep blocks - 17, obj1 only)
 #P_PAGES = 16            # obj1 pages for the C code + glue + specs (World 2026-27's 20 countries; gplay-play; 4.0 ARG: 7; the record lines: 12; longtable's code: 13; 4.0.1 MEX stage titles per division: 14; cupsf: 16, with package 6's title_seed / draw_pot)
 GP_ST_SIZE = 2048       # (sizeof struct gp_state: the engine block's item 'GP', patch.py)
 WN_SIZE = 4 + 4 * 40    # (sizeof struct wn_state: the engine block's item 'WN', the WINNERS page's last season)

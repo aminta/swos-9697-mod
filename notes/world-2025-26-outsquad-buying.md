@@ -68,3 +68,33 @@ Everything is in tools/xtra.py (cave code, same page group; patch.py gives the x
   career_20seasons x3 at CHISOLA, an old 25-man save on the new exe, xtra_world30, xtra_squad, xtra_season.
 - Users: a 4.0.2 save whose market lists such a player (or whose sold list is not empty) is one-way: older versions would read index
   16.. past the club's record. Release-note line to add.
+
+## Part 2 (design, 2026-10-26): the extras findable IN THEIR CLUB (club browse: TRASFERIMENTI > ACQUISTA GIOCATORE >
+## ACQ. ALTRO GIOCAT. NAZION. / STRANIERO > country > division > group > club > its player list)
+Seen in a run (Celle Varazze career; pictures in the run dir): the club's player list is `buyOtherPlayersMenu` (shared by the national and the
+foreign path): entry 0 title, 1 club name, 2 ESCI (x122 y185), then a template row x16 (y27 + 9r, 8 px each, ends ~y171). Rows are drawn by
+`BuyOtherPlayersAfterDrawCommon` and picked by `BuyOtherPlayersCommon`: row r -> `GetPlayerInfoBreakPosition` (first 11 rows through
+the club's tactic positions, the rest as the record) -> `GetPlayerAtIndex` (record index 0..15 only; >= 16 of another club = `int 3`) ->
+D1 = the player's index -> `cseg_54C1E(team, index)` = the offer flow, which already takes index >= 16 since part 1 (GetPlayer hook).
+So the whole offer / buy / sold-list / 30-cap flow is reused as is; what is missing is only the LIST.
+- **Space**: 16 rows fill the screen (27..171 + ESCI at 185): 30 rows do not fit. Proposal = **two pages**, like the mod's own FORMAT /
+  WINNERS pages: a new button PAG. SUCC. / PAG. PREC. (IT / EN NEXT PAGE / FR PAGE SUIV. / DE as fmtpage's dict) beside ESCI, shown only for a
+  club with extras. Page 1 = the 16 of the record exactly as today; page 2 = the club's extras (up to 14 rows, sold ones skipped = the rows
+  stay compact), same row look (number, name, position, nationality, skills, price).
+- **Build**: (1) the menu gets one more entry (the button, last index = 19): copy `buyOtherPlayersMenu` into the cave with the entry appended
+  and retarget its 2 users (BuyOtherDomesticPlayer / ForeignPlayer) - precedent kitcolors.py (playMatchMenu + entry 68);
+  (2) page variable, reset in BuyOtherPlayersInit; the button's select function toggles it and redraws (SetCurrentEntry + DrawMenu as
+  BuyOtherPlayersCommon does); label switches NEXT / PREV; hidden when the club has no extras (xt_block count - sold);
+  (3) on page 2 the row hooks replace GetPlayerInfoBreakPosition's result: draw -> A0 = XTRA slot - 4Ch (xt_slot), rows beyond the count draw
+  nothing; select -> D1 = 16 + slot index, then the unchanged `cseg_54C1E`; (4) both hooks are in the BuyOther* functions only.
+- **Other places a club's squad is listed** (checked): (a) `VIS. SQUADRA` in the transfer menus = the MANAGED club's own squad screen
+  (already shows all 30, scrolls) - nothing to do; (b) SELECT TEAM / competition table > club squad views and the opponent view before a
+  match show the 16 of the record: a CPU club plays with its 16, so showing extras there would suggest they play - I recommend they stay
+  at 16 (only the transfer browse shows 16 + extras); (c) VISUAL. SQUADRE SELEZ. (national selectors) is the national-team mode - unchanged.
+  If Davide wants (b) too: the squad screen of another club is the big squadMenu (64 entries, tactics layout) - a separate item, 8-12 h.
+- **Risks**: the new menu entry's navigation links (up/down to ESCI) and the cursor after a page flip; a club with 16 (no extras) must look
+  identical to today (button hidden); both menus' fixups.
+- **Tests**: scenario `xtra_club_browse`: path to LIGORNA, page 1 = 16 rows (screenshot identical in structure), button, page 2 lists its 11
+  extras (shot), pick one > the offer screen (name, price), buy (30 cap checked on CELLE VARAZZE: TOO_LARGE_SQUAD message), sold row
+  gone from page 2 and the button hidden when none left; save / reload; a club without extras: no button; EN / FR / DE labels.
+- **Estimate** 13-15 h: menu copy + button + page logic 6-7, row draw / select hooks 3, scenarios + pictures 3-4, 4 languages 1.

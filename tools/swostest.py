@@ -8162,6 +8162,87 @@ def world_national_buy_9697():
     return foreign_buy(exe, '9697', 'NAZIONALE')
 
 
+def club_colours(scr):
+    """{button colour: [club names]} of a team list (the club buttons: 100 x 9 px)."""
+    out = {}
+    for (i, t, inv, dis), c, g in zip(scr.entries, scr.colors, scr.geom):
+        if t and not inv and g[2] == 100 and g[3] == 9:
+            out.setdefault(c, []).append(t)
+    return out
+
+
+@scenario
+def team_choice_colours():
+    """4.0.2 teamstab (Davide, MiSTer b3): with no team chosen, every club button of a team list has the default colour.
+    The lists colour a club by teamsTable[its ordinal], 100 bytes in the game; Italy 2026-27's file has 256 records and
+    Brazil's 119: Serie D clubs (ordinals 100+) came out red / purple / blue (teamsIndex read). On a RELEASE dir
+    (TEAMCOL_BUILD, else the suite's SWOSTEST_BUILD / W8485_BUILD with DATA\\TMW5.102): the career team choice of
+    SERIE D GIRONE A / B, then, in a career at ALESSANDRIA, the domestic buy's club lists (ACQ. ALTRO GIOCAT. NAZION. >
+    SERIE D GIRONE A / B). (Brazil's ordinals 100+ are Mato Grosso state clubs and spares: in no team list.) Group A
+    fails on 4.0.2 b3 (ASTI / CHISOLA / CELLE VARAZZE; buy: BIELLESE / GOZZANO / VALENZANA MADO)."""
+    exe = os.environ.get('TEAMCOL_BUILD') or next((d for d in (os.environ.get('SWOSTEST_BUILD'), os.environ.get('W8485_BUILD'))
+                                                   if d and os.path.exists(os.path.join(d, 'DATA', 'TMW5.102'))), None)
+    if not exe:
+        return True, 'SKIP: no release dir (TEAMCOL_BUILD, or SWOSTEST_BUILD / W8485_BUILD with DATA\\TMW5.102)'
+    errs, info = [], []
+    head = ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27']
+
+    def one_colour(scr, label, need=6):
+        cc = club_colours(scr)
+        n = sum(len(v) for v in cc.values())
+        info.append(f'{label}: {n} clubs, colours {sorted(hex(c) for c in cc)}')
+        check(n >= need, f'{label}: {n} club buttons ({scr})', errs)
+        check(len(cc) == 1, f'{label}: {({hex(c): v for c, v in cc.items()})}', errs)
+
+    def group(s, g, label):
+        scr = s.screen()
+        if scr.find('SERIE D GIRONE ' + g, exact=True) is None:
+            press(s, scr, 'SERIE D')
+        if press(s, s.screen(), 'SERIE D GIRONE ' + g, wait=3) is None:
+            errs.append(f'{label}: SERIE D GIRONE {g} not reached ({s.screen()})')
+            return
+        one_colour(s.screen(), f'{label} SERIE D GIRONE {g}')
+        list_exit(s)
+
+    def list_exit(s):
+        """The club list's ESCI (the model finds no path to it from the club buttons: down until it is selected)."""
+        e = s.screen().find('ESCI', exact=True)
+        for _ in range(12):
+            if s.screen().selected == e:
+                s.send('fire dump:3')
+                return
+            s.send('down dump:0.5')
+
+    with Session('team_choice_colours', exe, {}, 'dump:3', 900) as s:
+        s.wait()
+        for t in head + ['EUROPA', 'ITALIA']:
+            if press(s, s.screen(), t) is None:
+                return False, f'career choice: {t} not reached ({s.screen()})'
+        for g in 'AB':
+            group(s, g, 'team choice')
+    with Session('team_choice_colours_buy', exe, {}, 'dump:3', 900) as s:
+        s.wait()
+        for t in head + ['EUROPA', 'ITALIA', 'SERIE D', 'SERIE D GIRONE A', 'ALESSANDRIA']:
+            if press(s, s.screen(), t) is None:
+                return False, f'career at ALESSANDRIA: {t} not reached ({s.screen()}); ' + '; '.join(errs + info)
+        for _ in range(10):
+            scr = s.screen()
+            if 'TRASFERIMENTI' in scr.texts():
+                break
+            press(s, scr, 'CONTINUA') or s.send('fire dump:2')
+        walk(s, 'TRASFERIMENTI', 3)
+        walk(s, 2, 3)                                   # ACQUISTA GIOCATORE
+        scr = s.screen()
+        i = next((e[0] for e in scr.entries if e[1].startswith('ACQ. ALTRO') and not e[2]), None)
+        if i is None:
+            return False, f'buy: no ACQ. ALTRO GIOCAT. NAZION. on {scr}; ' + '; '.join(errs + info)
+        press(s, scr, i, wait=3)
+        info.append(f'buy list: {s.screen().texts()[:16]}')
+        for g in 'AB':
+            group(s, g, 'domestic buy')
+    return not errs, '; '.join(errs + info)
+
+
 def xfer_sweep(env_extra, buyer, tag):
     """tools/xfersweep.py on the release dir (a poked third-party offer for SAO PAULO's player, accepted; LIST_ROW: that
     player listed on the transfer market first = a sale): the squad loses him, the bank gains, the order stays a

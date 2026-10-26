@@ -846,6 +846,12 @@ WN_TITLES = {   # official titles (data session, 2026-27): (country, ko_playoffs
     ('can', None): {'*': 'CPL SHIELD'},
     ('per', None): {'it': 'LIGA 1 - CLASSIFICA ACCUMULATA', 'en': 'LIGA 1 - ACCUMULATED TABLE',   # (4.0.1 rc3: no
                     'fr': 'LIGA 1 - CLASSEMENT CUMULE', 'de': 'LIGA 1 - GESAMTTABELLE'},   # regular season, Davide)
+    ('gua', None): {'it': 'LIGA NACIONAL - CLASSIFICA ANNUALE', 'en': 'LIGA NACIONAL - ANNUAL TABLE',   # (4.0.2)
+                    'fr': 'LIGA NACIONAL - CLASSEMENT ANNUEL', 'de': 'LIGA NACIONAL - JAHRESTABELLE'},
+    ('slv', None): {'it': 'PRIMERA DIVISION - CLASSIFICA ANNUALE', 'en': 'PRIMERA DIVISION - ANNUAL TABLE',
+                    'fr': 'PRIMERA DIVISION - CLASSEMENT ANNUEL', 'de': 'PRIMERA DIVISION - JAHRESTABELLE'},
+    ('par', None): {'it': 'DIVISION PROFESIONAL - CLASSIFICA ANNUALE', 'en': 'DIVISION PROFESIONAL - ANNUAL TABLE',
+                    'fr': 'DIVISION PROFESIONAL - CLASSEMENT ANNUEL', 'de': 'DIVISION PROFESIONAL - JAHRESTABELLE'},
     ('uru', None): {'it': 'CAMPEONATO URUGUAYO - CLASSIFICA ANNUALE', 'en': 'CAMPEONATO URUGUAYO - ANNUAL TABLE',
                     'fr': 'CAMPEONATO URUGUAYO - CLASSEMENT ANNUEL', 'de': 'CAMPEONATO URUGUAYO - JAHRESTABELLE'},
 }
@@ -912,7 +918,9 @@ def win_lines(comp, div, k, cc='', tfile=None):
     src = src and src + f'{k:02X}'                              # (+ the division: 4.0.1's last season, WN_ST 'L')
     if src:
         for lang in LANGS:
-            own = _wn_title(cc, None, lang) if title_po else None      # (the regular season's own title)
+            own = _wn_title(cc, None, lang) if title_po or tabs else None   # (the regular season's own title;
+                                                # 4.0.2: also a staged division with no title play-off - Guatemala /
+                                                # El Salvador / Paraguay: an annual table, not a title)
             lines[lang].insert(0, (_wn_fit(own, lang) if own else
                                    _wn_fit(div['name'], lang, WN[lang]['reg'] if title_po else ''), src))
     if tfile is not None and 0 <= tfile < 256:                  # 4.0.1: its key first for the last season's page (the

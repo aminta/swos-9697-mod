@@ -8172,6 +8172,45 @@ def club_colours(scr):
 
 
 @scenario
+def tail_zero():
+    """4.0.2 tailzero (Davide's MiSTer b3/b4, the 23/10 GOG DOSBox 0.74 report: no number over a controlled player
+    numbered 17..99): the mod's obj2 tail (its run-time buffers: shirtnum's 'built' flag + sprites, careerworld / gplay /
+    conti .bss ...) is not zeroed by the game's startup nor by DOS/4GW; DOSBox-X happens to give zeros. Every exe of the
+    build dir (SWOSTEST_BUILD, else the test build) must route start's `call __CMain` through a stub that stores zero
+    over exactly obj2's non-file part. (Negative control by hand: TAILZERO_FILL_TEST=5A builds a stub filling 5Ah, the
+    MiSTer-like start: shirt_numbers then FAILs, spritesIndex[1335..] = 0.) No exe is run."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import lepatch
+    d = os.environ.get('SWOSTEST_BUILD') or builds()['it']
+    exes = [os.path.join(d, x) for x in ('ITALIAN.EXE', 'ENGLISH.EXE', 'FRENCH.EXE', 'GERMAN.EXE')
+            if os.path.exists(os.path.join(d, x))]
+    errs, info = [], []
+    for exe in exes:
+        p = lepatch.LEPatch(exe)
+        c = p.le.obj_bytes(1)
+        m = [x.start() for x in re.finditer(rb'\xb8\xff\x00\x00\x00\xe8....\x29\xed\xe8', c, re.S)]
+        nm = os.path.basename(exe)
+        if len(m) != 1:
+            errs.append(f'{nm}: start call __CMain not found ({len(m)})')
+            continue
+        site = m[0] + 12
+        stub = site + 5 + struct.unpack_from('<i', c, site + 1)[0]
+        i = c.find(b'\xbf', stub, stub + 12)            # mov edi, TAIL / mov ecx, dwords / mov eax, fill / rep stosd
+        o2 = p.le.obj(2)
+        start, size = o2.npages * p.le.page_size, o2.vsize - o2.npages * p.le.page_size
+        ok = i > 0 and c[i + 5] == 0xB9 and c[i + 10] == 0xB8 and c[i + 15:i + 18] == b'\xfc\xf3\xab'
+        tgt = p.target(1, i + 1) if ok else None
+        n = struct.unpack_from('<I', c, i + 6)[0] if ok else 0
+        fill = struct.unpack_from('<I', c, i + 11)[0] if ok else None
+        check(ok and tgt == (2, start) and n * 4 >= size and n * 4 - size < 4 and fill == 0,
+              f'{nm}: stub obj1+{stub:#x} {c[stub:stub + 24].hex()} -> {tgt} x{n} fill {fill}; tail obj2+{start:#x}+{size:#x}', errs)
+        info.append(f'{nm}: obj2+{start:#x}..+{size:#x} zeroed')
+    if not exes:
+        return False, f'no exe in {d}'
+    return not errs, '; '.join(errs or info)
+
+
+@scenario
 def team_choice_colours():
     """4.0.2 teamstab (Davide, MiSTer b3): with no team chosen, every club button of a team list has the default colour.
     The lists colour a club by teamsTable[its ordinal], 100 bytes in the game; Italy 2026-27's file has 256 records and

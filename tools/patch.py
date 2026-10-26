@@ -601,6 +601,9 @@ def patch_exe(src, dst, remap, lang='it'):
     import controls                              # 4.0.2: OPTIONS > CONTROLS (keys, device, calibration, SETUP.DAT)
     ctl_at = hist2 + h2 + 0x1000 * (lpb + sp_pg + sc_pg + ct_pg)
     ctl_end = controls.patch(p, ctl_at, lang, area)
+    import tailzero                              # 4.0.2: the stub that zeroes obj2's tail at startup (written below,
+    tz_at = (ctl_end + 15) & ~15                 # once the tail's size is known; the cosmetics page is full)
+    ctl_end = tz_at + tailzero.SIZE
     assert ctl_end <= ctl_at + 0x1000 * ctl_pg, hex(ctl_end)
     p.set_vsize(1, OBJ1_NEW_VSIZE + (0x1000 * (cp + 2 + cdp) if worlds else 0) + h2 + 0x1000 * (lpb + sp_pg + sc_pg + ct_pg + ctl_pg))
     import teamstab                              # 4.0.2: teamsTable for 256 team ordinals (Serie D choice colours)
@@ -608,6 +611,7 @@ def patch_exe(src, dst, remap, lang='it'):
     tail = (careerworld.BSS_SIZE if bigw else 0) + shirtnum.BSS_SIZE + blond.BSS_SIZE + menunum.BSS_SIZE + fmtpage.BSS_SIZE \
         + teamstab.BSS_SIZE   # obj2 tail
     p.set_vsize(2, obj2_free + o2pages * p.le.page_size + tail, bss=tail)
+    tailzero.patch(p, tz_at, obj2_free + o2pages * p.le.page_size, (tail + 3) & ~3, nasmcave)   # (DOS/4GW: not zeroed)
     p.add_flags(1, 0x2)            # writable: season end rewrites the SA cup team lists in the cave
     split.late(p)                                # split's after-stage routines (engine.after_stage)
     trailer.late(p)                              # the engine block's late addresses (RS_STATE ...)

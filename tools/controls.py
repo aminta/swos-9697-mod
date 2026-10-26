@@ -65,11 +65,11 @@ TEXTS = {
                hint="AVEC LE MODE CLAVIER DU PATCHER GARDEZ FLECHES ET CTRL",
                arrows=("FLECHE HAUT", "FLECHE BAS", "FLECHE GAUCHE", "FLECHE DROITE"), ctrl="CTRL",
                shift=("MAJ G", "MAJ D"), space="ESPACE", enter="ENTREE", kp="PN", key="TOUCHE"),
-    'de': dict(title="STEUERUNG", dev="GER\x8eTE",
+    'de': dict(title="STEUERUNG", dev="GERAETE",
                devs=("NUR TASTATUR", "S1 JOYPAD, S2 TASTATUR", "S1 TASTATUR, S2 JOYPAD", "ZWEI JOYPADS"),
                keys=("OBEN", "UNTEN", "LINKS", "RECHTS", "FEUER"),
-               press="TASTE DR\x9aCKEN (ESC: BEHALTEN)", dup="TASTE SCHON BELEGT",
-               cal="JOYPAD {} KALIBRIEREN", step1="STICK IN DIE MITTE, FEUER DR\x9aCKEN",
+               press="TASTE DRUECKEN (ESC: BEHALTEN)", dup="TASTE SCHON BELEGT",
+               cal="JOYPAD {} KALIBRIEREN", step1="STICK IN DIE MITTE, FEUER DRUECKEN",
                step2="STICK IN ALLE ECKEN, DANN FEUER", nopad="KEIN JOYPAD {} ANGESCHLOSSEN",
                test="TEST:", save="SPEICHERN", cancel="ABBRECHEN",
                hint="IM TASTATURMODUS DES PATCHERS PFEILE UND STRG LASSEN",
@@ -80,8 +80,9 @@ TEXTS = {
 ROWS = {'it': ('QWERTYUIOP', 'ASDFGHJKL', 'ZXCVBNM'), 'en': ('QWERTYUIOP', 'ASDFGHJKL', 'ZXCVBNM'),
         'fr': ('AZERTYUIOP', 'QSDFGHJKLM', 'WXCVBN'), 'de': ('QWERTZUIOP', 'ASDFGHJKL', 'YXCVBNM')}
 
-# the small font (complist.SMALL_W) and the German exe's umlauts (cp437 Ä Ö Ü, in its ZURÜCK ZU DOS button)
-SMALL_W = dict({c: 6 for c in 'ABCDEFGHJKLMNOPQRSTUVWXYZ023456789!"#$%&*+/<=>?@\x8e\x99\x9a'},
+# the small font (complist.SMALL_W); German as AE / OE / UE (Davide 26/10: the small font draws the exe's umlaut bytes
+# without dots, DRUCKEN would read 'print')
+SMALL_W = dict({c: 6 for c in 'ABCDEFGHJKLMNOPQRSTUVWXYZ023456789!"#$%&*+/<=>?@'},
                **{'I': 2, '1': 2, "'": 2, '(': 3, ')': 3, ',': 2, '-': 4, '.': 2, ':': 2, ' ': 3})
 
 

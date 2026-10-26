@@ -2195,6 +2195,8 @@ Left for 2.5: (a) NSL/NSSL finals series (type-1 design) or declare them postpon
   80-count check). world_ccc_away (scenario-built exe, world5tm-401rc3): 503927b no trap, a808238 no trap, ae2ea46
   PASS, b8972c5 TRAP; world_mex_titles traps the same on 9948089. On c/RELccc world_ccc_away PASS.
 - Held: 6. xsq-402 72e5207, 7. p402 772da13, 8. 4.0.2-controls 6ebee9b (after Motore's ctl_full PASS), until the fix.
+- Regia 26/10: blocker routed to Dati coppe (lead; same 0x81390 trap as their UQ_HOLD forcing) + Serie C; fix branch off
+  9948089+. 6-8 stay HELD until the fix is merged and a season-crossing smoke (world_ccc_away / world_mex_titles) PASSes.
 
 ## Deferred realism (4.0.2+)
 - Odd Serie D groups, the career club resting on the last match day (Serie C session, 2026-10-23): its Poule / group

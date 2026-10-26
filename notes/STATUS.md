@@ -2217,6 +2217,9 @@ Left for 2.5: (a) NSL/NSSL finals series (type-1 design) or declare them postpon
   absolute /Users/davide/swos-mod/internal/world2526/lp36/TEAM.SRC; the server's home is /Users/davidelorigliola). rc1: run
   lp36_tourney LOCALLY. Fix later: path relative to ROOT / WORK (MAIN), or remote_run syncing it.
 - rc runs (Regia 26/10): use BOTH machines, 4 DOSBox here + 2 remote, never one idle while the other queues.
+9. p402wn 71641f1 (p6 WINNERS: DA GIOCARE for the career league's play-off lines) -> 9befc7f: world_winners_title,
+   roundtrip PASS. 4.0.2 code COMPLETE except: world_winners_state to FORCE the Paulista results (p6 follow-up; today
+   result-dependent FAIL, statecup code untouched) and the kits A/B/C data batch.
 
 ## Deferred realism (4.0.2+)
 - Moldova's h2h_half groups start at 0 points (package 6, 2026-10-24; pre-existing, not option C).

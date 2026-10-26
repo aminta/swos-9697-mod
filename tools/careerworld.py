@@ -1020,7 +1020,14 @@ w_ct_away:                              ; patched to `jmp ct_away` by conti.py: 
 w_chk_tot0q:                            ; the record count before the holders: in a league-phase world the
     call w_q_fill                       ; qualifying rounds' clubs go into the lists first (uefaq)
     call w_ct_fill                      ; (conti: the other confederations' editions, world-wide)
-    jmp w_chk_tot0
+    cmp byte [w_hkeep + 2], 0           ; 4.0.2: the UECL holder already in the Champions League list is no record
+    jz w_chk_tot0                       ; to append later: the game's total (holders - 3) is one more than the table's
+    dec word [CFB]
+    call w_chk_tot0
+    pushfd
+    inc word [CFB]
+    popfd
+    ret
 w_chk_totq:                             ; the last record count check, then (uefaq) the record of the career
     call w_chk_tot                      ; club's qualifying-tie opponent
     pushfd

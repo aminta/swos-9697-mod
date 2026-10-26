@@ -98,3 +98,12 @@ So the whole offer / buy / sold-list / 30-cap flow is reused as is; what is miss
   extras (shot), pick one > the offer screen (name, price), buy (30 cap checked on CELLE VARAZZE: TOO_LARGE_SQUAD message), sold row
   gone from page 2 and the button hidden when none left; save / reload; a club without extras: no button; EN / FR / DE labels.
 - **Estimate** 13-15 h: menu copy + button + page logic 6-7, row draw / select hooks 3, scenarios + pictures 3-4, 4 languages 1.
+
+### Part 2 as built (2026-10-27, tools/xbrowse.py, commit 097182d)
+- The menu is `buyOtherPlayersMenu` copied into the cave with entry 31 (the template's cells are entries 19..30, rows 3..18); the 2 users
+  retargeted; the button is hidden by the first row's draw (xb_vis: xb_n extras; NOTE CalcMenuEntryAddress clobbers ebx).
+- Page 2: row r = the r-th non-blank cached slot; the shown number = row + 17 (their shirt numbers also start at 17); empty rows draw
+  nothing; if the last extra was bought while on page 2 the list falls back to page 1.
+- Found: the game writes a REPLACEMENT player into the seller's slot after a purchase (cseg_56615): with the cache that overwrote the
+  sold slot (a "Robinho Naso" extra appeared); xt_sold now calls the game's tail first, then blanks the slot again.
+- Menu texts per language = fmtpage's NEXT / PREV; EN / FR / DE builds compile (screens not looked at yet).

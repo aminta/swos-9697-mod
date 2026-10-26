@@ -2237,3 +2237,18 @@ Left for 2.5: (a) NSL/NSSL finals series (type-1 design) or declare them postpon
 - Counts on the 4.0 rc data (wrong starters before -> after): 2026-27 clubs 2477 (0 exact -> 2281 exact, 196 best the squad
   allows), 1984-85 clubs 277 (21 original, 256 exact), 1984-85 national 18x all exact; 78 tourney/national records
   (TEAM.089-093, 146) keep their explicit hand-written lineups, which start worse than the squad allows (lineupcheck KNOWN_EXPLICIT).
+
+## 4.0.2 extended squads: 17-30 real players (branch xsq-402, 2026-10-26)
+- Engine unchanged (xtra.py hook already merged); limit raised: `extra` 1..14 (16 + 14 = 30, the game's filler cap), MAX_EXTRA 14.
+- Data: internal/world2526/mkworld_tm.py `TM_EXTRA=14` (default stays 9 = 25-man until Regia switches the release recipe; `1` = 9, `0` = off):
+  next most valuable players of the club, a 3rd keeper among them, fairness cap kept. 91 packs, 92 XTRA files, 1.3 MB; 71 clubs have 30.
+- Test: scenario `xtra_world30` (XTRA30_BUILD): CELLE VARAZZE 30 players, STEFANO CHIAIA the 30th, two seasons + save/reload.
+  Old 4.0.1-style save (25 players, made on a TM_EXTRA=9 build) loads and plays a season on the 30-man build; career_20seasons x3 (Celle Varazze) PASS;
+  xtra_squad, xtra_season PASS.
+
+## 4.0.2 buying players 17-30 of other clubs (branch xsq-402, 2026-10-26)
+- Built as in notes/world-2025-26-outsquad-buying.md ("As built"): market entries index 16.. = XTRA players of other clubs (GetPlayer hook +
+  list / row / AddCareerTeamPlayer sites), a bought one goes into the sold list (engine item 'XS', old saves: empty), no RemovePlayer.
+- Found on the way: trailer.py's world-0 engine block looped over zero items when a build had only world-only items (fixed, 819b85a).
+- Tests PASS on the TM_EXTRA=14 world: xtra_market, xtra_world30, career_20seasons x2-3 (CHISOLA / CELLE VARAZZE), an old 25-man save,
+  xtra_squad, xtra_season; IT/EN/FR/DE exes build. Not done: release recipe suite, a visual tour, EN/FR/DE market screens in a run.

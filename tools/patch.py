@@ -206,6 +206,8 @@ def patch_exe(src, dst, remap, lang='it'):
     lpb += bool(mkseason.league_phase_worlds())   # (+1 more: the UEFA coefficients, uefacoef)
     lpb += 4 * bool(mkseason.league_phase_worlds())   # (+4: the UEFA qualifying rounds, uefaq: C code + glue)
     xtra_on = bool(mkseason.xtra_files() or os.environ.get('XTRA_HOOK'))
+    if xtra_on:
+        engine.save_item('XS', xtra.XS_SIZE, world_only=True)    # 4.0.2 the XTRA players bought from other clubs (xtra.py)
     bigtables.ON[0] = bigtables.needed()         # a world numbering its clubs 2000+ (World 5.0; 4.0's world 0)
     bigtables.MOVED.clear()
     pg_tabs = mkseason.parallel_tables() + engine.parallel_tables()   # parallel groups (worlds' packs; world 0: engine)
@@ -234,7 +236,7 @@ def patch_exe(src, dst, remap, lang='it'):
     import gplay as gp_mod
     lpb += gp_mod.GP_PAGES * gp_on                     # (its pages, after dplay's: C + glue + specs)
     xtra_pg = bool((xtra_on or pg_tabs or rs_tabs or ri_tabs or bigtables.ON[0]) and mkseason.worlds())   # (+1: an extra code page in a build with worlds,
-    xpg = 2 * xtra_pg                                  # (2 pages: xtra + pgroups + bigtables filled one in the full
+    xpg = (2 + bool(xtra_on)) * xtra_pg               # (2 pages: xtra + pgroups + bigtables filled one in the full
     lpb += xpg                                         # world 2026-27; whose world cave is full)
     ri_pg = 2 * bool(ri_tabs and mkseason.worlds())    # (+2: the off-file pools' code + table, up to 8 files)
     lpb += ri_pg
@@ -537,7 +539,10 @@ def patch_exe(src, dst, remap, lang='it'):
         world = cos
     if xtra_pg:                                                  # extended career squads (packs with "extra";
         xp = hist2 + h2 + 0x1000 * (lpb - cos_pg - ri_pg - xpg)  # XTRA_HOOK=1: test builds): DATA\XTRA.nnn players;
-        xe = xtra.patch(p, xp) if xtra_on else xp                # the extra page in a build with worlds, with the
+        xe = xtra.patch(p, xp) if xtra_on else xp
+        if xtra_on:
+            import xbrowse                                       # 4.0.2: the extras in the club browse (a 2nd page)
+            xe = xbrowse.patch(p, xe, lang)                # the extra page in a build with worlds, with the
         ri = None
         if ri_tabs:                                              # the off-file pool (Eccellenza): its own page
             rp = hist2 + h2 + 0x1000 * (lpb - cos_pg - ri_pg)
@@ -561,6 +566,8 @@ def patch_exe(src, dst, remap, lang='it'):
         assert xe <= xlim, hex(xe)
     elif xtra_on:
         world = xtra.patch(p, world)
+        import xbrowse
+        world = xbrowse.patch(p, world, lang)
     assert not fmtpage.WN or xtra_pg, 'VINCITORI: no extra pages'
     assert world <= NZ_CAVE and nz_end <= FIN_CAVE and fin_end <= ARG_CAVE and arg_end <= OBJ1_NEW_VSIZE, \
         (hex(world), hex(nz_end), hex(fin_end), hex(arg_end))

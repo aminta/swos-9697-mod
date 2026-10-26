@@ -997,11 +997,11 @@ class Pack:
 
     def _explicit(self, sq):
         """Every byte from the pack: clubs.csv tactic, kit1, kit2, lineup; players.csv (16 per club, in record order)
-        number, position, nat, skin, the 7 skills and price (see EXPLICIT_*). squads "extra": E (1..16): rows 17..16+E
+        number, position, nat, skin, the 7 skills and price (see EXPLICIT_*). squads "extra": E (1..14): rows 17..16+E
         of a club go to XTRA.nnn, the players the managed club of a career gets beyond its 16 (xtra.py)."""
         out = {}
         extra = sq.get('extra', 0)
-        _need(isinstance(extra, int) and 0 <= extra <= 16, 'squads "extra" must be 0..16')
+        _need(isinstance(extra, int) and 0 <= extra <= 14, 'squads "extra" must be 0..14')
         for fk in sq['files']:
             recs, blocks = [], {}
             for key, c in self.clubs.items():

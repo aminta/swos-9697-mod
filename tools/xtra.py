@@ -27,7 +27,7 @@ import struct
 import nasmcave
 
 PLAYER = 38
-MAX_EXTRA = 16                         # 16 + 16 = the 32 slots of careerTeam
+MAX_EXTRA = 14                         # 16 + 14 = 30 players, the cap of the game's own fillers (careerTeam has 32 slots)
 LABELS = {}                            # obj1 offsets after patch(): XTRA_NAMEP = the dd holding the file name's address
 
 ASM = r"""
@@ -59,16 +59,29 @@ xtra_load:
 
 xtra_read:                              ; [SEL]'s block of the XTRA file -> xblock, zero-filled; eax = players
     mov word [xteam], -1
-    mov edi, xblock
-    mov ecx, MAXE_ * PLAYER_
-    xor eax, eax
-    rep stosb
     mov byte [xcount], 0
     mov eax, [xtra_namep]
     mov [xnamecache], eax
     mov ax, [SEL]
     mov [xteam], ax
-    movzx eax, byte [SEL]               ; team file number
+    mov edi, xblock
+    call xtra_readto
+    mov [xcount], al
+    ret
+
+xtra_readto:                            ; ax = team word, edi -> MAXE_ * PLAYER_ bytes: the club's block of the XTRA
+    push ebx                            ; file, zero-filled -> eax = players with a name (xsize = the block's size)
+    push ecx
+    push edx
+    push esi
+    push edi
+    mov [xrdst], edi
+    mov [xrteam], ax
+    mov byte [xrc], 0
+    mov ecx, MAXE_ * PLAYER_
+    xor eax, eax
+    rep stosb
+    movzx eax, byte [xrteam]            ; team file number
     cmp al, 100                         ; CUSTOMS.EDT
     je .none
     mov edi, [xtra_namep]               ; the file name (another session may point it at a per-world name)
@@ -101,7 +114,7 @@ xtra_read:                              ; [SEL]'s block of the XTRA file -> xblo
     ja .close
     movzx eax, word [xhead]
     xchg al, ah                         ; k (big endian)
-    movzx esi, byte [SEL + 1]           ; the club's ordinal
+    movzx esi, byte [xrteam + 1]        ; the club's ordinal
     cmp esi, eax
     jae .close
     imul ecx, ecx, PLAYER_
@@ -116,14 +129,15 @@ xtra_read:                              ; [SEL]'s block of the XTRA file -> xblo
     jc .close
     mov ah, 3Fh
     mov ecx, [xsize]
-    mov edx, xblock
+    mov edx, [xrdst]
     int 21h
     jc .close
     cmp eax, [xsize]
     jne .close
     movzx ecx, byte [xhead + 2]
     xor eax, eax
-    mov edi, xblock + 3                 ; first name byte
+    mov edi, [xrdst]
+    add edi, 3                          ; first name byte
 .count:
     cmp byte [edi], 0
     je .done
@@ -132,16 +146,19 @@ xtra_read:                              ; [SEL]'s block of the XTRA file -> xblo
     cmp eax, ecx
     jb .count
 .done:
-    mov [xcount], al
+    mov [xrc], al
 .close:
-    push eax
     mov ah, 3Eh
     int 21h
-    pop eax
-    movzx eax, byte [xcount]
-    ret
+    jmp .out
 .none:
-    xor eax, eax
+.out:
+    movzx eax, byte [xrc]
+    pop edi
+    pop esi
+    pop edx
+    pop ecx
+    pop ebx
     ret
 
 xtra_reserves:                          ; replaces InitializeNewSeason's call of cseg_64A65 (new club: 10 reserves)
@@ -189,6 +206,219 @@ xtra_wage:                              ; replaces `mov esi, [A0] / cmp byte [es
 .r:
     ret
 
+
+; ---- 4.0.2 buying players 17-30 of other clubs: market entries (team word, index 16.. = the club's XTRA player index - 16)
+xt_block:                               ; ax = team word -> eax = its cache entry (dw team, db players, db valid, block), or 0
+    push ebx
+    push ecx
+    push edx
+    push esi
+    push edi
+    movzx ebx, ax
+    mov eax, [xtra_namep]
+    cmp eax, [xcnamep]
+    je .ok
+    mov [xcnamep], eax                  ; another world's XTRA names: the cache is stale
+    mov esi, xcache
+    mov ecx, NC_
+.flush:
+    mov byte [esi + 3], 0
+    add esi, ENT_
+    dec ecx
+    jnz .flush
+.ok:
+    mov esi, xcache
+    mov ecx, NC_
+.find:
+    cmp byte [esi + 3], 0
+    je .next
+    cmp [esi], bx
+    je .hit
+.next:
+    add esi, ENT_
+    dec ecx
+    jnz .find
+    movzx eax, byte [xrr]               ; miss: the next entry, round robin
+    mov edx, eax
+    inc edx
+    cmp edx, NC_
+    jb .rr
+    xor edx, edx
+.rr:
+    mov [xrr], dl
+    imul eax, eax, ENT_
+    lea esi, [xcache + eax]
+    mov [esi], bx
+    lea edi, [esi + 4]
+    mov eax, ebx
+    call xtra_readto
+    mov [esi + 2], al                   ; players (before the sold ones are blanked: the indexes stay)
+    mov byte [esi + 3], 1
+    movzx ecx, word [xsold]
+    mov edx, xsold + 2
+.sold:
+    test ecx, ecx
+    jz .hit
+    cmp [edx], bx
+    jne .sn
+    movzx eax, byte [edx + 2]
+    sub eax, 16
+    imul eax, eax, PLAYER_
+    mov byte [esi + 4 + eax + 3], 0     ; bought: no name = not there
+.sn:
+    add edx, 3
+    dec ecx
+    jmp .sold
+.hit:
+    mov eax, esi
+    pop edi
+    pop esi
+    pop edx
+    pop ecx
+    pop ebx
+    ret
+
+xt_slot:                                ; ax = team word, ecx = index 16..16+MAXE_-1 -> eax = the player - 4Ch - index * 38
+    cmp ecx, 16                         ; (the game adds index * 38 to the team record), or 0
+    jb .no
+    cmp ecx, 16 + MAXE_
+    jae .no
+    push ecx
+    call xt_block
+    pop ecx
+    test eax, eax
+    jz .no
+    lea edx, [ecx - 16]
+    imul edx, edx, PLAYER_
+    lea eax, [eax + 4 + edx - 76]
+    ret
+.no:
+    xor eax, eax
+    ret
+
+gp_wide:                                ; GetPlayer's `call GetTeamPointer`: team D0, index D1 >= 16 of another club
+    call GTP
+    pushfd
+    pushad
+    movzx ecx, word [REGS + 4]
+    mov ax, [REGS]
+    call xt_slot
+    test eax, eax
+    jz .out
+    mov edx, ecx
+    imul edx, edx, PLAYER_
+    sub eax, edx
+    mov [REGS + 32], eax                ; A0: GetPlayer adds index * 38
+.out:
+    popad
+    popfd
+    ret
+
+mp_a6:                                  ; the market row (cseg_5A017): replaces `mov [A0], eax` (eax = record + index * 38)
+    mov [REGS + 32], eax
+    pushfd
+    pushad
+    mov esi, [REGS + 56]                ; A6 = the entry
+    call mp_entry
+    popad
+    popfd
+    ret
+
+mp_a1:                                  ; the market list (cseg_5A227): replaces `add [A0], eax`
+    add [REGS + 32], eax
+    pushfd
+    pushad
+    mov esi, [REGS + 36]                ; A1 = the entry
+    call mp_entry
+    popad
+    popfd
+    ret
+
+mp_entry:                               ; esi -> market entry (dw team, db index): index >= 16 -> A0 = the XTRA player - 4Ch
+    movzx ecx, byte [esi + 2]
+    mov ax, [esi]
+    call xt_slot
+    test eax, eax
+    jz .no
+    mov [REGS + 32], eax
+.no:
+    ret
+
+xt_pick:                                ; AddCareerTeamPlayer, replaces `mov [D2+2], dx` (D0 team, D1 index, D2 index*38, A0 record)
+    mov [REGS + 10], dx
+    pushfd
+    pushad
+    mov ax, [REGS]
+    call xt_block
+    test eax, eax
+    jz .out
+    movzx ebx, byte [eax + 2]           ; the club's extras
+    test ebx, ebx
+    jz .out
+    mov esi, eax
+    mov edi, [REGS]                     ; (Rand2 returns in D0)
+    call RAND2
+    movzx eax, word [REGS]
+    mov [REGS], edi
+    and eax, 0FFh
+    xor edx, edx
+    lea ecx, [ebx + 16]
+    div ecx
+    cmp edx, 16                         ; 16 + extras equally likely
+    jb .out
+    mov eax, edx
+    sub eax, 16
+    imul eax, eax, PLAYER_
+    cmp byte [esi + 4 + eax + 3], 0     ; bought already: the game's own pick stays
+    je .out
+    lea eax, [esi + 4 + eax - 76]
+    mov ecx, edx
+    imul ecx, ecx, PLAYER_
+    sub eax, ecx
+    mov [REGS + 32], eax
+    mov [REGS + 4], dx
+    mov [REGS + 8], cx
+.out:
+    popad
+    popfd
+    ret
+
+xt_sold:                                ; cseg_56379 (a player is bought), replaces its last `call cseg_56615`: D0 team, D1
+    mov eax, [REGS]                     ; index. The game's own tail first (it writes a replacement player into the seller's
+    mov [xsd0], eax                     ; slot: here the cached XTRA slot), then the sold list and the slot blanked again
+    mov eax, [REGS + 4]
+    mov [xsd1], eax
+    call TAIL56
+    pushfd
+    pushad
+    movzx ecx, word [xsd1]
+    cmp ecx, 16
+    jb .no
+    cmp ecx, 16 + MAXE_
+    jae .no
+    mov ax, [xsd0]
+    cmp ax, [SEL]
+    je .no
+    movzx edx, word [xsold]
+    cmp edx, XSOLD_
+    jae .no
+    lea edx, [edx + edx * 2]
+    mov [xsold + 2 + edx], ax
+    mov [xsold + 4 + edx], cl
+    inc word [xsold]
+    push ecx
+    call xt_block                       ; and out of the cached block at once
+    pop ecx
+    test eax, eax
+    jz .no
+    sub ecx, 16
+    imul ecx, ecx, PLAYER_
+    mov byte [eax + 4 + ecx + 3], 0
+.no:
+    popad
+    popfd
+    ret
+
 align 4
 xtra_namep: dd xname                    ; -> 'data\xtra.nnn' (digits at +10..+12); LABELS['XTRA_NAMEP']
 xnamecache: dd 0
@@ -199,6 +429,18 @@ xadded: db 0
 xcount: db 0
 xres: db 0
 xhead: db 0, 0, 0
+xrr: db 0
+xrteam: dw 0
+xrc: db 0
+align 4
+xrdst: dd 0
+xcnamep: dd 0
+xsd0: dd 0
+xsd1: dd 0
+xsmark: db 'XSLD'                      ; (the harness finds the list by this)
+xsold: times 2 + 3 * XSOLD_ db 0
+align 4
+xcache: times NC_ * ENT_ db 0
 align 4
 xblock: times MAXE_ * PLAYER_ db 0
 """
@@ -302,20 +544,68 @@ def wage_table(p):
     return p.target(1, ws + t[0] + 6)[1]
 
 
+XSOLD = 128                            # bought XTRA players remembered (3 bytes each); saved in the .CAR's engine item 'XS'
+XS_SIZE = 2 + 3 * XSOLD
+NC, ENT = 4, 4 + MAX_EXTRA * PLAYER      # the market's cache of XTRA blocks (4 clubs)
+
+
+def find_market(d1, regs):
+    """The original exe's market sites (4.0.2, buying players 17-30 of other clubs), all in obj1: gp = GetPlayer's
+    `call GetTeamPointer`, a6 = `mov [A0], eax` of the market row (cseg_5A017), a1 = `add [A0], eax` of the market list
+    (cseg_5A227), pick = AddCareerTeamPlayer's `mov [D2+2], dx` (rand2 = the Rand2 it called just before), sold = cseg_56379's
+    first `push dword [D0]`."""
+    D0 = regs['D7'] - 28                   # D0..D7, A0..A6 are consecutive dwords
+    D1, D2, A0, A1, A6 = D0 + 4, D0 + 8, regs['A0'], regs['A1'], regs['A0'] + 24
+    ptr = lambda a: re.escape(struct.pack('<I', a))
+    def one(pat, what):
+        m = [x for x in re.finditer(pat, d1, re.S)]
+        assert len(m) == 1, (what, len(m))
+        return m[0]
+    rel = lambda o: o + 5 + struct.unpack('<i', d1[o + 1:o + 5])[0]
+    # GetPlayer: ...cmp [D0],ax; jnz; mov [A0], offset careerTeam; jmp; call GetTeamPointer; mov ax,[D1]; mov bx,26h; mul bx
+    m = one(rb'\x66\x39\x05' + ptr(D0) + rb'\x75\x0c\xc7\x05' + ptr(A0) + rb'....\xeb\x20\x66\xa1....\x66\x39\x05' + ptr(D0) +
+            rb'\x75\x0c\xc7\x05' + ptr(A0) + rb'....\xeb\x05(\xe8....)\x66\xa1' + ptr(D1) + rb'\x66\xbb\x26\x00\x66\xf7\xe3', 'GetPlayer')
+    gp = m.start(1)
+    # the row: ... call VerifyTeamLoaded; mov eax,[A0]; add eax,5; mov [A4],eax; mov esi,[A6] ... add eax,ebx; mov [A0],eax; mov eax,[A0]; mov [A6],eax
+    m = one(rb'\xa1' + ptr(A0) + rb'\x83\xc0\x05\xa3....\x8b\x35' + ptr(A6) + rb'\x8a\x46\x02.{60,120}?\x03\xc3(\xa3' + ptr(A0) +
+            rb')\xa1' + ptr(A0) + rb'\xa3' + ptr(A6), 'row')
+    a6 = m.start(1)
+    # the list: mov esi,[A1]; mov al,[esi+2]; ...; mov eax,[D0]; add [A0],eax; call
+    m = one(rb'\x8b\x35' + ptr(A1) + rb'\x8a\x46\x02\xa2' + ptr(D0) + rb'.{20,60}?\xa1' + ptr(D0) + rb'(\x01\x05' + ptr(A0) + rb')\xe8', 'list')
+    a1 = m.start(1)
+    # AddCareerTeamPlayer: call Rand2; and word [D0],0Fh; mov eax,[D0]; xchg eax,[D1]; mov [D0],eax; mov ax,[D1]; mov [D2],ax;
+    #   mov ax,[D2]; mov bx,26h; mul bx; mov [D2],ax; mov [D2+2],dx
+    m = one(rb'(\xe8....)\x66\x83\x25' + ptr(D0) + rb'\x0f\xa1' + ptr(D0) + rb'\x87\x05' + ptr(D1) + rb'\xa3' + ptr(D0) +
+            rb'\x66\xa1' + ptr(D1) + rb'\x66\xa3' + ptr(D2) + rb'\x66\xa1' + ptr(D2) + rb'\x66\xbb\x26\x00\x66\xf7\xe3\x66\xa3' +
+            ptr(D2) + rb'(\x66\x89\x15' + ptr(D2 + 2) + rb')', 'AddCareerTeamPlayer')
+    rand2, pick = rel(m.start(1)), m.start(2)
+    # cseg_56379's tail: add [careerNumPlayers],1; call cseg_5E345; pop D1; pop D0; call cseg_56615; ret
+    m = one(rb'\x66\x83\x05(....)\x01\xe8....\x8f\x05' + ptr(D1) + rb'\x8f\x05' + ptr(D0) + rb'(\xe8....)\xc3', 'purchase')
+    sold = m.start(2)
+    return {'gp': gp, 'gp_target': rel(gp), 'a6': a6, 'a1': a1, 'pick': pick, 'rand2': rand2, 'sold': sold, 'sold_target': rel(sold)}
+
+
 def patch(p, at):
     """Code at obj1:at; returns the code end."""
     s, cnp, ct, cmp, sel = sites(p)
     rs, reserves = reserves_site(p)
     tail = reserves_tail(p, reserves)
     ws, wage, regs = wage_sites(p)
+    import sacups
+    mk = find_market(p.le.obj_bytes(1), sacups.regs(p.le.obj_bytes(1)))
     at = (at + 15) & ~15
     sym = {'CNP': (2, cnp), 'CT': (2, ct), 'CMP': (2, cmp), 'SEL': (2, sel), 'RESERVES': (1, reserves), 'RESTAIL': (1, tail),
-           'WAGE': (1, wage), 'REGS': (2, regs), 'PLAYER_': (0, PLAYER), 'MAXE_': (0, MAX_EXTRA)}
+           'WAGE': (1, wage), 'REGS': (2, regs), 'PLAYER_': (0, PLAYER), 'MAXE_': (0, MAX_EXTRA),
+           'GTP': (1, mk['gp_target']), 'TAIL56': (1, mk['sold_target']), 'RAND2': (1, mk['rand2']), 'NC_': (0, NC), 'ENT_': (0, ENT), 'XSOLD_': (0, XSOLD)}
     code, fix = nasmcave.assemble(ASM, at, sym)
     lab = nasmcave.labels(ASM, at, sym)
     assert not any(p.get(1, at, len(code)))
     p.put(1, at, code)
     LABELS['XTRA_NAMEP'] = lab['xtra_namep']
+    LABELS['xt_block'] = lab['xt_block']
+    LABELS['XSOLD'] = lab['xsold']                  # the bought XTRA players (engine item 'XS')
+    import engine
+    engine.ITEM_AT['XS'] = (1, lab['xsold'])         # saved in the .CAR's engine block (patch.py: engine.save_item)
     for o, t_obj, t_off in fix:
         p.add_ptr(1, at + o, t_obj, t_off)
     p.remove(1, s + 3)
@@ -323,6 +613,13 @@ def patch(p, at):
     p.put(1, rs, b'\xE8' + struct.pack('<i', lab['xtra_reserves'] - (rs + 5)))      # relative call: no fixup
     p.remove(1, ws + 2)                                                               # mov esi, [A0]
     p.put(1, ws, b'\xE8' + struct.pack('<i', lab['xtra_wage'] - (ws + 5)) + b'\x90' * 5)
+    call = lambda o, t: b'\xE8' + struct.pack('<i', t - (o + 5))
+    for key, size, fix, tgt in (('gp', 5, None, 'gp_wide'), ('a6', 5, 1, 'mp_a6'), ('a1', 6, 2, 'mp_a1'),
+                                ('pick', 7, 3, 'xt_pick'), ('sold', 5, None, 'xt_sold')):     # the market (4.0.2)
+        o = mk[key]
+        if fix:
+            p.remove(1, o + fix)
+        p.put(1, o, call(o, lab[tgt]) + b'\x90' * (size - 5))
     print(f'exe: extended career squads (DATA\\XTRA.nnn) at obj1+{s:#x}, code obj1+{at:#x}, {len(code)} B')
     return at + len(code)
 

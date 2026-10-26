@@ -3999,6 +3999,408 @@ def xtra_squad():
 
 
 @scenario
+def xtra_world30():
+    """Extended squads of the World 2026-27 (4.0.2): XTRA30_BUILD (a build of the world with TM_EXTRA=14, XTRA.nnn
+    in its DATA) and a career at CELLE VARAZZE (Serie D girone A, a 30-man club): it starts with 30 players, slots
+    16..29 = its XTRA block in file order (STEFANO CHIAIA the 30th), squad order 0..29, no invented reserves, wages
+    of the 30 all > 0; two seasons with save + reload keep the extras (at most 32 players, no trap)"""
+    exe = os.environ.get('XTRA30_BUILD')
+    if not exe or not os.path.isdir(exe):
+        return True, 'SKIP: XTRA30_BUILD not set'
+    club = os.environ.get('XTRA30_CLUB', 'CELLE VARAZZE')
+    path = os.environ.get('XTRA30_PATH', 'EUROPA,ITALIA,SERIE D GIRONE A,' + club)
+    last = os.environ.get('XTRA30_LAST', 'STEFANO CHIAIA')
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import lepatch
+    import xtra
+    p = lepatch.LEPatch(os.path.join(exe, 'ITALIAN.EXE'))
+    _, cnp, ct, cmp, sel = xtra.sites(p)
+    wt = xtra.wage_table(p)
+    want = None                                  # the club's block in the build's own files
+    for fn in sorted(os.listdir(os.path.join(exe, 'DATA'))):
+        if not (fn.startswith('TEAM.') or fn.startswith('TMW')):
+            continue
+        d = open(os.path.join(exe, 'DATA', fn), 'rb').read()
+        for k in range(struct.unpack('>H', d[:2])[0]):
+            if d[2 + k * 684 + 5:2 + k * 684 + 22].split(b'\0')[0].decode('latin1') == club:
+                xf = os.path.join(exe, 'DATA', 'XTRA.' + fn.split('.')[1])
+                want = [x[3:26].split(b'\0')[0].decode('latin1') for x in xtra.read(open(xf, 'rb').read())[k]]
+    if not want:
+        return False, f'{club}: no XTRA block in {exe}'
+    n_want = 16 + len(want)
+    keep = {x: os.environ.get(x) for x in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K',
+                                            'W8485_NOSACK', 'W8485_HEX', 'W8485_ONE')}
+    os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=path, W8485_WNUM='5', W8485_K='108+',
+                      W8485_NOSACK='1', W8485_HEX=f'{cnp:x}:2,{cmp:x}:32,{ct:x}:1292,{wt:x}:128')
+    os.environ.pop('W8485_ONE', None)
+    try:
+        ok, msg = world8485()
+    finally:
+        for x, v in keep.items():
+            if v is None:
+                os.environ.pop(x, None)
+            else:
+                os.environ[x] = v
+    errs = []
+    check(ok, msg, errs)
+    seen = {}
+    for ln in open(os.path.join(RUNS, w84_tag() + '_1', 'session.log'), errors='replace'):
+        q = ln.split()
+        if len(q) == 3 and q[0] == 'HEX':
+            seen.setdefault(q[1], []).append(bytes.fromhex(q[2]))
+    if not seen.get(f'{cnp:x}'):
+        return False, 'no HEX lines; ' + msg
+    def squad(i):
+        n = struct.unpack('<H', seen[f'{cnp:x}'][i])[0]
+        rec = seen[f'{ct:x}'][min(i, len(seen[f'{ct:x}']) - 1)]
+        names = [rec[684 + (j - 16) * 38 + 3:684 + (j - 16) * 38 + 26].split(b'\0')[0].decode('latin1') for j in range(16, 32)]
+        return n, names
+    n0, names0 = squad(0)
+    check(n0 == n_want, f'{club}: {n0} players at the start (want {n_want})', errs)
+    check(names0[:len(want)] == want, f'slots 16..: {names0[:len(want)]} != {want}', errs)
+    check(want[-1] == last if last else True, f'last extra {want[-1]!r} (want {last!r})', errs)
+    order = list(seen[f'{cmp:x}'][0])[:n0]
+    check(order[16:] == list(range(16, n0)), f'squad order {order[16:]}', errs)
+    wages = struct.unpack('<32I', seen[f'{wt:x}'][-1])
+    check(all(wages[j] > 0 for j in range(n_want)), f'wages {wages[:n_want]}', errs)
+    nl, namesl = squad(len(seen[f'{cnp:x}']) - 1)
+    check(n_want - 4 <= nl <= 32 and sum(1 for x in want if x in namesl) >= len(want) - 4,
+          f'after the seasons: {nl} players, {sum(1 for x in want if x in namesl)} of {len(want)} extras', errs)
+    return not errs, '; '.join(errs + [f'{club}: {n0} players, last {names0[len(want) - 1]!r}; end {nl}; {msg}'])
+
+
+def xtra_club_block(exe, club):
+    """(team word, [names of the club's XTRA players]) in a build's DATA (TEAM.nnn + XTRA.nnn), or None."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import xtra
+    for fn in sorted(os.listdir(os.path.join(exe, 'DATA'))):
+        if not fn.startswith('TEAM.'):
+            continue
+        d = open(os.path.join(exe, 'DATA', fn), 'rb').read()
+        for k in range(struct.unpack('>H', d[:2])[0]):
+            if d[2 + k * 684 + 5:2 + k * 684 + 22].split(b'\0')[0].decode('latin1') == club:
+                xf = os.path.join(exe, 'DATA', 'XTRA.' + fn.split('.')[1])
+                if not os.path.exists(xf):
+                    return None
+                pl = xtra.read(open(xf, 'rb').read())[k]
+                return (k << 8) | int(fn.split('.')[1]), [x[3:26].split(b'\0')[0].decode('latin1') for x in pl]
+    return None
+
+
+def pick_career(s, path):
+    """A new World 2026-27 career through the selector path (levels of a group first, as world8485 does)."""
+    for t in path:
+        scr = s.screen()
+        lvl = None if scr.find(t, exact=True) is not None else \
+            next((x for i, x, inv, _ in scr.entries if 11 <= i <= 20 and x and not inv and t.startswith(x + ' ')), None)
+        if lvl and press(s, scr, lvl, 3) is None:
+            return False
+        if press(s, s.screen(), t, 3) is None:
+            return False
+    return True
+
+
+@scenario
+def xtra_market():
+    """Buying players 17-30 of other clubs (4.0.2): XTRA30_BUILD (the world built with TM_EXTRA=14), a career at CHISOLA (25 players),
+    the home market poked with three XTRA players of LIGORNA (index 16, 17, 18); the list (TRASFERIMENTI > ACQUISTA GIOCATORE >
+    VISUAL. MERCATO NAZIONALE > ELENCA) shows their names, the first one is bought (FAI UN'OFFERTA): the squad grows by one and
+    holds his name, he is gone from the market and (the sold list, engine item 'XS') from LIGORNA's block; saved, reloaded: the
+    same squad, the list without him, a match day."""
+    exe = os.environ.get('XTRA30_BUILD')
+    if not exe or not os.path.isdir(exe):
+        return True, 'SKIP: XTRA30_BUILD not set'
+    club = os.environ.get('XTRA30_SELLER', 'LIGORNA')
+    me = os.environ.get('XTRA30_CLUB', 'CHISOLA')       # (25 players: room for a purchase; CELLE VARAZZE is full at 30)
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import lepatch
+    import xtra
+    import sacups
+    p = lepatch.LEPatch(os.path.join(exe, 'ITALIAN.EXE'))
+    _, cnp, ct, cmp, sel = xtra.sites(p)
+    seller = xtra_club_block(exe, club)
+    if not seller or len(seller[1]) < 3:
+        return False, f'{club}: no XTRA block in {exe}'
+    team, names = seller
+    errs, info = [], []
+    # home market: obj2 offsets of numHomeMarketPlayers / homeMarketPlayers (AddPlayerToCareerContest)
+    from le import LE
+    d1 = LE(open(os.path.join(ROOT, 'orig', 'ITALIAN.EXE'), 'rb').read()).obj_bytes(1)     # (the original's addresses)
+    a1 = sacups.regs(d1)['A1']
+    m = re.search(rb'\x66\x83\x3d(....)\x19\x74.\xc7\x05' + re.escape(struct.pack('<I', a1)) + rb'(....)', d1, re.S)
+    nh, hm = struct.unpack('<I', m.group(1))[0], struct.unpack('<I', m.group(2))[0]
+    path = ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27', 'EUROPA', 'ITALIA', 'SERIE D GIRONE A', me]
+
+    base = int(os.environ.get('XTRA30_BASE', 16))
+
+    def poke_market(s, n=3):
+        ent = b''.join(struct.pack('<HBB', team, base + i, 0) for i in range(n))
+        s.poke(s.result.base2 + hm, ent)
+        s.poke(s.result.base2 + nh, struct.pack('<H', n))
+
+    def squad(s):
+        r = s.result
+        n = struct.unpack('<H', r.obj2(cnp, 2))[0]
+        return n, [r.obj2(ct + 76 + j * 38 + 3, 23).split(b'\0')[0].decode('latin1') for j in range(32)]
+
+    def market_open(s):
+        walk(s, 'TRASFERIMENTI', 3)
+        walk(s, 2, 3)                              # ACQUISTA GIOCATORE
+        scr = s.screen()
+        walk(s, next(e[0] for e in scr.entries if e[1] and 'VISUAL. MERCATO NAZIONALE' in e[1]), 3)
+        walk(s, 7, 3)                              # ELENCA
+        return s.screen()
+
+    def leave(s):
+        for _ in range(8):
+            if 'PROSS. PARTITA' in s.screen().texts():
+                break
+            press(s, s.screen(), 'CONTINUA', 3) or press(s, s.screen(), 'ESCI', 3) or s.send('fire dump:2')
+
+    with Session('xtra_market', exe, {}, 'dump:2', 600) as s:
+        s.wait()
+        if not pick_career(s, path):
+            return False, 'new career: ' + str(s.screen().texts()[:8])
+        s.send('fire dump:3')
+        leave(s)
+        n0, nm0 = squad(s)
+        nh0 = struct.unpack('<H', s.result.obj2(nh, 2))[0]            # the game's own fill (AddCareerTeamPlayer)
+        ent0 = [struct.unpack('<HB', s.result.obj2(hm + 4 * i, 3)) for i in range(nh0)]
+        natural = [e for e in ent0 if e[1] >= 16]
+        info.append(f'natural market: {nh0} entries, {len(natural)} XTRA players {natural[:4]}')
+        check(nh0 == 0 or all(e[1] < 16 + 14 for e in ent0), f'market index out of range {ent0}', errs)
+        poke_market(s)
+        scr = market_open(s)
+        s.shot('list')                             # (the rows are drawn, not menu texts: look at the picture)
+        row = next(e[0] for e in scr.entries if 10 <= e[0] < 20 and not e[2])
+        for k in (scr.path(row) or []):
+            s.send(k + ' dump:0.5')
+        s.send('fire dump:4')
+        tx = s.screen().texts()
+        check("FAI UN'OFFERTA" in tx, f'no offer screen after the pick: {tx[:8]}', errs)
+        s.shot('offer')
+        info.append(f'offer screen {tx[:8]}')
+        raise_n = 10
+        for _ in range(10):
+            scr = s.screen()
+            tx = scr.texts()
+            if "FAI UN'OFFERTA" in tx:
+                s.send(' '.join(['fire+right'] * raise_n) + ' dump:1')
+                walk(s, s.screen().find('CONFERMA OFFERTA', exact=True), 3)
+                raise_n = 0
+                continue
+            more = next((re.search(r'AUMENTI DI L([\d,]+)M', x) for x in tx if 'AUMENTI DI' in x), None)
+            if "OFFRI DI PIU'" in tx:
+                raise_n = (int(more.group(1).replace(',', '')) // 100000 + 1) if more else 5
+                walk(s, scr.find("OFFRI DI PIU'", exact=True), 3)
+                continue
+            break
+        info.append(f'answer {s.screen().texts()[:6]}')
+        leave(s)
+        n1, nm1 = squad(s)
+        s.shot('after_buy')
+        check(n1 == n0 + 1, f'squad {n0} -> {n1}', errs)
+        check(names[0] in nm1[:n1], f'{names[0]} not in the squad {nm1[16:n1]}', errs)
+        r = s.result
+        sold = r.read(r.base1 + xtra_xsold(p), 2 + 3 * 4)
+        info.append(f'XS {sold.hex()}')
+        check(struct.unpack('<H', sold[:2])[0] == 1 and struct.unpack('<HB', sold[2:5]) == (team, 16),
+              f'sold list {sold.hex()}', errs)
+        nhm = struct.unpack('<H', r.obj2(nh, 2))[0]
+        left = [struct.unpack('<HB', r.obj2(hm + 4 * i, 3)) for i in range(nhm)]
+        check((team, 16) not in left, f'market still lists him: {left}', errs)
+        walk(s, 'ESCI', 3)
+        walk(s, 'SALVA CARRIERA', 2)
+        s.send(name_entry('XMKT') + ' dump:3')
+        car = os.path.join(s.run, 'SWOS', 'XMKT.CAR')
+        check(os.path.exists(car), 'no save', errs)
+    if os.path.exists(car):
+        with Session('xtra_market_reload', exe, {'XMKT.CAR': car}, 'dump:2', 600) as s:
+            s.wait()
+            s.send(LOAD1 + ' dump:3')
+            n2, nm2 = squad(s)
+            r = s.result
+            sold = r.read(r.base1 + xtra_xsold(p), 2 + 3 * 4)
+            info.append(f'reloaded: {n2} players, XS {sold.hex()}')
+            check(n2 == n1 and nm2[:n2] == nm1[:n1], f'reload squad {n2} {nm2[16:n2]}', errs)
+            check(struct.unpack('<H', sold[:2])[0] == 1, f'reload sold list {sold.hex()}', errs)
+            base += 1                                # (the bought one is not listed again: he left the list when bought)
+            poke_market(s, 2)
+            scr = market_open(s)
+            s.shot('list_reload')
+            leave(s)
+            seen = {'res': False}
+
+            def played(scr):
+                tx = scr.texts()
+                if '- RISULTATO -' in tx:
+                    seen['res'] = True
+                return seen['res'] and 'PROSS. PARTITA' in tx and 'SQUADRA' in tx
+            ok, msg = advance(s, played, 600)
+            check(ok, f'a match day after the reload: {str(msg)[:120]}', errs)
+    return not errs, '; '.join(errs + info)
+
+
+def xtra_xsold(p):
+    """obj1 offset of the build's sold list (xtra.py xsold, after the 'XSLD' mark)."""
+    d1 = p.le.obj_bytes(1)
+    k = d1.find(b'XSLD')
+    assert k > 0 and d1.find(b'XSLD', k + 1) < 0, 'XSLD'
+    return k + 4
+
+
+def xtra_browse_to(s, group, club):
+    """From the career menu: TRASFERIMENTI > ACQUISTA GIOCATORE > ACQ. ALTRO GIOCAT. NAZION. > SERIE D > group > club."""
+    walk(s, 'TRASFERIMENTI', 3)
+    walk(s, 2, 3)
+    walk(s, 4, 3)
+    walk(s, 'SERIE D', 3)
+    walk(s, group, 3)
+    walk(s, club, 3)
+    return s.screen()
+
+
+def xtra_bid(s):
+    """FAI UN'OFFERTA > CONFERMA OFFERTA (OFFRI DI PIU' on a counter) until the answer; returns the answer's texts."""
+    raise_n = 10
+    for _ in range(10):
+        scr = s.screen()
+        tx = scr.texts()
+        if "FAI UN'OFFERTA" in tx:
+            s.send(' '.join(['fire+right'] * raise_n) + ' dump:1')
+            walk(s, s.screen().find('CONFERMA OFFERTA', exact=True), 3)
+            raise_n = 0
+            continue
+        more = next((re.search(r'AUMENTI DI L([\d,]+)M', x) for x in tx if 'AUMENTI DI' in x), None)
+        if "OFFRI DI PIU'" in tx:
+            raise_n = (int(more.group(1).replace(',', '')) // 100000 + 1) if more else 5
+            walk(s, scr.find("OFFRI DI PIU'", exact=True), 3)
+            continue
+        break
+    return s.screen().texts()
+
+
+@scenario
+def xtra_club_browse():
+    """The extras findable in their club (4.0.2): XTRA30_BUILD (TM_EXTRA=14 world). In the club browse (ACQ. ALTRO GIOCAT. NAZION. >
+    SERIE D > girone > club) LIGORNA's list has the button PAG. SUCC.; page 2 lists its extras (numbers 17.., shots); the first one
+    is picked and bought from CHISOLA (25 players): squad + 1 with his name, sold list, page 2 without him (shot); SORA (16 players,
+    no extras) has no button; from CELLE VARAZZE (30 players) the same purchase is refused (the squad is full); save + reload keep it."""
+    exe = os.environ.get('XTRA30_BUILD')
+    if not exe or not os.path.isdir(exe):
+        return True, 'SKIP: XTRA30_BUILD not set'
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import lepatch
+    import xtra
+    p = lepatch.LEPatch(os.path.join(exe, 'ITALIAN.EXE'))
+    _, cnp, ct, cmp, sel = xtra.sites(p)
+    team, names = xtra_club_block(exe, 'LIGORNA')
+    errs, info = [], []
+    base = ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27', 'EUROPA', 'ITALIA', 'SERIE D GIRONE A']
+
+    def squad(s):
+        r = s.result
+        n = struct.unpack('<H', r.obj2(cnp, 2))[0]
+        return n, [r.obj2(ct + 76 + j * 38 + 3, 23).split(b'\0')[0].decode('latin1') for j in range(32)]
+
+    def start(s, me):
+        if not pick_career(s, base[:-1] + ['SERIE D GIRONE A', me]):
+            return False
+        s.send('fire dump:3')
+        for _ in range(8):
+            if 'PROSS. PARTITA' in s.screen().texts():
+                break
+            press(s, s.screen(), 'CONTINUA', 3) or press(s, s.screen(), 'ESCI', 3) or s.send('fire dump:2')
+        return True
+
+    def leave(s):
+        for _ in range(8):
+            if 'PROSS. PARTITA' in s.screen().texts():
+                break
+            press(s, s.screen(), 'CONTINUA', 3) or press(s, s.screen(), 'ESCI', 3) or s.send('fire dump:2')
+
+    def button(scr):
+        return next(((e[1], e[2]) for e in scr.entries if e[0] == 31), None)
+
+    with Session('xtra_club_browse', exe, {}, 'dump:2', 600) as s:
+        s.wait()
+        if not start(s, 'CHISOLA'):
+            return False, 'new career: ' + str(s.screen().texts()[:8])
+        n0, nm0 = squad(s)
+        scr = xtra_browse_to(s, 'SERIE D GIRONE A', 'LIGORNA')
+        b = button(scr)
+        s.shot('page1')
+        check(b is not None and b[0] == 'PAG. SUCC.' and not b[1], f'page 1 button {b}', errs)
+        walk(s, 'PAG. SUCC.', 3)
+        scr = s.screen()
+        s.shot('page2')
+        check(button(scr) is not None and button(scr)[0] == 'PAG. PREC.', f'page 2 button {button(scr)}', errs)
+        walk(s, 3, 4)                                  # the first row of page 2 = LIGORNA's first extra
+        tx = s.screen().texts()
+        check("FAI UN'OFFERTA" in tx, f'no offer screen: {tx[:8]}', errs)
+        s.shot('offer')
+        ans = xtra_bid(s)
+        info.append(f'answer {ans[:4]}')
+        leave(s)
+        n1, nm1 = squad(s)
+        check(n1 == n0 + 1 and names[0] in nm1[:n1], f'squad {n0} -> {n1}, {names[0]} in it: {names[0] in nm1[:n1]}', errs)
+        sold = s.result.read(s.result.base1 + xtra_xsold(p), 5)
+        check(struct.unpack('<HHB', sold[:2] + sold[2:5])[1:] == (team, 16), f'sold list {sold.hex()}', errs)
+        scr = xtra_browse_to(s, 'SERIE D GIRONE A', 'LIGORNA')
+        walk(s, 'PAG. SUCC.', 3)
+        s.shot('page2_after')
+        press(s, s.screen(), 'ESCI', 3)
+        leave(s)
+        leave(s)
+        walk(s, 'ESCI', 3)
+        walk(s, 'SALVA CARRIERA', 2)
+        s.send(name_entry('XBRW') + ' dump:3')
+        car = os.path.join(s.run, 'SWOS', 'XBRW.CAR')
+        check(os.path.exists(car), 'no save', errs)
+    if os.path.exists(car):
+        with Session('xtra_club_browse_reload', exe, {'XBRW.CAR': car}, 'dump:2', 600) as s:
+            s.wait()
+            s.send(LOAD1 + ' dump:3')
+            n2, nm2 = squad(s)
+            check(n2 == n1 and names[0] in nm2[:n2], f'reload squad {n2}', errs)
+            scr = xtra_browse_to(s, 'SERIE D GIRONE A', 'LIGORNA')
+            walk(s, 'PAG. SUCC.', 3)
+            s.shot('page2_reload')
+            info.append('reloaded: page 2 shot')
+    nx_team, _ = xtra_club_block(exe, 'IMPERIA')            # a club without extras: its block zeroed in a copy of the file
+    xf = os.path.join(exe, 'DATA', 'XTRA.%03d' % (nx_team & 255))
+    raw = bytearray(open(xf, 'rb').read())
+    e_ = raw[2]
+    at_ = 3 + (nx_team >> 8) * e_ * 38
+    raw[at_:at_ + e_ * 38] = bytes(e_ * 38)
+    nxf = os.path.join(WORK, 'saves', 'XTRA_NOX.BIN')
+    open(nxf, 'wb').write(bytes(raw))
+    with Session('xtra_club_browse_none', exe, {'DATA/XTRA.%03d' % (nx_team & 255): nxf}, 'dump:2', 600) as s:
+        s.wait()
+        if not start(s, 'CHISOLA'):
+            return False, 'new career (no extras): ' + str(s.screen().texts()[:8])
+        scr = xtra_browse_to(s, 'SERIE D GIRONE A', 'IMPERIA')
+        b = button(scr)
+        s.shot('imperia')
+        check(b is None or b[1], f'IMPERIA (no extras) shows the button {b}', errs)
+        info.append(f'no-extras club: button {b}')
+    with Session('xtra_club_browse_full', exe, {}, 'dump:2', 600) as s:
+        s.wait()
+        if not start(s, 'CELLE VARAZZE'):
+            return False, 'new career (full squad): ' + str(s.screen().texts()[:8])
+        nf0, _ = squad(s)
+        xtra_browse_to(s, 'SERIE D GIRONE A', 'LIGORNA')
+        walk(s, 'PAG. SUCC.', 3)
+        walk(s, 3, 4)
+        ans = xtra_bid(s)
+        s.shot('full')
+        leave(s)
+        nf1, _ = squad(s)
+        check(nf0 == 30 and nf1 == 30 and any('SQUADRA' in x and 'GRANDE' in x for x in ans), f'full squad {nf0} -> {nf1}: {ans[:6]}', errs)
+    return not errs, '; '.join(errs + info)
+
+
+@scenario
 def xtra_season():
     """Extended career squads: XTRA1.CAR (HAMBURG with 25 players, made by xtra_squad) played to the season end by
     results, season-end menu, next season saved: no trap, at most 32 players, the real extras still in the squad"""

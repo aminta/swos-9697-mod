@@ -2232,6 +2232,9 @@ Left for 2.5: (a) NSL/NSSL finals series (type-1 design) or declare them postpon
 11. sdplayoff 6dfd565 (Serie C: Serie D placement play-offs FORMAT text, no promotion / repechage ranking, 4 languages;
    fmtgame + fmtprose only) -> 78fe0c4, py_compile OK. FMT*5.DAT changes at the rc1 build. 4.0.2 code FINAL for rc1
    (rc1 go from Davide after his MiSTer test of b3).
+12. teamstab 82fc0bb (Serie C: teamsTable 100 -> 256 B, stray club-button colours in the career team choice / domestic-buy
+   club list, Italy 2026-27 Serie D) -> 9258d42, roundtrip PASS. rc1 list += team_choice_colours (TEAMCOL_BUILD = the rc dir).
+   4.0.2 code final.
 
 ## Deferred realism (4.0.2+)
 - Moldova's h2h_half groups start at 0 points (package 6, 2026-10-24; pre-existing, not option C).

@@ -496,6 +496,8 @@ def patch_exe(src, dst, remap, lang='it'):
     cos = blond.patch(p, area, cos, num_bss + shirtnum.BSS_SIZE, shirtnum.spr_index(p))   # 3.3.0: face 3
     cos = menunum.patch(p, cos, num_bss + shirtnum.BSS_SIZE + blond.BSS_SIZE)   # 3.3.4: menu numbers 17..99
     cos = avgprice.patch(p, cos)                 # 3.3.4: average player price >= 1 (divide error, 1984-85 Iceland)
+    import devname                               # 4.0.2: DOS device names (CON, PRN, AUX ...) refused as save names
+    devname.patch(p, lang)
     joyfix.patch(p)                              # 4.0.1: ReadSetupDat -> VerifyJoypadControls (no pad + controls != 1 = frozen menus)
     cos = menumusic.patch(p, cos)                # 3.3.6: menu music when the main menu opens (SWOS++ options load late)
     cos = fmtpage.patch(p, cos, lang, area, num_bss + shirtnum.BSS_SIZE + blond.BSS_SIZE + menunum.BSS_SIZE,

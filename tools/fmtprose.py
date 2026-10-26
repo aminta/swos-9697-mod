@@ -276,6 +276,8 @@ def league(div, k, lg, win, lang, pos, lowest, nm, real_down=None):
         s = (l['po1'] if len(pl) == 1 else l['po']).format(rng=rng, kind=kind, rules=rules)
         if po.get('kind', 'promotion') == 'promotion' and isinstance(po.get('winner_div'), int) and po['winner_div'] < k:
             s += ' ' + l['win'].format(d=nm(lg['names'][po['winner_div']]))
+        if no_promo(po, {k: div.get('up')}):
+            s += ' ' + NOPROMO[lang]
         out.append(s)
     return out
 
@@ -667,6 +669,20 @@ POW = {'it': dict(one='la {o}', rng='le squadre dalla {a} alla {b}', of=' di {d}
        'en': dict(one='the {o}', rng='the clubs from {a} to {b}', of=' of {d}', s='{who} {v} {kind}.', v=('plays', 'play')),
        'fr': dict(one='le {o}', rng='les clubs du {a} au {b}', of=' de {d}', s='{who} {v} {kind}.', v=('joue', 'jouent')),
        'de': dict(one='der {o}', rng='die Vereine vom {a} bis zum {b}', of=' der {d}', s='{who} {v} {kind}.', v=('spielt', 'spielen'))}
+
+
+NOPROMO = {   # 4.0.2 (Davide 26/10): placement play-offs of a division with promotion places (Serie D 2nd-5th) give no
+    # promotion - a user won them twice and expected to go up; in reality they rank the clubs for the repechage
+    'it': 'Gli spareggi non danno la promozione: servono per la graduatoria dei ripescaggi.',
+    'en': 'The placement play-offs do not give promotion: they rank the clubs for the repechage.',
+    'fr': 'Les barrages de classement ne donnent pas la montée : ils classent les clubs pour les repêchages.',
+    'de': 'Die Platzierungsspiele bringen keinen Aufstieg: sie legen die Rangfolge für Nachrücker fest.'}
+
+
+def no_promo(po, ups):
+    """True for a placement play-off whose entrants come from a division that has promotion places (ups: division
+    -> its 'up'): its winner stays where he is (Serie D's group play-offs; not Czechia's top-flight placings)."""
+    return po.get('kind') == 'placement' and any(isinstance(e, list) and ups.get(e[0]) for e in po.get('entrants', []))
 
 
 def po_who(po, names, lang, nm):

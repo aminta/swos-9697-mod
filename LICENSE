@@ -1,0 +1,44 @@
+SWOS 96/97 Mod — licence
+
+1. CODE: MIT License
+
+Copyright (c) 2026 Davide Lorigliola
+
+This licence covers the source code in this repository: the tools in tools/
+(Python, C, nasm and JavaScript), the build and test scripts, and the patcher
+page code.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+2. DATA: NOT covered by the MIT licence above
+
+The football data in this repository and in the mod's releases (squads,
+players, ratings, prices, kits, competition entrants, historic databases) is
+NOT licensed under MIT. It comes from or is derived from third-party sources
+and contributors, each with its own terms and credits, listed in the README and
+in the release notes, among them: the 1984-85 database by DaniSwos, rosters sent
+by players of the mod, Transfermarkt-derived squads, EA SPORTS FC-derived
+ratings and portraits, and Wikipedia kits (CC BY-SA 4.0). Ask the maintainer
+before reusing any data.
+
+3. THE ORIGINAL GAME
+
+Sensible World of Soccer 96/97 and its files, names and artwork belong to their
+rights holders. This repository does not include the original game: the mod
+patches a copy the player owns.

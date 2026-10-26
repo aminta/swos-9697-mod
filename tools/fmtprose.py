@@ -369,7 +369,7 @@ CP = {
                pw=['prime', 'seconde', 'terze', 'quarte'],
                ko='{s} si {v} {legs}{nt}{lv}.', v=('gioca', 'giocano'), two='in andata e ritorno', one='in gara unica',
                nt=' in campo neutro', pens=', con i rigori in caso di parità', etp=', con supplementari e rigori in caso di parità',
-               away='Vale la regola dei gol in trasferta.', noaway='Non vale la regola dei gol in trasferta.',
+               away='Vale la regola dei gol in trasferta.', awayet='Vale la regola dei gol in trasferta, che non conta nei supplementari.', noaway='Non vale la regola dei gol in trasferta.',
                losers='Chi perde {art} passa {to} della {c}.', inn='Dalla {c} arrivano anche {lst}.',
                wl='le squadre eliminate {inn}, che entrano {to}', wt='le terze dei gironi, che entrano {to}'),
     'en': dict(tier=['The {c} brings together the best clubs {reg}.', 'The {c} is the second club cup {reg}.',
@@ -390,7 +390,7 @@ CP = {
                pw=['winners', 'runners-up', 'thirds', 'fourths'],
                ko='{s} {v} played {legs}{nt}{lv}.', v=('is', 'are'), two='over two legs', one='as one match',
                nt=' at a neutral ground', pens=', with penalties if level', etp=', with extra time and penalties if level',
-               away='The away goals rule applies.', noaway='There is no away goals rule.',
+               away='The away goals rule applies.', awayet='The away goals rule applies, but not in extra time.', noaway='There is no away goals rule.',
                losers='The losers of {art} go {to} of the {c}.', inn='From the {c} also come {lst}.',
                wl='the clubs knocked out {inn}, who enter {to}', wt='the thirds of the groups, who enter {to}'),
     'fr': dict(tier=['La {c} réunit les meilleurs clubs {reg}.', 'La {c} est la deuxième coupe des clubs {reg}.',
@@ -412,7 +412,7 @@ CP = {
                pw=['premiers', 'deuxièmes', 'troisièmes', 'quatrièmes'],
                ko='{s} se {v} {legs}{nt}{lv}.', v=('joue', 'jouent'), two='en aller et retour', one='en un seul match',
                nt=' sur terrain neutre', pens=", avec tirs au but en cas d'égalité", etp=", avec prolongation et tirs au but en cas d'égalité",
-               away="Les buts à l'extérieur comptent.", noaway="Il n'y a pas de règle des buts à l'extérieur.",
+               away="Les buts à l'extérieur comptent.", awayet="Les buts à l'extérieur comptent, mais pas en prolongation.", noaway="Il n'y a pas de règle des buts à l'extérieur.",
                losers='Qui perd {art} passe {to} de la {c}.', inn='De la {c} arrivent aussi {lst}.',
                wl='les clubs éliminés {inn}, qui entrent {to}', wt='les troisièmes des groupes, qui entrent {to}'),
     'de': dict(tier=['Die {c} vereint die besten Vereine {reg}.', 'Die {c} ist der zweite Klubwettbewerb {reg}.',
@@ -433,7 +433,7 @@ CP = {
                pw=['Ersten', 'Zweiten', 'Dritten', 'Vierten'],
                ko='{s} {v} {legs}{nt} gespielt{lv}.', v=('wird', 'werden'), two='mit Hin- und Rückspiel', one='in einem Spiel',
                nt=' auf neutralem Platz', pens=', bei Gleichstand mit Elfmeterschießen', etp=', bei Gleichstand mit Verlängerung und Elfmeterschießen',
-               away='Die Auswärtstorregel gilt.', noaway='Es gibt keine Auswärtstorregel.',
+               away='Die Auswärtstorregel gilt.', awayet='Die Auswärtstorregel gilt, aber nicht in der Verlängerung.', noaway='Es gibt keine Auswärtstorregel.',
                losers='Wer {art} verliert, wechselt {to} der {c}.', inn='Aus der {c} kommen außerdem {lst}.',
                wl='die {inn} ausgeschiedenen Vereine, die {to} einsteigen', wt='die Gruppendritten, die {to} einsteigen'),
 }
@@ -448,19 +448,6 @@ def _round(key, lang):
     if key[:1] == 'q' and key[1:].isdigit():
         return r['q'](_ORD[lang][int(key[1:]) - 1])
     return r.get({'first': 'r1'}.get(key, key).replace('_best', '')) or _rd(key, key, key)
-
-
-# 4.0.1 rc3 (regia 2026-10-24): cups whose real two-legged ties go to extra time after the away goals, which the game's
-# levels cannot play yet (conti: away goals, then penalties; 4.0.2 'away_et_pens'): the real rule declared on the page
-REAL_AWAY_ET = {'ccc': {
-    'it': 'Nella realtà, in parità dopo i gol in trasferta si giocano i supplementari e poi i rigori; nel gioco si va '
-          'direttamente ai rigori.',
-    'en': 'In reality, if still level after away goals, extra time is played and then penalties; in the game it goes '
-          'straight to penalties.',
-    'fr': "En réalité, en cas d'égalité après les buts à l'extérieur, on joue la prolongation puis les tirs au but. "
-          'Dans le jeu, on passe directement aux tirs au but.',
-    'de': 'In Wirklichkeit folgen bei Gleichstand nach der Auswärtstorregel Verlängerung und Elfmeterschießen; im '
-          'Spiel geht es direkt ins Elfmeterschießen.'}}
 
 
 def conti(c, acc, lang, cname, aname, conf, tier, guests=False):
@@ -509,7 +496,7 @@ def conti(c, acc, lang, cname, aname, conf, tier, guests=False):
     out = [' '.join(_cap(x) for x in s)]
 
     def how(rd):
-        lv = l['etp'] if rd.get('level') == 'et_pens' else l['pens']
+        lv = l['etp'] if rd.get('level') == 'et_pens' or rd.get('extra_time') else l['pens']
         return (l['two'] if rd.get('legs', 2) == 2 else l['one']), (l['nt'] if rd.get('host') == 'neutral' else ''), lv
     s, i = [], 0
     stages = [j for j, rd in enumerate(rds) if rd['kind'] in ('groups', 'league_stage')]
@@ -567,9 +554,8 @@ def conti(c, acc, lang, cname, aname, conf, tier, guests=False):
         s.append(l['ko'].format(s=_list([x['art'] for x in subj], l), v=l['v'][len(subj) > 1 or subj[0]['pl']],
                                 legs=lg, nt=nt, lv=lv))
         i = j + 1
-    s.append(l['away'] if any(rd.get('level') == 'away_pens' for rd in rds) else l['noaway'])
-    if c['key'] in REAL_AWAY_ET:                # (declared: the real rule plays extra time after the away goals)
-        s.append(REAL_AWAY_ET[c['key']][lang])
+    lvs = {('away_et_pens' if rd.get('extra_time') else rd.get('level')) for rd in rds}
+    s.append(l['awayet'] if 'away_et_pens' in lvs else l['away'] if 'away_pens' in lvs else l['noaway'])
     out.append(' '.join(_cap(x) for x in s))
     s = []
     for rk, to in (c.get('losers') or {}).items():

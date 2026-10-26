@@ -2225,6 +2225,10 @@ Left for 2.5: (a) NSL/NSSL finals series (type-1 design) or declare them postpon
    at 'MONDO 2026-27 not reached'): run at rc1. 4.0.2 CODE COMPLETE.
 - rc1 DATA = internal/world2526/world5tm-402rc3 (402rc2 + 85 more Italian kits = 227; .md5 list digest ebc9ceee, checked;
   tools 9befc7f). rc1 after the Thu 29 03:00 reset; a MiSTer beta 3 (c/REL402b3 at the tip) only if Davide asks before.
+- MiSTer beta 3 (Davide yes): c/REL402b3 = d2cab75 on world5tm-402rc3 (IT CD 4f3e50b6, GOG IT aff1ca72; vs REL402b2: the exes +
+  FMT{DE,EN,FR,IT}5.DAT, TMW5.102, WORLD05.TMD). roundtrip, controls_menu, world_winners_state (forced NOVORIZONTINO) PASS on b3.
+  xtra_world30 cannot run on a release dir: it reads DATA/XTRA.102 (the test build's name), the release data has XTW5.102;
+  rc1: teach the scenario the release name (XTW5.*) or keep it on the TM_EXTRA=14 test build.
 
 ## Deferred realism (4.0.2+)
 - Moldova's h2h_half groups start at 0 points (package 6, 2026-10-24; pre-existing, not option C).

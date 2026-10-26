@@ -7572,69 +7572,73 @@ def world_winners():
 
 @scenario
 def world_winners_state():
-    """4.0 SEASON WINNERS page of a Brazilian state championship (winners.py 'C': the contest's winner, DIY +39h):
-    PALMEIRAS saved once its CAMPEONATO PAULISTA (career slot 1) is over (+55h = FFh), reloaded: VISUAL. COMPETIZ. >
-    the Paulista > STAT > VINCITORI shows one line, the champion the slot holds"""
+    """4.0 SEASON WINNERS page of a Brazilian state championship (winners.py 'C': the contest's winner, DIY +39h), forced
+    (4.0.2; it was a season played until PALMEIRAS won its CAMPEONATO PAULISTA - result-dependent: knocked out in the
+    semi-final, the slot never ended): a new career at PALMEIRAS, VISUAL. COMPETIZ. > the Paulista > STAT > VINCITORI
+    shows DA GIOCARE; then, a new career again, the viewed contest's own winner field poked (DIY +39h = another club
+    of the Paulista, read from its rows) before VINCITORI opens: the page names that club"""
     src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-names-2214')
     if not os.path.isdir(src):
         return True, f'SKIP: private data {src} missing'
-    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
-    exe = os.environ.get('WINNERS_BUILD') or os.environ.get('WINNERS_W27')   # (the suite's release dir first: the GPLAY_FORCE
-    if not exe:                                                              # test build's layout is not the release's)
-        exe = build('world_winners', env={'SEASON_PACKS': ','.join(
-            ['ddr-1988-89'] + [os.path.join(src, x) for x in order]), 'GPLAY_FORCE': '1'})
-        os.environ['WINNERS_BUILD'] = exe                                    # (shared with the other world_winners_* scenarios)
+    exe = os.environ.get('WINNERS_BUILD') or os.environ.get('WINNERS_W27') or builds()['it']   # (no test switch)
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import lepatch
-    import statecup
-    s1 = statecup.sites(lepatch.LEPatch(os.path.join(MAIN, 'orig', 'ITALIAN.EXE')))['slot1']
-    keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_ONE',
-            'W8485_MIDSAVE', 'W8485_SAVE_END')
-    keep = {k: os.environ.get(k) for k in keys}
-    os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1',
-                      W8485_TEAM='SUDAMERICA,BRASILE,BRASILEIRAO SERIE A|CAMPEONATO BRASILEIRO SERIE A,PALMEIRAS',
-                      W8485_ONE='1', W8485_MIDSAVE=f'{s1 + 0x55:x}:255:2')
-    os.environ.pop('W8485_SAVE_END', None)
-    car, why = None, []
-    try:
-        for attempt in (1, 2):         # the save is made only once slot 1 +55h held FFh in two dumps (the state is over);
-            ok, msg = world8485()      # under load that moment was once never seen (a flake): the season is played again
-            if not ok:
-                return False, f'season: {msg}'
-            if 'saved mid-season: ' in msg:
-                car = msg.split('saved mid-season: ', 1)[1].strip()
-                break
-            why.append(f'attempt {attempt}: no mid-season save (slot 1 +55h never FFh): {msg[:120]}')
-    finally:
-        for k, v in keep.items():
-            if v is None:
-                os.environ.pop(k, None)
-            else:
-                os.environ[k] = v
-    if car is None:
-        return False, 'the Paulista was never over in the season: ' + '; '.join(why)
-    with Session('world_winners_state', exe, {'WWIN.CAR': car}, 'dump:2', 300) as s:
-        s.wait()
-        s.send(LOAD1 + ' dump:3')
-        if s.result.obj2(s1 + 0x55, 1)[0] != 0xFF:
-            return False, f'the saved career has slot 1 +55h = {s.result.obj2(s1 + 0x55, 1)[0]:02X}, not FFh'
-        champ = team_name(exe, struct.unpack_from('<H', s.result.obj2(s1 + 0x39, 2))[0])
-        walk(s, s.screen().find('VISUAL. COMPETIZ.', exact=True), 3)
+    import lp36
+    diy = lp36._sites(lepatch.LEPatch(os.path.join(MAIN, 'orig', 'ITALIAN.EXE')))['DIY']   # (the viewed contest)
+    team = 'SUDAMERICA,BRASILE,BRASILEIRAO SERIE A|CAMPEONATO BRASILEIRO SERIE A,PALMEIRAS'
+
+    def page(s, force=False):                           # career menu -> the Paulista's VINCITORI page (force: its
+        walk(s, s.screen().find('VISUAL. COMPETIZ.', exact=True), 3)   # DIY +39h poked first, another club of it)
         scr = s.screen()
         k = next((i for i, t, inv, _ in scr.entries if t and 'PAULISTA' in t and not inv), None)
         if k is None:
-            return False, f'no Paulista in the competitions: {[e[1] for e in scr.entries]}'
+            return None, f'no Paulista in the competitions: {[e[1] for e in scr.entries]}', None
         walk(s, k, 3)
         walk(s, s.screen().find('STAT', exact=True), 3)
         e = next((x for x in s.screen().entries if x[1] == 'VINCITORI'), None)
         if e is None or e[2]:
-            return False, f'the Paulista: VINCITORI entry {e}'
+            return None, f'the Paulista: VINCITORI entry {e}', None
+        pick = None
+        if force:
+            d = s.result.obj2(diy, 0x443)
+            n = struct.unpack_from('<H', d, 0x31)[0]
+            words = [struct.unpack_from('<H', d, 0x12D + 2 * i)[0] for i in range(min(n, 64))]
+            pick = next((w for w in words if team_name(exe, w) != 'PALMEIRAS'), None)
+            if pick is None:
+                return None, f'the Paulista: no other club ({n}: {[team_name(exe, w) for w in words[:4]]})', None
+            s.poke(s.result.base2 + diy + 0x39, struct.pack('<H', pick))
+            s.send('dump:1')
         walk(s, e[0], 3)
-        scr = s.screen()
-        s.shot('winners_state')
-        lines = [x[1].strip() for x in scr.entries[1:15] if x[1]]
-    ok = champ is not None and lines == ['CAMPEONATO PAULISTA:', champ]
-    return ok, f'champion (slot 1 +39h) {champ!r}; page {lines}'
+        s.shot('winners_state' + ('_forced' if force else ''))
+        return [x[1].strip() for x in s.screen().entries[1:15] if x[1]], '', pick
+
+    def career(s):
+        s.wait()
+        for t in ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27'] + team.split(','):
+            if all(press(s, s.screen(), x, 3) is None for x in t.split('|')):   # (alternatives: the first found)
+                return f'new career: {t} not reached: {[e[1] for e in s.screen().entries if e[1]][:12]}'
+        s.send('fire dump:3')
+        return ''
+
+    errs = []
+    with Session('world_winners_state', exe, {}, 'dump:2', 600) as s:
+        why = career(s)
+        if why:
+            return False, why
+        before, why, _ = page(s)
+    if before is None:
+        return False, f'start: {why}'
+    check(before == ['CAMPEONATO PAULISTA:', 'DA GIOCARE'], f'start: page {before}', errs)
+    with Session('world_winners_state_forced', exe, {}, 'dump:2', 600) as s:   # (a new career again: the poke, then
+        why = career(s)                                                          # the page)
+        if why:
+            return False, why
+        after, why, pick = page(s, True)
+    if after is None:
+        return False, '; '.join(errs + [f'forced: {why}'])
+    champ = team_name(exe, pick)
+    check(after == ['CAMPEONATO PAULISTA:', champ], f'forced champion {champ!r}: page {after}', errs)
+    return not errs, '; '.join(errs) or f'start {before}; forced (DIY +39h) {champ!r}: page {after}'
 
 
 @scenario

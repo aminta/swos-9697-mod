@@ -2205,6 +2205,9 @@ Left for 2.5: (a) NSL/NSSL finals series (type-1 design) or declare them postpon
 - cnt80 tip 8244356 (swostest only: world_uefa_double 34/36/36 + UQ_HOLD 'x') -> 233724a. Dati coppe's forced in-game proof
   on the fix build: new season OK, the holder in the CL list, not in the EL. rc1 suite list += world_uefa_double (final PASS
   run still to be shown). Dati coppe: mkworld hooks + TM_EXTRA=14 rebuild -> snapshot world5tm-402rc1.
+- Release data internal/world2526/world5tm-402rc1 (464 files, md5 list digest 006a05c7; recipe PATH=/opt/homebrew/bin
+  TM_CA_EXACT=1 TM_MEX_EXACT=1 TM_SA_EXACT=uru,col,per,par TM_EXTRA=14 sh run_tm.sh at 58be76c). Smoke: xtra_world30 PASS
+  on builds/w2627-402rc1-test (CELLE VARAZZE 30, two seasons). rc1 after the Thu 29 03:00 reset.
 
 ## Deferred realism (4.0.2+)
 - Moldova's h2h_half groups start at 0 points (package 6, 2026-10-24; pre-existing, not option C).

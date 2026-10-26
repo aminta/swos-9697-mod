@@ -284,8 +284,8 @@ def old_outputs():
         page = open(f, encoding='utf-8').read()
         table = json.loads(re.search(r'PATCHES\s*=\s*(\[.*?\]);\s*\n', page, re.S).group(1))
         for e in table:
-            if 'from' in e or 'via' in e:       # upgrade / extra-source entries: their output is also produced from the original
-                continue
+            if 'from' in e or 'via' in e or 'opt' in e:   # upgrade / extra-source entries: their output is also produced from
+                continue                                    # the original; 'opt' (joypad set-up, 4.0.1+): not game files
             orig = next((o for fid, o, _, _ in FILES if fid == e['id']), None)
             src = open(os.path.join(ROOT, orig), 'rb').read() if orig else b''
             if e['md5']:
@@ -391,6 +391,19 @@ def setup_entries():
                 'out_md5': hashlib.md5(dpad).hexdigest(), 'out_size': len(dpad), 'delta': pack(ops), 'z': 1, 'opt': 'joypad-map',
                 'full': base64.b64encode(dpad).decode()})
     print(f'mapper-SVN.map: delta {len(ops)} bytes')
+    # 4.0.2 keyboard mode (Marco's 2-axis stick, no hat: the calibrated centre left only up / left in a match): the stick axes, the
+    # hat and buttons 0-5 bound to the arrow keys and Ctrl (tools/mapper-SVN.keys.map = GOG's default + those binds) and SETUP.DAT
+    # keyboard only (GOG's factory file, embedded: from our calibrated one when no .bak holds it); no calibration, any stick / pad
+    keys = open(os.path.join(ROOT, 'tools/mapper-SVN.keys.map'), 'rb').read()
+    ops, _ = encode(dflt, keys)
+    assert decode(dflt, ops) == keys
+    out.append({'id': 'mapper-SVN.map', 'target': 'mapper-SVN.map', 'size': len(dflt), 'md5': hashlib.md5(dflt).hexdigest(),
+                'out_md5': hashlib.md5(keys).hexdigest(), 'out_size': len(keys), 'delta': pack(ops), 'z': 1, 'opt': 'joypad-keymap',
+                'full': base64.b64encode(keys).decode()})
+    gog = open(os.path.join(ROOT, dict((k, p) for k, p, _ in SETUP_FACTORY)['GOG']), 'rb').read()
+    out.append({'id': 'SETUP.DAT', 'target': 'SETUP.DAT', 'size': 105, 'md5': hashlib.md5(dst).hexdigest(),
+                'out_md5': hashlib.md5(gog).hexdigest(), 'out_size': 105, 'opt': 'joypad-kb', 'full': base64.b64encode(gog).decode()})
+    print(f'mapper-SVN.map keyboard mode: delta {len(ops)} bytes')
     return out
 
 

@@ -2202,6 +2202,9 @@ Left for 2.5: (a) NSL/NSSL finals series (type-1 design) or declare them postpon
    XTRA30_BUILD = the TM_EXTRA=14 world: at rc time). 7. p402 772da13 -> 8009831 (world_ca_slv PASS with
    W2627CA_DATA=internal/sam6/data/w402t; world_mex_titles, roundtrip PASS). Next: Dati coppe mkworld_tm hooks (par;
    GUA, SLV + sa_exact.ca_prose) + world rebuild TM_EXTRA=14; p6's WINNERS commits on p402; 8. controls after Motore's suite.
+- cnt80 tip 8244356 (swostest only: world_uefa_double 34/36/36 + UQ_HOLD 'x') -> 233724a. Dati coppe's forced in-game proof
+  on the fix build: new season OK, the holder in the CL list, not in the EL. rc1 suite list += world_uefa_double (final PASS
+  run still to be shown). Dati coppe: mkworld hooks + TM_EXTRA=14 rebuild -> snapshot world5tm-402rc1.
 
 ## Deferred realism (4.0.2+)
 - Moldova's h2h_half groups start at 0 points (package 6, 2026-10-24; pre-existing, not option C).

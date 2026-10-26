@@ -2186,6 +2186,16 @@ Left for 2.5: (a) NSL/NSSL finals series (type-1 design) or declare them postpon
   swaps for a champion holding the CWC / UEFA Cup; (c) cup winner + league place. Davide is asking the user for a real
   save from before the 2027-28 season end.
 
+### 4.0.2 merges on world-2025-26 (integrator, 2026-10-26; per-merge smoke = py_compile + roundtrip + own scenario)
+1. uefa402 9084c49 -> a808238. 2. awayet ae2ea46 -> b8972c5. 3. mextitles 4f582b0 -> 9948089.
+4. 4.0.2-devname c4393a8 -> adb7ab6 (save_devname PASS). 5. 4.0.2-shirtedit b9ef789 -> 96ebc50 (shirt_edit,
+   menu_numbers, save_devname, roundtrip PASS).
+- BLOCKER (sent to Regia -> Dati coppe + Serie C): uefa402 + awayet together trap at the first new season,
+  obj1+0x81390 = the game's `int 3; jmp $` after the hook at obj1+0x81380 (original: cmp word [96D6h], 50h, an
+  80-count check). world_ccc_away (scenario-built exe, world5tm-401rc3): 503927b no trap, a808238 no trap, ae2ea46
+  PASS, b8972c5 TRAP; world_mex_titles traps the same on 9948089. On c/RELccc world_ccc_away PASS.
+- Held: 6. xsq-402 72e5207, 7. p402 772da13, 8. 4.0.2-controls 6ebee9b (after Motore's ctl_full PASS), until the fix.
+
 ## Deferred realism (4.0.2+)
 - Odd Serie D groups, the career club resting on the last match day (Serie C session, 2026-10-23): its Poule / group
   play-off stays simulated in 4.0.1 (lastrest reverted). The tried fix (gp_lastrest: cseg_8EC2B's careerFinished loop

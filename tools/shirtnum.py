@@ -346,7 +346,10 @@ build_numbers:                          ; [CUR_BUF]: 1 = built, 2 = not possible
     div ecx                             ; eax = tens, edx = units
     xor ebx, ebx
     call glyph
-    inc ebx                             ; 1 pixel apart
+    cmp byte [CUR_MENU], 0              ; match numbers: 1 pixel apart; the menus' (4.0.2, Malave): side by side,
+    jne .tight                          ; as the menu's own "10"
+    inc ebx
+.tight:
     mov eax, edx
     call glyph
     mov [edi + 10], bx                  ; width

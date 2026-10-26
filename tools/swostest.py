@@ -7857,6 +7857,52 @@ GP_LOG_SRES = 982                # gp_log: out.sres[3] (the career club's divisi
 
 
 @scenario
+def world_mex_titles():
+    """4.0.2 (regia): Liga MX tables and calendar titled with the current stage (data: mex_exact's split titles,
+    longtable.stage_table): a season at AMERICA on W2627MEXT_DATA (default world5tm-402st): the season's screens show
+    the table titled LIGA MX APERTURA (from day 1), then LIGA MX CLAUSURA (never APERTURA again), and the calendar's
+    labels MX APERTURA / MX CLAUSURA"""
+    src = os.environ.get('W2627MEXT_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-402st')
+    if not os.path.isdir(src):
+        return True, f'SKIP: private data {src} missing'
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    exe = os.environ.get('MEXT_BUILD') or build('world_mex_titles', env={
+        'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order])})
+    keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_ONE')
+    keep = {k: os.environ.get(k) for k in keys}
+    os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM='NORDAMERICA,MESSICO,LIGA MX,AMERICA',
+                      W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1', W8485_ONE='1')
+    try:
+        ok, msg = world8485()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    errs = []
+    check(ok, msg, errs)
+    log = os.path.join(RUNS, w84_tag() + '_1', 'session.log')
+    seq = []
+    for ln in (open(log, errors='replace') if os.path.exists(log) else []):
+        if not ln.startswith('['):
+            continue
+        for x in ln.split('|'):                     # (the stage titles exactly: the table's long, the calendar's short;
+            x = re.sub(r'^\[\d+\] ', '', x.strip()).replace('(inv)', '').strip()   # not the Liguillas' names)
+            for t in ('APERTURA', 'CLAUSURA'):
+                if x in ('LIGA MX ' + t, 'MX ' + t):
+                    seq.append((t, x))
+    longs = [t for t, x in seq if x.startswith('LIGA MX ')]   # (the table's title; the calendar shows the next days)
+    first_cl = longs.index('CLAUSURA') if 'CLAUSURA' in longs else None
+    check(longs.count('APERTURA') and first_cl is not None and 'APERTURA' not in longs[first_cl:],
+          f'table titles: {longs.count("APERTURA")} APERTURA then {longs.count("CLAUSURA")} CLAUSURA, in order '
+          f'{first_cl is not None and "APERTURA" not in longs[first_cl:]}', errs)
+    check({'MX APERTURA', 'MX CLAUSURA'} <= {x for _, x in seq}, f'calendar labels {sorted({x for _, x in seq})}', errs)
+    return not errs, '; '.join(errs) or (f'{msg[:120]}; table {longs.count("APERTURA")} x LIGA MX APERTURA then '
+                                         f'{longs.count("CLAUSURA")} x LIGA MX CLAUSURA; labels {sorted({x for _, x in seq})}')
+
+
+@scenario
 def world_mex(force='1', team='NORDAMERICA,MESSICO,LIGA MX,AMERICA',
               stages=((0, 'APERTURA'), (1, 'CLAUSURA'), (2, 'CAMPEON DE CAMPEONES'))):
     """Liga MX 2026-27 exactly (4.0.1, mkworld_tm mex_exact: Apertura 2026 by Transfermarkt's matchdays, the Clausura

@@ -2208,6 +2208,11 @@ Left for 2.5: (a) NSL/NSSL finals series (type-1 design) or declare them postpon
 - Release data internal/world2526/world5tm-402rc1 (464 files, md5 list digest 006a05c7; recipe PATH=/opt/homebrew/bin
   TM_CA_EXACT=1 TM_MEX_EXACT=1 TM_SA_EXACT=uru,col,per,par TM_EXTRA=14 sh run_tm.sh at 58be76c). Smoke: xtra_world30 PASS
   on builds/w2627-402rc1-test (CELLE VARAZZE 30, two seasons). rc1 after the Thu 29 03:00 reset.
+- MiSTer betas (Davide, 26/10; test disks, not rcs), data world5tm-402rc2 (= 402rc1 + 154 Serie D kits, md5-list digest
+  5d9a5d91), buildrel.sh NOPATCHER=1, no *_FORCE: c/REL402b1 = 6d42468 (IT 056c5d2b; DATA vs REL401rc3: FMT{DE,EN,FR,IT}5.DAT,
+  TMW5.102, 92 XTW5.*; remote smokes cancelled). 8. 4.0.2-controls 6ebee9b -> c2cb852 (merged before Motore's ctl_full
+  ended, per Regia/Davide; full suite at rc1). c/REL402b2 = c2cb852 (IT b77a371f, GOG IT c152732a; DATA = b1's): roundtrip,
+  controls_menu (CONTROLS_BUILD = b2) PASS. p6 WINNERS not in.
 
 ## Deferred realism (4.0.2+)
 - Moldova's h2h_half groups start at 0 points (package 6, 2026-10-24; pre-existing, not option C).

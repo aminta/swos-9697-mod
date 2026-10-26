@@ -747,14 +747,16 @@ def po_page(po, names, t, lang):
     return lines
 
 
-def _po_prose(po, names, lang):
-    """po_page in prose (4.0): who plays it in a sentence, then its rounds' lines as sentences."""
+def _po_prose(po, names, lang, ups=None):
+    """po_page in prose (4.0): who plays it in a sentence, then its rounds' lines as sentences (4.0.2: and that a
+    placement play-off of a division with promotion places gives none, fmtprose.no_promo; ups: division -> 'up')."""
     import fmtprose
     lines = po_page(po, names, T[lang], lang)
     who = fmtprose.po_who(po, names, lang, lambda n: complist._nm(n, lang))
     if not who:
         return lines
-    return {'prose': [' '.join([who] + fmtprose.sentences(lines[1:]))], 'tail': []}
+    tail = [fmtprose.NOPROMO[lang]] if fmtprose.no_promo(po, ups or {}) else []
+    return {'prose': [' '.join([who] + fmtprose.sentences(lines[1:]) + tail)], 'tail': []}
 
 
 def state_text(c, t, lang):
@@ -1087,7 +1089,8 @@ def from_pack(d):
             if po.get('kind') == 'promedio' or not po.get('names'):
                 continue
             titles = {lang: title(lang, complist._nm(po['names'], lang)) for lang in LANGS}
-            out.append((world, None, titles, {lang: _po_prose(po, lg['names'], lang) for lang in LANGS}))
+            ups = {i: dv.get('up') for i, dv in enumerate(x for lv in lg['levels'] for x in lv)}
+            out.append((world, None, titles, {lang: _po_prose(po, lg['names'], lang, ups) for lang in LANGS}))
         if comp.get('cup_d'):                   # cupd: the Coppa Italia Serie D
             nm = comp['cup_d'].get('names') or {'*': ['COPPA ITALIA SERIE D', 'COPPA IT SERIE D']}
             titles = {lang: title(lang, complist._nm(nm, lang)) for lang in LANGS}

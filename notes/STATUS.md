@@ -2233,3 +2233,10 @@ Left for 2.5: (a) NSL/NSSL finals series (type-1 design) or declare them postpon
 - Test: scenario `xtra_world30` (XTRA30_BUILD): CELLE VARAZZE 30 players, STEFANO CHIAIA the 30th, two seasons + save/reload.
   Old 4.0.1-style save (25 players, made on a TM_EXTRA=9 build) loads and plays a season on the 30-man build; career_20seasons x3 (Celle Varazze) PASS;
   xtra_squad, xtra_season PASS.
+
+## 4.0.2 buying players 17-30 of other clubs (branch xsq-402, 2026-10-26)
+- Built as in notes/world-2025-26-outsquad-buying.md ("As built"): market entries index 16.. = XTRA players of other clubs (GetPlayer hook +
+  list / row / AddCareerTeamPlayer sites), a bought one goes into the sold list (engine item 'XS', old saves: empty), no RemovePlayer.
+- Found on the way: trailer.py's world-0 engine block looped over zero items when a build had only world-only items (fixed, 819b85a).
+- Tests PASS on the TM_EXTRA=14 world: xtra_market, xtra_world30, career_20seasons x2-3 (CHISOLA / CELLE VARAZZE), an old 25-man save,
+  xtra_squad, xtra_season; IT/EN/FR/DE exes build. Not done: release recipe suite, a visual tour, EN/FR/DE market screens in a run.

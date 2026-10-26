@@ -9473,8 +9473,9 @@ def world_full_uefa():
                     q = r.base2 + x + 0x8                   # clubs, 'rank:slot' x 3 (slot 0-8 league, c = cup), in
                     ws = []                                 # UQ_IN.hold and the game's holder words (w_holders)
                     for j, spec in enumerate(os.environ['UQ_HOLD'].split(',')):
-                        if spec in ('', 'x'):                  # (no holder of that cup)
-                            ws.append(0xFFFF)
+                        if spec in ('', 'x'):                  # (the real holder of that cup stays: the game's record count
+                            ws.append(struct.unpack('<H', r.box.dump(r.base2 + HOLDERS + 2 * j, 2))[0])   # before the
+                            continue                           # holders expects all three; a missing one traps it)
                             continue
                         rk, sl = spec.split(':')
                         off = 1078 + 2 * int(rk) if sl == 'c' else 70 + 2 * (int(rk) * 9 + int(sl))
@@ -9493,7 +9494,7 @@ def world_full_uefa():
         if scr is None and os.environ.get('UQ_BSS'):          # (after the season-end save: uefaq's UQ_IN / UQ_OUT,
             x = int(os.environ['UQ_BSS'], 16)                  # the patch log's 'bss obj2+X'; integrator)
             open(os.path.join(s.run, 'uq_in.bin'), 'wb').write(s.result.read(s.result.base2 + x + 0x8, 8732))
-            open(os.path.join(s.run, 'uq_out.bin'), 'wb').write(s.result.read(s.result.base2 + x + 0x222C, 1720))
+            open(os.path.join(s.run, 'uq_out.bin'), 'wb').write(s.result.read(s.result.base2 + x + 0x222C, 1728))
     W84_HOOK = hook
     keep = {k: os.environ.get(k) for k in ('W8485_ONE', 'W2627FULL_COUNTRY', 'W2627FULL_TEAM')}
     os.environ.update(W8485_ONE='1', W2627FULL_COUNTRY='eng', W2627FULL_TEAM='EUROPA,INGHILTERRA,PREMIER LEAGUE,ARSENAL')
@@ -9614,7 +9615,8 @@ def world_uefa_double():
     check(h2 not in ls[1] and h2 not in ls[2], 'the UECL holder is also in another league phase list', errs)
     check(st[2] == 1 and hk[2] == 1, f'status {list(st)} hkeep {list(hk)}: expected status 1 and hkeep 1', errs)
     check(h2 in gl[0] and h2 not in gl[1], f'the game lists: holder in CL {h2 in gl[0]}, in EL {h2 in gl[1]}', errs)
-    check(all(len(x) == 36 for x in gl), f'game list sizes {[len(x) for x in gl]} (no routed holder: 36 each)', errs)
+    check([len(x) for x in gl] == [34, 36, 36], f'game list sizes {[len(x) for x in gl]} (the CL / EL holders, real, are '
+          f'appended to the CL list by w_holders: 34 + 2; the kept UECL holder is appended by nobody: 36, 36)', errs)
     return not errs, '; '.join(errs + [f'status {list(st)} hkeep {list(hk)} ls sizes {nl} gl sizes {[len(x) for x in gl]}; ' + msg[:160]])
 
 

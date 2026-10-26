@@ -606,6 +606,7 @@ def patch_exe(src, dst, remap, lang='it'):
     import tailzero                              # 4.0.2: the stub that zeroes obj2's tail at startup (written below,
     tz_at = (ctl_end + 15) & ~15                 # once the tail's size is known; the cosmetics page is full)
     ctl_end = tz_at + tailzero.SIZE
+    ctl_end = blond.unch_patch(p, (ctl_end + 15) & ~15)   # 4.0.2 MALEN: the darkblond sets in half / EGA mode
     assert ctl_end <= ctl_at + 0x1000 * ctl_pg, hex(ctl_end)
     p.set_vsize(1, OBJ1_NEW_VSIZE + (0x1000 * (cp + 2 + cdp) if worlds else 0) + h2 + 0x1000 * (lpb + sp_pg + sc_pg + ct_pg + ctl_pg))
     import teamstab                              # 4.0.2: teamsTable for 256 team ordinals (Serie D choice colours)

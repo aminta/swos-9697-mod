@@ -235,7 +235,8 @@ def patch(p, area, at, bss, spr):
     f1 = one(rb'\x66\xA1....\x66\xBB\xBA\x01\x66\x81\xEB\x55\x01\x66\xF7\xE3')
     f2 = one(rb'\x66\xA1....\x66\xBB\xE9\x02\x66\x81\xEB\x84\x02\x66\xF7\xE3')
     cyc = one(rb'\x66\x83\x05....\x01\x66\x83\x3D....\x03\x75')
-    assert None not in (face, copy, c1, c2, f1, f2, cyc), (face, copy, c1, c2, f1, f2, cyc)
+    un = one(rb'\xC7\x05....\x1F\x01\x00\x00\xC7\x05....\x33\x01\x00\x00\xE8....\xC7\x05....\x35\x01\x00\x00\xE8')
+    assert None not in (face, copy, c1, c2, f1, f2, cyc, un), (face, copy, c1, c2, f1, f2, cyc, un)
     icons = [m.start() for m in re.finditer(rb'\x66\x81\x05....\xBA\x00', d1, re.S)]
     assert len(icons) == 6, [hex(s) for s in icons]       # every `add word [Dx], 186`: a face icon (squad screens,
                                                           # SetMenuEntryPlayerFace, Edit Teams list and face button)
@@ -262,7 +263,13 @@ def patch(p, area, at, bss, spr):
     assert t2, 'team 2 colour table'
     t2tab = t(t2[0].start() + 6)[1]
 
+    usp, utz = rel(un + 20), rel(un + 35)                  # InitGameRestoreTeams: mov D0, 287 / mov D1, 307 /
+    assert d1[usp:usp + 3] == b'\x66\xA1' + d1[usp + 2:usp + 3]   # call UnchainSprites / mov D0, 309 / call ..TilZero
+    d3 = t(usp + 8)                                       # UnchainSprites: mov ax, word [D0] / mov word [D3], ax
+    assert t(usp + 2) == (2, D0) and d3 == (2, D0 + 12), (t(usp + 2), d3)
     at = (at + 15) & ~15
+    UNCH.update(site=un + 35, sym={'D0': (2, D0), 'D1': (2, D1), 'D3': d3, 'USP': (1, usp), 'UTZ': (1, utz),
+                                   'NEW1_': (0, NEW1), 'NEW2_': (0, NEW2)})
     sym = {'D0': (2, D0), 'D1': (2, D1), 'A0': (2, A0), 'A6': (2, A6), 'SPRIDX': (2, spr), 'BUF': (2, bss),
            'USEIND': useind, 'T1TAB': (2, t1tab), 'T2TAB': (2, t2tab), 'SKINTAB': (1, skintab), 'CONVSPR': (1, csc),
            'FACE_': (0, FACE), 'FLAG_': (0, FLAG), 'FACE_OFF': (0, face_off), 'NEW1_': (0, NEW1), 'NEW2_': (0, NEW2),
@@ -293,6 +300,39 @@ def patch(p, area, at, bss, spr):
     assert p.get(1, cyc + 15, 1) == b'\x03'
     p.put(1, cyc + 15, b'\x04')                           # Edit Teams face button: 0..3
     print(f'exe: blond hair: face 3 (sets {NEW1}.., {NEW2}.., obj2+{bss:#x}; code obj1+{at:#x}, {len(code)} B)')
+    return at + len(code)
+
+
+UNCH = {}
+UNCH_ASM = r"""
+unch:                                   ; replaces InitGameRestoreTeams' call UnchainSpritesTilZero (half / EGA mode
+    call UTZ                            ; only: sprites 309.. to the first empty index entry go planar). The sets
+    pushad                              ; NEW1 / NEW2 lie past the shirt numbers' entries (empty until built): they
+    mov dword [D3], 0                   ; stayed chunky and the EGA drawing made a block of them (MALEN, 4.0.2)
+    mov dword [D0], NEW1_
+    mov dword [D1], NEW1_ + 101
+    call USP
+    mov dword [D3], 0
+    mov dword [D0], NEW2_
+    mov dword [D1], NEW2_ + 101
+    call USP
+    popad
+    ret
+
+"""
+
+
+def unch_patch(p, at):
+    """The half / EGA mode's unchaining of NEW1 / NEW2 (UNCH_ASM) at obj1:at (after patch()). Returns the end."""
+    code, fix = nasmcave.assemble(UNCH_ASM, at, UNCH['sym'])
+    assert not any(p.get(1, at, len(code)))
+    p.put(1, at, code)
+    for o, t_obj, t_off in fix:
+        p.add_ptr(1, at + o, t_obj, t_off)
+    site = UNCH['site']
+    assert p.get(1, site, 1) == b'\xE8'
+    p.put(1, site + 1, struct.pack('<i', at - (site + 5)))
+    print(f'exe: blond sets made planar in half / EGA mode (obj1+{at:#x}, {len(code)} B, call at obj1+{site:#x})')
     return at + len(code)
 
 

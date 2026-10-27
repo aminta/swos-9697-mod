@@ -955,7 +955,7 @@ def patch(p, at, lang):
     data, off, ptrs, m_at = layout(lang)
 
     base = at + 0x1000                                 # (page-aligned: the code page stays the code's alone)
-    assert len(data) <= 0x1000 * DATA_PAGES and not any(p.get(1, base, len(data))), hex(len(data))
+    assert len(data) <= 0x1800 and not any(p.get(1, base, len(data))), hex(len(data))   # (+0x1800: blond's code)
     p.put(1, base, bytes(data))
     assert not any((base + o) // 0x1000 != (base + o + 3) // 0x1000 for o, _, _ in ptrs), 'a pointer straddles a page'
     v = base + off['vars']

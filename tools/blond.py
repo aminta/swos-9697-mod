@@ -19,6 +19,16 @@ reach the next team's sprites. Here:
   3 in the top three rows) yellow whenever a face icon is set (all six `add word [Dx], 186`: squad screens cseg_13A55 /
   cseg_13DFB, SetMenuEntryPlayerFace, InitEditTeamsMenu, the Edit Teams face button, whose cycle now runs 0..3).
 Goalkeepers flagged blond are drawn as black (their sprites follow team*GoalieFaces, kept at 0..2).
+
+4.0.3 bald players: PlayerFile byte 25 (field_19, after the 22-byte name; the game never reads it) bit 0 = bald.
+Older versions ignore it (the player keeps his hair). A bald dark player (face 2 / 3) gets flag 2, a bald light one
+(face 0 / 1) flag 3; InitInGamePlayer (ig_face) runs for all 32 before ConvertColorsAndTextSprites, so copy_sets
+knows the variants of the match (NEED) and gives the first two present (darkblond, bald dark, bald light, in that
+order) the pairs of sets 1418 / 1519 and 1708 / 1809 (spritesIndex's room ends at 2103 and it cannot move: SWOS++
+addresses it); with all three a bald light player plays as face 1. The bald sets are copies of the raw set with bald_shape's head (Davide's
+look A, 27/10): the hair (raw colours 13 / 9 / 12) loses its outer ring, the rest takes the raw skin colours (6 on top,
+4 at the sides, 5 inside), then the team's face 2 / face 0 conversion. In BSS2 (the obj2 tail's end: nothing before
+it moves). Menus keep the file's face icon; goalkeepers keep their hair.
 """
 import re
 import struct
@@ -31,6 +41,10 @@ NEW1 = shirtnum.NEWBASE + 83            # 1418: after the shirt numbers 17..99
 NEW2 = NEW1 + 101
 SET_BYTES = 0x3C00                      # 101 sprites: 15216 bytes (TEAM1/2/3.DAT, all 1 quad wide, at most 20 lines)
 BSS_SIZE = 2 * SET_BYTES
+NEW3 = 1708                             # 4.0.3: the second pair of variant sets (team 1, team 2 = + 101), after
+SCR_OFF = 2 * SET_BYTES                 # menunum's 1620..1707 (to 1909: spritesIndex's room ends at 2103)
+BSS2_SIZE = SCR_OFF + 0x400             # (patch.py: at the obj2 tail's end; + bald_shape's scratch)
+BALD_AT = 25                            # PlayerFile.field_19 (from the player record; positionAndFace = 26)
 FLAG = 49                               # PlayerInfoHeader.field_31
 BLOND = (6, 4, 5, 4, 4, 3, 13, 15, 9, 15, 12, 6, -1)   # black skin; hair bright/medium -> yellow, dark -> orange
 
@@ -44,19 +58,68 @@ ig_face:                                ; replaces mov al, [D0] / mov esi, [A6] 
     mov al, 2
     mov byte [esi + FLAG_], 1
 .w:
+    push edi                            ; 4.0.3: bald (the player record's byte 25 bit 0, A5 -> record + 76 - 26 ..)
+    mov edi, [A5]
+    test byte [edi + 66h - 26 + BALD_AT_], 1
+    pop edi
+    jz .s
+    cmp al, 2
+    je .d
+    mov byte [esi + FLAG_], 3           ; light: the bald light sets
+    jmp .s
+.d:
+    mov byte [esi + FLAG_], 2           ; dark (also darkblond): the bald dark sets
+.s:
     mov [esi + FACE_OFF], al
+    push ecx                            ; (the variants this match needs: copy_sets allocates their sets)
+    movzx ecx, byte [esi + FLAG_]
+    bts [NEED], ecx
+    pop ecx
     ret
 
-copy_sets:                              ; replaces mov word [D0], 341
-    pushad
+copy_sets:                              ; replaces mov word [D0], 341 (after InitInGamePlayer for all 32: NEED set)
+    pushad                              ; 4.0.3: the variants present (flag 1 darkblond, 2 bald dark, 3 bald light,
+    mov dword [VB], 0                   ; in that order) get the two pairs of sets, 1418 / 1519 and 1708 / 1809; a
+    mov dword [VB + 4], 0               ; third one gets none (fo: bald light -> face 1)
+    mov word [PV], 0
+    xor ecx, ecx
+    mov edx, 1
+.v:
+    bt [NEED], edx
+    jnc .nx
+    cmp ecx, 2
+    jae .nx
+    mov [PV + ecx], dl
+    mov ax, [PIDX + ecx * 2]
+    mov [VB + edx * 2], ax
+    push ecx
+    push edx
+    mov byte [SHAPE], 0
+    cmp dl, 2
+    jb .ns0
+    mov byte [SHAPE], 1                 ; (bald: look A)
+.ns0:
+    movzx ebp, word [PIDX + ecx * 2]
+    mov edi, [PBUF + ecx * 4]
+    push ebp
+    push edi
     mov edx, 341
-    mov ebp, NEW1_
-    mov edi, BUF
     call .set
+    pop edi
+    pop ebp
+    add ebp, 101
+    add edi, SET_
     mov edx, 644
-    mov ebp, NEW2_
-    mov edi, BUF + SET_
     call .set
+    pop edx
+    pop ecx
+    inc ecx
+.nx:
+    inc edx
+    cmp edx, 4
+    jb .v
+    mov byte [SHAPE], 0
+    mov dword [NEED], 0
     popad
     mov word [D0], 341
     ret
@@ -91,6 +154,13 @@ copy_sets:                              ; replaces mov word [D0], 341
     add edi, 4
     sub ecx, 4
     jnz .pix
+    cmp byte [SHAPE], 0
+    je .ns
+    pushad
+    mov ebx, [SPRIDX + ebp * 4]
+    call bald_shape
+    popad
+.ns:
     inc edx
     inc ebp
     pop ecx
@@ -98,24 +168,169 @@ copy_sets:                              ; replaces mov word [D0], 341
     jnz .spr
     ret
 
+bald_shape:                             ; ebx = a copied raw sprite (1 quad wide): look A on its hair (13 / 9 / 12)
+    cmp word [ebx + 14], 1
+    jne .r
+    movzx ecx, word [ebx + 12]
+    test ecx, ecx
+    jz .r
+    cmp ecx, 24
+    ja .r
+    shl ecx, 4                          ; ecx = pixels
+    mov esi, [ebx]
+    xor edx, edx
+.u:                                     ; unpack: SCR[2j] = high nibble, SCR[2j+1] = low
+    mov al, [esi + edx]
+    mov ah, al
+    shr al, 4
+    and ah, 0Fh
+    mov [SCR + edx * 2], al
+    mov [SCR + edx * 2 + 1], ah
+    inc edx
+    lea eax, [edx * 2]
+    cmp eax, ecx
+    jb .u
+    xor edx, edx                        ; pass 1: MARK = hair with a transparent / outside 4-neighbour
+.p1:
+    mov byte [MARK + edx], 0
+    mov al, [SCR + edx]
+    call .hair
+    jne .n1
+    mov eax, edx
+    sub eax, 16
+    jb .d1
+    cmp byte [SCR + eax], 0
+    je .d1
+    lea eax, [edx + 16]
+    cmp eax, ecx
+    jae .d1
+    cmp byte [SCR + eax], 0
+    je .d1
+    test dl, 0Fh
+    jz .d1
+    cmp byte [SCR + edx - 1], 0
+    je .d1
+    mov al, dl
+    and al, 0Fh
+    cmp al, 0Fh
+    je .d1
+    cmp byte [SCR + edx + 1], 0
+    jne .n1
+.d1:
+    mov byte [MARK + edx], 1
+.n1:
+    inc edx
+    cmp edx, ecx
+    jb .p1
+    xor edx, edx                        ; pass 2: drop them
+.p2:
+    cmp byte [MARK + edx], 0
+    je .n2
+    mov byte [SCR + edx], 0
+.n2:
+    inc edx
+    cmp edx, ecx
+    jb .p2
+    xor edx, edx                        ; pass 3: the rest of the hair -> skin: 6 on top, 4 at the sides, 5 inside
+.p3:
+    mov al, [SCR + edx]
+    call .hair
+    jne .n3
+    mov bl, 6
+    cmp edx, 16
+    jb .w3
+    cmp byte [SCR + edx - 16], 0
+    je .w3
+    mov bl, 4
+    test dl, 0Fh
+    jz .w3
+    cmp byte [SCR + edx - 1], 0
+    je .w3
+    mov al, dl
+    and al, 0Fh
+    cmp al, 0Fh
+    je .w3
+    cmp byte [SCR + edx + 1], 0
+    je .w3
+    mov bl, 5
+.w3:
+    mov [SCR + edx], bl
+.n3:
+    inc edx
+    cmp edx, ecx
+    jb .p3
+    xor edx, edx                        ; repack
+.k:
+    mov al, [SCR + edx * 2]
+    shl al, 4
+    or al, [SCR + edx * 2 + 1]
+    mov [esi + edx], al
+    inc edx
+    lea eax, [edx * 2]
+    cmp eax, ecx
+    jb .k
+.r:
+    ret
+.hair:                                  ; ZF = 1 when al is a raw hair colour
+    cmp al, 13
+    je .h
+    cmp al, 9
+    je .h
+    cmp al, 12
+.h:
+    ret
+
+SHAPE: db 0
+PV: db 0, 0                             ; the variant (flag) in each pair this match, 0 = none
+FACEOF: db 0, FACE_, 2, 0               ; per flag: the conversion table (darkblond 3, bald dark 2, bald light 0)
+align 2
+PIDX: dw NEW1_, NEW3_                   ; each pair's team 1 sets (team 2 = + 101)
+VB: dw 0, 0, 0, 0                       ; per flag: its team 1 first sprite this match, 0 = none
+align 4
+PBUF: dd BUF, BUF2
+NEED: dd 0
+
 conv1:                                  ; replaces mov ax, [useIndividualPlayerSkinColor] before team 1's goalkeepers
-    push dword NEW1_
-    push dword T1TAB
-    call conv
+    pushad
+    xor esi, esi
+    mov edi, T1TAB
+    call convp
+    popad
     mov ax, [USEIND]
     ret
 conv2:
-    push dword NEW2_
-    push dword T2TAB
-    call conv
+    pushad
+    mov esi, 101
+    mov edi, T2TAB
+    call convp
+    popad
     mov ax, [USEIND]
     ret
-conv:                                   ; [esp+4] colour table, [esp+8] first new sprite
+convp:                                  ; the pairs in use: esi = team offset (0 / 101), edi = colour table
+    xor ebx, ebx
+.l:
+    movzx eax, byte [PV + ebx]
+    test eax, eax
+    jz .n
+    movzx eax, byte [FACEOF + eax]
+    push eax
+    movzx eax, word [PIDX + ebx * 2]
+    add eax, esi
+    push eax
+    push edi
+    call conv
+.n:
+    inc ebx
+    cmp ebx, 2
+    jb .l
+    ret
+conv:                                   ; [esp+4] colour table, [esp+8] first new sprite, [esp+12] face table index
     cmp word [USEIND], 0                ; one face for the whole team: the set is not used
     je .out
     pushad
     mov ebx, [esp + 36]
-    mov byte [D0], FACE_
+    mov eax, [esp + 44]
+    mov [D0], al
     mov [A0 + 4], ebx                   ; A1 -> colour table
     call SKINTAB
     mov ecx, 101
@@ -138,23 +353,38 @@ conv:                                   ; [esp+4] colour table, [esp+8] first ne
     jnz .l
     popad
 .out:
-    ret 8
+    ret 12
 
 fo1:                                    ; replaces mov ax, [D0] / mov bx, 442 / sub bx, 341 / mul bx (team 1 player)
     mov ebx, [A0 + 8]                   ; A2 -> player
-    mov ax, NEW1_ - 341
+    push ecx
+    mov ecx, -341
     jmp fo
 fo2:
     mov ebx, [A0 + 12]                  ; A3 -> player
-    mov ax, NEW2_ - 644
+    push ecx
+    mov ecx, 101 - 644
 fo:
     xor dx, dx
-    cmp byte [ebx + FLAG_], 0
-    jne .r
+    movzx eax, byte [ebx + FLAG_]
+    test eax, eax
+    jz .norm
+    mov ax, [VB + eax * 2]              ; 4.0.3: the flag's sets this match
+    test ax, ax
+    jz .fb
+    add ax, cx
+    jmp .r
+.fb:
+    cmp byte [ebx + FLAG_], 3           ; bald light without sets (all three variants in the match): face 1
+    jne .norm
+    mov ax, 101
+    jmp .r
+.norm:
     mov ax, [D0]
     mov bx, 101
     mul bx
 .r:
+    pop ecx
     ret
 
 icon_d0:                                ; replaces add word [D0], 186 (face icon)
@@ -204,8 +434,9 @@ build_icon:                             ; sprite 189 = 188 with the hair (colour
 """
 
 
-def patch(p, area, at, bss, spr):
-    """Code at obj1:at, sets at obj2:bss (BSS_SIZE zero bytes), spr = spritesIndex (obj2). Returns the code end."""
+def patch(p, area, at, bss, spr, bss2):
+    """Code at obj1:at, sets at obj2:bss (BSS_SIZE zero bytes) and obj2:bss2 (BSS2_SIZE, bald dark), spr = spritesIndex
+    (obj2). Returns the code end."""
     d1, d2 = p.le.obj_bytes(1), p.le.obj_bytes(2)
     fix = list(p.le.fixups())
     one = lambda pat: (lambda m: m[0] if len(m) == 1 else None)([x.start() for x in re.finditer(pat, d1, re.S)])
@@ -270,12 +501,15 @@ def patch(p, area, at, bss, spr):
     at = (at + 15) & ~15
     UNCH.update(site=un + 35, sym={'D0': (2, D0), 'D1': (2, D1), 'D3': d3, 'USP': (1, usp), 'UTZ': (1, utz),
                                    'NEW1_': (0, NEW1), 'NEW2_': (0, NEW2)})
+    assert t(face - 0x16 + 2) == (2, A0 + 20), t(face - 0x16 + 2)   # (mov esi, [A5] / mov al, [esi+66h] before it)
     sym = {'D0': (2, D0), 'D1': (2, D1), 'A0': (2, A0), 'A6': (2, A6), 'SPRIDX': (2, spr), 'BUF': (2, bss),
+           'A5': (2, A0 + 20), 'BUF2': (2, bss2), 'BALD_AT_': (0, BALD_AT), 'NEW3_': (0, NEW3), 'SCR': (2, bss2 + SCR_OFF), 'MARK': (2, bss2 + SCR_OFF + 0x200),
            'USEIND': useind, 'T1TAB': (2, t1tab), 'T2TAB': (2, t2tab), 'SKINTAB': (1, skintab), 'CONVSPR': (1, csc),
            'FACE_': (0, FACE), 'FLAG_': (0, FLAG), 'FACE_OFF': (0, face_off), 'NEW1_': (0, NEW1), 'NEW2_': (0, NEW2),
            'SET_': (0, SET_BYTES)}
     code, cfix = nasmcave.assemble(ASM, at, sym)
     lab = nasmcave.labels(ASM, at, sym)
+    UNCH['sym'].update(PV=(1, lab['PV']), PIDX=(1, lab['PIDX']))
     assert not any(p.get(1, at, len(code)))
     p.put(1, at, code)
     for o, t_obj, t_off in cfix:
@@ -307,15 +541,21 @@ UNCH = {}
 UNCH_ASM = r"""
 unch:                                   ; replaces InitGameRestoreTeams' call UnchainSpritesTilZero (half / EGA mode
     call UTZ                            ; only: sprites 309.. to the first empty index entry go planar). The sets
-    pushad                              ; NEW1 / NEW2 lie past the shirt numbers' entries (empty until built): they
-    mov dword [D3], 0                   ; stayed chunky and the EGA drawing made a block of them (MALEN, 4.0.2)
-    mov dword [D0], NEW1_
-    mov dword [D1], NEW1_ + 101
-    call USP
+    pushad                              ; variant sets lie past the shirt numbers' entries (empty until built): they
+    xor ebx, ebx                        ; stayed chunky and the EGA drawing made a block of them (MALEN, 4.0.2).
+.l:                                     ; 4.0.3: the pairs in use this match (copy_sets' PV), 202 sprites each
+    cmp byte [PV + ebx], 0
+    je .n
     mov dword [D3], 0
-    mov dword [D0], NEW2_
-    mov dword [D1], NEW2_ + 101
+    movzx eax, word [PIDX + ebx * 2]
+    mov [D0], eax
+    add eax, 202
+    mov [D1], eax
     call USP
+.n:
+    inc ebx
+    cmp ebx, 2
+    jb .l
     popad
     ret
 
@@ -340,13 +580,33 @@ def unch_patch(p, at):
 PLAYERS = {b'CARLOS VALDERRAMA'}       # blond afro all career long: Tampa Bay Mutiny (MLS 1997), Montpellier (1988-89)
 
 
+# 4.0.3: real bald (shaved-head) players of the World 2026-27, by hand (the data has no hair field; full names as in the
+# team files, unique there): byte 25 bit 0. MALEN: darkblond in the data, bald in reality (the 4.0.2 MALEN report).
+BALD = {b'DONYELL MALEN', b'ANTONIO RUDIGER', b'KALIDOU KOULIBALY', b'SERHOU GUIRASSY', b'MICHAIL ANTONIO', b'MOUSSA NIAKHATE',   # dark
+        b'TIM REAM', b'NEMANJA MATIC', b'JOSIP ILICIC'}                                                                       # light
+
+
+def bald(player):
+    """A 38-byte player record with byte 25 bit 0 set when he is in BALD (the extras' files: xtra.build)."""
+    name = bytes(player[3:25]).split(b'\0')[0]
+    if name not in BALD:
+        return bytes(player)
+    assert len(name) <= 21, name
+    return bytes(player[:BALD_AT]) + bytes((player[BALD_AT] | 1,)) + bytes(player[BALD_AT + 1:])
+
+
 def faces(data, header=True):
-    """Team file bytes -> (bytes, players set to face 3): PLAYERS get bits 3-4 of positionAndFace = 11."""
+    """Team file bytes -> (bytes, players set to face 3): PLAYERS get bits 3-4 of positionAndFace = 11; BALD get
+    byte 25 bit 0 (names of at most 21 letters: byte 25 stays after the name's 0)."""
     d, n, o0 = bytearray(data), 0, 2 if header else 0
     for k in range((len(d) - o0) // 684):
         for j in range(16):
             p = o0 + k * 684 + 76 + j * 38
-            if bytes(d[p + 3:p + 26]).split(b'\0')[0] in PLAYERS:
+            name = bytes(d[p + 3:p + 26]).split(b'\0')[0]
+            if name in PLAYERS:
                 d[p + 26] |= 0x18
                 n += 1
+            if name in BALD:
+                assert len(name) <= 21, name
+                d[p + BALD_AT] |= 1
     return bytes(d), n

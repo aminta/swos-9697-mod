@@ -502,7 +502,12 @@ def patch_exe(src, dst, remap, lang='it'):
     cos = hist2 + h2 + 0x1000 * (lpb - 1) if cos_pg else world   # (worlds: their own page)
     cos = purple.patch(p, area, cos)            # 3.3.0: kit colour 10 = purple (palette entry 12 when no maroon; in
                                                 # the cosmetics page with worlds: the world cave is full, 2026-27)
-    cos = blond.patch(p, area, cos, num_bss + shirtnum.BSS_SIZE, shirtnum.spr_index(p))   # 3.3.0: face 3
+    import teamstab
+    assert menunum.NEWBASE + 88 == blond.NEW3 and blond.NEW3 + 202 <= shirtnum.NEWBASE + 3072 // 4
+    bald_bss = num_bss + shirtnum.BSS_SIZE + blond.BSS_SIZE + menunum.BSS_SIZE + fmtpage.BSS_SIZE + teamstab.BSS_SIZE
+    bl_at = hist2 + h2 + 0x1000 * (lpb + sp_pg + sc_pg + ct_pg) + 0x2800   # 4.0.3: blond's code (bald: longer; the
+    bl_end = blond.patch(p, area, bl_at, num_bss + shirtnum.BSS_SIZE, shirtnum.spr_index(p), bald_bss)   # cosmetics
+    assert bl_end <= bl_at + 0x800, hex(bl_end)          # cave is full) in controls' last data page, after its data
     cos = menunum.patch(p, cos, num_bss + shirtnum.BSS_SIZE + blond.BSS_SIZE)   # 3.3.4: menu numbers 17..99
     cos = avgprice.patch(p, cos)                 # 3.3.4: average player price >= 1 (divide error, 1984-85 Iceland)
     import devname                               # 4.0.2: DOS device names (CON, PRN, AUX ...) refused as save names
@@ -613,7 +618,7 @@ def patch_exe(src, dst, remap, lang='it'):
     import teamstab                              # 4.0.2: teamsTable for 256 team ordinals (Serie D choice colours)
     teamstab.patch(p, num_bss + shirtnum.BSS_SIZE + blond.BSS_SIZE + menunum.BSS_SIZE + fmtpage.BSS_SIZE)
     tail = (careerworld.BSS_SIZE if bigw else 0) + shirtnum.BSS_SIZE + blond.BSS_SIZE + menunum.BSS_SIZE + fmtpage.BSS_SIZE \
-        + teamstab.BSS_SIZE   # obj2 tail
+        + teamstab.BSS_SIZE + blond.BSS2_SIZE   # obj2 tail (4.0.3: the second pair of variant sets last)
     p.set_vsize(2, obj2_free + o2pages * p.le.page_size + tail, bss=tail)
     tailzero.patch(p, tz_at, obj2_free + o2pages * p.le.page_size, (tail + 3) & ~3, nasmcave)   # (DOS/4GW: not zeroed)
     p.add_flags(1, 0x2)            # writable: season end rewrites the SA cup team lists in the cave

@@ -20,7 +20,7 @@ import struct
 NE = 32                                  # cups kept: the national cups of the countries with a supercup (the .CAR's
                                          # engine block has little room: trailer SEL_ROOM)
 COUNTRIES = ('ita', 'esp', 'eng', 'ger', 'fra', 'tur', 'ksa', 'bra', 'mex')   # (pack id suffixes; data: step 2)
-SC_SIZE = 4 + 12 * NE
+SC_SIZE = 12 + 12 * NE                    # (gplay.c SC_H + 12 x SC_NE)
 MAGIC = 0x4353                           # 'SC'
 LABELS = {}
 
@@ -42,7 +42,7 @@ sc_cup:                                 ; replaces `call cseg_928CC` (season end
 .f: cmp ebx, NE_
     jae .x                              ; (full: dropped)
     imul edi, ebx, 12
-    add edi, SC_ST + 4
+    add edi, SC_ST + 12
     cmp byte [edi + 1], 0
     je .put                             ; (a free entry)
     cmp [edi], cl
@@ -101,15 +101,16 @@ def sites(p):
     return c928cc, calls, rec, tw, lib97._sites(p)[3] + 0x41F
 
 
-RULE = {'champion': 1, 'second': 2, 'cup_winner': 3, 'cup_finalist': 4}   # (gplay.c SCR_*)
+RULE = {'champion': 1, 'second': 2, 'cup_winner': 3, 'cup_finalist': 4, 'third': 5, 'fourth': 6}   # (gplay.c SCR_*)
 LEVEL = {'pens': 3, 'et_pens': 1}                                        # (gplay.c LV_PENS / LV_ET_PENS)
 DATA = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'supercups2627.json')
 
 
 def table(lang, name_off):
-    """gplay.c GP_SCT's bytes (db count; per country SC_E = 20 bytes) for the World 2026-27 packs of the build, or
+    """gplay.c GP_SCT's bytes (db count; per country SC_E = 32 bytes) for the World 2026-27 packs of the build, or
     None when the build has none of them. name_off(text) -> the name's offset (gplay: _sadd - STR_BASE)."""
     import mkseason
+    import rnames
     import split
     spec = {k: v for k, v in json.load(open(DATA)).items() if not k.startswith('_')}
     out = []
@@ -123,13 +124,20 @@ def table(lang, name_off):
         assert cup, f'supercup {c}: no national cup'
         lf = pk.files[pk.league['clubs']][0]
         word = lambda k: pk.where[k][0] | pk.where[k][1] << 8
-        r1, r2 = (RULE[x] for x in d['rule'])
-        e = bytes([lf, int(cup['id'], 16), d.get('from_season', 1), split.week_of(d['date']), d.get('legs', 1),
-                   LEVEL[d['level']], r1, r2 | RULE[d.get('if_double', 'second')] << 4])
-        e += struct.pack('<HH', *(word(k) for k in d['first_entrants']))
+        n = len(d['rule'])
+        assert n in (2, 4) and len(d['first_entrants']) == n, c
+        fb = d.get('if_double')
+        fb = fb if isinstance(fb, list) else [None] + [fb] * (n - 1)
+        rules = [RULE[r] | (RULE[f] << 4 if f else 0) for r, f in zip(d['rule'], fb)] + [0] * (4 - n)
+        ents = [word(k) for k in d['first_entrants']] + [0] * (4 - n)
+        w1 = split.week_of(d['date'])
+        w2 = split.week_of(d['final_date']) if n == 4 else w1
+        e = bytes([lf, int(cup['id'], 16), d.get('from_season', 1), w1, d.get('legs', 1), LEVEL[d['level']], n, w2])
+        e += bytes(rules) + struct.pack('<4H', *ents)
         nm = d['names'].get(lang) or d['names']['en']
         e += struct.pack('<II', name_off(nm[0].encode('latin-1')), name_off(nm[1].encode('latin-1')))
-        assert len(e) == 20
+        e += bytes([rnames.KEYS['SF'], rnames.KEYS['F'], 0, 0])
+        assert len(e) == 32
         out.append(e)
     if not out:
         return None

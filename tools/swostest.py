@@ -8682,25 +8682,35 @@ def sc_rules():
     K_SC, slot 4); (b) a DOUBLE (cup winner = champion) -> the cup finalist; (c) the world's first season: the data's
     real entrants; (d) a summer one (from_season 2) in the first season: skipped (trace 0x81); (e) the career club not
     in it: nothing built (0x84); (f) handled once per season (a second advance builds nothing); (g) before its week:
-    nothing."""
+    nothing; final four (h-k): the career club's semi-final built (the other one decided, its winner kept), the final
+    at its week after a won semi-final (named F, the semi SF), none after a lost one, a double -> the league 3rd."""
     import tempfile
     src = os.path.join(ROOT, 'tools', 'gplay.c')
     main = r"""#include <stdio.h>
 #include "%s"
 u8 GP_SEAS;
 static u8 tab[1 + SC_E];
-static void setup(int from, u16 champ, u16 second, u16 cupw, u16 cupf) {
+static struct gp_ko kk;
+static void setup4(int from, int n, u16 champ, u16 second, u16 cupw, u16 cupf, u16 third) {
     for (int i = 0; i < (int)sizeof SC_ST; i++) SC_ST[i] = 0;
     for (int i = 0; i < (int)sizeof GP_ST; i++) ((u8 *)&GP_ST)[i] = 0;
     CF_ST.magic = CF_MAGIC; CF_ST.file = 102;
     for (int i = 0; i < 256; i++) CF_ST.rank[i] = 0;
-    CF_ST.rank[champ >> 8] = 1; CF_ST.rank[second >> 8] = 2;
+    CF_ST.rank[champ >> 8] = 1; CF_ST.rank[second >> 8] = 2; CF_ST.rank[third >> 8] = 3;
     SC_ST[0] = 0x53; SC_ST[1] = 0x43; SC_ST[2] = 1;
-    u8 *e = SC_ST + 4; e[0] = 102; e[1] = 0x82; e[4] = cupw; e[5] = cupw >> 8; e[8] = cupf; e[9] = cupf >> 8;
+    u8 *e = SC_ST + SC_H; e[0] = 102; e[1] = 0x82; e[4] = cupw; e[5] = cupw >> 8; e[8] = cupf; e[9] = cupf >> 8;
     u8 *t = tab + 1; tab[0] = 1;
-    t[0] = 102; t[1] = 0x82; t[2] = from; t[3] = 50; t[4] = 1; t[5] = LV_PENS; t[6] = SCR_CHAMP; t[7] = SCR_CUPW | SCR_CUPF << 4;
-    t[8] = 0x66; t[9] = 9; t[10] = 0x66; t[11] = 10;              /* (season 1: 0x0966 v 0x0A66) */
+    t[0] = 102; t[1] = 0x82; t[2] = from; t[3] = 50; t[4] = 1; t[5] = LV_PENS; t[6] = n; t[7] = 52;
+    t[8] = SCR_CHAMP; t[9] = (n == 4 ? SCR_CUPF : SCR_CUPW) | (n == 4 ? SCR_THIRD : SCR_CUPF) << 4;
+    t[10] = SCR_CUPW | SCR_THIRD << 4; t[11] = SCR_SECOND | SCR_THIRD << 4;
+    t[12] = 0x66; t[13] = 9; t[14] = 0x66; t[15] = 10;            /* (season 1: 0x0966 v 0x0A66 ...) */
+    t[16] = 0x66; t[17] = 11; t[18] = 0x66; t[19] = 12; t[28] = 7; t[29] = 8;
     GP_SCT = tab; GP_SEAS = 127; SC_TRACE = 0;
+}
+static void setup(int from, u16 champ, u16 second, u16 cupw, u16 cupf) { setup4(from, 2, champ, second, cupw, cupf, 0x0566); }
+static void decide(int won) {           /* the career club's tie result back (gp_rec_c -> sc_done) */
+    kk = GP_ST.ko[0]; kk.tw[0] = won ? (kk.team[0] == GP_MGR ? 0 : 1) : (kk.team[0] == GP_MGR ? 1 : 0);
+    sc_done(&kk); GP_ST.ko[0].tw[0] = kk.tw[0];
 }
 static void out(const char *tag, u32 r) {
     printf("%%s %%u %%x %%x %%x %%d\n", tag, r, SC_TRACE, GP_ST.ko[0].team[0], GP_ST.ko[0].team[1], GP_ST.ko[0].kind);
@@ -8715,6 +8725,18 @@ int main(void) {
     setup(1, inter, napoli, bologna, lazio); GP_MGR = inter; GP_WK = 49; sc_step_c(); GP_ST.ko[0].kind = 0; SC_TRACE = 0;
     out("f", sc_step_c());
     setup(1, inter, napoli, bologna, lazio); GP_MGR = inter; GP_WK = 40; out("g", sc_step_c());
+    /* final four: champion v cup finalist, cup winner v 2nd; the career club (napoli, 2nd) in semi-final 2 */
+    setup4(1, 4, inter, napoli, bologna, lazio, 0x0566); GP_MGR = napoli; GP_SCFIRST = 0; GP_WK = 49;
+    out("h", sc_step_c());
+    printf("h2 %%x %%d %%d\n", SC_ST[6] | SC_ST[7] << 8, SC_ST[4], GP_ST.rn[0]);
+    decide(1); GP_WK = 50; out("i0", sc_step_c());
+    GP_WK = 51; out("i", sc_step_c());
+    printf("i2 %%d %%d\n", SC_ST[4], GP_ST.rn[0]);
+    setup4(1, 4, inter, napoli, bologna, lazio, 0x0566); GP_MGR = napoli; GP_WK = 49; sc_step_c(); decide(0);
+    GP_WK = 51; out("j", sc_step_c());
+    printf("j2 %%d\n", SC_ST[4]);
+    /* a double in a final four: the cup winner = the champion -> the cup winner's place to the 3rd (0x0566) */
+    setup4(1, 4, inter, napoli, inter, lazio, 0x0566); GP_MGR = 0x0566; GP_WK = 49; out("k", sc_step_c());
     return 0;
 }
 """ % src
@@ -8733,10 +8755,13 @@ int main(void) {
         got = {ln.split()[0]: ln.split()[1:] for ln in subprocess.run(['./t'], cwd=d, capture_output=True,
                                                                      text=True).stdout.splitlines()}
     want = {'a': ['1', '1', '166', '466', '10'], 'b': ['1', '1', '166', '366', '10'], 'c': ['1', '1', '966', 'a66', '10'],
-            'd': ['0', '81'], 'e': ['0', '84'], 'f': ['0', '0'], 'g': ['0', '0']}
+            'd': ['0', '81'], 'e': ['0', '84'], 'f': ['0', '0'], 'g': ['0', '0'],
+            'h': ['1', '1', '466', '266', '10'], 'h2': ['166', '1', '7'], 'i0': ['0'], 'i': ['1', '2', '266', '166', '10'],
+            'i2': ['3', '8'], 'j': ['0', '41'], 'j2': ['3'], 'k': ['1', '1', '566', '266', '10']}
     errs = [f'{k}: got {got.get(k)}, want {w}' for k, w in want.items() if (got.get(k) or [])[:len(w)] != w]
     return not errs, '; '.join(errs) or 'a champion v cup winner, b double -> finalist, c season-1 data, d summer skipped, ' \
-        'e not in it, f once a season, g before the week: all as expected'
+        'e not in it, f once a season, g before the week; final four: h semi-final built (other winner kept), i the final ' \
+        'after a won semi, j none after a lost one, k a double -> the 3rd: all as expected'
 
 
 @scenario
@@ -9239,6 +9264,40 @@ def sc_matches(lines):
 
 
 @scenario
+def world_sc_esp():
+    """4.0.5 supercups, a final four in game: a BARCELONA career, season 1 (the real 2026-27 edition: BARCELONA v
+    ATLETICO MADRID and REAL SOCIEDAD v REAL MADRID, Istanbul in February) on a GPLAY_KOFORCE=2 test build (the career
+    club wins its played knockout ties): the SUPERCOPPA DI SPAGNA SEMIFINALE v ATLETICO MADRID is played, then its
+    FINALE (v REAL MADRID or REAL SOCIEDAD, the other semi-final decided at once), each once, and the season ends.
+    (Without the switch a lost semi-final ends it: SC_ST round 3, no final - seen on a plain build.)"""
+    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+    if not os.path.isdir(src):
+        return True, f'SKIP: private data {src} missing'
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    exe = os.environ.get('SC_KO_BUILD') or build('world_sc_esp', env={
+        'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]), 'GPLAY_KOFORCE': '2'})
+    ok, msg, lines = sc_season('EUROPA,SPAGNA,LALIGA,BARCELONA', dict(W8485_BUILD=exe))
+    errs = []
+    check(ok, msg, errs)
+    seen = []
+    for ln in lines:
+        t = ln.split('|')[0]
+        if ln.startswith('[') and 'SUPERCOPPA' in t and '- PARTITA -' in ln and '>- RISULTATO -' in ln:
+            opp = next((x for x in ('ATLETICO MADRID', 'REAL MADRID', 'REAL SOCIEDAD') if x in ln), '?')
+            seen.append(re.sub(r'^\[\d+\] ', '', t.strip()) + ' v ' + opp)
+    hdr = b''
+    car = os.path.join(RUNS, w84_tag() + '_1', 'SWOS', 'W84A.CAR')
+    if os.path.exists(car):                            # (the state after the season: SC_ST's header)
+        with Session('world_sc_esp', exe, {'W84A.CAR': car}, 'dump:2', 300) as s:
+            s.wait()
+            s.send(LOAD1 + ' dump:3')
+            hdr = bytes(s.result.obj2(sc_st(exe), 12))
+    check(len(seen) == 2 and 'SEMIFINALE' in seen[0] and 'ATLETICO' in seen[0] and 'FINALE' in seen[1]
+          and 'SEMI' not in seen[1] and 'ATLETICO' not in seen[1], f'supercup matches {seen}; SC_ST header {hdr.hex()}', errs)
+    return not errs, '; '.join(errs) or f'{seen}; {msg[:80]}'
+
+
+@scenario
 def world_sc_reload():
     """4.0.5 supercups: an INTER career saved as soon as its season-1 SUPERCOPPA ITALIANA tie is built in slot 4
     (W8485_MIDSAVE on gplay.c SC_TRACE = 1), then loaded and played to the season's end: slot 4 still holds the tie
@@ -9328,14 +9387,14 @@ def world_sc_cups():
     with Session('world_sc_cups', exe, {'W84A.CAR': car}, 'dump:2', 300) as s:
         s.wait()
         s.send(LOAD1 + ' dump:3')
-        st = bytes(s.result.obj2(at, 4 + 12 * 32))
+        st = bytes(s.result.obj2(at, 12 + 12 * 32))
     errs = []
     magic, n = struct.unpack_from('<H', st, 0)[0], st[2]
     check(magic == 0x4353 and n > 0, f'SC_ST magic {magic:#x}, {n} entries', errs)
     ent = {}
     for i in range(min(n, 32)):
-        f_, cid = st[4 + 12 * i], st[5 + 12 * i]
-        wt, wg, ft, fg = struct.unpack_from('<4H', st, 8 + 12 * i)
+        f_, cid = st[12 + 12 * i], st[13 + 12 * i]                 # (gplay.c SC_H = 12)
+        wt, wg, ft, fg = struct.unpack_from('<4H', st, 16 + 12 * i)
         ent[(f_, cid)] = (wt, wg, ft, fg)
     shown = []
     for k in sorted(ent):

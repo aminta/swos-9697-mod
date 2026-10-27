@@ -1655,7 +1655,8 @@ u32 GP_WK;                              /* (the glue: the current calendar entry
    weeks, hosts and drawn semi-finals as the table's. */
 enum { K_CUPD = 9, CDT = 168, CDP = 41, CD1 = 64 };
 enum { K_SC = 10 };                     /* (4.0.5: a national supercup tie, sc_step_c at the file's end) */
-extern u32 SC_TRACE;   /* (CDP: preliminary ties at most, CDP + 2 x CD1 - 1 <= CDT) */
+struct gp_ko;
+void sc_done(const struct gp_ko *k);   /* (CDP: preliminary ties at most, CDP + 2 x CD1 - 1 <= CDT) */
 struct cd_state { u16 magic; u8 season, round, built, bt, drawn, pad; u8 res[CDT], home[CDT]; u8 sd[4];
                   u8 ent[256];          /* cd_season (the season end): per ordinal of the file, the entry order's key
                                            for the season to come (0 not in Serie D, 1 a new arrival, 2 + places from
@@ -2156,7 +2157,7 @@ void gp_rec_c(void) {
         }
     resolve(k);
     if (k->kind == K_CUPD) { cd_done(k); return; }
-    if (k->kind == K_SC) { SC_TRACE |= 0x40; return; }   /* (4.0.5 supercup: decided, nothing more) */
+    if (k->kind == K_SC) { sc_done(k); return; }   /* (4.0.5 supercup: a final four's semi -> its final) */
     GP_LAST = 0;
     int left = 0;
     for (int p = k->gp0[g]; p < k->gp0[g + 1]; p++) if (k->pw[p] == NOC) left++;
@@ -3254,30 +3255,39 @@ u32 cf_member_c(u32 id, u32 season, u32 cteam) {        /* 2: not ours (the defi
     return 0;
 }
 
-/* ---- 4.0.5 national supercups (supercup.py; internal/handoff/supercups.md). SC_ST (engine item 'SC'): the season
-   end's national cup winners / finalists (supercup.py's sc_cup, by contest id) + byte 3 = the last season whose
-   supercup the career club's country has handled. GP_SCT (the glue, a World 2026-27 career): db count; per country
-   SC_E bytes: db league team file, cup contest id, from_season (1, or 2: not in the world's first season), week (the
-   tie's calendar week), legs, level (LV_*), rule 1, rule 2 (SCR_* | SCR_IFx << 4: the fallback when the two coincide),
-   dw season-1 entrants (team words: the real edition), dd long name, short name. Only the career club's country's
-   supercup is built: the career club in it -> its tie in slot 4 (as a Coppa D tie, kind K_SC), else nothing. */
-enum { SC_E = 20, SC_NE = 32 };
-enum { SCR_CHAMP = 1, SCR_SECOND, SCR_CUPW, SCR_CUPF };
-u8 SC_ST[4 + 12 * SC_NE];
+/* ---- 4.0.5 national supercups (supercup.py; internal/handoff/supercups.md). SC_ST (engine item 'SC'): db 'S','C',
+   count, the last season handled (the game's season byte); db round (0, 1 = the career club's semi-final built, 2 =
+   won: its final due, 3 = done), 0; dw the other semi-final's winner; dd 0; then the season end's national cup
+   winners / finalists (supercup.py's sc_cup: 12 B per cup, by contest id). GP_SCT (the glue, a World 2026-27 career):
+   db count; per country SC_E bytes: db league team file, cup contest id, from_season (1, or 2: not in the world's
+   first season), week (the first match), legs, level (LV_*), n (2: a final; 4: semi-finals e0-e1, e2-e3 + the final),
+   week of the final; db rule[4] (SCR_* | the fallback SCR_* << 4, used when the rule's club is already in); dw the
+   world's first season's entrants[4] (the real edition); dd long name, short name; db round-name codes (semi,
+   final), 0, 0. Only the career club's country's supercup is played: the career club in it -> its tie in slot 4 (as
+   a Coppa D tie, kind K_SC); the other semi-final is decided at once (the better placed of last season wins 3 in 5). */
+enum { SC_E = 32, SC_NE = 32, SC_H = 12 };
+enum { SCR_CHAMP = 1, SCR_SECOND, SCR_CUPW, SCR_CUPF, SCR_THIRD, SCR_FOURTH };
+u8 SC_ST[SC_H + 12 * SC_NE];
 const u32 SC_STSZ = sizeof SC_ST;
 const u8 *GP_SCT;                       /* (the glue: the table, 0 = none) */
 u32 GP_SCFIRST;                         /* (the glue: the career's first season in the world) */
-u32 SC_TRACE;                           /* (the harness: last decision, 1 built, 0x8x skipped - see sc_step_c) */
+u32 SC_TRACE;                           /* (the harness: 1 built, 2 final built, 0x81 summer skipped in season 1, 0x82
+                                           entrants unknown, 0x84 career club not in it, | 0x40 decided) */
 
 static u16 sc_place(int file, int place) {     /* last season's top-division club at place (CF_ST), 0 = unknown */
     if (CF_ST.magic != CF_MAGIC || CF_ST.file != file) return 0;
     for (int i = 0; i < 256; i++) if (CF_ST.rank[i] == place) return (u16)(file | i << 8);   /* (level 0 << 5) */
     return 0;
 }
+static int sc_rank(u16 w) {                    /* last season's place (top division), 9 = none */
+    if (CF_ST.magic != CF_MAGIC || CF_ST.file != (w & 0xFF)) return 9;
+    int r = CF_ST.rank[w >> 8];
+    return r && r < 32 ? r : 9;
+}
 static u16 sc_cup(int id, int fin) {           /* the stored cup winner (fin 0) / finalist (1), 0 = unknown */
     if ((SC_ST[0] | SC_ST[1] << 8) != 0x4353) return 0;
     for (int i = 0; i < SC_ST[2] && i < SC_NE; i++) {
-        const u8 *e = SC_ST + 4 + 12 * i;
+        const u8 *e = SC_ST + SC_H + 12 * i;
         if (e[1] == id) return (u16)(fin ? e[8] | e[9] << 8 : e[4] | e[5] << 8);
     }
     return 0;
@@ -3288,31 +3298,62 @@ static u16 sc_rule(const u8 *e, int r) {
     case SCR_SECOND: return sc_place(e[0], 2);
     case SCR_CUPW: return sc_cup(e[1], 0);
     case SCR_CUPF: return sc_cup(e[1], 1);
+    case SCR_THIRD: return sc_place(e[0], 3);
+    case SCR_FOURTH: return sc_place(e[0], 4);
     }
     return 0;
 }
-static void sc_ko(struct gp_ko *k, const u8 *e, u16 home, u16 away) {
-    ko_one(k, home, away, e[3], e[3] + 1, e[4], K_SC, e[5], e[0], e + 12);
+static void sc_ko(struct gp_ko *k, const u8 *e, u16 home, u16 away, int final) {
+    int w = final ? e[7] : e[3];
+    ko_one(k, home, away, w, w + 1, e[4], K_SC, e[5], e[0], e + 20);
+    for (int i = 0; i < KG; i++) GP_ST.rn[i] = 0;
+    GP_ST.rn[0] = e[28 + (final || e[6] == 2)];      /* (the round's name: semi-final / final) */
 }
-u32 sc_step_c(void) {                   /* the calendar advance: 1 = the career club's supercup built into ko[0] */
+static int sc_free(void) {              /* slot 4 not holding a contest of this season still to decide */
+    return !(GP_ST.magic == MAGIC && GP_ST.ko[0].magic == MAGIC && GP_ST.ko[0].season == GP_SEAS &&
+             GP_ST.ko[0].tw[0] == NOC);
+}
+u32 sc_step_c(void) {                   /* the calendar advance: 1 = the career club's tie built into ko[0] */
     if (!GP_SCT || !GP_MGR) return 0;
     const u8 *e = 0;
     for (int i = 0; i < GP_SCT[0]; i++)
         if (GP_SCT[1 + SC_E * i] == (GP_MGR & 0xFF)) e = GP_SCT + 1 + SC_E * i;
-    if (!e || SC_ST[3] == GP_SEAS || (int)GP_WK + 1 < e[3]) return 0;
-    if (GP_ST.magic == MAGIC && GP_ST.ko[0].magic == MAGIC && GP_ST.ko[0].season == GP_SEAS && GP_ST.ko[0].tw[0] == NOC)
-        return 0;                       /* (slot 4 busy: another contest of this season still to decide) */
-    SC_ST[3] = GP_SEAS;
-    if (GP_SCFIRST && e[2] > 1) { SC_TRACE = 0x81; return 0; }   /* (a summer one: already played before the world) */
-    u16 a, b;
-    if (GP_SCFIRST) { a = (u16)(e[8] | e[9] << 8); b = (u16)(e[10] | e[11] << 8); }
-    else {
-        a = sc_rule(e, e[6]); b = sc_rule(e, e[7]);
-        if (a && a == b) b = sc_rule(e, e[7] >> 4);  /* (the double: the fallback) */
+    if (!e) return 0;
+    if (SC_ST[3] == GP_SEAS) {          /* (handled: a final four's final still due) */
+        if (SC_ST[4] != 2 || (int)GP_WK + 1 < e[7] || !sc_free()) return 0;
+        sc_ko(&GP_ST.ko[0], e, GP_MGR, (u16)(SC_ST[6] | SC_ST[7] << 8), 1);
+        SC_ST[4] = 3; SC_TRACE = 2;
+        return 1;
     }
-    if (!a || !b || a == b) { SC_TRACE = 0x82; return 0; }
-    if (a != GP_MGR && b != GP_MGR) { SC_TRACE = 0x84; return 0; }
-    sc_ko(&GP_ST.ko[0], e, a, b);
+    if ((int)GP_WK + 1 < e[3] || !sc_free()) return 0;
+    SC_ST[3] = GP_SEAS; SC_ST[4] = 0;
+    if (GP_SCFIRST && e[2] > 1) { SC_TRACE = 0x81; return 0; }   /* (a summer one: already played before the world) */
+    int n = e[6] == 4 ? 4 : 2;
+    u16 c[4];
+    for (int i = 0; i < n; i++) {
+        if (GP_SCFIRST) { c[i] = (u16)(e[12 + 2 * i] | e[13 + 2 * i] << 8); continue; }
+        c[i] = sc_rule(e, e[8 + i]);
+        for (int j = 0; j < i; j++) if (c[i] && c[i] == c[j]) c[i] = sc_rule(e, e[8 + i] >> 4);   /* (the double) */
+        for (int j = 0; j < i; j++) if (c[i] == c[j]) c[i] = 0;
+    }
+    for (int i = 0; i < n; i++) if (!c[i]) { SC_TRACE = 0x82; return 0; }
+    int me = -1;
+    for (int i = 0; i < n; i++) if (c[i] == GP_MGR) me = i;
+    if (me < 0) { SC_TRACE = 0x84; return 0; }
+    if (n == 4) {                       /* (the other semi-final, decided now) */
+        int o = me < 2 ? 2 : 0;
+        u16 a = c[o], b = c[o + 1];
+        int ra = sc_rank(a), rb = sc_rank(b);
+        rng = GP_SEAS * 7919u + e[1];
+        u16 w = below(5) < 3 ? (ra <= rb ? a : b) : (ra <= rb ? b : a);
+        SC_ST[6] = (u8)w; SC_ST[7] = (u8)(w >> 8);
+        SC_ST[4] = 1;
+    }
+    sc_ko(&GP_ST.ko[0], e, c[me & 2], c[(me & 2) + 1], n == 2);
     SC_TRACE = 1;
     return 1;
+}
+void sc_done(const struct gp_ko *k) {  /* gp_rec_c: the career club's supercup tie decided */
+    SC_TRACE |= 0x40;
+    if (SC_ST[4] == 1) SC_ST[4] = k->tw[0] != NOC && k->team[k->tw[0]] == GP_MGR ? 2 : 3;
 }

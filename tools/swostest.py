@@ -301,7 +301,8 @@ def test_exe(exe, steps, match=False, timer=False):
     p = LEPatch(tmp)
     os.remove(tmp)
     p.set_vsize(1, page + le.page_size)
-    p.put(1, intro + 8, b'\xEB')
+    if not os.environ.get('SWOSTEST_INTRO'):            # (SWOSTEST_INTRO=1: the intro plays, as on a real start)
+        p.put(1, intro + 8, b'\xEB')
     p.put(1, mcc + 8, b'\x90' * 6)
     src = """
 stub:   pushad
@@ -3950,6 +3951,79 @@ def subs_numbers():
             check(all(m[0] - n[1] >= 2 for n, m in zip(num, name)), f'a number touches the name: {list(zip(num, name))}', errs)
             check(all(x[3][-1][1] < 210 for x in rows), 'a row runs into the position column', errs)
     return not errs, '; '.join(errs + info) + ' (runs/subs_numbers/shots/subs_list.png)'
+
+
+@scenario
+def shirt_numbers_ega():
+    """4.0.2 (Davide's MiSTer b5, GOG DOSBox users: still no number 17..99 over the controlled player, tailzero or
+    not): the game's 16-colour mode. At the start (Initialization) the game sets EGA_graphics = -1 when its video speed
+    test gives <= 85 or the largest free block is under ~4.1 MB; a match then draws every sprite with EGA_DrawSprite
+    (4 bit planes) - GOG's factory SETUP.DAT (speed 10) and a MiSTer did that until fullgfx; /H and low memory still do.
+    shirtnum drew no number there; since 7b73777 (Motore) it builds 17..99 as bit planes too. Here the low-memory
+    trigger (DOSBox-X memsize=8, SWOSTEST_MEMSIZE): HAMBURG
+    numbered 17..32 (friendly, as shirt_numbers), the mode is on, the controlled 17+ get sprites 1335.., and the planes
+    of 17 / 20 / 41 / 99 give the same digits as the 256-colour build (SHIRT_EXPECT)."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import lepatch
+    import shirtnum
+    b = builds()['it']
+    src = os.path.join(b, 'DATA', 'TEAM.014')
+    d = bytearray(open(src if os.path.exists(src) else os.path.join(MAIN, 'orig', 'DATA', 'TEAM.014'), 'rb').read())
+    for t in range(struct.unpack('>H', d[:2])[0]):
+        o = 2 + t * 684
+        if d[o + 5:o + 22].split(b'\0')[0] == b'HAMBURG':
+            for k in range(16):
+                d[o + 76 + k * 38 + 2] = 17 + k
+    team = os.path.join(WORK, 'saves', 'TEAM014_HAMBURG17.BIN')
+    os.makedirs(os.path.dirname(team), exist_ok=True)
+    open(team, 'wb').write(d)
+    p = lepatch.LEPatch(os.path.join(b, 'ITALIAN.EXE'))
+    spr = shirtnum.spr_index(p)
+    c = p.le.obj_bytes(1)
+    ega = [m.start() for m in re.finditer(rb'\x66\x83\x3d....\xff\x0f\x84....\x66\x81\x3d....\x33\x01', c, re.S)]
+    ega = p.target(1, ega[0] + 3)[1]
+    errs, info = [], []
+    keep = os.environ.get('SWOSTEST_MEMSIZE')
+    os.environ['SWOSTEST_MEMSIZE'] = '8'
+    try:
+        with Session('shirt_numbers_ega', b, {'DATA/TEAM.014': team}, 'dump:3', 300, match=True) as s:
+            s.wait()
+            for t in ('AMICHEVOLE', 'OK', 'SCEGLI SQUADRE', 'SQUADRE CLUB', 'EUROPA', 'GERMANIA', '1. LIGA', 'HAMBURG'):
+                walk(s, t, 2)
+            s.send('fire dump:2')
+            walk(s, 'SCHALKE', 2)
+            for _ in range(12):
+                scr = s.screen()
+                if scr.selected == 55:
+                    s.send('fire dump:4')
+                    break
+                s.send(('right' if scr.selected in (56, 57) else 'down') + ' dump:0.5')
+            for _ in range(22):
+                s.send('down dump:0.5')
+                if s.screen().selected == 9:
+                    break
+            r = s.send('fire ' + 'fire:3 ' * 30 + 'dump:2')
+            check(r.outcome == 'dump', f'match: {r}', errs)
+            if r.outcome == 'dump':
+                check(r.obj2(ega, 2) == b'\xff\xff', f'not the 16-colour mode (EGA_graphics {r.obj2(ega, 2).hex()})', errs)
+                ptrs = struct.unpack('<83I', r.read(r.base2 + spr + shirtnum.NEWBASE * 4, 83 * 4))
+                check(all(ptrs), f'spritesIndex[1335..] {ptrs[:3]}', errs)
+                for n, want in SHIRT_EXPECT.items() if all(ptrs) else ():
+                    h = r.read(ptrs[n - 17], 24)
+                    w, nl, wq = struct.unpack_from('<hhh', h, 10)
+                    bpl = wq * 2
+                    px = r.read(struct.unpack('<I', h[:4])[0], bpl * nl * 4)
+                    rows = '|'.join(''.join('#' if any(px[pl * bpl * nl + y * bpl + x // 8] >> (7 - x % 8) & 1
+                                                       for pl in range(4)) else '.' for x in range(w)) for y in range(nl))
+                    check(rows == want, f'{n}: {rows}', errs)
+                if not errs:
+                    info.append('16-colour mode on; 17 / 20 / 41 / 99 built as bit planes, digits as in 256 colours')
+    finally:
+        if keep is None:
+            os.environ.pop('SWOSTEST_MEMSIZE', None)
+        else:
+            os.environ['SWOSTEST_MEMSIZE'] = keep
+    return not errs, '; '.join(errs + info)
 
 
 @scenario

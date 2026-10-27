@@ -2663,6 +2663,43 @@ static int ri_over(int g) {
     return -1;
 }
 
+static int pg_room(int a, int n, const u8 *occ, const u8 *sz) {   /* group a, else the nearest one with room (else a) */
+    for (int k = 0; k < PG; k++) {
+        if (a + k < n && occ[a + k] < sz[a + k]) return a + k;
+        if (a - k >= 0 && occ[a - k] < sz[a - k]) return a - k;
+    }
+    return a;
+}
+
+/* 4.0.3 (Serie C zones, the SIRACUSA / Enzo reports): a club entering level tl finds its area's group full. The club
+   of that group that is the farthest from its own area (a club placed out of zone in an earlier season, or by the
+   nearest-with-room rule this season; first in table order on a tie) goes to its own area's group, else the nearest
+   with room, and the entering club takes its place. No club out of zone in that group, or no room for it anywhere:
+   0 (the caller places the entering club in the nearest group with room, as before). ao = the area's byte in a club
+   entry for this level (-1: none). */
+static int pg_swap(const u8 *c, int rs, int nc, int g, int tl, int area, const u8 *first, const u8 *cnt,
+                   const u8 *const *sz, u8 (*occ)[PG], int ao, s8 *copy) {
+    int best = -1, bd = 0, ba = 0;
+    if (ao < 0) return 0;
+    for (int j = 0; j < nc; j++) {
+        const u8 *f = c + rs * j;
+        int h = f[0] | f[1] << 8, hb = f[2];
+        if (h == g || h >= 8 * (int)sizeof pg_pend || PEND(h) || copy[h] + hb != first[tl] + area) continue;
+        int ov = ri_over(h), ha = ov >= 0 ? ri_oa[ov] : f[ao];
+        if (ha >= cnt[tl]) continue;                /* (no area: not out of zone) */
+        int d = ha > area ? ha - area : area - ha;
+        if (d > bd) { bd = d; best = j; ba = ha; }
+    }
+    if (best < 0) return 0;
+    int to = pg_room(ba, cnt[tl], occ[tl], sz[tl]);
+    if (occ[tl][to] >= sz[tl][to]) return 0;
+    const u8 *f = c + rs * best;
+    int h = f[0] | f[1] << 8;
+    occ[tl][to]++;
+    copy[h] = first[tl] + to - f[2];
+    return 1;
+}
+
 static const u8 *pg_one(const u8 *t, const s8 *slt, s8 *copy, int run) {
     int nl = t[1];
     u8 first[PL], cnt[PL], occ[PL][PG], pidx[PL];
@@ -2689,11 +2726,13 @@ static const u8 *pg_one(const u8 *t, const s8 *slt, s8 *copy, int run) {
                 if (ov >= 0) { o = first[nl - 1] + cnt[nl - 1]; n = first[nl - 1]; }   /* (a new identity from below) */
                 int lo = pg_level(o, nl, first, cnt), tl = n < o ? lo - 1 : lo + 1;
                 int area = ov >= 0 ? ri_oa[ov] : pidx[tl] < npar ? e[3 + pidx[tl]] : 0xFF;
-                int a = area < cnt[tl] ? area : area == 0xFF ? cnt[tl] / 2 : cnt[tl] - 1, to = a;
-                for (int k = 0; k < PG; k++) {
-                    if (a + k < cnt[tl] && occ[tl][a + k] < sz[tl][a + k]) { to = a + k; break; }
-                    if (a - k >= 0 && occ[tl][a - k] < sz[tl][a - k]) { to = a - k; break; }
+                int a = area < cnt[tl] ? area : area == 0xFF ? cnt[tl] / 2 : cnt[tl] - 1, to;
+                if (area < cnt[tl] && occ[tl][area] >= sz[tl][area] && pg_swap(c, rs, nc, g, tl, area, first, cnt, sz, occ,
+                                                                                pidx[tl] < npar ? 3 + pidx[tl] : -1, copy)) {
+                    copy[g] = first[tl] + area - base;          /* (its area's group: the out-of-zone club made room) */
+                    continue;
                 }
+                to = pg_room(a, cnt[tl], occ[tl], sz[tl]);
                 occ[tl][to]++;
                 copy[g] = first[tl] + to - base;
                 continue;

@@ -8582,6 +8582,67 @@ def club_colours(scr):
 
 
 @scenario
+def czones_overflow():
+    """4.0.3 (Serie C zones, Enzo's / the SIRACUSA reports: a southern club relegated into Serie C girone A): gplay.c
+    pg_season, compiled for this Mac with a forced season end, no exe run. A single division over a level of 3 groups
+    of 4 (areas A/B/C); group C holds an area-A club placed out of zone in an earlier season. Two area-C clubs are
+    relegated into C: the first takes C's free place; for the second C is full, so C's out-of-zone club goes to its
+    own area's group A and the relegated club takes its place (before 4.0.3: the relegated club went to the nearest
+    group with room, A). Control: group C full of area-C clubs -> the nearest group with room, as before."""
+    import tempfile
+    src = os.path.join(ROOT, 'tools', 'gplay.c')
+    main = r"""#include <stdio.h>
+#include "%s"
+int main(int argc, char **argv) {
+    int control = argc > 1;
+    u8 t[512]; int n = 0;
+    t[n++] = 1; t[n++] = 1; t[n++] = 2;                       /* 1 country, world 1, 2 levels */
+    t[n++] = 0; t[n++] = 1; t[n++] = 6;                       /* level 0: division 0, 6 clubs */
+    t[n++] = 1; t[n++] = 3; t[n++] = 4; t[n++] = 4; t[n++] = 4; /* level 1: divisions 1..3 = groups A, B, C of 4 */
+    t[n++] = 1;
+    int area[18] = {2,2,0,0,1,1, 0,0,0,2, 1,1,1,1, 2,2,2,0};
+    if (control) area[17] = 2;
+    t[n++] = 18; t[n++] = 0;
+    for (int g = 0; g < 18; g++) { t[n++] = g; t[n++] = 0; t[n++] = 0; t[n++] = area[g]; }
+    s8 slt[64], copy[64];
+    for (int g = 0; g < 18; g++) slt[g] = g < 6 ? 0 : g < 10 ? 1 : g < 14 ? 2 : 3;
+    for (int g = 0; g < 64; g++) copy[g] = g < 18 ? slt[g] : 0;
+    copy[0] = 1; copy[1] = 1; copy[14] = 0; copy[6] = 0;     /* the game's moves: 0, 1 down; 14, 6 up */
+    pg_season(t, slt, copy, 1);
+    for (int g = 0; g < 18; g++) printf("%%d ", copy[g]);
+    printf("\n");
+    return 0;
+}
+""" % src
+    errs, info = [], []
+    with tempfile.TemporaryDirectory() as d:
+        open(os.path.join(d, 't.c'), 'w').write(main)
+        r = subprocess.run(['clang', '-w', '-c', 't.c', '-o', 't.o'], cwd=d, capture_output=True, text=True)
+        if r.returncode:
+            return False, 'clang: ' + r.stderr[-300:]
+        und = [x.strip().lstrip('_') for x in subprocess.run(['nm', '-u', 't.o'], cwd=d, capture_output=True,
+                                                              text=True).stdout.split()]
+        open(os.path.join(d, 's.c'), 'w').write(''.join(f'char {x}[65536];\n' for x in und
+                                                         if x and not x.startswith(('printf', 'memcpy', 'dyld', '__'))))
+        r = subprocess.run(['clang', '-w', 't.o', 's.c', '-o', 't'], cwd=d, capture_output=True, text=True)
+        if r.returncode:
+            return False, 'link: ' + r.stderr[-300:]
+        for control in (False, True):
+            out = subprocess.run(['./t'] + (['c'] if control else []), cwd=d, capture_output=True, text=True).stdout
+            cp = [int(x) for x in out.split()]
+            groups = {dv: sorted(g for g in range(18) if cp[g] == dv) for dv in range(4)}
+            want = ({1: [7, 8, 9, 17], 3: [0, 1, 15, 16]} if not control else {1: [1, 7, 8, 9], 3: [0, 15, 16, 17]})
+            tag = 'control' if control else 'overflow'
+            for dv, w in want.items():
+                if groups[dv] != w:
+                    errs.append(f'{tag}: division {dv} = {groups[dv]}, want {w}')
+            if any(len(groups[dv]) != 4 for dv in (1, 2, 3)):
+                errs.append(f'{tag}: group sizes {[len(groups[dv]) for dv in (1, 2, 3)]}')
+            info.append(f'{tag}: A {groups[1]} C {groups[3]}')
+    return not errs, '; '.join(errs or info)
+
+
+@scenario
 def tail_zero():
     """4.0.2 tailzero (Davide's MiSTer b3/b4, the 23/10 GOG DOSBox 0.74 report: no number over a controlled player
     numbered 17..99): the mod's obj2 tail (its run-time buffers: shirtnum's 'built' flag + sprites, careerworld / gplay /

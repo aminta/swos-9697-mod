@@ -2266,6 +2266,19 @@ Left for 2.5: (a) NSL/NSSL finals series (type-1 design) or declare them postpon
 - MiSTer beta 6: c/REL402b6 = 17acd59 on world5tm-402rc5 (IT CD a07c0e2d, GOG IT bde6bb1a). PASS on b6: roundtrip, full_graphics,
   shirt_numbers, subs_numbers, world_viewcont, tail_zero (SWOS/ + gog/), /H: shirt_numbers + world_darkblond; shirt_numbers_ega
   (128650f harness). (A first b6 at ec8e434 / rc4 was replaced before it was sent.)
+## 4.0.2 rc (27/10 night, Davide GO 01:45)
+- rc1 c/REL402rc1 @62f1a5a (data 402rc5, = b6): full split L1-L4 95 PASS + 3 FAIL (world_away_goals = load, PASS alone;
+  world_cuplist_mestre + world_winners_oldsave TRAP obj1+0x17064 in season 2 of the 4.0 saves: bisected b1 PASS / b2 FAIL
+  = the controls merge; obj2 213 -> 215 pages moved careerworld's zero-filled tail). R1 never ran remotely (remote_run
+  rsync code 24 on vanishing __pycache__ + set -e), rerun locally: 34/34 PASS; R2 remote: career_20seasons (20) PASS,
+  world_full_draw hung 3 h at its first pause on the remote (world8485 remote hang, p6 saw it too) -> local PASS. Extras
+  (28 newer scenarios) all PASS (world_uefa_double with UQ_LAYOUT from Dati coppe; xtra_squad_views after p6's xsvpath).
+- rc2 c/REL402rc2 @81d344a = rc1 + notes-402 bfe8eab + statmenu bb89ec9 + xsvpath 19e95c2 + oldsavefix dffd685 (Motore:
+  CONTROLS' data in obj1 pages, obj2 = 213 x8 again, CONVENTIONS 20). IT CD 7201bf5f, GOG IT e2e8e948; DATA = rc1.
+  PASS on rc2: mestre, oldsave, world_statmenu, xtra_squad_views, career_20seasons C20=2, world_ccc_away, tail_zero SWOS+gog,
+  roundtrip, full_graphics, controls_menu/calib, team_choice_colours, subs_numbers (remote), R2 remainder 17/17.
+- Patcher from rc2: md5 76defb19 (2107efe); Node all OK (DATA coverage 0 missing), dirtest ALL OK (4 langs, joypad incl.
+  keyboard mode, upgrades 3.3.6 / 4.0 / 4.0.1). world-2025-26 fast-forwarded to rc402-int.
 
 ## Deferred realism (4.0.2+)
 - Moldova's h2h_half groups start at 0 points (package 6, 2026-10-24; pre-existing, not option C).

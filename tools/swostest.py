@@ -4254,14 +4254,14 @@ def xtra_club_block(exe, club):
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import xtra
     for fn in sorted(os.listdir(os.path.join(exe, 'DATA'))):
-        if not (fn.startswith('TEAM.') or fn.startswith('TMW5.')):
-            continue
+        if not (fn.startswith('TEAM.') or fn.startswith('TMW5.')) or not fn.split('.')[1].isdigit():
+            continue                                    # (release builds: TEAM.CUS, the custom teams)
         d = open(os.path.join(exe, 'DATA', fn), 'rb').read()
         nnn = int(fn.split('.')[1])
         for k in range(struct.unpack('>H', d[:2])[0]):
             if d[2 + k * 684 + 5:2 + k * 684 + 22].split(b'\0')[0].decode('latin1') == club:
-                xn = xtra_file_name(exe, nnn)
-                if not xn:
+                xn = '%s.%03d' % ('XTW5' if fn.startswith('TMW5.') else 'XTRA', nnn)   # (its own namespace: a
+                if not os.path.exists(os.path.join(exe, 'DATA', xn)):   # 1996 TEAM.nnn never pairs with XTW5.nnn)
                     continue                            # (a 1996 team of the same name: TEAM.020 ...)
                 pl = xtra.read(open(os.path.join(exe, 'DATA', xn), 'rb').read())[k]
                 return (k << 8) | nnn, [x[3:26].split(b'\0')[0].decode('latin1') for x in pl]
@@ -4585,7 +4585,7 @@ def xtra_club_browse():
 @scenario
 def xtra_squad_views():
     """A club's full squad in the game's squad screen (4.0.2; XTRA30_BUILD = the TM_EXTRA=14 world): a career at CHISOLA, VISUALIZZA MONDO >
-    CARR. STORICHE > EUROPA > ITALIA > SERIE A > STAT > VIS. SQUADRE > MILAN: page 1 = the record's 16 (as before) with the button
+    EUROPA > ITALIA > SERIE A > STAT > VIS. SQUADRE > MILAN: page 1 = the record's 16 (as before) with the button
     PAG. SUCC., page 2 = its extras (shots); the club's record in the team cache is the same bytes before / after, nothing can be picked
     on page 2; a club with its XTRA block zeroed (PARMA, a modified file) has no button; the same screen through VISUAL. COMPETIZ. (CHISOLA's
     own division, LIGORNA)."""
@@ -4647,7 +4647,7 @@ def xtra_squad_views():
         s.wait()
         if not start(s):
             return False, 'new career: ' + str(s.screen().texts()[:8])
-        for t in ('VISUALIZZA MONDO', 'CARR. STORICHE', 'EUROPA', 'ITALIA', 'SERIE A'):
+        for t in ('VISUALIZZA MONDO', 'EUROPA', 'ITALIA', 'SERIE A'):   # (4.0.2 viewworld: the continents at once)
             if press(s, s.screen(), t, 3) is None:
                 return False, f'{t} not reached'
         if not to_squad(s, 'MILAN'):

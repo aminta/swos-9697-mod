@@ -274,21 +274,25 @@ const T = {
   it: { all: n => `Scarica tutto (${n} file, .zip)`, wait: 'Controllo…', ok: 'Pronto', bad: 'File non riconosciuto', fail: 'Errore nella modifica', dl: 'Scarica', none: 'Nessun file ancora.',
         browser: 'Questo browser è troppo vecchio per questa pagina (serve DecompressionStream): aggiornalo (Chrome 103+, Safari 16.4+, Firefox 113+) e riprova. Nessun file è stato modificato.',
         current: 'Già aggiornato', from: v => `aggiornamento dalla ${v}`, via: { swospp: 'dal gioco originale con SWOS++', mod: 'aggiunge SWOS++' },
+        pack: n => `${n} è un file del pacchetto «SWOS 16/17» (sensiblesoccer.de), non del gioco originale: la mod si installa solo sul CD o sulla versione GOG (il pacchetto contiene il CD originale, CD\\SWOS9697.ISO). Non è stato modificato.`,
         unknown: n => `${n}: non corrisponde a nessun file atteso (né un originale, né modificato da una versione precedente di questa mod). Non è stato modificato.`,
         page: n => `${n} è questa pagina, non un file del gioco: trascina qui l'eseguibile (es. ITALIAN.EXE) dalla cartella del gioco e TEAM.020 dalla sua cartella DATA.` },
   en: { all: n => `Download all (${n} files, .zip)`, wait: 'Checking…', ok: 'Ready', bad: 'File not recognised', fail: 'Patching error', dl: 'Download', none: 'No files yet.',
         browser: 'This browser is too old for this page (it needs DecompressionStream): update it (Chrome 103+, Safari 16.4+, Firefox 113+) and try again. No file was changed.',
         current: 'Already up to date', from: v => `upgrade from ${v}`, via: { swospp: 'from the original game with SWOS++', mod: 'adds SWOS++' },
+        pack: n => `${n} is a file of the "SWOS 16/17" pack (sensiblesoccer.de), not of the original game: the mod installs only on the CD or the GOG version (the pack contains the original CD, CD\\SWOS9697.ISO). It was not patched.`,
         unknown: n => `${n}: does not match any expected file (neither an original nor one modified by an earlier release of this mod). It was not patched.`,
         page: n => `${n} is this page, not a game file: drop here the executable (e.g. ENGLISH.EXE) from the game folder and TEAM.020 from its DATA folder.` },
   fr: { all: n => `Tout télécharger (${n} fichiers, .zip)`, wait: 'Vérification…', ok: 'Prêt', bad: 'Fichier non reconnu', fail: 'Erreur de modification', dl: 'Télécharger', none: 'Aucun fichier pour l\'instant.',
         browser: 'Ce navigateur est trop ancien pour cette page (il faut DecompressionStream) : mettez-le à jour (Chrome 103+, Safari 16.4+, Firefox 113+) et réessayez. Aucun fichier n\'a été modifié.',
         current: 'Déjà à jour', from: v => `mise à jour depuis la ${v}`, via: { swospp: 'depuis le jeu original avec SWOS++', mod: 'ajoute SWOS++' },
+        pack: n => `${n} est un fichier du pack « SWOS 16/17 » (sensiblesoccer.de), pas du jeu original : le mod ne s'installe que sur le CD ou la version GOG (le pack contient le CD original, CD\\SWOS9697.ISO). Il n'a pas été modifié.`,
         unknown: n => `${n} : ne correspond à aucun fichier attendu (ni un original, ni un fichier modifié par une version précédente de ce mod). Il n'a pas été modifié.`,
         page: n => `${n} est cette page, pas un fichier du jeu : déposez ici l'exécutable (par ex. FRENCH.EXE) du dossier du jeu et TEAM.020 de son dossier DATA.` },
   de: { all: n => `Alles herunterladen (${n} Dateien, .zip)`, wait: 'Prüfe…', ok: 'Bereit', bad: 'Datei nicht erkannt', fail: 'Fehler beim Ändern', dl: 'Herunterladen', none: 'Noch keine Dateien.',
         browser: 'Dieser Browser ist zu alt für diese Seite (DecompressionStream fehlt): Aktualisieren Sie ihn (Chrome 103+, Safari 16.4+, Firefox 113+) und versuchen Sie es erneut. Keine Datei wurde geändert.',
         current: 'Schon aktuell', from: v => `Aktualisierung von ${v}`, via: { swospp: 'vom Originalspiel mit SWOS++', mod: 'fügt SWOS++ hinzu' },
+        pack: n => `${n} ist eine Datei des Pakets „SWOS 16/17“ (sensiblesoccer.de), nicht des Originalspiels: Der Mod wird nur auf der CD- oder GOG-Version installiert (das Paket enthält die Original-CD, CD\\SWOS9697.ISO). Sie wurde nicht geändert.`,
         unknown: n => `${n}: passt zu keiner erwarteten Datei (weder ein Original noch von einer früheren Version dieses Mods geändert). Sie wurde nicht geändert.`,
         page: n => `${n} ist diese Seite, keine Spieldatei: Legen Sie hier die ausführbare Datei (z. B. GERMAN.EXE) aus dem Spielordner und TEAM.020 aus dem Ordner DATA ab.` },
 };
@@ -387,6 +391,9 @@ async function handle(files) {
     const r = { name: f.name, state: 'wait' }; results.push(r); render();
     const src = new Uint8Array(await f.arrayBuffer());
     const sum = md5(src);
+    if (isPackFile(f.name, sum)) {                        // SWOS 16/17 pack: never patched, whatever is inside
+      r.state = 'bad'; msg.hidden = false; msg.textContent += (msg.textContent ? ' ' : '') + T[lang].pack(f.name); render(); continue;
+    }
     let patches = PATCHES.filter(p => p.md5 === sum && p.size === src.length && optOn(p) && p.delta);   // ('full'-only entries: folder mode)
     const cur = PATCHES.find(p => p.out_md5 === sum && p.out_size === src.length && optOn(p));
     const base = patches.length ? patches : cur && cur.id === 'TEAM.020' ? [cur] : [];
@@ -428,6 +435,7 @@ const DT = {
         reading: 'Leggo i file…', saving: 'Salvo la copia di sicurezza e scrivo la mod…',
         kind: { gog: 'versione GOG', cd: 'versione CD' }, found: (k, l) => `Trovato: ${k}, lingue ${l}.`,
         bad: n => `Questi file non sono stati riconosciuti e restano com'erano: ${n}.`,
+        pack: b => `Questa cartella è il pacchetto «SWOS 16/17» (sensiblesoccer.de), non il gioco originale: i suoi eseguibili (sws_ita.exe, sws_eng.exe…, quelli che avvia il suo menu) e i suoi dati sono modificati, e la mod non si può installare sopra. Non ho cambiato niente. Il pacchetto contiene però il CD originale, CD\\SWOS9697.ISO: su Windows aprilo con un doppio clic (diventa un'unità, per esempio E:), poi usa il pulsante «Dal CD»: scegli l'unità e una cartella vuota sul disco (per esempio C:\\SWOS9697) e la pagina ci installa la mod; oppure installala sulla versione GOG. Lascia questa cartella com'è per SWOS 16/17 e le partite online.` + (b ? ` Qui era già stata installata una versione della mod: per riavere SWOS 16/17 com'era rimetti al loro posto i file di MOD_BACKUP (oppure reinstalla il pacchetto).` : ''),
         noexe: "Nessun eseguibile del gioco è stato riconosciuto (né originale, né modificato da una versione di questa mod): non ho cambiato niente.",
         current: 'Il gioco è già aggiornato a questa versione: non c\'era niente da cambiare.',
         writing: (i, n) => `Scrivo la mod: ${i} / ${n} file… Non chiudere né ricaricare la pagina.`,
@@ -445,6 +453,7 @@ const DT = {
         reading: 'Reading the files…', saving: 'Saving the backup and writing the mod…',
         kind: { gog: 'GOG version', cd: 'CD version' }, found: (k, l) => `Found: ${k}, languages ${l}.`,
         bad: n => `These files were not recognised and were left as they were: ${n}.`,
+        pack: b => `This folder is the "SWOS 16/17" pack (sensiblesoccer.de), not the original game: its executables (sws_ita.exe, sws_eng.exe…, the ones its menu starts) and its data are modified, and the mod cannot be installed over it. Nothing was changed. The pack does contain the original CD, CD\\SWOS9697.ISO: on Windows double-click it (it becomes a drive, for example E:), then use the "From the CD" button: choose that drive and an empty folder on your disk (for example C:\\SWOS9697) and the page installs the mod there; or install it on the GOG version. Leave this folder as it is for SWOS 16/17 and online matches.` + (b ? ` A version of the mod was already installed here: to get SWOS 16/17 back as it was, put back the files from MOD_BACKUP (or reinstall the pack).` : ''),
         noexe: 'No game executable was recognised (neither original nor modified by a release of this mod): nothing was changed.',
         current: 'The game is already up to date with this release: there was nothing to change.',
         writing: (i, n) => `Writing the mod: ${i} / ${n} files… Do not close or reload the page.`,
@@ -462,6 +471,7 @@ const DT = {
         reading: 'Lecture des fichiers…', saving: 'Sauvegarde et écriture du mod…',
         kind: { gog: 'version GOG', cd: 'version CD' }, found: (k, l) => `Trouvé : ${k}, langues ${l}.`,
         bad: n => `Ces fichiers n'ont pas été reconnus et restent tels quels : ${n}.`,
+        pack: b => `Ce dossier est le pack « SWOS 16/17 » (sensiblesoccer.de), pas le jeu original : ses exécutables (sws_ita.exe, sws_eng.exe…, ceux que lance son menu) et ses données sont modifiés, et le mod ne peut pas être installé par-dessus. Rien n'a été changé. Le pack contient pourtant le CD original, CD\\SWOS9697.ISO : sous Windows, double-cliquez dessus (il devient un lecteur, par exemple E:), puis utilisez le bouton « Depuis le CD » : choisissez ce lecteur et un dossier vide sur votre disque (par exemple C:\\SWOS9697), et la page y installe le mod ; ou installez-le sur la version GOG. Laissez ce dossier tel quel pour SWOS 16/17 et les matchs en ligne.` + (b ? ` Une version du mod a déjà été installée ici : pour retrouver SWOS 16/17 comme avant, remettez les fichiers de MOD_BACKUP (ou réinstallez le pack).` : ''),
         noexe: "Aucun exécutable du jeu n'a été reconnu (ni original, ni modifié par une version de ce mod) : rien n'a été changé.",
         current: "Le jeu est déjà à jour avec cette version : il n'y avait rien à changer.",
         writing: (i, n) => `Écriture du mod : ${i} / ${n} fichiers… Ne fermez pas et ne rechargez pas la page.`,
@@ -479,6 +489,7 @@ const DT = {
         reading: 'Lese die Dateien…', saving: 'Sichere die Originale und schreibe den Mod…',
         kind: { gog: 'GOG-Version', cd: 'CD-Version' }, found: (k, l) => `Gefunden: ${k}, Sprachen ${l}.`,
         bad: n => `Diese Dateien wurden nicht erkannt und bleiben, wie sie sind: ${n}.`,
+        pack: b => `Dieser Ordner ist das Paket „SWOS 16/17“ (sensiblesoccer.de), nicht das Originalspiel: Seine ausführbaren Dateien (sws_ita.exe, sws_eng.exe…, die sein Menü startet) und seine Daten sind verändert, und der Mod lässt sich nicht darüber installieren. Nichts wurde geändert. Das Paket enthält aber die Original-CD, CD\\SWOS9697.ISO: Doppelklicken Sie unter Windows darauf (sie wird ein Laufwerk, zum Beispiel E:), dann nutzen Sie den Knopf „Von der CD“: Wählen Sie dieses Laufwerk und einen leeren Ordner auf Ihrer Festplatte (zum Beispiel C:\\SWOS9697), und die Seite installiert den Mod dort; oder installieren Sie ihn auf der GOG-Version. Lassen Sie diesen Ordner für SWOS 16/17 und Online-Spiele, wie er ist.` + (b ? ` Hier wurde schon eine Version des Mods installiert: Um SWOS 16/17 wieder wie vorher zu haben, legen Sie die Dateien aus MOD_BACKUP zurück (oder installieren Sie das Paket neu).` : ''),
         noexe: 'Keine ausführbare Datei des Spiels wurde erkannt (weder Original noch von einer Version dieses Mods geändert): Nichts wurde geändert.',
         current: 'Das Spiel ist schon auf dem Stand dieser Version: Es gab nichts zu ändern.',
         writing: (i, n) => `Schreibe den Mod: ${i} / ${n} Dateien… Seite nicht schließen oder neu laden.`,
@@ -490,6 +501,17 @@ const DT = {
         error: m => `Fehler: ${m}. Das Spiel ist vielleicht nur halb geändert: Legen Sie die Dateien aus MOD_BACKUP\\{{VERSION}} zurück und versuchen Sie es erneut.` },
 };
 const EXES = ['ITALIAN.EXE', 'ENGLISH.EXE', 'FRENCH.EXE', 'GERMAN.EXE'];
+// 4.0.3: the community pack "SWOS 16/17" (sensiblesoccer.de, "PATCHED DEc11") is not the original game: its menu starts
+// its own exes (SWS_ITA.EXE ...: the mod's exes copied under those names still leave a half-patched game) and its
+// ENGLISH.EXE / SWSENGPP.EXE / data are modified. Never patched: recognised by those names, and by the md5 of its own exes
+const PACK_EXES = ['SWS_ITA.EXE', 'SWS_ENG.EXE', 'SWS_FRE.EXE', 'SWS_GER.EXE', 'SWSENGPP.EXE'];
+const PACK_MD5 = ['4470caa680cbc30c3f4e0b6afb4abeb1', '67026cf1d4607145c520964fc41afea5'];   // its ENGLISH.EXE, SWSENGPP.EXE
+function isPackFile(name, sum) { return PACK_EXES.includes(name.toUpperCase()) || PACK_MD5.includes(sum); }
+async function isPack(g) {                        // the game folder found is the SWOS 16/17 pack's GAME folder
+  if (PACK_EXES.some(x => g.m.has(x))) return true;
+  const e = g.m.get('ENGLISH.EXE');
+  return !!e && e.kind === 'file' && PACK_MD5.includes(md5(await readBytes(e)));
+}
 async function childMap(dir) {                    // upper-case name -> handle
   const m = new Map();
   for await (const [name, h] of dir.entries()) m.set(name.toUpperCase(), h);
@@ -498,7 +520,7 @@ async function childMap(dir) {                    // upper-case name -> handle
 async function findGame(dir, depth = 0) {         // the folder with an exe of the game and DATA/TEAM.020 (eXoDOS: deeper)
   const m = await childMap(dir);
   const data = m.get('DATA');
-  if (data && data.kind === 'directory' && EXES.some(x => m.has(x)) && (await childMap(data)).has('TEAM.020'))
+  if (data && data.kind === 'directory' && EXES.concat(PACK_EXES).some(x => m.has(x)) && (await childMap(data)).has('TEAM.020'))
     return { root: dir, data, m };
   if (depth >= 5) return null;
   for (const [name, h] of m)
@@ -633,6 +655,7 @@ async function installDir(dir, say) {             // -> the number of files writ
   const D = DT[lang];
   const g = await findGame(dir);
   if (!g) { say(D.notfound + ' ' + D.pf, true); return 0; }
+  if (await isPack(g)) { say(D.pack(g.m.has('MOD_BACKUP')), true); return 0; }
   say(D.reading);
   const dm = await childMap(g.data), have = new Map();      // target -> {file, bytes}
   const targets = [...new Set(PATCHES.filter(p => !p.with && !p.from && !p.via && !p.opt).map(p => p.target))];
@@ -732,6 +755,7 @@ async function pickCd() {
   try {
     const g = await findGame(src);
     if (!g) { say(D.notfound, true); return; }
+    if (await isPack(g)) { say(D.pack(g.m.has('MOD_BACKUP')), true); return; }
     say(D.cdnext);
     try { dst = await window.showDirectoryPicker({ id: 'swos', mode: 'readwrite' }); } catch (e) { return; }
     say(D.copying);

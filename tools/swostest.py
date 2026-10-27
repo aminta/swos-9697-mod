@@ -10333,6 +10333,70 @@ def world_gplay_seried(force='3', team='EUROPA,ITALIA,SERIE D GIRONE A,LIGORNA',
 
 
 @scenario
+def world_second_milanfuturo(force='1', team='EUROPA,ITALIA,SERIE D GIRONE B,MILAN FUTURO', div=6):
+    """Second team in Serie D (4.0.5, data 403c2: MILAN FUTURO second_of = milan): (1) in the game, the career at MILAN
+    FUTURO forced 1st of Serie D girone B (GPLAY_FORCE=1, one season): the season end's moves (GP_LOG) hold its promotion
+    to Serie C (allowed for an Italian second team: up to Serie B); (2) the decision level, host-compiled gplay.c
+    sec_post on forced states (internal/career-test/sec_milan_test.c): promotion D->C and C->B allowed while Milan is in
+    Serie A, B->A held, held when Milan arrives in its level, out of the world when Milan drops into Serie D. W2627SEC_DATA
+    = the data (default internal/world2526/world5tm-403c2)"""
+    import subprocess
+    src = (os.environ.get('W2627SEC_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-403c2')).rstrip('/')
+    tst = os.path.join(MAIN, 'internal', 'career-test', 'sec_milan_test.c')
+    if not os.path.isdir(src) or not os.path.exists(tst):
+        return True, f'SKIP: private data {src} or {tst} missing'
+    errs = []
+    gp = os.path.join(ROOT, 'tools', 'gplay.c')
+    bin_ = os.path.join(WORK, 'sec_milan_test')
+    os.makedirs(WORK, exist_ok=True)
+    r = subprocess.run(['cc', '-w', f'-DGPLAY_C="{gp}"', '-o', bin_, tst], capture_output=True, text=True)
+    check(r.returncode == 0, f'host compile of sec_milan_test.c: {r.stderr[:300]}', errs)
+    if r.returncode == 0:
+        out = subprocess.run([bin_], capture_output=True, text=True).stdout
+        check('RESULT PASS' in out and 'FAIL' not in out.replace('RESULT PASS', ''), 'decision-level cases: ' + out.replace('\n', ' | ')[-500:], errs)
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    env = {'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]), 'GPLAY_FORCE': force}
+    exe = os.environ.get('GPLAY_BUILD') or build(f'world_second_milanfuturo_{force}', env=env)
+    log_at, st_at, log_n, st_n = gp_ptrs(exe)
+    keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K',
+                                            'W8485_NOSACK', 'W8485_HEX', 'W8485_ONE')}
+    os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5', W8485_K='108+',
+                      W8485_NOSACK='1', W8485_HEX=f'{log_at:x}:{log_n}', W8485_ONE='1')
+    try:
+        ok, msg = world8485()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    check(ok, msg, errs)
+    car = os.path.join(RUNS, w84_tag() + '_1', 'SWOS', 'W84A.CAR')
+    if not os.path.exists(car):
+        return False, f'{msg}; no season-end save {car}'
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    old = os.environ.get('SEASON_PACKS')
+    os.environ['SEASON_PACKS'] = ','.join([os.path.join(src, x) for x in order])
+    pk = next(p for p in mkseason_now().packs() if p.meta.get('id', '').endswith('-ita'))
+    if old is None:
+        os.environ.pop('SEASON_PACKS')
+    else:
+        os.environ['SEASON_PACKS'] = old
+    slt = open(car, 'rb').read()[0xE8DC:0xE8DC + 2000]
+    def where(key):                                              # (division now, global number)
+        fl, i = pk.where[key]
+        g = next(b for fk, (ff, b) in pk.files.items() if ff == fl) + i
+        return pk.division[key] + struct.unpack('b', slt[g:g + 1])[0], g
+    dv, g = where('milanfuturo')
+    dm, gm = where('milan')
+    cdiv = sorted({pk.division[k] for k in pk.league_clubs if pk.division[k] in range(2, 5)})
+    check(dv in cdiv, f'MILAN FUTURO (global {g}) forced 1st of Serie D girone B: division {dv} after the season, not '
+          f'in a Serie C group {cdiv}', errs)
+    check(dm == pk.division['milan'], f'MILAN (global {gm}) moved: division {dm}', errs)
+    return not errs, '; '.join(errs) or f'{msg}; MILAN FUTURO division {pk.division["milanfuturo"]} -> {dv} (Serie C), MILAN stays {dm}'
+
+
+@scenario
 def world_gplay_seried_lost():
     """world_gplay_seried with LIGORNA forced to lose its semi-final (GPLAY_KOFORCE=1): the final between the other two
     is played by the game at the season end and recorded before gp_season (GP_LOG: no tie left open)"""

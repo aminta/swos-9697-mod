@@ -645,7 +645,80 @@ def cup(cp, lang):
         out.append(' '.join(_cap(x) for x in s2))
     if cp.get('follow'):                        # 4.0.1 cupsf: the entrants from the second season
         out.append(FOLLOW[lang])
+    if cp.get('super'):                         # 4.0.5: the national supercup
+        out.append(supercup(cp['super'], lang))
     return {'prose': out, 'real': s1[0] if real else None}
+
+
+SC = {   # 4.0.5 the national supercup's paragraph (supercup(): from tools/supercups2627.json)
+    'it': dict(role=dict(champion='la squadra campione', second='la seconda del campionato', third='la terza del campionato',
+                         fourth='la quarta del campionato', cup_winner='la vincitrice della coppa',
+                         cup_finalist='la finalista della coppa'),
+               two="La {n} mette di fronte {a} e {b} della stagione prima, in gara unica su campo neutro, in {m}.",
+               four="La {n} si gioca in {m} in una sede unica, tra quattro squadre della stagione prima: in semifinale "
+                    "{a} contro {b} e {c} contro {e}, poi la finale tra le due vincenti, tutte in gara unica.",
+               pens="In parita dopo 90 minuti si tirano subito i rigori.",
+               et="In parita si giocano i supplementari, poi i rigori.",
+               dbl="Se una squadra ha gia un posto, la sostituisce {r}.",
+               summer="Si gioca prima del campionato: nella prima stagione del mondo e gia stata giocata, quindi parte "
+                      "dalla seconda.",
+               mine="Nel gioco la disputi se la tua squadra ne ha diritto.",
+               months='gennaio febbraio marzo aprile maggio giugno luglio agosto settembre ottobre novembre dicembre'),
+    'en': dict(role=dict(champion='the league champion', second='the league runner-up', third='the league\'s third-placed club',
+                         fourth='the league\'s fourth-placed club', cup_winner='the cup winner', cup_finalist='the cup runner-up'),
+               two="The {n} brings together {a} and {b} of the season before, in a single match on neutral ground in {m}.",
+               four="The {n} is played in {m} at a single venue by four clubs of the season before: in the semi-finals "
+                    "{a} v {b} and {c} v {e}, then the final between the two winners, all single matches.",
+               pens="Level after 90 minutes, it goes straight to penalties.",
+               et="Level after 90 minutes, extra time is played, then penalties.",
+               dbl="If a club already has a place, it goes to {r}.",
+               summer="It is played before the league starts: in the world's first season it has already been played, "
+                      "so it begins in the second.",
+               mine="In the game you play it when your club qualifies.",
+               months='January February March April May June July August September October November December'),
+    'fr': dict(role=dict(champion='le champion', second='le deuxième du championnat', third='le troisième du championnat',
+                         fourth='le quatrième du championnat', cup_winner='le vainqueur de la coupe',
+                         cup_finalist='le finaliste de la coupe'),
+               two="La {n} oppose {a} et {b} de la saison précédente, en un seul match sur terrain neutre, en {m}.",
+               four="La {n} se joue en {m} sur un seul site, entre quatre clubs de la saison précédente : en demi-finales "
+                    "{a} contre {b} et {c} contre {e}, puis la finale entre les deux vainqueurs, tous en un seul match.",
+               pens="En cas d'égalité après 90 minutes, on passe directement aux tirs au but.",
+               et="En cas d'égalité, on joue les prolongations, puis les tirs au but.",
+               dbl="Si un club a déjà une place, c'est {r} qui le remplace.",
+               summer="Elle se joue avant le championnat : lors de la première saison du monde elle a déjà eu lieu, elle "
+                      "commence donc à la deuxième.",
+               mine="Dans le jeu, tu la joues si ton club est qualifié.",
+               months='janvier février mars avril mai juin juillet août septembre octobre novembre décembre'),
+    'de': dict(role=dict(champion='der Meister', second='der Tabellenzweite', third='der Tabellendritte',
+                         fourth='der Tabellenvierte', cup_winner='der Pokalsieger', cup_finalist='der Pokalfinalist'),
+               two="{n}: {a} und {b} der Vorsaison treffen im {m} in einem Spiel auf neutralem Platz aufeinander.",
+               four="{n}: vier Vereine der Vorsaison spielen im {m} an einem Ort, im Halbfinale {a} und {b} sowie {c} "
+                    "und {e} gegeneinander, dann die beiden Sieger im Finale, alles in einem Spiel.",
+               pens="Steht es nach 90 Minuten unentschieden, folgt sofort das Elfmeterschießen.",
+               et="Bei Gleichstand folgt eine Verlängerung, dann das Elfmeterschießen.",
+               dbl="Hat ein Verein schon einen Platz, rückt {r} nach.",
+               summer="Gespielt wird vor dem Ligastart: in der ersten Saison der Welt ist das Spiel schon vorbei, es "
+                      "beginnt also mit der zweiten.",
+               mine="Im Spiel bist du dabei, wenn dein Verein qualifiziert ist.",
+               months='Januar Februar März April Mai Juni Juli August September Oktober November Dezember')}
+
+
+def supercup(e, lang):
+    """4.0.5 the national supercup's paragraph of the cup's FORMAT page, from its data (supercups2627.json entry)."""
+    t = SC[lang]
+    r = [t['role'][x] for x in e['rule']]
+    m = t['months'].split()[int(e['date'].split('/')[1].split('+')[0]) - 1]
+    n = e['names'][lang][0]
+    s = [t['four'].format(n=n, m=m, a=r[0], b=r[1], c=r[2], e=r[3]) if len(r) == 4
+         else t['two'].format(n=n, m=m, a=r[0], b=r[1])]
+    s.append(t['et'] if e['level'] == 'et_pens' else t['pens'])
+    fb = e['if_double'] if isinstance(e['if_double'], str) else next((x for x in e['if_double'] if x), None)
+    if fb:
+        s.append(t['dbl'].format(r=t['role'][fb]))
+    if e['from_season'] > 1:
+        s.append(t['summer'])
+    s.append(t['mine'])
+    return ' '.join(_cap(x) for x in s)
 
 
 FOLLOW = {   # (4.0.1 cupsf.py, Davide's rule: the real format by division; relegated, stayers, promoted, each by place)

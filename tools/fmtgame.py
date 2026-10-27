@@ -872,6 +872,14 @@ def _wn_title(cc, key, lang):
     return {'*': [t.get(lang) or t['*']]} if t else None
 
 
+def supercup_of(m, d):
+    """4.0.5 the pack's national supercup (tools/supercups2627.json, supercup.py's data) for a World 2026-27 pack."""
+    import supercup
+    if m.get('world') is None or world_year(m['world'], d) < 2026:
+        return None
+    return json.load(open(supercup.DATA)).get((m.get('id') or '').rsplit('-', 1)[-1])
+
+
 def win_lines(comp, div, k, cc='', tfile=None):
     """The SEASON WINNERS page of division k of a league: {lang: [(title, source)]}, {} when it has no title beyond its
     table (the page's entry stays hidden). Sources (winners.py wn_src): 'L' the table's 1st once the league is over;
@@ -1072,6 +1080,9 @@ def from_pack(d):
             lk = {r['key'] for r in clubs if r['file'] == 'league'}
             if m.get('world') is not None and world_year(m['world'], d) >= 2026 and r1 and all(x in lk for x in r1):
                 cp['follow'] = True                     # (4.0.1 cupsf: the clubs follow promotions from season 2)
+            sc = supercup_of(m, d) if comp['key'] == 'cup' else None
+            if sc:
+                cp['super'] = sc                        # (4.0.5: the national supercup, a paragraph of the cup's page)
             titles = {lang: title(lang, complist._nm(comp['names'], lang)) for lang in LANGS}
             out.append((world, cid, titles, {lang: dict(fmtprose.cup(cp, lang), tail=[]) for lang in LANGS}))
         elif comp['type'] == 'tourney':

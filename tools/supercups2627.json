@@ -159,5 +159,120 @@
    "manchestercity"
   ],
   "todo": "the 2026 edition was played on 16 Aug at Cardiff (Wembley unavailable): from season 2 the same week, neutral; 90 minutes then penalties (no extra time) per the FA's usual rules, not re-checked for 2027; double -> league runner-up per the FA rule, not re-checked"
+ },
+ "ger": {
+  "names": {
+   "it": [
+    "SUPERCOPPA DI GERMANIA",
+    "SUPERCOPPA"
+   ],
+   "en": [
+    "GERMAN SUPER CUP",
+    "SUPER CUP"
+   ],
+   "fr": [
+    "SUPERCOUPE D'ALLEMAGNE",
+    "SUPERCOUPE"
+   ],
+   "de": [
+    "FRANZ BECKENBAUER SUPERCUP",
+    "SUPERCUP"
+   ]
+  },
+  "date": "22/08",
+  "from_season": 2,
+  "legs": 1,
+  "level": "pens",
+  "host": "neutral",
+  "rule": [
+   "champion",
+   "cup_winner"
+  ],
+  "if_double": "second",
+  "first_entrants": [
+   "bayernmunich",
+   "dortmund"
+  ],
+  "todo": "2026: 22 Aug at Dortmund (Bayern 2-1; Bayern's double -> Dortmund, league 2nd): from season 2 the same week; the real host is the 2nd club's ground (host 'neutral' in the engine); 90 minutes then penalties per the DFL rules, not re-checked for 2027"
+ },
+ "fra": {
+  "names": {
+   "it": [
+    "TROPHEE DES CHAMPIONS",
+    "T. CHAMPIONS"
+   ],
+   "en": [
+    "TROPHEE DES CHAMPIONS",
+    "T. CHAMPIONS"
+   ],
+   "fr": [
+    "TROPHEE DES CHAMPIONS",
+    "T. CHAMPIONS"
+   ],
+   "de": [
+    "TROPHEE DES CHAMPIONS",
+    "T. CHAMPIONS"
+   ]
+  },
+  "date": "16/08",
+  "from_season": 2,
+  "legs": 1,
+  "level": "pens",
+  "host": "neutral",
+  "rule": [
+   "champion",
+   "cup_winner"
+  ],
+  "if_double": "second",
+  "first_entrants": [
+   "psg",
+   "lens"
+  ],
+  "todo": "2026: 16 Aug at Lens (host by draw), PSG v Lens: from season 2 the same week, neutral; Lens taken as the league 2nd after a PSG double, not verified; straight penalties assumed"
+ },
+ "ksa": {
+  "names": {
+   "it": [
+    "SUPERCOPPA SAUDITA",
+    "SUPERCOPPA"
+   ],
+   "en": [
+    "SAUDI SUPER CUP",
+    "SUPER CUP"
+   ],
+   "fr": [
+    "SUPERCOUPE SAOUDIENNE",
+    "SUPERCOUPE"
+   ],
+   "de": [
+    "SAUDISCHER SUPERCUP",
+    "SUPERCUP"
+   ]
+  },
+  "date": "19/12",
+  "final_date": "23/12",
+  "from_season": 1,
+  "legs": 1,
+  "level": "pens",
+  "host": "neutral",
+  "rule": [
+   "champion",
+   "cup_finalist",
+   "cup_winner",
+   "second"
+  ],
+  "if_double": [
+   null,
+   "third",
+   "third",
+   "third"
+  ],
+  "first_entrants": [
+   "alnassr",
+   "alkholood",
+   "alahlisfc",
+   "alqadsiah"
+  ],
+  "todo": "Kuwait 19/20 Dec, final 23 Dec 2026: the 2026 field is Al-Nassr (champion) v Al-Kholood (cup finalist) and Al-Ahli (3rd) v Al-Qadsiah (4th): Al-Hilal (league 2nd and cup winner?) banned; the engine rule is the usual one (champion v cup finalist, cup winner v league 2nd), the 2026 replacements only in season 1's entrants; pairings, extra time (pens assumed) and the double fallback not verified"
  }
 }

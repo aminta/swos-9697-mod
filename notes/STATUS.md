@@ -2252,6 +2252,17 @@ Left for 2.5: (a) NSL/NSSL finals series (type-1 design) or declare them postpon
   item) FIRST FAIL, 819b85a / 097182d / 64852a6 FAIL. Owner: squads. Fix before rc1.
 - rc1 DATA now internal/world2526/world5tm-402rc4 (= rc3 + AMERICA PE rename, TREFELIN B & G, 22 namesake pairs
   disambiguated, 105 coaches filled; kits unchanged; .md5 list digest 946ea0ce, checked; tools 09fc5f4).
+17. 4.0.2-tzdkb (Motore: MALEN darkblond + numbers 17..99 in half / EGA mode, DKB_SETUP) WITHOUT d9e9299 (TAILZERO_FILL_PART
+   grows the release stub 48 -> 64 B, not swostest-only): 1a6ab86 279ca53 e2fe391 e5d9f89 0b57606 7b73777 53107db cherry-picked
+   on branch tzdkb-int -> merge ec8e434. Serie C's numhead2 (parallel fix) NOT merged.
+18. xsv-402 015f426 (squads: other clubs' squad screens 16 + extras, display only) -> 59b36f2; rc1 += xtra_squad_views (TM_EXTRA=14).
+19. 4.0.2-fullgfx 3b1c447 (Motore: full graphics always; /H /F, low-memory rule unchanged) -> 17acd59; rc1 += full_graphics,
+   shirt_numbers + world_darkblond with SWOSTEST_EXEARGS=/H.
+20. egatest 67f5e01 (Serie C, swostest only: SWOSTEST_INTRO, shirt_numbers_ega) -> 128650f; rc1 += shirt_numbers_ega.
+- Data world5tm-402rc5 (= rc4 + MALEN face 'dark'; .md5 digest 5e67dff6, checked): rc1 data.
+- MiSTer beta 6: c/REL402b6 = 17acd59 on world5tm-402rc5 (IT CD a07c0e2d, GOG IT bde6bb1a). PASS on b6: roundtrip, full_graphics,
+  shirt_numbers, subs_numbers, world_viewcont, tail_zero (SWOS/ + gog/), /H: shirt_numbers + world_darkblond; shirt_numbers_ega
+  (128650f harness). (A first b6 at ec8e434 / rc4 was replaced before it was sent.)
 
 ## Deferred realism (4.0.2+)
 - Moldova's h2h_half groups start at 0 points (package 6, 2026-10-24; pre-existing, not option C).

@@ -206,6 +206,10 @@ def patch_exe(src, dst, remap, lang='it'):
     lpb += bool(mkseason.league_phase_worlds())   # (+1 more: the UEFA coefficients, uefacoef)
     lpb += 4 * bool(mkseason.league_phase_worlds())   # (+4: the UEFA qualifying rounds, uefaq: C code + glue)
     xtra_on = bool(mkseason.xtra_files() or os.environ.get('XTRA_HOOK'))
+    sc_on = bool(mkseason.worlds()) and any(pk.meta.get('id', '').startswith('world-2026-27-') for pk in mkseason.packs())
+    if sc_on:                                    # 4.0.5 national supercups: the cups' winners / finalists (supercup.py)
+        import supercup
+        engine.save_item('SC', supercup.SC_SIZE, world_only=True)
     if xtra_on:
         engine.save_item('XS', xtra.XS_SIZE, world_only=True)    # 4.0.2 the XTRA players bought from other clubs (xtra.py)
     bigtables.ON[0] = bigtables.needed()         # a world numbering its clubs 2000+ (World 5.0; 4.0's world 0)
@@ -576,6 +580,8 @@ def patch_exe(src, dst, remap, lang='it'):
         if w27s and not os.environ.get('QUIETEND_OFF'):  # (QUIETEND_OFF=1: a control build for the identical-results check)
             import quietend                              # 4.0.1: the other countries' competitions simulated unseen at
             xe = quietend.patch(p, (xe + 15) & ~15, min(w27s), lang)   # the season end + a progress line (World 2026-27)
+        if sc_on:                                        # 4.0.5: the season end's cup winners / finalists (supercups)
+            xe = supercup.patch(p, xe)
         xlim = xp + 0x1000 * xpg - (0x600 if lt_room and lt_room[1] == xp + 0x1000 * xpg else 0)   # (longtable's)
         assert xe <= xlim, hex(xe)
     elif xtra_on:
@@ -583,6 +589,7 @@ def patch_exe(src, dst, remap, lang='it'):
         import xbrowse
         world = xbrowse.patch(p, world, lang)
     assert not fmtpage.WN or xtra_pg, 'VINCITORI: no extra pages'
+    assert not sc_on or xtra_pg, 'supercups: no extra pages'
     assert world <= NZ_CAVE and nz_end <= FIN_CAVE and fin_end <= ARG_CAVE and arg_end <= OBJ1_NEW_VSIZE, \
         (hex(world), hex(nz_end), hex(fin_end), hex(arg_end))
     careerworld.ns_xtra(p, xtra.LABELS['XTRA_NAMEP'] if xtra_on else None)   # several worlds: XTWn.nnn names

@@ -9127,6 +9127,67 @@ def world_cf_coppa_a():
     return cf_follow('coppa_a', 'EUROPA,ITALIA,SERIE B,PADOVA', 'ita', 0x82, 1, (0,))
 
 
+def sc_st(exe):
+    """obj1 offset of supercup's SC_ST (the 'SCSTPTR' block of its glue), None if the exe has none."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    from le import LE
+    d1 = LE(open(os.path.join(exe, 'ITALIAN.EXE'), 'rb').read()).obj_bytes(1)
+    k = d1.find(b'SCSTPTR\0')
+    return struct.unpack_from('<I', d1, k + 8)[0] if k >= 0 else None
+
+
+@scenario
+def world_sc_cups():
+    """4.0.5 national supercups, step 1 (supercup.py sc_cup): after a World 2026-27 season (an INTER career, season 1
+    played) the saved and reloaded SC_ST holds, per country cup decided at the season end, its winner and finalist
+    (team words + global numbers): only the national cups of the supercup countries (COPPA ITALIA 82h, not the
+    COPPA SERIE C 83h); winner != finalist, both of the country's team files; reported with the names"""
+    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+    if not os.path.isdir(src):
+        return True, f'SKIP: private data {src} missing'
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    exe = os.environ.get('SC_BUILD') or build('world_sc_cups', env={
+        'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order])})
+    at = sc_st(exe)
+    if at is None:
+        return False, 'no SC_ST in the exe'
+    keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_ONE')
+    keep = {k: os.environ.get(k) for k in keys}
+    os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM='EUROPA,ITALIA,SERIE A,INTER',
+                      W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1', W8485_ONE='1')
+    try:
+        ok, msg = world8485()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    car = os.path.join(RUNS, w84_tag() + '_1', 'SWOS', 'W84A.CAR')
+    if not ok or not os.path.exists(car):
+        return False, f'season: {msg}'
+    with Session('world_sc_cups', exe, {'W84A.CAR': car}, 'dump:2', 300) as s:
+        s.wait()
+        s.send(LOAD1 + ' dump:3')
+        st = bytes(s.result.obj1(at, 4 + 12 * 32))
+    errs = []
+    magic, n = struct.unpack_from('<H', st, 0)[0], st[2]
+    check(magic == 0x4353 and n > 0, f'SC_ST magic {magic:#x}, {n} entries', errs)
+    ent = {}
+    for i in range(min(n, 32)):
+        f_, cid = st[4 + 12 * i], st[5 + 12 * i]
+        wt, wg, ft, fg = struct.unpack_from('<4H', st, 8 + 12 * i)
+        ent[(f_, cid)] = (wt, wg, ft, fg)
+    shown = []
+    for k in sorted(ent):
+        wt, wg, ft, fg = ent[k]
+        check(wt != ft and wt & 0xFF == k[0], f'cup {k}: winner {wt:#x} finalist {ft:#x}', errs)
+        if k[1] in (0x81, 0x82, 0x83):
+            shown.append(f'{k[0]:#x}/{k[1]:#x}: {team_name(exe, wt)} beat {team_name(exe, ft)}')
+    check(0x82 in {k[1] for k in ent} and 0x83 not in {k[1] for k in ent}, f'Coppa Italia (and no Coppa Serie C) expected: {sorted(ent)}', errs)
+    return not errs, '; '.join(errs) or f'{n} cups; ' + '; '.join(shown[:12])
+
+
 @scenario
 def world_cf_siracusa():
     """4.0.1 (the user's SIRACUSA report, (a)): SIRACUSA (area C/I) forced 1st of Serie D girone I (promoted), season

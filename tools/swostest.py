@@ -4944,10 +4944,15 @@ def ct_entry(r, menu, i):
     return (t, struct.unpack_from('<H', m, 4)[0]) + struct.unpack_from('<4h', m, 0x14)
 
 
+def ct_base(r, v):
+    """The CONTROLS block's object base (controls.runtime 'obj')."""
+    return r.base1 if v['obj'] == 1 else r.base2
+
+
 def ct_vars(r, v):
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import controls
-    raw = r.read(r.base2 + v['vars'], 32)
+    raw = r.read(ct_base(r, v) + v['vars'], 32)
     out = {k: raw[o] for k, o in controls.VARS.items() if o < 8}
     out.update({k: struct.unpack_from('<H', raw, o)[0] for k, o in controls.VARS.items() if o >= 8})
     return out
@@ -5003,7 +5008,7 @@ def controls_menu():
         check(sc.selected == 2, f'selected {sc.selected}, want the device row', errs)
         ct_check_texts(r, menu, range(19), errs, 'page')
         s.shot('page')
-        work = lambda: s.result.read(s.result.base2 + v['work'], 105)
+        work = lambda: s.result.read(ct_base(s.result, v) + v['work'], 105)
         seen = []
         for want in (3, 4, 5, 1, 3):
             s.send('fire dump:0.5')
@@ -5131,7 +5136,7 @@ def controls_calib():
             s.send('dump:0.5')
         s.send('fire dump:1')
         r = s.result
-        w = r.read(r.base2 + v['work'], 105)
+        w = r.read(ct_base(r, v) + v['work'], 105)
         got = struct.unpack_from('<2H', w, 30) + struct.unpack_from('<8H', w, 38) + struct.unpack_from('<H', w, 92)
         want = (500, 500, 120, 100, 900, 880, 400, 400, 380, 380, 1012)
         check(ct_vars(r, v)['MODE'] == 4 and got == want, f"corners + fire: mode {ct_vars(r, v)['MODE']} {got} want {want}",
@@ -5139,7 +5144,7 @@ def controls_calib():
         s.poke(jx(r), struct.pack('<HH', 100, 880))
         s.send('dump:0.5')
         r = s.result
-        line = r.read(r.base2 + v['pb'], 64).split(b'\0')[0]
+        line = r.read(ct_base(r, v) + v['pb'], 64).split(b'\0')[0]
         wl = enc(f"{T['test']} {T['keys'][2]} {T['keys'][1]}")
         check(line == wl, f'PROVA line {line} want {wl}', errs)
         s.shot('test')

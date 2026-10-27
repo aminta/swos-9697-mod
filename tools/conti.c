@@ -165,7 +165,8 @@ static void match(int h, int a, int neutral, int *gh, int *ga) {
     *ga = goals(ma > 63 ? 63 : ma);
 }
 /* a tie a v b (b at home in the second leg when legs = 2): 1 if a goes through. level: 0 penalties, 1 extra time +
-   penalties, 2 away goals then penalties (CAF, CONCACAF) */
+   penalties, 2 away goals then penalties (CAF), 3 away goals, then extra time (no away goals in it), then penalties
+   (CONCACAF, 4.0.2) */
 static int tie(int a, int b, int legs, int level, int neutral) {
     int x, y, ga = 0, gb = 0, awa = 0, awb = 0;
     if (legs == 2) {
@@ -175,8 +176,8 @@ static int tie(int a, int b, int legs, int level, int neutral) {
         match(a, b, neutral, &x, &y); ga += x; gb += y;
     }
     if (ga != gb) return ga > gb;
-    if (level == 2 && legs == 2 && awa != awb) return awa > awb;
-    if (level == 1) {                   /* extra time */
+    if ((level == 2 || level == 3) && legs == 2 && awa != awb) return awa > awb;
+    if (level == 1 || level == 3) {     /* extra time */
         match(a, b, 1, &x, &y);
         x /= 3; y /= 3;
         if (x != y) return x > y;
@@ -601,7 +602,7 @@ static int ct_round(int c, int r) {
         g_fv = forced(c, r);
         if (g_fv < 0 && g_stop && (R[17] || R[0] == K_KO)) {   /* (a group stage before the main round: simulated) */
             CT_SEG.cup = c; CT_SEG.round = r; CT_SEG.kind = R[0] | (R[17] ? 0x80 : 0);
-            CT_SEG.legs = R[1] == 2 ? (R[2] == 1 ? 0x94 : 0x84) : 0x14;   /* (the game's round byte) */
+            CT_SEG.legs = R[1] == 2 ? (R[2] == 1 || R[2] == 3 ? 0x94 : 0x84) : 0x14;   /* (the game's round byte) */
             CT_SEG.level = R[2];
             CT_SEG.month = (u8)((R[9] - 1 + (R[9] < 8 ? 12 : 0)) * 8);   /* (x 8 from January, as a contest's) */
             if (R[0] == K_KO) {

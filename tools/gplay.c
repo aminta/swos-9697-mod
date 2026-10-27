@@ -410,12 +410,18 @@ static struct gs PS[GN], ms[GT];       /* (gp_season: the placings' figures; a r
    order the season end captures them (k = 0 again at each country's division 0). diy = DIY, st = split.ST, keep =
    S_KEEP - ST, sel = the team cache (a row's team dword is an offset into it: +2 the global number). */
 static u8 gp_kn;
+u8 *GP_SHB[2];   /* 4.0.1 (split.py sp_shsel): [0] 'SH' (key: team file, division | 80h; then the career league's
+                    head-to-head / 'keep' block), [1] the scratch block of any other league - the 'keep' table left the
+                    DIY */
 void gp_keep(const u8 *diy, u32 st, u32 keep, const u8 *sel, u32 div, u32 magic) {
     if (div == 0) {
         gp_kn = 0;
         for (int i = 0; i < GS; i++) GP_IN.nst[i] = 0;
     }
-    const u8 *s = diy + st, *k = s + keep;
+    const u8 *sh = GP_SHB[0], *s = diy + st, *k;  /* keep 0: CFB, the career league's own block; 1: DIY, the career
+                                                     league's block when its key is this league's, else the scratch */
+    if (!sh || !GP_SHB[1]) return;
+    k = keep == 0 || (sh[0] == diy[0x12D] && sh[1] == (0x80 | div)) ? sh + 2 : GP_SHB[1];
     int n = diy[0x31] | diy[0x32] << 8;
     if ((u32)(s[0] | s[1] << 8) != magic || s[5] != 1 || gp_kn >= GS || n < 2 || n > GT || n > 21) return;
     u32 seen = 0;
@@ -1579,6 +1585,17 @@ static void stage_done(const struct gp_ko *k) {   /* a stage title's knockout de
    club's, played; not a group contest). The page names a club only when it is one of the viewed league's rows. */
 u32 GP_WNSRC;
 u32 GP_WNFILE;                          /* (4.0.1: the viewed league's team file, DIY +12Dh: its stage bank) */
+static u32 wn_double(int rule) {        /* 4.0.2 'Q': a title_seed play-off without the career club's contest - its
+                                           champion once one club has won both tournaments (A = C: no play-off), from
+                                           the viewed league's bank as title_seed reads it (A = table 0, C = table 3
+                                           rule 1 / 1 rule 2); else 0FFFEh */
+    const struct gp_ss *b = ss_view(GP_WNFILE);
+    int c = rule == 1 ? 3 : 1;
+    if ((rule == 1 || rule == 2) && b && (b->fresh & 1) && (b->fresh >> c & 1) && b->n[0] && b->n[c]
+        && b->r[0][0].team == b->r[c][0].team)
+        return b->r[0][0].team;
+    return 0xFFFE;
+}
 u32 gp_wn_c(void) {
     int t = GP_WNSRC & 0xFF, st = GP_WNSRC >> 8 & 0xFF, pi = GP_WNSRC >> 16 & 0xFF;
     if (GP_WNSRC >> 24 && t == 'M') {   /* (4.0.1: the division the career club played in: team | division << 16) */
@@ -1588,7 +1605,7 @@ u32 gp_wn_c(void) {
         return 0xFFFE;
     }
     if (GP_WNSRC >> 24) {               /* (4.0.1 the last season: WN_ST's entry 'K' pi, or 'L' division st) */
-        int ty = t == 'K' || t == 'D' ? 'K' : t == 'T' ? 0x80 | (pi & 0x7F) : 'L', ix = ty == 'K' ? pi : st;
+        int ty = t == 'K' || t == 'D' || t == 'Q' ? 'K' : t == 'T' ? 0x80 | (pi & 0x7F) : 'L', ix = ty == 'K' ? pi : st;
         if (WN_ST.magic != WN_MAGIC || (u8)(WN_ST.season + 1) != GP_SEAS) return 0xFFFE;
         for (int i = 0; i < WN_ST.n && i < WN_N; i++)
             if (WN_ST.e[i].type == ty && WN_ST.e[i].idx == ix) return WN_ST.e[i].team;
@@ -1598,7 +1615,7 @@ u32 gp_wn_c(void) {
         const struct gp_ss *b = ss_view(GP_WNFILE);
         return b && st < SS_N && (b->fresh >> st & 1) && b->n[st] ? b->r[st][0].team : 0xFFFE;
     }
-    if (GP_ST.magic != MAGIC) return 0xFFFE;
+    if (GP_ST.magic != MAGIC) return t == 'Q' ? wn_double(st) : 0xFFFE;
     if (t == 'T') {                     /* (tie st of play-off pi, the career club's: an intermediate title) */
         for (int j = 0; j < 2; j++) {
             const struct gp_ko *k = &GP_ST.ko[j];
@@ -1620,7 +1637,7 @@ u32 gp_wn_c(void) {
         return w != NOC ? k->team[w] : 0xFFFF;   /* (running: IN CORSO - 4.0's a41b1e4 decides it even once the
                                                    career club is out: rc10's interim no-line rule is gone) */
     }
-    return 0xFFFE;
+    return t == 'Q' ? wn_double(st) : 0xFFFE;
 }
 
 u32 GP_WK;                              /* (the glue: the current calendar entry's week) */

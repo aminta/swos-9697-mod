@@ -206,6 +206,8 @@ def patch_exe(src, dst, remap, lang='it'):
     lpb += bool(mkseason.league_phase_worlds())   # (+1 more: the UEFA coefficients, uefacoef)
     lpb += 4 * bool(mkseason.league_phase_worlds())   # (+4: the UEFA qualifying rounds, uefaq: C code + glue)
     xtra_on = bool(mkseason.xtra_files() or os.environ.get('XTRA_HOOK'))
+    if xtra_on:
+        engine.save_item('XS', xtra.XS_SIZE, world_only=True)    # 4.0.2 the XTRA players bought from other clubs (xtra.py)
     bigtables.ON[0] = bigtables.needed()         # a world numbering its clubs 2000+ (World 5.0; 4.0's world 0)
     bigtables.MOVED.clear()
     pg_tabs = mkseason.parallel_tables() + engine.parallel_tables()   # parallel groups (worlds' packs; world 0: engine)
@@ -234,7 +236,7 @@ def patch_exe(src, dst, remap, lang='it'):
     import gplay as gp_mod
     lpb += gp_mod.GP_PAGES * gp_on                     # (its pages, after dplay's: C + glue + specs)
     xtra_pg = bool((xtra_on or pg_tabs or rs_tabs or ri_tabs or bigtables.ON[0]) and mkseason.worlds())   # (+1: an extra code page in a build with worlds,
-    xpg = 2 * xtra_pg                                  # (2 pages: xtra + pgroups + bigtables filled one in the full
+    xpg = (2 + bool(xtra_on)) * xtra_pg               # (2 pages: xtra + pgroups + bigtables filled one in the full
     lpb += xpg                                         # world 2026-27; whose world cave is full)
     ri_pg = 2 * bool(ri_tabs and mkseason.worlds())    # (+2: the off-file pools' code + table, up to 8 files)
     lpb += ri_pg
@@ -245,6 +247,9 @@ def patch_exe(src, dst, remap, lang='it'):
     cp = cave_pages()                                          # career world code: 2 pages, 3 with several worlds
     sp_tabs = (mkseason.splits() if worlds else []) + engine.split_tables()   # mid-season splits (worlds; world 0)
     sp_pg = split.pages(sp_tabs) if worlds else 0      # (own pages after all the others)
+    if sp_tabs:                                        # 4.0.1: split's head-to-head / 'keep' block left the DIY (the
+        engine.save_item('SH', split.SH_SIZE, world_only=not engine.split_tables())   # weeks reach 104 days): the
+        engine.after_process('sp_migrate')             # career league's in 'SH'; a 4.0 save's state moved at the load
     ss_on = any(st.get('table') is not None for *_, sp in sp_tabs for st in sp.get('stages') or [])
     import gplay                                       # (also imported below: the banks need it here)
     if ss_on:                                          # stage tables (GP_SS, gplay.c gp_stage: Argentina's Apertura /
@@ -270,7 +275,9 @@ def patch_exe(src, dst, remap, lang='it'):
     if ct_pg:
         engine.save_item('CT', conti.ST_SIZE, world_only=True)
         engine.save_item('CE', conti.ED_SIZE, world_only=True)          # (phase B: the edition being played, conti.c CT_ED)
-    for _ in range((6 + cp + 2 + 2 * cdp if worlds else 6) + lpb + sp_pg + sc_pg + ct_pg):  # (+1: the UEFA league phase's page, lp36)
+    import controls                                    # 4.0.2: the CONTROLS page (controls.py): code + its data pages, the
+    ctl_pg = 1 + controls.DATA_PAGES                   # last pages (obj1: obj2's page count stays 4.0's, see controls.patch)
+    for _ in range((6 + cp + 2 + 2 * cdp if worlds else 6) + lpb + sp_pg + sc_pg + ct_pg + ctl_pg):  # (+1: the UEFA league phase's page, lp36)
         data = add_object_page(data, 1)
     mkseason.CAREER_CAVE[0] = CAREER_CAVE if worlds else None
     mkseason.CAREER_DATA[0] = CAREER_DATA + 0x1000 * (cp - 2) if worlds else None
@@ -401,6 +408,8 @@ def patch_exe(src, dst, remap, lang='it'):
         end = worldpool.patch(p, end, nasmcave, [(w['n'], w['pool'][0]) for w in mkseason.world_defs() if w['pool']],
                               guests.alloc().get(guests.POOL))   # (4.0 hotfix: the pool clubs' team file 190)
         end = benchnum.patch(p, end, nasmcave, [w['n'] for w in mkseason.world_defs() if w['squad_numbers']])
+        import shirtedit                          # 4.0.2: editable shirt numbers on the team screen (pins the team
+        end = shirtedit.patch(p, end)             # through benchnum's hooks)
         import instcheck
         end = instcheck.place(p, end, lang)       # 4.0.1: a world's missing files -> a message, not DOS
         assert end <= CAREER_CAVE + mkseason.CAREER_CAVE_SIZE, hex(end)
@@ -496,7 +505,11 @@ def patch_exe(src, dst, remap, lang='it'):
     cos = blond.patch(p, area, cos, num_bss + shirtnum.BSS_SIZE, shirtnum.spr_index(p))   # 3.3.0: face 3
     cos = menunum.patch(p, cos, num_bss + shirtnum.BSS_SIZE + blond.BSS_SIZE)   # 3.3.4: menu numbers 17..99
     cos = avgprice.patch(p, cos)                 # 3.3.4: average player price >= 1 (divide error, 1984-85 Iceland)
+    import devname                               # 4.0.2: DOS device names (CON, PRN, AUX ...) refused as save names
+    devname.patch(p, lang)
     joyfix.patch(p)                              # 4.0.1: ReadSetupDat -> VerifyJoypadControls (no pad + controls != 1 = frozen menus)
+    import fullgfx                               # 4.0.2: full graphics always (no half mode from SETUP.DAT's speed)
+    fullgfx.patch(p)
     cos = menumusic.patch(p, cos)                # 3.3.6: menu music when the main menu opens (SWOS++ options load late)
     cos = fmtpage.patch(p, cos, lang, area, num_bss + shirtnum.BSS_SIZE + blond.BSS_SIZE + menunum.BSS_SIZE,
                          careerworld.SITES if worlds else None,   # FORMAT page (5.0); 4.0.1 its VINCITORI entry
@@ -533,7 +546,10 @@ def patch_exe(src, dst, remap, lang='it'):
         world = cos
     if xtra_pg:                                                  # extended career squads (packs with "extra";
         xp = hist2 + h2 + 0x1000 * (lpb - cos_pg - ri_pg - xpg)  # XTRA_HOOK=1: test builds): DATA\XTRA.nnn players;
-        xe = xtra.patch(p, xp) if xtra_on else xp                # the extra page in a build with worlds, with the
+        xe = xtra.patch(p, xp) if xtra_on else xp
+        if xtra_on:
+            import xbrowse                                       # 4.0.2: the extras in the club browse (a 2nd page)
+            xe = xbrowse.patch(p, xe, lang)                # the extra page in a build with worlds, with the
         ri = None
         if ri_tabs:                                              # the off-file pool (Eccellenza): its own page
             rp = hist2 + h2 + 0x1000 * (lpb - cos_pg - ri_pg)
@@ -557,6 +573,8 @@ def patch_exe(src, dst, remap, lang='it'):
         assert xe <= xlim, hex(xe)
     elif xtra_on:
         world = xtra.patch(p, world)
+        import xbrowse
+        world = xbrowse.patch(p, world, lang)
     assert not fmtpage.WN or xtra_pg, 'VINCITORI: no extra pages'
     assert world <= NZ_CAVE and nz_end <= FIN_CAVE and fin_end <= ARG_CAVE and arg_end <= OBJ1_NEW_VSIZE, \
         (hex(world), hex(nz_end), hex(fin_end), hex(arg_end))
@@ -580,9 +598,22 @@ def patch_exe(src, dst, remap, lang='it'):
             statespec.sim_patch(p, sc_at + 0x1000)  # statesim.c: every state's stage 1 + relegation at the season end
     if ct_pg:                                    # the other confederations' cups (conti.c): after statecup's pages
         conti.patch(p, ct_code, ct_at + 0x1000 * ct_pg, ct_bss, area)
-    p.set_vsize(1, OBJ1_NEW_VSIZE + (0x1000 * (cp + 2 + cdp) if worlds else 0) + h2 + 0x1000 * (lpb + sp_pg + sc_pg + ct_pg))
-    tail = (careerworld.BSS_SIZE if bigw else 0) + shirtnum.BSS_SIZE + blond.BSS_SIZE + menunum.BSS_SIZE + fmtpage.BSS_SIZE   # obj2 tail
+    ctl_at = hist2 + h2 + 0x1000 * (lpb + sp_pg + sc_pg + ct_pg)   # 4.0.2: OPTIONS > CONTROLS (keys, device, calibration,
+    ctl_end = controls.patch(p, ctl_at, lang)                     # SETUP.DAT)
+    import subsnum                               # 4.0.2: two-digit numbers in the in-match bench list (names +6 px)
+    ctl_end = subsnum.patch(p, ctl_end)
+    import tailzero                              # 4.0.2: the stub that zeroes obj2's tail at startup (written below,
+    tz_at = (ctl_end + 15) & ~15                 # once the tail's size is known; the cosmetics page is full)
+    ctl_end = tz_at + tailzero.SIZE
+    ctl_end = blond.unch_patch(p, (ctl_end + 15) & ~15)   # 4.0.2 MALEN: the darkblond sets in half / EGA mode
+    assert ctl_end <= ctl_at + 0x1000, hex(ctl_end)        # (the code page; controls' data pages follow it)
+    p.set_vsize(1, OBJ1_NEW_VSIZE + (0x1000 * (cp + 2 + cdp) if worlds else 0) + h2 + 0x1000 * (lpb + sp_pg + sc_pg + ct_pg + ctl_pg))
+    import teamstab                              # 4.0.2: teamsTable for 256 team ordinals (Serie D choice colours)
+    teamstab.patch(p, num_bss + shirtnum.BSS_SIZE + blond.BSS_SIZE + menunum.BSS_SIZE + fmtpage.BSS_SIZE)
+    tail = (careerworld.BSS_SIZE if bigw else 0) + shirtnum.BSS_SIZE + blond.BSS_SIZE + menunum.BSS_SIZE + fmtpage.BSS_SIZE \
+        + teamstab.BSS_SIZE   # obj2 tail
     p.set_vsize(2, obj2_free + o2pages * p.le.page_size + tail, bss=tail)
+    tailzero.patch(p, tz_at, obj2_free + o2pages * p.le.page_size, (tail + 3) & ~3, nasmcave)   # (DOS/4GW: not zeroed)
     p.add_flags(1, 0x2)            # writable: season end rewrites the SA cup team lists in the cave
     split.late(p)                                # split's after-stage routines (engine.after_stage)
     trailer.late(p)                              # the engine block's late addresses (RS_STATE ...)

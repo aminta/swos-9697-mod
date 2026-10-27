@@ -251,11 +251,13 @@ def compile_spec(pos, ndiv, league_names=None):
     THEN[out] = bytes(keys.index(po['then_build']) + 1 if po.get('then_build') is not None else 0 for po in pos)
     if any(po.get('kind') == 'title' and po['rounds'] and 'group' in po['rounds'][0] for po in pos):
         T2_SPECS.add(out)               # (a group contest played in a career: the engine block's item 'GS')
-    BUILD_AFTER[out] = [(i, po['build_after']) for i, po in enumerate(pos) if po.get('build_after')]
-    for i, name in BUILD_AFTER[out]:
+    ba = [(i, po['build_after']) for i, po in enumerate(pos) if po.get('build_after')]
+    for i, name in ba:
         if KINDS.get(pos[i].get('kind')) != 8 or not isinstance(name, str):
             raise ValueError(f"{pos[i].get('key', '?')}: build_after (a split stage's 'then' name) needs kind stage_title")
-    return out
+    BUILD_AFTER[out] = list(dict.fromkeys(BUILD_AFTER.get(out, []) + ba))   # (4.0.2: two leagues may compile to the
+    return out                                  # same bytes - Guatemala and Honduras: each keeps its own 'then' names;
+                                                # the last one alone left gua_ap without a routine, no final phase)
 
 
 PLAY_ASM = '''
@@ -467,7 +469,7 @@ gp_setup:                               ; ZF = 0 if the career league (D8CAA) is
     push dword SP_MAGIC
     push eax
     push dword [SELTEAMS]
-    push dword SP_KEEP
+    push dword 0                        ; (4.0.1: the career league's block, GP_SHB[0])
     push dword SP_ST
     push dword CFB
     call gp_keep
@@ -1167,7 +1169,7 @@ gp_cap:                                 ; replaces `call cseg_9221F` (after dpla
     push dword SP_MAGIC
     push eax
     push dword [SELTEAMS]
-    push dword SP_KEEP
+    push dword 1                        ; (4.0.1: the block in use, GP_SHB[1])
     push dword SP_ST
     push dword DIY
     call gp_keep
@@ -1711,7 +1713,7 @@ def _top9(p):
                                         rb'\xc7\x05' + pk(r['A0'] + 8), d1, re.S)]
     assert len(m) == 2, m                       # (the first: cseg_927A2; the second: another list of the season end)
     return p.target(1, m[0] + 6), p.target(1, m[0] + 16)
-GP_PAGES = 16 + (1 if os.environ.get('GPLAY_FORCE') else 0)   # (4.0.1 rc: GPLAY_FORCE test builds' extra code overflowed 16 pages by 44 B; release builds stay at 16)
+GP_PAGES = 17 + (1 if os.environ.get('GPLAY_FORCE') else 0)   # (4.0.1 rc: GPLAY_FORCE test builds' extra code overflowed 16 pages by 44 B; 4.0.2: option C's gp_keep blocks - 17, obj1 only)
 #P_PAGES = 16            # obj1 pages for the C code + glue + specs (World 2026-27's 20 countries; gplay-play; 4.0 ARG: 7; the record lines: 12; longtable's code: 13; 4.0.1 MEX stage titles per division: 14; cupsf: 16, with package 6's title_seed / draw_pot)
 GP_ST_SIZE = 2048       # (sizeof struct gp_state: the engine block's item 'GP', patch.py)
 WN_SIZE = 4 + 4 * 40    # (sizeof struct wn_state: the engine block's item 'WN', the WINNERS page's last season)
@@ -1981,7 +1983,7 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
                     'A4R': (2, r['A0'] + 16), 'D7R': (2, r['D7']), 'D0R': (2, r['A0'] - 32), 'D1R': (2, r['A0'] - 28),
                     'D2R': (2, r['A0'] - 24), 'SLT': s['slt'], 'SLTCOPY': s['sltcopy'],
                     'WORLD_BYTE': (0, careerworld.WORLD_BYTE), 'DIY': (2, diy), 'NCW': (2, diy), 'SELTEAMS': (2, sel),
-                    'SP_ST': (0, split.ST), 'SP_KEEP': (0, split.OFF['h2h']), 'SP_MAGIC': (0, split.MAGIC),
+                    'SP_ST': (0, split.ST), 'SP_MAGIC': (0, split.MAGIC),
                     'CAREERTEAM': (2, ct), 'ANIM_REL': (2, rel), 'ANIM_PRO': (2, pro),
                     'GP_CAP_NEXT': (1, tgt(cap)), 'GP_END_NEXT': (1, tgt(end_site)),
                     'GP_LEND_NEXT': (1, tgt(ps['lend'][0])), 'GP_SSIM_NEXT': (1, tgt(ps['ssim'])),
@@ -2194,7 +2196,7 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
     assert struct.unpack('<I', p.get(1, syms['RI_STATE_SIZE'][1], 4))[0] == ripool.RI_SIZE   # (the engine block's 'RI')
     kolay = dict(zip(('st_ko', 'size', 'slot', 'ntie', 'tw', 'tl', 'team', 'n'),
                      struct.unpack('<8I', p.get(1, syms['GP_KOLAY'][1], 32))))   # (4.0's gp_build glue: GP_ST.ko[0])
-    LABELS.update(lab, GP_TOPW=top_w, GP_TOPR=top_r, CD_ST=syms['CD_ST'], CF_ST=syms['CF_ST'], GP_GS=syms['GP_GS'], GP_KOLAY=kolay, GP_IN=syms['GP_IN'], GP_OUT=syms['GP_OUT'], GP_ST=syms['GP_ST'], GP_LOG=syms['GP_LOG'], layout=lay, pg_season=syms['pg_season'], pg_place=syms['pg_place'], rs_season=syms['rs_season'], gp_stage=syms['gp_stage'], gp_overall=syms['gp_overall'], gp_stitle_c=syms['gp_stitle_c'], gp_hplan_c=syms['gp_hplan_c'], gp_hlabel_c=syms['gp_hlabel_c'], GP_HP=syms['GP_HP'], GP_HGP=syms['GP_HGP'], GP_HG=syms['GP_HG'], GP_HV=syms['GP_HV'], GP_HF=syms['GP_HF'], GP_HL=syms['GP_HL'], GP_HON=syms['GP_HON'], GP_OV_ORD=syms['GP_OV_ORD'], GP_OV_ROWS=syms['GP_OV_ROWS'], GP_OV_N=syms['GP_OV_N'], GP_OV_ANNUAL=syms['GP_OV_ANNUAL'], GP_SS=syms['GP_SSB'], PR_STATE=syms['PR_STATE'],
+    LABELS.update(lab, GP_TOPW=top_w, GP_TOPR=top_r, CD_ST=syms['CD_ST'], CF_ST=syms['CF_ST'], GP_GS=syms['GP_GS'], GP_KOLAY=kolay, GP_IN=syms['GP_IN'], GP_OUT=syms['GP_OUT'], GP_ST=syms['GP_ST'], GP_LOG=syms['GP_LOG'], layout=lay, pg_season=syms['pg_season'], pg_place=syms['pg_place'], rs_season=syms['rs_season'], gp_stage=syms['gp_stage'], gp_overall=syms['gp_overall'], gp_stitle_c=syms['gp_stitle_c'], gp_hplan_c=syms['gp_hplan_c'], gp_hlabel_c=syms['gp_hlabel_c'], GP_HP=syms['GP_HP'], GP_HGP=syms['GP_HGP'], GP_HG=syms['GP_HG'], GP_HV=syms['GP_HV'], GP_HF=syms['GP_HF'], GP_HL=syms['GP_HL'], GP_HON=syms['GP_HON'], GP_OV_ORD=syms['GP_OV_ORD'], GP_OV_ROWS=syms['GP_OV_ROWS'], GP_OV_N=syms['GP_OV_N'], GP_OV_ANNUAL=syms['GP_OV_ANNUAL'], GP_SS=syms['GP_SSB'], GP_SHB=syms['GP_SHB'], CFB=(2, ps['cfb']), PR_STATE=syms['PR_STATE'],
                   RS_STATE=syms['RS_STATE'], ri_season=syms['ri_season'], ri_apply=syms['ri_apply'],
                   ri_cache=syms['ri_cache'], RI_STATE=syms['RI_STATE'], RI_MGR=syms['RI_MGR'],
                   RI_RULE=syms['RI_RULE'], cd_season=syms['cd_season'],

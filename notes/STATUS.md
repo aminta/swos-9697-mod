@@ -2171,7 +2171,126 @@ Left for 2.5: (a) NSL/NSSL finals series (type-1 design) or declare them postpon
   Paraguay 44-day calendars, derived Clausura 2027 calendars (CA, Mexico), Colombia's group fixtures / tie-break
   (owner: package 6), the odd Serie D group's rest day, the Libertadores continuation after the domestic season.
 
+## 4.0.2 queue (logged 2026-10-25, scope with Regia / Davide)
+- User report (site form, 23/10; mod 4.0, GOG, DOSBox, World 2026-27 career): "in some cases the number of the player
+  being controlled does not appear above his head; during the match some players stay without the number above the
+  head even when you control them". Not investigated yet.
+- Logged by Regia elsewhere (owners per Regia): extended squads 17-30 in career, European places priority bug
+  (Dati coppe), MALEN darkblond sprite (Motore), joypad keyboard-mode set-up, supercups 2026-27; squads'
+  visual-tour branch (1d17216+) to merge for the 4.0.2 rcs.
+- European places priority fix READY TO MERGE: Dati coppe's branch uefa402 (worktree data-2627) sha ae3d93c (on
+  66a89a8). A UECL holder with a domestic CL place keeps the CL place (uefaq.c uq_season + hkeep, uefaq.py,
+  careerworld.w_holders). Verified natively (~4000 holder combos, 0 violations) + world_full_uefa PASS on the fix build.
+  Open at rc time: (a) forced in-game check of league champion + UECL winner (UQ_HOLD forcing traps the new season even
+  in a control case; scenario world_uefa_double is WIP and FAILs until reworked); (b) the old cseg_92BBF / w_pick_cc
+  swaps for a champion holding the CWC / UEFA Cup; (c) cup winner + league place. Davide is asking the user for a real
+  save from before the 2027-28 season end.
+
+### 4.0.2 merges on world-2025-26 (integrator, 2026-10-26; per-merge smoke = py_compile + roundtrip + own scenario)
+1. uefa402 9084c49 -> a808238. 2. awayet ae2ea46 -> b8972c5. 3. mextitles 4f582b0 -> 9948089.
+4. 4.0.2-devname c4393a8 -> adb7ab6 (save_devname PASS). 5. 4.0.2-shirtedit b9ef789 -> 96ebc50 (shirt_edit,
+   menu_numbers, save_devname, roundtrip PASS).
+- BLOCKER (sent to Regia -> Dati coppe + Serie C): uefa402 + awayet together trap at the first new season,
+  obj1+0x81390 = the game's `int 3; jmp $` after the hook at obj1+0x81380 (original: cmp word [96D6h], 50h, an
+  80-count check). world_ccc_away (scenario-built exe, world5tm-401rc3): 503927b no trap, a808238 no trap, ae2ea46
+  PASS, b8972c5 TRAP; world_mex_titles traps the same on 9948089. On c/RELccc world_ccc_away PASS.
+- Held: 6. xsq-402 72e5207, 7. p402 772da13, 8. 4.0.2-controls 6ebee9b (after Motore's ctl_full PASS), until the fix.
+- Regia 26/10: blocker routed to Dati coppe (lead; same 0x81390 trap as their UQ_HOLD forcing) + Serie C; fix branch off
+  9948089+. 6-8 stay HELD until the fix is merged and a season-crossing smoke (world_ccc_away / world_mex_titles) PASSes.
+- Blocker fixed: cnt80 a9264b9 (Dati coppe: w_chk_tot0q allows a kept UECL holder) -> 8152e56; world_ccc_away PASS.
+6. xsq-402 64852a6 -> 388e68f (xtra_squad, xtra_season PASS; xtra_market / xtra_world30 / xtra_club_browse need
+   XTRA30_BUILD = the TM_EXTRA=14 world: at rc time). 7. p402 772da13 -> 8009831 (world_ca_slv PASS with
+   W2627CA_DATA=internal/sam6/data/w402t; world_mex_titles, roundtrip PASS). Next: Dati coppe mkworld_tm hooks (par;
+   GUA, SLV + sa_exact.ca_prose) + world rebuild TM_EXTRA=14; p6's WINNERS commits on p402; 8. controls after Motore's suite.
+- cnt80 tip 8244356 (swostest only: world_uefa_double 34/36/36 + UQ_HOLD 'x') -> 233724a. Dati coppe's forced in-game proof
+  on the fix build: new season OK, the holder in the CL list, not in the EL. rc1 suite list += world_uefa_double (final PASS
+  run still to be shown). Dati coppe: mkworld hooks + TM_EXTRA=14 rebuild -> snapshot world5tm-402rc1.
+- Release data internal/world2526/world5tm-402rc1 (464 files, md5 list digest 006a05c7; recipe PATH=/opt/homebrew/bin
+  TM_CA_EXACT=1 TM_MEX_EXACT=1 TM_SA_EXACT=uru,col,per,par TM_EXTRA=14 sh run_tm.sh at 58be76c). Smoke: xtra_world30 PASS
+  on builds/w2627-402rc1-test (CELLE VARAZZE 30, two seasons). rc1 after the Thu 29 03:00 reset.
+- MiSTer betas (Davide, 26/10; test disks, not rcs), data world5tm-402rc2 (= 402rc1 + 154 Serie D kits, md5-list digest
+  5d9a5d91), buildrel.sh NOPATCHER=1, no *_FORCE: c/REL402b1 = 6d42468 (IT 056c5d2b; DATA vs REL401rc3: FMT{DE,EN,FR,IT}5.DAT,
+  TMW5.102, 92 XTW5.*; remote smokes cancelled). 8. 4.0.2-controls 6ebee9b -> c2cb852 (merged before Motore's ctl_full
+  ended, per Regia/Davide; full suite at rc1). c/REL402b2 = c2cb852 (IT b77a371f, GOG IT c152732a; DATA = b1's): roundtrip,
+  controls_menu (CONTROLS_BUILD = b2) PASS. p6 WINNERS not in.
+- Motore's remote ctl_full_253d557 stopped: 23 PASS, 1 FAIL lp36_tourney = remote-only path bug (the scenario reads the
+  absolute /Users/davide/swos-mod/internal/world2526/lp36/TEAM.SRC; the server's home is /Users/davidelorigliola). rc1: run
+  lp36_tourney LOCALLY. Fix later: path relative to ROOT / WORK (MAIN), or remote_run syncing it.
+- rc runs (Regia 26/10): use BOTH machines, 4 DOSBox here + 2 remote, never one idle while the other queues.
+9. p402wn 71641f1 (p6 WINNERS: DA GIOCARE for the career league's play-off lines) -> 9befc7f: world_winners_title,
+   roundtrip PASS. 4.0.2 code COMPLETE except: world_winners_state to FORCE the Paulista results (p6 follow-up; today
+   result-dependent FAIL, statecup code untouched) and the kits A/B/C data batch.
+10. p402wn follow-up 6386078 (world_winners_state forced by a poke, no test switch; p6: PASS on release-recipe exes, 45 s)
+   -> 802884f (swostest only, py_compile OK). It needs WINNERS_BUILD = a release-recipe exe (on a scenario build it stops
+   at 'MONDO 2026-27 not reached'): run at rc1. 4.0.2 CODE COMPLETE.
+- rc1 DATA = internal/world2526/world5tm-402rc3 (402rc2 + 85 more Italian kits = 227; .md5 list digest ebc9ceee, checked;
+  tools 9befc7f). rc1 after the Thu 29 03:00 reset; a MiSTer beta 3 (c/REL402b3 at the tip) only if Davide asks before.
+- MiSTer beta 3 (Davide yes): c/REL402b3 = d2cab75 on world5tm-402rc3 (IT CD 4f3e50b6, GOG IT aff1ca72; vs REL402b2: the exes +
+  FMT{DE,EN,FR,IT}5.DAT, TMW5.102, WORLD05.TMD). roundtrip, controls_menu, world_winners_state (forced NOVORIZONTINO) PASS on b3.
+  xtra_world30 cannot run on a release dir: it reads DATA/XTRA.102 (the test build's name), the release data has XTW5.102;
+  rc1: teach the scenario the release name (XTW5.*) or keep it on the TM_EXTRA=14 test build.
+11. sdplayoff 6dfd565 (Serie C: Serie D placement play-offs FORMAT text, no promotion / repechage ranking, 4 languages;
+   fmtgame + fmtprose only) -> 78fe0c4, py_compile OK. FMT*5.DAT changes at the rc1 build. 4.0.2 code FINAL for rc1
+   (rc1 go from Davide after his MiSTer test of b3).
+12. teamstab 82fc0bb (Serie C: teamsTable 100 -> 256 B, stray club-button colours in the career team choice / domestic-buy
+   club list, Italy 2026-27 Serie D) -> 9258d42, roundtrip PASS. rc1 list += team_choice_colours (TEAMCOL_BUILD = the rc dir).
+   4.0.2 code final.
+- origin/main d44fa51 (LICENSE, MIT for the code) merged -> ae70f41.
+- MiSTer beta 4: c/REL402b4 = ae70f41 on world5tm-402rc3 (IT CD 9f0472cf, GOG IT 8e4a54ac; vs REL402b3: FMT{DE,EN,FR,IT}5.DAT +
+  the 8 exes). roundtrip, controls_menu, team_choice_colours (TEAMCOL_BUILD = b4) PASS.
+13. numhead afe7b85 (Serie C: number-over-head ROOT CAUSE = obj2's non-file tail assumed zero, only DOSBox-X zeroes it;
+   tools/tailzero.py zeroes the tail before __CMain, all 8 exes; TAILZERO_FILL_TEST=5A test builds only) -> ae6fce1.
+   rc1 list += tail_zero (static; run it on c/RELxx/SWOS AND c/RELxx/gog).
+- MiSTer beta 5: c/REL402b5 = ae6fce1 on world5tm-402rc3 (IT CD 642b871d, GOG IT 0ab0ac6b; vs REL402b4: the 8 exes only).
+  roundtrip, shirt_numbers PASS; tail_zero PASS on SWOS/ and gog/ (obj2+0xd7000..+0x1bd900 zeroed). Davide confirms on the MiSTer.
+14. contimain a75820c (Dati coppe, tooling: conti.py --test for all six confederations) -> f9a0b47; `conti.py --test afc caf concacaf conmebol fifa ofc` runs all six, rc 0 (no args = conmebol only).
+15. viewworld 06f990c (p6: VISUALIZZA MONDO opens on the world's continents / cups) -> 966efdb; rc1 list += world_viewcont.
+16. subsnum 692027f (Serie C: in-match bench list, two-digit numbers right-aligned, names +6 px) -> 09fc5f4; subs_numbers +
+   roundtrip PASS (remote). rc1 list += subs_numbers (IT only).
+- world_ns FAIL (p6: NSW5 checkw1 'no W1 block') bisected: PASS 503927b, 96ebc50, 8152e56; FAIL from 388e68f (xsq-402 merge)
+  on. Inside xsq-402: 1fc7ee0 (extended squads 30) PASS, 5cc81ef (buying players 17-30: market XTRA entries, 'XS' engine
+  item) FIRST FAIL, 819b85a / 097182d / 64852a6 FAIL. Owner: squads. Fix before rc1.
+  FIXED without code (squads, 27/10): a checker artifact - internal/career-test/checkw1.py (unversioned, live) hard-coded the
+  trailer size; since 5cc81ef saves carry 'XS' in an 'EN' block after C7. checkw1.py now accepts C7 + optional EN; world_ns
+  PASS on ec8e434 (NSW4 + NSW5). No 4.0.2 blocker left: all merged for rc1 (after Davide's beta 6 MiSTer test + go).
+- rc1 DATA now internal/world2526/world5tm-402rc4 (= rc3 + AMERICA PE rename, TREFELIN B & G, 22 namesake pairs
+  disambiguated, 105 coaches filled; kits unchanged; .md5 list digest 946ea0ce, checked; tools 09fc5f4).
+17. 4.0.2-tzdkb (Motore: MALEN darkblond + numbers 17..99 in half / EGA mode, DKB_SETUP) WITHOUT d9e9299 (TAILZERO_FILL_PART
+   grows the release stub 48 -> 64 B, not swostest-only): 1a6ab86 279ca53 e2fe391 e5d9f89 0b57606 7b73777 53107db cherry-picked
+   on branch tzdkb-int -> merge ec8e434. Serie C's numhead2 (parallel fix) NOT merged.
+18. xsv-402 015f426 (squads: other clubs' squad screens 16 + extras, display only) -> 59b36f2; rc1 += xtra_squad_views (TM_EXTRA=14).
+19. 4.0.2-fullgfx 3b1c447 (Motore: full graphics always; /H /F, low-memory rule unchanged) -> 17acd59; rc1 += full_graphics,
+   shirt_numbers + world_darkblond with SWOSTEST_EXEARGS=/H.
+20. egatest 67f5e01 (Serie C, swostest only: SWOSTEST_INTRO, shirt_numbers_ega) -> 128650f; rc1 += shirt_numbers_ega.
+- Data world5tm-402rc5 (= rc4 + MALEN face 'dark'; .md5 digest 5e67dff6, checked): rc1 data.
+- MiSTer beta 6: c/REL402b6 = 17acd59 on world5tm-402rc5 (IT CD a07c0e2d, GOG IT bde6bb1a). PASS on b6: roundtrip, full_graphics,
+  shirt_numbers, subs_numbers, world_viewcont, tail_zero (SWOS/ + gog/), /H: shirt_numbers + world_darkblond; shirt_numbers_ega
+  (128650f harness). (A first b6 at ec8e434 / rc4 was replaced before it was sent.)
+## 4.0.2 rc (27/10 night, Davide GO 01:45)
+- rc1 c/REL402rc1 @62f1a5a (data 402rc5, = b6): full split L1-L4 95 PASS + 3 FAIL (world_away_goals = load, PASS alone;
+  world_cuplist_mestre + world_winners_oldsave TRAP obj1+0x17064 in season 2 of the 4.0 saves: bisected b1 PASS / b2 FAIL
+  = the controls merge; obj2 213 -> 215 pages moved careerworld's zero-filled tail). R1 never ran remotely (remote_run
+  rsync code 24 on vanishing __pycache__ + set -e), rerun locally: 34/34 PASS; R2 remote: career_20seasons (20) PASS,
+  world_full_draw hung 3 h at its first pause on the remote (world8485 remote hang, p6 saw it too) -> local PASS. Extras
+  (28 newer scenarios) all PASS (world_uefa_double with UQ_LAYOUT from Dati coppe; xtra_squad_views after p6's xsvpath).
+- rc2 c/REL402rc2 @81d344a = rc1 + notes-402 bfe8eab + statmenu bb89ec9 + xsvpath 19e95c2 + oldsavefix dffd685 (Motore:
+  CONTROLS' data in obj1 pages, obj2 = 213 x8 again, CONVENTIONS 20). IT CD 7201bf5f, GOG IT e2e8e948; DATA = rc1.
+  PASS on rc2: mestre, oldsave, world_statmenu, xtra_squad_views, career_20seasons C20=2, world_ccc_away, tail_zero SWOS+gog,
+  roundtrip, full_graphics, controls_menu/calib, team_choice_colours, subs_numbers (remote), R2 remainder 17/17.
+- Patcher from rc2: md5 76defb19 (2107efe); Node all OK (DATA coverage 0 missing), dirtest ALL OK (4 langs, joypad incl.
+  keyboard mode, upgrades 3.3.6 / 4.0 / 4.0.1). world-2025-26 fast-forwarded to rc402-int.
+
 ## Deferred realism (4.0.2+)
+- Moldova's h2h_half groups start at 0 points (package 6, 2026-10-24; pre-existing, not option C).
+  - Facts: in Moldova's Super Liga (8 clubs, split after day 21: places 1-6 double, points 'h2h_half'; 7-8) the
+    six clubs of the title group start the group stage at 0 points. The two of the other group keep their full
+    points.
+  - The same happens on REL40hf (4.0) and on 4.0.1 (option C): the day-22 / 23 DIY snapshots have the same shape.
+    Runs: internal/swostest/go3_mda_ref (4.0), go3_mda40a, go_mda41a.
+  - 'h2h_half' should give half the points each club won against the group's other five in the first phase. Either
+    the head-to-head table is not filled in a career (sp_res is hooked only with h2h groups: check that its site is
+    reached), or the halving reads the wrong row order.
+  - 4.0.2: a world_split_h2h-style scenario that checks the group's start points against the first phase's results.
 - Odd Serie D groups, the career club resting on the last match day (Serie C session, 2026-10-23): its Poule / group
   play-off stays simulated in 4.0.1 (lastrest reverted). The tried fix (gp_lastrest: cseg_8EC2B's careerFinished loop
   also counting an unplayed slot-0 day) kept careerFinished = 0 before the rest day; PARTITA then runs
@@ -2210,3 +2329,18 @@ Left for 2.5: (a) NSL/NSSL finals series (type-1 design) or declare them postpon
 - Counts on the 4.0 rc data (wrong starters before -> after): 2026-27 clubs 2477 (0 exact -> 2281 exact, 196 best the squad
   allows), 1984-85 clubs 277 (21 original, 256 exact), 1984-85 national 18x all exact; 78 tourney/national records
   (TEAM.089-093, 146) keep their explicit hand-written lineups, which start worse than the squad allows (lineupcheck KNOWN_EXPLICIT).
+
+## 4.0.2 extended squads: 17-30 real players (branch xsq-402, 2026-10-26)
+- Engine unchanged (xtra.py hook already merged); limit raised: `extra` 1..14 (16 + 14 = 30, the game's filler cap), MAX_EXTRA 14.
+- Data: internal/world2526/mkworld_tm.py `TM_EXTRA=14` (default stays 9 = 25-man until Regia switches the release recipe; `1` = 9, `0` = off):
+  next most valuable players of the club, a 3rd keeper among them, fairness cap kept. 91 packs, 92 XTRA files, 1.3 MB; 71 clubs have 30.
+- Test: scenario `xtra_world30` (XTRA30_BUILD): CELLE VARAZZE 30 players, STEFANO CHIAIA the 30th, two seasons + save/reload.
+  Old 4.0.1-style save (25 players, made on a TM_EXTRA=9 build) loads and plays a season on the 30-man build; career_20seasons x3 (Celle Varazze) PASS;
+  xtra_squad, xtra_season PASS.
+
+## 4.0.2 buying players 17-30 of other clubs (branch xsq-402, 2026-10-26)
+- Built as in notes/world-2025-26-outsquad-buying.md ("As built"): market entries index 16.. = XTRA players of other clubs (GetPlayer hook +
+  list / row / AddCareerTeamPlayer sites), a bought one goes into the sold list (engine item 'XS', old saves: empty), no RemovePlayer.
+- Found on the way: trailer.py's world-0 engine block looped over zero items when a build had only world-only items (fixed, 819b85a).
+- Tests PASS on the TM_EXTRA=14 world: xtra_market, xtra_world30, career_20seasons x2-3 (CHISOLA / CELLE VARAZZE), an old 25-man save,
+  xtra_squad, xtra_season; IT/EN/FR/DE exes build. Not done: release recipe suite, a visual tour, EN/FR/DE market screens in a run.

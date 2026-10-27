@@ -747,14 +747,16 @@ def po_page(po, names, t, lang):
     return lines
 
 
-def _po_prose(po, names, lang):
-    """po_page in prose (4.0): who plays it in a sentence, then its rounds' lines as sentences."""
+def _po_prose(po, names, lang, ups=None):
+    """po_page in prose (4.0): who plays it in a sentence, then its rounds' lines as sentences (4.0.2: and that a
+    placement play-off of a division with promotion places gives none, fmtprose.no_promo; ups: division -> 'up')."""
     import fmtprose
     lines = po_page(po, names, T[lang], lang)
     who = fmtprose.po_who(po, names, lang, lambda n: complist._nm(n, lang))
     if not who:
         return lines
-    return {'prose': [' '.join([who] + fmtprose.sentences(lines[1:]))], 'tail': []}
+    tail = [fmtprose.NOPROMO[lang]] if fmtprose.no_promo(po, ups or {}) else []
+    return {'prose': [' '.join([who] + fmtprose.sentences(lines[1:]) + tail)], 'tail': []}
 
 
 def state_text(c, t, lang):
@@ -846,6 +848,12 @@ WN_TITLES = {   # official titles (data session, 2026-27): (country, ko_playoffs
     ('can', None): {'*': 'CPL SHIELD'},
     ('per', None): {'it': 'LIGA 1 - CLASSIFICA ACCUMULATA', 'en': 'LIGA 1 - ACCUMULATED TABLE',   # (4.0.1 rc3: no
                     'fr': 'LIGA 1 - CLASSEMENT CUMULE', 'de': 'LIGA 1 - GESAMTTABELLE'},   # regular season, Davide)
+    ('gua', None): {'it': 'LIGA NACIONAL - CLASSIFICA ANNUALE', 'en': 'LIGA NACIONAL - ANNUAL TABLE',   # (4.0.2)
+                    'fr': 'LIGA NACIONAL - CLASSEMENT ANNUEL', 'de': 'LIGA NACIONAL - JAHRESTABELLE'},
+    ('slv', None): {'it': 'PRIMERA DIVISION - CLASSIFICA ANNUALE', 'en': 'PRIMERA DIVISION - ANNUAL TABLE',
+                    'fr': 'PRIMERA DIVISION - CLASSEMENT ANNUEL', 'de': 'PRIMERA DIVISION - JAHRESTABELLE'},
+    ('par', None): {'it': 'DIVISION PROFESIONAL - CLASSIFICA ANNUALE', 'en': 'DIVISION PROFESIONAL - ANNUAL TABLE',
+                    'fr': 'DIVISION PROFESIONAL - CLASSEMENT ANNUEL', 'de': 'DIVISION PROFESIONAL - JAHRESTABELLE'},
     ('uru', None): {'it': 'CAMPEONATO URUGUAYO - CLASSIFICA ANNUALE', 'en': 'CAMPEONATO URUGUAYO - ANNUAL TABLE',
                     'fr': 'CAMPEONATO URUGUAYO - CLASSEMENT ANNUEL', 'de': 'CAMPEONATO URUGUAYO - JAHRESTABELLE'},
 }
@@ -868,6 +876,8 @@ def win_lines(comp, div, k, cc='', tfile=None):
     """The SEASON WINNERS page of division k of a league: {lang: [(title, source)]}, {} when it has no title beyond its
     table (the page's entry stays hidden). Sources (winners.py wn_src): 'L' the table's 1st once the league is over;
     'K' + pi (2 hex digits) the last tie's winner of play-off pi (gplay GP_ST.ko: the career club's, played);
+    'Q' + rule + pi (4.0.2) a national title play-off seeded by gplay.c title_seed (1 Uruguay, 2 Peru), as 'K' - and
+    its champion once one club has won both tournaments (the play-off is not played);
     'D' + stage + pi + ss a stage title decided mid-season (GP_ST.dec[stage], pi its play-off), in progress once the
     league has played more than ss days (its stage started; FFh: once its knockout is built)."""
     pos = comp.get('ko_playoffs') or []
@@ -879,7 +889,9 @@ def win_lines(comp, div, k, cc='', tfile=None):
             continue
         title_po |= po.get('kind') == 'title' and divs == {k}       # (its champion is not the table's 1st)
         st = po.get('stage') if po.get('kind') == 'stage_title' else None
-        src = f'D{st}{pi:02X}{_stage_start(div, po):02X}' if st is not None and 0 <= st < 3 else f'K{pi:02X}'
+        seed = next((e.get('rule') for e in po.get('entrants') or [] if isinstance(e, dict) and 'title_seed' in e), None)
+        src = f'D{st}{pi:02X}{_stage_start(div, po):02X}' if st is not None and 0 <= st < 3 else \
+            f"Q{ {'uru': 1, 'per': 2}[seed]}{pi:02X}" if seed in ('uru', 'per') else f'K{pi:02X}'
         for lang in LANGS:
             own = _wn_title(cc, po.get('key'), lang)
             if own and po.get('kind') == 'title':           # (Davide: 'PLAYOFF - MLS CUP', the title it gives)
@@ -912,7 +924,9 @@ def win_lines(comp, div, k, cc='', tfile=None):
     src = src and src + f'{k:02X}'                              # (+ the division: 4.0.1's last season, WN_ST 'L')
     if src:
         for lang in LANGS:
-            own = _wn_title(cc, None, lang) if title_po else None      # (the regular season's own title)
+            own = _wn_title(cc, None, lang) if title_po or tabs else None   # (the regular season's own title;
+                                                # 4.0.2: also a staged division with no title play-off - Guatemala /
+                                                # El Salvador / Paraguay: an annual table, not a title)
             lines[lang].insert(0, (_wn_fit(own, lang) if own else
                                    _wn_fit(div['name'], lang, WN[lang]['reg'] if title_po else ''), src))
     if tfile is not None and 0 <= tfile < 256:                  # 4.0.1: its key first for the last season's page (the
@@ -1075,7 +1089,8 @@ def from_pack(d):
             if po.get('kind') == 'promedio' or not po.get('names'):
                 continue
             titles = {lang: title(lang, complist._nm(po['names'], lang)) for lang in LANGS}
-            out.append((world, None, titles, {lang: _po_prose(po, lg['names'], lang) for lang in LANGS}))
+            ups = {i: dv.get('up') for i, dv in enumerate(x for lv in lg['levels'] for x in lv)}
+            out.append((world, None, titles, {lang: _po_prose(po, lg['names'], lang, ups) for lang in LANGS}))
         if comp.get('cup_d'):                   # cupd: the Coppa Italia Serie D
             nm = comp['cup_d'].get('names') or {'*': ['COPPA ITALIA SERIE D', 'COPPA IT SERIE D']}
             titles = {lang: title(lang, complist._nm(nm, lang)) for lang in LANGS}

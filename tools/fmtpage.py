@@ -46,16 +46,18 @@ fp_ov:                                  ; 4.0 CLASSIFICA GENERALE (fire): the ta
     xor byte [OV_FLAG], 1               ; (longtable.py draws it), then out of STAT as its EXIT does
     jmp EXIT_FN
 
-fp_ovinit:                              ; the statistics menu's onInit: CLASSIFICA GENERALE only for a table of one
-    pushad                              ; group of more than 24 clubs (World 2026-27: Argentina, the MLS)
-    mov esi, DIY_
+fp_ovinit:                              ; the statistics menu's onInit and onReturn (4.0.2: back from FORMULA the game
+    pushad                              ; rebuilds the menu, every entry shown): CLASSIFICA GENERALE only for a table
+    mov esi, DIY_                       ; of one group of more than 24 clubs (World 2026-27: Argentina, the MLS)
+    mov ax, 1
     cmp word [esi + 4Fh], 1
-    jne .hide
+    jne .set
     cmp word [esi + 51h], 24
-    ja .x
-.hide:
-    mov word [MENU_ + 16h + 6 * 38h + 4], 1
-.x: popad
+    jbe .set
+    xor eax, eax
+.set:
+    mov [MENU_ + 16h + 6 * 38h + 4], ax
+    popad
     ret
 
 fp_open:                                ; FORMULA (fire): the page of the competition the statistics are of
@@ -383,6 +385,9 @@ def patch(p, at, lang, area, bss, world=None, wn=False):
     sm[e4 + 2] = 7 if wn else 6                       # EXIT: up -> CLASSIFICA GENERALE (4.0: FORMULA -> it -> EXIT;
                                                          # 4.0.1 worlds: -> VINCITORI)
     ptrs.append((sm_at + 0, 1, 'fp_ovinit'))             # (the menu's onInit: the 7th entry only for long tables)
+    assert struct.unpack_from('<I', sm, 4)[0] == 0 and not any(o == moff + 4 for o, _, _ in fixes), 'stats onReturn'
+    ptrs.append((sm_at + 4, 1, 'fp_ovinit'))             # (4.0.2: and its onReturn - back from FORMULA / VINCITORI
+                                                         # the game rebuilt it with every entry shown)
     exit_text = [t for o, t in ((o, (t_obj, t_off)) for o, t_obj, t_off in fixes) if o == ents[4][0] + 22]
     exit_fn = [t for o, t in ((o, (t_obj, t_off)) for o, t_obj, t_off in fixes) if o == ents[4][0] + 28]
     assert len(exit_text) == 1 and len(exit_fn) == 1, (exit_text, exit_fn)

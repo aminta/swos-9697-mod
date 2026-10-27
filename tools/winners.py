@@ -14,9 +14,12 @@ a text line per title: the title, 01h, its source:
                league has played its hh match days (DIY +1C1h, split's day count); dd: the division (4.0.1);
   'D' s hh     a stage title decided mid-season (gplay GP_ST.dec[s] of play-off hh), else as 'K';
   'K' hh       play-off hh's last tie in gplay GP_ST.ko (the career club's play-off, played);
+  'Q' r hh     (4.0.2) a national title play-off seeded by gplay.c title_seed (rule r: 1 Uruguay, 2 Peru), as 'K'; with
+               no contest of the career club, its champion once one club has won both tournaments (gp_wn_c);
   'T' hh tt    tie tt's winner of play-off hh (an intermediate title: the MLS conference finals), as 'K'.
 A title with nothing this season is left out (no line that would never fill: a play-off the career club is not in is
-decided at the season end - 4.0.1's 'WN'); a stage title or stage table of the career's own league shows DA GIOCARE.
+decided at the season end - 4.0.1's 'WN'); a stage title, stage table or play-off ('K', 'Q', 'T'; 4.0.2) of the
+career's own league shows DA GIOCARE.
 4.0.1: then, on a page of its own, the last season ('VINCITORI 2025-26:' and the titles of the division the career
 club played in - WN_ST's 'M', the WIN text keyed 01h 'H' file division - as gplay's WN_ST holds them:
 the engine block's item 'WN', written at the career country's season end by gp_season, zeroed in an older save: no
@@ -420,7 +423,7 @@ wn_src:                                 ; esi -> a source: edx = the winner's na
     je .pi
     cmp al, 'T'
     je .tt
-    lodsb                               ; ('D' / 'S': the stage)
+    lodsb                               ; ('D' / 'S': the stage; 'Q': the title_seed rule)
     sub al, '0'
     mov bh, al
     cmp bl, 'S'
@@ -502,6 +505,8 @@ DP_CODE
     cmp al, 'T'
     je .tt
     cmp al, 'D'
+    je .ld
+    cmp al, 'Q'                         ; (4.0.2 'Q' r hh: as 'D' - skip r, then 'K' entry hh)
     je .ld
     cmp al, 'S'
     je .lsd
@@ -711,7 +716,8 @@ def patch(p, at, lang, sites):
     p.put(1, at, code)
     for o, t_obj, t_off in cfix:
         p.add_ptr(1, at + o, t_obj, t_off)
-    for off, name in ((wn['sel'], 'wn_open'), (wn['init'], 'wn_init')):
+    for off, name in ((wn['sel'], 'wn_open'), (wn['init'], 'wn_init'), (wn['init'] + 4, 'wn_init')):   # (onInit,
+                                                                                    # 4.0.2: onReturn)
         p.retarget(2, off, 1, lab[name])
         p.put(2, off, struct.pack('<I', lab[name]))
     print(f'exe: SEASON WINNERS page: entry obj2+{wn["sel"]:#x}, code obj1+{at:#x} ({len(code)} B)')
@@ -748,10 +754,12 @@ GP_CALL = """    mov [GP_WNSRC], ebx                 ; gplay.c gp_wn_c: the winn
 .nf:
     pop edx
 .none:
-    cmp bl, 'K'                         ; (a play-off without its contest: decided at the season end)
-    je .skip
-    cmp bl, 'T'
-    je .skip
+    cmp bl, 'T'                         ; (a play-off without its contest: decided at the season end - 4.0.2: DA
+    je .nm2                             ; GIOCARE in the career's own league, as a stage title; else no line)
+    cmp bl, 'K'
+    je .nm2
+    cmp bl, 'Q'
+    je .nm2
     cmp bl, 'D'                         ; (a stage title: IN CORSO once its stage has a day played)
     jne .nm2
     movzx ecx, byte [WN_SS]

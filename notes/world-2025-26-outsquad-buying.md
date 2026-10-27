@@ -1,0 +1,149 @@
+# Buying players 17-30 of other clubs (4.0.2 design note, 2026-10-26; nothing coded)
+
+## What the game does (ref/swos.asm)
+- Home market = `homeMarketPlayers` (max 25 entries x 4 bytes): word = team number (low byte team file, high byte club ordinal),
+  byte = player index 0..15 in that club's record, 1 pad. Filled by `FillCareerTeamPlayers` (InitializeNewSeason) and refilled
+  by `cseg_5509D` (weekly: drops random entries via `cseg_8DF16`, adds with `AddCareerTeamPlayer` up to 25).
+- `AddCareerTeamPlayer`: random club of the SAME country (the career's selected-teams buffer), random index `Rand2 & 0xF`,
+  accepted when its price is within [lowest, highest + 3] of the managed squad, not a midfielder/bench (shirtNumber bit 2 test),
+  not already listed (`IsPlayerInCareerContest`), then `AddPlayerToCareerContest` stores (team, index).
+- Display / pick (`cseg_5A227` list, `cseg_5A4FE` filter): per entry `VerifyTeamLoaded(team)` -> A0 = team record, then
+  `+ index * 0x26 (38)` -> the PlayerFile. Index >= 16 would run into the next club's record: every consumer computes the pointer
+  this way (about 40 `VerifyTeamLoaded` callers in the exe; the market ones: list, view, offer/buy `BuyPlayerMenu` -> `cseg_54063`,
+  `cseg_55F53` offers, `RemovePlayerFromTeam` -> `cseg_546DF`/`cseg_547AC`).
+- Foreign market = POOLPLYR.DAT (900 fixed players, `AddRandomForeignMarketPlayer`): untouched by this work.
+- Purchase: the player's 38 bytes are copied into the next free slot of `careerTeam` (cap `careerNumPlayers`, `cseg_547AC` drops
+  offers at 32), the seller club loses him through `RemovePlayerFromTeam` (rewrites the 16 of the seller's record).
+
+## Design
+1. **Index 16..29 = the club's XTRA player (idx-16).** Entries keep the same 4-byte format, so the list, `IsPlayerInCareerContest`,
+   the weekly drop/refill and the .CAR (homeMarketPlayers sits in the fixed part) need no format change.
+2. **One pointer helper** `xt_player(team, idx)` replacing `team + 76 + idx*38` at the market consumers: idx < 16 as the game,
+   else a pointer into a small cache of XTRA blocks (the club's file read once, 2-4 files cached, the same `int 21h` read as
+   xtra_read; sold players zeroed in the cache). Needs a trace of each consumer's pointer arithmetic (list, view, offer, buy): ~6 sites.
+3. **Picking** (`AddCareerTeamPlayer`): index drawn from 0..(16+count-1) of the chosen club (count from the XTRA header); the price test uses
+   the extra's price (already capped <= the weakest of its club's 16, so they are cheap players: right for small managed clubs,
+   rarely in range for rich ones - to accept; wage from our scale = the game's own formula over price, 66%/33% flags unchanged).
+4. **Buying an extra**: the 38 bytes go into our squad exactly like a normal purchase; instead of `RemovePlayerFromTeam` on the
+   seller's record (it would rewrite the 16 and shift players), the player is added to the **sold list**. Cap: purchase blocked
+   by the game at 32; our fillers stop at 30 (as now).
+5. **State = sold list in the .CAR trailer** (the mod already writes chunks there: 'C1'..'C3', 'S3'...): new chunk 'XS' = n + n x
+   (team word, extra idx), written at save, read at load; applied (a) in the XTRA cache (zeroed names) and (b) in `xtra_load`
+   (a club we later manage does not get a player we bought). Old saves have no chunk = empty list (loads as before); a chunk read by
+   an old exe is ignored. Max 25-50 entries a season is enough; cap 256.
+6. Not in scope: CPU clubs never trade; a bought player also bought by another club does not exist (CPU clubs do not buy).
+
+## Risks
+- The 6-ish pointer sites (one missed = reads the next club's bytes or int 3): mitigated by a scenario per screen (list, view, offer, buy, sell).
+- Idx >= 16 entries left in a saved homeMarketPlayers when an old exe loads the save (not supported, one-way).
+- homeMarketPlayers weekly refill picks the managed club's own file/ordinal: skip entries of the managed club itself (already the game's rule).
+
+## Plan and estimate (own branch off the tip after xsq-402; NO merge)
+| Step | Work | h |
+|---|---|---|
+| 1 | trace the market consumers' pointer arithmetic, list them in ref/addrmap | 2-3 |
+| 2 | xt_player + XTRA multi-file cache + idx range in AddCareerTeamPlayer | 3-4 |
+| 3 | buy path: skip RemovePlayerFromTeam for idx >= 16, sold list, wages/cap | 2-3 |
+| 4 | .CAR trailer chunk 'XS' + old-save check (feedback_swos_load_hooks) | 2 |
+| 5 | scenarios: list shows an extra (name/price), buy it, squad = n+1, not buyable twice, season + save/reload, old 4.0.1 save, career_20seasons x2 | 4-5 |
+Total about 13-17 h (2-3 sessions). Test case: a Serie D career sees a Celle Varazze extra in the market, buys it, it is gone from the list and
+from Celle Varazze's block after a reload.
+
+## As built (2026-10-26, branch xsq-402)
+Everything is in tools/xtra.py (cave code, same page group; patch.py gives the xtra pages one more page when XTRA is on).
+- `xtra_readto` (ax = team word, edi = dest) is xtra_read's file reader made general; `xt_block` = cache of 4 clubs' blocks (round
+  robin, flushed when the world's XTRA name changes), entry = dw team, db players, db valid, 14 x 38.
+- **GetPlayer is the one accessor**: its `call GetTeamPointer` -> `gp_wide` (D1 >= 16 of another club -> A0 so that A0 + idx*38 = the
+  XTRA slot). That covers the offer / buy / third-party flow (about 14 functions). Two sites do their own `team + idx*38`:
+  the market row (cseg_5A017: `mov [A0], eax` -> mp_a6) and the market list (cseg_5A227: `add [A0], eax` -> mp_a1).
+- AddCareerTeamPlayer: after its index draw (`mov [D2+2], dx` -> `xt_pick`): one Rand2, uniform over 16 + extras; a blank slot (bought)
+  keeps the game's own pick. The weekly refill and cseg_8DF16 / IsPlayerInCareerContest need nothing (entries keep the 4-byte format).
+- **Sold list**: cseg_56379's last `call cseg_56615` -> `xt_sold` (D0 team, D1 idx restored; the player was already copied): index >= 16 of
+  another club -> (team word, index) in `xsold` (128 x 3 B, marker 'XSLD' for the harness), the cache block blanked. Not applied to
+  xtra_load / wages (a club managed later gets its block back: the bought player left with us). Saved as engine item 'XS' (world_only,
+  `engine.save_item` + ITEM_AT in xtra.patch); an old save has none -> zeroed at load.
+- The 30-player cap is the game's own (cseg_584D7: TOO_LARGE_SQUAD above 30): a 30-man club must sell first.
+- Seen: the weekly market of CHISOLA had 3 XTRA players among 13 entries; the list / offer / squad screens show them (shots in the run dir).
+- Tests: `xtra_market` (XTRA30_BUILD; CHISOLA buys a LIGORNA extra, list / offer / squad / save / reload / list again / match day);
+  career_20seasons x3 at CHISOLA, an old 25-man save on the new exe, xtra_world30, xtra_squad, xtra_season.
+- Users: a 4.0.2 save whose market lists such a player (or whose sold list is not empty) is one-way: older versions would read index
+  16.. past the club's record. Release-note line to add.
+
+## Part 2 (design, 2026-10-26): the extras findable IN THEIR CLUB (club browse: TRASFERIMENTI > ACQUISTA GIOCATORE >
+## ACQ. ALTRO GIOCAT. NAZION. / STRANIERO > country > division > group > club > its player list)
+Seen in a run (Celle Varazze career; pictures in the run dir): the club's player list is `buyOtherPlayersMenu` (shared by the national and the
+foreign path): entry 0 title, 1 club name, 2 ESCI (x122 y185), then a template row x16 (y27 + 9r, 8 px each, ends ~y171). Rows are drawn by
+`BuyOtherPlayersAfterDrawCommon` and picked by `BuyOtherPlayersCommon`: row r -> `GetPlayerInfoBreakPosition` (first 11 rows through
+the club's tactic positions, the rest as the record) -> `GetPlayerAtIndex` (record index 0..15 only; >= 16 of another club = `int 3`) ->
+D1 = the player's index -> `cseg_54C1E(team, index)` = the offer flow, which already takes index >= 16 since part 1 (GetPlayer hook).
+So the whole offer / buy / sold-list / 30-cap flow is reused as is; what is missing is only the LIST.
+- **Space**: 16 rows fill the screen (27..171 + ESCI at 185): 30 rows do not fit. Proposal = **two pages**, like the mod's own FORMAT /
+  WINNERS pages: a new button PAG. SUCC. / PAG. PREC. (IT / EN NEXT PAGE / FR PAGE SUIV. / DE as fmtpage's dict) beside ESCI, shown only for a
+  club with extras. Page 1 = the 16 of the record exactly as today; page 2 = the club's extras (up to 14 rows, sold ones skipped = the rows
+  stay compact), same row look (number, name, position, nationality, skills, price).
+- **Build**: (1) the menu gets one more entry (the button, last index = 19): copy `buyOtherPlayersMenu` into the cave with the entry appended
+  and retarget its 2 users (BuyOtherDomesticPlayer / ForeignPlayer) - precedent kitcolors.py (playMatchMenu + entry 68);
+  (2) page variable, reset in BuyOtherPlayersInit; the button's select function toggles it and redraws (SetCurrentEntry + DrawMenu as
+  BuyOtherPlayersCommon does); label switches NEXT / PREV; hidden when the club has no extras (xt_block count - sold);
+  (3) on page 2 the row hooks replace GetPlayerInfoBreakPosition's result: draw -> A0 = XTRA slot - 4Ch (xt_slot), rows beyond the count draw
+  nothing; select -> D1 = 16 + slot index, then the unchanged `cseg_54C1E`; (4) both hooks are in the BuyOther* functions only.
+- **Other places a club's squad is listed** (checked): (a) `VIS. SQUADRA` in the transfer menus = the MANAGED club's own squad screen
+  (already shows all 30, scrolls) - nothing to do; (b) SELECT TEAM / competition table > club squad views and the opponent view before a
+  match show the 16 of the record: a CPU club plays with its 16, so showing extras there would suggest they play - I recommend they stay
+  at 16 (only the transfer browse shows 16 + extras); (c) VISUAL. SQUADRE SELEZ. (national selectors) is the national-team mode - unchanged.
+  If Davide wants (b) too: the squad screen of another club is the big squadMenu (64 entries, tactics layout) - a separate item, 8-12 h.
+- **Risks**: the new menu entry's navigation links (up/down to ESCI) and the cursor after a page flip; a club with 16 (no extras) must look
+  identical to today (button hidden); both menus' fixups.
+- **Tests**: scenario `xtra_club_browse`: path to LIGORNA, page 1 = 16 rows (screenshot identical in structure), button, page 2 lists its 11
+  extras (shot), pick one > the offer screen (name, price), buy (30 cap checked on CELLE VARAZZE: TOO_LARGE_SQUAD message), sold row
+  gone from page 2 and the button hidden when none left; save / reload; a club without extras: no button; EN / FR / DE labels.
+- **Estimate** 13-15 h: menu copy + button + page logic 6-7, row draw / select hooks 3, scenarios + pictures 3-4, 4 languages 1.
+
+### Part 2 as built (2026-10-27, tools/xbrowse.py, commit 097182d)
+- The menu is `buyOtherPlayersMenu` copied into the cave with entry 31 (the template's cells are entries 19..30, rows 3..18); the 2 users
+  retargeted; the button is hidden by the first row's draw (xb_vis: xb_n extras; NOTE CalcMenuEntryAddress clobbers ebx).
+- Page 2: row r = the r-th non-blank cached slot; the shown number = row + 17 (their shirt numbers also start at 17); empty rows draw
+  nothing; if the last extra was bought while on page 2 the list falls back to page 1.
+- Found: the game writes a REPLACEMENT player into the seller's slot after a purchase (cseg_56615): with the cache that overwrote the
+  sold slot (a "Robinho Naso" extra appeared); xt_sold now calls the game's tail first, then blanks the slot again.
+- Menu texts per language = fmtpage's NEXT / PREV; EN / FR / DE builds compile (screens not looked at yet).
+
+## Part 3 (design, 2026-10-27): every club squad view shows 16 + extras (display only)
+Screens that list another club's squad (all through the game's squad menu `squadMenu` with the club's record in dseg_16F486, or
+`ViewSquad*`): competition / table > club, SELECT TEAM > club squad, the opponent view in a career or season. Our own squad screen already
+scrolls (SquadFinish: dseg_16F484 = the player count: 16, or careerNumPlayers for the managed club; > 16 enables the page arrows, menu
+entries 44 / 45). So the paging UI exists; what is missing is the data for another club:
+- **Central hook**: GetPlayerAtIndex's `@@total_error` branch (index >= 16 of a club that is neither the current nor the managed team = `int 3`
+  today): index 16 + k -> the club's k-th extra still there (xt_block, sold skipped) -> A0 = slot - 4Ch, D1 = 16 + slot, then GetPlayer as now.
+  35 callers, all of them pass 0..15 today, so only the squad screens that ask for more are affected.
+- **Count**: SquadFinish's `mov D0, 16` branch (other club) becomes 16 + the club's extras (xt_block count), so the arrows appear.
+- **Rows / summaries**: the squad screen's per-row draw (SquadAfterDrawCommon, +479 GetPlayerInfoBreakPosition) and the totals loop
+  (cseg_114EC: `D7 = 16 - 1`, over currentMatchPlayers for the managed club, the record's playerNumbers for others) must take the extras:
+  the totals (average skill / value) keep the 16 (a CPU club plays with them; the extras are display only) - to confirm in a run.
+- **Display only**: nothing is written: the pre-match line-ups, the bench of 5, the match squad (currentTeam / playerPositions) and the
+  record stay at 16; swap / formation actions on another club's squad are not offered by the game (to verify), the extras rows are
+  not selectable for any action except the transfer browse (part 2).
+- **Risks**: the squad menu is the biggest menu (64 entries, tactic layout, national-selector mode, 4 languages); a viewer that loops
+  over 16 only is fine, one that sizes a buffer by the count is not (watch cseg_114EC and SetBenchPlayersNumbers); the row-skip of sold
+  extras must match between pages.
+- **Estimate** 12-16 h: GetPlayerAtIndex hook 2, SquadFinish count + arrows 2, row draw / totals / ViewSquad 4-5, scenarios (table > club,
+  opponent view, selector squads unchanged, a club with 16, a bought extra gone, save / reload, match line-up unchanged: harness
+  line-up check) + pictures 4-5, 4 languages 1.
+
+### Part 3 findings (2026-10-27): where another club's squad is listed for a career user of the 2026-27 world
+Walked in the harness (pictures in the run dirs, IT exe): (a) VISUAL. COMPETIZ. / VISUALIZZA MONDO > competition > table / STAT: no club squad (rows are not selectable); (b) transfer
+offers (VISUAL. OFFERTE > an offer): VIS. SQUADRA = OUR squad (the buyer's is not offered); (c) the pre-match screen shows the two MATCH line-ups (16);
+(d) ACQUISTA GIOCATORE > VIS. SQUADRA = our squad; (e) club browse (ACQ. ALTRO GIOCAT. NAZION. / STRANIERO) = the only list of another club's
+players: DONE (part 2). The game's squad screen for ANOTHER club (SelectAndShowSquadToView, StatsViewSquads: SELECT TEAM > VIEW TEAM, season / tournament
+standings > VIEW SQUADS) is reached only in friendly / season / tournament modes, where this build offers only the 1996 data and DDR 1988-89
+(no XTRA files): no 2026-27 club can be viewed there. The GetPlayerAtIndex / SquadFinish extension of part 3 is therefore NOT built (it could
+not be tested in any reachable screen); design stays as above if a mode ever lists world clubs.
+
+### Part 3 as built (2026-10-27, branch xsv-402 off bd2317a, tools/xbrowse.py xs_*): squad screen of ANOTHER club, display only
+My first walk (above) missed STAT > VIS. SQUADRE: in a career, VISUALIZZA MONDO > ... > competition > STAT > VIS. SQUADRE > club (and the same through
+VISUAL. COMPETIZ. > division > STAT) opens the squad menu for that club (16 rows, ESCI). Built: GetPlayerAtIndex's index >= 16 branch (was `int 3`) maps 16 + r to
+the club's r-th extra (xs_ga, then GetPlayer / gp_wide); SquadFinish's last call is wrapped (xs_tail): for a club that is not the managed one with extras,
+the menu's hidden entry 6 (PRATICA) becomes a green PAG. SUCC. / PAG. PREC. button left of ESCI (56 px, clear of the coach's name: Davide 27/10);
+the two GetPlayerInfoBreakPosition calls of the squad menu (draw, select) add 16 to the row on page 2 (xs_row; rows past the extras draw / pick nothing).
+Page 1 is the unchanged 16; nothing is written (the record is compared byte by byte in xtra_squad_views); line-ups, bench of 5, match squads untouched.
+Other team views in a career: ANDAMENTO CLUB = finances (no squads); pre-match = match line-ups (16, unchanged); offers' VIS. SQUADRA = our own squad.

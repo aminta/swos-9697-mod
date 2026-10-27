@@ -358,9 +358,16 @@ w_noaway:                               ; ZF = 1 in a career of a world from 202
 
 w_away1:                                ; replaces UpdateTime's `cmp word [playing2ndGame], 1` before `jz
     call w_noaway                       ; @@2nd_game_ended` (90': level on the night, the away goals decide)
-    jz .no
+    jz .x
+.p2g:
     cmp word [P2G], 1
     ret
+.x:
+    push esi                            ; (4.0.2: a continental cup whose rule keeps away goals - CONCACAF, CAF:
+    xor esi, esi                        ; conti's ct_away, the loaded contest; not after extra time, w_away2)
+    call w_ct_away
+    pop esi
+    jz .p2g
 .no:
     or esp, esp                         ; (no away goals: not taken -> extra time / penalties as the round says)
     ret
@@ -377,11 +384,15 @@ w_away2:                                ; replaces `mov ax, [playing2ndGame]; or
 
 w_away3:                                ; replaces cseg_2AE97's `cmp word [esi+5Dh], 1` (a simulated two-legged tie
     call w_noaway                       ; level on aggregate after 90': the contest's away-goals flag)
-    jz .no
+    jz .x
     cmp word [esi + 5Dh], 1
     ret
+.x:
+    call w_ct_away                      ; (4.0.2: a continental cup's away goals, esi = its DIY: ZF = 1 -> taken)
+    jz .r
 .no:
     or esp, esp                         ; (no away goals: jnz taken -> extra time / penalties)
+.r:
     ret
 
 w_away4:                                ; replaces its `mov ax, [esi+5Dh]; or ax, ax` (after extra time)
@@ -468,7 +479,7 @@ w_mrec:                                 ; replaces `add word [D1], 1996; add wor
     pop ebx
     jmp %2
 %endmacro
-W_SWAP w_view, CHOOSECOMP, 0
+W_SWAP w_view, CHOOSECOMP, 1               ; (4.0.2, Davide: VIEW WORLD as well - no one-entry CLASSIC CAREERS menu)
 W_SWAP w_buy, CHOOSETEAMS, 1
 
 w_nat:                                  ; replaces `mov ax, [D0]; mov [lastNationalityCall], ax`: no national team
@@ -955,6 +966,15 @@ w_holders:                              ; replaces `call cseg_92BBF`: in a world
     mov ax, [ebx]
     cmp ax, 0FFFFh
     je .n
+    mov edx, esi                        ; 4.0.2 (uefaq O_HKEEP): a holder already in a higher league phase's list
+    sub edx, HOLDTAB_LP                 ; (the UECL winner who won the league) is not appended again; the league-phase
+    jb short .nk                              ; table's rows only (the classic table lies before it)
+    shr edx, 4
+    cmp edx, 2
+    ja short .nk
+    cmp byte [w_hkeep + edx], 0
+    jne short .n
+.nk:
     mov edi, [esi + 4]
     mov edi, [edi]
     mov edx, [esi + 8]
@@ -993,10 +1013,21 @@ w_q_fill:                               ; patched to `jmp uq_fill` by uefaq.py
 w_ct_fill:                              ; patched to `jmp ct_fill` by conti.py (the other confederations' cups)
     ret
     times 4 nop
+w_ct_away:                              ; patched to `jmp ct_away` by conti.py: ZF = 1 when the contest (esi = its DIY,
+    or esp, esp                         ; 0: the loaded one) keeps away goals after 90' in a world without them
+    ret                                 ; (4.0.2: CONCACAF / CAF); else ZF = 0
+    times 3 nop
 w_chk_tot0q:                            ; the record count before the holders: in a league-phase world the
     call w_q_fill                       ; qualifying rounds' clubs go into the lists first (uefaq)
     call w_ct_fill                      ; (conti: the other confederations' editions, world-wide)
-    jmp w_chk_tot0
+    cmp byte [w_hkeep + 2], 0           ; 4.0.2: the UECL holder already in the Champions League list is no record
+    jz w_chk_tot0                       ; to append later: the game's total (holders - 3) is one more than the table's
+    dec word [CFB]
+    call w_chk_tot0
+    pushfd
+    inc word [CFB]
+    popfd
+    ret
 w_chk_totq:                             ; the last record count check, then (uefaq) the record of the career
     call w_chk_tot                      ; club's qualifying-tie opponent
     pushfd
@@ -1137,6 +1168,7 @@ DG_TICKS: dd 0
 DG_ARMED: db 0, 0, 0, 0
 %endif
 WH_SAVE: dw 0FFFFh, 0FFFFh, 0FFFFh, 0
+w_hkeep: db 0, 0, 0, 0                  ; (uefaq uq_fill: per holder row, 1 = already in a higher league phase's list)
 HOLDTAB:
     dd HOLD_CC, LIST_CC, CNT_CC, BUF_CC
     dd HOLD_CWC, LIST_CWC, CNT_CWC, BUF_CWC

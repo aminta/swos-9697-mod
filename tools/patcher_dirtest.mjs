@@ -175,6 +175,47 @@ for (const lang of ['it', 'en', 'fr', 'de']) {
       fs.writeFileSync(path.join(dir, 'dosbox_SWOS.conf'), c, 'latin1'); T.setJoy(true, false); await T.installDir(new DH(top), say);
       const t = fs.readFileSync(path.join(dir, 'dosbox_SWOS.conf'), 'latin1');
       ok(/\[joystick\]\r\njoysticktype=fcs\r\ntimed=false\r\n/.test(t), `${lang} joypad conf without the two lines: inserted in [joystick]`); }
+    { // 4.0.2 keyboard mode (box 3, GOG only): SETUP.DAT keyboard only (factory), conf fcs + timed=false, the keyboard-mode mapper;
+      // switching modes swaps mapper + SETUP.DAT both ways; unticking undoes it all
+      const keys = path.join(M, 'tools/mapper-SVN.keys.map'), calf = path.join(M, 'tools/setup_calibrated.dat');
+      const conf = d => fs.readFileSync(path.join(d, 'dosbox_SWOS.conf'), 'latin1'), mapf = d => path.join(d, 'mapper-SVN.map');
+      { const [top, dir] = joyGame('joykey', true, 'GOG', null);
+        T.setJoy(true, false, true); await T.installDir(new DH(top), say); const l1 = log.at(-1);
+        ok(same(path.join(dir, 'SETUP.DAT'), fac('GOG')) && !fs.existsSync(path.join(dir, 'SETUP.DAT.bak')) && conf1ok(conf(dir)) &&
+           same(mapf(dir), keys) && !fs.existsSync(mapf(dir) + '.bak') && l1.includes(J.kalready) && l1.includes(J.kmap) && !l1.startsWith('!'),
+           `${lang} joypad keyboard mode, fresh GOG: factory SETUP.DAT kept, conf fcs + timed=false, keyboard-mode mapper written, logged`);
+        T.setJoy(true, false, false); await T.installDir(new DH(top), say); const l2 = log.at(-1);
+        ok(md5(path.join(dir, 'SETUP.DAT')) === cal && same(path.join(dir, 'SETUP.DAT.bak'), fac('GOG')) && same(mapf(dir), dpad) &&
+           !fs.existsSync(mapf(dir) + '.bak') && l2.includes(J.done) && l2.includes(J.map), `${lang} joypad keyboard mode -> calibrated mode: SETUP.DAT calibrated, d-pad mapper`);
+        T.setJoy(true, false, true); await T.installDir(new DH(top), say); const l3 = log.at(-1);
+        ok(same(path.join(dir, 'SETUP.DAT'), fac('GOG')) && same(mapf(dir), keys) && l3.includes(J.kdone) && l3.includes(J.kmap),
+           `${lang} joypad calibrated -> keyboard mode: factory SETUP.DAT back from the .bak, keyboard-mode mapper`);
+        T.setJoy(true, false, true); await T.installDir(new DH(top), say); const l4 = log.at(-1);
+        ok(same(path.join(dir, 'SETUP.DAT'), fac('GOG')) && same(mapf(dir), keys) && l4.includes(J.kalready) && !l4.includes(J.kmap),
+           `${lang} joypad keyboard mode again: nothing changed`);
+        T.setJoy(false, false, false); await T.installDir(new DH(top), say); const l5 = log.at(-1);
+        ok(same(path.join(dir, 'SETUP.DAT'), fac('GOG')) && conf(dir) === conf0 && !fs.existsSync(mapf(dir)) && l5.includes(J.undone),
+           `${lang} joypad keyboard mode unticked: conf back, our mapper removed, logged`); }
+      { const [top, dir] = joyGame('joykeycal', true, null, dflt); fs.copyFileSync(calf, path.join(dir, 'SETUP.DAT'));   // calibrated, no .bak
+        T.setJoy(true, false, true); await T.installDir(new DH(top), say);
+        ok(same(path.join(dir, 'SETUP.DAT'), fac('GOG')) && same(mapf(dir), keys) && same(mapf(dir) + '.bak', dflt),
+           `${lang} joypad keyboard mode over a calibrated SETUP.DAT without .bak: GOG's factory file, GOG's default mapper -> .bak`);
+        T.setJoy(false, false, false); await T.installDir(new DH(top), say);
+        ok(same(mapf(dir), dflt) && conf(dir) === conf0, `${lang} joypad keyboard mode unticked: GOG's default mapper back`); }
+      { const [top, dir] = joyGame('joykeycloud', true, 'GOG', null); fs.mkdirSync(path.join(dir, 'cloud_saves'));
+        const cs = path.join(dir, 'cloud_saves', 'SETUP.DAT'); fs.copyFileSync(calf, cs);
+        T.setJoy(true, false, true); await T.installDir(new DH(top), say); const l1 = log.at(-1);
+        ok(same(cs, fac('GOG')) && same(path.join(dir, 'SETUP.DAT'), fac('GOG')) && l1.includes(J.cloud + ' ' + J.kdone),
+           `${lang} joypad keyboard mode, cloud_saves calibrated: both SETUP.DAT keyboard only, logged`); }
+      { const mine = path.join(R, 'mine-k.map'); fs.writeFileSync(mine, 'key_up "key 273"\r\n');
+        const [top, dir] = joyGame('joykeymine', true, 'GOG', mine);
+        T.setJoy(true, false, true); await T.installDir(new DH(top), say);
+        ok(same(mapf(dir), mine) && !fs.existsSync(mapf(dir) + '.bak') && log.at(-1).includes(J.mapkeep), `${lang} joypad keyboard mode, own mapper: untouched, logged`); }
+      { const [top, dir] = joyGame('joykeycd', false, 'CD', null);          // a CD folder: keyboard mode is for GOG's DOSBox only
+        T.setJoy(true, false, true); await T.installDir(new DH(top), say);
+        ok(same(path.join(dir, 'SETUP.DAT'), fac('CD')) && !fs.existsSync(mapf(dir)), `${lang} joypad keyboard mode, CD folder: nothing`); }
+      T.setJoy(true, false, false);
+    }
     T.setJoy(true, false);
   }
   { const w = path.join(R, 'wrong'); fs.rmSync(w, { recursive: true, force: true }); fs.mkdirSync(w); fs.writeFileSync(path.join(w, 'x.txt'), 'x');

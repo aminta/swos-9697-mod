@@ -39,10 +39,12 @@ import struct
 WEEKS = 0x1CD                   # DIY: the match days' weeks, a byte per day (cseg_2730A), up to +2B3h (the rows)
 import os as _os
 NMAX = int(_os.environ.get("SPLIT_NMAX", 30))   # (the state's layout follows it: 30 = Argentina's 30 rows, MAXDAYS 40)
-OFF = dict(magic=0, entry=2, frozen=4, kept=5, p2r=6, grp=6 + NMAX, pre=6 + 2 * NMAX, h2h=6 + 4 * NMAX)
-ST_SIZE = OFF['h2h'] + 64       # (24: 166)
+OFF = dict(magic=0, entry=2, frozen=4, kept=5, p2r=6, grp=6 + NMAX, pre=6 + 2 * NMAX)
+ST_SIZE = 6 + 4 * NMAX          # (4.0.1: the 64-byte head-to-head / 'keep' block left the DIY: sp_sh / sp_shx)
 ST = 0x2B3 - ST_SIZE            # our state: the end of the weeks table (a split league has at most MAXDAYS days);
-MAXDAYS = ST - WEEKS            # 64     never in the rows (some routines walk all 64 rows by their team dword)
+MAXDAYS = ST - WEEKS            # 104    never in the rows (some routines walk all 64 rows by their team dword)
+ST_40 = 0x2B3 - ST_SIZE - 64    # 4.0's state place (1F5h), its block at ST_40 + ST_SIZE: moved by sp_migrate at a load
+SH_SIZE = 2 + 64                # engine item 'SH': the career league's key (team file, division) + its block
 MAGIC = 0x50FE                  # (FEh: never a week)
 POINTS = {'full': 0, 'half_up': 1, 'half_down': 2, 'reset': 3, 'h2h_half': 4, 'half_down_h2h': 4}
 H2H_NMAX = 8                    # head-to-head points: n x n bytes after the state (rows 48-63 end at ST + 288)
@@ -55,9 +57,9 @@ ASM = r"""
 %define S_P2R    ST_ + 6
 %define S_GRP    ST_ + O_GRP
 %define S_PRE    ST_ + O_PRE
-%define S_H2H    ST_ + O_H2H
-
-%define S_KEEP   ST_ + O_H2H              ; (the head-to-head bytes: never in one league with a 'keep' stage)
+; 4.0.1: the head-to-head points / 'keep' table (64 bytes, never both in one league) are not in the DIY any more:
+; [sp_shp] -> sp_sh + 2 (the career league's, saved: engine item 'SH') or sp_shx (any other league: the season end's
+; simulation plays it in one go), chosen by sp_shsel from the league's entry
 %define E_CNT    8
 %define E_FIRST  10
 %define E_PAIRS  12
@@ -119,6 +121,14 @@ sp_init:                                ; replaces `call cseg_2653B` at the end 
     sub eax, SP_TAB
     mov [ebx + S_ENTRY], ax
     mov byte [ebx + S_FROZEN], 0
+    pushad                              ; (4.0.1: its head-to-head / 'keep' block zeroed - sp_shsel keys 'SH')
+    mov edx, edi
+    call sp_shsel
+    mov edi, [sp_shp]
+    mov ecx, 64
+    xor eax, eax
+    rep stosb
+    popad
     movzx eax, byte [edi + 4]
     mov [ebx + 5Dh], ax
     mov [ebx + 5Fh], ax
@@ -254,6 +264,7 @@ sp_restregs:
 
 sp_entry:                               ; -> edx = the DIY league's entry, esi = DIY; ZF = 1 when none / no split
     mov esi, DIY
+sp_entry_at:                            ; (esi = a league buffer: sp_migrate's DIY / CFB)
     xor edx, edx
     cmp word [esi + S_MAGIC], MAGIC_
     jne .no
@@ -299,6 +310,7 @@ sp_entry:                               ; -> edx = the DIY league's entry, esi =
     jmp .no
 .ok:
     pop eax
+    call sp_shsel
     cmp byte [edx + 6], 0
     je .no
     or esi, esi                         ; (ZF = 0)
@@ -457,10 +469,11 @@ sp_freeze:                              ; esi = DIY, edx = entry, eax = stage, e
     jz .nokeep
     mov byte [esi + S_KEPT], 1
     xor ecx, ecx
+    mov edi, [sp_shp]                   ; (the block: sp_freeze's caller saved edi with pushad)
 .keep:
     movzx eax, word [esi + 6Dh + ecx * 2]
     mov bx, [esi + eax + 2C3h]
-    mov [esi + S_KEEP + 22 + ecx * 2], bx
+    mov [edi + 22 + ecx * 2], bx
     push edx
     push ecx
     xor edx, edx
@@ -468,7 +481,7 @@ sp_freeze:                              ; esi = DIY, edx = entry, eax = stage, e
     div ecx
     pop ecx
     pop edx
-    mov [esi + S_KEEP + ecx], al
+    mov [edi + ecx], al
     inc ecx
     cmp ecx, [sp_n]
     jb .keep
@@ -594,7 +607,8 @@ sp_freeze:                              ; esi = DIY, edx = entry, eax = stage, e
     jae .hd
     movzx edx, byte [esi + S_P2R + ecx]
     add edx, eax
-    movzx edx, byte [esi + S_H2H + edx]
+    add edx, [sp_shp]
+    movzx edx, byte [edx]
     add ebp, edx
     inc ecx
     jmp .hq
@@ -1001,10 +1015,10 @@ sp_res:                                 ; replaces `add word [esi+1BDh], 1` in c
     mov eax, edi
     imul eax, ecx
     add eax, ebx
-    lea eax, [esi + S_H2H + eax]        ; home's points against away
+    add eax, [sp_shp]                   ; home's points against away
     imul ebx, ecx
     add ebx, edi
-    lea ebx, [esi + S_H2H + ebx]        ; away's against home
+    add ebx, [sp_shp]                   ; away's against home
     mov cx, [D1]
     cmp cx, [D2]
     je .draw
@@ -1156,6 +1170,94 @@ sp_sst: db 0
 sp_W: db 0
 sp_div: dd 0
 sp_tmp: times NMAX_ dw 0
+sp_shp: dd sp_shx                       ; the block in use (sp_shsel)
+sp_sh:  times 66 db 0                   ; engine item 'SH': the career league's key (team file, division) + its block
+sp_shx: times 64 db 0                   ; any other league's block (the season end's simulation)
+
+sp_shsel:                               ; edx = an entry -> [sp_shp]: the career league's block or the scratch one
+    push eax                            ; (gplay's GP_SHB[0] / [1]: 'SH', the scratch - gp_keep)
+    mov eax, sp_shx
+    push ecx
+    mov cx, [edx + 1]                   ; (the key: team file, division | 80h - a zeroed 'SH' never matches)
+    or ch, 80h
+    cmp cx, [sp_sh]
+    je .c
+    cmp word [SIMFLAG], 0               ; the career league - outside the simulations, holding the career club
+    jne .n                              ; (a league only viewed has no career club) - gets 'SH': keyed to it, its
+    push esi                            ; block zeroed (another league's, or none, was there; a save's or
+    push edx                            ; sp_migrate's key already matches)
+    mov esi, DIY
+    movzx edx, word [esi + 31h]
+    mov ax, [CAREERTEAM]
+    test ax, ax
+    jz .nt
+.ct:
+    test edx, edx
+    jz .nt
+    cmp [esi + 12Dh + edx * 2 - 2], ax
+    je .yes
+    dec edx
+    jmp .ct
+.nt:
+    pop edx
+    pop esi
+    mov eax, sp_shx
+    jmp .n
+.yes:
+    pop edx
+    pop esi
+    mov [sp_sh], cx
+    push edi
+    mov edi, sp_sh + 2
+    mov ecx, 16
+    xor eax, eax
+    rep stosd
+    pop edi
+.c: mov eax, sp_sh + 2
+.n: pop ecx
+.s: mov [sp_shp], eax
+    SHB_SET
+    pop eax
+    ret
+
+sp_migrate:                             ; 4.0.1, after ProcessCareerFile (engine.after_process; CONVENTIONS 19): a 4.0
+    pushad                              ; save's split state at 1F5h (its block at 1F5h + ST_SIZE) moves to the new
+    mov ebx, DIY                        ; ST and the block into 'SH' - in the DIY and in the career league's slot (CFB);
+    call .one                           ; magic-gated: a migrated state has its magic at the new ST only, so a second
+    mov ebx, CFB                        ; load changes nothing
+    call .one
+    popad
+    ret
+.one:
+    cmp word [ebx + ST_40], MAGIC_
+    jne .r
+    cmp word [ebx + ST_], MAGIC_
+    je .r
+    lea esi, [ebx + ST_40 + ST_SIZE]    ; the block parked in the scratch (the state's move overwrites it; 'SH' is
+    mov edi, sp_shx                     ; keyed below, which zeroes it)
+    mov ecx, 64
+    rep movsb
+    lea esi, [ebx + ST_40 + ST_SIZE - 1]   ; the state up by 64 bytes (overlapping: from its end)
+    lea edi, [ebx + ST_ + ST_SIZE - 1]
+    mov ecx, ST_SIZE
+    std
+    rep movsb
+    cld
+    lea edi, [ebx + ST_40]              ; (the bytes left below: weeks past a 4.0 league's 40 days)
+    mov ecx, 64
+    xor eax, eax
+    rep stosb
+    mov esi, ebx                        ; the key from its entry found again by key (a 4.0 S_ENTRY is an offset
+    call sp_entry_at                    ; into 4.0's SP_TAB: Motore's review) - S_ENTRY fixed too
+    jz .r
+    mov ax, [edx + 1]
+    or ah, 80h
+    mov [sp_sh], ax
+    mov esi, sp_shx                     ; the parked block into 'SH'
+    mov edi, sp_sh + 2
+    mov ecx, 64
+    rep movsb
+.r: ret
 align 4
 SP_CB: SP_CB_ENTRIES
 sp_nostage:
@@ -1401,8 +1503,8 @@ def pages(splits):
     """obj1 pages for the code + SP_TAB (0 without splits)."""
     if not splits:
         return 0
-    size = 0xD00                                   # the code (0xB38 measured, package 6; 4.0.1: sp_entry's re-find
-                                                   # by key, ~0xC20 with the tip's code: 0x20 over the old guess)
+    size = 0xE80                                   # the code (0xB38 measured, package 6; 4.0.1: sp_entry's re-find
+                                                   # by key, ~0xC20 with the tip's code; then sp_shsel / sp_migrate and the 'SH' / scratch blocks)
     for world, file, div, n, spec in splits:
         size += len(entry(world, file, div, n, spec, [(a, b) for a in range(n) for b in range(a + 1, n)])[0])
     return (size + 0xFFF) // 0x1000
@@ -1546,7 +1648,7 @@ def patch(p, cave, nasmcave, splits):
     src = ASM + ''.join(f'    db {", ".join(str(b) for b in tab[i:i + 32])}\n' for i in range(0, len(tab), 32))
     sym = {'D0': (2, s['A0'] - 32), 'A0': (2, s['A0']), 'A1': (2, s['A0'] + 4), 'A2': (2, s['A0'] + 8), 'A5': (2, s['A0'] + 20),
            'A3': (2, s['A0'] + 12), 'A4': (2, s['A0'] + 16), 'D1': (2, s['A0'] - 28), 'D2': (2, s['A0'] - 24),
-           'D7': (2, s['A0'] - 4), 'REGS': (2, s['A0'] - 32), 'DIY': (2, s['DIY']), 'ST_': (0, ST), 'ST_SIZE': (0, ST_SIZE), 'O_GRP': (0, OFF['grp']), 'O_PRE': (0, OFF['pre']), 'O_H2H': (0, OFF['h2h']),
+           'D7': (2, s['A0'] - 4), 'REGS': (2, s['A0'] - 32), 'DIY': (2, s['DIY']), 'ST_': (0, ST), 'ST_SIZE': (0, ST_SIZE), 'O_GRP': (0, OFF['grp']), 'O_PRE': (0, OFF['pre']), 'ST_40': (0, ST_40),
            'MAGIC_': (0, MAGIC), 'NMAX_': (0, NMAX), 'GAMETYPE': s['GAMETYPE'], 'SLT': s['SLT'],
            'WORLD_BYTE': (0, careerworld.WORLD_BYTE), 'C2653B': (1, s['C2653B']), 'C2730A': (1, s['C2730A']),
            'C883DD': (1, s['sort_start']), 'C88420': (1, s['C88420']), 'BUILDER_RET': (1, s['BUILDER_RET']),
@@ -1555,9 +1657,9 @@ def patch(p, cave, nasmcave, splits):
            'CAL': (2, s['CAL']), 'CALN': (2, s['CALN']), 'SELTEAMS': (2, s['SELTEAMS']), 'WEEK': (2, s['WEEK']),
            'SIMFLAG': (2, s['SIMFLAG']), 'C89758': (1, s['pair']), 'C88A12': (1, s['C88A12']),
            'SF_PLACE': (0, int(_os.environ.get('SPLIT_FORCE') or 0))}    # (test builds: SPLIT_FORCE=k, sp_force)
+    import dplay
+    sym['CAREERTEAM'] = (2, dplay._sites(p)[5])      # (sp_shsel: the league holding the career club gets 'SH')
     if sym['SF_PLACE'][1]:
-        import dplay
-        sym['CAREERTEAM'] = (2, dplay._sites(p)[5])
         print(f'exe: SPLIT_FORCE={sym["SF_PLACE"][1]} (test build: the career club starts a split stage at that place)')
     import engine
     import gplay
@@ -1565,6 +1667,14 @@ def patch(p, cave, nasmcave, splits):
         sym['GP_STAGE'] = gplay.LABELS['gp_stage']
     else:
         src = nasmcave.sub(src, 'call GP_STAGE', 'call sp_nostage')
+    if gplay.LABELS.get('GP_SHB'):                  # (4.0.1: gp_keep reads the 'keep' table from the block in use)
+        sym['GP_SHB'] = gplay.LABELS['GP_SHB']
+        src = nasmcave.sub(src, '    SHB_SET\n', '    mov dword [GP_SHB], sp_sh\n    mov dword [GP_SHB + 4], sp_shx\n')
+    else:
+        src = nasmcave.sub(src, '    SHB_SET\n', '')
+    sym['CFB'] = gplay.LABELS.get('CFB') or (2, (careerworld.SITES or careerworld.sites(p))['cfb'] + 0x15F6A)
+    # (sp_migrate: competitionFileBuffer, the career league's slot - dplay._play_sites' 'cfb', as gplay reads it.
+    #  careerworld's 'cfb' is careerFileBuffer, the file's start: the slot is at +15F6Ah in every career file)
     late = []
     for k, name in enumerate(CALLBACKS):            # after-stage routines (engine.after_stage)
         at = engine.CALL_AT.get(name)
@@ -1576,6 +1686,8 @@ def patch(p, cave, nasmcave, splits):
     code, fix = nasmcave.assemble(src, cave, sym)
     lab = nasmcave.labels(src, cave, sym)
     LATE[:] = [(name, lab['SP_CB'] + off, lab['sp_nostage']) for name, off in late]
+    engine.ITEM_AT['SH'] = (1, lab['sp_sh'])        # (4.0.1: the career league's head-to-head / 'keep' block)
+    engine.CALL_AT['sp_migrate'] = (1, lab['sp_migrate'])   # (4.0 saves: the state moved up, the block into 'SH')
     assert not any(p.get(1, cave, len(code)))
     p.put(1, cave, code)
     for off, tobj, toff in fix:

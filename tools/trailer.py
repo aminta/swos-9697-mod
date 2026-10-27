@@ -91,6 +91,8 @@ EN_SAVE_W = '''
     mov [edi + 2], ax
     add edi, 4
     mov edx, EN_ITEMS
+    test ebp, ebp                       ; (a world-0 career in a build whose items are all world-only: none)
+    jz .ene
 .en:
     mov ax, [edx + 8]
     mov [edi], ax
@@ -109,6 +111,7 @@ EN_SAVE_W = '''
     add edx, 12
     dec ebp
     jnz .en
+.ene:
     pop eax
     sub eax, BLOCK
     add [D1], eax'''

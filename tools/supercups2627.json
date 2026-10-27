@@ -1,0 +1,9 @@
+{
+  "_doc": "4.0.5 national supercups of World 2026-27 (supercup.py table; internal/handoff/supercups.md). Per country: pack id suffix, names {lang: [long, short]}, date (dd/mm, the real 2026-27 edition), from_season (2 = summer: not in the world's first season), legs, level (pens | et_pens), host (neutral), rule [first, second] + if_double (champion | second | cup_winner | cup_finalist), first_entrants (pack club keys of the real 2026-27 edition: season 1), todo (what is not verified yet).",
+  "ita": {"names": {"it": ["SUPERCOPPA ITALIANA", "SUPERCOPPA"], "en": ["ITALIAN SUPER CUP", "SUPER CUP"],
+                    "fr": ["SUPERCOUPE D'ITALIE", "SUPERCOUPE"], "de": ["ITALIENISCHER SUPERCUP", "SUPERCUP"]},
+          "date": "22/12", "from_season": 1, "legs": 1, "level": "pens", "host": "neutral",
+          "rule": ["champion", "cup_winner"], "if_double": "cup_finalist",
+          "first_entrants": ["inter", "lazio"],
+          "todo": "date 22 Dec and San Siro from the press, not official; extra time or straight penalties not verified (pens assumed)"}
+}

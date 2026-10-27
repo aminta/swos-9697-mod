@@ -9128,7 +9128,7 @@ def world_cf_coppa_a():
 
 
 def sc_st(exe):
-    """obj1 offset of supercup's SC_ST (the 'SCSTPTR' block of its glue), None if the exe has none."""
+    """obj2 offset of gplay.c's SC_ST (the 'SCSTPTR' block of its glue), None if the exe has none."""
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     from le import LE
     d1 = LE(open(os.path.join(exe, 'ITALIAN.EXE'), 'rb').read()).obj_bytes(1)
@@ -9141,7 +9141,8 @@ def world_sc_cups():
     """4.0.5 national supercups, step 1 (supercup.py sc_cup): after a World 2026-27 season (an INTER career, season 1
     played) the saved and reloaded SC_ST holds, per country cup decided at the season end, its winner and finalist
     (team words + global numbers): only the national cups of the supercup countries (COPPA ITALIA 82h, not the
-    COPPA SERIE C 83h); winner != finalist, both of the country's team files; reported with the names"""
+    COPPA SERIE C 83h); step 2: season 1 plays the SUPERCOPPA ITALIANA, INTER v LAZIO (the real edition's
+    entrants, from tools/supercups2627.json), and SC_ST's byte 3 = the season handled (the game's season byte); winner != finalist, both of the country's team files; reported with the names"""
     src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
     if not os.path.isdir(src):
         return True, f'SKIP: private data {src} missing'
@@ -9169,7 +9170,7 @@ def world_sc_cups():
     with Session('world_sc_cups', exe, {'W84A.CAR': car}, 'dump:2', 300) as s:
         s.wait()
         s.send(LOAD1 + ' dump:3')
-        st = bytes(s.result.obj1(at, 4 + 12 * 32))
+        st = bytes(s.result.obj2(at, 4 + 12 * 32))
     errs = []
     magic, n = struct.unpack_from('<H', st, 0)[0], st[2]
     check(magic == 0x4353 and n > 0, f'SC_ST magic {magic:#x}, {n} entries', errs)
@@ -9185,7 +9186,14 @@ def world_sc_cups():
         if k[1] in (0x81, 0x82, 0x83):
             shown.append(f'{k[0]:#x}/{k[1]:#x}: {team_name(exe, wt)} beat {team_name(exe, ft)}')
     check(0x82 in {k[1] for k in ent} and 0x83 not in {k[1] for k in ent}, f'Coppa Italia (and no Coppa Serie C) expected: {sorted(ent)}', errs)
-    return not errs, '; '.join(errs) or f'{n} cups; ' + '; '.join(shown[:12])
+    check(st[3] != 0, f'SC_ST season handled {st[3]} (0: the season-1 supercup never handled)', errs)
+    log = os.path.join(RUNS, w84_tag() + '_1', 'session.log')        # step 2: the season-1 SUPERCOPPA ITALIANA,
+    sc = []                                                          # INTER v LAZIO (the real 2026-27 entrants)
+    for ln in (open(log, errors='replace') if os.path.exists(log) else []):
+        if 'SUPERCOPPA' in ln.split('|')[0] and '- PARTITA -' in ln:
+            sc.append(re.sub(r'^\[\d+\] ', '', ln.split('|')[0].strip()) + (' LAZIO' if 'LAZIO' in ln else ''))
+    check(any('LAZIO' in x for x in sc), f'no SUPERCOPPA match v LAZIO in season 1: {sc[:4]}', errs)
+    return not errs, '; '.join(errs) or f'{n} cups; ' + '; '.join(shown[:12]) + f'; supercup {sorted(set(sc))}'
 
 
 @scenario

@@ -7,11 +7,13 @@ into dseg_180727 (winner, finalist, ...). A country with a league cup runs it tw
 cup when the qualifiers read it (cseg_93974). sc_cup replaces both `call cseg_928CC`: the same call, then the cup's
 winner and finalist go into SC_ST by (team file of the winner = the country, the word's low byte; contest id = DIY+2Dh):
 
-    SC_ST: dw magic 'SC', db count, db 0; NE x (db file, db contest id, db 0, db 0,
+    SC_ST (gplay.c): dw magic 'SC', db count, db the last season handled (sc_step_c); NE x (db file, db contest id, db 0, db 0,
                                               dw winner team, dw winner global, dw finalist team, dw finalist global)
 
 SC_ST is saved with the career (engine item 'SC'; an older save loads it zeroed: no entrants known yet). The
 supercups themselves (gplay's slot 4, at their real weeks) read it next season (step 2)."""
+import json
+import os
 import re
 import struct
 
@@ -71,8 +73,6 @@ sc_cup:                                 ; replaces `call cseg_928CC` (season end
     db 'SCSTPTR', 0                     ; (the harness: SC_ST's address)
     dd SC_ST
 SC_IDS: db IDS_
-    align 4
-SC_ST: times SC_SIZE_ db 0
 '''
 
 
@@ -99,6 +99,42 @@ def sites(p):
     return c928cc, calls, rec, tw, lib97._sites(p)[3] + 0x41F
 
 
+RULE = {'champion': 1, 'second': 2, 'cup_winner': 3, 'cup_finalist': 4}   # (gplay.c SCR_*)
+LEVEL = {'pens': 3, 'et_pens': 1}                                        # (gplay.c LV_PENS / LV_ET_PENS)
+DATA = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'supercups2627.json')
+
+
+def table(lang, name_off):
+    """gplay.c GP_SCT's bytes (db count; per country SC_E = 20 bytes) for the World 2026-27 packs of the build, or
+    None when the build has none of them. name_off(text) -> the name's offset (gplay: _sadd - STR_BASE)."""
+    import mkseason
+    import split
+    spec = {k: v for k, v in json.load(open(DATA)).items() if not k.startswith('_')}
+    out = []
+    for pk in mkseason.packs():
+        pid = str(pk.meta.get('id', ''))
+        c = pid.split('-')[-1]
+        if not pid.startswith('world-2026-27-') or c not in spec:
+            continue
+        d = spec[c]
+        cup = next((x for x in pk.comps if x.get('key') == 'cup' and x.get('id')), None)
+        assert cup, f'supercup {c}: no national cup'
+        lf = pk.files[pk.league['clubs']][0]
+        word = lambda k: pk.where[k][0] | pk.where[k][1] << 8
+        r1, r2 = (RULE[x] for x in d['rule'])
+        e = bytes([lf, int(cup['id'], 16), d.get('from_season', 1), split.week_of(d['date']), d.get('legs', 1),
+                   LEVEL[d['level']], r1, r2 | RULE[d.get('if_double', 'second')] << 4])
+        e += struct.pack('<HH', *(word(k) for k in d['first_entrants']))
+        nm = d['names'].get(lang) or d['names']['en']
+        e += struct.pack('<II', name_off(nm[0].encode('latin-1')), name_off(nm[1].encode('latin-1')))
+        assert len(e) == 20
+        out.append(e)
+    if not out:
+        return None
+    assert len(out) <= 32
+    return list(bytes([len(out)]) + b''.join(out))
+
+
 def cup_ids():
     """The national cups' contest ids ('cup' key) of the World 2026-27 packs of COUNTRIES."""
     import mkseason
@@ -120,7 +156,9 @@ def patch(p, at):
     ids = cup_ids()
     assert 0 < len(ids) <= NE, ids
     at = (at + 15) & ~15
-    sym = {'C928CC': (1, c928cc), 'REC': (2, rec), 'TW': (2, tw), 'DIY': (2, diy), 'NE_': (0, NE),
+    import gplay
+    sym = {'SC_ST': gplay.LABELS['SC_ST'],              # (gplay.c's: sc_step_c reads it)
+           'C928CC': (1, c928cc), 'REC': (2, rec), 'TW': (2, tw), 'DIY': (2, diy), 'NE_': (0, NE),
            'SC_SIZE_': (0, SC_SIZE), 'MAGIC_': (0, MAGIC),
            'IDS_': (0, ', '.join(str(x) for x in ids + [0] * (NE - len(ids))))}
     code, fix = nasmcave.assemble(ASM, at, sym)
@@ -131,8 +169,8 @@ def patch(p, at):
         p.add_ptr(1, at + o, t_obj, t_off)
     for c in calls:                                  # (relative calls: no fixup)
         p.put(1, c, b'\xE8' + struct.pack('<i', lab['sc_cup'] - (c + 5)))
-    LABELS.update(sc_cup=lab['sc_cup'], SC_ST=lab['SC_ST'])
-    engine.ITEM_AT['SC'] = (1, lab['SC_ST'])
+    LABELS.update(sc_cup=lab['sc_cup'], SC_ST=gplay.LABELS['SC_ST'])
+    engine.ITEM_AT['SC'] = gplay.LABELS['SC_ST']
     print(f"exe: supercup sc_cup obj1+{lab['sc_cup']:#x} (cseg_928CC obj1+{c928cc:#x}, calls "
-          + ' '.join(f'{c:#x}' for c in calls) + f") SC_ST obj1+{lab['SC_ST']:#x}")
+          + ' '.join(f'{c:#x}' for c in calls) + f") SC_ST {gplay.LABELS['SC_ST']}")
     return at + len(code)

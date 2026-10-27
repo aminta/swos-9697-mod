@@ -1066,6 +1066,30 @@ gp_adv:                                 ; replaces the 4 `call cseg_8EA82` (the 
     popad
 .ncd:
 %endif
+%if SC_ON
+    cmp word [GAMETYPE], 4              ; 4.0.5 national supercups (sc_step_c): a career's country with one
+    jne .nsc
+    mov dword [GP_SCT], SC_TAB
+    mov ax, [CAREERTEAM]
+    mov [GP_MGR], ax
+    mov dword [GP_SCFIRST], 0           ; (the world's first season: the real entrants; no summer one)
+    pushad
+    call W_REC
+    jz .nsf
+    mov al, [ebx + 42]
+    cmp al, [SEASONPLAYING]
+    jne .nsf
+    mov dword [GP_SCFIRST], 1
+.nsf:
+    popad
+    mov eax, sc_step_c
+    call gp_c
+    test eax, eax
+    jz .nsc
+    mov dword [GP_BUILT], 1             ; (the career club's supercup tie: slot 4)
+    call gp_install
+.nsc:
+%endif
     mov eax, gp_adv_c
     call gp_c
     test eax, eax
@@ -2009,7 +2033,7 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
     symbols['ADDJOB'] = (1, addjob)
     symbols.update({k: syms[k] for k in ('GP_CFB', 'GP_LG', 'GP_RST', 'GP_RIT', 'GP_SEL', 'GP_MGR', 'GP_WORLD', 'GP_SLT',
                                          'gp_sack_c', 'gp_forcecfb', 'gp_pwin_c', 'gp_rlines_c', 'GP_RLN', 'GP_RLC', 'GP_RLPOULE', 'GP_REC', 'GP_CMB', 'gp_adv_c', 'GP_ADVWK', 'GP_WK', 'GP_TH', 'GP_RN',
-                                         'gp_defer_c', 'cd_step_c', 'cd_fixload_c', 'gp_scal_c', 'gp_repoint_c', 'gp_fixload_c', 'CD_ST', 'GP_CDT', 'GP_CDNM', 'GP_CDD',
+                                         'gp_defer_c', 'cd_step_c', 'sc_step_c', 'GP_SCT', 'GP_SCFIRST', 'SC_ST', 'SC_TRACE', 'cd_fixload_c', 'gp_scal_c', 'gp_repoint_c', 'gp_fixload_c', 'CD_ST', 'GP_CDT', 'GP_CDNM', 'GP_CDD',
                                          'GP_CDFIRST')})
     symbols['CD_MEMBER'] = syms['cd_member_c']
     symbols['GP_CDS1'] = syms['GP_CDS1']
@@ -2075,6 +2099,14 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
         cd_src = (f'CD_TAB: db {world}, {nr}, {lfile}, 0\n    db ' + ', '.join(str(b) for b in tab)
                   + f'\nCD_NM: dd {rl}, {rs}\nCD_DT: db ' + ', '.join(str(b) for b in cdt)
                   + '\nCD_RN: db ' + ', '.join(str(x) for x in rnames.CD_NAMES) + '\n')
+    import supercup                                           # 4.0.5 national supercups (supercup.py: SC_TAB)
+    sct = supercup.table(lang, (lambda x: _sadd(area, x) - sacups.STR_BASE) if area else (lambda x: 0)) \
+        if mkseason.worlds() else None
+    symbols['SC_ON'] = (0, int(bool(sct)))
+    if sct:
+        import careerworld as cw_
+        symbols['W_REC'] = (1, cw_.LABELS['w_rec'])
+        cd_src += 'SC_TAB: db ' + ', '.join(str(b) for b in sct) + '\n'
     if cds:
         a0_ = r['A0']
         pk_ = lambda x: re.escape(struct.pack('<I', x))
@@ -2196,7 +2228,7 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
     assert struct.unpack('<I', p.get(1, syms['RI_STATE_SIZE'][1], 4))[0] == ripool.RI_SIZE   # (the engine block's 'RI')
     kolay = dict(zip(('st_ko', 'size', 'slot', 'ntie', 'tw', 'tl', 'team', 'n'),
                      struct.unpack('<8I', p.get(1, syms['GP_KOLAY'][1], 32))))   # (4.0's gp_build glue: GP_ST.ko[0])
-    LABELS.update(lab, GP_TOPW=top_w, GP_TOPR=top_r, CD_ST=syms['CD_ST'], CF_ST=syms['CF_ST'], GP_GS=syms['GP_GS'], GP_KOLAY=kolay, GP_IN=syms['GP_IN'], GP_OUT=syms['GP_OUT'], GP_ST=syms['GP_ST'], GP_LOG=syms['GP_LOG'], layout=lay, pg_season=syms['pg_season'], pg_place=syms['pg_place'], rs_season=syms['rs_season'], gp_stage=syms['gp_stage'], gp_overall=syms['gp_overall'], gp_stitle_c=syms['gp_stitle_c'], gp_hplan_c=syms['gp_hplan_c'], gp_hlabel_c=syms['gp_hlabel_c'], GP_HP=syms['GP_HP'], GP_HGP=syms['GP_HGP'], GP_HG=syms['GP_HG'], GP_HV=syms['GP_HV'], GP_HF=syms['GP_HF'], GP_HL=syms['GP_HL'], GP_HON=syms['GP_HON'], GP_OV_ORD=syms['GP_OV_ORD'], GP_OV_ROWS=syms['GP_OV_ROWS'], GP_OV_N=syms['GP_OV_N'], GP_OV_ANNUAL=syms['GP_OV_ANNUAL'], GP_SS=syms['GP_SSB'], GP_SHB=syms['GP_SHB'], CFB=(2, ps['cfb']), PR_STATE=syms['PR_STATE'],
+    LABELS.update(lab, GP_TOPW=top_w, GP_TOPR=top_r, CD_ST=syms['CD_ST'], SC_ST=syms['SC_ST'], SC_TRACE=syms['SC_TRACE'], CF_ST=syms['CF_ST'], GP_GS=syms['GP_GS'], GP_KOLAY=kolay, GP_IN=syms['GP_IN'], GP_OUT=syms['GP_OUT'], GP_ST=syms['GP_ST'], GP_LOG=syms['GP_LOG'], layout=lay, pg_season=syms['pg_season'], pg_place=syms['pg_place'], rs_season=syms['rs_season'], gp_stage=syms['gp_stage'], gp_overall=syms['gp_overall'], gp_stitle_c=syms['gp_stitle_c'], gp_hplan_c=syms['gp_hplan_c'], gp_hlabel_c=syms['gp_hlabel_c'], GP_HP=syms['GP_HP'], GP_HGP=syms['GP_HGP'], GP_HG=syms['GP_HG'], GP_HV=syms['GP_HV'], GP_HF=syms['GP_HF'], GP_HL=syms['GP_HL'], GP_HON=syms['GP_HON'], GP_OV_ORD=syms['GP_OV_ORD'], GP_OV_ROWS=syms['GP_OV_ROWS'], GP_OV_N=syms['GP_OV_N'], GP_OV_ANNUAL=syms['GP_OV_ANNUAL'], GP_SS=syms['GP_SSB'], GP_SHB=syms['GP_SHB'], CFB=(2, ps['cfb']), PR_STATE=syms['PR_STATE'],
                   RS_STATE=syms['RS_STATE'], ri_season=syms['ri_season'], ri_apply=syms['ri_apply'],
                   ri_cache=syms['ri_cache'], RI_STATE=syms['RI_STATE'], RI_MGR=syms['RI_MGR'],
                   RI_RULE=syms['RI_RULE'], cd_season=syms['cd_season'],

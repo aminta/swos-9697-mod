@@ -9336,28 +9336,33 @@ def world_sc_eng():
     division at the league end: the champion). Season 1: no FA COMMUNITY SHIELD (already played before the world's
     first season); season 2 (from season 1's save): the FA COMMUNITY SHIELD FINALE played once in August, v the FA
     CUP winner (or, after a double, the league's 2nd), before the league's later match days; both seasons end"""
+    return sc_from2('EUROPA,INGHILTERRA,PREMIER LEAGUE,ARSENAL', 'COMMUNITY', 'eng')
+
+
+def sc_from2(team, word, tag):
+    """world_sc_eng (and later others): a supercup from the world's second season - none in season 1, its FINALE once in
+    season 2 (season 1's save loaded) - on a GPLAY_FORCE=1 build (the career club the champion)."""
     src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
     if not os.path.isdir(src):
         return True, f'SKIP: private data {src} missing'
     order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
     exe = os.environ.get('SC_F1_BUILD') or build('world_sc_eng', env={
         'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]), 'GPLAY_FORCE': '1'})
-    team = 'EUROPA,INGHILTERRA,PREMIER LEAGUE,ARSENAL'
     ok, msg, l1 = sc_season(team, dict(W8485_BUILD=exe))
     car = os.path.join(RUNS, w84_tag() + '_1', 'SWOS', 'W84A.CAR')
     if not ok or not os.path.exists(car):
         return False, f'season 1: {msg}'
-    s2 = os.path.join(RUNS, 'sc_eng_s2.CAR')
+    s2 = os.path.join(RUNS, f'sc_{tag}_s2.CAR')
     shutil.copy(car, s2)
     ok2, msg2, l2 = sc_season(team, dict(W8485_BUILD=exe, W8485_FROM=s2), 2)
     def shield(lines):
         return [re.sub(r'^\[\d+\] ', '', ln.split('|')[0].strip()) for ln in lines if ln.startswith('[')
-                and 'COMMUNITY' in ln.split('|')[0] and '- PARTITA -' in ln and '>- RISULTATO -' in ln]
+                and word in ln.split('|')[0] and '- PARTITA -' in ln and '>- RISULTATO -' in ln]
     m1, m2 = shield(l1), shield(l2)
     errs = []
     check(ok2, f'season 2: {msg2}', errs)
     check(not m1, f'season 1 played {m1}', errs)
-    check(len(m2) == 1 and 'FINALE' in m2[0], f'season 2 shield matches {m2}', errs)
+    check(len(m2) == 1 and 'FINALE' in m2[0], f'season 2 supercup matches {m2}', errs)
     return not errs, '; '.join(errs) or f'season 1: none; season 2: {m2}; {msg2[:80]}'
 
 

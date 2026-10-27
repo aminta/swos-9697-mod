@@ -4166,21 +4166,30 @@ def xtra_world30():
     return not errs, '; '.join(errs + [f'{club}: {n0} players, last {names0[len(want) - 1]!r}; end {nl}; {msg}'])
 
 
+def xtra_file_name(exe, nnn):
+    """The build's XTRA file of team file nnn: XTRA.nnn, or XTW5.nnn (the World 2026-27's own namespace, tip builds), or None."""
+    for stem in ('XTRA', 'XTW5'):
+        if os.path.exists(os.path.join(exe, 'DATA', '%s.%03d' % (stem, nnn))):
+            return '%s.%03d' % (stem, nnn)
+    return None
+
+
 def xtra_club_block(exe, club):
-    """(team word, [names of the club's XTRA players]) in a build's DATA (TEAM.nnn + XTRA.nnn), or None."""
+    """(team word, [names of the club's XTRA players]) in a build's DATA (TEAM.nnn / TMW5.nnn + XTRA.nnn / XTW5.nnn), or None."""
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import xtra
     for fn in sorted(os.listdir(os.path.join(exe, 'DATA'))):
-        if not fn.startswith('TEAM.'):
+        if not (fn.startswith('TEAM.') or fn.startswith('TMW5.')):
             continue
         d = open(os.path.join(exe, 'DATA', fn), 'rb').read()
+        nnn = int(fn.split('.')[1])
         for k in range(struct.unpack('>H', d[:2])[0]):
             if d[2 + k * 684 + 5:2 + k * 684 + 22].split(b'\0')[0].decode('latin1') == club:
-                xf = os.path.join(exe, 'DATA', 'XTRA.' + fn.split('.')[1])
-                if not os.path.exists(xf):
-                    return None
-                pl = xtra.read(open(xf, 'rb').read())[k]
-                return (k << 8) | int(fn.split('.')[1]), [x[3:26].split(b'\0')[0].decode('latin1') for x in pl]
+                xn = xtra_file_name(exe, nnn)
+                if not xn:
+                    continue                            # (a 1996 team of the same name: TEAM.020 ...)
+                pl = xtra.read(open(os.path.join(exe, 'DATA', xn), 'rb').read())[k]
+                return (k << 8) | nnn, [x[3:26].split(b'\0')[0].decode('latin1') for x in pl]
     return None
 
 
@@ -4465,14 +4474,15 @@ def xtra_club_browse():
             s.shot('page2_reload')
             info.append('reloaded: page 2 shot')
     nx_team, _ = xtra_club_block(exe, 'IMPERIA')            # a club without extras: its block zeroed in a copy of the file
-    xf = os.path.join(exe, 'DATA', 'XTRA.%03d' % (nx_team & 255))
+    xname = xtra_file_name(exe, nx_team & 255)
+    xf = os.path.join(exe, 'DATA', xname)
     raw = bytearray(open(xf, 'rb').read())
     e_ = raw[2]
     at_ = 3 + (nx_team >> 8) * e_ * 38
     raw[at_:at_ + e_ * 38] = bytes(e_ * 38)
     nxf = os.path.join(WORK, 'saves', 'XTRA_NOX.BIN')
     open(nxf, 'wb').write(bytes(raw))
-    with Session('xtra_club_browse_none', exe, {'DATA/XTRA.%03d' % (nx_team & 255): nxf}, 'dump:2', 600) as s:
+    with Session('xtra_club_browse_none', exe, {'DATA/' + xname: nxf}, 'dump:2', 600) as s:
         s.wait()
         if not start(s, 'CHISOLA'):
             return False, 'new career (no extras): ' + str(s.screen().texts()[:8])
@@ -4494,6 +4504,128 @@ def xtra_club_browse():
         leave(s)
         nf1, _ = squad(s)
         check(nf0 == 30 and nf1 == 30 and any('SQUADRA' in x and 'GRANDE' in x for x in ans), f'full squad {nf0} -> {nf1}: {ans[:6]}', errs)
+    return not errs, '; '.join(errs + info)
+
+
+@scenario
+def xtra_squad_views():
+    """A club's full squad in the game's squad screen (4.0.2; XTRA30_BUILD = the TM_EXTRA=14 world): a career at CHISOLA, VISUALIZZA MONDO >
+    CARR. STORICHE > EUROPA > ITALIA > SERIE A > STAT > VIS. SQUADRE > MILAN: page 1 = the record's 16 (as before) with the button
+    PAG. SUCC., page 2 = its extras (shots); the club's record in the team cache is the same bytes before / after, nothing can be picked
+    on page 2; a club with its XTRA block zeroed (PARMA, a modified file) has no button; the same screen through VISUAL. COMPETIZ. (CHISOLA's
+    own division, LIGORNA)."""
+    exe = os.environ.get('XTRA30_BUILD')
+    if not exe or not os.path.isdir(exe):
+        return True, 'SKIP: XTRA30_BUILD not set'
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import lepatch
+    import xtra
+    import xbrowse
+    p = lepatch.LEPatch(os.path.join(exe, 'ITALIAN.EXE'))
+    st = xbrowse.find(p) if False else None
+    from le import LE
+    import sacups
+    d1o = LE(open(os.path.join(ROOT, 'orig', 'ITALIAN.EXE'), 'rb').read()).obj_bytes(1)     # (the original's addresses)
+    sqteam = None
+    for x in re.finditer(rb'\x66\xc7\x05(....)\x10\x00\xeb.\x66\xa1....\x66\xa3\1\x66\xa1\1\x66\xa3(....)', d1o, re.S):
+        cnt = struct.unpack('<I', x.group(2))[0]
+        if re.search(rb'\xa1' + re.escape(struct.pack('<I', cnt + 2)), d1o[x.end():x.end() + 0x30]):
+            sqteam = cnt + 2
+    assert sqteam, 'dseg_16F486'
+    team, names = xtra_club_block(exe, 'MILAN')
+    errs, info = [], []
+    path = ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27', 'EUROPA', 'ITALIA', 'SERIE D GIRONE A', 'CHISOLA']
+
+    def button(scr):
+        return next(((e[1], e[2]) for e in scr.entries if e[0] == 6), None)
+
+    def record(s):
+        ptr = struct.unpack('<I', s.result.obj2(sqteam, 4))[0]
+        return s.result.read(ptr, 684)
+
+    def to_squad(s, club):
+        for t in ('STAT', 'VIS. SQUADRE', club):
+            if press(s, s.screen(), t, 3) is None:
+                return False
+        return True
+
+    def start(s):
+        if not pick_career(s, path):
+            return False
+        s.send('fire dump:3')
+        for _ in range(8):
+            if 'PROSS. PARTITA' in s.screen().texts():
+                break
+            press(s, s.screen(), 'CONTINUA', 3) or press(s, s.screen(), 'ESCI', 3) or s.send('fire dump:2')
+        return True
+
+    nx_team, _ = xtra_club_block(exe, 'PARMA')
+    xname = xtra_file_name(exe, nx_team & 255)
+    xf = os.path.join(exe, 'DATA', xname)
+    raw = bytearray(open(xf, 'rb').read())
+    e_ = raw[2]
+    at_ = 3 + (nx_team >> 8) * e_ * 38
+    raw[at_:at_ + e_ * 38] = bytes(e_ * 38)
+    nxf = os.path.join(WORK, 'saves', 'XTRA_NOX2.BIN')
+    open(nxf, 'wb').write(bytes(raw))
+    with Session('xtra_squad_views', exe, {'DATA/' + xname: nxf}, 'dump:2', 600) as s:
+        s.wait()
+        if not start(s):
+            return False, 'new career: ' + str(s.screen().texts()[:8])
+        for t in ('VISUALIZZA MONDO', 'CARR. STORICHE', 'EUROPA', 'ITALIA', 'SERIE A'):
+            if press(s, s.screen(), t, 3) is None:
+                return False, f'{t} not reached'
+        if not to_squad(s, 'MILAN'):
+            return False, 'MILAN squad not reached: ' + str(s.screen().texts()[:10])
+        r0 = record(s)
+        b = button(s.screen())
+        s.shot('milan_p1')
+        check(b is not None and b[0] == 'PAG. SUCC.' and not b[1], f'page 1 button {b}', errs)
+        walk(s, 6, 3)
+        s.shot('milan_p2')
+        b2 = button(s.screen())
+        check(b2 is not None and b2[0] == 'PAG. PREC.', f'page 2 button {b2}', errs)
+        first = next((e[1] for e in s.screen().entries if e[0] == 48), None)
+        check(first in names, f'page 2 first row {first!r} is not one of the extras', errs)
+        check(record(s) == r0, 'the club record changed while viewing', errs)
+        walk(s, 6, 3)
+        s.shot('milan_back')
+        check(button(s.screen())[0] == 'PAG. SUCC.' and record(s) == r0, 'back on page 1', errs)
+        info.append(f'MILAN page 2 first {first}')
+        press(s, s.screen(), 'ESCI', 3)                # back to STATISTICHE
+        press(s, s.screen(), 'VIS. SQUADRE', 3)
+        check(press(s, s.screen(), 'PARMA', 3) is not None, 'PARMA not in the club list', errs)
+        b3 = button(s.screen())
+        check('SQUADRE' not in s.screen().texts() and 'PARMA' in s.screen().texts(), f'PARMA squad screen: {s.screen().texts()[:8]}', errs)
+        s.shot('parma')
+        check(b3 is None or b3[1] or b3[0] != 'PAG. SUCC.', f'PARMA (no extras) shows the button {b3}', errs)
+        info.append(f'no-extras club: button {b3}')
+    with Session('xtra_squad_views_comp', exe, {}, 'dump:2', 600) as s:          # the same screen through VISUAL. COMPETIZ.
+        s.wait()
+        if not start(s):
+            return False, 'new career (comp): ' + str(s.screen().texts()[:8])
+        for t in ('VISUAL. COMPETIZ.', 'ITALIA SERIE D GIRONE A'):
+            if press(s, s.screen(), t, 3) is None:
+                return False, f'{t} not reached: {s.screen().texts()[:8]}'
+        if not to_squad(s, 'LIGORNA'):
+            return False, 'LIGORNA squad not reached (competitions): ' + str(s.screen().texts()[:10])
+        b = button(s.screen())
+        s.shot('comp_p1')
+        check(b is not None and b[0] == 'PAG. SUCC.' and not b[1], f'competitions path, page 1 button {b}', errs)
+        walk(s, 6, 3)
+        s.shot('comp_p2')
+        lig = xtra_club_block(exe, 'LIGORNA')
+        first = next((e[1] for e in s.screen().entries if e[0] == 48), None)
+        check(lig and first in lig[1], f'competitions path, page 2 first row {first!r}', errs)
+        for _ in range(6):                                   # own squad afterwards: the normal screen (no button)
+            if 'PROSS. PARTITA' in s.screen().texts():
+                break
+            press(s, s.screen(), 'ESCI', 3)
+        walk(s, 8, 3)
+        own = button(s.screen())
+        s.shot('own_squad')
+        check('PAG. SUCC.' not in s.screen().texts() and (own is None or own[1] or own[0] != 'PAG. SUCC.'), f'own squad shows the button {own}', errs)
+        info.append(f'comp path: page 2 first {first}')
     return not errs, '; '.join(errs + info)
 
 

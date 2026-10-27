@@ -138,3 +138,12 @@ players: DONE (part 2). The game's squad screen for ANOTHER club (SelectAndShowS
 standings > VIEW SQUADS) is reached only in friendly / season / tournament modes, where this build offers only the 1996 data and DDR 1988-89
 (no XTRA files): no 2026-27 club can be viewed there. The GetPlayerAtIndex / SquadFinish extension of part 3 is therefore NOT built (it could
 not be tested in any reachable screen); design stays as above if a mode ever lists world clubs.
+
+### Part 3 as built (2026-10-27, branch xsv-402 off bd2317a, tools/xbrowse.py xs_*): squad screen of ANOTHER club, display only
+My first walk (above) missed STAT > VIS. SQUADRE: in a career, VISUALIZZA MONDO > ... > competition > STAT > VIS. SQUADRE > club (and the same through
+VISUAL. COMPETIZ. > division > STAT) opens the squad menu for that club (16 rows, ESCI). Built: GetPlayerAtIndex's index >= 16 branch (was `int 3`) maps 16 + r to
+the club's r-th extra (xs_ga, then GetPlayer / gp_wide); SquadFinish's last call is wrapped (xs_tail): for a club that is not the managed one with extras,
+the menu's hidden entry 6 (PRATICA) becomes a green PAG. SUCC. / PAG. PREC. button left of ESCI (56 px, clear of the coach's name: Davide 27/10);
+the two GetPlayerInfoBreakPosition calls of the squad menu (draw, select) add 16 to the row on page 2 (xs_row; rows past the extras draw / pick nothing).
+Page 1 is the unchanged 16; nothing is written (the record is compared byte by byte in xtra_squad_views); line-ups, bench of 5, match squads untouched.
+Other team views in a career: ANDAMENTO CLUB = finances (no squads); pre-match = match line-ups (16, unchanged); offers' VIS. SQUADRA = our own squad.

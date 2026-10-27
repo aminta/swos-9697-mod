@@ -716,7 +716,8 @@ def patch(p, at, lang, sites):
     p.put(1, at, code)
     for o, t_obj, t_off in cfix:
         p.add_ptr(1, at + o, t_obj, t_off)
-    for off, name in ((wn['sel'], 'wn_open'), (wn['init'], 'wn_init')):
+    for off, name in ((wn['sel'], 'wn_open'), (wn['init'], 'wn_init'), (wn['init'] + 4, 'wn_init')):   # (onInit,
+                                                                                    # 4.0.2: onReturn)
         p.retarget(2, off, 1, lab[name])
         p.put(2, off, struct.pack('<I', lab[name]))
     print(f'exe: SEASON WINNERS page: entry obj2+{wn["sel"]:#x}, code obj1+{at:#x} ({len(code)} B)')

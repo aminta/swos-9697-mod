@@ -10343,6 +10343,57 @@ def world_nats_oldsave():
 
 
 @scenario
+def world_statmenu():
+    """4.0.2 the competition view's STATISTICHE menu keeps its entries (fmtpage fp_ovinit / winners wn_init as onInit
+    AND onReturn: back from a page the game rebuilds the menu with every entry shown - Davide's Gibraltar career showed
+    4 entries, then 6 after FORMULA, VINCITORI leading to NESSUNA DESCRIZIONE): a World 2026-27 career at LINCOLN RED
+    IMPS (GIBILTERRA: no CLASSIFICA GENERALE, no VINCITORI) and one at ROSARIO CENTRAL (ARGENTINA: both shown) -
+    VISUAL. COMPETIZ. > the league > STAT, then FORMULA, INFO SU COMPETIZIONE (and VINCITORI when shown) each and back:
+    the same entries every time (release recipe, SWOSTEST_BUILD)"""
+    errs, info = [], []
+    vis = lambda s: [e[1] for e in s.screen().entries if e[1] and not e[2]]
+    for tag, path, ov in (
+            ('gib', ['EUROPA', 'GIBILTERRA', 'LINCOLN RED IMPS'], False),
+            ('arg', ['SUDAMERICA', 'ARGENTINA', 'LIGA PROFESIONAL', 'ROSARIO CENTRAL'], True)):
+        with Session(f'world_statmenu_{tag}', builds()['it'], {}, 'dump:2', 900) as s:
+            s.wait()
+            for t in ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27'] + path:
+                for _ in range(3):                      # (a country beyond the list: ALTRE NAZIONI first)
+                    if any(s.screen().find(x, exact=True) is not None for x in t.split('|')) or \
+                            s.screen().find('ALTRE NAZIONI', exact=True) is None:
+                        break
+                    press(s, s.screen(), 'ALTRE NAZIONI', 3)
+                if all(press(s, s.screen(), x, 3) is None for x in t.split('|')):
+                    return False, f'{tag}: {t} not reached: {[e[1] for e in s.screen().entries if e[1]][-14:]}'
+            s.send('fire dump:3')
+            walk(s, s.screen().find('VISUAL. COMPETIZ.', exact=True), 3)
+            walk(s, 1, 3)                               # (the career league)
+            walk(s, s.screen().find('STAT', exact=True), 3)
+            first = vis(s)
+            s.shot('stat_' + tag)
+            want_ov = ('CLASSIFICA GENERALE' in first, 'VINCITORI' in first)
+            check(want_ov == (ov, ov), f'{tag}: first STAT menu {first}', errs)
+            info.append(f'{tag}: {first[1:]}')
+            pages = ['FORMULA', 'INFO SU COMPETIZIONE', 'FORMULA'] + (['VINCITORI'] if ov else [])
+            for pg in pages:
+                walk(s, s.screen().find(pg, exact=True), 3)
+                body = [x for x in vis(s) if x not in ('ESCI', 'PAG. SUCC.', 'PAG. PREC.')]
+                s.shot(f'{tag}_{pg.split()[0].lower()}')
+                check(len(body) > 1 and 'NESSUNA DESCRIZIONE' not in body, f'{tag}: {pg} page {body[:6]}', errs)
+                for _ in range(4):                      # its ESCI -> the statistics menu
+                    if s.screen().find('ELENCO CANNONIERI', exact=True) is not None:
+                        break
+                    i = s.screen().find('ESCI', exact=True)
+                    if i is None:
+                        ns_exit(s)
+                    else:
+                        walk(s, i, 3)
+                again = vis(s)
+                check(again == first, f'{tag}: STAT after {pg}: {again} (first {first})', errs)
+    return not errs, '; '.join(errs + info)
+
+
+@scenario
 def world_buycont():
     """4.0.1 foreign purchase in a historic world (careerworld w_buy: competitionsTable[254] = the world's W_CONT list):
     TRASFERIMENTI > ACQUISTA GIOCATORE > ACQ. ALTRO GIOCAT. STRANIERO opens without the violet CARR. STORICHE entry -

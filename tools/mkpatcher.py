@@ -21,7 +21,7 @@ import struct
 import zlib
 
 ROOT = os.path.join(os.path.dirname(__file__), '..')
-VERSION = '4.0.1'
+VERSION = '4.0.2'
 BLOCK = 16
 FILES = [  # (id, original path, patched path, file name in the game folder)
     ('ITALIAN.EXE', 'orig/ITALIAN.EXE', 'c/SWOS/ITALIAN.EXE', 'ITALIAN.EXE'),

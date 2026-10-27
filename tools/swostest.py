@@ -3849,11 +3849,13 @@ def shirt_numbers():
             if all(ptrs):
                 m = r.read(ptrs[0] - 256, 256 + 83 * 96)
                 check(m[0] == 1, f'build flag {m[0]}', errs)
+                half = dkb_half()                       # (half / EGA mode: the sprites are 4 bitplanes)
                 for n, want in SHIRT_EXPECT.items():
                     h = m[256 + (n - 17) * 96:]
                     w, nl = struct.unpack_from('<hh', h, 10)
-                    rows = '|'.join(''.join('#' if h[24 + y * 8 + x // 2] >> (0 if x & 1 else 4) & 15 else '.'
-                                            for x in range(w)) for y in range(nl))
+                    px = unplane(h[24:24 + 8 * nl]) if half else [h[24 + i // 2] >> (0 if i & 1 else 4) & 15
+                                                                  for i in range(16 * nl)]
+                    rows = '|'.join(''.join('#' if px[y * 16 + x] else '.' for x in range(w)) for y in range(nl))
                     ordn = struct.unpack_from('<h', h, 22)[0]
                     check(rows == want and ordn == shirtnum.NEWBASE + n - 17, f'{n}: {rows} #{ordn}', errs)
     return not errs, '; '.join(errs) or 'numbers 17..99 built (17, 20, 41, 99 pixel-exact) in a match'
@@ -10354,6 +10356,12 @@ def world_seasonend_titles():
     return not errs, '; '.join(errs + info)
 
 
+def unplane(data):
+    """Pixels of a planar sprite (DoUnchainSprite: plane k at k * len / 4, bit k of 8 pixels per byte, first = MSB)."""
+    q = len(data) // 4
+    return [sum(((data[k * q + j] >> (7 - t)) & 1) << k for k in range(4)) for j in range(q) for t in range(8)]
+
+
 def dkb_half():
     """DKB_SETUP's SETUP.DAT puts the game in half / EGA mode (video speed, byte 12, <= 85: GOG's factory file)."""
     f = os.environ.get('DKB_SETUP')
@@ -10368,10 +10376,6 @@ def dkb_sets(r, spr, blond, info):
     nib = lambda data: [x >> 4 for x in data] + [x & 15 for x in data]
     idx = lambda i: struct.unpack('<I', r.read(r.base2 + spr + i * 4, 4))[0]
     planar = dkb_half()                         # half / EGA mode: sprites 309.. as 4 bitplanes (DoUnchainSprite)
-
-    def unplane(data):
-        q = len(data) // 4                      # plane k at k * q: bit k of 8 pixels per byte, first pixel = MSB
-        return [sum(((data[k * q + j] >> (7 - t)) & 1) << k for k in range(4)) for j in range(q) for t in range(8)]
 
     def frame(i):
         h = r.read(idx(i), 24)

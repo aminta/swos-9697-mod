@@ -2250,6 +2250,8 @@ Left for 2.5: (a) NSL/NSSL finals series (type-1 design) or declare them postpon
 - world_ns FAIL (p6: NSW5 checkw1 'no W1 block') bisected: PASS 503927b, 96ebc50, 8152e56; FAIL from 388e68f (xsq-402 merge)
   on. Inside xsq-402: 1fc7ee0 (extended squads 30) PASS, 5cc81ef (buying players 17-30: market XTRA entries, 'XS' engine
   item) FIRST FAIL, 819b85a / 097182d / 64852a6 FAIL. Owner: squads. Fix before rc1.
+- rc1 DATA now internal/world2526/world5tm-402rc4 (= rc3 + AMERICA PE rename, TREFELIN B & G, 22 namesake pairs
+  disambiguated, 105 coaches filled; kits unchanged; .md5 list digest 946ea0ce, checked; tools 09fc5f4).
 
 ## Deferred realism (4.0.2+)
 - Moldova's h2h_half groups start at 0 points (package 6, 2026-10-24; pre-existing, not option C).

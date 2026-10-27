@@ -8676,6 +8676,70 @@ int main(int argc, char **argv) {
 
 
 @scenario
+def sc_rules():
+    """4.0.5 national supercups (gplay.c sc_step_c), compiled for this Mac with forced states, no exe run: (a) season
+    2+: champion v cup winner by rule (CF_ST places, SC_ST cups) -> the career club's tie built (team words, kind
+    K_SC, slot 4); (b) a DOUBLE (cup winner = champion) -> the cup finalist; (c) the world's first season: the data's
+    real entrants; (d) a summer one (from_season 2) in the first season: skipped (trace 0x81); (e) the career club not
+    in it: nothing built (0x84); (f) handled once per season (a second advance builds nothing); (g) before its week:
+    nothing."""
+    import tempfile
+    src = os.path.join(ROOT, 'tools', 'gplay.c')
+    main = r"""#include <stdio.h>
+#include "%s"
+u8 GP_SEAS;
+static u8 tab[1 + SC_E];
+static void setup(int from, u16 champ, u16 second, u16 cupw, u16 cupf) {
+    for (int i = 0; i < (int)sizeof SC_ST; i++) SC_ST[i] = 0;
+    for (int i = 0; i < (int)sizeof GP_ST; i++) ((u8 *)&GP_ST)[i] = 0;
+    CF_ST.magic = CF_MAGIC; CF_ST.file = 102;
+    for (int i = 0; i < 256; i++) CF_ST.rank[i] = 0;
+    CF_ST.rank[champ >> 8] = 1; CF_ST.rank[second >> 8] = 2;
+    SC_ST[0] = 0x53; SC_ST[1] = 0x43; SC_ST[2] = 1;
+    u8 *e = SC_ST + 4; e[0] = 102; e[1] = 0x82; e[4] = cupw; e[5] = cupw >> 8; e[8] = cupf; e[9] = cupf >> 8;
+    u8 *t = tab + 1; tab[0] = 1;
+    t[0] = 102; t[1] = 0x82; t[2] = from; t[3] = 50; t[4] = 1; t[5] = LV_PENS; t[6] = SCR_CHAMP; t[7] = SCR_CUPW | SCR_CUPF << 4;
+    t[8] = 0x66; t[9] = 9; t[10] = 0x66; t[11] = 10;              /* (season 1: 0x0966 v 0x0A66) */
+    GP_SCT = tab; GP_SEAS = 127; SC_TRACE = 0;
+}
+static void out(const char *tag, u32 r) {
+    printf("%%s %%u %%x %%x %%x %%d\n", tag, r, SC_TRACE, GP_ST.ko[0].team[0], GP_ST.ko[0].team[1], GP_ST.ko[0].kind);
+}
+int main(void) {
+    u16 inter = 0x0166, napoli = 0x0266, lazio = 0x0366, bologna = 0x0466;
+    setup(1, inter, napoli, bologna, lazio); GP_MGR = inter; GP_SCFIRST = 0; GP_WK = 49; out("a", sc_step_c());
+    setup(1, inter, napoli, inter, lazio); GP_MGR = lazio; GP_WK = 49; out("b", sc_step_c());
+    setup(1, inter, napoli, bologna, lazio); GP_MGR = 0x0966; GP_SCFIRST = 1; GP_WK = 49; out("c", sc_step_c());
+    setup(2, inter, napoli, bologna, lazio); GP_MGR = inter; GP_SCFIRST = 1; GP_WK = 49; out("d", sc_step_c());
+    setup(1, inter, napoli, bologna, lazio); GP_MGR = napoli; GP_SCFIRST = 0; GP_WK = 49; out("e", sc_step_c());
+    setup(1, inter, napoli, bologna, lazio); GP_MGR = inter; GP_WK = 49; sc_step_c(); GP_ST.ko[0].kind = 0; SC_TRACE = 0;
+    out("f", sc_step_c());
+    setup(1, inter, napoli, bologna, lazio); GP_MGR = inter; GP_WK = 40; out("g", sc_step_c());
+    return 0;
+}
+""" % src
+    with tempfile.TemporaryDirectory() as d:
+        open(os.path.join(d, 't.c'), 'w').write(main)
+        r = subprocess.run(['clang', '-w', '-DSS_NB=1', '-c', 't.c', '-o', 't.o'], cwd=d, capture_output=True, text=True)
+        if r.returncode:
+            return False, 'clang: ' + r.stderr[-400:]
+        und = [x.strip().lstrip('_') for x in subprocess.run(['nm', '-u', 't.o'], cwd=d, capture_output=True,
+                                                              text=True).stdout.split()]
+        open(os.path.join(d, 's.c'), 'w').write(''.join(f'char {x}[65536];\n' for x in und
+                                                         if x and not x.startswith(('printf', 'memcpy', 'memset', 'dyld', '__'))))
+        r = subprocess.run(['clang', '-w', 't.o', 's.c', '-o', 't'], cwd=d, capture_output=True, text=True)
+        if r.returncode:
+            return False, 'link: ' + r.stderr[-400:]
+        got = {ln.split()[0]: ln.split()[1:] for ln in subprocess.run(['./t'], cwd=d, capture_output=True,
+                                                                     text=True).stdout.splitlines()}
+    want = {'a': ['1', '1', '166', '466', '10'], 'b': ['1', '1', '166', '366', '10'], 'c': ['1', '1', '966', 'a66', '10'],
+            'd': ['0', '81'], 'e': ['0', '84'], 'f': ['0', '0'], 'g': ['0', '0']}
+    errs = [f'{k}: got {got.get(k)}, want {w}' for k, w in want.items() if (got.get(k) or [])[:len(w)] != w]
+    return not errs, '; '.join(errs) or 'a champion v cup winner, b double -> finalist, c season-1 data, d summer skipped, ' \
+        'e not in it, f once a season, g before the week: all as expected'
+
+
+@scenario
 def tail_zero():
     """4.0.2 tailzero (Davide's MiSTer b3/b4, the 23/10 GOG DOSBox 0.74 report: no number over a controlled player
     numbered 17..99): the mod's obj2 tail (its run-time buffers: shirtnum's 'built' flag + sprites, careerworld / gplay /

@@ -72,6 +72,8 @@ sc_cup:                                 ; replaces `call cseg_928CC` (season end
 
     db 'SCSTPTR', 0                     ; (the harness: SC_ST's address)
     dd SC_ST
+    db 'SCTRPTR', 0                     ; (and gplay.c's SC_TRACE)
+    dd SC_TRACE
 SC_IDS: db IDS_
 '''
 
@@ -157,7 +159,7 @@ def patch(p, at):
     assert 0 < len(ids) <= NE, ids
     at = (at + 15) & ~15
     import gplay
-    sym = {'SC_ST': gplay.LABELS['SC_ST'],              # (gplay.c's: sc_step_c reads it)
+    sym = {'SC_ST': gplay.LABELS['SC_ST'], 'SC_TRACE': gplay.LABELS['SC_TRACE'],   # (gplay.c's)
            'C928CC': (1, c928cc), 'REC': (2, rec), 'TW': (2, tw), 'DIY': (2, diy), 'NE_': (0, NE),
            'SC_SIZE_': (0, SC_SIZE), 'MAGIC_': (0, MAGIC),
            'IDS_': (0, ', '.join(str(x) for x in ids + [0] * (NE - len(ids))))}

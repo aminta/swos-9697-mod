@@ -9200,6 +9200,100 @@ def sc_st(exe):
     return struct.unpack_from('<I', d1, k + 8)[0] if k >= 0 else None
 
 
+def sc_trace(exe):
+    """obj2 offset of gplay.c's SC_TRACE (supercup's 'SCTRPTR' block)."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    from le import LE
+    d1 = LE(open(os.path.join(exe, 'ITALIAN.EXE'), 'rb').read()).obj_bytes(1)
+    k = d1.find(b'SCTRPTR\0')
+    return struct.unpack_from('<I', d1, k + 8)[0]
+
+
+def sc_season(team, extra, runs_tag=1):
+    """world8485 on a World 2026-27 career at team with extra env; the session log's lines."""
+    keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_ONE',
+            'W8485_MIDSAVE', 'W8485_FROM', 'W8485_HEX')
+    keep = {k: os.environ.get(k) for k in keys}
+    os.environ.update(W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1',
+                      W8485_ONE='1', **extra)
+    try:
+        ok, msg = world8485()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    log = os.path.join(RUNS, w84_tag() + f'_{runs_tag}', 'session.log')
+    return ok, msg, open(log, errors='replace').read().splitlines() if os.path.exists(log) else []
+
+
+def sc_matches(lines):
+    """The supercup match screens (title, opponent seen) of a session log, once per screen."""
+    out = []
+    for ln in lines:
+        t = ln.split('|')[0]
+        if ln.startswith('[') and 'SUPERCOPPA' in t and '- PARTITA -' in ln and '>- RISULTATO -' in ln:
+            out.append(re.sub(r'^\[\d+\] ', '', t.strip()) + (' v LAZIO' if 'LAZIO' in ln else ''))
+    return out
+
+
+@scenario
+def world_sc_reload():
+    """4.0.5 supercups: an INTER career saved as soon as its season-1 SUPERCOPPA ITALIANA tie is built in slot 4
+    (W8485_MIDSAVE on gplay.c SC_TRACE = 1), then loaded and played to the season's end: slot 4 still holds the tie
+    after the load, the supercup is played exactly once (not built again: SC_ST's season byte is saved), the season
+    ends (world8485 ok)"""
+    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+    if not os.path.isdir(src):
+        return True, f'SKIP: private data {src} missing'
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    exe = os.environ.get('SC_BUILD') or build('world_sc_cups', env={
+        'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order])})
+    tr = sc_trace(exe)
+    slot4 = SLOT - 0x443
+    team = 'EUROPA,ITALIA,SERIE A,INTER'
+    ok, msg, l1 = sc_season(team, dict(W8485_BUILD=exe, W8485_MIDSAVE=f'{tr:x}:1:1'))
+    if not ok:
+        return False, f'season 1 to the supercup tie: {msg}'
+    mid = os.path.join(RUNS, 'sc_reload_mid.CAR')
+    shutil.copy(msg.split(': ', 1)[1], mid)
+    ok, msg, l2 = sc_season(team, dict(W8485_BUILD=exe, W8485_FROM=mid, W8485_HEX=f'{slot4:x}:48'), 2)
+    errs = []
+    check(ok, f'after the load: {msg}', errs)
+    s4 = next((bytes.fromhex(ln.split()[2]) for ln in l2 if ln.startswith(f'HEX {slot4:x} ')), b'')
+    check(b'SUPERCOPPA' in s4, f'slot 4 after the load: {s4[:40]}', errs)
+    m1, m2 = sc_matches(l1), sc_matches(l2)
+    check(not m1 and len(m2) == 1 and 'LAZIO' in m2[0], f'supercup matches before the save {m1}, after {m2}', errs)
+    return not errs, '; '.join(errs) or f'saved with the tie built; after the load: {m2}; {msg[:80]}'
+
+
+@scenario
+def world_sc_oldsave():
+    """4.0.5 supercups on an older career: season 1 of an INTER career on the 4.0.2 release exe (SC_OLD, default
+    c/REL402rc2/SWOS: no 'SC' item, no supercups), its season-2 save loaded by this build and season 2 played: no
+    supercup that season (SC_ST loaded zeroed: no cup winner known), no hang, the season ends"""
+    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+    old = os.environ.get('SC_OLD') or os.path.join(MAIN, 'c', 'REL402rc2', 'SWOS')
+    if not os.path.isdir(src) or not os.path.isdir(old):
+        return True, f'SKIP: private data {src} or old release {old} missing'
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    exe = os.environ.get('SC_BUILD') or build('world_sc_cups', env={
+        'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order])})
+    team = 'EUROPA,ITALIA,SERIE A,INTER'
+    ok, msg, _ = sc_season(team, dict(W8485_BUILD=old))
+    car = os.path.join(RUNS, w84_tag() + '_1', 'SWOS', 'W84A.CAR')
+    if not ok or not os.path.exists(car):
+        return False, f'old season 1: {msg}'
+    old_car = os.path.join(RUNS, 'sc_oldsave.CAR')
+    shutil.copy(car, old_car)
+    ok, msg, l2 = sc_season(team, dict(W8485_BUILD=exe, W8485_FROM=old_car), 2)
+    errs = []
+    check(ok, f'season 2 on this build: {msg}', errs)
+    check(not sc_matches(l2), f'a supercup in the old career\'s season 2: {sc_matches(l2)}', errs)
+    return not errs, '; '.join(errs) or f'old save season 2 played, no supercup; {msg[:80]}'
+
+
 @scenario
 def world_sc_cups():
     """4.0.5 national supercups, step 1 (supercup.py sc_cup): after a World 2026-27 season (an INTER career, season 1

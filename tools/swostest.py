@@ -3751,6 +3751,39 @@ def world2627q():
 
 
 @scenario
+def world_uq_nextmatch():
+    """4.0.3 (Regia, the 4.0.2 queue: the calendar's qualifying rows after a drop): as world2627q (AJAX, CL Q1 forced,
+    simdraw; on the 4.0.3 data AJAX loses CL Q1 on penalties and drops into the CONFERENCE LEAGUE Q2) with, at each of
+    season 2's first career menus, PROSS. PARTITA opened and read (then ESCI): the next fixture before every leg of a
+    qualifying tie must name that tie (PRELIM. + the competition actually played: CL, then the one it dropped into);
+    reported: the next-match screens' titles in order"""
+    seen, errs = [], []
+
+    def hook(s, season, scr):
+        if season != 2 or len(seen) >= 8 or scr is None or scr.find('TRASFERIMENTI') is None:
+            return
+        r = press(s, scr, 'PROSS. PARTITA')
+        if r is None:
+            return
+        nx = s.screen()
+        seen.append(nx.entries[0][1] if nx.entries else '?')
+        if nx.find('ESCI') is not None:
+            press(s, nx, 'ESCI')
+
+    ok, msg, ties = q27_run(hook)
+    if ok is None:
+        return True, msg
+    check(ok, msg, errs)
+    pre = [t for t in seen if t.startswith('PRELIM.')]
+    check(any('CHAMPIONS' in t for t in pre), f'no CL qualifying fixture announced: {seen}', errs)
+    drop = [t for t in ties if 'CHAMPIONS' not in t]
+    if drop:
+        cup = drop[0].split()[1]
+        check(any(cup in t for t in pre), f'the tie after the drop ({drop[0]}) never announced: {seen}', errs)
+    return not errs, '; '.join(errs) or f'next-match titles {seen}; ties {ties}'
+
+
+@scenario
 def world_uq_early():
     """4.0.1 (Pietro's polish): the next UEFA qualifying tie is built as soon as the return leg is decided (uefaq's
     uq_daily also at the end of the day played), so the career calendar lists it at once, not only after PARTITA. As

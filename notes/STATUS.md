@@ -2244,6 +2244,12 @@ Left for 2.5: (a) NSL/NSSL finals series (type-1 design) or declare them postpon
 - MiSTer beta 5: c/REL402b5 = ae6fce1 on world5tm-402rc3 (IT CD 642b871d, GOG IT 0ab0ac6b; vs REL402b4: the 8 exes only).
   roundtrip, shirt_numbers PASS; tail_zero PASS on SWOS/ and gog/ (obj2+0xd7000..+0x1bd900 zeroed). Davide confirms on the MiSTer.
 14. contimain a75820c (Dati coppe, tooling: conti.py --test for all six confederations) -> f9a0b47; `conti.py --test afc caf concacaf conmebol fifa ofc` runs all six, rc 0 (no args = conmebol only).
+15. viewworld 06f990c (p6: VISUALIZZA MONDO opens on the world's continents / cups) -> 966efdb; rc1 list += world_viewcont.
+16. subsnum 692027f (Serie C: in-match bench list, two-digit numbers right-aligned, names +6 px) -> 09fc5f4; subs_numbers +
+   roundtrip PASS (remote). rc1 list += subs_numbers (IT only).
+- world_ns FAIL (p6: NSW5 checkw1 'no W1 block') bisected: PASS 503927b, 96ebc50, 8152e56; FAIL from 388e68f (xsq-402 merge)
+  on. Inside xsq-402: 1fc7ee0 (extended squads 30) PASS, 5cc81ef (buying players 17-30: market XTRA entries, 'XS' engine
+  item) FIRST FAIL, 819b85a / 097182d / 64852a6 FAIL. Owner: squads. Fix before rc1.
 
 ## Deferred realism (4.0.2+)
 - Moldova's h2h_half groups start at 0 points (package 6, 2026-10-24; pre-existing, not option C).

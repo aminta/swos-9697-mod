@@ -10772,6 +10772,18 @@ def dkb_sets(r, spr, blond, info):
         check(not other, f'{tag}: the three skin / hair sets differ in size at frames {other[:12]}', errs)
         hair = {x for k in range(101) for x in frame(new + k)[2]}
         check(15 in hair and 5 not in hair, f'{tag}: darkblond colours {sorted(hair)} (yellow 15, no light skin 5)', errs)
+        bald = getattr(blond, 'NEW3', None)             # 4.0.3 bald dark: the black set with the hair 3 -> skin 4
+        if bald and idx(bald):
+            bald += new - blond.NEW1
+            diff, bad = 0, []
+            for k in range(101):
+                a, b_ = frame(black + k), frame(bald + k)
+                d_ = [(x, y) for x, y in zip(a[2], b_[2]) if x != y]
+                if a[:2] != b_[:2] or any(xy != (3, 4) for xy in d_):
+                    bad.append(k)
+                diff += len(d_)
+            check(not bad and diff > 0, f'{tag}: bald dark frames {bad[:12]} ({len(bad)}), {diff} hair pixels', errs)
+            info.append(f'{tag}: bald dark set, {diff} hair pixels in skin colour')
     return errs
 
 
@@ -10807,7 +10819,8 @@ def world_darkblond():
     errs, info = [], []
     team = os.environ.get('DKB_TEAM', 'EUROPA,ITALIA,SERIE A,ROMA').split(',')
     cars = {'SETUP.DAT': os.environ['DKB_SETUP']} if os.environ.get('DKB_SETUP') else {}   # (GOG's factory file:
-    with Session('world_darkblond', b, cars, 'dump:2', 600, match=True) as s:             # video speed 10 = half mode)
+    with Session(os.environ.get('DKB_NAME', 'world_darkblond'), b, cars, 'dump:2', 600, match=True) as s:   # (video
+                                                                                         # speed 10 = half mode)
         s.wait()
         for t in ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27'] + team:
             if press(s, s.screen(), t, 3) is None:
@@ -10849,6 +10862,13 @@ def world_darkblond():
                 break
             press(s, s.screen(), 'GIOCA :', 2)
         s.shot('prematch')
+        for nm_ in filter(None, os.environ.get('DKB_BALD_POKE', '').split(',')):   # 4.0.3 test: these players bald
+            r = s.result                                                           # (byte 25 bit 0 in every copy of
+            o2 = r.read(r.base2, 0x300000)                                         # their record in obj2)
+            hits = [m_.start() - 3 for m_ in _re.finditer(_re.escape(nm_.encode()) + b'\0', o2)]
+            for h in hits:
+                s.poke(r.base2 + h + 25, bytes((o2[h + 25] | 1,)))
+            info.append(f'{nm_} poked bald x{len(hits)}')
         if not any(x[1] == 'GIOCA PARTITA' and not x[2] for x in s.screen().entries):
             return False, f'fixture {fx}: no GIOCA PARTITA on {s.screen()}'
         press(s, s.screen(), 'GIOCA PARTITA', 3)
@@ -10861,9 +10881,53 @@ def world_darkblond():
             if k == 6:                                # (the match running: the sets as converted for it)
                 errs += dkb_sets(r, spr, blond, info)
                 checked = True
+                if os.environ.get('DKB_SHEET'):          # 4.0.3: the converted sets side by side (review image)
+                    bald_sheet(r, spr, blond, s.result.obj2(s.info['pal'], 768),
+                               os.path.join(s.run, 'shots', 'sets.png'), info)
         check(checked, f'the match never ran ({r})', errs)
         info.append(f'fixture {fx}')
     return not errs, '; '.join(errs + info)
+
+
+def bald_sheet(r, spr, blond, pal, path, info):
+    """Team 1's (the home team's) match sprites as converted, frames 0..23 of the sets light (341..), face 1 = bald
+    light (442..), black (543..), bald dark (blond.NEW3..), darkblond (blond.NEW1..): one row each, 6x, PNG."""
+    from PIL import Image
+    idx = lambda i: struct.unpack('<I', r.read(r.base2 + spr + i * 4, 4))[0]
+    rows = [341, 442, 543, blond.NEW3, blond.NEW1]
+    cw, chh, z = 20, 24, 6
+    img = Image.new('RGB', (24 * cw * z, len(rows) * chh * z), (40, 110, 40))
+    rgb = [tuple(min(255, c * 4) for c in pal[3 * i:3 * i + 3]) for i in range(16)]
+    for ri, base in enumerate(rows):
+        for k in range(24):
+            h = r.read(idx(base + k), 24)
+            wq, nl = struct.unpack_from('<h', h, 14)[0], struct.unpack_from('<h', h, 12)[0]
+            data = r.read(struct.unpack('<I', h[:4])[0], wq * 8 * nl)
+            for y in range(min(nl, chh)):
+                for x in range(min(16 * wq, cw)):
+                    b_ = data[y * wq * 8 + x // 2]
+                    c = b_ >> 4 if x % 2 == 0 else b_ & 15
+                    if c:
+                        for dy in range(z):
+                            for dx in range(z):
+                                img.putpixel(((k * cw + x) * z + dx, (ri * chh + y) * z + dy), rgb[c])
+    img.save(path)
+    info.append(f'sheet {path}')
+
+
+@scenario
+def world_bald():
+    """4.0.3 bald players (blond.py: PlayerFile byte 25 bit 0): world_darkblond's ROMA career match on SWOSTEST_BUILD
+    with DONYELL MALEN bald in the data (bald dark: his darkblond hair now in the dark skin colours) and NAHUEL MOLINA
+    poked bald for the test (bald light = face 1); dkb_sets checks the bald dark sets frame by frame against the
+    black set (only hair pixels 3 -> 4). Frames: runs/world_bald/shots (m*.png: the line-ups and the match)"""
+    keep = {k: os.environ.get(k) for k in ('DKB_NAME', 'DKB_BALD_POKE', 'DKB_SHEET')}
+    os.environ.update(DKB_NAME='world_bald', DKB_BALD_POKE=os.environ.get('BALD_POKE', 'NAHUEL MOLINA'), DKB_SHEET='1')
+    try:
+        return world_darkblond()
+    finally:
+        for k, v in keep.items():
+            os.environ.pop(k, None) if v is None else os.environ.__setitem__(k, v)
 
 
 @scenario

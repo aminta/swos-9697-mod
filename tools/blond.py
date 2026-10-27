@@ -19,6 +19,13 @@ reach the next team's sprites. Here:
   3 in the top three rows) yellow whenever a face icon is set (all six `add word [Dx], 186`: squad screens cseg_13A55 /
   cseg_13DFB, SetMenuEntryPlayerFace, InitEditTeamsMenu, the Edit Teams face button, whose cycle now runs 0..3).
 Goalkeepers flagged blond are drawn as black (their sprites follow team*GoalieFaces, kept at 0..2).
+
+4.0.3 bald players: PlayerFile byte 25 (field_19, after the 22-byte name; the game never reads it) bit 0 = bald.
+Older versions ignore it (the player keeps his hair). A bald light player (face 0 / 1) plays as face 1, whose hair is
+already drawn in the skin colours (skinAndHairColorConversionTable[1]); a bald dark player (face 2 / 3) gets flag 2
+and the sets NEW3 / NEW4 (1708.., after menunum's 1620..1707), converted with table 4 (BALDDARK: hair -> the dark
+skin colours), in BSS2 (the obj2 tail's end: nothing before it moves). Menus keep the file's face icon; goalkeepers
+keep their hair.
 """
 import re
 import struct
@@ -31,6 +38,11 @@ NEW1 = shirtnum.NEWBASE + 83            # 1418: after the shirt numbers 17..99
 NEW2 = NEW1 + 101
 SET_BYTES = 0x3C00                      # 101 sprites: 15216 bytes (TEAM1/2/3.DAT, all 1 quad wide, at most 20 lines)
 BSS_SIZE = 2 * SET_BYTES
+NEW3 = 1708                             # 4.0.3 bald dark: team 1 (after menunum's 1620..1707), team 2 NEW4
+NEW4 = NEW3 + 101
+BSS2_SIZE = 2 * SET_BYTES               # (patch.py: at the obj2 tail's end)
+BALD_AT = 25                            # PlayerFile.field_19 (from the player record; positionAndFace = 26)
+BALDDARK = (6, 4, 5, 4, 4, 3, 13, 4, 9, 4, 12, 3, -1)  # black skin; hair bright/medium -> skin 4, dark -> 3
 FLAG = 49                               # PlayerInfoHeader.field_31
 BLOND = (6, 4, 5, 4, 4, 3, 13, 15, 9, 15, 12, 6, -1)   # black skin; hair bright/medium -> yellow, dark -> orange
 
@@ -44,6 +56,18 @@ ig_face:                                ; replaces mov al, [D0] / mov esi, [A6] 
     mov al, 2
     mov byte [esi + FLAG_], 1
 .w:
+    push edi                            ; 4.0.3: bald (the player record's byte 25 bit 0, A5 -> record + 76 - 26 ..)
+    mov edi, [A5]
+    test byte [edi + 66h - 26 + BALD_AT_], 1
+    pop edi
+    jz .s
+    cmp al, 2
+    je .d
+    mov al, 1                           ; light: face 1 (hair in the skin colours)
+    jmp .s
+.d:
+    mov byte [esi + FLAG_], 2           ; dark (also darkblond): the bald dark sets
+.s:
     mov [esi + FACE_OFF], al
     ret
 
@@ -56,6 +80,14 @@ copy_sets:                              ; replaces mov word [D0], 341
     mov edx, 644
     mov ebp, NEW2_
     mov edi, BUF + SET_
+    call .set
+    mov edx, 341                        ; 4.0.3: the bald dark sets
+    mov ebp, NEW3_
+    mov edi, BUF2
+    call .set
+    mov edx, 644
+    mov ebp, NEW4_
+    mov edi, BUF2 + SET_
     call .set
     popad
     mov word [D0], 341
@@ -99,23 +131,34 @@ copy_sets:                              ; replaces mov word [D0], 341
     ret
 
 conv1:                                  ; replaces mov ax, [useIndividualPlayerSkinColor] before team 1's goalkeepers
+    push dword FACE_
     push dword NEW1_
+    push dword T1TAB
+    call conv
+    push dword 4
+    push dword NEW3_
     push dword T1TAB
     call conv
     mov ax, [USEIND]
     ret
 conv2:
+    push dword FACE_
     push dword NEW2_
+    push dword T2TAB
+    call conv
+    push dword 4
+    push dword NEW4_
     push dword T2TAB
     call conv
     mov ax, [USEIND]
     ret
-conv:                                   ; [esp+4] colour table, [esp+8] first new sprite
+conv:                                   ; [esp+4] colour table, [esp+8] first new sprite, [esp+12] face table index
     cmp word [USEIND], 0                ; one face for the whole team: the set is not used
     je .out
     pushad
     mov ebx, [esp + 36]
-    mov byte [D0], FACE_
+    mov eax, [esp + 44]
+    mov [D0], al
     mov [A0 + 4], ebx                   ; A1 -> colour table
     call SKINTAB
     mov ecx, 101
@@ -138,7 +181,7 @@ conv:                                   ; [esp+4] colour table, [esp+8] first ne
     jnz .l
     popad
 .out:
-    ret 8
+    ret 12
 
 fo1:                                    ; replaces mov ax, [D0] / mov bx, 442 / sub bx, 341 / mul bx (team 1 player)
     mov ebx, [A0 + 8]                   ; A2 -> player
@@ -149,6 +192,10 @@ fo2:
     mov ax, NEW2_ - 644
 fo:
     xor dx, dx
+    cmp byte [ebx + FLAG_], 2           ; 4.0.3: bald dark -> NEW3 / NEW4
+    jne .b
+    add ax, NEW3_ - NEW1_
+.b:
     cmp byte [ebx + FLAG_], 0
     jne .r
     mov ax, [D0]
@@ -204,8 +251,9 @@ build_icon:                             ; sprite 189 = 188 with the hair (colour
 """
 
 
-def patch(p, area, at, bss, spr):
-    """Code at obj1:at, sets at obj2:bss (BSS_SIZE zero bytes), spr = spritesIndex (obj2). Returns the code end."""
+def patch(p, area, at, bss, spr, bss2):
+    """Code at obj1:at, sets at obj2:bss (BSS_SIZE zero bytes) and obj2:bss2 (BSS2_SIZE, bald dark), spr = spritesIndex
+    (obj2). Returns the code end."""
     d1, d2 = p.le.obj_bytes(1), p.le.obj_bytes(2)
     fix = list(p.le.fixups())
     one = lambda pat: (lambda m: m[0] if len(m) == 1 else None)([x.start() for x in re.finditer(pat, d1, re.S)])
@@ -221,8 +269,9 @@ def patch(p, area, at, bss, spr):
     users = [o for so, o, ty, to, tt, *_ in fix if so == 1 and to == 2 and tt == ptab]
     assert len(users) == 4, users
     blond = area.add(struct.pack('<13h', *BLOND))
-    newtab = area.add(b'\0' * 16)
-    for k, toff in enumerate(old + [blond]):
+    bald = area.add(struct.pack('<13h', *BALDDARK))       # 4.0.3: table 4
+    newtab = area.add(b'\0' * 20)
+    for k, toff in enumerate(old + [blond, bald]):
         p.add_ptr(2, newtab + 4 * k, 2, toff)
     for o in users:
         p.retarget(1, o, 2, newtab)
@@ -269,8 +318,10 @@ def patch(p, area, at, bss, spr):
     assert t(usp + 2) == (2, D0) and d3 == (2, D0 + 12), (t(usp + 2), d3)
     at = (at + 15) & ~15
     UNCH.update(site=un + 35, sym={'D0': (2, D0), 'D1': (2, D1), 'D3': d3, 'USP': (1, usp), 'UTZ': (1, utz),
-                                   'NEW1_': (0, NEW1), 'NEW2_': (0, NEW2)})
+                                   'NEW1_': (0, NEW1), 'NEW2_': (0, NEW2), 'NEW3_': (0, NEW3), 'NEW4_': (0, NEW4)})
+    assert t(face - 0x16 + 2) == (2, A0 + 20), t(face - 0x16 + 2)   # (mov esi, [A5] / mov al, [esi+66h] before it)
     sym = {'D0': (2, D0), 'D1': (2, D1), 'A0': (2, A0), 'A6': (2, A6), 'SPRIDX': (2, spr), 'BUF': (2, bss),
+           'A5': (2, A0 + 20), 'BUF2': (2, bss2), 'BALD_AT_': (0, BALD_AT), 'NEW3_': (0, NEW3), 'NEW4_': (0, NEW4),
            'USEIND': useind, 'T1TAB': (2, t1tab), 'T2TAB': (2, t2tab), 'SKINTAB': (1, skintab), 'CONVSPR': (1, csc),
            'FACE_': (0, FACE), 'FLAG_': (0, FLAG), 'FACE_OFF': (0, face_off), 'NEW1_': (0, NEW1), 'NEW2_': (0, NEW2),
            'SET_': (0, SET_BYTES)}
@@ -316,6 +367,10 @@ unch:                                   ; replaces InitGameRestoreTeams' call Un
     mov dword [D0], NEW2_
     mov dword [D1], NEW2_ + 101
     call USP
+    mov dword [D3], 0                   ; 4.0.3: the bald dark sets
+    mov dword [D0], NEW3_
+    mov dword [D1], NEW4_ + 101
+    call USP
     popad
     ret
 
@@ -340,13 +395,33 @@ def unch_patch(p, at):
 PLAYERS = {b'CARLOS VALDERRAMA'}       # blond afro all career long: Tampa Bay Mutiny (MLS 1997), Montpellier (1988-89)
 
 
+# 4.0.3: real bald (shaved-head) players of the World 2026-27, by hand (the data has no hair field; full names as in the
+# team files, unique there): byte 25 bit 0. MALEN: darkblond in the data, bald in reality (the 4.0.2 MALEN report).
+BALD = {b'DONYELL MALEN', b'ANTONIO RUDIGER', b'KALIDOU KOULIBALY', b'SERHOU GUIRASSY', b'MICHAIL ANTONIO', b'MOUSSA NIAKHATE',   # dark
+        b'TIM REAM', b'NEMANJA MATIC', b'JOSIP ILICIC'}                                                                       # light
+
+
+def bald(player):
+    """A 38-byte player record with byte 25 bit 0 set when he is in BALD (the extras' files: xtra.build)."""
+    name = bytes(player[3:25]).split(b'\0')[0]
+    if name not in BALD:
+        return bytes(player)
+    assert len(name) <= 21, name
+    return bytes(player[:BALD_AT]) + bytes((player[BALD_AT] | 1,)) + bytes(player[BALD_AT + 1:])
+
+
 def faces(data, header=True):
-    """Team file bytes -> (bytes, players set to face 3): PLAYERS get bits 3-4 of positionAndFace = 11."""
+    """Team file bytes -> (bytes, players set to face 3): PLAYERS get bits 3-4 of positionAndFace = 11; BALD get
+    byte 25 bit 0 (names of at most 21 letters: byte 25 stays after the name's 0)."""
     d, n, o0 = bytearray(data), 0, 2 if header else 0
     for k in range((len(d) - o0) // 684):
         for j in range(16):
             p = o0 + k * 684 + 76 + j * 38
-            if bytes(d[p + 3:p + 26]).split(b'\0')[0] in PLAYERS:
+            name = bytes(d[p + 3:p + 26]).split(b'\0')[0]
+            if name in PLAYERS:
                 d[p + 26] |= 0x18
                 n += 1
+            if name in BALD:
+                assert len(name) <= 21, name
+                d[p + BALD_AT] |= 1
     return bytes(d), n

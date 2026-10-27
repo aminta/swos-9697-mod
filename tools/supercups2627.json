@@ -124,5 +124,40 @@
    "fenerbahce"
   ],
   "todo": "semis 4+5 Jan, final 9 Jan 2027 (TFF 24 Sep 2026); which entrant is which (rule) inferred from the 2027 pairs, venues TBA; extra time not verified (pens assumed); the double fallback not verified"
+ },
+ "eng": {
+  "names": {
+   "it": [
+    "FA COMMUNITY SHIELD",
+    "COMM. SHIELD"
+   ],
+   "en": [
+    "FA COMMUNITY SHIELD",
+    "COMM. SHIELD"
+   ],
+   "fr": [
+    "FA COMMUNITY SHIELD",
+    "COMM. SHIELD"
+   ],
+   "de": [
+    "FA COMMUNITY SHIELD",
+    "COMM. SHIELD"
+   ]
+  },
+  "date": "16/08",
+  "from_season": 2,
+  "legs": 1,
+  "level": "pens",
+  "host": "neutral",
+  "rule": [
+   "champion",
+   "cup_winner"
+  ],
+  "if_double": "second",
+  "first_entrants": [
+   "arsenal",
+   "manchestercity"
+  ],
+  "todo": "the 2026 edition was played on 16 Aug at Cardiff (Wembley unavailable): from season 2 the same week, neutral; 90 minutes then penalties (no extra time) per the FA's usual rules, not re-checked for 2027; double -> league runner-up per the FA rule, not re-checked"
  }
 }

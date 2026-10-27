@@ -135,6 +135,8 @@ def table(lang, name_off):
         e = bytes([lf, int(cup['id'], 16), d.get('from_season', 1), w1, d.get('legs', 1), LEVEL[d['level']], n, w2])
         e += bytes(rules) + struct.pack('<4H', *ents)
         nm = d['names'].get(lang) or d['names']['en']
+        import complist
+        complist.cal_label(nm[1], f'supercup {c} {lang}')   # (the calendar's label: <= 70 px, font chars only)
         e += struct.pack('<II', name_off(nm[0].encode('latin-1')), name_off(nm[1].encode('latin-1')))
         e += bytes([rnames.KEYS['SF'], rnames.KEYS['F'], 0, 0])
         assert len(e) == 32

@@ -2156,6 +2156,74 @@ def main_button():
     return not errs, '; '.join(errs) or '; '.join(info)
 
 
+@scenario
+def coach_nat():
+    """4.0.3: the coach's nationalities per career button (careerworld nat_init), Italian release-like build
+    (COACHNAT_BUILD, else SWOSTEST_BUILD; a full 2026-27 build): CARRIERA keeps the era list (YUG, RFT, URS, RDT);
+    CARRIERA 2026-27 lists today's nations (the World 2026-27 codes, MNE..TGA, and FIJ etc.) and none of the era
+    ones; a nationality the era list lacks becomes ENG there; a TGA coach starts the World 2026-27's INTER career"""
+    b = os.environ.get('COACHNAT_BUILD') or os.environ.get('SWOSTEST_BUILD')
+    if not b:
+        return True, 'SKIP: COACHNAT_BUILD (a full 2026-27 build) not set'
+    era, errs, info = {'YUG', 'RFT', 'URS', 'RDT'}, [], []
+
+    def to_main(s):
+        for _ in range(4):
+            sc = s.screen()
+            if sc.find('CARRIERA 2026-27', exact=True) is not None:
+                return
+            if sc.find('ESCI', exact=True) is None or press(s, sc, 'ESCI', 2) is None:   # (the career menu: ESC
+                s.send('esc dump:2')                                                     # does not leave it)
+
+    def cycle(s, key, n):
+        sc = s.screen()
+        i = sc.find('ENG', exact=True)
+        if i is None:
+            raise AssertionError(f'no ENG field: {sc}')
+        walk(s, i, 1)
+        seen = []
+        for _ in range(n):
+            s.send(f'fire+{key} dump:0.5')
+            seen.append(s.screen().entries[i][1])
+        return i, seen
+
+    with Session('coach_nat', b, {}, 'dump:2', 900) as s:
+        s.wait()
+        walk(s, s.screen().find('CARRIERA', exact=True), 3)
+        _, seen = cycle(s, 'left', 5)
+        check(era <= set(seen), f'CARRIERA: era nationalities {seen}', errs)
+        info.append(f'CARRIERA {seen}')
+        to_main(s)
+        walk(s, s.screen().find('CARRIERA 2026-27', exact=True), 3)
+        i, seen = cycle(s, 'left', 62)
+        check({'TGA', 'SAM', 'MNE', 'FIJ'} <= set(seen) and not era & set(seen),
+              f'CARRIERA 2026-27: {seen}', errs)
+        info.append(f'2026-27 {seen[:4]}..{seen[-3:]}')
+        last = seen[-1]
+        to_main(s)
+        walk(s, s.screen().find('CARRIERA', exact=True), 3)
+        sc = s.screen()
+        check(sc.find('ENG', exact=True) is not None, f'CARRIERA after {last}: not ENG ({sc})', errs)
+        to_main(s)
+        walk(s, s.screen().find('CARRIERA 2026-27', exact=True), 3)
+        i, seen = cycle(s, 'left', 1)
+        for _ in range(5):                                  # (the walk's fire may move the field once)
+            if seen[-1] == 'TGA':
+                break
+            s.send('fire+left dump:0.5')
+            seen.append(s.screen().entries[i][1])
+        check(seen[-1] == 'TGA', f'2026-27 left from ENG: {seen}', errs)
+        press(s, s.screen(), 'SCEGLI SQUADRA', 3)
+        for x in ('EUROPA', 'ITALIA', 'SERIE A', 'INTER'):
+            if press(s, s.screen(), x, 3) is None:
+                errs.append(f'{x} not reached')
+                break
+        s.send('fire dump:3')
+        got = str(s.screen())
+        check('CAMP. 2026/27' in got and 'INTER' in got, f'the TGA coach career: {got[:80]}', errs)
+    return not errs, '; '.join(errs) or '; '.join(info)
+
+
 def diy_lin(s, lang='it'):
     """The linear address of DIY_competitionStart (the table shown) in this session (obj2: the same offset as the
     language's original exe)."""

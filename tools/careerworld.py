@@ -105,6 +105,19 @@ WORLD_NATS = ('MNE KOS AND GIB KAZ KGZ BLZ HAI CUW ARU DOM CUB PUR GRN GLP MTQ G
                                                  # (FIFA codes; the same in every exe, as the game's own 153)
 MENU_NATS = [153, 154, 155, 37]                      # added to the career menu's nationalities (Davide: the coach can be
                                                      # East/West German, Soviet, Yugoslav; YUG existed, not offered)
+NAT_GONE = {37}                                      # 4.0.3: the game's codes of no nation today (YUG; TCH 6 = Czechia)
+
+
+def nat_order27(game63, ncodes):
+    """CAREER 2026-27's coach nationalities: the game's 63 (its order), then every other game code of a nation today,
+    then the World 2026-27 codes 156.. (WORLD_NATS), OTHER (FF) last; no GDR / URS / FRG (153..155). At most 255."""
+    order = [c for c in game63 if c not in NAT_GONE]
+    order += [c for c in range(153) if c not in order and c not in NAT_GONE]
+    order += list(range(156, ncodes))
+    assert ncodes == 156 + len(WORLD_NATS) and len(order) + 1 <= 255 and len(set(order)) == len(order)
+    return bytes(order) + b'\xff'
+
+
 WCONT = 99                                           # pseudo-continent of the running world (view, foreign browser)
 
 ASM = '''
@@ -926,6 +939,34 @@ align 4
 ECQTAB: dd EQ1, EQ2, EQ3, EQ4, EQ5, EQ6, EQ7, EQ8
 WCQTAB: dd WQ1, WQ2, WQ3, WQ4, WQ5, WQ6, WQ7, WQ8
 
+nat_init:                               ; 4.0.3: replaces `mov dword [A0], nationalityOrdinalsArray` in CareerMenuInit
+    pushad                              ; (D0 = plNationality): CAREER 2026-27 (mainbtn's mb_flag) gets today's nations,
+    mov esi, NATORD                     ; CAREER the era list (+ GDR / URS / FRG / YUG); ChangeNationality wraps at the
+    mov ecx, N_ERA                      ; list's length; a coach nationality not in the list becomes ENG (the search
+    mov eax, [NATFLAG]                  ; has no end check)
+    test eax, eax
+    jz .set
+    cmp byte [eax], 0
+    je .set
+    mov esi, NATORD27
+    mov ecx, N_27
+.set:
+    mov [NATPTR], esi
+    mov [NATWRAP_INC], cl
+    dec cl
+    mov [NATWRAP_DEC], cl
+    inc cl
+    mov edi, esi
+    mov al, [PLNAT]
+    repne scasb
+    je .ok
+    mov byte [PLNAT], 8                 ; ENG (the game's default)
+    mov byte [D0R], 8
+.ok:
+    mov [A0R], esi
+    popad
+    ret
+
 w_tcache:                               ; replaces `mov al, [lastLoadedExtNumber]` (cache test): a cached 80..85 is
     mov al, [LASTEXT]                   ; a hit only if it is the file this career wants (1996-97 or world)
     push edx
@@ -1572,6 +1613,12 @@ def sites(p):
              + rb'\x01\x80\x3d' + pk(D0) + rb'\x40\x75', d1, 'ChangeNationality')
     s['nat_wrap'] = (m.start() + 15, m.start() + 41)        # the 63 and the 64
     assert d1[s['nat_wrap'][0]] == 0x3f and d1[s['nat_wrap'][1]] == 0x40
+    s['nat_jns'], s['nat_cbw'] = m.start() + 7, m.start() + 0x42          # 4.0.3: ordinals 0..255 (unsigned)
+    assert d1[s['nat_jns']] == 0x79 and d1[s['nat_cbw']:s['nat_cbw'] + 2] == b'\x66\x98'
+    s['nat_ins'] = sorted(off - 6 for _, off in s['natord_refs'])   # `mov dword [A0], NATORD`: CareerMenuInit, Change...
+    assert all(d1[x:x + 2] == b'\xc7\x05' for x in s['nat_ins']) and s['nat_ins'][1] == m.start() + 0x4a, s['nat_ins']
+    assert d1[s['nat_ins'][0] - 10] == 0xa0                                # (`mov al, [plNationality]; mov [D0], al`)
+    s['plnat'] = p.target(1, s['nat_ins'][0] - 9)
     # nationalTeams (142 x 6 B: file, ordinal, nationality, home country, rating word) after its 3 counts (job-offer
     # pool 41, with a nationality 63, all 142): the 5 `mov [A0], offset nationalTeams`, 3 `mov ax, [count]`, 2 `mul`
     nt = d2.index(bytes((80, 0, 0, 0, 0, 0x13, 80, 2, 1, 1, 0, 0x18)))
@@ -1851,6 +1898,13 @@ def patch(p, worlds, at, nasmcave, comp, ct, cont_rec):
     assert not set(MENU_NATS) & set(order) and max(MENU_NATS) < len(short) // 3
     order += bytes(MENU_NATS) + b'\xff'
     extra.append('NATORD: db ' + ', '.join(map(str, order)))
+    order27 = nat_order27(bytes(p.get(2, s['natord'], 63)), len(short) // 3)   # 4.0.3: CAREER 2026-27's coach nations
+    extra.append('NATORD27: db ' + ', '.join(map(str, order27)))
+    extra.append('align 4')
+    extra.append('NATFLAG: dd 0                       ; (mainbtn mb_flag, patch.py sets it; 0: no button)')
+    extra.append('NATPTR: dd NATORD')
+    extra.append(f'N_ERA equ {len(order)}')
+    extra.append(f'N_27 equ {len(order27)}')
     pairs = [x for w in worlds for f in w['countries'] for x in (f, w['n'])]
     extra.append('WMAP: db ' + ', '.join(map(str, pairs + [0xff])))
     anybig = any(big(w) for w in worlds)
@@ -1934,6 +1988,7 @@ def patch(p, worlds, at, nasmcave, comp, ct, cont_rec):
     sym = {k: (2, v) for k, v in s['regs'].items()}
     sobj, slt = s['slt']
     sym['CTAB0'] = (2, ct)
+    sym.update({'PLNAT': s['plnat'], 'NATWRAP_DEC': (1, s['nat_wrap'][0]), 'NATWRAP_INC': (1, s['nat_wrap'][1])})
     sym.update({'SLT': (sobj, slt), 'SLTCOPY': s['sltcopy'], 'WORLD_BYTE': (0, WORLD_BYTE), 'REC': (0, REC),
                 'LOADEURO': (1, s['loadeuro']), 'KNOWN': (1, s['known']), 'TEAMSLOADED': (2, s['teamsloaded']),
                 'CCCOPY': s['copies'][0][0],
@@ -2011,10 +2066,18 @@ def patch(p, worlds, at, nasmcave, comp, ct, cont_rec):
     hook(nc['wcfill_call'], 5, 'w_wcfill', ())
     for objn, off in s['short_refs']:            # new nationalities: longer name table and career menu list
         p.retarget(objn, off, 1, labels['NATSHORT'])
-    for objn, off in s['natord_refs']:
-        p.retarget(objn, off, 1, labels['NATORD'])
-    p.put(1, s['nat_wrap'][0], bytes((63 + len(MENU_NATS),)))
+    hook(s['nat_ins'][0], 10, 'nat_init', (2, 6))   # 4.0.3: the coach's list per career button (nat_init)
+    ci = s['nat_ins'][1]                         # ChangeNationality: `mov eax, [NATPTR]; mov [A0], eax`
+    p.remove(1, ci + 2)
+    p.remove(1, ci + 6)
+    p.put(1, ci, b'\xa1\0\0\0\0\xa3\0\0\0\0')
+    p.add_ptr(1, ci + 1, 1, labels['NATPTR'])
+    p.add_ptr(1, ci + 6, 2, s['regs']['A0R'])
+    p.put(1, s['nat_jns'], b'\x73')                # jns -> jnc, cbw -> xor ah, ah: ordinals up to 255
+    p.put(1, s['nat_cbw'], b'\x32\xe4')
+    p.put(1, s['nat_wrap'][0], bytes((63 + len(MENU_NATS),)))   # (nat_init sets them for the chosen list)
     p.put(1, s['nat_wrap'][1], bytes((64 + len(MENU_NATS),)))
+    SITES['natflag'] = labels['NATFLAG']
     hook(s['tcache'], 5, 'w_tcache', (1,))
     if ns:
         hook(NS['menu_site'], 9, 'w_ns_menu', (3,))

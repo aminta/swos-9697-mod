@@ -1644,6 +1644,13 @@ def rec_shot(s):
         if os.environ.get('W8485_RECWATCH'):
             o = int(os.environ['W8485_RECWATCH'], 16)
             s.log.append(f"[rec] {tag} {s.result.obj2(o + 22, 16).hex()} {s.result.obj2(o + 86, 4).hex()}")
+        if os.environ.get('W8485_RLDBG'):              # (debug: gp_rlines_c's GP_RLN / GP_RLC / GP_REC, SC_ST's header)
+            rln, rlc, rec, scs = (int(x, 16) for x in os.environ['W8485_RLDBG'].split(','))
+            s.log.append(f"[rl] {tag} {s.result.obj2(rln, 16).hex()} {s.result.obj2(rlc, 4).hex()} "
+                         f"{s.result.obj2(rec, 4).hex()} {s.result.obj2(scs, 12).hex()}")
+            rv = struct.unpack('<I', s.result.obj2(rec, 4))[0]
+            if rv:
+                s.log.append(f"[rl] {tag} rec {s.result.read(rv, 106).hex()}")
     watch('before')
     try:
         if press(s, scr, 'VISUAL. COMPETIZ.', wait=3) is None:
@@ -8683,7 +8690,9 @@ def sc_rules():
     real entrants; (d) a summer one (from_season 2) in the first season: skipped (trace 0x81); (e) the career club not
     in it: nothing built (0x84); (f) handled once per season (a second advance builds nothing); (g) before its week:
     nothing; final four (h-k): the career club's semi-final built (the other one decided, its winner kept), the final
-    at its week after a won semi-final (named F, the semi SF), none after a lost one, a double -> the league 3rd."""
+    at its week after a won semi-final (named F, the semi SF), none after a lost one, a double -> the league 3rd;
+    (l-p) the season record's line (sc_rline): the final / the one match won -> the record name, lost / a lost semi /
+    another season -> none."""
     import tempfile
     src = os.path.join(ROOT, 'tools', 'gplay.c')
     main = r"""#include <stdio.h>
@@ -8704,7 +8713,7 @@ static void setup4(int from, int n, u16 champ, u16 second, u16 cupw, u16 cupf, u
     t[8] = SCR_CHAMP; t[9] = (n == 4 ? SCR_CUPF : SCR_CUPW) | (n == 4 ? SCR_THIRD : SCR_CUPF) << 4;
     t[10] = SCR_CUPW | SCR_THIRD << 4; t[11] = SCR_SECOND | SCR_THIRD << 4;
     t[12] = 0x66; t[13] = 9; t[14] = 0x66; t[15] = 10;            /* (season 1: 0x0966 v 0x0A66 ...) */
-    t[16] = 0x66; t[17] = 11; t[18] = 0x66; t[19] = 12; t[28] = 7; t[29] = 8;
+    t[16] = 0x66; t[17] = 11; t[18] = 0x66; t[19] = 12; t[28] = 7; t[29] = 8; t[32] = 0x34; t[33] = 0x12;
     GP_SCT = tab; GP_SEAS = 127; SC_TRACE = 0;
 }
 static void setup(int from, u16 champ, u16 second, u16 cupw, u16 cupf) { setup4(from, 2, champ, second, cupw, cupf, 0x0566); }
@@ -8732,9 +8741,19 @@ int main(void) {
     decide(1); GP_WK = 50; out("i0", sc_step_c());
     GP_WK = 51; out("i", sc_step_c());
     printf("i2 %%d %%d\n", SC_ST[4], GP_ST.rn[0]);
+    decide(1); printf("l %%x %%d\n", sc_rline(), SC_ST[5]);
     setup4(1, 4, inter, napoli, bologna, lazio, 0x0566); GP_MGR = napoli; GP_WK = 49; sc_step_c(); decide(0);
     GP_WK = 51; out("j", sc_step_c());
     printf("j2 %%d\n", SC_ST[4]);
+    printf("m %%x\n", sc_rline());
+    setup(1, inter, napoli, bologna, lazio); GP_MGR = inter; GP_SCFIRST = 0; GP_WK = 49; sc_step_c(); decide(1);
+    printf("n %%x\n", sc_rline());
+    setup(1, inter, napoli, bologna, lazio); GP_MGR = inter; GP_WK = 49; sc_step_c(); decide(0);
+    printf("o %%x\n", sc_rline());
+    { static u8 rec[106]; GP_REC = rec; GP_SEAS = 127; SC_ST[5] = 1; *(u32 *)(rec + 22 + 4) = 0x55; rec[87] = (u8)-113;
+      *(u32 *)(rec + 30) = 0x66; rec[88] = (u8)-104; *(u32 *)(rec + 34) = 0x77; rec[89] = (u8)-103;
+      u32 n = sc_rlines_c(); printf("q %%u %%x %%x %%x %%d\n", n, *(u32 *)(rec + 26), *(u32 *)(rec + 30), *(u32 *)(rec + 34), (s8)rec[87]); GP_REC = 0; }
+    GP_SEAS = 128; printf("p %%x\n", sc_rline());
     /* a double in a final four: the cup winner = the champion -> the cup winner's place to the 3rd (0x0566) */
     setup4(1, 4, inter, napoli, inter, lazio, 0x0566); GP_MGR = 0x0566; GP_WK = 49; out("k", sc_step_c());
     return 0;
@@ -8757,7 +8776,7 @@ int main(void) {
     want = {'a': ['1', '1', '166', '466', '10'], 'b': ['1', '1', '166', '366', '10'], 'c': ['1', '1', '966', 'a66', '10'],
             'd': ['0', '81'], 'e': ['0', '84'], 'f': ['0', '0'], 'g': ['0', '0'],
             'h': ['1', '1', '466', '266', '10'], 'h2': ['166', '1', '7'], 'i0': ['0'], 'i': ['1', '2', '266', '166', '10'],
-            'i2': ['3', '8'], 'j': ['0', '41'], 'j2': ['3'], 'k': ['1', '1', '566', '266', '10']}
+            'i2': ['3', '8'], 'l': ['1234', '1'], 'j': ['0', '41'], 'j2': ['3'], 'm': ['0'], 'n': ['1234'], 'o': ['0'], 'p': ['0'], 'q': ['1', '1234', '66', '77', '1'], 'k': ['1', '1', '566', '266', '10']}
     errs = [f'{k}: got {got.get(k)}, want {w}' for k, w in want.items() if (got.get(k) or [])[:len(w)] != w]
     return not errs, '; '.join(errs) or 'a champion v cup winner, b double -> finalist, c season-1 data, d summer skipped, ' \
         'e not in it, f once a season, g before the week; final four: h semi-final built (other winner kept), i the final ' \
@@ -9237,7 +9256,7 @@ def sc_trace(exe):
 def sc_season(team, extra, runs_tag=1):
     """world8485 on a World 2026-27 career at team with extra env; the session log's lines."""
     keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_ONE',
-            'W8485_MIDSAVE', 'W8485_FROM', 'W8485_HEX')
+            'W8485_MIDSAVE', 'W8485_FROM', 'W8485_HEX', 'W8485_RECSHOT', 'W8485_RLDBG')
     keep = {k: os.environ.get(k) for k in keys}
     os.environ.update(W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1',
                       W8485_ONE='1', **extra)
@@ -9268,7 +9287,9 @@ def world_sc_esp():
     """4.0.5 supercups, a final four in game: a BARCELONA career, season 1 (the real 2026-27 edition: BARCELONA v
     ATLETICO MADRID and REAL SOCIEDAD v REAL MADRID, Istanbul in February) on a GPLAY_KOFORCE=2 test build (the career
     club wins its played knockout ties): the SUPERCOPPA DI SPAGNA SEMIFINALE v ATLETICO MADRID is played, then its
-    FINALE (v REAL MADRID or REAL SOCIEDAD, the other semi-final decided at once), each once, and the season ends.
+    FINALE (v REAL MADRID or REAL SOCIEDAD, the other semi-final decided at once), each once, and the season ends;
+    the season record (REGISTRO GESTIONE at the season end) has the SUPERCOPPA DI SPAGNA line, VINCITORI (the final
+    won: the record's bytes, the shot 'record').
     (Without the switch a lost semi-final ends it: SC_ST round 3, no final - seen on a plain build.)"""
     src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
     if not os.path.isdir(src):
@@ -9276,9 +9297,14 @@ def world_sc_esp():
     order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
     exe = os.environ.get('SC_KO_BUILD') or build('world_sc_esp', env={
         'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]), 'GPLAY_KOFORCE': '2'})
-    ok, msg, lines = sc_season('EUROPA,SPAGNA,LALIGA,BARCELONA', dict(W8485_BUILD=exe))
+    from le import LE
+    d1 = LE(open(os.path.join(exe, 'ITALIAN.EXE'), 'rb').read()).obj_bytes(1)
+    g = d1.find(b'GPLOGPTR') + 8
+    dbg = ','.join('%x' % struct.unpack_from('<I', d1, g + o)[0] for o in (40, 44, 48)) + ',%x' % sc_st(exe)
+    ok, msg, lines = sc_season('EUROPA,SPAGNA,LALIGA,BARCELONA', dict(W8485_BUILD=exe, W8485_RECSHOT='1', W8485_RLDBG=dbg))
     errs = []
     check(ok, msg, errs)
+    rec = next((ln for ln in lines if ln.startswith('[record] ')), '')   # (the final won: the season record's line)
     seen = []
     for ln in lines:
         t = ln.split('|')[0]
@@ -9292,9 +9318,16 @@ def world_sc_esp():
             s.wait()
             s.send(LOAD1 + ' dump:3')
             hdr = bytes(s.result.obj2(sc_st(exe), 12))
+    rl = next((ln.split()[2] for ln in lines if ln.startswith('[rl] record ') and ' rec ' not in ln), '')
+    rb = next((bytes.fromhex(ln.split()[3]) for ln in lines if ln.startswith('[rl] record rec ')), b'')
+    won = rl and len(rb) == 106 and any(rb[22 + 4 * o:26 + 4 * o] == bytes.fromhex(rl)[:4] and rb[86 + o] == 1
+                                        for o in range(4)) and bytes.fromhex(rl)[:4] != bytes(4)
+    check(won, f'season record: no supercup line WINNERS (GP_RLN {rl[:8]}, record {rb.hex()}); SC_ST header {hdr.hex()}',
+          errs)                                 # (the page draws its lines through one entry: the record's bytes -
+                                                # name = gp_rlines' GP_RLN[0], code 1 - and the shot 'record')
     check(len(seen) == 2 and 'SEMIFINALE' in seen[0] and 'ATLETICO' in seen[0] and 'FINALE' in seen[1]
           and 'SEMI' not in seen[1] and 'ATLETICO' not in seen[1], f'supercup matches {seen}; SC_ST header {hdr.hex()}', errs)
-    return not errs, '; '.join(errs) or f'{seen}; {msg[:80]}'
+    return not errs, '; '.join(errs) or f'{seen}; record line WINNERS; {msg[:60]}'
 
 
 @scenario

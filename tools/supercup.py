@@ -107,7 +107,7 @@ DATA = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'supercups2627.j
 
 
 def table(lang, name_off):
-    """gplay.c GP_SCT's bytes (db count; per country SC_E = 32 bytes) for the World 2026-27 packs of the build, or
+    """gplay.c GP_SCT's bytes (db count; per country SC_E = 36 bytes) for the World 2026-27 packs of the build, or
     None when the build has none of them. name_off(text) -> the name's offset (gplay: _sadd - STR_BASE)."""
     import mkseason
     import rnames
@@ -139,7 +139,10 @@ def table(lang, name_off):
         complist.cal_label(nm[1], f'supercup {c} {lang}')   # (the calendar's label: <= 70 px, font chars only)
         e += struct.pack('<II', name_off(nm[0].encode('latin-1')), name_off(nm[1].encode('latin-1')))
         e += bytes([rnames.KEYS['SF'], rnames.KEYS['F'], 0, 0])
-        assert len(e) == 32
+        import gplay                                # (the season record's line: REGISTRO GESTIONE's column)
+        rec = nm[0] if complist.px(nm[0]) <= gplay.REC_PX else nm[1]
+        e += struct.pack('<I', name_off(rec.encode('latin-1')))
+        assert len(e) == 36
         out.append(e)
     if not out:
         return None

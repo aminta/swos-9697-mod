@@ -919,10 +919,28 @@ gp_rl:                                  ; the season record's extra lines (gp_sa
     popad
     mov eax, [A0R]
     mov [GP_REC], eax
+%if SC_ON
+    mov dword [GP_SCT], SC_TAB          ; (4.0.5: a supercup won, also before this load's first advance)
+%endif
     mov eax, gp_rlines_c                ; (the Poule, ARG's stage titles, a title play-off - written into GP_REC)
     call gp_c
     or esp, esp                         ; (ZF = 0)
-.r: ret
+    ret
+.r:
+%if SC_ON
+    pushad                              ; 4.0.5: a league none of ours - only a national supercup won (sc_rlines_c)
+    mov dword [GP_SCT], SC_TAB
+    pushad
+    call GETSEASON
+    popad
+    mov eax, [A0R]
+    mov [GP_REC], eax
+    mov eax, sc_rlines_c
+    call gp_c
+    popad
+%endif
+    xor eax, eax                        ; (ZF = 1: none of ours; eax was 0 or ZF from jz)
+    ret
 
 gp_job:                                 ; replaces the club job offers' `call AddJobOffer` (cseg_5B705, D0 = the club's
     push eax                            ; team word): no offer from a club whose team file is not a real one - an
@@ -2033,7 +2051,7 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
     symbols['ADDJOB'] = (1, addjob)
     symbols.update({k: syms[k] for k in ('GP_CFB', 'GP_LG', 'GP_RST', 'GP_RIT', 'GP_SEL', 'GP_MGR', 'GP_WORLD', 'GP_SLT',
                                          'gp_sack_c', 'gp_forcecfb', 'gp_pwin_c', 'gp_rlines_c', 'GP_RLN', 'GP_RLC', 'GP_RLPOULE', 'GP_REC', 'GP_CMB', 'gp_adv_c', 'GP_ADVWK', 'GP_WK', 'GP_TH', 'GP_RN',
-                                         'gp_defer_c', 'cd_step_c', 'sc_step_c', 'GP_SCT', 'GP_SCFIRST', 'SC_ST', 'SC_TRACE', 'cd_fixload_c', 'gp_scal_c', 'gp_repoint_c', 'gp_fixload_c', 'CD_ST', 'GP_CDT', 'GP_CDNM', 'GP_CDD',
+                                         'gp_defer_c', 'cd_step_c', 'sc_step_c', 'sc_rlines_c', 'GP_SCT', 'GP_SCFIRST', 'SC_ST', 'SC_TRACE', 'cd_fixload_c', 'gp_scal_c', 'gp_repoint_c', 'gp_fixload_c', 'CD_ST', 'GP_CDT', 'GP_CDNM', 'GP_CDD',
                                          'GP_CDFIRST')})
     symbols['CD_MEMBER'] = syms['cd_member_c']
     symbols['GP_CDS1'] = syms['GP_CDS1']

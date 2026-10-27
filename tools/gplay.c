@@ -1656,7 +1656,9 @@ u32 GP_WK;                              /* (the glue: the current calendar entry
 enum { K_CUPD = 9, CDT = 168, CDP = 41, CD1 = 64 };
 enum { K_SC = 10 };                     /* (4.0.5: a national supercup tie, sc_step_c at the file's end) */
 struct gp_ko;
-void sc_done(const struct gp_ko *k);   /* (CDP: preliminary ties at most, CDP + 2 x CD1 - 1 <= CDT) */
+void sc_done(const struct gp_ko *k);
+static u32 sc_rline(void);              /* (4.0.5: gp_rlines_c's supercup line) */
+static void rl_put(void);   /* (CDP: preliminary ties at most, CDP + 2 x CD1 - 1 <= CDT) */
 struct cd_state { u16 magic; u8 season, round, built, bt, drawn, pad; u8 res[CDT], home[CDT]; u8 sd[4];
                   u8 ent[256];          /* cd_season (the season end): per ordinal of the file, the entry order's key
                                            for the season to come (0 not in Serie D, 1 a new arrival, 2 + places from
@@ -2523,6 +2525,19 @@ u32 gp_rlines_c(void) {
     for (int st = 0; st < 3; st++)      /* (else one line each, in stage order) */
         if (wmask & 1 << st) rl_add(wname[st], 1);
     if (kr) rl_add(kn, kr);
+    { u32 sn = sc_rline(); if (sn) rl_add(sn, 1); }   /* (4.0.5: a national supercup won) */
+    rl_put();
+    return rl_n;
+}
+u32 sc_rlines_c(void) {                 /* 4.0.5 (gp_rl, a league with no gplay play-offs: LaLiga, Serie A): only a
+                                           national supercup won */
+    rl_n = rl_w = 0;
+    u32 sn = sc_rline();
+    if (sn) rl_add(sn, 1);
+    rl_put();
+    return rl_n;
+}
+static void rl_put(void) {
     if (GP_REC) {                       /* each into its line if there already, else the first free line 4 / 3 / 2; a
                                            title won with none free: in place of the game's weakest non-winning line (an
                                            elimination, Davide), not ours */
@@ -2547,7 +2562,6 @@ u32 gp_rlines_c(void) {
             ours |= 1 << at;
         }
     }
-    return rl_n;
 }
 
 u32 gp_pwin_c(void) {
@@ -3263,9 +3277,10 @@ u32 cf_member_c(u32 id, u32 season, u32 cteam) {        /* 2: not ours (the defi
    first season), week (the first match), legs, level (LV_*), n (2: a final; 4: semi-finals e0-e1, e2-e3 + the final),
    week of the final; db rule[4] (SCR_* | the fallback SCR_* << 4, used when the rule's club is already in); dw the
    world's first season's entrants[4] (the real edition); dd long name, short name; db round-name codes (semi,
-   final), 0, 0. Only the career club's country's supercup is played: the career club in it -> its tie in slot 4 (as
+   final), 0, 0; dd the season record's name (REGISTRO GESTIONE: the long name if it fits 144 px, else the short).
+   SC_ST +5 = 1: the career club won this season's (SC_ST +3) supercup -> its record line (sc_rline, gp_rlines_c). Only the career club's country's supercup is played: the career club in it -> its tie in slot 4 (as
    a Coppa D tie, kind K_SC); the other semi-final is decided at once (the better placed of last season wins 3 in 5). */
-enum { SC_E = 32, SC_NE = 32, SC_H = 12 };
+enum { SC_E = 36, SC_NE = 32, SC_H = 12 };
 enum { SCR_CHAMP = 1, SCR_SECOND, SCR_CUPW, SCR_CUPF, SCR_THIRD, SCR_FOURTH };
 u8 SC_ST[SC_H + 12 * SC_NE];
 const u32 SC_STSZ = sizeof SC_ST;
@@ -3326,7 +3341,7 @@ u32 sc_step_c(void) {                   /* the calendar advance: 1 = the career 
         return 1;
     }
     if ((int)GP_WK + 1 < e[3] || !sc_free()) return 0;
-    SC_ST[3] = GP_SEAS; SC_ST[4] = 0;
+    SC_ST[3] = GP_SEAS; SC_ST[4] = 0; SC_ST[5] = 0;
     if (GP_SCFIRST && e[2] > 1) { SC_TRACE = 0x81; return 0; }   /* (a summer one: already played before the world) */
     int n = e[6] == 4 ? 4 : 2;
     u16 c[4];
@@ -3355,5 +3370,15 @@ u32 sc_step_c(void) {                   /* the calendar advance: 1 = the career 
 }
 void sc_done(const struct gp_ko *k) {  /* gp_rec_c: the career club's supercup tie decided */
     SC_TRACE |= 0x40;
-    if (SC_ST[4] == 1) SC_ST[4] = k->tw[0] != NOC && k->team[k->tw[0]] == GP_MGR ? 2 : 3;
+    int won = k->tw[0] != NOC && k->team[k->tw[0]] == GP_MGR;
+    if (SC_ST[4] == 1) SC_ST[4] = won ? 2 : 3;
+    else if (won) SC_ST[5] = 1;         /* (the final, or the one match, won: the season record's line) */
+}
+static u32 sc_rline(void) {             /* the career club's supercup won this season: its record name, else 0 */
+    if (!SC_ST[3] || SC_ST[3] != GP_SEAS || SC_ST[5] != 1 || !GP_SCT || !GP_MGR) return 0;   /* (no magic check: the
+                                           magic is written with the first cup stored, at the season end - after the
+                                           season record; a first season's SC_ST has none until then) */
+    for (int i = 0; i < GP_SCT[0]; i++)
+        if (GP_SCT[1 + SC_E * i] == (GP_MGR & 0xFF)) return *(const u32 *)(GP_SCT + 1 + SC_E * i + 32);
+    return 0;
 }

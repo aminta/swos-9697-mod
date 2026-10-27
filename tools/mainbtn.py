@@ -13,6 +13,7 @@ import struct
 import nasmcave
 
 LABEL = {'it': b'CARRIERA 2026-27', 'en': b'CAREER 2026-27', 'fr': b'CARRIERE 2026-27', 'de': b'KARRIERE 2026-27'}
+FLAG = [None]                                # obj1 offset of mb_flag (1: the career came from the button)
 X, W, H, GAP, GREEN = 162, 150, 16, 18, 14   # (x as the menu stores it: definition + 8)
 
 SRC = """
@@ -129,5 +130,6 @@ def patch(p, at, lang, wid, onsel=None):
     p.put(1, off + 6, b'\xe9' + struct.pack('<i', lab['mb_off'] - (off + 11)) + b'\x90\x90')
     p.remove(1, cs + 2)                              # (the overwritten instruction's fixup: [D0])
     p.put(1, cs, b'\xe8' + struct.pack('<i', lab['mb_d0'] - (cs + 5)) + b'\x90\x90')
+    FLAG[0] = lab['mb_flag']                         # (4.0.3: careerworld's nat_init reads it: the coach's list)
     print(f'exe: main menu button {LABEL[lang].decode()} at obj1+{at:#x} (hooks {on + 6:#x}, {off + 6:#x})')
     return at + len(code)

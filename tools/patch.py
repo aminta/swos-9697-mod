@@ -536,6 +536,8 @@ def patch_exe(src, dst, remap, lang='it'):
             import mainbtn                               # 4.0: the green CARRIERA 2026-27 button on the main menu
             w27 = min(pk.world for pk in mkseason.packs() if pk.meta.get('id', '').startswith('world-2026-27-'))
             lt_end_ = mainbtn.patch(p, (lt_end_ + 15) & ~15, lang, mkseason.WMENU + w27)
+            if careerworld.SITES.get('natflag'):     # 4.0.3: CAREER 2026-27's coach nationalities (careerworld nat_init)
+                p.add_ptr(1, careerworld.SITES['natflag'], 1, mainbtn.FLAG[0])
         assert lt_end_ <= lt_room[1], hex(lt_end_)
         print(f'exe: longtable code obj1+{lt_room[0]:#x}..{lt_end_:#x} (free to {lt_room[1]:#x})')
     else:

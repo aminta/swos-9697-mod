@@ -851,7 +851,7 @@ def menu_header(p, ombd):
 
 
 def layout(lang):
-    """The page's obj2 block: (data, offsets, pointers [(offset, obj, name)], menu offset)."""
+    """The page's data block (obj1, controls.patch): (data, offsets, pointers [(offset, obj, name)], menu offset)."""
     T = TEXTS[lang]
     data = bytearray()
     off, ptrs = {}, []
@@ -938,8 +938,14 @@ def layout(lang):
     return data, off, ptrs, m_at
 
 
-def patch(p, at, lang, area):
-    """The page's code at obj1:at (its own page), texts / tables / menu in obj2 area. Returns the code end."""
+DATA_PAGES = 2                        # the texts / tables / menu (obj1, after the code page)
+
+
+def patch(p, at, lang):
+    """The page's code at obj1:at (its own page), texts / tables / menu in obj1 from at + 0x1000 (DATA_PAGES pages of
+    their own). Not in obj2: an obj2 page more moves obj2's zero-filled tail (careerworld.BSS: the big cache, the W1
+    lists) and 4.0 / 4.0.1 saves played on trap (obj1+0x17064, 4.0.2 b2..rc1). Returns the code end (more code may follow it in the code
+    page: subsnum, tailzero, blond.unch)."""
     sym = locate(p)
     T = TEXTS[lang]
     for s in (T['title'], T['save'], T['cancel']):
@@ -948,20 +954,22 @@ def patch(p, at, lang, area):
         assert px(s) <= W - 2, s
     data, off, ptrs, m_at = layout(lang)
 
-    base = area.add(bytes(data))
+    base = at + 0x1000                                 # (page-aligned: the code page stays the code's alone)
+    assert len(data) <= 0x1000 * DATA_PAGES and not any(p.get(1, base, len(data))), hex(len(data))
+    p.put(1, base, bytes(data))
     assert not any((base + o) // 0x1000 != (base + o + 3) // 0x1000 for o, _, _ in ptrs), 'a pointer straddles a page'
     v = base + off['vars']
-    sym.update({'WORK': (2, base + off['work']), 'FBUF': (2, base + off['fbuf']), 'PB': (2, base + off['pb']),
-                'KEYTAB': (2, base + off['keytab']), 'DEVPTR': (2, base + off['devptr']),
-                'MSGTAB': (2, base + off['msgtab']), 'FIELDS': (2, base + off['fields']), 'CTMENU': (2, base + m_at),
-                'S_TITLE': (2, base + off['title']), 'S_TEST': (2, base + off['test']), 'S_DUP': (2, base + off['dup']),
+    sym.update({'WORK': (1, base + off['work']), 'FBUF': (1, base + off['fbuf']), 'PB': (1, base + off['pb']),
+                'KEYTAB': (1, base + off['keytab']), 'DEVPTR': (1, base + off['devptr']),
+                'MSGTAB': (1, base + off['msgtab']), 'FIELDS': (1, base + off['fields']), 'CTMENU': (1, base + m_at),
+                'S_TITLE': (1, base + off['title']), 'S_TEST': (1, base + off['test']), 'S_DUP': (1, base + off['dup']),
                 'REC_': (0, REC), 'BTN_Y': (0, BTN_Y)})
-    sym.update({f'S_K{i}': (2, base + off[f'k{i}']) for i in range(5)})
+    sym.update({f'S_K{i}': (1, base + off[f'k{i}']) for i in range(5)})
     for k, (o, sz) in {'MODE': (0, 1), 'PAD': (1, 1), 'KIDX': (2, 1), 'ARMED': (3, 1), 'FPREV': (4, 1),
                        'DUP': (5, 1), 'WAIT': (6, 1), 'KEY': (7, 1), 'SV_CTL': (8, 2), 'SV_P1': (10, 2),
                        'SV_P2': (12, 2), 'SV_IT': (14, 2), 'SV_NL': (16, 4), 'CX_': (20, 2), 'CY_': (22, 2),
                        'MINX': (24, 2), 'MAXX': (26, 2), 'MINY': (28, 2), 'MAXY': (30, 2)}.items():
-        sym[k] = (2, v + o)
+        sym[k] = (1, v + o)
     code, fix = nasmcave.assemble(ASM, at, sym)
     lab = nasmcave.labels(ASM, at, sym)
     assert not any(p.get(1, at, len(code)))
@@ -969,7 +977,7 @@ def patch(p, at, lang, area):
     for o, t_obj, t_off in fix:
         p.add_ptr(1, at + o, t_obj, t_off)
     for o, t_obj, t in ptrs:
-        p.add_ptr(2, base + o, t_obj, lab[t] if t_obj == 1 else base + off[t])
+        p.add_ptr(1, base + o, 1, lab[t] if t_obj == 1 else base + off[t])   # (the block's own texts: obj1 too)
     hdr = menu_header(p, sym['OMBD'][1])
     d2 = p.le.obj_bytes(2)
     assert struct.unpack_from('<I', d2, hdr + 4)[0] == 0, 'optionsMenu onReturn'
@@ -977,7 +985,7 @@ def patch(p, at, lang, area):
     p.put(2, hdr, struct.pack('<I', lab['ct_optinit']))
     p.put(2, hdr + 4, struct.pack('<I', lab['ct_optret']))
     p.add_ptr(2, hdr + 4, 1, lab['ct_optret'])
-    print(f'exe: CONTROLS page ({T["title"]}): code obj1+{at:#x} ({len(code)} B), page obj2+{base + m_at:#x}, '
+    print(f'exe: CONTROLS page ({T["title"]}): code obj1+{at:#x} ({len(code)} B), page obj1+{base + m_at:#x}, '
           f'options menu obj2+{hdr:#x}')
     return at + len(code)
 
@@ -991,13 +999,18 @@ VARS = {'MODE': 0, 'PAD': 1, 'KIDX': 2, 'ARMED': 3, 'FPREV': 4, 'DUP': 5, 'WAIT'
 
 
 def runtime(exe, orig, lang):
-    """The harness's view of a built exe: obj2 offsets of WORK, the variables, the TEST line and setupDatBuffer."""
+    """The harness's view of a built exe: offsets of WORK, the variables, the TEST line (in object 'obj': 1 since the
+    4.0.2 old-save fix, 2 in 4.0.2 b2..rc1) and setupDatBuffer (obj2)."""
     from lepatch import LEPatch
     data, off, _, m_at = layout(lang)
-    d2 = LEPatch(exe).le.obj_bytes(2)
+    le = LEPatch(exe).le
     pre = bytes(data[:off['pb']])
-    b = d2.find(pre)
-    assert b > 0 and d2.find(pre, b + 1) < 0, 'the CONTROLS block'
+    for obj in (1, 2):
+        d = le.obj_bytes(obj)
+        b = d.find(pre)
+        if b > 0:
+            break
+    assert b > 0 and d.find(pre, b + 1) < 0, 'the CONTROLS block'
     sym = locate(LEPatch(orig))
-    return {'work': b + off['work'], 'vars': b + off['vars'], 'pb': b + off['pb'], 'menu': b + m_at,
+    return {'work': b + off['work'], 'vars': b + off['vars'], 'pb': b + off['pb'], 'menu': b + m_at, 'obj': obj,
             'buf': sym['BUF'][1], 'rgp': sym['RGP'][1]}

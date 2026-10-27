@@ -275,7 +275,8 @@ def patch_exe(src, dst, remap, lang='it'):
     if ct_pg:
         engine.save_item('CT', conti.ST_SIZE, world_only=True)
         engine.save_item('CE', conti.ED_SIZE, world_only=True)          # (phase B: the edition being played, conti.c CT_ED)
-    ctl_pg = 1                                         # 4.0.2: the CONTROLS page (controls.py), the last page
+    import controls                                    # 4.0.2: the CONTROLS page (controls.py): code + its data pages, the
+    ctl_pg = 1 + controls.DATA_PAGES                   # last pages (obj1: obj2's page count stays 4.0's, see controls.patch)
     for _ in range((6 + cp + 2 + 2 * cdp if worlds else 6) + lpb + sp_pg + sc_pg + ct_pg + ctl_pg):  # (+1: the UEFA league phase's page, lp36)
         data = add_object_page(data, 1)
     mkseason.CAREER_CAVE[0] = CAREER_CAVE if worlds else None
@@ -302,9 +303,6 @@ def patch_exe(src, dst, remap, lang='it'):
     for _ in range(-(-len(historic.draw_table()) // 0x1000) if mkseason.multi_ns() else 0):   # several worlds: draws in obj2
         o2pages += 1
         data = add_object_page(data, 2)
-    o2pages += 2                                     # 4.0.2: the CONTROLS page's texts, key names and menu
-    data = add_object_page(data, 2)
-    data = add_object_page(data, 2)
     if mkseason.league_phase_cups() or mkseason.league_phase_worlds():   # UEFA league phase: the draw's buffers
         o2pages += 2
         data = add_object_page(data, 2)
@@ -600,16 +598,15 @@ def patch_exe(src, dst, remap, lang='it'):
             statespec.sim_patch(p, sc_at + 0x1000)  # statesim.c: every state's stage 1 + relegation at the season end
     if ct_pg:                                    # the other confederations' cups (conti.c): after statecup's pages
         conti.patch(p, ct_code, ct_at + 0x1000 * ct_pg, ct_bss, area)
-    import controls                              # 4.0.2: OPTIONS > CONTROLS (keys, device, calibration, SETUP.DAT)
-    ctl_at = hist2 + h2 + 0x1000 * (lpb + sp_pg + sc_pg + ct_pg)
-    ctl_end = controls.patch(p, ctl_at, lang, area)
+    ctl_at = hist2 + h2 + 0x1000 * (lpb + sp_pg + sc_pg + ct_pg)   # 4.0.2: OPTIONS > CONTROLS (keys, device, calibration,
+    ctl_end = controls.patch(p, ctl_at, lang)                     # SETUP.DAT)
     import subsnum                               # 4.0.2: two-digit numbers in the in-match bench list (names +6 px)
     ctl_end = subsnum.patch(p, ctl_end)
     import tailzero                              # 4.0.2: the stub that zeroes obj2's tail at startup (written below,
     tz_at = (ctl_end + 15) & ~15                 # once the tail's size is known; the cosmetics page is full)
     ctl_end = tz_at + tailzero.SIZE
     ctl_end = blond.unch_patch(p, (ctl_end + 15) & ~15)   # 4.0.2 MALEN: the darkblond sets in half / EGA mode
-    assert ctl_end <= ctl_at + 0x1000 * ctl_pg, hex(ctl_end)
+    assert ctl_end <= ctl_at + 0x1000, hex(ctl_end)        # (the code page; controls' data pages follow it)
     p.set_vsize(1, OBJ1_NEW_VSIZE + (0x1000 * (cp + 2 + cdp) if worlds else 0) + h2 + 0x1000 * (lpb + sp_pg + sc_pg + ct_pg + ctl_pg))
     import teamstab                              # 4.0.2: teamsTable for 256 team ordinals (Serie D choice colours)
     teamstab.patch(p, num_bss + shirtnum.BSS_SIZE + blond.BSS_SIZE + menunum.BSS_SIZE + fmtpage.BSS_SIZE)

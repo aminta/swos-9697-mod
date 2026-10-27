@@ -8692,6 +8692,7 @@ def sc_rules():
     nothing; final four (h-k): the career club's semi-final built (the other one decided, its winner kept), the final
     at its week after a won semi-final (named F, the semi SF), none after a lost one, a double -> the league 3rd;
     (l-p) the season record's line (sc_rline): the final / the one match won -> the record name, lost / a lost semi /
+    another season -> none; (r-t) MEX: last season's Apertura / Clausura winners (WN_ST), one club both or WN_ST of
     another season -> none."""
     import tempfile
     src = os.path.join(ROOT, 'tools', 'gplay.c')
@@ -8754,6 +8755,15 @@ int main(void) {
       *(u32 *)(rec + 30) = 0x66; rec[88] = (u8)-104; *(u32 *)(rec + 34) = 0x77; rec[89] = (u8)-103;
       u32 n = sc_rlines_c(); printf("q %%u %%x %%x %%x %%d\n", n, *(u32 *)(rec + 26), *(u32 *)(rec + 30), *(u32 *)(rec + 34), (s8)rec[87]); GP_REC = 0; }
     GP_SEAS = 128; printf("p %%x\n", sc_rline());
+    /* (r, s) 4.0.5 MEX: last season's stage-title winners (WN_ST 'K' 0 / 1) -> Apertura v Clausura; one club both: none */
+    setup(1, inter, napoli, bologna, lazio); tab[1 + 8] = SCR_TITLE0; tab[1 + 9] = SCR_TITLE1; tab[1 + 30] = 0; tab[1 + 31] = 1;
+    WN_ST.magic = WN_MAGIC; WN_ST.season = 126; WN_ST.n = 2;
+    WN_ST.e[0].type = 'K'; WN_ST.e[0].idx = 0; WN_ST.e[0].team = 0x0766; WN_ST.e[1].type = 'K'; WN_ST.e[1].idx = 1; WN_ST.e[1].team = 0x0866;
+    GP_MGR = 0x0866; GP_SCFIRST = 0; GP_WK = 49; out("r", sc_step_c());
+    setup(1, inter, napoli, bologna, lazio); tab[1 + 8] = SCR_TITLE0; tab[1 + 9] = SCR_TITLE1; WN_ST.e[1].team = 0x0766;
+    GP_MGR = 0x0766; GP_WK = 49; out("s", sc_step_c());
+    setup(1, inter, napoli, bologna, lazio); tab[1 + 8] = SCR_TITLE0; tab[1 + 9] = SCR_TITLE1; WN_ST.e[1].team = 0x0866;
+    WN_ST.season = 125; GP_MGR = 0x0866; GP_WK = 49; out("t", sc_step_c());
     /* a double in a final four: the cup winner = the champion -> the cup winner's place to the 3rd (0x0566) */
     setup4(1, 4, inter, napoli, inter, lazio, 0x0566); GP_MGR = 0x0566; GP_WK = 49; out("k", sc_step_c());
     return 0;
@@ -8776,7 +8786,7 @@ int main(void) {
     want = {'a': ['1', '1', '166', '466', '10'], 'b': ['1', '1', '166', '366', '10'], 'c': ['1', '1', '966', 'a66', '10'],
             'd': ['0', '81'], 'e': ['0', '84'], 'f': ['0', '0'], 'g': ['0', '0'],
             'h': ['1', '1', '466', '266', '10'], 'h2': ['166', '1', '7'], 'i0': ['0'], 'i': ['1', '2', '266', '166', '10'],
-            'i2': ['3', '8'], 'l': ['1234', '1'], 'j': ['0', '41'], 'j2': ['3'], 'm': ['0'], 'n': ['1234'], 'o': ['0'], 'p': ['0'], 'q': ['1', '1234', '66', '77', '1'], 'k': ['1', '1', '566', '266', '10']}
+            'i2': ['3', '8'], 'l': ['1234', '1'], 'j': ['0', '41'], 'j2': ['3'], 'm': ['0'], 'n': ['1234'], 'o': ['0'], 'p': ['0'], 'q': ['1', '1234', '66', '77', '1'], 'r': ['1', '1', '766', '866', '10'], 's': ['0', '82'], 't': ['0', '82'], 'k': ['1', '1', '566', '266', '10']}
     errs = [f'{k}: got {got.get(k)}, want {w}' for k, w in want.items() if (got.get(k) or [])[:len(w)] != w]
     return not errs, '; '.join(errs) or 'a champion v cup winner, b double -> finalist, c season-1 data, d summer skipped, ' \
         'e not in it, f once a season, g before the week; final four: h semi-final built (other winner kept), i the final ' \
@@ -9420,6 +9430,114 @@ def world_sc_oldsave():
     check(ok, f'season 2 on this build: {msg}', errs)
     check(not sc_matches(l2), f'a supercup in the old career\'s season 2: {sc_matches(l2)}', errs)
     return not errs, '; '.join(errs) or f'old save season 2 played, no supercup; {msg[:80]}'
+
+
+def sc_mexdata(src):
+    """A private copy of the World 2026-27 data src for the MEX supercup tests: every pack linked, 'mex' copied with its
+    season-end Campeon de Campeones (play-off mex_cdc) flagged "supercup": true - the flag Dati coppe's data takes after
+    the 4.0.5 engine (gplay PO_SUPER). Returns (dir, its packs in the .txt order)."""
+    import json as _j
+    dst = os.path.join(WORK, 'data', os.path.basename(src) + '-mexsc')
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    if os.path.exists(dst + '.txt'):            # (made already: world_sc_mex and world_sc_mexold share it - a suite
+        return dst, order                       # running both at once must not rebuild it under the other)
+    if os.path.isdir(dst):
+        shutil.rmtree(dst)
+    os.makedirs(dst)
+    for x in os.listdir(src):
+        if x != 'mex':
+            os.symlink(os.path.join(src, x), os.path.join(dst, x))
+    shutil.copytree(os.path.join(src, 'mex'), os.path.join(dst, 'mex'))
+    pj = os.path.join(dst, 'mex', 'pack.json')
+    m = _j.load(open(pj))
+    lg = next(c for c in m['competitions'] if c['key'] == m['season']['league'])
+    po = next(x for x in lg['ko_playoffs'] if x.get('key') == 'mex_cdc')
+    po['supercup'] = True
+    _j.dump(m, open(pj, 'w'), ensure_ascii=False, indent=1)
+    shutil.copy(src + '.txt', dst + '.txt')
+    return dst, order
+
+
+def sc_wn(car):
+    """The .CAR's WN_ST (engine item 'WN': magic 'WN', season, n, n x (type, idx, team word)): (offset, season, entries)."""
+    d = open(car, 'rb').read()
+    for m in re.finditer(rb'WN', d):
+        i = m.start()
+        n = d[i + 3] if i + 4 <= len(d) else 99
+        if 1 <= n <= 40 and d[i + 4] == ord('M') and i + 4 + 4 * n <= len(d):
+            return i, d[i + 2], [(chr(d[i + 4 + 4 * k]) if d[i + 4 + 4 * k] < 128 else d[i + 4 + 4 * k], d[i + 5 + 4 * k],
+                                  struct.unpack_from('<H', d, i + 6 + 4 * k)[0]) for k in range(n)]
+    return None, None, []
+
+
+@scenario
+def world_sc_mex():
+    """4.0.5 supercups, MEX's Campeon de Campeones moved to July: an AMERICA career on a build of the World 2026-27 data
+    with mex_cdc flagged "supercup" (sc_mexdata). Season 1: no CAMPEON DE CAMPEONES match and none decided at the season
+    end (its WN_ST has no title of play-off 2; the Apertura / Clausura ones, 0 / 1, are there); season 2 (season 1's
+    save, its WN_ST poked: AMERICA the Apertura winner, the next club of its file the Clausura's): the CAMPEON DE
+    CAMPEONES FINALE played once, in July, before the Apertura's match days; both seasons end"""
+    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+    if not os.path.isdir(src):
+        return True, f'SKIP: private data {src} missing'
+    dd, order = sc_mexdata(src)
+    exe = os.environ.get('SC_MEX_BUILD') or build('world_sc_mex', env={
+        'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(dd, x) for x in order])})
+    team = 'NORDAMERICA,MESSICO,LIGA MX,AMERICA'
+    ok, msg, l1 = sc_season(team, dict(W8485_BUILD=exe))
+    car = os.path.join(RUNS, w84_tag() + '_1', 'SWOS', 'W84A.CAR')
+    if not ok or not os.path.exists(car):
+        return False, f'season 1: {msg}'
+    at, seas, wn = sc_wn(car)
+    errs = []
+    cdc = lambda lines: [re.sub(r'^\[\d+\] ', '', ln.split('|')[0].strip()) for ln in lines if ln.startswith('[')
+                         and 'CAMPEON DE CAMPEONES' in ln.split('|')[0] and '- PARTITA -' in ln and '>- RISULTATO -' in ln]
+    check(at is not None, 'no WN_ST in the season-2 save', errs)
+    check(not cdc(l1), f'season 1 played {cdc(l1)}', errs)
+    ks = {i: t for ty, i, t in wn if ty == 'K'}
+    check(2 not in ks and 0 in ks and 1 in ks, f'season 1 WN_ST {wn}', errs)
+    mgr = next((t for ty, i, t in wn if ty == 'M'), None)
+    if errs or mgr is None:
+        return False, '; '.join(errs) or f'no career club in WN_ST {wn}'
+    raw = bytearray(open(car, 'rb').read())
+    for k in range(raw[at + 3]):
+        o = at + 4 + 4 * k
+        if raw[o] == ord('K') and raw[o + 1] in (0, 1):
+            struct.pack_into('<H', raw, o + 2, mgr if raw[o + 1] == 0 else mgr ^ 0x100)
+    s2 = os.path.join(RUNS, 'sc_mex_s2.CAR')
+    open(s2, 'wb').write(raw)
+    ok2, msg2, l2 = sc_season(team, dict(W8485_BUILD=exe, W8485_FROM=s2), 2)
+    m2 = cdc(l2)
+    check(ok2, f'season 2: {msg2}', errs)
+    check(len(m2) == 1 and 'FINALE' in m2[0], f'season 2 matches {m2}', errs)
+    return not errs, '; '.join(errs) or f'season 1: none, WN_ST titles {sorted(ks)}; season 2: {m2}; {msg2[:60]}'
+
+
+@scenario
+def world_sc_mexold():
+    """4.0.5 MEX supercup on an older career: season 1 of an AMERICA career on the 4.0.2 release exe (SC_OLD, default
+    c/REL402rc2/SWOS: its Campeon de Campeones at the season end), its season-2 save loaded by a build of the flagged
+    data (sc_mexdata) and season 2 played to its end (no hang; a July CAMPEON DE CAMPEONES at most once)"""
+    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+    old = os.environ.get('SC_OLD') or os.path.join(MAIN, 'c', 'REL402rc2', 'SWOS')
+    if not os.path.isdir(src) or not os.path.isdir(old):
+        return True, f'SKIP: private data {src} or old release {old} missing'
+    dd, order = sc_mexdata(src)
+    exe = os.environ.get('SC_MEX_BUILD') or build('world_sc_mex', env={
+        'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(dd, x) for x in order])})
+    team = 'NORDAMERICA,MESSICO,LIGA MX,AMERICA'
+    ok, msg, _ = sc_season(team, dict(W8485_BUILD=old))
+    car = os.path.join(RUNS, w84_tag() + '_1', 'SWOS', 'W84A.CAR')
+    if not ok or not os.path.exists(car):
+        return False, f'old season 1: {msg}'
+    old_car = os.path.join(RUNS, 'sc_mexold.CAR')
+    shutil.copy(car, old_car)
+    ok, msg, l2 = sc_season(team, dict(W8485_BUILD=exe, W8485_FROM=old_car), 2)
+    m2 = [ln for ln in l2 if ln.startswith('[') and 'CAMPEON DE CAMPEONES' in ln.split('|')[0] and '>- RISULTATO -' in ln]
+    errs = []
+    check(ok, f'season 2 on this build: {msg}', errs)
+    check(len(m2) <= 1, f'season 2: {len(m2)} CdC matches', errs)
+    return not errs, '; '.join(errs) or f'old save season 2 played, {len(m2)} CdC match; {msg[:80]}'
 
 
 @scenario

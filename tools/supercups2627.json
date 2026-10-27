@@ -1,5 +1,5 @@
 {
- "_doc": "4.0.5 national supercups of World 2026-27 (supercup.py table; internal/handoff/supercups.md). Per country: pack id suffix, names {lang: [long, short]}, date (dd/mm, +1 = the next calendar year, the real 2026-27 edition), from_season (2 = summer: not in the world's first season), legs, level (pens | et_pens), host (neutral), rule [2 or 4 rules: e0 v e1 (and e2 v e3: semi-finals, then the final)] + if_double (one fallback for every rule after the first, or a list per rule: champion | second | third | fourth | cup_winner | cup_finalist), final_date (4 clubs), first_entrants (pack club keys of the real 2026-27 edition: season 1), todo (what is not verified yet).",
+ "_doc": "4.0.5 national supercups of World 2026-27 (supercup.py table; internal/handoff/supercups.md). Per country: pack id suffix, names {lang: [long, short]}, article (FORMAT text: {lang: word} when not La / The / La), date (dd/mm, +1 = the next calendar year, the real 2026-27 edition), from_season (2 = summer: not in the world's first season), legs, level (pens | et_pens), host (neutral), rule [2 or 4 rules: e0 v e1 (and e2 v e3: semi-finals, then the final)] + if_double (one fallback for every rule after the first, or a list per rule: champion | second | third | fourth | cup_winner | cup_finalist | title0 | title1: last season's stage-title winners, the play-offs 'titles' [key0, key1]), final_date (4 clubs), first_entrants (pack club keys of the real 2026-27 edition: season 1), todo (what is not verified yet).",
  "ita": {
   "names": {
    "it": [
@@ -274,5 +274,48 @@
    "alqadsiah"
   ],
   "todo": "Kuwait 19/20 Dec, final 23 Dec 2026: the 2026 field is Al-Nassr (champion) v Al-Kholood (cup finalist) and Al-Ahli (3rd) v Al-Qadsiah (4th): Al-Hilal (league 2nd and cup winner?) banned; the engine rule is the usual one (champion v cup finalist, cup winner v league 2nd), the 2026 replacements only in season 1's entrants; pairings, extra time (pens assumed) and the double fallback not verified"
+ },
+ "mex": {
+  "names": {
+   "it": [
+    "CAMPEON DE CAMPEONES",
+    "CAMP. DE CAMP."
+   ],
+   "en": [
+    "CAMPEON DE CAMPEONES",
+    "CAMP. DE CAMP."
+   ],
+   "fr": [
+    "CAMPEON DE CAMPEONES",
+    "CAMP. DE CAMP."
+   ],
+   "de": [
+    "CAMPEON DE CAMPEONES",
+    "CAMP. DE CAMP."
+   ]
+  },
+  "article": {
+   "it": "Il",
+   "fr": "Le"
+  },
+  "date": "25/07",
+  "from_season": 2,
+  "legs": 1,
+  "level": "pens",
+  "host": "neutral",
+  "rule": [
+   "title0",
+   "title1"
+  ],
+  "titles": [
+   "mex_ap_ko",
+   "mex_cl_ko"
+  ],
+  "if_double": null,
+  "first_entrants": [
+   "deportivotoluca",
+   "cruzazul"
+  ],
+  "todo": "Liga MX only (the Expansion's stays at the season end, real): the 2026 edition was played on 25 Jul 2026 at Carson (USA), Toluca (Apertura 2025) v Cruz Azul (Clausura 2026): from season 2 the same week, neutral; the season-end mex_cdc play-off must carry 'supercup': true (pack data) so it is not played twice; one club winning both tournaments: no match (as the pack's skip_if_same); 90 minutes then penalties assumed"
  }
 }

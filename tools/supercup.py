@@ -101,7 +101,8 @@ def sites(p):
     return c928cc, calls, rec, tw, lib97._sites(p)[3] + 0x41F
 
 
-RULE = {'champion': 1, 'second': 2, 'cup_winner': 3, 'cup_finalist': 4, 'third': 5, 'fourth': 6}   # (gplay.c SCR_*)
+RULE = {'champion': 1, 'second': 2, 'cup_winner': 3, 'cup_finalist': 4, 'third': 5, 'fourth': 6,
+        'title0': 7, 'title1': 8}   # (gplay.c SCR_*; title0 / 1: last season's stage-title winners, 'titles' keys)
 LEVEL = {'pens': 3, 'et_pens': 1}                                        # (gplay.c LV_PENS / LV_ET_PENS)
 DATA = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'supercups2627.json')
 
@@ -121,7 +122,10 @@ def table(lang, name_off):
             continue
         d = spec[c]
         cup = next((x for x in pk.comps if x.get('key') == 'cup' and x.get('id')), None)
-        assert cup, f'supercup {c}: no national cup'
+        assert cup or not {'cup_winner', 'cup_finalist'} & set(d['rule']), f'supercup {c}: no national cup'
+        pos = pk.league.get('ko_playoffs') or []          # (title0 / 1: the stage-title play-offs' indices)
+        tix = [[p_.get('key') for p_ in pos].index(k) for k in d.get('titles', [])] + [0, 0]
+        assert all(0 <= x < 256 for x in tix) and (len(d.get('titles', [])) == 2 or not {'title0', 'title1'} & set(d['rule'])), c
         lf = pk.files[pk.league['clubs']][0]
         word = lambda k: pk.where[k][0] | pk.where[k][1] << 8
         n = len(d['rule'])
@@ -132,13 +136,13 @@ def table(lang, name_off):
         ents = [word(k) for k in d['first_entrants']] + [0] * (4 - n)
         w1 = split.week_of(d['date'])
         w2 = split.week_of(d['final_date']) if n == 4 else w1
-        e = bytes([lf, int(cup['id'], 16), d.get('from_season', 1), w1, d.get('legs', 1), LEVEL[d['level']], n, w2])
+        e = bytes([lf, int(cup['id'], 16) if cup else 0, d.get('from_season', 1), w1, d.get('legs', 1), LEVEL[d['level']], n, w2])
         e += bytes(rules) + struct.pack('<4H', *ents)
         nm = d['names'].get(lang) or d['names']['en']
         import complist
         complist.cal_label(nm[1], f'supercup {c} {lang}')   # (the calendar's label: <= 70 px, font chars only)
         e += struct.pack('<II', name_off(nm[0].encode('latin-1')), name_off(nm[1].encode('latin-1')))
-        e += bytes([rnames.KEYS['SF'], rnames.KEYS['F'], 0, 0])
+        e += bytes([rnames.KEYS['SF'], rnames.KEYS['F'], tix[0], tix[1]])
         import gplay                                # (the season record's line: REGISTRO GESTIONE's column)
         rec = nm[0] if complist.px(nm[0]) <= gplay.REC_PX else nm[1]
         e += struct.pack('<I', name_off(rec.encode('latin-1')))

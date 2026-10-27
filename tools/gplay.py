@@ -216,7 +216,10 @@ def compile_spec(pos, ndiv, league_names=None):
         if po.get('draw_pot') and not (len(po['rounds']) > 2 and all('group' in r for r in po['rounds'][:2])):
             raise ValueError(f'{key}: draw_pot needs 2+ leading group rounds (their heads = the first entrants)')
         flags = (1 if po.get('skip_qualified') else 0) | (2 if po.get('host_by_record') else 0) | ((win if win > 1 else 0) << 4) \
-            | (8 if po.get('draw_pot') else 0)       # (4.0.1 Colombia: the entrants after the heads drawn into the groups)
+            | (8 if po.get('draw_pot') else 0) \
+            | (4 if po.get('supercup') else 0)       # (4.0.1 Colombia: the entrants after the heads drawn into the groups;
+                                                     # 4.0.5 'supercup': not played at the season end - the next season's
+                                                     # national supercup, supercups2627.json: MEX's Campeon de Campeones)
         out += bytes((kind, len(ents), nrd, wd, ld, flags))
         out += b''.join(bytes(e) for e in ents) + rounds
     stages = set()                              # 4.0 ARG: the Trofeo's entrants (type 5) read GP_OUT.sres of the stage

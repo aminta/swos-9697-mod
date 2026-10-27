@@ -32,6 +32,7 @@ enum { GT = 32, GD = 16, GN = 64, RESERVE = 0xFE };   /* (GD: Italy 2026-27 has 
 enum { HOST_LISTED, HOST_BETTER, HOST_DRAWN, HOST_NEUTRAL, HOST_SKIP_SAME = 0x80 };
 enum { LV_BETTER, LV_ET_PENS, LV_ET_BETTER, LV_PENS, LV_AWAY_PENS, LV_AWAY_BETTER };
 enum { K_TITLE = 5, K_CONT = 6, K_PROM = 7, K_STAGE = 8, GS = 2, BEST_LOSER = 0x3F };
+enum { PO_SUPER = 4 };                  /* (a play-off spec's flag, pack 'supercup': not played at the season end) */
 struct gp_row { u16 team, glob, won, gf, ga, pts; };
 static void rcopy(struct gp_row *d, const struct gp_row *s) {   /* (no memcpy in the exe: field by field) */
     d->team = s->team; d->glob = s->glob; d->won = s->won; d->gf = s->gf; d->ga = s->ga; d->pts = s->pts;
@@ -863,6 +864,7 @@ void gp_season(void) {
         int club[GN], ok = kind == 1 || kind == 4 || kind == K_TITLE || kind == K_CONT || kind == K_STAGE;
         const struct gp_dec *dec = kind == K_STAGE ? stage_dec(wdiv) : 0;   /* (decided mid-season) */
         if (dec) ok = 0;
+        if (s[5] & PO_SUPER) { ok = 0; dec = 0; }   /* (4.0.5 MEX's Campeon de Campeones: the next season's supercup) */
         int W[GN], L[GN], nt = 0, last = -1, lastr = 0, nlast = 0;
         int P[GN], np = 0, glast = -1, winners = s[5] >> 4 ? s[5] >> 4 : 1;
         for (int i = 0; i < n && i < GN; i++) {
@@ -1099,6 +1101,7 @@ static int playable(const u8 *s) {      /* knockouts only (promotion, placement,
     int n = s[1], nr = s[2], nt = 0;
     const u8 *e = s + 6, *r = e + 4 * n;
     if ((s[0] < 1 || (s[0] > 6 && s[0] != K_STAGE) || s[0] == 2) || n > KN || nr > KR || nr < 1) return 0;   /* (not 'europe': uefaq's) */
+    if (s[5] & PO_SUPER) return 0;      /* (4.0.5: played as the next season's national supercup, sc_step_c) */
     for (int i = 0; i < n; i++)
         if (e[4 * i] != 0 && e[4 * i] != 3 && e[4 * i] != 5 && e[4 * i] != 6) return 0;   /* (5: the Trofeo, built by then_build; 6: Malta's split seeds) */
     for (int k = 0; k < nr; k++) {
@@ -3277,11 +3280,11 @@ u32 cf_member_c(u32 id, u32 season, u32 cteam) {        /* 2: not ours (the defi
    first season), week (the first match), legs, level (LV_*), n (2: a final; 4: semi-finals e0-e1, e2-e3 + the final),
    week of the final; db rule[4] (SCR_* | the fallback SCR_* << 4, used when the rule's club is already in); dw the
    world's first season's entrants[4] (the real edition); dd long name, short name; db round-name codes (semi,
-   final), 0, 0; dd the season record's name (REGISTRO GESTIONE: the long name if it fits 144 px, else the short).
+   final), db the stage-title play-offs of the rules SCR_TITLE0 / 1 (MEX); dd the season record's name (REGISTRO GESTIONE: the long name if it fits 144 px, else the short).
    SC_ST +5 = 1: the career club won this season's (SC_ST +3) supercup -> its record line (sc_rline, gp_rlines_c). Only the career club's country's supercup is played: the career club in it -> its tie in slot 4 (as
    a Coppa D tie, kind K_SC); the other semi-final is decided at once (the better placed of last season wins 3 in 5). */
 enum { SC_E = 36, SC_NE = 32, SC_H = 12 };
-enum { SCR_CHAMP = 1, SCR_SECOND, SCR_CUPW, SCR_CUPF, SCR_THIRD, SCR_FOURTH };
+enum { SCR_CHAMP = 1, SCR_SECOND, SCR_CUPW, SCR_CUPF, SCR_THIRD, SCR_FOURTH, SCR_TITLE0, SCR_TITLE1 };
 u8 SC_ST[SC_H + 12 * SC_NE];
 const u32 SC_STSZ = sizeof SC_ST;
 const u8 *GP_SCT;                       /* (the glue: the table, 0 = none) */
@@ -3315,6 +3318,11 @@ static u16 sc_rule(const u8 *e, int r) {
     case SCR_CUPF: return sc_cup(e[1], 1);
     case SCR_THIRD: return sc_place(e[0], 3);
     case SCR_FOURTH: return sc_place(e[0], 4);
+    case SCR_TITLE0: case SCR_TITLE1:   /* (4.0.5 MEX: last season's stage-title winner, play-off e[30] / e[31]: WN_ST) */
+        if (WN_ST.magic != WN_MAGIC || (u8)(WN_ST.season + 1) != GP_SEAS) return 0;
+        for (int i = 0; i < WN_ST.n && i < WN_N; i++)
+            if (WN_ST.e[i].type == 'K' && WN_ST.e[i].idx == e[30 + (r & 15) - SCR_TITLE0]) return WN_ST.e[i].team;
+        return 0;
     }
     return 0;
 }

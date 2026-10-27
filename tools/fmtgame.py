@@ -893,7 +893,7 @@ def win_lines(comp, div, k, cc='', tfile=None):
     title_po = False
     for pi, po in enumerate(pos if isinstance(pos, list) else []):
         divs = _po_divs(po)
-        if po.get('kind') in WN_SKIP or not po.get('names') or k not in divs or pi > 0xFF:
+        if po.get('kind') in WN_SKIP or po.get('supercup') or not po.get('names') or k not in divs or pi > 0xFF:
             continue
         title_po |= po.get('kind') == 'title' and divs == {k}       # (its champion is not the table's 1st)
         st = po.get('stage') if po.get('kind') == 'stage_title' else None
@@ -1065,6 +1065,12 @@ def from_pack(d):
                                        (T[lang]['ita'] if lg['special'] and k == min(1, len(lg['names']) - 1) else []),
                                        'tail': sch[sch.index(next(x for x in sch if x.startswith(ZT[lang]['eu'].split('{')[0][:30]))):]
                                        if any(x.startswith(ZT[lang]['eu'].split('{')[0][:30]) for x in sch) else tail}
+                    sc = supercup_of(m, d) if k == 0 and comp.get('key') == m['season'].get('league') and \
+                        not any(c_.get('key') == 'cup' for c_ in m['competitions']) else None
+                    if sc and all(isinstance(texts.get(x), dict) for x in LANGS):   # (4.0.5: a supercup, no national cup - MEX: its
+                        import fmtprose         # paragraph on the top division's page)
+                        for lang in LANGS:
+                            texts[lang]['prose'] = texts[lang]['prose'] + [fmtprose.supercup(sc, lang)]
                     out.append((world, cid, titles, texts))
                     wl = win_lines(comp, div, k, (m.get('id') or '').rsplit('-', 1)[-1],
                                    ((m.get('files') or {}).get(comp.get('clubs')) or {}).get('file'))

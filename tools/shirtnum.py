@@ -18,7 +18,9 @@ operand with its fixup) becomes `call num_sprite; nop; nop`, the `mov ax, [D0]` 
   num_sprite and fix_d0 (which SWOS++ does not overwrite) turn 9000 + 17..99 into our sprites, so no sprite number
   over 9000 is left for those (one less thing that can reach a drawing path SWOS++ does not hook); 0 and 100+ keep
   SWOS++'s mark;
-- anything else (0, 100+, or the 16-colour EGA mode, whose sprites have another layout): no sprite (-1); mkseason
+- 4.0.2 half / EGA mode (SETUP.DAT video speed <= 85: GOG's factory file, slow MiSTer): the match sprites are planar
+  (4 bitplanes, InitGameRestoreTeams' UnchainSprites); the digits are read as planes and the numbers made planar;
+- anything else (0, 100+): no sprite (-1); mkseason
   renumbers pack players outside 1..99, so only teams edited by the players can meet this.
 In memory a game sprite is a 24-byte SpriteGraphics header + 4-bit pixels, 2 per byte, high nibble first, wquads * 8
 bytes per line (DrawSprite16Pixels); the digits are 1 quad (16 pixels) wide, so are the new numbers (at most 7 pixels).
@@ -77,8 +79,6 @@ pick:                                   ; ax = shirt number -> ax = its sprite, 
 .big:
     cmp ax, 99
     jg .none
-    cmp word [EGA], -1                  ; 16-colour mode: other sprite layout
-    je .none
     cmp byte [NUMBUF], 0
     jne .built
     mov dword [CUR_BUF], NUMBUF         ; the match set: digits 1187 + n, "10" = 1197, new sprites NEWBASE..
@@ -97,6 +97,8 @@ pick:                                   ; ax = shirt number -> ax = its sprite, 
     ret
 
 get_nib:                                ; esi -> sprite, edx = line, ecx = column -> al = pixel (0..15)
+    cmp byte [CUR_PLANAR], 0
+    jne get_pnib
     push ebx
     push ecx
     mov ebx, [esi]
@@ -110,6 +112,108 @@ get_nib:                                ; esi -> sprite, edx = line, ecx = colum
 .lo:
     and al, 0Fh
     pop ebx
+    ret
+
+get_pnib:                               ; the same from a planar sprite (half / EGA mode, 1 quad wide: DoUnchainSprite's
+    push ebx                            ; 4 bitplanes of 2 * lines bytes, bit k of 8 pixels per byte, first = MSB)
+    push ecx
+    push edx
+    push edi
+    movzx edi, word [esi + 12]
+    shl edi, 1                          ; plane size
+    shl edx, 4
+    add edx, ecx                        ; pixel index
+    mov ecx, edx
+    shr edx, 3
+    and ecx, 7
+    mov ebx, [esi]
+    add ebx, edx
+    mov dl, 80h
+    shr dl, cl
+    lea ecx, [edi + edi * 2]
+    xor eax, eax
+    test [ebx + ecx], dl
+    jz .b2
+    or al, 8
+.b2:
+    test [ebx + edi * 2], dl
+    jz .b1
+    or al, 4
+.b1:
+    test [ebx + edi], dl
+    jz .b0
+    or al, 2
+.b0:
+    test [ebx], dl
+    jz .x
+    or al, 1
+.x:
+    pop edi
+    pop edx
+    pop ecx
+    pop ebx
+    ret
+
+planar:                                 ; edi -> a built sprite (1 quad, chunky) -> planar in place (half / EGA mode;
+    pushad                              ; not the game's UnchainSprite: it clears 64000 bytes of linAdr384k)
+    movzx ebp, word [edi + 12]          ; lines (<= 8: 64 bytes)
+    mov esi, [edi]
+    mov ebx, [CUR_BUF]
+    add ebx, 160                        ; a 64-byte work area (between the digit table and the sprites)
+    mov ecx, ebp
+    shl ecx, 3
+.c:
+    mov byte [ebx + ecx - 1], 0
+    dec ecx
+    jnz .c
+    mov edx, ebp
+    shl edx, 1                          ; plane size
+    xor ecx, ecx                        ; pixel index
+.p:
+    mov eax, ecx
+    shr eax, 1
+    mov al, [esi + eax]
+    test cl, 1
+    jnz .lo
+    shr al, 4
+.lo:
+    push ecx
+    mov edi, ecx
+    shr edi, 3
+    add edi, ebx
+    and cl, 7
+    mov ah, 80h
+    shr ah, cl
+    test al, 1
+    jz .k1
+    or [edi], ah
+.k1:
+    test al, 2
+    jz .k2
+    or [edi + edx], ah
+.k2:
+    test al, 4
+    jz .k3
+    or [edi + edx * 2], ah
+.k3:
+    test al, 8
+    jz .k4
+    lea edi, [edi + edx * 2]
+    or [edi + edx], ah
+.k4:
+    pop ecx
+    inc ecx
+    mov eax, ebp
+    shl eax, 4
+    cmp ecx, eax
+    jb .p
+    mov ecx, ebp
+    shl ecx, 3
+.cp:
+    mov al, [ebx + ecx - 1]
+    mov [esi + ecx - 1], al
+    loop .cp
+    popad
     ret
 
 put_nib:                                ; edi -> sprite, edx = line, ecx = column, al = pixel (not 0)
@@ -210,6 +314,13 @@ last_col:                               ; esi, ebp -> ecx = last used column (a 
 
 build_numbers:                          ; [CUR_BUF]: 1 = built, 2 = not possible (unexpected digit sprites); the set:
     pushad                              ; digits [CUR_BASE] + n, "10" = [CUR_BASE] + 10, new [CUR_NEW] + n - first
+    mov byte [CUR_PLANAR], 0            ; 4.0.2: a match in half / EGA mode: the digits are planar (InitGameRestore-
+    cmp dword [CUR_MENU], 0             ; Teams' UnchainSprites), read as such; the numbers built chunky, then made
+    jne .np                             ; planar (planar)
+    cmp word [EGA], -1
+    jne .np
+    mov byte [CUR_PLANAR], 1
+.np:
     mov edi, [CUR_BUF]
     mov byte [edi], 2
     mov esi, [CUR_BASE]
@@ -364,6 +475,21 @@ build_numbers:                          ; [CUR_BUF]: 1 = built, 2 = not possible
     inc eax
     cmp eax, 100
     jb .num
+    cmp byte [CUR_PLANAR], 0
+    je .chunky
+    mov eax, [CUR_FIRST]
+.pl:
+    mov edi, eax
+    sub edi, [CUR_FIRST]
+    imul edi, edi, 96
+    add edi, [CUR_BUF]
+    add edi, 256
+    call planar
+    inc eax
+    cmp eax, 100
+    jb .pl
+.chunky:
+    mov byte [CUR_PLANAR], 0
     mov eax, [CUR_BUF]
     mov byte [eax], 1
 .out:
@@ -376,6 +502,7 @@ CUR_BASE: dd 0
 CUR_NEW: dd 0
 CUR_FIRST: dd 0                         ; the first number built (17 here, 12 for the menus)
 CUR_MENU: dd 0                          ; 1: the 1 from its own sprite (the menu's "10" has no gap between 1 and 0)
+CUR_PLANAR: db 0                        ; 1: building in a half / EGA mode match (get_nib reads planes)
 """
 
 

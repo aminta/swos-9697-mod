@@ -60,7 +60,7 @@ machine=svga_s3
 memsize=32
 [cpu]
 core={core}
-cputype=pentium
+cputype={cputype}
 cycles={cycles}
 turbo={turbo}
 stop turbo on key=false
@@ -413,7 +413,7 @@ class Dosbox:
         conf = CONF if not os.environ.get('SWOSTEST_NOEXIT') else CONF.replace('{exe}\nexit\n', '{exe}\n')
         if os.environ.get('SWOSTEST_MEMSIZE'):         # (experiments: DOSBox-X memory in MB; dumps still read 32 MB)
             conf = conf.replace('memsize=32', 'memsize=' + os.environ['SWOSTEST_MEMSIZE'])
-        conf = conf.format(cycles=os.environ.get('CYCLES', 'max'), core=os.environ.get('CORE', 'dynamic'), iso=ISO,
+        conf = conf.format(cputype=os.environ.get('SWOSTEST_CPUTYPE', 'pentium'), cycles=os.environ.get('CYCLES', 'max'), core=os.environ.get('CORE', 'dynamic'), iso=ISO,
                            exe=exe, turbo='false' if os.environ.get('TURBO') == '0' else 'true',
                            joy=f"[joystick]\njoysticktype={os.environ['SWOSTEST_JOY']}\n" if os.environ.get('SWOSTEST_JOY') else '')   # (none / auto / 2axis ...)
         open(os.path.join(run, 'test.conf'), 'w').write(conf)
@@ -3822,7 +3822,10 @@ def shirt_numbers():
     open(team, 'wb').write(d)
     spr = shirtnum.spr_index(lepatch.LEPatch(os.path.join(b, 'ITALIAN.EXE')))
     errs = []
-    with Session('shirt_numbers', b, {'DATA/TEAM.014': team}, 'dump:3', 300, match=True) as s:
+    cars = {'DATA/TEAM.014': team}
+    if os.environ.get('DKB_SETUP'):                  # (half / EGA mode: GOG's factory SETUP.DAT)
+        cars['SETUP.DAT'] = os.environ['DKB_SETUP']
+    with Session('shirt_numbers', b, cars, 'dump:3', 300, match=True) as s:
         s.wait()
         for t in ('AMICHEVOLE', 'OK', 'SCEGLI SQUADRE', 'SQUADRE CLUB', 'EUROPA', 'GERMANIA', '1. LIGA', 'HAMBURG'):
             walk(s, t, 2)
@@ -3846,11 +3849,13 @@ def shirt_numbers():
             if all(ptrs):
                 m = r.read(ptrs[0] - 256, 256 + 83 * 96)
                 check(m[0] == 1, f'build flag {m[0]}', errs)
+                half = dkb_half()                       # (half / EGA mode: the sprites are 4 bitplanes)
                 for n, want in SHIRT_EXPECT.items():
                     h = m[256 + (n - 17) * 96:]
                     w, nl = struct.unpack_from('<hh', h, 10)
-                    rows = '|'.join(''.join('#' if h[24 + y * 8 + x // 2] >> (0 if x & 1 else 4) & 15 else '.'
-                                            for x in range(w)) for y in range(nl))
+                    px = unplane(h[24:24 + 8 * nl]) if half else [h[24 + i // 2] >> (0 if i & 1 else 4) & 15
+                                                                  for i in range(16 * nl)]
+                    rows = '|'.join(''.join('#' if px[y * 16 + x] else '.' for x in range(w)) for y in range(nl))
                     ordn = struct.unpack_from('<h', h, 22)[0]
                     check(rows == want and ordn == shirtnum.NEWBASE + n - 17, f'{n}: {rows} #{ordn}', errs)
     return not errs, '; '.join(errs) or 'numbers 17..99 built (17, 20, 41, 99 pixel-exact) in a match'
@@ -10348,6 +10353,143 @@ def world_seasonend_titles():
         r2, msg2 = run(cmp_, 'cmp')
         info.append(f'{os.path.basename(os.path.dirname(cmp_.rstrip("/")))}: ' +
                     (msg2 if r2 is None else f'{len(r2[1])} shown, {len(r2[2])} garbage {r2[2][:2]}'))
+    return not errs, '; '.join(errs + info)
+
+
+def unplane(data):
+    """Pixels of a planar sprite (DoUnchainSprite: plane k at k * len / 4, bit k of 8 pixels per byte, first = MSB)."""
+    q = len(data) // 4
+    return [sum(((data[k * q + j] >> (7 - t)) & 1) << k for k in range(4)) for j in range(q) for t in range(8)]
+
+
+def dkb_half():
+    """DKB_SETUP's SETUP.DAT puts the game in half / EGA mode (video speed, byte 12, <= 85: GOG's factory file)."""
+    f = os.environ.get('DKB_SETUP')
+    return bool(f) and open(f, 'rb').read()[12] <= 85
+
+
+def dkb_sets(r, spr, blond, info):
+    """In a running match: every frame of the darkblond sets (blond.NEW1 / NEW2, 101 each) against the same frame of
+    the team's black-skin set (543.. / 846..): the same width / lines and the same pixel positions, differing only in
+    hair colours; and each raw set's size against blond.SET_BYTES (copy_sets' room per team). Returns the errors."""
+    errs = []
+    nib = lambda data: [x >> 4 for x in data] + [x & 15 for x in data]
+    idx = lambda i: struct.unpack('<I', r.read(r.base2 + spr + i * 4, 4))[0]
+    planar = dkb_half()                         # half / EGA mode: sprites 309.. as 4 bitplanes (DoUnchainSprite)
+
+    def frame(i):
+        h = r.read(idx(i), 24)
+        wq, nl = struct.unpack_from('<hh', h, 14)[0], struct.unpack_from('<h', h, 12)[0]
+        data = r.read(struct.unpack('<I', h[:4])[0], wq * 8 * nl)
+        return wq, nl, unplane(data) if planar else nib(data)
+    for tag, raw, black, new in (('team 1', 341, 543, blond.NEW1), ('team 2', 644, 946 - 100, blond.NEW2)):
+        size = 0
+        for k in range(101):
+            h = r.read(idx(raw + k), 24)
+            size += 24 + 8 * struct.unpack_from('<h', h, 14)[0] * struct.unpack_from('<h', h, 12)[0]
+        info.append(f'{tag}: raw set {size} B (room {blond.SET_BYTES})')
+        check(size <= blond.SET_BYTES, f'{tag}: raw set {size} B > copy_sets room {blond.SET_BYTES}', errs)
+        bad = []
+        for k in range(101):
+            a, b_ = frame(black + k), frame(new + k)
+            if a[:2] != b_[:2] or [x != 0 for x in a[2]] != [x != 0 for x in b_[2]]:
+                bad.append(k)
+        check(not bad, f'{tag}: darkblond frames differing from the black set: {bad[:12]} ({len(bad)})', errs)
+        other = [k for k in range(101) if not (frame(raw + k)[:2] == frame(raw + 101 + k)[:2] == frame(black + k)[:2])]
+        check(not other, f'{tag}: the three skin / hair sets differ in size at frames {other[:12]}', errs)
+        hair = {x for k in range(101) for x in frame(new + k)[2]}
+        check(15 in hair and 5 not in hair, f'{tag}: darkblond colours {sorted(hair)} (yellow 15, no light skin 5)', errs)
+    return errs
+
+
+@scenario
+def world_darkblond():
+    """4.0.1 user report (4.0 GOG, Italian: Roma's dark-skinned blond player - DONYELL MALEN, face 3 'darkblond' =
+    blond.py's dark skin + blond hair - drawn as a garbled block at a kick-off; internal/reports/
+    malen_darkblond_match_20261025.jpg): a World 2026-27 career at ROMA (DKB_TEAM) on a test copy of SWOSTEST_BUILD
+    whose DIYLeagueTournamentMatch int 3 is a NOP (the game's own int 3 at its start: harmless on a real PC, a trap
+    under the harness's BPINT 3 - the league fixture's '- PARTITA -'), its SQUADRA screen (MALEN's face icon 189:
+    yellow hair) and its first match played (GIOCA PARTITA): pitch frames from the line-ups to kick-off, and in the
+    running match (dkb_sets) every frame of both teams' darkblond sets against the team's black-skin set (size and
+    pixel positions), the three skin / hair sets' sizes, the darkblond colours, each raw set within copy_sets' room.
+    Not reproduced so far (CD / GOG, 4.0 / 4.0hf / rc3, home / away, played / watched, replay): notes/darkblond-402.md"""
+    import re as _re
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import lepatch
+    import shirtnum
+    import blond
+    src = builds()['it']
+    b = os.path.join(WORK, 'builds-x', 'darkblond_' + os.path.basename(os.path.dirname(src.rstrip('/'))))
+    shutil.rmtree(b, ignore_errors=True)
+    shutil.copytree(src, b, symlinks=True)
+    p = lepatch.LEPatch(os.path.join(b, 'ITALIAN.EXE'))
+    d1 = bytes(p.get(1, 0, len(p.le.obj_bytes(1))))
+    m = [x.start() for x in _re.finditer(rb'\xcc\x8b\x35....\x66\x8b\x46\x02\x66\xa3....\x66\xc7\x05....\x02\x00', d1, _re.S)]
+    if len(m) != 1:
+        return False, f'DIYLeagueTournamentMatch int 3 not found once: {m}'
+    p.put(1, m[0], b'\x90')                       # (test copy only)
+    p.save(os.path.join(b, 'ITALIAN.EXE'))
+    spr = shirtnum.spr_index(lepatch.LEPatch(os.path.join(b, 'ITALIAN.EXE')))
+    nib = lambda data: [x >> 4 for x in data] + [x & 15 for x in data]
+    errs, info = [], []
+    team = os.environ.get('DKB_TEAM', 'EUROPA,ITALIA,SERIE A,ROMA').split(',')
+    cars = {'SETUP.DAT': os.environ['DKB_SETUP']} if os.environ.get('DKB_SETUP') else {}   # (GOG's factory file:
+    with Session('world_darkblond', b, cars, 'dump:2', 600, match=True) as s:             # video speed 10 = half mode)
+        s.wait()
+        for t in ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27'] + team:
+            if press(s, s.screen(), t, 3) is None:
+                return False, f'new career: {t} not reached'
+        s.send('fire dump:3')
+        s.shot('career')
+        press(s, s.screen(), 'SQUADRA', 3)
+        s.shot('squad')
+        r = s.result
+        p189 = struct.unpack('<I', r.read(r.base2 + spr + 189 * 4, 4))[0]
+        icon = r.read(struct.unpack('<I', r.read(p189, 4))[0], 64) if p189 else b''
+        check(15 in nib(icon[:24]), f'face icon 189 without yellow hair ({icon[:24].hex()})', errs)
+        press(s, s.screen(), 'ESCI', 3)
+        press(s, s.screen(), 'PARTITA', 3)
+        opp = os.environ.get('DKB_OPP')               # (the reporter's case: the career club v that opponent, e.g. ROMA)
+        for _ in range(40 if opp else 0):
+            if opp in s.screen().texts()[5:9]:
+                break
+            press(s, s.screen(), '- RISULTATO -', 3)      # (the fixtures before it settled by result)
+            press(s, s.screen(), 'VIS. RISULTATI', 3)
+            for _ in range(6):
+                scr = s.screen()
+                if 'TRASFERIMENTI' in scr.texts() and scr.find('PARTITA', exact=True) is not None:
+                    break
+                press(s, scr, 'PROSS. PARTITA' if scr.find('PROSS. PARTITA') is not None else
+                      'CONTINUA' if scr.find('CONTINUA', exact=True) is not None else 'ESCI', 3)
+            press(s, s.screen(), 'PARTITA', 3)
+        fx = s.screen().texts()[5:9]
+        s.shot('fixture')
+        vis = next((e[0] for e in s.screen().entries if e[1] == '- PARTITA -' and not e[2]), None)
+        if vis is None:
+            return False, f'no visible - PARTITA - on {s.screen()}'
+        walk(s, vis, 3)
+        for _ in range(3):                            # ('GIOCA :' cycles who plays: GIOCA PARTITA shows for the human)
+            e = next((x for x in s.screen().entries if x[1] == 'GIOCA PARTITA'), None)
+            if e is not None and not e[2]:
+                break
+            if s.screen().find('GIOCA :', exact=True) is None:
+                break
+            press(s, s.screen(), 'GIOCA :', 2)
+        s.shot('prematch')
+        if not any(x[1] == 'GIOCA PARTITA' and not x[2] for x in s.screen().entries):
+            return False, f'fixture {fx}: no GIOCA PARTITA on {s.screen()}'
+        press(s, s.screen(), 'GIOCA PARTITA', 3)
+        checked = False
+        for k in range(10):                           # line-ups, the stadium screen, kick-off: a frame each
+            r = s.send('fire dump:1.5')
+            if r.outcome != 'dump':
+                break
+            s.shot(f'm{k}')
+            if k == 6:                                # (the match running: the sets as converted for it)
+                errs += dkb_sets(r, spr, blond, info)
+                checked = True
+        check(checked, f'the match never ran ({r})', errs)
+        info.append(f'fixture {fx}')
     return not errs, '; '.join(errs + info)
 
 

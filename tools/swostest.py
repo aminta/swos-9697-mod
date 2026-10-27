@@ -10203,7 +10203,65 @@ def cd_strength_check(b2, b0, st, ent, gen, np_, mine):
 
 
 @scenario
-def world_gplay_cupd(team='EUROPA,ITALIA,SERIE D GIRONE A,LIGORNA', two=False):
+def world_cupd_ischia():
+    """4.0.5 regression (Davide 23/10, a user at ISCHIA out of the real Coppa Italia Serie D preliminary v GLADIATOR
+    before the world starts; the user played the 4.0 exes): in season 1 the CAREER club plays its own Coppa D tie
+    already played in reality (cd_step_c: slot 4), the winner takes the real winner's slot, every other tie keeps its
+    real result. world_gplay_cupd at ISCHIA (GIRONE H) twice: CD_FORCE=1 (the career club wins its ties: ISCHIA on in
+    the PRIMO TURNO) and CD_FORCE=2 (loses: GLADIATOR on, as in reality); both: the TURNO PRELIMINARE tie screen with
+    ISCHIA - GLADIATOR, the tie's result as forced, every other preliminary tie = its real winner"""
+    import json
+    br = json.load(open(os.path.join(MAIN, 'internal', 'world2526', 'formats', 'coppa_italia_serie_d_2627.json')))
+    r0 = br['rounds'][0]['matches']
+    t = next(i for i, m in enumerate(r0) if m['home_key'] == 'ischia' or m['away_key'] == 'ischia')
+    isch_a = r0[t]['home_key'] == 'ischia'
+    real = [0 if not m.get('winner') else 1 if m['winner'] == m['home'] else 2 for m in r0]
+    errs, info = [], []
+    for force, label in ((1, 'win'), (2, 'loss')):
+        os.environ.pop('GPLAY_BUILD', None)
+        ok, msg = world_gplay_cupd(team='EUROPA,ITALIA,SERIE D GIRONE H,ISCHIA', extra={'CD_FORCE': str(force)},
+                                   tag=f'_cdf{force}')
+        cds, lines = getattr(world_gplay_cupd, 'cds', []), getattr(world_gplay_cupd, 'lines', [])
+        if not cds:
+            errs.append(f'{label}: no CD_ST ({msg[:120]})')
+            continue
+        res = cds[-1][8:8 + len(r0)]
+        want = (1 if isch_a else 2) if force == 1 else (2 if isch_a else 1)
+        check(res[t] == want, f'{label}: ISCHIA - GLADIATOR result {res[t]}, forced {want}', errs)
+        other = [i for i in range(len(r0)) if i != t and real[i] and res[i] != real[i]]
+        check(not other, f'{label}: preliminary ties off their real result: {other[:8]}', errs)
+        scr = [ln for ln in lines if 'COPPA ITALIA SERIE D' in ln and 'ISCHIA' in ln]
+        pre = [ln for ln in scr if 'PRELIMINARE' in ln and 'GLADIATOR' in ln]
+        later = [ln for ln in scr if 'PRELIMINARE' not in ln]
+        check(pre, f'{label}: no TURNO PRELIMINARE tie screen ISCHIA - GLADIATOR', errs)
+        check(bool(later) == (force == 1), f'{label}: ISCHIA in a later Coppa D round: {bool(later)}', errs)
+        info.append(f'{label}: tie {t} result {res[t]}, later rounds {len(later)} screens')
+    return not errs, '; '.join(errs + info)
+
+
+@scenario
+def world_cupd_ischia_load():
+    """4.0.5: the user's own 4.0 career (internal/reports/ischia/ISCHIA.CAR, Francesco Pergola: ISCHIA, World 2026-27)
+    loads on a release-recipe build (ISCHIA_REL, else CUPLIST_REL: a release dir with the 2026-27 data) and plays on
+    to its season's end and into the next season (world8485 from it), no trap"""
+    car = os.path.join(MAIN, 'internal', 'reports', 'ischia', 'ISCHIA.CAR')
+    exe = os.environ.get('ISCHIA_REL') or os.environ.get('CUPLIST_REL')
+    if not os.path.exists(car) or not exe:
+        return True, 'SKIP: no ISCHIA.CAR or no release dir (ISCHIA_REL / CUPLIST_REL)'
+    keys = ('W8485_BUILD', 'W8485_FROM', 'W8485_NOSACK')
+    keep = {k: os.environ.get(k) for k in keys}
+    os.environ.update(W8485_BUILD=exe, W8485_FROM=car, W8485_NOSACK='1')
+    try:
+        ok, msg = world8485()
+    finally:
+        for k, v in keep.items():
+            os.environ.pop(k, None) if v is None else os.environ.__setitem__(k, v)
+    nxt = os.path.join(RUNS, w84_tag() + '_2', 'SWOS', 'W84B.CAR')   # (as world_cuplist_mestre: checkw1 is a 1984-85
+    return os.path.exists(nxt) and 'trap' not in msg, f'the old save played on: {msg[:300]}'   # check)
+
+
+@scenario
+def world_gplay_cupd(team='EUROPA,ITALIA,SERIE D GIRONE A,LIGORNA', two=False, extra=None, tag=''):
     """The Coppa Italia Serie D (cupd.py, gplay.c cd_step_c): world5tm-poule with Italy's 'cup_d' = the data session's
     real 2026-27 bracket (internal/world2526/formats/coppa_italia_serie_d_2627.json); a season at LIGORNA (it enters
     at the PRIMO TURNO, away at Sestri Levante): its ties built in slot 4 at their weeks and played, every other tie
@@ -10230,7 +10288,8 @@ def world_gplay_cupd(team='EUROPA,ITALIA,SERIE D GIRONE A,LIGORNA', two=False):
     env = {'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(w, 'world5tm', x) for x in order])}
     if two:                             # (the club stays in Serie D: 10th of its group at both season ends)
         env['GPLAY_FORCE'] = '10'
-    exe = os.environ.get('GPLAY_BUILD') or build('world_gplay_cupd2' if two else 'world_gplay_cupd', env=env)
+    env.update(extra or {})                 # (world_cupd_ischia: CD_FORCE)
+    exe = os.environ.get('GPLAY_BUILD') or build(('world_gplay_cupd2' if two else 'world_gplay_cupd') + tag, env=env)
     log_at, st_at, log_n, st_n = gp_ptrs(exe)
     cd_at = gp_cd(exe)
     keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K',
@@ -10254,6 +10313,7 @@ def world_gplay_cupd(team='EUROPA,ITALIA,SERIE D GIRONE A,LIGORNA', two=False):
     check(ok, msg, errs)
     cds = [bytes.fromhex(ln.split()[2]) for ln in lines if ln.startswith(f'HEX {cd_at:x} ')]
     cds = [b for b in cds if b[:2] == b'CD']
+    world_gplay_cupd.cds, world_gplay_cupd.lines = cds, lines       # (world_cupd_ischia reads them)
     if not cds:
         return False, f'{msg}; the cup never ran (no CD_ST seen)'
     last = cds[-1]

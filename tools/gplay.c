@@ -2017,7 +2017,8 @@ void cd_fixload_c(const u8 *league, u32 seas, u8 *cal, u32 cur) {
 static void cd_done(struct gp_ko *k) {  /* gp_rec_c: our CD tie decided -> its result */
     if (!CD_ST.built || k->tw[0] == NOC) return;
     CD_ST.res[CD_ST.bt] = k->team[k->tw[0]] == cd_side(CD_ST.bt, 0) ? 1 : 2;
-    if (GP_CDFORCE) CD_ST.res[CD_ST.bt] = cd_side(CD_ST.bt, 0) == GP_MGR ? 1 : 2;   /* (CD_FORCE test builds: won) */
+    if (GP_CDFORCE)                     /* (CD_FORCE test builds: 1 won, 2 lost) */
+        CD_ST.res[CD_ST.bt] = (cd_side(CD_ST.bt, 0) == GP_MGR) == (GP_CDFORCE == 1) ? 1 : 2;
     CD_ST.built = 0;
     CD_ST.pad |= 0x40;
 }

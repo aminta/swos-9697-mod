@@ -510,6 +510,8 @@ def patch_exe(src, dst, remap, lang='it'):
     import devname                               # 4.0.2: DOS device names (CON, PRN, AUX ...) refused as save names
     devname.patch(p, lang)
     joyfix.patch(p)                              # 4.0.1: ReadSetupDat -> VerifyJoypadControls (no pad + controls != 1 = frozen menus)
+    import fullgfx                               # 4.0.2: full graphics always (no half mode from SETUP.DAT's speed)
+    fullgfx.patch(p)
     cos = menumusic.patch(p, cos)                # 3.3.6: menu music when the main menu opens (SWOS++ options load late)
     cos = fmtpage.patch(p, cos, lang, area, num_bss + shirtnum.BSS_SIZE + blond.BSS_SIZE + menunum.BSS_SIZE,
                          careerworld.SITES if worlds else None,   # FORMAT page (5.0); 4.0.1 its VINCITORI entry

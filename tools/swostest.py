@@ -413,6 +413,7 @@ class Dosbox:
         conf = CONF if not os.environ.get('SWOSTEST_NOEXIT') else CONF.replace('{exe}\nexit\n', '{exe}\n')
         if os.environ.get('SWOSTEST_MEMSIZE'):         # (experiments: DOSBox-X memory in MB; dumps still read 32 MB)
             conf = conf.replace('memsize=32', 'memsize=' + os.environ['SWOSTEST_MEMSIZE'])
+        exe = exe + (' ' + os.environ['SWOSTEST_EXEARGS'] if os.environ.get('SWOSTEST_EXEARGS') else '')   # (e.g. /H)
         conf = conf.format(cputype=os.environ.get('SWOSTEST_CPUTYPE', 'pentium'), cycles=os.environ.get('CYCLES', 'max'), core=os.environ.get('CORE', 'dynamic'), iso=ISO,
                            exe=exe, turbo='false' if os.environ.get('TURBO') == '0' else 'true',
                            joy=f"[joystick]\njoysticktype={os.environ['SWOSTEST_JOY']}\n" if os.environ.get('SWOSTEST_JOY') else '')   # (none / auto / 2axis ...)
@@ -3849,7 +3850,7 @@ def shirt_numbers():
             if all(ptrs):
                 m = r.read(ptrs[0] - 256, 256 + 83 * 96)
                 check(m[0] == 1, f'build flag {m[0]}', errs)
-                half = dkb_half()                       # (half / EGA mode: the sprites are 4 bitplanes)
+                half = dkb_half(r)                      # (half / EGA mode: the sprites are 4 bitplanes)
                 for n, want in SHIRT_EXPECT.items():
                     h = m[256 + (n - 17) * 96:]
                     w, nl = struct.unpack_from('<hh', h, 10)
@@ -4979,6 +4980,41 @@ def controls_swospp():
         check(sc.nav[17][0][3] != 19 and sc.nav[18][0][2] != 19, f'links to 19: {sc.nav[17][0]} {sc.nav[18][0]}', errs)
         s.shot('options')
     return not errs, '; '.join(errs) or 'no CONTROLS button under SWOS++'
+
+
+@scenario
+def full_graphics():
+    """4.0.2 full graphics always (fullgfx.py): GOG's factory SETUP.DAT (video speed 10, the half mode before) -> at the
+    main menu setupDatBuffer (EGA_graphics in the match) = 0; the same with the exe started with /H -> -1 (half)"""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import re as _re
+    import lepatch
+    import fullgfx
+    b = builds()['it']
+    fac = os.path.join(MAIN, 'internal', 'joypad-gog', 'SETUP.DAT.factory')
+    p = lepatch.LEPatch(os.path.join(ROOT, 'orig', UI_ORIG))
+    m = _re.search(fullgfx.PAT, p.le.obj_bytes(1), _re.S)
+    buf = p.target(1, m.start() + 3)[1]
+    errs, notes = [], []
+    for tag, args, want in (('factory', '', 0), ('factory /H', '/H', 0xFFFF)):
+        old = os.environ.get('SWOSTEST_EXEARGS')
+        os.environ['SWOSTEST_EXEARGS'] = args
+        try:
+            with Session('full_graphics' + ('_h' if args else ''), b, {'SETUP.DAT': fac}, 'dump:2', 120) as s:
+                if s.wait().outcome != 'dump':
+                    errs.append(f'{tag}: no pause ({s.result})')
+                    continue
+                r = s.result
+                v = struct.unpack('<H', r.read(r.base2 + buf, 2))[0]
+                spd = struct.unpack('<H', r.read(r.base2 + buf + 12, 2))[0]
+                check(v == want, f'{tag}: setupDatBuffer {v:#x}, want {want:#x}', errs)
+                notes.append(f'{tag}: speed {spd}, mode {"half" if v else "full"}')
+        finally:
+            if old is None:
+                os.environ.pop('SWOSTEST_EXEARGS', None)
+            else:
+                os.environ['SWOSTEST_EXEARGS'] = old
+    return not errs, '; '.join(errs + notes)
 
 
 PURPLE_RGB, MAROON_MENU = (24, 8, 34), (27, 0, 9)
@@ -10362,10 +10398,17 @@ def unplane(data):
     return [sum(((data[k * q + j] >> (7 - t)) & 1) << k for k in range(4)) for j in range(q) for t in range(8)]
 
 
-def dkb_half():
-    """DKB_SETUP's SETUP.DAT puts the game in half / EGA mode (video speed, byte 12, <= 85: GOG's factory file)."""
-    f = os.environ.get('DKB_SETUP')
-    return bool(f) and open(f, 'rb').read()[12] <= 85
+def dkb_half(r):
+    """The running game is in half / EGA mode: setupDatBuffer = -1 (= EGA_graphics in the match). 4.0.2 (fullgfx):
+    only with /H (SWOSTEST_EXEARGS) or low memory; before, SETUP.DAT's video speed <= 85 (GOG's factory file)."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import re as _re
+    import lepatch
+    import fullgfx
+    if not hasattr(dkb_half, 'buf'):
+        p = lepatch.LEPatch(os.path.join(ROOT, 'orig', UI_ORIG))
+        dkb_half.buf = p.target(1, _re.search(fullgfx.PAT, p.le.obj_bytes(1), _re.S).start() + 3)[1]
+    return r.read(r.base2 + dkb_half.buf, 2) == b'\xff\xff'
 
 
 def dkb_sets(r, spr, blond, info):
@@ -10375,7 +10418,7 @@ def dkb_sets(r, spr, blond, info):
     errs = []
     nib = lambda data: [x >> 4 for x in data] + [x & 15 for x in data]
     idx = lambda i: struct.unpack('<I', r.read(r.base2 + spr + i * 4, 4))[0]
-    planar = dkb_half()                         # half / EGA mode: sprites 309.. as 4 bitplanes (DoUnchainSprite)
+    planar = dkb_half(r)                        # half / EGA mode: sprites 309.. as 4 bitplanes (DoUnchainSprite)
 
     def frame(i):
         h = r.read(idx(i), 24)

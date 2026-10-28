@@ -93,7 +93,7 @@ L = {
                down1="L'ultima retrocede in {l}.", downk='Le ultime {k} retrocedono in {l}.', lower='la categoria inferiore',
                realpo="; la {q} giocherebbe lo spareggio", realpo0k="Le {q} giocherebbero lo spareggio contro squadre di {to}, che non è nel mondo: qui non retrocede nessuno.", realdownk="Le {p} scenderebbero in {to}, che non è nel mondo{po}: qui non retrocede nessuno.", realpok="; le {q} giocherebbero lo spareggio", realpo0="La {q} giocherebbe lo spareggio contro una squadra di {to}, che non è nel mondo: qui non retrocede nessuno.", realdown="La {p} scenderebbe in {to}, che non è nel mondo{po}: qui non retrocede nessuno.", none='Non retrocede nessuno.',
                split='Dopo {a} giornate la classifica si divide: {groups}.', grp='{name} ({a}-{b}) {r}', grp0='le squadre dalla {a} alla {b} {r}', rngl='Le squadre {x}', andw='e',
-               grprp={0: 'si fermano', 1: 'giocano una volta', 2: 'giocano andata e ritorno'}, grpr={0: 'si ferma', 1: 'gioca una volta', 2: 'gioca andata e ritorno'},
+               grprp={0: 'si fermano', 1: 'giocano una volta', 2: 'giocano andata e ritorno', 3: 'giocano tre volte'}, grpr={0: 'si ferma', 1: 'gioca una volta', 2: 'gioca andata e ritorno', 3: 'gioca tre volte'},
                full=', con tutti i punti della prima fase', half=', con i punti dimezzati', reset=', ripartendo da zero',
                po='{rng} si giocano {kind}: {rules}.', win='La vincente sale in {d}.',
                kind={'promotion': 'i play-off promozione', 'playout': 'i play-out', 'placement': 'gli spareggi',
@@ -113,7 +113,7 @@ L = {
                down1='The last club goes down to {l}.', downk='The bottom {k} go down to {l}.', lower='the division below',
                realpo="; the {q} would play the relegation play-off", realpo0k="The {q} would play the relegation play-offs against clubs from {to}, which is not in the world: here nobody goes down.", realdownk="The {p} would go down to {to}, which is not in the world{po}: here nobody goes down.", realpok="; the {q} would play the relegation play-offs", realpo0="The {q} would play the relegation play-off against a club from {to}, which is not in the world: here nobody goes down.", realdown="The {p} would go down to {to}, which is not in the world{po}: here nobody goes down.", none='Nobody goes down.',
                split='After {a} matchdays the table splits: {groups}.', grp='{name} ({a}-{b}) {r}', grp0='the clubs from {a} to {b} {r}', rngl='The clubs {x}', andw='and',
-               grprp={0: 'stop', 1: 'play once more', 2: 'play home and away'}, grpr={0: 'stops', 1: 'plays once more', 2: 'plays home and away'},
+               grprp={0: 'stop', 1: 'play once more', 2: 'play home and away', 3: 'play three times'}, grpr={0: 'stops', 1: 'plays once more', 2: 'plays home and away', 3: 'plays three times'},
                full=', keeping all the points of the first phase', half=', with points halved', reset=', starting from zero',
                po='{rng} play {kind}: {rules}.', win='The winner goes up to {d}.',
                kind={'promotion': 'the promotion play-offs', 'playout': 'the play-outs', 'placement': 'the placement play-offs',
@@ -132,7 +132,7 @@ L = {
                down1='Le dernier descend en {l}.', downk='Les {k} derniers descendent en {l}.', lower='division inférieure',
                realpo="; le {q} jouerait le barrage", realpo0k="Les {q} joueraient le barrage contre des clubs de {to}, qui n'est pas dans le monde : ici personne ne descend.", realdownk="Les {p} descendraient en {to}, qui n'est pas dans le monde{po} : ici personne ne descend.", realpok="; les {q} joueraient le barrage", realpo0="Le {q} jouerait le barrage contre un club de {to}, qui n'est pas dans le monde : ici personne ne descend.", realdown="Le {p} descendrait en {to}, qui n'est pas dans le monde{po} : ici personne ne descend.", none='Personne ne descend.',
                split='Après {a} journées le classement se divise : {groups}.', grp='{name} ({a}-{b}) {r}', grp0='les clubs du {a} au {b} {r}', rngl='Les clubs {x}', andw='et',
-               grprp={0: "s'arrêtent", 1: 'jouent une fois', 2: 'jouent en aller et retour'}, grpr={0: "s'arrête", 1: 'joue une fois', 2: 'joue en aller et retour'},
+               grprp={0: "s'arrêtent", 1: 'jouent une fois', 2: 'jouent en aller et retour', 3: 'jouent trois fois'}, grpr={0: "s'arrête", 1: 'joue une fois', 2: 'joue en aller et retour', 3: 'joue trois fois'},
                full=', en gardant tous les points de la première phase', half=', points divisés par deux', reset=', en repartant de zéro',
                po='{rng} jouent {kind} : {rules}.', win='Le vainqueur monte en {d}.',
                kind={'promotion': 'les barrages de montée', 'playout': 'les barrages de maintien',
@@ -152,7 +152,7 @@ L = {
                down1='Der Letzte steigt in die {l} ab.', downk='Die letzten {k} steigen in die {l} ab.', lower='tiefere Liga',
                realpo="; der {q} würde die Relegation spielen", realpo0k="Die {q} würden die Relegation gegen Vereine aus der {to} spielen, die nicht in der Welt ist: hier steigt niemand ab.", realdownk="Die {p} würden in die {to} absteigen, die nicht in der Welt ist{po}: hier steigt niemand ab.", realpok="; die {q} würden die Relegation spielen", realpo0="Der {q} würde die Relegation gegen einen Verein aus der {to} spielen, die nicht in der Welt ist: hier steigt niemand ab.", realdown="Der {p} würde in die {to} absteigen, die nicht in der Welt ist{po}: hier steigt niemand ab.", none='Niemand steigt ab.',
                split='Nach {a} Spieltagen wird die Tabelle geteilt: {groups}.', grp='{name} ({a}-{b}) {r}', grp0='die Vereine vom {a} bis zum {b} {r}', rngl='Die Vereine {x}', andw='und',
-               grprp={0: 'hören auf', 1: 'spielen einmal', 2: 'spielen mit Hin- und Rückspiel'}, grpr={0: 'hört auf', 1: 'spielt einmal', 2: 'spielt mit Hin- und Rückspiel'},
+               grprp={0: 'hören auf', 1: 'spielen einmal', 2: 'spielen mit Hin- und Rückspiel', 3: 'spielen dreimal'}, grpr={0: 'hört auf', 1: 'spielt einmal', 2: 'spielt mit Hin- und Rückspiel', 3: 'spielt dreimal'},
                full=', mit allen Punkten der ersten Phase', half=', mit halbierten Punkten', reset=', bei null beginnend',
                po='{rng} spielen {kind}: {rules}.', win='Der Sieger steigt in die {d} auf.',
                kind={'promotion': 'die Aufstiegs-Playoffs', 'playout': 'die Abstiegs-Playoffs',
@@ -205,7 +205,7 @@ def league(div, k, lg, win, lang, pos, lowest, nm, real_down=None):
         gs = []
         for gr in st['groups']:
             a, b = gr['places']
-            ri = {'none': 0, 'single': 1, 'double': 2}[gr.get('rounds', 'single')]
+            ri = {'none': 0, 'single': 1, 'double': 2, 'triple': 3}[gr.get('rounds', 'single')]
             r = (l['grpr'] if gr.get('title') else l['grprp'])[ri]
             if ri:                              # (a group that plays on: how its points carry over)
                 r += {'half_up': l['half'], 'half_down': l['half'], 'reset': l['reset']}.get(gr.get('points', 'full'), l['full'])

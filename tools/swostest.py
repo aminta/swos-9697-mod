@@ -5925,6 +5925,9 @@ SPLITS = {   # world_split kinds: country, career path (ITA), the 'split' of its
                    {'after': 15, 'places_snake': True, 'reset': True, 'keep': 'opening',
                     'groups': [{'places': [1, 8], 'rounds': 'single'}, {'places': [9, 16], 'rounds': 'single'}]},
                    {'after': 22, 'reset': True, 'groups': [{'places': [1, 16], 'rounds': 'single'}]}]}),
+    'alb': ('alb', 'EUROPA,ALBANIA,TEUTA',           # (4.0.5: Albania 2026-27, FSHF 23 Jun 2026: 27 days, 6 double + 4 triple)
+            {'after': 27, 'groups': [{'places': [1, 6], 'rounds': 'double', 'points': 'half_down'},
+                                     {'places': [7, 10], 'rounds': 'triple', 'points': 'half_down'}]}),
     'halved': ('rou', 'EUROPA,ROMANIA,BOTOSANI',
                {'after': 30, 'groups': [{'places': [1, 6], 'rounds': 'double', 'points': 'half_up'},
                                         {'places': [7, 16], 'rounds': 'single', 'points': 'half_up'}]}),
@@ -6871,6 +6874,24 @@ def world_split_halved():
     rounded up, 'points before rounding' first tie-break) at BOTOSANI: 40 days, 40 / 39 matches, points = the halved
     split points + the later ones, groups in order"""
     return world_split('halved')
+
+@scenario
+def world_split_alb():
+    """Mid-season split, Albania 2026-27 (data 403c5, W2627ALB_DATA, default internal/world2526/world5tm-403c5): 27 days,
+    places 1-6 double round robin (10) and 7-10 triple (9), points halved down, at TEUTA played to its end: 37 days,
+    the final table = the frozen groups in order, the points = the halved split points + the later ones"""
+    src = (os.environ.get('W2627ALB_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-403c5')).rstrip('/')
+    if not os.path.isdir(src):
+        return True, f'SKIP: private data {src} missing'
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    exe = os.environ.get('ALB_BUILD') or build('world_split_alb', env={
+        'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order])})
+    os.environ['SPLIT_BUILD'] = exe
+    try:
+        return world_split('alb')
+    finally:
+        os.environ.pop('SPLIT_BUILD', None)
+
 
 @scenario
 def world_dplay_out():

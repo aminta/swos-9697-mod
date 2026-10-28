@@ -210,7 +210,7 @@ def league_text(div, win, t, names=None, lang='it', lowest=False, rest_note=True
             lines.append(t['split'].format(a=st['after']))
             for gr in st['groups']:
                 a, b = gr['places']
-                r = {'none': 0, 'single': 1, 'double': 2}[gr.get('rounds', 'single')]
+                r = {'none': 0, 'single': 1, 'double': 2, 'triple': 3, 'quadruple': 4}[gr.get('rounds', 'single')]
                 s = t['grp0'].format(a=a, b=b) if not r else t['grp'].format(a=a, b=b, rr=t['rr'][r])
                 s += {'half_up': t['half'], 'half_down': t['half'], 'reset': t['reset']}.get(gr.get('points', 'full'), '')
                 lines.append(s)

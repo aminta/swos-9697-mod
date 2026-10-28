@@ -1599,6 +1599,7 @@ static u32 wn_double(int rule) {        /* 4.0.2 'Q': a title_seed play-off with
         return b->r[0][0].team;
     return 0xFFFE;
 }
+static u32 cf_last1(void);              /* (4.0.5: CF_ST, defined with it below) */
 u32 gp_wn_c(void) {
     int t = GP_WNSRC & 0xFF, st = GP_WNSRC >> 8 & 0xFF, pi = GP_WNSRC >> 16 & 0xFF;
     if (GP_WNSRC >> 24 && t == 'M') {   /* (4.0.1: the division the career club played in: team | division << 16) */
@@ -1606,6 +1607,10 @@ u32 gp_wn_c(void) {
         for (int i = 0; i < WN_ST.n && i < WN_N; i++)
             if (WN_ST.e[i].type == 'M') return WN_ST.e[i].team | (u32)WN_ST.e[i].idx << 16;
         return 0xFFFE;
+    }
+    if (GP_WNSRC >> 24 && t == 'E') {   /* (4.0.5 a league with no WIN entry, winners.py's fallback line: the last
+                                           season's 1st of the career club's level, from CF_ST's places) */
+        return cf_last1();
     }
     if (GP_WNSRC >> 24) {               /* (4.0.1 the last season: WN_ST's entry 'K' pi, or 'L' division st) */
         int ty = t == 'K' || t == 'D' || t == 'Q' ? 'K' : t == 'T' ? 0x80 | (pi & 0x7F) : 'L', ix = ty == 'K' ? pi : st;
@@ -3196,6 +3201,13 @@ static const u8 *cf_cup(int id, const u8 **dtp) {
 }
 struct cf_state { u16 magic; u8 season, file; u8 rank[256]; };
 struct cf_state CF_ST;
+static u32 cf_last1(void) {              /* 4.0.5 (gp_wn_c 'E', last season): the 1st of the career club's level */
+    if (CF_ST.magic != 0x4643 || (u8)(CF_ST.season + 1) != GP_SEAS || (GP_MGR & 0xFF) != CF_ST.file) return 0xFFFE;
+    int lv = CF_ST.rank[GP_MGR >> 8] >> 5;
+    for (int i = 0; i < 256; i++)
+        if (CF_ST.rank[i] == (1 | lv << 5)) return (u32)CF_ST.file | (u32)i << 8;
+    return 0xFFFE;
+}
 #ifndef CF_SEED
 #define CF_SEED 0
 #endif

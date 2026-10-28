@@ -8023,7 +8023,9 @@ def winners_page(s, pages=None):
 def world_winners_league():
     """4.0.5 (Davide): VINCITORI for every league - one whose title is its table's 1st has no WIN entry, winners.py's
     fallback line ('E'): at a new career's start (KOPER, Slovenia; INTER, Serie A) STAT shows VINCITORI and its page
-    lists the league with DA GIOCARE (release-like build: SWOSTEST_BUILD)"""
+    lists the league with DA GIOCARE; KOPER's season 2 (season 1 played, its save loaded): the last season's page
+    'VINCITORI 2026-27:' names the PRVA LIGA's champion (gplay.c cf_last1: CF_ST's 1st of the club's level)
+    (release-like build: SWOSTEST_BUILD)"""
     b = os.environ.get('SWOSTEST_BUILD')
     if not b:
         return True, 'SKIP: SWOSTEST_BUILD (a full 2026-27 build) not set'
@@ -8043,6 +8045,27 @@ def world_winners_league():
             check(e is not None and not e[2] and lines and 'DA GIOCARE' in lines,
                   f'{path[-1]}: VINCITORI {e}, page {title!r} {lines[:4]}', errs)
             info.append(f'{path[-1]}: {title} {lines[:2]}')
+    ok, msg, _ = sc_season('EUROPA,SLOVENIA,KOPER', dict(W8485_BUILD=b))   # (season 2: the last season's page)
+    car = os.path.join(RUNS, w84_tag() + '_1', 'SWOS', 'W84A.CAR')
+    if not ok or not os.path.exists(car):
+        errs.append(f'KOPER season 1: {msg}')
+    else:
+        with Session('world_winners_league_s2', b, {'W84A.CAR': car}, 'dump:2', 300) as s:
+            s.wait()
+            s.send(LOAD1 + ' dump:3')
+            for _ in range(6):
+                if s.screen().find('VISUAL. COMPETIZ.', exact=True) is not None:
+                    break
+                press(s, s.screen(), 'CONTINUA', 3) or s.send('fire dump:2')
+            more = []
+            e, title, lines = winners_page(s, more)
+            last = more[0] if more else []
+            nz = [x for x in last if x]
+            champ = nz[nz.index('SLOVENIA PRVA LIGA:') + 1] if 'SLOVENIA PRVA LIGA:' in nz[:-1] else None
+            check(lines and 'DA GIOCARE' in lines and nz and nz[0].startswith('VINCITORI')
+                  and champ not in (None, 'DA GIOCARE', 'IN CORSO'),
+                  f'KOPER season 2: page {title!r} {lines[:3]}, last season {nz[:4]}', errs)
+            info.append(f'KOPER s2: {lines[:2]} / last {nz[:3]}')
     return not errs, '; '.join(errs) or '; '.join(info)
 
 

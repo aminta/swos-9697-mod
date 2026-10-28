@@ -75,6 +75,10 @@ wn_lastdiv:                             ; 4.0.1 (Davide): the last season's page
     popad
     cmp ax, 0FFFEh
     jae .x
+    push eax                            ; (4.0.5: its division, for a fallback 'E' line's last season)
+    shr eax, 16
+    mov [WN_MDIV], al
+    pop eax
     mov edi, WN_KEY + 2                 ; 01h 'H' + 2 hex digits of the file (the team word's low byte) + 2 of the
     mov ebx, eax                        ; division
     call .hx
@@ -549,8 +553,13 @@ DP_CODE
     je .lsd
     cmp al, 'L'
     je .ll
+    cmp al, 'E'                         ; (4.0.5 the fallback line: last season's 1st of the career club's level)
+    je .lle
     stc
     ret
+.lle:
+    mov bl, 'E'                         ; (gplay.c gp_wn_c: CF_ST's 1st of the career club's level last season)
+    jmp .lc
 .lsd:
     lodsb                               ; (the stage)
 .ll:
@@ -690,6 +699,7 @@ WN_HS: dd 0
 WN_CNT: dd 0
 WN_MODE: db 0
 WN_T2: db 0
+WN_MDIV: db 0                           ; (4.0.5: the last season's division of the career club, 'M')
 WN_KEY: db 1, 'H', '0000'
 WN_TMP: times 8 db 0
 WN_SS: db 0FFh

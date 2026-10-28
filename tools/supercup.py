@@ -28,6 +28,28 @@ ASM = '''
 sc_cup:                                 ; replaces `call cseg_928CC` (season end, a cup decided): the same, then its
     call C928CC                         ; winner / finalist into SC_ST
     pushad
+    mov ax, [TW]
+    mov [SCW], ax
+    mov ax, [TW + 2]
+    mov [SCF], ax
+    mov ax, [REC + 2]
+    mov [SCWG], ax
+    mov ax, [REC + 2ACh + 2]
+    mov [SCFG], ax
+    jmp sc_put
+sc_cup2:                                ; 4.0.5 BRA: replaces `call cseg_92A63` (a country's cup 2 at the season end,
+    call C92A63                         ; cseg_91AD0 - Brazil's COPA DO BRASIL, its cup 1 being the state contest):
+    pushad                              ; the winner / finalist from the DIY's final order (cseg_2ACAE: +2CDh the
+    movzx ebx, byte [DIY + 2CDh]        ; winners, then the losers), its record's global (dseg_1827D2)
+    mov ax, [DIY + 24Dh + ebx * 2]
+    mov [SCW], ax
+    movzx ebx, byte [DIY + 2CEh]
+    mov ax, [DIY + 24Dh + ebx * 2]
+    mov [SCF], ax
+    mov ax, [REC2 + 2]
+    mov [SCWG], ax
+    mov word [SCFG], 0
+sc_put:
     movzx eax, byte [DIY + 2Dh]         ; the contest id
     mov edi, SC_IDS                     ; only the cups of SC_IDS (the countries with a supercup)
     mov ecx, NE_
@@ -37,7 +59,7 @@ sc_cup:                                 ; replaces `call cseg_928CC` (season end
     loop .i
     jmp .x
 .in:
-    movzx ecx, byte [TW]                ; the country: the winner's team file (the word's low byte)
+    movzx ecx, byte [SCW]               ; the country: the winner's team file (the word's low byte)
     xor ebx, ebx
 .f: cmp ebx, NE_
     jae .x                              ; (full: dropped)
@@ -54,13 +76,13 @@ sc_cup:                                 ; replaces `call cseg_928CC` (season end
 .put:
     mov [edi], cl
     mov [edi + 1], al
-    mov ax, [TW]
+    mov ax, [SCW]
     mov [edi + 4], ax
-    mov ax, [REC + 2]
+    mov ax, [SCWG]
     mov [edi + 6], ax
-    mov ax, [TW + 2]
+    mov ax, [SCF]
     mov [edi + 8], ax
-    mov ax, [REC + 2ACh + 2]
+    mov ax, [SCFG]
     mov [edi + 10], ax
     mov word [SC_ST], MAGIC_
     lea eax, [ebx + 1]
@@ -74,6 +96,10 @@ sc_cup:                                 ; replaces `call cseg_928CC` (season end
     dd SC_ST
     db 'SCTRPTR', 0                     ; (and gplay.c's SC_TRACE)
     dd SC_TRACE
+SCW: dw 0                               ; (the cup's winner / finalist words and globals for sc_put)
+SCF: dw 0
+SCWG: dw 0
+SCFG: dw 0
 SC_IDS: db IDS_
 '''
 
@@ -99,6 +125,25 @@ def sites(p):
     calls = [i for i in range(len(d1) - 5) if d1[i] == 0xe8 and i + 5 + struct.unpack_from('<i', d1, i + 1)[0] == c928cc]
     assert len(calls) == 2, [hex(x) for x in calls]
     return c928cc, calls, rec, tw, lib97._sites(p)[3] + 0x41F
+
+
+def sites2(p, tw):
+    """4.0.5 (cseg_92A63, its two call sites in cseg_91AD0, dseg_1827D2): the cup-2 recorder - found by its
+    `mov dseg_18072D, ax` (dseg_180727 + 6) and the routine with two calls just before it."""
+    d1 = bytes(p.le.obj_bytes(1))
+    m = [x.start() for x in re.finditer(b'\x66\xa3' + re.escape(struct.pack('<I', tw + 6)), d1)]
+    assert len(m) == 1, [hex(x) for x in m]
+    tg = {}
+    for i in range(len(d1) - 5):
+        if d1[i] == 0xe8:
+            tg.setdefault(i + 5 + struct.unpack_from('<i', d1, i + 1)[0], []).append(i)
+    st = [t for t in range(m[0] - 0x400, m[0]) if len(tg.get(t, [])) == 2]
+    assert st, 'cseg_92A63 start'
+    c = st[-1]
+    r2 = [x.start() for x in re.finditer(b'\xc7\x05.{4}(.{4})', d1[m[0]:m[0] + 0x80], re.S)]
+    assert r2, 'dseg_1827D2'
+    rec2 = struct.unpack_from('<I', d1, m[0] + r2[0] + 6)[0]
+    return c, tg[c], rec2
 
 
 RULE = {'champion': 1, 'second': 2, 'cup_winner': 3, 'cup_finalist': 4, 'third': 5, 'fourth': 6,
@@ -172,12 +217,13 @@ def patch(p, at):
     import nasmcave
     import engine
     c928cc, calls, rec, tw, diy = sites(p)
+    c92a63, calls2, rec2 = sites2(p, tw)
     ids = cup_ids()
     assert 0 < len(ids) <= NE, ids
     at = (at + 15) & ~15
     import gplay
     sym = {'SC_ST': gplay.LABELS['SC_ST'], 'SC_TRACE': gplay.LABELS['SC_TRACE'],   # (gplay.c's)
-           'C928CC': (1, c928cc), 'REC': (2, rec), 'TW': (2, tw), 'DIY': (2, diy), 'NE_': (0, NE),
+           'C928CC': (1, c928cc), 'C92A63': (1, c92a63), 'REC2': (2, rec2), 'REC': (2, rec), 'TW': (2, tw), 'DIY': (2, diy), 'NE_': (0, NE),
            'SC_SIZE_': (0, SC_SIZE), 'MAGIC_': (0, MAGIC),
            'IDS_': (0, ', '.join(str(x) for x in ids + [0] * (NE - len(ids))))}
     code, fix = nasmcave.assemble(ASM, at, sym)
@@ -188,8 +234,11 @@ def patch(p, at):
         p.add_ptr(1, at + o, t_obj, t_off)
     for c in calls:                                  # (relative calls: no fixup)
         p.put(1, c, b'\xE8' + struct.pack('<i', lab['sc_cup'] - (c + 5)))
+    for c in calls2:
+        p.put(1, c, b'\xE8' + struct.pack('<i', lab['sc_cup2'] - (c + 5)))
     LABELS.update(sc_cup=lab['sc_cup'], SC_ST=gplay.LABELS['SC_ST'])
     engine.ITEM_AT['SC'] = gplay.LABELS['SC_ST']
     print(f"exe: supercup sc_cup obj1+{lab['sc_cup']:#x} (cseg_928CC obj1+{c928cc:#x}, calls "
-          + ' '.join(f'{c:#x}' for c in calls) + f") SC_ST {gplay.LABELS['SC_ST']}")
+          + ' '.join(f'{c:#x}' for c in calls) + f"; cseg_92A63 obj1+{c92a63:#x}, calls "
+          + ' '.join(f'{c:#x}' for c in calls2) + f", dseg_1827D2 {rec2:#x}) SC_ST {gplay.LABELS['SC_ST']}")
     return at + len(code)

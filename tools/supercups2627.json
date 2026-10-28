@@ -317,5 +317,40 @@
    "cruzazul"
   ],
   "todo": "Liga MX only (the Expansion's stays at the season end, real): the 2026 edition was played on 25 Jul 2026 at Carson (USA), Toluca (Apertura 2025) v Cruz Azul (Clausura 2026): from season 2 the same week, neutral; the season-end mex_cdc play-off must carry 'supercup': true (pack data) so it is not played twice; one club winning both tournaments: no match (as the pack's skip_if_same); 90 minutes then penalties assumed"
+ },
+ "bra": {
+  "names": {
+   "it": [
+    "SUPERCOPPA DEL BRASILE",
+    "SUPERCOPPA"
+   ],
+   "en": [
+    "BRAZILIAN SUPER CUP",
+    "SUPER CUP"
+   ],
+   "fr": [
+    "SUPERCOUPE DU BRESIL",
+    "SUPERCOUPE"
+   ],
+   "de": [
+    "BRASILIANISCHER SUPERCUP",
+    "SUPERCUP"
+   ]
+  },
+  "date": "24/01+1",
+  "from_season": 2,
+  "legs": 1,
+  "level": "pens",
+  "host": "neutral",
+  "rule": [
+   "champion",
+   "cup_winner"
+  ],
+  "if_double": "second",
+  "first_entrants": [
+   "flamengo",
+   "corinthians"
+  ],
+  "todo": "Supercopa Rei 24 Jan 2027 (CBF calendar): Brasileirao 2026 champion v Copa do Brasil 2026 winner = the season before in the game too; the 2027 entrants are not known yet (both 2026 competitions end in December), so from season 2 (first_entrants = the 2026 edition's pair, unused); venue not seen (neutral); 90 minutes then penalties and the double fallback (league 2nd) not verified"
  }
 }

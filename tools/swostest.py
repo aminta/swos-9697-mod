@@ -9349,8 +9349,17 @@ def world_sc_eng():
     return sc_from2('EUROPA,INGHILTERRA,PREMIER LEAGUE,ARSENAL', 'COMMUNITY', 'eng')
 
 
+@scenario
+def world_sc_bra():
+    """4.0.5 supercups, one from season 2 for want of real entrants: a FLAMENGO career on a GPLAY_FORCE=1 test build
+    (the champion). Season 1: no SUPERCOPPA DEL BRASILE (the 2027 edition's clubs are not known); season 2 (from
+    season 1's save): its FINALE played once in January v the COPA DO BRASIL winner (or the league's 2nd after a
+    double) - Brazil's cup 2 (its cup 1 is the state contest), recorded by sc_cup2 at cseg_92A63; both seasons end"""
+    return sc_from2('SUDAMERICA,BRASILE,BRASILEIRAO SERIE A,FLAMENGO', 'SUPERCOPPA DEL BRASILE', 'bra')
+
+
 def sc_from2(team, word, tag):
-    """world_sc_eng (and later others): a supercup from the world's second season - none in season 1, its FINALE once in
+    """world_sc_eng / world_sc_bra: a supercup from the world's second season - none in season 1, its FINALE once in
     season 2 (season 1's save loaded) - on a GPLAY_FORCE=1 build (the career club the champion)."""
     src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
     if not os.path.isdir(src):

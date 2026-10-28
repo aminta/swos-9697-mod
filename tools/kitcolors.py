@@ -188,6 +188,16 @@ km_keep:                                ; 4.0.5 SEMPRE: the career club's two ki
 """
 
 KITS_ASM = r"""
+%ifdef NOX                              ; (4.0.5: a build without the career cave - no career world, a test build -
+KM_MODE:                                ; has no SEMPRE: entry 23 hidden, nothing kept)
+    mov dword [D0], 23
+    call CALC
+    mov esi, [A0]
+    mov word [esi + 4], 1
+KM_KEEP:
+KM_ALWAYS_FN:
+    ret
+%endif
 km_open:                                ; fire on the KITS button (playMatchMenu entry 68)
     pushad
     call same_match
@@ -791,20 +801,22 @@ def button(p, at, lang, area, extra=None):
            'PM_COPY': (1, mat), 'PM_LEN': (0, pm_len), 'E13_UP': (0, e13 + 12), 'KITS_': (0, KITS_ENTRY),
            'MEASURE': (1, measure), 'SIMS': sims, 'KM_ALWAYS': (2, base + 2),
            'TXT_MATCH': (2, base + off['match']), 'TXT_ALWAYS': (2, base + off['always']), **_career_syms(p)}
-    if xat is None:                                     # (no career cave: the extras right after the KITS code)
-        xat = (at + len(nasmcave.assemble(KITS_ASM, at, dict(sym, KM_KEEP=(1, at), KM_MODE=(1, at)))[0]) + 15) & ~15
-    sym.update(KM_ALWAYS_FN=(1, xat), KM_KEEP=(1, xat + 5), KM_MODE=(1, xat + 10))
-    code, fix = nasmcave.assemble(KITS_ASM, at, sym)
-    lab = nasmcave.labels(KITS_ASM, at, sym)
-    lab['KM_ALWAYS_FN'] = xat
-    xsym = dict(sym, KM_INIT=(1, lab['km_init']), SAVE_KITS=(1, lab['save_kits']), CUR_SLOT=(1, lab['cur_slot']))
-    xcode, xfix = nasmcave.assemble(EXTRA_ASM, xat, xsym)
-    assert xcode[0] == xcode[5] == xcode[10] == 0xE9, xcode[:15].hex()
-    assert not any(p.get(1, xat, len(xcode))), hex(xat)
-    p.put(1, xat, xcode)
-    for o, t_obj, t_off in xfix:
-        p.add_ptr(1, xat + o, t_obj, t_off)
-    if extra and extra[0] is not None:
+    src = KITS_ASM
+    if xat is None:                                     # (no career cave: no SEMPRE, the stubs in the KITS code)
+        src = '%define NOX\n' + KITS_ASM
+    else:
+        sym.update(KM_ALWAYS_FN=(1, xat), KM_KEEP=(1, xat + 5), KM_MODE=(1, xat + 10))
+    code, fix = nasmcave.assemble(src, at, sym)
+    lab = nasmcave.labels(src, at, sym)
+    if xat is not None:
+        lab['KM_ALWAYS_FN'] = xat
+        xsym = dict(sym, KM_INIT=(1, lab['km_init']), SAVE_KITS=(1, lab['save_kits']), CUR_SLOT=(1, lab['cur_slot']))
+        xcode, xfix = nasmcave.assemble(EXTRA_ASM, xat, xsym)
+        assert xcode[0] == xcode[5] == xcode[10] == 0xE9, xcode[:15].hex()
+        assert not any(p.get(1, xat, len(xcode))), hex(xat)
+        p.put(1, xat, xcode)
+        for o, t_obj, t_off in xfix:
+            p.add_ptr(1, xat + o, t_obj, t_off)
         extra[0] = xat + len(xcode)
     INFO['km_measure'] = lab['km_measure']          # purple.py: jmp pk_sim (purple vs maroon)
     INFO['km_fix'] = lab['km_fix']                  # purple.py: jmp pk_fix (manual kits)

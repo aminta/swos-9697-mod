@@ -1070,7 +1070,8 @@ def from_pack(d):
                     if sc and all(isinstance(texts.get(x), dict) for x in LANGS):   # (4.0.5: a supercup, no national cup - MEX: its
                         import fmtprose         # paragraph on the top division's page)
                         for lang in LANGS:
-                            texts[lang]['prose'] = texts[lang]['prose'] + [fmtprose.supercup(sc, lang)]
+                            texts[lang]['super'] = fmtprose.supercup(sc, lang)
+                            texts[lang]['prose'] = texts[lang]['prose'] + [texts[lang]['super']]
                     out.append((world, cid, titles, texts))
                     wl = win_lines(comp, div, k, (m.get('id') or '').rsplit('-', 1)[-1],
                                    ((m.get('files') or {}).get(comp.get('clubs')) or {}).get('file'))
@@ -1090,7 +1091,9 @@ def from_pack(d):
             if sc:
                 cp['super'] = sc                        # (4.0.5: the national supercup, a paragraph of the cup's page)
             titles = {lang: title(lang, complist._nm(comp['names'], lang)) for lang in LANGS}
-            out.append((world, cid, titles, {lang: dict(fmtprose.cup(cp, lang), tail=[]) for lang in LANGS}))
+            out.append((world, cid, titles, {lang: dict(fmtprose.cup(cp, lang), tail=[],
+                                                        super=fmtprose.supercup(sc, lang) if sc else None)
+                                             for lang in LANGS}))
         elif comp['type'] == 'tourney':
             titles = {lang: title(lang, complist._nm(comp['names'], lang)) for lang in LANGS}
             out.append((world, cid, titles, {lang: tourney_text(comp, T[lang]) for lang in LANGS}))
@@ -1148,7 +1151,8 @@ def write(out_dir, items):
                       x.startswith(TEXTS[lang]['real_in'])]
                 if rc:
                     hand = fmtprose.sentences(rc) + hand
-            prose = hand or prose
+            sup = lines.get('super') if isinstance(lines, dict) else None   # (4.0.5: the supercup's paragraph also
+            prose = hand + [sup] if hand and sup else hand or prose         # after a hand text of the page)
             if prose:
                 if hand:                        # (a hand text tells the real rule itself)
                     tail = [x for x in tail if x not in CONFED_NOTES[lang].values()]

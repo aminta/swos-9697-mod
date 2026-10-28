@@ -13203,6 +13203,99 @@ def setup_nojoy():
     return not errs, '; '.join(errs + info) or 'ok'
 
 @scenario
+def world_kits_always():
+    """4.0.5 SELEZIONA MAGLIE's SOLO PARTITA / SEMPRE (kitcolors km_keep): a World 2026-27 career at ATALANTA, the
+    first match's pre-match screen > MAGLIE AUTO > the career club's first shirt colour changed > OK. SOLO PARTITA
+    (the default): careerTeam's kits unchanged. SEMPRE: careerTeam (careerFileBuffer + 0DB80h + 1Ah) holds the new
+    kits; saved, then played from the save to the season end (world8485: its matches, the season end's kit refresh
+    careerworld w_kits) - the kits stay (release recipe, SWOSTEST_BUILD)"""
+    import careerworld
+    import lepatch
+    exe = builds()['it']
+    kits = careerworld.sites(lepatch.LEPatch(os.path.join(MAIN, 'orig', 'ITALIAN.EXE')))['cfb'] + 0xDB80 + 0x1A
+    path = ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27', 'EUROPA', 'ITALIA', 'SERIE A', 'ATALANTA']
+    errs, info, car = [], [], None
+
+    def leave(s):
+        for _ in range(8):
+            if 'PROSS. PARTITA' in s.screen().texts():
+                break
+            press(s, s.screen(), 'CONTINUA', 3) or press(s, s.screen(), 'ESCI', 3) or s.send('fire dump:2')
+
+    for mode in ('match', 'always'):
+        with Session(f'world_kits_always_{mode}', exe, {}, 'dump:2', 600) as s:
+            s.wait()
+            if not pick_career(s, path):
+                return False, 'new career: ' + str(s.screen().texts()[:8])
+            s.send('fire dump:3')
+            leave(s)
+            k0 = s.result.obj2(kits, 10)
+            press(s, s.screen(), 'PARTITA', 3)
+            for _ in range(4):                          # (the competition screen: fire -> the pre-match screen)
+                scr = s.screen()
+                if len(scr.entries) > 68 and scr.entries[68][1] in ('MAGLIE AUTO', 'MAGLIE FISSE'):
+                    break
+                s.send('fire dump:2')
+            scr = s.screen()
+            if not (len(scr.entries) > 68 and scr.entries[68][1] == 'MAGLIE AUTO'):
+                return False, f'{mode}: no pre-match screen: {scr.texts()[:10]}'
+            scr = walk(s, 68, 3)
+            if scr.entries[1][1] != 'ATALANTA':
+                scr = walk(s, 1, 2)
+            check(scr.entries[1][1] == 'ATALANTA' and len(scr.entries) > 23 and not scr.entries[23][2]
+                  and scr.entries[23][1] == 'SOLO PARTITA', f'{mode}: SELEZIONA MAGLIE {scr.texts()[:6]} '
+                  f'entry 23 {scr.entries[23] if len(scr.entries) > 23 else None}', errs)
+            opp = walk(s, 1, 2)                         # (the opponent: no toggle)
+            check(opp.entries[1][1] != 'ATALANTA' and opp.entries[23][2], f'{mode}: opponent {opp.entries[1][1]!r} '
+                  f'entry 23 {opp.entries[23]}', errs)
+            scr = walk(s, 1, 2)
+            if mode == 'always':
+                scr = walk(s, 23, 2)
+                check(scr.entries[23][1] == 'SEMPRE', f'toggle: {scr.entries[23]}', errs)
+            s.shot('kits_' + mode)
+            walk(s, 5, 2)                               # (the first kit's shirt, then the shirt type beside it:
+            s.send('right dump:1')                      #  the game's editor - ATALANTA's stripes become plain)
+            s.send('fire dump:1')
+            s.shot('edited_' + mode)
+            walk(s, 21, 3)                              # OK
+            k1 = s.result.obj2(kits, 10)
+            info.append(f'{mode}: careerTeam kits {k0.hex(" ")} -> {k1.hex(" ")}')
+            check((k1 != k0) if mode == 'always' else (k1 == k0), f'{mode}: kits {k0.hex(" ")} -> {k1.hex(" ")}', errs)
+            if mode == 'always':
+                kept = k1
+                for _ in range(6):                      # pre-match ESCI -> the career menu -> main menu: save
+                    if s.screen().find('SALVA CARRIERA', exact=True) is not None:
+                        break
+                    press(s, s.screen(), 'ESCI', 3) or press(s, s.screen(), 'ABBANDONA', 3)
+                walk(s, 'SALVA CARRIERA', 2)
+                s.send(name_entry('WKAL') + ' dump:3')
+                car = os.path.join(s.run, 'SWOS', 'WKAL.CAR')
+                check(os.path.exists(car) and open(car, 'rb').read()[56192 + 0x1A:56192 + 0x24] == kept,
+                      f'save: {car} kits', errs)
+    if car and os.path.exists(car) and not errs:
+        keys = ('W8485_BUILD', 'W8485_FROM', 'W8485_NOSACK', 'W8485_HEX', 'SWOSTEST_SCENARIO')
+        keep = {k: os.environ.get(k) for k in keys}
+        try:
+            os.environ.update(W8485_BUILD=exe, W8485_FROM=car, W8485_NOSACK='1', W8485_HEX=f'{kits:x}:10',
+                              SWOSTEST_SCENARIO='world_kits_always_season')
+            ok, msg = world8485()
+            dumps = [bytes.fromhex(ln.split()[2]) for ln in open(os.path.join(RUNS, w84_tag() + '_2', 'session.log'),
+                                                                     errors='replace')
+                     if ln.startswith('HEX ') and len(ln.split()) == 3 and int(ln.split()[1], 16) == kits]
+            check('season 2:' in msg and 'steps' in msg, f'season: {msg[:200]}', errs)
+            check(dumps and set(dumps) == {kept}, f'season: kits {[x.hex(" ") for x in dumps]} (kept {kept.hex(" ")})',
+                  errs)
+            info.append(f'reloaded + season end: {[x.hex(" ") for x in dumps]}')
+        finally:
+            for k, v in keep.items():
+                if v is None:
+                    os.environ.pop(k, None)
+                else:
+                    os.environ[k] = v
+    return not errs, '; '.join(errs + info)
+
+
+@scenario
 def world_kitfix():
     """4.0.5 the career club's kits after a data update (kitfix.py, careerworld w_kits at the season end): Francesco's
     ISCHIA save (KITFIX_CAR, a 4.0 kit 0 6 6 1 6 / 0 1 1 6 1 in its careerTeam) played on from its load to the season

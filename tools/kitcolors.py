@@ -93,13 +93,17 @@ def patch(p):
 #    keep it only for the same two teams by name (same_match), else it is dropped and the button reads AUTO (3.2.4).
 TEXTS = {
     'it': dict(auto=b'MAGLIE AUTO', set=b'MAGLIE FISSE', title=b'SELEZIONA MAGLIE', wears=b'IN CAMPO: ',
-               k1=b'PRIMA TENUTA', k2=b'SECONDA TENUTA', cancel=b'ESCI', ok=b'OK', reset=b'RESET'),
+               k1=b'PRIMA TENUTA', k2=b'SECONDA TENUTA', cancel=b'ESCI', ok=b'OK', reset=b'RESET',
+               match=b'SOLO PARTITA', always=b'SEMPRE'),
     'en': dict(auto=b'KITS AUTO', set=b'KITS SET', title=b'SELECT KITS', wears=b'WEARS: ',
-               k1=b'FIRST KIT', k2=b'SECOND KIT', cancel=b'CANCEL', ok=b'OK', reset=b'RESET'),
+               k1=b'FIRST KIT', k2=b'SECOND KIT', cancel=b'CANCEL', ok=b'OK', reset=b'RESET',
+               match=b'JUST THIS MATCH', always=b'ALWAYS'),
     'fr': dict(auto=b'TENUES AUTO', set=b'TENUES FIXES', title=b'CHOIX DES TENUES', wears=b'PORTE: ',
-               k1=b'1ERE TENUE', k2=b'2EME TENUE', cancel=b'ANNULER', ok=b'OK', reset=b'RESET'),
+               k1=b'1ERE TENUE', k2=b'2EME TENUE', cancel=b'ANNULER', ok=b'OK', reset=b'RESET',
+               match=b'CE MATCH', always=b'TOUJOURS'),
     'de': dict(auto=b'TRIKOT AUTO', set=b'TRIKOT FEST', title=b'TRIKOTWAHL', wears=b'TRAEGT: ',
-               k1=b'HEIMTRIKOT', k2=b'AUSWAERTS', cancel=b'ABBRUCH', ok=b'OK', reset=b'RESET'),
+               k1=b'HEIMTRIKOT', k2=b'AUSWAERTS', cancel=b'ABBRUCH', ok=b'OK', reset=b'RESET',
+               match=b'NUR DIESES SPIEL', always=b'IMMER'),
 }
 KITS_ENTRY = 68
 BUTTON = (20, 10, 88)           # packed y, height; screen right edge (team name at 90). Left edge = the player names'
@@ -116,6 +120,73 @@ ET_AFTER = struct.pack('<hhhhhhh', -998, 0, 0, 164, 185, 40, 15)             # b
 # payload bytes of each packed record type (UnpackMenu's menuTypesJumpTable) met in the copied entries
 PAYLOAD = {1: 0, 2: 4, 4: 2, 8: 6, 9: 2, 12: 4, 13: 4, 14: 6, 15: 4, 16: 4, 17: 2, 18: 2, 19: 2, 20: 2, 21: 4}
 
+
+EXTRA_ASM = r"""
+    jmp strict near km_always           ; (4.0.5, in the career cave - the KITS cave is full: KITS_ASM calls these
+    jmp strict near km_keep             ; three through their fixed entry points X, X + 5, X + 10: 5-byte jumps)
+    jmp strict near km_mode
+
+km_mode:                                ; km_init: entry 23 shown only in a career while the edited team is the
+    call CUR_SLOT                       ; career club (by name), its text by KM_ALWAYS
+    mov esi, edi
+    mov edi, CAREER_TEAM + 5
+    mov ecx, 17
+    repe cmpsb
+    setne bl
+    cmp word [GAMETYPE], 4
+    setne al
+    or bl, al
+    movzx eax, bl
+    push eax                            ; (CalcMenuEntryAddress clobbers eax, ebx, edx)
+    mov dword [D0], 23
+    call CALC
+    pop eax
+    mov esi, [A0]
+    mov [esi + 4], ax
+    mov eax, TXT_MATCH
+    cmp byte [KM_ALWAYS], 0
+    je .m
+    mov eax, TXT_ALWAYS
+.m: mov [esi + 26h], eax
+    ret
+
+km_always:                              ; entry 23 (4.0.5, careers): SOLO PARTITA / SEMPRE
+    pushad
+    call SAVE_KITS
+    xor byte [KM_ALWAYS], 1
+    popad
+    call KM_INIT
+    jmp DRAW_MENU
+
+km_keep:                                ; 4.0.5 SEMPRE: the career club's two kits (a slot of its name) into
+    cmp byte [KM_ALWAYS], 0             ; careerTeam (careerFileBuffer + 0DB80h, saved in the .CAR) and into the
+    je .x                               ; match's team buffer; a kit set this way is no kit a release shipped, so the
+    cmp word [GAMETYPE], 4              ; season end's refresh (careerworld w_kits) keeps it
+    jne .x
+    mov edx, SLOTS
+    call .one
+    mov edx, SLOTS + SLOT_
+.one:
+    mov esi, edx
+    mov edi, CAREER_TEAM + 5
+    mov ecx, 17
+    repe cmpsb
+    jne .x
+    lea esi, [edx + 18]
+    mov edi, CAREER_TEAM + 1Ah
+    mov ecx, 10
+    rep movsb
+    mov edi, [edx + 32]
+    test edi, edi
+    jz .x
+    lea esi, [edx + 18]
+    add edi, 1Ah
+    mov ecx, 10
+    rep movsb
+.x: ret
+
+"""
+
 KITS_ASM = r"""
 km_open:                                ; fire on the KITS button (playMatchMenu entry 68)
     pushad
@@ -123,6 +194,7 @@ km_open:                                ; fire on the KITS button (playMatchMenu
     je .show                            ; same two teams: keep the edits
     mov byte [KM_ACTIVE], 0
     mov byte [KM_TEAM], 0
+    mov byte [KM_ALWAYS], 0             ; (4.0.5: a new match starts as SOLO PARTITA)
     mov esi, [PM_TEAM1]
     mov edi, SLOTS
     call fill_slot
@@ -262,6 +334,7 @@ km_init:                                ; SELECT KITS menu: init, and after ever
     call CALC
     mov esi, [A0]
     mov dword [esi + 26h], OTHER_BUF
+    call KM_MODE                        ; (4.0.5: entry 23, SOLO PARTITA / SEMPRE - in the career cave)
     pop edi
     pop ebx
     mov esi, ebx                        ; "NAME: KIT"
@@ -321,6 +394,7 @@ km_reset:                               ; entry 22: this team's kits from its te
 km_ok:                                  ; entry 21
     pushad
     call save_kits
+    call KM_KEEP
     mov byte [KM_ACTIVE], 1
     mov esi, TXT_SET
     call set_button
@@ -510,7 +584,16 @@ def _fix_targets(p, obj, lo, hi):
             if s_obj == obj and lo <= o < hi]
 
 
-def button(p, at, lang, area):
+def _career_syms(p):
+    """4.0.5 SEMPRE: the game type word (4 = career) and careerTeam (careerFileBuffer + 0DB80h) - careerworld's sites,
+    read from this exe's original bytes (every language)."""
+    import careerworld
+    import lepatch
+    s = careerworld.sites(lepatch.LEPatch(bytes(p.le.data)))   # (a fresh patch of this exe's original bytes)
+    return {'GAMETYPE': s['gametype'], 'CAREER_TEAM': (2, s['cfb'] + 0xDB80)}
+
+
+def button(p, at, lang, area, extra=None):
     """KITS button + SELECT KITS menu; code and the playMatchMenu copy at obj1:at, data in obj2 area."""
     import nasmcave
     d = p.le.obj_bytes(1)
@@ -611,7 +694,7 @@ def button(p, at, lang, area):
     put('btn', T['auto'], 16)
     put('other', b'', 40)
     put('empty', b'')
-    for k in ('title', 'cancel', 'ok', 'reset', 'k1', 'k2', 'auto', 'set'):
+    for k in ('title', 'cancel', 'ok', 'reset', 'k1', 'k2', 'auto', 'set', 'match', 'always'):
         put(k, T[k])
     put('wear1', T['wears'] + T['k1'])
     put('wear2', T['wears'] + T['k2'])
@@ -621,6 +704,7 @@ def button(p, at, lang, area):
     ptrs = []                                    # (offset in data, obj, target) — obj 1 targets filled after asm
     menu = bytearray(struct.pack('<IIII', 0, 0, 0, 1))                 # init (km_init), return, draw, default entry 1
     ptrs.append((menu_at + 0, 1, 'km_init'))
+    xat = ((extra[0] + 3) & ~3) if extra and extra[0] is not None else None   # (4.0.5 EXTRA_ASM: the career cave)
     def entry(x, y, w, h, nav=None, color=None, text=None, flags=0, select=None):
         b = bytearray(struct.pack('<hhhh', x, y, w, h))
         if nav:
@@ -652,10 +736,11 @@ def button(p, at, lang, area):
                 kits[pos - k0 + i] = v
     menu.extend(kits)
     menu.extend(struct.pack('<hhh', -998, 0, 0))
-    entry(164, 185, 40, 15, nav=(-1, 22, 2, -1), color=0x0E, text='cancel', select='km_cancel')      # 20
+    entry(164, 185, 40, 15, nav=(23, 22, 2, -1), color=0x0E, text='cancel', select='km_cancel')      # 20
     entry(264, 185, 40, 15, nav=(22, -1, 19, -1), color=0x0E, text='ok', select='km_ok')             # 21
     entry(214, 185, 40, 15, nav=(20, 21, 11, -1), color=0x0C, text='reset', select='km_reset')       # 22
-    menu.extend(struct.pack('<h', -999))
+    entry(52, 185, 108, 15, nav=(-1, 20, 2, -1), color=0x0D, text='match', select='KM_ALWAYS_FN')    # 23 (4.0.5,
+    menu.extend(struct.pack('<h', -999))                # careers: SOLO PARTITA / SEMPRE; km_init sets its text)
     data.extend(menu)
     assert _entries(menu, 16, len(menu) - 2) is not None or True
     base = area.add(bytes(data))
@@ -704,9 +789,23 @@ def button(p, at, lang, area):
            'TXT_WEAR1': (2, base + off['wear1']), 'TXT_WEAR2': (2, base + off['wear2']),
            'TXT_K1': (2, base + off['k1']), 'TXT_K2': (2, base + off['k2']),
            'PM_COPY': (1, mat), 'PM_LEN': (0, pm_len), 'E13_UP': (0, e13 + 12), 'KITS_': (0, KITS_ENTRY),
-           'MEASURE': (1, measure), 'SIMS': sims}
+           'MEASURE': (1, measure), 'SIMS': sims, 'KM_ALWAYS': (2, base + 2),
+           'TXT_MATCH': (2, base + off['match']), 'TXT_ALWAYS': (2, base + off['always']), **_career_syms(p)}
+    if xat is None:                                     # (no career cave: the extras right after the KITS code)
+        xat = (at + len(nasmcave.assemble(KITS_ASM, at, dict(sym, KM_KEEP=(1, at), KM_MODE=(1, at)))[0]) + 15) & ~15
+    sym.update(KM_ALWAYS_FN=(1, xat), KM_KEEP=(1, xat + 5), KM_MODE=(1, xat + 10))
     code, fix = nasmcave.assemble(KITS_ASM, at, sym)
     lab = nasmcave.labels(KITS_ASM, at, sym)
+    lab['KM_ALWAYS_FN'] = xat
+    xsym = dict(sym, KM_INIT=(1, lab['km_init']), SAVE_KITS=(1, lab['save_kits']), CUR_SLOT=(1, lab['cur_slot']))
+    xcode, xfix = nasmcave.assemble(EXTRA_ASM, xat, xsym)
+    assert xcode[0] == xcode[5] == xcode[10] == 0xE9, xcode[:15].hex()
+    assert not any(p.get(1, xat, len(xcode))), hex(xat)
+    p.put(1, xat, xcode)
+    for o, t_obj, t_off in xfix:
+        p.add_ptr(1, xat + o, t_obj, t_off)
+    if extra and extra[0] is not None:
+        extra[0] = xat + len(xcode)
     INFO['km_measure'] = lab['km_measure']          # purple.py: jmp pk_sim (purple vs maroon)
     INFO['km_fix'] = lab['km_fix']                  # purple.py: jmp pk_fix (manual kits)
     assert not any(d[at:at + len(code)])

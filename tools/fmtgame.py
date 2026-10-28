@@ -1065,7 +1065,7 @@ def from_pack(d):
                                        (T[lang]['ita'] if lg['special'] and k == min(1, len(lg['names']) - 1) else []),
                                        'tail': sch[sch.index(next(x for x in sch if x.startswith(ZT[lang]['eu'].split('{')[0][:30]))):]
                                        if any(x.startswith(ZT[lang]['eu'].split('{')[0][:30]) for x in sch) else tail}
-                    sc = supercup_of(m, d) if k == 0 and comp.get('key') == m['season'].get('league') and \
+                    sc = supercup_of(m, d) if k == 0 and comp.get('key') == (m.get('season') or {}).get('league') and \
                         not any(c_.get('key') == 'cup' for c_ in m['competitions']) else None
                     if sc and all(isinstance(texts.get(x), dict) for x in LANGS):   # (4.0.5: a supercup, no national cup - MEX: its
                         import fmtprose         # paragraph on the top division's page)

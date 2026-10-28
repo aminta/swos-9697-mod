@@ -8024,7 +8024,9 @@ def world_winners_league():
     """4.0.5 (Davide): VINCITORI for every league - one whose title is its table's 1st has no WIN entry, winners.py's
     fallback line ('E'): at a new career's start (KOPER, Slovenia; INTER, Serie A) STAT shows VINCITORI and its page
     lists the league with DA GIOCARE; KOPER's season 2 (season 1 played, its save loaded): the last season's page
-    'VINCITORI 2026-27:' names the PRVA LIGA's champion (gplay.c cf_last1: CF_ST's 1st of the club's level)
+    'VINCITORI 2026-27:' names the champion of the club's level (gplay.c cf_last1: CF_ST) under the name of the division
+    it played in (CN_ST, written at the season end: 'SLOVENIA PRVA LIGA'; poked to 'SLOVENIA 2. SNL' - a club that
+    changed division sees last season's own league)
     (release-like build: SWOSTEST_BUILD)"""
     b = os.environ.get('SWOSTEST_BUILD')
     if not b:
@@ -8057,11 +8059,16 @@ def world_winners_league():
                 if s.screen().find('VISUAL. COMPETIZ.', exact=True) is not None:
                     break
                 press(s, s.screen(), 'CONTINUA', 3) or s.send('fire dump:2')
+            cn = cn_st(b)                                # (CN_ST: written at season 1's end - the PRVA LIGA)
+            cnb = bytes(s.result.obj2(cn, 36)) if cn is not None else b''
+            check(b'SLOVENIA PRVA LIGA' in cnb, f'CN_ST after season 1: {cnb}', errs)
+            if cn is not None:                           # (forced: as if the club had played another division last
+                s.poke(s.result.base2 + cn + 4, list(b'SLOVENIA 2. SNL\0'))   # season - its name on that page)
             more = []
             e, title, lines = winners_page(s, more)
             last = more[0] if more else []
             nz = [x for x in last if x]
-            champ = nz[nz.index('SLOVENIA PRVA LIGA:') + 1] if 'SLOVENIA PRVA LIGA:' in nz[:-1] else None
+            champ = nz[nz.index('SLOVENIA 2. SNL:') + 1] if 'SLOVENIA 2. SNL:' in nz[:-1] else None
             check(lines and 'DA GIOCARE' in lines and nz and nz[0].startswith('VINCITORI')
                   and champ not in (None, 'DA GIOCARE', 'IN CORSO'),
                   f'KOPER season 2: page {title!r} {lines[:3]}, last season {nz[:4]}', errs)
@@ -9460,6 +9467,15 @@ def sc_st(exe):
     from le import LE
     d1 = LE(open(os.path.join(exe, 'ITALIAN.EXE'), 'rb').read()).obj_bytes(1)
     k = d1.find(b'SCSTPTR\0')
+    return struct.unpack_from('<I', d1, k + 8)[0] if k >= 0 else None
+
+
+def cn_st(exe):
+    """obj2 offset of gplay.c's CN_ST (4.0.5: the career club's last-season division name; 'CNSTPTR' block), or None."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    from le import LE
+    d1 = LE(open(os.path.join(exe, 'ITALIAN.EXE'), 'rb').read()).obj_bytes(1)
+    k = d1.find(b'CNSTPTR\0')
     return struct.unpack_from('<I', d1, k + 8)[0] if k >= 0 else None
 
 

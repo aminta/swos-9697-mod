@@ -349,6 +349,8 @@ wn_render:                              ; TXT's lines (title 01h source) -> per 
     mov ax, 0A0Ah                       ; (the winner line's end, a blank line)
     stosw
 .ti:
+    mov [WN_TS], edi                    ; (4.0.5: the title's start)
+.ti2:
     lodsb
     test al, al
     jz .src
@@ -357,12 +359,33 @@ wn_render:                              ; TXT's lines (title 01h source) -> per 
     cmp al, 0Ah
     je .src
     stosb
-    jmp .ti
+    jmp .ti2
 .src:
     dec esi
     cmp byte [esi], 1
     jne .nos
     inc esi
+    cmp byte [WN_MODE], 0               ; 4.0.5: the last season's fallback line ('E') takes the name of the division
+    je .nos                             ; the career club played in (gplay.c CN_ST, written at that season end)
+    cmp byte [esi], 'E'
+    jne .nos
+    mov al, [SEASONPLAYING]
+    dec al
+    cmp al, [CN_ST_]
+    jne .nos
+    cmp byte [CN_ST_ + 4], 0
+    je .nos
+    push esi
+    mov edi, [WN_TS]
+    mov esi, CN_ST_ + 4
+.cn:
+    lodsb
+    test al, al
+    jz .cne
+    stosb
+    jmp .cn
+.cne:
+    pop esi
 .nos:
     mov ax, 0A3Ah                       ; ':' LF
     stosw
@@ -700,6 +723,7 @@ WN_CNT: dd 0
 WN_MODE: db 0
 WN_T2: db 0
 WN_MDIV: db 0                           ; (4.0.5: the last season's division of the career club, 'M')
+WN_TS: dd 0                             ; (4.0.5: a block title's start in BUF)
 WN_KEY: db 1, 'H', '0000'
 WN_TMP: times 8 db 0
 WN_SS: db 0FFh
@@ -735,6 +759,8 @@ def patch(p, at, lang, sites):
     sym = dict(wn['sym'], FMTMENU=(2, wn['menu']))     # (the page's own copy of fmtpage's menu)
     import dplay, sacups                                # (4.0.5: the career league's contest, slot 0 = D8CAA[0])
     sym['D8CAA_'] = (2, dplay._play_sites(p, sacups.regs(bytes(p.le.obj_bytes(1))))['d8caa'])
+    import gplay
+    sym['CN_ST_'] = gplay.LABELS['CN_ST']                # (4.0.5: the career club's last-season division name)
     sym['TXT2'] = (2, wn['sym']['BUF'][1] + fmtpage.WN_TXT2)   # (4.0.1 wn_lastdiv: the last season's division's text;
                                                                   # 4.0.1 South America: 0x5800, the index grew)
     ttl, tbp, inc = TEXTS[lang]

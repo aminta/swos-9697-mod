@@ -3201,6 +3201,10 @@ static const u8 *cf_cup(int id, const u8 **dtp) {
 }
 struct cf_state { u16 magic; u8 season, file; u8 rank[256]; };
 struct cf_state CF_ST;
+enum { CN_N = 32 };
+struct cn_state { u8 season, pad[3]; u8 name[CN_N]; };
+struct cn_state CN_ST;                  /* 4.0.5: the career club's division at the last season end (its name) */
+const u32 CN_SIZE = sizeof(struct cn_state);
 static u32 cf_last1(void) {              /* 4.0.5 (gp_wn_c 'E', last season): the 1st of the career club's level */
     if (CF_ST.magic != 0x4643 || (u8)(CF_ST.season + 1) != GP_SEAS || (GP_MGR & 0xFF) != CF_ST.file) return 0xFFFE;
     int lv = CF_ST.rank[GP_MGR >> 8] >> 5;
@@ -3232,6 +3236,13 @@ void cf_cap_c(u32 dv, const u8 *diy, u32 season) {     /* a division's final tab
         if (CF_ST.magic != CF_MAGIC || CF_ST.season != (u8)season) {
             for (int i = 0; i < 256; i++) CF_ST.rank[i] = 0;
             CF_ST.magic = CF_MAGIC; CF_ST.season = (u8)season; CF_ST.file = (u8)(w & 0xFF);
+        }
+        if (w == GP_MGR && GP_MGR) {       /* (4.0.5: the division the career club played in - its name for the
+                                           WINNERS page's last season, winners.py 'E': CN_ST, item 'CN') */
+            CN_ST.season = (u8)season;
+            int i = 0;
+            for (; i < CN_N - 1 && diy[4 + i]; i++) CN_ST.name[i] = diy[4 + i];
+            CN_ST.name[i] = 0;
         }
         if ((w & 0xFF) != CF_ST.file) continue;
         const u8 *dt = cf_dt(CF_ST.file);

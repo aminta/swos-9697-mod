@@ -94,6 +94,8 @@ sc_put:
 
     db 'SCSTPTR', 0                     ; (the harness: SC_ST's address)
     dd SC_ST
+    db 'CNSTPTR', 0                     ; (the harness: gplay.c CN_ST, 4.0.5 the last-season division name)
+    dd CN_ST
     db 'SCTRPTR', 0                     ; (and gplay.c's SC_TRACE)
     dd SC_TRACE
 SCW: dw 0                               ; (the cup's winner / finalist words and globals for sc_put)
@@ -226,7 +228,7 @@ def patch(p, at):
     assert 0 < len(ids) <= NE, ids
     at = (at + 15) & ~15
     import gplay
-    sym = {'SC_ST': gplay.LABELS['SC_ST'], 'SC_TRACE': gplay.LABELS['SC_TRACE'],   # (gplay.c's)
+    sym = {'SC_ST': gplay.LABELS['SC_ST'], 'SC_TRACE': gplay.LABELS['SC_TRACE'], 'CN_ST': gplay.LABELS['CN_ST'],   # (gplay.c's)
            'C928CC': (1, c928cc), 'C92A63': (1, c92a63), 'REC2': (2, rec2), 'REC': (2, rec), 'TW': (2, tw), 'DIY': (2, diy), 'NE_': (0, NE),
            'SC_SIZE_': (0, SC_SIZE), 'MAGIC_': (0, MAGIC),
            'IDS_': (0, ', '.join(str(x) for x in ids + [0] * (NE - len(ids))))}

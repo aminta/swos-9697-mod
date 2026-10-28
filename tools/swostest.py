@@ -1374,6 +1374,8 @@ def advance(s, stop, max_steps=400):
             return False, f'step {step}: {r}'
         scr = s.screen()
         s.log.append(f'[{step}] {scr}')
+        if os.environ.get('W8485_SHOTWORD') and scr.entries and os.environ['W8485_SHOTWORD'] in scr.entries[0][1]:
+            s.shot(f'word{step:03d}')                    # (the visual tour: every screen titled with that word)
         if os.environ.get('SWOSTEST_FILL') and fill_check(s, f'step {step}') is False and not getattr(s, 'fill_bad', 0):
             s.fill_bad = 1                               # (investigation: the menu texture at every step; the first
             s.log.append(f'[fill] FIRST CHANGE at step {step}, after: {recent[-1] if recent else "-"}')   # change)

@@ -4432,8 +4432,10 @@ def xtra_world30():
         d = open(os.path.join(exe, 'DATA', fn), 'rb').read()
         for k in range(struct.unpack('>H', d[:2])[0]):
             if d[2 + k * 684 + 5:2 + k * 684 + 22].split(b'\0')[0].decode('latin1') == club:
-                xf = os.path.join(exe, 'DATA', 'XTRA.' + fn.split('.')[1])
-                want = [x[3:26].split(b'\0')[0].decode('latin1') for x in xtra.read(open(xf, 'rb').read())[k]]
+                xn = xtra_file_name(exe, int(fn.split('.')[1]))   # (XTRA.nnn, or XTW5.nnn in tip builds)
+                if xn:
+                    xf = os.path.join(exe, 'DATA', xn)
+                    want = [x[3:26].split(b'\0')[0].decode('latin1') for x in xtra.read(open(xf, 'rb').read())[k]]
     if not want:
         return False, f'{club}: no XTRA block in {exe}'
     n_want = 16 + len(want)

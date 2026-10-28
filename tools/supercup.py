@@ -169,7 +169,11 @@ def table(lang, name_off):
         cup = next((x for x in pk.comps if x.get('key') == 'cup' and x.get('id')), None)
         assert cup or not {'cup_winner', 'cup_finalist'} & set(d['rule']), f'supercup {c}: no national cup'
         pos = pk.league.get('ko_playoffs') or []          # (title0 / 1: the stage-title play-offs' indices)
-        tix = [[p_.get('key') for p_ in pos].index(k) for k in d.get('titles', [])] + [0, 0]
+        keys = [p_.get('key') for p_ in pos if isinstance(p_, dict)] if isinstance(pos, list) else []
+        if any(k not in keys for k in d.get('titles', [])):   # (an older data snapshot without those play-offs: no
+            print(f'supercup {c}: play-offs {d["titles"]} not in the pack: left out')   # supercup there)
+            continue
+        tix = [keys.index(k) for k in d.get('titles', [])] + [0, 0]
         assert all(0 <= x < 256 for x in tix) and (len(d.get('titles', [])) == 2 or not {'title0', 'title1'} & set(d['rule'])), c
         lf = pk.files[pk.league['clubs']][0]
         word = lambda k: pk.where[k][0] | pk.where[k][1] << 8

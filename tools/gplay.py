@@ -1027,6 +1027,63 @@ gp_week:                                ; GP_WK = the current calendar entry's w
     pop eax
     ret
 
+%if SC_ON
+gp_sc:                                  ; 4.0.5 the career club's national supercup (sc_step_c; gp_adv, gp_scgl)
+    pushad
+    cmp word [GAMETYPE], 4              ; 4.0.5 national supercups (sc_step_c): a career's country with one
+    jne .nsc
+    mov dword [GP_SCT], SC_TAB
+    mov ax, [CAREERTEAM]
+    mov [GP_MGR], ax
+    mov dword [GP_SCFIRST], 0           ; (the world's first season: the real entrants; no summer one)
+    pushad
+    call W_REC
+    jz .nsf
+    mov al, [ebx + 42]
+    cmp al, [SEASONPLAYING]
+    jne .nsf
+    mov dword [GP_SCFIRST], 1
+.nsf:
+    popad
+    mov eax, sc_step_c
+    call gp_c
+    test eax, eax
+    jz .nsc
+    mov dword [GP_BUILT], 1             ; (the career club's supercup tie: slot 4)
+    call gp_install
+.nsc:
+    popad
+    ret
+%endif
+
+gp_scgl:                                ; 4.0.5: the career menu's fixture list (CareerGameListCommon, its menu
+%if SC_ON                               ; pointer retargeted here): an early supercup tie built before the list is
+    pushad                              ; drawn - a new career's first screen too, not only after the first event
+    cmp word [GAMETYPE], 4              ; (idempotent: sc_step_c handles a season once); the game's registers
+    jne .x                              ; D0..A6 kept (cseg_8B2D3 in gp_install uses them)
+    push es
+    push ds
+    pop es
+    cld
+    sub esp, 60
+    mov esi, D0R
+    mov edi, esp
+    mov ecx, 15
+    rep movsd
+    mov al, [SEASONPLAYING]
+    mov [GP_SEAS], al
+    call gp_week
+    call gp_sc
+    mov esi, esp
+    mov edi, D0R
+    mov ecx, 15
+    rep movsd
+    add esp, 60
+    pop es
+.x: popad
+%endif
+    jmp CGLC_
+
 gp_adv:                                 ; replaces the 4 `call cseg_8EA82` (the calendar advance, after an event is
     pushad                              ; done): a pending 'then_build' (a played or simulated knockout ended) due ->
     mov al, [SEASONPLAYING]             ; gp_build of its next play-off from this week (slot 4 free: its contest over)
@@ -1088,28 +1145,7 @@ gp_adv:                                 ; replaces the 4 `call cseg_8EA82` (the 
 .ncd:
 %endif
 %if SC_ON
-    cmp word [GAMETYPE], 4              ; 4.0.5 national supercups (sc_step_c): a career's country with one
-    jne .nsc
-    mov dword [GP_SCT], SC_TAB
-    mov ax, [CAREERTEAM]
-    mov [GP_MGR], ax
-    mov dword [GP_SCFIRST], 0           ; (the world's first season: the real entrants; no summer one)
-    pushad
-    call W_REC
-    jz .nsf
-    mov al, [ebx + 42]
-    cmp al, [SEASONPLAYING]
-    jne .nsf
-    mov dword [GP_SCFIRST], 1
-.nsf:
-    popad
-    mov eax, sc_step_c
-    call gp_c
-    test eax, eax
-    jz .nsc
-    mov dword [GP_BUILT], 1             ; (the career club's supercup tie: slot 4)
-    call gp_install
-.nsc:
+    call gp_sc
 %endif
     mov eax, gp_adv_c
     call gp_c
@@ -1869,6 +1905,26 @@ def _mrec_site(p):
     return calls[0] + 5, f[0]
 
 
+def _cgl_site(p, d8caa):
+    """4.0.5: CareerGameListCommon (the career menu's fixture list: `mov A1, offset dseg_D8CAA` in its slot loop) and
+    the menu data's pointer to it (obj2: the one fixup from obj2 to the nearest obj1 target at or before that load)."""
+    import sacups
+    d1 = bytes(p.le.obj_bytes(1))
+    r = sacups.regs(d1)
+    hits = [m.start() for m in re.finditer(rb'\xc7\x05' + re.escape(struct.pack('<I', r['A1']))
+                                            + re.escape(struct.pack('<I', d8caa)), d1)]
+    fx = [x for x in p.le.fixups() if x[0] == 2 and x[3] == 1]
+    out = []
+    for h in hits:
+        c = [x for x in fx if h - 0x600 <= x[4] <= h]
+        if c:
+            top = max(x[4] for x in c)
+            ptrs = [x[1] for x in c if x[4] == top]
+            out.append((top, ptrs))
+    assert len(out) == 1 and len(out[0][1]) == 1, out
+    return out[0][0], out[0][1][0]
+
+
 def _adv_sites(p):
     """cseg_8EA82 (the career calendar advance: gameType 4 -> counters, cseg_94DB1) and its 4 callers."""
     import split
@@ -2044,6 +2100,8 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
     sk = _sack_sites(p)
     adv, adv_calls = _adv_sites(p)
     symbols['C8EA82'] = (1, adv)
+    cgl, cgl_ptr = _cgl_site(p, ps['d8caa'])
+    symbols['CGLC_'] = (1, cgl)
     symbols.update({k: (2, sk[k]) for k in ('CURMSG', 'SACKED')})
     symbols.update({'MSG_NORENEW': (0, sk['msg']), 'SHOWCHAIR': (1, sk['show']), 'C3C07C': (1, sk['c3c07c'])})
     symbols.update({f'EUW{i}': (2, a) for i, a in enumerate(sk['euw'])})
@@ -2232,6 +2290,8 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
         for a in adv_calls:                                  # (the calendar advance: 'then_build')
             assert p.get(1, a, 5) == p.le.obj_bytes(1)[a:a + 5], f'obj1+{a:#x} already hooked'
             p.put(1, a + 1, struct.pack('<i', lab['gp_adv'] - (a + 5)))
+        p.retarget(2, cgl_ptr, 1, lab['gp_scgl'])          # (4.0.5: the career menu's fixture list, gp_scgl)
+        p.put(2, cgl_ptr, struct.pack('<I', lab['gp_scgl']))
         assert p.get(1, job, 5) == p.le.obj_bytes(1)[job:job + 5], 'the club job offers call is hooked'
         p.put(1, job + 1, struct.pack('<i', lab['gp_job'] - (job + 5)))   # (no job at an off-file / pool club)
         assert p.get(1, mrec, 5) == p.le.obj_bytes(1)[mrec:mrec + 5], 'ManagementRecordMenu call is hooked'

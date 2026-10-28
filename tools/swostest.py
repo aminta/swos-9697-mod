@@ -1365,6 +1365,131 @@ def nat_callups(s, limit=120):
     return 'call-ups: too many steps'
 
 
+# --- 4.0.5 the GENERIC contest-name check (Davide 28/10: "va controllato anche quello e sempre") ----------------------
+# Every career-menu screen in advance(): the fixture list's rows are the calendar entries from the current one
+# (obj2 CAL_AT; the count word at -4, the current entry's offset at CAL_CUR_AT); each entry's slot -> its contest
+# (D8CAA[slot]) -> the label CareerGameListCommon draws: [contest + 5 + contest[5] + language * 8 + 4] + STR_BASE (the
+# contest's own names block; 0 = 'SCENE PRESIDENZIALI', the 4.0.5 rc1-rc6 bug). The label must be one of the names the
+# build's data gives THAT contest (by its id byte: its pack competition's names, long / short / fit_short; id FEh =
+# slot 4: the country's play-offs, the supercups, the Coppa D), else -- an id the data does not know (the continental
+# cups, the original game's contests) -- one of every known name (logged as a fallback). Errors FAIL the scenario.
+LABEL_ERRS, LABEL_STATS = [], {'rows': 0, 'keyed': 0, 'fallback': set()}
+CAL_CUR_AT, D8CAA_AT, D6CDC_AT, STR_BASE_AT = 0x1B52A, 0x18DF4, 0x16E26, 0x16F8   # (obj2, every language's exe)
+_LABEL_DATA = {}
+
+
+def _label_data():
+    """{contest id: set of labels}, the slot-4 set, every name: from the World 2026-27 data (W2627REL_DATA or the
+    default snapshot) and tools/supercups2627.json, all four languages."""
+    if _LABEL_DATA:
+        return _LABEL_DATA
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import complist
+    import json as _j
+    ids, slot4, every = {}, set(), set()
+
+    def forms(names):
+        out = set()
+        for v in (names or {}).values():
+            for x in (v if isinstance(v, list) else [v]):
+                if isinstance(x, str) and x:
+                    u = x.upper()
+                    out |= {u, complist.fit_short(u)}
+        return out
+
+    def walk(o, acc):
+        if isinstance(o, dict):
+            if isinstance(o.get('names'), dict):
+                acc |= forms(o['names'])
+            if isinstance(o.get('title'), list):
+                acc |= forms({'*': o['title']})
+            for v in o.values():
+                walk(v, acc)
+        elif isinstance(o, list):
+            for v in o:
+                walk(v, acc)
+    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+    for d in (sorted(os.listdir(src)) if os.path.isdir(src) else []):
+        pj = os.path.join(src, d, 'pack.json')
+        if not os.path.isfile(pj):
+            continue
+        m = _j.load(open(pj))
+        for c in m.get('competitions', []):
+            acc = set()
+            walk(c, acc)
+            every |= acc
+            po = set()
+            walk(c.get('ko_playoffs') or [], po)
+            slot4 |= po
+            if c.get('id'):
+                try:
+                    ids.setdefault(int(str(c['id']), 16), set()).update(acc)
+                except ValueError:
+                    pass
+    sc = _j.load(open(os.path.join(ROOT, 'tools', 'supercups2627.json')))
+    for k, v in sc.items():
+        if not k.startswith('_'):
+            slot4 |= forms(v.get('names'))
+    every |= slot4
+    _LABEL_DATA.update(ids=ids, slot4=slot4, every=every)
+    return _LABEL_DATA
+
+
+def label_check(s, step):
+    """The fixture list's competition labels of this career-menu screen (see LABEL_ERRS); errors go to LABEL_ERRS."""
+    try:
+        r = s.result
+        b2 = r.base2
+        n = struct.unpack('<H', bytes(r.obj2(CAL_AT - 4, 2)))[0]
+        o = struct.unpack('<H', bytes(r.obj2(CAL_CUR_AT, 2)))[0]
+        lang = struct.unpack('<H', bytes(r.obj2(D6CDC_AT, 2)))[0]
+        if not n or n > 400 or lang > 3:
+            return
+        cal = bytes(r.obj2(CAL_AT, 0x3000))
+        ptrs = struct.unpack('<5I', bytes(r.obj2(D8CAA_AT, 20)))
+        data = _label_data()
+    except Exception as e:                              # (no career calendar on this screen)
+        return
+    for _ in range(9):
+        if o + 22 > len(cal):
+            break
+        slot, ln = cal[o], struct.unpack_from('<H', cal, o + 2)[0]
+        if not ln:
+            break
+        o += ln
+        if slot > 4 or not ptrs[slot]:
+            continue
+        try:
+            c = bytes(r.read(ptrs[slot], 0x80))
+            no = 5 + c[5]
+            if no + lang * 8 + 8 > len(c):
+                continue
+            rel = struct.unpack_from('<I', c, no + lang * 8 + 4)[0]
+            txt = bytes(r.read(b2 + STR_BASE_AT + rel, 40)).split(b'\0')[0].decode('latin-1').upper() if rel < 0x100000 else '?'
+        except Exception:
+            continue
+        cid = c[0]
+        LABEL_STATS['rows'] += 1
+        bad = None
+        if rel == 0:
+            bad = f'label offset 0 ({txt})'
+        elif cid == 0xFE:
+            LABEL_STATS['keyed'] += 1
+            if txt not in data['slot4'] and txt not in data['every']:
+                bad = f'not a slot-4 contest name'
+        elif cid in data['ids']:
+            LABEL_STATS['keyed'] += 1
+            if txt not in data['ids'][cid]:
+                bad = f'not contest {cid:02X}\'s name (it has {sorted(data["ids"][cid])[:4]})'
+        else:
+            LABEL_STATS['fallback'].add(f'{cid:02X}:{txt}')
+        if bad:
+            e = f'step {step} slot {slot} contest {cid:02X} row {txt!r}: {bad}'
+            if e not in LABEL_ERRS:
+                LABEL_ERRS.append(e)
+                s.log.append('[label] ' + e)
+
+
 def advance(s, stop, max_steps=400):
     """Press through the career until stop(screen) is true; returns (ok, message)."""
     recent = []
@@ -1374,6 +1499,8 @@ def advance(s, stop, max_steps=400):
             return False, f'step {step}: {r}'
         scr = s.screen()
         s.log.append(f'[{step}] {scr}')
+        if os.environ.get('SWOSTEST_LABELS', '1') == '1' and scr.find('VISUAL. COMPETIZ.', exact=True) is not None:
+            label_check(s, step)                         # (4.0.5: every competition name of the fixture list)
         if os.environ.get('W8485_SHOTWORD') and scr.entries and os.environ['W8485_SHOTWORD'] in scr.entries[0][1]:
             s.shot(f'word{step:03d}')                    # (the visual tour: every screen titled with that word)
         if os.environ.get('SWOSTEST_FILL') and fill_check(s, f'step {step}') is False and not getattr(s, 'fill_bad', 0):
@@ -13164,7 +13291,14 @@ def main(argv):
             t = time.time()
             os.environ['SWOSTEST_SCENARIO'] = n
             try:
+                del LABEL_ERRS[:]
+                LABEL_STATS.update(rows=0, keyed=0, fallback=set())
                 ok, msg = SCENARIOS[n]()
+                if ok and LABEL_ERRS:                       # (4.0.5: a wrong competition name FAILs the scenario)
+                    ok, msg = False, f'contest names: {LABEL_ERRS[:3]}; ' + msg
+                if LABEL_STATS['rows']:
+                    msg += f" [names: {LABEL_STATS['rows']} rows, {LABEL_STATS['keyed']} keyed" + \
+                        (f", fallback {sorted(LABEL_STATS['fallback'])[:6]}" if LABEL_STATS['fallback'] else '') + ']'
                 if not ok and msg.startswith('START'):      # rare stall at the main menu (cause unknown): retry once
                     print(f'RETRY {n}: {msg}', flush=True)
                     ok, msg = SCENARIOS[n]()

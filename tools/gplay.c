@@ -3283,7 +3283,7 @@ u32 cf_member_c(u32 id, u32 season, u32 cteam) {        /* 2: not ours (the defi
    final), db the stage-title play-offs of the rules SCR_TITLE0 / 1 (MEX); dd the season record's name (REGISTRO GESTIONE: the long name if it fits 144 px, else the short).
    SC_ST +5 = 1: the career club won this season's (SC_ST +3) supercup -> its record line (sc_rline, gp_rlines_c). Only the career club's country's supercup is played: the career club in it -> its tie in slot 4 (as
    a Coppa D tie, kind K_SC); the other semi-final is decided at once (the better placed of last season wins 3 in 5). */
-enum { SC_E = 36, SC_NE = 32, SC_H = 12 };
+enum { SC_E = 36, SC_NE = 16, SC_H = 12 };
 enum { SCR_CHAMP = 1, SCR_SECOND, SCR_CUPW, SCR_CUPF, SCR_THIRD, SCR_FOURTH, SCR_TITLE0, SCR_TITLE1 };
 u8 SC_ST[SC_H + 12 * SC_NE];
 const u32 SC_STSZ = sizeof SC_ST;

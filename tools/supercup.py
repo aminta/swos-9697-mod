@@ -17,7 +17,7 @@ import os
 import re
 import struct
 
-NE = 32                                  # cups kept: the national cups of the countries with a supercup (the .CAR's
+NE = 16                                  # cups kept: the national cups of the countries with a supercup (the .CAR's
                                          # engine block has little room: trailer SEL_ROOM)
 COUNTRIES = ('ita', 'esp', 'eng', 'ger', 'fra', 'tur', 'ksa', 'bra', 'mex')   # (pack id suffixes; data: step 2)
 SC_SIZE = 12 + 12 * NE                    # (gplay.c SC_H + 12 x SC_NE)

@@ -33,7 +33,7 @@
    "inter",
    "lazio"
   ],
-  "todo": "date 22 Dec and San Siro from the press, not official; extra time or straight penalties not verified (pens assumed)"
+  "todo": "date 22 Dec and San Siro from the press, to confirm; 90 minutes then penalties (no extra time since 2023-24); the double fallback (cup finalist) not verified"
  },
  "esp": {
   "names": {
@@ -54,8 +54,8 @@
     "SUPERCUP"
    ]
   },
-  "date": "03/02+1",
-  "final_date": "07/02+1",
+  "date": "02/02+1",
+  "final_date": "06/02+1",
   "from_season": 1,
   "legs": 1,
   "level": "pens",
@@ -78,7 +78,7 @@
    "realsociedad",
    "realmadrid"
   ],
-  "todo": "Istanbul 2-7 Feb 2027: semi and final days differ between sources (3/2, 7/2 used); semi pairings by the usual rule (champion v cup finalist, cup winner v league 2nd), the 2027 draw not seen; extra time not verified (pens assumed); the double fallback (league 3rd) not verified"
+  "todo": "Jeddah/Istanbul edition 2-6 Feb 2027: semis 2/2 (Barcelona v Atletico) and 3/2 (Real Sociedad v Real Madrid), final 6/2 (one game week for both semis); 90 minutes then penalties CONFIRMED (RFEF, no extra time since 2024); pairings by the usual rule (champion v cup finalist, cup winner v league 2nd); the double fallback = the next classified (league 3rd) from an older source"
  },
  "tur": {
   "names": {
@@ -103,7 +103,7 @@
   "final_date": "09/01+1",
   "from_season": 1,
   "legs": 1,
-  "level": "pens",
+  "level": "et_pens",
   "host": "neutral",
   "rule": [
    "champion",
@@ -123,7 +123,7 @@
    "trabzonspor",
    "fenerbahce"
   ],
-  "todo": "semis 4+5 Jan, final 9 Jan 2027 (TFF 24 Sep 2026); which entrant is which (rule) inferred from the 2027 pairs, venues TBA; extra time not verified (pens assumed); the double fallback not verified"
+  "todo": "semis 4+5 Jan, final 9 Jan 2027 (TFF 24 Sep 2026), the semi day drawn; extra time (2 x 15') then penalties per the TFF's last known rule; which entrant is which (rule) inferred from the 2027 pairs; venues TBA; the double fallback (league 3rd) not verified"
  },
  "eng": {
   "names": {
@@ -158,7 +158,7 @@
    "arsenal",
    "manchestercity"
   ],
-  "todo": "the 2026 edition was played on 16 Aug at Cardiff (Wembley unavailable): from season 2 the same week, neutral; 90 minutes then penalties (no extra time) per the FA's usual rules, not re-checked for 2027; double -> league runner-up per the FA rule, not re-checked"
+  "todo": "the 2026 edition was played on 16 Aug at Cardiff (Wembley unavailable): from season 2 the same week, neutral; 90 minutes then penalties CONFIRMED; double -> league runner-up per the FA rule, not re-checked"
  },
  "ger": {
   "names": {
@@ -193,7 +193,7 @@
    "bayernmunich",
    "dortmund"
   ],
-  "todo": "2026: 22 Aug at Dortmund (Bayern 2-1; Bayern's double -> Dortmund, league 2nd): from season 2 the same week; the real host is the 2nd club's ground (host 'neutral' in the engine); 90 minutes then penalties per the DFL rules, not re-checked for 2027"
+  "todo": "2026: 22 Aug at Dortmund (Bayern 2-1; Bayern's double -> Dortmund, league 2nd): from season 2 the same week; the real host is the 2nd club's ground (host 'neutral' in the engine); 90 minutes then penalties CONFIRMED"
  },
  "fra": {
   "names": {
@@ -228,7 +228,7 @@
    "psg",
    "lens"
   ],
-  "todo": "2026: 16 Aug at Lens (host by draw), PSG v Lens: from season 2 the same week, neutral; Lens taken as the league 2nd after a PSG double, not verified; straight penalties assumed"
+  "todo": "2026: 16 Aug at Lens (host by draw), PSG v Lens: from season 2 the same week, neutral; Lens taken as the league 2nd after a PSG double, not verified; straight penalties assumed (no source)"
  },
  "ksa": {
   "names": {
@@ -253,7 +253,7 @@
   "final_date": "23/12",
   "from_season": 1,
   "legs": 1,
-  "level": "pens",
+  "level": "et_pens",
   "host": "neutral",
   "rule": [
    "champion",
@@ -273,7 +273,7 @@
    "alahlisfc",
    "alqadsiah"
   ],
-  "todo": "Kuwait 19/20 Dec, final 23 Dec 2026: the 2026 field is Al-Nassr (champion) v Al-Kholood (cup finalist) and Al-Ahli (3rd) v Al-Qadsiah (4th): Al-Hilal (league 2nd and cup winner?) banned; the engine rule is the usual one (champion v cup finalist, cup winner v league 2nd), the 2026 replacements only in season 1's entrants; pairings, extra time (pens assumed) and the double fallback not verified"
+  "todo": "Kuwait 19/20 Dec, final 23 Dec 2026: the 2026 field is Al-Nassr (champion) v Al-Kholood (cup finalist) and Al-Ahli (3rd) v Al-Qadsiah (4th): Al-Hilal (league 2nd and cup winner?) banned; the engine rule is the usual one (champion v cup finalist, cup winner v league 2nd), the 2026 replacements only in season 1's entrants; extra time then penalties (every known edition); pairings as the 2026 draw; the double fallback (league 3rd) not verified"
  },
  "mex": {
   "names": {

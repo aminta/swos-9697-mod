@@ -13202,6 +13202,57 @@ def setup_nojoy():
             os.environ['SWOSTEST_JOY'] = keep
     return not errs, '; '.join(errs + info) or 'ok'
 
+@scenario
+def world_kitfix():
+    """4.0.5 the career club's kits after a data update (kitfix.py, careerworld w_kits at the season end): Francesco's
+    ISCHIA save (KITFIX_CAR, a 4.0 kit 0 6 6 1 6 / 0 1 1 6 1 in its careerTeam) played on from its load to the season
+    end on SWOSTEST_BUILD (release recipe, data world5tm-403c4: 3 5 9 5 5 / 0 1 1 1 1): careerTeam takes the current
+    kits; the same save with the home kit edited by hand (as SELECT KITS would) keeps it"""
+    import careerworld
+    import lepatch
+    car = os.environ.get('KITFIX_CAR') or os.path.join(MAIN, 'internal', 'reports', 'ischia', 'ISCHIA_francesco_20261028.CAR')
+    exe = builds()['it']
+    if not os.path.exists(os.path.join(exe, 'DATA', 'KITFIX.DAT')):
+        return False, f'no DATA\\KITFIX.DAT in {exe}'
+    kits = careerworld.sites(lepatch.LEPatch(os.path.join(MAIN, 'orig', 'ITALIAN.EXE')))['cfb'] + 0xDB80 + 0x1A
+    d = open(car, 'rb').read()
+    old = d[56192 + 0x1A:56192 + 0x1A + 10]
+    want = next((r[29:39] for r in (open(os.path.join(exe, 'DATA', 'KITFIX.DAT'), 'rb').read()[i:i + 39]
+                                    for i in range(0, os.path.getsize(os.path.join(exe, 'DATA', 'KITFIX.DAT')), 39))
+                 if r[:2] == d[56192:56194] and r[19:29] == old), None)
+    if want is None:
+        return False, f'the save\'s kits {old.hex(" ")} are no shipped pair of KITFIX.DAT'
+    edited = bytearray(d)
+    edited[56192 + 0x1A:56192 + 0x1A + 5] = bytes([0, 2, 2, 2, 2])
+    ed = os.path.join(RUNS, 'kitfix_edited.CAR')
+    os.makedirs(RUNS, exist_ok=True)
+    open(ed, 'wb').write(edited)
+    errs, info = [], []
+    keys = ('W8485_BUILD', 'W8485_FROM', 'W8485_NOSACK', 'W8485_HEX', 'SWOSTEST_SCENARIO')
+    keep = {k: os.environ.get(k) for k in keys}
+    try:
+        for tag, src, expect in (('as_saved', car, want), ('edited', ed, bytes(edited[56192 + 0x1A:56192 + 0x1A + 10]))):
+            os.environ.update(W8485_BUILD=exe, W8485_FROM=src, W8485_NOSACK='1', W8485_HEX=f'{kits:x}:10',
+                              SWOSTEST_SCENARIO=f'world_kitfix_{tag}')   # (a run dir per case)
+            ok, msg = world8485()
+            dumps = [bytes.fromhex(ln.split()[2]) for ln in open(os.path.join(RUNS, w84_tag() + '_2', 'session.log'),
+                                                                     errors='replace')
+                     if ln.startswith('HEX ') and len(ln.split()) == 3 and int(ln.split()[1], 16) == kits]
+            check('season 2:' in msg and 'steps' in msg, f'{tag}: {msg[:200]}', errs)   # (to the season end; the
+            if not ok:                                  # save's own world checks - checkw1 on a save of older data -
+                info.append(f'{tag}: {msg[-60:]}')      # are not this scenario's)
+            check(dumps and dumps[-1] == expect, f'{tag}: kits {[x.hex(" ") for x in dumps]} (want {expect.hex(" ")})',
+                  errs)
+            info.append(f'{tag}: {" -> ".join(x.hex(" ") for x in dumps[:1] + dumps[-1:])}')
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    return not errs, '; '.join(errs + info)
+
 
 if __name__ == '__main__':
     sys.exit(main(sys.argv[1:]))
+

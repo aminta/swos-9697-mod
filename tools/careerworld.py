@@ -257,6 +257,7 @@ w_cups:                                 ; replaces `mov word [teamsLoaded], 0` a
     ret
 
 w_list:                                 ; replaces `mov dword [A6], seasonEndList` in cseg_91428
+    call w_kits
 %ifdef DIAG
     mov dword [DG_TICKS], 0             ; diagnostic build: the timer watchdog dumps if the season end hangs
     mov byte [DG_ARMED], 1
@@ -272,6 +273,45 @@ w_list:                                 ; replaces `mov dword [A6], seasonEndLis
     mov dword [A6R], SEASONLIST
     pop ebx
     ret
+
+w_kits:                                 ; 4.0.5 (kitfix.py): the career club's home + away kits from DATA\\KITFIX.DAT
+    pushad                              ; when they are still a pair an earlier release shipped (its record: file,
+    mov edx, KF_FN                      ; ordinal, name, old kits, new kits); a kit edited with SELECT KITS is never one
+    mov eax, 3D00h
+    int 21h
+    jc .x
+    mov ebx, eax
+.r: mov edx, KF_REC
+    mov ecx, 39
+    mov ah, 3Fh
+    int 21h
+    jc .c
+    cmp eax, 39
+    jne .c
+    mov edi, CFB + 0DB80h               ; (careerTeam: file, ordinal; name +5; kits +1Ah)
+    mov ax, [KF_REC]
+    cmp ax, [edi]
+    jne .r
+    mov esi, KF_REC + 2
+    add edi, 5
+    mov ecx, 17
+    repe cmpsb
+    jne .r
+    mov esi, KF_REC + 19
+    mov edi, CFB + 0DB80h + 1Ah
+    mov ecx, 10
+    repe cmpsb
+    jne .r
+    mov esi, KF_REC + 29
+    mov edi, CFB + 0DB80h + 1Ah
+    mov ecx, 10
+    rep movsb
+.c: mov ah, 3Eh
+    int 21h
+.x: popad
+    ret
+KF_FN: db 'data\\kitfix.dat', 0
+KF_REC: times 39 db 0
 
 %macro W_TAB 3                          ; replaces `mov dword [A0], <static place table>` in cseg_936C0
 %1:

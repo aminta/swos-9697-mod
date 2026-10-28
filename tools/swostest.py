@@ -9266,7 +9266,7 @@ def sc_trace(exe):
 def sc_season(team, extra, runs_tag=1):
     """world8485 on a World 2026-27 career at team with extra env; the session log's lines."""
     keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_ONE',
-            'W8485_MIDSAVE', 'W8485_FROM', 'W8485_HEX', 'W8485_RECSHOT', 'W8485_RLDBG')
+            'W8485_MIDSAVE', 'W8485_FROM', 'W8485_HEX', 'W8485_RECSHOT', 'W8485_RLDBG', 'W8485_FILL')
     keep = {k: os.environ.get(k) for k in keys}
     os.environ.update(W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1',
                       W8485_ONE='1', **extra)
@@ -9383,6 +9383,43 @@ def sc_from2(team, word, tag):
     check(not m1, f'season 1 played {m1}', errs)
     check(len(m2) == 1 and 'FINALE' in m2[0], f'season 2 supercup matches {m2}', errs)
     return not errs, '; '.join(errs) or f'season 1: none; season 2: {m2}; {msg2[:80]}'
+
+
+@scenario
+def world_sc_tur():
+    """4.0.5 supercups, extra time then penalties really played (TUR, level et_pens): a GALATASARAY career, season 1
+    (the real 2027 final four: GALATASARAY v KONYASPOR in the semi-final), every simulated match forced level
+    (simdraw's score table filled with 1-1, as world_full_draw): the SUPERCOPPA DI TURCHIA SEMIFINALE ends after extra
+    time ('D.T.S.') and on penalties ('RIG'), once; the season ends"""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import simdraw
+    from le import LE
+    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+    if not os.path.isdir(src):
+        return True, f'SKIP: private data {src} missing'
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    exe = os.environ.get('SC_BUILD') or build('world_sc_cups', env={
+        'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order])})
+    d2 = LE(open(os.path.join(exe, 'ITALIAN.EXE'), 'rb').read()).obj_bytes(2)
+    tab = simdraw.table()
+    at = [m.start() for m in re.finditer(re.escape(tab), d2)]
+    if len(at) != 1:
+        return False, f'simdraw table found {len(at)} times'
+    ok, msg, lines = sc_season('EUROPA,TURCHIA,SUPER LIG,GALATASARAY', dict(W8485_BUILD=exe,
+                                                                         W8485_FILL=f'{at[0]:x}:11:{len(tab)}'))
+    res = [ln for ln in lines if ln.startswith('[') and 'SUPERCOPPA DI TURCHIA' in ln.split('|')[0]
+           and '- PARTITA -' in ln and '>- RISULTATO -' in ln]
+    errs = []
+    check(ok, msg, errs)
+    semi = [ln for ln in res if 'SEMIFINALE' in ln.split('|')[0]]
+    check(len(semi) == 1 and 'KONYASPOR' in semi[0], f'semi-final screens {[x[:120] for x in semi]}', errs)
+    after = []                                  # (the result screens right after: the score line with D.T.S. / RIG)
+    if semi:
+        i = lines.index(semi[0])
+        after = [ln for ln in lines[i:i + 6] if 'SUPERCOPPA DI TURCHIA' in ln.split('|')[0]]
+    txt = ' '.join(after)
+    check('RIG' in txt and 'D.T.S' in txt, f'no extra time + penalties on the semi-final: {txt[:400]}', errs)
+    return not errs, '; '.join(errs) or f'semi-final after extra time, on penalties; {len(res)} supercup ties; {msg[:60]}'
 
 
 @scenario

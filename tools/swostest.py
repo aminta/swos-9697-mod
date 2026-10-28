@@ -8694,7 +8694,8 @@ def sc_rules():
     nothing; final four (h-k): the career club's semi-final built (the other one decided, its winner kept), the final
     at its week after a won semi-final (named F, the semi SF), none after a lost one, a double -> the league 3rd;
     (l-p) the season record's line (sc_rline): the final / the one match won -> the record name, lost / a lost semi /
-    another season -> none; (r-t) MEX: last season's Apertura / Clausura winners (WN_ST), one club both or WN_ST of
+    another season -> none; (u, w) 4.0.5 'early': built at the season's first advance, slot 4 busy until decided;
+    (r-t) MEX: last season's Apertura / Clausura winners (WN_ST), one club both or WN_ST of
     another season -> none."""
     import tempfile
     src = os.path.join(ROOT, 'tools', 'gplay.c')
@@ -8766,6 +8767,14 @@ int main(void) {
     GP_MGR = 0x0766; GP_WK = 49; out("s", sc_step_c());
     setup(1, inter, napoli, bologna, lazio); tab[1 + 8] = SCR_TITLE0; tab[1 + 9] = SCR_TITLE1; WN_ST.e[1].team = 0x0866;
     WN_ST.season = 125; GP_MGR = 0x0866; GP_WK = 49; out("t", sc_step_c());
+    /* (u, w) 4.0.5 'early': built at the season's first advance (week 10, the final's week 52 kept), slot 4 busy until
+       decided (sc_busy: gp_build_c defers, a second advance builds nothing); a summer early one still skips season 1 */
+    setup(1, inter, napoli, bologna, lazio); tab[1 + 2] = 1 | SC_EARLY; GP_MGR = inter; GP_SCFIRST = 0; GP_WK = 10;
+    out("u", sc_step_c());
+    printf("u2 %%d %%d %%d\n", sc_busy(), GP_ST.ko[0].d1, sc_step_c());
+    decide(1); printf("u3 %%d\n", sc_busy());
+    setup(2, inter, napoli, bologna, lazio); tab[1 + 2] = 2 | SC_EARLY; GP_MGR = inter; GP_SCFIRST = 1; GP_WK = 10;
+    out("w", sc_step_c()); GP_SCFIRST = 0;
     /* a double in a final four: the cup winner = the champion -> the cup winner's place to the 3rd (0x0566) */
     setup4(1, 4, inter, napoli, inter, lazio, 0x0566); GP_MGR = 0x0566; GP_WK = 49; out("k", sc_step_c());
     return 0;
@@ -8788,7 +8797,7 @@ int main(void) {
     want = {'a': ['1', '1', '166', '466', '10'], 'b': ['1', '1', '166', '366', '10'], 'c': ['1', '1', '966', 'a66', '10'],
             'd': ['0', '81'], 'e': ['0', '84'], 'f': ['0', '0'], 'g': ['0', '0'],
             'h': ['1', '1', '466', '266', '10'], 'h2': ['166', '1', '7'], 'i0': ['0'], 'i': ['1', '2', '266', '166', '10'],
-            'i2': ['3', '8'], 'l': ['1234', '1'], 'j': ['0', '41'], 'j2': ['3'], 'm': ['0'], 'n': ['1234'], 'o': ['0'], 'p': ['0'], 'q': ['1', '1234', '66', '77', '1'], 'r': ['1', '1', '766', '866', '10'], 's': ['0', '82'], 't': ['0', '82'], 'k': ['1', '1', '566', '266', '10']}
+            'i2': ['3', '8'], 'l': ['1234', '1'], 'j': ['0', '41'], 'j2': ['3'], 'm': ['0'], 'n': ['1234'], 'o': ['0'], 'p': ['0'], 'q': ['1', '1234', '66', '77', '1'], 'r': ['1', '1', '766', '866', '10'], 's': ['0', '82'], 't': ['0', '82'], 'u': ['1', '1', '166', '466', '10'], 'u2': ['1', '52', '0'], 'u3': ['0'], 'w': ['0', '81'], 'k': ['1', '1', '566', '266', '10']}
     errs = [f'{k}: got {got.get(k)}, want {w}' for k, w in want.items() if (got.get(k) or [])[:len(w)] != w]
     return not errs, '; '.join(errs) or 'a champion v cup winner, b double -> finalist, c season-1 data, d summer skipped, ' \
         'e not in it, f once a season, g before the week; final four: h semi-final built (other winner kept), i the final ' \
@@ -9452,6 +9461,52 @@ def world_sc_reload():
     m1, m2 = sc_matches(l1), sc_matches(l2)
     check(not m1 and len(m2) == 1 and 'LAZIO' in m2[0], f'supercup matches before the save {m1}, after {m2}', errs)
     return not errs, '; '.join(errs) or f'saved with the tie built; after the load: {m2}; {msg[:80]}'
+
+
+@scenario
+def world_sc_early():
+    """4.0.5 supercups built early ('early' countries: the career club's tie made at the season's first advance): an
+    INTER career saved as soon as its SUPERCOPPA ITALIANA tie is built (W8485_MIDSAVE on SC_TRACE = 1) - in the first
+    steps of the season, months before its December week; that save loaded: the fixture list (PROSS. PARTITA) has the
+    SUPERCOPPA row scrolled to (shots 'fixtures18'..'24': the rows are drawn, read by eye; VISUAL. COMPETIZ. has 4
+    fixed entries, slots 0-3: no slot-4 contest is ever there);
+    the season played on from it: the tie played once, in December, the season ends"""
+    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+    if not os.path.isdir(src):
+        return True, f'SKIP: private data {src} missing'
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    exe = os.environ.get('SC_BUILD') or build('world_sc_cups', env={
+        'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order])})
+    tr = sc_trace(exe)
+    team = 'EUROPA,ITALIA,SERIE A,INTER'
+    ok, msg, l1 = sc_season(team, dict(W8485_BUILD=exe, W8485_MIDSAVE=f'{tr:x}:1:1'))
+    if not ok:
+        return False, f'season 1 to the supercup tie: {msg}'
+    steps = [int(ln[1:ln.index(']')]) for ln in l1 if ln.startswith('[') and ']' in ln and ln[1:ln.index(']')].isdigit()]
+    mid = os.path.join(RUNS, 'sc_early_mid.CAR')
+    shutil.copy(msg.split(': ', 1)[1], mid)
+    errs, got = [], []
+    check(steps and max(steps) <= 12, f'the tie built at step {max(steps) if steps else None} (early: within the first steps)', errs)
+    with Session('world_sc_early', exe, {'W84A.CAR': mid}, 'dump:2', 300) as s:
+        s.wait()
+        s.send(LOAD1 + ' dump:3')
+        for _ in range(4):
+            sc = s.screen()
+            if sc.find('VISUAL. COMPETIZ.', exact=True) is not None:
+                break
+            press(s, sc, 'CONTINUA', 3) or s.send('fire dump:2')
+        s.shot('career')
+        walk(s, 14, 2)                                  # (the fixture list's down arrow: its rows are drawn, not
+        for k in range(1, 25):                          # entries - the shots show the SUPERCOPPA row, December)
+            s.send('fire dump:0.7')
+            if k >= 18 and k % 2 == 0:
+                s.shot(f'fixtures{k}')
+        got = ['shots fixtures18..24']
+    check(True, '', errs)
+    ok2, msg2, l2 = sc_season(team, dict(W8485_BUILD=exe, W8485_FROM=mid), 2)
+    m2 = sc_matches(l2)
+    check(ok2 and len(m2) == 1 and 'LAZIO' in m2[0], f'from the early save: {m2}; {msg2[:120]}', errs)
+    return not errs, '; '.join(errs) or f'built at step {max(steps)}; fixture-list shots; played {m2}'
 
 
 @scenario

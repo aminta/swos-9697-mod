@@ -1661,7 +1661,8 @@ enum { K_SC = 10 };                     /* (4.0.5: a national supercup tie, sc_s
 struct gp_ko;
 void sc_done(const struct gp_ko *k);
 static u32 sc_rline(void);              /* (4.0.5: gp_rlines_c's supercup line) */
-static void rl_put(void);   /* (CDP: preliminary ties at most, CDP + 2 x CD1 - 1 <= CDT) */
+static void rl_put(void);
+int sc_busy(void);                      /* (4.0.5: the slot-4 guard) */   /* (CDP: preliminary ties at most, CDP + 2 x CD1 - 1 <= CDT) */
 struct cd_state { u16 magic; u8 season, round, built, bt, drawn, pad; u8 res[CDT], home[CDT]; u8 sd[4];
                   u8 ent[256];          /* cd_season (the season end): per ordinal of the file, the entry order's key
                                            for the season to come (0 not in Serie D, 1 a new arrival, 2 + places from
@@ -1910,6 +1911,7 @@ static int cd_sim(u16 a, u16 b, int legs, int h) {     /* h: 0 a hosts (the firs
 
 /* the calendar advance: 1 = a tie of the career club built into ko[0] (gp_install it), else 0 */
 u32 cd_step_c(void) {
+    if (sc_busy()) return 0;            /* (4.0.5: an early supercup tie in slot 4: the next advance) */
     if (!GP_CDT) return 0;
     if (CD_ST.magic != 0x4443 || CD_ST.season != GP_SEAS) {     /* (a new season: the cup from its start) */
         u8 *p = (u8 *)&CD_ST;
@@ -2039,6 +2041,8 @@ static void set_pend(int then, int week) {   /* 'then_build': the next play-off 
 }
 
 u32 gp_build_c(void) {
+    if (sc_busy()) { set_pend(GP_BPIC + 1, GP_WK + 1); return 0; }   /* (4.0.5: an early supercup tie holds slot 4:
+                                                                     built again at the next advance) */
     ss_set(GP_IN.mgr);
     const u8 *s = po_at(GP_BPIC);
     stage_done(&GP_ST.ko[0]);                   /* (the previous stage's knockout, played: before ko[0] is rebuilt) */
@@ -2387,7 +2391,9 @@ void gp_fixload_c(const u32 *nm, u8 *recs, u32 base, u8 *const *slots, u32 phase
         if (!nm) return;
         for (int i = 0; i < 2; i++) {
             struct gp_ko *k = &GP_ST.ko[i];
-            if (k->magic != MAGIC || k->season != GP_SEAS) continue;
+            if (k->magic != MAGIC || k->season != GP_SEAS || k->pi == 0xFF) continue;   /* (4.0.5: a one-tie contest -
+                                           the Coppa D's, a supercup: its own names from ko_one, no play-off index;
+                                           nm[3 * 255] read past the table: 'SCENE PRESIDENZIALI' after a load) */
             u8 *c = k->con, *names = c + 5 + c[5];
             *(u32 *)names = nm[3 * k->pi];
             *(u32 *)(names + 4) = nm[3 * k->pi + 1];
@@ -3283,7 +3289,7 @@ u32 cf_member_c(u32 id, u32 season, u32 cteam) {        /* 2: not ours (the defi
    final), db the stage-title play-offs of the rules SCR_TITLE0 / 1 (MEX); dd the season record's name (REGISTRO GESTIONE: the long name if it fits 144 px, else the short).
    SC_ST +5 = 1: the career club won this season's (SC_ST +3) supercup -> its record line (sc_rline, gp_rlines_c). Only the career club's country's supercup is played: the career club in it -> its tie in slot 4 (as
    a Coppa D tie, kind K_SC); the other semi-final is decided at once (the better placed of last season wins 3 in 5). */
-enum { SC_E = 36, SC_NE = 16, SC_H = 12 };
+enum { SC_E = 36, SC_NE = 16, SC_H = 12, SC_EARLY = 0x80 };   /* (entry byte 2: from_season | SC_EARLY) */
 enum { SCR_CHAMP = 1, SCR_SECOND, SCR_CUPW, SCR_CUPF, SCR_THIRD, SCR_FOURTH, SCR_TITLE0, SCR_TITLE1 };
 u8 SC_ST[SC_H + 12 * SC_NE];
 const u32 SC_STSZ = sizeof SC_ST;
@@ -3336,6 +3342,11 @@ static int sc_free(void) {              /* slot 4 not holding a contest of this 
     return !(GP_ST.magic == MAGIC && GP_ST.ko[0].magic == MAGIC && GP_ST.ko[0].season == GP_SEAS &&
              GP_ST.ko[0].tw[0] == NOC);
 }
+int sc_busy(void) {                     /* 4.0.5: slot 4 holds this season's supercup tie, not played yet (built early:
+                                           another slot-4 builder waits) */
+    return GP_ST.magic == MAGIC && GP_ST.ko[0].magic == MAGIC && GP_ST.ko[0].season == GP_SEAS &&
+           GP_ST.ko[0].kind == K_SC && GP_ST.ko[0].tw[0] == NOC;
+}
 u32 sc_step_c(void) {                   /* the calendar advance: 1 = the career club's tie built into ko[0] */
     if (!GP_SCT || !GP_MGR) return 0;
     const u8 *e = 0;
@@ -3348,9 +3359,11 @@ u32 sc_step_c(void) {                   /* the calendar advance: 1 = the career 
         SC_ST[4] = 3; SC_TRACE = 2;
         return 1;
     }
-    if ((int)GP_WK + 1 < e[3] || !sc_free()) return 0;
+    if (((int)GP_WK + 1 < e[3] && !(e[2] & SC_EARLY)) || !sc_free()) return 0;   /* (4.0.5 'early': built at the
+                                           season's first advance - its fixture row and VISUAL. COMPETIZ. entry from
+                                           the start - still played at its own week, ko_one's dates) */
     SC_ST[3] = GP_SEAS; SC_ST[4] = 0; SC_ST[5] = 0;
-    if (GP_SCFIRST && e[2] > 1) { SC_TRACE = 0x81; return 0; }   /* (a summer one: already played before the world) */
+    if (GP_SCFIRST && (e[2] & 0x7F) > 1) { SC_TRACE = 0x81; return 0; }   /* (a summer one: already played before the world) */
     int n = e[6] == 4 ? 4 : 2;
     u16 c[4];
     for (int i = 0; i < n; i++) {

@@ -1,5 +1,5 @@
 {
- "_doc": "4.0.5 national supercups of World 2026-27 (supercup.py table; internal/handoff/supercups.md). Per country: pack id suffix, names {lang: [long, short]}, article (FORMAT text: {lang: word} when not La / The / La), date (dd/mm, +1 = the next calendar year, the real 2026-27 edition), from_season (2 = summer: not in the world's first season), legs, level (pens | et_pens), host (neutral), rule [2 or 4 rules: e0 v e1 (and e2 v e3: semi-finals, then the final)] + if_double (one fallback for every rule after the first, or a list per rule: champion | second | third | fourth | cup_winner | cup_finalist | title0 | title1: last season's stage-title winners, the play-offs 'titles' [key0, key1]), final_date (4 clubs), first_entrants (pack club keys of the real 2026-27 edition: season 1), todo (what is not verified yet).",
+ "_doc": "4.0.5 national supercups of World 2026-27 (supercup.py table; internal/handoff/supercups.md). Per country: pack id suffix, names {lang: [long, short]}, article (FORMAT text: {lang: word} when not La / The / La), date (dd/mm, +1 = the next calendar year, the real 2026-27 edition), from_season (2 = summer: not in the world's first season), early (4.0.5: the career club's tie built at the season start - shown in its calendar and VISUAL. COMPETIZ. from the first day - and played at its week; only where nothing else of the club needs slot 4 before it), legs, level (pens | et_pens), host (neutral), rule [2 or 4 rules: e0 v e1 (and e2 v e3: semi-finals, then the final)] + if_double (one fallback for every rule after the first, or a list per rule: champion | second | third | fourth | cup_winner | cup_finalist | title0 | title1: last season's stage-title winners, the play-offs 'titles' [key0, key1]), final_date (4 clubs), first_entrants (pack club keys of the real 2026-27 edition: season 1), todo (what is not verified yet).",
  "ita": {
   "names": {
    "it": [
@@ -21,6 +21,7 @@
   },
   "date": "22/12",
   "from_season": 1,
+  "early": true,
   "legs": 1,
   "level": "pens",
   "host": "neutral",
@@ -57,6 +58,7 @@
   "date": "02/02+1",
   "final_date": "06/02+1",
   "from_season": 1,
+  "early": true,
   "legs": 1,
   "level": "pens",
   "host": "neutral",
@@ -102,6 +104,7 @@
   "date": "04/01+1",
   "final_date": "09/01+1",
   "from_season": 1,
+  "early": true,
   "legs": 1,
   "level": "et_pens",
   "host": "neutral",
@@ -146,6 +149,7 @@
   },
   "date": "16/08",
   "from_season": 2,
+  "early": true,
   "legs": 1,
   "level": "pens",
   "host": "neutral",
@@ -181,6 +185,7 @@
   },
   "date": "22/08",
   "from_season": 2,
+  "early": true,
   "legs": 1,
   "level": "pens",
   "host": "neutral",
@@ -216,6 +221,7 @@
   },
   "date": "16/08",
   "from_season": 2,
+  "early": true,
   "legs": 1,
   "level": "pens",
   "host": "neutral",
@@ -252,6 +258,7 @@
   "date": "19/12",
   "final_date": "23/12",
   "from_season": 1,
+  "early": true,
   "legs": 1,
   "level": "et_pens",
   "host": "neutral",

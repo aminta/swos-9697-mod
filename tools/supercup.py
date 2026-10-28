@@ -185,7 +185,7 @@ def table(lang, name_off):
         ents = [word(k) for k in d['first_entrants']] + [0] * (4 - n)
         w1 = split.week_of(d['date'])
         w2 = split.week_of(d['final_date']) if n == 4 else w1
-        e = bytes([lf, int(cup['id'], 16) if cup else 0, d.get('from_season', 1), w1, d.get('legs', 1), LEVEL[d['level']], n, w2])
+        e = bytes([lf, int(cup['id'], 16) if cup else 0, d.get('from_season', 1) | (0x80 if d.get('early') else 0), w1, d.get('legs', 1), LEVEL[d['level']], n, w2])
         e += bytes(rules) + struct.pack('<4H', *ents)
         nm = d['names'].get(lang) or d['names']['en']
         import complist

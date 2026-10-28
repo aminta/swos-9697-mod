@@ -295,6 +295,30 @@ wn_load:                                ; FOUND = 1 with the competition's WIN t
 .close:
     mov ah, 3Eh
     int 21h
+    cmp byte [FOUND], 0                 ; 4.0.5 (Davide): a league with no WIN entry - its title is the table's 1st
+    jne .x                              ; - gets one line: its name, 01h, 'E' (wn_src: the 1st once every match day
+    cmp word [GAMETYPE], 4              ; is played); careers only, the career's league only (slot 0)
+    jne .x
+    mov eax, [D8CAA_]                   ; (the career's own league: slot 0's contest, its id = the DIY's +2Dh)
+    test eax, eax
+    jz .x
+    mov al, [eax]
+    cmp al, [DIY_ + 2Dh]
+    jne .x
+    cmp word [DIY_ + 1C3h], 0           ; (its days: a league with a calendar)
+    je .x
+    mov esi, [DIYNAME]
+    mov edi, TXT
+    mov ecx, NAME_ - 1
+.cp:
+    lodsb
+    test al, al
+    jz .cpe
+    stosb
+    loop .cp
+.cpe:
+    mov dword [edi], 00004501h          ; 01h, 'E', 0, 0
+    mov byte [FOUND], 1
 .x: popad
     ret
 
@@ -413,6 +437,8 @@ wn_src:                                 ; esi -> a source: edx = the winner's na
     jne .ls
     cmp al, 'L'
     je .lg
+    cmp al, 'E'                         ; (4.0.5: a league with no WIN entry, wn_load's fallback line)
+    je .le
     cmp al, 'C'
     je .cup
     cmp al, 'P'
@@ -494,6 +520,17 @@ wn_src:                                 ; esi -> a source: edx = the winner's na
 .lx:
     clc
     ret
+.le:                                    ; 'E': the table's 1st once every match day is played (DIY +1C1h days
+    movzx ecx, word [DIY_ + 1C3h]       ; played, +1C3h its days), IN CORSO once one is, else DA GIOCARE
+    cmp [DIY_ + 1C1h], cx
+    jb .le0
+    movzx eax, word [DIY_ + 6Dh]        ; (row 0: the leader)
+    jmp .lw
+.le0:
+    cmp word [DIY_ + 1C1h], 0
+    je .lx
+    mov edx, INC
+    jmp .lx
 .dp:                                    ; 'P' k: dplay's play-off k (1 Serie B play-off, 2 its play-out: the loser, 3
     lodsb                               ; Serie C play-off), the career club's (DP_ST 'DP' this season), else no line
     sub al, '0'
@@ -686,6 +723,8 @@ def patch(p, at, lang, sites):
     wn = fmtpage.WN
     assert wn, 'fmtpage: no VINCITORI entry (a build without career worlds)'
     sym = dict(wn['sym'], FMTMENU=(2, wn['menu']))     # (the page's own copy of fmtpage's menu)
+    import dplay, sacups                                # (4.0.5: the career league's contest, slot 0 = D8CAA[0])
+    sym['D8CAA_'] = (2, dplay._play_sites(p, sacups.regs(bytes(p.le.obj_bytes(1))))['d8caa'])
     sym['TXT2'] = (2, wn['sym']['BUF'][1] + fmtpage.WN_TXT2)   # (4.0.1 wn_lastdiv: the last season's division's text;
                                                                   # 4.0.1 South America: 0x5800, the index grew)
     ttl, tbp, inc = TEXTS[lang]

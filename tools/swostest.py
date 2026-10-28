@@ -8020,6 +8020,33 @@ def winners_page(s, pages=None):
 
 
 @scenario
+def world_winners_league():
+    """4.0.5 (Davide): VINCITORI for every league - one whose title is its table's 1st has no WIN entry, winners.py's
+    fallback line ('E'): at a new career's start (KOPER, Slovenia; INTER, Serie A) STAT shows VINCITORI and its page
+    lists the league with DA GIOCARE (release-like build: SWOSTEST_BUILD)"""
+    b = os.environ.get('SWOSTEST_BUILD')
+    if not b:
+        return True, 'SKIP: SWOSTEST_BUILD (a full 2026-27 build) not set'
+    errs, info = [], []
+    for path in (['EUROPA', 'SLOVENIA', 'KOPER'], ['EUROPA', 'ITALIA', 'SERIE A', 'INTER']):
+        with Session('world_winners_league_' + path[-1].lower(), b, {}, 'dump:2', 300) as s:
+            s.wait()
+            if not pick_career(s, ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27'] + path):
+                errs.append(f'{path[-1]}: career not reached')
+                continue
+            s.send('fire dump:3')
+            for _ in range(6):
+                if s.screen().find('VISUAL. COMPETIZ.', exact=True) is not None:
+                    break
+                press(s, s.screen(), 'CONTINUA', 3) or s.send('fire dump:2')
+            e, title, lines = winners_page(s)
+            check(e is not None and not e[2] and lines and 'DA GIOCARE' in lines,
+                  f'{path[-1]}: VINCITORI {e}, page {title!r} {lines[:4]}', errs)
+            info.append(f'{path[-1]}: {title} {lines[:2]}')
+    return not errs, '; '.join(errs) or '; '.join(info)
+
+
+@scenario
 def world_winners():
     """4.0.1 SEASON WINNERS page (winners.py): ROSARIO CENTRAL (Argentina, LIGA PROFESIONAL) forced 1st, every match
     won by the stronger side (as world_rlines_arg3): at the career's start STAT shows VINCITORI and its page

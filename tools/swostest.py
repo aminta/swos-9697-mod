@@ -9290,7 +9290,27 @@ def sc_season(team, extra, runs_tag=1):
             else:
                 os.environ[k] = v
     log = os.path.join(RUNS, w84_tag() + f'_{runs_tag}', 'session.log')
-    return ok, msg, open(log, errors='replace').read().splitlines() if os.path.exists(log) else []
+    lines = open(log, errors='replace').read().splitlines() if os.path.exists(log) else []
+    bad = sc_labels(lines)                      # (4.0.5: every supercup scenario checks the fixture list's names)
+    return ok and not bad, msg if not bad else '; '.join(bad) + '; ' + msg, lines
+
+
+def sc_labels(lines, want=None):
+    """4.0.5 (Davide 28/10: a competition's displayed name is always checked): the career menu's fixture-list rows of
+    a session log (its entries, drawn rows included) never carry another contest's text ('SCENE PRESIDENZIALI': a
+    one-tie slot-4 contest renamed from the play-off table after a load) and, with want, show that label at least once.
+    Returns the errors."""
+    errs, seen = [], False
+    for ln in lines:
+        if not ln.startswith('[') or 'VISUAL. COMPETIZ.' not in ln:
+            continue
+        if 'SCENE PRESIDENZIALI' in ln:
+            errs.append(f"wrong contest name in the fixture list: {ln.split(']')[0]}] ...SCENE PRESIDENZIALI...")
+            break
+        seen |= bool(want) and want in ln
+    if want and not seen:
+        errs.append(f'no {want} row in the fixture list')
+    return errs
 
 
 def sc_matches(lines):
@@ -9700,6 +9720,8 @@ def world_sc_cups():
         if 'SUPERCOPPA' in ln.split('|')[0] and '- PARTITA -' in ln:
             sc.append(re.sub(r'^\[\d+\] ', '', ln.split('|')[0].strip()) + (' LAZIO' if 'LAZIO' in ln else ''))
     check(any('LAZIO' in x for x in sc), f'no SUPERCOPPA match v LAZIO in season 1: {sc[:4]}', errs)
+    for e in sc_labels(open(log, errors='replace').read().splitlines() if os.path.exists(log) else [], 'SUPERCOPPA'):
+        errs.append(e)                          # (the fixture list's row: 'SUPERCOPPA', no other contest's text)
     return not errs, '; '.join(errs) or f'{n} cups; ' + '; '.join(shown[:12]) + f'; supercup {sorted(set(sc))}'
 
 

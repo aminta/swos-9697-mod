@@ -13566,6 +13566,164 @@ def world_kitfix():
                 os.environ[k] = v
     return not errs, '; '.join(errs + info)
 
+def job_offer_sites(exe_dir):
+    """obj2 offsets of numNewJobOffers and newJobOffers (AddJobOffer: cmp word [numNewJobOffers], 5; jz; ...
+    mov [A0], offset newJobOffers) in the original exe of the build's language (obj2 data does not move)."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import lepatch
+    import sacups
+    p = lepatch.LEPatch(os.path.join(MAIN, 'orig', 'ITALIAN.EXE'))
+    d1 = p.le.obj_bytes(1)
+    a0 = sacups.regs(d1)['A0']
+    for m in re.finditer(rb'\x66\x83\x3d(....)\x05\x0f\x84....\x66\xa1\1\x66\xa3....\x66\x0b\xc0\x74.\xc7\x05' +
+                         re.escape(struct.pack('<I', a0)) + rb'(....)', d1, re.S):
+        return p.target(1, m.start() + 3)[1], p.target(1, m.start(2))[1]
+    raise AssertionError('AddJobOffer')
+
+
+@scenario
+def world_job_squad():
+    """4.0.5 the job letter's VIS. SQUADRA (xbrowse vs_*: viewSquadMenu in ViewFutureTeam's view): a World 2026-27 career
+    at ATALANTA, a job offer of KUPS KUOPIO forced (newJobOffers / numNewJobOffers poked as AddJobOffer writes them), OFFERTE
+    LAVORO > the letter > VIS. SQUADRA: page 1 = the record's 16, a PAG. SUCC. button left of CONTINUA, page 2 = the club's
+    extras 17.. (its XTW5 block); CONTINUA; then ACCETTA: the career club is KUPS KUOPIO with the extras in careerTeam's
+    slots 16.. (xtra.py's load on the new job) - the full squad (release recipe, SWOSTEST_BUILD)"""
+    import careerworld
+    import lepatch
+    exe = builds()['it']
+    club = os.environ.get('JOB_CLUB', 'KUPS KUOPIO')
+    blk = xtra_club_block(exe, club)
+    if not blk:
+        return False, f'{club}: no XTRA block in {exe}'
+    word, extras = blk
+    extras = [x for x in extras if x]
+    num, offers = job_offer_sites(exe)
+    ct = careerworld.sites(lepatch.LEPatch(os.path.join(MAIN, 'orig', 'ITALIAN.EXE')))['cfb'] + 0xDB80
+    path = ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27', 'EUROPA', 'ITALIA', 'SERIE A', 'ATALANTA']
+    errs, info = [], []
+    vis = lambda scr: [e[1] for e in scr.entries if e[1] and not e[2]]
+
+    def leave(s):
+        for _ in range(8):
+            if 'PROSS. PARTITA' in s.screen().texts():
+                break
+            press(s, s.screen(), 'CONTINUA', 3) or press(s, s.screen(), 'ESCI', 3) or s.send('fire dump:2')
+
+    with Session('world_job_squad', exe, {}, 'dump:2', 600) as s:
+        s.wait()
+        if not pick_career(s, path):
+            return False, 'new career: ' + str(s.screen().texts()[:8])
+        s.send('fire dump:3')
+        leave(s)
+        b2 = s.result.base2
+        s.poke(b2 + offers, struct.pack('<H', word) + b'\xff' + bytes(17) + struct.pack('<I', 500000) + bytes(2))
+        s.poke(b2 + num, struct.pack('<H', 1))
+        walk(s, s.screen().find('VISUAL. COMPETIZ.', exact=True), 3)    # (back: ContestMenuOnReturn -> CheckJobOffers)
+        press(s, s.screen(), 'ESCI', 3)
+        leave(s)
+        i = next((e[0] for e in s.screen().entries if e[1] and ('LAVORO' in e[1]) and not e[2] and not e[3]), None)
+        if i is None:
+            return False, f'no job offer entry: {s.screen().texts()[:20]}'
+        walk(s, i, 3)
+        s.log.append(f'[offers] {s.screen()}')
+        s.shot('offers')
+        letter = s.screen()
+        vb = next((e[0] for e in letter.entries if e[1] and 'SQUADRA' in e[1] and not e[2] and not e[3]), None)
+        if vb is None:                                  # (the offers list: the offer's row first)
+            rows = [j for j, g in enumerate(letter.geom) if g[0] == 8 and g[2] == 304 and not letter.entries[j][2]
+                    and not letter.entries[j][3]]
+            if rows:
+                walk(s, rows[0], 3)
+                letter = s.screen()
+                s.log.append(f'[letter] {letter}')
+                vb = next((e[0] for e in letter.entries if e[1] and 'SQUADRA' in e[1] and not e[2] and not e[3]), None)
+        s.shot('letter')
+        if vb is None:
+            return False, f'no letter: {letter.texts()[:24]}'
+        press(s, letter, 'VIS. SQUADRA', 3)
+        sq = s.screen()
+        s.log.append(f'[squad] {sq}')
+        s.shot('page1')
+        btn = sq.entries[2]                             # (the rows are drawn, not menu texts: the pictures page1 / page2)
+        check(club in sq.texts() and not btn[2] and btn[1] == 'PAG. SUCC.', f'page 1: button {btn}, {sq.texts()[:6]}', errs)
+        press(s, sq, 'PAG. SUCC.', 2)
+        sq2 = s.screen()
+        s.shot('page2')
+        check(sq2.entries[2][1] == 'PAG. PREC.', f'page 2: button {sq2.entries[2]}', errs)
+        info.append(f'letter VIS. SQUADRA: PAG. SUCC. -> page 2 ({len(extras)} extras: {extras[0]} .. {extras[-1]})')
+        press(s, sq2, 'PAG. PREC.', 2)                  # (back to page 1)
+        check(s.screen().entries[2][1] == 'PAG. SUCC.', f'back to page 1: {s.screen().entries[2]}', errs)
+        press(s, s.screen(), 'CONTINUA', 3)             # -> the letter
+        back = s.screen()
+        if back.find('CONSIDERA', exact=True) is None:
+            return False, '; '.join(errs + [f'no CONSIDERA on the letter: {back.texts()[:14]}'])
+        press(s, back, 'CONSIDERA', 3)                  # (mid-season: ACCETTA only at the season end)
+        for _ in range(6):
+            s.log.append(f'[after] {s.screen()}')
+            if 'TRASFERIMENTI' in s.screen().texts():
+                break
+            press(s, s.screen(), 'CONTINUA', 3) or press(s, s.screen(), 'ESCI', 3) or s.send('fire dump:2')
+        for _ in range(6):                              # career menu -> ESCI -> main menu: save
+            s.log.append(f'[save] {s.screen()}')
+            if s.screen().find('SALVA CARRIERA', exact=True) is not None:
+                break
+            press(s, s.screen(), 'ESCI', 3) or press(s, s.screen(), 'ABBANDONA', 3)
+        walk(s, 'SALVA CARRIERA', 2)
+        s.send(name_entry('WJOB') + ' dump:3')
+        car = os.path.join(s.run, 'SWOS', 'WJOB.CAR')
+    if not os.path.exists(car):
+        return False, '; '.join(errs + ['no WJOB.CAR'])
+    keys = ('W8485_BUILD', 'W8485_FROM', 'W8485_NOSACK', 'W8485_SAVE_END', 'SWOSTEST_SCENARIO')
+    keep = {k: os.environ.get(k) for k in keys}
+    try:                                                # the season to its end (saved before CONTINUA)
+        os.environ.update(W8485_BUILD=exe, W8485_FROM=car, W8485_NOSACK='1', W8485_SAVE_END='WJOE',
+                          SWOSTEST_SCENARIO='world_job_squad_season')
+        ok, msg = world8485()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    if 'saved ' not in msg:
+        return False, '; '.join(errs + [f'season: {msg[:200]}'])
+    end = msg.split('saved ', 1)[1].strip()
+    with Session('world_job_squad_next', exe, {'WJOE.CAR': end}, 'dump:2', 600) as s:
+        s.wait()
+        s.send(LOAD1 + ' dump:3')
+        if press(s, s.screen(), 'OFFERTE LAVORO', 3) is None:
+            return False, '; '.join(errs + [f'season end: no OFFERTE LAVORO {s.screen().texts()[:14]}'])
+        scr = s.screen()
+        s.log.append(f'[end offers] {scr}')
+        row = next((e[0] for e in scr.entries if e[1] and club in e[1] and not e[2] and not e[3]), None)
+        if row is None:
+            return False, '; '.join(errs + [f'season end: no offer of {club}: {scr.texts()[:10]}'])
+        rows = [j for j, g in enumerate(scr.geom) if g[0] == 8 and g[2] == 304 and not scr.entries[j][2]
+                and not scr.entries[j][3]]              # (the selectable full-width rows: the one at the text's height)
+        pick = next((j for j in rows if abs(scr.geom[j][1] - scr.geom[row][1]) <= 4), rows[-1] if rows else row)
+        s.log.append(f'[end rows] {[(j, scr.geom[j]) for j in rows]} text {row} {scr.geom[row]} -> {pick}')
+        walk(s, pick, 3)
+        s.log.append(f'[end letter] {s.screen()}')
+        if s.screen().find('ACCETTA', exact=True) is None:
+            return False, '; '.join(errs + [f'season end: not the letter of {club}: {s.screen().texts()[:6]}'])
+        if press(s, s.screen(), 'VIS. SQUADRA', 3) is not None:    # (the letter at the season end: the same pages)
+            check(s.screen().entries[2][1] == 'PAG. SUCC.' and not s.screen().entries[2][2],
+                  f'season end letter: button {s.screen().entries[2]}', errs)
+            s.shot('end_page1')
+            press(s, s.screen(), 'CONTINUA', 3)
+        if press(s, s.screen(), 'ACCETTA', 3) is None:
+            return False, '; '.join(errs + [f'season end: no ACCETTA {s.screen().texts()[:14]}'])
+        nxt = next_season_save(s, 'WJON')               # CONTINUA CARRIERA: the new job
+    if not nxt.endswith('.CAR'):
+        return False, '; '.join(errs + [f'next season: {nxt}'])
+    d = open(nxt, 'rb').read()[56192:56192 + 684 + 38 * 16]   # (the .CAR's careerTeam + its 16 more slots)
+    name = d[5:22].split(b'\0')[0].decode('latin1')
+    got = [x for x in (d[684 + 38 * i + 3:684 + 38 * i + 26].split(b'\0')[0].decode('latin1') for i in range(16)) if x]
+    check(name == club and all(x in got for x in extras), f'next season: careerTeam {name!r}, slots 16.. {got}', errs)
+    info.append(f'next season: {name} with {sum(x in got for x in extras)}/{len(extras)} extras in slots 16.. ({len(got)} named)')
+    return not errs, '; '.join(errs + info)
+
+
 
 if __name__ == '__main__':
     sys.exit(main(sys.argv[1:]))

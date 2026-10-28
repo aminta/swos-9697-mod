@@ -320,7 +320,120 @@ xs_row:                                 ; replaces `call GetPlayerInfoBreakPosit
     add esp, 4
     ret
 
+vs_init:                                ; 4.0.5 viewSquadMenu's init (the job letter's VIS. SQUADRA, ViewFutureTeam): the game's
+    call VSINIT                         ; ViewSquadInit, then - only in the letter's view (its flag word) of a club that is
+    pushad                              ; not the managed one - a PAG. SUCC. button on entry 2 (its ESCI, hidden there)
+    mov byte [vs_pg], 0
+    mov dword [vs_team], 0
+    cmp word [JOBVIEW], 0
+    je .out
+    mov esi, [SQTP]
+    cmp esi, CAREERTEAM
+    je .out
+    movzx eax, word [esi]
+    call XT_BLOCK
+    xor ebx, ebx
+    test eax, eax
+    jz .out
+    lea esi, [eax + 4]
+    mov ecx, MAXE_
+.c: cmp byte [esi + 3], 0
+    je .s
+    inc ebx
+.s: add esi, PLAYER_
+    dec ecx
+    jnz .c
+    test ebx, ebx
+    jz .out
+    mov [vs_n], ebx
+    mov eax, [SQTP]
+    mov [vs_team], eax
+    mov dword [D0], 3                   ; CONTINUA: the button goes left of it
+    call CALC
+    mov esi, [A0]
+    mov eax, [esi + 14h]
+    mov [xs_xy], eax
+    mov eax, [esi + 18h]
+    mov [xs_wh], eax
+    mov byte [esi + 8], 2               ; CONTINUA: left -> the button
+    mov dword [D0], 2
+    call CALC
+    mov edi, [A0]
+    mov word [edi + 4], 0               ; shown, enabled
+    mov word [edi + 6], 0
+    mov eax, [xs_xy]
+    sub ax, 80
+    mov [edi + 14h], ax
+    shr eax, 16
+    mov [edi + 16h], ax
+    mov eax, [xs_wh]
+    shr eax, 16
+    mov [edi + 1Ah], ax
+    mov word [edi + 18h], 76
+    mov word [edi + 1Eh], 14            ; the menus' green
+    mov dword [edi + 8], 0FFFF03FFh     ; left -, right CONTINUA, up -, down -
+    mov dword [edi + 26h], vs_buf
+    mov dword [edi + 2Ah], vs_flip
+    call vs_label
+.out:
+    popad
+    ret
+
+vs_label:
+    mov edi, vs_buf
+    mov esi, [xb_txt]
+    cmp byte [vs_pg], 0
+    je .c
+    mov esi, [xb_txt + 4]
+.c: mov al, [esi]
+    mov [edi], al
+    inc esi
+    inc edi
+    test al, al
+    jnz .c
+    ret
+
+vs_flip:                                ; fire on the button: the other page, redrawn
+    xor byte [vs_pg], 1
+    pushad
+    call vs_label
+    popad
+    mov dword [D0], 2
+    call SETCUR
+    jmp DRAWMENU
+
+vs_row:                                 ; ViewSquadAfterDrawCommon's `call GetPlayerInfoBreakPosition`: page 2 of the letter's
+    cmp byte [vs_pg], 0                 ; club = its r-th extra still there
+    je .n
+    mov eax, [SQTP]
+    cmp eax, [vs_team]
+    jne .n
+    movzx eax, word [D1]
+    cmp eax, [vs_n]
+    jae .none
+    add word [D1], 16
+    add word [D6], 16                   ; (the shown number: 17..)
+.n: jmp GPIBP
+.none:
+    add esp, 4
+    ret
+
+vs_pick:                                ; ViewSquadCommon's: page 2 is display only (no index past 16 reaches the callers)
+    cmp byte [vs_pg], 0
+    je .n
+    mov eax, [SQTP]
+    cmp eax, [vs_team]
+    jne .n
+    add esp, 4                          ; (out of ViewSquadCommon: nothing picked, the menu stays)
+    ret
+.n: jmp GPIBP
+
 align 4
+vs_n: dd 0
+vs_team: dd 0
+vs_pg: db 0
+align 4
+vs_buf: times 16 db 0
 xs_n: dd 0
 xs_team: dd 0
 xs_xy: dd 0
@@ -404,7 +517,24 @@ def find(p):
         if _rel(d1, m.start(1)) == gp:
             rows.append(m.start(1))
     assert len(rows) == 2, rows
-    return dict(tail=tail, smspp=smspp, careerteam=careerteam, rows=rows, ga=ga_site, getplayer=getplayer, sf=sf[0], sqteam=sf[1], D0=D0, A0=A0, teamoff=teamoff, teamptr=teamptr, init=init.start(), draw=draw[0].start(1), pick=pick[0].start(1),
+    # 4.0.5 viewSquadMenu (ShowSquad): ViewSquadInit (mov ax,[selTeamNumber]; mov [D0],ax; cmp word [D0],-1; jz;
+    # mov eax,[squadTeamPtr]; mov [A0],eax; ... jnz; cmp word [careerNumPlayers],16), the menu = the obj2 dword pointing to it;
+    # its two `mov eax,[squadTeamPtr]; mov [A0],eax; call GetPlayerInfoBreakPosition` (ViewSquadCommon, then AfterDraw);
+    # ViewFutureTeam (the job letter): mov word [D3],-1; mov word [D4],-1; mov word [flag],1; call ShowSquad; mov word [flag],0
+    vi = [x for x in re.finditer(rb'\x66\xa1....\x66\xa3' + ptr(D0) + rb'\x66\x83\x3d' + ptr(D0) + rb'\xff\x74.\xa1(....)\xa3' + ptr(A0) +
+                                 rb'\x8b\x35' + ptr(A0) + rb'\x66\x8b\x06\x66\x39\x05' + ptr(D0) + rb'\x75.\x66\x83\x3d....\x10', d1, re.S)]
+    assert len(vi) == 1, len(vi)
+    sqtp = _u32(d1, vi[0].start(1))
+    vrefs = [f[1] for f in p.le.fixups() if f[0] == 2 and (f[3], f[4]) == (1, vi[0].start())]
+    assert len(vrefs) == 1, vrefs
+    vcalls = [x.start(1) for x in re.finditer(rb'\xa1' + ptr(sqtp) + rb'\xa3' + ptr(A0) + rb'(\xe8....)', d1, re.S)]
+    assert len(vcalls) == 2 and all(_rel(d1, c) == gp for c in vcalls), vcalls
+    jv = [x for x in re.finditer(rb'\x66\xc7\x05' + ptr(D0 + 12) + rb'\xff\xff\x66\xc7\x05' + ptr(D0 + 16) +
+                                 rb'\xff\xff\x66\xc7\x05(....)\x01\x00\xe8....\x66\xc7\x05\1\x00\x00\xe9', d1, re.S)]
+    assert len(jv) == 1, len(jv)
+    jobview = p.target(1, jv[0].start(1))
+    return dict(vinit=vi[0].start(), vmenu=vrefs[0], sqtp=sqtp, vpick=vcalls[0], vdraw=vcalls[1], jobview=jobview,
+                tail=tail, smspp=smspp, careerteam=careerteam, rows=rows, ga=ga_site, getplayer=getplayer, sf=sf[0], sqteam=sf[1], D0=D0, A0=A0, teamoff=teamoff, teamptr=teamptr, init=init.start(), draw=draw[0].start(1), pick=pick[0].start(1),
                 gpibp=gp, setcur=_rel(d1, t.start(1)), drawmenu=_rel(d1, t.start(2)), calc=_rel(d1, c.start(1)),
                 menu=start, users=users)
 
@@ -455,7 +585,8 @@ def patch(p, at, lang):
     at = (at + 15) & ~15
     sym = {'D0': (2, s['D0']), 'D1': (2, s['D0'] + 4), 'D6': (2, s['D0'] + 24), 'A0': (2, s['A0']), 'TEAMOFF': (2, s['teamoff']),
            'CALC': (1, s['calc']), 'SETCUR': (1, s['setcur']), 'DRAWMENU': (1, s['drawmenu']), 'GPIBP': (1, s['gpibp']),
-           'XT_BLOCK': (1, xl['xt_block']), 'GETPLAYER': (1, s['getplayer']), 'SMSPP': (1, s['smspp']), 'CAREERTEAM': (2, s['careerteam']), 'SQTEAM': (2, s['sqteam']), 'PLAYER_': (0, xtra.PLAYER), 'MAXE_': (0, xtra.MAX_EXTRA), 'NEWENT_': (0, new)}
+           'XT_BLOCK': (1, xl['xt_block']), 'GETPLAYER': (1, s['getplayer']), 'SMSPP': (1, s['smspp']), 'CAREERTEAM': (2, s['careerteam']), 'SQTEAM': (2, s['sqteam']), 'PLAYER_': (0, xtra.PLAYER), 'MAXE_': (0, xtra.MAX_EXTRA), 'NEWENT_': (0, new),
+           'VSINIT': (1, s['vinit']), 'SQTP': (2, s['sqtp']), 'JOBVIEW': s['jobview']}
     code, fix = nasmcave.assemble(ASM, at, sym)
     lab = nasmcave.labels(ASM, at, sym)
     assert not any(p.get(1, at, len(code)))
@@ -504,5 +635,9 @@ def patch(p, at, lang):
         call(o, lab['xs_row'], 5)
     call(s['ga'], lab['xs_ga'], 10, 3)                   # cmp word [D1], 16 (66 83 3D addr 10) + jnc
     call(s['tail'], lab['xs_tail'], 5)                  # SquadFinish's `call SquadMenuSavePlayerPositions`
+    call(s['vdraw'], lab['vs_row'], 5)                  # 4.0.5 the job letter's VIS. SQUADRA: page 2 = the extras
+    call(s['vpick'], lab['vs_pick'], 5)
+    p.retarget(2, s['vmenu'], 1, lab['vs_init'])        # (viewSquadMenu's init pointer)
+    p.put(2, s['vmenu'], struct.pack('<I', lab['vs_init']))
     print(f'exe: club browse pages: menu copy obj1+{mat:#x} ({len(copy)} B), code obj1+{at:#x} ({len(code)} B)')
     return (mat + len(copy) + 15) & ~15

@@ -30,6 +30,7 @@ look A, 27/10): the hair (raw colours 13 / 9 / 12) loses its outer ring, the res
 4 at the sides, 5 inside), then the team's face 2 / face 0 conversion. In BSS2 (the obj2 tail's end: nothing before
 it moves). Menus keep the file's face icon; goalkeepers keep their hair.
 """
+import os
 import re
 import struct
 
@@ -42,8 +43,9 @@ NEW2 = NEW1 + 101
 SET_BYTES = 0x3C00                      # 101 sprites: 15216 bytes (TEAM1/2/3.DAT, all 1 quad wide, at most 20 lines)
 BSS_SIZE = 2 * SET_BYTES
 NEW3 = 1708                             # 4.0.3: the second pair of variant sets (team 1, team 2 = + 101), after
+ICONBL = 1910                           # 4.0.5: the bald face icons (light, dark = + 1)
 SCR_OFF = 2 * SET_BYTES                 # menunum's 1620..1707 (to 1909: spritesIndex's room ends at 2103)
-BSS2_SIZE = SCR_OFF + 0x400             # (patch.py: at the obj2 tail's end; + bald_shape's scratch)
+BSS2_SIZE = SCR_OFF + 0x1000            # (patch.py: at the obj2 tail's end; + bald.c's .bss)
 BALD_AT = 25                            # PlayerFile.field_19 (from the player record; positionAndFace = 26)
 FLAG = 49                               # PlayerInfoHeader.field_31
 BLOND = (6, 4, 5, 4, 4, 3, 13, 15, 9, 15, 12, 6, -1)   # black skin; hair bright/medium -> yellow, dark -> orange
@@ -97,7 +99,7 @@ copy_sets:                              ; replaces mov word [D0], 341 (after Ini
     mov byte [SHAPE], 0
     cmp dl, 2
     jb .ns0
-    mov byte [SHAPE], 1                 ; (bald: look A)
+    mov [SHAPE], dl                     ; (bald: 2 dark, 3 light - bald.c)
 .ns0:
     movzx ebp, word [PIDX + ecx * 2]
     mov edi, [PBUF + ecx * 4]
@@ -168,119 +170,25 @@ copy_sets:                              ; replaces mov word [D0], 341 (after Ini
     jnz .spr
     ret
 
-bald_shape:                             ; ebx = a copied raw sprite (1 quad wide): look A on its hair (13 / 9 / 12)
-    cmp word [ebx + 14], 1
+bald_shape:                             ; ebx = a copied raw sprite: its hair reshaped by bald.c (bald_c), SHAPE = 2
+    cmp word [ebx + 14], 1              ; bald dark / 3 bald light
     jne .r
-    movzx ecx, word [ebx + 12]
-    test ecx, ecx
-    jz .r
-    cmp ecx, 24
-    ja .r
-    shl ecx, 4                          ; ecx = pixels
-    mov esi, [ebx]
-    xor edx, edx
-.u:                                     ; unpack: SCR[2j] = high nibble, SCR[2j+1] = low
-    mov al, [esi + edx]
-    mov ah, al
-    shr al, 4
-    and ah, 0Fh
-    mov [SCR + edx * 2], al
-    mov [SCR + edx * 2 + 1], ah
-    inc edx
-    lea eax, [edx * 2]
-    cmp eax, ecx
-    jb .u
-    xor edx, edx                        ; pass 1: MARK = hair with a transparent / outside 4-neighbour
-.p1:
-    mov byte [MARK + edx], 0
-    mov al, [SCR + edx]
-    call .hair
-    jne .n1
-    mov eax, edx
-    sub eax, 16
-    jb .d1
-    cmp byte [SCR + eax], 0
-    je .d1
-    lea eax, [edx + 16]
-    cmp eax, ecx
-    jae .d1
-    cmp byte [SCR + eax], 0
-    je .d1
-    test dl, 0Fh
-    jz .d1
-    cmp byte [SCR + edx - 1], 0
-    je .d1
-    mov al, dl
-    and al, 0Fh
-    cmp al, 0Fh
-    je .d1
-    cmp byte [SCR + edx + 1], 0
-    jne .n1
-.d1:
-    mov byte [MARK + edx], 1
-.n1:
-    inc edx
-    cmp edx, ecx
-    jb .p1
-    xor edx, edx                        ; pass 2: drop them
-.p2:
-    cmp byte [MARK + edx], 0
-    je .n2
-    mov byte [SCR + edx], 0
-.n2:
-    inc edx
-    cmp edx, ecx
-    jb .p2
-    xor edx, edx                        ; pass 3: the rest of the hair -> skin: 6 on top, 4 at the sides, 5 inside
-.p3:
-    mov al, [SCR + edx]
-    call .hair
-    jne .n3
-    mov bl, 6
-    cmp edx, 16
-    jb .w3
-    cmp byte [SCR + edx - 16], 0
-    je .w3
-    mov bl, 4
-    test dl, 0Fh
-    jz .w3
-    cmp byte [SCR + edx - 1], 0
-    je .w3
-    mov al, dl
-    and al, 0Fh
-    cmp al, 0Fh
-    je .w3
-    cmp byte [SCR + edx + 1], 0
-    je .w3
-    mov bl, 5
-.w3:
-    mov [SCR + edx], bl
-.n3:
-    inc edx
-    cmp edx, ecx
-    jb .p3
-    xor edx, edx                        ; repack
-.k:
-    mov al, [SCR + edx * 2]
-    shl al, 4
-    or al, [SCR + edx * 2 + 1]
-    mov [esi + edx], al
-    inc edx
-    lea eax, [edx * 2]
-    cmp eax, ecx
-    jb .k
+    pushad
+    movzx eax, byte [SHAPE]
+    cmp eax, 2
+    sete al
+    push eax                            ; dark
+    movzx eax, word [ebx + 12]
+    push eax                            ; lines
+    push dword [ebx]                    ; pixels
+    call BALDC
+    add esp, 12
+    popad
 .r:
-    ret
-.hair:                                  ; ZF = 1 when al is a raw hair colour
-    cmp al, 13
-    je .h
-    cmp al, 9
-    je .h
-    cmp al, 12
-.h:
     ret
 
 SHAPE: db 0
+align 2                                 ; (PV .. PIDX: one block, harness variant_sets)
 PV: db 0, 0                             ; the variant (flag) in each pair this match, 0 = none
 FACEOF: db 0, FACE_, 2, 0               ; per flag: the conversion table (darkblond 3, bald dark 2, bald light 0)
 align 2
@@ -387,11 +295,177 @@ fo:
     pop ecx
     ret
 
-icon_d0:                                ; replaces add word [D0], 186 (face icon)
+icon_d0:                                ; replaces add word [D0], 186 (face icon; A6 -> the player record)
     add word [D0], 186
-    jmp build_icon
+    call build_icon
+    push edx
+    push eax
+    mov edx, D0
+    mov eax, [A6]
+    jmp bicon
 icon_d1:
     add word [D1], 186
+    call build_icon
+    push edx
+    push eax
+    mov edx, D1
+    mov eax, [A6]
+    jmp bicon
+icon_d1a:                               ; (the Edit Teams face button: A0 -> the player record)
+    add word [D1], 186
+    call build_icon
+    push edx
+    push eax
+    mov edx, D1
+    mov eax, [A0]
+bicon:                                  ; 4.0.5: a bald player (record byte 25 bit 0) gets the bald icon of his skin:
+    test eax, eax                       ; 1910 light (from 186), 1911 dark (from 188, faces 2 / 3)
+    jz .r
+    test byte [eax + 66h - 26 + BALD_AT_], 1
+    jz .r
+    call build_bald
+    cmp word [edx], 186 + 2
+    mov word [edx], ICONBL_
+    jb .r
+    mov word [edx], ICONBL_ + 1
+.r:
+    pop eax
+    pop edx
+    ret
+build_bald:                             ; the two bald icons: the face icon with its hair (colour 3, top three rows)
+    pushad                              ; in the face's skin colour, the top row's two end pixels off (a round head)
+    mov ebx, 186
+    mov ebp, ICONBL_
+    mov edi, ICONBUF
+    call .one
+    mov ebx, 188
+    mov ebp, ICONBL_ + 1
+    mov edi, ICONBUF + 100h
+    call .one
+    popad
+    ret
+.one:
+    mov esi, [SPRIDX + ebx * 4]
+    test esi, esi
+    jz .x
+    cmp word [esi + 14], 1
+    jne .x
+    movzx ecx, word [esi + 12]
+    cmp ecx, 16
+    ja .x
+    xor eax, eax
+.h:
+    mov edx, [esi + eax]
+    mov [edi + eax], edx
+    add eax, 4
+    cmp eax, 24
+    jb .h
+    lea eax, [edi + 24]
+    mov [edi], eax
+    mov [edi + 22], bp
+    mov [SPRIDX + ebp * 4], edi
+    mov esi, [esi]
+    shl ecx, 3
+    xor eax, eax
+.p:
+    mov dl, [esi + eax]
+    mov [edi + 24 + eax], dl
+    inc eax
+    cmp eax, ecx
+    jb .p
+    mov bl, 0                           ; the skin: the first pixel of rows 3.. that is neither 0 nor 3
+    mov eax, 24
+.s:
+    cmp eax, ecx
+    jae .sk
+    mov dl, [edi + 24 + eax]
+    mov dh, dl
+    shr dh, 4
+    jz .s2
+    cmp dh, 3
+    je .s2
+    mov bl, dh
+    jmp .sk
+.s2:
+    and dl, 0Fh
+    jz .s3
+    cmp dl, 3
+    je .s3
+    mov bl, dl
+    jmp .sk
+.s3:
+    inc eax
+    jmp .s
+.sk:
+    test bl, bl
+    jz .x
+    xor eax, eax                        ; rows 0..2 (8 bytes each): colour 3 -> skin
+.c:
+    mov dl, [edi + 24 + eax]
+    mov dh, dl
+    and dh, 0F0h
+    cmp dh, 30h
+    jne .lo
+    and dl, 0Fh
+    mov dh, bl
+    shl dh, 4
+    or dl, dh
+.lo:
+    mov dh, dl
+    and dh, 0Fh
+    cmp dh, 3
+    jne .n
+    and dl, 0F0h
+    or dl, bl
+.n:
+    mov [edi + 24 + eax], dl
+    inc eax
+    cmp eax, 24
+    jb .c
+    xor ecx, ecx                        ; the top row's first and last pixels: transparent
+    mov esi, -1
+    mov edx, -1
+.t:
+    mov eax, ecx
+    shr eax, 1
+    mov al, [edi + 24 + eax]
+    test cl, 1
+    jnz .tl
+    shr al, 4
+.tl:
+    and al, 0Fh
+    jz .tn
+    cmp esi, -1
+    jne .tm
+    mov esi, ecx
+.tm:
+    mov edx, ecx
+.tn:
+    inc ecx
+    cmp ecx, 16
+    jb .t
+    cmp esi, -1
+    je .x
+    mov eax, esi
+    call .clr
+    mov eax, edx
+    call .clr
+.x:
+    ret
+.clr:                                   ; pixel eax of row 0 -> 0
+    push ebx
+    mov ebx, eax
+    shr ebx, 1
+    test al, 1
+    jnz .c1
+    and byte [edi + 24 + ebx], 0Fh
+    pop ebx
+    ret
+.c1:
+    and byte [edi + 24 + ebx], 0F0h
+    pop ebx
+    ret
+
 build_icon:                             ; sprite 189 = 188 with the hair (colour 3, top three rows) yellow
     pushad
     mov esi, [SPRIDX + 188 * 4]
@@ -503,10 +577,17 @@ def patch(p, area, at, bss, spr, bss2):
                                    'NEW1_': (0, NEW1), 'NEW2_': (0, NEW2)})
     assert t(face - 0x16 + 2) == (2, A0 + 20), t(face - 0x16 + 2)   # (mov esi, [A5] / mov al, [esi+66h] before it)
     sym = {'D0': (2, D0), 'D1': (2, D1), 'A0': (2, A0), 'A6': (2, A6), 'SPRIDX': (2, spr), 'BUF': (2, bss),
-           'A5': (2, A0 + 20), 'BUF2': (2, bss2), 'BALD_AT_': (0, BALD_AT), 'NEW3_': (0, NEW3), 'SCR': (2, bss2 + SCR_OFF), 'MARK': (2, bss2 + SCR_OFF + 0x200),
+           'A5': (2, A0 + 20), 'BUF2': (2, bss2), 'BALD_AT_': (0, BALD_AT), 'NEW3_': (0, NEW3), 'ICONBL_': (0, ICONBL), 'ICONBUF': (2, bss2 + SCR_OFF + 0x800), 'SCR': (2, bss2 + SCR_OFF), 'MARK': (2, bss2 + SCR_OFF + 0x200),
            'USEIND': useind, 'T1TAB': (2, t1tab), 'T2TAB': (2, t2tab), 'SKINTAB': (1, skintab), 'CONVSPR': (1, csc),
            'FACE_': (0, FACE), 'FLAG_': (0, FLAG), 'FACE_OFF': (0, face_off), 'NEW1_': (0, NEW1), 'NEW2_': (0, NEW2),
            'SET_': (0, SET_BYTES)}
+    import cobj                                           # 4.0.5: bald.c (the bald heads) first, the glue after it
+    obj = cobj.compile_c(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'bald.c'))
+    csyms, cend, cbss = cobj.link(p, obj, at, (2, bss2 + SCR_OFF), limit=at + 0x900)
+    assert cbss <= BSS2_SIZE - SCR_OFF, hex(cbss)
+    sym['BALDC'] = csyms['bald_c']
+    print(f'exe: bald.c obj1+{at:#x}..{cend:#x}, .bss {cbss} B')
+    at = (cend + 15) & ~15
     code, cfix = nasmcave.assemble(ASM, at, sym)
     lab = nasmcave.labels(ASM, at, sym)
     UNCH['sym'].update(PV=(1, lab['PV']), PIDX=(1, lab['PIDX']))
@@ -530,7 +611,8 @@ def patch(p, area, at, bss, spr, bss2):
     for s in icons:
         reg = t(s + 3)
         assert reg in ((2, D0), (2, D1)), (hex(s), reg)
-        hook(s, 9, 'icon_d1' if reg == (2, D1) else 'icon_d0', (3,))
+        lab_ = 'icon_d0' if reg == (2, D0) else 'icon_d1a' if cyc < s < cyc + 0x80 else 'icon_d1'
+        hook(s, 9, lab_, (3,))
     assert p.get(1, cyc + 15, 1) == b'\x03'
     p.put(1, cyc + 15, b'\x04')                           # Edit Teams face button: 0..3
     print(f'exe: blond hair: face 3 (sets {NEW1}.., {NEW2}.., obj2+{bss:#x}; code obj1+{at:#x}, {len(code)} B)')

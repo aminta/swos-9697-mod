@@ -11614,7 +11614,7 @@ def dkb_sets(r, spr, blond, info):
             for k in range(101):
                 a, b_ = frame(ref + k), frame(bald + k)
                 d_ = [(x, y) for x, y in zip(a[2], b_[2]) if x != y]
-                if a[:2] != b_[:2] or any(x != 3 or (y and y not in skin) for x, y in d_):
+                if a[:2] != b_[:2] or any(x not in (0, 3) or (y and y not in skin) or (x == 0 and not y) for x, y in d_):   # (4.0.5: a back view's head may fill empty pixels)
                     bad.append(k)
                 gone += sum(1 for x, y in d_ if not y)
                 skinned += sum(1 for x, y in d_ if y)
@@ -11657,7 +11657,7 @@ def world_darkblond():
     errs, info = [], []
     team = os.environ.get('DKB_TEAM', 'EUROPA,ITALIA,SERIE A,ROMA').split(',')
     if 'DKB_POKE' not in os.environ:                  # (4.0.3: MALEN is bald in the data: darkblond again here)
-        os.environ['DKB_POKE'] = 'DONYELL MALEN:unbald'
+        os.environ['DKB_POKE'] = 'DONYELL MALEN:unbald,DONYELL MALEN:darkblond'   # (data 403c4: MALEN plain dark)
     cars = {'SETUP.DAT': os.environ['DKB_SETUP']} if os.environ.get('DKB_SETUP') else {}   # (GOG's factory file:
     with Session(os.environ.get('DKB_NAME', 'world_darkblond'), b, cars, 'dump:2', 600, match=True) as s:   # (video
                                                                                          # speed 10 = half mode)
@@ -11673,6 +11673,11 @@ def world_darkblond():
         p189 = struct.unpack('<I', r.read(r.base2 + spr + 189 * 4, 4))[0]
         icon = r.read(struct.unpack('<I', r.read(p189, 4))[0], 64) if p189 else b''
         check(15 in nib(icon[:24]), f'face icon 189 without yellow hair ({icon[:24].hex()})', errs)
+        if os.environ.get('DKB_NAME') == 'world_bald':   # 4.0.5: MALEN (bald in the data) -> the bald dark icon 1911
+            pb = struct.unpack('<I', r.read(r.base2 + spr + 1911 * 4, 4))[0]
+            ib = r.read(struct.unpack('<I', r.read(pb, 4))[0], 24) if pb else b''
+            check(pb and 3 not in nib(ib), f'bald dark icon 1911 missing or with black hair ({ib.hex()})', errs)
+            info.append('bald icon 1911 built')
         press(s, s.screen(), 'ESCI', 3)
         press(s, s.screen(), 'PARTITA', 3)
         opp = os.environ.get('DKB_OPP')               # (the reporter's case: the career club v that opponent, e.g. ROMA)

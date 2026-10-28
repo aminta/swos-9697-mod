@@ -509,9 +509,9 @@ def patch_exe(src, dst, remap, lang='it'):
     import teamstab
     assert menunum.NEWBASE + 88 == blond.NEW3 and blond.NEW3 + 202 <= shirtnum.NEWBASE + 3072 // 4
     bald_bss = num_bss + shirtnum.BSS_SIZE + blond.BSS_SIZE + menunum.BSS_SIZE + fmtpage.BSS_SIZE + teamstab.BSS_SIZE
-    bl_at = hist2 + h2 + 0x1000 * (lpb + sp_pg + sc_pg + ct_pg) + 0x2800   # 4.0.3: blond's code (bald: longer; the
+    bl_at = hist2 + h2 + 0x1000 * (lpb + sp_pg + sc_pg + ct_pg) + 0x2200   # 4.0.3: blond's code (bald: longer; the
     bl_end = blond.patch(p, area, bl_at, num_bss + shirtnum.BSS_SIZE, shirtnum.spr_index(p), bald_bss)   # cosmetics
-    assert bl_end <= bl_at + 0x800, hex(bl_end)          # cave is full) in controls' last data page, after its data
+    assert bl_end <= bl_at + 0xE00, hex(bl_end)          # cave is full) in controls' last data page, after its data
     cos = menunum.patch(p, cos, num_bss + shirtnum.BSS_SIZE + blond.BSS_SIZE)   # 3.3.4: menu numbers 17..99
     cos = avgprice.patch(p, cos)                 # 3.3.4: average player price >= 1 (divide error, 1984-85 Iceland)
     import devname                               # 4.0.2: DOS device names (CON, PRN, AUX ...) refused as save names

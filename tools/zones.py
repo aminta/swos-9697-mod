@@ -210,6 +210,15 @@ def pack_zones(d, lang, lp=False, rank=None, detail=None):
         po = comp.get('ko_playoffs') or []
         if isinstance(po, int):
             po = []
+        for p in po:                                     # 4.0.5 NZ: a title contest of one group then a one-tie final
+            rd = p.get('rounds') or []                   # (gplay ko_t2 GF mode): its group table (the game's type 2,
+            if p.get('kind') == 'title' and len(rd) == 2 and 'group' in rd[0] and len(rd[1].get('ties') or []) == 1:
+                raw = json.load(open(os.path.join(d, 'pack.json')))   # titled as its FORMAT page, the pack's own
+                raw = next((q for c in raw.get('competitions', []) for q in c.get('ko_playoffs') or []   # name, not the
+                            if isinstance(q, dict) and q.get('key') == p.get('key')), p)   # fitted one): 1st-2nd
+                v = raw['names'].get(lang) or raw['names'].get('*')                       # to the final
+                nm = v[-1] if isinstance(v, list) else v
+                out.append((world, _title(m, lang, nm), [(1, 2, GREEN)], 'lower', 0, None, ['po_title']))
         for i, dv in enumerate(divs):
             n, rng, why = dv['clubs'], [], []
             if id(dv) in top:

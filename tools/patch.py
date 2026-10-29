@@ -667,7 +667,7 @@ def patch_exe(src, dst, remap, lang='it'):
     assert ctl_end <= ctl_at + 0x1000, hex(ctl_end)        # (the code page; controls' data pages follow it)
     import benchx                                # 4.1: a bench of up to 15 (block 1: the in-match teams of 26)
     bn_at = ctl_at + 0x1000 * ctl_pg
-    bn_end = benchx.patch(p, bn_at)
+    bn_end = benchx.patch(p, bn_at, ns_at)
     assert bn_end <= bn_at + 0x1000 * bn_pg, hex(bn_end)
     p.set_vsize(1, OBJ1_NEW_VSIZE + (0x1000 * (cp + 2 + cdp) if worlds else 0) + h2 + 0x1000 * (lpb + sp_pg + sc_pg + ct_pg + ctl_pg
                                                                                           + bn_pg))

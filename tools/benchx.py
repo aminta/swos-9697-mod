@@ -17,7 +17,18 @@ substituted). The buffers' tail (bytes 1018..1703) is free (harness bench_mem, 2
 - The game's own `cmp word [gameMaxSubstitutes], 5` branches (a bench over 5 = the first bench place is the
   goalkeeper's only, in FirePressedInSubsMenu, UpdateSubstitutePlayerIndices and DrawBenchPlayersAndCoach twice)
   compare with 127: never taken.
-Still 5 on screen until block 2 (the bench graphic and its cursor) and block 3 (name sprites).
+
+Block 2 (the bench graphic, 4.1): the dugout keeps its art and 5 places; with a bigger bench they are a window of 5
+that scrolls with the cursor (Davide's choice B).
+- BenchMenuHandleControls' `cmp [g_benchPlayerIndex], 5` / `, 6` (the cursor's last place / one past it) ->
+  bx_cmp_last / bx_cmp_last1: the last place is max(5, gameMaxSubstitutes) <= 15 (5 in a training game); empty
+  places are skipped by IsThisPlayerOkToSelect as the game's own substituted players.
+- DrawBenchAndSubsMenu's `mov ax, [g_benchPlayerIndex]` (the arrow's row) -> bx_arrow: the window start bx_win
+  follows the cursor (the coach or a training game: 0), the arrow's row = index - bx_win.
+- DrawBenchPlayersAndCoach's `mov word [D7], 1` / `cmp word [D7], 6` -> bx_win_init / bx_win_end: places
+  bx_win + 1 .. bx_win + 5 (A0 moved on by bx_win players); the opponent's bench (g_subsState -1) its first 5.
+- SetCurrentPlayerName's `add word [D1], 255` / `, 271` (the in-match name sprites: 16 a team) -> bx_name1 /
+  bx_name2: a player from place 16 on has no name sprite yet (block 3): the name is hidden, never another's.
 """
 import re
 import struct
@@ -95,6 +106,105 @@ bx_next:                                ; replaces `add word [D2], 1 / cmp word 
     pop eax
     ret
 
+bx_lastw:                               ; ax = the cursor's last bench place: max(5, GMAX) <= 15; 5 in a training game
+    mov ax, [GMAX]
+    cmp ax, 5
+    jae .a
+    mov ax, 5
+.a:
+    cmp ax, 15
+    jbe .b
+    mov ax, 15
+.b:
+    cmp word [TRAIN], 0
+    je .c
+    mov ax, 5
+.c:
+    ret
+
+bx_cmp_last:                            ; replaces `cmp word [IDX], 5` (its flags)
+    push eax
+    call bx_lastw
+    cmp [IDX], ax
+    pop eax
+    ret
+
+bx_cmp_last1:                           ; replaces `cmp word [IDX], 6`
+    push eax
+    call bx_lastw
+    inc ax
+    cmp [IDX], ax
+    pop eax
+    ret
+
+bx_arrow:                               ; replaces `mov ax, [IDX]` (the arrow's row): ax = IDX - bx_win
+    push ebx
+    movzx eax, word [IDX]
+    xor ebx, ebx
+    cmp word [TRAIN], 0
+    jne .set
+    or eax, eax
+    jz .set                             ; (the coach: the first 5)
+    movzx ebx, word [bx_win]
+    dec eax                             ; the cursor's place - 1
+    cmp eax, ebx
+    jae .down
+    mov ebx, eax                        ; above the window: it starts there
+    jmp .set
+.down:
+    sub eax, 4
+    cmp eax, ebx
+    jle .set
+    mov ebx, eax                        ; below it: it ends there
+.set:
+    mov [bx_win], bx
+    movzx eax, word [IDX]
+    sub eax, ebx
+    pop ebx
+    ret
+
+bx_win_init:                            ; replaces `mov word [D7], 1` (DrawBenchPlayersAndCoach, A0 -> place 11)
+    push eax
+    xor eax, eax
+    cmp word [SUBST], 0
+    jl .w                               ; (the opponent's bench: its first 5)
+    cmp word [TRAIN], 0
+    jne .w
+    mov ax, [bx_win]
+.w:
+    mov [bx_cur], ax
+    inc eax
+    mov [D7], ax
+    dec eax
+    imul eax, eax, PI
+    add [A0], eax
+    pop eax
+    ret
+
+bx_win_end:                             ; replaces `cmp word [D7], 6`
+    push eax
+    mov ax, [bx_cur]
+    add ax, 6
+    cmp [D7], ax
+    pop eax
+    ret
+
+bx_name1:                               ; replaces `add word [D1], 255` (SetCurrentPlayerName, D1 = the place)
+    cmp word [D1], 16
+    jae bx_noname
+    add word [D1], 255
+    ret
+bx_name2:                               ; replaces `add word [D1], 271`
+    cmp word [D1], 16
+    jae bx_noname
+    add word [D1], 271
+    ret
+bx_noname:                              ; no sprite for places 16..25 (block 3): the name hidden
+    add esp, 4
+    jmp HIDE
+
+bx_win: dw 0
+bx_cur: dw 0
 bx_bench: dw 0                          ; the match's bench (0 = the game's), test switch BENCH_FORCE
 align 2
 bx_table:
@@ -133,6 +243,42 @@ def sites(p, regs):
     return store, gmax, lp[0], c5, tb[0], d2
 
 
+def sites2(p, regs):
+    """Block 2's sites in the original obj1: {name: offset} + the variables IDX, TRAIN, SUBST (obj2) and HIDE (obj1)."""
+    d = p.le.obj_bytes(1)
+    pk = lambda x: re.escape(struct.pack('<I', x))
+    J = rb'(?:\xe9....|\xeb.)'
+    m = list(re.finditer(rb'\x66\x83\x3d(....)\x05\x75.' + J + rb'\x66\xc7\x05\1\x00\x00' + J + rb'\x66\x83\x05\1\x01'
+                         rb'\x66\x83\x3d\1\x06\x74', d, re.S))
+    assert len(m) == 1, ('BenchMenuHandleControls cursor', len(m))
+    idx = p.target(1, m[0].start() + 3)[1]
+    c6 = m[0].end() - 9                         # (cmp word [IDX], 6: the 8 bytes before the jz)
+    ar = [x.start() for x in re.finditer(rb'\x66\xa1' + re.escape(m[0].group(1)) + rb'\x66\xa3....\x66\x83\x2d....\x0c', d, re.S)]
+    assert len(ar) == 1, ('the bench arrow', ar)
+    wi = list(re.finditer(rb'\x05\x9f\x02\x00\x00\xa3' + pk(regs['A0']) + rb'\x66\xa1(....)\x66\x0b\xc0\x74', d, re.S))
+    assert len(wi) == 1, ('DrawBenchPlayersAndCoach A0 + 671', len(wi))
+    w0 = wi[0].start()
+    train = p.target(1, w0 + 12)[1]
+    d7 = regs['D7']
+    d7i = [x.start() for x in re.finditer(rb'\x66\xc7\x05' + pk(d7) + rb'\x01\x00', d) if 0 < x.start() - w0 < 80]
+    d7e = [x.start() for x in re.finditer(rb'\x66\x83\x3d' + pk(d7) + rb'\x06\x0f\x85', d) if 0 < x.start() - w0 < 0x300]
+    assert len(d7i) == 1 and len(d7e) == 1, ('the bench drawing loop', d7i, d7e)
+    sb = [x.start() for x in re.finditer(rb'\x66\xa1....\x66\x0b\xc0\x0f\x88', d, re.S) if 0 < x.start() - d7i[0] < 0x60]
+    assert len(sb) == 1, ('g_subsState in the bench loop', sb)
+    subst = p.target(1, sb[0] + 2)[1]
+    d1 = regs['D7'] - 24
+    n1 = [x.start() for x in re.finditer(rb'\x66\x81\x05' + pk(d1) + rb'\xff\x00', d)]
+    n2 = [x.start() for x in re.finditer(rb'\x66\x81\x05' + pk(d1) + rb'\x0f\x01', d)]
+    assert len(n1) == 1 and len(n2) == 1 and 0 < n2[0] - n1[0] < 0x80, ('the name sprites', n1, n2)
+    hd = [x.start() for x in re.finditer(rb'\x8b\x35' + pk(regs['A0']) + rb'\x66\xc7\x46.\xff\xff\x66\xc7\x46.\xa8\x61', d, re.S)
+          if 0 < n1[0] - x.start() < 0x400]
+    assert len(hd) == 1, ('@@hide_current_player_name', hd)
+    at = {'c5': m[0].start(), 'c6': c6, 'arrow': ar[0], 'd7i': d7i[0], 'd7e': d7e[0], 'n1': n1[0], 'n2': n2[0]}
+    for k, a in at.items():                     # (no other hook there)
+        assert bytes(p.get(1, a, 9)) == d[a:a + 9], ('block 2 site already patched', k, hex(a))
+    return at, {'IDX': (2, idx), 'TRAIN': (2, train), 'SUBST': (2, subst), 'HIDE': (1, hd[0])}
+
+
 def refs(p, tobj, lo, hi):
     """Every 32-bit fixup source (objn, off) whose target is tobj:lo..hi-1 -> [(objn, off, toff)]."""
     out = []
@@ -164,8 +310,9 @@ def patch(p, at):
         cnp = ct + 1292                             # careerNumPlayers follows careerTeam
     else:
         _, cnp, ct, _, _ = xtra.sites(p)
+    s2, v2 = sites2(p, regs)
     at = (at + 15) & ~15
-    sym = {'GMAX': (2, gmax), 'D2': (2, d2), 'A2': (2, regs['A0'] + 8), 'A6': (2, regs['A0'] + 24),
+    sym = {**v2, 'D7': (2, regs['D7']), 'D1': (2, regs['D7'] - 24), 'A0': (2, regs['A0']), 'GMAX': (2, gmax), 'D2': (2, d2), 'A2': (2, regs['A0'] + 8), 'A6': (2, regs['A0'] + 24),
            'CT': (2, ct), 'CNP': (2, cnp), 'MAXP': (0, MAXP), 'PI': (0, PI)}
     code, fix = nasmcave.assemble(ASM, at, sym)
     lab = nasmcave.labels(ASM, at, sym)
@@ -182,6 +329,16 @@ def patch(p, at):
     p.put(1, lp, b'\xe8' + struct.pack('<i', lab['bx_next'] - (lp + 5)) + b'\x90' * 11)
     for c in c5:                                    # the game's 'bench over 5' branches: never
         p.put(1, c + 7, b'\x7f')
+    def call9(o, n, lbl, fixat):                     # an n-byte instruction with an address at o + fixat -> call + nops
+        p.remove(1, o + fixat)
+        p.put(1, o, b'\xe8' + struct.pack('<i', lab[lbl] - (o + 5)) + b'\x90' * (n - 5))
+    call9(s2['c5'], 8, 'bx_cmp_last', 3)            # cmp word [IDX], 5 (66 83 3D addr 05)
+    call9(s2['c6'], 8, 'bx_cmp_last1', 3)
+    call9(s2['arrow'], 6, 'bx_arrow', 2)            # mov ax, [IDX] (66 A1 addr)
+    call9(s2['d7i'], 9, 'bx_win_init', 3)           # mov word [D7], 1 (66 C7 05 addr 01 00)
+    call9(s2['d7e'], 8, 'bx_win_end', 3)            # cmp word [D7], 6 (66 83 3D addr 06)
+    call9(s2['n1'], 9, 'bx_name1', 3)               # add word [D1], 255 (66 81 05 addr FF 00)
+    call9(s2['n2'], 9, 'bx_name2', 3)
     rs = refs(p, 2, table, table + 32)
     assert 10 <= len(rs) <= 24, ('inGameTeamPlayerOffsets refs', len(rs))
     for objn, off, toff in rs:
@@ -189,5 +346,5 @@ def patch(p, at):
         p.put(objn, off, struct.pack('<I', lab['bx_table'] + toff - table))
     LABELS.update(lab)
     print(f'exe: bench up to 15 (block 1: in-match teams of {MAXP}; GMAX obj2+{gmax:#x}, loop obj1+{lp:#x}, '
-          f'{len(rs)} offset-table refs moved; code obj1+{at:#x}, {len(code)} B, bx_bench obj1+{lab["bx_bench"]:#x})')
+          f'{len(rs)} offset-table refs moved; block 2: bench window of 5, cursor to 15, names 17+ hidden; code obj1+{at:#x}, {len(code)} B, bx_bench obj1+{lab["bx_bench"]:#x})')
     return at + len(code)

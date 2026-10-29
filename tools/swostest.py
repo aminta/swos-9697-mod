@@ -4482,7 +4482,88 @@ def ingame_team(r, base):
     return d[22:39].split(b'\0')[0].decode('latin-1'), pl
 
 
-def bench_play(s, gmax, top, bot, wants, errs, info, mark):
+def bench_vars():
+    """The bench's game variables (obj2 offsets, the same in every build of the exe's language): g_benchPlayerIndex,
+    g_subsState, plToEnterGameIndex (FirePressedInSubsMenu), team1NumSubs / team2NumSubs (IsThisPlayerOkToSelect)."""
+    if not hasattr(bench_vars, 'v'):
+        sys.path.insert(0, os.path.join(ROOT, 'tools'))
+        import lepatch
+        p = lepatch.LEPatch(os.path.join(ROOT, 'orig', UI_ORIG))
+        d = p.le.obj_bytes(1)
+        f = list(re.finditer(rb'\x66\xc7\x05(....)\x01\x00\x66\xc7\x05....\x01\x00\x66\xa1(....)\x66\xa3(....)\x66\x83\x05'
+                             rb'\3\x0a\x66\xa1\3\x66\xa3(....)', d, re.S))
+        m = list(re.finditer(rb'\x66\xa1(....)\x66\xa3....\x66\xa1(....)\x66\xa3....\xa1....\xa3....\x8b\x35....\x66\x83\x7e.'
+                             rb'\x01\x74.\x66\xa1(....)', d, re.S))
+        assert len(f) == 1 and len(m) == 1, ('bench_vars', len(f), len(m))
+        t = lambda x, g: p.target(1, x.start(g))[1]
+        bench_vars.v = {'IDX': t(f[0], 2), 'SUBST': t(f[0], 1), 'ENTER': t(f[0], 4), 'NS1': t(m[0], 1), 'NS2': t(m[0], 3)}
+    return bench_vars.v
+
+
+def bench_sub(s, bx, place, errs, info, mark):
+    """benchx block 2: the bench called, its cursor moved down to the squad's place `place` (12..26, g_benchPlayerIndex
+    = place - 11: index 1 = in-match player 11 = place 12), the window of 5 (bx_win, obj1 at bx - 4) following it; fire picks him
+    (g_subsState 1, plToEnterGameIndex = place - 1), fire again makes the change (the team's NumSubs + 1)."""
+    v = bench_vars()
+    want = place - 11
+    w16 = lambda o, base: struct.unpack('<H', s.result.read(base + o, 2))[0]
+    seen = []
+    ns0 = (w16(v['NS1'], s.result.base2), w16(v['NS2'], s.result.base2))
+    for call in range(12):
+        r = s.send(('pgup' if call % 2 == 0 else 'pgdn') + ':0.3 dump:0.6')
+        if r.outcome != 'dump':
+            errs.append(f'bench call: {r}')
+            return False
+        last, still = w16(v['IDX'], r.base2), 0
+        for j in range(24):
+            r = s.send('down:0.15 dump:0.3')
+            if r.outcome != 'dump':
+                errs.append(f'bench cursor: {r}')
+                return False
+            idx, win = w16(v['IDX'], r.base2), w16(bx - 4, r.base1)
+            if idx != last:
+                seen.append((idx, win))
+                if idx == 6:
+                    s.shot('bench_scroll6')
+            still = still + 1 if idx == last else 0
+            last = idx
+            if idx == want or still >= 4:
+                break
+        if last == want:
+            break
+    mark(f'bench cursor (index, window): {seen}')
+    info.append(f'cursor/window {seen}')
+    check(last == want, f'the cursor never reached index {want} (place {place}): {seen}', errs)
+    if last != want:
+        return False
+    check(all(i - w in range(1, 6) for i, w in seen if i), f'cursor out of the window: {seen}', errs)
+    check(any(w > 0 for i, w in seen), f'the window never scrolled: {seen}', errs)
+    s.shot('bench_window')
+    ups = []                                # back up 6 places (the window starts at the cursor) and down again
+    for key in ['up'] * 6 + ['down'] * 6:
+        r = s.send(key + ':0.15 dump:0.3')
+        ups.append((w16(v['IDX'], r.base2), w16(bx - 4, r.base1)))
+    info.append(f'up/down {ups}')
+    up6 = ups[5]
+    check(up6[0] == want - 6 and up6[1] == min(up6[0] - 1, max(0, want - 5)), f'up 6: (index, window) {up6}', errs)
+    check(ups[-1] == (want, want - 5) if want > 5 else ups[-1][0] == want, f'down again: {ups[-1]}', errs)
+    s.shot('bench_up')
+    r = s.send('fire:0.2 dump:0.6')
+    st, ent = w16(v['SUBST'], r.base2), w16(v['ENTER'], r.base2)
+    s.shot('subs_menu')
+    check(st == 1 and ent == place - 1, f'after fire: g_subsState {st}, plToEnterGameIndex {ent} (want 1, {place - 1})', errs)
+    r = s.send('fire:0.2 dump:0.6')
+    ns = (w16(v['NS1'], r.base2), w16(v['NS2'], r.base2))
+    info.append(f'subs made {ns0} -> {ns}, entering place {ent + 1}')
+    check(sum(ns) == sum(ns0) + 1, f'no change made: NumSubs {ns0} -> {ns}', errs)
+    mark(f'change: place {ent + 1} in, NumSubs {ns0} -> {ns}')
+    for k in range(6):
+        r = s.send('fire:0.5 dump:1')
+        s.shot(f'after_sub{k}')
+    return True
+
+
+def bench_play(s, gmax, top, bot, wants, errs, info, mark, sub=None):
     """benchx scenarios: from a career menu to a match played for real (PARTITA on the career menu and the squad
     screen: a player-coach), the kick-off checks (gameMaxSubstitutes = 15, each in-match team's named players =
     wants[team name] capped at 26 (default 16), the other places empty: position -1, substituted), the bench called
@@ -4547,6 +4628,13 @@ def bench_play(s, gmax, top, bot, wants, errs, info, mark):
                 break
     mark(f'bench called {bench} times, its list seen {lists} times')
     check(lists >= 1, f'the bench list never seen ({bench} calls)', errs)
+    if sub:                                 # (bx obj1 offset of bx_bench, bench place): a change from beyond 16
+        bench_sub(s, sub[0], sub[1], errs, info, mark)
+        r = s.result
+        for name, pl in (ingame_team(r, top), ingame_team(r, bot)):
+            if name in wants:
+                info.append(f'{name} after the change: ' + ', '.join(f'{i + 1}:{x[0]}/{x[1]}/{x[2]}' for i, x in enumerate(pl)
+                                                                     if x[0] and (x[2] or i >= 11)))
     end = False
     for k in range(300):                    # (3 fires a pause: 10 ran past the result screens into the next
         r = s.send('fire:3 ' * 3 + 'dump:1')  #  match day's squad screen, stuck there with an injured player)
@@ -4617,7 +4705,7 @@ def bench_world():
         s.poke(s.result.base1 + bx, b'\x0f\x00')
         mark(f'career started, {n} players, bench poked: ' + ', '.join(s.screen().texts())[:150])
         wants = {club: n}
-        bench_play(s, gmax, top, bot, wants, errs, info, mark)
+        bench_play(s, gmax, top, bot, wants, errs, info, mark, (bx, int(os.environ.get('BENCH_SUB', 21))))
     check(n == 30, f'{club}: {n} players (want 30)', errs)
     check('squad screen: GIOCA PARTITA' in info, 'not played as a player-coach (no GIOCA PARTITA)', errs)
     return not errs, '; '.join(errs + info)

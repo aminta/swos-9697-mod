@@ -14673,6 +14673,116 @@ def match_names14():
             os.environ['SWOSTEST_MEMSIZE'] = keep
     return not errs, '; '.join(errs + info)
 
+@scenario
+def modver_shots():
+    """4.0.5 modver.py: the main menu's 'MOD <version>' line in the 4 exes (each run as the game), the low-memory
+    (half / EGA) start, and the main menu under SWOS++ (English): runs/modver_shots*/shots/main.png"""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    b = os.environ.get('SWOSTEST_BUILD') or builds()['it']
+    out = os.path.join(WORK, 'builds-x', 'modver')
+    texts = {}
+    for tag, exe, extra, env in (('it', 'ITALIAN', {}, {}), ('en', 'ENGLISH', {}, {}), ('fr', 'FRENCH', {}, {}),
+                                 ('de', 'GERMAN', {}, {}), ('it_ega', 'ITALIAN', {}, {'SWOSTEST_MEMSIZE': '8'}),
+                                 ('en_swospp', 'ENGLISH', 'pp', {})):
+        d = os.path.join(out, tag)
+        shutil.rmtree(d, ignore_errors=True)
+        shutil.copytree(b, d)
+        files = {}
+        if extra == 'pp':
+            import swospp
+            pp = os.path.join(MAIN, 'internal', 'swospp-test')
+            swospp.install(os.path.join(b, 'ENGLISH.EXE'), os.path.join(d, 'ITALIAN.EXE'))
+            files = {'LOADER.BIN': os.path.join(pp, 'loader.bin'), 'SWOSPP.BIN': os.path.join(pp, 'swospp.bin')}
+        else:
+            shutil.copy(os.path.join(b, exe + '.EXE'), os.path.join(d, 'ITALIAN.EXE'))
+        keep = {k: os.environ.get(k) for k in env}
+        os.environ.update(env)
+        try:
+            with Session(f'modver_shots_{tag}', d, files, 'dump:3', 200, timer=extra == 'pp') as s:
+                s.wait()
+                s.send('dump:2')
+                s.shot('main')
+                if extra == 'pp':                       # (SWOS++ active: its run-time patch of MakePlayerNameSprite,
+                    texts[tag] = s.result.read(s.result.base1 + 0x73edc, 2).hex()   # English obj1+0x73edc cbw -> mov ah, 0)
+        finally:
+            for k, v in keep.items():
+                if v is None:
+                    os.environ.pop(k, None)
+                else:
+                    os.environ[k] = v
+    ok = texts.get('en_swospp') == 'b400'
+    return ok, f"6 main menus shot; SWOS++ {'active' if ok else 'NOT active'} ({texts.get('en_swospp')})"
+
+def modver_render(r, chars, gptr, text):
+    """{glyph value: the pixels (x, y)} of `text` in the game's font CharTable `chars` (obj2 offset), as DrawMenuText lays it out from
+    x 0: per character its sprite (spritesIndex via g_spriteGraphicsPtr), then charSpacing; a space = spaceWidth."""
+    ct = r.read(r.base2 + chars, 14 + 224)
+    spacing, space, off = struct.unpack_from('<hhh', ct, 8)
+    tab = struct.unpack('<I', r.read(r.base2 + gptr, 4))[0]
+    x, pts = 0, {}
+    for ch in text:
+        if ch == ' ':
+            x += space
+            continue
+        idx = ct[14 + ord(ch) - 32] + off
+        h = r.read(struct.unpack('<I', r.read(tab + 4 * idx, 4))[0], 24)
+        w, nl, wq = struct.unpack_from('<HHH', h, 10)
+        px = r.read(struct.unpack('<I', h[:4])[0], wq * 8 * nl)
+        for y in range(nl):
+            for xx in range(w):
+                v = (px[y * wq * 8 + xx // 2] >> (0 if xx & 1 else 4)) & 15
+                if v:
+                    pts.setdefault(v, set()).add((x + xx, y))
+        x += w + spacing
+    return pts
+
+
+@scenario
+def modver_line():
+    """4.0.5 modver.py: the main menu shows 'MOD <mkpatcher.VERSION>[ <tag>]' (modver.text() for this build's
+    environment) in the game's smallest font, centred below LOAD OLD COMPETITION: the line's pixels on the screen
+    (palette index 2, the menu text's colour, in the band under the button) are exactly the string rendered from the
+    game's own glyphs (smallCharsTable, read from memory), centred on x 160; only the font's characters; the text in the
+    exe = the expected one"""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import lepatch
+    import modver
+    b = os.environ.get('SWOSTEST_BUILD') or builds()['it']
+    want = os.environ.get('MODVER_EXPECT') or modver.text().decode()
+    errs, info = [], []
+    exe = open(os.path.join(b, 'ITALIAN.EXE'), 'rb').read()
+    check(re.fullmatch(r'[A-Z0-9. ]+', want) is not None, f'characters outside the font: {want!r}', errs)
+    check((want.encode() + b'\0') in exe, f'{want!r} not in the exe', errs)
+    orig = lepatch.LEPatch(os.path.join(MAIN, 'orig', 'ITALIAN.EXE'))
+    small = modver.find(orig)['small'][1]
+    d1 = orig.le.obj_bytes(1)
+    import sacups
+    rg = sacups.regs(d1)
+    A2, D0 = rg['A0'] + 8, rg['D7'] - 28
+    m = [x.start() for x in re.finditer(rb'\xa1(....)\xa3' + re.escape(struct.pack('<I', A2)) + rb'\x66\xa1(....)\x66\xa3' +
+                                        re.escape(struct.pack('<I', D0)) + rb'\x66\xc1\x25' + re.escape(struct.pack('<I', D0)) +
+                                        rb'\x02', d1, re.S)]
+    gptr = orig.target(1, m[0] + 1)[1]
+    with Session('modver_line', b, {}, 'dump:3', 200) as s:
+        s.wait()
+        r = s.send('dump:2')
+        fr = s.box.dump(0xA0000, 64000)
+        s.shot('main')
+        layers = modver_render(r, small, gptr, want)
+    exp = max(layers.values(), key=len) if layers else set()   # (the face; the other value is the shadow)
+    got = {(x, y) for y in range(modver.Y - 2, modver.Y + 9) for x in range(320) if fr[y * 320 + x] == 2}
+    check(got and exp, f'no line ({len(got)} pixels on screen, {len(exp)} rendered)', errs)
+    if got and exp:
+        gx, gy = min(x for x, _ in got), min(y for _, y in got)
+        ex, ey = min(x for x, _ in exp), min(y for _, y in exp)
+        norm = lambda pts, ox, oy: {(x - ox, y - oy) for x, y in pts}
+        check(norm(got, gx, gy) == norm(exp, ex, ey), f'the drawn line is not {want!r} '
+              f'({len(got)} pixels vs {len(exp)})', errs)
+        mid = (gx + max(x for x, _ in got)) / 2
+        check(abs(mid - modver.X) <= 2, f'not centred: {mid}', errs)
+        info.append(f'{want!r} drawn at x {gx}..{max(x for x, _ in got)} y {gy}, {len(got)} pixels = the game font')
+    return not errs, '; '.join(errs + info)
+
 
 
 if __name__ == '__main__':

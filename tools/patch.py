@@ -639,6 +639,8 @@ def patch_exe(src, dst, remap, lang='it'):
     tz_at = (ctl_end + 15) & ~15                 # once the tail's size is known; the cosmetics page is full)
     ctl_end = tz_at + tailzero.SIZE
     ctl_end = blond.unch_patch(p, (ctl_end + 15) & ~15)   # 4.0.2 MALEN: the darkblond sets in half / EGA mode
+    import modver                                # 4.0.5: 'MOD <version>' on the main menu (Davide, support)
+    ctl_end = modver.patch(p, (ctl_end + 15) & ~15, lang)
     assert ctl_end <= ctl_at + 0x1000, hex(ctl_end)        # (the code page; controls' data pages follow it)
     p.set_vsize(1, OBJ1_NEW_VSIZE + (0x1000 * (cp + 2 + cdp) if worlds else 0) + h2 + 0x1000 * (lpb + sp_pg + sc_pg + ct_pg + ctl_pg))
     import teamstab                              # 4.0.2: teamsTable for 256 team ordinals (Serie D choice colours)

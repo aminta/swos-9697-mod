@@ -4598,7 +4598,21 @@ def bench_sub(s, bx, place, errs, info, mark):
     return True
 
 
-def bench_play(s, gmax, top, bot, wants, errs, info, mark, sub=None):
+def bald_icons(r):
+    """blond.ICONBL / + 1 (the 4.0.5 bald face icons): (spritesIndex entry, the header's 24 bytes, 64 bytes of its
+    pixels) each, (0, b'', b'') when not built."""
+    import blond
+    import shirtnum
+    spr = shirtnum.spr_index(lepatch_orig())
+    out = []
+    for i in (blond.ICONBL, blond.ICONBL + 1):
+        p = struct.unpack('<I', r.read(r.base2 + spr + i * 4, 4))[0]
+        h = r.read(p, 24) if p else b''
+        out.append((p, h, r.read(struct.unpack('<I', h[:4])[0], 64) if p else b''))
+    return out
+
+
+def bench_play(s, gmax, top, bot, wants, errs, info, mark, sub=None, icons=None):
     """benchx scenarios: from a career menu to a match played for real (PARTITA on the career menu and the squad
     screen: a player-coach), the kick-off checks (gameMaxSubstitutes = 15, each in-match team's named players =
     wants[team name] capped at 26 (default 16), the other places empty: position -1, substituted), the bench called
@@ -4620,6 +4634,9 @@ def bench_play(s, gmax, top, bot, wants, errs, info, mark, sub=None):
         elif 'MOD. TATTICA' in texts and ('PARTITA' in texts or 'GIOCA PARTITA' in texts):
             act = 'GIOCA PARTITA' if 'GIOCA PARTITA' in texts else 'PARTITA'   # (a player-coach: 'GIOCA :', not
             info.append('squad screen: ' + act)                                 #  'ALLEN:'; VIS. RISULTATI simulates)
+            if icons is not None:           # the bald icons as the squad screen built them (a player poked bald)
+                icons['squad'] = bald_icons(r)
+            s.shot(f'squad{step:02d}')
         elif '- PARTITA -' in texts:
             act = '- PARTITA -'             # (the fixture screen: play it; the exe needs nop_league_int3)
         elif 'PROSS. PARTITA' in texts:
@@ -4653,15 +4670,21 @@ def bench_play(s, gmax, top, bot, wants, errs, info, mark, sub=None):
     oldt = old_name_tables()                # the game's own three name tables (96 bytes): no longer used (block 3),
     old0 = r.read(r.base2 + oldt, 96)       # so nothing may write them (prevLastPlayer / prevLastTeamPlayed after
                                             # them are the game's, written in play)
-    if sub:                                 # block 3: the names of places 17..26 (sprites 1910 + 10 x team ..)
+    if sub:                                 # block 3: the names of places 17..26 (sprites benchx.NB + 10 x team ..)
+        import benchx
         spr = namespr.find(o)['spridx']
         for t, (name, pl) in enumerate(teams):
             if name in wants and wants[name] > 16:
-                sp = n14_sprites(r, spr, ega, 1910 + 10 * t, min(wants[name], 26) - 16)
+                sp = n14_sprites(r, spr, ega, benchx.NB + 10 * t, min(wants[name], 26) - 16)
                 ends = [max((max(x) for x in rows if x), default=-1) for *_, rows in sp]
                 info.append(f'{name}: name sprites of places 17..: {len(sp)}, ends {ends}')
                 check(all((w, nl, wq) == (112, 6, 7) for w, nl, wq, _ in sp) and all(e > 10 for e in ends),
                       f'{name}: name sprites of places 17..: {[x[:3] for x in sp]}, ends {ends}', errs)
+    if icons is not None:                   # the names of places 17..26 (built just now) left the bald icons alone
+        icons['kickoff'] = bald_icons(r)
+        b0 = icons.get('squad')
+        check(b0 and all(p for p, _, _ in b0), f'the bald icons not built on the squad screen: {b0}', errs)
+        check(icons['kickoff'] == b0, f'the bald icons changed at the kick-off: {b0} -> {icons["kickoff"]}', errs)
     s.shot('kickoff')
     bench, lists = 0, 0
     for k in range(40):                     # the bench (PgUp / PgDn) and its list (fire), as subs_numbers: seen on screen
@@ -4724,6 +4747,11 @@ def bench_play(s, gmax, top, bot, wants, errs, info, mark, sub=None):
             break
     s.shot('end')
     check(end, 'the career menus not reached after the match', errs)
+    if icons is not None:
+        ic = bald_icons(s.result)
+        check(ic == icons.get('squad'), f'the bald icons changed after the match: {icons.get("squad")} -> {ic}', errs)
+        info.append(f'bald icons 1910/1911 intact (squad screen, kick-off, after the match): spritesIndex '
+                    f'{[hex(p) for p, _, _ in ic]}')
     info.append(f'bench called {bench} times, list seen {lists}')
     if goal:
         after = s.result.read(s.result.base2 + goal[2], 38)
@@ -4778,9 +4806,16 @@ def bench_world():
         n = struct.unpack('<H', s.result.obj2(cnp, 2))[0]
         info.append(f'{club}: {n} players in the squad')
         s.poke(s.result.base1 + bx, b'\x0f\x00')
+        r = s.result                        # 4.0.5's bald icons (blond.ICONBL 1910 / 1911, next to our name
+        bn = r.read(r.base2 + ct + 76 + 38 + 3, 22).split(b'\0')[0]   # sprites): squad player 2 poked bald in every
+        o2 = r.read(r.base2, 0x300000)      # copy of his record, so the squad screen builds them before the match
+        hits = [m_.start() - 3 for m_ in re.finditer(re.escape(bn) + b'\0', o2)]
+        for h in hits:
+            s.poke(r.base2 + h + 25, bytes((o2[h + 25] | 1,)))
+        info.append(f'{bn.decode("latin-1")} poked bald x{len(hits)}')
         mark(f'career started, {n} players, bench poked: ' + ', '.join(s.screen().texts())[:150])
         wants = {club: n}
-        bench_play(s, gmax, top, bot, wants, errs, info, mark, (bx, int(os.environ.get('BENCH_SUB', 21)), ct))
+        bench_play(s, gmax, top, bot, wants, errs, info, mark, (bx, int(os.environ.get('BENCH_SUB', 21)), ct), {})
     check(n == 30, f'{club}: {n} players (want 30)', errs)
     check('squad screen: GIOCA PARTITA' in info, 'not played as a player-coach (no GIOCA PARTITA)', errs)
     return not errs, '; '.join(errs + info)

@@ -33,20 +33,33 @@ that scrolls with the cursor (Davide's choice B).
   its loop 16 -> 26): SwapPlayerNameData indexes them by the entering player's place, which ran past the tables
   (team 2) or into the other team's half (team 1) for a player from place 17 on. ns_make's tail jump into
   MakeSpritesFromPlayerNames -> bx_make: the names of places 0..(11 + bench - 1) of both teams, 0..15 on the game's
-  255.. / 271.., 16..25 on sprites NB.. (1910.., free: blond ends at 1909) with namespr's spare headers N..CAP-1;
+  255.. / 271.., 16..25 on sprites NB.. (1912.., see the index map below) with namespr's spare headers N..CAP-1;
   SetCurrentPlayerName's `add word [D1], 255` / `, 271` -> bx_name1 / bx_name2 (places 16+ -> NB + 10 x team).
 - The after-match write-backs (cseg_2F194 cards, UpdatePlayerInjuries, cseg_2F3AB goals: `mov word [D2], 15`, 16
   in-match players) -> bx_wcount: 11 + max(5, gameMaxSubstitutes) places (16 with the game's bench: no stale
   record read), so a player from place 17 on who came on keeps his card / injury / goals (GetPlayer: careerTeam's 32).
+
+spritesIndex past the game's 1335 entries (shirtnum.py's extension into the 3072 free bytes after it: indices
+1335..2102; it cannot move, SWOS++ holds its address):
+  1335..1417 shirtnum (match shirt numbers 17..99)      1620..1707 menunum (menu numbers 12..99)
+  1418..1619 blond NEW1 / NEW2 (darkblond, bald sets)   1708..1909 blond NEW3 (the second pair of variant sets)
+  1910..1911 blond ICONBL (bald face icons, 4.0.5)      1912..1931 benchx NB (names of places 17..26, 10 a team)
+  1932..2102 free
 """
 import os
 import re
 import struct
 
+import blond
+import menunum
 import nasmcave
+import shirtnum
 
 MAXP = 26                               # 11 + 15
-NB = 1910                               # the name sprites of places 17..26: team 1 1910.., team 2 1920.. (blond ends at 1909)
+NB = blond.ICONBL + 2                   # the name sprites of places 17..26: team 1 1912.., team 2 1922.. (after the bald icons)
+SPR_END = shirtnum.NEWBASE + 3072 // 4  # 2103: spritesIndex's room ends here
+assert (shirtnum.NEWBASE + 83 == blond.NEW1 and blond.NEW2 + 101 == menunum.NEWBASE and menunum.NEWBASE + 88 == blond.NEW3
+        and blond.NEW3 + 202 == blond.ICONBL and NB + 2 * (MAXP - 16) <= SPR_END), 'spritesIndex map overlaps'
 PI = 61                                 # sizeof PlayerInfo
 TABLE = struct.pack('<16H', *(i * PI for i in range(16)))     # 0, 61 .. 915
 

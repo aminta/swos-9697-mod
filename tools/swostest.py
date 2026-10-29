@@ -9839,6 +9839,58 @@ def world_sc_bra():
     return sc_from2('SUDAMERICA,BRASILE,BRASILEIRAO SERIE A,FLAMENGO', 'SUPERCOPPA DEL BRASILE', 'bra')
 
 
+def conti_drop(tag, force, team, word):
+    """4.0.5 rc10: a cross-cup route of conti (ct_newcup): a test build with CONTI_FORCE=force (the career club into
+    that tie at every season end) and CONTI_KOLOSE (it loses its conti ties): season 1, then season 2 from its save
+    played to its end - the tie lost, the club goes on in the other cup (a match of it played: word in a result
+    screen's title) and the season ends (no stale slot-3 day replayed)"""
+    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+    if not os.path.isdir(src):
+        return True, f'SKIP: private data {src} missing'
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    exe = build(f'conti_drop_{tag}', env={'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]),
+                                         'CONTI_FORCE': force, 'CONTI_KOLOSE': '1'})
+    keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_ONE',
+            'W8485_FROM', 'W8485_TMO')
+    keep = {k: os.environ.get(k) for k in keys}
+    base = dict(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5', W8485_K='108+',
+                W8485_NOSACK='1', W8485_TMO='900')
+    try:
+        for k in keys:
+            os.environ.pop(k, None)
+        os.environ.update(base)                         # (two seasons: conti's edition from the first season end)
+        ok, msg = world8485()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    log = os.path.join(RUNS, w84_tag() + '_2', 'session.log')
+    lines = open(log, errors='replace').read().splitlines() if os.path.exists(log) else []
+    played = sorted({re.sub(r'^\[\d+\] ', '', ln.split('|')[0].strip()) for ln in lines if ln.startswith('[')
+                     and ('>- RISULTATO -' in ln or '>- PARTITA -' in ln) and any(w in ln.split('|')[0] for w in ('LIBERTADORES', 'SUDAMERICANA',
+                                                                                         'ELITE', 'ACL', 'TWO'))})
+    errs = []
+    check(ok, msg[:300], errs)
+    check(any(word in x for x in played), f'season 2: no {word} match played: {played}', errs)
+    return not errs, '; '.join(errs + [f'season 2 conti matches {played}'])
+
+
+@scenario
+def world_conti_drop_lib():
+    """conti_drop: FLAMENGO forced into the Libertadores' third qualifying round (lib:q3), losing it -> the
+    Sudamericana groups (conmebol 'losers' q3 -> sud:groups): a Sudamericana group match played, season 2 ends"""
+    return conti_drop('lib', 'lib:q3', 'SUDAMERICA,BRASILE,BRASILEIRAO SERIE A,FLAMENGO', 'SUDAMERICANA')
+
+
+@scenario
+def world_conti_drop_acl():
+    """conti_drop: KASHIWA REYSOL forced into the AFC Champions League Elite's preliminary round (acle:pre), losing
+    it -> the ACL Two groups (afc 'losers' pre -> acl2:groups): an ACL Two match played, season 2 ends"""
+    return conti_drop('acl', 'acle:pre', 'ASIA,GIAPPONE,J1 LEAGUE,KASHIWA REYSOL', 'TWO')
+
+
 @scenario
 def world_sc_bra_sud():
     """4.0.5 rc10 (world_sc_bra's stuck career, Davide's rc8 blocker): a club dropping from the Libertadores to the
@@ -9864,7 +9916,7 @@ def world_sc_bra_sud():
             os.environ['SC_F1_BUILD'] = keep
     log = open(os.path.join(RUNS, w84_tag() + '_2', 'session.log'), errors='replace').read().splitlines()
     played = sorted({re.sub(r'^\[\d+\] ', '', ln.split('|')[0].strip()) for ln in log if ln.startswith('[')
-                     and 'SUDAMERICANA' in ln.split('|')[0] and '>- RISULTATO -' in ln})
+                     and 'SUDAMERICANA' in ln.split('|')[0] and ('>- RISULTATO -' in ln or '>- PARTITA -' in ln)})
     errs = []
     check(ok, msg[:300], errs)
     check(any('OTTAVI DI FINALE ANDATA' in x for x in played) and any('OTTAVI DI FINALE RITORNO' in x for x in played),
@@ -12664,9 +12716,11 @@ def world_darkblond():
             s.shot(f'm{k}')
             if k == 6:                                # (the match running: the sets as converted for it)
                 errs += dkb_sets(r, spr, blond, info)
-                want = os.environ.get('DKB_EXPECT', '1')       # 4.0.3: the variants allocated this match
-                got = ','.join(map(str, sorted(variant_sets(r))))
-                check(got == want, f'variant sets {got or "-"}, expected {want}', errs)
+                want = os.environ.get('DKB_EXPECT', '1')       # 4.0.3: the variants allocated this match ('a|b':
+                got = ','.join(map(str, sorted(variant_sets(r))))   # either - world_bald: the opponent's own darkblond
+                check(got in want.split('|'), f'variant sets {got or "-"}, expected {want}', errs)   # players take set 1
+                if '|' in want:
+                    info.append(f'variant sets {got}' + (' (a darkblond player in the match: set 1)' if '1' in got.split(',') else ''))
                 checked = True
                 if os.environ.get('DKB_SHEET'):          # 4.0.3: the converted sets side by side (review image)
                     bald_sheet(r, spr, blond, s.result.obj2(s.info['pal'], 768),
@@ -12727,9 +12781,12 @@ def bald_sheet(r, spr, blond, pal, path, info):
 def world_bald():
     """4.0.3 bald players (blond.py: PlayerFile byte 25 bit 0, look A): world_darkblond's ROMA career match on
     SWOSTEST_BUILD with DONYELL MALEN bald in the data (bald dark) and NAHUEL MOLINA poked bald (bald light): copy_sets
-    gives them the two pairs (variant sets 2,3); dkb_sets checks both frame by frame against their face's set (hair
-    pixels dropped or in skin colours only). Review images: runs/world_bald/shots/sets.png, sets_zoom.png"""
-    return bald_run('world_bald', 'NAHUEL MOLINA:bald', '2,3')
+    gives them the two pairs (variant sets 2,3 - or 1,2 when the opponent has a darkblond player: then MOLINA plays as
+    face 1, world_bald3's case); dkb_sets checks them frame by frame against their face's set (hair pixels dropped or
+    in skin colours only). Review images: runs/world_bald/shots/sets.png, sets_zoom.png"""
+    return bald_run('world_bald', 'NAHUEL MOLINA:bald', '2,3|1,2')   # (rc8: ROMA v UDINESE - a darkblond player of
+                                                                     # the opponent: darkblond + bald dark take the two
+                                                                     # pairs, MOLINA face 1 as in world_bald3)
 
 
 @scenario

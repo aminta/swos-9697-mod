@@ -797,6 +797,9 @@ ct_daily:                               ; before the next match (uefaq's uq_dail
     jne .l
     inc ecx
 .l:
+%if KOLOSE_
+    xor ecx, ecx                        ; (CONTI_KOLOSE test builds only: the career club loses every conti tie - the
+%endif                                  ; cross-cup routes, q3 / pre losers, forced)
     push ecx
     call CT_RESULT
     add esp, 4
@@ -1009,6 +1012,9 @@ def patch(p, at, limit, bss_at, area):
                                       'E092F', 'CUP_KIND')})
     import sacups
     symbols['STR_BASE_'] = (2, sacups.STR_BASE)
+    symbols['KOLOSE_'] = (0, int(bool(os.environ.get('CONTI_KOLOSE'))))   # (test builds only)
+    if os.environ.get('CONTI_KOLOSE'):
+        print('exe: CONTI_KOLOSE (test build: the career club loses its conti ties)')
     symbols.update(NEXT_DAILY=u['uq_daily'], TIE=(1, TIE[0]), TIE_ID=(0, p.get(1, TIE[0], 1)[0]),
                    TIE_D7=(0, D7_BASE[0] + len(STRUCTS)), CT_D7=(0, D7_BASE[0]), CT_SEG=syms['CT_SEG'], CT_NS=(0, len(STRUCTS)),
                    CT_ED=syms['CT_ED'], CT_RESULT=syms['ct_result'], CT_RESUME=syms['ct_resume'])

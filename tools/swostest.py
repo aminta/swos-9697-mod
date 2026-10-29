@@ -1375,6 +1375,7 @@ def nat_callups(s, limit=120):
 # cups, the original game's contests) -- one of every known name (logged as a fallback). Errors FAIL the scenario.
 LABEL_ERRS, LABEL_STATS = [], {'rows': 0, 'keyed': 0, 'fallback': set()}
 CAL_CUR_AT, D8CAA_AT, D6CDC_AT, STR_BASE_AT = 0x1B52A, 0x18DF4, 0x16E26, 0x16F8   # (obj2, every language's exe)
+GLA_AT, WORLD_AT = 0xB46DE, 0x186E7             # gameListArray (dseg 174594h), someLeaguesTable[1845] (world byte)
 _LABEL_DATA = {}
 
 
@@ -1436,31 +1437,27 @@ def _label_data():
 
 
 def label_check(s, step):
-    """The fixture list's competition labels of this career-menu screen (see LABEL_ERRS); errors go to LABEL_ERRS."""
+    """The fixture list's competition labels of this career-menu screen (see LABEL_ERRS); errors go to LABEL_ERRS.
+    The rows are the ones CareerGameListCommon draws: gameListArray (obj2 GLA_AT, 14 x (contest, game) pointers, filled
+    by cseg_3563E), not every calendar entry (rc7 gate: entries past the drawn rows hold contests not set up yet). The
+    contest ids are World 2026-27's only in its careers (world byte 5); other worlds check the label offset only."""
     try:
         r = s.result
         b2 = r.base2
-        n = struct.unpack('<H', bytes(r.obj2(CAL_AT - 4, 2)))[0]
-        o = struct.unpack('<H', bytes(r.obj2(CAL_CUR_AT, 2)))[0]
         lang = struct.unpack('<H', bytes(r.obj2(D6CDC_AT, 2)))[0]
-        if not n or n > 400 or lang > 3:
+        if lang > 3:
             return
-        cal = bytes(r.obj2(CAL_AT, 0x3000))
-        ptrs = struct.unpack('<5I', bytes(r.obj2(D8CAA_AT, 20)))
+        gla = struct.unpack('<28I', bytes(r.obj2(GLA_AT, 112)))
+        world = r.obj2(WORLD_AT, 1)[0]
         data = _label_data()
-    except Exception as e:                              # (no career calendar on this screen)
+    except Exception:                                   # (no career calendar on this screen)
         return
-    for _ in range(9):
-        if o + 22 > len(cal):
+    for k in range(14):
+        cp = gla[2 * k]
+        if not cp:
             break
-        slot, ln = cal[o], struct.unpack_from('<H', cal, o + 2)[0]
-        if not ln:
-            break
-        o += ln
-        if slot > 4 or not ptrs[slot]:
-            continue
         try:
-            c = bytes(r.read(ptrs[slot], 0x80))
+            c = bytes(r.read(cp, 0x80))
             no = 5 + c[5]
             if no + lang * 8 + 8 > len(c):
                 continue
@@ -1471,8 +1468,10 @@ def label_check(s, step):
         cid = c[0]
         LABEL_STATS['rows'] += 1
         bad = None
-        if rel == 0:
-            bad = f'label offset 0 ({txt})'
+        if rel == 0 or txt == '?':
+            bad = f'label offset {rel:X} ({txt})'
+        elif world != 5:
+            LABEL_STATS['fallback'].add(f'w{world}:{cid:02X}:{txt}')
         elif cid == 0xFE:
             LABEL_STATS['keyed'] += 1
             if txt not in data['slot4'] and txt not in data['every']:
@@ -1483,8 +1482,10 @@ def label_check(s, step):
                 bad = f'not contest {cid:02X}\'s name (it has {sorted(data["ids"][cid])[:4]})'
         else:
             LABEL_STATS['fallback'].add(f'{cid:02X}:{txt}')
+        if os.environ.get('SWOSTEST_LABELDBG'):
+            s.log.append(f'[labeldbg] step {step} row {k} w{world} contest {cid:02X} rel {rel:X} {txt!r}')
         if bad:
-            e = f'step {step} slot {slot} contest {cid:02X} row {txt!r}: {bad}'
+            e = f'step {step} row {k} contest {cid:02X} {txt!r}: {bad}'
             if e not in LABEL_ERRS:
                 LABEL_ERRS.append(e)
                 s.log.append('[label] ' + e)

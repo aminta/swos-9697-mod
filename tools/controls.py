@@ -149,6 +149,7 @@ ct_optret:                              ; (and on return to OPTIONS: unpacked ag
     mov dword [edi + 10h], 1211FFFFh
     mov byte [esi + 0Bh], 19
     mov byte [esi + 13h], 19
+    mov word [esi + 16h], QUIT_Y        ; (4.0.5 Marco: EXIT TO DOS 1 px up - 2 px above and below CONTROLS)
     mov byte [MENU_ + 16h + 18 * 38h + 0Ah], 19
     mov byte [MENU_ + 16h + 18 * 38h + 12h], 19
 .x: popad
@@ -963,7 +964,7 @@ def patch(p, at, lang):
                 'KEYTAB': (1, base + off['keytab']), 'DEVPTR': (1, base + off['devptr']),
                 'MSGTAB': (1, base + off['msgtab']), 'FIELDS': (1, base + off['fields']), 'CTMENU': (1, base + m_at),
                 'S_TITLE': (1, base + off['title']), 'S_TEST': (1, base + off['test']), 'S_DUP': (1, base + off['dup']),
-                'REC_': (0, REC), 'BTN_Y': (0, BTN_Y)})
+                'REC_': (0, REC), 'BTN_Y': (0, BTN_Y), 'QUIT_Y': (0, QUIT_Y)})
     sym.update({f'S_K{i}': (1, base + off[f'k{i}']) for i in range(5)})
     for k, (o, sz) in {'MODE': (0, 1), 'PAD': (1, 1), 'KIDX': (2, 1), 'ARMED': (3, 1), 'FPREV': (4, 1),
                        'DUP': (5, 1), 'WAIT': (6, 1), 'KEY': (7, 1), 'SV_CTL': (8, 2), 'SV_P1': (10, 2),
@@ -991,7 +992,8 @@ def patch(p, at, lang):
 
 
 LABEL_COL, VALUE_COL = 0x09, 0x0D     # (the OPTIONS rows: labels 9, values 13)
-BTN_Y = 169                           # the button between EXIT TO DOS (152 + 15) and EXIT (185)
+BTN_Y, QUIT_Y = 168, 151              # the button between EXIT TO DOS (151 + 15) and EXIT (185): 2 px gaps (4.0.5 Marco;
+                                      # EXIT ends on the screen's last row, EXIT TO DOS moves up 1 px)
 
 
 VARS = {'MODE': 0, 'PAD': 1, 'KIDX': 2, 'ARMED': 3, 'FPREV': 4, 'DUP': 5, 'WAIT': 6, 'KEY': 7, 'CX_': 20, 'CY_': 22,

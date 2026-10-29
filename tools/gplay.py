@@ -1907,6 +1907,166 @@ def _mrec_site(p):
     return calls[0] + 5, f[0]
 
 
+VC5_ASM = """
+vc5_init:                               ; 4.0.5 (Davide 29/10): VISUAL. COMPETIZ.'s copy (VC5_MENU, 9 entries) - the
+    call VC_INIT                        ; game's init / after-draw functions, then the 5th competition entry (entry 8,
+    jmp vc5_lay                         ; slot 4)
+vc5_after:
+    call VC_AFTER
+vc5_lay:                                ; entry 8 shown for a cup in slot 4 (SLOT4: this season's - cleared at a season
+    pushad                              ; start when unused; a played supercup stays) with the career club in it
+    mov word [D0R], 8                   ; (gp_notin); a cup only: the view copies 443h of SLOT4 (a league 733h, a group
+    call VC_CALC                        ; B52h would run past it). Shown: rows 1 2 3 4 8 5 6 (the visible ones) laid out
+    mov edi, [A0R]                      ; from entry 1's y, 25 px apart (23 with seven rows: ESCI, entry 7, keeps its
+    mov word [edi + 4], 1               ; place), up / down links in that order, the last one's down = ESCI
+    cmp word [GAMETYPE], 4
+    jne .out
+    cmp dword [D8CAA + 16], 0
+    je .out
+    cmp word [SLOT4], 1
+    jne .out
+    cmp byte [SLOT4 + 4], 0
+    je .out
+    mov al, 4
+    call gp_notin
+    jnz .out
+    mov word [edi + 4], 0
+    call .o
+.o: pop esi
+    add esi, vc5_order - .o
+    xor ecx, ecx                        ; ecx = visible rows
+    xor eax, eax
+.c: movzx eax, byte [esi]
+    test eax, eax
+    jz .cd
+    inc esi
+    mov [D0R], ax
+    push esi
+    push ecx
+    call VC_CALC
+    pop ecx
+    pop esi
+    mov edi, [A0R]
+    cmp word [edi + 4], 0
+    jne .c
+    inc ecx
+    jmp .c
+.cd:sub esi, 7
+    push esi
+    push ecx
+    mov word [D0R], 1
+    call VC_CALC
+    pop ecx
+    pop esi
+    mov edi, [A0R]
+    movzx edx, word [edi + 16h]         ; edx = y, ebp = step
+    mov ebp, 25
+    cmp ecx, 7
+    jb .s
+    mov ebp, 23
+.s: xor ecx, ecx                        ; ecx = the row above's entry address (0: none), [esp] its number
+    push dword 0FFh
+.l: movzx eax, byte [esi]
+    test eax, eax
+    jz .e
+    inc esi
+    mov [D0R], ax
+    pushad
+    call VC_CALC
+    popad
+    mov edi, [A0R]
+    cmp word [edi + 4], 0
+    jne .l
+    mov [edi + 16h], dx
+    add edx, ebp
+    mov ebx, [esp]
+    mov [edi + 0Ah], bl                 ; up = the row above (FFh for the first)
+    jecxz .f
+    mov [ecx + 0Bh], al                 ; the row above's down = this one
+.f: mov [esp], eax
+    mov ecx, edi
+    jmp .l
+.e: pop ebx
+    jecxz .out
+    mov byte [ecx + 0Bh], 7             ; the last row's down -> ESCI, ESCI's up -> it
+    mov word [D0R], 7
+    pushad
+    call VC_CALC
+    popad
+    mov edi, [A0R]
+    mov [edi + 0Ah], bl
+.out:
+    popad
+    ret
+
+vc5_go:                                 ; entry 8's on-select: the game's view of a slot (cseg_37B74) with A0 = SLOT4
+    mov dword [A0R], SLOT4
+    jmp VC_VIEW
+
+vc5_order: db 1, 2, 3, 4, 8, 5, 6, 0
+"""
+
+
+VC5_SITES = []
+
+
+def _vc5(p, a6):
+    """4.0.5 the 5th VISUAL. COMPETIZ. entry: (nasm source, symbols, obj1 sites of `mov [A6], offset menu`). The menu
+    (obj2, ShowMenu's packed format) is found from its entry 1's on-select (cseg_37B44: the four `mov [A0], offset
+    slot buffer; jmp` stubs, 12 B apart, then cseg_37B74) and copied into the glue with an entry 8 before its end."""
+    d1, d2 = bytes(p.le.obj_bytes(1)), bytes(p.le.obj_bytes(2))
+    fx = {(so, s): (t, o) for so, s, _, t, o, *_ in p.le.fixups()}
+    stubs = [m.start() for m in re.finditer(rb'(\xc7\x05.{8}\xeb.){4}', d1, re.S)]
+    assert len(stubs) == 1, stubs
+    view = stubs[0] + 48                                  # cseg_37B74: push A0
+    assert d1[view:view + 2] == b'\xff\x35', d1[view:view + 2].hex()
+    sel1 = [s for (so, s), (t, o) in fx.items() if so == 2 and t == 1 and o == stubs[0]]
+    assert len(sel1) == 1, sel1
+    sites = [m.start() for m in re.finditer(rb'\xc7\x05' + re.escape(struct.pack('<I', a6)) + rb'.{4}', d1, re.S)]
+    menus = {}
+    for st in sites:
+        t = fx.get((1, st + 6))
+        if t and t[0] == 2 and 0 < sel1[0] - t[1] < 0x60:
+            menus.setdefault(t[1], []).append(st)
+    assert len(menus) == 1 and len(list(menus.values())[0]) == 2, menus   # (ViewCompetitionsMenu, ...Retired)
+    m0, a6sites = list(menus.items())[0]
+    k = m0 + 16                                           # (header: init, after-draw, on-draw, default entry)
+    n = 0
+    while True:                                           # entries: x y w h, then typed fields up to a 0
+        if struct.unpack_from('<h', d2, k)[0] == -999:
+            break
+        k += 8
+        while True:
+            ty = struct.unpack_from('<H', d2, k)[0]
+            k += 2
+            if ty == 0:
+                break
+            k += {2: 4, 4: 2, 8: 6, 9: 2, 13: 4, 15: 4}[ty]
+        n += 1
+    assert n == 8, n
+    end = k
+    hdr = [fx[(2, m0)], fx[(2, m0 + 4)]]
+    assert hdr[0][0] == 1 and hdr[1][0] == 1, hdr
+    a = hdr[1][1]                                         # CalcMenuEntryAddress: cseg_3760C's first call (push D0;
+    assert d1[a:a + 2] == b'\xff\x35' and d1[a + 6:a + 8] == b'\xc7\x05' and d1[a + 16] == 0xE8, d1[a:a + 21].hex()
+    calc = a + 21 + struct.unpack_from('<i', d1, a + 17)[0]   # mov dword [D0], 1; call)
+    lines, syms, q = ['VC5_MENU:', '    dd vc5_init, vc5_after'], {}, m0 + 8
+    while q < end:
+        if (2, q) in fx:
+            name = f'VCM_{q - m0:X}'
+            syms[name] = fx[(2, q)]
+            lines.append(f'    dd {name}')
+            q += 4
+        else:
+            lines.append(f'    db {d2[q]}')
+            q += 1
+    lines += ['    dw 48h, 82h, 0A0h, 0Fh            ; entry 8: as entries 1-4 (y and links set by vc5_lay)',
+              '    dw 2', '    db 0FFh, 0FFh, 0FFh, 0FFh', '    dw 4, 0Eh', '    dw 8, 0', '    dd SLOT4 + 4',
+              '    dw 13', '    dd vc5_go', '    dw 0', '    dw -999']
+    syms.update({'VC_INIT': hdr[0], 'VC_AFTER': hdr[1], 'VC_CALC': (1, calc), 'VC_VIEW': (1, view)})
+    return '\n'.join(lines) + '\n', syms, a6sites
+
+
 def _cgl_site(p, d8caa):
     """4.0.5: CareerGameListCommon (the career menu's fixture list: `mov A1, offset dseg_D8CAA` in its slot loop) and
     the menu data's pointer to it (obj2: the one fixup from obj2 to the nearest obj1 target at or before that load)."""
@@ -2199,6 +2359,10 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
         symbols.update({'CAL1_LOOP': (1, ms[0].start() - 19), 'D6R': (2, a0_ - 8), 'D7R': (2, a0_ - 4),
                         'A4R': (2, a0_ + 16)})
         cd_src += CUP12 + cds1_src(p, cds[0], rl, rs)
+        if sct and not os.environ.get('NO_VC5'):            # 4.0.5: VISUAL. COMPETIZ.'s 5th entry (slot 4; gp_notin)
+            vsrc, vsym, VC5_SITES[:] = _vc5(p, r['A0'] + 24)
+            cd_src += VC5_ASM + vsrc
+            symbols.update(vsym)
         symbols.update({f'C_S1_{k}': (1, c) for k, c in enumerate(CDS1_CALLS)})
     import cupsf                                              # 4.0.1: the World 2026-27 cups follow promotions
     cfw = [w for w in cupsf.worlds() if cupsf.year(w) >= 2026] if cds else []
@@ -2261,6 +2425,9 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
             for m in ms:                                                                   # cf_a6 acts for our cup ids)
                 p.remove(1, m + 1)
                 p.put(1, m, b'\xe8' + struct.pack('<i', lab['cf_a6'] - (m + 5)))
+        for st in VC5_SITES:                                  # (ViewCompetitionsMenu / ...Retired: `mov [A6], offset
+            p.retarget(1, st + 6, 1, lab['VC5_MENU'])         # viewCompetitionsMenu` -> the copy)
+            p.put(1, st + 6, struct.pack('<I', lab['VC5_MENU']))
         cal1 = CAL1_SITE[0]                                   # cseg_3563E's `mov eax, A6` (5 B, a fixup) -> call
         p.remove(1, cal1 + 1)
         p.put(1, cal1, b'\xe8' + struct.pack('<i', lab['gp_cal1'] - (cal1 + 5)))

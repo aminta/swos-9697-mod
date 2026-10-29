@@ -9721,7 +9721,7 @@ def sc_trace(exe):
 def sc_season(team, extra, runs_tag=1):
     """world8485 on a World 2026-27 career at team with extra env; the session log's lines."""
     keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_ONE',
-            'W8485_MIDSAVE', 'W8485_FROM', 'W8485_HEX', 'W8485_RECSHOT', 'W8485_RLDBG', 'W8485_FILL')
+            'W8485_MIDSAVE', 'W8485_FROM', 'W8485_HEX', 'W8485_RECSHOT', 'W8485_RLDBG', 'W8485_FILL', 'W8485_MIDTEXT')
     keep = {k: os.environ.get(k) for k in keys}
     os.environ.update(W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1',
                       W8485_ONE='1', **extra)
@@ -9971,6 +9971,84 @@ def world_sc_early():
     m2 = sc_matches(l2)
     check(ok2 and len(m2) == 1 and 'LAZIO' in m2[0], f'from the early save: {m2}; {msg2[:120]}', errs)
     return not errs, '; '.join(errs) or f'built at step {max(steps)}; fixture-list shots; played {m2}'
+
+
+
+def vc5_check(s, tag, want):
+    """world_vc5: on the career menu, VISUAL. COMPETIZ.: the entry named want (slot 4's) shown, the competition rows +
+    TOP SCORERS / REGISTRO in order, no two overlapping, all above ESCI; the entry reached through the links and opened
+    (its view: want on screen), then ESCI back to the career menu. Returns the errors."""
+    errs = []
+    for _ in range(4):
+        sc = s.screen()
+        if sc.find('VISUAL. COMPETIZ.', exact=True) is not None:
+            break
+        press(s, sc, 'CONTINUA', 3) or s.send('fire dump:2')
+    press(s, s.screen(), 'VISUAL. COMPETIZ.', 3)
+    sc = s.screen()
+    s.shot(f'{tag}_menu')
+    vis = [(sc.geom[i][1], i, t) for i, t, inv, dis in sc.entries if not inv and i in (1, 2, 3, 4, 5, 6, 8)]
+    vis.sort()
+    s.log.append(f'[vc5] {tag}: ' + ' | '.join(f'{i}:{t}@{y}' for y, i, t in vis))
+    hit = [i for y, i, t in vis if want in t]
+    check(hit == [8], f'{tag}: the 5th entry {want!r}: {[(i, t) for y, i, t in vis]}', errs)
+    order = [i for y, i, t in vis]
+    want_order = [i for i in (1, 2, 3, 4, 8, 5, 6) if i in order]
+    check(order == want_order, f'{tag}: rows in order {order} (want {want_order})', errs)
+    ys = [y for y, i, t in vis]
+    hs = [sc.geom[i][3] for y, i, t in vis]
+    check(all(ys[k] + hs[k] <= ys[k + 1] for k in range(len(ys) - 1)) and ys[-1] + hs[-1] <= sc.geom[7][1],
+          f'{tag}: overlapping rows {ys} (ESCI at {sc.geom[7][1]})', errs)
+    if hit == [8]:
+        press(s, sc, sc.entries[8][1], 4)
+        s.shot(f'{tag}_view')
+        texts = s.screen().texts()
+        s.log.append(f'[vc5] {tag} view: {texts[:12]}')
+        check(any(want in x for x in texts), f'{tag}: the view has no {want!r}: {texts[:10]}', errs)
+        for _ in range(4):
+            sc = s.screen()
+            if sc.find('VISUAL. COMPETIZ.', exact=True) is not None and sc.find('ESCI', exact=True) is not None \
+                    and sc.find('PROSS. PARTITA', exact=True) is not None:
+                break
+            press(s, sc, 'ESCI', 3) or press(s, sc, 'CONTINUA', 3) or s.send('fire dump:2')
+        check(s.screen().find('PROSS. PARTITA', exact=True) is not None, f'{tag}: not back on the career menu: '
+              f'{s.screen()}', errs)
+    return errs
+
+
+@scenario
+def world_vc5():
+    """4.0.5 VISUAL. COMPETIZ.'s 5th entry (Davide 29/10: slot 4 - the supercups, the play-offs, the Coppa D): an
+    INTER career on the supercups build (world_sc_early's; VC5_BUILD / SC_BUILD): (1) saved when its SUPERCOPPA
+    ITALIANA tie is built (season start): the menu has the 5th entry SUPERCOPPA ..., the rows in order (slots 0-3, slot 4,
+    TOP SCORERS, REGISTRO) without overlaps above ESCI, reached through the links, its view opens and ESCI comes back;
+    (2) saved after the supercup's result (W8485_MIDTEXT): the entry still there for the decided supercup, its view
+    opens (shots vc_before_*, vc_after_*)"""
+    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+    if not os.path.isdir(src):
+        return True, f'SKIP: private data {src} missing'
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    exe = os.environ.get('VC5_BUILD') or os.environ.get('SC_BUILD') or build('world_sc_cups', env={
+        'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order])})
+    tr = sc_trace(exe)
+    team = 'EUROPA,ITALIA,SERIE A,INTER'
+    errs = []
+    ok, msg, _ = sc_season(team, dict(W8485_BUILD=exe, W8485_MIDSAVE=f'{tr:x}:1:1'))
+    if not ok:
+        return False, f'season 1 to the supercup tie: {msg}'
+    mid1 = os.path.join(RUNS, 'vc5_before.CAR')
+    shutil.copy(msg.split(': ', 1)[1], mid1)
+    ok, msg, _ = sc_season(team, dict(W8485_BUILD=exe, W8485_MIDTEXT='SUPERCOPPA:1'), 2)
+    if not ok:
+        return False, f'season 1 to the supercup result: {msg}'
+    mid2 = os.path.join(RUNS, 'vc5_after.CAR')
+    shutil.copy(msg.split(': ', 1)[1], mid2)
+    for tag, car in (('vc_before', mid1), ('vc_after', mid2)):
+        with Session('world_vc5_' + tag, exe, {'W84A.CAR': car}, 'dump:2', 300) as s:
+            s.wait()
+            s.send(LOAD1 + ' dump:3')
+            errs += vc5_check(s, tag, 'SUPERCOPPA')
+    return not errs, '; '.join(errs) or 'the 5th entry before / after the supercup: shown, in order, opened'
 
 
 @scenario

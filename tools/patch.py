@@ -273,8 +273,9 @@ def patch_exe(src, dst, remap, lang='it'):
             gplay.GP_BSS = 0x6000 + ((gplay.SS_ITEM * gplay.SS_BANKS[0] + 0xFFF) & ~0xFFF)
     else:
         gplay.SS_BANKS[:] = [1, None]
-    if gplay.SS_BANKS[0] <= 1:
-        gplay.GP_BSS = 0x6000
+    if gplay.SS_BANKS[0] <= 1:                         # (4.0.5: 0x7000 - FASE 1's F1_ST took gplay.c's .bss past 0x6000
+        gplay.GP_BSS = 0x7000                          # in builds with one stage bank: the scenario test builds; the
+                                                       # release builds' several banks leave the room in their rounding)
     pr_on = any(t and any(po.get('kind') == 'promedio' for po in pk.league.get('ko_playoffs') or [])
                 for pk in mkseason.packs() if pk.world is not None and pk.league for t in [True])
     if pr_on:                                          # Argentina's promedio history (gplay.c PR_STATE)

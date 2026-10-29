@@ -245,6 +245,42 @@ lt_ov:                                  ; (OnRestore) STAT > CLASSIFICA GENERALE
     jmp .x
 .ov:
 %endif
+%if AP_
+    cmp byte [OV_FLAG], 4               ; 4.0.5 an earlier stage's table (STAT > APERTURA ...: OV_FLAG 4 + its table
+    jb .noap                            ; k, fmtpage fp_ov): gplay.c ap_build's rows, its stage's long title
+    movzx eax, byte [OV_FLAG]
+    sub eax, 4
+    push es
+    push ds
+    pop es
+    cld
+    push eax
+    push dword STG_TAB
+    push esi
+    call AP_BUILD
+    add esp, 12
+    pop es
+    test eax, eax
+    jz .x
+    mov byte [OV_ON], 1
+    movzx eax, byte [OV_FLAG]
+    push es
+    push ds
+    pop es
+    cld
+    push dword 1
+    push eax
+    push dword STG_TAB
+    push esi
+    call AP_LABEL
+    add esp, 16
+    pop es
+    test eax, eax
+    jz .x
+    mov [MENU_ + 16h + 26h], eax
+    jmp .x
+.noap:
+%endif
     cmp byte [OV_FLAG], 0
     je .x
     cmp word [esi + 4Fh], 1
@@ -480,6 +516,10 @@ def patch(p, at, area=None, lang='it'):
     if f1:
         sym.update({'F1AUTO': gplay.LABELS['f1_auto'], 'F1BUILD': f1, 'F1_SEAS': gplay.LABELS['SEASONPLAYING'],
                     'F1_TITLE': (2, area.add(F1_TITLES[lang] + b'\0'))})
+    ap = ov and stg and gplay.LABELS.get('ap_build')        # 4.0.5 the earlier stages' tables (gplay.c ap_*)
+    sym['AP_'] = (0, int(bool(ap)))
+    if ap:
+        sym.update({'AP_BUILD': ap, 'AP_LABEL': gplay.LABELS['ap_label']})
     init = 0x483D2 - B                                                      # DIYLeagueTournamentInit: mov currentDiyLine, 0
     init = _find(d1, rb'\x66\xc7\x05....\x00\x00\x66\xc7\x05....\x00\x00\xe8', init - 0x40, 0x80)
     assert p.target(1, init + 3) == p.target(1, curline + 2), 'Init clears currentDiyLine'
@@ -539,7 +579,8 @@ def annual_key(lang):
 MAXS, MAXG = 5, 4                       # stage titles: the title before the first stage + 4 stages, 4 groups each
 
 
-REC = 42 + 4 * MAXS * MAXG + MAXS + 1   # a stage-title record (gplay.c gp_stitle_c / gp_scal_c)
+REC = 42 + 4 * MAXS * MAXG + MAXS + 1 + 8   # a stage-title record (gplay.c gp_stitle_c / gp_scal_c; 4.0.5: + MAXS db
+                                        # the stage's 'table' + 1, 0 = none, + pad: gplay.c STG_TBL)
 HEAD = 16                               # the table's header (gplay builds it: split's offsets, the career team word's address)
 
 
@@ -567,11 +608,12 @@ def stage_table(lang, head=b'\0' * HEAD):
             if not any(x for row in grid for x in row):
                 continue
             starts = [0] + [st.get('after', 0) for st in stages][:MAXS - 1]
+            tables = [0] + [st['table'] + 1 if st.get('table') is not None else 0 for st in stages][:MAXS - 1]
             nm = dv.get('names') or lg.get('names') or {}
             v = nm.get(lang) or nm.get('*') or [complist._nm(nm, lang)]
             key = zones._title(pk.meta, lang, v[0]).encode('latin-1')
             names = [[((x.get(lang) or x.get('*')) if x else None) for x in row[:MAXG]] for row in grid]
-            recs.append((key, names, v, starts))
+            recs.append((key, names, v, starts, tables))
     if not recs:
         return None
     base = HEAD + REC * len(recs)
@@ -585,7 +627,7 @@ def stage_table(lang, head=b'\0' * HEAD):
             strings += s + b'\0'
         return pool[s]
     out = bytearray(struct.pack('<H', len(recs)) + head[2:HEAD])
-    for key, names, v, starts in recs:
+    for key, names, v, starts, tables in recs:
         r = bytearray(key[:41].ljust(42, b'\0'))
         longs, shorts = b'', b''
         for s in range(MAXS):
@@ -600,6 +642,8 @@ def stage_table(lang, head=b'\0' * HEAD):
                 longs += struct.pack('<H', put(title))
                 shorts += struct.pack('<H', put(x[-1]))
         r += longs + shorts + bytes(min(255, starts[s]) if s < len(starts) else 255 for s in range(MAXS)) + b'\0'
+        r += bytes(tables[s] if s < len(tables) else 0 for s in range(MAXS)) + b'\0' * (8 - MAXS)
+        assert len(r) == REC, len(r)
         out += r
     return bytes(out + strings)
 

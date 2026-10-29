@@ -2312,13 +2312,14 @@ u8 GP_WORLD;
    its record line's name (the season record's 4th line: a Serie D club plays no European cup), else 0. Test builds
    (GPLAY_FORCE): the club is made the winner (the review's DA11B too: no European trophy for it, gp_sack's guard). */
 /* 4.0 stage titles (longtable.stage_table): tab: dw n; dw S_MAGIC, S_FROZEN, S_GRP offsets (split's state in a league
-   buffer), dw its magic; dd the career team word's address; dw the weeks table's offset; n records of 128 B: key (41 B:
+   buffer), dw its magic; dd the career team word's address; dw the weeks table's offset; n records of 136 B: key (41 B:
    the DIY+4 title) + pad, [5 stages][4 groups] dw long-title offsets from tab, the same for the short ones (0 = none),
    5 db the stage's first day (255 = none) + pad. */
+enum { STG_REC = 136, STG_TBL = 128 };  /* (4.0.5: + MAXS db the stage's 'table' + 1, 0 = none, + pad) */
 static const u8 *st_rec(const u8 *lg, const u8 *tab) {      /* lg's record, or 0 */
     if (w16(lg + w16(tab + 2)) != w16(tab + 8)) return 0;
     const u8 *r = tab + 16;
-    for (int i = 0, n = w16(tab); i < n; i++, r += 128) {
+    for (int i = 0, n = w16(tab); i < n; i++, r += STG_REC) {
         int k = 0;
         while (k < 41 && lg[4 + k] == r[k] && r[k]) k++;
         if (k == 41 || lg[4 + k] == r[k]) return r;
@@ -2426,6 +2427,76 @@ u32 gp_scal_c(const u8 *lg, const u8 *tab, u32 wk) {
     int g = s ? st_grp(lg, tab) : 0, o = w16(row + 2 * g);
     if (!o) o = w16(row);
     return o ? (u32)(tab + o) : 0;
+}
+
+/* 4.0.5 the earlier stages' tables (Davide's MEX.CAR: the Apertura's final table during the Clausura): the stage
+   tables gp_stage kept in the league's SS bank (r[k], fresh bit k), for the stages before diy's current one (split's
+   frozen stage index = its stage-title row; a row's table: the record's STG_TBL bytes). The STAT entry cycles the
+   table screen through the live table, the overall one (one group over 24 clubs: CLASSIFICA GENERALE) and these
+   (fmtpage fp_ov: OV_FLAG 0 / 1 / 4 + k); longtable lt_ov draws k from ap_build. A table of this season only: its
+   stage ended this season (the frozen index is this season's), its rows this league's (team file, club count). */
+static const struct gp_ss *ap_bank(const u8 *diy, int k) {
+    const struct gp_ss *b = ss_view(diy[0x12D]);
+    int n = w16(diy + 0x31);
+    if (!b || k < 0 || k >= SS_N || k == 2 || !(b->fresh >> k & 1) || b->n[k] != n || n < 2 || n > 32) return 0;
+    if ((b->r[k][0].team & 255) != diy[0x12D]) return 0;
+    return b;
+}
+u32 ap_mask(const u8 *diy, const u8 *tab) {     /* bit k: table k viewable now */
+    const u8 *r = tab ? st_rec(diy, tab) : 0;
+    if (!r) return 0;
+    u32 m = 0;
+    for (int row = 1, s = diy[w16(tab + 4)]; row < s && row < 5; row++) {
+        int k = r[STG_TBL + row] - 1;
+        if (ap_bank(diy, k)) m |= 1u << k;
+    }
+    return m;
+}
+u32 ap_next(const u8 *diy, const u8 *tab, u32 cur, u32 ov) {    /* the mode after cur: 0 live, 1 overall, 4 + k */
+    u32 m = ap_mask(diy, tab), seq[2 + SS_N], n = 0;
+    seq[n++] = 0;
+    if (ov) seq[n++] = 1;
+    for (int k = 0; k < SS_N; k++) if (m >> k & 1) seq[n++] = 4 + k;
+    for (u32 i = 0; i < n; i++) if (seq[i] == cur) return seq[(i + 1) % n];
+    return seq[1 % n];
+}
+static int ap_row(const u8 *r, const u8 *diy, const u8 *tab, u32 mode) {   /* mode's stage-title row, -1 none */
+    if (!mode) { int s = diy[w16(tab + 4)]; return s < 5 ? s : -1; }
+    for (int q = 1; q < 5; q++) if (mode >= 4 && r[STG_TBL + q] == mode - 3) return q;
+    return -1;
+}
+u32 ap_label(const u8 *diy, const u8 *tab, u32 mode, u32 lng) {   /* mode's stage name (short; lng: long), 0 none */
+    const u8 *r = tab ? st_rec(diy, tab) : 0;
+    int row = r ? ap_row(r, diy, tab, mode) : -1;
+    if (row < 0) return 0;
+    int o = w16(r + (lng ? 42 : 82) + 8 * row);
+    return o ? (u32)(tab + o) : 0;
+}
+static void ap_put(u8 *x, int v) { x[0] = (u8)v; x[1] = (u8)(v >> 8); }
+u32 ap_build(const u8 *diy, const u8 *tab, u32 k) {    /* GP_OV_ROWS / GP_OV_ORD = stage table k, by its places */
+    const u8 *r = tab ? st_rec(diy, tab) : 0;
+    const struct gp_ss *b = r ? ap_bank(diy, k) : 0;
+    int row = b ? ap_row(r, diy, tab, 4 + k) : -1;
+    if (row < 1 || row >= 4) return 0;
+    int n = w16(diy + 0x31), d0 = r[122 + row], d1 = r[122 + row + 1];
+    int played = d0 != 255 && d1 != 255 && d1 > d0 ? d1 - d0 : 0;  /* (the stage's days: every club plays each) */
+    for (int i = 0; i < n * 18; i++) GP_OV_ROWS[i] = diy[0x2B3 + i];
+    for (int i = 0; i < n; i++) {
+        const struct gp_row *o = &b->r[k][i];
+        int j = -1;
+        for (int q = 0; q < n; q++) if (w16(diy + 0x12D + 2 * q) == o->team) { j = q; break; }
+        if (j < 0) return 0;
+        int won = o->won, drawn = o->pts - 3 * won, pl = played > won ? played : won;
+        if (drawn < 0) drawn = 0;
+        if (drawn > pl - won) drawn = pl - won;
+        u8 *x = GP_OV_ROWS + 18 * j;            /* (played, won, drawn, lost, gf, ga, pts; no array: no memcpy) */
+        ap_put(x + 4, pl); ap_put(x + 6, won); ap_put(x + 8, drawn); ap_put(x + 10, pl - won - drawn);
+        ap_put(x + 12, o->gf); ap_put(x + 14, o->ga); ap_put(x + 16, o->pts);
+        GP_OV_ORD[i] = 18 * j;
+    }
+    GP_OV_N = n;
+    GP_OV_ANNUAL = 0;
+    return 1;
 }
 
 /* 4.0 after a career load (gp_repoint, after ProcessCareerFile): every slot buffer's long-name pointer (DIY+27h,

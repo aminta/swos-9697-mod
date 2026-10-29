@@ -10104,6 +10104,43 @@ def world_winners_sc():
     return not errs, '; '.join(errs) or '; '.join(info)
 
 
+
+@scenario
+def world_winners_sc_semi():
+    """4.0.5 (Davide 29/10, choice 1): a final four's semi-final lost -> the final simulated (gplay.c sc_done: the better
+    placed of last season wins 3 in 5, seeded by the season and the cup) and its winner on VINCITORI: a BARCELONA career
+    on a GPLAY_KOFORCE=1 test build (the career club loses its played knockout ties - the SUPERCOPPA DI SPAGNA
+    SEMIFINALE v ATLETICO MADRID), saved once the tie is recorded (SC_TRACE 41h): the LALIGA page's line
+    'SUPERCOPPA DI SPAGNA:' names ATLETICO MADRID, REAL MADRID or REAL SOCIEDAD (not BARCELONA, not DA GIOCARE)"""
+    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+    if not os.path.isdir(src):
+        return True, f'SKIP: private data {src} missing'
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    exe = os.environ.get('SC_KOLOSE_BUILD') or build('world_sc_esp_lose', env={
+        'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]), 'GPLAY_KOFORCE': '1'})
+    ok, msg, _ = sc_season('EUROPA,SPAGNA,LALIGA,BARCELONA', dict(W8485_BUILD=exe, W8485_MIDSAVE=f'{sc_trace(exe):x}:65:1'))
+    if not ok:
+        return False, f'season 1 to the semi-final recorded: {msg}'
+    car = os.path.join(RUNS, 'sc_semi.CAR')
+    shutil.copy(msg.split(': ', 1)[1], car)
+    errs = []
+    with Session('world_winners_sc_semi', exe, {'W84A.CAR': car}, 'dump:2', 300) as s:
+        s.wait()
+        s.send(LOAD1 + ' dump:3')
+        for _ in range(4):
+            sc = s.screen()
+            if sc.find('VISUAL. COMPETIZ.', exact=True) is not None:
+                break
+            press(s, sc, 'CONTINUA', 3) or s.send('fire dump:2')
+        e, title, lines = winners_page(s)
+        s.log.append(f'[wsc] semi: {title} {lines}')
+    k = next((i for i, x in enumerate(lines) if 'SUPERCOPPA' in x), None)
+    w = lines[k + 1] if k is not None and k + 1 < len(lines) else None
+    check(k is not None and w in ('ATLETICO MADRID', 'REAL MADRID', 'REAL SOCIEDAD'),
+          f'the simulated final: {lines[k] if k is not None else None!r} {w!r} ({lines})', errs)
+    return not errs, '; '.join(errs) or f'{lines[k]} {w}'
+
+
 @scenario
 def world_vc5():
     """4.0.5 VISUAL. COMPETIZ.'s 5th entry (Davide 29/10: slot 4 - the supercups, the play-offs, the Coppa D): an

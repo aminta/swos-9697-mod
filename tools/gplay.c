@@ -3467,11 +3467,23 @@ u32 sc_step_c(void) {                   /* the calendar advance: 1 = the career 
     SC_TRACE = 1;
     return 1;
 }
+static const u8 *sc_entry(void);
 void sc_done(const struct gp_ko *k) {  /* gp_rec_c: the career club's supercup tie decided */
     SC_TRACE |= 0x40;
     int won = k->tw[0] != NOC && k->team[k->tw[0]] == GP_MGR;
-    if (SC_ST[4] == 1) SC_ST[4] = won ? 2 : 3;
-    else {
+    if (SC_ST[4] == 1) {
+        SC_ST[4] = won ? 2 : 3;
+        u16 a = k->tw[0] != NOC ? k->team[k->tw[0]] : 0, b = (u16)(SC_ST[6] | SC_ST[7] << 8);
+        if (!won && a && b) {           /* (4.0.5 Davide 29/10: the semi-final lost - the final simulated now, as the
+                                           other semi-final was: the better placed of last season wins 3 in 5, the
+                                           draw seeded by the season and the cup - its winner for VINCITORI) */
+            const u8 *e = sc_entry();
+            int ra = sc_rank(a), rb = sc_rank(b);
+            rng = GP_SEAS * 7919u + (e ? e[1] : 0) + 1;
+            u16 w = below(5) < 3 ? (ra <= rb ? a : b) : (ra <= rb ? b : a);
+            SC_ST[8] = (u8)w; SC_ST[9] = (u8)(w >> 8);
+        }
+    } else {
         if (won) SC_ST[5] = 1;          /* (the final, or the one match, won: the season record's line) */
         if (k->tw[0] != NOC) { u16 w = k->team[k->tw[0]]; SC_ST[8] = (u8)w; SC_ST[9] = (u8)(w >> 8); }
     }                                   /* (4.0.5 Davide 29/10: the winner kept for VINCITORI all season - SC_ST +8,
@@ -3485,8 +3497,8 @@ static const u8 *sc_entry(void) {      /* the career club's country's GP_SCT ent
 }
 u32 sc_wline_c(void) {                  /* winners.py: this season's supercup line on the career league's VINCITORI
                                            page - its record name (STR_BASE-relative), 0 = no line: the career club's
-                                           tie not built this season (not in it, a summer one before the world), or
-                                           a final four's semi-final lost (the final is not played by the engine) */
+                                           tie not built this season (not in it, a summer one before the world); a
+                                           final four's semi-final lost: its simulated final's winner (sc_done) */
     const u8 *e = sc_entry();
     if (!e || SC_ST[3] != GP_SEAS) return 0;
     if (!(SC_ST[8] | SC_ST[9]) && !sc_busy() && SC_ST[4] != 2) return 0;

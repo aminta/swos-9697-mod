@@ -355,6 +355,21 @@ gp_after:                               ; 4.0 after a career load (arg97's arg_l
     div ecx
     mov ebp, [GP_NMT + eax * 4]
 .nm:
+    mov ax, [CAREERTEAM]                ; 4.0.5 (phase 0: a one-tie contest's names - the Coppa D's, a supercup's -
+    mov [GP_MGR], ax                    ; from this exe's tables: the career club, the tables as gp_adv sets them)
+%if CD_ON
+    cmp word [GAMETYPE], 4
+    jne .ncd
+    mov al, [SLT + WORLD_BYTE]
+    cmp al, [CD_TAB]
+    jne .ncd
+    mov dword [GP_CDT], CD_TAB
+    mov dword [GP_CDNM], CD_NM
+.ncd:
+%endif
+%if SC_ON
+    mov dword [GP_SCT], SC_TAB
+%endif
     push dword 0
     call gp_fixload                     ; (phase 0: the knockouts' contest names)
     add esp, 4

@@ -2523,15 +2523,25 @@ static int str_ok(const u8 *s) {        /* the start of a name string (the names
     }
     return n >= 2 && !s[n];
 }
+static const u8 *sc_entry(void);
 void gp_fixload_c(const u32 *nm, u8 *recs, u32 base, u8 *const *slots, u32 phase) {
     if (phase == 0) {
-        if (!nm) return;
         for (int i = 0; i < 2; i++) {
             struct gp_ko *k = &GP_ST.ko[i];
-            if (k->magic != MAGIC || k->season != GP_SEAS || k->pi == 0xFF) continue;   /* (4.0.5: a one-tie contest -
-                                           the Coppa D's, a supercup: its own names from ko_one, no play-off index;
-                                           nm[3 * 255] read past the table: 'SCENE PRESIDENZIALI' after a load) */
+            if (k->magic != MAGIC || k->season != GP_SEAS) continue;
             u8 *c = k->con, *names = c + 5 + c[5];
+            if (k->pi == 0xFF || k->kind == K_CUPD || k->kind == K_SC) {   /* 4.0.5 a one-tie contest (ko_one: the Coppa D's, a supercup): its names
+                                           (STR_BASE-relative, saved with the career) from this exe's tables again -
+                                           a 4.0.x save's pending Coppa D tie showed 'RV. TITOLO' / 'T. PRELIM.'
+                                           (Ischia's: the strings moved since); never nm[3 * 255] ('SCENE
+                                           PRESIDENZIALI') */
+                const u8 *src = k->kind == K_CUPD && GP_CDT && GP_CDNM ? (const u8 *)GP_CDNM :
+                                k->kind == K_SC ? sc_entry() : 0;
+                if (src && k->kind == K_SC) src += 20;
+                if (src) for (int j = 0; j < 8; j++) names[j] = src[j];
+                continue;
+            }
+            if (!nm) continue;
             *(u32 *)names = nm[3 * k->pi];
             *(u32 *)(names + 4) = nm[3 * k->pi + 1];
         }

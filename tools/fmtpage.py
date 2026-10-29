@@ -52,8 +52,57 @@ fp_ov:                                  ; 4.0 CLASSIFICA GENERALE (fire): the ta
     jmp EXIT_FN
 .ov:
 %endif
+%if AP_
+    call fp_apnext                      ; 4.0.5: earlier stages' tables (APERTURA ...): the next mode of the cycle
+    jz .pl                              ; live -> (overall) -> stage tables -> live
+    mov eax, [AP_NX]
+    mov [OV_FLAG], al
+    jmp EXIT_FN
+.pl:
+%endif
     xor byte [OV_FLAG], 1               ; (longtable.py draws it), then out of STAT as its EXIT does
     jmp EXIT_FN
+
+%if AP_
+fp_apnext:                              ; ZF = 0: this league has earlier stages' tables now (gplay.c ap_mask), the
+    pushad                              ; mode after OV_FLAG in [AP_NX] (ap_next; the overall table in the cycle for a
+    mov esi, DIY_                       ; long table)
+    push es
+    push ds
+    pop es
+    cld
+    push dword STG_TAB
+    push esi
+    call AP_MASK
+    add esp, 8
+    pop es
+    mov dword [AP_NX], -1
+    test eax, eax
+    jz .r
+    xor ebx, ebx
+    cmp word [esi + 4Fh], 1
+    jne .n
+    cmp word [esi + 51h], 24
+    jbe .n
+    inc ebx
+.n: push es
+    push ds
+    pop es
+    cld
+    movzx eax, byte [OV_FLAG]
+    push ebx
+    push eax
+    push dword STG_TAB
+    push esi
+    call AP_NEXT
+    add esp, 16
+    pop es
+    mov [AP_NX], eax
+.r: popad
+    cmp dword [AP_NX], -1
+    ret
+AP_NX: dd -1
+%endif
 
 %if F1_
 fp_long:                                ; ZF = 0: not a long table (one group of more than 24 clubs) and the FASE 1
@@ -96,14 +145,37 @@ fp_ovinit:                              ; the statistics menu's onInit and onRet
     mov [MENU_ + 16h + 6 * 38h + 4], ax
 %if F1_
     call fp_long                        ; 4.0.5: a split league's FASE 1 table: the entry shown as FASE 1, or GRUPPI
-    jz .x                               ; while the table screen shows it (OV_FLAG 2)
+    jz .ap                              ; while the table screen shows it (OV_FLAG 2)
     mov word [MENU_ + 16h + 6 * 38h + 4], 0
     mov dword [MENU_ + 16h + 6 * 38h + 26h], F1_TXT
     cmp byte [OV_FLAG], 2
     jne .x
     mov dword [MENU_ + 16h + 6 * 38h + 26h], F1_GRP
-.x:
+    jmp .x
+.ap:
 %endif
+%if AP_
+    call fp_apnext                      ; 4.0.5: earlier stages' tables - the entry shown, named after the mode it
+    jz .x                               ; switches to: CLASSIFICA GENERALE (its own text), a stage (APERTURA ...) or
+    mov word [MENU_ + 16h + 6 * 38h + 4], 0   ; back to the stage under way (CLAUSURA)
+    cmp dword [AP_NX], 1
+    je .x
+    push es
+    push ds
+    pop es
+    cld
+    push dword 0
+    push dword [AP_NX]
+    push dword STG_TAB
+    push dword DIY_
+    call AP_LABEL
+    add esp, 16
+    pop es
+    test eax, eax
+    jz .x
+    mov [MENU_ + 16h + 6 * 38h + 26h], eax
+%endif
+.x:
     popad
     ret
 
@@ -515,6 +587,11 @@ def patch(p, at, lang, area, bss, world=None, wn=False):
         t1, t2 = F1_TEXTS[lang]
         sym.update({'F1VALID': f1, 'F1_SEAS': gplay.LABELS['SEASONPLAYING'], 'F1_TXT': (2, area.add(t1 + b'\0')),
                     'F1_GRP': (2, area.add(t2 + b'\0'))})
+    ap = gplay.LABELS.get('ap_mask') and gplay.LABELS.get('STG_TAB')   # 4.0.5 earlier stages' tables (gplay.c ap_*)
+    sym['AP_'] = (0, int(bool(ap)))
+    if ap:
+        sym.update({'AP_MASK': gplay.LABELS['ap_mask'], 'AP_NEXT': gplay.LABELS['ap_next'],
+                    'AP_LABEL': gplay.LABELS['ap_label'], 'STG_TAB': gplay.LABELS['STG_TAB']})
     OV['flag'] = base + off['vars'] + 5
     OV['on'] = base + off['vars'] + 6           # (longtable: this table drawn in overall mode now)
     src = nasmcave.sub(ASM, 'WORLD_FILE\n', WORLD_ASM if world else '')

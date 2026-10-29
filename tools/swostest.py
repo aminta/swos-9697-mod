@@ -7102,7 +7102,8 @@ def f1_views(st, f1, diy):
         if 'TRASFERIMENTI' not in scr.texts() or 'VISUAL. COMPETIZ.' not in scr.texts():
             return
         m, b = s.result.obj2(f1, 8 + 30 * 8), s.result.obj2(diy, 0x733)
-        if m[:2] == b'F1' and b[0x12D:0x12F] == b'\0\0' and 'auto' not in st:   # (a loaded career: the league's
+        if m[:2] == b'F1' and (b[0x12D:0x12F] == b'\0\0' or b[0x12D:0x12F] != m[4:6]) and 'auto' not in st \
+                and 'later' not in st:          # (a loaded career, or DIY holding another contest: the league's
             b = b[:0x12D] + m[4:6] + b[0x12F:]                                  #  DIY not unpacked yet - the
             b = b[:0x2B3] + bytes(18 * 30) + b[0x2B3 + 18 * 30:]                #  view decides; as 'auto' if no
             ref_only = True                                                     #  phase-2 result is in)
@@ -7170,10 +7171,11 @@ def world_split_alb_fase1():
         info.append(f'{tag}: {st}')
         return ok, msg, st
     try:
-        # 1) fresh: auto-open at the freeze, then the save (at the same career menu, the freeze flag's first dump)
+        # 1) fresh: auto-open at the freeze, then the save (the freeze flag's 2nd dump: the career menu after the last
+        # phase-1 result's screen - its view first)
         saved = os.environ.get('F1_FROM')                 # (debug: a phase-1 save of an earlier run)
         if not saved:
-            ok, msg, st = run('fresh', exe, W8485_ONE='1', W8485_MIDSAVE=f'{frozen:x}:1:1')
+            ok, msg, st = run('fresh', exe, W8485_ONE='1', W8485_MIDSAVE=f'{frozen:x}:1:2')
             car = os.path.join(RUNS, w84_tag() + '_1', 'SWOS', 'W84A.CAR')
             check(ok and os.path.exists(car), f'fresh: mid-season save: {msg}', errs)
             a = st.get('auto', {})
@@ -11978,6 +11980,208 @@ def world_statmenu():
                 again = vis(s)
                 check(again == first, f'{tag}: STAT after {pg}: {again} (first {first})', errs)
     return not errs, '; '.join(errs + info)
+
+
+AP_STD = ('STATISTICHE', 'ELENCO CANNONIERI', 'INFO SU COMPETIZIONE', 'VIS. SQUADRE', 'FORMULA', 'VINCITORI', 'ESCI')
+
+
+def ap_cycle(s, tag, n=5):
+    """4.0.5 earlier stages' tables (gplay.c ap_*, fmtpage fp_apnext): from the career menu, VISUAL. COMPETIZ. > the
+    career league; then up to n times STAT > the cycling entry (the one not in AP_STD): [(its label, the table's
+    title after it)], until the title is the first one again; back to the career menu. (the first title, steps)"""
+    vis = lambda: [e[1] for e in s.screen().entries if e[1] and not e[2]]
+    title = lambda: (s.screen().entries[0][1] if s.screen().entries else '')
+    steps = []
+    for _ in range(3):                                 # ('next': the save menu after next_season_save first)
+        if s.screen().find('VISUAL. COMPETIZ.') is not None:
+            break
+        if all(press(s, s.screen(), x, 3) is None for x in ('CONTINUA CARRIERA', 'CONTINUA')):
+            break
+    walk(s, 'VISUAL. COMPETIZ.', 3)
+    walk(s, 1, 3)
+    t0 = title()
+    s.shot(f'ap_{tag}_0')
+    for k in range(n):
+        walk(s, s.screen().find('STAT', exact=True), 3)
+        extra = [x for x in vis() if x not in AP_STD]
+        if not extra:
+            steps.append((None, vis()))
+            break
+        walk(s, s.screen().find(extra[0], exact=True), 3)
+        steps.append((extra[0], title()))
+        s.shot(f'ap_{tag}_{k + 1}')
+        if title() == t0:
+            break
+    for _ in range(6):
+        if 'TRASFERIMENTI' in s.screen().texts():
+            break
+        if press(s, s.screen(), 'ESCI', 3) is None:
+            s.send('fire dump:2')
+    s.log.append(f'[ap] {tag} {t0} {steps}')
+    return t0, steps
+
+
+@scenario
+def world_apertura_mexcar():
+    """4.0.5 APERTURA page (Davide 29/10, his RC8 MiSTer save internal/reports/mex-apertura/MEX.CAR, a Mexico career
+    in the CLAUSURA, made on 4.0.1): VISUAL. COMPETIZ. > LIGA MX > STAT shows the Apertura's entry, it opens the
+    Apertura's final table (the SS2 bank's r[0]), STAT then offers the Clausura again, back to the live table
+    (SWOSTEST_BUILD / AP_BUILD: a release dir)"""
+    car = os.environ.get('AP_MEXCAR') or os.path.join(MAIN, 'internal', 'reports', 'mex-apertura', 'MEX.CAR')
+    exe = os.environ.get('AP_BUILD') or builds()['it']
+    if not os.path.exists(car):
+        return True, f'SKIP: {car} missing'
+    errs = []
+    with Session('world_apertura_mexcar', exe, {'MEX.CAR': car}, 'dump:2', 600) as s:
+        s.wait()
+        s.send(LOAD1 + ' dump:3')
+        t0, steps = ap_cycle(s, 'mex')
+    lab = [x for x, _ in steps]
+    check(len(steps) == 2 and 'APERTURA' in (lab[0] or '') and 'APERTURA' in steps[0][1] and 'CLAUSURA' in (lab[1] or '')
+          and steps[1][1] == t0, f'cycle {t0}: {steps}', errs)
+    return not errs, '; '.join(errs + [f'{t0}: {steps}'])
+
+
+def ap_hook(st, frozen):
+    """W84_HOOK for the earlier stages' tables: on the career menu, at each new split stage index >= 2 (split's frozen
+    byte of the career league's DIY), ap_cycle -> st[index]; at a load (at_load) st['load']; after the season end
+    (scr None) st['next']."""
+    def hook(s, season, scr):
+        if scr is None:
+            if st and 'next' not in st:
+                st['next'] = ap_cycle(s, 'next')
+            return
+        if 'TRASFERIMENTI' not in scr.texts() or 'VISUAL. COMPETIZ.' not in scr.texts():
+            return
+        if not hook.loaded:
+            hook.loaded = True
+            if os.environ.get('W8485_FROM'):
+                st['load'] = ap_cycle(s, 'load')
+                return
+        f = s.result.obj2(frozen, 1)[0]
+        if f >= 2 and f not in st:
+            st[f] = ap_cycle(s, f'f{f}')
+    hook.loaded = False
+    hook.at_load = True
+    return hook
+
+
+def ap_world(code, team, stop, reload=False, old=None):
+    """A World 2026-27 career at team (code: the pack) played until split's frozen stage index `stop` (+ a few
+    dumps), saved there (W8485_MIDSAVE); ap_hook's cycles on the way; reload: that save loaded and played to the
+    season end (the cycle at the load, the next season's). old: the first run on that (older) build. -> (ok, msg,
+    [st of each run])"""
+    import split
+    import lepatch
+    global W84_HOOK
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    exe = os.environ.get('AP_BUILD') or builds()['it']
+    sa = split.sites(lepatch.LEPatch(os.path.join(MAIN, 'orig', 'ITALIAN.EXE')))
+    frozen = sa['DIY'] + split.ST + split.OFF['frozen']
+    names = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_ONE',
+             'W8485_MIDSAVE', 'W8485_FROM', 'W8485_TMO', 'W8485_HEX', 'W8485_DIY')
+    keep = {x: os.environ.get(x) for x in names}
+    base = dict(W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1',
+                W8485_TMO='900')
+    out, msgs = [], []
+    try:
+        for x in names:
+            os.environ.pop(x, None)
+        st = {}
+        W84_HOOK = ap_hook(st, frozen)
+        os.environ.update(base, W8485_BUILD=old or exe, W8485_ONE='1', W8485_MIDSAVE=f'{frozen:x}:{stop}:6')
+        ok, msg = world8485()
+        out.append(st)
+        msgs.append(msg)
+        car = os.path.join(RUNS, w84_tag() + '_1', 'SWOS', 'W84A.CAR')
+        if reload and ok and os.path.exists(car):
+            saved = os.path.join(RUNS, f'ap_{code}_W84A.CAR')
+            shutil.copy(car, saved)
+            for x in names:
+                os.environ.pop(x, None)
+            st = {}
+            W84_HOOK = ap_hook(st, frozen)
+            os.environ.update(base, W8485_BUILD=exe, W8485_FROM=saved)
+            ok, msg = world8485()
+            out.append(st)
+            msgs.append(msg)
+    finally:
+        W84_HOOK = None
+        for x, v in keep.items():
+            if v is None:
+                os.environ.pop(x, None)
+            else:
+                os.environ[x] = v
+    return ok, '; '.join(m[:150] for m in msgs), out
+
+
+def ap_labels(cyc):
+    """ap_cycle's (t0, steps) -> [label, ...] (None: no cycling entry)"""
+    return [x for x, _ in cyc[1]] if cyc else None
+
+
+@scenario
+def world_apertura_mex():
+    """4.0.5 APERTURA page: a World 2026-27 career at AMERICA (LIGA MX: Apertura 17 days, Clausura from 0 points,
+    SS2 bank): at the Clausura STAT > MX APERTURA opens LIGA MX APERTURA (the Apertura's final table), STAT > MX CLAUSURA
+    back; saved there, reloaded: the same; played to the season end, the next season (Apertura again): no entry
+    (AP_BUILD / SWOSTEST_BUILD: a release dir)"""
+    ok, msg, runs = ap_world('mex', 'NORDAMERICA,MESSICO,LIGA MX,AMERICA', 2, reload=True)
+    errs = []
+    want = ['MX APERTURA', 'MX CLAUSURA']
+    check(ok, msg, errs)
+    check(len(runs) == 2, f'runs {runs}', errs)
+    if len(runs) == 2:
+        f, r = runs
+        check(ap_labels(f.get(2)) == want and 'APERTURA' in f[2][1][0][1], f'fresh: {f}', errs)
+        check(ap_labels(r.get('load')) == want and 'APERTURA' in r['load'][1][0][1], f'reload: {r.get("load")}', errs)
+        check(ap_labels(r.get('next')) == [None], f'next season: {r.get("next")}', errs)
+    return not errs, '; '.join(errs + [f'{runs}'])
+
+
+@scenario
+def world_apertura_arg():
+    """4.0.5 APERTURA page next to CLASSIFICA GENERALE (one group of 30): a World 2026-27 career at BOCA JUNIORS, at
+    the Clausura STAT cycles CLASSIFICA GENERALE (the annual table) -> L.P. APERTURA (the Apertura's final table, bank
+    0) -> L.P. CLAUSURA (back to the live table)"""
+    ok, msg, runs = ap_world('arg', 'SUDAMERICA,ARGENTINA,LIGA PROFESIONAL,BOCA JUNIORS', 2)
+    errs = []
+    c = runs[0].get(2) if runs else None
+    check(ok, msg, errs)
+    check(ap_labels(c) == ['CLASSIFICA GENERALE', 'L.P. APERTURA', 'L.P. CLAUSURA'] and 'APERTURA' in c[1][1][1],
+          f'cycle {c}', errs)
+    return not errs, '; '.join(errs + [f'{runs}'])
+
+
+@scenario
+def world_apertura_uru():
+    """4.0.5 earlier stages' tables, three stages: a World 2026-27 career at DANUBIO (Uruguay: Apertura 15, Intermedio
+    in two groups, Clausura): in the Intermedio STAT cycles PR. APERTURA -> PR. INTERMEDIO; in the Clausura PR.
+    APERTURA -> PR. INTERMEDIO (its table: 16 clubs, both groups) -> PR. CLAUSURA"""
+    ok, msg, runs = ap_world('uru', 'SUDAMERICA,URUGUAY,CAMPEONATO URUGUAYO,DANUBIO', 3)
+    errs = []
+    st = runs[0] if runs else {}
+    check(ok, msg, errs)
+    check(ap_labels(st.get(2)) == ['PR. APERTURA', 'PR. INTERMEDIO'], f'Intermedio: {st.get(2)}', errs)
+    check(ap_labels(st.get(3)) == ['PR. APERTURA', 'PR. INTERMEDIO', 'PR. CLAUSURA'], f'Clausura: {st.get(3)}', errs)
+    return not errs, '; '.join(errs + [f'{runs}'])
+
+
+@scenario
+def world_apertura_oldsave():
+    """4.0.5 APERTURA page and an older save: a Mexico career at AMERICA made on AP_OLD (default c/REL405rc7: no
+    earlier stages' page), saved at the Clausura, loaded on this build: the entry from the save's SS2 bank (written
+    by the old build at the Apertura's end) - MX APERTURA -> MX CLAUSURA; played to the season end"""
+    old = os.environ.get('AP_OLD') or os.path.join(MAIN, 'c', 'REL405rc7', 'SWOS')
+    if not os.path.isdir(old):
+        return True, f'SKIP: {old} missing'
+    ok, msg, runs = ap_world('mexold', 'NORDAMERICA,MESSICO,LIGA MX,AMERICA', 2, reload=True, old=old)
+    errs = []
+    check(ok, msg, errs)
+    r = runs[1] if len(runs) == 2 else {}
+    check(not runs[0].get(2) or ap_labels(runs[0][2]) == [None], f'old build: an entry {runs[0]}', errs)
+    check(ap_labels(r.get('load')) == ['MX APERTURA', 'MX CLAUSURA'], f'loaded: {r.get("load")}', errs)
+    return not errs, '; '.join(errs + [f'{runs}'])
 
 
 @scenario

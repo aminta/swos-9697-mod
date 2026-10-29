@@ -10730,6 +10730,62 @@ def gplay_host(test):
 
 
 @scenario
+def gplay_cd_side():
+    """4.0.5 rc9 (Ben's report via the convergence session, Regia 29/10): gplay.c cd_side compiled on the host (cc),
+    a generated Coppa D bracket (4 preliminary ties, 64 / 32 / 16 / 8 / 4, the semi-finals drawn, the final): the
+    final's two sides and its winner read while the final is under way (CD_ST.round 7) and after the cup (8) = the
+    semi-final winners of the drawn pairs (the Python model of cd_strength_check); before the fix the drawn semis
+    were read at the round under way's first tie (a negative sd index -> the preliminary tie 0's winner)"""
+    nr, np_ = 8, 4
+    ns = [np_] + [64 >> (r - 1) for r in range(1, nr)]
+    first = [sum(ns[:r]) for r in range(nr)]
+    nt = first[-1] + 1
+    res = [1 + (t * 7 + t // 3) % 2 for t in range(nt)]
+    gen = [((t + 1) << 8 | (5 + k)) for t in range(first[2]) for k in range(2)]
+    sd = [first[5] + 1, first[5] + 3, first[5], first[5] + 2]
+    rnd = lambda t: max(r for r in range(nr) if t >= first[r])
+
+    def raw(t, k):
+        r = rnd(t)
+        if r < 2:
+            return gen[2 * t + k]
+        if r == 6:
+            return sd[2 * (t - first[r]) + k] << 8 | 0xFF
+        return (first[r - 1] + 2 * (t - first[r]) + k) << 8 | 0xFF
+
+    def side(t, k):
+        v = raw(t, k)
+        return v if v & 0xFF != 0xFF else side(v >> 8, res[v >> 8] - 1)
+    fin = first[7]
+    want = ' '.join(f'{side(fin, 0):04x}/{side(fin, 1):04x}/{side(fin, res[fin] - 1):04x}' for _ in (7, 8))
+    tab = [0, nr, 0, 0] + sum(([0, 0, 1, 0, ns[r], 1 if r == 6 else 0, first[r] & 255, first[r] >> 8]
+                               for r in range(nr)), [])
+    test = r"""
+#include "%s"
+#include <stdio.h>
+static const u8 tab[] = {TAB};
+static const u8 res[] = {RES};
+static const u16 gen[] = {GEN};
+int main(void) {
+    GP_CDT = tab; GP_CDFIRST = 0; CD_ST.gen_on = 1; CD_ST.np = NP;
+    for (int t = 0; t < (int)sizeof res; t++) CD_ST.res[t] = res[t];
+    for (int i = 0; i < (int)(sizeof gen / 2); i++) CD_ST.gen[i] = gen[i];
+    CD_ST.sd[0] = SD0; CD_ST.sd[1] = SD1; CD_ST.sd[2] = SD2; CD_ST.sd[3] = SD3; CD_ST.drawn = 7;
+    for (int r = 7; r <= 8; r++) {
+        CD_ST.round = r;
+        printf("%%04x/%%04x/%%04x ", cd_side(FIN, 0), cd_side(FIN, 1), cd_side(FIN, res[FIN] - 1));
+    }
+    return 0;
+}
+"""
+    for k, v in dict(TAB=','.join(map(str, tab)), RES=','.join(map(str, res)), GEN=','.join(map(str, gen)),
+                     NP=np_, FIN=fin, SD0=sd[0], SD1=sd[1], SD2=sd[2], SD3=sd[3]).items():
+        test = test.replace(k, str(v))
+    ok, got = gplay_host(test)
+    return ok and got == want, f'final sides / winner at rounds 7, 8: {got} (expected {want})'
+
+
+@scenario
 def gplay_rlines():
     """gplay.c club_res / gp_rlines_c (the season record's extra lines) compiled on the host (cc), every result
     forced: a 3-round knockout won / lost in the final / semi / quarter (1 / -100 / -101 / -102), a 5-round one lost

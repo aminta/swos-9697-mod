@@ -253,10 +253,16 @@ se_count:                               ; ebp = team -> edx = its players (the c
 .r:
     ret
 
-se_recn:                                ; ebp = team, ecx = squad index -> esi = his record
-    movzx esi, cl
-    cmp ebp, CT
-    jne .rec
+se_recn:                                ; ebp = team, ecx = squad index -> esi = his record (the line-up order: the
+    movzx esi, cl                       ; career club's CMP; 4.0.5 another team's playerNumbers at +60 for places
+    cmp ebp, CT                         ; 0..15 - Marco: se_unique walked the file's record order, so a bench player
+    je .ct                              ; kept a number a starter had)
+    cmp ecx, 16
+    jae .rec
+    movzx esi, byte [ebp + 60 + ecx]
+    and esi, 0Fh
+    jmp .rec
+.ct:
     movzx esi, byte [CMP + ecx]
 .rec:
     imul esi, esi, 38

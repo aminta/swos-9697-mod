@@ -27,10 +27,13 @@ ASM = r"""
 bn_bench:                               ; replaces SetBenchPlayersNumbers' `mov esi, [A0]`
     call bn_world
     jnz .keep
-    push esi
-    mov esi, [A0]                       ; (the team)
-    test byte [esi + PIN_AT], PIN_BIT   ; 4.0.2: a team whose numbers the player edited (shirtedit.py)
-    pop esi
+    push ebx
+    mov ebx, [A0]                       ; (the team)
+    test byte [ebx + PIN_AT], PIN_BIT   ; 4.0.2: a team whose numbers the player edited (shirtedit.py)
+    jnz .pin
+    call bn_big                         ; 4.0.5 (Marco): or real squad numbers (a player above 16: an editor's)
+.pin:
+    pop ebx
     jz .game
 .keep:
     add esp, 4                          ; squad-number world: return from SetBenchPlayersNumbers itself
@@ -192,13 +195,37 @@ bn_pinned:                              ; ZF clear = the player [A0] (+4Ch: his 
     test edx, edx
     jnz .t
     test byte [ebx + PIN_AT], PIN_BIT
+    jnz .yes
+    call bn_big                         ; (4.0.5: real squad numbers, as bn_bench)
     jz .t
+.yes:
     popad
     or esp, esp                         ; ZF = 0
     ret
 .no:
     popad
     cmp eax, eax                        ; ZF = 1
+    ret
+
+bn_big:                                 ; 4.0.5 (Marco's LAZIO, edited with AG-SWSEDT): ZF clear when the team ebx has a
+    push eax                            ; player numbered 17..99 in its 16 places - real squad numbers, kept as a
+    push ecx                            ; pinned team's (bench and swaps); a 1..16 reshuffle and the historic packs'
+    push esi                            ; place numbers (1..16) keep the game's rule
+    lea esi, [ebx + 76 + 2]
+    mov ecx, 16
+.l: mov al, [esi]
+    cmp al, 16
+    jbe .n
+    cmp al, 100
+    jb .y
+.n: add esi, 38
+    loop .l
+    cmp ecx, ecx                        ; ZF = 1
+    jmp .r
+.y: or esp, esp                         ; ZF = 0
+.r: pop esi
+    pop ecx
+    pop eax
     ret
 
 bn_used: times 100 db 0

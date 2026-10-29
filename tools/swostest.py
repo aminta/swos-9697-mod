@@ -3280,6 +3280,70 @@ def se_rows(s):
             if struct.unpack('<I', r.read(m + 0x16 + i * 0x38 + 0x34, 4))[0] == r.base1 + v['DPE'][1]]
 
 
+
+MARCO_LAZIO = {'MARCHEGIANI': 1, 'CUDICINI': 22, 'NEGRO': 2, 'GOTTARDI': 17, 'FAVALLI': 5, 'NESTA': 13, 'CHAMOT': 6,
+               'FISH': 3, 'RAMBAUDI': 7, 'MARCOLIN': 4, 'NEDVED': 18, 'OKON': 16, 'FUSER': 14, 'SIGNORI': 11,
+               'CASIRAGHI': 9, 'PROTTI': 10}
+
+
+@scenario
+def shirt_marco():
+    """4.0.5 (Marco Malave, 29/10): LAZIO numbered in an external editor (AG-SWSEDT 2.5.4: 22 / 17 / 18 ... - no pin
+    bit) keeps them in a FRIENDLY: the team screen shows starters 1 2 13 6 5 7 16 14 18 11 9 and the bench 22 17 3 4 10
+    (benchnum bn_big: a player above 16 = real squad numbers, SetBenchPlayersNumbers skipped; before: 12..16), and the
+    first number edit (Nesta's row: LEFT, UP, ENTER - shirtedit se_unique runs at LEFT; it walked the file's record
+    order and gave Nesta 3, Fuser 4, Protti 8) changes Nesta's number only, the team pinned"""
+    b = builds()['it']
+    src = os.path.join(b, 'DATA', 'TEAM.020')
+    d = bytearray(open(src, 'rb').read())
+    for t in range(struct.unpack('>H', d[:2])[0]):
+        o = 2 + t * 684
+        if d[o + 5:o + 22].split(b'\0')[0] == b'LAZIO':
+            for k in range(16):
+                nm = d[o + 76 + k * 38 + 3:o + 76 + k * 38 + 26].split(b'\0')[0].decode('latin1').split()[-1]
+                d[o + 76 + k * 38 + 2] = MARCO_LAZIO[nm]
+    team = os.path.join(WORK, 'saves', 'TEAM020_MARCO.BIN')
+    os.makedirs(os.path.dirname(team), exist_ok=True)
+    open(team, 'wb').write(d)
+    errs, notes = [], []
+    with Session('shirt_marco', b, {'DATA/TEAM.020': team}, 'dump:3', 300) as s:
+        s.wait()
+        for t in ('AMICHEVOLE', 'OK', 'SCEGLI SQUADRE', 'SQUADRE CLUB', 'EUROPA', 'ITALIA', 'SERIE A', 'LAZIO'):
+            walk(s, t, 2)
+        s.send('fire dump:2')                   # LAZIO: COMPUTER -> GIOCA-ALLENA (human)
+        walk(s, 'ROMA', 2)
+        for _ in range(12):                     # GIOCA AMICHEVOLE (entry 55)
+            scr = s.screen()
+            if scr.selected == 55:
+                s.send('fire dump:4')
+                break
+            s.send(('right' if scr.selected in (56, 57) else 'down') + ' dump:0.5')
+        scr = s.screen()
+        if 'MOD. TATTICA' not in scr.texts():
+            return False, f'no team screen: {scr}'
+        s.shot('team')
+
+        def lineup():
+            t_, n, pin, _ = se_team(s)
+            order = list(s.result.read(t_ + 60, 16))
+            return [n[i & 15] for i in order], pin
+        l0, p0 = lineup()
+        want = [1, 2, 13, 6, 5, 7, 16, 14, 18, 11, 9, 22, 17, 3, 4, 10]
+        check(l0 == want, f'team screen: {l0} (want {want})', errs)
+        rows = se_rows(s)
+        se_goto(s, rows[2])                     # (Nesta's row) the first edit: LEFT lights his number (se_unique
+        s.send('dump:1')                        # runs then), UP = the next free number, ENTER ends
+        s.send('left dump:1')
+        s.send('up dump:1')
+        s.send('enter dump:1')
+        l1, p1 = lineup()
+        s.shot('after_edit')
+        check(l1[:2] + l1[3:] == want[:2] + want[3:] and l1[2] not in want and p1 & 0x80,
+              f'after the first edit (Nesta UP): {l1}, pin {p1:#x}', errs)
+        notes.append(f'{l0} -> {l1}, pin {p0:#x} -> {p1:#x}')
+    return not errs, '; '.join(errs + notes)
+
+
 @scenario
 def shirt_edit_season():
     """4.0.2 editable shirt numbers in a SEASON (CLASSIC SEASONS Italy 1947-48, JUVENTUS played by the human): a row's

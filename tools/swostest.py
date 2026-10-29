@@ -4719,7 +4719,7 @@ def bench_tactics(s, scr, squad, errs, info, mark):
     errs.append('tactics: not back to the pre-match screen')
 
 
-def bench_play(s, gmax, top, bot, wants, errs, info, mark, sub=None, icons=None, squad=None):
+def bench_play(s, gmax, top, bot, wants, errs, info, mark, sub=None, icons=None, squad=None, stad=None):
     """benchx scenarios: from a career menu to a match played for real (PARTITA on the career menu and the squad
     screen: a player-coach), the kick-off checks (gameMaxSubstitutes = 15, each in-match team's named players =
     wants[team name] capped at 26 (default 16), the other places empty: position -1, substituted), the bench called
@@ -4780,6 +4780,27 @@ def bench_play(s, gmax, top, bot, wants, errs, info, mark, sub=None, icons=None,
             r = s.result
         else:
             r = s.send('fire:0.5 dump:1')
+    if stad is not None:                    # the line-ups pages (bx_stad: its loop reads the controls once a tick, so
+        lg = lambda: struct.unpack_from('<II', s.result.read(s.result.base1 + stad + 4, 8))   # the feeder's dumps land
+        k, n = lg()                         # in it: 105 ticks = 105 GetKey calls a page = 3.5 s of the script)
+        pages = []
+        if n and k == 0 and os.environ.get('BENCH_STSKIP'):   # a key on the first page: straight into the match
+            s.shot('lineups0')
+            r = s.send('fire:0.1 dump:2')   # (60 calls into the match, as without the pages)
+            k2 = lg()[0]
+            info.append(f'line-ups skipped by fire: page {k2}')
+            check(k2 == 0, f'line-ups: fire did not skip (page {k2})', errs)
+            pages, n = [], 0
+        elif n and k == 0:
+            s.shot('lineups0')
+            for j in range(1, n + 1):
+                s.send('dump:3.5')
+                s.shot(f'lineups{j}')
+                pages.append(lg()[0])
+            r = s.send('dump:3.5')          # (the last page's 45 ticks left + the 60 calls of 'dump:2' into the match)
+        info.append(f'line-ups pages seen {pages} of {n}')
+        check(pages == list(range(1, n + 1)), f'line-ups pages seen {pages} of {n}', errs)
+        stad = None if os.environ.get('BENCH_STSKIP') else stad   # (skipped: the kick-off log check below expects all)
     g = struct.unpack('<H', r.obj2(gmax, 2))[0]
     check(g == 15, f'gameMaxSubstitutes {g}', errs)
     teams = [ingame_team(r, top), ingame_team(r, bot)]
@@ -4796,9 +4817,25 @@ def bench_play(s, gmax, top, bot, wants, errs, info, mark, sub=None, icons=None,
         check(len(named) == want and empty == list(range(want, 26)), f'{name}: {len(named)} named, empty {empty}', errs)
         if xn:
             got = [pl[16 + i][0] for i in range(want - 16)]
-            bad = [(g, x) for g, x in zip(got, xn) if not g or g.split()[-1] not in x.split()]
+            bad = [(g, x) for g, x in zip(got, xn)      # (the short name: initial + surname, a long one cut with ' .')
+                   if not g or g.rstrip(' .').split(' ', 1)[-1] not in x]
             info.append(f'{name}: XTRA places 17..{want}: {got}')
             check(not bad, f'{name}: XTRA places {bad}', errs)
+    if stad is not None:                    # the line-ups screen (benchx bx_stad's log after 'BXST'): row 16 (entries
+        lg = r.read(r.base1 + stad + 4, 4 + 4 + 2 + 40)   # 31 / 58) visible on the first page (the game's 5 - max hid it
+        stk, stn, s16 = struct.unpack_from('<IIH', lg)    # for 15: Davide's PANpt3 photo), then pages of the places 17..
+        ptrs = struct.unpack_from('<10I', lg, 10)
+        last = [n for _, n in teams]
+        hi = max([i for pl in last for i in range(16, 26) if pl[i][0]] or [0])
+        want_n = (hi - 11) // 5 if hi >= 16 else 0
+        k0 = 11 + 5 * want_n
+        exp = [r.base2 + base + p_ * 61 + 80 if p_ <= 25 and pl[p_][0] else 0
+               for base, pl in ((top, last[0]), (bot, last[1])) for p_ in range(k0, k0 + 5)]
+        info.append(f'line-ups screen: row 16 hidden {s16:#x}, pages {stk}/{stn} (want {want_n}), last page rows '
+                    + ', '.join(r.read(x, 23).split(b'\0')[0].decode('latin-1') if x else '-' for x in ptrs))
+        check(s16 == 0 and stk == stn == want_n and (not want_n or list(ptrs) == exp),
+              f'line-ups screen: row 16 {s16:#x}, pages {stk}/{stn} want {want_n}, rows {[hex(x) for x in ptrs]} want '
+              f'{[hex(x) for x in exp]}', errs)
     mark('kick-off read: ' + '; '.join(info[-2:]))
     import namespr
     o = lepatch_orig()
@@ -4954,13 +4991,22 @@ def bench_world():
             s.poke(r.base2 + h + 25, bytes((o2[h + 25] | 1,)))
         info.append(f'{bn.decode("latin-1")} poked bald x{len(hits)}')
         mark(f'career started, {n} players, bench poked: ' + ', '.join(s.screen().texts())[:150])
+        xnone = os.environ.get('BENCH_XNONE')  # (Davide 31/10) a CPU club with fewer players than the bench: the XTRA
+        if xnone:                           # file name poked unreadable after the career start (the managed club has
+            xn_ = c.find(b'data\\xtra.000\0')  # its extras already): opponents 16 + 10 empty, no invented players
+            assert xn_ > 0 and c.find(b'data\\xtra.000\0', xn_ + 1) < 0, 'xname'
+            ptr = struct.unpack('<I', s.result.read(s.result.base1 + xn_ - 14, 4))[0]   # xtra_namep (-> per-world name)
+            nm = s.result.read(ptr, 16)
+            assert nm[:5].lower() == b'data\\', nm
+            s.poke(ptr + 5, b'q')
+            info.append(f'XTRA file name poked {nm.split(bytes(1))[0]!r} -> q')
         xs = os.environ.get('BENCH_XSOLD')     # (A) 'CLUB:i': that club's XTRA player i marked bought (xtra's xsold
         xsc, xsi = (xs.split(':')[0], int(xs.split(':')[1])) if xs else (None, -1)   # list): skipped, the rest move up
         if xs:
             w, _ = xtra_club_block(b, xsc)
             s.poke(s.result.base1 + xtra_xsold(p), struct.pack('<HHB', 1, w, 16 + xsi))
             info.append(f'{xsc} XTRA {xsi} marked bought')
-        wants = {club: n, '*': lambda t: [x for i, x in enumerate((xtra_club_block(b, t) or (0, []))[1])
+        wants = {club: n, '*': lambda t: [] if xnone else [x for i, x in enumerate((xtra_club_block(b, t) or (0, []))[1])
                                           if x and not (t == xsc and i == xsi)]}   # (A) CPU clubs
         if os.environ.get('BENCH_SQUAD') == '2':   # the career menu's SQUADRA (squadMenu): its window (bx_sq)
             for _ in range(3):              # (the chairman's letter first)
@@ -4981,7 +5027,9 @@ def bench_world():
                     press(s, q, 'ESCI') if 'ESCI' in q.texts() else s.send('esc:0.3 dump:0.6')
         sq = {'args': (bx, cmp, cnp), 'tactics': os.environ['BENCH_SQUAD'] == '2'} \
             if os.environ.get('BENCH_SQUAD') in ('1', '2') else None   # (2: + the tactics editor)
-        bench_play(s, gmax, top, bot, wants, errs, info, mark, (bx, int(os.environ.get('BENCH_SUB', 21)), ct), {}, sq)
+        st = c.find(b'BXST')                # (benchx's line-ups log; builds before it: no check)
+        bench_play(s, gmax, top, bot, wants, errs, info, mark, (bx, int(os.environ.get('BENCH_SUB', 21)), ct), {}, sq,
+                   st if st > 0 else None)
     check(n == 30, f'{club}: {n} players (want 30)', errs)
     check('squad screen: GIOCA PARTITA' in info, 'not played as a player-coach (no GIOCA PARTITA)', errs)
     return not errs, '; '.join(errs + info)

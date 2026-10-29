@@ -178,6 +178,150 @@ bx_xnamed:                              ; ax = team word -> eax = the players of
     xor eax, eax
     ret
 
+bx_stad:                                ; ShowStadiumInit's last `jmp SetExitMenuFlag` (the line-ups drawn and faded in):
+    pushad                              ; a bench over 5 with players past place 16 -> its rows 12..16 turn pages
+    mov al, [MENU + 16h + 31 * 38h + 4]
+    mov ah, [MENU + 16h + 58 * 38h + 4]
+    mov [bx_st16], ax
+    call bx_stpages                     ; (places 17-21, 22-26), ~1.5 s each; a key or a new fire starts the match
+    mov [bx_stn], eax
+    mov dword [bx_stk], 0
+    test eax, eax
+    jz .out
+    mov byte [bx_strel], 0
+.page:
+    call bx_stwait
+    jc .out
+    inc dword [bx_stk]
+    call bx_stset
+    pushad
+    call DRAWMENU
+    popad
+    mov eax, [bx_stk]
+    cmp eax, [bx_stn]
+    jb .page
+    call bx_stwait                      ; (the last page's time)
+.out:
+    popad
+    jmp SETEXIT
+
+bx_stpages:                             ; eax = the pages after the first: (the last named place of either team - 11) / 5
+    xor eax, eax
+    cmp word [TRAIN], 0
+    jne .r
+    movzx ecx, word [GMAX]
+    cmp ecx, 5
+    jbe .r
+    add ecx, 10                         ; the last in-match place: 11 + max - 1, at most 25
+    cmp ecx, MAXP - 1
+    jbe .c
+    mov ecx, MAXP - 1
+.c:
+    xor edx, edx                        ; the last named place
+    mov esi, TOP
+    call .team
+    mov esi, BOT
+    call .team
+    cmp edx, 16
+    jb .r
+    lea eax, [edx - 11]
+    xor edx, edx
+    mov ebx, 5
+    div ebx
+.r:
+    ret
+.team:
+    mov ebx, 16
+.t:
+    cmp ebx, ecx
+    ja .tr
+    imul edi, ebx, PI
+    cmp byte [esi + edi + 80], 0        ; PlayerInfoHeader.fullName
+    je .n
+    cmp ebx, edx
+    jbe .n
+    mov edx, ebx
+.n:
+    inc ebx
+    jmp .t
+.tr:
+    ret
+
+bx_stset:                               ; rows 12..16 of both teams (entries 27..31, 54..58) = places 11 + 5 x page ..
+    movzx ecx, word [GMAX]
+    add ecx, 10
+    cmp ecx, MAXP - 1
+    jbe .c
+    mov ecx, MAXP - 1
+.c:
+    mov esi, TOP
+    mov edi, MENU + 16h + 27 * 38h
+    mov ebp, bx_stlog
+    call .team
+    mov esi, BOT
+    mov edi, MENU + 16h + 54 * 38h
+.team:
+    mov eax, [bx_stk]
+    imul ebx, eax, 5
+    add ebx, 11                         ; the first place of the page
+    mov edx, 5
+.r:
+    mov word [edi + 4], 1               ; isInvisible
+    mov dword [ebp], 0
+    cmp ebx, ecx
+    ja .nx
+    imul eax, ebx, PI
+    lea eax, [esi + eax + 80]
+    cmp byte [eax], 0
+    je .nx
+    mov [edi + 26h], eax                ; fg.string
+    mov word [edi + 4], 0
+    mov [ebp], eax
+.nx:
+    add ebp, 4
+    add edi, 38h
+    inc ebx
+    dec edx
+    jnz .r
+    ret
+
+bx_stwait:                              ; ~1.5 s (105 ticks of menuCycleTimer, 70 Hz); CF = 1: a key or a new fire
+    mov word [MCT], 0
+.l:
+    mov ax, [MCT]
+.w:
+    cmp ax, [MCT]                       ; (one controls read a tick)
+    je .w
+    pushad
+    call MCC
+    popad
+    cmp word [LASTKEY], 0
+    jne .skip
+    mov al, [FIRE]
+    or al, [SHORTFIRE]
+    jz .rel
+    cmp byte [bx_strel], 0              ; (the fire that started the match, still held: not a new one)
+    jne .skip
+    jmp .t
+.rel:
+    mov byte [bx_strel], 1
+.t:
+    cmp word [MCT], 105
+    jb .l
+    clc
+    ret
+.skip:
+    stc
+    ret
+
+bx_gmax5:                               ; ShowStadiumInit's `mov ax, [GMAX]` (D1 = 5 - it rows hidden): at most 5
+    mov ax, [GMAX]                      ; (a bench of 15 gave -10: one row hidden, the line-ups showed 4 substitutes)
+    cmp ax, 5
+    jbe .a
+    mov ax, 5
+.a:
+    ret
+
 bx_lastw:                               ; ax = the cursor's last bench place: max(5, GMAX) <= 15; 5 in a training game
     mov ax, [GMAX]
     cmp ax, 5
@@ -700,6 +844,12 @@ bx_pw: dw 0                             ; the pre-match screen's window (the sam
 bx_pp: dw -1                            ; DrawPlayerEntries: the place of the row being drawn (-1 = the game's)
 bx_tw: dw 0                             ; the tactics editor's window
 bx_tp: dw -1                            ; its drawn row's place
+bx_stmark: db 'BXST'                    ; the line-ups screen (bx_stad; the harness finds these by the mark):
+bx_stk: dd 0                            ; the page shown last (0 = the first)
+bx_stn: dd 0                            ; the pages after the first
+bx_st16: dw 0                           ; entries 31 / 58 (row 16) invisible on the first page (bytes)
+bx_stlog: times 10 dd 0                 ; the last page's rows 12..16 (team 1, team 2): name pointers, 0 = hidden
+bx_strel: db 0                          ; fire seen released during the pages
 align 2
 bx_table:
 %assign i 0
@@ -738,11 +888,39 @@ def sites(p, regs):
 
 
 def sites7(p, regs):
-    """(A): g_gameType (InitInGameTeamStructure's `mov word [esi], 100 / cmp [g_gameType], GAME_TYPE_CAREER`)."""
+    """(A): g_gameType (InitInGameTeamStructure's `mov word [esi], 100 / cmp [g_gameType], GAME_TYPE_CAREER`);
+    ShowStadiumInit's `mov ax, [gameMaxSubstitutes]` (in `D1 = 5 - it`: the rows hidden for a bench under 5)."""
     d = p.le.obj_bytes(1)
     gt = {p.target(1, x.start() + 8) for x in re.finditer(rb'\x66\xc7\x06\x64\x00\x66\x83\x3d....\x04\x0f\x84', d, re.S)}
     assert len(gt) == 1, ('g_gameType', gt)
-    return {'gametype': gt.pop()}
+    pk = lambda x: re.escape(struct.pack('<I', x))
+    d1, gmax = regs['D7'] - 24, sites(p, regs)[1]
+    st = [m.start() + 9 for m in re.finditer(rb'\x66\xc7\x05' + pk(d1) + rb'\x05\x00\x66\xa1' + pk(gmax) + rb'\x66\x29\x05'
+                                              + pk(d1), d)]
+    assert len(st) == 1, ('ShowStadiumInit 5 - gameMaxSubstitutes', st)
+    assert bytes(p.get(1, st[0], 6)) == d[st[0]:st[0] + 6], 'ShowStadiumInit already patched'
+    a6 = regs['A0'] + 24                    # the end: call FadeOutToBlack / DrawMenu / CallToWaitRetrace / FadeIn, jmp SetExitMenuFlag
+    t = [m.start() for m in re.finditer(rb'(?:\xe8....){4}\xe9', d[st[0]:st[0] + 0x100], re.S)]
+    assert len(t) == 1, ('ShowStadiumInit end', t)
+    end = st[0] + t[0]
+    rel = lambda o: o + 5 + struct.unpack('<i', d[o + 1:o + 5])[0]
+    drawmenu, setexit = rel(end + 5), rel(end + 20)
+    assert bytes(p.get(1, end + 20, 5)) == d[end + 20:end + 25], 'ShowStadiumInit end already patched'
+    cm = [p.target(1, drawmenu + k + 6) for k in range(0, 80) if d[drawmenu + k:drawmenu + k + 6] == b'\xc7\x05' + struct.pack('<I', a6)]
+    assert d[drawmenu:drawmenu + 2] == b'\x8b\x35' and len(cm) == 1 and cm[0][0] == 2, ('g_currentMenu', cm)
+    mc = list(re.finditer(rb'\xe8....\x66\xa1(....)\x66\xa3' + pk(regs['D7'] - 28) + rb'\x66\xa1....\x66\xa3' + pk(regs['D7'] - 20)
+                          + rb'\x66\xa1....\x66\x0b\xc0\x7e', d, re.S))
+    assert len(mc) == 1, ('MenuCheckControls', len(mc))
+    mcc = mc[0].start()
+    fr = list(re.finditer(rb'\xc6\x05....\x00\xc6\x05(....)\x00\xc6\x05(....)\x00\x66\xc7\x05', d[mcc:mcc + 0x80], re.S))
+    assert len(fr) == 1, ('MenuCheckControls fire / shortFire', fr)
+    o = mcc + fr[0].start()
+    mct = {p.target(1, m.start() + 3) for m in re.finditer(rb'\x66\xc7\x05(....)\x00\x00\x66\x83\x3d\1\x01\x7c', d, re.S)}
+    assert len(mct) == 1, ('menuCycleTimer', mct)
+    tb = re.search(rb'(?:\xc7\x05.{8}){4}\x66\xc7\x05.{4}\xa7\x06', d, re.S)      # (as the harness: top / bottomTeamInGame)
+    return {'gametype': gt.pop(), 'stadium': st[0], 'stend': end + 20, 'DRAWMENU': (1, drawmenu), 'SETEXIT': (1, setexit),
+            'MENU': cm[0], 'MCC': (1, mcc), 'LASTKEY': p.target(1, mcc + 7), 'SHORTFIRE': p.target(1, o + 9),
+            'FIRE': p.target(1, o + 16), 'MCT': mct.pop(), 'TOP': p.target(1, tb.start() + 6), 'BOT': p.target(1, tb.start() + 26)}
 
 
 def sites2(p, regs):
@@ -1059,6 +1237,7 @@ def patch(p, at, ns_at):
     sym.update({k: s6[k] for k in ('ETSEL', 'ETSELE', 'ETNP')})
     s7 = sites7(p, regs)
     hasx = 'xt_block' in xtra.LABELS                # (A): a career's CPU clubs, places 16.. from their XTRA blocks
+    sym.update({k: s7[k] for k in ('DRAWMENU', 'SETEXIT', 'MENU', 'MCC', 'LASTKEY', 'SHORTFIRE', 'FIRE', 'MCT', 'TOP', 'BOT')})
     sym.update({'GAMETYPE': s7['gametype'], 'HASX_': (0, int(hasx)), 'XTB': (1, xtra.LABELS['xt_block']) if hasx else (0, 0)})
     code, fix = nasmcave.assemble(ASM, at, sym)
     lab = nasmcave.labels(ASM, at, sym)
@@ -1073,6 +1252,10 @@ def patch(p, at, ns_at):
     p.remove(1, lp + 3)
     p.remove(1, lp + 11)
     p.put(1, lp, b'\xe8' + struct.pack('<i', lab['bx_next'] - (lp + 5)) + b'\x90' * 11)
+    p.remove(1, s7['stadium'] + 2)                  # the line-ups screen: mov ax, [GMAX] (66 A1 addr) -> call bx_gmax5
+    p.put(1, s7['stadium'], b'\xe8' + struct.pack('<i', lab['bx_gmax5'] - (s7['stadium'] + 5)) + b'\x90')
+                                                    # its end: jmp SetExitMenuFlag (rel32, no fixup) -> jmp bx_stad
+    p.put(1, s7['stend'], b'\xe9' + struct.pack('<i', lab['bx_stad'] - (s7['stend'] + 5)))
     for c in c5:                                    # the game's 'bench over 5' branches: never
         p.put(1, c + 7, b'\x7f')
     def call9(o, n, lbl, fixat):                     # an n-byte instruction with an address at o + fixat -> call + nops

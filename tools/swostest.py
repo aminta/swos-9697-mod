@@ -1007,7 +1007,7 @@ def squad_rows(s, scr, tag):
     from PIL import Image
     rx = row_x(scr)
     rows = sorted((g[1], i) for i, g in enumerate(scr.geom)
-                  if (g[0], g[2], g[3]) == (rx, 82, 8) and not scr.entries[i][1])   # drawn rows, not text copies
+                  if g[0] == rx and (g[2], g[3]) in SQ_WH and not scr.entries[i][1])   # drawn rows, not text copies
     dx = rx - 25                                         # (the ENGLISH exe's layout: 6 px to the right)
     s.shot(tag)
     im = Image.open(os.path.join(s.run, 'shots', tag + '.png')).convert('RGB')
@@ -1026,9 +1026,13 @@ POS_ROLE = {'P': 'G', 'TD': 'D', 'TS': 'D', 'D': 'D', 'MD': 'M', 'MS': 'M', 'M':
             'G': 'G', 'RB': 'D', 'LB': 'D', 'RW': 'M', 'LW': 'M'}    # (+ the ENGLISH exe's codes)
 
 
+SQ_WH = ((82, 8), (81, 8))                         # (4.0.5 numcol.py: the squad rows 1 px right, 81 wide)
+
+
 def row_x(scr):
-    """The squad rows' x (25 in the Italian exe, 31 in the English one): the drawn 82 x 8 rows without text."""
-    xs = [g[0] for i, g in enumerate(scr.geom) if (g[2], g[3]) == (82, 8) and not scr.entries[i][1]]
+    """The squad rows' x (25 in the Italian exe, 31 in the English one; +1 from 4.0.5): the drawn 82 / 81 x 8 rows
+    without text."""
+    xs = [g[0] for i, g in enumerate(scr.geom) if (g[2], g[3]) in SQ_WH and not scr.entries[i][1]]
     return max(set(xs), key=xs.count) if xs else 25
 
 

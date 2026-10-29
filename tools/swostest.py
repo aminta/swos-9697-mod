@@ -3145,13 +3145,13 @@ def world8485_nat():
     return not errs, '; '.join(errs + notes)
 
 
-def nop_league_int3(name):
-    """A test copy of builds()['it'] (builds-x/<name>_<build>) whose DIYLeagueTournamentMatch `int 3` (the game's own,
+def nop_league_int3(name, src=None):
+    """A test copy of src (default builds()['it']; builds-x/<name>_<build>) whose DIYLeagueTournamentMatch `int 3` (the game's own,
     at its start: harmless on a real PC, a trap under the harness's BPINT 3 - a season / league fixture's
     '- PARTITA -') is a NOP, as world_darkblond's."""
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import lepatch
-    src = builds()['it']
+    src = src or builds()['it']
     b = os.path.join(WORK, 'builds-x', f'{name}_' + os.path.basename(src.rstrip('/')))
     shutil.rmtree(b, ignore_errors=True)
     shutil.copytree(src, b, symlinks=True)
@@ -4365,6 +4365,8 @@ def bench_mem():
     b = os.environ.get('SWOSTEST_BUILD') or builds()['it']
     p = lepatch.LEPatch(os.path.join(b, 'ITALIAN.EXE'))
     c = p.le.obj_bytes(1)
+    if re.search(rb'\x66\x83\x3d....\x00\x74.\x66\xa1....\x66\x83\xf8\x0f', c, re.S):
+        return True, 'SKIP: a benchx build (the tails hold players 17..26: bench_world checks them)'
     m = re.search(rb'(?:\xc7\x05.{8}){4}\x66\xc7\x05.{4}\xa7\x06', c, re.S)     # InitGameSaveTeams' four pointers
     top = p.target(1, m.start() + 6)[1]
     bot = p.target(1, m.start() + 26)[1]
@@ -4458,6 +4460,166 @@ def bench_mem():
                 pass
         s.shot('end')
         info.append(f'bench called {bench} times, {pauses} pauses played on, menu after the match: {menu}')
+    return not errs, '; '.join(errs + info)
+
+
+def bench_switch(exe):
+    """benchx's (bx_bench obj1 offset, gameMaxSubstitutes obj2 offset), from bx_max: cmp word [bx_bench], 0 / je /
+    mov ax, [bx_bench] / cmp ax, 15 / jbe / mov ax, 15 / mov [gameMaxSubstitutes], ax."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import lepatch
+    p = lepatch.LEPatch(exe)
+    c = p.le.obj_bytes(1)
+    m = [x.start() for x in re.finditer(rb'\x66\x83\x3d....\x00\x74.\x66\xa1....\x66\x83\xf8\x0f', c, re.S)]
+    assert len(m) == 1, ('bx_max', m)
+    return p.target(1, m[0] + 3)[1], p.target(1, m[0] + 28)[1]
+
+
+def ingame_team(r, base):
+    """An in-match team (TeamGame 42 + PlayerInfo 61 each): (name, [(short name, position, substituted)] x 26)."""
+    d = r.read(r.base2 + base, 1704)
+    pl = [(d[61 * i + 54:61 * i + 69].split(b'\0')[0].decode('latin-1'), d[61 * i + 46], d[61 * i + 42]) for i in range(26)]
+    return d[22:39].split(b'\0')[0].decode('latin-1'), pl
+
+
+def bench_play(s, gmax, top, bot, wants, errs, info, mark):
+    """benchx scenarios: from a career menu to a match played for real (PARTITA on the career menu and the squad
+    screen: a player-coach), the kick-off checks (gameMaxSubstitutes = 15, each in-match team's named players =
+    wants[team name] capped at 26 (default 16), the other places empty: position -1, substituted), the bench called
+    10 times, the match played to the career menus. Appends to errs / info; False if the match was not reached."""
+    r = s.result
+    for step in range(40):                  # career menu -> PARTITA -> '- PARTITA -' -> squad screens -> the match
+        if r.outcome != 'dump':
+            errs.append(f'to the match, step {step}: {r}')
+            return False
+        if struct.unpack('<H', r.obj2(gmax, 2))[0] == 15:
+            break
+        try:
+            scr = s.screen()
+            texts = scr.texts()
+        except Exception:
+            texts, scr = [], None
+        if ('TRASFERIMENTI' in texts or 'VISUALIZZA MONDO' in texts) and 'PARTITA' in texts:
+            act = 'PARTITA'
+        elif 'MOD. TATTICA' in texts and ('PARTITA' in texts or 'GIOCA PARTITA' in texts):
+            act = 'GIOCA PARTITA' if 'GIOCA PARTITA' in texts else 'PARTITA'   # (a player-coach: 'GIOCA :', not
+            info.append('squad screen: ' + act)                                 #  'ALLEN:'; VIS. RISULTATI simulates)
+        elif '- PARTITA -' in texts:
+            act = '- PARTITA -'             # (the fixture screen: play it; the exe needs nop_league_int3)
+        elif 'PROSS. PARTITA' in texts:
+            act = 'PROSS. PARTITA'
+        else:
+            act = None                      # (message screens etc.: fire on the selected entry)
+        mark(f'step {step} [{act}]: ' + ', '.join(texts)[:150])
+        if act:
+            press(s, scr, act) or s.send('fire dump:2')
+            r = s.result
+        else:
+            r = s.send('fire:0.5 dump:1')
+    g = struct.unpack('<H', r.obj2(gmax, 2))[0]
+    check(g == 15, f'gameMaxSubstitutes {g}', errs)
+    teams = [ingame_team(r, top), ingame_team(r, bot)]
+    for name, pl in teams:
+        named = [x for x in pl if x[0]]
+        empty = [i for i, x in enumerate(pl) if not x[0] and x[1] == 0xFF and x[2] == 1]
+        info.append(f'{name}: {len(named)} players ({named[0][0] if named else ""}..{named[-1][0] if named else ""}), '
+                    f'empty places {empty}')
+        want = min(wants.get(name, 16), 26)
+        check(len(named) == want and empty == list(range(want, 26)), f'{name}: {len(named)} named, empty {empty}', errs)
+    mark('kick-off read: ' + '; '.join(info[-2:]))
+    s.shot('kickoff')
+    bench, lists = 0, 0
+    for k in range(40):                     # the bench (PgUp / PgDn) and its list (fire), as subs_numbers: seen on screen
+        r = s.send(('pgdn' if k % 2 else 'pgup') + ':0.3 dump:0.5')
+        if r.outcome != 'dump':
+            errs.append(f'bench: {r}')
+            break
+        if k % 2:
+            r = s.send('fire:1 dump:1.5')
+            bench += 1
+            rows = [x for x in subs_rows(s.box.dump(0xA0000, 64000)) if len(x[3]) >= 2]
+            if len(rows) >= 11:
+                lists += 1
+                if lists == 1:
+                    s.shot('bench_list')
+            s.send('left:0.3 left:0.3 dump:0.5')   # (left twice leaves the bench)
+            if lists >= 3:
+                break
+    mark(f'bench called {bench} times, its list seen {lists} times')
+    check(lists >= 1, f'the bench list never seen ({bench} calls)', errs)
+    end = False
+    for k in range(300):                    # (3 fires a pause: 10 ran past the result screens into the next
+        r = s.send('fire:3 ' * 3 + 'dump:1')  #  match day's squad screen, stuck there with an injured player)
+        if r.outcome != 'dump':
+            errs.append(f'play on {k}: {r}')
+            break
+        if k % 10 == 0:
+            mark(f'play on {k}')
+        if os.environ.get('BENCH_PLAYSHOTS'):
+            s.shot(f'play{k:02d}')
+        try:
+            t = s.screen().texts()
+        except Exception:
+            t = []
+        if t and any(x in t for x in ('MOD. TATTICA', 'TRASFERIMENTI', 'VISUALIZZA MONDO', '- RISULTATO -', 'PROSS. PARTITA',
+                                      'VIS. RISULTATI', 'STAT')):
+            end = True
+            info.append('after the match: ' + ', '.join(t)[:160])
+            break
+    s.shot('end')
+    check(end, 'the career menus not reached after the match', errs)
+    info.append(f'bench called {bench} times, list seen {lists}')
+    return True
+
+
+@scenario
+def bench_world():
+    """Panchina block 1 (benchx) in the World 2026-27 (BENCH_BUILD, else XTRA30_BUILD: a world build with the XTRA
+    blocks): a new career at CELLE VARAZZE (Serie D girone A, 30 players; BENCH_CLUB / BENCH_PATH to change) as a
+    player-coach (the career menu's default GIOCA-ALLENA), bx_bench poked to 15, the first match played for real
+    (bench_play): gameMaxSubstitutes = 15, the club's in-match team 26 named (11 + 15: the squad's first 26), the
+    opponent 16 + 10 empty places (its XTRA block at match time = block A, later), the bench called, the
+    match to its end: no trap."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import lepatch
+    import xtra
+    b = os.environ.get('BENCH_BUILD') or os.environ.get('XTRA30_BUILD')
+    if not b or not os.path.isdir(b):
+        return True, 'SKIP: BENCH_BUILD not set'
+    b = nop_league_int3('bench_world', b)     # ('- PARTITA -': the game's own int 3 in DIYLeagueTournamentMatch)
+    club = os.environ.get('BENCH_CLUB', 'CELLE VARAZZE')
+    path = os.environ.get('BENCH_PATH', 'EUROPA,ITALIA,SERIE D GIRONE A,' + club).split(',')
+    exe = os.path.join(b, 'ITALIAN.EXE')
+    p = lepatch.LEPatch(exe)
+    _, cnp, ct, cmp, sel = xtra.sites(p)
+    bx, gmax = bench_switch(exe)
+    c = p.le.obj_bytes(1)
+    m = re.search(rb'(?:\xc7\x05.{8}){4}\x66\xc7\x05.{4}\xa7\x06', c, re.S)
+    top, bot = p.target(1, m.start() + 6)[1], p.target(1, m.start() + 26)[1]
+    errs, info = [], []
+    os.makedirs(os.path.join(RUNS, 'bench_world'), exist_ok=True)
+
+    def mark(text):
+        open(os.path.join(RUNS, 'bench_world', 'progress.txt'), 'a').write(text + '\n')
+    with Session('bench_world', b, {}, 'dump:2', 900, match=True) as s:
+        if s.wait().outcome != 'dump':
+            return False, f'START: no first pause ({s.result})'
+        scr = s.screen()
+        if press(s, scr, 'CARRIERA') is None:
+            return False, f'CARRIERA not reached ({s.result})'
+        for t in ['SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27']:
+            if press(s, s.screen(), t) is None:
+                return False, f'new career: {t} not reached ({s.result})'
+        if not pick_career(s, path):
+            return False, f'new career: {path} not reached ({s.result})'
+        n = struct.unpack('<H', s.result.obj2(cnp, 2))[0]
+        info.append(f'{club}: {n} players in the squad')
+        s.poke(s.result.base1 + bx, b'\x0f\x00')
+        mark(f'career started, {n} players, bench poked: ' + ', '.join(s.screen().texts())[:150])
+        wants = {club: n}
+        bench_play(s, gmax, top, bot, wants, errs, info, mark)
+    check(n == 30, f'{club}: {n} players (want 30)', errs)
+    check('squad screen: GIOCA PARTITA' in info, 'not played as a player-coach (no GIOCA PARTITA)', errs)
     return not errs, '; '.join(errs + info)
 
 

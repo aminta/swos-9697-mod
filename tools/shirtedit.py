@@ -406,10 +406,12 @@ se_hl:                                  ; DrawPlayerEntries, number entry: repla
     jne .plain
     mov word [esi + 1Ch], 2             ; a coloured background
     mov word [esi + 1Eh], HL
+    mov word [esi + 18h], 11            ; (4.0.5 Marco: 11 px - the two-digit number's shadow column too, numcol.py)
     pop eax
     ret
 .plain:
     mov word [esi + 1Ch], 0
+    mov word [esi + 18h], 10
     pop eax
     ret
 

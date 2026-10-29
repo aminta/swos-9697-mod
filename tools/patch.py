@@ -624,6 +624,8 @@ def patch_exe(src, dst, remap, lang='it'):
         conti.patch(p, ct_code, ct_at + 0x1000 * ct_pg, ct_bss, area)
     ctl_at = hist2 + h2 + 0x1000 * (lpb + sp_pg + sc_pg + ct_pg)   # 4.0.2: OPTIONS > CONTROLS (keys, device, calibration,
     ctl_end = controls.patch(p, ctl_at, lang)                     # SETUP.DAT)
+    import numcol                                      # 4.0.5 (Marco): the squad lists' number column 1 px wider
+    numcol.patch(p)
     import subsnum                               # 4.0.2: two-digit numbers in the in-match bench list (names +6 px)
     ctl_end = subsnum.patch(p, ctl_end)
     import tailzero                              # 4.0.2: the stub that zeroes obj2's tail at startup (written below,

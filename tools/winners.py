@@ -42,6 +42,7 @@ wn_init:                                ; the statistics menu's onInit: fmtpage'
     cmp byte [FOUND], 0
     sete al
     mov [MENU_ + 16h + 7 * 38h + 4], ax
+STPOS_CALL
     popad
     ret
 
@@ -807,6 +808,8 @@ def patch(p, at, lang, sites):
     sym['TXT2'] = (2, wn['sym']['BUF'][1] + fmtpage.WN_TXT2)   # (4.0.1 wn_lastdiv: the last season's division's text;
                                                                   # 4.0.1 South America: 0x5800, the index grew)
     ttl, tbp, inc = TEXTS[lang]
+    if wn.get('stpos'):                                # 4.0.5: the STAT column's places once VINCITORI is decided
+        sym['FP_STPOS'] = (1, wn['stpos'])
     sym.update({'FP_OVINIT': (1, wn['ovinit']), 'FP_FILL': (1, wn['fill']),
                 'SEASONPLAYING': (2, sites['season']),
                 'SELPTR': (2, sel_ptr(p)),
@@ -821,6 +824,7 @@ def patch(p, at, lang, sites):
                 'INC_BYTES': (0, 'db ' + ', '.join(str(b) for b in inc + b'\0'))})
     src = nasmcave.sub(ASM, """    cmp byte [ebx], 0                   ; (dummy: replaced below)
     ret""", GP_CALL)
+    src = nasmcave.sub(src, 'STPOS_CALL\n', '    call FP_STPOS\n' if 'FP_STPOS' in sym else '')
     import dplay
     dpon = 'DP_ST' in dplay.LABELS
     src = nasmcave.sub(src, 'DP_CODE\n', DP_CODE if dpon else '    stc\n    ret\n')

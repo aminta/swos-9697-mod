@@ -12147,12 +12147,13 @@ AP_STD = ('STATISTICHE', 'ELENCO CANNONIERI', 'INFO SU COMPETIZIONE', 'VIS. SQUA
 
 
 def ap_cycle(s, tag, n=5):
-    """4.0.5 earlier stages' tables (gplay.c ap_*, fmtpage fp_apnext): from the career menu, VISUAL. COMPETIZ. > the
-    career league; then up to n times STAT > the cycling entry (the one not in AP_STD): [(its label, the table's
-    title after it)], until the title is the first one again; back to the career menu. (the first title, steps)"""
+    """4.0.5 earlier stages' tables, one STAT entry per earlier stage (fmtpage fp_st8 / fp_st9, Davide): from the
+    career menu, VISUAL. COMPETIZ. > the career league > STAT: the entries beyond AP_STD (CLASSIFICA GENERALE, the
+    stages' short titles); each stage entry opened -> the table's title, then STAT again: that entry now reads the live
+    stage (back) -> opened, the live table's title again. -> (the first title, {'extras': [...], 'visits': {label:
+    (title, back label, title after back)}}); back to the career menu"""
     vis = lambda: [e[1] for e in s.screen().entries if e[1] and not e[2]]
     title = lambda: (s.screen().entries[0][1] if s.screen().entries else '')
-    steps = []
     for _ in range(3):                                 # ('next': the save menu after next_season_save first)
         if s.screen().find('VISUAL. COMPETIZ.') is not None:
             break
@@ -12162,24 +12163,45 @@ def ap_cycle(s, tag, n=5):
     walk(s, 1, 3)
     t0 = title()
     s.shot(f'ap_{tag}_0')
-    for k in range(n):
-        walk(s, s.screen().find('STAT', exact=True), 3)
-        extra = [x for x in vis() if x not in AP_STD]
-        if not extra:
-            steps.append((None, vis()))
-            break
-        walk(s, s.screen().find(extra[0], exact=True), 3)
-        steps.append((extra[0], title()))
+    walk(s, s.screen().find('STAT', exact=True), 3)
+    extras = [x for x in vis() if x not in AP_STD]
+    s.shot(f'ap_{tag}_stat')
+    out = {'extras': extras, 'visits': {}}
+    for k, lab in enumerate(x for x in extras if x != 'CLASSIFICA GENERALE'):
+        walk(s, s.screen().find(lab, exact=True), 3)
+        t1 = title()
         s.shot(f'ap_{tag}_{k + 1}')
-        if title() == t0:
-            break
-    for _ in range(6):
+        walk(s, s.screen().find('STAT', exact=True), 3)
+        now = [x for x in vis() if x not in AP_STD]
+        s.shot(f'ap_{tag}_{k + 1}_stat')
+        back = now[extras.index(lab)] if len(now) == len(extras) else None
+        t2 = None
+        if back:
+            walk(s, s.screen().find(back, exact=True), 3)
+            t2 = title()
+            walk(s, s.screen().find('STAT', exact=True), 3)
+        out['visits'][lab] = (t1, back, t2)
+    for _ in range(8):
         if 'TRASFERIMENTI' in s.screen().texts():
             break
         if press(s, s.screen(), 'ESCI', 3) is None:
             s.send('fire dump:2')
-    s.log.append(f'[ap] {tag} {t0} {steps}')
-    return t0, steps
+    s.log.append(f'[ap] {tag} {t0} {out}')
+    return t0, out
+
+
+def ap_ok(cyc, extras, stage_word):
+    """The STAT entries are `extras` and every stage entry opened its table (title with its stage's name: the label's
+    last word) and led back (the live table's title again)."""
+    if not cyc:
+        return False
+    t0, o = cyc
+    if o['extras'] != extras:
+        return False
+    for lab, (t1, back, t2) in o['visits'].items():
+        if lab.split()[-1] not in (t1 or '') or not back or t2 != t0:
+            return False
+    return True
 
 
 @scenario
@@ -12197,9 +12219,8 @@ def world_apertura_mexcar():
         s.wait()
         s.send(LOAD1 + ' dump:3')
         t0, steps = ap_cycle(s, 'mex')
-    lab = [x for x, _ in steps]
-    check(len(steps) == 2 and 'APERTURA' in (lab[0] or '') and 'APERTURA' in steps[0][1] and 'CLAUSURA' in (lab[1] or '')
-          and steps[1][1] == t0, f'cycle {t0}: {steps}', errs)
+    check(ap_ok((t0, steps), ['MX APERTURA'], 'APERTURA') and steps['visits']['MX APERTURA'][1] == 'MX CLAUSURA',
+          f'{t0}: {steps}', errs)
     return not errs, '; '.join(errs + [f'{t0}: {steps}'])
 
 
@@ -12277,8 +12298,8 @@ def ap_world(code, team, stop, reload=False, old=None):
 
 
 def ap_labels(cyc):
-    """ap_cycle's (t0, steps) -> [label, ...] (None: no cycling entry)"""
-    return [x for x, _ in cyc[1]] if cyc else None
+    """ap_cycle's (t0, info) -> the STAT entries beyond AP_STD"""
+    return cyc[1]['extras'] if cyc else None
 
 
 @scenario
@@ -12289,14 +12310,14 @@ def world_apertura_mex():
     (AP_BUILD / SWOSTEST_BUILD: a release dir)"""
     ok, msg, runs = ap_world('mex', 'NORDAMERICA,MESSICO,LIGA MX,AMERICA', 2, reload=True)
     errs = []
-    want = ['MX APERTURA', 'MX CLAUSURA']
+    want = ['MX APERTURA']
     check(ok, msg, errs)
     check(len(runs) == 2, f'runs {runs}', errs)
     if len(runs) == 2:
         f, r = runs
-        check(ap_labels(f.get(2)) == want and 'APERTURA' in f[2][1][0][1], f'fresh: {f}', errs)
-        check(ap_labels(r.get('load')) == want and 'APERTURA' in r['load'][1][0][1], f'reload: {r.get("load")}', errs)
-        check(ap_labels(r.get('next')) == [None], f'next season: {r.get("next")}', errs)
+        check(ap_ok(f.get(2), want, 'APERTURA'), f'fresh: {f}', errs)
+        check(ap_ok(r.get('load'), want, 'APERTURA'), f'reload: {r.get("load")}', errs)
+        check(ap_labels(r.get('next')) == [], f'next season: {r.get("next")}', errs)
     return not errs, '; '.join(errs + [f'{runs}'])
 
 
@@ -12309,8 +12330,7 @@ def world_apertura_arg():
     errs = []
     c = runs[0].get(2) if runs else None
     check(ok, msg, errs)
-    check(ap_labels(c) == ['CLASSIFICA GENERALE', 'L.P. APERTURA', 'L.P. CLAUSURA'] and 'APERTURA' in c[1][1][1],
-          f'cycle {c}', errs)
+    check(ap_ok(c, ['CLASSIFICA GENERALE', 'L.P. APERTURA'], 'APERTURA'), f'STAT {c}', errs)
     return not errs, '; '.join(errs + [f'{runs}'])
 
 
@@ -12323,8 +12343,8 @@ def world_apertura_uru():
     errs = []
     st = runs[0] if runs else {}
     check(ok, msg, errs)
-    check(ap_labels(st.get(2)) == ['PR. APERTURA', 'PR. INTERMEDIO'], f'Intermedio: {st.get(2)}', errs)
-    check(ap_labels(st.get(3)) == ['PR. APERTURA', 'PR. INTERMEDIO', 'PR. CLAUSURA'], f'Clausura: {st.get(3)}', errs)
+    check(ap_ok(st.get(2), ['PR. APERTURA'], ''), f'Intermedio: {st.get(2)}', errs)
+    check(ap_ok(st.get(3), ['PR. APERTURA', 'PR. INTERMEDIO'], ''), f'Clausura: {st.get(3)}', errs)
     return not errs, '; '.join(errs + [f'{runs}'])
 
 
@@ -12340,8 +12360,8 @@ def world_apertura_oldsave():
     errs = []
     check(ok, msg, errs)
     r = runs[1] if len(runs) == 2 else {}
-    check(not runs[0].get(2) or ap_labels(runs[0][2]) == [None], f'old build: an entry {runs[0]}', errs)
-    check(ap_labels(r.get('load')) == ['MX APERTURA', 'MX CLAUSURA'], f'loaded: {r.get("load")}', errs)
+    check(not runs[0].get(2) or not [x for x in ap_labels(runs[0][2]) if 'APERTURA' in x], f'old build: an entry {runs[0]}', errs)
+    check(ap_ok(r.get('load'), ['MX APERTURA'], 'APERTURA'), f'loaded: {r.get("load")}', errs)
     return not errs, '; '.join(errs + [f'{runs}'])
 
 

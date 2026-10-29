@@ -52,56 +52,113 @@ fp_ov:                                  ; 4.0 CLASSIFICA GENERALE (fire): the ta
     jmp EXIT_FN
 .ov:
 %endif
-%if AP_
-    call fp_apnext                      ; 4.0.5: earlier stages' tables (APERTURA ...): the next mode of the cycle
-    jz .pl                              ; live -> (overall) -> stage tables -> live
-    mov eax, [AP_NX]
+    cmp byte [OV_FLAG], 1               ; (longtable.py draws it: overall on / off - 4.0.5: from a stage's table too),
+    setne al                            ; then out of STAT as its EXIT does
     mov [OV_FLAG], al
-    jmp EXIT_FN
-.pl:
-%endif
-    xor byte [OV_FLAG], 1               ; (longtable.py draws it), then out of STAT as its EXIT does
     jmp EXIT_FN
 
 %if AP_
-fp_apnext:                              ; ZF = 0: this league has earlier stages' tables now (gplay.c ap_mask), the
-    pushad                              ; mode after OV_FLAG in [AP_NX] (ap_next; the overall table in the cycle for a
-    mov esi, DIY_                       ; long table)
+fp_stk:                                 ; 4.0.5 (Davide: one entry per earlier stage): ecx = 0 / 1 -> eax = the table k
+    pushad                              ; of this league's ecx-th earlier stage viewable now (gplay.c ap_mask), else -1
     push es
     push ds
     pop es
     cld
     push dword STG_TAB
-    push esi
-    call AP_MASK
+    push dword DIY_
+    call AP_MASK                        ; (C: ecx not kept - pushad's copy below)
     add esp, 8
     pop es
-    mov dword [AP_NX], -1
-    test eax, eax
-    jz .r
+    mov ecx, [esp + 24]                 ; (pushad's ecx)
+    mov edx, -1
     xor ebx, ebx
-    cmp word [esi + 4Fh], 1
-    jne .n
-    cmp word [esi + 51h], 24
-    jbe .n
-    inc ebx
-.n: push es
+.k: bt eax, ebx
+    jnc .n
+    dec ecx
+    jns .n
+    mov edx, ebx
+    jmp .r
+.n: inc ebx
+    cmp ebx, SSN_
+    jb .k
+.r: mov [esp + 28], edx                 ; (pushad's eax)
+    popad
+    ret
+
+fp_st8:                                 ; entry 8 / 9 (fire): that stage's final table <-> the live one, out of STAT
+    xor ecx, ecx
+    jmp fp_stsel
+fp_st9:
+    mov ecx, 1
+fp_stsel:
+    call fp_stk
+    cmp eax, -1
+    je .x
+    add eax, 4
+    cmp [OV_FLAG], al
+    jne .s
+    xor eax, eax
+.s: mov [OV_FLAG], al
+.x: jmp EXIT_FN
+
+fp_stlab:                               ; ecx = 0 / 1: entry 8 + ecx shown with its stage's short title (the live stage's
+    pushad                              ; when that table is the one shown: back), or hidden
+    imul edi, ecx, 38h
+    add edi, MENU_ + 16h + 8 * 38h
+    mov word [edi + 4], 1
+    call fp_stk
+    cmp eax, -1
+    je .r
+    add eax, 4
+    xor edx, edx
+    cmp [OV_FLAG], al
+    je .l
+    mov edx, eax
+.l: push edi
+    push es
     push ds
     pop es
     cld
-    movzx eax, byte [OV_FLAG]
-    push ebx
-    push eax
+    push dword 0
+    push edx
     push dword STG_TAB
-    push esi
-    call AP_NEXT
+    push dword DIY_
+    call AP_LABEL
     add esp, 16
     pop es
-    mov [AP_NX], eax
+    pop edi
+    test eax, eax
+    jz .r
+    mov [edi + 26h], eax
+    mov word [edi + 4], 0
 .r: popad
-    cmp dword [AP_NX], -1
     ret
-AP_NX: dd -1
+
+fp_stpos:                               ; with a stage entry shown: the column (ELENCO .. VINCITORI, the stages) every
+    pushad                              ; 19 px from y 30 (9 entries fit above ESCI at 185); else the 4.0.2 places
+    mov ebx, MENU_ + 16h
+    cmp word [ebx + 8 * 38h + 4], 0
+    je .on
+    mov word [ebx + 5 * 38h + 16h], 115
+    mov word [ebx + 6 * 38h + 16h], 140
+    mov word [ebx + 7 * 38h + 16h], 165
+    jmp .r
+.on:
+    mov edx, 30
+    mov esi, fp_order
+.l: movzx eax, byte [esi]
+    inc esi
+    cmp al, 0FFh
+    je .r
+    imul eax, eax, 38h
+    cmp word [ebx + eax + 4], 0
+    jne .l
+    mov [ebx + eax + 16h], dx
+    add edx, 19
+    jmp .l
+.r: popad
+    ret
+fp_order: db 1, 2, 3, 5, 6, 7, 8, 9, 0FFh
 %endif
 
 %if F1_
@@ -154,28 +211,14 @@ fp_ovinit:                              ; the statistics menu's onInit and onRet
     jmp .x
 .ap:
 %endif
-%if AP_
-    call fp_apnext                      ; 4.0.5: earlier stages' tables - the entry shown, named after the mode it
-    jz .x                               ; switches to: CLASSIFICA GENERALE (its own text), a stage (APERTURA ...) or
-    mov word [MENU_ + 16h + 6 * 38h + 4], 0   ; back to the stage under way (CLAUSURA)
-    cmp dword [AP_NX], 1
-    je .x
-    push es
-    push ds
-    pop es
-    cld
-    push dword 0
-    push dword [AP_NX]
-    push dword STG_TAB
-    push dword DIY_
-    call AP_LABEL
-    add esp, 16
-    pop es
-    test eax, eax
-    jz .x
-    mov [MENU_ + 16h + 6 * 38h + 26h], eax
-%endif
 .x:
+%if AP_
+    xor ecx, ecx                        ; 4.0.5: the earlier stages' entries, then the column's places
+    call fp_stlab
+    inc ecx
+    call fp_stlab
+    call fp_stpos
+%endif
     popad
     ret
 
@@ -526,13 +569,22 @@ def patch(p, at, lang, area, bss, world=None, wn=False):
             b += b'\0\0\0\0'
         buf.extend(b + b'\0\0')
     tail = bytearray()
+    import gplay
+    ap = bool(wn and gplay.LABELS.get('ap_mask') and gplay.LABELS.get('STG_TAB'))   # 4.0.5: the earlier stages' entries
+    if ap:                                               # 8 and 9 (after VINCITORI); EXIT: up -> the last of them
+        sm[e4 + 2] = 9
     entry(tail, sm_at + len(sm), 92, 115, 120, 15, nav=(-1, -1, 3, 6), color=0x0E, text=(2, 'btn'), select=(1, 'fp_open'))
     entry(tail, sm_at + len(sm), 92, 140, 120, 15, nav=(-1, -1, 5, 7 if wn else 4), color=0x0E, text=(2, 'ov'),
           select=(1, 'fp_ov'))
     if wn:                                               # 4.0.1 VINCITORI: winners.py points its select and the menu's
-        entry(tail, sm_at + len(sm), 92, 165, 120, 15, nav=(-1, -1, 6, 4), color=0x0E, text=(2, 'wbtn'),
+        entry(tail, sm_at + len(sm), 92, 165, 120, 15, nav=(-1, -1, 6, 8 if ap else 4), color=0x0E, text=(2, 'wbtn'),
               select=(1, 'fp_open'))                     # onInit at its own code (hidden without a WIN entry)
         wsel = sm_at + len(sm) + len(tail) - 6           # (the select pointer: the entry's last field before its 0)
+    if ap:                                               # (4.0.5: the label and place set by fp_ovinit: fp_stlab, fp_stpos)
+        entry(tail, sm_at + len(sm), 92, 165, 120, 15, nav=(-1, -1, 7, 9), color=0x0E, text=(2, 'ov'),
+              select=(1, 'fp_st8'))
+        entry(tail, sm_at + len(sm), 92, 165, 120, 15, nav=(-1, -1, 8, 4), color=0x0E, text=(2, 'ov'),
+              select=(1, 'fp_st9'))
     sm += tail + struct.pack('<h', -999)
     data.extend(sm)
     while len(data) % 4:
@@ -587,11 +639,10 @@ def patch(p, at, lang, area, bss, world=None, wn=False):
         t1, t2 = F1_TEXTS[lang]
         sym.update({'F1VALID': f1, 'F1_SEAS': gplay.LABELS['SEASONPLAYING'], 'F1_TXT': (2, area.add(t1 + b'\0')),
                     'F1_GRP': (2, area.add(t2 + b'\0'))})
-    ap = gplay.LABELS.get('ap_mask') and gplay.LABELS.get('STG_TAB')   # 4.0.5 earlier stages' tables (gplay.c ap_*)
-    sym['AP_'] = (0, int(bool(ap)))
+    sym['AP_'] = (0, int(ap))                          # 4.0.5 earlier stages' tables (gplay.c ap_*): entries 8, 9
     if ap:
-        sym.update({'AP_MASK': gplay.LABELS['ap_mask'], 'AP_NEXT': gplay.LABELS['ap_next'],
-                    'AP_LABEL': gplay.LABELS['ap_label'], 'STG_TAB': gplay.LABELS['STG_TAB']})
+        sym.update({'AP_MASK': gplay.LABELS['ap_mask'], 'AP_LABEL': gplay.LABELS['ap_label'],
+                    'STG_TAB': gplay.LABELS['STG_TAB'], 'SSN_': (0, 4)})
     OV['flag'] = base + off['vars'] + 5
     OV['on'] = base + off['vars'] + 6           # (longtable: this table drawn in overall mode now)
     src = nasmcave.sub(ASM, 'WORLD_FILE\n', WORLD_ASM if world else '')
@@ -612,6 +663,7 @@ def patch(p, at, lang, area, bss, world=None, wn=False):
     if wn:
         assert world, 'VINCITORI: a build with career worlds'
         assert any(o == wsel for o, _, _ in ptrs), 'VINCITORI select'
+        WN.update(stpos=lab.get('fp_stpos'))          # (4.0.5: winners' onInit re-spaces the column after VINCITORI)
         WN.update(sel=base + wsel, init=base + sm_at, ovinit=lab['fp_ovinit'], fill=lab['fp_fill'], menu=base + wm_at,
                   sym={k: sym[k] for k in ('DIYNAME', 'A6', 'SHOW_MENU', 'FNAME', 'TITLE', 'LINES_BUF', 'PAGE', 'FOUND',
                                            'FMTMENU', 'BUF', 'TXT', 'IDXMAX_', 'TXTMAX_', 'ENTRY_', 'NAME_', 'LINES_',

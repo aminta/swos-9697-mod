@@ -1759,10 +1759,14 @@ static int cd_first(int r) {            /* round r's first tie */
     for (int i = 0; i < r; i++) f += cd_n(i);
     return f;
 }
-static u16 cd_raw(int t, int sd) {      /* tie t's side sd as listed: a team word, CD_REF(a tie), CD_DRAWN */
-    if (!cd_gen()) { const u8 *x = CDTIE(t); return x[2 * sd] | x[2 * sd + 1] << 8; }
+static int cd_round(int t) {            /* the round tie t belongs to */
     int r = 0;
     while (r + 1 < GP_CDT[1] && t >= cd_first(r + 1)) r++;
+    return r;
+}
+static u16 cd_raw(int t, int sd) {      /* tie t's side sd as listed: a team word, CD_REF(a tie), CD_DRAWN */
+    if (!cd_gen()) { const u8 *x = CDTIE(t); return x[2 * sd] | x[2 * sd + 1] << 8; }
+    int r = cd_round(t);
     if (r < 2) return CD_ST.gen[2 * t + sd];
     if (CDREC(r)[5] & 1) return CD_DRAWN;
     return CD_REF(cd_first(r - 1) + 2 * (t - cd_first(r)) + sd);
@@ -1773,7 +1777,9 @@ static u16 cd_side(int t, int sd) {     /* tie t's side sd (0 a, 1 b): a team wo
     if (!CD_ISREF(v)) return v;
     int i = v >> 8;
     if (v == CD_DRAWN) {                  /* (a drawn round: its k-th tie = the previous round's sd[2k], sd[2k+1]) */
-        int first = cd_first(CD_ST.round);
+        int first = cd_first(cd_round(t));   /* (4.0.5 rc9: tie t's round - not CD_ST.round, the round under way:
+                                                once the final was on, its semis read sd[] at a negative index ->
+                                                the preliminary tie 0's winner won the cup every season) */
         i = CD_ST.sd[2 * (t - first) + sd];
     }
     if (i >= CDT || !CD_ST.res[i]) return 0xFFFF;

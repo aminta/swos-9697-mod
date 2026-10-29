@@ -13,6 +13,11 @@ substituted). The buffers' tail (bytes 1018..1703) is free (harness bench_mem, 2
   loop goes to 11 + max(5, bench) players; a team with fewer players (only the managed career club has more than 16:
   careerTeam, careerNumPlayers, its order in currentMatchPlayers, 32 places) gets empty places: zeroed, position -1,
   substituted, which every bench routine skips.
+  (A, 4.1) a career's CPU club with a bench over 5: 16 + the players of its XTRA block (bx_xnamed: xtra's cached block,
+  the ones the managed club bought blanked), places 16.. = the block's players in order; GetPlayerAtIndex serves
+  those places through xbrowse's xs_ga (index 16 + r = the r-th player still there) and GetPlayer through xtra's
+  gp_wide (the cached slot; the after-match cards / injuries / goals of those players land in that cache only:
+  not kept once it is re-read). Builds without xtra (no XTRA blocks): 16 as before. Friendlies / seasons: 16 (phase 2).
 - inGameTeamPlayerOffsets (16 x index * 61) moves to a 26-entry table here: every fixup to it is retargeted.
 - The game's own `cmp word [gameMaxSubstitutes], 5` branches (a bench over 5 = the first bench place is the
   goalkeeper's only, in FirePressedInSubsMenu, UpdateSubstitutePlayerIndices and DrawBenchPlayersAndCoach twice)
@@ -90,10 +95,20 @@ bx_next:                                ; replaces `add word [D2], 1 / cmp word 
     jbe .l
     mov ecx, MAXP
 .l:
-    mov eax, 16                         ; the team's players: 16, the managed career club careerNumPlayers
-    cmp dword [A2], CT
-    jne .a
+    mov eax, 16                         ; the team's players: 16, the managed career club careerNumPlayers,
+    cmp dword [A2], CT                  ; a career's CPU club 16 + the players of its XTRA block (when the bench
+    jne .cpu                            ; needs them)
     movzx eax, word [CNP]
+    jmp .a
+.cpu:
+    cmp ecx, 16
+    jbe .a
+    push esi
+    mov esi, [A2]
+    mov ax, [esi]
+    pop esi
+    call bx_xnamed
+    add eax, 16
 .a:
     cmp ax, cx
     jbe .n
@@ -128,6 +143,39 @@ bx_next:                                ; replaces `add word [D2], 1 / cmp word 
     pop edi
     pop ecx
     pop eax
+    ret
+
+bx_xnamed:                              ; ax = team word -> eax = the players of its XTRA block (a career's CPU club;
+%if HASX_                               ; the ones the managed club bought are blanked there), else 0
+    cmp word [GAMETYPE], 4
+    jne .no
+    cmp word [TRAIN], 0
+    jne .no
+    push ecx
+    push edx
+    call XTB                            ; eax -> the cache entry (dw team, db players, db valid, block) or 0
+    test eax, eax
+    jz .out
+    movzx ecx, byte [eax + 2]
+    lea edx, [eax + 4 + 3]              ; the first player's name
+    xor eax, eax
+.c:
+    test ecx, ecx
+    jz .out
+    cmp byte [edx], 0
+    je .s
+    inc eax
+.s:
+    add edx, 38
+    dec ecx
+    jmp .c
+.out:
+    pop edx
+    pop ecx
+    ret
+.no:
+%endif
+    xor eax, eax
     ret
 
 bx_lastw:                               ; ax = the cursor's last bench place: max(5, GMAX) <= 15; 5 in a training game
@@ -689,6 +737,14 @@ def sites(p, regs):
     return store, gmax, lp[0], c5, tb[0], d2
 
 
+def sites7(p, regs):
+    """(A): g_gameType (InitInGameTeamStructure's `mov word [esi], 100 / cmp [g_gameType], GAME_TYPE_CAREER`)."""
+    d = p.le.obj_bytes(1)
+    gt = {p.target(1, x.start() + 8) for x in re.finditer(rb'\x66\xc7\x06\x64\x00\x66\x83\x3d....\x04\x0f\x84', d, re.S)}
+    assert len(gt) == 1, ('g_gameType', gt)
+    return {'gametype': gt.pop()}
+
+
 def sites2(p, regs):
     """Block 2's sites in the original obj1: {name: offset} + the variables IDX, TRAIN, SUBST (obj2) and HIDE (obj1)."""
     d = p.le.obj_bytes(1)
@@ -1001,6 +1057,9 @@ def patch(p, at, ns_at):
     sym.update({k: s5[k] for k in ('MAXSUB', 'NPS', 'PMSEL', 'VOPP', 'SELPOS')})
     s6 = sites6(p, regs, s4)
     sym.update({k: s6[k] for k in ('ETSEL', 'ETSELE', 'ETNP')})
+    s7 = sites7(p, regs)
+    hasx = 'xt_block' in xtra.LABELS                # (A): a career's CPU clubs, places 16.. from their XTRA blocks
+    sym.update({'GAMETYPE': s7['gametype'], 'HASX_': (0, int(hasx)), 'XTB': (1, xtra.LABELS['xt_block']) if hasx else (0, 0)})
     code, fix = nasmcave.assemble(ASM, at, sym)
     lab = nasmcave.labels(ASM, at, sym)
     assert not any(p.get(1, at, len(code)))

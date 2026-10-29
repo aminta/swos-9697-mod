@@ -4788,8 +4788,17 @@ def bench_play(s, gmax, top, bot, wants, errs, info, mark, sub=None, icons=None,
         empty = [i for i, x in enumerate(pl) if not x[0] and x[1] == 0xFF and x[2] == 1]
         info.append(f'{name}: {len(named)} players ({named[0][0] if named else ""}..{named[-1][0] if named else ""}), '
                     f'empty places {empty}')
-        want = min(wants.get(name, 16), 26)
+        want, xn = wants.get(name, 16), None
+        if name not in wants and wants.get('*'):        # (A) a CPU club: 16 + its XTRA block's players, places 16..
+            xn = wants['*'](name)
+            want = 16 + len(xn)
+        want = min(want, 26)
         check(len(named) == want and empty == list(range(want, 26)), f'{name}: {len(named)} named, empty {empty}', errs)
+        if xn:
+            got = [pl[16 + i][0] for i in range(want - 16)]
+            bad = [(g, x) for g, x in zip(got, xn) if not g or g.split()[-1] not in x.split()]
+            info.append(f'{name}: XTRA places 17..{want}: {got}')
+            check(not bad, f'{name}: XTRA places {bad}', errs)
     mark('kick-off read: ' + '; '.join(info[-2:]))
     import namespr
     o = lepatch_orig()
@@ -4899,7 +4908,7 @@ def bench_world():
     blocks): a new career at CELLE VARAZZE (Serie D girone A, 30 players; BENCH_CLUB / BENCH_PATH to change) as a
     player-coach (the career menu's default GIOCA-ALLENA), bx_bench poked to 15, the first match played for real
     (bench_play): gameMaxSubstitutes = 15, the club's in-match team 26 named (11 + 15: the squad's first 26), the
-    opponent 16 + 10 empty places (its XTRA block at match time = block A, later), the bench called, the
+    opponent 16 + its XTRA block's players (block A: places 17.. by name, the rest empty), the bench called, the
     match to its end: no trap."""
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import lepatch
@@ -4945,7 +4954,14 @@ def bench_world():
             s.poke(r.base2 + h + 25, bytes((o2[h + 25] | 1,)))
         info.append(f'{bn.decode("latin-1")} poked bald x{len(hits)}')
         mark(f'career started, {n} players, bench poked: ' + ', '.join(s.screen().texts())[:150])
-        wants = {club: n}
+        xs = os.environ.get('BENCH_XSOLD')     # (A) 'CLUB:i': that club's XTRA player i marked bought (xtra's xsold
+        xsc, xsi = (xs.split(':')[0], int(xs.split(':')[1])) if xs else (None, -1)   # list): skipped, the rest move up
+        if xs:
+            w, _ = xtra_club_block(b, xsc)
+            s.poke(s.result.base1 + xtra_xsold(p), struct.pack('<HHB', 1, w, 16 + xsi))
+            info.append(f'{xsc} XTRA {xsi} marked bought')
+        wants = {club: n, '*': lambda t: [x for i, x in enumerate((xtra_club_block(b, t) or (0, []))[1])
+                                          if x and not (t == xsc and i == xsi)]}   # (A) CPU clubs
         if os.environ.get('BENCH_SQUAD') == '2':   # the career menu's SQUADRA (squadMenu): its window (bx_sq)
             for _ in range(3):              # (the chairman's letter first)
                 if 'SQUADRA' in s.screen().texts():

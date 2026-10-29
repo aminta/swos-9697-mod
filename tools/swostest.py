@@ -808,6 +808,11 @@ class Screen:
                           for i, t, inv, _ in self.entries if t)
 
 
+def hexb(d):
+    """Bytes as DOSBox-X SM values: '0' + hex for each (a bare AF / CF / DF / AC is read as a flag name and skipped)."""
+    return ' '.join(f'0{x:X}' for x in d)
+
+
 class Session:
     """Interactive run: the script pauses at each 'dump', the caller reads the screen and sends the next keys.
 
@@ -937,11 +942,18 @@ class Session:
         return Screen(self.result, self.info['menu'])
 
     def poke(self, lin, data):
-        """Write bytes into the paused game's memory (debugger SM; the next read sees them)."""
-        os.write(self.box.fd, f"SM 168:{lin:X} {' '.join(f'{x:X}' for x in data)}\r".encode())
-        self.box.pump(0.05)                            # (read the echo: ~90 pokes in one pause filled the pty and
-        if self.result:                                # os.write blocked for good)
+        """Write bytes into the paused game's memory (debugger SM; the next read sees them). Each byte is typed with a
+        leading 0 (DOSBox-X's SM parsed a bare AF / CF / DF / AC as a flag name and silently skipped that byte - Panchina,
+        29/10), 16 bytes per SM, the echo read after each (many SMs at once filled the pty: both sides waited), then
+        read back: a byte that did not land FAILs the scenario."""
+        data = bytes(data)
+        for k in range(0, len(data), 16):
+            os.write(self.box.fd, f"SM 168:{lin + k:X} {hexb(data[k:k + 16])}\r".encode())
+            self.box.pump(0.05)
+        if self.result:
             self.result.chunks = []
+        got = self.box.dump(lin, len(data))
+        assert got == data, f'poke at {lin:#x}: wrote {data.hex()}, read {got.hex()}'
 
     def send(self, keys):
         """Write the next steps into the stub's script area (ptr was reset to it by the pause), step over the int 3, resume
@@ -952,8 +964,7 @@ class Session:
         assert len(steps) < SCRIPT_MAX
         data = b''.join(struct.pack('<HH', k, w) for k, w in steps) + b'\0' * 4
         base = r.base1 + self.info['script']
-        hexs = lambda d: ' '.join(f'{x:X}' for x in d)       # short forms: the debugger takes ~1 ms per typed char
-        cmds = [f'SM 168:{base + i:X} {hexs(data[i:i + 16])}' for i in range(0, len(data), 16)]
+        cmds = [f'SM 168:{base + i:X} {hexb(data[i:i + 16])}' for i in range(0, len(data), 16)]   # (leading 0s: hexb)
         cmds.append(f'SR EIP {r.base1 + self.info["brk"] + 2:X}')   # int 3 = 2 bytes (CD 03)
         os.write(b.fd, ''.join(c + '\r' for c in cmds).encode())
         if os.environ.get('SWOSTEST_VERIFY'):          # read the script back (the SMs must have landed)

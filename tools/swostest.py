@@ -9839,6 +9839,39 @@ def world_sc_bra():
     return sc_from2('SUDAMERICA,BRASILE,BRASILEIRAO SERIE A,FLAMENGO', 'SUPERCOPPA DEL BRASILE', 'bra')
 
 
+@scenario
+def world_sc_bra_sud():
+    """4.0.5 rc10 (world_sc_bra's stuck career, Davide's rc8 blocker): a club dropping from the Libertadores to the
+    Sudamericana mid-season - conti ct_newcup removes the Libertadores' knockout days still in the career calendar
+    (slot 3, set at the season start) when slot 3 changes cup. world_sc_bra on a CONTI_GPLACE=3 test build (FLAMENGO
+    3rd in its Libertadores group): season 2 must play the Sudamericana play-off and its round of 16 BOTH legs (the
+    supercup final in between) and end (before: R16 return or SF return replayed for ever)"""
+    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+    if not os.path.isdir(src):
+        return True, f'SKIP: private data {src} missing'
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    exe = os.environ.get('SCSUD_BUILD') or build('world_sc_bra_sud', env={
+        'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]), 'GPLAY_FORCE': '1',
+        'CONTI_GPLACE': '3'})
+    keep = os.environ.get('SC_F1_BUILD')
+    os.environ['SC_F1_BUILD'] = exe
+    try:
+        ok, msg = world_sc_bra()
+    finally:
+        if keep is None:
+            os.environ.pop('SC_F1_BUILD', None)
+        else:
+            os.environ['SC_F1_BUILD'] = keep
+    log = open(os.path.join(RUNS, w84_tag() + '_2', 'session.log'), errors='replace').read().splitlines()
+    played = sorted({re.sub(r'^\[\d+\] ', '', ln.split('|')[0].strip()) for ln in log if ln.startswith('[')
+                     and 'SUDAMERICANA' in ln.split('|')[0] and '>- RISULTATO -' in ln})
+    errs = []
+    check(ok, msg[:300], errs)
+    check(any('OTTAVI DI FINALE ANDATA' in x for x in played) and any('OTTAVI DI FINALE RITORNO' in x for x in played),
+          f'Sudamericana R16 legs played: {played}', errs)
+    return not errs, '; '.join(errs + [f'Sudamericana played {played}'])
+
+
 def sc_from2(team, word, tag):
     """world_sc_eng / world_sc_bra: a supercup from the world's second season - none in season 1, its FINALE once in
     season 2 (season 1's save loaded) - on a GPLAY_FORCE=1 build (the career club the champion)."""

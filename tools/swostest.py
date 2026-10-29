@@ -7102,7 +7102,8 @@ def f1_views(st, f1, diy):
         if 'TRASFERIMENTI' not in scr.texts() or 'VISUAL. COMPETIZ.' not in scr.texts():
             return
         m, b = s.result.obj2(f1, 8 + 30 * 8), s.result.obj2(diy, 0x733)
-        if m[:2] == b'F1' and b[0x12D:0x12F] == b'\0\0' and 'auto' not in st:   # (a loaded career: the league's
+        if m[:2] == b'F1' and (b[0x12D:0x12F] == b'\0\0' or b[0x12D:0x12F] != m[4:6]) and 'auto' not in st \
+                and 'later' not in st:          # (a loaded career, or DIY holding another contest: the league's
             b = b[:0x12D] + m[4:6] + b[0x12F:]                                  #  DIY not unpacked yet - the
             b = b[:0x2B3] + bytes(18 * 30) + b[0x2B3 + 18 * 30:]                #  view decides; as 'auto' if no
             ref_only = True                                                     #  phase-2 result is in)
@@ -7170,10 +7171,11 @@ def world_split_alb_fase1():
         info.append(f'{tag}: {st}')
         return ok, msg, st
     try:
-        # 1) fresh: auto-open at the freeze, then the save (at the same career menu, the freeze flag's first dump)
+        # 1) fresh: auto-open at the freeze, then the save (the freeze flag's 2nd dump: the career menu after the last
+        # phase-1 result's screen - its view first)
         saved = os.environ.get('F1_FROM')                 # (debug: a phase-1 save of an earlier run)
         if not saved:
-            ok, msg, st = run('fresh', exe, W8485_ONE='1', W8485_MIDSAVE=f'{frozen:x}:1:1')
+            ok, msg, st = run('fresh', exe, W8485_ONE='1', W8485_MIDSAVE=f'{frozen:x}:1:2')
             car = os.path.join(RUNS, w84_tag() + '_1', 'SWOS', 'W84A.CAR')
             check(ok and os.path.exists(car), f'fresh: mid-season save: {msg}', errs)
             a = st.get('auto', {})

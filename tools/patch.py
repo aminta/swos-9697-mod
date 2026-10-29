@@ -424,6 +424,8 @@ def patch_exe(src, dst, remap, lang='it'):
         end = shirtedit.patch(p, end)             # through benchnum's hooks)
         import instcheck
         end = instcheck.place(p, end, lang)       # 4.0.1: a world's missing files -> a message, not DOS
+        import fillfix
+        end = fillfix.patch(p, end, nasmcave)     # 4.0.5: the menu texture reloaded after a job-offer letter
         assert end <= CAREER_CAVE + mkseason.CAREER_CAVE_SIZE, hex(end)
         CAREER_END[0] = end
         print(f'exe: career cave end {end:#x} (limit {CAREER_CAVE + mkseason.CAREER_CAVE_SIZE:#x})')

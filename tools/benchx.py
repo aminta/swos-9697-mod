@@ -29,7 +29,11 @@ that scrolls with the cursor (Davide's choice B).
   bx_win + 1 .. bx_win + 5 (A0 moved on by bx_win players); the opponent's bench (g_subsState -1) its first 5.
 - SetCurrentPlayerName's `add word [D1], 255` / `, 271` (the in-match name sprites: 16 a team) -> bx_name1 /
   bx_name2: a player from place 16 on has no name sprite yet (block 3): the name is hidden, never another's.
+- The after-match write-backs (cseg_2F194 cards, UpdatePlayerInjuries, cseg_2F3AB goals: `mov word [D2], 15`, 16
+  in-match players) -> bx_wcount: 11 + max(5, gameMaxSubstitutes) places (16 with the game's bench: no stale
+  record read), so a player from place 17 on who came on keeps his card / injury / goals (GetPlayer: careerTeam's 32).
 """
+import os
 import re
 import struct
 
@@ -203,6 +207,22 @@ bx_noname:                              ; no sprite for places 16..25 (block 3):
     add esp, 4
     jmp HIDE
 
+bx_wcount:                              ; replaces `mov word [D2], 15`: the in-match places - 1
+    push eax
+    movzx eax, word [GMAX]
+    cmp eax, 5
+    jae .a
+    mov eax, 5
+.a:
+    cmp eax, 15
+    jbe .b
+    mov eax, 15
+.b:
+    add eax, 10
+    mov [D2], ax
+    pop eax
+    ret
+
 bx_win: dw 0
 bx_cur: dw 0
 bx_bench: dw 0                          ; the match's bench (0 = the game's), test switch BENCH_FORCE
@@ -273,7 +293,12 @@ def sites2(p, regs):
     hd = [x.start() for x in re.finditer(rb'\x8b\x35' + pk(regs['A0']) + rb'\x66\xc7\x46.\xff\xff\x66\xc7\x46.\xa8\x61', d, re.S)
           if 0 < n1[0] - x.start() < 0x400]
     assert len(hd) == 1, ('@@hide_current_player_name', hd)
-    at = {'c5': m[0].start(), 'c6': c6, 'arrow': ar[0], 'd7i': d7i[0], 'd7e': d7e[0], 'n1': n1[0], 'n2': n2[0]}
+    lp = sites(p, regs)[2]                      # the three after-match loops just before InitInGameTeamStructure
+    d2 = regs['D7'] - 20
+    wb = [x.start() for x in re.finditer(rb'\x66\xc7\x05' + pk(d2) + rb'\x0f\x00\x8b\x35' + pk(regs['A0'] + 4) + rb'\x8a\x46[\x2a\x2c]', d)
+          if lp - 0x600 < x.start() < lp]
+    assert len(wb) == 3, ('the after-match write-back loops', [hex(x) for x in wb])
+    at = {'wb0': wb[0], 'wb1': wb[1], 'wb2': wb[2], 'c5': m[0].start(), 'c6': c6, 'arrow': ar[0], 'd7i': d7i[0], 'd7e': d7e[0], 'n1': n1[0], 'n2': n2[0]}
     for k, a in at.items():                     # (no other hook there)
         assert bytes(p.get(1, a, 9)) == d[a:a + 9], ('block 2 site already patched', k, hex(a))
     return at, {'IDX': (2, idx), 'TRAIN': (2, train), 'SUBST': (2, subst), 'HIDE': (1, hd[0])}
@@ -339,12 +364,18 @@ def patch(p, at):
     call9(s2['d7e'], 8, 'bx_win_end', 3)            # cmp word [D7], 6 (66 83 3D addr 06)
     call9(s2['n1'], 9, 'bx_name1', 3)               # add word [D1], 255 (66 81 05 addr FF 00)
     call9(s2['n2'], 9, 'bx_name2', 3)
+    for k in ('wb0', 'wb1', 'wb2'):                 # mov word [D2], 15 (66 C7 05 addr 0F 00)
+        call9(s2[k], 9, 'bx_wcount', 3)
     rs = refs(p, 2, table, table + 32)
     assert 10 <= len(rs) <= 24, ('inGameTeamPlayerOffsets refs', len(rs))
     for objn, off, toff in rs:
         p.retarget(objn, off, 1, lab['bx_table'] + toff - table)
         p.put(objn, off, struct.pack('<I', lab['bx_table'] + toff - table))
+    bf = int(os.environ.get('BENCH_FORCE', '0'))   # BENCH_FORCE=n (test / playtest builds only): every match's bench
+    if bf:                                          # n (<= 15) until the per-competition rule (phase 2)
+        p.put(1, lab['bx_bench'], struct.pack('<H', min(bf, 15)))
+        print(f'exe: BENCH_FORCE={min(bf, 15)} (test build)')
     LABELS.update(lab)
     print(f'exe: bench up to 15 (block 1: in-match teams of {MAXP}; GMAX obj2+{gmax:#x}, loop obj1+{lp:#x}, '
-          f'{len(rs)} offset-table refs moved; block 2: bench window of 5, cursor to 15, names 17+ hidden; code obj1+{at:#x}, {len(code)} B, bx_bench obj1+{lab["bx_bench"]:#x})')
+          f'{len(rs)} offset-table refs moved; block 2: bench window of 5, cursor to 15, names 17+ hidden, 3 after-match loops to 11 + bench; code obj1+{at:#x}, {len(code)} B, bx_bench obj1+{lab["bx_bench"]:#x})')
     return at + len(code)

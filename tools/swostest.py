@@ -4628,13 +4628,21 @@ def bench_play(s, gmax, top, bot, wants, errs, info, mark, sub=None):
                 break
     mark(f'bench called {bench} times, its list seen {lists} times')
     check(lists >= 1, f'the bench list never seen ({bench} calls)', errs)
-    if sub:                                 # (bx obj1 offset of bx_bench, bench place): a change from beyond 16
+    goal = None
+    if sub:                                 # (bx_bench obj1 offset, bench place, careerTeam obj2): a change from beyond 16
         bench_sub(s, sub[0], sub[1], errs, info, mark)
         r = s.result
-        for name, pl in (ingame_team(r, top), ingame_team(r, bot)):
+        for base in (top, bot):
+            name, pl = ingame_team(r, base)
             if name in wants:
                 info.append(f'{name} after the change: ' + ', '.join(f'{i + 1}:{x[0]}/{x[1]}/{x[2]}' for i, x in enumerate(pl)
                                                                      if x[0] and (x[2] or i >= 11)))
+                o = base + 61 * (sub[1] - 1)        # the player who went off: his record now at the entering place
+                q = r.read(r.base2 + o + 0x2b, 1)[0]
+                slot = sub[2] + (76 + q * 38 if q < 16 else 684 + (q - 16) * 38)
+                goal = (pl[sub[1] - 1][0], q, slot, r.read(r.base2 + slot, 38))
+                s.poke(r.base2 + o + 0x2c, b'\x01')   # a goal of his (before going off): the after-match loop of
+                mark(f'goal poked: {goal[0]} (squad {q}) at in-match place {sub[1]}')   # 26 must count it
     end = False
     for k in range(300):                    # (3 fires a pause: 10 ran past the result screens into the next
         r = s.send('fire:3 ' * 3 + 'dump:1')  #  match day's squad screen, stuck there with an injured player)
@@ -4657,6 +4665,11 @@ def bench_play(s, gmax, top, bot, wants, errs, info, mark, sub=None):
     s.shot('end')
     check(end, 'the career menus not reached after the match', errs)
     info.append(f'bench called {bench} times, list seen {lists}')
+    if goal:
+        after = s.result.read(s.result.base2 + goal[2], 38)
+        diff = [(i, goal[3][i], after[i]) for i in range(38) if goal[3][i] != after[i]]
+        info.append(f'{goal[0]} (squad {goal[1]}) record after the match: changed {diff}')
+        check(any(i >= 33 and b == a + 1 for i, a, b in diff), f'{goal[0]}: the poked goal not written back ({diff})', errs)
     return True
 
 
@@ -4705,7 +4718,7 @@ def bench_world():
         s.poke(s.result.base1 + bx, b'\x0f\x00')
         mark(f'career started, {n} players, bench poked: ' + ', '.join(s.screen().texts())[:150])
         wants = {club: n}
-        bench_play(s, gmax, top, bot, wants, errs, info, mark, (bx, int(os.environ.get('BENCH_SUB', 21))))
+        bench_play(s, gmax, top, bot, wants, errs, info, mark, (bx, int(os.environ.get('BENCH_SUB', 21)), ct))
     check(n == 30, f'{club}: {n} players (want 30)', errs)
     check('squad screen: GIOCA PARTITA' in info, 'not played as a player-coach (no GIOCA PARTITA)', errs)
     return not errs, '; '.join(errs + info)

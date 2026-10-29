@@ -11936,14 +11936,15 @@ def world_statmenu():
     """4.0.2 the competition view's STATISTICHE menu keeps its entries (fmtpage fp_ovinit / winners wn_init as onInit
     AND onReturn: back from a page the game rebuilds the menu with every entry shown - Davide's Gibraltar career showed
     4 entries, then 6 after FORMULA, VINCITORI leading to NESSUNA DESCRIZIONE): a World 2026-27 career at LINCOLN RED
-    IMPS (GIBILTERRA: no CLASSIFICA GENERALE, no VINCITORI) and one at ROSARIO CENTRAL (ARGENTINA: both shown) -
+    IMPS (GIBILTERRA: no CLASSIFICA GENERALE; VINCITORI since 4.0.5 - every league, winners.py's fallback line) and one
+    at ROSARIO CENTRAL (ARGENTINA: both shown) -
     VISUAL. COMPETIZ. > the league > STAT, then FORMULA, INFO SU COMPETIZIONE (and VINCITORI when shown) each and back:
     the same entries every time (release recipe, SWOSTEST_BUILD)"""
     errs, info = [], []
     vis = lambda s: [e[1] for e in s.screen().entries if e[1] and not e[2]]
     for tag, path, ov in (
-            ('gib', ['EUROPA', 'GIBILTERRA', 'LINCOLN RED IMPS'], False),
-            ('arg', ['SUDAMERICA', 'ARGENTINA', 'LIGA PROFESIONAL', 'ROSARIO CENTRAL'], True)):
+            ('gib', ['EUROPA', 'GIBILTERRA', 'LINCOLN RED IMPS'], (False, True)),
+            ('arg', ['SUDAMERICA', 'ARGENTINA', 'LIGA PROFESIONAL', 'ROSARIO CENTRAL'], (True, True))):
         with Session(f'world_statmenu_{tag}', builds()['it'], {}, 'dump:2', 900) as s:
             s.wait()
             for t in ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27'] + path:
@@ -11961,9 +11962,9 @@ def world_statmenu():
             first = vis(s)
             s.shot('stat_' + tag)
             want_ov = ('CLASSIFICA GENERALE' in first, 'VINCITORI' in first)
-            check(want_ov == (ov, ov), f'{tag}: first STAT menu {first}', errs)
+            check(want_ov == ov, f'{tag}: first STAT menu {first}', errs)
             info.append(f'{tag}: {first[1:]}')
-            pages = ['FORMULA', 'INFO SU COMPETIZIONE', 'FORMULA'] + (['VINCITORI'] if ov else [])
+            pages = ['FORMULA', 'INFO SU COMPETIZIONE', 'FORMULA'] + (['VINCITORI'] if ov[1] else [])
             for pg in pages:
                 walk(s, s.screen().find(pg, exact=True), 3)
                 body = [x for x in vis(s) if x not in ('ESCI', 'PAG. SUCC.', 'PAG. PREC.')]

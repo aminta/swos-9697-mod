@@ -1375,7 +1375,8 @@ def nat_callups(s, limit=120):
 # cups, the original game's contests) -- one of every known name (logged as a fallback). Errors FAIL the scenario.
 LABEL_ERRS, LABEL_STATS = [], {'rows': 0, 'keyed': 0, 'fallback': set()}
 CAL_CUR_AT, D8CAA_AT, D6CDC_AT, STR_BASE_AT = 0x1B52A, 0x18DF4, 0x16E26, 0x16F8   # (obj2, every language's exe)
-GLA_AT, WORLD_AT = 0xB46DE, 0x186E7             # gameListArray (dseg 174594h), someLeaguesTable[1845] (world byte)
+GLA_AT, ARR_AT = 0xB440C, 0x18E40                 # gameListArray, arrayOfPointers (CareerGameListCommon; every exe)
+_WORLD_AT = {}                                    # game dir -> someLeaguesTable[1845] (the world byte; cf_slt)
 _LABEL_DATA = {}
 
 
@@ -1438,30 +1439,46 @@ def _label_data():
 
 def label_check(s, step):
     """The fixture list's competition labels of this career-menu screen (see LABEL_ERRS); errors go to LABEL_ERRS.
-    The rows are the ones CareerGameListCommon draws: gameListArray (obj2 GLA_AT, 14 x (contest, game) pointers, filled
+    The rows are the ones CareerGameListCommon draws: gameListArray (obj2 GLA_AT, 14 x (calendar entry, game) pointers, filled
     by cseg_3563E), not every calendar entry (rc7 gate: entries past the drawn rows hold contests not set up yet). The
     contest ids are World 2026-27's only in its careers (world byte 5); other worlds check the label offset only."""
     try:
         r = s.result
         b2 = r.base2
-        lang = struct.unpack('<H', bytes(r.obj2(D6CDC_AT, 2)))[0]
-        if lang > 3:
+        div = struct.unpack('<H', bytes(r.obj2(D6CDC_AT, 2)))[0]
+        if div > 15:
             return
         gla = struct.unpack('<28I', bytes(r.obj2(GLA_AT, 112)))
-        world = r.obj2(WORLD_AT, 1)[0]
+        ptrs = struct.unpack('<5I', bytes(r.obj2(D8CAA_AT, 20)))
+        bufs = struct.unpack('<5I', bytes(r.obj2(ARR_AT, 20)))
+        if r.game not in _WORLD_AT:
+            exe = next((os.path.join(r.game, x) for x in ('ITALIAN.EXE', 'ENGLISH.EXE', 'FRENCH.EXE', 'GERMAN.EXE')
+                        if os.path.isfile(os.path.join(r.game, x))), None)
+            try:
+                _WORLD_AT[r.game] = cf_slt_exe(exe) + 1845 if exe else None
+            except Exception:
+                _WORLD_AT[r.game] = None
+        world = r.obj2(_WORLD_AT[r.game], 1)[0] if _WORLD_AT[r.game] is not None else -1
         data = _label_data()
     except Exception:                                   # (no career calendar on this screen)
         return
     for k in range(14):
-        cp = gla[2 * k]
+        cp = gla[2 * k]                                 # (a calendar entry: [0] = its slot; gla[2k + 1] = the game)
         if not cp:
             break
         try:
-            c = bytes(r.read(cp, 0x80))
-            no = 5 + c[5]
-            if no + lang * 8 + 8 > len(c):
+            slot = r.read(cp, 1)[0]
+            if slot > 4 or not ptrs[slot] or not bufs[slot]:
                 continue
-            rel = struct.unpack_from('<I', c, no + lang * 8 + 4)[0]
+            typ = struct.unpack('<H', bytes(r.read(bufs[slot], 2)))[0]
+            c = bytes(r.read(ptrs[slot], 0x80))
+            if not c[5]:                                # (no names block: the game's generic LEAGUE / CUP text)
+                LABEL_STATS['fallback'].add(f'generic slot {slot}')
+                continue
+            no = 5 + c[5] + (div * 8 if typ == 0 else 0)  # (a league: its division's name - dseg_D6CDC; else one)
+            if no + 8 > len(c):
+                continue
+            rel = struct.unpack_from('<I', c, no + 4)[0]
             txt = bytes(r.read(b2 + STR_BASE_AT + rel, 40)).split(b'\0')[0].decode('latin-1').upper() if rel < 0x100000 else '?'
         except Exception:
             continue
@@ -1470,7 +1487,7 @@ def label_check(s, step):
         bad = None
         if rel == 0 or txt == '?':
             bad = f'label offset {rel:X} ({txt})'
-        elif world != 5:
+        elif world != 5:                                # (-1: a build without cupsf - no World 2026-27)
             LABEL_STATS['fallback'].add(f'w{world}:{cid:02X}:{txt}')
         elif cid == 0xFE:
             LABEL_STATS['keyed'] += 1
@@ -1483,7 +1500,7 @@ def label_check(s, step):
         else:
             LABEL_STATS['fallback'].add(f'{cid:02X}:{txt}')
         if os.environ.get('SWOSTEST_LABELDBG'):
-            s.log.append(f'[labeldbg] step {step} row {k} w{world} contest {cid:02X} rel {rel:X} {txt!r}')
+            s.log.append(f'[labeldbg] step {step} row {k} w{world} slot {slot} type {typ} contest {cid:02X} rel {rel:X} {txt!r}')
         if bad:
             e = f'step {step} row {k} contest {cid:02X} {txt!r}: {bad}'
             if e not in LABEL_ERRS:
@@ -9525,9 +9542,14 @@ def world_cuplist_mestre():
 def cf_slt(exe):
     """cupsf (4.0.1): someLeaguesTable's obj2 offset in a build, from cf_a6's `mov dword [GP_SLT], SLT` (the call at the
     fixed list's `mov [A6], eax`)."""
+    return cf_slt_exe(os.path.join(exe, 'ITALIAN.EXE'))
+
+
+def cf_slt_exe(path):
+    """cf_slt for one exe file (any language)."""
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import lepatch
-    p = lepatch.LEPatch(os.path.join(exe, 'ITALIAN.EXE'))
+    p = lepatch.LEPatch(path)
     d1 = p.le.obj_bytes(1)
     at = d1.find(b'\x03\xc3\x83\xc0\x07\xe8') + 5
     cf = at + 5 + struct.unpack_from('<i', d1, at + 1)[0]

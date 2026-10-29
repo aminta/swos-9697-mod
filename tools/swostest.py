@@ -2614,6 +2614,8 @@ def world8485():
             else:
                 s.send('down down down down down fire dump:2')
                 s.send('fire dump:3')
+                if W84_HOOK is not None and getattr(W84_HOOK, 'at_load', False):   # (the loaded career's first
+                    W84_HOOK(s, season, s.screen())                                    #  menu, before advance)
             seen, errs = {}, []
             nosack, poked = (nosack_off(os.path.join(exe, 'ITALIAN.EXE')) if os.environ.get('W8485_NOSACK') == '1'
                              else None), set()
@@ -6333,6 +6335,8 @@ def world_split(kind):
     sh = sh_at(exe)                                     # (4.0.1: the kept table in split's 'SH' block)
     if sh is not None:
         os.environ['W8485_HEX'] = f'o1/{sh:x}:66'
+    if os.environ.get('W8485_HEX_ADD'):                 # (debug: more blocks to log)
+        os.environ['W8485_HEX'] = ','.join(filter(None, [os.environ.get('W8485_HEX'), os.environ['W8485_HEX_ADD']]))
     try:
         ok, msg = world8485()
     finally:
@@ -7020,6 +7024,207 @@ def world_split_alb():
         return world_split('alb')
     finally:
         os.environ.pop('SPLIT_BUILD', None)
+
+
+def f1_at(exe):
+    """obj2 offset of gplay.c's F1_ST (4.0.5 FASE 1 page) in a build - f1_valid's `cmp word [F1_ST], 3146h`; None
+    before 4.0.5."""
+    import lepatch
+    pe = lepatch.LEPatch(exe if exe.endswith('.EXE') else os.path.join(exe, 'ITALIAN.EXE'))
+    m = re.search(rb'\x66\x81\x3d....\x46\x31', pe.le.obj_bytes(1), re.S)
+    return pe.target(1, m.start() + 3)[1] if m else None
+
+
+def f1_views(st, f1, diy):
+    """world_split_alb_fase1's W84_HOOK: on the career menu, VISUAL. COMPETIZ. > the league (its title), STAT (its
+    entries), the FASE 1 / GRUPPI toggle (the title after it), back; once per stage - 'auto' (F1_ST holds this
+    league's phase 1 and no phase-2 result yet), 'later' (a phase-2 result in), 'next' (the next season's first
+    career menu, scr None)."""
+    def title(s):
+        scr = s.screen()
+        return scr.entries[0][1] if scr.entries else ''
+
+    def view(s, tag, toggle):
+        rec = {}
+        try:
+            for _ in range(3):                 # ('next': the save menu after next_season_save -> the career menu)
+                if s.screen().find('VISUAL. COMPETIZ.') is not None:
+                    break
+                s.log.append(f'[f1] {tag} on {s.screen()}'[:300])
+                if all(press(s, s.screen(), x, 3) is None for x in ('CONTINUA CARRIERA', 'CONTINUA')):
+                    break
+            walk(s, 'VISUAL. COMPETIZ.', 3)
+            walk(s, 1, 3)
+            rec['title'] = title(s)
+            s.shot(f'f1_{tag}')
+            walk(s, 'STAT', 3)
+            rec['stat'] = [x for x in s.screen().texts() if x in ('FASE 1', 'GRUPPI', 'CLASSIFICA GENERALE')]
+            if toggle and press(s, s.screen(), toggle, 3) is not None:
+                rec['toggled'] = title(s)
+                s.shot(f'f1_{tag}_toggled')
+        except AssertionError as e:
+            rec['error'] = str(e)
+        for _ in range(6):
+            if 'TRASFERIMENTI' in s.screen().texts():
+                break
+            if press(s, s.screen(), 'ESCI', 3) is None:
+                s.send('fire dump:2')
+        st[tag] = rec
+        s.log.append(f'[f1] {tag} {rec}')
+
+    def hook(s, season, scr):
+        if scr is None:
+            if 'next' not in st and 'later' in st:
+                view(s, 'next', None)
+            return
+        if 'TRASFERIMENTI' not in scr.texts() or 'VISUAL. COMPETIZ.' not in scr.texts():
+            return
+        m, b = s.result.obj2(f1, 8 + 30 * 8), s.result.obj2(diy, 0x733)
+        if m[:2] == b'F1' and b[0x12D:0x12F] == b'\0\0' and 'auto' not in st:   # (a loaded career: the league's
+            b = b[:0x12D] + m[4:6] + b[0x12F:]                                  #  DIY not unpacked yet - the
+            b = b[:0x2B3] + bytes(18 * 30) + b[0x2B3 + 18 * 30:]                #  view decides; as 'auto' if no
+            ref_only = True                                                     #  phase-2 result is in)
+        else:
+            ref_only = False
+        if m[:2] != b'F1' or b[0x12D:0x12F] != m[4:6]:
+            if 'none' not in st:
+                st['none'] = 1
+                s.log.append(f'[f1] none: F1_ST {m[:8].hex()}, DIY key {b[0x12D:0x12F].hex()}')
+            return
+        n = m[3]
+        ref = sum(m[8 + 8 * i + 1] for i in range(n))
+        cur = sum(struct.unpack_from('<H', b, 0x2B3 + 18 * i + 4)[0] for i in range(n))
+        tag = 'auto' if cur == ref or ref_only else 'later' if cur > ref else 'reset'   # ('reset': played from 0)
+        if tag == 'later' and 'later' in st and cur >= 2 * ref and 'late' not in st:   # (Malta: the Closing Round)
+            tag = 'late'
+        if tag not in st:
+            s.log.append(f'[f1] {tag}: played {cur} (phase 1 {ref}), key {m[4:6].hex()}, season {m[2]:#x}')
+        if tag not in st:
+            view(s, tag, 'GRUPPI' if tag == 'auto' else 'FASE 1')
+    hook.at_load = True
+    return hook
+
+
+@scenario
+def world_split_alb_fase1():
+    """4.0.5 FASE 1 page (Davide 28/10): Albania's split at TEUTA (world_split_alb's world, ALB_BUILD / a release
+    dir). 1) a fresh season: right after the split freeze (no phase-2 result yet) VISUAL. COMPETIZ. > KAT. SUPERIORE
+    opens by itself on CLASSIFICA FASE 1, STAT offers GRUPPI (back to the league's own table); saved there.
+    2) that save reloaded: the same auto-open; after the first phase-2 result the league's own table, STAT offers
+    FASE 1 (-> CLASSIFICA FASE 1); played to the season end, the next season: no FASE 1 entry. 3) old save
+    (ALB_OLD_BUILD, default c/REL405rc7: no F1 item) saved at the freeze, loaded on this build: no FASE 1 page, no
+    entry, the season ends"""
+    global W84_HOOK
+    import split
+    import lepatch
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    exe = os.environ.get('ALB_BUILD') or os.path.join(MAIN, 'c', 'REL405', 'SWOS')
+    old = os.environ.get('ALB_OLD_BUILD') or os.path.join(MAIN, 'c', 'REL405rc7', 'SWOS')
+    f1 = f1_at(exe)
+    if f1 is None:
+        return False, f'no F1_ST in {exe}'
+    sa = split.sites(lepatch.LEPatch(os.path.join(MAIN, 'orig', 'ITALIAN.EXE')))
+    frozen = sa['DIY'] + split.ST + split.OFF['frozen']
+    c, team, spec = SPLITS['alb']
+    names = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_HEX',
+             'W8485_ONE', 'W8485_MIDSAVE', 'W8485_FROM', 'W8485_DIY', 'W8485_TMO')
+    keep = {x: os.environ.get(x) for x in names}
+    base = dict(W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1',
+                W8485_TMO='600')
+    title = 'CLASSIFICA FASE 1'
+    errs, info = [], []
+
+    def run(tag, build, **env):
+        st = {}
+        for x in names:
+            os.environ.pop(x, None)
+        os.environ.update(base, W8485_BUILD=build, **env)
+        global W84_HOOK
+        W84_HOOK = f1_views(st, f1, sa['DIY'])
+        try:
+            ok, msg = world8485()
+        finally:
+            W84_HOOK = None
+        info.append(f'{tag}: {st}')
+        return ok, msg, st
+    try:
+        # 1) fresh: auto-open at the freeze, then the save (at the same career menu, the freeze flag's first dump)
+        saved = os.environ.get('F1_FROM')                 # (debug: a phase-1 save of an earlier run)
+        if not saved:
+            ok, msg, st = run('fresh', exe, W8485_ONE='1', W8485_MIDSAVE=f'{frozen:x}:1:1')
+            car = os.path.join(RUNS, w84_tag() + '_1', 'SWOS', 'W84A.CAR')
+            check(ok and os.path.exists(car), f'fresh: mid-season save: {msg}', errs)
+            a = st.get('auto', {})
+            check(a.get('title') == title and a.get('stat') == ['GRUPPI'] and
+                  a.get('toggled', '').startswith('ALBANIA'), f'fresh auto-open: {a}', errs)
+            if os.path.exists(car):
+                saved = os.path.join(RUNS, 'f1_W84A.CAR')
+                shutil.copy(car, saved)
+        if saved:
+            # 2) reloaded: auto-open again, later the groups + the FASE 1 entry, the next season clean
+            ok, msg, st = run('reload', exe, W8485_FROM=saved)
+            check(ok, f'reload: {msg}', errs)
+            a, l, nx = st.get('auto', {}), st.get('later', {}), st.get('next', {})
+            check(a.get('title') == title and a.get('stat') == ['GRUPPI'], f'reload auto-open: {a}', errs)
+            check(l.get('title', '').startswith('ALBANIA') and l.get('stat') == ['FASE 1'] and
+                  l.get('toggled') == title, f'reload later: {l}', errs)
+            check(nx and nx.get('title', '').startswith('ALBANIA') and not nx.get('stat'), f'next season: {nx}', errs)
+        # 3) old save: no F1 item
+        if os.path.isdir(old):
+            ok, msg, st = run('oldsave-make', old, W8485_ONE='1', W8485_MIDSAVE=f'{frozen:x}:1:1')
+            car = os.path.join(RUNS, w84_tag() + '_1', 'SWOS', 'W84A.CAR')
+            check(ok and os.path.exists(car), f'old build mid-season save: {msg}', errs)
+            if os.path.exists(car):
+                saved = os.path.join(RUNS, 'f1_old_W84A.CAR')
+                shutil.copy(car, saved)
+                ok, msg, st = run('oldsave', exe, W8485_FROM=saved)
+                check(ok, f'old save on this build: {msg}', errs)
+                check(not st.get('auto') and not st.get('later'), f'old save: a FASE 1 view {st}', errs)
+        else:
+            info.append(f'old save: SKIP ({old} missing)')
+    finally:
+        W84_HOOK = None
+        for x, v in keep.items():
+            if v is None:
+                os.environ.pop(x, None)
+            else:
+                os.environ[x] = v
+    return not errs, '; '.join(errs + info)
+
+
+@scenario
+def world_split_stages_fase1():
+    """4.0.5 FASE 1 page in a league with stages and a points reset: Malta 2026-27 (release data, ALB_BUILD / a
+    release dir) at HIBERNIANS - the Opening Round's 11 days captured at its split (12 clubs, 11 played each): the
+    table opens on CLASSIFICA FASE 1 right after it (STAT: GRUPPI), the groups after the first phase-2 result (STAT:
+    FASE 1), and still FASE 1 in the Closing Round (the points from 0, the Opening kept); world_split('stages')'s own
+    checks too"""
+    global W84_HOOK
+    exe = os.environ.get('ALB_BUILD') or os.path.join(MAIN, 'c', 'REL405', 'SWOS')
+    f1 = f1_at(exe)
+    if f1 is None:
+        return False, f'no F1_ST in {exe}'
+    import split
+    import lepatch
+    sa = split.sites(lepatch.LEPatch(os.path.join(MAIN, 'orig', 'ITALIAN.EXE')))
+    st, errs = {}, []
+    keep = os.environ.get('SPLIT_BUILD')
+    os.environ['SPLIT_BUILD'] = exe
+    W84_HOOK = f1_views(st, f1, sa['DIY'])
+    try:
+        ok, msg = world_split('stages')
+    finally:
+        W84_HOOK = None
+        if keep is None:
+            os.environ.pop('SPLIT_BUILD', None)
+        else:
+            os.environ['SPLIT_BUILD'] = keep
+    title = 'CLASSIFICA FASE 1'
+    a, l, z = st.get('auto', {}), st.get('later', {}), st.get('late') or st.get('reset') or {}
+    check(a.get('title') == title and a.get('stat') == ['GRUPPI'], f'auto-open: {a}', errs)
+    check(l.get('stat') == ['FASE 1'] and l.get('toggled') == title, f'later: {l}', errs)
+    check(z.get('stat') == ['FASE 1'] and z.get('toggled') == title, f'Closing Round: {z}', errs)
+    return ok and not errs, '; '.join(errs + [f'{st}', msg[:300]])
 
 
 @scenario

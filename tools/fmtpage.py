@@ -37,14 +37,51 @@ TEXTS = {
     'de': dict(wbtn=b'SIEGER', btn=b'MODUS', next=b'WEITER', none=b'KEINE BESCHREIBUNG', file=b'data/fmtde', ov=b'GESAMTTABELLE', prev=b'VORIGE SEITE'),
 }
 
+F1_TEXTS = {'it': (b'FASE 1', b'GRUPPI'), 'en': (b'PHASE 1', b'GROUPS'), 'fr': (b'PHASE 1', b'GROUPES'),   # 4.0.5
+            'de': (b'PHASE 1', b'GRUPPEN')}
 OV = {}                         # 4.0 (longtable.py): the overall-table flag's obj2 offset ('flag')
 WN = {}                         # 4.0.1 (winners.py): the SEASON WINNERS entry's pointers and the page's symbols
 WN_COLOUR = 15                  # the WINNERS page's winner lines: text colour 15, yellow (stringFlags & 0Fh; titles 0: white)
 
 ASM = r"""
 fp_ov:                                  ; 4.0 CLASSIFICA GENERALE (fire): the table screen's overall mode on / off
+%if F1_
+    call fp_long                        ; 4.0.5: a split league's FASE 1 / GRUPPI (not a long table): mode 2 <-> 0
+    jz .ov
+    xor byte [OV_FLAG], 2
+    jmp EXIT_FN
+.ov:
+%endif
     xor byte [OV_FLAG], 1               ; (longtable.py draws it), then out of STAT as its EXIT does
     jmp EXIT_FN
+
+%if F1_
+fp_long:                                ; ZF = 0: not a long table (one group of more than 24 clubs) and the FASE 1
+    pushad                              ; table of this league is there (gplay.c f1_valid); eax = 1 then
+    mov esi, DIY_
+    cmp word [esi + 4Fh], 1
+    jne .f
+    cmp word [esi + 51h], 24
+    ja .no
+.f:
+    push es
+    push ds
+    pop es
+    cld
+    movzx eax, byte [F1_SEAS]
+    push eax
+    push esi
+    call F1VALID
+    add esp, 8
+    pop es
+    test eax, eax
+    jmp .r
+.no:
+    xor eax, eax
+.r:
+    popad
+    ret
+%endif
 
 fp_ovinit:                              ; the statistics menu's onInit and onReturn (4.0.2: back from FORMULA the game
     pushad                              ; rebuilds the menu, every entry shown): CLASSIFICA GENERALE only for a table
@@ -57,6 +94,16 @@ fp_ovinit:                              ; the statistics menu's onInit and onRet
     xor eax, eax
 .set:
     mov [MENU_ + 16h + 6 * 38h + 4], ax
+%if F1_
+    call fp_long                        ; 4.0.5: a split league's FASE 1 table: the entry shown as FASE 1, or GRUPPI
+    jz .x                               ; while the table screen shows it (OV_FLAG 2)
+    mov word [MENU_ + 16h + 6 * 38h + 4], 0
+    mov dword [MENU_ + 16h + 6 * 38h + 26h], F1_TXT
+    cmp byte [OV_FLAG], 2
+    jne .x
+    mov dword [MENU_ + 16h + 6 * 38h + 26h], F1_GRP
+.x:
+%endif
     popad
     ret
 
@@ -461,6 +508,13 @@ def patch(p, at, lang, area, bss, world=None, wn=False):
            'FN_BASE_': (0, len(T['file'])), 'OV_FLAG': (2, base + off['vars'] + 5), 'NPAGE': (2, base + off['vars'] + 7),
            'NEXT_': (0, LINES + 1), 'EXIT_': (0, LINES + 2), 'PREV_': (0, LINES + 3), 'EXIT_FN': exit_fn[0],
            'DIY_': (2, __import__('lp36')._sites(p)['DIY']), 'MENU_': __import__('zones')._current_menu(p)}
+    import gplay
+    f1 = gplay.LABELS.get('f1_valid')                         # 4.0.5 the FASE 1 page's entry (gplay.c f1_valid)
+    sym['F1_'] = (0, int(bool(f1)))
+    if f1:
+        t1, t2 = F1_TEXTS[lang]
+        sym.update({'F1VALID': f1, 'F1_SEAS': gplay.LABELS['SEASONPLAYING'], 'F1_TXT': (2, area.add(t1 + b'\0')),
+                    'F1_GRP': (2, area.add(t2 + b'\0'))})
     OV['flag'] = base + off['vars'] + 5
     OV['on'] = base + off['vars'] + 6           # (longtable: this table drawn in overall mode now)
     src = nasmcave.sub(ASM, 'WORLD_FILE\n', WORLD_ASM if world else '')

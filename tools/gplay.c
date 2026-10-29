@@ -502,6 +502,59 @@ void gp_overall(const u8 *diy, const u8 *sel, u32 apn) {
     GP_OV_N = n;
 }
 
+/* 4.0.5 FASE 1 page (split leagues, Davide 28/10; internal/design/split-fase1-page.md): split.py's sp_freeze, at the
+   first split of the season and before the points rule, keeps the career league's full phase-1 table (f1_capture:
+   per place the row, played, won, drawn, lost, for, against, points - all < 256 in a phase 1) in F1_ST, the engine
+   item 'F1' (saved with the career; the season byte: only this season's is shown). The table screen shows it in the
+   overall mode (longtable lt_ov: f1_build -> GP_OV_ROWS / GP_OV_ORD), opened by itself while no phase-2 result
+   exists (f1_auto), and by the statistics menu's entry FASE 1 / GRUPPI (fmtpage) any time this season. */
+enum { F1N = 30, F1_MAGIC = 0x3146 };
+struct f1_state { u16 magic; u8 season, n; u16 key, pad; u8 pl[F1N][8]; };
+struct f1_state F1_ST;
+const u32 F1_SIZE = sizeof(struct f1_state);
+static u16 f1w(const u8 *b) { return b[0] | b[1] << 8; }
+void f1_capture(const u8 *diy, u32 season, u32 mgr) {
+    int n = f1w(diy + 0x31), me = 0;
+    if (n < 2 || n > F1N) return;
+    for (int i = 0; i < n; i++) if (f1w(diy + 0x12D + 2 * i) == (u16)mgr) me = 1;
+    if (!me) return;                            /* (the career's league only: its state is the saved one) */
+    int played = 0;                             /* (groups known from day 0 - split's sp_pregroup, the MLS: no */
+    for (int i = 0; i < n; i++) played += f1w(diy + 0x2B3 + 18 * i + 4);   /* phase-1 table yet) */
+    if (!played) return;
+    F1_ST.magic = F1_MAGIC; F1_ST.season = season; F1_ST.n = n; F1_ST.key = f1w(diy + 0x12D);
+    for (int i = 0; i < n; i++) {
+        int off = f1w(diy + 0x6D + 2 * i);
+        const u8 *row = diy + 0x2B3 + off;
+        u8 *p = F1_ST.pl[i];
+        p[0] = off / 18; p[1] = row[4]; p[2] = row[6]; p[3] = row[8]; p[4] = row[10];
+        p[5] = row[12]; p[6] = row[14]; p[7] = row[16];
+    }
+}
+u32 f1_valid(const u8 *diy, u32 season) {
+    return F1_ST.magic == F1_MAGIC && F1_ST.season == (u8)season && F1_ST.n == f1w(diy + 0x31) &&
+           F1_ST.key == f1w(diy + 0x12D);
+}
+u32 f1_auto(const u8 *diy, u32 season) {       /* the phase-1 table still the live one: no phase-2 result yet */
+    if (!f1_valid(diy, season)) return 0;
+    u32 a = 0, b = 0;
+    for (int i = 0; i < F1_ST.n; i++) { a += f1w(diy + 0x2B3 + 18 * i + 4); b += F1_ST.pl[i][1]; }
+    return a == b;
+}
+u32 f1_build(const u8 *diy, u32 season) {
+    if (!f1_valid(diy, season)) return 0;
+    int n = F1_ST.n;
+    for (int i = 0; i < n * 18; i++) GP_OV_ROWS[i] = diy[0x2B3 + i];
+    for (int i = 0; i < n; i++) {
+        const u8 *p = F1_ST.pl[i];
+        u8 *row = GP_OV_ROWS + 18 * p[0];
+        for (int k = 0; k < 7; k++) { row[4 + 2 * k] = p[1 + k]; row[5 + 2 * k] = 0; }
+        GP_OV_ORD[i] = 18 * p[0];
+    }
+    GP_OV_N = n;
+    GP_OV_ANNUAL = 0;
+    return 1;
+}
+
 /* split's stage end (sp_stage_end, a fixture stage with 'table'): the DIY table in its order (+6Dh, the groups
    partitioned by sp_sort: Argentina's zone A then zone B) into SSB->r[k]; annual: SSB->r[2] = r[0] + r[1] by club,
    by points, goal difference, goals (the earlier stage's order on a tie). */

@@ -4612,7 +4612,114 @@ def bald_icons(r):
     return out
 
 
-def bench_play(s, gmax, top, bot, wants, errs, info, mark, sub=None, icons=None):
+def squad_rows_hist(vga, geom):
+    """The rows' name box pixels as normalised colour histograms (the pre-match screen's rows are shaded: no single
+    background index)."""
+    from collections import Counter
+    out = []
+    for x, y, w, h in geom:
+        px = [vga[yy * 320 + xx] for yy in range(y, y + 8) for xx in range(x + 1, x + w - 1) if 0 <= yy < 200]
+        out.append({k: v / len(px) for k, v in Counter(px).items()} if px else {})
+    return out
+
+
+def hist_dist(a, b):
+    return sum(abs(a.get(k, 0) - b.get(k, 0)) for k in set(a) | set(b))
+
+
+def bench_squad(s, scr, bx, cmp_, cnp, errs, info, mark, woff=4, box=30, row1=13, tag='squad'):
+    """Task 1 (Davide 30/10, option A): on the squad screen a bench over 5 makes rows 12..17 a window of 6 on places
+    12..count: the box left of row 17 (the game's rotation of the reserves) moves it one down (the window word at
+    bx_bench + woff: 2 = bx_sq, the SQUADRA screen; 4 = bx_pw, the pre-match screen, playMatchMenu),
+    back to the top after the last; a row is pink (bench) for a place < 11 + bench, orange beyond; currentMatchPlayers
+    not rotated. Then a swap: row 17 at window 5 (place 22) with row 11 (place 11): the two order bytes swapped.
+    The tactics editor's list (editTacticsMenu): woff 8 (bx_tw), box 28, rows = entries 11..27, tag 'tactics'."""
+    r = s.result
+    n = struct.unpack('<H', r.obj2(cnp, 2))[0]
+    bench = struct.unpack('<H', r.read(r.base1 + bx, 2))[0]
+    last = 11 + max(5, min(bench, 15))
+    order0 = r.obj2(cmp_, n)
+    keys = scr.path(box) or []
+    r = s.send(' '.join(k + ':0.15' for k in keys) + ' dump:0.4')
+    q = s.screen()
+    check(q.selected == box, f'{tag}: the box left of row 17 not reached (selected {q.selected})', errs)
+    geom = q.geom[row1:row1 + 17]
+    states = []
+    for k in range(n - 16 + 1):             # 0 .. n-17, then back to 0
+        r = s.result
+        w = struct.unpack('<H', r.read(r.base1 + bx + woff, 2))[0]
+        h = squad_rows_hist(s.box.dump(0xA0000, 64000), geom)
+        states.append((w, h[11:17]))
+        if k in (0, 5, n - 17):
+            s.shot(f'{tag}_win{w:02d}')
+        r = s.send('fire:0.3 dump:0.6')
+    info.append(f'{tag} window {[w for w, _ in states]}')
+    check([w for w, _ in states] == list(range(n - 16)) + [0], f'{tag} window steps {[w for w, _ in states]}', errs)
+    check(r.obj2(cmp_, n) == order0, f'{tag}: the order changed by the window (a rotation?)', errs)
+    ref_b = states[0][1][0]                 # window 0, row 12 = place 12: bench
+    ref_o = states[n - 17][1][5]            # the last window, row 17 = the last place: out of the squad (n > 26)
+    bad = []
+    for w, hs in states:
+        for j, hh in enumerate(hs):
+            want = 11 + w + j < last
+            got = hist_dist(hh, ref_b) < hist_dist(hh, ref_o)
+            if got != want:
+                bad.append((w, 12 + j, 11 + w + j + 1, 'bench' if got else 'out'))
+    info.append(f'{tag} rows: bench / out distance {hist_dist(ref_b, ref_o):.2f}, {len(bad)} rows off ({bad[:6]})')
+    check(hist_dist(ref_b, ref_o) > 0.5 and not bad, f'{tag} row colours (window, row, place, seen): {bad[:12]}', errs)
+
+    def goto(t):
+        for _ in range(4):
+            q = s.screen()
+            if q.selected == t:
+                return True
+            s.send(' '.join(k + ':0.15' for k in (q.path(t) or [])) + ' dump:0.4')
+        return False
+    for _ in range(20):                     # window 5: row 17 = place 22
+        r = s.result
+        if struct.unpack('<H', r.read(r.base1 + bx + woff, 2))[0] == 5:
+            break
+        s.send('fire:0.3 dump:0.4')
+    r = s.result
+    check(struct.unpack('<H', r.read(r.base1 + bx + woff, 2))[0] == 5, f'{tag}: window not at 5', errs)
+    check(goto(row1 + 16), f'{tag}: row 17 not reached', errs)
+    s.send('fire:0.3 dump:0.4')
+    check(goto(row1 + 10), f'{tag}: row 11 not reached', errs)
+    r = s.send('fire:0.3 dump:0.6')
+    s.shot(f'{tag}_swap')
+    o1 = r.obj2(cmp_, n)
+    exp = bytearray(order0)
+    exp[10], exp[21] = order0[21], order0[10]
+    check(o1 == bytes(exp), f'{tag} swap place 22 <-> 11: {list(order0)} -> {list(o1)}', errs)
+    mark(f'{tag} window: {len(states)} steps, swap 22<->11 {"ok" if o1 == bytes(exp) else "FAIL"}')
+
+
+def bench_tactics(s, scr, squad, errs, info, mark):
+    """From the pre-match screen: MOD. TATTICA -> the tactics editor (editTacticsMenu), bench_squad on its player list
+    (woff 8 = bx_tw, box 28, names 11..27), then back (ESCI / the editor's exit) to the pre-match screen."""
+    if press(s, scr, 'MOD. TATTICA') is None:
+        errs.append('tactics: MOD. TATTICA not reached')
+        return
+    for _ in range(3):
+        q = s.screen()
+        mark('tactics screen: sel %s ' % q.selected + ', '.join(f'{e[0]}:{e[1]}' for e in q.entries if e[1])[:400])
+        if len(q.entries) > 28 and q.entries[28][1] is not None:
+            break
+        s.send('fire:0.3 dump:0.6')
+    s.shot('tactics')
+    bench_squad(s, q, *squad['args'], errs, info, mark, woff=8, box=28, row1=11, tag='tactics')
+    for _ in range(4):
+        q = s.screen()
+        t = q.texts()
+        if 'GIOCA PARTITA' in t:
+            return
+        mark('tactics exit: ' + ', '.join(t)[:200])
+        if not any(press(s, q, x) is not None for x in ('USCITA', 'ESCI') if x in t):
+            s.send('esc:0.3 dump:0.6')
+    errs.append('tactics: not back to the pre-match screen')
+
+
+def bench_play(s, gmax, top, bot, wants, errs, info, mark, sub=None, icons=None, squad=None):
     """benchx scenarios: from a career menu to a match played for real (PARTITA on the career menu and the squad
     screen: a player-coach), the kick-off checks (gameMaxSubstitutes = 15, each in-match team's named players =
     wants[team name] capped at 26 (default 16), the other places empty: position -1, substituted), the bench called
@@ -4637,6 +4744,30 @@ def bench_play(s, gmax, top, bot, wants, errs, info, mark, sub=None, icons=None)
             if icons is not None:           # the bald icons as the squad screen built them (a player poked bald)
                 icons['squad'] = bald_icons(r)
             s.shot(f'squad{step:02d}')
+            if squad and not squad.get('done') and 'GIOCA PARTITA' in texts:
+                squad['done'] = True
+                bench_squad(s, scr, *squad['args'], errs, info, mark)
+                r = s.result
+                scr = s.screen()
+                if squad.get('tactics'):    # the tactics editor (MOD. TATTICA): its player list's window
+                    bench_tactics(s, scr, squad, errs, info, mark)
+                    r = s.result
+                    scr = s.screen()
+            if os.environ.get('BENCH_SQUADDUMP') and scr is not None:   # (study: the squad screen's entries)
+                for e, g, c in zip(scr.entries, scr.geom, scr.colors):
+                    mark(f'  entry {e[0]} {e[1]!r} inv {e[2]} dis {e[3]} geom {g} col {c:#x}')
+                if os.environ['BENCH_SQUADDUMP'] == '2' and step < 6:   # the 17th row: up / down through the reserves?
+                    keys = scr.path(29) or []
+                    s.send(' '.join(k + ':0.15' for k in keys) + ' dump:0.4')
+                    for k in range(5):
+                        s.shot(f'row17_{k}')
+                        q = s.screen()
+                        mark(f'  row17 {k}: sel {q.selected} ' + ', '.join(f'{e[0]}:{e[1]}' for e in q.entries[26:37] if e[1]))
+                        s.send('down:0.15 dump:0.4')
+                    s.send(' '.join(['up:0.15'] * 5) + ' dump:0.4')
+                    q = s.screen()
+                    mark(f'  back up: sel {q.selected} ' + ', '.join(f'{e[0]}:{e[1]}' for e in q.entries[26:37] if e[1]))
+                    scr = q
         elif '- PARTITA -' in texts:
             act = '- PARTITA -'             # (the fixture screen: play it; the exe needs nop_league_int3)
         elif 'PROSS. PARTITA' in texts:
@@ -4815,7 +4946,26 @@ def bench_world():
         info.append(f'{bn.decode("latin-1")} poked bald x{len(hits)}')
         mark(f'career started, {n} players, bench poked: ' + ', '.join(s.screen().texts())[:150])
         wants = {club: n}
-        bench_play(s, gmax, top, bot, wants, errs, info, mark, (bx, int(os.environ.get('BENCH_SUB', 21)), ct), {})
+        if os.environ.get('BENCH_SQUAD') == '2':   # the career menu's SQUADRA (squadMenu): its window (bx_sq)
+            for _ in range(3):              # (the chairman's letter first)
+                if 'SQUADRA' in s.screen().texts():
+                    break
+                s.send('fire:0.5 dump:1')
+            if press(s, s.screen(), 'SQUADRA') is None:
+                errs.append('SQUADRA not reached')
+            else:
+                q = s.screen()
+                s.shot('squadra')
+                mark('squadra: sel %s ' % q.selected + ', '.join(f'{e[0]}:{e[1]}' for e in q.entries if e[1])[:300])
+                bench_squad(s, q, bx, cmp, cnp, errs, info, mark, woff=2, box=45, row1=28, tag='squadra')
+                for _ in range(4):
+                    q = s.screen()
+                    if 'PARTITA' in q.texts() and 'SQUADRA' in q.texts():
+                        break
+                    press(s, q, 'ESCI') if 'ESCI' in q.texts() else s.send('esc:0.3 dump:0.6')
+        sq = {'args': (bx, cmp, cnp), 'tactics': os.environ['BENCH_SQUAD'] == '2'} \
+            if os.environ.get('BENCH_SQUAD') in ('1', '2') else None   # (2: + the tactics editor)
+        bench_play(s, gmax, top, bot, wants, errs, info, mark, (bx, int(os.environ.get('BENCH_SUB', 21)), ct), {}, sq)
     check(n == 30, f'{club}: {n} players (want 30)', errs)
     check('squad screen: GIOCA PARTITA' in info, 'not played as a player-coach (no GIOCA PARTITA)', errs)
     return not errs, '; '.join(errs + info)

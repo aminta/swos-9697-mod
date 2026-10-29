@@ -314,6 +314,328 @@ bx_make:                                ; replaces ns_make's `jmp MakeSpritesFro
     jb .team
     ret
 
+
+sq_n:                                   ; ax = 11 + the bench (5..15): the first out-of-squad place (pre-match screens)
+    mov ax, [bx_bench]
+    cmp ax, 5
+    jae .a
+    mov ax, 5
+.a:
+    cmp ax, 15
+    jbe .b
+    mov ax, 15
+.b:
+    add ax, 11
+    ret
+
+sq_row:                                 ; replaces SquadAfterDrawCommon's `sub word [D7], 1Ch` (entry -> row): rows
+    sub word [D7], 1Ch                  ; 11.. -> places 11 + bx_sq ..
+    cmp word [D7], 11
+    jb .r
+    push eax
+    mov ax, [bx_sq]
+    add [D7], ax
+    pop eax
+.r:
+    ret
+
+sq_cmp:                                 ; replaces `cmp word [D7], 10h` (jnz follows): ZF = 1 (the game's row 17,
+    push eax                            ; orange) for a place >= 11 + bench
+    call sq_n
+    cmp [D7], ax
+    jb .no
+    cmp eax, eax
+    pop eax
+    ret
+.no:
+    test esp, esp
+    pop eax
+    ret
+
+sq_gpi:                                 ; replaces SquadCommon's `call GetPlayerInfoBreakPosition` (D1 = the row)
+    cmp word [D1], 11
+    jb .g
+    push eax
+    mov ax, [bx_sq]
+    add [D1], ax
+    pop eax
+.g:
+    jmp GPI
+
+sq_rot:                                 ; replaces SquadOnSelect45's `call RotatePlayersLeft` (the box left of row 17)
+    push eax
+    call sq_n
+    cmp ax, 16
+    pop eax
+    jbe ROTATE                          ; the game's bench of 5: its rotation
+    push eax                            ; a bench over 5: rows 12..17 = a window on places 11 + bx_sq .., one down
+    push ebx                            ; (back to the top after the last)
+    mov ax, [bx_sq]
+    inc ax
+    mov bx, [SQCNT]
+    sub bx, 17
+    cmp ax, bx
+    jle .ok
+    xor eax, eax
+.ok:
+    mov [bx_sq], ax
+    pop ebx
+    pop eax
+    add esp, 4                          ; (not back into SquadOnSelect45: it redraws rows 17 only) the whole menu
+    jmp DRAWMENU
+
+sq_init:                                ; replaces SquadFinish's `mov dword [dseg_16F490], 0`: the window at the top
+    mov dword [S490], 0
+    mov word [bx_sq], 0
+    ret
+
+sq_c3:                                  ; cseg_125F4 and its 2 copies (swaps: numbers swapped unless both starters or
+    push eax                            ; both bench): `cmp word [D3], 10h` -> 11 + bench
+    call sq_n
+    cmp [D3], ax
+    pop eax
+    ret
+
+sq_c4:
+    push eax
+    call sq_n
+    cmp [D4], ax
+    pop eax
+    ret
+
+sq_bn:                                  ; SetBenchPlayersNumbers' `cmp word [D1], 16`: places 11 .. 11 + bench - 1 numbered
+    push eax                            ; 12.., at most the team's players (careerNumPlayers for careerTeam, else 16)
+    push ebx
+    call sq_n
+    mov bx, 16
+    cmp dword [A0], CT
+    jne .c
+    mov bx, [CNP]
+.c:
+    cmp ax, bx
+    jbe .d
+    mov ax, bx
+.d:
+    cmp [D1], ax
+    pop ebx
+    pop eax
+    ret
+
+; the pre-match screen (playMatchMenu): with a bench over 5 the game's maxSubstitutesEntries stays 5 (its 17 rows, the
+; 17th grey + the rotate box) and rows 12..17 are a window on places 11 + bx_pw .. 16 + bx_pw (own team; the opponent's
+; at the top): bench places (< 11 + bench) drawn as the game's substitutes, the others as its 17th row (no number)
+pm_max:                                 ; ShowPlayMatchMenu: replaces `mov [maxSubstitutesEntries], ax`
+    push eax
+    call sq_n
+    cmp ax, 16
+    pop eax
+    jbe .s
+    mov ax, 5
+.s:
+    mov [MAXSUB], ax
+    mov word [bx_pw], 0
+    ret
+
+pm_row:                                 ; DrawPlayerEntries: replaces `sub word [D7], 13` (cmp word [D7], 16 follows)
+    sub word [D7], 13
+    mov word [bx_pp], -1
+    push eax
+    call sq_n
+    cmp ax, 16
+    jbe .r
+    push ebx
+    mov bx, [D7]
+    cmp bx, 11
+    jb .rb
+    cmp bx, 16
+    ja .rb
+    cmp word [VOPP], 0
+    jne .nw
+    add bx, [bx_pw]
+.nw:
+    mov [bx_pp], bx                     ; the place pm_gpi reads
+    cmp bx, ax
+    jb .bench
+    mov word [D7], 16                   ; out of the squad: the game's 17th row
+    jmp .rb
+.bench:
+    cmp word [D7], 16
+    jne .rb
+    mov word [D7], 15                   ; a bench place on row 17: a substitute's row
+.rb:
+    pop ebx
+.r:
+    pop eax
+    ret
+
+pm_gpi:                                 ; DrawPlayerEntries' `call GetPlayerInfoBreakPosition` (D1 = its row): the place
+    cmp word [bx_pp], 0
+    jl .g
+    push eax
+    mov ax, [bx_pp]
+    mov [D1], ax
+    mov word [bx_pp], -1
+    pop eax
+.g:
+    jmp GPI
+
+pm_gpi2:                                ; OnSwapPlayer's 2 calls + shirtedit's se_ctl (D1 = the row, 16 -> 16): the place
+    push eax
+    call sq_n
+    cmp ax, 16
+    jbe .g
+    cmp word [D1], 11
+    jb .g
+    cmp word [VOPP], 0
+    jne .g
+    mov ax, [bx_pw]
+    add [D1], ax
+.g:
+    pop eax
+    jmp GPI
+
+pm_n:                                   ; PlayMatchMenuSwapPlayers' `mov ax, [maxSubstitutesEntries]` (11 + it = the
+    call sq_n                           ; bench boundary): the bench
+    sub ax, 11
+    cmp ax, 5
+    ja .r
+    mov ax, [MAXSUB]
+.r:
+    ret
+
+pm_nr:                                  ; ShowOrHidePlayMatchButton's GetNumberOfAvailablePlayers(11 + it): the bench,
+    call pm_n                           ; at most the team's players
+    cmp ax, 5
+    jbe .r
+    push ebx
+    mov bx, [NPS]
+    sub bx, 11
+    cmp ax, bx
+    jbe .b
+    mov ax, bx
+.b:
+    pop ebx
+.r:
+    ret
+
+pm_rot:                                 ; PlayMatchOnSelect30's `call RotatePlayersLeft` (the box left of row 17)
+    push eax
+    call sq_n
+    cmp ax, 16
+    pop eax
+    jbe ROTATE                          ; the game's bench of 5: its rotation
+    cmp word [VOPP], 0
+    jne .r
+    push eax                            ; a bench over 5: the window one place down (back to the top after the last);
+    push ebx                            ; nobody moves, the selection is cancelled
+    mov ax, [bx_pw]
+    inc ax
+    mov bx, [NPS]
+    sub bx, 17
+    cmp ax, bx
+    jle .ok
+    xor eax, eax
+.ok:
+    mov [bx_pw], ax
+    mov word [SELPOS], -1
+    mov dword [PMSEL], 0
+    pop ebx
+    pop eax
+.r:
+    ret
+
+; the tactics editor's player list (editTacticsMenu, names = entries 11..27, the box = 28): the same window, bx_tw
+et_row:                                 ; EditTacticsAfterDrawPlayerNames: replaces `sub word [D7], 11` (a call of
+    sub word [D7], 11                   ; cseg_4F37E and `cmp word [D7], 16` follow)
+    mov word [bx_tp], -1
+    push eax
+    call sq_n
+    cmp ax, 16
+    jbe .r
+    push ebx
+    mov bx, [ETNP]                      ; (the window back in range for this team)
+    sub bx, 17
+    cmp [bx_tw], bx
+    jle .w
+    mov word [bx_tw], 0
+.w:
+    mov bx, [D7]
+    cmp bx, 11
+    jb .rb
+    cmp bx, 16
+    ja .rb
+    add bx, [bx_tw]
+    mov [bx_tp], bx                     ; the place et_gpi reads
+    cmp bx, ax
+    jb .bench
+    mov word [D7], 16
+    jmp .rb
+.bench:
+    cmp word [D7], 16
+    jne .rb
+    mov word [D7], 15
+.rb:
+    pop ebx
+.r:
+    pop eax
+    ret
+
+et_gpi:                                 ; its 2 GetPlayerInfoBreakPosition calls (D1 = the drawn row; the faces' rows are
+    cmp word [bx_tp], 0                 ; < 11): the place
+    jl .g
+    cmp word [D1], 11
+    jb .g
+    push eax
+    mov ax, [bx_tp]
+    mov [D1], ax
+    pop eax
+.g:
+    jmp GPI
+
+et_gpi2:                                ; EditTacticsPlayerNamesCommon's call (fire on a name, D1 = the row)
+    push eax
+    call sq_n
+    cmp ax, 16
+    jbe .g
+    cmp word [D1], 11
+    jb .g
+    mov ax, [bx_tw]
+    add [D1], ax
+.g:
+    pop eax
+    jmp GPI
+
+et_rot:                                 ; EditTacticsOnSelect28's `call RotatePlayersLeft`
+    push eax
+    call sq_n
+    cmp ax, 16
+    pop eax
+    jbe ROTATE
+    push eax
+    push ebx
+    mov ax, [bx_tw]
+    inc ax
+    mov bx, [ETNP]
+    sub bx, 17
+    cmp ax, bx
+    jle .ok
+    xor eax, eax
+.ok:
+    mov [bx_tw], ax
+    mov word [ETSEL], -1
+    mov dword [ETSELE], 0
+    pop ebx
+    pop eax
+    ret
+
+rot_d0:                                 ; ViewSquadOnSelect21 / SelectNationalTeamOnSelect25: replaces `mov word [D0], 5`
+    push eax                            ; (RotatePlayersLeft's first place - 11): with a bench over 5 the rotation starts
+    call sq_n                           ; after the bench (no silent bench change; a window there = later)
+    sub ax, 11
+    mov [D0], ax
+    pop eax
+    ret
+
 bx_t: dd 0
 bx_i: dd 0
 bx_pl: dd 0
@@ -325,6 +647,11 @@ bx_lenc: times 2 * MAXP db 0            ; plNamesLengthTableCopy
 bx_win: dw 0
 bx_cur: dw 0
 bx_bench: dw 0                          ; the match's bench (0 = the game's), test switch BENCH_FORCE
+bx_sq: dw 0                             ; the squad screen's window: rows 12..17 = places 11 + bx_sq .. (bench > 5)
+bx_pw: dw 0                             ; the pre-match screen's window (the same, places 11 + bx_pw ..)
+bx_pp: dw -1                            ; DrawPlayerEntries: the place of the row being drawn (-1 = the game's)
+bx_tw: dw 0                             ; the tactics editor's window
+bx_tp: dw -1                            ; its drawn row's place
 align 2
 bx_table:
 %assign i 0
@@ -449,6 +776,180 @@ def sites3(p, regs, n1, n2):
     return {'imm': imm, 'refs': rs, 'jmp': nsm + jm[0], 'short': short, 'shirt': shirt, 'mkname': mkname}
 
 
+def sites4(p, regs):
+    """The pre-match squad screen (task 1, Davide 30/10: rows 12..17 a window of 6 when the bench is over 5)."""
+    d = p.le.obj_bytes(1)
+    pk = lambda x: re.escape(struct.pack('<I', x))
+    d7, a0 = regs['D7'], regs['A0']
+    d0, d1, d3, d4, d6 = d7 - 28, d7 - 24, d7 - 16, d7 - 12, d7 - 4
+    # SquadAfterDrawCommon: sub word [D7], 1Ch / mov eax, [team] / mov [A6], eax / cmp word [D7], 10h / jnz
+    m = list(re.finditer(rb'\x66\x83\x2d' + pk(d7) + rb'\x1c\xa1(....)\xa3' + pk(a0 + 24) + rb'\x66\x83\x3d' + pk(d7)
+                         + rb'\x10\x0f\x85', d, re.S))
+    assert len(m) == 1, ('SquadAfterDrawCommon', len(m))
+    row, tp = m[0].start(), struct.unpack('<I', m[0].group(1))[0]
+    # SquadCommon: mov ax, [D6] / mov [D1], ax / mov eax, [team] / mov [A0], eax / call GetPlayerInfoBreakPosition
+    g = [x.start() + 22 for x in re.finditer(rb'\x66\xa1' + pk(d6) + rb'\x66\xa3' + pk(d1) + rb'\xa1' + pk(tp) + rb'\xa3'
+                                              + pk(a0) + rb'\xe8', d)]
+    assert len(g) == 1, ('SquadCommon GPI', g)
+    # SquadOnSelect45: mov eax, [team] / mov [A0], eax / or eax, eax / mov word [D0], 5 / call RotatePlayersLeft
+    r = [x.start() + 21 for x in re.finditer(rb'\xa1' + pk(tp) + rb'\xa3' + pk(a0) + rb'\x0b\xc0\x66\xc7\x05' + pk(d0)
+                                              + rb'\x05\x00\xe8', d)]
+    assert len(r) == 1, ('SquadOnSelect45', r)
+    # SquadFinish: mov dword [team + 10], 0 / mov word [team + 6], -1
+    i = [x.start() for x in re.finditer(rb'\xc7\x05' + pk(tp + 10) + rb'\x00\x00\x00\x00\x66\xc7\x05' + pk(tp + 6)
+                                         + rb'\xff\xff', d)]
+    assert len(i) == 1, ('SquadFinish', i)
+    # SquadCommon's swap end: mov word [team + 6], -1 / jmp DrawMenu
+    dm = {x.start() + 14 + struct.unpack_from('<i', d, x.start() + 10)[0]
+          for x in re.finditer(rb'\x66\xc7\x05' + pk(tp + 6) + rb'\xff\xff\xe9', d)}
+    assert len(dm) == 1, ('DrawMenu', dm)
+    # cseg_125F4: cmp word [D3], 10h / jnb / cmp word [D4], 10h / jnb / cmp word [D3], 0Bh
+    c = [x.start() for x in re.finditer(rb'\x66\x83\x3d' + pk(d3) + rb'\x10\x73.\x66\x83\x3d' + pk(d4) + rb'\x10\x73.\x66\x83\x3d'
+                                         + pk(d3) + rb'\x0b', d, re.S)]
+    assert len(c) == 3, ('cseg_125F4 + the play match / tactics copies', c)
+    # SetBenchPlayersNumbers' loop end: add byte [esi+4Eh], 1 / add word [D1], 1 / cmp word [D1], 16 / jnz
+    bn = [x.start() + 12 for x in re.finditer(rb'\x80\x46\x4e\x01\x66\x83\x05' + pk(d1) + rb'\x01\x66\x83\x3d' + pk(d1)
+                                               + rb'\x10\x75', d)]
+    assert len(bn) == 1, ('SetBenchPlayersNumbers', bn)
+    bn = bn[0]
+    rel = lambda o: o + 5 + struct.unpack_from('<i', d, o + 1)[0]
+    return dict(row=row, cmp=row + 18, gpi=g[0], gpi_t=rel(g[0]), rot=r[0], rot_t=rel(r[0]), init=i[0], drawmenu=dm.pop(),
+                c3=c, bn=bn, tp=tp, D3=d3, D4=d4)
+
+
+def sites5(p, regs, s4):
+    """The pre-match screen (playMatchMenu, task 1): rows 12..17 a window of 6 when the bench is over 5."""
+    d = p.le.obj_bytes(1)
+    pk = lambda x: re.escape(struct.pack('<I', x))
+    t = lambda o: p.target(1, o)
+    rel = lambda o: o + 5 + struct.unpack_from('<i', d, o + 1)[0]
+    d7, a0 = regs['D7'], regs['A0']
+    d0, d1 = d7 - 28, d7 - 24
+    # ShowPlayMatchMenu: mov ax, [D1] / mov [maxSubstitutesEntries], ax / mov ax, [D0] / mov [playMatchControlFlags], ax /
+    # mov ax, [D2] / mov [playMatchExcludeFlags], ax / mov [inEditTactics], ax
+    m = [x.start() + 6 for x in re.finditer(rb'\x66\xa1' + pk(d1) + rb'\x66\xa3....\x66\xa1' + pk(d0) + rb'\x66\xa3....\x66\xa1'
+                                            + pk(d7 - 20) + rb'\x66\xa3....\x66\xa3', d, re.S)]
+    assert len(m) == 1, ('ShowPlayMatchMenu', m)
+    out = dict(store=m[0], MAXSUB=t(m[0] + 2))
+    mx = pk(out['MAXSUB'][1])
+    # PlayMatchMenuReinit: mov ax, [D0] / mov [numPlayersToShowInMenu], ax / mov dword [pmSelectedPlayerEntry], 0 /
+    # mov word [viewingOpponentTeam], 0 / mov word [selectedPlayerPosition], -1
+    m = [x.start() for x in re.finditer(rb'\x66\xa1' + pk(d0) + rb'\x66\xa3....\xc7\x05....\x00\x00\x00\x00\x66\xc7\x05'
+                                        rb'....\x00\x00\x66\xc7\x05....\xff\xff', d, re.S)]
+    assert len(m) == 1, ('PlayMatchMenuReinit', m)
+    r = m[0]
+    out.update(NPS=t(r + 8), PMSEL=t(r + 14), VOPP=t(r + 25), SELPOS=t(r + 34))
+    # DrawPlayerEntries: mov esi, [A5] / mov ax, [esi+2] / mov [D7], ax / sub word [D7], 13 / cmp word [D7], 16
+    m = [x.start() + 16 for x in re.finditer(rb'\x8b\x35' + pk(a0 + 20) + rb'\x66\x8b\x46\x02\x66\xa3' + pk(d7) +
+                                             rb'\x66\x83\x2d' + pk(d7) + rb'\x0d\x66\x83\x3d' + pk(d7) + rb'\x10', d)]
+    assert len(m) == 1, ('DrawPlayerEntries', m)
+    out['row'] = m[0]
+    gpi = s4['gpi_t']
+    calls = lambda lo, hi: [o for o in range(lo, hi) if d[o] == 0xE8 and rel(o) == gpi]
+    # its @@set_positions: mov ax, [D7] / mov [D1], ax / call GetPlayerInfoBreakPosition
+    g = [x.end() - 1 for x in re.finditer(rb'\x66\xa1' + pk(d7) + rb'\x66\xa3' + pk(d1) + rb'\xe8', d[m[0]:m[0] + 0x800])]
+    g = [m[0] + o for o in g if rel(m[0] + o) == gpi]
+    assert len(g) == 1, ('DrawPlayerEntries GPI', g)
+    out['dgpi'] = g[0]
+    # OnSwapPlayer: mov eax, [playMatchTeam1Ptr] / mov [A1], eax / mov ax, [viewingOpponentTeam] / ... (its 2 GPI calls)
+    m = [x.start() for x in re.finditer(rb'\xa1....\xa3' + pk(a0 + 4) + rb'\x66\xa1' + pk(out['VOPP'][1]) +
+                                        rb'\x66\x0b\xc0\x75.\x66\xa1....\x66\x0b\xc0\x75.\xe9', d, re.S)]
+    assert len(m) == 1, ('OnSwapPlayer', m)
+    g = calls(m[0], m[0] + 0x240)
+    assert len(g) == 2, ('OnSwapPlayer GPI', g)
+    out['sgpi'] = g
+    # PlayMatchMenuSwapPlayers (D0) / ShowOrHidePlayMatchButton (D1): mov word [Dx], 11 / mov ax, [max] / add [Dx], ax
+    for k, dx in (('swap', d0), ('ready', d1)):
+        m = [x.start() + 9 for x in re.finditer(rb'\x66\xc7\x05' + pk(dx) + rb'\x0b\x00\x66\xa1' + mx + rb'\x66\x01\x05'
+                                                + pk(dx), d)]
+        assert len(m) == 1, (k, m)
+        out[k] = m[0]
+    # PlayMatchOnSelect30: mov ax, [max] / mov [D0], ax / call RotatePlayersLeft
+    m = [x.end() - 1 for x in re.finditer(rb'\x66\xa1' + mx + rb'\x66\xa3' + pk(d0) + rb'\xe8', d)]
+    m = [o for o in m if rel(o) == s4['rot_t']]
+    assert len(m) == 1, ('PlayMatchOnSelect30', m)
+    out['rot'] = m[0]
+    # shirtedit's se_ctl (MenuProc's MenuCheckControls call, if hooked): its row -> place call
+    m = [x.start() for x in re.finditer(rb'\xe8....\xe8....\x66\xb8\x04\x00\x66\x83\x3d....\x32\x7f', d, re.S)]
+    assert len(m) == 1, ('MenuProc', m)
+    c = [x for x in re.finditer(rb'\xe8(....)\x66\xc7\x05(....)\x00\x00\xe8(....)', d[m[0]:m[0] + 0x100], re.S)]
+    assert len(c) == 1, ('MenuCheckControls call', len(c))
+    mc = m[0] + c[0].start(3) - 1
+    se = mc + 5 + struct.unpack('<i', bytes(p.get(1, mc + 1, 4)))[0]
+    out['se'] = None
+    if se != rel(mc):
+        code = bytes(p.get(1, se, 0x600))
+        g = [se + o for o in range(len(code) - 5) if code[o] == 0xE8 and se + o + 5 + struct.unpack_from('<i', code, o + 1)[0] == gpi]
+        assert len(g) == 1, ('se_ctl GPI', g)
+        out['se'] = g[0]
+    return out
+
+
+def sites6(p, regs, s4):
+    """The tactics editor's player list (task 1): the same window."""
+    d = p.le.obj_bytes(1)
+    pk = lambda x: re.escape(struct.pack('<I', x))
+    t = lambda o: p.target(1, o)
+    rel = lambda o: o + 5 + struct.unpack_from('<i', d, o + 1)[0]
+    d7, a0 = regs['D7'], regs['A0']
+    d0, d1, d6 = d7 - 28, d7 - 24, d7 - 4
+    gpi = s4['gpi_t']
+    ld = rb'\x66\xa1' + pk(d7) + rb'\x66\xa3' + pk(d1) + rb'\xe8'      # mov ax, [D7] / mov [D1], ax / call
+    out = {}
+    # EditTacticsAfterDrawPlayerNames: mov esi, [A5] / mov ax, [esi+2] / mov [D7], ax / sub word [D7], 11 /
+    # push dword [D7] / call cseg_4F37E / pop dword [D7] / cmp word [D7], 16
+    m = [x.start() + 16 for x in re.finditer(rb'\x8b\x35' + pk(a0 + 20) + rb'\x66\x8b\x46\x02\x66\xa3' + pk(d7) +
+                                             rb'\x66\x83\x2d' + pk(d7) + rb'\x0b\xff\x35' + pk(d7) + rb'\xe8....\x8f\x05' + pk(d7) +
+                                             rb'\x66\x83\x3d' + pk(d7) + rb'\x10', d, re.S)]
+    assert len(m) == 1, ('EditTacticsAfterDrawPlayerNames', m)
+    out['row'] = m[0]
+    f = rel(m[0] + 14)                                                  # cseg_4F37E
+    g = []
+    for lo in (m[0], f):                                                # the names' and cseg_4F37E's GPI call
+        c = [lo + x.end() - 1 for x in re.finditer(ld, d[lo:lo + 0x400]) if rel(lo + x.end() - 1) == gpi]
+        assert len(c) == 1, ('tactics GPI', hex(lo), c)
+        g += c
+    out['dgpi'] = g
+    # EditTacticsPlayerNamesCommon: mov [esi+18h], al / mov ax, [D6] / mov [D1], ax / push dword [A0] / call GPI
+    m = [x.end() - 1 for x in re.finditer(rb'\x88\x46\x18\x66\xa1' + pk(d6) + rb'\x66\xa3' + pk(d1) + rb'\xff\x35' + pk(a0)
+                                          + rb'\xe8', d)]
+    m = [o for o in m if rel(o) == gpi and re.search(rb'\x66\xc7\x05' + pk(d0) + rb'\x0b\x00|\xc7\x05' + pk(d0)
+                                                       + rb'\x0b\x00\x00\x00', d[o - 0xC0:o])]   # (D0 = 11: the names,
+    assert len(m) == 1, ('EditTacticsPlayerNamesCommon', m)                                  #  not EditTacticsCommon's faces)
+    out['fgpi'] = m[0]
+    # ... its selection: mov word [sel], -1 / jmp DrawMenu; mov eax, [selEntry] / mov [A0], eax / mov eax, [A5] /
+    # mov [selEntry], eax
+    m = [x.start() for x in re.finditer(rb'\x66\xc7\x05(....)\xff\xff\xe9', d[out['fgpi']:out['fgpi'] + 0x200], re.S)]
+    assert m, 'tactics selection'
+    out['ETSEL'] = t(out['fgpi'] + m[0] + 3)
+    m = [x.start() for x in re.finditer(rb'\xa1(....)\xa3' + pk(a0) + rb'\xa1' + pk(a0 + 20) + rb'\xa3\1',
+                                        d[out['fgpi']:out['fgpi'] + 0x200], re.S)]
+    assert len(m) == 1, ('tactics selected entry', m)
+    out['ETSELE'] = t(out['fgpi'] + m[0] + 1)
+    # EditTacticsOnSelect28: mov eax, [chooseTacticsTeamPtr] / mov [A0], eax / mov word [D0], 5 / call RotatePlayersLeft /
+    # mov dword [A0], offset cseg_4EC02 (10, 27, -1: entries to redraw)
+    m = [x.end() - 1 for x in re.finditer(rb'\xa1....\xa3' + pk(a0) + rb'\x66\xc7\x05' + pk(d0) + rb'\x05\x00\xe8', d, re.S)]
+    r = []
+    for o in m:
+        if rel(o) == s4['rot_t'] and d[o + 5:o + 7] == b'\xc7\x05':
+            tg = t(o + 11)
+            if tg[0] == 1 and d[tg[1]:tg[1] + 6] == b'\x0a\x00\x1b\x00\xff\xff':
+                r.append(o)
+    assert len(r) == 1, ('EditTacticsOnSelect28', r)
+    out['rot'] = r[0]
+    other = [x.end() - 1 for x in re.finditer(rb'\x66\xc7\x05' + pk(d0) + rb'\x05\x00\xe8', d)]
+    other = [o for o in other if rel(o) == s4['rot_t'] and o not in r + [s4['rot']]]   # ViewSquadOnSelect21,
+                                                                                         # SelectNationalTeamOnSelect25
+    assert len(other) == 2, ('the other RotatePlayersLeft(5) callers', other)
+    out['rot5'] = [o - 9 for o in other]                             # their mov word [D0], 5
+    # cseg_4ECAD: mov ax, [editTacticsNumPlayers] / mov [D1], ax / sub word [D1], 16 / jz
+    m = [x.start() for x in re.finditer(rb'\x66\xa1(....)\x66\xa3' + pk(d1) + rb'\x66\x83\x2d' + pk(d1) + rb'\x10\x74', d, re.S)]
+    m = [o for o in m if re.search(rb'\xc7\x05' + pk(d0) + rb'\x1c\x00', d[o - 0x60:o])]   # (after D0 = 28:
+    assert len(m) == 1, ('editTacticsNumPlayers', m)                                             #  the box hidden)
+    out['ETNP'] = t(m[0] + 2)
+    return out
+
+
 def refs(p, tobj, lo, hi):
     """Every 32-bit fixup source (objn, off) whose target is tobj:lo..hi-1 -> [(objn, off, toff)]."""
     out = []
@@ -493,6 +994,13 @@ def patch(p, at, ns_at):
     at = (at + 15) & ~15
     sym = {**v2, **v3, 'D7': (2, regs['D7']), 'D1': (2, regs['D7'] - 24), 'A0': (2, regs['A0']), 'GMAX': (2, gmax), 'D2': (2, d2), 'A2': (2, regs['A0'] + 8), 'A6': (2, regs['A0'] + 24),
            'CT': (2, ct), 'CNP': (2, cnp), 'MAXP': (0, MAXP), 'PI': (0, PI)}
+    s4 = sites4(p, regs)
+    sym.update({'GPI': (1, s4['gpi_t']), 'ROTATE': (1, s4['rot_t']), 'DRAWMENU': (1, s4['drawmenu']),
+                'SQCNT': (2, s4['tp'] - 2), 'S490': (2, s4['tp'] + 10), 'D3': (2, s4['D3']), 'D4': (2, s4['D4'])})
+    s5 = sites5(p, regs, s4)
+    sym.update({k: s5[k] for k in ('MAXSUB', 'NPS', 'PMSEL', 'VOPP', 'SELPOS')})
+    s6 = sites6(p, regs, s4)
+    sym.update({k: s6[k] for k in ('ETSEL', 'ETSELE', 'ETNP')})
     code, fix = nasmcave.assemble(ASM, at, sym)
     lab = nasmcave.labels(ASM, at, sym)
     assert not any(p.get(1, at, len(code)))
@@ -533,6 +1041,34 @@ def patch(p, at, ns_at):
     for objn, off, toff in rs:
         p.retarget(objn, off, 1, lab['bx_table'] + toff - table)
         p.put(objn, off, struct.pack('<I', lab['bx_table'] + toff - table))
+    call9(s4['row'], 8, 'sq_row', 3)                # task 1, the squad screen: sub word [D7], 1Ch
+    call9(s4['cmp'], 8, 'sq_cmp', 3)                # cmp word [D7], 10h
+    call9(s4['init'], 10, 'sq_init', 2)             # mov dword [dseg_16F490], 0
+    for c in s4['c3']:                              # the 3 swap blocks (squad, play match, tactics names):
+        call9(c, 8, 'sq_c3', 3)                     # cmp word [D3], 10h
+        call9(c + 10, 8, 'sq_c4', 3)                # cmp word [D4], 10h
+    call9(s4['bn'], 8, 'sq_bn', 3)                  # cmp word [D1], 16
+    for k, lbl in (('gpi', 'sq_gpi'), ('rot', 'sq_rot')):   # call rel32 (no fixup)
+        p.put(1, s4[k], b'\xe8' + struct.pack('<i', lab[lbl] - (s4[k] + 5)))
+    d1o = p.le.obj_bytes(1)
+    for k, n in (('store', 6), ('row', 8), ('swap', 6), ('ready', 6)):   # nobody else patched them
+        assert bytes(p.get(1, s5[k], n)) == d1o[s5[k]:s5[k] + n], k
+    call9(s5['store'], 6, 'pm_max', 2)              # the pre-match screen: mov [maxSubstitutesEntries], ax
+    call9(s5['row'], 8, 'pm_row', 3)                # DrawPlayerEntries: sub word [D7], 13
+    assert bytes(p.get(1, s6['row'], 8)) == d1o[s6['row']:s6['row'] + 8]
+    call9(s6['row'], 8, 'et_row', 3)                # the tactics editor: sub word [D7], 11
+    for o in s6['rot5']:
+        assert bytes(p.get(1, o, 9)) == d1o[o:o + 9] and d1o[o:o + 3] == b'\x66\xc7\x05', hex(o)
+        call9(o, 9, 'rot_d0', 3)                    # mov word [D0], 5
+    call9(s5['swap'], 6, 'pm_n', 2)                 # PlayMatchMenuSwapPlayers: mov ax, [maxSubstitutesEntries]
+    call9(s5['ready'], 6, 'pm_nr', 2)               # ShowOrHidePlayMatchButton: the same
+    rcalls = [(s5['dgpi'], 'pm_gpi'), (s5['rot'], 'pm_rot')] + [(o, 'pm_gpi2') for o in s5['sgpi']]
+    rcalls += [(o, 'et_gpi') for o in s6['dgpi']] + [(s6['fgpi'], 'et_gpi2'), (s6['rot'], 'et_rot')]
+    if s5['se']:
+        rcalls.append((s5['se'], 'pm_gpi2'))        # shirtedit's se_ctl (row -> place)
+    for o, lbl in rcalls:                           # call rel32 (no fixup)
+        assert bytes(p.get(1, o, 1)) == b'\xe8', hex(o)
+        p.put(1, o, b'\xe8' + struct.pack('<i', lab[lbl] - (o + 5)))
     bf = int(os.environ.get('BENCH_FORCE', '0'))   # BENCH_FORCE=n (test / playtest builds only): every match's bench
     if bf:                                          # n (<= 15) until the per-competition rule (phase 2)
         p.put(1, lab['bx_bench'], struct.pack('<H', min(bf, 15)))

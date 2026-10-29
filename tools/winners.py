@@ -323,7 +323,48 @@ wn_load:                                ; FOUND = 1 with the competition's WIN t
 .cpe:
     mov dword [edi], 00004501h          ; 01h, 'E', 0, 0
     mov byte [FOUND], 1
-.x: popad
+.x: cmp byte [FOUND], 0                 ; 4.0.5 (Davide 29/10): the career league's page also lists this season's
+    je .xx                              ; national supercup (gplay.c sc_wline_c: its record name; sc_done's winner
+    cmp word [GAMETYPE], 4              ; kept all season - slot 4 is reused later): a line '<name>' 01h 'U'
+    jne .xx
+    mov eax, [D8CAA_]
+    test eax, eax
+    jz .xx
+    mov al, [eax]
+    cmp al, [DIY_ + 2Dh]
+    jne .xx
+    mov ax, [CAREERTEAM]
+    mov [GP_MGR], ax
+    mov al, [SEASONPLAYING]
+    mov [GP_SEAS], al
+    call SC_WLINE_C
+    test eax, eax
+    jz .xx
+    lea esi, [eax + STR_BASE_]
+    mov edi, TXT
+    xor al, al
+    mov ecx, TXTMAX_ - 48
+    repne scasb                         ; (TXT's end: room for the line or none)
+    jne .xx
+    dec edi
+    cmp edi, TXT
+    je .ul
+    cmp byte [edi - 1], 0Ah
+    je .ul
+    mov byte [edi], 0Ah
+    inc edi
+.ul:
+    mov ecx, 40
+.uc:
+    lodsb
+    test al, al
+    jz .ue
+    stosb
+    loop .uc
+.ue:
+    mov dword [edi], 00005501h          ; 01h, 'U', 0, 0
+.xx:
+    popad
     ret
 
 wn_render:                              ; TXT's lines (title 01h source) -> per title a block: 'title:', its winner
@@ -474,6 +515,8 @@ wn_src:                                 ; esi -> a source: edx = the winner's na
     mov bl, al
     cmp al, 'K'
     je .pi
+    cmp al, 'U'                         ; (4.0.5: the national supercup - gp_wn_c sc_wn)
+    je .call
     cmp al, 'T'
     je .tt
     lodsb                               ; ('D' / 'S': the stage; 'Q': the title_seed rule)
@@ -769,6 +812,7 @@ def patch(p, at, lang, sites):
                 'SELPTR': (2, sel_ptr(p)),
                 'GP_WN_C': (1, gplay.LABELS['gp_wn_c'][1]), 'GP_WNSRC': gplay.LABELS['GP_WNSRC'], 'GP_WNFILE': gplay.LABELS['GP_WNFILE'],
                 'GP_SEAS': gplay.LABELS['GP_SEAS'], 'GP_MGR': gplay.LABELS['GP_MGR'],
+                'SC_WLINE_C': (1, gplay.LABELS['sc_wline_c'][1]), 'STR_BASE_': (2, sacups.STR_BASE),
                 'SLOT3': (2, __import__('dplay')._play_sites(p, __import__('sacups').regs(p.le.obj_bytes(1)))['slot4']
                           + 0x443),                      # (slot 3's buffer follows slot 4's, 443h each)
                 'CAREERTEAM': (2, __import__('dplay')._sites(p)[5]),
@@ -827,6 +871,17 @@ GP_CALL = """    mov [GP_WNSRC], ebx                 ; gplay.c gp_wn_c: the winn
     add esp, 4
     jmp .tbp
 .nf:
+    pop edx
+    cmp bl, 'U'                         ; (4.0.5: a supercup winner not a row of this league - a cup winner from a
+    jne .none                           ; lower division: its team file's name)
+    push edx
+    xor edx, edx
+    call wn_disk
+    test edx, edx
+    jz .nf2
+    add esp, 4
+    jmp .tbp
+.nf2:
     pop edx
 .none:
     cmp bl, 'T'                         ; (a play-off without its contest: decided at the season end - 4.0.2: DA

@@ -1653,6 +1653,7 @@ static u32 wn_double(int rule) {        /* 4.0.2 'Q': a title_seed play-off with
     return 0xFFFE;
 }
 static u32 cf_last1(void);              /* (4.0.5: CF_ST, defined with it below) */
+static u32 sc_wn(void);                 /* (4.0.5: the supercup's winner, below) */
 u32 gp_wn_c(void) {
     int t = GP_WNSRC & 0xFF, st = GP_WNSRC >> 8 & 0xFF, pi = GP_WNSRC >> 16 & 0xFF;
     if (GP_WNSRC >> 24 && t == 'M') {   /* (4.0.1: the division the career club played in: team | division << 16) */
@@ -1672,6 +1673,7 @@ u32 gp_wn_c(void) {
             if (WN_ST.e[i].type == ty && WN_ST.e[i].idx == ix) return WN_ST.e[i].team;
         return 0xFFFE;
     }
+    if (t == 'U') return sc_wn();       /* (4.0.5: the national supercup, sc_done's winner) */
     if (t == 'S') {
         const struct gp_ss *b = ss_view(GP_WNFILE);
         return b && st < SS_N && (b->fresh >> st & 1) && b->n[st] ? b->r[st][0].team : 0xFFFE;
@@ -3438,7 +3440,7 @@ u32 sc_step_c(void) {                   /* the calendar advance: 1 = the career 
     if (((int)GP_WK + 1 < e[3] && !(e[2] & SC_EARLY)) || !sc_free()) return 0;   /* (4.0.5 'early': built at the
                                            season's first advance - its fixture row and VISUAL. COMPETIZ. entry from
                                            the start - still played at its own week, ko_one's dates) */
-    SC_ST[3] = GP_SEAS; SC_ST[4] = 0; SC_ST[5] = 0;
+    SC_ST[3] = GP_SEAS; SC_ST[4] = 0; SC_ST[5] = 0; SC_ST[8] = SC_ST[9] = 0;
     if (GP_SCFIRST && (e[2] & 0x7F) > 1) { SC_TRACE = 0x81; return 0; }   /* (a summer one: already played before the world) */
     int n = e[6] == 4 ? 4 : 2;
     u16 c[4];
@@ -3469,7 +3471,30 @@ void sc_done(const struct gp_ko *k) {  /* gp_rec_c: the career club's supercup t
     SC_TRACE |= 0x40;
     int won = k->tw[0] != NOC && k->team[k->tw[0]] == GP_MGR;
     if (SC_ST[4] == 1) SC_ST[4] = won ? 2 : 3;
-    else if (won) SC_ST[5] = 1;         /* (the final, or the one match, won: the season record's line) */
+    else {
+        if (won) SC_ST[5] = 1;          /* (the final, or the one match, won: the season record's line) */
+        if (k->tw[0] != NOC) { u16 w = k->team[k->tw[0]]; SC_ST[8] = (u8)w; SC_ST[9] = (u8)(w >> 8); }
+    }                                   /* (4.0.5 Davide 29/10: the winner kept for VINCITORI all season - SC_ST +8,
+                                           header bytes the 'SC' item already saves: slot 4 is reused later) */
+}
+static const u8 *sc_entry(void) {      /* the career club's country's GP_SCT entry, 0 = none */
+    if (!GP_SCT || !GP_MGR) return 0;
+    for (int i = 0; i < GP_SCT[0]; i++)
+        if (GP_SCT[1 + SC_E * i] == (GP_MGR & 0xFF)) return GP_SCT + 1 + SC_E * i;
+    return 0;
+}
+u32 sc_wline_c(void) {                  /* winners.py: this season's supercup line on the career league's VINCITORI
+                                           page - its record name (STR_BASE-relative), 0 = no line: the career club's
+                                           tie not built this season (not in it, a summer one before the world), or
+                                           a final four's semi-final lost (the final is not played by the engine) */
+    const u8 *e = sc_entry();
+    if (!e || SC_ST[3] != GP_SEAS) return 0;
+    if (!(SC_ST[8] | SC_ST[9]) && !sc_busy() && SC_ST[4] != 2) return 0;
+    return *(const u32 *)(e + 32);
+}
+static u32 sc_wn(void) {                /* gp_wn_c 'U': the winner, else 0FFFEh (DA GIOCARE on the career's league) */
+    u16 w = (u16)(SC_ST[8] | SC_ST[9] << 8);
+    return SC_ST[3] == GP_SEAS && w ? w : 0xFFFE;
 }
 static u32 sc_rline(void) {             /* the career club's supercup won this season: its record name, else 0 */
     if (!SC_ST[3] || SC_ST[3] != GP_SEAS || SC_ST[5] != 1 || !GP_SCT || !GP_MGR) return 0;   /* (no magic check: the

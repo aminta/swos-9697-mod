@@ -10016,13 +10016,101 @@ def vc5_check(s, tag, want):
     return errs
 
 
+def vc5_saves(exe):
+    """world_vc5 / world_winners_sc: an INTER career's saves on exe - when its SUPERCOPPA ITALIANA tie is built and after
+    its result is recorded (SC_TRACE 41h; cached in RUNS: vc5_before.CAR, vc5_after.CAR). Returns (before, after,
+    message)."""
+    mid1, mid2 = os.path.join(RUNS, 'vc5_before.CAR'), os.path.join(RUNS, 'vc5_after.CAR')
+    if os.path.exists(mid1) and os.path.exists(mid2):
+        return mid1, mid2, 'cached'
+    team = 'EUROPA,ITALIA,SERIE A,INTER'
+    ok, msg, _ = sc_season(team, dict(W8485_BUILD=exe, W8485_MIDSAVE=f'{sc_trace(exe):x}:1:1'))
+    if not ok:
+        return None, None, f'season 1 to the supercup tie: {msg}'
+    shutil.copy(msg.split(': ', 1)[1], mid1)
+    ok, msg, _ = sc_season(team, dict(W8485_BUILD=exe, W8485_MIDSAVE=f'{sc_trace(exe):x}:65:1'), 2)   # (SC_TRACE
+                                                    # 41h: decided - sc_done ran, after the result screen)
+    if not ok:
+        return None, None, f'season 1 to the supercup result: {msg}'
+    shutil.copy(msg.split(': ', 1)[1], mid2)
+    return mid1, mid2, 'played'
+
+
+@scenario
+def world_winners_sc():
+    """4.0.5 (Davide 29/10: "Mettilo nella pagina vincitori"): the national supercup on the career league's VINCITORI page
+    all season - an INTER career (world_vc5's saves, VC5_BUILD / SC_BUILD): when its tie is built the page has
+    'ITALIA SUPERCOPPA ...:' with DA GIOCARE; after its result the winner (INTER or LAZIO, as the saved result); then slot 4
+    reused (forced: D8CAA[4] and the slot's buffer cleared, as a later play-off / Coppa D tie takes it): VISUAL.
+    COMPETIZ. has no 5th entry, the VINCITORI line keeps the winner (gplay.c SC_ST +8, the 'SC' item)"""
+    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+    if not os.path.isdir(src):
+        return True, f'SKIP: private data {src} missing'
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    exe = os.environ.get('VC5_BUILD') or os.environ.get('SC_BUILD') or build('world_sc_cups', env={
+        'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order])})
+    mid1, mid2, msg = vc5_saves(exe)
+    if not mid2:
+        return False, msg
+    errs, info = [], []
+
+    def sc_line(lines):
+        for k, x in enumerate(lines):
+            if 'SUPERCOPPA' in x:
+                return x, (lines[k + 1] if k + 1 < len(lines) else '')
+        return None, None
+
+    def career(s):
+        for _ in range(4):
+            sc = s.screen()
+            if sc.find('VISUAL. COMPETIZ.', exact=True) is not None:
+                return
+            press(s, sc, 'CONTINUA', 3) or s.send('fire dump:2')
+
+    def back(s):
+        for _ in range(5):
+            sc = s.screen()
+            if sc.find('PROSS. PARTITA', exact=True) is not None:
+                return
+            press(s, sc, 'ESCI', 3) or s.send('fire dump:2')
+
+    for tag, car in (('before', mid1), ('after', mid2)):
+        with Session('world_winners_sc_' + tag, exe, {'W84A.CAR': car}, 'dump:2', 300) as s:
+            s.wait()
+            s.send(LOAD1 + ' dump:3')
+            career(s)
+            e, title, lines = winners_page(s)
+            t, w = sc_line(lines)
+            s.log.append(f'[wsc] {tag}: {title} {lines}')
+            info.append(f'{tag}: {t} {w}')
+            if tag == 'before':
+                check(t is not None and w == 'DA GIOCARE', f'before: supercup line {t!r} {w!r} ({lines})', errs)
+                continue
+            check(t is not None and w in ('INTER', 'LAZIO'), f'after: supercup line {t!r} {w!r} ({lines})', errs)
+            back(s)
+            r = s.result                                # (slot 4 reused: its contest pointer and buffer cleared)
+            buf = struct.unpack('<I', bytes(r.obj2(ARR_AT + 16, 4)))[0]
+            s.poke(r.base2 + D8CAA_AT + 16, bytes(4))
+            s.poke(buf, bytes(8))                       # (its type word and name: short pokes - one long SM line
+            career(s)                                   # blocks the debugger's pty)
+            press(s, s.screen(), 'VISUAL. COMPETIZ.', 3)
+            sc = s.screen()
+            check(sc.entries[8][2], f'after the reuse: the 5th entry still shown ({sc.entries[8]})', errs)
+            back(s)
+            e, title, lines2 = winners_page(s)
+            t2, w2 = sc_line(lines2)
+            info.append(f'reused: {t2} {w2}')
+            check(t2 == t and w2 == w, f'after the reuse: supercup line {t2!r} {w2!r} (was {t!r} {w!r})', errs)
+    return not errs, '; '.join(errs) or '; '.join(info)
+
+
 @scenario
 def world_vc5():
     """4.0.5 VISUAL. COMPETIZ.'s 5th entry (Davide 29/10: slot 4 - the supercups, the play-offs, the Coppa D): an
     INTER career on the supercups build (world_sc_early's; VC5_BUILD / SC_BUILD): (1) saved when its SUPERCOPPA
     ITALIANA tie is built (season start): the menu has the 5th entry SUPERCOPPA ..., the rows in order (slots 0-3, slot 4,
     TOP SCORERS, REGISTRO) without overlaps above ESCI, reached through the links, its view opens and ESCI comes back;
-    (2) saved after the supercup's result (W8485_MIDTEXT): the entry still there for the decided supercup, its view
+    (2) saved once the supercup's result is recorded (SC_TRACE 41h): the entry still there for the decided supercup, its view
     opens (shots vc_before_*, vc_after_*)"""
     src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
     if not os.path.isdir(src):
@@ -10030,19 +10118,10 @@ def world_vc5():
     order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
     exe = os.environ.get('VC5_BUILD') or os.environ.get('SC_BUILD') or build('world_sc_cups', env={
         'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order])})
-    tr = sc_trace(exe)
-    team = 'EUROPA,ITALIA,SERIE A,INTER'
     errs = []
-    ok, msg, _ = sc_season(team, dict(W8485_BUILD=exe, W8485_MIDSAVE=f'{tr:x}:1:1'))
-    if not ok:
-        return False, f'season 1 to the supercup tie: {msg}'
-    mid1 = os.path.join(RUNS, 'vc5_before.CAR')
-    shutil.copy(msg.split(': ', 1)[1], mid1)
-    ok, msg, _ = sc_season(team, dict(W8485_BUILD=exe, W8485_MIDTEXT='SUPERCOPPA:1'), 2)
-    if not ok:
-        return False, f'season 1 to the supercup result: {msg}'
-    mid2 = os.path.join(RUNS, 'vc5_after.CAR')
-    shutil.copy(msg.split(': ', 1)[1], mid2)
+    mid1, mid2, msg = vc5_saves(exe)
+    if not mid2:
+        return False, msg
     for tag, car in (('vc_before', mid1), ('vc_after', mid2)):
         with Session('world_vc5_' + tag, exe, {'W84A.CAR': car}, 'dump:2', 300) as s:
             s.wait()

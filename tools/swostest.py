@@ -4491,6 +4491,22 @@ def lepatch_orig():
     return lepatch_orig.p
 
 
+def old_name_tables():
+    """obj2 offset of the game's plOrdinalsTable (CopyPlayerNameLengths: mov [A0], ord / [A1], len / [A2], lenc, 32
+    apart); plNamesLengthTable and plNamesLengthTableCopy follow, then prevLastPlayer (dd) and prevLastTeamPlayed."""
+    o = lepatch_orig()
+    d = o.le.obj_bytes(1)
+    a0 = 0
+    for m in re.finditer(rb'\xc7\x05(....)(....)\xc7\x05(....)(....)\xc7\x05(....)(....)', d, re.S):
+        try:
+            t = [o.target(1, m.start(k))[1] if o.target(1, m.start(k))[0] == 2 else None for k in (2, 4, 6)]
+        except Exception:
+            continue
+        if None not in t and t[1] - t[0] == 32 and t[2] - t[1] == 32:
+            return t[0]
+    raise AssertionError('plOrdinalsTable')
+
+
 def bench_vars():
     """The bench's game variables (obj2 offsets, the same in every build of the exe's language): g_benchPlayerIndex,
     g_subsState, plToEnterGameIndex (FirePressedInSubsMenu), team1NumSubs / team2NumSubs (IsThisPlayerOkToSelect)."""
@@ -4634,6 +4650,9 @@ def bench_play(s, gmax, top, bot, wants, errs, info, mark, sub=None):
     ega = r.obj2(o.target(1, eg[0] + 3)[1], 2) == bytes([255, 255])
     if ega:
         info.append('16-colour (EGA) mode')
+    oldt = old_name_tables()                # the game's own three name tables (96 bytes): no longer used (block 3),
+    old0 = r.read(r.base2 + oldt, 96)       # so nothing may write them (prevLastPlayer / prevLastTeamPlayed after
+                                            # them are the game's, written in play)
     if sub:                                 # block 3: the names of places 17..26 (sprites 1910 + 10 x team ..)
         spr = namespr.find(o)['spridx']
         for t, (name, pl) in enumerate(teams):
@@ -4667,6 +4686,12 @@ def bench_play(s, gmax, top, bot, wants, errs, info, mark, sub=None):
     if sub:                                 # (bx_bench obj1 offset, bench place, careerTeam obj2): a change from beyond 16
         bench_sub(s, sub[0], sub[1], errs, info, mark)
         r = s.result
+        old1 = r.read(r.base2 + oldt, 96)
+        check(old1 == old0, f'the old name tables written: {[(k, a, b) for k, (a, b) in enumerate(zip(old0, old1)) if a != b][:8]}', errs)
+        lt = r.read(r.base1 + sub[0] - 4 - 104, 104)   # bx_len + bx_lenc: each team's copy = its lengths, swapped
+        check(all(sorted(lt[52 + 26 * t:78 + 26 * t]) == sorted(lt[26 * t:26 * t + 26]) for t in (0, 1)),
+              f'bx_lenc not a permutation of bx_len: {lt.hex()}', errs)
+        info.append('old tables untouched, bx_lenc = bx_len permuted')
         for base in (top, bot):
             name, pl = ingame_team(r, base)
             if name in wants:

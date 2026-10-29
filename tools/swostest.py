@@ -4482,6 +4482,15 @@ def ingame_team(r, base):
     return d[22:39].split(b'\0')[0].decode('latin-1'), pl
 
 
+def lepatch_orig():
+    """The original exe of the UI language (LEPatch, cached)."""
+    if not hasattr(lepatch_orig, 'p'):
+        sys.path.insert(0, os.path.join(ROOT, 'tools'))
+        import lepatch
+        lepatch_orig.p = lepatch.LEPatch(os.path.join(ROOT, 'orig', UI_ORIG))
+    return lepatch_orig.p
+
+
 def bench_vars():
     """The bench's game variables (obj2 offsets, the same in every build of the exe's language): g_benchPlayerIndex,
     g_subsState, plToEnterGameIndex (FirePressedInSubsMenu), team1NumSubs / team2NumSubs (IsThisPlayerOkToSelect)."""
@@ -4557,9 +4566,19 @@ def bench_sub(s, bx, place, errs, info, mark):
     info.append(f'subs made {ns0} -> {ns}, entering place {ent + 1}')
     check(sum(ns) == sum(ns0) + 1, f'no change made: NumSubs {ns0} -> {ns}', errs)
     mark(f'change: place {ent + 1} in, NumSubs {ns0} -> {ns}')
-    for k in range(6):
-        r = s.send('fire:0.5 dump:1')
-        s.shot(f'after_sub{k}')
+    t = 0 if ns[0] != ns0[0] else 1         # block 3: bx_ord (26 a team, bx - 4 - 6 x 26): one swap in this team's
+    for k in range(30):                     # half once he is on (SwapPlayerNameData), the other half untouched
+        r = s.send('fire:0.5 dump:1' if k < 6 else 'dump:1')
+        if k < 6:
+            s.shot(f'after_sub{k}')
+        ordt = r.read(r.base1 + bx - 4 - 156, 52)
+        mine, other = list(ordt[26 * t:26 * t + 26]), list(ordt[26 * (1 - t):26 * (1 - t) + 26])
+        moved = [(j, x) for j, x in enumerate(mine) if x != j]
+        if moved or r.outcome != 'dump':
+            break
+    info.append(f'bx_ord team {t + 1} after {k + 1} pauses: {moved}, the other {[(j, x) for j, x in enumerate(other) if x != j]}')
+    check(other == list(range(26)) and len(moved) == 2 and any(x == place - 1 for j, x in moved)
+          and all(dict(moved).get(x) == j for j, x in moved), f'bx_ord after the change: mine {moved}, other {other}', errs)
     return True
 
 
@@ -4608,6 +4627,22 @@ def bench_play(s, gmax, top, bot, wants, errs, info, mark, sub=None):
         want = min(wants.get(name, 16), 26)
         check(len(named) == want and empty == list(range(want, 26)), f'{name}: {len(named)} named, empty {empty}', errs)
     mark('kick-off read: ' + '; '.join(info[-2:]))
+    import namespr
+    o = lepatch_orig()
+    c = o.le.obj_bytes(1)                   # EGA_graphics (as match_names14): the 16-colour mode's bit planes
+    eg = [m.start() for m in re.finditer(rb'\x66\x83\x3d....\xff\x0f\x84....\x66\x81\x3d....\x33\x01', c, re.S)]
+    ega = r.obj2(o.target(1, eg[0] + 3)[1], 2) == bytes([255, 255])
+    if ega:
+        info.append('16-colour (EGA) mode')
+    if sub:                                 # block 3: the names of places 17..26 (sprites 1910 + 10 x team ..)
+        spr = namespr.find(o)['spridx']
+        for t, (name, pl) in enumerate(teams):
+            if name in wants and wants[name] > 16:
+                sp = n14_sprites(r, spr, ega, 1910 + 10 * t, min(wants[name], 26) - 16)
+                ends = [max((max(x) for x in rows if x), default=-1) for *_, rows in sp]
+                info.append(f'{name}: name sprites of places 17..: {len(sp)}, ends {ends}')
+                check(all((w, nl, wq) == (112, 6, 7) for w, nl, wq, _ in sp) and all(e > 10 for e in ends),
+                      f'{name}: name sprites of places 17..: {[x[:3] for x in sp]}, ends {ends}', errs)
     s.shot('kickoff')
     bench, lists = 0, 0
     for k in range(40):                     # the bench (PgUp / PgDn) and its list (fire), as subs_numbers: seen on screen
@@ -4627,7 +4662,7 @@ def bench_play(s, gmax, top, bot, wants, errs, info, mark, sub=None):
             if lists >= 3:
                 break
     mark(f'bench called {bench} times, its list seen {lists} times')
-    check(lists >= 1, f'the bench list never seen ({bench} calls)', errs)
+    check(lists >= 1 or ega, f'the bench list never seen ({bench} calls)', errs)   # (subs_rows reads 256 colours)
     goal = None
     if sub:                                 # (bx_bench obj1 offset, bench place, careerTeam obj2): a change from beyond 16
         bench_sub(s, sub[0], sub[1], errs, info, mark)
@@ -4669,7 +4704,8 @@ def bench_play(s, gmax, top, bot, wants, errs, info, mark, sub=None):
         after = s.result.read(s.result.base2 + goal[2], 38)
         diff = [(i, goal[3][i], after[i]) for i in range(38) if goal[3][i] != after[i]]
         info.append(f'{goal[0]} (squad {goal[1]}) record after the match: changed {diff}')
-        check(any(i >= 33 and b == a + 1 for i, a, b in diff), f'{goal[0]}: the poked goal not written back ({diff})', errs)
+        check(any(33 <= i <= 36 and b == a + 1 for i, a, b in diff), f'{goal[0]}: the poked goal not written back ({diff})', errs)
+                                        # (byte 37: his form, the game's own after-match change)
     return True
 
 
@@ -4687,7 +4723,8 @@ def bench_world():
     b = os.environ.get('BENCH_BUILD') or os.environ.get('XTRA30_BUILD')
     if not b or not os.path.isdir(b):
         return True, 'SKIP: BENCH_BUILD not set'
-    b = nop_league_int3('bench_world', b)     # ('- PARTITA -': the game's own int 3 in DIYLeagueTournamentMatch)
+    b = nop_league_int3('bench_world_' + os.path.basename(RUNS.rstrip('/')), b)   # ('- PARTITA -': the game's own
+                                              # int 3 in DIYLeagueTournamentMatch; one copy per run dir)
     club = os.environ.get('BENCH_CLUB', 'CELLE VARAZZE')
     path = os.environ.get('BENCH_PATH', 'EUROPA,ITALIA,SERIE D GIRONE A,' + club).split(',')
     exe = os.path.join(b, 'ITALIAN.EXE')
@@ -15930,10 +15967,11 @@ N14_NAMES = (['ROBERTO_CARLOS', 'LUIS_ENRIQUE', 'SCHWEINSTEIGER', 'JAN STOECKLIN
               'BASTIAN SCHWEINSTEIGER'] * 3)[:16]
 
 
-def n14_sprites(r, spr, ega):
-    """The 32 in-match name sprites (255..286) as (pixWidth, nlines, wquads, rows of lit pixels)."""
+def n14_sprites(r, spr, ega, first=255, n=32):
+    """The in-match name sprites (255..286; benchx's places 17..26: 1910.., 20) as (pixWidth, nlines, wquads, rows of
+    lit pixels)."""
     out = []
-    for pt in struct.unpack('<32I', r.read(r.base2 + spr + 255 * 4, 128)):
+    for pt in struct.unpack(f'<{n}I', r.read(r.base2 + spr + first * 4, 4 * n)):
         h = r.read(pt, 24)
         w, nl, wq = struct.unpack_from('<HHH', h, 10)
         px = r.read(struct.unpack('<I', h[:4])[0], wq * 8 * nl)

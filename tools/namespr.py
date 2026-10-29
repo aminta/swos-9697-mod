@@ -70,18 +70,28 @@ def _rel(d, c):
     return c + 5 + struct.unpack_from('<i', d, c + 1)[0]
 
 
+def make_sites(p):
+    """(MakeSpritesFromPlayerNames, its call in ConvertColorsAndTextSprites): obj1 offsets in the original exe."""
+    d1 = p.le.obj_bytes(1)
+    r = sacups.regs(d1)
+    D0 = r['D7'] - 28
+    P = lambda a: re.escape(struct.pack('<I', a))
+    # MakeSpritesFromPlayerNames: mov [A4], offset plNamesLengthTable; mov word [D6], 255; mov word [D7], 15
+    ms = [m.start() for m in re.finditer(rb'\xc7\x05' + P(r['A0'] + 16) + rb'....\x66\xc7\x05' + P(D0 + 24) + rb'\xff\x00'
+                                        rb'\x66\xc7\x05' + P(D0 + 28) + rb'\x0f\x00', d1, re.S)]
+    assert len(ms) == 1, ('MakeSpritesFromPlayerNames', ms)
+    calls = [c for c in range(len(d1) - 5) if d1[c] == 0xE8 and _rel(d1, c) == ms[0]]
+    assert len(calls) == 1, ('its call', calls)
+    return ms[0], calls[0]
+
+
 def find(p):
     d1 = p.le.obj_bytes(1)
     r = sacups.regs(d1)
     D0 = r['D7'] - 28
     A0 = r['A0']
     P = lambda a: re.escape(struct.pack('<I', a))
-    # MakeSpritesFromPlayerNames: mov [A4], offset plNamesLengthTable; mov word [D6], 255; mov word [D7], 15
-    ms = [m.start() for m in re.finditer(rb'\xc7\x05' + P(A0 + 16) + rb'....\x66\xc7\x05' + P(D0 + 24) + rb'\xff\x00'
-                                        rb'\x66\xc7\x05' + P(D0 + 28) + rb'\x0f\x00', d1, re.S)]
-    assert len(ms) == 1, ('MakeSpritesFromPlayerNames', ms)
-    calls = [c for c in range(len(d1) - 5) if d1[c] == 0xE8 and _rel(d1, c) == ms[0]]
-    assert len(calls) == 1, ('its call', calls)
+    make, call = make_sites(p)
     # MakePlayerNameSprite: mov word [D0], 400Bh (the surname, 11 characters)
     lim = [m.start() for m in re.finditer(rb'\x66\xc7\x05' + P(D0) + rb'\x0b\x40', d1)]
     assert len(lim) == 1, ('400Bh', lim)
@@ -92,15 +102,20 @@ def find(p):
     refs = [o for so, o, t, to, tt, *_ in p.le.fixups() if so == 1 and (to, tt) == numbuf]
     assert len(refs) == 2, ('numberBuffer refs', refs)
     import shirtnum
-    return dict(make=ms[0], call=calls[0], lim=lim[0] + 7, numbuf=numbuf, refs=refs, spridx=shirtnum.spr_index(p))
+    return dict(make=make, call=call, lim=lim[0] + 7, numbuf=numbuf, refs=refs, spridx=shirtnum.spr_index(p))
+
+
+def layout(at):
+    """(headers, pixels, numberBuffer) of the pages at obj1:at: CAP 24-byte headers, CAP x DATA bytes (benchx uses
+    the spare N..CAP-1 for places 17..26)."""
+    hdr = at + 0x100
+    return hdr, hdr + ((CAP * 24 + 0xFF) & ~0xFF), at + 0xE0
 
 
 def patch(p, at, lang):
     """Code + buffers at obj1:at (PAGES pages). Returns the end."""
     s = find(p)
-    hdr = at + 0x100
-    num = at + 0xE0
-    data = hdr + ((CAP * 24 + 0xFF) & ~0xFF)
+    hdr, data, num = layout(at)
     assert data + CAP * DATA <= at + PAGES * 0x1000
     sym = {'SPRIDX': (2, s['spridx']), 'NS_HDR': (1, hdr), 'NS_DATA': (1, data), 'MAKESPR': (1, s['make']),
            'FIRST_': (0, FIRST), 'N_': (0, N), 'QUADS_': (0, QUADS), 'LINES_': (0, LINES), 'DATA_': (0, DATA)}

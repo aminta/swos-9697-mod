@@ -27,8 +27,14 @@ that scrolls with the cursor (Davide's choice B).
   follows the cursor (the coach or a training game: 0), the arrow's row = index - bx_win.
 - DrawBenchPlayersAndCoach's `mov word [D7], 1` / `cmp word [D7], 6` -> bx_win_init / bx_win_end: places
   bx_win + 1 .. bx_win + 5 (A0 moved on by bx_win players); the opponent's bench (g_subsState -1) its first 5.
-- SetCurrentPlayerName's `add word [D1], 255` / `, 271` (the in-match name sprites: 16 a team) -> bx_name1 /
-  bx_name2: a player from place 16 on has no name sprite yet (block 3): the name is hidden, never another's.
+- Block 3, the names (on namespr's 112 px sprites, 4.0.5): plOrdinalsTable / plNamesLengthTable /
+  plNamesLengthTableCopy (obj2, 16 bytes a team) move here at 26 a team (bx_ord / bx_len / bx_lenc, every reference
+  retargeted; the team-2 offsets +16 -> +26 in SwapPlayerNameData, SetCurrentPlayerName, CopyPlayerNameLengths and
+  its loop 16 -> 26): SwapPlayerNameData indexes them by the entering player's place, which ran past the tables
+  (team 2) or into the other team's half (team 1) for a player from place 17 on. ns_make's tail jump into
+  MakeSpritesFromPlayerNames -> bx_make: the names of places 0..(11 + bench - 1) of both teams, 0..15 on the game's
+  255.. / 271.., 16..25 on sprites NB.. (1910.., free: blond ends at 1909) with namespr's spare headers N..CAP-1;
+  SetCurrentPlayerName's `add word [D1], 255` / `, 271` -> bx_name1 / bx_name2 (places 16+ -> NB + 10 x team).
 - The after-match write-backs (cseg_2F194 cards, UpdatePlayerInjuries, cseg_2F3AB goals: `mov word [D2], 15`, 16
   in-match players) -> bx_wcount: 11 + max(5, gameMaxSubstitutes) places (16 with the game's bench: no stale
   record read), so a player from place 17 on who came on keeps his card / injury / goals (GetPlayer: careerTeam's 32).
@@ -40,6 +46,7 @@ import struct
 import nasmcave
 
 MAXP = 26                               # 11 + 15
+NB = 1910                               # the name sprites of places 17..26: team 1 1910.., team 2 1920.. (blond ends at 1909)
 PI = 61                                 # sizeof PlayerInfo
 TABLE = struct.pack('<16H', *(i * PI for i in range(16)))     # 0, 61 .. 915
 
@@ -195,20 +202,22 @@ bx_win_end:                             ; replaces `cmp word [D7], 6`
 
 bx_name1:                               ; replaces `add word [D1], 255` (SetCurrentPlayerName, D1 = the place)
     cmp word [D1], 16
-    jae bx_noname
+    jae .x
     add word [D1], 255
+    ret
+.x:
+    add word [D1], NB_ - 16             ; places 16..25: our sprites NB..
     ret
 bx_name2:                               ; replaces `add word [D1], 271`
     cmp word [D1], 16
-    jae bx_noname
+    jae .x
     add word [D1], 271
     ret
-bx_noname:                              ; no sprite for places 16..25 (block 3): the name hidden
-    add esp, 4
-    jmp HIDE
+.x:
+    add word [D1], NB_ + 10 - 16
+    ret
 
-bx_wcount:                              ; replaces `mov word [D2], 15`: the in-match places - 1
-    push eax
+bx_places:                              ; eax = the in-match places: 11 + max(5, GMAX) <= 26
     movzx eax, word [GMAX]
     cmp eax, 5
     jae .a
@@ -218,10 +227,87 @@ bx_wcount:                              ; replaces `mov word [D2], 15`: the in-m
     jbe .b
     mov eax, 15
 .b:
-    add eax, 10
+    add eax, 11
+    ret
+
+bx_wcount:                              ; replaces `mov word [D2], 15`: the in-match places - 1
+    push eax
+    call bx_places
+    dec eax
     mov [D2], ax
     pop eax
     ret
+
+bx_make:                                ; replaces ns_make's `jmp MakeSpritesFromPlayerNames` (A5 / A6: the teams)
+    xor ecx, ecx                        ; our 20 headers: copies of 255's (namespr's), pixels of their own
+.h:
+    mov esi, [SPRIDX + 255 * 4]
+    imul edi, ecx, 24
+    add edi, XHDR
+    push ecx
+    push edi
+    mov ecx, 24
+    rep movsb
+    pop edi
+    pop ecx
+    imul edx, ecx, DATA_
+    add edx, XDATA
+    mov [edi], edx                      ; sprData
+    mov [SPRIDX + NB_ * 4 + ecx * 4], edi
+    inc ecx
+    cmp ecx, 20
+    jb .h
+    call bx_places
+    mov [bx_np], eax
+    mov dword [bx_t], 0
+.team:
+    mov eax, [A5]
+    cmp dword [bx_t], 0
+    je .t1
+    mov eax, [A6]
+.t1:
+    mov [bx_pl], eax
+    mov dword [bx_i], 0
+.pl:
+    mov ecx, [bx_i]
+    cmp ecx, [bx_np]
+    jae .next
+    mov eax, [bx_t]
+    cmp ecx, 16
+    jae .x
+    shl eax, 4
+    lea eax, [eax + ecx + 255]          ; the game's 255.. / 271..
+    jmp .s
+.x:
+    imul eax, eax, 10
+    lea eax, [eax + ecx + NB_ - 16]
+.s:
+    mov [D6], ax                        ; the sprite
+    imul eax, [bx_t], 26
+    lea eax, [eax + ecx + bx_len]
+    mov [A4], eax                       ; its length's byte
+    mov eax, [bx_pl]
+    lea edx, [eax + SHORT_]
+    mov [A0], edx                       ; the short name
+    mov dl, [eax + SHIRT_]
+    mov [D0], dl                        ; the shirt number
+    call MKNAME
+    add dword [bx_pl], PI
+    inc dword [bx_i]
+    jmp .pl
+.next:
+    inc dword [bx_t]
+    cmp dword [bx_t], 2
+    jb .team
+    ret
+
+bx_t: dd 0
+bx_i: dd 0
+bx_pl: dd 0
+bx_np: dd 0
+bx_ord: times 2 * MAXP db 0             ; plOrdinalsTable, 26 a team
+bx_len: times 2 * MAXP db 0             ; plNamesLengthTable
+bx_lenc: times 2 * MAXP db 0            ; plNamesLengthTableCopy
 
 bx_win: dw 0
 bx_cur: dw 0
@@ -304,6 +390,52 @@ def sites2(p, regs):
     return at, {'IDX': (2, idx), 'TRAIN': (2, train), 'SUBST': (2, subst), 'HIDE': (1, hd[0])}
 
 
+def sites3(p, regs, n1, n2):
+    """Block 3: the three name tables (obj2) and their references, the +16 team offsets, MakeSpritesFromPlayerNames'
+    record fields (shortName, shirtNumber) and MakePlayerNameSprite, ns_make's tail jump (namespr's code)."""
+    import namespr
+    d = p.le.obj_bytes(1)
+    pk = lambda x: re.escape(struct.pack('<I', x))
+    A0 = regs['A0']
+    cp = [m for m in re.finditer(rb'\xc7\x05' + pk(A0) + rb'(....)\xc7\x05' + pk(A0 + 4) + rb'(....)\xc7\x05' + pk(A0 + 8)
+                                  + rb'(....)', d, re.S)
+          if all(p.target(1, m.start(k))[0] == 2 for k in (1, 2, 3))]
+    tabs = [[p.target(1, m.start(k))[1] for k in (1, 2, 3)] for m in cp]
+    cp = [m for m, t in zip(cp, tabs) if t[1] - t[0] == 32 and t[2] - t[1] == 32]
+    assert len(cp) == 1, ('CopyPlayerNameLengths', len(cp))
+    c = cp[0].start()
+    ordt, lent, lenc = (p.target(1, cp[0].start(k))[1] for k in (1, 2, 3))
+    rs = {k: refs(p, 2, t, t + 32) for k, t in (('ord', ordt), ('len', lent), ('lenc', lenc))}
+    assert [len(rs[k]) for k in ('ord', 'len', 'lenc')] == [3, 2, 3], {k: len(v) for k, v in rs.items()}
+    assert all(toff == t for k, t in (('ord', ordt), ('len', lent), ('lenc', lenc)) for _, _, toff in rs[k])
+    imm = []                                    # (offset of a 0x10 byte: a team-2 offset or the loop's 16)
+    x = [m.start() + 2 for m in re.finditer(rb'\x88\x46\x10', d[c:c + 0xa0])]
+    y = [m.start() + 7 for m in re.finditer(rb'\x66\x83\x3d' + pk(regs['D7'] - 28) + rb'\x10\x75', d[c:c + 0xa0])]
+    assert len(x) == 1 and len(y) == 1, ('CopyPlayerNameLengths +16 / 16', x, y)
+    imm += [c + x[0], c + y[0]]
+    sw = [o for _, o, _ in rs['ord'] if any(o2 == o + 10 for _, o2, _ in rs['lenc'])]
+    assert len(sw) == 1, ('SwapPlayerNameData', sw)
+    z = [m.start() + 2 for m in re.finditer(rb'\x83\xc0\x10', d[sw[0]:sw[0] + 0x40])]
+    assert len(z) == 2, ('SwapPlayerNameData add eax, 16', z)
+    imm += [sw[0] + k for k in z]
+    w = [m.start() + 3 for m in re.finditer(rb'\x8a\x44\x1e\x10', d[n1:n2])]
+    assert len(w) == 2, ('SetCurrentPlayerName [esi + ebx + 16]', w)
+    imm += [n1 + k for k in w]
+    ms, ns_call = namespr.make_sites(p)
+    f = re.match(rb'.{28}\xa1' + pk(A0 + 20) + rb'\x83\xc0(.)\xa3' + pk(A0) + rb'\x8b\x35' + pk(A0 + 20) + rb'\x8a\x46(.)'
+                 rb'\xa2....\xe8', d[ms:ms + 0x60], re.S)
+    assert f, ('MakeSpritesFromPlayerNames team 1 loop', d[ms:ms + 0x60].hex())
+    short, shirt = f.group(1)[0], f.group(2)[0]
+    mk = ms + f.end() - 1
+    mkname = mk + 5 + struct.unpack('<i', d[mk + 1:mk + 5])[0]
+    cur = bytes(p.get(1, ns_call, 5))        # namespr's call -> ns_make: its `jmp MakeSpritesFromPlayerNames`
+    nsm = ns_call + 5 + struct.unpack('<i', cur[1:])[0]
+    code = bytes(p.get(1, nsm, 0xE0))
+    jm = [k for k in range(len(code) - 4) if code[k] == 0xE9 and nsm + k + 5 + struct.unpack('<i', code[k + 1:k + 5])[0] == ms]
+    assert len(jm) == 1, ('ns_make tail jump', jm)
+    return {'imm': imm, 'refs': rs, 'jmp': nsm + jm[0], 'short': short, 'shirt': shirt, 'mkname': mkname}
+
+
 def refs(p, tobj, lo, hi):
     """Every 32-bit fixup source (objn, off) whose target is tobj:lo..hi-1 -> [(objn, off, toff)]."""
     out = []
@@ -324,8 +456,8 @@ def refs(p, tobj, lo, hi):
     return out
 
 
-def patch(p, at):
-    """Code + data at obj1:at (a page of its own); returns the end."""
+def patch(p, at, ns_at):
+    """Code + data at obj1:at (a page of its own), namespr's pages at ns_at; returns the end."""
     import sacups
     import xtra
     regs = sacups.regs(p.le.obj_bytes(1))
@@ -336,8 +468,17 @@ def patch(p, at):
     else:
         _, cnp, ct, _, _ = xtra.sites(p)
     s2, v2 = sites2(p, regs)
+    s3 = sites3(p, regs, s2['n1'], s2['n2'])
+    import namespr
+    import shirtnum
+    hdr, data, _ = namespr.layout(ns_at)
+    assert namespr.CAP - namespr.N >= 20
+    v3 = {'XHDR': (1, hdr + namespr.N * 24), 'XDATA': (1, data + namespr.N * namespr.DATA), 'DATA_': (0, namespr.DATA),
+          'SPRIDX': (2, shirtnum.spr_index(p)), 'MKNAME': (1, s3['mkname']), 'SHORT_': (0, s3['short']),
+          'SHIRT_': (0, s3['shirt']), 'NB_': (0, NB), 'D6': (2, regs['D7'] - 4), 'D0': (2, regs['D7'] - 28),
+          'A4': (2, regs['A0'] + 16), 'A5': (2, regs['A0'] + 20)}
     at = (at + 15) & ~15
-    sym = {**v2, 'D7': (2, regs['D7']), 'D1': (2, regs['D7'] - 24), 'A0': (2, regs['A0']), 'GMAX': (2, gmax), 'D2': (2, d2), 'A2': (2, regs['A0'] + 8), 'A6': (2, regs['A0'] + 24),
+    sym = {**v2, **v3, 'D7': (2, regs['D7']), 'D1': (2, regs['D7'] - 24), 'A0': (2, regs['A0']), 'GMAX': (2, gmax), 'D2': (2, d2), 'A2': (2, regs['A0'] + 8), 'A6': (2, regs['A0'] + 24),
            'CT': (2, ct), 'CNP': (2, cnp), 'MAXP': (0, MAXP), 'PI': (0, PI)}
     code, fix = nasmcave.assemble(ASM, at, sym)
     lab = nasmcave.labels(ASM, at, sym)
@@ -366,6 +507,14 @@ def patch(p, at):
     call9(s2['n2'], 9, 'bx_name2', 3)
     for k in ('wb0', 'wb1', 'wb2'):                 # mov word [D2], 15 (66 C7 05 addr 0F 00)
         call9(s2[k], 9, 'bx_wcount', 3)
+    for k, lbl in (('ord', 'bx_ord'), ('len', 'bx_len'), ('lenc', 'bx_lenc')):   # block 3: the name tables, 26 a team
+        for objn, off, toff in s3['refs'][k]:
+            p.retarget(objn, off, 1, lab[lbl])
+            p.put(objn, off, struct.pack('<I', lab[lbl]))
+    for o in s3['imm']:                             # the team-2 offsets / the copy loop: 16 -> 26
+        assert bytes(p.get(1, o, 1)) == b'\x10', hex(o)
+        p.put(1, o, bytes([MAXP]))
+    p.put(1, s3['jmp'], b'\xe9' + struct.pack('<i', lab['bx_make'] - (s3['jmp'] + 5)))
     rs = refs(p, 2, table, table + 32)
     assert 10 <= len(rs) <= 24, ('inGameTeamPlayerOffsets refs', len(rs))
     for objn, off, toff in rs:
@@ -375,7 +524,8 @@ def patch(p, at):
     if bf:                                          # n (<= 15) until the per-competition rule (phase 2)
         p.put(1, lab['bx_bench'], struct.pack('<H', min(bf, 15)))
         print(f'exe: BENCH_FORCE={min(bf, 15)} (test build)')
+    assert lab['bx_bench'] - lab['bx_ord'] == 4 + 6 * MAXP   # (the harness finds the tables from bx_bench)
     LABELS.update(lab)
     print(f'exe: bench up to 15 (block 1: in-match teams of {MAXP}; GMAX obj2+{gmax:#x}, loop obj1+{lp:#x}, '
-          f'{len(rs)} offset-table refs moved; block 2: bench window of 5, cursor to 15, names 17+ hidden, 3 after-match loops to 11 + bench; code obj1+{at:#x}, {len(code)} B, bx_bench obj1+{lab["bx_bench"]:#x})')
+          f'{len(rs)} offset-table refs moved; block 2: bench window of 5, cursor to 15, names of places 17+ on sprites {NB}.. (name tables 26 a team), 3 after-match loops to 11 + bench; code obj1+{at:#x}, {len(code)} B, bx_bench obj1+{lab["bx_bench"]:#x})')
     return at + len(code)

@@ -14513,6 +14513,102 @@ def world_job_squad():
     info.append(f'next season: {name} with {sum(x in got for x in extras)}/{len(extras)} extras in slots 16.. ({len(got)} named)')
     return not errs, '; '.join(errs + info)
 
+N14_NAMES = (['ROBERTO_CARLOS', 'LUIS_ENRIQUE', 'SCHWEINSTEIGER', 'JAN STOECKLINGE', 'MUELLER',
+              'BASTIAN SCHWEINSTEIGER'] * 3)[:16]
+
+
+def n14_sprites(r, spr, ega):
+    """The 32 in-match name sprites (255..286) as (pixWidth, nlines, wquads, rows of lit pixels)."""
+    out = []
+    for pt in struct.unpack('<32I', r.read(r.base2 + spr + 255 * 4, 128)):
+        h = r.read(pt, 24)
+        w, nl, wq = struct.unpack_from('<HHH', h, 10)
+        px = r.read(struct.unpack('<I', h[:4])[0], wq * 8 * nl)
+        rows = []
+        for y in range(nl):
+            if ega:
+                q, bpl = len(px) // 4, wq * 2
+                rows.append([x for x in range(wq * 16) if any((px[pl * q + y * bpl + x // 8] >> (7 - x % 8)) & 1 for pl in range(4))])
+            else:
+                rows.append([x for x in range(wq * 16) if (px[y * wq * 8 + x // 2] >> (0 if x & 1 else 4)) & 15])
+        out.append((w, nl, wq, rows))
+    return out
+
+
+@scenario
+def match_names14():
+    """4.0.5 (Marco) 14-character names in the match (namespr.py): a friendly, human HAMBURG named ROBERTO_CARLOS,
+    LUIS_ENRIQUE, SCHWEINSTEIGER (14, no '_'), JAN STOECKLINGE (11), MUELLER, BASTIAN SCHWEINSTEIGER: at the kick-off
+    the 32 name sprites are 112 x 6 (7 quads), every one drawn, and the long names reach past the old 80-px sprite (at least
+    the 3 ROBERTO CARLOS and the 3 SCHWEINSTEIGER: 'NN ' + 14 characters); the same in the 16-colour (half / EGA) mode,
+    the sprites read as bit planes (DOSBox-X memsize 8, as shirt_numbers_ega). Pictures: runs/match_names14*/names.png"""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import lepatch
+    import namespr
+    from PIL import Image
+    b = os.environ.get('SWOSTEST_BUILD') or builds()['it']
+    src = os.path.join(b, 'DATA', 'TEAM.014')
+    d = bytearray(open(src if os.path.exists(src) else os.path.join(MAIN, 'orig', 'DATA', 'TEAM.014'), 'rb').read())
+    for t in range(struct.unpack('>H', d[:2])[0]):
+        o = 2 + t * 684
+        if d[o + 5:o + 22].split(b'\0')[0] == b'HAMBURG':
+            for k, nm in enumerate(N14_NAMES):
+                d[o + 76 + k * 38 + 3:o + 76 + k * 38 + 26] = nm.encode().ljust(23, b'\0')
+    team = os.path.join(WORK, 'saves', 'TEAM014_HAMBURG_N14.BIN')
+    os.makedirs(os.path.dirname(team), exist_ok=True)
+    open(team, 'wb').write(d)
+    orig = lepatch.LEPatch(os.path.join(MAIN, 'orig', 'ITALIAN.EXE'))
+    spr = namespr.find(orig)['spridx']
+    c = orig.le.obj_bytes(1)
+    eg = [m.start() for m in re.finditer(rb'\x66\x83\x3d....\xff\x0f\x84....\x66\x81\x3d....\x33\x01', c, re.S)]
+    egoff = orig.target(1, eg[0] + 3)[1]
+    errs, info = [], []
+    keep = os.environ.get('SWOSTEST_MEMSIZE')
+    try:
+        for mode in ('vga', 'ega'):
+            if mode == 'ega':
+                os.environ['SWOSTEST_MEMSIZE'] = '8'
+            with Session(f'match_names14_{mode}', b, {'DATA/TEAM.014': team}, 'dump:3', 300, match=True) as s:
+                s.wait()
+                for t in ('AMICHEVOLE', 'OK', 'SCEGLI SQUADRE', 'SQUADRE CLUB', 'EUROPA', 'GERMANIA', '1. LIGA', 'HAMBURG'):
+                    walk(s, t, 2)
+                s.send('fire dump:2')
+                walk(s, 'SCHALKE', 2)
+                for _ in range(12):
+                    scr = s.screen()
+                    if scr.selected == 55:
+                        s.send('fire dump:4')
+                        break
+                    s.send(('right' if scr.selected in (56, 57) else 'down') + ' dump:0.5')
+                for _ in range(22):
+                    s.send('down dump:0.5')
+                    if s.screen().selected == 9:
+                        break
+                r = s.send('fire ' + 'fire:3 ' * 12 + 'dump:2')
+                if r.outcome != 'dump':
+                    errs.append(f'{mode}: match {r}')
+                    continue
+                ega = r.obj2(egoff, 2) == bytes([255, 255])
+                check(ega == (mode == 'ega'), f'{mode}: EGA_graphics {r.obj2(egoff, 2).hex()}', errs)
+                sp = n14_sprites(r, spr, ega)
+                check(all((w, nl, wq) == (112, 6, 7) for w, nl, wq, _ in sp), f'{mode}: headers {sorted({x[:3] for x in sp})}', errs)
+                ends = [max((max(x) for x in rows if x), default=-1) for *_, rows in sp]
+                check(all(e > 10 for e in ends), f'{mode}: an empty name sprite {ends}', errs)
+                check(sum(e >= 80 for e in ends) >= 6, f'{mode}: long names end at {sorted(ends)[-8:]} (want 6 past the old 80 px)', errs)
+                img = Image.new('L', (112, 32 * 8), 0)
+                for k, (*_, rows) in enumerate(sp):
+                    for y, xs in enumerate(rows):
+                        for x in xs:
+                            img.putpixel((x, k * 8 + y), 255)
+                img.resize((448, 1024), Image.NEAREST).save(os.path.join(s.run, 'names.png'))
+                info.append(f'{mode}: 32 sprites 112 px, longest ends {sorted(ends)[-6:]}')
+    finally:
+        if keep is None:
+            os.environ.pop('SWOSTEST_MEMSIZE', None)
+        else:
+            os.environ['SWOSTEST_MEMSIZE'] = keep
+    return not errs, '; '.join(errs + info)
+
 
 
 if __name__ == '__main__':

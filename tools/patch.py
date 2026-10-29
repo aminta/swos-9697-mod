@@ -289,6 +289,8 @@ def patch_exe(src, dst, remap, lang='it'):
         engine.save_item('CE', conti.ED_SIZE, world_only=True)          # (phase B: the edition being played, conti.c CT_ED)
     import controls                                    # 4.0.2: the CONTROLS page (controls.py): code + its data pages, the
     ctl_pg = 1 + controls.DATA_PAGES                   # last pages (obj1: obj2's page count stays 4.0's, see controls.patch)
+    import namespr                                     # 4.0.5: 14-character match names (namespr.py), after them
+    ctl_pg += namespr.PAGES
     for _ in range((6 + cp + 2 + 2 * cdp if worlds else 6) + lpb + sp_pg + sc_pg + ct_pg + ctl_pg):  # (+1: the UEFA league phase's page, lp36)
         data = add_object_page(data, 1)
     mkseason.CAREER_CAVE[0] = CAREER_CAVE if worlds else None
@@ -627,6 +629,8 @@ def patch_exe(src, dst, remap, lang='it'):
         conti.patch(p, ct_code, ct_at + 0x1000 * ct_pg, ct_bss, area)
     ctl_at = hist2 + h2 + 0x1000 * (lpb + sp_pg + sc_pg + ct_pg)   # 4.0.2: OPTIONS > CONTROLS (keys, device, calibration,
     ctl_end = controls.patch(p, ctl_at, lang)                     # SETUP.DAT)
+    ns_at = ctl_at + 0x1000 * (ctl_pg - namespr.PAGES)            # 4.0.5: the match names' sprites (namespr.py)
+    namespr.patch(p, ns_at, lang)
     import numcol                                      # 4.0.5 (Marco): the squad lists' number column 1 px wider
     numcol.patch(p)
     import subsnum                               # 4.0.2: two-digit numbers in the in-match bench list (names +6 px)

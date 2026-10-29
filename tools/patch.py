@@ -235,6 +235,7 @@ def patch_exe(src, dst, remap, lang='it'):
         import gplay as gp_mod                         # contest pointers back after a load (gp_sync)
         engine.save_item('GP', gp_mod.GP_ST_SIZE, world_only=not engine.gplay_tables())
         engine.save_item('WN', gp_mod.WN_SIZE)         # 4.0.1 the WINNERS page's last season (WN_ST, gp_season)
+        engine.save_item('F1', gp_mod.F1_SIZE, world_only=True)   # 4.0.5 the FASE 1 page's phase-1 table (F1_ST)
         engine.save_item('CF', gp_mod.CF_SIZE)         # 4.0.1 cupsf: the clubs' last-season places (CF_ST, cf_cap_c)
         engine.save_item('CN', gp_mod.CN_SIZE, world_only=True)   # 4.0.5 the career club's last-season division name
         engine.after_load('gp_sync')
@@ -481,6 +482,7 @@ def patch_exe(src, dst, remap, lang='it'):
             engine.ITEM_AT['PR'] = gplay.LABELS['PR_STATE']
         engine.ITEM_AT['GP'] = gplay.LABELS['GP_ST']    # (the played play-offs' state; its pointers after a load)
         engine.ITEM_AT['WN'] = gplay.LABELS['WN_ST']    # (the WINNERS page's last season)
+        engine.ITEM_AT['F1'] = gplay.LABELS['F1_ST']    # (4.0.5: the FASE 1 page)
         engine.ITEM_AT['CF'] = gplay.LABELS['CF_ST']    # (cupsf: the clubs' last-season places)
         engine.ITEM_AT['CN'] = gplay.LABELS['CN_ST']    # (4.0.5: winners.py's last-season fallback title)
         if 'GS' in engine.SAVE_ITEMS:

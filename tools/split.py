@@ -461,6 +461,27 @@ sp_freeze:                              ; esi = DIY, edx = entry, eax = stage, e
 %endif
     call sp_restregs
     popad
+%if F1_ON
+    test al, al                         ; 4.0.5 FASE 1 page: the first split of the season, the table now (sorted, the
+    jnz .nof1                           ; points rule not applied yet) -> gplay.c f1_capture (the career's league only)
+    cmp word [SIMFLAG], 0
+    jne .nof1
+    pushad
+    push es
+    push ds
+    pop es
+    cld
+    movzx eax, word [F1_TEAM]
+    push eax
+    movzx eax, byte [F1_SEAS]
+    push eax
+    push esi
+    call F1CAP
+    add esp, 12
+    pop es
+    popad
+.nof1:
+%endif
     mov [sp_rec], ebp
     mov [sp_stg], al
     movzx ecx, byte [edx + 3]
@@ -1667,6 +1688,10 @@ def patch(p, cave, nasmcave, splits):
         sym['GP_STAGE'] = gplay.LABELS['gp_stage']
     else:
         src = nasmcave.sub(src, 'call GP_STAGE', 'call sp_nostage')
+    f1 = gplay.LABELS.get('f1_capture')             # 4.0.5 the FASE 1 page's capture (gplay.c)
+    sym.update(F1_ON=(0, int(bool(f1))))
+    if f1:
+        sym.update(F1CAP=f1, F1_TEAM=gplay.LABELS['CAREERTEAM'], F1_SEAS=gplay.LABELS['SEASONPLAYING'])
     if gplay.LABELS.get('GP_SHB'):                  # (4.0.1: gp_keep reads the 'keep' table from the block in use)
         sym['GP_SHB'] = gplay.LABELS['GP_SHB']
         src = nasmcave.sub(src, '    SHB_SET\n', '    mov dword [GP_SHB], sp_sh\n    mov dword [GP_SHB + 4], sp_shx\n')

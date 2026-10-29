@@ -1797,6 +1797,7 @@ def _top9(p):
 GP_PAGES = 18 + (1 if os.environ.get("GPLAY_FORCE") else 0)   # (4.0.5: 18, the supercups (sc_step_c) took the room longtable needs; 4.0.1 rc: GPLAY_FORCE test builds' extra code overflowed 16 pages by 44 B; 4.0.2: option C's gp_keep blocks - 17, obj1 only)
 #P_PAGES = 16            # obj1 pages for the C code + glue + specs (World 2026-27's 20 countries; gplay-play; 4.0 ARG: 7; the record lines: 12; longtable's code: 13; 4.0.1 MEX stage titles per division: 14; cupsf: 16, with package 6's title_seed / draw_pot)
 GP_ST_SIZE = 2048       # (sizeof struct gp_state: the engine block's item 'GP', patch.py)
+F1_SIZE = 8 + 30 * 8     # 4.0.5 (sizeof struct f1_state: the engine block's item 'F1', the FASE 1 page)
 WN_SIZE = 4 + 4 * 40    # (sizeof struct wn_state: the engine block's item 'WN', the WINNERS page's last season)
 CN_SIZE = 4 + 32         # (sizeof struct cn_state: item 'CN', 4.0.5 the career club's last-season division name)
 CF_SIZE = 4 + 256       # (sizeof struct cf_state: the engine block's item 'CF', cupsf's last-season places)
@@ -2310,13 +2311,14 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
     assert struct.unpack('<I', p.get(1, syms['RI_STATE_SIZE'][1], 4))[0] == ripool.RI_SIZE   # (the engine block's 'RI')
     kolay = dict(zip(('st_ko', 'size', 'slot', 'ntie', 'tw', 'tl', 'team', 'n'),
                      struct.unpack('<8I', p.get(1, syms['GP_KOLAY'][1], 32))))   # (4.0's gp_build glue: GP_ST.ko[0])
-    LABELS.update(lab, GP_TOPW=top_w, GP_TOPR=top_r, CD_ST=syms['CD_ST'], SC_ST=syms['SC_ST'], SC_TRACE=syms['SC_TRACE'], CF_ST=syms['CF_ST'], CN_ST=syms['CN_ST'], GP_GS=syms['GP_GS'], GP_KOLAY=kolay, GP_IN=syms['GP_IN'], GP_OUT=syms['GP_OUT'], GP_ST=syms['GP_ST'], GP_LOG=syms['GP_LOG'], layout=lay, pg_season=syms['pg_season'], pg_place=syms['pg_place'], rs_season=syms['rs_season'], gp_stage=syms['gp_stage'], gp_overall=syms['gp_overall'], gp_stitle_c=syms['gp_stitle_c'], gp_hplan_c=syms['gp_hplan_c'], gp_hlabel_c=syms['gp_hlabel_c'], GP_HP=syms['GP_HP'], GP_HGP=syms['GP_HGP'], GP_HG=syms['GP_HG'], GP_HV=syms['GP_HV'], GP_HF=syms['GP_HF'], GP_HL=syms['GP_HL'], GP_HON=syms['GP_HON'], GP_OV_ORD=syms['GP_OV_ORD'], GP_OV_ROWS=syms['GP_OV_ROWS'], GP_OV_N=syms['GP_OV_N'], GP_OV_ANNUAL=syms['GP_OV_ANNUAL'], GP_SS=syms['GP_SSB'], GP_SHB=syms['GP_SHB'], CFB=(2, ps['cfb']), PR_STATE=syms['PR_STATE'],
+    LABELS.update(lab, GP_TOPW=top_w, GP_TOPR=top_r, CD_ST=syms['CD_ST'], SC_ST=syms['SC_ST'], SC_TRACE=syms['SC_TRACE'], CF_ST=syms['CF_ST'], CN_ST=syms['CN_ST'], GP_GS=syms['GP_GS'], GP_KOLAY=kolay, GP_IN=syms['GP_IN'], GP_OUT=syms['GP_OUT'], GP_ST=syms['GP_ST'], GP_LOG=syms['GP_LOG'], layout=lay, pg_season=syms['pg_season'], pg_place=syms['pg_place'], rs_season=syms['rs_season'], gp_stage=syms['gp_stage'], gp_overall=syms['gp_overall'], F1_ST=syms['F1_ST'], f1_capture=syms['f1_capture'], f1_valid=syms['f1_valid'], f1_auto=syms['f1_auto'], f1_build=syms['f1_build'], CAREERTEAM=(2, ct), SEASONPLAYING=(2, s['season']), gp_stitle_c=syms['gp_stitle_c'], gp_hplan_c=syms['gp_hplan_c'], gp_hlabel_c=syms['gp_hlabel_c'], GP_HP=syms['GP_HP'], GP_HGP=syms['GP_HGP'], GP_HG=syms['GP_HG'], GP_HV=syms['GP_HV'], GP_HF=syms['GP_HF'], GP_HL=syms['GP_HL'], GP_HON=syms['GP_HON'], GP_OV_ORD=syms['GP_OV_ORD'], GP_OV_ROWS=syms['GP_OV_ROWS'], GP_OV_N=syms['GP_OV_N'], GP_OV_ANNUAL=syms['GP_OV_ANNUAL'], GP_SS=syms['GP_SSB'], GP_SHB=syms['GP_SHB'], CFB=(2, ps['cfb']), PR_STATE=syms['PR_STATE'],
                   RS_STATE=syms['RS_STATE'], ri_season=syms['ri_season'], ri_apply=syms['ri_apply'],
                   ri_cache=syms['ri_cache'], RI_STATE=syms['RI_STATE'], RI_MGR=syms['RI_MGR'],
                   RI_RULE=syms['RI_RULE'], cd_season=syms['cd_season'],
                   gp_wn_c=syms['gp_wn_c'], GP_WNSRC=syms['GP_WNSRC'], GP_WNFILE=syms['GP_WNFILE'], GP_SEAS=syms['GP_SEAS'],   # (winners.py)
                   WN_ST=syms['WN_ST'], GP_MGR=syms['GP_MGR'])
     assert struct.unpack('<I', p.get(1, syms['WN_SIZE'][1], 4))[0] == WN_SIZE   # (the engine block's 'WN')
+    assert struct.unpack('<I', p.get(1, syms['F1_SIZE'][1], 4))[0] == F1_SIZE   # (the engine block's 'F1')
     if cds:
         assert struct.unpack('<I', p.get(1, syms['CD_STSZ'][1], 4))[0] == CD_SIZE   # (the engine block's 'CD')
     print(f"exe: knockout play-offs (gplay): {len(tables)} countries, C obj1+{at:#x}..{cend:#x}, glue ..{glue + len(code):#x}, "

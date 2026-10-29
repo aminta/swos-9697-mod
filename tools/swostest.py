@@ -4345,6 +4345,122 @@ def subs_numbers():
     return not errs, '; '.join(errs + info) + ' (runs/subs_numbers/shots/subs_list.png)'
 
 
+BENCH_SLACK = 1018                          # TeamGame 42 + 16 x PlayerInfo 61: the in-match team's used bytes (of 1704)
+
+
+def bench_slack_pattern(team):                  # (no AF / CF / DF / AC: the debugger's SM reads them as flag names)
+    return bytes(x ^ 1 if x in (0xAF, 0xCF, 0xDF, 0xAC) else x
+                 for x in (((i * 7) ^ 0x5A ^ (team * 0x33)) & 0xFF for i in range(1704 - BENCH_SLACK)))
+
+
+@scenario
+def bench_mem():
+    """Panchina phase 1 (bench 5 -> 15): is the tail of the in-match team buffers free? topTeamInGame /
+    bottomTeamInGame are 1704 bytes each (InitGameSaveTeams, the HIL header); 16 players use 1018 (TeamGame 42 + 16 x
+    PlayerInfo 61), 26 would need 1628. Friendly HAMBURG (human) - SCHALKE: at the kick-off the tails are read, then
+    filled with a pattern; the bench is called and its list opened (PgUp / PgDn, fire) many times, the match played on
+    to its end and the menus reached: the pattern must still be there at every pause (nothing writes there)."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import lepatch
+    b = os.environ.get('SWOSTEST_BUILD') or builds()['it']
+    p = lepatch.LEPatch(os.path.join(b, 'ITALIAN.EXE'))
+    c = p.le.obj_bytes(1)
+    m = re.search(rb'(?:\xc7\x05.{8}){4}\x66\xc7\x05.{4}\xa7\x06', c, re.S)     # InitGameSaveTeams' four pointers
+    top = p.target(1, m.start() + 6)[1]
+    bot = p.target(1, m.start() + 26)[1]
+    errs, info = [], [f'topTeamInGame obj2+{top:X}, bottomTeamInGame +{bot:X} (gap {bot - top})']
+    check(bot - top == 1704, f'buffers {bot - top} apart, not 1704', errs)
+    n = 1704 - BENCH_SLACK
+
+    def mark(text):                             # progress, written at once (the session log comes at the end)
+        open(os.path.join(RUNS, 'bench_mem', 'progress.txt'), 'a').write(text + '\n')
+    with Session('bench_mem', b, {}, 'dump:3', 900, match=True) as s:
+        s.wait()
+        for t in ('AMICHEVOLE', 'OK', 'SCEGLI SQUADRE', 'SQUADRE CLUB', 'EUROPA', 'GERMANIA', '1. LIGA', 'HAMBURG'):
+            walk(s, t, 2)
+        s.send('fire dump:2')                   # HAMBURG: GIOCA-ALLENA (human)
+        walk(s, 'SCHALKE', 2)
+        for _ in range(12):
+            scr = s.screen()
+            if scr.selected == 55:
+                s.send('fire dump:4')
+                break
+            s.send(('right' if scr.selected in (56, 57) else 'down') + ' dump:0.5')
+        for _ in range(22):
+            s.send('down dump:0.5')
+            if s.screen().selected == 9:
+                break
+        r = s.send('fire dump:1')
+        if r.outcome != 'dump':
+            return False, f'match: {r}'
+        for k, base in enumerate((top, bot)):
+            d = r.read(r.base2 + base, 1704)
+            names = [d[61 * i + 54:61 * i + 69].split(b'\0')[0].decode('latin-1') for i in range(16)]
+            tail = d[BENCH_SLACK:]
+            nz = [i + BENCH_SLACK for i, x in enumerate(tail) if x]
+            info.append(f'team {k + 1}: 16 names {names[0]}..{names[15]}, tail nonzero bytes {len(nz)}'
+                        + (f' at {nz[:8]}' if nz else ''))
+            check(all(names), f'team {k + 1}: a player without a name: {names}', errs)
+            pat = bench_slack_pattern(k)
+            for o in range(0, n, 16):          # short pokes, the echo read after each (lp36_tie: a long run of
+                s.poke(r.base2 + base + BENCH_SLACK + o, pat[o:o + 16])     # pokes filled the pty, both sides hung)
+                s.box.pump(0.05)
+        mark('tails read and poked; ' + '; '.join(info[1:]))
+        for k, base in enumerate((top, bot)):  # the debugger loses a byte now and then: re-poke them one by one
+            pat = bench_slack_pattern(k)
+            for tries in range(4):
+                r.chunks = []
+                got = r.read(r.base2 + base + BENCH_SLACK, n)
+                bad = [i for i in range(n) if got[i] != pat[i]]
+                if not bad:
+                    break
+                mark(f'team {k + 1}: re-poke {len(bad)} bytes {[(i + BENCH_SLACK, got[i]) for i in bad[:6]]}')
+                for i in bad:
+                    s.poke(r.base2 + base + BENCH_SLACK + i, pat[i:i + 1])
+                    s.box.pump(0.05)
+            check(not bad, f'team {k + 1}: {len(bad)} bytes not poked', errs)
+        r = s.send('dump:0.2')
+        for k, base in enumerate((top, bot)):
+            check(r.read(r.base2 + base + BENCH_SLACK, n) == bench_slack_pattern(k), f'team {k + 1}: poke not read back', errs)
+        pauses, bench = 0, 0
+        for k in range(40):                     # the bench (PgUp / PgDn, the human team's) and its list, as subs_numbers
+            r = s.send(('pgdn' if k % 2 else 'pgup') + ':0.3 dump:0.5')
+            if r.outcome != 'dump':
+                break
+            if k % 2:
+                r = s.send('fire:1 dump:1.5')
+                bench += 1
+                s.send('left:0.3 left:0.3 dump:0.5')  # left twice leaves the bench (SubsBenchOff; Davide)
+        s.shot('bench')
+        mark(f'bench called {bench} times')
+        menu = False
+        for k in range(60):                     # play on: fire for the kicks, until the match is over (a menu again)
+            r = s.send('fire:3 ' * 10 + 'dump:1')
+            if r.outcome != 'dump':
+                errs.append(f'play on: {r}')
+                break
+            pauses += 1
+            mark(f'play on {k}')
+            for t, base in enumerate((top, bot)):
+                got = r.read(r.base2 + base + BENCH_SLACK, n)
+                if got != bench_slack_pattern(t):
+                    bad = [i + BENCH_SLACK for i, (x, y) in enumerate(zip(got, bench_slack_pattern(t))) if x != y]
+                    errs.append(f'pause {k}: team {t + 1} tail changed at {len(bad)} bytes, first {bad[:8]}')
+            if errs:
+                s.shot('changed')
+                break
+            try:
+                scr = s.screen()
+                if scr.find('ESCI') is not None or scr.find('CONTINUA') is not None or scr.find('AMICHEVOLE') is not None:
+                    menu = True
+                    break
+            except Exception:
+                pass
+        s.shot('end')
+        info.append(f'bench called {bench} times, {pauses} pauses played on, menu after the match: {menu}')
+    return not errs, '; '.join(errs + info)
+
+
 @scenario
 def shirt_numbers_ega():
     """4.0.2 (Davide's MiSTer b5, GOG DOSBox users: still no number 17..99 over the controlled player, tailzero or

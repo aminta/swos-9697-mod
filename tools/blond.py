@@ -25,10 +25,10 @@ Older versions ignore it (the player keeps his hair). A bald dark player (face 2
 (face 0 / 1) flag 3; InitInGamePlayer (ig_face) runs for all 32 before ConvertColorsAndTextSprites, so copy_sets
 knows the variants of the match (NEED) and gives the first two present (darkblond, bald dark, bald light, in that
 order) the pairs of sets 1418 / 1519 and 1708 / 1809 (spritesIndex's room ends at 2103 and it cannot move: SWOS++
-addresses it); with all three a bald light player plays as face 1. The bald sets are copies of the raw set with bald_shape's head (Davide's
-look A, 27/10): the hair (raw colours 13 / 9 / 12) loses its outer ring, the rest takes the raw skin colours (6 on top,
-4 at the sides, 5 inside), then the team's face 2 / face 0 conversion. In BSS2 (the obj2 tail's end: nothing before
-it moves). Menus keep the file's face icon; goalkeepers keep their hair.
+addresses it); with all three a bald light player plays as face 1. The bald sets are copies of the raw set with bald_shape's head (bald.c;
+4.0.5 look E 'receding', Davide 30/10): the hair's top rows (raw colours 13 / 9 / 12) take raw skin 6, the sides and
+the back keep the hair, then the team's face 2 / face 0 conversion. In BSS2 (the obj2 tail's end: nothing before it
+moves). Menus: the bald face icons 1910 / 1911 (bald.c's bald_icon, the same look); goalkeepers keep their hair.
 """
 import os
 import re
@@ -373,97 +373,17 @@ build_bald:                             ; the two bald icons: the face icon with
     inc eax
     cmp eax, ecx
     jb .p
-    mov bl, 0                           ; the skin: the first pixel of rows 3.. that is neither 0 nor 3
-    mov eax, 24
-.s:
-    cmp eax, ecx
-    jae .sk
-    mov dl, [edi + 24 + eax]
-    mov dh, dl
-    shr dh, 4
-    jz .s2
-    cmp dh, 3
-    je .s2
-    mov bl, dh
-    jmp .sk
-.s2:
-    and dl, 0Fh
-    jz .s3
-    cmp dl, 3
-    je .s3
-    mov bl, dl
-    jmp .sk
-.s3:
-    inc eax
-    jmp .s
-.sk:
-    test bl, bl
-    jz .x
-    xor eax, eax                        ; rows 0..2 (8 bytes each): colour 3 -> skin
-.c:
-    mov dl, [edi + 24 + eax]
-    mov dh, dl
-    and dh, 0F0h
-    cmp dh, 30h
-    jne .lo
-    and dl, 0Fh
-    mov dh, bl
-    shl dh, 4
-    or dl, dh
-.lo:
-    mov dh, dl
-    and dh, 0Fh
-    cmp dh, 3
-    jne .n
-    and dl, 0F0h
-    or dl, bl
-.n:
-    mov [edi + 24 + eax], dl
-    inc eax
-    cmp eax, 24
-    jb .c
-    xor ecx, ecx                        ; the top row's first and last pixels: transparent
-    mov esi, -1
-    mov edx, -1
-.t:
-    mov eax, ecx
-    shr eax, 1
-    mov al, [edi + 24 + eax]
-    test cl, 1
-    jnz .tl
-    shr al, 4
-.tl:
-    and al, 0Fh
-    jz .tn
-    cmp esi, -1
-    jne .tm
-    mov esi, ecx
-.tm:
-    mov edx, ecx
-.tn:
-    inc ecx
-    cmp ecx, 16
-    jb .t
-    cmp esi, -1
-    je .x
-    mov eax, esi
-    call .clr
-    mov eax, edx
-    call .clr
+    shr ecx, 3                          ; the head: bald.c (bald_icon; dark = icon 188)
+    xor eax, eax
+    cmp ebx, 188
+    sete al
+    push eax
+    push ecx
+    lea eax, [edi + 24]
+    push eax
+    call BALDI
+    add esp, 12
 .x:
-    ret
-.clr:                                   ; pixel eax of row 0 -> 0
-    push ebx
-    mov ebx, eax
-    shr ebx, 1
-    test al, 1
-    jnz .c1
-    and byte [edi + 24 + ebx], 0Fh
-    pop ebx
-    ret
-.c1:
-    and byte [edi + 24 + ebx], 0F0h
-    pop ebx
     ret
 
 build_icon:                             ; sprite 189 = 188 with the hair (colour 3, top three rows) yellow
@@ -586,6 +506,7 @@ def patch(p, area, at, bss, spr, bss2):
     csyms, cend, cbss = cobj.link(p, obj, at, (2, bss2 + SCR_OFF), limit=at + 0x900)
     assert cbss <= BSS2_SIZE - SCR_OFF, hex(cbss)
     sym['BALDC'] = csyms['bald_c']
+    sym['BALDI'] = csyms['bald_icon']
     print(f'exe: bald.c obj1+{at:#x}..{cend:#x}, .bss {cbss} B')
     at = (cend + 15) & ~15
     code, cfix = nasmcave.assemble(ASM, at, sym)

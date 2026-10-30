@@ -1700,11 +1700,12 @@ def bench_table(lang):
                 items = [(first(dv['names']), x) for dv, x in zip(divs, vals)]
             else:
                 items = [(first(c['names']), v)]
-            for name, x in items:
+            for name, x in items:               # (a number = named subs; {'named', 'et'}: with an extra-time sub)
                 t = f'{btn} {name}'.encode('latin-1')[:40]
-                if x and t not in seen:
+                n, e = (x.get('named'), int(x.get('et') or 0)) if isinstance(x, dict) else (x, 0)
+                if n and t not in seen:
                     seen.add(t)
-                    out.append((t, min(int(x), 15), used, 0))
+                    out.append((t, min(int(n), 15), used, e))
     if out:                                         # (the world is in this build) its continental cups: no country
         for name, v in (data.get('continental') or {}).items():
             for t in (' ' + name, name):

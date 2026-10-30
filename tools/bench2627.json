@@ -1,5 +1,5 @@
 {
- "_doc": "Panchina phase 2: World 2026-27 named substitutes per competition (fase2.md: official text or observed max of 24 real 2026-27 team sheets; null = unknown -> the game's original bench of 5). Keys = the world packs' country dirs and competition keys; a league = one value per division (pack order). 'used' = substitutions allowed (5 everywhere found); 'et' = extra substitute in extra time (1 where the rule is known). Owner: SWOS Panchina. 'continental': the cup's name as the game writes it (a contest without a country: ' ' + name, or the name).",
+ "_doc": "Panchina phase 2: World 2026-27 named substitutes per competition (fase2.md: official text or observed max of 24 real 2026-27 team sheets; null = unknown -> the game's original bench of 5). Keys = the world packs' country dirs and competition keys; a league = one value per division (pack order). 'used' = substitutions allowed (5 everywhere found); 'et' = extra substitute in extra time (1 where the rule is known). Owner: SWOS Panchina. 'continental': the cup's name as the game writes it (a contest without a country: ' ' + name, or the name). A country competition's value may be {'named': n, 'et': 1} (an extra-time substitute).",
  "used": 5,
  "countries": {
   "eng": {
@@ -9,7 +9,10 @@
     7,
     7
    ],
-   "cup": null,
+   "cup": {
+    "named": 9,
+    "et": 1
+   },
    "league_cup": 9
   },
   "ita": {
@@ -19,15 +22,15 @@
     null,
     null,
     null,
-    null,
-    null,
-    null,
-    null,
-    null,
-    null,
-    null,
-    null,
-    null
+    9,
+    9,
+    9,
+    9,
+    9,
+    9,
+    9,
+    9,
+    9
    ],
    "cup": 15,
    "league_cup": null

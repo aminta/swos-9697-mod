@@ -5193,6 +5193,15 @@ def bench_world():
     club = os.environ.get('BENCH_CLUB', 'CELLE VARAZZE')
     path = os.environ.get('BENCH_PATH', 'EUROPA,ITALIA,SERIE D GIRONE A,' + club).split(',')
     exe = os.path.join(b, 'ITALIAN.EXE')
+    files = {}
+    if os.environ.get('BENCH_SPP'):         # (4.0.6) under SWOS++ (SWOSTEST_UI=en, an English build): installed on the
+        import swospp                       # copy's exe (the sites below are read from it, as SWOS++ leaves the file)
+        if UI != 'en':
+            return True, 'SKIP: SWOS++ is English only (SWOSTEST_UI=en)'
+        shutil.copy(exe, exe + '.nospp')
+        swospp.install(exe + '.nospp', exe)
+        pp = os.path.join(MAIN, 'internal', 'swospp-test')
+        files = {'LOADER.BIN': os.path.join(pp, 'loader.bin'), 'SWOSPP.BIN': os.path.join(pp, 'swospp.bin')}
     p = lepatch.LEPatch(exe)
     _, cnp, ct, cmp, sel = xtra.sites(p)
     bx, gmax = bench_switch(exe)
@@ -5204,7 +5213,8 @@ def bench_world():
 
     def mark(text):
         open(os.path.join(RUNS, 'bench_world', 'progress.txt'), 'a').write(text + '\n')
-    with Session('bench_world', b, {}, 'dump:2', 900, match=True) as s:
+    with Session('bench_world', b, files, 'dump:2', 900, match=True, timer=bool(files)) as s:   # (SWOS++: keys from
+                                                                                                 # the timer, as controls_swospp)
         if s.wait().outcome != 'dump':
             return False, f'START: no first pause ({s.result})'
         scr = s.screen()

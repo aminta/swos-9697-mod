@@ -178,15 +178,20 @@ bx_look:                                ; (phase 2) [bx_lkres] = the current com
 .f:
     jecxz .found
     mov esi, edx
-    mov edi, bx_lkname
-    call bx_streq
-    pushf
-.nx:                                    ; (4.0.5) an entry = its title, NUL, named subs, subs used, extra-time sub:
-    inc edx                             ; edx past the NUL
-    cmp byte [edx - 1], 0
+.nx:                                    ; (4.0.5) an entry = its title, NUL, named subs, subs used, extra-time sub
+    inc edx                             ; (bit 7: a prefix entry, '<COUNTRY> ': any title of that country); edx past
+    cmp byte [edx - 1], 0               ; the NUL
     jne .nx
-    popf
+    mov edi, bx_lkname
+    test byte [edx + 2], 80h
+    jnz .pf
+    call bx_streq
     je .hit
+    jmp .nt
+.pf:
+    call bx_strpre
+    je .hit
+.nt:
     add edx, 3
     dec ecx
     jmp .f
@@ -194,6 +199,7 @@ bx_look:                                ; (phase 2) [bx_lkres] = the current com
     mov ax, [edx]
     mov [bx_lkkeep], ax
     mov al, [edx + 2]
+    and al, 1
     mov [bx_lketk], al
 .found:
     mov ax, [bx_lkkeep]
@@ -229,6 +235,21 @@ bx_streq:                               ; ZF = 1: the strings at esi and edi are
 .r:
     pop eax
     pop ecx
+    ret
+
+bx_strpre:                              ; (4.0.5) ZF = 1: the string at edi starts with the one at esi (to its NUL)
+    push eax
+.c:
+    mov al, [esi]
+    test al, al
+    jz .r                               ; (ZF = 1)
+    cmp al, [edi]
+    jne .r
+    inc esi
+    inc edi
+    jmp .c
+.r:
+    pop eax
     ret
 
 bx_next:                                ; replaces `add word [D2], 1 / cmp word [D2], 16`: ZF = 1 when the loop ends
@@ -1701,30 +1722,38 @@ def fallback_divs(v, n):
 
 def bench_table(lang):
     """(phase 2) [(title, named, used, et)] of the World 2026-27 competitions with a known real bench: the career packs
-    of world 5 in SEASON_PACKS x tools/bench2627.json (absent: none, the game's rule everywhere; its unknowns filled:
-    fallback_divs, a cup's from the top league). The title =
+    of world 5 in SEASON_PACKS x tools/bench2627.json (absent: none, the game's rule everywhere). The title =
     the country's button name in the exe language + ' ' + the competition's (a league: the division's) first name, as
-    the game shows it (fmtgame's FORMAT keys)."""
+    the game shows it (fmtgame's FORMAT keys). (4.0.5, Davide 30/10) Unknowns filled: a division from the nearest
+    higher one (fallback_divs), a cup / state championship from the top league ('=league.N': that division's); each
+    country a prefix entry '<button> ' (et | 80h: bx_look matches any title of the country, its play-offs and
+    supercups too) = its top league, or its confederation's default ('confederations', by the pack's continent) for a
+    country with no data; exact entries only where they differ from it. Order: exact, continental, prefixes longest
+    first (IRLANDA DEL NORD before IRLANDA)."""
     import json
     if not os.path.isfile(BENCH_DATA):
         return []
     data = json.load(open(BENCH_DATA))
     used = int(data.get('used', 5))
-    out, seen = [], set()
+    norm = lambda x: ((min(int(x.get('named')), 15), int(x.get('et') or 0)) if isinstance(x, dict) else
+                      (min(int(x), 15), 0)) if x and (not isinstance(x, dict) or x.get('named')) else None
+    out, pre, seen = [], [], set()
     for d in filter(None, os.environ.get('SEASON_PACKS', '').split(',')):
         f = os.path.join(d, 'pack.json')
         if not os.path.isfile(f):
             continue
         pk = json.load(open(f))
         cc = os.path.basename(d.rstrip('/'))
-        ent = data['countries'].get(cc)
-        if pk.get('kind') != 'career' or pk.get('world') != 5 or not ent:
+        if pk.get('kind') != 'career' or pk.get('world') != 5:
             continue
+        ent = data['countries'].get(cc) or {}
         BENCH_WORLD[0] = pk['world']
         btn = pk.get('button_names', {}).get(lang) or pk['button']
         first = lambda names: (names.get(lang) or names['*'])[0]
         lg = next((c for c in pk['competitions'] if c.get('type') == 'league'), None)
         lvals = fallback_divs(ent.get(lg['key']), len(lg.get('divisions') or [0])) if lg else []
+        top = norm(lvals[0] if lvals and lvals[0] is not None else
+                   (data.get('confederations') or {}).get(pk.get('continent')))
         for c in pk['competitions']:
             v = ent.get(c['key'])
             if c.get('type') == 'league':
@@ -1734,23 +1763,26 @@ def bench_table(lang):
             else:                               # (4.0.5) a cup / state championship without data: '=league.N' = that
                 if isinstance(v, str) and v.startswith('=league.'):   # division's (its clubs' own league), none =
                     v = lvals[int(v[8:])] if int(v[8:]) < len(lvals) else None   # the top league's (Davide 30/10)
-                items = [(first(c['names']), v if v is not None else (lvals[0] if lvals else None))]
+                items = [(first(c['names']), v)]
             for name, x in items:               # (a number = named subs; {'named', 'et'}: with an extra-time sub)
                 t = f'{btn} {name}'.encode('latin-1')[:40]
-                n, e = (x.get('named'), int(x.get('et') or 0)) if isinstance(x, dict) else (x, 0)
-                if n and t not in seen:
+                x = norm(x) or top
+                if x and x != top and t not in seen:
                     seen.add(t)
-                    out.append((t, min(int(n), 15), used, e))
-    if out:                                         # (the world is in this build) its continental cups: no country
+                    out.append((t, x[0], used, x[1]))
+        if top:
+            pre.append(((btn + ' ').encode('latin-1')[:40], top[0], used, top[1] | 0x80))
+    if pre:                                         # (the world is in this build) its continental cups: no country
         import uefaq                                # ('qual': the career club's qualifying tie too, uefaq's title)
         for name, v in (data.get('continental') or {}).items():
             q = [uefaq.NAMES[lang] + name[5:]] if v.get('qual') and name.startswith('UEFA ') else []
+            q += [v['names'][lang]] if lang in (v.get('names') or {}) else []   # (its name in this exe's language)
             for t in [x for n in [name] + q for x in (' ' + n, n)]:
                 t = t.encode('latin-1')[:40]
                 if v.get('named') and t not in seen:
                     seen.add(t)
                     out.append((t, min(int(v['named']), 15), used, int(v.get('et') or 0)))
-    return out
+    return out + sorted(pre, key=lambda e: -len(e[0]))
 
 
 def table_asm(tab):

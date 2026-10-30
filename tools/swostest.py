@@ -12948,6 +12948,17 @@ def world_darkblond():
                 return False, f'new career: {t} not reached'
         s.send('fire dump:3')
         s.shot('career')
+        if os.environ.get('DKB_EARLY'):              # (review captures: the pokes before the squad screen - its face
+            r = s.result                             # icons, bald light 1910 too)
+            o2 = r.read(r.base2, 0x300000)
+            for it_ in filter(None, os.environ.get('DKB_POKE', '').split(',')):
+                nm_, op_ = it_.rsplit(':', 1)
+                for m_ in _re.finditer(_re.escape(nm_.encode()) + b'\0', o2):
+                    h = m_.start() - 3
+                    at_, v_ = (26, o2[h + 26] | 0x18) if op_ == 'darkblond' else \
+                        (25, o2[h + 25] | 1 if op_ == 'bald' else o2[h + 25] & 0xFE)
+                    s.poke(r.base2 + h + at_, bytes((v_,)))
+            s.send('dump:1')
         press(s, s.screen(), 'SQUADRA', 3)
         s.shot('squad')
         r = s.result
@@ -13019,6 +13030,11 @@ def world_darkblond():
                 if os.environ.get('DKB_SHEET'):          # 4.0.3: the converted sets side by side (review image)
                     bald_sheet(r, spr, blond, s.result.obj2(s.info['pal'], 768),
                                os.path.join(s.run, 'shots', 'sets.png'), info)
+        for k in range(int(os.environ.get('DKB_MORE', '0'))):   # (review captures: more in-match frames)
+            r = s.send('dump:0.6')
+            if r.outcome != 'dump':
+                break
+            s.shot(f'p{k:02d}')
         check(checked, f'the match never ran ({r})', errs)
         info.append(f'fixture {fx}')
     return not errs, '; '.join(errs + info)

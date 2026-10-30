@@ -6868,7 +6868,9 @@ def bench_numbers():
         num = dict(first)
         bench = [x for x in first[11:16]]
         info.append(f'{len(first)} players; bench {bench}')
-        check(len(first) == 25, f'{len(first)} players (16 + 9 XTRA expected)', errs)
+        xb = xtra_club_block(b, BENCH_PATH.split(',')[-1])      # (rc16: RANDERS has 16 + 12 XTRA in the data, not
+        want = 16 + len([x for x in (xb or (0, []))[1] if x])   # the 23 Oct build's 9: the count from the build's DATA)
+        check(len(first) == want, f'{len(first)} players (16 + {want - 16} XTRA expected from the data)', errs)
         dup = lambda sq: sorted({k for _, k in sq if [x for _, x in sq].count(k) > 1})
         check(not dup(first), f'start: duplicate numbers {dup(first)}', errs)
         check([x[1] for x in bench] != list(range(12, 17)), f'bench already 12..16: {bench}', errs)

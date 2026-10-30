@@ -1704,6 +1704,20 @@ def scenario(fn):
     return fn
 
 
+def rel_data_default():
+    """W2627REL_DATA unset + SWOSTEST_BUILD a release dir (c/RELxx/SWOS, buildrel.sh): the snapshot that release was built
+    with, from its build.log ('RELxx = <sha>, data <name>, ...'), as the gate sets it - so the label checks and the
+    release-data builds never silently use the old default snapshots (Dati coppe 30/10: world_gplay_nzchamp)."""
+    if os.environ.get('W2627REL_DATA') or not os.environ.get('SWOSTEST_BUILD'):
+        return
+    log = os.path.join(os.path.dirname(os.path.abspath(os.environ['SWOSTEST_BUILD'])), 'build.log')
+    m = re.search(r'^\S+ = \w+, data (\S+?),', open(log, errors='replace').read(), re.M) if os.path.isfile(log) else None
+    d = m and os.path.join(MAIN, 'internal', 'world2526', m.group(1))
+    if d and os.path.isfile(d + '.txt'):
+        os.environ['W2627REL_DATA'] = d
+        print(f'W2627REL_DATA = {d} (the data of {os.path.dirname(log)}, from its build.log)', flush=True)
+
+
 def builds():
     """Exe under test: SWOSTEST_BUILD (a ready dir with ITALIAN.EXE + DATA), else built from SWOSTEST_BRANCH (a git
     branch/commit), else from this checkout."""
@@ -15173,6 +15187,7 @@ def main(argv):
         print(r, '->', r.run)
         return 0
     if argv[0] == 'run':
+        rel_data_default()
         names = [a for a in argv[1:] if not a.startswith('-j')] or list(SCENARIOS)
         jobs = int(next((a[2:] for a in argv[1:] if a.startswith('-j')), 1) or 4)
         if jobs > 1 and len(names) > 1:

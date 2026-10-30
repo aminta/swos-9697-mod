@@ -2322,10 +2322,9 @@ w_cmenu:                                ; CareerMenu's first instruction (mov ax
     mov ax, [CTICK]
     ret
 
-w_mmi:                                  ; SWOSMainMenuInit's first instruction: every other mode uses the game's cache
-    mov word [CTN], -1                  ; (DIY / preset files are the memory after competitionFileBuffer)
-    mov dword [SELPTR], OLDSEL
-    ret
+w_mmi:                                  ; SWOSMainMenuInit's first call (after `mov currentTeamNumber, -1`, which SWOS++
+    mov dword [SELPTR], OLDSEL          ; patches: 4.0.5): every other mode uses the game's cache (DIY / preset files
+    jmp MMIX                            ; are the memory after competitionFileBuffer); then the call's own target
 
 W_CUPS: dd WCC, WCWC, WUEFA               ; (w_cupnames' destinations; before it: no forward size)
 w_cupnames:                             ; 4.0.1: the 3 cups' name offsets (long, short: dd at 5 + header length, relative
@@ -2584,6 +2583,9 @@ def patch_tails(p, at, nasmcave):
            'w_rec': (1, LABELS['w_rec'])}                  # (w_cupnames: the world record's own cup structs)
     b = BSS[0]
     hs = sel_sites(p, D0)
+    mmc = hs['mmi'] + 9                          # (SWOSMainMenuInit's `call` after the 9-byte mov: SWOS++ leaves it)
+    assert orig[mmc] == 0xe8, orig[mmc:mmc + 5].hex()
+    sym['MMIX'] = (1, mmc + 5 + struct.unpack_from('<i', orig, mmc + 1)[0])
     sym.update({'WTMD': (2, b + B_TMD), 'WCC': (2, b + B_CUPS), 'WCWC': (2, b + B_CUPS + 160),
                 'WUEFA': (2, b + B_CUPS + 320), 'STAGE': (2, b + B_STAGE), 'NEWSEL': (2, b + B_SEL),
                 'SEL_ROOM': (0, SEL_ROOM), 'A1R': (2, A0 + 4), 'OLDSEL': (2, hs['old']), 'OLDROOM': (0, 68400),
@@ -2614,10 +2616,12 @@ def patch_tails(p, at, nasmcave):
     p.retarget(1, t['loadcopy'], 1, labels['w_loadcopy'])    # (.CAR read into the stage, then spread: 3.3.3)
     assert p.target(1, t['load_a1']) == t['CAREER'], p.target(1, t['load_a1'])
     p.retarget(1, t['load_a1'], 2, b + B_STAGE)
-    for at_, n_, stub in ((hs['pcf'], 10, 'w_pcf'), (hs['cmenu'], 6, 'w_cmenu'), (hs['mmi'], 9, 'w_mmi')):
+    for at_, n_, stub in ((hs['pcf'], 10, 'w_pcf'), (hs['cmenu'], 6, 'w_cmenu')):
         for fo in hs['fix'][at_]:
             p.remove(1, fo)
         p.put(1, at_, b'\xe8' + struct.pack('<i', labels[stub] - (at_ + 5)) + b'\x90' * (n_ - 5))
+    assert bytes(p.get(1, mmc, 5)) == orig[mmc:mmc + 5], 'another module patched SWOSMainMenuInit\'s first call'
+    p.put(1, mmc, b'\xe8' + struct.pack('<i', labels['w_mmi'] - (mmc + 5)))   # (the mov stays the game's / SWOS++'s)
     p.retarget(1, LABELS['w_switch_dd'], 1, labels['w_switch'])
     print(f'exe: big world: team cache of {SEL_N} at obj2+{b + B_SEL:#x} (stage obj2+{b + B_STAGE:#x}, mark BIGC)')
     print(f'exe: big world .CAR block W1 ({WBLOCK} B, in the 80-record area) @ obj1+{at:#x}, records moved to obj2+{b:#x}')

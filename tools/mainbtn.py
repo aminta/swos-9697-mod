@@ -6,7 +6,10 @@ The main menu's entry 4 (SAVE DISK FILING: defined, always invisible, its string
 at run time, set at both ends of CommonMenuExit: shown, at x 154 (as the right column) and CAREER's y, 150 x 16, in the
 menus' green (colour 14, as CONTINUE ... and the game's green buttons), with its label, the links CAREER <-> button,
 SEASON above, CONTINUE / LOAD OLD COMPETITION below, and its on-select function. CAREER moves to x 0 (the left column).
-Builds without the World 2026-27 do not get it."""
+Builds without the World 2026-27 do not get it.
+4.0.5: SWOS++ (English) also takes entry 4 (its own SWOS++ entry, shown at the top: x 93, y 21) and the main menu has no
+other free entry (13: 10 / 11 are CONTINUE / SAVE): when entry 4 is shown at another x than the button's, the menu is
+left as SWOS++ made it (no button; CAREER > CAREER WORLDS > WORLD 2026-27 as before 4.0)."""
 import re
 import struct
 
@@ -29,6 +32,16 @@ mb_set: pushad
         mov edi, [A0]
         cmp dword [edi + 2Ah], ONSELF   ; (only the main menu: its entry 9 is CAREER)
         jne .out
+        mov word [D0], 4                ; 4.0.5: SWOS++ makes entry 4 its own (shown, at its own x): no button then,
+        call CALC                       ; the menu stays SWOS++'s (CAREER > CAREER WORLDS still opens the world)
+        mov edi, [A0]
+        cmp word [edi + 4], 0
+        jne .mine
+        cmp word [edi + 14h], X_
+        jne .out
+.mine:  mov word [D0], 9
+        call CALC
+        mov edi, [A0]
         mov word [edi + 14h], 8
         mov byte [edi + 9], 4
         mov byte [edi + 0Ah], 3         ; (up: OPTIONS, the left column)

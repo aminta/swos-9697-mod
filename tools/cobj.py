@@ -5,9 +5,12 @@ displacement (calls inside the code, or to the game's routines given as externs)
 
 The C file must be freestanding: no library calls (link() fails on any undefined symbol that is not an extern),
 cdecl functions (ebx, esi, edi, ebp preserved). Called from asm with pushad / popad around."""
+import hashlib
 import os
+import re
 import struct
 import subprocess
+import sys
 import tempfile
 
 CFLAGS = ['-target', 'i686-unknown-none-elf', '-march=i486', '-ffreestanding', '-fno-pic', '-fno-pie', '-Os',
@@ -15,14 +18,53 @@ CFLAGS = ['-target', 'i686-unknown-none-elf', '-march=i486', '-ffreestanding', '
           '-fno-unwind-tables', '-Wall', '-Werror']
 
 
+CACHE = os.environ.get('COBJ_CACHE') or os.path.expanduser('~/swos-mod/internal/swostest/cobj')
+
+
+def _src_key(src, flags):
+    """The object's identity without the compiler: the flags, the C file and its #include "..." files (recursive)."""
+    h, todo, seen = hashlib.sha256(repr((CFLAGS, list(flags))).encode()), [os.path.abspath(src)], set()
+    while todo:
+        f = todo.pop()
+        if f in seen or not os.path.isfile(f):
+            continue
+        seen.add(f)
+        b = open(f, 'rb').read()
+        h.update(os.path.basename(f).encode() + b'\0' + b)
+        todo += [os.path.join(os.path.dirname(f), i.decode()) for i in re.findall(rb'^\s*#\s*include\s*"([^"]+)"', b, re.M)]
+    return h.hexdigest()[:24]
+
+
 def compile_c(src, flags=()):
-    """The object file's bytes."""
+    """The object file's bytes. Every object compiled is kept in CACHE/<key>.o (key: _src_key). The Apple clang of
+    one macOS gives other code than another's (4.0.5: MacMiniM1Server's clang 15 vs clang 21 here - gplay.c 901 bytes
+    longer, an exe one page longer, world_gplay_poule FAILing there only): with COBJ_REF=1 (remote_run.sh on the
+    server) a cached object - this Mac's, synced - is used instead of compiling; a missing one is compiled with the
+    local clang, a warning on stderr and its key in COBJ_MISS_LOG (the build is not reused then)."""
+    key = _src_key(src, flags)
+    cached = os.path.join(CACHE, key + '.o')
+    if os.environ.get('COBJ_REF'):
+        if os.path.exists(cached):
+            return open(cached, 'rb').read()
+        print(f'COBJ WARNING: no reference object for {os.path.basename(src)} {list(flags)} ({key}): compiled with '
+              'this Mac\'s clang, the build may differ from the reference Mac\'s', file=sys.stderr, flush=True)
+        if os.environ.get('COBJ_MISS_LOG'):
+            open(os.environ['COBJ_MISS_LOG'], 'a').write(f'{key} {os.path.basename(src)} {" ".join(flags)}\n')
     with tempfile.TemporaryDirectory() as t:
         out = os.path.join(t, 'c.o')
         r = subprocess.run(['clang', *CFLAGS, *flags, '-c', src, '-o', out], capture_output=True, text=True)
         if r.returncode:
             raise RuntimeError(r.stderr)
-        return open(out, 'rb').read()
+        obj = open(out, 'rb').read()
+    if not os.environ.get('COBJ_REF'):              # (the reference Mac: its objects, for the server's builds)
+        try:
+            os.makedirs(CACHE, exist_ok=True)
+            if not os.path.exists(cached) or open(cached, 'rb').read() != obj:
+                open(cached + f'.tmp{os.getpid()}', 'wb').write(obj)
+                os.replace(cached + f'.tmp{os.getpid()}', cached)
+        except OSError:
+            pass
+    return obj
 
 
 def _elf(o):

@@ -180,6 +180,19 @@ it returns the rounds (title, ties shown: at most 6 per screen) and the coin-tos
 - Country names in another language's exe: the harness maps the labels it knows (swostest_lang.json, the 1996-97
   menus) back to Italian, so a 1996-97 country keeps its Italian name in `W8485_TEAM` (BRASILE in the EN exe), while a
   world-only one needs that language's name (NEW ZEALAND, NOUV. ZELANDE, NEUSEELAND: the pack's `button_names`).
+- A scenario that PASSes here and FAILs on the second Mac (remote_run.sh) with a scenario-built exe: compare the two
+  builds (`md5` of `ITALIAN.EXE` and `DATA/*`). Since 2026-10-30 they are byte-identical for one commit + env:
+  - every build writes `INPUTS.txt` (the files of `~/swos-mod/{internal,c,orig,ref}` it read, sha1 + size + time, and
+    the dirs it listed); a build whose inputs changed (or one without the file) is not reused, the key moves on;
+  - `tools/cobj.py` keeps every C object it compiles in `internal/swostest/cobj/<key>.o`; with `COBJ_REF=1` (set by
+    remote_run.sh on the server) the build takes this Mac's object instead of compiling: the server's Apple clang 15
+    makes other code than clang 21 here (gplay.c 901 bytes longer, the exe one page longer). An object missing there
+    is compiled locally with a `COBJ WARNING` / `BUILD WARNING`, and that build (`builds/<name>-nonref-<key>`) is
+    never reused;
+  - remote_run.sh first pre-builds the scenarios here (`SWOSTEST_BUILD_ONLY=1`: each stops at its first game start,
+    `BUILT <name>`; log in `internal/swostest/remote/.prebuild/<RUNSNAME>.log`), then syncs those builds' inputs and
+    the objects to the server. `REMOTE_PREBUILD=0` skips it (then the server builds from its own copies, as before).
+    A build made after a scenario's first game start is not pre-built: it gets the warning above.
 
 ## Breaking a busy game (Session.sample)
 

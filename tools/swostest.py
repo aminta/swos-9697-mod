@@ -153,12 +153,81 @@ def build_cleanup():
 
 
 def unique_out(name, key):
-    """builds/<name>-<key>, and whether it is complete (ITALIAN.EXE there: reused, its time touched)."""
-    out = os.path.join(WORK, 'builds', f'{name}-{key}')
-    done = os.path.exists(os.path.join(out, 'ITALIAN.EXE'))
-    if done:
-        os.utime(out)
-    return out, done
+    """builds/<name>-<key>, and whether it is complete (ITALIAN.EXE there: reused, its time touched). A build whose
+    INPUTS.txt (build_inputs) no longer matches the files - or a build without one - is not reused: the key moves on
+    to one derived from the inputs' current contents (the same for every session with the same files)."""
+    for _ in range(8):
+        out = os.path.join(WORK, 'builds', f'{name}-{key}')
+        if not os.path.exists(os.path.join(out, 'ITALIAN.EXE')):
+            return out, False
+        now = inputs_now(os.path.join(out, 'INPUTS.txt'))
+        if now is None:
+            os.utime(out)
+            return out, True
+        key = hashlib.sha256(f'{key}:{now}'.encode()).hexdigest()[:12]
+    return out, False
+
+
+INPUT_ROOTS = ('internal', 'c', 'orig', 'ref')        # MAIN's ignored dirs: the build reads them live, git doesn't see them
+INPUTS_HOOK = r"""
+import sys, os, hashlib, atexit
+_main, _inp = os.path.realpath(sys.argv[2]), sys.argv[1] + '/INPUTS.txt'
+_roots = tuple(os.path.join(_main, d) + os.sep for d in %r)
+_skip = (os.path.join(_main, 'internal', 'swostest') + os.sep, os.path.realpath(sys.argv[1]) + os.sep)
+_files, _dirs = set(), set()
+def _keep(p):
+    try:
+        p = os.path.realpath(os.fsdecode(p))
+    except (TypeError, ValueError):
+        return None
+    return p if p.startswith(_roots) and not p.startswith(_skip) and '__pycache__' not in p else None
+def _hook(ev, a):
+    if ev == 'open' and isinstance(a[0], (str, bytes)) and not set(str(a[1] or 'r')) & set('wax+'):
+        p = _keep(a[0])
+        if p: _files.add(p)
+    elif ev in ('os.listdir', 'os.scandir') and isinstance(a[0], (str, bytes)):
+        p = _keep(a[0])
+        if p: _dirs.add(p)
+sys.addaudithook(_hook)
+def _write():
+    for m in list(sys.modules.values()):
+        p = _keep(getattr(m, '__file__', None) or '') if getattr(m, '__file__', None) else None
+        if p: _files.add(p)
+    rows = []
+    for p in sorted(_files):
+        if os.path.isfile(p):
+            st = os.stat(p)
+            rows.append(f'f {hashlib.sha1(open(p, "rb").read()).hexdigest()} {st.st_size} {st.st_mtime_ns} {os.path.relpath(p, _main)}')
+    for p in sorted(_dirs):
+        if os.path.isdir(p):
+            rows.append(f'd {hashlib.sha1(chr(0).join(sorted(os.listdir(p))).encode()).hexdigest()} 0 0 {os.path.relpath(p, _main)}')
+    open(_inp, 'w').write(chr(10).join(rows) + chr(10))
+atexit.register(_write)
+""" % (INPUT_ROOTS,)
+
+
+def inputs_now(path):
+    """None if every input in the build's INPUTS.txt (MAIN-relative: f sha1 size mtime path / d sha1 0 0 dir) is
+    unchanged, else a digest of the inputs' current state (missing file: stale)."""
+    try:
+        rows = [ln.split(' ', 4) for ln in open(path).read().splitlines() if ln]
+    except OSError:
+        return 'no INPUTS.txt'
+    h, stale = hashlib.sha256(), False
+    for kind, sha, size, mt, rel in rows:
+        p = os.path.join(MAIN, rel)
+        try:
+            if kind == 'd':
+                cur = hashlib.sha1('\0'.join(sorted(os.listdir(p))).encode()).hexdigest()
+            else:
+                st = os.stat(p)
+                cur = sha if (st.st_size, st.st_mtime_ns) == (int(size), int(mt)) else \
+                    hashlib.sha1(open(p, 'rb').read()).hexdigest()
+        except OSError:
+            cur = 'missing'
+        stale |= cur != sha
+        h.update(f'{rel}:{cur}\0'.encode())
+    return h.hexdigest() if stale else None
 
 
 def mkseason_now():
@@ -187,18 +256,27 @@ def build(name, env=None, branch=None, lang='it'):
             if not os.path.exists(os.path.join(src, d)):
                 os.symlink(os.path.join(MAIN, d), os.path.join(src, d))
     out, done = unique_out(name, build_key(src, env))
+    if os.environ.get('SWOSTEST_BUILT_LOG'):         # (remote_run.sh's local pre-build: the dirs whose inputs to sync)
+        open(os.environ['SWOSTEST_BUILT_LOG'], 'a').write(out + '\n')
     if done:
         return out
     tmp = f'{out}.tmp{os.getpid()}'
     shutil.rmtree(tmp, ignore_errors=True)
     os.makedirs(os.path.join(tmp, 'DATA'))
-    code = ("import sys,io,contextlib; sys.path.insert(0,'tools'); import patch\n"
+    code = INPUTS_HOOK + ("import sys,io,contextlib; sys.path.insert(0,'tools'); import patch\n"
             "out=sys.argv[1]\n"
             "with contextlib.redirect_stdout(io.StringIO()):\n"
             "    r=patch.patch_teams('orig/DATA/TEAM.020',out+'/DATA/TEAM.020'); patch.write_new_teams('orig/DATA',out+'/DATA')\n"
             f"    patch.patch_exe('orig/{UI_ORIG_OF[lang]}',out+'/ITALIAN.EXE',r,'{lang}')\n")   # (lang: run as ITALIAN.EXE)
+    miss = os.path.join(tmp, 'COBJ_MISSING.txt')   # (cobj.compile_c: C objects not from the reference Mac)
     try:
-        subprocess.run([sys.executable, '-c', code, tmp], cwd=src, check=True, env=dict(os.environ, **(env or {})))
+        subprocess.run([sys.executable, '-c', code, tmp, MAIN], cwd=src, check=True,
+                       env=dict(os.environ, **(env or {}), COBJ_MISS_LOG=miss))
+        if os.path.exists(miss):                     # not a reference build: never reused, rebuilt next time
+            print(f'BUILD WARNING {name}: C objects compiled here, not the reference Mac\'s: {open(miss).read().strip()}',
+                  flush=True)
+            out = os.path.join(WORK, 'builds', f'{name}-nonref-{os.path.basename(out)[-12:]}')
+            shutil.rmtree(out, ignore_errors=True)
         try:
             os.rename(tmp, out)
         except OSError:                              # (another session built the same key meanwhile: its dir stays)
@@ -211,6 +289,8 @@ def build(name, env=None, branch=None, lang='it'):
 
 def prepare(name, exe_dir, cars, steps, match=False, timer=False):
     """runs/<name>/SWOS = base + exe_dir (ITALIAN.EXE + DATA, or an .EXE file) + saves {dos name: source path}."""
+    if os.environ.get('SWOSTEST_BUILD_ONLY'):
+        raise BuildOnly()
     run = os.path.join(RUNS, name)
     if os.path.isdir(run):
         shutil.rmtree(run)
@@ -220,7 +300,7 @@ def prepare(name, exe_dir, cars, steps, match=False, timer=False):
         shutil.copytree(os.path.join(MAIN, 'c', 'SWOS', 'DATA'), os.path.join(game, 'DATA'), dirs_exist_ok=True)
         shutil.copy(exe_dir, os.path.join(game, 'ITALIAN.EXE'))
     else:
-        shutil.copytree(exe_dir, game, dirs_exist_ok=True, ignore=shutil.ignore_patterns('log.txt'))
+        shutil.copytree(exe_dir, game, dirs_exist_ok=True, ignore=shutil.ignore_patterns('log.txt', 'INPUTS.txt', 'COBJ_MISSING.txt'))
     for dos, src in cars.items():
         shutil.copy(src, os.path.join(game, dos))
     if not os.path.exists(os.path.join(game, 'ITALIAN.EXE')):      # e.g. an English SWOS++ bundle
@@ -432,10 +512,17 @@ ANSI = re.compile(rb'\x1b\[[0-9;?]*[a-zA-Z]|\x1b\(B')
 MEMSIZE = 0x2000000                                   # memsize=32: linear 0..32 MB
 
 
+class BuildOnly(BaseException):
+    """SWOSTEST_BUILD_ONLY=1 (remote_run.sh's local pre-build): a scenario stops at its first game start, its builds
+    done. A BaseException, so the scenarios' own 'except Exception' don't catch it."""
+
+
 class Dosbox:
     """DOSBox-X under a pty: debugger reachable, int 3 traps caught."""
 
     def __init__(self, run, timeout, shots=0, exe='ITALIAN.EXE'):
+        if os.environ.get('SWOSTEST_BUILD_ONLY'):
+            raise BuildOnly()
         self.run, self.timeout, self.shots = run, timeout, shots
         conf = CONF if not os.environ.get('SWOSTEST_NOEXIT') else CONF.replace('{exe}\nexit\n', '{exe}\n')
         if os.environ.get('SWOSTEST_MEMSIZE'):         # (experiments: DOSBox-X memory in MB; dumps still read 32 MB)
@@ -18324,6 +18411,9 @@ def main(argv):
                 if not ok and msg.startswith('START'):      # rare stall at the main menu (cause unknown): retry once
                     print(f'RETRY {n}: {msg}', flush=True)
                     ok, msg = SCENARIOS[n]()
+            except BuildOnly:
+                print(f'BUILT {n} ({time.time() - t:.0f} s)', flush=True)
+                continue
             except Exception as e:                         # (one scenario's exception: a FAIL, the suite goes on)
                 ok, msg = False, f'exception {type(e).__name__}: {e}'
             bad += not ok

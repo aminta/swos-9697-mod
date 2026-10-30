@@ -5554,6 +5554,19 @@ def controls_calib():
     return not errs, '; '.join(errs + notes)
 
 
+def swospp_on(r, exe):
+    """SWOS++ loaded (its swospp.bin ran): SWOSMainMenuInit's `mov currentTeamNumber, -1` (9 bytes, the game's in the
+    exe) is SWOS++'s `mov eax, X; call eax; nop; nop` in memory. Its own main-menu entry is no proof: the mod's CAREER
+    2026-27 button takes that entry (Davide 30/10: the button always stays)."""
+    from le import LE
+    d = LE(open(exe, 'rb').read()).obj_bytes(1)
+    m = [x.start() for x in re.finditer(rb'\x66\xc7\x05....\xff\xff\xe8....\xe8\x03\x00\x00\x00\xeb\x00', d, re.S)]
+    if len(m) != 1:
+        return False, f'SWOSMainMenuInit not found ({len(m)})'
+    mem = r.read(r.base1 + m[0], 9)
+    return mem[0] == 0xb8 and mem[5:9] == b'\xff\xd0\x90\x90', f'SWOSMainMenuInit obj1+{m[0]:#x}: {mem.hex()}'
+
+
 @scenario
 def controls_swospp():
     """4.0.2 COMANDI under SWOS++ (English build + tools/swospp.py + LOADER.BIN / SWOSPP.BIN 1.9.2.2, keys fed from
@@ -5575,7 +5588,8 @@ def controls_swospp():
         if s.wait().outcome != 'dump':
             return False, f'START: no first pause ({s.result})'
         sc = s.screen()
-        check(any('SWOS++' in t for _, t, *_ in sc.entries), f'SWOS++ not running: {sc}', errs)
+        on, why = swospp_on(s.result, os.path.join(out, 'ITALIAN.EXE'))
+        check(on, f'SWOS++ not running: {why}', errs)
         walk(s, 'OPZIONI', 3)                   # (under SWOS++ CAREER is centred: its only way up is SEASON)
         r = s.result
         sc = s.screen()
@@ -5613,7 +5627,10 @@ def swospp_bench():
         if s.wait().outcome != 'dump':
             return False, f'START: no first pause ({s.result})'
         sc = s.screen()
-        check(any('SWOS++' in t for _, t, *_ in sc.entries), f'SWOS++ not running: {sc}', errs)
+        on, why = swospp_on(s.result, os.path.join(out, 'ITALIAN.EXE'))
+        check(on, f'SWOS++ not running: {why}', errs)
+        e4 = [t for i, t, *_ in sc.entries if i == 4]          # (entry 4: the green CAREER 2026-27 button in a World
+        check(e4 and e4[0] != 'SWOS++', f'main menu entry 4 {e4}: {sc}', errs)   # 2026-27 build, always - Davide 30/10)
         r = s.result
         run = lepatch.LEPatch(os.path.join(RUNS, 'swospp_bench', 'SWOS', 'ITALIAN.EXE'))
         orig = lepatch.LEPatch(os.path.join(ROOT, 'orig', 'ENGLISH.EXE'))

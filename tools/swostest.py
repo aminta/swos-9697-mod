@@ -5576,7 +5576,7 @@ def controls_swospp():
             return False, f'START: no first pause ({s.result})'
         sc = s.screen()
         check(any('SWOS++' in t for _, t, *_ in sc.entries), f'SWOS++ not running: {sc}', errs)
-        press(s, sc, 'OPZIONI', 3)
+        walk(s, 'OPZIONI', 3)                   # (under SWOS++ CAREER is centred: its only way up is SEASON)
         r = s.result
         sc = s.screen()
         btn = ct_entry(r, s.info['menu'], 19)

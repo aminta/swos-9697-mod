@@ -3,7 +3,7 @@
    - shape 0 = 'E' receding (Davide 30/10, internal/design/bald-mock/variants-20261030 V_E): the hair's top row turns
      skin, and so do the second row's hair pixels with a pixel on both sides; the rest keeps the player's hair colour;
    - shape 1 = 'oval' (round7 row 4, Marco + Davide 30/10): an egg over the head's rows (as wide as the head's widest row,
-     20 % narrower below its middle) in ONE colour, the face included (the eyes, raw 1 / 2, kept); outside it the head's
+     20 % narrower below its middle) in ONE colour (light: the pink tone; dark: the face's skin), the face included (the eyes, raw 1 / 2, kept); outside it the head's
      hair / skin / black pixels go transparent.
    bald_c reshapes one copied RAW player sprite (1 quad = 16 pixels wide, 8 bytes per line, 4-bit pixels, high nibble
    first) in place, before the team's colour conversion: raw hair 13 / 9 / 12, raw skin 6 / 5 / 4. A skull colour 7 is
@@ -28,8 +28,8 @@ typedef unsigned char u8;
 #define SK2 7
 #define EG2 6
 #define SH3 1
-#define SK3 3
-#define EG3 3
+#define SK3 6
+#define EG3 6
 #endif
 #ifndef TONE_L
 #define TONE_L 84

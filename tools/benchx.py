@@ -35,7 +35,8 @@ that scrolls with the cursor (Davide's choice B).
   bx_cmp_last / bx_cmp_last1: the last place is max(5, gameMaxSubstitutes) <= 15 (5 in a training game); empty
   places are skipped by IsThisPlayerOkToSelect as the game's own substituted players.
 - DrawBenchAndSubsMenu's `mov ax, [g_benchPlayerIndex]` (the arrow's row) -> bx_arrow: the window start bx_win
-  follows the cursor (the coach or a training game: 0), the arrow's row = index - bx_win.
+  follows the cursor (the coach or a training game: 0), the arrow's row = index - bx_win; (4.0.6, two humans) the
+  bench's entry (BenchCheckControls' `mov word [g_benchPlayerIndex], 0`) -> bx_bentry: the window back at the top.
 - DrawBenchPlayersAndCoach's `mov word [D7], 1` / `cmp word [D7], 6` -> bx_win_init / bx_win_end: places
   bx_win + 1 .. bx_win + 5 (A0 moved on by bx_win players); the opponent's bench (g_subsState -1) its first 5.
 - Block 3, the names (on namespr's 112 px sprites, 4.0.5): plOrdinalsTable / plNamesLengthTable /
@@ -534,6 +535,11 @@ bx_arrow:                               ; replaces `mov ax, [IDX]` (the arrow's 
     movzx eax, word [IDX]
     sub eax, ebx
     pop ebx
+    ret
+
+bx_bentry:                              ; (4.0.6, two humans) replaces BenchCheckControls' `mov word [IDX], 0` (a bench
+    mov word [IDX], 0                   ; entered, @@init_bench_vars): the window back at the top too, before the dugout
+    mov word [bx_win], 0                ; is drawn (the other team's bench showed the window where the first one left it)
     ret
 
 bx_win_init:                            ; replaces `mov word [D7], 1` (DrawBenchPlayersAndCoach, A0 -> place 11)
@@ -1340,7 +1346,10 @@ def sites2(p, regs):
     wb = [x.start() for x in re.finditer(rb'\x66\xc7\x05' + pk(d2) + rb'\x0f\x00\x8b\x35' + pk(regs['A0'] + 4) + rb'\x8a\x46[\x2a\x2c]', d)
           if lp - 0x600 < x.start() < lp]
     assert len(wb) == 3, ('the after-match write-back loops', [hex(x) for x in wb])
-    at = {'wb0': wb[0], 'wb1': wb[1], 'wb2': wb[2], 'c5': m[0].start(), 'c6': c6, 'arrow': ar[0], 'd7i': d7i[0], 'd7e': d7e[0], 'n1': n1[0], 'n2': n2[0]}
+    be = [x.start() + 18 for x in re.finditer(rb'\x66\xc7\x05....\xff\xff\x66\xc7\x05' + pk(subst) + rb'\x00\x00\x66\xc7\x05'
+                                              + pk(idx) + rb'\x00\x00', d, re.S)]
+    assert len(be) == 1, ('@@init_bench_vars', be)  # (plToBeSubstitutedPos -1, g_subsState 0, g_benchPlayerIndex 0)
+    at = {'bentry': be[0], 'wb0': wb[0], 'wb1': wb[1], 'wb2': wb[2], 'c5': m[0].start(), 'c6': c6, 'arrow': ar[0], 'd7i': d7i[0], 'd7e': d7e[0], 'n1': n1[0], 'n2': n2[0]}
     for k, a in at.items():                     # (no other hook there)
         assert bytes(p.get(1, a, 9)) == d[a:a + 9], ('block 2 site already patched', k, hex(a))
     return at, {'IDX': (2, idx), 'TRAIN': (2, train), 'SUBST': (2, subst), 'HIDE': (1, hd[0])}
@@ -1803,6 +1812,7 @@ def patch(p, at, ns_at, lang='it'):
     call9(s2['c5'], 8, 'bx_cmp_last', 3)            # cmp word [IDX], 5 (66 83 3D addr 05)
     call9(s2['c6'], 8, 'bx_cmp_last1', 3)
     call9(s2['arrow'], 6, 'bx_arrow', 2)            # mov ax, [IDX] (66 A1 addr)
+    call9(s2['bentry'], 9, 'bx_bentry', 3)          # (4.0.6) mov word [IDX], 0 (66 C7 05 addr 00 00): a bench entered
     call9(s2['d7i'], 9, 'bx_win_init', 3)           # mov word [D7], 1 (66 C7 05 addr 01 00)
     call9(s2['d7e'], 8, 'bx_win_end', 3)            # cmp word [D7], 6 (66 83 3D addr 06)
     call9(s2['n1'], 9, 'bx_name1', 3)               # add word [D1], 255 (66 81 05 addr FF 00)

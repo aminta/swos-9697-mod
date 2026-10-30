@@ -4526,7 +4526,24 @@ def bench_vars():
     return bench_vars.v
 
 
-def bench_sub(s, bx, place, errs, info, mark):
+def team_data():
+    """(topTeamData, bottomTeamData) obj2 offsets (TeamGeneralInfo, 145 bytes: +4 playerNumber, +6 playerCoachNumber
+    = the controls the bench reads, 1 = player 1), from MainKeysCheck's PgUp / PgDn: mov ax, [bottom.playerNumber] /
+    or / jnz / mov ax, [bottom.playerCoachNumber] / or / jz / mov [bench2Called], 1, then the same for the top team."""
+    if not hasattr(team_data, 'v'):
+        p = lepatch_orig()
+        d = p.le.obj_bytes(1)
+        m = [[p.target(1, x.start(g))[1] for g in (1, 2, 3)] for x in re.finditer(
+            rb'\x66\xa1(....)\x66[\x09\x0b]\xc0\x75.\x66\xa1(....)\x66[\x09\x0b]\xc0(?:\x0f\x84....|\x74.)'
+            rb'\x66\xc7\x05(....)\x01\x00', d, re.S)]
+        v = [(b[0] - 4, a[0] - 4) for a, b in zip(m, m[1:]) if a[1] == a[0] + 2 and b[1] == b[0] + 2
+             and a[0] - b[0] == 145 and a[2] == b[2] + 2]
+        assert len(v) == 1, ('team_data', v)
+        team_data.v = v[0]
+    return team_data.v
+
+
+def bench_sub(s, bx, place, errs, info, mark, key=None, gone=None, tag=''):
     """benchx block 2: the bench called, its cursor moved down to the squad's place `place` (12..26, g_benchPlayerIndex
     = place - 11: index 1 = in-match player 11 = place 12), the window of 5 (bx_win, obj1 at bx - 4) following it; fire picks him
     (g_subsState 1, plToEnterGameIndex = place - 1), fire again makes the change (the team's NumSubs + 1)."""
@@ -4535,8 +4552,9 @@ def bench_sub(s, bx, place, errs, info, mark):
     w16 = lambda o, base: struct.unpack('<H', s.result.read(base + o, 2))[0]
     seen = []
     ns0 = (w16(v['NS1'], s.result.base2), w16(v['NS2'], s.result.base2))
+    ord0 = s.result.read(s.result.base1 + bx - 4 - 156, 52)   # (2 humans: the other team's half may hold its change)
     for call in range(12):
-        r = s.send(('pgup' if call % 2 == 0 else 'pgdn') + ':0.3 dump:0.6')
+        r = s.send((key or ('pgup' if call % 2 == 0 else 'pgdn')) + ':0.3 dump:0.6')   # (key: one team's bench)
         if r.outcome != 'dump':
             errs.append(f'bench call: {r}')
             return False
@@ -4550,7 +4568,7 @@ def bench_sub(s, bx, place, errs, info, mark):
             if idx != last:
                 seen.append((idx, win))
                 if idx == 6:
-                    s.shot('bench_scroll6')
+                    s.shot(tag + 'bench_scroll6')
             still = still + 1 if idx == last else 0
             last = idx
             if idx == want or still >= 4:
@@ -4564,21 +4582,21 @@ def bench_sub(s, bx, place, errs, info, mark):
         return False
     check(all(i - w in range(1, 6) for i, w in seen if i), f'cursor out of the window: {seen}', errs)
     check(any(w > 0 for i, w in seen), f'the window never scrolled: {seen}', errs)
-    s.shot('bench_window')
+    s.shot(tag + 'bench_window')
     ups = []                                # back up 6 places (the window starts at the cursor) and down again
     for key in ['up'] * 6 + ['down'] * 6:
         r = s.send(key + ':0.15 dump:0.3')
         ups.append((w16(v['IDX'], r.base2), w16(bx - 4, r.base1)))
     info.append(f'up/down {ups}')
     up6 = ups[5]
-    gone = {int(x.split(':')[0]) - 11 for x in os.environ.get('BENCH_INJ', '').split(',') if x}   # (4.0.6: left-out
+    gone = {int(x.split(':')[0]) - 11 for x in os.environ.get('BENCH_INJ', '').split(',') if x} if gone is None else gone   # (4.0.6: left-out
     up_i = [i for i in range(want - 1, 0, -1) if i not in gone][5]     # places are empty: the cursor skips them)
     check(up6[0] == up_i and up6[1] == min(up6[0] - 1, max(0, want - 5)), f'up 6: (index, window) {up6} (index {up_i})', errs)
     check(ups[-1] == (want, want - 5) if want > 5 else ups[-1][0] == want, f'down again: {ups[-1]}', errs)
-    s.shot('bench_up')
+    s.shot(tag + 'bench_up')
     r = s.send('fire:0.2 dump:0.6')
     st, ent = w16(v['SUBST'], r.base2), w16(v['ENTER'], r.base2)
-    s.shot('subs_menu')
+    s.shot(tag + 'subs_menu')
     check(st == 1 and ent == place - 1, f'after fire: g_subsState {st}, plToEnterGameIndex {ent} (want 1, {place - 1})', errs)
     r = s.send('fire:0.2 dump:0.6')
     ns = (w16(v['NS1'], r.base2), w16(v['NS2'], r.base2))
@@ -4589,16 +4607,17 @@ def bench_sub(s, bx, place, errs, info, mark):
     for k in range(30):                     # half once he is on (SwapPlayerNameData), the other half untouched
         r = s.send('fire:0.5 dump:1' if k < 6 else 'dump:1')
         if k < 6:
-            s.shot(f'after_sub{k}')
+            s.shot(f'{tag}after_sub{k}')
         ordt = r.read(r.base1 + bx - 4 - 156, 52)
         mine, other = list(ordt[26 * t:26 * t + 26]), list(ordt[26 * (1 - t):26 * (1 - t) + 26])
         moved = [(j, x) for j, x in enumerate(mine) if x != j]
         if moved or r.outcome != 'dump':
             break
     info.append(f'bx_ord team {t + 1} after {k + 1} pauses: {moved}, the other {[(j, x) for j, x in enumerate(other) if x != j]}')
-    check(other == list(range(26)) and len(moved) == 2 and any(x == place - 1 for j, x in moved)
+    oth0 = list(ord0[26 * (1 - t):26 * (1 - t) + 26])
+    check(other == oth0 and len(moved) == 2 and any(x == place - 1 for j, x in moved)
           and all(dict(moved).get(x) == j for j, x in moved), f'bx_ord after the change: mine {moved}, other {other}', errs)
-    return True
+    return t + 1                            # (the team whose NumSubs moved: 1 / 2)
 
 
 def bald_icons(r):
@@ -5081,8 +5100,9 @@ def bench_play(s, gmax, top, bot, wants, errs, info, mark, sub=None, icons=None,
         import benchx
         spr = namespr.find(o)['spridx']
         for t, (name, pl) in enumerate(teams):
-            if name in wants and min(wants[name], cap) > 16:   # (the match's places: 11 + its bench)
-                sp = n14_sprites(r, spr, ega, benchx.NB + 10 * t, min(wants[name], cap) - 16)
+            nw = wants.get(name) or (16 + len(wants['*'](name)) if os.environ.get('BENCH_2H') and wants.get('*') else 0)
+            if nw and min(nw, cap) > 16:    # (the match's places: 11 + its bench; 2 humans: the CPU club's too)
+                sp = n14_sprites(r, spr, ega, benchx.NB + 10 * t, min(nw, cap) - 16)
                 ends = [max((max(x) for x in rows if x), default=-1) for *_, rows in sp]
                 info.append(f'{name}: name sprites of places 17..: {len(sp)}, ends {ends}')
                 out = wants.get('-', set())  # (2: a left-out place's sprite is not checked)
@@ -5119,7 +5139,27 @@ def bench_play(s, gmax, top, bot, wants, errs, info, mark, sub=None, icons=None,
     check(lists >= 1 or ega, f'the bench list never seen ({bench} calls)', errs)   # (subs_rows reads 256 colours)
     goal = None
     if sub:                                 # (bx_bench obj1 offset, bench place, careerTeam obj2): a change from beyond 16
-        bench_sub(s, sub[0], sub[1], errs, info, mark)
+        if os.environ.get('BENCH_2H'):      # (4.0.6, Davide 31/10) two humans, both on the long bench: the CPU club's
+            td = team_data()                # coach made player 1 (playerCoachNumber: the controls its bench reads),
+            mine = 0 if teams[0][0] in wants else 1   # then each team's own bench (PgDn the top team's, PgUp the
+            p2 = int(os.environ['BENCH_2H'])          # bottom's) and a change from beyond 16: managed club place
+            s.poke(r.base2 + td[1 - mine] + 6, b'\x01\x00')   # sub[1], the other one BENCH_2H
+            keys = ('pgdn', 'pgup')
+            info.append(f'2 humans: {teams[1 - mine][0]} ({("top", "bottom")[1 - mine]}) coach -> player 1')
+            mark(info[-1])
+            t1 = bench_sub(s, sub[0], sub[1], errs, info, mark, key=keys[mine], tag='h1_')
+            t2 = t1 and bench_sub(s, sub[0], p2, errs, info, mark, key=keys[1 - mine], gone=set(), tag='h2_')
+            check(t1 and t2 and t1 != t2, f'2 humans: changes by teams {t1} / {t2}', errs)
+            r = s.result
+            for j, (base, pl_) in enumerate(((top, sub[1] if mine == 0 else p2), (bot, sub[1] if mine == 1 else p2))):
+                name, pl = ingame_team(r, base)
+                off = pl[pl_ - 1]
+                info.append(f'{name} after its change: place {pl_} {off[0]}/{off[1]}/{off[2]}, on the pitch from 12+: '
+                            + ', '.join(f'{i + 1}:{x[0]}' for i, x in enumerate(pl[:11]) if x[0] and r.read(
+                                r.base2 + base + 61 * i + 0x2b, 1)[0] >= 11))
+                check(off[0] and off[1] == 0xFF, f'{name}: place {pl_} after the change {off}', errs)   # (off: position -1)
+        else:
+            bench_sub(s, sub[0], sub[1], errs, info, mark)
         r = s.result
         old1 = r.read(r.base2 + oldt, 96)
         check(old1 == old0, f'the old name tables written: {[(k, a, b) for k, (a, b) in enumerate(zip(old0, old1)) if a != b][:8]}', errs)

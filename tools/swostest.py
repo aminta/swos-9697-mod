@@ -235,6 +235,8 @@ SCAN.update({ch: sc for row, base in (('1234567890', 0x02), ('qwertyuiop', 0x10)
 SCRIPT_MAX = 200                                       # steps a pause can write
 TICKS = 70                                             # timer ticks per s (-timer mode)
 HOLD = 1                                               # GetKey calls a typed key stays held (more = menu auto-repeat)
+PRESS_FIRE = 'fire'                                    # press()'s fire ('fire up:0.05' under SWOS++'s timer feed: the
+                                                       # menus read the latched last key, a fire would be read again)
 RATE = 30                                              # GetKey calls per second in the menus (calibrated)
 
 
@@ -1018,7 +1020,7 @@ def press(s, scr, text, wait=2, exact=True):
     bad = set()
     for attempt in range(40):
         if scr.selected == i:
-            return s.send(f'fire dump:{wait}')
+            return s.send(f'{PRESS_FIRE} dump:{wait}')
         steps = scr.path(i, bad, steps=True)
         if not steps:
             return None
@@ -5407,6 +5409,8 @@ def bench_world():
             return True, 'SKIP: SWOS++ is English only (SWOSTEST_UI=en)'
         shutil.copy(exe, exe + '.nospp')
         swospp.install(exe + '.nospp', exe)
+        global PRESS_FIRE
+        PRESS_FIRE = 'fire up:0.05'
         pp = os.path.join(MAIN, 'internal', 'swospp-test')
         files = {'LOADER.BIN': os.path.join(pp, 'loader.bin'), 'SWOSPP.BIN': os.path.join(pp, 'swospp.bin')}
     p = lepatch.LEPatch(exe)

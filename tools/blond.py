@@ -763,7 +763,9 @@ unch:                                   ; replaces InitGameRestoreTeams' call Un
     mov [D0], eax
     add eax, 101
     mov [D1], eax
+    pushad                              ; (UnchainSprites changes ebx: the third slot was left chunky, rc15 /H)
     call USP
+    popad
 .n:
     inc ebx
     cmp ebx, NSLOT_

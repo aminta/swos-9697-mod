@@ -716,6 +716,13 @@ static int team_club(u16 team) {        /* a team word -> its club (division * G
    relegated club of the B team's division stays (the level keeps its size). */
 extern const u8 SEC_TAB[];
 extern s8 SEC_SLT[], SEC_COPY[];
+enum { BQ_N = 24 };
+extern u8 GP_SEAS;
+u8 SEC_BQ[BQ_N];                        /* 4.0.6 [0] the season byte when written (GP_SEAS at the season end: a new
+                                           career's or another career's stale bytes are not this season's), then per B
+                                           team (SEC_TAB order): 1 it may go up next season, 2 it may not (sec_post,
+                                           its country's tables; 0: not known - an older save, a country not played:
+                                           zones.py's build-time value). Item 'BQ'; zones zb_is reads it. */
 enum { SEC_PO = 1, SEC_EXIT = 2 };
 
 static const u8 *sec_find(int g, int team, const u8 **ent) {   /* the country entry and B entry of global g (or
@@ -829,6 +836,20 @@ void sec_post(void) {                                   /* gp_end, after the mov
                     SEC_COPY[g] = SEC_SLT[g] + dl;
                     break;
                 }
+        }
+    }
+    t = SEC_TAB + 1;                                    /* 4.0.6 next season: may each B team go up (zone colours) */
+    for (int c = 0, bi = 0; c < nc; c++) {
+        const u8 *ct = t, *e = t + 1 + t[0] + 1;
+        int n = t[1 + t[0]];
+        t = e + 8 * n;
+        for (int i = 0; i < n; i++, e += 8, bi++) {
+            int gb = e[0] | e[1] << 8, gf = e[2] | e[3] << 8, rb = sec_row(gb);
+            if (rb < 0 || bi + 1 >= BQ_N) continue;
+            int target = sec_newlvl(ct, DV(rb), gb) - 1, rf = gf == 0xFFFF ? -1 : sec_row(gf);
+            int bad = (e[4] != 0xFF && target < e[4]) || (rf >= 0 && target <= sec_newlvl(ct, DV(rf), gf));
+            SEC_BQ[1 + bi] = bad ? 2 : 1;
+            SEC_BQ[0] = GP_SEAS;
         }
     }
 }

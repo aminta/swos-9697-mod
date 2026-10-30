@@ -476,8 +476,10 @@ def eu_places(rank):
     return out, (cw[0] if cw else None)
 
 
-BSKIP = 0x40                    # 4.0.6 a range's colour byte | BSKIP: its places count the clubs that may qualify only
-NOT_QUAL = ('down', 'out', 'po_down')   # (the ranges that count every club: relegation, play-outs)
+BSKIP = 0x40                    # 4.0.6 a range's colour byte | BSKIP: its places count the clubs that may qualify only:
+BSKIP_PO = 0x20                 # promotion (B teams that may not go up skipped); | BSKIP_PO: any other qualifying place
+NOT_QUAL = ('down', 'out', 'po_down')   # (a play-off, title, cup: also the B teams without play-offs); none: relegation,
+UP_WHY = ('up',)                # play-outs (every club counts)
 
 
 def _sec_rules(d):
@@ -487,24 +489,35 @@ def _sec_rules(d):
     m = json.load(open(pj)) if os.path.isfile(pj) else {}
     r = next((c['second_teams'].get('rules') for c in m.get('competitions', []) if c.get('type') == 'league'
               and isinstance(c.get('second_teams'), dict)), None)
-    return r if r in mkseason.SECOND_RULES and not mkseason.SECOND_RULES[r][1] else None
+    return r if r in mkseason.SECOND_RULES else None
 
 
-def bskip_words():
-    """4.0.6 the team words of the B teams that never qualify by place (SEC_TAB without play-offs: ESP, POR, GER, NED
-    second teams, NZ's A-League reserves) - zn_col's ZB table"""
+def bskip_entries():
+    """4.0.6 zn_col's ZB table: per B team of SEC_TAB (its order = gplay's SEC_BQ index): (team word, index, flags:
+    1 it may not go up - the world's start: its level - 1 above 'top' or not below its first team's level, as gplay's
+    sec_up_bad -, 4 no play-offs). gplay's season end replaces bit 0 (SEC_BQ)."""
     import mkseason
-    t, out = mkseason.second_table(), []
-    o = 1
-    for _ in range(t[0]):
-        nd = t[o]
-        n = t[o + 1 + nd]
-        e = o + 2 + nd
-        for i in range(n):
-            g, f, top, fl, w = struct.unpack_from('<HHBBH', t, e + 8 * i)
-            if not fl & 1:
-                out.append(w)
-        o = e + 8 * n
+    out, bi = [], 0
+    for pk in mkseason.packs():
+        st = (pk.league or {}).get('second_teams') if pk.world is not None else None
+        if not st or st.get('rules') not in mkseason.SECOND_RULES:
+            continue
+        top, po = mkseason.SECOND_RULES[st['rules']]
+        divs = pk.divisions()
+        par = pk.league.get('parallel')
+        pars = {q['first']: q['count'] for q in (par if isinstance(par, list) else [par] if par else [])}
+        lv, d, l = [], 0, 0
+        while d < len(divs):
+            lv += [l] * pars.get(d, 1)
+            d += pars.get(d, 1)
+            l += 1
+        lvl = lambda k: lv[pk.division[k]] if pk.division[k] < len(lv) else lv[-1] + 1
+        for k, f in [(k, c['second_of']) for k, c in pk.clubs.items() if c.get('second_of')]:
+            target = lvl(k) - 1
+            bad = (top != 0xFF and target < top) or (f in pk.clubs and f in pk.league_clubs and target <= lvl(f))
+            out.append((pk.where[k][0] | pk.where[k][1] << 8, bi, (1 if bad else 0) | (0 if po else 4)))
+            bi += 1
+    assert bi < 24, bi                                  # (gplay.c BQ_N: [0] the season byte)
     return out
 
 
@@ -521,8 +534,9 @@ def table(lang, pack_dirs):
             seen.add((world, title))
             leg = legend(rng, kind, why)
             if sec:                                      # 4.0.6 qualifying places skip the B teams that may not
-                rng = [(a, z, c | BSKIP if not a & 0x80 and (wh or '') not in NOT_QUAL else c)   # qualify (zn_col zb_eff)
-                       for (a, z, c), wh in zip(rng, list(why or []) + [None] * len(rng))]
+                rng = [(a, z, c if a & 0x80 or (wh or '') in NOT_QUAL else c | BSKIP if wh in UP_WHY else   # (zn_col
+                        c | BSKIP | BSKIP_PO) for (a, z, c), wh in zip(rng, list(why or []) + [None] * len(rng))]   # zb_eff)
+                assert all(c & 0x1F == c & ~(BSKIP | BSKIP_PO) for _, _, c in rng)
             out.append((world, title, rng, leg, kind, metas.get(world, {}).get('start_year', 1900) - 1900,
                         code, leg if gleg is None else gleg))
     out += [r for r in conti_rows(lang, metas) if (r[0], r[1]) not in seen]
@@ -1019,20 +1033,19 @@ BSKIP_RANGE_ASM = """    test byte [esi + 2], BSKIP_         ; 4.0.6 a qualifyin
     jmp .m
 .bq:
 """
-BSKIP_MASK_ASM = """    and edx, BSKIP_ - 1
+BSKIP_MASK_ASM = """    and edx, BSKIP_PO_ - 1
 """
 BSKIP_ASM = r"""
-zb_eff:                                 ; eax = the row's place (in its group), [D7] / 2 its row: [ZBP] = the place
-    pushad                              ; less the B teams that may not qualify above it, [ZBS] = 1 for such a row
-    mov [ZBP], al
+zb_eff:                                 ; eax = the row's place (in its group), [D7] / 2 its row: [ZBP] / [ZBP2] = the
+    pushad                              ; place less the B teams above it that may not go up / not qualify (zb_is
+    mov [ZBP], al                       ; bits 0 / 1), [ZBS] = this row's bits
+    mov [ZBP2], al
     mov byte [ZBS], 0
 BSKIP_OV
     mov esi, [A1]
     mov ax, [esi]
     call zb_is
-    jne .c
-    mov byte [ZBS], 1
-.c:
+    mov [ZBS], dl
     movzx ecx, word [D7]
     shr ecx, 1                          ; (the row in DIY + 6Dh's order: the group's rows run on)
     movzx ebx, byte [ZBP]
@@ -1048,8 +1061,13 @@ BSKIP_OV
     add esi, [SELTEAMS]
     mov ax, [esi]
     call zb_is
-    jne .n
+    test dl, 1
+    jz .n1
     dec byte [ZBP]
+.n1:
+    test dl, 2
+    jz .n
+    dec byte [ZBP2]
 .n:
     inc ebx
     jmp .l
@@ -1058,10 +1076,16 @@ BSKIP_OV
     ret
 
 zb_rng:                                 ; esi = a qualifying range -> ZF = 1: this row's place among the clubs that
-    push eax                            ; may qualify ([ZBP]) in it and the row not a B team that may not
-    cmp byte [ZBS], 0
-    jne .n
+    push eax                            ; may qualify for it in it, the row not a B team that may not
+    mov ah, 1
     mov al, [ZBP]
+    test byte [esi + 2], BSKIP_PO_
+    jz .k
+    mov ah, 2
+    mov al, [ZBP2]
+.k:
+    test [ZBS], ah
+    jnz .n
     cmp al, [esi]
     jb .n
     cmp al, [esi + 1]
@@ -1074,28 +1098,48 @@ zb_rng:                                 ; esi = a qualifying range -> ZF = 1: th
     pop eax
     ret
 
-zb_is:                                  ; ax = a team word -> ZF = 1: a B team that may not qualify (ZB)
-    push esi
+zb_is:                                  ; ax = a team word -> dl: bit 0 a B team that may not go up, bit 1 one that
+    push esi                            ; may not qualify (bit 0 or no play-offs); 0: any other club
     push ecx
+    xor edx, edx
     mov esi, ZB
     movzx ecx, byte [esi]
     inc esi
 .t:
-    jecxz .no
+    jecxz .r
     cmp ax, [esi]
     je .y
-    add esi, 2
+    add esi, 4
     dec ecx
     jmp .t
-.no:
-    or esi, esi
 .y:
+    mov dl, [esi + 3]                   ; the build's flags (1 may not go up, 4 no play-offs)
+    movzx ecx, byte [esi + 2]
+    mov cl, [SEC_BQ + 1 + ecx]          ; gplay's last season end (1 may go up, 2 may not; 0: none - the build's)
+    test cl, cl
+    jz .b
+    push eax
+    mov al, [SEC_BQ]                    ; (written in the season before this one: else stale, another career's)
+    inc al
+    cmp al, [SEASONP]
+    pop eax
+    jne .b
+    and dl, 4
+    dec cl
+    or dl, cl
+.b:
+    test dl, 5
+    jz .c
+    or dl, 2
+.c:
+    and dl, 3
+.r:
     pop ecx
     pop esi
     ret
 
 ZB: db ZB_N
-    dw ZB_W
+ZB_ROWS
 """
 HDR_LEG_ASM = """    test edi, edi                       ; group headers on: the group legend (entry +GLEG)
     jz .hl
@@ -1343,10 +1387,12 @@ def bskip_patch(p, at, area):
     """4.0.6 zb_eff / zb_is and the ZB table at obj1:at (the longtable room; the cosmetics page is full) - before
     patch(); returns its end (at unchanged when no B team skips)"""
     global BSKIP_LAB
-    zb = bskip_words()
+    zb = bskip_entries()
     BSKIP_LAB = None
-    if not zb:
+    import gplay
+    if not zb or 'SEC_BQ' not in gplay.LABELS:
         return at
+    season = gplay.LABELS['SEASONPLAYING']
     import lp36
     import fmtpage
     import mkseason
@@ -1356,9 +1402,10 @@ def bskip_patch(p, at, area):
     src = nasmcave.sub(BSKIP_ASM, 'BSKIP_OV\n', '''    cmp byte [OV_ON], 0                 ; (an overall / stage table: not DIY's live order)
     jne .x
 ''' if ov else '')
-    src = src.replace('ZB_W', ', '.join(map(str, zb))).replace('ZB_N', str(len(zb)))
-    zbv = area.add(bytes(2))
-    sym = {'ZBP': (2, zbv), 'ZBS': (2, zbv + 1), 'SELTEAMS': (2, mkseason._hook_sites(p)[3]), 'D7': (2, s['A0'] - 4),
+    src = src.replace('ZB_ROWS', '\n'.join(f'    dw {w}\n    db {i}, {f}' for w, i, f in zb)).replace('ZB_N', str(len(zb)))
+    zbv = area.add(bytes(3))
+    sym = {'ZBP': (2, zbv), 'ZBS': (2, zbv + 1), 'ZBP2': (2, zbv + 2), 'BSKIP_PO_': (0, BSKIP_PO),
+           'SEC_BQ': gplay.LABELS['SEC_BQ'], 'SEASONP': season, 'SELTEAMS': (2, mkseason._hook_sites(p)[3]), 'D7': (2, s['A0'] - 4),
            'A1': (2, s['A0'] + 4), 'DIY': (2, s['DIY']), **({'OV_ON': (2, fmtpage.OV['on'])} if ov else {})}
     code, cfix = nasmcave.assemble(src, at, sym)
     assert not any(p.get(1, at, len(code)))
@@ -1367,7 +1414,8 @@ def bskip_patch(p, at, area):
         p.add_ptr(1, at + o, t_obj, t_off)
     lab = nasmcave.labels(src, at, sym)
     BSKIP_LAB = {'zb_eff': (1, lab['zb_eff']), 'zb_rng': (1, lab['zb_rng'])}
-    print(f'exe: zone places skip {len(zb)} B teams that may not qualify (code obj1+{at:#x}, {len(code)} B)')
+    print(f'exe: zone places skip the {len(zb)} B teams that may not qualify (code obj1+{at:#x}, {len(code)} B; '
+          f'SEC_BQ obj2+{gplay.LABELS["SEC_BQ"][1]:#x}; SEASONP obj2+{season[1]:#x}; ZB ' + ' '.join(f'{w:x}:{i}:{f}' for w, i, f in zb) + ')')
     return at + len(code)
 
 
@@ -1443,7 +1491,7 @@ def patch(p, at, area, lang, pack_dirs, bss, bss_len, world=None):
     src = nasmcave.sub(src, 'BSKIP_PREP\n', BSKIP_PREP_ASM if zb else '')    # (bskip_patch: in the longtable room)
     src = nasmcave.sub(src, 'BSKIP_RANGE\n', BSKIP_RANGE_ASM if zb else '')
     src = nasmcave.sub(src, 'BSKIP_MASK\n', BSKIP_MASK_ASM)
-    sym['BSKIP_'] = (0, BSKIP)
+    sym.update({'BSKIP_': (0, BSKIP), 'BSKIP_PO_': (0, BSKIP_PO)})
     if zb:
         sym.update(zb)
     stg = ov and 'flag' in fmtpage.OV                   # 4.0.5 the earlier stages' tables' zones (stage_key)

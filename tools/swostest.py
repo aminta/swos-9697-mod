@@ -2474,6 +2474,74 @@ def zones_force_played(s, lang, errs, tag):
     s.send('dump:1')
 
 
+def zb_info(b):
+    """4.0.6 a release build's SEC_BQ (obj2 offset) and ZB rows [(team word, SEC index, flags)] from its build.log
+    (zones.bskip_patch's line; ZBSKIP_LOG: that file, e.g. for remote_run), or None"""
+    lg = os.environ.get('ZBSKIP_LOG') or os.path.join(os.path.dirname(b.rstrip('/')), 'build.log')
+    m = re.search(r'SEC_BQ obj2\+(0x[0-9a-f]+); SEASONP obj2\+(0x[0-9a-f]+); ZB ([0-9a-f: ]+)\)', open(lg).read()) \
+        if os.path.exists(lg) else None
+    if not m:
+        return None
+    return int(m.group(1), 16), [tuple(int(x, 16) if k == 0 else int(x) for k, x in enumerate(e.split(':')))
+                                 for e in m.group(3).split()], int(m.group(2), 16)
+
+
+@scenario
+def zones_bq_season():
+    """4.0.6 gplay's season end writes SEC_BQ (may each B team go up next season; item 'BQ' in the .CAR): a World
+    2026-27 career at ALMERIA (SEGUNDA DIVISION, REAL SOCIEDAD B), two seasons with a save and a reload between: after
+    the first season end REAL SOCIEDAD B's byte is 1 or 2 (its first team in LaLiga: 2), byte 0 = the season that
+    ended (valid in the next), and it stays set through the save and reload (never 0 again); the world's other B
+    teams are set too (gplay's tables hold every country)
+    (ZBSKIP_BUILD / SWOSTEST_BUILD: a release dir)"""
+    b = os.environ.get('ZBSKIP_BUILD') or os.environ.get('SWOSTEST_BUILD') or builds()['it']
+    zi = zb_info(b)
+    if not zi:
+        return True, f'SKIP: {b}: no SEC_BQ line in its build.log'
+    off, zb, sp = zi
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import mkseason
+    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-403c6')
+    pk = mkseason.Pack(os.path.join(src, 'esp'))
+    esp = {pk.where[k][0] | pk.where[k][1] << 8 for k, c in pk.clubs.items() if c.get('second_of')}
+    ie = [1 + i for w, i, f in zb if w in esp]
+    keep = {x: os.environ.get(x) for x in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K',
+                                            'W8485_NOSACK', 'W8485_HEX', 'W8485_ONE')}
+    os.environ.update(W8485_BUILD=b, W8485_WORLD='MONDO 2026-27', W8485_TEAM='EUROPA,SPAGNA,SEGUNDA DIVISION,ALMERIA',
+                      W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1', W8485_HEX=f'{off:x}:24,{sp:x}:1')
+    os.environ.pop('W8485_ONE', None)
+    try:
+        ok, msg = world8485()
+    finally:
+        for x, v in keep.items():
+            if v is None:
+                os.environ.pop(x, None)
+            else:
+                os.environ[x] = v
+    errs = []
+    check(ok, msg[:200], errs)
+    seq, seas = [], []                                 # (the bytes as they change; the season byte at each change)
+    for k in (1, 2):
+        lg = os.path.join(RUNS, w84_tag() + f'_{k}', 'session.log')
+        cur = None
+        for ln in (open(lg, errors='replace') if os.path.exists(lg) else []):
+            q = ln.split()
+            if len(q) == 3 and q[0] == 'HEX' and q[1] == f'{sp:x}':
+                cur = int(q[2], 16)
+                seas.append((len(seq), cur))
+            if len(q) == 3 and q[0] == 'HEX' and q[1] == f'{off:x}':
+                seq.append(bytes.fromhex(q[2]))
+    vals = [[v[i] for i in ie] for v in seq]
+    first = next((j for j, v in enumerate(vals) if all(v)), None)
+    check(ie and first is not None, f'ESP B bytes {vals} (SEC index {ie})', errs)
+    if first is not None:
+        check(all(all(v) for v in vals[first:]), f'ESP B byte back to 0 after the first season end: {vals}', errs)
+        st = [(j, c) for j, c in seas]                 # (the season byte: written at the season end = the season
+        wr = [seq[j][0] for j in range(first, len(seq))]   # that ended, the next one is +1)
+        check(all(w + 1 in [c for _, c in seas] for w in wr), f'season stamps {wr}, seasons {st}', errs)
+    return not errs, '; '.join(errs + [f'ESP B {vals} of {[x.hex() for x in seq]}; season byte {seas}'])
+
+
 @scenario
 def zones_bskip():
     """4.0.6 qualifying places skip the B teams that may not qualify (zones.py zb_eff / zb_rng, SEC_TAB without play-offs:
@@ -2530,6 +2598,7 @@ def zones_bskip():
                     rest = [x for x in lst if x not in order]
                     for t, x in zip(tops, order):
                         rest.insert(t, x)
+                    w0 = word(rest[0])                 # (the B team now 1st; read before the poke's pause ends)
                     s.poke(diy + 0x6D, list(struct.pack(f'<{n}H', *rest)))
                     s.send('dump:1')
                     m = 2 + up + po + 2
@@ -2544,6 +2613,19 @@ def zones_bskip():
                         want.append('lb' if q <= up else 'gr' if q <= up + po else 'pl')
                     check(got == want, f'{code}: rows {got} (want {want})', errs)
                     info.append(f"{code} {''.join(z[0] for z in got)}")
+                    bq = zb_info(b)                    # 4.0.6 gplay's season-end value (SEC_BQ): the first B team
+                    if code == 'ESP' and bq:           # may go up -> its row PROM, the play-off places still
+                        off, zb, sp = bq               # without it (no play-offs): 1-2 PROM, 3rd plain, 4-7 P.OFF
+                        i = next(i for w, i, f in zb if w == w0)   # (stamped last season: valid)
+                        r = s.send('dump:1')
+                        s.poke(r.base2 + off, [(r.obj2(sp, 1)[0] - 1) & 0xFF])
+                        s.poke(r.base2 + off + 1 + i, [1])
+                        s.send('dump:1')
+                        rows, _ = zone_rows(s, f'zbskip_{code.lower()}_bq', m)
+                        got = [z for _, z in rows]
+                        want = ['lb', 'lb', 'pl'] + ['gr'] * po + ['pl'] * (m - 3 - po)
+                        check(got == want, f'{code} SEC_BQ 1: rows {got} (want {want})', errs)
+                        info.append(f"{code} BQ=1 {''.join(z[0] for z in got)}")
     return not errs, '; '.join(errs + info)
 
 
@@ -14081,6 +14163,75 @@ def world_gplay_nzchamp(force='1', team='OCEANIA,NUOVA ZELANDA,NORTHERN LGE|NORT
         if not ok1:
             return False, f'{msg}; season {sn}: {m1}'
     return not errs, '; '.join(errs) or f'{msg}; {m1}'
+
+
+@scenario
+def zones_bskip_nzchamp():
+    """4.0.6 (Regia) the NZ Championship's table, its 1st-2nd to the Grand Final by the non-reserves (zones.py zb_eff,
+    gplay's rule: the A-League reserves never qualify by place): world_gplay_nzchamp's career (WESTERN SPRINGS forced
+    1st of the Northern League, the Championship played), on the career menu during the Championship VISUAL.
+    COMPETIZ. > the Championship's table, its sorted list (DIY + 6Dh) poked so AUCKLAND FC RES and PHOENIX RES. stand
+    1st and 2nd (a test poke, nothing saved): those rows plain, the 3rd and 4th green, the 5th plain"""
+    global W84_HOOK
+    src = os.environ.get('W2627NZ_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-nzchamp')
+    if not os.path.isdir(src):
+        return True, f'SKIP: private data {src} missing'
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import lepatch
+    import mkseason
+    pk = mkseason.Pack(os.path.join(src, 'nzl'))
+    res = {pk.where[k][0] | pk.where[k][1] << 8 for k, c in pk.clubs.items() if c.get('second_of')}
+    sel = mkseason._hook_sites(lepatch.LEPatch(os.path.join(ROOT, 'orig', 'ITALIAN.EXE')))[3]
+    st = {}
+
+    def hook(s, season, scr):
+        if scr is None or 'got' in st or season != 1:
+            return
+        if 'TRASFERIMENTI' not in scr.texts() or 'VISUAL. COMPETIZ.' not in scr.texts():
+            return
+        walk(s, s.screen().find('VISUAL. COMPETIZ.', exact=True), 3)
+        lst = s.screen()
+        i = next((e[0] for e in lst.entries if e[1] and 'CHAMPIONSHIP' in e[1] and not e[2]), None)
+        st['lists'] = st.get('lists', 0) + 1
+        if i is not None:
+            walk(s, i, 3)
+            r = s.send('dump:1')
+            diy = diy_lin(s)
+            title = bytes(r.read(diy + 4, 40)).split(b'\0')[0].decode('latin-1')
+            n = struct.unpack('<H', r.read(diy + 0x31, 2))[0]
+            if 'CHAMPIONSHIP' in title and 4 <= n <= 24:
+                if struct.unpack('<H', r.read(diy + 0x2B3 + 4, 2))[0] == 0:
+                    s.poke(diy + 0x2B3 + 4, [1, 0])     # (no match day yet: one played, so the zones show)
+                    r = s.send('dump:1')
+                lst6 = list(struct.unpack(f'<{n}H', r.read(diy + 0x6D, 2 * n)))
+                base = struct.unpack('<I', r.read(r.base2 + sel, 4))[0]
+                word = lambda off: struct.unpack('<H', r.read(struct.unpack('<I', r.read(diy + off + 0x2B3, 4))[0]
+                                                               + base, 2))[0]
+                rv = [x for x in lst6 if word(x) in res]
+                rest = rv + [x for x in lst6 if x not in rv]
+                s.poke(diy + 0x6D, list(struct.pack(f'<{n}H', *rest)))
+                s.send('dump:1')
+                rows, _ = zone_rows(s, 'zbskip_nzchamp', 5)
+                st['got'] = ([z for _, z in rows], len(rv), title, n)
+            else:
+                st['other'] = title
+        for _ in range(8):
+            if 'TRASFERIMENTI' in s.screen().texts():
+                break
+            if press(s, s.screen(), 'ESCI', 3) is None:
+                s.send('fire dump:2')
+    hook.at_load = False
+    W84_HOOK = hook
+    try:
+        ok, msg = world_gplay_nzchamp()
+    finally:
+        W84_HOOK = None
+    errs = []
+    check(ok, msg[:300], errs)
+    got = st.get('got')
+    check(got and got[1] == 2 and got[0] == ['pl', 'pl', 'gr', 'gr', 'pl'],
+          f'Championship rows {got} (want both reserves plain, 3rd-4th green); {st}', errs)
+    return not errs, '; '.join(errs + [f'{st}'])
 
 
 def nzchamp_season(lines, st_at, log_at, res_words, gff, kof, errs):

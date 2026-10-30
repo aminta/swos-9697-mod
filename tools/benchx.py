@@ -18,6 +18,12 @@ substituted). The buffers' tail (bytes 1018..1703) is free (harness bench_mem, 2
   those places through xbrowse's xs_ga (index 16 + r = the r-th player still there) and GetPlayer through xtra's
   gp_wide (the cached slot; the after-match cards / injuries / goals of those players land in that cache only:
   not kept once it is re-read). Builds without xtra (no XTRA blocks): 16 as before. Friendlies / seasons: 16 (phase 2).
+  (2, 4.0.6) with a bench over 5 an injured / suspended bench player is left out of the match (Davide 31/10, the real
+  rule): InitInGamePlayer already marks him substituted with position -1 (IsPlayerInjured), bx_next turns his place
+  into an empty one (no name, no figure in the dugout; the order is not changed, the bench is one shorter; the
+  after-match write-backs skip substituted places, so his injury / cards stay as they were). The pre-match ready
+  check (ShowOrHidePlayMatchButton's GetNumberOfAvailablePlayers(11 + max), pm_nr) then asks only for 11 available
+  starters; the game's bench of 5 keeps its own check of 16 places.
 - inGameTeamPlayerOffsets (16 x index * 61) moves to a 26-entry table here: every fixup to it is retargeted.
 - The game's own `cmp word [gameMaxSubstitutes], 5` branches (a bench over 5 = the first bench place is the
   goalkeeper's only, in FirePressedInSubsMenu, UpdateSubstitutePlayerIndices and DrawBenchPlayersAndCoach twice)
@@ -43,6 +49,21 @@ that scrolls with the cursor (Davide's choice B).
 - The after-match write-backs (cseg_2F194 cards, UpdatePlayerInjuries, cseg_2F3AB goals: `mov word [D2], 15`, 16
   in-match players) -> bx_wcount: 11 + max(5, gameMaxSubstitutes) places (16 with the game's bench: no stale
   record read), so a player from place 17 on who came on keeps his card / injury / goals (GetPlayer: careerTeam's 32).
+
+The three 17-row player lists (pre-match screen, SQUADRA, tactics editor; task 1 = rows 12..17 a window on the places
+from 12 on, scrolled by the box left of row 17), 4.0.6 (Davide 31/10):
+- a marked player stays marked when the window scrolls: the game keeps the mark as his place (selectedPlayerPosition /
+  dseg_16F48C / dseg_17994A = GetPlayerInfoBreakPosition's D1, not a row), draws it wherever he shows and swaps by
+  place, so pm_rot / et_rot no longer cancel it (sq_rot never did);
+- the cursor scrolls the window as in the dugout: MenuProc's `mov [D6], ax` (the move, 2 up / 3 down, before it looks
+  for the next entry) -> bx_mdir: on row 17 down / row 12 up, while the window can move (0 .. players - 17, as the
+  box), the window moves one place and the cursor stays (the menu redrawn, no entry search). The screen is told by the
+  selected entry's onSelect (OnSwapPlayer, SquadCommon, EditTacticsPlayerNamesCommon) and its ordinal.
+- VIEW OPPONENT (the pre-match screen with viewingOpponentTeam; Davide's PANpt4 photo: a CPU BOLOGNA showed 11 + 5,
+  its places 17.. out of sight): with a bench over 5 the opponent's places are 16 + its XTRA block's players (po_n, as
+  bx_next: a career's CPU club), at most 11 + the bench; rows 12..17 a window bx_po on them (pm_row; row 17 = entry
+  29 made visible, the game shows it by the own team's count), read-only: on a CPU club's view up / down anywhere move
+  the window one place (bx_mdir, wrapping as the box), nothing else changes.
 
 spritesIndex past the game's 1335 entries (shirtnum.py's extension into the 3072 free bytes after it: indices
 1335..2102; it cannot move, SWOS++ holds its address):
@@ -84,6 +105,23 @@ bx_next:                                ; replaces `add word [D2], 1 / cmp word 
     push eax
     push ecx
     push edi
+    cmp word [GMAX], 5                  ; a bench over 5: a bench player InitInGamePlayer left out (IsPlayerInjured:
+    jbe .in                             ; injured / suspended -> substituted, position -1) becomes an empty place
+    cmp word [D2], 11                   ; (Davide 31/10: left out of the match, the bench one shorter, the order kept)
+    jb .in
+    mov edi, [A6]
+    sub edi, PI                         ; the place just made
+    cmp byte [edi + 42], 0
+    je .in
+    push edi
+    add edi, 42
+    mov ecx, PI
+    xor al, al
+    rep stosb
+    pop edi
+    mov byte [edi + 42], 1              ; substituted
+    mov byte [edi + 46], -1             ; position
+.in:
     inc word [D2]
     movzx ecx, word [GMAX]              ; the loop's end: 11 + max(5, bench), at most 26
     cmp ecx, 5
@@ -626,6 +664,7 @@ pm_max:                                 ; ShowPlayMatchMenu: replaces `mov [maxS
 .s:
     mov [MAXSUB], ax
     mov word [bx_pw], 0
+    mov word [bx_po], 0
     ret
 
 pm_row:                                 ; DrawPlayerEntries: replaces `sub word [D7], 13` (cmp word [D7], 16 follows)
@@ -642,8 +681,20 @@ pm_row:                                 ; DrawPlayerEntries: replaces `sub word 
     cmp bx, 16
     ja .rb
     cmp word [VOPP], 0
-    jne .nw
+    jne .op
     add bx, [bx_pw]
+    jmp .nw
+.op:                                    ; (4.0.6) the opponent (VIEW OPPONENT, read-only): rows 12..17 a window bx_po
+    push eax                            ; over its places 12.. when it has more than 16 (po_n)
+    call po_n
+    cmp ax, 16
+    jbe .op0
+    add bx, [bx_po]
+    cmp word [D7], 15                   ; row 16 drawn: row 17 (entry 29) shown too (the game shows it by the own
+    jne .op0                            ; team's count; SetVariableButtons resets it on the way back)
+    mov word [MENU + 16h + 29 * 38h + 4], 0
+.op0:
+    pop eax
 .nw:
     mov [bx_pp], bx                     ; the place pm_gpi reads
     cmp bx, ax
@@ -658,6 +709,28 @@ pm_row:                                 ; DrawPlayerEntries: replaces `sub word 
     pop ebx
 .r:
     pop eax
+    ret
+
+po_n:                                   ; ax = the viewed opponent's places: 16 (the game's), or with a bench over 5
+    call sq_n                           ; 16 + its XTRA block's players (a career's CPU club, as bx_next), at most
+    cmp ax, 16                          ; 11 + the bench
+    jbe .g
+    push ecx
+    push esi
+    mov cx, ax
+    mov esi, [PMT2]
+    mov ax, [esi]
+    call bx_xnamed
+    add eax, 16
+    cmp ax, cx
+    jbe .c
+    mov ax, cx
+.c:
+    pop esi
+    pop ecx
+    ret
+.g:
+    mov ax, 16
     ret
 
 pm_gpi:                                 ; DrawPlayerEntries' `call GetPlayerInfoBreakPosition` (D1 = its row): the place
@@ -695,18 +768,11 @@ pm_n:                                   ; PlayMatchMenuSwapPlayers' `mov ax, [ma
 .r:
     ret
 
-pm_nr:                                  ; ShowOrHidePlayMatchButton's GetNumberOfAvailablePlayers(11 + it): the bench,
-    call pm_n                           ; at most the team's players
-    cmp ax, 5
+pm_nr:                                  ; ShowOrHidePlayMatchButton's GetNumberOfAvailablePlayers(11 + it): the game's
+    call pm_n                           ; bench of 5 its own check (16 places); a bench over 5 only the 11 starters
+    cmp ax, 5                           ; (an unavailable bench player is left out at kick-off: bx_next)
     jbe .r
-    push ebx
-    mov bx, [NPS]
-    sub bx, 11
-    cmp ax, bx
-    jbe .b
-    mov ax, bx
-.b:
-    pop ebx
+    xor eax, eax
 .r:
     ret
 
@@ -719,8 +785,8 @@ pm_rot:                                 ; PlayMatchOnSelect30's `call RotatePlay
     cmp word [VOPP], 0
     jne .r
     push eax                            ; a bench over 5: the window one place down (back to the top after the last);
-    push ebx                            ; nobody moves, the selection is cancelled
-    mov ax, [bx_pw]
+    push ebx                            ; nobody moves; a marked player stays marked (selectedPlayerPosition is his
+    mov ax, [bx_pw]                     ; place, not a row: drawn brown wherever he shows, the swap by place)
     inc ax
     mov bx, [NPS]
     sub bx, 17
@@ -729,8 +795,6 @@ pm_rot:                                 ; PlayMatchOnSelect30's `call RotatePlay
     xor eax, eax
 .ok:
     mov [bx_pw], ax
-    mov word [SELPOS], -1
-    mov dword [PMSEL], 0
     pop ebx
     pop eax
 .r:
@@ -813,9 +877,96 @@ et_rot:                                 ; EditTacticsOnSelect28's `call RotatePl
     jle .ok
     xor eax, eax
 .ok:
-    mov [bx_tw], ax
-    mov word [ETSEL], -1
-    mov dword [ETSELE], 0
+    mov [bx_tw], ax                     ; (the mark kept, as pm_rot)
+    pop ebx
+    pop eax
+    ret
+
+bx_mdir:                                ; MenuProc's `mov [D6], ax` (the move in menu notion: 2 up, 3 down; [A0] = the
+    mov [D6], ax                        ; selected entry): a bench over 5, the cursor on the window's first / last row
+    push eax                            ; (12 / 17) moving up / down scrolls the window instead, the cursor stays (as
+    push ebx                            ; the dugout); on the pre-match screen, SQUADRA and the tactics editor
+    push esi
+    call sq_n
+    cmp ax, 16
+    jbe .no
+    cmp word [VOPP], 0                  ; (VIEW OPPONENT, a CPU club: read-only) up / down move its window, any entry
+    je .own
+    mov esi, [PMT2]
+    cmp byte [esi + 4], 1               ; teamControls: TEAM_COMPUTER
+    jne .own
+    call po_n
+    cmp ax, 16
+    jbe .no
+    sub ax, 17                          ; its last start
+    mov bx, [bx_po]
+    cmp word [D6], 3
+    jne .oup
+    inc bx                              ; down: one place on (back to the top after the last)
+    cmp bx, ax
+    jle .oset
+    xor ebx, ebx
+    jmp .oset
+.oup:
+    cmp word [D6], 2
+    jne .no
+    dec bx                              ; up: one place back (to the last from the top)
+    jns .oset
+    mov bx, ax
+.oset:
+    mov [bx_po], bx
+    jmp .scroll
+.own:
+    mov esi, [A0]
+    mov eax, [esi + 42]                 ; its onSelect: the screen
+    movzx ebx, word [esi + 2]           ; its ordinal
+    cmp eax, ONSWAP
+    jne .sq
+    cmp word [VOPP], 0
+    jne .no
+    sub ebx, 13                         ; rows = entries 13..29
+    mov esi, bx_pw
+    movzx eax, word [NPS]
+    jmp .w
+.sq:
+    cmp eax, SQCOMMON
+    jne .et
+    sub ebx, 28                         ; entries 28..44
+    mov esi, bx_sq
+    movzx eax, word [SQCNT]
+    jmp .w
+.et:
+    cmp eax, ETCOMMON
+    jne .no
+    sub ebx, 11                         ; entries 11..27
+    mov esi, bx_tw
+    movzx eax, word [ETNP]
+.w:                                     ; ebx = the row (0..16), esi -> the window, eax = the squad's players
+    sub eax, 17                         ; the window's last start (as the box: *_rot)
+    cmp word [D6], 3
+    jne .up
+    cmp ebx, 16
+    jne .no
+    cmp [esi], ax
+    jge .no
+    inc word [esi]
+    jmp .scroll
+.up:
+    cmp word [D6], 2
+    jne .no
+    cmp ebx, 11
+    jne .no
+    cmp word [esi], 0
+    jle .no
+    dec word [esi]
+.scroll:
+    pop esi
+    pop ebx
+    pop eax
+    add esp, 4                          ; (not back into MenuProc's next-entry search) the whole menu redrawn
+    jmp DRAWMENU
+.no:
+    pop esi
     pop ebx
     pop eax
     ret
@@ -844,6 +995,7 @@ bx_pw: dw 0                             ; the pre-match screen's window (the sam
 bx_pp: dw -1                            ; DrawPlayerEntries: the place of the row being drawn (-1 = the game's)
 bx_tw: dw 0                             ; the tactics editor's window
 bx_tp: dw -1                            ; its drawn row's place
+bx_po: dw 0                             ; (4.0.6) the pre-match screen's opponent window (VIEW OPPONENT), bx_bench + 12
 bx_stmark: db 'BXST'                    ; the line-ups screen (bx_stad; the harness finds these by the mark):
 bx_stk: dd 0                            ; the page shown last (0 = the first)
 bx_stn: dd 0                            ; the pages after the first
@@ -1089,6 +1241,11 @@ def sites5(p, regs, s4):
     m = [x.start() for x in re.finditer(rb'\xa1....\xa3' + pk(a0 + 4) + rb'\x66\xa1' + pk(out['VOPP'][1]) +
                                         rb'\x66\x0b\xc0\x75.\x66\xa1....\x66\x0b\xc0\x75.\xe9', d, re.S)]
     assert len(m) == 1, ('OnSwapPlayer', m)
+    out['onswap'] = m[0]
+    e = re.match(rb'\xa1....\xa3....\x66\xa1....\x66\x0b\xc0\x75(.)', d[m[0]:], re.S)   # its @@viewing_opponent_team:
+    o = m[0] + e.end() + e.group(1)[0]                                                    # mov eax, [playMatchTeam2Ptr]
+    assert d[o] == 0xA1 and d[o + 5] == 0xA3 and d[o + 6:o + 10] == struct.pack('<I', a0 + 4), ('playMatchTeam2Ptr', hex(o))
+    out['PMT2'] = t(o + 1)
     g = calls(m[0], m[0] + 0x240)
     assert len(g) == 2, ('OnSwapPlayer GPI', g)
     out['sgpi'] = g
@@ -1117,6 +1274,26 @@ def sites5(p, regs, s4):
         assert len(g) == 1, ('se_ctl GPI', g)
         out['se'] = g[0]
     return out
+
+
+def sites8(p, regs, s4, s5, s6):
+    """(1, 4.0.6) the cursor scroll: MenuProc's direction store, the starts of the three screens' row handlers (their
+    entries' onSelect: OnSwapPlayer, SquadCommon, EditTacticsPlayerNamesCommon)."""
+    d = p.le.obj_bytes(1)
+    pk = lambda x: re.escape(struct.pack('<I', x))
+    d6, d0, a0 = regs['D7'] - 4, regs['D7'] - 28, regs['A0']
+    # MenuProc: mov ax, [esi] / mov [D6], ax / mov esi, [A0] / add esi, [D6] (@@check_next_entry_loop)
+    m = [x.start() + 3 for x in re.finditer(rb'\x66\x8b\x06\x66\xa3' + pk(d6) + rb'\x8b\x35' + pk(a0) + rb'\x03\x35' + pk(d6), d)]
+    assert len(m) == 1, ('MenuProc direction', m)
+    # SquadCommon: push dword [D0] / mov dword [D0], 28 / call CalcMenuEntryAddress (its GPI call follows)
+    sq = [x.start() for x in re.finditer(rb'\xff\x35' + pk(d0) + rb'\xc7\x05' + pk(d0) + rb'\x1c\x00\x00\x00\xe8', d)]
+    sq = [o for o in sq if 0 < s4['gpi'] - o < 0x80]
+    assert len(sq) == 1, ('SquadCommon', sq)
+    # EditTacticsPlayerNamesCommon: mov ax, [dseg_179952] / or ax, ax / jns @@out / push dword [D0]
+    et = [x.start() for x in re.finditer(rb'\x66\xa1....\x66\x0b\xc0\x0f\x89....\xff\x35' + pk(d0), d, re.S)]
+    et = [o for o in et if 0 < s6['fgpi'] - o < 0x100]
+    assert len(et) == 1, ('EditTacticsPlayerNamesCommon', et)
+    return dict(mdir=m[0], SQCOMMON=(1, sq[0]), ETCOMMON=(1, et[0]), ONSWAP=(1, s5['onswap']), PMT2=s5['PMT2'])
 
 
 def sites6(p, regs, s4):
@@ -1235,6 +1412,8 @@ def patch(p, at, ns_at):
     sym.update({k: s5[k] for k in ('MAXSUB', 'NPS', 'PMSEL', 'VOPP', 'SELPOS')})
     s6 = sites6(p, regs, s4)
     sym.update({k: s6[k] for k in ('ETSEL', 'ETSELE', 'ETNP')})
+    s8 = sites8(p, regs, s4, s5, s6)
+    sym.update({k: s8[k] for k in ('SQCOMMON', 'ETCOMMON', 'ONSWAP', 'PMT2')})
     s7 = sites7(p, regs)
     hasx = 'xt_block' in xtra.LABELS                # (A): a career's CPU clubs, places 16.. from their XTRA blocks
     sym.update({k: s7[k] for k in ('DRAWMENU', 'SETEXIT', 'MENU', 'MCC', 'LASTKEY', 'SHORTFIRE', 'FIRE', 'MCT', 'TOP', 'BOT')})
@@ -1303,6 +1482,8 @@ def patch(p, at, ns_at):
         assert bytes(p.get(1, o, 9)) == d1o[o:o + 9] and d1o[o:o + 3] == b'\x66\xc7\x05', hex(o)
         call9(o, 9, 'rot_d0', 3)                    # mov word [D0], 5
     call9(s5['swap'], 6, 'pm_n', 2)                 # PlayMatchMenuSwapPlayers: mov ax, [maxSubstitutesEntries]
+    assert bytes(p.get(1, s8['mdir'], 6)) == d1o[s8['mdir']:s8['mdir'] + 6]
+    call9(s8['mdir'], 6, 'bx_mdir', 2)              # (1, 4.0.6) MenuProc: mov [D6], ax (the cursor scroll)
     call9(s5['ready'], 6, 'pm_nr', 2)               # ShowOrHidePlayMatchButton: the same
     rcalls = [(s5['dgpi'], 'pm_gpi'), (s5['rot'], 'pm_rot')] + [(o, 'pm_gpi2') for o in s5['sgpi']]
     rcalls += [(o, 'et_gpi') for o in s6['dgpi']] + [(s6['fgpi'], 'et_gpi2'), (s6['rot'], 'et_rot')]

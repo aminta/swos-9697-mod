@@ -4570,7 +4570,9 @@ def bench_sub(s, bx, place, errs, info, mark):
         ups.append((w16(v['IDX'], r.base2), w16(bx - 4, r.base1)))
     info.append(f'up/down {ups}')
     up6 = ups[5]
-    check(up6[0] == want - 6 and up6[1] == min(up6[0] - 1, max(0, want - 5)), f'up 6: (index, window) {up6}', errs)
+    gone = {int(x.split(':')[0]) - 11 for x in os.environ.get('BENCH_INJ', '').split(',') if x}   # (4.0.6: left-out
+    up_i = [i for i in range(want - 1, 0, -1) if i not in gone][5]     # places are empty: the cursor skips them)
+    check(up6[0] == up_i and up6[1] == min(up6[0] - 1, max(0, want - 5)), f'up 6: (index, window) {up6} (index {up_i})', errs)
     check(ups[-1] == (want, want - 5) if want > 5 else ups[-1][0] == want, f'down again: {ups[-1]}', errs)
     s.shot('bench_up')
     r = s.send('fire:0.2 dump:0.6')
@@ -4659,8 +4661,11 @@ def bench_squad(s, scr, bx, cmp_, cnp, errs, info, mark, woff=4, box=30, row1=13
     ref_b = states[0][1][0]                 # window 0, row 12 = place 12: bench
     ref_o = states[n - 17][1][5]            # the last window, row 17 = the last place: out of the squad (n > 26)
     bad = []
+    inj = {int(x.split(':')[0]) - 1 for x in os.environ.get('BENCH_INJ', '').split(',') if x}   # (red rows)
     for w, hs in states:
         for j, hh in enumerate(hs):
+            if 11 + w + j in inj:
+                continue
             want = 11 + w + j < last
             got = hist_dist(hh, ref_b) < hist_dist(hh, ref_o)
             if got != want:
@@ -4669,7 +4674,7 @@ def bench_squad(s, scr, bx, cmp_, cnp, errs, info, mark, woff=4, box=30, row1=13
     check(hist_dist(ref_b, ref_o) > 0.5 and not bad, f'{tag} row colours (window, row, place, seen): {bad[:12]}', errs)
 
     def goto(t):
-        for _ in range(4):
+        for _ in range(24):                 # (4.0.6: up on row 12 scrolls the window first, one round each)
             q = s.screen()
             if q.selected == t:
                 return True
@@ -4692,6 +4697,100 @@ def bench_squad(s, scr, bx, cmp_, cnp, errs, info, mark, woff=4, box=30, row1=13
     exp[10], exp[21] = order0[21], order0[10]
     check(o1 == bytes(exp), f'{tag} swap place 22 <-> 11: {list(order0)} -> {list(o1)}', errs)
     mark(f'{tag} window: {len(states)} steps, swap 22<->11 {"ok" if o1 == bytes(exp) else "FAIL"}')
+    if n < 30:                              # (4.0.6, Davide 31/10) needs places up to 29: a 30-player squad
+        return
+
+    def win():
+        r_ = s.result
+        return struct.unpack('<H', r_.read(r_.base1 + bx + woff, 2))[0]
+    # the cursor scrolls the window (rows 12 / 17, as the dugout) and a marked player stays marked: place 22 marked
+    # (window 5, row 17), 7 x down on row 17 -> window 12 (places 23..28: the mark out of sight), 5 x up -> row 12
+    # (the cursor moves, no scroll), fire: place 22 <-> 24 swapped; up once more on row 12 -> window 11
+    goto(box)                               # (the way to row 11 above scrolled the window to 0: up on row 12)
+    for _ in range(20):
+        if win() == 5:
+            break
+        s.send('fire:0.3 dump:0.4')
+    check(goto(row1 + 16) and win() == 5, f'{tag}: row 17 at window 5 not reached ({win()})', errs)
+    s.send('fire:0.3 dump:0.4')
+    seen = []
+    for _ in range(7):
+        s.send('down:0.3 dump:0.4')
+        seen.append((win(), s.screen().selected))
+    check(seen == [(6 + k, row1 + 16) for k in range(7)], f'{tag}: down on row 17 (window, selected) {seen}', errs)
+    s.shot(f'{tag}_curdown')
+    up = []
+    for _ in range(5):
+        s.send('up:0.3 dump:0.4')
+        up.append((win(), s.screen().selected))
+    check(up == [(12, row1 + 15 - k) for k in range(5)], f'{tag}: up from row 17 (window, selected) {up}', errs)
+    r = s.send('fire:0.3 dump:0.6')
+    s.shot(f'{tag}_markswap')
+    o2 = r.obj2(cmp_, n)
+    exp2 = bytearray(o1)
+    exp2[21], exp2[23] = o1[23], o1[21]
+    check(o2 == bytes(exp2), f'{tag} marked place 22 (out of sight) <-> 24: {list(o1)} -> {list(o2)}', errs)
+    s.send('up:0.3 dump:0.4')
+    w1, sel1 = win(), s.screen().selected
+    check((w1, sel1) == (11, row1 + 11), f'{tag}: up on row 12 (window, selected) {(w1, sel1)}', errs)
+    info.append(f'{tag} cursor scroll: down {[w for w, _ in seen]}, up on row 12 -> {w1}; marked swap 22<->24 '
+                + ('ok' if o2 == bytes(exp2) else 'FAIL'))
+    mark(info[-1])
+    for _ in range(20):                     # the window back to 0 by the cursor itself (up on row 12): the way out
+        if win() == 0:                      # of the screen may go up through row 12, which would scroll it first
+            break
+        if s.screen().selected != row1 + 11:
+            goto(row1 + 11)
+        s.send('up:0.3 dump:0.4')
+    check(win() == 0, f'{tag}: window not back to 0 ({win()})', errs)
+
+
+def bench_oppo(s, scr, bx, wants, errs, info, mark):
+    """(4.0.6, Davide's PANpt4 photo: VIEW OPPONENT showed a CPU club's 11 + 5 only) the pre-match screen's AVVERSARI:
+    with a bench over 5 the CPU opponent's places 12.. (16 + its XTRA block's players, at most 26) in a window of 6
+    rows (row 17 = entry 29 visible), down moves it one place (bx_po = bx_bench + 12) up to the last start and back to
+    0; then back to the own team (the button that turned into VIS. SQUADRA)."""
+    if press(s, scr, 'AVVERSARI') is None:
+        errs.append('oppo: AVVERSARI not reached')
+        return
+    q = s.screen()
+    name = q.entries[1][1] or ''
+    xn = (wants['*'](name) if wants.get('*') else []) or []
+    n = min(16 + len(xn), 26)
+    r = s.result
+    po = lambda: struct.unpack('<H', s.result.read(s.result.base1 + bx + 12, 2))[0]
+    rows = lambda q_: [q_.entries[k][1] for k in range(24, 30)]
+    mark(f'oppo {name}: {n} places, sel {q.selected}, row 17 inv {q.entries[29][2]}, rows {rows(q)}')
+    s.shot('oppo_win00')
+    if n <= 16:
+        info.append(f'oppo {name}: 16 places, no window')
+        check(q.entries[29][2], f'oppo {name}: row 17 shown with 16 places', errs)
+    else:
+        check(not q.entries[29][2], f'oppo {name}: row 17 (entry 29) hidden ({n} places)', errs)
+        seen, txt = [], {}
+        for _ in range(n - 16):
+            s.send('down:0.3 dump:0.5')
+            q = s.screen()
+            seen.append(po())
+            txt[seen[-1]] = rows(q)
+            if seen[-1] == n - 17:
+                s.shot(f'oppo_win{seen[-1]:02d}')
+        check(seen == list(range(1, n - 16)) + [0], f'oppo {name}: window steps {seen} (want 1..{n - 17}, 0)', errs)
+        last = txt.get(n - 17, [''] * 6)[5] or ''
+        xl = xn[n - 17] if len(xn) > n - 17 else ''   # place n = his (n - 16)-th XTRA player (shots oppo_winNN)
+        info.append(f'oppo {name}: {n} places, window {seen}, row 17 at the last start "{last}" (place {n}: {xl})')
+        if any(any(t) for t in txt.values()):  # (the rows' texts, when the dump has them; else the shots)
+            check(xl and xl.split()[-1][:6] in last, f'oppo {name}: row 17 at the last start "{last}", want {xl}', errs)
+    for _ in range(4):                      # back to the own team
+        q = s.screen()
+        if 'AVVERSARI' in q.texts():
+            return
+        b = q.entries[7][1]
+        if b:
+            press(s, q, b)
+        else:
+            s.send('fire:0.3 dump:0.6')
+    errs.append('oppo: not back to the own team')
 
 
 def bench_tactics(s, scr, squad, errs, info, mark):
@@ -4746,6 +4845,12 @@ def bench_play(s, gmax, top, bot, wants, errs, info, mark, sub=None, icons=None,
             s.shot(f'squad{step:02d}')
             if squad and not squad.get('done') and 'GIOCA PARTITA' in texts:
                 squad['done'] = True
+                if 'AVVERSARI' not in texts:   # (4.0.6) the CPU opponent's window first
+                    errs.append('oppo: no AVVERSARI on the pre-match screen')
+                else:
+                    bench_oppo(s, scr, squad['args'][0], wants, errs, info, mark)
+                    r = s.result
+                    scr = s.screen()
                 bench_squad(s, scr, *squad['args'], errs, info, mark)
                 r = s.result
                 scr = s.screen()
@@ -4814,7 +4919,9 @@ def bench_play(s, gmax, top, bot, wants, errs, info, mark, sub=None, icons=None,
             xn = wants['*'](name)
             want = 16 + len(xn)
         want = min(want, 26)
-        check(len(named) == want and empty == list(range(want, 26)), f'{name}: {len(named)} named, empty {empty}', errs)
+        out = wants.get('-', set()) if name in wants else set()   # (2) unavailable bench players: empty places
+        check(len(named) == want - len(out) and empty == sorted(out | set(range(want, 26))),
+              f'{name}: {len(named)} named, empty {empty}' + (f' (left out {sorted(out)})' if out else ''), errs)
         if xn:
             got = [pl[16 + i][0] for i in range(want - 16)]
             bad = [(g, x) for g, x in zip(got, xn)      # (the short name: initial + surname, a long one cut with ' .')
@@ -4855,7 +4962,9 @@ def bench_play(s, gmax, top, bot, wants, errs, info, mark, sub=None, icons=None,
                 sp = n14_sprites(r, spr, ega, benchx.NB + 10 * t, min(wants[name], 26) - 16)
                 ends = [max((max(x) for x in rows if x), default=-1) for *_, rows in sp]
                 info.append(f'{name}: name sprites of places 17..: {len(sp)}, ends {ends}')
-                check(all((w, nl, wq) == (112, 6, 7) for w, nl, wq, _ in sp) and all(e > 10 for e in ends),
+                out = wants.get('-', set())  # (2: a left-out place's sprite is not checked)
+                check(all((w, nl, wq) == (112, 6, 7) for w, nl, wq, _ in sp)
+                      and all(e > 10 for i, e in enumerate(ends) if 16 + i not in out),
                       f'{name}: name sprites of places 17..: {[x[:3] for x in sp]}, ends {ends}', errs)
     if icons is not None:                   # the names of places 17..26 (built just now) left the bald icons alone
         icons['kickoff'] = bald_icons(r)
@@ -5008,6 +5117,21 @@ def bench_world():
             info.append(f'{xsc} XTRA {xsi} marked bought')
         wants = {club: n, '*': lambda t: [] if xnone else [x for i, x in enumerate((xtra_club_block(b, t) or (0, []))[1])
                                           if x and not (t == xsc and i == xsi)]}   # (A) CPU clubs
+        inj = os.environ.get('BENCH_INJ')   # (2, Davide 31/10) 'place:byte,..' (places 1-based, the byte = the record's
+        if inj:                             # cardsInjuries, hex: 40 injured, 01 suspended in a career: bits 0-1): bench players made unavailable
+            order = s.result.obj2(cmp, 32)  # in every copy of their record; the match must still be playable (only the
+            o2 = s.result.read(s.result.base2, 0x300000)   # starters checked) and their places empty at the kick-off
+            wants['-'] = set()
+            for it in inj.split(','):
+                k, v = int(it.split(':')[0]) - 1, int(it.split(':')[1], 16)
+                q = order[k]
+                slot = ct + (76 + q * 38 if q < 16 else 684 + (q - 16) * 38)
+                nm = s.result.obj2(slot + 3, 22).split(b'\0')[0]
+                hits = [m_.start() - 3 for m_ in re.finditer(re.escape(nm) + b'\0', o2)]
+                for h in hits:
+                    s.poke(s.result.base2 + h + 27, bytes(((o2[h + 27] & 0x03) | v,)))
+                wants['-'].add(k)
+                info.append(f'place {k + 1} {nm.decode("latin-1")} (squad {q}) cardsInjuries -> {v:#04x} x{len(hits)}')
         if os.environ.get('BENCH_SQUAD') == '2':   # the career menu's SQUADRA (squadMenu): its window (bx_sq)
             for _ in range(3):              # (the chairman's letter first)
                 if 'SQUADRA' in s.screen().texts():

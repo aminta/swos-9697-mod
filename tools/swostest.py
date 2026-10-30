@@ -1425,7 +1425,7 @@ def nat_callups(s, limit=120):
 LABEL_ERRS, LABEL_STATS = [], {'rows': 0, 'keyed': 0, 'fallback': set()}
 CAL_CUR_AT, D8CAA_AT, D6CDC_AT, STR_BASE_AT = 0x1B52A, 0x18DF4, 0x16E26, 0x16F8   # (obj2, every language's exe)
 GLA_AT, ARR_AT = 0xB440C, 0x18E40                 # gameListArray, arrayOfPointers (CareerGameListCommon; every exe)
-_WORLD_AT = {}                                    # game dir -> someLeaguesTable[1845] (the world byte; cf_slt)
+_WORLD_AT = {}                                    # (game dir, exe, mtime, size) -> someLeaguesTable[1845] (cf_slt)
 _LABEL_DATA = {}
 
 
@@ -1500,14 +1500,15 @@ def label_check(s, step):
         gla = struct.unpack('<28I', bytes(r.obj2(GLA_AT, 112)))
         ptrs = struct.unpack('<5I', bytes(r.obj2(D8CAA_AT, 20)))
         bufs = struct.unpack('<5I', bytes(r.obj2(ARR_AT, 20)))
-        if r.game not in _WORLD_AT:
-            exe = next((os.path.join(r.game, x) for x in ('ITALIAN.EXE', 'ENGLISH.EXE', 'FRENCH.EXE', 'GERMAN.EXE')
-                        if os.path.isfile(os.path.join(r.game, x))), None)
-            try:
-                _WORLD_AT[r.game] = cf_slt_exe(exe) + 1845 if exe else None
+        exe = next((os.path.join(r.game, x) for x in ('ITALIAN.EXE', 'ENGLISH.EXE', 'FRENCH.EXE', 'GERMAN.EXE')
+                    if os.path.isfile(os.path.join(r.game, x))), None)
+        key = (r.game, exe, os.path.getmtime(exe), os.path.getsize(exe)) if exe else (r.game,)   # (not the dir alone:
+        if key not in _WORLD_AT:                        # release_groupb_titles' families share one run dir with
+            try:                                        # different exes - mlt_title read gb_force3's address)
+                _WORLD_AT[key] = cf_slt_exe(exe) + 1845 if exe else None
             except Exception:
-                _WORLD_AT[r.game] = None
-        world = r.obj2(_WORLD_AT[r.game], 1)[0] if _WORLD_AT[r.game] is not None else -1
+                _WORLD_AT[key] = None
+        world = r.obj2(_WORLD_AT[key], 1)[0] if _WORLD_AT[key] is not None else -1
         data = _label_data()
     except Exception:                                   # (no career calendar on this screen)
         return

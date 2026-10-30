@@ -87,9 +87,10 @@ both. Competitions not in the table (unknown) keep the game's 3 from 5.
 spritesIndex past the game's 1335 entries (shirtnum.py's extension into the 3072 free bytes after it: indices
 1335..2102; it cannot move, SWOS++ holds its address):
   1335..1417 shirtnum (match shirt numbers 17..99)      1620..1707 menunum (menu numbers 12..99)
-  1418..1619 blond NEW1 / NEW2 (darkblond, bald sets)   1708..1909 blond NEW3 (the second pair of variant sets)
-  1910..1911 blond ICONBL (bald face icons, 4.0.5)      1912..1931 benchx NB (names of places 17..26, 10 a team)
-  1932..2102 free
+  1418..1619 blond set slots 1-2 (single-team, 4.0.5)  1708..1909 blond set slots 3-4
+  1910..1911 blond ICONBL (receding face icons, 4.0.5)  1912..1931 benchx NB (names of places 17..26, 10 a team)
+  1932..2032 blond set slot 5 (4.0.5)                   2033..2034 blond ICON3 (shaved face icons)
+  2035..2102 free
 """
 import os
 import re

@@ -36,8 +36,8 @@ def entries():
         for key, cid, stem in CUPS:
             clubs = w['clubs'].get(key) or []
             path = os.path.join(_src(), f'{stem}2627_leaguephase.csv')
-            if len(clubs) != 36 or not os.path.exists(path):
-                continue
+            if w.get('year') != 2026 or len(clubs) != 36 or not os.path.exists(path):   # (2026-27 lists only:
+                continue                            # not the World 2025-26 test world's league phases)
             idx = {(os.path.basename(pk.path.rstrip('/')), c): i for i, (pk, c) in enumerate(clubs)}
             rows = list(csv.DictReader(open(path, encoding='utf-8')))
             days = sorted({int(r['matchday']) for r in rows})

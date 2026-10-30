@@ -2475,6 +2475,79 @@ def zones_force_played(s, lang, errs, tag):
 
 
 @scenario
+def zones_bskip():
+    """4.0.6 qualifying places skip the B teams that may not qualify (zones.py zb_eff / zb_rng, SEC_TAB without play-offs:
+    REAL SOCIEDAD B, STUTTGART II / HOFFENHEIM II, PORTO B / BENFICA B / SPORTING B, the Jong (U21) sides): a new
+    World 2026-27 career in each 2nd tier with B teams, VISUAL. COMPETIZ. > its table (played forced as zone_colours),
+    the table's sorted list (DIY + 6Dh) poked so the B teams stand 1st and 3rd: they keep the plain row, the places
+    after them move up (SEGUNDA: 2nd and 4th PROM light blue, 5th-8th P.OFF green, 9th plain) - a test poke, nothing
+    saved (ZBSKIP_BUILD / SWOSTEST_BUILD: a release dir); ZBSKIP_NZ_BUILD (a build of the NZ Championship snapshot):
+    the NORTHERN LEAGUE with AUCKLAND FC RES 1st (the A-League reserves: the Championship's places by the others; the
+    Championship's own table, 1st-2nd to the Grand Final, the same zn_col path)"""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import lepatch
+    import mkseason
+    b = os.environ.get('ZBSKIP_BUILD') or os.environ.get('SWOSTEST_BUILD') or builds()['it']
+    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-403c6')
+    sel = mkseason._hook_sites(lepatch.LEPatch(os.path.join(ROOT, 'orig', 'ITALIAN.EXE')))[3]
+    # (country, league, club; up, play-off places; the B teams in the top: placed 1st and 3rd)
+    nzb = os.environ.get('ZBSKIP_NZ_BUILD')            # (NZ: a build of the TM_NZ_CHAMP snapshot, W2627NZ_DATA)
+    nzs = os.environ.get('W2627NZ_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-nzchamp')
+    cases = [('ESP', 'EUROPA', 'SPAGNA', 'SEGUNDA DIVISION', 'ALMERIA', 2, 4, b, src),
+             ('GER', 'EUROPA', 'GERMANIA', '3. LIGA', 'ROT-WEISS ESSEN', 2, 1, b, src),
+             ('POR', 'EUROPA', 'PORTOGALLO', 'LIGA PORTUGAL 2', 'UNIAO TORREENSE', 2, 1, b, src),
+             ('NED', 'EUROPA', 'OLANDA', 'EERSTE DIVISIE', 'DE GRAAFSCHAP', 2, 6, b, src),
+             ('NZL', 'OCEANIA', 'NUOVA ZELANDA', 'NORTHERN LGE|NORTHERN LEAGUE', 'WESTERN SPRINGS', 2, 2, nzb, nzs)]
+    only = os.environ.get('ZBSKIP_ONLY')
+    errs, info = [], []
+    for code, cont, country, league, club, up, po, b, src in cases:
+        if (only and code not in only.split(',')) or not b:
+            continue
+        pk = mkseason.Pack(os.path.join(src, code.lower()))
+        bw = [pk.where[k][0] | pk.where[k][1] << 8 for k, c in pk.clubs.items() if c.get('second_of')]
+        with Session(f'zones_bskip_{code.lower()}', b, {}, 'dump:2', 900) as s:
+            s.wait()
+            for t in ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27', cont, country, league, club]:
+                if all(press(s, s.screen(), x, 3) is None for x in t.split('|')):
+                    errs.append(f'{code}: {t} not reached')
+                    break
+            else:
+                s.send('fire dump:3')
+                walk(s, s.screen().find('VISUAL. COMPETIZ.', exact=True), 3)
+                walk(s, 1, 3)
+                zones_force_played(s, 'it', errs, f'{code} {league}')
+                r = s.send('dump:1')
+                diy = diy_lin(s)
+                n = struct.unpack('<H', r.read(diy + 0x31, 2))[0]
+                lst = list(struct.unpack(f'<{n}H', r.read(diy + 0x6D, 2 * n)))
+                base = struct.unpack('<I', r.read(r.base2 + sel, 4))[0]
+                word = lambda off: struct.unpack('<H', r.read(struct.unpack('<I', r.read(diy + off + 0x2B3, 4))[0] + base, 2))[0]
+                bi = [j for j, off in enumerate(lst) if word(off) in bw]
+                check(bi, f'{code}: no B row of {n} (B words {bw})', errs)
+                if bi:
+                    tops = [0, 2][:len(bi)]
+                    order = [lst[j] for j in bi[:2]]
+                    rest = [x for x in lst if x not in order]
+                    for t, x in zip(tops, order):
+                        rest.insert(t, x)
+                    s.poke(diy + 0x6D, list(struct.pack(f'<{n}H', *rest)))
+                    s.send('dump:1')
+                    m = 2 + up + po + 2
+                    rows, _ = zone_rows(s, f'zbskip_{code.lower()}', m)
+                    got = [z for _, z in rows]
+                    want, q = [], 0
+                    for k in range(m):
+                        if k in tops[:len(order)]:
+                            want.append('pl')
+                            continue
+                        q += 1
+                        want.append('lb' if q <= up else 'gr' if q <= up + po else 'pl')
+                    check(got == want, f'{code}: rows {got} (want {want})', errs)
+                    info.append(f"{code} {''.join(z[0] for z in got)}")
+    return not errs, '; '.join(errs + info)
+
+
+@scenario
 def zones_preseason():
     """4.0 (Davide): a table before its first match day (the clubs in their initial order) has no zone colours and no
     legend, and a league whose groups are known from day 0 shows them at once (split.py sp_pregroup: the MLS's

@@ -561,8 +561,11 @@ def patch_exe(src, dst, remap, lang='it'):
     elif xtra_pg:                                                # cosmetics page as before (full in a world build)
         xtop = hist2 + h2 + 0x1000 * (lpb - cos_pg - ri_pg)
         lt_room = [xtop - 0x600, xtop]
+    zones.BSKIP_LAB = None
     if lt_room:
         lt_room[0] = zones.ring_patch(p, lt_room[0])
+        if worlds:                               # 4.0.6: qualifying places skip the B teams that may not qualify
+            lt_room[0] = zones.bskip_patch(p, lt_room[0], area)
     cos = zones.patch(p, cos, area, lang, [e if os.sep in e else os.path.join(mkseason.PACKS, e) for e in mkseason.ENABLED],
                       num_bss + shirtnum.BSS_SIZE + blond.BSS_SIZE + menunum.BSS_SIZE, fmtpage.BSS_SIZE,
                       careerworld.SITES if worlds else None)   # (the FORMAT page's buffer, shared)

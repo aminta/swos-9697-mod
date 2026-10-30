@@ -2618,10 +2618,22 @@ void gp_hplan_c(const u8 *t, const u8 *tab, u32 cur, u32 rows, u32 off) {
     int n = w16(t + 0x51), g[65], hdr = 0;
     if (n > 64) n = 64;
     for (int k = 1; k <= n; k++) { GP_HP[k] = 0; GP_HGP[k] = k; g[k] = 0; }
-    if (!off && tab && w16(t + w16(tab + 2)) == w16(tab + 8)) {
-        for (int k = 1; k <= n; k++) g[k] = t[w16(tab + 6) + w16(t + 0x6D + 2 * (k - 1)) / 18] & 3;
+    if ((!off || off >= 4) && tab && w16(t + w16(tab + 2)) == w16(tab + 8)) {   /* (4.0.6: off 4 + k = an earlier
+                                           stage's table, longtable lt_plan: its places in ap_build's order) */
+        for (int k = 1; k <= n; k++)
+            g[k] = t[w16(tab + 6) + (off >= 4 ? GP_OV_ORD[k - 1] : w16(t + 0x6D + 2 * (k - 1))) / 18] & 3;
         for (int k = 2; k <= n; k++) if (g[k] != g[1]) hdr = 1;
         for (int k = 1; k <= n && hdr; k++) if ((k == 1 || g[k] != g[k - 1]) && !gp_hlabel_c(t, g[k])) hdr = 0;
+        if (off >= 4 && hdr) {                  /* (4.0.6: a stage table only when its places come in group blocks -
+                                                   ARG's Apertura: Zona A 1..15, B 16..30; a stage of one table, e.g.
+                                                   URU's Apertura seen in the Intermedio, mixes the groups: none) */
+            int seen = 0;
+            for (int k = 1; k <= n && hdr; k++)
+                if (k == 1 || g[k] != g[k - 1]) {
+                    if (seen >> g[k] & 1) hdr = 0;
+                    seen |= 1 << g[k];
+                }
+        }
     }
     GP_HON = hdr;
     int v = 0, h0[65], s0[65];          /* h0[k]: the virtual row of place k's header (or -1), its own row after;

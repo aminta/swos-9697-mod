@@ -350,6 +350,8 @@ def patch_exe(src, dst, remap, lang='it'):
         f'a team file of {tsz} B: above 64000 needs the big team buffer (a big world in the build), at most ' \
         f'{careerworld.TFB_SIZE - 14}'          # the big team buffer, which a big world in the build brings)
     kitcolors.patch(p)             # automatic home/away kit choice (DaniSwos's analysis)
+    import homefirst
+    homefirst.patch(p)             # 4.0.5: the career fixture list home team first (Davide)
     cfg = LANGS[lang]
     sacups.NAMES[sacups.INT_ID] = cfg['int']
     d2 = p.le.obj_bytes(2)

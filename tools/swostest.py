@@ -14783,6 +14783,49 @@ def modver_line():
         info.append(f'{want!r} drawn at x {gx}..{max(x for x, _ in got)} y {gy}, {len(got)} pixels = the game font')
     return not errs, '; '.join(errs + info)
 
+@scenario
+def career_homefirst():
+    """4.0.5 (Davide) the career fixture list shows the home team first (homefirst.py: cglm_team_control kept 0): on
+    a loaded Mexico career (HF_CAR, default Davide's MEX.CAR at AMERICA, the Clausura with played and unplayed rows,
+    home and away): the list's last drawn row (its entries are reused row after row) read by position - an away (F)
+    row, CHIVAS C AMERICA: the home club on the left; (C) rows AMERICA on the left; every row in the picture
+    career_list (the played rows' scores home first); PROSS. PARTITA shown (next_match)"""
+    b = os.environ.get('SWOSTEST_BUILD') or builds()['it']
+    car = os.environ.get('HF_CAR') or os.path.join(MAIN, 'internal', 'reports', 'mex-apertura', 'MEX.CAR')
+    club = os.environ.get('HF_CLUB', 'AMERICA')
+    if not os.path.exists(car):
+        return True, f'SKIP: {car} missing'
+    errs, rows = [], []
+    with Session('career_homefirst', b, {'HF.CAR': car}, 'dump:2', 300) as s:
+        s.wait()
+        s.send(LOAD1 + ' dump:3')
+        for _ in range(6):
+            if 'PROSS. PARTITA' in s.screen().texts():
+                break
+            press(s, s.screen(), 'CONTINUA', 3) or s.send('fire dump:2')
+        scr = s.screen()
+        s.shot('career_list')
+        by_y = {}
+        for (i, t, inv, _), g in zip(scr.entries, scr.geom):   # (the list's row entries are reused row after row:
+            if t and g[1] < 160 and g[3] == 6:                       #  the last drawn row is the one left - the
+                                                                     #  picture shows them all)
+                by_y.setdefault(g[1], []).append((g[0], t))
+        for y, items in sorted(by_y.items()):
+            items.sort()
+            texts = [t for _, t in items]
+            ha = next((t for t in texts if t in ('(C)', '(F)')), None)
+            names = [t for t in texts if t not in ('(C)', '(F)', 'C', 'V', '-', 'STDMENUTEXT') and not t.isdigit() and 'CLAUSURA' not in t
+                     and 'APERTURA' not in t]
+            if ha and len(names) >= 2:
+                rows.append((ha, names[0], names[-1]))
+        press(s, s.screen(), 'PROSS. PARTITA', 3)
+        s.shot('next_match')
+    check(rows, f'no list rows read: {[(e[1], e[2], g) for e, g in zip(scr.entries, scr.geom) if e[1]][:60]}', errs)
+    check(any(ha == '(F)' for ha, *_ in rows), f'no away row to check: {rows}', errs)
+    for ha, left, right in rows:
+        check((left == club) == (ha == '(C)') and (right == club) == (ha == '(F)'), f'row {ha} {left} .. {right}', errs)
+    return not errs, '; '.join(errs + [f'{len(rows)} rows: {rows[:5]}'])
+
 
 
 if __name__ == '__main__':

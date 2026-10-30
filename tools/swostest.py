@@ -5425,9 +5425,10 @@ def bench_world():
         if s.wait().outcome != 'dump':
             return False, f'START: no first pause ({s.result})'
         scr = s.screen()
-        if press(s, scr, 'CARRIERA') is None:
-            return False, f'CARRIERA not reached ({s.result})'
-        for t in ['SCEGLI SQUADRA'] + ([] if os.environ.get('BENCH_BASE') else ['CARR. STORICHE', 'MONDO 2026-27']):
+        car = 'CAREER 2026-27' if files and not os.environ.get('BENCH_BASE') else 'CARRIERA'   # (under SWOS++ the plain
+        if press(s, scr, car) is None:      # CAREER > SELECT TEAM opens the base game's list, no CLASSIC CAREERS -
+            return False, f'{car} not reached ({s.result})'   # 4.0.2 too: the main menu's 2026-27 button instead)
+        for t in ['SCEGLI SQUADRA'] + ([] if os.environ.get('BENCH_BASE') or files else ['CARR. STORICHE', 'MONDO 2026-27']):
             if press(s, s.screen(), t) is None:
                 return False, f'new career: {t} not reached ({s.result})'
         if not pick_career(s, path):

@@ -1409,6 +1409,7 @@ GP_RITP: dd 0                           ; (ripool's RI_TAB: link_reserve, or 0)
     dd CD_ST                            ; (the Coppa Italia Serie D's state)
     dd GP_RLN, GP_RLC, GP_REC, GP_CMB, GP_NM, D8CAA   ; (the season record lines: gp_rlines_c's)
     dd GP_SSB                           ; (4.0.1: the stage-table banks, gplay.c GP_SSB[SS_NB])
+    dd GP_IN, GP_OUT                    ; (rc18: the season end's tables and results - the harness's view)
 '''
 
 

@@ -950,7 +950,8 @@ void gp_season(void) {
         if (dec) ok = 0;
         if (s[5] & PO_SUPER) { ok = 0; dec = 0; }   /* (4.0.5 MEX's Campeon de Campeones: the next season's supercup) */
         int W[GN], L[GN], nt = 0, last = -1, lastr = 0, nlast = 0;
-        int P[GN], np = 0, glast = -1, winners = s[5] >> 4 & 7 ? s[5] >> 4 & 7 : 1;
+        int P[GN], np = 0, glast = -1, kog = 0, winners = s[5] >> 4 & 7 ? s[5] >> 4 & 7 : 1;   /* (kog: a knockout
+                                           round after a group - its last tie decides, NZ's Grand Final, the Poule) */
         for (int i = 0; i < n && i < GN; i++) {
             int ty = e[4 * i], d = e[4 * i + 1], p = e[4 * i + 2];
             if (ty == 3) {
@@ -970,7 +971,9 @@ void gp_season(void) {
                 if (club[i] < 0) ok = 0;
             } else if (ty == 8) {               /* a given club, by its team word (NZ: the A-League reserves) */
                 club[i] = team_club(p | e[4 * i + 3] << 8);
-                if (club[i] < 0) ok = 0;
+                if (club[i] < 0) club[i] = -2;  /* (rc18: not in this country's tables - another league's reserves:
+                                                   left out of a group round, NZ's Championship simulated without
+                                                   them - they never reach its Grand Final; anywhere else: not played) */
             } else if (ty != 0 || d >= GP_IN.nd || p < 1 || p > GP_IN.n[d]) ok = 0;
             else if ((club[i] = place_club(d, p, kind)) < 0) ok = 0;
         }
@@ -1000,14 +1003,20 @@ void gp_season(void) {
                 else if (c < 0xC0) v = (c & 0x3F) < nt ? W[c & 0x3F] : -1;
                 else v = (c & 0x3F) < nt ? L[c & 0x3F] : -1;
                 mem[i] = v;
-                if (v < 0) ok = 0;
+                if (v < 0 && !(v == -2 && (legs & 0x80))) ok = 0;
             }
             if (legs & 0x80) {                  /* a group round */
-                if (ok && ties <= GT && np + ties <= GN) {
-                    group(mem, ties, legs & 0x7F, host == HOST_NEUTRAL, m + ties, P + np, ms, PS + np);
+                static int cm[GT];              /* (rc18: members left out, -2: absent reserves) */
+                static u8 bon[GT];              /* (static: the stack, as ms) */
+                static struct gs cms[GT];
+                int gm2 = 0;
+                for (int i = 0; i < ties && i < GT; i++)
+                    if (mem[i] != -2) { cm[gm2] = mem[i]; bon[gm2] = m[ties + i]; cms[gm2] = ms[i]; gm2++; }
+                if (ok && gm2 <= GT && np + gm2 <= GN) {
+                    group(cm, gm2, legs & 0x7F, host == HOST_NEUTRAL, bon, P + np, cms, PS + np);
                     glast = np;
                 }
-                np += ties;
+                np += gm2;
                 last = -1;
                 r = m + 2 * ties;
                 continue;
@@ -1027,6 +1036,7 @@ void gp_season(void) {
                 for (int i = 0; i < pn; i++) mem[i] = tmp[i];
             }
             lastr = nt; nlast = ties;
+            if (glast >= 0) kog = 1;
             for (int i = 0; i < ties; i++) {
                 if (ok && nt < GN) {
                     int a = mem[2 * i], b = mem[2 * i + 1], d = (int)row(a)->pts - (int)row(b)->pts;
@@ -1056,7 +1066,7 @@ void gp_season(void) {
             }
         } else if (kind == K_TITLE && GP_IN.pl_t2 && GP_IN.pl_pi == pidx + 1 && team_club(GP_IN.pl_w[0]) >= 0) {
             result(kind, team_club(GP_IN.pl_w[0]), team_club(GP_IN.pl_w[1]));   /* (played: a group contest's final) */
-        } else if (ok && (kind == K_TITLE || kind == K_CONT) && glast >= 0) {     /* a final group: its 1st (and 2nd) */
+        } else if (ok && (kind == K_TITLE || kind == K_CONT) && glast >= 0 && !kog) {   /* a final group: its 1st (2nd) */
             result(kind, P[glast], np - glast > 1 ? P[glast + 1] : -1);
         } else if (ok && (kind == K_TITLE || kind == K_CONT) && last >= 0) {   /* the last tie's winner (loser) */
             result(kind, W[last], L[last] == W[last] ? -1 : L[last]);
@@ -1086,7 +1096,7 @@ void gp_season(void) {
         else if (kind == K_TITLE && GP_IN.pl_t2 && GP_IN.pl_pi == pidx + 1)
             wn_add('K', pidx, GP_IN.pl_w[0] ? GP_IN.pl_w[0] : 0xFFFF);
         else if (ok && kind != 4 && (glast >= 0 || last >= 0))
-            wn_add('K', pidx, row(glast >= 0 ? P[glast] : W[last])->team);
+            wn_add('K', pidx, row(glast >= 0 && !(kog && last >= 0) ? P[glast] : W[last])->team);
         if (ok && kind == K_TITLE && glast < 0)  /* (a title play-off's last three ties: the MLS conference finals) */
             for (int t = nt > 3 ? nt - 3 : 0; t < nt && t < GN; t++) wn_add(0x80 | (pidx & 0x7F), t, row(W[t])->team);
         prev_loser = ok && last >= 0 ? L[last] : -1;
@@ -2590,7 +2600,8 @@ void gp_played_c(void) {
 void gp_end_c(void) {                   /* after gp_season: the log, the state void */
     const u8 *s = (const u8 *)&GP_ST.ko[0];
     u8 *d = (u8 *)&GP_LOG.ko;
-    if (GP_ST.magic == MAGIC || GP_IN.pl_pi) {
+    if (GP_ST.magic == MAGIC || GP_IN.pl_pi || GP_OUT.nres) {   /* (rc18: also a season end's results without a
+                                           stage of the career club - the harness's view of a simulated title) */
         for (u32 i = 0; i < sizeof GP_LOG.ko; i++) d[i] = s[i];
         s = (const u8 *)&GP_OUT; d = (u8 *)&GP_LOG.out;
         for (u32 i = 0; i < sizeof GP_LOG.out; i++) d[i] = s[i];

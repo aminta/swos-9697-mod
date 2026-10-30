@@ -13560,6 +13560,67 @@ def world_gplay_seried_lost():
     return world_gplay_seried(ko='1')
 
 
+def gplay_sd_rest(force):
+    """rc18 (Davide's NZ GF, same class): a 17-club Serie D group whose career club RESTS in the league's last round
+    (BIELLESE, girone A: its rest weeks 90 / 128 - the game's schedule, the same every career) on the release data
+    (W2627REL_DATA / 403c9) with GPLAY_FORCE=force (1: 1st -> the Poule Scudetto, 2: 2nd -> the group play-off, 8:
+    out): after its last league match the game must not end the season before the league's last round, and a stage
+    the club qualified for must be played by it ('- PARTITA -' on a screen of that stage); out: the season ends."""
+    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-403c9')
+    if not os.path.isdir(src):
+        return True, f'SKIP: private data {src} missing'
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    env = {'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]), 'GPLAY_FORCE': force}
+    exe = os.environ.get('GPLAY_BUILD') or build('world_gplay_sd_rest_' + force, env=env)
+    log_at, st_at, log_n, st_n = gp_ptrs(exe)
+    keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K',
+                                            'W8485_NOSACK', 'W8485_HEX', 'W8485_ONE', 'W8485_CALDUMP', 'W2627REL_DATA')}
+    os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM='EUROPA,ITALIA,SERIE D,SERIE D GIRONE A,BIELLESE',
+                      W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1', W8485_HEX=f'{log_at:x}:{log_n},{st_at:x}:{st_n}',
+                      W8485_ONE='1', W8485_CALDUMP='1', W2627REL_DATA=src)
+    _LABEL_DATA.clear()
+    try:
+        ok, msg = world8485()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    errs, info = [], []
+    check(ok, msg, errs)
+    lines = open(os.path.join(RUNS, w84_tag() + '_1', 'session.log'), errors='replace').read().splitlines()
+    scr = [ln for ln in lines if ln.startswith('[') and '] ' in ln]
+    title = lambda ln: ln.split('] ', 1)[1].split(' | ')[0]
+    stage = [ln for ln in scr if '| - PARTITA - |' in ln and 'SERIE D GIRONE A' not in title(ln)
+             and 'COPPA' not in title(ln)]
+    fin = [i for i, ln in enumerate(scr) if '>FINISCI STAGIONE' in ln or '| FINISCI STAGIONE |' in ln]
+    lastlg = max([i for i, ln in enumerate(scr) if 'SERIE D GIRONE A' in title(ln)] or [-1])
+    info.append(f'stage screens played: {sorted({title(ln) for ln in stage})}; FINISCI STAGIONE first at screen '
+                f'{fin[0] if fin else None}, the league\'s last screen {lastlg}')
+    if force in ('1', '2'):
+        check(stage, 'the career club never played a stage after the league (no \'- PARTITA -\' screen of it)', errs)
+    return not errs, '; '.join(errs + info)
+
+
+@scenario
+def world_gplay_sd_rest_poule():
+    """gplay_sd_rest: BIELLESE 1st (the Poule Scudetto), resting in the league's last round"""
+    return gplay_sd_rest('1')
+
+
+@scenario
+def world_gplay_sd_rest_po():
+    """gplay_sd_rest: BIELLESE 2nd (the group play-off), resting in the league's last round"""
+    return gplay_sd_rest('2')
+
+
+@scenario
+def world_gplay_sd_rest_out():
+    """gplay_sd_rest: BIELLESE 8th (no stage), resting in the league's last round: the season ends normally"""
+    return gplay_sd_rest('8')
+
+
 @scenario
 def world_gplay_poule(force='1', team='EUROPA,ITALIA,SERIE D GIRONE A,LIGORNA'):
     """The Poule Scudetto played (gplay: a group contest as the game's type 2 in slot 3): the data session's snapshot
@@ -16591,6 +16652,142 @@ def world_winners_nz():
     check(recs and exp in codes[1:] and names[codes.index(exp, 1)], f'record lines {list(zip(names, codes))}: '
           f'expected code {exp} in lines 2-4 (champion {champ}, career club {mgr:#x}) - screen: shots/record.png', errs)
     return not errs, '; '.join(errs) or f'mid {out["mid"]}; end {out["end"]}; record codes {codes}'
+
+
+@scenario
+def world_winners_nzout():
+    """NZ National League Championship with the career club OUT of it (rc18, the Integratore's Z2: a natural season
+    where WESTERN SPRINGS did not qualify - no GP_ST, no log): WESTERN SPRINGS forced last of the Northern League
+    (GPLAY_FORCE=12); the season end's simulation (gp_season: the 11-club group, the reserves skipped, the final) must
+    name a champion - the WINNERS page's NL CHAMPIONSHIP line after the season end is a club, not IN CORSO / empty /
+    the career club"""
+    src = os.environ.get('W2627NZ_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-nzchamp')
+    if not os.path.isdir(src):
+        return True, f'SKIP: private data {src} missing'
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    env = {'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]), 'GPLAY_FORCE': '12'}
+    exe = os.environ.get('GPLAY_BUILD') or build('world_gplay_nzout', env=env)
+    keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_ONE',
+            'W8485_SAVE_END', 'W2627REL_DATA')
+    keep = {k: os.environ.get(k) for k in keys}
+    try:
+        os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM='OCEANIA,NUOVA ZELANDA,NORTHERN '
+                          'LGE|NORTHERN LEAGUE,WESTERN SPRINGS', W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1',
+                          W8485_ONE='1', W8485_SAVE_END='WNZ', W2627REL_DATA=src)
+        _LABEL_DATA.clear()
+        ok, msg = world8485()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    if not ok or 'saved ' not in msg:
+        return False, f'season: {msg}'
+    errs = []
+    lines = open(os.path.join(RUNS, w84_tag() + '_1', 'session.log'), errors='replace').read().splitlines()
+    check(not any('CHAMPIONSHIP' in ln.split(' | ')[0] for ln in lines if ln.startswith('[')),
+          'the career club played in the Championship (forced last: out)', errs)
+    with Session('world_winners_nzout_end', exe, {'WNZ.CAR': msg.split('saved ', 1)[1]}, 'dump:2', 300) as s:
+        s.wait()
+        s.send(LOAD1 + ' dump:3')
+        e, title, pl = winners_page(s)
+    out = {k: v for k, v in winner_blocks(pl).items() if 'CHAMPIONSHIP' in k}
+    v = list(out.values())
+    if v == ['DA GIOCARE'] and os.environ.get('WINNERS_OUT_KNOWN') == '1':
+        return True, f'KNOWN LIMIT: NL CHAMPIONSHIP {out} with the career club out'
+    check(len(v) == 1 and v[0] and v[0] not in ('IN CORSO', 'DA GIOCARE', 'WESTERN SPRINGS'),
+          f'season end (club out): NL CHAMPIONSHIP line {out}', errs)
+    return not errs, '; '.join(errs) or f'club out of the Championship; season end {out}'
+
+
+def winners_out(name, team, force):
+    """rc18: a title play-off / Final Four / finals series with the career club OUT of it (GPLAY_FORCE=force: a
+    place that qualifies for nothing), the release data (W2627REL_DATA / 403c9): after the season end the WINNERS
+    page has no title left 'DA GIOCARE' / 'IN CORSO' - the season end simulated it (gp_season)."""
+    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-403c9')
+    if not os.path.isdir(src):
+        return True, f'SKIP: private data {src} missing'
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    env = {'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]), 'GPLAY_FORCE': force}
+    exe = os.environ.get('GPLAY_BUILD') or build('world_winners_out_' + force, env=env)
+    log_at, st_at, log_n, st_n = gp_ptrs(exe)
+    from le import LE
+    d1_ = LE(open(os.path.join(exe, 'ITALIAN.EXE'), 'rb').read()).obj_bytes(1)
+    k_ = d1_.find(b'GPLOGPTR')
+    in_at, out_at = struct.unpack_from('<2I', d1_, k_ + 8 + 4 * 17)   # (rc18: GP_IN, GP_OUT)
+    keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_ONE',
+            'W8485_SAVE_END', 'W2627REL_DATA', 'W8485_HEX')
+    keep = {k: os.environ.get(k) for k in keys}
+    try:
+        os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5',
+                          W8485_K='108+', W8485_NOSACK='1', W8485_ONE='1', W8485_SAVE_END='WOUT', W2627REL_DATA=src,
+                          W8485_HEX=f'{log_at:x}:{log_n},{in_at:x}:24,{out_at:x}:4')
+        _LABEL_DATA.clear()
+        ok, msg = world8485()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    if not ok or 'saved ' not in msg:
+        return False, f'season: {msg}'
+    with Session(name + '_end', exe, {'WOUT.CAR': msg.split('saved ', 1)[1]}, 'dump:2', 300) as s:
+        s.wait()
+        s.send(LOAD1 + ' dump:3')
+        e, title, pl = winners_page(s)
+    out = winner_blocks(pl)
+    lines = open(os.path.join(RUNS, w84_tag() + '_1', 'session.log'), errors='replace').read().splitlines()
+    logs = [bytes.fromhex(ln.split()[2]) for ln in lines if ln.startswith(f'HEX {log_at:x} ')]
+    logs = [b for b in logs if b[:4] == b'GPLG']
+    res = [struct.unpack_from('<BBHHHH', logs[-1], 682 + 4 + 8 * 32 + 10 * i) for i in range(min(logs[-1][683], 4))] \
+        if logs else []
+    bad = {k: v for k, v in out.items() if v in ('DA GIOCARE', 'IN CORSO', '')}
+    gin = [ln.split()[2] for ln in lines if ln.startswith(f'HEX {in_at:x} ')]
+    gout = [ln.split()[2] for ln in lines if ln.startswith(f'HEX {out_at:x} ')]
+    res = f'{res}; GP_IN nd/n {gin[-1:]}; GP_OUT nmv/nres {gout[-1:]}'
+    if out and bad and os.environ.get('WINNERS_OUT_KNOWN') == '1':   # (WINNERS_OUT_KNOWN=1: report only - before rc19's
+        return True, (f'KNOWN LIMIT: undecided with the career club out {bad} (page {out}; results {res})')   # fix, a
+    errs = []                                                          # career's season end ran no gp_season for its own
+    check(out and not bad, f'season end, career club out: undecided {bad} (page {out}; season-end results {res})', errs)   # country
+    return not errs, '; '.join(errs) or f'club out; season end {out}; results {res}'   # unless the club played a stage)
+
+
+@scenario
+def world_winners_out_mlt():
+    """winners_out: Malta's Final Four, HAMRUN SPARTANS 10th"""
+    return winners_out('world_winners_out_mlt', 'EUROPA,MALTA,HAMRUN SPARTANS', '10')
+
+
+@scenario
+def world_winners_out_sd():
+    """winners_out: the Serie D Poule Scudetto (and its play-offs), BIELLESE 8th of girone A"""
+    return winners_out('world_winners_out_sd', 'EUROPA,ITALIA,SERIE D,SERIE D GIRONE A,BIELLESE', '8')
+
+
+@scenario
+def world_winners_out_can():
+    """winners_out: Canada's CPL play-offs, FORGE last"""
+    return winners_out('world_winners_out_can', 'NORDAMERICA,CANADA,FORGE', '8')
+
+
+@scenario
+def world_winners_out_aus():
+    """winners_out: the A-League finals series, NEWCASTLE last"""
+    return winners_out('world_winners_out_aus', 'ASIA,AUSTRALIA,A-LEAGUE MEN,NEWCASTLE', '12')
+
+
+@scenario
+def world_winners_out_crc():
+    """winners_out: Costa Rica's semis + final + Gran Final, SAPRISSA last"""
+    return winners_out('world_winners_out_crc', 'NORDAMERICA,COSTA RICA,SAPRISSA', '12')
+
+
+@scenario
+def world_winners_out_nz():
+    """winners_out: NZ's Championship + Grand Final, WESTERN SPRINGS last of the Northern League"""
+    return winners_out('world_winners_out_nz', 'OCEANIA,NUOVA ZELANDA,NORTHERN LGE|NORTHERN LEAGUE,WESTERN SPRINGS', '12')
 
 
 @scenario

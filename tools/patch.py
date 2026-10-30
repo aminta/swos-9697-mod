@@ -265,7 +265,9 @@ def patch_exe(src, dst, remap, lang='it'):
     cos_pg = 1                                         # (+1, the top one: purple + blond + menunum + avgprice + the
     lpb += cos_pg                                      # FORMAT page: every build; without worlds too, e.g. PROTO36)
     cdp = mkseason.career_data_pages() - 2 if worlds else 0   # a big world: a 3rd career data page and a 2nd
-    h2 = HIST2_PAGE * (1 + cdp)                                # historic page (its cups' fixed draws)
+    h2 = HIST2_PAGE * min(1 + cdp, 2)                          # historic page (its cups' fixed draws; 4.0.5: at most 2 -
+                                                               # the World 2026-27's extra career data pages had made it 4,
+                                                               # 1 used: obj1 back to 237 pages, SWOS++'s limit, CONVENTIONS 22)
     cp = cave_pages()                                          # career world code: 2 pages, 3 with several worlds
     sp_tabs = (mkseason.splits() if worlds else []) + engine.split_tables()   # mid-season splits (worlds; world 0)
     sp_pg = split.pages(sp_tabs) if worlds else 0      # (own pages after all the others)
@@ -303,7 +305,7 @@ def patch_exe(src, dst, remap, lang='it'):
     import namespr                                     # 4.0.5: 14-character match names (namespr.py), after them
     ctl_pg += namespr.PAGES
     bn_pg = 2                                          # 4.1: the bench of up to 15 (benchx.py), after the CONTROLS pages (4.0.6: + the per-competition table)
-    for _ in range((6 + cp + 2 + 2 * cdp if worlds else 6) + lpb + sp_pg + sc_pg + ct_pg + ctl_pg + bn_pg):  # (+1: the UEFA league phase's page, lp36)
+    for _ in range((6 + cp + 2 + cdp + h2 // HIST2_PAGE - 1 if worlds else 6) + lpb + sp_pg + sc_pg + ct_pg + ctl_pg + bn_pg):  # (+1: the UEFA league phase's page, lp36)
         data = add_object_page(data, 1)
     mkseason.CAREER_CAVE[0] = CAREER_CAVE if worlds else None
     mkseason.CAREER_DATA[0] = CAREER_DATA + 0x1000 * (cp - 2) if worlds else None
@@ -685,6 +687,9 @@ def patch_exe(src, dst, remap, lang='it'):
                                                 # pair of variant sets; 4.0.5 lgreal's LGB last)
     p.set_vsize(2, obj2_free + o2pages * p.le.page_size + tail, bss=tail)
     tailzero.patch(p, tz_at, obj2_free + o2pages * p.le.page_size, (tail + 3) & ~3, nasmcave)   # (DOS/4GW: not zeroed)
+    o1n, o2n = p.le.obj(1).npages, p.le.obj(2).npages
+    print(f'exe: object pages: obj1 {o1n} (SWOS++ limit 237 with the harness page in obj1, CONVENTIONS 22), obj2 {o2n}'
+          + ('' if o1n <= 237 else '  WARNING: obj1 over 237 pages: SWOS++ PLAY MATCH can stall'))
     p.add_flags(1, 0x2)            # writable: season end rewrites the SA cup team lists in the cave
     split.late(p)                                # split's after-stage routines (engine.after_stage)
     trailer.late(p)                              # the engine block's late addresses (RS_STATE ...)

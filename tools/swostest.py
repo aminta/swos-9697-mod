@@ -5602,6 +5602,99 @@ def controls_swospp():
 
 
 @scenario
+def swospp_menu():
+    """4.0.5 (Davide 30/10, option 2): under SWOS++ the green CAREER 2026-27 button keeps entry 4 and SWOS++'s own entry
+    is shown through entry 11 (SAVE) while no contest is loaded, at SWOS++'s place (top). SWOSPP_BUILD (a World 2026-27
+    release-recipe dir whose ITALIAN.EXE is the English exe) + SWOS++ 1.9.2.2: (1) the main menu: entry 4 the button,
+    entry 11 SWOS++ at x 93 y 21; (2) SWOS++'s menu opens from it and ESC comes back to the main menu; (3) a career
+    loaded (W84E): CONTINUE / SAVE shown, entry 11 not SWOS++, SAVE opens its screen; (4) DIY COMPETITION > ABANDON:
+    the SWOS++ entry is back"""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import swospp
+    if UI != 'en':
+        return True, 'SKIP: SWOS++ is English only (SWOSTEST_UI=en)'
+    b = os.environ.get('SWOSPP_BUILD')
+    if not b or not os.path.isdir(b):
+        return True, 'SKIP: SWOSPP_BUILD not set'
+    pp = os.path.join(MAIN, 'internal', 'swospp-test')
+    out = os.path.join(WORK, 'builds-x', 'swospp_menu')
+    shutil.rmtree(out, ignore_errors=True)
+    shutil.copytree(b, out)
+    swospp.install(os.path.join(b, 'ITALIAN.EXE'), os.path.join(out, 'ITALIAN.EXE'))
+    errs, info = [], []
+
+    def menu(s, tag):
+        r, m = s.result, s.info['menu']
+        e = {i: ct_entry(r, m, i) for i in (4, 10, 11)}
+        info.append(f'{tag}: 4 {e[4][0].decode()!r} 10 {e[10][0].decode()!r}{"(inv)" if e[10][1] else ""} '
+                    f'11 {e[11][0].decode()!r}{"(inv)" if e[11][1] else ""} at {e[11][2]},{e[11][3]}')
+        return e
+
+    def is_main(s):                                     # (the menu buffer's address is fixed: the main menu by its entries)
+        t = [x[1] for x in s.screen().entries]
+        return 'MOD. TATTICA' in t and 'COMPET. PERSONAL.' in t
+    with Session('swospp_menu', out, {'LOADER.BIN': os.path.join(pp, 'loader.bin'),
+                                      'SWOSPP.BIN': os.path.join(pp, 'swospp.bin'),
+                                      'W84E.CAR': os.path.join(WORK, 'saves', 'W84E_TEAM254.CAR')},
+                 'dump:3', 300, timer=True) as s:
+        if s.wait().outcome != 'dump':
+            return False, f'START: no first pause ({s.result})'
+        on, why = swospp_on(s.result, os.path.join(out, 'ITALIAN.EXE'))
+        check(on, f'SWOS++ not running: {why}', errs)
+        e = menu(s, 'start')
+        check(e[4][0].endswith(b'2026-27') and not e[4][1], f'entry 4 not the button: {e[4]}', errs)
+        check(e[11][0] == b'SWOS++' and not e[11][1] and e[11][2:4] == (93, 21), f'entry 11 not SWOS++: {e[11]}', errs)
+        sc = walk(s, 11, 3)                                     # (2) SWOS++'s own menu, then ESC
+        opened = not is_main(s)
+        check(opened, f'SWOS++ menu not opened: {sc}', errs)
+        info.append(f'SWOS++ menu: {str(sc)[:60]}')
+        if sc.find('ESCI', exact=True) is not None:            # (its EXIT entry; ESC does not close it)
+            walk(s, 'ESCI', 3)
+        check(is_main(s), f'not back on the main menu: {s.screen()}', errs)
+        e = menu(s, 'back')
+        check(e[11][0] == b'SWOS++' and not e[4][1], f'after SWOS++ menu: {e}', errs)
+        def go(s, target):                                      # (select target, fire, then UP at once: test menus
+            for _ in range(20):                                 # read the latched last key, and a latched fire would
+                sc = s.screen()                                 # be read again by the menu we come back to)
+                i = sc.find(target, exact=True) if isinstance(target, str) else target
+                if i is None:
+                    raise AssertionError(f'{target} not on screen: {sc}')
+                if sc.selected == i:
+                    break
+                s.send(sc.path(i)[0] + ' dump:0.5')
+            s.send('fire up:0.05 dump:3')
+        walk(s, 'CARICA VECCHIA COMPETIZIONE', 3)               # (3) a career loaded
+        s.send('fire dump:3')
+        go(s, 'ESCI')
+        check(is_main(s), f'career menu -> ESCI: not the main menu: {s.screen()}', errs)
+        e = menu(s, 'career')
+        check(not e[10][1] and not e[11][1] and e[11][0] != b'SWOS++' and e[11][2:4] != (93, 21),
+              f'CONTINUE / SAVE with a contest: {e[10]} {e[11]}', errs)
+        check(e[4][0].endswith(b'2026-27') and not e[4][1], f'entry 4 with a contest: {e[4]}', errs)
+        go(s, 11)                                               # SAVE opens its screen
+        check(not is_main(s), f'SAVE did not open: {s.screen()}', errs)
+        info.append(f'SAVE: {[t for _, t, inv, *_ in s.screen().entries if not inv][-3:]}')
+        for _ in range(3):                                      # (the save screen: ABANDON = cancel)
+            if is_main(s):
+                break
+            sc = s.screen()
+            go(s, 'ABBANDONA') if sc.find('ABBANDONA', exact=True) is not None else go(s, 'ESCI')
+        go(s, 'COMPET. PERSONAL.')                              # (4) drop the contest: the prompt's CONTINUE goes on
+        sc = s.screen()                                         # into the DIY menu (ABANDON would keep the career)
+        if sc.find('ABBANDONA', exact=True) is not None:
+            go(s, sc.find('ABBANDONA', exact=True) - 1)
+        for _ in range(4):
+            if is_main(s):
+                break
+            sc = s.screen()
+            go(s, 'ESCI') if sc.find('ESCI', exact=True) is not None else s.send('esc dump:3')
+        e = menu(s, 'abandoned')
+        check(e[10][1] and e[11][0] == b'SWOS++' and not e[11][1], f'SWOS++ entry not back: {e[10]} {e[11]}', errs)
+        s.shot('main')
+    return not errs, '; '.join(errs + info)
+
+
+@scenario
 def swospp_bench():
     """(Panchina, 4.0.5 regression) SWOS++ vs the mod's code changes: SWOSPP_BUILD (a dir whose ITALIAN.EXE is a modded ENGLISH exe,
     the release recipe) + tools/swospp.py + LOADER.BIN / SWOSPP.BIN; at the main menu obj1 in memory is compared with

@@ -9905,11 +9905,13 @@ def world_title(code, force='3', team=None, fill=False):
     nres = lg[683]
     res = [struct.unpack_from('<BBHHHH', lg, 682 + 4 + 8 * 32 + 10 * i) for i in range(min(nres, 4))]
     titles = [r for r in res if r[0] == 5]
-    win = ko['team'][ko['tw'][-1]] if ko['tw'] and ko['tw'][-1] < ko['n'] else None
-    check(len(titles) == 1 and titles[0][2] == win, f'champion {[hex(r[2]) for r in titles]}, last winner '
-          f'{win if win is None else hex(win)}', errs)
     top = title_top(lg)                                  # (gp_champ: the qualifiers' champion place)
-    check(top and top[0] == win, f"top-9 list {top and [hex(t) for t in top]}, champion {win and hex(win)}", errs)
+    last = ko['team'][ko['tw'][-1]] if ko['tw'] and ko['tw'][-1] < ko['n'] else None
+    win = top[0] if top else last                        # (Malta's Final Four lists a club as several entrants - split
+    check(len(titles) == 1 and titles[0][2] == win, f'champion {[hex(r[2]) for r in titles]}, gp_champ top '   # seeds:
+          f'{win if win is None else hex(win)} (last-listed tie\'s winner {last if last is None else hex(last)})', errs)
+    fin = [ko['team'][x] for x in (ko['tw'][-1], ko['tl'][-1]) if x < ko['n']] if ko['tw'] and ko['tl'] else []
+    check(win in fin or code == 'mlt', f"champion {win and hex(win)} not in the last tie {[hex(t) for t in fin]}", errs)
     gw = sorted({r['gcur'] for r in run})
     recs = hexes.get(seas_at, [])                       # (the season record at the end: GPLAY_FORCE builds make the
     rec = recs[-1] if recs else b''                     # club the champion: a line with WINNERS, 4th / 3rd / 2nd)

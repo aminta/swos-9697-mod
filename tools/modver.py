@@ -16,7 +16,7 @@ import sacups
 
 X, Y, COLOR = 160, 176, 2          # centre x, top y (screen), DrawMenuText's colour (D3)
 TEST_VARS = ('GPLAY_FORCE', 'DPLAY_FORCE', 'CD_FORCE', 'CONTI_FORCE', 'SPLIT_FORCE', 'UEFAQ_FORCE', 'GPLAY_KOFORCE',
-             'GPLAY_RLFORCE', 'CONTI_GPLACE', 'STATESPEC_TEST', 'CONTI_KOLOSE')
+             'GPLAY_RLFORCE', 'CONTI_GPLACE', 'STATESPEC_TEST', 'CONTI_KOLOSE', 'GPLAY_GFFORCE', 'GPLAY_GOUT')
 
 
 def text():

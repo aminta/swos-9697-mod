@@ -161,3 +161,23 @@ it returns the rounds (title, ties shown: at most 6 per screen) and the coin-tos
 - Country names in another language's exe: the harness maps the labels it knows (swostest_lang.json, the 1996-97
   menus) back to Italian, so a 1996-97 country keeps its Italian name in `W8485_TEAM` (BRASILE in the EN exe), while a
   world-only one needs that language's name (NEW ZEALAND, NOUV. ZELANDE, NEUSEELAND: the pack's `button_names`).
+
+## Breaking a busy game (Session.sample)
+
+The harness pauses only at the in-exe stub's int 3 (the game asking for a key). A game that runs on without asking -
+a busy loop, an endless draw, a slow season end - only ever shows as 'timeout'. `Session.sample(keys, secs)` breaks
+it: it sends the keys with a breakpoint on the timer interrupt (`BPINT 8`, every tick, ~18 / s), records each tick's
+EIP (obj1 offset) and runs on, for `secs` seconds.
+
+- Returns `(hist, result)`: `hist` = `{obj1 offset: ticks}`, the session log gets a `SAMPLE obj1+..:n` line (top 12).
+  `result.outcome` is 'dump' when the game reached our pause first (no hang: the ticks ended there), else 'trap' at
+  the last tick with a full MEMDUMP.BIN (pseudo registers: D0 at obj2+0x315B7 ... in the original layout) for the
+  post-mortem.
+- The ticks slow the game ~10x: read it as a histogram (where the time goes - I/O vs compute for Davide's season-end
+  profiling), not as a timing. CORE=normal gives exact EIPs. The timer breakpoint is removed afterwards and the int 3
+  one re-armed, so the session goes on (a 'trap' result: as after any trap).
+- Use it from a scenario's W84_HOOK at the screen before the step that hangs: navigate to the entry, then
+  `hist, r = s.sample('fire dump:3', 25)` instead of the press. Map offsets to routines with ref/swos.asm (obj1
+  offset + 0x101AC ~ the cseg label in most of the code: check a known site first).
+- First use (2026-10-22, NZ championship, 4.0.1): the 10th match day's 25 s were spent in DrawChar /
+  ConvertSpriteColors / FlipInMenu - an endless menu draw, not a fixtures loop.

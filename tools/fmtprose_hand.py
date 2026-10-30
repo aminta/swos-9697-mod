@@ -83,6 +83,40 @@ _SC = {
            "und Rückspiel: bei Gleichstand bleibt der besser Platzierte, nicht gespielt bei 8 oder mehr Punkten "
            "Abstand; die Verlierer steigen ab."],
 }
+_NZL = {                                # 4.0.5 NZ National League Championship + Grand Final (gplay ko_t2 GF mode)
+    'it': ["La stagione neozelandese ha due fasi. Prima i tre campionati regionali, Northern League (12 squadre), "
+           "Central League e Southern League (10 ciascuno), con andata e ritorno. Poi le prime 4 del Nord, le prime 3 "
+           "del Centro e le prime 2 del Sud, con le riserve di Auckland FC e Wellington Phoenix, formano il "
+           "Championship: 11 squadre in un girone di sola andata, 11 giornate con una squadra a riposo a ogni turno. "
+           "A parità di punti contano la differenza reti e i gol segnati.",
+           "Le prime 2 che non sono squadre riserve giocano la Grand Final, in gara unica in casa della meglio "
+           "piazzata: in parità supplementari e rigori. Chi vince è campione della Nuova Zelanda. Le riserve giocano "
+           "il Championship ma non possono andare in finale."],
+    'en': ["The New Zealand season has two phases. First the three regional leagues, the Northern League (12 clubs), "
+           "the Central League and the Southern League (10 each), home and away. Then the top 4 of the North, the top "
+           "3 of the Centre and the top 2 of the South, with the Auckland FC and Wellington Phoenix reserves, make "
+           "the Championship: 11 clubs in a single round, 11 matchdays with one club resting each time. Level on "
+           "points, goal difference and goals scored decide.",
+           "The top 2 clubs that are not reserve sides play the Grand Final, a single match at the better-placed "
+           "club: if level, extra time and penalties. The winner is New Zealand champion. The reserves play the "
+           "Championship but cannot reach the final."],
+    'fr': ["La saison néo-zélandaise a deux phases. D'abord les trois championnats régionaux, la Northern League (12 "
+           "clubs), la Central League et la Southern League (10 chacune), en aller et retour. Puis les 4 premiers du "
+           "Nord, les 3 premiers du Centre et les 2 premiers du Sud, avec les réserves d'Auckland FC et de Wellington "
+           "Phoenix, forment le Championship : 11 clubs en matchs simples, 11 journées avec un club au repos à chaque "
+           "fois. À égalité de points, la différence de buts et les buts marqués départagent.",
+           "Les 2 premiers qui ne sont pas des équipes réserves jouent la Grand Final, un seul match chez le mieux "
+           "classé : en cas d'égalité, prolongation et tirs au but. Le vainqueur est champion de Nouvelle-Zélande. "
+           "Les réserves jouent le Championship mais ne peuvent pas aller en finale."],
+    'de': ["Die neuseeländische Saison hat zwei Phasen. Zuerst die drei Regionalligen, Northern League (12 Vereine), "
+           "Central League und Southern League (je 10), mit Hin- und Rückspiel. Dann bilden die ersten 4 des Nordens, "
+           "die ersten 3 der Mitte und die ersten 2 des Südens mit den Reserven von Auckland FC und Wellington "
+           "Phoenix die Championship: 11 Vereine in einer einfachen Runde, 11 Spieltage, an jedem hat ein Verein "
+           "frei. Bei Punktgleichheit entscheiden Tordifferenz und erzielte Tore.",
+           "Die ersten 2 Vereine, die keine Reserveteams sind, spielen das Grand Final, ein Spiel beim besser "
+           "Platzierten: bei Gleichstand Verlängerung und Elfmeterschießen. Der Sieger ist neuseeländischer Meister. "
+           "Die Reserven spielen die Championship, können aber nicht ins Finale."],
+}
 _POULE = {
     'it': ["Le 9 vincitrici dei gironi di Serie D si dividono in tre triangolari (gironi A-B-C, D-E-F, G-H-I), di "
            "sola andata. Le 3 vincitrici e la migliore seconda giocano semifinali sorteggiate di andata e ritorno: "
@@ -245,6 +279,7 @@ HAND = {
     (5, 'ITALIA PLAY-OFF SERIE C'): {l: [_SC_PO[l]] for l in _SC_PO},
     (5, 'ITALIA SERIE C GIRONE A'): _SC, (5, 'ITALIA SERIE C GIRONE B'): _SC, (5, 'ITALIA SERIE C GIRONE C'): _SC,
     (5, 'ITALIA POULE SCUDETTO SERIE D'): _POULE,
+    (5, 'NUOVA ZELANDA NL CHAMPIONSHIP'): _NZL,
     (5, 'USA MAJOR LEAGUE SOCCER'): _MLS, (5, 'USA MLS CUP PLAYOFFS'): {l: _MLS[l][1:] for l in _MLS},
     (5, 'CANADA CPL PLAYOFFS'): _CPL, (5, 'AUSTRALIA A-LEAGUE FINALS SERIES'): _AUS,
     (5, 'COSTA RICA PLAYOFFS'): _CRC, (5, 'MALTA PREMIER LEAGUE FINAL FOUR'): _MLT,

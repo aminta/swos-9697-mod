@@ -483,7 +483,11 @@ class Pack:
             return None
         import gplay
         try:
-            spec = gplay.compile_spec(lg['ko_playoffs'], len(self.divisions()), lg.get('names'))
+            club = lambda e: ({'club_team': self.where[e['club']][0] | self.where[e['club']][1] << 8,
+                               'div': self.division[e['club']]}
+                              if isinstance(e, dict) and 'club' in e and e['club'] in self.league_clubs else e)
+            pos = [dict(po, entrants=[club(e) for e in po.get('entrants', [])]) for po in lg['ko_playoffs']]
+            spec = gplay.compile_spec(pos, len(self.divisions()), lg.get('names'))
         except (ValueError, KeyError, TypeError) as e:
             _need(False, f"{self.meta['id']}: ko_playoffs: {e}")
         return self.world, self.files[lg['clubs']][0], spec
@@ -1369,7 +1373,8 @@ SECOND_RULES = {          # league 'second_teams': {'rules': code} -> (top level
     'ger': (2, False),    # never to the 2. Bundesliga; no relegation play-off
     'ned': (1, False),    # never to the Eredivisie; no play-offs
     'por': (0xFF, False), # never into the first team's division; no play-off (Davide 2026-10-18)
-}
+    'nzl': (0xFF, False), # the A-League reserves: no move, never a qualifier by place (the Championship: fixed
+}                         # entrants {"club": key}, never in the Grand Final)
 
 
 def second_table():
@@ -1398,7 +1403,7 @@ def second_table():
         for k, f in sec:
             _need(k in pk.league_clubs, f"{pk.meta['id']}: second team {k} not a league club")
             gf = glob(f) if f in pk.clubs and f in pk.league_clubs else 0xFFFF
-            rows.append(struct.pack('<HHBB', glob(k), gf, top, (1 if po else 0) | ex))
+            rows.append(struct.pack('<HHBBH', glob(k), gf, top, (1 if po else 0) | ex, pk.where[k][0] | pk.where[k][1] << 8))
         if not rows:
             continue
         out += bytes((len(lv),)) + bytes(lv) + bytes((len(rows),)) + b''.join(rows)
@@ -2228,8 +2233,11 @@ def patch(p, lang, area, cave):
         _need(cat <= CAREER_DATA[0] + 0x1000 * career_data_pages(), f'career packs overflow their pages ({cat:#x})')
     at, tleagues = _tourney_leagues(p, lang, area, at, env)
     if any(dv['teams'] % 2 for pk in packs() for dv in pk.divisions()) or \
-            any(pk.count[c['clubs']] % 2 for pk in packs() if pk.kind == 'tourney' for c in pk.comps if c['type'] == 'league'):
-        odd_leagues(p)
+            any(pk.count[c['clubs']] % 2 for pk in packs() if pk.kind == 'tourney' for c in pk.comps if c['type'] == 'league') or \
+            any(len(rd.get('members') or []) % 2 and len(rd['members']) >= 5 for pk in packs() if pk.league
+                for po in pk.league.get('ko_playoffs') or [] for rd in po.get('rounds') or [] if 'group' in rd):
+        odd_leagues(p)                  # (4.0.1: a played group of an odd size >= 5 - New Zealand's championship of
+                                        # 11 as the game's type 2 - uses the same pair tables: real rounds with a rest)
 
     # Season: CLASSIC SEASONS after the continents (pseudo-continent 97: [-1] + the pack countries + FF; the game reads a
     # country list only for 80..85, so that check also accepts 97). The season selector runs on a world table

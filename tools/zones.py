@@ -210,6 +210,11 @@ def stage_zones(dv, po, i):
                 rng[-1] = (rng[-1][0], x, GREEN)
             else:
                 rng.append((x, x, GREEN))
+        sg = [(a, a + n - 1) for a, n in groups_of(dv)] or [(ga, gz) for ga, gz, _ in split_groups(dv)]
+        for (a, z, c) in list(rng):                      # 4.0.6: the same places by group place (shown with the
+            for g, (ga, gz) in enumerate(sg[:4]):         # groups' headers: ARG's ZONA A / B - longtable / gp_hplan_c)
+                if a <= gz and z >= ga:
+                    rng.append(((max(a, ga) - ga + 1) | 0x80, (min(z, gz) - ga + 1) | (g << 6), c))
         if rng:
             out.append((t, rng[:RANGES]))
     return out

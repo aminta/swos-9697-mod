@@ -63,6 +63,15 @@ lt_plan:                                ; esi = a one-group table: gp_hplan_c's 
     cld
 %if OV_
     movzx eax, byte [OV_ON]
+%if AP_
+    cmp eax, 1                          ; 4.0.6: an earlier stage's table (OV_FLAG 4 + k): its groups' headers too
+    jne .p                              ; (gp_hplan_c: off >= 4, the places in ap_build's order)
+    movzx ecx, byte [OV_FLAG]
+    cmp ecx, 4
+    jb .p
+    mov eax, ecx
+.p:
+%endif
 %else
     xor eax, eax
 %endif

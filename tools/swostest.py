@@ -12252,6 +12252,22 @@ def ap_cycle(s, tag, n=5):
         walk(s, s.screen().find(lab, exact=True), 3)
         t1 = title()
         s.shot(f'ap_{tag}_{k + 1}')
+        hd = {'top': zona_rows(s.box.dump(0xA0000, 64000))}  # 4.0.6: the group headers drawn (ZONA A / B)
+        sc = s.screen()
+        s.log.append(f'[ap] table entries {[(i, t, inv) for i, t, inv, _ in sc.entries]}')
+        arr = [i for i, t, inv, _ in sc.entries if not t and not inv]
+        for i in reversed(arr):                        # (the table's down arrow: a reachable text-less entry that
+            try:                                       # scrolls the drawn rows)
+                walk(s, i, 3)
+            except AssertionError:
+                continue
+            s.send('fire dump:0.5 ' * 12 + 'dump:1')
+            now = zona_rows(s.box.dump(0xA0000, 64000))
+            if now != hd['top']:
+                hd['down'] = now
+                break
+        s.shot(f'ap_{tag}_{k + 1}_down')
+        out.setdefault('heads', {})[lab] = hd
         walk(s, s.screen().find('STAT', exact=True), 3)
         now = [x for x in vis() if x not in AP_STD]
         s.shot(f'ap_{tag}_{k + 1}_stat')
@@ -12269,6 +12285,22 @@ def ap_cycle(s, tag, n=5):
             s.send('fire dump:2')
     s.log.append(f'[ap] {tag} {t0} {out}')
     return t0, out
+
+
+ZONA_GLYPHS = ('#####  ###  #   #  ###', '   #  #   # ##  # #   #', '  #   #   # # # # #####',
+               ' #    #   # #  ## #   #', '#####  ###  #   # #   #')
+
+
+def zona_rows(fr):
+    """4.0.6 the y of every 'ZONA' drawn on a 320x200 frame (the table's group headers: colour 2, the game's small
+    font, ZONA_GLYPHS from a verified ARG Apertura frame)"""
+    pts = [(x, y) for y, row in enumerate(ZONA_GLYPHS) for x, c in enumerate(row)]
+    out = []
+    for y in range(200 - 5):
+        for x in range(320 - 23):
+            if all((fr[(y + dy) * 320 + x + dx] == 2) == (ZONA_GLYPHS[dy][dx] == '#') for dx, dy in pts):
+                out.append(y)
+    return out
 
 
 def ap_ok(cyc, extras, stage_word):
@@ -12412,6 +12444,9 @@ def world_apertura_arg():
     c = runs[0].get(2) if runs else None
     check(ok, msg, errs)
     check(ap_ok(c, ['CLASSIFICA GENERALE', 'L.P. APERTURA'], 'APERTURA'), f'STAT {c}', errs)
+    hd = c[1].get('heads', {}).get('L.P. APERTURA') if c else None   # 4.0.6: ZONA A on top, ZONA B below; scrolled
+    top, down = (hd or {}).get('top', []), (hd or {}).get('down', [])  # down: ZONA B higher up
+    check(len(top) == 2 and len(down) >= 1 and min(down) < max(top), f'4.0.6 Apertura group headers at y {hd}', errs)
     return not errs, '; '.join(errs + [f'{runs}'])
 
 
@@ -12426,6 +12461,9 @@ def world_apertura_uru():
     check(ok, msg, errs)
     check(ap_ok(st.get(2), ['PR. APERTURA'], ''), f'Intermedio: {st.get(2)}', errs)
     check(ap_ok(st.get(3), ['PR. APERTURA', 'PR. INTERMEDIO'], ''), f'Clausura: {st.get(3)}', errs)
+    for k in (2, 3):                                   # 4.0.6: the Apertura, one table of 16: no group headers
+        hd = (st.get(k) or (0, {}))[1].get('heads', {})
+        check(not any((hd.get('PR. APERTURA') or {}).values()), f'stage {k}: Apertura group headers {hd}', errs)
     return not errs, '; '.join(errs + [f'{runs}'])
 
 
@@ -15351,7 +15389,8 @@ def stage_zones_data():
     """4.0.5 the earlier stages' tables' zone colours (zones.stage_zones / stage_key): the build's DATA\\ZONIT5.DAT
     holds a key per stage table - the league's + 80h + its table - with that stage's play-off places, green: MX
     APERTURA / CLAUSURA 1-8, ARG L.P. APERTURA / CLAUSURA 1-8 + 16-23, URU APERTURA 1, INTERMEDIO 1 + 9, CLAUSURA 1
-    (no exe run; SWOSTEST_BUILD: a release dir)"""
+    (no exe run; SWOSTEST_BUILD: a release dir); 4.0.6: + the same places by group place (80h-flagged, group in
+    bits 6-7: ARG Zona A / B 1-8 - shown when the stage table has group headers)"""
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import zones
     b = os.environ.get('SWOSTEST_BUILD') or builds()['it']
@@ -15368,9 +15407,10 @@ def stage_zones_data():
             nr = e[1 + zones.NAME]
             got[t] = [tuple(e[2 + zones.NAME + 3 * k:5 + zones.NAME + 3 * k]) for k in range(nr)]
     want = {b'MESSICO LIGA MX\x80': [(1, 8, 14)], b'MESSICO LIGA MX\x81': [(1, 8, 14)],
-            b'ARGENTINA LIGA PROFESIONAL\x80': [(1, 8, 14), (16, 23, 14)],
-            b'URUGUAY CAMPEONATO URUGUAYO\x80': [(1, 1, 14)], b'URUGUAY CAMPEONATO URUGUAYO\x81': [(1, 1, 14), (9, 9, 14)],
-            b'URUGUAY CAMPEONATO URUGUAYO\x83': [(1, 1, 14)]}
+            b'ARGENTINA LIGA PROFESIONAL\x80': [(1, 8, 14), (16, 23, 14), (129, 8, 14), (129, 72, 14)],
+            b'URUGUAY CAMPEONATO URUGUAYO\x80': [(1, 1, 14), (129, 1, 14)],
+            b'URUGUAY CAMPEONATO URUGUAYO\x81': [(1, 1, 14), (9, 9, 14), (129, 1, 14), (129, 65, 14)],
+            b'URUGUAY CAMPEONATO URUGUAYO\x83': [(1, 1, 14), (129, 1, 14)]}
     errs = [f'{k!r}: {got.get(k)} (want {v})' for k, v in want.items() if got.get(k) != v]
     return not errs, '; '.join(errs) or f'{len(got)} stage keys, MX / ARG / URU as their play-offs'
 

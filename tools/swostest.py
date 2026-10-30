@@ -4421,10 +4421,14 @@ def world_uq_early():
     return not errs, '; '.join(errs) or f'{msg[:160]}; ties played {ties}; slot 3 on the menus {seen} ({len(menus)} menus)'
 
 
-def walk(s, target, w=3, tries=20):
+def walk(s, target, w=3, tries=20, stays=48):
     """Select entry `target` (text or number) one key at a time, re-planning after each move (menus where a planned
-    path drifts: two-column lists, moves taken twice), then fire; returns the new screen."""
-    for _ in range(tries):
+    path drifts: two-column lists, moves taken twice), then fire; returns the new screen. A key that leaves the cursor
+    where it was (4.0.5 long bench: down on row 17 / up on row 12 scroll the player list's window - ViewSquad of a
+    32-player squad, world_transfer_sale rc14p) is not counted in tries: the next plan goes around it if it can, else
+    the same key again (at the window's end the cursor moves), at most `stays` times."""
+    bad, n = set(), 0
+    while n < tries:
         scr = s.screen()
         i = scr.find(target) if isinstance(target, str) else target
         if i is None:
@@ -4432,10 +4436,15 @@ def walk(s, target, w=3, tries=20):
         if scr.selected == i:
             s.send(f'fire dump:{w}')
             return s.screen()
-        p = scr.path(i)
+        p = scr.path(i, frozenset(bad)) or scr.path(i)
         if not p:
             raise AssertionError(f'no path to {target} from {scr.selected}')
         s.send(p[0] + ' dump:0.5')
+        if s.screen().selected == scr.selected and stays > 0:
+            bad.add((scr.selected, p[0]))
+            stays -= 1
+        else:
+            n += 1
     raise AssertionError(f'{target} not reached')
 
 

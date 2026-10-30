@@ -57,6 +57,15 @@ breakpoints), `W84NAT_REDO=1` (remake the cached national-team saves).
     restored when fit) only in scenarios that judge the career club's own results or strength; it cycled every
     reserve at every squad screen and was ~50-60% of a long career's pauses (world_full_arg / _eng, rc1);
   - injured goalkeeper: first the reserve goalkeeper of row 12 (the rows' positions are drawn, not menu entries);
+  - the long bench (4.0.5 benchx, a bench over 5): rows 12..17 are a window on the places from 12 on, moved by the
+    box left of row 17 AND by the cursor (up on row 12 / down on row 17 scroll it, the cursor stays); the game swaps
+    by place (the mark is kept while the window scrolls). So every swap goes through `swap_in()` / `swap_rows()`: a
+    reserve shown on row 17 is fired FIRST, then the starter's row (rows 1..11 never move); a bench row only after
+    `window_home()` (the window at the top), then down on row 17 to the reserve. Up to rc14p the fixer marked the row
+    first and came back to row 17 - the way up had scrolled the window back, another player went in, and careers
+    looped for hours (world_full_eng 30/10). `substitute_min` stops as soon as VIS. RISULTATI shows (an unavailable
+    bench player is left out at the kick-off), and the fixer fails after LINEUP_STUCK (3) squad screens in a row left
+    by ESCI without VIS. RISULTATI. Scenario `bench_lineup` (BENCH_BUILD) checks the fixer and the game's swaps;
   - national team: menu without TRASFERIMENTI, PARTITA disabled until the squad is called up: `nat_callups()` adds
     players from the home leagues (enabled player rows = eligible) until "SCEGLI ALTRI 0".
 - `next_season_save(s, NAME)`: season-end menu → (job offers if sacked) → CONTINUA CARRIERA → new season → save.

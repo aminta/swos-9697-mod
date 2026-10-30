@@ -5447,7 +5447,11 @@ def bench_play(s, gmax, top, bot, wants, errs, info, mark, sub=None, icons=None,
     if icons is not None:                   # the names of places 17..26 (built just now) left the bald icons alone
         icons['kickoff'] = bald_icons(r)
         b0 = icons.get('squad')
-        check(b0 and all(p for p, _, _ in b0), f'the bald icons not built on the squad screen: {b0}', errs)
+        if PRESS_FIRE != 'fire':            # (4.0.5: under SWOS++ the bald look is off - blond.py's SPPMMI test)
+            check(b0 and not any(p for p, _, _ in b0), f'the bald icons built under SWOS++: {b0}', errs)
+            info.append('SWOS++: no bald icons (bald look off)')
+        else:
+            check(b0 and all(p for p, _, _ in b0), f'the bald icons not built on the squad screen: {b0}', errs)
         check(icons['kickoff'] == b0, f'the bald icons changed at the kick-off: {b0} -> {icons["kickoff"]}', errs)
     s.shot('kickoff')
     if os.environ.get('BENCH_ET') and sub:  # (4.0.6) the extra-time substitute: the competition's et flag poked (bx_look's

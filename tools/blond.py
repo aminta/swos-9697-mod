@@ -60,6 +60,8 @@ ig_face:                                ; replaces mov al, [D0] / mov esi, [A6] 
     mov al, 2
     mov byte [esi + FLAG_], 1
 .w:
+    cmp byte [SPPMMI], 66h              ; 4.0.5: under SWOS++ (its code over SWOSMainMenuInit's first mov) no bald look:
+    jne .s                              ; with the long bench its PLAY MATCH stalls (Panchina 30/10, harness probe)
     push edi                            ; 4.0.3: bald (the player record's byte 25 bit 0, A5 -> record + 76 - 26 ..)
     mov edi, [A5]
     test byte [edi + 66h - 26 + BALD_AT_], 1
@@ -321,6 +323,8 @@ icon_d1a:                               ; (the Edit Teams face button: A0 -> the
 bicon:                                  ; 4.0.5: a bald player (record byte 25 bit 0) gets the bald icon of his skin:
     test eax, eax                       ; 1910 light (from 186), 1911 dark (from 188, faces 2 / 3)
     jz .r
+    cmp byte [SPPMMI], 66h              ; (4.0.5: not under SWOS++, as the match sets above)
+    jne .r
     test byte [eax + 66h - 26 + BALD_AT_], 1
     jz .r
     call build_bald
@@ -496,7 +500,10 @@ def patch(p, area, at, bss, spr, bss2):
     UNCH.update(site=un + 35, sym={'D0': (2, D0), 'D1': (2, D1), 'D3': d3, 'USP': (1, usp), 'UTZ': (1, utz),
                                    'NEW1_': (0, NEW1), 'NEW2_': (0, NEW2)})
     assert t(face - 0x16 + 2) == (2, A0 + 20), t(face - 0x16 + 2)   # (mov esi, [A5] / mov al, [esi+66h] before it)
-    sym = {'D0': (2, D0), 'D1': (2, D1), 'A0': (2, A0), 'A6': (2, A6), 'SPRIDX': (2, spr), 'BUF': (2, bss),
+    mmi = [m.start() for m in re.finditer(rb'\x66\xc7\x05.{4}\xff\xff\xe8.{4}\xe8.{4}\xeb\x00', d1, re.S)]
+    assert len(mmi) == 2 and mmi[0] < 0x20000, [hex(x) for x in mmi]   # (SWOSMainMenuInit's `mov currentTeamNumber, -1`
+                                                                       # is the first: SWOS++ makes its 66h a B8h)
+    sym = {'SPPMMI': (1, mmi[0]), 'D0': (2, D0), 'D1': (2, D1), 'A0': (2, A0), 'A6': (2, A6), 'SPRIDX': (2, spr), 'BUF': (2, bss),
            'A5': (2, A0 + 20), 'BUF2': (2, bss2), 'BALD_AT_': (0, BALD_AT), 'NEW3_': (0, NEW3), 'ICONBL_': (0, ICONBL), 'ICONBUF': (2, bss2 + SCR_OFF + 0x800), 'SCR': (2, bss2 + SCR_OFF), 'MARK': (2, bss2 + SCR_OFF + 0x200),
            'USEIND': useind, 'T1TAB': (2, t1tab), 'T2TAB': (2, t2tab), 'SKINTAB': (1, skintab), 'CONVSPR': (1, csc),
            'FACE_': (0, FACE), 'FLAG_': (0, FLAG), 'FACE_OFF': (0, face_off), 'NEW1_': (0, NEW1), 'NEW2_': (0, NEW2),

@@ -186,6 +186,12 @@ def cave_pages():
 
 LT_SPACE = []
 LR_ROOM = []                                    # 4.0.5 lpreal: [start, end] after simdraw on the coefficients page
+LG_ROOM = []                                    # 4.0.5 lgreal: [start, end] after longtable / mainbtn
+
+
+def lgreal_bss():
+    import lgreal
+    return lgreal.BSS_SIZE
 CAREER_END = [None]                # the career cave's end after its code (4.0.1: the shirt numbers follow it)
 
 
@@ -193,6 +199,7 @@ def patch_exe(src, dst, remap, lang='it'):
     CAREER_END[0] = None
     LT_SPACE.clear()
     LR_ROOM.clear()
+    LG_ROOM.clear()
     grown = dst + '.tmp'
     data = open(src, 'rb').read()
     worlds = bool(mkseason.worlds())
@@ -572,6 +579,7 @@ def patch_exe(src, dst, remap, lang='it'):
             if careerworld.SITES.get('natflag'):     # 4.0.3: CAREER 2026-27's coach nationalities (careerworld nat_init)
                 p.add_ptr(1, careerworld.SITES['natflag'], 1, mainbtn.FLAG[0])
         assert lt_end_ <= lt_room[1], hex(lt_end_)
+        LG_ROOM[:] = [(lt_end_ + 15) & ~15, lt_room[1]]   # 4.0.5 lgreal's code (after split.patch: its hooks)
         print(f'exe: longtable code obj1+{lt_room[0]:#x}..{lt_end_:#x} (free to {lt_room[1]:#x})')
     else:
         cos = longtable.patch(p, cos, area, lang)                # 4.0: tables over 24 clubs scroll (ARG / MLS 30: no drawing past the screen)
@@ -622,6 +630,11 @@ def patch_exe(src, dst, remap, lang='it'):
         sp_at = hist2 + h2 + 0x1000 * lpb
         sp_end = split.patch(p, sp_at, nasmcave, sp_tabs)
         assert sp_end <= sp_at + 0x1000 * sp_pg, (hex(sp_at), hex(sp_end), sp_pg)
+        if LG_ROOM:                              # 4.0.5: the real league calendars of a world's first season
+            import lgreal
+            lgreal.patch(p, LG_ROOM[0], LG_ROOM[1], num_bss + shirtnum.BSS_SIZE + blond.BSS_SIZE + menunum.BSS_SIZE,
+                         fmtpage.BSS_SIZE, num_bss + shirtnum.BSS_SIZE + blond.BSS_SIZE + menunum.BSS_SIZE +
+                         fmtpage.BSS_SIZE + teamstab.BSS_SIZE + blond.BSS2_SIZE)
     if sc_pg:                                    # state championships in career / Season slot 1 (statecup.py)
         sc_at = hist2 + h2 + 0x1000 * (lpb + sp_pg)
         sc_end = statecup.test_contest(p, sc_at) if statecup.TEST else sc_at   # (STATECUP_TEST=1 builds)
@@ -655,7 +668,8 @@ def patch_exe(src, dst, remap, lang='it'):
     import teamstab                              # 4.0.2: teamsTable for 256 team ordinals (Serie D choice colours)
     teamstab.patch(p, num_bss + shirtnum.BSS_SIZE + blond.BSS_SIZE + menunum.BSS_SIZE + fmtpage.BSS_SIZE)
     tail = (careerworld.BSS_SIZE if bigw else 0) + shirtnum.BSS_SIZE + blond.BSS_SIZE + menunum.BSS_SIZE + fmtpage.BSS_SIZE \
-        + teamstab.BSS_SIZE + blond.BSS2_SIZE   # obj2 tail (4.0.3: the second pair of variant sets last)
+        + teamstab.BSS_SIZE + blond.BSS2_SIZE + (lgreal_bss() if LG_ROOM else 0)   # obj2 tail (4.0.3: the second
+                                                # pair of variant sets; 4.0.5 lgreal's LGB last)
     p.set_vsize(2, obj2_free + o2pages * p.le.page_size + tail, bss=tail)
     tailzero.patch(p, tz_at, obj2_free + o2pages * p.le.page_size, (tail + 3) & ~3, nasmcave)   # (DOS/4GW: not zeroed)
     p.add_flags(1, 0x2)            # writable: season end rewrites the SA cup team lists in the cave
@@ -802,6 +816,9 @@ def write_new_teams(src_dir, dst_dir):
     import lpreal                                     # 4.0.5: the real league-phase fixtures of a world's first season
     for name, k in lpreal.write(dst_dir):
         print(f'{name}: real league-phase fixtures of {k} contests')
+    import lgreal                                     # 4.0.5: the real league calendars of a world's first season
+    for name, k in lgreal.write(dst_dir):
+        print(f'{name}: real league calendars of {k} leagues')
     rename_clubs(src_dir, dst_dir)
 
 

@@ -1577,6 +1577,10 @@ def advance(s, stop, max_steps=400):
         s.log.append(f'[{step}] {scr}')
         if os.environ.get('SWOSTEST_LABELS', '1') == '1' and scr.find('VISUAL. COMPETIZ.', exact=True) is not None:
             label_check(s, step)                         # (4.0.5: every competition name of the fixture list)
+        if os.environ.get('W8485_CALDUMP') and not getattr(s, 'cald_done', 0) and \
+                scr.find('VISUAL. COMPETIZ.', exact=True) is not None:   # (4.0.5: the career calendar, once a season)
+            s.log.append(f'CALD {step} {bytes(s.result.obj2(CAL_AT - 4, 0x2000)).hex()}')
+            s.cald_done = 1
         dw = os.environ.get('W8485_DIYWORD')             # (4.0.5: word:obj2 at:len - the first screen of a season
         if dw and scr.entries and not getattr(s, 'diyw_done', 0) and dw.split(':')[0] in scr.entries[0][1]:   # titled
             w_, a_, n_ = dw.split(':')                   # with that word: those bytes, e.g. the working DIY)
@@ -14036,6 +14040,169 @@ def world_lpreal(cid=0, word='CHAMPIONS LEAGUE', team='EUROPA,ITALIA,SERIE A,INT
             check(valid and cal != real, f'season 2: drawn by the game (valid {valid}, = the file {cal == real})', errs)
             info.append(f'season 2 drawn (valid, {sum(1 for i in range(nm) if cal[i] == real[i])} matches as the file)')
     return not errs, '; '.join(errs) or f'{msg}; ' + '; '.join(info)
+
+
+def lgreal_file(exe):
+    """DATA\\LGREAL.DAT of a build (lgreal.py): [(world, [team words], days, [(home, away) team words])]"""
+    p = os.path.join(exe, 'DATA', 'LGREAL.DAT')
+    if not os.path.exists(p):
+        return []
+    d, out, o = open(p, 'rb').read(), [], 4
+    for _ in range(struct.unpack_from('<I', d, 0)[0]):
+        w, n, days, half = d[o:o + 4]
+        words = list(struct.unpack_from(f'<{n}H', d, o + 4))
+        pr = d[o + 4 + 2 * n:o + 4 + 2 * n + 2 * days * half]
+        out.append((w, words, days, [(words[pr[2 * i]], words[pr[2 * i + 1]]) for i in range(days * half)]))
+        o += 4 + 2 * n + 2 * days * half
+    return out
+
+
+def cal_league(b):
+    """The career calendar dump (CALD: count word at 0, the entries from 4) -> [(week, home, away)] of slot 0"""
+    n, o, out = struct.unpack_from('<H', b, 0)[0], 4, []
+    for _ in range(n):
+        ln = struct.unpack_from('<H', b, o + 2)[0]
+        if not ln or o + ln > len(b):
+            break
+        if b[o] == 0 and b[o + 5]:
+            out.append((b[o + 1], struct.unpack_from('<H', b, o + 12)[0], struct.unpack_from('<H', b, o + 14)[0]))
+        o += ln
+    return out
+
+
+@scenario
+def world_lgreal(team='EUROPA,ITALIA,SERIE A,INTER', two=True, expect_real=True):
+    """4.0.5 real league calendar in the world's first season (lgreal.py): a World 2026-27 career (default INTER,
+    the release data world5tm-403c8); the career calendar at the season's first menu: the club's league days = its
+    matches of the real list (LGREAL.DAT), in order, home first (a split league: the days before the split);
+    season 2 (save, reload): the generated calendar again, the season ends"""
+    src = os.environ.get('W2627LP_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-403c8')
+    if not os.path.isdir(src):
+        return True, f'SKIP: private data {src} missing'
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    exe = os.environ.get('LGREAL_BUILD') or build('world_lgreal', env={
+        'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order])})
+    lg = lgreal_file(exe)
+    if not lg:
+        return False, f'no LGREAL.DAT in {exe}'
+    keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_CALDUMP',
+            'W8485_ONE')
+    keep = {k: os.environ.get(k) for k in keys}
+    os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5', W8485_K='108+',
+                      W8485_NOSACK='1', W8485_CALDUMP='1')
+    if not two:
+        os.environ['W8485_ONE'] = '1'
+    try:
+        ok, msg = world8485()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    errs, info = [], []
+    check(ok, msg, errs)
+    for sn in ((1, 2) if two else (1,)):
+        lines = open(os.path.join(RUNS, w84_tag() + f'_{sn}', 'session.log'), errors='replace').read().splitlines()
+        cd = [bytes.fromhex(ln.split()[2]) for ln in lines if ln.startswith('CALD ')]
+        if not cd:
+            check(False, f'season {sn}: no career calendar dump', errs)
+            continue
+        days = cal_league(cd[0])
+        if not days:
+            check(False, f'season {sn}: no league day in the calendar', errs)
+            continue
+        mgr = set.intersection(*[{h, a} for _, h, a in days])
+        ent = next((e for e in lg if mgr & set(e[1])), None)
+        if ent is None:
+            check(not expect_real, f'season {sn}: the club {mgr} has no real list', errs)
+            info.append(f'season {sn}: no real list - the generated calendar ({len(days)} league days)')
+            continue
+        check(expect_real, f'season {sn}: a real list for {mgr} (expected none)', errs)
+        me = (mgr & set(ent[1])).pop()
+        real = [(h, a) for h, a in ent[3] if me in (h, a)]
+        got = [(h, a) for _, h, a in days][:len(real)]
+        if sn == 1:
+            diff = [(i + 1, got[i], real[i]) for i in range(min(len(got), len(real))) if got[i] != real[i]]
+            check(len(got) == len(real) and not diff, f'season 1: {len(real) - len(diff)}/{len(real)} league days of '
+                  f'the club = the real list ({len(days)} in the calendar); first differences {diff[:3]}', errs)
+            info.append(f'season 1 = the real calendar ({len(real)} days): day 1 {hex(got[0][0])} v {hex(got[0][1])}, '
+                        f'last {hex(got[-1][0])} v {hex(got[-1][1])}')
+        else:
+            check(got != real, 'season 2: the generated calendar (not the file\'s)', errs)
+            info.append(f'season 2 generated ({len(days)} league days)')
+    return not errs, '; '.join(errs) or f'{msg}; ' + '; '.join(info)
+
+
+@scenario
+def world_lgreal_oldsave():
+    """world_lgreal on an older career: a season-1 save of INTER a few league days in, made by the build before
+    lgreal (LGREAL_OLD, default branch 405-rc5: the generated calendar), loaded by this build - the rest of the season
+    keeps the save's calendar (no switch to the real list midway: every league match played after the load is one of
+    the old calendar's), the season ends"""
+    src = os.environ.get('W2627LP_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-403c8')
+    if not os.path.isdir(src):
+        return True, f'SKIP: private data {src} missing'
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    env = {'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order])}
+    old = build('world_lgreal_old', env=env, branch=os.environ.get('LGREAL_OLD', '405-rc5'))
+    exe = os.environ.get('LGREAL_BUILD') or build('world_lgreal', env=env)
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import lib97
+    from le import LE
+
+    class _P:
+        pass
+    op = _P()
+    op.le = LE(open(os.path.join(ROOT, 'orig', 'ITALIAN.EXE'), 'rb').read())
+    diy = lib97._sites(op)[3] + 0x41F
+    keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_CALDUMP',
+            'W8485_ONE', 'W8485_MIDSAVE', 'W8485_FROM')
+    keep = {k: os.environ.get(k) for k in keys}
+    base = dict(W8485_WORLD='MONDO 2026-27', W8485_TEAM='EUROPA,ITALIA,SERIE A,INTER', W8485_WNUM='5',
+                W8485_K='108+', W8485_NOSACK='1', W8485_CALDUMP='1')
+    try:
+        os.environ.update(base, W8485_BUILD=old, W8485_ONE='1', W8485_MIDSAVE=f'{diy + 0x1C1:x}:4:2')
+        ok, msg = world8485()                            # (the working DIY's day counter 4: a few league days in)
+        if not ok:
+            return False, f'old build: {msg}'
+        path = msg.split(': ', 1)[1]
+        os.environ.pop('W8485_MIDSAVE')
+        os.environ.update(base, W8485_BUILD=exe, W8485_FROM=path)
+        ok2, msg2 = world8485()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    errs = []
+    check(ok2, f'this build from the old save: {msg2}', errs)
+    l1 = open(os.path.join(RUNS, w84_tag() + '_1', 'session.log'), errors='replace').read().splitlines()
+    l2 = open(os.path.join(RUNS, w84_tag() + '_2', 'session.log'), errors='replace').read().splitlines()
+    cd = [bytes.fromhex(ln.split()[2]) for ln in l1 if ln.startswith('CALD ')]
+    if not cd:
+        return False, 'no calendar dump in the old session'
+    oldcal = {(team_name(old, h), team_name(old, a)) for _, h, a in cal_league(cd[0])}
+    played = []
+    for ln in l2:
+        if ln.startswith('[') and 'ITALIA SERIE A' in ln and '| PARTITA(inv) | - PARTITA -' in ln:
+            q = [x.strip() for x in ln.split('|')]
+            i = next((k for k, x in enumerate(q) if x in ('C', '-') and k + 2 < len(q)), None)
+            if i is not None and (q[i + 1], q[i + 2]) not in played:
+                played.append((q[i + 1], q[i + 2]))
+    bad = [m for m in played if m not in oldcal]
+    check(played and not bad, f'after the load: {len(played)} league matches played, not in the old calendar {bad[:3]}',
+          errs)
+    return not errs, '; '.join(errs) or f'old save {path}; {len(played)} league matches after the load, all the old ' \
+                                        f'calendar\'s; {msg2[:60]}'
+
+
+@scenario
+def world_lgreal_sco():
+    """world_lgreal at a Scottish club (HIBERNIAN, one season): the Premiership is NOT in LGREAL.DAT (its split's
+    'balance' home rule reads the pre-split fixtures) - the generated calendar, the split as before"""
+    return world_lgreal('EUROPA,SCOZIA,SCOTTISH PREMIERSHIP|PREMIERSHIP,HIBERNIAN', False, expect_real=False)
 
 
 @scenario

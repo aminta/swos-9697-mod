@@ -5643,8 +5643,12 @@ def swospp_bench():
             return out_
         spp, mr = ranges(pp_), ranges(mod)
         info.append(f'SWOS++ run-time sites in obj1: {len(spp)} ({len(pp_)} bytes); mod changes: {len(mr)} ranges')
-        over, near = [], []
+        over, near, known = [], [], []
         for a, z in spp:
+            if (z <= a + 6 and o0[a:a + 3] == b'\x66\x01\x05' and exe[a] == 0xe8 and exe[a + 5:a + 7] == b'\x90\x90'
+                    and exe[a + 7] == 0xe8):            # (shirtnum, 3.2.6: SWOS++'s DrawControlledPlayerNumbers+0x184
+                known.append(hex(a))                    # hook takes our `call num_sprite; nop; nop` = the game's add,
+                continue                                # fix_d0 after it reads SWOS++'s 9000 + n mark: by design)
             for c, e in mr:
                 if a <= e and c <= z:
                     over.append((hex(a), hex(z), hex(c), hex(e)))
@@ -5653,7 +5657,7 @@ def swospp_bench():
         open(os.path.join(RUNS, 'swospp_bench', 'sites.txt'), 'w').write(
             '\n'.join(f'{a:#x}..{z:#x} mem {mem[a:z + 1].hex()} exe {exe[a:z + 1].hex()}' for a, z in spp) + '\n\nnear:\n'
             + '\n'.join(map(str, near)) + '\n')
-        info.append(f'overlaps {over[:8]}; near {len(near)}: {near[:12]}')
+        info.append(f'overlaps {over[:8]}; by design (shirtnum) {known}; near {len(near)}: {near[:12]}')
         check(not over, f'SWOS++ sites overlap mod changes: {over[:12]}', errs)
     return not errs, '; '.join(errs + info)
 

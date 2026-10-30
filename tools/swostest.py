@@ -6574,12 +6574,13 @@ SPLITS = {   # world_split kinds: country, career path (ITA), the 'split' of its
 
 
 def split_build():
-    """The world 2026-27 (private data internal/world2526/world5tm) with the three SPLITS; SPLIT_BUILD reuses one."""
+    """The world 2026-27 (W2627REL_DATA - the release dir's own data, see rel_data_default - else the old
+    internal/world2526/world5tm) with the three SPLITS; SPLIT_BUILD reuses one."""
     import json
     if os.environ.get('SPLIT_BUILD'):
         return os.environ['SPLIT_BUILD']
-    src = os.path.join(MAIN, 'internal', 'world2526', 'world5tm')
-    w = os.path.join(WORK, 'world_split')
+    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm')   # (the rc's
+    w = os.path.join(WORK, 'world_split')                                                            # data: run sets it)
     shutil.rmtree(w, ignore_errors=True)
     shutil.copytree(src, os.path.join(w, 'world5tm'))
     for c, _, sp in SPLITS.values():

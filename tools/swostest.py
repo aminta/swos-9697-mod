@@ -5588,6 +5588,77 @@ def controls_swospp():
 
 
 @scenario
+def swospp_bench():
+    """(Panchina, 4.0.5 regression) SWOS++ vs the mod's code changes: SWOSPP_BUILD (a dir whose ITALIAN.EXE is a modded ENGLISH exe,
+    the release recipe) + tools/swospp.py + LOADER.BIN / SWOSPP.BIN; at the main menu obj1 in memory is compared with
+    the run's exe (relocation fields masked): the bytes SWOS++ changed at run time. Each of its sites must be away from
+    every byte the mod changed against orig/ENGLISH.EXE (overlap = FAIL); sites within 256 bytes of a mod change are
+    listed for review (a SWOS++ jump that replaces a routine the mod hooks further on)."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import lepatch
+    import swospp
+    if UI != 'en':
+        return True, 'SKIP: SWOS++ is English only (SWOSTEST_UI=en)'
+    b = os.environ.get('SWOSPP_BUILD')
+    if not b or not os.path.isdir(b):
+        return True, 'SKIP: SWOSPP_BUILD not set'
+    pp = os.path.join(MAIN, 'internal', 'swospp-test')
+    out = os.path.join(WORK, 'builds-x', 'swospp_bench')
+    shutil.rmtree(out, ignore_errors=True)
+    shutil.copytree(b, out)
+    swospp.install(os.path.join(b, 'ITALIAN.EXE'), os.path.join(out, 'ITALIAN.EXE'))
+    errs, info = [], []
+    with Session('swospp_bench', out, {'LOADER.BIN': os.path.join(pp, 'loader.bin'),
+                                       'SWOSPP.BIN': os.path.join(pp, 'swospp.bin')}, 'dump:3', 200, timer=True) as s:
+        if s.wait().outcome != 'dump':
+            return False, f'START: no first pause ({s.result})'
+        sc = s.screen()
+        check(any('SWOS++' in t for _, t, *_ in sc.entries), f'SWOS++ not running: {sc}', errs)
+        r = s.result
+        run = lepatch.LEPatch(os.path.join(RUNS, 'swospp_bench', 'SWOS', 'ITALIAN.EXE'))
+        orig = lepatch.LEPatch(os.path.join(ROOT, 'orig', 'ENGLISH.EXE'))
+        o0 = orig.le.obj_bytes(1)
+        n = len(o0)
+        exe = run.le.obj_bytes(1)[:n]
+        mem = r.read(r.base1, n)
+        mask = bytearray(n)
+        for gp, recs in enumerate(run.recs):
+            objn, base = run.page_obj[gp]
+            if objn != 1:
+                continue
+            for rc in recs:
+                po = struct.unpack_from('<h', rc, 2)[0]
+                for k in range(max(0, base + po), min(n, base + po + 4)):
+                    mask[k] = 1
+        pp_ = [i for i in range(n) if not mask[i] and mem[i] != exe[i]]
+        mod = [i for i in range(n) if exe[i] != o0[i]]
+
+        def ranges(xs):
+            out_ = []
+            for i in xs:
+                if out_ and i <= out_[-1][1] + 4:
+                    out_[-1][1] = i
+                else:
+                    out_.append([i, i])
+            return out_
+        spp, mr = ranges(pp_), ranges(mod)
+        info.append(f'SWOS++ run-time sites in obj1: {len(spp)} ({len(pp_)} bytes); mod changes: {len(mr)} ranges')
+        over, near = [], []
+        for a, z in spp:
+            for c, e in mr:
+                if a <= e and c <= z:
+                    over.append((hex(a), hex(z), hex(c), hex(e)))
+                elif abs(a - e) < 256 or abs(c - z) < 256:
+                    near.append((hex(a), hex(z), hex(c), hex(e)))
+        open(os.path.join(RUNS, 'swospp_bench', 'sites.txt'), 'w').write(
+            '\n'.join(f'{a:#x}..{z:#x} mem {mem[a:z + 1].hex()} exe {exe[a:z + 1].hex()}' for a, z in spp) + '\n\nnear:\n'
+            + '\n'.join(map(str, near)) + '\n')
+        info.append(f'overlaps {over[:8]}; near {len(near)}: {near[:12]}')
+        check(not over, f'SWOS++ sites overlap mod changes: {over[:12]}', errs)
+    return not errs, '; '.join(errs + info)
+
+
+@scenario
 def full_graphics():
     """4.0.2 full graphics always (fullgfx.py): GOG's factory SETUP.DAT (video speed 10, the half mode before) -> at the
     main menu setupDatBuffer (EGA_graphics in the match) = 0; the same with the exe started with /H -> -1 (half)"""

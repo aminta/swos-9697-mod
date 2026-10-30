@@ -12888,20 +12888,20 @@ def dkb_sets(r, spr, blond, info):
             check(15 in hair and 5 not in hair, f'{tag}: darkblond colours {sorted(hair)} (yellow 15, no light skin 5)',
                   errs)
         for name, f, ref, skin in (('dark', 2, black, {3, 4}), ('light', 3, raw, {4, 5, 6})):
-            if f not in vs:                             # 4.0.3 bald (look A): the face's set, its hair (3) dropped
-                continue                                # (the outer ring) or in the skin colours
+            if f not in vs:                             # 4.0.5 bald (look E, receding): the face's set, its top
+                continue                                # hair (3) in skin colours, the rest of the hair kept
             bald = vs[f] + t2
             gone, skinned, bad = 0, 0, []
             for k in range(101):
                 a, b_ = frame(ref + k), frame(bald + k)
                 d_ = [(x, y) for x, y in zip(a[2], b_[2]) if x != y]
-                if a[:2] != b_[:2] or any(x not in (0, 3) or (y and y not in skin) or (x == 0 and not y) for x, y in d_):   # (4.0.5: a back view's head may fill empty pixels)
+                if a[:2] != b_[:2] or any(x != 3 or y not in skin for x, y in d_):
                     bad.append(k)
-                gone += sum(1 for x, y in d_ if not y)
-                skinned += sum(1 for x, y in d_ if y)
+                skinned += len(d_)
+                gone += sum(1 for x, y in zip(a[2], b_[2]) if x == 3 and y == 3)     # (here: hair pixels kept)
             check(not bad and gone and skinned, f'{tag}: bald {name} frames {bad[:12]} ({len(bad)}), hair pixels '
-                  f'{gone} dropped / {skinned} in skin', errs)
-            info.append(f'{tag}: bald {name}: {gone} hair pixels dropped, {skinned} in skin colour')
+                  f'{gone} kept / {skinned} in skin', errs)
+            info.append(f'{tag}: bald {name}: {gone} hair pixels kept, {skinned} in skin colour')
     return errs
 
 
@@ -12955,10 +12955,11 @@ def world_darkblond():
         icon = r.read(struct.unpack('<I', r.read(p189, 4))[0], 64) if p189 else b''
         check(15 in nib(icon[:24]), f'face icon 189 without yellow hair ({icon[:24].hex()})', errs)
         if os.environ.get('DKB_NAME') == 'world_bald':   # 4.0.5: MALEN (bald in the data) -> the bald dark icon 1911
-            pb = struct.unpack('<I', r.read(r.base2 + spr + 1911 * 4, 4))[0]
-            ib = r.read(struct.unpack('<I', r.read(pb, 4))[0], 24) if pb else b''
-            check(pb and 3 not in nib(ib), f'bald dark icon 1911 missing or with black hair ({ib.hex()})', errs)
-            info.append('bald icon 1911 built')
+            pb = struct.unpack('<I', r.read(r.base2 + spr + 1911 * 4, 4))[0]   # (look E: no hair on the top row,
+            ib = r.read(struct.unpack('<I', r.read(pb, 4))[0], 24) if pb else b''  # hair at the sides below it)
+            check(pb and 3 not in nib(ib[:8]) and 3 in nib(ib[8:]), f'bald dark icon 1911 missing or not look E '
+                  f'({ib.hex()})', errs)
+            info.append(f'bald icon 1911 built ({ib.hex()})')
         press(s, s.screen(), 'ESCI', 3)
         press(s, s.screen(), 'PARTITA', 3)
         opp = os.environ.get('DKB_OPP')               # (the reporter's case: the career club v that opponent, e.g. ROMA)
@@ -13072,7 +13073,7 @@ def bald_sheet(r, spr, blond, pal, path, info):
 
 @scenario
 def world_bald():
-    """4.0.3 bald players (blond.py: PlayerFile byte 25 bit 0, look A): world_darkblond's ROMA career match on
+    """4.0.3 bald players (blond.py: PlayerFile byte 25 bit 0; 4.0.5 look E): world_darkblond's ROMA career match on
     SWOSTEST_BUILD with DONYELL MALEN bald in the data (bald dark) and NAHUEL MOLINA poked bald (bald light): copy_sets
     gives them the two pairs (variant sets 2,3 - or 1,2 when the opponent has a darkblond player: then MOLINA plays as
     face 1, world_bald3's case); dkb_sets checks them frame by frame against their face's set (hair pixels dropped or

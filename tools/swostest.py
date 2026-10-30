@@ -1011,20 +1011,25 @@ class Session:
         return self.wait()
 
 
-def press(s, scr, text, wait=2, exact=True):
+def press(s, scr, text, wait=2, exact=True, avoid=frozenset()):
     """Select the visible entry `text` (or entry number), check on the next pause that it is the selected one (a
-    move can be taken twice), then fire; returns the new Result (None if not reachable)."""
+    move can be taken twice), then fire; returns the new Result (None if not reachable). avoid = moves (entry, key)
+    not to take (the long bench's window: up on row 12 / down on row 17 scroll it); none left: any way."""
     i = text if isinstance(text, int) else scr.find(text, exact=exact)
     if i is None:
         return None
-    bad = set()
+    bad = set(avoid)
     for attempt in range(40):
         if scr.selected == i:
             return s.send(f'{PRESS_FIRE} dump:{wait}')
         steps = scr.path(i, bad, steps=True)
+        if not steps and bad & set(avoid):
+            bad -= set(avoid)                           # (no way around: the window may move)
+            avoid = frozenset()
+            steps = scr.path(i, bad, steps=True)
         if not steps:
             return None
-        if attempt < 2 and not bad:                    # the whole path at once (the usual case)
+        if attempt < 2 and not (bad - set(avoid)):     # the whole path at once (the usual case)
             if s.send(' '.join(k for k, _ in steps) + ' dump:0.5').outcome != 'dump':
                 return s.result
             scr = s.screen()
@@ -1097,6 +1102,91 @@ def reserve_info(cur, y):
     return name, role, value
 
 
+def row_entries(scr):
+    """The 17 squad rows' entries, top to bottom (no screenshot: the drawn rows' geometry)."""
+    rx = row_x(scr)
+    return [i for _, i in sorted((g[1], i) for i, g in enumerate(scr.geom)
+                                 if g[0] == rx and (g[2], g[3]) in SQ_WH and not scr.entries[i][1])]
+
+
+def win_moves(rows):
+    """The moves that scroll the long bench's window (benchx, a bench over 5: rows 12..17 a window on the places from
+    12 on; up on row 12 / down on row 17 move it, the cursor stays) - the paths of the line-up fixer avoid them."""
+    return frozenset({(rows[11], 'up'), (rows[16], 'down')}) if len(rows) == 17 else frozenset()
+
+
+def to_entry(s, i, tries=24):
+    """The cursor to entry i (no fire): the path again after each send (a key the window took)."""
+    for _ in range(tries):
+        q = s.screen()
+        if q.selected == i:
+            return True
+        keys = q.path(i)
+        if not keys or s.send(' '.join(keys) + ' dump:0.5').outcome != 'dump':
+            return False
+    return False
+
+
+def window_home(s):
+    """The long bench's window back to the top, so that rows 12..16 are places 12..16 again (benchx: up on row 12
+    scrolls the window while it is not at the top, the cursor stays; at the top - and with the game's bench of 5 -
+    the cursor moves to row 11). False if the squad screen is not there."""
+    rows = row_entries(s.screen())
+    if len(rows) != 17 or not to_entry(s, rows[11]):
+        return False
+    for _ in range(20):
+        if s.send('up dump:0.5').outcome != 'dump':
+            return False
+        if s.screen().selected != rows[11]:
+            return True
+    return False
+
+
+def swap_in(s, slot, rows, reserve, ry, want, tries=40):
+    """Row `slot` (0-based, rows = squad_rows' list or row_entries) <-> the reserve the 17th row shows now (named
+    want). The game swaps by place (benchx 4.0.6: the mark is the player's place, kept while the window scrolls), so
+    a row that never moves (1..11) is pressed after the reserve: the reserve first, then the row; a bench row (12..16:
+    a window row with a bench over 5) needs the window at the top: home, the row first, then down on row 17 (it
+    scrolls the window, the cursor stays) until the 17th row shows want again. (Up to rc14p the harness marked the row
+    first and went back to row 17: with the long bench the way up to rows 1..11 had scrolled the window back - up on
+    row 12 - so row 17 showed another player and he went in; world_full_eng 30/10: a reserve keeper 'in' x384, 3 h.)
+    True if done."""
+    ent = [r[0] if isinstance(r, tuple) else r for r in rows]
+    avoid = win_moves(ent)
+    if slot < 11:                                       # (to_entry, not press: press gives up on a move that
+        return press(s, s.screen(), reserve, wait=1, avoid=avoid) is not None and \
+            to_entry(s, ent[slot]) and s.send(f'{PRESS_FIRE} dump:1').outcome == 'dump'   # stays put - up on row
+                                                        # 12 while the window scrolls back, rc14p world_full_eng)
+    if not window_home(s) or press(s, s.screen(), ent[slot], wait=1, avoid=avoid) is None or not to_entry(s, reserve):
+        return False
+    for _ in range(tries):
+        if reserve_info(s.screen(), ry)[0] == want:
+            return press(s, s.screen(), reserve, wait=1) is not None
+        if s.send('down dump:0.5').outcome != 'dump' or s.screen().selected != reserve:
+            return False                                # (the game's bench of 5: down leaves row 17)
+    return False
+
+
+def swap_rows(s, rows, a, b):
+    """Rows a < 11 and b (0-based) of the first 16 change places: a window row (12..16) first, after the window is
+    back at the top (long bench), then the starter's row (rows 1..11 never move)."""
+    ent = [r[0] if isinstance(r, tuple) else r for r in rows]
+    if b >= 11 and not window_home(s):
+        return False
+    avoid = win_moves(ent)
+    return press(s, s.screen(), ent[b], wait=1, avoid=avoid) is not None and \
+        to_entry(s, ent[a]) and s.send(f'{PRESS_FIRE} dump:1').outcome == 'dump'
+
+
+def lineup_stuck(s, why):
+    """The fixer's stuck limit (Regia 30/10: rc14p looped for hours): the same squad screen left by ESCI without
+    VIS. RISULTATI LINEUP_STUCK (3) times in a row -> an error (fail fast); a fixed line-up resets the count."""
+    s.lineup_esc = getattr(s, 'lineup_esc', 0) + 1
+    if s.lineup_esc >= int(os.environ.get('LINEUP_STUCK', 3)):
+        return f'line-up fixer stuck ({s.lineup_esc} squad screens left without VIS. RISULTATI): {why}'
+    return None
+
+
 def substitute(s, scr, tries=40, full=False):
     """Squad screen (Davide, 2026-10-16: the harness used to put any fit reserve - a defender up front, a trial player -
     in place of a starter and leave him there). Two passes on the 17th row (the reserve shown; its face cycles through
@@ -1136,11 +1226,11 @@ def substitute(s, scr, tries=40, full=False):
         s.send('dump:1')                                # one more look after a pause (redraw)
         return reserve_info(s.screen(), ry)[0] == want
 
-    def swap(slot_entry, reserve):                      # select the row, then the reserve's name: they change places
-        press(s, s.screen(), slot_entry, wait=1)
-        press(s, s.screen(), reserve, wait=1)
+    def swap(k, rows, want):                            # row k and the reserve shown (want) change places
+        return swap_in(s, k, rows, reserve, ry, want, tries)
 
     for _ in range(10):                                 # one swap per round, then look again
+        window_home(s)                                  # (long bench: rows 12..16 = places 12..16 for the reads)
         cur = s.screen()
         rows = squad_rows(s, cur, f'sq{len(s.log):03d}')
         if len(rows) != 17:
@@ -1152,7 +1242,7 @@ def substitute(s, scr, tries=40, full=False):
             return 'squad screen: no face entry for the 17th row'
         # the first keeper fit again; row 12 must still be him (11 in subs: he left the 16, a stand-in is there)
         if s.__dict__.get('gk_swap') and not gk_now and 11 not in subs and not rows[11][1] and not rows[0][1]:
-            swap(rows[0][0], rows[11][0])
+            swap_rows(s, rows, 0, 11)
             s.gk_swap = False
             s.log.append('[subs] slot 1: the first keeper back')
             continue
@@ -1165,8 +1255,7 @@ def substitute(s, scr, tries=40, full=False):
                                                         # visit: a suspended reserve shows no red mark - it ping-ponged)
         if back is not None:                            # 1. a starter fit again: back to his slot
             k, st = back
-            if bring(face, ry, st):
-                swap(rows[k][0], reserve)
+            if bring(face, ry, st) and swap(k, rows, st):
                 s.log.append(f'[subs] slot {k + 1}: {st} back')
             del subs[k]
             continue
@@ -1180,7 +1269,7 @@ def substitute(s, scr, tries=40, full=False):
         k = bad[0]
         need = SLOT_ROLE[k] if k < len(SLOT_ROLE) else ''
         if k == 0 and not rows[11][1] and not s.__dict__.get('gk_swap') and 11 not in subs:   # the keeper: row 12
-            swap(rows[0][0], rows[11][0])               # is the bench keeper in SWOS squads (drawn rows have no
+            swap_rows(s, rows, 0, 11)                   # is the bench keeper in SWOS squads (drawn rows have no
                                                         # texts) unless a stand-in took his place
             s.gk_swap = gk_now = True                   # (not back in this same visit: a suspended keeper on the
             s.log.append('[subs] slot 1: the bench keeper (row 12) in')   # bench shows no red mark - it ping-ponged)
@@ -1201,7 +1290,8 @@ def substitute(s, scr, tries=40, full=False):
         if best is None:
             return f'row {k + 1}: no candidate found again in the reserves ({[c[0] for c in cand][:6]})'
         stand_in = best[0]
-        swap(rows[k][0], reserve)
+        if not swap(k, rows, stand_in):
+            return f'row {k + 1}: {stand_in} not swapped in'
         out = reserve_info(s.screen(), ry)[0]           # the one who left the 16 is now the 17th row
         if k not in subs:
             subs[k] = (out, stand_in)
@@ -1232,8 +1322,8 @@ def keeper_from_reserves(s, cur, rows, tries=40):
             return f'squad screen: {len(rows2)} rows'
         name, role, _ = reserve_info(c2, ry)
         if role == 'G' and not rows2[-1][1]:
-            press(s, c2, rows2[0][0], wait=1)
-            press(s, s.screen(), reserve, wait=1)
+            if not swap_in(s, 0, rows2, reserve, ry, name, tries):
+                return f'slot 1: the reserve keeper {name} not swapped in'
             s.log.append(f'[subs] slot 1: {name} (a reserve keeper) in (min)')
             return None
         if first is None:
@@ -1253,6 +1343,10 @@ def substitute_min(s, tries=40):
     every reserve per squad screen were ~50-60% of a long career's pauses). Returns an error string or None."""
     keeper = False                                      # (the row-12 keeper swap: once)
     for _ in range(12):
+        if 'VIS. RISULTATI' in s.screen().texts():      # (the match allowed: nothing to fix - with a bench over 5 an
+            s.lineup_esc = 0                            # unavailable bench player is left out at the kick-off)
+            return None
+        window_home(s)                                  # (long bench: rows 12..16 = places 12..16 for the reads)
         cur = s.screen()
         rows = squad_rows(s, cur, f'sq{len(s.log):03d}')
         if len(rows) != 17:
@@ -1260,6 +1354,7 @@ def substitute_min(s, tries=40):
         bad = [k for k, (i, un) in enumerate(rows[:16]) if un]
         if not bad and 'VIS. RISULTATI' not in cur.texts():
             if vis_ok(s):                               # (only not redrawn yet)
+                s.lineup_esc = 0
                 return None
             bad = [0]                                   # no goalkeeper in goal (the game's own squad changes)
         if not bad:
@@ -1271,8 +1366,7 @@ def substitute_min(s, tries=40):
                 return fallback_full(s, tries, err)
             continue
         if k == 0:                                      # the keeper: row 12 is the bench keeper in SWOS squads
-            press(s, cur, rows[0][0], wait=1)
-            press(s, s.screen(), rows[11][0], wait=1)
+            swap_rows(s, rows, 0, 11)
             keeper = True
             s.log.append('[subs] slot 1: the bench keeper (row 12) in (min)')
             continue
@@ -1304,8 +1398,8 @@ def substitute_min(s, tries=40):
         if not fit:                                     # (no fit reserve: the game may still allow the match, else
             return fallback_full(s, tries, f'no fit reserve for row {k + 1}')   # the full search, once)
         stand_in = reserve_info(s.screen(), ry)[0]
-        press(s, s.screen(), rows[k][0], wait=1)
-        press(s, s.screen(), reserve, wait=1)
+        if not swap_in(s, k, rows, reserve, ry, stand_in, tries):
+            return fallback_full(s, tries, f'row {k + 1}: {stand_in} not swapped in')
         out = reserve_info(s.screen(), ry)[0]           # (the one who left the 16: now the 17th row; recorded as the
         subs = s.__dict__.setdefault('subs', {})        # full search does, so its fallback can bring him back)
         if k not in subs:
@@ -1319,13 +1413,16 @@ def fallback_full(s, tries, why):
     best-reserve search for this screen; its error only if that fails too."""
     if vis_ok(s):
         s.log.append(f'[subs] {why}, but VIS. RISULTATI shown (min)')
+        s.lineup_esc = 0
         return None
     s.log.append(f'[subs] {why} - the full search for this screen (min)')
     err = substitute(s, s.screen(), tries, full=True)
     if err and vis_ok(s):
+        s.lineup_esc = 0
         return None
     if err:                                             # no fit reserve at all: an unavailable starter (rows 1-11)
-        cur = s.screen()                                # to the bench, a fit bench player (rows 12-16) in his place
+        window_home(s)                                  # to the bench, a fit bench player (rows 12-16) in his place
+        cur = s.screen()
         rows = squad_rows(s, cur, f'sq{len(s.log):03d}')
         if len(rows) == 17:
             fitb = [k for k in range(11, 16) if not rows[k][1]]
@@ -1333,11 +1430,15 @@ def fallback_full(s, tries, why):
                 if not fitb:
                     break
                 b = fitb.pop(0)
-                press(s, s.screen(), rows[k][0], wait=1)
-                press(s, s.screen(), rows[b][0], wait=1)
+                swap_rows(s, rows, k, b)
+                window_home(s)                          # (the next bench row at its place again)
                 s.log.append(f'[subs] slot {k + 1}: unavailable, to the bench (row {b + 1}) (min)')
             if vis_ok(s):
+                s.lineup_esc = 0
                 return None
+    stuck = lineup_stuck(s, err) if err else None       # (fail fast instead of ESCI again and again)
+    if stuck:
+        return stuck
     if err and s.screen().find('ESCI', exact=True) is not None:   # nothing more to fix: leave the squad screen
         s.log.append(f'[subs] {err}: ESCI, the season loop goes on (min)')   # (advance's stuck check still applies)
         press(s, s.screen(), 'ESCI', wait=2)
@@ -5701,6 +5802,164 @@ def bench_world():
         check(k and k[0].endswith(f' {real}'), f'real rule: {k} (want {real})', errs)
     check('squad screen: GIOCA PARTITA' in info or any(x.startswith('kick-off named:used') for x in info),
           'not played as a player-coach (no GIOCA PARTITA, no kick-off)', errs)   # (EN / FR / DE: the label differs)
+    return not errs, '; '.join(errs + info)
+
+
+@scenario
+def bench_lineup():
+    """(Regia 30/10, rc15) The line-up fixer with the long bench. rc14p: world_full_eng (SALFORD CITY) and
+    world_leaguecup (BRADFORD CITY) looped for hours on the pre-match screen ('a reserve keeper in' x384, rows 4 <-> 19
+    back and forth). Cause, the harness: rows 12..17 are a window on the places from 12 on (benchx, a bench over 5) and
+    the cursor scrolls it (up on row 12 / down on row 17); the fixer cycled row 17 to a reserve (window w), marked the
+    slot - the way up scrolled the window back to the top - and fired on row 17, which then showed place 17, not the
+    reserve. The game is right: it swaps by place. A new career at CELLE VARAZZE (Serie D girone A: a bench of 9, 30
+    players; BENCH_BUILD; BENCH_PATH = a club with the game's bench of 5: step 1 only), places 1 (keeper), 11 and 12
+    (the bench keeper) injured, place 21 a keeper (poked):
+    1. the fixer (substitute, the default min mode): VIS. RISULTATI within a few swaps, place 1 a fit keeper, place 11
+       fit; then swap_in from deep (window 11: row 17 = place 28) into row 5 - the way up scrolls the window 11 times
+       (world_full_eng's second rc14p run: press gave up there, the swap was never made): places 5 <-> 28;
+    2. a player's keys, the reserve first: the box to window 4 (row 17 = place 21), fire, up to row 1 (the window
+       scrolls back), fire: places 1 <-> 21;
+    3. the slot first: row 11, then row 17 and down on it (the window scrolls, the mark stays) to place 23, fire:
+       places 11 <-> 23;
+    4. the old fixer's order (the cause): the box to window 4, row 1 marked (the way up scrolls the window to 0),
+       fire on row 17: places 1 <-> 17 - not 21."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import lepatch
+    import xtra
+    b = os.environ.get('BENCH_BUILD')
+    if not b or not os.path.isdir(b):
+        return True, 'SKIP: BENCH_BUILD not set'
+    b = nop_league_int3('bench_lineup_' + os.path.basename(RUNS.rstrip('/')), b)
+    club = os.environ.get('BENCH_CLUB', 'CELLE VARAZZE')
+    path = os.environ.get('BENCH_PATH', 'EUROPA,ITALIA,SERIE D GIRONE A,' + club).split(',')
+    club = path[-1]
+    exe = os.path.join(b, 'ITALIAN.EXE')
+    p = lepatch.LEPatch(exe)
+    _, cnp, ct, cmp_, _ = xtra.sites(p)
+    bx, _ = bench_switch(exe)
+    errs, info = [], []
+    with Session('bench_lineup', b, {}, 'dump:2', 900, match=True) as s:
+        if s.wait().outcome != 'dump':
+            return False, f'START: no first pause ({s.result})'
+        for t in ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27']:
+            if press(s, s.screen(), t) is None:
+                return False, f'new career: {t} not reached ({s.result})'
+        if not pick_career(s, path):
+            return False, f'new career: {path} not reached ({s.result})'
+        r = s.result
+        n = struct.unpack('<H', r.obj2(cnp, 2))[0]
+        order = r.obj2(cmp_, n)
+        rec = lambda k: ct + (76 + order[k] * 38 if order[k] < 16 else 684 + (order[k] - 16) * 38)
+        o2 = r.read(r.base2, 0x300000)
+
+        def poke_all(k, off, f):                # every copy of place k's record (found by its name)
+            nm = r.obj2(rec(k) + 3, 22).split(b'\0')[0]
+            hits = [m_.start() - 3 for m_ in re.finditer(re.escape(nm) + b'\0', o2)]
+            for h in hits:
+                s.poke(r.base2 + h + off, bytes((f(o2[h + off]),)))
+            return nm.decode('latin-1'), len(hits)
+        pos = lambda k: s.result.obj2(rec(k) + 26, 1)[0] >> 5
+        info.append(f'{club}: {n} players, keepers at places {[k + 1 for k in range(n) if pos(k) == 0]}')
+        nm21 = poke_all(20, 26, lambda v: v & 0x1F)    # place 21: a keeper (position bits 5-7 = 0)
+        hurt = [poke_all(k, 27, lambda v: (v & 0x03) | 0x40) for k in (0, 10, 11)]
+        info.append(f'place 21 {nm21[0]} a keeper (x{nm21[1]}); injured {[h[0] for h in hurt]}')
+        win = lambda: struct.unpack('<H', s.result.read(s.result.base1 + bx + 4, 2))[0]   # bx_pw
+        ok, msg = advance(s, lambda q: 'MOD. TATTICA' in q.texts() and 'AVVERSARI' in q.texts(), 60)
+        if not ok:
+            return False, f'pre-match screen not reached: {msg}; ' + '; '.join(info)
+        scr = s.screen()
+        check('VIS. RISULTATI' not in scr.texts(), 'VIS. RISULTATI shown with the keeper injured', errs)
+        s.shot('lineup_in')
+        # 1. the fixer
+        t0, l0 = time.time(), len(s.log)
+        err = substitute(s, scr)
+        subs = [x for x in s.log[l0:] if x.startswith('[subs]')]
+        o1 = s.result.obj2(cmp_, n)
+        st = lambda o, k: (o[k], s.result.obj2(ct + (76 + o[k] * 38 if o[k] < 16 else 684 + (o[k] - 16) * 38) + 26, 2))
+        p1, p11 = st(o1, 0), st(o1, 10)
+        info.append(f'fixer: {err or "ok"} in {time.time() - t0:.0f} s, {subs}; place 1 squad {p1[0]} pos {p1[1][0] >> 5}'
+                    f' inj {p1[1][1]:#x}, place 11 squad {p11[0]} inj {p11[1][1]:#x}')
+        check(err is None and vis_ok(s), f'fixer: {err}, VIS. RISULTATI {vis_ok(s)}', errs)
+        check(len(subs) <= 6, f'fixer: {len(subs)} swaps', errs)
+        check(p1[1][0] >> 5 == 0 and not p1[1][1] & 0xC0, 'fixer: place 1 not a fit keeper', errs)
+        check(not p11[1][1] & 0xC0, 'fixer: place 11 not fit', errs)
+        s.shot('lineup_fixed')
+
+        cur = s.screen()
+        rows = row_entries(cur)
+        box = next((i for i, (l_, _) in enumerate(cur.nav) if l_[1] == rows[16] and cur.geom[i][0] < row_x(cur)), None)
+        check(len(rows) == 17 and box is not None, f'rows {len(rows)}, box {box}', errs)
+        if errs:
+            return False, '; '.join(errs + info)
+
+        def to_win(w):                          # the box (the game's rotation: the window one down) to window w
+            for _ in range(20):
+                if win() == w:
+                    return True
+                press(s, s.screen(), box, wait=0.6)
+            return win() == w
+
+        def swapped(o, a, c):
+            e = bytearray(o)
+            e[a], e[c] = o[c], o[a]
+            return bytes(e)
+        press(s, s.screen(), box, wait=0.6)      # (the game's bench of 5: the box rotates the reserves, no window)
+        if win() == 0:
+            info.append('no window (the game\'s bench of 5): the fixer only')
+            s.shot('lineup_end')
+            return not errs, '; '.join(errs + info)
+        # 1b. the fixer's swap_in from deep
+        window_home(s)
+        o = s.result.obj2(cmp_, n)
+        to_win(11)
+        ry = cur.geom[rows[16]][1]
+        want = reserve_info(s.screen(), ry)[0]
+        done = swap_in(s, 4, rows, rows[16], ry, want)
+        o1b = s.result.obj2(cmp_, n)
+        info.append(f'swap_in from window 11 ({want}): {done}, '
+                    f'{"5 <-> 28" if o1b == swapped(o, 4, 27) else "order " + str(list(o)) + " -> " + str(list(o1b))}')
+        check(done and o1b == swapped(o, 4, 27), info[-1], errs)
+        # 2. the reserve first
+        window_home(s)
+        o = s.result.obj2(cmp_, n)
+        to_win(4)
+        press(s, s.screen(), rows[16], wait=0.6)
+        w_mark = win()
+        to_entry(s, rows[0])
+        w_up = win()
+        press(s, s.screen(), rows[0], wait=1)
+        o2_ = s.result.obj2(cmp_, n)
+        info.append(f'reserve first: marked at window {w_mark}, window {w_up} at row 1; '
+                    f'{"1 <-> 21" if o2_ == swapped(o, 0, 20) else "order " + str(list(o)) + " -> " + str(list(o2_))}')
+        check(w_mark == 4 and o2_ == swapped(o, 0, 20), info[-1], errs)
+        # 3. the slot first, then down on row 17
+        window_home(s)
+        o = s.result.obj2(cmp_, n)
+        press(s, s.screen(), rows[10], wait=0.6)
+        to_entry(s, rows[16])
+        for _ in range(12):
+            if win() == 6:
+                break
+            s.send('down dump:0.5')
+        w_fire, sel = win(), s.screen().selected
+        press(s, s.screen(), rows[16], wait=1)
+        o3 = s.result.obj2(cmp_, n)
+        info.append(f'slot first: window {w_fire} (selected {sel}); '
+                    f'{"11 <-> 23" if o3 == swapped(o, 10, 22) else "order " + str(list(o)) + " -> " + str(list(o3))}')
+        check(w_fire == 6 and sel == rows[16] and o3 == swapped(o, 10, 22), info[-1], errs)
+        # 4. the old fixer's order
+        window_home(s)
+        o = s.result.obj2(cmp_, n)
+        to_win(4)
+        press(s, s.screen(), rows[0], wait=0.6)
+        w_slot = win()
+        press(s, s.screen(), rows[16], wait=1)
+        o4 = s.result.obj2(cmp_, n)
+        got = next((c for c in range(n) if c and o4 == swapped(o, 0, c)), None)
+        info.append(f'old order: window {w_slot} after row 1, place 1 <-> {got + 1 if got is not None else "?"} (not 21)')
+        check(got is not None and got != 20, info[-1], errs)   # (17, or 18 if the way to row 17 took a down on it)
+        s.shot('lineup_end')
     return not errs, '; '.join(errs + info)
 
 

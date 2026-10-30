@@ -163,6 +163,8 @@ def world_entries(data_dir=None):
         import zones                                         # the league tables' zone colours, per world
         names = sorted(set(names) | set(zones.file_names([e if os.sep in e else os.path.join(mkseason.PACKS, e)
                                                           for e in mkseason.ENABLED])))
+        import lpreal                                        # 4.0.5: the real league-phase fixtures (season 1)
+        names = sorted(set(names) | set(lpreal.file_names()))
     if os.path.exists(os.path.join(data_dir, 'KITFIX.DAT')):   # (4.0.5 kitfix.py: the kits shipped before that the
         names = sorted(set(names) | {'KITFIX.DAT'})          # build's team files changed - the career kit refresh)
     rows = [(n, None, os.path.relpath(os.path.join(data_dir, n), ROOT), 'DATA/' + n) for n in names

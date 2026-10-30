@@ -185,12 +185,14 @@ def cave_pages():
 
 
 LT_SPACE = []
+LR_ROOM = []                                    # 4.0.5 lpreal: [start, end] after simdraw on the coefficients page
 CAREER_END = [None]                # the career cave's end after its code (4.0.1: the shirt numbers follow it)
 
 
 def patch_exe(src, dst, remap, lang='it'):
     CAREER_END[0] = None
     LT_SPACE.clear()
+    LR_ROOM.clear()
     grown = dst + '.tmp'
     data = open(src, 'rb').read()
     worlds = bool(mkseason.worlds())
@@ -456,6 +458,7 @@ def patch_exe(src, dst, remap, lang='it'):
         uc_end = simdraw.patch(p, uc_end, area, careerworld.LABELS['sites']['gametype'], careerworld.LABELS['w_lpw'],
                                historic._coin_sites(p, historic._draw_call(p)[1])['rand2'])
         assert uc_end <= hist2 + h2 + 0x2000, hex(uc_end)
+        LR_ROOM[:] = [uc_end, hist2 + h2 + 0x2000]   # 4.0.5: lpreal's code (the real season-1 league phases), at zones' time
         import uefaq                            # UEFA qualifying rounds (C code, tools/uefaq.c; 4 pages)
         cs['bss'] = careerworld.BSS[0]
         cs['lceu'] = mkseason.league_cup_europe_files()
@@ -556,6 +559,10 @@ def patch_exe(src, dst, remap, lang='it'):
     cos = zones.patch(p, cos, area, lang, [e if os.sep in e else os.path.join(mkseason.PACKS, e) for e in mkseason.ENABLED],
                       num_bss + shirtnum.BSS_SIZE + blond.BSS_SIZE + menunum.BSS_SIZE, fmtpage.BSS_SIZE,
                       careerworld.SITES if worlds else None)   # (the FORMAT page's buffer, shared)
+    if LR_ROOM:                                  # 4.0.5: the real UEFA league phases of a world's first season
+        import lpreal
+        lpreal.patch(p, LR_ROOM[0], LR_ROOM[1], area, num_bss + shirtnum.BSS_SIZE + blond.BSS_SIZE + menunum.BSS_SIZE,
+                     fmtpage.BSS_SIZE)
     if lt_room:
         lt_end_ = longtable.patch(p, (lt_room[0] + 15) & ~15, area, lang)
         if worlds and any(pk.meta.get('id', '').startswith('world-2026-27-') for pk in mkseason.packs()):
@@ -792,6 +799,9 @@ def write_new_teams(src_dir, dst_dir):
     import zones                                      # 4.0: the league tables' zone colours, per world
     for name, k in zones.write(dst_dir, [e if os.sep in e else os.path.join(mkseason.PACKS, e) for e in mkseason.ENABLED]):
         print(f'{name}: zone colours of {k} league tables')
+    import lpreal                                     # 4.0.5: the real league-phase fixtures of a world's first season
+    for name, k in lpreal.write(dst_dir):
+        print(f'{name}: real league-phase fixtures of {k} contests')
     rename_clubs(src_dir, dst_dir)
 
 

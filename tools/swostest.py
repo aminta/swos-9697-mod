@@ -1577,6 +1577,11 @@ def advance(s, stop, max_steps=400):
         s.log.append(f'[{step}] {scr}')
         if os.environ.get('SWOSTEST_LABELS', '1') == '1' and scr.find('VISUAL. COMPETIZ.', exact=True) is not None:
             label_check(s, step)                         # (4.0.5: every competition name of the fixture list)
+        dw = os.environ.get('W8485_DIYWORD')             # (4.0.5: word:obj2 at:len - the first screen of a season
+        if dw and scr.entries and not getattr(s, 'diyw_done', 0) and dw.split(':')[0] in scr.entries[0][1]:   # titled
+            w_, a_, n_ = dw.split(':')                   # with that word: those bytes, e.g. the working DIY)
+            s.log.append(f'DIYW {step} {bytes(s.result.obj2(int(a_, 16), int(n_, 16))).hex()}')
+            s.diyw_done = 1
         if os.environ.get('W8485_SHOTWORD') and scr.entries and os.environ['W8485_SHOTWORD'] in scr.entries[0][1]:
             s.shot(f'word{step:03d}')                    # (the visual tour: every screen titled with that word)
         if os.environ.get('SWOSTEST_FILL') and fill_check(s, f'step {step}') is False and not getattr(s, 'fill_bad', 0):
@@ -13878,6 +13883,161 @@ def nzchamp_season(lines, st_at, log_at, res_words, gff, kof, errs):
         if kof:                                                        # (1 lost, 2 won)
             check((champ == mgr) == (kof == '2'), f'GPLAY_KOFORCE={kof}: champion {champ} (career club {mgr})', errs)
     return True, f"entrants {[hex(t) for t in kl['team']]}, final {[hex(x) for x in fin]}, champion {champ:#x}"
+
+
+def lpreal_file(exe):
+    """DATA\\LPREAL.DAT of a build (lpreal.py): {contest id: (days, [36 team words], [(home, away) team words])}"""
+    p = os.path.join(exe, 'DATA', 'LPREAL.DAT')
+    if not os.path.exists(p):
+        return {}
+    d, out, o = open(p, 'rb').read(), {}, 4
+    for _ in range(struct.unpack_from('<I', d, 0)[0]):
+        cid, w, days, m = d[o:o + 4]
+        words = list(struct.unpack_from('<36H', d, o + 4))
+        pr = d[o + 76:o + 76 + 2 * m]
+        out[cid] = (days, words, [(words[pr[2 * i]], words[pr[2 * i + 1]]) for i in range(m)])
+        o += 76 + 2 * m
+    return out
+
+
+@scenario
+def world_lpreal(cid=0, word='CHAMPIONS LEAGUE', team='EUROPA,ITALIA,SERIE A,INTER', two=True):
+    """4.0.5 real UEFA league phase in the world's first season (lpreal.py): a World 2026-27 career at INTER (the
+    release data world5tm-403c8, W2627LP_DATA); at its first CHAMPIONS LEAGUE screen the working DIY's 36 rows are the
+    file's 36 clubs and its draw (lp36 CAL_OFF, rows in matchday order) is the real one, all 144 matches in order,
+    home first; season 2 (save, reload): drawn again by the game (a valid draw, not the file's), the season ends"""
+    src = os.environ.get('W2627LP_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-403c8')
+    if not os.path.isdir(src):
+        return True, f'SKIP: private data {src} missing'
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    exe = os.environ.get('LPREAL_BUILD') or build('world_lpreal', env={   # (GPLAY_FORCE=1: the club 1st, in the
+        'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]), 'GPLAY_FORCE': '1'})   # CL again)
+    lr = lpreal_file(exe)
+    if cid not in lr:
+        return False, f'no entry {cid} ({word}) in {exe}/DATA/LPREAL.DAT ({sorted(lr)})'
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import lib97
+    import lp36
+    from le import LE
+
+    class _P:
+        pass
+    op = _P()
+    op.le = LE(open(os.path.join(ROOT, 'orig', 'ITALIAN.EXE'), 'rb').read())
+    diy = lib97._sites(op)[3] + 0x41F
+    keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_DIYWORD',
+            'W8485_ONE')
+    keep = {k: os.environ.get(k) for k in keys}
+    os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5', W8485_K='108+',
+                      W8485_NOSACK='1', W8485_DIYWORD=f'{word}:{diy:x}:733')
+    if not two:
+        os.environ['W8485_ONE'] = '1'
+    try:
+        ok, msg = world8485()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    errs, info = [], []
+    check(ok, msg, errs)
+    days, words, real = lr[cid]
+    nm = len(real)
+    for sn in ((1, 2) if two else (1,)):
+        lines = open(os.path.join(RUNS, w84_tag() + f'_{sn}', 'session.log'), errors='replace').read().splitlines()
+        dl = [bytes.fromhex(ln.split()[2]) for ln in lines if ln.startswith('DIYW ')]
+        if not dl:
+            check(False, f'season {sn}: no {word} screen seen', errs)
+            continue
+        b = dl[0]
+        rw = [struct.unpack_from('<H', b, 0x12D + 2 * r)[0] for r in range(36)]
+        cal = [(rw[b[lp36.CAL_OFF + 2 * i]] if b[lp36.CAL_OFF + 2 * i] < 36 else None,
+                rw[b[lp36.CAL_OFF + 2 * i + 1]] if b[lp36.CAL_OFF + 2 * i + 1] < 36 else None) for i in range(nm)]
+        per = {t: sum(1 for pq in cal for x in pq if x == t) for t in rw}
+        valid = len(set(rw)) == 36 and all(v == days for v in per.values())
+        if sn == 1:
+            diff = [(i, cal[i], real[i]) for i in range(nm) if cal[i] != real[i]]
+            check(set(rw) == set(words) and not diff, f'season 1: rows {len(set(rw) & set(words))}/36 of the file, '
+                  f'{nm - len(diff)}/{nm} matches = the real draw; first differences {diff[:3]}', errs)
+            info.append(f'season 1 = the real draw: matchday 1 {[(hex(a), hex(h)) for a, h in cal[:2]]}..., '
+                        f'matchday {days} ...{[(hex(a), hex(h)) for a, h in cal[-2:]]}')
+        else:
+            check(valid and cal != real, f'season 2: drawn by the game (valid {valid}, = the file {cal == real})', errs)
+            info.append(f'season 2 drawn (valid, {sum(1 for i in range(nm) if cal[i] == real[i])} matches as the file)')
+    return not errs, '; '.join(errs) or f'{msg}; ' + '; '.join(info)
+
+
+@scenario
+def world_lpreal_oldsave():
+    """world_lpreal on an older career: a save inside the Champions League's league phase made by the build before
+    lpreal (LPREAL_OLD, default branch 405-rc5: its own draw), loaded by this build - the league phase keeps the
+    save's draw (lp_start does not run again), the season ends"""
+    src = os.environ.get('W2627LP_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-403c8')
+    if not os.path.isdir(src):
+        return True, f'SKIP: private data {src} missing'
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    env = {'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]), 'GPLAY_FORCE': '1'}
+    old = build('world_lpreal_old', env=env, branch=os.environ.get('LPREAL_OLD', '405-rc5'))
+    exe = os.environ.get('LPREAL_BUILD') or build('world_lpreal', env=env)
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import lib97
+    import lp36
+    from le import LE
+
+    class _P:
+        pass
+    op = _P()
+    op.le = LE(open(os.path.join(ROOT, 'orig', 'ITALIAN.EXE'), 'rb').read())
+    diy = lib97._sites(op)[3] + 0x41F
+    keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_DIYWORD',
+            'W8485_ONE', 'W8485_MIDSAVE', 'W8485_FROM')
+    keep = {k: os.environ.get(k) for k in keys}
+    base = dict(W8485_WORLD='MONDO 2026-27', W8485_TEAM='EUROPA,ITALIA,SERIE A,INTER', W8485_WNUM='5',
+                W8485_K='108+', W8485_NOSACK='1', W8485_DIYWORD=f'CHAMPIONS LEAGUE:{diy:x}:733')
+    try:
+        os.environ.update(base, W8485_BUILD=old, W8485_ONE='1', W8485_MIDSAVE=f'{SLOT + 0x41F + 0x1C1:x}:1:2')
+        ok, msg = world8485()                            # (slot 3's league phase: its 1st matchday played)
+        if not ok:
+            return False, f'old build: {msg}'
+        path = msg.split(': ', 1)[1]
+        os.environ.pop('W8485_MIDSAVE')
+        os.environ.update(base, W8485_BUILD=exe, W8485_FROM=path)
+        ok2, msg2 = world8485()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    errs = []
+    check(ok2, f'this build from the old save: {msg2}', errs)
+    cals = []
+    for sn in (1, 2):
+        lines = open(os.path.join(RUNS, w84_tag() + f'_{sn}', 'session.log'), errors='replace').read().splitlines()
+        dl = [bytes.fromhex(ln.split()[2]) for ln in lines if ln.startswith('DIYW ')]
+        if dl:
+            b = dl[0]
+            rw = [struct.unpack_from('<H', b, 0x12D + 2 * r)[0] for r in range(36)]
+            cals.append([(rw[b[lp36.CAL_OFF + 2 * i] % 36], rw[b[lp36.CAL_OFF + 2 * i + 1] % 36]) for i in range(144)])
+    real = lpreal_file(exe).get(0, (0, [], []))[2]
+    kept = len(cals) == 2 and cals[0] == cals[1]
+    check(kept or len(cals) == 2 and cals[1] == real, f'after the load: the old save\'s draw kept ({kept}) or, a save '
+          f'before the stage start, the real one ({len(cals) == 2 and cals[1] == real}); {len(cals)} seen', errs)
+    return not errs, '; '.join(errs) or f'old save {path}; {msg2[:80]}; ' + \
+        ('its draw kept' if kept else 'saved before the stage start: the real draw')
+
+
+@scenario
+def world_lpreal_uel():
+    """world_lpreal for the Europa League (JUVENTUS, season 1 only): its 144 real matches"""
+    return world_lpreal(1, 'EUROPA LEAGUE', 'EUROPA,ITALIA,SERIE A,JUVENTUS', False)
+
+
+@scenario
+def world_lpreal_uecl():
+    """world_lpreal for the Conference League (ATALANTA, season 1 only): its 108 real matches, 6 matchdays"""
+    return world_lpreal(2, 'CONFERENCE LEAGUE', 'EUROPA,ITALIA,SERIE A,ATALANTA', False)
 
 
 @scenario

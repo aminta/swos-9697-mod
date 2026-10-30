@@ -1,5 +1,5 @@
 {
- "_doc": "Panchina phase 2: World 2026-27 named substitutes per competition (fase2.md: official text or observed max of 24 real 2026-27 team sheets; null = unknown -> the game's original bench of 5). Keys = the world packs' country dirs and competition keys; a league = one value per division (pack order). 'used' = substitutions allowed (5 everywhere found); 'et' = extra substitute in extra time (1 where the rule is known). Owner: SWOS Panchina. 'continental': the cup's name as the game writes it (a contest without a country: ' ' + name, or the name). A country competition's value may be {'named': n, 'et': 1} (an extra-time substitute). 4.0.5 (Davide 30/10): a null (or a missing key) is filled at build time (benchx.bench_table): a lower division from the nearest higher division with data, a cup / state championship from the country's top league, or '=league.N' = division N's (the cup of that division's clubs). 'sources': where each 4.0.5 value comes from (internal/reports/bench-unknowns-2627.md). A continental cup's 'qual': 1 = the career club's qualifying tie too (uefaq's 'PRELIM. ' / 'QUAL. ' / 'QUALIF. ' / 'QUALI. ' + the name without 'UEFA ': UEFA regulations Art. 55 / 56 cover all the competition's matches, qualifying included).",
+ "_doc": "Panchina phase 2: World 2026-27 named substitutes per competition (fase2.md: official text or observed max of 24 real 2026-27 team sheets; null = unknown -> the game's original bench of 5). Keys = the world packs' country dirs and competition keys; a league = one value per division (pack order). 'used' = substitutions allowed (5 everywhere found); 'et' = extra substitute in extra time (1 where the rule is known). Owner: SWOS Panchina. 'continental': the cup's name as the game writes it (a contest without a country: ' ' + name, or the name). A country competition's value may be {'named': n, 'et': 1} (an extra-time substitute). 4.0.5 (Davide 30/10): a null (or a missing key) is filled at build time (benchx.bench_table): a lower division from the nearest higher division with data, a cup / state championship from the country's top league, or '=league.N' = division N's (the cup of that division's clubs). 'sources': where each 4.0.5 value comes from (internal/reports/bench-unknowns-2627.md). A continental cup's 'qual': 1 = the career club's qualifying tie too (uefaq's 'PRELIM. ' / 'QUAL. ' / 'QUALIF. ' / 'QUALI. ' + the name without 'UEFA ': UEFA regulations Art. 55 / 56 cover all the competition's matches, qualifying included). 4.0.5 worldwide: each country also gets a prefix entry '<button> ' (any title of the country: its play-offs, supercups, cups without data) = its top league, or 'confederations'[pack continent] for a country with no data.",
  "used": 5,
  "countries": {
   "eng": {
@@ -234,6 +234,26 @@
    ],
    "cup": null,
    "league_cup": null
+  },
+  "uru": {
+   "league": [
+    10
+   ]
+  },
+  "par": {
+   "league": [
+    12
+   ]
+  },
+  "bol": {
+   "league": [
+    12
+   ]
+  },
+  "ven": {
+   "league": [
+    12
+   ]
   }
  },
  "continental": {
@@ -283,6 +303,10 @@
   "arg.league.2": "as Zona A (one competition)",
   "jpn.league.1": "J.League (board, Oct 2024): from 2025 up to 20 players entered in every J.League official match = 9 substitutes (jleague.jp news 29199)",
   "jpn.league_cup": "J.League official match: as J2 (20 entered, 9 substitutes)",
-  "ita.league_cup": "no 2026-27 text found: fallback = Serie C (its clubs), itself from Serie B (12, observed)"
+  "ita.league_cup": "no 2026-27 text found: fallback = Serie C (its clubs), itself from Serie B (12, observed)",
+  "uru.league.0": "observed (FotMob match sheets): 10 max in 24 team sheets, Liga AUF Uruguaya 2026 (10 x23, 9 x1)",
+  "par.league.0": "observed (FotMob): 12 max in 24 team sheets, Division Profesional 2026 Clausura (12 x23)",
+  "bol.league.0": "observed (FotMob): 12 max in 24 team sheets, Division Profesional 2026 (12 x15, 11 x7)",
+  "ven.league.0": "observed (FotMob): 12 max in 24 team sheets, Liga FUTVE 2026 (12 x17, 11 x6)"
  }
 }

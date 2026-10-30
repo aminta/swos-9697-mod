@@ -5878,8 +5878,8 @@ def bench_cup():
             res = ln.split()[2]
         elif ln.startswith(f'HEX o1/{bx + 18:x} '):
             t = bytes.fromhex(ln.split()[2]).split(bytes(1))[0].decode('latin-1')
-            if t:
-                seen[t] = f'{int(res[:2], 16)}:{int(res[2:], 16)}' if res else '?'
+            if t:                           # (a contest without a country: ' ' + its name; stripped)
+                seen[t.strip()] = f'{int(res[:2], 16)}:{int(res[2:], 16)}' if res else '?'
     errs = []
     check(ok, msg, errs)
     for t, v in want.items():

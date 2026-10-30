@@ -8931,6 +8931,50 @@ def world_split_stages_fase1():
 
 
 @scenario
+def world_games_mkd():
+    """North Macedonia 2026-27 (data 403c9, FFM Propozicii art. 3: four rounds, 36 matches per club): a season at SKOPJE on
+    the release recipe build (MKD_BUILD, default the newest internal/swostest/builds/w2627-403c9): 36 days, every club 36
+    matches (the DIY snapshot of the 10-club league), the season ended and the next one started"""
+    b = os.environ.get('MKD_BUILD') or os.path.join(MAIN, 'internal', 'swostest', 'builds', 'w2627-403c9')
+    if not os.path.isdir(b):
+        return True, f'SKIP: build {b} missing'
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import split
+    import lepatch
+    sa = split.sites(lepatch.LEPatch(os.path.join(MAIN, 'orig', 'ITALIAN.EXE')))
+    n, meet = 10, 4
+    keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K',
+                                            'W8485_NOSACK', 'W8485_DIY', 'W8485_TMO', 'W8485_SLOTS')}
+    os.environ.update(W8485_BUILD=b, W8485_WORLD='MONDO 2026-27', W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1',
+                      W8485_TEAM=os.environ.get('MKD_TEAM', 'EUROPA,MACEDONIA N.,SKOPJE'),
+                      W8485_DIY=f"{sa['DIY']:x},{split.ST:x},{sa['CAL']:x},{n:x}", W8485_TMO='600',
+                      W8485_SLOTS=f"{sa['SLOTS']:x}")
+    try:
+        ok, msg = world8485()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    log = open(os.path.join(RUNS, f'{w84_tag()}_1', 'session.log')).read().splitlines()
+    diys = [bytes.fromhex(ln[4:]) for ln in log if ln.startswith('DIY ')]
+    if not diys:
+        return False, f'no snapshot of the {n}-club league; {msg}'
+    clubs = lambda x: sorted(x[0x12D:0x12D + 2 * n])
+    diys = [x for x in diys if clubs(x) == clubs(diys[0])]
+    last = diys[-1]
+    w = lambda k: struct.unpack_from('<H', last, k)[0]
+    rows = [struct.unpack_from('<I7H', last, 0x2B3 + 18 * r) for r in range(n)]
+    errs = []
+    want = meet * (n - 1)
+    check(w(0x1C1) == w(0x1C3) == want and w(0x5F) == 0, f'days {w(0x1C1)} / {w(0x1C3)}, {want} wanted', errs)
+    check(all(t[1] == want and t[2] + t[3] + t[4] == t[1] for t in rows), f'played {[t[1] for t in rows]}, {want} wanted', errs)
+    check(ok, msg, errs)
+    return not errs, '; '.join(errs) or f'{n} clubs, {want} days, every club {want} matches; {msg}'
+
+
+@scenario
 def world_dplay_out():
     """The career club's Serie B play-out, played (dplay step 2): as world_dplay_b with DPLAY_FORCE=17 (MODENA 17th
     at the league end, the play-out held whatever the points): PLAY-OUT SERIE B 17th v 16th in slot 4, two legs, the

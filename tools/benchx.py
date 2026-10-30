@@ -65,6 +65,17 @@ from 12 on, scrolled by the box left of row 17), 4.0.6 (Davide 31/10):
   29 made visible, the game shows it by the own team's count), read-only: on a CPU club's view up / down anywhere move
   the window one place (bx_mdir, wrapping as the box), nothing else changes.
 
+Phase 2 (4.0.6): each competition's real rule (internal/panchina/fase2.md: official 2026-27 texts or the largest bench
+seen in real 2026-27 team sheets). bench_table() builds, per exe language, a table of the World 2026-27 competitions
+with a known bench: title (the country's button name + ' ' + the competition's / division's first name: what the game
+shows, FORMAT's key; 40 characters at most), named substitutes, substitutions allowed, extra-time substitute (stored,
+not used yet), from internal/panchina/bench2627.json x the world's career packs in SEASON_PACKS (none: no table, the
+game's rule everywhere). bx_look (careers only) finds the current competition's title (DIY_competitionStart + 4, as at
+the kick-off of InitializeInGameTeamsAndStartGame: e.g. ITALIA SERIE D GIRONE A) in it, cached by title; bx_max takes
+its bench (else the game's: a career league passes its record's +65h, 5), bx_min (`mov [gameMinSubstitutes], ax`) its
+substitutions (else the game's +63h, 3), sq_n its bench for the pre-match screens. The test switch bx_bench wins over
+both. Competitions not in the table (unknown) keep the game's 3 from 5.
+
 spritesIndex past the game's 1335 entries (shirtnum.py's extension into the 3072 free bytes after it: indices
 1335..2102; it cannot move, SWOS++ holds its address):
   1335..1417 shirtnum (match shirt numbers 17..99)      1620..1707 menunum (menu numbers 12..99)
@@ -92,13 +103,98 @@ TABLE = struct.pack('<16H', *(i * PI for i in range(16)))     # 0, 61 .. 915
 ASM = r"""
 bx_max:                                 ; replaces `mov [GMAX], ax` (InitializeInGameTeamsAndStartGame)
     cmp word [bx_bench], 0
-    je .game
+    je .comp
     mov ax, [bx_bench]
+    jmp .cap
+.comp:                                  ; (phase 2) the competition's real bench (bx_look), else the game's
+    call bx_look
+    cmp byte [bx_lkres], 0
+    je .game
+    movzx ax, byte [bx_lkres]
+.cap:
     cmp ax, 15
     jbe .game
     mov ax, 15
 .game:
     mov [GMAX], ax
+    ret
+
+bx_min:                                 ; (phase 2) replaces `mov [GMIN], ax`: the competition's substitutions
+    cmp word [bx_bench], 0              ; allowed (bx_look), else the game's; the test switch keeps the game's
+    jne .game
+    call bx_look
+    cmp byte [bx_lkres + 1], 0
+    je .game
+    movzx ax, byte [bx_lkres + 1]
+.game:
+    mov [GMIN], ax
+    ret
+
+bx_look:                                ; (phase 2) [bx_lkres] = the current competition's (named subs, subs used), 0 0 =
+    pushad                              ; not in the table (the game's rule). Careers only: the current competition =
+    mov word [bx_lkres], 0              ; DIY_competitionStart, its title at +4 (the slot's name, as FORMAT's key)
+    cmp word [GAMETYPE], 4
+    jne .out
+    cmp byte [SLT + WORLD_BYTE_], BXWORLD_   ; the career's world (careerworld's save byte): the 2026-27 one only (the
+    jne .out                            ; 1996-97 base game and the historic worlds keep the game's rule, same titles)
+    mov esi, DIYNAME
+    mov edi, bx_lkname
+    call bx_streq                       ; the same title as last time: its result
+    jne .new
+    mov ax, [bx_lkkeep]
+    mov [bx_lkres], ax
+    jmp .out
+.new:
+    mov esi, DIYNAME                    ; remember the title (up to its NUL, at most 40 characters)
+    mov edi, bx_lkname
+    mov ecx, 40
+.cp:
+    lodsb
+    stosb
+    test al, al
+    jz .cpd
+    loop .cp
+    mov byte [edi], 0
+.cpd:
+    mov word [bx_lkkeep], 0
+    mov ecx, [bx_tabn]
+    mov edx, bx_tab
+.f:
+    jecxz .found
+    mov esi, edx
+    mov edi, bx_lkname
+    call bx_streq
+    je .hit
+    add edx, BXT_
+    dec ecx
+    jmp .f
+.hit:
+    mov ax, [edx + 41]
+    mov [bx_lkkeep], ax
+.found:
+    mov ax, [bx_lkkeep]
+    mov [bx_lkres], ax
+.out:
+    popad
+    ret
+
+bx_streq:                               ; ZF = 1: the strings at esi and edi are equal up to the NUL, or in their first
+    push ecx                            ; 40 characters (a longer title: the table keeps 40, as FORMAT's keys)
+    push eax
+    mov ecx, 40
+.c:
+    mov al, [esi]
+    cmp al, [edi]
+    jne .r
+    test al, al
+    jz .r                               ; (ZF = 1)
+    inc esi
+    inc edi
+    loop .c
+    cmp eax, eax
+.r:
+    pop eax
+    pop ecx
     ret
 
 bx_next:                                ; replaces `add word [D2], 1 / cmp word [D2], 16`: ZF = 1 when the loop ends
@@ -546,7 +642,12 @@ bx_make:                                ; replaces ns_make's `jmp MakeSpritesFro
 
 
 sq_n:                                   ; ax = 11 + the bench (5..15): the first out-of-squad place (pre-match screens)
-    mov ax, [bx_bench]
+    mov ax, [bx_bench]                  ; (the test switch, else the competition's real bench: bx_look)
+    test ax, ax
+    jnz .t
+    call bx_look
+    movzx ax, byte [bx_lkres]
+.t:
     cmp ax, 5
     jae .a
     mov ax, 5
@@ -996,6 +1097,9 @@ bx_pp: dw -1                            ; DrawPlayerEntries: the place of the ro
 bx_tw: dw 0                             ; the tactics editor's window
 bx_tp: dw -1                            ; its drawn row's place
 bx_po: dw 0                             ; (4.0.6) the pre-match screen's opponent window (VIEW OPPONENT), bx_bench + 12
+bx_lkres: dw 0                          ; (phase 2) bx_look: named subs, subs used of the current competition (0 = game's)
+bx_lkkeep: dw 0
+bx_lkname: times 41 db 0                ; the title looked up last
 bx_stmark: db 'BXST'                    ; the line-ups screen (bx_stad; the harness finds these by the mark):
 bx_stk: dd 0                            ; the page shown last (0 = the first)
 bx_stn: dd 0                            ; the pages after the first
@@ -1381,7 +1485,68 @@ def refs(p, tobj, lo, hi):
     return out
 
 
-def patch(p, at, ns_at):
+BXT = 44                                # a table entry: title 41 (NUL padded), named subs, subs used, extra-time sub
+LOG = []
+BENCH_WORLD = [0]                       # the World 2026-27's career world number (the packs' 'world'), 0 = none
+BENCH_DATA = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'internal', 'panchina', 'bench2627.json')
+
+
+def bench_table(lang):
+    """(phase 2) [(title, named, used, et)] of the World 2026-27 competitions with a known real bench: the career packs
+    of world 5 in SEASON_PACKS x internal/panchina/bench2627.json (absent: none, the game's rule everywhere). The title =
+    the country's button name in the exe language + ' ' + the competition's (a league: the division's) first name, as
+    the game shows it (fmtgame's FORMAT keys)."""
+    import json
+    if not os.path.isfile(BENCH_DATA):
+        return []
+    data = json.load(open(BENCH_DATA))
+    used = int(data.get('used', 5))
+    out, seen = [], set()
+    for d in filter(None, os.environ.get('SEASON_PACKS', '').split(',')):
+        f = os.path.join(d, 'pack.json')
+        if not os.path.isfile(f):
+            continue
+        pk = json.load(open(f))
+        cc = os.path.basename(d.rstrip('/'))
+        ent = data['countries'].get(cc)
+        if pk.get('kind') != 'career' or pk.get('world') != 5 or not ent:
+            continue
+        BENCH_WORLD[0] = pk['world']
+        btn = pk.get('button_names', {}).get(lang) or pk['button']
+        first = lambda names: (names.get(lang) or names['*'])[0]
+        for c in pk['competitions']:
+            v = ent.get(c['key'])
+            if c.get('type') == 'league':
+                divs = c.get('divisions') or [{'names': c['names']}]   # (one division: the league's own names)
+                vals = v if isinstance(v, list) else [v] * len(divs)
+                items = [(first(dv['names']), x) for dv, x in zip(divs, vals)]
+            else:
+                items = [(first(c['names']), v)]
+            for name, x in items:
+                t = f'{btn} {name}'.encode('latin-1')[:40]
+                if x and t not in seen:
+                    seen.add(t)
+                    out.append((t, min(int(x), 15), used, 0))
+    if out:                                         # (the world is in this build) its continental cups: no country
+        for name, v in (data.get('continental') or {}).items():
+            for t in (' ' + name, name):
+                t = t.encode('latin-1')[:40]
+                if v.get('named') and t not in seen:
+                    seen.add(t)
+                    out.append((t, min(int(v['named']), 15), used, int(v.get('et') or 0)))
+    return out
+
+
+def table_asm(tab):
+    """bx_tabn / bx_tab: the entries of bench_table."""
+    lines = ['align 4', f'bx_tabn: dd {len(tab)}', 'bx_tab:']
+    for t, n, u, e in tab:
+        b = t.ljust(41, b'\0') + bytes((n, u, e))
+        lines.append('    db ' + ','.join(str(x) for x in b))
+    return '\n' + '\n'.join(lines) + '\n'
+
+
+def patch(p, at, ns_at, lang='it'):
     """Code + data at obj1:at (a page of its own), namespr's pages at ns_at; returns the end."""
     import sacups
     import xtra
@@ -1418,8 +1583,18 @@ def patch(p, at, ns_at):
     hasx = 'xt_block' in xtra.LABELS                # (A): a career's CPU clubs, places 16.. from their XTRA blocks
     sym.update({k: s7[k] for k in ('DRAWMENU', 'SETEXIT', 'MENU', 'MCC', 'LASTKEY', 'SHORTFIRE', 'FIRE', 'MCT', 'TOP', 'BOT')})
     sym.update({'GAMETYPE': s7['gametype'], 'HASX_': (0, int(hasx)), 'XTB': (1, xtra.LABELS['xt_block']) if hasx else (0, 0)})
-    code, fix = nasmcave.assemble(ASM, at, sym)
-    lab = nasmcave.labels(ASM, at, sym)
+    import lp36                                     # (phase 2) the current competition's title, the table
+    gmin = p.target(1, store - 12 + 2)
+    assert bytes(p.get(1, store - 12, 2)) == b'\x66\xa3' and gmin[0] == 2, 'gameMinSubstitutes store'
+    import careerworld
+    tab = bench_table(lang)
+    sym.update({'GMIN': gmin, 'DIYNAME': (2, lp36._sites(p)['DIY'] + 4), 'BXT_': (0, BXT),
+                'SLT': (careerworld.SITES or careerworld.sites(p))['slt'], 'WORLD_BYTE_': (0, careerworld.WORLD_BYTE),
+                'BXWORLD_': (0, BENCH_WORLD[0] if tab else 255)})
+    asm = ASM + table_asm(tab)
+    code, fix = nasmcave.assemble(asm, at, sym)
+    lab = nasmcave.labels(asm, at, sym)
+    LOG.append(f'benchx phase 2: {len(tab)} competitions with a real bench ({lang})')
     assert not any(p.get(1, at, len(code)))
     p.put(1, at, code)
     for o, t_obj, t_off in fix:
@@ -1427,6 +1602,8 @@ def patch(p, at, ns_at):
     # gameMaxSubstitutes store (6 bytes: 66 A3 addr) -> call bx_max + nop
     p.remove(1, store + 2)
     p.put(1, store, b'\xe8' + struct.pack('<i', lab['bx_max'] - (store + 5)) + b'\x90')
+    p.remove(1, store - 12 + 2)                     # (phase 2) gameMinSubstitutes store -> call bx_min + nop
+    p.put(1, store - 12, b'\xe8' + struct.pack('<i', lab['bx_min'] - (store - 12 + 5)) + b'\x90')
     # the loop step (16 bytes: add word [D2], 1 / cmp word [D2], 16) -> call bx_next + 11 nops (the jnz stays)
     p.remove(1, lp + 3)
     p.remove(1, lp + 11)

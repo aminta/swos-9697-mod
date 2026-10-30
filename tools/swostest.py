@@ -4470,9 +4470,10 @@ def bench_switch(exe):
     import lepatch
     p = lepatch.LEPatch(exe)
     c = p.le.obj_bytes(1)
-    m = [x.start() for x in re.finditer(rb'\x66\x83\x3d....\x00\x74.\x66\xa1....\x66\x83\xf8\x0f', c, re.S)]
-    assert len(m) == 1, ('bx_max', m)
-    return p.target(1, m[0] + 3)[1], p.target(1, m[0] + 28)[1]
+    m = [x.start() for x in re.finditer(rb'\x66\x83\x3d....\x00\x74.\x66\xa1....(?:\x66\x83\xf8\x0f|\xeb)', c, re.S)]
+    assert len(m) == 1, ('bx_max', m)        # (4.0.6: jmp .cap after the switch's value, the table's lookup between)
+    g = re.compile(rb'\x66\x83\xf8\x0f\x76.\x66\xb8\x0f\x00\x66\xa3', re.S).search(c, m[0])
+    return p.target(1, m[0] + 3)[1], p.target(1, g.end())[1]
 
 
 def ingame_team(r, base):
@@ -4828,7 +4829,7 @@ def bench_play(s, gmax, top, bot, wants, errs, info, mark, sub=None, icons=None,
         if r.outcome != 'dump':
             errs.append(f'to the match, step {step}: {r}')
             return False
-        if struct.unpack('<H', r.obj2(gmax, 2))[0] == 15:
+        if struct.unpack('<H', r.obj2(gmax, 2))[0] == int((os.environ.get('BENCH_REAL') or '15:').split(':')[0]):
             break
         try:
             scr = s.screen()
@@ -4907,9 +4908,17 @@ def bench_play(s, gmax, top, bot, wants, errs, info, mark, sub=None, icons=None,
         check(pages == list(range(1, n + 1)), f'line-ups pages seen {pages} of {n}', errs)
         stad = None if os.environ.get('BENCH_STSKIP') else stad   # (skipped: the kick-off log check below expects all)
     g = struct.unpack('<H', r.obj2(gmax, 2))[0]
-    check(g == 15, f'gameMaxSubstitutes {g}', errs)
+    check(g == int((os.environ.get('BENCH_REAL') or '15:').split(':')[0]), f'gameMaxSubstitutes {g}', errs)
     teams = [ingame_team(r, top), ingame_team(r, bot)]
+    gm = struct.unpack('<HH', r.obj2(gmax - 2, 4))      # (phase 2) gameMinSubstitutes, gameMaxSubstitutes
+    info.append(f'kick-off named:used {gm[1]}:{gm[0]}')
+    if wants.get('_diy'):                   # (phase 2 study, BENCH_DIYDUMP) the current competition at the kick-off
+        dv = r.obj2(wants['_diy'], 0x70)
+        info.append(f'DIY name {dv[4:0x2d].split(bytes(1))[0]!r} id {dv[0x2d]:#x} +2Bh {dv[0x2b]:#x} +3Dh..+42h '
+                    f'{dv[0x3d:0x43].hex()} +5Dh..+66h {dv[0x5d:0x67].hex()}')
+    cap = 11 + max(5, min(gm[1], 15))      # (phase 2) the in-match places: 11 + the match's bench
     for name, pl in teams:
+        pl = pl[:cap]
         named = [x for x in pl if x[0]]
         empty = [i for i, x in enumerate(pl) if not x[0] and x[1] == 0xFF and x[2] == 1]
         info.append(f'{name}: {len(named)} players ({named[0][0] if named else ""}..{named[-1][0] if named else ""}), '
@@ -4918,9 +4927,11 @@ def bench_play(s, gmax, top, bot, wants, errs, info, mark, sub=None, icons=None,
         if name not in wants and wants.get('*'):        # (A) a CPU club: 16 + its XTRA block's players, places 16..
             xn = wants['*'](name)
             want = 16 + len(xn)
-        want = min(want, 26)
+        want = min(want, cap)
+        if xn:
+            xn = xn[:want - 16]
         out = wants.get('-', set()) if name in wants else set()   # (2) unavailable bench players: empty places
-        check(len(named) == want - len(out) and empty == sorted(out | set(range(want, 26))),
+        check(len(named) == want - len(out) and empty == sorted(out | set(range(want, cap))),
               f'{name}: {len(named)} named, empty {empty}' + (f' (left out {sorted(out)})' if out else ''), errs)
         if xn:
             got = [pl[16 + i][0] for i in range(want - 16)]
@@ -4944,6 +4955,8 @@ def bench_play(s, gmax, top, bot, wants, errs, info, mark, sub=None, icons=None,
               f'line-ups screen: row 16 {s16:#x}, pages {stk}/{stn} want {want_n}, rows {[hex(x) for x in ptrs]} want '
               f'{[hex(x) for x in exp]}', errs)
     mark('kick-off read: ' + '; '.join(info[-2:]))
+    if os.environ.get('BENCH_KICKONLY'):    # (phase 2: a competition with the game's bench, the kick-off values only)
+        return True
     import namespr
     o = lepatch_orig()
     c = o.le.obj_bytes(1)                   # EGA_graphics (as match_names14): the 16-colour mode's bit planes
@@ -5084,14 +5097,16 @@ def bench_world():
         scr = s.screen()
         if press(s, scr, 'CARRIERA') is None:
             return False, f'CARRIERA not reached ({s.result})'
-        for t in ['SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27']:
+        for t in ['SCEGLI SQUADRA'] + ([] if os.environ.get('BENCH_BASE') else ['CARR. STORICHE', 'MONDO 2026-27']):
             if press(s, s.screen(), t) is None:
                 return False, f'new career: {t} not reached ({s.result})'
         if not pick_career(s, path):
             return False, f'new career: {path} not reached ({s.result})'
         n = struct.unpack('<H', s.result.obj2(cnp, 2))[0]
         info.append(f'{club}: {n} players in the squad')
-        s.poke(s.result.base1 + bx, b'\x0f\x00')
+        real = os.environ.get('BENCH_REAL')   # (phase 2) 'named:used' wanted from the competition's real rule: no poke
+        if not real:
+            s.poke(s.result.base1 + bx, b'\x0f\x00')
         r = s.result                        # 4.0.5's bald icons (blond.ICONBL 1910 / 1911, next to our name
         bn = r.read(r.base2 + ct + 76 + 38 + 3, 22).split(b'\0')[0]   # sprites): squad player 2 poked bald in every
         o2 = r.read(r.base2, 0x300000)      # copy of his record, so the squad screen builds them before the match
@@ -5117,6 +5132,9 @@ def bench_world():
             info.append(f'{xsc} XTRA {xsi} marked bought')
         wants = {club: n, '*': lambda t: [] if xnone else [x for i, x in enumerate((xtra_club_block(b, t) or (0, []))[1])
                                           if x and not (t == xsc and i == xsi)]}   # (A) CPU clubs
+        if os.environ.get('BENCH_DIYDUMP'):
+            import lp36
+            wants['_diy'] = lp36._sites(lepatch_orig())['DIY']   # (site patterns of the original exe)
         inj = os.environ.get('BENCH_INJ')   # (2, Davide 31/10) 'place:byte,..' (places 1-based, the byte = the record's
         if inj:                             # cardsInjuries, hex: 40 injured, 01 suspended in a career: bits 0-1): bench players made unavailable
             order = s.result.obj2(cmp, 32)  # in every copy of their record; the match must still be playable (only the
@@ -5154,7 +5172,10 @@ def bench_world():
         st = c.find(b'BXST')                # (benchx's line-ups log; builds before it: no check)
         bench_play(s, gmax, top, bot, wants, errs, info, mark, (bx, int(os.environ.get('BENCH_SUB', 21)), ct), {}, sq,
                    st if st > 0 else None)
-    check(n == 30, f'{club}: {n} players (want 30)', errs)
+    check(n == 30 or club != 'CELLE VARAZZE', f'{club}: {n} players (want 30)', errs)
+    if real:                                # (phase 2) the competition's bench / substitutions at the kick-off
+        k = [x for x in info if x.startswith('kick-off named:used')]
+        check(k and k[0].endswith(f' {real}'), f'real rule: {k} (want {real})', errs)
     check('squad screen: GIOCA PARTITA' in info, 'not played as a player-coach (no GIOCA PARTITA)', errs)
     return not errs, '; '.join(errs + info)
 

@@ -58,9 +58,9 @@ BALD_AT = 25                            # PlayerFile.field_19 (from the player r
 # shape 'E' (receding) or 'oval' (one colour, the face too), the skull's raw colour (7 = the variant's NEW palette tone,
 # drawn by DrawSprite16Pixels' table; 6 / 5 / 4 skin, 3 black) and the half / EGA mode's colour for a 7.
 LOOKS = {'receding': {'light': dict(shape='E', skull=6, ega=6), 'dark': dict(shape='E', skull=6, ega=6)},
-         'shaved': {'light': dict(shape='oval', skull=7, ega=6), 'dark': dict(shape='oval', skull=3, ega=3)}}
+         'shaved': {'light': dict(shape='oval', skull=7, ega=6), 'dark': dict(shape='oval', skull=6, ega=6)}}
 TONES = {'light': (84, (240, 150, 120)), 'dark': (85, (70, 30, 10))}   # palette index (free in every pitch), RGB
-# (Davide 30/10: the dark oval is plain black 3 - index 85 stays spare). Variant flags (PlayerInfoHeader FLAG): 1 darkblond,
+# (Davide 30/10: the dark oval in the dark face's colour - raw 6, converted 4: head = face; index 85 stays spare). Variant flags (PlayerInfoHeader FLAG): 1 darkblond,
 # 2 / 3 receding dark / light, 4 / 5 shaved dark / light; bald.c's look = (flag - 2) xor 1.
 FLAGS = {2: ('receding', 'dark'), 3: ('receding', 'light'), 4: ('shaved', 'dark'), 5: ('shaved', 'light')}
 NSLOT = 5                               # single-team set slots: NEW1 / + 101, NEW3 / + 101, SLOT5 (4.0.5)

@@ -76,3 +76,7 @@ new rule. If a rule seems wrong for a case, ask the regia session; don't silentl
     grow (every release did; obj2's base moves with it and the loads handle that). Rule: new code AND data go in obj1
     pages of their own (obj1 is writable), as controls.py does; a new obj2 page needs Davide's ok and old-save play-on
     (world_cuplist_mestre + world_winners_oldsave on a release-recipe dir) before its sha.
+21. The career save's engine block ('EN' after the trailer, trailer.py) shares careerworld.SEL_ROOM with the 160-team
+    cache: SEL_N x 684 + main block + engine block <= SEL_ROOM (trailer.py asserts it). Room left, release recipe:
+    305 B after 4.0.6's 'BQ' (24 B, gplay SEC_BQ: 15131 B engine block, main block 948 B). A new item costs 4 + its
+    size; past the room the build fails - plan any 4.0.6+ item against this figure and update it here.

@@ -174,7 +174,8 @@ static int series(int a, int b, int level) {   /* best of three: games 1 and 3 a
 #define GP_GOUT 0
 #endif
 #ifndef GP_GFFORCE
-#define GP_GFFORCE 0                    /* (test builds, GPLAY_GFFORCE: 1 the career club kept out of a Grand Final) */
+#define GP_GFFORCE 0                    /* (test builds, GPLAY_GFFORCE: 1 the career club kept out of a Grand Final,
+                                           2 the career club its host) */
 #endif
 #ifndef GP_KOFORCE
 #define GP_KOFORCE 0                    /* (test builds, GPLAY_KOFORCE: 1 the career club loses its played knockout ties,
@@ -1261,6 +1262,16 @@ static int t2_shape(const u8 *s, struct t2s *o) {
    gp_adv, once slot 3 has no day to come, takes it: its weeks moved to start after the current one, installed. */
 extern u32 GP_WK;
 u32 t2_defer(u32 i) { GP_ST.s3wait |= (u8)(1 << i); return 0; }
+#ifndef GP_S3DEFER
+#define GP_S3DEFER 0                    /* (test builds, GPLAY_S3DEFER=1: the group's slot 3 taken once, as by a late
+                                           OFC day - rc17's MiSTer career) */
+#endif
+static u8 t2_forced;
+u32 t2_force(void) {                    /* gp_install: 1 = treat slot 3 as busy now (GP_S3DEFER, once a season) */
+    if (!GP_S3DEFER || t2_forced == (u8)GP_SEAS) return 0;
+    t2_forced = (u8)GP_SEAS;
+    return 1;
+}
 u32 t2_waiting(u32 i) { return GP_ST.s3wait >> i & 1; }
 u32 t2_due(void) {
     u32 m = 0;
@@ -1963,6 +1974,7 @@ static void ko_one(struct gp_ko *k, u16 home, u16 away, int w1, int w2, int legs
    - gf_done (gp_rec_c): the winner / loser into the group contest's tw[0] / tl[0] (its champion / runner-up for the
      season end, VINCITORI, the record). */
 const u8 *GP_S3;                        /* (the glue: the game's working DIY - the group's last day just played) */
+const u8 *GP_S3B;                       /* (the glue: slot 3's own 443h buffer - rc17) */
 u32 GP_GFT;                             /* (harness trace: 1 built, 2 simulated, 3 placeholder, 0x80 | why not) */
 static int kidx(const struct gp_ko *k, u16 team);
 static void gf_one(struct gp_ko *f, const struct gp_ko *g, u16 home, u16 away, int w) {
@@ -2002,6 +2014,35 @@ void gf_hide_c(u8 *cal, u32 cur) {     /* gp_install, after a slot-4 install: th
         e += len;
     }
 }
+#ifndef GP_GFREST
+#define GP_GFREST 0                     /* (test builds, GPLAY_GFREST=1: the placeholder shown at once - gf_unhide_c's
+                                           path, as when the career club rests in the group's last round) */
+#endif
+u32 gf_unhide_c(u8 *cal, u32 cur) {    /* rc18 (Davide's MiSTer, rc17): gp_adv - the Grand Final still to be built and
+                                           no career-club day left before it (its rest day the group's last round): the
+                                           hidden placeholder (gf_hide_c) is the career club's day again (byte 5 = 1),
+                                           else the game offered FINISH SEASON (cseg_8EC2B), the group's last round and
+                                           the final never played. Its pairing shows from now until the final is built
+                                           (the week after the group's last day) */
+    const struct gp_ko *g = &GP_ST.ko[0], *f = &GP_ST.ko[1];
+    if (!gf_live(g) || GF(g) != GF_WAIT || f->magic != MAGIC || f->kind != K_GF || f->slot != 4) return 0;
+    u16 cnt = *(const u16 *)(cal - 4);
+    u8 *e = cal, *ph = 0;
+    int other = 0;
+    for (u32 i = 0; i < cnt; i++) {
+        u32 len = *(const u16 *)(e + 2);
+        if (!len) break;
+        if ((u32)(e - cal) >= cur) {    /* (the current entry - the next day - counts as one to come) */
+            if (e[0] == 4) { if (!ph) ph = e; }
+            else if (e[5]) other = 1;
+        }
+        e += len;
+    }
+    if (!ph || ph[5] || (other && !GP_GFREST)) return 0;
+    ph[5] = 1;
+    GP_GFT = 6;
+    return 1;
+}
 u32 gf_anchor_c(const u8 *cal, u32 cur) {   /* gp_install: the group waits for slot 3 (t2_defer: the OFC's days still to
                                            come, the career club maybe out of it) - the placeholder final in ko[1] the
                                            week after slot 3's last day: a day of the career club still to come (the
@@ -2028,27 +2069,27 @@ u32 gf_anchor_c(const u8 *cal, u32 cur) {   /* gp_install: the group waits for s
 u32 gf_step_c(void) {                   /* the calendar advance (slot 3 free): 2 = the final built into ko[1], 4 = the
                                            placeholder's days to drop (decided without the career club), else 0 */
     struct gp_ko *k = &GP_ST.ko[0];
-    if (!gf_live(k) || GF(k) != GF_WAIT || (GP_ST.s3wait & 1) || !GP_S3 || (int)GP_WK < k->d1) return 0;
-    const u8 *d = GP_S3;
+    if (!gf_live(k) || GF(k) != GF_WAIT || (GP_ST.s3wait & 1) || (!GP_S3 && !GP_S3B) || (int)GP_WK < k->d1) return 0;
     int n = k->n, meet = k->con[11] ? k->con[11] : 1, ord[KN], m = 0;
     u16 tm[KN];
-    if (*(const u16 *)(d + 0x4F) != 1 || *(const u16 *)(d + 0x51) != n) { GP_GFT = 0x84; return 0; }
-    for (int j = 0; j < n; j++) {       /* (the rows: every club's group played to the end, all of them ours) */
-        int o = *(const u16 *)(d + 0x6D + 2 * j);
-        tm[j] = *(const u16 *)(d + 0x12D + 2 * (o / 0x12));
-        if (kidx(k, tm[j]) == NOC) { GP_GFT = 0x81; return 0; }
-        if (*(const u16 *)(d + o + 0x2B7) < meet * (n - 1)) { GP_GFT = 0x82; return 0; }
-        ord[j] = j;
-    }
-    for (int i = 1; i < n; i++)         /* (stable: points, goal difference, goals scored) */
-        for (int j = i; j > 0; j--) {
-            int oa = *(const u16 *)(d + 0x6D + 2 * ord[j - 1]), ob = *(const u16 *)(d + 0x6D + 2 * ord[j]);
-            const u16 *ra = (const u16 *)(d + oa + 0x2B7), *rb = (const u16 *)(d + ob + 0x2B7);
-            int da = (int)ra[4] - ra[5], db = (int)rb[4] - rb[5];
-            if (rb[6] > ra[6] || (rb[6] == ra[6] && (db > da || (db == da && rb[4] > ra[4])))) {
-                int x = ord[j]; ord[j] = ord[j - 1]; ord[j - 1] = x;
-            } else break;
+    const u8 *d = 0;
+    for (int b = 0; b < 2 && !d; b++) {     /* (rc17: the working DIY after a '- RISULTATO -' day; after a match
+                                           played for real it may hold another contest - then slot 3's own buffer,
+                                           written back: the one whose table is the whole group played) */
+        const u8 *c = b ? GP_S3B : GP_S3;
+        if (!c) continue;
+        if (*(const u16 *)(c + 0x4F) != 1 || *(const u16 *)(c + 0x51) != n) { GP_GFT = 0x84; continue; }
+        int ok = 1;
+        for (int j = 0; j < n && ok; j++) { /* (the rows: every club's group played to the end, all of them ours) */
+            int o = *(const u16 *)(c + 0x6D + 2 * j);
+            tm[j] = *(const u16 *)(c + 0x12D + 2 * (o / 0x12));
+            if (kidx(k, tm[j]) == NOC) { GP_GFT = 0x81; ok = 0; }
+            else if (*(const u16 *)(c + o + 0x2B7) < meet * (n - 1)) { GP_GFT = 0x82; ok = 0; }
+            ord[j] = j;
         }
+        if (ok) d = c;
+    }
+    if (!d) return 0;
     u16 f[2];
     for (int i = 0; i < n && m < 2; i++) {
         const u8 *e;
@@ -2060,6 +2101,11 @@ u32 gf_step_c(void) {                   /* the calendar advance (slot 3 free): 2
     if (GP_FORCE && !GP_GFFORCE && f[0] != GP_MGR && f[1] != GP_MGR && kidx(k, GP_MGR) != NOC) {   /* (test builds: the career
                                            club in the final, as its host) */
         f[1] = f[0]; f[0] = GP_MGR;
+    }
+    if (GP_GFFORCE == 2 && kidx(k, GP_MGR) != NOC && f[0] != GP_MGR) {   /* (test builds: the career club the host, as
+                                           the group's winner - rc17's MiSTer case) */
+        f[1] = f[0];                    /* (2nd -> swapped; out of the two -> it replaces the 2nd) */
+        f[0] = GP_MGR;
     }
     struct gp_ko *fk = &GP_ST.ko[1];
     if (f[0] != GP_MGR && f[1] != GP_MGR) {     /* (the career club not in it: decided now) */

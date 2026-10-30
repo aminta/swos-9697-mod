@@ -624,6 +624,8 @@ gp_gf:                                  ; 4.0.5 NZ (gp_adv): a type-2 group cont
     call gp_s3busy
     jnz .x
     mov dword [GP_S3], DIY              ; (the group's last day: the event just done, still in the working DIY)
+    mov eax, [SLOTS_ + 12]              ; (rc17: or slot 3's own buffer, written back - after a match played for
+    mov [GP_S3B], eax                   ; real; gf_step_c takes the one holding the whole group played)
     mov ax, [CAREERTEAM]
     mov [GP_MGR], ax
     mov eax, gf_step_c
@@ -654,7 +656,15 @@ gp_install:                             ; GP_BUILT (gp_lend_c): each ko built in
     cmp al, 3                           ; 4.0.5 NZ: slot 3 still has days to come (another contest's: the OFC CL) ->
     jne .free                           ; this ko waits (gplay.c t2_defer), gp_adv installs it once slot 3 is free
     call gp_s3busy
+    jnz .busy
+    pushad                              ; (test builds, GPLAY_S3DEFER: slot 3 taken once - the OFC's late day of
+    mov eax, t2_force                   ; Davide's rc17 career, the group deferred a week)
+    call gp_c
+    mov [esp + 28], eax
+    popad
+    test eax, eax
     jz .free
+.busy:
     pushad
     push ebx
     call t2_defer
@@ -1271,6 +1281,18 @@ gp_adv:                                 ; replaces the 4 `call cseg_8EA82` (the 
     call gp_week
     call gp_s3due                       ; (4.0.5 NZ: a slot-3 contest waiting for slot 3)
     call gp_gf                          ; (4.0.5 NZ: the Grand Final after the Championship's group)
+    pushad                              ; (rc18: no career-club day left before the hidden Grand Final placeholder -
+    push es                             ; its rest day the group's last round: the placeholder is its day again,
+    push ds                             ; else FINISH SEASON - gplay.c gf_unhide_c)
+    pop es
+    cld
+    movzx eax, word [CAL_CUR]
+    push eax
+    push dword CAL
+    call gf_unhide_c
+    add esp, 8
+    pop es
+    popad
 %if CD_ON
     mov dword [GP_CDT], 0               ; the Coppa Italia Serie D (cd_step_c): a career in its world
     cmp word [GAMETYPE], 4
@@ -2482,6 +2504,8 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
                                 f"-DGP_RLFORCE={int(os.environ.get('GPLAY_RLFORCE') or 0)}",
                                 f"-DGP_KOFORCE={int(os.environ.get('GPLAY_KOFORCE') or 0)}",
                                 f"-DGP_GFFORCE={int(os.environ.get('GPLAY_GFFORCE') or 0)}",
+                                f"-DGP_S3DEFER={int(os.environ.get('GPLAY_S3DEFER') or 0)}",
+                                f"-DGP_GFREST={int(os.environ.get('GPLAY_GFREST') or 0)}",
                                 f"-DGP_GOUT={int(os.environ.get('GPLAY_GOUT') or 0)}",
                                 f"-DCF_SEED={__import__('cupsf').SEED}"]
                                + (['-DHDR_TEST'] if os.environ.get('HDR_TEST') else []))   # (test builds: GROUP n headers)
@@ -2559,7 +2583,7 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
     symbols['ADDJOB'] = (1, addjob)
     symbols.update({k: syms[k] for k in ('GP_CFB', 'GP_LG', 'GP_RST', 'GP_RIT', 'GP_SEL', 'GP_MGR', 'GP_WORLD', 'GP_SLT',
                                          'gp_sack_c', 'gp_forcecfb', 'gp_pwin_c', 'gp_rlines_c', 'GP_RLN', 'GP_RLC', 'GP_RLPOULE', 'GP_REC', 'GP_CMB', 'gp_adv_c', 'GP_ADVWK', 'GP_WK', 'GP_TH', 'GP_RN',
-                                         'gp_defer_c', 'gf_step_c', 'gf_place_c', 'gf_hide_c', 'gf_anchor_c', 'GP_S3', 'GP_GFT', 'cd_step_c', 'sc_step_c', 'sc_rlines_c', 'GP_SCT', 'GP_SCFIRST', 'SC_ST', 'SC_TRACE', 'cd_fixload_c', 'gp_scal_c', 'gp_repoint_c', 'gp_fixload_c', 'CD_ST', 'GP_CDT', 'GP_CDNM', 'GP_CDD',
+                                         'gp_defer_c', 't2_force', 'gf_step_c', 'gf_place_c', 'gf_hide_c', 'gf_unhide_c', 'gf_anchor_c', 'GP_S3', 'GP_S3B', 'GP_GFT', 'cd_step_c', 'sc_step_c', 'sc_rlines_c', 'GP_SCT', 'GP_SCFIRST', 'SC_ST', 'SC_TRACE', 'cd_fixload_c', 'gp_scal_c', 'gp_repoint_c', 'gp_fixload_c', 'CD_ST', 'GP_CDT', 'GP_CDNM', 'GP_CDD',
                                          'GP_CDFIRST')})
     symbols['CD_MEMBER'] = syms['cd_member_c']
     symbols['GP_CDS1'] = syms['GP_CDS1']

@@ -1718,12 +1718,35 @@ def advance(s, stop, max_steps=400):
         if os.environ.get('SWOSTEST_FILL') and fill_check(s, f'step {step}') is False and not getattr(s, 'fill_bad', 0):
             s.fill_bad = 1                               # (investigation: the menu texture at every step; the first
             s.log.append(f'[fill] FIRST CHANGE at step {step}, after: {recent[-1] if recent else "-"}')   # change)
-        recent.append(str(scr))                          # stuck: the last 16 screens are 1 or 2 alternating ones
+        if not getattr(s, 'inmatch', False) or scr.entries:
+            recent.append(str(scr))                      # stuck: the last 16 screens are 1 or 2 alternating ones
+        if scr.entries:
+            s.inmatch = False
         if len(recent) >= 16 and len(set(recent[-16:])) <= 2:
             return False, f'step {step}: stuck on {" / ".join(sorted(set(recent[-16:])))[:300]}'
         if stop(scr):
             return True, f'{step} steps'
         texts = scr.texts()
+        rp = os.environ.get('W8485_REALPLAY')            # (4.0.5 NZ GF, rc17: the matches of fixture screens titled
+        if rp and scr.entries and rp in scr.entries[0][1]:   # with that word played for real, as Davide on the MiSTer
+            i_ = scr.find('- PARTITA -', exact=True)    #  - the exe needs nop_league_int3)
+            s.rpseen = getattr(s, 'rpseen', 0) + (i_ is not None and not scr.entries[i_][2])
+            if i_ is not None and not scr.entries[i_][2] and s.rpseen > int(os.environ.get('W8485_REALSKIP', 0)):
+                s.realplay = True
+                s.log.append(f'[realplay] step {step}: {scr.entries[0][1]}')
+                press(s, scr, '- PARTITA -') or s.send('fire dump:2')
+                continue
+        if getattr(s, 'inmatch', False) and not scr.entries:   # (the match: bench_world's pace - 3 fires a pause)
+            if step % 25 == 0:
+                s.shot(f'rp{step:03d}')
+            s.send('fire:3 ' * 3 + 'dump:1')
+            continue
+        if getattr(s, 'realplay', False) and 'MOD. TATTICA' in texts and ('GIOCA PARTITA' in texts or 'PARTITA' in texts):
+            s.realplay = False
+            s.inmatch = True
+            s.log.append(f'[realplay] step {step}: kick-off')
+            press(s, scr, 'GIOCA PARTITA' if 'GIOCA PARTITA' in texts else 'PARTITA') or s.send('fire dump:2')
+            continue
         if 'VIS. RISULTATI' in texts and 'MOD. TATTICA' in texts and (getattr(s, 'subs', None) or
                                                                      getattr(s, 'gk_swap', False)):
             err = substitute(s, scr)                     # stand-ins in the 16: bring fit starters back first
@@ -2953,7 +2976,8 @@ def world8485():
         out, msgs = [first], [f'season 1: from {first}']
     for season in ((2,) if first else (1,) if os.environ.get('W8485_ONE') == '1' else (1, 2)):   # (W8485_ONE: season 1 only)
         cars = {} if season == 1 else {'W84A.CAR': out[0]}
-        with Session(f'{w84_tag()}_{season}', exe, cars, 'dump:2', int(os.environ.get('W8485_TMO', 240)), int(os.environ.get('W8485_SHOTS', 0))) as s:
+        with Session(f'{w84_tag()}_{season}', exe, cars, 'dump:2', int(os.environ.get('W8485_TMO', 240)), int(os.environ.get('W8485_SHOTS', 0)),
+                     match=bool(os.environ.get('W8485_REALPLAY'))) as s:   # (a match played for real: the feeder in it)
             if s.wait().outcome != 'dump':
                 return False, f'START: no first pause ({s.result})'
             if season == 1:
@@ -15885,7 +15909,7 @@ def menu_levels():
 
 @scenario
 def world_gplay_nzchamp(force='1', team='OCEANIA,NUOVA ZELANDA,NORTHERN LGE|NORTHERN LEAGUE,WESTERN SPRINGS', gff='',
-                        kof='', two=False, kolose=False):
+                        kof='', two=False, kolose=False, real='', defer=False, rest=False):
     """New Zealand's National League Championship played (gplay: a 'title' group contest as the game's type 2 in slot
     3, one group): the data session's snapshot world5tm-nzchamp (TM_NZ_CHAMP=1); WESTERN SPRINGS forced 1st of the
     Northern League -> the Central / Southern leagues simulated now, 11 clubs (4 + 3 + 2 by place, the two A-League
@@ -15897,17 +15921,26 @@ def world_gplay_nzchamp(force='1', team='OCEANIA,NUOVA ZELANDA,NORTHERN LGE|NORT
     order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
     env = {'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]), 'GPLAY_FORCE': force,
            **({'GPLAY_GFFORCE': gff} if gff else {}), **({'GPLAY_KOFORCE': kof} if kof else {}),
-           **({'GPLAY_GOUT': '1'} if kolose else {})}
+           **({'GPLAY_GOUT': '1'} if kolose else {}), **({'GPLAY_S3DEFER': '1'} if defer else {}),
+           **({'GPLAY_GFREST': '1'} if rest else {})}
     exe = os.environ.get('GPLAY_BUILD') or build('world_gplay_nzchamp', env=env)
     log_at, st_at, log_n, st_n = gp_ptrs(exe)
+    if real:                                                           # (the group's matches played for real)
+        exe = nop_league_int3('nzgf_real', exe)
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import mkseason
     pk = mkseason.Pack(os.path.join(src, 'nzl'))
     res_words = {pk.where[k][0] | pk.where[k][1] << 8 for k, c in pk.clubs.items() if c.get('second_of')}
     keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K',
-                                            'W8485_NOSACK', 'W8485_HEX', 'W8485_ONE')}
+                                            'W8485_NOSACK', 'W8485_HEX', 'W8485_ONE', 'W8485_REALPLAY', 'W8485_TMO',
+                                            'W8485_REALSKIP', 'W2627REL_DATA')}
+    if not os.environ.get('W2627REL_DATA'):                            # (the label check's names: this data's - the NZ
+        os.environ['W2627REL_DATA'] = src                              #  championship's, absent from the old default)
+        _LABEL_DATA.clear()
     os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5', W8485_K='108+',
                       W8485_NOSACK='1', W8485_HEX=f'{log_at:x}:{log_n},{st_at:x}:{st_n}', W8485_ONE='1')
+    if real:                                                           # (the group's last matches only: 9 settled)
+        os.environ.update(W8485_REALPLAY=real, W8485_TMO='1500', W8485_REALSKIP='8')
     if two:                                                            # (two seasons: save, reload, the second)
         os.environ.pop('W8485_ONE')
     try:
@@ -15922,7 +15955,7 @@ def world_gplay_nzchamp(force='1', team='OCEANIA,NUOVA ZELANDA,NORTHERN LGE|NORT
     check(ok, msg, errs)
     for sn in ((1, 2) if two else (1,)):
         lines = open(os.path.join(RUNS, w84_tag() + f'_{sn}', 'session.log'), errors='replace').read().splitlines()
-        ok1, m1 = nzchamp_season(lines, st_at, log_at, res_words, gff, kof, errs)
+        ok1, m1 = nzchamp_season(lines, st_at, log_at, res_words, gff, kof, errs, rest)
         if not ok1:
             return False, f'{msg}; season {sn}: {m1}'
     return not errs, '; '.join(errs) or f'{msg}; {m1}'
@@ -15997,7 +16030,7 @@ def zones_bskip_nzchamp():
     return not errs, '; '.join(errs + [f'{st}'])
 
 
-def nzchamp_season(lines, st_at, log_at, res_words, gff, kof, errs):
+def nzchamp_season(lines, st_at, log_at, res_words, gff, kof, errs, rest=False):
     """world_gplay_nzchamp's checks on one season's session log: (False, why) when there is nothing to check"""
     sts = [bytes.fromhex(ln.split()[2]) for ln in lines if ln.startswith(f'HEX {st_at:x} ')]
     sts = [b for b in sts if b[:2] == b'GK']
@@ -16024,7 +16057,8 @@ def nzchamp_season(lines, st_at, log_at, res_words, gff, kof, errs):
     gfs = [gp_ko(b[GP_STKO + GP_KO['size']:]) for b in sts]               # (4.0.5: ko[1], the Grand Final)
     gfs = [x for x in gfs if x['kind'] == 11 and x['season'] == ko['season']]   # (season 2's log: not season 1's)
     mgr = gfs[0]['team'][0] if gfs else None                           # (the placeholder: the career club first)
-    nzgf_rows(lines, errs)
+    if not rest:                                                       # (GPLAY_GFREST: the placeholder shown at once)
+        nzgf_rows(lines, errs)
     if gff == '1':                                                     # (kept out: decided at once, no final played)
         check(mgr is not None and mgr not in fin, f"career club {mgr} kept out: final {[hex(x) for x in fin]}", errs)
         check(not any('CHAMPIONSHIP FINALE' in ln for ln in lines), 'no Grand Final screen without the career club', errs)
@@ -16033,9 +16067,11 @@ def nzchamp_season(lines, st_at, log_at, res_words, gff, kof, errs):
               f"Grand Final in slot 4 (the career club forced in): {[(x['slot'], [hex(t) for t in x['team'][:2]]) for x in gfs[-1:]]}"
               f" vs the champion's final {[hex(x) for x in fin]}", errs)
         check(any('CHAMPIONSHIP FINALE' in ln for ln in lines), 'the Grand Final played (its screen)', errs)
+        check(any('CHAMPIONSHIP FINALE' in ln and '| - PARTITA - |' in ln for ln in lines),   # (rc17 MiSTer: shown
+              'the Grand Final playable by the career club (- PARTITA - on its screen)', errs)  # but not playable)
         if kof:                                                        # (1 lost, 2 won)
             check((champ == mgr) == (kof == '2'), f'GPLAY_KOFORCE={kof}: champion {champ} (career club {mgr})', errs)
-    return True, f"entrants {[hex(t) for t in kl['team']]}, final {[hex(x) for x in fin]}, champion {champ:#x}"
+    return True, f"entrants {[hex(t) for t in kl['team']]}, final {[hex(x) for x in fin]}, champion {hex(champ) if champ is not None else None}"
 
 
 def lpreal_file(exe):
@@ -16374,6 +16410,40 @@ def world_gplay_nz2():
     """world_gplay_nzchamp over two seasons (save at the season end, reload): the Championship and its Grand Final
     again in season 2 (a new group, the placeholder without a pairing, the final played, its winner the champion)"""
     return world_gplay_nzchamp(two=True)
+
+
+@scenario
+def world_gplay_nzgf_real():
+    """NZ Grand Final after a Championship group PLAYED for real (rc17, Davide's MiSTer: the final shown, not playable -
+    the harness's other NZ scenarios settle every match by '- RISULTATO -'): the group's matches through '- PARTITA -'
+    and the match itself (nop_league_int3), the career club the final's host (GPLAY_GFFORCE=2); the final must be the
+    career club's match (- PARTITA - on its screen)"""
+    return world_gplay_nzchamp(gff='2', real='GRUPPO FINALE')
+
+
+@scenario
+def world_gplay_nzgf_defer():
+    """NZ Grand Final after a DEFERRED group (GPLAY_S3DEFER=1 test build: slot 3 taken at the league's end as by the
+    OFC's late day of Davide's rc17 career - t2_defer, gf_anchor_c's placeholder, the group a week later) with the
+    career club its host (GPLAY_GFFORCE=2): the final must be the career club's match (- PARTITA - on its screen)"""
+    return world_gplay_nzchamp(gff='2', defer=True)
+
+
+@scenario
+def world_gplay_nzgf_rest():
+    """NZ Grand Final, rc18's gf_unhide_c (rc17 MiSTer: the career club resting in the group's last round, the hidden
+    placeholder its only day left -> FINISH SEASON, the final never played): GPLAY_GFREST=1 test build shows the
+    placeholder as the career club's day at once; the group is played to its end, the final built over it and played
+    by the career club (its host, GPLAY_GFFORCE=2), the champion one of the two"""
+    return world_gplay_nzchamp(gff='2', rest=True)
+
+
+@scenario
+def world_gplay_nzgf_home():
+    """NZ Grand Final with the career club as its HOST (GPLAY_GFFORCE=2 test build: the group's winner - Davide's rc17
+    MiSTer case, WESTERN SPRINGS v EAST COAST BAYS shown but not playable): the final is the career club's match
+    (- PARTITA - on its screen), played, the champion one of the two"""
+    return world_gplay_nzchamp(gff='2')
 
 
 @scenario

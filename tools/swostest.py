@@ -4948,6 +4948,169 @@ def bench_tactics(s, scr, squad, errs, info, mark):
     errs.append('tactics: not back to the pre-match screen')
 
 
+def hil_vars():
+    """The highlights' variables (obj2): saveHighlightScene (GameLoop: mov word [D0], -2 / call
+    SaveCoordinatesForHighlights / mov ax, [it] / or / jz / call SaveHighlightScene / mov [it], 0), numScenesInHilFile,
+    gameMaxSubstitutes and hilMaxSubstitutes (SetHilFileHeader's last five moves: ... / mov ax, [GMAX] / mov [HMAX], ax /
+    ret)."""
+    if not hasattr(hil_vars, 'v'):
+        p = lepatch_orig()
+        d = p.le.obj_bytes(1)
+        t = lambda o: p.target(1, o)[1]
+        a = [x.start(1) for x in re.finditer(rb'\x66\xc7\x05....\xfe\xff\xe8....\x66\xa1(....)\x66[\x09\x0b]\xc0\x74.'
+                                           rb'\xe8....\x66\xc7\x05\1\x00\x00', d, re.S)]
+        b = [x for x in re.finditer(rb'(?:\x66\xa1....\x66\xa3....){4}\x66\xa1(....)\x66\xa3(....)\xc3', d, re.S)]
+        assert len(a) == 1 and len(b) == 1, ('hil_vars', a, b)
+        hil_vars.v = {'SAVE': t(a[0]), 'SCENES': t(b[0].start() + 2), 'GMAX': t(b[0].start(1)), 'HMAX': t(b[0].start(2))}
+    return hil_vars.v
+
+
+def bench_names(r, spr, ega):
+    """Both teams' 26 in-match name sprites as [team][place] = (w, nl, wq, rows): places 0..15 on the game's 255.. /
+    271.., 16..25 on benchx's NB + 10 x team."""
+    import benchx
+    lo = n14_sprites(r, spr, ega, 255, 32)
+    hi = n14_sprites(r, spr, ega, benchx.NB, 20)
+    return [lo[16 * t:16 * t + 16] + hi[10 * t:10 * t + 10] for t in (0, 1)]
+
+
+def bench_hil_match(s, spr, ega, errs, info, mark):
+    """(4.0.6, replays) in the match after the changes from beyond 16: the instant replay (R) played and left, then a
+    highlights scene saved by the game's own switch (saveHighlightScene, as an auto-saved goal); the name sprites as
+    built at the kick-off (they do not change in the match): the snapshot bench_hil_view compares with."""
+    v = hil_vars()
+    w16 = lambda o: struct.unpack('<H', s.result.obj2(o, 2))[0]
+    s.send('fire:3 fire:3 dump:1')          # (the substitute on the pitch for a while: in the replay's frames)
+    snap = bench_names(s.result, spr, ega)
+    sc0 = w16(v['SCENES'])
+    r = s.send('r:0.3 dump:1.5')
+    s.shot('replay')
+    check(r.outcome == 'dump', f'instant replay: {r}', errs)
+    for _ in range(8):                      # (the replay plays to its end, the match goes on)
+        r = s.send('dump:2')
+        if r.outcome != 'dump':
+            break
+    check(r.outcome == 'dump' and bench_names(r, spr, ega) == snap, f'after the instant replay: {r}', errs)
+    s.poke(r.base2 + v['SAVE'], b'\x01\x00')
+    r = s.send('dump:1')
+    sc1 = w16(v['SCENES'])
+    info.append(f'instant replay played; highlights scenes {sc0} -> {sc1} (saveHighlightScene poked)')
+    mark(info[-1])
+    check(sc1 == sc0 + 1, f'the highlights scene not saved: {sc0} -> {sc1}', errs)
+    return snap
+
+
+def bench_hil_view(s, snap, spr, ega, top, bot, bx, errs, info, mark):
+    """(4.0.6, replays) after the match: the main menu's HIGHLIGHTS played (ShowHighlights: gameMaxSubstitutes =
+    hilMaxSubstitutes, both 26-place teams copied back from the file buffer, the name sprites built again from them by
+    place, the name tables reset): no trap, the bench 15 kept, every place's sprite = its kick-off one (the frames'
+    name indices, 255 + ordinal as recorded, then show the match's names), places 17..26 included."""
+    v = hil_vars()
+    ordt = s.result.read(s.result.base1 + bx - 4 - 156, 52)
+    final = [list(ordt[26 * t:26 * t + 26]) for t in (0, 1)]
+    seen = []
+    for step in range(16):                  # career menu -> main menu -> HIGHLIGHTS -> its first entry (the view)
+        scr = s.screen()
+        t = scr.texts()
+        seen.append(', '.join(t)[:60])
+        hl = [x for x in ('REPLAY', 'HIGHLIGHTS') if x in t]   # (the main menu's entry: REPLAY in the IT exe)
+        if hl:
+            press(s, scr, hl[0])
+            break
+        press(s, scr, 'ESCI') if 'ESCI' in t else s.send('esc:0.3 dump:1')
+    mark('to HIGHLIGHTS: ' + ' | '.join(seen))
+    scr = s.screen()
+    t = scr.texts()
+    mark('highlights menu: ' + ', '.join(t))
+    view = [x for x in t if x.startswith(('VEDI', 'VISUAL', 'GUARDA', 'MOSTRA', 'RIVEDI', 'VIEW', 'REPLAY'))]
+    if not view:
+        errs.append(f'highlights: no view entry in {t} (path {seen[-2:]})')
+        return
+    press(s, scr, view[0])
+    r = s.send('dump:3')
+    s.shot('highlights')
+    check(r.outcome == 'dump', f'highlights playback: {r}', errs)
+    if r.outcome != 'dump':
+        return
+    g, h = struct.unpack('<H', r.obj2(v['GMAX'], 2))[0], struct.unpack('<H', r.obj2(v['HMAX'], 2))[0]
+    now = bench_names(r, spr, ega)
+    bad = [(tm, p_) for tm in (0, 1) for p_ in range(26) if now[tm][p_] != snap[tm][p_]]
+    swp = [(tm, p_) for tm in (0, 1) for p_ in range(26) if final[tm][p_] != p_ and now[tm][p_] == snap[tm][final[tm][p_]]]
+    moved = [[(p_, final[tm][p_]) for p_ in range(26) if final[tm][p_] != p_] for tm in (0, 1)]
+    info.append(f'highlights played: gameMaxSubstitutes {g} (hil {h}), places moved by changes {moved}, '
+                f'sprites unlike the kick-off ones {bad}, as the changes\' order {swp}')
+    mark(info[-1])
+    check(g == h == 15, f'highlights: gameMaxSubstitutes {g}, hilMaxSubstitutes {h}', errs)
+    check(not bad and any(moved), f'highlights: name sprites {bad} (moved {moved})', errs)
+    for k in range(12):                     # (to its end, back to the menu: no trap)
+        r = s.send('fire:1 dump:2')
+        if r.outcome != 'dump':
+            errs.append(f'highlights to the end: {r}')
+            return
+        if 'SALVA AZIONI PRINCIPALI' in s.screen().texts():
+            break
+    bench_hil_file(s, snap, final, spr, ega, errs, info, mark)
+
+
+def bench_hil_file(s, snap, final, spr, ega, errs, info, mark, name='HILB15'):
+    """(4.0.6, replays) the highlights saved to a file (SALVA: header 3626 bytes = the two 1704-byte teams with their 26
+    places + hilMaxSubstitutes, then 19000 a scene), the buffer's bench and places 17.. spoilt, the file loaded back
+    (CARICA) and played again: the bench 15; the name sprites built again by place from the file's teams, which are in
+    the match's end order (SetHilFileHeader after the changes): each place = the kick-off sprite of the player now
+    there (final = bx_ord at the match end). The game's own way for its places 12..16 too (MakeSpritesFromPlayerNames
+    by place, the name tables reset): in a reloaded scene recorded after a change the two players' names are swapped
+    (hil6 30/10); the view straight after the match keeps the kick-off sprites (all right)."""
+    v = hil_vars()
+    scr = s.screen()
+    if press(s, scr, 'SALVA AZIONI PRINCIPALI') is None:
+        errs.append(f'SALVA AZIONI PRINCIPALI not reached: {scr.texts()}')
+        return
+    s.send(name_entry(name) + ' dump:2')
+    path = os.path.join(s.run, 'SWOS', name + '.HIL')
+    if not os.path.exists(path):
+        errs.append(f'{name}.HIL not written ({s.screen().texts()})')
+        return
+    d = open(path, 'rb').read()
+    names = [[d[8 + 1704 * t + 42 + 61 * p_ + 12:8 + 1704 * t + 42 + 61 * p_ + 27].split(b'\0')[0].decode('latin-1')
+              for p_ in range(16, 26)] for t in (0, 1)]
+    info.append(f'{name}.HIL {len(d)} bytes, places 17..26 in the file: {names}')
+    mark(info[-1])
+    check((len(d) - 3626) % 19000 == 0 and len(d) > 3626 and sum(1 for t in names for x in t if x) >= 10,
+          f'{name}.HIL: {len(d)} bytes, places 17.. {names}', errs)
+    hb = s.result.base2 + v['HMAX']         # the memory spoilt: a reload must bring them back
+    s.poke(hb, b'\x05\x00')
+    s.send('dump:0.5')
+    scr = s.screen()
+    if press(s, scr, 'CARICA AZIONI PRINCIPALI') is None:
+        errs.append(f'CARICA AZIONI PRINCIPALI not reached: {scr.texts()}')
+        return
+    q = s.screen()
+    mark('load list: ' + ', '.join(q.texts()))
+    if name in q.texts():
+        press(s, q, name)
+    else:
+        s.send('fire:1 dump:2')
+    s.send('dump:1')
+    h2 = struct.unpack('<H', s.result.obj2(v['HMAX'], 2))[0]
+    check(h2 == 15, f'{name}.HIL loaded: hilMaxSubstitutes {h2} (want 15)', errs)
+    scr = s.screen()
+    view = [x for x in scr.texts() if x.startswith('VISUAL')]
+    if not view:
+        errs.append(f'after the load: {scr.texts()}')
+        return
+    press(s, scr, view[0])
+    r = s.send('dump:3')
+    s.shot('highlights_loaded')
+    check(r.outcome == 'dump', f'loaded highlights playback: {r}', errs)
+    if r.outcome == 'dump':
+        g = struct.unpack('<H', r.obj2(v['GMAX'], 2))[0]
+        bad = [(tm, p_) for tm, t_ in enumerate(bench_names(r, spr, ega)) for p_ in range(26) if t_[p_] != snap[tm][final[tm][p_]]]
+        info.append(f'{name}.HIL loaded (bench poked 5 first): hilMaxSubstitutes {h2}, playback gameMaxSubstitutes {g}, '
+                    f'sprites unlike their place\'s player {bad}')
+        mark(info[-1])
+        check(g == 15 and not bad, info[-1], errs)
+
+
 def bench_play(s, gmax, top, bot, wants, errs, info, mark, sub=None, icons=None, squad=None, stad=None):
     """benchx scenarios: from a career menu to a match played for real (PARTITA on the career menu and the squad
     screen: a player-coach), the kick-off checks (gameMaxSubstitutes = 15, each in-match team's named players =
@@ -5161,6 +5324,8 @@ def bench_play(s, gmax, top, bot, wants, errs, info, mark, sub=None, icons=None,
         else:
             bench_sub(s, sub[0], sub[1], errs, info, mark)
         r = s.result
+        snap = bench_hil_match(s, spr, ega, errs, info, mark) if os.environ.get('BENCH_HIL') else None
+        r = s.result
         old1 = r.read(r.base2 + oldt, 96)
         check(old1 == old0, f'the old name tables written: {[(k, a, b) for k, (a, b) in enumerate(zip(old0, old1)) if a != b][:8]}', errs)
         lt = r.read(r.base1 + sub[0] - 4 - 104, 104)   # bx_len + bx_lenc: each team's copy = its lengths, swapped
@@ -5199,6 +5364,8 @@ def bench_play(s, gmax, top, bot, wants, errs, info, mark, sub=None, icons=None,
             break
     s.shot('end')
     check(end, 'the career menus not reached after the match', errs)
+    if end and sub and os.environ.get('BENCH_HIL'):
+        bench_hil_view(s, snap, spr, ega, top, bot, sub[0], errs, info, mark)
     if icons is not None:
         ic = bald_icons(s.result)
         check(ic == icons.get('squad'), f'the bald icons changed after the match: {icons.get("squad")} -> {ic}', errs)

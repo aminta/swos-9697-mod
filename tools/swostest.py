@@ -235,6 +235,29 @@ SCAN.update({ch: sc for row, base in (('1234567890', 0x02), ('qwertyuiop', 0x10)
 SCRIPT_MAX = 200                                       # steps a pause can write
 TICKS = 70                                             # timer ticks per s (-timer mode)
 HOLD = 1                                               # GetKey calls a typed key stays held (more = menu auto-repeat)
+SPP_STEP = False                                        # bench_world BENCH_SPP: spp_go() instead of press() (Panchina's
+                                                        # sppmatch flow: the only one that starts PLAY MATCH under SWOS++)
+
+
+def spp_go(s, target, w=3):
+    """Under SWOS++'s timer feed: select target one key at a time, re-planning after each (key:0.3, a pause), then a
+    plain fire - Panchina's sppmatch.py flow, which starts PLAY MATCH 5/5 where press()'s whole path + 'fire up:0.05'
+    never did. Returns True, or None when target is not on the screen / not reached."""
+    for _ in range(30):
+        sc = s.screen()
+        i = sc.find(target, exact=True)
+        if i is None:
+            return None
+        if sc.selected == i:
+            s.send(f'fire dump:{w}')
+            return True
+        st = sc.path(i, set(), steps=True)
+        if not st:
+            return None
+        s.send(st[0][0] + ':0.3 dump:0.5')
+    return None
+
+
 PRESS_FIRE = 'fire'                                    # press()'s fire ('fire up:0.05' under SWOS++'s timer feed: the
                                                        # menus read the latched last key, a fire would be read again)
 RATE = 30                                              # GetKey calls per second in the menus (calibrated)
@@ -5346,7 +5369,8 @@ def bench_play(s, gmax, top, bot, wants, errs, info, mark, sub=None, icons=None,
             act = None                      # (message screens etc.: fire on the selected entry)
         mark(f'step {step} [{act}]: ' + ', '.join(texts)[:150])
         if act:
-            press(s, scr, act) or s.send('fire dump:2')
+            (spp_go(s, act, 4 if act in ('PARTITA', 'GIOCA PARTITA') and 'MOD. TATTICA' in texts else 3)
+             if SPP_STEP else press(s, scr, act)) or s.send('fire dump:2')
             r = s.result
         else:
             r = s.send('fire:0.5 dump:1')
@@ -5583,8 +5607,9 @@ def bench_world():
             return True, 'SKIP: SWOS++ is English only (SWOSTEST_UI=en)'
         shutil.copy(exe, exe + '.nospp')
         swospp.install(exe + '.nospp', exe)
-        global PRESS_FIRE
+        global PRESS_FIRE, SPP_STEP
         PRESS_FIRE = 'fire up:0.05'
+        SPP_STEP = True                     # (bench_play: the match flow one key at a time + plain fire, as sppmatch)
         pp = os.path.join(MAIN, 'internal', 'swospp-test')
         files = {'LOADER.BIN': os.path.join(pp, 'loader.bin'), 'SWOSPP.BIN': os.path.join(pp, 'swospp.bin')}
     p = lepatch.LEPatch(exe)

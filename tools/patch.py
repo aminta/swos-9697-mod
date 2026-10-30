@@ -302,7 +302,8 @@ def patch_exe(src, dst, remap, lang='it'):
     ctl_pg = 1 + controls.DATA_PAGES                   # last pages (obj1: obj2's page count stays 4.0's, see controls.patch)
     import namespr                                     # 4.0.5: 14-character match names (namespr.py), after them
     ctl_pg += namespr.PAGES
-    for _ in range((6 + cp + 2 + 2 * cdp if worlds else 6) + lpb + sp_pg + sc_pg + ct_pg + ctl_pg):  # (+1: the UEFA league phase's page, lp36)
+    bn_pg = 2                                          # 4.1: the bench of up to 15 (benchx.py), after the CONTROLS pages (4.0.6: + the per-competition table)
+    for _ in range((6 + cp + 2 + 2 * cdp if worlds else 6) + lpb + sp_pg + sc_pg + ct_pg + ctl_pg + bn_pg):  # (+1: the UEFA league phase's page, lp36)
         data = add_object_page(data, 1)
     mkseason.CAREER_CAVE[0] = CAREER_CAVE if worlds else None
     mkseason.CAREER_DATA[0] = CAREER_DATA + 0x1000 * (cp - 2) if worlds else None
@@ -671,7 +672,12 @@ def patch_exe(src, dst, remap, lang='it'):
     import modver                                # 4.0.5: 'MOD <version>' on the main menu (Davide, support)
     ctl_end = modver.patch(p, (ctl_end + 15) & ~15, lang)
     assert ctl_end <= ctl_at + 0x1000, hex(ctl_end)        # (the code page; controls' data pages follow it)
-    p.set_vsize(1, OBJ1_NEW_VSIZE + (0x1000 * (cp + 2 + cdp) if worlds else 0) + h2 + 0x1000 * (lpb + sp_pg + sc_pg + ct_pg + ctl_pg))
+    import benchx                                # 4.1: a bench of up to 15 (block 1: the in-match teams of 26)
+    bn_at = ctl_at + 0x1000 * ctl_pg
+    bn_end = benchx.patch(p, bn_at, ns_at, lang)
+    assert bn_end <= bn_at + 0x1000 * bn_pg, hex(bn_end)
+    p.set_vsize(1, OBJ1_NEW_VSIZE + (0x1000 * (cp + 2 + cdp) if worlds else 0) + h2 + 0x1000 * (lpb + sp_pg + sc_pg + ct_pg + ctl_pg
+                                                                                          + bn_pg))
     import teamstab                              # 4.0.2: teamsTable for 256 team ordinals (Serie D choice colours)
     teamstab.patch(p, num_bss + shirtnum.BSS_SIZE + blond.BSS_SIZE + menunum.BSS_SIZE + fmtpage.BSS_SIZE)
     tail = (careerworld.BSS_SIZE if bigw else 0) + shirtnum.BSS_SIZE + blond.BSS_SIZE + menunum.BSS_SIZE + fmtpage.BSS_SIZE \

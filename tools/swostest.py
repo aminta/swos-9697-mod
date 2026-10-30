@@ -235,6 +235,8 @@ SCAN.update({ch: sc for row, base in (('1234567890', 0x02), ('qwertyuiop', 0x10)
 SCRIPT_MAX = 200                                       # steps a pause can write
 TICKS = 70                                             # timer ticks per s (-timer mode)
 HOLD = 1                                               # GetKey calls a typed key stays held (more = menu auto-repeat)
+PRESS_FIRE = 'fire'                                    # press()'s fire ('fire up:0.05' under SWOS++'s timer feed: the
+                                                       # menus read the latched last key, a fire would be read again)
 RATE = 30                                              # GetKey calls per second in the menus (calibrated)
 
 
@@ -1018,7 +1020,7 @@ def press(s, scr, text, wait=2, exact=True):
     bad = set()
     for attempt in range(40):
         if scr.selected == i:
-            return s.send(f'fire dump:{wait}')
+            return s.send(f'{PRESS_FIRE} dump:{wait}')
         steps = scr.path(i, bad, steps=True)
         if not steps:
             return None
@@ -3315,13 +3317,13 @@ def world8485_nat():
     return not errs, '; '.join(errs + notes)
 
 
-def nop_league_int3(name):
-    """A test copy of builds()['it'] (builds-x/<name>_<build>) whose DIYLeagueTournamentMatch `int 3` (the game's own,
+def nop_league_int3(name, src=None):
+    """A test copy of src (default builds()['it']; builds-x/<name>_<build>) whose DIYLeagueTournamentMatch `int 3` (the game's own,
     at its start: harmless on a real PC, a trap under the harness's BPINT 3 - a season / league fixture's
     '- PARTITA -') is a NOP, as world_darkblond's."""
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import lepatch
-    src = builds()['it']
+    src = src or builds()['it']
     b = os.path.join(WORK, 'builds-x', f'{name}_' + os.path.basename(src.rstrip('/')))
     shutil.rmtree(b, ignore_errors=True)
     shutil.copytree(src, b, symlinks=True)
@@ -4513,6 +4515,1189 @@ def subs_numbers():
             check(all(m[0] - n[1] >= 2 for n, m in zip(num, name)), f'a number touches the name: {list(zip(num, name))}', errs)
             check(all(x[3][-1][1] < 210 for x in rows), 'a row runs into the position column', errs)
     return not errs, '; '.join(errs + info) + ' (runs/subs_numbers/shots/subs_list.png)'
+
+
+BENCH_SLACK = 1018                          # TeamGame 42 + 16 x PlayerInfo 61: the in-match team's used bytes (of 1704)
+
+
+def bench_slack_pattern(team):                  # (no AF / CF / DF / AC: the debugger's SM reads them as flag names)
+    return bytes(x ^ 1 if x in (0xAF, 0xCF, 0xDF, 0xAC) else x
+                 for x in (((i * 7) ^ 0x5A ^ (team * 0x33)) & 0xFF for i in range(1704 - BENCH_SLACK)))
+
+
+@scenario
+def bench_mem():
+    """Panchina phase 1 (bench 5 -> 15): is the tail of the in-match team buffers free? topTeamInGame /
+    bottomTeamInGame are 1704 bytes each (InitGameSaveTeams, the HIL header); 16 players use 1018 (TeamGame 42 + 16 x
+    PlayerInfo 61), 26 would need 1628. Friendly HAMBURG (human) - SCHALKE: at the kick-off the tails are read, then
+    filled with a pattern; the bench is called and its list opened (PgUp / PgDn, fire) many times, the match played on
+    to its end and the menus reached: the pattern must still be there at every pause (nothing writes there)."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import lepatch
+    b = os.environ.get('SWOSTEST_BUILD') or builds()['it']
+    p = lepatch.LEPatch(os.path.join(b, 'ITALIAN.EXE'))
+    c = p.le.obj_bytes(1)
+    if re.search(rb'\x66\x83\x3d....\x00\x74.\x66\xa1....\x66\x83\xf8\x0f', c, re.S):
+        return True, 'SKIP: a benchx build (the tails hold players 17..26: bench_world checks them)'
+    m = re.search(rb'(?:\xc7\x05.{8}){4}\x66\xc7\x05.{4}\xa7\x06', c, re.S)     # InitGameSaveTeams' four pointers
+    top = p.target(1, m.start() + 6)[1]
+    bot = p.target(1, m.start() + 26)[1]
+    errs, info = [], [f'topTeamInGame obj2+{top:X}, bottomTeamInGame +{bot:X} (gap {bot - top})']
+    check(bot - top == 1704, f'buffers {bot - top} apart, not 1704', errs)
+    n = 1704 - BENCH_SLACK
+
+    def mark(text):                             # progress, written at once (the session log comes at the end)
+        open(os.path.join(RUNS, 'bench_mem', 'progress.txt'), 'a').write(text + '\n')
+    with Session('bench_mem', b, {}, 'dump:3', 900, match=True) as s:
+        s.wait()
+        for t in ('AMICHEVOLE', 'OK', 'SCEGLI SQUADRE', 'SQUADRE CLUB', 'EUROPA', 'GERMANIA', '1. LIGA', 'HAMBURG'):
+            walk(s, t, 2)
+        s.send('fire dump:2')                   # HAMBURG: GIOCA-ALLENA (human)
+        walk(s, 'SCHALKE', 2)
+        for _ in range(12):
+            scr = s.screen()
+            if scr.selected == 55:
+                s.send('fire dump:4')
+                break
+            s.send(('right' if scr.selected in (56, 57) else 'down') + ' dump:0.5')
+        for _ in range(22):
+            s.send('down dump:0.5')
+            if s.screen().selected == 9:
+                break
+        r = s.send('fire dump:1')
+        if r.outcome != 'dump':
+            return False, f'match: {r}'
+        for k, base in enumerate((top, bot)):
+            d = r.read(r.base2 + base, 1704)
+            names = [d[61 * i + 54:61 * i + 69].split(b'\0')[0].decode('latin-1') for i in range(16)]
+            tail = d[BENCH_SLACK:]
+            nz = [i + BENCH_SLACK for i, x in enumerate(tail) if x]
+            info.append(f'team {k + 1}: 16 names {names[0]}..{names[15]}, tail nonzero bytes {len(nz)}'
+                        + (f' at {nz[:8]}' if nz else ''))
+            check(all(names), f'team {k + 1}: a player without a name: {names}', errs)
+            pat = bench_slack_pattern(k)
+            for o in range(0, n, 16):          # short pokes, the echo read after each (lp36_tie: a long run of
+                s.poke(r.base2 + base + BENCH_SLACK + o, pat[o:o + 16])     # pokes filled the pty, both sides hung)
+                s.box.pump(0.05)
+        mark('tails read and poked; ' + '; '.join(info[1:]))
+        for k, base in enumerate((top, bot)):  # the debugger loses a byte now and then: re-poke them one by one
+            pat = bench_slack_pattern(k)
+            for tries in range(4):
+                r.chunks = []
+                got = r.read(r.base2 + base + BENCH_SLACK, n)
+                bad = [i for i in range(n) if got[i] != pat[i]]
+                if not bad:
+                    break
+                mark(f'team {k + 1}: re-poke {len(bad)} bytes {[(i + BENCH_SLACK, got[i]) for i in bad[:6]]}')
+                for i in bad:
+                    s.poke(r.base2 + base + BENCH_SLACK + i, pat[i:i + 1])
+                    s.box.pump(0.05)
+            check(not bad, f'team {k + 1}: {len(bad)} bytes not poked', errs)
+        r = s.send('dump:0.2')
+        for k, base in enumerate((top, bot)):
+            check(r.read(r.base2 + base + BENCH_SLACK, n) == bench_slack_pattern(k), f'team {k + 1}: poke not read back', errs)
+        pauses, bench = 0, 0
+        for k in range(40):                     # the bench (PgUp / PgDn, the human team's) and its list, as subs_numbers
+            r = s.send(('pgdn' if k % 2 else 'pgup') + ':0.3 dump:0.5')
+            if r.outcome != 'dump':
+                break
+            if k % 2:
+                r = s.send('fire:1 dump:1.5')
+                bench += 1
+                s.send('left:0.3 left:0.3 dump:0.5')  # left twice leaves the bench (SubsBenchOff; Davide)
+        s.shot('bench')
+        mark(f'bench called {bench} times')
+        menu = False
+        for k in range(60):                     # play on: fire for the kicks, until the match is over (a menu again)
+            r = s.send('fire:3 ' * 10 + 'dump:1')
+            if r.outcome != 'dump':
+                errs.append(f'play on: {r}')
+                break
+            pauses += 1
+            mark(f'play on {k}')
+            for t, base in enumerate((top, bot)):
+                got = r.read(r.base2 + base + BENCH_SLACK, n)
+                if got != bench_slack_pattern(t):
+                    bad = [i + BENCH_SLACK for i, (x, y) in enumerate(zip(got, bench_slack_pattern(t))) if x != y]
+                    errs.append(f'pause {k}: team {t + 1} tail changed at {len(bad)} bytes, first {bad[:8]}')
+            if errs:
+                s.shot('changed')
+                break
+            try:
+                scr = s.screen()
+                if scr.find('ESCI') is not None or scr.find('CONTINUA') is not None or scr.find('AMICHEVOLE') is not None:
+                    menu = True
+                    break
+            except Exception:
+                pass
+        s.shot('end')
+        info.append(f'bench called {bench} times, {pauses} pauses played on, menu after the match: {menu}')
+    return not errs, '; '.join(errs + info)
+
+
+def bench_switch(exe):
+    """benchx's (bx_bench obj1 offset, gameMaxSubstitutes obj2 offset), from bx_max: cmp word [bx_bench], 0 / je /
+    mov ax, [bx_bench] / cmp ax, 15 / jbe / mov ax, 15 / mov [gameMaxSubstitutes], ax."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import lepatch
+    p = lepatch.LEPatch(exe)
+    c = p.le.obj_bytes(1)
+    m = [x.start() for x in re.finditer(rb'\x66\x83\x3d....\x00\x74.\x66\xa1....(?:\x66\x83\xf8\x0f|\xeb)', c, re.S)]
+    assert len(m) == 1, ('bx_max', m)        # (4.0.6: jmp .cap after the switch's value, the table's lookup between)
+    g = re.compile(rb'\x66\x83\xf8\x0f\x76.\x66\xb8\x0f\x00\x66\xa3', re.S).search(c, m[0])
+    return p.target(1, m[0] + 3)[1], p.target(1, g.end())[1]
+
+
+def ingame_team(r, base):
+    """An in-match team (TeamGame 42 + PlayerInfo 61 each): (name, [(short name, position, substituted)] x 26)."""
+    d = r.read(r.base2 + base, 1704)
+    pl = [(d[61 * i + 54:61 * i + 69].split(b'\0')[0].decode('latin-1'), d[61 * i + 46], d[61 * i + 42]) for i in range(26)]
+    return d[22:39].split(b'\0')[0].decode('latin-1'), pl
+
+
+def lepatch_orig():
+    """The original exe of the UI language (LEPatch, cached)."""
+    if not hasattr(lepatch_orig, 'p'):
+        sys.path.insert(0, os.path.join(ROOT, 'tools'))
+        import lepatch
+        lepatch_orig.p = lepatch.LEPatch(os.path.join(ROOT, 'orig', UI_ORIG))
+    return lepatch_orig.p
+
+
+def old_name_tables():
+    """obj2 offset of the game's plOrdinalsTable (CopyPlayerNameLengths: mov [A0], ord / [A1], len / [A2], lenc, 32
+    apart); plNamesLengthTable and plNamesLengthTableCopy follow, then prevLastPlayer (dd) and prevLastTeamPlayed."""
+    o = lepatch_orig()
+    d = o.le.obj_bytes(1)
+    a0 = 0
+    for m in re.finditer(rb'\xc7\x05(....)(....)\xc7\x05(....)(....)\xc7\x05(....)(....)', d, re.S):
+        try:
+            t = [o.target(1, m.start(k))[1] if o.target(1, m.start(k))[0] == 2 else None for k in (2, 4, 6)]
+        except Exception:
+            continue
+        if None not in t and t[1] - t[0] == 32 and t[2] - t[1] == 32:
+            return t[0]
+    raise AssertionError('plOrdinalsTable')
+
+
+def bench_vars():
+    """The bench's game variables (obj2 offsets, the same in every build of the exe's language): g_benchPlayerIndex,
+    g_subsState, plToEnterGameIndex (FirePressedInSubsMenu), team1NumSubs / team2NumSubs (IsThisPlayerOkToSelect)."""
+    if not hasattr(bench_vars, 'v'):
+        sys.path.insert(0, os.path.join(ROOT, 'tools'))
+        import lepatch
+        p = lepatch.LEPatch(os.path.join(ROOT, 'orig', UI_ORIG))
+        d = p.le.obj_bytes(1)
+        f = list(re.finditer(rb'\x66\xc7\x05(....)\x01\x00\x66\xc7\x05....\x01\x00\x66\xa1(....)\x66\xa3(....)\x66\x83\x05'
+                             rb'\3\x0a\x66\xa1\3\x66\xa3(....)', d, re.S))
+        m = list(re.finditer(rb'\x66\xa1(....)\x66\xa3....\x66\xa1(....)\x66\xa3....\xa1....\xa3....\x8b\x35....\x66\x83\x7e.'
+                             rb'\x01\x74.\x66\xa1(....)', d, re.S))
+        assert len(f) == 1 and len(m) == 1, ('bench_vars', len(f), len(m))
+        t = lambda x, g: p.target(1, x.start(g))[1]
+        bench_vars.v = {'IDX': t(f[0], 2), 'SUBST': t(f[0], 1), 'ENTER': t(f[0], 4), 'NS1': t(m[0], 1), 'NS2': t(m[0], 3)}
+    return bench_vars.v
+
+
+def team_data():
+    """(topTeamData, bottomTeamData) obj2 offsets (TeamGeneralInfo, 145 bytes: +4 playerNumber, +6 playerCoachNumber
+    = the controls the bench reads, 1 = player 1), from MainKeysCheck's PgUp / PgDn: mov ax, [bottom.playerNumber] /
+    or / jnz / mov ax, [bottom.playerCoachNumber] / or / jz / mov [bench2Called], 1, then the same for the top team."""
+    if not hasattr(team_data, 'v'):
+        p = lepatch_orig()
+        d = p.le.obj_bytes(1)
+        m = [[p.target(1, x.start(g))[1] for g in (1, 2, 3)] for x in re.finditer(
+            rb'\x66\xa1(....)\x66[\x09\x0b]\xc0\x75.\x66\xa1(....)\x66[\x09\x0b]\xc0(?:\x0f\x84....|\x74.)'
+            rb'\x66\xc7\x05(....)\x01\x00', d, re.S)]
+        v = [(b[0] - 4, a[0] - 4) for a, b in zip(m, m[1:]) if a[1] == a[0] + 2 and b[1] == b[0] + 2
+             and a[0] - b[0] == 145 and a[2] == b[2] + 2]
+        assert len(v) == 1, ('team_data', v)
+        team_data.v = v[0]
+    return team_data.v
+
+
+def bench_sub(s, bx, place, errs, info, mark, key=None, gone=None, tag=''):
+    """benchx block 2: the bench called, its cursor moved down to the squad's place `place` (12..26, g_benchPlayerIndex
+    = place - 11: index 1 = in-match player 11 = place 12), the window of 5 (bx_win, obj1 at bx - 4) following it; fire picks him
+    (g_subsState 1, plToEnterGameIndex = place - 1), fire again makes the change (the team's NumSubs + 1)."""
+    v = bench_vars()
+    want = place - 11
+    w16 = lambda o, base: struct.unpack('<H', s.result.read(base + o, 2))[0]
+    seen = []
+    ns0 = (w16(v['NS1'], s.result.base2), w16(v['NS2'], s.result.base2))
+    ord0 = s.result.read(s.result.base1 + bx - 4 - 156, 52)   # (2 humans: the other team's half may hold its change)
+    for call in range(12):
+        r = s.send((key or ('pgup' if call % 2 == 0 else 'pgdn')) + ':0.3 dump:0.6')   # (key: one team's bench)
+        if r.outcome != 'dump':
+            errs.append(f'bench call: {r}')
+            return False
+        last, still = w16(v['IDX'], r.base2), 0
+        for j in range(24):
+            r = s.send('down:0.15 dump:0.3')
+            if r.outcome != 'dump':
+                errs.append(f'bench cursor: {r}')
+                return False
+            idx, win = w16(v['IDX'], r.base2), w16(bx - 4, r.base1)
+            if idx != last:
+                seen.append((idx, win))
+                if idx == 6:
+                    s.shot(tag + 'bench_scroll6')
+            still = still + 1 if idx == last else 0
+            last = idx
+            if idx == want or still >= 4:
+                break
+        if last == want:
+            break
+    mark(f'bench cursor (index, window): {seen}')
+    info.append(f'cursor/window {seen}')
+    check(last == want, f'the cursor never reached index {want} (place {place}): {seen}', errs)
+    if last != want:
+        return False
+    check(all(i - w in range(1, 6) for i, w in seen if i), f'cursor out of the window: {seen}', errs)
+    check(any(w > 0 for i, w in seen), f'the window never scrolled: {seen}', errs)
+    s.shot(tag + 'bench_window')
+    ups = []                                # back up 6 places (the window starts at the cursor) and down again
+    for key in ['up'] * 6 + ['down'] * 6:
+        r = s.send(key + ':0.15 dump:0.3')
+        ups.append((w16(v['IDX'], r.base2), w16(bx - 4, r.base1)))
+    info.append(f'up/down {ups}')
+    up6 = ups[5]
+    gone = {int(x.split(':')[0]) - 11 for x in os.environ.get('BENCH_INJ', '').split(',') if x} if gone is None else gone   # (4.0.6: left-out
+    up_i = [i for i in range(want - 1, 0, -1) if i not in gone][5]     # places are empty: the cursor skips them)
+    check(up6[0] == up_i and up6[1] == min(up6[0] - 1, max(0, want - 5)), f'up 6: (index, window) {up6} (index {up_i})', errs)
+    check(ups[-1] == (want, want - 5) if want > 5 else ups[-1][0] == want, f'down again: {ups[-1]}', errs)
+    s.shot(tag + 'bench_up')
+    r = s.send('fire:0.2 dump:0.6')
+    st, ent = w16(v['SUBST'], r.base2), w16(v['ENTER'], r.base2)
+    s.shot(tag + 'subs_menu')
+    check(st == 1 and ent == place - 1, f'after fire: g_subsState {st}, plToEnterGameIndex {ent} (want 1, {place - 1})', errs)
+    r = s.send('fire:0.2 dump:0.6')
+    ns = (w16(v['NS1'], r.base2), w16(v['NS2'], r.base2))
+    info.append(f'subs made {ns0} -> {ns}, entering place {ent + 1}')
+    check(sum(ns) == sum(ns0) + 1, f'no change made: NumSubs {ns0} -> {ns}', errs)
+    mark(f'change: place {ent + 1} in, NumSubs {ns0} -> {ns}')
+    t = 0 if ns[0] != ns0[0] else 1         # block 3: bx_ord (26 a team, bx - 4 - 6 x 26): one swap in this team's
+    for k in range(30):                     # half once he is on (SwapPlayerNameData), the other half untouched
+        r = s.send('fire:0.5 dump:1' if k < 6 else 'dump:1')
+        if k < 6:
+            s.shot(f'{tag}after_sub{k}')
+        ordt = r.read(r.base1 + bx - 4 - 156, 52)
+        mine, other = list(ordt[26 * t:26 * t + 26]), list(ordt[26 * (1 - t):26 * (1 - t) + 26])
+        moved = [(j, x) for j, x in enumerate(mine) if x != j]
+        if moved or r.outcome != 'dump':
+            break
+    info.append(f'bx_ord team {t + 1} after {k + 1} pauses: {moved}, the other {[(j, x) for j, x in enumerate(other) if x != j]}')
+    oth0 = list(ord0[26 * (1 - t):26 * (1 - t) + 26])
+    check(other == oth0 and len(moved) == 2 and any(x == place - 1 for j, x in moved)
+          and all(dict(moved).get(x) == j for j, x in moved), f'bx_ord after the change: mine {moved}, other {other}', errs)
+    return t + 1                            # (the team whose NumSubs moved: 1 / 2)
+
+
+def bald_icons(r):
+    """blond.ICONBL / + 1 (the 4.0.5 bald face icons): (spritesIndex entry, the header's 24 bytes, 64 bytes of its
+    pixels) each, (0, b'', b'') when not built."""
+    import blond
+    import shirtnum
+    spr = shirtnum.spr_index(lepatch_orig())
+    out = []
+    for i in (blond.ICONBL, blond.ICONBL + 1):
+        p = struct.unpack('<I', r.read(r.base2 + spr + i * 4, 4))[0]
+        h = r.read(p, 24) if p else b''
+        out.append((p, h, r.read(struct.unpack('<I', h[:4])[0], 64) if p else b''))
+    return out
+
+
+def squad_rows_hist(vga, geom):
+    """The rows' name box pixels as normalised colour histograms (the pre-match screen's rows are shaded: no single
+    background index)."""
+    from collections import Counter
+    out = []
+    for x, y, w, h in geom:
+        px = [vga[yy * 320 + xx] for yy in range(y, y + 8) for xx in range(x + 1, x + w - 1) if 0 <= yy < 200]
+        out.append({k: v / len(px) for k, v in Counter(px).items()} if px else {})
+    return out
+
+
+def hist_dist(a, b):
+    return sum(abs(a.get(k, 0) - b.get(k, 0)) for k in set(a) | set(b))
+
+
+def bench_squad(s, scr, bx, cmp_, cnp, errs, info, mark, woff=4, box=30, row1=13, tag='squad'):
+    """Task 1 (Davide 30/10, option A): on the squad screen a bench over 5 makes rows 12..17 a window of 6 on places
+    12..count: the box left of row 17 (the game's rotation of the reserves) moves it one down (the window word at
+    bx_bench + woff: 2 = bx_sq, the SQUADRA screen; 4 = bx_pw, the pre-match screen, playMatchMenu),
+    back to the top after the last; a row is pink (bench) for a place < 11 + bench, orange beyond; currentMatchPlayers
+    not rotated. Then a swap: row 17 at window 5 (place 22) with row 11 (place 11): the two order bytes swapped.
+    The tactics editor's list (editTacticsMenu): woff 8 (bx_tw), box 28, rows = entries 11..27, tag 'tactics'."""
+    r = s.result
+    n = struct.unpack('<H', r.obj2(cnp, 2))[0]
+    bench = struct.unpack('<H', r.read(r.base1 + bx, 2))[0]
+    last = 11 + max(5, min(bench, 15))
+    order0 = r.obj2(cmp_, n)
+    keys = scr.path(box) or []
+    r = s.send(' '.join(k + ':0.15' for k in keys) + ' dump:0.4')
+    q = s.screen()
+    check(q.selected == box, f'{tag}: the box left of row 17 not reached (selected {q.selected})', errs)
+    geom = q.geom[row1:row1 + 17]
+    states = []
+    for k in range(n - 16 + 1):             # 0 .. n-17, then back to 0
+        r = s.result
+        w = struct.unpack('<H', r.read(r.base1 + bx + woff, 2))[0]
+        h = squad_rows_hist(s.box.dump(0xA0000, 64000), geom)
+        states.append((w, h[11:17]))
+        if k in (0, 5, n - 17):
+            s.shot(f'{tag}_win{w:02d}')
+        r = s.send('fire:0.3 dump:0.6')
+    info.append(f'{tag} window {[w for w, _ in states]}')
+    check([w for w, _ in states] == list(range(n - 16)) + [0], f'{tag} window steps {[w for w, _ in states]}', errs)
+    check(r.obj2(cmp_, n) == order0, f'{tag}: the order changed by the window (a rotation?)', errs)
+    ref_b = states[0][1][0]                 # window 0, row 12 = place 12: bench
+    ref_o = states[n - 17][1][5]            # the last window, row 17 = the last place: out of the squad (n > 26)
+    bad = []
+    inj = {int(x.split(':')[0]) - 1 for x in os.environ.get('BENCH_INJ', '').split(',') if x}   # (red rows)
+    for w, hs in states:
+        for j, hh in enumerate(hs):
+            if 11 + w + j in inj:
+                continue
+            want = 11 + w + j < last
+            got = hist_dist(hh, ref_b) < hist_dist(hh, ref_o)
+            if got != want:
+                bad.append((w, 12 + j, 11 + w + j + 1, 'bench' if got else 'out'))
+    info.append(f'{tag} rows: bench / out distance {hist_dist(ref_b, ref_o):.2f}, {len(bad)} rows off ({bad[:6]})')
+    check(hist_dist(ref_b, ref_o) > 0.5 and not bad, f'{tag} row colours (window, row, place, seen): {bad[:12]}', errs)
+
+    def goto(t):
+        for _ in range(24):                 # (4.0.6: up on row 12 scrolls the window first, one round each)
+            q = s.screen()
+            if q.selected == t:
+                return True
+            s.send(' '.join(k + ':0.15' for k in (q.path(t) or [])) + ' dump:0.4')
+        return False
+    for _ in range(20):                     # window 5: row 17 = place 22
+        r = s.result
+        if struct.unpack('<H', r.read(r.base1 + bx + woff, 2))[0] == 5:
+            break
+        s.send('fire:0.3 dump:0.4')
+    r = s.result
+    check(struct.unpack('<H', r.read(r.base1 + bx + woff, 2))[0] == 5, f'{tag}: window not at 5', errs)
+    check(goto(row1 + 16), f'{tag}: row 17 not reached', errs)
+    s.send('fire:0.3 dump:0.4')
+    check(goto(row1 + 10), f'{tag}: row 11 not reached', errs)
+    r = s.send('fire:0.3 dump:0.6')
+    s.shot(f'{tag}_swap')
+    o1 = r.obj2(cmp_, n)
+    exp = bytearray(order0)
+    exp[10], exp[21] = order0[21], order0[10]
+    check(o1 == bytes(exp), f'{tag} swap place 22 <-> 11: {list(order0)} -> {list(o1)}', errs)
+    mark(f'{tag} window: {len(states)} steps, swap 22<->11 {"ok" if o1 == bytes(exp) else "FAIL"}')
+    if n < 30:                              # (4.0.6, Davide 31/10) needs places up to 29: a 30-player squad
+        return
+
+    def win():
+        r_ = s.result
+        return struct.unpack('<H', r_.read(r_.base1 + bx + woff, 2))[0]
+    # the cursor scrolls the window (rows 12 / 17, as the dugout) and a marked player stays marked: place 22 marked
+    # (window 5, row 17), 7 x down on row 17 -> window 12 (places 23..28: the mark out of sight), 5 x up -> row 12
+    # (the cursor moves, no scroll), fire: place 22 <-> 24 swapped; up once more on row 12 -> window 11
+    goto(box)                               # (the way to row 11 above scrolled the window to 0: up on row 12)
+    for _ in range(20):
+        if win() == 5:
+            break
+        s.send('fire:0.3 dump:0.4')
+    check(goto(row1 + 16) and win() == 5, f'{tag}: row 17 at window 5 not reached ({win()})', errs)
+    s.send('fire:0.3 dump:0.4')
+    seen = []
+    for _ in range(7):
+        s.send('down:0.3 dump:0.4')
+        seen.append((win(), s.screen().selected))
+    check(seen == [(6 + k, row1 + 16) for k in range(7)], f'{tag}: down on row 17 (window, selected) {seen}', errs)
+    s.shot(f'{tag}_curdown')
+    up = []
+    for _ in range(5):
+        s.send('up:0.3 dump:0.4')
+        up.append((win(), s.screen().selected))
+    check(up == [(12, row1 + 15 - k) for k in range(5)], f'{tag}: up from row 17 (window, selected) {up}', errs)
+    r = s.send('fire:0.3 dump:0.6')
+    s.shot(f'{tag}_markswap')
+    o2 = r.obj2(cmp_, n)
+    exp2 = bytearray(o1)
+    exp2[21], exp2[23] = o1[23], o1[21]
+    check(o2 == bytes(exp2), f'{tag} marked place 22 (out of sight) <-> 24: {list(o1)} -> {list(o2)}', errs)
+    s.send('up:0.3 dump:0.4')
+    w1, sel1 = win(), s.screen().selected
+    check((w1, sel1) == (11, row1 + 11), f'{tag}: up on row 12 (window, selected) {(w1, sel1)}', errs)
+    info.append(f'{tag} cursor scroll: down {[w for w, _ in seen]}, up on row 12 -> {w1}; marked swap 22<->24 '
+                + ('ok' if o2 == bytes(exp2) else 'FAIL'))
+    mark(info[-1])
+    for _ in range(20):                     # the window back to 0 by the cursor itself (up on row 12): the way out
+        if win() == 0:                      # of the screen may go up through row 12, which would scroll it first
+            break
+        if s.screen().selected != row1 + 11:
+            goto(row1 + 11)
+        s.send('up:0.3 dump:0.4')
+    check(win() == 0, f'{tag}: window not back to 0 ({win()})', errs)
+
+
+def bench_view(s, bx, cmp_, cnp, ct, errs, info, mark):
+    """(4.0.6) ViewSquad with the managed club (TRASFERIMENTI > AGG. GIOCATORE AL CALCIOMERC.: the game's own squad
+    view, rows = entries 4..20, the box = entry 21): with a bench over 5 rows 12..17 are a window (bx_vw =
+    bx_bench + 114) on places 12..: the box moves it one down (0 .. players - 17, then back to 0), the order is not
+    rotated; down on row 17 / up on row 12 move it too (the cursor stays); fire on row 17 at window 5 picks place 22
+    (the next screen shows his name)."""
+    r = s.result
+    n = struct.unpack('<H', r.obj2(cnp, 2))[0]
+    order0 = r.obj2(cmp_, n)
+
+    def name(place):
+        q = order0[place]
+        slot = ct + (76 + q * 38 if q < 16 else 684 + (q - 16) * 38)
+        return s.result.obj2(slot + 3, 22).split(b'\0')[0].decode('latin-1')
+
+    def win():
+        r_ = s.result
+        return struct.unpack('<H', r_.read(r_.base1 + bx + 114, 2))[0]
+
+    def goto(t):
+        for _ in range(24):
+            q = s.screen()
+            if q.selected == t:
+                return True
+            s.send(' '.join(k + ':0.15' for k in (q.path(t) or [])) + ' dump:0.4')
+        return False
+    q = s.screen()
+    mark('view: sel %s ' % q.selected + ', '.join(f'{e[0]}:{e[1]}' for e in q.entries if e[1])[:300])
+    vis = [e[0] for e in q.entries if not e[2]]
+    check(20 in vis and 21 in vis, f'view: row 17 / the box not visible ({vis})', errs)
+    check(goto(21), f'view: the box not reached ({s.screen().selected})', errs)
+    steps = []
+    for k in range(n - 16 + 1):
+        steps.append(win())
+        if k in (0, 5, n - 17):
+            s.shot(f'view_win{win():02d}')
+        s.send('fire:0.3 dump:0.6')
+    info.append(f'view window {steps}')
+    check(steps == list(range(n - 16)) + [0], f'view window steps {steps}', errs)
+    check(s.result.obj2(cmp_, n) == order0, 'view: the order changed by the window (a rotation?)', errs)
+    check(goto(20), 'view: row 17 not reached', errs)
+    w0 = win()                              # (the box loop's last fire moved it once more)
+    seen = []
+    for _ in range(3):
+        s.send('down:0.3 dump:0.4')
+        seen.append((win(), s.screen().selected))
+    check(seen == [(w0 + k, 20) for k in (1, 2, 3)], f'view: down on row 17 from {w0} (window, selected) {seen}', errs)
+    for _ in range(5):
+        s.send('up:0.3 dump:0.4')
+    s.send('up:0.3 dump:0.4')
+    w1, sel1 = win(), s.screen().selected
+    check((w1, sel1) == (w0 + 2, 15), f'view: up on row 12 (window, selected) {(w1, sel1)}', errs)
+    info.append(f'view cursor scroll: down {[w for w, _ in seen]}, up on row 12 -> {w1}')
+    for _ in range(3):                      # window 5 by the cursor: row 17 = place 22
+        goto(20)
+        while win() < 5:
+            s.send('down:0.3 dump:0.4')
+    check(win() == 5 and s.screen().selected == 20, f'view: window 5 on row 17 ({win()}, {s.screen().selected})', errs)
+    s.shot('view_pick')
+    want = name(21)
+    s.send('fire:0.3 dump:1')
+    t = s.screen().texts()
+    got = any(want in x for x in t)
+    info.append(f'view: row 17 at window 5 -> {want!r} {"shown" if got else "NOT shown"} ({t[:6]})')
+    check(got, f'view: row 17 at window 5 did not pick place 22 {want!r}: {t[:10]}', errs)
+    s.shot('view_picked')
+    mark(info[-1])
+
+
+def bench_et(s, o, gmax, bx, errs, info, mark):
+    """(4.0.6) UpdateTime's StartFirstExtraTime -> benchx bx_et: gameMinSubstitutes + the competition's extra-time
+    substitute. Forced: bx_lketk (bx_bench + 117, bx_look's cached 'et' of this competition) poked 1, the game's
+    extraTimeState 1, both teams' goals 0, the clock at minute 89 (gameTime bytes +1..+3 = hundreds, tens, units):
+    at minute 90 the match goes to extra time (extraTimeState -1) and the substitutions allowed are one more.
+    Needs BENCH_REAL (no bx_bench poke): the kick-off's bx_look caches the title, else extra time looks it up afresh
+    and the poked flag is reset."""
+    c = o.le.obj_bytes(1)
+    rel = lambda x: x + 5 + struct.unpack_from('<i', c, x + 1)[0]
+    m = [x.start() for x in re.finditer(rb'\x66\xc7\x05....\xff\xff\xe8....\xe9', c, re.S)]
+    m = [x for x in m if c[rel(x + 9):rel(x + 9) + 3] == b'\x66\xc7\x05' and c[rel(x + 9) + 7:rel(x + 9) + 10] == b'\x01\x00\xe8']
+    ets = o.target(1, m[0] + 3)[1]
+    g = [x.start() for x in re.finditer(rb'\x81\x3d....\x00\x00\x09\x00\x0f\x85', c, re.S)][0]
+    gt = o.target(1, g + 2)[1]
+    w = re.search(rb'\x66\xa1....\x66\xa3....\x66\xa1....\x66\xa3....\x66\xa1(....)\x66\xa3....\x66\xa1(....)\x66\x39\x05',
+                  c[g:g + 0x80], re.S)
+    s1, s2, t1, t2 = (o.target(1, g + k)[1] for k in (w.start() + 2, w.start() + 14, w.start(1), w.start(2)))
+    r = s.result
+    g0 = struct.unpack('<H', r.obj2(gmax - 2, 2))[0]
+    s.poke(r.base1 + bx + 117, b'\x01')
+    s.poke(r.base2 + ets, struct.pack('<H', 1))
+    for a in (s1, s2, t1, t2):
+        s.poke(r.base2 + a, b'\0\0')
+    s.poke(r.base2 + gt, bytes((0, 0, 8, 9)))
+    seen = []
+    for _ in range(30):                     # (fire: the kick-off waits for the human team's player)
+        r = s.send('fire:0.2 dump:2')
+        if r.outcome != 'dump':
+            break
+        st = struct.unpack('<h', r.obj2(ets, 2))[0]
+        gm = struct.unpack('<H', r.obj2(gmax - 2, 2))[0]
+        seen.append((r.obj2(gt + 1, 3).hex(), st, gm))
+        if st == -1:
+            break
+    s.shot('extratime')
+    info.append(f'extra time: substitutions {g0} at the kick-off, (clock, extraTimeState, allowed) {seen[-3:]}')
+    mark(info[-1])
+    check(seen and seen[-1][1] == -1 and seen[-1][2] == g0 + 1,
+          f'extra time: want extraTimeState -1 and {g0 + 1} substitutions, seen {seen}', errs)
+
+
+def bench_oppo(s, scr, bx, wants, errs, info, mark):
+    """(4.0.6, Davide's PANpt4 photo: VIEW OPPONENT showed a CPU club's 11 + 5 only) the pre-match screen's AVVERSARI:
+    with a bench over 5 the CPU opponent's places 12.. (16 + its XTRA block's players, at most 26) in a window of 6
+    rows (row 17 = entry 29 visible), down moves it one place (bx_po = bx_bench + 12) up to the last start and back to
+    0; then back to the own team (the button that turned into VIS. SQUADRA)."""
+    if press(s, scr, 'AVVERSARI') is None:
+        errs.append('oppo: AVVERSARI not reached')
+        return
+    q = s.screen()
+    name = q.entries[1][1] or ''
+    xn = (wants['*'](name) if wants.get('*') else []) or []
+    n = min(16 + len(xn), 26)
+    r = s.result
+    po = lambda: struct.unpack('<H', s.result.read(s.result.base1 + bx + 12, 2))[0]
+    rows = lambda q_: [q_.entries[k][1] for k in range(24, 30)]
+    mark(f'oppo {name}: {n} places, sel {q.selected}, row 17 inv {q.entries[29][2]}, rows {rows(q)}')
+    s.shot('oppo_win00')
+    if n <= 16:
+        info.append(f'oppo {name}: 16 places, no window')
+        check(q.entries[29][2], f'oppo {name}: row 17 shown with 16 places', errs)
+    else:
+        check(not q.entries[29][2], f'oppo {name}: row 17 (entry 29) hidden ({n} places)', errs)
+        seen, txt = [], {}
+        for _ in range(n - 16):
+            s.send('down:0.3 dump:0.5')
+            q = s.screen()
+            seen.append(po())
+            txt[seen[-1]] = rows(q)
+            if seen[-1] == n - 17:
+                s.shot(f'oppo_win{seen[-1]:02d}')
+        check(seen == list(range(1, n - 16)) + [0], f'oppo {name}: window steps {seen} (want 1..{n - 17}, 0)', errs)
+        last = txt.get(n - 17, [''] * 6)[5] or ''
+        xl = xn[n - 17] if len(xn) > n - 17 else ''   # place n = his (n - 16)-th XTRA player (shots oppo_winNN)
+        info.append(f'oppo {name}: {n} places, window {seen}, row 17 at the last start "{last}" (place {n}: {xl})')
+        if any(any(t) for t in txt.values()):  # (the rows' texts, when the dump has them; else the shots)
+            check(xl and xl.split()[-1][:6] in last, f'oppo {name}: row 17 at the last start "{last}", want {xl}', errs)
+    for _ in range(4):                      # back to the own team
+        q = s.screen()
+        if 'AVVERSARI' in q.texts():
+            return
+        b = q.entries[7][1]
+        if b:
+            press(s, q, b)
+        else:
+            s.send('fire:0.3 dump:0.6')
+    errs.append('oppo: not back to the own team')
+
+
+def bench_tactics(s, scr, squad, errs, info, mark):
+    """From the pre-match screen: MOD. TATTICA -> the tactics editor (editTacticsMenu), bench_squad on its player list
+    (woff 8 = bx_tw, box 28, names 11..27), then back (ESCI / the editor's exit) to the pre-match screen."""
+    if press(s, scr, 'MOD. TATTICA') is None:
+        errs.append('tactics: MOD. TATTICA not reached')
+        return
+    for _ in range(3):
+        q = s.screen()
+        mark('tactics screen: sel %s ' % q.selected + ', '.join(f'{e[0]}:{e[1]}' for e in q.entries if e[1])[:400])
+        if len(q.entries) > 28 and q.entries[28][1] is not None:
+            break
+        s.send('fire:0.3 dump:0.6')
+    s.shot('tactics')
+    bench_squad(s, q, *squad['args'], errs, info, mark, woff=8, box=28, row1=11, tag='tactics')
+    for _ in range(4):
+        q = s.screen()
+        t = q.texts()
+        if 'GIOCA PARTITA' in t:
+            return
+        mark('tactics exit: ' + ', '.join(t)[:200])
+        if not any(press(s, q, x) is not None for x in ('USCITA', 'ESCI') if x in t):
+            s.send('esc:0.3 dump:0.6')
+    errs.append('tactics: not back to the pre-match screen')
+
+
+def hil_vars():
+    """The highlights' variables (obj2): saveHighlightScene (GameLoop: mov word [D0], -2 / call
+    SaveCoordinatesForHighlights / mov ax, [it] / or / jz / call SaveHighlightScene / mov [it], 0), numScenesInHilFile,
+    gameMaxSubstitutes and hilMaxSubstitutes (SetHilFileHeader's last five moves: ... / mov ax, [GMAX] / mov [HMAX], ax /
+    ret)."""
+    if not hasattr(hil_vars, 'v'):
+        p = lepatch_orig()
+        d = p.le.obj_bytes(1)
+        t = lambda o: p.target(1, o)[1]
+        a = [x.start(1) for x in re.finditer(rb'\x66\xc7\x05....\xfe\xff\xe8....\x66\xa1(....)\x66[\x09\x0b]\xc0\x74.'
+                                           rb'\xe8....\x66\xc7\x05\1\x00\x00', d, re.S)]
+        b = [x for x in re.finditer(rb'(?:\x66\xa1....\x66\xa3....){4}\x66\xa1(....)\x66\xa3(....)\xc3', d, re.S)]
+        assert len(a) == 1 and len(b) == 1, ('hil_vars', a, b)
+        hil_vars.v = {'SAVE': t(a[0]), 'SCENES': t(b[0].start() + 2), 'GMAX': t(b[0].start(1)), 'HMAX': t(b[0].start(2))}
+    return hil_vars.v
+
+
+def bench_names(r, spr, ega):
+    """Both teams' 26 in-match name sprites as [team][place] = (w, nl, wq, rows): places 0..15 on the game's 255.. /
+    271.., 16..25 on benchx's NB + 10 x team."""
+    import benchx
+    lo = n14_sprites(r, spr, ega, 255, 32)
+    hi = n14_sprites(r, spr, ega, benchx.NB, 20)
+    return [lo[16 * t:16 * t + 16] + hi[10 * t:10 * t + 10] for t in (0, 1)]
+
+
+def bench_hil_match(s, spr, ega, errs, info, mark):
+    """(4.0.6, replays) in the match after the changes from beyond 16: the instant replay (R) played and left, then a
+    highlights scene saved by the game's own switch (saveHighlightScene, as an auto-saved goal); the name sprites as
+    built at the kick-off (they do not change in the match): the snapshot bench_hil_view compares with."""
+    v = hil_vars()
+    w16 = lambda o: struct.unpack('<H', s.result.obj2(o, 2))[0]
+    s.send('fire:3 fire:3 dump:1')          # (the substitute on the pitch for a while: in the replay's frames)
+    snap = bench_names(s.result, spr, ega)
+    sc0 = w16(v['SCENES'])
+    r = s.send('r:0.3 dump:1.5')
+    s.shot('replay')
+    check(r.outcome == 'dump', f'instant replay: {r}', errs)
+    for _ in range(8):                      # (the replay plays to its end, the match goes on)
+        r = s.send('dump:2')
+        if r.outcome != 'dump':
+            break
+    check(r.outcome == 'dump' and bench_names(r, spr, ega) == snap, f'after the instant replay: {r}', errs)
+    s.poke(r.base2 + v['SAVE'], b'\x01\x00')
+    r = s.send('dump:1')
+    sc1 = w16(v['SCENES'])
+    info.append(f'instant replay played; highlights scenes {sc0} -> {sc1} (saveHighlightScene poked)')
+    mark(info[-1])
+    check(sc1 == sc0 + 1, f'the highlights scene not saved: {sc0} -> {sc1}', errs)
+    return snap
+
+
+def bench_hil_view(s, snap, spr, ega, top, bot, bx, errs, info, mark):
+    """(4.0.6, replays) after the match: the main menu's HIGHLIGHTS played (ShowHighlights: gameMaxSubstitutes =
+    hilMaxSubstitutes, both 26-place teams copied back from the file buffer, the name sprites built again from them by
+    place, the name tables reset): no trap, the bench 15 kept, every place's sprite = its kick-off one (the frames'
+    name indices, 255 + ordinal as recorded, then show the match's names), places 17..26 included."""
+    v = hil_vars()
+    ordt = s.result.read(s.result.base1 + bx - 4 - 156, 52)
+    final = [list(ordt[26 * t:26 * t + 26]) for t in (0, 1)]
+    seen = []
+    for step in range(16):                  # career menu -> main menu -> HIGHLIGHTS -> its first entry (the view)
+        scr = s.screen()
+        t = scr.texts()
+        seen.append(', '.join(t)[:60])
+        hl = [x for x in ('REPLAY', 'HIGHLIGHTS') if x in t]   # (the main menu's entry: REPLAY in the IT exe)
+        if hl:
+            press(s, scr, hl[0])
+            break
+        press(s, scr, 'ESCI') if 'ESCI' in t else s.send('esc:0.3 dump:1')
+    mark('to HIGHLIGHTS: ' + ' | '.join(seen))
+    scr = s.screen()
+    t = scr.texts()
+    mark('highlights menu: ' + ', '.join(t))
+    view = [x for x in t if x.startswith(('VEDI', 'VISUAL', 'GUARDA', 'MOSTRA', 'RIVEDI', 'VIEW', 'REPLAY'))]
+    if not view:
+        errs.append(f'highlights: no view entry in {t} (path {seen[-2:]})')
+        return
+    press(s, scr, view[0])
+    r = s.send('dump:3')
+    s.shot('highlights')
+    check(r.outcome == 'dump', f'highlights playback: {r}', errs)
+    if r.outcome != 'dump':
+        return
+    g, h = struct.unpack('<H', r.obj2(v['GMAX'], 2))[0], struct.unpack('<H', r.obj2(v['HMAX'], 2))[0]
+    now = bench_names(r, spr, ega)
+    bad = [(tm, p_) for tm in (0, 1) for p_ in range(26) if now[tm][p_] != snap[tm][p_]]
+    swp = [(tm, p_) for tm in (0, 1) for p_ in range(26) if final[tm][p_] != p_ and now[tm][p_] == snap[tm][final[tm][p_]]]
+    moved = [[(p_, final[tm][p_]) for p_ in range(26) if final[tm][p_] != p_] for tm in (0, 1)]
+    info.append(f'highlights played: gameMaxSubstitutes {g} (hil {h}), places moved by changes {moved}, '
+                f'sprites unlike the kick-off ones {bad}, as the changes\' order {swp}')
+    mark(info[-1])
+    check(g == h == 15, f'highlights: gameMaxSubstitutes {g}, hilMaxSubstitutes {h}', errs)
+    check(not bad and any(moved), f'highlights: name sprites {bad} (moved {moved})', errs)
+    for k in range(12):                     # (to its end, back to the menu: no trap)
+        r = s.send('fire:1 dump:2')
+        if r.outcome != 'dump':
+            errs.append(f'highlights to the end: {r}')
+            return
+        if 'SALVA AZIONI PRINCIPALI' in s.screen().texts():
+            break
+    bench_hil_file(s, snap, final, spr, ega, errs, info, mark)
+
+
+def bench_hil_file(s, snap, final, spr, ega, errs, info, mark, name='HILB15'):
+    """(4.0.6, replays) the highlights saved to a file (SALVA: header 3626 bytes = the two 1704-byte teams with their 26
+    places + hilMaxSubstitutes, then 19000 a scene), the buffer's bench and places 17.. spoilt, the file loaded back
+    (CARICA) and played again: the bench 15; the name sprites built again by place from the file's teams, which are in
+    the match's end order (SetHilFileHeader after the changes): each place = the kick-off sprite of the player now
+    there (final = bx_ord at the match end). The game's own way for its places 12..16 too (MakeSpritesFromPlayerNames
+    by place, the name tables reset): in a reloaded scene recorded after a change the two players' names are swapped
+    (hil6 30/10); the view straight after the match keeps the kick-off sprites (all right)."""
+    v = hil_vars()
+    scr = s.screen()
+    if press(s, scr, 'SALVA AZIONI PRINCIPALI') is None:
+        errs.append(f'SALVA AZIONI PRINCIPALI not reached: {scr.texts()}')
+        return
+    s.send(name_entry(name) + ' dump:2')
+    path = os.path.join(s.run, 'SWOS', name + '.HIL')
+    if not os.path.exists(path):
+        errs.append(f'{name}.HIL not written ({s.screen().texts()})')
+        return
+    d = open(path, 'rb').read()
+    names = [[d[8 + 1704 * t + 42 + 61 * p_ + 12:8 + 1704 * t + 42 + 61 * p_ + 27].split(b'\0')[0].decode('latin-1')
+              for p_ in range(16, 26)] for t in (0, 1)]
+    info.append(f'{name}.HIL {len(d)} bytes, places 17..26 in the file: {names}')
+    mark(info[-1])
+    check((len(d) - 3626) % 19000 == 0 and len(d) > 3626 and sum(1 for t in names for x in t if x) >= 10,
+          f'{name}.HIL: {len(d)} bytes, places 17.. {names}', errs)
+    hb = s.result.base2 + v['HMAX']         # the memory spoilt: a reload must bring them back
+    s.poke(hb, b'\x05\x00')
+    s.send('dump:0.5')
+    scr = s.screen()
+    if press(s, scr, 'CARICA AZIONI PRINCIPALI') is None:
+        errs.append(f'CARICA AZIONI PRINCIPALI not reached: {scr.texts()}')
+        return
+    q = s.screen()
+    mark('load list: ' + ', '.join(q.texts()))
+    if name in q.texts():
+        press(s, q, name)
+    else:
+        s.send('fire:1 dump:2')
+    s.send('dump:1')
+    h2 = struct.unpack('<H', s.result.obj2(v['HMAX'], 2))[0]
+    check(h2 == 15, f'{name}.HIL loaded: hilMaxSubstitutes {h2} (want 15)', errs)
+    scr = s.screen()
+    view = [x for x in scr.texts() if x.startswith('VISUAL')]
+    if not view:
+        errs.append(f'after the load: {scr.texts()}')
+        return
+    press(s, scr, view[0])
+    r = s.send('dump:3')
+    s.shot('highlights_loaded')
+    check(r.outcome == 'dump', f'loaded highlights playback: {r}', errs)
+    if r.outcome == 'dump':
+        g = struct.unpack('<H', r.obj2(v['GMAX'], 2))[0]
+        bad = [(tm, p_) for tm, t_ in enumerate(bench_names(r, spr, ega)) for p_ in range(26) if t_[p_] != snap[tm][final[tm][p_]]]
+        info.append(f'{name}.HIL loaded (bench poked 5 first): hilMaxSubstitutes {h2}, playback gameMaxSubstitutes {g}, '
+                    f'sprites unlike their place\'s player {bad}')
+        mark(info[-1])
+        check(g == 15 and not bad, info[-1], errs)
+
+
+def bench_play(s, gmax, top, bot, wants, errs, info, mark, sub=None, icons=None, squad=None, stad=None):
+    """benchx scenarios: from a career menu to a match played for real (PARTITA on the career menu and the squad
+    screen: a player-coach), the kick-off checks (gameMaxSubstitutes = 15, each in-match team's named players =
+    wants[team name] capped at 26 (default 16), the other places empty: position -1, substituted), the bench called
+    10 times, the match played to the career menus. Appends to errs / info; False if the match was not reached."""
+    r = s.result
+    for step in range(40):                  # career menu -> PARTITA -> '- PARTITA -' -> squad screens -> the match
+        if r.outcome != 'dump':
+            errs.append(f'to the match, step {step}: {r}')
+            return False
+        if struct.unpack('<H', r.obj2(gmax, 2))[0] == int((os.environ.get('BENCH_REAL') or '15:').split(':')[0]):
+            break
+        try:
+            scr = s.screen()
+            texts = scr.texts()
+        except Exception:
+            texts, scr = [], None
+        if ('TRASFERIMENTI' in texts or 'VISUALIZZA MONDO' in texts) and 'PARTITA' in texts:
+            act = 'PARTITA'
+        elif 'MOD. TATTICA' in texts and ('PARTITA' in texts or 'GIOCA PARTITA' in texts):
+            act = 'GIOCA PARTITA' if 'GIOCA PARTITA' in texts else 'PARTITA'   # (a player-coach: 'GIOCA :', not
+            info.append('squad screen: ' + act)                                 #  'ALLEN:'; VIS. RISULTATI simulates)
+            if icons is not None:           # the bald icons as the squad screen built them (a player poked bald)
+                icons['squad'] = bald_icons(r)
+            s.shot(f'squad{step:02d}')
+            if squad and not squad.get('done') and 'GIOCA PARTITA' in texts:
+                squad['done'] = True
+                if 'AVVERSARI' not in texts:   # (4.0.6) the CPU opponent's window first
+                    errs.append('oppo: no AVVERSARI on the pre-match screen')
+                else:
+                    bench_oppo(s, scr, squad['args'][0], wants, errs, info, mark)
+                    r = s.result
+                    scr = s.screen()
+                bench_squad(s, scr, *squad['args'], errs, info, mark)
+                r = s.result
+                scr = s.screen()
+                if squad.get('tactics'):    # the tactics editor (MOD. TATTICA): its player list's window
+                    bench_tactics(s, scr, squad, errs, info, mark)
+                    r = s.result
+                    scr = s.screen()
+            if os.environ.get('BENCH_SQUADDUMP') and scr is not None:   # (study: the squad screen's entries)
+                for e, g, c in zip(scr.entries, scr.geom, scr.colors):
+                    mark(f'  entry {e[0]} {e[1]!r} inv {e[2]} dis {e[3]} geom {g} col {c:#x}')
+                if os.environ['BENCH_SQUADDUMP'] == '2' and step < 6:   # the 17th row: up / down through the reserves?
+                    keys = scr.path(29) or []
+                    s.send(' '.join(k + ':0.15' for k in keys) + ' dump:0.4')
+                    for k in range(5):
+                        s.shot(f'row17_{k}')
+                        q = s.screen()
+                        mark(f'  row17 {k}: sel {q.selected} ' + ', '.join(f'{e[0]}:{e[1]}' for e in q.entries[26:37] if e[1]))
+                        s.send('down:0.15 dump:0.4')
+                    s.send(' '.join(['up:0.15'] * 5) + ' dump:0.4')
+                    q = s.screen()
+                    mark(f'  back up: sel {q.selected} ' + ', '.join(f'{e[0]}:{e[1]}' for e in q.entries[26:37] if e[1]))
+                    scr = q
+        elif '- PARTITA -' in texts:
+            act = '- PARTITA -'             # (the fixture screen: play it; the exe needs nop_league_int3)
+        elif 'PROSS. PARTITA' in texts:
+            act = 'PROSS. PARTITA'
+        else:
+            act = None                      # (message screens etc.: fire on the selected entry)
+        mark(f'step {step} [{act}]: ' + ', '.join(texts)[:150])
+        if act:
+            press(s, scr, act) or s.send('fire dump:2')
+            r = s.result
+        else:
+            r = s.send('fire:0.5 dump:1')
+    if stad is not None:                    # the line-ups pages (bx_stad: its loop reads the controls once a tick, so
+        lg = lambda: struct.unpack_from('<II', s.result.read(s.result.base1 + stad + 4, 8))   # the feeder's dumps land
+        k, n = lg()                         # in it: 105 ticks = 105 GetKey calls a page = 3.5 s of the script)
+        pages = []
+        if n and k == 0 and os.environ.get('BENCH_STSKIP'):   # a key on the first page: straight into the match
+            s.shot('lineups0')
+            r = s.send('fire:0.1 dump:2')   # (60 calls into the match, as without the pages)
+            k2 = lg()[0]
+            info.append(f'line-ups skipped by fire: page {k2}')
+            check(k2 == 0, f'line-ups: fire did not skip (page {k2})', errs)
+            pages, n = [], 0
+        elif n and k == 0:
+            s.shot('lineups0')
+            for j in range(1, n + 1):
+                s.send('dump:3.5')
+                s.shot(f'lineups{j}')
+                pages.append(lg()[0])
+            r = s.send('dump:3.5')          # (the last page's 45 ticks left + the 60 calls of 'dump:2' into the match)
+        info.append(f'line-ups pages seen {pages} of {n}')
+        check(pages == list(range(1, n + 1)), f'line-ups pages seen {pages} of {n}', errs)
+        stad = None if os.environ.get('BENCH_STSKIP') else stad   # (skipped: the kick-off log check below expects all)
+    g = struct.unpack('<H', r.obj2(gmax, 2))[0]
+    check(g == int((os.environ.get('BENCH_REAL') or '15:').split(':')[0]), f'gameMaxSubstitutes {g}', errs)
+    teams = [ingame_team(r, top), ingame_team(r, bot)]
+    gm = struct.unpack('<HH', r.obj2(gmax - 2, 4))      # (phase 2) gameMinSubstitutes, gameMaxSubstitutes
+    info.append(f'kick-off named:used {gm[1]}:{gm[0]}')
+    if wants.get('_diy'):                   # (phase 2 study, BENCH_DIYDUMP) the current competition at the kick-off
+        dv = r.obj2(wants['_diy'], 0x70)
+        info.append(f'DIY name {dv[4:0x2d].split(bytes(1))[0]!r} id {dv[0x2d]:#x} +2Bh {dv[0x2b]:#x} +3Dh..+42h '
+                    f'{dv[0x3d:0x43].hex()} +5Dh..+66h {dv[0x5d:0x67].hex()}')
+    cap = 11 + max(5, min(gm[1], 15))      # (phase 2) the in-match places: 11 + the match's bench
+    for name, pl in teams:
+        pl = pl[:cap]
+        named = [x for x in pl if x[0]]
+        empty = [i for i, x in enumerate(pl) if not x[0] and x[1] == 0xFF and x[2] == 1]
+        info.append(f'{name}: {len(named)} players ({named[0][0] if named else ""}..{named[-1][0] if named else ""}), '
+                    f'empty places {empty}')
+        want, xn = wants.get(name, 16), None
+        if name not in wants and wants.get('*'):        # (A) a CPU club: 16 + its XTRA block's players, places 16..
+            xn = wants['*'](name)
+            want = 16 + len(xn)
+        want = min(want, cap)
+        if xn:
+            xn = xn[:want - 16]
+        out = wants.get('-', set()) if name in wants else set()   # (2) unavailable bench players: empty places
+        check(len(named) == want - len(out) and empty == sorted(out | set(range(want, cap))),
+              f'{name}: {len(named)} named, empty {empty}' + (f' (left out {sorted(out)})' if out else ''), errs)
+        if xn:
+            got = [pl[16 + i][0] for i in range(want - 16)]
+            bad = [(g, x) for g, x in zip(got, xn)      # (the short name: initial + surname, a long one cut with ' .')
+                   if not g or g.rstrip(' .').split(' ', 1)[-1] not in x]
+            info.append(f'{name}: XTRA places 17..{want}: {got}')
+            check(not bad, f'{name}: XTRA places {bad}', errs)
+    if stad is not None:                    # the line-ups screen (benchx bx_stad's log after 'BXST'): row 16 (entries
+        lg = r.read(r.base1 + stad + 4, 4 + 4 + 2 + 40)   # 31 / 58) visible on the first page (the game's 5 - max hid it
+        stk, stn, s16 = struct.unpack_from('<IIH', lg)    # for 15: Davide's PANpt3 photo), then pages of the places 17..
+        ptrs = struct.unpack_from('<10I', lg, 10)
+        last = [n for _, n in teams]
+        hi = max([i for pl in last for i in range(16, 26) if pl[i][0]] or [0])
+        want_n = (hi - 11) // 5 if hi >= 16 else 0
+        k0 = 11 + 5 * want_n
+        exp = [r.base2 + base + p_ * 61 + 80 if p_ <= 25 and pl[p_][0] else 0
+               for base, pl in ((top, last[0]), (bot, last[1])) for p_ in range(k0, k0 + 5)]
+        info.append(f'line-ups screen: row 16 hidden {s16:#x}, pages {stk}/{stn} (want {want_n}), last page rows '
+                    + ', '.join(r.read(x, 23).split(b'\0')[0].decode('latin-1') if x else '-' for x in ptrs))
+        check(s16 == 0 and stk == stn == want_n and (not want_n or list(ptrs) == exp),
+              f'line-ups screen: row 16 {s16:#x}, pages {stk}/{stn} want {want_n}, rows {[hex(x) for x in ptrs]} want '
+              f'{[hex(x) for x in exp]}', errs)
+    mark('kick-off read: ' + '; '.join(info[-2:]))
+    if os.environ.get('BENCH_KICKONLY'):    # (phase 2: a competition with the game's bench, the kick-off values only)
+        return True
+    import namespr
+    o = lepatch_orig()
+    c = o.le.obj_bytes(1)                   # EGA_graphics (as match_names14): the 16-colour mode's bit planes
+    eg = [m.start() for m in re.finditer(rb'\x66\x83\x3d....\xff\x0f\x84....\x66\x81\x3d....\x33\x01', c, re.S)]
+    ega = r.obj2(o.target(1, eg[0] + 3)[1], 2) == bytes([255, 255])
+    if ega:
+        info.append('16-colour (EGA) mode')
+    oldt = old_name_tables()                # the game's own three name tables (96 bytes): no longer used (block 3),
+    old0 = r.read(r.base2 + oldt, 96)       # so nothing may write them (prevLastPlayer / prevLastTeamPlayed after
+                                            # them are the game's, written in play)
+    if sub:                                 # block 3: the names of places 17..26 (sprites benchx.NB + 10 x team ..)
+        import benchx
+        spr = namespr.find(o)['spridx']
+        for t, (name, pl) in enumerate(teams):
+            nw = wants.get(name) or (16 + len(wants['*'](name)) if os.environ.get('BENCH_2H') and wants.get('*') else 0)
+            if nw and min(nw, cap) > 16:    # (the match's places: 11 + its bench; 2 humans: the CPU club's too)
+                sp = n14_sprites(r, spr, ega, benchx.NB + 10 * t, min(nw, cap) - 16)
+                ends = [max((max(x) for x in rows if x), default=-1) for *_, rows in sp]
+                info.append(f'{name}: name sprites of places 17..: {len(sp)}, ends {ends}')
+                out = wants.get('-', set())  # (2: a left-out place's sprite is not checked)
+                check(all((w, nl, wq) == (112, 6, 7) for w, nl, wq, _ in sp)
+                      and all(e > 10 for i, e in enumerate(ends) if 16 + i not in out),
+                      f'{name}: name sprites of places 17..: {[x[:3] for x in sp]}, ends {ends}', errs)
+    if icons is not None:                   # the names of places 17..26 (built just now) left the bald icons alone
+        icons['kickoff'] = bald_icons(r)
+        b0 = icons.get('squad')
+        check(b0 and all(p for p, _, _ in b0), f'the bald icons not built on the squad screen: {b0}', errs)
+        check(icons['kickoff'] == b0, f'the bald icons changed at the kick-off: {b0} -> {icons["kickoff"]}', errs)
+    s.shot('kickoff')
+    if os.environ.get('BENCH_ET') and sub:  # (4.0.6) the extra-time substitute: the competition's et flag poked (bx_look's
+        bench_et(s, o, gmax, sub[0], errs, info, mark)   # cache), the match forced into extra time
+        return True                         # (BENCH_REAL's bench, often 5: the bench-15 checks below do not apply)
+    bench, lists = 0, 0
+    for k in range(40):                     # the bench (PgUp / PgDn) and its list (fire), as subs_numbers: seen on screen
+        r = s.send(('pgdn' if k % 2 else 'pgup') + ':0.3 dump:0.5')
+        if r.outcome != 'dump':
+            errs.append(f'bench: {r}')
+            break
+        if k % 2:
+            r = s.send('fire:1 dump:1.5')
+            bench += 1
+            rows = [x for x in subs_rows(s.box.dump(0xA0000, 64000)) if len(x[3]) >= 2]
+            if len(rows) >= 11:
+                lists += 1
+                if lists == 1:
+                    s.shot('bench_list')
+            s.send('left:0.3 left:0.3 dump:0.5')   # (left twice leaves the bench)
+            if lists >= 3:
+                break
+    mark(f'bench called {bench} times, its list seen {lists} times')
+    check(lists >= 1 or ega, f'the bench list never seen ({bench} calls)', errs)   # (subs_rows reads 256 colours)
+    goal = None
+    if sub:                                 # (bx_bench obj1 offset, bench place, careerTeam obj2): a change from beyond 16
+        if os.environ.get('BENCH_2H'):      # (4.0.6, Davide 31/10) two humans, both on the long bench: the CPU club's
+            td = team_data()                # coach made player 1 (playerCoachNumber: the controls its bench reads),
+            mine = 0 if teams[0][0] in wants else 1   # then each team's own bench (PgDn the top team's, PgUp the
+            p2 = int(os.environ['BENCH_2H'])          # bottom's) and a change from beyond 16: managed club place
+            s.poke(r.base2 + td[1 - mine] + 6, b'\x01\x00')   # sub[1], the other one BENCH_2H
+            keys = ('pgdn', 'pgup')
+            info.append(f'2 humans: {teams[1 - mine][0]} ({("top", "bottom")[1 - mine]}) coach -> player 1')
+            mark(info[-1])
+            t1 = bench_sub(s, sub[0], sub[1], errs, info, mark, key=keys[mine], tag='h1_')
+            t2 = t1 and bench_sub(s, sub[0], p2, errs, info, mark, key=keys[1 - mine], gone=set(), tag='h2_')
+            check(t1 and t2 and t1 != t2, f'2 humans: changes by teams {t1} / {t2}', errs)
+            r = s.result
+            for j, (base, pl_) in enumerate(((top, sub[1] if mine == 0 else p2), (bot, sub[1] if mine == 1 else p2))):
+                name, pl = ingame_team(r, base)
+                off = pl[pl_ - 1]
+                info.append(f'{name} after its change: place {pl_} {off[0]}/{off[1]}/{off[2]}, on the pitch from 12+: '
+                            + ', '.join(f'{i + 1}:{x[0]}' for i, x in enumerate(pl[:11]) if x[0] and r.read(
+                                r.base2 + base + 61 * i + 0x2b, 1)[0] >= 11))
+                check(off[0] and off[1] == 0xFF, f'{name}: place {pl_} after the change {off}', errs)   # (off: position -1)
+        else:
+            bench_sub(s, sub[0], sub[1], errs, info, mark)
+        r = s.result
+        snap = bench_hil_match(s, spr, ega, errs, info, mark) if os.environ.get('BENCH_HIL') else None
+        r = s.result
+        old1 = r.read(r.base2 + oldt, 96)
+        check(old1 == old0, f'the old name tables written: {[(k, a, b) for k, (a, b) in enumerate(zip(old0, old1)) if a != b][:8]}', errs)
+        lt = r.read(r.base1 + sub[0] - 4 - 104, 104)   # bx_len + bx_lenc: each team's copy = its lengths, swapped
+        check(all(sorted(lt[52 + 26 * t:78 + 26 * t]) == sorted(lt[26 * t:26 * t + 26]) for t in (0, 1)),
+              f'bx_lenc not a permutation of bx_len: {lt.hex()}', errs)
+        info.append('old tables untouched, bx_lenc = bx_len permuted')
+        for base in (top, bot):
+            name, pl = ingame_team(r, base)
+            if name in wants:
+                info.append(f'{name} after the change: ' + ', '.join(f'{i + 1}:{x[0]}/{x[1]}/{x[2]}' for i, x in enumerate(pl)
+                                                                     if x[0] and (x[2] or i >= 11)))
+                o = base + 61 * (sub[1] - 1)        # the player who went off: his record now at the entering place
+                q = r.read(r.base2 + o + 0x2b, 1)[0]
+                slot = sub[2] + (76 + q * 38 if q < 16 else 684 + (q - 16) * 38)
+                goal = (pl[sub[1] - 1][0], q, slot, r.read(r.base2 + slot, 38))
+                s.poke(r.base2 + o + 0x2c, b'\x01')   # a goal of his (before going off): the after-match loop of
+                mark(f'goal poked: {goal[0]} (squad {q}) at in-match place {sub[1]}')   # 26 must count it
+    end = False
+    for k in range(300):                    # (3 fires a pause: 10 ran past the result screens into the next
+        r = s.send('fire:3 ' * 3 + 'dump:1')  #  match day's squad screen, stuck there with an injured player)
+        if r.outcome != 'dump':
+            errs.append(f'play on {k}: {r}')
+            break
+        if k % 10 == 0:
+            mark(f'play on {k}')
+        if os.environ.get('BENCH_PLAYSHOTS'):
+            s.shot(f'play{k:02d}')
+        try:
+            t = s.screen().texts()
+        except Exception:
+            t = []
+        if t and any(x in t for x in ('MOD. TATTICA', 'TRASFERIMENTI', 'VISUALIZZA MONDO', '- RISULTATO -', 'PROSS. PARTITA',
+                                      'VIS. RISULTATI', 'STAT')):
+            end = True
+            info.append('after the match: ' + ', '.join(t)[:160])
+            break
+    s.shot('end')
+    check(end, 'the career menus not reached after the match', errs)
+    if end and sub and os.environ.get('BENCH_HIL'):
+        bench_hil_view(s, snap, spr, ega, top, bot, sub[0], errs, info, mark)
+    if icons is not None:
+        ic = bald_icons(s.result)
+        check(ic == icons.get('squad'), f'the bald icons changed after the match: {icons.get("squad")} -> {ic}', errs)
+        info.append(f'bald icons 1910/1911 intact (squad screen, kick-off, after the match): spritesIndex '
+                    f'{[hex(p) for p, _, _ in ic]}')
+    info.append(f'bench called {bench} times, list seen {lists}')
+    if goal:
+        after = s.result.read(s.result.base2 + goal[2], 38)
+        diff = [(i, goal[3][i], after[i]) for i in range(38) if goal[3][i] != after[i]]
+        info.append(f'{goal[0]} (squad {goal[1]}) record after the match: changed {diff}')
+        check(any(33 <= i <= 36 and b == a + 1 for i, a, b in diff), f'{goal[0]}: the poked goal not written back ({diff})', errs)
+                                        # (byte 37: his form, the game's own after-match change)
+    return True
+
+
+@scenario
+def bench_world():
+    """Panchina block 1 (benchx) in the World 2026-27 (BENCH_BUILD, else XTRA30_BUILD: a world build with the XTRA
+    blocks): a new career at CELLE VARAZZE (Serie D girone A, 30 players; BENCH_CLUB / BENCH_PATH to change) as a
+    player-coach (the career menu's default GIOCA-ALLENA), bx_bench poked to 15, the first match played for real
+    (bench_play): gameMaxSubstitutes = 15, the club's in-match team 26 named (11 + 15: the squad's first 26), the
+    opponent 16 + its XTRA block's players (block A: places 17.. by name, the rest empty), the bench called, the
+    match to its end: no trap."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import lepatch
+    import xtra
+    b = os.environ.get('BENCH_BUILD') or os.environ.get('XTRA30_BUILD')
+    if not b or not os.path.isdir(b):
+        return True, 'SKIP: BENCH_BUILD not set'
+    b = nop_league_int3('bench_world_' + os.path.basename(RUNS.rstrip('/')), b)   # ('- PARTITA -': the game's own
+                                              # int 3 in DIYLeagueTournamentMatch; one copy per run dir)
+    club = os.environ.get('BENCH_CLUB', 'CELLE VARAZZE')
+    path = os.environ.get('BENCH_PATH', 'EUROPA,ITALIA,SERIE D GIRONE A,' + club).split(',')
+    exe = os.path.join(b, 'ITALIAN.EXE')
+    files = {}
+    if os.environ.get('BENCH_SPP'):         # (4.0.6) under SWOS++ (SWOSTEST_UI=en, an English build): installed on the
+        import swospp                       # copy's exe (the sites below are read from it, as SWOS++ leaves the file)
+        if UI != 'en':
+            return True, 'SKIP: SWOS++ is English only (SWOSTEST_UI=en)'
+        shutil.copy(exe, exe + '.nospp')
+        swospp.install(exe + '.nospp', exe)
+        global PRESS_FIRE
+        PRESS_FIRE = 'fire up:0.05'
+        pp = os.path.join(MAIN, 'internal', 'swospp-test')
+        files = {'LOADER.BIN': os.path.join(pp, 'loader.bin'), 'SWOSPP.BIN': os.path.join(pp, 'swospp.bin')}
+    p = lepatch.LEPatch(exe)
+    _, cnp, ct, cmp, sel = xtra.sites(p)
+    bx, gmax = bench_switch(exe)
+    c = p.le.obj_bytes(1)
+    m = re.search(rb'(?:\xc7\x05.{8}){4}\x66\xc7\x05.{4}\xa7\x06', c, re.S)
+    top, bot = p.target(1, m.start() + 6)[1], p.target(1, m.start() + 26)[1]
+    errs, info = [], []
+    os.makedirs(os.path.join(RUNS, 'bench_world'), exist_ok=True)
+
+    def mark(text):
+        open(os.path.join(RUNS, 'bench_world', 'progress.txt'), 'a').write(text + '\n')
+    with Session('bench_world', b, files, 'dump:2', 900, match=True, timer=bool(files)) as s:   # (SWOS++: keys from
+                                                                                                 # the timer, as controls_swospp)
+        if s.wait().outcome != 'dump':
+            return False, f'START: no first pause ({s.result})'
+        scr = s.screen()
+        car = 'CAREER 2026-27' if files and not os.environ.get('BENCH_BASE') else 'CARRIERA'   # (under SWOS++ the plain
+        if press(s, scr, car) is None:      # CAREER > SELECT TEAM opens the base game's list, no CLASSIC CAREERS -
+            return False, f'{car} not reached ({s.result})'   # 4.0.2 too: the main menu's 2026-27 button instead)
+        for t in ['SCEGLI SQUADRA'] + ([] if os.environ.get('BENCH_BASE') or files else ['CARR. STORICHE', 'MONDO 2026-27']):
+            if press(s, s.screen(), t) is None:
+                return False, f'new career: {t} not reached ({s.result})'
+        if not pick_career(s, path):
+            return False, f'new career: {path} not reached ({s.result})'
+        n = struct.unpack('<H', s.result.obj2(cnp, 2))[0]
+        info.append(f'{club}: {n} players in the squad')
+        real = os.environ.get('BENCH_REAL')   # (phase 2) 'named:used' wanted from the competition's real rule: no poke
+        if not real:
+            s.poke(s.result.base1 + bx, b'\x0f\x00')
+        r = s.result                        # 4.0.5's bald icons (blond.ICONBL 1910 / 1911, next to our name
+        bn = r.read(r.base2 + ct + 76 + 38 + 3, 22).split(b'\0')[0]   # sprites): squad player 2 poked bald in every
+        o2 = r.read(r.base2, 0x300000)      # copy of his record, so the squad screen builds them before the match
+        hits = [m_.start() - 3 for m_ in re.finditer(re.escape(bn) + b'\0', o2)]
+        for h in hits:
+            s.poke(r.base2 + h + 25, bytes((o2[h + 25] | 1,)))
+        info.append(f'{bn.decode("latin-1")} poked bald x{len(hits)}')
+        mark(f'career started, {n} players, bench poked: ' + ', '.join(s.screen().texts())[:150])
+        xnone = os.environ.get('BENCH_XNONE')  # (Davide 31/10) a CPU club with fewer players than the bench: the XTRA
+        if xnone:                           # file name poked unreadable after the career start (the managed club has
+            xn_ = c.find(b'data\\xtra.000\0')  # its extras already): opponents 16 + 10 empty, no invented players
+            assert xn_ > 0 and c.find(b'data\\xtra.000\0', xn_ + 1) < 0, 'xname'
+            ptr = struct.unpack('<I', s.result.read(s.result.base1 + xn_ - 14, 4))[0]   # xtra_namep (-> per-world name)
+            nm = s.result.read(ptr, 16)
+            assert nm[:5].lower() == b'data\\', nm
+            s.poke(ptr + 5, b'q')
+            info.append(f'XTRA file name poked {nm.split(bytes(1))[0]!r} -> q')
+        xs = os.environ.get('BENCH_XSOLD')     # (A) 'CLUB:i': that club's XTRA player i marked bought (xtra's xsold
+        xsc, xsi = (xs.split(':')[0], int(xs.split(':')[1])) if xs else (None, -1)   # list): skipped, the rest move up
+        if xs:
+            w, _ = xtra_club_block(b, xsc)
+            s.poke(s.result.base1 + xtra_xsold(p), struct.pack('<HHB', 1, w, 16 + xsi))
+            info.append(f'{xsc} XTRA {xsi} marked bought')
+        wants = {club: n, '*': lambda t: [] if xnone else [x for i, x in enumerate((xtra_club_block(b, t) or (0, []))[1])
+                                          if x and not (t == xsc and i == xsi)]}   # (A) CPU clubs
+        if os.environ.get('BENCH_DIYDUMP'):
+            import lp36
+            wants['_diy'] = lp36._sites(lepatch_orig())['DIY']   # (site patterns of the original exe)
+        inj = os.environ.get('BENCH_INJ')   # (2, Davide 31/10) 'place:byte,..' (places 1-based, the byte = the record's
+        if inj:                             # cardsInjuries, hex: 40 injured, 01 suspended in a career: bits 0-1): bench players made unavailable
+            order = s.result.obj2(cmp, 32)  # in every copy of their record; the match must still be playable (only the
+            o2 = s.result.read(s.result.base2, 0x300000)   # starters checked) and their places empty at the kick-off
+            wants['-'] = set()
+            for it in inj.split(','):
+                k, v = int(it.split(':')[0]) - 1, int(it.split(':')[1], 16)
+                q = order[k]
+                slot = ct + (76 + q * 38 if q < 16 else 684 + (q - 16) * 38)
+                nm = s.result.obj2(slot + 3, 22).split(b'\0')[0]
+                hits = [m_.start() - 3 for m_ in re.finditer(re.escape(nm) + b'\0', o2)]
+                for h in hits:
+                    s.poke(s.result.base2 + h + 27, bytes(((o2[h + 27] & 0x03) | v,)))
+                wants['-'].add(k)
+                info.append(f'place {k + 1} {nm.decode("latin-1")} (squad {q}) cardsInjuries -> {v:#04x} x{len(hits)}')
+        if os.environ.get('BENCH_VIEW'):    # (4.0.6) ViewSquad with the managed club: its window (bx_vw)
+            for _ in range(3):
+                if 'TRASFERIMENTI' in s.screen().texts():
+                    break
+                s.send('fire:0.5 dump:1')
+            if press(s, s.screen(), 'TRASFERIMENTI') is None or press(s, s.screen(), 'AGG. GIOCATORE AL CALCIOMERC.') is None:
+                errs.append('AGG. GIOCATORE AL CALCIOMERC. not reached')
+            else:
+                bench_view(s, bx, cmp, cnp, ct, errs, info, mark)
+            for _ in range(8):
+                q = s.screen()
+                if 'PARTITA' in q.texts() and 'TRASFERIMENTI' in q.texts():
+                    break
+                press(s, q, 'ESCI') if 'ESCI' in q.texts() else s.send('esc:0.3 dump:0.6')
+        if os.environ.get('BENCH_SQUAD') == '2':   # the career menu's SQUADRA (squadMenu): its window (bx_sq)
+            for _ in range(3):              # (the chairman's letter first)
+                if 'SQUADRA' in s.screen().texts():
+                    break
+                s.send('fire:0.5 dump:1')
+            if press(s, s.screen(), 'SQUADRA') is None:
+                errs.append('SQUADRA not reached')
+            else:
+                q = s.screen()
+                s.shot('squadra')
+                mark('squadra: sel %s ' % q.selected + ', '.join(f'{e[0]}:{e[1]}' for e in q.entries if e[1])[:300])
+                bench_squad(s, q, bx, cmp, cnp, errs, info, mark, woff=2, box=45, row1=28, tag='squadra')
+                for _ in range(4):
+                    q = s.screen()
+                    if 'PARTITA' in q.texts() and 'SQUADRA' in q.texts():
+                        break
+                    press(s, q, 'ESCI') if 'ESCI' in q.texts() else s.send('esc:0.3 dump:0.6')
+        sq = {'args': (bx, cmp, cnp), 'tactics': os.environ['BENCH_SQUAD'] == '2'} \
+            if os.environ.get('BENCH_SQUAD') in ('1', '2') else None   # (2: + the tactics editor)
+        st = c.find(b'BXST')                # (benchx's line-ups log; builds before it: no check)
+        bench_play(s, gmax, top, bot, wants, errs, info, mark, (bx, int(os.environ.get('BENCH_SUB', 21)), ct), {}, sq,
+                   st if st > 0 else None)
+    check(n == 30 or club != 'CELLE VARAZZE', f'{club}: {n} players (want 30)', errs)
+    if real:                                # (phase 2) the competition's bench / substitutions at the kick-off
+        k = [x for x in info if x.startswith('kick-off named:used')]
+        check(k and k[0].endswith(f' {real}'), f'real rule: {k} (want {real})', errs)
+    check('squad screen: GIOCA PARTITA' in info or any(x.startswith('kick-off named:used') for x in info),
+          'not played as a player-coach (no GIOCA PARTITA, no kick-off)', errs)   # (EN / FR / DE: the label differs)
+    return not errs, '; '.join(errs + info)
 
 
 @scenario
@@ -15803,10 +16988,11 @@ N14_NAMES = (['ROBERTO_CARLOS', 'LUIS_ENRIQUE', 'SCHWEINSTEIGER', 'JAN STOECKLIN
               'BASTIAN SCHWEINSTEIGER'] * 3)[:16]
 
 
-def n14_sprites(r, spr, ega):
-    """The 32 in-match name sprites (255..286) as (pixWidth, nlines, wquads, rows of lit pixels)."""
+def n14_sprites(r, spr, ega, first=255, n=32):
+    """The in-match name sprites (255..286; benchx's places 17..26: 1912.., 20) as (pixWidth, nlines, wquads, rows of
+    lit pixels)."""
     out = []
-    for pt in struct.unpack('<32I', r.read(r.base2 + spr + 255 * 4, 128)):
+    for pt in struct.unpack(f'<{n}I', r.read(r.base2 + spr + first * 4, 4 * n)):
         h = r.read(pt, 24)
         w, nl, wq = struct.unpack_from('<HHH', h, 10)
         px = r.read(struct.unpack('<I', h[:4])[0], wq * 8 * nl)

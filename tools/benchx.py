@@ -84,8 +84,10 @@ its bench (else the game's: a career league passes its record's +65h, 5), bx_min
 substitutions (else the game's +63h, 3), sq_n its bench for the pre-match screens. The test switch bx_bench wins over
 both. Competitions not in the table keep the game's 3 from 5. (4.0.5, Davide 30/10) bench_table fills bench2627.json's
 unknowns (null / no key) at build time, no exe code: a lower division from the nearest higher division with data, a
-cup or state championship from the country's top league ('=league.N': division N's); the table's entries are the
-title + NUL + 3 bytes (no padding: 132 entries in benchx's 2 pages). internal/reports/bench-unknowns-2627.md.
+cup or state championship from the country's top league ('=league.N': division N's), a play-off / poule from its
+clubs' division; every country a prefix entry ('<COUNTRY> ', et bit 7: bx_strpre) = its top league or its
+confederation's default, so any other title of it (supercups...) has a real bench; the table's entries are the
+title + NUL + 3 bytes (no padding: 184 entries, < 4 KB, in benchx's 2 pages). internal/reports/bench-unknowns-2627.md.
 
 spritesIndex past the game's 1335 entries (shirtnum.py's extension into the 3072 free bytes after it: indices
 1335..2102; it cannot move, SWOS++ holds its address):
@@ -1747,6 +1749,8 @@ def bench_table(lang):
         if pk.get('kind') != 'career' or pk.get('world') != 5:
             continue
         ent = data['countries'].get(cc) or {}
+        import complist                         # (4.0.5: the names as the game's titles hold them, as mkseason's)
+        complist.fit_titles(pk)
         BENCH_WORLD[0] = pk['world']
         btn = pk.get('button_names', {}).get(lang) or pk['button']
         first = lambda names: (names.get(lang) or names['*'])[0]
@@ -1755,7 +1759,7 @@ def bench_table(lang):
         top = norm(lvals[0] if lvals and lvals[0] is not None else
                    (data.get('confederations') or {}).get(pk.get('continent')))
         for c in pk['competitions']:
-            v = ent.get(c['key'])
+            v, raw = ent.get(c['key']), []
             if c.get('type') == 'league':
                 divs = c.get('divisions') or [{'names': c['names']}]   # (one division: the league's own names)
                 vals = lvals if c is lg else v if isinstance(v, list) else [v] * len(divs)
@@ -1764,10 +1768,24 @@ def bench_table(lang):
                 if isinstance(v, str) and v.startswith('=league.'):   # division's (its clubs' own league), none =
                     v = lvals[int(v[8:])] if int(v[8:]) < len(lvals) else None   # the top league's (Davide 30/10)
                 items = [(first(c['names']), v)]
-            for name, x in items:               # (a number = named subs; {'named', 'et'}: with an extra-time sub)
-                t = f'{btn} {name}'.encode('latin-1')[:40]
+            if c is lg:                         # (4.0.5) the league's own contests (fmtgame's titles): each gplay
+                nm = lambda names: (names.get(lang) or names.get('*') or next(iter(names.values())))
+                nm1 = lambda names: (lambda x: x[0] if isinstance(x, list) else x)(nm(names))
+                for po in c.get('ko_playoffs') or []:   # play-off / play-out / poule = its clubs' division (the
+                    dv = [e[0] for e in po.get('entrants') or [] if isinstance(e, list)]   # lowest if mixed)
+                    if po.get('names') and dv and max(dv) < len(lvals):
+                        items.append((nm1(po['names']), ent.get(po.get('key')) or lvals[max(dv)]))
+                if c.get('cup_d'):                  # cupd: the Coppa Italia Serie D (its own json key 'cup_d'; its
+                    items.append((nm1(c['cup_d'].get('names') or {'*': ['COPPA ITALIA SERIE D']}), ent.get('cup_d')))
+                    raw.append(items[-1])           # tie's title has no country too: bench_cup at CELLE VARAZZE)
+                if c.get('playoffs') == 'ita':      # dplay: Serie B play-off / play-out (Serie B's), Serie C play-off
+                    import dplay
+                    items += [(n.decode(), lvals[k]) for n, k in zip(dplay.NAMES, (1, 1, 2)) if k < len(lvals)]
+            for name, x in items + [(None, x) for _, x in raw]:   # (a number = named subs; {'named', 'et'}: with an
+                t = f'{btn} {name}' if name is not None else raw.pop(0)[0]   # extra-time sub)
+                t = t.encode('latin-1')[:40]
                 x = norm(x) or top
-                if x and x != top and t not in seen:
+                if x and (x != top or name is None) and t not in seen:
                     seen.add(t)
                     out.append((t, x[0], used, x[1]))
         if top:

@@ -2728,10 +2728,13 @@ def world8485():
                 if W84_HOOK is not None:               # a scenario's own per-step check (world_away_goals)
                     W84_HOOK(s, season, scr)
                 if fill and season not in filled:      # W8485_FILL 'obj2 off:byte:count' (hex, hex, dec), once per
-                    o, v, n = fill.split(':')          # session (world_full_draw: simdraw's table, not in the save)
-                    for k in range(0, int(n), 16):     # (short SM commands, as lp36_tie's poke)
-                        s.poke(s.result.base2 + int(o, 16) + k, bytes([int(v, 16)]) * min(16, int(n) - k))
-                        s.box.pump(0.05)
+                    for f1 in fill.split(','):          # session (world_full_draw: simdraw's table, not in the save);
+                        base = s.result.base2           # 4.0.5: several, comma-separated; 'o1:' = an obj1 offset
+                        if f1.startswith('o1:'):        # (world_sc_tur: the extra-time margin table cseg_2C347)
+                            base, f1 = s.result.base1, f1[3:]
+                        o, v, n = f1.split(':')
+                        for k in range(0, int(n), 16):  # (short SM commands, as lp36_tie's poke)
+                            s.poke(base + int(o, 16) + k, bytes([int(v, 16)]) * min(16, int(n) - k))
                     filled.add(season)
                 if peek is not None:                   # W8485_PEEK: the largest word seen at an obj2 offset
                     peek[1] = max(peek[1], struct.unpack_from('<H', s.result.obj2(peek[0], 2))[0])
@@ -7810,7 +7813,8 @@ def world_state_career():
 
 
 @scenario
-def world_gplay_reserve(force='20', team='EUROPA,ITALIA,SERIE C GIRONE A,RENATE', src=None, div=2, direct=20):
+def world_gplay_reserve(force='20', team='EUROPA,ITALIA,SERIE C GIRONE A,RENATE', src=None, div=2, direct=20,
+                       koforce=None, reserve_next=None):
     """The career club relegated into the reserve is sacked (gplay gp_sack, SeasonFinished's contract check): the
     world 2026-27 with Italy's reserve (private data internal/world2526/world5tm-reserve: Serie C groups, 20th down
     directly, play-outs 16th-19th into the reserve) built with GPLAY_FORCE (the career club's place in its group at
@@ -7827,7 +7831,10 @@ def world_gplay_reserve(force='20', team='EUROPA,ITALIA,SERIE C GIRONE A,RENATE'
                       '(the direct drop is covered by world_gplay_seried_res on world5tm-res1; the play-outs by _out / _gap)')
     order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
     env = {'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]), 'GPLAY_FORCE': force}
-    exe = os.environ.get('GPLAY_BUILD') or build(f'world_gplay_reserve_{os.path.basename(src)}_{force}', env=env)
+    if koforce:                                  # (4.0.5: the play-out's result forced too - GPLAY_KOFORCE 1 lost / 2 won)
+        env['GPLAY_KOFORCE'] = koforce
+    exe = os.environ.get('GPLAY_BUILD') or build(f'world_gplay_reserve_{os.path.basename(src)}_{force}'
+                                                 + (f'_ko{koforce}' if koforce else ''), env=env)
     log_at, st_at, log_n, st_n = gp_ptrs(exe)
     keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K',
                                             'W8485_NOSACK', 'W8485_HEX', 'W8485_ONE')}
@@ -7868,17 +7875,25 @@ def world_gplay_reserve(force='20', team='EUROPA,ITALIA,SERIE C GIRONE A,RENATE'
     if ko['slot']:                                           # (played: every tie decided; else the gap decided the
         check(all(x != 255 for x in ko['tw']), f"play-out not over: winners {ko['tw']}", errs)   # club's tie)
     how = how + ('' if ko['slot'] else '; the club\'s tie decided by the gap, no contest')
-    check(sacked == lost, f'play-out {"lost" if lost else "won"}, sacked {sacked}', errs)
+    check(koforce != '1' or lost, f'GPLAY_KOFORCE=1 but the play-out was not lost (losers {ko["tl"]})', errs)
+    into = lost and (reserve_next if reserve_next is not None else True)   # (4.0.5: the play-out's loser goes
+    check(sacked == into, f'play-out {"lost" if lost else "won"}, sacked {sacked} '   # into the reserve only from
+          f'({"into the reserve" if into else "not into the reserve"})', errs)    # the division above it)
     if 'res1' in src and os.path.exists(car):                # (an off-file pool: no club left in the reserve)
         left, cnt = reserve_left(car, src)
         check(not left, f'clubs left in the reserve division: {left}', errs)
-    return not errs, '; '.join(errs) or f'{msg}; play-out {"lost: sacked (" + how + ")" if lost else "won: kept the job"}'
+    return not errs, '; '.join(errs) or (f'{msg}; play-out ' + ('lost, into the reserve: sacked (' + how + ')' if into
+                                                                 else 'lost, down a division: kept the job' if lost
+                                                                 else 'won: kept the job'))
 
 
 @scenario
 def world_gplay_reserve_out():
-    """world_gplay_reserve with the career club forced 17th: its play-out (17th v 18th) played, sacked if lost"""
-    return world_gplay_reserve('17')
+    """world_gplay_reserve with the career club forced 17th: its play-out (17th v 18th) played - and LOST (4.0.5:
+    GPLAY_KOFORCE=1 in its test build: the career club loses its played knockout ties, Davide's 'force, don't retry')
+    -> down to Serie D, kept (the reserve is below Serie D: rc11's 'lost, sacked False' was the old expectation, not
+    a bug; the sacked path is world_gplay_seried_out's)"""
+    return world_gplay_reserve('17', koforce='1', reserve_next=False)
 
 
 TITLE_MLT = [   # Malta 2026-27 (MFA competition rules; the data session's formats_data.KO_TITLE once applied): the title
@@ -10075,11 +10090,21 @@ def sc_from2(team, word, tag):
     return not errs, '; '.join(errs) or f'season 1: none; season 2: {m2}; {msg2[:80]}'
 
 
+
+# the game's extra-time simulation (cseg_2C0D3): the stronger side's margin per |rating difference| (32 rows x 4,
+# picked by Rand2 & 3) - zeroed by world_sc_tur so a level tie stays level after extra time and goes to penalties
+ET_MARGINS = bytes([0] * 19 + [1, 0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1]
+                   + [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 2, 1, 1, 2, 2, 1]
+                   + [1, 2, 2, 1, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2]
+                   + [2, 2, 2, 2, 2, 2, 2, 3, 2, 2, 2, 3, 2, 2, 3, 3, 2, 2, 3, 3, 2, 3, 3]
+                   + [3, 2, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3])
+
 @scenario
 def world_sc_tur():
     """4.0.5 supercups, extra time then penalties really played (TUR, level et_pens): a GALATASARAY career, season 1
     (the real 2027 final four: GALATASARAY v KONYASPOR in the semi-final), every simulated match forced level
-    (simdraw's score table filled with 1-1, as world_full_draw): the SUPERCOPPA DI TURCHIA SEMIFINALE ends after extra
+    (simdraw's score table filled with 1-1, as world_full_draw) and extra time too (4.0.5: cseg_2C0D3's margin table
+    ET_MARGINS zeroed - rc11 had it decided in extra time): the SUPERCOPPA DI TURCHIA SEMIFINALE ends after extra
     time ('D.T.S.') and on penalties ('RIG'), once; the season ends"""
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import simdraw
@@ -10095,8 +10120,13 @@ def world_sc_tur():
     at = [m.start() for m in re.finditer(re.escape(tab), d2)]
     if len(at) != 1:
         return False, f'simdraw table found {len(at)} times'
+    d1 = LE(open(os.path.join(exe, 'ITALIAN.EXE'), 'rb').read()).obj_bytes(1)
+    et = [m.start() for m in re.finditer(re.escape(ET_MARGINS), d1)]   # (4.0.5: extra time forced level too - its
+    if len(et) != 1:                                                  # margin table zeroed: penalties every time)
+        return False, f'extra-time margin table found {len(et)} times'
     ok, msg, lines = sc_season('EUROPA,TURCHIA,SUPER LIG,GALATASARAY', dict(W8485_BUILD=exe,
-                                                                         W8485_FILL=f'{at[0]:x}:11:{len(tab)}'))
+                                                                         W8485_FILL=f'{at[0]:x}:11:{len(tab)},'
+                                                                         f'o1:{et[0]:x}:0:{len(ET_MARGINS)}'))
     res = [ln for ln in lines if ln.startswith('[') and 'SUPERCOPPA DI TURCHIA' in ln.split('|')[0]
            and '- PARTITA -' in ln and '>- RISULTATO -' in ln]
     errs = []
@@ -11410,9 +11440,11 @@ def world_gplay_seried_res():
 @scenario
 def world_gplay_seried_out():
     """As world_gplay_seried_res with LIGORNA forced 13th: its Serie D play-out (13th v 14th, a single match at the
-    better placed's, extra time, then the better placed stays) played, sacked if lost"""
+    better placed's, extra time, then the better placed stays) played and LOST (4.0.5: GPLAY_KOFORCE=1 - force, don't
+    retry) -> into the reserve: sacked"""
     return world_gplay_reserve('13', 'EUROPA,ITALIA,SERIE D GIRONE A,LIGORNA',
-                               os.path.join(MAIN, 'internal', 'world2526', 'world5tm-res1'), 5, 17)
+                               os.path.join(MAIN, 'internal', 'world2526', 'world5tm-res1'), 5, 17, koforce='1',
+                               reserve_next=True)
 
 
 @scenario

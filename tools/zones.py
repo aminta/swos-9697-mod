@@ -80,6 +80,7 @@ def lp_places(rank, cc):
         ncl += 1
     return [(k + 1, c) for k, c in enumerate(cols)]
 NAME = 41                       # the slot's name field (as fmtpage.NAME)
+STG = {}                        # 4.0.5 (patch): the stage key buffer and its flag, obj2 (longtable lt_ov writes them)
 RANGES = 8
 LEG = 6                         # legend boxes (the colours a table uses, in place order; 6 since rc12: NED's CL EL
                                 # CONF P.OFF P.OUT RETR - the euro play-off's own P.OFF)
@@ -183,6 +184,35 @@ def _merge(rng, why):
 
 LIGUILLA_ZONES = {'world-2026-27-mex'}    # packs whose tables colour their Liguilla places (P.OFF), not the
                                          # confederation's (Davide 2026-10-24: Liga MX + Liga de Expansion)
+
+
+def stage_key(title, t):
+    """4.0.5 the zone key of stage table t's final table: the league's key (DIY+4) + byte 80h + t (zn_col builds the
+    same in the stage view, OV_FLAG 4 + t), the title cut to NAME - 2 first."""
+    return title[:NAME - 2] + chr(0x80 + t)
+
+
+def stage_zones(dv, po, i):
+    """4.0.5 [(table t, [(first, last, GREEN)])] of a split division's stages: the places of stage table t that the
+    play-offs take (entrants {'stage_place': 4 + t, 'place': p} of division i: MX Liguilla 1-8, ARG's knockout, URU's
+    winners), green as every play-off place."""
+    sp = dv.get('split') or {}
+    out = []
+    for st in (sp.get('stages') or [sp] if sp else []):
+        t = st.get('table')
+        if t is None:
+            continue
+        pl = sorted({e['place'] for p in po for e in p.get('entrants', []) if isinstance(e, dict)
+                     and e.get('stage_place') == 4 + t and e.get('div', 0) == i and e.get('place')})
+        rng = []
+        for x in pl:
+            if rng and rng[-1][1] == x - 1:
+                rng[-1] = (rng[-1][0], x, GREEN)
+            else:
+                rng.append((x, x, GREEN))
+        if rng:
+            out.append((t, rng[:RANGES]))
+    return out
 
 
 def pack_zones(d, lang, lp=False, rank=None, detail=None):
@@ -298,6 +328,9 @@ def pack_zones(d, lang, lp=False, rank=None, detail=None):
             elif lp and rank and id(dv) in top and not EU_SEASON1_ONLY:   # European colours only at run time
                 out.append((world, _title(m, lang, complist._nm(dv['name'], lang)), [], 'lp',
                             m['files'][comp['clubs']]['file'], [], []))
+            for t, srng in stage_zones(dv, po, i):      # 4.0.5: an earlier stage's final table (STAT > its entry):
+                out.append((world, stage_key(_title(m, lang, complist._nm(dv['name'], lang)), t), srng, 'stage', 0,
+                            None, ['po_title'] * len(srng)))  # its own play-off places, keyed title + stage
     return out
 
 
@@ -568,6 +601,15 @@ def blob(rows):
     return bytes(b)
 
 
+STAGE_KEY = '''    cmp byte [ZSTG], 0                  ; 4.0.5 an earlier stage's final table (STAT > its entry): longtable lt_ov
+    je .sk                              ; wrote its key (zones.stage_key: the league's + 80h + its table) - that
+    mov esi, ZSKEY                      ; stage's play-off places
+.sk:
+'''
+STAGE_PLAYED = '''    cmp byte [ZSTG], 0                  ; (4.0.5: a stage's final table - played - not the live rows)
+    jne .z0
+'''
+
 ASM = r"""
 zn_col:                                 ; replaces `mov ax, [dseg_11F41C]` at cseg_49B65 (or lp36's call there)
 FIRST
@@ -577,6 +619,7 @@ LP_SKIP
     xor ebx, ebx                        ; the table's world: a career's world byte, else 0
 WORLD_BYTE
     mov esi, DIY + 4
+STAGE_KEY
     cmp bl, [ZKEY]                      ; the cached table?
     jne .look
     xor ecx, ecx
@@ -666,6 +709,7 @@ WORLD_BYTE
     mov edi, [ZHIT]
     test edi, edi                       ; 4.0: no club of the table (DIY, +31h clubs) has played a match yet (a table
     jz .z0                              ; before its first match day, the clubs in their initial order): no zones, no
+STAGE_PLAYED
     movzx ecx, word [DIY + 31h]         ; legend (Davide)
     lea esi, [DIY + 2B3h + 4]           ; (a row: +0 team, +4 played .. +10h points)
 .z1:
@@ -1220,6 +1264,13 @@ def patch(p, at, area, lang, pack_dirs, bss, bss_len, world=None):
         import longtable
         sym.update({'GP_HON': gplay.LABELS['GP_HON'], 'GP_HG': gplay.LABELS['GP_HG'], 'GP_HGP': gplay.LABELS['GP_HGP'],
                     'LT_ROWS_': (0, longtable.ROWS)})
+    stg = ov and 'flag' in fmtpage.OV                   # 4.0.5 the earlier stages' tables' zones (stage_key)
+    src = nasmcave.sub(src, 'STAGE_KEY\n', STAGE_KEY if stg else '')
+    src = nasmcave.sub(src, 'STAGE_PLAYED\n', STAGE_PLAYED if stg else '')
+    if stg:
+        zsk = area.add(bytes(NAME + 2))
+        sym.update({'ZSKEY': (2, zsk), 'ZSTG': (2, zsk + NAME + 1)})
+        STG.update(key=zsk, flag=zsk + NAME + 1)       # (longtable lt_ov fills them)
     src = nasmcave.sub(src, 'OV_ROW\n', '''    cmp byte [OV_ON], 2                 ; 4.0 the overall table in its annual form (Argentina): the last relegated
     jne .o
     cmp eax, [GP_OV_N]

@@ -204,6 +204,7 @@ lt_init:                                ; DIYLeagueTournamentInit's `mov current
 lt_ov:                                  ; (OnRestore) STAT > CLASSIFICA GENERALE on: gplay.c gp_overall's order and
     pushad                              ; figures for this table; the title shown = the overall table's
     mov byte [OV_ON], 0
+ZSTG0
 %if F1_
     cmp byte [F1_DONE], 0               ; 4.0.5 FASE 1: a fresh table screen of the career's split league opens on the
     jne .f1                             ; phase-1 table while no phase-2 result exists (gplay.c f1_auto); STAT's
@@ -263,6 +264,7 @@ lt_ov:                                  ; (OnRestore) STAT > CLASSIFICA GENERALE
     test eax, eax
     jz .x
     mov byte [OV_ON], 1
+ZSTAGE
     movzx eax, byte [OV_FLAG]
     push es
     push ds
@@ -439,6 +441,32 @@ F1_DONE: db 0
 """
 
 
+ZSTAGE_ASM = """    push esi                            ; 4.0.5 the zone key of this stage's table (zones.stage_key): the league's
+    push edi                            ; (DIY+4, cut to NAME - 2) + 80h + its table; zn_col reads it while ZSTG
+    push ecx
+    lea esi, [esi + 4]
+    mov edi, ZSKEY
+    xor ecx, ecx
+.zk:
+    mov al, [esi + ecx]
+    test al, al
+    jz .ze
+    mov [edi + ecx], al
+    inc ecx
+    cmp ecx, ZNAME_ - 2
+    jb .zk
+.ze:
+    mov al, [OV_FLAG]
+    add al, 80h - 4
+    mov [edi + ecx], al
+    mov byte [edi + ecx + 1], 0
+    mov byte [ZSTG], 1
+    pop ecx
+    pop edi
+    pop esi
+"""
+
+
 def patch(p, at, area=None, lang='it'):
     """Code at obj1:at; returns its end. area / lang: the overall tables' titles (STAT > CLASSIFICA GENERALE)."""
     import lp36
@@ -530,8 +558,15 @@ def patch(p, at, area=None, lang='it'):
     for site, n in ((h1, 10), (h2, 9), (h3, 11), (h4, 13), (h5, 13)) + (((init, 9), (row, 13), (a4, 5)) if ov else ()):     # (no other hook there: the patched bytes = the original)
         assert bytes(p.get(1, site, n)) == d1[site:site + n], hex(site)
     at = (at + 15) & ~15
-    code, cfix = nasmcave.assemble(ASM, at, sym)
-    lab = nasmcave.labels(ASM, at, sym)
+    import zones                                         # 4.0.5: an earlier stage's table - its zone key (zones.STG)
+    src = ASM
+    zst = bool(zones.STG) and 'AP_BUILD' in sym
+    src = src.replace('ZSTG0\n', '    mov byte [ZSTG], 0\n' if zst else '')
+    src = src.replace('ZSTAGE\n', ZSTAGE_ASM if zst else '')
+    if zst:
+        sym.update({'ZSKEY': (2, zones.STG['key']), 'ZSTG': (2, zones.STG['flag']), 'ZNAME_': (0, zones.NAME)})
+    code, cfix = nasmcave.assemble(src, at, sym)
+    lab = nasmcave.labels(src, at, sym)
     assert not any(p.get(1, at, len(code)))
     p.put(1, at, code)
     for off, t_obj, t_off in cfix:

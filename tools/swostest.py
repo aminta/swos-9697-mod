@@ -14803,6 +14803,34 @@ def modver_line():
         info.append(f'{want!r} drawn at x {gx}..{max(x for x, _ in got)} y {gy}, {len(got)} pixels = the game font')
     return not errs, '; '.join(errs + info)
 
+@scenario
+def stage_zones_data():
+    """4.0.5 the earlier stages' tables' zone colours (zones.stage_zones / stage_key): the build's DATA\\ZONIT5.DAT
+    holds a key per stage table - the league's + 80h + its table - with that stage's play-off places, green: MX
+    APERTURA / CLAUSURA 1-8, ARG L.P. APERTURA / CLAUSURA 1-8 + 16-23, URU APERTURA 1, INTERMEDIO 1 + 9, CLAUSURA 1
+    (no exe run; SWOSTEST_BUILD: a release dir)"""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import zones
+    b = os.environ.get('SWOSTEST_BUILD') or builds()['it']
+    f = os.path.join(b, 'DATA', 'ZONIT5.DAT')
+    if not os.path.exists(f):
+        return True, f'SKIP: {f} missing'
+    d = open(f, 'rb').read()
+    n, E = struct.unpack_from('<I', d, 0)[0], zones.ENTRY_PAD
+    got = {}
+    for i in range(n):
+        e = d[4 + i * E:4 + (i + 1) * E]
+        t = e[1:1 + zones.NAME].split(b'\0')[0]
+        if t and t[-1] >= 0x80:
+            nr = e[1 + zones.NAME]
+            got[t] = [tuple(e[2 + zones.NAME + 3 * k:5 + zones.NAME + 3 * k]) for k in range(nr)]
+    want = {b'MESSICO LIGA MX\x80': [(1, 8, 14)], b'MESSICO LIGA MX\x81': [(1, 8, 14)],
+            b'ARGENTINA LIGA PROFESIONAL\x80': [(1, 8, 14), (16, 23, 14)],
+            b'URUGUAY CAMPEONATO URUGUAYO\x80': [(1, 1, 14)], b'URUGUAY CAMPEONATO URUGUAYO\x81': [(1, 1, 14), (9, 9, 14)],
+            b'URUGUAY CAMPEONATO URUGUAYO\x83': [(1, 1, 14)]}
+    errs = [f'{k!r}: {got.get(k)} (want {v})' for k, v in want.items() if got.get(k) != v]
+    return not errs, '; '.join(errs) or f'{len(got)} stage keys, MX / ARG / URU as their play-offs'
+
 
 
 if __name__ == '__main__':

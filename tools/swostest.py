@@ -6426,9 +6426,10 @@ def split_check_stages(log, key):
     return not errs, '; '.join(errs[:6]) or f'{len(stg)} stages, {total} days, final order {order}{kinfo}'
 
 
-def split_check(log, key, slots_table):
+def split_check(log, key, slots_table, real=()):
     """The split league's snapshots (session log 'DIY' / 'CAL' lines of world8485 with W8485_DIY) against the pack
-    key (converted as mkseason.splits does)."""
+    key (converted as mkseason.splits does). real: lgreal_file() of the build - a world's first season with the
+    league's real list and its host table (4.0.5): the post-split home sides by that table, not the engine's matrix."""
     import split
     rnd = {'none': 0, 'single': 1, 'double': 2, 'triple': 3, 'quadruple': 4}
     gs = key['groups']
@@ -6520,9 +6521,15 @@ def split_check(log, key, slots_table):
         check(len(me) == 1 and any(len(fx) == (m - 1) * r for m, r in zip(sizes, rounds)),
               f'career club post-split fixtures {fx}', errs)
         row = {w(last, 0x12D + 2 * r): r for r in range(n)}           # team number -> row -> slot
-        bad = [(hex(a), hex(b)) for a, b in fx if a in row and b in row
-               and mat[slot[row[a]] * n + slot[row[b]]] == 0]
-        check(not bad, f'home side against the {spec["home"]} rule: {bad}', errs)
+        ent = next((e for e in real if e[4] and set(e[1]) == set(row)), None)
+        if ent is not None:                                           # (4.0.5: the real list's host table)
+            ix = {t: i for i, t in enumerate(ent[1])}
+            bad = [(hex(a), hex(b)) for a, b in fx if a in ix and b in ix and ent[4][ix[a] * n + ix[b]] == 0]
+            log.append(f'post-split home sides by the real list\'s host table (LGREAL.DAT)')
+        else:
+            bad = [(hex(a), hex(b)) for a, b in fx if a in row and b in row
+                   and mat[slot[row[a]] * n + slot[row[b]]] == 0]
+        check(not bad, f'home side against the {spec["home"]} rule{" (real list)" if ent else ""}: {bad}', errs)
         log.append(f'post-split fixtures {[(hex(a), hex(b)) for a, b in words.get("fx", [])]}')
     return not errs, '; '.join(errs[:6]) or f'days {d1} + {d2}, final order {order}, groups {sizes}'
 
@@ -6576,7 +6583,7 @@ def world_split(kind):
     log = open(os.path.join(RUNS, f'{w84_tag()}_1', 'session.log')).read().splitlines()
     good, rep = (split_check_places(log, spec) if kind == 'places' else
                  split_check_stages(log, spec) if 'stages' in spec else
-                 split_check(log, spec, lambda n: split.pair_table(po, sa, n)))
+                 split_check(log, spec, lambda n: split.pair_table(po, sa, n), lgreal_file(exe)))
     open(os.path.join(RUNS, f'{w84_tag()}_1', 'split.txt'), 'w').write(rep + '\n' + '\n'.join(
         x for x in log if x.startswith('post-split')) + '\n')
     return ok and good, f'{rep}; {msg}'
@@ -14135,17 +14142,20 @@ def world_lpreal(cid=0, word='CHAMPIONS LEAGUE', team='EUROPA,ITALIA,SERIE A,INT
 
 
 def lgreal_file(exe):
-    """DATA\\LGREAL.DAT of a build (lgreal.py): [(world, [team words], days, [(home, away) team words])]"""
+    """DATA\\LGREAL.DAT of a build (lgreal.py): [(world, [team words], days, [(home, away) team words], host table)]"""
     p = os.path.join(exe, 'DATA', 'LGREAL.DAT')
     if not os.path.exists(p):
         return []
     d, out, o = open(p, 'rb').read(), [], 4
     for _ in range(struct.unpack_from('<I', d, 0)[0]):
         w, n, days, half = d[o:o + 4]
+        tab, half = half & 0x80, half & 0x7F                 # (4.0.5: + 80h = a post-split host table, n x n)
         words = list(struct.unpack_from(f'<{n}H', d, o + 4))
         pr = d[o + 4 + 2 * n:o + 4 + 2 * n + 2 * days * half]
-        out.append((w, words, days, [(words[pr[2 * i]], words[pr[2 * i + 1]]) for i in range(days * half)]))
-        o += 4 + 2 * n + 2 * days * half
+        t0 = o + 4 + 2 * n + 2 * days * half
+        out.append((w, words, days, [(words[pr[2 * i]], words[pr[2 * i + 1]]) for i in range(days * half)],
+                    d[t0:t0 + n * n] if tab else b''))
+        o += 4 + 2 * n + 2 * days * half + (n * n if tab else 0)
     return out
 
 
@@ -14292,9 +14302,10 @@ def world_lgreal_oldsave():
 
 @scenario
 def world_lgreal_sco():
-    """world_lgreal at a Scottish club (HIBERNIAN, one season): the Premiership is NOT in LGREAL.DAT (its split's
-    'balance' home rule reads the pre-split fixtures) - the generated calendar, the split as before"""
-    return world_lgreal('EUROPA,SCOZIA,SCOTTISH PREMIERSHIP|PREMIERSHIP,HIBERNIAN', False, expect_real=False)
+    """world_lgreal at a Scottish club (HIBERNIAN, one season): 4.0.5 rc15 the Premiership IS in LGREAL.DAT with its
+    'balance' host table from the real list - its 33 days before the split = the real list (the post-split home sides:
+    world_split_single with SPLIT_BUILD = a full-world build)"""
+    return world_lgreal('EUROPA,SCOZIA,SCOTTISH PREMIERSHIP|PREMIERSHIP,HIBERNIAN', False, expect_real=True)
 
 
 @scenario

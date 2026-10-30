@@ -5,7 +5,8 @@ Data (Dati coppe): internal/world2526/formats/<cc>2627_fixtures.csv - matchday, 
 every club once a day, the division's days: games x (n - 1), or a split league's days before the split - its list
 covers the regular season only, the split stays the generated one) and writes DATA\\LGREAL.DAT:
 
-    dd n; n x (db world, clubs, days, matches a day, clubs x dw team word, days x matches x (db home, away: indices))
+    dd n; n x (db world, clubs, days, matches a day (+ 80h: a host table), clubs x dw team word,
+               days x matches x (db home, away: indices), [clubs x clubs host table])
 
 A list that does not fit is left out (a warning: that league keeps the generated calendar).
 Run time (split.py's hooks of cseg_8F1F2 / cseg_89758, chained):
@@ -15,6 +16,9 @@ Run time (split.py's hooks of cseg_8F1F2 / cseg_89758, chained):
 - lg_pair (split's `call sp_pair`, every pairing: the career calendar's builder, the match days, the season-end
   simulation): a marked DIY on a day of the list -> the day's match from LGB (the same day / match rule as sp_pair),
   else sp_pair (a split league's post-split days) / the game; after a load the buffer is filled again from the file.
+- 4.0.5 (rc15, SCO / NIR): a single split with a post-split home rule ('balance', 'reverseK') gets a host table in its
+  entry, made from the real list's days (hosts(): split.matrix's rule on the real fixtures); lg_mx (split's matrix
+  lookup in sp_rows, retargeted) answers from it for a marked DIY. Seasons 2+ keep split's matrix of the engine's days.
 """
 import csv
 import json
@@ -28,6 +32,7 @@ COMPLETE = ('ita', 'eng', 'esp', 'ger', 'fra', 'por', 'ned', 'bel', 'tur', 'pol'
             'bih')                      # (Regia 30/10: the COMPLETE lists; the partial / missing keep the generated)
 BSS_SIZE = 0x400                        # LGB: key, days, matches a day, -, pairs (<= 0x3B0), the clubs' rows map at 3C0h
 MAP_AT = 0x3C0
+TAB_AT = 0x230                          # 4.0.5: a single split's post-split host table (n x n), LGB + 3 = n (0 none)
 MK = 0x2B3 + 18 * 47 + 8                # the DIY's mark: row 47's bytes 8.. (never its team dword)
 
 
@@ -58,15 +63,15 @@ def entries(log=None):
         else:
             n, idx = len(clubs), {c: i for i, c in enumerate(clubs)}
             days = sorted({int(r['matchday']) for r in rows})
-            sp = (dv.get('split') or {})
+            sp = dv.get('split') or comp.get('split') or {}  # (NIR: the split at the competition's level)
+            home = sp.get('home', 'seeded') if not sp.get('stages') else None
             want = (sp.get('after') if sp.get('after') is not None and not sp.get('stages')
                     else (sp.get('stages') or [{}])[0].get('after') if sp.get('stages') else None)
             games = dv.get('games') or comp.get('games') or 2
             want = want if want is not None else games * (n - 1)
             pairs = []
-            if any(st.get('home') in ('balance', 'reverse3') for st in (sp.get('stages') or [sp] if sp else [])):
-                why = 'its post-split home rule reads the pre-split fixtures (split.py matrix): the generated ' \
-                      'calendar keeps the 2 + 2 balance (4.0.6: the matrix from the real list)'
+            if any(st.get('home', 'seeded') != 'seeded' for st in sp.get('stages') or []):
+                why = 'a staged split with a post-split home rule (only a single split reads the real list)'
             elif n % 2 or n > 20:
                 why = f'{n} clubs (odd / more than 20)'
             elif days != list(range(1, len(days) + 1)) or len(days) != want:
@@ -83,18 +88,46 @@ def entries(log=None):
                         break
                     pairs += day
             if not why:
-                out.append((pk.world, [pk.where[c][0] | pk.where[c][1] << 8 for c in clubs], len(days), pairs))
+                tab = hosts(pairs, n, home) if sp and home != 'seeded' else b''
+                out.append((pk.world, [pk.where[c][0] | pk.where[c][1] << 8 for c in clubs], len(days), pairs, tab))
         if why and log is not None:
             log.append(f'{cc}: {why}')
     return out
 
 
+def hosts(pairs, n, home):
+    """4.0.5 the post-split home table of a single split from the real list's days before it (split.matrix's rule
+    on the real fixtures, by club index): [a * n + b] = 1 when a is at home against b, 0 when b is, 2 = the
+    calendar's own. 'balance': the club that hosted the other fewer times; 'reverseK': the club away in their K-th
+    meeting."""
+    met = {}
+    for a, b in pairs:
+        met.setdefault(frozenset((a, b)), []).append(a)          # the host of each meeting, in day order
+    out = bytearray(n * n)
+    for a in range(n):
+        for b in range(n):
+            if a == b:
+                continue
+            h = met.get(frozenset((a, b)), [])
+            if home == 'balance':
+                ha, hb = h.count(a), h.count(b)
+                out[a * n + b] = 1 if ha < hb else 0 if ha > hb else 2
+            else:
+                k = int(home[7:]) - 1
+                assert home.startswith('reverse') and len(h) > k, (home, a, b, h)
+                out[a * n + b] = 1 if h[k] == b else 0
+    return bytes(out)
+
+
 def blob(ents):
+    """An entry: db world, n, days, matches a day (+ 80h: a host table follows), clubs x dw, pairs, [n x n table]"""
     b = bytearray(struct.pack('<I', len(ents)))
-    for world, words, days, pairs in ents:
+    for world, words, days, pairs, tab in ents:
         n = len(words)
         assert days * (n // 2) * 2 <= MAP_AT - 4, (world, n, days)
-        b += bytes([world, n, days, n // 2]) + struct.pack(f'<{n}H', *words) + bytes(x for pq in pairs for x in pq)
+        assert not tab or (4 + days * (n // 2) * 2 <= TAB_AT and TAB_AT + n * n <= MAP_AT), (world, n, days)
+        b += bytes([world, n, days, n // 2 | (0x80 if tab else 0)]) + struct.pack(f'<{n}H', *words) \
+            + bytes(x for pq in pairs for x in pq) + tab
     return bytes(b)
 
 
@@ -105,7 +138,10 @@ def write(out_dir):
         print(f'{NAME}: WARNING {x}: the generated calendar')
     if not ents:
         return []
-    open(os.path.join(out_dir, NAME), 'wb').write(blob(ents))
+    b = blob(ents)
+    import fmtpage
+    assert len(b) <= fmtpage.BSS_SIZE, f'{NAME}: {len(b)} B > the read buffer {fmtpage.BSS_SIZE}'
+    open(os.path.join(out_dir, NAME), 'wb').write(b)
     return [(NAME, len(ents))]
 
 
@@ -179,9 +215,12 @@ lg_load:                                ; the file's entry of the DIY's clubs ->
     mov al, [esi + 2]
     mov [LGB + 1], al
     mov al, [esi + 3]
+    and al, 7Fh
     mov [LGB + 2], al
+    mov byte [LGB + 3], 0
     movzx eax, byte [esi + 2]
     movzx ecx, byte [esi + 3]
+    and cl, 7Fh
     imul ecx, eax
     add ecx, ecx
     movzx edx, byte [esi + 1]
@@ -193,7 +232,19 @@ lg_load:                                ; the file's entry of the DIY's clubs ->
     inc edx
     cmp edx, ecx
     jb .c
-    mov eax, edi
+    test byte [esi + 3], 80h            ; 4.0.5: the host table (club indices, as the file's)
+    jz .t
+    add ebx, ecx
+    movzx ecx, byte [esi + 1]
+    mov [LGB + 3], cl
+    imul ecx, ecx
+    xor edx, edx
+.y: mov al, [ebx + edx]
+    mov [LGB + TAB_ + edx], al
+    inc edx
+    cmp edx, ecx
+    jb .y
+.t: mov eax, edi
     mov [LGB], al
     mov [esp + 28], eax
     popad
@@ -201,9 +252,15 @@ lg_load:                                ; the file's entry of the DIY's clubs ->
 .n: movzx eax, byte [esi + 1]
     movzx ecx, byte [esi + 2]
     movzx edx, byte [esi + 3]
+    and dl, 7Fh
     imul ecx, edx
+    test byte [esi + 3], 80h
     lea esi, [esi + 4 + eax * 2]
     lea esi, [esi + ecx * 2]
+    jz .n2
+    imul eax, eax
+    add esi, eax
+.n2:
     inc edi
     dec ebp
     jmp .e
@@ -253,6 +310,47 @@ lg_pair:                                ; replaces split's `call sp_pair` (cseg_
     popad
     jmp SP_PAIR
 
+lg_mx:                                  ; 4.0.5 split's matrix lookup (sp_rows, esi = DIY): rows eax / ebx of a
+    cmp esi, DIY                        ; post-split pair -> CF + cl from the real list's host table (1 eax at home,
+    jne .no                             ; 0 ebx, 2 the calendar's); no table / no real list -> no CF (split's matrix)
+    cmp word [DIY + MK_], 474Ch
+    jne .no
+    pushad
+    mov cl, [DIY + MK_ + 2]
+    cmp cl, [LGB]
+    jne .n
+    movzx ebp, byte [LGB + 3]
+    test ebp, ebp
+    jz .n
+    call .ix
+    jc .n
+    mov edi, ecx
+    mov eax, ebx
+    call .ix
+    jc .n
+    imul edi, ebp
+    add edi, ecx
+    mov cl, [LGB + TAB_ + edi]
+    mov [esp + 24], cl                  ; (pushad's ecx)
+    popad
+    stc
+    ret
+.n: popad
+.no:
+    clc
+    ret
+.ix:                                    ; al = row -> ecx = the club's index (CF: none)
+    xor ecx, ecx
+.l: cmp [LGB + MAP_ + ecx], al
+    je .f
+    inc ecx
+    cmp ecx, ebp
+    jb .l
+    stc
+    ret
+.f: clc
+    ret
+
 LGFILE: db 'data\lgreal.dat', 0
 """
 
@@ -278,7 +376,7 @@ def patch(p, at, limit, buf, buf_len, lgb):
     syms = {'GAMETYPE': ss['GAMETYPE'], 'W_REC': (1, careerworld.LABELS['w_rec']), 'SEASONPLAYING': (2, cw['season']),
             'SLT': cw['slt'], 'WORLD_BYTE': (0, careerworld.WORLD_BYTE), 'DIY': (2, s36['DIY']),
             'A1': (2, a0 + 4), 'A2': (2, a0 + 8), 'SP_INIT': (1, calls['init'][1]), 'SP_PAIR': (1, calls['swap'][1]),
-            'MK_': (0, MK), 'MAP_': (0, MAP_AT), 'LGB': (2, lgb), 'BUF': (2, buf), 'BUFLEN_': (0, buf_len)}
+            'MK_': (0, MK), 'MAP_': (0, MAP_AT), 'TAB_': (0, TAB_AT), 'LGB': (2, lgb), 'BUF': (2, buf), 'BUFLEN_': (0, buf_len)}
     code, fix = nasmcave.assemble(ASM, at, syms)
     lab = nasmcave.labels(ASM, at, syms)
     assert at + len(code) <= limit, f'lgreal: {at + len(code):#x} > {limit:#x}'
@@ -288,5 +386,8 @@ def patch(p, at, limit, buf, buf_len, lgb):
     for k, lb in (('init', 'lg_init'), ('swap', 'lg_pair')):
         site = calls[k][0]
         p.put(1, site + 1, struct.pack('<i', lab[lb] - (site + 5)))
+    if split.MXH:                                         # (4.0.5: split's matrix lookup -> lg_mx)
+        assert p.get(1, split.MXH[0], 1) == b'\xe8', split.MXH
+        p.put(1, split.MXH[0] + 1, struct.pack('<i', lab['lg_mx'] - (split.MXH[0] + 5)))
     print(f'exe: real league calendars (season 1, {NAME}): {len(entries())} leagues, code obj1+{at:#x} ({len(code)} B)')
     return at + len(code)

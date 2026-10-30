@@ -8946,7 +8946,7 @@ def world_games_mkd():
     keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K',
                                             'W8485_NOSACK', 'W8485_DIY', 'W8485_TMO', 'W8485_SLOTS')}
     os.environ.update(W8485_BUILD=b, W8485_WORLD='MONDO 2026-27', W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1',
-                      W8485_TEAM=os.environ.get('MKD_TEAM', 'EUROPA,MACEDONIA N.,SKOPJE'),
+                      W8485_TEAM=os.environ.get('MKD_TEAM', 'EUROPA,ALTRE NAZIONI,MACEDONIA N.,SKOPJE'),   # (release builds: Europe overflows into ALTRE NAZIONI)
                       W8485_DIY=f"{sa['DIY']:x},{split.ST:x},{sa['CAL']:x},{n:x}", W8485_TMO='600',
                       W8485_SLOTS=f"{sa['SLOTS']:x}")
     try:

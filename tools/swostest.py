@@ -15182,6 +15182,8 @@ def stage_zones_data():
     errs = [f'{k!r}: {got.get(k)} (want {v})' for k, v in want.items() if got.get(k) != v]
     return not errs, '; '.join(errs) or f'{len(got)} stage keys, MX / ARG / URU as their play-offs'
 
+
+@scenario
 def career_homefirst():
     """4.0.5 (Davide) the career fixture list shows the home team first (homefirst.py: cglm_team_control kept 0): on
     a loaded Mexico career (HF_CAR, default Davide's MEX.CAR at AMERICA, the Clausura with played and unplayed rows,

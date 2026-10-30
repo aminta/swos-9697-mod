@@ -4746,6 +4746,116 @@ def bench_squad(s, scr, bx, cmp_, cnp, errs, info, mark, woff=4, box=30, row1=13
     check(win() == 0, f'{tag}: window not back to 0 ({win()})', errs)
 
 
+def bench_view(s, bx, cmp_, cnp, ct, errs, info, mark):
+    """(4.0.6) ViewSquad with the managed club (TRASFERIMENTI > AGG. GIOCATORE AL CALCIOMERC.: the game's own squad
+    view, rows = entries 4..20, the box = entry 21): with a bench over 5 rows 12..17 are a window (bx_vw =
+    bx_bench + 114) on places 12..: the box moves it one down (0 .. players - 17, then back to 0), the order is not
+    rotated; down on row 17 / up on row 12 move it too (the cursor stays); fire on row 17 at window 5 picks place 22
+    (the next screen shows his name)."""
+    r = s.result
+    n = struct.unpack('<H', r.obj2(cnp, 2))[0]
+    order0 = r.obj2(cmp_, n)
+
+    def name(place):
+        q = order0[place]
+        slot = ct + (76 + q * 38 if q < 16 else 684 + (q - 16) * 38)
+        return s.result.obj2(slot + 3, 22).split(b'\0')[0].decode('latin-1')
+
+    def win():
+        r_ = s.result
+        return struct.unpack('<H', r_.read(r_.base1 + bx + 114, 2))[0]
+
+    def goto(t):
+        for _ in range(24):
+            q = s.screen()
+            if q.selected == t:
+                return True
+            s.send(' '.join(k + ':0.15' for k in (q.path(t) or [])) + ' dump:0.4')
+        return False
+    q = s.screen()
+    mark('view: sel %s ' % q.selected + ', '.join(f'{e[0]}:{e[1]}' for e in q.entries if e[1])[:300])
+    vis = [e[0] for e in q.entries if not e[2]]
+    check(20 in vis and 21 in vis, f'view: row 17 / the box not visible ({vis})', errs)
+    check(goto(21), f'view: the box not reached ({s.screen().selected})', errs)
+    steps = []
+    for k in range(n - 16 + 1):
+        steps.append(win())
+        if k in (0, 5, n - 17):
+            s.shot(f'view_win{win():02d}')
+        s.send('fire:0.3 dump:0.6')
+    info.append(f'view window {steps}')
+    check(steps == list(range(n - 16)) + [0], f'view window steps {steps}', errs)
+    check(s.result.obj2(cmp_, n) == order0, 'view: the order changed by the window (a rotation?)', errs)
+    check(goto(20), 'view: row 17 not reached', errs)
+    w0 = win()                              # (the box loop's last fire moved it once more)
+    seen = []
+    for _ in range(3):
+        s.send('down:0.3 dump:0.4')
+        seen.append((win(), s.screen().selected))
+    check(seen == [(w0 + k, 20) for k in (1, 2, 3)], f'view: down on row 17 from {w0} (window, selected) {seen}', errs)
+    for _ in range(5):
+        s.send('up:0.3 dump:0.4')
+    s.send('up:0.3 dump:0.4')
+    w1, sel1 = win(), s.screen().selected
+    check((w1, sel1) == (w0 + 2, 15), f'view: up on row 12 (window, selected) {(w1, sel1)}', errs)
+    info.append(f'view cursor scroll: down {[w for w, _ in seen]}, up on row 12 -> {w1}')
+    for _ in range(3):                      # window 5 by the cursor: row 17 = place 22
+        goto(20)
+        while win() < 5:
+            s.send('down:0.3 dump:0.4')
+    check(win() == 5 and s.screen().selected == 20, f'view: window 5 on row 17 ({win()}, {s.screen().selected})', errs)
+    s.shot('view_pick')
+    want = name(21)
+    s.send('fire:0.3 dump:1')
+    t = s.screen().texts()
+    got = any(want in x for x in t)
+    info.append(f'view: row 17 at window 5 -> {want!r} {"shown" if got else "NOT shown"} ({t[:6]})')
+    check(got, f'view: row 17 at window 5 did not pick place 22 {want!r}: {t[:10]}', errs)
+    s.shot('view_picked')
+    mark(info[-1])
+
+
+def bench_et(s, o, gmax, bx, errs, info, mark):
+    """(4.0.6) UpdateTime's StartFirstExtraTime -> benchx bx_et: gameMinSubstitutes + the competition's extra-time
+    substitute. Forced: bx_lketk (bx_bench + 117, bx_look's cached 'et' of this competition) poked 1, the game's
+    extraTimeState 1, both teams' goals 0, the clock at minute 89 (gameTime bytes +1..+3 = hundreds, tens, units):
+    at minute 90 the match goes to extra time (extraTimeState -1) and the substitutions allowed are one more.
+    Needs BENCH_REAL (no bx_bench poke): the kick-off's bx_look caches the title, else extra time looks it up afresh
+    and the poked flag is reset."""
+    c = o.le.obj_bytes(1)
+    rel = lambda x: x + 5 + struct.unpack_from('<i', c, x + 1)[0]
+    m = [x.start() for x in re.finditer(rb'\x66\xc7\x05....\xff\xff\xe8....\xe9', c, re.S)]
+    m = [x for x in m if c[rel(x + 9):rel(x + 9) + 3] == b'\x66\xc7\x05' and c[rel(x + 9) + 7:rel(x + 9) + 10] == b'\x01\x00\xe8']
+    ets = o.target(1, m[0] + 3)[1]
+    g = [x.start() for x in re.finditer(rb'\x81\x3d....\x00\x00\x09\x00\x0f\x85', c, re.S)][0]
+    gt = o.target(1, g + 2)[1]
+    w = re.search(rb'\x66\xa1....\x66\xa3....\x66\xa1....\x66\xa3....\x66\xa1(....)\x66\xa3....\x66\xa1(....)\x66\x39\x05',
+                  c[g:g + 0x80], re.S)
+    s1, s2, t1, t2 = (o.target(1, g + k)[1] for k in (w.start() + 2, w.start() + 14, w.start(1), w.start(2)))
+    r = s.result
+    g0 = struct.unpack('<H', r.obj2(gmax - 2, 2))[0]
+    s.poke(r.base1 + bx + 117, b'\x01')
+    s.poke(r.base2 + ets, struct.pack('<H', 1))
+    for a in (s1, s2, t1, t2):
+        s.poke(r.base2 + a, b'\0\0')
+    s.poke(r.base2 + gt, bytes((0, 0, 8, 9)))
+    seen = []
+    for _ in range(30):                     # (fire: the kick-off waits for the human team's player)
+        r = s.send('fire:0.2 dump:2')
+        if r.outcome != 'dump':
+            break
+        st = struct.unpack('<h', r.obj2(ets, 2))[0]
+        gm = struct.unpack('<H', r.obj2(gmax - 2, 2))[0]
+        seen.append((r.obj2(gt + 1, 3).hex(), st, gm))
+        if st == -1:
+            break
+    s.shot('extratime')
+    info.append(f'extra time: substitutions {g0} at the kick-off, (clock, extraTimeState, allowed) {seen[-3:]}')
+    mark(info[-1])
+    check(seen and seen[-1][1] == -1 and seen[-1][2] == g0 + 1,
+          f'extra time: want extraTimeState -1 and {g0 + 1} substitutions, seen {seen}', errs)
+
+
 def bench_oppo(s, scr, bx, wants, errs, info, mark):
     """(4.0.6, Davide's PANpt4 photo: VIEW OPPONENT showed a CPU club's 11 + 5 only) the pre-match screen's AVVERSARI:
     with a bench over 5 the CPU opponent's places 12.. (16 + its XTRA block's players, at most 26) in a window of 6
@@ -4971,8 +5081,8 @@ def bench_play(s, gmax, top, bot, wants, errs, info, mark, sub=None, icons=None,
         import benchx
         spr = namespr.find(o)['spridx']
         for t, (name, pl) in enumerate(teams):
-            if name in wants and wants[name] > 16:
-                sp = n14_sprites(r, spr, ega, benchx.NB + 10 * t, min(wants[name], 26) - 16)
+            if name in wants and min(wants[name], cap) > 16:   # (the match's places: 11 + its bench)
+                sp = n14_sprites(r, spr, ega, benchx.NB + 10 * t, min(wants[name], cap) - 16)
                 ends = [max((max(x) for x in rows if x), default=-1) for *_, rows in sp]
                 info.append(f'{name}: name sprites of places 17..: {len(sp)}, ends {ends}')
                 out = wants.get('-', set())  # (2: a left-out place's sprite is not checked)
@@ -4985,6 +5095,9 @@ def bench_play(s, gmax, top, bot, wants, errs, info, mark, sub=None, icons=None,
         check(b0 and all(p for p, _, _ in b0), f'the bald icons not built on the squad screen: {b0}', errs)
         check(icons['kickoff'] == b0, f'the bald icons changed at the kick-off: {b0} -> {icons["kickoff"]}', errs)
     s.shot('kickoff')
+    if os.environ.get('BENCH_ET') and sub:  # (4.0.6) the extra-time substitute: the competition's et flag poked (bx_look's
+        bench_et(s, o, gmax, sub[0], errs, info, mark)   # cache), the match forced into extra time
+        return True                         # (BENCH_REAL's bench, often 5: the bench-15 checks below do not apply)
     bench, lists = 0, 0
     for k in range(40):                     # the bench (PgUp / PgDn) and its list (fire), as subs_numbers: seen on screen
         r = s.send(('pgdn' if k % 2 else 'pgup') + ':0.3 dump:0.5')
@@ -5150,6 +5263,20 @@ def bench_world():
                     s.poke(s.result.base2 + h + 27, bytes(((o2[h + 27] & 0x03) | v,)))
                 wants['-'].add(k)
                 info.append(f'place {k + 1} {nm.decode("latin-1")} (squad {q}) cardsInjuries -> {v:#04x} x{len(hits)}')
+        if os.environ.get('BENCH_VIEW'):    # (4.0.6) ViewSquad with the managed club: its window (bx_vw)
+            for _ in range(3):
+                if 'TRASFERIMENTI' in s.screen().texts():
+                    break
+                s.send('fire:0.5 dump:1')
+            if press(s, s.screen(), 'TRASFERIMENTI') is None or press(s, s.screen(), 'AGG. GIOCATORE AL CALCIOMERC.') is None:
+                errs.append('AGG. GIOCATORE AL CALCIOMERC. not reached')
+            else:
+                bench_view(s, bx, cmp, cnp, ct, errs, info, mark)
+            for _ in range(8):
+                q = s.screen()
+                if 'PARTITA' in q.texts() and 'TRASFERIMENTI' in q.texts():
+                    break
+                press(s, q, 'ESCI') if 'ESCI' in q.texts() else s.send('esc:0.3 dump:0.6')
         if os.environ.get('BENCH_SQUAD') == '2':   # the career menu's SQUADRA (squadMenu): its window (bx_sq)
             for _ in range(3):              # (the chairman's letter first)
                 if 'SQUADRA' in s.screen().texts():
@@ -5176,7 +5303,8 @@ def bench_world():
     if real:                                # (phase 2) the competition's bench / substitutions at the kick-off
         k = [x for x in info if x.startswith('kick-off named:used')]
         check(k and k[0].endswith(f' {real}'), f'real rule: {k} (want {real})', errs)
-    check('squad screen: GIOCA PARTITA' in info, 'not played as a player-coach (no GIOCA PARTITA)', errs)
+    check('squad screen: GIOCA PARTITA' in info or any(x.startswith('kick-off named:used') for x in info),
+          'not played as a player-coach (no GIOCA PARTITA, no kick-off)', errs)   # (EN / FR / DE: the label differs)
     return not errs, '; '.join(errs + info)
 
 

@@ -1,0 +1,259 @@
+{
+ "_doc": "Panchina phase 2: World 2026-27 named substitutes per competition (fase2.md: official text or observed max of 24 real 2026-27 team sheets; null = unknown -> the game's original bench of 5). Keys = the world packs' country dirs and competition keys; a league = one value per division (pack order). 'used' = substitutions allowed (5 everywhere found); 'et' = extra substitute in extra time (1 where the rule is known). Owner: SWOS Panchina. 'continental': the cup's name as the game writes it (a contest without a country: ' ' + name, or the name).",
+ "used": 5,
+ "countries": {
+  "eng": {
+   "league": [
+    9,
+    9,
+    7,
+    7
+   ],
+   "cup": null,
+   "league_cup": 9
+  },
+  "ita": {
+   "league": [
+    15,
+    12,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null
+   ],
+   "cup": 15,
+   "league_cup": null
+  },
+  "esp": {
+   "league": [
+    12,
+    12
+   ],
+   "cup": null
+  },
+  "ger": {
+   "league": [
+    9,
+    9,
+    null
+   ],
+   "cup": 9
+  },
+  "fra": {
+   "league": [
+    9,
+    10
+   ],
+   "cup": null
+  },
+  "por": {
+   "league": [
+    12,
+    null
+   ],
+   "cup": null,
+   "league_cup": null
+  },
+  "ned": {
+   "league": [
+    12,
+    12
+   ],
+   "cup": null
+  },
+  "bel": {
+   "league": [
+    10
+   ],
+   "cup": null
+  },
+  "tur": {
+   "league": [
+    10,
+    null
+   ],
+   "cup": null
+  },
+  "sco": {
+   "league": [
+    9,
+    9,
+    null,
+    null
+   ],
+   "cup": null,
+   "league_cup": 9
+  },
+  "gre": {
+   "league": [
+    12
+   ],
+   "cup": null
+  },
+  "aut": {
+   "league": [
+    9
+   ],
+   "cup": null
+  },
+  "den": {
+   "league": [
+    9
+   ],
+   "cup": null
+  },
+  "swe": {
+   "league": [
+    9
+   ],
+   "cup": null
+  },
+  "nor": {
+   "league": [
+    9
+   ],
+   "cup": null
+  },
+  "rus": {
+   "league": [
+    12
+   ],
+   "cup": null
+  },
+  "usa": {
+   "league": [
+    9
+   ],
+   "cup": null
+  },
+  "mex": {
+   "league": [
+    10,
+    null
+   ]
+  },
+  "bra": {
+   "league": [
+    12,
+    null
+   ],
+   "cup": null
+  },
+  "arg": {
+   "league": [
+    12,
+    null,
+    null
+   ],
+   "cup": 12
+  },
+  "col": {
+   "league": [
+    9
+   ],
+   "cup": null
+  },
+  "ecu": {
+   "league": [
+    12
+   ],
+   "cup": null
+  },
+  "chi": {
+   "league": [
+    9
+   ],
+   "cup": null,
+   "league_cup": null
+  },
+  "per": {
+   "league": [
+    9
+   ],
+   "cup": null
+  },
+  "jpn": {
+   "league": [
+    9,
+    null
+   ],
+   "cup": null,
+   "league_cup": null
+  },
+  "ksa": {
+   "league": [
+    9
+   ],
+   "cup": null
+  },
+  "chn": {
+   "league": [
+    12
+   ],
+   "cup": null
+  },
+  "aus": {
+   "league": [
+    7,
+    null,
+    null,
+    null
+   ],
+   "cup": null
+  },
+  "ind": {
+   "league": [
+    9,
+    null
+   ],
+   "cup": null
+  },
+  "rsa": {
+   "league": [
+    10
+   ],
+   "cup": null,
+   "league_cup": null
+  }
+ },
+ "continental": {
+  "UEFA CHAMPIONS LEAGUE": {
+   "named": 12,
+   "et": 1,
+   "source": "UCL regulations 2026/27 Art. 55.01 / 56.02"
+  },
+  "UEFA EUROPA LEAGUE": {
+   "named": 12,
+   "et": 1,
+   "source": "observed (ESPN); UEFA Art. 56 as UCL expected"
+  },
+  "UEFA CONFERENCE LEAGUE": {
+   "named": 12,
+   "et": 1,
+   "source": "observed (ESPN); UEFA Art. 56 as UCL expected"
+  },
+  "COPA LIBERTADORES": {
+   "named": 12,
+   "et": 0,
+   "source": "CONMEBOL 2026 (elgrafico guide) + observed"
+  },
+  "COPA SUDAMERICANA": {
+   "named": 12,
+   "et": 0,
+   "source": "observed (ESPN)"
+  },
+  "AFC CHAMPIONS LEAGUE ELITE": {
+   "named": 12,
+   "et": 0,
+   "source": "observed (ESPN)"
+  }
+ }
+}

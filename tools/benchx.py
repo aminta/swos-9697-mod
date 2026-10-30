@@ -64,12 +64,19 @@ from 12 on, scrolled by the box left of row 17), 4.0.6 (Davide 31/10):
   bx_next: a career's CPU club), at most 11 + the bench; rows 12..17 a window bx_po on them (pm_row; row 17 = entry
   29 made visible, the game shows it by the own team's count), read-only: on a CPU club's view up / down anywhere move
   the window one place (bx_mdir, wrapping as the box), nothing else changes.
+- (4.0.6) ViewSquad (the game's squad view: AGG. GIOCATORE AL CALCIOMERC., offers, ...; the box and row 17 only for the
+  managed club) and SelectNationalTeam (the national call-ups, careerTeam, at most 20 players: the game's per-player
+  tables there, dseg_D6F48 / dseg_D6F98, hold 20): rows 12..17 a window bx_vw on the places from 12 on, as SQUADRA.
+  vw_cmp (their AfterDrawCommon's `cmp word [D1], 10h`: row -> place in D1 / D6, no number from 11 + bench on),
+  vw_gpi (their Common's GetPlayerInfoBreakPosition: the picked row -> its place), vw_rot (the box: the window one down
+  with a bench over 5, else the game's rotation), bx_mdir (the cursor on rows 12 / 17), vw_vinit (ViewSquad's entry:
+  the window kept only when it comes back to a bench row of the managed club) and vw_ninit (the call-ups: at the top).
 
 Phase 2 (4.0.6): each competition's real rule (internal/panchina/fase2.md: official 2026-27 texts or the largest bench
 seen in real 2026-27 team sheets). bench_table() builds, per exe language, a table of the World 2026-27 competitions
 with a known bench: title (the country's button name + ' ' + the competition's / division's first name: what the game
 shows, FORMAT's key; 40 characters at most), named substitutes, substitutions allowed, extra-time substitute (stored,
-not used yet), from internal/panchina/bench2627.json x the world's career packs in SEASON_PACKS (none: no table, the
+used at extra time: bx_et), from tools/bench2627.json x the world's career packs in SEASON_PACKS (none: no table, the
 game's rule everywhere). bx_look (careers only) finds the current competition's title (DIY_competitionStart + 4, as at
 the kick-off of InitializeInGameTeamsAndStartGame: e.g. ITALIA SERIE D GIRONE A) in it, cached by title; bx_max takes
 its bench (else the game's: a career league passes its record's +65h, 5), bx_min (`mov [gameMinSubstitutes], ax`) its
@@ -132,7 +139,8 @@ bx_min:                                 ; (phase 2) replaces `mov [GMIN], ax`: t
 
 bx_look:                                ; (phase 2) [bx_lkres] = the current competition's (named subs, subs used), 0 0 =
     pushad                              ; not in the table (the game's rule). Careers only: the current competition =
-    mov word [bx_lkres], 0              ; DIY_competitionStart, its title at +4 (the slot's name, as FORMAT's key)
+    mov word [bx_lkres], 0              ; DIY_competitionStart, its title at +4 (the slot's name, as FORMAT's key);
+    mov byte [bx_lket], 0               ; [bx_lket] = its extra-time substitute (4.0.6)
     cmp word [GAMETYPE], 4
     jne .out
     cmp byte [SLT + WORLD_BYTE_], BXWORLD_   ; the career's world (careerworld's save byte): the 2026-27 one only (the
@@ -143,6 +151,8 @@ bx_look:                                ; (phase 2) [bx_lkres] = the current com
     jne .new
     mov ax, [bx_lkkeep]
     mov [bx_lkres], ax
+    mov al, [bx_lketk]
+    mov [bx_lket], al
     jmp .out
 .new:
     mov esi, DIYNAME                    ; remember the title (up to its NUL, at most 40 characters)
@@ -157,6 +167,7 @@ bx_look:                                ; (phase 2) [bx_lkres] = the current com
     mov byte [edi], 0
 .cpd:
     mov word [bx_lkkeep], 0
+    mov byte [bx_lketk], 0
     mov ecx, [bx_tabn]
     mov edx, bx_tab
 .f:
@@ -171,12 +182,24 @@ bx_look:                                ; (phase 2) [bx_lkres] = the current com
 .hit:
     mov ax, [edx + 41]
     mov [bx_lkkeep], ax
+    mov al, [edx + 43]
+    mov [bx_lketk], al
 .found:
     mov ax, [bx_lkkeep]
     mov [bx_lkres], ax
+    mov al, [bx_lketk]
+    mov [bx_lket], al
 .out:
     popad
     ret
+
+bx_et:                                  ; (4.0.6) UpdateTime's `call StartFirstExtraTime`: the competition's extra-time
+    push eax                            ; substitute (UEFA: a 6th in extra time, bench2627.json 'et') added to the
+    call bx_look                        ; substitutions allowed (gameMinSubstitutes, set again at every kick-off)
+    movzx ax, byte [bx_lket]
+    add [GMIN], ax
+    pop eax
+    jmp SFET
 
 bx_streq:                               ; ZF = 1: the strings at esi and edi are equal up to the NUL, or in their first
     push ecx                            ; 40 characters (a longer title: the table keeps 40, as FORMAT's keys)
@@ -1038,7 +1061,7 @@ bx_mdir:                                ; MenuProc's `mov [D6], ax` (the move in
     jmp .w
 .et:
     cmp eax, ETCOMMON
-    jne .no
+    jne .vs
     sub ebx, 11                         ; entries 11..27
     mov esi, bx_tw
     movzx eax, word [ETNP]
@@ -1071,6 +1094,23 @@ bx_mdir:                                ; MenuProc's `mov [D6], ax` (the move in
     pop ebx
     pop eax
     ret
+.vs:                                    ; (4.0.6) ViewSquad: entries 4..20, the managed club's players (else 16)
+    cmp eax, VSCOMMON
+    jne .nt
+    sub ebx, 4
+    mov esi, bx_vw
+    mov eax, 16
+    cmp dword [VSTEAM], CT
+    jne .w
+    movzx eax, word [CNP]
+    jmp .w
+.nt:                                    ; SelectNationalTeam: entries 8..24, careerTeam (at most 20)
+    cmp eax, NTCOMMON
+    jne .no
+    sub ebx, 8
+    mov esi, bx_vw
+    movzx eax, word [CNP]
+    jmp .w
 
 rot_d0:                                 ; ViewSquadOnSelect21 / SelectNationalTeamOnSelect25: replaces `mov word [D0], 5`
     push eax                            ; (RotatePlayersLeft's first place - 11): with a bench over 5 the rotation starts
@@ -1078,6 +1118,89 @@ rot_d0:                                 ; ViewSquadOnSelect21 / SelectNationalTe
     sub ax, 11
     mov [D0], ax
     pop eax
+    ret
+
+; (4.0.6) ViewSquad and SelectNationalTeam (the national call-ups): rows 12..17 a window bx_vw on the places from 12
+; on, as SQUADRA (the box left of row 17 and the cursor move it); the rows' place = row + bx_vw from row 12 on
+vw_cmp:                                 ; their AfterDrawCommon: replaces `cmp word [D1], 10h` (D1 = the row, D6 = row + 1;
+    cmp word [D1], 11                   ; jnz follows, ZF = 1: no number, the game's 17th row): D1 / D6 -> the place,
+    jb .p                               ; ZF = 1 for a place >= 11 + bench
+    push eax
+    mov ax, [bx_vw]
+    add [D1], ax
+    add [D6], ax
+    pop eax
+.p:
+    push eax
+    call sq_n
+    cmp [D1], ax
+    jb .no
+    cmp eax, eax
+    pop eax
+    ret
+.no:
+    test esp, esp
+    pop eax
+    ret
+
+vw_gpi:                                 ; their Common's `call GetPlayerInfoBreakPosition` (D1 = the row): the place
+    cmp word [D1], 11
+    jb .g
+    push eax
+    mov ax, [bx_vw]
+    add [D1], ax
+    pop eax
+.g:
+    jmp GPI
+
+vw_rot:                                 ; ViewSquadOnSelect21 / SelectNationalTeamOnSelect25's `call RotatePlayersLeft`
+    push eax                            ; (the box: only for the managed club / careerTeam): a bench over 5 = the
+    call sq_n                           ; window one down (back to the top after the last), the whole menu redrawn
+    cmp ax, 16
+    pop eax
+    jbe ROTATE
+    push eax
+    push ebx
+    mov ax, [bx_vw]
+    inc ax
+    mov bx, [CNP]
+    sub bx, 17
+    cmp ax, bx
+    jle .ok
+    xor eax, eax
+.ok:
+    mov [bx_vw], ax
+    pop ebx
+    pop eax
+    add esp, 4
+    jmp DRAWMENU
+
+vw_vinit:                               ; ViewSquad's entry (cseg_53F43): replaces `mov [dseg_17A470], ax` (the row to
+    mov [VSROW], ax                     ; select, D3): the window kept only when it returns to a bench row of the
+    cmp ax, 11                          ; managed club (as far as its players go), else at the top
+    jl .z
+    cmp dword [VSTEAM], CT
+    jne .z
+    push eax
+    mov ax, [CNP]
+    sub ax, 17
+    cmp [bx_vw], ax
+    jle .k
+    mov [bx_vw], ax
+.k:
+    cmp word [bx_vw], 0
+    jge .k2
+    mov word [bx_vw], 0
+.k2:
+    pop eax
+    ret
+.z:
+    mov word [bx_vw], 0
+    ret
+
+vw_ninit:                               ; SelectNationalTeamInit: replaces `mov dword [dseg_17BA3A], 0`: the window at
+    mov dword [NTSEL], 0                ; the top
+    mov word [bx_vw], 0
     ret
 
 bx_t: dd 0
@@ -1106,6 +1229,9 @@ bx_stn: dd 0                            ; the pages after the first
 bx_st16: dw 0                           ; entries 31 / 58 (row 16) invisible on the first page (bytes)
 bx_stlog: times 10 dd 0                 ; the last page's rows 12..16 (team 1, team 2): name pointers, 0 = hidden
 bx_strel: db 0                          ; fire seen released during the pages
+bx_vw: dw 0                             ; (4.0.6) ViewSquad / the national call-ups' window
+bx_lket: db 0                           ; (4.0.6) bx_look: the competition's extra-time substitute (bx_vw + 2)
+bx_lketk: db 0                          ; its cached value
 align 2
 bx_table:
 %assign i 0
@@ -1400,6 +1526,58 @@ def sites8(p, regs, s4, s5, s6):
     return dict(mdir=m[0], SQCOMMON=(1, sq[0]), ETCOMMON=(1, et[0]), ONSWAP=(1, s5['onswap']), PMT2=s5['PMT2'])
 
 
+def sites9(p, regs, s4, s6, ct, cnp):
+    """(4.0.6) ViewSquad and SelectNationalTeam (the national call-ups): the same window as SQUADRA."""
+    d = p.le.obj_bytes(1)
+    pk = lambda x: re.escape(struct.pack('<I', x))
+    d7, a0 = regs['D7'], regs['A0']
+    d0, d1, d2, d3, d6 = d7 - 28, d7 - 24, d7 - 20, d7 - 16, d7 - 4
+    gpi = s4['gpi_t']
+    rel = lambda o: o + 5 + struct.unpack_from('<i', d, o + 1)[0]
+    # both AfterDrawCommon: mov [D1], ax / add word [D6], 1 / cmp word [D1], 10h / jnz
+    c = [x.start() + 14 for x in re.finditer(rb'\x66\xa3' + pk(d1) + rb'\x66\x83\x05' + pk(d6) + rb'\x01\x66\x83\x3d'
+                                              + pk(d1) + rb'\x10\x75', d)]
+    assert len(c) == 2, ('ViewSquad / SelectNationalTeam AfterDrawCommon', c)
+    # ViewSquadCommon: mov eax, [squadTeamPtr] / mov [A0], eax / call GPI / mov ax, [D1] / mov [dseg_17A474], ax / jmp
+    v = [x for x in re.finditer(rb'\xa1(....)\xa3' + pk(a0) + rb'\xe8....\x66\xa1' + pk(d1) + rb'\x66\xa3....\xe9', d, re.S)
+         if rel(x.start() + 10) == gpi]
+    assert len(v) == 1, ('ViewSquadCommon', v)
+    vg, vsteam = v[0].start() + 10, struct.unpack('<I', v[0].group(1))[0]
+    # SelectNationalTeamCommon: mov dword [A0], careerTeam / call GPI / mov ax, [dseg_17BA48] / or ax, ax / jz
+    n = [x.start() + 10 for x in re.finditer(rb'\xc7\x05' + pk(a0) + pk(ct) + rb'\xe8....\x66\xa1....\x66\x0b\xc0\x74', d, re.S)
+         if rel(x.start() + 10) == gpi]
+    assert len(n) == 1, ('SelectNationalTeamCommon', n)
+    # the Commons' starts (their entries' onSelect): push dword [D0] / mov dword [D0], 4 (8) / call CalcMenuEntryAddress
+    def start(o, e):
+        m = [x.start() for x in re.finditer(rb'\xff\x35' + pk(d0) + rb'\xc7\x05' + pk(d0) + bytes([e]) + rb'\x00\x00\x00\xe8', d)
+             if 0 < o - x.start() < 0x80]
+        assert len(m) == 1, ('Common start', e, m)
+        return m[0]
+    # cseg_53F43 (ViewSquad's entry): mov ax, [D2] / mov [dseg_17A46E], ax / mov ax, [D3] / mov [dseg_17A470], ax
+    i = [x.start() + 18 for x in re.finditer(rb'\x66\xa1' + pk(d2) + rb'\x66\xa3....\x66\xa1' + pk(d3) + rb'\x66\xa3', d, re.S)]
+    i = [o for o in i if re.search(rb'\x66\xa1' + pk(d3) + rb'\x66\xa3' + re.escape(d[o + 2:o + 6]), d[o + 6:o + 0x200])]
+    assert len(i) == 1, ('cseg_53F43', i)                    # (its D3 read back after ShowMenu: the same address)
+    # SelectNationalTeamInit: mov dword [dseg_17BA3A], 0 / mov word [dseg_17BA48], 0 / cmp word [careerNumPlayers], 20
+    ni = [x.start() for x in re.finditer(rb'\xc7\x05....\x00\x00\x00\x00\x66\xc7\x05....\x00\x00\x66\x83\x3d' + pk(cnp)
+                                          + rb'\x14\x74', d, re.S)]
+    assert len(ni) == 1, ('SelectNationalTeamInit', ni)
+    rots = [o + 9 for o in s6['rot5']]
+    assert all(d[o] == 0xe8 and rel(o) == s4['rot_t'] for o in rots), 'ViewSquad / national RotatePlayersLeft calls'
+    return dict(cmp=c, gpi=[vg, n[0]], rot=rots, vinit=i[0], ninit=ni[0], VSCOMMON=(1, start(vg, 4)),
+                NTCOMMON=(1, start(n[0], 8)), VSTEAM=(2, vsteam), VSROW=p.target(1, i[0] + 2), NTSEL=p.target(1, ni[0] + 2))
+
+
+def sites10(p):
+    """(4.0.6) UpdateTime: mov word [extraTimeState], -1 / call StartFirstExtraTime (mov word [halfNumber], 1 / ...)
+    / jmp; the call's offset, StartFirstExtraTime."""
+    d = p.le.obj_bytes(1)
+    rel = lambda o: o + 5 + struct.unpack_from('<i', d, o + 1)[0]
+    m = [x.start() + 9 for x in re.finditer(rb'\x66\xc7\x05....\xff\xff\xe8....\xe9', d, re.S)]
+    m = [o for o in m if d[rel(o):rel(o) + 3] == b'\x66\xc7\x05' and d[rel(o) + 7:rel(o) + 10] == b'\x01\x00\xe8']
+    assert len(m) == 1, ('StartFirstExtraTime call', m)
+    return m[0], rel(m[0])
+
+
 def sites6(p, regs, s4):
     """The tactics editor's player list (task 1): the same window."""
     d = p.le.obj_bytes(1)
@@ -1488,12 +1666,12 @@ def refs(p, tobj, lo, hi):
 BXT = 44                                # a table entry: title 41 (NUL padded), named subs, subs used, extra-time sub
 LOG = []
 BENCH_WORLD = [0]                       # the World 2026-27's career world number (the packs' 'world'), 0 = none
-BENCH_DATA = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'internal', 'panchina', 'bench2627.json')
+BENCH_DATA = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'bench2627.json')   # (4.0.6: in the repo)
 
 
 def bench_table(lang):
     """(phase 2) [(title, named, used, et)] of the World 2026-27 competitions with a known real bench: the career packs
-    of world 5 in SEASON_PACKS x internal/panchina/bench2627.json (absent: none, the game's rule everywhere). The title =
+    of world 5 in SEASON_PACKS x tools/bench2627.json (absent: none, the game's rule everywhere). The title =
     the country's button name in the exe language + ' ' + the competition's (a league: the division's) first name, as
     the game shows it (fmtgame's FORMAT keys)."""
     import json
@@ -1579,6 +1757,10 @@ def patch(p, at, ns_at, lang='it'):
     sym.update({k: s6[k] for k in ('ETSEL', 'ETSELE', 'ETNP')})
     s8 = sites8(p, regs, s4, s5, s6)
     sym.update({k: s8[k] for k in ('SQCOMMON', 'ETCOMMON', 'ONSWAP', 'PMT2')})
+    s9 = sites9(p, regs, s4, s6, ct, cnp)
+    sym.update({k: s9[k] for k in ('VSCOMMON', 'NTCOMMON', 'VSTEAM', 'VSROW', 'NTSEL')})
+    etc, sfet = sites10(p)
+    sym['SFET'] = (1, sfet)
     s7 = sites7(p, regs)
     hasx = 'xt_block' in xtra.LABELS                # (A): a career's CPU clubs, places 16.. from their XTRA blocks
     sym.update({k: s7[k] for k in ('DRAWMENU', 'SETEXIT', 'MENU', 'MCC', 'LASTKEY', 'SHORTFIRE', 'FIRE', 'MCT', 'TOP', 'BOT')})
@@ -1662,8 +1844,13 @@ def patch(p, at, ns_at, lang='it'):
     assert bytes(p.get(1, s8['mdir'], 6)) == d1o[s8['mdir']:s8['mdir'] + 6]
     call9(s8['mdir'], 6, 'bx_mdir', 2)              # (1, 4.0.6) MenuProc: mov [D6], ax (the cursor scroll)
     call9(s5['ready'], 6, 'pm_nr', 2)               # ShowOrHidePlayMatchButton: the same
+    for o in s9['cmp']:                             # (4.0.6) ViewSquad / national call-ups: cmp word [D1], 10h
+        call9(o, 8, 'vw_cmp', 3)
+    call9(s9['vinit'], 6, 'vw_vinit', 2)            # cseg_53F43: mov [dseg_17A470], ax
+    call9(s9['ninit'], 10, 'vw_ninit', 2)           # SelectNationalTeamInit: mov dword [dseg_17BA3A], 0
     rcalls = [(s5['dgpi'], 'pm_gpi'), (s5['rot'], 'pm_rot')] + [(o, 'pm_gpi2') for o in s5['sgpi']]
     rcalls += [(o, 'et_gpi') for o in s6['dgpi']] + [(s6['fgpi'], 'et_gpi2'), (s6['rot'], 'et_rot')]
+    rcalls += [(o, 'vw_gpi') for o in s9['gpi']] + [(o, 'vw_rot') for o in s9['rot']] + [(etc, 'bx_et')]
     if s5['se']:
         rcalls.append((s5['se'], 'pm_gpi2'))        # shirtedit's se_ctl (row -> place)
     for o, lbl in rcalls:                           # call rel32 (no fixup)
@@ -1674,6 +1861,7 @@ def patch(p, at, ns_at, lang='it'):
         p.put(1, lab['bx_bench'], struct.pack('<H', min(bf, 15)))
         print(f'exe: BENCH_FORCE={min(bf, 15)} (test build)')
     assert lab['bx_bench'] - lab['bx_ord'] == 4 + 6 * MAXP   # (the harness finds the tables from bx_bench)
+    assert lab['bx_vw'] - lab['bx_bench'] == 114               # (bench_view reads the window there)
     LABELS.update(lab)
     print(f'exe: bench up to 15 (block 1: in-match teams of {MAXP}; GMAX obj2+{gmax:#x}, loop obj1+{lp:#x}, '
           f'{len(rs)} offset-table refs moved; block 2: bench window of 5, cursor to 15, names of places 17+ on sprites {NB}.. (name tables 26 a team), 3 after-match loops to 11 + bench; code obj1+{at:#x}, {len(code)} B, bx_bench obj1+{lab["bx_bench"]:#x})')

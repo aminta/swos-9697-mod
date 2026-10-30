@@ -16732,7 +16732,7 @@ N14_NAMES = (['ROBERTO_CARLOS', 'LUIS_ENRIQUE', 'SCHWEINSTEIGER', 'JAN STOECKLIN
 
 
 def n14_sprites(r, spr, ega, first=255, n=32):
-    """The in-match name sprites (255..286; benchx's places 17..26: 1910.., 20) as (pixWidth, nlines, wquads, rows of
+    """The in-match name sprites (255..286; benchx's places 17..26: 1912.., 20) as (pixWidth, nlines, wquads, rows of
     lit pixels)."""
     out = []
     for pt in struct.unpack(f'<{n}I', r.read(r.base2 + spr + first * 4, 4 * n)):

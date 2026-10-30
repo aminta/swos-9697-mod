@@ -1006,14 +1006,13 @@ void gp_season(void) {
                 if (v < 0 && !(v == -2 && (legs & 0x80))) ok = 0;
             }
             if (legs & 0x80) {                  /* a group round */
-                static int cm[GT];              /* (rc18: members left out, -2: absent reserves) */
-                static u8 bon[GT];              /* (static: the stack, as ms) */
-                static struct gs cms[GT];
+                static u8 bon[GT];              /* (rc18: members left out, -2: absent reserves - compacted in
+                                                   place, mem / ms: the .bss is full; bon static: the stack, as ms) */
                 int gm2 = 0;
                 for (int i = 0; i < ties && i < GT; i++)
-                    if (mem[i] != -2) { cm[gm2] = mem[i]; bon[gm2] = m[ties + i]; cms[gm2] = ms[i]; gm2++; }
+                    if (mem[i] != -2) { mem[gm2] = mem[i]; bon[gm2] = m[ties + i]; ms[gm2] = ms[i]; gm2++; }
                 if (ok && gm2 <= GT && np + gm2 <= GN) {
-                    group(cm, gm2, legs & 0x7F, host == HOST_NEUTRAL, bon, P + np, cms, PS + np);
+                    group(mem, gm2, legs & 0x7F, host == HOST_NEUTRAL, bon, P + np, ms, PS + np);
                     glast = np;
                 }
                 np += gm2;
@@ -2600,8 +2599,8 @@ void gp_played_c(void) {
 void gp_end_c(void) {                   /* after gp_season: the log, the state void */
     const u8 *s = (const u8 *)&GP_ST.ko[0];
     u8 *d = (u8 *)&GP_LOG.ko;
-    if (GP_ST.magic == MAGIC || GP_IN.pl_pi || GP_OUT.nres) {   /* (rc18: also a season end's results without a
-                                           stage of the career club - the harness's view of a simulated title) */
+    if (GP_ST.magic == MAGIC || GP_IN.pl_pi) {   /* (the career club's play-off only: rc18's `|| GP_OUT.nres` let
+                                           every later country's season end overwrite the harness's log) */
         for (u32 i = 0; i < sizeof GP_LOG.ko; i++) d[i] = s[i];
         s = (const u8 *)&GP_OUT; d = (u8 *)&GP_LOG.out;
         for (u32 i = 0; i < sizeof GP_LOG.out; i++) d[i] = s[i];

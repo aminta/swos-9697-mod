@@ -5510,6 +5510,8 @@ def bench_play(s, gmax, top, bot, wants, errs, info, mark, sub=None, icons=None,
     teams = [ingame_team(r, top), ingame_team(r, bot)]
     gm = struct.unpack('<HH', r.obj2(gmax - 2, 4))      # (phase 2) gameMinSubstitutes, gameMaxSubstitutes
     info.append(f'kick-off named:used {gm[1]}:{gm[0]}')
+    if sub:                                 # (4.0.5) the title bx_look looked up (bx_lkname = bx_bench + 18)
+        info.append('kick-off title ' + r.read(r.base1 + sub[0] + 18, 41).split(bytes(1))[0].decode('latin-1'))
     if wants.get('_diy'):                   # (phase 2 study, BENCH_DIYDUMP) the current competition at the kick-off
         dv = r.obj2(wants['_diy'], 0x70)
         info.append(f'DIY name {dv[4:0x2d].split(bytes(1))[0]!r} id {dv[0x2d]:#x} +2Bh {dv[0x2b]:#x} +3Dh..+42h '
@@ -5601,7 +5603,7 @@ def bench_play(s, gmax, top, bot, wants, errs, info, mark, sub=None, icons=None,
             r = s.send('fire:1 dump:1.5')
             bench += 1
             rows = [x for x in subs_rows(s.box.dump(0xA0000, 64000)) if len(x[3]) >= 2]
-            if len(rows) >= 11:
+            if len(rows) >= min(11, g):     # (4.0.5: a real bench of 9 lists 9: RANGERS)
                 lists += 1
                 if lists == 1:
                     s.shot('bench_list')
@@ -5834,9 +5836,57 @@ def bench_world():
     if real:                                # (phase 2) the competition's bench / substitutions at the kick-off
         k = [x for x in info if x.startswith('kick-off named:used')]
         check(k and k[0].endswith(f' {real}'), f'real rule: {k} (want {real})', errs)
+    if os.environ.get('BENCH_TITLE'):       # (4.0.5) the competition it was looked up under
+        k = [x for x in info if x.startswith('kick-off title ')]
+        check(k and k[0] == 'kick-off title ' + os.environ['BENCH_TITLE'], f'title: {k} (want {os.environ["BENCH_TITLE"]})', errs)
     check('squad screen: GIOCA PARTITA' in info or any(x.startswith('kick-off named:used') for x in info),
           'not played as a player-coach (no GIOCA PARTITA, no kick-off)', errs)   # (EN / FR / DE: the label differs)
     return not errs, '; '.join(errs + info)
+
+
+@scenario
+def bench_cup():
+    """(4.0.5, Davide 30/10 on rc17: RANGERS with the long bench in the league, 5 in the SCOTTISH CUP) The real bench
+    of every competition of a career club's season (tools/bench2627.json, its unknowns filled at build time:
+    internal/reports/bench-unknowns-2627.md): a World 2026-27 career at RANGERS (BENCH_CUP_TEAM) on BENCH_BUILD,
+    season 1 played (world8485, results only); at every pre-match screen benchx's sq_n looks the competition up
+    (bx_look: bx_lkname = the title, bx_lkres = named subs, subs used), logged when they change (W8485_HEX on obj1):
+    each title of BENCH_CUP_WANT ('title=named:used;..', default the Scottish Premiership and Scottish Cup 9:5) seen
+    with its bench, no title the club plays left at the game's 5 (rc17's first try: its PRELIM. CONFERENCE LEAGUE)."""
+    b = os.environ.get('BENCH_BUILD')
+    if not b or not os.path.isdir(b):
+        return True, 'SKIP: BENCH_BUILD not set'
+    bx, _ = bench_switch(os.path.join(b, 'ITALIAN.EXE'))
+    team = os.environ.get('BENCH_CUP_TEAM', 'EUROPA,SCOZIA,SCOTTISH PREMIERSHIP,RANGERS')
+    want = dict(x.split('=') for x in os.environ.get(
+        'BENCH_CUP_WANT', 'SCOZIA SCOTTISH PREMIERSHIP=9:5;SCOZIA SCOTTISH CUP=9:5').split(';'))
+    keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_ONE', 'W8485_HEX')
+    keep = {k: os.environ.get(k) for k in keys}
+    os.environ.update(W8485_BUILD=b, W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5', W8485_K='0+',
+                      W8485_NOSACK='1', W8485_ONE='1', W8485_HEX=f'o1/{bx + 14:x}:2,o1/{bx + 18:x}:41')
+    try:
+        ok, msg = world8485()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    seen, res = {}, ''
+    for ln in open(os.path.join(RUNS, w84_tag() + '_1', 'session.log'), errors='replace'):
+        if ln.startswith(f'HEX o1/{bx + 14:x} '):
+            res = ln.split()[2]
+        elif ln.startswith(f'HEX o1/{bx + 18:x} '):
+            t = bytes.fromhex(ln.split()[2]).split(bytes(1))[0].decode('latin-1')
+            if t:
+                seen[t] = f'{int(res[:2], 16)}:{int(res[2:], 16)}' if res else '?'
+    errs = []
+    check(ok, msg, errs)
+    for t, v in want.items():
+        check(seen.get(t) == v, f'{t}: {seen.get(t)} (want {v})', errs)
+    low = {t: v for t, v in seen.items() if v.split(':')[0] in ('0', '5', '?')}   # (any competition the club plays:
+    check(not low, f'titles left at the game\'s bench: {low}', errs)              # its UEFA qualifying tie too)
+    return not errs, '; '.join(errs + [f'looked up: {seen}', msg[:80]])
 
 
 @scenario

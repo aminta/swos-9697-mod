@@ -1,5 +1,5 @@
 {
- "_doc": "Panchina phase 2: World 2026-27 named substitutes per competition (fase2.md: official text or observed max of 24 real 2026-27 team sheets; null = unknown -> the game's original bench of 5). Keys = the world packs' country dirs and competition keys; a league = one value per division (pack order). 'used' = substitutions allowed (5 everywhere found); 'et' = extra substitute in extra time (1 where the rule is known). Owner: SWOS Panchina. 'continental': the cup's name as the game writes it (a contest without a country: ' ' + name, or the name). A country competition's value may be {'named': n, 'et': 1} (an extra-time substitute).",
+ "_doc": "Panchina phase 2: World 2026-27 named substitutes per competition (fase2.md: official text or observed max of 24 real 2026-27 team sheets; null = unknown -> the game's original bench of 5). Keys = the world packs' country dirs and competition keys; a league = one value per division (pack order). 'used' = substitutions allowed (5 everywhere found); 'et' = extra substitute in extra time (1 where the rule is known). Owner: SWOS Panchina. 'continental': the cup's name as the game writes it (a contest without a country: ' ' + name, or the name). A country competition's value may be {'named': n, 'et': 1} (an extra-time substitute). 4.0.5 (Davide 30/10): a null (or a missing key) is filled at build time (benchx.bench_table): a lower division from the nearest higher division with data, a cup / state championship from the country's top league, or '=league.N' = division N's (the cup of that division's clubs). 'sources': where each 4.0.5 value comes from (internal/reports/bench-unknowns-2627.md). A continental cup's 'qual': 1 = the career club's qualifying tie too (uefaq's 'PRELIM. ' / 'QUAL. ' / 'QUALIF. ' / 'QUALI. ' + the name without 'UEFA ': UEFA regulations Art. 55 / 56 cover all the competition's matches, qualifying included).",
  "used": 5,
  "countries": {
   "eng": {
@@ -33,14 +33,17 @@
     9
    ],
    "cup": 15,
-   "league_cup": null
+   "league_cup": "=league.2"
   },
   "esp": {
    "league": [
     12,
     12
    ],
-   "cup": null
+   "cup": {
+    "named": 12,
+    "et": 1
+   }
   },
   "ger": {
    "league": [
@@ -55,7 +58,10 @@
     9,
     10
    ],
-   "cup": null
+   "cup": {
+    "named": 9,
+    "et": 1
+   }
   },
   "por": {
    "league": [
@@ -89,10 +95,13 @@
    "league": [
     9,
     9,
-    null,
-    null
+    9,
+    9
    ],
-   "cup": null,
+   "cup": {
+    "named": 9,
+    "et": 1
+   },
    "league_cup": 9
   },
   "gre": {
@@ -140,21 +149,21 @@
   "mex": {
    "league": [
     10,
-    null
+    10
    ]
   },
   "bra": {
    "league": [
     12,
-    null
+    12
    ],
    "cup": null
   },
   "arg": {
    "league": [
     12,
-    null,
-    null
+    9,
+    9
    ],
    "cup": 12
   },
@@ -186,10 +195,10 @@
   "jpn": {
    "league": [
     9,
-    null
+    9
    ],
    "cup": null,
-   "league_cup": null
+   "league_cup": 9
   },
   "ksa": {
    "league": [
@@ -231,17 +240,20 @@
   "UEFA CHAMPIONS LEAGUE": {
    "named": 12,
    "et": 1,
-   "source": "UCL regulations 2026/27 Art. 55.01 / 56.02"
+   "source": "UCL regulations 2026/27 Art. 55.01 / 56.02",
+   "qual": 1
   },
   "UEFA EUROPA LEAGUE": {
    "named": 12,
    "et": 1,
-   "source": "observed (ESPN); UEFA Art. 56 as UCL expected"
+   "source": "observed (ESPN); UEFA Art. 56 as UCL expected",
+   "qual": 1
   },
   "UEFA CONFERENCE LEAGUE": {
    "named": 12,
    "et": 1,
-   "source": "observed (ESPN); UEFA Art. 56 as UCL expected"
+   "source": "observed (ESPN); UEFA Art. 56 as UCL expected",
+   "qual": 1
   },
   "COPA LIBERTADORES": {
    "named": 12,
@@ -258,5 +270,19 @@
    "et": 0,
    "source": "observed (ESPN)"
   }
+ },
+ "sources": {
+  "sco.league.2": "SPFL: 9 named / 5 used in all four divisions since Jan 2022 (The Scotsman, \"Premiership substitutes example followed by Championship and SPFL lower leagues\"); observed 9 max in 24 ESPN team sheets of 2025-26 League One (latest season on ESPN)",
+  "sco.league.3": "as League One; observed 9 max in 24 ESPN team sheets of 2025-26 League Two",
+  "sco.cup": "Scottish FA, Men's Scottish Cup Rules 2026-27, Competition Rule 13.1: up to 9 Nominated Substitutes, 5 Fielded, a 6th in extra time",
+  "esp.cup": "RFEF Normas reguladoras de los Torneos Federacion (Copa de S.M. el Rey) 2026-2027, Art. 36: up to 12 substitutes, 5 used, 1 more in extra time",
+  "fra.cup": "FFF Reglement de la Coupe de France 2026-2027 (p. 9, players and replacements): 20 on the sheet (12-20 substitutes = 9) from the 32es de finale (18 from the 7th round), 5 replacements from the 3rd round, 1 more in extra time",
+  "mex.league.1": "observed: 10 max in 24 ESPN team sheets, Liga de Expansion MX 2026-27 (dist 10 x14, 9 x8)",
+  "bra.league.1": "observed: 12 max in 24 ESPN team sheets, Serie B 2026 (dist 12 x16)",
+  "arg.league.1": "observed: 9 max in 24 ESPN team sheets, Primera Nacional 2026 (dist 9 x23)",
+  "arg.league.2": "as Zona A (one competition)",
+  "jpn.league.1": "J.League (board, Oct 2024): from 2025 up to 20 players entered in every J.League official match = 9 substitutes (jleague.jp news 29199)",
+  "jpn.league_cup": "J.League official match: as J2 (20 entered, 9 substitutes)",
+  "ita.league_cup": "no 2026-27 text found: fallback = Serie C (its clubs), itself from Serie B (12, observed)"
  }
 }

@@ -82,7 +82,10 @@ game's rule everywhere). bx_look (careers only) finds the current competition's 
 the kick-off of InitializeInGameTeamsAndStartGame: e.g. ITALIA SERIE D GIRONE A) in it, cached by title; bx_max takes
 its bench (else the game's: a career league passes its record's +65h, 5), bx_min (`mov [gameMinSubstitutes], ax`) its
 substitutions (else the game's +63h, 3), sq_n its bench for the pre-match screens. The test switch bx_bench wins over
-both. Competitions not in the table (unknown) keep the game's 3 from 5.
+both. Competitions not in the table keep the game's 3 from 5. (4.0.5, Davide 30/10) bench_table fills bench2627.json's
+unknowns (null / no key) at build time, no exe code: a lower division from the nearest higher division with data, a
+cup or state championship from the country's top league ('=league.N': division N's); the table's entries are the
+title + NUL + 3 bytes (no padding: 132 entries in benchx's 2 pages). internal/reports/bench-unknowns-2627.md.
 
 spritesIndex past the game's 1335 entries (shirtnum.py's extension into the 3072 free bytes after it: indices
 1335..2102; it cannot move, SWOS++ holds its address):
@@ -177,14 +180,20 @@ bx_look:                                ; (phase 2) [bx_lkres] = the current com
     mov esi, edx
     mov edi, bx_lkname
     call bx_streq
+    pushf
+.nx:                                    ; (4.0.5) an entry = its title, NUL, named subs, subs used, extra-time sub:
+    inc edx                             ; edx past the NUL
+    cmp byte [edx - 1], 0
+    jne .nx
+    popf
     je .hit
-    add edx, BXT_
+    add edx, 3
     dec ecx
     jmp .f
 .hit:
-    mov ax, [edx + 41]
+    mov ax, [edx]
     mov [bx_lkkeep], ax
-    mov al, [edx + 43]
+    mov al, [edx + 2]
     mov [bx_lketk], al
 .found:
     mov ax, [bx_lkkeep]
@@ -1673,15 +1682,27 @@ def refs(p, tobj, lo, hi):
     return out
 
 
-BXT = 44                                # a table entry: title 41 (NUL padded), named subs, subs used, extra-time sub
 LOG = []
 BENCH_WORLD = [0]                       # the World 2026-27's career world number (the packs' 'world'), 0 = none
 BENCH_DATA = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'bench2627.json')   # (4.0.6: in the repo)
 
 
+def fallback_divs(v, n):
+    """(4.0.5, Davide 30/10) A league's per-division benches with the unknown ones (null) filled from the nearest
+    higher division that has data (a division with none above it keeps null: the game's 5). A cup's fallback (the
+    top league's, or '=league.N') reads these filled values: reports/bench-unknowns-2627.md."""
+    vals = list(v) if isinstance(v, list) else [v] * n
+    vals += [None] * (n - len(vals))
+    for i, x in enumerate(vals):
+        if x is None and i:
+            vals[i] = vals[i - 1]
+    return vals
+
+
 def bench_table(lang):
     """(phase 2) [(title, named, used, et)] of the World 2026-27 competitions with a known real bench: the career packs
-    of world 5 in SEASON_PACKS x tools/bench2627.json (absent: none, the game's rule everywhere). The title =
+    of world 5 in SEASON_PACKS x tools/bench2627.json (absent: none, the game's rule everywhere; its unknowns filled:
+    fallback_divs, a cup's from the top league). The title =
     the country's button name in the exe language + ' ' + the competition's (a league: the division's) first name, as
     the game shows it (fmtgame's FORMAT keys)."""
     import json
@@ -1702,14 +1723,18 @@ def bench_table(lang):
         BENCH_WORLD[0] = pk['world']
         btn = pk.get('button_names', {}).get(lang) or pk['button']
         first = lambda names: (names.get(lang) or names['*'])[0]
+        lg = next((c for c in pk['competitions'] if c.get('type') == 'league'), None)
+        lvals = fallback_divs(ent.get(lg['key']), len(lg.get('divisions') or [0])) if lg else []
         for c in pk['competitions']:
             v = ent.get(c['key'])
             if c.get('type') == 'league':
                 divs = c.get('divisions') or [{'names': c['names']}]   # (one division: the league's own names)
-                vals = v if isinstance(v, list) else [v] * len(divs)
+                vals = lvals if c is lg else v if isinstance(v, list) else [v] * len(divs)
                 items = [(first(dv['names']), x) for dv, x in zip(divs, vals)]
-            else:
-                items = [(first(c['names']), v)]
+            else:                               # (4.0.5) a cup / state championship without data: '=league.N' = that
+                if isinstance(v, str) and v.startswith('=league.'):   # division's (its clubs' own league), none =
+                    v = lvals[int(v[8:])] if int(v[8:]) < len(lvals) else None   # the top league's (Davide 30/10)
+                items = [(first(c['names']), v if v is not None else (lvals[0] if lvals else None))]
             for name, x in items:               # (a number = named subs; {'named', 'et'}: with an extra-time sub)
                 t = f'{btn} {name}'.encode('latin-1')[:40]
                 n, e = (x.get('named'), int(x.get('et') or 0)) if isinstance(x, dict) else (x, 0)
@@ -1717,8 +1742,10 @@ def bench_table(lang):
                     seen.add(t)
                     out.append((t, min(int(n), 15), used, e))
     if out:                                         # (the world is in this build) its continental cups: no country
+        import uefaq                                # ('qual': the career club's qualifying tie too, uefaq's title)
         for name, v in (data.get('continental') or {}).items():
-            for t in (' ' + name, name):
+            q = [uefaq.NAMES[lang] + name[5:]] if v.get('qual') and name.startswith('UEFA ') else []
+            for t in [x for n in [name] + q for x in (' ' + n, n)]:
                 t = t.encode('latin-1')[:40]
                 if v.get('named') and t not in seen:
                     seen.add(t)
@@ -1729,8 +1756,8 @@ def bench_table(lang):
 def table_asm(tab):
     """bx_tabn / bx_tab: the entries of bench_table."""
     lines = ['align 4', f'bx_tabn: dd {len(tab)}', 'bx_tab:']
-    for t, n, u, e in tab:
-        b = t.ljust(41, b'\0') + bytes((n, u, e))
+    for t, n, u, e in tab:                          # (4.0.5: titles NUL-terminated, no padding: the 2 pages)
+        b = t + b'\0' + bytes((n, u, e))
         lines.append('    db ' + ','.join(str(x) for x in b))
     return '\n' + '\n'.join(lines) + '\n'
 
@@ -1781,7 +1808,7 @@ def patch(p, at, ns_at, lang='it'):
     assert bytes(p.get(1, store - 12, 2)) == b'\x66\xa3' and gmin[0] == 2, 'gameMinSubstitutes store'
     import careerworld
     tab = bench_table(lang)
-    sym.update({'GMIN': gmin, 'DIYNAME': (2, lp36._sites(p)['DIY'] + 4), 'BXT_': (0, BXT),
+    sym.update({'GMIN': gmin, 'DIYNAME': (2, lp36._sites(p)['DIY'] + 4),
                 'SLT': (careerworld.SITES or careerworld.sites(p))['slt'], 'WORLD_BYTE_': (0, careerworld.WORLD_BYTE),
                 'BXWORLD_': (0, BENCH_WORLD[0] if tab else 255)})
     asm = ASM + table_asm(tab)

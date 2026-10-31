@@ -3275,10 +3275,10 @@ static int pg_level(int d, int nl, const u8 *first, const u8 *cnt) {
 }
 
 /* The off-file pool's swapped slots this season end (ri_season, before pg_season): each enters the lowest level from
-   below the chain (its identity is new) and goes to the group of the NEW identity's area. */
+   below the chain (its identity is new) and goes to the group of the NEW identity's area (every season: ripool's
+   ri_ida gives each swapped slot's pgroups entry its current identity's areas before pg_season). */
 enum { RIO = 64 };
 static u16 ri_og[RIO];
-static u8 ri_oa[RIO];
 static int ri_no;
 static int ri_over(int g) {
     for (int i = 0; i < ri_no; i++) if (ri_og[i] == g) return i;
@@ -3293,33 +3293,41 @@ static int pg_room(int a, int n, const u8 *occ, const u8 *sz) {   /* group a, el
     return a;
 }
 
-/* 4.0.3 (Serie C zones, the SIRACUSA / Enzo reports): a club entering level tl finds its area's group full. The club
-   of that group that is the farthest from its own area (a club placed out of zone in an earlier season, or by the
-   nearest-with-room rule this season; first in table order on a tie) goes to its own area's group, else the nearest
-   with room, and the entering club takes its place. No club out of zone in that group, or no room for it anywhere:
-   0 (the caller places the entering club in the nearest group with room, as before). ao = the area's byte in a club
-   entry for this level (-1: none). */
-static int pg_swap(const u8 *c, int rs, int nc, int g, int tl, int area, const u8 *first, const u8 *cnt,
-                   const u8 *const *sz, u8 (*occ)[PG], int ao, s8 *copy) {
-    int best = -1, bd = 0, ba = 0;
+/* 4.0.5 (Serie C groups from the real compositions, Francesco's ISCHIA report): a club's area byte per level of groups
+   holds two choices, low nibble the 1st, high nibble the 2nd + 1 (1 = A; 0 or 0xF: none, 0xE: any group - a second
+   team, U23) and its bit 3 = never another group (a northern club never in C, a southern one never in A; levels of up
+   to 7 groups).
+   Serie C's choices come from where the Lega Pro put each region's clubs in 2016-17..2025-26 (never north <-> south);
+   the second teams went to any group and were moved to balance. Raw area bytes 0..8 (ripool's pool areas): 1st only. */
+#define A1(b) ((b) & 15)
+static int pg_a2(int b) { int h = b >> 4; return h == 0 || h == 15 ? 15 : h == 14 ? 14 : (h & 7) - 1; }
+static int pg_ban(int b) { int h = b >> 4; return h != 0 && h < 14 && (h & 8); }
+
+/* A club placed in group a of level tl that can leave to make room: a second team first (to the group with room
+   nearest to a), else a club out of its 1st choice whose 1st choice has room, else one out of both choices whose
+   2nd choice has room, else one in its 1st choice whose 2nd choice has room (a centre club to C so that a northern
+   club gets B), else a club free to go anywhere (2 choices, no ban: a centre club) to the nearest group with room. Moves it and
+   returns 1; 0 = none (ao: the area byte's offset in a club entry, -1 none). */
+static int pg_make_room(const u8 *c, int rs, int nc, int g, int tl, int a, const u8 *first, const u8 *cnt,
+                        const u8 *const *sz, u8 (*occ)[PG], int ao, s8 *copy) {
     if (ao < 0) return 0;
-    for (int j = 0; j < nc; j++) {
-        const u8 *f = c + rs * j;
-        int h = f[0] | f[1] << 8, hb = f[2];
-        if (h == g || h >= 8 * (int)sizeof pg_pend || PEND(h) || copy[h] + hb != first[tl] + area) continue;
-        int ov = ri_over(h), ha = ov >= 0 ? ri_oa[ov] : f[ao];
-        if (ha >= cnt[tl]) continue;                /* (no area: not out of zone) */
-        int d = ha > area ? ha - area : area - ha;
-        if (d > bd) { bd = d; best = j; ba = ha; }
-    }
-    if (best < 0) return 0;
-    int to = pg_room(ba, cnt[tl], occ[tl], sz[tl]);
-    if (occ[tl][to] >= sz[tl][to]) return 0;
-    const u8 *f = c + rs * best;
-    int h = f[0] | f[1] << 8;
-    occ[tl][to]++;
-    copy[h] = first[tl] + to - f[2];
-    return 1;
+    for (int pass = 0; pass < 5; pass++)
+        for (int j = 0; j < nc; j++) {
+            const u8 *f = c + rs * j;
+            int h = f[0] | f[1] << 8, hb = f[2];
+            if (h == g || h >= 8 * (int)sizeof pg_pend || PEND(h) || copy[h] + hb != first[tl] + a) continue;
+            int b = f[ao], h1 = A1(b), h2 = pg_a2(b), w = 99;
+            if (pass == 0 ? h2 == 14 : pass == 4 && h2 < cnt[tl] && !pg_ban(b))   /* (4: 2-choice data only) */
+                w = pg_room(a, cnt[tl], occ[tl], sz[tl]);   /* (a is full: the nearest other group with room) */
+            else if (h2 != 14)
+                w = pass == 1 ? (h1 != a ? h1 : 99) : pass == 2 ? (h1 != a && h2 != a ? h2 : 99) : pass == 3 && h1 == a ? h2 : 99;
+            if (w == a || w >= cnt[tl] || occ[tl][w] >= sz[tl][w]) continue;
+            occ[tl][w]++;
+            occ[tl][a]--;
+            copy[h] = first[tl] + w - hb;
+            return 1;
+        }
+    return 0;
 }
 
 static const u8 *pg_one(const u8 *t, const s8 *slt, s8 *copy, int run) {
@@ -3347,14 +3355,17 @@ static const u8 *pg_one(const u8 *t, const s8 *slt, s8 *copy, int run) {
                 int ov = ri_over(g);
                 if (ov >= 0) { o = first[nl - 1] + cnt[nl - 1]; n = first[nl - 1]; }   /* (a new identity from below) */
                 int lo = pg_level(o, nl, first, cnt), tl = n < o ? lo - 1 : lo + 1;
-                int area = ov >= 0 ? ri_oa[ov] : pidx[tl] < npar ? e[3 + pidx[tl]] : 0xFF;
-                int a = area < cnt[tl] ? area : area == 0xFF ? cnt[tl] / 2 : cnt[tl] - 1, to;
-                if (area < cnt[tl] && occ[tl][area] >= sz[tl][area] && pg_swap(c, rs, nc, g, tl, area, first, cnt, sz, occ,
-                                                                                pidx[tl] < npar ? 3 + pidx[tl] : -1, copy)) {
-                    copy[g] = first[tl] + area - base;          /* (its area's group: the out-of-zone club made room) */
-                    continue;
+                int ab = pidx[tl] < npar ? e[3 + pidx[tl]] : 0xFF;    /* (a swapped slot: its identity's, ripool's
+                                                   ri_ida; a new identity from below: its lowest level's area) */
+                int area = A1(ab), area2 = pg_a2(ab), ao = pidx[tl] < npar ? 3 + pidx[tl] : -1;
+                int a = area < cnt[tl] ? area : ab == 0xFF ? cnt[tl] / 2 : cnt[tl] - 1, to = -1;
+                for (int k = 0; k < 2 && to < 0; k++) {     /* its 1st choice, then its 2nd: room, else make room */
+                    int w = k ? area2 : area;
+                    if (w >= cnt[tl]) continue;
+                    if (occ[tl][w] < sz[tl][w] || pg_make_room(c, rs, nc, g, tl, w, first, cnt, sz, occ, ao, copy))
+                        to = w;
                 }
-                to = pg_room(a, cnt[tl], occ[tl], sz[tl]);
+                if (to < 0) to = pg_room(a, cnt[tl], occ[tl], sz[tl]);   /* (a second team, or no choice fits: nearest) */
                 occ[tl][to]++;
                 copy[g] = first[tl] + to - base;
                 continue;
@@ -3584,10 +3595,8 @@ static const u8 *ri_pool(const u8 *e, struct ri_file *f, int fi, u16 *q, u8 *qn,
                 copy[g] = slt[g];
                 continue;
             }
-            int in = ri_swap(f, fi, i, q, *qn, m++, out, &no);
-            ri_og[ri_no] = g;
-            ri_oa[ri_no] = in < RIS ? sl[4 * in + 3] : pa[in - RIS];
-            ri_no++;
+            ri_swap(f, fi, i, q, *qn, m++, out, &no);
+            ri_og[ri_no++] = g;
             copy[g] = slt[g];                   /* (the slot stays; pg_season places its new identity by area) */
         }
     } else {

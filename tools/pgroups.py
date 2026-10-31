@@ -53,8 +53,11 @@ pg_fix:                                 ; replaces `call cseg_7CAA2` (leaguesTab
     call [RI_POST_PTR]
     popad
 .nopost:
-%endif
     push dword PG_TAB
+    call RI_IDA                         ; (ripool: each swapped slot's areas from its current identity)
+%else
+    push dword PG_TAB
+%endif
     call PG_SEASON
     add esp, 16
 %if CD_ON

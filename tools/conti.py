@@ -613,6 +613,14 @@ ct_prep:                                ; CT_SEG a tie -> the ties' contest (its
     jne .r
     mov edi, TIE
     mov al, [CT_SEG + 6]
+    push ecx                            ; 4.0.5 rc20: never a week already reached - two rounds of one month (the
+    movzx ecx, word [CAL_CUR]           ; Libertadores' q1 and q2, both month 8): the next one built after the first
+    movzx ecx, byte [CAL + ecx + 1]     ; had its first leg in a played week, only RITORNO left - and ESCI on it
+    cmp al, cl                          ; crashed to DOS (Regia's NACIONAL, season 2)
+    ja .wk
+    lea eax, [ecx + 1]
+.wk:
+    pop ecx
     mov [edi + 3], al
     add al, 2
     mov [edi + 4], al
@@ -800,6 +808,9 @@ ct_daily:                               ; before the next match (uefaq's uq_dail
 %if KOLOSE_
     xor ecx, ecx                        ; (CONTI_KOLOSE test builds only: the career club loses every conti tie - the
 %endif                                  ; cross-cup routes, q3 / pre losers, forced)
+%if KOWIN_
+    mov ecx, 1                          ; (CONTI_KOWIN test builds only: it wins every conti tie - the next round
+%endif                                  ; built after a won one, rc20's q1 -> q2)
     push ecx
     call CT_RESULT
     add esp, 4
@@ -1013,6 +1024,7 @@ def patch(p, at, limit, bss_at, area):
     import sacups
     symbols['STR_BASE_'] = (2, sacups.STR_BASE)
     symbols['KOLOSE_'] = (0, int(bool(os.environ.get('CONTI_KOLOSE'))))   # (test builds only)
+    symbols['KOWIN_'] = (0, int(bool(os.environ.get('CONTI_KOWIN'))))     # (test builds only)
     if os.environ.get('CONTI_KOLOSE'):
         print('exe: CONTI_KOLOSE (test build: the career club loses its conti ties)')
     symbols.update(NEXT_DAILY=u['uq_daily'], TIE=(1, TIE[0]), TIE_ID=(0, p.get(1, TIE[0], 1)[0]),

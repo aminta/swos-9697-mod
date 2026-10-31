@@ -12004,6 +12004,47 @@ def conti_drop(tag, force, team, word):
 
 
 @scenario
+def world_conti_q1q2():
+    """4.0.5 rc20 (Regia's blocker, NACIONAL season 2): two Libertadores rounds of one month (q1 and q2, month 8) -
+    the next tie was built into weeks already played: no first leg of q2, only RITORNO, ESCI on it crashed to DOS.
+    A test build with CONTI_FORCE=lib:q1 (the career club into the first qualifying round at every season end) and
+    CONTI_KOWIN (it wins its conti ties): season 2 from FLAMENGO's career plays q1, q2 and q3 BOTH legs each (three
+    ANDATA and three RITORNO Libertadores titles) and the season ends"""
+    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+    if not os.path.isdir(src):
+        return True, f'SKIP: private data {src} missing'
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    exe = os.environ.get('Q1Q2_BUILD') or build('world_conti_q1q2', env={
+        'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]),
+        'CONTI_FORCE': 'lib:q1', 'CONTI_KOWIN': '1'})
+    keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_ONE',
+            'W8485_FROM', 'W8485_TMO')
+    keep = {k: os.environ.get(k) for k in keys}
+    try:
+        for k in keys:
+            os.environ.pop(k, None)
+        os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM='SUDAMERICA,BRASILE,BRASILEIRAO '
+                          'SERIE A,FLAMENGO', W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1', W8485_TMO='900')
+        ok, msg = world8485()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    log = os.path.join(RUNS, w84_tag() + '_2', 'session.log')
+    lines = open(log, errors='replace').read().splitlines() if os.path.exists(log) else []
+    played = sorted({re.sub(r'^\[\d+\] ', '', ln.split('|')[0].strip()) for ln in lines if ln.startswith('[')
+                     and ('>- RISULTATO -' in ln or '>- PARTITA -' in ln) and 'LIBERTADORES' in ln.split('|')[0]})
+    andata = [x for x in played if 'ANDATA' in x]
+    ritorno = [x for x in played if 'RITORNO' in x]
+    errs = []
+    check(ok, msg[:300], errs)
+    check(len(andata) >= 3 and len(ritorno) >= 3, f'season 2: Libertadores legs andata {andata} ritorno {ritorno}', errs)
+    return not errs, '; '.join(errs + [f'season 2 Libertadores {played}'])
+
+
+@scenario
 def world_conti_drop_lib():
     """conti_drop: FLAMENGO forced into the Libertadores' third qualifying round (lib:q3), losing it -> the
     Sudamericana groups (conmebol 'losers' q3 -> sud:groups): a Sudamericana group match played, season 2 ends"""

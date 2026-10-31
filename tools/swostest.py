@@ -1558,8 +1558,10 @@ _LABEL_DATA = {}
 def _label_data():
     """{contest id: set of labels}, the slot-4 set, every name: from the World 2026-27 data (W2627REL_DATA or the
     default snapshot) and tools/supercups2627.json, all four languages."""
-    if _LABEL_DATA:
-        return _LABEL_DATA
+    key = os.environ.get('W2627REL_DATA') or ''
+    if _LABEL_DATA and _LABEL_DATA.get('src') == key:   # (rc19: keyed by its data - a scenario pinning one snapshot
+        return _LABEL_DATA                              # left it cached for the next ones: S1's COPPA SERIE D)
+    _LABEL_DATA.clear()
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import complist
     import json as _j
@@ -1613,7 +1615,7 @@ def _label_data():
         if not k.startswith('_'):
             slot4 |= forms(v.get('names'))
     every |= slot4
-    _LABEL_DATA.update(ids=ids, slot4=slot4, every=every)
+    _LABEL_DATA.update(ids=ids, slot4=slot4, every=every, src=key)
     return _LABEL_DATA
 
 

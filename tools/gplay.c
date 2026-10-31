@@ -2164,6 +2164,23 @@ u32 gf_step_c(void) {                   /* the calendar advance (slot 3 free): 2
     GP_GFT = 1;
     return 2;
 }
+void gf_drop_c(u8 *cal, u32 cur) {      /* rc20 (Panchina's natural NZ season, WESTERN SPRINGS 3rd of the group): gp_gf
+                                           after gf_step_c's 4 - the Grand Final decided without the career club, often
+                                           at the end of the club's rest day (the group's last round), inside the game's
+                                           day: the placeholder's days stay (removing one under the game's day loop left
+                                           the squad screen for ever - rc19's gp_calold removal), no longer the club's
+                                           (byte 5 = 0, gf_hide_c's state): no career day left, the game offers FINISH
+                                           SEASON and simulates them */
+    u16 cnt = *(const u16 *)(cal - 4);
+    u8 *e = cal;
+    for (u32 i = 0; i < cnt; i++) {
+        u32 len = *(const u16 *)(e + 2);
+        if (!len) break;
+        if ((u32)(e - cal) >= cur && e[0] == 4) e[5] = 0;
+        e += len;
+    }
+    GP_GFT = 7;
+}
 static void cd_ko(struct gp_ko *k, u16 home, u16 away, int w1, int w2, int legs) {
     ko_one(k, home, away, w1, w2, legs, K_CUPD, LV_PENS, GP_CDT[2], (const u8 *)GP_CDNM);
 }

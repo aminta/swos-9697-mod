@@ -16261,7 +16261,7 @@ def world_gplay_nzchamp(force='1', team='OCEANIA,NUOVA ZELANDA,NORTHERN LGE|NORT
         os.environ['W2627REL_DATA'] = src                              #  championship's, absent from the old default)
         _LABEL_DATA.clear()
     os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5', W8485_K='108+',
-                      W8485_NOSACK='1', W8485_HEX=f'{log_at:x}:{log_n},{st_at:x}:{st_n}', W8485_ONE='1')
+                      W8485_NOSACK='1', W8485_HEX=f'{log_at:x}:{log_n},{st_at:x}:{st_n},{gft_at(exe):x}:4' + os.environ.get('NZ_HEXPLUS', ''), W8485_ONE='1')
     if real:                                                           # (the group's last matches only: 9 settled)
         os.environ.update(W8485_REALPLAY=real, W8485_TMO='1500', W8485_REALSKIP='8')
     if two:                                                            # (two seasons: save, reload, the second)
@@ -16353,6 +16353,15 @@ def zones_bskip_nzchamp():
     return not errs, '; '.join(errs + [f'{st}'])
 
 
+def gft_at(exe):
+    """obj2 offset of gplay.c GP_GFT (the Grand Final's trace: 1 built, 2 decided without the career club, 3 / 5
+    placeholder, 6 unhidden, 7 hidden after a decision without it, 0x8x why not), from GPLOGPTR (rc20)"""
+    from le import LE
+    d1 = LE(open(os.path.join(exe, 'ITALIAN.EXE'), 'rb').read()).obj_bytes(1)
+    k = d1.find(b'GPLOGPTR')
+    return struct.unpack_from('<I', d1, k + 8 + 4 * 19)[0]
+
+
 def nzchamp_season(lines, st_at, log_at, res_words, gff, kof, errs, rest=False):
     """world_gplay_nzchamp's checks on one season's session log: (False, why) when there is nothing to check"""
     sts = [bytes.fromhex(ln.split()[2]) for ln in lines if ln.startswith(f'HEX {st_at:x} ')]
@@ -16382,12 +16391,15 @@ def nzchamp_season(lines, st_at, log_at, res_words, gff, kof, errs, rest=False):
     mgr = gfs[0]['team'][0] if gfs else None                           # (the placeholder: the career club first)
     if not rest:                                                       # (GPLAY_GFREST: the placeholder shown at once)
         nzgf_rows(lines, errs)
-    if gff == '1':                                                     # (kept out: decided at once, no final played)
-        check(mgr is not None and mgr not in fin, f"career club {mgr} kept out: final {[hex(x) for x in fin]}", errs)
+    natural = bool(os.environ.get('GPLAY_BUILD'))                      # (rc20: a release exe, no GPLAY_FORCE - the
+    if gff == '1' or (natural and mgr is not None and mgr not in fin): # club where its season put it; out of the
+        check(mgr is not None and mgr not in fin, f"career club {mgr} kept out: final {[hex(x) for x in fin]}", errs)   # final:
+                                                                       # decided at once, the season goes on - Panchina's
+                                                                       # rc19 stop at the placeholder, step 179)
         check(not any('CHAMPIONSHIP FINALE' in ln for ln in lines), 'no Grand Final screen without the career club', errs)
     else:
         check(gfs and gfs[-1]['slot'] == 4 and gfs[-1]['n'] == 2 and set(gfs[-1]['team'][:2]) == set(fin) and mgr in fin,
-              f"Grand Final in slot 4 (the career club forced in): {[(x['slot'], [hex(t) for t in x['team'][:2]]) for x in gfs[-1:]]}"
+              f"Grand Final in slot 4 (the career club {'in' if natural else 'forced in'}): {[(x['slot'], [hex(t) for t in x['team'][:2]]) for x in gfs[-1:]]}"
               f" vs the champion's final {[hex(x) for x in fin]}", errs)
         check(any('CHAMPIONSHIP FINALE' in ln for ln in lines), 'the Grand Final played (its screen)', errs)
         check(any('CHAMPIONSHIP FINALE' in ln and '| - PARTITA - |' in ln for ln in lines),   # (rc17 MiSTer: shown
@@ -16799,17 +16811,21 @@ def nzgf_save(state, dumps):
     exe = os.environ.get('GPLAY_BUILD') or build('world_gplay_nzchamp', env=env)
     log_at, st_at, log_n, st_n = gp_ptrs(exe)
     keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_HEX',
-            'W8485_ONE', 'W8485_MIDSAVE', 'W8485_FROM')
+            'W8485_ONE', 'W8485_MIDSAVE', 'W8485_FROM', 'W2627REL_DATA')
     keep = {k: os.environ.get(k) for k in keys}
     base = dict(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM='OCEANIA,NUOVA ZELANDA,NORTHERN LGE|NORTHERN '
                 'LEAGUE,WESTERN SPRINGS', W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1',
-                W8485_HEX=f'{log_at:x}:{log_n},{st_at:x}:{st_n}')
+                W8485_HEX=f'{log_at:x}:{log_n},{st_at:x}:{st_n}', W2627REL_DATA=src)   # (rc20: the labels of this data)
     try:
         os.environ.update(base, W8485_ONE='1', W8485_MIDSAVE=f'{st_at + GP_STKO + 576:x}:{state}:{dumps}')
         ok, msg = world8485()
         if not ok:
             return False, f'first session: {msg}'
         path = msg.split(': ', 1)[1]
+        if not path.endswith('.CAR') or not os.path.isfile(path):   # (rc20, the Integratore: W8485_MIDSAVE never
+            return False, (f'no mid-season save: the Grand Final state {state} never held {dumps} pauses '   # triggered -
+                           f'(the career club out of the final, or the GF bug itself); first session: {msg}')   # the
+                                                                       # season message is no path for W8485_FROM)
         os.environ.pop('W8485_MIDSAVE')
         os.environ.update(base, W8485_FROM=path)
         ok2, msg2 = world8485()

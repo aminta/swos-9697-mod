@@ -637,9 +637,14 @@ gp_gf:                                  ; 4.0.5 NZ (gp_adv): a type-2 group cont
     mov [GP_BUILT], eax                 ; (2: ko[1], the final - over the placeholder's days, gp_install's gp_calold)
     call gp_install
     jmp .x
-.drop:
-    mov al, 4                           ; (the career club not in it: the placeholder's days go)
-    call gp_calold
+.drop:                                  ; (the career club not in it: the placeholder's days are no longer its days -
+    movzx eax, word [CAL_CUR]           ; gplay.c gf_drop_c, rc20; NOT removed: this advance may come inside a day of
+                                        ; the game's - the club's rest day, the group's last round - and an entry gone
+                                        ; under it left the squad screen for ever)
+    push eax
+    push dword CAL
+    call gf_drop_c
+    add esp, 8
 .x: popad
     ret
 
@@ -1434,7 +1439,8 @@ GP_RITP: dd 0                           ; (ripool's RI_TAB: link_reserve, or 0)
     dd CD_ST                            ; (the Coppa Italia Serie D's state)
     dd GP_RLN, GP_RLC, GP_REC, GP_CMB, GP_NM, D8CAA   ; (the season record lines: gp_rlines_c's)
     dd GP_SSB                           ; (4.0.1: the stage-table banks, gplay.c GP_SSB[SS_NB])
-    dd GP_IN, GP_OUT                    ; (rc18: the season end's tables and results - the harness's view)
+    dd GP_IN, GP_OUT, GP_GFT            ; (rc18: the season end's tables and results - the harness's view; rc20: the
+                                        ; Grand Final's trace)
 '''
 
 
@@ -2611,7 +2617,7 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
     symbols['ADDJOB'] = (1, addjob)
     symbols.update({k: syms[k] for k in ('GP_CFB', 'GP_LG', 'GP_RST', 'GP_RIT', 'GP_SEL', 'GP_MGR', 'GP_WORLD', 'GP_SLT',
                                          'gp_sack_c', 'gp_forcecfb', 'gp_pwin_c', 'gp_rlines_c', 'GP_RLN', 'GP_RLC', 'GP_RLPOULE', 'GP_REC', 'GP_CMB', 'gp_adv_c', 'GP_ADVWK', 'GP_WK', 'GP_TH', 'GP_RN',
-                                         'gp_defer_c', 't2_force', 'gf_step_c', 'gf_place_c', 'gf_hide_c', 'gf_unhide_c', 'gf_anchor_c', 'GP_S3', 'GP_S3B', 'GP_GFT', 'cd_step_c', 'sc_step_c', 'sc_rlines_c', 'GP_SCT', 'GP_SCFIRST', 'SC_ST', 'SC_TRACE', 'cd_fixload_c', 'gp_scal_c', 'gp_repoint_c', 'gp_fixload_c', 'CD_ST', 'GP_CDT', 'GP_CDNM', 'GP_CDD',
+                                         'gp_defer_c', 't2_force', 'gf_step_c', 'gf_drop_c', 'gf_place_c', 'gf_hide_c', 'gf_unhide_c', 'gf_anchor_c', 'GP_S3', 'GP_S3B', 'GP_GFT', 'cd_step_c', 'sc_step_c', 'sc_rlines_c', 'GP_SCT', 'GP_SCFIRST', 'SC_ST', 'SC_TRACE', 'cd_fixload_c', 'gp_scal_c', 'gp_repoint_c', 'gp_fixload_c', 'CD_ST', 'GP_CDT', 'GP_CDNM', 'GP_CDD',
                                          'GP_CDFIRST')})
     symbols['CD_MEMBER'] = syms['cd_member_c']
     symbols['GP_CDS1'] = syms['GP_CDS1']

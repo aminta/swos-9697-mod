@@ -1210,6 +1210,46 @@ def lineup_stuck(s, why):
     return None
 
 
+def lineup_mem(s, n=16):
+    """(rc19 world_gplay_nzchamp) The career club's first n places from memory: (place 1 a goalkeeper, [the unavailable
+    places, 0-based]) - careerTeam's records in careerMatchPlayers order (xtra.sites of the run's exe, cached per
+    session; position bits 5-7 = 0: a keeper; cardsInjuries C0h injured, bits 0-1 suspended in a career). None if it
+    cannot be read."""
+    try:
+        if not hasattr(s, 'ctsites'):
+            sys.path.insert(0, os.path.join(ROOT, 'tools'))
+            import lepatch
+            import xtra
+            _, cnp, ct, cmp_, _ = xtra.sites(lepatch.LEPatch(os.path.join(s.run, 'SWOS', 'ITALIAN.EXE')))
+            s.ctsites = (cnp, ct, cmp_)
+        cnp, ct, cmp_ = s.ctsites
+        r = s.result
+        order = r.obj2(cmp_, min(n, struct.unpack('<H', r.obj2(cnp, 2))[0]))
+        recs = [r.obj2(ct + (76 + q * 38 if q < 16 else 684 + (q - 16) * 38) + 26, 2) for q in order]
+        return recs[0][0] >> 5 == 0, [k for k, b in enumerate(recs) if b[1] & 0xC3]
+    except Exception:
+        return None
+
+
+LINEUP_REFUSED = ('the game refuses the line-up: VIS. RISULTATI hidden with a fit goalkeeper in goal, no red row and '
+                  'the first 16 all available in memory - not a line-up fault the fixer can mend (the match / contest '
+                  'itself: rc19 world_gplay_nzchamp, the NZ Grand Final)')
+
+
+def no_red_bad(s):
+    """No red row among the first 16 and VIS. RISULTATI hidden after a redraw: the places to fix, read from memory (a
+    suspended player shows no red mark), [0] = no goalkeeper in goal, or LINEUP_REFUSED (a fit keeper and nobody
+    unavailable: fail fast - rc19 nzchamp ping-ponged reserve keepers for 3 screens). None = unreadable: [0] as before."""
+    m = lineup_mem(s)
+    if m is None:
+        return [0]
+    gk, unfit = m
+    if unfit:
+        s.log.append(f'[subs] no red row, unavailable in memory: places {[k + 1 for k in unfit]}')
+        return unfit
+    return [0] if not gk else LINEUP_REFUSED
+
+
 def substitute(s, scr, tries=40, full=False):
     """Squad screen (Davide, 2026-10-16: the harness used to put any fit reserve - a defender up front, a trial player -
     in place of a starter and leave him there). Two passes on the 17th row (the reserve shown; its face cycles through
@@ -1285,10 +1325,12 @@ def substitute(s, scr, tries=40, full=False):
         for k in [k for k, st in list(subs.items()) if not any(n == st[0] for n, _, _, _ in pool)]:
             del subs[k]                                 # the starter left the squad (sold, the game's changes)
         bad = [k for k, (i, un) in enumerate(rows[:16]) if un]
-        if not bad and 'VIS. RISULTATI' not in cur.texts():
-            bad = [0]                                   # no goalkeeper in goal (the game's own squad changes)
+        if not bad and 'VIS. RISULTATI' not in cur.texts() and not vis_ok(s):
+            bad = no_red_bad(s)                         # no goalkeeper in goal (the game's own squad changes), an
+            if bad == LINEUP_REFUSED:                   # unmarked suspended player (memory), or the game's refusal
+                return bad
         if not bad:
-            return None if 'VIS. RISULTATI' in cur.texts() else 'squad screen without VIS. RISULTATI, no unavailable row'
+            return None if 'VIS. RISULTATI' in s.screen().texts() else 'squad screen without VIS. RISULTATI, no unavailable row'
         k = bad[0]
         need = SLOT_ROLE[k] if k < len(SLOT_ROLE) else ''
         if k == 0 and not rows[11][1] and not s.__dict__.get('gk_swap') and 11 not in subs:   # the keeper: row 12
@@ -1379,7 +1421,9 @@ def substitute_min(s, tries=40):
             if vis_ok(s):                               # (only not redrawn yet)
                 s.lineup_esc = 0
                 return None
-            bad = [0]                                   # no goalkeeper in goal (the game's own squad changes)
+            bad = no_red_bad(s)                         # no goalkeeper in goal (the game's own squad changes), an
+            if bad == LINEUP_REFUSED:                   # unmarked suspended player (memory), or the game's refusal:
+                return bad                              # fail fast (no fallback, no ESCI loop)
         if not bad:
             return None if 'VIS. RISULTATI' in cur.texts() else 'squad screen without VIS. RISULTATI, no unavailable row'
         k = bad[0]

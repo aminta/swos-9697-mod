@@ -65,7 +65,10 @@ breakpoints), `W84NAT_REDO=1` (remake the cached national-team saves).
     first and came back to row 17 - the way up had scrolled the window back, another player went in, and careers
     looped for hours (world_full_eng 30/10). `substitute_min` stops as soon as VIS. RISULTATI shows (an unavailable
     bench player is left out at the kick-off), and the fixer fails after LINEUP_STUCK (3) squad screens in a row left
-    by ESCI without VIS. RISULTATI. Scenario `bench_lineup` (BENCH_BUILD) checks the fixer and the game's swaps;
+    by ESCI without VIS. RISULTATI. No red row but VIS. RISULTATI hidden (rc19): the first 16 places are read from
+    memory (`lineup_mem`: an unmarked suspended player is fixed; no keeper in goal -> the keeper swap); a fit keeper
+    and nobody unavailable = the game refuses the line-up -> an immediate FAIL ('the game refuses the line-up ...',
+    rc19 world_gplay_nzchamp's NZ Grand Final), no keeper ping-pong. Scenario `bench_lineup` (BENCH_BUILD) checks the fixer and the game's swaps;
   - national team: menu without TRASFERIMENTI, PARTITA disabled until the squad is called up: `nat_callups()` adds
     players from the home leagues (enabled player rows = eligible) until "SCEGLI ALTRI 0".
 - `next_season_save(s, NAME)`: season-end menu → (job offers if sacked) → CONTINUA CARRIERA → new season → save.

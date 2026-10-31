@@ -14497,6 +14497,29 @@ def world_apertura_arg():
 
 
 @scenario
+def world_uru_nacional():
+    """4.0.5 (user Luca: a Uruguay career at NACIONAL crashed loading the new season, probably on the public 4.0.2):
+    a World 2026-27 career at NACIONAL on URU_BUILD (a release dir: c/REL402rc2/SWOS, c/REL405rc19/SWOS...), natural
+    results, two seasons with the save and reload between (world8485): the season end and season 2 load and run"""
+    exe = os.environ.get('URU_BUILD') or builds()['it']
+    keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K',
+                                            'W8485_NOSACK', 'W8485_ONE', 'W8485_TMO')}
+    os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=os.environ.get(
+        'URU_TEAM', 'SUDAMERICA,URUGUAY,CAMPEONATO URUGUAYO,NACIONAL'), W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1',
+        W8485_TMO=os.environ.get('URU_TMO', '1500'))
+    os.environ.pop('W8485_ONE', None)
+    try:
+        ok, msg = world8485()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    return ok, msg
+
+
+@scenario
 def world_apertura_uru():
     """4.0.5 earlier stages' tables, three stages: a World 2026-27 career at DANUBIO (Uruguay: Apertura 15, Intermedio
     in two groups, Clausura): in the Intermedio STAT cycles PR. APERTURA -> PR. INTERMEDIO; in the Clausura PR.

@@ -8932,9 +8932,10 @@ def world_winners_title():
     """4.0.2 WINNERS page, a national title play-off seeded by title_seed (winners.py / fmtgame 'Q'; WT_CODE per =
     Peru's PLAYOFFS LIGA 1, uru = Uruguay's CAMPEONATO URUGUAYO) at the league's weakest club (UTC /
     MALDONADO: not in the play-off): at the career's start the line shows DA GIOCARE (4.0.1 skipped it); at the season
-    end (saved before CONTINUA, reloaded) the champion when one club won both tournaments (the bank's Apertura and
-    Clausura 1st, A = C: no play-off), else DA GIOCARE - both forced by pokes of the career bank's Clausura leader
-    (GP_SSB bank 1); continued into 2027-28: the last season's page names the simulated champion"""
+    end (saved before CONTINUA, reloaded) the champion: A when one club won both tournaments (the bank's Apertura and
+    Clausura 1st, A = C: no play-off), else the play-off's, previewed at the league's end (rc19, gp_pre_c) - pokes of
+    the career bank's Clausura leader (GP_SSB bank 1) after the preview leave the line as it was decided; continued
+    into 2027-28: the last season's page names the same champion"""
     code = os.environ.get('WT_CODE', 'per')
     team, title, ct = {'per': ('SUDAMERICA,PERU,UTC', 'PLAYOFFS LIGA 1', 1),
                        'uru': ('SUDAMERICA,URUGUAY,CAMPEONATO URUGUAYO,' + os.environ.get('WT_TEAM', 'MALDONADO'),
@@ -8991,9 +8992,14 @@ def world_winners_title():
                 s.send('dump:1')
             e, ttl, lines = winners_page(s)
         blk = winner_blocks(lines)
-        want = team_name(exe, a) if a == c else 'DA GIOCARE'
         got[case] = blk.get(title)
-        check(b[0] and b[ct] and blk.get(title) == want,
+        if case == 'as is':                             # (rc19: decided before the menu - A = C: A, else the
+            want = team_name(exe, a) if a == c else None   # previewed play-off's champion, some club)
+            ok_ = blk.get(title) == want if want else blk.get(title) not in (None, '', 'DA GIOCARE', 'IN CORSO')
+        else:                                           # (the banks poked after the preview: the line as decided)
+            want = got['as is']
+            ok_ = blk.get(title) == want
+        check(b[0] and b[ct] and ok_,
               f'end ({case}): {title} {blk.get(title)!r}, want {want!r} (A {team_name(exe, a)}, C {team_name(exe, c)};'
               f' n {list(b[:4])}; page {blk})', errs)
     info.append(f'end: {got}')
@@ -9009,7 +9015,8 @@ def world_winners_title():
         more = []
         e, ttl2, lines2 = winners_page(s, more)
     last = winner_blocks([x for pg in more for x in pg])   # (the last season's page and the next: 5 Uruguay titles)
-    check(last.get(title) not in (None, '', 'DA GIOCARE', 'IN CORSO'), f'season 2: last season {last}', errs)
+    check(last.get(title) == got.get('as is'), f'season 2: last season {last}, the season end {got.get("as is")!r}',
+          errs)
     info.append(f'last season: {last}')
     return not errs, '; '.join(errs + info)
 
@@ -16673,9 +16680,9 @@ def world_winners_nzout():
 
 def winners_out(name, team, force, club=None):
     """rc18: a title play-off / Final Four / finals series with the career club OUT of it (GPLAY_FORCE=force: a
-    place that qualifies for nothing), the release data (W2627REL_DATA / 403c9): after the season end the WINNERS
-    menu may still show a title 'DA GIOCARE' (gp_season runs on CONTINUA); continued into the next season, the
-    last season's page names a winner for every such title."""
+    place that qualifies for nothing), the release data (W2627REL_DATA / 403c9): at the season-end menu the WINNERS
+    page names every title (rc19: gp_pre_c's preview at the league's end, Davide); continued into the next season
+    (CONTINUA's gp_season), the last season's page names the same winners."""
     src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-403c9')
     if not os.path.isdir(src):
         return True, f'SKIP: private data {src} missing'
@@ -16711,10 +16718,10 @@ def winners_out(name, team, force, club=None):
     logs = [b for b in logs if b[:4] == b'GPLG']
     res = [struct.unpack_from('<BBHHHH', logs[-1], 682 + 4 + 8 * 32 + 10 * i) for i in range(min(logs[-1][683], 4))] \
         if logs else []
-    open_ = {k for k, v in out.items() if v in ('DA GIOCARE', 'IN CORSO', '')}   # (at the season-end menu a title
-    with Session(name + '_next', exe, {'WOUT.CAR': car}, 'dump:2', 600) as s:     # the club is out of is still open:
-        s.wait()                                                                  # gp_season runs on CONTINUA,
-        s.send(LOAD1 + ' dump:3')                                                 # cseg_91428 - as world_winners_title)
+    open_ = {k for k, v in out.items() if v in ('DA GIOCARE', 'IN CORSO', '')}   # (the season-end menu: every title
+    with Session(name + '_next', exe, {'WOUT.CAR': car}, 'dump:2', 600) as s:     # named - gp_pre_c's preview at the
+        s.wait()                                                                  # league's end; CONTINUA's gp_season
+        s.send(LOAD1 + ' dump:3')                                                 # (cseg_91428) must agree)
         nxt = next_season_save(s, 'WOUN')
     if not nxt.endswith('.CAR'):
         return False, f'next season: {nxt}'
@@ -16724,10 +16731,11 @@ def winners_out(name, team, force, club=None):
         more = []
         winners_page(s, more)
     last = winner_blocks([x for pg in more for x in pg])   # (the last season's page)
-    bad = {k: last.get(k) for k in open_ if last.get(k) in (None, '', 'DA GIOCARE', 'IN CORSO', club)}
-    errs = []
-    check(out and last and not bad, f'club out: last season undecided {bad} (season end {out}; last season {last};'
-          f' results {res})', errs)
+    errs = []                                           # (rc19, Davide: decided before the season-end menu)
+    check(out and not open_ and club not in out.values(), f'club out: season-end page undecided {sorted(open_)} '
+          f'(season end {out}; results {res})', errs)
+    diff = {k: (v, last.get(k)) for k, v in out.items() if last.get(k) != v}   # (CONTINUA decided the same: the
+    check(last and not diff, f'season end v last season differ {diff} (last season {last})', errs)   # preview kept)
     return not errs, '; '.join(errs) or f'club out; season end {out}; last season {last}; results {res}'
 
 
@@ -16735,6 +16743,14 @@ def winners_out(name, team, force, club=None):
 def world_winners_out_mlt():
     """winners_out: Malta's Final Four, HAMRUN SPARTANS 10th"""
     return winners_out('world_winners_out_mlt', 'EUROPA,MALTA,HAMRUN SPARTANS', '10')
+
+
+@scenario
+def world_winners_mix_sd():
+    """winners_out, rc19 M2: BIELLESE 2nd of girone A - in its group's promotion play-off (played), OUT of the Poule
+    Scudetto: at the season-end menu the Poule's champion is already named (the preview after the club's play-off is
+    built), the club's own play-off line its played winner; CONTINUA agrees"""
+    return winners_out('world_winners_mix_sd', 'EUROPA,ITALIA,SERIE D,SERIE D GIRONE A,BIELLESE', '2')
 
 
 @scenario

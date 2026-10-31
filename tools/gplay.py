@@ -781,10 +781,45 @@ gp_lend:                                ; replaces `call cseg_8ECAE` (the career
     call gp_c
     test eax, eax
     jz .none
-    xor ebx, ebx                        ; the other divisions of its entrants simulated now (as cseg_8ECAE does for
-.sim:                                   ; a native play-off's clubs), their tables kept for the season end
+    mov eax, gp_need_pre                ; (rc19: + the divisions of the country's other play-offs, for the preview)
+    call gp_c
+    call gp_sims                        ; the other divisions of its entrants simulated now (as cseg_8ECAE does for
+.built:                                 ; a native play-off's clubs), their tables kept for the season end
+    mov eax, gp_lend_c
+    call gp_c
+    mov [GP_BUILT], eax
+    push eax
+    mov eax, gp_pre_c                   ; (rc19: the other play-offs previewed - the club's own are its contests)
+    call gp_c
+    pop eax
+    call gp_clrn
+    test eax, eax
+    jz .next
+    call gp_install
+    popad
+    ret
+.none:
+    call gp_pre                         ; (rc19: no play-off of the career club - its country's previewed now)
+    call gp_clrn
+.next:
+    mov eax, [D8CAA + 16]               ; (D8CBA = one of our contests, e.g. built mid-season by gp_build: the native
+    lea ebx, [GP_ST + ST_KO + KO_CON]   ; division play-off path of cseg_8ECAE would read it as a league record's
+    cmp eax, ebx                        ; play-off, with a stale D8CC0: skip it)
+    je .skip
+    add ebx, KO_SIZE
+    cmp eax, ebx
+    je .skip
+    popad
+    jmp GP_LEND_NEXT
+.skip:
+    popad
+    ret
+
+gp_sims:                                ; GP_IN.sim[]'s divisions simulated now (cseg_3ABB2), their rows into GP_IN,
+    xor ebx, ebx                        ; kept (gp_simkeep_pre) - gp_lend's and gp_pre's
+.sim:
     cmp ebx, SDX_N
-    jae .built
+    jae .x
     movzx ecx, byte [GP_IN + O_SIM + ebx]
     cmp ecx, 0FFh
     je .sn
@@ -803,40 +838,30 @@ gp_lend:                                ; replaces `call cseg_8ECAE` (the career
     call gp_regs
     popad
     pushad
-    mov eax, ecx
+    mov [GP_DIV], cl                    ; (rc19: before gp_rows - it leaves ecx = the row count: the kept table was
+    mov eax, ecx                        ; filed under it, never restored at the season end)
     mov ebp, DIY
     call gp_rows
-    mov [GP_DIV], cl
     mov dword [GP_DIYP], DIY
-    mov eax, gp_simkeep
+    mov eax, gp_simkeep_pre
     call gp_c
     popad
 .sn:
     inc ebx
     jmp .sim
-.built:
-    mov eax, gp_lend_c
-    call gp_c
-    mov [GP_BUILT], eax
-    call gp_clrn
-    test eax, eax
-    jz .next
-    call gp_install
-    popad
+.x:
     ret
-.none:
-    call gp_clrn
-.next:
-    mov eax, [D8CAA + 16]               ; (D8CBA = one of our contests, e.g. built mid-season by gp_build: the native
-    lea ebx, [GP_ST + ST_KO + KO_CON]   ; division play-off path of cseg_8ECAE would read it as a league record's
-    cmp eax, ebx                        ; play-off, with a stale D8CC0: skip it)
-    je .skip
-    add ebx, KO_SIZE
-    cmp eax, ebx
-    je .skip
-    popad
-    jmp GP_LEND_NEXT
-.skip:
+
+gp_pre:                                 ; rc19 (Davide): the career league over, the career club in none of its
+    pushad                              ; country's play-offs - the divisions they need simulated now and kept
+    mov eax, gp_need_pre                ; (gp_need_pre / gp_simkeep_pre), then the preview gp_pre_c: their winners
+    call gp_c                           ; on the WINNERS page before the season-end menu; CONTINUA decides the same
+    test eax, eax
+    jz .x
+    call gp_sims
+    mov eax, gp_pre_c
+    call gp_c
+.x:
     popad
     ret
 
@@ -2061,6 +2086,7 @@ def ss_banks(sp_tabs):
     return nb, (bytes(tab) if nb > 1 else None)
 
 
+GS_ON = [False]          # (patch.py: the engine block saves GP_GS - rc19's preview may keep 9 early tables)
 GP_BSS = 0x6000          # the C .bss pages (obj2 after careerworld's BSS): GP_IN at GT 32 / GD 16, GP_SS, PR, RS, GP_ST, RI, PS
 
 
@@ -2508,6 +2534,7 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
                                 f"-DGP_S3DEFER={int(os.environ.get('GPLAY_S3DEFER') or 0)}",
                                 f"-DGP_GFREST={int(os.environ.get('GPLAY_GFREST') or 0)}",
                                 f"-DGP_GOUT={int(os.environ.get('GPLAY_GOUT') or 0)}",
+                                f"-DGP_GSON={int(GS_ON[0])}",
                                 f"-DCF_SEED={__import__('cupsf').SEED}"]
                                + (['-DHDR_TEST'] if os.environ.get('HDR_TEST') else []))   # (test builds: GROUP n headers)
     top_r, top_w = _top9(p)                          # (cseg_927A2's top-9 list: gp_champ)
@@ -2546,7 +2573,7 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
     symbols.update(tab_syms)
     symbols.update({k: syms[k] for k in ('GP_SSB', 'GP_IN', 'GP_OUT', 'gp_season', 'gp_champ', 'gp_keep', 'GP_ST', 'GP_LOG', 'GP_NM', 'GP_DIYP', 'GP_K',
                                          'GP_W', 'GP_SKIP', 'GP_RB', 'GP_ALIVE', 'GP_LAST', 'GP_A', 'GP_B', 'GP_CID', 'GP_SEAS', 'GP_DIV',
-                                         'GP_PT', 'GP_PL', 'gp_need', 'gp_simkeep', 'gp_restore', 'gp_lend_c', 'gp_ours_c',
+                                         'GP_PT', 'GP_PL', 'gp_need', 'gp_simkeep', 'gp_need_pre', 'gp_simkeep_pre', 'gp_pre_c', 'GP_PRE', 'gp_restore', 'gp_lend_c', 'gp_ours_c',
                                          'gp_perm_c', 'gp_rec_c', 'gp_draw_c', 'gp_played_c', 'gp_end_c',
                                          'gp_build_c', 'GP_BPIC', 'sec_post')})
     t2s, c8a2ce = _t2_sites(p, r)

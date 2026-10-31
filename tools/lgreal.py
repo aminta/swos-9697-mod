@@ -355,7 +355,7 @@ LGFILE: db 'data\lgreal.dat', 0
 """
 
 
-def patch(p, at, limit, buf, buf_len, lgb):
+def patch(p, at, limit, buf, buf_len, lgb, alt=None):
     """lg_init / lg_pair at obj1:at (< limit), the file read into obj2:buf (fmtpage's shared buffer), LGB at obj2:lgb
     (BSS_SIZE, ours). split.patch must have run (its sp_init / sp_pair calls are retargeted). Returns the end."""
     if not entries():
@@ -378,6 +378,9 @@ def patch(p, at, limit, buf, buf_len, lgb):
             'A1': (2, a0 + 4), 'A2': (2, a0 + 8), 'SP_INIT': (1, calls['init'][1]), 'SP_PAIR': (1, calls['swap'][1]),
             'MK_': (0, MK), 'MAP_': (0, MAP_AT), 'TAB_': (0, TAB_AT), 'LGB': (2, lgb), 'BUF': (2, buf), 'BUFLEN_': (0, buf_len)}
     code, fix = nasmcave.assemble(ASM, at, syms)
+    if at + len(code) > limit and alt and alt[0] + len(code) <= alt[1]:   # (4.0.5 rc19: longtable's room full -
+        at, limit = alt                                                    # the split page's tail)
+        code, fix = nasmcave.assemble(ASM, at, syms)
     lab = nasmcave.labels(ASM, at, syms)
     assert at + len(code) <= limit, f'lgreal: {at + len(code):#x} > {limit:#x}'
     p.put(1, at, code)

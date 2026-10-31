@@ -250,8 +250,10 @@ def patch_exe(src, dst, remap, lang='it'):
         if mkseason.second_table()[0]:
             engine.save_item('BQ', gp_mod.BQ_SIZE, world_only=True)   # 4.0.6 may each B team go up (SEC_BQ, zones)
         engine.after_load('gp_sync')
+        gp_mod.GS_ON[0] = False
         if any(t[2] in gp_mod.T2_SPECS for t in gp_tabs):   # (a group contest played: the early tables beyond 2)
             engine.save_item('GS', gp_mod.GS_SIZE, world_only=not engine.gplay_tables())
+            gp_mod.GS_ON[0] = True
         if mkseason.cupd_tables():                     # (the Coppa Italia Serie D's state)
             engine.save_item('CD', gp_mod.CD_SIZE, world_only=True)
     gp_on = bool((gp_tabs or pg_tabs or rs_tabs or ri_tabs) and mkseason.worlds())         # (gplay.c also holds the parallel groups' fix)
@@ -644,7 +646,8 @@ def patch_exe(src, dst, remap, lang='it'):
             import lgreal
             lgreal.patch(p, LG_ROOM[0], LG_ROOM[1], num_bss + shirtnum.BSS_SIZE + blond.BSS_SIZE + menunum.BSS_SIZE,
                          fmtpage.BSS_SIZE, num_bss + shirtnum.BSS_SIZE + blond.BSS_SIZE + menunum.BSS_SIZE +
-                         fmtpage.BSS_SIZE + teamstab.BSS_SIZE + blond.BSS2_SIZE)
+                         fmtpage.BSS_SIZE + teamstab.BSS_SIZE + blond.BSS2_SIZE,
+                         alt=[(sp_end + 15) & ~15, sp_at + 0x1000 * sp_pg])   # (rc19: gplay's preview filled LG_ROOM)
     if sc_pg:                                    # state championships in career / Season slot 1 (statecup.py)
         sc_at = hist2 + h2 + 0x1000 * (lpb + sp_pg)
         sc_end = statecup.test_contest(p, sc_at) if statecup.TEST else sc_at   # (STATECUP_TEST=1 builds)

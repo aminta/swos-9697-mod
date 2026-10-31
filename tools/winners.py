@@ -877,7 +877,19 @@ GP_CALL = """    mov [GP_WNSRC], ebx                 ; gplay.c gp_wn_c: the winn
 .nf:
     pop edx
     cmp bl, 'U'                         ; (4.0.5: a supercup winner not a row of this league - a cup winner from a
-    jne .none                           ; lower division: its team file's name)
+    je .dk                              ; lower division: its team file's name)
+    cmp bl, 'K'                         ; (rc19: a play-off previewed at the league's end - gplay.c gp_pre_c - won by
+    je .pv                              ; a club of another division / group, the Poule's: its team file's name, on
+    cmp bl, 'T'                         ; the career's own league's page only)
+    je .pv
+    cmp bl, 'Q'
+    je .pv
+    cmp bl, 'D'
+    jne .none
+.pv:
+    call wn_mine
+    jz .none
+.dk:
     push edx
     xor edx, edx
     call wn_disk

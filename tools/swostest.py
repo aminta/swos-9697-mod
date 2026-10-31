@@ -4746,8 +4746,9 @@ def bench_mem():
     b = os.environ.get('SWOSTEST_BUILD') or builds()['it']
     p = lepatch.LEPatch(os.path.join(b, 'ITALIAN.EXE'))
     c = p.le.obj_bytes(1)
-    if re.search(rb'\x66\x83\x3d....\x00\x74.\x66\xa1....\x66\x83\xf8\x0f', c, re.S):
-        return True, 'SKIP: a benchx build (the tails hold players 17..26: bench_world checks them)'
+    if re.search(rb'\x66\x83\x3d....\x00\x74.\x66\xa1....(?:\x66\x83\xf8\x0f|\xeb)', c, re.S):   # (bx_max, as
+        return True, 'SKIP: a benchx build (the tails hold players 17..26: bench_world checks them)'   # bench_switch:
+                                                # 4.0.6 has a jmp after the switch's value - the old pattern missed it)
     m = re.search(rb'(?:\xc7\x05.{8}){4}\x66\xc7\x05.{4}\xa7\x06', c, re.S)     # InitGameSaveTeams' four pointers
     top = p.target(1, m.start() + 6)[1]
     bot = p.target(1, m.start() + 26)[1]

@@ -176,6 +176,65 @@ class Machine:
                     best = (v[1], f'{m}.{k}')
         return (best[1], off - best[0]) if best else (None, 0)
 
+    def dos_files(self, root):
+        """INT 21h file services from a game dir (the build's: ITALIAN.EXE's dir, DATA under it): open (3Dh), read
+        (3Fh), seek (42h), close (3Eh); paths case-insensitive, relative to root; a write (40h) or any other function
+        stops the run. self.files_read: the paths opened."""
+        self.files, self.files_read = {}, []
+        names = {}
+        for dp, dn, fn in os.walk(root):
+            for f in fn:
+                names[os.path.relpath(os.path.join(dp, f), root).lower()] = os.path.join(dp, f)
+
+        def cf(v):
+            fl = self.reg('eflags')
+            self.reg('eflags', fl | 1 if v else fl & ~1)
+
+        def h21(m):
+            ah = (m.reg('eax') >> 8) & 0xFF
+            if ah == 0x3D:
+                raw = bytes(m.uc.mem_read(m.reg('edx'), 128)).split(b'\0')[0].decode('latin-1')
+                key = raw.replace('\\', '/').lstrip('/').lower()
+                key = key[2:] if len(key) > 1 and key[1] == ':' else key
+                path = names.get(key)
+                if not path:
+                    m.reg('eax', 2)
+                    cf(1)
+                    return True
+                h = 5 + len(m.files)
+                m.files[h] = [open(path, 'rb').read(), 0]
+                m.files_read.append(key)
+                m.reg('eax', h)
+                cf(0)
+                return True
+            if ah == 0x3F:
+                f = m.files.get(m.reg('ebx') & 0xFFFF)
+                if not f:
+                    cf(1)
+                    return True
+                n = m.reg('ecx')
+                data = f[0][f[1]:f[1] + n]
+                m.uc.mem_write(m.reg('edx'), data)
+                f[1] += len(data)
+                m.reg('eax', len(data))
+                cf(0)
+                return True
+            if ah == 0x42:
+                f = m.files.get(m.reg('ebx') & 0xFFFF)
+                off = ((m.reg('ecx') & 0xFFFF) << 16) | (m.reg('edx') & 0xFFFF)
+                al = m.reg('eax') & 0xFF
+                f[1] = off if al == 0 else f[1] + off if al == 1 else len(f[0]) + off
+                m.reg('eax', f[1] & 0xFFFF)
+                m.reg('edx', f[1] >> 16)
+                cf(0)
+                return True
+            if ah == 0x3E:
+                m.files.pop(m.reg('ebx') & 0xFFFF, None)
+                cf(0)
+                return True
+            return False
+        self.on_int[0x21] = h21
+
     # --- symbols --------------------------------------------------------------------------------------------------
     def lin(self, name_or_lin):
         if isinstance(name_or_lin, int):

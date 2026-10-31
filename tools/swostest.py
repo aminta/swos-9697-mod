@@ -2977,6 +2977,13 @@ def zone_colours():
 def world8485():
     """Europe 1984-85 world (world 4): new career at Liverpool, two seasons (save, reload, save), checkw1 on both"""
     exe = os.environ.get('W8485_BUILD') or builds()['it']       # (builds/w8485 was a stale 3.0-era build)
+    global W84_HOOK
+    if os.environ.get('HT_SNAP_LABELS') and W84_HOOK is None:  # tools/hosttest fixtures from ANY world8485 run: a
+        sys.path.insert(0, os.path.join(ROOT, 'tools', 'hosttest'))   # breakpoint at each label (the exe's
+        import snapshot                                        # ITALIAN.syms.json: HOSTTEST_SYMS=1 build), dumps
+        W84_HOOK = snapshot.make_hook(sys.modules[__name__], exe, os.environ['HT_SNAP_LABELS'],   # into HT_SNAP_OUT
+                                      os.environ.get('HT_SNAP_OUT') or os.path.join(RUNS, 'ht_snap'),
+                                      int(os.environ.get('HT_SNAP_WEEKMIN', 0)), int(os.environ.get('HT_SNAP_MAX', 12)))[0]
     out, msgs = [], []
     first = os.environ.get('W8485_FROM')                   # resume from a season-1 save (W84A.CAR)
     if first:

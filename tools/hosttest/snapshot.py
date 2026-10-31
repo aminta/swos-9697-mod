@@ -24,9 +24,8 @@ def sym(syms, name):
     return syms[mod][lab]
 
 
-def take(build, label, out, scenario='world_uru_nacional', team=None, car=None, week_min=0, max_=12):
-    """the snapshots (see the module doc); -> (n, ok, msg) of the career run"""
-    import swostest as T
+def make_hook(T, build, label, out, week_min=0, max_=12):
+    """a world8485 W84_HOOK taking the snapshots (T: the swostest module running the career); -> (hook, state)"""
     sy = syms_of(build)
     labs = []
     for lab in label.split(','):
@@ -58,9 +57,21 @@ def take(build, label, out, scenario='world_uru_nacional', team=None, car=None, 
                        'season': season, 'week': week}, open(os.path.join(out, f'{k}.json'), 'w'))
             s.log.append(f'[snapshot] {lab} hit {k} week {week}')
             st['n'] += 1
+            if st['n'] >= max_:                          # (done: no more breaks - the harness re-arms what bps holds)
+                s.bps.clear()
+                s.box.watch.clear()
+                s.box.cmd('BPDEL *', 0.3)
+                s.box.cmd('BPINT 3', 0.2)
         for lab, off in labs:
             s.bp(base1 + off, lambda r, lab=lab: hit(r, lab))
     hook.at_load = True
+    return hook, st
+
+
+def take(build, label, out, scenario='world_uru_nacional', team=None, car=None, week_min=0, max_=12):
+    """the snapshots (see the module doc); -> (n, ok, msg) of the career run"""
+    import swostest as T
+    hook, st = make_hook(T, build, label, out, week_min, max_)
     keep = {k: os.environ.get(k) for k in ('URU_BUILD', 'URU_TEAM', 'URU_TMO', 'GPLAY_BUILD', 'W8485_FROM')}
     os.environ.update(URU_BUILD=build, URU_TMO='900', GPLAY_BUILD=build)
     if team:

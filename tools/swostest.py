@@ -3127,6 +3127,14 @@ def world8485():
                     title = scr.entries[0][1] if scr.entries else ''                    # step whose screen left the
                     if fill_check(s, f'step {title}') is False:                         # menu texture changed)
                         stop.fill_bad = True
+                if os.environ.get('W8485_RNGSTEP'):    # (4.0.5) the random states re-pinned at every pause, from
+                    rs = getattr(s, 'rng_at', None)     # (season, pause number): CareerMenu reseeds Rand from
+                    if rs is None:                      # currentTick on every entry, so one pin at the start still
+                        rs = s.rng_at = rng_sites(os.path.join(exe, 'ITALIAN.EXE'))   # left the path to the exe's
+                    s.rng_n = getattr(s, 'rng_n', 0) + 1    # load timing (xtra_world30: CELLE VARAZZE's play-out,
+                    h = hashlib.md5(f"{os.environ['W8485_RNGSTEP']}:{season}:{s.rng_n}".encode()).digest()
+                    for at, part in zip(rs, (h[:3], h[3:6])):   # no renewal, MODICA on f1dd98f / gs3 / gsOFF)
+                        s.poke(s.result.base2 + at, part)
                 if nosack is not None and season not in poked:   # W8485_NOSACK: the game's 'no sacking' word
                     s.poke(s.result.base2 + nosack, b'\x01\x00')   # (dseg_D6B62, cleared at every season start)
                     poked.add(season)
@@ -6646,10 +6654,12 @@ def xtra_world30():
         return False, f'{club}: no XTRA block in {exe}'
     n_want = 16 + len(want)
     keep = {x: os.environ.get(x) for x in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K',
-                                            'W8485_NOSACK', 'W8485_HEX', 'W8485_ONE', 'W8485_RNG')}
+                                            'W8485_NOSACK', 'W8485_HEX', 'W8485_ONE', 'W8485_RNG',
+                                            'W8485_RNGSTEP')}
     os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=path, W8485_WNUM='5', W8485_K='108+',
                       W8485_NOSACK='1', W8485_HEX=f'{cnp:x}:2,{cmp:x}:32,{ct:x}:1292,{wt:x}:128',
-                      W8485_RNG=os.environ.get('XTRA30_RNG', '000000000000'))   # (31/10: the random state at the career
+                      W8485_RNG=os.environ.get('XTRA30_RNG', '000000000000'),
+                      W8485_RNGSTEP=os.environ.get('XTRA30_RNGSTEP', 'x30'))   # (31/10: the random state at the career
     os.environ.pop('W8485_ONE', None)                   # start follows the exe's load time - f1dd98f's 233 B, never run,
                                                         # took CELLE VARAZZE to a non-renewed contract and 22 players)
     try:

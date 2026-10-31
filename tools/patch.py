@@ -546,7 +546,9 @@ def patch_exe(src, dst, remap, lang='it'):
     assert menunum.NEWBASE + 88 == blond.NEW3 and blond.NEW3 + 202 <= shirtnum.NEWBASE + 3072 // 4
     bald_bss = num_bss + shirtnum.BSS_SIZE + blond.BSS_SIZE + menunum.BSS_SIZE + fmtpage.BSS_SIZE + teamstab.BSS_SIZE
     bl_at = hist2 + h2 + 0x1000 * (lpb + sp_pg + sc_pg + ct_pg) + 0x2200   # 4.0.3: blond's code (bald: longer; the
-    bl_end = blond.patch(p, area, bl_at, num_bss + shirtnum.BSS_SIZE, shirtnum.spr_index(p), bald_bss)   # cosmetics
+    ns_at0 = hist2 + h2 + 0x1000 * (lpb + sp_pg + sc_pg + ct_pg + ctl_pg - namespr.PAGES)   # (namespr's pages, below:
+    art_at = namespr.layout(ns_at0)[1] + namespr.CAP * namespr.DATA                            # the shaved art in their tail)
+    bl_end = blond.patch(p, area, bl_at, num_bss + shirtnum.BSS_SIZE, shirtnum.spr_index(p), bald_bss, art_at)   # cosmetics
     assert bl_end <= bl_at + 0xE00, hex(bl_end)          # cave is full) in controls' last data page, after its data
     cos = menunum.patch(p, cos, num_bss + shirtnum.BSS_SIZE + blond.BSS_SIZE)   # 3.3.4: menu numbers 17..99
     cos = avgprice.patch(p, cos)                 # 3.3.4: average player price >= 1 (divide error, 1984-85 Iceland)
@@ -667,7 +669,9 @@ def patch_exe(src, dst, remap, lang='it'):
     ctl_at = hist2 + h2 + 0x1000 * (lpb + sp_pg + sc_pg + ct_pg)   # 4.0.2: OPTIONS > CONTROLS (keys, device, calibration,
     ctl_end = controls.patch(p, ctl_at, lang)                     # SETUP.DAT)
     ns_at = ctl_at + 0x1000 * (ctl_pg - namespr.PAGES)            # 4.0.5: the match names' sprites (namespr.py)
-    namespr.patch(p, ns_at, lang)
+    ns_end = namespr.patch(p, ns_at, lang)
+    assert ns_at == ns_at0 and ns_end <= art_at, (hex(ns_end), hex(art_at))   # (namespr's CAP x DATA: the art's floor)
+    blond.art_patch(p, ns_at + 0x1000 * namespr.PAGES)            # 4.0.5: the shaved art in namespr's spare tail
     import numcol                                      # 4.0.5 (Marco): the squad lists' number column 1 px wider
     numcol.patch(p)
     import subsnum                               # 4.0.2: two-digit numbers in the in-match bench list (names +6 px)

@@ -5966,6 +5966,144 @@ def bench_cup():
     return not errs, '; '.join(errs + [f'looked up: {seen}', msg[:80]])
 
 
+SCORERS_TITLE = ('CAPO CANNONIERI NAZIONALE', 'TOP GOAL SCORERS', 'MEILLEURS BUTEURS', 'BESTE TORSCH?TZEN',
+                 'BESTE TORSCHÜTZEN')
+
+
+def scorers_check(s, car, errs, info):
+    """(scorint.py) The loaded career's VISUAL. COMPETIZ. -> CAPO CANNONIERI NAZIONALE: every row's numbers read from
+    the screen (digit shapes learnt from the rank column, 1..15), LEGA + COP1 + COP2 + INT = TOT, five columns apart
+    (no two numbers touching); the last row (the screen model holds its name: one row template drawn for each row)
+    = its player's record counters +33..+36 in the .CAR, every other row's four values some record's counters."""
+    from PIL import Image
+    if press(s, s.screen(), 'VISUAL. COMPETIZ.', wait=3) is None:
+        errs.append('VISUAL. COMPETIZ. not reached')
+        return
+    t = next((x for x in SCORERS_TITLE if s.screen().find(x, exact=True) is not None), None)
+    if t is None or press(s, s.screen(), t, wait=3) is None:
+        errs.append(f'the national scorers entry not found: {s.screen()}')
+        return
+    s.shot('scorers')
+    scr = s.screen()
+    im = Image.open(os.path.join(s.run, 'shots', 'scorers.png')).convert('RGB')
+    w, h = im.size
+    top = h - w * 400 // 640
+    white = lambda x, y: sum(im.getpixel((min(w - 1, x * w // 320), min(h - 1, top + y * (h - top) // 200)))) > 600
+    last = [(scr.geom[i][1], x) for i, x, inv, _ in scr.entries if x and not inv and scr.geom[i][0] < 60
+            and scr.geom[i][1] > 40 and not x.startswith('(')]   # (one row template, drawn for each row: the
+    if len(last) != 1:                                           #  screen model holds the last row's texts)
+        errs.append(f'the last row not found: {last}')
+        return
+    n = sum(1 for k in range(15) if any(white(x, last[0][0] - 9 * k + dy) for x in range(0, 17) for dy in range(7)))
+    names = [(last[0][0] - 9 * (n - 1 - k), last[0][1] if k == n - 1 else f'row {k + 1}') for k in range(n)]
+
+    def numbers(y, x0, x1):                       # the white glyphs of the row band, grouped into numbers
+        cols = [sum(1 << dy for dy in range(7) if white(x, y + dy)) for x in range(x0, x1)]
+        glyphs, cur, start = [], [], None
+        for k, c in enumerate(cols + [0]):
+            if c:
+                start = k if start is None else start
+                cur.append(c)
+            elif cur:
+                glyphs.append((x0 + start, x0 + k - 1, tuple(cur)))
+                cur, start = [], None
+        nums = []
+        for g in glyphs:                          # (digits of a number 1 px apart; numbers further)
+            if nums and g[0] - nums[-1][-1][1] <= 2:
+                nums[-1].append(g)
+            else:
+                nums.append([g])
+        return nums
+    shapes = {}
+    for k, (y, _) in enumerate(names):            # the rank column: row k shows k + 1
+        r = numbers(y, 0, 17)
+        if len(r) == 1 and len(r[0]) == len(str(k + 1)):
+            for g, ch in zip(r[0], str(k + 1)):
+                shapes[g[2]] = ch
+    rec = open(car, 'rb').read() if car and os.path.exists(car) else b''
+    rows = []
+    for k, (y, nm) in enumerate(names):
+        nums = numbers(y, 228, 320)
+        try:
+            vals = [int(''.join(shapes[g[2]] for g in n)) for n in nums]
+        except KeyError:
+            errs.append(f'row {k + 1} {nm}: a digit shape not learnt ({len(shapes)} known)')
+            continue
+        rows.append((nm, vals))
+        if len(vals) < 3 or sum(vals[:-1]) != vals[-1]:
+            errs.append(f'row {k + 1} {nm}: {vals}: the columns do not add up to TOT')
+        gaps = [nums[j + 1][0][0] - nums[j][-1][1] for j in range(len(nums) - 1)]
+        if gaps and min(gaps) < 4:
+            errs.append(f'row {k + 1} {nm}: numbers {gaps} px apart (touching)')
+        hits = [m.start() - 3 for m in re.finditer(re.escape(nm.encode('latin-1')) + b'\0', rec)] if rec else []
+        if len(hits) == 1 and len(vals) == 5:     # (the last row: its player by name)
+            want = list(rec[hits[0] + 33:hits[0] + 37])
+            if vals[:4] != want:
+                errs.append(f'row {k + 1} {nm}: shown {vals[:4]}, record +33..+36 {want}')
+        elif rec and len(vals) == 5 and bytes(vals[:4]) not in rec:   # (the others: some record's four counters)
+            errs.append(f'row {k + 1}: {vals[:4]} is no record\'s +33..+36 in the save')
+    info.append(f'{len(rows)} rows, {len(shapes)} digit shapes; ' +
+                ', '.join(f'{nm} {"/".join(map(str, v))}' for nm, v in rows[:5] + rows[-1:]))
+    check(len(rows) >= 10, f'{len(rows)} scorer rows read', errs)
+    check(any(len(v) == 5 and v[3] for _, v in rows), 'no INT goals in any row (the column not drawn?)', errs)
+
+
+@scenario
+def scorers_int():
+    """4.0.5 (Luigi via Davide, 31/10: on CAPO CANNONIERI NAZIONALE TOT was larger than LEGA + COP1 + COP2 - the
+    international cups' goals, a player's 4th goal counter, had no column): tools/scorint.py's INT column. Luigi's
+    save (SCORERS_CAR, default internal/reports/luigi-4.0.1/PROVA.CAR: NAPOLI, Serie A clubs with European goals) on
+    SWOSTEST_BUILD (the release exe; SWOSTEST_UI for EN / FR / DE), loaded: scorers_check (every row adds up, five
+    columns apart, the values = the records' counters +33..+36, some INT goals shown)."""
+    car = os.environ.get('SCORERS_CAR') or os.path.join(MAIN, 'internal', 'reports', 'luigi-4.0.1', 'PROVA.CAR')
+    if not os.path.exists(car):
+        return True, f'SKIP: {car} missing'
+    b = os.environ.get('SWOSTEST_BUILD') or builds()['it']
+    errs, info = [], []
+    with Session('scorers_int', b, {'W84A.CAR': car}, 'dump:2', 300, 1) as s:
+        if s.wait().outcome != 'dump':
+            return False, f'START: no first pause ({s.result})'
+        s.send('down down down down down fire dump:2')
+        s.send('fire dump:3')
+        for _ in range(4):
+            if s.screen().find('VISUAL. COMPETIZ.', exact=True) is not None:
+                break
+            s.send('fire dump:1.5')
+        scorers_check(s, car, errs, info)
+    return not errs, '; '.join(errs + info)
+
+
+@scenario
+def scorers_int_world():
+    """scorers_int on a World 2026-27 career's own season (SCORERS_TEAM, default NAPOLI: Serie A + the Champions
+    League): season 1 played (world8485, results only) and saved at its end (W8485_SAVE_END), then loaded and the
+    CAPO CANNONIERI NAZIONALE checked as scorers_int (SWOSTEST_BUILD)."""
+    b = os.environ.get('SWOSTEST_BUILD') or builds()['it']
+    keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_ONE',
+            'W8485_SAVE_END')
+    keep = {k: os.environ.get(k) for k in keys}
+    os.environ.update(W8485_BUILD=b, W8485_WORLD='MONDO 2026-27', W8485_TEAM=os.environ.get(
+        'SCORERS_TEAM', 'EUROPA,ITALIA,SERIE A,NAPOLI'), W8485_WNUM='5', W8485_K='0+', W8485_NOSACK='1', W8485_ONE='1',
+        W8485_SAVE_END='W84E')
+    try:
+        ok, msg = world8485()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    car = os.path.join(RUNS, w84_tag() + '_1', 'SWOS', 'W84E.CAR')
+    if not ok or not os.path.exists(car):
+        return False, f'season 1: {msg}'
+    os.environ['SCORERS_CAR'] = car
+    try:
+        ok, msg2 = scorers_int()
+    finally:
+        os.environ.pop('SCORERS_CAR', None)
+    return ok, f'{msg2}; season 1: {msg[:80]}'
+
+
 @scenario
 def bench_lineup():
     """(Regia 30/10, rc15) The line-up fixer with the long bench. rc14p: world_full_eng (SALFORD CITY) and

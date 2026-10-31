@@ -676,6 +676,8 @@ def patch_exe(src, dst, remap, lang='it'):
     ctl_end = blond.unch_patch(p, (ctl_end + 15) & ~15)   # 4.0.2 MALEN: the darkblond sets in half / EGA mode
     import modver                                # 4.0.5: 'MOD <version>' on the main menu (Davide, support)
     ctl_end = modver.patch(p, (ctl_end + 15) & ~15, lang)
+    import scorint                               # 4.0.5: the international cups' goals column on CAPO CANNONIERI
+    ctl_end = scorint.patch(p, (ctl_end + 15) & ~15, lang)   # NAZIONALE (Luigi: TOT larger than the columns)
     assert ctl_end <= ctl_at + 0x1000, hex(ctl_end)        # (the code page; controls' data pages follow it)
     import benchx                                # 4.1: a bench of up to 15 (block 1: the in-match teams of 26)
     bn_at = ctl_at + 0x1000 * ctl_pg

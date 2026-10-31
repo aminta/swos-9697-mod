@@ -2290,6 +2290,25 @@ def euro_draws():
     return not errs, f"{msg}; {'; '.join(errs) or 'ok'}; {'; '.join(notes)}; rounds checked {sorted(seen)}; bp hits {hits}"
 
 
+def rng_sites(exe):
+    """obj2 offsets of the game's two random generators' states, 3 bytes each (seed, randXorIndex, randXorKey; Rand
+    and Rand2: `mov al, [seed]; mov [D0], al; and word [D0], 0FFh; jnz; add byte [randXorIndex], 1; mov al,
+    [randXorIndex]`), in the order they appear in the code."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    from le import LE
+    le = LE(open(exe, 'rb').read())
+    c = le.obj_bytes(1)
+    fx = {f[1]: f[4] for f in le.fixups() if f[0] == 1 and f[3] == 2}
+    out = []
+    for m in re.finditer(rb'\xa0....\xa2....\x66\x81\x25....\xff\x00\x75.\x80\x05....\x01\xa0', c, re.S):
+        o = m.start()
+        sd, ix = fx.get(o + 1), fx.get(o + 23)
+        if sd is not None and ix == sd + 1 and fx.get(o + 29) == ix:
+            out.append(sd)
+    assert len(out) == 2, out
+    return out
+
+
 def nosack_off(exe):
     """obj2 offset of dseg_D6B62 (non-zero: the chairman never sacks the manager; cleared by every season start):
     the second word of the `mov ax,[D6B64]; or ax,ax; jnz; mov ax,[D6B62]; or ax,ax; jnz` pair of both sacking
@@ -3066,6 +3085,12 @@ def world8485():
                     if all(press(s, s.screen(), x) is None for x in ([t] + [x for x in alts if x != t])) \
                             or s.result.outcome != 'dump':
                         return False, f'new career: {t} not reached ({s.result})'
+                if os.environ.get('W8485_RNG'):                   # (4.0.5) the random generators' states pinned
+                    v = bytes.fromhex(os.environ['W8485_RNG'])     # at the career's start: they advance with every
+                    for at, part in zip(rng_sites(os.path.join(exe, 'ITALIAN.EXE')), (v[:3], v[3:6])):   # call since
+                        s.poke(s.result.base2 + at, part)           # the game started, i.e. with the exe's load
+                    s.log.append(f'[rng] {v.hex()}')                # time (31/10: f1dd98f's 233 B -> xtra_world30
+                                                                    # took another season)
                 if os.environ.get('W8485_START') == '1':          # menu check only: the career has started
                     return True, f'career started: {s.screen()}'[:400]
             else:
@@ -6512,10 +6537,12 @@ def xtra_world30():
         return False, f'{club}: no XTRA block in {exe}'
     n_want = 16 + len(want)
     keep = {x: os.environ.get(x) for x in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K',
-                                            'W8485_NOSACK', 'W8485_HEX', 'W8485_ONE')}
+                                            'W8485_NOSACK', 'W8485_HEX', 'W8485_ONE', 'W8485_RNG')}
     os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=path, W8485_WNUM='5', W8485_K='108+',
-                      W8485_NOSACK='1', W8485_HEX=f'{cnp:x}:2,{cmp:x}:32,{ct:x}:1292,{wt:x}:128')
-    os.environ.pop('W8485_ONE', None)
+                      W8485_NOSACK='1', W8485_HEX=f'{cnp:x}:2,{cmp:x}:32,{ct:x}:1292,{wt:x}:128',
+                      W8485_RNG=os.environ.get('XTRA30_RNG', '000000000000'))   # (31/10: the random state at the career
+    os.environ.pop('W8485_ONE', None)                   # start follows the exe's load time - f1dd98f's 233 B, never run,
+                                                        # took CELLE VARAZZE to a non-renewed contract and 22 players)
     try:
         ok, msg = world8485()
     finally:

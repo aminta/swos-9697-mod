@@ -1771,6 +1771,10 @@ def advance(s, stop, max_steps=400):
             s.log.append(f'[fill] FIRST CHANGE at step {step}, after: {recent[-1] if recent else "-"}')   # change)
         if not getattr(s, 'inmatch', False) or scr.entries:
             recent.append(str(scr))                      # stuck: the last 16 screens are 1 or 2 alternating ones
+        rp_ = os.environ.get('W8485_REALPLAY')
+        if getattr(s, 'inmatch', False) and rp_ and scr.entries and scr.entries[0][2] and rp_ in scr.entries[0][1]:
+            s.send('fire dump:2')                        # (4.0.5: a final's line-ups before the kick-off, its title
+            continue                                     #  inverted: still the match - goal_slot_sc_real)
         if scr.entries:
             s.inmatch = False
         if len(recent) >= 16 and len(set(recent[-16:])) <= 2:
@@ -6127,6 +6131,111 @@ def scorers_int_world():
     finally:
         os.environ.pop('SCORERS_CAR', None)
     return ok, f'{msg2}; season 1: {msg[:80]}'
+
+
+def goal_log_at(exe):
+    """(goalslot.py) GS_LOG's obj1 offset - 4 (gs_n, then the 16 x 8-byte ring): cseg_2F3AB's mov esi, [A0]; call
+    gs_add; 6 nops -> gs_add's lea edi, [GS_LOG + edi * 8]. None: no goalslot in the exe."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import lepatch
+    import sacups
+    p = lepatch.LEPatch(exe)
+    d1 = p.le.obj_bytes(1)
+    a0 = sacups.regs(lepatch.LEPatch(os.path.join(ROOT, 'orig', 'ITALIAN.EXE')).le.obj_bytes(1))['A0']   # (the
+    m = [x.start() for x in re.finditer(rb'\x8b\x35' + re.escape(struct.pack('<I', a0)) +   # original's registers)
+                                        rb'\xe8....\x90{6}', d1, re.S)]
+    if len(m) != 1:
+        return None
+    t = m[0] + 11 + struct.unpack_from('<i', d1, m[0] + 7)[0]
+    k = d1.find(b'\x8d\x3c\xfd', t, t + 200)
+    return p.target(1, k + 3)[1] - 4 if k > 0 else None
+
+
+def goal_slot_run(name, team, midtext, exe, want, real=False):
+    """A World 2026-27 career at team on exe (world8485, results only - the simulated result's write-back cseg_1C39F;
+    real: the matches of fixture screens titled with midtext played for real, W8485_REALPLAY - the match engine's
+    cseg_2F3AB) stopped and saved at the second fixture screen showing midtext (the first is the one before the
+    match: W8485_MIDTEXT counts screens with '- RISULTATO -'), else at the season's end; gs_add's ring of the remapped writes (slot 4, slot 3 FC..FE; W8485_HEX on obj1) gathered at every
+    screen. Checks: every one left +37 alone (the form / trial mark: before = after), went to a counter 0..3 (+33..+36:
+    LEGA COP1 COP2 INT, all in TOT), that counter grew by the goals; slot 4 never as the game; at least one write of class
+    want[0] into counter want[1] (the match's goals). Returns (ok, msg)."""
+    at = goal_log_at(os.path.join(exe, 'ITALIAN.EXE'))
+    if at is None:
+        return False, 'no goalslot ring in the exe'
+    if real:
+        exe = nop_league_int3(name, exe)
+    keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_ONE',
+            'W8485_HEX', 'W8485_MIDTEXT', 'W8485_TMO', 'W8485_REALPLAY')
+    keep = {k: os.environ.get(k) for k in keys}
+    os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5', W8485_K='108+',
+                      W8485_NOSACK='1', W8485_ONE='1', W8485_HEX=f'o1/{at:x}:132', W8485_MIDTEXT=midtext + ':2',
+                      W8485_TMO='1500', **({'W8485_REALPLAY': midtext} if real else {}))
+    try:
+        ok, msg = world8485()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    lines = open(os.path.join(RUNS, w84_tag() + '_1', 'session.log'), errors='replace').read().splitlines()
+    done, ents, title = 0, [], ''
+    for ln in lines:
+        if ln.startswith('['):
+            title = ln.split(']', 1)[1].split('|')[0].strip()
+        elif ln.startswith(f'HEX o1/{at:x} '):
+            b = bytes.fromhex(ln.split()[2])
+            n = struct.unpack_from('<I', b)[0]
+            ents += [(title, b[4 + 8 * (k & 15):12 + 8 * (k & 15)]) for k in range(max(done, n - 16), n)]
+            done = n
+    errs = []
+    check(ok, f'run: {msg}', errs)                 # (a one-match final shows one such screen: the season's end)
+    bad = [(t, e.hex()) for t, e in ents if e[4] != e[5] or e[1] > 3 or e[7] != (e[6] + e[2]) & 255
+           or (e[0] == 4 and e[3] == 4)]
+    check(not bad, f'bad writes (slot, counter, goals, class, +37 before / after, counter before / after): {bad[:6]}', errs)
+    hit = [(t, e.hex()) for t, e in ents if e[3] == want[0] and e[1] == want[1]]
+    check(hit, f'no class-{want[0]} goal into counter {want[1]} ({midtext}); {len(ents)} writes', errs)
+    cls = sorted({(e[0], e[1], e[3]) for _, e in ents})
+    return not errs, '; '.join(errs) or f'{name}: {len(hit)} {midtext} scorers -> counter {want[1]}, +37 untouched in ' \
+                                        f'all {len(ents)} writes (slot, counter, class: {cls})'
+
+
+@scenario
+def goal_slot_sc():
+    """4.0.5 (goalslot.py) a national supercup's goals in COP1, never in +37 (the form / trial mark): an INTER career on
+    GOALSLOT_BUILD (default the IT build), season 1 up to the SUPERCOPPA ITALIANA (22/12, v LAZIO) result; every goal
+    written so far (Serie A, Coppa Italia, the Champions League: their own counters) and the supercup's into COP1."""
+    return goal_slot_run('goal_slot_sc', 'EUROPA,ITALIA,SERIE A,INTER', 'SUPERCOPPA',
+                         os.environ.get('GOALSLOT_BUILD') or builds()['it'], (1, 1))
+
+
+@scenario
+def goal_slot_sc_real():
+    """goal_slot_sc with the SUPERCOPPA ITALIANA played for real (the match engine's write-back, cseg_2F3AB: a
+    user's played or watched match)."""
+    return goal_slot_run('goal_slot_sc_real', 'EUROPA,ITALIA,SERIE A,INTER', 'SUPERCOPPA',
+                         os.environ.get('GOALSLOT_BUILD') or builds()['it'], (1, 1), real=True)
+
+
+@scenario
+def goal_slot_cd():
+    """4.0.5 (goalslot.py) the Coppa Italia Serie D's goals in COP2: a FIDELIS ANDRIA career (Serie D girone H) on
+    GOALSLOT_BUILD, season 1 up to its first COPPA ITALIA SERIE D result."""
+    return goal_slot_run('goal_slot_cd', 'EUROPA,ITALIA,SERIE D GIRONE H,FIDELIS ANDRIA', 'COPPA ITALIA SERIE D',
+                         os.environ.get('GOALSLOT_BUILD') or builds()['it'], (2, 2))
+
+
+@scenario
+def goal_slot_po():
+    """4.0.5 (goalslot.py) a play-off's goals in LEGA: MODENA forced 5th of Serie B (DPLAY_FORCE=5 test build of the
+    release data W2627REL_DATA, as world_dplay_b), season 1 up to the PLAY-OFF SERIE B's first result (slot 4)."""
+    src = (os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-403c11')).rstrip('/')
+    if not os.path.isdir(src):
+        return True, f'SKIP: private data {src} missing'
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    exe = os.environ.get('GOALSLOT_PO_BUILD') or build('goal_slot_po', env={
+        'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]), 'DPLAY_FORCE': '5'})
+    return goal_slot_run('goal_slot_po', 'EUROPA,ITALIA,SERIE B,MODENA', 'PLAY-OFF', exe, (0, 0))
 
 
 @scenario

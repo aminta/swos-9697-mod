@@ -14522,6 +14522,22 @@ def world_uru_nacional():
 
 
 @scenario
+def ht_snapshot():
+    """tools/hosttest fixtures in this run's dir (so remote_run brings them back): HT_BUILD (a build with
+    HOSTTEST_SYMS=1), HT_LABELS (module.label,..), HT_NAME (-> RUNS/ht_<name>/<k>.bin + .json), HT_SCEN (a world8485
+    scenario, default world_uru_nacional), HT_TEAM (its URU_TEAM path), HT_CAR, HT_WEEKMIN, HT_MAX"""
+    if not os.environ.get('HT_BUILD'):
+        return True, 'SKIP: HT_BUILD not set'
+    sys.path.insert(0, os.path.join(ROOT, 'tools', 'hosttest'))
+    import snapshot
+    e = os.environ
+    out = os.path.join(RUNS, 'ht_' + e.get('HT_NAME', 'snap'))
+    n, ok, msg = snapshot.take(e['HT_BUILD'], e['HT_LABELS'], out, e.get('HT_SCEN', 'world_uru_nacional'),
+                               e.get('HT_TEAM'), e.get('HT_CAR'), int(e.get('HT_WEEKMIN', 0)), int(e.get('HT_MAX', 12)))
+    return n > 0, f'{n} snapshots in {out}; career {ok}: {msg[:200]}'
+
+
+@scenario
 def world_apertura_uru():
     """4.0.5 earlier stages' tables, three stages: a World 2026-27 career at DANUBIO (Uruguay: Apertura 15, Intermedio
     in two groups, Clausura): in the Intermedio STAT cycles PR. APERTURA -> PR. INTERMEDIO; in the Clausura PR.

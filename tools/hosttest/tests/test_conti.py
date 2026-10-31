@@ -41,3 +41,21 @@ def test_ct_prep_fixed():
 def test_ct_prep_control():
     """control (rc19, before adce370): the q2 tie after the won q1 is built into played weeks"""
     return check(os.environ.get('HT_CONTROL', 'HT19'), False)
+
+
+def test_ct_prep_overlay():
+    """new code on an old snapshot (emu overlay): the control build's q2 snapshot with the fixed build's code - the
+    tie after the current week; with its own code - into a played week (the overlay itself proven both ways)"""
+    from emu import LayoutChanged
+    d = os.path.join(FIX, f'ct_prep_{os.environ.get("HT_CONTROL", "HT19")}')
+    res = {}
+    for name, code in (('own', os.environ.get('HT_CONTROL', 'HT19')), ('fix', os.environ.get('HT_FIX', 'HT20'))):
+        try:
+            m = Machine(d, 0, code_from=os.path.join(os.path.expanduser('~'), 'swos-mod', 'c', code, 'SWOS'))
+        except LayoutChanged as e:
+            return False, f'{name}: {e}'
+        week = m.u8(m.lin('uefaq.SYMS.CAL') + m.u16('uefaq.SYMS.CAL_CUR') + 1)
+        m.call('conti.ct_prep')
+        res[name] = (week, m.u8('conti.@TIE', 3), getattr(m, 'migrated', 0))
+    ok = res['own'][1] <= res['own'][0] and res['fix'][1] > res['fix'][0]
+    return ok, f'(current week, first week, state bytes moved): own code {res["own"]}, fixed code {res["fix"]}'

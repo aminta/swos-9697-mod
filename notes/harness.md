@@ -208,3 +208,7 @@ For logic bugs, seconds instead of a career run. Unicorn (x86) in internal/hostt
 First test (test_conti): conti.py ct_prep must never put the career club's next tie in a week already reached -
 the control build (rc19, before adce370) FAILS on the Libertadores q2 after a won q1 (week 56 built at week 59), the
 fixed one PASSES (60). Builds c/HT19 / c/HT20 (HT_CONTROL / HT_FIX).
+New code on old fixtures: `Machine(dir, k, code_from=BUILD_DIR)` relocates that build's obj1 / obj2 onto the snapshot
+(LE fixups at the snapshot's bases; the snapshot's run.EXE = the exe as run, with the harness's page) and keeps the
+state: bytes the game changed at run time stay; a changed byte of a named label that moved goes to its new place;
+anything else = LayoutChanged (re-snapshot). test_ct_prep_overlay: the rc19 q2 snapshot + the fixed code -> week 60.

@@ -24,27 +24,17 @@ def sym(syms, name):
     return syms[mod][lab]
 
 
-def main(argv):
-    a = argparse.ArgumentParser()
-    a.add_argument('build')
-    a.add_argument('label')
-    a.add_argument('out')
-    a.add_argument('--car')
-    a.add_argument('--team', default='SUDAMERICA,URUGUAY,CAMPEONATO URUGUAYO,NACIONAL')
-    a.add_argument('--max', type=int, default=12)
-    a.add_argument('--scenario', default='world_uru_nacional')   # (any world8485 scenario: W84_HOOK; GPLAY_BUILD /
-    a.add_argument('--week-min', type=int, default=0)            #  URU_BUILD point it at BUILD_DIR)
-    o = a.parse_args(argv)
-    sys.argv = ['x']
+def take(build, label, out, scenario='world_uru_nacional', team=None, car=None, week_min=0, max_=12):
+    """the snapshots (see the module doc); -> (n, ok, msg) of the career run"""
     import swostest as T
-    sy = syms_of(o.build)
+    sy = syms_of(build)
     labs = []
-    for lab in o.label.split(','):
+    for lab in label.split(','):
         obj, off = sym(sy, lab)
         assert obj in (0, 1), (lab, obj)                 # (a code label: obj1)
         labs.append((lab, off))
     cal, cur = sym(sy, 'uefaq.SYMS.CAL'), sym(sy, 'uefaq.SYMS.CAL_CUR')
-    os.makedirs(o.out, exist_ok=True)
+    os.makedirs(out, exist_ok=True)
     st = {'n': 0, 'armed': False}
 
     def hook(s, season, scr):
@@ -56,24 +46,51 @@ def main(argv):
         def hit(r, lab):
             c = int.from_bytes(r.obj2(cur[1], 2), 'little')
             week = r.obj2(cal[1] + c + 1, 1)[0]
-            if st['n'] >= o.max or week < o.week_min:
+            if st['n'] >= max_ or week < week_min:
                 return
             mem = s.box.dump(0, T.MEMSIZE)
             k = st['n']
-            open(os.path.join(o.out, f'{k}.bin'), 'wb').write(mem)
-            json.dump({'base1': r.base1, 'base2': r.base2, 'eip': r.eip, 'label': lab, 'build': o.build,
-                       'season': season, 'week': week}, open(os.path.join(o.out, f'{k}.json'), 'w'))
+            if not k:                                    # (the exe as run - the harness's page: emu.overlay's base)
+                import shutil
+                shutil.copy(os.path.join(s.run, 'SWOS', 'ITALIAN.EXE'), os.path.join(out, 'run.EXE'))
+            open(os.path.join(out, f'{k}.bin'), 'wb').write(mem)
+            json.dump({'base1': r.base1, 'base2': r.base2, 'eip': r.eip, 'label': lab, 'build': build,
+                       'season': season, 'week': week}, open(os.path.join(out, f'{k}.json'), 'w'))
             s.log.append(f'[snapshot] {lab} hit {k} week {week}')
             st['n'] += 1
         for lab, off in labs:
             s.bp(base1 + off, lambda r, lab=lab: hit(r, lab))
     hook.at_load = True
+    keep = {k: os.environ.get(k) for k in ('URU_BUILD', 'URU_TEAM', 'URU_TMO', 'GPLAY_BUILD', 'W8485_FROM')}
+    os.environ.update(URU_BUILD=build, URU_TMO='900', GPLAY_BUILD=build)
+    if team:
+        os.environ['URU_TEAM'] = team
+    if car:
+        os.environ['W8485_FROM'] = car
     T.W84_HOOK = hook
-    os.environ.update(URU_BUILD=o.build, URU_TEAM=o.team, URU_TMO='900', GPLAY_BUILD=o.build)
-    if o.car:
-        os.environ['W8485_FROM'] = o.car
-    ok, msg = getattr(T, o.scenario)()
-    print(f'{st["n"]} snapshots in {o.out}; run: {ok} {msg[:200]}')
+    try:
+        ok, msg = getattr(T, scenario)()
+    finally:
+        T.W84_HOOK = None
+        for k, v in keep.items():
+            os.environ.pop(k, None) if v is None else os.environ.__setitem__(k, v)
+    return st['n'], ok, msg
+
+
+def main(argv):
+    a = argparse.ArgumentParser()
+    a.add_argument('build')
+    a.add_argument('label')
+    a.add_argument('out')
+    a.add_argument('--car')
+    a.add_argument('--team')
+    a.add_argument('--max', type=int, default=12)
+    a.add_argument('--scenario', default='world_uru_nacional')   # (any world8485 scenario: W84_HOOK; GPLAY_BUILD /
+    a.add_argument('--week-min', type=int, default=0)            #  URU_BUILD point it at BUILD_DIR)
+    o = a.parse_args(argv)
+    sys.argv = ['x']
+    n, ok, msg = take(o.build, o.label, o.out, o.scenario, o.team, o.car, o.week_min, o.max)
+    print(f'{n} snapshots in {o.out}; run: {ok} {msg[:200]}')
     return 0
 
 

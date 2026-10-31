@@ -16740,6 +16740,65 @@ def winners_out(name, team, force, club=None):
 
 
 @scenario
+def world_winners_menu402():
+    """rc19 (Regia): a Malta career saved AT the season-end menu by the PUBLIC 4.0.2 exe (MENU402_OLD, default
+    c/REL402rc2 = v4.0.2; its data world5tm-402rc5), BIRZEBBUGA (the Final Four without it, as the season goes),
+    loaded on this build (MENU402_NEW, default c/PRE19): the WINNERS page's lines are DA GIOCARE or a club (no
+    garbage: font characters only) - an old save has no preview; CONTINUA decides it, the next season runs and its
+    last-season page names the Final Four's champion"""
+    old = os.environ.get('MENU402_OLD') or os.path.join(MAIN, 'c', 'REL402rc2', 'SWOS')
+    new = os.environ.get('MENU402_NEW') or os.path.join(MAIN, 'c', 'PRE19', 'SWOS')
+    if not os.path.isdir(old) or not os.path.isdir(new):
+        return True, f'SKIP: {old} / {new} missing'
+    keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_ONE',
+            'W8485_SAVE_END', 'W2627REL_DATA')
+    keep = {k: os.environ.get(k) for k in keys}
+    try:
+        os.environ.update(W8485_BUILD=old, W8485_WORLD='MONDO 2026-27', W8485_TEAM='EUROPA,MALTA,BIRZEBBUGA',
+                          W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1', W8485_ONE='1', W8485_SAVE_END='W402',
+                          W2627REL_DATA=os.path.join(MAIN, 'internal', 'world2526', 'world5tm-402rc5'))
+        _LABEL_DATA.clear()
+        ok, msg = world8485()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+        _LABEL_DATA.clear()
+    if not ok or 'saved ' not in msg:
+        return False, f'4.0.2 season: {msg}'
+    car = msg.split('saved ', 1)[1]
+    errs = []
+    with Session('world_winners_menu402_end', new, {'W402.CAR': car}, 'dump:2', 300) as s:
+        s.wait()
+        s.send(LOAD1 + ' dump:3')
+        e, title, pl = winners_page(s)
+    out = winner_blocks(pl)
+    font = set("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 .-'&/()_:")
+    bad = [x for x in pl if x and not set(x) <= font]
+    po = {k: v for k, v in out.items() if 'PLAYOFF' in k or 'FINAL' in k}
+    check(out and not bad and po and all(v and v != 'IN CORSO' for v in po.values()),
+          f'4.0.2 save at the menu on this build: page {out} (odd lines {bad})', errs)
+    with Session('world_winners_menu402_next', new, {'W402.CAR': car}, 'dump:2', 600) as s:
+        s.wait()
+        s.send(LOAD1 + ' dump:3')
+        nxt = next_season_save(s, 'W402N')
+    if not nxt.endswith('.CAR'):
+        return False, '; '.join(errs + [f'next season: {nxt}'])
+    with Session('world_winners_menu402_s2', new, {'W402N.CAR': nxt}, 'dump:2', 300) as s:
+        s.wait()
+        s.send(LOAD1 + ' dump:3')
+        more = []
+        winners_page(s, more)
+    last = winner_blocks([x for pg in more for x in pg])
+    lpo = {k: v for k, v in last.items() if k in po}
+    check(lpo and all(v not in (None, '', 'DA GIOCARE', 'IN CORSO') for v in lpo.values()),
+          f'next season: last season {last}', errs)
+    return not errs, '; '.join(errs) or f'4.0.2 menu save: page {out}; next season, last season {last}'
+
+
+@scenario
 def world_winners_out_mlt():
     """winners_out: Malta's Final Four, HAMRUN SPARTANS 10th"""
     return winners_out('world_winners_out_mlt', 'EUROPA,MALTA,HAMRUN SPARTANS', '10')

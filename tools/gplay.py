@@ -255,9 +255,9 @@ def compile_spec(pos, ndiv, league_names=None):
     rn = bytearray()
     for po in pos:
         names = po.get('round_names') or _default_rnames(po)
-        if not (isinstance(names, list) and len(names) <= RN_KG and all(x in rnames.KEYS for x in names)):
+        if not (isinstance(names, list) and len(names) <= RN_KG and all(x is None or x in rnames.KEYS for x in names)):
             raise ValueError(f"{po.get('key')}: round_names: up to {RN_KG} of {' '.join(rnames.KEYS)} (one per game round)")
-        rn += bytes(rnames.KEYS[x] for x in names) + bytes(RN_KG - len(names))
+        rn += bytes(rnames.KEYS[x] if x else 0 for x in names) + bytes(RN_KG - len(names))   # (None: the game's)
     RNAMES[out] = bytes(rn)
     THEN[out] = bytes(keys.index(po['then_build']) + 1 if po.get('then_build') is not None else 0 for po in pos)
     if any(po.get('kind') == 'title' and po['rounds'] and 'group' in po['rounds'][0] for po in pos):
@@ -1933,6 +1933,11 @@ gp_rname:                               ; rnames' rn_round (an FE contest, RN_CD
     cmp byte [GP_ST + ST_KO + KO_SLOT], 0
     je .nb
 CD_PART
+    cmp byte [GP_ST + ST_KO + KO_SLOT], 3   ; 4.0.5 a group contest of ours (the game's type 2 in slot 3: the Poule
+    jne .k4                             ; Scudetto): its stages are the game's D0 (0 the groups, then the knockout
+    movzx ebx, word [D0R]               ; rounds - both legs of a round one stage), not ko[0]'s game rounds
+    jmp .rn
+.k4:
     mov ebx, [GP_CALDP]                 ; 4.0: a calendar being built (rnames RN_CALD = its entry's round + 1): that
     test ebx, ebx                       ; round, from the contest's first (the current one while it is built)
     jz .cur
@@ -1966,8 +1971,17 @@ GP_CALDP: dd 0                          ; (rnames.RN_CALD's address, or 0)
 '''
 def _default_rnames(po):
     """A knockout play-off without 'round_names' (Serie D's single-match semi-finals and final): its rounds named from
-    the end - F, SF, QF, R16 - when it ends in one tie and has no group / best-of-three round; else none (the game's)."""
+    the end - F, SF, QF, R16 - when it ends in one tie and has no group / best-of-three round; else none (the game's).
+    4.0.5 (Francesco: the Poule Scudetto's final shown as SEMIFINALE): groups then knockout rounds (the game's type-2
+    contest, named by its stage - gp_rname's D0): [the game's group name] + the knockout rounds from the end."""
     rs = po.get('rounds') or []
+    g = [i for i, r in enumerate(rs) if 'group' in r]
+    if g and g == list(range(len(g))) and len(g) < len(rs):
+        ko = rs[len(g):]
+        if len(ko) <= 4 and all('group' not in r and r.get('legs', 1) in (1, 2) and (r.get('ties') or r.get('clubs'))
+                                for r in ko) and len(ko[-1].get('ties') or []) == 1:
+            return [None] + ['R16', 'QF', 'SF', 'F'][4 - len(ko):]
+        return []
     if not rs or len(rs) > 4 or len(rs[-1].get('ties') or []) != 1 or \
             any('group' in r or r.get('legs', 1) not in (1, 2) or not r.get('ties') for r in rs):
         return []

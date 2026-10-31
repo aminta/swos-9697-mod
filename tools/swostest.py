@@ -7313,9 +7313,50 @@ def ct_check_texts(r, menu, entries, errs, tag):
 
 
 @scenario
+def controls_mode4():
+    """4.0.5 (Marco: 'P1 KEYBOARD, P2 JOYPAD' swapped the devices - the game reads stick 1 for P1 unless keyboard only and
+    the keyboard for P2 unless two joypads, so mode 4 always behaved as 3): a game buffer holding 4 (INSTALL's choice,
+    poked) opens the CONTROLS page as 3 (P1 JOYPAD, P2 KEYBOARD) and the device row cycles 3 -> 5 -> 1 -> 3, never 4"""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import controls
+    b, v = ct_build()
+    T = controls.TEXTS[UI]
+    enc = lambda x: x.encode('latin-1')
+    errs, seen = [], []
+    with Session('controls_mode4_' + UI, b, {}, 'dump:2', 300) as s:
+        if s.wait().outcome != 'dump':
+            return False, f'START: no first pause ({s.result})'
+        press(s, s.screen(), 'OPZIONI', 2)
+        scr = s.screen()                                # CONTROLS selected with the factory device (1) ...
+        for _ in range(8):
+            if scr.selected == 19:
+                break
+            steps = scr.path(19, set(), steps=True)
+            s.send(' '.join(k for k, _ in steps) + ' dump:0.5')
+            scr = s.screen()
+        check(scr.selected == 19, f'CONTROLS not selected ({scr.selected})', errs)
+        s.poke(s.result.base2 + v['buf'] + 92, b'\x01\x00\x01\x00')   # ... then 4 in the game's buffer (no pad: the
+        s.poke(s.result.base2 + v['buf'] + 6, b'\x04\x00')             # port read with 1-count loops) and fire at once
+        s.send(f'{PRESS_FIRE} dump:2')
+        menu = s.info['menu']
+        r = s.result
+        work = lambda: s.result.read(ct_base(s.result, v) + v['work'], 105)
+        dev = struct.unpack_from('<H', work(), 6)[0]
+        check(dev == 3 and ct_entry(r, menu, 2)[0] == enc(T['devs'][1]),
+              f'opened with 4: device {dev}, text {ct_entry(r, menu, 2)[0]}', errs)
+        for want in (5, 1, 3, 5):
+            s.send('fire dump:0.5')
+            dev = struct.unpack_from('<H', work(), 6)[0]
+            seen.append(dev)
+            check(dev == want, f'device {dev} (want {want})', errs)
+    return not errs, '; '.join(errs) or f"4 opens as 3, then {' -> '.join(map(str, seen))}"
+
+
+@scenario
 def controls_menu():
     """4.0.2 OPZIONI > COMANDI (controls.py), SWOSTEST_UI's exe: the button between ESCI A DOS and ESCI; the page's
-    texts in the font and their boxes; device 1 -> 3 -> 4 -> 5 -> 1 (CALIBRA 1 / 2 shown with a joypad / two); FUOCO ->
+    texts in the font and their boxes; device 1 -> 3 -> 5 -> 1 (4.0.5: no 4 - the game never honoured it; CALIBRA 1 / 2
+    shown with a joypad / two); a game buffer with 4 opens as 3; FUOCO ->
     SPACE; SPACE on SU refused (TASTO GIA' USATO), ESC keeps; SALVA writes SETUP.DAT (+6 = 3, +100 = 39h, the rest as
     it was) and the game takes SPACE as fire at once (no stick: device 1 in memory); ANNULLA drops a change; a restart
     reads the saved file"""
@@ -7350,7 +7391,7 @@ def controls_menu():
         s.shot('page')
         work = lambda: s.result.read(ct_base(s.result, v) + v['work'], 105)
         seen = []
-        for want in (3, 4, 5, 1, 3):
+        for want in (3, 5, 1, 3):
             s.send('fire dump:0.5')
             r = s.result
             dev = struct.unpack_from('<H', work(), 6)[0]

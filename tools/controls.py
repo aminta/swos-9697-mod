@@ -163,7 +163,10 @@ ct_open:                                ; CONTROLS (fire): the page on a copy of
     rep movsb
     mov ax, [WORK + 6]
     cmp ax, 2                           ; joypad only (an old INSTALL choice): as joypad + keyboard
-    jne .n2
+    je .n3
+    cmp ax, 4                           ; 4.0.5: P1 keyboard + P2 joypad (INSTALL's) - the game never had it (P1 reads
+    jne .n2                             ; stick 1 unless keyboard only, P2 the keyboard unless two joypads): as 3, what
+.n3:                                    ; it always was
     mov ax, 3
 .n2:
     cmp ax, 1
@@ -573,7 +576,7 @@ ct_unblock:
     mov byte [DUP], 0
     ret
 
-ct_dev:                                 ; the device row (fire): 1 -> 3 -> 4 -> 5 -> 1
+ct_dev:                                 ; the device row (fire): 1 -> 3 -> 5 -> 1 (4.0.5: no 4, see ct_open)
     cmp byte [MODE], 0
     jne .x
     mov ax, [WORK + 6]
@@ -582,6 +585,10 @@ ct_dev:                                 ; the device row (fire): 1 -> 3 -> 4 -> 
     jne .n
     inc ax
 .n:
+    cmp ax, 4
+    jne .n4
+    inc ax
+.n4:
     cmp ax, 5
     jbe .s
     mov ax, 1

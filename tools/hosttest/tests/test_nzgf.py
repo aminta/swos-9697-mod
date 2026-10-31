@@ -43,17 +43,29 @@ def _cal_tail(m):
     return cur, rows
 
 
-def test_nz_stall():
-    """the release stall (Panchina's save, rc19 = c/HT19R; fixtures nz_stall, snapshot 2 = gf_step at week 140 with the
-    career club out of the final): with rc19's code the calendar ends on the career club's rest day (the stall, detected);
-    with the fixed build's code (HT_NZFIX, default c/HTPRE22 = INT-PRE22-1409) an entry stays after it"""
+NEXT_SCAN = 0x7EA7F                     # the game's cseg_8EC2B (obj1, unpatched game code): the career club's next day
+SEASON_OVER = 0x18DF2                   # its result (obj2 word): 1 = none ahead - the menu's FINISCI STAGIONE, 0 = PARTITA
+
+
+def nz_stall_case(code):
+    """(GP_GFT, the menu's flag as gp_gf leaves it, the flag re-scanned, the career days after the cursor) on
+    nz_stall's snapshot 2 (week 140, the career club out of the Grand Final, resting that day) with that build's code"""
     d = os.path.join(os.path.dirname(FIX), 'nz_stall')
-    res = {}
-    for name, code in (('rc19', None), ('fix', os.environ.get('HT_NZFIX', 'HTPRE22'))):
-        m = Machine(d, 2, code_from=os.path.join(os.path.expanduser('~'), 'swos-mod', 'c', code, 'SWOS') if code else None)
-        m.call('gplay.gp_gf')
-        cur, rows = _cal_tail(m)
-        after = [r for r in rows if r[0] > cur]
-        res[name] = (hex(m.u32('gplay.csyms.GP_GFT')), after[:2])
-    ok = not res['rc19'][1] and bool(res['fix'][1])
-    return ok, f'(GP_GFT, entries after the current one): rc19 {res["rc19"]}, fix {res["fix"]}'
+    m = Machine(d, 2, code_from=os.path.join(os.path.expanduser('~'), 'swos-mod', 'c', code, 'SWOS') if code else None)
+    m.call('gplay.gp_gf')
+    left = m.u16(m.base2 + SEASON_OVER)
+    cur, rows = _cal_tail(m)
+    ahead = [r for r in rows if r[0] > cur and m.u8(m.lin('uefaq.SYMS.CAL') + r[0] + 6)]
+    m.call(m.base1 + NEXT_SCAN)
+    return hex(m.u32('gplay.csyms.GP_GFT')), left, m.u16(m.base2 + SEASON_OVER), ahead
+
+
+def test_nz_stall():
+    """the release NZ Grand Final stall (Panchina's save, rc19 = c/HT19R): after gp_gf drops the career club from the
+    final at its rest day the menu must offer FINISCI STAGIONE (flag 1 as gp_gf leaves it) and no career-club day may
+    follow (a phantom final). rc19: flag left 0 (PARTITA on nothing: the stall); HT_NZFIX's code must pass"""
+    res = {name: nz_stall_case(code) for name, code in (('rc19', None), ('fix', os.environ.get('HT_NZFIX', 'HTPRE22')))}
+    good = lambda r: r[1] == 1 and r[2] == 1 and not r[3]
+    ok = not good(res['rc19']) and good(res['fix'])
+    return ok, (f'(GP_GFT, flag left, flag re-scanned, career days ahead): rc19 {res["rc19"]}, '
+                f'{os.environ.get("HT_NZFIX", "HTPRE22")} {res["fix"]}')

@@ -3086,6 +3086,11 @@ def world8485():
                               t.startswith(x + ' ')), None)
                     if lvl and press(s, scr, lvl) is None:
                         return False, f'new career: level {lvl} of {t} not reached ({s.result})'
+                    if os.environ.get('W8485_RNG_EARLY') and k == len(path) - 1:   # (4.0.5: the generators pinned
+                        v = bytes.fromhex(os.environ['W8485_RNG_EARLY'])            # before the club's press -
+                        for at, part in zip(rng_sites(os.path.join(exe, 'ITALIAN.EXE')), (v[:3], v[3:6])):   # its
+                            s.poke(s.result.base2 + at, part)                       # CareerInitVars draws the
+                        s.log.append(f'[rng early] {v.hex()}')                      # fixtures from them)
                     if all(press(s, s.screen(), x) is None for x in ([t] + [x for x in alts if x != t])) \
                             or s.result.outcome != 'dump':
                         return False, f'new career: {t} not reached ({s.result})'
@@ -3097,6 +3102,8 @@ def world8485():
                                                                     # took another season)
                 if os.environ.get('W8485_START') == '1':          # menu check only: the career has started
                     return True, f'career started: {s.screen()}'[:400]
+                if os.environ.get('W8485_START') == 'cal':        # (4.0.5) the drawn calendar, at once
+                    return True, 'calendar ' + bytes(s.result.obj2(CAL_AT - 4, 0x2000)).hex()
             else:
                 s.send('down down down down down fire dump:2')
                 s.send('fire dump:3')
@@ -3215,16 +3222,30 @@ def world8485():
             msg += f', euro rounds checked {sorted(seen)}' + (f', peek max {peek[1]}' if peek else '')
             if not ok or errs:
                 return False, f"season {season}: {msg}; {'; '.join(errs)}"
-            for _ in range(8):                         # FINISCI STAGIONE with the career club's matches still in
-                if s.screen().find('FINISCI STAGIONE', exact=True) is not None:   # the calendar (a play-off of
-                    press(s, s.screen(), 'FINISCI STAGIONE', wait=3)               # dplay: no 'manager' flag on
-                if s.result.outcome != 'dump':                                     # its entries) plays them first
-                    return False, f'season {season} FINISCI STAGIONE: {s.result}'
-                texts = s.screen().texts()
-                if not ('MOD. TATTICA' in texts and 'AVVERSARI' in texts):
+            for _back in range(3):                     # (4.0.5 gp_fin: FINISH SEASON gives the menu back - PARTITA -
+                for _ in range(8):                     # when gplay builds the club's play-off inside it: play on)
+                    if s.screen().find('FINISCI STAGIONE', exact=True) is not None:   # FINISCI STAGIONE with the
+                        press(s, s.screen(), 'FINISCI STAGIONE', wait=3)               # career club's matches still
+                    if s.result.outcome != 'dump':                                     # in the calendar (a dplay
+                        return False, f'season {season} FINISCI STAGIONE: {s.result}'   # play-off: no 'manager'
+                    texts = s.screen().texts()                                         # flag on its entries)
+                    if not ('MOD. TATTICA' in texts and 'AVVERSARI' in texts):         # plays them first
+                        break
+                    ok, m2 = advance(s, lambda scr: season_over(scr) and 'MOD. TATTICA' not in scr.texts(), 200)
+                    msg += f', after FINISCI STAGIONE: {m2}'
+                    if not ok:
+                        return False, f"season {season}: {msg}"
+                for _ in range(3):                     # (the menu back with PARTITA, a note on the way)
+                    sc = s.screen()
+                    if sc.find('CONTINUA', exact=True) is None or 'TRASFERIMENTI' in sc.texts():
+                        break
+                    press(s, sc, 'CONTINUA', wait=2)
+                sc = s.screen()
+                if not (sc.find('PARTITA', exact=True) is not None and 'TRASFERIMENTI' in sc.texts()
+                        and sc.find('FINISCI STAGIONE', exact=True) is None):
                     break
-                ok, m2 = advance(s, lambda scr: season_over(scr) and 'MOD. TATTICA' not in scr.texts(), 200)
-                msg += f', after FINISCI STAGIONE: {m2}'
+                ok, m2 = advance(s, stop, 900)
+                msg += f', FINISH SEASON gave the menu back (PARTITA): {m2}'
                 if not ok:
                     return False, f"season {season}: {msg}" 
             if diy is not None and os.environ.get('W8485_SLOTS'):   # (the split league once the season is over,
@@ -13843,6 +13864,72 @@ def world_gplay_reserve_gap():
     return world_gplay_reserve('16')
 
 
+def cal_entries(b):
+    """The career calendar's entries from its bytes (count word at 0, entries from 4): [(slot, week, career day byte 6,
+    byte 4, round byte 7)]"""
+    n, o, out = struct.unpack_from('<H', b, 0)[0], 4, []
+    for _ in range(n):
+        if o + 8 > len(b):
+            break
+        ln = struct.unpack_from('<H', b, o + 2)[0]
+        if not ln:
+            break
+        out.append((b[o], b[o + 1], b[o + 6], b[o + 4], b[o + 7]))
+        o += ln
+    return out
+
+
+@scenario
+def world_gplay_seried_bye():
+    """4.0.5 (Panchina's find): world_gplay_seried at CHISOLA - girone A of 17, its 2nd bye on the group's LAST matchday
+    (sd_bye_scan: rest days 16 and 33 of 34, the same draw every run) - forced 3rd: its group play-off must be played by
+    the club, not simulated inside FINISCI STAGIONE"""
+    return world_gplay_seried(team='EUROPA,ITALIA,SERIE D GIRONE A,CHISOLA')
+
+
+@scenario
+def sd_bye_scan():
+    """4.0.5 (Panchina's Serie D find): the draw at CareerInitVars for SDBYE_SEEDS (6-byte hex states of the two random
+    generators, comma separated; W8485_RNG_EARLY) at LIGORNA (girone A, 17 clubs: two byes): per seed the league days
+    (slot 0) the club sits out and whether the last one is such a day - to pin a draw for the bye-on-last-day case"""
+    src = os.environ.get('W2627D_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-e0b89822')
+    if not os.path.isdir(src):
+        return True, f'SKIP: private data {src} missing'
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    env = {'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]), 'GPLAY_FORCE': '3',
+           'GPLAY_KOFORCE': '2'}
+    exe = os.environ.get('SDBYE_BUILD') or build('world_gplay_seried_3_ko2', env=env)
+    keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_START',
+            'W8485_RNG_EARLY')
+    keep = {k: os.environ.get(k) for k in keys}
+    out, hits = [], []
+    try:
+        runs = [(seed, club) for seed in os.environ.get('SDBYE_SEEDS', '000000000000').split(',')
+                for club in os.environ.get('SDBYE_TEAMS', 'LIGORNA').split(',')]
+        for seed, club in runs:
+            os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM='EUROPA,ITALIA,SERIE D GIRONE A,'
+                              + club, W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1', W8485_START='cal',
+                              W8485_RNG_EARLY=seed)
+            seed = f'{seed}/{club}'
+            ok, msg = world8485()
+            if not ok or not msg.startswith('calendar '):
+                out.append(f'{seed}: {msg[:120]}')
+                continue
+            lg = [e for e in cal_entries(bytes.fromhex(msg.split()[1])) if e[0] == 0]
+            rest = [i for i, e in enumerate(lg) if not e[2]]
+            last = bool(lg) and not lg[-1][2]
+            out.append(f'{seed}: {len(lg)} league days, rest days {rest}' + (' LAST' if last else ''))
+            if last:
+                hits.append(seed)
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    return True, f'hits {hits}; ' + '; '.join(out)
+
+
 @scenario
 def world_gplay_seried(force='3', team='EUROPA,ITALIA,SERIE D GIRONE A,LIGORNA', div=5, ko='2'):
     """A Serie D group play-off played (gplay 'placement', World 2026-27 with Serie D: the data session's snapshot
@@ -13858,6 +13945,8 @@ def world_gplay_seried(force='3', team='EUROPA,ITALIA,SERIE D GIRONE A,LIGORNA',
     order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
     env = {'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]), 'GPLAY_FORCE': force,
            'GPLAY_KOFORCE': ko}
+    if os.environ.get('CAREER_SEED'):                   # (4.0.5: a pinned draw - careerseed.py, test builds)
+        env['CAREER_SEED'] = os.environ['CAREER_SEED']
     exe = os.environ.get(f'GPLAY_BUILD{ko}') or build(f'world_gplay_seried_{force}_ko{ko}', env=env)
     log_at, st_at, log_n, st_n = gp_ptrs(exe)
     keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K',

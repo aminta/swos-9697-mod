@@ -902,7 +902,7 @@ static void wn_add(int type, int idx, u16 team) {
    tables kept) and rewrites WN_ST as the last season. */
 enum { WN_PRE = 'p' };
 u8 GP_PRE;
-static u32 wn_find(int ty, int ix, int pre) {   /* the last season's entry (before a marker), or (pre) this
+__attribute__((minsize)) static u32 wn_find(int ty, int ix, int pre) {   /* the last season's entry (before a marker), or (pre) this
                                            season's previewed one (after its marker) */
     int i = 0;
     if (pre) {
@@ -2662,7 +2662,7 @@ void gp_played_c(void) {
    other titles, the other play-offs with one, the rest; one whose divisions do not all fit is left to the season end. GP_PREI = the first
    appended (gp_simkeep_pre). Returns 1 if the preview may run. */
 u8 GP_PREI;
-u32 gp_need_pre(void) {
+__attribute__((minsize)) u32 gp_need_pre(void) {
     int ns = 0, lim = GP_GSON ? SDX : SD;
     u32 have = 1u << GP_IN.mdiv;                /* (divisions with a table: the career club's, the ones in sim[]) */
     while (ns < SDX && GP_IN.sim[ns] != NOC) have |= 1u << GP_IN.sim[ns++];
@@ -2695,7 +2695,7 @@ u32 gp_need_pre(void) {
 
 /* rc19: an early simulation for the preview (gp_simkeep), unless its rows would not fit the slot (GP_GS: GSR) -
    then the division is left out (its play-offs decided at the season end) */
-void gp_simkeep_pre(void) {
+__attribute__((minsize)) void gp_simkeep_pre(void) {
     int n = *(const u16 *)(GP_DIYP + 0x31), j = GP_ST.nsim;
     if (j >= GP_PREI && (j >= SDX || (j >= SD && n > GSR))) { if (GP_DIV < GD) GP_IN.n[GP_DIV] = 0; return; }
     gp_simkeep();                       /* (the club's own play-offs' divisions, j < GP_PREI: as gp_simkeep always) */
@@ -2703,7 +2703,7 @@ void gp_simkeep_pre(void) {
 
 /* rc19: the preview - gp_season over the tables known now (the career division's, the kept ones), its play-off
    winners into WN_ST after a marker; no move applied, the state as it was (GP_OUT void) */
-void gp_pre_c(void) {
+__attribute__((minsize)) void gp_pre_c(void) {
     if (GP_IN.gtype != 4 || !GP_IN.spec) return;
     if (WN_ST.magic != WN_MAGIC || (u8)(WN_ST.season + 1) != GP_SEAS) {   /* (no last season: an empty one that
                                                    no reader takes for the last season) */

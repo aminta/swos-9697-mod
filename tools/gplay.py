@@ -1307,6 +1307,37 @@ gp_scgl:                                ; 4.0.5: the career menu's fixture list 
 %endif
     jmp CGLC_
 
+gp_fin:                                 ; 4.0.5 (Panchina): replaces PlayMatchMenu's `call CareerPlayMatch` (FINISH SEASON:
+    cmp word [DB3E4], 0                 ; the season's days simulated to its end) - the same loop, but after each day's
+    jne .adv                            ; advance a scan of the days left: a career day there again (gplay
+.l: call C8E841                         ; built the club's play-off at its league's end - the club resting on the
+.adv:                                   ; group's last matchday had none left, so the menu offered FINISH SEASON) ->
+    call gp_adv                         ; back to the career menu (PARTITA), not to the season end; otherwise as the
+    cmp word [SEASONFIN], 0             ; game's (the season over: PlayMatchMenu's jmp SeasonFinished)
+    jne .x
+    movzx ecx, word [CAL - 4]           ; a day the PARTITA loop will play as the club's, from the current entry on
+    sub cx, [CAL_CUR - 2]               ; (count - index): byte 4 = 0 and byte 6 > 0 (signed - cseg_8EC2B also counts
+    movzx esi, word [CAL_CUR]           ; a negative byte 6, which PARTITA only simulates: p6)
+    add esi, CAL
+.s: dec cx
+    js .l
+    cmp byte [esi + 4], 0
+    jne .sn
+    cmp byte [esi + 6], 0
+    jg .menu
+.sn:
+    movzx eax, word [esi + 2]
+    add esi, eax
+    jmp .s
+.menu:
+    mov word [CAREERFIN], 0
+    call CREF0                          ; (the career menu refreshed as ContestMenuOnReturn does: next match, fixture
+    call CREF1                          ; list, PLAY MATCH instead of FINISH SEASON)
+    call CREF2
+    call CREF3
+    add esp, 4                          ; (PlayMatchMenu returns to the menu: careerFinished 0 - PARTITA offered)
+.x: ret
+
 gp_adv:                                 ; replaces the 4 `call cseg_8EA82` (the calendar advance, after an event is
     pushad                              ; done): a pending 'then_build' (a played or simulated knockout ended) due ->
     mov al, [SEASONPLAYING]             ; gp_build of its next play-off from this week (slot 4 free: its contest over)
@@ -2394,6 +2425,34 @@ def _adv_sites(p):
     return m[0], calls
 
 
+def _fin_site(p):
+    """4.0.5 (Panchina): CareerPlayMatch (FINISH SEASON: every day to the season's end simulated, from PlayMatchMenu when
+    careerFinished) - its one caller, careerFinished / seasonFinished / dseg_DB3E4, the day's simulation cseg_8E841 and
+    cseg_8EC2B (the 'career match ahead' scan: the call after cseg_8EA82 in cseg_8E3DA)."""
+    d1 = p.le.obj_bytes(1)
+    fx = {f[1]: f[4] for f in p.le.fixups() if f[0] == 1 and f[3] == 2}
+    rel = lambda i: i + 5 + struct.unpack_from('<i', d1, i + 1)[0]
+    m = [x.start() for x in re.finditer(rb'\x66\xa1.{4}\x66\x0b\xc0\x74.\x66\xa1.{4}\x66\x0b\xc0\x75\x05\xe8.{4}\xe8.{4}'
+                                         rb'\x66\xa1.{4}\x66\x0b\xc0\x74.\xc3', d1, re.S)]
+    assert len(m) == 1, m
+    o = m[0]
+    calls = [i for i in range(len(d1) - 5) if d1[i] == 0xE8 and rel(i) == o]
+    assert len(calls) == 1 and d1[calls[0] + 5] == 0xE9, calls
+    adv = rel(o + 27)
+    scan = {rel(c + 5) for c in range(len(d1) - 10) if d1[c] == 0xE8 and rel(c) == adv and d1[c + 5] == 0xE8}
+    assert len(scan) == 1, scan
+    callers = {}                                        # (ContestMenuOnReturn's refresh: cseg_34DA3, cseg_34D5A,
+    for i in range(len(d1) - 5):                        # cseg_3563E, ContestSetButtons - 4 callers -, CheckTransfers,
+        if d1[i] == 0xE8:                               # CheckClubBusiness: the career menu's next match, fixture list
+            callers.setdefault(rel(i), []).append(i)    # and PLAY MATCH / FINISH SEASON buttons)
+    run = [i for i in range(len(d1) - 30) if all(d1[i + 5 * k] == 0xE8 for k in range(6)) and d1[i - 5] != 0xE8
+           and len(callers.get(rel(i + 15), [])) == 4]
+    run = sorted(run, key=lambda i: abs(i - calls[0]))[:1]   # (ContestMenuOnReturn: next to PlayMatchMenu)
+    assert run and abs(run[0] - calls[0]) < 0x400, run
+    return dict(call=calls[0], careerfin=fx[o + 2], db3e4=fx[o + 13], sim=rel(o + 22), seasonfin=fx[o + 34],
+                scan=scan.pop(), refresh=[rel(run[0] + 5 * k) for k in range(4)])
+
+
 def link_reserve(p, ri=None):
     """After pgroups.patch (and ripool.patch): gp_sack's reserve tables, pgroups.LABELS['RS_TAB'] and the off-file
     pool's RI_TAB (ri: ripool.patch's labels); none: their pointers stay 0."""
@@ -2622,6 +2681,10 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
     sk = _sack_sites(p)
     adv, adv_calls = _adv_sites(p)
     symbols['C8EA82'] = (1, adv)
+    fin = _fin_site(p)                                   # (4.0.5: FINISH SEASON's loop, gp_fin)
+    symbols.update({f'CREF{k}': (1, a) for k, a in enumerate(fin['refresh'])})
+    symbols.update({'C8E841': (1, fin['sim']), 'C8EC2B': (1, fin['scan']), 'SEASONFIN': (2, fin['seasonfin']),
+                    'CAREERFIN': (2, fin['careerfin']), 'DB3E4': (2, fin['db3e4'])})
     cgl, cgl_ptr = _cgl_site(p, ps['d8caa'])
     symbols['CGLC_'] = (1, cgl)
     symbols.update({k: (2, sk[k]) for k in ('CURMSG', 'SACKED')})
@@ -2822,6 +2885,9 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
         for a in adv_calls:                                  # (the calendar advance: 'then_build')
             assert p.get(1, a, 5) == p.le.obj_bytes(1)[a:a + 5], f'obj1+{a:#x} already hooked'
             p.put(1, a + 1, struct.pack('<i', lab['gp_adv'] - (a + 5)))
+        a = fin['call']                                      # (4.0.5: PlayMatchMenu's `call CareerPlayMatch`)
+        assert p.get(1, a, 5) == p.le.obj_bytes(1)[a:a + 5], f'obj1+{a:#x} already hooked'
+        p.put(1, a + 1, struct.pack('<i', lab['gp_fin'] - (a + 5)))
         p.retarget(2, cgl_ptr, 1, lab['gp_scgl'])          # (4.0.5: the career menu's fixture list, gp_scgl)
         p.put(2, cgl_ptr, struct.pack('<I', lab['gp_scgl']))
         assert p.get(1, job, 5) == p.le.obj_bytes(1)[job:job + 5], 'the club job offers call is hooked'

@@ -645,6 +645,9 @@ gp_gf:                                  ; 4.0.5 NZ (gp_adv): a type-2 group cont
     push dword CAL
     call gf_drop_c
     add esp, 8
+    test eax, eax
+    jz .x
+    mov word [NOCAREER], 1              ; (no career day left: the menu's FINISH SEASON - cseg_8EC2B's word)
 .x: popad
     ret
 
@@ -2595,7 +2598,7 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
                     'GP_LEND_NEXT': (1, tgt(ps['lend'][0])), 'GP_SSIM_NEXT': (1, tgt(ps['ssim'])),
                     'GP_DRAW_NEXT': (1, tgt(ps['draw'])),
                     'C8B2D3': (1, sacups.SITES['c8b2d3']), 'C8EE5D': (1, ps['tail']), 'D8CAA': (2, ps['d8caa']),
-                    'D6CDC': (2, ps['d6cdc']), 'CFB': (2, ps['cfb']), 'CAL': (2, ps['cal']), 'CAL_CUR': (2, ps['cal_cur']),
+                    'D6CDC': (2, ps['d6cdc']), 'CFB': (2, ps['cfb']), 'CAL': (2, ps['cal']), 'CAL_CUR': (2, ps['cal_cur']), 'NOCAREER': (2, 0x18DF2),
                     'CAL_NOREPLAY': (1, lib97.LABELS['cal_noreplay']),
                     'SLOT4': (2, ps['slot4']), 'LIST4': (2, ps['list4']), 'W11F9CC': (2, ps['w11f9cc']),
                     'F846': (2, ps['f846']), 'SAVESEL': (1, ps['savesel']), 'RESTSEL': (1, ps['restsel']),

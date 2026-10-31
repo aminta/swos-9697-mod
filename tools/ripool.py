@@ -56,7 +56,7 @@ def table_bytes(tabs):
         out += bytes((world, fl, len(pools))) + struct.pack('<HHHB', base, moff, nmap, len(spares)) + bytes(spares)
         for pl in pools:
             if pl[0] == 'league':
-                _, low, slots, areas, order = pl
+                _, low, slots, areas, order = pl[:5]
                 assert len(slots) <= 256 and len(areas) <= 255 and sorted(order) == list(range(len(areas)))
                 out += bytes((0, len(order), low)) + struct.pack('<H', len(slots))
                 for g, b, a in slots:
@@ -74,6 +74,24 @@ def table_bytes(tabs):
             nq += len(order)
     assert npools <= RP and nq <= RQT, (npools, nq)
     return bytes(out)
+
+
+def ida_bytes(tabs):
+    """IDA_TAB (4.0.5, ri_ida): db entries; per league pool with levels of groups db world, dw base (its slots' global
+    numbers), dw map offset, dw slots, dw identities (slots + pool records), db na (areas per club: pgroups' levels of
+    groups), identities x na x db area (pgroups' bytes: the file's own records in file order, then the RS records)."""
+    out = bytearray()
+    n = 0
+    for (world, fl, pools, base, *_), (moff, *_r) in zip(tabs, layout(tabs)[0]):
+        for pl in pools:
+            if pl[0] == 'league' and len(pl) > 5 and pl[5]:
+                ida = pl[5]
+                na = len(ida[0])
+                assert all(len(r) == na for r in ida) and len(pl[2]) + len(pl[3]) == len(ida)
+                out += bytes((world,)) + struct.pack('<HHHHB', base, moff, len(pl[2]), len(ida), na)
+                out += b''.join(bytes(r) for r in ida)
+                n += 1
+    return bytes((n,)) + bytes(out)
 
 
 def keys_bytes(tabs):
@@ -164,6 +182,99 @@ ri_after:                               ; pg_fix, after ri_season and pg_season:
     popad
     ret
 
+ri_ida:                                 ; pg_fix, right before pg_season ([esp + 4] = PG_TAB): every club of the
+    pushad                              ; running world's levels of groups whose slot is in IDA_TAB gets the areas of
+    mov ebp, [esp + 36]                 ; its slot's CURRENT identity (RI_STATE's map: its own, another slot's, a pool
+    movzx ecx, byte [ebp]               ; record's), so a swapped slot keeps its new club's groups every season, not
+    inc ebp                             ; only the swap's (4.0.5; the table is rewritten each time: no state)
+.c:
+    dec ecx
+    js .x
+    push ecx
+    movzx edx, byte [ebp + 1]           ; (per country: db world, levels, levels x (first, groups, sizes),
+    lea esi, [ebp + 2]                  ; db npar, dw clubs, clubs x (dw global, db base, npar x db area))
+.l:
+    dec edx
+    js .ld
+    movzx eax, byte [esi + 1]
+    lea esi, [esi + eax + 2]
+    jmp .l
+.ld:
+    movzx eax, byte [esi]
+    mov [RI_NA], eax
+    movzx ebx, word [esi + 1]
+    add esi, 3
+    mov al, [ebp]
+    mov [RI_CW], al
+.k:
+    dec ebx
+    js .kd
+    mov al, [RI_CW]
+    cmp al, [SLT + WORLD_BYTE]
+    jne .kn
+    call ri_ida1
+.kn:
+    mov eax, [RI_NA]
+    lea esi, [esi + eax + 3]
+    jmp .k
+.kd:
+    mov ebp, esi
+    pop ecx
+    jmp .c
+.x:
+    popad
+    ret
+
+ri_ida1:                                ; esi = a club entry of the running world
+    pushad
+    movzx ebx, word [esi]
+    mov edi, IDA_TAB
+    movzx ebp, byte [edi]
+    inc edi
+.f:
+    dec ebp
+    js .r
+    mov eax, ebx
+    movzx edx, word [edi + 1]
+    sub eax, edx                        ; its slot (global - base)
+    movzx edx, word [edi + 5]
+    cmp eax, edx
+    jae .no
+    mov cl, [edi]
+    cmp cl, [SLT + WORLD_BYTE]
+    jne .no
+    movzx ecx, word [edi + 3]
+    add ecx, eax
+    movzx ecx, word [RI_MAPS + 2 * ecx]
+    jecxz .own                          ; (0: the slot's own record)
+    lea eax, [ecx - 1]
+    cmp eax, 256
+    jb .own
+    lea eax, [eax + edx - 256]          ; (a pool record: after the slots)
+.own:
+    movzx ecx, byte [edi + 9]
+    cmp ecx, [RI_NA]
+    jne .no
+    movzx edx, word [edi + 7]
+    cmp eax, edx
+    jae .no
+    imul eax, ecx
+    lea eax, [edi + 10 + eax]
+.cp:
+    mov dl, [eax + ecx - 1]
+    mov [esi + 2 + ecx], dl
+    loop .cp
+    jmp .r
+.no:
+    movzx eax, word [edi + 7]
+    movzx ecx, byte [edi + 9]
+    imul eax, ecx
+    lea edi, [edi + 10 + eax]
+    jmp .f
+.r:
+    popad
+    ret
+
 ri_copyb:                               ; ecx bytes esi -> edi (no string instructions: ES may differ from DS)
     test ecx, ecx
     jz .r
@@ -182,7 +293,11 @@ RI_PRE_PTR: dd 0                        ; statesim's entry, called by pg_fix bef
 RI_POST_PTR: dd 0                       ; statecup's RI_OVR apply, called by pg_fix after ri_season, or 0
 RI_SR_DUMMY: dd 0                       ; (RIPOOL_TEST_SR builds: statespec's ST_RANK pointer lands here, unused)
 RI_PLOADED: times {RF} db 0
-{names}'''
+RI_CW: db 0
+align 4
+RI_NA: dd 0
+{names}IDA_TAB: IDA_BYTES
+'''
 
 
 def _load_site(p):
@@ -218,7 +333,9 @@ def patch(p, at, bss, tabs):
            'A1R': (2, r['A0'] + 4), 'LOADFILE': (1, loadfile), 'SETGLOBALS': (1, setglobals),
            'RI_APPLY': gplay.LABELS['ri_apply'], 'RI_CACHE': gplay.LABELS['ri_cache'],
            'NUMSEL': trailer.INFO['NUMSEL'], 'SELBASEV': (1, trailer.INFO['selbasev']),
-           'TEAMSLOADED': (2, s['teamsloaded']), 'LASTEXT': s['lastext']}
+           'TEAMSLOADED': (2, s['teamsloaded']), 'LASTEXT': s['lastext'],
+           'RI_MAPS': (gplay.LABELS['RI_STATE'][0], gplay.LABELS['RI_STATE'][1] + OVR_AT + 2 * RP * RO),
+           'IDA_BYTES': (0, 'db ' + ', '.join(str(b) for b in ida_bytes(tabs)))}
     names = []
     for k, ((world, fl, *_), (moff, nmap, osz, psz, bo)) in enumerate(zip(tabs, layout(tabs)[0])):
         o = bss + bo
@@ -257,5 +374,6 @@ def patch(p, at, bss, tabs):
     LABELS['RI_POST_PTR'] = (1, lab['RI_POST_PTR'])  # (statecup: the contest overrides applied after it)
     return (tab + len(tb) + 15) & ~15, {'RI_TAB': (1, tab), 'RI_SEASON': gplay.LABELS['ri_season'],
                                          'RI_MGR': gplay.LABELS['RI_MGR'], 'RI_AFTER': (1, lab['ri_after']),
+                                         'RI_IDA': (1, lab['ri_ida']),
                                          'CAREERTEAM': (2, ct), 'RI_SR_PTR': (1, lab['RI_SR_PTR']),
                                          'RI_PRE_PTR': (1, lab['RI_PRE_PTR']), 'RI_POST_PTR': (1, lab['RI_POST_PTR'])}

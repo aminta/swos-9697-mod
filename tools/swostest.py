@@ -1864,9 +1864,10 @@ def rel_data_default():
     """W2627REL_DATA unset + SWOSTEST_BUILD a release dir (c/RELxx/SWOS, buildrel.sh): the snapshot that release was built
     with, from its build.log ('RELxx = <sha>, data <name>, ...'), as the gate sets it - so the label checks and the
     release-data builds never silently use the old default snapshots (Dati coppe 30/10: world_gplay_nzchamp)."""
-    if os.environ.get('W2627REL_DATA') or not os.environ.get('SWOSTEST_BUILD'):
+    rb = os.environ.get('SWOSTEST_BUILD') or os.environ.get('W8485_BUILD')   # (W8485_BUILD alone: the sweep's careers -
+    if os.environ.get('W2627REL_DATA') or not rb:                          # MEX 'APERTU. 2026' checked on old data)
         return
-    log = os.path.join(os.path.dirname(os.path.abspath(os.environ['SWOSTEST_BUILD'])), 'build.log')
+    log = os.path.join(os.path.dirname(os.path.abspath(rb)), 'build.log')
     m = re.search(r'^\S+ = \w+, data (\S+?),', open(log, errors='replace').read(), re.M) if os.path.isfile(log) else None
     d = m and os.path.join(MAIN, 'internal', 'world2526', m.group(1))
     if d and os.path.isfile(d + '.txt'):

@@ -19106,11 +19106,9 @@ def cc_sites(exe_dir):
     orig = lepatch.LEPatch(os.path.join(ROOT, 'orig', UI_ORIG))
     site = cpucards.find(orig)['b']
     p = lepatch.LEPatch(os.path.join(exe_dir, 'ITALIAN.EXE'))
-    d1 = bytes(p.get(1, 0, len(p.le.obj_bytes(1))))
-    assert d1[site] == 0xE9, 'cpucards site b not patched'
-    stub = site + 5 + struct.unpack_from('<i', d1, site + 1)[0]
-    assert d1[stub + 6:stub + 9] == b'\x66\x83\x3d', d1[stub:stub + 12].hex()
-    cc = p.target(1, stub + 9)
+    so, stub = p.call_target(1, site)                  # (4.0.6: cc_b in obj3; cc_a's `cmp word [CC_W], 0` after its jz)
+    assert so == 3 and bytes(p.get(3, stub + 6, 3)) == b'\x66\x83\x3d', bytes(p.get(so, stub, 12)).hex()
+    cc = p.target(3, stub + 9)
     _, (t1, t2, g1) = lp36._game_sites(orig, sacups.regs(orig.le.obj_bytes(1))['A0'])
     gl = [orig.target(1, x.start() + 3) for x in re.finditer(rb'\x66\x83\x05(....)\x01\x66\x83\x3d\1\x04\x75.\x66\xc7'
                                                              rb'\x05\1\x00\x00\xe9', orig.le.obj_bytes(1), re.S)]
@@ -19135,14 +19133,20 @@ def cc_prime(s, top):
         tab = struct.unpack('<I', rd(t + 0x14, 4))[0]
         if not tab:
             continue
+        k = 0
         for sp in struct.unpack('<11I', rd(tab, 44)):
             if sp and struct.unpack('<H', rd(sp + 0x66, 2))[0] == 0:
                 s.poke(sp + 0x66, b'\x01\x00')
-                n += 1
+                k += 1
+        st = struct.unpack('<I', rd(t + 0x0E, 4))[0]     # (the team's bookings +k: a second yellow takes one back -
+        if k and st:                                     #  below 0 the statistics screen's PrintFormatted divides
+            b0 = struct.unpack('<H', rd(st + 6, 2))[0]   #  -2 by 1000: exit to DOS, harness-made)
+            s.poke(st + 6, struct.pack('<H', b0 + k))
+        n += k
     return n
 
 
-def cc_match(s, t1, t2, g1, tag, max_steps=200, top=None):
+def cc_match(s, t1, t2, g1, tag, max_steps=200, top=None, kick=None):
     """From a career menu: the next match played for real (idle keys: the CPU fouls), then its stats: [(controls,
     fouls, bookings, sendings-off) of team 1, team 2] (controls 1 = TEAM_COMPUTER)."""
     rd = lambda o, n: s.result.read((s.result.base1 if o[0] == 1 else s.result.base2) + o[1], n)
@@ -19186,6 +19190,8 @@ def cc_match(s, t1, t2, g1, tag, max_steps=200, top=None):
                 ptr = struct.unpack('<II', rd(g1, 8))
                 teams = [s.result.read(x + 4, 1)[0] for x in ptr]
                 s.cc_ptrs = ptr
+                if kick:                                # (the caller's reading at the kick-off)
+                    s.cc_kick = kick()
             if top is not None and k % 3 == 2:          # (re-primed: a sprite whose card the game reset)
                 primed = cc_prime(s, top)
                 if primed:
@@ -19201,6 +19207,7 @@ def cc_match(s, t1, t2, g1, tag, max_steps=200, top=None):
         raise AssertionError(f'{tag}: the match did not end ({s.screen()})')
     st = [struct.unpack('<5H', rd(t, 10))[2:5] for t in (t1, t2)]
     s.shot(f'{tag}_after')
+    assert all(x[1] < 0x8000 and x[2] < 0x8000 for x in st), f'{tag}: negative team counters {st} (harness priming?)'
     return [(teams[i],) + st[i] for i in range(2)]
 
 
@@ -19218,7 +19225,7 @@ def cpu_cards():
     for mode in os.environ.get('CC_MODES', 'red,yellow').split(','):
         b = nop_league_int3(f'cpu_cards_{mode}', build(f'cpu_cards_{mode}', env={'CARDS_FORCE': mode}, lang=UI))
         cc, t1, t2, g1, gl, top = cc_sites(b)
-        for on in (True, False):
+        for on in [x == 'on' for x in os.environ.get('CC_ONOFF', 'on,off').split(',')]:
             tag = f'{mode}_{"on" if on else "off"}'
             with Session(f'cpu_cards_{tag}', b, {}, 'dump:3', 900, match=True) as s:
                 s.wait()
@@ -19229,7 +19236,7 @@ def cpu_cards():
                     check(lab == 20 and lab_i == 22 and scr.n == 24, f'OPTIONS: {label} at {lab}, '
                           f'{cpucards.LABEL_I[UI]} at {lab_i}, {scr.n} entries', errs)
                     s.shot('options')
-                    rw = lambda: struct.unpack('<HHHH', s.result.obj1(cc[1], 8))   # CC_W, CC_I, the session copy
+                    rw = lambda: struct.unpack('<HHHH', s.result.read(s.result.lin(cc), 8))   # CC_W, CC_I, the session copy
                     w = [rw()]
                     for e in (21, 23, 21, 23):
                         walk(s, e, 2)
@@ -19241,7 +19248,7 @@ def cpu_cards():
                     notes.append(f'OPTIONS {label} / {cpucards.LABEL_I[UI]}: toggles ok' if not errs else '')
                     press(s, s.screen(), 'ESCI', 2) or walk(s, 18, 2)
                 if not on:                                   # (CC_W, CC_I, CC_SH: the session's copy too - a new
-                    s.poke(s.result.base1 + cc[1], b'\x01\x00\x00\x00\x01\x00\x00\x00')   # career takes it)
+                    s.poke(s.result.lin(cc), b'\x01\x00\x00\x00\x01\x00\x00\x00')   # career takes it)
                 s.poke(s.result.base2 + gl[1], b'\x03\x00')    # 10-minute matches: more fouls
                 new_career(s, 'ITALIA', 'SERIE A', 'JUVENTUS')
                 res = cc_match(s, t1, t2, g1, tag, top=top if mode == 'yellow' else None)
@@ -19254,15 +19261,15 @@ def cpu_cards():
                 if on:
                     check(off > 0, f'{tag}: CPU not sent off ({fouls} fouls, {book} bookings)', errs)
                 else:
-                    check(off == 0 and book == 0, f'{tag}: CPU carded with the option OFF '
+                    check(off == 0 and (mode == 'yellow' or book == 0), f'{tag}: CPU carded with the option OFF '
                           f'({fouls} fouls, {book} bookings, {off} off)', errs)
     with Session('cpu_cards_oldsave', builds()['it'] if UI == 'it' else build('cpu_cards_ui', lang=UI),
                  {'JUVE2F.CAR': juve2(True)}, 'dump:2', 120) as s:
         s.wait()
         ccb = cc_sites(builds()['it'] if UI == 'it' else build('cpu_cards_ui', lang=UI))[0]
-        s.poke(s.result.base1 + ccb[1], b'\x01\x00\x01\x00\x01\x00\x01\x00')
+        s.poke(s.result.lin(ccb), b'\x01\x00\x01\x00\x01\x00\x01\x00')
         s.send(LOAD1 + ' dump:3')
-        w = struct.unpack('<HHHH', s.result.obj1(ccb[1], 8))
+        w = struct.unpack('<HHHH', s.result.read(s.result.lin(ccb), 8))
         check(w == (0, 0, 0, 0), f'old save JUVE2F: CC_W, CC_I, copies {w} after the load (want 0 = ON)', errs)
     return not errs, '; '.join(errs + notes)
 
@@ -19281,18 +19288,19 @@ def cpu_carry():
         with Session(f'cpu_carry_{tag}', b, {}, 'dump:3', 1200, match=True) as s:
             s.wait()
             if not on:
-                s.poke(s.result.base1 + cc[1], b'\x01\x00\x01\x00\x01\x00\x01\x00')
+                s.poke(s.result.lin(cc), b'\x01\x00\x01\x00\x01\x00\x01\x00')
             s.poke(s.result.base2 + gl[1], b'\x03\x00')
             new_career(s, 'ITALIA', 'SERIE A', 'JUVENTUS')
-            res = cc_match(s, t1, t2, g1, f'{tag}1')
+            days = lambda: struct.unpack("<I", s.result.read(s.result.lin(cc) + 12, 4))[0]
+            res = cc_match(s, t1, t2, g1, f'{tag}1', kick=days)
+            dk = s.cc_kick
             cpu = [p for p, r in zip(s.cc_ptrs, res) if r[0] == 1]
             if len(cpu) != 1:
                 errs.append(f'{tag}: not one CPU team {res}')
                 continue
             rec = lambda: [s.result.read(cpu[0] + 0x4C + i * 0x26 + 0x1B, 1)[0] for i in range(16)]
-            swaps = lambda: struct.unpack('<I', s.result.obj1(cc[1] + 8, 4))[0]
+            swaps = lambda: struct.unpack('<I', s.result.read(s.result.lin(cc) + 8, 4))[0]
             b1, w1 = rec(), swaps()
-            days = lambda: struct.unpack("<I", s.result.obj1(cc[1] + 12, 4))[0]
             d1 = days()
             res2 = cc_match(s, t1, t2, g1, f'{tag}2')
             b2, w2, d2 = rec(), swaps(), days()
@@ -19303,14 +19311,15 @@ def cpu_carry():
             if on:
                 check(res[[r[0] for r in res].index(1)][3] > 0, f'{tag}: no CPU red in match 1', errs)
                 check(bans1 > 0, f'{tag}: no suspension kept in the CPU records after match 1', errs)
-                ban = [i for i, x in enumerate(b1) if x & 3 == 2]        # (red after match 1: 2 = to count down)
-                check(ban and all(x & 3 in (0, 2) for x in b1), f'{tag}: after match 1 the CPU bans are not all '
-                      f'fresh (a countdown on the match day itself?) {[hex(x) for x in b1]}', errs)
+                ban = [i for i, x in enumerate(b1) if x & 3]             # (the reds of match 1: 2, one day less a
+                w1_ = max(0, 2 - (d1 - dk))                              #  day counted down since the kick-off)
+                check(ban and all(b1[i] & 3 == w1_ for i in ban), f'{tag}: after match 1 ({d1 - dk} day(s) since '
+                      f'the kick-off) the CPU bans {[hex(x) for x in b1]} (want {w1_} each)', errs)
                 check(d2 > d1, f'{tag}: no calendar day counted down between the matches ({d1} -> {d2})', errs)
-                want = max(0, 2 - (d2 - d1))                             # one countdown a day, exactly
-                check(all(b2[i] & 3 == want for i in ban), f'{tag}: bans {ban} after {d2 - d1} day(s): '
+                want = max(0, 2 - (d2 - dk))                             # one countdown a day, exactly
+                check(all(b2[i] & 3 == want for i in ban), f'{tag}: bans {ban} after {d2 - dk} day(s): '
                       f'{[hex(b2[i]) for i in ban]} (want {want} each)', errs)
-                notes.append(f'{tag}: days {d1} -> {d2}, bans {ban}: {[hex(b1[i]) for i in ban]} -> '
+                notes.append(f'{tag}: days {dk} (kick-off) -> {d1} -> {d2}, bans {ban}: {[hex(b1[i]) for i in ban]} -> '
                              f'{[hex(b2[i]) for i in ban]}')
             else:
                 check(bans1 == 0 and bans2 == 0 and w2 == 0 and d2 == 0, f'{tag}: CPU records / swaps / days with the '

@@ -467,7 +467,8 @@ def strings(p, hdr):
 
 
 def patch(p, at, lang):
-    """Code + label at obj1:at; returns the end."""
+    """Code + data at obj3:at (4.0.6, CONVENTIONS 23; after benchx); returns the end. The game's sites jump / call into
+    obj3 through self-relative fixups (p.branch), obj3's references back are absolute / self-relative fixups too."""
     import controls
     import engine
     import zones
@@ -505,32 +506,35 @@ def patch(p, at, lang):
     for k, (site, out) in b['guards'].items():
         sym[f'CONT{k}'], sym[f'OUT{k}'] = (1, site + 10), (1, out)
     sym.update({k: (1, s[k]) for k in ('PCT', 'NOCARD', 'SENDOFF', 'NORED')})
-    code, fix = nasmcave.assemble(src, at, sym)
+    code, fix, rel = nasmcave.assemble_obj(src, at, sym, 3)
     lab = nasmcave.labels(src, at, sym)
-    assert not any(p.get(1, at, len(code)))
-    p.put(1, at, code)
+    assert not any(p.get(3, at, len(code)))
+    p.put(3, at, code)
     for o, t_obj, t_off in fix:
-        p.add_ptr(1, at + o, t_obj, t_off)
-    p.put(1, s['a'], b'\xe9' + struct.pack('<i', lab['cc_a'] - (s['a'] + 5)))
+        p.add_ptr(3, at + o, t_obj, t_off)
+    for o, t_obj, t_off in rel:
+        p.add_rel(3, at + o, t_obj, t_off)
+    p.branch(1, s['a'], 0xE9, 3, lab['cc_a'])
     for k in 'bc':
-        p.put(1, s[k], b'\xe9' + struct.pack('<i', lab['cc_' + k] - (s[k] + 5)) + b'\x90')
+        p.branch(1, s[k], 0xE9, 3, lab['cc_' + k], 6)
     for k, (site, _) in b['guards'].items():           # step B: the CPU guards' `jz` -> our stubs
         assert p.get(1, site + 4, 6) == d[site + 4:site + 10], ('cpucards B guard already patched', k)
-        p.put(1, site + 4, b'\xe9' + struct.pack('<i', lab[f'cb_s{k}'] - (site + 9)) + b'\x90')
+        p.branch(1, site + 4, 0xE9, 3, lab[f'cb_s{k}'], 6)
     for c in b['calls903']:
-        p.put(1, c + 1, struct.pack('<i', lab['cb_903'] - (c + 5)))
+        assert p.call_target(1, c) == (1, b['F903']), ('cseg_903B1 call already hooked', hex(c))
+        p.branch(1, c, 0xE8, 3, lab['cb_903'])
     for at_, lb, n, fx in ((b['GAME'], 'cb_game', 9, 3), (b['VIEW'], 'cb_view', 5, 1), (b['ADV'], 'cb_day', 8, 3)):
         assert p.get(1, at_, n) == d[at_:at_ + n], ('cpucards B entry already patched', lb)
         p.remove(1, at_ + fx)
-        p.put(1, at_, b'\xe9' + struct.pack('<i', lab[lb] - (at_ + 5)) + b'\x90' * (n - 5))
+        p.branch(1, at_, 0xE9, 3, lab[lb], n)
     for k, l in ((0, 'cc_init'), (4, 'cc_ret')):
-        p.retarget(2, hdr + k, 1, lab[l])
+        p.retarget(2, hdr + k, 3, lab[l])
         p.put(2, hdr + k, struct.pack('<I', lab[l]))
-    engine.ITEM_AT['CC'] = (1, lab['CC_W'])
-    engine.CALL_AT['cc_load'] = (1, lab['cc_load'])
-    engine.CALL_AT['cc_new'] = (1, lab['cc_new'])
+    engine.ITEM_AT['CC'] = (3, lab['CC_W'])
+    engine.CALL_AT['cc_load'] = (3, lab['cc_load'])
+    engine.CALL_AT['cc_new'] = (3, lab['cc_new'])
     LABELS.update(lab)
-    print(f'exe: CPU cards / injuries by the human rules (OPTIONS: {label} / {label_i}): code obj1+{at:#x} ({len(code)} B), sites '
+    print(f'exe: CPU cards / injuries by the human rules (OPTIONS: {label} / {label_i}): code obj3+{at:#x} ({len(code)} B), sites '
           f'{[hex(s[k]) for k in "abc"]}')
     return at + len(code)
 

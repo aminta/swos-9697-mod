@@ -35,6 +35,9 @@ breakpoints), `W84NAT_REDO=1` (remake the cached national-team saves).
 4. **At a pause** the runner (class `Session`):
    - dumps memory with the debugger's `MEMDUMPBIN`: all 32 MB at the first pause (to find where obj1/obj2 are in
      linear memory), then ~1 MB (feeder page + obj2) per pause, and small ranges on demand (`Result.read`);
+     4.0.6+ builds have obj3 (benchx; CONVENTIONS 23), which DOS/4GW loads apart (below obj1 in DOSBox-X):
+     `Result.base3` comes from an obj1 pointer into obj3, `Result.lin((obj, off))` maps any object offset, and
+     benchx's variables are `Off3` offsets (`bench_switch`), so the scenarios read them the same on 4.0.5 and 4.0.6;
    - parses the current menu (`Screen`: g_currentMenu in obj2 — entries with text, invisible/disabled flags,
      left/right/up/down links, x/y/w/h);
    - writes the next keys into the feeder's script area (`SM` commands typed into the debugger), moves EIP past the

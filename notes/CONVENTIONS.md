@@ -85,5 +85,18 @@ new rule. If a rule seems wrong for a case, ask the regia session; don't silentl
     the harness adds 1 obj1 page of its own, so 237 file pages = 238 under test = the real limit). patch.py prints
     'exe: object pages: obj1 N ..., obj2 M' and warns over 237; buildrel.sh fails a release build with obj1 > 237 or
     obj2 != 213. Room was made in 4.0.5 by capping the historic pages (patch.py h2, 1 used of the 4 it had become).
-    A 4.0.5+ item needing obj1 pages must find room in the existing pages first; the structural cure (code pages in a
-    third object after obj2, internal/design/obj2-code-pages.md) is 4.0.6.
+    A 4.0.5+ item needing obj1 pages must find room in the existing pages first; the structural cure is rule 23 (4.0.6:
+    obj1 235 pages once benchx moved to obj3).
+23. **New mod code and data go in obj3** (4.0.6, internal/design/obj3-406.md), the LE object after obj2
+    (lepatch.add_object, flags 0x2047). Never add obj1 pages (rule 22) or obj2 pages (rule 20).
+    - Layout: obj3's file pages (mod pages, benchx first, then the C engine's code, PLAN §19 step O) stay below
+      patch.OBJ3_ARENA = 0x20000 (buildrel.sh fails over 32 pages). The engine's arena + spec buffer go at 0x20000 as
+      zero-filled vsize; the engine zeroes it itself (DOS/4GW zeroes no tail).
+    - No obj3 address is ever stored in a save, so obj3 may grow and move freely.
+    - Cross-object control transfer: self-relative fixups (type 8, lepatch.add_rel / branch), as the game's own 42
+      obj1 <-> obj2 calls. Code is assembled with nasmcave.assemble_obj(src, org, sym, 3); its rel32s into the game
+      come back as `rel` and get add_rel.
+    - A chaining hook reads a call site's previous target with lepatch.call_target(obj, off), never by decoding the
+      rel32 (behind a type-8 fixup it is 0 until load); put() asserts over an existing type-8 rel32.
+    - DOS/4GW loads obj3 apart from obj1 + obj2 (below obj1 in DOSBox-X): the harness reads it at Result.base3 (an obj1
+      pointer into obj3), obj3 offsets as swostest.Off3, any (obj, off) through Result.lin().

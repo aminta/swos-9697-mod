@@ -2344,3 +2344,16 @@ Left for 2.5: (a) NSL/NSSL finals series (type-1 design) or declare them postpon
 - Found on the way: trailer.py's world-0 engine block looped over zero items when a build had only world-only items (fixed, 819b85a).
 - Tests PASS on the TM_EXTRA=14 world: xtra_market, xtra_world30, career_20seasons x2-3 (CHISOLA / CELLE VARAZZE), an old 25-man save,
   xtra_squad, xtra_season; IT/EN/FR/DE exes build. Not done: release recipe suite, a visual tour, EN/FR/DE market screens in a run.
+
+## 4.0.5 release (2026-11-01, Davide's yes)
+- Release build c/REL405 = 405-rc20 103cb86, data world5tm-403c11, no MODVER_TAG (main menu 'MOD 4.0.5'); obj1 237, obj2 213
+  pages. IT CD 24d9e58e, EN CD 02cef664, FR CD 48170d0f, DE CD 9c5f1a64; GOG IT b30743bb, EN d7afe2fe, FR 09958077, DE ccdeb20c.
+- Identity: = the last rc c/INT405pre34 (174f34f) except the version text ('RC20' dropped): the block after it moves 16 bytes,
+  every other changed byte is a rel32 / fixup to the same targets; DATA and obj2 identical.
+- Gate on the rc line (pre31..pre34): the full suite split (local + server) on the release recipe, the bench / squad / tactics set
+  incl. the cursor wrap IT + EN on the three screens, RANGERS (a real 9-bench) and CELLE VARAZZE; Node patcher test (DATA coverage
+  0, all OK) and dirtest ALL OK on the final page; visual tour of every change (11 sheets, private).
+- Since 4.0.2 (see release/notes-4.0.5.md): long benches (benchx; the list window wraps at its end), national Super Cups,
+  Campeón de Campeones, real European draws and first-season calendars, bald players, SELECT KITS ALWAYS, coach nationalities,
+  NZ championship phase + Grand Final, better-placed tie lines, POULE SCUDETTO SERIE D on WINNERS, many fixes.
+- After shipping: `python3 tools/kitfix.py ship c/REL405` (adds 4.0.5's kits to tools/kits_shipped.json.gz).

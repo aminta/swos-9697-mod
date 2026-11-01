@@ -6944,6 +6944,97 @@ def xtra_bid(s):
 
 
 @scenario
+def world_bplace_line():
+    """4.0.5 (Davide): a level tie won by the better placed says so on its result line (bplace.py) - IT 'D.T.S. - PASSA
+    <club> (MIGL. PIAZZ.)' after extra time, 'PASSA <club> (MIGL. PIAZZ.)' without (and on the narrow lines: the
+    career menu's last result, the results lists); EN '<club> THROUGH (BETTER PLACED)' / '(PLACING)'. BPLACE_FORCE test
+    builds of the release data (W2627REL_DATA, else world5tm-403c11; every decisive match cseg_2AE97 settles level, no
+    extra-time goals: bplace.force) with GPLAY_FORCE: (a) LIGORNA 3rd of Serie D girone A - its group play-off (single
+    + extra time);
+    (b) VEGALTA SENDAI 3rd of J2 - the J1 promotion play-off (single, no extra time: no line before); (c) RENATE 17th of
+    Serie C girone A - its play-out (two legs, a level aggregate: '%a WIN 2-2 ON AGG.' before). Each: our text on a
+    result screen naming a tie's winner (gplay's GP_ST) who is the better placed (lower code), every new line in the
+    small font's characters and within the game's widths (wide 257 px, narrow 209 px), the game's penalty texts as
+    before (the cups' forced level ties)."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import bplace
+    import complist
+    src = (os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-403c11')).rstrip('/')
+    if not os.path.isdir(src):
+        return True, f'SKIP: private data {src} missing'
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    (w0, n0), (w1, n1) = bplace.TEXTS[UI]
+    rx = lambda t: re.compile('^' + re.escape(t).replace('%a', '(.+?)') + '$')
+    pats = {'w0': rx(w0), 'n0': rx(n0), 'w1': rx(w1), 'n1': rx(n1)}
+    pens = {'it': ' AI RIG', 'en': ' ON PENS', 'fr': ' AUX T.A.B.', 'de': ' I.ELFM.'}.get(UI, ' ON PENS')
+    cases = [('a', 'EUROPA,ITALIA,SERIE D GIRONE A,LIGORNA', '3', 'w1', 'PLAY-OFF SERIE D'),
+             ('b', 'ASIA,GIAPPONE,J2 LEAGUE,VEGALTA SENDAI', '3', 'w0', 'J1'),
+             ('c', 'EUROPA,ITALIA,SERIE C GIRONE A,RENATE', '17', 'w0', 'PLAY-OUT')]
+    if os.environ.get('BPLACE_CASES'):
+        cases = [c for c in cases if c[0] in os.environ['BPLACE_CASES']]
+    errs, info, nar = [], [], []
+    for tag, team, force, want, word in cases:
+        exe = build(f'bplace_line_{force}' + ('' if UI == 'it' else '_' + UI), lang=UI, env={
+            'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]), 'GPLAY_FORCE': force,
+            'BPLACE_FORCE': '1'})
+        log_at, st_at, log_n, st_n = gp_ptrs(exe)
+        keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_ONE',
+                'W8485_HEX', 'W8485_SHOTWORD')
+        keep = {k: os.environ.get(k) for k in keys}
+        os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5', W8485_K='108+',
+                          W8485_NOSACK='1', W8485_ONE='1', W8485_HEX=f'{log_at:x}:{log_n},{st_at:x}:{st_n}',
+                          W8485_SHOTWORD=word)
+        try:
+            ok, msg = world8485()
+        finally:
+            for k, v in keep.items():
+                if v is None:
+                    os.environ.pop(k, None)
+                else:
+                    os.environ[k] = v
+        check(ok, f'{tag}: run: {msg}', errs)
+        lines = open(os.path.join(RUNS, w84_tag() + '_1', 'session.log'), errors='replace').read().splitlines()
+        texts = [(ln.split(']', 1)[0], [x.strip() for x in ln.split(']', 1)[1].replace('(inv)', '').split('|')])
+                 for ln in lines if ln.startswith('[')]
+        ours = {}                                      # pattern -> [(screen, club)]
+        for scr, tx in texts:
+            for t in tx:
+                for k, rg in pats.items():
+                    m = rg.match(t)
+                    if m:
+                        ours.setdefault(k, []).append((scr, m.group(1), t))
+        sts = [bytes.fromhex(ln.split()[2]) for ln in lines if ln.startswith(f'HEX {st_at:x} ')]
+        sts = [b for b in sts if b[:2] == b'GK']
+        ko = gp_ko(sts[-1][GP_STKO:]) if sts else None
+        hit = ours.get(want, [])
+        check(hit, f'{tag}: no {want} line ({ {k: [x[2] for x in v[:2]] for k, v in ours.items()} })', errs)
+        if ko:                                         # (every club our lines name: a tie's winner, the better placed)
+            nm = {i: team_name(exe, w) for i, w in enumerate(ko['team'][:ko['n']])}
+            ties = [(ko['tw'][t], ko['tl'][t]) for t in range(ko['ntie']) if ko['tw'][t] < ko['n'] and ko['tl'][t] < ko['n']]
+            for k, v in ours.items():
+                for scr, club, t in v:
+                    tw = [(w, l) for w, l in ties if nm[w] == club]
+                    check(any(ko['code'][w] < ko['code'][l] for w, l in tw),
+                          f"{tag}: {t!r} on {scr}: {club} not a better-placed tie winner ({[(nm[w], ko['code'][w], nm[l], ko['code'][l]) for w, l in ties]})", errs)
+        if hit:
+            info.append(f"{tag}: '{hit[0][2]}' on {hit[0][0]}")
+        for k, v in ours.items():                      # (every new line: the font's characters, the game's widths)
+            for scr, club, t in v:
+                lim = 257 if k[0] == 'w' else 209
+                check(all(c in complist.SMALL_W or c == ' ' for c in t) and complist.px(t) <= lim,
+                      f'{tag}: {t!r} ({complist.px(t)} px > {lim} or a character outside the font)', errs)
+        pn = [t for _, tx in texts for t in tx if pens in t]
+        info.append(f"{tag}: {sum(len(v) for v in ours.values())} line(s) of ours, {len(pn)} penalty line(s) "
+                    f"as the game's{(' (' + pn[0] + ')') if pn else ''}")
+        nar += [(tag, x[2]) for x in ours.get('n1', []) + ours.get('n0', [])   # (the narrow line: the career menu's
+                if any('TRASFERIMENTI' in t for s_, tx in texts if s_ == x[0] for t in tx)]   # last result)
+    if not os.environ.get('BPLACE_CASES'):
+        check(nar, 'no narrow line on a career menu in any case', errs)
+    info.append(f'narrow on the career menu: {nar[:2]}')
+    return not errs, '; '.join(errs + info)
+
+
+@scenario
 def xtra_offer_plus():
     """4.0.5 (Enzo's report): the offer's '+' (a 2nd player of the same club in the deal: SELEZ. GIOCATORE PER OFFERTA,
     ShowSquad) pages the club's extras as the club browse does (xbrowse vs_offer / vs_init: PAG. SUCC. / PAG. PREC. right of

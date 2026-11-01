@@ -5084,6 +5084,13 @@ def hist_dist(a, b):
     return sum(abs(a.get(k, 0) - b.get(k, 0)) for k in set(a) | set(b))
 
 
+def bench_eff(r, bx):
+    """The bench the pre-match screens use (benchx sq_n): the test switch bx_bench, else the competition's real named
+    substitutes bx_lkres (bx_bench + 14, what bx_look found: a real 9 in the Scottish Premiership), 5..15."""
+    b = struct.unpack('<H', r.read(r.base1 + bx, 2))[0] or r.read(r.base1 + bx + 14, 1)[0]
+    return max(5, min(b, 15))
+
+
 def wrap_reach(q, row1):
     """(4.0.5, the cursor's wrap) the entry the game's DOWN on row 17 (entry row1 + 16) goes to, (index, text), and the
     visible entries the selected one reaches only through that move ([(index, text)]: with the wrap, down there goes back
@@ -5115,8 +5122,7 @@ def bench_squad(s, scr, bx, cmp_, cnp, errs, info, mark, woff=4, box=30, row1=13
     The tactics editor's list (editTacticsMenu): woff 8 (bx_tw), box 28, rows = entries 11..27, tag 'tactics'."""
     r = s.result
     n = struct.unpack('<H', r.obj2(cnp, 2))[0]
-    bench = struct.unpack('<H', r.read(r.base1 + bx, 2))[0]
-    last = 11 + max(5, min(bench, 15))
+    last = 11 + bench_eff(r, bx)            # (BENCH_REAL: no poke, the competition's own bench)
     order0 = r.obj2(cmp_, n)
     keys = scr.path(box) or []
     r = s.send(' '.join(k + ':0.15' for k in keys) + ' dump:0.4')
@@ -5178,12 +5184,50 @@ def bench_squad(s, scr, bx, cmp_, cnp, errs, info, mark, woff=4, box=30, row1=13
     exp[10], exp[21] = order0[21], order0[10]
     check(o1 == bytes(exp), f'{tag} swap place 22 <-> 11: {list(order0)} -> {list(o1)}', errs)
     mark(f'{tag} window: {len(states)} steps, swap 22<->11 {"ok" if o1 == bytes(exp) else "FAIL"}')
-    if n < 30:                              # (4.0.6, Davide 31/10) needs places up to 29: a 30-player squad
-        return
 
     def win():
         r_ = s.result
         return struct.unpack('<H', r_.read(r_.base1 + bx + woff, 2))[0]
+
+    def wrap():
+        # (4.0.5, Davide 01/11) the wrap: down on row 17 to the window's end (n - 17), once more -> window 0, row 12; up
+        # on row 12 at the top -> row 11 (the game's move, no scroll); the entries below row 17 another way (real keys)
+        check(goto(row1 + 16, wmoves), f'{tag}: row 17 not reached for the wrap', errs)
+        w0, wr = win(), []
+        want = [(w_, row1 + 16) for w_ in range(w0 + 1, n - 16)] + [(0, row1 + 11)]
+        for _ in want:
+            s.send('down:0.3 dump:0.4')
+            wr.append((win(), s.screen().selected))
+        check(wr == want, f'{tag}: the wrap from window {w0} (window, selected) {wr}', errs)
+        s.shot(f'{tag}_wrap')
+        s.send('up:0.3 dump:0.4')
+        w2, sel2 = win(), s.screen().selected
+        check((w2, sel2) == (0, row1 + 10), f'{tag}: up on row 12 at the top (window, selected) {(w2, sel2)}', errs)
+        s.shot(f'{tag}_wrapup')             # (tour sheet 11: up from row 12 at the top -> row 11, the starters)
+        info.append(f'{tag} wrap: down {wr}, then up -> {(w2, sel2)}')
+        mark(info[-1])
+        tests = list(below[1])              # (those only down on row 17 reached: fail; else the entry below it)
+        if below[0][0] is not None and below[0][0] not in [i for i, _ in tests]:
+            tests.append(below[0])
+        for i, txt in tests:
+            q = s.screen()
+            if q.selected != row1 + 16:
+                goto(row1 + 16, wmoves)
+                q = s.screen()
+            steps = q.path(i, frozenset({(row1 + 16, 'down')}))
+            if steps is None:
+                check(False, f'{tag}: {txt!r} (entry {i}) not reachable without down on row 17', errs)
+                continue
+            s.send(' '.join(k + ':0.15' for k in steps) + ' dump:0.4')
+            got = s.screen().selected
+            check(got == i, f'{tag}: {txt!r} (entry {i}) by {steps}: selected {got}', errs)
+            info.append(f'{tag} below row 17: {txt!r} by {steps} ' + ('ok' if got == i else 'FAIL'))
+            mark(info[-1])
+        goto(row1 + 11, wmoves)
+
+    if n < 30:                              # (4.0.6, Davide 31/10) needs places up to 29: a 30-player squad
+        wrap()                              # (the wrap: any squad longer than the 17 rows - RANGERS' 28)
+        return
     # the cursor scrolls the window (rows 12 / 17, as the dugout) and a marked player stays marked: place 22 marked
     # (window 5, row 17), 7 x down on row 17 -> window 12 (places 23..28: the mark out of sight), 5 x up -> row 12
     # (the cursor moves, no scroll), fire: place 22 <-> 24 swapped; up once more on row 12 -> window 11
@@ -5217,39 +5261,7 @@ def bench_squad(s, scr, bx, cmp_, cnp, errs, info, mark, woff=4, box=30, row1=13
     info.append(f'{tag} cursor scroll: down {[w for w, _ in seen]}, up on row 12 -> {w1}; marked swap 22<->24 '
                 + ('ok' if o2 == bytes(exp2) else 'FAIL'))
     mark(info[-1])
-    # (4.0.5, Davide 01/11) the wrap: down on row 17 to the window's end (n - 17), once more -> window 0, row 12; up
-    # on row 12 at the top -> row 11 (the game's move, no scroll); the entries below row 17 another way (real keys)
-    check(goto(row1 + 16, wmoves), f'{tag}: row 17 not reached for the wrap', errs)
-    w0, wr = win(), []
-    want = [(w_, row1 + 16) for w_ in range(w0 + 1, n - 16)] + [(0, row1 + 11)]
-    for _ in want:
-        s.send('down:0.3 dump:0.4')
-        wr.append((win(), s.screen().selected))
-    check(wr == want, f'{tag}: the wrap from window {w0} (window, selected) {wr}', errs)
-    s.shot(f'{tag}_wrap')
-    s.send('up:0.3 dump:0.4')
-    w2, sel2 = win(), s.screen().selected
-    check((w2, sel2) == (0, row1 + 10), f'{tag}: up on row 12 at the top (window, selected) {(w2, sel2)}', errs)
-    info.append(f'{tag} wrap: down {wr}, then up -> {(w2, sel2)}')
-    mark(info[-1])
-    tests = list(below[1])                  # (those only down on row 17 reached: fail; else the entry below it)
-    if below[0][0] is not None and below[0][0] not in [i for i, _ in tests]:
-        tests.append(below[0])
-    for i, txt in tests:
-        q = s.screen()
-        if q.selected != row1 + 16:
-            goto(row1 + 16, wmoves)
-            q = s.screen()
-        steps = q.path(i, frozenset({(row1 + 16, 'down')}))
-        if steps is None:
-            check(False, f'{tag}: {txt!r} (entry {i}) not reachable without down on row 17', errs)
-            continue
-        s.send(' '.join(k + ':0.15' for k in steps) + ' dump:0.4')
-        got = s.screen().selected
-        check(got == i, f'{tag}: {txt!r} (entry {i}) by {steps}: selected {got}', errs)
-        info.append(f'{tag} below row 17: {txt!r} by {steps} ' + ('ok' if got == i else 'FAIL'))
-        mark(info[-1])
-    goto(row1 + 11, wmoves)
+    wrap()
     for _ in range(20):                     # the window back to 0 by the cursor itself (up on row 12): the way out
         if win() == 0:                      # of the screen may go up through row 12, which would scroll it first
             break
@@ -5371,7 +5383,7 @@ def bench_et(s, o, gmax, bx, errs, info, mark):
 
 def bench_oppo(s, scr, bx, wants, errs, info, mark):
     """(4.0.6, Davide's PANpt4 photo: VIEW OPPONENT showed a CPU club's 11 + 5 only) the pre-match screen's AVVERSARI:
-    with a bench over 5 the CPU opponent's places 12.. (16 + its XTRA block's players, at most 26) in a window of 6
+    with a bench over 5 the CPU opponent's places 12.. (16 + its XTRA block's players, at most 11 + bench) in a window of 6
     rows (row 17 = entry 29 visible), down moves it one place (bx_po = bx_bench + 12) up to the last start and back to
     0; then back to the own team (the button that turned into VIS. SQUADRA)."""
     if press(s, scr, 'AVVERSARI') is None:
@@ -5380,8 +5392,8 @@ def bench_oppo(s, scr, bx, wants, errs, info, mark):
     q = s.screen()
     name = q.entries[1][1] or ''
     xn = (wants['*'](name) if wants.get('*') else []) or []
-    n = min(16 + len(xn), 26)
     r = s.result
+    n = min(16 + len(xn), 11 + bench_eff(r, bx))   # (at most 11 + the bench: 26 with 15, 20 with a real 9)
     po = lambda: struct.unpack('<H', s.result.read(s.result.base1 + bx + 12, 2))[0]
     rows = lambda q_: [q_.entries[k][1] for k in range(24, 30)]
     mark(f'oppo {name}: {n} places, sel {q.selected}, row 17 inv {q.entries[29][2]}, rows {rows(q)}')

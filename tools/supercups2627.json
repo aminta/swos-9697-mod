@@ -1,0 +1,363 @@
+{
+ "_doc": "4.0.5 national supercups of World 2026-27 (supercup.py table; internal/handoff/supercups.md). Per country: pack id suffix, names {lang: [long, short]}, article (FORMAT text: {lang: word} when not La / The / La), date (dd/mm, +1 = the next calendar year, the real 2026-27 edition), from_season (2 = summer: not in the world's first season), early (4.0.5: the career club's tie built at the season start - shown in its calendar and VISUAL. COMPETIZ. from the first day - and played at its week; only where nothing else of the club needs slot 4 before it), legs, level (pens | et_pens), host (neutral), rule [2 or 4 rules: e0 v e1 (and e2 v e3: semi-finals, then the final)] + if_double (one fallback for every rule after the first, or a list per rule: champion | second | third | fourth | cup_winner | cup_finalist | title0 | title1: last season's stage-title winners, the play-offs 'titles' [key0, key1]), final_date (4 clubs), first_entrants (pack club keys of the real 2026-27 edition: season 1), todo (what is not verified yet).",
+ "ita": {
+  "names": {
+   "it": [
+    "SUPERCOPPA ITALIANA",
+    "SUPERCOPPA"
+   ],
+   "en": [
+    "ITALIAN SUPER CUP",
+    "SUPER CUP"
+   ],
+   "fr": [
+    "SUPERCOUPE D'ITALIE",
+    "SUPERCOUPE"
+   ],
+   "de": [
+    "ITALIENISCHER SUPERCUP",
+    "SUPERCUP"
+   ]
+  },
+  "date": "22/12",
+  "from_season": 1,
+  "early": true,
+  "legs": 1,
+  "level": "pens",
+  "host": "neutral",
+  "rule": [
+   "champion",
+   "cup_winner"
+  ],
+  "if_double": "cup_finalist",
+  "first_entrants": [
+   "inter",
+   "lazio"
+  ],
+  "todo": "date 22 Dec and San Siro from the press, to confirm; 90 minutes then penalties (no extra time since 2023-24); the double fallback (cup finalist) not verified"
+ },
+ "esp": {
+  "names": {
+   "it": [
+    "SUPERCOPPA DI SPAGNA",
+    "SUPERCOPPA"
+   ],
+   "en": [
+    "SPANISH SUPER CUP",
+    "SUPER CUP"
+   ],
+   "fr": [
+    "SUPERCOUPE D'ESPAGNE",
+    "SUPERCOUPE"
+   ],
+   "de": [
+    "SPANISCHER SUPERCUP",
+    "SUPERCUP"
+   ]
+  },
+  "date": "02/02+1",
+  "final_date": "06/02+1",
+  "from_season": 1,
+  "early": true,
+  "legs": 1,
+  "level": "pens",
+  "host": "neutral",
+  "rule": [
+   "champion",
+   "cup_finalist",
+   "cup_winner",
+   "second"
+  ],
+  "if_double": [
+   null,
+   "third",
+   "third",
+   "third"
+  ],
+  "first_entrants": [
+   "barcelona",
+   "atleticomadrid",
+   "realsociedad",
+   "realmadrid"
+  ],
+  "todo": "Jeddah/Istanbul edition 2-6 Feb 2027: semis 2/2 (Barcelona v Atletico) and 3/2 (Real Sociedad v Real Madrid), final 6/2 (one game week for both semis); 90 minutes then penalties CONFIRMED (RFEF, no extra time since 2024); pairings by the usual rule (champion v cup finalist, cup winner v league 2nd); the double fallback = the next classified (league 3rd) from an older source"
+ },
+ "tur": {
+  "names": {
+   "it": [
+    "SUPERCOPPA DI TURCHIA",
+    "SUPERCOPPA"
+   ],
+   "en": [
+    "TURKISH SUPER CUP",
+    "SUPER CUP"
+   ],
+   "fr": [
+    "SUPERCOUPE DE TURQUIE",
+    "SUPERCOUPE"
+   ],
+   "de": [
+    "TURKISCHER SUPERCUP",
+    "SUPERCUP"
+   ]
+  },
+  "date": "04/01+1",
+  "final_date": "09/01+1",
+  "from_season": 1,
+  "early": true,
+  "legs": 1,
+  "level": "et_pens",
+  "host": "neutral",
+  "rule": [
+   "champion",
+   "cup_finalist",
+   "cup_winner",
+   "second"
+  ],
+  "if_double": [
+   null,
+   "third",
+   "third",
+   "third"
+  ],
+  "first_entrants": [
+   "galatasaray",
+   "konyaspor",
+   "trabzonspor",
+   "fenerbahce"
+  ],
+  "todo": "semis 4+5 Jan, final 9 Jan 2027 (TFF 24 Sep 2026), the semi day drawn; extra time (2 x 15') then penalties per the TFF's last known rule; which entrant is which (rule) inferred from the 2027 pairs; venues TBA; the double fallback (league 3rd) not verified"
+ },
+ "eng": {
+  "names": {
+   "it": [
+    "FA COMMUNITY SHIELD",
+    "COMM. SHIELD"
+   ],
+   "en": [
+    "FA COMMUNITY SHIELD",
+    "COMM. SHIELD"
+   ],
+   "fr": [
+    "FA COMMUNITY SHIELD",
+    "COMM. SHIELD"
+   ],
+   "de": [
+    "FA COMMUNITY SHIELD",
+    "COMM. SHIELD"
+   ]
+  },
+  "date": "16/08",
+  "from_season": 2,
+  "early": true,
+  "legs": 1,
+  "level": "pens",
+  "host": "neutral",
+  "rule": [
+   "champion",
+   "cup_winner"
+  ],
+  "if_double": "second",
+  "first_entrants": [
+   "arsenal",
+   "manchestercity"
+  ],
+  "todo": "the 2026 edition was played on 16 Aug at Cardiff (Wembley unavailable): from season 2 the same week, neutral; 90 minutes then penalties CONFIRMED; double -> league runner-up per the FA rule, not re-checked"
+ },
+ "ger": {
+  "names": {
+   "it": [
+    "SUPERCOPPA DI GERMANIA",
+    "SUPERCOPPA"
+   ],
+   "en": [
+    "GERMAN SUPER CUP",
+    "SUPER CUP"
+   ],
+   "fr": [
+    "SUPERCOUPE D'ALLEMAGNE",
+    "SUPERCOUPE"
+   ],
+   "de": [
+    "FRANZ BECKENBAUER SUPERCUP",
+    "SUPERCUP"
+   ]
+  },
+  "date": "22/08",
+  "from_season": 2,
+  "early": true,
+  "legs": 1,
+  "level": "pens",
+  "host": "neutral",
+  "rule": [
+   "champion",
+   "cup_winner"
+  ],
+  "if_double": "second",
+  "first_entrants": [
+   "bayernmunich",
+   "dortmund"
+  ],
+  "todo": "2026: 22 Aug at Dortmund (Bayern 2-1; Bayern's double -> Dortmund, league 2nd): from season 2 the same week; the real host is the 2nd club's ground (host 'neutral' in the engine); 90 minutes then penalties CONFIRMED"
+ },
+ "fra": {
+  "names": {
+   "it": [
+    "TROPHEE DES CHAMPIONS",
+    "T. CHAMPIONS"
+   ],
+   "en": [
+    "TROPHEE DES CHAMPIONS",
+    "T. CHAMPIONS"
+   ],
+   "fr": [
+    "TROPHEE DES CHAMPIONS",
+    "T. CHAMPIONS"
+   ],
+   "de": [
+    "TROPHEE DES CHAMPIONS",
+    "T. CHAMPIONS"
+   ]
+  },
+  "date": "16/08",
+  "from_season": 2,
+  "early": true,
+  "legs": 1,
+  "level": "pens",
+  "host": "neutral",
+  "rule": [
+   "champion",
+   "cup_winner"
+  ],
+  "if_double": "second",
+  "first_entrants": [
+   "psg",
+   "lens"
+  ],
+  "todo": "2026: 16 Aug at Lens (host by draw), PSG v Lens: from season 2 the same week, neutral; Lens taken as the league 2nd after a PSG double, not verified; straight penalties assumed (no source)"
+ },
+ "ksa": {
+  "names": {
+   "it": [
+    "SUPERCOPPA SAUDITA",
+    "SUPERCOPPA"
+   ],
+   "en": [
+    "SAUDI SUPER CUP",
+    "SUPER CUP"
+   ],
+   "fr": [
+    "SUPERCOUPE SAOUDIENNE",
+    "SUPERCOUPE"
+   ],
+   "de": [
+    "SAUDISCHER SUPERCUP",
+    "SUPERCUP"
+   ]
+  },
+  "date": "19/12",
+  "final_date": "23/12",
+  "from_season": 1,
+  "early": true,
+  "legs": 1,
+  "level": "et_pens",
+  "host": "neutral",
+  "rule": [
+   "champion",
+   "cup_finalist",
+   "cup_winner",
+   "second"
+  ],
+  "if_double": [
+   null,
+   "third",
+   "third",
+   "third"
+  ],
+  "first_entrants": [
+   "alnassr",
+   "alkholood",
+   "alahlisfc",
+   "alqadsiah"
+  ],
+  "todo": "Kuwait 19/20 Dec, final 23 Dec 2026: the 2026 field is Al-Nassr (champion) v Al-Kholood (cup finalist) and Al-Ahli (3rd) v Al-Qadsiah (4th): Al-Hilal (league 2nd and cup winner?) banned; the engine rule is the usual one (champion v cup finalist, cup winner v league 2nd), the 2026 replacements only in season 1's entrants; extra time then penalties (every known edition); pairings as the 2026 draw; the double fallback (league 3rd) not verified"
+ },
+ "mex": {
+  "names": {
+   "it": [
+    "CAMPEON DE CAMPEONES",
+    "CAMP. DE CAMP."
+   ],
+   "en": [
+    "CAMPEON DE CAMPEONES",
+    "CAMP. DE CAMP."
+   ],
+   "fr": [
+    "CAMPEON DE CAMPEONES",
+    "CAMP. DE CAMP."
+   ],
+   "de": [
+    "CAMPEON DE CAMPEONES",
+    "CAMP. DE CAMP."
+   ]
+  },
+  "article": {
+   "it": "Il",
+   "fr": "Le"
+  },
+  "date": "25/07",
+  "from_season": 2,
+  "legs": 1,
+  "level": "pens",
+  "host": "neutral",
+  "rule": [
+   "title0",
+   "title1"
+  ],
+  "titles": [
+   "mex_ap_ko",
+   "mex_cl_ko"
+  ],
+  "if_double": null,
+  "first_entrants": [
+   "deportivotoluca",
+   "cruzazul"
+  ],
+  "todo": "Liga MX only (the Expansion's stays at the season end, real): the 2026 edition was played on 25 Jul 2026 at Carson (USA), Toluca (Apertura 2025) v Cruz Azul (Clausura 2026): from season 2 the same week, neutral; the season-end mex_cdc play-off must carry 'supercup': true (pack data) so it is not played twice; one club winning both tournaments: no match (as the pack's skip_if_same); 90 minutes then penalties assumed"
+ },
+ "bra": {
+  "names": {
+   "it": [
+    "SUPERCOPPA DEL BRASILE",
+    "SUPERCOPPA"
+   ],
+   "en": [
+    "BRAZILIAN SUPER CUP",
+    "SUPER CUP"
+   ],
+   "fr": [
+    "SUPERCOUPE DU BRESIL",
+    "SUPERCOUPE"
+   ],
+   "de": [
+    "BRASILIANISCHER SUPERCUP",
+    "SUPERCUP"
+   ]
+  },
+  "date": "24/01+1",
+  "from_season": 2,
+  "legs": 1,
+  "level": "pens",
+  "host": "neutral",
+  "rule": [
+   "champion",
+   "cup_winner"
+  ],
+  "if_double": "second",
+  "first_entrants": [
+   "flamengo",
+   "corinthians"
+  ],
+  "todo": "Supercopa Rei 24 Jan 2027 (CBF calendar): Brasileirao 2026 champion v Copa do Brasil 2026 winner = the season before in the game too; the 2027 entrants are not known yet (both 2026 competitions end in December), so from season 2 (first_entrants = the 2026 edition's pair, unused); venue not seen (neutral); 90 minutes then penalties and the double fallback (league 2nd) not verified"
+ }
+}

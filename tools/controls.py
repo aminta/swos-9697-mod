@@ -149,6 +149,7 @@ ct_optret:                              ; (and on return to OPTIONS: unpacked ag
     mov dword [edi + 10h], 1211FFFFh
     mov byte [esi + 0Bh], 19
     mov byte [esi + 13h], 19
+    mov word [esi + 16h], QUIT_Y        ; (4.0.5 Marco: EXIT TO DOS 1 px up - 2 px above and below CONTROLS)
     mov byte [MENU_ + 16h + 18 * 38h + 0Ah], 19
     mov byte [MENU_ + 16h + 18 * 38h + 12h], 19
 .x: popad
@@ -162,7 +163,10 @@ ct_open:                                ; CONTROLS (fire): the page on a copy of
     rep movsb
     mov ax, [WORK + 6]
     cmp ax, 2                           ; joypad only (an old INSTALL choice): as joypad + keyboard
-    jne .n2
+    je .n3
+    cmp ax, 4                           ; 4.0.5: P1 keyboard + P2 joypad (INSTALL's) - the game never had it (P1 reads
+    jne .n2                             ; stick 1 unless keyboard only, P2 the keyboard unless two joypads): as 3, what
+.n3:                                    ; it always was
     mov ax, 3
 .n2:
     cmp ax, 1
@@ -572,7 +576,7 @@ ct_unblock:
     mov byte [DUP], 0
     ret
 
-ct_dev:                                 ; the device row (fire): 1 -> 3 -> 4 -> 5 -> 1
+ct_dev:                                 ; the device row (fire): 1 -> 3 -> 5 -> 1 (4.0.5: no 4, see ct_open)
     cmp byte [MODE], 0
     jne .x
     mov ax, [WORK + 6]
@@ -581,6 +585,10 @@ ct_dev:                                 ; the device row (fire): 1 -> 3 -> 4 -> 
     jne .n
     inc ax
 .n:
+    cmp ax, 4
+    jne .n4
+    inc ax
+.n4:
     cmp ax, 5
     jbe .s
     mov ax, 1
@@ -955,7 +963,7 @@ def patch(p, at, lang):
     data, off, ptrs, m_at = layout(lang)
 
     base = at + 0x1000                                 # (page-aligned: the code page stays the code's alone)
-    assert len(data) <= 0x1000 * DATA_PAGES and not any(p.get(1, base, len(data))), hex(len(data))
+    assert len(data) <= 0x1200 and not any(p.get(1, base, len(data))), hex(len(data))   # (+0x1200: blond's code)
     p.put(1, base, bytes(data))
     assert not any((base + o) // 0x1000 != (base + o + 3) // 0x1000 for o, _, _ in ptrs), 'a pointer straddles a page'
     v = base + off['vars']
@@ -963,7 +971,7 @@ def patch(p, at, lang):
                 'KEYTAB': (1, base + off['keytab']), 'DEVPTR': (1, base + off['devptr']),
                 'MSGTAB': (1, base + off['msgtab']), 'FIELDS': (1, base + off['fields']), 'CTMENU': (1, base + m_at),
                 'S_TITLE': (1, base + off['title']), 'S_TEST': (1, base + off['test']), 'S_DUP': (1, base + off['dup']),
-                'REC_': (0, REC), 'BTN_Y': (0, BTN_Y)})
+                'REC_': (0, REC), 'BTN_Y': (0, BTN_Y), 'QUIT_Y': (0, QUIT_Y)})
     sym.update({f'S_K{i}': (1, base + off[f'k{i}']) for i in range(5)})
     for k, (o, sz) in {'MODE': (0, 1), 'PAD': (1, 1), 'KIDX': (2, 1), 'ARMED': (3, 1), 'FPREV': (4, 1),
                        'DUP': (5, 1), 'WAIT': (6, 1), 'KEY': (7, 1), 'SV_CTL': (8, 2), 'SV_P1': (10, 2),
@@ -991,7 +999,8 @@ def patch(p, at, lang):
 
 
 LABEL_COL, VALUE_COL = 0x09, 0x0D     # (the OPTIONS rows: labels 9, values 13)
-BTN_Y = 169                           # the button between EXIT TO DOS (152 + 15) and EXIT (185)
+BTN_Y, QUIT_Y = 168, 151              # the button between EXIT TO DOS (151 + 15) and EXIT (185): 2 px gaps (4.0.5 Marco;
+                                      # EXIT ends on the screen's last row, EXIT TO DOS moves up 1 px)
 
 
 VARS = {'MODE': 0, 'PAD': 1, 'KIDX': 2, 'ARMED': 3, 'FPREV': 4, 'DUP': 5, 'WAIT': 6, 'KEY': 7, 'CX_': 20, 'CY_': 22,

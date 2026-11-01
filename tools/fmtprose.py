@@ -93,7 +93,7 @@ L = {
                down1="L'ultima retrocede in {l}.", downk='Le ultime {k} retrocedono in {l}.', lower='la categoria inferiore',
                realpo="; la {q} giocherebbe lo spareggio", realpo0k="Le {q} giocherebbero lo spareggio contro squadre di {to}, che non è nel mondo: qui non retrocede nessuno.", realdownk="Le {p} scenderebbero in {to}, che non è nel mondo{po}: qui non retrocede nessuno.", realpok="; le {q} giocherebbero lo spareggio", realpo0="La {q} giocherebbe lo spareggio contro una squadra di {to}, che non è nel mondo: qui non retrocede nessuno.", realdown="La {p} scenderebbe in {to}, che non è nel mondo{po}: qui non retrocede nessuno.", none='Non retrocede nessuno.',
                split='Dopo {a} giornate la classifica si divide: {groups}.', grp='{name} ({a}-{b}) {r}', grp0='le squadre dalla {a} alla {b} {r}', rngl='Le squadre {x}', andw='e',
-               grprp={0: 'si fermano', 1: 'giocano una volta', 2: 'giocano andata e ritorno'}, grpr={0: 'si ferma', 1: 'gioca una volta', 2: 'gioca andata e ritorno'},
+               grprp={0: 'si fermano', 1: 'giocano una volta', 2: 'giocano andata e ritorno', 3: 'giocano tre volte'}, grpr={0: 'si ferma', 1: 'gioca una volta', 2: 'gioca andata e ritorno', 3: 'gioca tre volte'},
                full=', con tutti i punti della prima fase', half=', con i punti dimezzati', reset=', ripartendo da zero',
                po='{rng} si giocano {kind}: {rules}.', win='La vincente sale in {d}.',
                kind={'promotion': 'i play-off promozione', 'playout': 'i play-out', 'placement': 'gli spareggi',
@@ -113,7 +113,7 @@ L = {
                down1='The last club goes down to {l}.', downk='The bottom {k} go down to {l}.', lower='the division below',
                realpo="; the {q} would play the relegation play-off", realpo0k="The {q} would play the relegation play-offs against clubs from {to}, which is not in the world: here nobody goes down.", realdownk="The {p} would go down to {to}, which is not in the world{po}: here nobody goes down.", realpok="; the {q} would play the relegation play-offs", realpo0="The {q} would play the relegation play-off against a club from {to}, which is not in the world: here nobody goes down.", realdown="The {p} would go down to {to}, which is not in the world{po}: here nobody goes down.", none='Nobody goes down.',
                split='After {a} matchdays the table splits: {groups}.', grp='{name} ({a}-{b}) {r}', grp0='the clubs from {a} to {b} {r}', rngl='The clubs {x}', andw='and',
-               grprp={0: 'stop', 1: 'play once more', 2: 'play home and away'}, grpr={0: 'stops', 1: 'plays once more', 2: 'plays home and away'},
+               grprp={0: 'stop', 1: 'play once more', 2: 'play home and away', 3: 'play three times'}, grpr={0: 'stops', 1: 'plays once more', 2: 'plays home and away', 3: 'plays three times'},
                full=', keeping all the points of the first phase', half=', with points halved', reset=', starting from zero',
                po='{rng} play {kind}: {rules}.', win='The winner goes up to {d}.',
                kind={'promotion': 'the promotion play-offs', 'playout': 'the play-outs', 'placement': 'the placement play-offs',
@@ -132,7 +132,7 @@ L = {
                down1='Le dernier descend en {l}.', downk='Les {k} derniers descendent en {l}.', lower='division inférieure',
                realpo="; le {q} jouerait le barrage", realpo0k="Les {q} joueraient le barrage contre des clubs de {to}, qui n'est pas dans le monde : ici personne ne descend.", realdownk="Les {p} descendraient en {to}, qui n'est pas dans le monde{po} : ici personne ne descend.", realpok="; les {q} joueraient le barrage", realpo0="Le {q} jouerait le barrage contre un club de {to}, qui n'est pas dans le monde : ici personne ne descend.", realdown="Le {p} descendrait en {to}, qui n'est pas dans le monde{po} : ici personne ne descend.", none='Personne ne descend.',
                split='Après {a} journées le classement se divise : {groups}.', grp='{name} ({a}-{b}) {r}', grp0='les clubs du {a} au {b} {r}', rngl='Les clubs {x}', andw='et',
-               grprp={0: "s'arrêtent", 1: 'jouent une fois', 2: 'jouent en aller et retour'}, grpr={0: "s'arrête", 1: 'joue une fois', 2: 'joue en aller et retour'},
+               grprp={0: "s'arrêtent", 1: 'jouent une fois', 2: 'jouent en aller et retour', 3: 'jouent trois fois'}, grpr={0: "s'arrête", 1: 'joue une fois', 2: 'joue en aller et retour', 3: 'joue trois fois'},
                full=', en gardant tous les points de la première phase', half=', points divisés par deux', reset=', en repartant de zéro',
                po='{rng} jouent {kind} : {rules}.', win='Le vainqueur monte en {d}.',
                kind={'promotion': 'les barrages de montée', 'playout': 'les barrages de maintien',
@@ -152,7 +152,7 @@ L = {
                down1='Der Letzte steigt in die {l} ab.', downk='Die letzten {k} steigen in die {l} ab.', lower='tiefere Liga',
                realpo="; der {q} würde die Relegation spielen", realpo0k="Die {q} würden die Relegation gegen Vereine aus der {to} spielen, die nicht in der Welt ist: hier steigt niemand ab.", realdownk="Die {p} würden in die {to} absteigen, die nicht in der Welt ist{po}: hier steigt niemand ab.", realpok="; die {q} würden die Relegation spielen", realpo0="Der {q} würde die Relegation gegen einen Verein aus der {to} spielen, die nicht in der Welt ist: hier steigt niemand ab.", realdown="Der {p} würde in die {to} absteigen, die nicht in der Welt ist{po}: hier steigt niemand ab.", none='Niemand steigt ab.',
                split='Nach {a} Spieltagen wird die Tabelle geteilt: {groups}.', grp='{name} ({a}-{b}) {r}', grp0='die Vereine vom {a} bis zum {b} {r}', rngl='Die Vereine {x}', andw='und',
-               grprp={0: 'hören auf', 1: 'spielen einmal', 2: 'spielen mit Hin- und Rückspiel'}, grpr={0: 'hört auf', 1: 'spielt einmal', 2: 'spielt mit Hin- und Rückspiel'},
+               grprp={0: 'hören auf', 1: 'spielen einmal', 2: 'spielen mit Hin- und Rückspiel', 3: 'spielen dreimal'}, grpr={0: 'hört auf', 1: 'spielt einmal', 2: 'spielt mit Hin- und Rückspiel', 3: 'spielt dreimal'},
                full=', mit allen Punkten der ersten Phase', half=', mit halbierten Punkten', reset=', bei null beginnend',
                po='{rng} spielen {kind}: {rules}.', win='Der Sieger steigt in die {d} auf.',
                kind={'promotion': 'die Aufstiegs-Playoffs', 'playout': 'die Abstiegs-Playoffs',
@@ -205,7 +205,7 @@ def league(div, k, lg, win, lang, pos, lowest, nm, real_down=None):
         gs = []
         for gr in st['groups']:
             a, b = gr['places']
-            ri = {'none': 0, 'single': 1, 'double': 2}[gr.get('rounds', 'single')]
+            ri = {'none': 0, 'single': 1, 'double': 2, 'triple': 3}[gr.get('rounds', 'single')]
             r = (l['grpr'] if gr.get('title') else l['grprp'])[ri]
             if ri:                              # (a group that plays on: how its points carry over)
                 r += {'half_up': l['half'], 'half_down': l['half'], 'reset': l['reset']}.get(gr.get('points', 'full'), l['full'])
@@ -645,7 +645,92 @@ def cup(cp, lang):
         out.append(' '.join(_cap(x) for x in s2))
     if cp.get('follow'):                        # 4.0.1 cupsf: the entrants from the second season
         out.append(FOLLOW[lang])
+    if cp.get('super'):                         # 4.0.5: the national supercup
+        out.append(supercup(cp['super'], lang))
     return {'prose': out, 'real': s1[0] if real else None}
+
+
+SC = {   # 4.0.5 the national supercup's paragraph (supercup(): from tools/supercups2627.json)
+    'it': dict(role=dict(champion='la squadra campione', second='la seconda del campionato', third='la terza del campionato',
+                         fourth='la quarta del campionato', cup_winner='la vincitrice della coppa',
+                         cup_finalist='la finalista della coppa', title0="la vincitrice dell'Apertura",
+                         title1='la vincitrice del Clausura'),
+               two="{art} {n} mette di fronte {a} e {b} della stagione prima, in gara unica su campo neutro, in {m}.",
+               four="{art} {n} si gioca in {m} in una sede unica, tra quattro squadre della stagione prima: in semifinale "
+                    "{a} contro {b} e {c} contro {e}, poi la finale tra le due vincenti, tutte in gara unica.",
+               pens="In parita dopo 90 minuti si tirano subito i rigori.",
+               et="In parita si giocano i supplementari, poi i rigori.",
+               dbl="Se una squadra ha gia un posto, la sostituisce {r}.",
+               same='Se la stessa squadra vince entrambi i tornei, non si gioca.',
+               summer="Si gioca prima del campionato: nella prima stagione del mondo la partita e gia stata giocata, quindi "
+                      "si parte dalla seconda.",
+               mine="Nel gioco partecipi se la tua squadra ne ha diritto.",
+               months='gennaio febbraio marzo aprile maggio giugno luglio agosto settembre ottobre novembre dicembre'),
+    'en': dict(role=dict(champion='the league champion', second='the league runner-up', third='the league\'s third-placed club',
+                         fourth='the league\'s fourth-placed club', cup_winner='the cup winner', cup_finalist='the cup runner-up', title0='the Apertura winner',
+                         title1='the Clausura winner'),
+               two="{art} {n} brings together {a} and {b} of the season before, in a single match on neutral ground in {m}.",
+               four="{art} {n} is played in {m} at a single venue by four clubs of the season before: in the semi-finals "
+                    "{a} v {b} and {c} v {e}, then the final between the two winners, all single matches.",
+               pens="Level after 90 minutes, it goes straight to penalties.",
+               et="Level after 90 minutes, extra time is played, then penalties.",
+               dbl="If a club already has a place, it goes to {r}.",
+               same='If the same club wins both tournaments, it is not played.',
+               summer="It is played before the league starts: in the world's first season it has already been played, "
+                      "so it begins in the second.",
+               mine="In the game you play it when your club qualifies.",
+               months='January February March April May June July August September October November December'),
+    'fr': dict(role=dict(champion='le champion', second='le deuxième du championnat', third='le troisième du championnat',
+                         fourth='le quatrième du championnat', cup_winner='le vainqueur de la coupe',
+                         cup_finalist='le finaliste de la coupe', title0="le vainqueur de l'Apertura",
+                         title1='le vainqueur du Clausura'),
+               two="{art} {n} oppose {a} et {b} de la saison précédente, en un seul match sur terrain neutre, en {m}.",
+               four="{art} {n} se joue en {m} sur un seul site, entre quatre clubs de la saison précédente : en demi-finales "
+                    "{a} contre {b} et {c} contre {e}, puis la finale entre les deux vainqueurs, tous en un seul match.",
+               pens="En cas d'égalité après 90 minutes, on passe directement aux tirs au but.",
+               et="En cas d'égalité, on joue les prolongations, puis les tirs au but.",
+               dbl="Si un club a déjà une place, c'est {r} qui le remplace.",
+               same="Si le même club gagne les deux tournois, le match n'a pas lieu.",
+               summer="Le match se joue avant le championnat : lors de la première saison du monde il a déjà eu lieu, on "
+                      "commence donc à la deuxième.",
+               mine="Dans le jeu, tu y participes si ton club est qualifié.",
+               months='janvier février mars avril mai juin juillet août septembre octobre novembre décembre'),
+    'de': dict(role=dict(champion='der Meister', second='der Tabellenzweite', third='der Tabellendritte',
+                         fourth='der Tabellenvierte', cup_winner='der Pokalsieger', cup_finalist='der Pokalfinalist',
+                         title0='der Apertura-Sieger', title1='der Clausura-Sieger'),
+               two="{n}: {a} und {b} der Vorsaison treffen im {m} in einem Spiel auf neutralem Platz aufeinander.",
+               four="{n}: vier Vereine der Vorsaison spielen im {m} an einem Ort, im Halbfinale {a} und {b} sowie {c} "
+                    "und {e} gegeneinander, dann die beiden Sieger im Finale, alles in einem Spiel.",
+               pens="Steht es nach 90 Minuten unentschieden, folgt sofort das Elfmeterschießen.",
+               et="Bei Gleichstand folgt eine Verlängerung, dann das Elfmeterschießen.",
+               dbl="Hat ein Verein schon einen Platz, rückt {r} nach.",
+               same='Gewinnt derselbe Verein beide Turniere, wird nicht gespielt.',
+               summer="Gespielt wird vor dem Ligastart: in der ersten Saison der Welt ist das Spiel schon vorbei, es "
+                      "beginnt also mit der zweiten.",
+               mine="Im Spiel bist du dabei, wenn dein Verein qualifiziert ist.",
+               months='Januar Februar März April Mai Juni Juli August September Oktober November Dezember')}
+
+
+def supercup(e, lang):
+    """4.0.5 the national supercup's paragraph of the cup's FORMAT page, from its data (supercups2627.json entry)."""
+    t = SC[lang]
+    r = [t['role'][x] for x in e['rule']]
+    m = t['months'].split()[int(e['date'].split('/')[1].split('+')[0]) - 1]
+    n = e['names'][lang][0]
+    art = (e.get('article') or {}).get(lang) or {'it': 'La', 'en': 'The', 'fr': 'La', 'de': ''}[lang]
+    s = [t['four'].format(art=art, n=n, m=m, a=r[0], b=r[1], c=r[2], e=r[3]) if len(r) == 4
+         else t['two'].format(art=art, n=n, m=m, a=r[0], b=r[1])]
+    s.append(t['et'] if e['level'] == 'et_pens' else t['pens'])
+    fb = e['if_double'] if isinstance(e['if_double'], str) or e['if_double'] is None else \
+        next((x for x in e['if_double'] if x), None)
+    if fb:
+        s.append(t['dbl'].format(r=t['role'][fb]))
+    elif 'title0' in e['rule']:
+        s.append(t['same'])
+    if e['from_season'] > 1:
+        s.append(t['summer'])
+    s.append(t['mine'])
+    return ' '.join(_cap(x) for x in s)
 
 
 FOLLOW = {   # (4.0.1 cupsf.py, Davide's rule: the real format by division; relegated, stayers, promoted, each by place)

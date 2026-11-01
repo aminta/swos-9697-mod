@@ -20,6 +20,8 @@ import struct
 
 import nasmcave
 
+F1_TITLES = {'it': b'CLASSIFICA FASE 1', 'en': b'PHASE 1 TABLE', 'fr': b'CLASSEMENT PHASE 1',   # 4.0.5 FASE 1 page
+             'de': b'TABELLE PHASE 1'}
 TITLES = {'it': (b'CLASSIFICA ANNUALE', b"SUPPORTERS' SHIELD"), 'en': (b'ANNUAL TABLE', b"SUPPORTERS' SHIELD"),
           'fr': (b'CLASSEMENT ANNUEL', b"SUPPORTERS' SHIELD"), 'de': (b'JAHRESTABELLE', b"SUPPORTERS' SHIELD")}
 ROWS = 22                       # rows shown (the game lays out up to 22 rows with the full 14-px title bar; 23-24 squeeze it to
@@ -61,6 +63,15 @@ lt_plan:                                ; esi = a one-group table: gp_hplan_c's 
     cld
 %if OV_
     movzx eax, byte [OV_ON]
+%if AP_
+    cmp eax, 1                          ; 4.0.6: an earlier stage's table (OV_FLAG 4 + k): its groups' headers too
+    jne .p                              ; (gp_hplan_c: off >= 4, the places in ap_build's order)
+    movzx ecx, byte [OV_FLAG]
+    cmp ecx, 4
+    jb .p
+    mov eax, ecx
+.p:
+%endif
 %else
     xor eax, eax
 %endif
@@ -194,11 +205,93 @@ lt_init:                                ; DIYLeagueTournamentInit's `mov current
     mov word [CURLINE], 0               ; never in overall mode
     mov byte [OV_FLAG], 0
     mov byte [OV_ON], 0
+%if F1_
+    mov byte [F1_DONE], 0               ; (4.0.5: the FASE 1 page's auto-open decided at its first OnRestore)
+%endif
     ret
 
 lt_ov:                                  ; (OnRestore) STAT > CLASSIFICA GENERALE on: gplay.c gp_overall's order and
     pushad                              ; figures for this table; the title shown = the overall table's
     mov byte [OV_ON], 0
+ZSTG0
+%if F1_
+    cmp byte [F1_DONE], 0               ; 4.0.5 FASE 1: a fresh table screen of the career's split league opens on the
+    jne .f1                             ; phase-1 table while no phase-2 result exists (gplay.c f1_auto); STAT's
+    mov byte [F1_DONE], 1               ; FASE 1 / GRUPPI entry toggles OV_FLAG 2 / 0 afterwards (fmtpage)
+    cmp word [esi + 4Fh], 1             ; (not a long table - one group of more than 24 clubs: its STAT entry is
+    jne .a                              ; CLASSIFICA GENERALE, fmtpage fp_long)
+    cmp word [esi + 51h], 24
+    ja .f1
+.a: movzx eax, byte [F1_SEAS]
+    push es
+    push ds
+    pop es
+    cld
+    push eax
+    push esi
+    call F1AUTO
+    add esp, 8
+    pop es
+    test eax, eax
+    jz .f1
+    mov byte [OV_FLAG], 2
+.f1:
+    cmp byte [OV_FLAG], 2
+    jne .ov
+    movzx eax, byte [F1_SEAS]
+    push es
+    push ds
+    pop es
+    cld
+    push eax
+    push esi
+    call F1BUILD
+    add esp, 8
+    pop es
+    test eax, eax
+    jz .x
+    mov byte [OV_ON], 1
+    mov dword [MENU_ + 16h + 26h], F1_TITLE
+    jmp .x
+.ov:
+%endif
+%if AP_
+    cmp byte [OV_FLAG], 4               ; 4.0.5 an earlier stage's table (STAT > APERTURA ...: OV_FLAG 4 + its table
+    jb .noap                            ; k, fmtpage fp_ov): gplay.c ap_build's rows, its stage's long title
+    movzx eax, byte [OV_FLAG]
+    sub eax, 4
+    push es
+    push ds
+    pop es
+    cld
+    push eax
+    push dword STG_TAB
+    push esi
+    call AP_BUILD
+    add esp, 12
+    pop es
+    test eax, eax
+    jz .x
+    mov byte [OV_ON], 1
+ZSTAGE
+    movzx eax, byte [OV_FLAG]
+    push es
+    push ds
+    pop es
+    cld
+    push dword 1
+    push eax
+    push dword STG_TAB
+    push esi
+    call AP_LABEL
+    add esp, 16
+    pop es
+    test eax, eax
+    jz .x
+    mov [MENU_ + 16h + 26h], eax
+    jmp .x
+.noap:
+%endif
     cmp byte [OV_FLAG], 0
     je .x
     cmp word [esi + 4Fh], 1
@@ -353,6 +446,33 @@ align 2
 LT_END: dw 0
 LT_REAL: dw 0
 LT_HON: db 0
+F1_DONE: db 0
+"""
+
+
+ZSTAGE_ASM = """    push esi                            ; 4.0.5 the zone key of this stage's table (zones.stage_key): the league's
+    push edi                            ; (DIY+4, cut to NAME - 2) + 80h + its table; zn_col reads it while ZSTG
+    push ecx
+    lea esi, [esi + 4]
+    mov edi, ZSKEY
+    xor ecx, ecx
+.zk:
+    mov al, [esi + ecx]
+    test al, al
+    jz .ze
+    mov [edi + ecx], al
+    inc ecx
+    cmp ecx, ZNAME_ - 2
+    jb .zk
+.ze:
+    mov al, [OV_FLAG]
+    add al, 80h - 4
+    mov [edi + ecx], al
+    mov byte [edi + ecx + 1], 0
+    mov byte [ZSTG], 1
+    pop ecx
+    pop edi
+    pop esi
 """
 
 
@@ -417,6 +537,7 @@ def patch(p, at, area=None, lang='it'):
     if stg:
         import zones
         sym.update({'STG_TAB': stg, 'GP_STITLE': gplay.LABELS['gp_stitle_c'], 'MENU_': zones._current_menu(p)})
+    sym['F1_'] = (0, 0)
     if ov:
         import split
         import zones
@@ -427,6 +548,15 @@ def patch(p, at, area=None, lang='it'):
                     'SELTEAMS': (2, split.sites(p)['SELTEAMS']), 'MENU_': zones._current_menu(p),
                     'A6': (2, a0 + 24), 'A4': (2, a0 + 16), 'APN_': (0, apn()),
                     'OV_KEY': (2, area.add(annual_key(lang) + b'\0')), 'OV_ANNUAL': (2, area.add(t1 + b'\0')), 'OV_SHIELD': (2, area.add(t2 + b'\0'))})
+    f1 = ov and gplay.LABELS.get('f1_build')                # 4.0.5 the FASE 1 page (gplay.c f1_*)
+    sym['F1_'] = (0, int(bool(f1)))
+    if f1:
+        sym.update({'F1AUTO': gplay.LABELS['f1_auto'], 'F1BUILD': f1, 'F1_SEAS': gplay.LABELS['SEASONPLAYING'],
+                    'F1_TITLE': (2, area.add(F1_TITLES[lang] + b'\0'))})
+    ap = ov and stg and gplay.LABELS.get('ap_build')        # 4.0.5 the earlier stages' tables (gplay.c ap_*)
+    sym['AP_'] = (0, int(bool(ap)))
+    if ap:
+        sym.update({'AP_BUILD': ap, 'AP_LABEL': gplay.LABELS['ap_label']})
     init = 0x483D2 - B                                                      # DIYLeagueTournamentInit: mov currentDiyLine, 0
     init = _find(d1, rb'\x66\xc7\x05....\x00\x00\x66\xc7\x05....\x00\x00\xe8', init - 0x40, 0x80)
     assert p.target(1, init + 3) == p.target(1, curline + 2), 'Init clears currentDiyLine'
@@ -437,8 +567,15 @@ def patch(p, at, area=None, lang='it'):
     for site, n in ((h1, 10), (h2, 9), (h3, 11), (h4, 13), (h5, 13)) + (((init, 9), (row, 13), (a4, 5)) if ov else ()):     # (no other hook there: the patched bytes = the original)
         assert bytes(p.get(1, site, n)) == d1[site:site + n], hex(site)
     at = (at + 15) & ~15
-    code, cfix = nasmcave.assemble(ASM, at, sym)
-    lab = nasmcave.labels(ASM, at, sym)
+    import zones                                         # 4.0.5: an earlier stage's table - its zone key (zones.STG)
+    src = ASM
+    zst = bool(zones.STG) and 'AP_BUILD' in sym
+    src = src.replace('ZSTG0\n', '    mov byte [ZSTG], 0\n' if zst else '')
+    src = src.replace('ZSTAGE\n', ZSTAGE_ASM if zst else '')
+    if zst:
+        sym.update({'ZSKEY': (2, zones.STG['key']), 'ZSTG': (2, zones.STG['flag']), 'ZNAME_': (0, zones.NAME)})
+    code, cfix = nasmcave.assemble(src, at, sym)
+    lab = nasmcave.labels(src, at, sym)
     assert not any(p.get(1, at, len(code)))
     p.put(1, at, code)
     for off, t_obj, t_off in cfix:
@@ -486,7 +623,8 @@ def annual_key(lang):
 MAXS, MAXG = 5, 4                       # stage titles: the title before the first stage + 4 stages, 4 groups each
 
 
-REC = 42 + 4 * MAXS * MAXG + MAXS + 1   # a stage-title record (gplay.c gp_stitle_c / gp_scal_c)
+REC = 42 + 4 * MAXS * MAXG + MAXS + 1 + 8   # a stage-title record (gplay.c gp_stitle_c / gp_scal_c; 4.0.5: + MAXS db
+                                        # the stage's 'table' + 1, 0 = none, + pad: gplay.c STG_TBL)
 HEAD = 16                               # the table's header (gplay builds it: split's offsets, the career team word's address)
 
 
@@ -514,11 +652,12 @@ def stage_table(lang, head=b'\0' * HEAD):
             if not any(x for row in grid for x in row):
                 continue
             starts = [0] + [st.get('after', 0) for st in stages][:MAXS - 1]
+            tables = [0] + [st['table'] + 1 if st.get('table') is not None else 0 for st in stages][:MAXS - 1]
             nm = dv.get('names') or lg.get('names') or {}
             v = nm.get(lang) or nm.get('*') or [complist._nm(nm, lang)]
             key = zones._title(pk.meta, lang, v[0]).encode('latin-1')
             names = [[((x.get(lang) or x.get('*')) if x else None) for x in row[:MAXG]] for row in grid]
-            recs.append((key, names, v, starts))
+            recs.append((key, names, v, starts, tables))
     if not recs:
         return None
     base = HEAD + REC * len(recs)
@@ -532,7 +671,7 @@ def stage_table(lang, head=b'\0' * HEAD):
             strings += s + b'\0'
         return pool[s]
     out = bytearray(struct.pack('<H', len(recs)) + head[2:HEAD])
-    for key, names, v, starts in recs:
+    for key, names, v, starts, tables in recs:
         r = bytearray(key[:41].ljust(42, b'\0'))
         longs, shorts = b'', b''
         for s in range(MAXS):
@@ -547,6 +686,8 @@ def stage_table(lang, head=b'\0' * HEAD):
                 longs += struct.pack('<H', put(title))
                 shorts += struct.pack('<H', put(x[-1]))
         r += longs + shorts + bytes(min(255, starts[s]) if s < len(starts) else 255 for s in range(MAXS)) + b'\0'
+        r += bytes(tables[s] if s < len(tables) else 0 for s in range(MAXS)) + b'\0' * (8 - MAXS)
+        assert len(r) == REC, len(r)
         out += r
     return bytes(out + strings)
 

@@ -210,7 +210,7 @@ def league_text(div, win, t, names=None, lang='it', lowest=False, rest_note=True
             lines.append(t['split'].format(a=st['after']))
             for gr in st['groups']:
                 a, b = gr['places']
-                r = {'none': 0, 'single': 1, 'double': 2}[gr.get('rounds', 'single')]
+                r = {'none': 0, 'single': 1, 'double': 2, 'triple': 3, 'quadruple': 4}[gr.get('rounds', 'single')]
                 s = t['grp0'].format(a=a, b=b) if not r else t['grp'].format(a=a, b=b, rr=t['rr'][r])
                 s += {'half_up': t['half'], 'half_down': t['half'], 'reset': t['reset']}.get(gr.get('points', 'full'), '')
                 lines.append(s)
@@ -841,8 +841,8 @@ WN_TITLES = {   # official titles (data session, 2026-27): (country, ko_playoffs
     ('can', 'cpl_po'): {'*': 'NORTH STAR CUP'},
     ('mlt', 'final_four'): {'it': 'CAMPIONE DI MALTA', 'en': 'MALTESE CHAMPIONS', 'fr': 'CHAMPION DE MALTE',
                             'de': 'MALTESISCHER MEISTER'},
-    ('ita', 'poule_scudetto'): {'it': 'SCUDETTO SERIE D', 'en': 'SERIE D CHAMPIONS', 'fr': 'CHAMPION SERIE D',
-                                'de': 'SERIE-D-MEISTER'},
+    # (4.0.5 Davide: no ('ita', 'poule_scudetto') title - the WINNERS line is the Poule's own name, POULE SCUDETTO SERIE D,
+    #  not 'PLAYOFF - SCUDETTO SERIE D', which read as the Serie D groups' play-offs)
     ('usa', None): {'*': "SUPPORTERS' SHIELD"},
     ('aus', None): {'it': 'PREMIERS A-LEAGUE', 'en': 'A-LEAGUE PREMIERS', 'fr': 'PREMIERS A-LEAGUE', 'de': 'PREMIERS A-LEAGUE'},
     ('can', None): {'*': 'CPL SHIELD'},
@@ -872,6 +872,14 @@ def _wn_title(cc, key, lang):
     return {'*': [t.get(lang) or t['*']]} if t else None
 
 
+def supercup_of(m, d):
+    """4.0.5 the pack's national supercup (tools/supercups2627.json, supercup.py's data) for a World 2026-27 pack."""
+    import supercup
+    if m.get('world') is None or world_year(m['world'], d) < 2026:
+        return None
+    return json.load(open(supercup.DATA)).get((m.get('id') or '').rsplit('-', 1)[-1])
+
+
 def win_lines(comp, div, k, cc='', tfile=None):
     """The SEASON WINNERS page of division k of a league: {lang: [(title, source)]}, {} when it has no title beyond its
     table (the page's entry stays hidden). Sources (winners.py wn_src): 'L' the table's 1st once the league is over;
@@ -885,7 +893,7 @@ def win_lines(comp, div, k, cc='', tfile=None):
     title_po = False
     for pi, po in enumerate(pos if isinstance(pos, list) else []):
         divs = _po_divs(po)
-        if po.get('kind') in WN_SKIP or not po.get('names') or k not in divs or pi > 0xFF:
+        if po.get('kind') in WN_SKIP or po.get('supercup') or not po.get('names') or k not in divs or pi > 0xFF:
             continue
         title_po |= po.get('kind') == 'title' and divs == {k}       # (its champion is not the table's 1st)
         st = po.get('stage') if po.get('kind') == 'stage_title' else None
@@ -1057,6 +1065,13 @@ def from_pack(d):
                                        (T[lang]['ita'] if lg['special'] and k == min(1, len(lg['names']) - 1) else []),
                                        'tail': sch[sch.index(next(x for x in sch if x.startswith(ZT[lang]['eu'].split('{')[0][:30]))):]
                                        if any(x.startswith(ZT[lang]['eu'].split('{')[0][:30]) for x in sch) else tail}
+                    sc = supercup_of(m, d) if k == 0 and comp.get('key') == (m.get('season') or {}).get('league') and \
+                        not any(c_.get('key') == 'cup' for c_ in m['competitions']) else None
+                    if sc and all(isinstance(texts.get(x), dict) for x in LANGS):   # (4.0.5: a supercup, no national cup - MEX: its
+                        import fmtprose         # paragraph on the top division's page)
+                        for lang in LANGS:
+                            texts[lang]['super'] = fmtprose.supercup(sc, lang)
+                            texts[lang]['prose'] = texts[lang]['prose'] + [texts[lang]['super']]
                     out.append((world, cid, titles, texts))
                     wl = win_lines(comp, div, k, (m.get('id') or '').rsplit('-', 1)[-1],
                                    ((m.get('files') or {}).get(comp.get('clubs')) or {}).get('file'))
@@ -1072,8 +1087,13 @@ def from_pack(d):
             lk = {r['key'] for r in clubs if r['file'] == 'league'}
             if m.get('world') is not None and world_year(m['world'], d) >= 2026 and r1 and all(x in lk for x in r1):
                 cp['follow'] = True                     # (4.0.1 cupsf: the clubs follow promotions from season 2)
+            sc = supercup_of(m, d) if comp['key'] == 'cup' else None
+            if sc:
+                cp['super'] = sc                        # (4.0.5: the national supercup, a paragraph of the cup's page)
             titles = {lang: title(lang, complist._nm(comp['names'], lang)) for lang in LANGS}
-            out.append((world, cid, titles, {lang: dict(fmtprose.cup(cp, lang), tail=[]) for lang in LANGS}))
+            out.append((world, cid, titles, {lang: dict(fmtprose.cup(cp, lang), tail=[],
+                                                        super=fmtprose.supercup(sc, lang) if sc else None)
+                                             for lang in LANGS}))
         elif comp['type'] == 'tourney':
             titles = {lang: title(lang, complist._nm(comp['names'], lang)) for lang in LANGS}
             out.append((world, cid, titles, {lang: tourney_text(comp, T[lang]) for lang in LANGS}))
@@ -1131,7 +1151,8 @@ def write(out_dir, items):
                       x.startswith(TEXTS[lang]['real_in'])]
                 if rc:
                     hand = fmtprose.sentences(rc) + hand
-            prose = hand or prose
+            sup = lines.get('super') if isinstance(lines, dict) else None   # (4.0.5: the supercup's paragraph also
+            prose = hand + [sup] if hand and sup else hand or prose         # after a hand text of the page)
             if prose:
                 if hand:                        # (a hand text tells the real rule itself)
                     tail = [x for x in tail if x not in CONFED_NOTES[lang].values()]

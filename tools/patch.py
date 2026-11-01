@@ -185,15 +185,29 @@ def cave_pages():
 
 
 LT_SPACE = []
+LR_ROOM = []                                    # 4.0.5 lpreal: [start, end] after simdraw on the coefficients page
+LG_ROOM = []                                    # 4.0.5 lgreal: [start, end] after longtable / mainbtn
+
+
+def lgreal_bss():
+    import lgreal
+    return lgreal.BSS_SIZE
 CAREER_END = [None]                # the career cave's end after its code (4.0.1: the shirt numbers follow it)
 
 
 def patch_exe(src, dst, remap, lang='it'):
     CAREER_END[0] = None
     LT_SPACE.clear()
+    LR_ROOM.clear()
+    LG_ROOM.clear()
     grown = dst + '.tmp'
     data = open(src, 'rb').read()
     worlds = bool(mkseason.worlds())
+    if worlds:                                         # 4.0.5: DATA\\KITFIX.DAT beside the exe (careerworld w_kits)
+        import kitfix
+        nkf = kitfix.gen(os.path.join(os.path.dirname(os.path.abspath(dst)), 'DATA'))
+        print(f'exe: career club kits refresh: {nkf} shipped pairs in DATA\\KITFIX.DAT' if nkf is not None else
+              'exe: career club kits refresh: no team files beside the exe (no KITFIX.DAT)')
     mkseason.register_states()                         # the career worlds' state championships (statespec.py)
     import statespec
     statespec.register_test()                          # STATESPEC_TEST=1: a world-0 test state (harness)
@@ -206,6 +220,10 @@ def patch_exe(src, dst, remap, lang='it'):
     lpb += bool(mkseason.league_phase_worlds())   # (+1 more: the UEFA coefficients, uefacoef)
     lpb += 4 * bool(mkseason.league_phase_worlds())   # (+4: the UEFA qualifying rounds, uefaq: C code + glue)
     xtra_on = bool(mkseason.xtra_files() or os.environ.get('XTRA_HOOK'))
+    sc_on = bool(mkseason.worlds()) and any(pk.meta.get('id', '').startswith('world-2026-27-') for pk in mkseason.packs())
+    if sc_on:                                    # 4.0.5 national supercups: the cups' winners / finalists (supercup.py)
+        import supercup
+        engine.save_item('SC', supercup.SC_SIZE, world_only=True)
     if xtra_on:
         engine.save_item('XS', xtra.XS_SIZE, world_only=True)    # 4.0.2 the XTRA players bought from other clubs (xtra.py)
     bigtables.ON[0] = bigtables.needed()         # a world numbering its clubs 2000+ (World 5.0; 4.0's world 0)
@@ -226,10 +244,16 @@ def patch_exe(src, dst, remap, lang='it'):
         import gplay as gp_mod                         # contest pointers back after a load (gp_sync)
         engine.save_item('GP', gp_mod.GP_ST_SIZE, world_only=not engine.gplay_tables())
         engine.save_item('WN', gp_mod.WN_SIZE)         # 4.0.1 the WINNERS page's last season (WN_ST, gp_season)
+        engine.save_item('F1', gp_mod.F1_SIZE, world_only=True)   # 4.0.5 the FASE 1 page's phase-1 table (F1_ST)
         engine.save_item('CF', gp_mod.CF_SIZE)         # 4.0.1 cupsf: the clubs' last-season places (CF_ST, cf_cap_c)
+        engine.save_item('CN', gp_mod.CN_SIZE, world_only=True)   # 4.0.5 the career club's last-season division name
+        if mkseason.second_table()[0]:
+            engine.save_item('BQ', gp_mod.BQ_SIZE, world_only=True)   # 4.0.6 may each B team go up (SEC_BQ, zones)
         engine.after_load('gp_sync')
+        gp_mod.GS_ON[0] = False
         if any(t[2] in gp_mod.T2_SPECS for t in gp_tabs):   # (a group contest played: the early tables beyond 2)
             engine.save_item('GS', gp_mod.GS_SIZE, world_only=not engine.gplay_tables())
+            gp_mod.GS_ON[0] = True
         if mkseason.cupd_tables():                     # (the Coppa Italia Serie D's state)
             engine.save_item('CD', gp_mod.CD_SIZE, world_only=True)
     gp_on = bool((gp_tabs or pg_tabs or rs_tabs or ri_tabs) and mkseason.worlds())         # (gplay.c also holds the parallel groups' fix)
@@ -243,7 +267,9 @@ def patch_exe(src, dst, remap, lang='it'):
     cos_pg = 1                                         # (+1, the top one: purple + blond + menunum + avgprice + the
     lpb += cos_pg                                      # FORMAT page: every build; without worlds too, e.g. PROTO36)
     cdp = mkseason.career_data_pages() - 2 if worlds else 0   # a big world: a 3rd career data page and a 2nd
-    h2 = HIST2_PAGE * (1 + cdp)                                # historic page (its cups' fixed draws)
+    h2 = HIST2_PAGE * min(1 + cdp, 2)                          # historic page (its cups' fixed draws; 4.0.5: at most 2 -
+                                                               # the World 2026-27's extra career data pages had made it 4,
+                                                               # 1 used: obj1 back to 237 pages, SWOS++'s limit, CONVENTIONS 22)
     cp = cave_pages()                                          # career world code: 2 pages, 3 with several worlds
     sp_tabs = (mkseason.splits() if worlds else []) + engine.split_tables()   # mid-season splits (worlds; world 0)
     sp_pg = split.pages(sp_tabs) if worlds else 0      # (own pages after all the others)
@@ -262,8 +288,9 @@ def patch_exe(src, dst, remap, lang='it'):
             gplay.GP_BSS = 0x6000 + ((gplay.SS_ITEM * gplay.SS_BANKS[0] + 0xFFF) & ~0xFFF)
     else:
         gplay.SS_BANKS[:] = [1, None]
-    if gplay.SS_BANKS[0] <= 1:
-        gplay.GP_BSS = 0x6000
+    if gplay.SS_BANKS[0] <= 1:                         # (4.0.5: 0x7000 - FASE 1's F1_ST took gplay.c's .bss past 0x6000
+        gplay.GP_BSS = 0x7000                          # in builds with one stage bank: the scenario test builds; the
+                                                       # release builds' several banks leave the room in their rounding)
     pr_on = any(t and any(po.get('kind') == 'promedio' for po in pk.league.get('ko_playoffs') or [])
                 for pk in mkseason.packs() if pk.world is not None and pk.league for t in [True])
     if pr_on:                                          # Argentina's promedio history (gplay.c PR_STATE)
@@ -277,7 +304,10 @@ def patch_exe(src, dst, remap, lang='it'):
         engine.save_item('CE', conti.ED_SIZE, world_only=True)          # (phase B: the edition being played, conti.c CT_ED)
     import controls                                    # 4.0.2: the CONTROLS page (controls.py): code + its data pages, the
     ctl_pg = 1 + controls.DATA_PAGES                   # last pages (obj1: obj2's page count stays 4.0's, see controls.patch)
-    for _ in range((6 + cp + 2 + 2 * cdp if worlds else 6) + lpb + sp_pg + sc_pg + ct_pg + ctl_pg):  # (+1: the UEFA league phase's page, lp36)
+    import namespr                                     # 4.0.5: 14-character match names (namespr.py), after them
+    ctl_pg += namespr.PAGES
+    bn_pg = 2                                          # 4.1: the bench of up to 15 (benchx.py), after the CONTROLS pages (4.0.6: + the per-competition table)
+    for _ in range((6 + cp + 2 + cdp + h2 // HIST2_PAGE - 1 if worlds else 6) + lpb + sp_pg + sc_pg + ct_pg + ctl_pg + bn_pg):  # (+1: the UEFA league phase's page, lp36)
         data = add_object_page(data, 1)
     mkseason.CAREER_CAVE[0] = CAREER_CAVE if worlds else None
     mkseason.CAREER_DATA[0] = CAREER_DATA + 0x1000 * (cp - 2) if worlds else None
@@ -336,6 +366,8 @@ def patch_exe(src, dst, remap, lang='it'):
         f'a team file of {tsz} B: above 64000 needs the big team buffer (a big world in the build), at most ' \
         f'{careerworld.TFB_SIZE - 14}'          # the big team buffer, which a big world in the build brings)
     kitcolors.patch(p)             # automatic home/away kit choice (DaniSwos's analysis)
+    import homefirst
+    homefirst.patch(p)             # 4.0.5: the career fixture list home team first (Davide)
     cfg = LANGS[lang]
     sacups.NAMES[sacups.INT_ID] = cfg['int']
     d2 = p.le.obj_bytes(2)
@@ -412,6 +444,8 @@ def patch_exe(src, dst, remap, lang='it'):
         end = shirtedit.patch(p, end)             # through benchnum's hooks)
         import instcheck
         end = instcheck.place(p, end, lang)       # 4.0.1: a world's missing files -> a message, not DOS
+        import fillfix
+        end = fillfix.patch(p, end, nasmcave)     # 4.0.5: the menu texture reloaded after a job-offer letter
         assert end <= CAREER_CAVE + mkseason.CAREER_CAVE_SIZE, hex(end)
         CAREER_END[0] = end
         print(f'exe: career cave end {end:#x} (limit {CAREER_CAVE + mkseason.CAREER_CAVE_SIZE:#x})')
@@ -423,7 +457,8 @@ def patch_exe(src, dst, remap, lang='it'):
     arg_end = careerworld.euro_draw(p, arg_end, nasmcave)   # 2.7.x: no same-country ties in rounds 1-2 of the
                                                   # European cups of a career (1996-97 CWC / UEFA, worlds)
     lib97.chain_adv(p)                           # national-cup byes before the round advance's draw (euro_draw's hook)
-    arg_end = kitcolors.button(p, arg_end, lang, area)  # KITS button + SELECT KITS menu (pre-match screen)
+    arg_end = kitcolors.button(p, arg_end, lang, area, CAREER_END)   # KITS button + SELECT KITS menu (pre-match
+                                                  # screen; 4.0.5 SEMPRE's code in the career cave)
     if mkseason.league_phase_worlds():          # UEFA coefficients of a league-phase world (own page after lp36's)
         import uefacoef
         import lp36
@@ -437,6 +472,7 @@ def patch_exe(src, dst, remap, lang='it'):
         uc_end = simdraw.patch(p, uc_end, area, careerworld.LABELS['sites']['gametype'], careerworld.LABELS['w_lpw'],
                                historic._coin_sites(p, historic._draw_call(p)[1])['rand2'])
         assert uc_end <= hist2 + h2 + 0x2000, hex(uc_end)
+        LR_ROOM[:] = [uc_end, hist2 + h2 + 0x2000]   # 4.0.5: lpreal's code (the real season-1 league phases), at zones' time
         import uefaq                            # UEFA qualifying rounds (C code, tools/uefaq.c; 4 pages)
         cs['bss'] = careerworld.BSS[0]
         cs['lceu'] = mkseason.league_cup_europe_files()
@@ -470,7 +506,11 @@ def patch_exe(src, dst, remap, lang='it'):
             engine.ITEM_AT['PR'] = gplay.LABELS['PR_STATE']
         engine.ITEM_AT['GP'] = gplay.LABELS['GP_ST']    # (the played play-offs' state; its pointers after a load)
         engine.ITEM_AT['WN'] = gplay.LABELS['WN_ST']    # (the WINNERS page's last season)
+        engine.ITEM_AT['F1'] = gplay.LABELS['F1_ST']    # (4.0.5: the FASE 1 page)
         engine.ITEM_AT['CF'] = gplay.LABELS['CF_ST']    # (cupsf: the clubs' last-season places)
+        if 'BQ' in engine.SAVE_ITEMS:
+            engine.ITEM_AT['BQ'] = gplay.LABELS['SEC_BQ']
+        engine.ITEM_AT['CN'] = gplay.LABELS['CN_ST']    # (4.0.5: winners.py's last-season fallback title)
         if 'GS' in engine.SAVE_ITEMS:
             engine.ITEM_AT['GS'] = gplay.LABELS['GP_GS']
         if 'CD' in engine.SAVE_ITEMS:
@@ -502,12 +542,23 @@ def patch_exe(src, dst, remap, lang='it'):
     cos = hist2 + h2 + 0x1000 * (lpb - 1) if cos_pg else world   # (worlds: their own page)
     cos = purple.patch(p, area, cos)            # 3.3.0: kit colour 10 = purple (palette entry 12 when no maroon; in
                                                 # the cosmetics page with worlds: the world cave is full, 2026-27)
-    cos = blond.patch(p, area, cos, num_bss + shirtnum.BSS_SIZE, shirtnum.spr_index(p))   # 3.3.0: face 3
+    import teamstab
+    assert menunum.NEWBASE + 88 == blond.NEW3 and blond.NEW3 + 202 <= shirtnum.NEWBASE + 3072 // 4
+    bald_bss = num_bss + shirtnum.BSS_SIZE + blond.BSS_SIZE + menunum.BSS_SIZE + fmtpage.BSS_SIZE + teamstab.BSS_SIZE
+    bl_at = hist2 + h2 + 0x1000 * (lpb + sp_pg + sc_pg + ct_pg) + 0x2200   # 4.0.3: blond's code (bald: longer; the
+    ns_at0 = hist2 + h2 + 0x1000 * (lpb + sp_pg + sc_pg + ct_pg + ctl_pg - namespr.PAGES)   # (namespr's pages, below:
+    art_at = namespr.layout(ns_at0)[1] + namespr.CAP * namespr.DATA                            # the shaved art in their tail)
+    bl_end = blond.patch(p, area, bl_at, num_bss + shirtnum.BSS_SIZE, shirtnum.spr_index(p), bald_bss, art_at)   # cosmetics
+    assert bl_end <= bl_at + 0xE00, hex(bl_end)          # cave is full) in controls' last data page, after its data
     cos = menunum.patch(p, cos, num_bss + shirtnum.BSS_SIZE + blond.BSS_SIZE)   # 3.3.4: menu numbers 17..99
     cos = avgprice.patch(p, cos)                 # 3.3.4: average player price >= 1 (divide error, 1984-85 Iceland)
     import devname                               # 4.0.2: DOS device names (CON, PRN, AUX ...) refused as save names
     devname.patch(p, lang)
     joyfix.patch(p)                              # 4.0.1: ReadSetupDat -> VerifyJoypadControls (no pad + controls != 1 = frozen menus)
+    import careerseed                            # (CAREER_SEED test builds only: a career's draw pinned)
+    careerseed.patch(p)
+    import offerforce                            # (OFFER_FORCE test builds only: every transfer offer accepted)
+    offerforce.patch(p)
     import fullgfx                               # 4.0.2: full graphics always (no half mode from SETUP.DAT's speed)
     fullgfx.patch(p)
     cos = menumusic.patch(p, cos)                # 3.3.6: menu music when the main menu opens (SWOS++ options load late)
@@ -525,18 +576,28 @@ def patch_exe(src, dst, remap, lang='it'):
     elif xtra_pg:                                                # cosmetics page as before (full in a world build)
         xtop = hist2 + h2 + 0x1000 * (lpb - cos_pg - ri_pg)
         lt_room = [xtop - 0x600, xtop]
+    zones.BSKIP_LAB = None
     if lt_room:
         lt_room[0] = zones.ring_patch(p, lt_room[0])
+        if worlds:                               # 4.0.6: qualifying places skip the B teams that may not qualify
+            lt_room[0] = zones.bskip_patch(p, lt_room[0], area)
     cos = zones.patch(p, cos, area, lang, [e if os.sep in e else os.path.join(mkseason.PACKS, e) for e in mkseason.ENABLED],
                       num_bss + shirtnum.BSS_SIZE + blond.BSS_SIZE + menunum.BSS_SIZE, fmtpage.BSS_SIZE,
                       careerworld.SITES if worlds else None)   # (the FORMAT page's buffer, shared)
+    if LR_ROOM:                                  # 4.0.5: the real UEFA league phases of a world's first season
+        import lpreal
+        lpreal.patch(p, LR_ROOM[0], LR_ROOM[1], area, num_bss + shirtnum.BSS_SIZE + blond.BSS_SIZE + menunum.BSS_SIZE,
+                     fmtpage.BSS_SIZE)
     if lt_room:
         lt_end_ = longtable.patch(p, (lt_room[0] + 15) & ~15, area, lang)
         if worlds and any(pk.meta.get('id', '').startswith('world-2026-27-') for pk in mkseason.packs()):
             import mainbtn                               # 4.0: the green CARRIERA 2026-27 button on the main menu
             w27 = min(pk.world for pk in mkseason.packs() if pk.meta.get('id', '').startswith('world-2026-27-'))
             lt_end_ = mainbtn.patch(p, (lt_end_ + 15) & ~15, lang, mkseason.WMENU + w27)
+            if careerworld.SITES.get('natflag'):     # 4.0.3: CAREER 2026-27's coach nationalities (careerworld nat_init)
+                p.add_ptr(1, careerworld.SITES['natflag'], 1, mainbtn.FLAG[0])
         assert lt_end_ <= lt_room[1], hex(lt_end_)
+        LG_ROOM[:] = [(lt_end_ + 15) & ~15, lt_room[1]]   # 4.0.5 lgreal's code (after split.patch: its hooks)
         print(f'exe: longtable code obj1+{lt_room[0]:#x}..{lt_end_:#x} (free to {lt_room[1]:#x})')
     else:
         cos = longtable.patch(p, cos, area, lang)                # 4.0: tables over 24 clubs scroll (ARG / MLS 30: no drawing past the screen)
@@ -569,6 +630,8 @@ def patch_exe(src, dst, remap, lang='it'):
         if w27s and not os.environ.get('QUIETEND_OFF'):  # (QUIETEND_OFF=1: a control build for the identical-results check)
             import quietend                              # 4.0.1: the other countries' competitions simulated unseen at
             xe = quietend.patch(p, (xe + 15) & ~15, min(w27s), lang)   # the season end + a progress line (World 2026-27)
+        if sc_on:                                        # 4.0.5: the season end's cup winners / finalists (supercups)
+            xe = supercup.patch(p, xe)
         xlim = xp + 0x1000 * xpg - (0x600 if lt_room and lt_room[1] == xp + 0x1000 * xpg else 0)   # (longtable's)
         assert xe <= xlim, hex(xe)
     elif xtra_on:
@@ -576,6 +639,7 @@ def patch_exe(src, dst, remap, lang='it'):
         import xbrowse
         world = xbrowse.patch(p, world, lang)
     assert not fmtpage.WN or xtra_pg, 'VINCITORI: no extra pages'
+    assert not sc_on or xtra_pg, 'supercups: no extra pages'
     assert world <= NZ_CAVE and nz_end <= FIN_CAVE and fin_end <= ARG_CAVE and arg_end <= OBJ1_NEW_VSIZE, \
         (hex(world), hex(nz_end), hex(fin_end), hex(arg_end))
     careerworld.ns_xtra(p, xtra.LABELS['XTRA_NAMEP'] if xtra_on else None)   # several worlds: XTWn.nnn names
@@ -584,6 +648,12 @@ def patch_exe(src, dst, remap, lang='it'):
         sp_at = hist2 + h2 + 0x1000 * lpb
         sp_end = split.patch(p, sp_at, nasmcave, sp_tabs)
         assert sp_end <= sp_at + 0x1000 * sp_pg, (hex(sp_at), hex(sp_end), sp_pg)
+        if LG_ROOM:                              # 4.0.5: the real league calendars of a world's first season
+            import lgreal
+            lgreal.patch(p, LG_ROOM[0], LG_ROOM[1], num_bss + shirtnum.BSS_SIZE + blond.BSS_SIZE + menunum.BSS_SIZE,
+                         fmtpage.BSS_SIZE, num_bss + shirtnum.BSS_SIZE + blond.BSS_SIZE + menunum.BSS_SIZE +
+                         fmtpage.BSS_SIZE + teamstab.BSS_SIZE + blond.BSS2_SIZE,
+                         alt=[(sp_end + 15) & ~15, sp_at + 0x1000 * sp_pg])   # (rc19: gplay's preview filled LG_ROOM)
     if sc_pg:                                    # state championships in career / Season slot 1 (statecup.py)
         sc_at = hist2 + h2 + 0x1000 * (lpb + sp_pg)
         sc_end = statecup.test_contest(p, sc_at) if statecup.TEST else sc_at   # (STATECUP_TEST=1 builds)
@@ -600,20 +670,44 @@ def patch_exe(src, dst, remap, lang='it'):
         conti.patch(p, ct_code, ct_at + 0x1000 * ct_pg, ct_bss, area)
     ctl_at = hist2 + h2 + 0x1000 * (lpb + sp_pg + sc_pg + ct_pg)   # 4.0.2: OPTIONS > CONTROLS (keys, device, calibration,
     ctl_end = controls.patch(p, ctl_at, lang)                     # SETUP.DAT)
+    ns_at = ctl_at + 0x1000 * (ctl_pg - namespr.PAGES)            # 4.0.5: the match names' sprites (namespr.py)
+    ns_end = namespr.patch(p, ns_at, lang)
+    assert ns_at == ns_at0 and ns_end <= art_at, (hex(ns_end), hex(art_at))   # (namespr's CAP x DATA: the art's floor)
+    blond.art_patch(p, ns_at + 0x1000 * namespr.PAGES)            # 4.0.5: the shaved art in namespr's spare tail
+    import numcol                                      # 4.0.5 (Marco): the squad lists' number column 1 px wider
+    numcol.patch(p)
     import subsnum                               # 4.0.2: two-digit numbers in the in-match bench list (names +6 px)
     ctl_end = subsnum.patch(p, ctl_end)
     import tailzero                              # 4.0.2: the stub that zeroes obj2's tail at startup (written below,
     tz_at = (ctl_end + 15) & ~15                 # once the tail's size is known; the cosmetics page is full)
     ctl_end = tz_at + tailzero.SIZE
     ctl_end = blond.unch_patch(p, (ctl_end + 15) & ~15)   # 4.0.2 MALEN: the darkblond sets in half / EGA mode
+    import modver                                # 4.0.5: 'MOD <version>' on the main menu (Davide, support)
+    ctl_end = modver.patch(p, (ctl_end + 15) & ~15, lang)
+    import scorint                               # 4.0.5: the international cups' goals column on CAPO CANNONIERI
+    ctl_end = scorint.patch(p, (ctl_end + 15) & ~15, lang)   # NAZIONALE (Luigi: TOT larger than the columns)
+    import goalslot                              # 4.0.5: slot-4 / domestic slot-3 goals in LEGA / COP1 / COP2, never
+    ctl_end = goalslot.patch(p, (ctl_end + 15) & ~15, lang)  # in +37 (the form / trial mark)
+    import bplace                                # 4.0.5 (Davide): a level tie won by the better placed says so on its
+    ctl_end = bplace.patch(p, (ctl_end + 15) & ~15, lang)    # result line (PASSA %a (MIGL. PIAZZ.))
+    ctl_end = bplace.force(p, (ctl_end + 15) & ~15)          # (BPLACE_FORCE test builds only: such ties forced)
     assert ctl_end <= ctl_at + 0x1000, hex(ctl_end)        # (the code page; controls' data pages follow it)
-    p.set_vsize(1, OBJ1_NEW_VSIZE + (0x1000 * (cp + 2 + cdp) if worlds else 0) + h2 + 0x1000 * (lpb + sp_pg + sc_pg + ct_pg + ctl_pg))
+    import benchx                                # 4.1: a bench of up to 15 (block 1: the in-match teams of 26)
+    bn_at = ctl_at + 0x1000 * ctl_pg
+    bn_end = benchx.patch(p, bn_at, ns_at, lang)
+    assert bn_end <= bn_at + 0x1000 * bn_pg, hex(bn_end)
+    p.set_vsize(1, OBJ1_NEW_VSIZE + (0x1000 * (cp + 2 + cdp) if worlds else 0) + h2 + 0x1000 * (lpb + sp_pg + sc_pg + ct_pg + ctl_pg
+                                                                                          + bn_pg))
     import teamstab                              # 4.0.2: teamsTable for 256 team ordinals (Serie D choice colours)
     teamstab.patch(p, num_bss + shirtnum.BSS_SIZE + blond.BSS_SIZE + menunum.BSS_SIZE + fmtpage.BSS_SIZE)
     tail = (careerworld.BSS_SIZE if bigw else 0) + shirtnum.BSS_SIZE + blond.BSS_SIZE + menunum.BSS_SIZE + fmtpage.BSS_SIZE \
-        + teamstab.BSS_SIZE   # obj2 tail
+        + teamstab.BSS_SIZE + blond.BSS2_SIZE + (lgreal_bss() if LG_ROOM else 0)   # obj2 tail (4.0.3: the second
+                                                # pair of variant sets; 4.0.5 lgreal's LGB last)
     p.set_vsize(2, obj2_free + o2pages * p.le.page_size + tail, bss=tail)
     tailzero.patch(p, tz_at, obj2_free + o2pages * p.le.page_size, (tail + 3) & ~3, nasmcave)   # (DOS/4GW: not zeroed)
+    o1n, o2n = p.le.obj(1).npages, p.le.obj(2).npages
+    print(f'exe: object pages: obj1 {o1n} (SWOS++ limit 237 with the harness page in obj1, CONVENTIONS 22), obj2 {o2n}'
+          + ('' if o1n <= 237 else '  WARNING: obj1 over 237 pages: SWOS++ PLAY MATCH can stall'))
     p.add_flags(1, 0x2)            # writable: season end rewrites the SA cup team lists in the cave
     split.late(p)                                # split's after-stage routines (engine.after_stage)
     trailer.late(p)                              # the engine block's late addresses (RS_STATE ...)
@@ -755,6 +849,12 @@ def write_new_teams(src_dir, dst_dir):
     import zones                                      # 4.0: the league tables' zone colours, per world
     for name, k in zones.write(dst_dir, [e if os.sep in e else os.path.join(mkseason.PACKS, e) for e in mkseason.ENABLED]):
         print(f'{name}: zone colours of {k} league tables')
+    import lpreal                                     # 4.0.5: the real league-phase fixtures of a world's first season
+    for name, k in lpreal.write(dst_dir):
+        print(f'{name}: real league-phase fixtures of {k} contests')
+    import lgreal                                     # 4.0.5: the real league calendars of a world's first season
+    for name, k in lgreal.write(dst_dir):
+        print(f'{name}: real league calendars of {k} leagues')
     rename_clubs(src_dir, dst_dir)
 
 

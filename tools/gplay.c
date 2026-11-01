@@ -32,6 +32,7 @@ enum { GT = 32, GD = 16, GN = 64, RESERVE = 0xFE };   /* (GD: Italy 2026-27 has 
 enum { HOST_LISTED, HOST_BETTER, HOST_DRAWN, HOST_NEUTRAL, HOST_SKIP_SAME = 0x80 };
 enum { LV_BETTER, LV_ET_PENS, LV_ET_BETTER, LV_PENS, LV_AWAY_PENS, LV_AWAY_BETTER };
 enum { K_TITLE = 5, K_CONT = 6, K_PROM = 7, K_STAGE = 8, GS = 2, BEST_LOSER = 0x3F };
+enum { PO_SUPER = 4, PO_SKIP2 = 0x80 };                  /* (a play-off spec's flag, pack 'supercup': not played at the season end) */
 struct gp_row { u16 team, glob, won, gf, ga, pts; };
 static void rcopy(struct gp_row *d, const struct gp_row *s) {   /* (no memcpy in the exe: field by field) */
     d->team = s->team; d->glob = s->glob; d->won = s->won; d->gf = s->gf; d->ga = s->ga; d->pts = s->pts;
@@ -169,9 +170,21 @@ static int series(int a, int b, int level) {   /* best of three: games 1 and 3 a
 #ifndef GP_FORCE
 #define GP_FORCE 0
 #endif
+#ifndef GP_GOUT
+#define GP_GOUT 0
+#endif
+#ifndef GP_GFFORCE
+#define GP_GFFORCE 0                    /* (test builds, GPLAY_GFFORCE: 1 the career club kept out of a Grand Final,
+                                           2 the career club its host) */
+#endif
 #ifndef GP_KOFORCE
 #define GP_KOFORCE 0                    /* (test builds, GPLAY_KOFORCE: 1 the career club loses its played knockout ties,
                                            2 wins them - gp_perm_c / gp_rec_c, the game told so through the next round) */
+#endif
+#if GP_KOFORCE                          /* (4.0.5: gp_season compiled for size in KOFORCE builds only - their forcing code */
+#define GP_KOSIZE __attribute__((minsize))  /* left longtable no room in gplay's pages; a release build is unchanged) */
+#else
+#define GP_KOSIZE
 #endif
 /* test builds (GPLAY_FORCE=k): the career club takes place k of its division (team and global number swapped with
    the club there), at the league end and again at the season end */
@@ -501,6 +514,59 @@ void gp_overall(const u8 *diy, const u8 *sel, u32 apn) {
     GP_OV_N = n;
 }
 
+/* 4.0.5 FASE 1 page (split leagues, Davide 28/10; internal/design/split-fase1-page.md): split.py's sp_freeze, at the
+   first split of the season and before the points rule, keeps the career league's full phase-1 table (f1_capture:
+   per place the row, played, won, drawn, lost, for, against, points - all < 256 in a phase 1) in F1_ST, the engine
+   item 'F1' (saved with the career; the season byte: only this season's is shown). The table screen shows it in the
+   overall mode (longtable lt_ov: f1_build -> GP_OV_ROWS / GP_OV_ORD), opened by itself while no phase-2 result
+   exists (f1_auto), and by the statistics menu's entry FASE 1 / GRUPPI (fmtpage) any time this season. */
+enum { F1N = 30, F1_MAGIC = 0x3146 };
+struct f1_state { u16 magic; u8 season, n; u16 key, pad; u8 pl[F1N][8]; };
+struct f1_state F1_ST;
+const u32 F1_SIZE = sizeof(struct f1_state);
+static u16 f1w(const u8 *b) { return b[0] | b[1] << 8; }
+void f1_capture(const u8 *diy, u32 season, u32 mgr) {
+    int n = f1w(diy + 0x31), me = 0;
+    if (n < 2 || n > F1N) return;
+    for (int i = 0; i < n; i++) if (f1w(diy + 0x12D + 2 * i) == (u16)mgr) me = 1;
+    if (!me) return;                            /* (the career's league only: its state is the saved one) */
+    int played = 0;                             /* (groups known from day 0 - split's sp_pregroup, the MLS: no */
+    for (int i = 0; i < n; i++) played += f1w(diy + 0x2B3 + 18 * i + 4);   /* phase-1 table yet) */
+    if (!played) return;
+    F1_ST.magic = F1_MAGIC; F1_ST.season = season; F1_ST.n = n; F1_ST.key = f1w(diy + 0x12D);
+    for (int i = 0; i < n; i++) {
+        int off = f1w(diy + 0x6D + 2 * i);
+        const u8 *row = diy + 0x2B3 + off;
+        u8 *p = F1_ST.pl[i];
+        p[0] = off / 18; p[1] = row[4]; p[2] = row[6]; p[3] = row[8]; p[4] = row[10];
+        p[5] = row[12]; p[6] = row[14]; p[7] = row[16];
+    }
+}
+u32 f1_valid(const u8 *diy, u32 season) {
+    return F1_ST.magic == F1_MAGIC && F1_ST.season == (u8)season && F1_ST.n == f1w(diy + 0x31) &&
+           F1_ST.key == f1w(diy + 0x12D);
+}
+u32 f1_auto(const u8 *diy, u32 season) {       /* the phase-1 table still the live one: no phase-2 result yet */
+    if (!f1_valid(diy, season)) return 0;
+    u32 a = 0, b = 0;
+    for (int i = 0; i < F1_ST.n; i++) { a += f1w(diy + 0x2B3 + 18 * i + 4); b += F1_ST.pl[i][1]; }
+    return a == b;
+}
+u32 f1_build(const u8 *diy, u32 season) {
+    if (!f1_valid(diy, season)) return 0;
+    int n = F1_ST.n;
+    for (int i = 0; i < n * 18; i++) GP_OV_ROWS[i] = diy[0x2B3 + i];
+    for (int i = 0; i < n; i++) {
+        const u8 *p = F1_ST.pl[i];
+        u8 *row = GP_OV_ROWS + 18 * p[0];
+        for (int k = 0; k < 7; k++) { row[4 + 2 * k] = p[1 + k]; row[5 + 2 * k] = 0; }
+        GP_OV_ORD[i] = 18 * p[0];
+    }
+    GP_OV_N = n;
+    GP_OV_ANNUAL = 0;
+    return 1;
+}
+
 /* split's stage end (sp_stage_end, a fixture stage with 'table'): the DIY table in its order (+6Dh, the groups
    partitioned by sp_sort: Argentina's zone A then zone B) into SSB->r[k]; annual: SSB->r[2] = r[0] + r[1] by club,
    by points, goal difference, goals (the earlier stage's order on a tie). */
@@ -648,7 +714,7 @@ static int team_club(u16 team) {        /* a team word -> its club (division * G
    design): SEC_TAB (mkseason.second_table): db countries; per country db nd, nd x db the division's level in the chain,
    db n, n x (dw the B team's global, dw its first team's (0xFFFF: another country), db top = the highest level it may
    reach (0xFF: any), db flags: bit 0 play-offs allowed (ITA), bit 1 it may leave the world from the lowest level (an
-   off-file pool refills its slot)). In the country's tables (GP_IN, gp_end) a B team may not go up into or above its
+   off-file pool refills its slot), dw the B team's team word). In the country's tables (GP_IN, gp_end) a B team may not go up into or above its
    first team's level (the first team's level after this season's moves) nor above 'top': it is skipped as a [div,
    place] entrant of every play-off but a play-out (the next placed club enters) and held in a direct promotion place
    (the next club of its division goes up instead); a first team that ends in its B team's level or below sends the B
@@ -656,21 +722,30 @@ static int team_club(u16 team) {        /* a team word -> its club (division * G
    relegated club of the B team's division stays (the level keeps its size). */
 extern const u8 SEC_TAB[];
 extern s8 SEC_SLT[], SEC_COPY[];
+enum { BQ_N = 24 };
+extern u8 GP_SEAS;
+u8 SEC_BQ[BQ_N];                        /* 4.0.6 [0] the season byte when written (GP_SEAS at the season end: a new
+                                           career's or another career's stale bytes are not this season's), then per B
+                                           team (SEC_TAB order): 1 it may go up next season, 2 it may not (sec_post,
+                                           its country's tables; 0: not known - an older save, a country not played:
+                                           zones.py's build-time value). Item 'BQ'; zones zb_is reads it. */
 enum { SEC_PO = 1, SEC_EXIT = 2 };
 
-static const u8 *sec_country(int g, const u8 **ent) {   /* the country entry and B entry of global g, or 0 */
+static const u8 *sec_find(int g, int team, const u8 **ent) {   /* the country entry and B entry of global g (or
+                                                                    of team word team, when not 0), or 0 */
     const u8 *t = SEC_TAB;
     int nc = *t++;
     for (int c = 0; c < nc; c++) {
         const u8 *lv = t + 1;
         int nd = t[0], n = lv[nd];
         const u8 *e = lv + nd + 1;
-        for (int i = 0; i < n; i++, e += 6)
-            if ((e[0] | e[1] << 8) == g) { *ent = e; return t; }
+        for (int i = 0; i < n; i++, e += 8)
+            if ((e[0] | e[1] << 8) == g || (team && (e[6] | e[7] << 8) == team)) { *ent = e; return t; }
         t = e;
     }
     return 0;
 }
+static const u8 *sec_country(int g, const u8 **ent) { return sec_find(g, 0, ent); }
 
 static int sec_lvl(const u8 *ct, int d) { return d < ct[0] ? ct[1 + d] : ct[1 + ct[0] - 1] + 1; }
 
@@ -696,7 +771,8 @@ static int sec_up_bad(const u8 *ct, const u8 *e, int d) {   /* B team of divisio
 }
 
 static int sec_inelig(int c) {                          /* a row skipped as a play-off entrant (not a play-out) */
-    const u8 *e, *ct = sec_country(row(c)->glob, &e);
+    const u8 *e, *ct = sec_find(row(c)->glob, row(c)->team, &e);   /* (rows of a division simulated early carry
+                                                                       their team word, not their global number) */
     return ct && (!(e[5] & SEC_PO) || sec_up_bad(ct, e, DV(c)));
 }
 
@@ -740,8 +816,8 @@ void sec_post(void) {                                   /* gp_end, after the mov
     for (int c = 0; c < nc; c++) {
         const u8 *ct = t, *e = t + 1 + t[0] + 1;
         int n = t[1 + t[0]];
-        t = e + 6 * n;
-        for (int i = 0; i < n; i++, e += 6) {
+        t = e + 8 * n;
+        for (int i = 0; i < n; i++, e += 8) {
             int gb = e[0] | e[1] << 8, gf = e[2] | e[3] << 8, rb = sec_row(gb);
             if (rb < 0) continue;                       /* (not this country's tables) */
             int db = DV(rb), lb = sec_lvl(ct, db), nb = sec_newlvl(ct, db, gb);
@@ -766,6 +842,20 @@ void sec_post(void) {                                   /* gp_end, after the mov
                     SEC_COPY[g] = SEC_SLT[g] + dl;
                     break;
                 }
+        }
+    }
+    t = SEC_TAB + 1;                                    /* 4.0.6 next season: may each B team go up (zone colours) */
+    for (int c = 0, bi = 0; c < nc; c++) {
+        const u8 *ct = t, *e = t + 1 + t[0] + 1;
+        int n = t[1 + t[0]];
+        t = e + 8 * n;
+        for (int i = 0; i < n; i++, e += 8, bi++) {
+            int gb = e[0] | e[1] << 8, gf = e[2] | e[3] << 8, rb = sec_row(gb);
+            if (rb < 0 || bi + 1 >= BQ_N) continue;
+            int target = sec_newlvl(ct, DV(rb), gb) - 1, rf = gf == 0xFFFF ? -1 : sec_row(gf);
+            int bad = (e[4] != 0xFF && target < e[4]) || (rf >= 0 && target <= sec_newlvl(ct, DV(rf), gf));
+            SEC_BQ[1 + bi] = bad ? 2 : 1;
+            SEC_BQ[0] = GP_SEAS;
         }
     }
 }
@@ -810,6 +900,26 @@ static void wn_add(int type, int idx, u16 team) {
     struct wn_e *x = &WN_ST.e[WN_ST.n++];
     x->type = (u8)type; x->idx = (u8)idx; x->team = team;
 }
+/* 4.0.5 rc19 (Davide): this season's titles decided BEFORE the season-end menu - gp_pre_c runs gp_season in preview
+   mode (GP_PRE) at the career league's end; its entries follow a marker 'p' (idx = the season) after the last
+   season's in WN_ST (saved with the career). The last season's readers stop at the marker; gp_wn_c reads this
+   season's after it. CONTINUA's gp_season decides the same (per play-off seeds from its own entrants, the early
+   tables kept) and rewrites WN_ST as the last season. */
+enum { WN_PRE = 'p' };
+u8 GP_PRE;
+__attribute__((minsize)) static u32 wn_find(int ty, int ix, int pre) {   /* the last season's entry (before a marker), or (pre) this
+                                           season's previewed one (after its marker) */
+    int i = 0;
+    if (pre) {
+        if (WN_ST.magic != WN_MAGIC) return 0xFFFE;
+        while (i < WN_ST.n && i < WN_N && !(WN_ST.e[i].type == WN_PRE && WN_ST.e[i].idx == GP_SEAS)) i++;
+        i++;
+    }
+    for (; i < WN_ST.n && i < WN_N && (pre || WN_ST.e[i].type != WN_PRE); i++)
+        if (WN_ST.e[i].type == ty && (ty == 'M' || WN_ST.e[i].idx == ix))
+            return WN_ST.e[i].team | (ty == 'M' ? (u32)WN_ST.e[i].idx << 16 : 0);
+    return 0xFFFE;
+}
 
 /* 4.0.1 (Colombia's cuadrangulares): spec flag 08h = the entrants after the heads (one per leading group round) are
    drawn - pm[i] = the entrant taking slot i (the builders keep the result in GP_ST's contest; a simulation draws once) */
@@ -822,7 +932,7 @@ static void pot_perm(const u8 *s, int *pm) {
     for (int i = n - 1; i > h; i--) { int j = h + below(i - h + 1), x = pm[i]; pm[i] = pm[j]; pm[j] = x; }
 }
 
-void gp_season(void) {
+GP_KOSIZE void gp_season(void) {
     const u8 *s = GP_IN.spec;
     u32 h = 0;
     for (int d = 0; d < GP_IN.nd && d < GD; d++)
@@ -837,13 +947,15 @@ void gp_season(void) {
     int prev_loser = -1;                        /* the last tie's loser of the play-off before (entrant type 4) */
     srl_div = -1;
     ss_used = 0;
-    ss_set(GP_IN.n[0] ? GP_IN.t[0][0].team : 0);   /* (this country's bank: its top division's file) */
+    ss_set(GP_IN.n[0] ? GP_IN.t[0][0].team : GP_PRE ? GP_IN.mgr : 0);   /* (this country's bank: its top division's
+                                                   file; the preview without it: the career club's) */
     gp_force();
     wn_on = 0;                                  /* (the career club's country: its titles into WN_ST) */
     int wn_div = 0;
     for (int d = 0; d < GP_IN.nd && d < GD && GP_IN.mgr; d++)
         for (int k = 0; k < GP_IN.n[d]; k++) if (GP_IN.t[d][k].team == GP_IN.mgr) { wn_on = 1; wn_div = d; }
-    if (wn_on) {
+    if (GP_PRE) wn_on = 1;                      /* (rc19 preview: the play-offs' entries only, after gp_pre_c's marker) */
+    else if (wn_on) {
         WN_ST.magic = WN_MAGIC; WN_ST.season = GP_SEAS; WN_ST.n = 0;
         wn_add('M', wn_div, GP_IN.mgr);         /* (4.0.1: the division it played in - the last season's page) */
         for (int d = 0; d < GP_IN.nd && d < GD; d++)
@@ -856,15 +968,18 @@ void gp_season(void) {
         const u8 *e = s + 6, *r = e + 4 * n;
         by_rec = s[5] & 2;
         if (kind == K_PROM) {                   /* (no entrants, no rounds) */
-            promedio(0, wdiv, ldiv);
+            if (!GP_PRE) promedio(0, wdiv, ldiv);   /* (the preview: no promedio - its history is written) */
             s = r;
             continue;
         }
         int club[GN], ok = kind == 1 || kind == 4 || kind == K_TITLE || kind == K_CONT || kind == K_STAGE;
         const struct gp_dec *dec = kind == K_STAGE ? stage_dec(wdiv) : 0;   /* (decided mid-season) */
         if (dec) ok = 0;
+        if (GP_PRE && (pidx == GP_IN.pi[0] || pidx == GP_IN.pi[1])) ok = 0;   /* (rc19 preview: the club's own) */
+        if (s[5] & PO_SUPER) { ok = 0; dec = 0; }   /* (4.0.5 MEX's Campeon de Campeones: the next season's supercup) */
         int W[GN], L[GN], nt = 0, last = -1, lastr = 0, nlast = 0;
-        int P[GN], np = 0, glast = -1, winners = s[5] >> 4 ? s[5] >> 4 : 1;
+        int P[GN], np = 0, glast = -1, kog = 0, winners = s[5] >> 4 & 7 ? s[5] >> 4 & 7 : 1;   /* (kog: a knockout
+                                           round after a group - its last tie decides, NZ's Grand Final, the Poule) */
         for (int i = 0; i < n && i < GN; i++) {
             int ty = e[4 * i], d = e[4 * i + 1], p = e[4 * i + 2];
             if (ty == 3) {
@@ -882,8 +997,22 @@ void gp_season(void) {
             } else if (ty == 7) {               /* 4.0.1 URU / PER: a seed of the national title play-off */
                 club[i] = title_seed(d, e[4 * i + 3], p);
                 if (club[i] < 0) ok = 0;
+            } else if (ty == 8) {               /* a given club, by its team word (NZ: the A-League reserves) */
+                club[i] = team_club(p | e[4 * i + 3] << 8);
+                if (club[i] < 0) club[i] = -2;  /* (rc18: not in this country's tables - another league's reserves:
+                                                   left out of a group round, NZ's Championship simulated without
+                                                   them - they never reach its Grand Final; anywhere else: not played) */
             } else if (ty != 0 || d >= GP_IN.nd || p < 1 || p > GP_IN.n[d]) ok = 0;
             else if ((club[i] = place_club(d, p, kind)) < 0) ok = 0;
+        }
+        {                                       /* rc19: each play-off's own random stream, from its entrants' rows
+                                                   (the preview at the league's end and CONTINUA's season end decide
+                                                   the same whatever the other divisions' tables) */
+            u32 h2 = 0x9E3779B9u * (u32)(pidx + 1) + (u32)kind;
+            for (int i = 0; i < n && i < GN; i++)
+                h2 = h2 * 31 + (club[i] >= 0 ? row(club[i])->team + ((u32)row(club[i])->pts << 16) : 0xFFFFu);   /* (team
+                                                   words: an early table's glob is read off the wrong team list) */
+            rng = h2;
         }
         if (s[5] & 8) {                         /* (4.0.1: the drawn pot) */
             int pm[GN], tmp[GN];
@@ -902,18 +1031,28 @@ void gp_season(void) {
                     for (int t = lastr; t < lastr + nlast && t < nt; t++)   /* (still the previous round's) */
                         if (v < 0 || better(L[t], v)) v = L[t];
                 } else if (c < 0x40) v = c < n ? club[c] : -1;
-                else if (c < 0x80) { v = (c & 0x3F) < np ? P[c & 0x3F] : -1; if (v >= 0 && i < GT) ms[i] = PS[c & 0x3F]; }
+                else if (c < 0x80 && (s[5] & PO_SKIP2)) {     /* 'skip_second': the k-th placing that is no B team */
+                    int k = c & 0x3F, j = 0;
+                    for (; j < np; j++) if (!sec_inelig(P[j]) && !k--) break;
+                    v = j < np ? P[j] : -1;
+                    if (v >= 0 && i < GT) ms[i] = PS[j];
+                } else if (c < 0x80) { v = (c & 0x3F) < np ? P[c & 0x3F] : -1; if (v >= 0 && i < GT) ms[i] = PS[c & 0x3F]; }
                 else if (c < 0xC0) v = (c & 0x3F) < nt ? W[c & 0x3F] : -1;
                 else v = (c & 0x3F) < nt ? L[c & 0x3F] : -1;
                 mem[i] = v;
-                if (v < 0) ok = 0;
+                if (v < 0 && !(v == -2 && (legs & 0x80))) ok = 0;
             }
             if (legs & 0x80) {                  /* a group round */
-                if (ok && ties <= GT && np + ties <= GN) {
-                    group(mem, ties, legs & 0x7F, host == HOST_NEUTRAL, m + ties, P + np, ms, PS + np);
+                static u8 bon[GT];              /* (rc18: members left out, -2: absent reserves - compacted in
+                                                   place, mem / ms: the .bss is full; bon static: the stack, as ms) */
+                int gm2 = 0;
+                for (int i = 0; i < ties && i < GT; i++)
+                    if (mem[i] != -2) { mem[gm2] = mem[i]; bon[gm2] = m[ties + i]; ms[gm2] = ms[i]; gm2++; }
+                if (ok && gm2 <= GT && np + gm2 <= GN) {
+                    group(mem, gm2, legs & 0x7F, host == HOST_NEUTRAL, bon, P + np, ms, PS + np);
                     glast = np;
                 }
-                np += ties;
+                np += gm2;
                 last = -1;
                 r = m + 2 * ties;
                 continue;
@@ -933,6 +1072,7 @@ void gp_season(void) {
                 for (int i = 0; i < pn; i++) mem[i] = tmp[i];
             }
             lastr = nt; nlast = ties;
+            if (glast >= 0) kog = 1;
             for (int i = 0; i < ties; i++) {
                 if (ok && nt < GN) {
                     int a = mem[2 * i], b = mem[2 * i + 1], d = (int)row(a)->pts - (int)row(b)->pts;
@@ -962,7 +1102,7 @@ void gp_season(void) {
             }
         } else if (kind == K_TITLE && GP_IN.pl_t2 && GP_IN.pl_pi == pidx + 1 && team_club(GP_IN.pl_w[0]) >= 0) {
             result(kind, team_club(GP_IN.pl_w[0]), team_club(GP_IN.pl_w[1]));   /* (played: a group contest's final) */
-        } else if (ok && (kind == K_TITLE || kind == K_CONT) && glast >= 0) {     /* a final group: its 1st (and 2nd) */
+        } else if (ok && (kind == K_TITLE || kind == K_CONT) && glast >= 0 && !kog) {   /* a final group: its 1st (2nd) */
             result(kind, P[glast], np - glast > 1 ? P[glast + 1] : -1);
         } else if (ok && (kind == K_TITLE || kind == K_CONT) && last >= 0) {   /* the last tie's winner (loser) */
             result(kind, W[last], L[last] == W[last] ? -1 : L[last]);
@@ -992,14 +1132,14 @@ void gp_season(void) {
         else if (kind == K_TITLE && GP_IN.pl_t2 && GP_IN.pl_pi == pidx + 1)
             wn_add('K', pidx, GP_IN.pl_w[0] ? GP_IN.pl_w[0] : 0xFFFF);
         else if (ok && kind != 4 && (glast >= 0 || last >= 0))
-            wn_add('K', pidx, row(glast >= 0 ? P[glast] : W[last])->team);
+            wn_add('K', pidx, row(glast >= 0 && !(kog && last >= 0) ? P[glast] : W[last])->team);
         if (ok && kind == K_TITLE && glast < 0)  /* (a title play-off's last three ties: the MLS conference finals) */
             for (int t = nt > 3 ? nt - 3 : 0; t < nt && t < GN; t++) wn_add(0x80 | (pidx & 0x7F), t, row(W[t])->team);
         prev_loser = ok && last >= 0 ? L[last] : -1;
         s = r;
     }
     wn_on = 0;
-    if (ss_used) SSB->fresh = 0;              /* (this league's stage tables used: next season's are new ones) */
+    if (ss_used && !GP_PRE) SSB->fresh = 0;   /* (this league's stage tables used: next season's are new ones) */
 }
 
 /* ---- The playable play-offs (gp_lend .. gp_end in gplay.py): the career club's play-off or play-out is played in
@@ -1038,8 +1178,10 @@ struct gp_state {
     struct gp_srow srow[SD][GT];
     struct gp_ko ko[2];
     struct gp_dec dec[3];               /* 4.0 ARG: the stage titles decided mid-season (by stage: 0, 1, 2) */
-    u8 pend, pweek, pseas, pad3;        /* 'then_build': play-off pend - 1 to build at the calendar advance from week
-                                           pweek on (gp_adv), this season's */
+    u8 pend, pweek, pseas, s3wait;      /* 'then_build': play-off pend - 1 to build at the calendar advance from week
+                                           pweek on (gp_adv), this season's; s3wait (4.0.5 NZ): bit i = ko[i], a
+                                           slot-3 contest built while slot 3 still had days to come (the OFC CL's),
+                                           installed at the first calendar advance with slot 3 free (t2_due) */
     u8 rn[KG];                          /* ko[0]'s game rounds' names (rnames index, 0: the game's): pack
                                            'round_names', gplay.py gp_rname (4.0 MLS) */
 };
@@ -1090,6 +1232,7 @@ static int ent_club(const u8 *e, int kind) {    /* an entrant -> its club (divis
     if (e[0] == 5) return title_club(e[1], e[2]);
     if (e[0] == 6) return split_seed(e[1], e[3], e[2]);
     if (e[0] == 7) return title_seed(e[1], e[3], e[2]);
+    if (e[0] == 8) return team_club(e[2] | e[3] << 8);
     if (e[0]) return -1;
     return place_club(e[1], e[2], kind);
 }
@@ -1099,6 +1242,7 @@ static int playable(const u8 *s) {      /* knockouts only (promotion, placement,
     int n = s[1], nr = s[2], nt = 0;
     const u8 *e = s + 6, *r = e + 4 * n;
     if ((s[0] < 1 || (s[0] > 6 && s[0] != K_STAGE) || s[0] == 2) || n > KN || nr > KR || nr < 1) return 0;   /* (not 'europe': uefaq's) */
+    if (s[5] & PO_SUPER) return 0;      /* (4.0.5: played as the next season's national supercup, sc_step_c) */
     for (int i = 0; i < n; i++)
         if (e[4 * i] != 0 && e[4 * i] != 3 && e[4 * i] != 5 && e[4 * i] != 6) return 0;   /* (5: the Trofeo, built by then_build; 6: Malta's split seeds) */
     for (int k = 0; k < nr; k++) {
@@ -1136,7 +1280,7 @@ static int t2_shape(const u8 *s, struct t2s *o) {
     int n = s[1], nr = s[2], k = 0, ent = 0;
     const u8 *r = s + 6 + 4 * n;
     if (s[0] != K_TITLE || nr < 2) return 0;
-    for (int i = 0; i < n; i++) if (s[6 + 4 * i] != 0) return 0;
+    for (int i = 0; i < n; i++) if (s[6 + 4 * i] != 0 && s[6 + 4 * i] != 8) return 0;   /* ([div, place], a club: NZ) */
     x.g = 0; x.m = 0; x.meet = 0; x.nk = 0; x.q = 0;
     for (; k < nr && (r[1] & 0x80) && (r[1] & 0x7F); k++) {      /* the groups */
         if (x.g && (r[0] != x.m || (r[1] & 0x7F) != x.meet)) return 0;
@@ -1153,13 +1297,87 @@ static int t2_shape(const u8 *s, struct t2s *o) {
                                                     r[3] == LV_ET_BETTER ? 0x10 : 0);
         r += 6 + 2 * r[0];
     }
-    if (x.g < 2 || !x.nk || ent != n || x.q < x.g || x.q > 2 * x.g || x.g * x.m > KN) return 0;
+    if (x.g < 1 || !x.nk || ent != n || x.q < x.g || x.q > 2 * x.g || x.g * x.m > KN) return 0;
     if (o) *o = x;
     return 1;
 }
 
+/* 4.0.5 NZ (the championship built into slot 3 at the league's end while WESTERN SPRINGS still had the OFC Champions
+   League final there: the game plays every slot-3 calendar day for the contest in slot 3 - the OFC's days ran our group
+   two days ahead, its last two days had no match, PARTITA for ever): gp_install leaves such a ko waiting (s3wait);
+   gp_adv, once slot 3 has no day to come, takes it: its weeks moved to start after the current one, installed. */
+extern u32 GP_WK;
+u32 t2_defer(u32 i) { GP_ST.s3wait |= (u8)(1 << i); return 0; }
+#ifndef GP_S3DEFER
+#define GP_S3DEFER 0                    /* (test builds, GPLAY_S3DEFER=1: the group's slot 3 taken once, as by a late
+                                           OFC day - rc17's MiSTer career) */
+#endif
+static u8 t2_forced;
+u32 t2_force(void) {                    /* gp_install: 1 = treat slot 3 as busy now (GP_S3DEFER, once a season) */
+    if (!GP_S3DEFER || t2_forced == (u8)GP_SEAS) return 0;
+    t2_forced = (u8)GP_SEAS;
+    return 1;
+}
+u32 t2_waiting(u32 i) { return GP_ST.s3wait >> i & 1; }
+u32 t2_due(void) {
+    u32 m = 0;
+    for (int i = 0; i < 2; i++) {
+        if (!(GP_ST.s3wait >> i & 1)) continue;
+        GP_ST.s3wait &= (u8)~(1 << i);
+        struct gp_ko *k = &GP_ST.ko[i];
+        if (k->magic != MAGIC || k->season != GP_SEAS || k->slot != 3) continue;
+        int d = (int)GP_WK + 1 - k->d1;
+        if (d > 0) {
+            k->d1 = (u8)(k->d1 + d);
+            k->d2 = k->d2 + d > 255 ? 255 : (u8)(k->d2 + d);
+            k->con[3] = k->d1; k->con[4] = k->d2;
+        }
+        m |= 1u << i;
+    }
+    return m;
+}
+
 /* the career club's league has ended (GP_IN.t[mdiv] its table, mgr, week, gtype): the play-offs it plays (pi[]) and
    the divisions to simulate now for their entrants (sim[]); returns how many */
+/* A type-2 group contest of ours (id FE: the Poule, NZ's Championship) at its group stage's end, before the game picks
+   the qualifiers (cseg_8A2CE: each group's sorted list +6Dh in order): the B teams that may never qualify (SEC_TAB
+   without play-offs: NZ's A-League reserves, 'can not qualify for the Grand Final') move to the end of their group's
+   list, the others keep their order (their places: the next club qualifies). con = diyFileBufferCopy (its header),
+   diy = DIY_competitionStart, sel = selTeamsPtr. */
+void t2_pre(const u8 *con, u8 *diy, u32 sel) {
+    int g = *(const u16 *)(diy + 0x4F), m = *(const u16 *)(diy + 0x51);
+#if GP_GOUT                                 /* (GPLAY_GOUT test builds only: the career club last of its group in the
+                                               game's other group stages - NZ: out of the OFC Champions League early) */
+    if (con[0] != 0xFE) {
+        for (int gi = 0; gi < g && gi * m < 64; gi++) {
+            u16 *l = (u16 *)(diy + 0x6D) + gi * m;
+            for (int j = 0; j + 1 < m && j < 24; j++) {
+                const u8 *rec = (const u8 *)(*(const u32 *)(diy + l[j] + 0x2B3) + sel);
+                if ((rec[0] | rec[1] << 8) == GP_MGR) {
+                    u16 x = l[j];
+                    for (int k = j; k + 1 < m; k++) l[k] = l[k + 1];
+                    l[m - 1] = x;
+                    break;
+                }
+            }
+        }
+    }
+#endif
+    if (con[0] != 0xFE) return;
+    for (int gi = 0; gi < g && gi * m < 64; gi++) {
+        u16 *l = (u16 *)(diy + 0x6D) + gi * m, keep[24], out[24];
+        int nk = 0, no = 0;
+        for (int j = 0; j < m && j < 24; j++) {
+            const u8 *rec = (const u8 *)(*(const u32 *)(diy + l[j] + 0x2B3) + sel);
+            const u8 *e;
+            int team = rec[0] | rec[1] << 8;
+            if (sec_find(-1, team, &e) && !(e[5] & SEC_PO)) out[no++] = l[j]; else keep[nk++] = l[j];
+        }
+        for (int j = 0; j < nk; j++) l[j] = keep[j];
+        for (int j = 0; j < no; j++) l[nk + j] = out[j];
+    }
+}
+
 u32 gp_need(void) {
     int m = -1, d0 = GP_IN.mdiv, cnt = 0, ns = 0;
     ss_set(GP_IN.mgr);                          /* (the career club's league's bank) */
@@ -1338,6 +1556,8 @@ static u8 rbyte(int legs, int level) {  /* (away goals: the contest's header, gp
    last decisive match's clubs (gp_rec_c: tw[0] / tl[0], the final's) */
 u8 GP_HDR2[0x27] = { 0xAD };            /* (gplay.py: the Champions Cup's first 0x27 bytes) */
 #define KT2(k) ((k)->bye[7])            /* (a type-2 contest: bye[] is unused there) */
+#define GF(k) ((k)->bye[6])             /* 4.0.5 NZ, a type-2 contest's Grand Final (gf_step_c): */
+enum { GF_WAIT = 1, GF_ON = 2, GF_DONE = 3, K_GF = 11 };   /* the group under way, the final built (ko[1]), decided */
 static int ko_t2(struct gp_ko *k, const u8 *s, int pi, int cid, const struct t2s *x) {
     const u8 *e = s + 6;
     int n = s[1], me = 0, len = 0x27, days = x->meet * (x->m & 1 ? x->m : x->m - 1);
@@ -1357,7 +1577,10 @@ static int ko_t2(struct gp_ko *k, const u8 *s, int pi, int cid, const struct t2s
         k->team[i] = row(c)->team; k->pts[i] = row(c)->pts;
         me |= k->team[i] == GP_IN.mgr;
     }
-    for (int i = 0; i < x->nk; i++) days += (x->kb[i] & 0x80) ? 2 : 1;
+    int gf = x->g == 1 && x->nk == 1 && x->kt[0] == 1;   /* 4.0.5 NZ: one group, then a one-match final (the
+                                           game's type-2 knockout after a single group never put the career match
+                                           in the calendar): the group alone here, the Grand Final ours (gf_step_c) */
+    if (!gf) for (int i = 0; i < x->nk; i++) days += (x->kb[i] & 0x80) ? 2 : 1;
     k->lfile = k->team[0] & 0xFF;
     k->d1 = GP_IN.week + 1; k->d2 = GP_IN.week + days + 1 > 255 ? 255 : GP_IN.week + days + 1;
     u8 *c = k->con;
@@ -1368,11 +1591,18 @@ static int ko_t2(struct gp_ko *k, const u8 *s, int pi, int cid, const struct t2s
     c[11] = x->meet;
     u8 st[0x14];
     int ns = 0;
-    st[ns++] = 1 + x->nk; st[ns++] = n;
-    st[ns++] = x->g; st[ns++] = x->m; st[ns++] = x->q;
-    for (int i = 0; i < x->nk; i++) { st[ns++] = 0; st[ns++] = 2 * x->kt[i]; st[ns++] = x->kt[i]; }
+    int nk = gf ? 0 : x->nk;
+    st[ns++] = 1 + nk; st[ns++] = n;
+    st[ns++] = x->g; st[ns++] = x->m; st[ns++] = gf ? 0 : x->q;
+    for (int i = 0; i < nk; i++) { st[ns++] = 0; st[ns++] = 2 * x->kt[i]; st[ns++] = x->kt[i]; }
     for (int i = 0; i < 0x14; i++) c[0x0E + i] = i < ns ? st[i] : 0;
-    for (int i = 0; i < 5; i++) c[0x22 + i] = i == 0 || i > x->nk ? 0 : x->kb[i - 1];
+    for (int i = 0; i < 5; i++) c[0x22 + i] = i == 0 || i > nk ? 0 : x->kb[i - 1];
+    GF(k) = gf ? GF_WAIT : 0;
+    if (gf) {                           /* (the final's legs and level for gf_step_c: rs[] is unused in a type 2) */
+        u8 b = x->kb[0];
+        k->rs[0][1] = b & 0x80 ? 2 : 1;
+        k->rs[0][3] = (b & 0x14) == 0x14 ? LV_ET_PENS : b & 0x04 ? LV_PENS : b & 0x10 ? LV_ET_BETTER : LV_BETTER;
+    }
     for (int i = 0; i < 8; i++) c[len + i] = ((const u8 *)GP_NM)[12 * pi + i];
     len += 8;
     for (int j = 0; j < n; j++) { c[len++] = k->team[j]; c[len++] = k->team[j] >> 8; }
@@ -1596,21 +1826,24 @@ static u32 wn_double(int rule) {        /* 4.0.2 'Q': a title_seed play-off with
         return b->r[0][0].team;
     return 0xFFFE;
 }
+static u32 cf_last1(void);              /* (4.0.5: CF_ST, defined with it below) */
+static u32 sc_wn(void);                 /* (4.0.5: the supercup's winner, below) */
 u32 gp_wn_c(void) {
     int t = GP_WNSRC & 0xFF, st = GP_WNSRC >> 8 & 0xFF, pi = GP_WNSRC >> 16 & 0xFF;
     if (GP_WNSRC >> 24 && t == 'M') {   /* (4.0.1: the division the career club played in: team | division << 16) */
         if (WN_ST.magic != WN_MAGIC || (u8)(WN_ST.season + 1) != GP_SEAS) return 0xFFFE;
-        for (int i = 0; i < WN_ST.n && i < WN_N; i++)
-            if (WN_ST.e[i].type == 'M') return WN_ST.e[i].team | (u32)WN_ST.e[i].idx << 16;
-        return 0xFFFE;
+        return wn_find('M', 0, 0);
+    }
+    if (GP_WNSRC >> 24 && t == 'E') {   /* (4.0.5 a league with no WIN entry, winners.py's fallback line: the last
+                                           season's 1st of the career club's level, from CF_ST's places) */
+        return cf_last1();
     }
     if (GP_WNSRC >> 24) {               /* (4.0.1 the last season: WN_ST's entry 'K' pi, or 'L' division st) */
         int ty = t == 'K' || t == 'D' || t == 'Q' ? 'K' : t == 'T' ? 0x80 | (pi & 0x7F) : 'L', ix = ty == 'K' ? pi : st;
         if (WN_ST.magic != WN_MAGIC || (u8)(WN_ST.season + 1) != GP_SEAS) return 0xFFFE;
-        for (int i = 0; i < WN_ST.n && i < WN_N; i++)
-            if (WN_ST.e[i].type == ty && WN_ST.e[i].idx == ix) return WN_ST.e[i].team;
-        return 0xFFFE;
+        return wn_find(ty, ix, 0);
     }
+    if (t == 'U') return sc_wn();       /* (4.0.5: the national supercup, sc_done's winner) */
     if (t == 'S') {
         const struct gp_ss *b = ss_view(GP_WNFILE);
         return b && st < SS_N && (b->fresh >> st & 1) && b->n[st] ? b->r[st][0].team : 0xFFFE;
@@ -1630,12 +1863,20 @@ u32 gp_wn_c(void) {
     }
     for (int j = 0; j < 2; j++) {
         const struct gp_ko *k = &GP_ST.ko[j];
+        if (k->magic == MAGIC && k->season == GP_SEAS && k->pi == pi && k->bye[7] && GF(k))   /* (4.0.5 NZ: a Grand
+                                           Final's - ours: decided, else IN CORSO) */
+            return GF(k) == GF_DONE && k->tw[0] != NOC ? k->team[k->tw[0]] : 0xFFFF;
         if (k->magic == MAGIC && k->season == GP_SEAS && k->pi == pi && k->bye[7])
             return 0xFFFC;              /* (a group contest of ours - the Poule: its winner is the game's, slot 3) */
         if (k->magic != MAGIC || k->season != GP_SEAS || k->pi != pi || !k->ntie || k->bye[7]) continue;
         int w = k->tw[k->ntie - 1];
         return w != NOC ? k->team[w] : 0xFFFF;   /* (running: IN CORSO - 4.0's a41b1e4 decides it even once the
                                                    career club is out: rc10's interim no-line rule is gone) */
+    }
+    {                                   /* (rc19: a play-off the career club is not in - previewed at the league's end) */
+        int ty = t == 'K' || t == 'D' || t == 'Q' ? 'K' : t == 'T' ? 0x80 | (pi & 0x7F) : 0;
+        u32 w = ty ? wn_find(ty, ty == 'K' ? pi : st, 1) : 0xFFFE;
+        if (w != 0xFFFE) return w;
     }
     return t == 'Q' ? wn_double(st) : 0xFFFE;
 }
@@ -1653,7 +1894,13 @@ u32 GP_WK;                              /* (the glue: the current calendar entry
    season's table up), the others enter at the first round; both rounds paired within a group where possible, else
    at random; from the 3rd round on a fixed bracket (tie k = the winners of ties 2k, 2k + 1), the round records'
    weeks, hosts and drawn semi-finals as the table's. */
-enum { K_CUPD = 9, CDT = 168, CDP = 41, CD1 = 64 };   /* (CDP: preliminary ties at most, CDP + 2 x CD1 - 1 <= CDT) */
+enum { K_CUPD = 9, CDT = 168, CDP = 41, CD1 = 64 };
+enum { K_SC = 10 };                     /* (4.0.5: a national supercup tie, sc_step_c at the file's end) */
+struct gp_ko;
+void sc_done(const struct gp_ko *k);
+static u32 sc_rline(void);              /* (4.0.5: gp_rlines_c's supercup line) */
+static void rl_put(void);
+int sc_busy(void);                      /* (4.0.5: the slot-4 guard) */   /* (CDP: preliminary ties at most, CDP + 2 x CD1 - 1 <= CDT) */
 struct cd_state { u16 magic; u8 season, round, built, bt, drawn, pad; u8 res[CDT], home[CDT]; u8 sd[4];
                   u8 ent[256];          /* cd_season (the season end): per ordinal of the file, the entry order's key
                                            for the season to come (0 not in Serie D, 1 a new arrival, 2 + places from
@@ -1690,10 +1937,14 @@ static int cd_first(int r) {            /* round r's first tie */
     for (int i = 0; i < r; i++) f += cd_n(i);
     return f;
 }
-static u16 cd_raw(int t, int sd) {      /* tie t's side sd as listed: a team word, CD_REF(a tie), CD_DRAWN */
-    if (!cd_gen()) { const u8 *x = CDTIE(t); return x[2 * sd] | x[2 * sd + 1] << 8; }
+static int cd_round(int t) {            /* the round tie t belongs to */
     int r = 0;
     while (r + 1 < GP_CDT[1] && t >= cd_first(r + 1)) r++;
+    return r;
+}
+static u16 cd_raw(int t, int sd) {      /* tie t's side sd as listed: a team word, CD_REF(a tie), CD_DRAWN */
+    if (!cd_gen()) { const u8 *x = CDTIE(t); return x[2 * sd] | x[2 * sd + 1] << 8; }
+    int r = cd_round(t);
     if (r < 2) return CD_ST.gen[2 * t + sd];
     if (CDREC(r)[5] & 1) return CD_DRAWN;
     return CD_REF(cd_first(r - 1) + 2 * (t - cd_first(r)) + sd);
@@ -1704,7 +1955,9 @@ static u16 cd_side(int t, int sd) {     /* tie t's side sd (0 a, 1 b): a team wo
     if (!CD_ISREF(v)) return v;
     int i = v >> 8;
     if (v == CD_DRAWN) {                  /* (a drawn round: its k-th tie = the previous round's sd[2k], sd[2k+1]) */
-        int first = cd_first(CD_ST.round);
+        int first = cd_first(cd_round(t));   /* (4.0.5 rc9: tie t's round - not CD_ST.round, the round under way:
+                                                once the final was on, its semis read sd[] at a negative index ->
+                                                the preliminary tie 0's winner won the cup every season) */
         i = CD_ST.sd[2 * (t - first) + sd];
     }
     if (i >= CDT || !CD_ST.res[i]) return 0xFFFF;
@@ -1716,20 +1969,21 @@ static int cd_hosted(int t, u16 club) { /* the club hosted tie t (two legs: the 
     return cd_side(t, h) == club;
 }
 
-static void cd_ko(struct gp_ko *k, u16 home, u16 away, int w1, int w2, int legs) {
+static void ko_one(struct gp_ko *k, u16 home, u16 away, int w1, int w2, int legs, int kind, int level, int lfile,
+                   const u8 *names) {   /* a one-tie contest in slot 4 (the Coppa D's; 4.0.5 also the supercups') */
     k->magic = 0;
-    k->slot = 4; k->cid = 0xFE; k->pi = 0xFF; k->kind = K_CUPD; k->n = 2; k->nrs = 1; k->ldiv = 0;
+    k->slot = 4; k->cid = 0xFE; k->pi = 0xFF; k->kind = kind; k->n = 2; k->nrs = 1; k->ldiv = 0;
     k->ntie = 1; k->ngr = 1; k->gcur = 0;
     for (int i = 0; i < KT; i++) k->tw[i] = k->tl[i] = NOC;
     for (int i = 0; i < 8; i++) k->bye[i] = 0;
-    k->rs[0][0] = 1; k->rs[0][1] = legs; k->rs[0][2] = HOST_LISTED; k->rs[0][3] = LV_PENS; k->rs[0][4] = 0;
+    k->rs[0][0] = 1; k->rs[0][1] = legs; k->rs[0][2] = HOST_LISTED; k->rs[0][3] = level; k->rs[0][4] = 0;
     k->rs[0][5] = 0;
     k->rc[0] = 0; k->rc[1] = 1; k->gt0[0] = 0; k->gt0[1] = 1;
-    k->rb[0] = rbyte(legs, LV_PENS); k->gsr[0] = 0; k->gno[0] = 0;
+    k->rb[0] = rbyte(legs, level); k->gsr[0] = 0; k->gno[0] = 0;
     k->gp0[0] = 0; k->gp0[1] = 1; k->pa[0] = 0; k->pb[0] = 1; k->pw[0] = NOC; k->ptie[0] = 0;
     k->team[0] = home; k->team[1] = away; k->code[0] = 0; k->code[1] = 1; k->prio[0] = 0; k->prio[1] = 1;
     k->ient[0] = 0; k->ient[1] = 1; k->pts[0] = k->pts[1] = 0;
-    k->lfile = GP_CDT[2];
+    k->lfile = lfile;
     k->d1 = w1 > (int)GP_WK ? w1 : GP_WK + 1;
     k->d2 = legs == 2 ? (w2 > k->d1 ? w2 : k->d1 + 1) : k->d1;
     k->bye[0] = 0xFE; k->bye[1] = 0xFF; k->bye[2] = 2; k->bye[3] = 0; k->bye[4] = 1;
@@ -1741,13 +1995,206 @@ static void cd_ko(struct gp_ko *k, u16 home, u16 away, int w1, int w2, int legs)
     c[len++] = 0;
     c[5] = len - 5;
     c[7] = len + 8 - 7;
-    for (int i = 0; i < 8; i++) c[len + i] = ((const u8 *)GP_CDNM)[i];
+    for (int i = 0; i < 8; i++) c[len + i] = names[i];
     len += 8;
     for (int j = 0; j < 2; j++) { c[len++] = k->team[j]; c[len++] = k->team[j] >> 8; }
     k->season = GP_SEAS;
     k->magic = MAGIC;
     GP_ST.magic = MAGIC;
     GP_ST.season = GP_SEAS;
+}
+
+/* 4.0.5 NZ, the National League's Grand Final: a type-2 contest of one group whose spec ends with a one-tie final
+   (ko_t2: GF_WAIT, the group alone in slot 3; the game's knockout after a single group never had the career match in
+   the calendar). The final is ours, in ko[1] (slot 4, id FE: gp_ours_c skips the group contest once it is over):
+   - gf_place_c (gp_install, right after the group's slot-3 install): a placeholder final of the career club in slot
+     4 the week after the group's last day - the calendar's next entry after the group (else the season ended there:
+     no calendar advance to build the final at);
+   - gf_step_c (gp_adv, slot 3 free, every group row played): the group's final table from the working DIY (its last
+     day was the event just done; the slot buffer is not written back yet: its rows read 0 played) (points,
+     goal difference, goals scored, then the list's order - the game's group order) gives the top two clubs that may
+     qualify (a B team without play-offs, SEC_TAB - NZ's A-League reserves 'can not qualify for the Grand Final' - is
+     skipped); the higher placed hosts. The career club in it: the real final into ko[1] by ko_one (the spec's legs
+     and level: one match, extra time + penalties), installed over the placeholder from the next week. Not in it:
+     decided now, the host winning 3 in 5 (as a simulated supercup final, seeded by the season), the placeholder's
+     days dropped;
+   - gf_done (gp_rec_c): the winner / loser into the group contest's tw[0] / tl[0] (its champion / runner-up for the
+     season end, VINCITORI, the record). */
+const u8 *GP_S3;                        /* (the glue: the game's working DIY - the group's last day just played) */
+const u8 *GP_S3B;                       /* (the glue: slot 3's own 443h buffer - rc17) */
+u32 GP_GFT;                             /* (harness trace: 1 built, 2 simulated, 3 placeholder, 0x80 | why not) */
+static int kidx(const struct gp_ko *k, u16 team);
+static void gf_one(struct gp_ko *f, const struct gp_ko *g, u16 home, u16 away, int w) {
+    ko_one(f, home, away, w, w + 1, g->rs[0][1], K_GF, g->rs[0][3], g->lfile, g->con + 0x27);
+    f->pi = g->pi;                      /* (gp_fixload_c: its names from this exe's tables, as the group's) */
+}
+static int gf_live(const struct gp_ko *k) {
+    return GP_ST.magic == MAGIC && GP_ST.season == GP_SEAS && k->magic == MAGIC && k->season == GP_SEAS && KT2(k);
+}
+void gf_done(struct gp_ko *f) {         /* gp_rec_c: the Grand Final decided */
+    struct gp_ko *g = &GP_ST.ko[0];
+    if (f->tw[0] == NOC || !gf_live(g) || GF(g) != GF_ON) return;
+    g->tw[0] = kidx(g, f->team[f->tw[0]]);
+    g->tl[0] = kidx(g, f->team[f->tl[0]]);
+    GF(g) = GF_DONE;
+}
+u32 gf_place_c(void) {                  /* the group just installed in slot 3: 1 = a placeholder final in ko[1] */
+    struct gp_ko *g = &GP_ST.ko[0];
+    if (!gf_live(g) || GF(g) != GF_WAIT || g->slot != 3) return 0;
+    int me = kidx(g, GP_MGR);
+    if (me == NOC) return 0;
+    gf_one(&GP_ST.ko[1], g, GP_MGR, g->team[me ? 0 : 1], g->d2 + 1);
+    GP_GFT = 3;
+    return 1;
+}
+void gf_hide_c(u8 *cal, u32 cur) {     /* gp_install, after a slot-4 install: the placeholder final's days with no
+                                           career match (calendar byte 5 = 0): the fixture list shows the round alone,
+                                           as the game's undrawn cup rounds - no pairing before the group is over */
+    const struct gp_ko *g = &GP_ST.ko[0], *f = &GP_ST.ko[1];
+    if (!gf_live(g) || GF(g) != GF_WAIT || f->magic != MAGIC || f->kind != K_GF || f->slot != 4) return;
+    u16 cnt = *(const u16 *)(cal - 4);
+    u8 *e = cal;
+    for (u32 i = 0; i < cnt; i++) {
+        u32 len = *(const u16 *)(e + 2);
+        if (!len) break;
+        if ((u32)(e - cal) >= cur && e[0] == 4) e[5] = 0;
+        e += len;
+    }
+}
+#ifndef GP_GFREST
+#define GP_GFREST 0                     /* (test builds, GPLAY_GFREST=1: the placeholder shown at once - gf_unhide_c's
+                                           path, as when the career club rests in the group's last round) */
+#endif
+u32 gf_unhide_c(u8 *cal, u32 cur) {    /* rc18 (Davide's MiSTer, rc17): gp_adv - the Grand Final still to be built and
+                                           no career-club day left before it (its rest day the group's last round): the
+                                           hidden placeholder (gf_hide_c) is the career club's day again (byte 5 = 1),
+                                           else the game offered FINISH SEASON (cseg_8EC2B), the group's last round and
+                                           the final never played. Its pairing shows from now until the final is built
+                                           (the week after the group's last day) */
+    const struct gp_ko *g = &GP_ST.ko[0], *f = &GP_ST.ko[1];
+    if (!gf_live(g) || GF(g) != GF_WAIT || f->magic != MAGIC || f->kind != K_GF || f->slot != 4) return 0;
+    u16 cnt = *(const u16 *)(cal - 4);
+    u8 *e = cal, *ph = 0;
+    int other = 0;
+    for (u32 i = 0; i < cnt; i++) {
+        u32 len = *(const u16 *)(e + 2);
+        if (!len) break;
+        if ((u32)(e - cal) >= cur) {    /* (the current entry - the next day - counts as one to come) */
+            if (e[0] == 4) { if (!ph) ph = e; }
+            else if (e[5]) other = 1;
+        }
+        e += len;
+    }
+    if (!ph || ph[5] || (other && !GP_GFREST)) return 0;
+    ph[5] = 1;
+    GP_GFT = 6;
+    return 1;
+}
+u32 gf_anchor_c(const u8 *cal, u32 cur) {   /* gp_install: the group waits for slot 3 (t2_defer: the OFC's days still to
+                                           come, the career club maybe out of it) - the placeholder final in ko[1] the
+                                           week after slot 3's last day: a day of the career club still to come (the
+                                           game's cseg_8EC2B: else FINISH SEASON, the group and the final simulated
+                                           inside it), replaced once the group is installed (t2_due, gf_place_c) */
+    struct gp_ko *g = &GP_ST.ko[0];
+    if (!gf_live(g) || GF(g) != GF_WAIT || g->slot != 3) return 0;
+    int me = kidx(g, GP_MGR);
+    if (me == NOC) return 0;
+    u16 cnt = *(const u16 *)(cal - 4);
+    const u8 *e = cal;
+    int w = (int)GP_WK;
+    for (u32 i = 0; i < cnt; i++) {
+        u32 len = *(const u16 *)(e + 2);
+        if (!len) break;
+        if ((u32)(e - cal) > cur && e[0] == 3 && e[1] > w) w = e[1];
+        e += len;
+    }
+    if (w + 2 > 255) return 0;
+    gf_one(&GP_ST.ko[1], g, GP_MGR, g->team[me ? 0 : 1], w + 1);
+    GP_GFT = 5;
+    return 1;
+}
+u32 gf_step_c(void) {                   /* the calendar advance (slot 3 free): 2 = the final built into ko[1], 4 = the
+                                           placeholder's days to drop (decided without the career club), else 0 */
+    struct gp_ko *k = &GP_ST.ko[0];
+    if (!gf_live(k) || GF(k) != GF_WAIT || (GP_ST.s3wait & 1) || (!GP_S3 && !GP_S3B) || (int)GP_WK < k->d1) return 0;
+    int n = k->n, meet = k->con[11] ? k->con[11] : 1, ord[KN], m = 0;
+    u16 tm[KN];
+    const u8 *d = 0;
+    for (int b = 0; b < 2 && !d; b++) {     /* (rc17: the working DIY after a '- RISULTATO -' day; after a match
+                                           played for real it may hold another contest - then slot 3's own buffer,
+                                           written back: the one whose table is the whole group played) */
+        const u8 *c = b ? GP_S3B : GP_S3;
+        if (!c) continue;
+        if (*(const u16 *)(c + 0x4F) != 1 || *(const u16 *)(c + 0x51) != n) { GP_GFT = 0x84; continue; }
+        int ok = 1;
+        for (int j = 0; j < n && ok; j++) { /* (the rows: every club's group played to the end, all of them ours) */
+            int o = *(const u16 *)(c + 0x6D + 2 * j);
+            tm[j] = *(const u16 *)(c + 0x12D + 2 * (o / 0x12));
+            if (kidx(k, tm[j]) == NOC) { GP_GFT = 0x81; ok = 0; }
+            else if (*(const u16 *)(c + o + 0x2B7) < meet * (n - 1)) { GP_GFT = 0x82; ok = 0; }
+            ord[j] = j;
+        }
+        if (ok) d = c;
+    }
+    if (!d) return 0;
+    u16 f[2];
+    for (int i = 0; i < n && m < 2; i++) {
+        const u8 *e;
+        if (sec_find(-1, tm[ord[i]], &e) && !(e[5] & SEC_PO)) continue;   /* (a B team that may not qualify) */
+        if (GP_GFFORCE == 1 && tm[ord[i]] == GP_MGR) continue;
+        f[m++] = tm[ord[i]];
+    }
+    if (m < 2) { GP_GFT = 0x83; return 0; }
+    if (GP_FORCE && !GP_GFFORCE && f[0] != GP_MGR && f[1] != GP_MGR && kidx(k, GP_MGR) != NOC) {   /* (test builds: the career
+                                           club in the final, as its host) */
+        f[1] = f[0]; f[0] = GP_MGR;
+    }
+    if (GP_GFFORCE == 2 && kidx(k, GP_MGR) != NOC && f[0] != GP_MGR) {   /* (test builds: the career club the host, as
+                                           the group's winner - rc17's MiSTer case) */
+        f[1] = f[0];                    /* (2nd -> swapped; out of the two -> it replaces the 2nd) */
+        f[0] = GP_MGR;
+    }
+    struct gp_ko *fk = &GP_ST.ko[1];
+    if (f[0] != GP_MGR && f[1] != GP_MGR) {     /* (the career club not in it: decided now) */
+        rng = GP_SEAS * 7919u + 0x4E5A;
+        int w = below(5) < 3 ? 0 : 1;
+        k->tw[0] = kidx(k, f[w]); k->tl[0] = kidx(k, f[1 - w]);
+        GF(k) = GF_DONE;
+        fk->magic = 0;
+        GP_GFT = 2;
+        return 4;
+    }
+    gf_one(fk, k, f[0], f[1], GP_WK + 1);
+    GF(k) = GF_ON;
+    GP_GFT = 1;
+    return 2;
+}
+u32 gf_drop_c(u8 *cal, u32 cur) {       /* rc20 (Panchina's natural NZ season, WESTERN SPRINGS 3rd of the group): gp_gf
+                                           after gf_step_c's 4 - the Grand Final decided without the career club, often
+                                           at the end of the club's rest day (the group's last round), inside the game's
+                                           day: the placeholder's days stay (removing one under the game's day loop left
+                                           the squad screen for ever - rc19's gp_calold removal) and are no longer the
+                                           club's: byte 6 = 0 (the career-day flag cseg_8EC2B counts - p6's host test;
+                                           byte 4 != 0 entries it skips), byte 5 = 0 (gf_hide_c's). Returns 1 when no
+                                           career day is left from the cursor on: the glue sets the menu's word (FINISH
+                                           SEASON), as cseg_8EC2B would */
+    u16 cnt = *(const u16 *)(cal - 4);
+    u8 *e = cal;
+    int ahead = 0;
+    for (u32 i = 0; i < cnt; i++) {
+        u32 len = *(const u16 *)(e + 2);
+        if (!len) break;
+        if ((u32)(e - cal) >= cur) {
+            if (e[0] == 4) { e[5] = 0; e[6] = 0; }
+            else if (!e[4] && e[6]) ahead = 1;
+        }
+        e += len;
+    }
+    GP_GFT = 7;
+    return !ahead;
+}
+static void cd_ko(struct gp_ko *k, u16 home, u16 away, int w1, int w2, int legs) {
+    ko_one(k, home, away, w1, w2, legs, K_CUPD, LV_PENS, GP_CDT[2], (const u8 *)GP_CDNM);
 }
 
 /* The league's end (gp_end_c, the final tables in GP_IN): each Serie D club's place from the bottom of its group
@@ -1898,6 +2345,7 @@ static int cd_sim(u16 a, u16 b, int legs, int h) {     /* h: 0 a hosts (the firs
 
 /* the calendar advance: 1 = a tie of the career club built into ko[0] (gp_install it), else 0 */
 u32 cd_step_c(void) {
+    if (sc_busy()) return 0;            /* (4.0.5: an early supercup tie in slot 4: the next advance) */
     if (!GP_CDT) return 0;
     if (CD_ST.magic != 0x4443 || CD_ST.season != GP_SEAS) {     /* (a new season: the cup from its start) */
         u8 *p = (u8 *)&CD_ST;
@@ -2017,7 +2465,8 @@ void cd_fixload_c(const u8 *league, u32 seas, u8 *cal, u32 cur) {
 static void cd_done(struct gp_ko *k) {  /* gp_rec_c: our CD tie decided -> its result */
     if (!CD_ST.built || k->tw[0] == NOC) return;
     CD_ST.res[CD_ST.bt] = k->team[k->tw[0]] == cd_side(CD_ST.bt, 0) ? 1 : 2;
-    if (GP_CDFORCE) CD_ST.res[CD_ST.bt] = cd_side(CD_ST.bt, 0) == GP_MGR ? 1 : 2;   /* (CD_FORCE test builds: won) */
+    if (GP_CDFORCE)                     /* (CD_FORCE test builds: 1 won, 2 lost) */
+        CD_ST.res[CD_ST.bt] = (cd_side(CD_ST.bt, 0) == GP_MGR) == (GP_CDFORCE == 1) ? 1 : 2;
     CD_ST.built = 0;
     CD_ST.pad |= 0x40;
 }
@@ -2026,6 +2475,8 @@ static void set_pend(int then, int week) {   /* 'then_build': the next play-off 
 }
 
 u32 gp_build_c(void) {
+    if (sc_busy()) { set_pend(GP_BPIC + 1, GP_WK + 1); return 0; }   /* (4.0.5: an early supercup tie holds slot 4:
+                                                                     built again at the next advance) */
     ss_set(GP_IN.mgr);
     const u8 *s = po_at(GP_BPIC);
     stage_done(&GP_ST.ko[0]);                   /* (the previous stage's knockout, played: before ko[0] is rebuilt) */
@@ -2061,7 +2512,8 @@ const u32 GP_KOLAY[] = { __builtin_offsetof(struct gp_state, ko), sizeof(struct 
 int gp_ours_c(void) {
     if (GP_ST.magic != MAGIC || GP_ST.season != GP_SEAS) return -1;
     for (int i = 0; i < 2; i++)
-        if (GP_ST.ko[i].magic == MAGIC && GP_ST.ko[i].slot && GP_ST.ko[i].cid == GP_CID && GP_ST.ko[i].season == GP_SEAS)
+        if (GP_ST.ko[i].magic == MAGIC && GP_ST.ko[i].slot && GP_ST.ko[i].cid == GP_CID && GP_ST.ko[i].season == GP_SEAS
+            && !(KT2(&GP_ST.ko[i]) && GF(&GP_ST.ko[i]) >= GF_ON))   /* (4.0.5 NZ: its group over - the Grand Final's id) */
             return i;
     return -1;
 }
@@ -2136,7 +2588,7 @@ void gp_rec_c(void) {
     struct gp_ko *k = &GP_ST.ko[GP_K];
     int a = kidx(k, GP_A), b = kidx(k, GP_B), g = k->gcur;
     if (KT2(k)) {                       /* a type-2 contest: the last decisive match (the final's, at the end) */
-        if (a != NOC && b != NOC) { k->tw[0] = GP_W ? b : a; k->tl[0] = GP_W ? a : b; }
+        if (a != NOC && b != NOC && !GF(k)) { k->tw[0] = GP_W ? b : a; k->tl[0] = GP_W ? a : b; }
         return;
     }
     for (int p = k->gp0[g]; p < k->gp0[g + 1]; p++)
@@ -2149,6 +2601,8 @@ void gp_rec_c(void) {
         }
     resolve(k);
     if (k->kind == K_CUPD) { cd_done(k); return; }
+    if (k->kind == K_SC) { sc_done(k); return; }   /* (4.0.5 supercup: a final four's semi -> its final) */
+    if (k->kind == K_GF) { gf_done(k); return; }   /* (4.0.5 NZ: the Grand Final) */
     GP_LAST = 0;
     int left = 0;
     for (int p = k->gp0[g]; p < k->gp0[g + 1]; p++) if (k->pw[p] == NOC) left++;
@@ -2204,10 +2658,81 @@ void gp_played_c(void) {
     for (int t = 0; t < KT; t++) GP_IN.pl_w[t] = t < k->ntie && k->tw[t] != NOC ? k->team[k->tw[t]] : 0;
 }
 
+#ifndef GP_GSON
+#define GP_GSON 0                               /* (1: the engine block saves GP_GS - early tables beyond SD kept) */
+#endif
+/* rc19: the career league has ended (gp_lend, after gp_need: the career club's play-offs GP_IN.pi[], their divisions
+   GP_IN.sim[]): the divisions its country's OTHER play-offs need, appended to sim[] - simulated now and kept (GP_ST /
+   GP_GS: the season end restores them); the titles with an entrant from the career club's division first, then the
+   other titles, the other play-offs with one, the rest; one whose divisions do not all fit is left to the season end. GP_PREI = the first
+   appended (gp_simkeep_pre). Returns 1 if the preview may run. */
+u8 GP_PREI;
+__attribute__((minsize)) u32 gp_need_pre(void) {
+    int ns = 0, lim = GP_GSON ? SDX : SD;
+    u32 have = 1u << GP_IN.mdiv;                /* (divisions with a table: the career club's, the ones in sim[]) */
+    while (ns < SDX && GP_IN.sim[ns] != NOC) have |= 1u << GP_IN.sim[ns++];
+    GP_PREI = (u8)ns;
+    if (GP_IN.gtype != 4 || !GP_IN.spec) return 0;   /* (careers only: Season mode plays its division's own) */
+    if (!(GP_ST.magic == MAGIC && GP_ST.season == GP_SEAS)) {   /* (a state for the kept tables: no contest of ours) */
+        GP_ST.magic = MAGIC; GP_ST.season = GP_SEAS;
+        GP_ST.ko[0].magic = GP_ST.ko[1].magic = 0;
+        GP_ST.pend = 0; GP_ST.s3wait = 0;
+    }
+    for (int pass = 0; pass < 4; pass++)
+        for (int pi = 0; ; pi++) {
+            const u8 *s = po_at(pi), *e = s ? s + 6 : 0;
+            if (!s) break;
+            if (s[0] == K_PROM || pi == GP_IN.pi[0] || pi == GP_IN.pi[1]) continue;   /* (the club's: built, played) */
+            u32 need = 0;
+            for (int i = 0; i < s[1]; i++) {
+                int ty = e[4 * i], d = e[4 * i + 1];
+                if ((ty == 0 || ty == 3 || ty == 6 || ty == 7) && d < GP_IN.nd) need |= 1u << d;
+            }
+            int mine = need >> GP_IN.mdiv & 1, title = s[0] == K_TITLE || s[0] == K_STAGE || s[0] == K_CONT, nn = 0;
+            need &= ~have;
+            for (u32 x = need; x; x &= x - 1) nn++;
+            if (pass != (title ? !mine : 3 - mine) || ns + nn > lim) continue;
+            have |= need;
+            for (int d = 0; need; d++, need >>= 1) if (need & 1) GP_IN.sim[ns++] = (u8)d;
+        }
+    return 1;
+}
+
+/* rc19: an early simulation for the preview (gp_simkeep), unless its rows would not fit the slot (GP_GS: GSR) -
+   then the division is left out (its play-offs decided at the season end) */
+__attribute__((minsize)) void gp_simkeep_pre(void) {
+    int n = *(const u16 *)(GP_DIYP + 0x31), j = GP_ST.nsim;
+    if (j >= GP_PREI && (j >= SDX || (j >= SD && n > GSR))) { if (GP_DIV < GD) GP_IN.n[GP_DIV] = 0; return; }
+    gp_simkeep();                       /* (the club's own play-offs' divisions, j < GP_PREI: as gp_simkeep always) */
+}
+
+/* rc19: the preview - gp_season over the tables known now (the career division's, the kept ones), its play-off
+   winners into WN_ST after a marker; no move applied, the state as it was (GP_OUT void) */
+__attribute__((minsize)) void gp_pre_c(void) {
+    if (GP_IN.gtype != 4 || !GP_IN.spec) return;
+    if (WN_ST.magic != WN_MAGIC || (u8)(WN_ST.season + 1) != GP_SEAS) {   /* (no last season: an empty one that
+                                                   no reader takes for the last season) */
+        WN_ST.magic = WN_MAGIC; WN_ST.season = GP_SEAS ^ 0x80; WN_ST.n = 0;
+    } else
+        for (int i = 0; i < WN_ST.n && i < WN_N; i++)
+            if (WN_ST.e[i].type == WN_PRE) { WN_ST.n = i; break; }   /* (an earlier preview: replaced) */
+    if (WN_ST.n + 2 > WN_N) return;
+    struct wn_e *x = &WN_ST.e[WN_ST.n++];
+    x->type = WN_PRE; x->idx = GP_SEAS; x->team = 0;
+    GP_IN.pl_pi = GP_IN.pl_t2 = 0;      /* (the club's own play-offs, GP_IN.pi[]: not previewed - their lines are
+                                           its contests', played; nor those taking their clubs, type 4) */
+    GP_PRE = 1;
+    gp_season();
+    GP_PRE = 0;
+    GP_OUT.nmv = 0; GP_OUT.nres = 0;
+    if (GP_IN.mgr != 0xFFFF) ss_set(GP_IN.mgr);   /* (the career league's bank again, as gp_need / gp_lend_c left it) */
+}
+
 void gp_end_c(void) {                   /* after gp_season: the log, the state void */
     const u8 *s = (const u8 *)&GP_ST.ko[0];
     u8 *d = (u8 *)&GP_LOG.ko;
-    if (GP_ST.magic == MAGIC || GP_IN.pl_pi) {
+    if (GP_ST.magic == MAGIC || GP_IN.pl_pi) {   /* (the career club's play-off only: rc18's `|| GP_OUT.nres` let
+                                           every later country's season end overwrite the harness's log) */
         for (u32 i = 0; i < sizeof GP_LOG.ko; i++) d[i] = s[i];
         s = (const u8 *)&GP_OUT; d = (u8 *)&GP_LOG.out;
         for (u32 i = 0; i < sizeof GP_LOG.out; i++) d[i] = s[i];
@@ -2234,13 +2759,14 @@ u8 GP_WORLD;
    its record line's name (the season record's 4th line: a Serie D club plays no European cup), else 0. Test builds
    (GPLAY_FORCE): the club is made the winner (the review's DA11B too: no European trophy for it, gp_sack's guard). */
 /* 4.0 stage titles (longtable.stage_table): tab: dw n; dw S_MAGIC, S_FROZEN, S_GRP offsets (split's state in a league
-   buffer), dw its magic; dd the career team word's address; dw the weeks table's offset; n records of 128 B: key (41 B:
+   buffer), dw its magic; dd the career team word's address; dw the weeks table's offset; n records of 136 B: key (41 B:
    the DIY+4 title) + pad, [5 stages][4 groups] dw long-title offsets from tab, the same for the short ones (0 = none),
    5 db the stage's first day (255 = none) + pad. */
+enum { STG_REC = 136, STG_TBL = 128 };  /* (4.0.5: + MAXS db the stage's 'table' + 1, 0 = none, + pad) */
 static const u8 *st_rec(const u8 *lg, const u8 *tab) {      /* lg's record, or 0 */
     if (w16(lg + w16(tab + 2)) != w16(tab + 8)) return 0;
     const u8 *r = tab + 16;
-    for (int i = 0, n = w16(tab); i < n; i++, r += 128) {
+    for (int i = 0, n = w16(tab); i < n; i++, r += STG_REC) {
         int k = 0;
         while (k < 41 && lg[4 + k] == r[k] && r[k]) k++;
         if (k == 41 || lg[4 + k] == r[k]) return r;
@@ -2301,10 +2827,22 @@ void gp_hplan_c(const u8 *t, const u8 *tab, u32 cur, u32 rows, u32 off) {
     int n = w16(t + 0x51), g[65], hdr = 0;
     if (n > 64) n = 64;
     for (int k = 1; k <= n; k++) { GP_HP[k] = 0; GP_HGP[k] = k; g[k] = 0; }
-    if (!off && tab && w16(t + w16(tab + 2)) == w16(tab + 8)) {
-        for (int k = 1; k <= n; k++) g[k] = t[w16(tab + 6) + w16(t + 0x6D + 2 * (k - 1)) / 18] & 3;
+    if ((!off || off >= 4) && tab && w16(t + w16(tab + 2)) == w16(tab + 8)) {   /* (4.0.6: off 4 + k = an earlier
+                                           stage's table, longtable lt_plan: its places in ap_build's order) */
+        for (int k = 1; k <= n; k++)
+            g[k] = t[w16(tab + 6) + (off >= 4 ? GP_OV_ORD[k - 1] : w16(t + 0x6D + 2 * (k - 1))) / 18] & 3;
         for (int k = 2; k <= n; k++) if (g[k] != g[1]) hdr = 1;
         for (int k = 1; k <= n && hdr; k++) if ((k == 1 || g[k] != g[k - 1]) && !gp_hlabel_c(t, g[k])) hdr = 0;
+        if (off >= 4 && hdr) {                  /* (4.0.6: a stage table only when its places come in group blocks -
+                                                   ARG's Apertura: Zona A 1..15, B 16..30; a stage of one table, e.g.
+                                                   URU's Apertura seen in the Intermedio, mixes the groups: none) */
+            int seen = 0;
+            for (int k = 1; k <= n && hdr; k++)
+                if (k == 1 || g[k] != g[k - 1]) {
+                    if (seen >> g[k] & 1) hdr = 0;
+                    seen |= 1 << g[k];
+                }
+        }
     }
     GP_HON = hdr;
     int v = 0, h0[65], s0[65];          /* h0[k]: the virtual row of place k's header (or -1), its own row after;
@@ -2350,6 +2888,76 @@ u32 gp_scal_c(const u8 *lg, const u8 *tab, u32 wk) {
     return o ? (u32)(tab + o) : 0;
 }
 
+/* 4.0.5 the earlier stages' tables (Davide's MEX.CAR: the Apertura's final table during the Clausura): the stage
+   tables gp_stage kept in the league's SS bank (r[k], fresh bit k), for the stages before diy's current one (split's
+   frozen stage index = its stage-title row; a row's table: the record's STG_TBL bytes). The STAT entry cycles the
+   table screen through the live table, the overall one (one group over 24 clubs: CLASSIFICA GENERALE) and these
+   (fmtpage fp_ov: OV_FLAG 0 / 1 / 4 + k); longtable lt_ov draws k from ap_build. A table of this season only: its
+   stage ended this season (the frozen index is this season's), its rows this league's (team file, club count). */
+static const struct gp_ss *ap_bank(const u8 *diy, int k) {
+    const struct gp_ss *b = ss_view(diy[0x12D]);
+    int n = w16(diy + 0x31);
+    if (!b || k < 0 || k >= SS_N || k == 2 || !(b->fresh >> k & 1) || b->n[k] != n || n < 2 || n > 32) return 0;
+    if ((b->r[k][0].team & 255) != diy[0x12D]) return 0;
+    return b;
+}
+u32 ap_mask(const u8 *diy, const u8 *tab) {     /* bit k: table k viewable now */
+    const u8 *r = tab ? st_rec(diy, tab) : 0;
+    if (!r) return 0;
+    u32 m = 0;
+    for (int row = 1, s = diy[w16(tab + 4)]; row < s && row < 5; row++) {
+        int k = r[STG_TBL + row] - 1;
+        if (ap_bank(diy, k)) m |= 1u << k;
+    }
+    return m;
+}
+u32 ap_next(const u8 *diy, const u8 *tab, u32 cur, u32 ov) {    /* the mode after cur: 0 live, 1 overall, 4 + k */
+    u32 m = ap_mask(diy, tab), seq[2 + SS_N], n = 0;
+    seq[n++] = 0;
+    if (ov) seq[n++] = 1;
+    for (int k = 0; k < SS_N; k++) if (m >> k & 1) seq[n++] = 4 + k;
+    for (u32 i = 0; i < n; i++) if (seq[i] == cur) return seq[(i + 1) % n];
+    return seq[1 % n];
+}
+static int ap_row(const u8 *r, const u8 *diy, const u8 *tab, u32 mode) {   /* mode's stage-title row, -1 none */
+    if (!mode) { int s = diy[w16(tab + 4)]; return s < 5 ? s : -1; }
+    for (int q = 1; q < 5; q++) if (mode >= 4 && r[STG_TBL + q] == mode - 3) return q;
+    return -1;
+}
+u32 ap_label(const u8 *diy, const u8 *tab, u32 mode, u32 lng) {   /* mode's stage name (short; lng: long), 0 none */
+    const u8 *r = tab ? st_rec(diy, tab) : 0;
+    int row = r ? ap_row(r, diy, tab, mode) : -1;
+    if (row < 0) return 0;
+    int o = w16(r + (lng ? 42 : 82) + 8 * row);
+    return o ? (u32)(tab + o) : 0;
+}
+static void ap_put(u8 *x, int v) { x[0] = (u8)v; x[1] = (u8)(v >> 8); }
+u32 ap_build(const u8 *diy, const u8 *tab, u32 k) {    /* GP_OV_ROWS / GP_OV_ORD = stage table k, by its places */
+    const u8 *r = tab ? st_rec(diy, tab) : 0;
+    const struct gp_ss *b = r ? ap_bank(diy, k) : 0;
+    int row = b ? ap_row(r, diy, tab, 4 + k) : -1;
+    if (row < 1 || row >= 4) return 0;
+    int n = w16(diy + 0x31), d0 = r[122 + row], d1 = r[122 + row + 1];
+    int played = d0 != 255 && d1 != 255 && d1 > d0 ? d1 - d0 : 0;  /* (the stage's days: every club plays each) */
+    for (int i = 0; i < n * 18; i++) GP_OV_ROWS[i] = diy[0x2B3 + i];
+    for (int i = 0; i < n; i++) {
+        const struct gp_row *o = &b->r[k][i];
+        int j = -1;
+        for (int q = 0; q < n; q++) if (w16(diy + 0x12D + 2 * q) == o->team) { j = q; break; }
+        if (j < 0) return 0;
+        int won = o->won, drawn = o->pts - 3 * won, pl = played > won ? played : won;
+        if (drawn < 0) drawn = 0;
+        if (drawn > pl - won) drawn = pl - won;
+        u8 *x = GP_OV_ROWS + 18 * j;            /* (played, won, drawn, lost, gf, ga, pts; no array: no memcpy) */
+        ap_put(x + 4, pl); ap_put(x + 6, won); ap_put(x + 8, drawn); ap_put(x + 10, pl - won - drawn);
+        ap_put(x + 12, o->gf); ap_put(x + 14, o->ga); ap_put(x + 16, o->pts);
+        GP_OV_ORD[i] = 18 * j;
+    }
+    GP_OV_N = n;
+    GP_OV_ANNUAL = 0;
+    return 1;
+}
+
 /* 4.0 after a career load (gp_repoint, after ProcessCareerFile): every slot buffer's long-name pointer (DIY+27h,
    absolute: stale in a save from another build - 3.x, an older 4.0) from its contest struct (D8CAA[k], rebuilt from
    this exe's records: names at struct + 5 + [struct + 5], [long, short] per division, the career division for slot 0);
@@ -2368,13 +2976,25 @@ static int str_ok(const u8 *s) {        /* the start of a name string (the names
     }
     return n >= 2 && !s[n];
 }
+static const u8 *sc_entry(void);
 void gp_fixload_c(const u32 *nm, u8 *recs, u32 base, u8 *const *slots, u32 phase) {
     if (phase == 0) {
-        if (!nm) return;
         for (int i = 0; i < 2; i++) {
             struct gp_ko *k = &GP_ST.ko[i];
             if (k->magic != MAGIC || k->season != GP_SEAS) continue;
             u8 *c = k->con, *names = c + 5 + c[5];
+            if (k->pi == 0xFF || k->kind == K_CUPD || k->kind == K_SC) {   /* 4.0.5 a one-tie contest (ko_one: the Coppa D's, a supercup): its names
+                                           (STR_BASE-relative, saved with the career) from this exe's tables again -
+                                           a 4.0.x save's pending Coppa D tie showed 'RV. TITOLO' / 'T. PRELIM.'
+                                           (Ischia's: the strings moved since); never nm[3 * 255] ('SCENE
+                                           PRESIDENZIALI') */
+                const u8 *src = k->kind == K_CUPD && GP_CDT && GP_CDNM ? (const u8 *)GP_CDNM :
+                                k->kind == K_SC ? sc_entry() : 0;
+                if (src && k->kind == K_SC) src += 20;
+                if (src) for (int j = 0; j < 8; j++) names[j] = src[j];
+                continue;
+            }
+            if (!nm) continue;
             *(u32 *)names = nm[3 * k->pi];
             *(u32 *)(names + 4) = nm[3 * k->pi + 1];
         }
@@ -2498,8 +3118,10 @@ u32 gp_rlines_c(void) {
     if (live && KT2(k)) {
         int me = kidx(k, GP_MGR);
         if (me != NOC) {
-            if (GP_FORCE) { k->tw[0] = me; k->tl[0] = me ? 0 : 1; }
+            if (GP_FORCE && !GF(k)) { k->tw[0] = me; k->tl[0] = me ? 0 : 1; }   /* (a Grand Final: its own result) */
             if (k->tw[0] == me) { kn = *(u32 *)k->bye; kr = 1; GP_RLPOULE = 1; }
+            else if (GF(k) == GF_DONE && k->tl[0] == me && GP_NM) { kn = GP_NM[3 * k->pi]; kr = -100; }   /* (4.0.5 NZ:
+                                           the Grand Final lost - FINALIST, as the title play-offs' lines) */
         }
     } else if (live && (k->kind == K_TITLE || k->kind == K_STAGE) && GP_NM) {
         int r = club_res(k, GP_MGR);    /* (SeasonFinished comes before the season end's gp_season: the contest itself) */
@@ -2514,6 +3136,19 @@ u32 gp_rlines_c(void) {
     for (int st = 0; st < 3; st++)      /* (else one line each, in stage order) */
         if (wmask & 1 << st) rl_add(wname[st], 1);
     if (kr) rl_add(kn, kr);
+    { u32 sn = sc_rline(); if (sn) rl_add(sn, 1); }   /* (4.0.5: a national supercup won) */
+    rl_put();
+    return rl_n;
+}
+u32 sc_rlines_c(void) {                 /* 4.0.5 (gp_rl, a league with no gplay play-offs: LaLiga, Serie A): only a
+                                           national supercup won */
+    rl_n = rl_w = 0;
+    u32 sn = sc_rline();
+    if (sn) rl_add(sn, 1);
+    rl_put();
+    return rl_n;
+}
+static void rl_put(void) {
     if (GP_REC) {                       /* each into its line if there already, else the first free line 4 / 3 / 2; a
                                            title won with none free: in place of the game's weakest non-winning line (an
                                            elimination, Davide), not ours */
@@ -2538,7 +3173,6 @@ u32 gp_rlines_c(void) {
             ours |= 1 << at;
         }
     }
-    return rl_n;
 }
 
 u32 gp_pwin_c(void) {
@@ -2548,7 +3182,7 @@ u32 gp_pwin_c(void) {
     int me = kidx(k, GP_MGR);
     if (me == NOC) return 0;
     if (KT2(k)) {
-        if (GP_FORCE) { k->tw[0] = me; k->tl[0] = me ? 0 : 1; }
+        if (GP_FORCE && !GF(k)) { k->tw[0] = me; k->tl[0] = me ? 0 : 1; }   /* (a Grand Final: its own result) */
         return k->tw[0] == me ? *(u32 *)k->bye : 0;
     }
     if (k->kind != K_TITLE || !GP_NM || !k->ntie) return 0;   /* a played title play-off (CAN, AUS, CRC, MLT) won:
@@ -2653,14 +3287,59 @@ static int pg_level(int d, int nl, const u8 *first, const u8 *cnt) {
 }
 
 /* The off-file pool's swapped slots this season end (ri_season, before pg_season): each enters the lowest level from
-   below the chain (its identity is new) and goes to the group of the NEW identity's area. */
+   below the chain (its identity is new) and goes to the group of the NEW identity's area (every season: ripool's
+   ri_ida gives each swapped slot's pgroups entry its current identity's areas before pg_season). */
 enum { RIO = 64 };
 static u16 ri_og[RIO];
-static u8 ri_oa[RIO];
 static int ri_no;
 static int ri_over(int g) {
     for (int i = 0; i < ri_no; i++) if (ri_og[i] == g) return i;
     return -1;
+}
+
+static int pg_room(int a, int n, const u8 *occ, const u8 *sz) {   /* group a, else the nearest one with room (else a) */
+    for (int k = 0; k < PG; k++) {
+        if (a + k < n && occ[a + k] < sz[a + k]) return a + k;
+        if (a - k >= 0 && occ[a - k] < sz[a - k]) return a - k;
+    }
+    return a;
+}
+
+/* 4.0.5 (Serie C groups from the real compositions, Francesco's ISCHIA report): a club's area byte per level of groups
+   holds two choices, low nibble the 1st, high nibble the 2nd + 1 (1 = A; 0 or 0xF: none, 0xE: any group - a second
+   team, U23) and its bit 3 = never another group (a northern club never in C, a southern one never in A; levels of up
+   to 7 groups).
+   Serie C's choices come from where the Lega Pro put each region's clubs in 2016-17..2025-26 (never north <-> south);
+   the second teams went to any group and were moved to balance. Raw area bytes 0..8 (ripool's pool areas): 1st only. */
+#define A1(b) ((b) & 15)
+static int pg_a2(int b) { int h = b >> 4; return h == 0 || h == 15 ? 15 : h == 14 ? 14 : (h & 7) - 1; }
+static int pg_ban(int b) { int h = b >> 4; return h != 0 && h < 14 && (h & 8); }
+
+/* A club placed in group a of level tl that can leave to make room: a second team first (to the group with room
+   nearest to a), else a club out of its 1st choice whose 1st choice has room, else one out of both choices whose
+   2nd choice has room, else one in its 1st choice whose 2nd choice has room (a centre club to C so that a northern
+   club gets B), else a club free to go anywhere (2 choices, no ban: a centre club) to the nearest group with room. Moves it and
+   returns 1; 0 = none (ao: the area byte's offset in a club entry, -1 none). */
+static int pg_make_room(const u8 *c, int rs, int nc, int g, int tl, int a, const u8 *first, const u8 *cnt,
+                        const u8 *const *sz, u8 (*occ)[PG], int ao, s8 *copy) {
+    if (ao < 0) return 0;
+    for (int pass = 0; pass < 5; pass++)
+        for (int j = 0; j < nc; j++) {
+            const u8 *f = c + rs * j;
+            int h = f[0] | f[1] << 8, hb = f[2];
+            if (h == g || h >= 8 * (int)sizeof pg_pend || PEND(h) || copy[h] + hb != first[tl] + a) continue;
+            int b = f[ao], h1 = A1(b), h2 = pg_a2(b), w = 99;
+            if (pass == 0 ? h2 == 14 : pass == 4 && h2 < cnt[tl] && !pg_ban(b))   /* (4: 2-choice data only) */
+                w = pg_room(a, cnt[tl], occ[tl], sz[tl]);   /* (a is full: the nearest other group with room) */
+            else if (h2 != 14)
+                w = pass == 1 ? (h1 != a ? h1 : 99) : pass == 2 ? (h1 != a && h2 != a ? h2 : 99) : pass == 3 && h1 == a ? h2 : 99;
+            if (w == a || w >= cnt[tl] || occ[tl][w] >= sz[tl][w]) continue;
+            occ[tl][w]++;
+            occ[tl][a]--;
+            copy[h] = first[tl] + w - hb;
+            return 1;
+        }
+    return 0;
 }
 
 static const u8 *pg_one(const u8 *t, const s8 *slt, s8 *copy, int run) {
@@ -2688,12 +3367,17 @@ static const u8 *pg_one(const u8 *t, const s8 *slt, s8 *copy, int run) {
                 int ov = ri_over(g);
                 if (ov >= 0) { o = first[nl - 1] + cnt[nl - 1]; n = first[nl - 1]; }   /* (a new identity from below) */
                 int lo = pg_level(o, nl, first, cnt), tl = n < o ? lo - 1 : lo + 1;
-                int area = ov >= 0 ? ri_oa[ov] : pidx[tl] < npar ? e[3 + pidx[tl]] : 0xFF;
-                int a = area < cnt[tl] ? area : area == 0xFF ? cnt[tl] / 2 : cnt[tl] - 1, to = a;
-                for (int k = 0; k < PG; k++) {
-                    if (a + k < cnt[tl] && occ[tl][a + k] < sz[tl][a + k]) { to = a + k; break; }
-                    if (a - k >= 0 && occ[tl][a - k] < sz[tl][a - k]) { to = a - k; break; }
+                int ab = pidx[tl] < npar ? e[3 + pidx[tl]] : 0xFF;    /* (a swapped slot: its identity's, ripool's
+                                                   ri_ida; a new identity from below: its lowest level's area) */
+                int area = A1(ab), area2 = pg_a2(ab), ao = pidx[tl] < npar ? 3 + pidx[tl] : -1;
+                int a = area < cnt[tl] ? area : ab == 0xFF ? cnt[tl] / 2 : cnt[tl] - 1, to = -1;
+                for (int k = 0; k < 2 && to < 0; k++) {     /* its 1st choice, then its 2nd: room, else make room */
+                    int w = k ? area2 : area;
+                    if (w >= cnt[tl]) continue;
+                    if (occ[tl][w] < sz[tl][w] || pg_make_room(c, rs, nc, g, tl, w, first, cnt, sz, occ, ao, copy))
+                        to = w;
                 }
+                if (to < 0) to = pg_room(a, cnt[tl], occ[tl], sz[tl]);   /* (a second team, or no choice fits: nearest) */
                 occ[tl][to]++;
                 copy[g] = first[tl] + to - base;
                 continue;
@@ -2923,10 +3607,8 @@ static const u8 *ri_pool(const u8 *e, struct ri_file *f, int fi, u16 *q, u8 *qn,
                 copy[g] = slt[g];
                 continue;
             }
-            int in = ri_swap(f, fi, i, q, *qn, m++, out, &no);
-            ri_og[ri_no] = g;
-            ri_oa[ri_no] = in < RIS ? sl[4 * in + 3] : pa[in - RIS];
-            ri_no++;
+            ri_swap(f, fi, i, q, *qn, m++, out, &no);
+            ri_og[ri_no++] = g;
             copy[g] = slt[g];                   /* (the slot stays; pg_season places its new identity by area) */
         }
     } else {
@@ -3125,6 +3807,17 @@ static const u8 *cf_cup(int id, const u8 **dtp) {
 }
 struct cf_state { u16 magic; u8 season, file; u8 rank[256]; };
 struct cf_state CF_ST;
+enum { CN_N = 32 };
+struct cn_state { u8 season, pad[3]; u8 name[CN_N]; };
+struct cn_state CN_ST;                  /* 4.0.5: the career club's division at the last season end (its name) */
+const u32 CN_SIZE = sizeof(struct cn_state);
+static u32 cf_last1(void) {              /* 4.0.5 (gp_wn_c 'E', last season): the 1st of the career club's level */
+    if (CF_ST.magic != 0x4643 || (u8)(CF_ST.season + 1) != GP_SEAS || (GP_MGR & 0xFF) != CF_ST.file) return 0xFFFE;
+    int lv = CF_ST.rank[GP_MGR >> 8] >> 5;
+    for (int i = 0; i < 256; i++)
+        if (CF_ST.rank[i] == (1 | lv << 5)) return (u32)CF_ST.file | (u32)i << 8;
+    return 0xFFFE;
+}
 #ifndef CF_SEED
 #define CF_SEED 0
 #endif
@@ -3149,6 +3842,13 @@ void cf_cap_c(u32 dv, const u8 *diy, u32 season) {     /* a division's final tab
         if (CF_ST.magic != CF_MAGIC || CF_ST.season != (u8)season) {
             for (int i = 0; i < 256; i++) CF_ST.rank[i] = 0;
             CF_ST.magic = CF_MAGIC; CF_ST.season = (u8)season; CF_ST.file = (u8)(w & 0xFF);
+        }
+        if (w == GP_MGR && GP_MGR) {       /* (4.0.5: the division the career club played in - its name for the
+                                           WINNERS page's last season, winners.py 'E': CN_ST, item 'CN') */
+            CN_ST.season = (u8)season;
+            int i = 0;
+            for (; i < CN_N - 1 && diy[4 + i]; i++) CN_ST.name[i] = diy[4 + i];
+            CN_ST.name[i] = 0;
         }
         if ((w & 0xFF) != CF_ST.file) continue;
         const u8 *dt = cf_dt(CF_ST.file);
@@ -3204,5 +3904,164 @@ u32 cf_member_c(u32 id, u32 season, u32 cteam) {        /* 2: not ours (the defi
     int n = cf_build((int)id, (int)season, cteam, l);
     if (!n) return 2;
     for (int k = 0; k < n; k++) if (l[k] == (u16)cteam) return 1;
+    return 0;
+}
+
+/* ---- 4.0.5 national supercups (supercup.py; internal/handoff/supercups.md). SC_ST (engine item 'SC'): db 'S','C',
+   count, the last season handled (the game's season byte); db round (0, 1 = the career club's semi-final built, 2 =
+   won: its final due, 3 = done), 0; dw the other semi-final's winner; dd 0; then the season end's national cup
+   winners / finalists (supercup.py's sc_cup: 12 B per cup, by contest id). GP_SCT (the glue, a World 2026-27 career):
+   db count; per country SC_E bytes: db league team file, cup contest id, from_season (1, or 2: not in the world's
+   first season), week (the first match), legs, level (LV_*), n (2: a final; 4: semi-finals e0-e1, e2-e3 + the final),
+   week of the final; db rule[4] (SCR_* | the fallback SCR_* << 4, used when the rule's club is already in); dw the
+   world's first season's entrants[4] (the real edition); dd long name, short name; db round-name codes (semi,
+   final), db the stage-title play-offs of the rules SCR_TITLE0 / 1 (MEX); dd the season record's name (REGISTRO GESTIONE: the long name if it fits 144 px, else the short).
+   SC_ST +5 = 1: the career club won this season's (SC_ST +3) supercup -> its record line (sc_rline, gp_rlines_c). Only the career club's country's supercup is played: the career club in it -> its tie in slot 4 (as
+   a Coppa D tie, kind K_SC); the other semi-final is decided at once (the better placed of last season wins 3 in 5). */
+enum { SC_E = 36, SC_NE = 16, SC_H = 12, SC_EARLY = 0x80 };   /* (entry byte 2: from_season | SC_EARLY) */
+enum { SCR_CHAMP = 1, SCR_SECOND, SCR_CUPW, SCR_CUPF, SCR_THIRD, SCR_FOURTH, SCR_TITLE0, SCR_TITLE1 };
+u8 SC_ST[SC_H + 12 * SC_NE];
+const u32 SC_STSZ = sizeof SC_ST;
+const u8 *GP_SCT;                       /* (the glue: the table, 0 = none) */
+u32 GP_SCFIRST;                         /* (the glue: the career's first season in the world) */
+u32 SC_TRACE;                           /* (the harness: 1 built, 2 final built, 0x81 summer skipped in season 1, 0x82
+                                           entrants unknown, 0x84 career club not in it, | 0x40 decided) */
+
+static u16 sc_place(int file, int place) {     /* last season's top-division club at place (CF_ST), 0 = unknown */
+    if (CF_ST.magic != CF_MAGIC || CF_ST.file != file) return 0;
+    for (int i = 0; i < 256; i++) if (CF_ST.rank[i] == place) return (u16)(file | i << 8);   /* (level 0 << 5) */
+    return 0;
+}
+static int sc_rank(u16 w) {                    /* last season's place (top division), 9 = none */
+    if (CF_ST.magic != CF_MAGIC || CF_ST.file != (w & 0xFF)) return 9;
+    int r = CF_ST.rank[w >> 8];
+    return r && r < 32 ? r : 9;
+}
+static u16 sc_cup(int id, int fin) {           /* the stored cup winner (fin 0) / finalist (1), 0 = unknown */
+    if ((SC_ST[0] | SC_ST[1] << 8) != 0x4353) return 0;
+    for (int i = 0; i < SC_ST[2] && i < SC_NE; i++) {
+        const u8 *e = SC_ST + SC_H + 12 * i;
+        if (e[1] == id) return (u16)(fin ? e[8] | e[9] << 8 : e[4] | e[5] << 8);
+    }
+    return 0;
+}
+static u16 sc_rule(const u8 *e, int r) {
+    switch (r & 15) {
+    case SCR_CHAMP: return sc_place(e[0], 1);
+    case SCR_SECOND: return sc_place(e[0], 2);
+    case SCR_CUPW: return sc_cup(e[1], 0);
+    case SCR_CUPF: return sc_cup(e[1], 1);
+    case SCR_THIRD: return sc_place(e[0], 3);
+    case SCR_FOURTH: return sc_place(e[0], 4);
+    case SCR_TITLE0: case SCR_TITLE1:   /* (4.0.5 MEX: last season's stage-title winner, play-off e[30] / e[31]: WN_ST) */
+        if (WN_ST.magic != WN_MAGIC || (u8)(WN_ST.season + 1) != GP_SEAS) return 0;
+        { u32 w = wn_find('K', e[30 + (r & 15) - SCR_TITLE0], 0); return w == 0xFFFE ? 0 : w; }
+    }
+    return 0;
+}
+static void sc_ko(struct gp_ko *k, const u8 *e, u16 home, u16 away, int final) {
+    int w = final ? e[7] : e[3];
+    ko_one(k, home, away, w, w + 1, e[4], K_SC, e[5], e[0], e + 20);
+    for (int i = 0; i < KG; i++) GP_ST.rn[i] = 0;
+    GP_ST.rn[0] = e[28 + (final || e[6] == 2)];      /* (the round's name: semi-final / final) */
+}
+static int sc_free(void) {              /* slot 4 not holding a contest of this season still to decide */
+    return !(GP_ST.magic == MAGIC && GP_ST.ko[0].magic == MAGIC && GP_ST.ko[0].season == GP_SEAS &&
+             GP_ST.ko[0].tw[0] == NOC);
+}
+int sc_busy(void) {                     /* 4.0.5: slot 4 holds this season's supercup tie, not played yet (built early:
+                                           another slot-4 builder waits) */
+    return GP_ST.magic == MAGIC && GP_ST.ko[0].magic == MAGIC && GP_ST.ko[0].season == GP_SEAS &&
+           GP_ST.ko[0].kind == K_SC && GP_ST.ko[0].tw[0] == NOC;
+}
+u32 sc_step_c(void) {                   /* the calendar advance: 1 = the career club's tie built into ko[0] */
+    if (!GP_SCT || !GP_MGR) return 0;
+    const u8 *e = 0;
+    for (int i = 0; i < GP_SCT[0]; i++)
+        if (GP_SCT[1 + SC_E * i] == (GP_MGR & 0xFF)) e = GP_SCT + 1 + SC_E * i;
+    if (!e) return 0;
+    if (SC_ST[3] == GP_SEAS) {          /* (handled: a final four's final still due) */
+        if (SC_ST[4] != 2 || (int)GP_WK + 1 < e[7] || !sc_free()) return 0;
+        sc_ko(&GP_ST.ko[0], e, GP_MGR, (u16)(SC_ST[6] | SC_ST[7] << 8), 1);
+        SC_ST[4] = 3; SC_TRACE = 2;
+        return 1;
+    }
+    if (((int)GP_WK + 1 < e[3] && !(e[2] & SC_EARLY)) || !sc_free()) return 0;   /* (4.0.5 'early': built at the
+                                           season's first advance - its fixture row and VISUAL. COMPETIZ. entry from
+                                           the start - still played at its own week, ko_one's dates) */
+    SC_ST[3] = GP_SEAS; SC_ST[4] = 0; SC_ST[5] = 0; SC_ST[8] = SC_ST[9] = 0;
+    if (GP_SCFIRST && (e[2] & 0x7F) > 1) { SC_TRACE = 0x81; return 0; }   /* (a summer one: already played before the world) */
+    int n = e[6] == 4 ? 4 : 2;
+    u16 c[4];
+    for (int i = 0; i < n; i++) {
+        if (GP_SCFIRST) { c[i] = (u16)(e[12 + 2 * i] | e[13 + 2 * i] << 8); continue; }
+        c[i] = sc_rule(e, e[8 + i]);
+        for (int j = 0; j < i; j++) if (c[i] && c[i] == c[j]) c[i] = sc_rule(e, e[8 + i] >> 4);   /* (the double) */
+        for (int j = 0; j < i; j++) if (c[i] == c[j]) c[i] = 0;
+    }
+    for (int i = 0; i < n; i++) if (!c[i]) { SC_TRACE = 0x82; return 0; }
+    int me = -1;
+    for (int i = 0; i < n; i++) if (c[i] == GP_MGR) me = i;
+    if (me < 0) { SC_TRACE = 0x84; return 0; }
+    if (n == 4) {                       /* (the other semi-final, decided now) */
+        int o = me < 2 ? 2 : 0;
+        u16 a = c[o], b = c[o + 1];
+        int ra = sc_rank(a), rb = sc_rank(b);
+        rng = GP_SEAS * 7919u + e[1];
+        u16 w = below(5) < 3 ? (ra <= rb ? a : b) : (ra <= rb ? b : a);
+        SC_ST[6] = (u8)w; SC_ST[7] = (u8)(w >> 8);
+        SC_ST[4] = 1;
+    }
+    sc_ko(&GP_ST.ko[0], e, c[me & 2], c[(me & 2) + 1], n == 2);
+    SC_TRACE = 1;
+    return 1;
+}
+static const u8 *sc_entry(void);
+void sc_done(const struct gp_ko *k) {  /* gp_rec_c: the career club's supercup tie decided */
+    SC_TRACE |= 0x40;
+    int won = k->tw[0] != NOC && k->team[k->tw[0]] == GP_MGR;
+    if (SC_ST[4] == 1) {
+        SC_ST[4] = won ? 2 : 3;
+        u16 a = k->tw[0] != NOC ? k->team[k->tw[0]] : 0, b = (u16)(SC_ST[6] | SC_ST[7] << 8);
+        if (!won && a && b) {           /* (4.0.5 Davide 29/10: the semi-final lost - the final simulated now, as the
+                                           other semi-final was: the better placed of last season wins 3 in 5, the
+                                           draw seeded by the season and the cup - its winner for VINCITORI) */
+            const u8 *e = sc_entry();
+            int ra = sc_rank(a), rb = sc_rank(b);
+            rng = GP_SEAS * 7919u + (e ? e[1] : 0) + 1;
+            u16 w = below(5) < 3 ? (ra <= rb ? a : b) : (ra <= rb ? b : a);
+            SC_ST[8] = (u8)w; SC_ST[9] = (u8)(w >> 8);
+        }
+    } else {
+        if (won) SC_ST[5] = 1;          /* (the final, or the one match, won: the season record's line) */
+        if (k->tw[0] != NOC) { u16 w = k->team[k->tw[0]]; SC_ST[8] = (u8)w; SC_ST[9] = (u8)(w >> 8); }
+    }                                   /* (4.0.5 Davide 29/10: the winner kept for VINCITORI all season - SC_ST +8,
+                                           header bytes the 'SC' item already saves: slot 4 is reused later) */
+}
+static const u8 *sc_entry(void) {      /* the career club's country's GP_SCT entry, 0 = none */
+    if (!GP_SCT || !GP_MGR) return 0;
+    for (int i = 0; i < GP_SCT[0]; i++)
+        if (GP_SCT[1 + SC_E * i] == (GP_MGR & 0xFF)) return GP_SCT + 1 + SC_E * i;
+    return 0;
+}
+u32 sc_wline_c(void) {                  /* winners.py: this season's supercup line on the career league's VINCITORI
+                                           page - its record name (STR_BASE-relative), 0 = no line: the career club's
+                                           tie not built this season (not in it, a summer one before the world); a
+                                           final four's semi-final lost: its simulated final's winner (sc_done) */
+    const u8 *e = sc_entry();
+    if (!e || SC_ST[3] != GP_SEAS) return 0;
+    if (!(SC_ST[8] | SC_ST[9]) && !sc_busy() && SC_ST[4] != 2) return 0;
+    return *(const u32 *)(e + 32);
+}
+static u32 sc_wn(void) {                /* gp_wn_c 'U': the winner, else 0FFFEh (DA GIOCARE on the career's league) */
+    u16 w = (u16)(SC_ST[8] | SC_ST[9] << 8);
+    return SC_ST[3] == GP_SEAS && w ? w : 0xFFFE;
+}
+static u32 sc_rline(void) {             /* the career club's supercup won this season: its record name, else 0 */
+    if (!SC_ST[3] || SC_ST[3] != GP_SEAS || SC_ST[5] != 1 || !GP_SCT || !GP_MGR) return 0;   /* (no magic check: the
+                                           magic is written with the first cup stored, at the season end - after the
+                                           season record; a first season's SC_ST has none until then) */
+    for (int i = 0; i < GP_SCT[0]; i++)
+        if (GP_SCT[1 + SC_E * i] == (GP_MGR & 0xFF)) return *(const u32 *)(GP_SCT + 1 + SC_E * i + 32);
     return 0;
 }

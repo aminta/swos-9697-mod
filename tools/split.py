@@ -361,6 +361,8 @@ sp_rows:                                ; ecx = day after the split, ebx = match
 .places:
     test byte [edi + 2], 1
     jz .r
+    call sp_mxnone                      ; (4.0.5 lgreal: lg_mx, a real season-1 list's own table) CF: cl decided
+    jc .dec
     movzx edi, word [ebp + 16]          ; this stage's matrix of the slots (the fixtures before the split)
     push ecx
     push ebp
@@ -386,6 +388,15 @@ sp_rows:                                ; ecx = day after the split, ebx = match
     pop ebp
     pop edi
     pop esi
+    ret
+.dec:
+    test cl, cl                         ; (as the matrix: 1 the first at home, 0 the second, 2 the calendar's)
+    jnz .r
+    xchg eax, ebx
+    jmp .r
+
+sp_mxnone:                              ; (no real list: split's own matrix)
+    clc
     ret
 
 sp_slot:                                ; eax = row -> ebp = its slot in the slot list (+0EDh, group 0)
@@ -461,6 +472,27 @@ sp_freeze:                              ; esi = DIY, edx = entry, eax = stage, e
 %endif
     call sp_restregs
     popad
+%if F1_ON
+    test al, al                         ; 4.0.5 FASE 1 page: the first split of the season, the table now (sorted, the
+    jnz .nof1                           ; points rule not applied yet) -> gplay.c f1_capture (the career's league only)
+    cmp word [SIMFLAG], 0
+    jne .nof1
+    pushad
+    push es
+    push ds
+    pop es
+    cld
+    movzx eax, word [F1_TEAM]
+    push eax
+    movzx eax, byte [F1_SEAS]
+    push eax
+    push esi
+    call F1CAP
+    add esp, 12
+    pop es
+    popad
+.nof1:
+%endif
     mov [sp_rec], ebp
     mov [sp_stg], al
     movzx ecx, byte [edx + 3]
@@ -1400,6 +1432,7 @@ SR = 28                                             # a stage's record (ASM SR_)
 
 CALLBACKS = []          # after-stage routines by name (engine.after_stage; their addresses bound by late())
 LATE = []               # (name, obj1 offset of its SP_CB dword) still to bind
+MXH = []                # 4.0.5: the obj1 offset of sp_rows' `call sp_mxnone` (lgreal: lg_mx)
 
 
 def late(p):
@@ -1634,6 +1667,7 @@ def pair_table(p, s, n):
 def patch(p, cave, nasmcave, splits):
     """splits: [(world, team file, division, clubs, spec)]. Returns the cave end (nothing without splits)."""
     import careerworld
+    MXH.clear()
     if not splits:
         return cave
     s = sites(p)
@@ -1667,6 +1701,10 @@ def patch(p, cave, nasmcave, splits):
         sym['GP_STAGE'] = gplay.LABELS['gp_stage']
     else:
         src = nasmcave.sub(src, 'call GP_STAGE', 'call sp_nostage')
+    f1 = gplay.LABELS.get('f1_capture')             # 4.0.5 the FASE 1 page's capture (gplay.c)
+    sym.update(F1_ON=(0, int(bool(f1))))
+    if f1:
+        sym.update(F1CAP=f1, F1_TEAM=gplay.LABELS['CAREERTEAM'], F1_SEAS=gplay.LABELS['SEASONPLAYING'])
     if gplay.LABELS.get('GP_SHB'):                  # (4.0.1: gp_keep reads the 'keep' table from the block in use)
         sym['GP_SHB'] = gplay.LABELS['GP_SHB']
         src = nasmcave.sub(src, '    SHB_SET\n', '    mov dword [GP_SHB], sp_sh\n    mov dword [GP_SHB + 4], sp_shx\n')
@@ -1686,6 +1724,10 @@ def patch(p, cave, nasmcave, splits):
     code, fix = nasmcave.assemble(src, cave, sym)
     lab = nasmcave.labels(src, cave, sym)
     LATE[:] = [(name, lab['SP_CB'] + off, lab['sp_nostage']) for name, off in late]
+    code_ = code
+    MXH[:] = [cave + i for i in range(len(code_) - 4) if code_[i] == 0xE8 and
+              cave + i + 5 + struct.unpack_from('<i', code_, i + 1)[0] == lab['sp_mxnone']]
+    assert len(MXH) == 1, MXH                       # (4.0.5: lgreal retargets this call to lg_mx)
     engine.ITEM_AT['SH'] = (1, lab['sp_sh'])        # (4.0.1: the career league's head-to-head / 'keep' block)
     engine.CALL_AT['sp_migrate'] = (1, lab['sp_migrate'])   # (4.0 saves: the state moved up, the block into 'SH')
     assert not any(p.get(1, cave, len(code)))

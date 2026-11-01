@@ -24,6 +24,8 @@ The season's wages (InitializeNewSeason -> cseg_5DEB9) are computed after xtra_l
 import re
 import struct
 
+import blond
+
 import nasmcave
 
 PLAYER = 38
@@ -632,7 +634,7 @@ def build(blocks, k, extra):
     for i in range(k):
         pl = blocks.get(i, [])
         assert len(pl) <= extra and all(len(x) == PLAYER and x[3] for x in pl), i
-        out += b''.join(pl) + bytes(PLAYER * (extra - len(pl)))
+        out += b''.join(blond.bald(x) for x in pl) + bytes(PLAYER * (extra - len(pl)))   # (4.0.3: bald players)
     return bytes(out)
 
 

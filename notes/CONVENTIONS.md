@@ -76,3 +76,14 @@ new rule. If a rule seems wrong for a case, ask the regia session; don't silentl
     grow (every release did; obj2's base moves with it and the loads handle that). Rule: new code AND data go in obj1
     pages of their own (obj1 is writable), as controls.py does; a new obj2 page needs Davide's ok and old-save play-on
     (world_cuplist_mestre + world_winners_oldsave on a release-recipe dir) before its sha.
+21. The career save's engine block ('EN' after the trailer, trailer.py) shares careerworld.SEL_ROOM with the 160-team
+    cache: SEL_N x 684 + main block + engine block <= SEL_ROOM (trailer.py asserts it). Room left, release recipe:
+    305 B after 4.0.6's 'BQ' (24 B, gplay SEC_BQ: 15131 B engine block, main block 948 B). A new item costs 4 + its
+    size; past the room the build fails - plan any 4.0.6+ item against this figure and update it here.
+22. obj1 has a ceiling too: 237 pages in the release build (4.0.5, Panchina's SWOS++ probe: obj1 in memory <= 238 pages
+    starts every match under SWOS++ 1.9.2.2, 239+ makes PLAY MATCH stall - obj2's base moves past what SWOS++ tolerates;
+    the harness adds 1 obj1 page of its own, so 237 file pages = 238 under test = the real limit). patch.py prints
+    'exe: object pages: obj1 N ..., obj2 M' and warns over 237; buildrel.sh fails a release build with obj1 > 237 or
+    obj2 != 213. Room was made in 4.0.5 by capping the historic pages (patch.py h2, 1 used of the 4 it had become).
+    A 4.0.5+ item needing obj1 pages must find room in the existing pages first; the structural cure (code pages in a
+    third object after obj2, internal/design/obj2-code-pages.md) is 4.0.6.

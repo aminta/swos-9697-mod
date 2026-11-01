@@ -613,6 +613,14 @@ ct_prep:                                ; CT_SEG a tie -> the ties' contest (its
     jne .r
     mov edi, TIE
     mov al, [CT_SEG + 6]
+    push ecx                            ; 4.0.5 rc20: never a week already reached - two rounds of one month (the
+    movzx ecx, word [CAL_CUR]           ; Libertadores' q1 and q2, both month 8): the next one built after the first
+    movzx ecx, byte [CAL + ecx + 1]     ; had its first leg in a played week, only RITORNO left - and ESCI on it
+    cmp al, cl                          ; crashed to DOS (Regia's NACIONAL, season 2)
+    ja .wk
+    lea eax, [ecx + 1]
+.wk:
+    pop ecx
     mov [edi + 3], al
     add al, 2
     mov [edi + 4], al
@@ -797,6 +805,12 @@ ct_daily:                               ; before the next match (uefaq's uq_dail
     jne .l
     inc ecx
 .l:
+%if KOLOSE_
+    xor ecx, ecx                        ; (CONTI_KOLOSE test builds only: the career club loses every conti tie - the
+%endif                                  ; cross-cup routes, q3 / pre losers, forced)
+%if KOWIN_
+    mov ecx, 1                          ; (CONTI_KOWIN test builds only: it wins every conti tie - the next round
+%endif                                  ; built after a won one, rc20's q1 -> q2)
     push ecx
     call CT_RESULT
     add esp, 4
@@ -833,6 +847,7 @@ ct_daily:                               ; before the next match (uefaq's uq_dail
 
 ct_build:                               ; [A0R] -> slot 3, as uefaq's .build: the played slot-3 calendar entries get
     pushad                              ; round FFh, the slot cleared, the stale type-2 stage reset, cseg_8B2D3
+    call ct_newcup
     mov esi, CAL
     movzx ecx, word [CAL_CUR]
     add ecx, esi
@@ -860,6 +875,67 @@ ct_build:                               ; [A0R] -> slot 3, as uefaq's .build: th
     call C8B2D3
     mov word [SLOT3 + 39h], 0FFFFh
     popad
+    ret
+
+ct_newcup:                              ; 4.0.5 (world_sc_bra, FLAMENGO 3rd in its Libertadores group): slot 3 changes
+    pushad                              ; CUP - its long name (the slot's +27h, absolute) is not the new contest's
+    mov esi, [SLOT3 + 27h]              ; ([A0R] +5 + [+5], STR_BASE-relative) - the old cup's slot-3 calendar entries
+    test esi, esi                       ; still to come (the Libertadores' knockout days, set at the season start) are
+    jz .x                               ; removed. The game plays a slot-3 entry whatever its round byte (FEh, as
+                                        ; gplay's gp_calold, still played the R16 1st leg at the old week) and
+                                        ; cseg_8BC06 finds a round's entry by (slot, round): the Sudamericana's R16 /
+                                        ; SF (the same round bytes) went into the Libertadores' ones - a decided tie's
+                                        ; entry left in the calendar, PARTITA on its result screen for ever
+    mov edi, [A0R]
+    movzx eax, byte [edi + 5]
+    mov edi, [edi + 5 + eax]
+    add edi, STR_BASE_
+    mov ecx, 40
+.c: mov al, [esi]
+    cmp al, [edi]
+    jne .new
+    test al, al
+    jz .x
+    inc esi
+    inc edi
+    loop .c
+    jmp .x
+.new:
+    mov esi, CAL                        ; (the calendar's end: after its count's entries)
+    movzx ecx, word [CAL - 4]
+.e: test ecx, ecx
+    jz .e2
+    movzx eax, word [esi + 2]
+    test eax, eax
+    jz .e2
+    add esi, eax
+    dec ecx
+    jmp .e
+.e2:
+    mov ebp, esi                        ; ebp = end
+    movzx esi, word [CAL_CUR]
+    add esi, CAL
+.l: cmp esi, ebp
+    jae .x
+    movzx ebx, word [esi + 2]
+    test ebx, ebx
+    jz .x
+    cmp byte [esi], 3
+    je .d
+    add esi, ebx
+    jmp .l
+.d: push esi                            ; (removed, as gplay.c cal_drop: the rest moves down, the count - 1)
+    mov edi, esi
+    add esi, ebx
+    mov ecx, ebp
+    sub ecx, esi
+    cld
+    rep movsb
+    pop esi
+    sub ebp, ebx
+    dec word [CAL - 4]
+    jmp .l
+.x: popad
     ret
 
 ct_on: db 0
@@ -945,6 +1021,12 @@ def patch(p, at, limit, bss_at, area):
         symbols[f'XST{i}'] = (1, off)
     symbols.update({k: u[k] for k in ('SLOT3', 'CAL', 'CAL_CUR', 'STAGE_G', 'D0R', 'D1R', 'D2R', 'C8B2D3', 'A0R',
                                       'E092F', 'CUP_KIND')})
+    import sacups
+    symbols['STR_BASE_'] = (2, sacups.STR_BASE)
+    symbols['KOLOSE_'] = (0, int(bool(os.environ.get('CONTI_KOLOSE'))))   # (test builds only)
+    symbols['KOWIN_'] = (0, int(bool(os.environ.get('CONTI_KOWIN'))))     # (test builds only)
+    if os.environ.get('CONTI_KOLOSE'):
+        print('exe: CONTI_KOLOSE (test build: the career club loses its conti ties)')
     symbols.update(NEXT_DAILY=u['uq_daily'], TIE=(1, TIE[0]), TIE_ID=(0, p.get(1, TIE[0], 1)[0]),
                    TIE_D7=(0, D7_BASE[0] + len(STRUCTS)), CT_D7=(0, D7_BASE[0]), CT_SEG=syms['CT_SEG'], CT_NS=(0, len(STRUCTS)),
                    CT_ED=syms['CT_ED'], CT_RESULT=syms['ct_result'], CT_RESUME=syms['ct_resume'])

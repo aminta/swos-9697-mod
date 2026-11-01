@@ -21,7 +21,7 @@ import struct
 import zlib
 
 ROOT = os.path.join(os.path.dirname(__file__), '..')
-VERSION = '4.0.2'
+VERSION = '4.0.5'
 BLOCK = 16
 FILES = [  # (id, original path, patched path, file name in the game folder)
     ('ITALIAN.EXE', 'orig/ITALIAN.EXE', 'c/SWOS/ITALIAN.EXE', 'ITALIAN.EXE'),
@@ -163,6 +163,12 @@ def world_entries(data_dir=None):
         import zones                                         # the league tables' zone colours, per world
         names = sorted(set(names) | set(zones.file_names([e if os.sep in e else os.path.join(mkseason.PACKS, e)
                                                           for e in mkseason.ENABLED])))
+        import lpreal                                        # 4.0.5: the real league-phase fixtures (season 1)
+        names = sorted(set(names) | set(lpreal.file_names()))
+        import lgreal                                        # 4.0.5: the real league calendars (season 1)
+        names = sorted(set(names) | set(lgreal.file_names()))
+    if os.path.exists(os.path.join(data_dir, 'KITFIX.DAT')):   # (4.0.5 kitfix.py: the kits shipped before that the
+        names = sorted(set(names) | {'KITFIX.DAT'})          # build's team files changed - the career kit refresh)
     rows = [(n, None, os.path.relpath(os.path.join(data_dir, n), ROOT), 'DATA/' + n) for n in names
             if 'DATA/' + n not in listed]
     missing = [r[0] for r in rows if not os.path.exists(os.path.join(ROOT, r[2]))]

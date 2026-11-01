@@ -183,6 +183,17 @@ def _records(data):
     return [data[2 + k * TEAM_SIZE:2 + (k + 1) * TEAM_SIZE] for k in range(struct.unpack('>H', data[:2])[0])]
 
 
+def area_byte(x):
+    """A level's area as gplay.c pg_season reads it: low nibble the 1st choice (A = 0), high nibble the 2nd + 1 (F none,
+    E any group: a second team; + 8: never another group, 'C,B!') - 'C' -> 0xF2, 'C,B' -> 0x22, 'C,B!' -> 0xA2,
+    'A,*' -> 0xE0 (4.0.5, Serie C groups)."""
+    first, _, second = x.partition(',')
+    ban = second.endswith('!')                  # ('A,B!': never another group - a northern club never in C)
+    second = second.rstrip('!')
+    return 'ABCDEFGHI'.index(first) | (0xE0 if second == '*' else
+                                       ('ABCDEFGHI'.index(second) + 1 | 8 * ban) << 4 if second else 0xF0)
+
+
 def _shirt_numbers(data):
     """Team file bytes with every shirt number outside 1..99 replaced by the lowest number of 1..16 its club does not
     use (record order): the mod draws 1..99 over the controlled / booked player (shirtnum.py), others not at all.
@@ -383,9 +394,10 @@ class Pack:
                 if a == 'reserve':
                     continue
                 parts = a.split('/') if '/' in a else [a]
-                _need(a == '' or all(x and x in 'ABCDEFGHI'[:n] for x in parts) and len(parts) in (1, len(pars)),
+                _need(a == '' or all(re.fullmatch(f"[{'ABCDEFGHI'[:n]}](,([{'ABCDEFGHI'[:min(n, 7)]}]!?|\\*))?", x) for x in parts)
+                      and len(parts) in (1, len(pars)),
                       f"clubs.csv: {k}: area A..{'ABCDEFGHI'[n - 1]} (a group, every level) or one per level of groups "
-                      f"(A/B...: {len(pars)} levels)")
+                      f"(A/B...: {len(pars)} levels); a level may give a 2nd choice: 'C,B' (or 'A,*': any group)")
         if (self.league and len(divs) > 1 and self.league.get('playoffs') != 'ita'   # (Italy: dplay's own counts;
                 and not os.environ.get('MKSEASON_NOBALANCE')):                       # harness: a build as it is)
             self._balance(divs)
@@ -483,7 +495,11 @@ class Pack:
             return None
         import gplay
         try:
-            spec = gplay.compile_spec(lg['ko_playoffs'], len(self.divisions()), lg.get('names'))
+            club = lambda e: ({'club_team': self.where[e['club']][0] | self.where[e['club']][1] << 8,
+                               'div': self.division[e['club']]}
+                              if isinstance(e, dict) and 'club' in e and e['club'] in self.league_clubs else e)
+            pos = [dict(po, entrants=[club(e) for e in po.get('entrants', [])]) for po in lg['ko_playoffs']]
+            spec = gplay.compile_spec(pos, len(self.divisions()), lg.get('names'))
         except (ValueError, KeyError, TypeError) as e:
             _need(False, f"{self.meta['id']}: ko_playoffs: {e}")
         return self.world, self.files[lg['clubs']][0], spec
@@ -557,13 +573,20 @@ class Pack:
             while d < len(divs):
                 low, d = d, d + pars.get(d, 1)
             letters = 'ABCDEFGHIJ'
-            darea = lambda k: letters.index(self.clubs[k]['area'].split('/')[-1]) if self.clubs[k].get('area') else 0xFF
+            darea = lambda k: letters.index(self.clubs[k]['area'].split('/')[-1][0]) if self.clubs[k].get('area') else 0xFF
             fl, base = self.files[self.league['clubs']]
             slots = sorted(self.league_clubs, key=lambda k: self.where[k][1])
             first = list(rs.get('first') or [])
             order = first + [k for k in self.pool_clubs if k not in first]
+            pt = self.parallel()                # (4.0.5: each identity's areas per level of groups, ripool's IDA_TAB:
+            npar = sum(1 for _, sz in pt[1] if len(sz) > 1) if pt else 0   # a slot's groups follow its identity)
+            pa = {g: list(a) if isinstance(a, list) else [a] * npar for g, _, a in pt[2]} if pt else {}
+            ar = lambda a: [area_byte(x) for x in a.split('/')] if '/' in a else [area_byte(a) if a else 0xFF] * npar
+            ida = [pa.get(base + self.where[k][1], [0xFF] * npar) for k in slots] + \
+                  [ar(self.clubs[k].get('area') or '') for k in self.pool_clubs]
             return (self.world, fl, [('league', low, [(base + self.where[k][1], self.division[k], darea(k)) for k in slots],
-                                      [darea(k) for k in self.pool_clubs], [self.pool_clubs.index(k) for k in order])],
+                                      [darea(k) for k in self.pool_clubs], [self.pool_clubs.index(k) for k in order],
+                                      ida if npar else [])],
                     base, [], self._nrec(fl), len(self.pool_clubs))
         if not hasattr(self, '_tf'):
             self._tf = self.team_files()
@@ -611,8 +634,8 @@ class Pack:
             base = next(b for fk, (ff, b) in self.files.items() if ff == fl)
             d = self.division[k]
             a = c.get('area') or ''
-            out.append((base + i, d, ['ABCDEFGHI'.index(x) for x in a.split('/')] if '/' in a else
-                        'ABCDEFGHI'.index(a) if a else own.get(d, 0xFF)))      # (a reserve club: division nd)
+            out.append((base + i, d, [area_byte(x) for x in a.split('/')] if '/' in a else
+                        area_byte(a) if a else own.get(d, 0xFF)))      # (a reserve club: division nd)
         return self.world, levels, out
 
     def divisions(self):
@@ -1369,7 +1392,8 @@ SECOND_RULES = {          # league 'second_teams': {'rules': code} -> (top level
     'ger': (2, False),    # never to the 2. Bundesliga; no relegation play-off
     'ned': (1, False),    # never to the Eredivisie; no play-offs
     'por': (0xFF, False), # never into the first team's division; no play-off (Davide 2026-10-18)
-}
+    'nzl': (0xFF, False), # the A-League reserves: no move, never a qualifier by place (the Championship: fixed
+}                         # entrants {"club": key}, never in the Grand Final)
 
 
 def second_table():
@@ -1398,7 +1422,7 @@ def second_table():
         for k, f in sec:
             _need(k in pk.league_clubs, f"{pk.meta['id']}: second team {k} not a league club")
             gf = glob(f) if f in pk.clubs and f in pk.league_clubs else 0xFFFF
-            rows.append(struct.pack('<HHBB', glob(k), gf, top, (1 if po else 0) | ex))
+            rows.append(struct.pack('<HHBBH', glob(k), gf, top, (1 if po else 0) | ex, pk.where[k][0] | pk.where[k][1] << 8))
         if not rows:
             continue
         out += bytes((len(lv),)) + bytes(lv) + bytes((len(rows),)) + b''.join(rows)
@@ -2228,8 +2252,11 @@ def patch(p, lang, area, cave):
         _need(cat <= CAREER_DATA[0] + 0x1000 * career_data_pages(), f'career packs overflow their pages ({cat:#x})')
     at, tleagues = _tourney_leagues(p, lang, area, at, env)
     if any(dv['teams'] % 2 for pk in packs() for dv in pk.divisions()) or \
-            any(pk.count[c['clubs']] % 2 for pk in packs() if pk.kind == 'tourney' for c in pk.comps if c['type'] == 'league'):
-        odd_leagues(p)
+            any(pk.count[c['clubs']] % 2 for pk in packs() if pk.kind == 'tourney' for c in pk.comps if c['type'] == 'league') or \
+            any(len(rd.get('members') or []) % 2 and len(rd['members']) >= 5 for pk in packs() if pk.league
+                for po in pk.league.get('ko_playoffs') or [] for rd in po.get('rounds') or [] if 'group' in rd):
+        odd_leagues(p)                  # (4.0.1: a played group of an odd size >= 5 - New Zealand's championship of
+                                        # 11 as the game's type 2 - uses the same pair tables: real rounds with a rest)
 
     # Season: CLASSIC SEASONS after the continents (pseudo-continent 97: [-1] + the pack countries + FF; the game reads a
     # country list only for 80..85, so that check also accepts 97). The season selector runs on a world table

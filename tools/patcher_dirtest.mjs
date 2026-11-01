@@ -95,6 +95,29 @@ for (const lang of ['it', 'en', 'fr', 'de']) {
     ok(md5(path.join(src, 'ITALIAN.EXE')) === md5(path.join(M, 'orig/ITALIAN.EXE')), `${lang} from the CD: the CD folder untouched`); }
   { const top = path.join(R, 'pp'), dir = path.join(top, 'SWOS'); game(dir, false); fs.writeFileSync(path.join(dir, 'LOADER.BIN'), 'x');
     const n = await T.installDir(new DH(top), say); ok(n > 0, `${lang} SWOS++: ${n} written`); check(T, dir, false, true, `${lang} SWOS++`); }
+  { // 4.0.3: the community pack "SWOS 16/17" (GAME + DOSBOX + CD\SWOS9697.ISO): refused, nothing written, the CD hint shown;
+    // a synthetic one (CD originals + the pack's exe names, once with a MOD_BACKUP) and, with PACK1617=<folder>, a real one
+    const tree = d => { const o = {}; const w = q => { for (const n of fs.readdirSync(q)) { const p = path.join(q, n);
+      if (fs.statSync(p).isDirectory()) w(p); else o[path.relative(d, p)] = md5(p); } }; w(d); return JSON.stringify(o); };
+    const cases = [['synthetic', false], ['synthetic + MOD_BACKUP', true]];
+    if (process.env.PACK1617) cases.push(['real (' + path.basename(process.env.PACK1617) + ')', null]);
+    for (const [name, bak] of cases) {
+      const top = path.join(R, 'pack1617'), dir = path.join(top, 'GAME');
+      if (bak === null) { fs.rmSync(top, { recursive: true, force: true }); fs.cpSync(process.env.PACK1617, top, { recursive: true }); }
+      else { game(dir, false); fs.mkdirSync(path.join(top, 'DOSBOX')); fs.mkdirSync(path.join(top, 'CD'));
+             fs.renameSync(path.join(dir, 'ITALIAN.EXE'), path.join(dir, 'sws_ita.exe'));
+             if (bak) { fs.mkdirSync(path.join(dir, 'MOD_BACKUP')); fs.writeFileSync(path.join(dir, 'MOD_BACKUP', 'x'), 'x'); } }
+      const before = tree(top), has = fs.existsSync(path.join(dir, 'MOD_BACKUP'));
+      for (const pick of [top, dir]) {
+        const n = await T.installDir(new DH(pick), say), l = log.at(-1);
+        ok(n === 0 && l === '! ' + T.DT[lang].pack(has) && tree(top) === before,
+           `${lang} SWOS 16/17 pack, ${name}, ${pick === top ? 'pack folder' : 'GAME folder'}: refused, nothing changed: ${l.slice(2, 70)}`); }
+      if (bak === null) {                                    // the drop-files mode: the pack's exes are named, not patched
+        T.results.length = 0;
+        const fl = ['sws_ita.exe', 'english.exe'].map(x => path.join(dir, x)).filter(p => fs.existsSync(p));
+        await T.handle(fl.map(p => ({ name: path.basename(p), arrayBuffer: async () => { const b = fs.readFileSync(p); return b.buffer.slice(b.byteOffset, b.byteOffset + b.length); } })));
+        ok(fl.length === 2 && T.results.length === 2 && T.results.every(r => r.state === 'bad'), `${lang} SWOS 16/17 pack, dropped exes: not recognised, not patched`); }
+      fs.rmSync(top, { recursive: true, force: true }); } }
   { // 4.0.1 joypad. GOG layout (DOSBOX folder + dosbox_SWOS.conf), box 1 (default on): the factory SETUP.DAT -> the calibrated one,
     // dosbox_SWOS.conf: joysticktype=fcs + timed=false (only those two lines), mapper-SVN.map (the d-pad) when absent or GOG's default,
     // a .bak of each file that existed; unticked on a re-run = undone. Own DOSBox (CD folder): box 2 (default off) = SETUP.DAT only.

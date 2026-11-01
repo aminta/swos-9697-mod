@@ -57,6 +57,18 @@ breakpoints), `W84NAT_REDO=1` (remake the cached national-team saves).
     restored when fit) only in scenarios that judge the career club's own results or strength; it cycled every
     reserve at every squad screen and was ~50-60% of a long career's pauses (world_full_arg / _eng, rc1);
   - injured goalkeeper: first the reserve goalkeeper of row 12 (the rows' positions are drawn, not menu entries);
+  - the long bench (4.0.5 benchx, a bench over 5): rows 12..17 are a window on the places from 12 on, moved by the
+    box left of row 17 AND by the cursor (up on row 12 / down on row 17 scroll it, the cursor stays); the game swaps
+    by place (the mark is kept while the window scrolls). So every swap goes through `swap_in()` / `swap_rows()`: a
+    reserve shown on row 17 is fired FIRST, then the starter's row (rows 1..11 never move); a bench row only after
+    `window_home()` (the window at the top), then down on row 17 to the reserve. Up to rc14p the fixer marked the row
+    first and came back to row 17 - the way up had scrolled the window back, another player went in, and careers
+    looped for hours (world_full_eng 30/10). `substitute_min` stops as soon as VIS. RISULTATI shows (an unavailable
+    bench player is left out at the kick-off), and the fixer fails after LINEUP_STUCK (3) squad screens in a row left
+    by ESCI without VIS. RISULTATI. No red row but VIS. RISULTATI hidden (rc19): the first 16 places are read from
+    memory (`lineup_mem`: an unmarked suspended player is fixed; no keeper in goal -> the keeper swap); a fit keeper
+    and nobody unavailable = the game refuses the line-up -> an immediate FAIL ('the game refuses the line-up ...',
+    rc19 world_gplay_nzchamp's NZ Grand Final), no keeper ping-pong. Scenario `bench_lineup` (BENCH_BUILD) checks the fixer and the game's swaps;
   - national team: menu without TRASFERIMENTI, PARTITA disabled until the squad is called up: `nat_callups()` adds
     players from the home leagues (enabled player rows = eligible) until "SCEGLI ALTRI 0".
 - `next_season_save(s, NAME)`: season-end menu → (job offers if sacked) → CONTINUA CARRIERA → new season → save.
@@ -96,6 +108,8 @@ Rare events are **forced** and slow parts are **done once and saved**:
 | classic_tourneys | World Cup 1982, Mitropa Cup 1934 (real bracket also after play-offs), FA Cup 1871-72 played to the final | ~2.5 min |
 | xtra_squad | extended career squads (xtra.py): new career at HAMBURG with a test DATA/XTRA.014 = 16 + 9 real players (copies of its own first 9), no invented reserves, each extra's wage 66% of his twin's, form byte untouched, 25 after save + load; HANSA ROSTOCK (no block) = 16 + 10 reserves | ~40 s |
 | xtra_world30 | extended squads of the World 2026-27 (XTRA30_BUILD = the world built with TM_EXTRA=14): a career at CELLE VARAZZE (Serie D A, XTRA30_CLUB / XTRA30_PATH / XTRA30_LAST to change) starts with 30 players, slots 16..29 = its XTRA block in file order (STEFANO CHIAIA the 30th), order 0..29, wages > 0; two seasons with save + reload keep the extras | ~5 min |
+| (W8485_RNG) | 4.0.5: world8485's `W8485_RNG=<6 bytes hex>` pins the game's two random generators (Rand / Rand2: seed, randXorIndex, randXorKey; rng_sites) at the career's start. Their state there follows every Rand call since the game started, i.e. DOSBox timing and the exe's load: 31/10 f1dd98f's 233 B (never executed) moved it and xtra_world30 took another season (contract not renewed, 22 players). xtra_world30 sets it by default (XTRA30_RNG, 000000000000); seasons still differ slightly between builds (emulator timing), but no longer at the start | - |
+| (W8485_RNGSTEP) | 4.0.5: `W8485_RNGSTEP=<salt>` re-pins both generators at every harness pause from md5(salt:season:pause number). CareerMenu reseeds Rand from currentTick on every entry, so the start pin alone still let the exe layout choose the path (gs3 / gsOFF: CELLE VARAZZE in the play-out, contract not renewed, MODICA, 24 players). xtra_world30 sets it by default (XTRA30_RNGSTEP, 'x30'): PASS on c/REL405gs3 and c/INT405pre26 | - |
 | xtra_market | buying players 17-30 of other clubs (XTRA30_BUILD, TM_EXTRA=14 data): CHISOLA (25) starts, the game's own market holds XTRA players (index >= 16), the home market poked with three LIGORNA extras, list + offer screens (shots), the first bought (squad +1, his name, market entry gone, sold list 'XS' = (team, 16)), save, reload (same squad, XS back), list again, match day | ~1 min |
 | xtra_club_browse | the extras findable in their club (XTRA30_BUILD): LIGORNA's list in ACQ. ALTRO GIOCAT. NAZION. has the button PAG. SUCC. (entry 31), page 2 = its extras (numbers 17.., shots), the first one picked + bought from CHISOLA (squad +1, sold list, page 2 compacted, shot), a club with its block zeroed (IMPERIA, a modified XTRA file) has no button, CELLE VARAZZE (30) is refused (squad full), save + reload | ~2 min |
 | xtra_squad_views | a club's full squad in the squad screen (XTRA30_BUILD): VISUALIZZA MONDO > ... > SERIE A > STAT > VIS. SQUADRE > MILAN: page 1 = 16 + button PAG. SUCC. (entry 6, left of ESCI), page 2 = extras (shots), record bytes unchanged, a club with a zeroed block (PARMA) no button, the same through VISUAL. COMPETIZ. (LIGORNA), own squad afterwards normal | ~1 min |
@@ -108,6 +122,11 @@ Rare events are **forced** and slow parts are **done once and saved**:
 | world_odd_league | an odd-size division (ODD_BUILD, default the newest builds/w2627odd-*; ODD_TEAM, ODD_CLUBS): a season at AUCKLAND CITY (NZ 11): 22 days, 20 matches each, the next season started | ~40 min |
 | world_ns | two career worlds in one exe, each with its own country namespace (build: 1984-85 + a 20-country 2025-26 test world from the private SWOS 2020 converter, FIRST_FILE=112 so its files 112-131 reuse 1984-85 numbers; XTRA hook): new careers at AEK Larnaca 2025-26 and Valletta 1984-85 (after a detour into world 5's club list) = the same team word 0x83, each with its own world's extras (XTRA.131 / XTW5.131); each save loaded after the other world's in one session: VIEW WORLD lists the right world (INGHILTERRA / ENGLAND), the season played to the end and saved, checkw1 | ~20 min |
 | menu_numbers | 3.3.4: tactics editor (MOD. TATTICA > UTN A; English MENU_PATH='EDIT TACTICS,USER_A') with LEICESTER poked to 17..32: the pitch's little numbers 12..99 are menunum's sprites 1620.., each = tens + 1 px + units of the menu's own digits (pixel-exact); screenshot | ~20 s |
+| bench_world | 4.1 panchina blocks 1-3 (tools/benchx.py): World 2026-27 build (BENCH_BUILD), a new player-coach career at CELLE VARAZZE (30 players), bx_bench poked to 15, the first match played for real ('- PARTITA -' with nop_league_int3, GIOCA PARTITA): gameMaxSubstitutes 15, the club's in-match team 26 named (11 + 15), the opponent 16 + 10 empty places, the name sprites of places 17..26 (1910.. / 1920..: 112 x 6, drawn), the bench list seen on screen; the bench cursor down to place 21 (BENCH_SUB, 12..26): the window of 5 follows it (down, up 6, down again), the change made (NumSubs + 1), bx_ord = one swap in that team's half once he is on, the other half untouched; a goal poked into the record of the player who went off (now at place 21) reaches his squad record after the match; played to the career menu. SWOSTEST_MEMSIZE=8: the same in the 16-colour mode (no bench-list pixel check). BENCH_SQUAD=2: the long lists of SQUADRA, the pre-match screen and the tactics editor (box window, cursor scroll, marked swap; 4.0.5 the wrap: down on row 17 at the window's end -> window 0, row 12; up on row 12 at the top -> row 11, the starters; `wrap_reach`: the entry below row 17 - ESCI / GIOCA : / ANNULL. - reached another way with real keys, none reachable only through that down), IT and SWOSTEST_UI=en; BENCH_VIEW=1: ViewSquad (no wrap) | ~1-3 min |
+| bench_cup | 4.0.5 real benches per competition (bench2627.json + build-time fallbacks): a World 2026-27 career at RANGERS (BENCH_BUILD, BENCH_CUP_TEAM), season 1 (world8485, results only); benchx's lookup at every pre-match screen (bx_lkname / bx_lkres, W8485_HEX on obj1) logged: BENCH_CUP_WANT ('SCOZIA SCOTTISH PREMIERSHIP=9:5;SCOZIA SCOTTISH CUP=9:5') seen, no title it plays left at 5 (its UEFA qualifying tie included). bench_world: BENCH_TITLE = the title looked up at the kick-off | ~15 min |
+| scorers_int | 4.0.5 INT column (tools/scorint.py): Luigi's PROVA.CAR (SCORERS_CAR) loaded on SWOSTEST_BUILD (SWOSTEST_UI it / en / fr / de), VISUAL. COMPETIZ. -> CAPO CANNONIERI NAZIONALE: every row's numbers read from the screenshot (digit shapes learnt from the rank column), LEGA + COP1 + COP2 + INT = TOT, the numbers apart, the last row = its player's record +33..+36, the others some record's; FAILs on rc19 (no INT column) | ~10 s |
+| scorers_int_world | the same after a World 2026-27 career season (SCORERS_TEAM, default NAPOLI: Serie A + Champions League; world8485 W8485_SAVE_END, then loaded) | ~6 min |
+| goal_slot_sc / _sc_real / _cd / _po | 4.0.5 goal counters (tools/goalslot.py): a World 2026-27 career (INTER / FIDELIS ANDRIA / MODENA forced 5th of Serie B on a DPLAY_FORCE=5 build) on GOALSLOT_BUILD up to the SUPERCOPPA / COPPA ITALIA SERIE D / PLAY-OFF results (W8485_MIDTEXT, else the season's end; _sc_real: the SUPERCOPPA ITALIANA final played for real, W8485_REALPLAY - the match engine's write-back); gs_add's ring of the remapped goal writes (both write-back sites: played and simulated matches) read from obj1 at every screen: +37 (form / trial mark) unchanged, the goals in COP1 / COP2 / LEGA, never slot 4 as the game | ~3-8 min |
 
 Preset competitions are driven by `play_preset(s, button)`: COMP. PREDEFINITA > TORNEI STORICI > button > TORNEO,
 then VIS. RISULTATI / REPLAY / PROSS. PARTITA / PROSSIMO TURNO / TURNO RITORNO until only STAT and ESCI are left;
@@ -161,3 +180,23 @@ it returns the rounds (title, ties shown: at most 6 per screen) and the coin-tos
 - Country names in another language's exe: the harness maps the labels it knows (swostest_lang.json, the 1996-97
   menus) back to Italian, so a 1996-97 country keeps its Italian name in `W8485_TEAM` (BRASILE in the EN exe), while a
   world-only one needs that language's name (NEW ZEALAND, NOUV. ZELANDE, NEUSEELAND: the pack's `button_names`).
+
+## Breaking a busy game (Session.sample)
+
+The harness pauses only at the in-exe stub's int 3 (the game asking for a key). A game that runs on without asking -
+a busy loop, an endless draw, a slow season end - only ever shows as 'timeout'. `Session.sample(keys, secs)` breaks
+it: it sends the keys with a breakpoint on the timer interrupt (`BPINT 8`, every tick, ~18 / s), records each tick's
+EIP (obj1 offset) and runs on, for `secs` seconds.
+
+- Returns `(hist, result)`: `hist` = `{obj1 offset: ticks}`, the session log gets a `SAMPLE obj1+..:n` line (top 12).
+  `result.outcome` is 'dump' when the game reached our pause first (no hang: the ticks ended there), else 'trap' at
+  the last tick with a full MEMDUMP.BIN (pseudo registers: D0 at obj2+0x315B7 ... in the original layout) for the
+  post-mortem.
+- The ticks slow the game ~10x: read it as a histogram (where the time goes - I/O vs compute for Davide's season-end
+  profiling), not as a timing. CORE=normal gives exact EIPs. The timer breakpoint is removed afterwards and the int 3
+  one re-armed, so the session goes on (a 'trap' result: as after any trap).
+- Use it from a scenario's W84_HOOK at the screen before the step that hangs: navigate to the entry, then
+  `hist, r = s.sample('fire dump:3', 25)` instead of the press. Map offsets to routines with ref/swos.asm (obj1
+  offset + 0x101AC ~ the cseg label in most of the code: check a known site first).
+- First use (2026-10-22, NZ championship, 4.0.1): the 10th match day's 25 s were spent in DrawChar /
+  ConvertSpriteColors / FlipInMenu - an endless menu draw, not a fixtures loop.

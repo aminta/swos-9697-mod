@@ -114,6 +114,11 @@ def compile_spec(pos, ndiv, league_names=None):
                 if not (0 <= d < ndiv and 1 <= k <= 4 and r_):             # (gplay.c title_seed)
                     raise ValueError(f'{key}: entrant {e}')
                 ents.append((7, d, k, r_))
+            elif isinstance(e, dict) and 'club_team' in e:   # a given club by its team word (NZ: the A-League
+                d, g = e.get('div', 0), e['club_team']                # reserves; mkseason resolves {"club": key})
+                if not (0 <= d < ndiv and 0 <= g < 0x10000):
+                    raise ValueError(f'{key}: entrant {e}')
+                ents.append((8, d, g & 0xFF, g >> 8))
             elif isinstance(e, dict) and e.get('loser_of_previous'):   # the play-off before's final loser
                 ents.append((4, 0, 0, 0))
             elif isinstance(e, dict) and 'stage_title' in e:   # 4.0 ARG: the Trofeo's finalists from the stage titles
@@ -197,6 +202,8 @@ def compile_spec(pos, ndiv, league_names=None):
         if nt > 63 or npl > 64:
             raise ValueError(f'{key}: at most 63 ties, 64 group placings')
         win = po.get('winners', 1)
+        if not 1 <= win <= 7:
+            raise ValueError(f'{key}: winners 1..7 (flags bits 4-6; bit 7 = skip_second)')
         if not 1 <= win <= 15:
             raise ValueError(f'{key}: winners 1..15')
         wd, ld = po.get('winner_div', 0), po.get('loser_div', 0)
@@ -216,7 +223,11 @@ def compile_spec(pos, ndiv, league_names=None):
         if po.get('draw_pot') and not (len(po['rounds']) > 2 and all('group' in r for r in po['rounds'][:2])):
             raise ValueError(f'{key}: draw_pot needs 2+ leading group rounds (their heads = the first entrants)')
         flags = (1 if po.get('skip_qualified') else 0) | (2 if po.get('host_by_record') else 0) | ((win if win > 1 else 0) << 4) \
-            | (8 if po.get('draw_pot') else 0)       # (4.0.1 Colombia: the entrants after the heads drawn into the groups)
+            | (8 if po.get('draw_pot') else 0) \
+            | (4 if po.get('supercup') else 0) | (0x80 if po.get('skip_second') else 0)       # (4.0.1 Colombia: the entrants after the heads drawn into the groups;
+                                                     # 4.0.5 'supercup': not played at the season end - the next season's
+                                                     # national supercup, supercups2627.json: MEX's Campeon de Campeones;
+                                                     # 4.0.5 NZ 'skip_second' 0x80: placings skip B teams - 'winners' bits 4-6)
         out += bytes((kind, len(ents), nrd, wd, ld, flags))
         out += b''.join(bytes(e) for e in ents) + rounds
     stages = set()                              # 4.0 ARG: the Trofeo's entrants (type 5) read GP_OUT.sres of the stage
@@ -244,9 +255,9 @@ def compile_spec(pos, ndiv, league_names=None):
     rn = bytearray()
     for po in pos:
         names = po.get('round_names') or _default_rnames(po)
-        if not (isinstance(names, list) and len(names) <= RN_KG and all(x in rnames.KEYS for x in names)):
+        if not (isinstance(names, list) and len(names) <= RN_KG and all(x is None or x in rnames.KEYS for x in names)):
             raise ValueError(f"{po.get('key')}: round_names: up to {RN_KG} of {' '.join(rnames.KEYS)} (one per game round)")
-        rn += bytes(rnames.KEYS[x] for x in names) + bytes(RN_KG - len(names))
+        rn += bytes(rnames.KEYS[x] if x else 0 for x in names) + bytes(RN_KG - len(names))   # (None: the game's)
     RNAMES[out] = bytes(rn)
     THEN[out] = bytes(keys.index(po['then_build']) + 1 if po.get('then_build') is not None else 0 for po in pos)
     if any(po.get('kind') == 'title' and po['rounds'] and 'group' in po['rounds'][0] for po in pos):
@@ -352,6 +363,21 @@ gp_after:                               ; 4.0 after a career load (arg97's arg_l
     div ecx
     mov ebp, [GP_NMT + eax * 4]
 .nm:
+    mov ax, [CAREERTEAM]                ; 4.0.5 (phase 0: a one-tie contest's names - the Coppa D's, a supercup's -
+    mov [GP_MGR], ax                    ; from this exe's tables: the career club, the tables as gp_adv sets them)
+%if CD_ON
+    cmp word [GAMETYPE], 4
+    jne .ncd
+    mov al, [SLT + WORLD_BYTE]
+    cmp al, [CD_TAB]
+    jne .ncd
+    mov dword [GP_CDT], CD_TAB
+    mov dword [GP_CDNM], CD_NM
+.ncd:
+%endif
+%if SC_ON
+    mov dword [GP_SCT], SC_TAB
+%endif
     push dword 0
     call gp_fixload                     ; (phase 0: the knockouts' contest names)
     add esp, 4
@@ -494,24 +520,135 @@ gp_setup:                               ; ZF = 0 if the career league (D8CAA) is
     ret
 
 gp_calold:                              ; al = a slot: its calendar entries (an earlier contest's, e.g. the Apertura's
-    pushad                              ; knockout before the Clausura's) get round byte FEh: cseg_8BC06 finds a round's
-    movzx ecx, word [CAL - 4]           ; entry by (slot, round) from the start, and wrote the new contest's career
-    mov edi, CAL                        ; match into the old one (the Trofeo never played; a later quit)
-.l:
-    test ecx, ecx
-    jz .x
-    cmp [edi], al
-    jne .n
-    mov byte [edi + 7], 0FEh
-.n:
-    movzx edx, word [edi + 2]
-    test edx, edx
-    jz .x
-    add edi, edx
+    pushad                              ; knockout before the Clausura's): the played ones get round byte FEh (cseg_8BC06
+    movzx ecx, word [CAL - 4]           ; finds a round's entry by (slot, round) from the start, and wrote the new
+    mov esi, CAL                        ; contest's career match into the old one: the Trofeo never played; a later
+    movzx edx, word [CAL_CUR]           ; quit); 4.0.5: the ones still to come (after the current entry) are REMOVED -
+    add edx, esi                        ; the game plays every day of a slot for the contest in it whatever its round
+    mov ebp, esi                        ; byte (conti's Libertadores days, NZ's OFC days ran another contest on)
+.e: test ecx, ecx                       ; (ebp = the calendar's end)
+    jz .e2
+    movzx ebx, word [ebp + 2]
+    test ebx, ebx
+    jz .e2
+    add ebp, ebx
     dec ecx
+    jmp .e
+.e2:
+.l: cmp esi, ebp
+    jae .x
+    movzx ebx, word [esi + 2]
+    test ebx, ebx
+    jz .x
+    cmp [esi], al
+    jne .n
+    cmp esi, edx
+    ja .d
+    mov byte [esi + 7], 0FEh
+.n: add esi, ebx
+    jmp .l
+.d: push esi                            ; (as gplay.c cal_drop / conti ct_newcup: the rest moves down, the count - 1)
+    push eax
+    mov edi, esi
+    add esi, ebx
+    mov ecx, ebp
+    sub ecx, esi
+    push es
+    push ds
+    pop es
+    cld
+    rep movsb
+    pop es
+    pop eax
+    pop esi
+    sub ebp, ebx
+    dec word [CAL - 4]
     jmp .l
 .x:
     popad
+    ret
+
+gp_s3busy:                              ; 4.0.5 NZ: ZF = 0 when the career calendar has a slot-3 day after the current
+    pushad                              ; entry (a contest there still running)
+    movzx ecx, word [CAL - 4]
+    mov esi, CAL
+    movzx edx, word [CAL_CUR]
+    add edx, esi
+    xor eax, eax
+.l: test ecx, ecx
+    jz .r
+    movzx ebx, word [esi + 2]
+    test ebx, ebx
+    jz .r
+    cmp esi, edx                        ; (after the current entry: the one being played / just played is done)
+    jbe .n
+    cmp byte [esi], 3
+    jne .n
+    inc eax
+    jmp .r
+.n: add esi, ebx
+    dec ecx
+    jmp .l
+.r: test eax, eax
+    popad
+    ret
+
+gp_s3due:                               ; 4.0.5 NZ (gp_adv): a slot-3 ko waiting (t2_defer) and slot 3 free -> its
+    pushad                              ; weeks from now on (t2_due), installed
+    cmp word [GAMETYPE], 4
+    jne .x
+    push dword 0                        ; (any waiting: ko 0 / 1)
+    call t2_waiting
+    add esp, 4
+    mov ebx, eax
+    push dword 1
+    call t2_waiting
+    add esp, 4
+    or eax, ebx
+    jz .x
+    call gp_s3busy
+    jnz .x
+    mov eax, t2_due
+    call gp_c
+    test eax, eax
+    jz .x
+    mov [GP_BUILT], eax
+    call gp_install
+.x: popad
+    ret
+
+gp_gf:                                  ; 4.0.5 NZ (gp_adv): a type-2 group contest of ours waiting for its Grand
+    pushad                              ; Final (gplay.c gf_step_c), slot 3 free -> the final built into slot 4 (ko[1])
+    cmp word [GAMETYPE], 4
+    jne .x
+    call gp_s3busy
+    jnz .x
+    mov dword [GP_S3], DIY              ; (the group's last day: the event just done, still in the working DIY)
+    mov eax, [SLOTS_ + 12]              ; (rc17: or slot 3's own buffer, written back - after a match played for
+    mov [GP_S3B], eax                   ; real; gf_step_c takes the one holding the whole group played)
+    mov ax, [CAREERTEAM]
+    mov [GP_MGR], ax
+    mov eax, gf_step_c
+    call gp_c
+    test eax, eax
+    jz .x
+    cmp eax, 4
+    je .drop
+    mov [GP_BUILT], eax                 ; (2: ko[1], the final - over the placeholder's days, gp_install's gp_calold)
+    call gp_install
+    jmp .x
+.drop:                                  ; (the career club not in it: the placeholder's days are no longer its days -
+    movzx eax, word [CAL_CUR]           ; gplay.c gf_drop_c, rc20; NOT removed: this advance may come inside a day of
+                                        ; the game's - the club's rest day, the group's last round - and an entry gone
+                                        ; under it left the squad screen for ever)
+    push eax
+    push dword CAL
+    call gf_drop_c
+    add esp, 8
+    test eax, eax
+    jz .x
+    mov word [NOCAREER], 1              ; (no career day left: the menu's FINISH SEASON - cseg_8EC2B's word)
+.x: popad
     ret
 
 gp_install:                             ; GP_BUILT (gp_lend_c): each ko built into its slot (4, or 3: Season's second,
@@ -523,6 +660,46 @@ gp_install:                             ; GP_BUILT (gp_lend_c): each ko built in
     jnc .n
     imul esi, ebx, KO_SIZE
     add esi, GP_ST + ST_KO
+    mov al, [esi + KO_SLOT]
+    cmp al, 3                           ; 4.0.5 NZ: slot 3 still has days to come (another contest's: the OFC CL) ->
+    jne .free                           ; this ko waits (gplay.c t2_defer), gp_adv installs it once slot 3 is free
+    call gp_s3busy
+    jnz .busy
+    pushad                              ; (test builds, GPLAY_S3DEFER: slot 3 taken once - the OFC's late day of
+    mov eax, t2_force                   ; Davide's rc17 career, the group deferred a week)
+    call gp_c
+    mov [esp + 28], eax
+    popad
+    test eax, eax
+    jz .free
+.busy:
+    pushad
+    push ebx
+    call t2_defer
+    add esp, 4
+    popad
+    test ebx, ebx                       ; (the group, ko[0]: a Grand Final's placeholder as the career club's day
+    jnz .n                              ; after slot 3's last one - gplay.c gf_anchor_c)
+    pushad
+    mov ax, [CAREERTEAM]
+    mov [GP_MGR], ax
+    push es
+    push ds
+    pop es
+    cld
+    movzx eax, word [CAL_CUR]
+    push eax
+    push dword CAL
+    call gf_anchor_c
+    add esp, 8
+    pop es
+    test eax, eax
+    jz .na
+    or dword [GP_BUILT], 2
+.na:
+    popad
+    jmp .n
+.free:
     mov al, [esi + KO_SLOT]
     call gp_calold
     cmp byte [esi + KO_SLOT], 4
@@ -560,6 +737,16 @@ gp_install:                             ; GP_BUILT (gp_lend_c): each ko built in
     pushad
     call C8EE5D
     popad
+    push es                             ; 4.0.5 NZ: a placeholder Grand Final - no pairing in the fixture list
+    push ds
+    pop es
+    cld
+    movzx eax, word [CAL_CUR]
+    push eax
+    push dword CAL
+    call gf_hide_c
+    add esp, 8
+    pop es
     popad
     jmp .n
 .s3:
@@ -572,7 +759,14 @@ gp_install:                             ; GP_BUILT (gp_lend_c): each ko built in
     call C8B2D3
     mov al, 3                           ; (no replay days)
     call CAL_NOREPLAY
-    popad
+    mov ax, [CAREERTEAM]                ; 4.0.5 NZ: a group contest with a Grand Final - its placeholder final in
+    mov [GP_MGR], ax                    ; slot 4 after the group (gf_place_c: ko[1], installed by this loop next)
+    mov eax, gf_place_c
+    call gp_c
+    test eax, eax
+    jz .p
+    or dword [GP_BUILT], 2
+.p: popad
 .n:
     inc ebx
     jmp .k
@@ -595,10 +789,45 @@ gp_lend:                                ; replaces `call cseg_8ECAE` (the career
     call gp_c
     test eax, eax
     jz .none
-    xor ebx, ebx                        ; the other divisions of its entrants simulated now (as cseg_8ECAE does for
-.sim:                                   ; a native play-off's clubs), their tables kept for the season end
+    mov eax, gp_need_pre                ; (rc19: + the divisions of the country's other play-offs, for the preview)
+    call gp_c
+    call gp_sims                        ; the other divisions of its entrants simulated now (as cseg_8ECAE does for
+.built:                                 ; a native play-off's clubs), their tables kept for the season end
+    mov eax, gp_lend_c
+    call gp_c
+    mov [GP_BUILT], eax
+    push eax
+    mov eax, gp_pre_c                   ; (rc19: the other play-offs previewed - the club's own are its contests)
+    call gp_c
+    pop eax
+    call gp_clrn
+    test eax, eax
+    jz .next
+    call gp_install
+    popad
+    ret
+.none:
+    call gp_pre                         ; (rc19: no play-off of the career club - its country's previewed now)
+    call gp_clrn
+.next:
+    mov eax, [D8CAA + 16]               ; (D8CBA = one of our contests, e.g. built mid-season by gp_build: the native
+    lea ebx, [GP_ST + ST_KO + KO_CON]   ; division play-off path of cseg_8ECAE would read it as a league record's
+    cmp eax, ebx                        ; play-off, with a stale D8CC0: skip it)
+    je .skip
+    add ebx, KO_SIZE
+    cmp eax, ebx
+    je .skip
+    popad
+    jmp GP_LEND_NEXT
+.skip:
+    popad
+    ret
+
+gp_sims:                                ; GP_IN.sim[]'s divisions simulated now (cseg_3ABB2), their rows into GP_IN,
+    xor ebx, ebx                        ; kept (gp_simkeep_pre) - gp_lend's and gp_pre's
+.sim:
     cmp ebx, SDX_N
-    jae .built
+    jae .x
     movzx ecx, byte [GP_IN + O_SIM + ebx]
     cmp ecx, 0FFh
     je .sn
@@ -617,40 +846,30 @@ gp_lend:                                ; replaces `call cseg_8ECAE` (the career
     call gp_regs
     popad
     pushad
-    mov eax, ecx
+    mov [GP_DIV], cl                    ; (rc19: before gp_rows - it leaves ecx = the row count: the kept table was
+    mov eax, ecx                        ; filed under it, never restored at the season end)
     mov ebp, DIY
     call gp_rows
-    mov [GP_DIV], cl
     mov dword [GP_DIYP], DIY
-    mov eax, gp_simkeep
+    mov eax, gp_simkeep_pre
     call gp_c
     popad
 .sn:
     inc ebx
     jmp .sim
-.built:
-    mov eax, gp_lend_c
-    call gp_c
-    mov [GP_BUILT], eax
-    call gp_clrn
-    test eax, eax
-    jz .next
-    call gp_install
-    popad
+.x:
     ret
-.none:
-    call gp_clrn
-.next:
-    mov eax, [D8CAA + 16]               ; (D8CBA = one of our contests, e.g. built mid-season by gp_build: the native
-    lea ebx, [GP_ST + ST_KO + KO_CON]   ; division play-off path of cseg_8ECAE would read it as a league record's
-    cmp eax, ebx                        ; play-off, with a stale D8CC0: skip it)
-    je .skip
-    add ebx, KO_SIZE
-    cmp eax, ebx
-    je .skip
-    popad
-    jmp GP_LEND_NEXT
-.skip:
+
+gp_pre:                                 ; rc19 (Davide): the career league over, the career club in none of its
+    pushad                              ; country's play-offs - the divisions they need simulated now and kept
+    mov eax, gp_need_pre                ; (gp_need_pre / gp_simkeep_pre), then the preview gp_pre_c: their winners
+    call gp_c                           ; on the WINNERS page before the season-end menu; CONTINUA decides the same
+    test eax, eax
+    jz .x
+    call gp_sims
+    mov eax, gp_pre_c
+    call gp_c
+.x:
     popad
     ret
 
@@ -873,6 +1092,13 @@ gp_sync:                                ; after a career / .SEA load (the engine
     jne .n
     cmp [esi + KO_SEAS], ah
     jne .n
+    pushad                              ; (4.0.5 NZ: a slot-3 ko waiting for slot 3 is not installed yet)
+    push ebx
+    call t2_waiting
+    add esp, 4
+    test eax, eax
+    popad
+    jnz .n
     movzx edx, byte [esi + KO_SLOT]
     test edx, edx                       ; 4.0.1: slot 0 = no slot (a play-off simulated without the career club,
     jz .n                               ; sa_exact's table titles decided at once): never the league's pointer -
@@ -919,10 +1145,28 @@ gp_rl:                                  ; the season record's extra lines (gp_sa
     popad
     mov eax, [A0R]
     mov [GP_REC], eax
+%if SC_ON
+    mov dword [GP_SCT], SC_TAB          ; (4.0.5: a supercup won, also before this load's first advance)
+%endif
     mov eax, gp_rlines_c                ; (the Poule, ARG's stage titles, a title play-off - written into GP_REC)
     call gp_c
     or esp, esp                         ; (ZF = 0)
-.r: ret
+    ret
+.r:
+%if SC_ON
+    pushad                              ; 4.0.5: a league none of ours - only a national supercup won (sc_rlines_c)
+    mov dword [GP_SCT], SC_TAB
+    pushad
+    call GETSEASON
+    popad
+    mov eax, [A0R]
+    mov [GP_REC], eax
+    mov eax, sc_rlines_c
+    call gp_c
+    popad
+%endif
+    xor eax, eax                        ; (ZF = 1: none of ours; eax was 0 or ZF from jz)
+    ret
 
 gp_job:                                 ; replaces the club job offers' `call AddJobOffer` (cseg_5B705, D0 = the club's
     push eax                            ; team word): no offer from a club whose team file is not a real one - an
@@ -1006,11 +1250,113 @@ gp_week:                                ; GP_WK = the current calendar entry's w
     pop eax
     ret
 
+%if SC_ON
+gp_sc:                                  ; 4.0.5 the career club's national supercup (sc_step_c; gp_adv, gp_scgl)
+    pushad
+    cmp word [GAMETYPE], 4              ; 4.0.5 national supercups (sc_step_c): a career's country with one
+    jne .nsc
+    mov dword [GP_SCT], SC_TAB
+    mov ax, [CAREERTEAM]
+    mov [GP_MGR], ax
+    mov dword [GP_SCFIRST], 0           ; (the world's first season: the real entrants; no summer one)
+    pushad
+    call W_REC
+    jz .nsf
+    mov al, [ebx + 42]
+    cmp al, [SEASONPLAYING]
+    jne .nsf
+    mov dword [GP_SCFIRST], 1
+.nsf:
+    popad
+    mov eax, sc_step_c
+    call gp_c
+    test eax, eax
+    jz .nsc
+    mov dword [GP_BUILT], 1             ; (the career club's supercup tie: slot 4)
+    call gp_install
+.nsc:
+    popad
+    ret
+%endif
+
+gp_scgl:                                ; 4.0.5: the career menu's fixture list (CareerGameListCommon, its menu
+%if SC_ON                               ; pointer retargeted here): an early supercup tie built before the list is
+    pushad                              ; drawn - a new career's first screen too, not only after the first event
+    cmp word [GAMETYPE], 4              ; (idempotent: sc_step_c handles a season once); the game's registers
+    jne .x                              ; D0..A6 kept (cseg_8B2D3 in gp_install uses them)
+    push es
+    push ds
+    pop es
+    cld
+    sub esp, 60
+    mov esi, D0R
+    mov edi, esp
+    mov ecx, 15
+    rep movsd
+    mov al, [SEASONPLAYING]
+    mov [GP_SEAS], al
+    call gp_week
+    call gp_sc
+    mov esi, esp
+    mov edi, D0R
+    mov ecx, 15
+    rep movsd
+    add esp, 60
+    pop es
+.x: popad
+%endif
+    jmp CGLC_
+
+gp_fin:                                 ; 4.0.5 (Panchina): replaces PlayMatchMenu's `call CareerPlayMatch` (FINISH SEASON:
+    cmp word [DB3E4], 0                 ; the season's days simulated to its end) - the same loop, but after each day's
+    jne .adv                            ; advance a scan of the days left: a career day there again (gplay
+.l: call C8E841                         ; built the club's play-off at its league's end - the club resting on the
+.adv:                                   ; group's last matchday had none left, so the menu offered FINISH SEASON) ->
+    call gp_adv                         ; back to the career menu (PARTITA), not to the season end; otherwise as the
+    cmp word [SEASONFIN], 0             ; game's (the season over: PlayMatchMenu's jmp SeasonFinished)
+    jne .x
+    movzx ecx, word [CAL - 4]           ; a day the PARTITA loop will play as the club's, from the current entry on
+    sub cx, [CAL_CUR - 2]               ; (count - index): byte 4 = 0 and byte 6 > 0 (signed - cseg_8EC2B also counts
+    movzx esi, word [CAL_CUR]           ; a negative byte 6, which PARTITA only simulates: p6)
+    add esi, CAL
+.s: dec cx
+    js .l
+    cmp byte [esi + 4], 0
+    jne .sn
+    cmp byte [esi + 6], 0
+    jg .menu
+.sn:
+    movzx eax, word [esi + 2]
+    add esi, eax
+    jmp .s
+.menu:
+    mov word [CAREERFIN], 0
+    call CREF0                          ; (the career menu refreshed as ContestMenuOnReturn does: next match, fixture
+    call CREF1                          ; list, PLAY MATCH instead of FINISH SEASON)
+    call CREF2
+    call CREF3
+    add esp, 4                          ; (PlayMatchMenu returns to the menu: careerFinished 0 - PARTITA offered)
+.x: ret
+
 gp_adv:                                 ; replaces the 4 `call cseg_8EA82` (the calendar advance, after an event is
     pushad                              ; done): a pending 'then_build' (a played or simulated knockout ended) due ->
     mov al, [SEASONPLAYING]             ; gp_build of its next play-off from this week (slot 4 free: its contest over)
     mov [GP_SEAS], al
     call gp_week
+    call gp_s3due                       ; (4.0.5 NZ: a slot-3 contest waiting for slot 3)
+    call gp_gf                          ; (4.0.5 NZ: the Grand Final after the Championship's group)
+    pushad                              ; (rc18: no career-club day left before the hidden Grand Final placeholder -
+    push es                             ; its rest day the group's last round: the placeholder is its day again,
+    push ds                             ; else FINISH SEASON - gplay.c gf_unhide_c)
+    pop es
+    cld
+    movzx eax, word [CAL_CUR]
+    push eax
+    push dword CAL
+    call gf_unhide_c
+    add esp, 8
+    pop es
+    popad
 %if CD_ON
     mov dword [GP_CDT], 0               ; the Coppa Italia Serie D (cd_step_c): a career in its world
     cmp word [GAMETYPE], 4
@@ -1065,6 +1411,9 @@ gp_adv:                                 ; replaces the 4 `call cseg_8EA82` (the 
     mov word [eax + 39h], 0FFFFh
     popad
 .ncd:
+%endif
+%if SC_ON
+    call gp_sc
 %endif
     mov eax, gp_adv_c
     call gp_c
@@ -1124,6 +1473,8 @@ GP_RITP: dd 0                           ; (ripool's RI_TAB: link_reserve, or 0)
     dd CD_ST                            ; (the Coppa Italia Serie D's state)
     dd GP_RLN, GP_RLC, GP_REC, GP_CMB, GP_NM, D8CAA   ; (the season record lines: gp_rlines_c's)
     dd GP_SSB                           ; (4.0.1: the stage-table banks, gplay.c GP_SSB[SS_NB])
+    dd GP_IN, GP_OUT, GP_GFT            ; (rc18: the season end's tables and results - the harness's view; rc20: the
+                                        ; Grand Final's trace)
 '''
 
 
@@ -1298,6 +1649,29 @@ gp_end:                                 ; replaces `call cseg_9228D` (after dpla
     mov [GP_IN + O_N + ecx - 1], al
     loop .z
 .x:
+    popad
+    ret
+
+t2_gend0:                               ; replace the two `call cseg_8A2CE` (a type-2 contest's group stage end,
+    call t2_body                        ; before the qualifiers), then each site's own target (the game's, or a hook
+    jmp T2_NEXT0                        ; chained before)
+t2_gend1:
+    call t2_body
+    jmp T2_NEXT1
+t2_body:                                ; gplay.c t2_pre: in our contests the B teams that may never qualify go to
+    pushad                              ; the end of their group's sorted list
+    mov ax, [CAREERTEAM]                ; (GPLAY_GOUT test builds: the career club)
+    mov [GP_MGR], ax
+    push es
+    push ds
+    pop es
+    cld
+    push dword [SELTEAMS]
+    push dword [A5R]
+    push dword [A2R]
+    call t2_pre
+    add esp, 12
+    pop es
     popad
     ret
 ''' + PLAY_ASM
@@ -1593,6 +1967,11 @@ gp_rname:                               ; rnames' rn_round (an FE contest, RN_CD
     cmp byte [GP_ST + ST_KO + KO_SLOT], 0
     je .nb
 CD_PART
+    cmp byte [GP_ST + ST_KO + KO_SLOT], 3   ; 4.0.5 a group contest of ours (the game's type 2 in slot 3: the Poule
+    jne .k4                             ; Scudetto): its stages are the game's D0 (0 the groups, then the knockout
+    movzx ebx, word [D0R]               ; rounds - both legs of a round one stage), not ko[0]'s game rounds
+    jmp .rn
+.k4:
     mov ebx, [GP_CALDP]                 ; 4.0: a calendar being built (rnames RN_CALD = its entry's round + 1): that
     test ebx, ebx                       ; round, from the contest's first (the current one while it is built)
     jz .cur
@@ -1626,8 +2005,17 @@ GP_CALDP: dd 0                          ; (rnames.RN_CALD's address, or 0)
 '''
 def _default_rnames(po):
     """A knockout play-off without 'round_names' (Serie D's single-match semi-finals and final): its rounds named from
-    the end - F, SF, QF, R16 - when it ends in one tie and has no group / best-of-three round; else none (the game's)."""
+    the end - F, SF, QF, R16 - when it ends in one tie and has no group / best-of-three round; else none (the game's).
+    4.0.5 (Francesco: the Poule Scudetto's final shown as SEMIFINALE): groups then knockout rounds (the game's type-2
+    contest, named by its stage - gp_rname's D0): [the game's group name] + the knockout rounds from the end."""
     rs = po.get('rounds') or []
+    g = [i for i, r in enumerate(rs) if 'group' in r]
+    if g and g == list(range(len(g))) and len(g) < len(rs):
+        ko = rs[len(g):]
+        if len(ko) <= 4 and all('group' not in r and r.get('legs', 1) in (1, 2) and (r.get('ties') or r.get('clubs'))
+                                for r in ko) and len(ko[-1].get('ties') or []) == 1:
+            return [None] + ['R16', 'QF', 'SF', 'F'][4 - len(ko):]
+        return []
     if not rs or len(rs) > 4 or len(rs[-1].get('ties') or []) != 1 or \
             any('group' in r or r.get('legs', 1) not in (1, 2) or not r.get('ties') for r in rs):
         return []
@@ -1713,10 +2101,13 @@ def _top9(p):
                                         rb'\xc7\x05' + pk(r['A0'] + 8), d1, re.S)]
     assert len(m) == 2, m                       # (the first: cseg_927A2; the second: another list of the season end)
     return p.target(1, m[0] + 6), p.target(1, m[0] + 16)
-GP_PAGES = 17 + (1 if os.environ.get('GPLAY_FORCE') else 0)   # (4.0.1 rc: GPLAY_FORCE test builds' extra code overflowed 16 pages by 44 B; 4.0.2: option C's gp_keep blocks - 17, obj1 only)
+GP_PAGES = 20 + (1 if os.environ.get("GPLAY_FORCE") else 0)   # (4.0.5: 20 with the NZ Grand Final (gf_*: longtable room ran out with the release world); 19 with the earlier stages' tables (ap_*); 18, the supercups (sc_step_c) took the room longtable needs; 4.0.1 rc: GPLAY_FORCE test builds' extra code overflowed 16 pages by 44 B; 4.0.2: option C's gp_keep blocks - 17, obj1 only)
 #P_PAGES = 16            # obj1 pages for the C code + glue + specs (World 2026-27's 20 countries; gplay-play; 4.0 ARG: 7; the record lines: 12; longtable's code: 13; 4.0.1 MEX stage titles per division: 14; cupsf: 16, with package 6's title_seed / draw_pot)
 GP_ST_SIZE = 2048       # (sizeof struct gp_state: the engine block's item 'GP', patch.py)
+F1_SIZE = 8 + 30 * 8     # 4.0.5 (sizeof struct f1_state: the engine block's item 'F1', the FASE 1 page)
 WN_SIZE = 4 + 4 * 40    # (sizeof struct wn_state: the engine block's item 'WN', the WINNERS page's last season)
+CN_SIZE = 4 + 32         # (sizeof struct cn_state: item 'CN', 4.0.5 the career club's last-season division name)
+BQ_SIZE = 24             # (gplay.c SEC_BQ: item 'BQ', 4.0.6 may each B team go up next season - zone colours)
 CF_SIZE = 4 + 256       # (sizeof struct cf_state: the engine block's item 'CF', cupsf's last-season places)
 SS_LEGACY = ('arg', 'usa')      # 4.0's stage-table leagues: bank 0 (engine item 'SS', its 4.0 layout kept)
 SS_ITEM = 6 + 4 * 32 * 12      # (sizeof struct gp_ss: one bank; 'SS2' = bank 1, the career league's, one bank)
@@ -1749,6 +2140,7 @@ def ss_banks(sp_tabs):
     return nb, (bytes(tab) if nb > 1 else None)
 
 
+GS_ON = [False]          # (patch.py: the engine block saves GP_GS - rc19's preview may keep 9 early tables)
 GP_BSS = 0x6000          # the C .bss pages (obj2 after careerworld's BSS): GP_IN at GT 32 / GD 16, GP_SS, PR, RS, GP_ST, RI, PS
 
 
@@ -1759,6 +2151,22 @@ def _cardiv(p):
                                      rb'\x8b\x44\x1e\x04', d1, re.S)]
     assert len(m) == 1, ('the league row: mov ax, [D6CDC] ... mov eax, [esi+ebx+4]', [hex(x) for x in m])
     return p.target(1, m[0] + 2)[1]
+
+
+def _t2_sites(p, r):
+    """cseg_8A2CE (a type-2 contest's group end: mov esi, [A2]; mov al, [esi+2Dh]; mov [D0], al; mov al, [worldCup])
+    and its two calls (cseg_8A147, cseg_95A51): (the call sites, cseg_8A2CE)."""
+    d1 = p.le.obj_bytes(1)
+    pat = rb'\x8b\x35' + re.escape(struct.pack('<I', r['A0'] + 8)) + rb'\x8a\x46\x2d\xa2' + re.escape(struct.pack('<I', r['D7'] - 28)) + rb'\xa0'
+    starts = [x.start() for x in re.finditer(pat, d1)]
+    callers = {s: [i for i in range(len(d1) - 5) if d1[i] == 0xE8 and i + 5 + struct.unpack_from('<i', d1, i + 1)[0] == s]
+               for s in starts}                     # (the pattern opens 4 routines: the one called twice, right
+    a5 = struct.pack('<I', r['A0'] + 20)            # after `push A5`)
+    m = [s for s, cs in callers.items() if len(cs) == 2 and any(d1[c - 6:c] == b'\xff\x35' + a5 for c in cs)]
+    assert len(m) == 1, {hex(s): [hex(c) for c in cs] for s, cs in callers.items()}
+    calls = callers[m[0]]
+    assert all(p.get(1, c, 1) == b'\xe8' for c in calls), [hex(c) for c in calls]
+    return calls, m[0]                              # (a site may be hooked already: t2_gend chains its target)
 
 
 def _sack_sites(p):
@@ -1824,6 +2232,186 @@ def _mrec_site(p):
     return calls[0] + 5, f[0]
 
 
+VC5_ASM = """
+vc5_init:                               ; 4.0.5 (Davide 29/10): VISUAL. COMPETIZ.'s copy (VC5_MENU, 9 entries) - the
+    call VC_INIT                        ; game's init / after-draw functions, then the 5th competition entry (entry 8,
+    jmp vc5_lay                         ; slot 4)
+vc5_after:
+    call VC_AFTER
+vc5_lay:                                ; entry 8 shown for a cup in slot 4 (SLOT4: this season's - cleared at a season
+    pushad                              ; start when unused; a played supercup stays) with the career club in it
+    mov word [D0R], 8                   ; (gp_notin); a cup only: the view copies 443h of SLOT4 (a league 733h, a group
+    call VC_CALC                        ; B52h would run past it). Shown: rows 1 2 3 4 8 5 6 (the visible ones) laid out
+    mov edi, [A0R]                      ; from entry 1's y, 25 px apart (23 with seven rows: ESCI, entry 7, keeps its
+    mov word [edi + 4], 1               ; place), up / down links in that order, the last one's down = ESCI
+    cmp word [GAMETYPE], 4
+    jne .out
+    cmp dword [D8CAA + 16], 0
+    je .out
+    cmp word [SLOT4], 1
+    jne .out
+    cmp byte [SLOT4 + 4], 0
+    je .out
+    mov al, 4
+    call gp_notin
+    jnz .out
+    mov word [edi + 4], 0
+    call .o
+.o: pop esi
+    add esi, vc5_order - .o
+    xor ecx, ecx                        ; ecx = visible rows
+    xor eax, eax
+.c: movzx eax, byte [esi]
+    test eax, eax
+    jz .cd
+    inc esi
+    mov [D0R], ax
+    push esi
+    push ecx
+    call VC_CALC
+    pop ecx
+    pop esi
+    mov edi, [A0R]
+    cmp word [edi + 4], 0
+    jne .c
+    inc ecx
+    jmp .c
+.cd:sub esi, 7
+    push esi
+    push ecx
+    mov word [D0R], 1
+    call VC_CALC
+    pop ecx
+    pop esi
+    mov edi, [A0R]
+    movzx edx, word [edi + 16h]         ; edx = y, ebp = step
+    mov ebp, 25
+    cmp ecx, 7
+    jb .s
+    mov ebp, 23
+.s: xor ecx, ecx                        ; ecx = the row above's entry address (0: none), [esp] its number
+    push dword 0FFh
+.l: movzx eax, byte [esi]
+    test eax, eax
+    jz .e
+    inc esi
+    mov [D0R], ax
+    pushad
+    call VC_CALC
+    popad
+    mov edi, [A0R]
+    cmp word [edi + 4], 0
+    jne .l
+    mov [edi + 16h], dx
+    add edx, ebp
+    mov ebx, [esp]
+    mov [edi + 0Ah], bl                 ; up = the row above (FFh for the first)
+    jecxz .f
+    mov [ecx + 0Bh], al                 ; the row above's down = this one
+.f: mov [esp], eax
+    mov ecx, edi
+    jmp .l
+.e: pop ebx
+    jecxz .out
+    mov byte [ecx + 0Bh], 7             ; the last row's down -> ESCI, ESCI's up -> it
+    mov word [D0R], 7
+    pushad
+    call VC_CALC
+    popad
+    mov edi, [A0R]
+    mov [edi + 0Ah], bl
+.out:
+    popad
+    ret
+
+vc5_go:                                 ; entry 8's on-select: the game's view of a slot (cseg_37B74) with A0 = SLOT4
+    mov dword [A0R], SLOT4
+    jmp VC_VIEW
+
+vc5_order: db 1, 2, 3, 4, 8, 5, 6, 0
+"""
+
+
+VC5_SITES = []
+
+
+def _vc5(p, a6):
+    """4.0.5 the 5th VISUAL. COMPETIZ. entry: (nasm source, symbols, obj1 sites of `mov [A6], offset menu`). The menu
+    (obj2, ShowMenu's packed format) is found from its entry 1's on-select (cseg_37B44: the four `mov [A0], offset
+    slot buffer; jmp` stubs, 12 B apart, then cseg_37B74) and copied into the glue with an entry 8 before its end."""
+    d1, d2 = bytes(p.le.obj_bytes(1)), bytes(p.le.obj_bytes(2))
+    fx = {(so, s): (t, o) for so, s, _, t, o, *_ in p.le.fixups()}
+    stubs = [m.start() for m in re.finditer(rb'(\xc7\x05.{8}\xeb.){4}', d1, re.S)]
+    assert len(stubs) == 1, stubs
+    view = stubs[0] + 48                                  # cseg_37B74: push A0
+    assert d1[view:view + 2] == b'\xff\x35', d1[view:view + 2].hex()
+    sel1 = [s for (so, s), (t, o) in fx.items() if so == 2 and t == 1 and o == stubs[0]]
+    assert len(sel1) == 1, sel1
+    sites = [m.start() for m in re.finditer(rb'\xc7\x05' + re.escape(struct.pack('<I', a6)) + rb'.{4}', d1, re.S)]
+    menus = {}
+    for st in sites:
+        t = fx.get((1, st + 6))
+        if t and t[0] == 2 and 0 < sel1[0] - t[1] < 0x60:
+            menus.setdefault(t[1], []).append(st)
+    assert len(menus) == 1 and len(list(menus.values())[0]) == 2, menus   # (ViewCompetitionsMenu, ...Retired)
+    m0, a6sites = list(menus.items())[0]
+    k = m0 + 16                                           # (header: init, after-draw, on-draw, default entry)
+    n = 0
+    while True:                                           # entries: x y w h, then typed fields up to a 0
+        if struct.unpack_from('<h', d2, k)[0] == -999:
+            break
+        k += 8
+        while True:
+            ty = struct.unpack_from('<H', d2, k)[0]
+            k += 2
+            if ty == 0:
+                break
+            k += {2: 4, 4: 2, 8: 6, 9: 2, 13: 4, 15: 4}[ty]
+        n += 1
+    assert n == 8, n
+    end = k
+    hdr = [fx[(2, m0)], fx[(2, m0 + 4)]]
+    assert hdr[0][0] == 1 and hdr[1][0] == 1, hdr
+    a = hdr[1][1]                                         # CalcMenuEntryAddress: cseg_3760C's first call (push D0;
+    assert d1[a:a + 2] == b'\xff\x35' and d1[a + 6:a + 8] == b'\xc7\x05' and d1[a + 16] == 0xE8, d1[a:a + 21].hex()
+    calc = a + 21 + struct.unpack_from('<i', d1, a + 17)[0]   # mov dword [D0], 1; call)
+    lines, syms, q = ['VC5_MENU:', '    dd vc5_init, vc5_after'], {}, m0 + 8
+    while q < end:
+        if (2, q) in fx:
+            name = f'VCM_{q - m0:X}'
+            syms[name] = fx[(2, q)]
+            lines.append(f'    dd {name}')
+            q += 4
+        else:
+            lines.append(f'    db {d2[q]}')
+            q += 1
+    lines += ['    dw 48h, 82h, 0A0h, 0Fh            ; entry 8: as entries 1-4 (y and links set by vc5_lay)',
+              '    dw 2', '    db 0FFh, 0FFh, 0FFh, 0FFh', '    dw 4, 0Eh', '    dw 8, 0', '    dd SLOT4 + 4',
+              '    dw 13', '    dd vc5_go', '    dw 0', '    dw -999']
+    syms.update({'VC_INIT': hdr[0], 'VC_AFTER': hdr[1], 'VC_CALC': (1, calc), 'VC_VIEW': (1, view)})
+    return '\n'.join(lines) + '\n', syms, a6sites
+
+
+def _cgl_site(p, d8caa):
+    """4.0.5: CareerGameListCommon (the career menu's fixture list: `mov A1, offset dseg_D8CAA` in its slot loop) and
+    the menu data's pointer to it (obj2: the one fixup from obj2 to the nearest obj1 target at or before that load)."""
+    import sacups
+    d1 = bytes(p.le.obj_bytes(1))
+    r = sacups.regs(d1)
+    hits = [m.start() for m in re.finditer(rb'\xc7\x05' + re.escape(struct.pack('<I', r['A1']))
+                                            + re.escape(struct.pack('<I', d8caa)), d1)]
+    fx = [x for x in p.le.fixups() if x[0] == 2 and x[3] == 1]
+    out = []
+    for h in hits:
+        c = [x for x in fx if h - 0x600 <= x[4] <= h]
+        if c:
+            top = max(x[4] for x in c)
+            ptrs = [x[1] for x in c if x[4] == top]
+            out.append((top, ptrs))
+    assert len(out) == 1 and len(out[0][1]) == 1, out
+    return out[0][0], out[0][1][0]
+
+
 def _adv_sites(p):
     """cseg_8EA82 (the career calendar advance: gameType 4 -> counters, cseg_94DB1) and its 4 callers."""
     import split
@@ -1835,6 +2423,34 @@ def _adv_sites(p):
     calls = [i for i in range(len(d1) - 5) if d1[i] == 0xE8 and i + 5 + struct.unpack_from('<i', d1, i + 1)[0] == m[0]]
     assert len(calls) == 4, calls
     return m[0], calls
+
+
+def _fin_site(p):
+    """4.0.5 (Panchina): CareerPlayMatch (FINISH SEASON: every day to the season's end simulated, from PlayMatchMenu when
+    careerFinished) - its one caller, careerFinished / seasonFinished / dseg_DB3E4, the day's simulation cseg_8E841 and
+    cseg_8EC2B (the 'career match ahead' scan: the call after cseg_8EA82 in cseg_8E3DA)."""
+    d1 = p.le.obj_bytes(1)
+    fx = {f[1]: f[4] for f in p.le.fixups() if f[0] == 1 and f[3] == 2}
+    rel = lambda i: i + 5 + struct.unpack_from('<i', d1, i + 1)[0]
+    m = [x.start() for x in re.finditer(rb'\x66\xa1.{4}\x66\x0b\xc0\x74.\x66\xa1.{4}\x66\x0b\xc0\x75\x05\xe8.{4}\xe8.{4}'
+                                         rb'\x66\xa1.{4}\x66\x0b\xc0\x74.\xc3', d1, re.S)]
+    assert len(m) == 1, m
+    o = m[0]
+    calls = [i for i in range(len(d1) - 5) if d1[i] == 0xE8 and rel(i) == o]
+    assert len(calls) == 1 and d1[calls[0] + 5] == 0xE9, calls
+    adv = rel(o + 27)
+    scan = {rel(c + 5) for c in range(len(d1) - 10) if d1[c] == 0xE8 and rel(c) == adv and d1[c + 5] == 0xE8}
+    assert len(scan) == 1, scan
+    callers = {}                                        # (ContestMenuOnReturn's refresh: cseg_34DA3, cseg_34D5A,
+    for i in range(len(d1) - 5):                        # cseg_3563E, ContestSetButtons - 4 callers -, CheckTransfers,
+        if d1[i] == 0xE8:                               # CheckClubBusiness: the career menu's next match, fixture list
+            callers.setdefault(rel(i), []).append(i)    # and PLAY MATCH / FINISH SEASON buttons)
+    run = [i for i in range(len(d1) - 30) if all(d1[i + 5 * k] == 0xE8 for k in range(6)) and d1[i - 5] != 0xE8
+           and len(callers.get(rel(i + 15), [])) == 4]
+    run = sorted(run, key=lambda i: abs(i - calls[0]))[:1]   # (ContestMenuOnReturn: next to PlayMatchMenu)
+    assert run and abs(run[0] - calls[0]) < 0x400, run
+    return dict(call=calls[0], careerfin=fx[o + 2], db3e4=fx[o + 13], sim=rel(o + 22), seasonfin=fx[o + 34],
+                scan=scan.pop(), refresh=[rel(run[0] + 5 * k) for k in range(4)])
 
 
 def link_reserve(p, ri=None):
@@ -1896,6 +2512,60 @@ def names_lines(tables, area, lang):
     return '\n'.join(lines)
 
 
+RR_SIZES = (11,)                  # 4.0.5 NZ: type-2 group sizes whose pairs pattern is replaced (rr_pattern): the odd
+                                  # sizes >= 5 the original never used are no schedules; ours today = NZ's 11 only (audit
+                                  # 29/10) - a new odd size goes here (obj1 room: the release world's longtable is tight)
+
+
+def rr_pattern(m):
+    """A single round robin of m clubs (odd m: the circle method with a rest) as the game's type-2 pairs pattern:
+    m * (m - 1) / 2 pairs (home, away), day after day - m // 2 pairs a day, every club once a day but the resting
+    one; each pair's home side the club with fewer home games so far."""
+    n = m + (m & 1)
+    ring = list(range(n))
+    out, home = [], [0] * n
+    for d in range(n - 1):
+        for i in range(n // 2):
+            a, b = ring[i], ring[n - 1 - i]
+            if a >= m or b >= m:
+                continue
+            out.append((a, b) if home[a] <= home[b] else (b, a))   # (home: the one with fewer home games so far)
+            home[out[-1][0]] += 1
+        ring = [ring[0]] + [ring[-1]] + ring[1:-1]
+    assert len(out) == m * (m - 1) // 2
+    return out
+
+
+def rr_pattern_fix(p, at):
+    """cseg_895AC (the type-2 group engine) reads a group's pairs from the pattern [0x5F4A0 + 4 * (m - 2)] (obj2):
+    the game's own ones for odd m >= 5 (never used by the original: groups of 4) are no schedules - for m = 11 from
+    its 6th block of 5 pairs a club plays twice a day. Audit 29/10: no contest of ours but NZ's championship (11) has
+    an odd group of 5 or more (conti groups of 4, the Poule's of 3); the RR_SIZES point to our round robins (obj1
+    from at, gplay's own area: the shared obj2 area is full with the release world). Returns (the sizes, the end)."""
+    d1 = p.le.obj_bytes(1)
+    hits = []                                       # (mov dword [x], imm; mov esi, [y]; mov ax, [esi + 51h]: five sites
+    for m in re.finditer(rb'\xc7\x05.{8}\x8b\x35.{4}\x66\x8b\x46\x51', d1, re.S):   # in every exe - cseg_895AC's
+        try:                                        # imm is the pattern table: 14 pointers into obj2, m = 2..15)
+            obj, tab = p.target(1, m.start() + 6)
+            if obj == 2 and all(p.target(2, tab + 4 * k)[0] == 2 for k in range(14)):
+                hits.append(tab)
+        except Exception:
+            pass
+    assert len(hits) == 1, f'cseg_895AC pattern site: {hits}'
+    tab = hits[0]
+    for m in RR_SIZES:
+        pairs = rr_pattern(m)
+        days = [pairs[i:i + m // 2] for i in range(0, len(pairs), m // 2)]
+        assert len(days) == m and all(len({x for pq in d for x in pq}) == 2 * len(d) for d in days), m
+        b = bytes(x for pq in pairs for x in pq)
+        assert not any(p.get(1, at, len(b)))
+        p.put(1, at, b)
+        p.retarget(2, tab + 4 * (m - 2), 1, at)              # (its fixup re-pointed, as split.late)
+        p.put(2, tab + 4 * (m - 2), struct.pack('<I', at))
+        at += len(b)
+    return list(RR_SIZES), (at + 15) & ~15
+
+
 def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
     """tables: mkseason.gplay_tables(). C + glue + specs in obj1 at..limit, the C .bss at obj2 bss_at (BSS_SIZE).
     area: the contest names' string area (the playable play-offs). Returns the end."""
@@ -1915,6 +2585,8 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
     for a in (*ps['lend'], ps['ssim'], ps['draw']):
         assert p.get(1, a, 1) == b'\xe8', hex(a)
     force = int(os.environ.get('GPLAY_FORCE') or 0)         # (test builds: the career club's place in its division)
+    if os.environ.get('GPLAY_GOUT'):                        # (test builds: the career club out of the game's groups)
+        print('exe: GPLAY_GOUT (test build: the career club last of its group in the other group stages)')
     if os.environ.get('GPLAY_KOFORCE'):                     # (test builds: the career club's knockout ties forced)
         print(f"exe: GPLAY_KOFORCE={os.environ['GPLAY_KOFORCE']} (test build: the career club {'loses' if os.environ['GPLAY_KOFORCE'] == '1' else 'wins'} "
               'its played knockout ties)')
@@ -1927,6 +2599,8 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
     assert not any(p.get(1, at, len(sec)))
     p.put(1, at, sec)
     sec_at, at = at, (at + len(sec) + 15) & ~15
+    pt, at = rr_pattern_fix(p, at)                  # 4.0.5 NZ: a type-2 group of 11 (the championship)
+    print(f'exe: type-2 group pairs: sizes {pt} replaced by round robins (5 matches a day + a rest)')
     import sacups
     nb, ssf = SS_BANKS
     ssf_at = None
@@ -1938,6 +2612,11 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
                                 f"-DSEC_FORCE_B={int(os.environ.get('SEC_FORCE_B') or 0xFFFF)}",
                                 f"-DGP_RLFORCE={int(os.environ.get('GPLAY_RLFORCE') or 0)}",
                                 f"-DGP_KOFORCE={int(os.environ.get('GPLAY_KOFORCE') or 0)}",
+                                f"-DGP_GFFORCE={int(os.environ.get('GPLAY_GFFORCE') or 0)}",
+                                f"-DGP_S3DEFER={int(os.environ.get('GPLAY_S3DEFER') or 0)}",
+                                f"-DGP_GFREST={int(os.environ.get('GPLAY_GFREST') or 0)}",
+                                f"-DGP_GOUT={int(os.environ.get('GPLAY_GOUT') or 0)}",
+                                f"-DGP_GSON={int(GS_ON[0])}",
                                 f"-DCF_SEED={__import__('cupsf').SEED}"]
                                + (['-DHDR_TEST'] if os.environ.get('HDR_TEST') else []))   # (test builds: GROUP n headers)
     top_r, top_w = _top9(p)                          # (cseg_927A2's top-9 list: gp_champ)
@@ -1976,9 +2655,12 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
     symbols.update(tab_syms)
     symbols.update({k: syms[k] for k in ('GP_SSB', 'GP_IN', 'GP_OUT', 'gp_season', 'gp_champ', 'gp_keep', 'GP_ST', 'GP_LOG', 'GP_NM', 'GP_DIYP', 'GP_K',
                                          'GP_W', 'GP_SKIP', 'GP_RB', 'GP_ALIVE', 'GP_LAST', 'GP_A', 'GP_B', 'GP_CID', 'GP_SEAS', 'GP_DIV',
-                                         'GP_PT', 'GP_PL', 'gp_need', 'gp_simkeep', 'gp_restore', 'gp_lend_c', 'gp_ours_c',
+                                         'GP_PT', 'GP_PL', 'gp_need', 'gp_simkeep', 'gp_need_pre', 'gp_simkeep_pre', 'gp_pre_c', 'GP_PRE', 'gp_restore', 'gp_lend_c', 'gp_ours_c',
                                          'gp_perm_c', 'gp_rec_c', 'gp_draw_c', 'gp_played_c', 'gp_end_c',
                                          'gp_build_c', 'GP_BPIC', 'sec_post')})
+    t2s, c8a2ce = _t2_sites(p, r)
+    symbols.update({'A5R': (2, r['A0'] + 20), 't2_pre': syms['t2_pre'], 't2_defer': syms['t2_defer'], 't2_waiting': syms['t2_waiting'], 't2_due': syms['t2_due'], 'T2_NEXT0': (1, tgt(t2s[0])),
+                    'T2_NEXT1': (1, tgt(t2s[1]))})
     symbols.update({'A0R': (2, r['A0']), 'A1R': (2, r['A0'] + 4), 'A2R': (2, r['A0'] + 8),
                     'A4R': (2, r['A0'] + 16), 'D7R': (2, r['D7']), 'D0R': (2, r['A0'] - 32), 'D1R': (2, r['A0'] - 28),
                     'D2R': (2, r['A0'] - 24), 'SLT': s['slt'], 'SLTCOPY': s['sltcopy'],
@@ -1989,7 +2671,7 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
                     'GP_LEND_NEXT': (1, tgt(ps['lend'][0])), 'GP_SSIM_NEXT': (1, tgt(ps['ssim'])),
                     'GP_DRAW_NEXT': (1, tgt(ps['draw'])),
                     'C8B2D3': (1, sacups.SITES['c8b2d3']), 'C8EE5D': (1, ps['tail']), 'D8CAA': (2, ps['d8caa']),
-                    'D6CDC': (2, ps['d6cdc']), 'CFB': (2, ps['cfb']), 'CAL': (2, ps['cal']), 'CAL_CUR': (2, ps['cal_cur']),
+                    'D6CDC': (2, ps['d6cdc']), 'CFB': (2, ps['cfb']), 'CAL': (2, ps['cal']), 'CAL_CUR': (2, ps['cal_cur']), 'NOCAREER': (2, 0x18DF2),
                     'CAL_NOREPLAY': (1, lib97.LABELS['cal_noreplay']),
                     'SLOT4': (2, ps['slot4']), 'LIST4': (2, ps['list4']), 'W11F9CC': (2, ps['w11f9cc']),
                     'F846': (2, ps['f846']), 'SAVESEL': (1, ps['savesel']), 'RESTSEL': (1, ps['restsel']),
@@ -1999,6 +2681,12 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
     sk = _sack_sites(p)
     adv, adv_calls = _adv_sites(p)
     symbols['C8EA82'] = (1, adv)
+    fin = _fin_site(p)                                   # (4.0.5: FINISH SEASON's loop, gp_fin)
+    symbols.update({f'CREF{k}': (1, a) for k, a in enumerate(fin['refresh'])})
+    symbols.update({'C8E841': (1, fin['sim']), 'C8EC2B': (1, fin['scan']), 'SEASONFIN': (2, fin['seasonfin']),
+                    'CAREERFIN': (2, fin['careerfin']), 'DB3E4': (2, fin['db3e4'])})
+    cgl, cgl_ptr = _cgl_site(p, ps['d8caa'])
+    symbols['CGLC_'] = (1, cgl)
     symbols.update({k: (2, sk[k]) for k in ('CURMSG', 'SACKED')})
     symbols.update({'MSG_NORENEW': (0, sk['msg']), 'SHOWCHAIR': (1, sk['show']), 'C3C07C': (1, sk['c3c07c'])})
     symbols.update({f'EUW{i}': (2, a) for i, a in enumerate(sk['euw'])})
@@ -2009,7 +2697,7 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
     symbols['ADDJOB'] = (1, addjob)
     symbols.update({k: syms[k] for k in ('GP_CFB', 'GP_LG', 'GP_RST', 'GP_RIT', 'GP_SEL', 'GP_MGR', 'GP_WORLD', 'GP_SLT',
                                          'gp_sack_c', 'gp_forcecfb', 'gp_pwin_c', 'gp_rlines_c', 'GP_RLN', 'GP_RLC', 'GP_RLPOULE', 'GP_REC', 'GP_CMB', 'gp_adv_c', 'GP_ADVWK', 'GP_WK', 'GP_TH', 'GP_RN',
-                                         'gp_defer_c', 'cd_step_c', 'cd_fixload_c', 'gp_scal_c', 'gp_repoint_c', 'gp_fixload_c', 'CD_ST', 'GP_CDT', 'GP_CDNM', 'GP_CDD',
+                                         'gp_defer_c', 't2_force', 'gf_step_c', 'gf_drop_c', 'gf_place_c', 'gf_hide_c', 'gf_unhide_c', 'gf_anchor_c', 'GP_S3', 'GP_S3B', 'GP_GFT', 'cd_step_c', 'sc_step_c', 'sc_rlines_c', 'GP_SCT', 'GP_SCFIRST', 'SC_ST', 'SC_TRACE', 'cd_fixload_c', 'gp_scal_c', 'gp_repoint_c', 'gp_fixload_c', 'CD_ST', 'GP_CDT', 'GP_CDNM', 'GP_CDD',
                                          'GP_CDFIRST')})
     symbols['CD_MEMBER'] = syms['cd_member_c']
     symbols['GP_CDS1'] = syms['GP_CDS1']
@@ -2075,6 +2763,14 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
         cd_src = (f'CD_TAB: db {world}, {nr}, {lfile}, 0\n    db ' + ', '.join(str(b) for b in tab)
                   + f'\nCD_NM: dd {rl}, {rs}\nCD_DT: db ' + ', '.join(str(b) for b in cdt)
                   + '\nCD_RN: db ' + ', '.join(str(x) for x in rnames.CD_NAMES) + '\n')
+    import supercup                                           # 4.0.5 national supercups (supercup.py: SC_TAB)
+    sct = supercup.table(lang, (lambda x: _sadd(area, x) - sacups.STR_BASE) if area else (lambda x: 0)) \
+        if mkseason.worlds() else None
+    symbols['SC_ON'] = (0, int(bool(sct)))
+    if sct:
+        import careerworld as cw_
+        symbols['W_REC'] = (1, cw_.LABELS['w_rec'])
+        cd_src += 'SC_TAB: db ' + ', '.join(str(b) for b in sct) + '\n'
     if cds:
         a0_ = r['A0']
         pk_ = lambda x: re.escape(struct.pack('<I', x))
@@ -2086,6 +2782,10 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
         symbols.update({'CAL1_LOOP': (1, ms[0].start() - 19), 'D6R': (2, a0_ - 8), 'D7R': (2, a0_ - 4),
                         'A4R': (2, a0_ + 16)})
         cd_src += CUP12 + cds1_src(p, cds[0], rl, rs)
+        if sct and not os.environ.get('NO_VC5'):            # 4.0.5: VISUAL. COMPETIZ.'s 5th entry (slot 4; gp_notin)
+            vsrc, vsym, VC5_SITES[:] = _vc5(p, r['A0'] + 24)
+            cd_src += VC5_ASM + vsrc
+            symbols.update(vsym)
         symbols.update({f'C_S1_{k}': (1, c) for k, c in enumerate(CDS1_CALLS)})
     import cupsf                                              # 4.0.1: the World 2026-27 cups follow promotions
     cfw = [w for w in cupsf.worlds() if cupsf.year(w) >= 2026] if cds else []
@@ -2148,6 +2848,9 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
             for m in ms:                                                                   # cf_a6 acts for our cup ids)
                 p.remove(1, m + 1)
                 p.put(1, m, b'\xe8' + struct.pack('<i', lab['cf_a6'] - (m + 5)))
+        for st in VC5_SITES:                                  # (ViewCompetitionsMenu / ...Retired: `mov [A6], offset
+            p.retarget(1, st + 6, 1, lab['VC5_MENU'])         # viewCompetitionsMenu` -> the copy)
+            p.put(1, st + 6, struct.pack('<I', lab['VC5_MENU']))
         cal1 = CAL1_SITE[0]                                   # cseg_3563E's `mov eax, A6` (5 B, a fixup) -> call
         p.remove(1, cal1 + 1)
         p.put(1, cal1, b'\xe8' + struct.pack('<i', lab['gp_cal1'] - (cal1 + 5)))
@@ -2162,6 +2865,9 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
         else:
             p.remove(1, ps['rec'] + 2)                       # mov ax, [dseg_11F9CC] (6 B) -> call gp_rec; nop
             p.put(1, ps['rec'], b'\xe8' + struct.pack('<i', lab['gp_rec'] - (ps['rec'] + 5)) + b'\x90')
+        same = symbols['T2_NEXT0'] == symbols['T2_NEXT1']    # (one chain when both reach one target - lp36's
+        for k, site in enumerate(t2s):                      # lp_gend: statespec finds a single group-end hook)
+            p.put(1, site + 1, struct.pack('<i', lab[f't2_gend{0 if same else k}'] - (site + 5)))
         dpp = lib97.LABELS['NC_DPP']                         # lib97 nc_adv's slot: gp_perm, then dplay's dp_perm
         try:
             nxt = p.target(1, dpp)
@@ -2179,6 +2885,11 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
         for a in adv_calls:                                  # (the calendar advance: 'then_build')
             assert p.get(1, a, 5) == p.le.obj_bytes(1)[a:a + 5], f'obj1+{a:#x} already hooked'
             p.put(1, a + 1, struct.pack('<i', lab['gp_adv'] - (a + 5)))
+        a = fin['call']                                      # (4.0.5: PlayMatchMenu's `call CareerPlayMatch`)
+        assert p.get(1, a, 5) == p.le.obj_bytes(1)[a:a + 5], f'obj1+{a:#x} already hooked'
+        p.put(1, a + 1, struct.pack('<i', lab['gp_fin'] - (a + 5)))
+        p.retarget(2, cgl_ptr, 1, lab['gp_scgl'])          # (4.0.5: the career menu's fixture list, gp_scgl)
+        p.put(2, cgl_ptr, struct.pack('<I', lab['gp_scgl']))
         assert p.get(1, job, 5) == p.le.obj_bytes(1)[job:job + 5], 'the club job offers call is hooked'
         p.put(1, job + 1, struct.pack('<i', lab['gp_job'] - (job + 5)))   # (no job at an off-file / pool club)
         assert p.get(1, mrec, 5) == p.le.obj_bytes(1)[mrec:mrec + 5], 'ManagementRecordMenu call is hooked'
@@ -2196,13 +2907,14 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
     assert struct.unpack('<I', p.get(1, syms['RI_STATE_SIZE'][1], 4))[0] == ripool.RI_SIZE   # (the engine block's 'RI')
     kolay = dict(zip(('st_ko', 'size', 'slot', 'ntie', 'tw', 'tl', 'team', 'n'),
                      struct.unpack('<8I', p.get(1, syms['GP_KOLAY'][1], 32))))   # (4.0's gp_build glue: GP_ST.ko[0])
-    LABELS.update(lab, GP_TOPW=top_w, GP_TOPR=top_r, CD_ST=syms['CD_ST'], CF_ST=syms['CF_ST'], GP_GS=syms['GP_GS'], GP_KOLAY=kolay, GP_IN=syms['GP_IN'], GP_OUT=syms['GP_OUT'], GP_ST=syms['GP_ST'], GP_LOG=syms['GP_LOG'], layout=lay, pg_season=syms['pg_season'], pg_place=syms['pg_place'], rs_season=syms['rs_season'], gp_stage=syms['gp_stage'], gp_overall=syms['gp_overall'], gp_stitle_c=syms['gp_stitle_c'], gp_hplan_c=syms['gp_hplan_c'], gp_hlabel_c=syms['gp_hlabel_c'], GP_HP=syms['GP_HP'], GP_HGP=syms['GP_HGP'], GP_HG=syms['GP_HG'], GP_HV=syms['GP_HV'], GP_HF=syms['GP_HF'], GP_HL=syms['GP_HL'], GP_HON=syms['GP_HON'], GP_OV_ORD=syms['GP_OV_ORD'], GP_OV_ROWS=syms['GP_OV_ROWS'], GP_OV_N=syms['GP_OV_N'], GP_OV_ANNUAL=syms['GP_OV_ANNUAL'], GP_SS=syms['GP_SSB'], GP_SHB=syms['GP_SHB'], CFB=(2, ps['cfb']), PR_STATE=syms['PR_STATE'],
+    LABELS.update(lab, GP_TOPW=top_w, GP_TOPR=top_r, CD_ST=syms['CD_ST'], SC_ST=syms['SC_ST'], SC_TRACE=syms['SC_TRACE'], CF_ST=syms['CF_ST'], CN_ST=syms['CN_ST'], SEC_BQ=syms['SEC_BQ'], GP_GS=syms['GP_GS'], GP_KOLAY=kolay, GP_IN=syms['GP_IN'], GP_OUT=syms['GP_OUT'], GP_ST=syms['GP_ST'], GP_LOG=syms['GP_LOG'], layout=lay, pg_season=syms['pg_season'], pg_place=syms['pg_place'], rs_season=syms['rs_season'], gp_stage=syms['gp_stage'], gp_overall=syms['gp_overall'], F1_ST=syms['F1_ST'], f1_capture=syms['f1_capture'], f1_valid=syms['f1_valid'], f1_auto=syms['f1_auto'], f1_build=syms['f1_build'], ap_mask=syms['ap_mask'], ap_next=syms['ap_next'], ap_label=syms['ap_label'], ap_build=syms['ap_build'], CAREERTEAM=(2, ct), SEASONPLAYING=(2, s['season']), gp_stitle_c=syms['gp_stitle_c'], gp_hplan_c=syms['gp_hplan_c'], gp_hlabel_c=syms['gp_hlabel_c'], GP_HP=syms['GP_HP'], GP_HGP=syms['GP_HGP'], GP_HG=syms['GP_HG'], GP_HV=syms['GP_HV'], GP_HF=syms['GP_HF'], GP_HL=syms['GP_HL'], GP_HON=syms['GP_HON'], GP_OV_ORD=syms['GP_OV_ORD'], GP_OV_ROWS=syms['GP_OV_ROWS'], GP_OV_N=syms['GP_OV_N'], GP_OV_ANNUAL=syms['GP_OV_ANNUAL'], GP_SS=syms['GP_SSB'], GP_SHB=syms['GP_SHB'], CFB=(2, ps['cfb']), PR_STATE=syms['PR_STATE'],
                   RS_STATE=syms['RS_STATE'], ri_season=syms['ri_season'], ri_apply=syms['ri_apply'],
                   ri_cache=syms['ri_cache'], RI_STATE=syms['RI_STATE'], RI_MGR=syms['RI_MGR'],
                   RI_RULE=syms['RI_RULE'], cd_season=syms['cd_season'],
-                  gp_wn_c=syms['gp_wn_c'], GP_WNSRC=syms['GP_WNSRC'], GP_WNFILE=syms['GP_WNFILE'], GP_SEAS=syms['GP_SEAS'],   # (winners.py)
+                  gp_wn_c=syms['gp_wn_c'], sc_wline_c=syms['sc_wline_c'], GP_WNSRC=syms['GP_WNSRC'], GP_WNFILE=syms['GP_WNFILE'], GP_SEAS=syms['GP_SEAS'],   # (winners.py)
                   WN_ST=syms['WN_ST'], GP_MGR=syms['GP_MGR'])
     assert struct.unpack('<I', p.get(1, syms['WN_SIZE'][1], 4))[0] == WN_SIZE   # (the engine block's 'WN')
+    assert struct.unpack('<I', p.get(1, syms['F1_SIZE'][1], 4))[0] == F1_SIZE   # (the engine block's 'F1')
     if cds:
         assert struct.unpack('<I', p.get(1, syms['CD_STSZ'][1], 4))[0] == CD_SIZE   # (the engine block's 'CD')
     print(f"exe: knockout play-offs (gplay): {len(tables)} countries, C obj1+{at:#x}..{cend:#x}, glue ..{glue + len(code):#x}, "

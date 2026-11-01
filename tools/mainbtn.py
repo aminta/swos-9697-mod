@@ -6,13 +6,20 @@ The main menu's entry 4 (SAVE DISK FILING: defined, always invisible, its string
 at run time, set at both ends of CommonMenuExit: shown, at x 154 (as the right column) and CAREER's y, 150 x 16, in the
 menus' green (colour 14, as CONTINUE ... and the game's green buttons), with its label, the links CAREER <-> button,
 SEASON above, CONTINUE / LOAD OLD COMPETITION below, and its on-select function. CAREER moves to x 0 (the left column).
-Builds without the World 2026-27 do not get it."""
+Builds without the World 2026-27 do not get it.
+SWOS++ (English) also uses entry 4 for its own SWOS++ entry (shown at the top: x 93, y 21) and the main menu has no other
+free entry (13: 10 / 11 are CONTINUE / SAVE). The button always keeps entry 4 (Davide, 30/10: the green rectangle stays
+where it is in every case); SWOS++'s entry (copied from entry 4 the first time it is seen there, shown at another x) is
+shown through entry 11 (SAVE) while no contest is loaded, at SWOS++'s place (top, x 93 y 21; FRIENDLY's up and its
+down link to each other, CONTINUE's down -> LOAD OLD, LOAD OLD's up -> CAREER); with a contest CONTINUE / SAVE get 10 / 11
+back (the game's entry 11 as copied, the game's links) - Davide's option 2."""
 import re
 import struct
 
 import nasmcave
 
 LABEL = {'it': b'CARRIERA 2026-27', 'en': b'CAREER 2026-27', 'fr': b'CARRIERE 2026-27', 'de': b'KARRIERE 2026-27'}
+FLAG = [None]                                # obj1 offset of mb_flag (1: the career came from the button)
 X, W, H, GAP, GREEN = 162, 150, 16, 18, 14   # (x as the menu stores it: definition + 8)
 
 SRC = """
@@ -28,6 +35,10 @@ mb_set: pushad
         mov edi, [A0]
         cmp dword [edi + 2Ah], ONSELF   ; (only the main menu: its entry 9 is CAREER)
         jne .out
+        call mb_spp_get                 ; (SWOS++'s own entry 4, before the button takes it)
+        mov word [D0], 9
+        call CALC
+        mov edi, [A0]
         mov word [edi + 14h], 8
         mov byte [edi + 9], 4
         mov byte [edi + 0Ah], 3         ; (up: OPTIONS, the left column)
@@ -55,8 +66,92 @@ mb_set: pushad
         mov [edi + 26h], eax
         add eax, mb_go - mb_lab
         mov [edi + 2Ah], eax
+        call mb_spp_put                 ; (SWOS++'s entry through entry 11, or entry 11 back to SAVE)
 .out:   popad
         ret
+
+; 4.0.5 (Davide 30/10, option 2): under SWOS++ (English) its own entry 4 (the button's) is shown through entry 11
+; (SAVE) while no contest is loaded - at SWOS++'s own place (top, x 93 y 21); with a contest CONTINUE / SAVE take 10 / 11
+; back. Entry = 38h bytes: +2 its number, +4 invisible, +8 links (left, right, up, down), +14h x y w h, +26h label,
+; +2Ah on-select.
+mb_spp_get:                             ; entry 4 shown at another x than the button's = SWOS++'s: copy it once,
+        push ebp                        ; with the game's entry 11 (SAVE) as it is (ebp: CalcMenuEntryAddress
+        call .b                         ; clobbers eax, bx, dx)
+.b:     pop ebp
+        sub ebp, .b - mb_spp
+        cmp byte [ebp + 70h], 0
+        jne .r
+        mov word [D0], 4
+        call CALC
+        mov esi, [A0]
+        cmp word [esi + 4], 0
+        jne .r
+        cmp word [esi + 14h], X_
+        je .r
+        mov edi, ebp
+        mov ecx, 0Eh
+        rep movsd
+        mov word [D0], 11
+        call CALC
+        mov esi, [A0]
+        lea edi, [ebp + 38h]
+        mov ecx, 0Eh
+        rep movsd
+        mov byte [ebp + 70h], 1
+.r:     pop ebp
+        ret
+
+mb_spp_put:
+        push ebp
+        call .b
+.b:     pop ebp
+        sub ebp, .b - mb_spp
+        cmp byte [ebp + 70h], 0
+        je .r
+        mov word [D0], 10
+        call CALC
+        mov eax, [A0]
+        mov byte [ebp + 71h], 4         ; (a contest: CONTINUE shown - entry 11 = SAVE, FRIENDLY's up = the button)
+        cmp word [eax + 4], 0
+        je .on
+        mov byte [ebp + 71h], 11        ; (none: entry 11 = SWOS++'s entry, FRIENDLY's up = it)
+.on:    mov word [D0], 11
+        call CALC
+        mov edi, [A0]
+        lea esi, [ebp + 38h]
+        cmp byte [ebp + 71h], 11
+        jne .copy
+        mov esi, ebp
+.copy:  push edi
+        mov ecx, 0Eh
+        rep movsd
+        pop edi
+        mov word [edi + 2], 11
+        mov word [edi + 4], 0
+        cmp byte [ebp + 71h], 11
+        jne .f
+        mov dword [edi + 8], 05FFFFFFh  ; (left, right, up: none; down: FRIENDLY)
+.f:     mov word [D0], 5
+        call CALC
+        mov edi, [A0]
+        mov al, [ebp + 71h]
+        mov [edi + 0Ah], al
+        mov word [D0], 12               ; LOAD OLD COMPETITION's up: SAVE (the game's) / CAREER under SWOS++'s entry
+        call CALC
+        mov edi, [A0]
+        mov byte [edi + 0Ah], 11
+        mov word [D0], 10               ; CONTINUE's down (followed while it is hidden: CAREER / the button go down
+        call CALC                       ; through it): SAVE (the game's) / LOAD OLD COMPETITION under SWOS++'s entry
+        mov esi, [A0]
+        mov byte [esi + 0Bh], 11
+        cmp byte [ebp + 71h], 11
+        jne .r
+        mov byte [edi + 0Ah], 9
+        mov byte [esi + 0Bh], 12
+.r:     pop ebp
+        ret
+
+mb_spp: times 72h db 0                  ; (SWOS++'s entry 4, the game's entry 11, +70h: copied, +71h: scratch)
 
 mb_go:  push eax                         ; the button: CAREER's menu, its team choice opening in the World 2026-27
         call .g
@@ -129,5 +224,6 @@ def patch(p, at, lang, wid, onsel=None):
     p.put(1, off + 6, b'\xe9' + struct.pack('<i', lab['mb_off'] - (off + 11)) + b'\x90\x90')
     p.remove(1, cs + 2)                              # (the overwritten instruction's fixup: [D0])
     p.put(1, cs, b'\xe8' + struct.pack('<i', lab['mb_d0'] - (cs + 5)) + b'\x90\x90')
+    FLAG[0] = lab['mb_flag']                         # (4.0.3: careerworld's nat_init reads it: the coach's list)
     print(f'exe: main menu button {LABEL[lang].decode()} at obj1+{at:#x} (hooks {on + 6:#x}, {off + 6:#x})')
     return at + len(code)

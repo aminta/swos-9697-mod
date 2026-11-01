@@ -1,0 +1,550 @@
+{
+ "_doc": "Panchina phase 2: World 2026-27 named substitutes per competition (fase2.md: official text or observed max of 24 real 2026-27 team sheets; null = unknown -> the game's original bench of 5). Keys = the world packs' country dirs and competition keys; a league = one value per division (pack order). 'used' = substitutions allowed (5 everywhere found); 'et' = extra substitute in extra time (1 where the rule is known). Owner: SWOS Panchina. 'continental': the cup's name as the game writes it (a contest without a country: ' ' + name, or the name). A country competition's value may be {'named': n, 'et': 1} (an extra-time substitute). 4.0.5 (Davide 30/10): a null (or a missing key) is filled at build time (benchx.bench_table): a lower division from the nearest higher division with data, a cup / state championship from the country's top league, or '=league.N' = division N's (the cup of that division's clubs). 'sources': where each 4.0.5 value comes from (internal/reports/bench-unknowns-2627.md). A continental cup's 'qual': 1 = the career club's qualifying tie too (uefaq's 'PRELIM. ' / 'QUAL. ' / 'QUALIF. ' / 'QUALI. ' + the name without 'UEFA ': UEFA regulations Art. 55 / 56 cover all the competition's matches, qualifying included). 4.0.5 worldwide: each country also gets a prefix entry '<button> ' (any title of the country: its play-offs, supercups, cups without data) = its top league, or 'confederations'[pack continent] for a country with no data. 'confederations': the bench of a country with no data (its pack's continent).",
+ "used": 5,
+ "countries": {
+  "eng": {
+   "league": [
+    9,
+    9,
+    7,
+    7
+   ],
+   "cup": {
+    "named": 9,
+    "et": 1
+   },
+   "league_cup": 9
+  },
+  "ita": {
+   "league": [
+    15,
+    12,
+    15,
+    15,
+    15,
+    9,
+    9,
+    9,
+    9,
+    9,
+    9,
+    9,
+    9,
+    9
+   ],
+   "cup": 15,
+   "league_cup": "=league.2",
+   "cup_d": {
+    "named": 9,
+    "et": 1
+   }
+  },
+  "esp": {
+   "league": [
+    12,
+    12
+   ],
+   "cup": {
+    "named": 12,
+    "et": 1
+   }
+  },
+  "ger": {
+   "league": [
+    9,
+    9,
+    10
+   ],
+   "cup": 9
+  },
+  "fra": {
+   "league": [
+    9,
+    10
+   ],
+   "cup": {
+    "named": 9,
+    "et": 1
+   }
+  },
+  "por": {
+   "league": [
+    12,
+    null
+   ],
+   "cup": null,
+   "league_cup": null
+  },
+  "ned": {
+   "league": [
+    12,
+    12
+   ],
+   "cup": 12
+  },
+  "bel": {
+   "league": [
+    10
+   ],
+   "cup": 9
+  },
+  "tur": {
+   "league": [
+    10,
+    10
+   ],
+   "cup": 10
+  },
+  "sco": {
+   "league": [
+    9,
+    9,
+    9,
+    9
+   ],
+   "cup": {
+    "named": 9,
+    "et": 1
+   },
+   "league_cup": 9
+  },
+  "gre": {
+   "league": [
+    12
+   ],
+   "cup": 12
+  },
+  "aut": {
+   "league": [
+    9
+   ],
+   "cup": null
+  },
+  "den": {
+   "league": [
+    9
+   ],
+   "cup": 9
+  },
+  "swe": {
+   "league": [
+    9
+   ],
+   "cup": null
+  },
+  "nor": {
+   "league": [
+    9
+   ],
+   "cup": 9
+  },
+  "rus": {
+   "league": [
+    12
+   ],
+   "cup": 12
+  },
+  "usa": {
+   "league": [
+    9
+   ],
+   "cup": 8
+  },
+  "mex": {
+   "league": [
+    10,
+    10
+   ]
+  },
+  "bra": {
+   "league": [
+    12,
+    12
+   ],
+   "cup": 12
+  },
+  "arg": {
+   "league": [
+    12,
+    9,
+    9
+   ],
+   "cup": 12
+  },
+  "col": {
+   "league": [
+    9
+   ],
+   "cup": null
+  },
+  "ecu": {
+   "league": [
+    12
+   ],
+   "cup": null
+  },
+  "chi": {
+   "league": [
+    9
+   ],
+   "cup": 9,
+   "league_cup": 9
+  },
+  "per": {
+   "league": [
+    9
+   ],
+   "cup": null
+  },
+  "jpn": {
+   "league": [
+    9,
+    9
+   ],
+   "cup": null,
+   "league_cup": 9
+  },
+  "ksa": {
+   "league": [
+    9
+   ],
+   "cup": 12
+  },
+  "chn": {
+   "league": [
+    12
+   ],
+   "cup": 12
+  },
+  "aus": {
+   "league": [
+    7,
+    null,
+    null,
+    null
+   ],
+   "cup": 7
+  },
+  "ind": {
+   "league": [
+    9,
+    null
+   ],
+   "cup": 10
+  },
+  "rsa": {
+   "league": [
+    10
+   ],
+   "cup": 9,
+   "league_cup": 9
+  },
+  "uru": {
+   "league": [
+    10
+   ]
+  },
+  "par": {
+   "league": [
+    12
+   ]
+  },
+  "bol": {
+   "league": [
+    12
+   ]
+  },
+  "ven": {
+   "league": [
+    12
+   ]
+  },
+  "cze": {
+   "league": [
+    11
+   ]
+  },
+  "pol": {
+   "league": [
+    12
+   ]
+  },
+  "cyp": {
+   "league": [
+    12
+   ]
+  },
+  "sui": {
+   "league": [
+    9
+   ]
+  },
+  "cro": {
+   "league": [
+    12
+   ]
+  },
+  "isr": {
+   "league": [
+    10
+   ]
+  },
+  "hun": {
+   "league": [
+    12
+   ]
+  },
+  "ukr": {
+   "league": [
+    12
+   ]
+  },
+  "srb": {
+   "league": [
+    11
+   ]
+  },
+  "rou": {
+   "league": [
+    12
+   ]
+  },
+  "svk": {
+   "league": [
+    11
+   ]
+  },
+  "bul": {
+   "league": [
+    11
+   ]
+  },
+  "irl": {
+   "league": [
+    9
+   ]
+  },
+  "isl": {
+   "league": [
+    9
+   ]
+  },
+  "fin": {
+   "league": [
+    9
+   ]
+  },
+  "lva": {
+   "league": [
+    9
+   ]
+  },
+  "fro": {
+   "league": [
+    7
+   ]
+  },
+  "est": {
+   "league": [
+    11
+   ]
+  },
+  "can": {
+   "league": [
+    7
+   ],
+   "cup": 9
+  },
+  "crc": {
+   "league": [
+    11
+   ]
+  },
+  "kor": {
+   "league": [
+    9
+   ]
+  },
+  "qat": {
+   "league": [
+    12
+   ]
+  },
+  "uae": {
+   "league": [
+    12
+   ]
+  },
+  "egy": {
+   "league": [
+    9
+   ]
+  },
+  "mar": {
+   "league": [
+    9
+   ]
+  }
+ },
+ "continental": {
+  "UEFA CHAMPIONS LEAGUE": {
+   "named": 12,
+   "et": 1,
+   "source": "UCL regulations 2026/27 Art. 55.01 / 56.02",
+   "qual": 1
+  },
+  "UEFA EUROPA LEAGUE": {
+   "named": 12,
+   "et": 1,
+   "source": "observed (ESPN); UEFA Art. 56 as UCL expected",
+   "qual": 1
+  },
+  "UEFA CONFERENCE LEAGUE": {
+   "named": 12,
+   "et": 1,
+   "source": "observed (ESPN); UEFA Art. 56 as UCL expected",
+   "qual": 1
+  },
+  "COPA LIBERTADORES": {
+   "named": 12,
+   "et": 0,
+   "source": "CONMEBOL 2026 (elgrafico guide) + observed"
+  },
+  "COPA SUDAMERICANA": {
+   "named": 12,
+   "et": 0,
+   "source": "observed (ESPN)"
+  },
+  "AFC CHAMPIONS LEAGUE ELITE": {
+   "named": 12,
+   "et": 0,
+   "source": "observed (ESPN)"
+  },
+  "CONCACAF CHAMPIONS CUP": {
+   "named": 12,
+   "et": 0,
+   "source": "observed (FotMob match sheets): 12 max in 24, 2026 (12 x13)"
+  },
+  "AFC CHAMPIONS LEAGUE TWO": {
+   "named": 12,
+   "et": 0,
+   "source": "observed (FotMob match sheets): 12 max in 24, 2026-27 (12 x12)"
+  },
+  "AFC CHALLENGE LEAGUE": {
+   "named": 14,
+   "et": 0,
+   "source": "observed (FotMob match sheets): 14 max in 24, 2026-27 (12 x13, 14 x1)"
+  },
+  "RECOPA SUDAMERICANA": {
+   "named": 12,
+   "et": 0,
+   "source": "observed (FotMob match sheets): 12 in all 4 sheets (both legs), 2026"
+  },
+  "CAF CHAMPIONS LEAGUE": {
+   "named": 9,
+   "et": 0,
+   "source": "observed (FotMob match sheets): 9 max in 24, 2025-26 (9 x22)"
+  },
+  "CAF CONFEDERATION CUP": {
+   "named": 10,
+   "et": 0,
+   "source": "observed (FotMob match sheets): 10 max in 24, 2025-26 (9 x20, 10 x1)"
+  },
+  "CAF SUPER CUP": {
+   "named": 9,
+   "et": 0,
+   "source": "fallback (confederation): no sheets; CAF default 9"
+  },
+  "INTERCONTINENTAL CUP": {
+   "named": 14,
+   "et": 0,
+   "names": {
+    "it": "COPPA INTERCONTINENTALE",
+    "fr": "COUPE INTERCONTINENTALE",
+    "de": "INTERKONTINENTAL-POKAL"
+   },
+   "source": "observed (FotMob match sheets): 14 max in 10, FIFA Intercontinental Cup 2025 (14 x5); 2026 so far 12"
+  },
+  "OFC CHAMPIONS LEAGUE": {
+   "named": 7,
+   "et": 0,
+   "source": "fallback (confederation): no sheets (OFC Pro League 2027 not started); OFC default 7"
+  }
+ },
+ "sources": {
+  "sco.league.2": "SPFL: 9 named / 5 used in all four divisions since Jan 2022 (The Scotsman, \"Premiership substitutes example followed by Championship and SPFL lower leagues\"); observed 9 max in 24 ESPN team sheets of 2025-26 League One (latest season on ESPN)",
+  "sco.league.3": "as League One; observed 9 max in 24 ESPN team sheets of 2025-26 League Two",
+  "sco.cup": "Scottish FA, Men's Scottish Cup Rules 2026-27, Competition Rule 13.1: up to 9 Nominated Substitutes, 5 Fielded, a 6th in extra time",
+  "esp.cup": "RFEF Normas reguladoras de los Torneos Federacion (Copa de S.M. el Rey) 2026-2027, Art. 36: up to 12 substitutes, 5 used, 1 more in extra time",
+  "fra.cup": "FFF Reglement de la Coupe de France 2026-2027 (p. 9, players and replacements): 20 on the sheet (12-20 substitutes = 9) from the 32es de finale (18 from the 7th round), 5 replacements from the 3rd round, 1 more in extra time",
+  "mex.league.1": "observed: 10 max in 24 ESPN team sheets, Liga de Expansion MX 2026-27 (dist 10 x14, 9 x8)",
+  "bra.league.1": "observed: 12 max in 24 ESPN team sheets, Serie B 2026 (dist 12 x16)",
+  "arg.league.1": "observed: 9 max in 24 ESPN team sheets, Primera Nacional 2026 (dist 9 x23)",
+  "arg.league.2": "as Zona A (one competition)",
+  "jpn.league.1": "J.League (board, Oct 2024): from 2025 up to 20 players entered in every J.League official match = 9 substitutes (jleague.jp news 29199)",
+  "jpn.league_cup": "official (J.League 20 entered) + observed 9 in all 24 sheets, J.League Cup 2026-27",
+  "ita.league_cup": "fallback = Serie C (its clubs): 15",
+  "uru.league.0": "observed (FotMob match sheets): 10 max in 24 team sheets, Liga AUF Uruguaya 2026 (10 x23, 9 x1)",
+  "par.league.0": "observed (FotMob): 12 max in 24 team sheets, Division Profesional 2026 Clausura (12 x23)",
+  "bol.league.0": "observed (FotMob): 12 max in 24 team sheets, Division Profesional 2026 (12 x15, 11 x7)",
+  "ven.league.0": "observed (FotMob): 12 max in 24 team sheets, Liga FUTVE 2026 (12 x17, 11 x6)",
+  "cze.league.0": "observed (FotMob match sheets): 11 max in 24 team sheets, 1. Liga 2026-27 (11 x18); Czech Cup 11 max in 22",
+  "pol.league.0": "observed (FotMob match sheets): 12 max in 24, Ekstraklasa 2026-27 (12 x14)",
+  "cyp.league.0": "observed (FotMob match sheets): 12 max in 24, 1. Division 2026-27 (12 x20); Cyprus Cup 12 in 12",
+  "sui.league.0": "observed (FotMob match sheets): 9 in all 24, Super League 2026-27; Swiss Cup 9 max in 24",
+  "cro.league.0": "observed (FotMob match sheets): 12 max in 24, HNL 2026-27 (11 x12, 12 x10); Croatian Cup 12 in 12",
+  "isr.league.0": "observed (FotMob match sheets): 10 max in 24, Ligat ha Al 2026-27 (9 x23, 10 x1)",
+  "hun.league.0": "observed (FotMob match sheets): 12 max in 24, NB I 2026-27 (12 x14)",
+  "ukr.league.0": "observed (FotMob match sheets): 12 max in 24, Premier League 2026-27 (12 x16); Ukraine Cup 12 in 16",
+  "srb.league.0": "observed (FotMob match sheets): 11 max in 24, Super Liga 2026-27 (11 x19)",
+  "rou.league.0": "observed (FotMob match sheets): 12 max in 24, Liga I 2026-27 (12 x10); Cupa Romaniei 12 in 12",
+  "svk.league.0": "observed (FotMob match sheets): 11 max in 24, 1. liga 2026-27 (9 x22, 11 x1)",
+  "bul.league.0": "observed (FotMob match sheets): 11 max in 24, First Professional League 2026-27 (11 x15)",
+  "irl.league.0": "observed (FotMob match sheets): 9 in all 24, Premier Division 2026",
+  "isl.league.0": "observed (FotMob match sheets): 9 max in 24, Besta deildin 2026 (9 x23); Icelandic Cup 9 in 10",
+  "fin.league.0": "observed (FotMob match sheets): 9 max in 24, Veikkausliiga 2026 (9 x13); Suomen Cup 9 in 22",
+  "lva.league.0": "observed (FotMob match sheets): 9 max in 24, Virsliga 2026 (9 x19)",
+  "fro.league.0": "observed (FotMob match sheets): 7 max in 24, Premier League 2026 (7 x21)",
+  "est.league.0": "observed (FotMob match sheets): 11 max in 24, Meistriliiga 2026 (11 x9)",
+  "can.league.0": "observed (FotMob match sheets): 7 in all 24, Canadian Premier League 2026",
+  "can.cup": "observed (FotMob match sheets): 9 max in 24, Canadian Championship 2026 (9 x20)",
+  "crc.league.0": "observed (FotMob match sheets): 11 max in 24, Primera Division 2026-27 (10 x21, 11 x1)",
+  "kor.league.0": "observed (FotMob match sheets): 9 in all 24, K League 1 2026",
+  "qat.league.0": "observed (FotMob match sheets): 12 max in 24, Qatar Stars League 2026-27 (12 x14); Amir Cup 12 in 8",
+  "uae.league.0": "observed (FotMob match sheets): 12 max in 24, UAE Pro League 2026-27 (12 x17); League Cup 12 in 24",
+  "egy.league.0": "observed (FotMob match sheets): 9 in all 24, Egyptian Premier League 2026-27; Egypt Cup 9 in 6",
+  "mar.league.0": "observed (FotMob match sheets): 9 max in 24, Botola Pro 2026-27 (9 x22)",
+  "ita.league.2": "observed (FotMob match sheets): 15 max in 60 team sheets, Serie C 2026-27 (13 x15, 15 x6); 24 sheets had shown 14",
+  "ita.league.3": "as Serie C girone A (one competition)",
+  "ita.league.4": "as Serie C girone A (one competition)",
+  "ger.league.2": "observed (FotMob match sheets): 10 max in 24, 3. Liga 2026-27 (9 x22, 10 x1, 8 x1)",
+  "tur.league.1": "observed (FotMob match sheets): 10 max in 24, 1. Lig 2026-27 (10 x22)",
+  "tur.cup": "observed (FotMob match sheets): 10 max in 24, Turkish Cup 2026-27 (10 x18)",
+  "ned.cup": "observed (FotMob match sheets): 12 max in 24, KNVB Cup 2026-27 (12 x10)",
+  "bel.cup": "observed (FotMob match sheets): 9 in all 24, Belgian Cup 2026-27 (the league: 10)",
+  "gre.cup": "observed (FotMob match sheets): 12 max in 24, Greece Cup 2026-27 (12 x12)",
+  "den.cup": "observed (FotMob match sheets): 9 max in 12, DBU Pokalen 2026-27",
+  "nor.cup": "observed (FotMob match sheets): 9 max in 22, Norgesmesterskapet 2026 (9 x18)",
+  "rus.cup": "observed (FotMob match sheets): 12 max in 16, Russian Cup 2026-27",
+  "usa.cup": "observed (FotMob match sheets): 8 max in 22, U.S. Open Cup 2026 (7 x20, 8 x1)",
+  "bra.cup": "observed (FotMob match sheets): 12 max in 24, Copa do Brasil 2026; state championships: Paulista A1 12 (x22), Carioca 12 (x22), Mineiro 12, Gaucho 12, Goiano 12, all 24 sheets",
+  "chi.cup": "observed (FotMob match sheets): 9 max in 22, Copa Chile 2026 (9 x19)",
+  "chi.league_cup": "observed (FotMob match sheets): 9 max in 24, Copa de la Liga 2026 (9 x23)",
+  "ksa.cup": "observed (FotMob match sheets): 12 max in 24, King s Cup 2026-27 (12 x7; the league: 9)",
+  "chn.cup": "observed (FotMob match sheets): 12 max in 24, Chinese FA Cup 2026 (12 x11)",
+  "aus.cup": "observed (FotMob match sheets): 7 in all 24, Australia Cup 2026",
+  "rsa.cup": "observed (FotMob match sheets): 9 max in 24, Nedbank Cup 2025-26 (9 x21; the league: 10)",
+  "rsa.league_cup": "observed (FotMob match sheets): 9 max in 16, Carling Knockout 2026 (9 x14)",
+  "ind.cup": "observed (FotMob match sheets): 10 max in 24, Super Cup 2025-26 (10 x18)",
+  "confederations": "fallback (confederation) for a country with no data at all: the most common top-league bench of the confederation's countries found (UEFA 9: 13 of 34; CONMEBOL 12: 6 of 10; AFC 9: 4 of 8; CAF 9: 2 of 3); CONCACAF 10 (found 7 / 9 / 10 / 11: Mexico and Costa Rica's 10 for Central America); OFC 7 (no data: the A-League's, the nearest professional league)",
+  "ita.cup_d": "official: LND C.U. 400 (9 reserves in the LND competitions 2026-27, FIGC C.U. 203/A) + C.U. 401 (+1 substitution in extra time in the cups); the Dipartimento Interregionale runs the Coppa Italia Serie D"
+ },
+ "confederations": {
+  "europe": 9,
+  "south_america": 12,
+  "north_america": 10,
+  "asia": 9,
+  "africa": 9,
+  "oceania": 7
+ }
+}

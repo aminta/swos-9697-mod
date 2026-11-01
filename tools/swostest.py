@@ -3235,12 +3235,7 @@ def world8485():
                     msg += f', after FINISCI STAGIONE: {m2}'
                     if not ok:
                         return False, f"season {season}: {msg}"
-                for _ in range(3):                     # (the menu back with PARTITA, a note on the way)
-                    sc = s.screen()
-                    if sc.find('CONTINUA', exact=True) is None or 'TRASFERIMENTI' in sc.texts():
-                        break
-                    press(s, sc, 'CONTINUA', wait=2)
-                sc = s.screen()
+                sc = s.screen()                        # (no note pressed here: a season-end note is the [job] path's)
                 if not (sc.find('PARTITA', exact=True) is not None and 'TRASFERIMENTI' in sc.texts()
                         and sc.find('FINISCI STAGIONE', exact=True) is None):
                     break

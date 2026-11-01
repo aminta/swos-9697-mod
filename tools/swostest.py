@@ -5084,6 +5084,28 @@ def hist_dist(a, b):
     return sum(abs(a.get(k, 0) - b.get(k, 0)) for k in set(a) | set(b))
 
 
+def wrap_reach(q, row1):
+    """(4.0.5, the cursor's wrap) the entry the game's DOWN on row 17 (entry row1 + 16) goes to, (index, text), and the
+    visible entries the selected one reaches only through that move ([(index, text)]: with the wrap, down there goes back
+    to row 12 instead)."""
+    r17 = row1 + 16
+    t = q.path(r17)
+    nxt = None
+    if t is not None:
+        links, skips = q.nav[r17]
+        nxt, alt = links[3], skips[3]
+        if nxt < len(q.entries) and q.entries[nxt][2] and alt < len(q.entries):
+            nxt = alt
+        for _ in range(8):
+            if not (nxt < len(q.entries) and q.entries[nxt][2]):
+                break
+            nxt = q.nav[nxt][0][3]
+    lost = [(i, txt) for i, txt, inv, _ in q.entries if not inv and i != q.selected and q.path(i) is not None
+            and q.path(i, frozenset({(r17, 'down')})) is None]
+    ok = nxt is not None and nxt < len(q.entries) and not q.entries[nxt][2]
+    return ((nxt, q.entries[nxt][1]) if ok else (None, None)), lost      # (-1: down there goes nowhere)
+
+
 def bench_squad(s, scr, bx, cmp_, cnp, errs, info, mark, woff=4, box=30, row1=13, tag='squad'):
     """Task 1 (Davide 30/10, option A): on the squad screen a bench over 5 makes rows 12..17 a window of 6 on places
     12..count: the box left of row 17 (the game's rotation of the reserves) moves it one down (the window word at
@@ -5100,6 +5122,9 @@ def bench_squad(s, scr, bx, cmp_, cnp, errs, info, mark, woff=4, box=30, row1=13
     r = s.send(' '.join(k + ':0.15' for k in keys) + ' dump:0.4')
     q = s.screen()
     check(q.selected == box, f'{tag}: the box left of row 17 not reached (selected {q.selected})', errs)
+    below = wrap_reach(q, row1)
+    info.append(f'{tag} down from row 17 -> {below[0]}; reached only that way: {below[1]}')
+    mark(info[-1])
     geom = q.geom[row1:row1 + 17]
     states = []
     for k in range(n - 16 + 1):             # 0 .. n-17, then back to 0
@@ -5128,13 +5153,14 @@ def bench_squad(s, scr, bx, cmp_, cnp, errs, info, mark, woff=4, box=30, row1=13
     info.append(f'{tag} rows: bench / out distance {hist_dist(ref_b, ref_o):.2f}, {len(bad)} rows off ({bad[:6]})')
     check(hist_dist(ref_b, ref_o) > 0.5 and not bad, f'{tag} row colours (window, row, place, seen): {bad[:12]}', errs)
 
-    def goto(t):
+    def goto(t, bad=frozenset()):           # (bad: moves not taken while another way exists - the window's)
         for _ in range(24):                 # (4.0.6: up on row 12 scrolls the window first, one round each)
             q = s.screen()
             if q.selected == t:
                 return True
-            s.send(' '.join(k + ':0.15' for k in (q.path(t) or [])) + ' dump:0.4')
+            s.send(' '.join(k + ':0.15' for k in (q.path(t, bad) or q.path(t) or [])) + ' dump:0.4')
         return False
+    wmoves = frozenset({(row1 + 11, 'up'), (row1 + 16, 'down')})
     for _ in range(20):                     # window 5: row 17 = place 22
         r = s.result
         if struct.unpack('<H', r.read(r.base1 + bx + woff, 2))[0] == 5:
@@ -5191,6 +5217,39 @@ def bench_squad(s, scr, bx, cmp_, cnp, errs, info, mark, woff=4, box=30, row1=13
     info.append(f'{tag} cursor scroll: down {[w for w, _ in seen]}, up on row 12 -> {w1}; marked swap 22<->24 '
                 + ('ok' if o2 == bytes(exp2) else 'FAIL'))
     mark(info[-1])
+    # (4.0.5, Davide 01/11) the wrap: down on row 17 to the window's end (n - 17), once more -> window 0, row 12; up
+    # on row 12 at the top -> row 11 (the game's move, no scroll); the entries below row 17 another way (real keys)
+    check(goto(row1 + 16, wmoves), f'{tag}: row 17 not reached for the wrap', errs)
+    w0, wr = win(), []
+    want = [(w_, row1 + 16) for w_ in range(w0 + 1, n - 16)] + [(0, row1 + 11)]
+    for _ in want:
+        s.send('down:0.3 dump:0.4')
+        wr.append((win(), s.screen().selected))
+    check(wr == want, f'{tag}: the wrap from window {w0} (window, selected) {wr}', errs)
+    s.shot(f'{tag}_wrap')
+    s.send('up:0.3 dump:0.4')
+    w2, sel2 = win(), s.screen().selected
+    check((w2, sel2) == (0, row1 + 10), f'{tag}: up on row 12 at the top (window, selected) {(w2, sel2)}', errs)
+    info.append(f'{tag} wrap: down {wr}, then up -> {(w2, sel2)}')
+    mark(info[-1])
+    tests = list(below[1])                  # (those only down on row 17 reached: fail; else the entry below it)
+    if below[0][0] is not None and below[0][0] not in [i for i, _ in tests]:
+        tests.append(below[0])
+    for i, txt in tests:
+        q = s.screen()
+        if q.selected != row1 + 16:
+            goto(row1 + 16, wmoves)
+            q = s.screen()
+        steps = q.path(i, frozenset({(row1 + 16, 'down')}))
+        if steps is None:
+            check(False, f'{tag}: {txt!r} (entry {i}) not reachable without down on row 17', errs)
+            continue
+        s.send(' '.join(k + ':0.15' for k in steps) + ' dump:0.4')
+        got = s.screen().selected
+        check(got == i, f'{tag}: {txt!r} (entry {i}) by {steps}: selected {got}', errs)
+        info.append(f'{tag} below row 17: {txt!r} by {steps} ' + ('ok' if got == i else 'FAIL'))
+        mark(info[-1])
+    goto(row1 + 11, wmoves)
     for _ in range(20):                     # the window back to 0 by the cursor itself (up on row 12): the way out
         if win() == 0:                      # of the screen may go up through row 12, which would scroll it first
             break
@@ -5375,10 +5434,10 @@ def bench_tactics(s, scr, squad, errs, info, mark):
     for _ in range(4):
         q = s.screen()
         t = q.texts()
-        if 'GIOCA PARTITA' in t:
+        if 'GIOCA PARTITA' in t or UI != 'it' and 'GIOCA :' in t and 'PARTITA' in t:   # (EN: PLAY MATCH reads PARTITA)
             return
         mark('tactics exit: ' + ', '.join(t)[:200])
-        if not any(press(s, q, x) is not None for x in ('USCITA', 'ESCI') if x in t):
+        if not any(press(s, q, x) is not None for x in ('USCITA', 'SAVE/EXIT', 'ESCI') if x in t):
             s.send('esc:0.3 dump:0.6')
     errs.append('tactics: not back to the pre-match screen')
 
@@ -5571,7 +5630,8 @@ def bench_play(s, gmax, top, bot, wants, errs, info, mark, sub=None, icons=None,
             if icons is not None:           # the bald icons as the squad screen built them (a player poked bald)
                 icons['squad'] = bald_icons(r)
             s.shot(f'squad{step:02d}')
-            if squad and not squad.get('done') and 'GIOCA PARTITA' in texts:
+            if squad and not squad.get('done') and ('GIOCA PARTITA' in texts or UI != 'it' and 'GIOCA :' in texts):
+                                            # (EN / FR / DE: the play button reads PARTITA, the player-coach 'GIOCA :')
                 squad['done'] = True
                 if 'AVVERSARI' not in texts:   # (4.0.6) the CPU opponent's window first
                     errs.append('oppo: no AVVERSARI on the pre-match screen')

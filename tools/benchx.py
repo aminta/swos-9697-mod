@@ -60,6 +60,9 @@ from 12 on, scrolled by the box left of row 17), 4.0.6 (Davide 31/10):
   for the next entry) -> bx_mdir: on row 17 down / row 12 up, while the window can move (0 .. players - 17, as the
   box), the window moves one place and the cursor stays (the menu redrawn, no entry search). The screen is told by the
   selected entry's onSelect (OnSwapPlayer, SquadCommon, EditTacticsPlayerNamesCommon) and its ordinal.
+  (4.0.5, Davide 01/11 on Marco's feedback) down on row 17 with the window at its end goes back to the top of the
+  bench (window 0, the cursor on row 12), as the box; up on row 12 at the top keeps the game's move (row 11, the
+  starters). The entries below row 17 stay reachable another way (swostest wrap_reach). ViewSquad / the call-ups: no wrap.
 - VIEW OPPONENT (the pre-match screen with viewingOpponentTeam; Davide's PANpt4 photo: a CPU BOLOGNA showed 11 + 5,
   its places 17.. out of sight): with a bench over 5 the opponent's places are 16 + its XTRA block's players (po_n, as
   bx_next: a career's CPU club), at most 11 + the bench; rows 12..17 a window bx_po on them (pm_row; row 17 = entry
@@ -1111,8 +1114,19 @@ bx_mdir:                                ; MenuProc's `mov [D6], ax` (the move in
     cmp ebx, 16
     jne .no
     cmp [esi], ax
-    jge .no
+    jge .wrap
     inc word [esi]
+    jmp .scroll
+.wrap:                                  ; (4.0.5, Davide 01/11) the window at its end: back to the top of the bench,
+    cmp esi, bx_vw                      ; window 0 and the cursor on row 12 (ViewSquad / the call-ups: as the game)
+    je .no
+    mov eax, [A0]
+    sub eax, 5 * 38h                    ; row 12's entry (the rows are consecutive entries)
+    cmp dword [eax + 4], 0              ; isInvisible / isDisabled: as the game
+    jne .no
+    mov word [esi], 0
+    mov esi, [A6]
+    mov [esi + 0Ch], eax                ; Menu.selectedEntry (the whole menu redrawn below)
     jmp .scroll
 .up:
     cmp word [D6], 2

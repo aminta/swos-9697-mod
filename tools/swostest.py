@@ -13074,7 +13074,7 @@ def world_cuplist_promoted():
 def world_winners_lastdiv():
     """4.0.1 (Davide): the last season's WINNERS page shows the division the career club PLAYED IN (WN_ST 'M' + the WIN
     text keyed 01h 'H' file division): LIGORNA forced 1st of Serie D girone A (GPLAY_FORCE=1) through the Poule,
-    promoted; next season (Serie C girone A's view) its second page 'VINCITORI 2026-27:' = SERIE D GIRONE A: LIGORNA
+    promoted; next season (its Serie C group's view: A, or B since 4.0.5's real Lega Pro groups - clubs.csv area 'B,A!/A') its second page 'VINCITORI 2026-27:' = SERIE D GIRONE A: LIGORNA
     and the PLAYOFF - SCUDETTO SERIE D's winner, not Serie C's titles"""
     src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
     if not os.path.isdir(src):
@@ -13106,7 +13106,7 @@ def world_winners_lastdiv():
     last = [x.strip() for x in more[0]] if more else []
     lg = winner_blocks(last)
     lg.pop('VINCITORI 2026-27', None)
-    ok = list(cur)[:1] == ['SERIE C GIRONE A'] and last[:1] == ['VINCITORI 2026-27:'] and \
+    ok = list(cur)[:1] in (['SERIE C GIRONE A'], ['SERIE C GIRONE B']) and last[:1] == ['VINCITORI 2026-27:'] and \
         list(lg) == ['SERIE D GIRONE A', 'PLAYOFF - SCUDETTO SERIE D'] and lg.get('SERIE D GIRONE A') == 'LIGORNA' and \
         lg.get('PLAYOFF - SCUDETTO SERIE D') not in (None, '', 'IN CORSO', 'DA GIOCARE')
     return ok, f'page {title!r} {cur}; last season {last[:1]} {lg}'

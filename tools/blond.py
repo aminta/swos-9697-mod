@@ -30,8 +30,9 @@ addresses it); with all three a bald light player plays as face 1. The bald sets
 the back keep the hair, then the team's face 2 / face 0 conversion. In BSS2 (the obj2 tail's end: nothing before it
 moves). Menus: the bald face icons 1910 / 1911 (bald.c's bald_icon, the same look); goalkeepers keep their hair.
 4.0.5 (Davide 30/10, 'bald players done properly'): two looks, byte 25 bit 1 = shaved (packs/bald-looks-2627.csv):
-flags 2 / 3 receding dark / light (look E), 4 / 5 shaved dark / light (an oval head in one colour: black, or the NEW
-pink tone - palette index 84, drawn by DrawSprite16Pixels' table, pal_setup / pal_write). copy_sets gives each team's
+flags 2 / 3 receding dark / light (look E), 4 / 5 shaved dark / light (4.0.5 final, Marco 01/11: every frame's
+head drawn from shavedart.py's art; the light skull in the NEW light tone 84, the dark shade in the NEW dark tone 85 -
+drawn by DrawSprite16Pixels' table, pal_setup / pal_write; the art's own menu icons). copy_sets gives each team's
 variants single-team set slots (1418, 1519, 1708, 1809, 1932: ORDER's priority, team 1 first) instead of the pairs
 above; a variant without a slot falls back (shaved -> the team's receding set, light -> face 1, else the normal face).
 Icons: receding 1910 / 1911, shaved 2033 / 2034. Under SWOS++ no bald look (Panchina's gate).
@@ -41,6 +42,7 @@ import re
 import struct
 
 import nasmcave
+import shavedart
 import shirtnum
 
 FACE = 3
@@ -58,7 +60,9 @@ BALD_AT = 25                            # PlayerFile.field_19 (from the player r
 # shape 'E' (receding) or 'oval' (one colour, the face too), the skull's raw colour (7 = the variant's NEW palette tone,
 # drawn by DrawSprite16Pixels' table; 6 / 5 / 4 skin, 3 black) and the half / EGA mode's colour for a 7.
 LOOKS = {'receding': {'light': dict(shape='E', skull=6, ega=6), 'dark': dict(shape='E', skull=6, ega=6)},
-         'shaved': {'light': dict(shape='oval', skull=7, ega=6), 'dark': dict(shape='oval', skull=6, ega=6)}}
+         'shaved': {'light': dict(shape='art', skull=7, ega=6), 'dark': dict(shape='art', skull=7, ega=6)}}
+# (4.0.5 final, Marco 01/11: 'art' = shavedart.py's per-frame heads; the dark shade in the dark tone 85, the light
+# skull in the light tone 84 - raw 13 -> nibble 7 - and in the half / EGA mode both in the skull's raw 6)
 TONES = {'light': (84, (240, 150, 120)), 'dark': (85, (70, 30, 10))}   # palette index (free in every pitch), RGB
 # (Davide 30/10: the dark oval in the dark face's colour - raw 6, converted 4: head = face; index 85 stays spare). Variant flags (PlayerInfoHeader FLAG): 1 darkblond,
 # 2 / 3 receding dark / light, 4 / 5 shaved dark / light; bald.c's look = (flag - 2) xor 1.
@@ -222,6 +226,12 @@ bald_shape:                             ; ebx = a copied raw sprite: its head re
     xor eax, eax
     cmp word [SETUPDAT], -1             ; (the half / EGA mode: no palette table, no new tone)
     sete al
+    lea ecx, [edx - 341]                ; k: the frame (edx = the raw sprite, team 1's 341.. or team 2's 644..)
+    cmp ecx, 644 - 341
+    jb .k
+    sub ecx, 644 - 341
+.k:
+    push ecx                            ; k
     push eax                            ; ega
     movzx eax, byte [SHAPE]
     sub eax, 2
@@ -231,7 +241,7 @@ bald_shape:                             ; ebx = a copied raw sprite: its head re
     push eax                            ; lines
     push dword [ebx]                    ; pixels
     call BALDC
-    add esp, 16
+    add esp, 20
     popad
 .r:
     ret
@@ -599,9 +609,9 @@ build_icon:                             ; sprite 189 = 188 with the hair (colour
 """
 
 
-def patch(p, area, at, bss, spr, bss2):
+def patch(p, area, at, bss, spr, bss2, art_at):
     """Code at obj1:at, sets at obj2:bss (BSS_SIZE zero bytes) and obj2:bss2 (BSS2_SIZE, bald dark), spr = spritesIndex
-    (obj2). Returns the code end."""
+    (obj2), art_at = obj1 room for shavedart's main blob (art_patch). Returns the code end."""
     d1, d2 = p.le.obj_bytes(1), p.le.obj_bytes(2)
     fix = list(p.le.fixups())
     one = lambda pat: (lambda m: m[0] if len(m) == 1 else None)([x.start() for x in re.finditer(pat, d1, re.S)])
@@ -690,8 +700,13 @@ def patch(p, area, at, bss, spr, bss2):
               for f, (look, skin) in FLAGS.items()}}
     assert SLOT5 >= blond_free() and ICON3 + 2 <= 2103, 'spritesIndex map'
     import cobj                                           # 4.0.5: bald.c (the bald heads) first, the glue after it
+    main, _, _, dark = shavedart.blobs()                  # 4.0.5 the shaved art: the dark heads here, the rest in
+    assert not any(p.get(1, at, len(dark)))              # namespr's spare tail (art_at, written by art_patch once
+    p.put(1, at, dark)                                    # namespr's pages are laid out)
+    ART[:] = [art_at, main]
     obj = cobj.compile_c(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'bald.c'), look_flags())
-    csyms, cend, cbss = cobj.link(p, obj, at, (2, bss2 + SCR_OFF), limit=at + 0x900)
+    csyms, cend, cbss = cobj.link(p, obj, (at + len(dark) + 15) & ~15, (2, bss2 + SCR_OFF), limit=at + 0x900,
+                                  externs={'ART': (1, art_at), 'ARTD': (1, at)})
     assert cbss <= BUF3_OFF - SCR_OFF, hex(cbss)
     sym['BALDC'] = csyms['bald_c']
     sym['BALDI'] = csyms['bald_icon']
@@ -711,7 +726,7 @@ def patch(p, area, at, bss, spr, bss2):
     (tl, rgbl), (td, rgbd) = TONES['light'], TONES['dark']
     sym.update(DELTA=t(bh + 2), WPAL=wpal, SETUPDAT=SETUPDAT(p), SET2_=(0, 2 * SET_BYTES), TL_=(0, tl), TD_=(0, td),
                **{f'T{v}{c}_': (0, x >> 2) for v, rgb in (('L', rgbl), ('D', rgbd)) for c, x in zip('RGB', rgb)})
-    print(f'exe: bald.c obj1+{at:#x}..{cend:#x}, .bss {cbss} B')
+    print(f'exe: bald.c obj1+{at:#x}..{cend:#x} (shaved dark art {len(dark)} B first), .bss {cbss} B')
     at = (cend + 15) & ~15
     code, cfix = nasmcave.assemble(ASM, at, sym)
     lab = nasmcave.labels(ASM, at, sym)
@@ -749,6 +764,18 @@ def patch(p, area, at, bss, spr, bss2):
     return at + len(code)
 
 
+ART = []
+
+
+def art_patch(p, end):
+    """4.0.5: shavedart's main blob (frame table, light heads, icons) at patch()'s art_at, after namespr laid out its
+    pages (art_at .. end: its spare tail past CAP x DATA, Integratore + p6 31/10)."""
+    at, main = ART
+    assert at + len(main) <= end and not any(p.get(1, at, end - at)), (hex(at), len(main), hex(end))
+    p.put(1, at, main)
+    print(f'exe: shaved art obj1+{at:#x} ({len(main)} B of {end - at})')
+
+
 UNCH = {}
 UNCH_ASM = r"""
 unch:                                   ; replaces InitGameRestoreTeams' call UnchainSpritesTilZero (half / EGA mode
@@ -781,8 +808,9 @@ def look_flags():
     f = []
     for k, (look, skin) in enumerate((('receding', 'light'), ('receding', 'dark'), ('shaved', 'light'), ('shaved', 'dark'))):
         lk = LOOKS[look][skin]
-        f += [f'-DSH{k}={dict(E=0, oval=1)[lk["shape"]]}', f'-DSK{k}={lk["skull"]}', f'-DEG{k}={lk["ega"]}']
-    return f + [f'-DTONE_L={TONES["light"][0]}', f'-DTONE_D={TONES["dark"][0]}']
+        f += [f'-DSH{k}={dict(E=0, art=1)[lk["shape"]]}', f'-DSK{k}={lk["skull"]}', f'-DEG{k}={lk["ega"]}']
+    main, lo, io, _ = shavedart.blobs()
+    return f + [f'-DTONE_L={TONES["light"][0]}', f'-DTONE_D={TONES["dark"][0]}', f'-DART_LIGHT={lo}', f'-DART_ICONS={io}']
 
 
 def blond_free():

@@ -2,21 +2,22 @@
    0 receding light, 1 receding dark, 2 shaved light, 3 shaved dark):
    - shape 0 = 'E' receding (Davide 30/10, internal/design/bald-mock/variants-20261030 V_E): the hair's top row turns
      skin, and so do the second row's hair pixels with a pixel on both sides; the rest keeps the player's hair colour;
-   - shape 1 = 'oval' (round7 row 4, Marco + Davide 30/10): an egg over the head's rows (as wide as the head's widest row,
-     20 % narrower below its middle) in ONE colour (light: the pink tone; dark: the face's skin), the face included (the eyes, raw 1 / 2, kept); outside it the head's
-     hair / skin / black pixels go transparent.
+   - shape 1 = 'art' shaved (Marco 31/10, final): each frame's head drawn from shavedart.py's data (ART: the frame
+     table, the light heads and the icons in namespr's spare tail; ARTD: the dark heads, before this code), raw
+     nibbles over the copied sprite: light skull 13 (the light tone 84) / shade 5, dark skull 6 (-> 4) / shade 13
+     (the dark tone 85); Marco 01/11: every head of both skins his own.
    bald_c reshapes one copied RAW player sprite (1 quad = 16 pixels wide, 8 bytes per line, 4-bit pixels, high nibble
    first) in place, before the team's colour conversion: raw hair 13 / 9 / 12, raw skin 6 / 5 / 4. A skull colour 7 is
    the NEW skin tone: bald_c paints it in raw 13 (other hair 13 -> 9), the variant's own conversion table (blond.py:
    face 0 / 2 with 13 -> 7) makes it nibble 7 - raw 7 is a kit colour, but no conversion outputs 7 otherwise - and
    DrawSprite16Pixels draws nibble 7 of these sets as the variant's palette index (pal_init's table, blond pal_setup).
    In the half / EGA mode (planar sprites, no table) no tone: the variant's EGA colour instead.
-   bald_icon: the face icons 1910 / 1911 (converted menu colours: hair 3) with the same shape, in the icon's own skin
-   (the menus keep two tones). pal_init: the remap table of DrawSprite16Pixels (see LUTP). */
+   bald_icon: the face icons 1910 / 1911 (converted menu colours: hair 3) with the receding shape, in the icon's own
+   skin; the shaved icons are the art's own (16 x 8, menu colours). pal_init: the remap table of DrawSprite16Pixels (see LUTP). */
 typedef unsigned char u8;
 
 /* the four looks (blond.look_flags): 0 receding light, 1 receding dark, 2 shaved light, 3 shaved dark - shape (0 E,
-   1 oval), skull raw colour (7 = the new tone), the half / EGA mode's colour for a 7 */
+   1 art), skull raw colour (7 = the new tone), the half / EGA mode's colour for a 7 */
 #ifndef SH0
 #define SH0 0
 #define SK0 6
@@ -28,9 +29,14 @@ typedef unsigned char u8;
 #define SK2 7
 #define EG2 6
 #define SH3 1
-#define SK3 6
+#define SK3 7
 #define EG3 6
 #endif
+#ifndef ART_LIGHT
+#define ART_LIGHT 303
+#define ART_ICONS 1114
+#endif
+extern const u8 ART[], ARTD[];                     /* (shavedart.blobs: main, dark) */
 #ifndef TONE_L
 #define TONE_L 84
 #define TONE_D 85
@@ -56,79 +62,58 @@ static void pack(u8 *pix) {
         for (int x = 0; x < W; x += 2) pix[y * 8 + x / 2] = (u8)(px[y][x] << 4 | px[y][x + 1]);
 }
 
-static double root(double v) {                     /* (no libm: Newton) */
-    double r = v > 1 ? v : 1;
-    if (v <= 0) return 0;
-    for (int i = 0; i < 20; i++) r = (r + v / r) / 2;
-    return r;
-}
-
-/* The egg over rows y0..top-1 of px (columns from the head's widest span); inside: col (keep 1 / 2), outside: the
-   head's pixels in `head` cleared. */
-static void egg(int y0, int top, u8 col, int (*head)(int)) {
-    int L = W, R = -1;
-    for (int y = y0; y < top; y++)
-        for (int x = 0; x < W; x++) if (px[y][x]) { if (x < L) L = x; if (x > R) R = x; }
-    if (R < 0) return;
-    double cx = (L + R) / 2.0, a = (R - L + 1) / 2.0, hgt = top - y0, cy = y0 + hgt / 2 - 0.5;
-    for (int y = y0; y < top; y++) {
-        double t = (y - cy) / (hgt / 2), aa = t <= 0 ? a : a * 0.8, w = aa * root(1 - t * t);
-        for (int x = 0; x < W; x++) {
-            int c = px[y][x];
-            double d = x - cx;
-            if ((d < 0 ? -d : d) <= w + 0.15) px[y][x] = c == 1 || c == 2 ? (u8)c : col;
-            else if (head(c)) px[y][x] = 0;
-        }
+/* shavedart.py's head record `head` of recs (skipping the ones before it) over px at the rectangle's origin oy, ox:
+   codes 1 / 2 / 3 = cv[0..2] (cv[3] for a 3 with the record's flag), then the exceptions (cell, raw value). */
+static void art_head(const u8 *r, int head, int oy, int ox, const u8 *cv) {
+    for (; head > 0; head--) r += 2 + ((r[0] >> 4) * (r[0] & 15) + 3) / 4 + 2 * (r[1] & 127);
+    int rh = r[0] >> 4, rw = r[0] & 15, n = r[1] & 127;
+    u8 alt = cv[2 + (r[1] >> 7)];
+    const u8 *q = r + 2, *e = q + (rh * rw + 3) / 4;
+    for (int c = 0; c < rh * rw; c++) {
+        int code = q[c / 4] >> (6 - 2 * (c % 4)) & 3, y = oy + c / rw, x = ox + c % rw;
+        if (code && y < nl && x < W) px[y][x] = code == 3 ? alt : cv[code - 1];
+    }
+    for (int i = 0; i < n; i++) {
+        int y = oy + e[2 * i] / rw, x = ox + e[2 * i] % rw;
+        if (y < nl && x < W) px[y][x] = e[2 * i + 1];
     }
 }
 
-static int head_raw(int c) { return is_hair(c) || c == 3 || c == 4 || c == 5 || c == 6; }
-
-void bald_c(u8 *pix, int lines, int look, int ega) {
+void bald_c(u8 *pix, int lines, int look, int ega, int k) {
     if (lines < 2 || lines > HMAX) return;
     nl = lines;
     unpack(pix);
-    int y0 = -1;
-    for (int y = 0; y < nl && y0 < 0; y++)
-        for (int x = 0; x < W; x++) if (is_hair(px[y][x])) { y0 = y; break; }
-    if (y0 < 0) return;
     look &= 3;
     int shape = SHAPE[look], skull = SKULL[look];
     if (skull == 7) {                               /* a new tone: the variant's conversion table makes raw 13 -> 7, */
-        for (int y = 0; y < nl; y++)                /* so any hair kept stays hair (13 -> 9, black too) and the skull */
+        for (int y = 0; y < nl; y++)                /* so any hair kept stays hair (13 -> 9, black too) and the tone */
             for (int x = 0; x < W; x++) if (px[y][x] == 13) px[y][x] = 9;   /* is painted 13 (the EGA colour in the */
         skull = ega ? EGA[look] : 13;               /* half mode: no table there) */
     }
     if (shape == 1) {
-        int top = y0;                               /* the head's rows: down to the first kit row */
-        for (; top < nl; top++) {
-            int kit = 0;
-            for (int x = 0; x < W; x++) { int c = px[top][x]; if (c && c != 1 && c != 2 && !head_raw(c)) kit = 1; }
-            if (kit) break;
-        }
-        int L = W, R = -1;                          /* (the head's span, for the chin below) */
-        for (int y = y0; y < top; y++)
-            for (int x = 0; x < W; x++) if (px[y][x]) { if (x < L) L = x; if (x > R) R = x; }
-        egg(y0, top, (u8)skull, head_raw);
-        if (top < nl)                               /* the chin in the collar's row: the same colour as the face */
-            for (int x = L; x <= R && x >= 0; x++)
-                if (px[top][x] == 4 || px[top][x] == 5 || px[top][x] == 6 || px[top][x] == 3) px[top][x] = (u8)skull;
-    } else {
-        for (int y = y0; y <= y0 + 1 && y < nl; y++)  /* (turning hair into skin keeps tr() as it was) */
-            for (int x = 0; x < W; x++)
-                if (is_hair(px[y][x]) && (y == y0 || !(tr(y, x - 1) || tr(y, x + 1)))) px[y][x] = 6;
+        if (k < 0 || k > 100) return;
+        int dark = look & 1, o = ART[3 * k + 1 + !dark];
+        u8 cv[4] = {dark ? 6 : (u8)skull, dark ? (u8)skull : 5, 0, 6};   /* (the tone: light skull, dark shade) */
+        art_head(dark ? ARTD : ART + ART_LIGHT, ART[3 * k], o >> 4, o & 15, cv);
+        pack(pix);
+        return;
     }
+    int y0 = -1;
+    for (int y = 0; y < nl && y0 < 0; y++)
+        for (int x = 0; x < W; x++) if (is_hair(px[y][x])) { y0 = y; break; }
+    if (y0 < 0) return;
+    for (int y = y0; y <= y0 + 1 && y < nl; y++)    /* (turning hair into skin keeps tr() as it was) */
+        for (int x = 0; x < W; x++)
+            if (is_hair(px[y][x]) && (y == y0 || !(tr(y, x - 1) || tr(y, x + 1)))) px[y][x] = 6;
     pack(pix);
 }
 
 static int rowlen(int y) { int n = 0; for (int x = 0; x < W; x++) n += px[y][x] != 0; return n; }
 
-static int head_menu(int c) { return c == 3 || c == 4 || c == 5 || c == 6; }
-
 /* A face icon (converted colours, hair 3 in its top three rows). Shape 0 (E): the hair in the face's skin colour (the
    first pixel of rows 3.. neither 0 nor 3), the top row's two end pixels off (a round head) and, when that leaves the
    top row a spike (fewer pixels than the next row less 3), the whole top row off; then the two lowest rows of the
-   former hair get their end pixels back in hair colour 3. Shape 1 (oval): the egg over the head's rows in that skin. */
+   former hair get their end pixels back in hair colour 3. Shape 1 (shaved): the art's 16 x 8 icon. */
 void bald_icon(u8 *pix, int lines, int look) {
     if (lines < 4 || lines > HMAX) return;
     nl = lines;
@@ -138,16 +123,9 @@ void bald_icon(u8 *pix, int lines, int look) {
         for (int x = 0; x < W; x++) if (px[y][x] && px[y][x] != 3) { skin = px[y][x]; break; }
     if (!skin) return;
     look &= 3;
-    if (SHAPE[look] == 1) {
-        int y0 = 0, top;
-        while (y0 < nl && !rowlen(y0)) y0++;
-        for (top = y0; top < nl; top++) {           /* the head's rows: those with a hair / skin pixel */
-            int h = 0;
-            for (int x = 0; x < W; x++) h |= head_menu(px[top][x]);
-            if (!h) break;
-        }
-        egg(y0, top, (u8)(SKULL[look] == 3 ? 3 : skin), head_menu);   /* (black stays black) */
-        pack(pix);
+    if (SHAPE[look] == 1) {                         /* shaved: the art's icon (dark first) */
+        const u8 *a = ART + ART_ICONS + (look & 1 ? 0 : 64);
+        for (int i = 0; i < 8 * (nl < 8 ? nl : 8); i++) pix[i] = a[i];
         return;
     }
     int y0 = -1;

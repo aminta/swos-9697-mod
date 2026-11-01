@@ -15396,14 +15396,39 @@ def dkb_sets(r, spr, blond, info):
         for f in (2, 3, 4, 5):
             if (tm, f) not in vs:                       # 4.0.5 bald: the face's set reshaped by the variant's look
                 continue                                # (blond.LOOKS): E = its top hair (3) in skin colours, the rest
-            look, name = blond.FLAGS[f]                 # kept; oval = the head's pixels in ONE colour (7 = the new
-            ref, skin = (black, {3, 4}) if name == 'dark' else (raw, {4, 5, 6})   # tone's nibble) or gone
+            look, name = blond.FLAGS[f]                 # kept; art = shavedart's heads over the face's frames, exactly
+            ref, skin = (black, {3, 4}) if name == 'dark' else (raw, {4, 5, 6})
             bald = vs[(tm, f)]
             lk = blond.LOOKS[look][name]
             col = (7 if not planar else lk["ega"]) if lk["skull"] == 7 else lk["skull"]
             if lk['shape'] == 'oval':
                 col = {6: (4 if name == 'dark' else 6)}.get(col, col)          # (raw -> the face's conversion)
             gone, skinned, bad = 0, 0, []
+            if lk['shape'] == 'art':                    # (the art's raw nibbles as the face converts them; the dark
+                import shavedart                        # shade raw 13 = nibble 7, the half mode's EGA colour instead)
+                main_, lo_, io_, dark_ = shavedart.blobs()
+                conv = {'dark': {0: 0, 1: 1, 2: 2, 4: 3, 6: 4, 13: col if col != 6 else 4},
+                        'light': {**{v: v for v in range(7)}, 13: col}}[name]
+                rm = (lambda v: v) if planar else \
+                    (lambda v: [v[i // 2] if i % 2 == 0 else v[len(v) // 2 + i // 2] for i in range(len(v))])
+                for k in range(101):                    # (row-major pixels: nib() gives the high nibbles first)
+                    a, b_ = frame(ref + k), frame(bald + k)
+                    a, b_ = (a[0], a[1], rm(a[2])), (b_[0], b_[1], rm(b_[2]))
+                    W_ = 16 * a[0]
+                    g = [[None] * W_ for _ in range(a[1])]
+                    o_ = main_[3 * k + (1 if name == 'dark' else 2)]
+                    shavedart.decode(dark_ if name == 'dark' else main_[lo_:io_], main_[3 * k], o_ >> 4, o_ & 15, name, g)
+                    want = [conv[g[i // W_][i % W_]] if g[i // W_][i % W_] is not None else x for i, x in enumerate(a[2])]
+                    if a[:2] != b_[:2] or b_[2] != want:
+                        bad.append(k)
+                    skinned += sum(1 for x, y in zip(a[2], want) if x != y and y)
+                    gone += sum(1 for x, y in zip(a[2], want) if x != y and not y)
+                check(not bad and skinned, f'{tag}: {look} {name} (art) frames differing from the art: {bad[:12]} '
+                      f'({len(bad)})', errs)
+                if not bad:
+                    info.append(f'{tag}: {look} {name} (art): all 101 frames = the art ({skinned} pixels painted, '
+                                f'{gone} cleared)')
+                continue
             for k in range(101):
                 a, b_ = frame(ref + k), frame(bald + k)
                 d_ = [(x, y) for x, y in zip(a[2], b_[2]) if x != y]
@@ -15456,8 +15481,9 @@ def world_darkblond():
     nib = lambda data: [x >> 4 for x in data] + [x & 15 for x in data]
     errs, info = [], []
     team = os.environ.get('DKB_TEAM', 'EUROPA,ITALIA,SERIE A,ROMA').split(',')
-    if 'DKB_POKE' not in os.environ:                  # (4.0.3: MALEN is bald in the data: darkblond again here)
-        os.environ['DKB_POKE'] = 'DONYELL MALEN:unbald,DONYELL MALEN:darkblond'   # (data 403c4: MALEN plain dark)
+    if 'DKB_POKE' not in os.environ:                  # (4.0.3: MALEN is bald in the data: darkblond again here;
+        os.environ['DKB_POKE'] = 'DONYELL MALEN:unbald,DONYELL MALEN:darkblond,NAHUEL MOLINA:unbald'   # 4.0.5: MOLINA
+                                                      # shaved light in the data (bald-looks-2627.csv) - plain here)
     cars = {'SETUP.DAT': os.environ['DKB_SETUP']} if os.environ.get('DKB_SETUP') else {}   # (GOG's factory file:
     with Session(os.environ.get('DKB_NAME', 'world_darkblond'), b, cars, 'dump:2', 600, match=True) as s:   # (video
                                                                                          # speed 10 = half mode)
@@ -15475,7 +15501,7 @@ def world_darkblond():
                 for m_ in _re.finditer(_re.escape(nm_.encode()) + b'\0', o2):
                     h = m_.start() - 3
                     at_, v_ = (26, o2[h + 26] | 0x18) if op_ == 'darkblond' else \
-                        (25, o2[h + 25] | 1 if op_ == 'bald' else o2[h + 25] | 3 if op_ == 'shaved' else o2[h + 25] & 0xFE)
+                        (25, o2[h + 25] & 0xFC | 1 if op_ == 'bald' else o2[h + 25] | 3 if op_ == 'shaved' else o2[h + 25] & 0xFC)
                     s.poke(r.base2 + h + at_, bytes((v_,)))
             s.send('dump:1')
         press(s, s.screen(), 'SQUADRA', 3)
@@ -15484,13 +15510,20 @@ def world_darkblond():
         p189 = struct.unpack('<I', r.read(r.base2 + spr + 189 * 4, 4))[0]
         icon = r.read(struct.unpack('<I', r.read(p189, 4))[0], 64) if p189 else b''
         check(15 in nib(icon[:24]), f'face icon 189 without yellow hair ({icon[:24].hex()})', errs)
-        if os.environ.get('DKB_NAME') == 'world_bald':   # 4.0.5: MALEN (shaved dark in the data) -> his icon
-            look_, skin_ = 'shaved', 'dark'              # (blond.ICON3 + 1: shaved dark; receding: ICONBL / + 1)
-            ii = blond.ICON3 + 1
-            pb = struct.unpack('<I', r.read(r.base2 + spr + ii * 4, 4))[0]
-            ib = r.read(struct.unpack('<I', r.read(pb, 4))[0], 24) if pb else b''
+        # 4.0.5: the shaved icons (blond.ICON3 / + 1: light / dark; receding: ICONBL / + 1) - world_bald: MALEN's (shaved
+        # dark in the data); world_bald_looks with DKB_EARLY (MOLINA poked before the squad screen): both
+        icon_cases = [('shaved', 'dark', blond.ICON3 + 1)] if os.environ.get('DKB_NAME') == 'world_bald' else []
+        if os.environ.get('DKB_NAME') == 'world_bald_looks' and os.environ.get('DKB_EARLY'):
+            icon_cases = [('shaved', 'light', blond.ICON3), ('shaved', 'dark', blond.ICON3 + 1)]
+        for look_, skin_, ii in icon_cases:
+            pb =struct.unpack('<I', r.read(r.base2 + spr + ii * 4, 4))[0]
+            ib = r.read(struct.unpack('<I', r.read(pb, 4))[0], 64) if pb else b''
             lk = blond.LOOKS[look_][skin_]
-            if lk['shape'] == 'oval':                    # (oval: one colour - black for skull 3, else the skin)
+            if lk['shape'] == 'art':                     # (the art's icon, dark first: shavedart.blobs)
+                import shavedart
+                main_, lo_, io_, _ = shavedart.blobs()
+                ok_ = pb and ib == main_[io_ + (64 if skin_ == 'light' else 0):][:64]
+            elif lk['shape'] == 'oval':                    # (oval: one colour - black for skull 3, else the skin)
                 want = 3 if lk['skull'] == 3 else 5
                 ok_ = pb and want in nib(ib) and not (set(nib(ib)) - {0, want, 1, 2, 4, 8})
             else:
@@ -15533,7 +15566,7 @@ def world_darkblond():
             hits = [m_.start() - 3 for m_ in _re.finditer(_re.escape(nm_.encode()) + b'\0', o2)]
             for h in hits:
                 at_, v_ = (26, o2[h + 26] | 0x18) if op_ == 'darkblond' else \
-                    (25, o2[h + 25] | 1 if op_ == 'bald' else o2[h + 25] | 3 if op_ == 'shaved' else o2[h + 25] & 0xFE)
+                    (25, o2[h + 25] & 0xFC | 1 if op_ == 'bald' else o2[h + 25] | 3 if op_ == 'shaved' else o2[h + 25] & 0xFC)
                 s.poke(r.base2 + h + at_, bytes((v_,)))
             info.append(f'{nm_} {op_} x{len(hits)}')
         if not any(x[1] == 'GIOCA PARTITA' and not x[2] for x in s.screen().entries):

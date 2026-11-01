@@ -16749,7 +16749,7 @@ def world_gplay_nzchamp(force='1', team='OCEANIA,NUOVA ZELANDA,NORTHERN LGE|NORT
     check(ok, msg, errs)
     for sn in ((1, 2) if two else (1,)):
         lines = open(os.path.join(RUNS, w84_tag() + f'_{sn}', 'session.log'), errors='replace').read().splitlines()
-        ok1, m1 = nzchamp_season(lines, st_at, log_at, res_words, gff, kof, errs, rest)
+        ok1, m1 = nzchamp_season(lines, st_at, log_at, res_words, gff, kof, errs, rest, team=team)
         if not ok1:
             return False, f'{msg}; season {sn}: {m1}'
     return not errs, '; '.join(errs) or f'{msg}; {m1}'
@@ -16833,7 +16833,7 @@ def gft_at(exe):
     return struct.unpack_from('<I', d1, k + 8 + 4 * 19)[0]
 
 
-def nzchamp_season(lines, st_at, log_at, res_words, gff, kof, errs, rest=False):
+def nzchamp_season(lines, st_at, log_at, res_words, gff, kof, errs, rest=False, team=''):
     """world_gplay_nzchamp's checks on one season's session log: (False, why) when there is nothing to check"""
     sts = [bytes.fromhex(ln.split()[2]) for ln in lines if ln.startswith(f'HEX {st_at:x} ')]
     sts = [b for b in sts if b[:2] == b'GK']
@@ -16857,6 +16857,7 @@ def nzchamp_season(lines, st_at, log_at, res_words, gff, kof, errs, rest=False):
     check(champ is not None and any(r[0] == 5 and r[2] == champ for r in res), f'title {res}, champion {champ}', errs)
     check(len(fin) == 2 and not (set(fin) & res_words), f'Grand Final {[hex(x) for x in fin]} (reserves '
           f'{[hex(x) for x in res_words]})', errs)
+    note = []
     gfs = [gp_ko(b[GP_STKO + GP_KO['size']:]) for b in sts]               # (4.0.5: ko[1], the Grand Final)
     gfs = [x for x in gfs if x['kind'] == 11 and x['season'] == ko['season']]   # (season 2's log: not season 1's)
     mgr = gfs[0]['team'][0] if gfs else None                           # (the placeholder: the career club first)
@@ -16867,7 +16868,16 @@ def nzchamp_season(lines, st_at, log_at, res_words, gff, kof, errs, rest=False):
         check(mgr is not None and mgr not in fin, f"career club {mgr} kept out: final {[hex(x) for x in fin]}", errs)   # final:
                                                                        # decided at once, the season goes on - Panchina's
                                                                        # rc19 stop at the placeholder, step 179)
-        check(not any('CHAMPIONSHIP FINALE' in ln for ln in lines), 'no Grand Final screen without the career club', errs)
+        fl = [ln for ln in lines if 'CHAMPIONSHIP FINALE' in ln]
+        club = team.split(',')[-1]
+        if natural and gff != '1' and fl:                             # (the DECLARED limit, rc20 74b589f: the decision
+            ph = bool(club) and all(club in ln for ln in fl)          # inside the club's rest day after PARTITA - a
+            check(ph, f'a Grand Final screen without the career club {club}: {fl[0][:160]}', errs)   # phantom FINALE with the
+            if ph:
+                note.append(f'declared limit: phantom FINALE with {club} ({len(fl)} screens; the real final and champion '
+                            f'above)')                                # career club, the real final decided without it)
+        else:
+            check(not fl, 'no Grand Final screen without the career club', errs)
     else:
         check(gfs and gfs[-1]['slot'] == 4 and gfs[-1]['n'] == 2 and set(gfs[-1]['team'][:2]) == set(fin) and mgr in fin,
               f"Grand Final in slot 4 (the career club {'in' if natural else 'forced in'}): {[(x['slot'], [hex(t) for t in x['team'][:2]]) for x in gfs[-1:]]}"
@@ -16877,7 +16887,8 @@ def nzchamp_season(lines, st_at, log_at, res_words, gff, kof, errs, rest=False):
               'the Grand Final playable by the career club (- PARTITA - on its screen)', errs)  # but not playable)
         if kof:                                                        # (1 lost, 2 won)
             check((champ == mgr) == (kof == '2'), f'GPLAY_KOFORCE={kof}: champion {champ} (career club {mgr})', errs)
-    return True, f"entrants {[hex(t) for t in kl['team']]}, final {[hex(x) for x in fin]}, champion {hex(champ) if champ is not None else None}"
+    return True, f"entrants {[hex(t) for t in kl['team']]}, final {[hex(x) for x in fin]}, champion {hex(champ) if champ is not None else None}" + \
+        ''.join('; ' + x for x in note)
 
 
 def lpreal_file(exe):

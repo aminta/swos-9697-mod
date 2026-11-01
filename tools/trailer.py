@@ -502,6 +502,12 @@ def patch(p, cave, items, tails=False):
                    ''.join(f'    pushfd\n    pushad\n    call [EN_CB + {4 * (len(cbs) + k)}]\n    popad\n    popfd\n'
                            for k in range(len(aps))) + '    ret')
         cbs = cbs + aps
+    nws = engine.after_news()                     # 4.0.6: after a new career's defaults (its items zeroed)
+    if nws:
+        asm = nasmcave.sub(asm, '(clear flag)\n    call en_finish\n', '(clear flag)\n    call en_finish\n' +
+                           ''.join(f'    pushad\n    call [EN_CB + {4 * (len(cbs) + k)}]\n    popad\n'
+                                   for k in range(len(nws))))
+        cbs = cbs + nws
     asm += 'align 4\nEN_CB: ' + ('dd ' + ', '.join('ap_probe' if n == 'probe' else f'CB{k}' for k, (n, _) in enumerate(cbs))
                                  if cbs else 'dd 0') + '\n'
     if any(n == 'probe' for n, _ in cbs):

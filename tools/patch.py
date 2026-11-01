@@ -63,7 +63,7 @@ OBJ1_NEW_VSIZE = 0xa6000     # + five added pages (lepatch.add_object_page)
 OBJ3_ARENA = 0x20000         # 4.0.6 obj3 (mod code after obj2, CONVENTIONS 23): its file pages (mod pages, then the C
                              # engine's code, PLAN §19 step O) stay below this; the engine arena + spec buffer go here,
                              # zero-filled (vsize only, the engine zeroes it: DOS/4GW does not)
-BENCHX_PAGES = 2             # obj3+0: benchx (the long benches), code + data
+OBJ3_PAGES = 3               # obj3+0: benchx (the long benches), code + data; then cpucards (4.0.6)
 SA_CAVE = 0xa1000            # first added page: South American cups
 WORLD_CAVE = 0xa2000         # second added page: new countries, CAF cups (Roadmap 2)
 NZ_CAVE = 0xa4000            # fourth added page (2.1): NSSL shoot-out (the world cave may grow into page 3)
@@ -230,6 +230,9 @@ def patch_exe(src, dst, remap, lang='it'):
         engine.save_item('SC', supercup.SC_SIZE, world_only=True)
     if xtra_on:
         engine.save_item('XS', xtra.XS_SIZE, world_only=True)    # 4.0.2 the XTRA players bought from other clubs (xtra.py)
+    engine.save_item('CC', 4)                    # 4.0.6 the OPTIONS rows 'CPU red cards', 'CPU injuries' (cpucards.py: 0 = ON;
+    engine.after_load('cc_load')                 # the session's value kept by a load / a new career)
+    engine.after_new('cc_new')
     bigtables.ON[0] = bigtables.needed()         # a world numbering its clubs 2000+ (World 5.0; 4.0's world 0)
     bigtables.MOVED.clear()
     pg_tabs = mkseason.parallel_tables() + engine.parallel_tables()   # parallel groups (worlds' packs; world 0: engine)
@@ -355,7 +358,7 @@ def patch_exe(src, dst, remap, lang='it'):
         data = add_object_page(data, 2)
         data = add_object_page(data, 2)
     data = add_object(data)                          # 4.0.6: obj3 after obj2 (obj1 <= 237 for SWOS++, obj2 = 213 for
-    for _ in range(BENCHX_PAGES):                    # old saves: CONVENTIONS 20 / 22 / 23), benchx's pages first
+    for _ in range(OBJ3_PAGES):                    # old saves: CONVENTIONS 20 / 22 / 23), benchx's pages first
         data = add_object_page(data, 3)
     assert LE(data).obj(3).npages * 0x1000 <= OBJ3_ARENA
     open(grown, 'wb').write(data)
@@ -701,8 +704,11 @@ def patch_exe(src, dst, remap, lang='it'):
     assert ctl_end <= ctl_at + 0x1000, hex(ctl_end)        # (the code page; controls' data pages follow it)
     import benchx                                # 4.1: a bench of up to 15 (block 1: the in-match teams of 26)
     bn_end = benchx.patch(p, 0, ns_at, lang)     # (4.0.6: in obj3)
-    assert bn_end <= 0x1000 * BENCHX_PAGES, hex(bn_end)
-    p.set_vsize(3, 0x1000 * BENCHX_PAGES)
+    import cpucards                              # 4.0.6 (Davide): the CPU's cards / injuries by the human rules, two
+    cc_end = cpucards.patch(p, (bn_end + 15) & ~15, lang)    # OPTIONS rows (ON by default), in obj3 after benchx
+    cpucards.force(p)                                        # (CARDS_FORCE test builds only: last-man fouls forced)
+    assert cc_end <= 0x1000 * OBJ3_PAGES, hex(cc_end)
+    p.set_vsize(3, 0x1000 * OBJ3_PAGES)
     p.set_vsize(1, OBJ1_NEW_VSIZE + (0x1000 * (cp + 2 + cdp) if worlds else 0) + h2 + 0x1000 * (lpb + sp_pg + sc_pg + ct_pg + ctl_pg))
     import teamstab                              # 4.0.2: teamsTable for 256 team ordinals (Serie D choice colours)
     teamstab.patch(p, num_bss + shirtnum.BSS_SIZE + blond.BSS_SIZE + menunum.BSS_SIZE + fmtpage.BSS_SIZE)

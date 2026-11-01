@@ -41,7 +41,7 @@ How it works
   ones on demand; debugger commands are typed in one go, short forms (~1 ms per char), no fixed sleeps.
 - Oracles: saves written by the game, checked in Python (car_info, W1 block, cup lists), the outcome, the dump.
 """
-import glob, hashlib, json, os, pty, re, select, shutil, signal, struct, subprocess, sys, time
+import collections, glob, hashlib, json, os, pty, re, select, shutil, signal, struct, subprocess, sys, time
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 MAIN = os.path.expanduser('~/swos-mod')               # main checkout: c/, orig/, internal/ live there
@@ -19094,6 +19094,170 @@ def career_homefirst():
         check((left == club) == (ha == '(C)') and (right == club) == (ha == '(F)'), f'row {ha} {left} .. {right}', errs)
     return not errs, '; '.join(errs + [f'{len(rows)} rows: {rows[:5]}'])
 
+
+def cc_sites(exe_dir):
+    """cpucards in a built exe: (CC_W obj1 offset, team1StatsData, team2StatsData, gameTeam1 (obj, off)) - CC_W from
+    cc_b's `cmp word [CC_W], 0` (the jmp at TryBookingThePlayer's second CPU exit), the stats as lp36._game_sites."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import cpucards
+    import lepatch
+    import lp36
+    import sacups
+    orig = lepatch.LEPatch(os.path.join(ROOT, 'orig', UI_ORIG))
+    site = cpucards.find(orig)['b']
+    p = lepatch.LEPatch(os.path.join(exe_dir, 'ITALIAN.EXE'))
+    d1 = bytes(p.get(1, 0, len(p.le.obj_bytes(1))))
+    assert d1[site] == 0xE9, 'cpucards site b not patched'
+    stub = site + 5 + struct.unpack_from('<i', d1, site + 1)[0]
+    assert d1[stub + 6:stub + 9] == b'\x66\x83\x3d', d1[stub:stub + 12].hex()
+    cc = p.target(1, stub + 9)
+    _, (t1, t2, g1) = lp36._game_sites(orig, sacups.regs(orig.le.obj_bytes(1))['A0'])
+    gl = [orig.target(1, x.start() + 3) for x in re.finditer(rb'\x66\x83\x05(....)\x01\x66\x83\x3d\1\x04\x75.\x66\xc7'
+                                                             rb'\x05\1\x00\x00\xe9', orig.le.obj_bytes(1), re.S)]
+    assert len(gl) == 1, gl                            # (ChangeGameLength: g_gameLength)
+    a6 = re.escape(struct.pack('<I', sacups.regs(orig.le.obj_bytes(1))['A0'] + 24))
+    tops = collections.Counter(orig.target(1, x.start() + 6) for x in re.finditer(rb'\x81\x3d' + a6, orig.le.obj_bytes(1)))
+    top = tops.most_common(1)[0][0]                    # (`cmp A6, offset topTeamData`: its most frequent target)
+    return cc, t1, t2, g1, gl[0], top
+
+
+def cc_prime(s, top):
+    """In a match: every CPU team's players (TeamGeneralInfo +4 / +6 = 0) with Sprite.cards 0 (+66h) get 1 - booked
+    already, so the CPU's next foul goes through TryBookingThePlayer's second-yellow exit (cpucards site b). Returns
+    the sprites set."""
+    r = s.result
+    rd = lambda lin, n: r.read(lin, n)
+    t0 = r.base2 + top[1]
+    n = 0
+    for t in (t0, struct.unpack('<I', rd(t0, 4))[0]):
+        if not t or struct.unpack('<HH', rd(t + 4, 4)) != (0, 0):
+            continue
+        tab = struct.unpack('<I', rd(t + 0x14, 4))[0]
+        if not tab:
+            continue
+        for sp in struct.unpack('<11I', rd(tab, 44)):
+            if sp and struct.unpack('<H', rd(sp + 0x66, 2))[0] == 0:
+                s.poke(sp + 0x66, b'\x01\x00')
+                n += 1
+    return n
+
+
+def cc_match(s, t1, t2, g1, tag, max_steps=200, top=None):
+    """From a career menu: the next match played for real (idle keys: the CPU fouls), then its stats: [(controls,
+    fouls, bookings, sendings-off) of team 1, team 2] (controls 1 = TEAM_COMPUTER)."""
+    rd = lambda o, n: s.result.read((s.result.base1 if o[0] == 1 else s.result.base2) + o[1], n)
+    for _ in range(12):
+        texts = s.screen().texts()
+        s.log.append(f'[cc] {tag}: ' + ' | '.join(texts)[:300])
+        if 'MOD. TATTICA' in texts and ('GIOCA PARTITA' in texts or 'PARTITA' in texts):
+            break
+        if 'TRASFERIMENTI' in texts and 'PARTITA' in texts:
+            press(s, s.screen(), 'PARTITA', 2) or s.send('fire dump:2')
+        elif '- PARTITA -' in texts:                    # (the fixture screen: played, not '- RISULTATO -')
+            press(s, s.screen(), '- PARTITA -', 2) or s.send('fire dump:2')
+        elif 'MOD. TATTICA' in texts:                   # (a squad screen without the play button: back)
+            press(s, s.screen(), 'ESCI', 2) or s.send('fire dump:2')
+        else:
+            s.send('fire dump:2')
+    else:
+        s.shot(f'{tag}_noteam')
+        raise AssertionError(f'{tag}: no team screen ({s.screen()})')
+    scr = s.screen()
+    i = scr.find('GIOCA :', exact=True)              # player -> coach (the button reads ALLEN: then): the career
+    if i is not None:                                # club played by the AI too (more tackles on both sides than
+        scr = walk(s, i, 2)                          # an idle human team)
+        s.log.append(f'[cc] {tag}: GIOCA : -> {scr.entries[i][1]!r}; ' + ' | '.join(
+            f'{e[0]}:{e[1]}{"(inv)" if e[2] else ""}{"(dis)" if e[3] else ""}' for e in scr.entries[:12]))
+    r = press(s, scr, next((t for t in ('ALLENATORE', 'GIOCA PARTITA', 'PARTITA') if t in scr.texts()), 'PARTITA'))
+    s.log.append(f'[cc] {tag}: play pressed: {r}')
+    if r is None:
+        s.send('fire dump:2')
+    teams = []
+    for k in range(max_steps):
+        scr = s.screen()
+        if not scr.entries:
+            if not teams:
+                ptr = struct.unpack('<II', rd(g1, 8))
+                teams = [s.result.read(x + 4, 1)[0] for x in ptr]
+            if top is not None and k % 3 == 2:          # (re-primed: a sprite whose card the game reset)
+                primed = cc_prime(s, top)
+                if primed:
+                    s.log.append(f'[cc] {tag}: step {k}: {primed} CPU sprites primed (cards 1)')
+            if k % 40 == 10:
+                s.shot(f'{tag}_{k:03d}')
+            s.send('fire:3 ' * 3 + 'dump:1')
+            continue
+        if teams:
+            break
+        s.send('fire dump:2')
+    else:
+        raise AssertionError(f'{tag}: the match did not end ({s.screen()})')
+    st = [struct.unpack('<5H', rd(t, 10))[2:5] for t in (t1, t2)]
+    s.shot(f'{tag}_after')
+    return [(teams[i],) + st[i] for i in range(2)]
+
+
+@scenario
+def cpu_cards():
+    """4.0.6 (Davide): the computer's teams booked / sent off by the human rule (cpucards.py) - OPTIONS row 20 / 21
+    (label, ON at start, fire -> OFF -> ON, CC_W 0 / 1); a career match on a CARDS_FORCE=red build (every foul a
+    last-man foul, a straight red): the CPU side is sent off (sendings-off > 0) with the option ON, never with OFF;
+    on a CARDS_FORCE=yellow build the CPU's second yellows send it off (ON) - OFF: no CPU red; an old career save
+    (JUVE2F) loads the option ON after it was set OFF"""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import cpucards
+    label = cpucards.LABEL[UI]
+    errs, notes = [], []
+    for mode in os.environ.get('CC_MODES', 'red,yellow').split(','):
+        b = nop_league_int3(f'cpu_cards_{mode}', build(f'cpu_cards_{mode}', env={'CARDS_FORCE': mode}, lang=UI))
+        cc, t1, t2, g1, gl, top = cc_sites(b)
+        for on in (True, False):
+            tag = f'{mode}_{"on" if on else "off"}'
+            with Session(f'cpu_cards_{tag}', b, {}, 'dump:3', 900, match=True) as s:
+                s.wait()
+                if mode == 'red' and on:
+                    scr = walk(s, 'OPZIONI', 2)
+                    lab = scr.find(label, exact=True)
+                    lab_i = scr.find(cpucards.LABEL_I[UI], exact=True)
+                    check(lab == 20 and lab_i == 22 and scr.n == 24, f'OPTIONS: {label} at {lab}, '
+                          f'{cpucards.LABEL_I[UI]} at {lab_i}, {scr.n} entries', errs)
+                    s.shot('options')
+                    rw = lambda: struct.unpack('<HHHH', s.result.obj1(cc[1], 8))   # CC_W, CC_I, the session copy
+                    w = [rw()]
+                    for e in (21, 23, 21, 23):
+                        walk(s, e, 2)
+                        w.append(rw())
+                        if len(w) == 3:
+                            s.shot('options_off')
+                    check(w == [(0, 0, 0, 0), (1, 0, 1, 0), (1, 1, 1, 1), (0, 1, 0, 1), (0, 0, 0, 0)],
+                          f'OPTIONS toggles (CC_W, CC_I, copies): {w}', errs)
+                    notes.append(f'OPTIONS {label} / {cpucards.LABEL_I[UI]}: toggles ok' if not errs else '')
+                    press(s, s.screen(), 'ESCI', 2) or walk(s, 18, 2)
+                if not on:                                   # (CC_W, CC_I, CC_SH: the session's copy too - a new
+                    s.poke(s.result.base1 + cc[1], b'\x01\x00\x00\x00\x01\x00\x00\x00')   # career takes it)
+                s.poke(s.result.base2 + gl[1], b'\x03\x00')    # 10-minute matches: more fouls
+                new_career(s, 'ITALIA', 'SERIE A', 'JUVENTUS')
+                res = cc_match(s, t1, t2, g1, tag, top=top if mode == 'yellow' else None)
+                cpu = [r for r in res if r[0] == 1]
+                notes.append(f'{tag}: {res}')
+                if len(cpu) != 1:
+                    errs.append(f'{tag}: not one CPU team {res}')
+                    continue
+                _, fouls, book, off = cpu[0]
+                if on:
+                    check(off > 0, f'{tag}: CPU not sent off ({fouls} fouls, {book} bookings)', errs)
+                else:
+                    check(off == 0 and book == 0, f'{tag}: CPU carded with the option OFF '
+                          f'({fouls} fouls, {book} bookings, {off} off)', errs)
+    with Session('cpu_cards_oldsave', builds()['it'] if UI == 'it' else build('cpu_cards_ui', lang=UI),
+                 {'JUVE2F.CAR': juve2(True)}, 'dump:2', 120) as s:
+        s.wait()
+        ccb = cc_sites(builds()['it'] if UI == 'it' else build('cpu_cards_ui', lang=UI))[0]
+        s.poke(s.result.base1 + ccb[1], b'\x01\x00\x01\x00\x01\x00\x01\x00')
+        s.send(LOAD1 + ' dump:3')
+        w = struct.unpack('<HHHH', s.result.obj1(ccb[1], 8))
+        check(w == (0, 0, 0, 0), f'old save JUVE2F: CC_W, CC_I, copies {w} after the load (want 0 = ON)', errs)
+    return not errs, '; '.join(errs + notes)
 
 
 if __name__ == '__main__':

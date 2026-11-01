@@ -6243,10 +6243,19 @@ def goal_slot_sc_real():
 
 @scenario
 def goal_slot_cd():
-    """4.0.5 (goalslot.py) the Coppa Italia Serie D's goals in COP2: a FIDELIS ANDRIA career (Serie D girone H) on
-    GOALSLOT_BUILD, season 1 up to its first COPPA ITALIA SERIE D result."""
-    return goal_slot_run('goal_slot_cd', 'EUROPA,ITALIA,SERIE D GIRONE H,FIDELIS ANDRIA', 'COPPA ITALIA SERIE D',
-                         os.environ.get('GOALSLOT_BUILD') or builds()['it'], (2, 2))
+    """4.0.5 (goalslot.py) the Coppa Italia Serie D's goals in COP2: a FIDELIS ANDRIA career (Serie D girone H), season 1
+    up to its second COPPA ITALIA SERIE D screen. Draw-proof: a CD_FORCE=1 test build of the release data (W2627REL_DATA,
+    else world5tm-403c11; the career club wins its Coppa D ties - pre31's data had it lose round 1 to MANFREDONIA, no
+    second screen), as goal_slot_po; GOALSLOT_CD_BUILD = a build of your own."""
+    src = (os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-403c11')).rstrip('/')
+    if not os.path.isdir(src) and not os.environ.get('GOALSLOT_CD_BUILD'):
+        return True, f'SKIP: private data {src} missing'
+    exe = os.environ.get('GOALSLOT_CD_BUILD')
+    if not exe:
+        order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+        exe = build('goal_slot_cd', env={'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]),
+                                         'CD_FORCE': '1'})
+    return goal_slot_run('goal_slot_cd', 'EUROPA,ITALIA,SERIE D GIRONE H,FIDELIS ANDRIA', 'COPPA ITALIA SERIE D', exe, (2, 2))
 
 
 @scenario
@@ -6952,7 +6961,8 @@ def xtra_offer_plus():
     from le import LE
     errs, info = [], []
     path = ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27', 'EUROPA', 'ITALIA', 'SERIE D GIRONE A', 'CHISOLA']
-    d0 = LE(open(os.path.join(ROOT, 'orig', 'ITALIAN.EXE'), 'rb').read()).obj_bytes(1)   # (the deal's index words:
+    d0 = LE(open(os.path.join(ROOT, 'orig', UI_ORIG_OF[UI]), 'rb').read()).obj_bytes(1)   # (the deal's index words
+                                                         # in the UI language's exe:
     D0 = sacups.regs(d0)['D7'] - 28                      # PlayerOffersOnSelect8's store, as xbrowse finds it)
     pt = lambda a: re.escape(struct.pack('<I', a))
     deal = [struct.unpack('<I', m.group(1))[0] - 2 for m in re.finditer(
@@ -7000,7 +7010,7 @@ def xtra_offer_plus():
             s.send(k + ' dump:0.5')
         ans = xtra_bid(s)
         info.append(f'{tag}: answer {ans[:3]}')
-        check(any("E' LIETO" in x for x in ans), f'{tag}: not sold {ans[:5]}', errs)
+        check(any("E' LIETO" in x or 'HAPPY TO SELL' in x for x in ans), f'{tag}: not sold {ans[:5]}', errs)   # (IT / EN)
         leave(s)
 
     def start(s):
@@ -7034,8 +7044,8 @@ def xtra_offer_plus():
     if not os.path.isdir(src):
         return not errs, '; '.join(errs + info + [f'purchase pass SKIP: private data {src} missing'])
     order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
-    exe = os.environ.get('XPLUS_FORCE_BUILD') or build('xtra_offer_plus_' + os.path.basename(src), env={
-        'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]), 'OFFER_FORCE': '1'})
+    exe = os.environ.get('XPLUS_FORCE_BUILD') or build(f'xtra_offer_plus_{UI}_' + os.path.basename(src), env={
+        'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]), 'OFFER_FORCE': '1'}, lang=UI)
     blk = xtra_club_block(exe, 'LIGORNA')
     if not blk or not blk[1]:
         return False, '; '.join(errs + [f'LIGORNA: no XTRA block in the test build {exe}'])
@@ -18652,8 +18662,8 @@ def modver_line():
     exe = open(os.path.join(b, 'ITALIAN.EXE'), 'rb').read()
     check(re.fullmatch(r'[A-Z0-9. ]+', want) is not None, f'characters outside the font: {want!r}', errs)
     check((want.encode() + b'\0') in exe, f'{want!r} not in the exe', errs)
-    orig = lepatch.LEPatch(os.path.join(MAIN, 'orig', 'ITALIAN.EXE'))
-    small = modver.find(orig)['small'][1]
+    orig = lepatch.LEPatch(os.path.join(MAIN, 'orig', UI_ORIG_OF[UI]))   # (the UI language's addresses: EN read the IT
+    small = modver.find(orig)['small'][1]                                # ones, a wild glyph pointer - a 4 GB dump)
     d1 = orig.le.obj_bytes(1)
     import sacups
     rg = sacups.regs(d1)

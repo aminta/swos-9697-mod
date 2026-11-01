@@ -841,8 +841,8 @@ WN_TITLES = {   # official titles (data session, 2026-27): (country, ko_playoffs
     ('can', 'cpl_po'): {'*': 'NORTH STAR CUP'},
     ('mlt', 'final_four'): {'it': 'CAMPIONE DI MALTA', 'en': 'MALTESE CHAMPIONS', 'fr': 'CHAMPION DE MALTE',
                             'de': 'MALTESISCHER MEISTER'},
-    ('ita', 'poule_scudetto'): {'it': 'SCUDETTO SERIE D', 'en': 'SERIE D CHAMPIONS', 'fr': 'CHAMPION SERIE D',
-                                'de': 'SERIE-D-MEISTER'},
+    # (4.0.5 Davide: no ('ita', 'poule_scudetto') title - the WINNERS line is the Poule's own name, POULE SCUDETTO SERIE D,
+    #  not 'PLAYOFF - SCUDETTO SERIE D', which read as the Serie D groups' play-offs)
     ('usa', None): {'*': "SUPPORTERS' SHIELD"},
     ('aus', None): {'it': 'PREMIERS A-LEAGUE', 'en': 'A-LEAGUE PREMIERS', 'fr': 'PREMIERS A-LEAGUE', 'de': 'PREMIERS A-LEAGUE'},
     ('can', None): {'*': 'CPL SHIELD'},

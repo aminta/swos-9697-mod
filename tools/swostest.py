@@ -15481,8 +15481,9 @@ def world_darkblond():
     nib = lambda data: [x >> 4 for x in data] + [x & 15 for x in data]
     errs, info = [], []
     team = os.environ.get('DKB_TEAM', 'EUROPA,ITALIA,SERIE A,ROMA').split(',')
-    if 'DKB_POKE' not in os.environ:                  # (4.0.3: MALEN is bald in the data: darkblond again here)
-        os.environ['DKB_POKE'] = 'DONYELL MALEN:unbald,DONYELL MALEN:darkblond'   # (data 403c4: MALEN plain dark)
+    if 'DKB_POKE' not in os.environ:                  # (4.0.3: MALEN is bald in the data: darkblond again here;
+        os.environ['DKB_POKE'] = 'DONYELL MALEN:unbald,DONYELL MALEN:darkblond,NAHUEL MOLINA:unbald'   # 4.0.5: MOLINA
+                                                      # shaved light in the data (bald-looks-2627.csv) - plain here)
     cars = {'SETUP.DAT': os.environ['DKB_SETUP']} if os.environ.get('DKB_SETUP') else {}   # (GOG's factory file:
     with Session(os.environ.get('DKB_NAME', 'world_darkblond'), b, cars, 'dump:2', 600, match=True) as s:   # (video
                                                                                          # speed 10 = half mode)
@@ -15500,7 +15501,7 @@ def world_darkblond():
                 for m_ in _re.finditer(_re.escape(nm_.encode()) + b'\0', o2):
                     h = m_.start() - 3
                     at_, v_ = (26, o2[h + 26] | 0x18) if op_ == 'darkblond' else \
-                        (25, o2[h + 25] | 1 if op_ == 'bald' else o2[h + 25] | 3 if op_ == 'shaved' else o2[h + 25] & 0xFE)
+                        (25, o2[h + 25] & 0xFC | 1 if op_ == 'bald' else o2[h + 25] | 3 if op_ == 'shaved' else o2[h + 25] & 0xFC)
                     s.poke(r.base2 + h + at_, bytes((v_,)))
             s.send('dump:1')
         press(s, s.screen(), 'SQUADRA', 3)
@@ -15509,16 +15510,19 @@ def world_darkblond():
         p189 = struct.unpack('<I', r.read(r.base2 + spr + 189 * 4, 4))[0]
         icon = r.read(struct.unpack('<I', r.read(p189, 4))[0], 64) if p189 else b''
         check(15 in nib(icon[:24]), f'face icon 189 without yellow hair ({icon[:24].hex()})', errs)
-        if os.environ.get('DKB_NAME') == 'world_bald':   # 4.0.5: MALEN (shaved dark in the data) -> his icon
-            look_, skin_ = 'shaved', 'dark'              # (blond.ICON3 + 1: shaved dark; receding: ICONBL / + 1)
-            ii = blond.ICON3 + 1
-            pb = struct.unpack('<I', r.read(r.base2 + spr + ii * 4, 4))[0]
+        # 4.0.5: the shaved icons (blond.ICON3 / + 1: light / dark; receding: ICONBL / + 1) - world_bald: MALEN's (shaved
+        # dark in the data); world_bald_looks with DKB_EARLY (MOLINA poked before the squad screen): both
+        icon_cases = [('shaved', 'dark', blond.ICON3 + 1)] if os.environ.get('DKB_NAME') == 'world_bald' else []
+        if os.environ.get('DKB_NAME') == 'world_bald_looks' and os.environ.get('DKB_EARLY'):
+            icon_cases = [('shaved', 'light', blond.ICON3), ('shaved', 'dark', blond.ICON3 + 1)]
+        for look_, skin_, ii in icon_cases:
+            pb =struct.unpack('<I', r.read(r.base2 + spr + ii * 4, 4))[0]
             ib = r.read(struct.unpack('<I', r.read(pb, 4))[0], 64) if pb else b''
             lk = blond.LOOKS[look_][skin_]
             if lk['shape'] == 'art':                     # (the art's icon, dark first: shavedart.blobs)
                 import shavedart
                 main_, lo_, io_, _ = shavedart.blobs()
-                ok_ = pb and ib == main_[io_:io_ + 64]
+                ok_ = pb and ib == main_[io_ + (64 if skin_ == 'light' else 0):][:64]
             elif lk['shape'] == 'oval':                    # (oval: one colour - black for skull 3, else the skin)
                 want = 3 if lk['skull'] == 3 else 5
                 ok_ = pb and want in nib(ib) and not (set(nib(ib)) - {0, want, 1, 2, 4, 8})
@@ -15562,7 +15566,7 @@ def world_darkblond():
             hits = [m_.start() - 3 for m_ in _re.finditer(_re.escape(nm_.encode()) + b'\0', o2)]
             for h in hits:
                 at_, v_ = (26, o2[h + 26] | 0x18) if op_ == 'darkblond' else \
-                    (25, o2[h + 25] | 1 if op_ == 'bald' else o2[h + 25] | 3 if op_ == 'shaved' else o2[h + 25] & 0xFE)
+                    (25, o2[h + 25] & 0xFC | 1 if op_ == 'bald' else o2[h + 25] | 3 if op_ == 'shaved' else o2[h + 25] & 0xFC)
                 s.poke(r.base2 + h + at_, bytes((v_,)))
             info.append(f'{nm_} {op_} x{len(hits)}')
         if not any(x[1] == 'GIOCA PARTITA' and not x[2] for x in s.screen().entries):

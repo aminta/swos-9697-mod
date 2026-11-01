@@ -6,7 +6,10 @@
 // a wrong folder, an install stopped half way (red INCOMPLETE, then a re-run completes it), and an update over each earlier release given (its outputs made by its own published page,
 // orig/old-patchers/patcher-v<ver>.html, from the originals). Every written file must equal RELxx's (SWOS/ or gog/
 // for the GOG exes, swospp/ for SWOS++), the world's pool / guest files included; MOD_BACKUP\<version> must hold the
-// files replaced. Exit code 1 on any failure. (Node 18+: DecompressionStream.)
+// files replaced. 4.0.6 (installCopy): a read-only game folder (Program Files: nothing changed, the new-folder hint), the
+// install into a new folder from it (CD and GOG: files, launchers, the original untouched, a re-run), a new folder inside the
+// game / not empty / not writable (refused), a new-folder install of the last earlier release updated; an earlier release
+// equal to RELxx expects 0 files written. Exit code 1 on any failure. (Node 18+: DecompressionStream.)
 import fs from 'fs'; import path from 'path'; import vm from 'vm'; import crypto from 'crypto';
 const [page, rel, root, ups = ''] = process.argv.slice(2);
 const M = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
@@ -21,7 +24,7 @@ function load(file, lang) {                                   // a patcher page'
   ctx.document.querySelectorAll = () => [];
   vm.createContext(ctx);
   vm.runInContext(js + '\n;globalThis.__t = { handle, results, PATCHES, setJoy: typeof setJoy === "function" ? setJoy : null, ' +
-    (js.includes('function installDir') ? 'installDir, copyTree, findGame, setLang, DT' : 'x: 0') + ' };', ctx);
+    (js.includes('function installDir') ? 'installDir, copyTree, findGame, setLang, DT' + (js.includes('function installCopy') ? ', installCopy, failMsg' : '') : 'x: 0') + ' };', ctx);
   if (ctx.__t.setLang) ctx.__t.setLang(lang);
   return ctx.__t;
 }
@@ -33,7 +36,16 @@ class DH { constructor(p) { this.p = p; this.kind = 'directory'; this.name = pat
   async *entries() { for (const n of fs.readdirSync(this.p)) { const q = path.join(this.p, n); yield [n, fs.statSync(q).isDirectory() ? new DH(q) : new FH(q)]; } }
   async removeEntry(n) { fs.rmSync(path.join(this.p, n), { recursive: true, force: true }); }
   async getDirectoryHandle(n, o = {}) { const q = path.join(this.p, n); if (!fs.existsSync(q)) { if (!o.create) throw Object.assign(new Error('nf'), { name: 'NotFoundError' }); fs.mkdirSync(q); } return new DH(q); }
-  async getFileHandle(n, o = {}) { const q = path.join(this.p, n); if (!fs.existsSync(q)) { if (!o.create) throw Object.assign(new Error('nf'), { name: 'NotFoundError' }); fs.writeFileSync(q, ''); } return new FH(q); } }
+  async getFileHandle(n, o = {}) { const q = path.join(this.p, n); if (!fs.existsSync(q)) { if (!o.create) throw Object.assign(new Error('nf'), { name: 'NotFoundError' }); fs.writeFileSync(q, ''); } return new FH(q); }
+  async isSameEntry(h) { return h.kind === this.kind && path.resolve(h.p) === path.resolve(this.p); }
+  async resolve(h) { const r = path.relative(this.p, h.p); return r && !r.startsWith('..') && !path.isAbsolute(r) ? r.split(path.sep) : r === '' ? [] : null; } }
+const denied = () => Object.assign(new Error('The request is not allowed'), { name: 'NotAllowedError' });
+class ROF extends FH { async createWritable() { throw denied(); } }      // 4.0.6: a folder the browser cannot write (Program Files)
+class RO extends DH { async *entries() { for await (const [n, h] of super.entries()) yield [n, h.kind === 'file' ? new ROF(h.p) : new RO(h.p)]; }
+  async getDirectoryHandle(n, o = {}) { if (o.create && !fs.existsSync(path.join(this.p, n))) throw denied(); return new RO((await super.getDirectoryHandle(n)).p); }
+  async getFileHandle(n, o = {}) { if (o.create && !fs.existsSync(path.join(this.p, n))) throw denied(); return new ROF((await super.getFileHandle(n)).p); } }
+const tree = d => { const o = {}; const w = q => { for (const n of fs.readdirSync(q)) { const p = path.join(q, n);
+  if (fs.statSync(p).isDirectory()) w(p); else o[path.relative(d, p)] = md5(p); } }; w(d); return JSON.stringify(o); };
 function game(dir, gog) {                                    // a game folder from the originals
   fs.rmSync(dir, { recursive: true, force: true }); fs.mkdirSync(path.join(dir, 'DATA'), { recursive: true });
   for (const x of ['ITALIAN.EXE', 'ENGLISH.EXE', 'FRENCH.EXE', 'GERMAN.EXE']) fs.copyFileSync(path.join(M, gog ? 'orig/gog' : 'orig', x), path.join(dir, x));
@@ -83,13 +95,40 @@ for (const lang of ['it', 'en', 'fr', 'de']) {
   { const top = path.join(R, 'cut'), dir = path.join(top, 'SWOS'); game(dir, false); cut = 40;
     const n = await T.installDir(new DH(top), say); cut = Infinity;
     ok(log.at(-1).startsWith('!'), `${lang} stopped half way: ${n} written: ${log.at(-1).slice(0, 160)}`);
+    if (T.failMsg) { const D = T.DT[lang], m = T.failMsg(Object.assign(new Error('disk full'), { name: 'QuotaExceededError' }), D);
+      ok(m === D.error('disk full') && m.includes('MOD_BACKUP'), `${lang} stopped half way by an error: the calm message: ${m.slice(0, 90)}`); }
     const n2 = await T.installDir(new DH(top), say); ok(n2 > 0 && !log.at(-1).startsWith('!'), `${lang} stopped half way, run again: ${n2} written: ${log.at(-1).slice(0, 80)}`);
     check(T, dir, false, false, `${lang} stopped half way, run again`);
     ok(md5(path.join(backup(dir), 'ITALIAN.EXE')) === md5(path.join(M, 'orig/ITALIAN.EXE')) &&
        fs.readdirSync(path.join(backup(dir), 'DATA')).every(x => fs.existsSync(path.join(M, 'orig/DATA', x)) &&
                                                               md5(path.join(backup(dir), 'DATA', x)) === md5(path.join(M, 'orig/DATA', x))),
        `${lang} stopped half way, run again: MOD_BACKUP = the originals`); }
-  { const src = path.join(R, 'cdsrc'), dst = path.join(R, 'cddst'); game(src, false); fs.rmSync(dst, { recursive: true, force: true }); fs.mkdirSync(dst);
+  if (T.installCopy) {                                      // 4.0.6: install into a new folder (Program Files, a CD)
+    const D = T.DT[lang];
+    for (const [name, gog, sub] of [['cd', false, 'SWOS'], ['gog', true, 'Sensible World of Soccer 96-97']]) {
+      const stop = path.join(R, 'pf' + name), src = path.join(stop, sub), dst = path.join(R, 'new' + name);
+      game(src, gog); fs.rmSync(dst, { recursive: true, force: true }); fs.mkdirSync(dst);
+      const before = tree(stop);
+      let e1 = null; try { await T.installDir(new RO(stop), say); } catch (e) { e1 = e; }      // the game folder itself: refused
+      ok(e1 && T.failMsg(e1, D) === D.nowrite && tree(stop) === before, `${lang} ${name} in a read-only folder: nothing changed, the new-folder hint: ${e1 && T.failMsg(e1, D).slice(0, 70)}`);
+      const n = await T.installCopy(new RO(stop), new DH(dst), say);                          // the parent picked: found below
+      ok(n > 0 && !log.at(-1).startsWith('!') && log.at(-1).endsWith(D.newplay), `${lang} ${name} into a new folder: ${n} written: ${log.at(-1).slice(-120)}`);
+      check(T, dst, gog, false, `${lang} ${name} into a new folder`);
+      ok(tree(stop) === before && !fs.existsSync(path.join(dst, 'MOD_BACKUP', 'x')), `${lang} ${name} into a new folder: the original untouched`);
+      if (gog) ok(['Italiano', 'English', 'Francais', 'Deutsch'].every(l => fs.existsSync(path.join(dst, `SWOS Mod - ${l}.bat`))), `${lang} gog into a new folder: 4 launchers there`);
+      const n2 = await T.installCopy(new RO(stop), new DH(dst), say);
+      ok(n2 === 0 && !log.at(-1).startsWith('!') && log.at(-1).includes(D.current) && log.at(-1).endsWith(D.newplay), `${lang} ${name} new folder again: nothing written: ${log.at(-1).slice(0, 80)}`); }
+    { const stop = path.join(R, 'pfcd'), D = T.DT[lang];
+      const n = await T.installCopy(new RO(stop), new DH(path.join(stop, 'SWOS', 'DATA')), say);
+      ok(n === 0 && log.at(-1) === '! ' + D.same, `${lang} new folder inside the game folder: refused`);
+      const full = path.join(R, 'full'); fs.rmSync(full, { recursive: true, force: true }); fs.mkdirSync(full); fs.writeFileSync(path.join(full, 'notes.txt'), 'x');
+      const n2 = await T.installCopy(new RO(stop), new DH(full), say);
+      ok(n2 === 0 && log.at(-1) === '! ' + D.notempty && fs.readdirSync(full).length === 1, `${lang} new folder not empty: refused, nothing copied`);
+      const ro = path.join(R, 'rodst'); fs.rmSync(ro, { recursive: true, force: true }); fs.mkdirSync(ro);
+      const n3 = await T.installCopy(new RO(stop), new RO(ro), say);
+      ok(n3 === 0 && log.at(-1) === '! ' + D.dstno && !fs.readdirSync(ro).length, `${lang} new folder not writable: refused, the right message`); }
+  } else {
+    const src = path.join(R, 'cdsrc'), dst = path.join(R, 'cddst'); game(src, false); fs.rmSync(dst, { recursive: true, force: true }); fs.mkdirSync(dst);
     const g = await T.findGame(new DH(src)); await T.copyTree(g.root, new DH(dst)); const n = await T.installDir(new DH(dst), say);
     ok(n > 0, `${lang} from the CD: ${n} written`); check(T, dst, false, false, `${lang} from the CD`);
     ok(md5(path.join(src, 'ITALIAN.EXE')) === md5(path.join(M, 'orig/ITALIAN.EXE')), `${lang} from the CD: the CD folder untouched`); }
@@ -97,8 +136,6 @@ for (const lang of ['it', 'en', 'fr', 'de']) {
     const n = await T.installDir(new DH(top), say); ok(n > 0, `${lang} SWOS++: ${n} written`); check(T, dir, false, true, `${lang} SWOS++`); }
   { // 4.0.3: the community pack "SWOS 16/17" (GAME + DOSBOX + CD\SWOS9697.ISO): refused, nothing written, the CD hint shown;
     // a synthetic one (CD originals + the pack's exe names, once with a MOD_BACKUP) and, with PACK1617=<folder>, a real one
-    const tree = d => { const o = {}; const w = q => { for (const n of fs.readdirSync(q)) { const p = path.join(q, n);
-      if (fs.statSync(p).isDirectory()) w(p); else o[path.relative(d, p)] = md5(p); } }; w(d); return JSON.stringify(o); };
     const cases = [['synthetic', false], ['synthetic + MOD_BACKUP', true]];
     if (process.env.PACK1617) cases.push(['real (' + path.basename(process.env.PACK1617) + ')', null]);
     for (const [name, bak] of cases) {
@@ -243,6 +280,7 @@ for (const lang of ['it', 'en', 'fr', 'de']) {
   }
   { const w = path.join(R, 'wrong'); fs.rmSync(w, { recursive: true, force: true }); fs.mkdirSync(w); fs.writeFileSync(path.join(w, 'x.txt'), 'x');
     const n = await T.installDir(new DH(w), say); ok(n === 0 && log.at(-1).startsWith('!'), `${lang} wrong folder: ${log.at(-1)}`); }
+  let lastUp = null;
   for (const v of ups.split(',').filter(Boolean)) {          // an install patched by release v (its own page)
     const top = path.join(R, 'up' + v), dir = path.join(top, 'SWOS'); game(dir, false);
     const O = load(path.join(M, 'orig/old-patchers', `patcher-v${v}.html`), 'en');
@@ -251,10 +289,18 @@ for (const lang of ['it', 'en', 'fr', 'de']) {
     await O.handle(files.map(f => ({ name: path.basename(f), arrayBuffer: async () => { const b = fs.readFileSync(f); return b.buffer.slice(b.byteOffset, b.byteOffset + b.length); } })));
     let w = 0;
     for (const r of O.results) if (r.state === 'ok' && !r.patch.id.includes('SWOS++') && !r.patch.id.includes('(GOG)')) { fs.writeFileSync(path.join(dir, r.patch.target), Buffer.from(r.out)); w++; }
-    const old = md5(path.join(dir, 'ITALIAN.EXE'));
-    const n = await T.installDir(new DH(top), say); ok(n > 0, `${lang} update over ${v} (${w} files of ${v}): ${n} written`);
+    const old = md5(path.join(dir, 'ITALIAN.EXE')), same = old === md5(path.join(rel, 'SWOS', 'ITALIAN.EXE'));   // (v = this build)
+    const n = await T.installDir(new DH(top), say);
+    ok(same ? n === 0 : n > 0, `${lang} update over ${v} (${w} files of ${v}): ${n} written${same ? ' (= this build)' : ''}`);
     check(T, dir, false, false, `${lang} update over ${v}`);
-    ok(md5(path.join(backup(dir), 'ITALIAN.EXE')) === old, `${lang} update over ${v}: MOD_BACKUP = the ${v} exe`);
+    if (!same) { ok(md5(path.join(backup(dir), 'ITALIAN.EXE')) === old, `${lang} update over ${v}: MOD_BACKUP = the ${v} exe`); lastUp = [v, O]; }
+  }
+  if (T.installCopy && lastUp) {                             // 4.0.6: a new-folder install made by the last earlier release, updated
+    const [v, O] = lastUp, nd = path.join(R, 'newup'), src = path.join(R, 'pfsrc'); game(src, false); game(path.join(nd, 'SWOS'), false);
+    for (const r of O.results) if (r.state === 'ok' && !r.patch.id.includes('SWOS++') && !r.patch.id.includes('(GOG)')) fs.writeFileSync(path.join(nd, 'SWOS', r.patch.target), Buffer.from(r.out));
+    const n3 = await T.installCopy(new RO(src), new DH(nd), say);
+    ok(n3 > 0 && log.at(-1).endsWith(T.DT[lang].newplay), `${lang} new folder made by ${v}, updated with the second button: ${n3} written`);
+    check(T, path.join(nd, 'SWOS'), false, false, `${lang} new folder made by ${v}, updated`);
   }
 }
 console.log(fail ? `${fail} FAILED` : 'ALL OK');

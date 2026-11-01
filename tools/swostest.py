@@ -6952,7 +6952,8 @@ def world_bplace_line():
     extra-time goals: bplace.force) with GPLAY_FORCE: (a) LIGORNA 3rd of Serie D girone A - its group play-off (single
     + extra time);
     (b) VEGALTA SENDAI 3rd of J2 - the J1 promotion play-off (single, no extra time: no line before); (c) RENATE 17th of
-    Serie C girone A - its play-out (two legs, a level aggregate: '%a WIN 2-2 ON AGG.' before). Each: our text on a
+    Serie C girone A - its play-out (two legs, a level aggregate: '%a WIN 2-2 ON AGG.' before; Italy's pack without
+    the play-outs' 8-point gap, so the tie is always played). Each: our text on a
     result screen naming a tie's winner (gplay's GP_ST) who is the better placed (lower code), every new line in the
     small font's characters and within the game's widths (wide 257 px, narrow 209 px), the game's penalty texts as
     before (the cups' forced level ties)."""
@@ -6973,10 +6974,29 @@ def world_bplace_line():
     if os.environ.get('BPLACE_CASES'):
         cases = [c for c in cases if c[0] in os.environ['BPLACE_CASES']]
     errs, info, nar = [], [], []
+    nogap = os.path.join(WORK, 'bplace_nogap', 'ita')  # (c: Italy's pack without the Serie C play-outs' 8-point gap -
+    if not os.path.isdir(nogap) or os.path.getmtime(nogap) < os.path.getmtime(os.path.join(src, 'ita', 'pack.json')):
+        tmp = os.path.join(WORK, f'bplace_nogap.tmp{os.getpid()}', 'ita')   # the league's own results, which differ by
+        shutil.rmtree(os.path.dirname(tmp), ignore_errors=True)            # exe language, could put RENATE 8+ points
+        shutil.copytree(os.path.join(src, 'ita'), tmp)                     # from its play-out rival: no tie; a pack is
+        pk = json.load(open(os.path.join(tmp, 'pack.json')))               # known by its folder's name)
+        for c in pk.get('competitions', []):
+            for po in c.get('ko_playoffs') or []:
+                if isinstance(po, dict) and po.get('key', '').startswith('c') and po.get('kind') == 'playout':
+                    for r in po.get('rounds') or []:
+                        r.pop('gap', None)
+        json.dump(pk, open(os.path.join(tmp, 'pack.json'), 'w'), ensure_ascii=False)
+        shutil.rmtree(nogap, ignore_errors=True)
+        os.makedirs(os.path.dirname(nogap), exist_ok=True)
+        try:
+            os.rename(tmp, nogap)
+        except OSError:                                # (a parallel run's copy: the same content)
+            pass
+        shutil.rmtree(os.path.dirname(tmp), ignore_errors=True)
     for tag, team, force, want, word in cases:
+        packs = [os.path.join(src, x) if not (tag == 'c' and x == 'ita') else nogap for x in order]
         exe = build(f'bplace_line_{force}' + ('' if UI == 'it' else '_' + UI), lang=UI, env={
-            'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]), 'GPLAY_FORCE': force,
-            'BPLACE_FORCE': '1'})
+            'SEASON_PACKS': ','.join(['ddr-1988-89'] + packs), 'GPLAY_FORCE': force, 'BPLACE_FORCE': '1'})
         log_at, st_at, log_n, st_n = gp_ptrs(exe)
         keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_ONE',
                 'W8485_HEX', 'W8485_SHOTWORD')

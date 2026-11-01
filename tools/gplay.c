@@ -181,6 +181,11 @@ static int series(int a, int b, int level) {   /* best of three: games 1 and 3 a
 #define GP_KOFORCE 0                    /* (test builds, GPLAY_KOFORCE: 1 the career club loses its played knockout ties,
                                            2 wins them - gp_perm_c / gp_rec_c, the game told so through the next round) */
 #endif
+#if GP_KOFORCE                          /* (4.0.5: gp_season compiled for size in KOFORCE builds only - their forcing code */
+#define GP_KOSIZE __attribute__((minsize))  /* left longtable no room in gplay's pages; a release build is unchanged) */
+#else
+#define GP_KOSIZE
+#endif
 /* test builds (GPLAY_FORCE=k): the career club takes place k of its division (team and global number swapped with
    the club there), at the league end and again at the season end */
 static int gp_force(void) {
@@ -927,7 +932,7 @@ static void pot_perm(const u8 *s, int *pm) {
     for (int i = n - 1; i > h; i--) { int j = h + below(i - h + 1), x = pm[i]; pm[i] = pm[j]; pm[j] = x; }
 }
 
-void gp_season(void) {
+GP_KOSIZE void gp_season(void) {
     const u8 *s = GP_IN.spec;
     u32 h = 0;
     for (int d = 0; d < GP_IN.nd && d < GD; d++)

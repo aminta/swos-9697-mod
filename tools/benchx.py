@@ -1192,6 +1192,16 @@ vw_gpi:                                 ; their Common's `call GetPlayerInfoBrea
 .g:
     jmp GPI
 
+vw_gpiv:                                ; (4.0.5) ViewSquadCommon's: the same, then the call's previous target (xbrowse's
+    cmp word [D1], 11                   ; vs_pick: the offer's '+' page 2 picks a club's extra - Enzo)
+    jb .g
+    push eax
+    mov ax, [bx_vw]
+    add [D1], ax
+    pop eax
+.g:
+    jmp VWPREV
+
 vw_rot:                                 ; ViewSquadOnSelect21 / SelectNationalTeamOnSelect25's `call RotatePlayersLeft`
     push eax                            ; (the box: only for the managed club / careerTeam): a bench over 5 = the
     call sq_n                           ; window one down (back to the top after the last), the whole menu redrawn
@@ -1847,6 +1857,8 @@ def patch(p, at, ns_at, lang='it'):
     sym.update({k: s8[k] for k in ('SQCOMMON', 'ETCOMMON', 'ONSWAP', 'PMT2')})
     s9 = sites9(p, regs, s4, s6, ct, cnp)
     sym.update({k: s9[k] for k in ('VSCOMMON', 'NTCOMMON', 'VSTEAM', 'VSROW', 'NTSEL')})
+    vg = s9['gpi'][0]                               # (4.0.5) ViewSquadCommon's call: its current target (xbrowse's vs_pick,
+    sym['VWPREV'] = (1, vg + 5 + struct.unpack('<i', bytes(p.get(1, vg + 1, 4)))[0])   # else the game's) - chained
     etc, sfet = sites10(p)
     sym['SFET'] = (1, sfet)
     s7 = sites7(p, regs)
@@ -1939,7 +1951,7 @@ def patch(p, at, ns_at, lang='it'):
     call9(s9['ninit'], 10, 'vw_ninit', 2)           # SelectNationalTeamInit: mov dword [dseg_17BA3A], 0
     rcalls = [(s5['dgpi'], 'pm_gpi'), (s5['rot'], 'pm_rot')] + [(o, 'pm_gpi2') for o in s5['sgpi']]
     rcalls += [(o, 'et_gpi') for o in s6['dgpi']] + [(s6['fgpi'], 'et_gpi2'), (s6['rot'], 'et_rot')]
-    rcalls += [(o, 'vw_gpi') for o in s9['gpi']] + [(o, 'vw_rot') for o in s9['rot']] + [(etc, 'bx_et')]
+    rcalls += [(s9['gpi'][0], 'vw_gpiv'), (s9['gpi'][1], 'vw_gpi')] + [(o, 'vw_rot') for o in s9['rot']] + [(etc, 'bx_et')]
     if s5['se']:
         rcalls.append((s5['se'], 'pm_gpi2'))        # shirtedit's se_ctl (row -> place)
     for o, lbl in rcalls:                           # call rel32 (no fixup)

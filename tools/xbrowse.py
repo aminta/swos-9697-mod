@@ -40,25 +40,39 @@ xb_init:                                ; BuyOtherPlayersInit's first instructio
     mov ax, [TEAMOFF]
     ret
 
-xb_vis:                                 ; the button is there only for a club with extras: [A0] = the club's record -> eax = extras
-    pushad
-    mov esi, [A0]
-    movzx eax, word [esi]
+xt_cnt:                                 ; ax = a club's number -> ebx = its extras still there (0: none)
     call XT_BLOCK
     xor ebx, ebx
     test eax, eax
     jz .n
     lea esi, [eax + 4]
     mov ecx, MAXE_
-.c:
-    cmp byte [esi + 3], 0
+.c: cmp byte [esi + 3], 0
     je .s
     inc ebx
-.s:
-    add esi, PLAYER_
+.s: add esi, PLAYER_
     dec ecx
     jnz .c
-.n:
+.n: ret
+
+xl_copy:                                ; a page button's label into edi: next (al = page 0) / previous
+    mov esi, [xb_txt]
+    test al, al
+    jz .c
+    mov esi, [xb_txt + 4]
+.c: mov al, [esi]
+    mov [edi], al
+    inc esi
+    inc edi
+    test al, al
+    jnz .c
+    ret
+
+xb_vis:                                 ; the button is there only for a club with extras: [A0] = the club's record -> eax = extras
+    pushad
+    mov esi, [A0]
+    movzx eax, word [esi]
+    call xt_cnt
     mov [xb_n], ebx                     ; (CalcMenuEntryAddress clobbers ebx)
     mov dword [D0], NEWENT_
     call CALC
@@ -73,18 +87,8 @@ xb_vis:                                 ; the button is there only for a club wi
 
 xb_label:                               ; the button's label: next (page 0) / previous (page 1)
     mov edi, xb_buf
-    mov esi, [xb_txt]
-    cmp byte [xb_pg], 0
-    je .c
-    mov esi, [xb_txt + 4]
-.c:
-    mov al, [esi]
-    mov [edi], al
-    inc esi
-    inc edi
-    test al, al
-    jnz .c
-    ret
+    mov al, [xb_pg]
+    jmp xl_copy
 
 xb_page:                                ; fire on the button: the other page, redrawn, the cursor stays on it
     xor byte [xb_pg], 1
@@ -230,21 +234,7 @@ xs_init:
     mov esi, [SQTEAM]
     mov [xs_team], esi
     movzx eax, word [esi]
-    call XT_BLOCK
-    xor ebx, ebx
-    test eax, eax
-    jz .n
-    lea esi, [eax + 4]
-    mov ecx, MAXE_
-.c:
-    cmp byte [esi + 3], 0
-    je .s
-    inc ebx
-.s:
-    add esi, PLAYER_
-    dec ecx
-    jnz .c
-.n:
+    call xt_cnt
     mov [xs_n], ebx
     test ebx, ebx
     jz .out
@@ -282,18 +272,8 @@ xs_init:
 
 xs_label:
     mov edi, xs_buf
-    mov esi, [xb_txt]
-    cmp byte [xs_pg], 0
-    je .c
-    mov esi, [xb_txt + 4]
-.c:
-    mov al, [esi]
-    mov [edi], al
-    inc esi
-    inc edi
-    test al, al
-    jnz .c
-    ret
+    mov al, [xs_pg]
+    jmp xl_copy
 
 xs_flip:                                ; fire on the button: the other page, redrawn
     xor byte [xs_pg], 1
@@ -320,58 +300,56 @@ xs_row:                                 ; replaces `call GetPlayerInfoBreakPosit
     add esp, 4
     ret
 
-vs_init:                                ; 4.0.5 viewSquadMenu's init (the job letter's VIS. SQUADRA, ViewFutureTeam): the game's
-    call VSINIT                         ; ViewSquadInit, then - only in the letter's view (its flag word) of a club that is
-    pushad                              ; not the managed one - a PAG. SUCC. button on entry 2 (its ESCI, hidden there)
-    mov byte [vs_pg], 0
-    mov dword [vs_team], 0
+vs_init:                                ; 4.0.5 viewSquadMenu's init (ShowSquad): the game's ViewSquadInit, then a PAG. SUCC.
+    call VSINIT                         ; button for a club that is not the managed one, with extras, in two views: the job
+    pushad                              ; letter's VIS. SQUADRA (its flag word; on entry 2, its ESCI hidden there, left of
+    mov byte [vs_pg], 0                 ; CONTINUA, display only) and the offer's '+' (vs_offer: SELEZ. GIOCATORE PER
+    mov dword [vs_team], 0              ; OFFERTA, on entry 3, its CONTINUA hidden there, right of ESCI as in the club
+    mov dword [vs_lay], vs_lt           ; browse; page 2 picks the club's extras: Enzo's 2nd player of a deal)
     cmp word [JOBVIEW], 0
+    jne .go
+    mov dword [vs_lay], vs_of
+    cmp byte [vs_ofr], 0
     je .out
+.go:
     mov esi, [SQTP]
     cmp esi, CAREERTEAM
     je .out
     movzx eax, word [esi]
-    call XT_BLOCK
-    xor ebx, ebx
-    test eax, eax
-    jz .out
-    lea esi, [eax + 4]
-    mov ecx, MAXE_
-.c: cmp byte [esi + 3], 0
-    je .s
-    inc ebx
-.s: add esi, PLAYER_
-    dec ecx
-    jnz .c
+    call xt_cnt
     test ebx, ebx
     jz .out
     mov [vs_n], ebx
     mov eax, [SQTP]
     mov [vs_team], eax
-    mov dword [D0], 3                   ; CONTINUA: the button goes left of it
+    mov ebp, [vs_lay]
+    movzx eax, byte [ebp]               ; the anchor entry (CONTINUA / ESCI): its link to the button
+    mov [D0], eax
     call CALC
+    mov ebp, [vs_lay]
     mov esi, [A0]
-    mov eax, [esi + 14h]
+    movzx eax, byte [ebp + 2]
+    mov cl, [ebp + 1]
+    mov [esi + eax], cl
+    mov eax, [esi + 14h]                ; x, y
+    add ax, [ebp + 4]
     mov [xs_xy], eax
-    mov eax, [esi + 18h]
+    mov eax, [esi + 18h]                ; width, height
+    mov ax, [ebp + 6]
     mov [xs_wh], eax
-    mov byte [esi + 8], 2               ; CONTINUA: left -> the button
-    mov dword [D0], 2
+    movzx eax, byte [ebp + 1]           ; the button entry
+    mov [D0], eax
     call CALC
+    mov ebp, [vs_lay]
     mov edi, [A0]
-    mov word [edi + 4], 0               ; shown, enabled
-    mov word [edi + 6], 0
+    mov dword [edi + 4], 0              ; shown, enabled
     mov eax, [xs_xy]
-    sub ax, 80
-    mov [edi + 14h], ax
-    shr eax, 16
-    mov [edi + 16h], ax
+    mov [edi + 14h], eax
     mov eax, [xs_wh]
-    shr eax, 16
-    mov [edi + 1Ah], ax
-    mov word [edi + 18h], 76
+    mov [edi + 18h], eax
     mov word [edi + 1Eh], 14            ; the menus' green
-    mov dword [edi + 8], 0FFFF03FFh     ; left -, right CONTINUA, up -, down -
+    mov eax, [ebp + 8]                  ; left, right, up, down
+    mov [edi + 8], eax
     mov dword [edi + 26h], vs_buf
     mov dword [edi + 2Ah], vs_flip
     call vs_label
@@ -381,33 +359,34 @@ vs_init:                                ; 4.0.5 viewSquadMenu's init (the job le
 
 vs_label:
     mov edi, vs_buf
-    mov esi, [xb_txt]
-    cmp byte [vs_pg], 0
-    je .c
-    mov esi, [xb_txt + 4]
-.c: mov al, [esi]
-    mov [edi], al
-    inc esi
-    inc edi
-    test al, al
-    jnz .c
-    ret
+    mov al, [vs_pg]
+    jmp xl_copy
 
 vs_flip:                                ; fire on the button: the other page, redrawn
     xor byte [vs_pg], 1
     pushad
     call vs_label
     popad
-    mov dword [D0], 2
+    mov eax, [vs_lay]
+    movzx eax, byte [eax + 1]
+    mov [D0], eax
     call SETCUR
     jmp DRAWMENU
 
-vs_row:                                 ; ViewSquadAfterDrawCommon's `call GetPlayerInfoBreakPosition`: page 2 of the letter's
-    cmp byte [vs_pg], 0                 ; club = its r-th extra still there
+vs_offer:                               ; PlayerOffersOnSelect8's `call ShowSquad` (the offer's '+': a 2nd player of the club)
+    mov byte [vs_ofr], 1
+    call SHOWSQ
+    mov byte [vs_ofr], 0                ; (the flags are ShowSquad's: its caller tests them)
+    ret
+
+vs_row:                                 ; ViewSquadAfterDrawCommon's `call GetPlayerInfoBreakPosition`: page 2 = the club's
+    cmp byte [vs_pg], 0                 ; r-th extra still there
     je .n
     mov eax, [SQTP]
     cmp eax, [vs_team]
     jne .n
+    cmp dword [vs_lay], vs_of
+    je vs_p2
     movzx eax, word [D1]
     cmp eax, [vs_n]
     jae .none
@@ -418,16 +397,34 @@ vs_row:                                 ; ViewSquadAfterDrawCommon's `call GetPl
     add esp, 4
     ret
 
-vs_pick:                                ; ViewSquadCommon's: page 2 is display only (no index past 16 reaches the callers)
-    cmp byte [vs_pg], 0
+vs_pick:                                ; ViewSquadCommon's: the letter's page 2 is display only; the offer's picks the extra
+    cmp byte [vs_pg], 0                 ; (D1 = 16 + its slot, as the club browse's pick: ShowSquad returns it)
     je .n
     mov eax, [SQTP]
     cmp eax, [vs_team]
     jne .n
+    cmp dword [vs_lay], vs_of
+    je vs_p2
     add esp, 4                          ; (out of ViewSquadCommon: nothing picked, the menu stays)
     ret
 .n: jmp GPIBP
 
+vs_p2:                                  ; the offer's page 2: row r = the club's r-th extra (xb_pick), none: nothing drawn /
+    call xb_pick                        ; picked
+    jnc .ok
+    add esp, 4
+.ok:
+    ret
+
+align 4
+vs_lt: db 3, 2, 8, 0                    ; the letter: anchor CONTINUA, button entry 2 at its left (x - 80, width 76)
+    dw -80, 76
+    dd 0FFFF03FFh
+vs_of: db 2, 3, 9, 0                    ; the offer: anchor ESCI, button entry 3 at its right, the club browse's geometry
+    dw 74, 90                           ; (x 204, width 90)
+    dd 0FF14FF02h
+vs_lay: dd 0
+vs_ofr: db 0
 align 4
 vs_n: dd 0
 vs_team: dd 0
@@ -533,7 +530,16 @@ def find(p):
                                  rb'\xff\xff\x66\xc7\x05(....)\x01\x00\xe8....\x66\xc7\x05\1\x00\x00\xe9', d1, re.S)]
     assert len(jv) == 1, len(jv)
     jobview = p.target(1, jv[0].start(1))
+    showsq = _rel(d1, jv[0].end() - 15)
+    # 4.0.5 PlayerOffersOnSelect8 (the offer's '+'): mov word [D3],-1; mov word [D4],-1; call ShowSquad; js; mov ax,[D0];
+    # mov [numExtraPlayersWanted],ax - the one whose word is set to -1 just before (the exchange's '+' stores another)
+    o8 = [x for x in re.finditer(rb'\x66\xc7\x05' + ptr(D0 + 12) + rb'\xff\xff\x66\xc7\x05' + ptr(D0 + 16) + rb'\xff\xff(\xe8....)\x78.'
+                                 rb'\x66\xa1' + ptr(D0) + rb'\x66\xa3(....)', d1, re.S)
+          if _rel(d1, x.start(1)) == showsq and re.search(rb'\x66\xc7\x05' + re.escape(x.group(2)) + rb'\xff\xff',
+                                                         d1[x.start() - 0x80:x.start()])]
+    assert len(o8) == 1, len(o8)
     return dict(vinit=vi[0].start(), vmenu=vrefs[0], sqtp=sqtp, vpick=vcalls[0], vdraw=vcalls[1], jobview=jobview,
+                showsq=showsq, offer8=o8[0].start(1),
                 tail=tail, smspp=smspp, careerteam=careerteam, rows=rows, ga=ga_site, getplayer=getplayer, sf=sf[0], sqteam=sf[1], D0=D0, A0=A0, teamoff=teamoff, teamptr=teamptr, init=init.start(), draw=draw[0].start(1), pick=pick[0].start(1),
                 gpibp=gp, setcur=_rel(d1, t.start(1)), drawmenu=_rel(d1, t.start(2)), calc=_rel(d1, c.start(1)),
                 menu=start, users=users)
@@ -586,7 +592,8 @@ def patch(p, at, lang):
     sym = {'D0': (2, s['D0']), 'D1': (2, s['D0'] + 4), 'D6': (2, s['D0'] + 24), 'A0': (2, s['A0']), 'TEAMOFF': (2, s['teamoff']),
            'CALC': (1, s['calc']), 'SETCUR': (1, s['setcur']), 'DRAWMENU': (1, s['drawmenu']), 'GPIBP': (1, s['gpibp']),
            'XT_BLOCK': (1, xl['xt_block']), 'GETPLAYER': (1, s['getplayer']), 'SMSPP': (1, s['smspp']), 'CAREERTEAM': (2, s['careerteam']), 'SQTEAM': (2, s['sqteam']), 'PLAYER_': (0, xtra.PLAYER), 'MAXE_': (0, xtra.MAX_EXTRA), 'NEWENT_': (0, new),
-           'VSINIT': (1, s['vinit']), 'SQTP': (2, s['sqtp']), 'JOBVIEW': s['jobview']}
+           'VSINIT': (1, s['vinit']), 'SQTP': (2, s['sqtp']), 'JOBVIEW': s['jobview'],
+           'SHOWSQ': (1, s['showsq'])}
     code, fix = nasmcave.assemble(ASM, at, sym)
     lab = nasmcave.labels(ASM, at, sym)
     assert not any(p.get(1, at, len(code)))
@@ -637,6 +644,7 @@ def patch(p, at, lang):
     call(s['tail'], lab['xs_tail'], 5)                  # SquadFinish's `call SquadMenuSavePlayerPositions`
     call(s['vdraw'], lab['vs_row'], 5)                  # 4.0.5 the job letter's VIS. SQUADRA: page 2 = the extras
     call(s['vpick'], lab['vs_pick'], 5)
+    call(s['offer8'], lab['vs_offer'], 5)               # 4.0.5 the offer's '+' (Enzo): its SELEZ. GIOCATORE PER OFFERTA paged
     p.retarget(2, s['vmenu'], 1, lab['vs_init'])        # (viewSquadMenu's init pointer)
     p.put(2, s['vmenu'], struct.pack('<I', lab['vs_init']))
     print(f'exe: club browse pages: menu copy obj1+{mat:#x} ({len(copy)} B), code obj1+{at:#x} ({len(code)} B)')

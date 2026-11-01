@@ -6935,6 +6935,130 @@ def xtra_bid(s):
 
 
 @scenario
+def xtra_offer_plus():
+    """4.0.5 (Enzo's report): the offer's '+' (a 2nd player of the same club in the deal: SELEZ. GIOCATORE PER OFFERTA,
+    ShowSquad) pages the club's extras as the club browse does (xbrowse vs_offer / vs_init: PAG. SUCC. / PAG. PREC. right of
+    ESCI, the browse's geometry). On a RELEASE dir (XPLUS_BUILD, else foreign_exe()): a CHISOLA career (World 2026-27),
+    LIGORNA's list: (a) its third page-1 player, then '+' > PAG. SUCC. > its first extra: the offer names him (the deal's
+    2nd index 16 + his slot), bought: both in the squad by name, saved, reloaded with both; (b) a new career, the first
+    extra first (page 2), then '+' > page 1: the same third row, bought: both in the squad. (A bid 20% or more under
+    the pair's value is refused outright - 'non sono in vendita', the game's rule, as in 4.0.2 with two page-1 players -
+    so the bid is raised well over it first.)"""
+    exe = os.environ.get('XPLUS_BUILD') or foreign_exe()
+    if not exe:
+        return True, 'SKIP: no release SWOS dir (XPLUS_BUILD, or SWOSTEST_BUILD / W8485_BUILD with DATA/POOL05.DAT)'
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import lepatch
+    import xtra
+    p = lepatch.LEPatch(os.path.join(exe, 'ITALIAN.EXE'))
+    _, cnp, ct, cmp, sel = xtra.sites(p)
+    blk = xtra_club_block(exe, 'LIGORNA')
+    if not blk or not blk[1]:
+        return False, f'LIGORNA: no XTRA block in {exe}'
+    team, names = blk
+    errs, info = [], []
+    path = ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27', 'EUROPA', 'ITALIA', 'SERIE D GIRONE A', 'CHISOLA']
+
+    def squad(s):
+        r = s.result
+        n = struct.unpack('<H', r.obj2(cnp, 2))[0]
+        return n, [r.obj2(ct + 76 + j * 38 + 3, 23).split(b'\0')[0].decode('latin1') for j in range(32)]
+
+    def leave(s):
+        for _ in range(8):
+            if 'PROSS. PARTITA' in s.screen().texts():
+                break
+            press(s, s.screen(), 'CONTINUA', 3) or press(s, s.screen(), 'ESCI', 3) or s.send('fire dump:2')
+
+    def drawn(s):                                      # (the offer screen's last drawn player row: its name entry)
+        return next((e[1] for e in s.screen().entries if e[0] >= 20 and e[1] and e[1] != 'STDMENUTEXT' and len(e[1]) > 4
+                     and not e[1].startswith('(') and not e[1].startswith('L')), None)
+
+    def plus_menu(s, tag, page2, row):
+        walk(s, 8, 4)                                  # the offer's '+'
+        scr = s.screen()
+        b = next((e for e in scr.entries if e[0] == 3), None)
+        g = scr.geom[3] if len(scr.geom) > 3 else None
+        check(scr.texts()[:1] == ['SELEZ. GIOCATORE PER OFFERTA'] and b and b[1] == 'PAG. SUCC.' and not b[2],
+              f'{tag}: the + menu {scr.texts()[:4]} button {b}', errs)
+        check(g == (204, 185, 90, 15), f'{tag}: button geometry {g} (the club browse: (204, 185, 90, 15))', errs)
+        s.shot(tag + '_plus')
+        if page2:
+            walk(s, 'PAG. SUCC.', 3)
+            b = next((e for e in s.screen().entries if e[0] == 3), None)
+            check(b and b[1] == 'PAG. PREC.', f'{tag}: page 2 button {b}', errs)
+            s.shot(tag + '_plus_p2')
+        walk(s, row, 4)
+        check("FAI UN'OFFERTA" in s.screen().texts() and '-' in s.screen().texts(), f'{tag}: back to the offer with 2 '
+              f'players: {s.screen().texts()[:10]}', errs)
+        s.shot(tag + '_offer2')
+
+    def buy(s, tag):
+        sc = s.screen()
+        for k in (sc.path(9) or []):                   # the amount (the cursor comes back on the '-')
+            s.send(k + ' dump:0.5')
+        s.send(' '.join(['fire+right'] * 40) + ' dump:1')   # (two players: a bid well over 20% short is refused outright -
+        ans = xtra_bid(s)                              # 'non sono in vendita', cseg_584D7 - so bid high)
+        info.append(f'{tag}: answer {ans[:3]}')
+        check(any("E' LIETO" in x for x in ans), f'{tag}: not sold {ans[:5]}', errs)
+        leave(s)
+
+    car = None
+    with Session('xtra_offer_plus', exe, {}, 'dump:2', 600) as s:
+        s.wait()
+        if not pick_career(s, path):
+            return False, 'new career: ' + str(s.screen().texts()[:8])
+        s.send('fire dump:3')
+        leave(s)
+        n0, _ = squad(s)
+        xtra_browse_to(s, 'SERIE D GIRONE A', 'LIGORNA')
+        walk(s, 5, 4)                                  # (a) the third page-1 row
+        first = drawn(s)
+        plus_menu(s, 'a', True, 4)                     # '+' > page 2's first row
+        second = drawn(s)
+        check(second == names[0], f'a: the 2nd player drawn {second!r}, LIGORNA\'s first extra {names[0]!r}', errs)
+        buy(s, 'a')
+        n1, nm1 = squad(s)
+        check(n1 == n0 + 2 and first in nm1[:n1] and names[0] in nm1[:n1],
+              f'a: squad {n0} -> {n1}, {first} {first in nm1[:n1]}, {names[0]} {names[0] in nm1[:n1]}', errs)
+        info.append(f'a: {first} + {names[0]} (extra) bought, squad {n0} -> {n1}')
+        sold = s.result.read(s.result.base1 + xtra_xsold(p), 5)       # (the extra off LIGORNA's block: the sold list)
+        check(struct.unpack('<HHB', sold[:2] + sold[2:5])[1:] == (team, 16), f'a: sold list {sold.hex()}', errs)
+        walk(s, 'ESCI', 3)
+        walk(s, 'SALVA CARRIERA', 2)
+        s.send(name_entry('XPLS') + ' dump:3')
+        car = os.path.join(s.run, 'SWOS', 'XPLS.CAR')
+        check(os.path.exists(car), 'a: no save', errs)
+    if car and os.path.exists(car):
+        with Session('xtra_offer_plus_reload', exe, {'XPLS.CAR': car}, 'dump:2', 600) as s:
+            s.wait()
+            s.send(LOAD1 + ' dump:3')
+            n2, nm2 = squad(s)
+            check(n2 == n1 and first in nm2[:n2] and names[0] in nm2[:n2], f'a: reloaded squad {n2}', errs)
+            info.append(f'a: reloaded, squad {n2}')
+    with Session('xtra_offer_plus_b', exe, {}, 'dump:2', 600) as s:
+        s.wait()
+        if not pick_career(s, path):
+            return False, 'new career (b): ' + str(s.screen().texts()[:8])
+        s.send('fire dump:3')
+        leave(s)
+        n0, _ = squad(s)
+        xtra_browse_to(s, 'SERIE D GIRONE A', 'LIGORNA')
+        walk(s, 'PAG. SUCC.', 3)
+        walk(s, 3, 4)                                  # (b) the first extra
+        first = drawn(s)
+        check(first == names[0], f'b: the 1st player drawn {first!r}, LIGORNA\'s first extra {names[0]!r}', errs)
+        plus_menu(s, 'b', False, 6)                    # '+' > page 1's third row
+        second = drawn(s)
+        buy(s, 'b')
+        n1, nm1 = squad(s)
+        check(n1 == n0 + 2 and names[0] in nm1[:n1] and second in nm1[:n1],
+              f'b: squad {n0} -> {n1}, {names[0]} {names[0] in nm1[:n1]}, {second} {second in nm1[:n1]}', errs)
+        info.append(f'b: {names[0]} (extra) + {second} bought, squad {n0} -> {n1}')
+    return not errs, '; '.join(errs + info)
+
+
+@scenario
 def xtra_club_browse():
     """The extras findable in their club (4.0.2): XTRA30_BUILD (TM_EXTRA=14 world). In the club browse (ACQ. ALTRO GIOCAT. NAZION. >
     SERIE D > girone > club) LIGORNA's list has the button PAG. SUCC.; page 2 lists its extras (numbers 17.., shots); the first one
